@@ -1600,7 +1600,7 @@ static struct i2c_driver mt9m114_driver = {
 		.name = "mt9m114",
 		.acpi_match_table = mt9m114_acpi_match,
 	},
-	.probe_new = mt9m114_probe,
+	.probe = mt9m114_probe,
 	.remove = mt9m114_remove,
 };
 module_i2c_driver(mt9m114_driver);

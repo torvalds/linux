@@ -188,8 +188,8 @@ extern bool userfaultfd_remove(struct vm_area_struct *vma,
 			       unsigned long start,
 			       unsigned long end);
 
-extern int userfaultfd_unmap_prep(struct mm_struct *mm, unsigned long start,
-				  unsigned long end, struct list_head *uf);
+extern int userfaultfd_unmap_prep(struct vm_area_struct *vma,
+		unsigned long start, unsigned long end, struct list_head *uf);
 extern void userfaultfd_unmap_complete(struct mm_struct *mm,
 				       struct list_head *uf);
 extern bool userfaultfd_wp_unpopulated(struct vm_area_struct *vma);
@@ -271,7 +271,7 @@ static inline bool userfaultfd_remove(struct vm_area_struct *vma,
 	return true;
 }
 
-static inline int userfaultfd_unmap_prep(struct mm_struct *mm,
+static inline int userfaultfd_unmap_prep(struct vm_area_struct *vma,
 					 unsigned long start, unsigned long end,
 					 struct list_head *uf)
 {

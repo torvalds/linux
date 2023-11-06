@@ -1374,16 +1374,13 @@ static int mlx4_mf_bond(struct mlx4_dev *dev)
 	int nvfs;
 	struct mlx4_slaves_pport slaves_port1;
 	struct mlx4_slaves_pport slaves_port2;
-	DECLARE_BITMAP(slaves_port_1_2, MLX4_MFUNC_MAX);
 
 	slaves_port1 = mlx4_phys_to_slaves_pport(dev, 1);
 	slaves_port2 = mlx4_phys_to_slaves_pport(dev, 2);
-	bitmap_and(slaves_port_1_2,
-		   slaves_port1.slaves, slaves_port2.slaves,
-		   dev->persist->num_vfs + 1);
 
 	/* only single port vfs are allowed */
-	if (bitmap_weight(slaves_port_1_2, dev->persist->num_vfs + 1) > 1) {
+	if (bitmap_weight_and(slaves_port1.slaves, slaves_port2.slaves,
+			      dev->persist->num_vfs + 1) > 1) {
 		mlx4_warn(dev, "HA mode unsupported for dual ported VFs\n");
 		return -EINVAL;
 	}
@@ -3027,13 +3024,43 @@ no_msi:
 	}
 }
 
+static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
+				      enum devlink_port_type port_type)
+{
+	struct mlx4_port_info *info = container_of(devlink_port,
+						   struct mlx4_port_info,
+						   devlink_port);
+	enum mlx4_port_type mlx4_port_type;
+
+	switch (port_type) {
+	case DEVLINK_PORT_TYPE_AUTO:
+		mlx4_port_type = MLX4_PORT_TYPE_AUTO;
+		break;
+	case DEVLINK_PORT_TYPE_ETH:
+		mlx4_port_type = MLX4_PORT_TYPE_ETH;
+		break;
+	case DEVLINK_PORT_TYPE_IB:
+		mlx4_port_type = MLX4_PORT_TYPE_IB;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return __set_port_type(info, mlx4_port_type);
+}
+
+static const struct devlink_port_ops mlx4_devlink_port_ops = {
+	.port_type_set = mlx4_devlink_port_type_set,
+};
+
 static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 {
 	struct devlink *devlink = priv_to_devlink(mlx4_priv(dev));
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
 	int err;
 
-	err = devl_port_register(devlink, &info->devlink_port, port);
+	err = devl_port_register_with_ops(devlink, &info->devlink_port, port,
+					  &mlx4_devlink_port_ops);
 	if (err)
 		return err;
 
@@ -3877,31 +3904,6 @@ err_disable_pdev:
 	return err;
 }
 
-static int mlx4_devlink_port_type_set(struct devlink_port *devlink_port,
-				      enum devlink_port_type port_type)
-{
-	struct mlx4_port_info *info = container_of(devlink_port,
-						   struct mlx4_port_info,
-						   devlink_port);
-	enum mlx4_port_type mlx4_port_type;
-
-	switch (port_type) {
-	case DEVLINK_PORT_TYPE_AUTO:
-		mlx4_port_type = MLX4_PORT_TYPE_AUTO;
-		break;
-	case DEVLINK_PORT_TYPE_ETH:
-		mlx4_port_type = MLX4_PORT_TYPE_ETH;
-		break;
-	case DEVLINK_PORT_TYPE_IB:
-		mlx4_port_type = MLX4_PORT_TYPE_IB;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	return __set_port_type(info, mlx4_port_type);
-}
-
 static void mlx4_devlink_param_load_driverinit_values(struct devlink *devlink)
 {
 	struct mlx4_priv *priv = devlink_priv(devlink);
@@ -3986,7 +3988,6 @@ static int mlx4_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 }
 
 static const struct devlink_ops mlx4_devlink_ops = {
-	.port_type_set	= mlx4_devlink_port_type_set,
 	.reload_actions = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT),
 	.reload_down	= mlx4_devlink_reload_down,
 	.reload_up	= mlx4_devlink_reload_up,

@@ -799,17 +799,21 @@ static void jit_add_pid(struct machine *machine, pid_t pid)
 		return;
 	}
 
-	thread->priv = (void *)1;
+	thread__set_priv(thread, (void *)true);
+	thread__put(thread);
 }
 
 static bool jit_has_pid(struct machine *machine, pid_t pid)
 {
 	struct thread *thread = machine__find_thread(machine, pid, pid);
+	void *priv;
 
 	if (!thread)
-		return 0;
+		return false;
 
-	return (bool)thread->priv;
+	priv = thread__priv(thread);
+	thread__put(thread);
+	return (bool)priv;
 }
 
 int
@@ -833,7 +837,7 @@ jit_process(struct perf_session *session,
 		return 0;
 	}
 
-	nsi = nsinfo__get(thread->nsinfo);
+	nsi = nsinfo__get(thread__nsinfo(thread));
 	thread__put(thread);
 
 	/*

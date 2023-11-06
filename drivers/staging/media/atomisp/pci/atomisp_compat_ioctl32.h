@@ -67,26 +67,6 @@ struct atomisp_3a_statistics32 {
 	u32 isp_config_id;
 };
 
-struct atomisp_metadata_with_type32 {
-	/* to specify which type of metadata to get */
-	enum atomisp_metadata_type type;
-	compat_uptr_t data;
-	u32 width;
-	u32 height;
-	u32 stride; /* in bytes */
-	u32 exp_id; /* exposure ID */
-	compat_uptr_t effective_width;
-};
-
-struct atomisp_metadata32 {
-	compat_uptr_t data;
-	u32 width;
-	u32 height;
-	u32 stride;
-	u32 exp_id;
-	compat_uptr_t effective_width;
-};
-
 struct atomisp_morph_table32 {
 	unsigned int enabled;
 	unsigned int height;
@@ -132,18 +112,6 @@ struct atomisp_overlay32 {
 	/* the overlay start y pixel position on output frame It should be the
 	   multiples of 2. */
 	unsigned int overlay_start_y;
-};
-
-struct atomisp_calibration_group32 {
-	unsigned int size;
-	unsigned int type;
-	compat_uptr_t calb_grp_values;
-};
-
-struct v4l2_private_int_data32 {
-	__u32 size;
-	compat_uptr_t data;
-	__u32 reserved[2];
 };
 
 struct atomisp_shading_table32 {
@@ -249,11 +217,6 @@ struct atomisp_dvs_6axis_config32 {
 	compat_uptr_t ycoords_uv;
 };
 
-struct atomisp_sensor_ae_bracketing_lut32 {
-	compat_uptr_t lut;
-	unsigned int lut_size;
-};
-
 #define ATOMISP_IOC_G_HISTOGRAM32 \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 3, struct atomisp_histogram32)
 #define ATOMISP_IOC_S_HISTOGRAM32 \
@@ -283,28 +246,10 @@ struct atomisp_sensor_ae_bracketing_lut32 {
 #define ATOMISP_IOC_S_ISP_OVERLAY32 \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 18, struct atomisp_overlay32)
 
-#define ATOMISP_IOC_G_SENSOR_CALIBRATION_GROUP32 \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 22, struct atomisp_calibration_group32)
-
-#define ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA32 \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 26, struct v4l2_private_int_data32)
-
 #define ATOMISP_IOC_S_ISP_SHD_TAB32 \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 27, struct atomisp_shading_table32)
 
-#define ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA32 \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 29, struct v4l2_private_int_data32)
-
 #define ATOMISP_IOC_S_PARAMETERS32 \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters32)
-
-#define ATOMISP_IOC_G_METADATA32 \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata32)
-
-#define ATOMISP_IOC_G_METADATA_BY_TYPE32 \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata_with_type32)
-
-#define ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT32 \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 43, struct atomisp_sensor_ae_bracketing_lut32)
 
 #endif /* __ATOMISP_COMPAT_IOCTL32_H__ */

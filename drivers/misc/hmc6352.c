@@ -131,7 +131,7 @@ static struct i2c_driver hmc6352_driver = {
 	.driver = {
 		.name = "hmc6352",
 	},
-	.probe_new = hmc6352_probe,
+	.probe = hmc6352_probe,
 	.remove = hmc6352_remove,
 	.id_table = hmc6352_id,
 };

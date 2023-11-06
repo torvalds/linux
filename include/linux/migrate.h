@@ -7,8 +7,8 @@
 #include <linux/migrate_mode.h>
 #include <linux/hugetlb.h>
 
-typedef struct page *new_page_t(struct page *page, unsigned long private);
-typedef void free_page_t(struct page *page, unsigned long private);
+typedef struct folio *new_folio_t(struct folio *folio, unsigned long private);
+typedef void free_folio_t(struct folio *folio, unsigned long private);
 
 struct migration_target_control;
 
@@ -67,16 +67,16 @@ int migrate_folio_extra(struct address_space *mapping, struct folio *dst,
 		struct folio *src, enum migrate_mode mode, int extra_count);
 int migrate_folio(struct address_space *mapping, struct folio *dst,
 		struct folio *src, enum migrate_mode mode);
-int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+int migrate_pages(struct list_head *l, new_folio_t new, free_folio_t free,
 		  unsigned long private, enum migrate_mode mode, int reason,
 		  unsigned int *ret_succeeded);
-struct page *alloc_migration_target(struct page *page, unsigned long private);
+struct folio *alloc_migration_target(struct folio *src, unsigned long private);
 bool isolate_movable_page(struct page *page, isolate_mode_t mode);
 
 int migrate_huge_page_move_mapping(struct address_space *mapping,
 		struct folio *dst, struct folio *src);
-void migration_entry_wait_on_locked(swp_entry_t entry, pte_t *ptep,
-				spinlock_t *ptl);
+void migration_entry_wait_on_locked(swp_entry_t entry, spinlock_t *ptl)
+		__releases(ptl);
 void folio_migrate_flags(struct folio *newfolio, struct folio *folio);
 void folio_migrate_copy(struct folio *newfolio, struct folio *folio);
 int folio_migrate_mapping(struct address_space *mapping,
@@ -85,11 +85,11 @@ int folio_migrate_mapping(struct address_space *mapping,
 #else
 
 static inline void putback_movable_pages(struct list_head *l) {}
-static inline int migrate_pages(struct list_head *l, new_page_t new,
-		free_page_t free, unsigned long private, enum migrate_mode mode,
-		int reason, unsigned int *ret_succeeded)
+static inline int migrate_pages(struct list_head *l, new_folio_t new,
+		free_folio_t free, unsigned long private,
+		enum migrate_mode mode, int reason, unsigned int *ret_succeeded)
 	{ return -ENOSYS; }
-static inline struct page *alloc_migration_target(struct page *page,
+static inline struct folio *alloc_migration_target(struct folio *src,
 		unsigned long private)
 	{ return NULL; }
 static inline bool isolate_movable_page(struct page *page, isolate_mode_t mode)

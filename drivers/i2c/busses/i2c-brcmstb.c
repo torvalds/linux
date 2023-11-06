@@ -690,12 +690,11 @@ probe_errorout:
 	return rc;
 }
 
-static int brcmstb_i2c_remove(struct platform_device *pdev)
+static void brcmstb_i2c_remove(struct platform_device *pdev)
 {
 	struct brcmstb_i2c_dev *dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&dev->adapter);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -736,7 +735,7 @@ static struct platform_driver brcmstb_i2c_driver = {
 		   .pm = &brcmstb_i2c_pm,
 		   },
 	.probe = brcmstb_i2c_probe,
-	.remove = brcmstb_i2c_remove,
+	.remove_new = brcmstb_i2c_remove,
 };
 module_platform_driver(brcmstb_i2c_driver);
 

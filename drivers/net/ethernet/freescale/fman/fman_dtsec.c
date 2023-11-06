@@ -763,15 +763,15 @@ static void dtsec_pcs_get_state(struct phylink_pcs *pcs,
 	phylink_mii_c22_pcs_get_state(dtsec->tbidev, state);
 }
 
-static int dtsec_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int dtsec_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			    phy_interface_t interface,
 			    const unsigned long *advertising,
 			    bool permit_pause_to_mac)
 {
 	struct fman_mac *dtsec = pcs_to_dtsec(pcs);
 
-	return phylink_mii_c22_pcs_config(dtsec->tbidev, mode, interface,
-					  advertising);
+	return phylink_mii_c22_pcs_config(dtsec->tbidev, interface,
+					  advertising, neg_mode);
 }
 
 static void dtsec_pcs_an_restart(struct phylink_pcs *pcs)
@@ -1447,6 +1447,7 @@ int dtsec_initialization(struct mac_device *mac_dev,
 		goto _return_fm_mac_free;
 	}
 	dtsec->pcs.ops = &dtsec_pcs_ops;
+	dtsec->pcs.neg_mode = true;
 	dtsec->pcs.poll = true;
 
 	supported = mac_dev->phylink_config.supported_interfaces;

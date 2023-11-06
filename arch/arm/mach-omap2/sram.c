@@ -45,7 +45,7 @@
 
 #define GP_DEVICE		0x300
 
-#define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
+#define ROUND_DOWN(value, boundary)	((value) & (~((boundary) - 1)))
 
 static unsigned long omap_sram_start;
 static unsigned long omap_sram_size;
@@ -118,7 +118,7 @@ static void omap_sram_reset(void)
  */
 static int is_sram_locked(void)
 {
-	if (OMAP2_DEVICE_TYPE_GP == omap_type()) {
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
 			writel_relaxed(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */

@@ -41,8 +41,7 @@
 #include "symbol.h"
 #include "ui/ui.h"
 #include "ui/progress.h"
-#include "pmu.h"
-#include "pmu-hybrid.h"
+#include "pmus.h"
 #include "string2.h"
 #include "util/util.h"
 
@@ -285,25 +284,31 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	struct hist_entry *he;
 	struct addr_location al;
 	struct mem_info *mi, *mi_dup;
+	struct callchain_cursor *cursor;
 	int ret;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	if (c2c.stitch_lbr)
-		al.thread->lbr_stitch_enable = true;
+		thread__set_lbr_stitch_enable(al.thread, true);
 
-	ret = sample__resolve_callchain(sample, &callchain_cursor, NULL,
+	cursor = get_tls_callchain_cursor();
+	ret = sample__resolve_callchain(sample, cursor, NULL,
 					evsel, &al, sysctl_perf_event_max_stack);
 	if (ret)
 		goto out;
 
 	mi = sample__resolve_mem(sample, &al);
-	if (mi == NULL)
-		return -ENOMEM;
+	if (mi == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/*
 	 * The mi object is released in hists__add_entry_ops,
@@ -369,7 +374,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	}
 
 out:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return ret;
 
 free_mi:
@@ -1150,14 +1155,14 @@ pid_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 {
 	int width = c2c_width(fmt, hpp, he->hists);
 
-	return scnprintf(hpp->buf, hpp->size, "%*d", width, he->thread->pid_);
+	return scnprintf(hpp->buf, hpp->size, "%*d", width, thread__pid(he->thread));
 }
 
 static int64_t
 pid_cmp(struct perf_hpp_fmt *fmt __maybe_unused,
 	struct hist_entry *left, struct hist_entry *right)
 {
-	return left->thread->pid_ - right->thread->pid_;
+	return thread__pid(left->thread) - thread__pid(right->thread);
 }
 
 static int64_t
@@ -3259,10 +3264,8 @@ static int perf_c2c__record(int argc, const char **argv)
 	argc = parse_options(argc, argv, options, record_mem_usage,
 			     PARSE_OPT_KEEP_UNKNOWN);
 
-	if (!perf_pmu__has_hybrid())
-		rec_argc = argc + 11; /* max number of arguments */
-	else
-		rec_argc = argc + 11 * perf_pmu__hybrid_pmu_num();
+	/* Max number of arguments multiplied by number of PMUs that can support them. */
+	rec_argc = argc + 11 * perf_pmus__num_mem_pmus();
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)

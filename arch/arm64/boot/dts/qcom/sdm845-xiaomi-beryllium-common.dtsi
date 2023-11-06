@@ -115,6 +115,14 @@
 		};
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+
+		charge-full-design-microamp-hours = <4000000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4400000>;
+	};
+
 	vreg_s4a_1p8: vreg-s4a-1p8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_s4a_1p8";
@@ -223,39 +231,6 @@
 	firmware-name = "qcom/sdm845/beryllium/cdsp.mbn";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vreg_l26a_1p2>;
-
-	display_panel: panel@0 {
-		reg = <0>;
-		vddio-supply = <&vreg_l14a_1p8>;
-		vddpos-supply = <&lab>;
-		vddneg-supply = <&ibb>;
-
-		backlight = <&pmi8998_wled>;
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
-
-		status = "disabled";
-
-		port {
-			panel_in_0: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in_0>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vreg_l1a_0p875>;
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -296,6 +271,39 @@
 
 &mdss {
 	status = "okay";
+};
+
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vreg_l26a_1p2>;
+
+	display_panel: panel@0 {
+		reg = <0>;
+		vddio-supply = <&vreg_l14a_1p8>;
+		vddpos-supply = <&lab>;
+		vddneg-supply = <&ibb>;
+
+		backlight = <&pmi8998_wled>;
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+
+		port {
+			panel_in_0: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in_0>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l1a_0p875>;
 };
 
 &mss_pil {
@@ -341,12 +349,14 @@
 	qcom,cabc;
 };
 
-&pm8998_resin {
-	linux,code = <KEY_VOLUMEDOWN>;
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+
 	status = "okay";
 };
 
-&pmi8998_rradc {
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
 };
 

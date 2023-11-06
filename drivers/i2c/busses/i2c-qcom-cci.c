@@ -581,8 +581,7 @@ static int cci_probe(struct platform_device *pdev)
 
 	/* Memory */
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cci->base = devm_ioremap_resource(dev, r);
+	cci->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(cci->base))
 		return PTR_ERR(cci->base);
 
@@ -675,7 +674,7 @@ disable_clocks:
 	return ret;
 }
 
-static int cci_remove(struct platform_device *pdev)
+static void cci_remove(struct platform_device *pdev)
 {
 	struct cci *cci = platform_get_drvdata(pdev);
 	int i;
@@ -691,8 +690,6 @@ static int cci_remove(struct platform_device *pdev)
 	disable_irq(cci->irq);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	return 0;
 }
 
 static const struct cci_data cci_v1_data = {
@@ -829,7 +826,7 @@ MODULE_DEVICE_TABLE(of, cci_dt_match);
 
 static struct platform_driver qcom_cci_driver = {
 	.probe  = cci_probe,
-	.remove = cci_remove,
+	.remove_new = cci_remove,
 	.driver = {
 		.name = "i2c-qcom-cci",
 		.of_match_table = cci_dt_match,

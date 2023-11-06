@@ -100,7 +100,7 @@ static struct i2c_driver adt7410_driver = {
 		.name	= "adt7410",
 		.pm	= pm_sleep_ptr(&adt7x10_dev_pm_ops),
 	},
-	.probe_new	= adt7410_i2c_probe,
+	.probe		= adt7410_i2c_probe,
 	.id_table	= adt7410_ids,
 	.address_list	= I2C_ADDRS(0x48, 0x49, 0x4a, 0x4b),
 };

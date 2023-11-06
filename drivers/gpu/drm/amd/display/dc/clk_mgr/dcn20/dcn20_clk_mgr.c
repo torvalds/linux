@@ -531,6 +531,11 @@ void dcn20_clk_mgr_construct(
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg)
 {
+	int dprefclk_did;
+	int target_div;
+	uint32_t pll_req_reg;
+	struct fixed31_32 pll_req;
+
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->pp_smu = pp_smu;
 	clk_mgr->base.funcs = &dcn2_funcs;
@@ -547,42 +552,34 @@ void dcn20_clk_mgr_construct(
 
 	clk_mgr->base.dprefclk_khz = 700000; // 700 MHz planned if VCO is 3.85 GHz, will be retrieved
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		dcn2_funcs.update_clocks = dcn2_update_clocks_fpga;
+	/* DFS Slice 2 should be used for DPREFCLK */
+	dprefclk_did = REG_READ(CLK3_CLK2_DFS_CNTL);
+	/* Convert DPREFCLK DFS Slice DID to actual divider */
+	target_div = dentist_get_divider_from_did(dprefclk_did);
+	/* get FbMult value */
+	pll_req_reg = REG_READ(CLK3_CLK_PLL_REQ);
+
+	/* set up a fixed-point number
+	 * this works because the int part is on the right edge of the register
+	 * and the frac part is on the left edge
+	 */
+
+	pll_req = dc_fixpt_from_int(pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_int);
+	pll_req.value |= pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_frac;
+
+	/* multiply by REFCLK period */
+	pll_req = dc_fixpt_mul_int(pll_req, 100000);
+
+	/* integer part is now VCO frequency in kHz */
+	clk_mgr->base.dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
+
+	/* in case we don't get a value from the register, use default */
+	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 3850000;
 
-	} else {
-		/* DFS Slice 2 should be used for DPREFCLK */
-		int dprefclk_did = REG_READ(CLK3_CLK2_DFS_CNTL);
-		/* Convert DPREFCLK DFS Slice DID to actual divider*/
-		int target_div = dentist_get_divider_from_did(dprefclk_did);
-
-		/* get FbMult value */
-		uint32_t pll_req_reg = REG_READ(CLK3_CLK_PLL_REQ);
-		struct fixed31_32 pll_req;
-
-		/* set up a fixed-point number
-		 * this works because the int part is on the right edge of the register
-		 * and the frac part is on the left edge
-		 */
-
-		pll_req = dc_fixpt_from_int(pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_int);
-		pll_req.value |= pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_frac;
-
-		/* multiply by REFCLK period */
-		pll_req = dc_fixpt_mul_int(pll_req, 100000);
-
-		/* integer part is now VCO frequency in kHz */
-		clk_mgr->base.dentist_vco_freq_khz = dc_fixpt_floor(pll_req);
-
-		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.dentist_vco_freq_khz = 3850000;
-
-		/* Calculate the DPREFCLK in kHz.*/
-		clk_mgr->base.dprefclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
-	}
+	/* Calculate the DPREFCLK in kHz.*/
+	clk_mgr->base.dprefclk_khz = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+		* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 	//Integrated_info table does not exist on dGPU projects so should not be referenced
 	//anywhere in code for dGPUs.
 	//Also there is no plan for now that DFS BYPASS will be used on NV10/12/14.
@@ -590,4 +587,3 @@ void dcn20_clk_mgr_construct(
 
 	dce_clock_read_ss_info(clk_mgr);
 }
-

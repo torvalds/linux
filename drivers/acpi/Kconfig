@@ -542,10 +542,10 @@ config ACPI_PFRUT
 
 if ARM64
 source "drivers/acpi/arm64/Kconfig"
+endif
 
 config ACPI_PPTT
 	bool
-endif
 
 config ACPI_PCC
 	bool "ACPI PCC Address Space"

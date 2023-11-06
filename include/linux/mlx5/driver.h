@@ -382,7 +382,6 @@ enum mlx5_res_type {
 	MLX5_RES_SRQ	= 3,
 	MLX5_RES_XSRQ	= 4,
 	MLX5_RES_XRQ	= 5,
-	MLX5_RES_DCT	= MLX5_EVENT_QUEUE_TYPE_DCT,
 };
 
 struct mlx5_core_rsc_common {
@@ -443,15 +442,6 @@ struct mlx5_core_health {
 	struct delayed_work		update_fw_log_ts_work;
 };
 
-struct mlx5_qp_table {
-	struct notifier_block   nb;
-
-	/* protect radix tree
-	 */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
 enum {
 	MLX5_PF_NOTIFY_DISABLE_VF,
 	MLX5_PF_NOTIFY_ENABLE_VF,
@@ -474,6 +464,7 @@ struct mlx5_core_sriov {
 	struct mlx5_vf_context	*vfs_ctx;
 	int			num_vfs;
 	u16			max_vfs;
+	u16			max_ec_vfs;
 };
 
 struct mlx5_fc_pool {
@@ -580,6 +571,7 @@ enum mlx5_func_type {
 	MLX5_VF,
 	MLX5_SF,
 	MLX5_HOST_PF,
+	MLX5_EC_VF,
 	MLX5_FUNC_TYPE_NUM,
 };
 
@@ -1174,7 +1166,13 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 u64 *values,
 				 int num_counters,
 				 size_t *offsets);
-struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev);
+struct mlx5_core_dev *mlx5_lag_get_next_peer_mdev(struct mlx5_core_dev *dev, int *i);
+
+#define mlx5_lag_for_each_peer_mdev(dev, peer, i)				\
+	for (i = 0, peer = mlx5_lag_get_next_peer_mdev(dev, &i);		\
+	     peer;								\
+	     peer = mlx5_lag_get_next_peer_mdev(dev, &i))
+
 u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
@@ -1248,6 +1246,11 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 	return  MLX5_CAP_GEN(dev, vport_group_manager) &&
 		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
 		    MLX5_CAP_GEN(dev, lag_master);
+}
+
+static inline u16 mlx5_core_max_ec_vfs(const struct mlx5_core_dev *dev)
+{
+	return dev->priv.sriov.max_ec_vfs;
 }
 
 static inline int mlx5_get_gid_table_len(u16 param)

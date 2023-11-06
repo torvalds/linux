@@ -122,8 +122,8 @@ are exportable by setting the s_export_op field in the struct
 super_block.  This field must point to a "struct export_operations"
 struct which has the following members:
 
- encode_fh  (optional)
-    Takes a dentry and creates a filehandle fragment which can later be used
+  encode_fh (optional)
+    Takes a dentry and creates a filehandle fragment which may later be used
     to find or create a dentry for the same object.  The default
     implementation creates a filehandle fragment that encodes a 32bit inode
     and generation number for the inode encoded, and if necessary the

@@ -126,7 +126,7 @@ static int simtec_i2c_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int simtec_i2c_remove(struct platform_device *dev)
+static void simtec_i2c_remove(struct platform_device *dev)
 {
 	struct simtec_i2c_data *pd = platform_get_drvdata(dev);
 
@@ -135,8 +135,6 @@ static int simtec_i2c_remove(struct platform_device *dev)
 	iounmap(pd->reg);
 	release_mem_region(pd->ioarea->start, resource_size(pd->ioarea));
 	kfree(pd);
-
-	return 0;
 }
 
 /* device driver */
@@ -146,7 +144,7 @@ static struct platform_driver simtec_i2c_driver = {
 		.name		= "simtec-i2c",
 	},
 	.probe		= simtec_i2c_probe,
-	.remove		= simtec_i2c_remove,
+	.remove_new	= simtec_i2c_remove,
 };
 
 module_platform_driver(simtec_i2c_driver);

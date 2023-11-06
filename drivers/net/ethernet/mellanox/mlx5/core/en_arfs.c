@@ -135,6 +135,16 @@ static void arfs_del_rules(struct mlx5e_flow_steering *fs);
 
 int mlx5e_arfs_disable(struct mlx5e_flow_steering *fs)
 {
+	/* Moving to switchdev mode, fs->arfs is freed by mlx5e_nic_profile
+	 * cleanup_rx callback and it is not recreated when
+	 * mlx5e_uplink_rep_profile is loaded as mlx5e_create_flow_steering()
+	 * is not called by the uplink_rep profile init_rx callback. Thus, if
+	 * ntuple is set, moving to switchdev flow will enter this function
+	 * with fs->arfs nullified.
+	 */
+	if (!mlx5e_fs_get_arfs(fs))
+		return 0;
+
 	arfs_del_rules(fs);
 
 	return arfs_disable(fs);
@@ -570,10 +580,10 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		priv->channel_stats[arfs_rule->rxq]->rq.arfs_err++;
-		mlx5e_dbg(HW, priv,
-			  "%s: add rule(filter id=%d, rq idx=%d, ip proto=0x%x) failed,err=%d\n",
-			  __func__, arfs_rule->filter_id, arfs_rule->rxq,
-			  tuple->ip_proto, err);
+		netdev_dbg(priv->netdev,
+			   "%s: add rule(filter id=%d, rq idx=%d, ip proto=0x%x) failed,err=%d\n",
+			   __func__, arfs_rule->filter_id, arfs_rule->rxq,
+			   tuple->ip_proto, err);
 	}
 
 out:

@@ -12,7 +12,7 @@
 
 #define DPU_FETCH_CONFIG_RESET_VALUE   0x00000087
 
-/* DPU_SSPP_SRC */
+/* SSPP registers */
 #define SSPP_SRC_SIZE                      0x00
 #define SSPP_SRC_XY                        0x08
 #define SSPP_OUT_SIZE                      0x0c
@@ -26,45 +26,18 @@
 #define SSPP_SRC_FORMAT                    0x30
 #define SSPP_SRC_UNPACK_PATTERN            0x34
 #define SSPP_SRC_OP_MODE                   0x38
-
-/* SSPP_MULTIRECT*/
-#define SSPP_SRC_SIZE_REC1                 0x16C
-#define SSPP_SRC_XY_REC1                   0x168
-#define SSPP_OUT_SIZE_REC1                 0x160
-#define SSPP_OUT_XY_REC1                   0x164
-#define SSPP_SRC_FORMAT_REC1               0x174
-#define SSPP_SRC_UNPACK_PATTERN_REC1       0x178
-#define SSPP_SRC_OP_MODE_REC1              0x17C
-#define SSPP_MULTIRECT_OPMODE              0x170
-#define SSPP_SRC_CONSTANT_COLOR_REC1       0x180
-#define SSPP_EXCL_REC_SIZE_REC1            0x184
-#define SSPP_EXCL_REC_XY_REC1              0x188
-
-#define MDSS_MDP_OP_DEINTERLACE            BIT(22)
-#define MDSS_MDP_OP_DEINTERLACE_ODD        BIT(23)
-#define MDSS_MDP_OP_IGC_ROM_1              BIT(18)
-#define MDSS_MDP_OP_IGC_ROM_0              BIT(17)
-#define MDSS_MDP_OP_IGC_EN                 BIT(16)
-#define MDSS_MDP_OP_FLIP_UD                BIT(14)
-#define MDSS_MDP_OP_FLIP_LR                BIT(13)
-#define MDSS_MDP_OP_BWC_EN                 BIT(0)
-#define MDSS_MDP_OP_PE_OVERRIDE            BIT(31)
-#define MDSS_MDP_OP_BWC_LOSSLESS           (0 << 1)
-#define MDSS_MDP_OP_BWC_Q_HIGH             (1 << 1)
-#define MDSS_MDP_OP_BWC_Q_MED              (2 << 1)
-
 #define SSPP_SRC_CONSTANT_COLOR            0x3c
 #define SSPP_EXCL_REC_CTL                  0x40
 #define SSPP_UBWC_STATIC_CTRL              0x44
-#define SSPP_FETCH_CONFIG                  0x048
+#define SSPP_FETCH_CONFIG                  0x48
 #define SSPP_DANGER_LUT                    0x60
 #define SSPP_SAFE_LUT                      0x64
 #define SSPP_CREQ_LUT                      0x68
 #define SSPP_QOS_CTRL                      0x6C
-#define SSPP_DECIMATION_CONFIG             0xB4
 #define SSPP_SRC_ADDR_SW_STATUS            0x70
 #define SSPP_CREQ_LUT_0                    0x74
 #define SSPP_CREQ_LUT_1                    0x78
+#define SSPP_DECIMATION_CONFIG             0xB4
 #define SSPP_SW_PIX_EXT_C0_LR              0x100
 #define SSPP_SW_PIX_EXT_C0_TB              0x104
 #define SSPP_SW_PIX_EXT_C0_REQ_PIXELS      0x108
@@ -81,11 +54,33 @@
 #define SSPP_TRAFFIC_SHAPER_PREFILL        0x150
 #define SSPP_TRAFFIC_SHAPER_REC1_PREFILL   0x154
 #define SSPP_TRAFFIC_SHAPER_REC1           0x158
+#define SSPP_OUT_SIZE_REC1                 0x160
+#define SSPP_OUT_XY_REC1                   0x164
+#define SSPP_SRC_XY_REC1                   0x168
+#define SSPP_SRC_SIZE_REC1                 0x16C
+#define SSPP_MULTIRECT_OPMODE              0x170
+#define SSPP_SRC_FORMAT_REC1               0x174
+#define SSPP_SRC_UNPACK_PATTERN_REC1       0x178
+#define SSPP_SRC_OP_MODE_REC1              0x17C
+#define SSPP_SRC_CONSTANT_COLOR_REC1       0x180
+#define SSPP_EXCL_REC_SIZE_REC1            0x184
+#define SSPP_EXCL_REC_XY_REC1              0x188
 #define SSPP_EXCL_REC_SIZE                 0x1B4
 #define SSPP_EXCL_REC_XY                   0x1B8
-#define SSPP_VIG_OP_MODE                   0x0
-#define SSPP_VIG_CSC_10_OP_MODE            0x0
-#define SSPP_TRAFFIC_SHAPER_BPC_MAX        0xFF
+
+/* SSPP_SRC_OP_MODE & OP_MODE_REC1 */
+#define MDSS_MDP_OP_DEINTERLACE            BIT(22)
+#define MDSS_MDP_OP_DEINTERLACE_ODD        BIT(23)
+#define MDSS_MDP_OP_IGC_ROM_1              BIT(18)
+#define MDSS_MDP_OP_IGC_ROM_0              BIT(17)
+#define MDSS_MDP_OP_IGC_EN                 BIT(16)
+#define MDSS_MDP_OP_FLIP_UD                BIT(14)
+#define MDSS_MDP_OP_FLIP_LR                BIT(13)
+#define MDSS_MDP_OP_BWC_EN                 BIT(0)
+#define MDSS_MDP_OP_PE_OVERRIDE            BIT(31)
+#define MDSS_MDP_OP_BWC_LOSSLESS           (0 << 1)
+#define MDSS_MDP_OP_BWC_Q_HIGH             (1 << 1)
+#define MDSS_MDP_OP_BWC_Q_MED              (2 << 1)
 
 /* SSPP_QOS_CTRL */
 #define SSPP_QOS_CTRL_VBLANK_EN            BIT(16)
@@ -96,6 +91,7 @@
 #define SSPP_QOS_CTRL_CREQ_VBLANK_OFF      20
 
 /* DPU_SSPP_SCALER_QSEED2 */
+#define SSPP_VIG_OP_MODE                   0x0
 #define SCALE_CONFIG                       0x04
 #define COMP0_3_PHASE_STEP_X               0x10
 #define COMP0_3_PHASE_STEP_Y               0x14
@@ -106,6 +102,9 @@
 #define COMP1_2_INIT_PHASE_X               0x28
 #define COMP1_2_INIT_PHASE_Y               0x2C
 #define VIG_0_QSEED2_SHARP                 0x30
+
+/* SSPP_TRAFFIC_SHAPER and _REC1 */
+#define SSPP_TRAFFIC_SHAPER_BPC_MAX        0xFF
 
 /*
  * Definitions for ViG op modes
@@ -128,6 +127,7 @@
 /*
  * Definitions for CSC 10 op modes
  */
+#define SSPP_VIG_CSC_10_OP_MODE            0x0
 #define VIG_CSC_10_SRC_DATAFMT BIT(1)
 #define VIG_CSC_10_EN          BIT(0)
 #define CSC_10BIT_OFFSET       4
@@ -136,45 +136,12 @@
 #define TS_CLK			19200000
 
 
-static int _sspp_subblk_offset(struct dpu_hw_sspp *ctx,
-		int s_id,
-		u32 *idx)
-{
-	int rc = 0;
-	const struct dpu_sspp_sub_blks *sblk;
-
-	if (!ctx || !ctx->cap || !ctx->cap->sblk)
-		return -EINVAL;
-
-	sblk = ctx->cap->sblk;
-
-	switch (s_id) {
-	case DPU_SSPP_SRC:
-		*idx = sblk->src_blk.base;
-		break;
-	case DPU_SSPP_SCALER_QSEED2:
-	case DPU_SSPP_SCALER_QSEED3:
-	case DPU_SSPP_SCALER_RGB:
-		*idx = sblk->scaler_blk.base;
-		break;
-	case DPU_SSPP_CSC:
-	case DPU_SSPP_CSC_10BIT:
-		*idx = sblk->csc_blk.base;
-		break;
-	default:
-		rc = -EINVAL;
-	}
-
-	return rc;
-}
-
 static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 {
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	u32 mode_mask;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO) {
@@ -185,7 +152,7 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 		 */
 		mode_mask = 0;
 	} else {
-		mode_mask = DPU_REG_READ(&ctx->hw, SSPP_MULTIRECT_OPMODE + idx);
+		mode_mask = DPU_REG_READ(&ctx->hw, SSPP_MULTIRECT_OPMODE);
 		mode_mask |= pipe->multirect_index;
 		if (pipe->multirect_mode == DPU_SSPP_MULTIRECT_TIME_MX)
 			mode_mask |= BIT(2);
@@ -193,46 +160,42 @@ static void dpu_hw_sspp_setup_multirect(struct dpu_sw_pipe *pipe)
 			mode_mask &= ~BIT(2);
 	}
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_MULTIRECT_OPMODE + idx, mode_mask);
+	DPU_REG_WRITE(&ctx->hw, SSPP_MULTIRECT_OPMODE, mode_mask);
 }
 
 static void _sspp_setup_opmode(struct dpu_hw_sspp *ctx,
 		u32 mask, u8 en)
 {
-	u32 idx;
+	const struct dpu_sspp_sub_blks *sblk = ctx->cap->sblk;
 	u32 opmode;
 
 	if (!test_bit(DPU_SSPP_SCALER_QSEED2, &ctx->cap->features) ||
-		_sspp_subblk_offset(ctx, DPU_SSPP_SCALER_QSEED2, &idx) ||
 		!test_bit(DPU_SSPP_CSC, &ctx->cap->features))
 		return;
 
-	opmode = DPU_REG_READ(&ctx->hw, SSPP_VIG_OP_MODE + idx);
+	opmode = DPU_REG_READ(&ctx->hw, sblk->scaler_blk.base + SSPP_VIG_OP_MODE);
 
 	if (en)
 		opmode |= mask;
 	else
 		opmode &= ~mask;
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_VIG_OP_MODE + idx, opmode);
+	DPU_REG_WRITE(&ctx->hw, sblk->scaler_blk.base + SSPP_VIG_OP_MODE, opmode);
 }
 
 static void _sspp_setup_csc10_opmode(struct dpu_hw_sspp *ctx,
 		u32 mask, u8 en)
 {
-	u32 idx;
+	const struct dpu_sspp_sub_blks *sblk = ctx->cap->sblk;
 	u32 opmode;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_CSC_10BIT, &idx))
-		return;
-
-	opmode = DPU_REG_READ(&ctx->hw, SSPP_VIG_CSC_10_OP_MODE + idx);
+	opmode = DPU_REG_READ(&ctx->hw, sblk->csc_blk.base + SSPP_VIG_CSC_10_OP_MODE);
 	if (en)
 		opmode |= mask;
 	else
 		opmode &= ~mask;
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_VIG_CSC_10_OP_MODE + idx, opmode);
+	DPU_REG_WRITE(&ctx->hw, sblk->csc_blk.base + SSPP_VIG_CSC_10_OP_MODE, opmode);
 }
 
 /*
@@ -247,9 +210,8 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 	u32 opmode = 0;
 	u32 fast_clear = 0;
 	u32 op_mode_off, unpack_pat_off, format_off;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !fmt)
+	if (!ctx || !fmt)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
@@ -264,7 +226,7 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 	}
 
 	c = &ctx->hw;
-	opmode = DPU_REG_READ(c, op_mode_off + idx);
+	opmode = DPU_REG_READ(c, op_mode_off);
 	opmode &= ~(MDSS_MDP_OP_FLIP_LR | MDSS_MDP_OP_FLIP_UD |
 			MDSS_MDP_OP_BWC_EN | MDSS_MDP_OP_PE_OVERRIDE);
 
@@ -352,12 +314,12 @@ static void dpu_hw_sspp_setup_format(struct dpu_sw_pipe *pipe,
 			VIG_CSC_10_EN | VIG_CSC_10_SRC_DATAFMT,
 			DPU_FORMAT_IS_YUV(fmt));
 
-	DPU_REG_WRITE(c, format_off + idx, src_format);
-	DPU_REG_WRITE(c, unpack_pat_off + idx, unpack);
-	DPU_REG_WRITE(c, op_mode_off + idx, opmode);
+	DPU_REG_WRITE(c, format_off, src_format);
+	DPU_REG_WRITE(c, unpack_pat_off, unpack);
+	DPU_REG_WRITE(c, op_mode_off, opmode);
 
 	/* clear previous UBWC error */
-	DPU_REG_WRITE(c, SSPP_UBWC_ERROR_STATUS + idx, BIT(31));
+	DPU_REG_WRITE(c, SSPP_UBWC_ERROR_STATUS, BIT(31));
 }
 
 static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
@@ -368,9 +330,8 @@ static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
 	u32 lr_pe[4], tb_pe[4], tot_req_pixels[4];
 	const u32 bytemask = 0xff;
 	const u32 shortmask = 0xffff;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !pe_ext)
+	if (!ctx || !pe_ext)
 		return;
 
 	c = &ctx->hw;
@@ -400,21 +361,21 @@ static void dpu_hw_sspp_setup_pe_config(struct dpu_hw_sspp *ctx,
 	}
 
 	/* color 0 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_LR + idx, lr_pe[0]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_TB + idx, tb_pe[0]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_LR, lr_pe[0]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_TB, tb_pe[0]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C0_REQ_PIXELS,
 			tot_req_pixels[0]);
 
 	/* color 1 and color 2 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_LR + idx, lr_pe[1]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_TB + idx, tb_pe[1]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_LR, lr_pe[1]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_TB, tb_pe[1]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C1C2_REQ_PIXELS,
 			tot_req_pixels[1]);
 
 	/* color 3 */
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_LR + idx, lr_pe[3]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_TB + idx, lr_pe[3]);
-	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_REQ_PIXELS + idx,
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_LR, lr_pe[3]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_TB, lr_pe[3]);
+	DPU_REG_WRITE(c, SSPP_SW_PIX_EXT_C3_REQ_PIXELS,
 			tot_req_pixels[3]);
 }
 
@@ -422,25 +383,22 @@ static void _dpu_hw_sspp_setup_scaler3(struct dpu_hw_sspp *ctx,
 		struct dpu_hw_scaler3_cfg *scaler3_cfg,
 		const struct dpu_format *format)
 {
-	u32 idx;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SCALER_QSEED3, &idx)
-		|| !scaler3_cfg)
+	if (!ctx || !scaler3_cfg)
 		return;
 
-	dpu_hw_setup_scaler3(&ctx->hw, scaler3_cfg, idx,
+	dpu_hw_setup_scaler3(&ctx->hw, scaler3_cfg,
+			ctx->cap->sblk->scaler_blk.base,
 			ctx->cap->sblk->scaler_blk.version,
 			format);
 }
 
 static u32 _dpu_hw_sspp_get_scaler3_ver(struct dpu_hw_sspp *ctx)
 {
-	u32 idx;
-
-	if (!ctx || _sspp_subblk_offset(ctx, DPU_SSPP_SCALER_QSEED3, &idx))
+	if (!ctx)
 		return 0;
 
-	return dpu_hw_get_scaler3_ver(&ctx->hw, idx);
+	return dpu_hw_get_scaler3_ver(&ctx->hw,
+				      ctx->cap->sblk->scaler_blk.base);
 }
 
 /*
@@ -453,9 +411,8 @@ static void dpu_hw_sspp_setup_rects(struct dpu_sw_pipe *pipe,
 	struct dpu_hw_blk_reg_map *c;
 	u32 src_size, src_xy, dst_size, dst_xy;
 	u32 src_size_off, src_xy_off, out_size_off, out_xy_off;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx) || !cfg)
+	if (!ctx || !cfg)
 		return;
 
 	c = &ctx->hw;
@@ -483,10 +440,10 @@ static void dpu_hw_sspp_setup_rects(struct dpu_sw_pipe *pipe,
 		drm_rect_width(&cfg->dst_rect);
 
 	/* rectangle register programming */
-	DPU_REG_WRITE(c, src_size_off + idx, src_size);
-	DPU_REG_WRITE(c, src_xy_off + idx, src_xy);
-	DPU_REG_WRITE(c, out_size_off + idx, dst_size);
-	DPU_REG_WRITE(c, out_xy_off + idx, dst_xy);
+	DPU_REG_WRITE(c, src_size_off, src_size);
+	DPU_REG_WRITE(c, src_xy_off, src_xy);
+	DPU_REG_WRITE(c, out_size_off, dst_size);
+	DPU_REG_WRITE(c, out_xy_off, dst_xy);
 }
 
 static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
@@ -495,24 +452,23 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	u32 ystride0, ystride1;
 	int i;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO) {
 		for (i = 0; i < ARRAY_SIZE(layout->plane_addr); i++)
-			DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + idx + i * 0x4,
+			DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + i * 0x4,
 					layout->plane_addr[i]);
 	} else if (pipe->multirect_index == DPU_SSPP_RECT_0) {
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC0_ADDR,
 				layout->plane_addr[0]);
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC2_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC2_ADDR,
 				layout->plane_addr[2]);
 	} else {
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC1_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC1_ADDR,
 				layout->plane_addr[0]);
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC3_ADDR + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC3_ADDR,
 				layout->plane_addr[2]);
 	}
 
@@ -522,8 +478,8 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 		ystride1 = (layout->plane_pitch[2]) |
 			(layout->plane_pitch[3] << 16);
 	} else {
-		ystride0 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE0 + idx);
-		ystride1 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE1 + idx);
+		ystride0 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE0);
+		ystride1 = DPU_REG_READ(&ctx->hw, SSPP_SRC_YSTRIDE1);
 
 		if (pipe->multirect_index == DPU_SSPP_RECT_0) {
 			ystride0 = (ystride0 & 0xFFFF0000) |
@@ -540,34 +496,35 @@ static void dpu_hw_sspp_setup_sourceaddress(struct dpu_sw_pipe *pipe,
 		}
 	}
 
-	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE0 + idx, ystride0);
-	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE1 + idx, ystride1);
+	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE0, ystride0);
+	DPU_REG_WRITE(&ctx->hw, SSPP_SRC_YSTRIDE1, ystride1);
 }
 
 static void dpu_hw_sspp_setup_csc(struct dpu_hw_sspp *ctx,
 		const struct dpu_csc_cfg *data)
 {
-	u32 idx;
+	u32 offset;
 	bool csc10 = false;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_CSC, &idx) || !data)
+	if (!ctx || !data)
 		return;
 
+	offset = ctx->cap->sblk->csc_blk.base;
+
 	if (test_bit(DPU_SSPP_CSC_10BIT, &ctx->cap->features)) {
-		idx += CSC_10BIT_OFFSET;
+		offset += CSC_10BIT_OFFSET;
 		csc10 = true;
 	}
 
-	dpu_hw_csc_setup(&ctx->hw, idx, data, csc10);
+	dpu_hw_csc_setup(&ctx->hw, offset, data, csc10);
 }
 
 static void dpu_hw_sspp_setup_solidfill(struct dpu_sw_pipe *pipe, u32 color)
 {
 	struct dpu_hw_sspp *ctx = pipe->sspp;
 	struct dpu_hw_fmt_layout cfg;
-	u32 idx;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	if (!ctx)
 		return;
 
 	/* cleanup source addresses */
@@ -576,79 +533,41 @@ static void dpu_hw_sspp_setup_solidfill(struct dpu_sw_pipe *pipe, u32 color)
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
 	    pipe->multirect_index == DPU_SSPP_RECT_0)
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR + idx, color);
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR, color);
 	else
-		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR_REC1 + idx,
+		DPU_REG_WRITE(&ctx->hw, SSPP_SRC_CONSTANT_COLOR_REC1,
 				color);
 }
 
-static void dpu_hw_sspp_setup_danger_safe_lut(struct dpu_hw_sspp *ctx,
-			u32 danger_lut,
-			u32 safe_lut)
+static void dpu_hw_sspp_setup_qos_lut(struct dpu_hw_sspp *ctx,
+				      struct dpu_hw_qos_cfg *cfg)
 {
-	u32 idx;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
-		return;
-
-	DPU_REG_WRITE(&ctx->hw, SSPP_DANGER_LUT + idx, danger_lut);
-	DPU_REG_WRITE(&ctx->hw, SSPP_SAFE_LUT + idx, safe_lut);
-}
-
-static void dpu_hw_sspp_setup_creq_lut(struct dpu_hw_sspp *ctx,
-			u64 creq_lut)
-{
-	u32 idx;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
-		return;
-
-	if (ctx->cap && test_bit(DPU_SSPP_QOS_8LVL, &ctx->cap->features)) {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_0 + idx, creq_lut);
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT_1 + idx,
-				creq_lut >> 32);
-	} else {
-		DPU_REG_WRITE(&ctx->hw, SSPP_CREQ_LUT + idx, creq_lut);
-	}
-}
-
-static void dpu_hw_sspp_setup_qos_ctrl(struct dpu_hw_sspp *ctx,
-		struct dpu_hw_pipe_qos_cfg *cfg)
-{
-	u32 idx;
-	u32 qos_ctrl = 0;
-
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
-		return;
-
-	if (cfg->vblank_en) {
-		qos_ctrl |= ((cfg->creq_vblank &
-				SSPP_QOS_CTRL_CREQ_VBLANK_MASK) <<
-				SSPP_QOS_CTRL_CREQ_VBLANK_OFF);
-		qos_ctrl |= ((cfg->danger_vblank &
-				SSPP_QOS_CTRL_DANGER_VBLANK_MASK) <<
-				SSPP_QOS_CTRL_DANGER_VBLANK_OFF);
-		qos_ctrl |= SSPP_QOS_CTRL_VBLANK_EN;
-	}
-
-	if (cfg->danger_safe_en)
-		qos_ctrl |= SSPP_QOS_CTRL_DANGER_SAFE_EN;
-
-	DPU_REG_WRITE(&ctx->hw, SSPP_QOS_CTRL + idx, qos_ctrl);
-}
-
-static void dpu_hw_sspp_setup_cdp(struct dpu_sw_pipe *pipe,
-		struct dpu_hw_cdp_cfg *cfg)
-{
-	struct dpu_hw_sspp *ctx = pipe->sspp;
-	u32 idx;
-	u32 cdp_cntl = 0;
-	u32 cdp_cntl_offset = 0;
-
 	if (!ctx || !cfg)
 		return;
 
-	if (_sspp_subblk_offset(ctx, DPU_SSPP_SRC, &idx))
+	_dpu_hw_setup_qos_lut(&ctx->hw, SSPP_DANGER_LUT,
+			      test_bit(DPU_SSPP_QOS_8LVL, &ctx->cap->features),
+			      cfg);
+}
+
+static void dpu_hw_sspp_setup_qos_ctrl(struct dpu_hw_sspp *ctx,
+				       bool danger_safe_en)
+{
+	if (!ctx)
+		return;
+
+	DPU_REG_WRITE(&ctx->hw, SSPP_QOS_CTRL,
+		      danger_safe_en ? SSPP_QOS_CTRL_DANGER_SAFE_EN : 0);
+}
+
+static void dpu_hw_sspp_setup_cdp(struct dpu_sw_pipe *pipe,
+				  const struct dpu_format *fmt,
+				  bool enable)
+{
+	struct dpu_hw_sspp *ctx = pipe->sspp;
+	u32 cdp_cntl_offset = 0;
+
+	if (!ctx)
 		return;
 
 	if (pipe->multirect_index == DPU_SSPP_RECT_SOLO ||
@@ -657,33 +576,20 @@ static void dpu_hw_sspp_setup_cdp(struct dpu_sw_pipe *pipe,
 	else
 		cdp_cntl_offset = SSPP_CDP_CNTL_REC1;
 
-	if (cfg->enable)
-		cdp_cntl |= BIT(0);
-	if (cfg->ubwc_meta_enable)
-		cdp_cntl |= BIT(1);
-	if (cfg->tile_amortize_enable)
-		cdp_cntl |= BIT(2);
-	if (cfg->preload_ahead == DPU_SSPP_CDP_PRELOAD_AHEAD_64)
-		cdp_cntl |= BIT(3);
-
-	DPU_REG_WRITE(&ctx->hw, cdp_cntl_offset, cdp_cntl);
+	dpu_setup_cdp(&ctx->hw, cdp_cntl_offset, fmt, enable);
 }
 
 static void _setup_layer_ops(struct dpu_hw_sspp *c,
 		unsigned long features)
 {
-	if (test_bit(DPU_SSPP_SRC, &features)) {
-		c->ops.setup_format = dpu_hw_sspp_setup_format;
-		c->ops.setup_rects = dpu_hw_sspp_setup_rects;
-		c->ops.setup_sourceaddress = dpu_hw_sspp_setup_sourceaddress;
-		c->ops.setup_solidfill = dpu_hw_sspp_setup_solidfill;
-		c->ops.setup_pe = dpu_hw_sspp_setup_pe_config;
-	}
+	c->ops.setup_format = dpu_hw_sspp_setup_format;
+	c->ops.setup_rects = dpu_hw_sspp_setup_rects;
+	c->ops.setup_sourceaddress = dpu_hw_sspp_setup_sourceaddress;
+	c->ops.setup_solidfill = dpu_hw_sspp_setup_solidfill;
+	c->ops.setup_pe = dpu_hw_sspp_setup_pe_config;
 
 	if (test_bit(DPU_SSPP_QOS, &features)) {
-		c->ops.setup_danger_safe_lut =
-			dpu_hw_sspp_setup_danger_safe_lut;
-		c->ops.setup_creq_lut = dpu_hw_sspp_setup_creq_lut;
+		c->ops.setup_qos_lut = dpu_hw_sspp_setup_qos_lut;
 		c->ops.setup_qos_ctrl = dpu_hw_sspp_setup_qos_ctrl;
 	}
 
@@ -728,8 +634,8 @@ int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
 	/* add register dump support */
 	dpu_debugfs_create_regset32("src_blk", 0400,
 			debugfs_root,
-			sblk->src_blk.base + cfg->base,
-			sblk->src_blk.len,
+			cfg->base,
+			cfg->len,
 			kms);
 
 	if (cfg->features & BIT(DPU_SSPP_SCALER_QSEED3) ||
@@ -758,63 +664,29 @@ int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
 			0400,
 			debugfs_root,
 			(u32 *) &cfg->clk_ctrl);
-	debugfs_create_x32("creq_vblank",
-			0600,
-			debugfs_root,
-			(u32 *) &sblk->creq_vblank);
-	debugfs_create_x32("danger_vblank",
-			0600,
-			debugfs_root,
-			(u32 *) &sblk->danger_vblank);
 
 	return 0;
 }
 #endif
 
-
-static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *catalog,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	if ((sspp < SSPP_MAX) && catalog && addr && b) {
-		for (i = 0; i < catalog->sspp_count; i++) {
-			if (sspp == catalog->sspp[i].id) {
-				b->blk_addr = addr + catalog->sspp[i].base;
-				b->log_mask = DPU_DBG_MASK_SSPP;
-				return &catalog->sspp[i];
-			}
-		}
-	}
-
-	return ERR_PTR(-ENOMEM);
-}
-
-struct dpu_hw_sspp *dpu_hw_sspp_init(enum dpu_sspp idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *catalog)
+struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
+		void __iomem *addr, const struct dpu_ubwc_cfg *ubwc)
 {
 	struct dpu_hw_sspp *hw_pipe;
-	const struct dpu_sspp_cfg *cfg;
 
-	if (!addr || !catalog)
+	if (!addr || !ubwc)
 		return ERR_PTR(-EINVAL);
 
 	hw_pipe = kzalloc(sizeof(*hw_pipe), GFP_KERNEL);
 	if (!hw_pipe)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _sspp_offset(idx, addr, catalog, &hw_pipe->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(hw_pipe);
-		return ERR_PTR(-EINVAL);
-	}
+	hw_pipe->hw.blk_addr = addr + cfg->base;
+	hw_pipe->hw.log_mask = DPU_DBG_MASK_SSPP;
 
 	/* Assign ops */
-	hw_pipe->catalog = catalog;
-	hw_pipe->ubwc = catalog->ubwc;
-	hw_pipe->idx = idx;
+	hw_pipe->ubwc = ubwc;
+	hw_pipe->idx = cfg->id;
 	hw_pipe->cap = cfg;
 	_setup_layer_ops(hw_pipe, hw_pipe->cap->features);
 

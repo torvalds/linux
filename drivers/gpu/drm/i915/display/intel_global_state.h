@@ -87,4 +87,6 @@ void intel_atomic_clear_global_state(struct intel_atomic_state *state);
 int intel_atomic_lock_global_state(struct intel_global_state *obj_state);
 int intel_atomic_serialize_global_state(struct intel_global_state *obj_state);
 
+bool intel_atomic_global_state_is_serialized(struct intel_atomic_state *state);
+
 #endif

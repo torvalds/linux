@@ -440,7 +440,7 @@ static struct i2c_driver jsa1212_driver = {
 		.pm	= pm_sleep_ptr(&jsa1212_pm_ops),
 		.acpi_match_table = ACPI_PTR(jsa1212_acpi_match),
 	},
-	.probe_new	= jsa1212_probe,
+	.probe		= jsa1212_probe,
 	.remove		= jsa1212_remove,
 	.id_table	= jsa1212_id,
 };

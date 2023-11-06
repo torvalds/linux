@@ -421,6 +421,8 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 	vma_end_read(vma);
 	if (!(fault & VM_FAULT_RETRY)) {
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
+		if (likely(!(fault & VM_FAULT_ERROR)))
+			fault = 0;
 		goto out;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
@@ -457,8 +459,9 @@ retry:
 	if (unlikely(vma->vm_start > address)) {
 		if (!(vma->vm_flags & VM_GROWSDOWN))
 			goto out_up;
-		if (expand_stack(vma, address))
-			goto out_up;
+		vma = expand_stack(mm, address);
+		if (!vma)
+			goto out;
 	}
 
 	/*

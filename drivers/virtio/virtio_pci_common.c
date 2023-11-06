@@ -557,8 +557,6 @@ static int virtio_pci_probe(struct pci_dev *pci_dev,
 
 	pci_set_master(pci_dev);
 
-	vp_dev->is_legacy = vp_dev->ldev.ioaddr ? true : false;
-
 	rc = register_virtio_device(&vp_dev->vdev);
 	reg_dev = vp_dev;
 	if (rc)

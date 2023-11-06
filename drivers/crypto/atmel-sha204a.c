@@ -141,7 +141,7 @@ static const struct i2c_device_id atmel_sha204a_id[] = {
 MODULE_DEVICE_TABLE(i2c, atmel_sha204a_id);
 
 static struct i2c_driver atmel_sha204a_driver = {
-	.probe_new		= atmel_sha204a_probe,
+	.probe			= atmel_sha204a_probe,
 	.remove			= atmel_sha204a_remove,
 	.id_table		= atmel_sha204a_id,
 

@@ -260,8 +260,13 @@ which is 1024 bytes long:
      - s_num_fc_blocks
      - Number of fast commit blocks in the journal.
    * - 0x58
+     - __be32
+     - s_head
+     - Block number of the head (first unused block) of the journal, only
+       up-to-date when the journal is empty.
+   * - 0x5C
      - __u32
-     - s_padding[42]
+     - s_padding[40]
      -
    * - 0xFC
      - __be32

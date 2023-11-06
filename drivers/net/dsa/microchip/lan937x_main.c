@@ -20,13 +20,13 @@
 
 static int lan937x_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
-	return regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
+	return regmap_update_bits(ksz_regmap_8(dev), addr, bits, set ? bits : 0);
 }
 
 static int lan937x_port_cfg(struct ksz_device *dev, int port, int offset,
 			    u8 bits, bool set)
 {
-	return regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
+	return regmap_update_bits(ksz_regmap_8(dev), PORT_CTRL_ADDR(port, offset),
 				  bits, set ? bits : 0);
 }
 
@@ -86,7 +86,7 @@ static int lan937x_internal_phy_write(struct ksz_device *dev, int addr, int reg,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_read_poll_timeout(dev->regmap[1], REG_VPHY_IND_CTRL__2,
+	ret = regmap_read_poll_timeout(ksz_regmap_16(dev), REG_VPHY_IND_CTRL__2,
 				       value, !(value & VPHY_IND_BUSY), 10,
 				       1000);
 	if (ret < 0) {
@@ -116,7 +116,7 @@ static int lan937x_internal_phy_read(struct ksz_device *dev, int addr, int reg,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_read_poll_timeout(dev->regmap[1], REG_VPHY_IND_CTRL__2,
+	ret = regmap_read_poll_timeout(ksz_regmap_16(dev), REG_VPHY_IND_CTRL__2,
 				       value, !(value & VPHY_IND_BUSY), 10,
 				       1000);
 	if (ret < 0) {

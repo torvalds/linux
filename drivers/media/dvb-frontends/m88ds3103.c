@@ -1941,7 +1941,7 @@ static struct i2c_driver m88ds3103_driver = {
 		.name	= "m88ds3103",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= m88ds3103_probe,
+	.probe		= m88ds3103_probe,
 	.remove		= m88ds3103_remove,
 	.id_table	= m88ds3103_id_table,
 };

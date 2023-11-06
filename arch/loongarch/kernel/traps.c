@@ -47,6 +47,7 @@
 #include <asm/tlb.h>
 #include <asm/types.h>
 #include <asm/unwind.h>
+#include <asm/uprobes.h>
 
 #include "access-helper.h"
 
@@ -382,16 +383,15 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_RAW_SPINLOCK(die_lock);
 
-void __noreturn die(const char *str, struct pt_regs *regs)
+void die(const char *str, struct pt_regs *regs)
 {
+	int ret;
 	static int die_counter;
-	int sig = SIGSEGV;
 
 	oops_enter();
 
-	if (notify_die(DIE_OOPS, str, regs, 0, current->thread.trap_nr,
-		       SIGSEGV) == NOTIFY_STOP)
-		sig = 0;
+	ret = notify_die(DIE_OOPS, str, regs, 0,
+			 current->thread.trap_nr, SIGSEGV);
 
 	console_verbose();
 	raw_spin_lock_irq(&die_lock);
@@ -404,6 +404,9 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 
 	oops_exit();
 
+	if (ret == NOTIFY_STOP)
+		return;
+
 	if (regs && kexec_should_crash(current))
 		crash_kexec(regs);
 
@@ -413,7 +416,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	if (panic_on_oops)
 		panic("Fatal exception");
 
-	make_task_dead(sig);
+	make_task_dead(SIGSEGV);
 }
 
 static inline void setup_vint_size(unsigned int size)
@@ -689,7 +692,6 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 	if (regs->csr_prmd & CSR_PRMD_PIE)
 		local_irq_enable();
 
-	current->thread.trap_nr = read_csr_excode();
 	if (__get_inst(&opcode, (u32 *)era, user))
 		goto out_sigsegv;
 
@@ -711,18 +713,17 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 		else
 			break;
 	case BRK_UPROBE_BP:
-		if (notify_die(DIE_UPROBE, "Uprobe", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (uprobe_breakpoint_handler(regs))
 			goto out;
 		else
 			break;
 	case BRK_UPROBE_XOLBP:
-		if (notify_die(DIE_UPROBE_XOL, "Uprobe_XOL", regs, bcode,
-			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
+		if (uprobe_singlestep_handler(regs))
 			goto out;
 		else
 			break;
 	default:
+		current->thread.trap_nr = read_csr_excode();
 		if (notify_die(DIE_TRAP, "Break", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
@@ -852,12 +853,67 @@ static void init_restore_fp(void)
 	BUG_ON(!is_fp_enabled());
 }
 
+static void init_restore_lsx(void)
+{
+	enable_lsx();
+
+	if (!thread_lsx_context_live()) {
+		/* First time LSX context user */
+		init_restore_fp();
+		init_lsx_upper();
+		set_thread_flag(TIF_LSX_CTX_LIVE);
+	} else {
+		if (!is_simd_owner()) {
+			if (is_fpu_owner()) {
+				restore_lsx_upper(current);
+			} else {
+				__own_fpu();
+				restore_lsx(current);
+			}
+		}
+	}
+
+	set_thread_flag(TIF_USEDSIMD);
+
+	BUG_ON(!is_fp_enabled());
+	BUG_ON(!is_lsx_enabled());
+}
+
+static void init_restore_lasx(void)
+{
+	enable_lasx();
+
+	if (!thread_lasx_context_live()) {
+		/* First time LASX context user */
+		init_restore_lsx();
+		init_lasx_upper();
+		set_thread_flag(TIF_LASX_CTX_LIVE);
+	} else {
+		if (is_fpu_owner() || is_simd_owner()) {
+			init_restore_lsx();
+			restore_lasx_upper(current);
+		} else {
+			__own_fpu();
+			enable_lsx();
+			restore_lasx(current);
+		}
+	}
+
+	set_thread_flag(TIF_USEDSIMD);
+
+	BUG_ON(!is_fp_enabled());
+	BUG_ON(!is_lsx_enabled());
+	BUG_ON(!is_lasx_enabled());
+}
+
 asmlinkage void noinstr do_fpu(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
 	die_if_kernel("do_fpu invoked from kernel context!", regs);
+	BUG_ON(is_lsx_enabled());
+	BUG_ON(is_lasx_enabled());
 
 	preempt_disable();
 	init_restore_fp();
@@ -872,9 +928,20 @@ asmlinkage void noinstr do_lsx(struct pt_regs *regs)
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
-	force_sig(SIGILL);
-	local_irq_disable();
+	if (!cpu_has_lsx) {
+		force_sig(SIGILL);
+		goto out;
+	}
 
+	die_if_kernel("do_lsx invoked from kernel context!", regs);
+	BUG_ON(is_lasx_enabled());
+
+	preempt_disable();
+	init_restore_lsx();
+	preempt_enable();
+
+out:
+	local_irq_disable();
 	irqentry_exit(regs, state);
 }
 
@@ -883,9 +950,19 @@ asmlinkage void noinstr do_lasx(struct pt_regs *regs)
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
-	force_sig(SIGILL);
-	local_irq_disable();
+	if (!cpu_has_lasx) {
+		force_sig(SIGILL);
+		goto out;
+	}
 
+	die_if_kernel("do_lasx invoked from kernel context!", regs);
+
+	preempt_disable();
+	init_restore_lasx();
+	preempt_enable();
+
+out:
+	local_irq_disable();
 	irqentry_exit(regs, state);
 }
 
@@ -924,7 +1001,7 @@ asmlinkage void cache_parity_error(void)
 	/* For the moment, report the problem and hang. */
 	pr_err("Cache error exception:\n");
 	pr_err("csr_merrctl == %08x\n", csr_read32(LOONGARCH_CSR_MERRCTL));
-	pr_err("csr_merrera == %016llx\n", csr_read64(LOONGARCH_CSR_MERRERA));
+	pr_err("csr_merrera == %016lx\n", csr_read64(LOONGARCH_CSR_MERRERA));
 	panic("Can't handle the cache error!");
 }
 

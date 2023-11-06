@@ -401,6 +401,10 @@ static const struct dc_plane_cap plane_cap = {
 	}
 };
 
+static const struct dc_debug_options debug_defaults = {
+		.enable_legacy_fast_update = true,
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -1071,6 +1075,7 @@ static bool dce100_resource_construct(
 	dc->caps.dual_link_dvi = true;
 	dc->caps.disable_dp_clk_share = true;
 	dc->caps.extended_aux_timeout_support = false;
+	dc->debug = debug_defaults;
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.timing_generators[i] =

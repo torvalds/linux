@@ -58,7 +58,7 @@ static unsigned int swap_opt_cmd;
 module_param(swap_opt_cmd, uint, 0644);
 MODULE_PARM_DESC(swap_opt_cmd, "Swap the Option (\"Alt\") and Command (\"Flag\") keys. "
 		"(For people who want to keep Windows PC keyboard muscle memory. "
-		"[0] = as-is, Mac layout. 1 = swapped, Windows layout.)");
+		"[0] = as-is, Mac layout. 1 = swapped, Windows layout., 2 = swapped, Swap only left side)");
 
 static unsigned int swap_ctrl_cmd;
 module_param(swap_ctrl_cmd, uint, 0644);
@@ -319,6 +319,12 @@ static const struct apple_key_translation swapped_option_cmd_keys[] = {
 	{ }
 };
 
+static const struct apple_key_translation swapped_option_cmd_left_keys[] = {
+	{ KEY_LEFTALT,	KEY_LEFTMETA },
+	{ KEY_LEFTMETA,	KEY_LEFTALT },
+	{ }
+};
+
 static const struct apple_key_translation swapped_ctrl_cmd_keys[] = {
 	{ KEY_LEFTCTRL,	KEY_LEFTMETA },
 	{ KEY_LEFTMETA,	KEY_LEFTCTRL },
@@ -416,7 +422,10 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	}
 
 	if (swap_opt_cmd) {
-		trans = apple_find_translation(swapped_option_cmd_keys, code);
+		if (swap_opt_cmd == 2)
+			trans = apple_find_translation(swapped_option_cmd_left_keys, code);
+		else
+			trans = apple_find_translation(swapped_option_cmd_keys, code);
 
 		if (trans)
 			code = trans->to;

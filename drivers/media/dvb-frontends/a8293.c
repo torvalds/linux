@@ -266,7 +266,7 @@ static struct i2c_driver a8293_driver = {
 		.name	= "a8293",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= a8293_probe,
+	.probe		= a8293_probe,
 	.remove		= a8293_remove,
 	.id_table	= a8293_id_table,
 };

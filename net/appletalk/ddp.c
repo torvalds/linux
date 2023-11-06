@@ -1929,7 +1929,6 @@ static const struct proto_ops atalk_dgram_ops = {
 	.sendmsg	= atalk_sendmsg,
 	.recvmsg	= atalk_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 
 static struct notifier_block ddp_notifier = {

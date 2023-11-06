@@ -89,8 +89,7 @@ static inline bool erofs_page_is_managed(const struct erofs_sb_info *sbi,
 
 int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
 			 unsigned int padbufsize);
-int z_erofs_decompress(struct z_erofs_decompress_req *rq,
-		       struct page **pagepool);
+extern const struct z_erofs_decompressor erofs_decompressors[];
 
 /* prototypes for specific algorithms */
 int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,

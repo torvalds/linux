@@ -255,7 +255,7 @@ static struct i2c_driver abp060mg_driver = {
 	.driver = {
 		.name = "abp060mg",
 	},
-	.probe_new = abp060mg_probe,
+	.probe = abp060mg_probe,
 	.id_table = abp060mg_id_table,
 };
 module_i2c_driver(abp060mg_driver);

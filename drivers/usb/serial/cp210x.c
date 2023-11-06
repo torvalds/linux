@@ -39,7 +39,7 @@ static int cp210x_tiocmget(struct tty_struct *);
 static int cp210x_tiocmset(struct tty_struct *, unsigned int, unsigned int);
 static int cp210x_tiocmset_port(struct usb_serial_port *port,
 		unsigned int, unsigned int);
-static void cp210x_break_ctl(struct tty_struct *, int);
+static int cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_attach(struct usb_serial *);
 static void cp210x_disconnect(struct usb_serial *);
 static void cp210x_release(struct usb_serial *);
@@ -1434,18 +1434,26 @@ static int cp210x_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static void cp210x_break_ctl(struct tty_struct *tty, int break_state)
+static int cp210x_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
 	u16 state;
+
+	if (priv->partnum == CP210X_PARTNUM_CP2105) {
+		if (cp210x_interface_num(port->serial) == 1)
+			return -ENOTTY;
+	}
 
 	if (break_state == 0)
 		state = BREAK_OFF;
 	else
 		state = BREAK_ON;
+
 	dev_dbg(&port->dev, "%s - turning break %s\n", __func__,
 		state == BREAK_OFF ? "off" : "on");
-	cp210x_write_u16_reg(port, CP210X_SET_BREAK, state);
+
+	return cp210x_write_u16_reg(port, CP210X_SET_BREAK, state);
 }
 
 #ifdef CONFIG_GPIOLIB

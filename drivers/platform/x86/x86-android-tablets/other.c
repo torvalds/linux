@@ -94,7 +94,7 @@ const struct x86_dev_info acer_b1_750_info __initconst = {
  * which is not described in the ACPI tables in anyway.
  * Use the x86-android-tablets infra to create a gpio-button device for this.
  */
-static struct x86_gpio_button advantech_mica_071_button = {
+static const struct x86_gpio_button advantech_mica_071_button __initconst = {
 	.button = {
 		.code = KEY_PROG1,
 		.active_low = true,
@@ -109,6 +109,7 @@ static struct x86_gpio_button advantech_mica_071_button = {
 
 const struct x86_dev_info advantech_mica_071_info __initconst = {
 	.gpio_button = &advantech_mica_071_button,
+	.gpio_button_count = 1,
 };
 
 /*
@@ -194,6 +195,45 @@ const struct x86_dev_info chuwi_hi8_info __initconst = {
 	.i2c_client_info = chuwi_hi8_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(chuwi_hi8_i2c_clients),
 	.init = chuwi_hi8_init,
+};
+
+/*
+ * Cyberbook T116 Android version
+ * This comes in both Windows and Android versions and even on Android
+ * the DSDT is mostly sane. This tablet has 2 extra general purpose buttons
+ * in the button row with the power + volume-buttons labeled P and F.
+ * Use the x86-android-tablets infra to create a gpio-button device for these.
+ */
+static const struct x86_gpio_button cyberbook_t116_buttons[] __initconst = {
+	{
+		.button = {
+			.code = KEY_PROG1,
+			.active_low = true,
+			.desc = "prog1_key",
+			.type = EV_KEY,
+			.wakeup = false,
+			.debounce_interval = 50,
+		},
+		.chip = "INT33FF:00",
+		.pin = 30,
+	},
+	{
+		.button = {
+			.code = KEY_PROG2,
+			.active_low = true,
+			.desc = "prog2_key",
+			.type = EV_KEY,
+			.wakeup = false,
+			.debounce_interval = 50,
+		},
+		.chip = "INT33FF:03",
+		.pin = 48,
+	},
+};
+
+const struct x86_dev_info cyberbook_t116_info __initconst = {
+	.gpio_button = cyberbook_t116_buttons,
+	.gpio_button_count = ARRAY_SIZE(cyberbook_t116_buttons),
 };
 
 #define CZC_EC_EXTRA_PORT	0x68
@@ -311,7 +351,7 @@ const struct x86_dev_info medion_lifetab_s10346_info __initconst = {
 	.gpiod_lookup_tables = medion_lifetab_s10346_gpios,
 };
 
-/* Nextbook Ares 8 tablets have an Android factory img with everything hardcoded */
+/* Nextbook Ares 8 (BYT) tablets have an Android factory img with everything hardcoded */
 static const char * const nextbook_ares8_accel_mount_matrix[] = {
 	"0", "-1", "0",
 	"-1", "0", "0",
@@ -377,7 +417,70 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpiod_lookup_tables = nextbook_ares8_gpios,
-	.invalid_aei_gpiochip = "INT33FC:02",
+};
+
+/* Nextbook Ares 8A (CHT) tablets have an Android factory img with everything hardcoded */
+static const char * const nextbook_ares8a_accel_mount_matrix[] = {
+	"1", "0", "0",
+	"0", "-1", "0",
+	"0", "0", "1"
+};
+
+static const struct property_entry nextbook_ares8a_accel_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("mount-matrix", nextbook_ares8a_accel_mount_matrix),
+	{ }
+};
+
+static const struct software_node nextbook_ares8a_accel_node = {
+	.properties = nextbook_ares8a_accel_props,
+};
+
+static const struct x86_i2c_client_info nextbook_ares8a_i2c_clients[] __initconst = {
+	{
+		/* Freescale MMA8653FC accel */
+		.board_info = {
+			.type = "mma8653",
+			.addr = 0x1d,
+			.dev_name = "mma8653",
+			.swnode = &nextbook_ares8a_accel_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C3",
+	}, {
+		/* FT5416DQ9 touchscreen controller */
+		.board_info = {
+			.type = "edt-ft5x06",
+			.addr = 0x38,
+			.dev_name = "ft5416",
+			.swnode = &nextbook_ares8_touchscreen_node,
+		},
+		.adapter_path = "\\_SB_.PCI0.I2C6",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FF:01",
+			.index = 17,
+			.trigger = ACPI_EDGE_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+		},
+	},
+};
+
+static struct gpiod_lookup_table nextbook_ares8a_ft5416_gpios = {
+	.dev_id = "i2c-ft5416",
+	.table = {
+		GPIO_LOOKUP("INT33FF:01", 25, "reset", GPIO_ACTIVE_LOW),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table * const nextbook_ares8a_gpios[] = {
+	&nextbook_ares8a_ft5416_gpios,
+	NULL
+};
+
+const struct x86_dev_info nextbook_ares8a_info __initconst = {
+	.i2c_client_info = nextbook_ares8a_i2c_clients,
+	.i2c_client_count = ARRAY_SIZE(nextbook_ares8a_i2c_clients),
+	.gpiod_lookup_tables = nextbook_ares8a_gpios,
 };
 
 /*
@@ -386,7 +489,7 @@ const struct x86_dev_info nextbook_ares8_info __initconst = {
  * This button has a WMI interface, but that is broken. Instead of trying to
  * use the broken WMI interface, instantiate a gpio_keys device for this.
  */
-static struct x86_gpio_button peaq_c1010_button = {
+static const struct x86_gpio_button peaq_c1010_button __initconst = {
 	.button = {
 		.code = KEY_SOUND,
 		.active_low = true,
@@ -401,6 +504,7 @@ static struct x86_gpio_button peaq_c1010_button = {
 
 const struct x86_dev_info peaq_c1010_info __initconst = {
 	.gpio_button = &peaq_c1010_button,
+	.gpio_button_count = 1,
 	/*
 	 * Move the ACPI event handler used by the broken WMI interface out of
 	 * the way. This is the only event handler on INT33FC:00.

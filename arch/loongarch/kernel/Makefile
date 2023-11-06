@@ -28,6 +28,8 @@ ifdef CONFIG_FUNCTION_TRACER
   CFLAGS_REMOVE_inst.o = $(CC_FLAGS_FTRACE)
   CFLAGS_REMOVE_time.o = $(CC_FLAGS_FTRACE)
   CFLAGS_REMOVE_perf_event.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_rethook.o = $(CC_FLAGS_FTRACE)
+  CFLAGS_REMOVE_rethook_trampoline.o = $(CC_FLAGS_FTRACE)
 endif
 
 obj-$(CONFIG_MODULES)		+= module.o module-sections.o
@@ -52,6 +54,10 @@ obj-$(CONFIG_UNWINDER_PROLOGUE) += unwind_prologue.o
 obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_regs.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= hw_breakpoint.o
 
-obj-$(CONFIG_KPROBES)		+= kprobes.o kprobes_trampoline.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o
+obj-$(CONFIG_RETHOOK)		+= rethook.o rethook_trampoline.o
+obj-$(CONFIG_UPROBES)		+= uprobes.o
+
+obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

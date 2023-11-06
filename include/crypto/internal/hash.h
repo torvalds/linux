@@ -149,6 +149,18 @@ static inline struct ahash_alg *__crypto_ahash_alg(struct crypto_alg *alg)
 			    halg);
 }
 
+static inline struct ahash_alg *crypto_ahash_alg(struct crypto_ahash *hash)
+{
+	return container_of(crypto_hash_alg_common(hash), struct ahash_alg,
+			    halg);
+}
+
+static inline void crypto_ahash_set_statesize(struct crypto_ahash *tfm,
+					      unsigned int size)
+{
+	tfm->statesize = size;
+}
+
 static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {

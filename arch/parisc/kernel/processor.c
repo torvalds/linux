@@ -26,6 +26,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/pdc.h>
+#include <asm/smp.h>
 #include <asm/pdcpat.h>
 #include <asm/irq.h>		/* for struct irq_region */
 #include <asm/parisc-device.h>
@@ -58,7 +59,7 @@ DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 */
 
 /**
- * init_cpu_profiler - enable/setup per cpu profiling hooks.
+ * init_percpu_prof - enable/setup per cpu profiling hooks.
  * @cpunum: The processor instance.
  *
  * FIXME: doesn't do much yet...

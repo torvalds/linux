@@ -335,8 +335,8 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 
 		node = dev_to_node(&_pci_dev->dev);
 		if (node == NUMA_NO_NODE) {
-			pr_info("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
-				cpu, bus_no, dev, fn);
+			pr_info_once("Fail to get numa node for CPU:%d bus:%d dev:%d fn:%d\n",
+				     cpu, bus_no, dev, fn);
 			continue;
 		}
 
@@ -829,6 +829,7 @@ void isst_if_cdev_unregister(int device_type)
 {
 	isst_misc_unreg();
 	mutex_lock(&punit_misc_dev_open_lock);
+	punit_callbacks[device_type].def_ioctl = NULL;
 	punit_callbacks[device_type].registered = 0;
 	if (device_type == ISST_IF_DEV_MBOX)
 		isst_delete_hash();

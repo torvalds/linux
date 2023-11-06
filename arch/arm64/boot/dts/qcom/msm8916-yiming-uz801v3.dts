@@ -10,19 +10,19 @@
 };
 
 &button_restart {
-	gpios = <&msmgpio 23 GPIO_ACTIVE_LOW>;
+	gpios = <&tlmm 23 GPIO_ACTIVE_LOW>;
 };
 
 &led_r {
-	gpios = <&msmgpio 7 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 7 GPIO_ACTIVE_HIGH>;
 };
 
 &led_g {
-	gpios = <&msmgpio 8 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 8 GPIO_ACTIVE_HIGH>;
 };
 
 &led_b {
-	gpios = <&msmgpio 6 GPIO_ACTIVE_HIGH>;
+	gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
 };
 
 &button_default {

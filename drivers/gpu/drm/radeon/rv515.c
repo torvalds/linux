@@ -221,7 +221,7 @@ void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 #if defined(CONFIG_DEBUG_FS)
 static int rv515_debugfs_pipes_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(GB_PIPE_SELECT);
@@ -237,7 +237,7 @@ static int rv515_debugfs_pipes_info_show(struct seq_file *m, void *unused)
 
 static int rv515_debugfs_ga_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(0x2140);

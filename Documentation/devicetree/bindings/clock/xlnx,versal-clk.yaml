@@ -7,9 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Versal clock controller
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
-  - Jolly Shah <jolly.shah@xilinx.com>
-  - Rajan Vaja <rajan.vaja@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 description: |
   The clock controller is a hardware block of Xilinx versal clock tree. It

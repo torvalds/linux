@@ -327,7 +327,7 @@ static struct i2c_driver powr1220_driver = {
 	.driver = {
 		.name	= "powr1220",
 	},
-	.probe_new	= powr1220_probe,
+	.probe		= powr1220_probe,
 	.id_table	= powr1220_ids,
 };
 

@@ -411,44 +411,6 @@
 	firmware-name = "qcom/sdm845/axolotl/cdsp.mbn";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-
-	panel@0 {
-		compatible = "visionox,rm69299-shift";
-		status = "okay";
-		reg = <0>;
-		vdda-supply = <&vreg_l14a_1p88>;
-		vdd3p3-supply = <&vreg_l28a_3p0>;
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
-
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
-		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
-
-		port {
-			panel_in_0: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in_0>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 			   <GCC_QSPI_CORE_CLK_SRC>,
@@ -494,6 +456,10 @@
 	};
 };
 
+&i2c10 {
+	/* SMB1355@0x0C */
+};
+
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
@@ -503,6 +469,44 @@
 
 &mdss {
 	status = "okay";
+};
+
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+
+	panel@0 {
+		compatible = "visionox,rm69299-shift";
+		status = "okay";
+		reg = <0>;
+		vdda-supply = <&vreg_l14a_1p88>;
+		vdd3p3-supply = <&vreg_l28a_3p0>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&sde_dsi_active &sde_te_active>;
+		pinctrl-1 = <&sde_dsi_suspend &sde_te_suspend>;
+
+		port {
+			panel_in_0: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in_0>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
 };
 
 &mss_pil {
@@ -520,6 +524,12 @@
 			qcom,drive-strength = <0>;
 		};
 	};
+};
+
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+
+	status = "okay";
 };
 
 &pm8998_resin {
@@ -551,6 +561,28 @@
 			reg = <5>;
 			color = <LED_COLOR_ID_RED>;
 		};
+	};
+};
+
+&pmi8998_flash {
+	status = "okay";
+
+	led-0 {
+		function = LED_FUNCTION_FLASH;
+		color = <LED_COLOR_ID_WHITE>;
+		led-sources = <1>;
+		led-max-microamp = <100000>;
+		flash-max-microamp = <1100000>;
+		flash-max-timeout-us = <1280000>;
+	};
+
+	led-1 {
+		function = LED_FUNCTION_FLASH;
+		color = <LED_COLOR_ID_YELLOW>;
+		led-sources = <2>;
+		led-max-microamp = <100000>;
+		flash-max-microamp = <1100000>;
+		flash-max-timeout-us = <1280000>;
 	};
 };
 

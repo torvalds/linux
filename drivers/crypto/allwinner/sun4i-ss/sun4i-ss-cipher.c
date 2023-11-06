@@ -8,7 +8,7 @@
  * keysize in CBC and ECB mode.
  * Add support also for DES and 3DES in CBC and ECB mode.
  *
- * You could find the datasheet in Documentation/arm/sunxi.rst
+ * You could find the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include "sun4i-ss.h"
 

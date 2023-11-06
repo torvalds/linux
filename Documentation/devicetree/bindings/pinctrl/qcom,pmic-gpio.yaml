@@ -49,6 +49,7 @@ properties:
           - qcom,pm8921-gpio
           - qcom,pm8941-gpio
           - qcom,pm8950-gpio
+          - qcom,pm8953-gpio
           - qcom,pm8994-gpio
           - qcom,pm8998-gpio
           - qcom,pma8084-gpio
@@ -175,6 +176,7 @@ allOf:
               - qcom,pm8350b-gpio
               - qcom,pm8550ve-gpio
               - qcom,pm8950-gpio
+              - qcom,pm8953-gpio
               - qcom,pmi632-gpio
     then:
       properties:
@@ -434,6 +436,7 @@ $defs:
                  - gpio1-gpio44 for pm8921
                  - gpio1-gpio36 for pm8941
                  - gpio1-gpio8 for pm8950 (hole on gpio3)
+                 - gpio1-gpio8 for pm8953 (hole on gpio3 and gpio6)
                  - gpio1-gpio22 for pm8994
                  - gpio1-gpio26 for pm8998
                  - gpio1-gpio22 for pma8084

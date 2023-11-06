@@ -44,6 +44,31 @@ static ssize_t ecryptfs_read_update_atime(struct kiocb *iocb,
 	return rc;
 }
 
+/*
+ * ecryptfs_splice_read_update_atime
+ *
+ * filemap_splice_read updates the atime of upper layer inode.  But, it
+ * doesn't give us a chance to update the atime of the lower layer inode.  This
+ * function is a wrapper to generic_file_read.  It updates the atime of the
+ * lower level inode if generic_file_read returns without any errors. This is
+ * to be used only for file reads.  The function to be used for directory reads
+ * is ecryptfs_read.
+ */
+static ssize_t ecryptfs_splice_read_update_atime(struct file *in, loff_t *ppos,
+						 struct pipe_inode_info *pipe,
+						 size_t len, unsigned int flags)
+{
+	ssize_t rc;
+	const struct path *path;
+
+	rc = filemap_splice_read(in, ppos, pipe, len, flags);
+	if (rc >= 0) {
+		path = ecryptfs_dentry_to_lower_path(in->f_path.dentry);
+		touch_atime(path);
+	}
+	return rc;
+}
+
 struct ecryptfs_getdents_callback {
 	struct dir_context ctx;
 	struct dir_context *caller;
@@ -414,5 +439,5 @@ const struct file_operations ecryptfs_main_fops = {
 	.release = ecryptfs_release,
 	.fsync = ecryptfs_fsync,
 	.fasync = ecryptfs_fasync,
-	.splice_read = generic_file_splice_read,
+	.splice_read = ecryptfs_splice_read_update_atime,
 };

@@ -28,6 +28,7 @@
 
 #define GPIO_REGULATOR_NAME_LENGTH				21
 #define GPIO_REGULATOR_SUPPLY_NAME_LENGTH			9
+#define GPIO_REGULATOR_SUPPLY_MAP_COUNT				2
 
 #define INT3472_LED_MAX_NAME_LEN				32
 
@@ -43,7 +44,7 @@
 	}
 
 #define to_int3472_clk(hw)					\
-	container_of(hw, struct int3472_gpio_clock, clk_hw)
+	container_of(hw, struct int3472_clock, clk_hw)
 
 #define to_int3472_device(clk)					\
 	container_of(clk, struct int3472_discrete_device, clock)
@@ -64,18 +65,9 @@ struct int3472_cldb {
 	u8 control_logic_type;
 	u8 control_logic_id;
 	u8 sensor_card_sku;
-	u8 reserved[28];
-};
-
-struct int3472_gpio_function_remap {
-	const char *documented;
-	const char *actual;
-};
-
-struct int3472_sensor_config {
-	const char *sensor_module_name;
-	struct regulator_consumer_supply supply_map;
-	const struct int3472_gpio_function_remap *function_maps;
+	u8 reserved[10];
+	u8 clock_source;
+	u8 reserved2[17];
 };
 
 struct int3472_discrete_device {
@@ -87,6 +79,8 @@ struct int3472_discrete_device {
 	const struct int3472_sensor_config *sensor_config;
 
 	struct int3472_gpio_regulator {
+		/* SUPPLY_MAP_COUNT * 2 to make room for second sensor mappings */
+		struct regulator_consumer_supply supply_map[GPIO_REGULATOR_SUPPLY_MAP_COUNT * 2];
 		char regulator_name[GPIO_REGULATOR_NAME_LENGTH];
 		char supply_name[GPIO_REGULATOR_SUPPLY_NAME_LENGTH];
 		struct gpio_desc *gpio;
@@ -94,12 +88,13 @@ struct int3472_discrete_device {
 		struct regulator_desc rdesc;
 	} regulator;
 
-	struct int3472_gpio_clock {
+	struct int3472_clock {
 		struct clk *clk;
 		struct clk_hw clk_hw;
 		struct clk_lookup *cl;
 		struct gpio_desc *ena_gpio;
 		u32 frequency;
+		u8 imgclk_index;
 	} clock;
 
 	struct int3472_pled {
@@ -121,8 +116,9 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 					 struct acpi_device **sensor_adev_ret,
 					 const char **name_ret);
 
-int skl_int3472_register_clock(struct int3472_discrete_device *int3472,
-			       struct acpi_resource_gpio *agpio, u32 polarity);
+int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
+				    struct acpi_resource_gpio *agpio, u32 polarity);
+int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472);
 void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472);
 
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,

@@ -11,37 +11,76 @@
 #include "adf_4xxx_hw_data.h"
 #include "icp_qat_hw.h"
 
+enum adf_fw_objs {
+	ADF_FW_SYM_OBJ,
+	ADF_FW_ASYM_OBJ,
+	ADF_FW_DC_OBJ,
+	ADF_FW_ADMIN_OBJ,
+};
+
+static const char * const adf_4xxx_fw_objs[] = {
+	[ADF_FW_SYM_OBJ] =  ADF_4XXX_SYM_OBJ,
+	[ADF_FW_ASYM_OBJ] =  ADF_4XXX_ASYM_OBJ,
+	[ADF_FW_DC_OBJ] =  ADF_4XXX_DC_OBJ,
+	[ADF_FW_ADMIN_OBJ] = ADF_4XXX_ADMIN_OBJ,
+};
+
+static const char * const adf_402xx_fw_objs[] = {
+	[ADF_FW_SYM_OBJ] =  ADF_402XX_SYM_OBJ,
+	[ADF_FW_ASYM_OBJ] =  ADF_402XX_ASYM_OBJ,
+	[ADF_FW_DC_OBJ] =  ADF_402XX_DC_OBJ,
+	[ADF_FW_ADMIN_OBJ] = ADF_402XX_ADMIN_OBJ,
+};
+
 struct adf_fw_config {
 	u32 ae_mask;
-	char *obj_name;
+	enum adf_fw_objs obj;
 };
 
-static struct adf_fw_config adf_4xxx_fw_cy_config[] = {
-	{0xF0, ADF_4XXX_SYM_OBJ},
-	{0xF, ADF_4XXX_ASYM_OBJ},
-	{0x100, ADF_4XXX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_cy_config[] = {
+	{0xF0, ADF_FW_SYM_OBJ},
+	{0xF, ADF_FW_ASYM_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
 
-static struct adf_fw_config adf_4xxx_fw_dc_config[] = {
-	{0xF0, ADF_4XXX_DC_OBJ},
-	{0xF, ADF_4XXX_DC_OBJ},
-	{0x100, ADF_4XXX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_dc_config[] = {
+	{0xF0, ADF_FW_DC_OBJ},
+	{0xF, ADF_FW_DC_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
 
-static struct adf_fw_config adf_402xx_fw_cy_config[] = {
-	{0xF0, ADF_402XX_SYM_OBJ},
-	{0xF, ADF_402XX_ASYM_OBJ},
-	{0x100, ADF_402XX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_sym_config[] = {
+	{0xF0, ADF_FW_SYM_OBJ},
+	{0xF, ADF_FW_SYM_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
 
-static struct adf_fw_config adf_402xx_fw_dc_config[] = {
-	{0xF0, ADF_402XX_DC_OBJ},
-	{0xF, ADF_402XX_DC_OBJ},
-	{0x100, ADF_402XX_ADMIN_OBJ},
+static const struct adf_fw_config adf_fw_asym_config[] = {
+	{0xF0, ADF_FW_ASYM_OBJ},
+	{0xF, ADF_FW_ASYM_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
 };
+
+static const struct adf_fw_config adf_fw_asym_dc_config[] = {
+	{0xF0, ADF_FW_ASYM_OBJ},
+	{0xF, ADF_FW_DC_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
+};
+
+static const struct adf_fw_config adf_fw_sym_dc_config[] = {
+	{0xF0, ADF_FW_SYM_OBJ},
+	{0xF, ADF_FW_DC_OBJ},
+	{0x100, ADF_FW_ADMIN_OBJ},
+};
+
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dc_config));
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_sym_config));
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_config));
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_dc_config));
+static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_sym_dc_config));
 
 /* Worker thread to service arbiter mappings */
-static const u32 thrd_to_arb_map_cy[ADF_4XXX_MAX_ACCELENGINES] = {
+static const u32 default_thrd_to_arb_map[ADF_4XXX_MAX_ACCELENGINES] = {
 	0x5555555, 0x5555555, 0x5555555, 0x5555555,
 	0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA,
 	0x0
@@ -61,12 +100,26 @@ static struct adf_hw_device_class adf_4xxx_class = {
 
 enum dev_services {
 	SVC_CY = 0,
+	SVC_CY2,
 	SVC_DC,
+	SVC_SYM,
+	SVC_ASYM,
+	SVC_DC_ASYM,
+	SVC_ASYM_DC,
+	SVC_DC_SYM,
+	SVC_SYM_DC,
 };
 
 static const char *const dev_cfg_services[] = {
 	[SVC_CY] = ADF_CFG_CY,
+	[SVC_CY2] = ADF_CFG_ASYM_SYM,
 	[SVC_DC] = ADF_CFG_DC,
+	[SVC_SYM] = ADF_CFG_SYM,
+	[SVC_ASYM] = ADF_CFG_ASYM,
+	[SVC_DC_ASYM] = ADF_CFG_DC_ASYM,
+	[SVC_ASYM_DC] = ADF_CFG_ASYM_DC,
+	[SVC_DC_SYM] = ADF_CFG_DC_SYM,
+	[SVC_SYM_DC] = ADF_CFG_SYM_DC,
 };
 
 static int get_service_enabled(struct adf_accel_dev *accel_dev)
@@ -156,45 +209,50 @@ static void set_msix_default_rttable(struct adf_accel_dev *accel_dev)
 static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
-	u32 capabilities_cy, capabilities_dc;
+	u32 capabilities_sym, capabilities_asym, capabilities_dc;
 	u32 fusectl1;
 
 	/* Read accelerator capabilities mask */
 	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL1_OFFSET, &fusectl1);
 
-	capabilities_cy = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
-			  ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+	capabilities_sym = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
 			  ICP_ACCEL_CAPABILITIES_CIPHER |
 			  ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
 			  ICP_ACCEL_CAPABILITIES_SHA3 |
 			  ICP_ACCEL_CAPABILITIES_SHA3_EXT |
 			  ICP_ACCEL_CAPABILITIES_HKDF |
-			  ICP_ACCEL_CAPABILITIES_ECEDMONT |
 			  ICP_ACCEL_CAPABILITIES_CHACHA_POLY |
 			  ICP_ACCEL_CAPABILITIES_AESGCM_SPC |
 			  ICP_ACCEL_CAPABILITIES_AES_V2;
 
 	/* A set bit in fusectl1 means the feature is OFF in this SKU */
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE) {
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_HKDF;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_HKDF;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
+
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_UCS_SLICE) {
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CHACHA_POLY;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AESGCM_SPC;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AES_V2;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
+
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE) {
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_SHA3;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SHA3;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_SHA3_EXT;
+		capabilities_sym &= ~ICP_ACCEL_CAPABILITIES_CIPHER;
 	}
+
+	capabilities_asym = ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			  ICP_ACCEL_CAPABILITIES_CIPHER |
+			  ICP_ACCEL_CAPABILITIES_ECEDMONT;
+
 	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE) {
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
-		capabilities_cy &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+		capabilities_asym &= ~ICP_ACCEL_CAPABILITIES_ECEDMONT;
 	}
 
 	capabilities_dc = ICP_ACCEL_CAPABILITIES_COMPRESSION |
@@ -211,12 +269,23 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
-		return capabilities_cy;
+	case SVC_CY2:
+		return capabilities_sym | capabilities_asym;
 	case SVC_DC:
 		return capabilities_dc;
+	case SVC_SYM:
+		return capabilities_sym;
+	case SVC_ASYM:
+		return capabilities_asym;
+	case SVC_ASYM_DC:
+	case SVC_DC_ASYM:
+		return capabilities_asym | capabilities_dc;
+	case SVC_SYM_DC:
+	case SVC_DC_SYM:
+		return capabilities_sym | capabilities_dc;
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
@@ -227,13 +296,11 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
 	switch (get_service_enabled(accel_dev)) {
-	case SVC_CY:
-		return thrd_to_arb_map_cy;
 	case SVC_DC:
 		return thrd_to_arb_map_dc;
+	default:
+		return default_thrd_to_arb_map;
 	}
-
-	return NULL;
 }
 
 static void get_arb_info(struct arb_info *arb_info)
@@ -304,47 +371,83 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 
 static u32 uof_get_num_objs(void)
 {
-	BUILD_BUG_ON_MSG(ARRAY_SIZE(adf_4xxx_fw_cy_config) !=
-			 ARRAY_SIZE(adf_4xxx_fw_dc_config),
-			 "Size mismatch between adf_4xxx_fw_*_config arrays");
-
-	return ARRAY_SIZE(adf_4xxx_fw_cy_config);
+	return ARRAY_SIZE(adf_fw_cy_config);
 }
 
-static char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
+static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num,
+				const char * const fw_objs[], int num_objs)
 {
+	int id;
+
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
-		return adf_4xxx_fw_cy_config[obj_num].obj_name;
+	case SVC_CY2:
+		id = adf_fw_cy_config[obj_num].obj;
+		break;
 	case SVC_DC:
-		return adf_4xxx_fw_dc_config[obj_num].obj_name;
+		id = adf_fw_dc_config[obj_num].obj;
+		break;
+	case SVC_SYM:
+		id = adf_fw_sym_config[obj_num].obj;
+		break;
+	case SVC_ASYM:
+		id =  adf_fw_asym_config[obj_num].obj;
+		break;
+	case SVC_ASYM_DC:
+	case SVC_DC_ASYM:
+		id = adf_fw_asym_dc_config[obj_num].obj;
+		break;
+	case SVC_SYM_DC:
+	case SVC_DC_SYM:
+		id = adf_fw_sym_dc_config[obj_num].obj;
+		break;
+	default:
+		id = -EINVAL;
+		break;
 	}
 
-	return NULL;
+	if (id < 0 || id > num_objs)
+		return NULL;
+
+	return fw_objs[id];
 }
 
-static char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
+static const char *uof_get_name_4xxx(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
-	switch (get_service_enabled(accel_dev)) {
-	case SVC_CY:
-		return adf_402xx_fw_cy_config[obj_num].obj_name;
-	case SVC_DC:
-		return adf_402xx_fw_dc_config[obj_num].obj_name;
-	}
+	int num_fw_objs = ARRAY_SIZE(adf_4xxx_fw_objs);
 
-	return NULL;
+	return uof_get_name(accel_dev, obj_num, adf_4xxx_fw_objs, num_fw_objs);
+}
+
+static const char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_num)
+{
+	int num_fw_objs = ARRAY_SIZE(adf_402xx_fw_objs);
+
+	return uof_get_name(accel_dev, obj_num, adf_402xx_fw_objs, num_fw_objs);
 }
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
 {
 	switch (get_service_enabled(accel_dev)) {
 	case SVC_CY:
-		return adf_4xxx_fw_cy_config[obj_num].ae_mask;
+		return adf_fw_cy_config[obj_num].ae_mask;
 	case SVC_DC:
-		return adf_4xxx_fw_dc_config[obj_num].ae_mask;
+		return adf_fw_dc_config[obj_num].ae_mask;
+	case SVC_CY2:
+		return adf_fw_cy_config[obj_num].ae_mask;
+	case SVC_SYM:
+		return adf_fw_sym_config[obj_num].ae_mask;
+	case SVC_ASYM:
+		return adf_fw_asym_config[obj_num].ae_mask;
+	case SVC_ASYM_DC:
+	case SVC_DC_ASYM:
+		return adf_fw_asym_dc_config[obj_num].ae_mask;
+	case SVC_SYM_DC:
+	case SVC_DC_SYM:
+		return adf_fw_sym_dc_config[obj_num].ae_mask;
+	default:
+		return 0;
 	}
-
-	return 0;
 }
 
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)

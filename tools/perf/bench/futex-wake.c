@@ -95,8 +95,7 @@ static void print_summary(void)
 	       rel_stddev_stats(waketime_stddev, waketime_avg));
 }
 
-static void block_threads(pthread_t *w,
-			  pthread_attr_t thread_attr, struct perf_cpu_map *cpu)
+static void block_threads(pthread_t *w, struct perf_cpu_map *cpu)
 {
 	cpu_set_t *cpuset;
 	unsigned int i;
@@ -110,6 +109,9 @@ static void block_threads(pthread_t *w,
 
 	/* create and block all threads */
 	for (i = 0; i < params.nthreads; i++) {
+		pthread_attr_t thread_attr;
+
+		pthread_attr_init(&thread_attr);
 		CPU_ZERO_S(size, cpuset);
 		CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, size, cpuset);
 
@@ -122,6 +124,7 @@ static void block_threads(pthread_t *w,
 			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
 		}
+		pthread_attr_destroy(&thread_attr);
 	}
 	CPU_FREE(cpuset);
 }
@@ -138,7 +141,6 @@ int bench_futex_wake(int argc, const char **argv)
 	int ret = 0;
 	unsigned int i, j;
 	struct sigaction act;
-	pthread_attr_t thread_attr;
 	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_wake_usage, 0);
@@ -178,7 +180,6 @@ int bench_futex_wake(int argc, const char **argv)
 
 	init_stats(&wakeup_stats);
 	init_stats(&waketime_stats);
-	pthread_attr_init(&thread_attr);
 	mutex_init(&thread_lock);
 	cond_init(&thread_parent);
 	cond_init(&thread_worker);
@@ -188,7 +189,7 @@ int bench_futex_wake(int argc, const char **argv)
 		struct timeval start, end, runtime;
 
 		/* create, launch & block all threads */
-		block_threads(worker, thread_attr, cpu);
+		block_threads(worker, cpu);
 
 		/* make sure all threads are already blocked */
 		mutex_lock(&thread_lock);
@@ -228,7 +229,6 @@ int bench_futex_wake(int argc, const char **argv)
 	cond_destroy(&thread_parent);
 	cond_destroy(&thread_worker);
 	mutex_destroy(&thread_lock);
-	pthread_attr_destroy(&thread_attr);
 
 	print_summary();
 

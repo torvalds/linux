@@ -334,13 +334,12 @@ i2c_au1550_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int i2c_au1550_remove(struct platform_device *pdev)
+static void i2c_au1550_remove(struct platform_device *pdev)
 {
 	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&priv->adap);
 	i2c_au1550_disable(priv);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -379,7 +378,7 @@ static struct platform_driver au1xpsc_smbus_driver = {
 		.pm	= AU1XPSC_SMBUS_PMOPS,
 	},
 	.probe		= i2c_au1550_probe,
-	.remove		= i2c_au1550_remove,
+	.remove_new	= i2c_au1550_remove,
 };
 
 module_platform_driver(au1xpsc_smbus_driver);

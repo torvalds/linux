@@ -66,7 +66,7 @@ hwmon_device_register_with_info.
 
 devm_hwmon_device_unregister does not normally have to be called. It is only
 needed for error handling, and only needed if the driver probe fails after
-the call to hwmon_device_register_with_info and if the automatic (device
+the call to devm_hwmon_device_register_with_info and if the automatic (device
 managed) removal would be too late.
 
 All supported hwmon device registration functions only accept valid device

@@ -93,17 +93,23 @@ static bool mlx5_modify_mtutc_allowed(struct mlx5_core_dev *mdev)
 	return MLX5_CAP_MCAM_FEATURE(mdev, ptpcyc2realtime_modify);
 }
 
+static s32 mlx5_ptp_getmaxphase(struct ptp_clock_info *ptp)
+{
+	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
+	struct mlx5_core_dev *mdev;
+
+	mdev = container_of(clock, struct mlx5_core_dev, clock);
+
+	return MLX5_CAP_MCAM_FEATURE(mdev, mtutc_time_adjustment_extended_range) ?
+		       MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX :
+			     MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX;
+}
+
 static bool mlx5_is_mtutc_time_adj_cap(struct mlx5_core_dev *mdev, s64 delta)
 {
-	s64 min = MLX5_MTUTC_OPERATION_ADJUST_TIME_MIN;
-	s64 max = MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX;
+	s64 max = mlx5_ptp_getmaxphase(&mdev->clock.ptp_info);
 
-	if (MLX5_CAP_MCAM_FEATURE(mdev, mtutc_time_adjustment_extended_range)) {
-		min = MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MIN;
-		max = MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX;
-	}
-
-	if (delta < min || delta > max)
+	if (delta < -max || delta > max)
 		return false;
 
 	return true;
@@ -221,10 +227,15 @@ static void mlx5_timestamp_overflow(struct work_struct *work)
 	clock = container_of(timer, struct mlx5_clock, timer);
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		goto out;
+
 	write_seqlock_irqsave(&clock->lock, flags);
 	timecounter_read(&timer->tc);
 	mlx5_update_clock_info_page(mdev);
 	write_sequnlock_irqrestore(&clock->lock, flags);
+
+out:
 	schedule_delayed_work(&timer->overflow_work, timer->overflow_period);
 }
 
@@ -351,14 +362,6 @@ static int mlx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 static int mlx5_ptp_adjphase(struct ptp_clock_info *ptp, s32 delta)
 {
-	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
-	struct mlx5_core_dev *mdev;
-
-	mdev = container_of(clock, struct mlx5_core_dev, clock);
-
-	if (!mlx5_is_mtutc_time_adj_cap(mdev, delta))
-		return -ERANGE;
-
 	return mlx5_ptp_adjtime(ptp, delta);
 }
 
@@ -734,6 +737,7 @@ static const struct ptp_clock_info mlx5_ptp_clock_info = {
 	.pps		= 0,
 	.adjfine	= mlx5_ptp_adjfine,
 	.adjphase	= mlx5_ptp_adjphase,
+	.getmaxphase    = mlx5_ptp_getmaxphase,
 	.adjtime	= mlx5_ptp_adjtime,
 	.gettimex64	= mlx5_ptp_gettimex,
 	.settime64	= mlx5_ptp_settime,

@@ -77,8 +77,14 @@ struct ptp_system_timestamp {
  *            nominal frequency in parts per million, but with a
  *            16 bit binary fractional field.
  *
- * @adjphase:  Adjusts the phase offset of the hardware clock.
- *             parameter delta: Desired change in nanoseconds.
+ * @adjphase:  Indicates that the PHC should use an internal servo
+ *             algorithm to correct the provided phase offset.
+ *             parameter delta: PHC servo phase adjustment target
+ *                              in nanoseconds.
+ *
+ * @getmaxphase:  Advertises maximum offset that can be provided
+ *                to the hardware clock's phase control functionality
+ *                through adjphase.
  *
  * @adjtime:  Shifts the time of the hardware clock.
  *            parameter delta: Desired change in nanoseconds.
@@ -169,6 +175,7 @@ struct ptp_clock_info {
 	struct ptp_pin_desc *pin_config;
 	int (*adjfine)(struct ptp_clock_info *ptp, long scaled_ppm);
 	int (*adjphase)(struct ptp_clock_info *ptp, s32 phase);
+	s32 (*getmaxphase)(struct ptp_clock_info *ptp);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
 	int (*gettimex64)(struct ptp_clock_info *ptp, struct timespec64 *ts,

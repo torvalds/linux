@@ -1,0 +1,243 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2016 Derald D. Woods <woods.technical@gmail.com>
+ *
+ * Based on am3517-evm.dts
+ */
+
+/ {
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vdd_core_reg>;
+		};
+	};
+
+	wl12xx_buffer: wl12xx_buf {
+		compatible = "regulator-fixed";
+		regulator-name = "wl1271_buf";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl12xx_buffer_pins>;
+		gpio = <&gpio5 1 GPIO_ACTIVE_LOW>; /* gpio 129 */
+		regulator-always-on;
+		vin-supply = <&vdd_1v8_reg>;
+	};
+
+	wl12xx_vmmc2: wl12xx_vmmc2 {
+		compatible = "regulator-fixed";
+		regulator-name = "vwl1271";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl12xx_wkup_pins>;
+		gpio = <&gpio1 3 GPIO_ACTIVE_HIGH >; /* gpio 3 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-always-on;
+		vin-supply = <&wl12xx_buffer>;
+	};
+};
+
+&gpmc {
+	ranges = <0 0 0x30000000 0x1000000>;	/* CS0: 16MB for NAND */
+
+	nand@0,0 {
+		compatible = "ti,omap2-nand";
+		linux,mtd-name = "micron,mt29f4g16abchch";
+		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		nand-bus-width = <16>;
+		ti,nand-ecc-opt = "bch8";
+		gpmc,sync-clk-ps = <0>;
+		gpmc,cs-on-ns = <0>;
+		gpmc,cs-rd-off-ns = <44>;
+		gpmc,cs-wr-off-ns = <44>;
+		gpmc,adv-on-ns = <6>;
+		gpmc,adv-rd-off-ns = <34>;
+		gpmc,adv-wr-off-ns = <44>;
+		gpmc,we-off-ns = <40>;
+		gpmc,oe-off-ns = <54>;
+		gpmc,access-ns = <64>;
+		gpmc,rd-cycle-ns = <82>;
+		gpmc,wr-cycle-ns = <82>;
+		gpmc,wr-access-ns = <40>;
+		gpmc,wr-data-mux-bus-ns = <0>;
+		gpmc,device-width = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	clock-frequency = <400000>;
+
+	s35390a: s35390a@30 {
+		compatible = "sii,s35390a";
+		reg = <0x30>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&rtc_pins>;
+		interrupts-extended = <&gpio2 23 IRQ_TYPE_EDGE_FALLING>; /* gpio_55 */
+	};
+
+	tps: tps65023@48 {
+		compatible = "ti,tps65023";
+		reg = <0x48>;
+
+		regulators {
+			vdd_core_reg: VDCDC1 {
+				regulator-name = "vdd_core";
+				regulator-always-on;
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			vdd_io_reg: VDCDC2 {
+				regulator-name = "vdd_io";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			vdd_1v8_reg: VDCDC3 {
+				regulator-name = "vdd_1v8";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb18_reg: LDO1 {
+				regulator-name = "vdd_usb18";
+				regulator-always-on;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			vdd_usb33_reg: LDO2 {
+				regulator-name = "vdd_usb33";
+				regulator-always-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+
+	touchscreen: tsc2004@4b {
+		compatible = "ti,tsc2004";
+		reg = <0x4b>;
+
+		vio-supply = <&vdd_io_reg>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsc2004_pins>;
+		interrupts-extended = <&gpio3 1 IRQ_TYPE_EDGE_RISING>; /* gpio_65 */
+
+		touchscreen-fuzz-x = <4>;
+		touchscreen-fuzz-y = <7>;
+		touchscreen-fuzz-pressure = <2>;
+		touchscreen-size-x = <480>;
+		touchscreen-size-y = <272>;
+		touchscreen-max-pressure = <2048>;
+
+		ti,x-plate-ohms = <280>;
+		ti,esd-recovery-timeout-ms = <8000>;
+	};
+};
+
+&mmc2 {
+	interrupts-extended = <&intc 86 /* &omap3_pmx_core 0x12c */>;
+
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_pins>;
+	vmmc-supply = <&wl12xx_vmmc2>;
+	non-removable;
+	bus-width = <4>;
+	cap-power-off-card;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wlcore: wlcore@2 {
+		compatible = "ti,wl1271";
+		reg = <2>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <10 IRQ_TYPE_EDGE_RISING>; /* gpio_170 */
+		ref-clock-frequency = <26000000>;
+		tcxo-clock-frequency = <26000000>;
+	};
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins>;
+
+	bluetooth {
+		compatible = "ti,wl1271-st";
+		enable-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>; /* gpio 56 */
+		max-speed = <3000000>;
+	};
+};
+
+&omap3_pmx_core {
+
+	i2c1_pins: i2c1-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21ba, PIN_INPUT_PULLUP | MUX_MODE0)  /* i2c1_scl */
+			OMAP3_CORE1_IOPAD(0x21bc, PIN_INPUT_PULLUP | MUX_MODE0)  /* i2c1_sda */
+		>;
+	};
+
+	wl12xx_buffer_pins: wl12xx-buffer-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2156, PIN_OUTPUT | MUX_MODE4)  /* mmc1_dat7.gpio_129 */
+		>;
+	};
+
+	mmc2_pins: mmc2-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2158, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_clk.mmc2_clk */
+			OMAP3_CORE1_IOPAD(0x215a, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_cmd.mmc2_cmd */
+			OMAP3_CORE1_IOPAD(0x215c, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_dat0.mmc2_dat0 */
+			OMAP3_CORE1_IOPAD(0x215e, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_dat1.mmc2_dat1 */
+			OMAP3_CORE1_IOPAD(0x2160, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_dat2.mmc2_dat2 */
+			OMAP3_CORE1_IOPAD(0x2162, PIN_INPUT_PULLUP | MUX_MODE0)  /* mmc2_dat3.mmc2_dat3 */
+			OMAP3_CORE1_IOPAD(0x2164, PIN_OUTPUT | MUX_MODE1) /* mmc2_dat4.mmc2_dir_dat0 */
+			OMAP3_CORE1_IOPAD(0x2166, PIN_OUTPUT | MUX_MODE1) /* mmc2_dat5.mmc2_dir_dat1 */
+			OMAP3_CORE1_IOPAD(0x2168, PIN_OUTPUT | MUX_MODE1) /* mmc2_dat6.mmc2_dir_cmd */
+			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT | MUX_MODE1) /* mmc2_dat7.mmc2_clkin */
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE4)	/* hdq_sio.gpio_170 */
+		>;
+	};
+
+	rtc_pins: rtc-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20b6, PIN_INPUT_PULLUP | MUX_MODE4) /* gpmc_ncs4.gpio_55 */
+		>;
+	};
+
+	tsc2004_pins: tsc2004-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x20d2, PIN_INPUT | MUX_MODE4) /* gpmc_wait3.gpio_65 */
+		>;
+	};
+
+	uart2_pins: uart2-pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x2174, PIN_INPUT_PULLUP | MUX_MODE0)		/* uart2_cts */
+			OMAP3_CORE1_IOPAD(0x2176, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* uart2_rts */
+			OMAP3_CORE1_IOPAD(0x2178, PIN_OUTPUT | MUX_MODE0)		/* uart2_tx */
+			OMAP3_CORE1_IOPAD(0x217a, PIN_INPUT | MUX_MODE0)		/* uart2_rx */
+			OMAP3_CORE1_IOPAD(0x20b8, PIN_INPUT | MUX_MODE0)		/* gpio_56 */
+		>;
+	};
+};
+
+&omap3_pmx_wkup {
+
+	wl12xx_wkup_pins: wl12xx-wkup-pins {
+		pinctrl-single,pins = <
+			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
+		>;
+	};
+};

@@ -106,6 +106,7 @@ bool cm_helper_convert_to_custom_float(
 		bool fixpoint);
 
 bool cm_helper_translate_curve_to_hw_format(
+		struct dc_context *ctx,
 		const struct dc_transfer_func *output_tf,
 		struct pwl_params *lut_params, bool fixpoint);
 

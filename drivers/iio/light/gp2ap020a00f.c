@@ -1609,7 +1609,7 @@ static struct i2c_driver gp2ap020a00f_driver = {
 		.name	= GP2A_I2C_NAME,
 		.of_match_table = gp2ap020a00f_of_match,
 	},
-	.probe_new	= gp2ap020a00f_probe,
+	.probe		= gp2ap020a00f_probe,
 	.remove		= gp2ap020a00f_remove,
 	.id_table	= gp2ap020a00f_id,
 };

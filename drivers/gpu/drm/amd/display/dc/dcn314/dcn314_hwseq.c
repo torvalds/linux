@@ -390,6 +390,35 @@ void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 				pix_per_cycle);
 }
 
+void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
+{
+	unsigned int i;
+	struct pipe_ctx *pipe = NULL;
+	bool otg_disabled[MAX_PIPES] = {false};
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->top_pipe || pipe->prev_odm_pipe)
+			continue;
+
+		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))) {
+			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
+			reset_sync_context_for_pipe(dc, context, i);
+			otg_disabled[i] = true;
+		}
+	}
+
+	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (otg_disabled[i])
+			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+	}
+}
+
 void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst, bool clock_on)
 {
 	if (!hws->ctx->dc->debug.root_clock_optimization.bits.dpp)
@@ -400,29 +429,6 @@ void dcn314_dpp_root_clock_control(struct dce_hwseq *hws, unsigned int dpp_inst,
 			hws->ctx->dc->res_pool->dccg, dpp_inst, clock_on);
 }
 
-void dcn314_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
-{
-	struct dc_context *ctx = hws->ctx;
-	union dmub_rb_cmd cmd;
-
-	if (hws->ctx->dc->debug.disable_hubp_power_gate)
-		return;
-
-	PERF_TRACE();
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.domain_control.header.type = DMUB_CMD__VBIOS;
-	cmd.domain_control.header.sub_type = DMUB_CMD__VBIOS_DOMAIN_CONTROL;
-	cmd.domain_control.header.payload_bytes = sizeof(cmd.domain_control.data);
-	cmd.domain_control.data.inst = hubp_inst;
-	cmd.domain_control.data.power_gate = !power_on;
-
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(ctx->dmub_srv);
-
-	PERF_TRACE();
-}
 static void apply_symclk_on_tx_off_wa(struct dc_link *link)
 {
 	/* There are use cases where SYMCLK is referenced by OTG. For instance

@@ -127,16 +127,8 @@ config LSM_MMAP_MIN_ADDR
 	  this low address space will need the permission specific to the
 	  systems running LSM.
 
-config HAVE_HARDENED_USERCOPY_ALLOCATOR
-	bool
-	help
-	  The heap allocator implements __check_heap_object() for
-	  validating memory ranges against heap object sizes in
-	  support of CONFIG_HARDENED_USERCOPY.
-
 config HARDENED_USERCOPY
 	bool "Harden memory copies between kernel and userspace"
-	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
 	imply STRICT_DEVMEM
 	help
 	  This option checks for obviously wrong memory regions when

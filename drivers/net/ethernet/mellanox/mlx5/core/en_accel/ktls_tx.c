@@ -846,7 +846,7 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 	tls_ctx = tls_get_ctx(skb->sk);
 	tls_netdev = rcu_dereference_bh(tls_ctx->netdev);
 	/* Don't WARN on NULL: if tls_device_down is running in parallel,
-	 * netdev might become NULL, even if tls_is_sk_tx_device_offloaded was
+	 * netdev might become NULL, even if tls_is_skb_tx_device_offloaded was
 	 * true. Rather continue processing this packet.
 	 */
 	if (WARN_ON_ONCE(tls_netdev && tls_netdev != netdev))
@@ -908,28 +908,51 @@ static void mlx5e_tls_tx_debugfs_init(struct mlx5e_tls *tls,
 
 int mlx5e_ktls_init_tx(struct mlx5e_priv *priv)
 {
+	struct mlx5_crypto_dek_pool *dek_pool;
 	struct mlx5e_tls *tls = priv->tls;
+	int err;
+
+	if (!mlx5e_is_ktls_device(priv->mdev))
+		return 0;
+
+	/* DEK pool could be used by either or both of TX and RX. But we have to
+	 * put the creation here to avoid syndrome when doing devlink reload.
+	 */
+	dek_pool = mlx5_crypto_dek_pool_create(priv->mdev, MLX5_ACCEL_OBJ_TLS_KEY);
+	if (IS_ERR(dek_pool))
+		return PTR_ERR(dek_pool);
+	tls->dek_pool = dek_pool;
 
 	if (!mlx5e_is_ktls_tx(priv->mdev))
 		return 0;
 
 	priv->tls->tx_pool = mlx5e_tls_tx_pool_init(priv->mdev, &priv->tls->sw_stats);
-	if (!priv->tls->tx_pool)
-		return -ENOMEM;
+	if (!priv->tls->tx_pool) {
+		err = -ENOMEM;
+		goto err_tx_pool_init;
+	}
 
 	mlx5e_tls_tx_debugfs_init(tls, tls->debugfs.dfs);
 
 	return 0;
+
+err_tx_pool_init:
+	mlx5_crypto_dek_pool_destroy(dek_pool);
+	return err;
 }
 
 void mlx5e_ktls_cleanup_tx(struct mlx5e_priv *priv)
 {
 	if (!mlx5e_is_ktls_tx(priv->mdev))
-		return;
+		goto dek_pool_destroy;
 
 	debugfs_remove_recursive(priv->tls->debugfs.dfs_tx);
 	priv->tls->debugfs.dfs_tx = NULL;
 
 	mlx5e_tls_tx_pool_cleanup(priv->tls->tx_pool);
 	priv->tls->tx_pool = NULL;
+
+dek_pool_destroy:
+	if (mlx5e_is_ktls_device(priv->mdev))
+		mlx5_crypto_dek_pool_destroy(priv->tls->dek_pool);
 }

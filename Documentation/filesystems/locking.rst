@@ -521,8 +521,6 @@ prototypes::
 	int (*fsync) (struct file *, loff_t start, loff_t end, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
-	ssize_t (*sendpage) (struct file *, struct page *, int, size_t,
-			loff_t *, int);
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long,
 			unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
@@ -553,9 +551,8 @@ mutex or just to use i_size_read() instead.
 Note: this does not protect the file->f_pos against concurrent modifications
 since this is something the userspace has to take care about.
 
-->iterate() is called with i_rwsem exclusive.
-
-->iterate_shared() is called with i_rwsem at least shared.
+->iterate_shared() is called with i_rwsem held for reading, and with the
+file f_pos_lock held exclusively
 
 ->fasync() is responsible for maintaining the FASYNC bit in filp->f_flags.
 Most instances call fasync_helper(), which does that maintenance, so it's

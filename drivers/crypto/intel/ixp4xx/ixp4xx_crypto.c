@@ -1175,9 +1175,9 @@ static int aead_perform(struct aead_request *req, int encrypt,
 		/* The 12 hmac bytes are scattered,
 		 * we need to copy them into a safe buffer */
 		req_ctx->hmac_virt = dma_pool_alloc(buffer_pool, flags, &dma);
-		crypt->icv_rev_aes = dma;
 		if (unlikely(!req_ctx->hmac_virt))
 			goto free_buf_dst;
+		crypt->icv_rev_aes = dma;
 		if (!encrypt) {
 			scatterwalk_map_and_copy(req_ctx->hmac_virt,
 						 req->src, cryptlen, authsize, 0);

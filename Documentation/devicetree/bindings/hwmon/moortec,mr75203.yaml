@@ -105,7 +105,7 @@ properties:
       G coefficient for temperature equation.
       Default for series 5 = 60000
       Default for series 6 = 57400
-    multipleOf: 1000
+    multipleOf: 100
     minimum: 1000
     $ref: /schemas/types.yaml#/definitions/uint32
 
@@ -114,7 +114,7 @@ properties:
       H coefficient for temperature equation.
       Default for series 5 = 200000
       Default for series 6 = 249400
-    multipleOf: 1000
+    multipleOf: 100
     minimum: 1000
     $ref: /schemas/types.yaml#/definitions/uint32
 
@@ -131,7 +131,7 @@ properties:
       J coefficient for temperature equation.
       Default for series 5 = -100
       Default for series 6 = 0
-    multipleOf: 1000
+    multipleOf: 100
     maximum: 0
     $ref: /schemas/types.yaml#/definitions/int32
 

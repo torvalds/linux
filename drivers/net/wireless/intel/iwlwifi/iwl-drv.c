@@ -158,12 +158,71 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 	return 0;
 }
 
+static inline char iwl_drv_get_step(int step)
+{
+	if (step == SILICON_Z_STEP)
+		return 'z';
+	return 'a' + step;
+}
+
+const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
+{
+	char mac_step, rf_step;
+	const char *rf, *cdb;
+
+	if (trans->cfg->fw_name_pre)
+		return trans->cfg->fw_name_pre;
+
+	if (WARN_ON(!trans->cfg->fw_name_mac))
+		return "unconfigured";
+
+	mac_step = iwl_drv_get_step(trans->hw_rev_step);
+
+	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_HR1:
+	case IWL_CFG_RF_TYPE_HR2:
+		rf = "hr";
+		break;
+	case IWL_CFG_RF_TYPE_GF:
+		rf = "gf";
+		break;
+	case IWL_CFG_RF_TYPE_MR:
+		rf = "mr";
+		break;
+	case IWL_CFG_RF_TYPE_MS:
+		rf = "ms";
+		break;
+	case IWL_CFG_RF_TYPE_FM:
+		rf = "fm";
+		break;
+	case IWL_CFG_RF_TYPE_WH:
+		rf = "wh";
+		break;
+	default:
+		return "unknown-rf";
+	}
+
+	cdb = CSR_HW_RFID_IS_CDB(trans->hw_rf_id) ? "4" : "";
+
+	rf_step = iwl_drv_get_step(CSR_HW_RFID_STEP(trans->hw_rf_id));
+
+	scnprintf(buf, FW_NAME_PRE_BUFSIZE,
+		  "iwlwifi-%s-%c0-%s%s-%c0",
+		  trans->cfg->fw_name_mac, mac_step,
+		  rf, cdb, rf_step);
+
+	return buf;
+}
+IWL_EXPORT_SYMBOL(iwl_drv_get_fwname_pre);
+
 static void iwl_req_fw_callback(const struct firmware *ucode_raw,
 				void *context);
 
 static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 {
 	const struct iwl_cfg *cfg = drv->trans->cfg;
+	char _fw_name_pre[FW_NAME_PRE_BUFSIZE];
+	const char *fw_name_pre;
 
 	if (drv->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_9000 &&
 	    (drv->trans->hw_rev_step != SILICON_B_STEP &&
@@ -174,6 +233,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -EINVAL;
 	}
 
+	fw_name_pre = iwl_drv_get_fwname_pre(drv->trans, _fw_name_pre);
+
 	if (first)
 		drv->fw_index = cfg->ucode_api_max;
 	else
@@ -183,13 +244,13 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		IWL_ERR(drv, "no suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
-			IWL_ERR(drv, "%s%d is required\n", cfg->fw_name_pre,
+			IWL_ERR(drv, "%s-%d is required\n", fw_name_pre,
 				cfg->ucode_api_max);
 		} else {
-			IWL_ERR(drv, "minimum version required: %s%d\n",
-				cfg->fw_name_pre, cfg->ucode_api_min);
-			IWL_ERR(drv, "maximum version supported: %s%d\n",
-				cfg->fw_name_pre, cfg->ucode_api_max);
+			IWL_ERR(drv, "minimum version required: %s-%d\n",
+				fw_name_pre, cfg->ucode_api_min);
+			IWL_ERR(drv, "maximum version supported: %s-%d\n",
+				fw_name_pre, cfg->ucode_api_max);
 		}
 
 		IWL_ERR(drv,
@@ -197,8 +258,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		return -ENOENT;
 	}
 
-	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s%d.ucode",
-		 cfg->fw_name_pre, drv->fw_index);
+	snprintf(drv->firmware_name, sizeof(drv->firmware_name), "%s-%d.ucode",
+		 fw_name_pre, drv->fw_index);
 
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);

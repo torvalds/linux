@@ -1927,7 +1927,7 @@ static int advk_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int advk_pcie_remove(struct platform_device *pdev)
+static void advk_pcie_remove(struct platform_device *pdev)
 {
 	struct advk_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -1989,8 +1989,6 @@ static int advk_pcie_remove(struct platform_device *pdev)
 
 	/* Disable phy */
 	advk_pcie_disable_phy(pcie);
-
-	return 0;
 }
 
 static const struct of_device_id advk_pcie_of_match_table[] = {
@@ -2005,7 +2003,7 @@ static struct platform_driver advk_pcie_driver = {
 		.of_match_table = advk_pcie_of_match_table,
 	},
 	.probe = advk_pcie_probe,
-	.remove = advk_pcie_remove,
+	.remove_new = advk_pcie_remove,
 };
 module_platform_driver(advk_pcie_driver);
 

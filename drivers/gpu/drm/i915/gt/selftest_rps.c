@@ -8,6 +8,7 @@
 
 #include "gem/i915_gem_internal.h"
 
+#include "i915_reg.h"
 #include "intel_engine_heartbeat.h"
 #include "intel_engine_pm.h"
 #include "intel_engine_regs.h"

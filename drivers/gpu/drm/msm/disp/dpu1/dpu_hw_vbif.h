@@ -106,14 +106,13 @@ struct dpu_hw_vbif {
 };
 
 /**
- * dpu_hw_vbif_init - initializes the vbif driver for the passed interface idx
- * @idx:  Interface index for which driver object is required
+ * dpu_hw_vbif_init() - Initializes the VBIF driver for the passed
+ * VBIF catalog entry.
+ * @cfg:  VBIF catalog entry for which driver object is required
  * @addr: Mapped register io address of MDSS
- * @m:    Pointer to mdss catalog data
  */
-struct dpu_hw_vbif *dpu_hw_vbif_init(enum dpu_vbif idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_vbif *dpu_hw_vbif_init(const struct dpu_vbif_cfg *cfg,
+		void __iomem *addr);
 
 void dpu_hw_vbif_destroy(struct dpu_hw_vbif *vbif);
 

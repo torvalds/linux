@@ -645,8 +645,6 @@ static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *av
 {
 	int idx = 0;
 
-	memset(available_slices, -1, MIN_AVAILABLE_SLICES_SIZE);
-
 	if (slice_caps.bits.NUM_SLICES_1)
 		available_slices[idx++] = 1;
 
@@ -700,7 +698,7 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 		}
 	}
 
-	if (new_num_slices == num_slices) // No biger number of slices found
+	if (new_num_slices == num_slices) // No bigger number of slices found
 		new_num_slices++;
 
 	return new_num_slices;
@@ -952,6 +950,13 @@ static bool setup_dsc_config(
 		else
 			is_dsc_possible = false;
 	}
+	// When we force 2:1 ODM, we can't have 1 slice to divide amongst 2 separate DSC instances
+	// need to enforce at minimum 2 horizontal slices
+	if (options->dsc_force_odm_hslice_override) {
+		num_slices_h = fit_num_slices_up(dsc_common_caps.slice_caps, 2);
+		if (num_slices_h == 0)
+			is_dsc_possible = false;
+	}
 
 	if (!is_dsc_possible)
 		goto done;
@@ -1163,6 +1168,7 @@ void dc_dsc_policy_set_disable_dsc_stream_overhead(bool disable)
 void dc_dsc_get_default_config_option(const struct dc *dc, struct dc_dsc_config_options *options)
 {
 	options->dsc_min_slice_height_override = dc->debug.dsc_min_slice_height_override;
+	options->dsc_force_odm_hslice_override = dc->debug.force_odm_combine;
 	options->max_target_bpp_limit_override_x16 = 0;
 	options->slice_height_granularity = 1;
 }

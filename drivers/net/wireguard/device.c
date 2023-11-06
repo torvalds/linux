@@ -20,6 +20,7 @@
 #include <linux/icmp.h>
 #include <linux/suspend.h>
 #include <net/dst_metadata.h>
+#include <net/gso.h>
 #include <net/icmp.h>
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>

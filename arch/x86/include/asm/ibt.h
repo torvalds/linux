@@ -34,7 +34,7 @@
 /*
  * Create a dummy function pointer reference to prevent objtool from marking
  * the function as needing to be "sealed" (i.e. ENDBR converted to NOP by
- * apply_ibt_endbr()).
+ * apply_seal_endbr()).
  */
 #define IBT_NOSEAL(fname)				\
 	".pushsection .discard.ibt_endbr_noseal\n\t"	\

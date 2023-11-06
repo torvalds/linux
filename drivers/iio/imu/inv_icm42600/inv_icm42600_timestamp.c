@@ -93,8 +93,8 @@ static bool inv_validate_period(uint32_t period, uint32_t mult)
 		return false;
 }
 
-static bool inv_compute_chip_period(struct inv_icm42600_timestamp *ts,
-				    uint32_t mult, uint32_t period)
+static bool inv_update_chip_period(struct inv_icm42600_timestamp *ts,
+				   uint32_t mult, uint32_t period)
 {
 	uint32_t new_chip_period;
 
@@ -104,8 +104,29 @@ static bool inv_compute_chip_period(struct inv_icm42600_timestamp *ts,
 	/* update chip internal period estimation */
 	new_chip_period = period / mult;
 	inv_update_acc(&ts->chip_period, new_chip_period);
+	ts->period = ts->mult * ts->chip_period.val;
 
 	return true;
+}
+
+static void inv_align_timestamp_it(struct inv_icm42600_timestamp *ts)
+{
+	int64_t delta, jitter;
+	int64_t adjust;
+
+	/* delta time between last sample and last interrupt */
+	delta = ts->it.lo - ts->timestamp;
+
+	/* adjust timestamp while respecting jitter */
+	jitter = div_s64((int64_t)ts->period * INV_ICM42600_TIMESTAMP_JITTER, 100);
+	if (delta > jitter)
+		adjust = jitter;
+	else if (delta < -jitter)
+		adjust = -jitter;
+	else
+		adjust = 0;
+
+	ts->timestamp += adjust;
 }
 
 void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
@@ -116,7 +137,6 @@ void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
 	int64_t delta, interval;
 	const uint32_t fifo_mult = fifo_period / INV_ICM42600_TIMESTAMP_PERIOD;
 	uint32_t period = ts->period;
-	int32_t m;
 	bool valid = false;
 
 	if (fifo_nb == 0)
@@ -130,10 +150,7 @@ void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
 	if (it->lo != 0) {
 		/* compute period: delta time divided by number of samples */
 		period = div_s64(delta, fifo_nb);
-		valid = inv_compute_chip_period(ts, fifo_mult, period);
-		/* update sensor period if chip internal period is updated */
-		if (valid)
-			ts->period = ts->mult * ts->chip_period.val;
+		valid = inv_update_chip_period(ts, fifo_mult, period);
 	}
 
 	/* no previous data, compute theoritical value from interrupt */
@@ -145,22 +162,8 @@ void inv_icm42600_timestamp_interrupt(struct inv_icm42600_timestamp *ts,
 	}
 
 	/* if interrupt interval is valid, sync with interrupt timestamp */
-	if (valid) {
-		/* compute measured fifo_period */
-		fifo_period = fifo_mult * ts->chip_period.val;
-		/* delta time between last sample and last interrupt */
-		delta = it->lo - ts->timestamp;
-		/* if there are multiple samples, go back to first one */
-		while (delta >= (fifo_period * 3 / 2))
-			delta -= fifo_period;
-		/* compute maximal adjustment value */
-		m = INV_ICM42600_TIMESTAMP_MAX_PERIOD(ts->period) - ts->period;
-		if (delta > m)
-			delta = m;
-		else if (delta < -m)
-			delta = -m;
-		ts->timestamp += delta;
-	}
+	if (valid)
+		inv_align_timestamp_it(ts);
 }
 
 void inv_icm42600_timestamp_apply_odr(struct inv_icm42600_timestamp *ts,

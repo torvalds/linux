@@ -345,15 +345,6 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alg_mod_lookup);
 
-static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
-{
-	const struct crypto_type *type_obj = tfm->__crt_alg->cra_type;
-
-	if (type_obj)
-		return type_obj->init(tfm, type, mask);
-	return 0;
-}
-
 static void crypto_exit_ops(struct crypto_tfm *tfm)
 {
 	const struct crypto_type *type = tfm->__crt_alg->cra_type;
@@ -395,24 +386,20 @@ void crypto_shoot_alg(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
-struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
-				      u32 mask)
+struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
+					 u32 mask, gfp_t gfp)
 {
 	struct crypto_tfm *tfm = NULL;
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, type, mask);
-	tfm = kzalloc(tfm_size, GFP_KERNEL);
+	tfm = kzalloc(tfm_size, gfp);
 	if (tfm == NULL)
 		goto out_err;
 
 	tfm->__crt_alg = alg;
 	refcount_set(&tfm->refcnt, 1);
-
-	err = crypto_init_ops(tfm, type, mask);
-	if (err)
-		goto out_free_tfm;
 
 	if (!tfm->exit && alg->cra_init && (err = alg->cra_init(tfm)))
 		goto cra_init_failed;
@@ -421,7 +408,6 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 
 cra_init_failed:
 	crypto_exit_ops(tfm);
-out_free_tfm:
 	if (err == -EAGAIN)
 		crypto_shoot_alg(alg);
 	kfree(tfm);
@@ -429,6 +415,13 @@ out_err:
 	tfm = ERR_PTR(err);
 out:
 	return tfm;
+}
+EXPORT_SYMBOL_GPL(__crypto_alloc_tfmgfp);
+
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
+				      u32 mask)
+{
+	return __crypto_alloc_tfmgfp(alg, type, mask, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
 

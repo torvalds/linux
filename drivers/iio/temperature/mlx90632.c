@@ -1337,7 +1337,7 @@ static struct i2c_driver mlx90632_driver = {
 		.of_match_table = mlx90632_of_match,
 		.pm	= pm_ptr(&mlx90632_pm_ops),
 	},
-	.probe_new = mlx90632_probe,
+	.probe = mlx90632_probe,
 	.id_table = mlx90632_id,
 };
 module_i2c_driver(mlx90632_driver);

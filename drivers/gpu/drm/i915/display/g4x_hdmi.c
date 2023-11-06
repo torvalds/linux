@@ -7,6 +7,7 @@
 
 #include "g4x_hdmi.h"
 #include "i915_reg.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
@@ -80,14 +81,66 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	return ret;
 }
 
+static bool connector_is_hdmi(struct drm_connector *connector)
+{
+	struct intel_encoder *encoder =
+		intel_attached_encoder(to_intel_connector(connector));
+
+	return encoder && encoder->type == INTEL_OUTPUT_HDMI;
+}
+
+static bool g4x_compute_has_hdmi_sink(struct intel_atomic_state *state,
+				      struct intel_crtc *this_crtc)
+{
+	const struct drm_connector_state *conn_state;
+	struct drm_connector *connector;
+	int i;
+
+	/*
+	 * On g4x only one HDMI port can transmit infoframes/audio at
+	 * any given time. Select the first suitable port for this duty.
+	 *
+	 * See also g4x_hdmi_connector_atomic_check().
+	 */
+	for_each_new_connector_in_state(&state->base, connector, conn_state, i) {
+		struct intel_encoder *encoder = to_intel_encoder(conn_state->best_encoder);
+		const struct intel_crtc_state *crtc_state;
+		struct intel_crtc *crtc;
+
+		if (!connector_is_hdmi(connector))
+			continue;
+
+		crtc = to_intel_crtc(conn_state->crtc);
+		if (!crtc)
+			continue;
+
+		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+
+		if (!intel_hdmi_compute_has_hdmi_sink(encoder, crtc_state, conn_state))
+			continue;
+
+		return crtc == this_crtc;
+	}
+
+	return false;
+}
+
 static int g4x_hdmi_compute_config(struct intel_encoder *encoder,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state)
 {
+	struct intel_atomic_state *state = to_intel_atomic_state(crtc_state->uapi.state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
 	if (HAS_PCH_SPLIT(i915))
 		crtc_state->has_pch_encoder = true;
+
+	if (IS_G4X(i915))
+		crtc_state->has_hdmi_sink = g4x_compute_has_hdmi_sink(state, crtc);
+	else
+		crtc_state->has_hdmi_sink =
+			intel_hdmi_compute_has_hdmi_sink(encoder, crtc_state, conn_state);
 
 	return intel_hdmi_compute_config(encoder, crtc_state, conn_state);
 }
@@ -544,6 +597,66 @@ intel_hdmi_hotplug(struct intel_encoder *encoder,
 		state = INTEL_HOTPLUG_RETRY;
 
 	return state;
+}
+
+int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
+				    struct drm_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->dev);
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *conn;
+	int ret;
+
+	ret = intel_digital_connector_atomic_check(connector, state);
+	if (ret)
+		return ret;
+
+	if (!IS_G4X(i915))
+		return 0;
+
+	if (!intel_connector_needs_modeset(to_intel_atomic_state(state), connector))
+		return 0;
+
+	/*
+	 * On g4x only one HDMI port can transmit infoframes/audio
+	 * at any given time. Make sure all enabled HDMI ports are
+	 * included in the state so that it's possible to select
+	 * one of them for this duty.
+	 *
+	 * See also g4x_compute_has_hdmi_sink().
+	 */
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		struct drm_connector_state *conn_state;
+		struct drm_crtc_state *crtc_state;
+		struct drm_crtc *crtc;
+
+		if (!connector_is_hdmi(conn))
+			continue;
+
+		drm_dbg_kms(&i915->drm, "Adding [CONNECTOR:%d:%s]\n",
+			    conn->base.id, conn->name);
+
+		conn_state = drm_atomic_get_connector_state(state, conn);
+		if (IS_ERR(conn_state)) {
+			ret = PTR_ERR(conn_state);
+			break;
+		}
+
+		crtc = conn_state->crtc;
+		if (!crtc)
+			continue;
+
+		crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+		crtc_state->mode_changed = true;
+
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret)
+			break;
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return ret;
 }
 
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,

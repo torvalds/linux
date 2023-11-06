@@ -220,7 +220,6 @@ static struct rtl_hal_ops rtl8192ee_hal_ops = {
 	.tx_polling = rtl92ee_tx_polling,
 	.enable_hw_sec = rtl92ee_enable_hw_security_config,
 	.set_key = rtl92ee_set_key,
-	.init_sw_leds = rtl92ee_init_sw_leds,
 	.get_bbreg = rtl92ee_phy_query_bb_reg,
 	.set_bbreg = rtl92ee_phy_set_bb_reg,
 	.get_rfreg = rtl92ee_phy_query_rf_reg,

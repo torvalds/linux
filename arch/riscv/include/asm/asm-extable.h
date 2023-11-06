@@ -7,6 +7,8 @@
 #define EX_TYPE_BPF			2
 #define EX_TYPE_UACCESS_ERR_ZERO	3
 
+#ifdef CONFIG_MMU
+
 #ifdef __ASSEMBLY__
 
 #define __ASM_EXTABLE_RAW(insn, fixup, type, data)	\
@@ -61,5 +63,9 @@
 	_ASM_EXTABLE_UACCESS_ERR_ZERO(insn, fixup, err, zero)
 
 #endif /* __ASSEMBLY__ */
+
+#else /* CONFIG_MMU */
+	#define _ASM_EXTABLE_UACCESS_ERR(insn, fixup, err)
+#endif /* CONFIG_MMU */
 
 #endif /* __ASM_ASM_EXTABLE_H */

@@ -79,7 +79,7 @@ static const struct regmap_config rt5682_sdw_indirect_regmap = {
 	.max_register = RT5682_I2C_MODE,
 	.volatile_reg = rt5682_volatile_register,
 	.readable_reg = rt5682_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5682_reg,
 	.num_reg_defaults = RT5682_REG_NUM,
 	.use_single_read = true,
@@ -500,9 +500,6 @@ static int rt5682_update_status(struct sdw_slave *slave,
 {
 	struct rt5682_priv *rt5682 = dev_get_drvdata(&slave->dev);
 
-	/* Update the status */
-	rt5682->status = status;
-
 	if (status == SDW_SLAVE_UNATTACHED)
 		rt5682->hw_init = false;
 
@@ -510,7 +507,7 @@ static int rt5682_update_status(struct sdw_slave *slave,
 	 * Perform initialization only if slave status is present and
 	 * hw_init flag is false
 	 */
-	if (rt5682->hw_init || rt5682->status != SDW_SLAVE_ATTACHED)
+	if (rt5682->hw_init || status != SDW_SLAVE_ATTACHED)
 		return 0;
 
 	/* perform I/O transfers required for Slave initialization */
@@ -753,8 +750,15 @@ static int __maybe_unused rt5682_dev_resume(struct device *dev)
 	if (!rt5682->first_hw_init)
 		return 0;
 
-	if (!slave->unattach_request)
+	if (!slave->unattach_request) {
+		if (rt5682->disable_irq == true) {
+			mutex_lock(&rt5682->disable_irq_lock);
+			sdw_write_no_pm(slave, SDW_SCP_INTMASK1, SDW_SCP_INT1_IMPL_DEF);
+			rt5682->disable_irq = false;
+			mutex_unlock(&rt5682->disable_irq_lock);
+		}
 		goto regmap_sync;
+	}
 
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT5682_PROBE_TIMEOUT));

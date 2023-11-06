@@ -396,7 +396,7 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 	struct gnttab_map_grant_ref *gop = queue->tx_map_ops + *map_ops;
 	struct xen_netif_tx_request *txp = first;
 
-	nr_slots = shinfo->nr_frags + 1;
+	nr_slots = shinfo->nr_frags + frag_overflow + 1;
 
 	copy_count(skb) = 0;
 	XENVIF_TX_CB(skb)->split_mask = 0;
@@ -462,8 +462,8 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 		}
 	}
 
-	for (shinfo->nr_frags = 0; shinfo->nr_frags < nr_slots;
-	     shinfo->nr_frags++, gop++) {
+	for (shinfo->nr_frags = 0; nr_slots > 0 && shinfo->nr_frags < MAX_SKB_FRAGS;
+	     shinfo->nr_frags++, gop++, nr_slots--) {
 		index = pending_index(queue->pending_cons++);
 		pending_idx = queue->pending_ring[index];
 		xenvif_tx_create_map_op(queue, pending_idx, txp,
@@ -476,12 +476,12 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 			txp++;
 	}
 
-	if (frag_overflow) {
+	if (nr_slots > 0) {
 
 		shinfo = skb_shinfo(nskb);
 		frags = shinfo->frags;
 
-		for (shinfo->nr_frags = 0; shinfo->nr_frags < frag_overflow;
+		for (shinfo->nr_frags = 0; shinfo->nr_frags < nr_slots;
 		     shinfo->nr_frags++, txp++, gop++) {
 			index = pending_index(queue->pending_cons++);
 			pending_idx = queue->pending_ring[index];
@@ -492,6 +492,11 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 		}
 
 		skb_shinfo(skb)->frag_list = nskb;
+	} else if (nskb) {
+		/* A frag_list skb was allocated but it is no longer needed
+		 * because enough slots were converted to copy ops above.
+		 */
+		kfree_skb(nskb);
 	}
 
 	(*copy_ops) = cop - queue->tx_copy_ops;
@@ -689,7 +694,7 @@ static void xenvif_fill_frags(struct xenvif_queue *queue, struct sk_buff *skb)
 		prev_pending_idx = pending_idx;
 
 		txp = &queue->pending_tx_info[pending_idx].req;
-		page = virt_to_page(idx_to_kaddr(queue, pending_idx));
+		page = virt_to_page((void *)idx_to_kaddr(queue, pending_idx));
 		__skb_fill_page_desc(skb, i, page, txp->offset, txp->size);
 		skb->len += txp->size;
 		skb->data_len += txp->size;
@@ -1128,9 +1133,7 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 			BUG();
 
 		offset += len;
-		__skb_frag_set_page(&frags[i], page);
-		skb_frag_off_set(&frags[i], 0);
-		skb_frag_size_set(&frags[i], len);
+		skb_frag_fill_page_desc(&frags[i], page, 0, len);
 	}
 
 	/* Release all the original (foreign) frags. */

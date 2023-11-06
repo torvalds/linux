@@ -51,7 +51,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 		sbytes += kobjsize(mm);
 	else
 		bytes += kobjsize(mm);
-	
+
 	if (current->fs && current->fs->users > 1)
 		sbytes += kobjsize(current->fs);
 	else
@@ -69,13 +69,13 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 
 	bytes += kobjsize(current); /* includes kernel stack */
 
+	mmap_read_unlock(mm);
+
 	seq_printf(m,
 		"Mem:\t%8lu bytes\n"
 		"Slack:\t%8lu bytes\n"
 		"Shared:\t%8lu bytes\n",
 		bytes, slack, sbytes);
-
-	mmap_read_unlock(mm);
 }
 
 unsigned long task_vsize(struct mm_struct *mm)

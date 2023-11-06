@@ -145,8 +145,8 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
  *
  * We need to allow some glocks to be enqueued, dequeued, promoted, and demoted
  * when we're withdrawn. For example, to maintain metadata integrity, we should
- * disallow the use of inode and rgrp glocks when withdrawn. Other glocks, like
- * iopen or the transaction glocks may be safely used because none of their
+ * disallow the use of inode and rgrp glocks when withdrawn. Other glocks like
+ * the iopen or freeze glock may be safely used because none of their
  * metadata goes through the journal. So in general, we should disallow all
  * glocks that are journaled, and allow all the others. One exception is:
  * we need to allow our active journal to be promoted and demoted so others

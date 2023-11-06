@@ -10,8 +10,8 @@ Introduction
 ============
 
 This file documents the driver for the Rockchip ISP1 that is part of RK3288
-and RK3399 SoCs. The driver is located under drivers/staging/media/rkisp1
-and uses the Media-Controller API.
+and RK3399 SoCs. The driver is located under drivers/media/platform/rockchip/
+rkisp1 and uses the Media-Controller API.
 
 Revisions
 =========

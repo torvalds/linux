@@ -1696,7 +1696,7 @@ exit_error:
 	return err;
 }
 
-static int grcan_remove(struct platform_device *ofdev)
+static void grcan_remove(struct platform_device *ofdev)
 {
 	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct grcan_priv *priv = netdev_priv(dev);
@@ -1706,8 +1706,6 @@ static int grcan_remove(struct platform_device *ofdev)
 	irq_dispose_mapping(dev->irq);
 	netif_napi_del(&priv->napi);
 	free_candev(dev);
-
-	return 0;
 }
 
 static const struct of_device_id grcan_match[] = {
@@ -1726,7 +1724,7 @@ static struct platform_driver grcan_driver = {
 		.of_match_table = grcan_match,
 	},
 	.probe = grcan_probe,
-	.remove = grcan_remove,
+	.remove_new = grcan_remove,
 };
 
 module_platform_driver(grcan_driver);

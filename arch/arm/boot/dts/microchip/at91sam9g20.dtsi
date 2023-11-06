@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * at91sam9g20.dtsi - Device Tree Include file for AT91SAM9G20 family SoC
+ *
+ *  Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ */
+
+#include "at91sam9260.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G20 family SoC";
+	compatible = "atmel,at91sam9g20";
+
+	memory@20000000 {
+		reg = <0x20000000 0x08000000>;
+	};
+
+	sram0: sram@2ff000 {
+		status = "disabled";
+	};
+
+	sram1: sram@2fc000 {
+		compatible = "mmio-sram";
+		reg = <0x002fc000 0x8000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x002fc000 0x8000>;
+	};
+
+	ahb {
+		apb {
+			i2c0: i2c@fffac000 {
+				compatible = "atmel,at91sam9g20-i2c";
+			};
+
+			ssc0: ssc@fffbc000 {
+				compatible = "atmel,at91sam9rl-ssc";
+			};
+
+			adc0: adc@fffe0000 {
+				atmel,adc-startup-time = <40>;
+			};
+
+			pmc: clock-controller@fffffc00 {
+				compatible = "atmel,at91sam9g20-pmc", "atmel,at91sam9260-pmc", "syscon";
+			};
+		};
+	};
+};

@@ -42,11 +42,13 @@
 #define STATIC_SCREEN_EVENT_MASK_RANGETIMING_DOUBLE_BUFFER_UPDATE_EN 0x100
 
 /**
-* apply_front_porch_workaround  TODO FPGA still need?
-*
-* This is a workaround for a bug that has existed since R5xx and has not been
-* fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
-*/
+ * apply_front_porch_workaround() - This is a workaround for a bug that has
+ *                                  existed since R5xx and has not been fixed
+ *                                  keep Front porch at minimum 2 for Interlaced
+ *                                  mode or 1 for progressive.
+ *
+ * @timing: Timing parameters used to configure DCN blocks.
+ */
 static void apply_front_porch_workaround(struct dc_crtc_timing *timing)
 {
 	if (timing->flags.INTERLACE == 1) {
@@ -133,9 +135,20 @@ void optc1_setup_vertical_interrupt2(
 }
 
 /**
- * program_timing_generator   used by mode timing set
- * Program CRTC Timing Registers - OTG_H_*, OTG_V_*, Pixel repetition.
- * Including SYNC. Call BIOS command table to program Timings.
+ * optc1_program_timing() - used by mode timing set Program
+ *                          CRTC Timing Registers - OTG_H_*,
+ *                          OTG_V_*, Pixel repetition.
+ *                          Including SYNC. Call BIOS command table to program Timings.
+ *
+ * @optc: timing_generator instance.
+ * @dc_crtc_timing: Timing parameters used to configure DCN blocks.
+ * @vready_offset: Vready's starting position.
+ * @vstartup_start: Vstartup period.
+ * @vupdate_offset: Vupdate starting position.
+ * @vupdate_width: Vupdate duration.
+ * @signal: DC signal types.
+ * @use_vbios: to program timings from BIOS command table.
+ *
  */
 void optc1_program_timing(
 	struct timing_generator *optc,
@@ -385,6 +398,9 @@ void optc1_set_blank_data_double_buffer(struct timing_generator *optc, bool enab
  * Sets double buffer point for V_TOTAL, H_TOTAL, VTOTAL_MIN,
  * VTOTAL_MAX, VTOTAL_MIN_SEL and VTOTAL_MAX_SEL registers.
  *
+ * @optc: timing_generator instance.
+ * @enable: Enable DRR double buffering control if true, disable otherwise.
+ *
  * Options: any time,  start of frame, dp start of frame (range timing)
  */
 void optc1_set_timing_double_buffer(struct timing_generator *optc, bool enable)
@@ -397,8 +413,9 @@ void optc1_set_timing_double_buffer(struct timing_generator *optc, bool enable)
 }
 
 /**
- * unblank_crtc
- * Call ASIC Control Object to UnBlank CRTC.
+ * optc1_unblank_crtc() - Call ASIC Control Object to UnBlank CRTC.
+ *
+ * @optc: timing_generator instance.
  */
 static void optc1_unblank_crtc(struct timing_generator *optc)
 {
@@ -419,8 +436,9 @@ static void optc1_unblank_crtc(struct timing_generator *optc)
 }
 
 /**
- * blank_crtc
- * Call ASIC Control Object to Blank CRTC.
+ * optc1_blank_crtc() - Call ASIC Control Object to Blank CRTC.
+ *
+ * @optc: timing_generator instance.
  */
 
 static void optc1_blank_crtc(struct timing_generator *optc)
@@ -493,8 +511,9 @@ void optc1_enable_optc_clock(struct timing_generator *optc, bool enable)
 }
 
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc1_enable_crtc() - Enable CRTC - call ASIC Control Object to enable Timing generator.
+ *
+ * @optc: timing_generator instance.
  */
 static bool optc1_enable_crtc(struct timing_generator *optc)
 {
@@ -653,11 +672,9 @@ void optc1_lock(struct timing_generator *optc)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 
-	/* Should be fast, status does not update on maximus */
-	if (optc->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
-				UPDATE_LOCK_STATUS, 1,
-				1, 10);
+	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+			UPDATE_LOCK_STATUS, 1,
+			1, 10);
 
 	TRACE_OPTC_LOCK_UNLOCK_STATE(optc1, optc->inst, true);
 }
@@ -892,15 +909,11 @@ static void optc1_program_manual_trigger(struct timing_generator *optc)
 			MANUAL_FLOW_CONTROL, 0);
 }
 
-
 /**
- *****************************************************************************
- *  Function: set_drr
+ * optc1_set_drr() - Program dynamic refresh rate registers m_OTGx_OTG_V_TOTAL_*.
  *
- *  @brief
- *     Program dynamic refresh rate registers m_OTGx_OTG_V_TOTAL_*.
- *
- *****************************************************************************
+ * @optc: timing_generator instance.
+ * @params: parameters used for Dynamic Refresh Rate.
  */
 void optc1_set_drr(
 	struct timing_generator *optc,
@@ -932,19 +945,10 @@ void optc1_set_drr(
 				OTG_FORCE_LOCK_ON_EVENT, 0,
 				OTG_SET_V_TOTAL_MIN_MASK_EN, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, 0);
-
-		// Setup manual flow control for EOF via TRIG_A
-		optc->funcs->setup_manual_trigger(optc);
-
-	} else {
-		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
-				OTG_SET_V_TOTAL_MIN_MASK, 0,
-				OTG_V_TOTAL_MIN_SEL, 0,
-				OTG_V_TOTAL_MAX_SEL, 0,
-				OTG_FORCE_LOCK_ON_EVENT, 0);
-
-		optc->funcs->set_vtotal_min_max(optc, 0, 0);
 	}
+
+	// Setup manual flow control for EOF via TRIG_A
+	optc->funcs->setup_manual_trigger(optc);
 }
 
 void optc1_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)

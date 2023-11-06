@@ -1512,7 +1512,7 @@ DEFINE_EVENT(f2fs_discard, f2fs_remove_discard,
 	TP_ARGS(dev, blkstart, blklen)
 );
 
-TRACE_EVENT(f2fs_issue_reset_zone,
+DECLARE_EVENT_CLASS(f2fs_reset_zone,
 
 	TP_PROTO(struct block_device *dev, block_t blkstart),
 
@@ -1528,9 +1528,23 @@ TRACE_EVENT(f2fs_issue_reset_zone,
 		__entry->blkstart = blkstart;
 	),
 
-	TP_printk("dev = (%d,%d), reset zone at block = 0x%llx",
+	TP_printk("dev = (%d,%d), zone at block = 0x%llx",
 		show_dev(__entry->dev),
 		(unsigned long long)__entry->blkstart)
+);
+
+DEFINE_EVENT(f2fs_reset_zone, f2fs_queue_reset_zone,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart),
+
+	TP_ARGS(dev, blkstart)
+);
+
+DEFINE_EVENT(f2fs_reset_zone, f2fs_issue_reset_zone,
+
+	TP_PROTO(struct block_device *dev, block_t blkstart),
+
+	TP_ARGS(dev, blkstart)
 );
 
 TRACE_EVENT(f2fs_issue_flush,
@@ -1979,6 +1993,7 @@ TRACE_EVENT(f2fs_iostat,
 		__field(unsigned long long,	fs_nrio)
 		__field(unsigned long long,	fs_mrio)
 		__field(unsigned long long,	fs_discard)
+		__field(unsigned long long,	fs_reset_zone)
 	),
 
 	TP_fast_assign(
@@ -2010,12 +2025,14 @@ TRACE_EVENT(f2fs_iostat,
 		__entry->fs_nrio	= iostat[FS_NODE_READ_IO];
 		__entry->fs_mrio	= iostat[FS_META_READ_IO];
 		__entry->fs_discard	= iostat[FS_DISCARD_IO];
+		__entry->fs_reset_zone	= iostat[FS_ZONE_RESET_IO];
 	),
 
 	TP_printk("dev = (%d,%d), "
 		"app [write=%llu (direct=%llu, buffered=%llu), mapped=%llu, "
 		"compr(buffered=%llu, mapped=%llu)], "
-		"fs [data=%llu, cdata=%llu, node=%llu, meta=%llu, discard=%llu], "
+		"fs [data=%llu, cdata=%llu, node=%llu, meta=%llu, discard=%llu, "
+		"reset_zone=%llu], "
 		"gc [data=%llu, node=%llu], "
 		"cp [data=%llu, node=%llu, meta=%llu], "
 		"app [read=%llu (direct=%llu, buffered=%llu), mapped=%llu], "
@@ -2026,6 +2043,7 @@ TRACE_EVENT(f2fs_iostat,
 		__entry->app_bio, __entry->app_mio, __entry->app_bcdio,
 		__entry->app_mcdio, __entry->fs_dio, __entry->fs_cdio,
 		__entry->fs_nio, __entry->fs_mio, __entry->fs_discard,
+		__entry->fs_reset_zone,
 		__entry->fs_gc_dio, __entry->fs_gc_nio, __entry->fs_cp_dio,
 		__entry->fs_cp_nio, __entry->fs_cp_mio,
 		__entry->app_rio, __entry->app_drio, __entry->app_brio,

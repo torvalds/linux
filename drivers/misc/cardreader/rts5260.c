@@ -517,17 +517,10 @@ static void rts5260_init_from_cfg(struct rtsx_pcr *pcr)
 			option->ltr_enabled = false;
 		}
 	}
-
-	if (rtsx_check_dev_flag(pcr, ASPM_L1_1_EN | ASPM_L1_2_EN
-				| PM_L1_1_EN | PM_L1_2_EN))
-		option->force_clkreq_0 = false;
-	else
-		option->force_clkreq_0 = true;
 }
 
 static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 {
-	struct rtsx_cr_option *option = &pcr->option;
 
 	/* Set mcu_cnt to 7 to ensure data can be sampled properly */
 	rtsx_pci_write_register(pcr, 0xFC03, 0x7F, 0x07);
@@ -545,17 +538,6 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 	rtsx_pci_write_register(pcr, PCLK_CTL, PCLK_MODE_SEL, PCLK_MODE_SEL);
 
 	rts5260_init_hw(pcr);
-
-	/*
-	 * If u_force_clkreq_0 is enabled, CLKREQ# PIN will be forced
-	 * to drive low, and we forcibly request clock.
-	 */
-	if (option->force_clkreq_0)
-		rtsx_pci_write_register(pcr, PETXCFG,
-				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_LOW);
-	else
-		rtsx_pci_write_register(pcr, PETXCFG,
-				 FORCE_CLKREQ_DELINK_MASK, FORCE_CLKREQ_HIGH);
 
 	rtsx_pci_write_register(pcr, pcr->reg_pm_ctrl3, 0x10, 0x00);
 

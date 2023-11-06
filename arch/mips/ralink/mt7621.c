@@ -89,15 +89,6 @@ static void __init mt7621_memory_detect(void)
 	memblock_add(MT7621_HIGHMEM_BASE, MT7621_HIGHMEM_SIZE);
 }
 
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("mediatek,mt7621-sysc");
-	rt_memc_membase = plat_of_remap_node("mediatek,mt7621-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static unsigned int __init mt7621_get_soc_name0(void)
 {
 	return __raw_readl(MT7621_SYSC_BASE + SYSC_REG_CHIP_NAME0);

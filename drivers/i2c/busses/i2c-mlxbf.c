@@ -2433,7 +2433,7 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mlxbf_i2c_remove(struct platform_device *pdev)
+static void mlxbf_i2c_remove(struct platform_device *pdev)
 {
 	struct mlxbf_i2c_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -2474,13 +2474,11 @@ static int mlxbf_i2c_remove(struct platform_device *pdev)
 	devm_free_irq(dev, priv->irq, priv);
 
 	i2c_del_adapter(&priv->adap);
-
-	return 0;
 }
 
 static struct platform_driver mlxbf_i2c_driver = {
 	.probe = mlxbf_i2c_probe,
-	.remove = mlxbf_i2c_remove,
+	.remove_new = mlxbf_i2c_remove,
 	.driver = {
 		.name = "i2c-mlxbf",
 		.acpi_match_table = ACPI_PTR(mlxbf_i2c_acpi_ids),

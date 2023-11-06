@@ -3,65 +3,18 @@
  * include/linux/pagevec.h
  *
  * In many places it is efficient to batch an operation up against multiple
- * pages.  A pagevec is a multipage container which is used for that.
+ * folios.  A folio_batch is a container which is used for that.
  */
 
 #ifndef _LINUX_PAGEVEC_H
 #define _LINUX_PAGEVEC_H
 
-#include <linux/xarray.h>
+#include <linux/types.h>
 
-/* 15 pointers + header align the pagevec structure to a power of two */
+/* 15 pointers + header align the folio_batch structure to a power of two */
 #define PAGEVEC_SIZE	15
 
-struct page;
 struct folio;
-struct address_space;
-
-/* Layout must match folio_batch */
-struct pagevec {
-	unsigned char nr;
-	bool percpu_pvec_drained;
-	struct page *pages[PAGEVEC_SIZE];
-};
-
-void __pagevec_release(struct pagevec *pvec);
-
-static inline void pagevec_init(struct pagevec *pvec)
-{
-	pvec->nr = 0;
-	pvec->percpu_pvec_drained = false;
-}
-
-static inline void pagevec_reinit(struct pagevec *pvec)
-{
-	pvec->nr = 0;
-}
-
-static inline unsigned pagevec_count(struct pagevec *pvec)
-{
-	return pvec->nr;
-}
-
-static inline unsigned pagevec_space(struct pagevec *pvec)
-{
-	return PAGEVEC_SIZE - pvec->nr;
-}
-
-/*
- * Add a page to a pagevec.  Returns the number of slots still available.
- */
-static inline unsigned pagevec_add(struct pagevec *pvec, struct page *page)
-{
-	pvec->pages[pvec->nr++] = page;
-	return pagevec_space(pvec);
-}
-
-static inline void pagevec_release(struct pagevec *pvec)
-{
-	if (pagevec_count(pvec))
-		__pagevec_release(pvec);
-}
 
 /**
  * struct folio_batch - A collection of folios.
@@ -77,11 +30,6 @@ struct folio_batch {
 	bool percpu_pvec_drained;
 	struct folio *folios[PAGEVEC_SIZE];
 };
-
-/* Layout must match pagevec */
-static_assert(sizeof(struct pagevec) == sizeof(struct folio_batch));
-static_assert(offsetof(struct pagevec, pages) ==
-		offsetof(struct folio_batch, folios));
 
 /**
  * folio_batch_init() - Initialise a batch of folios
@@ -105,7 +53,7 @@ static inline unsigned int folio_batch_count(struct folio_batch *fbatch)
 	return fbatch->nr;
 }
 
-static inline unsigned int fbatch_space(struct folio_batch *fbatch)
+static inline unsigned int folio_batch_space(struct folio_batch *fbatch)
 {
 	return PAGEVEC_SIZE - fbatch->nr;
 }
@@ -124,12 +72,15 @@ static inline unsigned folio_batch_add(struct folio_batch *fbatch,
 		struct folio *folio)
 {
 	fbatch->folios[fbatch->nr++] = folio;
-	return fbatch_space(fbatch);
+	return folio_batch_space(fbatch);
 }
+
+void __folio_batch_release(struct folio_batch *pvec);
 
 static inline void folio_batch_release(struct folio_batch *fbatch)
 {
-	pagevec_release((struct pagevec *)fbatch);
+	if (folio_batch_count(fbatch))
+		__folio_batch_release(fbatch);
 }
 
 void folio_batch_remove_exceptionals(struct folio_batch *fbatch);

@@ -62,10 +62,6 @@
 #define MLXPLAT_CPLD_LPC_REG_PWM_CONTROL_OFFSET	0x37
 #define MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET	0x3a
 #define MLXPLAT_CPLD_LPC_REG_AGGR_MASK_OFFSET	0x3b
-#define MLXPLAT_CPLD_LPC_REG_DBG1_OFFSET	0x3c
-#define MLXPLAT_CPLD_LPC_REG_DBG2_OFFSET	0x3d
-#define MLXPLAT_CPLD_LPC_REG_DBG3_OFFSET	0x3e
-#define MLXPLAT_CPLD_LPC_REG_DBG4_OFFSET	0x3f
 #define MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET	0x40
 #define MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET	0x41
 #define MLXPLAT_CPLD_LPC_REG_AGGRCO_OFFSET	0x42
@@ -126,6 +122,10 @@
 #define MLXPLAT_CPLD_LPC_REG_LC_SD_EVENT_OFFSET	0xaa
 #define MLXPLAT_CPLD_LPC_REG_LC_SD_MASK_OFFSET	0xab
 #define MLXPLAT_CPLD_LPC_REG_LC_PWR_ON		0xb2
+#define MLXPLAT_CPLD_LPC_REG_DBG1_OFFSET	0xb6
+#define MLXPLAT_CPLD_LPC_REG_DBG2_OFFSET	0xb7
+#define MLXPLAT_CPLD_LPC_REG_DBG3_OFFSET	0xb8
+#define MLXPLAT_CPLD_LPC_REG_DBG4_OFFSET	0xb9
 #define MLXPLAT_CPLD_LPC_REG_GP4_RO_OFFSET	0xc2
 #define MLXPLAT_CPLD_LPC_REG_SPI_CHNL_SELECT	0xc3
 #define MLXPLAT_CPLD_LPC_REG_WD_CLEAR_OFFSET	0xc7
@@ -222,7 +222,7 @@
 					 MLXPLAT_CPLD_AGGR_MASK_LC_SDWN)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc1
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_ASIC2	BIT(2)
-#define MLXPLAT_CPLD_LOW_AGGR_MASK_PWR_BUT	BIT(4)
+#define MLXPLAT_CPLD_LOW_AGGR_MASK_PWR_BUT	GENMASK(5, 4)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_I2C	BIT(6)
 #define MLXPLAT_CPLD_PSU_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
@@ -237,7 +237,7 @@
 #define MLXPLAT_CPLD_GWP_MASK		GENMASK(0, 0)
 #define MLXPLAT_CPLD_EROT_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_BUTTON_MASK	BIT(0)
-#define MLXPLAT_CPLD_LATCH_RST_MASK	BIT(5)
+#define MLXPLAT_CPLD_LATCH_RST_MASK	BIT(6)
 #define MLXPLAT_CPLD_THERMAL1_PDB_MASK	BIT(3)
 #define MLXPLAT_CPLD_THERMAL2_PDB_MASK	BIT(4)
 #define MLXPLAT_CPLD_INTRUSION_MASK	BIT(6)
@@ -2356,7 +2356,7 @@ mlxplat_mlxcpld_l1_switch_pwr_events_handler(void *handle, enum mlxreg_hotplug_k
 					     u8 action)
 {
 	dev_info(&mlxplat_dev->dev, "System shutdown due to short press of power button");
-	kernel_halt();
+	kernel_power_off();
 	return 0;
 }
 
@@ -2475,7 +2475,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_l1_switch_events_items[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_PWRB_OFFSET,
 		.mask = MLXPLAT_CPLD_PWR_BUTTON_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_l1_switch_pwr_events_items_data),
-		.inversed = 0,
+		.inversed = 1,
 		.health = false,
 	},
 	{
@@ -2484,7 +2484,7 @@ static struct mlxreg_core_item mlxplat_mlxcpld_l1_switch_events_items[] = {
 		.reg = MLXPLAT_CPLD_LPC_REG_BRD_OFFSET,
 		.mask = MLXPLAT_CPLD_L1_CHA_HEALTH_MASK,
 		.count = ARRAY_SIZE(mlxplat_mlxcpld_l1_switch_health_events_items_data),
-		.inversed = 0,
+		.inversed = 1,
 		.health = false,
 		.ind = 8,
 	},
@@ -3677,7 +3677,7 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 	{
 		.label = "latch_reset",
 		.reg = MLXPLAT_CPLD_LPC_REG_GP1_OFFSET,
-		.mask = GENMASK(7, 0) & ~BIT(5),
+		.mask = GENMASK(7, 0) & ~BIT(6),
 		.mode = 0200,
 	},
 	{
@@ -6238,8 +6238,6 @@ static void mlxplat_i2c_mux_topolgy_exit(struct mlxplat_priv *priv)
 		if (priv->pdev_mux[i])
 			platform_device_unregister(priv->pdev_mux[i]);
 	}
-
-	mlxplat_post_exit();
 }
 
 static int mlxplat_i2c_main_complition_notify(void *handle, int id)
@@ -6369,6 +6367,7 @@ static void __exit mlxplat_exit(void)
 		pm_power_off = NULL;
 	mlxplat_pre_exit(priv);
 	mlxplat_i2c_main_exit(priv);
+	mlxplat_post_exit();
 }
 module_exit(mlxplat_exit);
 

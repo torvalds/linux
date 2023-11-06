@@ -51,9 +51,9 @@ bool
 xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *bno,
 		xfs_extlen_t *len, unsigned *busy_gen);
 
-void
-xfs_extent_busy_flush(struct xfs_mount *mp, struct xfs_perag *pag,
-	unsigned busy_gen);
+int
+xfs_extent_busy_flush(struct xfs_trans *tp, struct xfs_perag *pag,
+		unsigned busy_gen, uint32_t alloc_flags);
 
 void
 xfs_extent_busy_wait_all(struct xfs_mount *mp);

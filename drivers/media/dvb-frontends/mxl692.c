@@ -1355,7 +1355,7 @@ static struct i2c_driver mxl692_driver = {
 	.driver = {
 		.name	= "mxl692",
 	},
-	.probe_new	= mxl692_probe,
+	.probe		= mxl692_probe,
 	.remove		= mxl692_remove,
 	.id_table	= mxl692_id_table,
 };

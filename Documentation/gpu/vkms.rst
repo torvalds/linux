@@ -118,14 +118,9 @@ Add Plane Features
 
 There's lots of plane features we could add support for:
 
-- ARGB format on primary plane: blend the primary plane into background with
-  translucent alpha.
-
 - Add background color KMS property[Good to get started].
 
-- Full alpha blending on all planes.
-
-- Rotation, scaling.
+- Scaling.
 
 - Additional buffer formats, especially YUV formats for video like NV12.
   Low/high bpp RGB formats would also be interesting.

@@ -650,7 +650,7 @@ static SIMPLE_DEV_PM_OPS(i2c_nuvoton_pm_ops, tpm_pm_suspend, tpm_pm_resume);
 
 static struct i2c_driver i2c_nuvoton_driver = {
 	.id_table = i2c_nuvoton_id,
-	.probe_new = i2c_nuvoton_probe,
+	.probe = i2c_nuvoton_probe,
 	.remove = i2c_nuvoton_remove,
 	.driver = {
 		.name = "tpm_i2c_nuvoton",

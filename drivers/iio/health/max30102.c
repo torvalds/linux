@@ -631,7 +631,7 @@ static struct i2c_driver max30102_driver = {
 		.name	= MAX30102_DRV_NAME,
 		.of_match_table	= max30102_dt_ids,
 	},
-	.probe_new	= max30102_probe,
+	.probe		= max30102_probe,
 	.remove		= max30102_remove,
 	.id_table	= max30102_id,
 };

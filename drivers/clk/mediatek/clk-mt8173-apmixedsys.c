@@ -148,11 +148,13 @@ static int clk_mt8173_apmixed_probe(struct platform_device *pdev)
 
 	base = of_iomap(node, 0);
 	if (!base)
-		return PTR_ERR(base);
+		return -ENOMEM;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
-	if (IS_ERR_OR_NULL(clk_data))
+	if (IS_ERR_OR_NULL(clk_data)) {
+		iounmap(base);
 		return -ENOMEM;
+	}
 
 	fhctl_parse_dt(fhctl_node, pllfhs, ARRAY_SIZE(pllfhs));
 	r = mtk_clk_register_pllfhs(node, plls, ARRAY_SIZE(plls),
@@ -186,10 +188,11 @@ unregister_plls:
 				  ARRAY_SIZE(pllfhs), clk_data);
 free_clk_data:
 	mtk_free_clk_data(clk_data);
+	iounmap(base);
 	return r;
 }
 
-static int clk_mt8173_apmixed_remove(struct platform_device *pdev)
+static void clk_mt8173_apmixed_remove(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
@@ -199,13 +202,11 @@ static int clk_mt8173_apmixed_remove(struct platform_device *pdev)
 	mtk_clk_unregister_pllfhs(plls, ARRAY_SIZE(plls), pllfhs,
 				  ARRAY_SIZE(pllfhs), clk_data);
 	mtk_free_clk_data(clk_data);
-
-	return 0;
 }
 
 static struct platform_driver clk_mt8173_apmixed_drv = {
 	.probe = clk_mt8173_apmixed_probe,
-	.remove = clk_mt8173_apmixed_remove,
+	.remove_new = clk_mt8173_apmixed_remove,
 	.driver = {
 		.name = "clk-mt8173-apmixed",
 		.of_match_table = of_match_clk_mt8173_apmixed,

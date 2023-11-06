@@ -206,7 +206,7 @@ static struct i2c_driver st_accel_driver = {
 		.of_match_table = st_accel_of_match,
 		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
 	},
-	.probe_new = st_accel_i2c_probe,
+	.probe = st_accel_i2c_probe,
 	.id_table = st_accel_id_table,
 };
 module_i2c_driver(st_accel_driver);

@@ -347,7 +347,7 @@ static struct i2c_driver sbrmi_driver = {
 		.name = "sbrmi",
 		.of_match_table = of_match_ptr(sbrmi_of_match),
 	},
-	.probe_new = sbrmi_probe,
+	.probe = sbrmi_probe,
 	.id_table = sbrmi_id,
 };
 

@@ -6,10 +6,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#ifndef MCL_ONFAULT
-#define MCL_ONFAULT (MCL_FUTURE << 1)
-#endif
-
 static int test_limit(void)
 {
 	int ret = 1;

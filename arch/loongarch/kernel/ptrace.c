@@ -147,6 +147,8 @@ static int fpr_get(struct task_struct *target,
 {
 	int r;
 
+	save_fpu_regs(target);
+
 	if (sizeof(target->thread.fpu.fpr[0]) == sizeof(elf_fpreg_t))
 		r = gfpr_get(target, &to);
 	else
@@ -249,6 +251,92 @@ static int cfg_set(struct task_struct *target,
 {
 	return 0;
 }
+
+#ifdef CONFIG_CPU_HAS_LSX
+
+static void copy_pad_fprs(struct task_struct *target,
+			 const struct user_regset *regset,
+			 struct membuf *to, unsigned int live_sz)
+{
+	int i, j;
+	unsigned long long fill = ~0ull;
+	unsigned int cp_sz, pad_sz;
+
+	cp_sz = min(regset->size, live_sz);
+	pad_sz = regset->size - cp_sz;
+	WARN_ON(pad_sz % sizeof(fill));
+
+	for (i = 0; i < NUM_FPU_REGS; i++) {
+		membuf_write(to, &target->thread.fpu.fpr[i], cp_sz);
+		for (j = 0; j < (pad_sz / sizeof(fill)); j++) {
+			membuf_store(to, fill);
+		}
+	}
+}
+
+static int simd_get(struct task_struct *target,
+		    const struct user_regset *regset,
+		    struct membuf to)
+{
+	const unsigned int wr_size = NUM_FPU_REGS * regset->size;
+
+	save_fpu_regs(target);
+
+	if (!tsk_used_math(target)) {
+		/* The task hasn't used FP or LSX, fill with 0xff */
+		copy_pad_fprs(target, regset, &to, 0);
+	} else if (!test_tsk_thread_flag(target, TIF_LSX_CTX_LIVE)) {
+		/* Copy scalar FP context, fill the rest with 0xff */
+		copy_pad_fprs(target, regset, &to, 8);
+#ifdef CONFIG_CPU_HAS_LASX
+	} else if (!test_tsk_thread_flag(target, TIF_LASX_CTX_LIVE)) {
+		/* Copy LSX 128 Bit context, fill the rest with 0xff */
+		copy_pad_fprs(target, regset, &to, 16);
+#endif
+	} else if (sizeof(target->thread.fpu.fpr[0]) == regset->size) {
+		/* Trivially copy the vector registers */
+		membuf_write(&to, &target->thread.fpu.fpr, wr_size);
+	} else {
+		/* Copy as much context as possible, fill the rest with 0xff */
+		copy_pad_fprs(target, regset, &to, sizeof(target->thread.fpu.fpr[0]));
+	}
+
+	return 0;
+}
+
+static int simd_set(struct task_struct *target,
+		    const struct user_regset *regset,
+		    unsigned int pos, unsigned int count,
+		    const void *kbuf, const void __user *ubuf)
+{
+	const unsigned int wr_size = NUM_FPU_REGS * regset->size;
+	unsigned int cp_sz;
+	int i, err, start;
+
+	init_fp_ctx(target);
+
+	if (sizeof(target->thread.fpu.fpr[0]) == regset->size) {
+		/* Trivially copy the vector registers */
+		err = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &target->thread.fpu.fpr,
+					 0, wr_size);
+	} else {
+		/* Copy as much context as possible */
+		cp_sz = min_t(unsigned int, regset->size,
+			      sizeof(target->thread.fpu.fpr[0]));
+
+		i = start = err = 0;
+		for (; i < NUM_FPU_REGS; i++, start += regset->size) {
+			err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+						  &target->thread.fpu.fpr[i],
+						  start, start + cp_sz);
+		}
+	}
+
+	return err;
+}
+
+#endif /* CONFIG_CPU_HAS_LSX */
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
@@ -708,6 +796,12 @@ enum loongarch_regset {
 	REGSET_GPR,
 	REGSET_FPR,
 	REGSET_CPUCFG,
+#ifdef CONFIG_CPU_HAS_LSX
+	REGSET_LSX,
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	REGSET_LASX,
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	REGSET_HW_BREAK,
 	REGSET_HW_WATCH,
@@ -739,6 +833,26 @@ static const struct user_regset loongarch64_regsets[] = {
 		.regset_get	= cfg_get,
 		.set		= cfg_set,
 	},
+#ifdef CONFIG_CPU_HAS_LSX
+	[REGSET_LSX] = {
+		.core_note_type	= NT_LOONGARCH_LSX,
+		.n		= NUM_FPU_REGS,
+		.size		= 16,
+		.align		= 16,
+		.regset_get	= simd_get,
+		.set		= simd_set,
+	},
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	[REGSET_LASX] = {
+		.core_note_type	= NT_LOONGARCH_LASX,
+		.n		= NUM_FPU_REGS,
+		.size		= 32,
+		.align		= 32,
+		.regset_get	= simd_get,
+		.set		= simd_set,
+	},
+#endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	[REGSET_HW_BREAK] = {
 		.core_note_type = NT_LOONGARCH_HW_BREAK,

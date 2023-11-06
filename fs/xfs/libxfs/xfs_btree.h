@@ -301,7 +301,7 @@ struct xfs_btree_cur
 static inline size_t
 xfs_btree_cur_sizeof(unsigned int nlevels)
 {
-	return struct_size((struct xfs_btree_cur *)NULL, bc_levels, nlevels);
+	return struct_size_t(struct xfs_btree_cur, bc_levels, nlevels);
 }
 
 /* cursor flags */

@@ -1911,7 +1911,7 @@ fail_dma:
 	return ret;
 }
 
-static int qup_i2c_remove(struct platform_device *pdev)
+static void qup_i2c_remove(struct platform_device *pdev)
 {
 	struct qup_i2c_dev *qup = platform_get_drvdata(pdev);
 
@@ -1925,7 +1925,6 @@ static int qup_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&qup->adap);
 	pm_runtime_disable(qup->dev);
 	pm_runtime_set_suspended(qup->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1985,7 +1984,7 @@ MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
 
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,
-	.remove = qup_i2c_remove,
+	.remove_new = qup_i2c_remove,
 	.driver = {
 		.name = "i2c_qup",
 		.pm = &qup_i2c_qup_pm_ops,

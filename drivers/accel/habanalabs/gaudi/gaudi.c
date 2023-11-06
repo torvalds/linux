@@ -114,13 +114,6 @@ static u32 gaudi_stream_master[GAUDI_STREAM_MASTER_ARR_SIZE] = {
 	GAUDI_QUEUE_ID_DMA_1_3
 };
 
-static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
-		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
-		"gaudi cq 1_0", "gaudi cq 1_1", "gaudi cq 1_2", "gaudi cq 1_3",
-		"gaudi cq 5_0", "gaudi cq 5_1", "gaudi cq 5_2", "gaudi cq 5_3",
-		"gaudi cpu eq"
-};
-
 static const u8 gaudi_dma_assignment[GAUDI_DMA_MAX] = {
 	[GAUDI_PCI_DMA_1] = GAUDI_ENGINE_ID_DMA_0,
 	[GAUDI_PCI_DMA_2] = GAUDI_ENGINE_ID_DMA_1,
@@ -1476,8 +1469,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 	}
 
 	/* Allocate internal mapped CB for non patched CBs */
-	cb = hl_cb_kernel_create(hdev, cb_size,
-			hdev->mmu_enable && !patched_cb);
+	cb = hl_cb_kernel_create(hdev, cb_size, !patched_cb);
 	if (!cb) {
 		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
 		atomic64_inc(&cntr->out_of_mem_drop_cnt);
@@ -3650,9 +3642,6 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 hop0_addr;
 	int rc, i;
-
-	if (!hdev->mmu_enable)
-		return 0;
 
 	if (gaudi->hw_cap_initialized & HW_CAP_MMU)
 		return 0;

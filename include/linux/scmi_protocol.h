@@ -629,11 +629,25 @@ struct scmi_powercap_info {
  * @num_domains_get: get the count of powercap domains provided by SCMI.
  * @info_get: get the information for the specified domain.
  * @cap_get: get the current CAP value for the specified domain.
+ *	     On SCMI platforms supporting powercap zone disabling, this could
+ *	     report a zero value for a zone where powercapping is disabled.
  * @cap_set: set the CAP value for the specified domain to the provided value;
  *	     if the domain supports setting the CAP with an asynchronous command
  *	     this request will finally trigger an asynchronous transfer, but, if
  *	     @ignore_dresp here is set to true, this call will anyway return
  *	     immediately without waiting for the related delayed response.
+ *	     Note that the powercap requested value must NOT be zero, even if
+ *	     the platform supports disabling a powercap by setting its cap to
+ *	     zero (since SCMI v3.2): there are dedicated operations that should
+ *	     be used for that. (@cap_enable_set/get)
+ * @cap_enable_set: enable or disable the powercapping on the specified domain,
+ *		    if supported by the SCMI platform implementation.
+ *		    Note that, by the SCMI specification, the platform can
+ *		    silently ignore our disable request and decide to enforce
+ *		    anyway some other powercap value requested by another agent
+ *		    on the system: for this reason @cap_get and @cap_enable_get
+ *		    will always report the final platform view of the powercaps.
+ * @cap_enable_get: get the current CAP enable status for the specified domain.
  * @pai_get: get the current PAI value for the specified domain.
  * @pai_set: set the PAI value for the specified domain to the provided value.
  * @measurements_get: retrieve the current average power measurements for the
@@ -662,6 +676,10 @@ struct scmi_powercap_proto_ops {
 		       u32 *power_cap);
 	int (*cap_set)(const struct scmi_protocol_handle *ph, u32 domain_id,
 		       u32 power_cap, bool ignore_dresp);
+	int (*cap_enable_set)(const struct scmi_protocol_handle *ph,
+			      u32 domain_id, bool enable);
+	int (*cap_enable_get)(const struct scmi_protocol_handle *ph,
+			      u32 domain_id, bool *enable);
 	int (*pai_get)(const struct scmi_protocol_handle *ph, u32 domain_id,
 		       u32 *pai);
 	int (*pai_set)(const struct scmi_protocol_handle *ph, u32 domain_id,

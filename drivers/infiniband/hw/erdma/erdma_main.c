@@ -130,33 +130,6 @@ static irqreturn_t erdma_comm_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void erdma_dwqe_resource_init(struct erdma_dev *dev)
-{
-	int total_pages, type0, type1;
-
-	dev->attrs.grp_num = erdma_reg_read32(dev, ERDMA_REGS_GRP_NUM_REG);
-
-	if (dev->attrs.grp_num < 4)
-		dev->attrs.disable_dwqe = true;
-	else
-		dev->attrs.disable_dwqe = false;
-
-	/* One page contains 4 goups. */
-	total_pages = dev->attrs.grp_num * 4;
-
-	if (dev->attrs.grp_num >= ERDMA_DWQE_MAX_GRP_CNT) {
-		dev->attrs.grp_num = ERDMA_DWQE_MAX_GRP_CNT;
-		type0 = ERDMA_DWQE_TYPE0_CNT;
-		type1 = ERDMA_DWQE_TYPE1_CNT / ERDMA_DWQE_TYPE1_CNT_PER_PAGE;
-	} else {
-		type1 = total_pages / 3;
-		type0 = total_pages - type1 - 1;
-	}
-
-	dev->attrs.dwqe_pages = type0;
-	dev->attrs.dwqe_entries = type1 * ERDMA_DWQE_TYPE1_CNT_PER_PAGE;
-}
-
 static int erdma_request_vectors(struct erdma_dev *dev)
 {
 	int expect_irq_num = min(num_possible_cpus() + 1, ERDMA_NUM_MSIX_VEC);
@@ -198,8 +171,6 @@ static void erdma_comm_irq_uninit(struct erdma_dev *dev)
 static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 {
 	int ret;
-
-	erdma_dwqe_resource_init(dev);
 
 	ret = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(ERDMA_PCI_WIDTH));
@@ -426,6 +397,22 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 	return err;
 }
 
+static int erdma_device_config(struct erdma_dev *dev)
+{
+	struct erdma_cmdq_config_device_req req = {};
+
+	if (!(dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_EXTEND_DB))
+		return 0;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_CONF_DEVICE);
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PGSHIFT_MASK, PAGE_SHIFT) |
+		  FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PS_EN_MASK, 1);
+
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
 static int erdma_res_cb_init(struct erdma_dev *dev)
 {
 	int i, j;
@@ -512,6 +499,10 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
+	ret = erdma_device_config(dev);
+	if (ret)
+		return ret;
+
 	ibdev->node_type = RDMA_NODE_RNIC;
 	memcpy(ibdev->node_desc, ERDMA_NODE_DESC, sizeof(ERDMA_NODE_DESC));
 
@@ -536,10 +527,6 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	ret = erdma_res_cb_init(dev);
 	if (ret)
 		return ret;
-
-	spin_lock_init(&dev->db_bitmap_lock);
-	bitmap_zero(dev->sdb_page, ERDMA_DWQE_TYPE0_CNT);
-	bitmap_zero(dev->sdb_entry, ERDMA_DWQE_TYPE1_CNT);
 
 	atomic_set(&dev->num_ctx, 0);
 

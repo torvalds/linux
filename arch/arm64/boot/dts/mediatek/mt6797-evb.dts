@@ -9,6 +9,7 @@
 
 / {
 	model = "MediaTek MT6797 Evaluation Board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt6797-evb", "mediatek,mt6797";
 
 	aliases {

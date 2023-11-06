@@ -51,7 +51,7 @@ properties:
     type: object
 
   fsl,ddrc:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description:
       Phandle to DDR Controller.
 

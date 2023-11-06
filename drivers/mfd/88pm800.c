@@ -597,7 +597,7 @@ static struct i2c_driver pm800_driver = {
 		.name = "88PM800",
 		.pm = pm_sleep_ptr(&pm80x_pm_ops),
 		},
-	.probe_new = pm800_probe,
+	.probe = pm800_probe,
 	.remove = pm800_remove,
 	.id_table = pm80x_id_table,
 };

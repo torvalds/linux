@@ -509,7 +509,7 @@ static int do_register(int argc, char **argv)
 	if (argc == 1)
 		linkdir = GET_ARG();
 
-	if (linkdir && mount_bpffs_for_pin(linkdir)) {
+	if (linkdir && mount_bpffs_for_pin(linkdir, true)) {
 		p_err("can't mount bpffs for pinning");
 		return -1;
 	}

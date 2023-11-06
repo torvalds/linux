@@ -2022,7 +2022,6 @@ static const struct proto_ops ax25_proto_ops = {
 	.sendmsg	= ax25_sendmsg,
 	.recvmsg	= ax25_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
 };
 
 /*

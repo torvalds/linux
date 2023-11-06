@@ -364,8 +364,8 @@ void cpu_do_switch_mm(phys_addr_t pgd_phys, struct mm_struct *mm)
 	ttbr1 &= ~TTBR_ASID_MASK;
 	ttbr1 |= FIELD_PREP(TTBR_ASID_MASK, asid);
 
+	cpu_set_reserved_ttbr0_nosync();
 	write_sysreg(ttbr1, ttbr1_el1);
-	isb();
 	write_sysreg(ttbr0, ttbr0_el1);
 	isb();
 	post_ttbr_update_workaround();

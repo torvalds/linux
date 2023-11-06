@@ -726,51 +726,11 @@ static void *ov5693_otp_read(struct v4l2_subdev *sd)
 	return buf;
 }
 
-static int ov5693_g_priv_int_data(struct v4l2_subdev *sd,
-				  struct v4l2_private_int_data *priv)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5693_device *dev = to_ov5693_sensor(sd);
-	u8 __user *to = priv->data;
-	u32 read_size = priv->size;
-	int ret;
-
-	/* No need to copy data if size is 0 */
-	if (!read_size)
-		goto out;
-
-	if (IS_ERR(dev->otp_data)) {
-		dev_err(&client->dev, "OTP data not available");
-		return PTR_ERR(dev->otp_data);
-	}
-
-	/* Correct read_size value only if bigger than maximum */
-	if (read_size > OV5693_OTP_DATA_SIZE)
-		read_size = OV5693_OTP_DATA_SIZE;
-
-	ret = copy_to_user(to, dev->otp_data, read_size);
-	if (ret) {
-		dev_err(&client->dev, "%s: failed to copy OTP data to user\n",
-			__func__);
-		return -EFAULT;
-	}
-
-	pr_debug("%s read_size:%d\n", __func__, read_size);
-
-out:
-	/* Return correct size */
-	priv->size = dev->otp_size;
-
-	return 0;
-}
-
 static long ov5693_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
 	case ATOMISP_IOC_S_EXPOSURE:
 		return ov5693_s_exposure(sd, arg);
-	case ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA:
-		return ov5693_g_priv_int_data(sd, arg);
 	default:
 		return -EINVAL;
 	}
@@ -1794,7 +1754,7 @@ static struct i2c_driver ov5693_driver = {
 		.name = "ov5693",
 		.acpi_match_table = ov5693_acpi_match,
 	},
-	.probe_new = ov5693_probe,
+	.probe = ov5693_probe,
 	.remove = ov5693_remove,
 };
 module_i2c_driver(ov5693_driver);

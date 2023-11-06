@@ -291,7 +291,7 @@ static struct i2c_driver sht4x_driver = {
 		.name = "sht4x",
 		.of_match_table = sht4x_of_match,
 	},
-	.probe_new	= sht4x_probe,
+	.probe		= sht4x_probe,
 	.id_table	= sht4x_id,
 };
 

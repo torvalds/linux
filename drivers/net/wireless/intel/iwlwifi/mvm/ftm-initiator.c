@@ -72,15 +72,24 @@ int iwl_mvm_ftm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * the TK is already configured for this station, so it
 	 * shouldn't be set again here.
 	 */
-	if (vif->cfg.assoc &&
-	    !memcmp(addr, vif->bss_conf.bssid, ETH_ALEN)) {
+	if (vif->cfg.assoc) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		struct ieee80211_bss_conf *link_conf;
+		unsigned int link_id;
 		struct ieee80211_sta *sta;
+		u8 sta_id;
 
 		rcu_read_lock();
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id]);
-		if (!IS_ERR_OR_NULL(sta) && sta->mfp)
-			expected_tk_len = 0;
+		for_each_vif_active_link(vif, link_conf, link_id) {
+			if (memcmp(addr, link_conf->bssid, ETH_ALEN))
+				continue;
+
+			sta_id = mvmvif->link[link_id]->ap_sta_id;
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+			if (!IS_ERR_OR_NULL(sta) && sta->mfp)
+				expected_tk_len = 0;
+			break;
+		}
 		rcu_read_unlock();
 	}
 
@@ -518,25 +527,30 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_ftm_put_target_common(mvm, peer, target);
 
-	if (vif->cfg.assoc &&
-	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
+	if (vif->cfg.assoc) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 		struct ieee80211_sta *sta;
+		struct ieee80211_bss_conf *link_conf;
+		unsigned int link_id;
 
 		rcu_read_lock();
+		for_each_vif_active_link(vif, link_conf, link_id) {
+			if (memcmp(peer->addr, link_conf->bssid, ETH_ALEN))
+				continue;
 
-		sta = rcu_dereference(mvm->fw_id_to_mac_id[mvmvif->deflink.ap_sta_id]);
-		if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
-			rcu_read_unlock();
-			return PTR_ERR_OR_ZERO(sta);
+			target->sta_id = mvmvif->link[link_id]->ap_sta_id;
+			sta = rcu_dereference(mvm->fw_id_to_mac_id[target->sta_id]);
+			if (WARN_ON_ONCE(IS_ERR_OR_NULL(sta))) {
+				rcu_read_unlock();
+				return PTR_ERR_OR_ZERO(sta);
+			}
+
+			if (sta->mfp && (peer->ftm.trigger_based ||
+					 peer->ftm.non_trigger_based))
+				FTM_PUT_FLAG(PMF);
+			break;
 		}
-
-		if (sta->mfp && (peer->ftm.trigger_based || peer->ftm.non_trigger_based))
-			FTM_PUT_FLAG(PMF);
-
 		rcu_read_unlock();
-
-		target->sta_id = mvmvif->deflink.ap_sta_id;
 	} else {
 		target->sta_id = IWL_MVM_INVALID_STA;
 	}

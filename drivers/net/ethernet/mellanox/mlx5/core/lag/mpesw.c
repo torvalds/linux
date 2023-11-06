@@ -6,7 +6,7 @@
 #include "lag/lag.h"
 #include "eswitch.h"
 #include "esw/acl/ofld.h"
-#include "lib/mlx5.h"
+#include "lib/events.h"
 
 static void mlx5_mpesw_metadata_cleanup(struct mlx5_lag *ldev)
 {
@@ -65,6 +65,7 @@ err_metadata:
 	return err;
 }
 
+#define MLX5_LAG_MPESW_OFFLOADS_SUPPORTED_PORTS 2
 static int enable_mpesw(struct mlx5_lag *ldev)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[MLX5_LAG_P1].dev;
@@ -73,6 +74,9 @@ static int enable_mpesw(struct mlx5_lag *ldev)
 
 	if (ldev->mode != MLX5_LAG_MODE_NONE)
 		return -EINVAL;
+
+	if (ldev->ports > MLX5_LAG_MPESW_OFFLOADS_SUPPORTED_PORTS)
+		return -EOPNOTSUPP;
 
 	if (mlx5_eswitch_mode(dev0) != MLX5_ESWITCH_OFFLOADS ||
 	    !MLX5_CAP_PORT_SELECTION(dev0, port_select_flow_table) ||

@@ -145,6 +145,24 @@ static void compat_output(struct dlm_lock_result *res,
 }
 #endif
 
+/* should held proc->asts_spin lock */
+void dlm_purge_lkb_callbacks(struct dlm_lkb *lkb)
+{
+	struct dlm_callback *cb, *safe;
+
+	list_for_each_entry_safe(cb, safe, &lkb->lkb_callbacks, list) {
+		list_del(&cb->list);
+		kref_put(&cb->ref, dlm_release_callback);
+	}
+
+	clear_bit(DLM_IFL_CB_PENDING_BIT, &lkb->lkb_iflags);
+
+	/* invalidate */
+	dlm_callback_set_last_ptr(&lkb->lkb_last_cast, NULL);
+	dlm_callback_set_last_ptr(&lkb->lkb_last_cb, NULL);
+	lkb->lkb_last_bast_mode = -1;
+}
+
 /* Figure out if this lock is at the end of its life and no longer
    available for the application to use.  The lkb still exists until
    the final ast is read.  A lock becomes EOL in three situations:

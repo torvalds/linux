@@ -81,6 +81,17 @@ struct rtw_c2h_adaptivity {
 	u8 option;
 } __packed;
 
+struct rtw_h2c_register {
+	u32 w0;
+	u32 w1;
+} __packed;
+
+#define RTW_H2C_W0_CMDID		GENMASK(7, 0)
+
+/* H2C_CMD_DEFAULT_PORT command */
+#define RTW_H2C_DEFAULT_PORT_W0_PORTID	GENMASK(15, 8)
+#define RTW_H2C_DEFAULT_PORT_W0_MACID	GENMASK(23, 16)
+
 struct rtw_h2c_cmd {
 	__le32 msg;
 	__le32 msg_ext;
@@ -530,6 +541,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_MEDIA_STATUS_RPT	0x01
 #define H2C_CMD_SET_PWR_MODE		0x20
 #define H2C_CMD_LPS_PG_INFO		0x2b
+#define H2C_CMD_DEFAULT_PORT		0x2c
 #define H2C_CMD_RA_INFO			0x40
 #define H2C_CMD_RSSI_MONITOR		0x42
 #define H2C_CMD_BCN_FILTER_OFFLOAD_P0	0x56
@@ -801,6 +813,7 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb);
 void rtw_fw_send_general_info(struct rtw_dev *rtwdev);
 void rtw_fw_send_phydm_info(struct rtw_dev *rtwdev);
+void rtw_fw_default_port(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif);
 
 void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para);
 void rtw_fw_inform_rfk_status(struct rtw_dev *rtwdev, bool start);

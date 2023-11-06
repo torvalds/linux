@@ -264,7 +264,7 @@ static struct i2c_driver mb1232_driver = {
 		.name	= "maxbotix-mb1232",
 		.of_match_table	= of_mb1232_match,
 	},
-	.probe_new = mb1232_probe,
+	.probe = mb1232_probe,
 	.id_table = mb1232_id,
 };
 module_i2c_driver(mb1232_driver);

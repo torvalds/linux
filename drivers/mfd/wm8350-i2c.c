@@ -52,7 +52,7 @@ static struct i2c_driver wm8350_i2c_driver = {
 		   .name = "wm8350",
 		   .suppress_bind_attrs = true,
 	},
-	.probe_new = wm8350_i2c_probe,
+	.probe = wm8350_i2c_probe,
 	.id_table = wm8350_i2c_id,
 };
 

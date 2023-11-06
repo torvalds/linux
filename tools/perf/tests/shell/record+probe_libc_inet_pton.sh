@@ -10,11 +10,11 @@
 # SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
-. $(dirname $0)/lib/probe.sh
-. $(dirname $0)/lib/probe_vfs_getname.sh
+. "$(dirname "$0")/lib/probe.sh"
+. "$(dirname "$0")/lib/probe_vfs_getname.sh"
 
 libc=$(grep -w libc /proc/self/maps | head -1 | sed -r 's/.*[[:space:]](\/.*)/\1/g')
-nm -Dg $libc 2>/dev/null | fgrep -q inet_pton || exit 254
+nm -Dg $libc 2>/dev/null | grep -F -q inet_pton || exit 254
 
 event_pattern='probe_libc:inet_pton(\_[[:digit:]]+)?'
 
@@ -23,7 +23,7 @@ add_libc_inet_pton_event() {
 	event_name=$(perf probe -f -x $libc -a inet_pton 2>&1 | tail -n +2 | head -n -5 | \
 			grep -P -o "$event_pattern(?=[[:space:]]\(on inet_pton in $libc\))")
 
-	if [ $? -ne 0 -o -z "$event_name" ] ; then
+	if [ $? -ne 0 ] || [ -z "$event_name" ] ; then
 		printf "FAIL: could not add event\n"
 		return 1
 	fi
@@ -94,7 +94,7 @@ delete_libc_inet_pton_event() {
 }
 
 # Check for IPv6 interface existence
-ip a sh lo | fgrep -q inet6 || exit 2
+ip a sh lo | grep -F -q inet6 || exit 2
 
 skip_if_no_perf_probe && \
 add_libc_inet_pton_event && \

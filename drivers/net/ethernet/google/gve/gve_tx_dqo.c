@@ -8,6 +8,7 @@
 #include "gve_adminq.h"
 #include "gve_utils.h"
 #include "gve_dqo.h"
+#include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -645,6 +646,9 @@ static int gve_try_tx_skb(struct gve_priv *priv, struct gve_tx_ring *tx,
 					    priv->dev->name);
 			goto drop;
 		}
+
+		if (unlikely(ipv6_hopopt_jumbo_remove(skb)))
+			goto drop;
 
 		num_buffer_descs = gve_num_buffer_descs_needed(skb);
 	} else {

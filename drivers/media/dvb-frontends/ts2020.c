@@ -720,7 +720,7 @@ static struct i2c_driver ts2020_driver = {
 	.driver = {
 		.name	= "ts2020",
 	},
-	.probe_new	= ts2020_probe,
+	.probe		= ts2020_probe,
 	.remove		= ts2020_remove,
 	.id_table	= ts2020_id_table,
 };

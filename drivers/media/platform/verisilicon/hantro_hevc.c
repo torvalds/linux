@@ -109,7 +109,7 @@ static int tile_buffer_reallocate(struct hantro_ctx *ctx)
 						       &hevc_dec->tile_filter.dma,
 						       GFP_KERNEL);
 	if (!hevc_dec->tile_filter.cpu)
-		goto err_free_tile_buffers;
+		return -ENOMEM;
 	hevc_dec->tile_filter.size = size;
 
 	size = (VERT_SAO_RAM_SIZE * height64 * (num_tile_cols - 1) * ctx->bit_depth) / 8;
@@ -125,12 +125,19 @@ static int tile_buffer_reallocate(struct hantro_ctx *ctx)
 						    &hevc_dec->tile_bsd.dma,
 						    GFP_KERNEL);
 	if (!hevc_dec->tile_bsd.cpu)
-		goto err_free_tile_buffers;
+		goto err_free_sao_buffers;
 	hevc_dec->tile_bsd.size = size;
 
 	hevc_dec->num_tile_cols_allocated = num_tile_cols;
 
 	return 0;
+
+err_free_sao_buffers:
+	if (hevc_dec->tile_sao.cpu)
+		dma_free_coherent(vpu->dev, hevc_dec->tile_sao.size,
+				  hevc_dec->tile_sao.cpu,
+				  hevc_dec->tile_sao.dma);
+	hevc_dec->tile_sao.cpu = NULL;
 
 err_free_tile_buffers:
 	if (hevc_dec->tile_filter.cpu)
@@ -138,18 +145,6 @@ err_free_tile_buffers:
 				  hevc_dec->tile_filter.cpu,
 				  hevc_dec->tile_filter.dma);
 	hevc_dec->tile_filter.cpu = NULL;
-
-	if (hevc_dec->tile_sao.cpu)
-		dma_free_coherent(vpu->dev, hevc_dec->tile_sao.size,
-				  hevc_dec->tile_sao.cpu,
-				  hevc_dec->tile_sao.dma);
-	hevc_dec->tile_sao.cpu = NULL;
-
-	if (hevc_dec->tile_bsd.cpu)
-		dma_free_coherent(vpu->dev, hevc_dec->tile_bsd.size,
-				  hevc_dec->tile_bsd.cpu,
-				  hevc_dec->tile_bsd.dma);
-	hevc_dec->tile_bsd.cpu = NULL;
 
 	return -ENOMEM;
 }

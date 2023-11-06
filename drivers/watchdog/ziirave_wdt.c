@@ -731,7 +731,7 @@ static struct i2c_driver ziirave_wdt_driver = {
 		.name = "ziirave_wdt",
 		.of_match_table = zrv_wdt_of_match,
 	},
-	.probe_new = ziirave_wdt_probe,
+	.probe = ziirave_wdt_probe,
 	.remove = ziirave_wdt_remove,
 	.id_table = ziirave_wdt_id,
 };

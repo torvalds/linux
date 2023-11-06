@@ -50,7 +50,7 @@ static int detach_port(char *port)
 
 	ret = usbip_vhci_driver_open();
 	if (ret < 0) {
-		err("open vhci_driver");
+		err("open vhci_driver (is vhci_hcd loaded?)");
 		return -1;
 	}
 

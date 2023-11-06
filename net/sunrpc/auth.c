@@ -32,7 +32,7 @@ static unsigned int auth_hashbits = RPC_CREDCACHE_DEFAULT_HASHBITS;
 static const struct rpc_authops __rcu *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 	[RPC_AUTH_NULL] = (const struct rpc_authops __force __rcu *)&authnull_ops,
 	[RPC_AUTH_UNIX] = (const struct rpc_authops __force __rcu *)&authunix_ops,
-	NULL,			/* others can be loadable modules */
+	[RPC_AUTH_TLS]  = (const struct rpc_authops __force __rcu *)&authtls_ops,
 };
 
 static LIST_HEAD(cred_unused);

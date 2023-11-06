@@ -340,7 +340,10 @@ struct cpufreq_driver {
 	/*
 	 * ->fast_switch() replacement for drivers that use an internal
 	 * representation of performance levels and can pass hints other than
-	 * the target performance level to the hardware.
+	 * the target performance level to the hardware. This can only be set
+	 * if ->fast_switch is set too, because in those cases (under specific
+	 * conditions) scale invariance can be disabled, which causes the
+	 * schedutil governor to fall back to the latter.
 	 */
 	void		(*adjust_perf)(unsigned int cpu,
 				       unsigned long min_perf,

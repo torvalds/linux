@@ -625,7 +625,7 @@ static int ti_hecc_error(struct net_device *ndev, int int_status,
 
 		timestamp = hecc_read(priv, HECC_CANLNT);
 		err = can_rx_offload_queue_timestamp(&priv->offload, skb,
-						  timestamp);
+						     timestamp);
 		if (err)
 			ndev->stats.rx_fifo_errors++;
 	}
@@ -963,7 +963,7 @@ probe_exit_candev:
 	return err;
 }
 
-static int ti_hecc_remove(struct platform_device *pdev)
+static void ti_hecc_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
@@ -973,8 +973,6 @@ static int ti_hecc_remove(struct platform_device *pdev)
 	clk_put(priv->clk);
 	can_rx_offload_del(&priv->offload);
 	free_candev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1028,7 +1026,7 @@ static struct platform_driver ti_hecc_driver = {
 		.of_match_table = ti_hecc_dt_ids,
 	},
 	.probe = ti_hecc_probe,
-	.remove = ti_hecc_remove,
+	.remove_new = ti_hecc_remove,
 	.suspend = ti_hecc_suspend,
 	.resume = ti_hecc_resume,
 };

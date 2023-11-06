@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/adi,ssm2518.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices SSM2518 audio amplifier
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    const: adi,ssm2518
+
+  reg:
+    maxItems: 1
+    description: |
+       I2C address of the device. This will either be 0x34 (ADDR pin low)
+       or 0x35 (ADDR pin high)
+
+  gpios:
+    maxItems: 1
+    description: |
+       GPIO connected to the nSD pin. If the property is not present
+       it is assumed that the nSD pin is hardwired to always on.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+   i2c {
+     #address-cells = <1>;
+     #size-cells = <0>;
+     codec@34 {
+       compatible = "adi,ssm2518";
+       reg = <0x34>;
+       gpios = <&gpio 5 0>;
+     };
+   };

@@ -28,12 +28,6 @@ properties:
   clocks:
     maxItems: 1
 
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
-
   thermal-calibration:
     type: object
     description: thermal calibration values

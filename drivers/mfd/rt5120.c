@@ -114,7 +114,7 @@ static struct i2c_driver rt5120_driver = {
 		.name = "rt5120",
 		.of_match_table = rt5120_device_match_table,
 	},
-	.probe_new = rt5120_probe,
+	.probe = rt5120_probe,
 };
 module_i2c_driver(rt5120_driver);
 

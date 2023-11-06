@@ -139,7 +139,7 @@ retry:
 		if (PTR_ERR(rt) == -EINVAL && *saddr &&
 		    rt_mode & IP_VS_RT_MODE_CONNECT && !loop) {
 			*saddr = 0;
-			flowi4_update_output(&fl4, 0, 0, daddr, 0);
+			flowi4_update_output(&fl4, 0, daddr, 0);
 			goto retry;
 		}
 		IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n", &daddr);
@@ -147,7 +147,7 @@ retry:
 	} else if (!*saddr && rt_mode & IP_VS_RT_MODE_CONNECT && fl4.saddr) {
 		ip_rt_put(rt);
 		*saddr = fl4.saddr;
-		flowi4_update_output(&fl4, 0, 0, daddr, fl4.saddr);
+		flowi4_update_output(&fl4, 0, daddr, fl4.saddr);
 		loop = true;
 		goto retry;
 	}

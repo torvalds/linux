@@ -1090,6 +1090,7 @@ void iommu_tce_kill(struct iommu_table *tbl,
 }
 EXPORT_SYMBOL_GPL(iommu_tce_kill);
 
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 static int iommu_take_ownership(struct iommu_table *tbl)
 {
 	unsigned long flags, i, sz = (tbl->it_size + 7) >> 3;
@@ -1140,6 +1141,7 @@ static void iommu_release_ownership(struct iommu_table *tbl)
 		spin_unlock(&tbl->pools[i].lock);
 	spin_unlock_irqrestore(&tbl->large_pool.lock, flags);
 }
+#endif
 
 int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 {
@@ -1171,6 +1173,7 @@ int iommu_add_device(struct iommu_table_group *table_group, struct device *dev)
 }
 EXPORT_SYMBOL_GPL(iommu_add_device);
 
+#if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
  * A simple iommu_table_group_ops which only allows reusing the existing
  * iommu_table. This handles VFIO for POWER7 or the nested KVM.
@@ -1398,5 +1401,6 @@ static int __init spapr_tce_setup_phb_iommus_initcall(void)
 	return 0;
 }
 postcore_initcall_sync(spapr_tce_setup_phb_iommus_initcall);
+#endif
 
 #endif /* CONFIG_IOMMU_API */

@@ -169,26 +169,30 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		if (!adev->gmc.xgmi.connected_to_cpu) {
-			struct ras_err_data err_data = {0, 0, 0, NULL};
-			struct ras_common_if head = {
-				.block = AMDGPU_RAS_BLOCK__UMC,
-			};
-			struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
-
-			ret = amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
-
-			if (ret == AMDGPU_RAS_SUCCESS && obj) {
-				obj->err_data.ue_count += err_data.ue_count;
-				obj->err_data.ce_count += err_data.ce_count;
-			}
-		} else if (reset) {
+	if (adev->gmc.xgmi.connected_to_cpu ||
+		adev->gmc.is_app_apu) {
+		if (reset) {
 			/* MCA poison handler is only responsible for GPU reset,
 			 * let MCA notifier do page retirement.
 			 */
 			kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 			amdgpu_ras_reset_gpu(adev);
+		}
+		return ret;
+	}
+
+	if (!amdgpu_sriov_vf(adev)) {
+		struct ras_err_data err_data = {0, 0, 0, NULL};
+		struct ras_common_if head = {
+			.block = AMDGPU_RAS_BLOCK__UMC,
+		};
+		struct ras_manager *obj = amdgpu_ras_find_obj(adev, &head);
+
+		ret = amdgpu_umc_do_page_retirement(adev, &err_data, NULL, reset);
+
+		if (ret == AMDGPU_RAS_SUCCESS && obj) {
+			obj->err_data.ue_count += err_data.ue_count;
+			obj->err_data.ce_count += err_data.ce_count;
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)

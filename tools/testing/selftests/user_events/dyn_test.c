@@ -217,6 +217,18 @@ TEST_F(user, matching) {
 	/* Types don't match */
 	TEST_NMATCH("__test_event u64 a; u64 b",
 		    "__test_event u32 a; u32 b");
+
+	/* Struct name and size matches */
+	TEST_MATCH("__test_event struct my_struct a 20",
+		   "__test_event struct my_struct a 20");
+
+	/* Struct name don't match */
+	TEST_NMATCH("__test_event struct my_struct a 20",
+		    "__test_event struct my_struct b 20");
+
+	/* Struct size don't match */
+	TEST_NMATCH("__test_event struct my_struct a 20",
+		    "__test_event struct my_struct a 21");
 }
 
 int main(int argc, char **argv)

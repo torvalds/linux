@@ -213,7 +213,10 @@ static unsigned char xfer_to_pipe[4] = {
 	PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
 };
 
-static struct class *mon_bin_class;
+static const struct class mon_bin_class = {
+	.name = "usbmon",
+};
+
 static dev_t mon_bin_dev0;
 static struct cdev mon_bin_cdev;
 
@@ -1360,7 +1363,7 @@ int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 	if (minor >= MON_BIN_MAX_MINOR)
 		return 0;
 
-	dev = device_create(mon_bin_class, ubus ? ubus->controller : NULL,
+	dev = device_create(&mon_bin_class, ubus ? ubus->controller : NULL,
 			    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
 			    "usbmon%d", minor);
 	if (IS_ERR(dev))
@@ -1372,18 +1375,16 @@ int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 
 void mon_bin_del(struct mon_bus *mbus)
 {
-	device_destroy(mon_bin_class, mbus->classdev->devt);
+	device_destroy(&mon_bin_class, mbus->classdev->devt);
 }
 
 int __init mon_bin_init(void)
 {
 	int rc;
 
-	mon_bin_class = class_create("usbmon");
-	if (IS_ERR(mon_bin_class)) {
-		rc = PTR_ERR(mon_bin_class);
+	rc = class_register(&mon_bin_class);
+	if (rc)
 		goto err_class;
-	}
 
 	rc = alloc_chrdev_region(&mon_bin_dev0, 0, MON_BIN_MAX_MINOR, "usbmon");
 	if (rc < 0)
@@ -1401,7 +1402,7 @@ int __init mon_bin_init(void)
 err_add:
 	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
 err_dev:
-	class_destroy(mon_bin_class);
+	class_unregister(&mon_bin_class);
 err_class:
 	return rc;
 }
@@ -1410,5 +1411,5 @@ void mon_bin_exit(void)
 {
 	cdev_del(&mon_bin_cdev);
 	unregister_chrdev_region(mon_bin_dev0, MON_BIN_MAX_MINOR);
-	class_destroy(mon_bin_class);
+	class_unregister(&mon_bin_class);
 }

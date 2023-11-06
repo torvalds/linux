@@ -7,6 +7,8 @@
 #ifndef _NOLIBC_ARCH_LOONGARCH_H
 #define _NOLIBC_ARCH_LOONGARCH_H
 
+#include "compiler.h"
+
 /* Syscalls for LoongArch :
  *   - stack is 16-byte aligned
  *   - syscall number is passed in a7
@@ -158,7 +160,7 @@ const unsigned long *_auxv __attribute__((weak));
 #define LONG_ADDI    "addi.w"
 #define LONG_SLL     "slli.w"
 #define LONG_BSTRINS "bstrins.w"
-#else // __loongarch_grlen == 64
+#else /* __loongarch_grlen == 64 */
 #define LONGLOG      "3"
 #define SZREG        "8"
 #define REG_L        "ld.d"
@@ -170,31 +172,34 @@ const unsigned long *_auxv __attribute__((weak));
 #endif
 
 /* startup code */
-void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) _start(void)
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __no_stack_protector _start(void)
 {
 	__asm__ volatile (
-		REG_L        " $a0, $sp, 0\n"         // argc (a0) was in the stack
-		LONG_ADDI    " $a1, $sp, "SZREG"\n"   // argv (a1) = sp + SZREG
-		LONG_SLL     " $a2, $a0, "LONGLOG"\n" // envp (a2) = SZREG*argc ...
-		LONG_ADDI    " $a2, $a2, "SZREG"\n"   //             + SZREG (skip null)
-		LONG_ADD     " $a2, $a2, $a1\n"       //             + argv
+#ifdef _NOLIBC_STACKPROTECTOR
+		"bl __stack_chk_init\n"               /* initialize stack protector                          */
+#endif
+		REG_L        " $a0, $sp, 0\n"         /* argc (a0) was in the stack                          */
+		LONG_ADDI    " $a1, $sp, "SZREG"\n"   /* argv (a1) = sp + SZREG                              */
+		LONG_SLL     " $a2, $a0, "LONGLOG"\n" /* envp (a2) = SZREG*argc ...                          */
+		LONG_ADDI    " $a2, $a2, "SZREG"\n"   /*             + SZREG (skip null)                     */
+		LONG_ADD     " $a2, $a2, $a1\n"       /*             + argv                                  */
 
-		"move          $a3, $a2\n"            // iterate a3 over envp to find auxv (after NULL)
-		"0:\n"                                // do {
-		REG_L        " $a4, $a3, 0\n"         //   a4 = *a3;
-		LONG_ADDI    " $a3, $a3, "SZREG"\n"   //   a3 += sizeof(void*);
-		"bne           $a4, $zero, 0b\n"      // } while (a4);
-		"la.pcrel      $a4, _auxv\n"          // a4 = &_auxv
-		LONG_S       " $a3, $a4, 0\n"         // store a3 into _auxv
+		"move          $a3, $a2\n"            /* iterate a3 over envp to find auxv (after NULL)      */
+		"0:\n"                                /* do {                                                */
+		REG_L        " $a4, $a3, 0\n"         /*   a4 = *a3;                                         */
+		LONG_ADDI    " $a3, $a3, "SZREG"\n"   /*   a3 += sizeof(void*);                              */
+		"bne           $a4, $zero, 0b\n"      /* } while (a4);                                       */
+		"la.pcrel      $a4, _auxv\n"          /* a4 = &_auxv                                         */
+		LONG_S       " $a3, $a4, 0\n"         /* store a3 into _auxv                                 */
 
-		"la.pcrel      $a3, environ\n"        // a3 = &environ
-		LONG_S       " $a2, $a3, 0\n"         // store envp(a2) into environ
-		LONG_BSTRINS " $sp, $zero, 3, 0\n"    // sp must be 16-byte aligned
-		"bl            main\n"                // main() returns the status code, we'll exit with it.
-		"li.w          $a7, 93\n"             // NR_exit == 93
+		"la.pcrel      $a3, environ\n"        /* a3 = &environ                                       */
+		LONG_S       " $a2, $a3, 0\n"         /* store envp(a2) into environ                         */
+		LONG_BSTRINS " $sp, $zero, 3, 0\n"    /* sp must be 16-byte aligned                          */
+		"bl            main\n"                /* main() returns the status code, we'll exit with it. */
+		"li.w          $a7, 93\n"             /* NR_exit == 93                                       */
 		"syscall       0\n"
 	);
 	__builtin_unreachable();
 }
 
-#endif // _NOLIBC_ARCH_LOONGARCH_H
+#endif /* _NOLIBC_ARCH_LOONGARCH_H */

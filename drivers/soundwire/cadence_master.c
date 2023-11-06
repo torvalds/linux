@@ -283,6 +283,29 @@ static int cdns_config_update(struct sdw_cdns *cdns)
 	return ret;
 }
 
+/**
+ * sdw_cdns_config_update() - Update configurations
+ * @cdns: Cadence instance
+ */
+void sdw_cdns_config_update(struct sdw_cdns *cdns)
+{
+	/* commit changes */
+	cdns_writel(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+}
+EXPORT_SYMBOL(sdw_cdns_config_update);
+
+/**
+ * sdw_cdns_config_update_set_wait() - wait until configuration update bit is self-cleared
+ * @cdns: Cadence instance
+ */
+int sdw_cdns_config_update_set_wait(struct sdw_cdns *cdns)
+{
+	/* the hardware recommendation is to wait at least 300us */
+	return cdns_set_wait(cdns, CDNS_MCP_CONFIG_UPDATE,
+			     CDNS_MCP_CONFIG_UPDATE_BIT, 0);
+}
+EXPORT_SYMBOL(sdw_cdns_config_update_set_wait);
+
 /*
  * debugfs
  */
@@ -433,9 +456,9 @@ static int cdns_parity_error_injection(void *data, u64 value)
 			CDNS_IP_MCP_CMDCTRL_INSERT_PARITY_ERR);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
+	ret = cdns_clear_bit(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+	if (ret < 0)
+		goto unlock;
 
 	/* do a broadcast dummy read to avoid bus clashes */
 	ret = sdw_bread_no_pm_unlocked(&cdns->bus, 0xf, SDW_SCP_DEVID_0);
@@ -447,15 +470,16 @@ static int cdns_parity_error_injection(void *data, u64 value)
 			0);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
-
-	/* Continue bus operation with parity error injection disabled */
-	mutex_unlock(&bus->bus_lock);
+	ret = cdns_clear_bit(cdns, CDNS_MCP_CONFIG_UPDATE, CDNS_MCP_CONFIG_UPDATE_BIT);
+	if (ret < 0)
+		goto unlock;
 
 	/* Userspace changed the hardware state behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+
+unlock:
+	/* Continue bus operation with parity error injection disabled */
+	mutex_unlock(&bus->bus_lock);
 
 	/*
 	 * allow Master device to enter pm_runtime suspend. This may
@@ -1116,13 +1140,7 @@ int sdw_cdns_exit_reset(struct sdw_cdns *cdns)
 		     CDNS_MCP_CONTROL_HW_RST);
 
 	/* commit changes */
-	cdns_updatel(cdns, CDNS_MCP_CONFIG_UPDATE,
-		     CDNS_MCP_CONFIG_UPDATE_BIT,
-		     CDNS_MCP_CONFIG_UPDATE_BIT);
-
-	/* don't wait here */
-	return 0;
-
+	return cdns_config_update(cdns);
 }
 EXPORT_SYMBOL(sdw_cdns_exit_reset);
 

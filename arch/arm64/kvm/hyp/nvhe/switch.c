@@ -44,15 +44,26 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 	__activate_traps_common(vcpu);
 
 	val = vcpu->arch.cptr_el2;
-	val |= CPTR_EL2_TTA | CPTR_EL2_TAM;
+	val |= CPTR_EL2_TAM;	/* Same bit irrespective of E2H */
+	val |= has_hvhe() ? CPACR_EL1_TTA : CPTR_EL2_TTA;
+	if (cpus_have_final_cap(ARM64_SME)) {
+		if (has_hvhe())
+			val &= ~(CPACR_EL1_SMEN_EL1EN | CPACR_EL1_SMEN_EL0EN);
+		else
+			val |= CPTR_EL2_TSM;
+	}
+
 	if (!guest_owns_fp_regs(vcpu)) {
-		val |= CPTR_EL2_TFP | CPTR_EL2_TZ;
+		if (has_hvhe())
+			val &= ~(CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
+				 CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN);
+		else
+			val |= CPTR_EL2_TFP | CPTR_EL2_TZ;
+
 		__activate_traps_fpsimd32(vcpu);
 	}
-	if (cpus_have_final_cap(ARM64_SME))
-		val |= CPTR_EL2_TSM;
 
-	write_sysreg(val, cptr_el2);
+	kvm_write_cptr_el2(val);
 	write_sysreg(__this_cpu_read(kvm_hyp_vector), vbar_el2);
 
 	if (cpus_have_final_cap(ARM64_WORKAROUND_SPECULATIVE_AT)) {
@@ -73,7 +84,6 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 static void __deactivate_traps(struct kvm_vcpu *vcpu)
 {
 	extern char __kvm_hyp_host_vector[];
-	u64 cptr;
 
 	___deactivate_traps(vcpu);
 
@@ -98,13 +108,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(this_cpu_ptr(&kvm_init_params)->hcr_el2, hcr_el2);
 
-	cptr = CPTR_EL2_DEFAULT;
-	if (vcpu_has_sve(vcpu) && (vcpu->arch.fp_state == FP_STATE_GUEST_OWNED))
-		cptr |= CPTR_EL2_TZ;
-	if (cpus_have_final_cap(ARM64_SME))
-		cptr &= ~CPTR_EL2_TSM;
-
-	write_sysreg(cptr, cptr_el2);
+	kvm_reset_cptr_el2(vcpu);
 	write_sysreg(__kvm_hyp_host_vector, vbar_el2);
 }
 

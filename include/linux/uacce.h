@@ -86,6 +86,7 @@ enum uacce_q_state {
  * @state: queue state machine
  * @pasid: pasid associated to the mm
  * @handle: iommu_sva handle returned by iommu_sva_bind_device()
+ * @mapping: user space mapping of the queue
  */
 struct uacce_queue {
 	struct uacce_device *uacce;
@@ -97,6 +98,7 @@ struct uacce_queue {
 	enum uacce_q_state state;
 	u32 pasid;
 	struct iommu_sva *handle;
+	struct address_space *mapping;
 };
 
 /**
@@ -114,7 +116,6 @@ struct uacce_queue {
  * @mutex: protects uacce operation
  * @priv: private pointer of the uacce
  * @queues: list of queues
- * @inode: core vfs
  */
 struct uacce_device {
 	const char *algs;
@@ -130,7 +131,6 @@ struct uacce_device {
 	struct mutex mutex;
 	void *priv;
 	struct list_head queues;
-	struct inode *inode;
 };
 
 #if IS_ENABLED(CONFIG_UACCE)

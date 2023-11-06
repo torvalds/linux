@@ -785,6 +785,8 @@ static void ucsi_unregister_partner(struct ucsi_connector *con)
 	if (!con->partner)
 		return;
 
+	typec_set_mode(con->port, TYPEC_STATE_SAFE);
+
 	ucsi_unregister_partner_pdos(con);
 	ucsi_unregister_altmodes(con, UCSI_RECIPIENT_SOP);
 	typec_unregister_partner(con->partner);
@@ -810,6 +812,21 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		break;
 	default:
 		break;
+	}
+
+	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
+			typec_set_mode(con->port, TYPEC_MODE_DEBUG);
+			break;
+		case UCSI_CONSTAT_PARTNER_TYPE_AUDIO:
+			typec_set_mode(con->port, TYPEC_MODE_AUDIO);
+			break;
+		default:
+			if (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) ==
+					UCSI_CONSTAT_PARTNER_FLAG_USB)
+				typec_set_mode(con->port, TYPEC_STATE_USB);
+		}
 	}
 
 	/* Only notify USB controller if partner supports USB data */

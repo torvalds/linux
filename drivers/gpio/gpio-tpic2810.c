@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
- *	Andrew F. Davis <afd@ti.com>
+ * Copyright (C) 2015-2023 Texas Instruments Incorporated - https://www.ti.com/
+ *	Andrew Davis <afd@ti.com>
  */
 
 #include <linux/gpio/driver.h>
@@ -101,13 +101,10 @@ MODULE_DEVICE_TABLE(of, tpic2810_of_match_table);
 static int tpic2810_probe(struct i2c_client *client)
 {
 	struct tpic2810 *gpio;
-	int ret;
 
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
-
-	i2c_set_clientdata(client, gpio);
 
 	gpio->chip = template_chip;
 	gpio->chip.parent = &client->dev;
@@ -116,20 +113,7 @@ static int tpic2810_probe(struct i2c_client *client)
 
 	mutex_init(&gpio->lock);
 
-	ret = gpiochip_add_data(&gpio->chip, gpio);
-	if (ret < 0) {
-		dev_err(&client->dev, "Unable to register gpiochip\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void tpic2810_remove(struct i2c_client *client)
-{
-	struct tpic2810 *gpio = i2c_get_clientdata(client);
-
-	gpiochip_remove(&gpio->chip);
+	return devm_gpiochip_add_data(&client->dev, &gpio->chip, gpio);
 }
 
 static const struct i2c_device_id tpic2810_id_table[] = {
@@ -143,12 +127,11 @@ static struct i2c_driver tpic2810_driver = {
 		.name = "tpic2810",
 		.of_match_table = tpic2810_of_match_table,
 	},
-	.probe_new = tpic2810_probe,
-	.remove = tpic2810_remove,
+	.probe = tpic2810_probe,
 	.id_table = tpic2810_id_table,
 };
 module_i2c_driver(tpic2810_driver);
 
-MODULE_AUTHOR("Andrew F. Davis <afd@ti.com>");
+MODULE_AUTHOR("Andrew Davis <afd@ti.com>");
 MODULE_DESCRIPTION("TPIC2810 8-Bit LED Driver GPIO Driver");
 MODULE_LICENSE("GPL v2");

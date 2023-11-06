@@ -11,6 +11,7 @@
 #define JPEG_CORE_H_
 
 #include <linux/interrupt.h>
+#include <media/jpeg.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ctrls.h>
@@ -35,17 +36,6 @@
 #define S5P_JPEG_COEF33			0x13
 
 #define EXYNOS3250_IRQ_TIMEOUT		0x10000000
-
-/* a selection of JPEG markers */
-#define JPEG_MARKER_TEM				0x01
-#define JPEG_MARKER_SOF0				0xc0
-#define JPEG_MARKER_DHT				0xc4
-#define JPEG_MARKER_RST				0xd0
-#define JPEG_MARKER_SOI				0xd8
-#define JPEG_MARKER_EOI				0xd9
-#define	JPEG_MARKER_SOS				0xda
-#define JPEG_MARKER_DQT				0xdb
-#define JPEG_MARKER_DHP				0xde
 
 /* Flags that indicate a format can be used for capture/output */
 #define SJPEG_FMT_FLAG_ENC_CAPTURE	(1 << 0)

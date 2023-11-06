@@ -130,6 +130,13 @@ static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 		memcpy(msg->reply_data, &reply, sizeof(reply));
 		ret = reply.error;
 	} else {
+		/*
+		 * To support an IPC tx_message with a
+		 * reply_size set to zero.
+		 */
+		if (!msg->reply_size)
+			goto out;
+
 		/* reply correct size ? */
 		if (reply.hdr.size != msg->reply_size &&
 		    !(reply.hdr.cmd & SOF_IPC_GLB_PROBE)) {

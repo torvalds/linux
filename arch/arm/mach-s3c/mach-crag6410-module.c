@@ -418,7 +418,7 @@ static struct i2c_driver wlf_gf_module_driver = {
 	.driver = {
 		.name = "wlf-gf-module"
 	},
-	.probe_new = wlf_gf_module_probe,
+	.probe = wlf_gf_module_probe,
 	.id_table = wlf_gf_module_id,
 };
 

@@ -336,44 +336,6 @@
 	firmware-name = "qcom/sdm845/oneplus6/cdsp.mbn";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-
-	/*
-	 * Both devices use different panels but all other properties
-	 * are common. Compatible line is declared in device dts.
-	 */
-	display_panel: panel@0 {
-		status = "disabled";
-
-		reg = <0>;
-
-		vddio-supply = <&vreg_l14a_1p88>;
-
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&panel_reset_pins &panel_te_pin &panel_esd_pin>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 				<GCC_QSPI_CORE_CLK_SRC>,
@@ -452,6 +414,44 @@
 	status = "okay";
 };
 
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+
+	/*
+	 * Both devices use different panels but all other properties
+	 * are common. Compatible line is declared in device dts.
+	 */
+	display_panel: panel@0 {
+		status = "disabled";
+
+		reg = <0>;
+
+		vddio-supply = <&vreg_l14a_1p88>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&panel_reset_pins &panel_te_pin &panel_esd_pin>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
 /* Modem/wifi */
 &mss_pil {
 	status = "okay";
@@ -480,7 +480,7 @@
 	};
 };
 
-&pmi8998_rradc {
+&pmi8998_charger {
 	status = "okay";
 };
 

@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <asm/initialize_mmu.h>
 #include <asm/tlbflush.h>
-#include <asm/traps.h>
 
 void __init kasan_early_init(void)
 {
@@ -31,7 +30,6 @@ void __init kasan_early_init(void)
 		BUG_ON(!pmd_none(*pmd));
 		set_pmd(pmd, __pmd((unsigned long)kasan_early_shadow_pte));
 	}
-	early_trap_init();
 }
 
 static void __init populate(void *start, void *end)

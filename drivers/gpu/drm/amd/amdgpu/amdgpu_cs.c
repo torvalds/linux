@@ -112,6 +112,9 @@ static int amdgpu_cs_p1_ib(struct amdgpu_cs_parser *p,
 	if (r < 0)
 		return r;
 
+	if (num_ibs[r] >= amdgpu_ring_max_ibs(chunk_ib->ip_type))
+		return -EINVAL;
+
 	++(num_ibs[r]);
 	p->gang_leader_idx = r;
 	return 0;
@@ -133,9 +136,6 @@ static int amdgpu_cs_p1_user_fence(struct amdgpu_cs_parser *p,
 	bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 	p->uf_entry.priority = 0;
 	p->uf_entry.tv.bo = &bo->tbo;
-	/* One for TTM and two for the CS job */
-	p->uf_entry.tv.num_shared = 3;
-
 	drm_gem_object_put(gobj);
 
 	size = amdgpu_bo_size(bo);
@@ -192,7 +192,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	uint64_t *chunk_array_user;
 	uint64_t *chunk_array;
 	uint32_t uf_offset = 0;
-	unsigned int size;
+	size_t size;
 	int ret;
 	int i;
 
@@ -285,6 +285,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		case AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES:
 		case AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT:
 		case AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL:
+		case AMDGPU_CHUNK_ID_CP_GFX_SHADOW:
 			break;
 
 		default:
@@ -294,7 +295,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 
 	if (!p->gang_size) {
 		ret = -EINVAL;
-		goto free_partial_kdata;
+		goto free_all_kdata;
 	}
 
 	for (i = 0; i < p->gang_size; ++i) {
@@ -305,7 +306,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	}
 	p->gang_leader = p->jobs[p->gang_leader_idx];
 
-	if (p->ctx->vram_lost_counter != p->gang_leader->vram_lost_counter) {
+	if (p->ctx->generation != p->gang_leader->generation) {
 		ret = -ECANCELED;
 		goto free_all_kdata;
 	}
@@ -393,7 +394,7 @@ static int amdgpu_cs_p2_dependencies(struct amdgpu_cs_parser *p,
 {
 	struct drm_amdgpu_cs_chunk_dep *deps = chunk->kdata;
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
-	unsigned num_deps;
+	unsigned int num_deps;
 	int i, r;
 
 	num_deps = chunk->length_dw * 4 /
@@ -464,7 +465,7 @@ static int amdgpu_cs_p2_syncobj_in(struct amdgpu_cs_parser *p,
 				   struct amdgpu_cs_chunk *chunk)
 {
 	struct drm_amdgpu_cs_chunk_sem *deps = chunk->kdata;
-	unsigned num_deps;
+	unsigned int num_deps;
 	int i, r;
 
 	num_deps = chunk->length_dw * 4 /
@@ -482,7 +483,7 @@ static int amdgpu_cs_p2_syncobj_timeline_wait(struct amdgpu_cs_parser *p,
 					      struct amdgpu_cs_chunk *chunk)
 {
 	struct drm_amdgpu_cs_chunk_syncobj *syncobj_deps = chunk->kdata;
-	unsigned num_deps;
+	unsigned int num_deps;
 	int i, r;
 
 	num_deps = chunk->length_dw * 4 /
@@ -502,7 +503,7 @@ static int amdgpu_cs_p2_syncobj_out(struct amdgpu_cs_parser *p,
 				    struct amdgpu_cs_chunk *chunk)
 {
 	struct drm_amdgpu_cs_chunk_sem *deps = chunk->kdata;
-	unsigned num_deps;
+	unsigned int num_deps;
 	int i;
 
 	num_deps = chunk->length_dw * 4 /
@@ -536,7 +537,7 @@ static int amdgpu_cs_p2_syncobj_timeline_signal(struct amdgpu_cs_parser *p,
 						struct amdgpu_cs_chunk *chunk)
 {
 	struct drm_amdgpu_cs_chunk_syncobj *syncobj_deps = chunk->kdata;
-	unsigned num_deps;
+	unsigned int num_deps;
 	int i;
 
 	num_deps = chunk->length_dw * 4 /
@@ -570,6 +571,26 @@ static int amdgpu_cs_p2_syncobj_timeline_signal(struct amdgpu_cs_parser *p,
 		}
 		dep->point = syncobj_deps[i].point;
 		p->num_post_deps++;
+	}
+
+	return 0;
+}
+
+static int amdgpu_cs_p2_shadow(struct amdgpu_cs_parser *p,
+			       struct amdgpu_cs_chunk *chunk)
+{
+	struct drm_amdgpu_cs_chunk_cp_gfx_shadow *shadow = chunk->kdata;
+	int i;
+
+	if (shadow->flags & ~AMDGPU_CS_CHUNK_CP_GFX_SHADOW_FLAGS_INIT_SHADOW)
+		return -EINVAL;
+
+	for (i = 0; i < p->gang_size; ++i) {
+		p->jobs[i]->shadow_va = shadow->shadow_va;
+		p->jobs[i]->csa_va = shadow->csa_va;
+		p->jobs[i]->gds_va = shadow->gds_va;
+		p->jobs[i]->init_shadow =
+			shadow->flags & AMDGPU_CS_CHUNK_CP_GFX_SHADOW_FLAGS_INIT_SHADOW;
 	}
 
 	return 0;
@@ -614,6 +635,11 @@ static int amdgpu_cs_pass2(struct amdgpu_cs_parser *p)
 			break;
 		case AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL:
 			r = amdgpu_cs_p2_syncobj_timeline_signal(p, chunk);
+			if (r)
+				return r;
+			break;
+		case AMDGPU_CHUNK_ID_CP_GFX_SHADOW:
+			r = amdgpu_cs_p2_shadow(p, chunk);
 			if (r)
 				return r;
 			break;
@@ -729,6 +755,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 
 		if (used_vis_vram < total_vis_vram) {
 			u64 free_vis_vram = total_vis_vram - used_vis_vram;
+
 			adev->mm_stats.accum_us_vis = min(adev->mm_stats.accum_us_vis +
 							  increment_us, us_upper_bound);
 
@@ -882,14 +909,18 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	mutex_lock(&p->bo_list->bo_list_mutex);
 
-	/* One for TTM and one for the CS job */
+	/* One for TTM and one for each CS job */
 	amdgpu_bo_list_for_each_entry(e, p->bo_list)
-		e->tv.num_shared = 2;
+		e->tv.num_shared = 1 + p->gang_size;
+	p->uf_entry.tv.num_shared = 1 + p->gang_size;
 
 	amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 
 	INIT_LIST_HEAD(&duplicates);
 	amdgpu_vm_get_pd_bo(&fpriv->vm, &p->validated, &p->vm_pd);
+
+	/* Two for VM updates, one for TTM and one for each CS job */
+	p->vm_pd.tv.num_shared = 3 + p->gang_size;
 
 	if (p->uf_entry.tv.bo && !ttm_to_amdgpu_bo(p->uf_entry.tv.bo)->parent)
 		list_add(&p->uf_entry.tv.head, &p->validated);
@@ -1047,9 +1078,8 @@ static int amdgpu_cs_patch_ibs(struct amdgpu_cs_parser *p,
 
 		/* the IB should be reserved at this point */
 		r = amdgpu_bo_kmap(aobj, (void **)&kptr);
-		if (r) {
+		if (r)
 			return r;
-		}
 
 		kptr += va_start - (m->start * AMDGPU_GPU_PAGE_SIZE);
 
@@ -1356,7 +1386,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 /* Cleanup the parser structure */
 static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser)
 {
-	unsigned i;
+	unsigned int i;
 
 	amdgpu_sync_free(&parser->sync);
 	for (i = 0; i < parser->num_post_deps; i++) {
@@ -1624,15 +1654,15 @@ static int amdgpu_cs_wait_all_fences(struct amdgpu_device *adev,
 			continue;
 
 		r = dma_fence_wait_timeout(fence, true, timeout);
+		if (r > 0 && fence->error)
+			r = fence->error;
+
 		dma_fence_put(fence);
 		if (r < 0)
 			return r;
 
 		if (r == 0)
 			break;
-
-		if (fence->error)
-			return fence->error;
 	}
 
 	memset(wait, 0, sizeof(*wait));

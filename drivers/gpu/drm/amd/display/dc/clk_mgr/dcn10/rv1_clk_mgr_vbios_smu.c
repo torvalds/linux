@@ -135,12 +135,10 @@ int rv1_vbios_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_di
 			VBIOSSMC_MSG_SetDispclkFreq,
 			khz_to_mhz_ceil(requested_dispclk_khz));
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
-			if (clk_mgr->dfs_bypass_disp_clk != actual_dispclk_set_mhz)
-				dmcu->funcs->set_psr_wait_loop(dmcu,
-						actual_dispclk_set_mhz / 7);
-		}
+	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+		if (clk_mgr->dfs_bypass_disp_clk != actual_dispclk_set_mhz)
+			dmcu->funcs->set_psr_wait_loop(dmcu,
+					actual_dispclk_set_mhz / 7);
 	}
 
 	return actual_dispclk_set_mhz * 1000;

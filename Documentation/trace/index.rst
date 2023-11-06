@@ -13,6 +13,7 @@ Linux Tracing Technologies
    kprobes
    kprobetrace
    uprobetracer
+   fprobetrace
    tracepoints
    events
    events-kmem

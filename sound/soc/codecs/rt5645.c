@@ -3546,7 +3546,7 @@ static const struct regmap_config rt5645_regmap = {
 	.volatile_reg = rt5645_volatile_register,
 	.readable_reg = rt5645_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5645_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5645_reg),
 	.ranges = rt5645_ranges,
@@ -3563,7 +3563,7 @@ static const struct regmap_config rt5650_regmap = {
 	.volatile_reg = rt5645_volatile_register,
 	.readable_reg = rt5645_readable_register,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5650_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5650_reg),
 	.ranges = rt5645_ranges,
@@ -3950,7 +3950,11 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	 * read and power On.
 	 */
 	msleep(TIME_TO_POWER_MS);
-	regmap_read(regmap, RT5645_VENDOR_ID2, &val);
+	ret = regmap_read(regmap, RT5645_VENDOR_ID2, &val);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to read: 0x%02X\n, ret = %d", RT5645_VENDOR_ID2, ret);
+		goto err_enable;
+	}
 
 	switch (val) {
 	case RT5645_DEVICE_ID:
@@ -4184,7 +4188,7 @@ static struct i2c_driver rt5645_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5645_of_match),
 		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
 	},
-	.probe_new = rt5645_i2c_probe,
+	.probe = rt5645_i2c_probe,
 	.remove = rt5645_i2c_remove,
 	.shutdown = rt5645_i2c_shutdown,
 	.id_table = rt5645_i2c_id,

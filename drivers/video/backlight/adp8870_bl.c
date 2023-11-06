@@ -973,8 +973,8 @@ static struct i2c_driver adp8870_driver = {
 		.name	= KBUILD_MODNAME,
 		.pm	= &adp8870_i2c_pm_ops,
 	},
-	.probe_new = adp8870_probe,
-	.remove   = adp8870_remove,
+	.probe = adp8870_probe,
+	.remove = adp8870_remove,
 	.id_table = adp8870_id,
 };
 

@@ -554,7 +554,7 @@ static struct i2c_driver max6621_driver = {
 		.name = MAX6621_DRV_NAME,
 		.of_match_table = of_match_ptr(max6621_of_match),
 	},
-	.probe_new	= max6621_probe,
+	.probe		= max6621_probe,
 	.id_table	= max6621_id,
 };
 

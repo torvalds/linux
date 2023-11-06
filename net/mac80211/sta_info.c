@@ -4,7 +4,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 
 #include <linux/module.h>
@@ -355,8 +355,9 @@ static void sta_remove_link(struct sta_info *sta, unsigned int link_id,
 	struct sta_link_alloc *alloc = NULL;
 	struct link_sta_info *link_sta;
 
-	link_sta = rcu_dereference_protected(sta->link[link_id],
-					     lockdep_is_held(&sta->local->sta_mtx));
+	link_sta = rcu_access_pointer(sta->link[link_id]);
+	if (link_sta != &sta->deflink)
+		lockdep_assert_held(&sta->local->sta_mtx);
 
 	if (WARN_ON(!link_sta))
 		return;
@@ -1274,7 +1275,117 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	return 0;
 }
 
-static void __sta_info_destroy_part2(struct sta_info *sta)
+static int _sta_info_move_state(struct sta_info *sta,
+				enum ieee80211_sta_state new_state,
+				bool recalc)
+{
+	might_sleep();
+
+	if (sta->sta_state == new_state)
+		return 0;
+
+	/* check allowed transitions first */
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state != IEEE80211_STA_AUTH)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state != IEEE80211_STA_NONE &&
+		    sta->sta_state != IEEE80211_STA_ASSOC)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state != IEEE80211_STA_AUTH &&
+		    sta->sta_state != IEEE80211_STA_AUTHORIZED)
+			return -EINVAL;
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state != IEEE80211_STA_ASSOC)
+			return -EINVAL;
+		break;
+	default:
+		WARN(1, "invalid state %d", new_state);
+		return -EINVAL;
+	}
+
+	sta_dbg(sta->sdata, "moving STA %pM to state %d\n",
+		sta->sta.addr, new_state);
+
+	/* notify the driver before the actual changes so it can
+	 * fail the transition
+	 */
+	if (test_sta_flag(sta, WLAN_STA_INSERTED)) {
+		int err = drv_sta_state(sta->local, sta->sdata, sta,
+					sta->sta_state, new_state);
+		if (err)
+			return err;
+	}
+
+	/* reflect the change in all state variables */
+
+	switch (new_state) {
+	case IEEE80211_STA_NONE:
+		if (sta->sta_state == IEEE80211_STA_AUTH)
+			clear_bit(WLAN_STA_AUTH, &sta->_flags);
+		break;
+	case IEEE80211_STA_AUTH:
+		if (sta->sta_state == IEEE80211_STA_NONE) {
+			set_bit(WLAN_STA_AUTH, &sta->_flags);
+		} else if (sta->sta_state == IEEE80211_STA_ASSOC) {
+			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
+			if (recalc) {
+				ieee80211_recalc_min_chandef(sta->sdata, -1);
+				if (!sta->sta.support_p2p_ps)
+					ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			}
+		}
+		break;
+	case IEEE80211_STA_ASSOC:
+		if (sta->sta_state == IEEE80211_STA_AUTH) {
+			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+			sta->assoc_at = ktime_get_boottime_ns();
+			if (recalc) {
+				ieee80211_recalc_min_chandef(sta->sdata, -1);
+				if (!sta->sta.support_p2p_ps)
+					ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
+			}
+		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
+			ieee80211_vif_dec_num_mcast(sta->sdata);
+			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_clear_fast_xmit(sta);
+			ieee80211_clear_fast_rx(sta);
+		}
+		break;
+	case IEEE80211_STA_AUTHORIZED:
+		if (sta->sta_state == IEEE80211_STA_ASSOC) {
+			ieee80211_vif_inc_num_mcast(sta->sdata);
+			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
+			ieee80211_check_fast_xmit(sta);
+			ieee80211_check_fast_rx(sta);
+		}
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		    sta->sdata->vif.type == NL80211_IFTYPE_AP)
+			cfg80211_send_layer2_update(sta->sdata->dev,
+						    sta->sta.addr);
+		break;
+	default:
+		break;
+	}
+
+	sta->sta_state = new_state;
+
+	return 0;
+}
+
+int sta_info_move_state(struct sta_info *sta,
+			enum ieee80211_sta_state new_state)
+{
+	return _sta_info_move_state(sta, new_state, true);
+}
+
+static void __sta_info_destroy_part2(struct sta_info *sta, bool recalc)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -1290,7 +1401,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	lockdep_assert_held(&local->sta_mtx);
 
 	if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-		ret = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
+		ret = _sta_info_move_state(sta, IEEE80211_STA_ASSOC, recalc);
 		WARN_ON_ONCE(ret);
 	}
 
@@ -1318,7 +1429,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	local->sta_generation++;
 
 	while (sta->sta_state > IEEE80211_STA_NONE) {
-		ret = sta_info_move_state(sta, sta->sta_state - 1);
+		ret = _sta_info_move_state(sta, sta->sta_state - 1, recalc);
 		if (ret) {
 			WARN_ON_ONCE(1);
 			break;
@@ -1355,7 +1466,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	synchronize_net();
 
-	__sta_info_destroy_part2(sta);
+	__sta_info_destroy_part2(sta, true);
 
 	return 0;
 }
@@ -1462,9 +1573,18 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans)
 	}
 
 	if (!list_empty(&free_list)) {
+		bool support_p2p_ps = true;
+
 		synchronize_net();
-		list_for_each_entry_safe(sta, tmp, &free_list, free_list)
-			__sta_info_destroy_part2(sta);
+		list_for_each_entry_safe(sta, tmp, &free_list, free_list) {
+			if (!sta->sta.support_p2p_ps)
+				support_p2p_ps = false;
+			__sta_info_destroy_part2(sta, false);
+		}
+
+		ieee80211_recalc_min_chandef(sdata, -1);
+		if (!support_p2p_ps)
+			ieee80211_recalc_p2p_go_ps_allowed(sdata);
 	}
 	mutex_unlock(&local->sta_mtx);
 
@@ -2252,106 +2372,6 @@ void ieee80211_sta_update_pending_airtime(struct ieee80211_local *local,
 	}
 }
 
-int sta_info_move_state(struct sta_info *sta,
-			enum ieee80211_sta_state new_state)
-{
-	might_sleep();
-
-	if (sta->sta_state == new_state)
-		return 0;
-
-	/* check allowed transitions first */
-
-	switch (new_state) {
-	case IEEE80211_STA_NONE:
-		if (sta->sta_state != IEEE80211_STA_AUTH)
-			return -EINVAL;
-		break;
-	case IEEE80211_STA_AUTH:
-		if (sta->sta_state != IEEE80211_STA_NONE &&
-		    sta->sta_state != IEEE80211_STA_ASSOC)
-			return -EINVAL;
-		break;
-	case IEEE80211_STA_ASSOC:
-		if (sta->sta_state != IEEE80211_STA_AUTH &&
-		    sta->sta_state != IEEE80211_STA_AUTHORIZED)
-			return -EINVAL;
-		break;
-	case IEEE80211_STA_AUTHORIZED:
-		if (sta->sta_state != IEEE80211_STA_ASSOC)
-			return -EINVAL;
-		break;
-	default:
-		WARN(1, "invalid state %d", new_state);
-		return -EINVAL;
-	}
-
-	sta_dbg(sta->sdata, "moving STA %pM to state %d\n",
-		sta->sta.addr, new_state);
-
-	/*
-	 * notify the driver before the actual changes so it can
-	 * fail the transition
-	 */
-	if (test_sta_flag(sta, WLAN_STA_INSERTED)) {
-		int err = drv_sta_state(sta->local, sta->sdata, sta,
-					sta->sta_state, new_state);
-		if (err)
-			return err;
-	}
-
-	/* reflect the change in all state variables */
-
-	switch (new_state) {
-	case IEEE80211_STA_NONE:
-		if (sta->sta_state == IEEE80211_STA_AUTH)
-			clear_bit(WLAN_STA_AUTH, &sta->_flags);
-		break;
-	case IEEE80211_STA_AUTH:
-		if (sta->sta_state == IEEE80211_STA_NONE) {
-			set_bit(WLAN_STA_AUTH, &sta->_flags);
-		} else if (sta->sta_state == IEEE80211_STA_ASSOC) {
-			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
-			ieee80211_recalc_min_chandef(sta->sdata, -1);
-			if (!sta->sta.support_p2p_ps)
-				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
-		}
-		break;
-	case IEEE80211_STA_ASSOC:
-		if (sta->sta_state == IEEE80211_STA_AUTH) {
-			set_bit(WLAN_STA_ASSOC, &sta->_flags);
-			sta->assoc_at = ktime_get_boottime_ns();
-			ieee80211_recalc_min_chandef(sta->sdata, -1);
-			if (!sta->sta.support_p2p_ps)
-				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
-		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-			ieee80211_vif_dec_num_mcast(sta->sdata);
-			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-			ieee80211_clear_fast_xmit(sta);
-			ieee80211_clear_fast_rx(sta);
-		}
-		break;
-	case IEEE80211_STA_AUTHORIZED:
-		if (sta->sta_state == IEEE80211_STA_ASSOC) {
-			ieee80211_vif_inc_num_mcast(sta->sdata);
-			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-			ieee80211_check_fast_xmit(sta);
-			ieee80211_check_fast_rx(sta);
-		}
-		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    sta->sdata->vif.type == NL80211_IFTYPE_AP)
-			cfg80211_send_layer2_update(sta->sdata->dev,
-						    sta->sta.addr);
-		break;
-	default:
-		break;
-	}
-
-	sta->sta_state = new_state;
-
-	return 0;
-}
-
 static struct ieee80211_sta_rx_stats *
 sta_get_last_rx_stats(struct sta_info *sta)
 {
@@ -2912,6 +2932,8 @@ int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 
 	if (!test_sta_flag(sta, WLAN_STA_INSERTED))
 		goto hash;
+
+	ieee80211_recalc_min_chandef(sdata, link_id);
 
 	/* Ensure the values are updated for the driver,
 	 * redone by sta_remove_link on failure.

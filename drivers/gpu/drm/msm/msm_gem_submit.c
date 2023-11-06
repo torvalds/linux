@@ -86,7 +86,19 @@ void __msm_gem_submit_destroy(struct kref *kref)
 	}
 
 	dma_fence_put(submit->user_fence);
-	dma_fence_put(submit->hw_fence);
+
+	/*
+	 * If the submit is freed before msm_job_run(), then hw_fence is
+	 * just some pre-allocated memory, not a reference counted fence.
+	 * Once the job runs and the hw_fence is initialized, it will
+	 * have a refcount of at least one, since the submit holds a ref
+	 * to the hw_fence.
+	 */
+	if (kref_read(&submit->hw_fence->refcount) == 0) {
+		kfree(submit->hw_fence);
+	} else {
+		dma_fence_put(submit->hw_fence);
+	}
 
 	put_pid(submit->pid);
 	msm_submitqueue_put(submit->queue);
@@ -558,8 +570,7 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
                                            struct drm_file *file,
                                            uint64_t in_syncobjs_addr,
                                            uint32_t nr_in_syncobjs,
-                                           size_t syncobj_stride,
-                                           struct msm_ringbuffer *ring)
+                                           size_t syncobj_stride)
 {
 	struct drm_syncobj **syncobjs = NULL;
 	struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
@@ -808,7 +819,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		syncobjs_to_reset = msm_parse_deps(submit, file,
 		                                   args->in_syncobjs,
 		                                   args->nr_in_syncobjs,
-		                                   args->syncobj_stride, ring);
+		                                   args->syncobj_stride);
 		if (IS_ERR(syncobjs_to_reset)) {
 			ret = PTR_ERR(syncobjs_to_reset);
 			goto out_unlock;
@@ -890,7 +901,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 * after the job is armed
 	 */
 	if ((args->flags & MSM_SUBMIT_FENCE_SN_IN) &&
-			idr_find(&queue->fence_idr, args->fence)) {
+			(!args->fence || idr_find(&queue->fence_idr, args->fence))) {
 		spin_unlock(&queue->idr_lock);
 		idr_preload_end();
 		ret = -EINVAL;
@@ -948,6 +959,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	/* The scheduler owns a ref now: */
 	msm_gem_submit_get(submit);
+
+	msm_rd_dump_submit(priv->rd, submit, NULL);
 
 	drm_sched_entity_push_job(&submit->base);
 

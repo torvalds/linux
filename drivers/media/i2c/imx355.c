@@ -1845,7 +1845,7 @@ static struct i2c_driver imx355_i2c_driver = {
 		.pm = &imx355_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx355_acpi_ids),
 	},
-	.probe_new = imx355_probe,
+	.probe = imx355_probe,
 	.remove = imx355_remove,
 };
 module_i2c_driver(imx355_i2c_driver);

@@ -642,7 +642,6 @@ static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
 	hlist_add_head_rcu(&node->list, head);
 found:
 	spin_unlock_irqrestore(lock, flag);
-	return;
 }
 
 /**
@@ -1202,23 +1201,4 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 u32 avc_policy_seqno(void)
 {
 	return selinux_avc.avc_cache.latest_notif;
-}
-
-void avc_disable(void)
-{
-	/*
-	 * If you are looking at this because you have realized that we are
-	 * not destroying the avc_node_cachep it might be easy to fix, but
-	 * I don't know the memory barrier semantics well enough to know.  It's
-	 * possible that some other task dereferenced security_ops when
-	 * it still pointed to selinux operations.  If that is the case it's
-	 * possible that it is about to use the avc and is about to need the
-	 * avc_node_cachep.  I know I could wrap the security.c security_ops call
-	 * in an rcu_lock, but seriously, it's not worth it.  Instead I just flush
-	 * the cache and get that memory back.
-	 */
-	if (avc_node_cachep) {
-		avc_flush();
-		/* kmem_cache_destroy(avc_node_cachep); */
-	}
 }

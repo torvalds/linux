@@ -1746,7 +1746,7 @@ static irqreturn_t mv_u3d_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int mv_u3d_remove(struct platform_device *dev)
+static void mv_u3d_remove(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = platform_get_drvdata(dev);
 
@@ -1775,8 +1775,6 @@ static int mv_u3d_remove(struct platform_device *dev)
 	clk_put(u3d->clk);
 
 	kfree(u3d);
-
-	return 0;
 }
 
 static int mv_u3d_probe(struct platform_device *dev)
@@ -2049,7 +2047,7 @@ static void mv_u3d_shutdown(struct platform_device *dev)
 
 static struct platform_driver mv_u3d_driver = {
 	.probe		= mv_u3d_probe,
-	.remove		= mv_u3d_remove,
+	.remove_new	= mv_u3d_remove,
 	.shutdown	= mv_u3d_shutdown,
 	.driver		= {
 		.name	= "mv-u3d",

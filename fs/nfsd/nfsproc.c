@@ -176,9 +176,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 {
 	struct nfsd_readargs *argp = rqstp->rq_argp;
 	struct nfsd_readres *resp = rqstp->rq_resp;
-	unsigned int len;
 	u32 eof;
-	int v;
 
 	dprintk("nfsd: READ    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
@@ -187,17 +185,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	argp->count = min_t(u32, argp->count, NFSSVC_MAXBLKSIZE_V2);
 	argp->count = min_t(u32, argp->count, rqstp->rq_res.buflen);
 
-	v = 0;
-	len = argp->count;
 	resp->pages = rqstp->rq_next_page;
-	while (len > 0) {
-		struct page *page = *(rqstp->rq_next_page++);
-
-		rqstp->rq_vec[v].iov_base = page_address(page);
-		rqstp->rq_vec[v].iov_len = min_t(unsigned int, len, PAGE_SIZE);
-		len -= rqstp->rq_vec[v].iov_len;
-		v++;
-	}
 
 	/* Obtain buffer pointer for payload. 19 is 1 word for
 	 * status, 17 words for fattr, and 1 word for the byte count.
@@ -207,7 +195,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	resp->count = argp->count;
 	fh_copy(&resp->fh, &argp->fh);
 	resp->status = nfsd_read(rqstp, &resp->fh, argp->offset,
-				 rqstp->rq_vec, v, &resp->count, &eof);
+				 &resp->count, &eof);
 	if (resp->status == nfs_ok)
 		resp->status = fh_getattr(&resp->fh, &resp->stat);
 	else if (resp->status == nfserr_jukebox)

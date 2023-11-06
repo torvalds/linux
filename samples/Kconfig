@@ -253,6 +253,13 @@ config SAMPLE_INTEL_MEI
 	help
 	  Build a sample program to work with mei device.
 
+config SAMPLE_TPS6594_PFSM
+	bool "Build example program working with TPS6594 PFSM driver"
+	depends on HEADERS_INSTALL
+	depends on CC_CAN_LINK
+	help
+	  Build a sample program to work with PFSM devices.
+
 config SAMPLE_WATCHDOG
 	bool "watchdog sample"
 	depends on CC_CAN_LINK

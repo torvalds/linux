@@ -375,8 +375,7 @@ _GLOBAL(generic_secondary_smp_init)
 	beq	20f
 
 	/* start the specified thread */
-	LOAD_REG_ADDR(r5, fsl_secondary_thread_init)
-	ld	r4, 0(r5)
+	LOAD_REG_ADDR(r5, DOTSYM(fsl_secondary_thread_init))
 	bl	book3e_start_thread
 
 	/* stop the current thread */

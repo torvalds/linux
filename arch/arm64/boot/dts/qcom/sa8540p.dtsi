@@ -167,6 +167,14 @@
 	};
 };
 
+&gpucc {
+	status = "disabled";
+};
+
+&gpu_smmu {
+	status = "disabled";
+};
+
 &pcie2a {
 	compatible = "qcom,pcie-sa8540p";
 

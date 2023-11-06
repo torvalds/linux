@@ -2110,7 +2110,7 @@ free_rproc:
 	return ret;
 }
 
-static int q6v5_remove(struct platform_device *pdev)
+static void q6v5_remove(struct platform_device *pdev)
 {
 	struct q6v5 *qproc = platform_get_drvdata(pdev);
 	struct rproc *rproc = qproc->rproc;
@@ -2128,8 +2128,6 @@ static int q6v5_remove(struct platform_device *pdev)
 	q6v5_pds_detach(qproc, qproc->proxy_pds, qproc->proxy_pd_count);
 
 	rproc_free(rproc);
-
-	return 0;
 }
 
 static const struct rproc_hexagon_res sc7180_mss = {
@@ -2482,7 +2480,7 @@ MODULE_DEVICE_TABLE(of, q6v5_of_match);
 
 static struct platform_driver q6v5_driver = {
 	.probe = q6v5_probe,
-	.remove = q6v5_remove,
+	.remove_new = q6v5_remove,
 	.driver = {
 		.name = "qcom-q6v5-mss",
 		.of_match_table = q6v5_of_match,

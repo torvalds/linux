@@ -29,8 +29,8 @@
 	};
 
 	cpus {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		CPU0: cpu@0 {
 			device_type = "cpu";
@@ -86,29 +86,40 @@
 		#size-cells = <2>;
 		ranges;
 
+		bootloader@4a600000 {
+			reg = <0x0 0x4a600000 0x0 0x400000>;
+			no-map;
+		};
+
+		sbl@4aa00000 {
+			reg = <0x0 0x4aa00000 0x0 0x100000>;
+			no-map;
+		};
+
 		smem@4ab00000 {
 			compatible = "qcom,smem";
-			reg = <0x0 0x4ab00000 0x0 0x00100000>;
+			reg = <0x0 0x4ab00000 0x0 0x100000>;
 			no-map;
 
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
 		memory@4ac00000 {
+			reg = <0x0 0x4ac00000 0x0 0x400000>;
 			no-map;
-			reg = <0x0 0x4ac00000 0x0 0x00400000>;
 		};
 	};
 
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq8074", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x6100>;
 		};
 	};
 
-	soc: soc {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
+	soc: soc@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
 
@@ -322,9 +333,9 @@
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 70>;
-			#gpio-cells = <0x2>;
+			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x2>;
+			#interrupt-cells = <2>;
 
 			serial_4_pins: serial4-state {
 				pins = "gpio23", "gpio24";
@@ -380,6 +391,11 @@
 			compatible = "qcom,tcsr-mutex";
 			reg = <0x01905000 0x20000>;
 			#hwlock-cells = <1>;
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-ipq8074", "syscon";
+			reg = <0x01937000 0x21000>;
 		};
 
 		spmi_bus: spmi@200f000 {
@@ -476,7 +492,6 @@
 			#size-cells = <0>;
 			reg = <0x078b5000 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
-			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
@@ -529,6 +544,20 @@
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			clock-frequency = <400000>;
+			dmas = <&blsp_dma 20>, <&blsp_dma 21>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		blsp1_spi5: spi@78b9000 {
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b9000 0x600>;
+			interrupts = <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_QUP5_SPI_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
 			dmas = <&blsp_dma 20>, <&blsp_dma 21>;
 			dma-names = "tx", "rx";
 			status = "disabled";
@@ -667,7 +696,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			interrupt-controller;
-			#interrupt-cells = <0x3>;
+			#interrupt-cells = <3>;
 			reg = <0x0b000000 0x1000>, <0x0b002000 0x1000>;
 			ranges = <0 0xb00a000 0xffd>;
 
@@ -904,6 +933,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 4>;
+
+			trips {
+				nss-top-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		nss0-thermal {
@@ -911,6 +948,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 5>;
+
+			trips {
+				nss-0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		nss1-thermal {
@@ -918,6 +963,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 6>;
+
+			trips {
+				nss-1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phya0-thermal {
@@ -925,6 +978,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 7>;
+
+			trips {
+				wcss-phya0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phya1-thermal {
@@ -932,6 +993,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 8>;
+
+			trips {
+				wcss-phya1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu0_thermal: cpu0-thermal {
@@ -939,6 +1008,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 9>;
+
+			trips {
+				cpu0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu1_thermal: cpu1-thermal {
@@ -946,6 +1023,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 10>;
+
+			trips {
+				cpu1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu2_thermal: cpu2-thermal {
@@ -953,6 +1038,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 11>;
+
+			trips {
+				cpu2-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cpu3_thermal: cpu3-thermal {
@@ -960,6 +1053,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 12>;
+
+			trips {
+				cpu3-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		cluster_thermal: cluster-thermal {
@@ -967,6 +1068,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 13>;
+
+			trips {
+				cluster-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phyb0-thermal {
@@ -974,6 +1083,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 14>;
+
+			trips {
+				wcss-phyb0-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 
 		wcss-phyb1-thermal {
@@ -981,6 +1098,14 @@
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 15>;
+
+			trips {
+				wcss-phyb1-crit {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 };

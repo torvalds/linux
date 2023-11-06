@@ -16,6 +16,7 @@ enum snet_ctrl_opcodes {
 	SNET_CTRL_OP_DESTROY = 1,
 	SNET_CTRL_OP_READ_VQ_STATE,
 	SNET_CTRL_OP_SUSPEND,
+	SNET_CTRL_OP_RESUME,
 };
 
 #define SNET_CTRL_TIMEOUT	        2000000
@@ -327,4 +328,9 @@ int snet_read_vq_state(struct snet *snet, u16 idx, struct vdpa_vq_state *state)
 int snet_suspend_dev(struct snet *snet)
 {
 	return snet_send_ctrl_msg(snet, SNET_CTRL_OP_SUSPEND, 0);
+}
+
+int snet_resume_dev(struct snet *snet)
+{
+	return snet_send_ctrl_msg(snet, SNET_CTRL_OP_RESUME, 0);
 }

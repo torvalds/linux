@@ -1024,8 +1024,8 @@ static void tegra186_asrc_platform_remove(struct platform_device *pdev)
 static const struct dev_pm_ops tegra186_asrc_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra186_asrc_runtime_suspend,
 			   tegra186_asrc_runtime_resume, NULL)
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				     pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra186_asrc_driver = {

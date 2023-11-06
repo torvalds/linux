@@ -140,5 +140,5 @@ void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
 
 void kasan_save_free_info(struct kmem_cache *cache, void *object)
 {
-	save_stack_info(cache, object, GFP_NOWAIT, true);
+	save_stack_info(cache, object, 0, true);
 }

@@ -30,7 +30,7 @@
  * SOFTWARE.
  */
 
-#include "lib/mlx5.h"
+#include "lib/events.h"
 #include "en.h"
 #include "en_accel/ktls.h"
 #include "en_accel/en_accel.h"
@@ -748,11 +748,22 @@ static const struct counter_desc vport_stats_desc[] = {
 		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
 };
 
+static const struct counter_desc vport_loopback_stats_desc[] = {
+	{ "vport_loopback_packets",
+		VPORT_COUNTER_OFF(local_loopback.packets) },
+	{ "vport_loopback_bytes",
+		VPORT_COUNTER_OFF(local_loopback.octets) },
+};
+
 #define NUM_VPORT_COUNTERS		ARRAY_SIZE(vport_stats_desc)
+#define NUM_VPORT_LOOPBACK_COUNTERS(dev) \
+	(MLX5_CAP_GEN(dev, vport_counter_local_loopback) ? \
+	 ARRAY_SIZE(vport_loopback_stats_desc) : 0)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(vport)
 {
-	return NUM_VPORT_COUNTERS;
+	return NUM_VPORT_COUNTERS +
+		NUM_VPORT_LOOPBACK_COUNTERS(priv->mdev);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(vport)
@@ -761,6 +772,11 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(vport)
 
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN, vport_stats_desc[i].format);
+
+	for (i = 0; i < NUM_VPORT_LOOPBACK_COUNTERS(priv->mdev); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       vport_loopback_stats_desc[i].format);
+
 	return idx;
 }
 
@@ -771,6 +787,11 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vport)
 	for (i = 0; i < NUM_VPORT_COUNTERS; i++)
 		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vport.query_vport_out,
 						  vport_stats_desc, i);
+
+	for (i = 0; i < NUM_VPORT_LOOPBACK_COUNTERS(priv->mdev); i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vport.query_vport_out,
+						  vport_loopback_stats_desc, i);
+
 	return idx;
 }
 

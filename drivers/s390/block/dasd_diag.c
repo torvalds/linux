@@ -24,7 +24,7 @@
 #include <asm/debug.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/vtoc.h>
 

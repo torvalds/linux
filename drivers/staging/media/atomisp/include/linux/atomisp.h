@@ -38,7 +38,6 @@
 #define CI_MODE_PREVIEW		0x8000
 #define CI_MODE_VIDEO		0x4000
 #define CI_MODE_STILL_CAPTURE	0x2000
-#define CI_MODE_CONTINUOUS	0x1000
 #define CI_MODE_NONE		0x0000
 
 #define OUTPUT_MODE_FILE 0x0100
@@ -148,12 +147,6 @@ enum atomisp_calibration_type {
 	calibration_type1,
 	calibration_type2,
 	calibration_type3
-};
-
-struct atomisp_calibration_group {
-	unsigned int size;
-	unsigned int type;
-	unsigned short *calb_grp_values;
 };
 
 struct atomisp_gc_config {
@@ -266,26 +259,6 @@ enum atomisp_metadata_type {
 	ATOMISP_METADATA_TYPE_NUM,
 };
 
-struct atomisp_metadata_with_type {
-	/* to specify which type of metadata to get */
-	enum atomisp_metadata_type type;
-	void __user *data;
-	u32 width;
-	u32 height;
-	u32 stride; /* in bytes */
-	u32 exp_id; /* exposure ID */
-	u32 *effective_width; /* mipi packets valid data size */
-};
-
-struct atomisp_metadata {
-	void __user *data;
-	u32 width;
-	u32 height;
-	u32 stride; /* in bytes */
-	u32 exp_id; /* exposure ID */
-	u32 *effective_width; /* mipi packets valid data size */
-};
-
 struct atomisp_ext_isp_ctrl {
 	u32 id;
 	u32 data;
@@ -297,14 +270,6 @@ struct atomisp_3a_statistics {
 	struct atomisp_3a_rgby_output __user *rgby_data;
 	u32 exp_id; /* exposure ID */
 	u32 isp_config_id; /* isp config ID */
-};
-
-struct atomisp_ae_window {
-	int x_left;
-	int x_right;
-	int y_top;
-	int y_bottom;
-	int weight;
 };
 
 /* White Balance (Gain Adjust) */
@@ -755,53 +720,6 @@ struct atomisp_s_runmode {
 	__u32 mode;
 };
 
-struct atomisp_update_exposure {
-	unsigned int gain;
-	unsigned int digi_gain;
-	unsigned int update_gain;
-	unsigned int update_digi_gain;
-};
-
-/*
- * V4L2 private internal data interface.
- * -----------------------------------------------------------------------------
- * struct v4l2_private_int_data - request private data stored in video device
- * internal memory.
- * @size: sanity check to ensure userspace's buffer fits whole private data.
- *	  If not, kernel will make partial copy (or nothing if @size == 0).
- *	  @size is always corrected for the minimum necessary if IOCTL returns
- *	  no error.
- * @data: pointer to userspace buffer.
- */
-struct v4l2_private_int_data {
-	__u32 size;
-	void __user *data;
-	__u32 reserved[2];
-};
-
-enum atomisp_sensor_ae_bracketing_mode {
-	SENSOR_AE_BRACKETING_MODE_OFF = 0,
-	SENSOR_AE_BRACKETING_MODE_SINGLE, /* back to SW standby after bracketing */
-	SENSOR_AE_BRACKETING_MODE_SINGLE_TO_STREAMING, /* back to normal streaming after bracketing */
-	SENSOR_AE_BRACKETING_MODE_LOOP, /* continue AE bracketing in loop mode */
-};
-
-struct atomisp_sensor_ae_bracketing_info {
-	unsigned int modes; /* bit mask to indicate supported modes  */
-	unsigned int lut_depth;
-};
-
-struct atomisp_sensor_ae_bracketing_lut_entry {
-	__u16 coarse_integration_time;
-	__u16 analog_gain;
-	__u16 digital_gain;
-};
-
-struct atomisp_sensor_ae_bracketing_lut {
-	struct atomisp_sensor_ae_bracketing_lut_entry *lut;
-	unsigned int lut_size;
-};
-
 /*Private IOCTLs for ISP */
 #define ATOMISP_IOC_G_XNR \
 	_IOR('v', BASE_VIDIOC_PRIVATE + 0, int)
@@ -906,19 +824,11 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_S_EXPOSURE \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 21, struct atomisp_exposure)
 
-/* sensor calibration registers group */
-#define ATOMISP_IOC_G_SENSOR_CALIBRATION_GROUP \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 22, struct atomisp_calibration_group)
-
 /* white balance Correction */
 #define ATOMISP_IOC_G_3A_CONFIG \
 	_IOR('v', BASE_VIDIOC_PRIVATE + 23, struct atomisp_3a_config)
 #define ATOMISP_IOC_S_3A_CONFIG \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 23, struct atomisp_3a_config)
-
-/* sensor OTP memory read */
-#define ATOMISP_IOC_G_SENSOR_PRIV_INT_DATA \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 26, struct v4l2_private_int_data)
 
 /* LCS (shading) table write */
 #define ATOMISP_IOC_S_ISP_SHD_TAB \
@@ -931,18 +841,8 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_S_ISP_GAMMA_CORRECTION \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 28, struct atomisp_gc_config)
 
-/* motor internal memory read */
-#define ATOMISP_IOC_G_MOTOR_PRIV_INT_DATA \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 29, struct v4l2_private_int_data)
-
 #define ATOMISP_IOC_S_PARAMETERS \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 32, struct atomisp_parameters)
-
-#define ATOMISP_IOC_G_METADATA \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata)
-
-#define ATOMISP_IOC_G_METADATA_BY_TYPE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 34, struct atomisp_metadata_with_type)
 
 #define ATOMISP_IOC_EXT_ISP_CTRL \
 	_IOWR('v', BASE_VIDIOC_PRIVATE + 35, struct atomisp_ext_isp_ctrl)
@@ -962,26 +862,8 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define ATOMISP_IOC_S_FORMATS_CONFIG \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 39, struct atomisp_formats_config)
 
-#define ATOMISP_IOC_S_EXPOSURE_WINDOW \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 40, struct atomisp_ae_window)
-
 #define ATOMISP_IOC_INJECT_A_FAKE_EVENT \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 42, int)
-
-#define ATOMISP_IOC_G_SENSOR_AE_BRACKETING_INFO \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 43, struct atomisp_sensor_ae_bracketing_info)
-
-#define ATOMISP_IOC_S_SENSOR_AE_BRACKETING_MODE \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 43, unsigned int)
-
-#define ATOMISP_IOC_G_SENSOR_AE_BRACKETING_MODE \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 43, unsigned int)
-
-#define ATOMISP_IOC_S_SENSOR_AE_BRACKETING_LUT \
-	_IOW('v', BASE_VIDIOC_PRIVATE + 43, struct atomisp_sensor_ae_bracketing_lut)
-
-#define ATOMISP_IOC_G_INVALID_FRAME_NUM \
-	_IOR('v', BASE_VIDIOC_PRIVATE + 44, unsigned int)
 
 #define ATOMISP_IOC_S_ARRAY_RESOLUTION \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 45, struct atomisp_resolution)
@@ -995,9 +877,6 @@ struct atomisp_sensor_ae_bracketing_lut {
 
 #define ATOMISP_IOC_S_SENSOR_RUNMODE \
 	_IOW('v', BASE_VIDIOC_PRIVATE + 48, struct atomisp_s_runmode)
-
-#define ATOMISP_IOC_G_UPDATE_EXPOSURE \
-	_IOWR('v', BASE_VIDIOC_PRIVATE + 49, struct atomisp_update_exposure)
 
 /*
  * Reserved ioctls. We have customer implementing it internally.
@@ -1059,9 +938,9 @@ struct atomisp_sensor_ae_bracketing_lut {
 #define V4L2_CID_RUN_MODE			(V4L2_CID_CAMERA_LASTP1 + 20)
 #define ATOMISP_RUN_MODE_VIDEO			1
 #define ATOMISP_RUN_MODE_STILL_CAPTURE		2
-#define ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE	3
-#define ATOMISP_RUN_MODE_PREVIEW		4
-#define ATOMISP_RUN_MODE_SDV			5
+#define ATOMISP_RUN_MODE_PREVIEW		3
+#define ATOMISP_RUN_MODE_MIN			1
+#define ATOMISP_RUN_MODE_MAX			3
 
 #define V4L2_CID_ENABLE_VFPP			(V4L2_CID_CAMERA_LASTP1 + 21)
 #define V4L2_CID_ATOMISP_CONTINUOUS_MODE	(V4L2_CID_CAMERA_LASTP1 + 22)

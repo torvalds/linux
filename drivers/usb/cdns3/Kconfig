@@ -78,6 +78,17 @@ config USB_CDNS3_IMX
 
 	  For example, imx8qm and imx8qxp.
 
+config USB_CDNS3_STARFIVE
+	tristate "Cadence USB3 support on StarFive SoC platforms"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	help
+	  Say 'Y' or 'M' here if you are building for StarFive SoCs
+	  platforms that contain Cadence USB3 controller core.
+
+	  e.g. JH7110.
+
+	  If you choose to build this driver as module it will
+	  be dynamically linked and module will be called cdns3-starfive.ko
 endif
 
 if USB_CDNS_SUPPORT

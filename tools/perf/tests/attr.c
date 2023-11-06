@@ -34,7 +34,7 @@
 #include "event.h"
 #include "util.h"
 #include "tests.h"
-#include "pmu.h"
+#include "pmus.h"
 
 #define ENV "PERF_TEST_ATTR"
 
@@ -185,8 +185,15 @@ static int test__attr(struct test_suite *test __maybe_unused, int subtest __mayb
 	char path_dir[PATH_MAX];
 	char *exec_path;
 
-	if (perf_pmu__has_hybrid())
+	if (perf_pmus__num_core_pmus() > 1) {
+		/*
+		 * TODO: Attribute tests hard code the PMU type. If there are >1
+		 * core PMU then each PMU will have a different type whic
+		 * requires additional support.
+		 */
+		pr_debug("Skip test on hybrid systems");
 		return TEST_SKIP;
+	}
 
 	/* First try development tree tests. */
 	if (!lstat("./tests", &st))

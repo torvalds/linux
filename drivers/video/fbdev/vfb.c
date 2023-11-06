@@ -440,7 +440,7 @@ static int vfb_probe(struct platform_device *dev)
 	if (!info)
 		goto err;
 
-	info->screen_base = (char __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &vfb_ops;
 
 	if (!fb_find_mode(&info->var, info, mode_option,

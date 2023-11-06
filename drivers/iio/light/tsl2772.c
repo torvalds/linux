@@ -1932,7 +1932,7 @@ static struct i2c_driver tsl2772_driver = {
 		.pm = &tsl2772_pm_ops,
 	},
 	.id_table = tsl2772_idtable,
-	.probe_new = tsl2772_probe,
+	.probe = tsl2772_probe,
 };
 
 module_i2c_driver(tsl2772_driver);

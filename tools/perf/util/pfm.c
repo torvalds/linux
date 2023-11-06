@@ -10,9 +10,10 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/parse-events.h"
-#include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/pfm.h"
 #include "util/strbuf.h"
+#include "util/thread_map.h"
 
 #include <string.h>
 #include <linux/kernel.h>
@@ -49,7 +50,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 	/*
 	 * force loading of the PMU list
 	 */
-	perf_pmu__scan(NULL);
+	perf_pmus__scan(NULL);
 
 	for (q = p; strsep(&p, ",{}"); q = p) {
 		sep = p ? str + (p - p_orig - 1) : "";
@@ -86,7 +87,7 @@ int parse_libpfm_events_option(const struct option *opt, const char *str,
 			goto error;
 		}
 
-		pmu = perf_pmu__find_by_type((unsigned int)attr.type);
+		pmu = perf_pmus__find_by_type((unsigned int)attr.type);
 		evsel = parse_events__add_event(evlist->core.nr_entries,
 						&attr, q, /*metric_id=*/NULL,
 						pmu);
@@ -123,6 +124,36 @@ error:
 	return -1;
 }
 
+static bool is_libpfm_event_supported(const char *name, struct perf_cpu_map *cpus,
+				      struct perf_thread_map *threads)
+{
+	struct perf_pmu *pmu;
+	struct evsel *evsel;
+	struct perf_event_attr attr = {};
+	bool result = true;
+	int ret;
+
+	ret = pfm_get_perf_event_encoding(name, PFM_PLM0|PFM_PLM3,
+					  &attr, NULL, NULL);
+	if (ret != PFM_SUCCESS)
+		return false;
+
+	pmu = perf_pmus__find_by_type((unsigned int)attr.type);
+	evsel = parse_events__add_event(0, &attr, name, /*metric_id=*/NULL, pmu);
+	if (evsel == NULL)
+		return false;
+
+	evsel->is_libpfm_event = true;
+
+	if (evsel__open(evsel, cpus, threads) < 0)
+		result = false;
+
+	evsel__close(evsel);
+	evsel__delete(evsel);
+
+	return result;
+}
+
 static const char *srcs[PFM_ATTR_CTRL_MAX] = {
 	[PFM_ATTR_CTRL_UNKNOWN] = "???",
 	[PFM_ATTR_CTRL_PMU] = "PMU",
@@ -146,6 +177,8 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 {
 	int j, ret;
 	char topic[80], name[80];
+	struct perf_cpu_map *cpus = perf_cpu_map__empty_new(1);
+	struct perf_thread_map *threads = thread_map__new_by_tid(0);
 
 	strbuf_setlen(buf, 0);
 	snprintf(topic, sizeof(topic), "pfm %s", pinfo->name);
@@ -185,14 +218,15 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 				    ainfo.name, ainfo.desc);
 		}
 	}
-	print_cb->print_event(print_state,
-			pinfo->name,
-			topic,
-			name, info->equiv,
-			/*scale_unit=*/NULL,
-			/*deprecated=*/NULL, "PFM event",
-			info->desc, /*long_desc=*/NULL,
-			/*encoding_desc=*/buf->buf);
+
+	if (is_libpfm_event_supported(name, cpus, threads)) {
+		print_cb->print_event(print_state, pinfo->name, topic,
+				      name, info->equiv,
+				      /*scale_unit=*/NULL,
+				      /*deprecated=*/NULL, "PFM event",
+				      info->desc, /*long_desc=*/NULL,
+				      /*encoding_desc=*/buf->buf);
+	}
 
 	pfm_for_each_event_attr(j, info) {
 		pfm_event_attr_info_t ainfo;
@@ -215,6 +249,10 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 			print_attr_flags(buf, &ainfo);
 			snprintf(name, sizeof(name), "%s::%s:%s",
 				 pinfo->name, info->name, ainfo.name);
+
+			if (!is_libpfm_event_supported(name, cpus, threads))
+				continue;
+
 			print_cb->print_event(print_state,
 					pinfo->name,
 					topic,
@@ -225,6 +263,9 @@ print_libpfm_event(const struct print_callbacks *print_cb, void *print_state,
 					/*encoding_desc=*/buf->buf);
 		}
 	}
+
+	perf_cpu_map__put(cpus);
+	perf_thread_map__put(threads);
 }
 
 void print_libpfm_events(const struct print_callbacks *print_cb, void *print_state)

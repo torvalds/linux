@@ -11,7 +11,7 @@
 #include <asm/cputype.h>
 #include <asm/mpu.h>
 
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/sections.h>
 
 #include "mm.h"

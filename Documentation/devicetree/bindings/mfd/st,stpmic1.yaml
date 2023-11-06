@@ -184,7 +184,7 @@ properties:
         additionalProperties: false
 
     patternProperties:
-      "^(buck[1-4]|ldo[1-6]|boost|pwr_sw[1-2])-supply$":
+      "^(buck[1-4]|ldo[1-6]|vref_ddr|boost|pwr_sw[1-2])-supply$":
         description: STPMIC1 voltage regulators supplies
 
       "^(buck[1-4]|ldo[1-6]|boost|vref_ddr|pwr_sw[1-2])$":

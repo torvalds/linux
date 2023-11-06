@@ -116,11 +116,10 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 }
 
 /* Reset some input parameters after previous lookup */
-static inline void flowi4_update_output(struct flowi4 *fl4, int oif, __u8 tos,
+static inline void flowi4_update_output(struct flowi4 *fl4, int oif,
 					__be32 daddr, __be32 saddr)
 {
 	fl4->flowi4_oif = oif;
-	fl4->flowi4_tos = tos;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 }

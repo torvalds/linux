@@ -15,5 +15,7 @@ Contents:
    :numbered:
    :maxdepth: 2
 
-   maintainer-tip
    maintainer-netdev
+   maintainer-soc
+   maintainer-tip
+   maintainer-kvm-x86

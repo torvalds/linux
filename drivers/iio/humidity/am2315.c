@@ -262,7 +262,7 @@ static struct i2c_driver am2315_driver = {
 	.driver = {
 		.name = "am2315",
 	},
-	.probe_new =        am2315_probe,
+	.probe =        am2315_probe,
 	.id_table =         am2315_i2c_id,
 };
 

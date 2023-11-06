@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/delay.h>
@@ -838,6 +838,7 @@ exit:
 		case ATH11K_STATE_RESTARTING:
 		case ATH11K_STATE_RESTARTED:
 		case ATH11K_STATE_WEDGED:
+		case ATH11K_STATE_FTM:
 			ath11k_warn(ar->ab, "encountered unexpected device state %d on resume, cannot recover\n",
 				    ar->state);
 			ret = -EIO;

@@ -921,7 +921,7 @@ static struct i2c_driver rs5c372_driver = {
 		.name	= "rtc-rs5c372",
 		.of_match_table = of_match_ptr(rs5c372_of_match),
 	},
-	.probe_new	= rs5c372_probe,
+	.probe		= rs5c372_probe,
 	.remove		= rs5c372_remove,
 	.id_table	= rs5c372_id,
 };

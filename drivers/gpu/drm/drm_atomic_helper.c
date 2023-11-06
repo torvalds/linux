@@ -1209,7 +1209,16 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
-		WARN_ONCE(ret != -EINVAL, "driver forgot to call drm_crtc_vblank_off()\n");
+		/*
+		 * Self-refresh is not a true "disable"; ensure vblank remains
+		 * enabled.
+		 */
+		if (new_crtc_state->self_refresh_active)
+			WARN_ONCE(ret != 0,
+				  "driver disabled vblank in self-refresh\n");
+		else
+			WARN_ONCE(ret != -EINVAL,
+				  "driver forgot to call drm_crtc_vblank_off()\n");
 		if (ret == 0)
 			drm_crtc_vblank_put(crtc);
 	}
@@ -3145,7 +3154,7 @@ fail:
 EXPORT_SYMBOL(drm_atomic_helper_update_plane);
 
 /**
- * drm_atomic_helper_disable_plane - Helper for primary plane disable using * atomic
+ * drm_atomic_helper_disable_plane - Helper for primary plane disable using atomic
  * @plane: plane to disable
  * @ctx: lock acquire context
  *

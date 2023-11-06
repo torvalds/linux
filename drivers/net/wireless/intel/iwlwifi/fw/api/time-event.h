@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2020, 2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -292,7 +292,7 @@ struct iwl_hs20_roc_req_tail {
  * ( HOT_SPOT_CMD 0x53 )
  *
  * @id_and_color: ID and color of the MAC
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @event_unique_id: If the action FW_CTXT_ACTION_REMOVE then the
  *	event_unique_id should be the id of the time event assigned by ucode.
  *	Otherwise ignore the event_unique_id.
@@ -377,7 +377,8 @@ enum iwl_mvm_session_prot_conf_id {
  * struct iwl_mvm_session_prot_cmd - configure a session protection
  * @id_and_color: the id and color of the mac for which this session protection
  *	is sent
- * @action: can be either FW_CTXT_ACTION_ADD or FW_CTXT_ACTION_REMOVE
+ * @action: can be either FW_CTXT_ACTION_ADD or FW_CTXT_ACTION_REMOVE,
+ *	see &enum iwl_ctxt_action
  * @conf_id: see &enum iwl_mvm_session_prot_conf_id
  * @duration_tu: the duration of the whole protection in TUs.
  * @repetition_count: not used

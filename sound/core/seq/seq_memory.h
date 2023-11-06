@@ -11,9 +11,26 @@
 
 struct snd_info_buffer;
 
+/* aliasing for legacy and UMP event packet handling */
+union __snd_seq_event {
+	struct snd_seq_event legacy;
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+	struct snd_seq_ump_event ump;
+#endif
+	struct {
+		struct snd_seq_event event;
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+		u32 extra;
+#endif
+	} __packed raw;
+};
+
 /* container for sequencer event (internal use) */
 struct snd_seq_event_cell {
-	struct snd_seq_event event;
+	union {
+		struct snd_seq_event event;
+		union __snd_seq_event ump;
+	};
 	struct snd_seq_pool *pool;				/* used pool */
 	struct snd_seq_event_cell *next;	/* next cell */
 };

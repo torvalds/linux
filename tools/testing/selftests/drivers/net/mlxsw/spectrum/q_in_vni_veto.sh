@@ -34,6 +34,7 @@ create_vxlan_on_top_of_8021ad_bridge()
 
 	ip link add dev br0 type bridge vlan_filtering 1 vlan_protocol 802.1ad \
 		vlan_default_pvid 0 mcast_snooping 0
+	ip link set dev br0 addrgenmode none
 	ip link set dev br0 up
 
 	ip link add name vx100 type vxlan id 1000 local 192.0.2.17 dstport \

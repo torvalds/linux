@@ -42,6 +42,17 @@ struct snd_seq_port_subs_info {
 	int (*close)(void *private_data, struct snd_seq_port_subscribe *info);
 };
 
+/* context for converting from legacy control event to UMP packet */
+struct snd_seq_ump_midi2_bank {
+	bool rpn_set;
+	bool nrpn_set;
+	bool bank_set;
+	unsigned char cc_rpn_msb, cc_rpn_lsb;
+	unsigned char cc_nrpn_msb, cc_nrpn_lsb;
+	unsigned char cc_data_msb, cc_data_lsb;
+	unsigned char cc_bank_msb, cc_bank_lsb;
+};
+
 struct snd_seq_client_port {
 
 	struct snd_seq_addr addr;	/* client/port number */
@@ -72,6 +83,13 @@ struct snd_seq_client_port {
 	int midi_voices;
 	int synth_voices;
 		
+	/* UMP direction and group */
+	unsigned char direction;
+	unsigned char ump_group;
+
+#if IS_ENABLED(CONFIG_SND_SEQ_UMP)
+	struct snd_seq_ump_midi2_bank midi2_bank[16]; /* per channel */
+#endif
 };
 
 struct snd_seq_client;
@@ -86,8 +104,9 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 /* unlock the port */
 #define snd_seq_port_unlock(port) snd_use_lock_free(&(port)->use_lock)
 
-/* create a port, port number is returned (-1 on failure) */
-struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client, int port_index);
+/* create a port, port number or a negative error code is returned */
+int snd_seq_create_port(struct snd_seq_client *client, int port_index,
+			struct snd_seq_client_port **port_ret);
 
 /* delete a port */
 int snd_seq_delete_port(struct snd_seq_client *client, int port);

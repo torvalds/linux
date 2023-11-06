@@ -84,6 +84,8 @@ enum mlx5e_xdp_xmit_mode {
  * MLX5E_XDP_XMIT_MODE_XSK:
  *    none.
  */
+#define MLX5E_XDP_FIFO_ENTRIES2DS_MAX_RATIO 4
+
 union mlx5e_xdp_info {
 	enum mlx5e_xdp_xmit_mode mode;
 	union {

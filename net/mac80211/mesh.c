@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 - 2022 Intel Corporation
+ * Copyright (C) 2018 - 2023 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  */
@@ -45,7 +45,7 @@ static void ieee80211_mesh_housekeeping_timer(struct timer_list *t)
 
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	wiphy_work_queue(local->hw.wiphy, &sdata->work);
 }
 
 /**
@@ -133,10 +133,10 @@ bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
  *
  * Returns: beacon changed flag if the beacon content changed.
  */
-u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
+u64 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 {
 	bool free_plinks;
-	u32 changed = 0;
+	u64 changed = 0;
 
 	/* In case mesh_plink_free_count > 0 and mesh_plinktbl_capacity == 0,
 	 * the mesh interface might be able to establish plinks with peers that
@@ -162,7 +162,7 @@ u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 void mesh_sta_cleanup(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	u32 changed = mesh_plink_deactivate(sta);
+	u64 changed = mesh_plink_deactivate(sta);
 
 	if (changed)
 		ieee80211_mbss_info_change_notify(sdata, changed);
@@ -703,7 +703,7 @@ static void ieee80211_mesh_path_timer(struct timer_list *t)
 	struct ieee80211_sub_if_data *sdata =
 		from_timer(sdata, t, u.mesh.mesh_path_timer);
 
-	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
 
 static void ieee80211_mesh_path_root_timer(struct timer_list *t)
@@ -714,7 +714,7 @@ static void ieee80211_mesh_path_root_timer(struct timer_list *t)
 
 	set_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags);
 
-	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
 
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
@@ -923,7 +923,7 @@ unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	u32 changed;
+	u64 changed;
 
 	if (ifmsh->mshcfg.plink_timeout > 0)
 		ieee80211_sta_expire(sdata, ifmsh->mshcfg.plink_timeout * HZ);
@@ -1164,7 +1164,7 @@ ieee80211_mesh_rebuild_beacon(struct ieee80211_sub_if_data *sdata)
 }
 
 void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
-				       u32 changed)
+				       u64 changed)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	unsigned long bits = changed;
@@ -1177,14 +1177,14 @@ void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	for_each_set_bit(bit, &bits, sizeof(changed) * BITS_PER_BYTE)
 		set_bit(bit, &ifmsh->mbss_changed);
 	set_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags);
-	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
+	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
 
 int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
-	u32 changed = BSS_CHANGED_BEACON |
+	u64 changed = BSS_CHANGED_BEACON |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_HT |
 		      BSS_CHANGED_BASIC_RATES |
@@ -1202,7 +1202,7 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ifmsh->sync_offset_clockdrift_max = 0;
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
-	ieee80211_queue_work(&local->hw, &sdata->work);
+	wiphy_work_queue(local->hw.wiphy, &sdata->work);
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.enable_beacon = true;
@@ -1525,12 +1525,11 @@ free:
 	kfree(elems);
 }
 
-int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
+int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata, u64 *changed)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
 	int ret = 0;
-	int changed = 0;
 
 	/* Reset the TTL value and Initiator flag */
 	ifmsh->csa_role = IEEE80211_MESH_CSA_ROLE_NONE;
@@ -1545,15 +1544,16 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	if (ret)
 		return -EINVAL;
 
-	changed |= BSS_CHANGED_BEACON;
+	*changed |= BSS_CHANGED_BEACON;
 
 	mcsa_dbg(sdata, "complete switching to center freq %d MHz",
 		 sdata->vif.bss_conf.chandef.chan->center_freq);
-	return changed;
+	return 0;
 }
 
 int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
-			      struct cfg80211_csa_settings *csa_settings)
+			      struct cfg80211_csa_settings *csa_settings,
+			      u64 *changed)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_csa_settings *tmp_csa_settings;
@@ -1579,7 +1579,8 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		return ret;
 	}
 
-	return BSS_CHANGED_BEACON;
+	*changed |= BSS_CHANGED_BEACON;
+	return 0;
 }
 
 static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
@@ -1720,7 +1721,8 @@ out:
 static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	u32 bit, changed = 0;
+	u32 bit;
+	u64 changed = 0;
 
 	for_each_set_bit(bit, &ifmsh->mbss_changed,
 			 sizeof(changed) * BITS_PER_BYTE) {

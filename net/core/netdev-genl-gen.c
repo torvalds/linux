@@ -8,7 +8,7 @@
 
 #include "netdev-genl-gen.h"
 
-#include <linux/netdev.h>
+#include <uapi/linux/netdev.h>
 
 /* NETDEV_CMD_DEV_GET - do */
 static const struct nla_policy netdev_dev_get_nl_policy[NETDEV_A_DEV_IFINDEX + 1] = {

@@ -361,11 +361,15 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
 	u8 events[DA7219_AAD_IRQ_REG_MAX];
 	u8 statusa;
-	int i, report = 0, mask = 0;
+	int i, ret, report = 0, mask = 0;
 
 	/* Read current IRQ events */
-	regmap_bulk_read(da7219->regmap, DA7219_ACCDET_IRQ_EVENT_A,
-			 events, DA7219_AAD_IRQ_REG_MAX);
+	ret = regmap_bulk_read(da7219->regmap, DA7219_ACCDET_IRQ_EVENT_A,
+			       events, DA7219_AAD_IRQ_REG_MAX);
+	if (ret) {
+		dev_warn_ratelimited(component->dev, "Failed to read IRQ events: %d\n", ret);
+		return IRQ_NONE;
+	}
 
 	if (!events[DA7219_AAD_IRQ_REG_A] && !events[DA7219_AAD_IRQ_REG_B])
 		return IRQ_NONE;
@@ -571,16 +575,29 @@ static enum da7219_aad_jack_ins_deb
 	}
 }
 
+static enum da7219_aad_jack_ins_det_pty
+	da7219_aad_fw_jack_ins_det_pty(struct device *dev, const char *str)
+{
+	if (!strcmp(str, "low")) {
+		return DA7219_AAD_JACK_INS_DET_PTY_LOW;
+	} else if (!strcmp(str, "high")) {
+		return DA7219_AAD_JACK_INS_DET_PTY_HIGH;
+	} else {
+		dev_warn(dev, "Invalid jack insertion detection polarity");
+		return DA7219_AAD_JACK_INS_DET_PTY_LOW;
+	}
+}
+
 static enum da7219_aad_jack_det_rate
 	da7219_aad_fw_jack_det_rate(struct device *dev, const char *str)
 {
-	if (!strcmp(str, "32ms_64ms")) {
+	if (!strcmp(str, "32_64")) {
 		return DA7219_AAD_JACK_DET_RATE_32_64MS;
-	} else if (!strcmp(str, "64ms_128ms")) {
+	} else if (!strcmp(str, "64_128")) {
 		return DA7219_AAD_JACK_DET_RATE_64_128MS;
-	} else if (!strcmp(str, "128ms_256ms")) {
+	} else if (!strcmp(str, "128_256")) {
 		return DA7219_AAD_JACK_DET_RATE_128_256MS;
-	} else if (!strcmp(str, "256ms_512ms")) {
+	} else if (!strcmp(str, "256_512")) {
 		return DA7219_AAD_JACK_DET_RATE_256_512MS;
 	} else {
 		dev_warn(dev, "Invalid jack detect rate");
@@ -687,6 +704,12 @@ static struct da7219_aad_pdata *da7219_aad_fw_to_pdata(struct device *dev)
 			da7219_aad_fw_jack_ins_deb(dev, fw_val32);
 	else
 		aad_pdata->jack_ins_deb = DA7219_AAD_JACK_INS_DEB_20MS;
+
+	if (!fwnode_property_read_string(aad_np, "dlg,jack-ins-det-pty", &fw_str))
+		aad_pdata->jack_ins_det_pty =
+			da7219_aad_fw_jack_ins_det_pty(dev, fw_str);
+	else
+		aad_pdata->jack_ins_det_pty = DA7219_AAD_JACK_INS_DET_PTY_LOW;
 
 	if (!fwnode_property_read_string(aad_np, "dlg,jack-det-rate", &fw_str))
 		aad_pdata->jack_det_rate =
@@ -849,6 +872,21 @@ static void da7219_aad_handle_pdata(struct snd_soc_component *component)
 			mask |= DA7219_ADC_1_BIT_REPEAT_MASK;
 		}
 		snd_soc_component_update_bits(component, DA7219_ACCDET_CONFIG_7, mask, cfg);
+
+		switch (aad_pdata->jack_ins_det_pty) {
+		case DA7219_AAD_JACK_INS_DET_PTY_LOW:
+			snd_soc_component_write(component, 0xF0, 0x8B);
+			snd_soc_component_write(component, 0x75, 0x80);
+			snd_soc_component_write(component, 0xF0, 0x00);
+			break;
+		case DA7219_AAD_JACK_INS_DET_PTY_HIGH:
+			snd_soc_component_write(component, 0xF0, 0x8B);
+			snd_soc_component_write(component, 0x75, 0x00);
+			snd_soc_component_write(component, 0xF0, 0x00);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -910,6 +948,8 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 			}
 		}
 	}
+
+	synchronize_irq(da7219_aad->irq);
 }
 
 void da7219_aad_resume(struct snd_soc_component *component)

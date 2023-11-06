@@ -4,6 +4,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -12,12 +13,6 @@
 #include "vkms_formats.h"
 
 static const u32 vkms_formats[] = {
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XRGB16161616,
-	DRM_FORMAT_RGB565
-};
-
-static const u32 vkms_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XRGB16161616,
@@ -117,13 +112,23 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	frame_info = vkms_plane_state->frame_info;
 	memcpy(&frame_info->src, &new_state->src, sizeof(struct drm_rect));
 	memcpy(&frame_info->dst, &new_state->dst, sizeof(struct drm_rect));
+	memcpy(&frame_info->rotated, &new_state->dst, sizeof(struct drm_rect));
 	frame_info->fb = fb;
 	memcpy(&frame_info->map, &shadow_plane_state->data, sizeof(frame_info->map));
 	drm_framebuffer_get(frame_info->fb);
+	frame_info->rotation = drm_rotation_simplify(new_state->rotation, DRM_MODE_ROTATE_0 |
+						     DRM_MODE_ROTATE_90 |
+						     DRM_MODE_ROTATE_270 |
+						     DRM_MODE_REFLECT_X |
+						     DRM_MODE_REFLECT_Y);
+
+	drm_rect_rotate(&frame_info->rotated, drm_rect_width(&frame_info->rotated),
+			drm_rect_height(&frame_info->rotated), frame_info->rotation);
+
 	frame_info->offset = fb->offsets[0];
 	frame_info->pitch = fb->pitches[0];
 	frame_info->cpp = fb->format->cpp[0];
-	vkms_plane_state->plane_read = get_frame_to_line_function(fmt);
+	vkms_plane_state->pixel_read = get_pixel_conversion_function(fmt);
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,
@@ -185,7 +190,7 @@ static void vkms_cleanup_fb(struct drm_plane *plane,
 	drm_gem_fb_vunmap(fb, shadow_plane_state->map);
 }
 
-static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {
+static const struct drm_plane_helper_funcs vkms_plane_helper_funcs = {
 	.atomic_update		= vkms_plane_atomic_update,
 	.atomic_check		= vkms_plane_atomic_check,
 	.prepare_fb		= vkms_prepare_fb,
@@ -196,38 +201,19 @@ struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 				   enum drm_plane_type type, int index)
 {
 	struct drm_device *dev = &vkmsdev->drm;
-	const struct drm_plane_helper_funcs *funcs;
 	struct vkms_plane *plane;
-	const u32 *formats;
-	int nformats;
-
-	switch (type) {
-	case DRM_PLANE_TYPE_PRIMARY:
-		formats = vkms_formats;
-		nformats = ARRAY_SIZE(vkms_formats);
-		funcs = &vkms_primary_helper_funcs;
-		break;
-	case DRM_PLANE_TYPE_CURSOR:
-	case DRM_PLANE_TYPE_OVERLAY:
-		formats = vkms_plane_formats;
-		nformats = ARRAY_SIZE(vkms_plane_formats);
-		funcs = &vkms_primary_helper_funcs;
-		break;
-	default:
-		formats = vkms_formats;
-		nformats = ARRAY_SIZE(vkms_formats);
-		funcs = &vkms_primary_helper_funcs;
-		break;
-	}
 
 	plane = drmm_universal_plane_alloc(dev, struct vkms_plane, base, 1 << index,
 					   &vkms_plane_funcs,
-					   formats, nformats,
+					   vkms_formats, ARRAY_SIZE(vkms_formats),
 					   NULL, type, NULL);
 	if (IS_ERR(plane))
 		return plane;
 
-	drm_plane_helper_add(&plane->base, funcs);
+	drm_plane_helper_add(&plane->base, &vkms_plane_helper_funcs);
+
+	drm_plane_create_rotation_property(&plane->base, DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_MASK | DRM_MODE_REFLECT_MASK);
 
 	return plane;
 }

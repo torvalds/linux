@@ -249,7 +249,7 @@ static struct i2c_driver sps30_i2c_driver = {
 		.of_match_table = sps30_i2c_of_match,
 	},
 	.id_table = sps30_i2c_id,
-	.probe_new = sps30_i2c_probe,
+	.probe = sps30_i2c_probe,
 };
 module_i2c_driver(sps30_i2c_driver);
 

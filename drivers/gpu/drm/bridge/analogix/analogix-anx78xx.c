@@ -1389,7 +1389,7 @@ static struct i2c_driver anx78xx_driver = {
 		   .name = "anx7814",
 		   .of_match_table = of_match_ptr(anx78xx_match_table),
 		  },
-	.probe_new = anx78xx_i2c_probe,
+	.probe = anx78xx_i2c_probe,
 	.remove = anx78xx_i2c_remove,
 	.id_table = anx78xx_id,
 };

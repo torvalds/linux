@@ -488,7 +488,7 @@ static struct i2c_driver mxc4005_driver = {
 		.name = MXC4005_DRV_NAME,
 		.acpi_match_table = ACPI_PTR(mxc4005_acpi_match),
 	},
-	.probe_new	= mxc4005_probe,
+	.probe		= mxc4005_probe,
 	.id_table	= mxc4005_id,
 };
 

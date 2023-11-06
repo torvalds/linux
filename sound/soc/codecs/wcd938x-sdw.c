@@ -1270,7 +1270,7 @@ static int wcd9380_probe(struct sdw_slave *pdev,
 
 		/* Start in cache-only until device is enumerated */
 		regcache_cache_only(wcd->regmap, true);
-	};
+	}
 
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);

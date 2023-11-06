@@ -4,7 +4,6 @@
  *             https://www.huawei.com/
  */
 #include "internal.h"
-#include <linux/pagevec.h>
 
 struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 {
@@ -33,22 +32,21 @@ void erofs_release_pages(struct page **pagepool)
 /* global shrink count (for all mounted EROFS instances) */
 static atomic_long_t erofs_global_shrink_cnt;
 
-static int erofs_workgroup_get(struct erofs_workgroup *grp)
+static bool erofs_workgroup_get(struct erofs_workgroup *grp)
 {
-	int o;
+	if (lockref_get_not_zero(&grp->lockref))
+		return true;
 
-repeat:
-	o = erofs_wait_on_workgroup_freezed(grp);
-	if (o <= 0)
-		return -1;
+	spin_lock(&grp->lockref.lock);
+	if (__lockref_is_dead(&grp->lockref)) {
+		spin_unlock(&grp->lockref.lock);
+		return false;
+	}
 
-	if (atomic_cmpxchg(&grp->refcount, o, o + 1) != o)
-		goto repeat;
-
-	/* decrease refcount paired by erofs_workgroup_put */
-	if (o == 1)
+	if (!grp->lockref.count++)
 		atomic_long_dec(&erofs_global_shrink_cnt);
-	return 0;
+	spin_unlock(&grp->lockref.lock);
+	return true;
 }
 
 struct erofs_workgroup *erofs_find_workgroup(struct super_block *sb,
@@ -61,7 +59,7 @@ repeat:
 	rcu_read_lock();
 	grp = xa_load(&sbi->managed_pslots, index);
 	if (grp) {
-		if (erofs_workgroup_get(grp)) {
+		if (!erofs_workgroup_get(grp)) {
 			/* prefer to relax rcu read side */
 			rcu_read_unlock();
 			goto repeat;
@@ -80,11 +78,10 @@ struct erofs_workgroup *erofs_insert_workgroup(struct super_block *sb,
 	struct erofs_workgroup *pre;
 
 	/*
-	 * Bump up a reference count before making this visible
-	 * to others for the XArray in order to avoid potential
-	 * UAF without serialized by xa_lock.
+	 * Bump up before making this visible to others for the XArray in order
+	 * to avoid potential UAF without serialized by xa_lock.
 	 */
-	atomic_inc(&grp->refcount);
+	lockref_get(&grp->lockref);
 
 repeat:
 	xa_lock(&sbi->managed_pslots);
@@ -93,13 +90,13 @@ repeat:
 	if (pre) {
 		if (xa_is_err(pre)) {
 			pre = ERR_PTR(xa_err(pre));
-		} else if (erofs_workgroup_get(pre)) {
+		} else if (!erofs_workgroup_get(pre)) {
 			/* try to legitimize the current in-tree one */
 			xa_unlock(&sbi->managed_pslots);
 			cond_resched();
 			goto repeat;
 		}
-		atomic_dec(&grp->refcount);
+		lockref_put_return(&grp->lockref);
 		grp = pre;
 	}
 	xa_unlock(&sbi->managed_pslots);
@@ -112,38 +109,34 @@ static void  __erofs_workgroup_free(struct erofs_workgroup *grp)
 	erofs_workgroup_free_rcu(grp);
 }
 
-int erofs_workgroup_put(struct erofs_workgroup *grp)
+void erofs_workgroup_put(struct erofs_workgroup *grp)
 {
-	int count = atomic_dec_return(&grp->refcount);
+	if (lockref_put_or_lock(&grp->lockref))
+		return;
 
-	if (count == 1)
+	DBG_BUGON(__lockref_is_dead(&grp->lockref));
+	if (grp->lockref.count == 1)
 		atomic_long_inc(&erofs_global_shrink_cnt);
-	else if (!count)
-		__erofs_workgroup_free(grp);
-	return count;
+	--grp->lockref.count;
+	spin_unlock(&grp->lockref.lock);
 }
 
 static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 					   struct erofs_workgroup *grp)
 {
-	/*
-	 * If managed cache is on, refcount of workgroups
-	 * themselves could be < 0 (freezed). In other words,
-	 * there is no guarantee that all refcounts > 0.
-	 */
-	if (!erofs_workgroup_try_to_freeze(grp, 1))
-		return false;
+	int free = false;
+
+	spin_lock(&grp->lockref.lock);
+	if (grp->lockref.count)
+		goto out;
 
 	/*
-	 * Note that all cached pages should be unattached
-	 * before deleted from the XArray. Otherwise some
-	 * cached pages could be still attached to the orphan
-	 * old workgroup when the new one is available in the tree.
+	 * Note that all cached pages should be detached before deleted from
+	 * the XArray. Otherwise some cached pages could be still attached to
+	 * the orphan old workgroup when the new one is available in the tree.
 	 */
-	if (erofs_try_to_free_all_cached_pages(sbi, grp)) {
-		erofs_workgroup_unfreeze(grp, 1);
-		return false;
-	}
+	if (erofs_try_to_free_all_cached_pages(sbi, grp))
+		goto out;
 
 	/*
 	 * It's impossible to fail after the workgroup is freezed,
@@ -152,10 +145,13 @@ static bool erofs_try_to_release_workgroup(struct erofs_sb_info *sbi,
 	 */
 	DBG_BUGON(__xa_erase(&sbi->managed_pslots, grp->index) != grp);
 
-	/* last refcount should be connected with its managed pslot.  */
-	erofs_workgroup_unfreeze(grp, 0);
-	__erofs_workgroup_free(grp);
-	return true;
+	lockref_mark_dead(&grp->lockref);
+	free = true;
+out:
+	spin_unlock(&grp->lockref.lock);
+	if (free)
+		__erofs_workgroup_free(grp);
+	return free;
 }
 
 static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,

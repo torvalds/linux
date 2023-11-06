@@ -411,6 +411,9 @@ static struct hns3_dbg_cap_info hns3_dbg_cap[] = {
 	}, {
 		.name = "support wake on lan",
 		.cap_bit = HNAE3_DEV_SUPPORT_WOL_B,
+	}, {
+		.name = "support tm flush",
+		.cap_bit = HNAE3_DEV_SUPPORT_TM_FLUSH_B,
 	}
 };
 
@@ -438,19 +441,36 @@ static void hns3_dbg_fill_content(char *content, u16 len,
 				  const struct hns3_dbg_item *items,
 				  const char **result, u16 size)
 {
+#define HNS3_DBG_LINE_END_LEN	2
 	char *pos = content;
+	u16 item_len;
 	u16 i;
 
-	memset(content, ' ', len);
-	for (i = 0; i < size; i++) {
-		if (result)
-			strncpy(pos, result[i], strlen(result[i]));
-		else
-			strncpy(pos, items[i].name, strlen(items[i].name));
-
-		pos += strlen(items[i].name) + items[i].interval;
+	if (!len) {
+		return;
+	} else if (len <= HNS3_DBG_LINE_END_LEN) {
+		*pos++ = '\0';
+		return;
 	}
 
+	memset(content, ' ', len);
+	len -= HNS3_DBG_LINE_END_LEN;
+
+	for (i = 0; i < size; i++) {
+		item_len = strlen(items[i].name) + items[i].interval;
+		if (len < item_len)
+			break;
+
+		if (result) {
+			if (item_len < strlen(result[i]))
+				break;
+			memcpy(pos, result[i], strlen(result[i]));
+		} else {
+			memcpy(pos, items[i].name, strlen(items[i].name));
+		}
+		pos += item_len;
+		len -= item_len;
+	}
 	*pos++ = '\n';
 	*pos++ = '\0';
 }
@@ -941,8 +961,7 @@ static const struct hns3_dbg_item tx_bd_info_items[] = {
 	{ "MSS_HW_CSUM", 0 },
 };
 
-static void hns3_dump_tx_bd_info(struct hns3_nic_priv *priv,
-				 struct hns3_desc *desc, char **result, int idx)
+static void hns3_dump_tx_bd_info(struct hns3_desc *desc, char **result, int idx)
 {
 	unsigned int j = 0;
 
@@ -991,7 +1010,7 @@ static int hns3_dbg_tx_bd_info(struct hns3_dbg_data *d, char *buf, int len)
 	for (i = 0; i < ring->desc_num; i++) {
 		desc = &ring->desc[i];
 
-		hns3_dump_tx_bd_info(priv, desc, result, i);
+		hns3_dump_tx_bd_info(desc, result, i);
 		hns3_dbg_fill_content(content, sizeof(content),
 				      tx_bd_info_items, (const char **)result,
 				      ARRAY_SIZE(tx_bd_info_items));

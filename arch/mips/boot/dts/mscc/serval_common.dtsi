@@ -20,7 +20,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	i2c0_imux: i2c0-imux{
+	i2c0_imux: i2c0-imux {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
 		#size-cells = <0>;

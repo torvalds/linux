@@ -120,9 +120,6 @@ static bool dce112_enable_display_power_gating(
 	enum bp_pipe_control_action cntl;
 	struct dc_context *ctx = dc->ctx;
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment))
-		return true;
-
 	if (power_gating == PIPE_GATING_CONTROL_INIT)
 		cntl = ASIC_PIPE_INIT;
 	else if (power_gating == PIPE_GATING_CONTROL_ENABLE)

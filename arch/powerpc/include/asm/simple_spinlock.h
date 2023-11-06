@@ -15,6 +15,7 @@
  * (the type definitions are in asm/simple_spinlock_types.h)
  */
 #include <linux/irqflags.h>
+#include <linux/kcsan-checks.h>
 #include <asm/paravirt.h>
 #include <asm/paca.h>
 #include <asm/synch.h>
@@ -126,6 +127,7 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
+	kcsan_mb();
 	__asm__ __volatile__("# arch_spin_unlock\n\t"
 				PPC_RELEASE_BARRIER: : :"memory");
 	lock->slock = 0;

@@ -23,6 +23,7 @@ menuconfig SND_ISA
 	bool "ISA sound devices"
 	depends on ISA || COMPILE_TEST
 	depends on ISA_DMA_API
+	depends on HAS_IOPORT
 	default y
 	help
 	  Support for sound devices connected via the ISA bus.

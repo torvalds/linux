@@ -1560,7 +1560,7 @@ static struct i2c_driver tlv320dac33_i2c_driver = {
 	.driver = {
 		.name = "tlv320dac33-codec",
 	},
-	.probe_new	= dac33_i2c_probe,
+	.probe		= dac33_i2c_probe,
 	.remove		= dac33_i2c_remove,
 	.id_table	= tlv320dac33_i2c_id,
 };

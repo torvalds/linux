@@ -543,7 +543,7 @@ static struct i2c_driver da903x_driver = {
 	.driver	= {
 		.name	= "da903x",
 	},
-	.probe_new	= da903x_probe,
+	.probe		= da903x_probe,
 	.remove		= da903x_remove,
 	.id_table	= da903x_id_table,
 };

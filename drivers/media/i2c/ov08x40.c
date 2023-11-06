@@ -3313,7 +3313,7 @@ static struct i2c_driver ov08x40_i2c_driver = {
 		.pm = &ov08x40_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov08x40_acpi_ids),
 	},
-	.probe_new = ov08x40_probe,
+	.probe = ov08x40_probe,
 	.remove = ov08x40_remove,
 };
 

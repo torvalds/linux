@@ -570,7 +570,7 @@ static struct i2c_driver aw88395_i2c_driver = {
 	.driver = {
 		.name = AW88395_I2C_NAME,
 	},
-	.probe_new = aw88395_i2c_probe,
+	.probe = aw88395_i2c_probe,
 	.id_table = aw88395_i2c_id,
 };
 module_i2c_driver(aw88395_i2c_driver);

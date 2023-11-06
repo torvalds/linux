@@ -1551,7 +1551,7 @@ static struct i2c_driver ov772x_i2c_driver = {
 		.name = "ov772x",
 		.of_match_table = ov772x_of_match,
 	},
-	.probe_new = ov772x_probe,
+	.probe    = ov772x_probe,
 	.remove   = ov772x_remove,
 	.id_table = ov772x_id,
 };

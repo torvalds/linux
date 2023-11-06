@@ -384,7 +384,7 @@ static struct i2c_driver ds1621_driver = {
 	.driver = {
 		.name	= "ds1621",
 	},
-	.probe_new	= ds1621_probe,
+	.probe		= ds1621_probe,
 	.id_table	= ds1621_id,
 };
 

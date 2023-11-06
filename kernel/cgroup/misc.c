@@ -357,7 +357,6 @@ static struct cftype misc_cg_files[] = {
 	{
 		.name = "current",
 		.seq_show = misc_cg_current_show,
-		.flags = CFTYPE_NOT_ON_ROOT,
 	},
 	{
 		.name = "capacity",

@@ -521,7 +521,7 @@ static struct i2c_driver adc128_driver = {
 		.name	= "adc128d818",
 		.of_match_table = of_match_ptr(adc128_of_match),
 	},
-	.probe_new	= adc128_probe,
+	.probe		= adc128_probe,
 	.remove		= adc128_remove,
 	.id_table	= adc128_id,
 	.detect		= adc128_detect,

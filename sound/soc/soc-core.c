@@ -1988,8 +1988,10 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 	/* probe all components used by DAI links on this card */
 	ret = soc_probe_link_components(card);
 	if (ret < 0) {
-		dev_err(card->dev,
-			"ASoC: failed to instantiate card %d\n", ret);
+		if (ret != -EPROBE_DEFER) {
+			dev_err(card->dev,
+				"ASoC: failed to instantiate card %d\n", ret);
+		}
 		goto probe_end;
 	}
 
@@ -3196,6 +3198,40 @@ unsigned int snd_soc_daifmt_parse_clock_provider_raw(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_daifmt_parse_clock_provider_raw);
 
+int snd_soc_get_stream_cpu(struct snd_soc_dai_link *dai_link, int stream)
+{
+	/*
+	 * [Normal]
+	 *
+	 * Playback
+	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
+	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
+	 *
+	 * Capture
+	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
+	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
+	 */
+	if (!dai_link->c2c_params)
+		return stream;
+
+	/*
+	 * [Codec2Codec]
+	 *
+	 * Playback
+	 *	CPU  : SNDRV_PCM_STREAM_CAPTURE
+	 *	Codec: SNDRV_PCM_STREAM_PLAYBACK
+	 *
+	 * Capture
+	 *	CPU  : SNDRV_PCM_STREAM_PLAYBACK
+	 *	Codec: SNDRV_PCM_STREAM_CAPTURE
+	 */
+	if (stream == SNDRV_PCM_STREAM_CAPTURE)
+		return SNDRV_PCM_STREAM_PLAYBACK;
+
+	return SNDRV_PCM_STREAM_CAPTURE;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_stream_cpu);
+
 int snd_soc_get_dai_id(struct device_node *ep)
 {
 	struct snd_soc_component *component;
@@ -3223,11 +3259,12 @@ int snd_soc_get_dai_id(struct device_node *ep)
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
 
-int snd_soc_get_dai_name(const struct of_phandle_args *args,
-				const char **dai_name)
+int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_component *pos;
 	int ret = -EPROBE_DEFER;
+
+	dlc->of_node = args->np;
 
 	mutex_lock(&client_mutex);
 	for_each_component(pos) {
@@ -3236,7 +3273,7 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 		if (component_of_node != args->np || !pos->num_dai)
 			continue;
 
-		ret = snd_soc_component_of_xlate_dai_name(pos, args, dai_name);
+		ret = snd_soc_component_of_xlate_dai_name(pos, args, &dlc->dai_name);
 		if (ret == -ENOTSUPP) {
 			struct snd_soc_dai *dai;
 			int id = -1;
@@ -3267,9 +3304,9 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 				id--;
 			}
 
-			*dai_name = dai->driver->name;
-			if (!*dai_name)
-				*dai_name = pos->name;
+			dlc->dai_name	= dai->driver->name;
+			if (!dlc->dai_name)
+				dlc->dai_name = pos->name;
 		} else if (ret) {
 			/*
 			 * if another error than ENOTSUPP is returned go on and
@@ -3285,22 +3322,49 @@ int snd_soc_get_dai_name(const struct of_phandle_args *args,
 	mutex_unlock(&client_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(snd_soc_get_dai_name);
+EXPORT_SYMBOL_GPL(snd_soc_get_dlc);
 
-int snd_soc_of_get_dai_name(struct device_node *of_node,
-			    const char **dai_name)
+int snd_soc_of_get_dlc(struct device_node *of_node,
+		       struct of_phandle_args *args,
+		       struct snd_soc_dai_link_component *dlc,
+		       int index)
 {
-	struct of_phandle_args args;
+	struct of_phandle_args __args;
 	int ret;
 
+	if (!args)
+		args = &__args;
+
 	ret = of_parse_phandle_with_args(of_node, "sound-dai",
-					 "#sound-dai-cells", 0, &args);
+					 "#sound-dai-cells", index, args);
 	if (ret)
 		return ret;
 
-	ret = snd_soc_get_dai_name(&args, dai_name);
+	return snd_soc_get_dlc(args, dlc);
+}
+EXPORT_SYMBOL_GPL(snd_soc_of_get_dlc);
 
-	of_node_put(args.np);
+int snd_soc_get_dai_name(const struct of_phandle_args *args,
+			 const char **dai_name)
+{
+	struct snd_soc_dai_link_component dlc;
+	int ret = snd_soc_get_dlc(args, &dlc);
+
+	if (ret == 0)
+		*dai_name = dlc.dai_name;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_name);
+
+int snd_soc_of_get_dai_name(struct device_node *of_node,
+			    const char **dai_name, int index)
+{
+	struct snd_soc_dai_link_component dlc;
+	int ret = snd_soc_of_get_dlc(of_node, NULL, &dlc, index);
+
+	if (ret == 0)
+		*dai_name = dlc.dai_name;
 
 	return ret;
 }
@@ -3338,26 +3402,6 @@ static int __snd_soc_of_get_dai_link_component_alloc(
 	*ret_component	= component;
 	*ret_num	= num;
 
-	return 0;
-}
-
-static int __snd_soc_of_get_dai_link_component_parse(
-	struct device_node *of_node,
-	struct snd_soc_dai_link_component *component, int index)
-{
-	struct of_phandle_args args;
-	int ret;
-
-	ret = of_parse_phandle_with_args(of_node, "sound-dai", "#sound-dai-cells",
-					 index, &args);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_get_dai_name(&args, &component->dai_name);
-	if (ret < 0)
-		return ret;
-
-	component->of_node = args.np;
 	return 0;
 }
 
@@ -3405,7 +3449,7 @@ int snd_soc_of_get_dai_link_codecs(struct device *dev,
 
 	/* Parse the list */
 	for_each_link_codecs(dai_link, index, component) {
-		ret = __snd_soc_of_get_dai_link_component_parse(of_node, component, index);
+		ret = snd_soc_of_get_dlc(of_node, NULL, component, index);
 		if (ret)
 			goto err;
 	}
@@ -3460,7 +3504,7 @@ int snd_soc_of_get_dai_link_cpus(struct device *dev,
 
 	/* Parse the list */
 	for_each_link_cpus(dai_link, index, component) {
-		ret = __snd_soc_of_get_dai_link_component_parse(of_node, component, index);
+		ret = snd_soc_of_get_dlc(of_node, NULL, component, index);
 		if (ret)
 			goto err;
 	}

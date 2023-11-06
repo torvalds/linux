@@ -109,8 +109,8 @@ static int ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode,
-				  0, NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFREG | mode, 0,
+				  NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -125,8 +125,8 @@ static int ntfs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev,
-				  NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, mode, rdev, NULL, 0,
+				  NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -199,8 +199,8 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	u32 size = strlen(symname);
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777,
-				  0, symname, size, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
+				  symname, size, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -213,8 +213,8 @@ static int ntfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 {
 	struct inode *inode;
 
-	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode,
-				  0, NULL, 0, NULL);
+	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFDIR | mode, 0,
+				  NULL, 0, NULL);
 
 	return IS_ERR(inode) ? PTR_ERR(inode) : 0;
 }
@@ -422,19 +422,10 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	 * fnd contains tree's path to insert to.
 	 * If fnd is not NULL then dir is locked.
 	 */
-
-	/*
-	 * Unfortunately I don't know how to get here correct 'struct nameidata *nd'
-	 * or 'struct mnt_idmap *idmap'.
-	 * See atomic_open in fs/namei.c.
-	 * This is why xfstest/633 failed.
-	 * Looks like ntfs_atomic_open must accept 'struct mnt_idmap *idmap' as argument.
-	 */
-
-	inode = ntfs_create_inode(&nop_mnt_idmap, dir, dentry, uni, mode, 0,
-				  NULL, 0, fnd);
+	inode = ntfs_create_inode(mnt_idmap(file->f_path.mnt), dir, dentry, uni,
+				  mode, 0, NULL, 0, fnd);
 	err = IS_ERR(inode) ? PTR_ERR(inode) :
-				    finish_open(file, dentry, ntfs_file_open);
+			      finish_open(file, dentry, ntfs_file_open);
 	dput(d);
 
 out2:

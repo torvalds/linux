@@ -5,10 +5,15 @@
  *  Copyright (C) 2000-2002 Russell King
  *  modification for nommu, Hyok S. Choi, 2004
  *
- *  Note: this file should not be included by non-asm/.h files
+ *  Note: this file should not be included explicitly, include <asm/page.h>
+ *  to get access to these definitions.
  */
 #ifndef __ASM_ARM_MEMORY_H
 #define __ASM_ARM_MEMORY_H
+
+#ifndef _ASMARM_PAGE_H
+#error "Do not include <asm/memory.h> directly"
+#endif
 
 #include <linux/compiler.h>
 #include <linux/const.h>
@@ -288,10 +293,12 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 
 #endif
 
-#define virt_to_pfn(kaddr) \
-	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
-	 PHYS_PFN_OFFSET)
-
+static inline unsigned long virt_to_pfn(const void *p)
+{
+	unsigned long kaddr = (unsigned long)p;
+	return (((kaddr - PAGE_OFFSET) >> PAGE_SHIFT) +
+		PHYS_PFN_OFFSET);
+}
 #define __pa_symbol_nodebug(x)	__virt_to_phys_nodebug((x))
 
 #ifdef CONFIG_DEBUG_VIRTUAL

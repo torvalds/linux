@@ -6,7 +6,17 @@
 #ifndef _MLX5_IB_QP_H
 #define _MLX5_IB_QP_H
 
-#include "mlx5_ib.h"
+struct mlx5_ib_dev;
+
+struct mlx5_qp_table {
+	struct notifier_block nb;
+	struct xarray dct_xa;
+
+	/* protect radix tree
+	 */
+	spinlock_t lock;
+	struct radix_tree_root tree;
+};
 
 int mlx5_init_qp_table(struct mlx5_ib_dev *dev);
 void mlx5_cleanup_qp_table(struct mlx5_ib_dev *dev);

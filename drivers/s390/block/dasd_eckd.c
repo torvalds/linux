@@ -21,13 +21,13 @@
 #include <linux/compat.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/css_chars.h>
 #include <asm/debug.h>
 #include <asm/idals.h>
 #include <asm/ebcdic.h>
-#include <asm/io.h>
-#include <linux/uaccess.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/itcw.h>

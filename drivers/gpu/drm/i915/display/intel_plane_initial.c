@@ -110,7 +110,9 @@ initial_plane_vma(struct drm_i915_private *i915,
 	    size * 2 > i915->dsm.usable_size)
 		return NULL;
 
-	obj = i915_gem_object_create_region_at(mem, phys_base, size, 0);
+	obj = i915_gem_object_create_region_at(mem, phys_base, size,
+					       I915_BO_ALLOC_USER |
+					       I915_BO_PREALLOC);
 	if (IS_ERR(obj))
 		return NULL;
 

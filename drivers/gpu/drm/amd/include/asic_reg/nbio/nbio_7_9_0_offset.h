@@ -6201,6 +6201,8 @@
 #define regNBIF_SHUB_TODET_SYNCFLOOD_CTRL2_BASE_IDX 8
 #define regBIFC_BME_ERR_LOG_HB                                                                          0xe8ab
 #define regBIFC_BME_ERR_LOG_HB_BASE_IDX 8
+#define regBIFC_GFX_INT_MONITOR_MASK                                                                    0xe8ad
+#define regBIFC_GFX_INT_MONITOR_MASK_BASE_IDX 8
 #define regBIFC_HRP_SDP_WRRSP_POOLCRED_ALLOC                                                            0xe8c0
 #define regBIFC_HRP_SDP_WRRSP_POOLCRED_ALLOC_BASE_IDX 8
 #define regBIFC_HRP_SDP_RDRSP_POOLCRED_ALLOC                                                            0xe8c1

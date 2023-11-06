@@ -163,7 +163,7 @@ static struct i2c_driver ltc2497_driver = {
 		.name = "ltc2497",
 		.of_match_table = ltc2497_of_match,
 	},
-	.probe_new = ltc2497_probe,
+	.probe = ltc2497_probe,
 	.remove = ltc2497_remove,
 	.id_table = ltc2497_id,
 };

@@ -1166,7 +1166,6 @@ static int pm860x_probe(struct i2c_client *client)
 	chip->client = client;
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
-	dev_set_drvdata(chip->dev, chip);
 
 	/*
 	 * Both client and companion client shares same platform driver.
@@ -1251,7 +1250,7 @@ static struct i2c_driver pm860x_driver = {
 		.pm     = pm_sleep_ptr(&pm860x_pm_ops),
 		.of_match_table	= pm860x_dt_ids,
 	},
-	.probe_new	= pm860x_probe,
+	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };

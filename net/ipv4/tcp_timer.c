@@ -234,14 +234,19 @@ static int tcp_write_timeout(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct net *net = sock_net(sk);
 	bool expired = false, do_reset;
-	int retry_until;
+	int retry_until, max_retransmits;
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits)
 			__dst_negative_advice(sk);
 		retry_until = icsk->icsk_syn_retries ? :
 			READ_ONCE(net->ipv4.sysctl_tcp_syn_retries);
-		expired = icsk->icsk_retransmits >= retry_until;
+
+		max_retransmits = retry_until;
+		if (sk->sk_state == TCP_SYN_SENT)
+			max_retransmits += READ_ONCE(net->ipv4.sysctl_tcp_syn_linear_timeouts);
+
+		expired = icsk->icsk_retransmits >= max_retransmits;
 	} else {
 		if (retransmits_timed_out(sk, READ_ONCE(net->ipv4.sysctl_tcp_retries1), 0)) {
 			/* Black hole detection */
@@ -586,9 +591,15 @@ out_reset_timer:
 	    tcp_stream_is_thin(tp) &&
 	    icsk->icsk_retransmits <= TCP_THIN_LINEAR_RETRIES) {
 		icsk->icsk_backoff = 0;
-		icsk->icsk_rto = min(__tcp_set_rto(tp), TCP_RTO_MAX);
-	} else {
-		/* Use normal (exponential) backoff */
+		icsk->icsk_rto = clamp(__tcp_set_rto(tp),
+				       tcp_rto_min(sk),
+				       TCP_RTO_MAX);
+	} else if (sk->sk_state != TCP_SYN_SENT ||
+		   icsk->icsk_backoff >
+		   READ_ONCE(net->ipv4.sysctl_tcp_syn_linear_timeouts)) {
+		/* Use normal (exponential) backoff unless linear timeouts are
+		 * activated.
+		 */
 		icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
 	}
 	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,

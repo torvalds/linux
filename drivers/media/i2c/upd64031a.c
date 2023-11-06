@@ -228,7 +228,7 @@ static struct i2c_driver upd64031a_driver = {
 	.driver = {
 		.name	= "upd64031a",
 	},
-	.probe_new	= upd64031a_probe,
+	.probe		= upd64031a_probe,
 	.remove		= upd64031a_remove,
 	.id_table	= upd64031a_id,
 };

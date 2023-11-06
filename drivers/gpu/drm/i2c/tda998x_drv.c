@@ -1951,7 +1951,7 @@ static int tda998x_create(struct device *dev)
 	 * offset.
 	 */
 	memset(&cec_info, 0, sizeof(cec_info));
-	strlcpy(cec_info.type, "tda9950", sizeof(cec_info.type));
+	strscpy(cec_info.type, "tda9950", sizeof(cec_info.type));
 	cec_info.addr = priv->cec_addr;
 	cec_info.platform_data = &priv->cec_glue;
 	cec_info.irq = client->irq;
@@ -2099,7 +2099,7 @@ static const struct i2c_device_id tda998x_ids[] = {
 MODULE_DEVICE_TABLE(i2c, tda998x_ids);
 
 static struct i2c_driver tda998x_driver = {
-	.probe_new = tda998x_probe,
+	.probe = tda998x_probe,
 	.remove = tda998x_remove,
 	.driver = {
 		.name = "tda998x",

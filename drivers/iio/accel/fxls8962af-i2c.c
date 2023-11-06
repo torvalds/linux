@@ -47,7 +47,7 @@ static struct i2c_driver fxls8962af_driver = {
 		   .of_match_table = fxls8962af_of_match,
 		   .pm = pm_ptr(&fxls8962af_pm_ops),
 		   },
-	.probe_new = fxls8962af_probe,
+	.probe = fxls8962af_probe,
 	.id_table = fxls8962af_id,
 };
 module_i2c_driver(fxls8962af_driver);

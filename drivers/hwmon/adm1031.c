@@ -1068,7 +1068,7 @@ static struct i2c_driver adm1031_driver = {
 	.driver = {
 		.name = "adm1031",
 	},
-	.probe_new	= adm1031_probe,
+	.probe		= adm1031_probe,
 	.id_table	= adm1031_id,
 	.detect		= adm1031_detect,
 	.address_list	= normal_i2c,

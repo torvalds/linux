@@ -699,17 +699,25 @@ static void iwl_pcie_free_rxq_dma(struct iwl_trans *trans,
 	rxq->used_bd = NULL;
 }
 
+static size_t iwl_pcie_rb_stts_size(struct iwl_trans *trans)
+{
+	bool use_rx_td = (trans->trans_cfg->device_family >=
+			  IWL_DEVICE_FAMILY_AX210);
+
+	if (use_rx_td)
+		return sizeof(__le16);
+
+	return sizeof(struct iwl_rb_status);
+}
+
 static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 				  struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct device *dev = trans->dev;
 	int i;
 	int free_size;
-	bool use_rx_td = (trans->trans_cfg->device_family >=
-			  IWL_DEVICE_FAMILY_AX210);
-	size_t rb_stts_size = use_rx_td ? sizeof(__le16) :
-			      sizeof(struct iwl_rb_status);
 
 	spin_lock_init(&rxq->lock);
 	if (trans->trans_cfg->mq_rx_supported)
@@ -757,11 +765,9 @@ err:
 static int iwl_pcie_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	int i, ret;
-	size_t rb_stts_size = trans->trans_cfg->device_family >=
-				IWL_DEVICE_FAMILY_AX210 ?
-			      sizeof(__le16) : sizeof(struct iwl_rb_status);
 
 	if (WARN_ON(trans_pcie->rxq))
 		return -EINVAL;
@@ -1193,11 +1199,9 @@ int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
 void iwl_pcie_rx_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	size_t rb_stts_size = iwl_pcie_rb_stts_size(trans);
 	struct iwl_rb_allocator *rba = &trans_pcie->rba;
 	int i;
-	size_t rb_stts_size = trans->trans_cfg->device_family >=
-				IWL_DEVICE_FAMILY_AX210 ?
-			      sizeof(__le16) : sizeof(struct iwl_rb_status);
 
 	/*
 	 * if rxq is NULL, it means that nothing has been allocated,
@@ -1636,14 +1640,14 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 	struct msix_entry *entry = dev_id;
 	struct iwl_trans_pcie *trans_pcie = iwl_pcie_get_trans_pcie(entry);
 	struct iwl_trans *trans = trans_pcie->trans;
-	struct iwl_rxq *rxq = &trans_pcie->rxq[entry->entry];
+	struct iwl_rxq *rxq;
 
 	trace_iwlwifi_dev_irq_msix(trans->dev, entry, false, 0, 0);
 
 	if (WARN_ON(entry->entry >= trans->num_rx_queues))
 		return IRQ_NONE;
 
-	if (!rxq) {
+	if (!trans_pcie->rxq) {
 		if (net_ratelimit())
 			IWL_ERR(trans,
 				"[%d] Got MSI-X interrupt before we have Rx queues\n",
@@ -1651,6 +1655,7 @@ irqreturn_t iwl_pcie_irq_rx_msix_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
+	rxq = &trans_pcie->rxq[entry->entry];
 	lock_map_acquire(&trans->sync_cmd_lockdep_map);
 	IWL_DEBUG_ISR(trans, "[%d] Got interrupt\n", entry->entry);
 
@@ -1873,7 +1878,7 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (unlikely(inta == 0xFFFFFFFF || (inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
+	if (unlikely(inta == 0xFFFFFFFF || iwl_trans_is_hw_error_value(inta))) {
 		/*
 		 * Hardware disappeared. It might have
 		 * already raised an interrupt.

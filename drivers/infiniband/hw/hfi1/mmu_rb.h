@@ -16,18 +16,14 @@ struct mmu_rb_node {
 	struct rb_node node;
 	struct mmu_rb_handler *handler;
 	struct list_head list;
+	struct kref refcount;
 };
 
-/*
- * NOTE: filter, insert, invalidate, and evict must not sleep.  Only remove is
- * allowed to sleep.
- */
+/* filter and evict must not sleep. Only remove is allowed to sleep. */
 struct mmu_rb_ops {
 	bool (*filter)(struct mmu_rb_node *node, unsigned long addr,
 		       unsigned long len);
-	int (*insert)(void *ops_arg, struct mmu_rb_node *mnode);
 	void (*remove)(void *ops_arg, struct mmu_rb_node *mnode);
-	int (*invalidate)(void *ops_arg, struct mmu_rb_node *node);
 	int (*evict)(void *ops_arg, struct mmu_rb_node *mnode,
 		     void *evict_arg, bool *stop);
 };
@@ -61,6 +57,8 @@ int hfi1_mmu_rb_register(void *ops_arg,
 void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler);
 int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
 		       struct mmu_rb_node *mnode);
+void hfi1_mmu_rb_release(struct kref *refcount);
+
 void hfi1_mmu_rb_evict(struct mmu_rb_handler *handler, void *evict_arg);
 struct mmu_rb_node *hfi1_mmu_rb_get_first(struct mmu_rb_handler *handler,
 					  unsigned long addr,

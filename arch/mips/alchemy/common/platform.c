@@ -51,9 +51,9 @@ static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 #define PORT(_base, _irq)					\
 	{							\
 		.mapbase	= _base,			\
+		.mapsize	= 0x1000,			\
 		.irq		= _irq,				\
 		.regshift	= 2,				\
-		.iotype		= UPIO_AU,			\
 		.flags		= UPF_SKIP_TEST | UPF_IOREMAP | \
 				  UPF_FIXED_TYPE,		\
 		.type		= PORT_16550A,			\
@@ -124,8 +124,14 @@ static void __init alchemy_setup_uarts(int ctype)
 	au1xx0_uart_device.dev.platform_data = ports;
 
 	/* Fill up uartclk. */
-	for (s = 0; s < c; s++)
+	for (s = 0; s < c; s++) {
 		ports[s].uartclk = uartclk;
+		if (au_platform_setup(&ports[s]) < 0) {
+			kfree(ports);
+			printk(KERN_INFO "Alchemy: missing support for UARTs\n");
+			return;
+		}
+	}
 	if (platform_device_register(&au1xx0_uart_device))
 		printk(KERN_INFO "Alchemy: failed to register UARTs\n");
 }

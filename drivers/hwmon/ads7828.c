@@ -208,7 +208,7 @@ static struct i2c_driver ads7828_driver = {
 	},
 
 	.id_table = ads7828_device_ids,
-	.probe_new = ads7828_probe,
+	.probe = ads7828_probe,
 };
 
 module_i2c_driver(ads7828_driver);

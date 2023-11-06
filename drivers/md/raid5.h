@@ -268,7 +268,7 @@ struct stripe_head {
 		unsigned long	flags;
 		u32		log_checksum;
 		unsigned short	write_hint;
-	} dev[1]; /* allocated with extra space depending of RAID geometry */
+	} dev[]; /* allocated depending of RAID geometry ("disks" member) */
 };
 
 /* stripe_head_state - collects and tracks the dynamic state of a stripe_head
@@ -679,7 +679,7 @@ struct r5conf {
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
-	struct md_thread	*thread;
+	struct md_thread __rcu	*thread;
 	struct list_head	temp_inactive_list[NR_STRIPE_HASH_LOCKS];
 	struct r5worker_group	*worker_groups;
 	int			group_cnt;

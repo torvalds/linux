@@ -68,7 +68,7 @@
  */
 extern int pipe_priority_map[];
 struct mqd_manager {
-	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_dev *kfd,
+	struct kfd_mem_obj*	(*allocate_mqd)(struct kfd_node *kfd,
 		struct queue_properties *q);
 
 	void	(*init_mqd)(struct mqd_manager *mm, void **mqd,
@@ -97,6 +97,7 @@ struct mqd_manager {
 				uint32_t queue_id);
 
 	int	(*get_wave_state)(struct mqd_manager *mm, void *mqd,
+				  struct queue_properties *q,
 				  void __user *ctl_stack,
 				  u32 *ctl_stack_used_size,
 				  u32 *save_area_used_size);
@@ -119,16 +120,18 @@ struct mqd_manager {
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
 #endif
 	uint32_t (*read_doorbell_id)(void *mqd);
+	uint64_t (*mqd_stride)(struct mqd_manager *mm,
+				struct queue_properties *p);
 
 	struct mutex	mqd_mutex;
-	struct kfd_dev	*dev;
+	struct kfd_node	*dev;
 	uint32_t mqd_size;
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev,
 				struct queue_properties *q);
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 					struct queue_properties *q);
 void free_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
 				struct kfd_mem_obj *mqd_mem_obj);
@@ -164,4 +167,10 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		uint64_t queue_address, uint32_t pipe_id,
 		uint32_t queue_id);
 
+void kfd_get_hiq_xcc_mqd(struct kfd_node *dev,
+		struct kfd_mem_obj *mqd_mem_obj, uint32_t virtual_xcc_id);
+
+uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev);
+uint64_t kfd_mqd_stride(struct mqd_manager *mm,
+			struct queue_properties *q);
 #endif /* KFD_MQD_MANAGER_H_ */

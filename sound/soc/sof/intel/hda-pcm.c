@@ -33,7 +33,7 @@ static bool hda_always_enable_dmi_l1;
 module_param_named(always_enable_dmi_l1, hda_always_enable_dmi_l1, bool, 0444);
 MODULE_PARM_DESC(always_enable_dmi_l1, "SOF HDA always enable DMI l1");
 
-static bool hda_disable_rewinds = IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_DISABLE_REWINDS);
+static bool hda_disable_rewinds;
 module_param_named(disable_rewinds, hda_disable_rewinds, bool, 0444);
 MODULE_PARM_DESC(disable_rewinds, "SOF HDA disable rewinds");
 

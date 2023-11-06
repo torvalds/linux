@@ -109,6 +109,8 @@ static inline u64 arm_pmu_event_max_period(struct perf_event *event)
 {
 	if (event->hw.flags & ARMPMU_EVT_64BIT)
 		return GENMASK_ULL(63, 0);
+	else if (event->hw.flags & ARMPMU_EVT_63BIT)
+		return GENMASK_ULL(62, 0);
 	else if (event->hw.flags & ARMPMU_EVT_47BIT)
 		return GENMASK_ULL(46, 0);
 	else
@@ -685,6 +687,11 @@ static int armpmu_get_cpu_irq(struct arm_pmu *pmu, int cpu)
 {
 	struct pmu_hw_events __percpu *hw_events = pmu->hw_events;
 	return per_cpu(hw_events->irq, cpu);
+}
+
+bool arm_pmu_irq_is_nmi(void)
+{
+	return has_nmi;
 }
 
 /*

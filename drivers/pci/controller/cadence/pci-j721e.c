@@ -542,7 +542,7 @@ err_get_sync:
 	return ret;
 }
 
-static int j721e_pcie_remove(struct platform_device *pdev)
+static void j721e_pcie_remove(struct platform_device *pdev)
 {
 	struct j721e_pcie *pcie = platform_get_drvdata(pdev);
 	struct cdns_pcie *cdns_pcie = pcie->cdns_pcie;
@@ -552,13 +552,11 @@ static int j721e_pcie_remove(struct platform_device *pdev)
 	cdns_pcie_disable_phy(cdns_pcie);
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static struct platform_driver j721e_pcie_driver = {
 	.probe  = j721e_pcie_probe,
-	.remove = j721e_pcie_remove,
+	.remove_new = j721e_pcie_remove,
 	.driver = {
 		.name	= "j721e-pcie",
 		.of_match_table = of_j721e_pcie_match,

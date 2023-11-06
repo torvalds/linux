@@ -364,8 +364,9 @@ static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
 		struct btrfs_io_stripe *stripe = &map->stripes[i];
 		struct btrfs_device *device = stripe->dev;
 
-		set_extent_bits_nowait(&device->alloc_state, stripe->physical,
-				 stripe->physical + stripe_size - 1, bits);
+		set_extent_bit(&device->alloc_state, stripe->physical,
+			       stripe->physical + stripe_size - 1,
+			       bits | EXTENT_NOWAIT, NULL);
 	}
 }
 
@@ -380,8 +381,9 @@ static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
 		struct btrfs_device *device = stripe->dev;
 
 		__clear_extent_bit(&device->alloc_state, stripe->physical,
-				   stripe->physical + stripe_size - 1, bits,
-				   NULL, GFP_NOWAIT, NULL);
+				   stripe->physical + stripe_size - 1,
+				   bits | EXTENT_NOWAIT,
+				   NULL, NULL);
 	}
 }
 
@@ -502,10 +504,10 @@ void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	RB_CLEAR_NODE(&em->rb_node);
 }
 
-void replace_extent_mapping(struct extent_map_tree *tree,
-			    struct extent_map *cur,
-			    struct extent_map *new,
-			    int modified)
+static void replace_extent_mapping(struct extent_map_tree *tree,
+				   struct extent_map *cur,
+				   struct extent_map *new,
+				   int modified)
 {
 	lockdep_assert_held_write(&tree->lock);
 
@@ -758,8 +760,6 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
 			start = em_end;
-			if (end != (u64)-1)
-				len = start + len - em_end;
 			goto next;
 		}
 
@@ -827,8 +827,8 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 				if (!split)
 					goto remove_em;
 			}
-			split->start = start + len;
-			split->len = em_end - (start + len);
+			split->start = end;
+			split->len = em_end - end;
 			split->block_start = em->block_start;
 			split->flags = flags;
 			split->compress_type = em->compress_type;
@@ -957,5 +957,97 @@ int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
 		write_unlock(&tree->lock);
 	} while (ret == -EEXIST);
 
+	return ret;
+}
+
+/*
+ * Split off the first pre bytes from the extent_map at [start, start + len],
+ * and set the block_start for it to new_logical.
+ *
+ * This function is used when an ordered_extent needs to be split.
+ */
+int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
+		     u64 new_logical)
+{
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct extent_map *em;
+	struct extent_map *split_pre = NULL;
+	struct extent_map *split_mid = NULL;
+	int ret = 0;
+	unsigned long flags;
+
+	ASSERT(pre != 0);
+	ASSERT(pre < len);
+
+	split_pre = alloc_extent_map();
+	if (!split_pre)
+		return -ENOMEM;
+	split_mid = alloc_extent_map();
+	if (!split_mid) {
+		ret = -ENOMEM;
+		goto out_free_pre;
+	}
+
+	lock_extent(&inode->io_tree, start, start + len - 1, NULL);
+	write_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, start, len);
+	if (!em) {
+		ret = -EIO;
+		goto out_unlock;
+	}
+
+	ASSERT(em->len == len);
+	ASSERT(!test_bit(EXTENT_FLAG_COMPRESSED, &em->flags));
+	ASSERT(em->block_start < EXTENT_MAP_LAST_BYTE);
+	ASSERT(test_bit(EXTENT_FLAG_PINNED, &em->flags));
+	ASSERT(!test_bit(EXTENT_FLAG_LOGGING, &em->flags));
+	ASSERT(!list_empty(&em->list));
+
+	flags = em->flags;
+	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+
+	/* First, replace the em with a new extent_map starting from * em->start */
+	split_pre->start = em->start;
+	split_pre->len = pre;
+	split_pre->orig_start = split_pre->start;
+	split_pre->block_start = new_logical;
+	split_pre->block_len = split_pre->len;
+	split_pre->orig_block_len = split_pre->block_len;
+	split_pre->ram_bytes = split_pre->len;
+	split_pre->flags = flags;
+	split_pre->compress_type = em->compress_type;
+	split_pre->generation = em->generation;
+
+	replace_extent_mapping(em_tree, em, split_pre, 1);
+
+	/*
+	 * Now we only have an extent_map at:
+	 *     [em->start, em->start + pre]
+	 */
+
+	/* Insert the middle extent_map. */
+	split_mid->start = em->start + pre;
+	split_mid->len = em->len - pre;
+	split_mid->orig_start = split_mid->start;
+	split_mid->block_start = em->block_start + pre;
+	split_mid->block_len = split_mid->len;
+	split_mid->orig_block_len = split_mid->block_len;
+	split_mid->ram_bytes = split_mid->len;
+	split_mid->flags = flags;
+	split_mid->compress_type = em->compress_type;
+	split_mid->generation = em->generation;
+	add_extent_mapping(em_tree, split_mid, 1);
+
+	/* Once for us */
+	free_extent_map(em);
+	/* Once for the tree */
+	free_extent_map(em);
+
+out_unlock:
+	write_unlock(&em_tree->lock);
+	unlock_extent(&inode->io_tree, start, start + len - 1, NULL);
+	free_extent_map(split_mid);
+out_free_pre:
+	free_extent_map(split_pre);
 	return ret;
 }

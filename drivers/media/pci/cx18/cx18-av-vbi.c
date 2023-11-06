@@ -51,7 +51,7 @@ struct vbi_anc_data {
 	u8 sdid;
 	u8 data_count;
 	u8 idid[2];
-	u8 payload[1]; /* data_count of payload */
+	u8 payload[]; /* data_count of payload */
 	/* u8 checksum; */
 	/* u8 fill[]; Variable number of fill bytes */
 };

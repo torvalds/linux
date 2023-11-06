@@ -98,6 +98,9 @@ int octep_ctrl_mbox_init(struct octep_ctrl_mbox *mbox)
 	writeq(OCTEP_CTRL_MBOX_STATUS_INIT,
 	       OCTEP_CTRL_MBOX_INFO_HOST_STATUS(mbox->barmem));
 
+	mutex_init(&mbox->h2fq_lock);
+	mutex_init(&mbox->f2hq_lock);
+
 	mbox->h2fq.sz = readl(OCTEP_CTRL_MBOX_H2FQ_SZ(mbox->barmem));
 	mbox->h2fq.hw_prod = OCTEP_CTRL_MBOX_H2FQ_PROD(mbox->barmem);
 	mbox->h2fq.hw_cons = OCTEP_CTRL_MBOX_H2FQ_CONS(mbox->barmem);

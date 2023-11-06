@@ -607,7 +607,7 @@ static struct i2c_driver mma9551_driver = {
 		   .acpi_match_table = ACPI_PTR(mma9551_acpi_match),
 		   .pm = pm_ptr(&mma9551_pm_ops),
 		   },
-	.probe_new = mma9551_probe,
+	.probe = mma9551_probe,
 	.remove = mma9551_remove,
 	.id_table = mma9551_id,
 };

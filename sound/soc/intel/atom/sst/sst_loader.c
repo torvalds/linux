@@ -20,7 +20,6 @@
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/dmaengine.h>
-#include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

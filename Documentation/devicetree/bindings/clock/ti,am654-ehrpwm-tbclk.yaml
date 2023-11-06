@@ -16,7 +16,6 @@ properties:
           - ti,am654-ehrpwm-tbclk
           - ti,am64-epwm-tbclk
           - ti,am62-epwm-tbclk
-      - const: syscon
 
   "#clock-cells":
     const: 1
@@ -33,8 +32,8 @@ additionalProperties: false
 
 examples:
   - |
-    ehrpwm_tbclk: syscon@4140 {
-        compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+    ehrpwm_tbclk: clock@4140 {
+        compatible = "ti,am654-ehrpwm-tbclk";
         reg = <0x4140 0x18>;
         #clock-cells = <1>;
     };

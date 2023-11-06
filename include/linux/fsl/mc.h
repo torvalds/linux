@@ -48,7 +48,7 @@ struct fsl_mc_driver {
 	struct device_driver driver;
 	const struct fsl_mc_device_id *match_id_table;
 	int (*probe)(struct fsl_mc_device *dev);
-	int (*remove)(struct fsl_mc_device *dev);
+	void (*remove)(struct fsl_mc_device *dev);
 	void (*shutdown)(struct fsl_mc_device *dev);
 	int (*suspend)(struct fsl_mc_device *dev, pm_message_t state);
 	int (*resume)(struct fsl_mc_device *dev);

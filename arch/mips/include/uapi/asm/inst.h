@@ -273,6 +273,27 @@ enum lx_func {
 };
 
 /*
+ * func field for special2 MXU opcodes (Ingenic XBurst MXU).
+ */
+enum mxu_func {
+	/* TODO, other MXU funcs */
+	mxu_lx_op = 0x28,
+};
+
+/*
+ * op field for special2 MXU LX opcodes (Ingenic XBurst MXU).
+ */
+enum lx_ingenic_func {
+	mxu_lxb_op,
+	mxu_lxh_op,
+	/* reserved */
+	mxu_lxw_op = 3,
+	mxu_lxbu_op,
+	mxu_lxhu_op,
+	/* more reserved */
+};
+
+/*
  * BSHFL opcodes
  */
 enum bshfl_func {
@@ -774,6 +795,17 @@ struct dsp_format {		/* SPEC3 DSP format instructions */
 	;))))))
 };
 
+struct mxu_lx_format {		/* SPEC2 MXU LX format instructions */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int rs : 5,
+	__BITFIELD_FIELD(unsigned int rt : 5,
+	__BITFIELD_FIELD(unsigned int rd : 5,
+	__BITFIELD_FIELD(unsigned int strd : 2,
+	__BITFIELD_FIELD(unsigned int op : 3,
+	__BITFIELD_FIELD(unsigned int func : 6,
+	;)))))))
+};
+
 struct spec3_format {   /* SPEC3 */
 	__BITFIELD_FIELD(unsigned int opcode:6,
 	__BITFIELD_FIELD(unsigned int rs:5,
@@ -1125,6 +1157,7 @@ union mips_instruction {
 	struct loongson3_lswc2_format loongson3_lswc2_format;
 	struct loongson3_lsdc2_format loongson3_lsdc2_format;
 	struct loongson3_lscsr_format loongson3_lscsr_format;
+	struct mxu_lx_format mxu_lx_format;
 };
 
 union mips16e_instruction {

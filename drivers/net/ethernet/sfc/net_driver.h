@@ -27,6 +27,7 @@
 #include <linux/mtd/mtd.h>
 #include <net/busy_poll.h>
 #include <net/xdp.h>
+#include <net/netevent.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -996,6 +997,7 @@ struct efx_mae;
  * @xdp_rxq_info_failed: Have any of the rx queues failed to initialise their
  *      xdp_rxq_info structures?
  * @netdev_notifier: Netdevice notifier.
+ * @netevent_notifier: Netevent notifier (for neighbour updates).
  * @tc: state for TC offload (EF100).
  * @devlink: reference to devlink structure owned by this device
  * @dl_port: devlink port associated with the PF
@@ -1183,6 +1185,7 @@ struct efx_nic {
 	bool xdp_rxq_info_failed;
 
 	struct notifier_block netdev_notifier;
+	struct notifier_block netevent_notifier;
 	struct efx_tc_state *tc;
 
 	struct devlink *devlink;

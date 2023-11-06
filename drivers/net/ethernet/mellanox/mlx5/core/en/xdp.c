@@ -662,8 +662,7 @@ static void mlx5e_free_xdpsq_desc(struct mlx5e_xdpsq *sq,
 				/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
 				 * as we know this is a page_pool page.
 				 */
-				page_pool_put_defragged_page(page->pp,
-							     page, -1, true);
+				page_pool_recycle_direct(page->pp, page);
 			} while (++n < num);
 
 			break;

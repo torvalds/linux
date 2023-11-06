@@ -93,7 +93,13 @@
 
 };
 
-&dsi0 {
+&gpu {
+	zap-shader {
+		firmware-name = "qcom/msm8996/gemini/a530_zap.mbn";
+	};
+};
+
+&mdss_dsi0 {
 	status = "okay";
 
 	vdd-supply = <&vreg_l2a_1p25>;
@@ -112,20 +118,14 @@
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	remote-endpoint = <&panel_in>;
-};
-
-&gpu {
-	zap-shader {
-		firmware-name = "qcom/msm8996/gemini/a530_zap.mbn";
-	};
 };
 
 &pmi8994_wled {

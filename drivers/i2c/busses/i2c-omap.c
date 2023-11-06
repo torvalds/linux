@@ -1519,7 +1519,7 @@ err_disable_pm:
 	return r;
 }
 
-static int omap_i2c_remove(struct platform_device *pdev)
+static void omap_i2c_remove(struct platform_device *pdev)
 {
 	struct omap_i2c_dev	*omap = platform_get_drvdata(pdev);
 	int ret;
@@ -1535,8 +1535,6 @@ static int omap_i2c_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused omap_i2c_runtime_suspend(struct device *dev)
@@ -1588,7 +1586,7 @@ static const struct dev_pm_ops omap_i2c_pm_ops = {
 
 static struct platform_driver omap_i2c_driver = {
 	.probe		= omap_i2c_probe,
-	.remove		= omap_i2c_remove,
+	.remove_new	= omap_i2c_remove,
 	.driver		= {
 		.name	= "omap_i2c",
 		.pm	= &omap_i2c_pm_ops,

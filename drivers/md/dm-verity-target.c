@@ -1196,7 +1196,7 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	if ((dm_table_get_mode(ti->table) & ~FMODE_READ)) {
+	if ((dm_table_get_mode(ti->table) & ~BLK_OPEN_READ)) {
 		ti->error = "Device must be readonly";
 		r = -EINVAL;
 		goto bad;
@@ -1225,13 +1225,13 @@ static int verity_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	v->version = num;
 
-	r = dm_get_device(ti, argv[1], FMODE_READ, &v->data_dev);
+	r = dm_get_device(ti, argv[1], BLK_OPEN_READ, &v->data_dev);
 	if (r) {
 		ti->error = "Data device lookup failed";
 		goto bad;
 	}
 
-	r = dm_get_device(ti, argv[2], FMODE_READ, &v->hash_dev);
+	r = dm_get_device(ti, argv[2], BLK_OPEN_READ, &v->hash_dev);
 	if (r) {
 		ti->error = "Hash device lookup failed";
 		goto bad;

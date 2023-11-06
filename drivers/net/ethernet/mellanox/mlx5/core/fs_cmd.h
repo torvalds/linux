@@ -93,7 +93,8 @@ struct mlx5_flow_cmds {
 				      struct mlx5_modify_hdr *modify_hdr);
 
 	int (*set_peer)(struct mlx5_flow_root_namespace *ns,
-			struct mlx5_flow_root_namespace *peer_ns);
+			struct mlx5_flow_root_namespace *peer_ns,
+			u16 peer_vhca_id);
 
 	int (*create_ns)(struct mlx5_flow_root_namespace *ns);
 	int (*destroy_ns)(struct mlx5_flow_root_namespace *ns);

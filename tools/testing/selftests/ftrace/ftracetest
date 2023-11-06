@@ -301,7 +301,7 @@ ktaptest() { # result comment
     comment="# $comment"
   fi
 
-  echo $CASENO $result $INSTANCE$CASENAME $comment
+  echo $result $CASENO $INSTANCE$CASENAME $comment
 }
 
 eval_result() { # sigval

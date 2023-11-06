@@ -40,12 +40,7 @@
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
-/* Intended for ccio/sba/cpu statistics under /proc/bus/{runway|gsc} */
-struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
-struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
-struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
-
-void __init setup_cmdline(char **cmdline_p)
+static void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
 	char *p;
@@ -86,7 +81,7 @@ void __init setup_cmdline(char **cmdline_p)
 }
 
 #ifdef CONFIG_PA11
-void __init dma_ops_init(void)
+static void __init dma_ops_init(void)
 {
 	switch (boot_cpu_data.cpu_type) {
 	case pcx:
@@ -105,8 +100,6 @@ void __init dma_ops_init(void)
 	}
 }
 #endif
-
-extern void collect_boot_cpu_data(void);
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -167,10 +160,7 @@ void __init setup_arch(char **cmdline_p)
 
 /*
  * Display CPU info for all CPUs.
- * for parisc this is in processor.c
  */
-extern int show_cpuinfo (struct seq_file *m, void *v);
-
 static void *
 c_start (struct seq_file *m, loff_t *pos)
 {
@@ -200,48 +190,6 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo
 };
-
-static void __init parisc_proc_mkdir(void)
-{
-	/*
-	** Can't call proc_mkdir() until after proc_root_init() has been
-	** called by start_kernel(). In other words, this code can't
-	** live in arch/.../setup.c because start_parisc() calls
-	** start_kernel().
-	*/
-	switch (boot_cpu_data.cpu_type) {
-	case pcxl:
-	case pcxl2:
-		if (NULL == proc_gsc_root)
-		{
-			proc_gsc_root = proc_mkdir("bus/gsc", NULL);
-		}
-		break;
-        case pcxt_:
-        case pcxu:
-        case pcxu_:
-        case pcxw:
-        case pcxw_:
-        case pcxw2:
-                if (NULL == proc_runway_root)
-                {
-                        proc_runway_root = proc_mkdir("bus/runway", NULL);
-                }
-                break;
-	case mako:
-	case mako2:
-                if (NULL == proc_mckinley_root)
-                {
-                        proc_mckinley_root = proc_mkdir("bus/mckinley", NULL);
-                }
-                break;
-	default:
-		/* FIXME: this was added to prevent the compiler 
-		 * complaining about missing pcx, pcxs and pcxt
-		 * I'm assuming they have neither gsc nor runway */
-		break;
-	}
-}
 
 static struct resource central_bus = {
 	.name	= "Central Bus",
@@ -295,21 +243,10 @@ static int __init parisc_init_resources(void)
 	return 0;
 }
 
-extern void gsc_init(void);
-extern void processor_init(void);
-extern void ccio_init(void);
-extern void hppb_init(void);
-extern void dino_init(void);
-extern void iosapic_init(void);
-extern void lba_init(void);
-extern void sba_init(void);
-extern void eisa_init(void);
-
 static int __init parisc_init(void)
 {
 	u32 osid = (OS_ID_LINUX << 16);
 
-	parisc_proc_mkdir();
 	parisc_init_resources();
 	do_device_inventory();                  /* probe for hardware */
 
@@ -370,7 +307,7 @@ static int __init parisc_init(void)
 	gsc_init();
 #endif
 #ifdef CONFIG_EISA
-	eisa_init();
+	parisc_eisa_init();
 #endif
 
 #if defined(CONFIG_HPPB)
@@ -391,8 +328,6 @@ arch_initcall(parisc_init);
 
 void __init start_parisc(void)
 {
-	extern void early_trap_init(void);
-
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
 

@@ -27,6 +27,17 @@ struct btrfs_failed_bio {
 	atomic_t repair_count;
 };
 
+/* Is this a data path I/O that needs storage layer checksum and repair? */
+static inline bool is_data_bbio(struct btrfs_bio *bbio)
+{
+	return bbio->inode && is_data_inode(&bbio->inode->vfs_inode);
+}
+
+static bool bbio_has_ordered_extent(struct btrfs_bio *bbio)
+{
+	return is_data_bbio(bbio) && btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE;
+}
+
 /*
  * Initialize a btrfs_bio structure.  This skips the embedded bio itself as it
  * is already initialized by the block layer.
@@ -61,20 +72,6 @@ struct btrfs_bio *btrfs_bio_alloc(unsigned int nr_vecs, blk_opf_t opf,
 	return bbio;
 }
 
-static blk_status_t btrfs_bio_extract_ordered_extent(struct btrfs_bio *bbio)
-{
-	struct btrfs_ordered_extent *ordered;
-	int ret;
-
-	ordered = btrfs_lookup_ordered_extent(bbio->inode, bbio->file_offset);
-	if (WARN_ON_ONCE(!ordered))
-		return BLK_STS_IOERR;
-	ret = btrfs_extract_ordered_extent(bbio, ordered);
-	btrfs_put_ordered_extent(ordered);
-
-	return errno_to_blk_status(ret);
-}
-
 static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 					 struct btrfs_bio *orig_bbio,
 					 u64 map_length, bool use_append)
@@ -95,11 +92,39 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 	btrfs_bio_init(bbio, fs_info, NULL, orig_bbio);
 	bbio->inode = orig_bbio->inode;
 	bbio->file_offset = orig_bbio->file_offset;
-	if (!(orig_bbio->bio.bi_opf & REQ_BTRFS_ONE_ORDERED))
-		orig_bbio->file_offset += map_length;
-
+	orig_bbio->file_offset += map_length;
+	if (bbio_has_ordered_extent(bbio)) {
+		refcount_inc(&orig_bbio->ordered->refs);
+		bbio->ordered = orig_bbio->ordered;
+	}
 	atomic_inc(&orig_bbio->pending_ios);
 	return bbio;
+}
+
+/* Free a bio that was never submitted to the underlying device. */
+static void btrfs_cleanup_bio(struct btrfs_bio *bbio)
+{
+	if (bbio_has_ordered_extent(bbio))
+		btrfs_put_ordered_extent(bbio->ordered);
+	bio_put(&bbio->bio);
+}
+
+static void __btrfs_bio_end_io(struct btrfs_bio *bbio)
+{
+	if (bbio_has_ordered_extent(bbio)) {
+		struct btrfs_ordered_extent *ordered = bbio->ordered;
+
+		bbio->end_io(bbio);
+		btrfs_put_ordered_extent(ordered);
+	} else {
+		bbio->end_io(bbio);
+	}
+}
+
+void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
+{
+	bbio->bio.bi_status = status;
+	__btrfs_bio_end_io(bbio);
 }
 
 static void btrfs_orig_write_end_io(struct bio *bio);
@@ -130,12 +155,12 @@ static void btrfs_orig_bbio_end_io(struct btrfs_bio *bbio)
 
 		if (bbio->bio.bi_status)
 			btrfs_bbio_propagate_error(bbio, orig_bbio);
-		bio_put(&bbio->bio);
+		btrfs_cleanup_bio(bbio);
 		bbio = orig_bbio;
 	}
 
 	if (atomic_dec_and_test(&bbio->pending_ios))
-		bbio->end_io(bbio);
+		__btrfs_bio_end_io(bbio);
 }
 
 static int next_repair_mirror(struct btrfs_failed_bio *fbio, int cur_mirror)
@@ -327,7 +352,7 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	struct btrfs_bio *bbio = container_of(work, struct btrfs_bio, end_io_work);
 
 	/* Metadata reads are checked and repaired by the submitter. */
-	if (bbio->inode && !(bbio->bio.bi_opf & REQ_META))
+	if (is_data_bbio(bbio))
 		btrfs_check_read_bio(bbio, bbio->bio.bi_private);
 	else
 		btrfs_orig_bbio_end_io(bbio);
@@ -348,7 +373,7 @@ static void btrfs_simple_end_io(struct bio *bio)
 		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
 		queue_work(btrfs_end_io_wq(fs_info, bio), &bbio->end_io_work);
 	} else {
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND)
+		if (bio_op(bio) == REQ_OP_ZONE_APPEND && !bio->bi_status)
 			btrfs_record_physical_zoned(bbio);
 		btrfs_orig_bbio_end_io(bbio);
 	}
@@ -361,8 +386,7 @@ static void btrfs_raid56_end_io(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	bbio->mirror_num = bioc->mirror_num;
-	if (bio_op(bio) == REQ_OP_READ && bbio->inode &&
-	    !(bbio->bio.bi_opf & REQ_META))
+	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio))
 		btrfs_check_read_bio(bbio, NULL);
 	else
 		btrfs_orig_bbio_end_io(bbio);
@@ -472,13 +496,12 @@ static void btrfs_submit_mirrored_bio(struct btrfs_io_context *bioc, int dev_nr)
 static void __btrfs_submit_bio(struct bio *bio, struct btrfs_io_context *bioc,
 			       struct btrfs_io_stripe *smap, int mirror_num)
 {
-	/* Do not leak our private flag into the block layer. */
-	bio->bi_opf &= ~REQ_BTRFS_ONE_ORDERED;
-
 	if (!bioc) {
 		/* Single mirror read/write fast path. */
 		btrfs_bio(bio)->mirror_num = mirror_num;
 		bio->bi_iter.bi_sector = smap->physical >> SECTOR_SHIFT;
+		if (bio_op(bio) != REQ_OP_READ)
+			btrfs_bio(bio)->orig_physical = smap->physical;
 		bio->bi_private = smap->dev;
 		bio->bi_end_io = btrfs_simple_end_io;
 		btrfs_submit_dev_bio(smap->dev, bio);
@@ -574,27 +597,20 @@ static void run_one_async_free(struct btrfs_work *work)
 
 static bool should_async_write(struct btrfs_bio *bbio)
 {
-	/*
-	 * If the I/O is not issued by fsync and friends, (->sync_writers != 0),
-	 * then try to defer the submission to a workqueue to parallelize the
-	 * checksum calculation.
-	 */
-	if (atomic_read(&bbio->inode->sync_writers))
+	/* Submit synchronously if the checksum implementation is fast. */
+	if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &bbio->fs_info->flags))
 		return false;
 
 	/*
-	 * Submit metadata writes synchronously if the checksum implementation
-	 * is fast, or we are on a zoned device that wants I/O to be submitted
-	 * in order.
+	 * Try to defer the submission to a workqueue to parallelize the
+	 * checksum calculation unless the I/O is issued synchronously.
 	 */
-	if (bbio->bio.bi_opf & REQ_META) {
-		struct btrfs_fs_info *fs_info = bbio->fs_info;
+	if (op_is_sync(bbio->bio.bi_opf))
+		return false;
 
-		if (btrfs_is_zoned(fs_info))
-			return false;
-		if (test_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags))
-			return false;
-	}
+	/* Zoned devices require I/O to be submitted in order. */
+	if ((bbio->bio.bi_opf & REQ_META) && btrfs_is_zoned(bbio->fs_info))
+		return false;
 
 	return true;
 }
@@ -622,10 +638,7 @@ static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 
 	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
 			run_one_async_free);
-	if (op_is_sync(bbio->bio.bi_opf))
-		btrfs_queue_work(fs_info->hipri_workers, &async->work);
-	else
-		btrfs_queue_work(fs_info->workers, &async->work);
+	btrfs_queue_work(fs_info->workers, &async->work);
 	return true;
 }
 
@@ -635,7 +648,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct btrfs_bio *orig_bbio = bbio;
 	struct bio *bio = &bbio->bio;
-	u64 logical = bio->bi_iter.bi_sector << 9;
+	u64 logical = bio->bi_iter.bi_sector << SECTOR_SHIFT;
 	u64 length = bio->bi_iter.bi_size;
 	u64 map_length = length;
 	bool use_append = btrfs_use_zone_append(bbio);
@@ -645,8 +658,8 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	int error;
 
 	btrfs_bio_counter_inc_blocked(fs_info);
-	error = __btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
-				  &bioc, &smap, &mirror_num, 1);
+	error = btrfs_map_block(fs_info, btrfs_op(bio), logical, &map_length,
+				&bioc, &smap, &mirror_num, 1);
 	if (error) {
 		ret = errno_to_blk_status(error);
 		goto fail;
@@ -665,7 +678,7 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 	 * Save the iter for the end_io handler and preload the checksums for
 	 * data reads.
 	 */
-	if (bio_op(bio) == REQ_OP_READ && inode && !(bio->bi_opf & REQ_META)) {
+	if (bio_op(bio) == REQ_OP_READ && is_data_bbio(bbio)) {
 		bbio->saved_iter = bio->bi_iter;
 		ret = btrfs_lookup_bio_sums(bbio);
 		if (ret)
@@ -676,9 +689,6 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 		if (use_append) {
 			bio->bi_opf &= ~REQ_OP_WRITE;
 			bio->bi_opf |= REQ_OP_ZONE_APPEND;
-			ret = btrfs_bio_extract_ordered_extent(bbio);
-			if (ret)
-				goto fail_put_bio;
 		}
 
 		/*
@@ -695,6 +705,10 @@ static bool btrfs_submit_chunk(struct btrfs_bio *bbio, int mirror_num)
 			ret = btrfs_bio_csum(bbio);
 			if (ret)
 				goto fail_put_bio;
+		} else if (use_append) {
+			ret = btrfs_alloc_dummy_sum(bbio);
+			if (ret)
+				goto fail_put_bio;
 		}
 	}
 
@@ -704,7 +718,7 @@ done:
 
 fail_put_bio:
 	if (map_length < length)
-		bio_put(bio);
+		btrfs_cleanup_bio(bbio);
 fail:
 	btrfs_bio_counter_dec(fs_info);
 	btrfs_bio_end_io(orig_bbio, ret);

@@ -176,7 +176,7 @@ static void da9052_i2c_remove(struct i2c_client *client)
 }
 
 static struct i2c_driver da9052_i2c_driver = {
-	.probe_new = da9052_i2c_probe,
+	.probe = da9052_i2c_probe,
 	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {

@@ -538,7 +538,7 @@ MODULE_DEVICE_TABLE(i2c, ps8622_i2c_table);
 
 static struct i2c_driver ps8622_driver = {
 	.id_table	= ps8622_i2c_table,
-	.probe_new	= ps8622_probe,
+	.probe		= ps8622_probe,
 	.remove		= ps8622_remove,
 	.driver		= {
 		.name	= "ps8622",

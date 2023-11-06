@@ -37,11 +37,13 @@ snd-soc-sof_da7219_max98373-objs := sof_da7219_max98373.o
 snd-soc-ehl-rt5660-objs := ehl_rt5660.o
 snd-soc-sof-ssp-amp-objs := sof_ssp_amp.o
 snd-soc-sof-sdw-objs += sof_sdw.o				\
-			sof_sdw_max98373.o sof_sdw_rt_amp.o	\
+			sof_sdw_maxim.o sof_sdw_rt_amp.o	\
 			sof_sdw_rt5682.o sof_sdw_rt700.o	\
-			sof_sdw_rt711.o sof_sdw_rt711_sdca.o 	\
-			sof_sdw_rt715.o	sof_sdw_rt715_sdca.o 	\
-			sof_sdw_dmic.o sof_sdw_hdmi.o
+			sof_sdw_rt711.o sof_sdw_rt_sdca_jack_common.o	\
+			sof_sdw_rt712_sdca.o sof_sdw_rt715.o	\
+			sof_sdw_rt715_sdca.o sof_sdw_dmic.o	\
+			sof_sdw_cs42l42.o \
+			sof_sdw_hdmi.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_RT5682_MACH) += snd-soc-sof_rt5682.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_CS42L42_MACH) += snd-soc-sof_cs42l42.o
 obj-$(CONFIG_SND_SOC_INTEL_SOF_ES8336_MACH) += snd-soc-sof_es8336.o

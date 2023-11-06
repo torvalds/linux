@@ -25,9 +25,6 @@ static inline void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud)
 #endif
 
 vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf);
-struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
-				   unsigned long addr, pmd_t *pmd,
-				   unsigned int flags);
 bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			   pmd_t *pmd, unsigned long addr, unsigned long next);
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma, pmd_t *pmd,

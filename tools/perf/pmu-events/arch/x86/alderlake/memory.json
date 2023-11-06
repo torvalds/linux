@@ -93,19 +93,21 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L2_MISS",
+        "BriefDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding.",
         "CounterMask": "5",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L2_MISS",
+        "PublicDescription": "Execution stalls while L2 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MEMORY_ACTIVITY.STALLS_L3_MISS",
+        "BriefDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding.",
         "CounterMask": "9",
         "EventCode": "0x47",
         "EventName": "MEMORY_ACTIVITY.STALLS_L3_MISS",
+        "PublicDescription": "Execution stalls while L3 cache miss demand cacheable load request is outstanding (will not count for uncacheable demand requests e.g. bus lock).",
         "SampleAfterValue": "1000003",
         "UMask": "0x9",
         "Unit": "cpu_core"

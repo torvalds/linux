@@ -468,7 +468,7 @@ static struct i2c_driver bt819_driver = {
 	.driver = {
 		.name	= "bt819",
 	},
-	.probe_new	= bt819_probe,
+	.probe		= bt819_probe,
 	.remove		= bt819_remove,
 	.id_table	= bt819_id,
 };

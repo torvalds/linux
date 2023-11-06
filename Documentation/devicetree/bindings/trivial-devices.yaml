@@ -139,6 +139,8 @@ properties:
           - infineon,ir38164
             # Infineon IR38263 Voltage Regulator
           - infineon,ir38263
+            # Infineon IRPS5401 Voltage Regulator (PMIC)
+          - infineon,irps5401
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)

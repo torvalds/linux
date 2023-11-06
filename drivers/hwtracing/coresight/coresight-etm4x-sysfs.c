@@ -2411,7 +2411,6 @@ static ssize_t trctraceid_show(struct device *dev,
 
 	return sysfs_emit(buf, "0x%x\n", trace_id);
 }
-static DEVICE_ATTR_RO(trctraceid);
 
 struct etmv4_reg {
 	struct coresight_device *csdev;
@@ -2528,13 +2527,23 @@ coresight_etm4x_attr_reg_implemented(struct kobject *kobj,
 	return 0;
 }
 
-#define coresight_etm4x_reg(name, offset)				\
-	&((struct dev_ext_attribute[]) {				\
-	   {								\
-		__ATTR(name, 0444, coresight_etm4x_reg_show, NULL),	\
-		(void *)(unsigned long)offset				\
-	   }								\
-	})[0].attr.attr
+/*
+ * Macro to set an RO ext attribute with offset and show function.
+ * Offset is used in mgmt group to ensure only correct registers for
+ * the ETM / ETE variant are visible.
+ */
+#define coresight_etm4x_reg_showfn(name, offset, showfn) (	\
+	&((struct dev_ext_attribute[]) {			\
+	   {							\
+		__ATTR(name, 0444, showfn, NULL),		\
+		(void *)(unsigned long)offset			\
+	   }							\
+	})[0].attr.attr						\
+	)
+
+/* macro using the default coresight_etm4x_reg_show function */
+#define coresight_etm4x_reg(name, offset)	\
+	coresight_etm4x_reg_showfn(name, offset, coresight_etm4x_reg_show)
 
 static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	coresight_etm4x_reg(trcpdcr, TRCPDCR),
@@ -2549,7 +2558,7 @@ static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	coresight_etm4x_reg(trcpidr3, TRCPIDR3),
 	coresight_etm4x_reg(trcoslsr, TRCOSLSR),
 	coresight_etm4x_reg(trcconfig, TRCCONFIGR),
-	&dev_attr_trctraceid.attr,
+	coresight_etm4x_reg_showfn(trctraceid, TRCTRACEIDR, trctraceid_show),
 	coresight_etm4x_reg(trcdevarch, TRCDEVARCH),
 	NULL,
 };

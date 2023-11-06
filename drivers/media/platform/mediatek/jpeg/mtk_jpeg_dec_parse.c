@@ -7,14 +7,9 @@
 
 #include <linux/kernel.h>
 #include <linux/videodev2.h>
+#include <media/jpeg.h>
 
 #include "mtk_jpeg_dec_parse.h"
-
-#define TEM	0x01
-#define SOF0	0xc0
-#define RST	0xd0
-#define SOI	0xd8
-#define EOI	0xd9
 
 struct mtk_jpeg_stream {
 	u8 *addr;
@@ -83,7 +78,7 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 
 		length = 0;
 		switch (byte) {
-		case SOF0:
+		case JPEG_MARKER_SOF0:
 			/* length */
 			if (read_word_be(&stream, &word))
 				break;
@@ -123,10 +118,10 @@ static bool mtk_jpeg_do_parse(struct mtk_jpeg_dec_param *param, u8 *src_addr_va,
 
 			notfound = !(i == param->comp_num);
 			break;
-		case RST ... RST + 7:
-		case SOI:
-		case EOI:
-		case TEM:
+		case JPEG_MARKER_RST ... JPEG_MARKER_RST + 7:
+		case JPEG_MARKER_SOI:
+		case JPEG_MARKER_EOI:
+		case JPEG_MARKER_TEM:
 			break;
 		default:
 			if (read_word_be(&stream, &word))

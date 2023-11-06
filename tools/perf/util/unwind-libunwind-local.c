@@ -325,7 +325,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 			return -EINVAL;
 	}
 
-	maps__for_each_entry(ui->thread->maps, map_node) {
+	maps__for_each_entry(thread__maps(ui->thread), map_node) {
 		struct map *map = map_node->map;
 		u64 start = map__start(map);
 
@@ -416,7 +416,13 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 static struct map *find_map(unw_word_t ip, struct unwind_info *ui)
 {
 	struct addr_location al;
-	return thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al);
+	struct map *ret;
+
+	addr_location__init(&al);
+	thread__find_map(ui->thread, PERF_RECORD_MISC_USER, ip, &al);
+	ret = map__get(al.map);
+	addr_location__exit(&al);
+	return ret;
 }
 
 static int
@@ -435,8 +441,10 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		return -EINVAL;
 
 	dso = map__dso(map);
-	if (!dso)
+	if (!dso) {
+		map__put(map);
 		return -EINVAL;
+	}
 
 	pr_debug("unwind: find_proc_info dso %s\n", dso->name);
 
@@ -471,11 +479,11 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 
 		memset(&di, 0, sizeof(di));
 		if (dwarf_find_debug_frame(0, &di, ip, base, symfile, start, map__end(map)))
-			return dwarf_search_unwind_table(as, ip, &di, pi,
-							 need_unwind_info, arg);
+			ret = dwarf_search_unwind_table(as, ip, &di, pi,
+							need_unwind_info, arg);
 	}
 #endif
-
+	map__put(map);
 	return ret;
 }
 
@@ -529,12 +537,14 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 
 	dso = map__dso(map);
 
-	if (!dso)
+	if (!dso) {
+		map__put(map);
 		return -1;
+	}
 
 	size = dso__data_read_addr(dso, map, ui->machine,
 				   addr, (u8 *) data, sizeof(*data));
-
+	map__put(map);
 	return !(size == sizeof(*data));
 }
 
@@ -631,7 +641,9 @@ static int entry(u64 ip, struct thread *thread,
 {
 	struct unwind_entry e;
 	struct addr_location al;
+	int ret;
 
+	addr_location__init(&al);
 	e.ms.sym = thread__find_symbol(thread, PERF_RECORD_MISC_USER, ip, &al);
 	e.ip     = ip;
 	e.ms.map = al.map;
@@ -642,7 +654,9 @@ static int entry(u64 ip, struct thread *thread,
 		 ip,
 		 al.map ? map__map_ip(al.map, ip) : (u64) 0);
 
-	return cb(&e, arg);
+	ret = cb(&e, arg);
+	addr_location__exit(&al);
+	return ret;
 }
 
 static void display_error(int err)
@@ -719,7 +733,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	 */
 	if (max_stack - 1 > 0) {
 		WARN_ONCE(!ui->thread, "WARNING: ui->thread is NULL");
-		addr_space = maps__addr_space(ui->thread->maps);
+		addr_space = maps__addr_space(thread__maps(ui->thread));
 
 		if (addr_space == NULL)
 			return -1;
@@ -769,7 +783,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = maps__machine(thread->maps),
+		.machine      = maps__machine(thread__maps(thread)),
 		.best_effort  = best_effort
 	};
 

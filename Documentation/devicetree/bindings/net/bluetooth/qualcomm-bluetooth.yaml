@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,qca2066-bt
       - qcom,qca6174-bt
       - qcom,qca9377-bt
       - qcom,wcn3990-bt
@@ -49,6 +50,9 @@ properties:
 
   vddch0-supply:
     description: VDD_CH0 supply regulator handle
+
+  vddch1-supply:
+    description: VDD_CH1 supply regulator handle
 
   vddaon-supply:
     description: VDD_AON supply regulator handle
@@ -95,6 +99,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qca2066-bt
               - qcom,qca6174-bt
     then:
       required:

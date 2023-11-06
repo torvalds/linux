@@ -231,6 +231,8 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
 		break;
 	case Opt_sec_none:
 		ctx->nullauth = 1;
+		kfree(ctx->username);
+		ctx->username = NULL;
 		break;
 	default:
 		cifs_errorf(fc, "bad security option: %s\n", value);
@@ -441,14 +443,17 @@ out:
  * but there are some bugs that prevent rename from working if there are
  * multiple delimiters.
  *
- * Returns a sanitized duplicate of @path. @gfp indicates the GFP_* flags
- * for kstrdup.
+ * Return a sanitized duplicate of @path or NULL for empty prefix paths.
+ * Otherwise, return ERR_PTR.
+ *
+ * @gfp indicates the GFP_* flags for kstrdup.
  * The caller is responsible for freeing the original.
  */
 #define IS_DELIM(c) ((c) == '/' || (c) == '\\')
 char *cifs_sanitize_prepath(char *prepath, gfp_t gfp)
 {
 	char *cursor1 = prepath, *cursor2 = prepath;
+	char *s;
 
 	/* skip all prepended delimiters */
 	while (IS_DELIM(*cursor1))
@@ -469,8 +474,39 @@ char *cifs_sanitize_prepath(char *prepath, gfp_t gfp)
 	if (IS_DELIM(*(cursor2 - 1)))
 		cursor2--;
 
-	*(cursor2) = '\0';
-	return kstrdup(prepath, gfp);
+	*cursor2 = '\0';
+	if (!*prepath)
+		return NULL;
+	s = kstrdup(prepath, gfp);
+	if (!s)
+		return ERR_PTR(-ENOMEM);
+	return s;
+}
+
+/*
+ * Return full path based on the values of @ctx->{UNC,prepath}.
+ *
+ * It is assumed that both values were already parsed by smb3_parse_devname().
+ */
+char *smb3_fs_context_fullpath(const struct smb3_fs_context *ctx, char dirsep)
+{
+	size_t ulen, plen;
+	char *s;
+
+	ulen = strlen(ctx->UNC);
+	plen = ctx->prepath ? strlen(ctx->prepath) + 1 : 0;
+
+	s = kmalloc(ulen + plen + 1, GFP_KERNEL);
+	if (!s)
+		return ERR_PTR(-ENOMEM);
+	memcpy(s, ctx->UNC, ulen);
+	if (plen) {
+		s[ulen] = dirsep;
+		memcpy(s + ulen + 1, ctx->prepath, plen);
+	}
+	s[ulen + plen] = '\0';
+	convert_delimiter(s, dirsep);
+	return s;
 }
 
 /*
@@ -484,6 +520,7 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 	char *pos;
 	const char *delims = "/\\";
 	size_t len;
+	int rc;
 
 	if (unlikely(!devname || !*devname)) {
 		cifs_dbg(VFS, "Device name not specified\n");
@@ -511,6 +548,8 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 
 	/* now go until next delimiter or end of string */
 	len = strcspn(pos, delims);
+	if (!len)
+		return -EINVAL;
 
 	/* move "pos" up to delimiter or NULL */
 	pos += len;
@@ -533,8 +572,11 @@ smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
 		return 0;
 
 	ctx->prepath = cifs_sanitize_prepath(pos, GFP_KERNEL);
-	if (!ctx->prepath)
-		return -ENOMEM;
+	if (IS_ERR(ctx->prepath)) {
+		rc = PTR_ERR(ctx->prepath);
+		ctx->prepath = NULL;
+		return rc;
+	}
 
 	return 0;
 }
@@ -1146,12 +1188,13 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			cifs_errorf(fc, "Unknown error parsing devname\n");
 			goto cifs_parse_mount_err;
 		}
-		ctx->source = kstrdup(param->string, GFP_KERNEL);
-		if (ctx->source == NULL) {
+		ctx->source = smb3_fs_context_fullpath(ctx, '/');
+		if (IS_ERR(ctx->source)) {
+			ctx->source = NULL;
 			cifs_errorf(fc, "OOM when copying UNC string\n");
 			goto cifs_parse_mount_err;
 		}
-		fc->source = kstrdup(param->string, GFP_KERNEL);
+		fc->source = kstrdup(ctx->source, GFP_KERNEL);
 		if (fc->source == NULL) {
 			cifs_errorf(fc, "OOM when copying UNC string\n");
 			goto cifs_parse_mount_err;
@@ -1160,6 +1203,8 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_user:
 		kfree(ctx->username);
 		ctx->username = NULL;
+		if (ctx->nullauth)
+			break;
 		if (strlen(param->string) == 0) {
 			/* null user, ie. anonymous authentication */
 			ctx->nullauth = 1;

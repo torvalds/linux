@@ -1563,7 +1563,7 @@ static struct i2c_driver af9013_driver = {
 		.name	= "af9013",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= af9013_probe,
+	.probe		= af9013_probe,
 	.remove		= af9013_remove,
 	.id_table	= af9013_id_table,
 };

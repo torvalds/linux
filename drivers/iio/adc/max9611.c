@@ -556,7 +556,7 @@ static struct i2c_driver max9611_driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = max9611_of_table,
 	},
-	.probe_new = max9611_probe,
+	.probe = max9611_probe,
 };
 module_i2c_driver(max9611_driver);
 

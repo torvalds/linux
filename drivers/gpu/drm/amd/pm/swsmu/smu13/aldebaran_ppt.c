@@ -1525,7 +1525,6 @@ static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
-	mutex_unlock(&adev->pm.mutex);
 	if (r)
 		goto fail;
 
@@ -1542,6 +1541,7 @@ static int aldebaran_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	r = num_msgs;
 fail:
+	mutex_unlock(&adev->pm.mutex);
 	kfree(req);
 	return r;
 }
@@ -2147,5 +2147,6 @@ void aldebaran_set_ppt_funcs(struct smu_context *smu)
 	smu->clock_map = aldebaran_clk_map;
 	smu->feature_map = aldebaran_feature_mask_map;
 	smu->table_map = aldebaran_table_map;
+	smu->smc_driver_if_version = SMU13_DRIVER_IF_VERSION_ALDE;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 }

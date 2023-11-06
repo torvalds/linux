@@ -63,18 +63,29 @@ static struct sdw_intel_link_dev *intel_link_dev_register(struct sdw_intel_res *
 	link = &ldev->link_res;
 	link->hw_ops = res->hw_ops;
 	link->mmio_base = res->mmio_base;
-	link->registers = res->mmio_base + SDW_LINK_BASE
-		+ (SDW_LINK_SIZE * link_id);
-	link->shim = res->mmio_base + res->shim_base;
-	link->alh = res->mmio_base + res->alh_base;
+	if (!res->ext) {
+		link->registers = res->mmio_base + SDW_LINK_BASE
+			+ (SDW_LINK_SIZE * link_id);
+		link->ip_offset = 0;
+		link->shim = res->mmio_base + res->shim_base;
+		link->alh = res->mmio_base + res->alh_base;
+		link->shim_lock = &ctx->shim_lock;
+	} else {
+		link->registers = res->mmio_base + SDW_IP_BASE(link_id);
+		link->ip_offset = SDW_CADENCE_MCP_IP_OFFSET;
+		link->shim = res->mmio_base +  SDW_SHIM2_GENERIC_BASE(link_id);
+		link->shim_vs = res->mmio_base + SDW_SHIM2_VS_BASE(link_id);
+		link->shim_lock = res->eml_lock;
+	}
 
 	link->ops = res->ops;
 	link->dev = res->dev;
 
 	link->clock_stop_quirks = res->clock_stop_quirks;
-	link->shim_lock = &ctx->shim_lock;
 	link->shim_mask = &ctx->shim_mask;
 	link->link_mask = ctx->link_mask;
+
+	link->hbus = res->hbus;
 
 	/* now follow the two-step init/add sequence */
 	ret = auxiliary_device_init(auxdev);

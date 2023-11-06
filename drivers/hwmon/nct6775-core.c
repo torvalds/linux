@@ -33,6 +33,7 @@
  *                                           (0xd451)
  * nct6798d    14      7       7       2+6    0xd428 0xc1    0x5ca3
  *                                           (0xd429)
+ * nct6799d    14      7       7       2+6    0xd802 0xc1    0x5ca3
  *
  * #temp lists the number of monitored temperature sources (first value) plus
  * the number of directly connectable temperature sensors (second value).
@@ -73,6 +74,7 @@ static const char * const nct6775_device_names[] = {
 	"nct6796",
 	"nct6797",
 	"nct6798",
+	"nct6799",
 };
 
 /* Common and NCT6775 specific data */
@@ -381,7 +383,7 @@ static const u16 NCT6779_REG_TEMP_OVER[ARRAY_SIZE(NCT6779_REG_TEMP)] = {
 	0x39, 0x155 };
 
 static const u16 NCT6779_REG_TEMP_OFFSET[] = {
-	0x454, 0x455, 0x456, 0x44a, 0x44b, 0x44c };
+	0x454, 0x455, 0x456, 0x44a, 0x44b, 0x44c, 0x44d, 0x449 };
 
 static const char *const nct6779_temp_label[] = {
 	"",
@@ -654,6 +656,44 @@ static const char *const nct6798_temp_label[] = {
 #define NCT6798_TEMP_MASK	0xbfff0ffe
 #define NCT6798_VIRT_TEMP_MASK	0x80000c00
 
+static const char *const nct6799_temp_label[] = {
+	"",
+	"SYSTIN",
+	"CPUTIN",
+	"AUXTIN0",
+	"AUXTIN1",
+	"AUXTIN2",
+	"AUXTIN3",
+	"AUXTIN4",
+	"SMBUSMASTER 0",
+	"SMBUSMASTER 1",
+	"Virtual_TEMP",
+	"Virtual_TEMP",
+	"",
+	"AUXTIN5",
+	"",
+	"",
+	"PECI Agent 0",
+	"PECI Agent 1",
+	"PCH_CHIP_CPU_MAX_TEMP",
+	"PCH_CHIP_TEMP",
+	"PCH_CPU_TEMP",
+	"PCH_MCH_TEMP",
+	"Agent0 Dimm0",
+	"Agent0 Dimm1",
+	"Agent1 Dimm0",
+	"Agent1 Dimm1",
+	"BYTE_TEMP0",
+	"BYTE_TEMP1",
+	"PECI Agent 0 Calibration",	/* undocumented */
+	"PECI Agent 1 Calibration",	/* undocumented */
+	"",
+	"Virtual_TEMP"
+};
+
+#define NCT6799_TEMP_MASK	0xbfff2ffe
+#define NCT6799_VIRT_TEMP_MASK	0x80000c00
+
 /* NCT6102D/NCT6106D specific data */
 
 #define NCT6106_REG_VBAT	0x318
@@ -915,14 +955,25 @@ static const u16 scale_in[15] = {
 	800, 800
 };
 
-static inline long in_from_reg(u8 reg, u8 nr)
+/*
+ * NCT6798 scaling:
+ *    CPUVC, IN1, AVSB, 3VCC, IN0, IN8, IN4, 3VSB, VBAT,  VTT,  IN5,  IN6, IN2,
+ *      IN3, IN7
+ * Additional scales to be added later: IN9 (800), VHIF (1600)
+ */
+static const u16 scale_in_6798[15] = {
+	800, 800, 1600, 1600, 800, 800, 800, 1600, 1600, 1600, 1600, 1600, 800,
+	800, 800
+};
+
+static inline long in_from_reg(u8 reg, u8 nr, const u16 *scales)
 {
-	return DIV_ROUND_CLOSEST(reg * scale_in[nr], 100);
+	return DIV_ROUND_CLOSEST(reg * scales[nr], 100);
 }
 
-static inline u8 in_to_reg(u32 val, u8 nr)
+static inline u8 in_to_reg(u32 val, u8 nr, const u16 *scales)
 {
-	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scale_in[nr]), 0, 255);
+	return clamp_val(DIV_ROUND_CLOSEST(val * 100, scales[nr]), 0, 255);
 }
 
 /* TSI temperatures are in 8.3 format */
@@ -1109,6 +1160,7 @@ bool nct6775_reg_is_word_sized(struct nct6775_data *data, u16 reg)
 	case nct6796:
 	case nct6797:
 	case nct6798:
+	case nct6799:
 		return reg == 0x150 || reg == 0x153 || reg == 0x155 ||
 		  (reg & 0xfff0) == 0x4c0 ||
 		  reg == 0x402 ||
@@ -1462,6 +1514,7 @@ static int nct6775_update_pwm_limits(struct device *dev)
 		case nct6796:
 		case nct6797:
 		case nct6798:
+		case nct6799:
 			err = nct6775_read_value(data, data->REG_CRITICAL_PWM_ENABLE[i], &reg);
 			if (err)
 				return err;
@@ -1631,7 +1684,8 @@ show_in_reg(struct device *dev, struct device_attribute *attr, char *buf)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	return sprintf(buf, "%ld\n", in_from_reg(data->in[nr][index], nr));
+	return sprintf(buf, "%ld\n",
+		       in_from_reg(data->in[nr][index], nr, data->scale_in));
 }
 
 static ssize_t
@@ -1649,7 +1703,7 @@ store_in_reg(struct device *dev, struct device_attribute *attr, const char *buf,
 	if (err < 0)
 		return err;
 	mutex_lock(&data->update_lock);
-	data->in[nr][index] = in_to_reg(val, nr);
+	data->in[nr][index] = in_to_reg(val, nr, data->scale_in);
 	err = nct6775_write_value(data, data->REG_IN_MINMAX[index - 1][nr], data->in[nr][index]);
 	mutex_unlock(&data->update_lock);
 	return err ? : count;
@@ -3109,6 +3163,7 @@ store_auto_pwm(struct device *dev, struct device_attribute *attr,
 		case nct6796:
 		case nct6797:
 		case nct6798:
+		case nct6799:
 			err = nct6775_write_value(data, data->REG_CRITICAL_PWM[nr], val);
 			if (err)
 				break;
@@ -3419,6 +3474,7 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 	mutex_init(&data->update_lock);
 	data->name = nct6775_device_names[data->kind];
 	data->bank = 0xff;		/* Force initial bank selection */
+	data->scale_in = scale_in;
 
 	switch (data->kind) {
 	case nct6106:
@@ -3807,10 +3863,12 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 	case nct6796:
 	case nct6797:
 	case nct6798:
+	case nct6799:
 		data->in_num = 15;
 		data->pwm_num = (data->kind == nct6796 ||
 				 data->kind == nct6797 ||
-				 data->kind == nct6798) ? 7 : 6;
+				 data->kind == nct6798 ||
+				 data->kind == nct6799) ? 7 : 6;
 		data->auto_pwm_num = 4;
 		data->has_fan_div = false;
 		data->temp_fixed_num = 6;
@@ -3858,6 +3916,11 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 			data->temp_label = nct6798_temp_label;
 			data->temp_mask = NCT6798_TEMP_MASK;
 			data->virt_temp_mask = NCT6798_VIRT_TEMP_MASK;
+			break;
+		case nct6799:
+			data->temp_label = nct6799_temp_label;
+			data->temp_mask = NCT6799_TEMP_MASK;
+			data->virt_temp_mask = NCT6799_VIRT_TEMP_MASK;
 			break;
 		}
 
@@ -3918,6 +3981,7 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 		case nct6796:
 		case nct6797:
 		case nct6798:
+		case nct6799:
 			data->REG_TSI_TEMP = NCT6796_REG_TSI_TEMP;
 			num_reg_tsi_temp = ARRAY_SIZE(NCT6796_REG_TSI_TEMP);
 			break;
@@ -3925,6 +3989,9 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 			num_reg_tsi_temp = 0;
 			break;
 		}
+
+		if (data->kind == nct6798 || data->kind == nct6799)
+			data->scale_in = scale_in_6798;
 
 		reg_temp = NCT6779_REG_TEMP;
 		num_reg_temp = ARRAY_SIZE(NCT6779_REG_TEMP);

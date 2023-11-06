@@ -12,6 +12,8 @@
 
 struct drm_i915_private;
 struct i915_power_well;
+struct i915_power_well_ops;
+struct intel_encoder;
 
 #define for_each_power_well(__dev_priv, __power_well)				\
 	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\
@@ -110,6 +112,8 @@ struct i915_power_well_desc {
 	 * Thunderbolt mode.
 	 */
 	u16 is_tc_tbt:1;
+	/* Enable timeout if greater than the default 1ms */
+	u16 enable_timeout;
 };
 
 struct i915_power_well {

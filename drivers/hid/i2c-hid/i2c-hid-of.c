@@ -157,7 +157,7 @@ static struct i2c_driver i2c_hid_of_driver = {
 		.of_match_table = of_match_ptr(i2c_hid_of_match),
 	},
 
-	.probe_new	= i2c_hid_of_probe,
+	.probe		= i2c_hid_of_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 	.id_table	= i2c_hid_of_id_table,

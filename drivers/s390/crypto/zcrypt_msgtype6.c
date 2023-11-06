@@ -425,11 +425,6 @@ static int xcrb_msg_to_type6cprb_msgx(bool userspace, struct ap_message *ap_msg,
 	    memcmp(function_code, "AU", 2) == 0)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
 
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
-
 	/* check CPRB minor version, set info bits in ap_message flag field */
 	switch (*(unsigned short *)(&msg->cprbx.func_id[0])) {
 	case 0x5432: /* "T2" */
@@ -534,11 +529,6 @@ static int xcrb_msg_to_type6_ep11cprb_msgx(bool userspace, struct ap_message *ap
 	/* enable special processing based on the cprbs flags special bit */
 	if (msg->cprbx.flags & 0x20)
 		ap_msg->flags |= AP_MSG_FLAG_SPECIAL;
-
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.flags & AP_FI_FLAG_TOGGLE_SPECIAL)
-		ap_msg->flags ^= AP_MSG_FLAG_SPECIAL;
-#endif
 
 	/* set info bits in ap_message flag field */
 	if (msg->cprbx.flags & 0x80)
@@ -1111,23 +1101,36 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 				      struct ica_xcRB *xcrb,
 				      struct ap_message *ap_msg)
 {
-	int rc;
 	struct response_type *rtype = ap_msg->private;
 	struct {
 		struct type6_hdr hdr;
 		struct CPRBX cprbx;
 		/* ... more data blocks ... */
 	} __packed * msg = ap_msg->msg;
+	unsigned int max_payload_size;
+	int rc, delta;
 
-	/*
-	 * Set the queue's reply buffer length minus 128 byte padding
-	 * as reply limit for the card firmware.
-	 */
-	msg->hdr.fromcardlen1 = min_t(unsigned int, msg->hdr.fromcardlen1,
-				      zq->reply.bufsize - 128);
-	if (msg->hdr.fromcardlen2)
-		msg->hdr.fromcardlen2 =
-			zq->reply.bufsize - msg->hdr.fromcardlen1 - 128;
+	/* calculate maximum payload for this card and msg type */
+	max_payload_size = zq->reply.bufsize - sizeof(struct type86_fmt2_msg);
+
+	/* limit each of the two from fields to the maximum payload size */
+	msg->hdr.fromcardlen1 = min(msg->hdr.fromcardlen1, max_payload_size);
+	msg->hdr.fromcardlen2 = min(msg->hdr.fromcardlen2, max_payload_size);
+
+	/* calculate delta if the sum of both exceeds max payload size */
+	delta = msg->hdr.fromcardlen1 + msg->hdr.fromcardlen2
+		- max_payload_size;
+	if (delta > 0) {
+		/*
+		 * Sum exceeds maximum payload size, prune fromcardlen1
+		 * (always trust fromcardlen2)
+		 */
+		if (delta > msg->hdr.fromcardlen1) {
+			rc = -EINVAL;
+			goto out;
+		}
+		msg->hdr.fromcardlen1 -= delta;
+	}
 
 	init_completion(&rtype->work);
 	rc = ap_queue_message(zq->queue, ap_msg);
@@ -1142,6 +1145,9 @@ static long zcrypt_msgtype6_send_cprb(bool userspace, struct zcrypt_queue *zq,
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 	}
+
+	if (rc == -EAGAIN && ap_msg->flags & AP_MSG_FLAG_ADMIN)
+		rc = -EIO; /* do not retry administrative requests */
 
 out:
 	if (rc)
@@ -1262,6 +1268,9 @@ static long zcrypt_msgtype6_send_ep11_cprb(bool userspace, struct zcrypt_queue *
 		/* Signal pending. */
 		ap_cancel_message(zq->queue, ap_msg);
 	}
+
+	if (rc == -EAGAIN && ap_msg->flags & AP_MSG_FLAG_ADMIN)
+		rc = -EIO; /* do not retry administrative requests */
 
 out:
 	if (rc)

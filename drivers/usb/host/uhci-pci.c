@@ -169,7 +169,7 @@ static void uhci_shutdown(struct pci_dev *pdev)
 
 #ifdef CONFIG_PM
 
-static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated);
+static int uhci_pci_resume(struct usb_hcd *hcd, pm_message_t state);
 
 static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
@@ -204,14 +204,15 @@ done_okay:
 
 	/* Check for race with a wakeup request */
 	if (do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
-		uhci_pci_resume(hcd, false);
+		uhci_pci_resume(hcd, PMSG_SUSPEND);
 		rc = -EBUSY;
 	}
 	return rc;
 }
 
-static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
+static int uhci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
 {
+	bool hibernated = (msg.event == PM_EVENT_RESTORE);
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 
 	dev_dbg(uhci_dev(uhci), "%s\n", __func__);

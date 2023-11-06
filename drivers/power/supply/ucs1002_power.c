@@ -680,7 +680,7 @@ static struct i2c_driver ucs1002_driver = {
 		   .name = "ucs1002",
 		   .of_match_table = ucs1002_of_match,
 	},
-	.probe_new = ucs1002_probe,
+	.probe = ucs1002_probe,
 };
 module_i2c_driver(ucs1002_driver);
 

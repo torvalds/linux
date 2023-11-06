@@ -50,6 +50,9 @@ rtw88_8723d-objs		:= rtw8723d.o rtw8723d_table.o
 obj-$(CONFIG_RTW88_8723DE)	+= rtw88_8723de.o
 rtw88_8723de-objs		:= rtw8723de.o
 
+obj-$(CONFIG_RTW88_8723DS)	+= rtw88_8723ds.o
+rtw88_8723ds-objs		:= rtw8723ds.o
+
 obj-$(CONFIG_RTW88_8723DU)	+= rtw88_8723du.o
 rtw88_8723du-objs		:= rtw8723du.o
 

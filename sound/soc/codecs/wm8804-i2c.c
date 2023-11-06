@@ -60,7 +60,7 @@ static struct i2c_driver wm8804_i2c_driver = {
 		.of_match_table = of_match_ptr(wm8804_of_match),
 		.acpi_match_table = ACPI_PTR(wm8804_acpi_match),
 	},
-	.probe_new = wm8804_i2c_probe,
+	.probe = wm8804_i2c_probe,
 	.remove = wm8804_i2c_remove,
 	.id_table = wm8804_i2c_id
 };

@@ -8,11 +8,14 @@
 #include <linux/sizes.h>
 #include <linux/bits.h>
 #include <asm/unaligned.h>
+#include <crypto/sha2.h>
 #include <cxlmem.h>
 
 #include "trace.h"
 
 #define LSA_SIZE SZ_128K
+#define FW_SIZE SZ_64M
+#define FW_SLOTS 3
 #define DEV_SIZE SZ_2G
 #define EFFECT(x) (1U << x)
 
@@ -21,42 +24,70 @@
 
 static unsigned int poison_inject_dev_max = MOCK_INJECT_DEV_MAX;
 
+enum cxl_command_effects {
+	CONF_CHANGE_COLD_RESET = 0,
+	CONF_CHANGE_IMMEDIATE,
+	DATA_CHANGE_IMMEDIATE,
+	POLICY_CHANGE_IMMEDIATE,
+	LOG_CHANGE_IMMEDIATE,
+	SECURITY_CHANGE_IMMEDIATE,
+	BACKGROUND_OP,
+	SECONDARY_MBOX_SUPPORTED,
+};
+
+#define CXL_CMD_EFFECT_NONE cpu_to_le16(0)
+
 static struct cxl_cel_entry mock_cel[] = {
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_SUPPORTED_LOGS),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_IDENTIFY),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_LSA),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_PARTITION_INFO),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_SET_LSA),
-		.effect = cpu_to_le16(EFFECT(1) | EFFECT(2)),
+		.effect = cpu_to_le16(EFFECT(CONF_CHANGE_IMMEDIATE) |
+				      EFFECT(DATA_CHANGE_IMMEDIATE)),
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_HEALTH_INFO),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_POISON),
-		.effect = cpu_to_le16(0),
+		.effect = CXL_CMD_EFFECT_NONE,
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_INJECT_POISON),
-		.effect = cpu_to_le16(0),
+		.effect = cpu_to_le16(EFFECT(DATA_CHANGE_IMMEDIATE)),
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_CLEAR_POISON),
-		.effect = cpu_to_le16(0),
+		.effect = cpu_to_le16(EFFECT(DATA_CHANGE_IMMEDIATE)),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_FW_INFO),
+		.effect = CXL_CMD_EFFECT_NONE,
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_TRANSFER_FW),
+		.effect = cpu_to_le16(EFFECT(CONF_CHANGE_COLD_RESET) |
+				      EFFECT(BACKGROUND_OP)),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_ACTIVATE_FW),
+		.effect = cpu_to_le16(EFFECT(CONF_CHANGE_COLD_RESET) |
+				      EFFECT(CONF_CHANGE_IMMEDIATE)),
 	},
 };
 
@@ -102,13 +133,17 @@ struct mock_event_log {
 };
 
 struct mock_event_store {
-	struct cxl_dev_state *cxlds;
+	struct cxl_memdev_state *mds;
 	struct mock_event_log mock_logs[CXL_EVENT_TYPE_MAX];
 	u32 ev_status;
 };
 
 struct cxl_mockmem_data {
 	void *lsa;
+	void *fw;
+	int fw_slot;
+	int fw_staged;
+	size_t fw_size;
 	u32 security_state;
 	u8 user_pass[NVDIMM_PASSPHRASE_LEN];
 	u8 master_pass[NVDIMM_PASSPHRASE_LEN];
@@ -180,8 +215,7 @@ static void mes_add_event(struct mock_event_store *mes,
 	log->nr_events++;
 }
 
-static int mock_get_event(struct cxl_dev_state *cxlds,
-			  struct cxl_mbox_cmd *cmd)
+static int mock_get_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_get_event_payload *pl;
 	struct mock_event_log *log;
@@ -201,7 +235,7 @@ static int mock_get_event(struct cxl_dev_state *cxlds,
 
 	memset(cmd->payload_out, 0, cmd->size_out);
 
-	log = event_find_log(cxlds->dev, log_type);
+	log = event_find_log(dev, log_type);
 	if (!log || event_log_empty(log))
 		return 0;
 
@@ -234,8 +268,7 @@ static int mock_get_event(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
-static int mock_clear_event(struct cxl_dev_state *cxlds,
-			    struct cxl_mbox_cmd *cmd)
+static int mock_clear_event(struct device *dev, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_clear_event_payload *pl = cmd->payload_in;
 	struct mock_event_log *log;
@@ -246,7 +279,7 @@ static int mock_clear_event(struct cxl_dev_state *cxlds,
 	if (log_type >= CXL_EVENT_TYPE_MAX)
 		return -EINVAL;
 
-	log = event_find_log(cxlds->dev, log_type);
+	log = event_find_log(dev, log_type);
 	if (!log)
 		return 0; /* No mock data in this log */
 
@@ -256,7 +289,7 @@ static int mock_clear_event(struct cxl_dev_state *cxlds,
 	 * However, this is not good behavior for the host so test it.
 	 */
 	if (log->clear_idx + pl->nr_recs > log->cur_idx) {
-		dev_err(cxlds->dev,
+		dev_err(dev,
 			"Attempting to clear more events than returned!\n");
 		return -EINVAL;
 	}
@@ -266,7 +299,7 @@ static int mock_clear_event(struct cxl_dev_state *cxlds,
 	     nr < pl->nr_recs;
 	     nr++, handle++) {
 		if (handle != le16_to_cpu(pl->handles[nr])) {
-			dev_err(cxlds->dev, "Clearing events out of order\n");
+			dev_err(dev, "Clearing events out of order\n");
 			return -EINVAL;
 		}
 	}
@@ -293,7 +326,7 @@ static void cxl_mock_event_trigger(struct device *dev)
 			event_reset_log(log);
 	}
 
-	cxl_mem_get_event_records(mes->cxlds, mes->ev_status);
+	cxl_mem_get_event_records(mes->mds, mes->ev_status);
 }
 
 struct cxl_event_record_raw maint_needed = {
@@ -453,7 +486,7 @@ static int mock_gsl(struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_get_log(struct cxl_memdev_state *mds, struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_log *gl = cmd->payload_in;
 	u32 offset = le32_to_cpu(gl->offset);
@@ -463,7 +496,7 @@ static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 
 	if (cmd->size_in < sizeof(*gl))
 		return -EINVAL;
-	if (length > cxlds->payload_size)
+	if (length > mds->payload_size)
 		return -EINVAL;
 	if (offset + length > sizeof(mock_cel))
 		return -EINVAL;
@@ -477,7 +510,7 @@ static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_rcd_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_rcd_id(struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_identify id = {
 		.fw_revision = { "mock fw v1 " },
@@ -495,7 +528,7 @@ static int mock_rcd_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_id(struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_identify id = {
 		.fw_revision = { "mock fw v1 " },
@@ -517,8 +550,7 @@ static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_partition_info(struct cxl_dev_state *cxlds,
-			       struct cxl_mbox_cmd *cmd)
+static int mock_partition_info(struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_partition_info pi = {
 		.active_volatile_cap =
@@ -535,11 +567,52 @@ static int mock_partition_info(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
-static int mock_get_security_state(struct cxl_dev_state *cxlds,
+static int mock_sanitize(struct cxl_mockmem_data *mdata,
+			 struct cxl_mbox_cmd *cmd)
+{
+	if (cmd->size_in != 0)
+		return -EINVAL;
+
+	if (cmd->size_out != 0)
+		return -EINVAL;
+
+	if (mdata->security_state & CXL_PMEM_SEC_STATE_USER_PASS_SET) {
+		cmd->return_code = CXL_MBOX_CMD_RC_SECURITY;
+		return -ENXIO;
+	}
+	if (mdata->security_state & CXL_PMEM_SEC_STATE_LOCKED) {
+		cmd->return_code = CXL_MBOX_CMD_RC_SECURITY;
+		return -ENXIO;
+	}
+
+	return 0; /* assume less than 2 secs, no bg */
+}
+
+static int mock_secure_erase(struct cxl_mockmem_data *mdata,
+			     struct cxl_mbox_cmd *cmd)
+{
+	if (cmd->size_in != 0)
+		return -EINVAL;
+
+	if (cmd->size_out != 0)
+		return -EINVAL;
+
+	if (mdata->security_state & CXL_PMEM_SEC_STATE_USER_PASS_SET) {
+		cmd->return_code = CXL_MBOX_CMD_RC_SECURITY;
+		return -ENXIO;
+	}
+
+	if (mdata->security_state & CXL_PMEM_SEC_STATE_LOCKED) {
+		cmd->return_code = CXL_MBOX_CMD_RC_SECURITY;
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static int mock_get_security_state(struct cxl_mockmem_data *mdata,
 				   struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
-
 	if (cmd->size_in)
 		return -EINVAL;
 
@@ -569,9 +642,9 @@ static void user_plimit_check(struct cxl_mockmem_data *mdata)
 		mdata->security_state |= CXL_PMEM_SEC_STATE_USER_PLIMIT;
 }
 
-static int mock_set_passphrase(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_set_passphrase(struct cxl_mockmem_data *mdata,
+			       struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
 	struct cxl_set_pass *set_pass;
 
 	if (cmd->size_in != sizeof(*set_pass))
@@ -629,9 +702,9 @@ static int mock_set_passphrase(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd 
 	return -EINVAL;
 }
 
-static int mock_disable_passphrase(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_disable_passphrase(struct cxl_mockmem_data *mdata,
+				   struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
 	struct cxl_disable_pass *dis_pass;
 
 	if (cmd->size_in != sizeof(*dis_pass))
@@ -700,10 +773,9 @@ static int mock_disable_passphrase(struct cxl_dev_state *cxlds, struct cxl_mbox_
 	return 0;
 }
 
-static int mock_freeze_security(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_freeze_security(struct cxl_mockmem_data *mdata,
+				struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
-
 	if (cmd->size_in != 0)
 		return -EINVAL;
 
@@ -717,10 +789,9 @@ static int mock_freeze_security(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd
 	return 0;
 }
 
-static int mock_unlock_security(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_unlock_security(struct cxl_mockmem_data *mdata,
+				struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
-
 	if (cmd->size_in != NVDIMM_PASSPHRASE_LEN)
 		return -EINVAL;
 
@@ -759,10 +830,9 @@ static int mock_unlock_security(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd
 	return 0;
 }
 
-static int mock_passphrase_secure_erase(struct cxl_dev_state *cxlds,
+static int mock_passphrase_secure_erase(struct cxl_mockmem_data *mdata,
 					struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
 	struct cxl_pass_erase *erase;
 
 	if (cmd->size_in != sizeof(*erase))
@@ -858,10 +928,10 @@ static int mock_passphrase_secure_erase(struct cxl_dev_state *cxlds,
 	return 0;
 }
 
-static int mock_get_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_get_lsa(struct cxl_mockmem_data *mdata,
+			struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_get_lsa *get_lsa = cmd->payload_in;
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
 	void *lsa = mdata->lsa;
 	u32 offset, length;
 
@@ -878,10 +948,10 @@ static int mock_get_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_set_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_set_lsa(struct cxl_mockmem_data *mdata,
+			struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_set_lsa *set_lsa = cmd->payload_in;
-	struct cxl_mockmem_data *mdata = dev_get_drvdata(cxlds->dev);
 	void *lsa = mdata->lsa;
 	u32 offset, length;
 
@@ -896,8 +966,7 @@ static int mock_set_lsa(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
-static int mock_health_info(struct cxl_dev_state *cxlds,
-			    struct cxl_mbox_cmd *cmd)
+static int mock_health_info(struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_mbox_health_info health_info = {
 		/* set flags for maint needed, perf degraded, hw replacement */
@@ -1114,9 +1183,90 @@ static struct attribute *cxl_mock_mem_core_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cxl_mock_mem_core);
 
-static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
+static int mock_fw_info(struct cxl_mockmem_data *mdata,
+			struct cxl_mbox_cmd *cmd)
 {
+	struct cxl_mbox_get_fw_info fw_info = {
+		.num_slots = FW_SLOTS,
+		.slot_info = (mdata->fw_slot & 0x7) |
+			     ((mdata->fw_staged & 0x7) << 3),
+		.activation_cap = 0,
+	};
+
+	strcpy(fw_info.slot_1_revision, "cxl_test_fw_001");
+	strcpy(fw_info.slot_2_revision, "cxl_test_fw_002");
+	strcpy(fw_info.slot_3_revision, "cxl_test_fw_003");
+	strcpy(fw_info.slot_4_revision, "");
+
+	if (cmd->size_out < sizeof(fw_info))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &fw_info, sizeof(fw_info));
+	return 0;
+}
+
+static int mock_transfer_fw(struct cxl_mockmem_data *mdata,
+			    struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_transfer_fw *transfer = cmd->payload_in;
+	void *fw = mdata->fw;
+	size_t offset, length;
+
+	offset = le32_to_cpu(transfer->offset) * CXL_FW_TRANSFER_ALIGNMENT;
+	length = cmd->size_in - sizeof(*transfer);
+	if (offset + length > FW_SIZE)
+		return -EINVAL;
+
+	switch (transfer->action) {
+	case CXL_FW_TRANSFER_ACTION_FULL:
+		if (offset != 0)
+			return -EINVAL;
+		fallthrough;
+	case CXL_FW_TRANSFER_ACTION_END:
+		if (transfer->slot == 0 || transfer->slot > FW_SLOTS)
+			return -EINVAL;
+		mdata->fw_size = offset + length;
+		break;
+	case CXL_FW_TRANSFER_ACTION_INITIATE:
+	case CXL_FW_TRANSFER_ACTION_CONTINUE:
+		break;
+	case CXL_FW_TRANSFER_ACTION_ABORT:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	memcpy(fw + offset, transfer->data, length);
+	return 0;
+}
+
+static int mock_activate_fw(struct cxl_mockmem_data *mdata,
+			    struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_activate_fw *activate = cmd->payload_in;
+
+	if (activate->slot == 0 || activate->slot > FW_SLOTS)
+		return -EINVAL;
+
+	switch (activate->action) {
+	case CXL_FW_ACTIVATE_ONLINE:
+		mdata->fw_slot = activate->slot;
+		mdata->fw_staged = 0;
+		return 0;
+	case CXL_FW_ACTIVATE_OFFLINE:
+		mdata->fw_staged = activate->slot;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int cxl_mock_mbox_send(struct cxl_memdev_state *mds,
+			      struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_dev_state *cxlds = &mds->cxlds;
 	struct device *dev = cxlds->dev;
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(dev);
 	int rc = -EIO;
 
 	switch (cmd->opcode) {
@@ -1127,49 +1277,55 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 		rc = mock_gsl(cmd);
 		break;
 	case CXL_MBOX_OP_GET_LOG:
-		rc = mock_get_log(cxlds, cmd);
+		rc = mock_get_log(mds, cmd);
 		break;
 	case CXL_MBOX_OP_IDENTIFY:
 		if (cxlds->rcd)
-			rc = mock_rcd_id(cxlds, cmd);
+			rc = mock_rcd_id(cmd);
 		else
-			rc = mock_id(cxlds, cmd);
+			rc = mock_id(cmd);
 		break;
 	case CXL_MBOX_OP_GET_LSA:
-		rc = mock_get_lsa(cxlds, cmd);
+		rc = mock_get_lsa(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_GET_PARTITION_INFO:
-		rc = mock_partition_info(cxlds, cmd);
+		rc = mock_partition_info(cmd);
 		break;
 	case CXL_MBOX_OP_GET_EVENT_RECORD:
-		rc = mock_get_event(cxlds, cmd);
+		rc = mock_get_event(dev, cmd);
 		break;
 	case CXL_MBOX_OP_CLEAR_EVENT_RECORD:
-		rc = mock_clear_event(cxlds, cmd);
+		rc = mock_clear_event(dev, cmd);
 		break;
 	case CXL_MBOX_OP_SET_LSA:
-		rc = mock_set_lsa(cxlds, cmd);
+		rc = mock_set_lsa(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_GET_HEALTH_INFO:
-		rc = mock_health_info(cxlds, cmd);
+		rc = mock_health_info(cmd);
+		break;
+	case CXL_MBOX_OP_SANITIZE:
+		rc = mock_sanitize(mdata, cmd);
+		break;
+	case CXL_MBOX_OP_SECURE_ERASE:
+		rc = mock_secure_erase(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_GET_SECURITY_STATE:
-		rc = mock_get_security_state(cxlds, cmd);
+		rc = mock_get_security_state(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_SET_PASSPHRASE:
-		rc = mock_set_passphrase(cxlds, cmd);
+		rc = mock_set_passphrase(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_DISABLE_PASSPHRASE:
-		rc = mock_disable_passphrase(cxlds, cmd);
+		rc = mock_disable_passphrase(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_FREEZE_SECURITY:
-		rc = mock_freeze_security(cxlds, cmd);
+		rc = mock_freeze_security(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_UNLOCK:
-		rc = mock_unlock_security(cxlds, cmd);
+		rc = mock_unlock_security(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_PASSPHRASE_SECURE_ERASE:
-		rc = mock_passphrase_secure_erase(cxlds, cmd);
+		rc = mock_passphrase_secure_erase(mdata, cmd);
 		break;
 	case CXL_MBOX_OP_GET_POISON:
 		rc = mock_get_poison(cxlds, cmd);
@@ -1179,6 +1335,15 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 		break;
 	case CXL_MBOX_OP_CLEAR_POISON:
 		rc = mock_clear_poison(cxlds, cmd);
+		break;
+	case CXL_MBOX_OP_GET_FW_INFO:
+		rc = mock_fw_info(mdata, cmd);
+		break;
+	case CXL_MBOX_OP_TRANSFER_FW:
+		rc = mock_transfer_fw(mdata, cmd);
+		break;
+	case CXL_MBOX_OP_ACTIVATE_FW:
+		rc = mock_activate_fw(mdata, cmd);
 		break;
 	default:
 		break;
@@ -1193,6 +1358,11 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 static void label_area_release(void *lsa)
 {
 	vfree(lsa);
+}
+
+static void fw_buf_release(void *buf)
+{
+	vfree(buf);
 }
 
 static bool is_rcd(struct platform_device *pdev)
@@ -1215,6 +1385,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct cxl_memdev *cxlmd;
+	struct cxl_memdev_state *mds;
 	struct cxl_dev_state *cxlds;
 	struct cxl_mockmem_data *mdata;
 	int rc;
@@ -1227,52 +1398,67 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	mdata->lsa = vmalloc(LSA_SIZE);
 	if (!mdata->lsa)
 		return -ENOMEM;
+	mdata->fw = vmalloc(FW_SIZE);
+	if (!mdata->fw)
+		return -ENOMEM;
+	mdata->fw_slot = 2;
+
 	rc = devm_add_action_or_reset(dev, label_area_release, mdata->lsa);
 	if (rc)
 		return rc;
 
-	cxlds = cxl_dev_state_create(dev);
-	if (IS_ERR(cxlds))
-		return PTR_ERR(cxlds);
+	rc = devm_add_action_or_reset(dev, fw_buf_release, mdata->fw);
+	if (rc)
+		return rc;
 
+	mds = cxl_memdev_state_create(dev);
+	if (IS_ERR(mds))
+		return PTR_ERR(mds);
+
+	mds->mbox_send = cxl_mock_mbox_send;
+	mds->payload_size = SZ_4K;
+	mds->event.buf = (struct cxl_get_event_payload *) mdata->event_buf;
+
+	cxlds = &mds->cxlds;
 	cxlds->serial = pdev->id;
-	cxlds->mbox_send = cxl_mock_mbox_send;
-	cxlds->payload_size = SZ_4K;
-	cxlds->event.buf = (struct cxl_get_event_payload *) mdata->event_buf;
 	if (is_rcd(pdev)) {
 		cxlds->rcd = true;
 		cxlds->component_reg_phys = CXL_RESOURCE_NONE;
 	}
 
-	rc = cxl_enumerate_cmds(cxlds);
+	rc = cxl_enumerate_cmds(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_poison_state_init(cxlds);
+	rc = cxl_poison_state_init(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_set_timestamp(cxlds);
+	rc = cxl_set_timestamp(mds);
 	if (rc)
 		return rc;
 
 	cxlds->media_ready = true;
-	rc = cxl_dev_state_identify(cxlds);
+	rc = cxl_dev_state_identify(mds);
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(cxlds);
+	rc = cxl_mem_create_range_info(mds);
 	if (rc)
 		return rc;
 
-	mdata->mes.cxlds = cxlds;
+	mdata->mes.mds = mds;
 	cxl_mock_add_event_logs(&mdata->mes);
 
 	cxlmd = devm_cxl_add_memdev(cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	cxl_mem_get_event_records(cxlds, CXLDEV_EVENT_STATUS_ALL);
+	rc = cxl_memdev_setup_fw_upload(mds);
+	if (rc)
+		return rc;
+
+	cxl_mem_get_event_records(mds, CXLDEV_EVENT_STATUS_ALL);
 
 	return 0;
 }
@@ -1310,9 +1496,40 @@ static ssize_t security_lock_store(struct device *dev, struct device_attribute *
 
 static DEVICE_ATTR_RW(security_lock);
 
+static ssize_t fw_buf_checksum_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(dev);
+	u8 hash[SHA256_DIGEST_SIZE];
+	unsigned char *hstr, *hptr;
+	struct sha256_state sctx;
+	ssize_t written = 0;
+	int i;
+
+	sha256_init(&sctx);
+	sha256_update(&sctx, mdata->fw, mdata->fw_size);
+	sha256_final(&sctx, hash);
+
+	hstr = kzalloc((SHA256_DIGEST_SIZE * 2) + 1, GFP_KERNEL);
+	if (!hstr)
+		return -ENOMEM;
+
+	hptr = hstr;
+	for (i = 0; i < SHA256_DIGEST_SIZE; i++)
+		hptr += sprintf(hptr, "%02x", hash[i]);
+
+	written = sysfs_emit(buf, "%s\n", hstr);
+
+	kfree(hstr);
+	return written;
+}
+
+static DEVICE_ATTR_RO(fw_buf_checksum);
+
 static struct attribute *cxl_mock_mem_attrs[] = {
 	&dev_attr_security_lock.attr,
 	&dev_attr_event_trigger.attr,
+	&dev_attr_fw_buf_checksum.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(cxl_mock_mem);

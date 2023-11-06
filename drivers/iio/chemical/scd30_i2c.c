@@ -130,7 +130,7 @@ static struct i2c_driver scd30_i2c_driver = {
 		.of_match_table = scd30_i2c_of_match,
 		.pm = pm_sleep_ptr(&scd30_pm_ops),
 	},
-	.probe_new = scd30_i2c_probe,
+	.probe = scd30_i2c_probe,
 };
 module_i2c_driver(scd30_i2c_driver);
 

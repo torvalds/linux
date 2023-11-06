@@ -357,7 +357,7 @@ free_mem:
 	return ret;
 }
 
-static int da8xx_rproc_remove(struct platform_device *pdev)
+static void da8xx_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct da8xx_rproc *drproc = rproc->priv;
@@ -374,8 +374,6 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 	rproc_free(rproc);
 	if (dev->of_node)
 		of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id davinci_rproc_of_match[] __maybe_unused = {
@@ -386,7 +384,7 @@ MODULE_DEVICE_TABLE(of, davinci_rproc_of_match);
 
 static struct platform_driver da8xx_rproc_driver = {
 	.probe = da8xx_rproc_probe,
-	.remove = da8xx_rproc_remove,
+	.remove_new = da8xx_rproc_remove,
 	.driver = {
 		.name = "davinci-rproc",
 		.of_match_table = of_match_ptr(davinci_rproc_of_match),

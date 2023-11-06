@@ -27,9 +27,21 @@ properties:
       - description: GPLL0 div branch source
       - description: SNoC DVM GFX source
 
+  power-domains:
+    description:
+      A phandle and PM domain specifier for the VDD_GX power rail
+    maxItems: 1
+
+  required-opps:
+    description:
+      A phandle to an OPP node describing required VDD_GX performance point.
+    maxItems: 1
+
 required:
   - compatible
   - clocks
+  - power-domains
+  - required-opps
 
 allOf:
   - $ref: qcom,gcc.yaml#
@@ -40,6 +52,7 @@ examples:
   - |
     #include <dt-bindings/clock/qcom,sm6375-gcc.h>
     #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
     soc {
         #address-cells = <2>;
@@ -52,6 +65,8 @@ examples:
                      <&gcc GCC_GPU_GPLL0_CLK_SRC>,
                      <&gcc GCC_GPU_GPLL0_DIV_CLK_SRC>,
                      <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>;
+            power-domains = <&rpmpd SM6375_VDDGX>;
+            required-opps = <&rpmpd_opp_low_svs>;
             #clock-cells = <1>;
             #reset-cells = <1>;
             #power-domain-cells = <1>;

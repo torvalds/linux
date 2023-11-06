@@ -340,8 +340,7 @@ static bool i915_get_crtc_scanoutpos(struct drm_crtc *_crtc,
 		 * matches how the scanline counter based position works since
 		 * the scanline counter doesn't count the two half lines.
 		 */
-		if (position >= vtotal)
-			position = vtotal - 1;
+		position = min(position, vtotal - 1);
 
 		/*
 		 * Start of vblank interrupt is triggered at start of hsync,
@@ -488,21 +487,27 @@ static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
 	}
 }
 
-void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
+void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
+				      bool vrr_enable)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	u8 mode_flags = crtc_state->mode_flags;
 	struct drm_display_mode adjusted_mode;
 	int vmax_vblank_start = 0;
 	unsigned long irqflags;
 
 	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
 
-	if (crtc_state->vrr.enable) {
+	if (vrr_enable) {
+		drm_WARN_ON(&i915->drm, (mode_flags & I915_MODE_FLAG_VRR) == 0);
+
 		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
 		adjusted_mode.crtc_vblank_end = crtc_state->vrr.vmax;
 		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
 		vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+	} else {
+		mode_flags &= ~I915_MODE_FLAG_VRR;
 	}
 
 	/*
@@ -524,7 +529,7 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
 
 	crtc->vmax_vblank_start = vmax_vblank_start;
 
-	crtc->mode_flags = crtc_state->mode_flags;
+	crtc->mode_flags = mode_flags;
 
 	crtc->scanline_offset = intel_crtc_scanline_offset(crtc_state);
 

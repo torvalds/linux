@@ -1396,7 +1396,7 @@ static void __brcm_pcie_remove(struct brcm_pcie *pcie)
 	clk_disable_unprepare(pcie->clk);
 }
 
-static int brcm_pcie_remove(struct platform_device *pdev)
+static void brcm_pcie_remove(struct platform_device *pdev)
 {
 	struct brcm_pcie *pcie = platform_get_drvdata(pdev);
 	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
@@ -1404,8 +1404,6 @@ static int brcm_pcie_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	__brcm_pcie_remove(pcie);
-
-	return 0;
 }
 
 static const int pcie_offsets[] = {
@@ -1612,7 +1610,7 @@ static const struct dev_pm_ops brcm_pcie_pm_ops = {
 
 static struct platform_driver brcm_pcie_driver = {
 	.probe = brcm_pcie_probe,
-	.remove = brcm_pcie_remove,
+	.remove_new = brcm_pcie_remove,
 	.driver = {
 		.name = "brcm-pcie",
 		.of_match_table = brcm_pcie_match,

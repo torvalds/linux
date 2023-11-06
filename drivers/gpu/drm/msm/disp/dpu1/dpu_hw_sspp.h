@@ -164,28 +164,6 @@ struct dpu_sw_pipe_cfg {
 };
 
 /**
- * struct dpu_hw_pipe_qos_cfg : Source pipe QoS configuration
- * @creq_vblank: creq value generated to vbif during vertical blanking
- * @danger_vblank: danger value generated during vertical blanking
- * @vblank_en: enable creq_vblank and danger_vblank during vblank
- * @danger_safe_en: enable danger safe generation
- */
-struct dpu_hw_pipe_qos_cfg {
-	u32 creq_vblank;
-	u32 danger_vblank;
-	bool vblank_en;
-	bool danger_safe_en;
-};
-
-/**
- * enum CDP preload ahead address size
- */
-enum {
-	DPU_SSPP_CDP_PRELOAD_AHEAD_32,
-	DPU_SSPP_CDP_PRELOAD_AHEAD_64
-};
-
-/**
  * struct dpu_hw_pipe_ts_cfg - traffic shaper configuration
  * @size: size to prefill in bytes, or zero to disable
  * @time: time to prefill in usec, or zero to disable
@@ -276,34 +254,22 @@ struct dpu_hw_sspp_ops {
 	void (*setup_sharpening)(struct dpu_hw_sspp *ctx,
 			struct dpu_hw_sharp_cfg *cfg);
 
-	/**
-	 * setup_danger_safe_lut - setup danger safe LUTs
-	 * @ctx: Pointer to pipe context
-	 * @danger_lut: LUT for generate danger level based on fill level
-	 * @safe_lut: LUT for generate safe level based on fill level
-	 *
-	 */
-	void (*setup_danger_safe_lut)(struct dpu_hw_sspp *ctx,
-			u32 danger_lut,
-			u32 safe_lut);
 
 	/**
-	 * setup_creq_lut - setup CREQ LUT
+	 * setup_qos_lut - setup QoS LUTs
 	 * @ctx: Pointer to pipe context
-	 * @creq_lut: LUT for generate creq level based on fill level
-	 *
+	 * @cfg: LUT configuration
 	 */
-	void (*setup_creq_lut)(struct dpu_hw_sspp *ctx,
-			u64 creq_lut);
+	void (*setup_qos_lut)(struct dpu_hw_sspp *ctx,
+			struct dpu_hw_qos_cfg *cfg);
 
 	/**
 	 * setup_qos_ctrl - setup QoS control
 	 * @ctx: Pointer to pipe context
-	 * @cfg: Pointer to pipe QoS configuration
-	 *
+	 * @danger_safe_en: flags controlling enabling of danger/safe QoS/LUT
 	 */
 	void (*setup_qos_ctrl)(struct dpu_hw_sspp *ctx,
-			struct dpu_hw_pipe_qos_cfg *cfg);
+			       bool danger_safe_en);
 
 	/**
 	 * setup_histogram - setup histograms
@@ -331,18 +297,19 @@ struct dpu_hw_sspp_ops {
 	/**
 	 * setup_cdp - setup client driven prefetch
 	 * @pipe: Pointer to software pipe context
-	 * @cfg: Pointer to cdp configuration
+	 * @fmt: format used by the sw pipe
+	 * @enable: whether the CDP should be enabled for this pipe
 	 */
 	void (*setup_cdp)(struct dpu_sw_pipe *pipe,
-			  struct dpu_hw_cdp_cfg *cfg);
+			  const struct dpu_format *fmt,
+			  bool enable);
 };
 
 /**
  * struct dpu_hw_sspp - pipe description
  * @base: hardware block base structure
  * @hw: block hardware details
- * @catalog: back pointer to catalog
- * @ubwc: ubwc configuration data
+ * @ubwc: UBWC configuration data
  * @idx: pipe index
  * @cap: pointer to layer_cfg
  * @ops: pointer to operations possible for this pipe
@@ -350,7 +317,6 @@ struct dpu_hw_sspp_ops {
 struct dpu_hw_sspp {
 	struct dpu_hw_blk base;
 	struct dpu_hw_blk_reg_map hw;
-	const struct dpu_mdss_cfg *catalog;
 	const struct dpu_ubwc_cfg *ubwc;
 
 	/* Pipe */
@@ -363,14 +329,14 @@ struct dpu_hw_sspp {
 
 struct dpu_kms;
 /**
- * dpu_hw_sspp_init - initializes the sspp hw driver object.
+ * dpu_hw_sspp_init() - Initializes the sspp hw driver object.
  * Should be called once before accessing every pipe.
- * @idx:  Pipe index for which driver object is required
+ * @cfg:  Pipe catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @catalog : Pointer to mdss catalog data
+ * @ubwc: UBWC configuration data
  */
-struct dpu_hw_sspp *dpu_hw_sspp_init(enum dpu_sspp idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *catalog);
+struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
+		void __iomem *addr, const struct dpu_ubwc_cfg *ubwc);
 
 /**
  * dpu_hw_sspp_destroy(): Destroys SSPP driver context

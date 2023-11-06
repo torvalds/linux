@@ -96,6 +96,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_MISS",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -105,6 +106,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_DATA_AND_L1PF_RD.L3_MISS_LOCAL",
+        "Deprecated": "1",
         "EventCode": "0XB7",
         "EventName": "OCR.DEMAND_DATA_RD.L3_MISS_LOCAL",
         "MSRIndex": "0x1a6,0x1a7",

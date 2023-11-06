@@ -19,6 +19,7 @@ properties:
       - qcom,ipq5332-a53pll
       - qcom,ipq6018-a53pll
       - qcom,ipq8074-a53pll
+      - qcom,ipq9574-a73pll
       - qcom,msm8916-a53pll
       - qcom,msm8939-a53pll
 

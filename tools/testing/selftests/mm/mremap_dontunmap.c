@@ -15,10 +15,6 @@
 
 #include "../kselftest.h"
 
-#ifndef MREMAP_DONTUNMAP
-#define MREMAP_DONTUNMAP 4
-#endif
-
 unsigned long page_size;
 char *page_buffer;
 

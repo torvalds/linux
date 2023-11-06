@@ -381,11 +381,19 @@ static struct platform_device db1100_mmc1_dev = {
 static struct ads7846_platform_data db1100_touch_pd = {
 	.model		= 7846,
 	.vref_mv	= 3300,
-	.gpio_pendown	= 21,
 };
 
 static struct spi_gpio_platform_data db1100_spictl_pd = {
 	.num_chipselect = 1,
+};
+
+static struct gpiod_lookup_table db1100_touch_gpio_table = {
+	.dev_id = "spi0.0",
+	.table = {
+		GPIO_LOOKUP("alchemy-gpio2", 21,
+			    "pendown", GPIO_ACTIVE_LOW),
+		{ }
+	},
 };
 
 static struct spi_board_info db1100_spi_info[] __initdata = {
@@ -474,6 +482,7 @@ int __init db1000_dev_setup(void)
 		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
 		alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
+		gpiod_add_lookup_table(&db1100_touch_gpio_table);
 		spi_register_board_info(db1100_spi_info,
 					ARRAY_SIZE(db1100_spi_info));
 

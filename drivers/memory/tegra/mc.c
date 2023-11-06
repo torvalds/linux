@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
+#include <linux/tegra-icc.h>
 
 #include <soc/tegra/fuse.h>
 
@@ -754,6 +755,43 @@ const char *const tegra_mc_error_names[8] = {
 	[6] = "SMMU translation error",
 };
 
+struct icc_node *tegra_mc_icc_xlate(struct of_phandle_args *spec, void *data)
+{
+	struct tegra_mc *mc = icc_provider_to_tegra_mc(data);
+	struct icc_node *node;
+
+	list_for_each_entry(node, &mc->provider.nodes, node_list) {
+		if (node->id == spec->args[0])
+			return node;
+	}
+
+	/*
+	 * If a client driver calls devm_of_icc_get() before the MC driver
+	 * is probed, then return EPROBE_DEFER to the client driver.
+	 */
+	return ERR_PTR(-EPROBE_DEFER);
+}
+
+static int tegra_mc_icc_get(struct icc_node *node, u32 *average, u32 *peak)
+{
+	*average = 0;
+	*peak = 0;
+
+	return 0;
+}
+
+static int tegra_mc_icc_set(struct icc_node *src, struct icc_node *dst)
+{
+	return 0;
+}
+
+const struct tegra_mc_icc_ops tegra_mc_icc_ops = {
+	.xlate = tegra_mc_icc_xlate,
+	.aggregate = icc_std_aggregate,
+	.get_bw = tegra_mc_icc_get,
+	.set = tegra_mc_icc_set,
+};
+
 /*
  * Memory Controller (MC) has few Memory Clients that are issuing memory
  * bandwidth allocation requests to the MC interconnect provider. The MC
@@ -792,6 +830,8 @@ static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 	mc->provider.data = &mc->provider;
 	mc->provider.set = mc->soc->icc_ops->set;
 	mc->provider.aggregate = mc->soc->icc_ops->aggregate;
+	mc->provider.get_bw = mc->soc->icc_ops->get_bw;
+	mc->provider.xlate = mc->soc->icc_ops->xlate;
 	mc->provider.xlate_extended = mc->soc->icc_ops->xlate_extended;
 
 	icc_provider_init(&mc->provider);
@@ -824,6 +864,8 @@ static int tegra_mc_interconnect_setup(struct tegra_mc *mc)
 		err = icc_link_create(node, TEGRA_ICC_MC);
 		if (err)
 			goto remove_nodes;
+
+		node->data = (struct tegra_mc_client *)&(mc->soc->clients[i]);
 	}
 
 	err = icc_provider_register(&mc->provider);
@@ -836,6 +878,23 @@ remove_nodes:
 	icc_nodes_remove(&mc->provider);
 
 	return err;
+}
+
+static void tegra_mc_num_channel_enabled(struct tegra_mc *mc)
+{
+	unsigned int i;
+	u32 value;
+
+	value = mc_ch_readl(mc, 0, MC_EMEM_ADR_CFG_CHANNEL_ENABLE);
+	if (value <= 0) {
+		mc->num_channels = mc->soc->num_channels;
+		return;
+	}
+
+	for (i = 0; i < 32; i++) {
+		if (value & BIT(i))
+			mc->num_channels++;
+	}
 }
 
 static int tegra_mc_probe(struct platform_device *pdev)
@@ -875,6 +934,8 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		if (err < 0)
 			return err;
 	}
+
+	tegra_mc_num_channel_enabled(mc);
 
 	if (mc->soc->ops && mc->soc->ops->handle_irq) {
 		mc->irq = platform_get_irq(pdev, 0);

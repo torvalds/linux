@@ -39,22 +39,4 @@ required:
 
 additionalProperties: false
 
-examples:
-  - |
-    sound {
-        compatible = "audio-graph-card2";
-
-        links = <&cpu_port>;
-    };
-
-    cpu {
-        compatible = "cpu-driver";
-
-        cpu_port: port { cpu_ep: endpoint { remote-endpoint = <&codec_ep>; }; };
-    };
-
-    codec {
-        compatible = "codec-driver";
-
-        port { codec_ep: endpoint { remote-endpoint = <&cpu_ep>; }; };
-    };
+...

@@ -10,7 +10,7 @@
 #include "vmcs.h"
 #include "../x86.h"
 
-void vmread_error(unsigned long field, bool fault);
+void vmread_error(unsigned long field);
 void vmwrite_error(unsigned long field, unsigned long value);
 void vmclear_error(struct vmcs *vmcs, u64 phys_addr);
 void vmptrld_error(struct vmcs *vmcs, u64 phys_addr);
@@ -31,6 +31,13 @@ void invept_error(unsigned long ext, u64 eptp, gpa_t gpa);
  * void vmread_error_trampoline(unsigned long field, bool fault);
  */
 extern unsigned long vmread_error_trampoline;
+
+/*
+ * The second VMREAD error trampoline, called from the assembly trampoline,
+ * exists primarily to enable instrumentation for the VM-Fail path.
+ */
+void vmread_error_trampoline2(unsigned long field, bool fault);
+
 #endif
 
 static __always_inline void vmcs_check16(unsigned long field)
@@ -101,8 +108,7 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 
 do_fail:
 	instrumentation_begin();
-	WARN_ONCE(1, KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
-	pr_warn_ratelimited(KBUILD_MODNAME ": vmread failed: field=%lx\n", field);
+	vmread_error(field);
 	instrumentation_end();
 	return 0;
 

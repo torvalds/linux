@@ -39,21 +39,6 @@ mwifiex_get_tid(struct mwifiex_ra_list_tbl *ptr)
 }
 
 /*
- * This function gets the length of a list.
- */
-static inline int
-mwifiex_wmm_list_len(struct list_head *head)
-{
-	struct list_head *pos;
-	int count = 0;
-
-	list_for_each(pos, head)
-		++count;
-
-	return count;
-}
-
-/*
  * This function checks if a RA list is empty or not.
  */
 static inline u8

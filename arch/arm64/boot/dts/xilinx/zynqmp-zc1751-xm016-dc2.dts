@@ -2,9 +2,10 @@
 /*
  * dts file for Xilinx ZynqMP zc1751-xm016-dc2
  *
- * (C) Copyright 2015 - 2021, Xilinx, Inc.
+ * (C) Copyright 2015 - 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 /dts-v1/;
@@ -281,19 +282,22 @@
 
 		conf {
 			groups = "usb1_0_grp";
-			slew-rate = <SLEW_RATE_SLOW>;
 			power-source = <IO_STANDARD_LVCMOS18>;
 		};
 
 		conf-rx {
 			pins = "MIO64", "MIO65", "MIO67";
 			bias-high-impedance;
+			drive-strength = <12>;
+			slew-rate = <SLEW_RATE_FAST>;
 		};
 
 		conf-tx {
 			pins = "MIO66", "MIO68", "MIO69", "MIO70", "MIO71",
 			       "MIO72", "MIO73", "MIO74", "MIO75";
 			bias-disable;
+			drive-strength = <4>;
+			slew-rate = <SLEW_RATE_SLOW>;
 		};
 	};
 
@@ -485,8 +489,6 @@
 &dwc3_1 {
 	status = "okay";
 	dr_mode = "host";
-	snps,usb3_lpm_capable;
-	maximum-speed = "super-speed";
 };
 
 &uart0 {

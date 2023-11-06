@@ -697,6 +697,7 @@ int lio_setup_cn66xx_octeon_device(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lio_setup_cn66xx_octeon_device);
 
 int lio_validate_cn6xxx_config_info(struct octeon_device *oct,
 				    struct octeon_config *conf6xxx)

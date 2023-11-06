@@ -1722,11 +1722,9 @@ struct megasas_sge_skinny {
 } __packed;
 
 union megasas_sgl {
-
-	struct megasas_sge32 sge32[1];
-	struct megasas_sge64 sge64[1];
-	struct megasas_sge_skinny sge_skinny[1];
-
+	DECLARE_FLEX_ARRAY(struct megasas_sge32, sge32);
+	DECLARE_FLEX_ARRAY(struct megasas_sge64, sge64);
+	DECLARE_FLEX_ARRAY(struct megasas_sge_skinny, sge_skinny);
 } __attribute__ ((packed));
 
 struct megasas_header {

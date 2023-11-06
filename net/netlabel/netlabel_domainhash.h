@@ -57,8 +57,8 @@ struct netlbl_domaddr6_map {
 
 struct netlbl_dom_map {
 	char *domain;
-	u16 family;
 	struct netlbl_dommap_def def;
+	u16 family;
 
 	u32 valid;
 	struct list_head list;

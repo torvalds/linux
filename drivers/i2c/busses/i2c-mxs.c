@@ -864,7 +864,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mxs_i2c_remove(struct platform_device *pdev)
+static void mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
 
@@ -874,8 +874,6 @@ static int mxs_i2c_remove(struct platform_device *pdev)
 		dma_release_channel(i2c->dmach);
 
 	writel(MXS_I2C_CTRL0_SFTRST, i2c->regs + MXS_I2C_CTRL0_SET);
-
-	return 0;
 }
 
 static struct platform_driver mxs_i2c_driver = {
@@ -884,7 +882,7 @@ static struct platform_driver mxs_i2c_driver = {
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
 	.probe = mxs_i2c_probe,
-	.remove = mxs_i2c_remove,
+	.remove_new = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)

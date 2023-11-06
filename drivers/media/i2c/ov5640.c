@@ -2815,7 +2815,6 @@ static int ov5640_get_fmt(struct v4l2_subdev *sd,
 
 static int ov5640_try_fmt_internal(struct v4l2_subdev *sd,
 				   struct v4l2_mbus_framefmt *fmt,
-				   enum ov5640_frame_rate fr,
 				   const struct ov5640_mode_info **new_mode)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
@@ -2927,19 +2926,6 @@ static int ov5640_update_pixel_rate(struct ov5640_dev *sensor)
 				 hblank, hblank, 1, hblank);
 
 	vblank = timings->vblank_def;
-
-	if (sensor->current_fr != mode->def_fps) {
-		/*
-		 * Compute the vertical blanking according to the framerate
-		 * configured with s_frame_interval.
-		 */
-		int fie_num = sensor->frame_interval.numerator;
-		int fie_denom = sensor->frame_interval.denominator;
-
-		vblank = ((fie_num * pixel_rate / fie_denom) / timings->htot) -
-			mode->height;
-	}
-
 	__v4l2_ctrl_modify_range(sensor->ctrls.vblank, OV5640_MIN_VBLANK,
 				 OV5640_MAX_VTS - mode->height, 1, vblank);
 	__v4l2_ctrl_s_ctrl(sensor->ctrls.vblank, vblank);
@@ -2975,8 +2961,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	ret = ov5640_try_fmt_internal(sd, mbus_fmt,
-				      sensor->current_fr, &new_mode);
+	ret = ov5640_try_fmt_internal(sd, mbus_fmt, &new_mode);
 	if (ret)
 		goto out;
 
@@ -3851,7 +3836,7 @@ static int ov5640_probe(struct i2c_client *client)
 
 	/*
 	 * default init sequence initialize sensor to
-	 * YUV422 UYVY VGA@30fps
+	 * YUV422 UYVY VGA(30FPS in parallel mode, 60 in MIPI CSI-2 mode)
 	 */
 	sensor->frame_interval.numerator = 1;
 	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
@@ -4011,7 +3996,7 @@ static struct i2c_driver ov5640_i2c_driver = {
 		.pm = &ov5640_pm_ops,
 	},
 	.id_table = ov5640_id,
-	.probe_new = ov5640_probe,
+	.probe    = ov5640_probe,
 	.remove   = ov5640_remove,
 };
 

@@ -1512,7 +1512,7 @@ static const struct of_device_id ov9282_of_match[] = {
 MODULE_DEVICE_TABLE(of, ov9282_of_match);
 
 static struct i2c_driver ov9282_driver = {
-	.probe_new = ov9282_probe,
+	.probe = ov9282_probe,
 	.remove = ov9282_remove,
 	.driver = {
 		.name = "ov9282",

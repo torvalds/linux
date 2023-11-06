@@ -1683,8 +1683,8 @@ static int parse_metadata_dev(struct clone *clone, struct dm_arg_set *as, char *
 	int r;
 	sector_t metadata_dev_size;
 
-	r = dm_get_device(clone->ti, dm_shift_arg(as), FMODE_READ | FMODE_WRITE,
-			  &clone->metadata_dev);
+	r = dm_get_device(clone->ti, dm_shift_arg(as),
+			  BLK_OPEN_READ | BLK_OPEN_WRITE, &clone->metadata_dev);
 	if (r) {
 		*error = "Error opening metadata device";
 		return r;
@@ -1703,8 +1703,8 @@ static int parse_dest_dev(struct clone *clone, struct dm_arg_set *as, char **err
 	int r;
 	sector_t dest_dev_size;
 
-	r = dm_get_device(clone->ti, dm_shift_arg(as), FMODE_READ | FMODE_WRITE,
-			  &clone->dest_dev);
+	r = dm_get_device(clone->ti, dm_shift_arg(as),
+			  BLK_OPEN_READ | BLK_OPEN_WRITE, &clone->dest_dev);
 	if (r) {
 		*error = "Error opening destination device";
 		return r;
@@ -1725,7 +1725,7 @@ static int parse_source_dev(struct clone *clone, struct dm_arg_set *as, char **e
 	int r;
 	sector_t source_dev_size;
 
-	r = dm_get_device(clone->ti, dm_shift_arg(as), FMODE_READ,
+	r = dm_get_device(clone->ti, dm_shift_arg(as), BLK_OPEN_READ,
 			  &clone->source_dev);
 	if (r) {
 		*error = "Error opening source device";

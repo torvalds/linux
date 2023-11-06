@@ -121,11 +121,11 @@ examples:
         #size-cells = <0>;
         vopb_out_edp: endpoint@0 {
           reg = <0>;
-          remote-endpoint=<&edp_in_vopb>;
+          remote-endpoint = <&edp_in_vopb>;
         };
         vopb_out_hdmi: endpoint@1 {
           reg = <1>;
-          remote-endpoint=<&hdmi_in_vopb>;
+          remote-endpoint = <&hdmi_in_vopb>;
         };
       };
     };

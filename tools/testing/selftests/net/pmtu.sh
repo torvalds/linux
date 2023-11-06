@@ -361,6 +361,7 @@ err_buf=
 tcpdump_pids=
 nettest_pids=
 socat_pids=
+tmpoutfile=
 
 err() {
 	err_buf="${err_buf}${1}
@@ -951,6 +952,7 @@ cleanup() {
 	ip link del veth_A-R1			2>/dev/null
 	ovs-vsctl --if-exists del-port vxlan_a	2>/dev/null
 	ovs-vsctl --if-exists del-br ovs_br0	2>/dev/null
+	rm -f "$tmpoutfile"
 }
 
 mtu() {
@@ -1328,6 +1330,39 @@ test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception() {
 	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on bridged ${type} interface"
 	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
 	check_pmtu_value ${exp_mtu} "${pmtu}" "exceeding link layer MTU on locally bridged ${type} interface"
+
+	tmpoutfile=$(mktemp)
+
+	# Flush Exceptions, retry with TCP
+	run_cmd ${ns_a} ip route flush cached ${dst}
+	run_cmd ${ns_b} ip route flush cached ${dst}
+	run_cmd ${ns_c} ip route flush cached ${dst}
+
+	for target in "${ns_a}" "${ns_c}" ; do
+		if [ ${family} -eq 4 ]; then
+			TCPDST=TCP:${dst}:50000
+		else
+			TCPDST="TCP:[${dst}]:50000"
+		fi
+		${ns_b} socat -T 3 -u -6 TCP-LISTEN:50000 STDOUT > $tmpoutfile &
+
+		sleep 1
+
+		dd if=/dev/zero of=/dev/stdout status=none bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
+
+		size=$(du -sb $tmpoutfile)
+		size=${size%%/tmp/*}
+
+		[ $size -ne 1048576 ] && err "File size $size mismatches exepcted value in locally bridged vxlan test" && return 1
+	done
+
+	rm -f "$tmpoutfile"
+
+	# Check that exceptions were created
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_c}" ${dst})"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "tcp: exceeding link layer MTU on bridged ${type} interface"
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${dst})"
+	check_pmtu_value ${exp_mtu} "${pmtu}" "tcp exceeding link layer MTU on locally bridged ${type} interface"
 }
 
 test_pmtu_ipv4_br_vxlan4_exception() {

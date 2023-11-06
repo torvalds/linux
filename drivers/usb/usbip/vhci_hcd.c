@@ -1393,7 +1393,7 @@ put_usb2_hcd:
 	return ret;
 }
 
-static int vhci_hcd_remove(struct platform_device *pdev)
+static void vhci_hcd_remove(struct platform_device *pdev)
 {
 	struct vhci *vhci = *((void **)dev_get_platdata(&pdev->dev));
 
@@ -1410,8 +1410,6 @@ static int vhci_hcd_remove(struct platform_device *pdev)
 
 	vhci->vhci_hcd_hs = NULL;
 	vhci->vhci_hcd_ss = NULL;
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1485,7 +1483,7 @@ static int vhci_hcd_resume(struct platform_device *pdev)
 
 static struct platform_driver vhci_driver = {
 	.probe	= vhci_hcd_probe,
-	.remove	= vhci_hcd_remove,
+	.remove_new = vhci_hcd_remove,
 	.suspend = vhci_hcd_suspend,
 	.resume	= vhci_hcd_resume,
 	.driver	= {

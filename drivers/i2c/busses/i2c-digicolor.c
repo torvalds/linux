@@ -347,14 +347,12 @@ static int dc_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dc_i2c_remove(struct platform_device *pdev)
+static void dc_i2c_remove(struct platform_device *pdev)
 {
 	struct dc_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
 	clk_disable_unprepare(i2c->clk);
-
-	return 0;
 }
 
 static const struct of_device_id dc_i2c_match[] = {
@@ -365,7 +363,7 @@ MODULE_DEVICE_TABLE(of, dc_i2c_match);
 
 static struct platform_driver dc_i2c_driver = {
 	.probe   = dc_i2c_probe,
-	.remove  = dc_i2c_remove,
+	.remove_new = dc_i2c_remove,
 	.driver  = {
 		.name  = "digicolor-i2c",
 		.of_match_table = dc_i2c_match,

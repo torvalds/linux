@@ -1070,22 +1070,22 @@ __be32 * xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes)
 }
 EXPORT_SYMBOL_GPL(xdr_reserve_space);
 
-
 /**
  * xdr_reserve_space_vec - Reserves a large amount of buffer space for sending
  * @xdr: pointer to xdr_stream
- * @vec: pointer to a kvec array
  * @nbytes: number of bytes to reserve
  *
- * Reserves enough buffer space to encode 'nbytes' of data and stores the
- * pointers in 'vec'. The size argument passed to xdr_reserve_space() is
- * determined based on the number of bytes remaining in the current page to
- * avoid invalidating iov_base pointers when xdr_commit_encode() is called.
+ * The size argument passed to xdr_reserve_space() is determined based
+ * on the number of bytes remaining in the current page to avoid
+ * invalidating iov_base pointers when xdr_commit_encode() is called.
+ *
+ * Return values:
+ *   %0: success
+ *   %-EMSGSIZE: not enough space is available in @xdr
  */
-int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec, size_t nbytes)
+int xdr_reserve_space_vec(struct xdr_stream *xdr, size_t nbytes)
 {
-	int thislen;
-	int v = 0;
+	size_t thislen;
 	__be32 *p;
 
 	/*
@@ -1097,21 +1097,19 @@ int xdr_reserve_space_vec(struct xdr_stream *xdr, struct kvec *vec, size_t nbyte
 		xdr->end = xdr->p;
 	}
 
+	/* XXX: Let's find a way to make this more efficient */
 	while (nbytes) {
 		thislen = xdr->buf->page_len % PAGE_SIZE;
 		thislen = min_t(size_t, nbytes, PAGE_SIZE - thislen);
 
 		p = xdr_reserve_space(xdr, thislen);
 		if (!p)
-			return -EIO;
+			return -EMSGSIZE;
 
-		vec[v].iov_base = p;
-		vec[v].iov_len = thislen;
-		v++;
 		nbytes -= thislen;
 	}
 
-	return v;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(xdr_reserve_space_vec);
 

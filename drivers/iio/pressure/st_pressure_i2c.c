@@ -116,7 +116,7 @@ static struct i2c_driver st_press_driver = {
 		.of_match_table = st_press_of_match,
 		.acpi_match_table = ACPI_PTR(st_press_acpi_match),
 	},
-	.probe_new = st_press_i2c_probe,
+	.probe = st_press_i2c_probe,
 	.id_table = st_press_id_table,
 };
 module_i2c_driver(st_press_driver);

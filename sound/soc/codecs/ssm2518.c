@@ -803,7 +803,7 @@ static struct i2c_driver ssm2518_driver = {
 		.name = "ssm2518",
 		.of_match_table = of_match_ptr(ssm2518_dt_ids),
 	},
-	.probe_new = ssm2518_i2c_probe,
+	.probe = ssm2518_i2c_probe,
 	.id_table = ssm2518_i2c_ids,
 };
 module_i2c_driver(ssm2518_driver);

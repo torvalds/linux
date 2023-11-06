@@ -723,7 +723,7 @@ static const struct of_device_id max9860_of_match[] = {
 MODULE_DEVICE_TABLE(of, max9860_of_match);
 
 static struct i2c_driver max9860_i2c_driver = {
-	.probe_new      = max9860_probe,
+	.probe          = max9860_probe,
 	.remove         = max9860_remove,
 	.id_table       = max9860_i2c_id,
 	.driver         = {

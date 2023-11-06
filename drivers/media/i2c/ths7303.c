@@ -376,7 +376,7 @@ static struct i2c_driver ths7303_driver = {
 	.driver = {
 		.name	= "ths73x3",
 	},
-	.probe_new	= ths7303_probe,
+	.probe		= ths7303_probe,
 	.remove		= ths7303_remove,
 	.id_table	= ths7303_id,
 };

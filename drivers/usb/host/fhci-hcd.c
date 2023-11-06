@@ -757,7 +757,7 @@ err_regs:
 	return ret;
 }
 
-static int fhci_remove(struct device *dev)
+static void fhci_remove(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	struct fhci_hcd *fhci = hcd_to_fhci(hcd);
@@ -771,12 +771,11 @@ static int fhci_remove(struct device *dev)
 		qe_pin_free(fhci->pins[j]);
 	fhci_dfs_destroy(fhci);
 	usb_put_hcd(hcd);
-	return 0;
 }
 
-static int of_fhci_remove(struct platform_device *ofdev)
+static void of_fhci_remove(struct platform_device *ofdev)
 {
-	return fhci_remove(&ofdev->dev);
+	fhci_remove(&ofdev->dev);
 }
 
 static const struct of_device_id of_fhci_match[] = {
@@ -791,7 +790,7 @@ static struct platform_driver of_fhci_driver = {
 		.of_match_table = of_fhci_match,
 	},
 	.probe		= of_fhci_probe,
-	.remove		= of_fhci_remove,
+	.remove_new	= of_fhci_remove,
 };
 
 module_platform_driver(of_fhci_driver);

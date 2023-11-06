@@ -84,15 +84,15 @@ enum epf_ntb_bar {
  * |                                                  |
  * |                                                  |
  * |                                                  |
- * +-----------------------+--------------------------+ Base+span_offset
+ * +-----------------------+--------------------------+ Base+spad_offset
  * |                       |                          |
- * |    Peer Span Space    |    Span Space            |
+ * |    Peer Spad Space    |    Spad Space            |
  * |                       |                          |
  * |                       |                          |
- * +-----------------------+--------------------------+ Base+span_offset
- * |                       |                          |     +span_count * 4
+ * +-----------------------+--------------------------+ Base+spad_offset
+ * |                       |                          |     +spad_count * 4
  * |                       |                          |
- * |     Span Space        |   Peer Span Space        |
+ * |     Spad Space        |   Peer Spad Space        |
  * |                       |                          |
  * +-----------------------+--------------------------+
  *       Virtual PCI             PCIe Endpoint
@@ -1285,6 +1285,7 @@ static int pci_vntb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_register_dev:
+	put_device(&ndev->ntb.dev);
 	return -EINVAL;
 }
 
@@ -1395,13 +1396,15 @@ static struct pci_epf_ops epf_ntb_ops = {
 /**
  * epf_ntb_probe() - Probe NTB function driver
  * @epf: NTB endpoint function device
+ * @id: NTB endpoint function device ID
  *
  * Probe NTB function driver when endpoint function bus detects a NTB
  * endpoint function.
  *
  * Returns: Zero for success, or an error code in case of failure
  */
-static int epf_ntb_probe(struct pci_epf *epf)
+static int epf_ntb_probe(struct pci_epf *epf,
+			 const struct pci_epf_device_id *id)
 {
 	struct epf_ntb *ntb;
 	struct device *dev;

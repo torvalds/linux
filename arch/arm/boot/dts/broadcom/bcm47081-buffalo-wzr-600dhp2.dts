@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Broadcom BCM470X / BCM5301X ARM platform code.
+ * DTS for Buffalo WZR-600DHP2
+ *
+ * Copyright (C) 2014 Rafał Miłecki <zajec5@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "bcm47081.dtsi"
+#include "bcm5301x-nand-cs0-bch8.dtsi"
+
+/ {
+	compatible = "buffalo,wzr-600dhp2", "brcm,bcm47081", "brcm,bcm4708";
+	model = "Buffalo WZR-600DHP2 (BCM47081)";
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlycon";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>,
+		      <0x88000000 0x08000000>;
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		num-chipselects = <1>;
+		sck-gpios = <&chipcommon 7 0>;
+		mosi-gpios = <&chipcommon 4 0>;
+		cs-gpios = <&chipcommon 6 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hc595: gpio_spi@0 {
+			compatible = "fairchild,74hc595";
+			reg = <0>;
+			registers-number = <1>;
+			spi-max-frequency = <100000>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-power0 {
+			label = "bcm53xx:green:power";
+			gpios = <&hc595 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-power1 {
+			label = "bcm53xx:red:power";
+			gpios = <&hc595 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-router0 {
+			label = "bcm53xx:green:router";
+			gpios = <&hc595 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-router1 {
+			label = "bcm53xx:amber:router";
+			gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-wan {
+			label = "bcm53xx:green:wan";
+			gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-wireless0 {
+			label = "bcm53xx:green:wireless";
+			gpios = <&hc595 6 GPIO_ACTIVE_HIGH>;
+		};
+
+		led-wireless1 {
+			label = "bcm53xx:amber:wireless";
+			gpios = <&hc595 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-aoss {
+			label = "AOSS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
+		};
+
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Switch device mode? */
+		button-mode {
+			label = "Mode";
+			linux,code = <KEY_SETUP>;
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+		};
+
+		button-eject {
+			label = "USB eject";
+			linux,code = <KEY_EJECTCD>;
+			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&srab {
+	status = "okay";
+
+	ports {
+		port@0 {
+			label = "lan1";
+		};
+
+		port@1 {
+			label = "lan2";
+		};
+
+		port@2 {
+			label = "lan3";
+		};
+
+		port@3 {
+			label = "lan4";
+		};
+
+		port@4 {
+			label = "wan";
+		};
+
+		port@5 {
+			label = "cpu";
+		};
+	};
+};

@@ -37,6 +37,7 @@ static struct mac_ops		rpm_mac_ops   = {
 	.mac_tx_enable =		rpm_lmac_tx_enable,
 	.pfc_config =                   rpm_lmac_pfc_config,
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
+	.mac_reset   =			rpm_lmac_reset,
 };
 
 static struct mac_ops		rpm2_mac_ops   = {
@@ -47,7 +48,7 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.int_set_reg    =       RPM2_CMRX_SW_INT_ENA_W1S,
 	.irq_offset     =       1,
 	.int_ena_bit    =       BIT_ULL(0),
-	.lmac_fwi	=	RPM_LMAC_FWI,
+	.lmac_fwi	=	RPM2_LMAC_FWI,
 	.non_contiguous_serdes_lane = true,
 	.rx_stats_cnt   =       43,
 	.tx_stats_cnt   =       34,
@@ -68,6 +69,7 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.mac_tx_enable =		rpm_lmac_tx_enable,
 	.pfc_config =                   rpm_lmac_pfc_config,
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
+	.mac_reset   =			rpm_lmac_reset,
 };
 
 bool is_dev_rpm2(void *rpmd)
@@ -537,14 +539,15 @@ u32 rpm2_get_lmac_fifo_len(void *rpmd, int lmac_id)
 int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 {
 	rpm_t *rpm = rpmd;
-	u8 lmac_type;
+	struct lmac *lmac;
 	u64 cfg;
 
 	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
-	lmac_type = rpm->mac_ops->get_lmac_type(rpm, lmac_id);
 
-	if (lmac_type == LMAC_MODE_QSGMII || lmac_type == LMAC_MODE_SGMII) {
+	lmac = lmac_pdata(lmac_id, rpm);
+	if (lmac->lmac_type == LMAC_MODE_QSGMII ||
+	    lmac->lmac_type == LMAC_MODE_SGMII) {
 		dev_err(&rpm->pdev->dev, "loopback not supported for LPC mode\n");
 		return 0;
 	}
@@ -710,6 +713,27 @@ int rpm_get_fec_stats(void *rpmd, int lmac_id, struct cgx_fec_stats_rsp *rsp)
 		val_hi = rpm_read(rpm, 0, RPMX_MTI_STAT_DATA_HI_CDC);
 		rsp->fec_uncorr_blks = (val_hi << 32 | val_lo);
 	}
+
+	return 0;
+}
+
+int rpm_lmac_reset(void *rpmd, int lmac_id, u8 pf_req_flr)
+{
+	u64 rx_logl_xon, cfg;
+	rpm_t *rpm = rpmd;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	/* Resetting PFC related CSRs */
+	rx_logl_xon = is_dev_rpm2(rpm) ? RPM2_CMRX_RX_LOGL_XON :
+					 RPMX_CMRX_RX_LOGL_XON;
+	cfg = 0xff;
+
+	rpm_write(rpm, lmac_id, rx_logl_xon, cfg);
+
+	if (pf_req_flr)
+		rpm_lmac_internal_loopback(rpm, lmac_id, false);
 
 	return 0;
 }

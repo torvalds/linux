@@ -20,12 +20,15 @@
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
 #include <linux/time.h>
+#include <net/gso.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
 #include <net/sch_generic.h>
 #include <net/sock.h>
 #include <net/tcp.h>
+
+#define TAPRIO_STAT_NOT_SET	(~0ULL)
 
 #include "sch_mqprio_lib.h"
 
@@ -1012,6 +1015,11 @@ static const struct nla_policy taprio_tc_policy[TCA_TAPRIO_TC_ENTRY_MAX + 1] = {
 							      TC_FP_PREEMPTIBLE),
 };
 
+static struct netlink_range_validation_signed taprio_cycle_time_range = {
+	.min = 0,
+	.max = INT_MAX,
+};
+
 static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_PRIOMAP]	       = {
 		.len = sizeof(struct tc_mqprio_qopt)
@@ -1020,7 +1028,8 @@ static const struct nla_policy taprio_policy[TCA_TAPRIO_ATTR_MAX + 1] = {
 	[TCA_TAPRIO_ATTR_SCHED_BASE_TIME]            = { .type = NLA_S64 },
 	[TCA_TAPRIO_ATTR_SCHED_SINGLE_ENTRY]         = { .type = NLA_NESTED },
 	[TCA_TAPRIO_ATTR_SCHED_CLOCKID]              = { .type = NLA_S32 },
-	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]           = { .type = NLA_S64 },
+	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME]           =
+		NLA_POLICY_FULL_RANGE_SIGNED(NLA_S64, &taprio_cycle_time_range),
 	[TCA_TAPRIO_ATTR_SCHED_CYCLE_TIME_EXTENSION] = { .type = NLA_S64 },
 	[TCA_TAPRIO_ATTR_FLAGS]                      = { .type = NLA_U32 },
 	[TCA_TAPRIO_ATTR_TXTIME_DELAY]		     = { .type = NLA_U32 },
@@ -1153,6 +1162,11 @@ static int parse_taprio_schedule(struct taprio_sched *q, struct nlattr **tb,
 
 		if (!cycle) {
 			NL_SET_ERR_MSG(extack, "'cycle_time' can never be 0");
+			return -EINVAL;
+		}
+
+		if (cycle < 0 || cycle > INT_MAX) {
+			NL_SET_ERR_MSG(extack, "'cycle_time' is too big");
 			return -EINVAL;
 		}
 
@@ -1344,7 +1358,7 @@ static void setup_txtime(struct taprio_sched *q,
 			 struct sched_gate_list *sched, ktime_t base)
 {
 	struct sched_entry *entry;
-	u32 interval = 0;
+	u64 interval = 0;
 
 	list_for_each_entry(entry, &sched->entries, list) {
 		entry->next_txtime = ktime_add_ns(base, interval);
@@ -1527,7 +1541,7 @@ static int taprio_enable_offload(struct net_device *dev,
 			       "Not enough memory for enabling offload mode");
 		return -ENOMEM;
 	}
-	offload->enable = 1;
+	offload->cmd = TAPRIO_CMD_REPLACE;
 	offload->extack = extack;
 	mqprio_qopt_reconstruct(dev, &offload->mqprio.qopt);
 	offload->mqprio.extack = extack;
@@ -1575,7 +1589,7 @@ static int taprio_disable_offload(struct net_device *dev,
 			       "Not enough memory to disable offload mode");
 		return -ENOMEM;
 	}
-	offload->enable = 0;
+	offload->cmd = TAPRIO_CMD_DESTROY;
 
 	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_TAPRIO, offload);
 	if (err < 0) {
@@ -2292,6 +2306,72 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int taprio_put_stat(struct sk_buff *skb, u64 val, u16 attrtype)
+{
+	if (val == TAPRIO_STAT_NOT_SET)
+		return 0;
+	if (nla_put_u64_64bit(skb, attrtype, val, TCA_TAPRIO_OFFLOAD_STATS_PAD))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int taprio_dump_xstats(struct Qdisc *sch, struct gnet_dump *d,
+			      struct tc_taprio_qopt_offload *offload,
+			      struct tc_taprio_qopt_stats *stats)
+{
+	struct net_device *dev = qdisc_dev(sch);
+	const struct net_device_ops *ops;
+	struct sk_buff *skb = d->skb;
+	struct nlattr *xstats;
+	int err;
+
+	ops = qdisc_dev(sch)->netdev_ops;
+
+	/* FIXME I could use qdisc_offload_dump_helper(), but that messes
+	 * with sch->flags depending on whether the device reports taprio
+	 * stats, and I'm not sure whether that's a good idea, considering
+	 * that stats are optional to the offload itself
+	 */
+	if (!ops->ndo_setup_tc)
+		return 0;
+
+	memset(stats, 0xff, sizeof(*stats));
+
+	err = ops->ndo_setup_tc(dev, TC_SETUP_QDISC_TAPRIO, offload);
+	if (err == -EOPNOTSUPP)
+		return 0;
+	if (err)
+		return err;
+
+	xstats = nla_nest_start(skb, TCA_STATS_APP);
+	if (!xstats)
+		goto err;
+
+	if (taprio_put_stat(skb, stats->window_drops,
+			    TCA_TAPRIO_OFFLOAD_STATS_WINDOW_DROPS) ||
+	    taprio_put_stat(skb, stats->tx_overruns,
+			    TCA_TAPRIO_OFFLOAD_STATS_TX_OVERRUNS))
+		goto err_cancel;
+
+	nla_nest_end(skb, xstats);
+
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, xstats);
+err:
+	return -EMSGSIZE;
+}
+
+static int taprio_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
+{
+	struct tc_taprio_qopt_offload offload = {
+		.cmd = TAPRIO_CMD_STATS,
+	};
+
+	return taprio_dump_xstats(sch, d, &offload, &offload.stats);
+}
+
 static int taprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct taprio_sched *q = qdisc_priv(sch);
@@ -2391,12 +2471,20 @@ static int taprio_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 	__acquires(d->lock)
 {
 	struct netdev_queue *dev_queue = taprio_queue_get(sch, cl);
+	struct tc_taprio_qopt_offload offload = {
+		.cmd = TAPRIO_CMD_QUEUE_STATS,
+		.queue_stats = {
+			.queue = cl - 1,
+		},
+	};
+	struct Qdisc *child;
 
-	sch = rtnl_dereference(dev_queue->qdisc_sleeping);
-	if (gnet_stats_copy_basic(d, NULL, &sch->bstats, true) < 0 ||
-	    qdisc_qstats_copy(d, sch) < 0)
+	child = rtnl_dereference(dev_queue->qdisc_sleeping);
+	if (gnet_stats_copy_basic(d, NULL, &child->bstats, true) < 0 ||
+	    qdisc_qstats_copy(d, child) < 0)
 		return -1;
-	return 0;
+
+	return taprio_dump_xstats(sch, d, &offload, &offload.queue_stats.stats);
 }
 
 static void taprio_walk(struct Qdisc *sch, struct qdisc_walker *arg)
@@ -2443,6 +2531,7 @@ static struct Qdisc_ops taprio_qdisc_ops __read_mostly = {
 	.dequeue	= taprio_dequeue,
 	.enqueue	= taprio_enqueue,
 	.dump		= taprio_dump,
+	.dump_stats	= taprio_dump_stats,
 	.owner		= THIS_MODULE,
 };
 

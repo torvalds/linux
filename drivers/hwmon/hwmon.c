@@ -456,6 +456,7 @@ static const char * const hwmon_chip_attrs[] = {
 	[hwmon_chip_in_samples] = "in_samples",
 	[hwmon_chip_power_samples] = "power_samples",
 	[hwmon_chip_temp_samples] = "temp_samples",
+	[hwmon_chip_beep_enable] = "beep_enable",
 };
 
 static const char * const hwmon_temp_attr_templates[] = {
@@ -486,6 +487,7 @@ static const char * const hwmon_temp_attr_templates[] = {
 	[hwmon_temp_reset_history] = "temp%d_reset_history",
 	[hwmon_temp_rated_min] = "temp%d_rated_min",
 	[hwmon_temp_rated_max] = "temp%d_rated_max",
+	[hwmon_temp_beep] = "temp%d_beep",
 };
 
 static const char * const hwmon_in_attr_templates[] = {
@@ -507,6 +509,7 @@ static const char * const hwmon_in_attr_templates[] = {
 	[hwmon_in_crit_alarm] = "in%d_crit_alarm",
 	[hwmon_in_rated_min] = "in%d_rated_min",
 	[hwmon_in_rated_max] = "in%d_rated_max",
+	[hwmon_in_beep] = "in%d_beep",
 };
 
 static const char * const hwmon_curr_attr_templates[] = {
@@ -528,6 +531,7 @@ static const char * const hwmon_curr_attr_templates[] = {
 	[hwmon_curr_crit_alarm] = "curr%d_crit_alarm",
 	[hwmon_curr_rated_min] = "curr%d_rated_min",
 	[hwmon_curr_rated_max] = "curr%d_rated_max",
+	[hwmon_curr_beep] = "curr%d_beep",
 };
 
 static const char * const hwmon_power_attr_templates[] = {
@@ -597,6 +601,7 @@ static const char * const hwmon_fan_attr_templates[] = {
 	[hwmon_fan_min_alarm] = "fan%d_min_alarm",
 	[hwmon_fan_max_alarm] = "fan%d_max_alarm",
 	[hwmon_fan_fault] = "fan%d_fault",
+	[hwmon_fan_beep] = "fan%d_beep",
 };
 
 static const char * const hwmon_pwm_attr_templates[] = {
@@ -1029,7 +1034,7 @@ EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_groups);
  * @name:	hwmon name attribute
  * @drvdata:	driver data to attach to created device
  * @chip:	pointer to hwmon chip information
- * @groups:	pointer to list of driver specific attribute groups
+ * @extra_groups: pointer to list of driver specific attribute groups
  *
  * Returns the pointer to the new device. The new device is automatically
  * unregistered with the parent device.
@@ -1038,7 +1043,7 @@ struct device *
 devm_hwmon_device_register_with_info(struct device *dev, const char *name,
 				     void *drvdata,
 				     const struct hwmon_chip_info *chip,
-				     const struct attribute_group **groups)
+				     const struct attribute_group **extra_groups)
 {
 	struct device **ptr, *hwdev;
 
@@ -1050,7 +1055,7 @@ devm_hwmon_device_register_with_info(struct device *dev, const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	hwdev = hwmon_device_register_with_info(dev, name, drvdata, chip,
-						groups);
+						extra_groups);
 	if (IS_ERR(hwdev))
 		goto error;
 

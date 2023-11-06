@@ -4555,7 +4555,7 @@ static void ncr_detach(struct ncb *np)
 	char inst_name[16];
 
 	/* Local copy so we don't access np after freeing it! */
-	strlcpy(inst_name, ncr_name(np), sizeof(inst_name));
+	strscpy(inst_name, ncr_name(np), sizeof(inst_name));
 
 	printk("%s: releasing host resources\n", ncr_name(np));
 

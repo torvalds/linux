@@ -2550,11 +2550,12 @@ static void ftdi_process_read_urb(struct urb *urb)
 		tty_flip_buffer_push(&port->port);
 }
 
-static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
+static int ftdi_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	u16 value;
+	int ret;
 
 	/* break_state = -1 to turn on break, and 0 to turn off break */
 	/* see drivers/char/tty_io.c to see it used */
@@ -2565,19 +2566,22 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 	else
 		value = priv->last_set_data_value;
 
-	if (usb_control_msg(port->serial->dev,
+	ret = usb_control_msg(port->serial->dev,
 			usb_sndctrlpipe(port->serial->dev, 0),
 			FTDI_SIO_SET_DATA_REQUEST,
 			FTDI_SIO_SET_DATA_REQUEST_TYPE,
 			value, priv->channel,
-			NULL, 0, WDR_TIMEOUT) < 0) {
+			NULL, 0, WDR_TIMEOUT);
+	if (ret < 0) {
 		dev_err(&port->dev, "%s FAILED to enable/disable break state (state was %d)\n",
 			__func__, break_state);
+		return ret;
 	}
 
 	dev_dbg(&port->dev, "%s break state is %d - urb is %d\n", __func__,
 		break_state, value);
 
+	return 0;
 }
 
 static bool ftdi_tx_empty(struct usb_serial_port *port)

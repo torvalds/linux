@@ -1,0 +1,9 @@
+[
+    {
+        "BriefDescription": "UNC_CLOCK.SOCKET",
+        "EventCode": "0xff",
+        "EventName": "UNC_CLOCK.SOCKET",
+        "PerPkg": "1",
+        "Unit": "CLOCK"
+    }
+]

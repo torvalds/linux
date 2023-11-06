@@ -14,8 +14,6 @@
 
 #define BLINK_DELAY 30
 
-static unsigned long usb_blink_delay = BLINK_DELAY;
-
 DEFINE_LED_TRIGGER(ledtrig_usb_gadget);
 DEFINE_LED_TRIGGER(ledtrig_usb_host);
 
@@ -32,7 +30,7 @@ void usb_led_activity(enum usb_led_event ev)
 		break;
 	}
 	/* led_trigger_blink_oneshot() handles trig == NULL gracefully */
-	led_trigger_blink_oneshot(trig, &usb_blink_delay, &usb_blink_delay, 0);
+	led_trigger_blink_oneshot(trig, BLINK_DELAY, BLINK_DELAY, 0);
 }
 EXPORT_SYMBOL_GPL(usb_led_activity);
 

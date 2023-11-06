@@ -9,7 +9,7 @@
  * User space memory access functions
  */
 #include <linux/string.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/domain.h>
 #include <asm/unaligned.h>
 #include <asm/unified.h>
