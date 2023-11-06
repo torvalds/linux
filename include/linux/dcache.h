@@ -287,20 +287,40 @@ extern char *dentry_path(const struct dentry *, char *, int);
 /* Allocation counts.. */
 
 /**
- *	dget, dget_dlock -	get a reference to a dentry
- *	@dentry: dentry to get a reference to
+ * dget_dlock -	get a reference to a dentry
+ * @dentry: dentry to get a reference to
  *
- *	Given a dentry or %NULL pointer increment the reference count
- *	if appropriate and return the dentry. A dentry will not be 
- *	destroyed when it has references.
+ * Given a live dentry, increment the reference count and return the dentry.
+ * Caller must hold @dentry->d_lock.  Making sure that dentry is alive is
+ * caller's resonsibility.  There are many conditions sufficient to guarantee
+ * that; e.g. anything with non-negative refcount is alive, so's anything
+ * hashed, anything positive, anyone's parent, etc.
  */
 static inline struct dentry *dget_dlock(struct dentry *dentry)
 {
-	if (dentry)
-		dentry->d_lockref.count++;
+	dentry->d_lockref.count++;
 	return dentry;
 }
 
+
+/**
+ * dget - get a reference to a dentry
+ * @dentry: dentry to get a reference to
+ *
+ * Given a dentry or %NULL pointer increment the reference count
+ * if appropriate and return the dentry.  A dentry will not be
+ * destroyed when it has references.  Conversely, a dentry with
+ * no references can disappear for any number of reasons, starting
+ * with memory pressure.  In other words, that primitive is
+ * used to clone an existing reference; using it on something with
+ * zero refcount is a bug.
+ *
+ * NOTE: it will spin if @dentry->d_lock is held.  From the deadlock
+ * avoidance point of view it is equivalent to spin_lock()/increment
+ * refcount/spin_unlock(), so calling it under @dentry->d_lock is
+ * always a bug; so's calling it under ->d_lock on any of its descendents.
+ *
+ */
 static inline struct dentry *dget(struct dentry *dentry)
 {
 	if (dentry)
@@ -311,12 +331,11 @@ static inline struct dentry *dget(struct dentry *dentry)
 extern struct dentry *dget_parent(struct dentry *dentry);
 
 /**
- *	d_unhashed -	is dentry hashed
- *	@dentry: entry to check
+ * d_unhashed - is dentry hashed
+ * @dentry: entry to check
  *
- *	Returns true if the dentry passed is not currently hashed.
+ * Returns true if the dentry passed is not currently hashed.
  */
- 
 static inline int d_unhashed(const struct dentry *dentry)
 {
 	return hlist_bl_unhashed(&dentry->d_hash);
