@@ -2,7 +2,7 @@
 
 .. include:: ../disclaimer-zh_TW.rst
 
-:Translator: 胡皓文 Hu Haowen <src.res.211@gmail.com>
+:Translator: 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 清除 WARN_ONCE
 --------------
