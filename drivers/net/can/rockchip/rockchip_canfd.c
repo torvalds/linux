@@ -215,6 +215,7 @@ enum {
 
 #define CAN_RX_FILTER_MASK	0x1fffffff
 #define NOACK_ERR_FLAG		0xc200800
+#define CAN_BUSOFF_FLAG		0x20
 
 #define DRV_NAME	"rockchip_canfd"
 
@@ -795,8 +796,14 @@ static int rockchip_canfd_err(struct net_device *ndev, u32 isr)
 	}
 
 	if (rcan->can.state >= CAN_STATE_BUS_OFF ||
-	    ((sta_reg & 0x20) == 0x20))
-		can_bus_off(ndev);
+	    ((sta_reg & CAN_BUSOFF_FLAG) == CAN_BUSOFF_FLAG)) {
+		cancel_delayed_work(&rcan->tx_err_work);
+		netif_stop_queue(ndev);
+		rockchip_canfd_stop(ndev);
+		can_free_echo_skb(ndev, 0);
+		rockchip_canfd_start(ndev);
+		netif_start_queue(ndev);
+	}
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
