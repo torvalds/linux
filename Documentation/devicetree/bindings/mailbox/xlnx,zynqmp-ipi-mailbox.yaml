@@ -74,6 +74,10 @@ patternProperties:
     type: object  # DT nodes are json objects
     additionalProperties: false
     properties:
+
+      compatible:
+        const: xlnx,zynqmp-ipi-dest-mailbox
+
       xlnx,ipi-id:
         description:
           Remote Xilinx IPI agent ID of which the mailbox is connected to.
@@ -95,6 +99,7 @@ patternProperties:
           - const: remote_response_region
 
     required:
+      - compatible
       - reg
       - reg-names
       - "#mbox-cells"
@@ -124,6 +129,7 @@ examples:
         ranges;
 
         mailbox: mailbox@ff9905c0 {
+          compatible = "xlnx,zynqmp-ipi-dest-mailbox";
           reg = <0x0 0xff9905c0 0x0 0x20>,
                 <0x0 0xff9905e0 0x0 0x20>,
                 <0x0 0xff990e80 0x0 0x20>,
