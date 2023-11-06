@@ -399,11 +399,25 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 			 "Bar size not align for 4K : %dK\n", BMC_MEM_BAR_SIZE / 1024);
 	}
 
-	//BAR assign in scu
-	regmap_write(bmc_device->device, 0x1c, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 8) | i);
+	/*
+	 * BAR assign in scu
+	 * ((bar_mem / 4k) << 8) | per_size
+	 */
+	regmap_write(bmc_device->device, 0x1c, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
 
-	//BAR assign in e2m
-	regmap_write(bmc_device->e2m, 0x108, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 8) | i);
+	/*
+	 * BAR assign in e2m
+	 * e2m0:12c21000
+	 * 108:host2bmc-0 for pcie0
+	 * 128:host2bmc-1 for pcie0
+	 * e2m1:12c22000
+	 * 108:host2bmc-0 for pcie1
+	 * 128:host2bmc-1 for pcie1
+	 */
+	if (bmc_device->id)
+		regmap_write(bmc_device->e2m, 0x108, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
+	else
+		regmap_write(bmc_device->e2m, 0x128, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
 #else
 	if (bmc_device->pcie2lpc)
 		pcie_config_ctl |= SCU_PCIE_CONF_BMC_DEV_EN_E2L |
