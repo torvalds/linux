@@ -5,6 +5,12 @@ mem_buf.ko
 cmd-db.ko
 qcom-pdc.ko
 qcom_rpmh.ko
+interconnect_qcom.ko
+icc-bcm-voter.ko
+icc-rpmh.ko
+qnoc-qos.ko
+qnoc-niobe.ko
+icc-debug.ko
 mem_buf_dev.ko
 msm_dma_iommu_mapping.ko
 qcom_dma_heaps.ko
