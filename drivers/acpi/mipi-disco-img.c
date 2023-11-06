@@ -600,6 +600,7 @@ static void init_crs_csi2_swnodes(struct crs_csi2 *csi2)
 	struct acpi_device *adev;
 	acpi_status status;
 	unsigned int i;
+	u32 val;
 	int ret;
 
 	/*
@@ -630,6 +631,22 @@ static void init_crs_csi2_swnodes(struct crs_csi2 *csi2)
 			kfree(pld);
 		}
 	}
+
+	if (!fwnode_property_read_u32(adev_fwnode, "mipi-img-clock-frequency", &val))
+		swnodes->dev_props[NEXT_PROPERTY(prop_index, DEV_CLOCK_FREQUENCY)] =
+			PROPERTY_ENTRY_U32("clock-frequency", val);
+
+	if (!fwnode_property_read_u32(adev_fwnode, "mipi-img-led-max-current", &val))
+		swnodes->dev_props[NEXT_PROPERTY(prop_index, DEV_LED_MAX_MICROAMP)] =
+			PROPERTY_ENTRY_U32("led-max-microamp", val);
+
+	if (!fwnode_property_read_u32(adev_fwnode, "mipi-img-flash-max-current", &val))
+		swnodes->dev_props[NEXT_PROPERTY(prop_index, DEV_FLASH_MAX_MICROAMP)] =
+			PROPERTY_ENTRY_U32("flash-max-microamp", val);
+
+	if (!fwnode_property_read_u32(adev_fwnode, "mipi-img-flash-max-timeout-us", &val))
+		swnodes->dev_props[NEXT_PROPERTY(prop_index, DEV_FLASH_MAX_TIMEOUT_US)] =
+			PROPERTY_ENTRY_U32("flash-max-timeout-us", val);
 
 	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 	if (ACPI_FAILURE(status)) {
