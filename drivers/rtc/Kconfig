@@ -1351,7 +1351,7 @@ config RTC_DRV_DIGICOLOR
 
 config RTC_DRV_IMXDI
 	tristate "Freescale IMX DryIce Real Time Clock"
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	help
 	   Support for Freescale IMX DryIce RTC
@@ -1983,5 +1983,16 @@ config RTC_DRV_POLARFIRE_SOC
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-mpfs".
+
+config RTC_DRV_SSD202D
+	tristate "SigmaStar SSD202D RTC"
+	depends on ARCH_MSTARV7 || COMPILE_TEST
+	default ARCH_MSTARV7
+	help
+	  If you say yes here you get support for the SigmaStar SSD202D On-Chip
+	  Real Time Clock.
+
+	  This driver can also be built as a module, if so, the module
+	  will be called "rtc-ssd20xd".
 
 endif # RTC_CLASS

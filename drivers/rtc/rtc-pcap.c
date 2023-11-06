@@ -166,13 +166,7 @@ static int __init pcap_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(pcap_rtc->rtc);
 }
 
-static int __exit pcap_rtc_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver pcap_rtc_driver = {
-	.remove = __exit_p(pcap_rtc_remove),
 	.driver = {
 		.name  = "pcap-rtc",
 	},

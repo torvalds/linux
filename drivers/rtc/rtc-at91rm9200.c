@@ -558,7 +558,7 @@ err_clk:
 /*
  * Disable and remove the RTC driver
  */
-static int __exit at91_rtc_remove(struct platform_device *pdev)
+static void __exit at91_rtc_remove(struct platform_device *pdev)
 {
 	/* Disable all interrupts */
 	at91_rtc_write_idr(AT91_RTC_ACKUPD | AT91_RTC_ALARM |
@@ -566,8 +566,6 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 					AT91_RTC_CALEV);
 
 	clk_disable_unprepare(sclk);
-
-	return 0;
 }
 
 static void at91_rtc_shutdown(struct platform_device *pdev)
@@ -635,8 +633,14 @@ static int at91_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
 
-static struct platform_driver at91_rtc_driver = {
-	.remove		= __exit_p(at91_rtc_remove),
+/*
+ * at91_rtc_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound at
+ * runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
+ */
+static struct platform_driver at91_rtc_driver __refdata = {
+	.remove_new	= __exit_p(at91_rtc_remove),
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "at91_rtc",
