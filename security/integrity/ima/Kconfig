@@ -243,7 +243,7 @@ config IMA_APPRAISE_MODSIG
 	   to accept such signatures.
 
 config IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
-	bool "Permit keys validly signed by a built-in, machine (if configured) or secondary (EXPERIMENTAL)"
+	bool "Permit keys validly signed by a built-in, machine (if configured) or secondary"
 	depends on SYSTEM_TRUSTED_KEYRING
 	depends on SECONDARY_TRUSTED_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
