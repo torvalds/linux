@@ -2580,7 +2580,6 @@ struct wmi_service_available_event {
 struct ath11k_pdev_wmi {
 	struct ath11k_wmi_base *wmi_ab;
 	enum ath11k_htc_ep_id eid;
-	const struct wmi_peer_flags_map *peer_flags;
 	u32 rx_decap_mode;
 	wait_queue_head_t tx_ce_desc_wq;
 };
@@ -5754,7 +5753,6 @@ struct ath11k_wmi_base {
 	struct completion unified_ready;
 	DECLARE_BITMAP(svc_map, WMI_MAX_EXT2_SERVICE);
 	wait_queue_head_t tx_credits_wq;
-	const struct wmi_peer_flags_map *peer_flags;
 	u32 num_mem_chunks;
 	u32 rx_decap_mode;
 	struct wmi_host_mem_chunk mem_chunks[WMI_MAX_MEM_REQS];
