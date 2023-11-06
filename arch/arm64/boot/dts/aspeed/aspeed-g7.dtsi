@@ -167,6 +167,20 @@
 		#size-cells = <2>;
 		ranges;
 
+		soc0_sram: sram@10000000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x10000000 0x0 0x20000>;	/* 128KiB SRAM on soc0 */
+			ranges = <0x0 0x0 0x0 0x10000000 0x0 0x20000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			no-memory-wc;
+
+			exported@0 {
+				reg = <0 0x0 0 0x20000>;
+				export;
+			};
+		};
+
 		vhuba1: usb-vhub@12011000 {
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12011000 0x0 0x350>;
@@ -1014,6 +1028,20 @@
 			#io-channel-cells = <1>;
 			aspeed,scu = <&syscon1>;
 			status = "disabled";
+		};
+
+		soc1_sram: sram@14bc0000 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x14bc0000 0x0 0x18000>;	/* 96KiB SRAM on soc1 */
+			ranges = <0x0 0x0 0x0 0x14bc0000 0x0 0x18000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			no-memory-wc;
+
+			exported@0 {
+				reg = <0 0x0 0 0x18000>;
+				export;
+			};
 		};
 
 		syscon1: syscon@14c02000 {
