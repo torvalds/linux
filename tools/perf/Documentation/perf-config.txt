@@ -722,6 +722,10 @@ session-<NAME>.*::
 		Defines new record session for daemon. The value is record's
 		command line without the 'record' keyword.
 
+test.*::
+
+	test.objdump::
+		objdump binary to use for disassembly and annotations.
 
 SEE ALSO
 --------

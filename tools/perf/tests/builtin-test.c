@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include "builtin.h"
+#include "config.h"
 #include "hist.h"
 #include "intlist.h"
 #include "tests.h"
@@ -514,6 +515,15 @@ static int run_workload(const char *work, int argc, const char **argv)
 	return -1;
 }
 
+static int perf_test__config(const char *var, const char *value,
+			     void *data __maybe_unused)
+{
+	if (!strcmp(var, "test.objdump"))
+		test_objdump_path = value;
+
+	return 0;
+}
+
 int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
@@ -540,6 +550,8 @@ int cmd_test(int argc, const char **argv)
 
         if (ret < 0)
                 return ret;
+
+	perf_config(perf_test__config, NULL);
 
 	/* Unbuffered output */
 	setvbuf(stdout, NULL, _IONBF, 0);
