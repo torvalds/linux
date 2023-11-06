@@ -968,6 +968,17 @@
 			};
 		};
 
+		can0: can@14c3e000 {
+			reg = <0x0 0x14c3e000 0x0 0x2000>;
+			compatible = "aspeed,canfd";
+			status = "disabled";
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_CANCLK>;
+			resets = <&soc1_rst ASPEED_RESET_CAN>;
+			interrupts-extended = <&intc3 31>;
+			pinctrl-0 = <&pinctrl_can_default>;
+			pinctrl-names = "default";
+		};
+
 		mdio: bus@14040000 {
 			compatible = "simple-bus";
 			#address-cells = <2>;

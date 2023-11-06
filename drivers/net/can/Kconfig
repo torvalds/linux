@@ -66,6 +66,12 @@ config CAN_NETLINK
 
 if CAN_NETLINK
 
+config CAN_ASPEED
+	tristate "ASPEED CAN"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  ASPEED CAN driver.
+
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
 	default y
