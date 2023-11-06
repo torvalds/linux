@@ -32,6 +32,7 @@
 
 static bool dont_fork;
 const char *dso_to_test;
+const char *test_objdump_path = "objdump";
 
 /*
  * List of architecture specific tests. Not a weak symbol as the array length is
@@ -529,6 +530,8 @@ int cmd_test(int argc, const char **argv)
 		    "Do not fork for testcase"),
 	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
 	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
+	OPT_STRING(0, "objdump", &test_objdump_path, "path",
+		   "objdump binary to use for disassembly and annotations"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };
