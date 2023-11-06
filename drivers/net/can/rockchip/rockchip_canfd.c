@@ -436,6 +436,10 @@ static int rockchip_canfd_start(struct net_device *ndev)
 	if (rcan->can.ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		val |= MODE_SELF_TEST | MODE_LBACK;
 
+	/* Listen-only mode */
+	if (rcan->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
+		val |= MODE_SILENT;
+
 	rockchip_canfd_write(rcan, CAN_MODE, val);
 
 	rockchip_canfd_set_bittiming(ndev);
