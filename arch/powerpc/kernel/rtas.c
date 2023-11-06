@@ -900,11 +900,6 @@ int rtas_token(const char *service)
 }
 EXPORT_SYMBOL_GPL(rtas_token);
 
-int rtas_service_present(const char *service)
-{
-	return rtas_token(service) != RTAS_UNKNOWN_SERVICE;
-}
-
 #ifdef CONFIG_RTAS_ERROR_LOGGING
 
 static u32 rtas_error_log_max __ro_after_init = RTAS_ERROR_LOG_MAX;
