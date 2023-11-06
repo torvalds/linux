@@ -1126,6 +1126,13 @@ static s64 update_curr_se(struct rq *rq, struct sched_entity *curr)
 	return delta_exec;
 }
 
+static inline void update_curr_task(struct task_struct *p, s64 delta_exec)
+{
+	trace_sched_stat_runtime(p, delta_exec);
+	account_group_exec_runtime(p, delta_exec);
+	cgroup_account_cputime(p, delta_exec);
+}
+
 /*
  * Used by other classes to account runtime.
  */
@@ -1135,12 +1142,8 @@ s64 update_curr_common(struct rq *rq)
 	s64 delta_exec;
 
 	delta_exec = update_curr_se(rq, &curr->se);
-	if (unlikely(delta_exec <= 0))
-		return delta_exec;
-
-	trace_sched_stat_runtime(curr, delta_exec);
-	account_group_exec_runtime(curr, delta_exec);
-	cgroup_account_cputime(curr, delta_exec);
+	if (likely(delta_exec > 0))
+		update_curr_task(curr, delta_exec);
 
 	return delta_exec;
 }
@@ -1164,13 +1167,8 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
 
-	if (entity_is_task(curr)) {
-		struct task_struct *curtask = task_of(curr);
-
-		trace_sched_stat_runtime(curtask, delta_exec);
-		cgroup_account_cputime(curtask, delta_exec);
-		account_group_exec_runtime(curtask, delta_exec);
-	}
+	if (entity_is_task(curr))
+		update_curr_task(task_of(curr), delta_exec);
 
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
