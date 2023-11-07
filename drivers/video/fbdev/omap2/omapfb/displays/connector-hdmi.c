@@ -249,7 +249,7 @@ err_reg:
 	return r;
 }
 
-static int __exit hdmic_remove(struct platform_device *pdev)
+static int hdmic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -274,11 +274,10 @@ MODULE_DEVICE_TABLE(of, hdmic_of_match);
 
 static struct platform_driver hdmi_connector_driver = {
 	.probe	= hdmic_probe,
-	.remove	= __exit_p(hdmic_remove),
+	.remove	= hdmic_remove,
 	.driver	= {
 		.name	= "connector-hdmi",
 		.of_match_table = hdmic_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 
