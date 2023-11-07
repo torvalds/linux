@@ -21,7 +21,7 @@ extern const struct bkey_ops bch2_bkey_null_ops;
  * being read or written; more aggressive checks can be enabled when rw == WRITE.
  */
 struct bkey_ops {
-	int		(*key_invalid)(const struct bch_fs *c, struct bkey_s_c k,
+	int		(*key_invalid)(struct bch_fs *c, struct bkey_s_c k,
 				       enum bkey_invalid_flags flags, struct printbuf *err);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
@@ -55,7 +55,8 @@ int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
 			enum bkey_invalid_flags, struct printbuf *);
 int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
 		      enum bkey_invalid_flags, struct printbuf *);
-int bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c, struct printbuf *);
+int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *,
+			    struct bkey_s_c, struct printbuf *);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
 void bch2_bkey_to_text(struct printbuf *, const struct bkey *);
@@ -118,16 +119,6 @@ enum btree_update_flags {
 #define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
 #define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
-
-#define BTREE_TRIGGER_WANTS_OLD_AND_NEW		\
-	((1U << KEY_TYPE_alloc)|		\
-	 (1U << KEY_TYPE_alloc_v2)|		\
-	 (1U << KEY_TYPE_alloc_v3)|		\
-	 (1U << KEY_TYPE_alloc_v4)|		\
-	 (1U << KEY_TYPE_stripe)|		\
-	 (1U << KEY_TYPE_inode)|		\
-	 (1U << KEY_TYPE_inode_v2)|		\
-	 (1U << KEY_TYPE_snapshot))
 
 static inline int bch2_trans_mark_key(struct btree_trans *trans,
 				      enum btree_id btree_id, unsigned level,

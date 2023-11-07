@@ -4,7 +4,7 @@
 
 enum bkey_invalid_flags;
 
-int bch2_reflink_p_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_reflink_p_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_reflink_p_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
@@ -19,7 +19,7 @@ bool bch2_reflink_p_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.min_val_size	= 16,					\
 })
 
-int bch2_reflink_v_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_reflink_v_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_reflink_v_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
@@ -35,7 +35,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 	.min_val_size	= 8,					\
 })
 
-int bch2_indirect_inline_data_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_indirect_inline_data_invalid(struct bch_fs *, struct bkey_s_c,
 				      enum bkey_invalid_flags, struct printbuf *);
 void bch2_indirect_inline_data_to_text(struct printbuf *,
 				struct bch_fs *, struct bkey_s_c);

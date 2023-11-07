@@ -82,6 +82,7 @@ int bch2_verify_superblock_clean(struct bch_fs *c,
 	int ret = 0;
 
 	if (mustfix_fsck_err_on(j->seq != clean->journal_seq, c,
+			sb_clean_journal_seq_mismatch,
 			"superblock journal seq (%llu) doesn't match journal (%llu) after clean shutdown",
 			le64_to_cpu(clean->journal_seq),
 			le64_to_cpu(j->seq))) {
@@ -119,6 +120,7 @@ int bch2_verify_superblock_clean(struct bch_fs *c,
 				    k1->k.u64s != k2->k.u64s ||
 				    memcmp(k1, k2, bkey_bytes(&k1->k)) ||
 				    l1 != l2, c,
+			sb_clean_btree_root_mismatch,
 			"superblock btree root %u doesn't match journal after clean shutdown\n"
 			"sb:      l=%u %s\n"
 			"journal: l=%u %s\n", i,
@@ -140,6 +142,7 @@ struct bch_sb_field_clean *bch2_read_superblock_clean(struct bch_fs *c)
 	sb_clean = bch2_sb_field_get(c->disk_sb.sb, clean);
 
 	if (fsck_err_on(!sb_clean, c,
+			sb_clean_missing,
 			"superblock marked clean but clean section not present")) {
 		SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 		c->sb.clean = false;
@@ -373,7 +376,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 
 	entry = sb_clean->start;
 	bch2_journal_super_entries_add_common(c, &entry, 0);
-	entry = bch2_btree_roots_to_journal_entries(c, entry, entry);
+	entry = bch2_btree_roots_to_journal_entries(c, entry, 0);
 	BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
 
 	memset(entry, 0,

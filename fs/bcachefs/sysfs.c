@@ -149,7 +149,9 @@ read_attribute(bucket_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
 rw_attribute(durability);
-read_attribute(iodone);
+read_attribute(io_done);
+read_attribute(io_errors);
+write_attribute(io_errors_reset);
 
 read_attribute(io_latency_read);
 read_attribute(io_latency_write);
@@ -212,7 +214,7 @@ read_attribute(copy_gc_wait);
 
 rw_attribute(rebalance_enabled);
 sysfs_pd_controller_attribute(rebalance);
-read_attribute(rebalance_work);
+read_attribute(rebalance_status);
 rw_attribute(promote_whole_extents);
 
 read_attribute(new_stripes);
@@ -341,7 +343,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 
 static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	prt_printf(out, "%s: ", bch2_btree_ids[c->gc_gens_btree]);
+	prt_printf(out, "%s: ", bch2_btree_id_str(c->gc_gens_btree));
 	bch2_bpos_to_text(out, c->gc_gens_pos);
 	prt_printf(out, "\n");
 }
@@ -386,8 +388,8 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_copy_gc_wait)
 		bch2_copygc_wait_to_text(out, c);
 
-	if (attr == &sysfs_rebalance_work)
-		bch2_rebalance_work_to_text(out, c);
+	if (attr == &sysfs_rebalance_status)
+		bch2_rebalance_status_to_text(out, c);
 
 	sysfs_print(promote_whole_extents,	c->promote_whole_extents);
 
@@ -646,7 +648,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_copy_gc_wait,
 
 	&sysfs_rebalance_enabled,
-	&sysfs_rebalance_work,
+	&sysfs_rebalance_status,
 	sysfs_pd_controller_files(rebalance),
 
 	&sysfs_moving_ctxts,
@@ -707,10 +709,8 @@ STORE(bch2_fs_opts_dir)
 	bch2_opt_set_by_id(&c->opts, id, v);
 
 	if ((id == Opt_background_target ||
-	     id == Opt_background_compression) && v) {
-		bch2_rebalance_add_work(c, S64_MAX);
-		rebalance_wakeup(c);
-	}
+	     id == Opt_background_compression) && v)
+		bch2_set_rebalance_needs_scan(c, 0);
 
 	ret = size;
 err:
@@ -882,7 +882,7 @@ static const char * const bch2_rw[] = {
 	NULL
 };
 
-static void dev_iodone_to_text(struct printbuf *out, struct bch_dev *ca)
+static void dev_io_done_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	int rw, i;
 
@@ -910,13 +910,8 @@ SHOW(bch2_dev)
 	sysfs_print(discard,		ca->mi.discard);
 
 	if (attr == &sysfs_label) {
-		if (ca->mi.group) {
-			mutex_lock(&c->sb_lock);
-			bch2_disk_path_to_text(out, c->disk_sb.sb,
-					       ca->mi.group - 1);
-			mutex_unlock(&c->sb_lock);
-		}
-
+		if (ca->mi.group)
+			bch2_disk_path_to_text(out, c, ca->mi.group - 1);
 		prt_char(out, '\n');
 	}
 
@@ -930,8 +925,11 @@ SHOW(bch2_dev)
 		prt_char(out, '\n');
 	}
 
-	if (attr == &sysfs_iodone)
-		dev_iodone_to_text(out, ca);
+	if (attr == &sysfs_io_done)
+		dev_io_done_to_text(out, ca);
+
+	if (attr == &sysfs_io_errors)
+		bch2_dev_io_errors_to_text(out, ca);
 
 	sysfs_print(io_latency_read,		atomic64_read(&ca->cur_latency[READ]));
 	sysfs_print(io_latency_write,		atomic64_read(&ca->cur_latency[WRITE]));
@@ -998,6 +996,9 @@ STORE(bch2_dev)
 			return ret;
 	}
 
+	if (attr == &sysfs_io_errors_reset)
+		bch2_dev_errors_reset(ca);
+
 	return size;
 }
 SYSFS_OPS(bch2_dev);
@@ -1015,7 +1016,9 @@ struct attribute *bch2_dev_files[] = {
 	&sysfs_label,
 
 	&sysfs_has_data,
-	&sysfs_iodone,
+	&sysfs_io_done,
+	&sysfs_io_errors,
+	&sysfs_io_errors_reset,
 
 	&sysfs_io_latency_read,
 	&sysfs_io_latency_write,

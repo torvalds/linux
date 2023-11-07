@@ -339,12 +339,27 @@ int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct
 int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 
+#define mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
+({												\
+	int ret = 0;										\
+												\
+	if (_old.k->type)									\
+		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_INSERT);	\
+	if (!ret && _new.k->type)								\
+		ret = _fn(_trans, _btree_id, _level, _new, _flags & ~BTREE_TRIGGER_OVERWRITE);	\
+	ret;											\
+})
+
+#define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)	\
+	mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, bkey_i_to_s_c(_new), _flags)
+
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
 				    size_t, enum bch_data_type, unsigned);
 int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
+int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
 static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
 {

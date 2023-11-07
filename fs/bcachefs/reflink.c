@@ -7,6 +7,7 @@
 #include "inode.h"
 #include "io_misc.h"
 #include "io_write.h"
+#include "rebalance.h"
 #include "reflink.h"
 #include "subvolume.h"
 #include "super-io.h"
@@ -27,7 +28,7 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 
 /* reflink pointers */
 
-int bch2_reflink_p_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_p_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
@@ -74,7 +75,7 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 
 /* indirect extents */
 
-int bch2_reflink_v_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_reflink_v_invalid(struct bch_fs *c, struct bkey_s_c k,
 			   enum bkey_invalid_flags flags,
 			   struct printbuf *err)
 {
@@ -103,28 +104,29 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 }
 #endif
 
+static inline void check_indirect_extent_deleting(struct bkey_i *new, unsigned *flags)
+{
+	if ((*flags & BTREE_TRIGGER_INSERT) && !*bkey_refcount(new)) {
+		new->k.type = KEY_TYPE_deleted;
+		new->k.size = 0;
+		set_bkey_val_u64s(&new->k, 0);;
+		*flags &= ~BTREE_TRIGGER_INSERT;
+	}
+}
+
 int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_i *new,
 			      unsigned flags)
 {
-	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
-		struct bkey_i_reflink_v *r = bkey_i_to_reflink_v(new);
-
-		if (!r->v.refcount) {
-			r->k.type = KEY_TYPE_deleted;
-			r->k.size = 0;
-			set_bkey_val_u64s(&r->k, 0);
-			return 0;
-		}
-	}
+	check_indirect_extent_deleting(new, &flags);
 
 	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
 }
 
 /* indirect inline data */
 
-int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_indirect_inline_data_invalid(struct bch_fs *c, struct bkey_s_c k,
 				      enum bkey_invalid_flags flags,
 				      struct printbuf *err)
 {
@@ -132,7 +134,7 @@ int bch2_indirect_inline_data_invalid(const struct bch_fs *c, struct bkey_s_c k,
 }
 
 void bch2_indirect_inline_data_to_text(struct printbuf *out,
-					struct bch_fs *c, struct bkey_s_c k)
+				       struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
 	unsigned datalen = bkey_inline_data_bytes(k.k);
@@ -147,16 +149,7 @@ int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
 			      struct bkey_s_c old, struct bkey_i *new,
 			      unsigned flags)
 {
-	if (!(flags & BTREE_TRIGGER_OVERWRITE)) {
-		struct bkey_i_indirect_inline_data *r =
-			bkey_i_to_indirect_inline_data(new);
-
-		if (!r->v.refcount) {
-			r->k.type = KEY_TYPE_deleted;
-			r->k.size = 0;
-			set_bkey_val_u64s(&r->k, 0);
-		}
-	}
+	check_indirect_extent_deleting(new, &flags);
 
 	return 0;
 }
@@ -260,8 +253,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct bpos dst_start = POS(dst_inum.inum, dst_offset);
 	struct bpos src_start = POS(src_inum.inum, src_offset);
 	struct bpos dst_end = dst_start, src_end = src_start;
+	struct bch_io_opts opts;
 	struct bpos src_want;
-	u64 dst_done;
+	u64 dst_done = 0;
 	u32 dst_snapshot, src_snapshot;
 	int ret = 0, ret2 = 0;
 
@@ -276,6 +270,10 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_bkey_buf_init(&new_dst);
 	bch2_bkey_buf_init(&new_src);
 	trans = bch2_trans_get(c);
+
+	ret = bch2_inum_opts_get(trans, src_inum, &opts);
+	if (ret)
+		goto err;
 
 	bch2_trans_iter_init(trans, &src_iter, BTREE_ID_extents, src_start,
 			     BTREE_ITER_INTENT);
@@ -360,10 +358,13 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_want.offset,
 				    dst_end.offset - dst_iter.pos.offset));
 
-		ret = bch2_extent_update(trans, dst_inum, &dst_iter,
-					 new_dst.k, &disk_res,
-					 new_i_size, i_sectors_delta,
-					 true);
+		ret =   bch2_bkey_set_needs_rebalance(c, new_dst.k,
+					opts.background_target,
+					opts.background_compression) ?:
+			bch2_extent_update(trans, dst_inum, &dst_iter,
+					new_dst.k, &disk_res,
+					new_i_size, i_sectors_delta,
+					true);
 		bch2_disk_reservation_put(c, &disk_res);
 	}
 	bch2_trans_iter_exit(trans, &dst_iter);
@@ -394,7 +395,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 		bch2_trans_iter_exit(trans, &inode_iter);
 	} while (bch2_err_matches(ret2, BCH_ERR_transaction_restart));
-
+err:
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&new_src, c);
 	bch2_bkey_buf_exit(&new_dst, c);
