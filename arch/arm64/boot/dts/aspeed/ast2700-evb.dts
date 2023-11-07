@@ -264,6 +264,14 @@
 	status = "okay";
 };
 
+&rsss {
+	status = "okay";
+};
+
+&ecdsa {
+	status = "okay";
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -423,11 +431,4 @@
 	status = "okay";
 };
 
-&rsss {
-	status = "okay";
-};
-
-&ecdsa {
-	status = "okay";
-};
 #endif
