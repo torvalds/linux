@@ -303,7 +303,7 @@ err_reg:
 	return r;
 }
 
-static int __exit dvic_remove(struct platform_device *pdev)
+static int dvic_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -330,11 +330,10 @@ MODULE_DEVICE_TABLE(of, dvic_of_match);
 
 static struct platform_driver dvi_connector_driver = {
 	.probe	= dvic_probe,
-	.remove	= __exit_p(dvic_remove),
+	.remove	= dvic_remove,
 	.driver	= {
 		.name	= "connector-dvi",
 		.of_match_table = dvic_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 
