@@ -1384,8 +1384,8 @@ static int aspeed_can_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 
-	netdev_info(ndev, "reg_base = 0x%p, irq = %d, clock = %d\n",
-		    priv->reg_base, ndev->irq, priv->can.clock.freq);
+	netdev_dbg(ndev, "reg_base = 0x%p, irq = %d, clock = %d\n",
+		   priv->reg_base, ndev->irq, priv->can.clock.freq);
 
 	return 0;
 
