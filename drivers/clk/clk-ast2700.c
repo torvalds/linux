@@ -479,82 +479,82 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 					     14, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C0CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c0clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c0clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     16, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C1CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c1clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c1clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     17, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C2CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c2clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c2clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     18, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C3CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c3clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c3clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     19, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C4CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c4clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c4clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     20, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C5CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c5clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c5clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     21, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C6CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c6clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c6clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     22, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C7CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c7clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c7clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     23, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C8CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c8clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c8clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     24, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C9CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c9clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c9clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     25, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C10CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c10clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c10clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     26, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C11CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c11clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c11clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     27, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C12CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c12clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c12clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     28, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C13CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c13clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c13clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     29, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C14CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c14clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c14clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     30, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_I3C15CLK] =
-		ast2700_clk_hw_register_gate(NULL, "i3c15clk-gate", NULL,
+		ast2700_clk_hw_register_gate(NULL, "i3c15clk-gate", "soc1-ahb",
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     31, 0, &ast2700_clk_lock);
 
