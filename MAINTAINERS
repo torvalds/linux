@@ -8156,6 +8156,15 @@ F:	include/linux/fs_types.h
 F:	include/uapi/linux/fs.h
 F:	include/uapi/linux/openat2.h
 
+FILESYSTEMS [IOMAP]
+M:	Christian Brauner <brauner@kernel.org>
+R:	Darrick J. Wong <djwong@kernel.org>
+L:	linux-xfs@vger.kernel.org
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	fs/iomap/
+F:	include/linux/iomap.h
+
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
 L:	linux-hwmon@vger.kernel.org
@@ -11075,15 +11084,6 @@ M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/sgi/ioc3-eth.c
-
-IOMAP FILESYSTEM LIBRARY
-M:	Darrick J. Wong <djwong@kernel.org>
-L:	linux-xfs@vger.kernel.org
-L:	linux-fsdevel@vger.kernel.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
-F:	fs/iomap/
-F:	include/linux/iomap.h
 
 IOMMU DMA-API LAYER
 M:	Robin Murphy <robin.murphy@arm.com>
