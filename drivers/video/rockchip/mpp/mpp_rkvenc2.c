@@ -131,6 +131,11 @@ struct rkvenc_hw_info {
 #define INT_STA_RBUS_ERR_STA	BIT(7)
 #define INT_STA_WDG_STA		BIT(8)
 
+#define INT_STA_ERROR		(INT_STA_BRSP_OTSD_STA | \
+				INT_STA_WBUS_ERR_STA | \
+				INT_STA_RBUS_ERR_STA | \
+				INT_STA_WDG_STA)
+
 #define DCHS_REG_OFFSET		(0x304)
 #define DCHS_CLASS_OFFSET	(33)
 #define DCHS_TXE		(0x10)
@@ -1267,9 +1272,9 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return 0;
 }
 
-static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task)
+static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task,
+				   u32 last)
 {
-	u32 last = mpp_read_relaxed(mpp, 0x002c) & INT_STA_ENC_DONE_STA;
 	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
 	union rkvenc2_slice_len_info slice_info;
 	u32 task_id = task->mpp_task.task_id;
@@ -1309,46 +1314,41 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	struct rkvenc_hw_info *hw = enc->hw_info;
 	struct mpp_task *mpp_task = NULL;
 	struct rkvenc_task *task = NULL;
-	u32 int_clear = 1;
-	u32 irq_mask = 0;
+	u32 irq_status;
 	int ret = IRQ_NONE;
 
 	mpp_debug_enter();
 
-	mpp->irq_status = mpp_read(mpp, hw->int_sta_base);
-	if (!mpp->irq_status)
+	irq_status = mpp_read(mpp, hw->int_sta_base);
+
+	mpp_debug(DEBUG_IRQ_STATUS, "%s irq_status: %08x\n",
+		  dev_name(mpp->dev), irq_status);
+
+	if (!irq_status)
 		return ret;
+
+	/* clear int first */
+	mpp_write(mpp, hw->int_clr_base, irq_status);
 
 	if (mpp->cur_task) {
 		mpp_task = mpp->cur_task;
 		task = to_rkvenc_task(mpp_task);
 	}
 
-	if (mpp->irq_status & INT_STA_ENC_DONE_STA) {
-		if (task) {
-			if (task->task_split)
-				rkvenc2_read_slice_len(mpp, task);
+	/* 1. read slice number and slice length */
+	if (task && task->task_split &&
+	    (irq_status & (INT_STA_SLC_DONE_STA | INT_STA_ENC_DONE_STA))) {
+		mpp_time_part_diff(mpp_task);
+		rkvenc2_read_slice_len(mpp, task, irq_status & INT_STA_ENC_DONE_STA);
+		wake_up(&mpp_task->wait);
+	}
 
-			wake_up(&mpp_task->wait);
-		}
+	/* 2. process slice irq */
+	if (irq_status & INT_STA_SLC_DONE_STA)
+		ret = IRQ_HANDLED;
 
-		irq_mask = INT_STA_ENC_DONE_STA;
-		ret = IRQ_WAKE_THREAD;
-		if (enc->bs_overflow) {
-			mpp->irq_status |= INT_STA_BSF_OFLW_STA;
-			enc->bs_overflow = 0;
-		}
-	} else if (mpp->irq_status & INT_STA_SLC_DONE_STA) {
-		if (task && task->task_split) {
-			mpp_time_part_diff(mpp_task);
-
-			rkvenc2_read_slice_len(mpp, task);
-			wake_up(&mpp_task->wait);
-		}
-
-		irq_mask = INT_STA_ENC_DONE_STA;
-		int_clear = 0;
-	} else if (mpp->irq_status & INT_STA_BSF_OFLW_STA) {
+	/* 3. process bitstream overflow */
+	if (irq_status & INT_STA_BSF_OFLW_STA) {
 		u32 bs_rd = mpp_read(mpp, RKVENC2_REG_ADR_BSBR);
 		u32 bs_wr = mpp_read(mpp, RKVENC2_REG_ST_BSB);
 		u32 bs_top = mpp_read(mpp, RKVENC2_REG_ADR_BSBT);
@@ -1360,33 +1360,43 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 		bs_wr += 128;
 		if (bs_wr >= bs_top)
 			bs_wr = bs_bot;
-		/* clear int first */
-		mpp_write(mpp, hw->int_clr_base, mpp->irq_status);
+
 		/* update write addr for enc continue */
 		mpp_write(mpp, RKVENC2_REG_ADR_BSBS, bs_wr);
 		enc->bs_overflow = 1;
-		irq_mask = 0;
-		int_clear = 0;
-		ret = IRQ_HANDLED;
-	} else {
-		dev_err(mpp->dev, "found error status %08x\n", mpp->irq_status);
 
-		irq_mask = mpp->irq_status;
+		ret = IRQ_HANDLED;
+	}
+
+	/* 4. process frame irq */
+	if (irq_status & INT_STA_ENC_DONE_STA) {
+		mpp->irq_status = irq_status;
+
+		if (enc->bs_overflow) {
+			mpp->irq_status |= INT_STA_BSF_OFLW_STA;
+			enc->bs_overflow = 0;
+		}
+
 		ret = IRQ_WAKE_THREAD;
 	}
 
-	if (irq_mask)
-		mpp_write(mpp, hw->int_mask_base, irq_mask);
+	/* 5. process error irq */
+	if (irq_status & INT_STA_ERROR) {
+		mpp->irq_status = irq_status;
 
-	if (int_clear) {
-		mpp_write(mpp, hw->int_clr_base, mpp->irq_status);
-		udelay(5);
-		mpp_write(mpp, hw->int_sta_base, 0);
+		dev_err(mpp->dev, "found error status %08x\n", irq_status);
+
+		ret = IRQ_WAKE_THREAD;
 	}
 
 	mpp_debug_leave();
 
 	return ret;
+}
+
+static int vepu540c_irq(struct mpp_dev *mpp)
+{
+	return rkvenc_irq(mpp);
 }
 
 static int rkvenc_isr(struct mpp_dev *mpp)
@@ -1416,9 +1426,6 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 	task->irq_status = mpp->irq_status;
 
 	rkvenc2_update_dchs(enc, task);
-
-	mpp_debug(DEBUG_IRQ_STATUS, "%s irq_status: %08x\n",
-		  dev_name(mpp->dev), task->irq_status);
 
 	if (task->irq_status & enc->hw_info->err_mask) {
 		atomic_inc(&mpp->reset_request);
@@ -2180,6 +2187,20 @@ static struct mpp_dev_ops rkvenc_ccu_dev_ops = {
 	.dump_session = rkvenc_dump_session,
 };
 
+static struct mpp_dev_ops vepu540c_dev_ops_v2 = {
+	.wait_result = rkvenc2_wait_result,
+	.alloc_task = rkvenc_alloc_task,
+	.run = rkvenc_run,
+	.irq = vepu540c_irq,
+	.isr = rkvenc_isr,
+	.finish = rkvenc_finish,
+	.result = rkvenc_result,
+	.free_task = rkvenc_free_task,
+	.ioctl = rkvenc_control,
+	.init_session = rkvenc_init_session,
+	.free_session = rkvenc_free_session,
+	.dump_session = rkvenc_dump_session,
+};
 
 static const struct mpp_dev_var rkvenc_v2_data = {
 	.device_type = MPP_DEVICE_RKVENC,
@@ -2194,7 +2215,7 @@ static const struct mpp_dev_var rkvenc_540c_data = {
 	.hw_info = &rkvenc_540c_hw_info.hw,
 	.trans_info = trans_rkvenc_540c,
 	.hw_ops = &rkvenc_hw_ops,
-	.dev_ops = &rkvenc_dev_ops_v2,
+	.dev_ops = &vepu540c_dev_ops_v2,
 };
 
 static const struct mpp_dev_var rkvenc_ccu_data = {
