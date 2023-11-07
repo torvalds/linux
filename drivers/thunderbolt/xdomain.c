@@ -1462,6 +1462,11 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 				tb_port_disable(port->dual_link_port);
 		}
 
+		dev_dbg(&xd->dev, "current link speed %u.0 Gb/s\n",
+			xd->link_speed);
+		dev_dbg(&xd->dev, "current link width %s\n",
+			tb_width_name(xd->link_width));
+
 		if (device_add(&xd->dev)) {
 			dev_err(&xd->dev, "failed to add XDomain device\n");
 			return -ENODEV;
