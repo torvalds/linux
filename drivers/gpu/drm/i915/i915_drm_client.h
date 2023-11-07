@@ -14,6 +14,7 @@
 
 #include "i915_file_private.h"
 #include "gem/i915_gem_object_types.h"
+#include "gt/intel_context_types.h"
 
 #define I915_LAST_UABI_ENGINE_CLASS I915_ENGINE_CLASS_COMPUTE
 
@@ -70,6 +71,8 @@ void i915_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file);
 void i915_drm_client_add_object(struct i915_drm_client *client,
 				struct drm_i915_gem_object *obj);
 bool i915_drm_client_remove_object(struct drm_i915_gem_object *obj);
+void i915_drm_client_add_context_objects(struct i915_drm_client *client,
+					 struct intel_context *ce);
 #else
 static inline void i915_drm_client_add_object(struct i915_drm_client *client,
 					      struct drm_i915_gem_object *obj)
@@ -77,6 +80,12 @@ static inline void i915_drm_client_add_object(struct i915_drm_client *client,
 }
 
 static inline bool i915_drm_client_remove_object(struct drm_i915_gem_object *obj)
+{
+}
+
+static inline void
+i915_drm_client_add_context_objects(struct i915_drm_client *client,
+				    struct intel_context *ce)
 {
 }
 #endif
