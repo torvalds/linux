@@ -211,7 +211,7 @@ err_reg:
 	return r;
 }
 
-static int __exit panel_dpi_remove(struct platform_device *pdev)
+static int panel_dpi_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -236,11 +236,10 @@ MODULE_DEVICE_TABLE(of, panel_dpi_of_match);
 
 static struct platform_driver panel_dpi_driver = {
 	.probe = panel_dpi_probe,
-	.remove = __exit_p(panel_dpi_remove),
+	.remove = panel_dpi_remove,
 	.driver = {
 		.name = "panel-dpi",
 		.of_match_table = panel_dpi_of_match,
-		.suppress_bind_attrs = true,
 	},
 };
 
