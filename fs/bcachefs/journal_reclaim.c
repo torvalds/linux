@@ -303,6 +303,7 @@ void bch2_journal_reclaim_fast(struct journal *j)
 	 * all btree nodes got written out
 	 */
 	while (!fifo_empty(&j->pin) &&
+	       j->pin.front <= j->seq_ondisk &&
 	       !atomic_read(&fifo_peek_front(&j->pin).count)) {
 		j->pin.front++;
 		popped = true;
