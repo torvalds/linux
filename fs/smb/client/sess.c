@@ -659,8 +659,7 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		if (WARN_ON_ONCE(len < 0))
 			len = CIFS_MAX_DOMAINNAME_LEN - 1;
 		bcc_ptr += len;
-	} /* else we will send a null domain name
-	     so the server will default to its own domain */
+	} /* else we send a null domain name so server will default to its own domain */
 	*bcc_ptr = 0;
 	bcc_ptr++;
 
@@ -756,11 +755,14 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	if (len > bleft)
 		return;
 
-	/* No domain field in LANMAN case. Domain is
-	   returned by old servers in the SMB negprot response */
-	/* BB For newer servers which do not support Unicode,
-	   but thus do return domain here we could add parsing
-	   for it later, but it is not very important */
+	/*
+	 * No domain field in LANMAN case. Domain is
+	 * returned by old servers in the SMB negprot response
+	 *
+	 * BB For newer servers which do not support Unicode,
+	 * but thus do return domain here, we could add parsing
+	 * for it later, but it is not very important
+	 */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
@@ -816,9 +818,12 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	ses->ntlmssp->server_flags = server_flags;
 
 	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
-	/* In particular we can examine sign flags */
-	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
-		we must set the MIC field of the AUTHENTICATE_MESSAGE */
+	/*
+	 * In particular we can examine sign flags
+	 *
+	 * BB spec says that if AvId field of MsvAvTimestamp is populated then
+	 * we must set the MIC field of the AUTHENTICATE_MESSAGE
+	 */
 
 	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
 	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
