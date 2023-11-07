@@ -1678,7 +1678,7 @@ static int eb_copy_relocations(const struct i915_execbuffer *eb)
 		urelocs = u64_to_user_ptr(eb->exec[i].relocs_ptr);
 		size = nreloc * sizeof(*relocs);
 
-		relocs = kvmalloc_array(size, 1, GFP_KERNEL);
+		relocs = kvmalloc_array(1, size, GFP_KERNEL);
 		if (!relocs) {
 			err = -ENOMEM;
 			goto err;
