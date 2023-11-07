@@ -286,10 +286,26 @@ static int aspeed_sha3_req_final(struct aspeed_rsss_dev *rsss_dev)
 
 	RSSS_DBG(rsss_dev, "\n");
 
+	/* A0 padding issue */
+	remain_pad = rctx->blksize - rctx->bufcnt;
+	if (remain_pad < 16) {
+		/* SW padding */
+		RSSS_DBG(rsss_dev, "Use SW padding, pad size:0x%x\n",
+			 remain_pad);
+		src = (u8 *)sha3_engine->buffer_addr;
+		src[rctx->bufcnt] = 0x06;
+		memset(src + rctx->bufcnt + 1, 0, remain_pad - 1);
+		src[rctx->bufcnt + remain_pad - 1] |= 0x80;
+
+		rctx->bufcnt += remain_pad;
+
+	} else {
+		rctx->cmd |= SHA3_CMD_HW_PAD;
+	}
+
 	if (sha3_engine->sg_mode) {
 		struct aspeed_sg_list *src_list =
 				(struct aspeed_sg_list *)sha3_engine->ahash_src_addr;
-
 		u64 phy_addr;
 		u32 len;
 
@@ -309,23 +325,6 @@ static int aspeed_sha3_req_final(struct aspeed_rsss_dev *rsss_dev)
 	} else {
 		sha3_engine->src_dma = sha3_engine->buffer_dma_addr;
 		sha3_engine->src_length = rctx->bufcnt;
-
-		/* A0 padding issue */
-		remain_pad = rctx->blksize - rctx->bufcnt;
-		if (remain_pad < 16) {
-			/* SW padding */
-			RSSS_DBG(rsss_dev, "Use SW padding, pad size:0x%x\n",
-				 remain_pad);
-			src = (u8 *)sha3_engine->buffer_addr;
-			src[rctx->bufcnt] = 0x06;
-			memset(src + rctx->bufcnt + 1, 0, remain_pad - 1);
-			src[rctx->bufcnt + remain_pad - 1] |= 0x80;
-
-			sha3_engine->src_length += remain_pad;
-
-		} else {
-			rctx->cmd |= SHA3_CMD_HW_PAD;
-		}
 	}
 
 	rctx->cmd |= SHA3_CMD_ACC_FINAL;
