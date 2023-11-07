@@ -236,7 +236,7 @@ static void test_pt_update(struct xe_migrate *m, struct xe_bo *pt,
 	xe_map_memset(xe, &pt->vmap, 0, (u8)expected, pt->size);
 
 	then = ktime_get();
-	fence = xe_migrate_update_pgtables(m, NULL, NULL, m->q, &update, 1,
+	fence = xe_migrate_update_pgtables(m, m->q->vm, NULL, m->q, &update, 1,
 					   NULL, 0, &pt_update);
 	now = ktime_get();
 	if (sanity_fence_failed(xe, fence, "Migration pagetable update", test))
