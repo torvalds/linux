@@ -221,7 +221,7 @@ err_reg:
 	return r;
 }
 
-static int tvc_remove(struct platform_device *pdev)
+static void tvc_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
@@ -233,8 +233,6 @@ static int tvc_remove(struct platform_device *pdev)
 	tvc_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	return 0;
 }
 
 static const struct of_device_id tvc_of_match[] = {
@@ -247,7 +245,7 @@ MODULE_DEVICE_TABLE(of, tvc_of_match);
 
 static struct platform_driver tvc_connector_driver = {
 	.probe	= tvc_probe,
-	.remove	= tvc_remove,
+	.remove_new = tvc_remove,
 	.driver	= {
 		.name	= "connector-analog-tv",
 		.of_match_table = tvc_of_match,
