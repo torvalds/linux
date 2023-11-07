@@ -15,9 +15,29 @@
 #include <linux/slab.h>
 #include <linux/magic.h>
 #include <linux/statfs.h>
+#include <linux/notifier.h>
 #include <linux/printk.h>
 
 #include "internal.h"
+
+static int efivarfs_ops_notifier(struct notifier_block *nb, unsigned long event,
+				 void *data)
+{
+	struct efivarfs_fs_info *sfi = container_of(nb, struct efivarfs_fs_info, nb);
+
+	switch (event) {
+	case EFIVAR_OPS_RDONLY:
+		sfi->sb->s_flags |= SB_RDONLY;
+		break;
+	case EFIVAR_OPS_RDWR:
+		sfi->sb->s_flags &= ~SB_RDONLY;
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
 
 static void efivarfs_evict_inode(struct inode *inode)
 {
@@ -317,6 +337,12 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!root)
 		return -ENOMEM;
 
+	sfi->sb = sb;
+	sfi->nb.notifier_call = efivarfs_ops_notifier;
+	err = blocking_notifier_chain_register(&efivar_ops_nh, &sfi->nb);
+	if (err)
+		return err;
+
 	err = efivar_init(efivarfs_callback, (void *)sb, true,
 			  &sfi->efivarfs_list);
 	if (err)
@@ -371,6 +397,7 @@ static void efivarfs_kill_sb(struct super_block *sb)
 {
 	struct efivarfs_fs_info *sfi = sb->s_fs_info;
 
+	blocking_notifier_chain_unregister(&efivar_ops_nh, &sfi->nb);
 	kill_litter_super(sb);
 
 	/* Remove all entries and destroy */

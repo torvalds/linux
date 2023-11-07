@@ -32,6 +32,7 @@
 #include <linux/ucs2_string.h>
 #include <linux/memblock.h>
 #include <linux/security.h>
+#include <linux/notifier.h>
 
 #include <asm/early_ioremap.h>
 
@@ -186,6 +187,9 @@ static const struct attribute_group efi_subsys_attr_group = {
 	.attrs = efi_subsys_attrs,
 	.is_visible = efi_attr_is_visible,
 };
+
+struct blocking_notifier_head efivar_ops_nh;
+EXPORT_SYMBOL_GPL(efivar_ops_nh);
 
 static struct efivars generic_efivars;
 static struct efivar_operations generic_ops;
@@ -430,6 +434,8 @@ static int __init efisubsys_init(void)
 		efivar_ssdt_load();
 		platform_device_register_simple("efivars", 0, NULL, 0);
 	}
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&efivar_ops_nh);
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
