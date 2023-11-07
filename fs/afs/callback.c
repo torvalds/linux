@@ -33,9 +33,8 @@ void afs_invalidate_mmap_work(struct work_struct *work)
 	unmap_mapping_pages(vnode->netfs.inode.i_mapping, 0, 0, false);
 }
 
-void afs_server_init_callback_work(struct work_struct *work)
+static void afs_server_init_callback(struct afs_server *server)
 {
-	struct afs_server *server = container_of(work, struct afs_server, initcb_work);
 	struct afs_vnode *vnode;
 	struct afs_cell *cell = server->cell;
 
@@ -57,15 +56,19 @@ void afs_server_init_callback_work(struct work_struct *work)
  */
 void afs_init_callback_state(struct afs_server *server)
 {
-	rcu_read_lock();
+	struct afs_cell *cell = server->cell;
+
+	down_read(&cell->vs_lock);
+
 	do {
 		server->cb_s_break++;
 		atomic_inc(&server->cell->fs_s_break);
 		if (!list_empty(&server->cell->fs_open_mmaps))
-			queue_work(system_unbound_wq, &server->initcb_work);
+			afs_server_init_callback(server);
 
 	} while ((server = rcu_dereference(server->uuid_next)));
-	rcu_read_unlock();
+
+	up_read(&cell->vs_lock);
 }
 
 /*
@@ -112,7 +115,7 @@ static struct afs_volume *afs_lookup_volume_rcu(struct afs_cell *cell,
 	struct rb_node *p;
 	int seq = 1;
 
-	do {
+	for (;;) {
 		/* Unfortunately, rbtree walking doesn't give reliable results
 		 * under just the RCU read lock, so we have to check for
 		 * changes.
@@ -133,7 +136,12 @@ static struct afs_volume *afs_lookup_volume_rcu(struct afs_cell *cell,
 			volume = NULL;
 		}
 
-	} while (need_seqretry(&cell->volume_lock, seq));
+		if (volume && afs_try_get_volume(volume, afs_volume_trace_get_callback))
+			break;
+		if (!need_seqretry(&cell->volume_lock, seq))
+			break;
+		seq |= 1; /* Want a lock next time */
+	}
 
 	done_seqretry(&cell->volume_lock, seq);
 	return volume;
@@ -188,12 +196,11 @@ static void afs_break_some_callbacks(struct afs_server *server,
 	afs_volid_t vid = cbb->fid.vid;
 	size_t i;
 
+	rcu_read_lock();
 	volume = afs_lookup_volume_rcu(server->cell, vid);
-
 	/* TODO: Find all matching volumes if we couldn't match the server and
 	 * break them anyway.
 	 */
-
 	for (i = *_count; i > 0; cbb++, i--) {
 		if (cbb->fid.vid == vid) {
 			_debug("- Fid { vl=%08llx n=%llu u=%u }",
@@ -207,6 +214,9 @@ static void afs_break_some_callbacks(struct afs_server *server,
 			*residue++ = *cbb;
 		}
 	}
+
+	rcu_read_unlock();
+	afs_put_volume(volume, afs_volume_trace_put_callback);
 }
 
 /*
@@ -219,11 +229,6 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 
 	ASSERT(server != NULL);
 
-	rcu_read_lock();
-
 	while (count > 0)
 		afs_break_some_callbacks(server, callbacks, &count);
-
-	rcu_read_unlock();
-	return;
 }

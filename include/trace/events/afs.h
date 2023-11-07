@@ -151,9 +151,11 @@ enum yfs_cm_operation {
 	EM(afs_volume_trace_alloc,		"ALLOC         ") \
 	EM(afs_volume_trace_free,		"FREE          ") \
 	EM(afs_volume_trace_get_alloc_sbi,	"GET sbi-alloc ") \
+	EM(afs_volume_trace_get_callback,	"GET callback  ") \
 	EM(afs_volume_trace_get_cell_insert,	"GET cell-insrt") \
 	EM(afs_volume_trace_get_new_op,		"GET op-new    ") \
 	EM(afs_volume_trace_get_query_alias,	"GET cell-alias") \
+	EM(afs_volume_trace_put_callback,	"PUT callback  ") \
 	EM(afs_volume_trace_put_cell_dup,	"PUT cell-dup  ") \
 	EM(afs_volume_trace_put_cell_root,	"PUT cell-root ") \
 	EM(afs_volume_trace_put_destroy_sbi,	"PUT sbi-destry") \

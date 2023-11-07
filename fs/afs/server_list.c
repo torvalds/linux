@@ -136,7 +136,7 @@ void afs_attach_volume_to_servers(struct afs_volume *volume, struct afs_server_l
 	struct list_head *p;
 	unsigned int i;
 
-	spin_lock(&volume->cell->vs_lock);
+	down_write(&volume->cell->vs_lock);
 
 	for (i = 0; i < slist->nr_servers; i++) {
 		se = &slist->servers[i];
@@ -147,11 +147,11 @@ void afs_attach_volume_to_servers(struct afs_volume *volume, struct afs_server_l
 			if (volume->vid <= pe->volume->vid)
 				break;
 		}
-		list_add_tail_rcu(&se->slink, p);
+		list_add_tail(&se->slink, p);
 	}
 
 	slist->attached = true;
-	spin_unlock(&volume->cell->vs_lock);
+	up_write(&volume->cell->vs_lock);
 }
 
 /*
@@ -164,7 +164,7 @@ void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server
 {
 	unsigned int n = 0, o = 0;
 
-	spin_lock(&volume->cell->vs_lock);
+	down_write(&volume->cell->vs_lock);
 
 	while (n < new->nr_servers || o < old->nr_servers) {
 		struct afs_server_entry *pn = n < new->nr_servers ? &new->servers[n] : NULL;
@@ -174,7 +174,7 @@ void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server
 		int diff;
 
 		if (pn && po && pn->server == po->server) {
-			list_replace_rcu(&po->slink, &pn->slink);
+			list_replace(&po->slink, &pn->slink);
 			n++;
 			o++;
 			continue;
@@ -192,15 +192,15 @@ void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server
 				if (volume->vid <= s->volume->vid)
 					break;
 			}
-			list_add_tail_rcu(&pn->slink, p);
+			list_add_tail(&pn->slink, p);
 			n++;
 		} else {
-			list_del_rcu(&po->slink);
+			list_del(&po->slink);
 			o++;
 		}
 	}
 
-	spin_unlock(&volume->cell->vs_lock);
+	up_write(&volume->cell->vs_lock);
 }
 
 /*
@@ -213,11 +213,11 @@ void afs_detach_volume_from_servers(struct afs_volume *volume, struct afs_server
 	if (!slist->attached)
 		return;
 
-	spin_lock(&volume->cell->vs_lock);
+	down_write(&volume->cell->vs_lock);
 
 	for (i = 0; i < slist->nr_servers; i++)
-		list_del_rcu(&slist->servers[i].slink);
+		list_del(&slist->servers[i].slink);
 
 	slist->attached = false;
-	spin_unlock(&volume->cell->vs_lock);
+	up_write(&volume->cell->vs_lock);
 }
