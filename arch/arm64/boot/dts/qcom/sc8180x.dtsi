@@ -3113,8 +3113,6 @@
 				phys = <&edp_phy>;
 				phy-names = "dp";
 
-				#sound-dai-cells = <0>;
-
 				operating-points-v2 = <&edp_opp_table>;
 				power-domains = <&rpmhpd SC8180X_MMCX>;
 
