@@ -343,6 +343,9 @@ static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
 	 * PLL_Output_Frequency: it is equal to DDR-Clock-Frequency * 2
 	 */
 	fref = prate / 2;
+	if (!fref)
+		return 0;
+
 	if (rate > 1000000000UL)
 		fout = 1000000000UL;
 	else
@@ -355,6 +358,9 @@ static unsigned long inno_dsidphy_pll_calc_rate(struct inno_dsidphy *inno,
 	for (_prediv = min_prediv; _prediv <= max_prediv; _prediv++) {
 		u64 tmp;
 		u32 delta;
+
+		if (!_prediv)
+			continue;
 
 		tmp = (u64)fout * _prediv;
 		do_div(tmp, fref);
