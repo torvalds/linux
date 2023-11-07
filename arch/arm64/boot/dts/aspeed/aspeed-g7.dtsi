@@ -994,6 +994,8 @@
 			interrupts-extended = <&intc3 0>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C0CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c0_default>;
 			status = "disabled";
 		};
 
@@ -1005,6 +1007,8 @@
 			interrupts-extended = <&intc3 1>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C1CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c1_default>;
 			status = "disabled";
 		};
 
@@ -1016,6 +1020,8 @@
 			interrupts-extended = <&intc3 2>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C2CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C2>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c2_default>;
 			status = "disabled";
 		};
 
@@ -1027,6 +1033,8 @@
 			interrupts-extended = <&intc3 3>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C3CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c3_default>;
 			status = "disabled";
 		};
 
@@ -1038,6 +1046,8 @@
 			interrupts-extended = <&intc3 4>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C4CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c4_default>;
 			status = "disabled";
 		};
 
@@ -1049,6 +1059,8 @@
 			interrupts-extended = <&intc3 5>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C5CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C5>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c5_default>;
 			status = "disabled";
 		};
 
@@ -1060,6 +1072,8 @@
 			interrupts-extended = <&intc3 6>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C6CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C6>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c6_default>;
 			status = "disabled";
 		};
 
@@ -1071,6 +1085,8 @@
 			interrupts-extended = <&intc3 7>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C7CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C7>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c7_default>;
 			status = "disabled";
 		};
 
@@ -1082,6 +1098,8 @@
 			interrupts-extended = <&intc3 8>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C8CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C8>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c8_default>;
 			status = "disabled";
 		};
 
@@ -1093,6 +1111,8 @@
 			interrupts-extended = <&intc3 9>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C9CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C9>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c9_default>;
 			status = "disabled";
 		};
 
@@ -1104,6 +1124,8 @@
 			interrupts-extended = <&intc3 10>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C10CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C10>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c10_default>;
 			status = "disabled";
 		};
 
@@ -1115,6 +1137,8 @@
 			interrupts-extended = <&intc3 11>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C11CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C11>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_i3c11_default>;
 			status = "disabled";
 		};
 
@@ -1126,6 +1150,8 @@
 			interrupts-extended = <&intc3 12>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C12CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C12>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_hvi3c12_default>;
 			status = "disabled";
 		};
 
@@ -1137,6 +1163,8 @@
 			interrupts-extended = <&intc3 13>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C13CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C13>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_hvi3c13_default>;
 			status = "disabled";
 		};
 
@@ -1148,6 +1176,8 @@
 			interrupts-extended = <&intc3 14>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C14CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C14>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_hvi3c14_default>;
 			status = "disabled";
 		};
 
@@ -1159,6 +1189,8 @@
 			interrupts-extended = <&intc3 15>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_I3C15CLK>;
 			resets = <&soc1_rst ASPEED_RESET_I3C15>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_hvi3c15_default>;
 			status = "disabled";
 		};
 
