@@ -56,12 +56,9 @@ SEC("?iter/cgroup")
 int cgroup_id_printer(struct bpf_iter__cgroup *ctx)
 {
 	struct seq_file *seq = ctx->meta->seq;
-	struct cgroup *cgrp, *acquired;
+	struct cgroup *cgrp = ctx->cgroup;
 	struct cgroup_subsys_state *css;
 	struct task_struct *task;
-	u64 cgrp_id;
-
-	cgrp = ctx->cgroup;
 
 	/* epilogue */
 	if (cgrp == NULL) {
@@ -73,20 +70,15 @@ int cgroup_id_printer(struct bpf_iter__cgroup *ctx)
 	if (ctx->meta->seq_num == 0)
 		BPF_SEQ_PRINTF(seq, "prologue\n");
 
-	cgrp_id = cgroup_id(cgrp);
+	BPF_SEQ_PRINTF(seq, "%8llu\n", cgroup_id(cgrp));
 
-	BPF_SEQ_PRINTF(seq, "%8llu\n", cgrp_id);
-
-	acquired = bpf_cgroup_from_id(cgrp_id);
-	if (!acquired)
-		return 0;
-	css = &acquired->self;
+	css = &cgrp->self;
 	css_task_cnt = 0;
 	bpf_for_each(css_task, task, css, CSS_TASK_ITER_PROCS) {
 		if (task->pid == target_pid)
 			css_task_cnt++;
 	}
-	bpf_cgroup_release(acquired);
+
 	return 0;
 }
 

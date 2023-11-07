@@ -282,7 +282,7 @@ static struct bpf_iter_reg bpf_cgroup_reg_info = {
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__cgroup, cgroup),
-		  PTR_TO_BTF_ID_OR_NULL },
+		  PTR_TO_BTF_ID_OR_NULL | PTR_TRUSTED },
 	},
 	.seq_info		= &cgroup_iter_seq_info,
 };
