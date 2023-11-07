@@ -48,6 +48,13 @@ static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	/*
+	 * We can't clone a path that has write locks: unshare it now, before
+	 * set_pos and traverse():
+	 */
+	if (iter->path->ref > 1)
+		iter->path = __bch2_btree_path_make_mut(trans, iter->path, true, _THIS_IP_);
+
 	path = iter->path;
 
 	if (!*write_locked) {
@@ -67,15 +74,6 @@ static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
 
 	bch2_btree_insert_key_leaf(trans, path, &wb->k, wb->journal_seq);
 	(*fast)++;
-
-	if (path->ref > 1) {
-		/*
-		 * We can't clone a path that has write locks: if the path is
-		 * shared, unlock before set_pos(), traverse():
-		 */
-		bch2_btree_node_unlock_write(trans, path, path->l[0].b);
-		*write_locked = false;
-	}
 	return 0;
 trans_commit:
 	trans->journal_res.seq = wb->journal_seq;
