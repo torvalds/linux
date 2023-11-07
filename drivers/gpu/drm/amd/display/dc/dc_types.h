@@ -1029,6 +1029,7 @@ enum replay_coasting_vtotal_type {
  * passed to DMUB.
  */
 enum replay_FW_Message_type {
+	Replay_Msg_Not_Support = -1,
 	Replay_Set_Timing_Sync_Supported,
 };
 

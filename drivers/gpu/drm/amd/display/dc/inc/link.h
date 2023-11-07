@@ -283,7 +283,7 @@ struct link_service {
 			const struct dc_stream_state *stream);
 	bool (*edp_send_replay_cmd)(struct dc_link *link,
 			enum replay_FW_Message_type msg,
-			uint32_t params);
+			union dmub_replay_cmd_set *cmd_data);
 	bool (*edp_set_coasting_vtotal)(
 			struct dc_link *link, uint16_t coasting_vtotal);
 	bool (*edp_replay_residency)(const struct dc_link *link,

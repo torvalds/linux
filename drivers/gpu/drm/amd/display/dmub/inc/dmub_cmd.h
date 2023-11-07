@@ -3144,6 +3144,16 @@ struct dmub_rb_cmd_replay_set_timing_sync {
 };
 
 /**
+ * Definition union of replay command set
+ */
+union dmub_replay_cmd_set {
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED command data.
+	 */
+	struct dmub_cmd_replay_set_timing_sync_data sync_data;
+};
+
+/**
  * Set of HW components that can be locked.
  *
  * Note: If updating with more HW components, fields
