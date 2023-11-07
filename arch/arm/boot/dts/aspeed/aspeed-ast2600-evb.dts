@@ -257,11 +257,6 @@
 	};
 };
 
-&uart5 {
-	// Workaround for A0
-	compatible = "snps,dw-apb-uart";
-};
-
 #if 0
 &pcie_vuart0 {
 	port = <0x3f8>;
