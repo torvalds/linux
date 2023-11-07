@@ -936,6 +936,7 @@ int folio_referenced(struct folio *folio, int is_locked,
 
 	return rwc.contended ? -1 : pra.referenced;
 }
+EXPORT_SYMBOL_GPL(folio_referenced);
 
 static int page_vma_mkclean_one(struct page_vma_mapped_walk *pvmw)
 {
