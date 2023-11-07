@@ -78,6 +78,53 @@ inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
 		bch2_btree_init_next(trans, b);
 }
 
+static noinline int trans_lock_write_fail(struct btree_trans *trans, struct btree_insert_entry *i)
+{
+	while (--i >= trans->updates) {
+		if (same_leaf_as_prev(trans, i))
+			continue;
+
+		bch2_btree_node_unlock_write(trans, i->path, insert_l(i)->b);
+	}
+
+	trace_and_count(trans->c, trans_restart_would_deadlock_write, trans);
+	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock_write);
+}
+
+static inline int bch2_trans_lock_write(struct btree_trans *trans)
+{
+	struct btree_insert_entry *i;
+
+	EBUG_ON(trans->write_locked);
+
+	trans_for_each_update(trans, i) {
+		if (same_leaf_as_prev(trans, i))
+			continue;
+
+		if (bch2_btree_node_lock_write(trans, i->path, &insert_l(i)->b->c))
+			return trans_lock_write_fail(trans, i);
+
+		if (!i->cached)
+			bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
+	}
+
+	trans->write_locked = true;
+	return 0;
+}
+
+static inline void bch2_trans_unlock_write(struct btree_trans *trans)
+{
+	if (likely(trans->write_locked)) {
+		struct btree_insert_entry *i;
+
+		trans_for_each_update(trans, i)
+			if (!same_leaf_as_prev(trans, i))
+				bch2_btree_node_unlock_write_inlined(trans, i->path,
+								     insert_l(i)->b);
+		trans->write_locked = false;
+	}
+}
+
 /* Inserting into a given leaf node (last stage of insert): */
 
 /* Handle overwrites and do insert, for non extents: */
@@ -732,37 +779,6 @@ revert_fs_usage:
 	return ret;
 }
 
-static noinline int trans_lock_write_fail(struct btree_trans *trans, struct btree_insert_entry *i)
-{
-	while (--i >= trans->updates) {
-		if (same_leaf_as_prev(trans, i))
-			continue;
-
-		bch2_btree_node_unlock_write(trans, i->path, insert_l(i)->b);
-	}
-
-	trace_and_count(trans->c, trans_restart_would_deadlock_write, trans);
-	return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock_write);
-}
-
-static inline int trans_lock_write(struct btree_trans *trans)
-{
-	struct btree_insert_entry *i;
-
-	trans_for_each_update(trans, i) {
-		if (same_leaf_as_prev(trans, i))
-			continue;
-
-		if (bch2_btree_node_lock_write(trans, i->path, &insert_l(i)->b->c))
-			return trans_lock_write_fail(trans, i);
-
-		if (!i->cached)
-			bch2_btree_node_prep_for_write(trans, i->path, insert_l(i)->b);
-	}
-
-	return 0;
-}
-
 static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
@@ -838,7 +854,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	if (unlikely(ret))
 		return ret;
 
-	ret = trans_lock_write(trans);
+	ret = bch2_trans_lock_write(trans);
 	if (unlikely(ret))
 		return ret;
 
@@ -847,10 +863,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	if (!ret && unlikely(trans->journal_replay_not_finished))
 		bch2_drop_overwrites_from_journal(trans);
 
-	trans_for_each_update(trans, i)
-		if (!same_leaf_as_prev(trans, i))
-			bch2_btree_node_unlock_write_inlined(trans, i->path,
-							insert_l(i)->b);
+	bch2_trans_unlock_write(trans);
 
 	if (!ret && trans->journal_pin)
 		bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
