@@ -190,7 +190,6 @@ static int max96715_module_init(maxim4c_remote_t *max96715)
 {
 	struct device *dev = max96715->dev;
 	struct i2c_client *client = max96715->client;
-	struct maxim4c *maxim4c = max96715->local;
 	int ret = 0;
 
 	ret = maxim4c_remote_i2c_addr_select(max96715, MAXIM4C_I2C_SER_DEF);
@@ -206,16 +205,9 @@ static int max96715_module_init(maxim4c_remote_t *max96715)
 		return ret;
 
 #if MAX96715_MODE_SWITCH
-	if (maxim4c->hot_plug_irq > 0)
-		disable_irq(maxim4c->hot_plug_irq);
-
 	ret = max96715_link_mode_select(max96715, LINK_MODE_CONFIG);
-	if (ret) {
-		if (maxim4c->hot_plug_irq > 0)
-			enable_irq(maxim4c->hot_plug_irq);
-
+	if (ret)
 		return ret;
-	}
 #endif
 
 	ret = maxim4c_i2c_run_init_seq(client,
@@ -225,16 +217,11 @@ static int max96715_module_init(maxim4c_remote_t *max96715)
 		dev_err(dev, "remote id = %d init sequence error\n",
 				max96715->remote_id);
 
-		if (maxim4c->hot_plug_irq > 0)
-			enable_irq(maxim4c->hot_plug_irq);
-
 		return ret;
 	}
 
 #if MAX96715_MODE_SWITCH
 	ret = max96715_link_mode_select(max96715, LINK_MODE_VIDEO);
-	if (maxim4c->hot_plug_irq > 0)
-		enable_irq(maxim4c->hot_plug_irq);
 	if (ret)
 		return ret;
 #endif

@@ -463,7 +463,17 @@ int maxim4c_link_select_remote_enable(struct maxim4c *maxim4c, u8 link_mask)
 				0x0006, MAXIM4C_I2C_REG_ADDR_16BITS,
 				link_enable, link_enable);
 
-		ret |= maxim4c_link_wait_linklock(maxim4c, link_mask);
+		if (ret) {
+			dev_err(dev, "%s: link oneshot reset or enable error, link mask = 0x%x\n",
+				__func__, link_mask);
+			return ret;
+		}
+
+		maxim4c_link_wait_linklock(maxim4c, link_mask);
+		dev_info(dev, "link_mask = 0x%02x, link_lock = 0x%02x\n",
+			link_mask, maxim4c->link_lock_state);
+
+		return 0;
 	}
 
 	return ret;

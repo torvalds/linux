@@ -532,6 +532,11 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	if (maxim4c->hot_plug_irq > 0)
 		enable_irq(maxim4c->hot_plug_irq);
 
+	if (maxim4c->link_lock_state != maxim4c->gmsl_link.link_enable_mask) {
+		dev_info(dev, "partial links are locked, start hot plug detect work.\n");
+		maxim4c_hot_plug_detect_work_start(maxim4c);
+	}
+
 	return 0;
 }
 
