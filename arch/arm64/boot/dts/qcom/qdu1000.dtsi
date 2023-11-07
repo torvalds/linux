@@ -1446,11 +1446,9 @@
 		system-cache-controller@19200000 {
 			compatible = "qcom,qdu1000-llcc";
 			reg = <0 0x19200000 0 0xd80000>,
-			      <0 0x1a200000 0 0x80000>,
-			      <0 0x221c8128 0 0x4>;
-			reg-names = "llcc_base",
-				    "llcc_broadcast_base",
-				    "multi_channel_register";
+			      <0 0x1a200000 0 0x80000>;
+			reg-names = "llcc0_base",
+				    "llcc_broadcast_base";
 			interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
 			multi-ch-bit-off = <24 2>;
 		};
