@@ -1624,6 +1624,8 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 
 static void aspeed_video_init_regs(struct aspeed_video *video)
 {
+	u32 val;
+
 	/* Unlock VE registers */
 	aspeed_video_write(video, VE_PROTECTION_KEY, VE_PROTECTION_KEY_UNLOCK);
 
@@ -1639,8 +1641,11 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 
 	/* Set control registers */
 	aspeed_video_write(video, VE_SEQ_CTRL, VE_SEQ_CTRL_AUTO_COMP);
-	aspeed_video_write(video, VE_CTRL, VE_CTRL_AUTO_OR_CURSOR |
-					   FIELD_PREP(VE_CTRL_CAPTURE_FMT, VIDEO_CAP_FMT_YUV_FULL_SWING));
+	val = VE_CTRL_AUTO_OR_CURSOR |
+	      FIELD_PREP(VE_CTRL_CAPTURE_FMT, VIDEO_CAP_FMT_YUV_FULL_SWING);
+	if (video->version == 7)
+		val |= FIELD_PREP(VE_CTRL_CLK_DELAY, video->id + 1);
+	aspeed_video_write(video, VE_CTRL, val);
 	aspeed_video_write(video, VE_COMP_CTRL, VE_COMP_CTRL_RSVD);
 
 	/* Don't downscale */
