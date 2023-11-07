@@ -46,7 +46,14 @@
 			no-map;
 		};
 
-		bmc_dev_memory: bmc_dev_memory {
+		bmc_dev0_memory: bmc_dev0_memory {
+			size = <0x0 0x00100000>;
+			alignment = <0x0 0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		bmc_dev1_memory: bmc_dev1_memory {
 			size = <0x0 0x00100000>;
 			alignment = <0x0 0x00100000>;
 			compatible = "shared-dma-pool";
