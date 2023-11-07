@@ -186,8 +186,10 @@ static int __init rk_dmabuf_init(void)
 	struct proc_dir_entry *root = proc_mkdir("rk_dmabuf", NULL);
 
 	pdev = platform_device_register_full(&dev_info);
-	dma_set_max_seg_size(&pdev->dev, (unsigned int)DMA_BIT_MASK(64));
-	dmabuf_dev = pdev ? &pdev->dev : NULL;
+	if (!IS_ERR(pdev)) {
+		dmabuf_dev = &pdev->dev;
+		dma_set_max_seg_size(dmabuf_dev, (unsigned int)DMA_BIT_MASK(64));
+	}
 
 	proc_create_single("sgt", 0, root, rk_dmabuf_sgt_show);
 	proc_create_single("dev", 0, root, rk_dmabuf_dev_show);
