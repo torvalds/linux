@@ -175,9 +175,6 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	frame = get_sigframe(ksig, regs, sizeof(struct rt_sigframe), &fp);
 	uc_flags = frame_uc_flags(regs);
 
-	if (setup_signal_shadow_stack(ksig))
-		return -EFAULT;
-
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
@@ -197,6 +194,9 @@ int x64_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 		if (copy_siginfo_to_user(&frame->info, &ksig->info))
 			return -EFAULT;
 	}
+
+	if (setup_signal_shadow_stack(ksig))
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->di = ksig->sig;
