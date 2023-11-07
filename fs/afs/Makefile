@@ -28,6 +28,7 @@ kafs-y := \
 	server.o \
 	server_list.o \
 	super.o \
+	validation.o \
 	vlclient.o \
 	vl_alias.o \
 	vl_list.o \

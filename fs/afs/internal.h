@@ -1235,9 +1235,6 @@ extern int afs_ilookup5_test_by_fid(struct inode *, void *);
 extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct afs_operation *, struct afs_vnode_param *);
 extern struct inode *afs_root_iget(struct super_block *, struct key *);
-extern bool afs_check_validity(struct afs_vnode *);
-extern int afs_validate(struct afs_vnode *, struct key *);
-bool afs_pagecache_valid(struct afs_vnode *);
 extern int afs_getattr(struct mnt_idmap *idmap, const struct path *,
 		       struct kstat *, u32, unsigned int);
 extern int afs_setattr(struct mnt_idmap *idmap, struct dentry *, struct iattr *);
@@ -1546,6 +1543,13 @@ void afs_detach_volume_from_servers(struct afs_volume *volume, struct afs_server
  */
 extern int __init afs_fs_init(void);
 extern void afs_fs_exit(void);
+
+/*
+ * validation.c
+ */
+bool afs_check_validity(struct afs_vnode *vnode);
+bool afs_pagecache_valid(struct afs_vnode *vnode);
+int afs_validate(struct afs_vnode *vnode, struct key *key);
 
 /*
  * vlclient.c
