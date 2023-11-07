@@ -1078,3 +1078,20 @@ by compiler.
 ->d_delete() instances are now called for dentries with ->d_lock held
 and refcount equal to 0.  They are not permitted to drop/regain ->d_lock.
 None of in-tree instances did anything of that sort.  Make sure yours do not...
+
+--
+
+**mandatory**
+
+->d_prune() instances are now called without ->d_lock held on the parent.
+->d_lock on dentry itself is still held; if you need per-parent exclusions (none
+of the in-tree instances did), use your own spinlock.
+
+->d_iput() and ->d_release() are called with victim dentry still in the
+list of parent's children.  It is still unhashed, marked killed, etc., just not
+removed from parent's ->d_children yet.
+
+Anyone iterating through the list of children needs to be aware of the
+half-killed dentries that might be seen there; taking ->d_lock on those will
+see them negative, unhashed and with negative refcount, which means that most
+of the in-kernel users would've done the right thing anyway without any adjustment.

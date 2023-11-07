@@ -575,12 +575,10 @@ static inline void dentry_unlist(struct dentry *dentry)
 	}
 }
 
-static void __dentry_kill(struct dentry *dentry)
+static struct dentry *__dentry_kill(struct dentry *dentry)
 {
 	struct dentry *parent = NULL;
 	bool can_free = true;
-	if (!IS_ROOT(dentry))
-		parent = dentry->d_parent;
 
 	/*
 	 * The dentry is now unrecoverably dead to the world.
@@ -600,9 +598,6 @@ static void __dentry_kill(struct dentry *dentry)
 	}
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
-	dentry_unlist(dentry);
-	if (parent)
-		spin_unlock(&parent->d_lock);
 	if (dentry->d_inode)
 		dentry_unlink_inode(dentry);
 	else
@@ -611,7 +606,14 @@ static void __dentry_kill(struct dentry *dentry)
 	if (dentry->d_op && dentry->d_op->d_release)
 		dentry->d_op->d_release(dentry);
 
-	spin_lock(&dentry->d_lock);
+	cond_resched();
+	/* now that it's negative, ->d_parent is stable */
+	if (!IS_ROOT(dentry)) {
+		parent = dentry->d_parent;
+		spin_lock(&parent->d_lock);
+	}
+	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+	dentry_unlist(dentry);
 	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
 		dentry->d_flags |= DCACHE_MAY_FREE;
 		can_free = false;
@@ -619,31 +621,10 @@ static void __dentry_kill(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	if (likely(can_free))
 		dentry_free(dentry);
-	cond_resched();
-}
-
-static struct dentry *__lock_parent(struct dentry *dentry)
-{
-	struct dentry *parent;
-again:
-	parent = READ_ONCE(dentry->d_parent);
-	spin_lock(&parent->d_lock);
-	/*
-	 * We can't blindly lock dentry until we are sure
-	 * that we won't violate the locking order.
-	 * Any changes of dentry->d_parent must have
-	 * been done with parent->d_lock held, so
-	 * spin_lock() above is enough of a barrier
-	 * for checking if it's still our child.
-	 */
-	if (unlikely(parent != dentry->d_parent)) {
+	if (parent && --parent->d_lockref.count) {
 		spin_unlock(&parent->d_lock);
-		goto again;
+		return NULL;
 	}
-	if (parent != dentry)
-		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-	else
-		parent = NULL;
 	return parent;
 }
 
@@ -655,48 +636,32 @@ again:
  * d_delete(), etc.
  *
  * Return false if dentry is busy.  Otherwise, return true and have
- * that dentry's inode and parent both locked.
+ * that dentry's inode locked.
  */
 
 static bool lock_for_kill(struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	struct dentry *parent = dentry->d_parent;
 
 	if (unlikely(dentry->d_lockref.count))
 		return false;
 
-	if (inode && unlikely(!spin_trylock(&inode->i_lock)))
-		goto slow;
-	if (dentry == parent)
-		return true;
-	if (likely(spin_trylock(&parent->d_lock)))
+	if (!inode || likely(spin_trylock(&inode->i_lock)))
 		return true;
 
-	if (inode)
-		spin_unlock(&inode->i_lock);
-slow:
-	spin_unlock(&dentry->d_lock);
-
-	for (;;) {
-		if (inode)
-			spin_lock(&inode->i_lock);
-		parent = __lock_parent(dentry);
+	do {
+		spin_unlock(&dentry->d_lock);
+		spin_lock(&inode->i_lock);
+		spin_lock(&dentry->d_lock);
 		if (likely(inode == dentry->d_inode))
 			break;
-		if (inode)
-			spin_unlock(&inode->i_lock);
+		spin_unlock(&inode->i_lock);
 		inode = dentry->d_inode;
-		spin_unlock(&dentry->d_lock);
-		if (parent)
-			spin_unlock(&parent->d_lock);
-	}
+	} while (inode);
 	if (likely(!dentry->d_lockref.count))
 		return true;
 	if (inode)
 		spin_unlock(&inode->i_lock);
-	if (parent)
-		spin_unlock(&parent->d_lock);
 	return false;
 }
 
@@ -869,29 +834,27 @@ locked:
  */
 void dput(struct dentry *dentry)
 {
-	while (dentry) {
-		might_sleep();
-
-		rcu_read_lock();
-		if (likely(fast_dput(dentry))) {
-			rcu_read_unlock();
+	if (!dentry)
+		return;
+	might_sleep();
+	rcu_read_lock();
+	if (likely(fast_dput(dentry))) {
+		rcu_read_unlock();
+		return;
+	}
+	while (lock_for_kill(dentry)) {
+		rcu_read_unlock();
+		dentry = __dentry_kill(dentry);
+		if (!dentry)
 			return;
-		}
-
-		/* Slow case: now with the dentry lock held */
-		if (likely(lock_for_kill(dentry))) {
-			struct dentry *parent = dentry->d_parent;
-			rcu_read_unlock();
-			__dentry_kill(dentry);
-			if (dentry == parent)
-				return;
-			dentry = parent;
-		} else {
-			rcu_read_unlock();
+		if (retain_dentry(dentry)) {
 			spin_unlock(&dentry->d_lock);
 			return;
 		}
+		rcu_read_lock();
 	}
+	rcu_read_unlock();
+	spin_unlock(&dentry->d_lock);
 }
 EXPORT_SYMBOL(dput);
 
@@ -1091,12 +1054,16 @@ void d_prune_aliases(struct inode *inode)
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
-static inline void shrink_kill(struct dentry *victim, struct list_head *list)
+static inline void shrink_kill(struct dentry *victim)
 {
-	struct dentry *parent = victim->d_parent;
-	if (parent != victim && !--parent->d_lockref.count)
-		to_shrink_list(parent, list);
-	__dentry_kill(victim);
+	do {
+		rcu_read_unlock();
+		victim = __dentry_kill(victim);
+		rcu_read_lock();
+	} while (victim && lock_for_kill(victim));
+	rcu_read_unlock();
+	if (victim)
+		spin_unlock(&victim->d_lock);
 }
 
 void shrink_dentry_list(struct list_head *list)
@@ -1117,9 +1084,8 @@ void shrink_dentry_list(struct list_head *list)
 				dentry_free(dentry);
 			continue;
 		}
-		rcu_read_unlock();
 		d_shrink_del(dentry);
-		shrink_kill(dentry, list);
+		shrink_kill(dentry);
 	}
 }
 
@@ -1478,6 +1444,8 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 	} else if (!dentry->d_lockref.count) {
 		to_shrink_list(dentry, &data->dispose);
 		data->found++;
+	} else if (dentry->d_lockref.count < 0) {
+		data->found++;
 	}
 	/*
 	 * We can return to the caller if we have found some (this
@@ -1547,8 +1515,7 @@ void shrink_dcache_parent(struct dentry *parent)
 				spin_unlock(&data.victim->d_lock);
 				rcu_read_unlock();
 			} else {
-				rcu_read_unlock();
-				shrink_kill(data.victim, &data.dispose);
+				shrink_kill(data.victim);
 			}
 		}
 		if (!list_empty(&data.dispose))
