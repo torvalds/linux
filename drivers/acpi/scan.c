@@ -2447,6 +2447,13 @@ static void acpi_scan_postponed_branch(acpi_handle handle)
 
 	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
 			    acpi_bus_check_add_2, NULL, NULL, (void **)&adev);
+
+	/*
+	 * Populate the ACPI _CRS CSI-2 software nodes for the ACPI devices that
+	 * have been added above.
+	 */
+	acpi_mipi_init_crs_csi2_swnodes();
+
 	acpi_bus_attach(adev, NULL);
 }
 
@@ -2516,11 +2523,12 @@ int acpi_bus_scan(acpi_handle handle)
 		return -ENODEV;
 
 	/*
-	 * Allocate ACPI _CRS CSI-2 software nodes using information extracted
+	 * Set up ACPI _CRS CSI-2 software nodes using information extracted
 	 * from the _CRS CSI-2 resource descriptors during the ACPI namespace
-	 * walk above.
+	 * walk above and MIPI DisCo for Imaging device properties.
 	 */
 	acpi_mipi_scan_crs_csi2();
+	acpi_mipi_init_crs_csi2_swnodes();
 
 	acpi_bus_attach(device, (void *)true);
 

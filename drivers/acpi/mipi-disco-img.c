@@ -6,12 +6,16 @@
  *
  * Support MIPI DisCo for Imaging by parsing ACPI _CRS CSI-2 records defined in
  * Section 6.4.3.8.2.4 "Camera Serial Interface (CSI-2) Connection Resource
- * Descriptor" of ACPI 6.5.
+ * Descriptor" of ACPI 6.5 and using device properties defined by the MIPI DisCo
+ * for Imaging specification.
  *
  * The implementation looks for the information in the ACPI namespace (CSI-2
  * resource descriptors in _CRS) and constructs software nodes compatible with
  * Documentation/firmware-guide/acpi/dsd/graph.rst to represent the CSI-2
- * connection graph.
+ * connection graph.  The software nodes are then populated with the data
+ * extracted from the _CRS CSI-2 resource descriptors and the MIPI DisCo
+ * for Imaging device properties present in _DSD for the ACPI device objects
+ * with CSI-2 connections.
  */
 
 #include <linux/acpi.h>
@@ -429,6 +433,250 @@ void acpi_mipi_scan_crs_csi2(void)
 	 */
 	list_for_each_entry(csi2, &acpi_mipi_crs_csi2_list, entry)
 		prepare_crs_csi2_swnodes(csi2);
+}
+
+/*
+ * Get the index of the next property in the property array, with a given
+ * maximum value.
+ */
+#define NEXT_PROPERTY(index, max)			\
+	(WARN_ON((index) > ACPI_DEVICE_SWNODE_##max) ?	\
+	 ACPI_DEVICE_SWNODE_##max : (index)++)
+
+static void init_csi2_port_local(struct acpi_device *adev,
+				 struct acpi_device_software_node_port *port,
+				 struct fwnode_handle *port_fwnode,
+				 unsigned int index)
+{
+	acpi_handle handle = acpi_device_handle(adev);
+	unsigned int num_link_freqs;
+	int ret;
+
+	ret = fwnode_property_count_u64(port_fwnode, "mipi-img-link-frequencies");
+	if (ret <= 0)
+		return;
+
+	num_link_freqs = ret;
+	if (num_link_freqs > ACPI_DEVICE_CSI2_DATA_LANES) {
+		acpi_handle_info(handle, "Too many link frequencies: %u\n",
+				 num_link_freqs);
+		num_link_freqs = ACPI_DEVICE_CSI2_DATA_LANES;
+	}
+
+	ret = fwnode_property_read_u64_array(port_fwnode,
+					     "mipi-img-link-frequencies",
+					     port->link_frequencies,
+					     num_link_freqs);
+	if (ret) {
+		acpi_handle_info(handle, "Unable to get link frequencies (%d)\n",
+				 ret);
+		return;
+	}
+
+	port->ep_props[NEXT_PROPERTY(index, EP_LINK_FREQUENCIES)] =
+				PROPERTY_ENTRY_U64_ARRAY_LEN("link-frequencies",
+							     port->link_frequencies,
+							     num_link_freqs);
+}
+
+static void init_csi2_port(struct acpi_device *adev,
+			   struct acpi_device_software_nodes *swnodes,
+			   struct acpi_device_software_node_port *port,
+			   struct fwnode_handle *port_fwnode,
+			   unsigned int port_index)
+{
+	unsigned int ep_prop_index = ACPI_DEVICE_SWNODE_EP_CLOCK_LANES;
+	acpi_handle handle = acpi_device_handle(adev);
+	u8 val[ACPI_DEVICE_CSI2_DATA_LANES];
+	int num_lanes = 0;
+	int ret;
+
+	if (GRAPH_PORT_NAME(port->port_name, port->port_nr))
+		return;
+
+	swnodes->nodes[ACPI_DEVICE_SWNODE_PORT(port_index)] =
+			SOFTWARE_NODE(port->port_name, port->port_props,
+				      &swnodes->nodes[ACPI_DEVICE_SWNODE_ROOT]);
+
+	ret = fwnode_property_read_u8(port_fwnode, "mipi-img-clock-lane", val);
+	if (!ret)
+		port->ep_props[NEXT_PROPERTY(ep_prop_index, EP_CLOCK_LANES)] =
+			PROPERTY_ENTRY_U32("clock-lanes", val[0]);
+
+	ret = fwnode_property_count_u8(port_fwnode, "mipi-img-data-lanes");
+	if (ret > 0) {
+		num_lanes = ret;
+
+		if (num_lanes > ACPI_DEVICE_CSI2_DATA_LANES) {
+			acpi_handle_info(handle, "Too many data lanes: %u\n",
+					 num_lanes);
+			num_lanes = ACPI_DEVICE_CSI2_DATA_LANES;
+		}
+
+		ret = fwnode_property_read_u8_array(port_fwnode,
+						    "mipi-img-data-lanes",
+						    val, num_lanes);
+		if (!ret) {
+			unsigned int i;
+
+			for (i = 0; i < num_lanes; i++)
+				port->data_lanes[i] = val[i];
+
+			port->ep_props[NEXT_PROPERTY(ep_prop_index, EP_DATA_LANES)] =
+				PROPERTY_ENTRY_U32_ARRAY_LEN("data-lanes",
+							     port->data_lanes,
+							     num_lanes);
+		}
+	}
+
+	ret = fwnode_property_count_u8(port_fwnode, "mipi-img-lane-polarities");
+	if (ret < 0) {
+		acpi_handle_debug(handle, "Lane polarity bytes missing\n");
+	} else if (ret * BITS_PER_TYPE(u8) < num_lanes + 1) {
+		acpi_handle_info(handle, "Too few lane polarity bytes (%lu vs. %d)\n",
+				 ret * BITS_PER_TYPE(u8), num_lanes + 1);
+	} else {
+		unsigned long mask = 0;
+		int byte_count = ret;
+		unsigned int i;
+
+		/*
+		 * The total number of lanes is ACPI_DEVICE_CSI2_DATA_LANES + 1
+		 * (data lanes + clock lane).  It is not expected to ever be
+		 * greater than the number of bits in an unsigned long
+		 * variable, but ensure that this is the case.
+		 */
+		BUILD_BUG_ON(BITS_PER_TYPE(unsigned long) <= ACPI_DEVICE_CSI2_DATA_LANES);
+
+		if (byte_count > sizeof(mask)) {
+			acpi_handle_info(handle, "Too many lane polarities: %d\n",
+					 byte_count);
+			byte_count = sizeof(mask);
+		}
+		fwnode_property_read_u8_array(port_fwnode, "mipi-img-lane-polarities",
+					      val, byte_count);
+
+		for (i = 0; i < byte_count; i++)
+			mask |= (unsigned long)val[i] << BITS_PER_TYPE(u8) * i;
+
+		for (i = 0; i <= num_lanes; i++)
+			port->lane_polarities[i] = test_bit(i, &mask);
+
+		port->ep_props[NEXT_PROPERTY(ep_prop_index, EP_LANE_POLARITIES)] =
+				PROPERTY_ENTRY_U32_ARRAY_LEN("lane-polarities",
+							     port->lane_polarities,
+							     num_lanes + 1);
+	}
+
+	swnodes->nodes[ACPI_DEVICE_SWNODE_EP(port_index)] =
+		SOFTWARE_NODE("endpoint@0", swnodes->ports[port_index].ep_props,
+			      &swnodes->nodes[ACPI_DEVICE_SWNODE_PORT(port_index)]);
+
+	if (port->crs_csi2_local)
+		init_csi2_port_local(adev, port, port_fwnode, ep_prop_index);
+}
+
+#define MIPI_IMG_PORT_PREFIX "mipi-img-port-"
+
+static struct fwnode_handle *get_mipi_port_handle(struct fwnode_handle *adev_fwnode,
+						  unsigned int port_nr)
+{
+	char port_name[sizeof(MIPI_IMG_PORT_PREFIX) + 2];
+
+	if (snprintf(port_name, sizeof(port_name), "%s%u",
+		     MIPI_IMG_PORT_PREFIX, port_nr) >= sizeof(port_name))
+		return NULL;
+
+	return fwnode_get_named_child_node(adev_fwnode, port_name);
+}
+
+static void init_crs_csi2_swnodes(struct crs_csi2 *csi2)
+{
+	struct acpi_buffer buffer = { .length = ACPI_ALLOCATE_BUFFER };
+	struct acpi_device_software_nodes *swnodes = csi2->swnodes;
+	acpi_handle handle = csi2->handle;
+	struct fwnode_handle *adev_fwnode;
+	struct acpi_device *adev;
+	acpi_status status;
+	unsigned int i;
+	int ret;
+
+	/*
+	 * Bail out if the swnodes are not available (either they have not been
+	 * allocated or they have been assigned to the device already).
+	 */
+	if (!swnodes)
+		return;
+
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
+		return;
+
+	adev_fwnode = acpi_fwnode_handle(adev);
+
+	status = acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
+	if (ACPI_FAILURE(status)) {
+		acpi_handle_info(handle, "Unable to get the path name\n");
+		return;
+	}
+
+	swnodes->nodes[ACPI_DEVICE_SWNODE_ROOT] =
+			SOFTWARE_NODE(buffer.pointer, swnodes->dev_props, NULL);
+
+	for (i = 0; i < swnodes->num_ports; i++) {
+		struct acpi_device_software_node_port *port = &swnodes->ports[i];
+		struct fwnode_handle *port_fwnode;
+
+		/*
+		 * The MIPI DisCo for Imaging specification defines _DSD device
+		 * properties for providing CSI-2 port parameters that can be
+		 * accessed through the generic device properties framework.  To
+		 * access them, it is first necessary to find the data node
+		 * representing the port under the given ACPI device object.
+		 */
+		port_fwnode = get_mipi_port_handle(adev_fwnode, port->port_nr);
+		if (!port_fwnode) {
+			acpi_handle_info(handle,
+					 "MIPI port name too long for port %u\n",
+					 port->port_nr);
+			continue;
+		}
+
+		init_csi2_port(adev, swnodes, port, port_fwnode, i);
+
+		fwnode_handle_put(port_fwnode);
+	}
+
+	ret = software_node_register_node_group(swnodes->nodeptrs);
+	if (ret < 0) {
+		acpi_handle_info(handle,
+				 "Unable to register software nodes (%d)\n", ret);
+		return;
+	}
+
+	adev->swnodes = swnodes;
+	adev_fwnode->secondary = software_node_fwnode(swnodes->nodes);
+
+	/*
+	 * Prevents the swnodes from this csi2 entry from being assigned again
+	 * or freed prematurely.
+	 */
+	csi2->swnodes = NULL;
+}
+
+/**
+ * acpi_mipi_init_crs_csi2_swnodes - Initialize _CRS CSI-2 software nodes
+ *
+ * Use MIPI DisCo for Imaging device properties to finalize the initialization
+ * of CSI-2 software nodes for all ACPI device objects that have been already
+ * enumerated.
+ */
+void acpi_mipi_init_crs_csi2_swnodes(void)
+{
+	struct crs_csi2 *csi2, *csi2_tmp;
+
+	list_for_each_entry_safe(csi2, csi2_tmp, &acpi_mipi_crs_csi2_list, entry)
+		init_crs_csi2_swnodes(csi2);
 }
 
 /**

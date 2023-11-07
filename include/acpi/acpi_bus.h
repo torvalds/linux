@@ -366,9 +366,23 @@ struct acpi_device_data {
 
 struct acpi_gpio_mapping;
 
+#define ACPI_DEVICE_SWNODE_ROOT			0
+
+/*
+ * The maximum expected number of CSI-2 data lanes.
+ *
+ * This number is not expected to ever have to be equal to or greater than the
+ * number of bits in an unsigned long variable, but if it needs to be increased
+ * above that limit, code will need to be adjusted accordingly.
+ */
 #define ACPI_DEVICE_CSI2_DATA_LANES		8
 
 #define ACPI_DEVICE_SWNODE_PORT_NAME_LENGTH	8
+
+enum acpi_device_swnode_dev_props {
+	ACPI_DEVICE_SWNODE_DEV_NUM_OF,
+	ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES
+};
 
 enum acpi_device_swnode_port_props {
 	ACPI_DEVICE_SWNODE_PORT_REG,
@@ -425,12 +439,14 @@ struct acpi_device_software_node_port {
 
 /**
  * struct acpi_device_software_nodes - Software nodes for an ACPI device
+ * @dev_props: Device properties.
  * @nodes: Software nodes for root as well as ports and endpoints.
  * @nodeprts: Array of software node pointers, for (un)registering them.
  * @ports: Information related to each port and endpoint within a port.
  * @num_ports: The number of ports.
  */
 struct acpi_device_software_nodes {
+	struct property_entry dev_props[ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES];
 	struct software_node *nodes;
 	const struct software_node **nodeptrs;
 	struct acpi_device_software_node_port *ports;
@@ -455,6 +471,7 @@ struct acpi_device {
 	struct acpi_device_data data;
 	struct acpi_scan_handler *handler;
 	struct acpi_hotplug_context *hp;
+	struct acpi_device_software_nodes *swnodes;
 	const struct acpi_gpio_mapping *driver_gpios;
 	void *driver_data;
 	struct device dev;
