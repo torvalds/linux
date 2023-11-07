@@ -47,6 +47,7 @@ def define_niobe():
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
+        "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/ufs/host/ufs_qcom.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
