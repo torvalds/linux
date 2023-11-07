@@ -341,25 +341,42 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		break;
 	}
 
-	/* Override from passed values, mainly for debugging purposes, if available */
-	if (dml2->config.bbox_overrides.sr_exit_latency_us) {
-		p->in_states->state_array[0].sr_exit_time_us = dml2->config.bbox_overrides.sr_exit_latency_us;
-	}
+	/* Override from passed values, if available */
+	for (i = 0; i < p->in_states->num_states; i++) {
+		if (dml2->config.bbox_overrides.sr_exit_latency_us) {
+			p->in_states->state_array[i].sr_exit_time_us =
+				dml2->config.bbox_overrides.sr_exit_latency_us;
+		}
 
-	if (dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us) {
-		p->in_states->state_array[0].sr_enter_plus_exit_time_us = dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us) {
+			p->in_states->state_array[i].sr_enter_plus_exit_time_us =
+				dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us;
+		}
 
-	if (dml2->config.bbox_overrides.urgent_latency_us) {
-		p->in_states->state_array[0].urgent_latency_pixel_data_only_us = dml2->config.bbox_overrides.urgent_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_exit_z8_time_us) {
+			p->in_states->state_array[i].sr_exit_z8_time_us =
+				dml2->config.bbox_overrides.sr_exit_z8_time_us;
+		}
 
-	if (dml2->config.bbox_overrides.dram_clock_change_latency_us) {
-		p->in_states->state_array[0].dram_clock_change_latency_us = dml2->config.bbox_overrides.dram_clock_change_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_enter_plus_exit_z8_time_us) {
+			p->in_states->state_array[i].sr_enter_plus_exit_z8_time_us =
+				dml2->config.bbox_overrides.sr_enter_plus_exit_z8_time_us;
+		}
 
-	if (dml2->config.bbox_overrides.fclk_change_latency_us) {
-		p->in_states->state_array[0].fclk_change_latency_us = dml2->config.bbox_overrides.fclk_change_latency_us;
+		if (dml2->config.bbox_overrides.urgent_latency_us) {
+			p->in_states->state_array[i].urgent_latency_pixel_data_only_us =
+				dml2->config.bbox_overrides.urgent_latency_us;
+		}
+
+		if (dml2->config.bbox_overrides.dram_clock_change_latency_us) {
+			p->in_states->state_array[i].dram_clock_change_latency_us =
+				dml2->config.bbox_overrides.dram_clock_change_latency_us;
+		}
+
+		if (dml2->config.bbox_overrides.fclk_change_latency_us) {
+			p->in_states->state_array[i].fclk_change_latency_us =
+				dml2->config.bbox_overrides.fclk_change_latency_us;
+		}
 	}
 
 	/* DCFCLK stas values are project specific */
