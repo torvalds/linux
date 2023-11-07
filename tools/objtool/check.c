@@ -291,7 +291,7 @@ static void init_insn_state(struct objtool_file *file, struct insn_state *state,
 
 static struct cfi_state *cfi_alloc(void)
 {
-	struct cfi_state *cfi = calloc(sizeof(struct cfi_state), 1);
+	struct cfi_state *cfi = calloc(1, sizeof(struct cfi_state));
 	if (!cfi) {
 		WARN("calloc failed");
 		exit(1);
