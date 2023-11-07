@@ -26,7 +26,11 @@
 #define CMD_A0_TOC				   W0_BIT_(31)
 #define CMD_A0_ROC				   W0_BIT_(30)
 #define CMD_A0_DEV_COUNT(v)		FIELD_PREP(W0_MASK(29, 26), v)
+#ifdef CONFIG_ARCH_ASPEED
+#define CMD_A0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(22, 16), v)
+#else
 #define CMD_A0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(20, 16), v)
+#endif
 #define CMD_A0_CMD(v)			FIELD_PREP(W0_MASK(14,  7), v)
 #define CMD_A0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
 
@@ -46,7 +50,11 @@
 #define CMD_I0_RNW				   W0_BIT_(29)
 #define CMD_I0_MODE(v)			FIELD_PREP(W0_MASK(28, 26), v)
 #define CMD_I0_DTT(v)			FIELD_PREP(W0_MASK(25, 23), v)
+#ifdef CONFIG_ARCH_ASPEED
+#define CMD_I0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(22, 16), v)
+#else
 #define CMD_I0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(20, 16), v)
+#endif
 #define CMD_I0_CP				   W0_BIT_(15)
 #define CMD_I0_CMD(v)			FIELD_PREP(W0_MASK(14,  7), v)
 #define CMD_I0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
@@ -64,11 +72,16 @@
 #define CMD_R0_RNW				   W0_BIT_(29)
 #define CMD_R0_MODE(v)			FIELD_PREP(W0_MASK(28, 26), v)
 #define CMD_R0_DBP				   W0_BIT_(25)
+#ifdef CONFIG_ARCH_ASPEED
+#define CMD_R0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(22, 16), v)
+#else
 #define CMD_R0_DEV_INDEX(v)		FIELD_PREP(W0_MASK(20, 16), v)
+#endif
 #define CMD_R0_CP				   W0_BIT_(15)
 #define CMD_R0_CMD(v)			FIELD_PREP(W0_MASK(14,  7), v)
 #define CMD_R0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
 
+#ifndef CONFIG_ARCH_ASPEED
 /*
  * Combo Transfer (Write + Write/Read) Command
  */
@@ -88,7 +101,7 @@
 #define CMD_C0_CP				   W0_BIT_(15)
 #define CMD_C0_CMD(v)			FIELD_PREP(W0_MASK(14,  7), v)
 #define CMD_C0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
-
+#endif
 /*
  * Internal Control Command
  */
