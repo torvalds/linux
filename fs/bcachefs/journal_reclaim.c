@@ -367,14 +367,33 @@ static enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
 		return JOURNAL_PIN_other;
 }
 
-void bch2_journal_pin_set(struct journal *j, u64 seq,
+static inline void bch2_journal_pin_set_locked(struct journal *j, u64 seq,
 			  struct journal_entry_pin *pin,
-			  journal_pin_flush_fn flush_fn)
+			  journal_pin_flush_fn flush_fn,
+			  enum journal_pin_type type)
 {
-	struct journal_entry_pin_list *pin_list;
+	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
+
+	atomic_inc(&pin_list->count);
+	pin->seq	= seq;
+	pin->flush	= flush_fn;
+
+	if (flush_fn)
+		list_add(&pin->list, &pin_list->list[type]);
+	else
+		list_add(&pin->list, &pin_list->flushed);
+}
+
+void bch2_journal_pin_copy(struct journal *j,
+			   struct journal_entry_pin *dst,
+			   struct journal_entry_pin *src,
+			   journal_pin_flush_fn flush_fn)
+{
 	bool reclaim;
 
 	spin_lock(&j->lock);
+
+	u64 seq = READ_ONCE(src->seq);
 
 	if (seq < journal_last_seq(j)) {
 		/*
@@ -387,18 +406,34 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 		return;
 	}
 
-	pin_list = journal_seq_pin(j, seq);
+	reclaim = __journal_pin_drop(j, dst);
+
+	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(flush_fn));
+
+	if (reclaim)
+		bch2_journal_reclaim_fast(j);
+	spin_unlock(&j->lock);
+
+	/*
+	 * If the journal is currently full,  we might want to call flush_fn
+	 * immediately:
+	 */
+	journal_wake(j);
+}
+
+void bch2_journal_pin_set(struct journal *j, u64 seq,
+			  struct journal_entry_pin *pin,
+			  journal_pin_flush_fn flush_fn)
+{
+	bool reclaim;
+
+	spin_lock(&j->lock);
+
+	BUG_ON(seq < journal_last_seq(j));
 
 	reclaim = __journal_pin_drop(j, pin);
 
-	atomic_inc(&pin_list->count);
-	pin->seq	= seq;
-	pin->flush	= flush_fn;
-
-	if (flush_fn)
-		list_add(&pin->list, &pin_list->list[journal_pin_type(flush_fn)]);
-	else
-		list_add(&pin->list, &pin_list->flushed);
+	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
