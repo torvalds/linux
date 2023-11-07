@@ -1937,10 +1937,7 @@ void __bpf_obj_drop_impl(void *p, const struct btf_record *rec, bool percpu)
 		ma = &bpf_global_percpu_ma;
 	else
 		ma = &bpf_global_ma;
-	if (rec && rec->refcount_off >= 0)
-		bpf_mem_free_rcu(ma, p);
-	else
-		bpf_mem_free(ma, p);
+	bpf_mem_free_rcu(ma, p);
 }
 
 __bpf_kfunc void bpf_obj_drop_impl(void *p__alloc, void *meta__ign)
