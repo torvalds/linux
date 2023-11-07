@@ -612,7 +612,7 @@
 		};
 
 		uart4: serial@12c1a000 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x12c1a000 0x0 0x1000>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -984,6 +984,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x0 0x14c0f000 0x1100>;
+		};
+
+		udma: uart-dma@14c12000 {
+			compatible = "aspeed,ast2700-udma";
+			reg = <0x0 0x14c12000 0x0 0x1000>;
+			interrupts-extended = <&intc4 19>;
 		};
 
 		i3c0: i3c0@14c20000 {
@@ -1387,7 +1393,7 @@
 		};
 
 		uart0: serial@14c33000 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33000 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1400,7 +1406,7 @@
 		};
 
 		uart1: serial@14c33100 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33100 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1413,7 +1419,7 @@
 		};
 
 		uart2: serial@14c33200 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33200 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1426,7 +1432,7 @@
 		};
 
 		uart3: serial@14c33300 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33300 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1439,7 +1445,7 @@
 		};
 
 		uart5: serial@14c33400 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33400 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1452,7 +1458,7 @@
 		};
 
 		uart6: serial@14c33500 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33500 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1465,7 +1471,7 @@
 		};
 
 		uart7: serial@14c33600 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33600 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1478,7 +1484,7 @@
 		};
 
 		uart8: serial@14c33700 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33700 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1491,7 +1497,7 @@
 		};
 
 		uart9: serial@14c33800 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33800 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1503,7 +1509,7 @@
 		};
 
 		uart10: serial@14c33900 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33900 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1515,7 +1521,7 @@
 		};
 
 		uart11: serial@14c33a00 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33a00 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -1527,7 +1533,7 @@
 		};
 
 		uart12: serial@14c33b00 {
-			compatible = "ns16550a";
+			compatible = "aspeed,ast2700-uart";
 			reg = <0x0 0x14c33b00 0x0 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
