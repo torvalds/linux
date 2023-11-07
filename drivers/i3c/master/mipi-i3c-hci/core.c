@@ -208,6 +208,14 @@
 #define PHY_I2C_FM_CTRL3		0x14
 #define PHY_I2C_FM_CTRL3_HD_DAT		GENMASK(25, 16)
 #define PHY_I2C_FM_CTRL3_AHD_DAT	GENMASK(9, 0)
+
+#define PHY_I2C_FM_DEFAULT_CAS_NS	1130
+#define PHY_I2C_FM_DEFAULT_SU_STO_NS	1370
+#define PHY_I2C_FM_DEFAULT_SCL_H_NS	1130
+#define PHY_I2C_FM_DEFAULT_SCL_L_NS	1370
+#define PHY_I2C_FM_DEFAULT_HD_DAT	10
+#define PHY_I2C_FM_DEFAULT_AHD_DAT	10
+
 /* I2C FMP */
 #define PHY_I2C_FMP_CTRL0		0x18
 #define PHY_I2C_FMP_CTRL0_CAS		GENMASK(25, 16)
@@ -221,6 +229,14 @@
 #define PHY_I2C_FMP_CTRL3		0x24
 #define PHY_I2C_FMP_CTRL3_HD_DAT	GENMASK(25, 16)
 #define PHY_I2C_FMP_CTRL3_AHD_DAT	GENMASK(9, 0)
+
+#define PHY_I2C_FMP_DEFAULT_CAS_NS	380
+#define PHY_I2C_FMP_DEFAULT_SU_STO_NS	620
+#define PHY_I2C_FMP_DEFAULT_SCL_H_NS	380
+#define PHY_I2C_FMP_DEFAULT_SCL_L_NS	620
+#define PHY_I2C_FMP_DEFAULT_HD_DAT	10
+#define PHY_I2C_FMP_DEFAULT_AHD_DAT	10
+
 /* I3C OD */
 #define PHY_I3C_OD_CTRL0		0x28
 #define PHY_I3C_OD_CTRL0_CAS		GENMASK(25, 16)
@@ -1021,6 +1037,46 @@ static int aspeed_i3c_of_populate_bus_timing(struct i3c_hci *hci,
 
 	dev_info(&hci->master.dev, "core rate = %ld core period = %ld ns",
 		 core_rate, core_period);
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_CAS_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_SU_STO_NS, core_period) - 1;
+	ast_phy_write(PHY_I2C_FM_CTRL0,
+		      FIELD_PREP(PHY_I2C_FM_CTRL0_CAS, hcnt) |
+			      FIELD_PREP(PHY_I2C_FM_CTRL0_SU_STO, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_SCL_H_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_SCL_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I2C_FM_CTRL1,
+		      FIELD_PREP(PHY_I2C_FM_CTRL1_SCL_H, hcnt) |
+			      FIELD_PREP(PHY_I2C_FM_CTRL1_SCL_L, lcnt));
+	ast_phy_write(PHY_I2C_FM_CTRL2,
+		      FIELD_PREP(PHY_I2C_FM_CTRL2_ACK_H, hcnt) |
+			      FIELD_PREP(PHY_I2C_FM_CTRL2_ACK_L, hcnt));
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_HD_DAT, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FM_DEFAULT_AHD_DAT, core_period) - 1;
+	ast_phy_write(PHY_I2C_FM_CTRL3,
+		      FIELD_PREP(PHY_I2C_FM_CTRL3_HD_DAT, hcnt) |
+			      FIELD_PREP(PHY_I2C_FM_CTRL3_AHD_DAT, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_CAS_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_SU_STO_NS, core_period) - 1;
+	ast_phy_write(PHY_I2C_FMP_CTRL0,
+		      FIELD_PREP(PHY_I2C_FMP_CTRL0_CAS, hcnt) |
+			      FIELD_PREP(PHY_I2C_FMP_CTRL0_SU_STO, lcnt));
+
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_SCL_H_NS, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_SCL_L_NS, core_period) - 1;
+	ast_phy_write(PHY_I2C_FMP_CTRL1,
+		      FIELD_PREP(PHY_I2C_FMP_CTRL1_SCL_H, hcnt) |
+			      FIELD_PREP(PHY_I2C_FMP_CTRL1_SCL_L, lcnt));
+	ast_phy_write(PHY_I2C_FMP_CTRL2,
+		      FIELD_PREP(PHY_I2C_FMP_CTRL2_ACK_H, hcnt) |
+			      FIELD_PREP(PHY_I2C_FMP_CTRL2_ACK_L, hcnt));
+	hcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_HD_DAT, core_period) - 1;
+	lcnt = DIV_ROUND_CLOSEST(PHY_I2C_FMP_DEFAULT_AHD_DAT, core_period) - 1;
+	ast_phy_write(PHY_I2C_FMP_CTRL3,
+		      FIELD_PREP(PHY_I2C_FMP_CTRL3_HD_DAT, hcnt) |
+			      FIELD_PREP(PHY_I2C_FMP_CTRL3_AHD_DAT, lcnt));
 
 	hcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_CAS_NS, core_period) - 1;
 	lcnt = DIV_ROUND_CLOSEST(PHY_I3C_OD_DEFAULT_SU_STO_NS, core_period) - 1;
