@@ -1614,6 +1614,8 @@ static void gmc_v9_0_vram_gtt_location(struct amdgpu_device *adev,
 {
 	u64 base = adev->mmhub.funcs->get_fb_location(adev);
 
+	amdgpu_gmc_set_agp_default(adev, mc);
+
 	/* add the xgmi offset of the physical node */
 	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 	if (adev->gmc.xgmi.connected_to_cpu) {
