@@ -1177,7 +1177,7 @@ static u32 apseed_get_clk_div_ast2600(struct aspeed_spi_chip *chip,
  */
 
 #define CALIBRATE_BUF_SIZE SZ_4K
-#define CALIBRATE_REPEAT_COUNT 2
+#define CALIBRATE_REPEAT_COUNT 1
 
 static bool aspeed_spi_check_reads(struct aspeed_spi_chip *chip,
 				   const u8 *golden_buf, u8 *test_buf)
