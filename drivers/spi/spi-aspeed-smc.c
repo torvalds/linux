@@ -1307,7 +1307,7 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 
 	memcpy_fromio(golden_buf, chip->ahb_base, CALIBRATE_BUF_SIZE);
 	if (!aspeed_spi_check_calib_data(golden_buf, CALIBRATE_BUF_SIZE)) {
-		dev_info(aspi->dev, "Calibration area too uniform, using low speed");
+		dev_info(aspi->dev, "Calibration area too uniform\n");
 		goto no_calib;
 	}
 
