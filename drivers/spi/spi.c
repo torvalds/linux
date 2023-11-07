@@ -3323,33 +3323,52 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 }
 EXPORT_SYMBOL_GPL(spi_unregister_controller);
 
+static inline int __spi_check_suspended(const struct spi_controller *ctlr)
+{
+	return ctlr->flags & SPI_CONTROLLER_SUSPENDED ? -ESHUTDOWN : 0;
+}
+
+static inline void __spi_mark_suspended(struct spi_controller *ctlr)
+{
+	mutex_lock(&ctlr->bus_lock_mutex);
+	ctlr->flags |= SPI_CONTROLLER_SUSPENDED;
+	mutex_unlock(&ctlr->bus_lock_mutex);
+}
+
+static inline void __spi_mark_resumed(struct spi_controller *ctlr)
+{
+	mutex_lock(&ctlr->bus_lock_mutex);
+	ctlr->flags &= ~SPI_CONTROLLER_SUSPENDED;
+	mutex_unlock(&ctlr->bus_lock_mutex);
+}
+
 int spi_controller_suspend(struct spi_controller *ctlr)
 {
-	int ret;
+	int ret = 0;
 
 	/* Basically no-ops for non-queued controllers */
-	if (!ctlr->queued)
-		return 0;
+	if (ctlr->queued) {
+		ret = spi_stop_queue(ctlr);
+		if (ret)
+			dev_err(&ctlr->dev, "queue stop failed\n");
+	}
 
-	ret = spi_stop_queue(ctlr);
-	if (ret)
-		dev_err(&ctlr->dev, "queue stop failed\n");
-
+	__spi_mark_suspended(ctlr);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_controller_suspend);
 
 int spi_controller_resume(struct spi_controller *ctlr)
 {
-	int ret;
+	int ret = 0;
 
-	if (!ctlr->queued)
-		return 0;
+	__spi_mark_resumed(ctlr);
 
-	ret = spi_start_queue(ctlr);
-	if (ret)
-		dev_err(&ctlr->dev, "queue restart failed\n");
-
+	if (ctlr->queued) {
+		ret = spi_start_queue(ctlr);
+		if (ret)
+			dev_err(&ctlr->dev, "queue restart failed\n");
+	}
 	return ret;
 }
 EXPORT_SYMBOL_GPL(spi_controller_resume);
@@ -4153,8 +4172,7 @@ static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct s
 	ctlr->cur_msg = msg;
 	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
 	if (ret)
-		goto out;
-
+		dev_err(&ctlr->dev, "noqueue transfer failed\n");
 	ctlr->cur_msg = NULL;
 	ctlr->fallback = false;
 
@@ -4170,7 +4188,6 @@ static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct s
 		spi_idle_runtime_pm(ctlr);
 	}
 
-out:
 	mutex_unlock(&ctlr->io_mutex);
 }
 
@@ -4192,6 +4209,11 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 	struct spi_controller *ctlr = spi->controller;
+
+	if (__spi_check_suspended(ctlr)) {
+		dev_warn_once(&spi->dev, "Attempted to sync while suspend\n");
+		return -ESHUTDOWN;
+	}
 
 	status = __spi_validate(spi, message);
 	if (status != 0)
