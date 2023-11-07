@@ -126,7 +126,7 @@ static void aspeed_spi_set_segment_addr_ast2600(struct aspeed_spi_host *host)
 }
 
 #define G7_SEGMENT_ADDR_VALUE(start, end) \
-	((((start) >> 16) & 0xffff) | (((end) + 1) & 0xffff0000))
+	((((start) >> 16) & 0x7fff) | (((end) + 1) & 0x7fff0000))
 
 static void aspeed_spi_set_segment_addr_ast2700(struct aspeed_spi_host *host)
 {

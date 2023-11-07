@@ -1037,8 +1037,8 @@ static u32 aspeed_spi_segment_ast2700_reg(struct aspeed_spi *aspi,
 	if (start == end)
 		return 0;
 
-	return (u32)((((start) >> 16) & 0xffff) |
-		     ((end + 1) & 0xffff0000));
+	return (u32)((((start) >> 16) & 0x7fff) |
+		     ((end + 1) & 0x7fff0000));
 }
 
 static const u32 aspeed_spi_hclk_divs[] = {
