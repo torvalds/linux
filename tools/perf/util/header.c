@@ -2145,6 +2145,14 @@ static void print_pmu_caps(struct feat_fd *ff, FILE *fp)
 		__print_pmu_caps(fp, pmu_caps->nr_caps, pmu_caps->caps,
 				 pmu_caps->pmu_name);
 	}
+
+	if (strcmp(perf_env__arch(&ff->ph->env), "x86") == 0 &&
+	    perf_env__has_pmu_mapping(&ff->ph->env, "ibs_op")) {
+		char *max_precise = perf_env__find_pmu_cap(&ff->ph->env, "cpu", "max_precise");
+
+		if (max_precise != NULL && atoi(max_precise) == 0)
+			fprintf(fp, "# AMD systems uses ibs_op// PMU for some precise events, e.g.: cycles:p, see the 'perf list' man page for further details.\n");
+	}
 }
 
 static void print_pmu_mappings(struct feat_fd *ff, FILE *fp)

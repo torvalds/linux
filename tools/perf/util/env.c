@@ -531,6 +531,24 @@ int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu)
 	return cpu.cpu >= 0 && cpu.cpu < env->nr_numa_map ? env->numa_map[cpu.cpu] : -1;
 }
 
+bool perf_env__has_pmu_mapping(struct perf_env *env, const char *pmu_name)
+{
+	char *pmu_mapping = env->pmu_mappings, *colon;
+
+	for (int i = 0; i < env->nr_pmu_mappings; ++i) {
+		if (strtoul(pmu_mapping, &colon, 0) == ULONG_MAX || *colon != ':')
+			goto out_error;
+
+		pmu_mapping = colon + 1;
+		if (strcmp(pmu_mapping, pmu_name) == 0)
+			return true;
+
+		pmu_mapping += strlen(pmu_mapping) + 1;
+	}
+out_error:
+	return false;
+}
+
 char *perf_env__find_pmu_cap(struct perf_env *env, const char *pmu_name,
 			     const char *cap)
 {

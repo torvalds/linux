@@ -179,4 +179,6 @@ struct btf_node *perf_env__find_btf(struct perf_env *env, __u32 btf_id);
 int perf_env__numa_node(struct perf_env *env, struct perf_cpu cpu);
 char *perf_env__find_pmu_cap(struct perf_env *env, const char *pmu_name,
 			     const char *cap);
+
+bool perf_env__has_pmu_mapping(struct perf_env *env, const char *pmu_name);
 #endif /* __PERF_ENV_H */
