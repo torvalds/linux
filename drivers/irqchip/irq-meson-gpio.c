@@ -229,7 +229,7 @@ meson_gpio_irq_request_channel(struct meson_gpio_irq_controller *ctl,
 
 	/*
 	 * Get the hwirq number assigned to this channel through
-	 * a pointer the channel_irq table. The added benifit of this
+	 * a pointer the channel_irq table. The added benefit of this
 	 * method is that we can also retrieve the channel index with
 	 * it, using the table base.
 	 */

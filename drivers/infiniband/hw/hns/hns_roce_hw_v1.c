@@ -239,7 +239,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 				break;
 			}
 
-			/*Ctrl field, ctrl set type: sig, solic, imm, fence */
+			/* Ctrl field, ctrl set type: sig, solic, imm, fence */
 			/* SO wait for conforming application scenarios */
 			ctrl->flag |= (wr->send_flags & IB_SEND_SIGNALED ?
 				      cpu_to_le32(HNS_ROCE_WQE_CQ_NOTIFY) : 0) |
@@ -300,7 +300,7 @@ static int hns_roce_v1_post_send(struct ib_qp *ibqp,
 				}
 				ctrl->flag |= cpu_to_le32(HNS_ROCE_WQE_INLINE);
 			} else {
-				/*sqe num is two */
+				/* sqe num is two */
 				for (i = 0; i < wr->num_sge; i++)
 					set_data_seg(dseg + i, wr->sg_list + i);
 
@@ -448,6 +448,82 @@ static void hns_roce_set_db_event_mode(struct hns_roce_dev *hr_dev,
 	roce_set_bit(tmp, ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S, odb_mode);
 	val = le32_to_cpu(tmp);
 	roce_write(hr_dev, ROCEE_GLB_CFG_REG, val);
+}
+
+static int hns_roce_v1_set_hem(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_hem_table *table, int obj,
+			       int step_idx)
+{
+	spinlock_t *lock = &hr_dev->bt_cmd_lock;
+	struct device *dev = hr_dev->dev;
+	struct hns_roce_hem_iter iter;
+	void __iomem *bt_cmd;
+	__le32 bt_cmd_val[2];
+	__le32 bt_cmd_h = 0;
+	unsigned long flags;
+	__le32 bt_cmd_l;
+	int ret = 0;
+	u64 bt_ba;
+	long end;
+
+	/* Find the HEM(Hardware Entry Memory) entry */
+	unsigned long i = (obj & (table->num_obj - 1)) /
+			  (table->table_chunk_size / table->obj_size);
+
+	switch (table->type) {
+	case HEM_TYPE_QPC:
+	case HEM_TYPE_MTPT:
+	case HEM_TYPE_CQC:
+	case HEM_TYPE_SRQC:
+		roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_M,
+			ROCEE_BT_CMD_H_ROCEE_BT_CMD_MDF_S, table->type);
+		break;
+	default:
+		return ret;
+	}
+
+	roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_IN_MDF_M,
+		       ROCEE_BT_CMD_H_ROCEE_BT_CMD_IN_MDF_S, obj);
+	roce_set_bit(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_S, 0);
+	roce_set_bit(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_HW_SYNS_S, 1);
+
+	/* Currently iter only a chunk */
+	for (hns_roce_hem_first(table->hem[i], &iter);
+	     !hns_roce_hem_last(&iter); hns_roce_hem_next(&iter)) {
+		bt_ba = hns_roce_hem_addr(&iter) >> HNS_HW_PAGE_SHIFT;
+
+		spin_lock_irqsave(lock, flags);
+
+		bt_cmd = hr_dev->reg_base + ROCEE_BT_CMD_H_REG;
+
+		end = HW_SYNC_TIMEOUT_MSECS;
+		while (end > 0) {
+			if (!(readl(bt_cmd) >> BT_CMD_SYNC_SHIFT))
+				break;
+
+			mdelay(HW_SYNC_SLEEP_TIME_INTERVAL);
+			end -= HW_SYNC_SLEEP_TIME_INTERVAL;
+		}
+
+		if (end <= 0) {
+			dev_err(dev, "Write bt_cmd err,hw_sync is not zero.\n");
+			spin_unlock_irqrestore(lock, flags);
+			return -EBUSY;
+		}
+
+		bt_cmd_l = cpu_to_le32(bt_ba);
+		roce_set_field(bt_cmd_h, ROCEE_BT_CMD_H_ROCEE_BT_CMD_BA_H_M,
+			       ROCEE_BT_CMD_H_ROCEE_BT_CMD_BA_H_S,
+			       upper_32_bits(bt_ba));
+
+		bt_cmd_val[0] = bt_cmd_l;
+		bt_cmd_val[1] = bt_cmd_h;
+		hns_roce_write64_k(bt_cmd_val,
+				   hr_dev->reg_base + ROCEE_BT_CMD_L_REG);
+		spin_unlock_irqrestore(lock, flags);
+	}
+
+	return ret;
 }
 
 static void hns_roce_set_db_ext_mode(struct hns_roce_dev *hr_dev, u32 sdb_mode,
@@ -1165,7 +1241,7 @@ static int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
 	}
 	raq->e_raq_buf->map = addr;
 
-	/* Configure raq extended address. 48bit 4K align*/
+	/* Configure raq extended address. 48bit 4K align */
 	roce_write(hr_dev, ROCEE_EXT_RAQ_REG, raq->e_raq_buf->map >> 12);
 
 	/* Configure raq_shift */
@@ -2062,11 +2138,6 @@ static void hns_roce_v1_write_cqc(struct hns_roce_dev *hr_dev,
 		       CQ_CONTEXT_CQC_BYTE_32_CQ_CONS_IDX_S, 0);
 }
 
-static int hns_roce_v1_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
-{
-	return -EOPNOTSUPP;
-}
-
 static int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq,
 				     enum ib_cq_notify_flags flags)
 {
@@ -2765,7 +2836,6 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		roce_set_field(context->qpc_bytes_16,
 			       QP_CONTEXT_QPC_BYTES_16_QP_NUM_M,
 			       QP_CONTEXT_QPC_BYTES_16_QP_NUM_S, hr_qp->qpn);
-
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_INIT) {
 		roce_set_field(context->qpc_bytes_4,
 			       QP_CONTEXT_QPC_BYTES_4_TRANSPORT_SERVICE_TYPE_M,
@@ -3798,7 +3868,6 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 	int event_type;
 
 	while ((aeqe = next_aeqe_sw_v1(eq))) {
-
 		/* Make sure we read the AEQ entry after we have checked the
 		 * ownership bit
 		 */
@@ -3903,7 +3972,6 @@ static int hns_roce_v1_ceq_int(struct hns_roce_dev *hr_dev,
 	u32 cqn;
 
 	while ((ceqe = next_ceqe_sw_v1(eq))) {
-
 		/* Make sure we read CEQ entry after we have checked the
 		 * ownership bit
 		 */
@@ -4347,7 +4415,6 @@ static void hns_roce_v1_cleanup_eq_table(struct hns_roce_dev *hr_dev)
 
 static const struct ib_device_ops hns_roce_v1_dev_ops = {
 	.destroy_qp = hns_roce_v1_destroy_qp,
-	.modify_cq = hns_roce_v1_modify_cq,
 	.poll_cq = hns_roce_v1_poll_cq,
 	.post_recv = hns_roce_v1_post_recv,
 	.post_send = hns_roce_v1_post_send,
@@ -4367,7 +4434,7 @@ static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.set_mtu = hns_roce_v1_set_mtu,
 	.write_mtpt = hns_roce_v1_write_mtpt,
 	.write_cqc = hns_roce_v1_write_cqc,
-	.modify_cq = hns_roce_v1_modify_cq,
+	.set_hem = hns_roce_v1_set_hem,
 	.clear_hem = hns_roce_v1_clear_hem,
 	.modify_qp = hns_roce_v1_modify_qp,
 	.query_qp = hns_roce_v1_query_qp,

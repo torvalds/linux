@@ -260,6 +260,7 @@ struct nf_bridge_info {
 	u8			pkt_otherhost:1;
 	u8			in_prerouting:1;
 	u8			bridged_dnat:1;
+	u8			sabotage_in_done:1;
 	__u16			frag_max_size;
 	struct net_device	*physindev;
 
@@ -706,6 +707,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@transport_header: Transport layer header
  *	@network_header: Network layer header
  *	@mac_header: Link layer header
+ *	@kcov_handle: KCOV remote handle for remote coverage collection
  *	@tail: Tail pointer
  *	@end: End pointer
  *	@head: Head of buffer
@@ -908,6 +910,10 @@ struct sk_buff {
 	__u16			transport_header;
 	__u16			network_header;
 	__u16			mac_header;
+
+#ifdef CONFIG_KCOV
+	u64			kcov_handle;
+#endif
 
 	/* private: */
 	__u32			headers_end[0];
@@ -4207,9 +4213,6 @@ enum skb_ext_id {
 #if IS_ENABLED(CONFIG_MPTCP)
 	SKB_EXT_MPTCP,
 #endif
-#if IS_ENABLED(CONFIG_KCOV)
-	SKB_EXT_KCOV_HANDLE,
-#endif
 	SKB_EXT_NUM, /* must be last */
 };
 
@@ -4320,7 +4323,7 @@ static inline void nf_reset_ct(struct sk_buff *skb)
 
 static inline void nf_reset_trace(struct sk_buff *skb)
 {
-#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_NF_TABLES)
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || IS_ENABLED(CONFIG_NF_TABLES)
 	skb->nf_trace = 0;
 #endif
 }
@@ -4340,7 +4343,7 @@ static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src,
 	dst->_nfct = src->_nfct;
 	nf_conntrack_get(skb_nfct(src));
 #endif
-#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || defined(CONFIG_NF_TABLES)
+#if IS_ENABLED(CONFIG_NETFILTER_XT_TARGET_TRACE) || IS_ENABLED(CONFIG_NF_TABLES)
 	if (copy)
 		dst->nf_trace = src->nf_trace;
 #endif
@@ -4664,35 +4667,27 @@ static inline void skb_reset_redirect(struct sk_buff *skb)
 #endif
 }
 
-#if IS_ENABLED(CONFIG_KCOV) && IS_ENABLED(CONFIG_SKB_EXTENSIONS)
+static inline bool skb_csum_is_sctp(struct sk_buff *skb)
+{
+	return skb->csum_not_inet;
+}
+
 static inline void skb_set_kcov_handle(struct sk_buff *skb,
 				       const u64 kcov_handle)
 {
-	/* Do not allocate skb extensions only to set kcov_handle to zero
-	 * (as it is zero by default). However, if the extensions are
-	 * already allocated, update kcov_handle anyway since
-	 * skb_set_kcov_handle can be called to zero a previously set
-	 * value.
-	 */
-	if (skb_has_extensions(skb) || kcov_handle) {
-		u64 *kcov_handle_ptr = skb_ext_add(skb, SKB_EXT_KCOV_HANDLE);
-
-		if (kcov_handle_ptr)
-			*kcov_handle_ptr = kcov_handle;
-	}
+#ifdef CONFIG_KCOV
+	skb->kcov_handle = kcov_handle;
+#endif
 }
 
 static inline u64 skb_get_kcov_handle(struct sk_buff *skb)
 {
-	u64 *kcov_handle = skb_ext_find(skb, SKB_EXT_KCOV_HANDLE);
-
-	return kcov_handle ? *kcov_handle : 0;
-}
+#ifdef CONFIG_KCOV
+	return skb->kcov_handle;
 #else
-static inline void skb_set_kcov_handle(struct sk_buff *skb,
-				       const u64 kcov_handle) { }
-static inline u64 skb_get_kcov_handle(struct sk_buff *skb) { return 0; }
-#endif /* CONFIG_KCOV && CONFIG_SKB_EXTENSIONS */
+	return 0;
+#endif
+}
 
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SKBUFF_H */

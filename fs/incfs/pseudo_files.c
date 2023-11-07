@@ -916,10 +916,10 @@ static long ioctl_get_read_timeouts(struct mount_info *mi, void __user *arg)
 	if (copy_from_user(&args, args_usr_ptr, sizeof(args)))
 		return -EINVAL;
 
-	if (args.timeouts_array_size_out > INCFS_DATA_FILE_BLOCK_SIZE)
+	if (args.timeouts_array_size > INCFS_DATA_FILE_BLOCK_SIZE)
 		return -EINVAL;
 
-	buffer = kzalloc(args.timeouts_array_size_out, GFP_NOFS);
+	buffer = kzalloc(args.timeouts_array_size, GFP_NOFS);
 	if (!buffer)
 		return -ENOMEM;
 

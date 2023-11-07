@@ -61,6 +61,9 @@
 struct sdma_desc {
 	/* private:  don't use directly */
 	u64 qw[2];
+	void *pinning_ctx;
+	/* Release reference to @pinning_ctx. May be called in interrupt context. Must not sleep. */
+	void (*ctx_put)(void *ctx);
 };
 
 /**

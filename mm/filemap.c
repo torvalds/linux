@@ -2661,6 +2661,8 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	ra->start = max_t(long, 0, vmf->pgoff - ra->ra_pages / 2);
 	ra->size = ra->ra_pages;
 	ra->async_size = ra->ra_pages / 4;
+	trace_android_vh_tune_mmap_readaround(ra->ra_pages, vmf->pgoff,
+			&ra->start, &ra->size, &ra->async_size);
 	ractl._index = ra->start;
 	do_page_cache_ra(&ractl, ra->size, ra->async_size);
 	return fpin;
@@ -2736,11 +2738,14 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 
 	if (vmf->flags & FAULT_FLAG_SPECULATIVE) {
 		page = find_get_page(mapping, offset);
-		if (unlikely(!page) || unlikely(PageReadahead(page)))
+		if (unlikely(!page))
 			return VM_FAULT_RETRY;
 
+		if (unlikely(PageReadahead(page)))
+			goto page_put;
+
 		if (!trylock_page(page))
-			return VM_FAULT_RETRY;
+			goto page_put;
 
 		if (unlikely(compound_head(page)->mapping != mapping))
 			goto page_unlock;
@@ -2772,6 +2777,8 @@ vm_fault_t filemap_fault(struct vm_fault *vmf)
 		return VM_FAULT_LOCKED;
 page_unlock:
 		unlock_page(page);
+page_put:
+		put_page(page);
 		return VM_FAULT_RETRY;
 	}
 

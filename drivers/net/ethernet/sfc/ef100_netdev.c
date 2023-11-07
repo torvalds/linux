@@ -96,6 +96,8 @@ static int ef100_net_stop(struct net_device *net_dev)
 	efx_mcdi_free_vis(efx);
 	efx_remove_interrupts(efx);
 
+	efx->state = STATE_NET_DOWN;
+
 	return 0;
 }
 
@@ -171,6 +173,8 @@ static int ef100_net_open(struct net_device *net_dev)
 	if (efx_mcdi_phy_poll(efx))
 		efx_link_status_changed(efx);
 	mutex_unlock(&efx->mac_lock);
+
+	efx->state = STATE_NET_UP;
 
 	return 0;
 
@@ -272,7 +276,7 @@ int ef100_register_netdev(struct efx_nic *efx)
 	/* Always start with carrier off; PHY events will detect the link */
 	netif_carrier_off(net_dev);
 
-	efx->state = STATE_READY;
+	efx->state = STATE_NET_DOWN;
 	rtnl_unlock();
 	efx_init_mcdi_logging(efx);
 

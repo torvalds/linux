@@ -27,7 +27,10 @@
 
 /* Registers */
 #define CGXX_CMRX_CFG			0x00
-#define CMR_EN				BIT_ULL(55)
+#define CMR_P2X_SEL_MASK		GENMASK_ULL(61, 59)
+#define CMR_P2X_SEL_SHIFT		59ULL
+#define CMR_P2X_SEL_NIX0		1ULL
+#define CMR_P2X_SEL_NIX1		2ULL
 #define DATA_PKT_TX_EN			BIT_ULL(53)
 #define DATA_PKT_RX_EN			BIT_ULL(54)
 #define CGX_LMAC_TYPE_SHIFT		40
@@ -142,5 +145,6 @@ int cgx_lmac_get_pause_frm(void *cgxd, int lmac_id,
 int cgx_lmac_set_pause_frm(void *cgxd, int lmac_id,
 			   u8 tx_pause, u8 rx_pause);
 void cgx_lmac_ptp_config(void *cgxd, int lmac_id, bool enable);
+u8 cgx_lmac_get_p2x(int cgx_id, int lmac_id);
 
 #endif /* CGX_H */

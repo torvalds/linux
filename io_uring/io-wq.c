@@ -513,7 +513,7 @@ static struct io_wq_work *io_get_next_work(struct io_wqe_acct *acct,
 
 static bool io_flush_signals(void)
 {
-	if (unlikely(test_thread_flag(TIF_NOTIFY_SIGNAL))) {
+	if (test_thread_flag(TIF_NOTIFY_SIGNAL) || current->task_works) {
 		__set_current_state(TASK_RUNNING);
 		tracehook_notify_signal();
 		return true;
@@ -1217,6 +1217,12 @@ static void io_wq_cancel_tw_create(struct io_wq *wq)
 
 		worker = container_of(cb, struct io_worker, create_work);
 		io_worker_cancel_cb(worker);
+		/*
+		 * Only the worker continuation helper has worker allocated and
+		 * hence needs freeing.
+		 */
+		if (cb->func == create_worker_cont)
+			kfree(worker);
 	}
 }
 

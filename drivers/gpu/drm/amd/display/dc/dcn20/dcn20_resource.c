@@ -3130,7 +3130,7 @@ void dcn20_calculate_dlg_params(
 
 		context->bw_ctx.dml.funcs.rq_dlg_get_rq_reg(&context->bw_ctx.dml,
 				&context->res_ctx.pipe_ctx[i].rq_regs,
-				pipes[pipe_idx].pipe);
+				&pipes[pipe_idx].pipe);
 		pipe_idx++;
 	}
 }

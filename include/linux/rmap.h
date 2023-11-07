@@ -42,13 +42,7 @@ struct anon_vma {
 	 */
 	atomic_t refcount;
 
-	/*
-	 * Count of child anon_vmas and VMAs which points to this anon_vma.
-	 *
-	 * This counter is used for making decision about reusing anon_vma
-	 * instead of forking new one. See comments in function anon_vma_clone.
-	 */
-	unsigned degree;
+	unsigned degree;		/* ANDROID: KABI preservation, DO NOT USE! */
 
 	struct anon_vma *parent;	/* Parent of this anon_vma */
 
@@ -63,6 +57,25 @@ struct anon_vma {
 
 	/* Interval tree of private "related" vmas */
 	struct rb_root_cached rb_root;
+
+	/*
+	 * ANDROID: KABI preservation, it's safe to put these at the end of this structure as it's
+	 * only passed by a pointer everywhere, the size and internal structures are local to the
+	 * core kernel.
+	 */
+#ifndef __GENKSYMS__
+	/*
+	 * Count of child anon_vmas. Equals to the count of all anon_vmas that
+	 * have ->parent pointing to this one, including itself.
+	 *
+	 * This counter is used for making decision about reusing anon_vma
+	 * instead of forking new one. See comments in function anon_vma_clone.
+	 */
+	unsigned long num_children;
+	/* Count of VMAs whose ->anon_vma pointer points to this object. */
+	unsigned long num_active_vmas;
+#endif
+
 };
 
 /*

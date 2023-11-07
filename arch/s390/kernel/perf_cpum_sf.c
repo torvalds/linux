@@ -163,14 +163,15 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 
 static int alloc_sample_data_block(unsigned long *sdbt, gfp_t gfp_flags)
 {
-	unsigned long sdb, *trailer;
+	struct hws_trailer_entry *te;
+	unsigned long sdb;
 
 	/* Allocate and initialize sample-data-block */
 	sdb = get_zeroed_page(gfp_flags);
 	if (!sdb)
 		return -ENOMEM;
-	trailer = trailer_entry_ptr(sdb);
-	*trailer = SDB_TE_ALERT_REQ_MASK;
+	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+	te->header.a = 1;
 
 	/* Link SDB into the sample-data-block-table */
 	*sdbt = sdb;
@@ -1206,7 +1207,7 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 					    "%s: Found unknown"
 					    " sampling data entry: te->f %i"
 					    " basic.def %#4x (%p)\n", __func__,
-					    te->f, sample->def, sample);
+					    te->header.f, sample->def, sample);
 			/* Sample slot is not yet written or other record.
 			 *
 			 * This condition can occur if the buffer was reused
@@ -1217,7 +1218,7 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 			 * that are not full.  Stop processing if the first
 			 * invalid format was detected.
 			 */
-			if (!te->f)
+			if (!te->header.f)
 				break;
 		}
 
@@ -1225,6 +1226,16 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 		sample->def = 0;
 		sample++;
 	}
+}
+
+static inline __uint128_t __cdsg(__uint128_t *ptr, __uint128_t old, __uint128_t new)
+{
+	asm volatile(
+		"	cdsg	%[old],%[new],%[ptr]\n"
+		: [old] "+d" (old), [ptr] "+QS" (*ptr)
+		: [new] "d" (new)
+		: "memory", "cc");
+	return old;
 }
 
 /* hw_perf_event_update() - Process sampling buffer
@@ -1243,10 +1254,11 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
  */
 static void hw_perf_event_update(struct perf_event *event, int flush_all)
 {
+	unsigned long long event_overflow, sampl_overflow, num_sdb;
+	union hws_trailer_header old, prev, new;
 	struct hw_perf_event *hwc = &event->hw;
 	struct hws_trailer_entry *te;
 	unsigned long *sdbt;
-	unsigned long long event_overflow, sampl_overflow, num_sdb, te_flags;
 	int done;
 
 	/*
@@ -1266,25 +1278,25 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		te = (struct hws_trailer_entry *) trailer_entry_ptr(*sdbt);
 
 		/* Leave loop if no more work to do (block full indicator) */
-		if (!te->f) {
+		if (!te->header.f) {
 			done = 1;
 			if (!flush_all)
 				break;
 		}
 
 		/* Check the sample overflow count */
-		if (te->overflow)
+		if (te->header.overflow)
 			/* Account sample overflows and, if a particular limit
 			 * is reached, extend the sampling buffer.
 			 * For details, see sfb_account_overflows().
 			 */
-			sampl_overflow += te->overflow;
+			sampl_overflow += te->header.overflow;
 
 		/* Timestamps are valid for full sample-data-blocks only */
 		debug_sprintf_event(sfdbg, 6, "%s: sdbt %#lx "
 				    "overflow %llu timestamp %#llx\n",
-				    __func__, (unsigned long)sdbt, te->overflow,
-				    (te->f) ? trailer_timestamp(te) : 0ULL);
+				    __func__, (unsigned long)sdbt, te->header.overflow,
+				    (te->header.f) ? trailer_timestamp(te) : 0ULL);
 
 		/* Collect all samples from a single sample-data-block and
 		 * flag if an (perf) event overflow happened.  If so, the PMU
@@ -1294,12 +1306,16 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		num_sdb++;
 
 		/* Reset trailer (using compare-double-and-swap) */
+		/* READ_ONCE() 16 byte header */
+		prev.val = __cdsg(&te->header.val, 0, 0);
 		do {
-			te_flags = te->flags & ~SDB_TE_BUFFER_FULL_MASK;
-			te_flags |= SDB_TE_ALERT_REQ_MASK;
-		} while (!cmpxchg_double(&te->flags, &te->overflow,
-					 te->flags, te->overflow,
-					 te_flags, 0ULL));
+			old.val = prev.val;
+			new.val = prev.val;
+			new.f = 0;
+			new.a = 1;
+			new.overflow = 0;
+			prev.val = __cdsg(&te->header.val, old.val, new.val);
+		} while (prev.val != old.val);
 
 		/* Advance to next sample-data-block */
 		sdbt++;
@@ -1384,7 +1400,7 @@ static void aux_output_end(struct perf_output_handle *handle)
 	range_scan = AUX_SDB_NUM_ALERT(aux);
 	for (i = 0, idx = aux->head; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
-		if (!(te->flags & SDB_TE_BUFFER_FULL_MASK))
+		if (!te->header.f)
 			break;
 	}
 	/* i is num of SDBs which are full */
@@ -1392,7 +1408,7 @@ static void aux_output_end(struct perf_output_handle *handle)
 
 	/* Remove alert indicators in the buffer */
 	te = aux_sdb_trailer(aux, aux->alert_mark);
-	te->flags &= ~SDB_TE_ALERT_REQ_MASK;
+	te->header.a = 0;
 
 	debug_sprintf_event(sfdbg, 6, "%s: SDBs %ld range %ld head %ld\n",
 			    __func__, i, range_scan, aux->head);
@@ -1437,9 +1453,9 @@ static int aux_output_begin(struct perf_output_handle *handle,
 		idx = aux->empty_mark + 1;
 		for (i = 0; i < range_scan; i++, idx++) {
 			te = aux_sdb_trailer(aux, idx);
-			te->flags &= ~(SDB_TE_BUFFER_FULL_MASK |
-				       SDB_TE_ALERT_REQ_MASK);
-			te->overflow = 0;
+			te->header.f = 0;
+			te->header.a = 0;
+			te->header.overflow = 0;
 		}
 		/* Save the position of empty SDBs */
 		aux->empty_mark = aux->head + range - 1;
@@ -1448,7 +1464,7 @@ static int aux_output_begin(struct perf_output_handle *handle,
 	/* Set alert indicator */
 	aux->alert_mark = aux->head + range/2 - 1;
 	te = aux_sdb_trailer(aux, aux->alert_mark);
-	te->flags = te->flags | SDB_TE_ALERT_REQ_MASK;
+	te->header.a = 1;
 
 	/* Reset hardware buffer head */
 	head = AUX_SDB_INDEX(aux, aux->head);
@@ -1475,14 +1491,17 @@ static int aux_output_begin(struct perf_output_handle *handle,
 static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 			  unsigned long long *overflow)
 {
-	unsigned long long orig_overflow, orig_flags, new_flags;
+	union hws_trailer_header old, prev, new;
 	struct hws_trailer_entry *te;
 
 	te = aux_sdb_trailer(aux, alert_index);
+	/* READ_ONCE() 16 byte header */
+	prev.val = __cdsg(&te->header.val, 0, 0);
 	do {
-		orig_flags = te->flags;
-		*overflow = orig_overflow = te->overflow;
-		if (orig_flags & SDB_TE_BUFFER_FULL_MASK) {
+		old.val = prev.val;
+		new.val = prev.val;
+		*overflow = old.overflow;
+		if (old.f) {
 			/*
 			 * SDB is already set by hardware.
 			 * Abort and try to set somewhere
@@ -1490,10 +1509,10 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 			 */
 			return false;
 		}
-		new_flags = orig_flags | SDB_TE_ALERT_REQ_MASK;
-	} while (!cmpxchg_double(&te->flags, &te->overflow,
-				 orig_flags, orig_overflow,
-				 new_flags, 0ULL));
+		new.a = 1;
+		new.overflow = 0;
+		prev.val = __cdsg(&te->header.val, old.val, new.val);
+	} while (prev.val != old.val);
 	return true;
 }
 
@@ -1522,8 +1541,9 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 			     unsigned long long *overflow)
 {
-	unsigned long long orig_overflow, orig_flags, new_flags;
 	unsigned long i, range_scan, idx, idx_old;
+	union hws_trailer_header old, prev, new;
+	unsigned long long orig_overflow;
 	struct hws_trailer_entry *te;
 
 	debug_sprintf_event(sfdbg, 6, "%s: range %ld head %ld alert %ld "
@@ -1554,17 +1574,20 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 	idx_old = idx = aux->empty_mark + 1;
 	for (i = 0; i < range_scan; i++, idx++) {
 		te = aux_sdb_trailer(aux, idx);
+		/* READ_ONCE() 16 byte header */
+		prev.val = __cdsg(&te->header.val, 0, 0);
 		do {
-			orig_flags = te->flags;
-			orig_overflow = te->overflow;
-			new_flags = orig_flags & ~SDB_TE_BUFFER_FULL_MASK;
+			old.val = prev.val;
+			new.val = prev.val;
+			orig_overflow = old.overflow;
+			new.f = 0;
+			new.overflow = 0;
 			if (idx == aux->alert_mark)
-				new_flags |= SDB_TE_ALERT_REQ_MASK;
+				new.a = 1;
 			else
-				new_flags &= ~SDB_TE_ALERT_REQ_MASK;
-		} while (!cmpxchg_double(&te->flags, &te->overflow,
-					 orig_flags, orig_overflow,
-					 new_flags, 0ULL));
+				new.a = 0;
+			prev.val = __cdsg(&te->header.val, old.val, new.val);
+		} while (prev.val != old.val);
 		*overflow += orig_overflow;
 	}
 

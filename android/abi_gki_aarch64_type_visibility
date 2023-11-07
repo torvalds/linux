@@ -1,6 +1,6 @@
 [abi_symbol_list]
 
 # for type visibility
-  GKI_struct_selinux_state
   GKI_struct_gic_chip_data
+  GKI_struct_selinux_state
   GKI_struct_swap_slots_cache

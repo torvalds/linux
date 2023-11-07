@@ -628,6 +628,28 @@ bool of_device_is_available(const struct device_node *device)
 EXPORT_SYMBOL(of_device_is_available);
 
 /**
+ *  __of_device_is_fail - check if a device has status "fail" or "fail-..."
+ *
+ *  @device: Node to check status for, with locks already held
+ *
+ *  Return: True if the status property is set to "fail" or "fail-..." (for any
+ *  error code suffix), false otherwise
+ */
+static bool __of_device_is_fail(const struct device_node *device)
+{
+	const char *status;
+
+	if (!device)
+		return false;
+
+	status = __of_get_property(device, "status", NULL);
+	if (status == NULL)
+		return false;
+
+	return !strcmp(status, "fail") || !strncmp(status, "fail-", 5);
+}
+
+/**
  *  of_device_is_big_endian - check if a device has BE registers
  *
  *  @device: Node to check for endianness
@@ -775,6 +797,9 @@ EXPORT_SYMBOL(of_get_next_available_child);
  *	of_get_next_cpu_node - Iterate on cpu nodes
  *	@prev:	previous child of the /cpus node, or NULL to get first
  *
+ *	Unusable CPUs (those with the status property set to "fail" or "fail-...")
+ * 	will be skipped.
+ *
  *	Returns a cpu node pointer with refcount incremented, use of_node_put()
  *	on it when done. Returns NULL when prev is the last child. Decrements
  *	the refcount of prev.
@@ -796,6 +821,8 @@ struct device_node *of_get_next_cpu_node(struct device_node *prev)
 		of_node_put(node);
 	}
 	for (; next; next = next->sibling) {
+		if (__of_device_is_fail(next))
+			continue;
 		if (!(of_node_name_eq(next, "cpu") ||
 		      __of_node_is_type(next, "cpu")))
 			continue;

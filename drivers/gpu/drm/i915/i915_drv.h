@@ -1148,6 +1148,7 @@ struct drm_i915_private {
 			INTEL_DRAM_LPDDR3,
 			INTEL_DRAM_LPDDR4
 		} type;
+		u8 num_qgv_points;
 	} dram_info;
 
 	struct intel_bw_info {

@@ -894,10 +894,6 @@
 
 	debugpat	[X86] Enable PAT debugging
 
-	decnet.addr=	[HW,NET]
-			Format: <area>[,<node>]
-			See also Documentation/networking/decnet.rst.
-
 	default_hugepagesz=
 			[HW] The size of the default HugeTLB page. This is
 			the size represented by the legacy /proc/ hugepages
@@ -1487,6 +1483,26 @@
 	gart_fix_e820=	[X86-64] disable the fix e820 for K8 GART
 			Format: off | on
 			default: on
+
+	gather_data_sampling=
+			[X86,INTEL] Control the Gather Data Sampling (GDS)
+			mitigation.
+
+			Gather Data Sampling is a hardware vulnerability which
+			allows unprivileged speculative access to data which was
+			previously stored in vector registers.
+
+			This issue is mitigated by default in updated microcode.
+			The mitigation may have a performance impact but can be
+			disabled. On systems without the microcode mitigation
+			disabling AVX serves as a mitigation.
+
+			force:	Disable AVX to mitigate systems without
+				microcode mitigation. No effect if the microcode
+				mitigation is present. Known to cause crashes in
+				userspace with buggy AVX enumeration.
+
+			off:    Disable GDS mitigation.
 
 	gcov_persist=	[GCOV] When non-zero (default), profiling data for
 			kernel modules is saved and remains accessible via
@@ -2144,24 +2160,57 @@
 
 	ivrs_ioapic	[HW,X86-64]
 			Provide an override to the IOAPIC-ID<->DEVICE-ID
-			mapping provided in the IVRS ACPI table. For
-			example, to map IOAPIC-ID decimal 10 to
-			PCI device 00:14.0 write the parameter as:
+			mapping provided in the IVRS ACPI table.
+			By default, PCI segment is 0, and can be omitted.
+
+			For example, to map IOAPIC-ID decimal 10 to
+			PCI segment 0x1 and PCI device 00:14.0,
+			write the parameter as:
+				ivrs_ioapic=10@0001:00:14.0
+
+			Deprecated formats:
+			* To map IOAPIC-ID decimal 10 to PCI device 00:14.0
+			  write the parameter as:
 				ivrs_ioapic[10]=00:14.0
+			* To map IOAPIC-ID decimal 10 to PCI segment 0x1 and
+			  PCI device 00:14.0 write the parameter as:
+				ivrs_ioapic[10]=0001:00:14.0
 
 	ivrs_hpet	[HW,X86-64]
 			Provide an override to the HPET-ID<->DEVICE-ID
-			mapping provided in the IVRS ACPI table. For
-			example, to map HPET-ID decimal 0 to
-			PCI device 00:14.0 write the parameter as:
+			mapping provided in the IVRS ACPI table.
+			By default, PCI segment is 0, and can be omitted.
+
+			For example, to map HPET-ID decimal 10 to
+			PCI segment 0x1 and PCI device 00:14.0,
+			write the parameter as:
+				ivrs_hpet=10@0001:00:14.0
+
+			Deprecated formats:
+			* To map HPET-ID decimal 0 to PCI device 00:14.0
+			  write the parameter as:
 				ivrs_hpet[0]=00:14.0
+			* To map HPET-ID decimal 10 to PCI segment 0x1 and
+			  PCI device 00:14.0 write the parameter as:
+				ivrs_ioapic[10]=0001:00:14.0
 
 	ivrs_acpihid	[HW,X86-64]
 			Provide an override to the ACPI-HID:UID<->DEVICE-ID
-			mapping provided in the IVRS ACPI table. For
-			example, to map UART-HID:UID AMD0020:0 to
-			PCI device 00:14.5 write the parameter as:
+			mapping provided in the IVRS ACPI table.
+			By default, PCI segment is 0, and can be omitted.
+
+			For example, to map UART-HID:UID AMD0020:0 to
+			PCI segment 0x1 and PCI device ID 00:14.5,
+			write the parameter as:
+				ivrs_acpihid=AMD0020:0@0001:00:14.5
+
+			Deprecated formats:
+			* To map UART-HID:UID AMD0020:0 to PCI segment is 0,
+			  PCI device ID 00:14.5, write the parameter as:
 				ivrs_acpihid[00:14.5]=AMD0020:0
+			* To map UART-HID:UID AMD0020:0 to PCI segment 0x1 and
+			  PCI device ID 00:14.5, write the parameter as:
+				ivrs_acpihid[0001:00:14.5]=AMD0020:0
 
 	js=		[HW,JOY] Analog joystick
 			See Documentation/input/joydev/joystick.rst.
@@ -2310,6 +2359,8 @@
 
 	kvm-arm.mode=
 			[KVM,ARM] Select one of KVM/arm64's modes of operation.
+
+			none: Forcefully disable KVM.
 
 			nvhe: Standard nVHE-based mode, without support for
 			      protected guests.
@@ -2918,22 +2969,23 @@
 				Disable all optional CPU mitigations.  This
 				improves system performance, but it may also
 				expose users to several CPU vulnerabilities.
-				Equivalent to: nopti [X86,PPC]
+				Equivalent to: gather_data_sampling=off [X86]
 					       kpti=0 [ARM64]
-					       nospectre_v1 [X86,PPC]
-					       nobp=0 [S390]
-					       nospectre_v2 [X86,PPC,S390,ARM64]
-					       spectre_v2_user=off [X86]
-					       spec_store_bypass_disable=off [X86,PPC]
-					       ssbd=force-off [ARM64]
+					       kvm.nx_huge_pages=off [X86]
 					       l1tf=off [X86]
 					       mds=off [X86]
-					       tsx_async_abort=off [X86]
-					       kvm.nx_huge_pages=off [X86]
+					       mmio_stale_data=off [X86]
 					       no_entry_flush [PPC]
 					       no_uaccess_flush [PPC]
-					       mmio_stale_data=off [X86]
+					       nobp=0 [S390]
+					       nopti [X86,PPC]
+					       nospectre_v1 [X86,PPC]
+					       nospectre_v2 [X86,PPC,S390,ARM64]
 					       retbleed=off [X86]
+					       spec_store_bypass_disable=off [X86,PPC]
+					       spectre_v2_user=off [X86]
+					       ssbd=force-off [ARM64]
+					       tsx_async_abort=off [X86]
 
 				Exceptions:
 					       This does not have any effect on
@@ -5190,6 +5242,17 @@
 
 			Not specifying this option is equivalent to
 			spectre_v2_user=auto.
+
+	spec_rstack_overflow=
+			[X86] Control RAS overflow mitigation on AMD Zen CPUs
+
+			off		- Disable mitigation
+			microcode	- Enable microcode mitigation only
+			safe-ret	- Enable sw-only safe RET mitigation (default)
+			ibpb		- Enable mitigation by issuing IBPB on
+					  kernel entry
+			ibpb-vmexit	- Issue IBPB only on VMEXIT
+					  (cloud-specific mitigation)
 
 	spec_store_bypass_disable=
 			[HW] Control Speculative Store Bypass (SSB) Disable mitigation

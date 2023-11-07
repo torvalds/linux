@@ -41,6 +41,9 @@ static inline void dump_page_pinner(struct page *page)
 
 static inline void page_pinner_put_page(struct page *page)
 {
+	if (!static_branch_unlikely(&page_pinner_inited))
+		return;
+
 	if (!static_branch_unlikely(&failure_tracking))
 		return;
 
@@ -49,6 +52,9 @@ static inline void page_pinner_put_page(struct page *page)
 
 static inline void page_pinner_failure_detect(struct page *page)
 {
+	if (!static_branch_unlikely(&page_pinner_inited))
+		return;
+
 	if (!static_branch_unlikely(&failure_tracking))
 		return;
 

@@ -68,7 +68,7 @@ setup()
 cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
-	ip netns del ns1
+	ip netns del ns1 &> /dev/null
 	ip netns del ns2 &> /dev/null
 }
 
@@ -1772,6 +1772,8 @@ EOF
 
 ################################################################################
 # main
+
+trap cleanup EXIT
 
 while getopts :t:pPhv o
 do

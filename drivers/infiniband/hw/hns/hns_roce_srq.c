@@ -245,7 +245,6 @@ static int alloc_srq_idx(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq,
 			err = -ENOMEM;
 			goto err_idx_mtr;
 		}
-
 	}
 
 	return 0;

@@ -15,6 +15,12 @@ Contact:	Paul Lawrence <paullawrence@google.com>
 Description:	Reads 'supported'. Present if zstd compression is supported
 		for data blocks.
 
+What:		/sys/fs/incremental-fs/features/bugfix_throttling
+Date:		January 2023
+Contact:	Paul Lawrence <paullawrence@google.com>
+Description:	Reads 'supported'. Present if the throttling lock bug is fixed
+		https://android-review.git.corp.google.com/c/kernel/common/+/2381827
+
 What:		/sys/fs/incremental-fs/instances/[name]
 Date:		April 2021
 Contact:	Paul Lawrence <paullawrence@google.com>

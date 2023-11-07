@@ -917,8 +917,8 @@ static u32 get_framesize_raw_yuv420_tp10_ubwc(u32 width, u32 height)
 	u32 extradata = SZ_16K;
 	u32 size;
 
-	y_stride = ALIGN(ALIGN(width, 192) * 4 / 3, 256);
-	uv_stride = ALIGN(ALIGN(width, 192) * 4 / 3, 256);
+	y_stride = ALIGN(width * 4 / 3, 256);
+	uv_stride = ALIGN(width * 4 / 3, 256);
 	y_sclines = ALIGN(height, 16);
 	uv_sclines = ALIGN((height + 1) >> 1, 16);
 
@@ -1346,6 +1346,12 @@ void venus_helper_vb2_buf_queue(struct vb2_buffer *vb)
 	mutex_lock(&inst->lock);
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
+
+	/* Skip processing queued capture buffers after LAST flag */
+	if (inst->session_type == VIDC_SESSION_TYPE_DEC &&
+	    V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
+	    inst->codec_state == VENUS_DEC_STATE_DRC)
+		goto unlock;
 
 	cache_payload(inst, vb);
 

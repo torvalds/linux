@@ -3,6 +3,7 @@
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -353,7 +354,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_hostinfo(host_info, sizeof host_info);
 }
 
-void __init check_bugs(void)
+void __init arch_cpu_finalize_init(void)
 {
 	arch_check_bugs();
 	os_check_bugs();
@@ -387,12 +388,12 @@ void text_poke_sync(void)
 {
 }
 
-#ifdef CONFIG_PM_SLEEP
 void uml_pm_wake(void)
 {
 	pm_system_wakeup();
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int init_pm_wake_signal(void)
 {
 	/*

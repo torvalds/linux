@@ -201,6 +201,11 @@ out:
 	return NET_XMIT_CN;
 }
 
+static struct netlink_range_validation fq_pie_q_range = {
+	.min = 1,
+	.max = 1 << 20,
+};
+
 static const struct nla_policy fq_pie_policy[TCA_FQ_PIE_MAX + 1] = {
 	[TCA_FQ_PIE_LIMIT]		= {.type = NLA_U32},
 	[TCA_FQ_PIE_FLOWS]		= {.type = NLA_U32},
@@ -208,7 +213,8 @@ static const struct nla_policy fq_pie_policy[TCA_FQ_PIE_MAX + 1] = {
 	[TCA_FQ_PIE_TUPDATE]		= {.type = NLA_U32},
 	[TCA_FQ_PIE_ALPHA]		= {.type = NLA_U32},
 	[TCA_FQ_PIE_BETA]		= {.type = NLA_U32},
-	[TCA_FQ_PIE_QUANTUM]		= {.type = NLA_U32},
+	[TCA_FQ_PIE_QUANTUM]		=
+			NLA_POLICY_FULL_RANGE(NLA_U32, &fq_pie_q_range),
 	[TCA_FQ_PIE_MEMORY_LIMIT]	= {.type = NLA_U32},
 	[TCA_FQ_PIE_ECN_PROB]		= {.type = NLA_U32},
 	[TCA_FQ_PIE_ECN]		= {.type = NLA_U32},

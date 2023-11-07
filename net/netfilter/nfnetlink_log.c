@@ -583,9 +583,9 @@ __build_packet_message(struct nfnl_log_net *log,
 			goto nla_put_failure;
 	}
 
-	if (hooknum <= NF_INET_FORWARD && skb->tstamp) {
+	if (hooknum <= NF_INET_FORWARD) {
 		struct nfulnl_msg_packet_timestamp ts;
-		struct timespec64 kts = ktime_to_timespec64(skb->tstamp);
+		struct timespec64 kts = ktime_to_timespec64(skb->tstamp ?: ktime_get_real());
 		ts.sec = cpu_to_be64(kts.tv_sec);
 		ts.usec = cpu_to_be64(kts.tv_nsec / NSEC_PER_USEC);
 

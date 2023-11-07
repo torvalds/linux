@@ -22,7 +22,9 @@ android/abi_gki_aarch64_hikey960
 android/abi_gki_aarch64_honor
 android/abi_gki_aarch64_imx
 android/abi_gki_aarch64_lenovo
+android/abi_gki_aarch64_moto
 android/abi_gki_aarch64_mtk
+android/abi_gki_aarch64_nothing
 android/abi_gki_aarch64_oplus
 android/abi_gki_aarch64_qcom
 android/abi_gki_aarch64_rockchip
@@ -30,6 +32,7 @@ android/abi_gki_aarch64_unisoc
 android/abi_gki_aarch64_virtual_device
 android/abi_gki_aarch64_vivo
 android/abi_gki_aarch64_xiaomi
+android/abi_gki_aarch64_zebra
 android/abi_gki_aarch64_asus
 android/abi_gki_aarch64_transsion
 android/abi_gki_aarch64_tuxera

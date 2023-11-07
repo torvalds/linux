@@ -201,8 +201,9 @@ static int __init imx_clk_disable_uart(void)
 			clk_disable_unprepare(imx_uart_clocks[i]);
 			clk_put(imx_uart_clocks[i]);
 		}
-		kfree(imx_uart_clocks);
 	}
+
+	kfree(imx_uart_clocks);
 
 	return 0;
 }

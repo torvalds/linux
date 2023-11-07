@@ -77,12 +77,12 @@ struct uid_entry {
 #endif
 };
 
-static u64 compute_write_bytes(struct task_struct *task)
+static u64 compute_write_bytes(struct task_io_accounting *ioac)
 {
-	if (task->ioac.write_bytes <= task->ioac.cancelled_write_bytes)
+	if (ioac->write_bytes <= ioac->cancelled_write_bytes)
 		return 0;
 
-	return task->ioac.write_bytes - task->ioac.cancelled_write_bytes;
+	return ioac->write_bytes - ioac->cancelled_write_bytes;
 }
 
 static void compute_io_bucket_stats(struct io_stats *io_bucket,
@@ -239,17 +239,16 @@ static void set_io_uid_tasks_zero(struct uid_entry *uid_entry)
 	}
 }
 
-static void add_uid_tasks_io_stats(struct uid_entry *uid_entry,
-		struct task_struct *task, int slot)
+static void add_uid_tasks_io_stats(struct task_entry *task_entry,
+				   struct task_io_accounting *ioac, int slot)
 {
-	struct task_entry *task_entry = find_or_register_task(uid_entry, task);
 	struct io_stats *task_io_slot = &task_entry->io[slot];
 
-	task_io_slot->read_bytes += task->ioac.read_bytes;
-	task_io_slot->write_bytes += compute_write_bytes(task);
-	task_io_slot->rchar += task->ioac.rchar;
-	task_io_slot->wchar += task->ioac.wchar;
-	task_io_slot->fsync += task->ioac.syscfs;
+	task_io_slot->read_bytes += ioac->read_bytes;
+	task_io_slot->write_bytes += compute_write_bytes(ioac);
+	task_io_slot->rchar += ioac->rchar;
+	task_io_slot->wchar += ioac->wchar;
+	task_io_slot->fsync += ioac->syscfs;
 }
 
 static void compute_io_uid_tasks(struct uid_entry *uid_entry)
@@ -290,8 +289,6 @@ static void show_io_uid_tasks(struct seq_file *m, struct uid_entry *uid_entry)
 #else
 static void remove_uid_tasks(struct uid_entry *uid_entry) {};
 static void set_io_uid_tasks_zero(struct uid_entry *uid_entry) {};
-static void add_uid_tasks_io_stats(struct uid_entry *uid_entry,
-		struct task_struct *task, int slot) {};
 static void compute_io_uid_tasks(struct uid_entry *uid_entry) {};
 static void show_io_uid_tasks(struct seq_file *m,
 		struct uid_entry *uid_entry) {}
@@ -446,23 +443,32 @@ static const struct proc_ops uid_remove_fops = {
 	.proc_write	= uid_remove_write,
 };
 
+static void __add_uid_io_stats(struct uid_entry *uid_entry,
+			struct task_io_accounting *ioac, int slot)
+{
+	struct io_stats *io_slot = &uid_entry->io[slot];
+
+	io_slot->read_bytes += ioac->read_bytes;
+	io_slot->write_bytes += compute_write_bytes(ioac);
+	io_slot->rchar += ioac->rchar;
+	io_slot->wchar += ioac->wchar;
+	io_slot->fsync += ioac->syscfs;
+}
 
 static void add_uid_io_stats(struct uid_entry *uid_entry,
 			struct task_struct *task, int slot)
 {
-	struct io_stats *io_slot = &uid_entry->io[slot];
+	struct task_entry *task_entry __maybe_unused;
 
 	/* avoid double accounting of dying threads */
 	if (slot != UID_STATE_DEAD_TASKS && (task->flags & PF_EXITING))
 		return;
 
-	io_slot->read_bytes += task->ioac.read_bytes;
-	io_slot->write_bytes += compute_write_bytes(task);
-	io_slot->rchar += task->ioac.rchar;
-	io_slot->wchar += task->ioac.wchar;
-	io_slot->fsync += task->ioac.syscfs;
-
-	add_uid_tasks_io_stats(uid_entry, task, slot);
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+	task_entry = find_or_register_task(uid_entry, task);
+	add_uid_tasks_io_stats(task_entry, &task->ioac, slot);
+#endif
+	__add_uid_io_stats(uid_entry, &task->ioac, slot);
 }
 
 static void update_io_stats_all_locked(void)
@@ -622,6 +628,48 @@ static const struct proc_ops uid_procstat_fops = {
 	.proc_write	= uid_procstat_write,
 };
 
+struct update_stats_work {
+	struct work_struct work;
+	uid_t uid;
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+	struct task_struct *task;
+#endif
+	struct task_io_accounting ioac;
+	u64 utime;
+	u64 stime;
+};
+
+static void update_stats_workfn(struct work_struct *work)
+{
+	struct update_stats_work *usw =
+		container_of(work, struct update_stats_work, work);
+	struct uid_entry *uid_entry;
+	struct task_entry *task_entry __maybe_unused;
+
+	rt_mutex_lock(&uid_lock);
+	uid_entry = find_uid_entry(usw->uid);
+	if (!uid_entry)
+		goto exit;
+
+	uid_entry->utime += usw->utime;
+	uid_entry->stime += usw->stime;
+
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+	task_entry = find_task_entry(uid_entry, usw->task);
+	if (!task_entry)
+		goto exit;
+	add_uid_tasks_io_stats(task_entry, &usw->ioac,
+			       UID_STATE_DEAD_TASKS);
+#endif
+	__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
+exit:
+	rt_mutex_unlock(&uid_lock);
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+	put_task_struct(usw->task);
+#endif
+	kfree(usw);
+}
+
 static int process_notifier(struct notifier_block *self,
 			unsigned long cmd, void *v)
 {
@@ -633,8 +681,28 @@ static int process_notifier(struct notifier_block *self,
 	if (!task)
 		return NOTIFY_OK;
 
-	rt_mutex_lock(&uid_lock);
 	uid = from_kuid_munged(current_user_ns(), task_uid(task));
+	if (!rt_mutex_trylock(&uid_lock)) {
+		struct update_stats_work *usw;
+
+		usw = kmalloc(sizeof(struct update_stats_work), GFP_KERNEL);
+		if (usw) {
+			INIT_WORK(&usw->work, update_stats_workfn);
+			usw->uid = uid;
+#ifdef CONFIG_UID_SYS_STATS_DEBUG
+			usw->task = get_task_struct(task);
+#endif
+			/*
+			 * Copy task->ioac since task might be destroyed before
+			 * the work is later performed.
+			 */
+			usw->ioac = task->ioac;
+			task_cputime_adjusted(task, &usw->utime, &usw->stime);
+			schedule_work(&usw->work);
+		}
+		return NOTIFY_OK;
+	}
+
 	uid_entry = find_or_register_uid(uid);
 	if (!uid_entry) {
 		pr_err("%s: failed to find uid %d\n", __func__, uid);

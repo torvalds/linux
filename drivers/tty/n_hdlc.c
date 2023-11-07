@@ -100,6 +100,7 @@
 
 #include <asm/termios.h>
 #include <linux/uaccess.h>
+#include "tty.h"
 
 /*
  * Buffers for individual HDLC frames

@@ -231,6 +231,8 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		result = tcf_classify(skb, fl, &res, true);
 		if (!fl || result < 0)
 			goto fallback;
+		if (result == TC_ACT_SHOT)
+			return NULL;
 
 		cl = (void *)res.class;
 		if (!cl) {
@@ -251,8 +253,6 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 			fallthrough;
-		case TC_ACT_SHOT:
-			return NULL;
 		case TC_ACT_RECLASSIFY:
 			return cbq_reclassify(skb, cl);
 		}

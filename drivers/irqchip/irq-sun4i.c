@@ -189,7 +189,7 @@ static void __exception_irq_entry sun4i_handle_irq(struct pt_regs *regs)
 	 * 3) spurious irq
 	 * So if we immediately get a reading of 0, check the irq-pending reg
 	 * to differentiate between 2 and 3. We only do this once to avoid
-	 * the extra check in the common case of 1 hapening after having
+	 * the extra check in the common case of 1 happening after having
 	 * read the vector-reg once.
 	 */
 	hwirq = readl(irq_ic_data->irq_base + SUN4I_IRQ_VECTOR_REG) >> 2;
