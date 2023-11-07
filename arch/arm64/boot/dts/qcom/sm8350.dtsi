@@ -2452,35 +2452,6 @@
 			#size-cells = <2>;
 			ranges;
 
-			dpu_opp_table: opp-table {
-				compatible = "operating-points-v2";
-
-				/* TODO: opp-200000000 should work with
-				 * &rpmhpd_opp_low_svs, but one some of
-				 * sm8350_hdk boards reboot using this
-				 * opp.
-				 */
-				opp-200000000 {
-					opp-hz = /bits/ 64 <200000000>;
-					required-opps = <&rpmhpd_opp_svs>;
-				};
-
-				opp-300000000 {
-					opp-hz = /bits/ 64 <300000000>;
-					required-opps = <&rpmhpd_opp_svs>;
-				};
-
-				opp-345000000 {
-					opp-hz = /bits/ 64 <345000000>;
-					required-opps = <&rpmhpd_opp_svs_l1>;
-				};
-
-				opp-460000000 {
-					opp-hz = /bits/ 64 <460000000>;
-					required-opps = <&rpmhpd_opp_nom>;
-				};
-			};
-
 			mdss_mdp: display-controller@ae01000 {
 				compatible = "qcom,sm8350-dpu";
 				reg = <0 0x0ae01000 0 0x8f000>,
@@ -2508,6 +2479,35 @@
 
 				interrupt-parent = <&mdss>;
 				interrupts = <0>;
+
+				dpu_opp_table: opp-table {
+					compatible = "operating-points-v2";
+
+					/* TODO: opp-200000000 should work with
+					 * &rpmhpd_opp_low_svs, but one some of
+					 * sm8350_hdk boards reboot using this
+					 * opp.
+					 */
+					opp-200000000 {
+						opp-hz = /bits/ 64 <200000000>;
+						required-opps = <&rpmhpd_opp_svs>;
+					};
+
+					opp-300000000 {
+						opp-hz = /bits/ 64 <300000000>;
+						required-opps = <&rpmhpd_opp_svs>;
+					};
+
+					opp-345000000 {
+						opp-hz = /bits/ 64 <345000000>;
+						required-opps = <&rpmhpd_opp_svs_l1>;
+					};
+
+					opp-460000000 {
+						opp-hz = /bits/ 64 <460000000>;
+						required-opps = <&rpmhpd_opp_nom>;
+					};
+				};
 
 				ports {
 					#address-cells = <1>;
