@@ -23,11 +23,6 @@
 #define SDW_MAX_GROUPS 9
 
 enum {
-	SOF_RT711_JD_SRC_JD1 = 1,
-	SOF_RT711_JD_SRC_JD2 = 2,
-};
-
-enum {
 	SOF_PRE_TGL_HDMI_COUNT = 3,
 	SOF_TGL_HDMI_COUNT = 4,
 };

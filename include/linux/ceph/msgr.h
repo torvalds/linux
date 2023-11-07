@@ -61,10 +61,17 @@ extern const char *ceph_entity_type_name(int type);
  * entity_addr -- network address
  */
 struct ceph_entity_addr {
-	__le32 type;
+	__le32 type;  /* CEPH_ENTITY_ADDR_TYPE_* */
 	__le32 nonce;  /* unique id for process (e.g. pid) */
 	struct sockaddr_storage in_addr;
 } __attribute__ ((packed));
+
+static inline bool ceph_addr_equal_no_type(const struct ceph_entity_addr *lhs,
+					   const struct ceph_entity_addr *rhs)
+{
+	return !memcmp(&lhs->in_addr, &rhs->in_addr, sizeof(lhs->in_addr)) &&
+	       lhs->nonce == rhs->nonce;
+}
 
 struct ceph_entity_inst {
 	struct ceph_entity_name name;

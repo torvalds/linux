@@ -170,7 +170,7 @@ int mt7603_eeprom_init(struct mt7603_dev *dev)
 	}
 
 	eeprom = (u8 *)dev->mt76.eeprom.data;
-	dev->mt76.cap.has_2ghz = true;
+	dev->mphy.cap.has_2ghz = true;
 	memcpy(dev->mt76.macaddr, eeprom + MT_EE_MAC_ADDR, ETH_ALEN);
 
 	/* Check for 1SS devices */

@@ -809,10 +809,12 @@ DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 extern u16 amd_get_nb_id(int cpu);
 extern u32 amd_get_nodes_per_socket(void);
 extern bool cpu_has_ibpb_brtype_microcode(void);
+extern void amd_clear_divider(void);
 #else
 static inline u16 amd_get_nb_id(int cpu)		{ return 0; }
 static inline u32 amd_get_nodes_per_socket(void)	{ return 0; }
 static inline bool cpu_has_ibpb_brtype_microcode(void)	{ return false; }
+static inline void amd_clear_divider(void)		{ }
 #endif
 
 static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
@@ -861,5 +863,7 @@ enum mds_mitigations {
 	MDS_MITIGATION_FULL,
 	MDS_MITIGATION_VMWERV,
 };
+
+extern bool gds_ucode_mitigated(void);
 
 #endif /* _ASM_X86_PROCESSOR_H */
