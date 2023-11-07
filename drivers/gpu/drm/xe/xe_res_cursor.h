@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 /*
  * Copyright 2020 Advanced Micro Devices, Inc.
  *
