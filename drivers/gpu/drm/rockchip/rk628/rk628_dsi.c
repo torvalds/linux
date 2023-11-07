@@ -637,6 +637,9 @@ static int rk628_dsi_read_from_fifo(struct rk628_dsi *dsi,
 	u32 val;
 	int ret;
 
+	if (!vrefresh)
+		return -EINVAL;
+
 	ret = regmap_read_poll_timeout(dsi->regmap,
 				       dsi->reg_base + DSI_CMD_PKT_STATUS,
 				       val, !(val & GEN_RD_CMD_BUSY),
