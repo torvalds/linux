@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016, 2019-2021, The Linux Foundation. All rights reserved. */
-/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/clk.h>
 #include <linux/export.h>
@@ -776,6 +776,7 @@ void clk_common_debug_init(struct clk_hw *hw, struct dentry *dentry)
 		qcom_clk_debug_inited = true;
 	}
 }
+EXPORT_SYMBOL_GPL(clk_common_debug_init);
 
 static int clk_list_rate_vdd_level(struct clk_hw *hw, unsigned int rate)
 {
