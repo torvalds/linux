@@ -197,8 +197,8 @@ static int __ccs_read_addr(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	return 0;
 }
 
-static int __ccs_read_data(struct ccs_reg *regs, size_t num_regs,
-			   u32 reg, u32 *val)
+static int __ccs_static_data_read_ro_reg(struct ccs_reg *regs, size_t num_regs,
+					 u32 reg, u32 *val)
 {
 	unsigned int width = ccs_reg_width(reg);
 	size_t i;
@@ -235,16 +235,17 @@ static int __ccs_read_data(struct ccs_reg *regs, size_t num_regs,
 	return -ENOENT;
 }
 
-static int ccs_read_data(struct ccs_sensor *sensor, u32 reg, u32 *val)
+static int
+ccs_static_data_read_ro_reg(struct ccs_sensor *sensor, u32 reg, u32 *val)
 {
-	if (!__ccs_read_data(sensor->sdata.sensor_read_only_regs,
-			     sensor->sdata.num_sensor_read_only_regs,
-			     reg, val))
+	if (!__ccs_static_data_read_ro_reg(sensor->sdata.sensor_read_only_regs,
+					   sensor->sdata.num_sensor_read_only_regs,
+					   reg, val))
 		return 0;
 
-	return __ccs_read_data(sensor->mdata.module_read_only_regs,
-			       sensor->mdata.num_module_read_only_regs,
-			       reg, val);
+	return __ccs_static_data_read_ro_reg(sensor->mdata.module_read_only_regs,
+					     sensor->mdata.num_module_read_only_regs,
+					     reg, val);
 }
 
 static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
@@ -253,7 +254,7 @@ static int ccs_read_addr_raw(struct ccs_sensor *sensor, u32 reg, u32 *val,
 	int rval;
 
 	if (data) {
-		rval = ccs_read_data(sensor, reg, val);
+		rval = ccs_static_data_read_ro_reg(sensor, reg, val);
 		if (!rval)
 			return 0;
 	}
