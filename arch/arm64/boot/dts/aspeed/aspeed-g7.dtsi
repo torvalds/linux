@@ -159,11 +159,23 @@
 		#size-cells = <2>;
 		ranges;
 
-		vhuba2: usb-vhub@12011000 {
+		vhuba1: usb-vhub@12011000 {
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12011000 0x0 0x350>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_VHUB2>;
+			aspeed,vhub-downstream-ports = <7>;
+			aspeed,vhub-generic-endpoints = <21>;
+			status = "disabled";
+		};
+
+		vhubb1: usb-vhub@12021000 {
+			compatible = "aspeed,ast2700-usb-vhub";
+			reg = <0x0 0x12021000 0x0 0x350>;
+			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_VHUB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
 			status = "disabled";
@@ -173,6 +185,11 @@
 			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
 			reg = <0x0 0x12030000 0x0 0x10000>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_XHCI>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&pinctrl_usb3axh_default &pinctrl_usb2axh_default>;
+			dr_mode = "host";
 			status = "disabled";
 		};
 
@@ -181,15 +198,29 @@
 			reg = <0x0 0x12040000 0x0 0x100>;
 			interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 			#ports = <2>;
-			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB1CLK>;
+			resets = <&soc0_rst ASPEED_RESET_USB11>;
 			status = "disabled";
 		};
 
-		vhub2a: usb-vhub@12060000 {
+		xhci1: usb@12050000 {
+			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
+			reg = <0x0 0x12050000 0x0 0x10000>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_XHCI>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&pinctrl_usb3bxh_default &pinctrl_usb2bxh_default>;
+			dr_mode = "host";
+			status = "disabled";
+		};
+
+		vhuba0: usb-vhub@12060000 {
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12060000 0x0 0x350>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_USB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
 			status = "disabled";
@@ -200,6 +231,31 @@
 			reg = <0x0 0x12061000 0x0 0x100>;
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_USB2>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&pinctrl_usb2ah_default>;
+			status = "disabled";
+		};
+
+		vhubb0: usb-vhub@12062000 {
+			compatible = "aspeed,ast2700-usb-vhub";
+			reg = <0x0 0x12062000 0x0 0x350>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_USB2>;
+			aspeed,vhub-downstream-ports = <7>;
+			aspeed,vhub-generic-endpoints = <21>;
+			status = "disabled";
+		};
+
+		ehci1: usb@12063000 {
+			compatible = "aspeed,ast2700-ehci", "generic-ehci";
+			reg = <0x0 0x12063000 0x0 0x100>;
+			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_USB2>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&pinctrl_usb2bh_default>;
 			status = "disabled";
 		};
 
