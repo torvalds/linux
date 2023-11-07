@@ -2160,3 +2160,4 @@ int sb_init_dio_done_wq(struct super_block *sb)
 		destroy_workqueue(wq);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sb_init_dio_done_wq);
