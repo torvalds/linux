@@ -2379,6 +2379,7 @@ static const struct mca_bank_ipid smu_v13_0_6_mca_ipid_table[AMDGPU_MCA_IP_COUNT
 	MCA_BANK_IPID(UMC, 0x96, 0x0),
 	MCA_BANK_IPID(SMU, 0x01, 0x1),
 	MCA_BANK_IPID(MP5, 0x01, 0x2),
+	MCA_BANK_IPID(PCS_XGMI, 0x50, 0x0),
 };
 
 static void mca_bank_entry_info_decode(struct mca_bank_entry *entry, struct mca_bank_info *info)
@@ -2477,6 +2478,22 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 	if (type == AMDGPU_MCA_ERROR_TYPE_UE && umc_v12_0_is_uncorrectable_error(status0))
 		*count = 1;
 	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && umc_v12_0_is_correctable_error(status0))
+		*count = 1;
+
+	return 0;
+}
+
+static int mca_pcs_xgmi_mca_get_err_count(const struct mca_ras_info *mca_ras, struct amdgpu_device *adev,
+					  enum amdgpu_mca_error_type type, struct mca_bank_entry *entry,
+					  uint32_t *count)
+{
+	u32 ext_error_code;
+
+	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(entry->regs[MCA_REG_IDX_STATUS]);
+
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE && ext_error_code == 0)
+		*count = 1;
+	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && ext_error_code == 6)
 		*count = 1;
 
 	return 0;
@@ -2609,6 +2626,10 @@ static const struct mca_ras_info mca_ras_table[] = {
 		.err_code_count = ARRAY_SIZE(mmhub_err_codes),
 		.get_err_count = mca_smu_mca_get_err_count,
 		.bank_is_valid = mca_smu_bank_is_valid,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__XGMI_WAFL,
+		.ip = AMDGPU_MCA_IP_PCS_XGMI,
+		.get_err_count = mca_pcs_xgmi_mca_get_err_count,
 	},
 };
 
