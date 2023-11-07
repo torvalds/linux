@@ -1150,7 +1150,8 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			if (!ret) {
 				denominator = sensor->fi.interval.denominator;
 				numerator = sensor->fi.interval.numerator;
-				time = numerator * 1000 / denominator * 1000 * 1000;
+				if (denominator)
+					time = numerator * 1000 / denominator * 1000 * 1000;
 				if (numerator)
 					fps = denominator / numerator;
 			}

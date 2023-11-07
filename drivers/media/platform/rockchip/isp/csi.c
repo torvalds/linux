@@ -82,6 +82,8 @@ static int rkisp_csi_link_setup(struct media_entity *entity,
 		id = local->index - 1;
 		if (id && id < RKISP_STREAM_DMATX3)
 			stream = &csi->ispdev->cap_dev.stream[id + 1];
+		if (id >= ARRAY_SIZE(csi->sink))
+			return -EINVAL;
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (csi->sink[id].linked) {
 				ret = -EBUSY;

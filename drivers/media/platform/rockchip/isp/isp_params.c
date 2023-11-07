@@ -210,36 +210,23 @@ static void rkisp_params_vb2_stop_streaming(struct vb2_queue *vq)
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_buffer *buf;
 	unsigned long flags;
-	int i;
 
 	/* stop params input firstly */
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	params_vdev->streamon = false;
 	wake_up(&dev->sync_onoff);
-	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
-
-	for (i = 0; i < RKISP_ISP_PARAMS_REQ_BUFS_MAX; i++) {
-		spin_lock_irqsave(&params_vdev->config_lock, flags);
-		if (!list_empty(&params_vdev->params)) {
-			buf = list_first_entry(&params_vdev->params,
-					       struct rkisp_buffer, queue);
-			list_del(&buf->queue);
-			spin_unlock_irqrestore(&params_vdev->config_lock,
-					       flags);
-		} else {
-			spin_unlock_irqrestore(&params_vdev->config_lock,
-					       flags);
-			break;
-		}
-
+	while (!list_empty(&params_vdev->params)) {
+		buf = list_first_entry(&params_vdev->params,
+				       struct rkisp_buffer, queue);
+		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
-
 	if (params_vdev->cur_buf) {
 		buf = params_vdev->cur_buf;
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		params_vdev->cur_buf = NULL;
 	}
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
 	rkisp_params_disable_isp(params_vdev);
 	/* clean module params */

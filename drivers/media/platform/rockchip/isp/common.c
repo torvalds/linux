@@ -318,6 +318,11 @@ int rkisp_attach_hw(struct rkisp_device *isp)
 		return -EINVAL;
 	}
 
+	if (hw->dev_num >= DEV_MAX) {
+		dev_err(isp->dev, "failed attach isp hw, max dev:%d\n", DEV_MAX);
+		return -EINVAL;
+	}
+
 	isp->dev_id = hw->dev_num;
 	hw->isp[hw->dev_num] = isp;
 	hw->dev_num++;

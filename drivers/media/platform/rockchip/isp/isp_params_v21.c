@@ -4337,7 +4337,7 @@ int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
 		if (ret) {
 			dev_err(dev, "can not alloc buffer\n");
-			goto err;
+			goto err_3dlut;
 		}
 	}
 
@@ -4348,7 +4348,7 @@ int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 		ret = rkisp_alloc_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
 		if (ret) {
 			dev_err(dev, "can not alloc buffer\n");
-			goto err;
+			goto err_lsclut;
 		}
 	}
 
@@ -4357,15 +4357,16 @@ int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 	params_vdev->priv_ops = &rkisp_v21_isp_params_ops;
 	rkisp_clear_first_param_v2x(params_vdev);
 	return 0;
-
-err:
-	for (i = 0; i < RKISP_PARAM_3DLUT_BUF_NUM; i++)
+err_lsclut:
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
+	i = RKISP_PARAM_3DLUT_BUF_NUM;
+err_3dlut:
+	for (i -= 1; i >= 0; i--)
 		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_3dlut[i]);
 
-	for (i = 0; i < RKISP_PARAM_LSC_LUT_BUF_NUM; i++)
-		rkisp_free_buffer(params_vdev->dev, &priv_val->buf_lsclut[i]);
 	vfree(params_vdev->isp21_params);
-
+	kfree(priv_val);
 	return ret;
 }
 
