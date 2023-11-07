@@ -36,16 +36,18 @@
 #define UDMA_CHX_TX_WR_PTR(x)		(0x044 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_TX_BUF_ADDR(x)		(0x048 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_TX_CTRL(x)		(0x04c + UDMA_CHX_OFF(x))
+#define   UDMA_TX_CTRL_BUF_ADDRH	GENMASK(10, 8)
 #define   UDMA_TX_CTRL_TMOUT_DIS	BIT(4)
 #define   UDMA_TX_CTRL_BUFSZ		GENMASK(3, 0)
 #define UDMA_CHX_RX_RD_PTR(x)		(0x050 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_WR_PTR(x)		(0x054 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_BUF_ADDR(x)		(0x058 + UDMA_CHX_OFF(x))
 #define UDMA_CHX_RX_CTRL(x)		(0x05c + UDMA_CHX_OFF(x))
+#define   UDMA_RX_CTRL_BUF_ADDRH	GENMASK(10, 8)
 #define   UDMA_RX_CTRL_TMOUT_DIS	BIT(4)
-#define   UDMA_RX_CTRL_BUFSZ		GENMASK(3, 0)
+#define   UDMA_RX_CTRL_BUFSZ		GENMASK(1, 0)
 
-#define UDMA_MAX_CHANNEL	14
+#define UDMA_MAX_CHANNEL	16
 #define UDMA_TMOUT		0x200
 
 enum aspeed_udma_bufsz_code {
@@ -198,6 +200,7 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		writel(reg, udma->regs + UDMA_TX_DMA_INT_EN);
 
 		reg = readl(udma->regs + UDMA_CHX_TX_CTRL(ch_no));
+		reg |= FIELD_PREP(UDMA_TX_CTRL_BUF_ADDRH, (u64)addr >> 32);
 		reg |= (dis_tmout) ? UDMA_TX_CTRL_TMOUT_DIS : 0;
 		reg |= FIELD_PREP(UDMA_TX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_TX_CTRL(ch_no));
@@ -214,6 +217,7 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		writel(reg, udma->regs + UDMA_RX_DMA_INT_EN);
 
 		reg = readl(udma->regs + UDMA_CHX_RX_CTRL(ch_no));
+		reg |= FIELD_PREP(UDMA_RX_CTRL_BUF_ADDRH, (u64)addr >> 32);
 		reg |= (dis_tmout) ? UDMA_RX_CTRL_TMOUT_DIS : 0;
 		reg |= FIELD_PREP(UDMA_RX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_RX_CTRL(ch_no));
@@ -411,6 +415,7 @@ static int aspeed_udma_probe(struct platform_device *pdev)
 static const struct of_device_id aspeed_udma_match[] = {
 	{ .compatible = "aspeed,ast2500-udma" },
 	{ .compatible = "aspeed,ast2600-udma" },
+	{ .compatible = "aspeed,ast2700-udma" },
 	{ },
 };
 

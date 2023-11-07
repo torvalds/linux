@@ -350,6 +350,12 @@ static int ast8250_probe(struct platform_device *pdev)
 	struct resource *res;
 	u32 irq;
 
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (rc) {
+		dev_err(dev, "cannot set 64-bits DMA mask\n");
+		return rc;
+	}
+
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 	    return -ENOMEM;
