@@ -57,6 +57,15 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
+
+	/* Peripherals supply, enabled by Q2 after SOM_3V3 rises. */
+	reg_per_3v3: regulator-peripheral-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "per_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 };
 
 &ethphy {
@@ -79,6 +88,7 @@
 		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
 		#gpio-cells = <2>;
 		wakeup-source;
+		vcc-supply = <&reg_per_3v3>;
 
 		/* USB 3.0 OTG (usbotg1) / SATA port switch, set to USB 3.0 */
 		usb3-sata-sel-hog {
