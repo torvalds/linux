@@ -12,6 +12,9 @@ err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 testprog="perf test -w thloop"
 testsym="test_loop"
+cpu_pmu_dir="/sys/bus/event_source/devices/cpu*"
+br_cntr_file="/caps/branch_counter_nr"
+br_cntr_output="branch stack counters"
 
 cleanup() {
   rm -rf "${perfdata}"
@@ -155,10 +158,37 @@ test_workload() {
   echo "Basic target workload test [Success]"
 }
 
+test_branch_counter() {
+  echo "Basic branch counter test"
+  # Check if the branch counter feature is supported
+  for dir in $cpu_pmu_dir
+  do
+    if [ ! -e "$dir$br_cntr_file" ]
+    then
+      echo "branch counter feature not supported on all core PMUs ($dir) [Skipped]"
+      return
+    fi
+  done
+  if ! perf record -o "${perfdata}" -j any,counter ${testprog} 2> /dev/null
+  then
+    echo "Basic branch counter test [Failed record]"
+    err=1
+    return
+  fi
+  if ! perf report -i "${perfdata}" -D -q | grep -q "$br_cntr_output"
+  then
+    echo "Basic branch record test [Failed missing output]"
+    err=1
+    return
+  fi
+  echo "Basic branch counter test [Success]"
+}
+
 test_per_thread
 test_register_capture
 test_system_wide
 test_workload
+test_branch_counter
 
 cleanup
 exit $err
