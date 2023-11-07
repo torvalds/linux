@@ -2592,7 +2592,7 @@
 			status = "disabled";
 		};
 
-		swr0: soundwire-controller@3250000 {
+		swr0: soundwire@3250000 {
 			reg = <0 0x03250000 0 0x2000>;
 			compatible = "qcom,soundwire-v1.5.1";
 			interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>;
@@ -2658,7 +2658,7 @@
 			#sound-dai-cells = <1>;
 		};
 
-		swr1: soundwire-controller@3210000 {
+		swr1: soundwire@3210000 {
 			reg = <0 0x03210000 0 0x2000>;
 			compatible = "qcom,soundwire-v1.5.1";
 			status = "disabled";
@@ -2705,7 +2705,7 @@
 		};
 
 		/* tx macro */
-		swr2: soundwire-controller@3230000 {
+		swr2: soundwire@3230000 {
 			reg = <0 0x03230000 0 0x2000>;
 			compatible = "qcom,soundwire-v1.5.1";
 			interrupts = <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>;
