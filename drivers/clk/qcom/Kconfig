@@ -767,6 +767,7 @@ config SM_CAMCC_8450
 
 config SM_CAMCC_8550
 	tristate "SM8550 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8550
 	help
 	  Support for the camera clock controller on SM8550 devices.
