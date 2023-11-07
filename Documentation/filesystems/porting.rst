@@ -1061,3 +1061,12 @@ export_operations ->encode_fh() no longer has a default implementation to
 encode FILEID_INO32_GEN* file handles.
 Filesystems that used the default implementation may use the generic helper
 generic_encode_ino32_fh() explicitly.
+
+---
+
+**mandatory**
+
+The list of children anchored in parent dentry got turned into hlist now.
+Field names got changed (->d_children/->d_sib instead of ->d_subdirs/->d_child
+for anchor/entries resp.), so any affected places will be immediately caught
+by compiler.

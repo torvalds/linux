@@ -51,8 +51,8 @@
  *   - d_lru
  *   - d_count
  *   - d_unhashed()
- *   - d_parent and d_subdirs
- *   - childrens' d_child and d_parent
+ *   - d_parent and d_chilren
+ *   - childrens' d_sib and d_parent
  *   - d_u.d_alias, d_inode
  *
  * Ordering:
@@ -537,7 +537,7 @@ void d_drop(struct dentry *dentry)
 }
 EXPORT_SYMBOL(d_drop);
 
-static inline void dentry_unlist(struct dentry *dentry, struct dentry *parent)
+static inline void dentry_unlist(struct dentry *dentry)
 {
 	struct dentry *next;
 	/*
@@ -545,12 +545,12 @@ static inline void dentry_unlist(struct dentry *dentry, struct dentry *parent)
 	 * attached to the dentry tree
 	 */
 	dentry->d_flags |= DCACHE_DENTRY_KILLED;
-	if (unlikely(list_empty(&dentry->d_child)))
+	if (unlikely(hlist_unhashed(&dentry->d_sib)))
 		return;
-	__list_del_entry(&dentry->d_child);
+	__hlist_del(&dentry->d_sib);
 	/*
 	 * Cursors can move around the list of children.  While we'd been
-	 * a normal list member, it didn't matter - ->d_child.next would've
+	 * a normal list member, it didn't matter - ->d_sib.next would've
 	 * been updated.  However, from now on it won't be and for the
 	 * things like d_walk() it might end up with a nasty surprise.
 	 * Normally d_walk() doesn't care about cursors moving around -
@@ -558,20 +558,20 @@ static inline void dentry_unlist(struct dentry *dentry, struct dentry *parent)
 	 * of its own, we get through it without ever unlocking the parent.
 	 * There is one exception, though - if we ascend from a child that
 	 * gets killed as soon as we unlock it, the next sibling is found
-	 * using the value left in its ->d_child.next.  And if _that_
+	 * using the value left in its ->d_sib.next.  And if _that_
 	 * pointed to a cursor, and cursor got moved (e.g. by lseek())
 	 * before d_walk() regains parent->d_lock, we'll end up skipping
 	 * everything the cursor had been moved past.
 	 *
-	 * Solution: make sure that the pointer left behind in ->d_child.next
+	 * Solution: make sure that the pointer left behind in ->d_sib.next
 	 * points to something that won't be moving around.  I.e. skip the
 	 * cursors.
 	 */
-	while (dentry->d_child.next != &parent->d_subdirs) {
-		next = list_entry(dentry->d_child.next, struct dentry, d_child);
+	while (dentry->d_sib.next) {
+		next = hlist_entry(dentry->d_sib.next, struct dentry, d_sib);
 		if (likely(!(next->d_flags & DCACHE_DENTRY_CURSOR)))
 			break;
-		dentry->d_child.next = next->d_child.next;
+		dentry->d_sib.next = next->d_sib.next;
 	}
 }
 
@@ -600,7 +600,7 @@ static void __dentry_kill(struct dentry *dentry)
 	}
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
-	dentry_unlist(dentry, parent);
+	dentry_unlist(dentry);
 	if (parent)
 		spin_unlock(&parent->d_lock);
 	if (dentry->d_inode)
@@ -1348,8 +1348,7 @@ enum d_walk_ret {
 static void d_walk(struct dentry *parent, void *data,
 		   enum d_walk_ret (*enter)(void *, struct dentry *))
 {
-	struct dentry *this_parent;
-	struct list_head *next;
+	struct dentry *this_parent, *dentry;
 	unsigned seq = 0;
 	enum d_walk_ret ret;
 	bool retry = true;
@@ -1371,13 +1370,9 @@ again:
 		break;
 	}
 repeat:
-	next = this_parent->d_subdirs.next;
+	dentry = d_first_child(this_parent);
 resume:
-	while (next != &this_parent->d_subdirs) {
-		struct list_head *tmp = next;
-		struct dentry *dentry = list_entry(tmp, struct dentry, d_child);
-		next = tmp->next;
-
+	hlist_for_each_entry_from(dentry, d_sib) {
 		if (unlikely(dentry->d_flags & DCACHE_DENTRY_CURSOR))
 			continue;
 
@@ -1398,7 +1393,7 @@ resume:
 			continue;
 		}
 
-		if (!list_empty(&dentry->d_subdirs)) {
+		if (!hlist_empty(&dentry->d_children)) {
 			spin_unlock(&this_parent->d_lock);
 			spin_release(&dentry->d_lock.dep_map, _RET_IP_);
 			this_parent = dentry;
@@ -1413,24 +1408,23 @@ resume:
 	rcu_read_lock();
 ascend:
 	if (this_parent != parent) {
-		struct dentry *child = this_parent;
-		this_parent = child->d_parent;
+		dentry = this_parent;
+		this_parent = dentry->d_parent;
 
-		spin_unlock(&child->d_lock);
+		spin_unlock(&dentry->d_lock);
 		spin_lock(&this_parent->d_lock);
 
 		/* might go back up the wrong parent if we have had a rename. */
 		if (need_seqretry(&rename_lock, seq))
 			goto rename_retry;
 		/* go into the first sibling still alive */
-		do {
-			next = child->d_child.next;
-			if (next == &this_parent->d_subdirs)
-				goto ascend;
-			child = list_entry(next, struct dentry, d_child);
-		} while (unlikely(child->d_flags & DCACHE_DENTRY_KILLED));
-		rcu_read_unlock();
-		goto resume;
+		hlist_for_each_entry_continue(dentry, d_sib) {
+			if (likely(!(dentry->d_flags & DCACHE_DENTRY_KILLED))) {
+				rcu_read_unlock();
+				goto resume;
+			}
+		}
+		goto ascend;
 	}
 	if (need_seqretry(&rename_lock, seq))
 		goto rename_retry;
@@ -1530,7 +1524,7 @@ out:
  * Search the dentry child list of the specified parent,
  * and move any unused dentries to the end of the unused
  * list for prune_dcache(). We descend to the next level
- * whenever the d_subdirs list is non-empty and continue
+ * whenever the d_children list is non-empty and continue
  * searching.
  *
  * It returns zero iff there are no unused children,
@@ -1657,7 +1651,7 @@ EXPORT_SYMBOL(shrink_dcache_parent);
 static enum d_walk_ret umount_check(void *_data, struct dentry *dentry)
 {
 	/* it has busy descendents; complain about those instead */
-	if (!list_empty(&dentry->d_subdirs))
+	if (!hlist_empty(&dentry->d_children))
 		return D_WALK_CONTINUE;
 
 	/* root with refcount 1 is fine */
@@ -1814,9 +1808,9 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	dentry->d_fsdata = NULL;
 	INIT_HLIST_BL_NODE(&dentry->d_hash);
 	INIT_LIST_HEAD(&dentry->d_lru);
-	INIT_LIST_HEAD(&dentry->d_subdirs);
+	INIT_HLIST_HEAD(&dentry->d_children);
 	INIT_HLIST_NODE(&dentry->d_u.d_alias);
-	INIT_LIST_HEAD(&dentry->d_child);
+	INIT_HLIST_NODE(&dentry->d_sib);
 	d_set_d_op(dentry, dentry->d_sb->s_d_op);
 
 	if (dentry->d_op && dentry->d_op->d_init) {
@@ -1855,7 +1849,7 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	 */
 	__dget_dlock(parent);
 	dentry->d_parent = parent;
-	list_add(&dentry->d_child, &parent->d_subdirs);
+	hlist_add_head(&dentry->d_sib, &parent->d_children);
 	spin_unlock(&parent->d_lock);
 
 	return dentry;
@@ -2993,11 +2987,15 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	} else {
 		target->d_parent = old_parent;
 		swap_names(dentry, target);
-		list_move(&target->d_child, &target->d_parent->d_subdirs);
+		if (!hlist_unhashed(&target->d_sib))
+			__hlist_del(&target->d_sib);
+		hlist_add_head(&target->d_sib, &target->d_parent->d_children);
 		__d_rehash(target);
 		fsnotify_update_flags(target);
 	}
-	list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
+	if (!hlist_unhashed(&dentry->d_sib))
+		__hlist_del(&dentry->d_sib);
+	hlist_add_head(&dentry->d_sib, &dentry->d_parent->d_children);
 	__d_rehash(dentry);
 	fsnotify_update_flags(dentry);
 	fscrypt_handle_d_move(dentry);

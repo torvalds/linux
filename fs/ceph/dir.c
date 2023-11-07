@@ -174,7 +174,7 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 /*
  * When possible, we try to satisfy a readdir by peeking at the
  * dcache.  We make this work by carefully ordering dentries on
- * d_child when we initially get results back from the MDS, and
+ * d_children when we initially get results back from the MDS, and
  * falling back to a "normal" sync readdir if any dentries in the dir
  * are dropped.
  *
