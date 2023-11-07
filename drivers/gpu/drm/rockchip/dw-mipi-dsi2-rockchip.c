@@ -629,6 +629,9 @@ static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 	pixel_clk = mode->crtc_clock * MSEC_PER_SEC;
 	ipi_clk = pixel_clk / 4;
 
+	if (!sys_clk || !ipi_clk)
+		return;
+
 	tmp = DIV_ROUND_CLOSEST_ULL(phy_hsclk << 16, ipi_clk);
 	regmap_write(dsi2->regmap, DSI2_PHY_IPI_RATIO_MAN_CFG,
 		     PHY_IPI_RATIO(tmp));
