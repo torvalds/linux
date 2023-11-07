@@ -879,10 +879,13 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 		(m_stat & M_GP_IRQ_3_EN) ||
 		(m_stat & M_GP_IRQ_4_EN)) {
 		if (m_stat & M_GP_IRQ_1_EN) {
-			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
-				geni_i2c_err(gi2c, I2C_DATA_NACK);
-			else
+			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH)) {
+				/* only process for write operation. */
+				if (!(gi2c->cur->flags & I2C_M_RD))
+					geni_i2c_err(gi2c, I2C_DATA_NACK);
+			} else {
 				geni_i2c_err(gi2c, I2C_ADDR_NACK);
+			}
 		}
 		if (m_stat & M_GP_IRQ_3_EN)
 			geni_i2c_err(gi2c, I2C_BUS_PROTO);
@@ -973,10 +976,13 @@ static void gi2c_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb_str,
 	case MSM_GPI_QUP_NOTIFY:
 	case MSM_GPI_QUP_CH_ERROR:
 		if (m_stat & M_GP_IRQ_1_EN) {
-			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
-				geni_i2c_err(gi2c, I2C_DATA_NACK);
-			else
+			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH)) {
+				/* only process for write operation. */
+				if (!(gi2c->cur->flags & I2C_M_RD))
+					geni_i2c_err(gi2c, I2C_DATA_NACK);
+			} else {
 				geni_i2c_err(gi2c, I2C_ADDR_NACK);
+			}
 		}
 		if (m_stat & M_GP_IRQ_3_EN)
 			geni_i2c_err(gi2c, I2C_BUS_PROTO);
@@ -1007,10 +1013,13 @@ static void gi2c_gsi_cb_err(struct msm_gpi_dma_async_tx_cb_param *cb,
 			    "%s TCE Unexpected Err, stat:0x%x\n",
 				xfer, cb->status);
 		if (cb->status & (BIT(GP_IRQ1) << 5)) {
-			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
-				geni_i2c_err(gi2c, I2C_DATA_NACK);
-			else
+			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH)) {
+				/* only process for write operation. */
+				if (!(gi2c->cur->flags & I2C_M_RD))
+					geni_i2c_err(gi2c, I2C_DATA_NACK);
+			} else {
 				geni_i2c_err(gi2c, I2C_ADDR_NACK);
+			}
 		}
 		if (cb->status & (BIT(GP_IRQ3) << 5))
 			geni_i2c_err(gi2c, I2C_BUS_PROTO);
