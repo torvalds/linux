@@ -35,6 +35,7 @@
 #define XEHPC_BCS8_RING_BASE			0x3ee000
 
 #define DG1_GSC_HECI2_BASE                      0x00259000
+#define PVC_GSC_HECI2_BASE                      0x00285000
 #define DG2_GSC_HECI2_BASE                      0x00374000
 
 #define GSCCS_RING_BASE				0x11a000

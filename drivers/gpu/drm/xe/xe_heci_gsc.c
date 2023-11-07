@@ -70,6 +70,13 @@ static const struct heci_gsc_def heci_gsc_def_dg2 = {
 	.bar_size = GSC_BAR_LENGTH,
 };
 
+static const struct heci_gsc_def heci_gsc_def_pvc = {
+	.name = "mei-gscfi",
+	.bar = PVC_GSC_HECI2_BASE,
+	.bar_size = GSC_BAR_LENGTH,
+	.slow_firmware = true,
+};
+
 static void heci_gsc_release_dev(struct device *dev)
 {
 	struct auxiliary_device *aux_dev = to_auxiliary_dev(dev);
@@ -172,7 +179,9 @@ void xe_heci_gsc_init(struct xe_device *xe)
 
 	heci_gsc->irq = -1;
 
-	if (xe->info.platform == XE_DG2) {
+	if (xe->info.platform == XE_PVC) {
+		def = &heci_gsc_def_pvc;
+	} else if (xe->info.platform == XE_DG2) {
 		def = &heci_gsc_def_dg2;
 	} else if (xe->info.platform == XE_DG1) {
 		def = &heci_gsc_def_dg1;

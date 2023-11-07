@@ -301,6 +301,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	DGFX_FEATURES,
 	PLATFORM(XE_PVC),
 	.require_force_probe = true,
+	.has_heci_gscfi = 1,
 };
 
 static const struct xe_device_desc mtl_desc = {
