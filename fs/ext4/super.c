@@ -1654,6 +1654,7 @@ static const struct super_operations ext4_sops = {
 };
 
 static const struct export_operations ext4_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry = ext4_fh_to_dentry,
 	.fh_to_parent = ext4_fh_to_parent,
 	.get_parent = ext4_get_parent,

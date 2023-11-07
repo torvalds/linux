@@ -96,6 +96,7 @@ static const struct address_space_operations befs_symlink_aops = {
 };
 
 static const struct export_operations befs_export_operations = {
+	.encode_fh	= generic_encode_ino32_fh,
 	.fh_to_dentry	= befs_fh_to_dentry,
 	.fh_to_parent	= befs_fh_to_parent,
 	.get_parent	= befs_get_parent,

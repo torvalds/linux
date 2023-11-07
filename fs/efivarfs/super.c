@@ -46,6 +46,7 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			 EFI_VARIABLE_RUNTIME_ACCESS;
 	u64 storage_space, remaining_space, max_variable_size;
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 	efi_status_t status;
 
 	/* Some UEFI firmware does not implement QueryVariableInfo() */
@@ -69,6 +70,7 @@ static int efivarfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks	= storage_space;
 	buf->f_bfree	= remaining_space;
 	buf->f_type	= dentry->d_sb->s_magic;
+	buf->f_fsid	= u64_to_fsid(id);
 
 	/*
 	 * In f_bavail we declare the free space that the kernel will allow writing
