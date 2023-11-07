@@ -260,6 +260,10 @@
 	memory-region = <&video_engine_memory1>;
 };
 
+&rtc {
+	status = "okay";
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -366,10 +370,6 @@
 };
 
 &i2c0 {
-	status = "okay";
-};
-
-&rtc {
 	status = "okay";
 };
 
