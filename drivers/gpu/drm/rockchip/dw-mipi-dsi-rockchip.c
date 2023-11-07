@@ -629,7 +629,7 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 
 	dsi->format = format;
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	if (bpp < 0) {
+	if (bpp <= 0) {
 		DRM_DEV_ERROR(dsi->dev,
 			      "failed to get bpp for pixel format %d\n",
 			      dsi->format);
