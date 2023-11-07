@@ -590,21 +590,21 @@
 
 			pcie1_snoop: pcie-snoop@80 {
 				compatible = "aspeed,ast2700-lpc-snoop";
-				reg = <0x0 0x80 0x0 0x80>;
+				reg = <0x80 0x80>;
 				interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			pcie1_pcc: pcie-pcc@0 {
 				compatible = "aspeed,ast2700-lpc-pcc";
-				reg = <0x0 0x0 0x0 0x140>;
+				reg = <0x0 0x140>;
 				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			pcie1_ibt: pcie_ibt@140 {
 				compatible = "aspeed,ast2700-ibt-bmc";
-				reg = <0x0 0x140 0x0 0x18>;
+				reg = <0x140 0x18>;
 				interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
