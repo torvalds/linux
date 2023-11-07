@@ -14,6 +14,7 @@ clk-dummy.ko
 clk-qcom.ko
 cqhci.ko
 sdhci-msm.ko
+stub-regulator.ko
 gdsc-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
