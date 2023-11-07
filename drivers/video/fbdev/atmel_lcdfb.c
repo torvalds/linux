@@ -1223,14 +1223,14 @@ out:
 	return ret;
 }
 
-static int atmel_lcdfb_remove(struct platform_device *pdev)
+static void atmel_lcdfb_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct atmel_lcdfb_info *sinfo;
 
 	if (!info || !info->par)
-		return 0;
+		return;
 	sinfo = info->par;
 
 	cancel_work_sync(&sinfo->task);
@@ -1252,8 +1252,6 @@ static int atmel_lcdfb_remove(struct platform_device *pdev)
 	}
 
 	framebuffer_release(info);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1302,7 +1300,7 @@ static int atmel_lcdfb_resume(struct platform_device *pdev)
 
 static struct platform_driver atmel_lcdfb_driver = {
 	.probe		= atmel_lcdfb_probe,
-	.remove		= atmel_lcdfb_remove,
+	.remove_new	= atmel_lcdfb_remove,
 	.suspend	= atmel_lcdfb_suspend,
 	.resume		= atmel_lcdfb_resume,
 	.driver		= {
