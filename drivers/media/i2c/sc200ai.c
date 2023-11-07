@@ -34,6 +34,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
+#include "cam-tb-setup.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
 
@@ -1889,68 +1890,6 @@ static int sc200ai_configure_regulators(struct sc200ai *sc200ai)
 }
 
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
-static u32 rk_cam_hdr;
-static u32 rk_cam_w;
-static u32 rk_cam_h;
-static u32 rk_cam_fps;
-
-static int __init __maybe_unused rk_cam_hdr_setup(char *str)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	ret = kstrtoul(str, 0, &val);
-	if (!ret)
-		rk_cam_hdr = (u32)val;
-	else
-		pr_err("get rk_cam_hdr fail\n");
-	return 1;
-}
-
-static int __init __maybe_unused rk_cam_w_setup(char *str)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	ret = kstrtoul(str, 0, &val);
-	if (!ret)
-		rk_cam_w = (u32)val;
-	else
-		pr_err("get rk_cam_w fail\n");
-	return 1;
-}
-
-static int __init __maybe_unused rk_cam_h_setup(char *str)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	ret = kstrtoul(str, 0, &val);
-	if (!ret)
-		rk_cam_h = (u32)val;
-	else
-		pr_err("get rk_cam_h fail\n");
-	return 1;
-}
-
-static int __init __maybe_unused rk_cam_fps_setup(char *str)
-{
-	int ret = 0;
-	unsigned long val = 0;
-
-	ret = kstrtoul(str, 0, &val);
-	if (!ret)
-		rk_cam_fps = (u32)val;
-	else
-		pr_err("get rk_cam_fps fail\n");
-	return 1;
-}
-
-__setup("rk_cam_hdr=", rk_cam_hdr_setup);
-__setup("rk_cam_w=", rk_cam_w_setup);
-__setup("rk_cam_h=", rk_cam_h_setup);
-__setup("rk_cam_fps=", rk_cam_fps_setup);
-
 static void find_terminal_resolution(struct sc200ai *sc200ai)
 {
 	int i = 0;
@@ -1959,6 +1898,10 @@ static void find_terminal_resolution(struct sc200ai *sc200ai)
 	u32 cur_fps = 0;
 	u32 dst_fps = 0;
 	u32 tmp_fps = 0;
+	u32 rk_cam_hdr = get_rk_cam_hdr();
+	u32 rk_cam_w = get_rk_cam_w();
+	u32 rk_cam_h = get_rk_cam_h();
+	u32 rk_cam_fps = get_rk_cam_fps();
 
 	if (rk_cam_w == 0 || rk_cam_h == 0 ||
 	    rk_cam_fps == 0)
