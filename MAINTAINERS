@@ -311,7 +311,7 @@ ACPI COMPONENT ARCHITECTURE (ACPICA)
 M:	Robert Moore <robert.moore@intel.com>
 M:	"Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 L:	linux-acpi@vger.kernel.org
-L:	acpica-devel@lists.linuxfoundation.org
+L:	acpica-devel@lists.linux.dev
 S:	Supported
 W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
@@ -6534,7 +6534,7 @@ F:	drivers/gpu/drm/ast/
 
 DRM DRIVER FOR BOCHS VIRTUAL GPU
 M:	Gerd Hoffmann <kraxel@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/tiny/bochs.c
@@ -6781,7 +6781,7 @@ F:	drivers/gpu/drm/tiny/repaper.c
 DRM DRIVER FOR QEMU'S CIRRUS DEVICE
 M:	Dave Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Obsolete
 W:	https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -6790,7 +6790,7 @@ F:	drivers/gpu/drm/tiny/cirrus.c
 DRM DRIVER FOR QXL VIRTUAL GPU
 M:	Dave Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	spice-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -7889,7 +7889,7 @@ F:	drivers/net/can/usb/etas_es58x/
 ETHERNET BRIDGE
 M:	Roopa Prabhu <roopa@nvidia.com>
 M:	Nikolay Aleksandrov <razor@blackwall.org>
-L:	bridge@lists.linux-foundation.org (moderated for non-subscribers)
+L:	bridge@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
 W:	http://www.linuxfoundation.org/en/Net:Bridge
@@ -16394,7 +16394,7 @@ M:	Juergen Gross <jgross@suse.com>
 R:	Ajay Kaher <akaher@vmware.com>
 R:	Alexey Makhalov <amakhalov@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	x86@kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/core
@@ -22972,7 +22972,7 @@ VIRTIO AND VHOST VSOCK DRIVER
 M:	Stefan Hajnoczi <stefanha@redhat.com>
 M:	Stefano Garzarella <sgarzare@redhat.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/vhost/vsock.c
@@ -22984,7 +22984,7 @@ F:	net/vmw_vsock/virtio_transport_common.c
 VIRTIO BALLOON
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	David Hildenbrand <david@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/virtio/virtio_balloon.c
 F:	include/linux/balloon_compaction.h
@@ -22996,7 +22996,7 @@ M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowang@redhat.com>
 R:	Paolo Bonzini <pbonzini@redhat.com>
 R:	Stefan Hajnoczi <stefanha@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/block/virtio_blk.c
 F:	drivers/scsi/virtio_scsi.c
@@ -23005,7 +23005,7 @@ F:	include/uapi/linux/virtio_scsi.h
 
 VIRTIO CONSOLE DRIVER
 M:	Amit Shah <amit@kernel.org>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/char/virtio_console.c
 F:	include/linux/virtio_console.h
@@ -23015,7 +23015,7 @@ VIRTIO CORE AND NET DRIVERS
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowang@redhat.com>
 R:	Xuan Zhuo <xuanzhuo@linux.alibaba.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-vdpa
 F:	Documentation/ABI/testing/sysfs-class-vduse
@@ -23034,7 +23034,7 @@ F:	tools/virtio/
 
 VIRTIO CRYPTO DRIVER
 M:	Gonglei <arei.gonglei@huawei.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	drivers/crypto/virtio/
@@ -23045,7 +23045,7 @@ M:	Cornelia Huck <cohuck@redhat.com>
 M:	Halil Pasic <pasic@linux.ibm.com>
 M:	Eric Farman <farman@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	kvm@vger.kernel.org
 S:	Supported
 F:	arch/s390/include/uapi/asm/virtio-ccw.h
@@ -23055,7 +23055,7 @@ VIRTIO FILE SYSTEM
 M:	Vivek Goyal <vgoyal@redhat.com>
 M:	Stefan Hajnoczi <stefanha@redhat.com>
 M:	Miklos Szeredi <miklos@szeredi.hu>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 W:	https://virtio-fs.gitlab.io/
@@ -23067,7 +23067,7 @@ VIRTIO GPIO DRIVER
 M:	Enrico Weigelt, metux IT consult <info@metux.net>
 M:	Viresh Kumar <vireshk@kernel.org>
 L:	linux-gpio@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/gpio/gpio-virtio.c
 F:	include/uapi/linux/virtio_gpio.h
@@ -23078,7 +23078,7 @@ M:	Gerd Hoffmann <kraxel@redhat.com>
 R:	Gurchetan Singh <gurchetansingh@chromium.org>
 R:	Chia-I Wu <olvaffe@gmail.com>
 L:	dri-devel@lists.freedesktop.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/ci/xfails/virtio*
@@ -23089,7 +23089,7 @@ VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 M:	Jason Wang <jasowang@redhat.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mst/vhost.git
@@ -23105,7 +23105,7 @@ M:	Jason Wang <jasowang@redhat.com>
 M:	Mike Christie <michael.christie@oracle.com>
 R:	Paolo Bonzini <pbonzini@redhat.com>
 R:	Stefan Hajnoczi <stefanha@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/vhost/scsi.c
 
@@ -23113,7 +23113,7 @@ VIRTIO I2C DRIVER
 M:	Conghui Chen <conghui.chen@intel.com>
 M:	Viresh Kumar <viresh.kumar@linaro.org>
 L:	linux-i2c@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/i2c/busses/i2c-virtio.c
 F:	include/uapi/linux/virtio_i2c.h
@@ -23126,14 +23126,14 @@ F:	include/uapi/linux/virtio_input.h
 
 VIRTIO IOMMU DRIVER
 M:	Jean-Philippe Brucker <jean-philippe@linaro.org>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/iommu/virtio-iommu.c
 F:	include/uapi/linux/virtio_iommu.h
 
 VIRTIO MEM DRIVER
 M:	David Hildenbrand <david@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 W:	https://virtio-mem.gitlab.io/
 F:	drivers/virtio/virtio_mem.c
@@ -23141,7 +23141,7 @@ F:	include/uapi/linux/virtio_mem.h
 
 VIRTIO PMEM DRIVER
 M:	Pankaj Gupta <pankaj.gupta.linux@gmail.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/nvdimm/nd_virtio.c
 F:	drivers/nvdimm/virtio_pmem.c
@@ -23149,7 +23149,7 @@ F:	drivers/nvdimm/virtio_pmem.c
 VIRTIO SOUND DRIVER
 M:	Anton Yakovlev <anton.yakovlev@opensynergy.com>
 M:	"Michael S. Tsirkin" <mst@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 F:	include/uapi/linux/virtio_snd.h
@@ -23207,7 +23207,7 @@ F:	include/linux/vlynq.h
 
 VM SOCKETS (AF_VSOCK)
 M:	Stefano Garzarella <sgarzare@redhat.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/vsockmon.c
@@ -23251,7 +23251,7 @@ VMWARE HYPERVISOR INTERFACE
 M:	Ajay Kaher <akaher@vmware.com>
 M:	Alexey Makhalov <amakhalov@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 L:	x86@kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/vmware
