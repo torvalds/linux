@@ -176,6 +176,8 @@ long ptp_ioctl(struct posix_clock_context *pccontext, unsigned int cmd,
 	int enable, err = 0;
 
 	tsevq = pccontext->private_clkdata;
+	if (!tsevq)
+		return -EINVAL;
 
 	switch (cmd) {
 
