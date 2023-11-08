@@ -32,6 +32,7 @@
 
 #include <drm/drm_device.h>
 #include <drm/drm_gem.h>
+#include <drm/drm_exec.h>
 
 struct drm_gpuvm;
 struct drm_gpuvm_bo;
@@ -283,6 +284,50 @@ struct drm_gpuvm {
 	 * @r_obj: Resv GEM object; representing the GPUVM's common &dma_resv.
 	 */
 	struct drm_gem_object *r_obj;
+
+	/**
+	 * @extobj: structure holding the extobj list
+	 */
+	struct {
+		/**
+		 * @list: &list_head storing &drm_gpuvm_bos serving as
+		 * external object
+		 */
+		struct list_head list;
+
+		/**
+		 * @local_list: pointer to the local list temporarily storing
+		 * entries from the external object list
+		 */
+		struct list_head *local_list;
+
+		/**
+		 * @lock: spinlock to protect the extobj list
+		 */
+		spinlock_t lock;
+	} extobj;
+
+	/**
+	 * @evict: structure holding the evict list and evict list lock
+	 */
+	struct {
+		/**
+		 * @list: &list_head storing &drm_gpuvm_bos currently being
+		 * evicted
+		 */
+		struct list_head list;
+
+		/**
+		 * @local_list: pointer to the local list temporarily storing
+		 * entries from the evicted object list
+		 */
+		struct list_head *local_list;
+
+		/**
+		 * @lock: spinlock to protect the evict list
+		 */
+		spinlock_t lock;
+	} evict;
 };
 
 void drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
@@ -358,6 +403,22 @@ drm_gpuvm_resv_protected(struct drm_gpuvm *gpuvm)
 
 #define drm_gpuvm_resv_assert_held(gpuvm__) \
 	dma_resv_assert_held(drm_gpuvm_resv(gpuvm__))
+
+/**
+ * drm_gpuvm_is_extobj() - indicates whether the given &drm_gem_object is an
+ * external object
+ * @gpuvm: the &drm_gpuvm to check
+ * @obj: the &drm_gem_object to check
+ *
+ * Returns: true if the &drm_gem_object &dma_resv differs from the
+ * &drm_gpuvms &dma_resv, false otherwise
+ */
+static inline bool
+drm_gpuvm_is_extobj(struct drm_gpuvm *gpuvm,
+		    struct drm_gem_object *obj)
+{
+	return obj && obj->resv != drm_gpuvm_resv(gpuvm);
+}
 
 static inline struct drm_gpuva *
 __drm_gpuva_next(struct drm_gpuva *va)
@@ -438,6 +499,144 @@ __drm_gpuva_next(struct drm_gpuva *va)
 	list_for_each_entry_safe(va__, next__, &(gpuvm__)->rb.list, rb.entry)
 
 /**
+ * struct drm_gpuvm_exec - &drm_gpuvm abstraction of &drm_exec
+ *
+ * This structure should be created on the stack as &drm_exec should be.
+ *
+ * Optionally, @extra can be set in order to lock additional &drm_gem_objects.
+ */
+struct drm_gpuvm_exec {
+	/**
+	 * @exec: the &drm_exec structure
+	 */
+	struct drm_exec exec;
+
+	/**
+	 * @flags: the flags for the struct drm_exec
+	 */
+	uint32_t flags;
+
+	/**
+	 * @vm: the &drm_gpuvm to lock its DMA reservations
+	 */
+	struct drm_gpuvm *vm;
+
+	/**
+	 * @num_fences: the number of fences to reserve for the &dma_resv of the
+	 * locked &drm_gem_objects
+	 */
+	unsigned int num_fences;
+
+	/**
+	 * @extra: Callback and corresponding private data for the driver to
+	 * lock arbitrary additional &drm_gem_objects.
+	 */
+	struct {
+		/**
+		 * @fn: The driver callback to lock additional &drm_gem_objects.
+		 */
+		int (*fn)(struct drm_gpuvm_exec *vm_exec);
+
+		/**
+		 * @priv: driver private data for the @fn callback
+		 */
+		void *priv;
+	} extra;
+};
+
+/**
+ * drm_gpuvm_prepare_vm() - prepare the GPUVMs common dma-resv
+ * @gpuvm: the &drm_gpuvm
+ * @exec: the &drm_exec context
+ * @num_fences: the amount of &dma_fences to reserve
+ *
+ * Calls drm_exec_prepare_obj() for the GPUVMs dummy &drm_gem_object.
+ *
+ * Using this function directly, it is the drivers responsibility to call
+ * drm_exec_init() and drm_exec_fini() accordingly.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+static inline int
+drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
+		     struct drm_exec *exec,
+		     unsigned int num_fences)
+{
+	return drm_exec_prepare_obj(exec, gpuvm->r_obj, num_fences);
+}
+
+int drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
+			      struct drm_exec *exec,
+			      unsigned int num_fences);
+
+int drm_gpuvm_prepare_range(struct drm_gpuvm *gpuvm,
+			    struct drm_exec *exec,
+			    u64 addr, u64 range,
+			    unsigned int num_fences);
+
+int drm_gpuvm_exec_lock(struct drm_gpuvm_exec *vm_exec);
+
+int drm_gpuvm_exec_lock_array(struct drm_gpuvm_exec *vm_exec,
+			      struct drm_gem_object **objs,
+			      unsigned int num_objs);
+
+int drm_gpuvm_exec_lock_range(struct drm_gpuvm_exec *vm_exec,
+			      u64 addr, u64 range);
+
+/**
+ * drm_gpuvm_exec_unlock() - lock all dma-resv of all assoiciated BOs
+ * @vm_exec: the &drm_gpuvm_exec wrapper
+ *
+ * Releases all dma-resv locks of all &drm_gem_objects previously acquired
+ * through drm_gpuvm_exec_lock() or its variants.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+static inline void
+drm_gpuvm_exec_unlock(struct drm_gpuvm_exec *vm_exec)
+{
+	drm_exec_fini(&vm_exec->exec);
+}
+
+int drm_gpuvm_validate(struct drm_gpuvm *gpuvm, struct drm_exec *exec);
+void drm_gpuvm_resv_add_fence(struct drm_gpuvm *gpuvm,
+			      struct drm_exec *exec,
+			      struct dma_fence *fence,
+			      enum dma_resv_usage private_usage,
+			      enum dma_resv_usage extobj_usage);
+
+/**
+ * drm_gpuvm_exec_resv_add_fence()
+ * @vm_exec: the &drm_gpuvm_exec wrapper
+ * @fence: fence to add
+ * @private_usage: private dma-resv usage
+ * @extobj_usage: extobj dma-resv usage
+ *
+ * See drm_gpuvm_resv_add_fence().
+ */
+static inline void
+drm_gpuvm_exec_resv_add_fence(struct drm_gpuvm_exec *vm_exec,
+			      struct dma_fence *fence,
+			      enum dma_resv_usage private_usage,
+			      enum dma_resv_usage extobj_usage)
+{
+	drm_gpuvm_resv_add_fence(vm_exec->vm, &vm_exec->exec, fence,
+				 private_usage, extobj_usage);
+}
+
+/**
+ * drm_gpuvm_exec_validate()
+ * @vm_exec: the &drm_gpuvm_exec wrapper
+ *
+ * See drm_gpuvm_validate().
+ */
+static inline int
+drm_gpuvm_exec_validate(struct drm_gpuvm_exec *vm_exec)
+{
+	return drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
+}
+
+/**
  * struct drm_gpuvm_bo - structure representing a &drm_gpuvm and
  * &drm_gem_object combination
  *
@@ -467,6 +666,12 @@ struct drm_gpuvm_bo {
 	struct drm_gem_object *obj;
 
 	/**
+	 * @evicted: Indicates whether the &drm_gem_object is evicted; field
+	 * protected by the &drm_gem_object's dma-resv lock.
+	 */
+	bool evicted;
+
+	/**
 	 * @kref: The reference count for this &drm_gpuvm_bo.
 	 */
 	struct kref kref;
@@ -493,6 +698,18 @@ struct drm_gpuvm_bo {
 			 * gpuva list.
 			 */
 			struct list_head gem;
+
+			/**
+			 * @evict: List entry to attach to the &drm_gpuvms
+			 * extobj list.
+			 */
+			struct list_head extobj;
+
+			/**
+			 * @evict: List entry to attach to the &drm_gpuvms evict
+			 * list.
+			 */
+			struct list_head evict;
 		} entry;
 	} list;
 };
@@ -526,6 +743,27 @@ void drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo);
 struct drm_gpuvm_bo *
 drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
 		  struct drm_gem_object *obj);
+
+void drm_gpuvm_bo_evict(struct drm_gpuvm_bo *vm_bo, bool evict);
+
+/**
+ * drm_gpuvm_bo_gem_evict()
+ * @obj: the &drm_gem_object
+ * @evict: indicates whether @obj is evicted
+ *
+ * See drm_gpuvm_bo_evict().
+ */
+static inline void
+drm_gpuvm_bo_gem_evict(struct drm_gem_object *obj, bool evict)
+{
+	struct drm_gpuvm_bo *vm_bo;
+
+	drm_gem_gpuva_assert_lock_held(obj);
+	drm_gem_for_each_gpuvm_bo(vm_bo, obj)
+		drm_gpuvm_bo_evict(vm_bo, evict);
+}
+
+void drm_gpuvm_bo_extobj_add(struct drm_gpuvm_bo *vm_bo);
 
 /**
  * drm_gpuvm_bo_for_each_va() - iterator to walk over a list of &drm_gpuva
@@ -900,6 +1138,18 @@ struct drm_gpuvm_ops {
 	 * This callback is optional.
 	 */
 	void (*vm_bo_free)(struct drm_gpuvm_bo *vm_bo);
+
+	/**
+	 * @vm_bo_validate: called from drm_gpuvm_validate()
+	 *
+	 * Drivers receive this callback for every evicted &drm_gem_object being
+	 * mapped in the corresponding &drm_gpuvm.
+	 *
+	 * Typically, drivers would call their driver specific variant of
+	 * ttm_bo_validate() from within this callback.
+	 */
+	int (*vm_bo_validate)(struct drm_gpuvm_bo *vm_bo,
+			      struct drm_exec *exec);
 
 	/**
 	 * @sm_step_map: called from &drm_gpuvm_sm_map to finally insert the
