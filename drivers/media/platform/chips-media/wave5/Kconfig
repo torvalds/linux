@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_WAVE_VPU
+	tristate "Chips&Media Wave Codec Driver"
+	depends on VIDEO_DEV
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	help
+	  Chips&Media stateful encoder and decoder driver.
+	  The driver supports HEVC and H264 formats.
+	  To compile this driver as modules, choose M here: the
+	  modules will be called wave5.
