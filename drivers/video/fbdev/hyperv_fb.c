@@ -1013,6 +1013,8 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	} else if (IS_ENABLED(CONFIG_SYSFB)) {
 		base = screen_info.lfb_base;
 		size = screen_info.lfb_size;
+	} else {
+		goto err1;
 	}
 
 	/*
