@@ -79,11 +79,9 @@ struct amdgpu_mca {
 };
 
 enum mca_reg_idx {
-	MCA_REG_IDX_CONTROL		= 0,
 	MCA_REG_IDX_STATUS		= 1,
 	MCA_REG_IDX_ADDR		= 2,
 	MCA_REG_IDX_MISC0		= 3,
-	MCA_REG_IDX_CONFIG		= 4,
 	MCA_REG_IDX_IPID		= 5,
 	MCA_REG_IDX_SYND		= 6,
 	MCA_REG_IDX_COUNT		= 16,

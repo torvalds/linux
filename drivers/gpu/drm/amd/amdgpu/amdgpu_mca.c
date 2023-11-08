@@ -202,10 +202,17 @@ int amdgpu_mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 
 static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, struct mca_bank_entry *entry)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(entry->regs); i++)
-		dev_dbg(adev->dev, "mca entry[%02d].regs[%02d]=0x%016llx\n", idx, i, entry->regs[i]);
+	dev_info(adev->dev, "[Hardware error] Accelerator Check Architecture events logged\n");
+	dev_info(adev->dev, "[Hardware error] aca entry[%02d].STATUS=0x%016llx\n",
+		 idx, entry->regs[MCA_REG_IDX_STATUS]);
+	dev_info(adev->dev, "[Hardware error] aca entry[%02d].ADDR=0x%016llx\n",
+		 idx, entry->regs[MCA_REG_IDX_ADDR]);
+	dev_info(adev->dev, "[Hardware error] aca entry[%02d].MISC0=0x%016llx\n",
+		 idx, entry->regs[MCA_REG_IDX_MISC0]);
+	dev_info(adev->dev, "[Hardware error] aca entry[%02d].IPID=0x%016llx\n",
+		 idx, entry->regs[MCA_REG_IDX_IPID]);
+	dev_info(adev->dev, "[Hardware error] aca entry[%02d].SYND=0x%016llx\n",
+		 idx, entry->regs[MCA_REG_IDX_SYND]);
 }
 
 int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type, struct ras_err_data *err_data)
