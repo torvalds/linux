@@ -472,8 +472,17 @@
 	pinctrl_rgmii1_default: rgmii1_default {
 		function = "RGMII1";
 		groups = "RGMII1";
-        };
+	};
 
+	pinctrl_rmii0_default: rmii0_default {
+		function = "RMII0";
+		groups = "RMII0";
+	};
+
+	pinctrl_rmii1_default: rmii1_default {
+		function = "RMII1";
+		groups = "RMII1";
+	};
 
 	pinctrl_fwspi_quad_default: fwspi_quad_default {
 		function = "FWQSPI";
