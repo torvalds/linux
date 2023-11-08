@@ -1117,6 +1117,11 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
+	/* FIXME: In theory this loop shouldn't be needed any more when
+	 * amdgpu_vm_handle_moved handles all moved BOs that are reserved
+	 * with p->ticket. But removing it caused test regressions, so I'm
+	 * leaving it here for now.
+	 */
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 		bo_va = e->bo_va;
 		if (bo_va == NULL)
@@ -1131,7 +1136,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
-	r = amdgpu_vm_handle_moved(adev, vm);
+	r = amdgpu_vm_handle_moved(adev, vm, &p->exec.ticket);
 	if (r)
 		return r;
 

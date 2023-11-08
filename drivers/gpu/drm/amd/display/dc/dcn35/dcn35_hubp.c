@@ -53,11 +53,146 @@ static void hubp35_init(struct hubp *hubp)
 
 	/*do nothing for now for dcn3.5 or later*/
 }
+
+void hubp35_program_pixel_format(
+	struct hubp *hubp,
+	enum surface_pixel_format format)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+	uint32_t green_bar = 1;
+	uint32_t red_bar = 3;
+	uint32_t blue_bar = 2;
+
+	/* swap for ABGR format */
+	if (format == SURFACE_PIXEL_FORMAT_GRPH_ABGR8888
+			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010
+			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS
+			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616
+			|| format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F) {
+		red_bar = 2;
+		blue_bar = 3;
+	}
+
+	REG_UPDATE_3(HUBPRET_CONTROL,
+			CROSSBAR_SRC_Y_G, green_bar,
+			CROSSBAR_SRC_CB_B, blue_bar,
+			CROSSBAR_SRC_CR_R, red_bar);
+
+	/* Mapping is same as ipp programming (cnvc) */
+
+	switch (format)	{
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB1555:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 1);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB565:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 3);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 8);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 10);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616: /* we use crossbar already */
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 26); /* ARGB16161616_UNORM */
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:
+	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F:/*we use crossbar already*/
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 24);
+		break;
+
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 65);
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 64);
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 67);
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 66);
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 12);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 112);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 113);
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 114);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 118);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT:
+		REG_UPDATE(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 119);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
+		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 116,
+				ALPHA_PLANE_EN, 0);
+		break;
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+		REG_UPDATE_2(DCSURF_SURFACE_CONFIG,
+				SURFACE_PIXEL_FORMAT, 116,
+				ALPHA_PLANE_EN, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		break;
+	}
+
+	/* don't see the need of program the xbar in DCN 1.0 */
+}
+
+void hubp35_program_surface_config(
+	struct hubp *hubp,
+	enum surface_pixel_format format,
+	union dc_tiling_info *tiling_info,
+	struct plane_size *plane_size,
+	enum dc_rotation_angle rotation,
+	struct dc_plane_dcc_param *dcc,
+	bool horizontal_mirror,
+	unsigned int compat_level)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	hubp3_dcc_control_sienna_cichlid(hubp, dcc);
+	hubp3_program_tiling(hubp2, tiling_info, format);
+	hubp2_program_size(hubp, format, plane_size, dcc);
+	hubp2_program_rotation(hubp, rotation, horizontal_mirror);
+	hubp35_program_pixel_format(hubp, format);
+}
+
 struct hubp_funcs dcn35_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
 	.hubp_program_surface_flip_and_addr = hubp3_program_surface_flip_and_addr,
-	.hubp_program_surface_config = hubp3_program_surface_config,
+	.hubp_program_surface_config = hubp35_program_surface_config,
 	.hubp_is_flip_pending = hubp2_is_flip_pending,
 	.hubp_setup = hubp3_setup,
 	.hubp_setup_interdependent = hubp2_setup_interdependent,

@@ -166,8 +166,12 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 			}
 		}
 
-		if (reset)
+		if (reset) {
+			/* use mode-2 reset for poison consumption */
+			if (!entry)
+				con->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
 			amdgpu_ras_reset_gpu(adev);
+		}
 	}
 
 	kfree(err_data->err_addr);
