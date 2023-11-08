@@ -5,24 +5,23 @@
  * Chin-Ting Kuo <chin-ting_kuo@aspeedtech.com>
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/wait.h>
-#include <linux/delay.h>
-#include <linux/spi/spi.h>
-#include <linux/reset.h>
-
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/ioport.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/reset.h>
+#include <linux/sched.h>
+#include <linux/spi/spi.h>
+#include <linux/wait.h>
 
 #define SPI_CONFIG		0x00
 #define SPI_CTRL		0x04
@@ -48,8 +47,8 @@ struct aspeed_spi_host {
 	u32				 ahb_clk;
 	u32				 ctrl_val[5];
 	void __iomem			*chip_ahb_base[5];
-	/* lock: make sure only a user can access the controller once */
-	spinlock_t			 lock;
+	/* lock: make sure only a user can access the controller once. */
+	struct mutex			 lock;
 	u8				 cs_change;
 	const struct aspeed_spi_info	*info;
 	u32				 flag;
@@ -367,11 +366,10 @@ static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	bool full_duplex_rx;
 	u8 *rx_buf;
 	u32 cs;
-	unsigned long flags;
 	u32 j = 0;
 
 	if (host->cs_change == 0) {
-		spin_lock_irqsave(&host->lock, flags);
+		mutex_lock(&host->lock);
 		aspeed_spi_start_user(spi);
 	}
 
@@ -423,7 +421,7 @@ static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->complete(msg->context);
 
 	if (host->cs_change == 0)
-		spin_unlock_irqrestore(&host->lock, flags);
+		mutex_unlock(&host->lock);
 
 	return 0;
 }
@@ -516,6 +514,8 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	aspeed_spi_enable(host, true);
 	aspeed_spi_chip_set_type(host);
 
+	mutex_init(&host->lock);
+
 	err = devm_spi_register_controller(dev, host->ctrl);
 	if (err) {
 		dev_err(dev, "failed to register SPI controller\n");
@@ -526,6 +526,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 
 disable_clk:
 	clk_disable_unprepare(host->clk);
+	mutex_destroy(&host->lock);
 	return err;
 }
 
@@ -535,6 +536,7 @@ static int aspeed_spi_remove(struct platform_device *pdev)
 
 	aspeed_spi_enable(host, false);
 	clk_disable_unprepare(host->clk);
+	mutex_destroy(&host->lock);
 
 	return 0;
 }
