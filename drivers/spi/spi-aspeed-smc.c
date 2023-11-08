@@ -1340,7 +1340,6 @@ no_calib:
 
 	/* Nothing found ? */
 	if (best_div < 0) {
-		dev_warn(aspi->dev, "No good frequency\n");
 		if (data->get_clk_div)
 			clk_div_config = data->get_clk_div(chip, max_freq);
 	} else {
