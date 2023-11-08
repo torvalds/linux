@@ -624,7 +624,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 	COMPOSITE(CLK_UART3_SRC, "clk_uart3_src", gpll_cpll_p, 0,
 			RK3562_PERI_CLKSEL_CON(25), 8, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3562_PERI_CLKGATE_CON(7), 15, GFLAGS),
-	COMPOSITE_FRACMUX(CLK_UART3_FRAC, "clk_uart3_frac", "clk_uart3", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(CLK_UART3_FRAC, "clk_uart3_frac", "clk_uart3_src", CLK_SET_RATE_PARENT,
 			RK3562_PERI_CLKSEL_CON(26), 0,
 			RK3562_PERI_CLKGATE_CON(8), 0, GFLAGS,
 			&rk3562_clk_uart3_fracmux),
