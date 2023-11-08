@@ -651,6 +651,9 @@ static u32 interpolate(int value, u32 *table, int size)
 	u8 i;
 	u16 d;
 
+	if (size < 2)
+		return 0;
+
 	for (i = 0; i < size; i++) {
 		if (value < table[i])
 			break;
@@ -1599,6 +1602,9 @@ static void rk817_bat_first_pwron(struct rk817_battery_device *battery)
 				     battery->pwron_voltage) * 1000;/* uAH */
 	battery->dsoc = battery->rsoc;
 	battery->fcc	= battery->pdata->design_capacity;
+	if (battery->fcc < MIN_FCC)
+		battery->fcc = MIN_FCC;
+
 	battery->nac = rk817_bat_vol_to_cap(battery, battery->pwron_voltage);
 
 	rk817_bat_update_qmax(battery, battery->qmax);
@@ -1801,7 +1807,7 @@ static int rk817_bat_parse_dt(struct rk817_battery_device *battery)
 	}
 
 	pdata->ocv_size = length / sizeof(u32);
-	if (pdata->ocv_size <= 0) {
+	if (pdata->ocv_size < 2) {
 		dev_err(dev, "invalid ocv table\n");
 		return -EINVAL;
 	}
@@ -2773,6 +2779,8 @@ static void rk817_bat_finish_algorithm(struct rk817_battery_device *battery)
 		finish_sec = base2sec(battery->finish_base);
 
 		soc_sec = battery->fcc * 3600 / 100 / DIV(finish_current);
+		if (soc_sec == 0)
+			soc_sec = 1;
 		plus_soc = finish_sec / DIV(soc_sec);
 		if (finish_sec > soc_sec) {
 			rest = finish_sec % soc_sec;

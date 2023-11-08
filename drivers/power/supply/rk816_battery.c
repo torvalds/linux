@@ -328,6 +328,9 @@ static u32 interpolate(int value, u32 *table, int size)
 	u8 i;
 	u16 d;
 
+	if (size < 2)
+		return 0;
+
 	for (i = 0; i < size; i++) {
 		if (value < table[i])
 			break;
@@ -2965,6 +2968,8 @@ static void rk816_bat_finish_algorithm(struct rk816_battery *di)
 					FINISH_CHRG_CUR2 : FINISH_CHRG_CUR1;
 		finish_sec = base2sec(di->chrg_finish_base);
 		soc_sec = di->fcc * 3600 / 100 / DIV(finish_current);
+		if (soc_sec == 0)
+			soc_sec = 1;
 		plus_soc = finish_sec / DIV(soc_sec);
 		if (finish_sec > soc_sec) {
 			rest = finish_sec % soc_sec;
@@ -4671,7 +4676,7 @@ static int rk816_bat_parse_dt(struct rk816_battery *di)
 	}
 
 	pdata->ocv_size = length / sizeof(u32);
-	if (pdata->ocv_size <= 0) {
+	if (pdata->ocv_size < 2) {
 		dev_err(dev, "invalid ocv table\n");
 		return -EINVAL;
 	}
