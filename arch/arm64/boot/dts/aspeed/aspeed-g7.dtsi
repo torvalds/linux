@@ -564,7 +564,7 @@
 				status = "disabled";
 			};
 
-			pcie0_lpc0_kcs1: pcie-kcs@28 {
+			pcie_lpc0_kcs1: pcie-kcs@28 {
 				compatible = "aspeed,ast2700-kcs-bmc";
 				reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
 				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
