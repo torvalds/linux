@@ -500,16 +500,11 @@ static void as3722_gpio_set(struct gpio_chip *chip, unsigned offset,
 			"GPIO_SIGNAL_OUT_REG update failed: %d\n", ret);
 }
 
-static int as3722_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
 static int as3722_gpio_direction_output(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
 	as3722_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output(chip->base + offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static int as3722_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -526,7 +521,7 @@ static const struct gpio_chip as3722_gpio_chip = {
 	.free			= gpiochip_generic_free,
 	.get			= as3722_gpio_get,
 	.set			= as3722_gpio_set,
-	.direction_input	= as3722_gpio_direction_input,
+	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= as3722_gpio_direction_output,
 	.to_irq			= as3722_gpio_to_irq,
 	.can_sleep		= true,
