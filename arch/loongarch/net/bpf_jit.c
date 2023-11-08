@@ -411,7 +411,11 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	off_t offset;
 	struct exception_table_entry *ex;
 
-	if (!ctx->image || !ctx->prog->aux->extable || BPF_MODE(insn->code) != BPF_PROBE_MEM)
+	if (!ctx->image || !ctx->prog->aux->extable)
+		return 0;
+
+	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX)
 		return 0;
 
 	if (WARN_ON_ONCE(ctx->num_exentries >= ctx->prog->aux->num_exentries))
@@ -450,7 +454,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 {
 	u8 tm = -1;
 	u64 func_addr;
-	bool func_addr_fixed;
+	bool func_addr_fixed, sign_extend;
 	int i = insn - ctx->prog->insnsi;
 	int ret, jmp_offset;
 	const u8 code = insn->code;
@@ -879,31 +883,56 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
+	/* dst_reg = (s64)*(signed size *)(src_reg + off) */
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_B:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
+		sign_extend = BPF_MODE(insn->code) == BPF_MEMSX ||
+			      BPF_MODE(insn->code) == BPF_PROBE_MEMSX;
 		switch (BPF_SIZE(code)) {
 		case BPF_B:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldbu, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldb, dst, src, off);
+				else
+					emit_insn(ctx, ldbu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxbu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxb, dst, src, t1);
+				else
+					emit_insn(ctx, ldxbu, dst, src, t1);
 			}
 			break;
 		case BPF_H:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldhu, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldh, dst, src, off);
+				else
+					emit_insn(ctx, ldhu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxhu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxh, dst, src, t1);
+				else
+					emit_insn(ctx, ldxhu, dst, src, t1);
 			}
 			break;
 		case BPF_W:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldwu, dst, src, off);
-			} else if (is_signed_imm14(off)) {
-				emit_insn(ctx, ldptrw, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldw, dst, src, off);
+				else
+					emit_insn(ctx, ldwu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxwu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxw, dst, src, t1);
+				else
+					emit_insn(ctx, ldxwu, dst, src, t1);
 			}
 			break;
 		case BPF_DW:
