@@ -11,6 +11,8 @@
 
 static unsigned __read_mostly afs_volume_record_life = 60 * 60;
 
+static void afs_destroy_volume(struct work_struct *work);
+
 /*
  * Insert a volume into a cell.  If there's an existing volume record, that is
  * returned instead with a ref held.
@@ -91,6 +93,7 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 
 	refcount_set(&volume->ref, 1);
 	INIT_HLIST_NODE(&volume->proc_link);
+	INIT_WORK(&volume->destructor, afs_destroy_volume);
 	rwlock_init(&volume->servers_lock);
 	rwlock_init(&volume->cb_v_break_lock);
 	memcpy(volume->name, vldb->name, vldb->name_len + 1);
@@ -133,7 +136,7 @@ static struct afs_volume *afs_lookup_volume(struct afs_fs_context *params,
 	if (volume == candidate)
 		afs_attach_volume_to_servers(volume, slist);
 	else
-		afs_put_volume(params->net, candidate, afs_volume_trace_put_cell_dup);
+		afs_put_volume(candidate, afs_volume_trace_put_cell_dup);
 	return volume;
 }
 
@@ -223,8 +226,9 @@ error:
 /*
  * Destroy a volume record
  */
-static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
+static void afs_destroy_volume(struct work_struct *work)
 {
+	struct afs_volume *volume = container_of(work, struct afs_volume, destructor);
 	struct afs_server_list *slist = rcu_access_pointer(volume->servers);
 
 	_enter("%p", volume);
@@ -235,7 +239,7 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 
 	afs_detach_volume_from_servers(volume, slist);
 	afs_remove_volume_from_cell(volume);
-	afs_put_serverlist(net, slist);
+	afs_put_serverlist(volume->cell->net, slist);
 	afs_put_cell(volume->cell, afs_cell_trace_put_vol);
 	trace_afs_volume(volume->vid, refcount_read(&volume->ref),
 			 afs_volume_trace_free);
@@ -277,8 +281,7 @@ struct afs_volume *afs_get_volume(struct afs_volume *volume,
 /*
  * Drop a reference on a volume record.
  */
-void afs_put_volume(struct afs_net *net, struct afs_volume *volume,
-		    enum afs_volume_trace reason)
+void afs_put_volume(struct afs_volume *volume, enum afs_volume_trace reason)
 {
 	if (volume) {
 		afs_volid_t vid = volume->vid;
@@ -288,7 +291,7 @@ void afs_put_volume(struct afs_net *net, struct afs_volume *volume,
 		zero = __refcount_dec_and_test(&volume->ref, &r);
 		trace_afs_volume(vid, r - 1, reason);
 		if (zero)
-			afs_destroy_volume(net, volume);
+			schedule_work(&volume->destructor);
 	}
 }
 

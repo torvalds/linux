@@ -818,7 +818,7 @@ done:
 
 final_destruction:
 	/* The root volume is pinning the cell */
-	afs_put_volume(cell->net, cell->root_volume, afs_volume_trace_put_cell_root);
+	afs_put_volume(cell->root_volume, afs_volume_trace_put_cell_root);
 	cell->root_volume = NULL;
 	afs_put_cell(cell, afs_cell_trace_put_destroy);
 }

@@ -636,6 +636,7 @@ struct afs_volume {
 	struct rb_node		cell_node;	/* Link in cell->volumes */
 	struct hlist_node	proc_link;	/* Link in cell->proc_volumes */
 	struct super_block __rcu *sb;		/* Superblock on which inodes reside */
+	struct work_struct	destructor;	/* Deferred destructor */
 	unsigned long		flags;
 #define AFS_VOLUME_NEEDS_UPDATE	0	/* - T if an update needs performing */
 #define AFS_VOLUME_UPDATING	1	/* - T if an update is in progress */
@@ -1613,7 +1614,7 @@ extern int afs_activate_volume(struct afs_volume *);
 extern void afs_deactivate_volume(struct afs_volume *);
 bool afs_try_get_volume(struct afs_volume *volume, enum afs_volume_trace reason);
 extern struct afs_volume *afs_get_volume(struct afs_volume *, enum afs_volume_trace);
-extern void afs_put_volume(struct afs_net *, struct afs_volume *, enum afs_volume_trace);
+void afs_put_volume(struct afs_volume *volume, enum afs_volume_trace reason);
 extern int afs_check_volume_status(struct afs_volume *, struct afs_operation *);
 
 /*

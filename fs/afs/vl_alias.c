@@ -156,7 +156,7 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 	/* And see if it's in the new cell. */
 	volume = afs_sample_volume(cell, key, pvol->name, pvol->name_len);
 	if (IS_ERR(volume)) {
-		afs_put_volume(cell->net, pvol, afs_volume_trace_put_query_alias);
+		afs_put_volume(pvol, afs_volume_trace_put_query_alias);
 		if (PTR_ERR(volume) != -ENOMEDIUM)
 			return PTR_ERR(volume);
 		/* That volume is not in the new cell, so not an alias */
@@ -174,8 +174,8 @@ static int afs_query_for_alias_one(struct afs_cell *cell, struct key *key,
 		rcu_read_unlock();
 	}
 
-	afs_put_volume(cell->net, volume, afs_volume_trace_put_query_alias);
-	afs_put_volume(cell->net, pvol, afs_volume_trace_put_query_alias);
+	afs_put_volume(volume, afs_volume_trace_put_query_alias);
+	afs_put_volume(pvol, afs_volume_trace_put_query_alias);
 	return ret;
 }
 

@@ -381,8 +381,7 @@ static int afs_validate_fc(struct fs_context *fc)
 		ctx->key = key;
 
 		if (ctx->volume) {
-			afs_put_volume(ctx->net, ctx->volume,
-				       afs_volume_trace_put_validate_fc);
+			afs_put_volume(ctx->volume, afs_volume_trace_put_validate_fc);
 			ctx->volume = NULL;
 		}
 
@@ -529,7 +528,7 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 {
 	if (as) {
 		struct afs_net *net = afs_net(as->net_ns);
-		afs_put_volume(net, as->volume, afs_volume_trace_put_destroy_sbi);
+		afs_put_volume(as->volume, afs_volume_trace_put_destroy_sbi);
 		afs_unuse_cell(net, as->cell, afs_cell_trace_unuse_sbi);
 		put_net(as->net_ns);
 		kfree(as);
@@ -615,7 +614,7 @@ static void afs_free_fc(struct fs_context *fc)
 	struct afs_fs_context *ctx = fc->fs_private;
 
 	afs_destroy_sbi(fc->s_fs_info);
-	afs_put_volume(ctx->net, ctx->volume, afs_volume_trace_put_free_fc);
+	afs_put_volume(ctx->volume, afs_volume_trace_put_free_fc);
 	afs_unuse_cell(ctx->net, ctx->cell, afs_cell_trace_unuse_fc);
 	key_put(ctx->key);
 	kfree(ctx);
