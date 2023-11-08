@@ -184,8 +184,13 @@ void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_
 	__asm__ volatile (
 		".set push\n"
 		".set noreorder\n"
-		".option pic0\n"
+		"bal 1f\n"               /* prime $ra for .cpload                            */
+		"nop\n"
+		"1:\n"
+		".cpload $ra\n"
 		"move  $a0, $sp\n"       /* save stack pointer to $a0, as arg1 of _start_c */
+		"addiu $sp, $sp, -4\n"   /* space for .cprestore to store $gp              */
+		".cprestore 0\n"
 		"li    $t0, -8\n"
 		"and   $sp, $sp, $t0\n"  /* $sp must be 8-byte aligned                     */
 		"addiu $sp, $sp, -16\n"  /* the callee expects to save a0..a3 there        */
