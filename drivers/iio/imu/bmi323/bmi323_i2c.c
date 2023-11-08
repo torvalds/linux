@@ -66,7 +66,7 @@ static struct regmap_bus bmi323_regmap_bus = {
 	.write = bmi323_regmap_i2c_write,
 };
 
-const struct regmap_config bmi323_i2c_regmap_config = {
+static const struct regmap_config bmi323_i2c_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = BMI323_CFG_RES_REG,

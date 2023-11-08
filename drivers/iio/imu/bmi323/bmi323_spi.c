@@ -41,7 +41,7 @@ static struct regmap_bus bmi323_regmap_bus = {
 	.write = bmi323_regmap_spi_write,
 };
 
-const struct regmap_config bmi323_spi_regmap_config = {
+static const struct regmap_config bmi323_spi_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.pad_bits = 8,
