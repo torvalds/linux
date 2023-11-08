@@ -149,6 +149,7 @@ static struct env {
 	bool show_version;
 	bool comparison_mode;
 	bool replay_mode;
+	int top_n;
 
 	int log_level;
 	int log_size;
@@ -215,6 +216,7 @@ static const struct argp_option opts[] = {
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "test-states", 't', NULL, 0,
 	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
+	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -292,6 +294,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 't':
 		env.force_checkpoints = true;
+		break;
+	case 'n':
+		errno = 0;
+		env.top_n = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid top N specifier: %s\n", arg);
+			argp_usage(state);
+		}
 		break;
 	case 'C':
 		env.comparison_mode = true;
