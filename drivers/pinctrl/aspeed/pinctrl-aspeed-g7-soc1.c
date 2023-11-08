@@ -249,6 +249,7 @@ static const int qspi0_pins[] = { 103, 104 };
 static const int spi0cs1_pins[] = { 105 };
 static const int spi0abr_pins[] = { 106 };
 static const int spi0wpn_pins[] = { 107 };
+static const int uart8_pins[] = { 106, 107 };
 
 //GPIOO
 static const int spi1_pins[] = { 108, 109, 110 };
@@ -256,6 +257,10 @@ static const int qspi1_pins[] = { 111, 112 };
 static const int spi1cs1_pins[] = { 113 };
 static const int spi1abr_pins[] = { 114 };
 static const int spi1wpn_pins[] = { 115 };
+
+static const int uart9_pins[] = { 108, 109 };
+static const int uart10_pins[] = { 110, 111 };
+static const int uart11_pins[] = { 112, 113 };
 
 //GPIOP
 static const int spi2_pins[] = { 116, 117, 118, 119 };
@@ -268,10 +273,6 @@ static const int fwspiwpn_pins[] = { 131 };
 
 static const int thru2_pins[] = { 114, 115 };
 static const int thru3_pins[] = { 120, 121 };
-
-static const int uart9_pins[] = { 108, 109 };
-static const int uart10_pins[] = { 110, 111 };
-static const int uart11_pins[] = { 112, 113 };
 
 //GPIY
 static const int salt4_pins[] = { 188 };
@@ -443,6 +444,10 @@ static struct aspeed_g7_soc1_pingroup aspeed_g7_soc1_pingroups[] = {
 	PINGROUP(UART5, UART5, uart5),
 	PINGROUP(UART6, UART6, uart6),
 	PINGROUP(UART7, UART7, uart7),
+	PINGROUP(UART8, UART8, uart8),
+	PINGROUP(UART9, UART9, uart9),
+	PINGROUP(UART10, UART10, uart10),
+	PINGROUP(UART11, UART11, uart11),
 	PINGROUP(SPIM1, SPIM1, spim1),
 	PINGROUP(WDTRST0N, WDTRST0N, wdtrst0n),
 	PINGROUP(WDTRST1N, WDTRST1N, wdtrst1n),
@@ -676,6 +681,10 @@ static const char *const uart3_grp[] = { "UART3" };
 static const char *const uart5_grp[] = { "UART5" };
 static const char *const uart6_grp[] = { "UART6" };
 static const char *const uart7_grp[] = { "UART7" };
+static const char *const uart8_grp[] = { "UART8" };
+static const char *const uart9_grp[] = { "UART9" };
+static const char *const uart10_grp[] = { "UART10" };
+static const char *const uart11_grp[] = { "UART11" };
 static const char *const spim1_grp[] = { "SPIM1" };
 static const char *const spim2_grp[] = { "SPIM2" };
 static const char *const pwm8_grp[] = { "PWM8" };
@@ -924,6 +933,10 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(UART5, uart5),
 	IO_FUNC(UART6, uart6),
 	IO_FUNC(UART7, uart7),
+	IO_FUNC(UART8, uart8),
+	IO_FUNC(UART9, uart9),
+	IO_FUNC(UART10, uart10),
+	IO_FUNC(UART11, uart11),
 	IO_FUNC(SPIM1, spim1),
 	IO_FUNC(PWM7, pwm7),
 	IO_FUNC(PWM8, pwm8),
@@ -2007,50 +2020,50 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI0ABR, SCU34, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(TXD8, SCU34, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(UART8, SCU34, GENMASK(26, 24), (3 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI0WPN, SCU34, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(RXD8, SCU34, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(UART8, SCU34, GENMASK(30, 28), (3 << 28)),
 		},
 	},
 //GPIO O
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(2, 0), 1),
-			PIN_CFG(TXD9, SCU38, GENMASK(2, 0), 2),
+			PIN_CFG(UART9, SCU38, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(RXD9, SCU38, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(UART9, SCU38, GENMASK(6, 4), (3 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(TXD10, SCU38, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(UART10, SCU38, GENMASK(10, 8), (3 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(QSPI1, SCU38, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(RXD10, SCU38, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(UART10, SCU38, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(QSPI1, SCU38, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(TXD11, SCU38, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(UART11, SCU38, GENMASK(18, 16), (3 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1CS1, SCU38, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(RXD11, SCU38, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(UART11, SCU38, GENMASK(22, 20), (3 << 20)),
 		},
 	},
 	{
