@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/dts-v1/;
+
+#include "ast2700-evb.dts"
+
+/ {
+	model = "AST2700 NC-SI EVB";
+};
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rmii";
+	use-ncsi;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
+};
