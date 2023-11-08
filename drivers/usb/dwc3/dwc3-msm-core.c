@@ -4194,7 +4194,7 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc, bool force_power_collapse)
 	ret = dwc3_msm_prepare_suspend(mdwc, force_power_collapse);
 	if (ret) {
 		mutex_unlock(&mdwc->suspend_resume_mutex);
-		if (mdwc->in_host_mode)
+		if (mdwc->in_host_mode && dwc && dwc->xhci)
 			pm_request_resume(&dwc->xhci->dev);
 		return ret;
 	}
