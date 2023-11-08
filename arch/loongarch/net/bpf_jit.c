@@ -472,8 +472,23 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
-		move_reg(ctx, dst, src);
-		emit_zext_32(ctx, dst, is32);
+		switch (off) {
+		case 0:
+			move_reg(ctx, dst, src);
+			emit_zext_32(ctx, dst, is32);
+			break;
+		case 8:
+			move_reg(ctx, t1, src);
+			emit_insn(ctx, extwb, dst, t1);
+			break;
+		case 16:
+			move_reg(ctx, t1, src);
+			emit_insn(ctx, extwh, dst, t1);
+			break;
+		case 32:
+			emit_insn(ctx, addw, dst, src, LOONGARCH_GPR_ZERO);
+			break;
+		}
 		break;
 
 	/* dst = imm */
