@@ -5,7 +5,6 @@
  * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
  */
 
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <soc/rockchip/rockchip_dmc.h>

@@ -20,7 +20,6 @@
 #include <media/v4l2-common.h>
 
 #include "uvcvideo.h"
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 
 /* ------------------------------------------------------------------------

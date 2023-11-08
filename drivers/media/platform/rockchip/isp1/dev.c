@@ -45,7 +45,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
 #include <media/videobuf2-dma-contig.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include "regs.h"
 #include "rkisp1.h"

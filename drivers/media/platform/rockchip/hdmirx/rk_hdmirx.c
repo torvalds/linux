@@ -5,7 +5,6 @@
  * Author: Dingxian Wen <shawn.wen@rock-chips.com>
  */
 
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>

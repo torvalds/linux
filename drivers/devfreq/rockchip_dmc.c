@@ -7,7 +7,6 @@
  */
 
 #include <dt-bindings/clock/rockchip-ddr.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <drm/drm_modeset_lock.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>

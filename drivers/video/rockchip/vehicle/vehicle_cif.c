@@ -37,7 +37,6 @@
 #include <media/v4l2-mediabus.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/phy/phy.h>
 #include <linux/uaccess.h>
