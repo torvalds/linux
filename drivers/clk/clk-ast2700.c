@@ -632,7 +632,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 				    11, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_UART11CLK] =
-		ast2700_clk_hw_register_gate(NULL, "uart11clk-gate", "uart11clks",
+		ast2700_clk_hw_register_gate(NULL, "uart11clk-gate", "uart11clk",
 					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP2,
 					     6, 0, &ast2700_clk_lock);
 
