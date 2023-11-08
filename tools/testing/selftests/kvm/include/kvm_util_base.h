@@ -267,6 +267,13 @@ static inline bool kvm_has_cap(long cap)
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
 	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
 
+/*
+ * Use the "inner", double-underscore macro when reporting errors from within
+ * other macros so that the name of ioctl() and not its literal numeric value
+ * is printed on error.  The "outer" macro is strongly preferred when reporting
+ * errors "directly", i.e. without an additional layer of macros, as it reduces
+ * the probability of passing in the wrong string.
+ */
 #define __KVM_IOCTL_ERROR(_name, _ret)	__KVM_SYSCALL_ERROR(_name, _ret)
 #define KVM_IOCTL_ERROR(_ioctl, _ret) __KVM_IOCTL_ERROR(#_ioctl, _ret)
 
@@ -279,16 +286,12 @@ static inline bool kvm_has_cap(long cap)
 #define __kvm_ioctl(kvm_fd, cmd, arg)				\
 	kvm_do_ioctl(kvm_fd, cmd, arg)
 
-
-#define _kvm_ioctl(kvm_fd, cmd, name, arg)			\
+#define kvm_ioctl(kvm_fd, cmd, arg)				\
 ({								\
 	int ret = __kvm_ioctl(kvm_fd, cmd, arg);		\
 								\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(#cmd, ret));	\
 })
-
-#define kvm_ioctl(kvm_fd, cmd, arg) \
-	_kvm_ioctl(kvm_fd, cmd, #cmd, arg)
 
 static __always_inline void static_assert_is_vm(struct kvm_vm *vm) { }
 
@@ -298,16 +301,12 @@ static __always_inline void static_assert_is_vm(struct kvm_vm *vm) { }
 	kvm_do_ioctl((vm)->fd, cmd, arg);			\
 })
 
-#define _vm_ioctl(vm, cmd, name, arg)				\
+#define vm_ioctl(vm, cmd, arg)					\
 ({								\
 	int ret = __vm_ioctl(vm, cmd, arg);			\
 								\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(#cmd, ret));	\
 })
-
-#define vm_ioctl(vm, cmd, arg)					\
-	_vm_ioctl(vm, cmd, #cmd, arg)
-
 
 static __always_inline void static_assert_is_vcpu(struct kvm_vcpu *vcpu) { }
 
@@ -317,15 +316,12 @@ static __always_inline void static_assert_is_vcpu(struct kvm_vcpu *vcpu) { }
 	kvm_do_ioctl((vcpu)->fd, cmd, arg);			\
 })
 
-#define _vcpu_ioctl(vcpu, cmd, name, arg)			\
+#define vcpu_ioctl(vcpu, cmd, arg)				\
 ({								\
 	int ret = __vcpu_ioctl(vcpu, cmd, arg);			\
 								\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(#cmd, ret));	\
 })
-
-#define vcpu_ioctl(vcpu, cmd, arg)				\
-	_vcpu_ioctl(vcpu, cmd, #cmd, arg)
 
 /*
  * Looks up and returns the value corresponding to the capability
