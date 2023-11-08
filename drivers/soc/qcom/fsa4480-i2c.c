@@ -193,8 +193,6 @@ static int fsa4480_usbc_analog_setup_switches_psupply(
 
 	dev_dbg(dev, "%s: setting GPIOs active = %d rcvd intval 0x%X\n",
 		__func__, mode.intval != TYPEC_ACCESSORY_NONE, mode.intval);
-	if (atomic_read(&(fsa_priv->usbc_mode)) == mode.intval)
-		goto done; /* filter notifications received before */
 	atomic_set(&(fsa_priv->usbc_mode), mode.intval);
 
 	switch (mode.intval) {
