@@ -933,7 +933,7 @@ static ssize_t slab_owner_dump_size_read(struct file *file, char __user *ubuf,
 {
 	char buf[100];
 
-	snprintf(buf, sizeof(buf), "%llu MB\n", md_slabowner_dump_size/SZ_1M);
+	snprintf(buf, sizeof(buf), "%lu MB\n", md_slabowner_dump_size/SZ_1M);
 	return simple_read_from_buffer(ubuf, count, offset, buf, strlen(buf));
 }
 

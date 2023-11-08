@@ -659,20 +659,68 @@ static int md_register_minidump_entry(char *name, u64 virt_addr,
 	return ret;
 }
 
-static int md_is_kernel_address(u64 addr)
+struct page *md_vmalloc_to_page(const void *vmalloc_addr)
+{
+	unsigned long addr = (unsigned long) vmalloc_addr;
+	struct page *page = NULL;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+
+	if (pgd_none(*pgd))
+		return NULL;
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d))
+		return NULL;
+	pud = pud_offset(p4d, addr);
+
+	if (pud_none(*pud) || pud_bad(*pud))
+		return NULL;
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return NULL;
+
+	ptep = pte_offset_map(pmd, addr);
+	pte = *ptep;
+	if (pte_present(pte))
+		page = pte_page(pte);
+	pte_unmap(ptep);
+	return page;
+}
+
+static bool md_is_kernel_address(u64 addr)
 {
 	u32 data;
+	u64 phys_addr = 0;
+	struct page *page;
 
-	if (addr < PAGE_OFFSET || addr > -4096UL)
-		return 0;
+	if (!is_ttbr1_addr(addr))
+		return false;
 
 	if (addr >= (u64)_text && addr < (u64)_end)
-		return 0;
+		return false;
+
+	if (__is_lm_address(addr)) {
+		phys_addr = virt_to_phys((void *)addr);
+	} else if (is_vmalloc_or_module_addr((const void *)addr)) {
+		page = md_vmalloc_to_page((const void *) addr);
+		if (page)
+			phys_addr = page_to_phys(page);
+		else
+			return false;
+	} else {
+		return false;
+	}
+
+	if (!md_is_ddr_address(phys_addr))
+		return false;
 
 	if (aarch64_insn_read((void *)addr, &data))
-		return 0;
+		return false;
 	else
-		return 1;
+		return true;
 }
 
 static int md_save_page(u64 addr, bool flush)
@@ -689,8 +737,8 @@ static int md_save_page(u64 addr, bool flush)
 
 			if (__is_lm_address(virt_addr)) {
 				phys_addr = virt_to_phys((void *)virt_addr);
-			} else if (virt_addr >= VMALLOC_START && virt_addr < VMALLOC_END) {
-				page = vmalloc_to_page((const void *) virt_addr);
+			} else if (is_vmalloc_or_module_addr((const void *)virt_addr)) {
+				page = md_vmalloc_to_page((const void *) virt_addr);
 				phys_addr = page_to_phys(page);
 			} else {
 				return -1;

@@ -71,4 +71,5 @@ static inline int rk_minidump_hardlock_notify(struct notifier_block *nb,
 #endif
 
 void rk_md_flush_dcache_area(void *addr, size_t len);
+extern bool (*md_is_ddr_address)(u64 virt_addr);
 #endif /* __RK_MINIDUMP_H */

@@ -72,6 +72,8 @@ static bool md_init_done;
 static void __iomem *md_elf_mem;
 static resource_size_t md_elf_size;
 static struct proc_dir_entry *proc_rk_minidump;
+static bool md_is_ddr_address_default(u64 phys_addr);
+bool (*md_is_ddr_address)(u64 virt_addr) = md_is_ddr_address_default;
 
 /* Number of pending entries to be added in ToC regions */
 static unsigned int pendings;
@@ -621,6 +623,22 @@ static const struct proc_ops rk_minidump_proc_ops = {
 	.proc_read	= rk_minidump_read_elf,
 };
 
+static bool md_is_ddr_address_rk3588(u64 phys_addr)
+{
+	/* peripheral address space */
+	if (phys_addr >= 0xf0000000 && phys_addr < 0x100000000)
+		return false;
+	/* DDR is up to 32GB */
+	if (phys_addr > 0x800000000)
+		return false;
+	return true;
+}
+
+static bool md_is_ddr_address_default(u64 phys_addr)
+{
+	return true;
+}
+
 static int rk_minidump_driver_probe(struct platform_device *pdev)
 {
 	unsigned int i;
@@ -688,6 +706,9 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 	} else {
 		pr_info("Create /proc/rk_md/minidump fail...\n");
 	}
+
+	if (of_machine_is_compatible("rockchip,rk3588"))
+		md_is_ddr_address = md_is_ddr_address_rk3588;
 
 	/* Check global minidump support initialization */
 	if (!md_global_toc->md_toc_init) {
