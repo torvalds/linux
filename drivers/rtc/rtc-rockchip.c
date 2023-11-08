@@ -555,6 +555,31 @@ static void rockchip_rtc_compensation_delay_work(struct work_struct *work)
 	return;
 }
 
+static bool rockchip_rtc_is_trimed(struct rockchip_rtc *rtc)
+{
+	int ret, comp_done;
+
+	ret = regmap_read(rtc->regmap, RTC_CTRL, &comp_done);
+	if (ret) {
+		pr_err("%s: Failed to read RTC_CTRL: %d\n", __func__, ret);
+		return false;
+	}
+	return (comp_done & CLK32K_COMP_EN) == CLK32K_COMP_EN;
+}
+
+static void rockchip_rtc_trim_start(struct rockchip_rtc *rtc)
+{
+	if (!rockchip_rtc_is_trimed(rtc))
+		queue_delayed_work(system_long_wq, &rtc->trim_work,
+				   msecs_to_jiffies(5000));
+}
+
+static void __maybe_unused rockchip_rtc_trim_close(struct rockchip_rtc *rtc)
+{
+	if (!rockchip_rtc_is_trimed(rtc))
+		cancel_delayed_work_sync(&rtc->trim_work);
+}
+
 /* Enable the alarm if it should be enabled (in case it was disabled to
  * prevent use as a wake source).
  */
@@ -567,6 +592,8 @@ static int rockchip_rtc_suspend(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		enable_irq_wake(rtc->irq);
+
+	rockchip_rtc_trim_close(rtc);
 
 	if (rtc->grf) {
 		switch (rtc->mode) {
@@ -610,6 +637,7 @@ static int rockchip_rtc_resume(struct device *dev)
 		dev_err(dev, "Cannot enable clock.\n");
 		return ret;
 	}
+	rockchip_rtc_trim_start(rtc);
 
 	return 0;
 }
@@ -761,7 +789,7 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 				     rtc->irq);
 
 	INIT_DELAYED_WORK(&rtc->trim_work, rockchip_rtc_compensation_delay_work);
-	queue_delayed_work(system_long_wq, &rtc->trim_work, 3000);
+	rockchip_rtc_trim_start(rtc);
 
 	return rtc_register_device(rtc->rtc);
 }
