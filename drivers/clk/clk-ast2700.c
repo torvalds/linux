@@ -852,7 +852,7 @@ static int ast2700_soc0_clk_init(struct platform_device *pdev)
 
 	clks[AST2700_SOC0_CLK_GATE_DACCLK] =
 		ast2700_clk_hw_register_gate(NULL, "dacclk", NULL,
-					     0, clk_base + AST2700_SOC0_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC0_CLK_STOP,
 					     17, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_GATE_CRT1CLK] =
