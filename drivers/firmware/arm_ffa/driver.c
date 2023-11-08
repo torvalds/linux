@@ -783,7 +783,7 @@ static void ffa_notification_info_get(void)
 			if (ids_processed >= max_ids - 1)
 				break;
 
-			part_id = packed_id_list[++ids_processed];
+			part_id = packed_id_list[ids_processed++];
 
 			if (!ids_count[list]) { /* Global Notification */
 				__do_sched_recv_cb(part_id, 0, false);
@@ -795,7 +795,7 @@ static void ffa_notification_info_get(void)
 				if (ids_processed >= max_ids - 1)
 					break;
 
-				vcpu_id = packed_id_list[++ids_processed];
+				vcpu_id = packed_id_list[ids_processed++];
 
 				__do_sched_recv_cb(part_id, vcpu_id, true);
 			}
