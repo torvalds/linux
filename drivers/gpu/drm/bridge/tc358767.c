@@ -1820,6 +1820,7 @@ static void tc_edp_bridge_detach(struct drm_bridge *bridge)
 }
 
 #define MAX_INPUT_SEL_FORMATS	1
+#define MAX_OUTPUT_SEL_FORMATS	1
 
 static u32 *
 tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -1843,6 +1844,28 @@ tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	*num_input_fmts = 1;
 
 	return input_fmts;
+}
+
+static u32 *
+tc_edp_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
+				  struct drm_bridge_state *bridge_state,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state,
+				  unsigned int *num_output_fmts)
+{
+	u32 *output_fmts;
+
+	*num_output_fmts = 0;
+
+	output_fmts = kcalloc(MAX_OUTPUT_SEL_FORMATS, sizeof(*output_fmts),
+			      GFP_KERNEL);
+	if (!output_fmts)
+		return NULL;
+
+	output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_output_fmts = 1;
+
+	return output_fmts;
 }
 
 static const struct drm_bridge_funcs tc_dpi_bridge_funcs = {
@@ -1871,6 +1894,8 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+	.atomic_get_output_bus_fmts = tc_edp_atomic_get_output_bus_fmts,
 };
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)
