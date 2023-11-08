@@ -1552,12 +1552,14 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 				Q2SPI_DEBUG(q2spi, "%s %d retries failed, hw_state_is_bad\n",
 					    __func__, i);
 				q2spi->hw_state_is_bad = true;
+				q2spi_dump_client_error_regs(q2spi);
 			}
 			return ret;
 		} else if (ret == -ETIMEDOUT) {
 			/* Upon transfer failure's retry here */
 			Q2SPI_DEBUG(q2spi, "%s ret:%d retry_count:%d retrying cur_q2spi_pkt:%p\n",
 				    __func__, ret, i + 1, cur_q2spi_pkt);
+			q2spi_dump_client_error_regs(q2spi);
 			q2spi_pkt = cur_q2spi_pkt;
 			flow_id = q2spi_alloc_xfer_tid(q2spi);
 			if (flow_id < 0) {
@@ -1896,6 +1898,26 @@ static irqreturn_t q2spi_geni_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/*
+ * q2spi_dump_client_error_regs - Dump Q2SPI slave error registers using LRA
+ * @q2spi: Pointer to main q2spi_geni structure
+ *
+ * Read Q2SPI_SLAVE_ERROR register for errors encounted in slave
+ * Read Q2SPI_HDR_ERROR register for error encountered in header parsing
+ */
+void q2spi_dump_client_error_regs(struct q2spi_geni *q2spi)
+{
+	int ret = 0;
+
+	ret = q2spi_read_reg(q2spi, Q2SPI_SLAVE_ERROR);
+	if (ret)
+		Q2SPI_ERROR(q2spi, "Err SLAVE_ERROR Reg read failed: %d\n", ret);
+
+	ret = q2spi_read_reg(q2spi, Q2SPI_HDR_ERROR);
+	if (ret)
+		Q2SPI_ERROR(q2spi, "Err HDR_ERROR Reg read failed: %d\n", ret);
+}
+
 static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 {
 	struct q2spi_geni *q2spi = q2spi_pkt->q2spi;
@@ -1903,6 +1925,7 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 	int ret = 0;
 
 	Q2SPI_DEBUG(q2spi, "%s q2spi:%p xfer:%p\n", __func__, q2spi, xfer);
+	mutex_lock(&q2spi->gsi_lock);
 	ret = q2spi_setup_gsi_xfer(q2spi_pkt); /* Todo check it */
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "%s Err q2spi_setup_gsi_xfer failed: %d\n", __func__, ret);
@@ -1923,6 +1946,7 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 	Q2SPI_DEBUG(q2spi, "%s flow_id:%d tx_dma:%p rx_dma:%p tid:%d\n",
 		    __func__, q2spi->xfer->tid, xfer->tx_dma, xfer->rx_dma, q2spi->xfer->tid);
 unmap_buf:
+	mutex_unlock(&q2spi->gsi_lock);
 	q2spi_unmap_dma_buf_used(q2spi, xfer->tx_dma, xfer->rx_dma);
 	return ret;
 }
@@ -2088,14 +2112,11 @@ q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *
 		if (ret)
 			return ret;
 	}
-	mutex_lock(&q2spi->gsi_lock);
 	ret = q2spi_gsi_submit(q2spi_pkt);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "q2spi_gsi_submit failed: %d\n", ret);
-		mutex_unlock(&q2spi->gsi_lock);
 		return ret;
 	}
-	mutex_unlock(&q2spi->gsi_lock);
 	return ret;
 }
 
@@ -2144,14 +2165,11 @@ static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 			return ret;
 		Q2SPI_DEBUG(q2spi, "%s q2spi:%p xfer:%p\n", __func__, q2spi, q2spi->xfer);
 		q2spi_pkt->q2spi = q2spi;
-		mutex_lock(&q2spi->gsi_lock);
 		ret = q2spi_gsi_submit(q2spi_pkt);
 		if (ret) {
 			Q2SPI_ERROR(q2spi, "q2spi_gsi_submit failed: %d\n", ret);
-			mutex_unlock(&q2spi->gsi_lock);
 			return ret;
 		}
-		mutex_unlock(&q2spi->gsi_lock);
 
 		if (q2spi_pkt->vtype == VARIANT_5_HRF) {
 			ret = q2spi_process_hrf_flow_after_lra(q2spi, q2spi_pkt);
@@ -2495,7 +2513,7 @@ err_cdev_add:
  *
  * Return: 0 for success, negative number for error condition.
  */
-static int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset)
+int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset)
 {
 	struct q2spi_packet *q2spi_pkt = NULL;
 	struct q2spi_dma_transfer *xfer;
@@ -2540,14 +2558,12 @@ static int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset)
 		       (char *)xfer->tx_buf, xfer->tx_len);
 	q2spi->xfer = xfer;
 	q2spi_pkt->q2spi = q2spi;
-	mutex_lock(&q2spi->gsi_lock);
+
 	ret = q2spi_gsi_submit(q2spi_pkt);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "Err q2spi_gsi_submit failed: %d\n", ret);
-		mutex_unlock(&q2spi->gsi_lock);
 		return ret;
 	}
-	mutex_unlock(&q2spi->gsi_lock);
 	xfer_timeout = msecs_to_jiffies(XFER_TIMEOUT_OFFSET);
 	timeout = wait_for_completion_interruptible_timeout(&q2spi->sync_wait, xfer_timeout);
 	if (timeout <= 0) {
@@ -2612,14 +2628,11 @@ static int q2spi_write_reg(struct q2spi_geni *q2spi, int reg_offset, unsigned lo
 	q2spi->xfer = xfer;
 	q2spi_pkt->q2spi = q2spi;
 	reinit_completion(&q2spi->sync_wait);
-	mutex_lock(&q2spi->gsi_lock);
 	ret = q2spi_gsi_submit(q2spi_pkt);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "q2spi_gsi_submit failed: %d\n", ret);
-		mutex_unlock(&q2spi->gsi_lock);
 		return ret;
 	}
-	mutex_unlock(&q2spi->gsi_lock);
 	Q2SPI_DEBUG(q2spi, "wait here\n");
 	xfer_timeout = msecs_to_jiffies(XFER_TIMEOUT_OFFSET);
 	timeout = wait_for_completion_interruptible_timeout(&q2spi->sync_wait, xfer_timeout);

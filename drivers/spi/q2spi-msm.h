@@ -559,5 +559,7 @@ int q2spi_alloc_xfer_tid(struct q2spi_geni *q2spi);
 int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi);
 int check_gsi_transfer_completion(struct q2spi_geni *q2spi);
 int check_gsi_transfer_completion_rx(struct q2spi_geni *q2spi);
+int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset);
+void q2spi_dump_client_error_regs(struct q2spi_geni *q2spi);
 
 #endif /* _SPI_Q2SPI_MSM_H_ */
