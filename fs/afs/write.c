@@ -559,8 +559,7 @@ static void afs_extend_writeback(struct address_space *mapping,
 
 			if (!folio_clear_dirty_for_io(folio))
 				BUG();
-			if (folio_start_writeback(folio))
-				BUG();
+			folio_start_writeback(folio);
 			afs_folio_start_fscache(caching, folio);
 
 			*_count -= folio_nr_pages(folio);
@@ -595,8 +594,7 @@ static ssize_t afs_write_back_from_locked_folio(struct address_space *mapping,
 
 	_enter(",%lx,%llx-%llx", folio_index(folio), start, end);
 
-	if (folio_start_writeback(folio))
-		BUG();
+	folio_start_writeback(folio);
 	afs_folio_start_fscache(caching, folio);
 
 	count -= folio_nr_pages(folio);
