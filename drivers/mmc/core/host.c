@@ -223,14 +223,16 @@ static void mmc_retune_timer(struct timer_list *t)
 static void mmc_of_parse_timing_phase(struct device *dev, const char *prop,
 				      struct mmc_clk_phase *phase)
 {
-	int degrees[2] = {0};
+	int degree_info[4] = {0};
 	int rc;
 
-	rc = device_property_read_u32_array(dev, prop, degrees, 2);
+	rc = device_property_read_u32_array(dev, prop, degree_info, 4);
 	phase->valid = !rc;
 	if (phase->valid) {
-		phase->in_deg = degrees[0];
-		phase->out_deg = degrees[1];
+		phase->inv_in_deg = degree_info[0] ? true : false;
+		phase->in_deg = degree_info[1];
+		phase->inv_out_deg = degree_info[2] ? true : false;
+		phase->out_deg = degree_info[3];
 	}
 }
 

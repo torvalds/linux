@@ -459,6 +459,7 @@ static const struct sdhci_ops aspeed_sdhci_ops = {
 static const struct sdhci_pltfm_data aspeed_sdhci_pdata = {
 	.ops = &aspeed_sdhci_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
 static inline int aspeed_sdhci_calculate_slot(struct aspeed_sdhci *dev,
