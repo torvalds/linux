@@ -2768,7 +2768,6 @@ static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	int pin;
 	const struct aspeed_g7_soc1_pincfg *cfg;
 	const struct aspeed_g7_soc1_funcfg *funcfg;
-	const char *target_fn_name = aspeed_g7_soc1_funcs[function].name;
 	struct aspeed_g7_soc1_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct aspeed_g7_soc1_pingroup *pingroup = &aspeed_g7_soc1_pingroups[group];
 
@@ -2777,7 +2776,7 @@ static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		cfg = &pin_cfg[pin];
 		funcfg = &cfg->funcfg[0];
 		while (funcfg->name) {
-			if (strcmp(funcfg->name, target_fn_name) == 0) {
+			if (strcmp(funcfg->name, pingroup->name) == 0) {
 				writel((readl(pinctrl->regs + funcfg->reg) &
 					~funcfg->mask) | funcfg->val,
 					   pinctrl->regs + funcfg->reg);
