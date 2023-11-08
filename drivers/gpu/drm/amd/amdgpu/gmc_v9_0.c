@@ -1180,7 +1180,10 @@ static void gmc_v9_0_get_coherence_flags(struct amdgpu_device *adev,
 		if (uncached) {
 			mtype = MTYPE_UC;
 		} else if (ext_coherent) {
-			mtype = is_local ? MTYPE_CC : MTYPE_UC;
+			if (adev->rev_id)
+				mtype = is_local ? MTYPE_CC : MTYPE_UC;
+			else
+				mtype = MTYPE_UC;
 		} else if (adev->flags & AMD_IS_APU) {
 			mtype = is_local ? mtype_local : MTYPE_NC;
 		} else {
@@ -1301,7 +1304,7 @@ static void gmc_v9_0_override_vm_pte_flags(struct amdgpu_device *adev,
 
 			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
 				 AMDGPU_PTE_MTYPE_VG10(mtype_local);
-		} else {
+		} else if (adev->rev_id) {
 			/* MTYPE_UC case */
 			*flags = (*flags & ~AMDGPU_PTE_MTYPE_VG10_MASK) |
 				 AMDGPU_PTE_MTYPE_VG10(MTYPE_CC);
