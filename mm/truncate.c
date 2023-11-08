@@ -294,13 +294,6 @@ long mapping_evict_folio(struct address_space *mapping, struct folio *folio)
 	return remove_mapping(mapping, folio);
 }
 
-long invalidate_inode_page(struct page *page)
-{
-	struct folio *folio = page_folio(page);
-
-	return mapping_evict_folio(folio_mapping(folio), folio);
-}
-
 /**
  * truncate_inode_pages_range - truncate range of pages specified by start & end byte offsets
  * @mapping: mapping to truncate
@@ -559,9 +552,9 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 EXPORT_SYMBOL(invalidate_mapping_pages);
 
 /*
- * This is like invalidate_inode_page(), except it ignores the page's
+ * This is like mapping_evict_folio(), except it ignores the folio's
  * refcount.  We do this because invalidate_inode_pages2() needs stronger
- * invalidation guarantees, and cannot afford to leave pages behind because
+ * invalidation guarantees, and cannot afford to leave folios behind because
  * shrink_page_list() has a temp ref on them, or because they're transiently
  * sitting in the folio_add_lru() caches.
  */
