@@ -930,10 +930,10 @@ static int delete_from_lru_cache(struct page *p)
 static int truncate_error_page(struct page *p, unsigned long pfn,
 				struct address_space *mapping)
 {
+	struct folio *folio = page_folio(p);
 	int ret = MF_FAILED;
 
 	if (mapping->a_ops->error_remove_page) {
-		struct folio *folio = page_folio(p);
 		int err = mapping->a_ops->error_remove_page(mapping, p);
 
 		if (err != 0)
@@ -947,7 +947,7 @@ static int truncate_error_page(struct page *p, unsigned long pfn,
 		 * If the file system doesn't support it just invalidate
 		 * This fails on dirty or anything with private pages
 		 */
-		if (invalidate_inode_page(p))
+		if (mapping_evict_folio(mapping, folio))
 			ret = MF_RECOVERED;
 		else
 			pr_info("%#lx: Failed to invalidate\n",	pfn);
