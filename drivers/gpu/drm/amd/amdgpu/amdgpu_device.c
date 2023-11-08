@@ -2584,6 +2584,18 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 				  ring->name);
 			return r;
 		}
+		r = amdgpu_uvd_entity_init(adev, ring);
+		if (r) {
+			DRM_ERROR("Failed to create UVD scheduling entity on ring %s.\n",
+				  ring->name);
+			return r;
+		}
+		r = amdgpu_vce_entity_init(adev, ring);
+		if (r) {
+			DRM_ERROR("Failed to create VCE scheduling entity on ring %s.\n",
+				  ring->name);
+			return r;
+		}
 	}
 
 	amdgpu_xcp_update_partition_sched_list(adev);
