@@ -185,6 +185,16 @@ static inline bool drm_gpuva_invalidated(struct drm_gpuva *va)
 }
 
 /**
+ * enum drm_gpuvm_flags - flags for struct drm_gpuvm
+ */
+enum drm_gpuvm_flags {
+	/**
+	 * @DRM_GPUVM_USERBITS: user defined bits
+	 */
+	DRM_GPUVM_USERBITS = BIT(0),
+};
+
+/**
  * struct drm_gpuvm - DRM GPU VA Manager
  *
  * The DRM GPU VA Manager keeps track of a GPU's virtual address space by using
@@ -201,6 +211,11 @@ struct drm_gpuvm {
 	 * @name: the name of the DRM GPU VA space
 	 */
 	const char *name;
+
+	/**
+	 * @flags: the &drm_gpuvm_flags of this GPUVM
+	 */
+	enum drm_gpuvm_flags flags;
 
 	/**
 	 * @drm: the &drm_device this VM lives in
@@ -252,6 +267,7 @@ struct drm_gpuvm {
 };
 
 void drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
+		    enum drm_gpuvm_flags flags,
 		    struct drm_device *drm,
 		    struct drm_gem_object *r_obj,
 		    u64 start_offset, u64 range,
