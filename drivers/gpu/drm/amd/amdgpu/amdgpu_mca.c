@@ -389,14 +389,21 @@ static int amdgpu_mca_smu_debug_mode_set(void *data, u64 val)
 static void mca_dump_entry(struct seq_file *m, struct mca_bank_entry *entry)
 {
 	int i, idx = entry->idx;
+	int reg_idx_array[] = {
+		MCA_REG_IDX_STATUS,
+		MCA_REG_IDX_ADDR,
+		MCA_REG_IDX_MISC0,
+		MCA_REG_IDX_IPID,
+		MCA_REG_IDX_SYND,
+	};
 
 	seq_printf(m, "mca entry[%d].type: %s\n", idx, entry->type == AMDGPU_MCA_ERROR_TYPE_UE ? "UE" : "CE");
 	seq_printf(m, "mca entry[%d].ip: %d\n", idx, entry->ip);
 	seq_printf(m, "mca entry[%d].info: socketid:%d aid:%d hwid:0x%03x mcatype:0x%04x\n",
 		   idx, entry->info.socket_id, entry->info.aid, entry->info.hwid, entry->info.mcatype);
 
-	for (i = 0; i < ARRAY_SIZE(entry->regs); i++)
-		seq_printf(m, "mca entry[%d].regs[%d]: 0x%016llx\n", idx, i, entry->regs[i]);
+	for (i = 0; i < ARRAY_SIZE(reg_idx_array); i++)
+		seq_printf(m, "mca entry[%d].regs[%d]: 0x%016llx\n", idx, reg_idx_array[i], entry->regs[reg_idx_array[i]]);
 }
 
 static int mca_dump_show(struct seq_file *m, enum amdgpu_mca_error_type type)
