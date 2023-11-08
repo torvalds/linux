@@ -320,6 +320,12 @@ enum amdgpu_ras_ret {
 	AMDGPU_RAS_PT,
 };
 
+enum amdgpu_ras_error_query_mode {
+	AMDGPU_RAS_INVALID_ERROR_QUERY		= 0,
+	AMDGPU_RAS_DIRECT_ERROR_QUERY		= 1,
+	AMDGPU_RAS_FIRMWARE_ERROR_QUERY		= 2,
+};
+
 /* ras error status reisger fields */
 #define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT	0x0
 #define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK	0x00000001L
@@ -769,6 +775,8 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 
 void amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable);
 bool amdgpu_ras_get_mca_debug_mode(struct amdgpu_device *adev);
+bool amdgpu_ras_get_error_query_mode(struct amdgpu_device *adev,
+				     unsigned int *mode);
 
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 				struct amdgpu_ras_block_object *ras_block_obj);
