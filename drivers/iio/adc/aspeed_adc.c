@@ -175,18 +175,11 @@ static const struct iio_chan_spec aspeed_adc_iio_bat_channels[] = {
 
 static int aspeed_adc_set_trim_data(struct iio_dev *indio_dev)
 {
-	struct device_node *syscon;
 	struct regmap *scu;
 	u32 scu_otp, trimming_val;
 	struct aspeed_adc_data *data = iio_priv(indio_dev);
 
-	syscon = of_find_node_by_name(NULL, "syscon");
-	if (syscon == NULL) {
-		dev_warn(data->dev, "Couldn't find syscon node\n");
-		return -EOPNOTSUPP;
-	}
-	scu = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
+	scu = syscon_regmap_lookup_by_phandle(data->dev->of_node, "aspeed,scu");
 	if (IS_ERR(scu)) {
 		dev_warn(data->dev, "Failed to get syscon regmap\n");
 		return -EOPNOTSUPP;
