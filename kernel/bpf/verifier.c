@@ -4690,9 +4690,17 @@ static bool register_is_null(struct bpf_reg_state *reg)
 	return reg->type == SCALAR_VALUE && tnum_equals_const(reg->var_off, 0);
 }
 
-static bool register_is_const(struct bpf_reg_state *reg)
+/* check if register is a constant scalar value */
+static bool is_reg_const(struct bpf_reg_state *reg, bool subreg32)
 {
-	return reg->type == SCALAR_VALUE && tnum_is_const(reg->var_off);
+	return reg->type == SCALAR_VALUE &&
+	       tnum_is_const(subreg32 ? tnum_subreg(reg->var_off) : reg->var_off);
+}
+
+/* assuming is_reg_const() is true, return constant value of a register */
+static u64 reg_const_value(struct bpf_reg_state *reg, bool subreg32)
+{
+	return subreg32 ? tnum_subreg(reg->var_off).value : reg->var_off.value;
 }
 
 static bool __is_scalar_unbounded(struct bpf_reg_state *reg)
@@ -10050,7 +10058,7 @@ record_func_key(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 	val = reg->var_off.value;
 	max = map->max_entries;
 
-	if (!(register_is_const(reg) && val < max)) {
+	if (!(is_reg_const(reg, false) && val < max)) {
 		bpf_map_key_store(aux, BPF_MAP_KEY_POISON);
 		return 0;
 	}
@@ -14218,19 +14226,6 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *vstate,
 			/* keep the maximum range already checked */
 			reg->range = max(reg->range, new_range);
 	}));
-}
-
-/* check if register is a constant scalar value */
-static bool is_reg_const(struct bpf_reg_state *reg, bool subreg32)
-{
-	return reg->type == SCALAR_VALUE &&
-	       tnum_is_const(subreg32 ? tnum_subreg(reg->var_off) : reg->var_off);
-}
-
-/* assuming is_reg_const() is true, return constant value of a register */
-static u64 reg_const_value(struct bpf_reg_state *reg, bool subreg32)
-{
-	return subreg32 ? tnum_subreg(reg->var_off).value : reg->var_off.value;
 }
 
 /*
