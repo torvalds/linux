@@ -927,10 +927,15 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	u8 micbias_ctrl;
 
+	disable_irq(da7219_aad->irq);
+
 	if (da7219_aad->jack) {
 		/* Disable jack detection during suspend */
 		snd_soc_component_update_bits(component, DA7219_ACCDET_CONFIG_1,
 				    DA7219_ACCDET_EN_MASK, 0);
+		cancel_delayed_work_sync(&da7219_aad->jack_det_work);
+		/* Disable ground switch */
+		snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
 
 		/*
 		 * If we have a 4-pole jack inserted, then micbias will be
@@ -947,8 +952,6 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 			}
 		}
 	}
-
-	synchronize_irq(da7219_aad->irq);
 }
 
 void da7219_aad_resume(struct snd_soc_component *component)
@@ -971,6 +974,8 @@ void da7219_aad_resume(struct snd_soc_component *component)
 				    DA7219_ACCDET_EN_MASK,
 				    DA7219_ACCDET_EN_MASK);
 	}
+
+	enable_irq(da7219_aad->irq);
 }
 
 
