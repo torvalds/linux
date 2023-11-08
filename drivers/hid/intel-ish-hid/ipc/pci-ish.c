@@ -119,50 +119,6 @@ static inline bool ish_should_leave_d0i3(struct pci_dev *pdev)
 	return !pm_resume_via_firmware() || pdev->device == CHV_DEVICE_ID;
 }
 
-static int enable_gpe(struct device *dev)
-{
-#ifdef CONFIG_ACPI
-	acpi_status acpi_sts;
-	struct acpi_device *adev;
-	struct acpi_device_wakeup *wakeup;
-
-	adev = ACPI_COMPANION(dev);
-	if (!adev) {
-		dev_err(dev, "get acpi handle failed\n");
-		return -ENODEV;
-	}
-	wakeup = &adev->wakeup;
-
-	/*
-	 * Call acpi_disable_gpe(), so that reference count
-	 * gpe_event_info->runtime_count doesn't overflow.
-	 * When gpe_event_info->runtime_count = 0, the call
-	 * to acpi_disable_gpe() simply return.
-	 */
-	acpi_disable_gpe(wakeup->gpe_device, wakeup->gpe_number);
-
-	acpi_sts = acpi_enable_gpe(wakeup->gpe_device, wakeup->gpe_number);
-	if (ACPI_FAILURE(acpi_sts)) {
-		dev_err(dev, "enable ose_gpe failed\n");
-		return -EIO;
-	}
-
-	return 0;
-#else
-	return -ENODEV;
-#endif
-}
-
-static void enable_pme_wake(struct pci_dev *pdev)
-{
-	if ((pci_pme_capable(pdev, PCI_D0) ||
-	     pci_pme_capable(pdev, PCI_D3hot) ||
-	     pci_pme_capable(pdev, PCI_D3cold)) && !enable_gpe(&pdev->dev)) {
-		pci_pme_active(pdev, true);
-		dev_dbg(&pdev->dev, "ish ipc driver pme wake enabled\n");
-	}
-}
-
 /**
  * ish_probe() - PCI driver probe callback
  * @pdev:	pci device
@@ -233,7 +189,7 @@ static int ish_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Enable PME for EHL */
 	if (pdev->device == EHL_Ax_DEVICE_ID)
-		enable_pme_wake(pdev);
+		device_init_wakeup(dev, true);
 
 	ret = ish_init(ishtp);
 	if (ret)
@@ -254,6 +210,19 @@ static void ish_remove(struct pci_dev *pdev)
 
 	ishtp_bus_remove_all_clients(ishtp_dev, false);
 	ish_device_disable(ishtp_dev);
+}
+
+
+/**
+ * ish_shutdown() - PCI driver shutdown callback
+ * @pdev:	pci device
+ *
+ * This function sets up wakeup for S5
+ */
+static void ish_shutdown(struct pci_dev *pdev)
+{
+	if (pdev->device == EHL_Ax_DEVICE_ID)
+		pci_prepare_to_sleep(pdev);
 }
 
 static struct device __maybe_unused *ish_resume_device;
@@ -378,13 +347,6 @@ static int __maybe_unused ish_resume(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct ishtp_device *dev = pci_get_drvdata(pdev);
 
-	/* add this to finish power flow for EHL */
-	if (dev->pdev->device == EHL_Ax_DEVICE_ID) {
-		pci_set_power_state(pdev, PCI_D0);
-		enable_pme_wake(pdev);
-		dev_dbg(dev->devc, "set power state to D0 for ehl\n");
-	}
-
 	ish_resume_device = device;
 	dev->resume_flag = 1;
 
@@ -400,6 +362,7 @@ static struct pci_driver ish_driver = {
 	.id_table = ish_pci_tbl,
 	.probe = ish_probe,
 	.remove = ish_remove,
+	.shutdown = ish_shutdown,
 	.driver.pm = &ish_pm_ops,
 };
 
