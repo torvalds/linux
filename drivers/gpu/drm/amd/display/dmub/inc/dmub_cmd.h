@@ -2880,6 +2880,10 @@ enum dmub_cmd_replay_type {
 	 * Set disabled iiming sync.
 	 */
 	DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED	= 5,
+	/**
+	 * Set Residency Frameupdate Timer.
+	 */
+	DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER = 6,
 };
 
 /**
@@ -3144,13 +3148,56 @@ struct dmub_rb_cmd_replay_set_timing_sync {
 };
 
 /**
+ * Data passed from driver to FW in  DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command.
+ */
+struct dmub_cmd_replay_frameupdate_timer_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Replay Frameupdate Timer Enable or not
+	 */
+	uint8_t enable;
+	/**
+	 * REPLAY force reflash frame update number
+	 */
+	uint16_t frameupdate_count;
+};
+/**
+ * Definition of DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER
+ */
+struct dmub_rb_cmd_replay_set_frameupdate_timer {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
+	 */
+	struct dmub_cmd_replay_frameupdate_timer_data data;
+};
+
+/**
  * Definition union of replay command set
  */
 union dmub_replay_cmd_set {
 	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
 	 * Definition of DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED command data.
 	 */
 	struct dmub_cmd_replay_set_timing_sync_data sync_data;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command data.
+	 */
+	struct dmub_cmd_replay_frameupdate_timer_data timer_data;
 };
 
 /**
@@ -4288,6 +4335,10 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal replay_set_power_opt_and_coasting_vtotal;
 
 	struct dmub_rb_cmd_replay_set_timing_sync replay_set_timing_sync;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command.
+	 */
+	struct dmub_rb_cmd_replay_set_frameupdate_timer replay_set_frameupdate_timer;
 };
 
 /**

@@ -1031,6 +1031,7 @@ enum replay_coasting_vtotal_type {
 enum replay_FW_Message_type {
 	Replay_Msg_Not_Support = -1,
 	Replay_Set_Timing_Sync_Supported,
+	Replay_Set_Residency_Frameupdate_Timer,
 };
 
 union replay_error_status {

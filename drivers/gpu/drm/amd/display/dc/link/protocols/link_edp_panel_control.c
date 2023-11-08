@@ -1023,10 +1023,16 @@ bool edp_send_replay_cmd(struct dc_link *link,
 	if (!replay)
 		return false;
 
-	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
-		return false;
+	DC_LOGGER_INIT(link->ctx->logger);
 
-	replay->funcs->replay_send_cmd(replay, msg, panel_inst, cmd_data);
+	if (dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		cmd_data->panel_inst = panel_inst;
+	else {
+		DC_LOG_DC("%s(): get edp panel inst fail ", __func__);
+		return false;
+	}
+
+	replay->funcs->replay_send_cmd(replay, msg, cmd_data);
 
 	return true;
 }

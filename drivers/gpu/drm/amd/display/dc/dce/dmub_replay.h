@@ -46,7 +46,7 @@ struct dmub_replay_funcs {
 	void (*replay_set_power_opt)(struct dmub_replay *dmub, unsigned int power_opt,
 		uint8_t panel_inst);
 	void (*replay_send_cmd)(struct dmub_replay *dmub,
-		enum replay_FW_Message_type msg, unsigned int panel_inst, union dmub_replay_cmd_set *cmd_element);
+		enum replay_FW_Message_type msg, union dmub_replay_cmd_set *cmd_element);
 	void (*replay_set_coasting_vtotal)(struct dmub_replay *dmub, uint16_t coasting_vtotal,
 		uint8_t panel_inst);
 	void (*replay_residency)(struct dmub_replay *dmub,
