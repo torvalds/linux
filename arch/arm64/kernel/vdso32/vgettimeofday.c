@@ -5,6 +5,7 @@
  * Copyright (C) 2018 ARM Limited
  *
  */
+#include <vdso/gettime.h>
 
 int __vdso_clock_gettime(clockid_t clock,
 			 struct old_timespec32 *ts)
