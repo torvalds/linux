@@ -8,7 +8,6 @@
  * Inspired by CCAN's darray
  */
 
-#include "util.h"
 #include <linux/slab.h>
 
 #define DARRAY(type)							\
@@ -19,20 +18,25 @@ struct {								\
 
 typedef DARRAY(void) darray_void;
 
+int __bch2_darray_resize(darray_void *, size_t, size_t, gfp_t);
+
+static inline int __darray_resize(darray_void *d, size_t element_size,
+				  size_t new_size, gfp_t gfp)
+{
+	return unlikely(new_size > d->size)
+		? __bch2_darray_resize(d, element_size, new_size, gfp)
+		: 0;
+}
+
+#define darray_resize_gfp(_d, _new_size, _gfp)				\
+	__darray_resize((darray_void *) (_d), sizeof((_d)->data[0]), (_new_size), _gfp)
+
+#define darray_resize(_d, _new_size)					\
+	darray_resize_gfp(_d, _new_size, GFP_KERNEL)
+
 static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more, gfp_t gfp)
 {
-	if (d->nr + more > d->size) {
-		size_t new_size = roundup_pow_of_two(d->nr + more);
-		void *data = krealloc_array(d->data, new_size, t_size, gfp);
-
-		if (!data)
-			return -ENOMEM;
-
-		d->data	= data;
-		d->size = new_size;
-	}
-
-	return 0;
+	return __darray_resize(d, t_size, d->nr + more, gfp);
 }
 
 #define darray_make_room_gfp(_d, _more, _gfp)				\
@@ -40,6 +44,8 @@ static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more,
 
 #define darray_make_room(_d, _more)					\
 	darray_make_room_gfp(_d, _more, GFP_KERNEL)
+
+#define darray_room(_d)		((_d).size - (_d).nr)
 
 #define darray_top(_d)		((_d).data[(_d).nr])
 

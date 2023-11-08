@@ -28,6 +28,7 @@ bcachefs-y		:=	\
 	clock.o			\
 	compress.o		\
 	counters.o		\
+	darray.o		\
 	debug.o			\
 	dirent.o		\
 	disk_groups.o		\
