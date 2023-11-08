@@ -959,6 +959,8 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd1_default>;
 					status = "disabled";
 				};
 
@@ -968,6 +970,8 @@
 					interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 					sdhci,auto-cmd12;
 					clocks = <&syscon ASPEED_CLK_SDIO>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_sd2_default>;
 					status = "disabled";
 				};
 			};
