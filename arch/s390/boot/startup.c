@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/elf.h>
+#include <asm/page-states.h>
 #include <asm/boot_data.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
@@ -55,6 +56,48 @@ static void detect_facilities(void)
 		machine.has_edat2 = 1;
 	if (test_facility(130))
 		machine.has_nx = 1;
+}
+
+static int cmma_test_essa(void)
+{
+	unsigned long reg1, reg2, tmp = 0;
+	int rc = 1;
+	psw_t old;
+
+	/* Test ESSA_GET_STATE */
+	asm volatile(
+		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
+		"	la	%[rc],0\n"
+		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		: [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  [rc] "+&d" (rc),
+		  [tmp] "=&d" (tmp),
+		  "+Q" (S390_lowcore.program_new_psw),
+		  "=Q" (old)
+		: [psw_old] "a" (&old),
+		  [psw_pgm] "a" (&S390_lowcore.program_new_psw),
+		  [cmd] "i" (ESSA_GET_STATE)
+		: "cc", "memory");
+	return rc;
+}
+
+static void cmma_init(void)
+{
+	if (!cmma_flag)
+		return;
+	if (cmma_test_essa()) {
+		cmma_flag = 0;
+		return;
+	}
+	if (test_facility(147))
+		cmma_flag = 2;
 }
 
 static void setup_lpp(void)
@@ -306,6 +349,7 @@ void startup_kernel(void)
 	setup_boot_command_line();
 	parse_boot_command_line();
 	detect_facilities();
+	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();
 	setup_ident_map_size(max_physmem_end);

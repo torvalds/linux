@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/tlb.h>
@@ -43,11 +44,13 @@ __initcall(page_table_register_sysctl);
 unsigned long *crst_table_alloc(struct mm_struct *mm)
 {
 	struct ptdesc *ptdesc = pagetable_alloc(GFP_KERNEL, CRST_ALLOC_ORDER);
+	unsigned long *table;
 
 	if (!ptdesc)
 		return NULL;
-	arch_set_page_dat(ptdesc_page(ptdesc), CRST_ALLOC_ORDER);
-	return (unsigned long *) ptdesc_to_virt(ptdesc);
+	table = ptdesc_to_virt(ptdesc);
+	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
+	return table;
 }
 
 void crst_table_free(struct mm_struct *mm, unsigned long *table)
@@ -130,11 +133,6 @@ err_p4d:
 	return -ENOMEM;
 }
 
-static inline unsigned int atomic_xor_bits(atomic_t *v, unsigned int bits)
-{
-	return atomic_fetch_xor(bits, v) ^ bits;
-}
-
 #ifdef CONFIG_PGSTE
 
 struct page *page_table_alloc_pgste(struct mm_struct *mm)
@@ -145,7 +143,7 @@ struct page *page_table_alloc_pgste(struct mm_struct *mm)
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (ptdesc) {
 		table = (u64 *)ptdesc_to_virt(ptdesc);
-		arch_set_page_dat(virt_to_page(table), 0);
+		__arch_set_page_dat(table, 1);
 		memset64(table, _PAGE_INVALID, PTRS_PER_PTE);
 		memset64(table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	}
@@ -159,125 +157,11 @@ void page_table_free_pgste(struct page *page)
 
 #endif /* CONFIG_PGSTE */
 
-/*
- * A 2KB-pgtable is either upper or lower half of a normal page.
- * The second half of the page may be unused or used as another
- * 2KB-pgtable.
- *
- * Whenever possible the parent page for a new 2KB-pgtable is picked
- * from the list of partially allocated pages mm_context_t::pgtable_list.
- * In case the list is empty a new parent page is allocated and added to
- * the list.
- *
- * When a parent page gets fully allocated it contains 2KB-pgtables in both
- * upper and lower halves and is removed from mm_context_t::pgtable_list.
- *
- * When 2KB-pgtable is freed from to fully allocated parent page that
- * page turns partially allocated and added to mm_context_t::pgtable_list.
- *
- * If 2KB-pgtable is freed from the partially allocated parent page that
- * page turns unused and gets removed from mm_context_t::pgtable_list.
- * Furthermore, the unused parent page is released.
- *
- * As follows from the above, no unallocated or fully allocated parent
- * pages are contained in mm_context_t::pgtable_list.
- *
- * The upper byte (bits 24-31) of the parent page _refcount is used
- * for tracking contained 2KB-pgtables and has the following format:
- *
- *   PP  AA
- * 01234567    upper byte (bits 24-31) of struct page::_refcount
- *   ||  ||
- *   ||  |+--- upper 2KB-pgtable is allocated
- *   ||  +---- lower 2KB-pgtable is allocated
- *   |+------- upper 2KB-pgtable is pending for removal
- *   +-------- lower 2KB-pgtable is pending for removal
- *
- * (See commit 620b4e903179 ("s390: use _refcount for pgtables") on why
- * using _refcount is possible).
- *
- * When 2KB-pgtable is allocated the corresponding AA bit is set to 1.
- * The parent page is either:
- *   - added to mm_context_t::pgtable_list in case the second half of the
- *     parent page is still unallocated;
- *   - removed from mm_context_t::pgtable_list in case both hales of the
- *     parent page are allocated;
- * These operations are protected with mm_context_t::lock.
- *
- * When 2KB-pgtable is deallocated the corresponding AA bit is set to 0
- * and the corresponding PP bit is set to 1 in a single atomic operation.
- * Thus, PP and AA bits corresponding to the same 2KB-pgtable are mutually
- * exclusive and may never be both set to 1!
- * The parent page is either:
- *   - added to mm_context_t::pgtable_list in case the second half of the
- *     parent page is still allocated;
- *   - removed from mm_context_t::pgtable_list in case the second half of
- *     the parent page is unallocated;
- * These operations are protected with mm_context_t::lock.
- *
- * It is important to understand that mm_context_t::lock only protects
- * mm_context_t::pgtable_list and AA bits, but not the parent page itself
- * and PP bits.
- *
- * Releasing the parent page happens whenever the PP bit turns from 1 to 0,
- * while both AA bits and the second PP bit are already unset. Then the
- * parent page does not contain any 2KB-pgtable fragment anymore, and it has
- * also been removed from mm_context_t::pgtable_list. It is safe to release
- * the page therefore.
- *
- * PGSTE memory spaces use full 4KB-pgtables and do not need most of the
- * logic described above. Both AA bits are set to 1 to denote a 4KB-pgtable
- * while the PP bits are never used, nor such a page is added to or removed
- * from mm_context_t::pgtable_list.
- *
- * pte_free_defer() overrides those rules: it takes the page off pgtable_list,
- * and prevents both 2K fragments from being reused. pte_free_defer() has to
- * guarantee that its pgtable cannot be reused before the RCU grace period
- * has elapsed (which page_table_free_rcu() does not actually guarantee).
- * But for simplicity, because page->rcu_head overlays page->lru, and because
- * the RCU callback might not be called before the mm_context_t has been freed,
- * pte_free_defer() in this implementation prevents both fragments from being
- * reused, and delays making the call to RCU until both fragments are freed.
- */
 unsigned long *page_table_alloc(struct mm_struct *mm)
 {
-	unsigned long *table;
 	struct ptdesc *ptdesc;
-	unsigned int mask, bit;
+	unsigned long *table;
 
-	/* Try to get a fragment of a 4K page as a 2K page table */
-	if (!mm_alloc_pgste(mm)) {
-		table = NULL;
-		spin_lock_bh(&mm->context.lock);
-		if (!list_empty(&mm->context.pgtable_list)) {
-			ptdesc = list_first_entry(&mm->context.pgtable_list,
-						struct ptdesc, pt_list);
-			mask = atomic_read(&ptdesc->_refcount) >> 24;
-			/*
-			 * The pending removal bits must also be checked.
-			 * Failure to do so might lead to an impossible
-			 * value of (i.e 0x13 or 0x23) written to _refcount.
-			 * Such values violate the assumption that pending and
-			 * allocation bits are mutually exclusive, and the rest
-			 * of the code unrails as result. That could lead to
-			 * a whole bunch of races and corruptions.
-			 */
-			mask = (mask | (mask >> 4)) & 0x03U;
-			if (mask != 0x03U) {
-				table = (unsigned long *) ptdesc_to_virt(ptdesc);
-				bit = mask & 1;		/* =1 -> second 2K */
-				if (bit)
-					table += PTRS_PER_PTE;
-				atomic_xor_bits(&ptdesc->_refcount,
-							0x01U << (bit + 24));
-				list_del_init(&ptdesc->pt_list);
-			}
-		}
-		spin_unlock_bh(&mm->context.lock);
-		if (table)
-			return table;
-	}
-	/* Allocate a fresh page */
 	ptdesc = pagetable_alloc(GFP_KERNEL, 0);
 	if (!ptdesc)
 		return NULL;
@@ -285,177 +169,57 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 		pagetable_free(ptdesc);
 		return NULL;
 	}
-	arch_set_page_dat(ptdesc_page(ptdesc), 0);
-	/* Initialize page table */
-	table = (unsigned long *) ptdesc_to_virt(ptdesc);
-	if (mm_alloc_pgste(mm)) {
-		/* Return 4K page table with PGSTEs */
-		INIT_LIST_HEAD(&ptdesc->pt_list);
-		atomic_xor_bits(&ptdesc->_refcount, 0x03U << 24);
-		memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
-		memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
-	} else {
-		/* Return the first 2K fragment of the page */
-		atomic_xor_bits(&ptdesc->_refcount, 0x01U << 24);
-		memset64((u64 *)table, _PAGE_INVALID, 2 * PTRS_PER_PTE);
-		spin_lock_bh(&mm->context.lock);
-		list_add(&ptdesc->pt_list, &mm->context.pgtable_list);
-		spin_unlock_bh(&mm->context.lock);
-	}
+	table = ptdesc_to_virt(ptdesc);
+	__arch_set_page_dat(table, 1);
+	/* pt_list is used by gmap only */
+	INIT_LIST_HEAD(&ptdesc->pt_list);
+	memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
+	memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	return table;
 }
 
-static void page_table_release_check(struct page *page, void *table,
-				     unsigned int half, unsigned int mask)
+static void pagetable_pte_dtor_free(struct ptdesc *ptdesc)
 {
-	char msg[128];
-
-	if (!IS_ENABLED(CONFIG_DEBUG_VM))
-		return;
-	if (!mask && list_empty(&page->lru))
-		return;
-	snprintf(msg, sizeof(msg),
-		 "Invalid pgtable %p release half 0x%02x mask 0x%02x",
-		 table, half, mask);
-	dump_page(page, msg);
-}
-
-static void pte_free_now(struct rcu_head *head)
-{
-	struct ptdesc *ptdesc;
-
-	ptdesc = container_of(head, struct ptdesc, pt_rcu_head);
 	pagetable_pte_dtor(ptdesc);
 	pagetable_free(ptdesc);
 }
 
 void page_table_free(struct mm_struct *mm, unsigned long *table)
 {
-	unsigned int mask, bit, half;
 	struct ptdesc *ptdesc = virt_to_ptdesc(table);
 
-	if (!mm_alloc_pgste(mm)) {
-		/* Free 2K page table fragment of a 4K page */
-		bit = ((unsigned long) table & ~PAGE_MASK)/(PTRS_PER_PTE*sizeof(pte_t));
-		spin_lock_bh(&mm->context.lock);
-		/*
-		 * Mark the page for delayed release. The actual release
-		 * will happen outside of the critical section from this
-		 * function or from __tlb_remove_table()
-		 */
-		mask = atomic_xor_bits(&ptdesc->_refcount, 0x11U << (bit + 24));
-		mask >>= 24;
-		if ((mask & 0x03U) && !folio_test_active(ptdesc_folio(ptdesc))) {
-			/*
-			 * Other half is allocated, and neither half has had
-			 * its free deferred: add page to head of list, to make
-			 * this freed half available for immediate reuse.
-			 */
-			list_add(&ptdesc->pt_list, &mm->context.pgtable_list);
-		} else {
-			/* If page is on list, now remove it. */
-			list_del_init(&ptdesc->pt_list);
-		}
-		spin_unlock_bh(&mm->context.lock);
-		mask = atomic_xor_bits(&ptdesc->_refcount, 0x10U << (bit + 24));
-		mask >>= 24;
-		if (mask != 0x00U)
-			return;
-		half = 0x01U << bit;
-	} else {
-		half = 0x03U;
-		mask = atomic_xor_bits(&ptdesc->_refcount, 0x03U << 24);
-		mask >>= 24;
-	}
-
-	page_table_release_check(ptdesc_page(ptdesc), table, half, mask);
-	if (folio_test_clear_active(ptdesc_folio(ptdesc)))
-		call_rcu(&ptdesc->pt_rcu_head, pte_free_now);
-	else
-		pte_free_now(&ptdesc->pt_rcu_head);
+	pagetable_pte_dtor_free(ptdesc);
 }
 
-void page_table_free_rcu(struct mmu_gather *tlb, unsigned long *table,
-			 unsigned long vmaddr)
+void __tlb_remove_table(void *table)
 {
-	struct mm_struct *mm;
-	unsigned int bit, mask;
 	struct ptdesc *ptdesc = virt_to_ptdesc(table);
+	struct page *page = ptdesc_page(ptdesc);
 
-	mm = tlb->mm;
-	if (mm_alloc_pgste(mm)) {
-		gmap_unlink(mm, table, vmaddr);
-		table = (unsigned long *) ((unsigned long)table | 0x03U);
-		tlb_remove_ptdesc(tlb, table);
-		return;
-	}
-	bit = ((unsigned long) table & ~PAGE_MASK) / (PTRS_PER_PTE*sizeof(pte_t));
-	spin_lock_bh(&mm->context.lock);
-	/*
-	 * Mark the page for delayed release. The actual release will happen
-	 * outside of the critical section from __tlb_remove_table() or from
-	 * page_table_free()
-	 */
-	mask = atomic_xor_bits(&ptdesc->_refcount, 0x11U << (bit + 24));
-	mask >>= 24;
-	if ((mask & 0x03U) && !folio_test_active(ptdesc_folio(ptdesc))) {
-		/*
-		 * Other half is allocated, and neither half has had
-		 * its free deferred: add page to end of list, to make
-		 * this freed half available for reuse once its pending
-		 * bit has been cleared by __tlb_remove_table().
-		 */
-		list_add_tail(&ptdesc->pt_list, &mm->context.pgtable_list);
-	} else {
-		/* If page is on list, now remove it. */
-		list_del_init(&ptdesc->pt_list);
-	}
-	spin_unlock_bh(&mm->context.lock);
-	table = (unsigned long *) ((unsigned long) table | (0x01U << bit));
-	tlb_remove_table(tlb, table);
-}
-
-void __tlb_remove_table(void *_table)
-{
-	unsigned int mask = (unsigned long) _table & 0x03U, half = mask;
-	void *table = (void *)((unsigned long) _table ^ mask);
-	struct ptdesc *ptdesc = virt_to_ptdesc(table);
-
-	switch (half) {
-	case 0x00U:	/* pmd, pud, or p4d */
+	if (compound_order(page) == CRST_ALLOC_ORDER) {
+		/* pmd, pud, or p4d */
 		pagetable_free(ptdesc);
 		return;
-	case 0x01U:	/* lower 2K of a 4K page table */
-	case 0x02U:	/* higher 2K of a 4K page table */
-		mask = atomic_xor_bits(&ptdesc->_refcount, mask << (4 + 24));
-		mask >>= 24;
-		if (mask != 0x00U)
-			return;
-		break;
-	case 0x03U:	/* 4K page table with pgstes */
-		mask = atomic_xor_bits(&ptdesc->_refcount, 0x03U << 24);
-		mask >>= 24;
-		break;
 	}
-
-	page_table_release_check(ptdesc_page(ptdesc), table, half, mask);
-	if (folio_test_clear_active(ptdesc_folio(ptdesc)))
-		call_rcu(&ptdesc->pt_rcu_head, pte_free_now);
-	else
-		pte_free_now(&ptdesc->pt_rcu_head);
+	pagetable_pte_dtor_free(ptdesc);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+static void pte_free_now(struct rcu_head *head)
+{
+	struct ptdesc *ptdesc = container_of(head, struct ptdesc, pt_rcu_head);
+
+	pagetable_pte_dtor_free(ptdesc);
+}
+
 void pte_free_defer(struct mm_struct *mm, pgtable_t pgtable)
 {
-	struct page *page;
+	struct ptdesc *ptdesc = virt_to_ptdesc(pgtable);
 
-	page = virt_to_page(pgtable);
-	SetPageActive(page);
-	page_table_free(mm, (unsigned long *)pgtable);
+	call_rcu(&ptdesc->pt_rcu_head, pte_free_now);
 	/*
-	 * page_table_free() does not do the pgste gmap_unlink() which
-	 * page_table_free_rcu() does: warn us if pgste ever reaches here.
+	 * THPs are not allowed for KVM guests. Warn if pgste ever reaches here.
+	 * Turn to the generic pte_free_defer() version once gmap is removed.
 	 */
 	WARN_ON_ONCE(mm_has_pgste(mm));
 }

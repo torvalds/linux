@@ -200,13 +200,13 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			return AP_SM_WAIT_AGAIN;
 		}
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (aq->queue_count > 0)
-			return aq->interrupt ?
+			return status.irq_enabled ?
 				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
@@ -215,6 +215,16 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
+	/* Check and maybe enable irq support (again) on this queue */
+	if (!status.irq_enabled && status.queue_empty) {
+		void *lsi_ptr = ap_airq_ptr();
+
+		if (lsi_ptr && ap_queue_enable_irq(aq, lsi_ptr) == 0) {
+			aq->sm_state = AP_SM_STATE_SETIRQ_WAIT;
+			return AP_SM_WAIT_AGAIN;
+		}
+	}
+	return AP_SM_WAIT_NONE;
 }
 
 /**
@@ -254,7 +264,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		fallthrough;
 	case AP_RESPONSE_Q_FULL:
 		aq->sm_state = AP_SM_STATE_QUEUE_FULL;
-		return aq->interrupt ?
+		return status.irq_enabled ?
 			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
@@ -307,7 +317,6 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
-		aq->interrupt = false;
 		aq->rapq_fbit = 0;
 		aq->se_bound = false;
 		return AP_SM_WAIT_LOW_TIMEOUT;
@@ -383,7 +392,6 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 
 	if (status.irq_enabled == 1) {
 		/* Irqs are now enabled */
-		aq->interrupt = true;
 		aq->sm_state = (aq->queue_count > 0) ?
 			AP_SM_STATE_WORKING : AP_SM_STATE_IDLE;
 	}
@@ -626,16 +634,21 @@ static ssize_t interrupt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
 	int rc = 0;
 
 	spin_lock_bh(&aq->lock);
-	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT)
+	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT) {
 		rc = sysfs_emit(buf, "Enable Interrupt pending.\n");
-	else if (aq->interrupt)
-		rc = sysfs_emit(buf, "Interrupts enabled.\n");
-	else
-		rc = sysfs_emit(buf, "Interrupts disabled.\n");
+	} else {
+		status = ap_tapq(aq->qid, NULL);
+		if (status.irq_enabled)
+			rc = sysfs_emit(buf, "Interrupts enabled.\n");
+		else
+			rc = sysfs_emit(buf, "Interrupts disabled.\n");
+	}
 	spin_unlock_bh(&aq->lock);
+
 	return rc;
 }
 
@@ -1032,7 +1045,6 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	if (ap_sb_available() && is_prot_virt_guest())
 		aq->ap_dev.device.groups = ap_queue_dev_sb_attr_groups;
 	aq->qid = qid;
-	aq->interrupt = false;
 	spin_lock_init(&aq->lock);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
