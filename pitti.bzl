@@ -25,6 +25,7 @@ def define_pitti():
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
+        "drivers/mmc/host/sdhci-msm-scaling.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
