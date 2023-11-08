@@ -5497,11 +5497,6 @@ static long kvm_dev_ioctl(struct file *filp,
 		r += PAGE_SIZE;    /* coalesced mmio ring page */
 #endif
 		break;
-	case KVM_TRACE_ENABLE:
-	case KVM_TRACE_PAUSE:
-	case KVM_TRACE_DISABLE:
-		r = -EOPNOTSUPP;
-		break;
 	default:
 		return kvm_arch_dev_ioctl(filp, ioctl, arg);
 	}

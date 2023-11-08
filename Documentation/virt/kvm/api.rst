@@ -627,18 +627,6 @@ interrupt number dequeues the interrupt.
 This is an asynchronous vcpu ioctl and can be invoked from any thread.
 
 
-4.17 KVM_DEBUG_GUEST
---------------------
-
-:Capability: basic
-:Architectures: none
-:Type: vcpu ioctl
-:Parameters: none)
-:Returns: -1 on error
-
-Support for this has been removed.  Use KVM_SET_GUEST_DEBUG instead.
-
-
 4.18 KVM_GET_MSRS
 -----------------
 
