@@ -331,7 +331,6 @@ static int rockchip_panic_notify_edpcsr(struct notifier_block *nb,
 		printed = 0;
 	}
 
-	rockchip_debug_serror_enable();
 	return NOTIFY_OK;
 }
 
@@ -405,7 +404,7 @@ static int rockchip_panic_notify_pmpcsr(struct notifier_block *nb,
 		prev_pc = NULL;
 		printed = 0;
 	}
-	rockchip_debug_serror_enable();
+
 	return NOTIFY_OK;
 }
 #else
