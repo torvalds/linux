@@ -514,13 +514,12 @@ static bool afs_release_folio(struct folio *folio, gfp_t gfp)
 static void afs_add_open_mmap(struct afs_vnode *vnode)
 {
 	if (atomic_inc_return(&vnode->cb_nr_mmap) == 1) {
-		down_write(&vnode->volume->cell->fs_open_mmaps_lock);
+		down_write(&vnode->volume->open_mmaps_lock);
 
 		if (list_empty(&vnode->cb_mmap_link))
-			list_add_tail(&vnode->cb_mmap_link,
-				      &vnode->volume->cell->fs_open_mmaps);
+			list_add_tail(&vnode->cb_mmap_link, &vnode->volume->open_mmaps);
 
-		up_write(&vnode->volume->cell->fs_open_mmaps_lock);
+		up_write(&vnode->volume->open_mmaps_lock);
 	}
 }
 
@@ -529,12 +528,12 @@ static void afs_drop_open_mmap(struct afs_vnode *vnode)
 	if (!atomic_dec_and_test(&vnode->cb_nr_mmap))
 		return;
 
-	down_write(&vnode->volume->cell->fs_open_mmaps_lock);
+	down_write(&vnode->volume->open_mmaps_lock);
 
 	if (atomic_read(&vnode->cb_nr_mmap) == 0)
 		list_del_init(&vnode->cb_mmap_link);
 
-	up_write(&vnode->volume->cell->fs_open_mmaps_lock);
+	up_write(&vnode->volume->open_mmaps_lock);
 	flush_work(&vnode->cb_work);
 }
 
@@ -570,7 +569,7 @@ static vm_fault_t afs_vm_map_pages(struct vm_fault *vmf, pgoff_t start_pgoff, pg
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(vmf->vma->vm_file));
 
-	if (afs_pagecache_valid(vnode))
+	if (afs_check_validity(vnode))
 		return filemap_map_pages(vmf, start_pgoff, end_pgoff);
 	return 0;
 }

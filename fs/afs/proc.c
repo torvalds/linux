@@ -443,8 +443,8 @@ static int afs_proc_servers_show(struct seq_file *m, void *v)
 		   refcount_read(&server->ref),
 		   atomic_read(&server->active),
 		   server->cell->name);
-	seq_printf(m, "  - info: fl=%lx rtt=%u brk=%x\n",
-		   server->flags, server->rtt, server->cb_s_break);
+	seq_printf(m, "  - info: fl=%lx rtt=%u\n",
+		   server->flags, server->rtt);
 	seq_printf(m, "  - probe: last=%d\n",
 		   (int)(jiffies - server->probed_at) / HZ);
 	failed = estate->failed_set;

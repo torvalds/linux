@@ -42,7 +42,7 @@ struct afs_operation *afs_alloc_operation(struct key *key, struct afs_volume *vo
 	op->pre_volsync.creation = volume->creation_time;
 	op->pre_volsync.update	= volume->update_time;
 	op->debug_id		= atomic_inc_return(&afs_operation_debug_counter);
-	op->nr_iterations = -1;
+	op->nr_iterations	= -1;
 	afs_op_set_error(op, -EDESTADDRREQ);
 
 	_leave(" = [op=%08x]", op->debug_id);
@@ -184,7 +184,6 @@ void afs_wait_for_operation(struct afs_operation *op)
 		op->call_responded = false;
 		op->call_error = 0;
 		op->call_abort_code = 0;
-		op->cb_s_break = op->server->cb_s_break;
 		if (test_bit(AFS_SERVER_FL_IS_YFS, &op->server->flags) &&
 		    op->ops->issue_yfs_rpc)
 			op->ops->issue_yfs_rpc(op);

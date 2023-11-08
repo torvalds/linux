@@ -59,7 +59,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 		write_seqlock(&vnode->cb_lock);
 		ASSERTCMP(cb_server, ==, vnode->cb_server);
 		vnode->cb_server = NULL;
-		if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags))
+		if (atomic64_xchg(&vnode->cb_expires_at, AFS_NO_CB_PROMISE) != AFS_NO_CB_PROMISE)
 			vnode->cb_break++;
 		write_sequnlock(&vnode->cb_lock);
 	}
@@ -140,6 +140,22 @@ bool afs_select_fileserver(struct afs_operation *op)
 	switch (op->call_error) {
 	case 0:
 		op->cumul_error.responded = true;
+
+		/* We succeeded, but we may need to redo the op from another
+		 * server if we're looking at a set of RO volumes where some of
+		 * the servers have not yet been brought up to date lest we
+		 * regress the data.  We only switch to the new version once
+		 * >=50% of the servers are updated.
+		 */
+		error = afs_update_volume_state(op);
+		if (error != 0) {
+			if (error == 1) {
+				afs_sleep_and_retry(op);
+				goto restart_from_beginning;
+			}
+			afs_op_set_error(op, error);
+			goto failed;
+		}
 		fallthrough;
 	default:
 		/* Success or local failure.  Stop. */
@@ -484,10 +500,8 @@ selected_server:
 	op->server = server;
 	if (vnode->cb_server != server) {
 		vnode->cb_server = server;
-		vnode->cb_s_break = server->cb_s_break;
-		vnode->cb_fs_s_break = atomic_read(&server->cell->fs_s_break);
-		vnode->cb_v_break = atomic_read(&vnode->volume->cb_v_break);
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+		vnode->cb_v_check = atomic_read(&vnode->volume->cb_v_break);
+		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
 	}
 
 	read_lock(&server->fs_lock);

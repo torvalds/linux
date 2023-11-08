@@ -98,7 +98,10 @@ static struct afs_volume *afs_alloc_volume(struct afs_fs_context *params,
 	INIT_WORK(&volume->destructor, afs_destroy_volume);
 	rwlock_init(&volume->servers_lock);
 	mutex_init(&volume->volsync_lock);
+	mutex_init(&volume->cb_check_lock);
 	rwlock_init(&volume->cb_v_break_lock);
+	INIT_LIST_HEAD(&volume->open_mmaps);
+	init_rwsem(&volume->open_mmaps_lock);
 	memcpy(volume->name, vldb->name, vldb->name_len + 1);
 
 	for (i = 0; i < AFS_MAXTYPES; i++)

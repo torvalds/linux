@@ -1118,7 +1118,12 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 	dir = AFS_FS_I(d_inode(parent));
 
 	/* validate the parent directory */
-	afs_validate(dir, key);
+	ret = afs_validate(dir, key);
+	if (ret == -ERESTARTSYS) {
+		dput(parent);
+		key_put(key);
+		return ret;
+	}
 
 	if (test_bit(AFS_VNODE_DELETED, &dir->flags)) {
 		_debug("%pd: parent dir deleted", dentry);
@@ -1260,6 +1265,7 @@ void afs_check_for_remote_deletion(struct afs_operation *op)
 	switch (afs_op_abort_code(op)) {
 	case VNOVNODE:
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
+		clear_nlink(&vnode->netfs.inode);
 		afs_break_callback(vnode, afs_cb_break_for_deleted);
 	}
 }
@@ -1375,7 +1381,7 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 
 		clear_nlink(&vnode->netfs.inode);
 		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
 		clear_bit(AFS_VNODE_DIR_VALID, &vnode->flags);
 	}
 }

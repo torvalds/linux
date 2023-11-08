@@ -422,9 +422,6 @@ struct afs_cell {
 	/* Active fileserver interaction state. */
 	struct rb_root		fs_servers;	/* afs_server (by server UUID) */
 	seqlock_t		fs_lock;	/* For fs_servers  */
-	struct rw_semaphore	fs_open_mmaps_lock;
-	struct list_head	fs_open_mmaps;	/* List of vnodes that are mmapped */
-	atomic_t		fs_s_break;	/* Counter of CB.InitCallBackState messages */
 
 	/* VL server list. */
 	rwlock_t		vl_servers_lock; /* Lock on vl_servers */
@@ -591,9 +588,6 @@ struct afs_server {
 	/* file service access */
 	rwlock_t		fs_lock;	/* access lock */
 
-	/* callback promise management */
-	unsigned		cb_s_break;	/* Break-everything counter. */
-
 	/* Probe state */
 	struct afs_endpoint_state __rcu *endpoint_state; /* Latest endpoint/probe state */
 	unsigned long		probed_at;	/* Time last probe was dispatched (jiffies) */
@@ -615,6 +609,7 @@ struct afs_server_entry {
 	struct afs_server	*server;
 	struct afs_volume	*volume;
 	struct list_head	slink;		/* Link in server->volumes */
+	time64_t		cb_expires_at;	/* Time at which volume-level callback expires */
 	unsigned long		flags;
 #define AFS_SE_EXCLUDED		0		/* Set if server is to be excluded in rotation */
 };
@@ -668,10 +663,15 @@ struct afs_volume {
 	time64_t		update_time;	/* Volume update time (or TIME64_MIN) */
 
 	/* Callback management */
+	struct mutex		cb_check_lock;	/* Lock to control race to check after v_break */
+	time64_t		cb_expires_at;	/* Earliest volume callback expiry time */
 	atomic_t		cb_ro_snapshot;	/* RO volume update-from-snapshot counter */
 	atomic_t		cb_v_break;	/* Volume-break event counter. */
+	atomic_t		cb_v_check;	/* Volume-break has-been-checked counter. */
 	atomic_t		cb_scrub;	/* Scrub-all-data event counter. */
 	rwlock_t		cb_v_break_lock;
+	struct rw_semaphore	open_mmaps_lock;
+	struct list_head	open_mmaps;	/* List of vnodes that are mmapped */
 
 	afs_voltype_t		type;		/* type of volume */
 	char			type_force;	/* force volume type (suppress R/O -> R/W) */
@@ -710,7 +710,6 @@ struct afs_vnode {
 	spinlock_t		wb_lock;	/* lock for wb_keys */
 	spinlock_t		lock;		/* waitqueue/flags lock */
 	unsigned long		flags;
-#define AFS_VNODE_CB_PROMISED	0		/* Set if vnode has a callback promise */
 #define AFS_VNODE_UNSET		1		/* set if vnode attributes not yet set */
 #define AFS_VNODE_DIR_VALID	2		/* Set if dir contents are valid */
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
@@ -736,13 +735,14 @@ struct afs_vnode {
 	struct list_head	cb_mmap_link;	/* Link in cell->fs_open_mmaps */
 	void			*cb_server;	/* Server with callback/filelock */
 	atomic_t		cb_nr_mmap;	/* Number of mmaps */
-	unsigned int		cb_fs_s_break;	/* Mass server break counter (cell->fs_s_break) */
-	unsigned int		cb_s_break;	/* Mass break counter on ->server */
-	unsigned int		cb_v_break;	/* Mass break counter on ->volume */
+	unsigned int		cb_ro_snapshot;	/* RO volume release counter on ->volume */
+	unsigned int		cb_scrub;	/* Scrub counter on ->volume */
 	unsigned int		cb_break;	/* Break counter on vnode */
+	unsigned int		cb_v_check;	/* Break check counter on ->volume */
 	seqlock_t		cb_lock;	/* Lock for ->cb_server, ->status, ->cb_*break */
 
-	time64_t		cb_expires_at;	/* time at which callback expires */
+	atomic64_t		cb_expires_at;	/* time at which callback expires */
+#define AFS_NO_CB_PROMISE TIME64_MIN
 };
 
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
@@ -839,7 +839,7 @@ struct afs_vnode_param {
 	struct afs_fid		fid;		/* Fid to access */
 	struct afs_status_cb	scb;		/* Returned status and callback promise */
 	afs_dataversion_t	dv_before;	/* Data version before the call */
-	unsigned int		cb_break_before; /* cb_break + cb_s_break before the call */
+	unsigned int		cb_break_before; /* cb_break before the call */
 	u8			dv_delta;	/* Expected change in data version */
 	bool			put_vnode:1;	/* T if we have a ref on the vnode */
 	bool			need_io_lock:1;	/* T if we need the I/O lock on this */
@@ -875,7 +875,6 @@ struct afs_operation {
 	unsigned int		debug_id;
 
 	unsigned int		cb_v_break;	/* Volume break counter before op */
-	unsigned int		cb_s_break;	/* Server break counter before op */
 
 	union {
 		struct {
@@ -1066,13 +1065,15 @@ extern void afs_break_callbacks(struct afs_server *, size_t, struct afs_callback
 
 static inline unsigned int afs_calc_vnode_cb_break(struct afs_vnode *vnode)
 {
-	return vnode->cb_break + vnode->cb_v_break;
+	return vnode->cb_break + vnode->cb_ro_snapshot + vnode->cb_scrub;
 }
 
 static inline bool afs_cb_is_broken(unsigned int cb_break,
 				    const struct afs_vnode *vnode)
 {
-	return cb_break != (vnode->cb_break + atomic_read(&vnode->volume->cb_v_break));
+	return cb_break != (vnode->cb_break +
+			    atomic_read(&vnode->volume->cb_ro_snapshot) +
+			    atomic_read(&vnode->volume->cb_scrub));
 }
 
 /*
@@ -1564,9 +1565,8 @@ extern void afs_fs_exit(void);
 /*
  * validation.c
  */
+bool afs_check_validity(const struct afs_vnode *vnode);
 int afs_update_volume_state(struct afs_operation *op);
-bool afs_check_validity(struct afs_vnode *vnode);
-bool afs_pagecache_valid(struct afs_vnode *vnode);
 int afs_validate(struct afs_vnode *vnode, struct key *key);
 
 /*

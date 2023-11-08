@@ -85,8 +85,7 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 
 	write_seqlock(&vnode->cb_lock);
 
-	vnode->cb_v_break = op->cb_v_break;
-	vnode->cb_s_break = op->cb_s_break;
+	vnode->cb_v_check = op->cb_v_break;
 	vnode->status = *status;
 
 	t = status->mtime_client;
@@ -146,11 +145,10 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 	if (!vp->scb.have_cb) {
 		/* it's a symlink we just created (the fileserver
 		 * didn't give us a callback) */
-		vnode->cb_expires_at = ktime_get_real_seconds();
+		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
 	} else {
-		vnode->cb_expires_at = vp->scb.callback.expires_at;
 		vnode->cb_server = op->server;
-		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+		atomic64_set(&vnode->cb_expires_at, vp->scb.callback.expires_at);
 	}
 
 	write_sequnlock(&vnode->cb_lock);
@@ -214,7 +212,8 @@ static void afs_apply_status(struct afs_operation *op,
 	vnode->status = *status;
 
 	if (vp->dv_before + vp->dv_delta != status->data_version) {
-		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags))
+		if (vnode->cb_ro_snapshot == atomic_read(&vnode->volume->cb_ro_snapshot) &&
+		    atomic64_read(&vnode->cb_expires_at) != AFS_NO_CB_PROMISE)
 			pr_warn("kAFS: vnode modified {%llx:%llu} %llx->%llx %s (op=%x)\n",
 				vnode->fid.vid, vnode->fid.vnode,
 				(unsigned long long)vp->dv_before + vp->dv_delta,
@@ -268,9 +267,9 @@ static void afs_apply_callback(struct afs_operation *op,
 	struct afs_vnode *vnode = vp->vnode;
 
 	if (!afs_cb_is_broken(vp->cb_break_before, vnode)) {
-		vnode->cb_expires_at	= cb->expires_at;
-		vnode->cb_server	= op->server;
-		set_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+		if (op->volume->type == AFSVL_RWVOL)
+			vnode->cb_server = op->server;
+		atomic64_set(&vnode->cb_expires_at, cb->expires_at);
 	}
 }
 
@@ -542,7 +541,7 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 	BUG_ON(!(inode->i_state & I_NEW));
 
 	vnode = AFS_FS_I(inode);
-	vnode->cb_v_break = atomic_read(&as->volume->cb_v_break),
+	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break),
 	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);
@@ -587,7 +586,7 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 
 	if (vnode->volume &&
 	    !(query_flags & AT_STATX_DONT_SYNC) &&
-	    !test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
+	    atomic64_read(&vnode->cb_expires_at) == AFS_NO_CB_PROMISE) {
 		key = afs_request_key(vnode->volume->cell);
 		if (IS_ERR(key))
 			return PTR_ERR(key);

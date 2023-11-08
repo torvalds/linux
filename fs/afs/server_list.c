@@ -110,6 +110,7 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 		slist->servers[j].server = server;
 		slist->servers[j].volume = volume;
 		slist->servers[j].flags = se_flags;
+		slist->servers[j].cb_expires_at = AFS_NO_CB_PROMISE;
 		slist->nr_servers++;
 	}
 
@@ -210,6 +211,7 @@ void afs_reattach_volume_to_servers(struct afs_volume *volume, struct afs_server
 		int diff;
 
 		if (pn && po && pn->server == po->server) {
+			pn->cb_expires_at = po->cb_expires_at;
 			list_replace(&po->slink, &pn->slink);
 			n++;
 			o++;
