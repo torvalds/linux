@@ -848,7 +848,11 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 
 	/* PC += off */
 	case BPF_JMP | BPF_JA:
-		jmp_offset = bpf2la_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			jmp_offset = bpf2la_offset(i, off, ctx);
+		else
+			jmp_offset = bpf2la_offset(i, imm, ctx);
 		if (emit_uncond_jmp(ctx, jmp_offset) < 0)
 			goto toofar;
 		break;
