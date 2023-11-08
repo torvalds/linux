@@ -248,7 +248,7 @@ static int md_rm_init_md_table(void)
 		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Update elf header */
