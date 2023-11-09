@@ -55,7 +55,7 @@ struct samsung_clock_alias {
  * @name: name of this fixed-rate clock.
  * @parent_name: optional parent clock name.
  * @flags: optional fixed-rate clock flags.
- * @fixed-rate: fixed clock rate of this clock.
+ * @fixed_rate: fixed clock rate of this clock.
  */
 struct samsung_fixed_rate_clock {
 	unsigned int		id;
@@ -74,7 +74,7 @@ struct samsung_fixed_rate_clock {
 		.fixed_rate	= frate,		\
 	}
 
-/*
+/**
  * struct samsung_fixed_factor_clock: information about fixed-factor clock
  * @id: platform specific id of the clock.
  * @name: name of this fixed-factor clock.
@@ -146,14 +146,16 @@ struct samsung_mux_clock {
 	__MUX(_id, cname, pnames, o, s, w, f, mf)
 
 /**
- * @id: platform specific id of the clock.
  * struct samsung_div_clock: information about div clock
+ * @id: platform specific id of the clock.
  * @name: name of this div clock.
  * @parent_name: name of the parent clock.
  * @flags: optional flags for basic clock.
  * @offset: offset of the register for configuring the div.
  * @shift: starting bit location of the div control bit-field in @reg.
+ * @width: width of the bitfield.
  * @div_flags: flags for div-type clock.
+ * @table: array of divider/value pairs ending with a div set to 0.
  */
 struct samsung_div_clock {
 	unsigned int		id;
@@ -244,6 +246,7 @@ struct samsung_clk_reg_dump {
  * @con_offset: offset of the register for configuring the PLL.
  * @lock_offset: offset of the register for locking the PLL.
  * @type: Type of PLL to be registered.
+ * @rate_table: array of PLL settings for possible PLL rates.
  */
 struct samsung_pll_clock {
 	unsigned int		id;

@@ -11,7 +11,7 @@
 #include "clk.h"
 
 /**
- * struct exynos_cpuclk_data: config data to setup cpu clocks.
+ * struct exynos_cpuclk_cfg_data: config data to setup cpu clocks.
  * @prate: frequency of the primary parent clock (in KHz).
  * @div0: value to be programmed in the div_cpu0 register.
  * @div1: value to be programmed in the div_cpu1 register.
