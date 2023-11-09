@@ -123,10 +123,6 @@ struct selftest_obj {
 	};
 };
 
-static void mock_domain_blocking_free(struct iommu_domain *domain)
-{
-}
-
 static int mock_domain_nop_attach(struct iommu_domain *domain,
 				  struct device *dev)
 {
@@ -139,7 +135,6 @@ static int mock_domain_nop_attach(struct iommu_domain *domain,
 }
 
 static const struct iommu_domain_ops mock_blocking_ops = {
-	.free = mock_domain_blocking_free,
 	.attach_dev = mock_domain_nop_attach,
 };
 
@@ -256,15 +251,6 @@ __mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
 	for (i = 0; i < MOCK_NESTED_DOMAIN_IOTLB_NUM; i++)
 		mock_nested->iotlb[i] = user_cfg->iotlb;
 	return &mock_nested->domain;
-}
-
-static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
-{
-	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
-		return &mock_blocking_domain;
-	if (iommu_domain_type == IOMMU_DOMAIN_UNMANAGED)
-		return mock_domain_alloc_paging(NULL);
-	return NULL;
 }
 
 static struct iommu_domain *
@@ -446,14 +432,6 @@ static bool mock_domain_capable(struct device *dev, enum iommu_cap cap)
 	return false;
 }
 
-static void mock_domain_set_plaform_dma_ops(struct device *dev)
-{
-	/*
-	 * mock doesn't setup default domains because we can't hook into the
-	 * normal probe path
-	 */
-}
-
 static struct iommu_device mock_iommu_device = {
 };
 
@@ -463,13 +441,18 @@ static struct iommu_device *mock_probe_device(struct device *dev)
 }
 
 static const struct iommu_ops mock_ops = {
+	/*
+	 * IOMMU_DOMAIN_BLOCKED cannot be returned from def_domain_type()
+	 * because it is zero.
+	 */
+	.default_domain = &mock_blocking_domain,
+	.blocked_domain = &mock_blocking_domain,
 	.owner = THIS_MODULE,
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
 	.hw_info = mock_domain_hw_info,
-	.domain_alloc = mock_domain_alloc,
+	.domain_alloc_paging = mock_domain_alloc_paging,
 	.domain_alloc_user = mock_domain_alloc_user,
 	.capable = mock_domain_capable,
-	.set_platform_dma_ops = mock_domain_set_plaform_dma_ops,
 	.device_group = generic_device_group,
 	.probe_device = mock_probe_device,
 	.default_domain_ops =
