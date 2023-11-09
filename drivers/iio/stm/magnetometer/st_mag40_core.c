@@ -46,6 +46,16 @@ static const struct st_mag40_odr_table_t {
 	.odr_avl[3] = { .hz = 100, .value = ST_MAG40_CFG_REG_A_ODR_100Hz, },
 };
 
+struct st_mag40_selftest_req {
+	char *mode;
+	u8 val;
+};
+
+struct st_mag40_selftest_req st_mag40_selftest_table[] = {
+	{ "disabled", 0x0 },
+	{ "positive-sign", 0x1 },
+};
+
 #define ST_MAG40_ADD_CHANNEL(device_type, modif, index, mod, 	\
 			     endian, sbits, rbits, addr, s) 	\
 {								\
@@ -84,12 +94,16 @@ int st_mag40_write_register(struct st_mag40_data *cdata, u8 reg_addr,
 	mutex_lock(&cdata->lock);
 
 	err = cdata->tf->read(cdata, reg_addr, sizeof(val), &val);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(cdata->dev, "failed to read %02x register\n", reg_addr);
 		goto unlock;
+	}
 
 	val = ((val & ~mask) | ((data << __ffs(mask)) & mask));
 
 	err = cdata->tf->write(cdata, reg_addr, sizeof(val), &val);
+	if (err < 0)
+		dev_err(cdata->dev, "failed to write %02x register\n", reg_addr);
 
 unlock:
 	mutex_unlock(&cdata->lock);
@@ -155,7 +169,9 @@ int st_mag40_init_sensors(struct st_mag40_data *cdata)
 				      ST_MAG40_TEMP_COMP_EN, 1);
 	if (err < 0)
 		return err;
-
+	/*
+	 * Enable the offset cancellation feature
+	 */
 	err = st_mag40_write_register(cdata, ST_MAG40_CFG_REG_B_ADDR,
 				      ST_MAG40_CFG_REG_B_OFF_CANC_MASK, 1);
 
@@ -271,16 +287,230 @@ static ssize_t st_mag40_get_module_id(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", cdata->module_id);
 }
 
+static ssize_t st_mag40_get_selftest_avail(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return sprintf(buf, "%s\n", st_mag40_selftest_table[1].mode);
+}
+
+static ssize_t st_mag40_get_selftest_status(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_mag40_data *cdata = iio_priv(iio_dev);
+	char *ret;
+
+	switch (cdata->st_status) {
+	case ST_MAG40_ST_PASS:
+		ret = "pass";
+		break;
+	case ST_MAG40_ST_FAIL:
+		ret = "fail";
+		break;
+	case ST_MAG40_ST_ERROR:
+		ret = "error";
+		break;
+	default:
+	case ST_MAG40_ST_RESET:
+		ret = "na";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", ret);
+}
+
+static ssize_t st_mag40_perform_selftest(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t size)
+{
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct st_mag40_data *cdata = iio_priv(iio_dev);
+
+	int i, err, try_count = 0;
+	u8 val, status, data[ST_MAG40_OUT_LEN];
+	u16 previous_odr;
+	s16 avg_acc_x = 0, avg_acc_y = 0, avg_acc_z = 0;
+	s16 avg_st_acc_x = 0, avg_st_acc_y = 0, avg_st_acc_z = 0;
+
+	mutex_lock(&iio_dev->mlock);
+
+	if (iio_buffer_enabled(iio_dev)) {
+		cdata->st_status = ST_MAG40_ST_ERROR;
+		err = -EBUSY;
+		goto unlock;
+	}
+
+
+	for (i = 0; i < ARRAY_SIZE(st_mag40_selftest_table); i++)
+		if (!strncmp(buf, st_mag40_selftest_table[i].mode,
+			     size - 2))
+			break;
+
+	if (i == ARRAY_SIZE(st_mag40_selftest_table)) {
+		err = -EINVAL;
+		cdata->st_status = ST_MAG40_ST_ERROR;
+		goto unlock;
+	}
+
+	cdata->st_status = ST_MAG40_ST_RESET;
+	val = st_mag40_selftest_table[i].val;
+
+	previous_odr = cdata->odr;
+	err = st_mag40_write_odr(cdata, 100);
+	if (err < 0) {
+		cdata->st_status = ST_MAG40_ST_ERROR;
+		goto unlock;
+	}
+
+	err = st_mag40_set_enable(cdata, true);
+	if (err < 0) {
+		cdata->st_status = ST_MAG40_ST_ERROR;
+		goto restore_odr;
+	}
+	/* set wait duration */
+	usleep_range(20000, 20000+100);
+
+	for (i = -1; i < (ST_MAG40_ST_READ_CYCLES); i++) {
+
+		try_count = 0;
+		while (try_count < 3) {
+			status = 0;
+			/* wait 10 ms */
+			usleep_range(10000, 10000+100);
+			err = cdata->tf->read(cdata, ST_MAG40_STATUS_ADDR,
+				sizeof(status), &status);
+			if (err < 0) {
+				cdata->st_status = ST_MAG40_ST_ERROR;
+				goto disable_sensor;
+			}
+
+			if (status & ST_MAG40_STATUS_ZYXDA_MASK) {
+
+				err = cdata->tf->read(cdata, ST_MAG40_OUTX_L_ADDR,
+						sizeof(data), data);
+				if (err < 0) {
+					cdata->st_status = ST_MAG40_ST_ERROR;
+					goto disable_selftest;
+				}
+
+				/* first read is discarded */
+				if (i > -1) {
+					avg_acc_x += ((s16)get_unaligned_le16(&data[0])) /
+									ST_MAG40_ST_READ_CYCLES;
+					avg_acc_y += ((s16)get_unaligned_le16(&data[2])) /
+									ST_MAG40_ST_READ_CYCLES;
+					avg_acc_z += ((s16)get_unaligned_le16(&data[4])) /
+									ST_MAG40_ST_READ_CYCLES;
+				}
+
+				break;
+			}
+			try_count++;
+		}
+	}
+
+/* enable self test */
+	err = st_mag40_write_register(cdata, ST_MAG40_CFG_REG_C_ADDR,
+					ST_MAG40_CFG_REG_C_SELFTEST_MASK, val);
+	if (err) {
+		cdata->st_status = ST_MAG40_ST_ERROR;
+		goto unlock;
+	}
+
+	/* wait for selfltest stable output */
+	usleep_range(60000, 60000+100);
+
+	for (i = -1; i < ST_MAG40_ST_READ_CYCLES; i++) {
+
+		try_count = 0;
+		while (try_count < 3) {
+			status = 0;
+			/* wait 10 ms */
+			usleep_range(10000, 10000+100);
+			err = cdata->tf->read(cdata, ST_MAG40_STATUS_ADDR,
+				sizeof(status), &status);
+			if (err < 0) {
+				cdata->st_status = ST_MAG40_ST_ERROR;
+				status = 0;
+			}
+
+			if (status & ST_MAG40_STATUS_ZYXDA_MASK) {
+
+				err = cdata->tf->read(cdata, ST_MAG40_OUTX_L_ADDR,
+						sizeof(data), data);
+				if (err < 0)  {
+					cdata->st_status = ST_MAG40_ST_ERROR;
+					if (try_count > 1)
+						goto disable_selftest;
+				}
+
+				/* first read is discarded */
+				if (i > -1) {
+					avg_st_acc_x +=
+						((s16)get_unaligned_le16(&data[0])) /
+							ST_MAG40_ST_READ_CYCLES;
+					avg_st_acc_y +=
+						((s16)get_unaligned_le16(&data[2])) /
+							ST_MAG40_ST_READ_CYCLES;
+					avg_st_acc_z +=
+						((s16)get_unaligned_le16(&data[4])) /
+							ST_MAG40_ST_READ_CYCLES;
+				}
+				break;
+			}
+			try_count++;
+		}
+	}
+
+/* perform check */
+	if (abs(avg_st_acc_x - avg_acc_x) >= ST_MAG40_SELFTEST_MIN &&
+	    abs(avg_st_acc_x - avg_acc_x) <= ST_MAG40_SELFTEST_MAX &&
+	    abs(avg_st_acc_y - avg_acc_y) >= ST_MAG40_SELFTEST_MIN &&
+	    abs(avg_st_acc_y - avg_acc_y) <= ST_MAG40_SELFTEST_MAX &&
+	    abs(avg_st_acc_z - avg_acc_z) >= ST_MAG40_SELFTEST_MIN &&
+	    abs(avg_st_acc_z - avg_acc_z) <= ST_MAG40_SELFTEST_MAX)
+		cdata->st_status = ST_MAG40_ST_PASS;
+	else
+		cdata->st_status = ST_MAG40_ST_FAIL;
+
+
+/* disable self test and restore previous odr */
+disable_selftest:
+	err = st_mag40_write_register(cdata, ST_MAG40_CFG_REG_C_ADDR,
+					ST_MAG40_CFG_REG_C_SELFTEST_MASK, 0);
+	if (err < 0)
+		cdata->st_status = ST_MAG40_ST_ERROR;
+
+disable_sensor:
+	err = st_mag40_set_enable(cdata, false);
+
+restore_odr:
+	err = st_mag40_write_odr(cdata, previous_odr);
+
+unlock:
+	mutex_unlock(&iio_dev->mlock);
+
+	return err < 0 ? err : size;
+}
+
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      st_mag40_get_sampling_frequency,
 			      st_mag40_set_sampling_frequency);
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_mag40_get_sampling_frequency_avail);
 static IIO_DEVICE_ATTR(module_id, 0444, st_mag40_get_module_id, NULL, 0);
+static IIO_DEVICE_ATTR(selftest_available, 0444,
+		       st_mag40_get_selftest_avail, NULL, 0);
+static IIO_DEVICE_ATTR(selftest, 0644, st_mag40_get_selftest_status,
+		       st_mag40_perform_selftest, 0);
 
 static struct attribute *st_mag40_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_dev_attr_module_id.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
 	NULL,
 };
 

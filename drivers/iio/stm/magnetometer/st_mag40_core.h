@@ -56,6 +56,7 @@ enum {
 
 #define ST_MAG40_CFG_REG_C_ADDR				0x62
 #define ST_MAG40_CFG_REG_C_BDU_MASK			0x10
+#define ST_MAG40_CFG_REG_C_SELFTEST_MASK		0x02
 #define ST_MAG40_CFG_REG_C_INT_MASK			0x01
 
 #define ST_MAG40_INT_DRDY_ADDR				ST_MAG40_CFG_REG_C_ADDR
@@ -63,6 +64,7 @@ enum {
 
 #define ST_MAG40_STATUS_ADDR				0x67
 #define ST_MAG40_AVL_DATA_MASK				0x7
+#define ST_MAG40_STATUS_ZYXDA_MASK			BIT(3)
 
 /* Magnetometer output registers */
 #define ST_MAG40_OUTX_L_ADDR				0x68
@@ -72,13 +74,17 @@ enum {
 #define ST_MAG40_BDU_ADDR				ST_MAG40_CTRL1_ADDR
 #define ST_MAG40_BDU_MASK				0x02
 
-#define ST_MAG40_TURNON_TIME_SAMPLES_NUM	2
+#define ST_MAG40_TURNON_TIME_SAMPLES_NUM		2
 
 /* 3 axis of 16 bit each */
 #define ST_MAG40_OUT_LEN				6
 
 #define ST_MAG40_TX_MAX_LENGTH				16
 #define ST_MAG40_RX_MAX_LENGTH				16
+
+#define ST_MAG40_SELFTEST_MIN				15
+#define ST_MAG40_SELFTEST_MAX				500
+#define ST_MAG40_ST_READ_CYCLES				50
 
 struct st_mag40_transfer_buffer {
 	u8 rx_buf[ST_MAG40_RX_MAX_LENGTH];
@@ -92,6 +98,13 @@ struct st_mag40_transfer_function {
 	int (*read)(struct st_mag40_data *cdata, u8 reg_addr, int len, u8 *data);
 };
 
+enum st_mag40_selftest_status {
+	ST_MAG40_ST_RESET,
+	ST_MAG40_ST_ERROR,
+	ST_MAG40_ST_PASS,
+	ST_MAG40_ST_FAIL,
+};
+
 struct st_mag40_data {
 	const char *name;
 	struct mutex lock;
@@ -100,6 +113,8 @@ struct st_mag40_data {
 	s64 ts;
 	s64 ts_irq;
 	s64 delta_ts;
+
+	enum st_mag40_selftest_status st_status;
 
 	u32 module_id;
 
