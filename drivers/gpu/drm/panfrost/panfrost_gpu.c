@@ -60,14 +60,21 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 
 	gpu_write(pfdev, GPU_INT_MASK, 0);
 	gpu_write(pfdev, GPU_INT_CLEAR, GPU_IRQ_RESET_COMPLETED);
-	gpu_write(pfdev, GPU_CMD, GPU_CMD_SOFT_RESET);
 
+	gpu_write(pfdev, GPU_CMD, GPU_CMD_SOFT_RESET);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + GPU_INT_RAWSTAT,
 		val, val & GPU_IRQ_RESET_COMPLETED, 100, 10000);
 
 	if (ret) {
-		dev_err(pfdev->dev, "gpu soft reset timed out\n");
-		return ret;
+		dev_err(pfdev->dev, "gpu soft reset timed out, attempting hard reset\n");
+
+		gpu_write(pfdev, GPU_CMD, GPU_CMD_HARD_RESET);
+		ret = readl_relaxed_poll_timeout(pfdev->iomem + GPU_INT_RAWSTAT, val,
+						 val & GPU_IRQ_RESET_COMPLETED, 100, 10000);
+		if (ret) {
+			dev_err(pfdev->dev, "gpu hard reset timed out\n");
+			return ret;
+		}
 	}
 
 	gpu_write(pfdev, GPU_INT_CLEAR, GPU_IRQ_MASK_ALL);
