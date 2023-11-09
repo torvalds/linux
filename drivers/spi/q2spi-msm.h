@@ -28,6 +28,7 @@
 #define TIMEOUT_MSECONDS		10 /* 10 milliseconds */
 #define RETRIES				1
 #define Q2SPI_MAX_DATA_LEN		4096
+#define Q2SPI_MAX_TX_RETRIES		3
 /* Host commands */
 #define HC_DB_REPORT_LEN_READ		1
 #define HC_DB_REPORT_BODY_READ		2
@@ -401,6 +402,7 @@ struct q2spi_dma_transfer {
  * @lock: Lock to protect xfer
  * @tid_idr: tid id allocator
  * @readq: waitqueue for rx data.
+ * @hw_state_is_bad: used when HW is in un-recoverable state.
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -474,6 +476,7 @@ struct q2spi_geni {
 	bool doorbell_setup;
 	struct qup_q2spi_cr_header_event q2spi_cr_hdr_event;
 	wait_queue_head_t read_wq;
+	bool hw_state_is_bad;
 };
 
 /**
