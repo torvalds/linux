@@ -432,6 +432,27 @@
 					};
 				};
 
+				nand_all_pins: nand-all-pins {
+					mux {
+						groups = "emmc_nand_d0",
+							 "emmc_nand_d1",
+							 "emmc_nand_d2",
+							 "emmc_nand_d3",
+							 "emmc_nand_d4",
+							 "emmc_nand_d5",
+							 "emmc_nand_d6",
+							 "emmc_nand_d7",
+							 "nand_ce0",
+							 "nand_ale",
+							 "nand_cle",
+							 "nand_wen_clk",
+							 "nand_ren_wr";
+						function = "nand";
+						input-enable;
+						bias-pull-up;
+					};
+				};
+
 				emmc_ds_pins: emmc_ds {
 					mux {
 						groups = "emmc_ds";
@@ -1913,6 +1934,8 @@
 				reg = <0x0 0x7800 0x0 0x100>,
 				      <0x0 0x7000 0x0 0x800>;
 				reg-names = "nfc", "emmc";
+				pinctrl-0 = <&nand_all_pins>;
+				pinctrl-names = "default";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
