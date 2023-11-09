@@ -1866,6 +1866,19 @@ static bool pxp_is_borked(struct drm_i915_gem_object *obj)
 	return i915_gem_object_is_protected(obj) && !bo_has_valid_encryption(obj);
 }
 
+static void check_protection(struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+
+	if (DISPLAY_VER(i915) < 11)
+		return;
+
+	plane_state->decrypt = bo_has_valid_encryption(intel_fb_obj(fb));
+	plane_state->force_black = pxp_is_borked(intel_fb_obj(fb));
+}
+
 static int skl_plane_check(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state)
 {
@@ -1910,10 +1923,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
-	if (DISPLAY_VER(dev_priv) >= 11) {
-		plane_state->decrypt = bo_has_valid_encryption(intel_fb_obj(fb));
-		plane_state->force_black = pxp_is_borked(intel_fb_obj(fb));
-	}
+	check_protection(plane_state);
 
 	/* HW only has 8 bits pixel precision, disable plane if invisible */
 	if (!(plane_state->hw.alpha >> 8))
