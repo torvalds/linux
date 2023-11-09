@@ -5557,8 +5557,21 @@ BTF_SET_END(rcu_protected_types)
 static bool rcu_protected_object(const struct btf *btf, u32 btf_id)
 {
 	if (!btf_is_kernel(btf))
-		return false;
+		return true;
 	return btf_id_set_contains(&rcu_protected_types, btf_id);
+}
+
+static struct btf_record *kptr_pointee_btf_record(struct btf_field *kptr_field)
+{
+	struct btf_struct_meta *meta;
+
+	if (btf_is_kernel(kptr_field->kptr.btf))
+		return NULL;
+
+	meta = btf_find_struct_meta(kptr_field->kptr.btf,
+				    kptr_field->kptr.btf_id);
+
+	return meta ? meta->record : NULL;
 }
 
 static bool rcu_safe_kptr(const struct btf_field *field)
@@ -5571,12 +5584,25 @@ static bool rcu_safe_kptr(const struct btf_field *field)
 
 static u32 btf_ld_kptr_type(struct bpf_verifier_env *env, struct btf_field *kptr_field)
 {
+	struct btf_record *rec;
+	u32 ret;
+
+	ret = PTR_MAYBE_NULL;
 	if (rcu_safe_kptr(kptr_field) && in_rcu_cs(env)) {
-		if (kptr_field->type != BPF_KPTR_PERCPU)
-			return PTR_MAYBE_NULL | MEM_RCU;
-		return PTR_MAYBE_NULL | MEM_RCU | MEM_PERCPU;
+		ret |= MEM_RCU;
+		if (kptr_field->type == BPF_KPTR_PERCPU)
+			ret |= MEM_PERCPU;
+		else if (!btf_is_kernel(kptr_field->kptr.btf))
+			ret |= MEM_ALLOC;
+
+		rec = kptr_pointee_btf_record(kptr_field);
+		if (rec && btf_record_has_field(rec, BPF_GRAPH_NODE))
+			ret |= NON_OWN_REF;
+	} else {
+		ret |= PTR_UNTRUSTED;
 	}
-	return PTR_MAYBE_NULL | PTR_UNTRUSTED;
+
+	return ret;
 }
 
 static int check_map_kptr_access(struct bpf_verifier_env *env, u32 regno,
