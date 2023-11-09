@@ -1792,44 +1792,42 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 //GPIO J
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0CK, SCU24, GENMASK(2, 0), 1),
+			PIN_CFG(I3C4, SCU24, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0MOSI, SCU24, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I3C4, SCU24, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0MISO, SCU24, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I3C5, SCU24, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0DQ2, SCU24, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(I3C5, SCU24, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0DQ3, SCU24, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(I3C6, SCU24, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0CS1, SCU24, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(I3C6, SCU24, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0ABR, SCU24, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(TXD8, SCU24, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(I3C7, SCU24, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0WPN, SCU24, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(RXD8, SCU24, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(I3C7, SCU24, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO K
