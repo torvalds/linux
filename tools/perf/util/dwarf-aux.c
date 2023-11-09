@@ -1245,13 +1245,6 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 out:
 	return ret;
 }
-#else
-int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
-		      Dwarf_Die *vr_die __maybe_unused,
-		      struct strbuf *buf __maybe_unused)
-{
-	return -ENOTSUP;
-}
 #endif
 
 /*
