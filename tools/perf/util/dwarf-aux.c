@@ -1245,6 +1245,73 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 out:
 	return ret;
 }
+
+/* Interval parameters for __die_find_var_reg_cb() */
+struct find_var_data {
+	/* Target instruction address */
+	Dwarf_Addr pc;
+	/* Target register */
+	unsigned reg;
+};
+
+/* Max number of registers DW_OP_regN supports */
+#define DWARF_OP_DIRECT_REGS  32
+
+/* Only checks direct child DIEs in the given scope. */
+static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct find_var_data *data = arg;
+	int tag = dwarf_tag(die_mem);
+	ptrdiff_t off = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Op *ops;
+	size_t nops;
+
+	if (tag != DW_TAG_variable && tag != DW_TAG_formal_parameter)
+		return DIE_FIND_CB_SIBLING;
+
+	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		/* Assuming the location list is sorted by address */
+		if (end < data->pc)
+			continue;
+		if (start > data->pc)
+			break;
+
+		/* Only match with a simple case */
+		if (data->reg < DWARF_OP_DIRECT_REGS) {
+			if (ops->atom == (DW_OP_reg0 + data->reg) && nops == 1)
+				return DIE_FIND_CB_END;
+		} else {
+			if (ops->atom == DW_OP_regx && ops->number == data->reg &&
+			    nops == 1)
+				return DIE_FIND_CB_END;
+		}
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_find_variable_by_reg - Find a variable saved in a register
+ * @sc_die: a scope DIE
+ * @pc: the program address to find
+ * @reg: the register number to find
+ * @die_mem: a buffer to save the resulting DIE
+ *
+ * Find the variable DIE accessed by the given register.
+ */
+Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    Dwarf_Die *die_mem)
+{
+	struct find_var_data data = {
+		.pc = pc,
+		.reg = reg,
+	};
+	return die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
+}
 #endif
 
 /*

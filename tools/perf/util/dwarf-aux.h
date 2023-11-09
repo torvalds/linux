@@ -137,6 +137,10 @@ int die_get_scopes(Dwarf_Die *cu_die, Dwarf_Addr pc, Dwarf_Die **scopes);
 /* Get byte offset range of given variable DIE */
 int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
 
+/* Find a variable saved in the 'reg' at given address */
+Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    Dwarf_Die *die_mem);
+
 #else /*  HAVE_DWARF_GETLOCATIONS_SUPPORT */
 
 static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
@@ -144,6 +148,14 @@ static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
 				    struct strbuf *buf __maybe_unused)
 {
 	return -ENOTSUP;
+}
+
+static inline Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die __maybe_unused,
+						  Dwarf_Addr pc __maybe_unused,
+						  int reg __maybe_unused,
+						  Dwarf_Die *die_mem __maybe_unused)
+{
+	return NULL;
 }
 
 #endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT */
