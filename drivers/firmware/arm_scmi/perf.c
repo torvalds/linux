@@ -504,6 +504,9 @@ static int scmi_perf_limits_set(const struct scmi_protocol_handle *ph,
 	if (IS_ERR(dom))
 		return PTR_ERR(dom);
 
+	if (!dom->set_limits)
+		return -EOPNOTSUPP;
+
 	if (PROTOCOL_REV_MAJOR(pi->version) >= 0x3 && !max_perf && !min_perf)
 		return -EINVAL;
 
@@ -653,6 +656,9 @@ static int scmi_perf_level_set(const struct scmi_protocol_handle *ph,
 	dom = scmi_perf_domain_lookup(ph, domain);
 	if (IS_ERR(dom))
 		return PTR_ERR(dom);
+
+	if (!dom->info.set_perf)
+		return -EOPNOTSUPP;
 
 	if (dom->level_indexing_mode) {
 		struct scmi_opp *opp;
