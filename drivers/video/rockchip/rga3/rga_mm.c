@@ -1319,7 +1319,8 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+	    scheduler->data->mmu != RGA_IOMMU) {
 		dma_sync_single_for_device(scheduler->dev, buffer->phys_addr, buffer->size, dir);
 	} else {
 		sgt = rga_mm_lookup_sgt(buffer);
@@ -1349,7 +1350,8 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS) {
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+	    scheduler->data->mmu != RGA_IOMMU) {
 		dma_sync_single_for_cpu(scheduler->dev, buffer->phys_addr, buffer->size, dir);
 	} else {
 		sgt = rga_mm_lookup_sgt(buffer);
