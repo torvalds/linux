@@ -3132,7 +3132,7 @@ done:
  * @mas: The maple state
  * @height: The height of the tree in case it's a new root.
  */
-static inline bool mas_split_final_node(struct maple_subtree_state *mast,
+static inline void mas_split_final_node(struct maple_subtree_state *mast,
 					struct ma_state *mas, int height)
 {
 	struct maple_enode *ancestor;
@@ -3156,7 +3156,6 @@ static inline bool mas_split_final_node(struct maple_subtree_state *mast,
 	mast->l->node = ancestor;
 	mab_mas_cp(mast->bn, 0, mt_slots[mast->bn->type] - 1, mast->l, true);
 	mas->offset = mast->bn->b_end - 1;
-	return true;
 }
 
 /*
