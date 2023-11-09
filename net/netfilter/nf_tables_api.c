@@ -6039,21 +6039,18 @@ err_fill_setelem:
 	return err;
 }
 
-/* called with rcu_read_lock held */
-static int nf_tables_getsetelem(struct sk_buff *skb,
-				const struct nfnl_info *info,
-				const struct nlattr * const nla[])
+static int nft_set_dump_ctx_init(struct nft_set_dump_ctx *dump_ctx,
+				 const struct sk_buff *skb,
+				 const struct nfnl_info *info,
+				 const struct nlattr * const nla[],
+				 bool reset)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	u8 genmask = nft_genmask_cur(info->net);
 	u8 family = info->nfmsg->nfgen_family;
-	int rem, err = 0, nelems = 0;
 	struct net *net = info->net;
 	struct nft_table *table;
 	struct nft_set *set;
-	struct nlattr *attr;
-	struct nft_ctx ctx;
-	bool reset = false;
 
 	table = nft_table_lookup(net, nla[NFTA_SET_ELEM_LIST_TABLE], family,
 				 genmask, 0);
@@ -6068,7 +6065,24 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 		return PTR_ERR(set);
 	}
 
-	nft_ctx_init(&ctx, net, skb, info->nlh, family, table, NULL, nla);
+	nft_ctx_init(&dump_ctx->ctx, net, skb,
+		     info->nlh, family, table, NULL, nla);
+	dump_ctx->set = set;
+	dump_ctx->reset = reset;
+	return 0;
+}
+
+/* called with rcu_read_lock held */
+static int nf_tables_getsetelem(struct sk_buff *skb,
+				const struct nfnl_info *info,
+				const struct nlattr * const nla[])
+{
+	struct netlink_ext_ack *extack = info->extack;
+	struct nft_set_dump_ctx dump_ctx;
+	int rem, err = 0, nelems = 0;
+	struct net *net = info->net;
+	struct nlattr *attr;
+	bool reset = false;
 
 	if (NFNL_MSG_TYPE(info->nlh->nlmsg_type) == NFT_MSG_GETSETELEM_RESET)
 		reset = true;
@@ -6080,11 +6094,10 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 			.done = nf_tables_dump_set_done,
 			.module = THIS_MODULE,
 		};
-		struct nft_set_dump_ctx dump_ctx = {
-			.set = set,
-			.ctx = ctx,
-			.reset = reset,
-		};
+
+		err = nft_set_dump_ctx_init(&dump_ctx, skb, info, nla, reset);
+		if (err)
+			return err;
 
 		c.data = &dump_ctx;
 		return nft_netlink_dump_start_rcu(info->sk, skb, info->nlh, &c);
@@ -6093,8 +6106,12 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 	if (!nla[NFTA_SET_ELEM_LIST_ELEMENTS])
 		return -EINVAL;
 
+	err = nft_set_dump_ctx_init(&dump_ctx, skb, info, nla, reset);
+	if (err)
+		return err;
+
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
-		err = nft_get_set_elem(&ctx, set, attr, reset);
+		err = nft_get_set_elem(&dump_ctx.ctx, dump_ctx.set, attr, reset);
 		if (err < 0) {
 			NL_SET_BAD_ATTR(extack, attr);
 			break;
@@ -6103,7 +6120,7 @@ static int nf_tables_getsetelem(struct sk_buff *skb,
 	}
 
 	if (reset)
-		audit_log_nft_set_reset(table, nft_pernet(net)->base_seq,
+		audit_log_nft_set_reset(dump_ctx.ctx.table, nft_pernet(net)->base_seq,
 					nelems);
 
 	return err;
