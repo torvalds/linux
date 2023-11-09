@@ -38,7 +38,7 @@ int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 
 void intel_c10pll_dump_hw_state(struct drm_i915_private *dev_priv,
 				const struct intel_c10pll_state *hw_state);
-void intel_c10pll_state_verify(struct intel_atomic_state *state,
+void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc);
 void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
 				const struct intel_c20pll_state *hw_state);

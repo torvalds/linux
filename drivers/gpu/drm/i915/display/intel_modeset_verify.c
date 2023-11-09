@@ -244,7 +244,7 @@ void intel_modeset_verify_crtc(struct intel_atomic_state *state,
 	verify_crtc_state(state, crtc);
 	intel_shared_dpll_state_verify(state, crtc);
 	intel_mpllb_state_verify(state, crtc);
-	intel_c10pll_state_verify(state, crtc);
+	intel_cx0pll_state_verify(state, crtc);
 }
 
 void intel_modeset_verify_disabled(struct intel_atomic_state *state)
