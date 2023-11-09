@@ -666,6 +666,30 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
 }
 
 /**
+ * disallow_subvp_in_active_plus_blank() - Function to determine disallowed subvp + drr/vblank configs
+ *
+ * @pipe: subvp pipe to be used for the subvp + drr/vblank config
+ *
+ * Since subvp is being enabled on more configs (such as 1080p60), we want
+ * to explicitly block any configs that we don't want to enable. We do not
+ * want to enable any 1080p60 (SubVP) + drr / vblank configs since these
+ * are already convered by FPO.
+ *
+ * Return: True if disallowed, false otherwise
+ */
+static bool disallow_subvp_in_active_plus_blank(struct pipe_ctx *pipe)
+{
+	bool disallow = false;
+
+	if (resource_is_pipe_type(pipe, OPP_HEAD) &&
+			resource_is_pipe_type(pipe, DPP_PIPE)) {
+		if (pipe->stream->timing.v_addressable == 1080 && pipe->stream->timing.h_addressable == 1920)
+			disallow = true;
+	}
+	return disallow;
+}
+
+/**
  * dcn32_subvp_drr_admissable() - Determine if SubVP + DRR config is admissible
  *
  * @dc: Current DC state
@@ -688,6 +712,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 	bool drr_pipe_found = false;
 	bool drr_psr_capable = false;
 	uint64_t refresh_rate = 0;
+	bool subvp_disallow = false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -697,6 +722,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
 
+				subvp_disallow |= disallow_subvp_in_active_plus_blank(pipe);
 				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
 					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
@@ -713,7 +739,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 		}
 	}
 
-	if (subvp_count == 1 && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
+	if (subvp_count == 1 && !subvp_disallow && non_subvp_pipes == 1 && drr_pipe_found && !drr_psr_capable &&
 		((uint32_t)refresh_rate < 120))
 		result = true;
 
@@ -746,6 +772,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 	bool vblank_psr_capable = false;
 	uint64_t refresh_rate = 0;
+	bool subvp_disallow = false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -755,6 +782,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				subvp_count++;
 
+				subvp_disallow |= disallow_subvp_in_active_plus_blank(pipe);
 				refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
 					pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
@@ -772,7 +800,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 	}
 
 	if (subvp_count == 1 && non_subvp_pipes == 1 && !drr_pipe_found && !vblank_psr_capable &&
-		((uint32_t)refresh_rate < 120) &&
+		((uint32_t)refresh_rate < 120) && !subvp_disallow &&
 		vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_vblank_w_mall_sub_vp)
 		result = true;
 

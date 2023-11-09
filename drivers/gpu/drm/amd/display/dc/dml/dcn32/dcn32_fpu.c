@@ -45,6 +45,14 @@ static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 				{.width = 1920, .height = 1080, }},
 };
 
+static const struct subvp_active_margin_list subvp_active_margin_list = {
+			.min_refresh = 55,
+			.max_refresh = 65,
+			.res = {
+				{.width = 2560, .height = 1440, },
+				{.width = 1920, .height = 1080, }},
+};
+
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {
 	.gpuvm_enable = 0,
 	.gpuvm_max_page_table_levels = 4,
@@ -3295,25 +3303,24 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 {
 	bool allow = false;
 	uint32_t refresh_rate = 0;
+	uint32_t min_refresh = subvp_active_margin_list.min_refresh;
+	uint32_t max_refresh = subvp_active_margin_list.max_refresh;
+	uint32_t i;
 
-	/* Allow subvp on displays that have active margin for 2560x1440@60hz displays
-	 * only for now. There must be no scaling as well.
-	 *
-	 * For now we only enable on 2560x1440@60hz displays to enable 4K60 + 1440p60 configs
-	 * for p-state switching.
-	 */
-	if (pipe->stream && pipe->plane_state) {
-		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
-						pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
-						/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
-		if (pipe->stream->timing.v_addressable == 1440 &&
-				pipe->stream->timing.h_addressable == 2560 &&
-				refresh_rate >= 55 && refresh_rate <= 65 &&
-				pipe->plane_state->src_rect.height == 1440 &&
-				pipe->plane_state->src_rect.width == 2560 &&
-				pipe->plane_state->dst_rect.height == 1440 &&
-				pipe->plane_state->dst_rect.width == 2560)
+	for (i = 0; i < SUBVP_ACTIVE_MARGIN_LIST_LEN; i++) {
+		uint32_t width = subvp_active_margin_list.res[i].width;
+		uint32_t height = subvp_active_margin_list.res[i].height;
+
+		refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+			pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+
+		if (refresh_rate >= min_refresh && refresh_rate <= max_refresh &&
+				dcn32_check_native_scaling_for_res(pipe, width, height)) {
 			allow = true;
+			break;
+		}
 	}
 	return allow;
 }

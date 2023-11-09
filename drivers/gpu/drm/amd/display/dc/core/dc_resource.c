@@ -5316,7 +5316,7 @@ bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_st
 	if (dc->current_state->stream_count == 1 && stream->timing.v_addressable >= 2880 &&
 			((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
 		return true;
-	else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 2160 &&
+	else if (dc->current_state->stream_count > 1 && stream->timing.v_addressable >= 1080 &&
 			((stream->timing.pix_clk_100hz * 100) / stream->timing.v_total / stream->timing.h_total) < 120)
 		return true;
 

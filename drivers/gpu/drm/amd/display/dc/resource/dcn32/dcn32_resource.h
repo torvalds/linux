@@ -39,6 +39,7 @@
 #define DCN3_2_MBLK_HEIGHT_8BPE 64
 #define DCN3_2_DCFCLK_DS_INIT_KHZ 10000 // Choose 10Mhz for init DCFCLK DS freq
 #define SUBVP_HIGH_REFRESH_LIST_LEN 4
+#define SUBVP_ACTIVE_MARGIN_LIST_LEN 2
 #define DCN3_2_MAX_SUBVP_PIXEL_RATE_MHZ 1800
 #define DCN3_2_VMIN_DISPCLK_HZ 717000000
 
@@ -55,6 +56,15 @@ struct subvp_high_refresh_list {
 		int width;
 		int height;
 	} res[SUBVP_HIGH_REFRESH_LIST_LEN];
+};
+
+struct subvp_active_margin_list {
+	int min_refresh;
+	int max_refresh;
+	struct {
+		int width;
+		int height;
+	} res[SUBVP_ACTIVE_MARGIN_LIST_LEN];
 };
 
 struct dcn32_resource_pool {
