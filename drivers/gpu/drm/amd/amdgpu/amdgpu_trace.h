@@ -554,6 +554,21 @@ TRACE_EVENT(amdgpu_reset_reg_dumps,
 		      __entry->value)
 );
 
+TRACE_EVENT(amdgpu_runpm_reference_dumps,
+	    TP_PROTO(uint32_t index, const char *func),
+	    TP_ARGS(index, func),
+	    TP_STRUCT__entry(
+			     __field(uint32_t, index)
+			     __string(func, func)
+			     ),
+	    TP_fast_assign(
+			   __entry->index = index;
+			   __assign_str(func, func);
+			   ),
+	    TP_printk("amdgpu runpm reference dump 0x%x: 0x%s\n",
+		      __entry->index,
+		      __get_str(func))
+);
 #undef AMDGPU_JOB_GET_TIMELINE_NAME
 #endif
 
