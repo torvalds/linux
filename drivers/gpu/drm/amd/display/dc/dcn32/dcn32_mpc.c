@@ -71,24 +71,21 @@ void mpc32_power_on_blnd_lut(
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 
-/*
 	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.cm) {
 		if (power_on) {
 			REG_UPDATE(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_STATE, 0, 1, 5);
 		} else if (!mpc->ctx->dc->debug.disable_mem_low_power) {
-			//TODO: change to mpc
-			dpp_base->ctx->dc->optimized_required = true;
-			dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
+			ASSERT(false);
+			/* TODO: change to mpc
+			 *  dpp_base->ctx->dc->optimized_required = true;
+			 *  dpp_base->deferred_reg_writes.bits.disable_blnd_lut = true;
+			 */
 		}
 	} else {
 		REG_SET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], 0,
 				MPCC_MCM_1DLUT_MEM_PWR_FORCE, power_on == true ? 0 : 1);
 	}
-*/
-
-	REG_SET(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], 0,
-			MPCC_MCM_1DLUT_MEM_PWR_FORCE, power_on == true ? 0 : 1);
 }
 
 static enum dc_lut_mode mpc32_get_post1dlut_current(struct mpc *mpc, uint32_t mpcc_id)
