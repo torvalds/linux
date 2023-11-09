@@ -320,52 +320,52 @@
 	};
 
 	pinctrl_hvi3c4_default: hvi3c4_default {
-		function = "HVI3C4";
+		function = "I3C4";
 		groups = "HVI3C4";
 	};
 
 	pinctrl_hvi3c5_default: hvi3c5_default {
-		function = "HVI3C5";
+		function = "I3C5";
 		groups = "HVI3C5";
 	};
 
 	pinctrl_hvi3c6_default: hvi3c6_default {
-		function = "HVI3C6";
+		function = "I3C6";
 		groups = "HVI3C6";
 	};
 
 	pinctrl_hvi3c7_default: hvi3c7_default {
-		function = "HVI3C7";
+		function = "I3C7";
 		groups = "HVI3C7";
 	};
 
 	pinctrl_hvi3c10_default: hvi3c10_default {
-		function = "HVI3C10";
+		function = "I3C10";
 		groups = "HVI3C10";
 	};
 
 	pinctrl_hvi3c11_default: hvi3c11_default {
-		function = "HVI3C11";
+		function = "I3C11";
 		groups = "HVI3C11";
 	};
 
 	pinctrl_hvi3c12_default: hvi3c12_default {
-		function = "HVI3C12";
+		function = "I3C12";
 		groups = "HVI3C12";
 	};
 
 	pinctrl_hvi3c13_default: hvi3c13_default {
-		function = "HVI3C13";
+		function = "I3C13";
 		groups = "HVI3C13";
 	};
 
 	pinctrl_hvi3c14_default: hvi3c14_default {
-		function = "HVI3C14";
+		function = "I3C14";
 		groups = "HVI3C14";
 	};
 
 	pinctrl_hvi3c15_default: hvi3c15_default {
-		function = "HVI3C15";
+		function = "I3C15";
 		groups = "HVI3C15";
 	};
 

@@ -787,28 +787,22 @@ static const char *const sios5n1_grp[] = { "SIOS5N1" };
 static const char *const siopwreqn1_grp[] = { "SIOPWREQN1" };
 static const char *const sioonctrln1_grp[] = { "SIOONCTRLN1" };
 static const char *const siopwrgd1_grp[] = { "SIOPWRGD1" };
-static const char *const hvi3c12_grp[] = { "HVI3C12" };
-static const char *const hvi3c13_grp[] = { "HVI3C13" };
-static const char *const hvi3c14_grp[] = { "HVI3C14" };
-static const char *const hvi3c15_grp[] = { "HVI3C15" };
-static const char *const hvi3c4_grp[] = { "HVI3C4" };
-static const char *const hvi3c5_grp[] = { "HVI3C5" };
-static const char *const hvi3c6_grp[] = { "HVI3C6" };
-static const char *const hvi3c7_grp[] = { "HVI3C7" };
-static const char *const hvi3c10_grp[] = { "HVI3C10" };
-static const char *const hvi3c11_grp[] = { "HVI3C11" };
 static const char *const i3c0_grp[] = { "I3C0" };
 static const char *const i3c1_grp[] = { "I3C1" };
 static const char *const i3c2_grp[] = { "I3C2" };
 static const char *const i3c3_grp[] = { "I3C3" };
-static const char *const i3c4_grp[] = { "I3C4" };
-static const char *const i3c5_grp[] = { "I3C5" };
-static const char *const i3c6_grp[] = { "I3C6" };
-static const char *const i3c7_grp[] = { "I3C7" };
+static const char *const i3c4_grp[] = { "I3C4", "HVI3C4" };
+static const char *const i3c5_grp[] = { "I3C5", "HVI3C5" };
+static const char *const i3c6_grp[] = { "I3C6", "HVI3C6" };
+static const char *const i3c7_grp[] = { "I3C7", "HVI3C7" };
 static const char *const i3c8_grp[] = { "I3C8" };
 static const char *const i3c9_grp[] = { "I3C9" };
-static const char *const i3c10_grp[] = { "I3C10" };
-static const char *const i3c11_grp[] = { "I3C11" };
+static const char *const i3c10_grp[] = { "I3C10", "HVI3C10" };
+static const char *const i3c11_grp[] = { "I3C11", "HVI3C11" };
+static const char *const i3c12_grp[] = { "HVI3C12" };
+static const char *const i3c13_grp[] = { "HVI3C13" };
+static const char *const i3c14_grp[] = { "HVI3C14" };
+static const char *const i3c15_grp[] = { "HVI3C15" };
 static const char *const ltpi_grp[] = { "LTPI" };
 static const char *const spi0_grp[] = { "SPI0" };
 static const char *const qspi0_grp[] = { "QSPI0" };
@@ -868,16 +862,6 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(VPI, vpi),
 	IO_FUNC(SD, sd),
 	IO_FUNC(OSCCLK, oscclk),
-	IO_FUNC(HVI3C12, hvi3c12),
-	IO_FUNC(HVI3C13, hvi3c13),
-	IO_FUNC(HVI3C14, hvi3c14),
-	IO_FUNC(HVI3C15, hvi3c15),
-	IO_FUNC(HVI3C4, hvi3c4),
-	IO_FUNC(HVI3C5, hvi3c5),
-	IO_FUNC(HVI3C6, hvi3c6),
-	IO_FUNC(HVI3C7, hvi3c7),
-	IO_FUNC(HVI3C10, hvi3c10),
-	IO_FUNC(HVI3C11, hvi3c11),
 	IO_FUNC(TACH0, tach0),
 	IO_FUNC(TACH1, tach1),
 	IO_FUNC(TACH2, tach2),
@@ -1026,6 +1010,10 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(I3C9, i3c9),
 	IO_FUNC(I3C10, i3c10),
 	IO_FUNC(I3C11, i3c11),
+	IO_FUNC(I3C12, i3c12),
+	IO_FUNC(I3C13, i3c13),
+	IO_FUNC(I3C14, i3c14),
+	IO_FUNC(I3C15, i3c15),
 	IO_FUNC(LTPI, ltpi),
 	IO_FUNC(SPI0, spi0),
 	IO_FUNC(QSPI0, qspi0),
