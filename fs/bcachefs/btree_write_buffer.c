@@ -78,12 +78,15 @@ static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
 	}
 	return 0;
 trans_commit:
-	return  bch2_trans_update_seq(trans, wb->journal_seq, iter, &wb->k,
-				      BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+	trans->journal_res.seq = wb->journal_seq;
+
+	return  bch2_trans_update(trans, iter, &wb->k,
+				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  commit_flags|
 				  BTREE_INSERT_NOCHECK_RW|
 				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_JOURNAL_REPLAY|
 				  BTREE_INSERT_JOURNAL_RECLAIM);
 }
 
@@ -127,9 +130,11 @@ btree_write_buffered_insert(struct btree_trans *trans,
 	bch2_trans_iter_init(trans, &iter, wb->btree, bkey_start_pos(&wb->k.k),
 			     BTREE_ITER_CACHED|BTREE_ITER_INTENT);
 
+	trans->journal_res.seq = wb->journal_seq;
+
 	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update_seq(trans, wb->journal_seq, &iter, &wb->k,
-				      BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+		bch2_trans_update(trans, &iter, &wb->k,
+				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
@@ -262,6 +267,7 @@ slowpath:
 		ret = commit_do(trans, NULL, NULL,
 				commit_flags|
 				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_JOURNAL_REPLAY|
 				BTREE_INSERT_JOURNAL_RECLAIM,
 				btree_write_buffered_insert(trans, i));
 		if (bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret)))
