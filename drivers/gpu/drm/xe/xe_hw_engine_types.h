@@ -183,8 +183,6 @@ struct xe_hw_engine_snapshot {
 		u32 ring_execlist_sq_contents_lo;
 		/** @ring_execlist_sq_contents_hi: RING_EXECLIST_SQ_CONTENTS + 4 */
 		u32 ring_execlist_sq_contents_hi;
-		/** @ring_execlist_control: RING_EXECLIST_CONTROL */
-		u32 ring_execlist_control;
 		/** @ring_start: RING_START */
 		u32 ring_start;
 		/** @ring_head: RING_HEAD */

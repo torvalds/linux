@@ -704,8 +704,6 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->reg.ring_execlist_sq_contents_hi =
 		hw_engine_mmio_read32(hwe,
 				      RING_EXECLIST_SQ_CONTENTS_HI(0));
-	snapshot->reg.ring_execlist_control =
-		hw_engine_mmio_read32(hwe, RING_EXECLIST_CONTROL(0));
 	snapshot->reg.ring_start = hw_engine_mmio_read32(hwe, RING_START(0));
 	snapshot->reg.ring_head =
 		hw_engine_mmio_read32(hwe, RING_HEAD(0)) & HEAD_ADDR;
@@ -765,8 +763,6 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 		   snapshot->reg.ring_execlist_sq_contents_lo);
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS_HI: 0x%08x\n",
 		   snapshot->reg.ring_execlist_sq_contents_hi);
-	drm_printf(p, "\tRING_EXECLIST_CONTROL: 0x%08x\n",
-		   snapshot->reg.ring_execlist_control);
 	drm_printf(p, "\tRING_START: 0x%08x\n", snapshot->reg.ring_start);
 	drm_printf(p, "\tRING_HEAD:  0x%08x\n", snapshot->reg.ring_head);
 	drm_printf(p, "\tRING_TAIL:  0x%08x\n", snapshot->reg.ring_tail);
