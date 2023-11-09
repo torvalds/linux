@@ -3752,7 +3752,7 @@ release:
 }
 
 
-static int __exit amifb_remove(struct platform_device *pdev)
+static void __exit amifb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
@@ -3765,7 +3765,6 @@ static int __exit amifb_remove(struct platform_device *pdev)
 	chipfree();
 	framebuffer_release(info);
 	amifb_video_off();
-	return 0;
 }
 
 /*
@@ -3775,7 +3774,7 @@ static int __exit amifb_remove(struct platform_device *pdev)
  * triggers a section mismatch warning.
  */
 static struct platform_driver amifb_driver __refdata = {
-	.remove = __exit_p(amifb_remove),
+	.remove_new = __exit_p(amifb_remove),
 	.driver   = {
 		.name	= "amiga-video",
 	},
