@@ -4162,6 +4162,7 @@
 					  "dp_hs_phy_irq";
 
 			power-domains = <&gcc USB30_PRIM_GDSC>;
+			wakeup-source;
 
 			resets = <&gcc GCC_USB30_PRIM_BCR>;
 
@@ -4230,6 +4231,7 @@
 					  "dp_hs_phy_irq";
 
 			power-domains = <&gcc USB30_SEC_GDSC>;
+			wakeup-source;
 
 			resets = <&gcc GCC_USB30_SEC_BCR>;
 
