@@ -1250,8 +1250,12 @@ out:
 struct find_var_data {
 	/* Target instruction address */
 	Dwarf_Addr pc;
+	/* Target memory address (for global data) */
+	Dwarf_Addr addr;
 	/* Target register */
 	unsigned reg;
+	/* Access offset, set for global data */
+	int offset;
 };
 
 /* Max number of registers DW_OP_regN supports */
@@ -1311,6 +1315,81 @@ Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
 		.reg = reg,
 	};
 	return die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
+}
+
+/* Only checks direct child DIEs in the given scope */
+static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct find_var_data *data = arg;
+	int tag = dwarf_tag(die_mem);
+	ptrdiff_t off = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Word size;
+	Dwarf_Die type_die;
+	Dwarf_Op *ops;
+	size_t nops;
+
+	if (tag != DW_TAG_variable)
+		return DIE_FIND_CB_SIBLING;
+
+	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		if (ops->atom != DW_OP_addr)
+			continue;
+
+		if (data->addr < ops->number)
+			continue;
+
+		if (data->addr == ops->number) {
+			/* Update offset relative to the start of the variable */
+			data->offset = 0;
+			return DIE_FIND_CB_END;
+		}
+
+		if (die_get_real_type(die_mem, &type_die) == NULL)
+			continue;
+
+		if (dwarf_aggregate_size(&type_die, &size) < 0)
+			continue;
+
+		if (data->addr >= ops->number + size)
+			continue;
+
+		/* Update offset relative to the start of the variable */
+		data->offset = data->addr - ops->number;
+		return DIE_FIND_CB_END;
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_find_variable_by_addr - Find variable located at given address
+ * @sc_die: a scope DIE
+ * @pc: the program address to find
+ * @addr: the data address to find
+ * @die_mem: a buffer to save the resulting DIE
+ * @offset: the offset in the resulting type
+ *
+ * Find the variable DIE located at the given address (in PC-relative mode).
+ * This is usually for global variables.
+ */
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
+				     Dwarf_Addr addr, Dwarf_Die *die_mem,
+				     int *offset)
+{
+	struct find_var_data data = {
+		.pc = pc,
+		.addr = addr,
+	};
+	Dwarf_Die *result;
+
+	result = die_find_child(sc_die, __die_find_var_addr_cb, &data, die_mem);
+	if (result)
+		*offset = data.offset;
+	return result;
 }
 #endif
 

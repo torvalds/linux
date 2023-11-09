@@ -141,6 +141,11 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
 				    Dwarf_Die *die_mem);
 
+/* Find a (global) variable located in the 'addr' */
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
+				     Dwarf_Addr addr, Dwarf_Die *die_mem,
+				     int *offset);
+
 #else /*  HAVE_DWARF_GETLOCATIONS_SUPPORT */
 
 static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
@@ -154,6 +159,15 @@ static inline Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die __maybe_unus
 						  Dwarf_Addr pc __maybe_unused,
 						  int reg __maybe_unused,
 						  Dwarf_Die *die_mem __maybe_unused)
+{
+	return NULL;
+}
+
+static inline Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die __maybe_unused,
+						   Dwarf_Addr pc __maybe_unused,
+						   Dwarf_Addr addr __maybe_unused,
+						   Dwarf_Die *die_mem __maybe_unused,
+						   int *offset __maybe_unused)
 {
 	return NULL;
 }
