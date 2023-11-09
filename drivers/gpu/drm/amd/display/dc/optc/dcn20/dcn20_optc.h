@@ -26,7 +26,7 @@
 #ifndef __DC_OPTC_DCN20_H__
 #define __DC_OPTC_DCN20_H__
 
-#include "../dcn10/dcn10_optc.h"
+#include "dcn10/dcn10_optc.h"
 
 #define TG_COMMON_REG_LIST_DCN2_0(inst) \
 	TG_COMMON_REG_LIST_DCN(inst),\

@@ -28,7 +28,6 @@ DCN30 := \
 	dcn30_hubbub.o \
 	dcn30_hubp.o \
 	dcn30_dpp.o \
-	dcn30_optc.o \
 	dcn30_dccg.o \
 	dcn30_mpc.o dcn30_vpg.o \
 	dcn30_afmt.o \
