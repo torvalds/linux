@@ -116,6 +116,9 @@ struct v4l2_format32 {
  * @flags:	additional buffer management attributes (ignored unless the
  *		queue has V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS capability and
  *		configured for MMAP streaming I/O).
+ * @max_num_buffers: if V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS capability flag is set
+ *		this field indicate the maximum possible number of buffers
+ *		for this queue.
  * @reserved:	future extensions
  */
 struct v4l2_create_buffers32 {
@@ -125,7 +128,8 @@ struct v4l2_create_buffers32 {
 	struct v4l2_format32	format;
 	__u32			capabilities;
 	__u32			flags;
-	__u32			reserved[6];
+	__u32			max_num_buffers;
+	__u32			reserved[5];
 };
 
 static int get_v4l2_format32(struct v4l2_format *p64,
@@ -175,6 +179,9 @@ static int get_v4l2_create32(struct v4l2_create_buffers *p64,
 		return -EFAULT;
 	if (copy_from_user(&p64->flags, &p32->flags, sizeof(p32->flags)))
 		return -EFAULT;
+	if (copy_from_user(&p64->max_num_buffers, &p32->max_num_buffers,
+			   sizeof(p32->max_num_buffers)))
+		return -EFAULT;
 	return get_v4l2_format32(&p64->format, &p32->format);
 }
 
@@ -221,6 +228,7 @@ static int put_v4l2_create32(struct v4l2_create_buffers *p64,
 			 offsetof(struct v4l2_create_buffers32, format)) ||
 	    put_user(p64->capabilities, &p32->capabilities) ||
 	    put_user(p64->flags, &p32->flags) ||
+	    put_user(p64->max_num_buffers, &p32->max_num_buffers) ||
 	    copy_to_user(p32->reserved, p64->reserved, sizeof(p64->reserved)))
 		return -EFAULT;
 	return put_v4l2_format32(&p64->format, &p32->format);
