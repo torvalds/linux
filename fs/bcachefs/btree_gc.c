@@ -1284,7 +1284,7 @@ static int bch2_gc_done(struct bch_fs *c,
 		}
 
 		for (i = 0; i < c->replicas.nr; i++) {
-			struct bch_replicas_entry *e =
+			struct bch_replicas_entry_v1 *e =
 				cpu_replicas_entry(&c->replicas, i);
 
 			if (metadata_only &&

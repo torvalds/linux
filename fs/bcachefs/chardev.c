@@ -444,7 +444,7 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	dst_end = (void *) arg->replicas + replica_entries_bytes;
 
 	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *src_e =
+		struct bch_replicas_entry_v1 *src_e =
 			cpu_replicas_entry(&c->replicas, i);
 
 		/* check that we have enough space for one replicas entry */

@@ -235,7 +235,7 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 	}
 
 	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 		struct jset_entry_data_usage *u =
 			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),

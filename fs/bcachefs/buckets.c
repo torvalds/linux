@@ -61,7 +61,7 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 		usage->reserved += usage->persistent_reserved[i];
 
 	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
 		fs_usage_data_type_to_base(usage, e->data_type, usage->replicas[i]);
@@ -214,7 +214,7 @@ void bch2_fs_usage_to_text(struct printbuf *out,
 	}
 
 	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
 		prt_printf(out, "\t");
@@ -345,7 +345,7 @@ static void bch2_dev_usage_update_m(struct bch_fs *c, struct bch_dev *ca,
 
 static inline int __update_replicas(struct bch_fs *c,
 				    struct bch_fs_usage *fs_usage,
-				    struct bch_replicas_entry *r,
+				    struct bch_replicas_entry_v1 *r,
 				    s64 sectors)
 {
 	int idx = bch2_replicas_entry_idx(c, r);
@@ -359,7 +359,7 @@ static inline int __update_replicas(struct bch_fs *c,
 }
 
 static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
-			struct bch_replicas_entry *r, s64 sectors,
+			struct bch_replicas_entry_v1 *r, s64 sectors,
 			unsigned journal_seq, bool gc)
 {
 	struct bch_fs_usage *fs_usage;
@@ -454,7 +454,7 @@ int bch2_replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 }
 
 static inline int update_replicas_list(struct btree_trans *trans,
-					struct bch_replicas_entry *r,
+					struct bch_replicas_entry_v1 *r,
 					s64 sectors)
 {
 	struct replicas_delta_list *d;

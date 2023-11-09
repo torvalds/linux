@@ -1449,7 +1449,7 @@ struct bch_sb_field_replicas_v0 {
 	struct bch_replicas_entry_v0 entries[];
 } __packed __aligned(8);
 
-struct bch_replicas_entry {
+struct bch_replicas_entry_v1 {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			nr_required;
@@ -1461,7 +1461,7 @@ struct bch_replicas_entry {
 
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry entries[];
+	struct bch_replicas_entry_v1 entries[];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_quota: */
@@ -2210,7 +2210,7 @@ struct jset_entry_usage {
 struct jset_entry_data_usage {
 	struct jset_entry	entry;
 	__le64			v;
-	struct bch_replicas_entry r;
+	struct bch_replicas_entry_v1 r;
 } __packed;
 
 struct jset_entry_clock {

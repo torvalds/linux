@@ -237,7 +237,7 @@ struct bch_ioctl_data_event {
 
 struct bch_replicas_usage {
 	__u64			sectors;
-	struct bch_replicas_entry r;
+	struct bch_replicas_entry_v1 r;
 } __packed;
 
 static inline struct bch_replicas_usage *
