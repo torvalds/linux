@@ -8,6 +8,7 @@
 #include "buckets.h"
 #include "compress.h"
 #include "dirent.h"
+#include "disk_accounting.h"
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
@@ -603,11 +604,13 @@ int bch2_trigger_inode(struct btree_trans *trans,
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		if (nr) {
-			int ret = bch2_replicas_deltas_realloc(trans, 0);
+			struct disk_accounting_pos acc = {
+				.type = BCH_DISK_ACCOUNTING_nr_inodes
+			};
+
+			int ret = bch2_disk_accounting_mod(trans, &acc, &nr, 1);
 			if (ret)
 				return ret;
-
-			trans->fs_usage_deltas->nr_inodes += nr;
 		}
 
 		bool old_deleted = bkey_is_deleted_inode(old);

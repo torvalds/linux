@@ -251,10 +251,15 @@ struct bch_replicas_usage {
 	struct bch_replicas_entry_v1 r;
 } __packed;
 
+static inline unsigned replicas_usage_bytes(struct bch_replicas_usage *u)
+{
+	return offsetof(struct bch_replicas_usage, r) + replicas_entry_bytes(&u->r);
+}
+
 static inline struct bch_replicas_usage *
 replicas_usage_next(struct bch_replicas_usage *u)
 {
-	return (void *) u + replicas_entry_bytes(&u->r) + 8;
+	return (void *) u + replicas_usage_bytes(u);
 }
 
 /*

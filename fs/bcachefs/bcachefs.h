@@ -205,6 +205,7 @@
 #include <linux/zstd.h>
 
 #include "bcachefs_format.h"
+#include "disk_accounting_types.h"
 #include "errcode.h"
 #include "fifo.h"
 #include "nocow_locking_types.h"
@@ -672,8 +673,6 @@ struct btree_trans_buf {
 	struct btree_trans	*trans;
 };
 
-#define REPLICAS_DELTA_LIST_MAX	(1U << 16)
-
 #define BCACHEFS_ROOT_SUBVOL_INUM					\
 	((subvol_inum) { BCACHEFS_ROOT_SUBVOL,	BCACHEFS_ROOT_INO })
 
@@ -743,10 +742,11 @@ struct bch_fs {
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
 
+	struct bch_accounting_mem accounting;
+
 	struct bch_replicas_cpu replicas;
 	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
-	mempool_t		replicas_delta_pool;
 
 	struct journal_entry_res btree_root_journal_res;
 	struct journal_entry_res replicas_journal_res;

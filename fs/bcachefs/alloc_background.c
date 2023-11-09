@@ -15,6 +15,7 @@
 #include "buckets_waiting_for_journal.h"
 #include "clock.h"
 #include "debug.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "error.h"
 #include "lru.h"
@@ -760,6 +761,61 @@ static noinline int bch2_bucket_gen_update(struct btree_trans *trans,
 	return ret;
 }
 
+static inline int bch2_dev_data_type_accounting_mod(struct btree_trans *trans, struct bch_dev *ca,
+						    enum bch_data_type data_type,
+						    s64 delta_buckets,
+						    s64 delta_sectors,
+						    s64 delta_fragmented, unsigned flags)
+{
+	struct disk_accounting_pos acc = {
+		.type = BCH_DISK_ACCOUNTING_dev_data_type,
+		.dev_data_type.dev		= ca->dev_idx,
+		.dev_data_type.data_type	= data_type,
+	};
+	s64 d[3] = { delta_buckets, delta_sectors, delta_fragmented };
+
+	return bch2_disk_accounting_mod(trans, &acc, d, 3);
+}
+
+int bch2_alloc_key_to_dev_counters(struct btree_trans *trans, struct bch_dev *ca,
+				   const struct bch_alloc_v4 *old,
+				   const struct bch_alloc_v4 *new,
+				   unsigned flags)
+{
+	s64 old_sectors = bch2_bucket_sectors(*old);
+	s64 new_sectors = bch2_bucket_sectors(*new);
+	if (old->data_type != new->data_type) {
+		int ret = bch2_dev_data_type_accounting_mod(trans, ca, new->data_type,
+				 1,  new_sectors,  bch2_bucket_sectors_fragmented(ca, *new), flags) ?:
+			  bch2_dev_data_type_accounting_mod(trans, ca, old->data_type,
+				-1, -old_sectors, -bch2_bucket_sectors_fragmented(ca, *old), flags);
+		if (ret)
+			return ret;
+	} else if (old_sectors != new_sectors) {
+		int ret = bch2_dev_data_type_accounting_mod(trans, ca, new->data_type,
+					 0,
+					 new_sectors - old_sectors,
+					 bch2_bucket_sectors_fragmented(ca, *new) -
+					 bch2_bucket_sectors_fragmented(ca, *old), flags);
+		if (ret)
+			return ret;
+	}
+
+	s64 old_unstriped = bch2_bucket_sectors_unstriped(*old);
+	s64 new_unstriped = bch2_bucket_sectors_unstriped(*new);
+	if (old_unstriped != new_unstriped) {
+		int ret = bch2_dev_data_type_accounting_mod(trans, ca, BCH_DATA_unstriped,
+					 !!new_unstriped - !!old_unstriped,
+					 new_unstriped - old_unstriped,
+					 0,
+					 flags);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int bch2_trigger_alloc(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s new,
@@ -835,18 +891,17 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				goto err;
 		}
 
-		/*
-		 * need to know if we're getting called from the invalidate path or
-		 * not:
-		 */
-
 		if ((flags & BTREE_TRIGGER_bucket_invalidate) &&
 		    old_a->cached_sectors) {
-			ret = bch2_update_cached_sectors_list(trans, new.k->p.inode,
-							      -((s64) old_a->cached_sectors));
+			ret = bch2_mod_dev_cached_sectors(trans, ca->dev_idx,
+					 -((s64) old_a->cached_sectors));
 			if (ret)
 				goto err;
 		}
+
+		ret = bch2_alloc_key_to_dev_counters(trans, ca, old_a, new_a, flags);
+		if (ret)
+			goto err;
 	}
 
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
@@ -886,18 +941,16 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			}
 		}
 
-		percpu_down_read(&c->mark_lock);
 		if (new_a->gen != old_a->gen) {
+			rcu_read_lock();
 			u8 *gen = bucket_gen(ca, new.k->p.offset);
 			if (unlikely(!gen)) {
-				percpu_up_read(&c->mark_lock);
+				rcu_read_unlock();
 				goto invalid_bucket;
 			}
 			*gen = new_a->gen;
+			rcu_read_unlock();
 		}
-
-		bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, false);
-		percpu_up_read(&c->mark_lock);
 
 #define eval_state(_a, expr)		({ const struct bch_alloc_v4 *a = _a; expr; })
 #define statechange(expr)		!eval_state(old_a, expr) && eval_state(new_a, expr)
@@ -946,6 +999,8 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 		bucket_unlock(g);
 		percpu_up_read(&c->mark_lock);
+
+		bch2_dev_usage_update(c, ca, old_a, new_a);
 	}
 err:
 	printbuf_exit(&buf);

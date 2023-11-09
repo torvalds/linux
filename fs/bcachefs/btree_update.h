@@ -29,6 +29,7 @@ void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 			"pin journal entry referred to by trans->journal_res.seq")	\
 	x(journal_reclaim, "operation required for journal reclaim; may return error"	\
 			"instead of deadlocking if BCH_WATERMARK_reclaim not specified")\
+	x(skip_accounting_apply, "we're in journal replay - accounting updates have already been applied")
 
 enum __bch_trans_commit_flags {
 	/* First bits for bch_watermark: */
@@ -207,14 +208,6 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	trans->journal_entries_u64s	= 0;
 	trans->hooks			= NULL;
 	trans->extra_disk_res		= 0;
-
-	if (trans->fs_usage_deltas) {
-		trans->fs_usage_deltas->used = 0;
-		memset((void *) trans->fs_usage_deltas +
-		       offsetof(struct replicas_delta_list, memset_start), 0,
-		       (void *) &trans->fs_usage_deltas->memset_end -
-		       (void *) &trans->fs_usage_deltas->memset_start);
-	}
 }
 
 static inline struct bkey_i *__bch2_bkey_make_mut_noupdate(struct btree_trans *trans, struct bkey_s_c k,

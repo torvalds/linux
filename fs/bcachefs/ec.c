@@ -13,6 +13,7 @@
 #include "btree_write_buffer.h"
 #include "buckets.h"
 #include "checksum.h"
+#include "disk_accounting.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
@@ -302,7 +303,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 		ret = __mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &new, flags);
 		if (!ret) {
 			alloc_to_bucket(g, new);
-			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
+			bch2_dev_usage_update(c, ca, &old, &new);
 		}
 		bucket_unlock(g);
 err_unlock:
@@ -384,21 +385,25 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 			new_s->nr_redundant	!= old_s->nr_redundant));
 
 		if (new_s) {
-			s64 sectors = le16_to_cpu(new_s->sectors);
+			s64 sectors = (u64) le16_to_cpu(new_s->sectors) * new_s->nr_redundant;
 
-			struct bch_replicas_padded r;
-			bch2_bkey_to_replicas(&r.e, new);
-			int ret = bch2_update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+			struct disk_accounting_pos acc = {
+				.type = BCH_DISK_ACCOUNTING_replicas,
+			};
+			bch2_bkey_to_replicas(&acc.replicas, new);
+			int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1);
 			if (ret)
 				return ret;
 		}
 
 		if (old_s) {
-			s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
+			s64 sectors = -((s64) le16_to_cpu(old_s->sectors)) * old_s->nr_redundant;
 
-			struct bch_replicas_padded r;
-			bch2_bkey_to_replicas(&r.e, old);
-			int ret = bch2_update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+			struct disk_accounting_pos acc = {
+				.type = BCH_DISK_ACCOUNTING_replicas,
+			};
+			bch2_bkey_to_replicas(&acc.replicas, old);
+			int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1);
 			if (ret)
 				return ret;
 		}
@@ -481,8 +486,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 			return ret;
 
 		ret = bch2_update_replicas(c, new, &m->r.e,
-				      ((s64) m->sectors * m->nr_redundant),
-				      0, true);
+				      ((s64) m->sectors * m->nr_redundant));
 		if (ret) {
 			struct printbuf buf = PRINTBUF;
 

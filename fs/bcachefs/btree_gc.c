@@ -583,7 +583,8 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k.k->version.lo > atomic64_read(&c->journal.seq));
 
-		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
+		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
+				k.k->version.lo > atomic64_read(&c->key_version), c,
 				bkey_version_in_future,
 				"key version number higher than recorded %llu\n  %s",
 				atomic64_read(&c->key_version),
@@ -915,7 +916,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 
 	if (gc.data_type != old_gc.data_type ||
 	    gc.dirty_sectors != old_gc.dirty_sectors)
-		bch2_dev_usage_update(c, ca, &old_gc, &gc, 0, true);
+		bch2_dev_usage_update(c, ca, &old_gc, &gc);
 	percpu_up_read(&c->mark_lock);
 
 	gc.fragmentation_lru = alloc_lru_idx_fragmentation(gc, ca);

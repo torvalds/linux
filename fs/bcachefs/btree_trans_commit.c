@@ -10,6 +10,7 @@
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
 #include "buckets.h"
+#include "disk_accounting.h"
 #include "errcode.h"
 #include "error.h"
 #include "journal.h"
@@ -620,6 +621,14 @@ static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 	return 0;
 }
 
+static struct bversion journal_pos_to_bversion(struct journal_res *res, unsigned offset)
+{
+	return (struct bversion) {
+		.hi = res->seq >> 32,
+		.lo = (res->seq << 32) | (res->offset + offset),
+	};
+}
+
 static inline int
 bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			       struct btree_insert_entry **stopped_at,
@@ -628,7 +637,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	struct bch_fs *c = trans->c;
 	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
-	int ret;
+	int ret = 0;
 
 	bch2_trans_verify_not_unlocked(trans);
 	bch2_trans_verify_not_in_restart(trans);
@@ -693,19 +702,36 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 				i->k->k.version = MAX_VERSION;
 	}
 
-	if (trans->fs_usage_deltas &&
-	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas))
-		return -BCH_ERR_btree_insert_need_mark_replicas;
-
-	/* XXX: we only want to run this if deltas are nonzero */
-	bch2_trans_account_disk_usage_change(trans);
-
 	h = trans->hooks;
 	while (h) {
 		ret = h->fn(trans, h);
 		if (ret)
-			goto revert_fs_usage;
+			return ret;
 		h = h->next;
+	}
+
+	struct jset_entry *entry = trans->journal_entries;
+
+	if (likely(!(flags & BCH_TRANS_COMMIT_skip_accounting_apply))) {
+		percpu_down_read(&c->mark_lock);
+
+		for (entry = trans->journal_entries;
+		     entry != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+		     entry = vstruct_next(entry))
+			if (jset_entry_is_key(entry) && entry->start->k.type == KEY_TYPE_accounting) {
+				struct bkey_i_accounting *a = bkey_i_to_accounting(entry->start);
+
+				a->k.version = journal_pos_to_bversion(&trans->journal_res,
+								(u64 *) entry - (u64 *) trans->journal_entries);
+				BUG_ON(bversion_zero(a->k.version));
+				ret = bch2_accounting_mem_mod(trans, accounting_i_to_s_c(a));
+				if (ret)
+					goto revert_fs_usage;
+			}
+		percpu_up_read(&c->mark_lock);
+
+		/* XXX: we only want to run this if deltas are nonzero */
+		bch2_trans_account_disk_usage_change(trans);
 	}
 
 	trans_for_each_update(trans, i)
@@ -776,10 +802,20 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	return 0;
 fatal_err:
-	bch2_fatal_error(c);
+	bch2_fs_fatal_error(c, "fatal error in transaction commit: %s", bch2_err_str(ret));
+	percpu_down_read(&c->mark_lock);
 revert_fs_usage:
-	if (trans->fs_usage_deltas)
-		bch2_trans_fs_usage_revert(trans, trans->fs_usage_deltas);
+	for (struct jset_entry *entry2 = trans->journal_entries;
+	     entry2 != entry;
+	     entry2 = vstruct_next(entry2))
+		if (jset_entry_is_key(entry2) && entry2->start->k.type == KEY_TYPE_accounting) {
+			struct bkey_s_accounting a = bkey_i_to_s_accounting(entry2->start);
+
+			bch2_accounting_neg(a);
+			bch2_accounting_mem_mod(trans, a.c);
+			bch2_accounting_neg(a);
+		}
+	percpu_up_read(&c->mark_lock);
 	return ret;
 }
 
@@ -929,7 +965,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		break;
 	case -BCH_ERR_btree_insert_need_mark_replicas:
 		ret = drop_locks_do(trans,
-			bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas));
+			bch2_accounting_update_sb(trans));
 		break;
 	case -BCH_ERR_journal_res_get_blocked:
 		/*
@@ -1033,8 +1069,6 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	    !trans->journal_entries_u64s)
 		goto out_reset;
 
-	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));
-
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)
 		goto out_reset;
@@ -1131,6 +1165,7 @@ retry:
 	bch2_trans_verify_not_in_restart(trans);
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
+	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));
 
 	ret = do_bch2_trans_commit(trans, flags, &errored_at, _RET_IP_);
 

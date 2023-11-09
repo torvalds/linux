@@ -5,6 +5,7 @@
 #include "backpointers.h"
 #include "btree_gc.h"
 #include "btree_node_scan.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "fsck.h"
 #include "inode.h"

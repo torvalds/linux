@@ -243,23 +243,25 @@ static bool __replicas_has_entry(struct bch_replicas_cpu *r,
 	return __replicas_entry_idx(r, search) >= 0;
 }
 
+bool bch2_replicas_marked_locked(struct bch_fs *c,
+			  struct bch_replicas_entry_v1 *search)
+{
+	verify_replicas_entry(search);
+
+	return !search->nr_devs ||
+		(__replicas_has_entry(&c->replicas, search) &&
+		 (likely((!c->replicas_gc.entries)) ||
+		  __replicas_has_entry(&c->replicas_gc, search)));
+}
+
 bool bch2_replicas_marked(struct bch_fs *c,
 			  struct bch_replicas_entry_v1 *search)
 {
-	bool marked;
-
-	if (!search->nr_devs)
-		return true;
-
-	verify_replicas_entry(search);
-
 	percpu_down_read(&c->mark_lock);
-	marked = __replicas_has_entry(&c->replicas, search) &&
-		(likely((!c->replicas_gc.entries)) ||
-		 __replicas_has_entry(&c->replicas_gc, search));
+	bool ret = bch2_replicas_marked_locked(c, search);
 	percpu_up_read(&c->mark_lock);
 
-	return marked;
+	return ret;
 }
 
 static void __replicas_table_update(struct bch_fs_usage *dst,
@@ -455,20 +457,6 @@ int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry_v1 *r)
 {
 	return likely(bch2_replicas_marked(c, r))
 		? 0 : bch2_mark_replicas_slowpath(c, r);
-}
-
-/* replicas delta list: */
-
-int bch2_replicas_delta_list_mark(struct bch_fs *c,
-				  struct replicas_delta_list *r)
-{
-	struct replicas_delta *d = r->d;
-	struct replicas_delta *top = (void *) r->d + r->used;
-	int ret = 0;
-
-	for (d = r->d; !ret && d != top; d = replicas_delta_next(d))
-		ret = bch2_mark_replicas(c, &d->r);
-	return ret;
 }
 
 /*
@@ -1046,8 +1034,6 @@ void bch2_fs_replicas_exit(struct bch_fs *c)
 	kfree(c->usage_base);
 	kfree(c->replicas.entries);
 	kfree(c->replicas_gc.entries);
-
-	mempool_exit(&c->replicas_delta_pool);
 }
 
 int bch2_fs_replicas_init(struct bch_fs *c)
@@ -1056,7 +1042,5 @@ int bch2_fs_replicas_init(struct bch_fs *c)
 			&c->replicas_journal_res,
 			reserve_journal_replicas(c, &c->replicas));
 
-	return mempool_init_kmalloc_pool(&c->replicas_delta_pool, 1,
-					 REPLICAS_DELTA_LIST_MAX) ?:
-		replicas_table_update(c, &c->replicas);
+	return replicas_table_update(c, &c->replicas);
 }

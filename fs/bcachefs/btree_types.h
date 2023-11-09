@@ -523,7 +523,6 @@ struct btree_trans {
 
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
-	struct replicas_delta_list *fs_usage_deltas;
 
 	/* Entries before this are zeroed out on every bch2_trans_get() call */
 

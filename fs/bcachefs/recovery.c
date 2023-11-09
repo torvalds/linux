@@ -139,8 +139,6 @@ static void replay_now_at(struct journal *j, u64 seq)
 static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
 					      struct journal_key *k)
 {
-	struct journal_keys *keys = &trans->c->journal_keys;
-
 	struct btree_iter iter;
 	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,
@@ -282,6 +280,7 @@ int bch2_journal_replay(struct bch_fs *c)
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc|
 				BCH_TRANS_COMMIT_journal_reclaim|
+				BCH_TRANS_COMMIT_skip_accounting_apply|
 				BCH_TRANS_COMMIT_no_journal_res,
 			     bch2_journal_replay_accounting_key(trans, k));
 		if (bch2_fs_fatal_err_on(ret, c, "error replaying accounting; %s", bch2_err_str(ret)))
@@ -312,6 +311,7 @@ int bch2_journal_replay(struct bch_fs *c)
 			commit_do(trans, NULL, NULL,
 				  BCH_TRANS_COMMIT_no_enospc|
 				  BCH_TRANS_COMMIT_journal_reclaim|
+				  BCH_TRANS_COMMIT_skip_accounting_apply|
 				  (!k->allocated ? BCH_TRANS_COMMIT_no_journal_res : 0),
 			     bch2_journal_replay_key(trans, k));
 		BUG_ON(!ret && !k->overwritten && k->k->k.type != KEY_TYPE_accounting);
@@ -342,6 +342,7 @@ int bch2_journal_replay(struct bch_fs *c)
 
 		ret = commit_do(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_skip_accounting_apply|
 				(!k->allocated
 				 ? BCH_TRANS_COMMIT_no_journal_res|BCH_WATERMARK_reclaim
 				 : 0),
@@ -1050,9 +1051,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc_fake(c, i, 0);
 
-	for_each_member_device(c, ca)
-		bch2_dev_usage_init(ca);
-
 	ret = bch2_fs_journal_alloc(c);
 	if (ret)
 		goto err;
@@ -1068,6 +1066,15 @@ int bch2_fs_initialize(struct bch_fs *c)
 	ret = bch2_fs_read_write_early(c);
 	if (ret)
 		goto err;
+
+	for_each_member_device(c, ca) {
+		ret = bch2_dev_usage_init(ca);
+		bch_err_msg(c, ret, "initializing device usage");
+		if (ret) {
+			bch2_dev_put(ca);
+			goto err;
+		}
+	}
 
 	/*
 	 * Write out the superblock and journal buckets, now that we can do

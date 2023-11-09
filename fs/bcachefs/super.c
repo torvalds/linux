@@ -25,6 +25,7 @@
 #include "clock.h"
 #include "compress.h"
 #include "debug.h"
+#include "disk_accounting.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "errcode.h"
@@ -536,6 +537,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
 	bch2_free_pending_node_rewrites(c);
+	bch2_fs_accounting_exit(c);
 	bch2_fs_sb_errors_exit(c);
 	bch2_fs_counters_exit(c);
 	bch2_fs_snapshots_exit(c);
@@ -1615,7 +1617,8 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
 					BTREE_TRIGGER_norun, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
-					BTREE_TRIGGER_norun, NULL);
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_dev_usage_remove(c, ca->dev_idx);
 	bch_err_msg(c, ret, "removing dev alloc info");
 	return ret;
 }
@@ -1652,6 +1655,16 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	if (ret)
 		goto err;
 
+	/*
+	 * We need to flush the entire journal to get rid of keys that reference
+	 * the device being removed before removing the superblock entry
+	 */
+	bch2_journal_flush_all_pins(&c->journal);
+
+	/*
+	 * this is really just needed for the bch2_replicas_gc_(start|end)
+	 * calls, and could be cleaned up:
+	 */
 	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
 	bch_err_msg(ca, ret, "bch2_journal_flush_device_pins()");
 	if (ret)
@@ -1693,17 +1706,6 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	wait_for_completion(&ca->ref_completion);
 
 	bch2_dev_free(ca);
-
-	/*
-	 * At this point the device object has been removed in-core, but the
-	 * on-disk journal might still refer to the device index via sb device
-	 * usage entries. Recovery fails if it sees usage information for an
-	 * invalid device. Flush journal pins to push the back of the journal
-	 * past now invalid device index references before we update the
-	 * superblock, but after the device object has been removed so any
-	 * further journal writes elide usage info for the device.
-	 */
-	bch2_journal_flush_all_pins(&c->journal);
 
 	/*
 	 * Free this device's slot in the bch_member array - all pointers to
@@ -1765,8 +1767,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		ret = -ENOMEM;
 		goto err;
 	}
-
-	bch2_dev_usage_init(ca);
 
 	ret = __bch2_dev_attach_bdev(ca, &sb);
 	if (ret)
@@ -1850,6 +1850,10 @@ have_slot:
 	mutex_unlock(&c->sb_lock);
 
 	bch2_dev_usage_journal_reserve(c);
+
+	ret = bch2_dev_usage_init(ca);
+	if (ret)
+		goto err_late;
 
 	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
 	bch_err_msg(ca, ret, "marking new superblock");
@@ -2021,15 +2025,18 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	mutex_unlock(&c->sb_lock);
 
 	if (ca->mi.freespace_initialized) {
-		ret = bch2_dev_freespace_init(c, ca, old_nbuckets, nbuckets);
+		struct disk_accounting_pos acc = {
+			.type = BCH_DISK_ACCOUNTING_dev_data_type,
+			.dev_data_type.dev = ca->dev_idx,
+			.dev_data_type.data_type = BCH_DATA_free,
+		};
+		u64 v[3] = { nbuckets - old_nbuckets, 0, 0 };
+
+		ret   = bch2_dev_freespace_init(c, ca, old_nbuckets, nbuckets) ?:
+			bch2_trans_do(ca->fs, NULL, NULL, 0,
+				bch2_disk_accounting_mod(trans, &acc, v, ARRAY_SIZE(v)));
 		if (ret)
 			goto err;
-
-		/*
-		 * XXX: this is all wrong transactionally - we'll be able to do
-		 * this correctly after the disk space accounting rewrite
-		 */
-		ca->usage_base->d[BCH_DATA_free].buckets += nbuckets - old_nbuckets;
 	}
 
 	bch2_recalc_capacity(c);

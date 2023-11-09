@@ -3240,15 +3240,6 @@ void bch2_trans_put(struct btree_trans *trans)
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 	}
 
-	if (trans->fs_usage_deltas) {
-		if (trans->fs_usage_deltas->size + sizeof(trans->fs_usage_deltas) ==
-		    REPLICAS_DELTA_LIST_MAX)
-			mempool_free(trans->fs_usage_deltas,
-				     &c->replicas_delta_pool);
-		else
-			kfree(trans->fs_usage_deltas);
-	}
-
 	if (unlikely(trans->journal_replay_not_finished))
 		bch2_journal_keys_put(c);
 
