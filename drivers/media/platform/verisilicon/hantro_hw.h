@@ -40,6 +40,8 @@
 
 #define AV1_MAX_FRAME_BUF_COUNT	(V4L2_AV1_TOTAL_REFS_PER_FRAME + 1)
 
+#define MAX_POSTPROC_BUFFERS	64
+
 struct hantro_dev;
 struct hantro_ctx;
 struct hantro_buf;
@@ -336,7 +338,7 @@ struct hantro_av1_dec_hw_ctx {
  * @dec_q:		References buffers, in decoder format.
  */
 struct hantro_postproc_ctx {
-	struct hantro_aux_buf dec_q[VB2_MAX_FRAME];
+	struct hantro_aux_buf dec_q[MAX_POSTPROC_BUFFERS];
 };
 
 /**
