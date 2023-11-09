@@ -668,7 +668,7 @@ v4l2_m2m_next_dst_buf(struct v4l2_m2m_ctx *m2m_ctx)
 struct vb2_v4l2_buffer *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx);
 
 /**
- * v4l2_m2m_last_src_buf() - return last destination buffer from the list of
+ * v4l2_m2m_last_src_buf() - return last source buffer from the list of
  * ready buffers
  *
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
