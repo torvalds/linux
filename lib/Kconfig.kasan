@@ -134,7 +134,7 @@ endchoice
 choice
 	prompt "Instrumentation type"
 	depends on KASAN_GENERIC || KASAN_SW_TAGS
-	default KASAN_OUTLINE
+	default KASAN_INLINE if !ARCH_DISABLE_KASAN_INLINE
 
 config KASAN_OUTLINE
 	bool "Outline instrumentation"
