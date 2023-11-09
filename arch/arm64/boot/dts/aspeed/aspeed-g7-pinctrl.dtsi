@@ -599,4 +599,233 @@
 		groups = "DI2C15";
 	};
 
+	pinctrl_ncts0_default: ncts0_default {
+		function = "UART0";
+		groups = "NCTS0";
+	};
+
+	pinctrl_ndcd0_default: ndcd0_default {
+		function = "UART0";
+		groups = "NDCD0";
+	};
+
+	pinctrl_ndsr0_default: ndsr0_default {
+		function = "UART0";
+		groups = "NDSR0";
+	};
+
+	pinctrl_nri0_default: nri0_default {
+		function = "UART0";
+		groups = "NRI0";
+	};
+
+	pinctrl_ndtr0_default: ndtr0_default {
+		function = "UART0";
+		groups = "NDTR0";
+	};
+
+	pinctrl_nrts0_default: nrts0_default {
+		function = "UART0";
+		groups = "NRTS0";
+	};
+
+	pinctrl_txd0_default: txd0_default {
+		function = "UART0";
+		groups = "TXD0";
+	};
+
+	pinctrl_rxd0_default: rxd0_default {
+		function = "UART0";
+		groups = "RXD0";
+	};
+
+	pinctrl_ncts1_default: ncts1_default {
+		function = "UART1";
+		groups = "NCTS1";
+	};
+
+	pinctrl_ndcd1_default: ndcd1_default {
+		function = "UART1";
+		groups = "NDCD1";
+	};
+
+	pinctrl_ndsr1_default: ndsr1_default {
+		function = "UART1";
+		groups = "NDSR1";
+	};
+
+	pinctrl_nri1_default: nri1_default {
+		function = "UART1";
+		groups = "NRI1";
+	};
+
+	pinctrl_ndtr1_default: ndtr1_default {
+		function = "UART1";
+		groups = "NDTR1";
+	};
+
+	pinctrl_nrts1_default: nrts1_default {
+		function = "UART1";
+		groups = "NRTS1";
+	};
+
+	pinctrl_txd1_default: txd1_default {
+		function = "UART1";
+		groups = "TXD1";
+	};
+
+	pinctrl_rxd1_default: rxd1_default {
+		function = "UART1";
+		groups = "RXD1";
+	};
+
+	pinctrl_txd2_default: txd2_default {
+		function = "UART2";
+		groups = "TXD2";
+	};
+
+	pinctrl_rxd2_default: rxd2_default {
+		function = "UART2";
+		groups = "RXD2";
+	};
+
+	pinctrl_txd3_default: txd3_default {
+		function = "UART3";
+		groups = "TXD3";
+	};
+
+	pinctrl_rxd3_default: rxd3_default {
+		function = "UART3";
+		groups = "RXD3";
+	};
+
+	pinctrl_ncts5_default: ncts5_default {
+		function = "UART5";
+		groups = "NCTS5";
+	};
+
+	pinctrl_ndcd5_default: ndcd5_default {
+		function = "UART5";
+		groups = "NDCD5";
+	};
+
+	pinctrl_ndsr5_default: ndsr5_default {
+		function = "UART5";
+		groups = "NDSR5";
+	};
+
+	pinctrl_nri5_default: nri5_default {
+		function = "UART5";
+		groups = "NRI5";
+	};
+
+	pinctrl_ndtr5_default: ndtr5_default {
+		function = "UART5";
+		groups = "NDTR5";
+	};
+
+	pinctrl_nrts5_default: nrts5_default {
+		function = "UART5";
+		groups = "NRTS5";
+	};
+
+	pinctrl_txd5_default: txd5_default {
+		function = "UART5";
+		groups = "TXD5";
+	};
+
+	pinctrl_rxd5_default: rxd5_default {
+		function = "UART5";
+		groups = "RXD5";
+	};
+
+	pinctrl_ncts6_default: ncts6_default {
+		function = "UART6";
+		groups = "NCTS6";
+	};
+
+	pinctrl_ndcd6_default: ndcd6_default {
+		function = "UART6";
+		groups = "NDCD6";
+	};
+
+	pinctrl_ndsr6_default: ndsr6_default {
+		function = "UART6";
+		groups = "NDSR6";
+	};
+
+	pinctrl_nri6_default: nri6_default {
+		function = "UART6";
+		groups = "NRI6";
+	};
+
+	pinctrl_ndtr6_default: ndtr6_default {
+		function = "UART6";
+		groups = "NDTR6";
+	};
+
+	pinctrl_nrts6_default: nrts6_default {
+		function = "UART6";
+		groups = "NRTS6";
+	};
+
+	pinctrl_txd6_default: txd6_default {
+		function = "UART6";
+		groups = "TXD6";
+	};
+
+	pinctrl_rxd6_default: rxd6_default {
+		function = "UART6";
+		groups = "RXD6";
+	};
+
+	pinctrl_txd7_default: txd7_default {
+		function = "UART7";
+		groups = "TXD7";
+	};
+
+	pinctrl_rxd7_default: rxd7_default {
+		function = "UART7";
+		groups = "RXD7";
+	};
+
+	pinctrl_txd8_default: txd8_default {
+		function = "UART8";
+		groups = "TXD8";
+	};
+
+	pinctrl_rxd8_default: rxd8_default {
+		function = "UART8";
+		groups = "RXD8";
+	};
+
+	pinctrl_txd9_default: txd9_default {
+		function = "UART9";
+		groups = "TXD9";
+	};
+
+	pinctrl_rxd9_default: rxd9_default {
+		function = "UART9";
+		groups = "RXD9";
+	};
+
+	pinctrl_txd10_default: txd10_default {
+		function = "UART10";
+		groups = "TXD10";
+	};
+
+	pinctrl_rxd10_default: rxd10_default {
+		function = "UART10";
+		groups = "RXD10";
+	};
+
+	pinctrl_txd11_default: txd11_default {
+		function = "UART11";
+		groups = "TXD11";
+	};
+
+	pinctrl_rxd11_default: rxd11_default {
+		function = "UART11";
+		groups = "RXD11";
+	};
 };
