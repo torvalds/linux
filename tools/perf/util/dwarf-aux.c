@@ -1090,7 +1090,14 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
 	ret = die_get_typename(&type, buf);
-	return ret ? ret : strbuf_addstr(buf, tmp);
+	if (ret < 0) {
+		/* void pointer has no type attribute */
+		if (tag == DW_TAG_pointer_type && ret == -ENOENT)
+			return strbuf_addf(buf, "void*");
+
+		return ret;
+	}
+	return strbuf_addstr(buf, tmp);
 }
 
 /**
