@@ -676,8 +676,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 		if (unlikely(trans->journal_transaction_names))
 			journal_transaction_name(trans);
-	} else {
-		trans->journal_res.seq = c->journal.replay_journal_seq;
 	}
 
 	/*
@@ -896,7 +894,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	 * Drop journal reservation after dropping write locks, since dropping
 	 * the journal reservation may kick off a journal write:
 	 */
-	bch2_journal_res_put(&c->journal, &trans->journal_res);
+	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY)))
+		bch2_journal_res_put(&c->journal, &trans->journal_res);
 
 	return ret;
 }
@@ -1139,7 +1138,8 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	}
 retry:
 	bch2_trans_verify_not_in_restart(trans);
-	memset(&trans->journal_res, 0, sizeof(trans->journal_res));
+	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY)))
+		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
 	ret = do_bch2_trans_commit(trans, flags, &i, _RET_IP_);
 
@@ -1163,6 +1163,17 @@ err:
 	ret = bch2_trans_commit_error(trans, flags, i, ret, _RET_IP_);
 	if (ret)
 		goto out;
+
+	/*
+	 * We might have done another transaction commit in the error path -
+	 * i.e. btree write buffer flush - which will have made use of
+	 * trans->journal_res, but with BTREE_INSERT_JOURNAL_REPLAY that is how
+	 * the journal sequence number to pin is passed in - so we must restart:
+	 */
+	if (flags & BTREE_INSERT_JOURNAL_REPLAY) {
+		ret = -BCH_ERR_transaction_restart_nested;
+		goto out;
+	}
 
 	goto retry;
 }

@@ -99,6 +99,8 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	unsigned update_flags = BTREE_TRIGGER_NORUN;
 	int ret;
 
+	trans->journal_res.seq = k->journal_seq;
+
 	/*
 	 * BTREE_UPDATE_KEY_CACHE_RECLAIM disables key cache lookup/update to
 	 * keep the key cache coherent with the underlying btree. Nothing
