@@ -223,7 +223,7 @@ static int vs_drm_bind(struct device *dev)
 		goto err_put_dev;
 	}
 
-	priv->pitch_alignment = 64;
+	priv->pitch_alignment = 32;
 	priv->dma_dev = drm_dev->dev;
 	priv->dma_dev->coherent_dma_mask = dma_mask;
 	drm_dev->dev_private = priv;
