@@ -43,7 +43,9 @@ void tidss_runtime_put(struct tidss_device *tidss)
 
 	dev_dbg(tidss->dev, "%s\n", __func__);
 
-	r = pm_runtime_put_sync(tidss->dev);
+	pm_runtime_mark_last_busy(tidss->dev);
+
+	r = pm_runtime_put_autosuspend(tidss->dev);
 	WARN_ON(r < 0);
 }
 
@@ -144,6 +146,9 @@ static int tidss_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+
 #ifndef CONFIG_PM
 	/* If we don't have PM, we need to call resume manually */
 	dispc_runtime_resume(tidss->dispc);
@@ -192,6 +197,7 @@ err_runtime_suspend:
 #ifndef CONFIG_PM
 	dispc_runtime_suspend(tidss->dispc);
 #endif
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 
 	return ret;
@@ -215,6 +221,7 @@ static void tidss_remove(struct platform_device *pdev)
 	/* If we don't have PM, we need to call suspend manually */
 	dispc_runtime_suspend(tidss->dispc);
 #endif
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 
 	/* devm allocated dispc goes away with the dev so mark it NULL */
