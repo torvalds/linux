@@ -612,6 +612,8 @@ struct afs_server_entry {
 	time64_t		cb_expires_at;	/* Time at which volume-level callback expires */
 	unsigned long		flags;
 #define AFS_SE_EXCLUDED		0		/* Set if server is to be excluded in rotation */
+#define AFS_SE_VOLUME_OFFLINE	1		/* Set if volume offline notice given */
+#define AFS_SE_VOLUME_BUSY	2		/* Set if volume busy notice given */
 };
 
 struct afs_server_list {
@@ -645,10 +647,8 @@ struct afs_volume {
 #define AFS_VOLUME_UPDATING	1	/* - T if an update is in progress */
 #define AFS_VOLUME_WAIT		2	/* - T if users must wait for update */
 #define AFS_VOLUME_DELETED	3	/* - T if volume appears deleted */
-#define AFS_VOLUME_OFFLINE	4	/* - T if volume offline notice given */
-#define AFS_VOLUME_BUSY		5	/* - T if volume busy notice given */
-#define AFS_VOLUME_MAYBE_NO_IBULK 6	/* - T if some servers don't have InlineBulkStatus */
-#define AFS_VOLUME_RM_TREE	7	/* - Set if volume removed from cell->volumes */
+#define AFS_VOLUME_MAYBE_NO_IBULK 4	/* - T if some servers don't have InlineBulkStatus */
+#define AFS_VOLUME_RM_TREE	5	/* - Set if volume removed from cell->volumes */
 #ifdef CONFIG_AFS_FSCACHE
 	struct fscache_volume	*cache;		/* Caching cookie */
 #endif

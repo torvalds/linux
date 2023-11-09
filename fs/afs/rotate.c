@@ -111,7 +111,7 @@ found_interest:
 /*
  * Post volume busy note.
  */
-static void afs_busy(struct afs_volume *volume, u32 abort_code)
+static void afs_busy(struct afs_operation *op, u32 abort_code)
 {
 	const char *m;
 
@@ -122,7 +122,8 @@ static void afs_busy(struct afs_volume *volume, u32 abort_code)
 	default:		m = "busy";		break;
 	}
 
-	pr_notice("kAFS: Volume %llu '%s' is %s\n", volume->vid, volume->name, m);
+	pr_notice("kAFS: Volume %llu '%s' on server %pU is %s\n",
+		  op->volume->vid, op->volume->name, &op->server->uuid, m);
 }
 
 /*
@@ -181,6 +182,10 @@ bool afs_select_fileserver(struct afs_operation *op)
 	/* Evaluate the result of the previous operation, if there was one. */
 	switch (op->call_error) {
 	case 0:
+		clear_bit(AFS_SE_VOLUME_OFFLINE,
+			  &op->server_list->servers[op->server_index].flags);
+		clear_bit(AFS_SE_VOLUME_BUSY,
+			  &op->server_list->servers[op->server_index].flags);
 		op->cumul_error.responded = true;
 
 		/* We succeeded, but we may need to redo the op from another
@@ -314,9 +319,11 @@ bool afs_select_fileserver(struct afs_operation *op)
 			 * expected to come back but it might take a long time (could be
 			 * days).
 			 */
-			if (!test_and_set_bit(AFS_VOLUME_OFFLINE, &op->volume->flags)) {
-				afs_busy(op->volume, abort_code);
-				clear_bit(AFS_VOLUME_BUSY, &op->volume->flags);
+			if (!test_and_set_bit(AFS_SE_VOLUME_OFFLINE,
+					      &op->server_list->servers[op->server_index].flags)) {
+				afs_busy(op, abort_code);
+				clear_bit(AFS_SE_VOLUME_BUSY,
+					  &op->server_list->servers[op->server_index].flags);
 			}
 			if (op->flags & AFS_OPERATION_NO_VSLEEP) {
 				afs_op_set_error(op, -EADV);
@@ -343,9 +350,11 @@ bool afs_select_fileserver(struct afs_operation *op)
 				afs_op_set_error(op, -EBUSY);
 				goto failed;
 			}
-			if (!test_and_set_bit(AFS_VOLUME_BUSY, &op->volume->flags)) {
-				afs_busy(op->volume, abort_code);
-				clear_bit(AFS_VOLUME_OFFLINE, &op->volume->flags);
+			if (!test_and_set_bit(AFS_SE_VOLUME_BUSY,
+					      &op->server_list->servers[op->server_index].flags)) {
+				afs_busy(op, abort_code);
+				clear_bit(AFS_SE_VOLUME_OFFLINE,
+					  &op->server_list->servers[op->server_index].flags);
 			}
 		busy:
 			if (op->flags & AFS_OPERATION_CUR_ONLY) {
@@ -426,8 +435,10 @@ bool afs_select_fileserver(struct afs_operation *op)
 		default:
 			afs_op_accumulate_error(op, error, abort_code);
 		failed_but_online:
-			clear_bit(AFS_VOLUME_OFFLINE, &op->volume->flags);
-			clear_bit(AFS_VOLUME_BUSY, &op->volume->flags);
+			clear_bit(AFS_SE_VOLUME_OFFLINE,
+				  &op->server_list->servers[op->server_index].flags);
+			clear_bit(AFS_SE_VOLUME_BUSY,
+				  &op->server_list->servers[op->server_index].flags);
 			goto failed;
 		}
 
