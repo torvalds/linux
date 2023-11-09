@@ -37,16 +37,14 @@ prototype in a header for the wrapper kfunc.
 An example is given below::
 
         /* Disables missing prototype warnings */
-        __diag_push();
-        __diag_ignore_all("-Wmissing-prototypes",
-                          "Global kfuncs as their definitions will be in BTF");
+        __bpf_kfunc_start_defs();
 
         __bpf_kfunc struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
         {
                 return find_get_task_by_vpid(nr);
         }
 
-        __diag_pop();
+        __bpf_kfunc_end_defs();
 
 A wrapper kfunc is often needed when we need to annotate parameters of the
 kfunc. Otherwise one may directly make the kfunc visible to the BPF program by

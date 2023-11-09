@@ -1685,20 +1685,16 @@ struct file *__sys_socket_file(int family, int type, int protocol)
  *	Therefore, __weak is needed to ensure that the call is still
  *	emitted, by telling the compiler that we don't know what the
  *	function might eventually be.
- *
- *	__diag_* below are needed to dismiss the missing prototype warning.
  */
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "A fmod_ret entry point for BPF programs");
+__bpf_hook_start();
 
 __weak noinline int update_socket_protocol(int family, int type, int protocol)
 {
 	return protocol;
 }
 
-__diag_pop();
+__bpf_hook_end();
 
 int __sys_socket(int family, int type, int protocol)
 {
