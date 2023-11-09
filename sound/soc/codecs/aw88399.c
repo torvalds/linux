@@ -15,7 +15,6 @@
 #include <sound/soc.h>
 #include "aw88399.h"
 #include "aw88395/aw88395_device.h"
-#include "aw88395/aw88395_reg.h"
 
 static const struct regmap_config aw88399_remap_config = {
 	.val_bits = 16,
