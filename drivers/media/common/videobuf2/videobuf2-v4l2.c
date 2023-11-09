@@ -615,11 +615,22 @@ static const struct vb2_buf_ops v4l2_buf_ops = {
 struct vb2_buffer *vb2_find_buffer(struct vb2_queue *q, u64 timestamp)
 {
 	unsigned int i;
+	struct vb2_buffer *vb2;
 
-	for (i = 0; i < q->num_buffers; i++)
-		if (q->bufs[i]->copied_timestamp &&
-		    q->bufs[i]->timestamp == timestamp)
-			return vb2_get_buffer(q, i);
+	/*
+	 * This loop doesn't scale if there is a really large number of buffers.
+	 * Maybe something more efficient will be needed in this case.
+	 */
+	for (i = 0; i < q->num_buffers; i++) {
+		vb2 = vb2_get_buffer(q, i);
+
+		if (!vb2)
+			continue;
+
+		if (vb2->copied_timestamp &&
+		    vb2->timestamp == timestamp)
+			return vb2;
+	}
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(vb2_find_buffer);
@@ -647,11 +658,12 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EINVAL;
 	}
 
-	if (b->index >= q->num_buffers) {
-		dprintk(q, 1, "buffer index out of range\n");
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
 		return -EINVAL;
 	}
-	vb = q->bufs[b->index];
+
 	ret = __verify_planes_array(vb, b);
 	if (!ret)
 		vb2_core_querybuf(q, vb, b);
@@ -721,11 +733,11 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 	if (b->flags & V4L2_BUF_FLAG_REQUEST_FD)
 		return -EINVAL;
 
-	if (b->index >= q->num_buffers) {
-		dprintk(q, 1, "buffer index out of range\n");
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
 		return -EINVAL;
 	}
-	vb = q->bufs[b->index];
 
 	ret = vb2_queue_or_prepare_buf(q, mdev, vb, b, true, NULL);
 
@@ -809,7 +821,11 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 		dprintk(q, 1, "buffer index out of range\n");
 		return -EINVAL;
 	}
-	vb = q->bufs[b->index];
+	vb = vb2_get_buffer(q, b->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", b->index);
+		return -EINVAL;
+	}
 
 	ret = vb2_queue_or_prepare_buf(q, mdev, vb, b, false, &req);
 	if (ret)
@@ -880,7 +896,11 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 		dprintk(q, 1, "buffer index out of range\n");
 		return -EINVAL;
 	}
-	vb = q->bufs[eb->index];
+	vb = vb2_get_buffer(q, eb->index);
+	if (!vb) {
+		dprintk(q, 1, "can't find the requested buffer %u\n", eb->index);
+		return -EINVAL;
+	}
 
 	return vb2_core_expbuf(q, &eb->fd, eb->type, vb,
 				eb->plane, eb->flags);
