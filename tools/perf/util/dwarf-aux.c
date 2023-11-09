@@ -1425,3 +1425,56 @@ void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
 
 	*entrypc = postprologue_addr;
 }
+
+/* Internal parameters for __die_find_scope_cb() */
+struct find_scope_data {
+	/* Target instruction address */
+	Dwarf_Addr pc;
+	/* Number of scopes found [output] */
+	int nr;
+	/* Array of scopes found, 0 for the outermost one. [output] */
+	Dwarf_Die *scopes;
+};
+
+static int __die_find_scope_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct find_scope_data *data = arg;
+
+	if (dwarf_haspc(die_mem, data->pc)) {
+		Dwarf_Die *tmp;
+
+		tmp = realloc(data->scopes, (data->nr + 1) * sizeof(*tmp));
+		if (tmp == NULL)
+			return DIE_FIND_CB_END;
+
+		memcpy(tmp + data->nr, die_mem, sizeof(*die_mem));
+		data->scopes = tmp;
+		data->nr++;
+		return DIE_FIND_CB_CHILD;
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_get_scopes - Return a list of scopes including the address
+ * @cu_die: a compile unit DIE
+ * @pc: the address to find
+ * @scopes: the array of DIEs for scopes (result)
+ *
+ * This function does the same as the dwarf_getscopes() but doesn't follow
+ * the origins of inlined functions.  It returns the number of scopes saved
+ * in the @scopes argument.  The outer scope will be saved first (index 0) and
+ * the last one is the innermost scope at the @pc.
+ */
+int die_get_scopes(Dwarf_Die *cu_die, Dwarf_Addr pc, Dwarf_Die **scopes)
+{
+	struct find_scope_data data = {
+		.pc = pc,
+	};
+	Dwarf_Die die_mem;
+
+	die_find_child(cu_die, __die_find_scope_cb, &data, &die_mem);
+
+	*scopes = data.scopes;
+	return data.nr;
+}
