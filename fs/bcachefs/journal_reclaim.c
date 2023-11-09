@@ -374,14 +374,16 @@ static inline void bch2_journal_pin_set_locked(struct journal *j, u64 seq,
 {
 	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
 
+	/*
+	 * flush_fn is how we identify journal pins in debugfs, so must always
+	 * exist, even if it doesn't do anything:
+	 */
+	BUG_ON(!flush_fn);
+
 	atomic_inc(&pin_list->count);
 	pin->seq	= seq;
 	pin->flush	= flush_fn;
-
-	if (flush_fn)
-		list_add(&pin->list, &pin_list->list[type]);
-	else
-		list_add(&pin->list, &pin_list->flushed);
+	list_add(&pin->list, &pin_list->list[type]);
 }
 
 void bch2_journal_pin_copy(struct journal *j,

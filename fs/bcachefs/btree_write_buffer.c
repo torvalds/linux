@@ -11,6 +11,9 @@
 
 #include <linux/sort.h>
 
+static int bch2_btree_write_buffer_journal_flush(struct journal *,
+				struct journal_entry_pin *, u64);
+
 static int btree_write_buffered_key_cmp(const void *_l, const void *_r)
 {
 	const struct btree_write_buffered_key *l = _l;
@@ -150,7 +153,8 @@ int __bch2_btree_write_buffer_flush(struct btree_trans *trans, unsigned commit_f
 	if (!locked && !mutex_trylock(&wb->flush_lock))
 		return 0;
 
-	bch2_journal_pin_copy(j, &pin, &wb->journal_pin, NULL);
+	bch2_journal_pin_copy(j, &pin, &wb->journal_pin,
+			      bch2_btree_write_buffer_journal_flush);
 	bch2_journal_pin_drop(j, &wb->journal_pin);
 
 	s = btree_write_buffer_switch(wb);
@@ -252,16 +256,8 @@ slowpath:
 		if (!i->journal_seq)
 			continue;
 
-		if (i->journal_seq > pin.seq) {
-			struct journal_entry_pin pin2;
-
-			memset(&pin2, 0, sizeof(pin2));
-
-			bch2_journal_pin_add(j, i->journal_seq, &pin2, NULL);
-			bch2_journal_pin_drop(j, &pin);
-			bch2_journal_pin_copy(j, &pin, &pin2, NULL);
-			bch2_journal_pin_drop(j, &pin2);
-		}
+		bch2_journal_pin_update(j, i->journal_seq, &pin,
+			      bch2_btree_write_buffer_journal_flush);
 
 		ret = commit_do(trans, NULL, NULL,
 				commit_flags|

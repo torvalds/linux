@@ -840,6 +840,12 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 	return -EINVAL;
 }
 
+static int bch2_trans_commit_journal_pin_flush(struct journal *j,
+				struct journal_entry_pin *_pin, u64 seq)
+{
+	return 0;
+}
+
 /*
  * Get journal reservation, take write locks, and attempt to do btree update(s):
  */
@@ -883,7 +889,8 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 
 	if (!ret && trans->journal_pin)
 		bch2_journal_pin_add(&c->journal, trans->journal_res.seq,
-				     trans->journal_pin, NULL);
+				     trans->journal_pin,
+				     bch2_trans_commit_journal_pin_flush);
 
 	/*
 	 * Drop journal reservation after dropping write locks, since dropping
