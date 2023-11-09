@@ -402,7 +402,6 @@ static int atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops atmel_pwm_ops = {
 	.apply = atmel_pwm_apply,
 	.get_state = atmel_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct atmel_pwm_data atmel_sam9rl_pwm_data = {
@@ -547,7 +546,7 @@ disable_clk:
 static struct platform_driver atmel_pwm_driver = {
 	.driver = {
 		.name = "atmel-pwm",
-		.of_match_table = of_match_ptr(atmel_pwm_dt_ids),
+		.of_match_table = atmel_pwm_dt_ids,
 	},
 	.probe = atmel_pwm_probe,
 };

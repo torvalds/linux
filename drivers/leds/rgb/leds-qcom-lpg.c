@@ -1085,7 +1085,6 @@ static const struct pwm_ops lpg_pwm_ops = {
 	.request = lpg_pwm_request,
 	.apply = lpg_pwm_apply,
 	.get_state = lpg_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int lpg_add_pwm(struct lpg *lpg)
