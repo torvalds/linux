@@ -725,64 +725,11 @@ static int geni_i2c_prepare(struct geni_i2c_dev *gi2c)
 	return 0;
 }
 
-static irqreturn_t geni_i2c_irq(int irq, void *dev)
+static void geni_i2c_irq_handle_watermark(struct geni_i2c_dev *gi2c, u32 m_stat)
 {
-	struct geni_i2c_dev *gi2c = dev;
-	int i, j;
-	bool is_clear_watermark = false;
-	bool m_cancel_done = false;
-	u32 m_stat = readl_relaxed(gi2c->base + SE_GENI_M_IRQ_STATUS);
-	u32 rx_st = readl_relaxed(gi2c->base + SE_GENI_RX_FIFO_STATUS);
-	u32 dm_tx_st = readl_relaxed(gi2c->base + SE_DMA_TX_IRQ_STAT);
-	u32 dm_rx_st = readl_relaxed(gi2c->base + SE_DMA_RX_IRQ_STAT);
-	u32 dma = readl_relaxed(gi2c->base + SE_GENI_DMA_MODE_EN);
 	struct i2c_msg *cur = gi2c->cur;
-
-	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-		    "%s: m_irq_status:0x%x\n", __func__, m_stat);
-
-	if (!cur) {
-		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
-		geni_i2c_err(gi2c, GENI_SPURIOUS_IRQ);
-		gi2c->cmd_done = true;
-		is_clear_watermark = true;
-		goto irqret;
-	}
-
-	if ((m_stat & M_CMD_FAILURE_EN) ||
-		(dm_rx_st & (DM_I2C_CB_ERR)) ||
-		(m_stat & M_CMD_CANCEL_EN) ||
-		(m_stat & M_CMD_ABORT_EN) ||
-		(m_stat & M_GP_IRQ_1_EN) ||
-		(m_stat & M_GP_IRQ_3_EN) ||
-		(m_stat & M_GP_IRQ_4_EN)) {
-
-		if (m_stat & M_GP_IRQ_1_EN) {
-			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
-				geni_i2c_err(gi2c, I2C_DATA_NACK);
-			else
-				geni_i2c_err(gi2c, I2C_ADDR_NACK);
-		}
-		if (m_stat & M_GP_IRQ_3_EN)
-			geni_i2c_err(gi2c, I2C_BUS_PROTO);
-		if (m_stat & M_GP_IRQ_4_EN)
-			geni_i2c_err(gi2c, I2C_ARB_LOST);
-		if (m_stat & M_CMD_OVERRUN_EN)
-			geni_i2c_err(gi2c, GENI_OVERRUN);
-		if (m_stat & M_ILLEGAL_CMD_EN)
-			geni_i2c_err(gi2c, GENI_ILLEGAL_CMD);
-		if (m_stat & M_CMD_ABORT_EN)
-			geni_i2c_err(gi2c, GENI_ABORT_DONE);
-		if (m_stat & M_CMD_FAILURE_EN)
-			geni_i2c_err(gi2c, GENI_M_CMD_FAILURE);
-		if (m_stat & M_CMD_CANCEL_EN) {
-			geni_i2c_err(gi2c, GENI_M_CANCEL_DONE);
-			m_cancel_done = true;
-		}
-		gi2c->cmd_done = true;
-		is_clear_watermark = true;
-		goto irqret;
-	}
+	int i, j;
+	u32 rx_st = readl_relaxed(gi2c->base + SE_GENI_RX_FIFO_STATUS);
 
 	if (((m_stat & M_RX_FIFO_WATERMARK_EN) ||
 		(m_stat & M_RX_FIFO_LAST_EN)) && (cur->flags & I2C_M_RD)) {
@@ -817,15 +764,74 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 			dev_dbg(gi2c->dev, "FIFO i:%d,wrote 0x%x\n", i, temp);
 			if (gi2c->cur_wr == cur->len) {
 				dev_dbg(gi2c->dev, "FIFO i2c bytes done writing\n");
-				writel_relaxed(0,
-				(gi2c->base + SE_GENI_TX_WATERMARK_REG));
+				writel_relaxed(0, (gi2c->base + SE_GENI_TX_WATERMARK_REG));
 				break;
 			}
 		}
 	} else {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
-			   "%s: m_irq_status:0x%x cur->flags:%d\n", __func__, m_stat, cur->flags);
+			"%s: m_irq_status:0x%x cur->flags:%d\n", __func__, m_stat, cur->flags);
 	}
+}
+
+static irqreturn_t geni_i2c_irq(int irq, void *dev)
+{
+	struct geni_i2c_dev *gi2c = dev;
+	bool is_clear_watermark = false;
+	bool m_cancel_done = false;
+	u32 m_stat = readl_relaxed(gi2c->base + SE_GENI_M_IRQ_STATUS);
+	u32 dm_tx_st = readl_relaxed(gi2c->base + SE_DMA_TX_IRQ_STAT);
+	u32 dm_rx_st = readl_relaxed(gi2c->base + SE_DMA_RX_IRQ_STAT);
+	u32 dma = readl_relaxed(gi2c->base + SE_GENI_DMA_MODE_EN);
+	struct i2c_msg *cur = gi2c->cur;
+
+	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
+		    "%s: m_irq_status:0x%x\n", __func__, m_stat);
+
+	if (!cur) {
+		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
+		geni_i2c_err(gi2c, GENI_SPURIOUS_IRQ);
+		gi2c->cmd_done = true;
+		is_clear_watermark = true;
+		goto irqret;
+	}
+
+	if ((m_stat & M_CMD_FAILURE_EN) ||
+		(dm_rx_st & (DM_I2C_CB_ERR)) ||
+		(m_stat & M_CMD_CANCEL_EN) ||
+		(m_stat & M_CMD_ABORT_EN) ||
+		(m_stat & M_GP_IRQ_1_EN) ||
+		(m_stat & M_GP_IRQ_3_EN) ||
+		(m_stat & M_GP_IRQ_4_EN)) {
+		if (m_stat & M_GP_IRQ_1_EN) {
+			if (readl_relaxed(gi2c->base + SE_GENI_M_GP_LENGTH))
+				geni_i2c_err(gi2c, I2C_DATA_NACK);
+			else
+				geni_i2c_err(gi2c, I2C_ADDR_NACK);
+		}
+		if (m_stat & M_GP_IRQ_3_EN)
+			geni_i2c_err(gi2c, I2C_BUS_PROTO);
+		if (m_stat & M_GP_IRQ_4_EN)
+			geni_i2c_err(gi2c, I2C_ARB_LOST);
+		if (m_stat & M_CMD_OVERRUN_EN)
+			geni_i2c_err(gi2c, GENI_OVERRUN);
+		if (m_stat & M_ILLEGAL_CMD_EN)
+			geni_i2c_err(gi2c, GENI_ILLEGAL_CMD);
+		if (m_stat & M_CMD_ABORT_EN)
+			geni_i2c_err(gi2c, GENI_ABORT_DONE);
+		if (m_stat & M_CMD_FAILURE_EN)
+			geni_i2c_err(gi2c, GENI_M_CMD_FAILURE);
+		if (m_stat & M_CMD_CANCEL_EN) {
+			geni_i2c_err(gi2c, GENI_M_CANCEL_DONE);
+			m_cancel_done = true;
+		}
+		gi2c->cmd_done = true;
+		is_clear_watermark = true;
+		goto irqret;
+	}
+
+	geni_i2c_irq_handle_watermark(gi2c, m_stat);
+
 irqret:
 	if (!dma && is_clear_watermark)
 		writel_relaxed(0, (gi2c->base + SE_GENI_TX_WATERMARK_REG));
