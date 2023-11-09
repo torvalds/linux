@@ -1847,6 +1847,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			aq->card = ac;
 			aq->config = !decfg;
 			aq->chkstop = chkstop;
+			aq->se_bstate = hwinfo.bs;
 			dev = &aq->ap_dev.device;
 			dev->bus = &ap_bus_type;
 			dev->parent = &ac->ap_dev.device;
@@ -1876,6 +1877,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		}
 		/* handle state changes on already existing queue device */
 		spin_lock_bh(&aq->lock);
+		/* SE bind state */
+		aq->se_bstate = hwinfo.bs;
 		/* checkstop state */
 		if (chkstop && !aq->chkstop) {
 			/* checkstop on */

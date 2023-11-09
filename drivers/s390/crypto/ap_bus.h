@@ -194,7 +194,7 @@ struct ap_queue {
 	bool config;			/* configured state */
 	bool chkstop;			/* checkstop state */
 	ap_qid_t qid;			/* AP queue id. */
-	bool se_bound;			/* SE bound state */
+	unsigned int se_bstate;		/* SE bind state (BS) */
 	unsigned int assoc_idx;		/* SE association index */
 	int queue_count;		/* # messages currently on AP queue. */
 	int pendingq_count;		/* # requests on pendingq list. */
