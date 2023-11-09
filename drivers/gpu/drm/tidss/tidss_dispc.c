@@ -2764,7 +2764,7 @@ static void dispc_init_errata(struct dispc_device *dispc)
 static void dispc_softreset(struct dispc_device *dispc)
 {
 	u32 val;
-	int ret = 0;
+	int ret;
 
 	/* Soft reset */
 	REG_FLD_MOD(dispc, DSS_SYSCONFIG, 1, 1, 1);
