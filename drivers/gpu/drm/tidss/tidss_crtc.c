@@ -174,10 +174,6 @@ static void tidss_crtc_atomic_flush(struct drm_crtc *crtc,
 		drm_atomic_crtc_needs_modeset(crtc->state) ? "needs" : "doesn't need",
 		crtc->state->event);
 
-	/* There is nothing to do if CRTC is not going to be enabled. */
-	if (!crtc->state->active)
-		return;
-
 	/*
 	 * Flush CRTC changes with go bit only if new modeset is not
 	 * coming, so CRTC is enabled trough out the commit.
