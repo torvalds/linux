@@ -32,9 +32,9 @@ int tidss_runtime_get(struct tidss_device *tidss)
 
 	dev_dbg(tidss->dev, "%s\n", __func__);
 
-	r = pm_runtime_get_sync(tidss->dev);
+	r = pm_runtime_resume_and_get(tidss->dev);
 	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
+	return r;
 }
 
 void tidss_runtime_put(struct tidss_device *tidss)
