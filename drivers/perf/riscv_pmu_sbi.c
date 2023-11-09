@@ -687,6 +687,11 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 
 	/* Firmware counter don't support overflow yet */
 	fidx = find_first_bit(cpu_hw_evt->used_hw_ctrs, RISCV_MAX_COUNTERS);
+	if (fidx == RISCV_MAX_COUNTERS) {
+		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
+		return IRQ_NONE;
+	}
+
 	event = cpu_hw_evt->events[fidx];
 	if (!event) {
 		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
