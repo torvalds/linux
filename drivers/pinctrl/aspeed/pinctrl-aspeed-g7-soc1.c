@@ -71,31 +71,30 @@ static const int tach4_pins[] = { 12 };
 static const int tach5_pins[] = { 13 };
 static const int tach6_pins[] = { 14 };
 static const int tach7_pins[] = { 15 };
-static const int ntcs5_pins[] = { 12 };
+static const int tach8_pins[] = { 16 };
+static const int tach9_pins[] = { 17 };
+static const int ncts5_pins[] = { 12 };
 static const int ndcd5_pins[] = { 13 };
 static const int ndsr5_pins[] = { 14 };
 static const int nri5_pins[] = { 15 };
-static const int tach8_pins[] = { 16 };
-static const int tach9_pins[] = { 17 };
+static const int ndtr5_pins[] = { 16 };
+static const int nrts5_pins[] = { 17 };
 static const int tach10_pins[] = { 18 };
 static const int tach11_pins[] = { 19 };
 static const int tach12_pins[] = { 20 };
 static const int tach13_pins[] = { 21 };
 static const int tach14_pins[] = { 22 };
 static const int tach15_pins[] = { 23 };
-
-static const int ndtr5_pins[] = { 16 };
-static const int nrts5_pins[] = { 17 };
+static const int salt12_pins[] = { 18 };
+static const int salt13_pins[] = { 19 };
+static const int salt14_pins[] = { 20 };
+static const int salt15_pins[] = { 21 };
 static const int ncts6_pins[] = { 18 };
 static const int ndcd6_pins[] = { 19 };
 static const int ndsr6_pins[] = { 20 };
 static const int nri6_pins[] = { 21 };
 static const int ndtr6_pins[] = { 22 };
 static const int nrts6_pins[] = { 23 };
-static const int salt12_pins[] = { 18 };
-static const int salt13_pins[] = { 19 };
-static const int salt14_pins[] = { 20 };
-static const int salt15_pins[] = { 21 };
 static const int spim0_pins[] = { 23, 24, 25, 26, 27, 28, 29, 30};
 
 //gpiod
@@ -124,7 +123,8 @@ static const int ndsr0_pins[] = { 34 };
 static const int nri0_pins[] = { 35 };
 static const int ndtr0_pins[] = { 36 };
 static const int nrts0_pins[] = { 37 };
-static const int uart0_pins[] = { 38, 39 };
+static const int txd0_pins[] = { 38 };
+static const int rxd0_pins[] = { 39 };
 
 //GPIOF
 static const int ncts1_pins[] = { 40 };
@@ -133,37 +133,43 @@ static const int ndsr1_pins[] = { 42 };
 static const int nri1_pins[] = { 43 };
 static const int ndtr1_pins[] = { 44 };
 static const int nrts1_pins[] = { 45 };
-static const int uart1_pins[] = { 46, 47 };
+static const int txd1_pins[] = { 46 };
+static const int rxd1_pins[] = { 47 };
+
 //GPIOG
-static const int uart2_pins[] = { 48, 49 };
-static const int pwm8_pins[] = { 50 };
-static const int pwm9_pins[] = { 50 };
-static const int pwm10_pins[] = { 51 };
-static const int pwm11_pins[] = { 52 };
-static const int pwm12_pins[] = { 53 };
-static const int pwm13_pins[] = { 54 };
-static const int pwm14_pins[] = { 55 };
-static const int pwm15_pins[] = { 56 };
+static const int txd2_pins[] = { 48 };
+static const int rxd2_pins[] = { 49 };
+static const int txd3_pins[] = { 50 };
+static const int rxd3_pins[] = { 51 };
+static const int txd5_pins[] = { 52 };
+static const int rxd5_pins[] = { 53 };
+static const int txd6_pins[] = { 54 };
+static const int rxd6_pins[] = { 55 };
+static const int txd7_pins[] = { 56 };
+static const int rxd7_pins[] = { 57 };
+static const int wdtrst0n_pins[] = { 50 };
+static const int wdtrst1n_pins[] = { 51 };
+static const int wdtrst2n_pins[] = { 52 };
+static const int wdtrst3n_pins[] = { 53 };
 static const int salt0_pins[] = { 54 };
 static const int salt1_pins[] = { 55 };
 static const int salt2_pins[] = { 56 };
 static const int salt3_pins[] = { 57 };
-static const int uart3_pins[] = { 50, 51 };
+static const int pwm8_pins[] = { 50 };
+static const int pwm9_pins[] = { 51 };
+static const int pwm10_pins[] = { 52 };
+static const int pwm11_pins[] = { 53 };
+static const int pwm12_pins[] = { 54 };
+static const int pwm13_pins[] = { 55 };
+static const int pwm14_pins[] = { 56 };
+static const int pwm15_pins[] = { 57 };
 static const int spim1_pins[] = { 50, 51, 52, 53, 54, 55, 56, 57 };
-static const int uart5_pins[] = { 52, 53 };
-static const int uart6_pins[] = { 54, 55 };
-static const int wdtrst0n_pins[] = { 50 };
-static const int wdtrst1n_pins[] = { 51 };
-static const int wdtrst2n_pins[] = { 51 };
-static const int wdtrst3n_pins[] = { 51 };
 static const int wdtrst4n_pins[] = { 209 };
 static const int wdtrst5n_pins[] = { 210 };
 static const int wdtrst6n_pins[] = { 211 };
 static const int wdtrst7n_pins[] = { 58 };
 
 //GPIOH
-static const int uart7_pins[] = { 56, 57 };
-
 static const int smon0_pins[] = { 204, 205, 207, 208 };
 static const int smon1_pins[] = { 58, 59, 209, 210 };
 
@@ -249,7 +255,8 @@ static const int qspi0_pins[] = { 103, 104 };
 static const int spi0cs1_pins[] = { 105 };
 static const int spi0abr_pins[] = { 106 };
 static const int spi0wpn_pins[] = { 107 };
-static const int uart8_pins[] = { 106, 107 };
+static const int txd8_pins[] = { 106 };
+static const int rxd8_pins[] = { 107 };
 
 //GPIOO
 static const int spi1_pins[] = { 108, 109, 110 };
@@ -258,9 +265,12 @@ static const int spi1cs1_pins[] = { 113 };
 static const int spi1abr_pins[] = { 114 };
 static const int spi1wpn_pins[] = { 115 };
 
-static const int uart9_pins[] = { 108, 109 };
-static const int uart10_pins[] = { 110, 111 };
-static const int uart11_pins[] = { 112, 113 };
+static const int txd9_pins[] = { 108 };
+static const int rxd9_pins[] = { 109 };
+static const int txd10_pins[] = { 110 };
+static const int rxd10_pins[] = { 111 };
+static const int txd11_pins[] = { 112 };
+static const int rxd11_pins[] = { 113 };
 
 //GPIOP
 static const int spi2_pins[] = { 116, 117, 118, 119 };
@@ -383,7 +393,7 @@ static struct aspeed_g7_soc1_pingroup aspeed_g7_soc1_pingroups[] = {
 	PINGROUP(TACH5, tach5),
 	PINGROUP(TACH6, tach6),
 	PINGROUP(TACH7, tach7),
-	PINGROUP(NTCS5, ntcs5),
+	PINGROUP(NTCS5, ncts5),
 	PINGROUP(NDCD5, ndcd5),
 	PINGROUP(NDSR5, ndsr5),
 	PINGROUP(NRI5, nri5),
@@ -430,23 +440,48 @@ static struct aspeed_g7_soc1_pingroup aspeed_g7_soc1_pingroups[] = {
 	PINGROUP(NRI0, nri0),
 	PINGROUP(NDTR0, ndtr0),
 	PINGROUP(NRTS0, nrts0),
-	PINGROUP(UART0, uart0),
+	PINGROUP(TXD0, txd0),
+	PINGROUP(RXD0, rxd0),
 	PINGROUP(NCTS1, ncts1),
 	PINGROUP(NDCD1, ndcd1),
 	PINGROUP(NDSR1, ndsr1),
 	PINGROUP(NRI1, nri1),
 	PINGROUP(NDTR1, ndtr1),
 	PINGROUP(NRTS1, nrts1),
-	PINGROUP(UART1, uart1),
-	PINGROUP(UART2, uart2),
-	PINGROUP(UART3, uart3),
-	PINGROUP(UART5, uart5),
-	PINGROUP(UART6, uart6),
-	PINGROUP(UART7, uart7),
-	PINGROUP(UART8, uart8),
-	PINGROUP(UART9, uart9),
-	PINGROUP(UART10, uart10),
-	PINGROUP(UART11, uart11),
+	PINGROUP(TXD1, txd1),
+	PINGROUP(RXD1, rxd1),
+	PINGROUP(TXD2, txd2),
+	PINGROUP(RXD2, rxd2),
+	PINGROUP(TXD3, txd3),
+	PINGROUP(RXD3, rxd3),
+	PINGROUP(NCTS5, ncts5),
+	PINGROUP(NDCD5, ndcd5),
+	PINGROUP(NDSR5, ndsr5),
+	PINGROUP(NRI5, nri5),
+	PINGROUP(NDTR5, ndtr5),
+	PINGROUP(NRTS5, nrts5),
+	PINGROUP(TXD5, txd5),
+	PINGROUP(RXD5, rxd5),
+	PINGROUP(NCTS6, ncts6),
+	PINGROUP(NDCD6, ndcd6),
+	PINGROUP(NDSR6, ndsr6),
+	PINGROUP(NRI6, nri6),
+	PINGROUP(NDTR6, ndtr6),
+	PINGROUP(NRTS6, nrts6),
+	PINGROUP(TXD6, txd6),
+	PINGROUP(RXD6, rxd6),
+	PINGROUP(TXD6, txd6),
+	PINGROUP(RXD6, rxd6),
+	PINGROUP(TXD7, txd7),
+	PINGROUP(RXD7, rxd7),
+	PINGROUP(TXD8, txd8),
+	PINGROUP(RXD8, rxd8),
+	PINGROUP(TXD9, txd9),
+	PINGROUP(RXD9, rxd9),
+	PINGROUP(TXD10, txd10),
+	PINGROUP(RXD10, rxd10),
+	PINGROUP(TXD11, txd11),
+	PINGROUP(RXD11, rxd11),
 	PINGROUP(SPIM1, spim1),
 	PINGROUP(WDTRST0N, wdtrst0n),
 	PINGROUP(WDTRST1N, wdtrst1n),
@@ -661,29 +696,17 @@ static const char *const sios5n0_grp[] = { "SIOS5N0" };
 static const char *const siopwreqn0_grp[] = { "SIOPWREQN0" };
 static const char *const sioonctrln0_grp[] = { "SIOONCTRLN0" };
 static const char *const siopwrgd0_grp[] = { "SIOPWRGD0" };
-static const char *const ncts0_grp[] = { "NCTS0" };
-static const char *const ndcd0_grp[] = { "NDCD0" };
-static const char *const ndsr0_grp[] = { "NDSR0" };
-static const char *const nri0_grp[] = { "NRI0" };
-static const char *const ndtr0_grp[] = { "NDTR0" };
-static const char *const nrts0_grp[] = { "NRTS0" };
-static const char *const uart0_grp[] = { "UART0" };
-static const char *const ncts1_grp[] = { "NCTS1" };
-static const char *const ndcd1_grp[] = { "NDCD1" };
-static const char *const ndsr1_grp[] = { "NDSR1" };
-static const char *const nri1_grp[] = { "NRI1" };
-static const char *const ndtr1_grp[] = { "NDTR1" };
-static const char *const nrts1_grp[] = { "NRTS1" };
-static const char *const uart1_grp[] = { "UART1" };
-static const char *const uart2_grp[] = { "UART2" };
-static const char *const uart3_grp[] = { "UART3" };
-static const char *const uart5_grp[] = { "UART5" };
-static const char *const uart6_grp[] = { "UART6" };
-static const char *const uart7_grp[] = { "UART7" };
-static const char *const uart8_grp[] = { "UART8" };
-static const char *const uart9_grp[] = { "UART9" };
-static const char *const uart10_grp[] = { "UART10" };
-static const char *const uart11_grp[] = { "UART11" };
+static const char *const uart0_grp[] = { "NCTS0", "NDCD0", "NDSR0", "NRI0", "NDTR0", "NRTS0", "TXD0", "RXD0" };
+static const char *const uart1_grp[] = { "NCTS1", "NDCD1", "NDSR1", "NRI1", "NDTR1", "NRTS1", "TXD1", "RXD1" };
+static const char *const uart2_grp[] = { "TXD2", "RXD2" };
+static const char *const uart3_grp[] = { "TXD3", "RXD3" };
+static const char *const uart5_grp[] = { "NCTS5", "NDCD5", "NDSR5", "NRI5", "NDTR5", "NRTS5", "TXD5", "RXD5" };
+static const char *const uart6_grp[] = { "NCTS6", "NDCD6", "NDSR6", "NRI6", "NDTR6", "NRTS6", "TXD6", "RXD6" };
+static const char *const uart7_grp[] = { "TXD7", "RXD7" };
+static const char *const uart8_grp[] = { "TXD8", "RXD8" };
+static const char *const uart9_grp[] = { "TXD9", "RXD9" };
+static const char *const uart10_grp[] = { "TXD10", "RXD10" };
+static const char *const uart11_grp[] = { "TXD11", "RXD11" };
 static const char *const spim1_grp[] = { "SPIM1" };
 static const char *const spim2_grp[] = { "SPIM2" };
 static const char *const pwm8_grp[] = { "PWM8" };
@@ -825,12 +848,6 @@ static const char *const hbled_grp[] = { "HBLED" };
 static const char *const maclink0_grp[] = { "MACLINK0" };
 static const char *const maclink1_grp[] = { "MACLINK1" };
 static const char *const maclink2_grp[] = { "MACLINK2" };
-static const char *const ncts2_grp[] = { "NCTS2" };
-static const char *const ndcd2_grp[] = { "NDCD2" };
-static const char *const ndsr2_grp[] = { "NDSR2" };
-static const char *const nri2_grp[] = { "NRI2" };
-static const char *const ndtr2_grp[] = { "NDTR2" };
-static const char *const nrts2_grp[] = { "NRTS2" };
 static const char *const smon0_grp[] = { "SMON0" };
 static const char *const smon1_grp[] = { "SMON1" };
 
@@ -880,14 +897,6 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(SALT13, salt13),
 	IO_FUNC(SALT14, salt14),
 	IO_FUNC(SALT15, salt15),
-	IO_FUNC(NDTR5, ndtr5),
-	IO_FUNC(NRTS5, nrts5),
-	IO_FUNC(NCTS6, ncts6),
-	IO_FUNC(NDCD6, ndcd6),
-	IO_FUNC(NDSR6, ndsr6),
-	IO_FUNC(NRI6, nri6),
-	IO_FUNC(NDTR6, ndtr6),
-	IO_FUNC(NRTS6, nrts6),
 	IO_FUNC(TACH8, tach8),
 	IO_FUNC(TACH9, tach9),
 	IO_FUNC(TACH10, tach10),
@@ -913,19 +922,7 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(SIOPWREQN0, siopwreqn0),
 	IO_FUNC(SIOONCTRLN0, sioonctrln0),
 	IO_FUNC(SIOPWRGD0, siopwrgd0),
-	IO_FUNC(NCTS0, ncts0),
-	IO_FUNC(NDCD0, ndcd0),
-	IO_FUNC(NDSR0, ndsr0),
-	IO_FUNC(NRI0, nri0),
-	IO_FUNC(NDTR0, ndtr0),
-	IO_FUNC(NRTS0, nrts0),
 	IO_FUNC(UART0, uart0),
-	IO_FUNC(NCTS1, ncts1),
-	IO_FUNC(NDCD1, ndcd1),
-	IO_FUNC(NDSR1, ndsr1),
-	IO_FUNC(NRI1, nri1),
-	IO_FUNC(NDTR1, ndtr1),
-	IO_FUNC(NRTS1, nrts1),
 	IO_FUNC(UART1, uart1),
 	IO_FUNC(UART2, uart2),
 	IO_FUNC(UART3, uart3),
@@ -1068,12 +1065,6 @@ static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
 	IO_FUNC(MACLINK0, maclink0),
 	IO_FUNC(MACLINK1, maclink1),
 	IO_FUNC(MACLINK2, maclink2),
-	IO_FUNC(NCTS2, ncts2),
-	IO_FUNC(NDCD2, ndcd2),
-	IO_FUNC(NDSR2, ndsr2),
-	IO_FUNC(NRI2, nri2),
-	IO_FUNC(NDTR2, ndtr2),
-	IO_FUNC(NRTS2, nrts2),
 	IO_FUNC(SMON0, smon0),
 	IO_FUNC(SMON1, smon1),
 };
@@ -1594,12 +1585,12 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART0, SCU10, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD0, SCU10, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART0, SCU10, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD0, SCU10, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 // GPIO F
@@ -1635,28 +1626,28 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART1, SCU14, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD1, SCU14, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART1, SCU14, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD1, SCU14, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO G
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART2, SCU18, GENMASK(2, 0), 1),
+			PIN_CFG(TXD2, SCU18, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART2, SCU18, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RXD2, SCU18, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART3, SCU18, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(TXD3, SCU18, GENMASK(10, 8), (1 << 8)),
 			PIN_CFG(WDTRST0N, SCU18, GENMASK(10, 8), (2 << 8)),
 			PIN_CFG(PWM8, SCU18, GENMASK(10, 8), (3 << 8)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(10, 8), (5 << 8)),
@@ -1664,7 +1655,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART3, SCU18, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(RXD3, SCU18, GENMASK(14, 12), (1 << 12)),
 			PIN_CFG(WDTRST1N, SCU18, GENMASK(14, 12), (2 << 12)),
 			PIN_CFG(PWM9, SCU18, GENMASK(14, 12), (3 << 12)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(14, 12), (5 << 12)),
@@ -1672,7 +1663,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART5, SCU18, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(TXD5, SCU18, GENMASK(18, 16), (1 << 16)),
 			PIN_CFG(WDTRST2N, SCU18, GENMASK(18, 16), (2 << 16)),
 			PIN_CFG(PWM10, SCU18, GENMASK(18, 16), (3 << 16)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(18, 16), (5 << 16)),
@@ -1680,7 +1671,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART5, SCU18, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(RXD5, SCU18, GENMASK(22, 20), (1 << 20)),
 			PIN_CFG(WDTRST3N, SCU18, GENMASK(22, 20), (2 << 20)),
 			PIN_CFG(PWM11, SCU18, GENMASK(22, 20), (3 << 20)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(22, 20), (5 << 20)),
@@ -1688,7 +1679,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART6, SCU18, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD6, SCU18, GENMASK(26, 24), (1 << 24)),
 			PIN_CFG(SALT0, SCU18, GENMASK(26, 24), (2 << 24)),
 			PIN_CFG(PWM12, SCU18, GENMASK(26, 24), (3 << 24)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(26, 24), (5 << 24)),
@@ -1696,7 +1687,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART6, SCU18, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD6, SCU18, GENMASK(30, 28), (1 << 28)),
 			PIN_CFG(SALT1, SCU18, GENMASK(30, 28), (2 << 28)),
 			PIN_CFG(PWM13, SCU18, GENMASK(30, 28), (3 << 28)),
 			PIN_CFG(SPIM1, SCU18, GENMASK(30, 28), (5 << 28)),
@@ -1705,7 +1696,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 //GPIO H
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART7, SCU1C, GENMASK(2, 0), 1),
+			PIN_CFG(TXD7, SCU1C, GENMASK(2, 0), 1),
 			PIN_CFG(SALT2, SCU1C, GENMASK(2, 0), 2),
 			PIN_CFG(PWM14, SCU1C, GENMASK(2, 0), 3),
 			PIN_CFG(SPIM1, SCU1C, GENMASK(2, 0), 5),
@@ -1713,7 +1704,7 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(UART7, SCU1C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RXD7, SCU1C, GENMASK(6, 4), (1 << 4)),
 			PIN_CFG(SALT3, SCU1C, GENMASK(6, 4), (2 << 4)),
 			PIN_CFG(PWM15, SCU1C, GENMASK(6, 4), (3 << 4)),
 			PIN_CFG(SPIM1, SCU1C, GENMASK(6, 4), (5 << 4)),
@@ -2019,50 +2010,50 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI0ABR, SCU34, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(UART8, SCU34, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(TXD8, SCU34, GENMASK(26, 24), (3 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI0WPN, SCU34, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(UART8, SCU34, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(RXD8, SCU34, GENMASK(30, 28), (3 << 28)),
 		},
 	},
 //GPIO O
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(2, 0), 1),
-			PIN_CFG(UART9, SCU38, GENMASK(2, 0), 3),
+			PIN_CFG(TXD9, SCU38, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(UART9, SCU38, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(RXD9, SCU38, GENMASK(6, 4), (3 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1, SCU38, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(UART10, SCU38, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(TXD10, SCU38, GENMASK(10, 8), (3 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(QSPI1, SCU38, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(UART10, SCU38, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(RXD10, SCU38, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(QSPI1, SCU38, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(UART11, SCU38, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(TXD11, SCU38, GENMASK(18, 16), (3 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
 			PIN_CFG(SPI1CS1, SCU38, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(UART11, SCU38, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(RXD11, SCU38, GENMASK(22, 20), (3 << 20)),
 		},
 	},
 	{
