@@ -340,10 +340,10 @@ bool ins__is_call(const struct ins *ins)
  */
 static inline const char *validate_comma(const char *c, struct ins_operands *ops)
 {
-	if (ops->raw_comment && c > ops->raw_comment)
+	if (ops->jump.raw_comment && c > ops->jump.raw_comment)
 		return NULL;
 
-	if (ops->raw_func_start && c > ops->raw_func_start)
+	if (ops->jump.raw_func_start && c > ops->jump.raw_func_start)
 		return NULL;
 
 	return c;
@@ -359,8 +359,8 @@ static int jump__parse(struct arch *arch, struct ins_operands *ops, struct map_s
 	const char *c = strchr(ops->raw, ',');
 	u64 start, end;
 
-	ops->raw_comment = strchr(ops->raw, arch->objdump.comment_char);
-	ops->raw_func_start = strchr(ops->raw, '<');
+	ops->jump.raw_comment = strchr(ops->raw, arch->objdump.comment_char);
+	ops->jump.raw_func_start = strchr(ops->raw, '<');
 
 	c = validate_comma(c, ops);
 
@@ -462,7 +462,16 @@ static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 			 ops->target.offset);
 }
 
+static void jump__delete(struct ins_operands *ops __maybe_unused)
+{
+	/*
+	 * The ops->jump.raw_comment and ops->jump.raw_func_start belong to the
+	 * raw string, don't free them.
+	 */
+}
+
 static struct ins_ops jump_ops = {
+	.free	   = jump__delete,
 	.parse	   = jump__parse,
 	.scnprintf = jump__scnprintf,
 };

@@ -31,8 +31,6 @@ struct ins {
 
 struct ins_operands {
 	char	*raw;
-	char	*raw_comment;
-	char	*raw_func_start;
 	struct {
 		char	*raw;
 		char	*name;
@@ -52,6 +50,10 @@ struct ins_operands {
 			struct ins	    ins;
 			struct ins_operands *ops;
 		} locked;
+		struct {
+			char	*raw_comment;
+			char	*raw_func_start;
+		} jump;
 	};
 };
 
