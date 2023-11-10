@@ -1,14 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config NVME_COMMON
-       tristate
-
 config NVME_KEYRING
-       bool
+       tristate
        select KEYS
 
 config NVME_AUTH
-	bool
+	tristate
 	select CRYPTO
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
