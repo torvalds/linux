@@ -221,8 +221,8 @@ static int userspace_tramp(void *stack)
 	addr = mmap64((void *) STUB_CODE, UM_KERN_PAGE_SIZE,
 		      PROT_EXEC, MAP_FIXED | MAP_PRIVATE, fd, offset);
 	if (addr == MAP_FAILED) {
-		printk(UM_KERN_ERR "mapping mmap stub at 0x%lx failed, errno = %d\n",
-		       STUB_CODE, errno);
+		os_info("mapping mmap stub at 0x%lx failed, errno = %d\n",
+			STUB_CODE, errno);
 		exit(1);
 	}
 
@@ -231,8 +231,8 @@ static int userspace_tramp(void *stack)
 		    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
 		    MAP_FIXED | MAP_SHARED, fd, offset);
 	if (addr == MAP_FAILED) {
-		printk(UM_KERN_ERR "mapping segfault stack at 0x%lx failed, errno = %d\n",
-		       STUB_DATA, errno);
+		os_info("mapping segfault stack at 0x%lx failed, errno = %d\n",
+			STUB_DATA, errno);
 		exit(1);
 	}
 
@@ -242,8 +242,8 @@ static int userspace_tramp(void *stack)
 	sa.sa_sigaction = (void *) segv_handler;
 	sa.sa_restorer = NULL;
 	if (sigaction(SIGSEGV, &sa, NULL) < 0) {
-		printk(UM_KERN_ERR "%s - setting SIGSEGV handler failed - errno = %d\n",
-		       __func__, errno);
+		os_info("%s - setting SIGSEGV handler failed - errno = %d\n",
+			__func__, errno);
 		exit(1);
 	}
 
