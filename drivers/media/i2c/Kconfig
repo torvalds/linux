@@ -959,6 +959,18 @@ config VIDEO_AR0822
 	  To compile this driver as a module, choose M here: the
 	  module will be called ar0822.
 
+config VIDEO_AR2020
+	tristate "Onsemi AR2020 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Onsemi
+	  AR2020 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ar2020.
+
 config VIDEO_GC02M2
 	tristate "GalaxyCore GC02M2 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
