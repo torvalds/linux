@@ -515,8 +515,8 @@ void dml2_translate_socbb_params(const struct dc *in, struct soc_bounding_box_st
 	out->do_urgent_latency_adjustment = in_soc_params->do_urgent_latency_adjustment;
 	out->dram_channel_width_bytes = (dml_uint_t)in_soc_params->dram_channel_width_bytes;
 	out->fabric_datapath_to_dcn_data_return_bytes = (dml_uint_t)in_soc_params->fabric_datapath_to_dcn_data_return_bytes;
-	out->gpuvm_min_page_size_kbytes = in_soc_params->gpuvm_min_page_size_bytes * 1024;
-	out->hostvm_min_page_size_kbytes = in_soc_params->hostvm_min_page_size_bytes * 1024;
+	out->gpuvm_min_page_size_kbytes = in_soc_params->gpuvm_min_page_size_bytes / 1024;
+	out->hostvm_min_page_size_kbytes = in_soc_params->hostvm_min_page_size_bytes / 1024;
 	out->mall_allocated_for_dcn_mbytes = (dml_uint_t)in_soc_params->mall_allocated_for_dcn_mbytes;
 	out->max_avg_dram_bw_use_normal_percent = in_soc_params->max_avg_dram_bw_use_normal_percent;
 	out->max_avg_fabric_bw_use_normal_percent = in_soc_params->max_avg_fabric_bw_use_normal_percent;
