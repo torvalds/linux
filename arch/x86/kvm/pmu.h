@@ -83,6 +83,12 @@ static inline struct kvm_pmc *kvm_pmc_idx_to_pmc(struct kvm_pmu *pmu, int idx)
 	return NULL;
 }
 
+#define kvm_for_each_pmc(pmu, pmc, i, bitmap)			\
+	for_each_set_bit(i, bitmap, X86_PMC_IDX_MAX)		\
+		if (!(pmc = kvm_pmc_idx_to_pmc(pmu, i)))	\
+			continue;				\
+		else						\
+
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
