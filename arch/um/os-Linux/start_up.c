@@ -112,35 +112,20 @@ static int start_ptraced_child(void)
 	return pid;
 }
 
-/* When testing for SYSEMU support, if it is one of the broken versions, we
- * must just avoid using sysemu, not panic, but only if SYSEMU features are
- * broken.
- * So only for SYSEMU features we test mustpanic, while normal host features
- * must work anyway!
- */
-static int stop_ptraced_child(int pid, int exitcode, int mustexit)
+static void stop_ptraced_child(int pid, int exitcode)
 {
-	int status, n, ret = 0;
+	int status, n;
 
-	if (ptrace(PTRACE_CONT, pid, 0, 0) < 0) {
-		perror("stop_ptraced_child : ptrace failed");
-		return -1;
-	}
+	if (ptrace(PTRACE_CONT, pid, 0, 0) < 0)
+		fatal_perror("stop_ptraced_child : ptrace failed");
+
 	CATCH_EINTR(n = waitpid(pid, &status, 0));
 	if (!WIFEXITED(status) || (WEXITSTATUS(status) != exitcode)) {
 		int exit_with = WEXITSTATUS(status);
-		if (exit_with == 2)
-			non_fatal("check_ptrace : child exited with status 2. "
-				  "\nDisabling SYSEMU support.\n");
-		non_fatal("check_ptrace : child exited with exitcode %d, while "
-			  "expecting %d; status 0x%x\n", exit_with,
-			  exitcode, status);
-		if (mustexit)
-			exit(1);
-		ret = -1;
+		fatal("stop_ptraced_child : child exited with exitcode %d, "
+		      "while expecting %d; status 0x%x\n", exit_with,
+		      exitcode, status);
 	}
-
-	return ret;
 }
 
 static void __init check_sysemu(void)
@@ -185,16 +170,14 @@ static void __init check_sysemu(void)
 			goto fail;
 		}
 	}
-	if (stop_ptraced_child(pid, 0, 0) < 0)
-		goto fail_stopped;
+	stop_ptraced_child(pid, 0);
 
 	os_info("OK\n");
 
 	return;
 
 fail:
-	stop_ptraced_child(pid, 1, 0);
-fail_stopped:
+	stop_ptraced_child(pid, 1);
 	fatal("missing\n");
 }
 
@@ -233,7 +216,7 @@ static void __init check_ptrace(void)
 			break;
 		}
 	}
-	stop_ptraced_child(pid, 0, 1);
+	stop_ptraced_child(pid, 0);
 	os_info("OK\n");
 	check_sysemu();
 }
@@ -312,7 +295,7 @@ void __init os_early_checks(void)
 	pid = start_ptraced_child();
 	if (init_pid_registers(pid))
 		fatal("Failed to initialize default registers");
-	stop_ptraced_child(pid, 1, 1);
+	stop_ptraced_child(pid, 1);
 }
 
 int __init parse_iomem(char *str, int *add)
