@@ -1066,7 +1066,7 @@ out:
 	return err;
 }
 
-static int sab_remove(struct platform_device *op)
+static void sab_remove(struct platform_device *op)
 {
 	struct uart_sunsab_port *up = platform_get_drvdata(op);
 
@@ -1078,8 +1078,6 @@ static int sab_remove(struct platform_device *op)
 	of_iounmap(&op->resource[0],
 		   up[0].port.membase,
 		   sizeof(union sab82532_async_regs));
-
-	return 0;
 }
 
 static const struct of_device_id sab_match[] = {
@@ -1100,7 +1098,7 @@ static struct platform_driver sab_driver = {
 		.of_match_table = sab_match,
 	},
 	.probe		= sab_probe,
-	.remove		= sab_remove,
+	.remove_new	= sab_remove,
 };
 
 static int __init sunsab_init(void)
