@@ -195,16 +195,15 @@ struct dentry_operations {
 #define DCACHE_LRU_LIST			BIT(19)
 
 #define DCACHE_ENTRY_TYPE		(7 << 20) /* bits 20..22 are for storing type: */
-#define DCACHE_MISS_TYPE		(0 << 20) /* Negative dentry (maybe fallthru to nowhere) */
+#define DCACHE_MISS_TYPE		(0 << 20) /* Negative dentry */
 #define DCACHE_WHITEOUT_TYPE		(1 << 20) /* Whiteout dentry (stop pathwalk) */
 #define DCACHE_DIRECTORY_TYPE		(2 << 20) /* Normal directory */
 #define DCACHE_AUTODIR_TYPE		(3 << 20) /* Lookupless directory (presumed automount) */
-#define DCACHE_REGULAR_TYPE		(4 << 20) /* Regular file type (or fallthru to such) */
-#define DCACHE_SPECIAL_TYPE		(5 << 20) /* Other file type (or fallthru to such) */
-#define DCACHE_SYMLINK_TYPE		(6 << 20) /* Symlink (or fallthru to such) */
+#define DCACHE_REGULAR_TYPE		(4 << 20) /* Regular file type */
+#define DCACHE_SPECIAL_TYPE		(5 << 20) /* Other file type */
+#define DCACHE_SYMLINK_TYPE		(6 << 20) /* Symlink */
 
 #define DCACHE_MAY_FREE			BIT(23)
-#define DCACHE_FALLTHRU			BIT(24) /* Fall through to lower layer */
 #define DCACHE_NOKEY_NAME		BIT(25) /* Encrypted name encoded without key */
 #define DCACHE_OP_REAL			BIT(26)
 
@@ -488,14 +487,6 @@ static inline int simple_positive(const struct dentry *dentry)
 {
 	return d_really_is_positive(dentry) && !d_unhashed(dentry);
 }
-
-extern void d_set_fallthru(struct dentry *dentry);
-
-static inline bool d_is_fallthru(const struct dentry *dentry)
-{
-	return dentry->d_flags & DCACHE_FALLTHRU;
-}
-
 
 extern int sysctl_vfs_cache_pressure;
 

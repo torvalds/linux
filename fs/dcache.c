@@ -344,7 +344,7 @@ static inline void __d_set_inode_and_type(struct dentry *dentry,
 
 	dentry->d_inode = inode;
 	flags = READ_ONCE(dentry->d_flags);
-	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
+	flags &= ~DCACHE_ENTRY_TYPE;
 	flags |= type_flags;
 	smp_store_release(&dentry->d_flags, flags);
 }
@@ -353,7 +353,7 @@ static inline void __d_clear_type_and_inode(struct dentry *dentry)
 {
 	unsigned flags = READ_ONCE(dentry->d_flags);
 
-	flags &= ~(DCACHE_ENTRY_TYPE | DCACHE_FALLTHRU);
+	flags &= ~DCACHE_ENTRY_TYPE;
 	WRITE_ONCE(dentry->d_flags, flags);
 	dentry->d_inode = NULL;
 	if (dentry->d_flags & DCACHE_LRU_LIST)
@@ -1935,22 +1935,6 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 
 }
 EXPORT_SYMBOL(d_set_d_op);
-
-
-/*
- * d_set_fallthru - Mark a dentry as falling through to a lower layer
- * @dentry - The dentry to mark
- *
- * Mark a dentry as falling through to the lower layer (as set with
- * d_pin_lower()).  This flag may be recorded on the medium.
- */
-void d_set_fallthru(struct dentry *dentry)
-{
-	spin_lock(&dentry->d_lock);
-	dentry->d_flags |= DCACHE_FALLTHRU;
-	spin_unlock(&dentry->d_lock);
-}
-EXPORT_SYMBOL(d_set_fallthru);
 
 static unsigned d_flags_for_inode(struct inode *inode)
 {
