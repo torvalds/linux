@@ -16,7 +16,8 @@ static __always_inline long stub_syscall0(long syscall)
 {
 	long ret;
 
-	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall));
+	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall)
+			: "memory");
 
 	return ret;
 }
@@ -25,7 +26,8 @@ static __always_inline long stub_syscall1(long syscall, long arg1)
 {
 	long ret;
 
-	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1));
+	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1)
+			: "memory");
 
 	return ret;
 }
@@ -35,7 +37,8 @@ static __always_inline long stub_syscall2(long syscall, long arg1, long arg2)
 	long ret;
 
 	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1),
-			"c" (arg2));
+			"c" (arg2)
+			: "memory");
 
 	return ret;
 }
@@ -46,7 +49,8 @@ static __always_inline long stub_syscall3(long syscall, long arg1, long arg2,
 	long ret;
 
 	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1),
-			"c" (arg2), "d" (arg3));
+			"c" (arg2), "d" (arg3)
+			: "memory");
 
 	return ret;
 }
@@ -57,7 +61,8 @@ static __always_inline long stub_syscall4(long syscall, long arg1, long arg2,
 	long ret;
 
 	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1),
-			"c" (arg2), "d" (arg3), "S" (arg4));
+			"c" (arg2), "d" (arg3), "S" (arg4)
+			: "memory");
 
 	return ret;
 }
@@ -68,7 +73,8 @@ static __always_inline long stub_syscall5(long syscall, long arg1, long arg2,
 	long ret;
 
 	__asm__ volatile ("int $0x80" : "=a" (ret) : "0" (syscall), "b" (arg1),
-			"c" (arg2), "d" (arg3), "S" (arg4), "D" (arg5));
+			"c" (arg2), "d" (arg3), "S" (arg4), "D" (arg5)
+			: "memory");
 
 	return ret;
 }
