@@ -651,6 +651,7 @@ struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *hash)
 			err = PTR_ERR(shash);
 			goto out_free_nhash;
 		}
+		nhash->using_shash = true;
 		*nctx = shash;
 		return nhash;
 	}
