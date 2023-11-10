@@ -212,15 +212,15 @@ struct mt7996_mcu_all_sta_info_event {
 			u8 rsv[2];
 			__le32 tx_bytes[IEEE80211_NUM_ACS];
 			__le32 rx_bytes[IEEE80211_NUM_ACS];
-		} adm_stat[0];
+		} adm_stat[0] __packed;
 
 		struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
 			__le32 tx_msdu_cnt;
 			__le32 rx_msdu_cnt;
-		} msdu_cnt[0];
-	};
+		} msdu_cnt[0] __packed;
+	} __packed;
 } __packed;
 
 struct mt7996_mcu_wed_rro_event {
