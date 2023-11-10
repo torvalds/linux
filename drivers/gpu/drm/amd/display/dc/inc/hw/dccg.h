@@ -141,6 +141,11 @@ struct dccg_funcs {
 			enum physymclk_clock_source clk_src,
 			bool force_enable);
 
+	void (*set_physymclk_root_clock_gating)(
+			struct dccg *dccg,
+			int phy_inst,
+			bool enable);
+
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
 			const struct dtbclk_dto_params *params);

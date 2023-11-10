@@ -427,6 +427,7 @@ static void sdma_v4_4_2_inst_gfx_stop(struct amdgpu_device *adev,
 				      uint32_t inst_mask)
 {
 	struct amdgpu_ring *sdma[AMDGPU_MAX_SDMA_INSTANCES];
+	u32 doorbell_offset, doorbell;
 	u32 rb_cntl, ib_cntl;
 	int i, unset = 0;
 
@@ -444,6 +445,18 @@ static void sdma_v4_4_2_inst_gfx_stop(struct amdgpu_device *adev,
 		ib_cntl = RREG32_SDMA(i, regSDMA_GFX_IB_CNTL);
 		ib_cntl = REG_SET_FIELD(ib_cntl, SDMA_GFX_IB_CNTL, IB_ENABLE, 0);
 		WREG32_SDMA(i, regSDMA_GFX_IB_CNTL, ib_cntl);
+
+		if (sdma[i]->use_doorbell) {
+			doorbell = RREG32_SDMA(i, regSDMA_GFX_DOORBELL);
+			doorbell_offset = RREG32_SDMA(i, regSDMA_GFX_DOORBELL_OFFSET);
+
+			doorbell = REG_SET_FIELD(doorbell, SDMA_GFX_DOORBELL, ENABLE, 0);
+			doorbell_offset = REG_SET_FIELD(doorbell_offset,
+					SDMA_GFX_DOORBELL_OFFSET,
+					OFFSET, 0);
+			WREG32_SDMA(i, regSDMA_GFX_DOORBELL, doorbell);
+			WREG32_SDMA(i, regSDMA_GFX_DOORBELL_OFFSET, doorbell_offset);
+		}
 	}
 }
 
@@ -631,12 +644,6 @@ static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	rb_cntl = sdma_v4_4_2_rb_cntl(ring, rb_cntl);
 	WREG32_SDMA(i, regSDMA_GFX_RB_CNTL, rb_cntl);
 
-	/* Initialize the ring buffer's read and write pointers */
-	WREG32_SDMA(i, regSDMA_GFX_RB_RPTR, 0);
-	WREG32_SDMA(i, regSDMA_GFX_RB_RPTR_HI, 0);
-	WREG32_SDMA(i, regSDMA_GFX_RB_WPTR, 0);
-	WREG32_SDMA(i, regSDMA_GFX_RB_WPTR_HI, 0);
-
 	/* set the wb address whether it's enabled or not */
 	WREG32_SDMA(i, regSDMA_GFX_RB_RPTR_ADDR_HI,
 	       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
@@ -653,6 +660,12 @@ static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* before programing wptr to a less value, need set minor_ptr_update first */
 	WREG32_SDMA(i, regSDMA_GFX_MINOR_PTR_UPDATE, 1);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32_SDMA(i, regSDMA_GFX_RB_RPTR, 0);
+	WREG32_SDMA(i, regSDMA_GFX_RB_RPTR_HI, 0);
+	WREG32_SDMA(i, regSDMA_GFX_RB_WPTR, 0);
+	WREG32_SDMA(i, regSDMA_GFX_RB_WPTR_HI, 0);
 
 	doorbell = RREG32_SDMA(i, regSDMA_GFX_DOORBELL);
 	doorbell_offset = RREG32_SDMA(i, regSDMA_GFX_DOORBELL_OFFSET);
@@ -2048,7 +2061,7 @@ const struct amdgpu_ip_block_version sdma_v4_4_2_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 4,
 	.minor = 4,
-	.rev = 0,
+	.rev = 2,
 	.funcs = &sdma_v4_4_2_ip_funcs,
 };
 

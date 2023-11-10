@@ -1216,6 +1216,9 @@ bool dm_helpers_dp_handle_test_pattern_request(
 
 	}
 
+	pipe_ctx->stream->test_pattern.type = test_pattern;
+	pipe_ctx->stream->test_pattern.color_space = test_pattern_color_space;
+
 	dc_link_dp_set_test_pattern(
 		(struct dc_link *) link,
 		test_pattern,
