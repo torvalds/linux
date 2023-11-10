@@ -1686,7 +1686,7 @@ out_disable_clks:
 	return ret;
 }
 
-static int mxs_auart_remove(struct platform_device *pdev)
+static void mxs_auart_remove(struct platform_device *pdev)
 {
 	struct mxs_auart_port *s = platform_get_drvdata(pdev);
 
@@ -1698,13 +1698,11 @@ static int mxs_auart_remove(struct platform_device *pdev)
 		clk_disable_unprepare(s->clk);
 		clk_disable_unprepare(s->clk_ahb);
 	}
-
-	return 0;
 }
 
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
-	.remove = mxs_auart_remove,
+	.remove_new = mxs_auart_remove,
 	.driver = {
 		.name = "mxs-auart",
 		.of_match_table = mxs_auart_dt_ids,
