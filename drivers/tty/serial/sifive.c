@@ -1007,7 +1007,7 @@ probe_out1:
 	return r;
 }
 
-static int sifive_serial_remove(struct platform_device *dev)
+static void sifive_serial_remove(struct platform_device *dev)
 {
 	struct sifive_serial_port *ssp = platform_get_drvdata(dev);
 
@@ -1015,8 +1015,6 @@ static int sifive_serial_remove(struct platform_device *dev)
 	uart_remove_one_port(&sifive_serial_uart_driver, &ssp->port);
 	free_irq(ssp->port.irq, ssp);
 	clk_notifier_unregister(ssp->clk, &ssp->clk_notifier);
-
-	return 0;
 }
 
 static int sifive_serial_suspend(struct device *dev)
@@ -1045,7 +1043,7 @@ MODULE_DEVICE_TABLE(of, sifive_serial_of_match);
 
 static struct platform_driver sifive_serial_platform_driver = {
 	.probe		= sifive_serial_probe,
-	.remove		= sifive_serial_remove,
+	.remove_new	= sifive_serial_remove,
 	.driver		= {
 		.name	= SIFIVE_SERIAL_NAME,
 		.pm = pm_sleep_ptr(&sifive_uart_pm_ops),
