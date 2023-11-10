@@ -10473,9 +10473,9 @@ M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
 M:	Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
 L:	intel-gfx@lists.freedesktop.org
 S:	Supported
-W:	https://01.org/linuxgraphics/
+W:	https://drm.pages.freedesktop.org/intel-docs/
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
-B:	https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
+B:	https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 C:	irc://irc.oftc.net/intel-gfx
 T:	git git://anongit.freedesktop.org/drm-intel
 F:	Documentation/ABI/testing/sysfs-driver-intel-i915-hwmon
