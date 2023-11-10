@@ -305,7 +305,7 @@ static int query_memory_usage(struct xe_device *xe,
 
 static int query_config(struct xe_device *xe, struct drm_xe_device_query *query)
 {
-	u32 num_params = XE_QUERY_CONFIG_NUM_PARAM;
+	const u32 num_params = XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY + 1;
 	size_t size =
 		sizeof(struct drm_xe_query_config) + num_params * sizeof(u64);
 	struct drm_xe_query_config __user *query_ptr =
