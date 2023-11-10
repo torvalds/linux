@@ -33,7 +33,7 @@ enum {
 /* MIPI TXPHY Mode */
 enum {
 	MAXIM2C_TXPHY_MODE_2X4LANES = 0, /* PortA: 1x4Lanes, PortB: 1x4Lanes */
-	MAXIM2C_TXPHY_MODE_4X2LANES, /* PortA: 2x2Lanes, PortB: 2x2Lanes */
+	MAXIM2C_TXPHY_MODE_2X2LANES, /* PortA: 2Lanes, PortB: 2Lanes */
 };
 
 /* MIPI TXPHY DPLL */
@@ -50,6 +50,7 @@ struct maxim2c_txphy_cfg {
 	u8 data_lane_map;
 	u8 vc_ext_en;
 	u8 tunnel_enable;
+	u8 tunnel_vs_wait;
 	u8 tunnel_dest;
 	u8 clock_master;
 	u8 clock_mode;

@@ -15,6 +15,10 @@
  *     6. support remote serializer I2c address mapping
  *     7. support remote serializer hot plug detection and recovery
  *
+ * V2.00.01
+ *     1. MIPI TXPHY add tunnel mode support
+ *     2. MIPI TXPHY mode only support 2x4Lanes and 2x2Lanes
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -44,7 +48,7 @@
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(2, 0x00, 0x01)
 
 #define MAXIM2C_XVCLK_FREQ		25000000
 

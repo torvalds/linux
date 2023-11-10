@@ -22,6 +22,10 @@ static int maxim2c_txphy_auto_init_deskew(maxim2c_t *maxim2c)
 
 	// D-PHY Deskew Initial Calibration Control
 	for (phy_idx = 0; phy_idx < MAXIM2C_TXPHY_ID_MAX; phy_idx++) {
+		// Auto Deskew can only be configured on PHY1 and PHY2
+		if ((phy_idx == MAXIM2C_TXPHY_ID_A) || (phy_idx == MAXIM2C_TXPHY_ID_D))
+			continue;
+
 		phy_cfg = &mipi_txphy->phy_cfg[phy_idx];
 		if (phy_cfg->phy_enable && (phy_cfg->auto_deskew & BIT(7))) {
 			reg_addr = 0x0403 + 0x40 * phy_idx;
@@ -129,10 +133,11 @@ static int maxim2c_mipi_txphy_tunnel_init(maxim2c_t *maxim2c)
 	int ret = 0;
 
 	for (phy_idx = 0; phy_idx < MAXIM2C_TXPHY_ID_MAX; phy_idx++) {
-		phy_cfg = &mipi_txphy->phy_cfg[phy_idx];
-		if (phy_cfg->phy_enable == 0)
+		// Tunnel mode can only be configured on PHY1 and PHY2
+		if ((phy_idx == MAXIM2C_TXPHY_ID_A) || (phy_idx == MAXIM2C_TXPHY_ID_D))
 			continue;
 
+		phy_cfg = &mipi_txphy->phy_cfg[phy_idx];
 		if (phy_cfg->tunnel_enable) {
 			// tunnel mode: enable
 			reg_mask = BIT(0);
@@ -151,6 +156,16 @@ static int maxim2c_mipi_txphy_tunnel_init(maxim2c_t *maxim2c)
 		ret |= maxim2c_i2c_update_byte(client,
 				reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
 				reg_mask, reg_value);
+
+		if (phy_cfg->tunnel_enable) {
+			reg_addr = 0x0433 + 0x40 * phy_idx;
+			reg_mask = (BIT(7) | BIT(6) | BIT(5));
+			reg_value = ((phy_cfg->tunnel_vs_wait & 0x07) << 5);
+
+			ret |= maxim2c_i2c_update_byte(client,
+					reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
+					reg_mask, reg_value);
+		}
 	}
 
 	return ret;
@@ -399,6 +414,12 @@ static int maxim2c_mipi_txphy_config_parse_dt(struct device *dev,
 				phy_cfg->tunnel_enable = value;
 			}
 
+			ret = of_property_read_u32(node, "tunnel-vs-wait", &value);
+			if (ret == 0) {
+				dev_info(dev, "tunnel-vs-wait property: %d", value);
+				phy_cfg->tunnel_vs_wait = value;
+			}
+
 			ret = of_property_read_u32(node, "tunnel-dest", &value);
 			if (ret == 0) {
 				dev_info(dev, "tunnel-dest property: %d", value);
@@ -473,33 +494,45 @@ int maxim2c_mipi_txphy_hw_init(maxim2c_t *maxim2c)
 	maxim2c_mipi_txphy_t *mipi_txphy = &maxim2c->mipi_txphy;
 	struct maxim2c_txphy_cfg *phy_cfg = NULL;
 	u8 mode = 0;
-	int ret = 0, i = 0;
+	int ret = 0;
 
 	switch (mipi_txphy->phy_mode) {
-	case MAXIM2C_TXPHY_MODE_4X2LANES:
+	case MAXIM2C_TXPHY_MODE_2X2LANES:
 		mode = BIT(0);
-
-		// clock master
-		for (i = 0; i < MAXIM2C_TXPHY_ID_MAX; i++) {
-			if (mipi_txphy->phy_cfg[i].phy_enable)
-				mipi_txphy->phy_cfg[i].clock_master = 1;
-		}
-
 		break;
 	case MAXIM2C_TXPHY_MODE_2X4LANES:
 	default:
 		mode = BIT(2);
-
-		// clock master
-		phy_cfg = &mipi_txphy->phy_cfg[MAXIM2C_TXPHY_ID_B];
-		if (phy_cfg->phy_enable)
-			phy_cfg->clock_master = 1;
-
-		phy_cfg = &mipi_txphy->phy_cfg[MAXIM2C_TXPHY_ID_C];
-		if (phy_cfg->phy_enable)
-			phy_cfg->clock_master = 1;
-
 		break;
+	}
+
+	// clock master
+	phy_cfg = &mipi_txphy->phy_cfg[MAXIM2C_TXPHY_ID_B];
+	if (phy_cfg->phy_enable) {
+		if (phy_cfg->tunnel_enable) {
+			if (phy_cfg->tunnel_dest == 0) {
+				phy_cfg->clock_master = 1;
+			} else {
+				phy_cfg->phy_enable = 0;
+				phy_cfg->clock_master = 0;
+			}
+		} else {
+			phy_cfg->clock_master = 1;
+		}
+	}
+
+	phy_cfg = &mipi_txphy->phy_cfg[MAXIM2C_TXPHY_ID_C];
+	if (phy_cfg->phy_enable) {
+		if (phy_cfg->tunnel_enable) {
+			if (phy_cfg->tunnel_dest == 1) {
+				phy_cfg->clock_master = 1;
+			} else {
+				phy_cfg->phy_enable = 0;
+				phy_cfg->clock_master = 0;
+			}
+		} else {
+			phy_cfg->clock_master = 1;
+		}
 	}
 
 	// MIPI TXPHY Mode setting
