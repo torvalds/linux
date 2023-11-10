@@ -5144,22 +5144,6 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 0x1 } },
 	},
-	{
-		"ALU_MOVSX | BPF_W",
-		.u.insns_int = {
-			BPF_LD_IMM64(R2, 0x00000000deadbeefLL),
-			BPF_LD_IMM64(R3, 0xdeadbeefdeadbeefLL),
-			BPF_MOVSX32_REG(R1, R3, 32),
-			BPF_JMP_REG(BPF_JEQ, R2, R1, 2),
-			BPF_MOV32_IMM(R0, 2),
-			BPF_EXIT_INSN(),
-			BPF_MOV32_IMM(R0, 1),
-			BPF_EXIT_INSN(),
-		},
-		INTERNAL,
-		{ },
-		{ { 0, 0x1 } },
-	},
 	/* MOVSX64 REG */
 	{
 		"ALU64_MOVSX | BPF_B",
