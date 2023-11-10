@@ -3001,7 +3001,7 @@ err:
  * protocol that needs bitbanging on IO lines, but use the regular serial
  * port in the normal case.
  */
-static int atmel_serial_remove(struct platform_device *pdev)
+static void atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -3020,8 +3020,6 @@ static int atmel_serial_remove(struct platform_device *pdev)
 	clear_bit(port->line, atmel_ports_in_use);
 
 	pdev->dev.of_node = NULL;
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
@@ -3029,7 +3027,7 @@ static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
 
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= atmel_serial_remove,
+	.remove_new	= atmel_serial_remove,
 	.driver		= {
 		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
