@@ -510,13 +510,11 @@ static int uart_clps711x_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int uart_clps711x_remove(struct platform_device *pdev)
+static void uart_clps711x_remove(struct platform_device *pdev)
 {
 	struct clps711x_port *s = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&clps711x_uart, &s->port);
-
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused clps711x_uart_dt_ids[] = {
@@ -531,7 +529,7 @@ static struct platform_driver clps711x_uart_platform = {
 		.of_match_table	= of_match_ptr(clps711x_uart_dt_ids),
 	},
 	.probe	= uart_clps711x_probe,
-	.remove	= uart_clps711x_remove,
+	.remove_new = uart_clps711x_remove,
 };
 
 static int __init uart_clps711x_init(void)
