@@ -202,7 +202,6 @@ struct dentry_operations {
 #define DCACHE_SPECIAL_TYPE		(5 << 20) /* Other file type */
 #define DCACHE_SYMLINK_TYPE		(6 << 20) /* Symlink */
 
-#define DCACHE_MAY_FREE			BIT(23)
 #define DCACHE_NOKEY_NAME		BIT(25) /* Encrypted name encoded without key */
 #define DCACHE_OP_REAL			BIT(26)
 

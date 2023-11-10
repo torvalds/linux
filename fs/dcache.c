@@ -614,10 +614,8 @@ static struct dentry *__dentry_kill(struct dentry *dentry)
 	}
 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 	dentry_unlist(dentry);
-	if (dentry->d_flags & DCACHE_SHRINK_LIST) {
-		dentry->d_flags |= DCACHE_MAY_FREE;
+	if (dentry->d_flags & DCACHE_SHRINK_LIST)
 		can_free = false;
-	}
 	spin_unlock(&dentry->d_lock);
 	if (likely(can_free))
 		dentry_free(dentry);
@@ -1072,7 +1070,7 @@ void shrink_dentry_list(struct list_head *list)
 			bool can_free;
 			rcu_read_unlock();
 			d_shrink_del(dentry);
-			can_free = dentry->d_flags & DCACHE_MAY_FREE;
+			can_free = dentry->d_flags & DCACHE_DENTRY_KILLED;
 			spin_unlock(&dentry->d_lock);
 			if (can_free)
 				dentry_free(dentry);
