@@ -50,18 +50,18 @@ static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
 
 		pmc = get_fixed_pmc(pmu, MSR_CORE_PERF_FIXED_CTR0 + i);
 
-		__set_bit(INTEL_PMC_IDX_FIXED + i, pmu->pmc_in_use);
+		__set_bit(KVM_FIXED_PMC_BASE_IDX + i, pmu->pmc_in_use);
 		kvm_pmu_request_counter_reprogram(pmc);
 	}
 }
 
 static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 {
-	if (pmc_idx < INTEL_PMC_IDX_FIXED) {
+	if (pmc_idx < KVM_FIXED_PMC_BASE_IDX) {
 		return get_gp_pmc(pmu, MSR_P6_EVNTSEL0 + pmc_idx,
 				  MSR_P6_EVNTSEL0);
 	} else {
-		u32 idx = pmc_idx - INTEL_PMC_IDX_FIXED;
+		u32 idx = pmc_idx - KVM_FIXED_PMC_BASE_IDX;
 
 		return get_fixed_pmc(pmu, idx + MSR_CORE_PERF_FIXED_CTR0);
 	}
@@ -516,7 +516,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	for (i = 0; i < pmu->nr_arch_fixed_counters; i++)
 		pmu->fixed_ctr_ctrl_mask &= ~(0xbull << (i * 4));
 	counter_mask = ~(((1ull << pmu->nr_arch_gp_counters) - 1) |
-		(((1ull << pmu->nr_arch_fixed_counters) - 1) << INTEL_PMC_IDX_FIXED));
+		(((1ull << pmu->nr_arch_fixed_counters) - 1) << KVM_FIXED_PMC_BASE_IDX));
 	pmu->global_ctrl_mask = counter_mask;
 
 	/*
@@ -560,7 +560,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 			pmu->reserved_bits &= ~ICL_EVENTSEL_ADAPTIVE;
 			for (i = 0; i < pmu->nr_arch_fixed_counters; i++) {
 				pmu->fixed_ctr_ctrl_mask &=
-					~(1ULL << (INTEL_PMC_IDX_FIXED + i * 4));
+					~(1ULL << (KVM_FIXED_PMC_BASE_IDX + i * 4));
 			}
 			pmu->pebs_data_cfg_mask = ~0xff00000full;
 		} else {
@@ -586,7 +586,7 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 	for (i = 0; i < KVM_PMC_MAX_FIXED; i++) {
 		pmu->fixed_counters[i].type = KVM_PMC_FIXED;
 		pmu->fixed_counters[i].vcpu = vcpu;
-		pmu->fixed_counters[i].idx = i + INTEL_PMC_IDX_FIXED;
+		pmu->fixed_counters[i].idx = i + KVM_FIXED_PMC_BASE_IDX;
 		pmu->fixed_counters[i].current_config = 0;
 		pmu->fixed_counters[i].eventsel = intel_get_fixed_pmc_eventsel(i);
 	}

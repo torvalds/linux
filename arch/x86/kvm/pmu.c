@@ -67,7 +67,7 @@ static const struct x86_cpu_id vmx_pebs_pdist_cpu[] = {
  *        all perf counters (both gp and fixed). The mapping relationship
  *        between pmc and perf counters is as the following:
  *        * Intel: [0 .. KVM_INTEL_PMC_MAX_GENERIC-1] <=> gp counters
- *                 [INTEL_PMC_IDX_FIXED .. INTEL_PMC_IDX_FIXED + 2] <=> fixed
+ *                 [KVM_FIXED_PMC_BASE_IDX .. KVM_FIXED_PMC_BASE_IDX + 2] <=> fixed
  *        * AMD:   [0 .. AMD64_NUM_COUNTERS-1] and, for families 15H
  *          and later, [0 .. AMD64_NUM_COUNTERS_CORE-1] <=> gp counters
  */
@@ -411,7 +411,7 @@ static bool is_gp_event_allowed(struct kvm_x86_pmu_event_filter *f,
 static bool is_fixed_event_allowed(struct kvm_x86_pmu_event_filter *filter,
 				   int idx)
 {
-	int fixed_idx = idx - INTEL_PMC_IDX_FIXED;
+	int fixed_idx = idx - KVM_FIXED_PMC_BASE_IDX;
 
 	if (filter->action == KVM_PMU_EVENT_DENY &&
 	    test_bit(fixed_idx, (ulong *)&filter->fixed_counter_bitmap))
@@ -465,7 +465,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 
 	if (pmc_is_fixed(pmc)) {
 		fixed_ctr_ctrl = fixed_ctrl_field(pmu->fixed_ctr_ctrl,
-						  pmc->idx - INTEL_PMC_IDX_FIXED);
+						  pmc->idx - KVM_FIXED_PMC_BASE_IDX);
 		if (fixed_ctr_ctrl & 0x1)
 			eventsel |= ARCH_PERFMON_EVENTSEL_OS;
 		if (fixed_ctr_ctrl & 0x2)
@@ -841,7 +841,7 @@ static inline bool cpl_is_matched(struct kvm_pmc *pmc)
 		select_user = config & ARCH_PERFMON_EVENTSEL_USR;
 	} else {
 		config = fixed_ctrl_field(pmc_to_pmu(pmc)->fixed_ctr_ctrl,
-					  pmc->idx - INTEL_PMC_IDX_FIXED);
+					  pmc->idx - KVM_FIXED_PMC_BASE_IDX);
 		select_os = config & 0x1;
 		select_user = config & 0x2;
 	}
