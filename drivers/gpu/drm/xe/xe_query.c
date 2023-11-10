@@ -372,8 +372,6 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 	for_each_gt(gt, xe, id) {
 		if (xe_gt_is_media_type(gt))
 			gt_list->gt_list[id].type = XE_QUERY_GT_TYPE_MEDIA;
-		else if (gt_to_tile(gt)->id > 0)
-			gt_list->gt_list[id].type = XE_QUERY_GT_TYPE_REMOTE;
 		else
 			gt_list->gt_list[id].type = XE_QUERY_GT_TYPE_MAIN;
 		gt_list->gt_list[id].gt_id = gt->info.id;
