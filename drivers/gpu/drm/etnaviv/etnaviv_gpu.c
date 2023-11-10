@@ -1917,7 +1917,7 @@ static int etnaviv_gpu_rpm_suspend(struct device *dev)
 	u32 idle, mask;
 
 	/* If there are any jobs in the HW queue, we're not idle */
-	if (atomic_read(&gpu->sched.hw_rq_count))
+	if (atomic_read(&gpu->sched.credit_count))
 		return -EBUSY;
 
 	/* Check whether the hardware (except FE and MC) is idle */
