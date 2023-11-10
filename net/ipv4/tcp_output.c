@@ -601,6 +601,44 @@ static void bpf_skops_write_hdr_opt(struct sock *sk, struct sk_buff *skb,
 }
 #endif
 
+static __be32 *process_tcp_ao_options(struct tcp_sock *tp,
+				      const struct tcp_request_sock *tcprsk,
+				      struct tcp_out_options *opts,
+				      struct tcp_key *key, __be32 *ptr)
+{
+#ifdef CONFIG_TCP_AO
+	u8 maclen = tcp_ao_maclen(key->ao_key);
+
+	if (tcprsk) {
+		u8 aolen = maclen + sizeof(struct tcp_ao_hdr);
+
+		*ptr++ = htonl((TCPOPT_AO << 24) | (aolen << 16) |
+			       (tcprsk->ao_keyid << 8) |
+			       (tcprsk->ao_rcv_next));
+	} else {
+		struct tcp_ao_key *rnext_key;
+		struct tcp_ao_info *ao_info;
+
+		ao_info = rcu_dereference_check(tp->ao_info,
+			lockdep_sock_is_held(&tp->inet_conn.icsk_inet.sk));
+		rnext_key = READ_ONCE(ao_info->rnext_key);
+		if (WARN_ON_ONCE(!rnext_key))
+			return ptr;
+		*ptr++ = htonl((TCPOPT_AO << 24) |
+			       (tcp_ao_len(key->ao_key) << 16) |
+			       (key->ao_key->sndid << 8) |
+			       (rnext_key->rcvid));
+	}
+	opts->hash_location = (__u8 *)ptr;
+	ptr += maclen / sizeof(*ptr);
+	if (unlikely(maclen % sizeof(*ptr))) {
+		memset(ptr, TCPOPT_NOP, sizeof(*ptr));
+		ptr++;
+	}
+#endif
+	return ptr;
+}
+
 /* Write previously computed TCP options to the packet.
  *
  * Beware: Something in the Internet is very sensitive to the ordering of
@@ -629,37 +667,7 @@ static void tcp_options_write(struct tcphdr *th, struct tcp_sock *tp,
 		opts->hash_location = (__u8 *)ptr;
 		ptr += 4;
 	} else if (tcp_key_is_ao(key)) {
-#ifdef CONFIG_TCP_AO
-		u8 maclen = tcp_ao_maclen(key->ao_key);
-
-		if (tcprsk) {
-			u8 aolen = maclen + sizeof(struct tcp_ao_hdr);
-
-			*ptr++ = htonl((TCPOPT_AO << 24) | (aolen << 16) |
-				       (tcprsk->ao_keyid << 8) |
-				       (tcprsk->ao_rcv_next));
-		} else {
-			struct tcp_ao_key *rnext_key;
-			struct tcp_ao_info *ao_info;
-
-			ao_info = rcu_dereference_check(tp->ao_info,
-				lockdep_sock_is_held(&tp->inet_conn.icsk_inet.sk));
-			rnext_key = READ_ONCE(ao_info->rnext_key);
-			if (WARN_ON_ONCE(!rnext_key))
-				goto out_ao;
-			*ptr++ = htonl((TCPOPT_AO << 24) |
-				       (tcp_ao_len(key->ao_key) << 16) |
-				       (key->ao_key->sndid << 8) |
-				       (rnext_key->rcvid));
-		}
-		opts->hash_location = (__u8 *)ptr;
-		ptr += maclen / sizeof(*ptr);
-		if (unlikely(maclen % sizeof(*ptr))) {
-			memset(ptr, TCPOPT_NOP, sizeof(*ptr));
-			ptr++;
-		}
-out_ao:
-#endif
+		ptr = process_tcp_ao_options(tp, tcprsk, opts, key, ptr);
 	}
 	if (unlikely(opts->mss)) {
 		*ptr++ = htonl((TCPOPT_MSS << 24) |
@@ -3693,8 +3701,6 @@ struct sk_buff *tcp_make_synack(const struct sock *sk, struct dst_entry *dst,
 	mss = tcp_mss_clamp(tp, dst_metric_advmss(dst));
 
 	memset(&opts, 0, sizeof(opts));
-	if (tcp_rsk(req)->req_usec_ts < 0)
-		tcp_rsk(req)->req_usec_ts = dst_tcp_usec_ts(dst);
 	now = tcp_clock_ns();
 #ifdef CONFIG_SYN_COOKIES
 	if (unlikely(synack_type == TCP_SYNACK_COOKIE && ireq->tstamp_ok))

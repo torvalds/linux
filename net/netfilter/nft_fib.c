@@ -204,4 +204,5 @@ bool nft_fib_reduce(struct nft_regs_track *track,
 EXPORT_SYMBOL_GPL(nft_fib_reduce);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Query routing table from nftables");
 MODULE_AUTHOR("Florian Westphal <fw@strlen.de>");

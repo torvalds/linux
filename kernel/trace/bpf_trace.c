@@ -1252,9 +1252,7 @@ static const struct bpf_func_proto bpf_get_func_arg_cnt_proto = {
 };
 
 #ifdef CONFIG_KEYS
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "kfuncs which will be used in BPF programs");
+__bpf_kfunc_start_defs();
 
 /**
  * bpf_lookup_user_key - lookup a key by its serial
@@ -1404,7 +1402,7 @@ __bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr_kern *data_ptr,
 }
 #endif /* CONFIG_SYSTEM_DATA_VERIFICATION */
 
-__diag_pop();
+__bpf_kfunc_end_defs();
 
 BTF_SET8_START(key_sig_kfunc_set)
 BTF_ID_FLAGS(func, bpf_lookup_user_key, KF_ACQUIRE | KF_RET_NULL | KF_SLEEPABLE)

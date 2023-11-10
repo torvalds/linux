@@ -326,20 +326,14 @@ static int map_create(__u32 type, const char *name, struct bpf_map_create_opts *
 
 static int create_hash(void)
 {
-	struct bpf_map_create_opts map_opts = {
-		.sz = sizeof(map_opts),
-		.map_flags = BPF_F_NO_PREALLOC,
-	};
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_NO_PREALLOC);
 
 	return map_create(BPF_MAP_TYPE_HASH, "hash", &map_opts);
 }
 
 static int create_percpu_hash(void)
 {
-	struct bpf_map_create_opts map_opts = {
-		.sz = sizeof(map_opts),
-		.map_flags = BPF_F_NO_PREALLOC,
-	};
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = BPF_F_NO_PREALLOC);
 
 	return map_create(BPF_MAP_TYPE_PERCPU_HASH, "percpu_hash", &map_opts);
 }
@@ -356,21 +350,17 @@ static int create_percpu_hash_prealloc(void)
 
 static int create_lru_hash(__u32 type, __u32 map_flags)
 {
-	struct bpf_map_create_opts map_opts = {
-		.sz = sizeof(map_opts),
-		.map_flags = map_flags,
-	};
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts, .map_flags = map_flags);
 
 	return map_create(type, "lru_hash", &map_opts);
 }
 
 static int create_hash_of_maps(void)
 {
-	struct bpf_map_create_opts map_opts = {
-		.sz = sizeof(map_opts),
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts,
 		.map_flags = BPF_F_NO_PREALLOC,
 		.inner_map_fd = create_small_hash(),
-	};
+	);
 	int ret;
 
 	ret = map_create_opts(BPF_MAP_TYPE_HASH_OF_MAPS, "hash_of_maps",

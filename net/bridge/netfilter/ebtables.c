@@ -2595,3 +2595,4 @@ EXPORT_SYMBOL(ebt_do_table);
 module_init(ebtables_init);
 module_exit(ebtables_fini);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ebtables legacy core");

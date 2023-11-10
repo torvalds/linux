@@ -7115,7 +7115,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	req->syncookie = want_cookie;
 	tcp_rsk(req)->af_specific = af_ops;
 	tcp_rsk(req)->ts_off = 0;
-	tcp_rsk(req)->req_usec_ts = -1;
+	tcp_rsk(req)->req_usec_ts = false;
 #if IS_ENABLED(CONFIG_MPTCP)
 	tcp_rsk(req)->is_mptcp = 0;
 #endif
@@ -7143,9 +7143,10 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	if (!dst)
 		goto drop_and_free;
 
-	if (tmp_opt.tstamp_ok)
+	if (tmp_opt.tstamp_ok) {
+		tcp_rsk(req)->req_usec_ts = dst_tcp_usec_ts(dst);
 		tcp_rsk(req)->ts_off = af_ops->init_ts_off(net, skb);
-
+	}
 	if (!want_cookie && !isn) {
 		int max_syn_backlog = READ_ONCE(net->ipv4.sysctl_max_syn_backlog);
 

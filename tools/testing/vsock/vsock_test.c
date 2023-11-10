@@ -1180,6 +1180,51 @@ static void test_stream_shutrd_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_double_bind_connect_server(const struct test_opts *opts)
+{
+	int listen_fd, client_fd, i;
+	struct sockaddr_vm sa_client;
+	socklen_t socklen_client = sizeof(sa_client);
+
+	listen_fd = vsock_stream_listen(VMADDR_CID_ANY, 1234);
+
+	for (i = 0; i < 2; i++) {
+		control_writeln("LISTENING");
+
+		timeout_begin(TIMEOUT);
+		do {
+			client_fd = accept(listen_fd, (struct sockaddr *)&sa_client,
+					   &socklen_client);
+			timeout_check("accept");
+		} while (client_fd < 0 && errno == EINTR);
+		timeout_end();
+
+		if (client_fd < 0) {
+			perror("accept");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Waiting for remote peer to close connection */
+		vsock_wait_remote_close(client_fd);
+	}
+
+	close(listen_fd);
+}
+
+static void test_double_bind_connect_client(const struct test_opts *opts)
+{
+	int i, client_fd;
+
+	for (i = 0; i < 2; i++) {
+		/* Wait until server is ready to accept a new connection */
+		control_expectln("LISTENING");
+
+		client_fd = vsock_bind_connect(opts->peer_cid, 1234, 4321, SOCK_STREAM);
+
+		close(client_fd);
+	}
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1284,6 +1329,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM MSG_ZEROCOPY empty MSG_ERRQUEUE",
 		.run_client = test_stream_msgzcopy_empty_errq_client,
 		.run_server = test_stream_msgzcopy_empty_errq_server,
+	},
+	{
+		.name = "SOCK_STREAM double bind connect",
+		.run_client = test_double_bind_connect_client,
+		.run_server = test_double_bind_connect_server,
 	},
 	{},
 };
