@@ -121,7 +121,7 @@ static struct ata_port_operations pata_falcon_ops = {
 	.set_mode	= pata_falcon_set_mode,
 };
 
-static int __init pata_falcon_init_one(struct platform_device *pdev)
+static int pata_falcon_init_one(struct platform_device *pdev)
 {
 	struct resource *base_mem_res, *ctl_mem_res;
 	struct resource *base_res, *ctl_res, *irq_res;
@@ -216,23 +216,22 @@ static int __init pata_falcon_init_one(struct platform_device *pdev)
 				 IRQF_SHARED, &pata_falcon_sht);
 }
 
-static int __exit pata_falcon_remove_one(struct platform_device *pdev)
+static void pata_falcon_remove_one(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 
 	ata_host_detach(host);
-
-	return 0;
 }
 
 static struct platform_driver pata_falcon_driver = {
-	.remove = __exit_p(pata_falcon_remove_one),
+	.probe = pata_falcon_init_one,
+	.remove_new = pata_falcon_remove_one,
 	.driver   = {
 		.name	= "atari-falcon-ide",
 	},
 };
 
-module_platform_driver_probe(pata_falcon_driver, pata_falcon_init_one);
+module_platform_driver(pata_falcon_driver);
 
 MODULE_AUTHOR("Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("low-level driver for Atari Falcon PATA");
