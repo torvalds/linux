@@ -44,11 +44,11 @@ struct wcd_usbss_ctxt {
 	bool standby_enable;
 	bool is_in_standby;
 	struct mutex switch_update_lock;
+	struct mutex runtime_env_counter_lock;
 	unsigned int version;
 	int wcd_standby_status;
+	int runtime_env_counter;
 	struct nvmem_cell *nvmem_cell;
-	bool defer_writes;
-	int req_state;
 	bool suspended;
 };
 
