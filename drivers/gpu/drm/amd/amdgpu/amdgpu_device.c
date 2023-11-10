@@ -5738,6 +5738,39 @@ recover_end:
 }
 
 /**
+ * amdgpu_device_partner_bandwidth - find the bandwidth of appropriate partner
+ *
+ * @adev: amdgpu_device pointer
+ * @speed: pointer to the speed of the link
+ * @width: pointer to the width of the link
+ *
+ * Evaluate the hierarchy to find the speed and bandwidth capabilities of the
+ * first physical partner to an AMD dGPU.
+ * This will exclude any virtual switches and links.
+ */
+static void amdgpu_device_partner_bandwidth(struct amdgpu_device *adev,
+					    enum pci_bus_speed *speed,
+					    enum pcie_link_width *width)
+{
+	struct pci_dev *parent = adev->pdev;
+
+	if (!speed || !width)
+		return;
+
+	*speed = PCI_SPEED_UNKNOWN;
+	*width = PCIE_LNK_WIDTH_UNKNOWN;
+
+	while ((parent = pci_upstream_bridge(parent))) {
+		/* skip upstream/downstream switches internal to dGPU*/
+		if (parent->vendor == PCI_VENDOR_ID_ATI)
+			continue;
+		*speed = pcie_get_speed_cap(parent);
+		*width = pcie_get_width_cap(parent);
+		break;
+	}
+}
+
+/**
  * amdgpu_device_get_pcie_info - fence pcie info about the PCIE slot
  *
  * @adev: amdgpu_device pointer
@@ -5770,8 +5803,8 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 	if (adev->pm.pcie_gen_mask && adev->pm.pcie_mlw_mask)
 		return;
 
-	pcie_bandwidth_available(adev->pdev, NULL,
-				 &platform_speed_cap, &platform_link_width);
+	amdgpu_device_partner_bandwidth(adev, &platform_speed_cap,
+					&platform_link_width);
 
 	if (adev->pm.pcie_gen_mask == 0) {
 		/* asic caps */
