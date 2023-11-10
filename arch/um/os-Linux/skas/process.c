@@ -189,7 +189,7 @@ extern char __syscall_stub_start[];
 
 /**
  * userspace_tramp() - userspace trampoline
- * @stack:	pointer to the new userspace stack page, can be NULL, if? FIXME:
+ * @stack:	pointer to the new userspace stack page
  *
  * The userspace trampoline is used to setup a new userspace process in start_userspace() after it was clone()'ed.
  * This function will run on a temporary stack page.
@@ -204,9 +204,13 @@ extern char __syscall_stub_start[];
  */
 static int userspace_tramp(void *stack)
 {
+	struct sigaction sa;
 	void *addr;
 	int fd;
 	unsigned long long offset;
+	unsigned long segv_handler = STUB_CODE +
+				     (unsigned long) stub_segv_handler -
+				     (unsigned long) __syscall_stub_start;
 
 	ptrace(PTRACE_TRACEME, 0, 0, 0);
 
@@ -222,34 +226,25 @@ static int userspace_tramp(void *stack)
 		exit(1);
 	}
 
-	if (stack != NULL) {
-		fd = phys_mapping(uml_to_phys(stack), &offset);
-		addr = mmap((void *) STUB_DATA,
-			    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
-			    MAP_FIXED | MAP_SHARED, fd, offset);
-		if (addr == MAP_FAILED) {
-			printk(UM_KERN_ERR "mapping segfault stack at 0x%lx failed, errno = %d\n",
-			       STUB_DATA, errno);
-			exit(1);
-		}
+	fd = phys_mapping(uml_to_phys(stack), &offset);
+	addr = mmap((void *) STUB_DATA,
+		    STUB_DATA_PAGES * UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
+		    MAP_FIXED | MAP_SHARED, fd, offset);
+	if (addr == MAP_FAILED) {
+		printk(UM_KERN_ERR "mapping segfault stack at 0x%lx failed, errno = %d\n",
+		       STUB_DATA, errno);
+		exit(1);
 	}
-	if (stack != NULL) {
-		struct sigaction sa;
 
-		unsigned long v = STUB_CODE +
-				  (unsigned long) stub_segv_handler -
-				  (unsigned long) __syscall_stub_start;
-
-		set_sigstack((void *) STUB_DATA, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
-		sigemptyset(&sa.sa_mask);
-		sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
-		sa.sa_sigaction = (void *) v;
-		sa.sa_restorer = NULL;
-		if (sigaction(SIGSEGV, &sa, NULL) < 0) {
-			printk(UM_KERN_ERR "%s - setting SIGSEGV handler failed - errno = %d\n",
-			       __func__, errno);
-			exit(1);
-		}
+	set_sigstack((void *) STUB_DATA, STUB_DATA_PAGES * UM_KERN_PAGE_SIZE);
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_ONSTACK | SA_NODEFER | SA_SIGINFO;
+	sa.sa_sigaction = (void *) segv_handler;
+	sa.sa_restorer = NULL;
+	if (sigaction(SIGSEGV, &sa, NULL) < 0) {
+		printk(UM_KERN_ERR "%s - setting SIGSEGV handler failed - errno = %d\n",
+		       __func__, errno);
+		exit(1);
 	}
 
 	kill(os_getpid(), SIGSTOP);
@@ -261,7 +256,7 @@ int kill_userspace_mm[NR_CPUS];
 
 /**
  * start_userspace() - prepare a new userspace process
- * @stub_stack:	pointer to the stub stack. Can be NULL, if? FIXME:
+ * @stub_stack:	pointer to the stub stack.
  *
  * Setups a new temporary stack page that is used while userspace_tramp() runs
  * Clones the kernel process into a new userspace process, with FDs only.
