@@ -1036,8 +1036,11 @@ static int sccnxp_remove(struct platform_device *pdev)
 
 	uart_unregister_driver(&s->uart);
 
-	if (!IS_ERR(s->regulator))
-		return regulator_disable(s->regulator);
+	if (!IS_ERR(s->regulator)) {
+		int ret = regulator_disable(s->regulator);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to disable regulator\n");
+	}
 
 	return 0;
 }
