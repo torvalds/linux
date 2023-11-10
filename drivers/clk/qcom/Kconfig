@@ -1319,6 +1319,15 @@ config SXR_DISPCC_NIOBE
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config SM_GPUCC_PITTI
+	tristate "PITTI Graphics Clock Controller"
+	select SM_GCC_PITTI
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc
+	  PITTI devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 endif
 
 config VIRTIO_CLK
