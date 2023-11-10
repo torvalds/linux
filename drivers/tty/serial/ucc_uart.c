@@ -1459,7 +1459,7 @@ out_free:
 	return ret;
 }
 
-static int ucc_uart_remove(struct platform_device *ofdev)
+static void ucc_uart_remove(struct platform_device *ofdev)
 {
 	struct uart_qe_port *qe_port = platform_get_drvdata(ofdev);
 
@@ -1470,8 +1470,6 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 	of_node_put(qe_port->np);
 
 	kfree(qe_port);
-
-	return 0;
 }
 
 static const struct of_device_id ucc_uart_match[] = {
@@ -1492,7 +1490,7 @@ static struct platform_driver ucc_uart_of_driver = {
 		.of_match_table    = ucc_uart_match,
 	},
 	.probe  	= ucc_uart_probe,
-	.remove 	= ucc_uart_remove,
+	.remove_new 	= ucc_uart_remove,
 };
 
 static int __init ucc_uart_init(void)
