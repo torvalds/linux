@@ -2293,6 +2293,7 @@ static int qrtr_create(struct net *net, struct socket *sock,
 		return -ENOMEM;
 
 	sock_set_flag(sk, SOCK_ZAPPED);
+	sk->sk_allocation |= __GFP_RETRY_MAYFAIL;
 
 	sock_init_data(sock, sk);
 	sock->ops = &qrtr_proto_ops;
