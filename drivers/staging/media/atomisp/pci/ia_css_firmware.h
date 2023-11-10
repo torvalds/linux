@@ -46,10 +46,6 @@ struct device;
  * This function interprets the firmware package. All
  * contents of this firmware package are copied into local data structures, so
  * the fw pointer could be freed after this function completes.
- *
- * Rationale for this function is that it can be called before ia_css_init, and thus
- * speeds up ia_css_init (ia_css_init is called each time a stream is created but the
- * firmware only needs to be loaded once).
  */
 int
 ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
@@ -61,6 +57,8 @@ ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
  * This function unloads the firmware loaded by ia_css_load_firmware.
  * It is pointless to call this function if no firmware is loaded,
  * but it won't harm. Use this to deallocate all memory associated with the firmware.
+ * This function may only be called when the CSS API is in uninitialized state
+ * (e.g. after calling ia_css_uninit()).
  */
 void
 ia_css_unload_firmware(void);
