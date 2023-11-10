@@ -19,6 +19,9 @@ struct xe_vm;
 
 #define XE_BO_MAX_PLACEMENTS	3
 
+/* TODO: To be selected with VM_MADVISE */
+#define	XE_BO_PRIORITY_NORMAL	1
+
 /** @xe_bo: XE buffer object */
 struct xe_bo {
 	/** @ttm: TTM base buffer object */
