@@ -486,6 +486,7 @@ block/blk-flush.c
 block/blk-ia-ranges.c
 block/blk-ioc.c
 block/blk-iocost.c
+block/blk-ioprio.c
 block/blk-ioprio.h
 block/blk-lib.c
 block/blk-map.c
@@ -4235,6 +4236,7 @@ include/trace/hooks/binder.h
 include/trace/hooks/bl_hib.h
 include/trace/hooks/bug.h
 include/trace/hooks/cgroup.h
+include/trace/hooks/compaction.h
 include/trace/hooks/cpufreq.h
 include/trace/hooks/cpuidle.h
 include/trace/hooks/cpuidle_psci.h

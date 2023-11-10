@@ -30,6 +30,7 @@
 #include <linux/cc_platform.h>
 #include <trace/events/iommu.h>
 #include <linux/sched/mm.h>
+#include <trace/hooks/iommu.h>
 
 #include "dma-iommu.h"
 
@@ -223,7 +224,8 @@ int iommu_device_register(struct iommu_device *iommu,
 	 * already the de-facto behaviour, since any possible combination of
 	 * existing drivers would compete for at least the PCI or platform bus.
 	 */
-	if (iommu_buses[0]->iommu_ops && iommu_buses[0]->iommu_ops != ops)
+	if (iommu_buses[0]->iommu_ops && iommu_buses[0]->iommu_ops != ops
+				&& !trace_android_vh_bus_iommu_probe_enabled())
 		return -EBUSY;
 
 	iommu->ops = ops;
@@ -235,6 +237,11 @@ int iommu_device_register(struct iommu_device *iommu,
 	spin_unlock(&iommu_device_lock);
 
 	for (int i = 0; i < ARRAY_SIZE(iommu_buses) && !err; i++) {
+		bool skip = false;
+
+		trace_android_vh_bus_iommu_probe(iommu, iommu_buses[i], &skip);
+		if (skip)
+			continue;
 		iommu_buses[i]->iommu_ops = ops;
 		err = bus_iommu_probe(iommu_buses[i]);
 	}
