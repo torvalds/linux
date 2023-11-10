@@ -860,7 +860,20 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 		if (!pmc_event_is_allowed(pmc))
 			continue;
 
-		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
+		/*
+		 * Ignore checks for edge detect (all events currently emulated
+		 * but KVM are always rising edges), pin control (unsupported
+		 * by modern CPUs), and counter mask and its invert flag (KVM
+		 * doesn't emulate multiple events in a single clock cycle).
+		 *
+		 * Note, the uppermost nibble of AMD's mask overlaps Intel's
+		 * IN_TX (bit 32) and IN_TXCP (bit 33), as well as two reserved
+		 * bits (bits 35:34).  Checking the "in HLE/RTM transaction"
+		 * flags is correct as the vCPU can't be in a transaction if
+		 * KVM is emulating an instruction.  Checking the reserved bits
+		 * might be wrong if they are defined in the future, but so
+		 * could ignoring them, so do the simple thing for now.
+		 */
 		if ((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB)
 			continue;
 
