@@ -1666,7 +1666,7 @@ err_out_unregister_driver:
  *
  * Return: 0 on success, negative errno otherwise
  */
-static int cdns_uart_remove(struct platform_device *pdev)
+static void cdns_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct cdns_uart *cdns_uart_data = port->private_data;
@@ -1692,12 +1692,11 @@ static int cdns_uart_remove(struct platform_device *pdev)
 
 	if (!--instances)
 		uart_unregister_driver(cdns_uart_data->cdns_uart_driver);
-	return 0;
 }
 
 static struct platform_driver cdns_uart_platform_driver = {
 	.probe   = cdns_uart_probe,
-	.remove  = cdns_uart_remove,
+	.remove_new = cdns_uart_remove,
 	.driver  = {
 		.name = CDNS_UART_NAME,
 		.of_match_table = cdns_uart_of_match,
