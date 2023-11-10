@@ -262,7 +262,7 @@ static int safesetid_task_fix_setgroups(struct cred *new, const struct cred *old
 	return 0;
 }
 
-const struct lsm_id safesetid_lsmid = {
+static const struct lsm_id safesetid_lsmid = {
 	.name = "safesetid",
 	.id = LSM_ID_SAFESETID,
 };

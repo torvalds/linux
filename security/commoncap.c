@@ -1441,7 +1441,7 @@ int cap_mmap_file(struct file *file, unsigned long reqprot,
 
 #ifdef CONFIG_SECURITY
 
-const struct lsm_id capability_lsmid = {
+static const struct lsm_id capability_lsmid = {
 	.name = "capability",
 	.id = LSM_ID_CAPABILITY,
 };

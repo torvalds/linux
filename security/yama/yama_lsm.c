@@ -422,7 +422,7 @@ static int yama_ptrace_traceme(struct task_struct *parent)
 	return rc;
 }
 
-const struct lsm_id yama_lsmid = {
+static const struct lsm_id yama_lsmid = {
 	.name = "yama",
 	.id = LSM_ID_YAMA,
 };

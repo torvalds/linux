@@ -5006,7 +5006,7 @@ struct lsm_blob_sizes smack_blob_sizes __ro_after_init = {
 	.lbs_xattr_count = SMACK_INODE_INIT_XATTRS,
 };
 
-const struct lsm_id smack_lsmid = {
+static const struct lsm_id smack_lsmid = {
 	.name = "smack",
 	.id = LSM_ID_SMACK,
 };

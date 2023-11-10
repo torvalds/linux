@@ -543,7 +543,7 @@ static void tomoyo_task_free(struct task_struct *task)
 	}
 }
 
-const struct lsm_id tomoyo_lsmid = {
+static const struct lsm_id tomoyo_lsmid = {
 	.name = "tomoyo",
 	.id = LSM_ID_TOMOYO,
 };
