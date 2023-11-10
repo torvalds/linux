@@ -70,7 +70,7 @@ int intel_link_bw_reduce_bpp(struct intel_atomic_state *state,
 			return PTR_ERR(crtc_state);
 
 		if (crtc_state->dsc.compression_enable)
-			link_bpp = crtc_state->dsc.compressed_bpp;
+			link_bpp = crtc_state->dsc.compressed_bpp_x16;
 		else
 			/*
 			 * TODO: for YUV420 the actual link bpp is only half
