@@ -8,9 +8,6 @@
 
 #include <linux/platform_device.h>
 
-#include <dma.h>
-#include <nand.h>
-
 extern struct platform_device ls1x_uart_pdev;
 extern struct platform_device ls1x_eth0_pdev;
 extern struct platform_device ls1x_eth1_pdev;

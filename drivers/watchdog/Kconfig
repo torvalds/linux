@@ -1768,12 +1768,6 @@ config SIBYTE_WDOG
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called sb_wdog.
 
-config AR7_WDT
-	tristate "TI AR7 Watchdog Timer"
-	depends on AR7 || (MIPS && 32BIT && COMPILE_TEST)
-	help
-	  Hardware driver for the TI AR7 Watchdog Timer.
-
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"
 	depends on CPU_TX49XX || (MIPS && COMPILE_TEST)
