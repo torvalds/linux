@@ -262,16 +262,18 @@ struct journal {
 
 	unsigned long		last_flush_write;
 
-	u64			res_get_blocked_start;
 	u64			write_start_time;
 
 	u64			nr_flush_writes;
 	u64			nr_noflush_writes;
 	u64			entry_bytes_written;
 
+	u64			low_on_space_start;
+	u64			low_on_pin_start;
+	u64			max_in_flight_start;
+
 	struct bch2_time_stats	*flush_write_time;
 	struct bch2_time_stats	*noflush_write_time;
-	struct bch2_time_stats	*blocked_time;
 	struct bch2_time_stats	*flush_seq_time;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC

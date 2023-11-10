@@ -363,11 +363,6 @@ static int journal_entry_open(struct journal *j)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
-	if (j->res_get_blocked_start)
-		bch2_time_stats_update(j->blocked_time,
-				       j->res_get_blocked_start);
-	j->res_get_blocked_start = 0;
-
 	mod_delayed_work(c->io_complete_wq,
 			 &j->write_work,
 			 msecs_to_jiffies(c->opts.journal_flush_delay));
@@ -467,15 +462,12 @@ retry:
 	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
 	ret = journal_entry_open(j);
 
-	if (ret == JOURNAL_ERR_max_in_flight)
+	if (ret == JOURNAL_ERR_max_in_flight) {
+		track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
+				   &j->max_in_flight_start, true);
 		trace_and_count(c, journal_entry_full, c);
-unlock:
-	if ((ret && ret != JOURNAL_ERR_insufficient_devices) &&
-	    !j->res_get_blocked_start) {
-		j->res_get_blocked_start = local_clock() ?: 1;
-		trace_and_count(c, journal_full, c);
 	}
-
+unlock:
 	can_discard = j->can_discard;
 	spin_unlock(&j->lock);
 

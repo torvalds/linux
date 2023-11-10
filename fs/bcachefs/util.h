@@ -374,8 +374,9 @@ struct bch2_time_stat_buffer {
 struct bch2_time_stats {
 	spinlock_t	lock;
 	/* all fields are in nanoseconds */
-	u64		max_duration;
 	u64             min_duration;
+	u64		max_duration;
+	u64		total_duration;
 	u64             max_freq;
 	u64             min_freq;
 	u64		last_event;
@@ -390,14 +391,38 @@ struct bch2_time_stats {
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64, u64);
-#else
-static inline void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end) {}
-#endif
 
 static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start)
 {
 	__bch2_time_stats_update(stats, start, local_clock());
 }
+
+static inline bool track_event_change(struct bch2_time_stats *stats,
+				      u64 *start, bool v)
+{
+	if (v != !!*start) {
+		if (!v) {
+			bch2_time_stats_update(stats, *start);
+			*start = 0;
+		} else {
+			*start = local_clock() ?: 1;
+			return true;
+		}
+	}
+
+	return false;
+}
+#else
+static inline void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end) {}
+static inline void bch2_time_stats_update(struct bch2_time_stats *stats, u64 start) {}
+static inline bool track_event_change(struct bch2_time_stats *stats,
+				      u64 *start, bool v)
+{
+	bool ret = v && !*start;
+	*start = v;
+	return ret;
+}
+#endif
 
 void bch2_time_stats_to_text(struct printbuf *, struct bch2_time_stats *);
 
