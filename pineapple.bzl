@@ -107,6 +107,7 @@ def define_pineapple():
         "drivers/pinctrl/qcom/pinctrl-pineapple.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
+        "drivers/pinctrl/qcom/pinctrl-volcano.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-pon.ko",
         "drivers/power/reset/qcom-reboot-reason.ko",
