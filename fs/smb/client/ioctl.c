@@ -143,6 +143,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 
 	fsinf->version = 1;
 	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
+	fsinf->tcon_flags = tcon->Flags;
 	fsinf->device_characteristics =
 			le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics);
 	fsinf->device_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
