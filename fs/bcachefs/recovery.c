@@ -149,9 +149,6 @@ static int bch2_journal_replay(struct bch_fs *c)
 	size_t i;
 	int ret = 0;
 
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
-	keys->gap = keys->nr;
-
 	keys_sorted = kvmalloc_array(keys->nr, sizeof(*keys_sorted), GFP_KERNEL);
 	if (!keys_sorted)
 		return -BCH_ERR_ENOMEM_journal_replay;
@@ -180,7 +177,6 @@ static int bch2_journal_replay(struct bch_fs *c)
 		replay_now_at(j, k->journal_seq);
 
 		ret = bch2_trans_do(c, NULL, NULL,
-				    BTREE_INSERT_LAZY_RW|
 				    BTREE_INSERT_NOFAIL|
 				    (!k->allocated
 				     ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
@@ -497,7 +493,19 @@ static int bch2_check_allocations(struct bch_fs *c)
 
 static int bch2_set_may_go_rw(struct bch_fs *c)
 {
+	struct journal_keys *keys = &c->journal_keys;
+
+	/*
+	 * After we go RW, the journal keys buffer can't be modified (except for
+	 * setting journal_key->overwritten: it will be accessed by multiple
+	 * threads
+	 */
+	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
+	keys->gap = keys->nr;
+
 	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
+	if (keys->nr)
+		return bch2_fs_read_write_early(c);
 	return 0;
 }
 
