@@ -325,8 +325,7 @@ struct drm_xe_query_config {
 	#define XE_QUERY_CONFIG_FLAGS_HAS_VRAM		(0x1 << 0)
 #define XE_QUERY_CONFIG_MIN_ALIGNMENT		2
 #define XE_QUERY_CONFIG_VA_BITS			3
-#define XE_QUERY_CONFIG_GT_COUNT		4
-#define XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY	5
+#define XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY	4
 	/** @info: array of elements containing the config info */
 	__u64 info[];
 };
