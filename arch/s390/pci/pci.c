@@ -906,8 +906,6 @@ int zpci_deconfigure_device(struct zpci_dev *zdev)
  */
 void zpci_device_reserved(struct zpci_dev *zdev)
 {
-	if (zdev->has_hp_slot)
-		zpci_exit_slot(zdev);
 	/*
 	 * Remove device from zpci_list as it is going away. This also
 	 * makes sure we ignore subsequent zPCI events for this device.
@@ -924,6 +922,9 @@ void zpci_release_device(struct kref *kref)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
 	int ret;
+
+	if (zdev->has_hp_slot)
+		zpci_exit_slot(zdev);
 
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
