@@ -73,7 +73,6 @@
 	x(ENOMEM,			ENOMEM_fsck_add_nlink)			\
 	x(ENOMEM,			ENOMEM_journal_key_insert)		\
 	x(ENOMEM,			ENOMEM_journal_keys_sort)		\
-	x(ENOMEM,			ENOMEM_journal_replay)			\
 	x(ENOMEM,			ENOMEM_read_superblock_clean)		\
 	x(ENOMEM,			ENOMEM_fs_alloc)			\
 	x(ENOMEM,			ENOMEM_fs_name_alloc)			\

@@ -99,6 +99,9 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	unsigned update_flags = BTREE_TRIGGER_NORUN;
 	int ret;
 
+	if (k->overwritten)
+		return 0;
+
 	trans->journal_res.seq = k->journal_seq;
 
 	/*
@@ -142,23 +145,13 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 static int bch2_journal_replay(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
-	struct journal_key **keys_sorted, *k;
+	DARRAY(struct journal_key *) keys_sorted = { 0 };
+	struct journal_key **kp;
 	struct journal *j = &c->journal;
 	u64 start_seq	= c->journal_replay_seq_start;
 	u64 end_seq	= c->journal_replay_seq_start;
-	size_t i;
+	struct btree_trans *trans = bch2_trans_get(c);
 	int ret = 0;
-
-	keys_sorted = kvmalloc_array(keys->nr, sizeof(*keys_sorted), GFP_KERNEL);
-	if (!keys_sorted)
-		return -BCH_ERR_ENOMEM_journal_replay;
-
-	for (i = 0; i < keys->nr; i++)
-		keys_sorted[i] = &keys->d[i];
-
-	sort(keys_sorted, keys->nr,
-	     sizeof(keys_sorted[0]),
-	     journal_sort_seq_cmp, NULL);
 
 	if (keys->nr) {
 		ret = bch2_journal_log_msg(c, "Starting journal replay (%zu keys in entries %llu-%llu)",
@@ -169,25 +162,66 @@ static int bch2_journal_replay(struct bch_fs *c)
 
 	BUG_ON(!atomic_read(&keys->ref));
 
-	for (i = 0; i < keys->nr; i++) {
-		k = keys_sorted[i];
-
+	/*
+	 * First, attempt to replay keys in sorted order. This is more
+	 * efficient - better locality of btree access -  but some might fail if
+	 * that would cause a journal deadlock.
+	 */
+	for (size_t i = 0; i < keys->nr; i++) {
 		cond_resched();
+
+		struct journal_key *k = keys->d + i;
+
+		/* Skip fastpath if we're low on space in the journal */
+		ret = c->journal.watermark ? -1 :
+			commit_do(trans, NULL, NULL,
+				  BTREE_INSERT_NOFAIL|
+				  BTREE_INSERT_JOURNAL_RECLAIM|
+				  (!k->allocated ? BTREE_INSERT_JOURNAL_REPLAY : 0),
+			     bch2_journal_replay_key(trans, k));
+		BUG_ON(!ret && !k->overwritten);
+		if (ret) {
+			ret = darray_push(&keys_sorted, k);
+			if (ret)
+				goto err;
+		}
+	}
+
+	/*
+	 * Now, replay any remaining keys in the order in which they appear in
+	 * the journal, unpinning those journal entries as we go:
+	 */
+	sort(keys_sorted.data, keys_sorted.nr,
+	     sizeof(keys_sorted.data[0]),
+	     journal_sort_seq_cmp, NULL);
+
+	darray_for_each(keys_sorted, kp) {
+		cond_resched();
+
+		struct journal_key *k = *kp;
 
 		replay_now_at(j, k->journal_seq);
 
-		ret = bch2_trans_do(c, NULL, NULL,
-				    BTREE_INSERT_NOFAIL|
-				    (!k->allocated
-				     ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
-				     : 0),
+		ret = commit_do(trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				(!k->allocated
+				 ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
+				 : 0),
 			     bch2_journal_replay_key(trans, k));
-		if (ret) {
-			bch_err(c, "journal replay: error while replaying key at btree %s level %u: %s",
-				bch2_btree_id_str(k->btree_id), k->level, bch2_err_str(ret));
+		bch_err_msg(c, ret, "while replaying key at btree %s level %u:",
+			    bch2_btree_id_str(k->btree_id), k->level);
+		if (ret)
 			goto err;
-		}
+
+		BUG_ON(!k->overwritten);
 	}
+
+	/*
+	 * We need to put our btree_trans before calling flush_all_pins(), since
+	 * that will use a btree_trans internally
+	 */
+	bch2_trans_put(trans);
+	trans = NULL;
 
 	if (!c->opts.keep_journal)
 		bch2_journal_keys_put_initial(c);
@@ -202,10 +236,10 @@ static int bch2_journal_replay(struct bch_fs *c)
 	if (keys->nr && !ret)
 		bch2_journal_log_msg(c, "journal replay finished");
 err:
-	kvfree(keys_sorted);
-
-	if (ret)
-		bch_err_fn(c, ret);
+	if (trans)
+		bch2_trans_put(trans);
+	darray_exit(&keys_sorted);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
