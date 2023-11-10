@@ -3620,6 +3620,7 @@ static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_pci_recalc_int_mit(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
 	enum rtw89_tfc_lv tx_tfc_lv = stats->tx_tfc_lv;
 	enum rtw89_tfc_lv rx_tfc_lv = stats->rx_tfc_lv;
@@ -3632,7 +3633,7 @@ static void rtw89_pci_recalc_int_mit(struct rtw89_dev *rtwdev)
 		      FIELD_PREP(B_AX_RXTIMER_UNIT_MASK, AX_RXTIMER_UNIT_64US) |
 		      FIELD_PREP(B_AX_RXTIMER_MATCH_MASK, 2048 / 64);
 
-	rtw89_write32(rtwdev, R_AX_INT_MIT_RX, val);
+	rtw89_write32(rtwdev, info->mit_addr, val);
 }
 
 static void rtw89_pci_link_cfg(struct rtw89_dev *rtwdev)

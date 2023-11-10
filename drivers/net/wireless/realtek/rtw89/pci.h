@@ -812,6 +812,13 @@
 #define B_AX_RXCOUNTER_MATCH_MASK	GENMASK(15, 8)
 #define B_AX_RXTIMER_MATCH_MASK		GENMASK(7, 0)
 
+#define R_AX_INT_MIT_RX_V1 0x1184
+#define B_AX_RXMIT_RXP2_SEL_V1 BIT(19)
+#define B_AX_RXMIT_RXP1_SEL_V1 BIT(18)
+#define B_AX_MIT_RXTIMER_UNIT_MASK GENMASK(17, 16)
+#define B_AX_MIT_RXCOUNTER_MATCH_MASK GENMASK(15, 8)
+#define B_AX_MIT_RXTIMER_MATCH_MASK GENMASK(7, 0)
+
 #define R_AX_DBG_ERR_FLAG		0x11C4
 #define B_AX_PCIE_RPQ_FULL		BIT(29)
 #define B_AX_PCIE_RXQ_FULL		BIT(28)
@@ -1241,6 +1248,7 @@ struct rtw89_pci_info {
 
 	u32 rpwm_addr;
 	u32 cpwm_addr;
+	u32 mit_addr;
 	u32 tx_dma_ch_mask;
 	const struct rtw89_pci_bd_idx_addr *bd_idx_addr_low_power;
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
