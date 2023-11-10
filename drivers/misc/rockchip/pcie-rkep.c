@@ -91,6 +91,10 @@ static DEFINE_MUTEX(rkep_mutex);
 #define RKEP_EP_VIRTUAL_ID_MAX		(8 * 4096)
 #define RKEP_EP_ELBI_TIEMOUT_US		100000
 
+#define PCIE_RK3568_RC_DBI_BASE		0xf6000000
+#define PCIE_RK3588_RC_DBI_BASE		0xf5000000
+#define PCIE_DBI_SIZE			0x400000
+
 struct pcie_rkep_msix_context {
 	struct pci_dev *dev;
 	u16 msg_id;
@@ -102,12 +106,14 @@ struct pcie_rkep {
 	void __iomem *bar0;
 	void __iomem *bar2;
 	void __iomem *bar4;
-	struct miscdevice dev;
+	int cur_mmap_res;
 	struct msix_entry msix_entries[RKEP_NUM_MSIX_VECTORS];
 	struct pcie_rkep_msix_context msix_ctx[RKEP_NUM_MSIX_VECTORS];
 	struct pcie_rkep_msix_context msi_ctx[RKEP_NUM_MSI_VECTORS];
 	bool msi_enable;
 	bool msix_enable;
+
+	struct miscdevice dev;
 	struct dma_trx_obj *dma_obj;
 	struct pcie_ep_obj_info *obj_info;
 	struct page *user_pages; /* Allocated physical memory for user space */
@@ -275,33 +281,73 @@ static ssize_t pcie_rkep_write(struct file *file, const char __user *buf,
 {
 	struct pcie_file *pcie_file = file->private_data;
 	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
-	u32 *bar0_buf;
-	int loop, i = 0;
-	size_t raw_count = count;
+	struct pci_dev *dev = pcie_rkep->pdev;
+	unsigned int size = count;
+	loff_t init_off = *ppos, off = *ppos;
+	u8 *data;
 
-	count = (count % 4) ? (count - count % 4) : count;
-
-	if (count > BAR_0_SZ)
-		return -EINVAL;
-
-	bar0_buf = kzalloc(count, GFP_KERNEL);
-	if (!bar0_buf)
+	data = kzalloc(PCI_CFG_SPACE_EXP_SIZE, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
-	if (copy_from_user(bar0_buf, buf, count)) {
-		raw_count = -EFAULT;
-		goto exit;
+	if (off > dev->cfg_size) {
+		kfree(data);
+		return 0;
+	}
+	if (off + count > dev->cfg_size) {
+		size = dev->cfg_size - off;
+		count = size;
 	}
 
-	for (loop = 0; loop < count / 4; loop++) {
-		iowrite32(bar0_buf[i], pcie_rkep->bar0 + loop * 4);
-		i++;
+	if (copy_from_user(data, buf, count)) {
+		kfree(data);
+		return -EFAULT;
 	}
 
-exit:
-	kfree(bar0_buf);
+	if ((off & 1) && size) {
+		pci_write_config_byte(dev, off, data[off - init_off]);
+		off++;
+		size--;
+	}
 
-	return raw_count;
+	if ((off & 3) && size > 2) {
+		u16 val = data[off - init_off];
+
+		val |= (u16) data[off - init_off + 1] << 8;
+		pci_write_config_word(dev, off, val);
+		off += 2;
+		size -= 2;
+	}
+
+	while (size > 3) {
+		u32 val = data[off - init_off];
+
+		val |= (u32) data[off - init_off + 1] << 8;
+		val |= (u32) data[off - init_off + 2] << 16;
+		val |= (u32) data[off - init_off + 3] << 24;
+		pci_write_config_dword(dev, off, val);
+		off += 4;
+		size -= 4;
+	}
+
+	if (size >= 2) {
+		u16 val = data[off - init_off];
+
+		val |= (u16) data[off - init_off + 1] << 8;
+		pci_write_config_word(dev, off, val);
+		off += 2;
+		size -= 2;
+	}
+
+	if (size) {
+		pci_write_config_byte(dev, off, data[off - init_off]);
+		off++;
+		--size;
+	}
+
+	kfree(data);
+
+	return count;
 }
 
 static ssize_t pcie_rkep_read(struct file *file, char __user *buf,
@@ -309,33 +355,82 @@ static ssize_t pcie_rkep_read(struct file *file, char __user *buf,
 {
 	struct pcie_file *pcie_file = file->private_data;
 	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
-	u32 *bar0_buf;
-	int loop, i = 0;
-	size_t raw_count = count;
+	struct pci_dev *dev = pcie_rkep->pdev;
+	unsigned int size = count;
+	loff_t init_off = *ppos, off = *ppos;
+	u8 *data;
 
-	count = (count % 4) ? (count - count % 4) : count;
-
-	if (count > BAR_0_SZ)
-		return -EINVAL;
-
-	bar0_buf = kzalloc(count, GFP_ATOMIC);
-	if (!bar0_buf)
+	data = kzalloc(PCI_CFG_SPACE_EXP_SIZE, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
-	for (loop = 0; loop < count / 4; loop++) {
-		bar0_buf[i] = ioread32(pcie_rkep->bar0 + loop * 4);
-		i++;
+	if (off > dev->cfg_size) {
+		kfree(data);
+		return 0;
+	}
+	if (off + count > dev->cfg_size) {
+		size = dev->cfg_size - off;
+		count = size;
 	}
 
-	if (copy_to_user(buf, bar0_buf, count)) {
-		raw_count = -EFAULT;
-		goto exit;
+	if ((off & 1) && size) {
+		u8 val;
+
+		pci_read_config_byte(dev, off, &val);
+		data[off - init_off] = val;
+		off++;
+		size--;
 	}
 
-exit:
-	kfree(bar0_buf);
+	if ((off & 3) && size > 2) {
+		u16 val;
 
-	return raw_count;
+		pci_read_config_word(dev, off, &val);
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		off += 2;
+		size -= 2;
+	}
+
+	while (size > 3) {
+		u32 val;
+
+		pci_read_config_dword(dev, off, &val);
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		data[off - init_off + 2] = (val >> 16) & 0xff;
+		data[off - init_off + 3] = (val >> 24) & 0xff;
+		off += 4;
+		size -= 4;
+	}
+
+	if (size >= 2) {
+		u16 val;
+
+		pci_read_config_word(dev, off, &val);
+		data[off - init_off] = val & 0xff;
+		data[off - init_off + 1] = (val >> 8) & 0xff;
+		off += 2;
+		size -= 2;
+	}
+
+	if (size > 0) {
+		u8 val;
+
+		pci_read_config_byte(dev, off, &val);
+		data[off - init_off] = val;
+		off++;
+		--size;
+	}
+
+	if (copy_to_user(buf, data, count)) {
+		kfree(data);
+		return -EFAULT;
+	}
+
+	kfree(data);
+
+	return count;
 }
 
 static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
@@ -343,26 +438,81 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 	u64 addr;
 	struct pcie_file *pcie_file = file->private_data;
 	struct pcie_rkep *pcie_rkep = pcie_file->pcie_rkep;
+	struct pci_dev *dev = pcie_rkep->pdev;
 	size_t size = vma->vm_end - vma->vm_start;
+	resource_size_t bar_size;
+	int err;
 
-	if (size > RKEP_USER_MEM_SIZE) {
-		dev_warn(&pcie_rkep->pdev->dev, "mmap size is out of limitation\n");
+	switch (pcie_rkep->cur_mmap_res) {
+	case PCIE_EP_MMAP_RESOURCE_RK3568_RC_DBI:
+		if (size > PCIE_DBI_SIZE) {
+			dev_warn(&pcie_rkep->pdev->dev, "dbi mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = PCIE_RK3568_RC_DBI_BASE;
+		break;
+	case PCIE_EP_MMAP_RESOURCE_RK3588_RC_DBI:
+		if (size > PCIE_DBI_SIZE) {
+			dev_warn(&pcie_rkep->pdev->dev, "dbi mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = PCIE_RK3588_RC_DBI_BASE;
+		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR0:
+		bar_size = pci_resource_len(dev, 0);
+		if (size > bar_size) {
+			dev_warn(&pcie_rkep->pdev->dev, "bar0 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = pci_resource_start(dev, 0);
+		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR2:
+		bar_size = pci_resource_len(dev, 2);
+		if (size > bar_size) {
+			dev_warn(&pcie_rkep->pdev->dev, "bar2 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = pci_resource_start(dev, 2);
+		break;
+	case PCIE_EP_MMAP_RESOURCE_BAR4:
+		bar_size = pci_resource_len(dev, 4);
+		if (size > bar_size) {
+			dev_warn(&pcie_rkep->pdev->dev, "bar4 mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+		addr = pci_resource_start(dev, 4);
+		break;
+	case PCIE_EP_MMAP_RESOURCE_USER_MEM:
+		if (size > RKEP_USER_MEM_SIZE) {
+			dev_warn(&pcie_rkep->pdev->dev, "mmap size is out of limitation\n");
+			return -EINVAL;
+		}
+
+		if (!pcie_rkep->user_pages) {
+			dev_warn(&pcie_rkep->pdev->dev, "user_pages has not been allocated yet\n");
+			return -EINVAL;
+		}
+		addr = page_to_phys(pcie_rkep->user_pages);
+		break;
+	default:
+		dev_err(&pcie_rkep->pdev->dev, "cur mmap_res %d is unsurreport\n", pcie_rkep->cur_mmap_res);
 		return -EINVAL;
 	}
 
-	if (!pcie_rkep->user_pages) {
-		dev_warn(&pcie_rkep->pdev->dev, "user_pages has not been allocated yet\n");
-		return -EINVAL;
-	}
-
-	addr = page_to_phys(pcie_rkep->user_pages);
 	vma->vm_flags |= VM_IO;
-	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	vma->vm_flags |= (VM_DONTEXPAND | VM_DONTDUMP);
 
-	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT, size, vma->vm_page_prot)) {
-		dev_err(&pcie_rkep->pdev->dev, "io_remap_pfn_range failed\n");
+	if (pcie_rkep->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_BAR2 ||
+	    pcie_rkep->cur_mmap_res == PCIE_EP_MMAP_RESOURCE_USER_MEM)
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	else
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	err = remap_pfn_range(vma, vma->vm_start,
+			      __phys_to_pfn(addr),
+			      size, vma->vm_page_prot);
+	if (err)
 		return -EAGAIN;
-	}
 
 	return 0;
 }
@@ -375,6 +525,7 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	struct pcie_ep_dma_cache_cfg cfg;
 	struct pcie_ep_dma_block_req dma;
 	void __user *uarg = (void __user *)args;
+	int mmap_res;
 	int ret;
 	int index;
 	u64 addr;
@@ -462,6 +613,20 @@ static long pcie_rkep_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			return -EFAULT;
 		}
 		break;
+	case PCIE_EP_SET_MMAP_RESOURCE:
+		ret = copy_from_user(&mmap_res, uarg, sizeof(mmap_res));
+		if (ret) {
+			dev_err(&pcie_rkep->pdev->dev, "failed to get copy from\n");
+			return -EFAULT;
+		}
+
+		if (mmap_res >= PCIE_EP_MMAP_RESOURCE_MAX || mmap_res < 0) {
+			dev_err(&pcie_rkep->pdev->dev, "mmap index %d is out of number\n", mmap_res);
+			return -EINVAL;
+		}
+
+		pcie_rkep->cur_mmap_res = mmap_res;
+		break;
 	default:
 		break;
 	}
@@ -478,7 +643,7 @@ static const struct file_operations pcie_rkep_fops = {
 	.mmap		= pcie_rkep_mmap,
 	.fasync		= pcie_rkep_fasync,
 	.release	= pcie_rkep_release,
-	.llseek		= no_llseek,
+	.llseek		= default_llseek,
 };
 
 static inline void pcie_rkep_writel_dbi(struct pcie_rkep *pcie_rkep, u32 reg, u32 val)
@@ -985,6 +1150,7 @@ static int pcie_rkep_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			pcie_dw_dmatest_unregister(pcie_rkep->dma_obj);
 		goto err_register_obj;
 	}
+	pcie_rkep->cur_mmap_res = PCIE_EP_MMAP_RESOURCE_USER_MEM;
 	dev_err(&pdev->dev, "successfully allocate continuouse buffer for userspace\n");
 #endif
 
