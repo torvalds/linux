@@ -948,7 +948,7 @@ int iscsit_execute_cmd(struct iscsit_cmd *cmd, int ooo)
 
 			iscsit_set_unsolicited_dataout(cmd);
 		}
-		return transport_handle_cdb_direct(&cmd->se_cmd);
+		return target_submit(&cmd->se_cmd);
 
 	case ISCSI_OP_NOOP_OUT:
 	case ISCSI_OP_TEXT:

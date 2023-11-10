@@ -169,6 +169,142 @@ static int cs35l45_dsp_audio_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int cs35l45_activate_ctl(struct snd_soc_component *component,
+				const char *ctl_name, bool active)
+{
+	struct snd_card *card = component->card->snd_card;
+	struct snd_kcontrol *kcontrol;
+	struct snd_kcontrol_volatile *vd;
+	unsigned int index_offset;
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+	if (component->name_prefix)
+		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s %s",
+			 component->name_prefix, ctl_name);
+	else
+		snprintf(name, SNDRV_CTL_ELEM_ID_NAME_MAXLEN, "%s", ctl_name);
+
+	kcontrol = snd_soc_card_get_kcontrol(component->card, name);
+	if (!kcontrol) {
+		dev_err(component->dev, "Can't find kcontrol %s\n", name);
+		return -EINVAL;
+	}
+
+	index_offset = snd_ctl_get_ioff(kcontrol, &kcontrol->id);
+	vd = &kcontrol->vd[index_offset];
+	if (active)
+		vd->access |= SNDRV_CTL_ELEM_ACCESS_WRITE;
+	else
+		vd->access &= ~SNDRV_CTL_ELEM_ACCESS_WRITE;
+
+	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO, &kcontrol->id);
+
+	return 0;
+}
+
+static int cs35l45_amplifier_mode_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = cs35l45->amplifier_mode;
+
+	return 0;
+}
+
+static int cs35l45_amplifier_mode_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct cs35l45_private *cs35l45 =
+			snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm =
+			snd_soc_component_get_dapm(component);
+	unsigned int amp_state;
+	int ret;
+
+	if ((ucontrol->value.integer.value[0] == cs35l45->amplifier_mode) ||
+	    (ucontrol->value.integer.value[0] > AMP_MODE_RCV))
+		return 0;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	ret = regmap_read(cs35l45->regmap, CS35L45_BLOCK_ENABLES, &amp_state);
+	if (ret < 0) {
+		dev_err(cs35l45->dev, "Failed to read AMP state: %d\n", ret);
+		snd_soc_dapm_mutex_unlock(dapm);
+		return ret;
+	}
+
+	regmap_clear_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				  CS35L45_AMP_EN_MASK);
+	snd_soc_component_disable_pin_unlocked(component, "SPK");
+	snd_soc_dapm_sync_unlocked(dapm);
+
+	if (ucontrol->value.integer.value[0] == AMP_MODE_SPK) {
+		regmap_clear_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				  CS35L45_RCV_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				   CS35L45_BST_EN_MASK,
+				   CS35L45_BST_ENABLE << CS35L45_BST_EN_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_MODE_MASK,
+				   CS35L45_HVLV_OPERATION <<
+				   CS35L45_HVLV_MODE_SHIFT);
+
+		ret = cs35l45_activate_ctl(component, "Analog PCM Volume", true);
+		if (ret < 0)
+			dev_err(cs35l45->dev,
+				"Unable to deactivate ctl (%d)\n", ret);
+
+	} else  /* AMP_MODE_RCV */ {
+		regmap_set_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				CS35L45_RCV_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				   CS35L45_BST_EN_MASK,
+				   CS35L45_BST_DISABLE_FET_OFF <<
+				   CS35L45_BST_EN_SHIFT);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_HVLV_CONFIG,
+				   CS35L45_HVLV_MODE_MASK,
+				   CS35L45_FORCE_LV_OPERATION <<
+				   CS35L45_HVLV_MODE_SHIFT);
+
+		regmap_clear_bits(cs35l45->regmap,
+				  CS35L45_BLOCK_ENABLES2,
+				  CS35L45_AMP_DRE_EN_MASK);
+
+		regmap_update_bits(cs35l45->regmap, CS35L45_AMP_GAIN,
+				   CS35L45_AMP_GAIN_PCM_MASK,
+				   CS35L45_AMP_GAIN_PCM_13DBV <<
+				   CS35L45_AMP_GAIN_PCM_SHIFT);
+
+		ret = cs35l45_activate_ctl(component, "Analog PCM Volume", false);
+		if (ret < 0)
+			dev_err(cs35l45->dev,
+				"Unable to deactivate ctl (%d)\n", ret);
+	}
+
+	if (amp_state & CS35L45_AMP_EN_MASK)
+		regmap_set_bits(cs35l45->regmap, CS35L45_BLOCK_ENABLES,
+				CS35L45_AMP_EN_MASK);
+
+	snd_soc_component_enable_pin_unlocked(component, "SPK");
+	snd_soc_dapm_sync_unlocked(dapm);
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	cs35l45->amplifier_mode = ucontrol->value.integer.value[0];
+
+	return 1;
+}
+
 static const char * const cs35l45_asp_tx_txt[] = {
 	"Zero", "ASP_RX1", "ASP_RX2",
 	"VMON", "IMON", "ERR_VOL",
@@ -281,6 +417,8 @@ static const struct snd_kcontrol_new cs35l45_dsp_muxes[] = {
 static const struct snd_kcontrol_new cs35l45_dac_muxes[] = {
 	SOC_DAPM_ENUM("DACPCM Source", cs35l45_dacpcm_enums[0]),
 };
+static const struct snd_kcontrol_new amp_en_ctl =
+	SOC_DAPM_SINGLE("Switch", SND_SOC_NOPM, 0, 1, 0);
 
 static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("DSP1 Preload", NULL),
@@ -297,17 +435,25 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 
 	SND_SOC_DAPM_SIGGEN("VMON_SRC"),
 	SND_SOC_DAPM_SIGGEN("IMON_SRC"),
+	SND_SOC_DAPM_SIGGEN("TEMPMON_SRC"),
 	SND_SOC_DAPM_SIGGEN("VDD_BATTMON_SRC"),
 	SND_SOC_DAPM_SIGGEN("VDD_BSTMON_SRC"),
 	SND_SOC_DAPM_SIGGEN("ERR_VOL"),
 	SND_SOC_DAPM_SIGGEN("AMP_INTP"),
 	SND_SOC_DAPM_SIGGEN("IL_TARGET"),
-	SND_SOC_DAPM_ADC("VMON", NULL, CS35L45_BLOCK_ENABLES, CS35L45_VMON_EN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("IMON", NULL, CS35L45_BLOCK_ENABLES, CS35L45_IMON_EN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("VDD_BATTMON", NULL, CS35L45_BLOCK_ENABLES,
-			 CS35L45_VDD_BATTMON_EN_SHIFT, 0),
-	SND_SOC_DAPM_ADC("VDD_BSTMON", NULL, CS35L45_BLOCK_ENABLES,
-			 CS35L45_VDD_BSTMON_EN_SHIFT, 0),
+
+	SND_SOC_DAPM_SUPPLY("VMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_VMON_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("IMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_IMON_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("TEMPMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_TEMPMON_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("VDD_BATTMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_VDD_BATTMON_EN_SHIFT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("VDD_BSTMON_EN", CS35L45_BLOCK_ENABLES, CS35L45_VDD_BSTMON_EN_SHIFT, 0, NULL, 0),
+
+	SND_SOC_DAPM_ADC("VMON", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("IMON", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("TEMPMON", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VDD_BATTMON", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("VDD_BSTMON", NULL, SND_SOC_NOPM, 0, 0),
+
 
 	SND_SOC_DAPM_AIF_IN("ASP_RX1", NULL, 0, CS35L45_ASP_ENABLES1, CS35L45_ASP_RX1_EN_SHIFT, 0),
 	SND_SOC_DAPM_AIF_IN("ASP_RX2", NULL, 1, CS35L45_ASP_ENABLES1, CS35L45_ASP_RX2_EN_SHIFT, 0),
@@ -334,6 +480,8 @@ static const struct snd_soc_dapm_widget cs35l45_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("DSP_RX8 Source", SND_SOC_NOPM, 0, 0, &cs35l45_dsp_muxes[7]),
 
 	SND_SOC_DAPM_MUX("DACPCM Source", SND_SOC_NOPM, 0, 0, &cs35l45_dac_muxes[0]),
+
+	SND_SOC_DAPM_SWITCH("AMP Enable", SND_SOC_NOPM, 0, 0, &amp_en_ctl),
 
 	SND_SOC_DAPM_OUT_DRV("AMP", SND_SOC_NOPM, 0, 0, NULL, 0),
 
@@ -367,8 +515,15 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	/* Feedback */
 	{ "VMON", NULL, "VMON_SRC" },
 	{ "IMON", NULL, "IMON_SRC" },
+	{ "TEMPMON", NULL, "TEMPMON_SRC" },
 	{ "VDD_BATTMON", NULL, "VDD_BATTMON_SRC" },
 	{ "VDD_BSTMON", NULL, "VDD_BSTMON_SRC" },
+
+	{ "VMON", NULL, "VMON_EN" },
+	{ "IMON", NULL, "IMON_EN" },
+	{ "TEMPMON", NULL, "TEMPMON_EN" },
+	{ "VDD_BATTMON", NULL, "VDD_BATTMON_EN" },
+	{ "VDD_BSTMON", NULL, "VDD_BSTMON_EN" },
 
 	{ "Capture", NULL, "ASP_TX1"},
 	{ "Capture", NULL, "ASP_TX2"},
@@ -424,17 +579,34 @@ static const struct snd_soc_dapm_route cs35l45_dapm_routes[] = {
 	{"DSP1", NULL, "DSP_RX7 Source"},
 	{"DSP1", NULL, "DSP_RX8 Source"},
 
+	{"DSP1", NULL, "VMON_EN"},
+	{"DSP1", NULL, "IMON_EN"},
+	{"DSP1", NULL, "VDD_BATTMON_EN"},
+	{"DSP1", NULL, "VDD_BSTMON_EN"},
+	{"DSP1", NULL, "TEMPMON_EN"},
+
 	{"DSP1 Preload", NULL, "DSP1 Preloader"},
 	{"DSP1", NULL, "DSP1 Preloader"},
 
 	CS35L45_DAC_MUX_ROUTE("DACPCM"),
 
-	{ "SPK", NULL, "AMP"},
+	{ "AMP Enable", "Switch", "AMP" },
+	{ "SPK", NULL, "AMP Enable"},
 };
 
+static const char * const amplifier_mode_texts[] = {"SPK", "RCV"};
+static SOC_ENUM_SINGLE_DECL(amplifier_mode_enum, SND_SOC_NOPM, 0,
+			    amplifier_mode_texts);
+static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 1000, 300, 0);
 static const DECLARE_TLV_DB_SCALE(cs35l45_dig_pcm_vol_tlv, -10225, 25, true);
 
 static const struct snd_kcontrol_new cs35l45_controls[] = {
+	SOC_ENUM_EXT("Amplifier Mode", amplifier_mode_enum,
+		     cs35l45_amplifier_mode_get, cs35l45_amplifier_mode_put),
+	SOC_SINGLE_TLV("Analog PCM Volume", CS35L45_AMP_GAIN,
+			CS35L45_AMP_GAIN_PCM_SHIFT,
+			CS35L45_AMP_GAIN_PCM_MASK >> CS35L45_AMP_GAIN_PCM_SHIFT,
+			0, amp_gain_tlv),
 	/* Ignore bit 0: it is beyond the resolution of TLV_DB_SCALE */
 	SOC_SINGLE_S_TLV("Digital PCM Volume",
 			 CS35L45_AMP_PCM_CONTROL,
@@ -1023,7 +1195,10 @@ static irqreturn_t cs35l45_spk_safe_err(int irq, void *data)
 
 	i = irq - regmap_irq_get_virq(cs35l45->irq_data, 0);
 
-	dev_err(cs35l45->dev, "%s condition detected!\n", cs35l45_irqs[i].name);
+	if (i < 0 || i >= ARRAY_SIZE(cs35l45_irqs))
+		dev_err(cs35l45->dev, "Unspecified global error condition (%d) detected!\n", irq);
+	else
+		dev_err(cs35l45->dev, "%s condition detected!\n", cs35l45_irqs[i].name);
 
 	return IRQ_HANDLED;
 }
@@ -1100,6 +1275,8 @@ static int cs35l45_initialize(struct cs35l45_private *cs35l45)
 	ret = cs35l45_apply_property_config(cs35l45);
 	if (ret < 0)
 		return ret;
+
+	cs35l45->amplifier_mode = AMP_MODE_SPK;
 
 	return 0;
 }

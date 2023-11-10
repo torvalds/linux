@@ -313,6 +313,15 @@ Description:
 		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
 		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)
 
+What:		/sys/bus/usb/devices/.../typec
+Date:		November 2023
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Symlink to the USB Type-C partner device. USB Type-C partner
+		represents the component that communicates over the
+		Configuration Channel (CC signal on USB Type-C connectors and
+		cables) with the local port.
+
 What:		/sys/bus/usb/devices/usbX/bAlternateSetting
 Description:
 		The current interface alternate setting number, in decimal.

@@ -934,25 +934,35 @@ lpfc_rcv_prli_support_check(struct lpfc_vport *vport,
 	struct ls_rjt stat;
 	uint32_t *payload;
 	uint32_t cmd;
+	PRLI *npr;
 
 	payload = cmdiocb->cmd_dmabuf->virt;
 	cmd = *payload;
+	npr = (PRLI *)((uint8_t *)payload + sizeof(uint32_t));
+
 	if (vport->phba->nvmet_support) {
 		/* Must be a NVME PRLI */
-		if (cmd ==  ELS_CMD_PRLI)
+		if (cmd == ELS_CMD_PRLI)
 			goto out;
 	} else {
 		/* Initiator mode. */
 		if (!vport->nvmei_support && (cmd == ELS_CMD_NVMEPRLI))
 			goto out;
+
+		/* NPIV ports will RJT initiator only functions */
+		if (vport->port_type == LPFC_NPIV_PORT &&
+		    npr->initiatorFunc && !npr->targetFunc)
+			goto out;
 	}
 	return 1;
 out:
-	lpfc_printf_vlog(vport, KERN_WARNING, LOG_NVME_DISC,
+	lpfc_printf_vlog(vport, KERN_WARNING, LOG_DISCOVERY,
 			 "6115 Rcv PRLI (%x) check failed: ndlp rpi %d "
-			 "state x%x flags x%x\n",
+			 "state x%x flags x%x port_type: x%x "
+			 "npr->initfcn: x%x npr->tgtfcn: x%x\n",
 			 cmd, ndlp->nlp_rpi, ndlp->nlp_state,
-			 ndlp->nlp_flag);
+			 ndlp->nlp_flag, vport->port_type,
+			 npr->initiatorFunc, npr->targetFunc);
 	memset(&stat, 0, sizeof(struct ls_rjt));
 	stat.un.b.lsRjtRsnCode = LSRJT_CMD_UNSUPPORTED;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_REQ_UNSUPPORTED;

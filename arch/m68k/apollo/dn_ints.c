@@ -5,7 +5,9 @@
 #include <asm/traps.h>
 #include <asm/apollohw.h>
 
-unsigned int apollo_irq_startup(struct irq_data *data)
+#include "apollo.h"
+
+static unsigned int apollo_irq_startup(struct irq_data *data)
 {
 	unsigned int irq = data->irq;
 
@@ -16,7 +18,7 @@ unsigned int apollo_irq_startup(struct irq_data *data)
 	return 0;
 }
 
-void apollo_irq_shutdown(struct irq_data *data)
+static void apollo_irq_shutdown(struct irq_data *data)
 {
 	unsigned int irq = data->irq;
 
@@ -26,7 +28,7 @@ void apollo_irq_shutdown(struct irq_data *data)
 		*(volatile unsigned char *)(picb+1) |= (1 << (irq - 8));
 }
 
-void apollo_irq_eoi(struct irq_data *data)
+static void apollo_irq_eoi(struct irq_data *data)
 {
 	*(volatile unsigned char *)(pica) = 0x20;
 	*(volatile unsigned char *)(picb) = 0x20;

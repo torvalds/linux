@@ -253,6 +253,8 @@ archheaders:
 
 libs-y  += arch/x86/lib/
 
+core-y += arch/x86/virt/
+
 # drivers-y are linked after core-y
 drivers-$(CONFIG_MATH_EMULATION) += arch/x86/math-emu/
 drivers-$(CONFIG_PCI)            += arch/x86/pci/
@@ -292,9 +294,10 @@ PHONY += install
 install:
 	$(call cmd,install)
 
-PHONY += vdso_install
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/x86/entry/vdso $@
+vdso-install-$(CONFIG_X86_64)		+= arch/x86/entry/vdso/vdso64.so.dbg
+vdso-install-$(CONFIG_X86_X32_ABI)	+= arch/x86/entry/vdso/vdsox32.so.dbg
+vdso-install-$(CONFIG_X86_32)		+= arch/x86/entry/vdso/vdso32.so.dbg
+vdso-install-$(CONFIG_IA32_EMULATION)	+= arch/x86/entry/vdso/vdso32.so.dbg
 
 archprepare: checkbin
 checkbin:

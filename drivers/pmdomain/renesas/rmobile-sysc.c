@@ -190,7 +190,7 @@ static void __init get_special_pds(void)
 
 	/* PM domains containing other special devices */
 	for_each_matching_node_and_match(np, special_ids, &id)
-		add_special_pd(np, (enum pd_types)id->data);
+		add_special_pd(np, (uintptr_t)id->data);
 }
 
 static void __init put_special_pds(void)

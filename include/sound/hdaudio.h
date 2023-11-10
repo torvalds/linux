@@ -573,7 +573,7 @@ void snd_hdac_stream_release(struct hdac_stream *azx_dev);
 struct hdac_stream *snd_hdac_get_stream(struct hdac_bus *bus,
 					int dir, int stream_tag);
 
-int snd_hdac_stream_setup(struct hdac_stream *azx_dev);
+int snd_hdac_stream_setup(struct hdac_stream *azx_dev, bool code_loading);
 void snd_hdac_stream_cleanup(struct hdac_stream *azx_dev);
 int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev);
 int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
@@ -623,6 +623,9 @@ int snd_hdac_stream_set_lpib(struct hdac_stream *azx_dev, u32 value);
 	snd_hdac_reg_readb((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 #define snd_hdac_stream_readb_poll(dev, reg, val, cond, delay_us, timeout_us) \
 	read_poll_timeout_atomic(snd_hdac_reg_readb, val, cond, delay_us, timeout_us, \
+				 false, (dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
+#define snd_hdac_stream_readw_poll(dev, reg, val, cond, delay_us, timeout_us) \
+	read_poll_timeout_atomic(snd_hdac_reg_readw, val, cond, delay_us, timeout_us, \
 				 false, (dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 #define snd_hdac_stream_readl_poll(dev, reg, val, cond, delay_us, timeout_us) \
 	read_poll_timeout_atomic(snd_hdac_reg_readl, val, cond, delay_us, timeout_us, \

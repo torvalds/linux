@@ -34,12 +34,16 @@ properties:
 patternProperties:
   "^display-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         const: qcom,sc8280xp-dpu
 
   "^displayport-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         enum:

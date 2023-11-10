@@ -23,6 +23,7 @@ struct data_update {
 	struct bkey_buf		k;
 	struct data_update_opts	data_opts;
 	struct moving_context	*ctxt;
+	struct bch_move_stats	*stats;
 	struct bch_write_op	op;
 };
 

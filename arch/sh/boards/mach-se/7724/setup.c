@@ -300,7 +300,7 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 };
 
-static struct asoc_simple_card_info fsi_ak4642_info = {
+static struct simple_util_info fsi_ak4642_info = {
 	.name		= "AK4642",
 	.card		= "FSIA-AK4642",
 	.codec		= "ak4642-codec.0-0012",

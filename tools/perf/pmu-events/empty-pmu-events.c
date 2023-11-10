@@ -245,6 +245,14 @@ static const struct pmu_event pmu_events__test_soc_sys[] = {
 		.pmu = "uncore_sys_ccn_pmu",
 	},
 	{
+		.name = "sys_cmn_pmu.hnf_cache_miss",
+		.event = "eventid=0x1,type=0x5",
+		.desc = "Counts total cache misses in first lookup result (high priority). Unit: uncore_sys_cmn_pmu ",
+		.compat = "(434|436|43c|43a).*",
+		.topic = "uncore",
+		.pmu = "uncore_sys_cmn_pmu",
+	},
+	{
 		.name = 0,
 		.event = 0,
 		.desc = 0,

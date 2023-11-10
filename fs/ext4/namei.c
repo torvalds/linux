@@ -2280,8 +2280,7 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
 	top = data2 + len;
 	while ((char *)(de2 = ext4_next_entry(de, blocksize)) < top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh2, data2, len,
-					 (data2 + (blocksize - csum_size) -
-					  (char *) de))) {
+					(char *)de - data2)) {
 			brelse(bh2);
 			brelse(bh);
 			return -EFSCORRUPTED;

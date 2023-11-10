@@ -31,7 +31,7 @@ struct uniphier_pinctrl_reg_region {
 	struct list_head node;
 	unsigned int base;
 	unsigned int nregs;
-	u32 vals[];
+	u32 vals[] __counted_by(nregs);
 };
 
 struct uniphier_pinctrl_priv {

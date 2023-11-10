@@ -1117,6 +1117,11 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
+	/* FIXME: In theory this loop shouldn't be needed any more when
+	 * amdgpu_vm_handle_moved handles all moved BOs that are reserved
+	 * with p->ticket. But removing it caused test regressions, so I'm
+	 * leaving it here for now.
+	 */
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 		bo_va = e->bo_va;
 		if (bo_va == NULL)
@@ -1131,7 +1136,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
-	r = amdgpu_vm_handle_moved(adev, vm);
+	r = amdgpu_vm_handle_moved(adev, vm, &p->exec.ticket);
 	if (r)
 		return r;
 
@@ -1152,7 +1157,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		job->vm_pd_addr = amdgpu_gmc_pd_addr(vm->root.bo);
 	}
 
-	if (amdgpu_vm_debug) {
+	if (adev->debug_vm) {
 		/* Invalidate all BOs to test for userspace bugs */
 		amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 			struct amdgpu_bo *bo = e->bo;
@@ -1393,8 +1398,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	r = amdgpu_cs_parser_init(&parser, adev, filp, data);
 	if (r) {
-		if (printk_ratelimit())
-			DRM_ERROR("Failed to initialize parser %d!\n", r);
+		DRM_ERROR_RATELIMITED("Failed to initialize parser %d!\n", r);
 		return r;
 	}
 

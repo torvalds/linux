@@ -38,19 +38,21 @@ extern void sni_machine_power_off(void);
 
 static void __init sni_display_setup(void)
 {
-#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_FW_ARC)
-	struct screen_info *si = &screen_info;
+#if defined(CONFIG_VGA_CONSOLE) && defined(CONFIG_FW_ARC)
+	static struct screen_info si;
 	DISPLAY_STATUS *di;
 
 	di = ArcGetDisplayStatus(1);
 
 	if (di) {
-		si->orig_x		= di->CursorXPosition;
-		si->orig_y		= di->CursorYPosition;
-		si->orig_video_cols	= di->CursorMaxXPosition;
-		si->orig_video_lines	= di->CursorMaxYPosition;
-		si->orig_video_isVGA	= VIDEO_TYPE_VGAC;
-		si->orig_video_points	= 16;
+		si.orig_x		= di->CursorXPosition;
+		si.orig_y		= di->CursorYPosition;
+		si.orig_video_cols	= di->CursorMaxXPosition;
+		si.orig_video_lines	= di->CursorMaxYPosition;
+		si.orig_video_isVGA	= VIDEO_TYPE_VGAC;
+		si.orig_video_points	= 16;
+
+		vgacon_register_screen(&si);
 	}
 #endif
 }

@@ -71,6 +71,12 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 	return __pgprot(pte_flags);
 }
 
+static inline pgprot_t pgprot_nx(pgprot_t prot)
+{
+	return pte_pgprot(pte_exprotect(__pte(pgprot_val(prot))));
+}
+#define pgprot_nx pgprot_nx
+
 #ifndef pmd_page_vaddr
 static inline const void *pmd_page_vaddr(pmd_t pmd)
 {
@@ -109,6 +115,35 @@ void mark_initmem_nx(void);
 #else
 static inline void mark_initmem_nx(void) { }
 #endif
+
+#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+int ptep_set_access_flags(struct vm_area_struct *vma, unsigned long address,
+			  pte_t *ptep, pte_t entry, int dirty);
+
+struct file;
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+			      unsigned long size, pgprot_t vma_prot);
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+
+void __update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep);
+
+/*
+ * This gets called at the end of handling a page fault, when
+ * the kernel has put a new PTE into the page table for the process.
+ * We use it to ensure coherency between the i-cache and d-cache
+ * for the page which has just been mapped in.
+ * On machines which use an MMU hash table, we use this to put a
+ * corresponding HPTE into the hash table ahead of time, instead of
+ * waiting for the inevitable extra hash-table miss exception.
+ */
+static inline void update_mmu_cache_range(struct vm_fault *vmf,
+		struct vm_area_struct *vma, unsigned long address,
+		pte_t *ptep, unsigned int nr)
+{
+	if ((mmu_has_feature(MMU_FTR_HPTE_TABLE) && !radix_enabled()) ||
+	    (IS_ENABLED(CONFIG_PPC_E500) && IS_ENABLED(CONFIG_HUGETLB_PAGE)))
+		__update_mmu_cache(vma, address, ptep);
+}
 
 /*
  * When used, PTE_FRAG_NR is defined in subarch pgtable.h

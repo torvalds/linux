@@ -636,7 +636,6 @@ static struct ctl_table topology_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= topology_ctl_handler,
 	},
-	{ },
 };
 
 static int __init topology_init(void)

@@ -275,7 +275,7 @@ static void sas_resume_devices(struct work_struct *work)
  *
  * See comment in sas_discover_sata().
  */
-int sas_discover_end_dev(struct domain_device *dev)
+static int sas_discover_end_dev(struct domain_device *dev)
 {
 	return sas_notify_lldd_dev_found(dev);
 }

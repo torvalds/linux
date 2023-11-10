@@ -26,8 +26,8 @@ struct audio_iio_aux_chan {
 
 struct audio_iio_aux {
 	struct device *dev;
-	struct audio_iio_aux_chan *chans;
 	unsigned int num_chans;
+	struct audio_iio_aux_chan chans[]  __counted_by(num_chans);
 };
 
 static int audio_iio_aux_info_volsw(struct snd_kcontrol *kcontrol,
@@ -250,22 +250,17 @@ static int audio_iio_aux_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
-	iio_aux = devm_kzalloc(dev, sizeof(*iio_aux), GFP_KERNEL);
+	count = device_property_string_array_count(dev, "io-channel-names");
+	if (count < 0)
+		return dev_err_probe(dev, count, "failed to count io-channel-names\n");
+
+	iio_aux = devm_kzalloc(dev, struct_size(iio_aux, chans, count), GFP_KERNEL);
 	if (!iio_aux)
 		return -ENOMEM;
 
 	iio_aux->dev = dev;
 
-	count = device_property_string_array_count(dev, "io-channel-names");
-	if (count < 0)
-		return dev_err_probe(dev, count, "failed to count io-channel-names\n");
-
 	iio_aux->num_chans = count;
-
-	iio_aux->chans = devm_kmalloc_array(dev, iio_aux->num_chans,
-					    sizeof(*iio_aux->chans), GFP_KERNEL);
-	if (!iio_aux->chans)
-		return -ENOMEM;
 
 	names = kcalloc(iio_aux->num_chans, sizeof(*names), GFP_KERNEL);
 	if (!names)

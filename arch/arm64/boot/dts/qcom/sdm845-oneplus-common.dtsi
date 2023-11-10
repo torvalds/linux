@@ -90,7 +90,7 @@
 			no-map;
 
 			qcom,client-id = <1>;
-			qcom,vmid = <15>;
+			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
 		};
 		rmtfs_upper_guard: rmtfs-upper-guard@f5d01000 {
 			no-map;

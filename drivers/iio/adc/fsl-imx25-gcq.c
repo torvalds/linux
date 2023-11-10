@@ -384,7 +384,7 @@ err_regulator_disable:
 	return ret;
 }
 
-static int mx25_gcq_remove(struct platform_device *pdev)
+static void mx25_gcq_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct mx25_gcq_priv *priv = iio_priv(indio_dev);
@@ -397,8 +397,6 @@ static int mx25_gcq_remove(struct platform_device *pdev)
 		if (priv->vref[i])
 			regulator_disable(priv->vref[i]);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id mx25_gcq_ids[] = {
@@ -413,7 +411,7 @@ static struct platform_driver mx25_gcq_driver = {
 		.of_match_table = mx25_gcq_ids,
 	},
 	.probe		= mx25_gcq_probe,
-	.remove		= mx25_gcq_remove,
+	.remove_new	= mx25_gcq_remove,
 };
 module_platform_driver(mx25_gcq_driver);
 

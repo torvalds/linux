@@ -764,15 +764,15 @@ static int bch2_getattr(struct mnt_idmap *idmap,
 		stat->btime = bch2_time_to_timespec(c, inode->ei_inode.bi_otime);
 	}
 
-	if (inode->ei_inode.bi_flags & BCH_INODE_IMMUTABLE)
+	if (inode->ei_inode.bi_flags & BCH_INODE_immutable)
 		stat->attributes |= STATX_ATTR_IMMUTABLE;
 	stat->attributes_mask	 |= STATX_ATTR_IMMUTABLE;
 
-	if (inode->ei_inode.bi_flags & BCH_INODE_APPEND)
+	if (inode->ei_inode.bi_flags & BCH_INODE_append)
 		stat->attributes |= STATX_ATTR_APPEND;
 	stat->attributes_mask	 |= STATX_ATTR_APPEND;
 
-	if (inode->ei_inode.bi_flags & BCH_INODE_NODUMP)
+	if (inode->ei_inode.bi_flags & BCH_INODE_nodump)
 		stat->attributes |= STATX_ATTR_NODUMP;
 	stat->attributes_mask	 |= STATX_ATTR_NODUMP;
 
@@ -1212,9 +1212,6 @@ static struct dentry *bch2_get_parent(struct dentry *child)
 			inode->ei_subvol,
 		.inum = inode->ei_inode.bi_dir,
 	};
-
-	if (!parent_inum.inum)
-		return NULL;
 
 	return d_obtain_alias(bch2_vfs_inode_get(c, parent_inum));
 }
@@ -1904,7 +1901,7 @@ got_sb:
 		sb->s_flags	|= SB_POSIXACL;
 #endif
 
-	sb->s_shrink.seeks = 0;
+	sb->s_shrink->seeks = 0;
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);

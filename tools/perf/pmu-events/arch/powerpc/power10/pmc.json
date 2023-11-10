@@ -195,7 +195,7 @@
     "BriefDescription": "Threshold counter exceeded a value of 128."
   },
   {
-    "EventCode": "0x400FA",
+    "EventCode": "0x500FA",
     "EventName": "PM_RUN_INST_CMPL",
     "BriefDescription": "PowerPC instruction completed while the run latch is set."
   }

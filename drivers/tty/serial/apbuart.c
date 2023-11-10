@@ -133,7 +133,7 @@ static irqreturn_t apbuart_int(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned int status;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	status = UART_GET_STATUS(port);
 	if (status & UART_STATUS_DR)
@@ -141,7 +141,7 @@ static irqreturn_t apbuart_int(int irq, void *dev_id)
 	if (status & UART_STATUS_THE)
 		apbuart_tx_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -228,7 +228,7 @@ static void apbuart_set_termios(struct uart_port *port,
 	if (termios->c_cflag & CRTSCTS)
 		cr |= UART_CTRL_FL;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Update the per-port timeout. */
 	uart_update_timeout(port, termios->c_cflag, baud);
@@ -251,7 +251,7 @@ static void apbuart_set_termios(struct uart_port *port,
 	UART_PUT_SCAL(port, quot);
 	UART_PUT_CTRL(port, cr);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *apbuart_type(struct uart_port *port)

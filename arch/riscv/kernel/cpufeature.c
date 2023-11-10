@@ -93,10 +93,10 @@ static bool riscv_isa_extension_check(int id)
 		return true;
 	case RISCV_ISA_EXT_ZICBOZ:
 		if (!riscv_cboz_block_size) {
-			pr_err("Zicboz detected in ISA string, but no cboz-block-size found\n");
+			pr_err("Zicboz detected in ISA string, disabling as no cboz-block-size found\n");
 			return false;
 		} else if (!is_power_of_2(riscv_cboz_block_size)) {
-			pr_err("cboz-block-size present, but is not a power-of-2\n");
+			pr_err("Zicboz disabled as cboz-block-size present, but is not a power-of-2\n");
 			return false;
 		}
 		return true;
@@ -167,6 +167,7 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA(zicbom, RISCV_ISA_EXT_ZICBOM),
 	__RISCV_ISA_EXT_DATA(zicboz, RISCV_ISA_EXT_ZICBOZ),
 	__RISCV_ISA_EXT_DATA(zicntr, RISCV_ISA_EXT_ZICNTR),
+	__RISCV_ISA_EXT_DATA(zicond, RISCV_ISA_EXT_ZICOND),
 	__RISCV_ISA_EXT_DATA(zicsr, RISCV_ISA_EXT_ZICSR),
 	__RISCV_ISA_EXT_DATA(zifencei, RISCV_ISA_EXT_ZIFENCEI),
 	__RISCV_ISA_EXT_DATA(zihintpause, RISCV_ISA_EXT_ZIHINTPAUSE),
@@ -175,6 +176,7 @@ const struct riscv_isa_ext_data riscv_isa_ext[] = {
 	__RISCV_ISA_EXT_DATA(zbb, RISCV_ISA_EXT_ZBB),
 	__RISCV_ISA_EXT_DATA(zbs, RISCV_ISA_EXT_ZBS),
 	__RISCV_ISA_EXT_DATA(smaia, RISCV_ISA_EXT_SMAIA),
+	__RISCV_ISA_EXT_DATA(smstateen, RISCV_ISA_EXT_SMSTATEEN),
 	__RISCV_ISA_EXT_DATA(ssaia, RISCV_ISA_EXT_SSAIA),
 	__RISCV_ISA_EXT_DATA(sscofpmf, RISCV_ISA_EXT_SSCOFPMF),
 	__RISCV_ISA_EXT_DATA(sstc, RISCV_ISA_EXT_SSTC),
@@ -204,10 +206,11 @@ static void __init riscv_parse_isa_string(unsigned long *this_hwcap, struct risc
 		switch (*ext) {
 		case 's':
 			/*
-			 * Workaround for invalid single-letter 's' & 'u'(QEMU).
+			 * Workaround for invalid single-letter 's' & 'u' (QEMU).
 			 * No need to set the bit in riscv_isa as 's' & 'u' are
-			 * not valid ISA extensions. It works until multi-letter
-			 * extension starting with "Su" appears.
+			 * not valid ISA extensions. It works unless the first
+			 * multi-letter extension in the ISA string begins with
+			 * "Su" and is not prefixed with an underscore.
 			 */
 			if (ext[-1] != '_' && ext[1] == 'u') {
 				++isa;
@@ -652,6 +655,12 @@ static int check_unaligned_access_boot_cpu(void)
 }
 
 arch_initcall(check_unaligned_access_boot_cpu);
+
+void riscv_user_isa_enable(void)
+{
+	if (riscv_cpu_has_extension_unlikely(smp_processor_id(), RISCV_ISA_EXT_ZICBOZ))
+		csr_set(CSR_SENVCFG, ENVCFG_CBZE);
+}
 
 #ifdef CONFIG_RISCV_ALTERNATIVE
 /*

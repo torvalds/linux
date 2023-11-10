@@ -17,7 +17,7 @@ static int sof_ipc3_pcm_hw_free(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_ipc_stream stream;
 	struct snd_sof_pcm *spcm;
 
@@ -42,7 +42,7 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 				  struct snd_sof_platform_stream_params *platform_params)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
@@ -142,7 +142,7 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 static int sof_ipc3_pcm_trigger(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct sof_ipc_stream stream;
 	struct snd_sof_pcm *spcm;

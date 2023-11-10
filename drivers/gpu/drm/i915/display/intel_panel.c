@@ -59,15 +59,6 @@ intel_panel_preferred_fixed_mode(struct intel_connector *connector)
 					struct drm_display_mode, head);
 }
 
-static bool is_in_vrr_range(struct intel_connector *connector, int vrefresh)
-{
-	const struct drm_display_info *info = &connector->base.display_info;
-
-	return intel_vrr_is_capable(connector) &&
-		vrefresh >= info->monitor_range.min_vfreq &&
-		vrefresh <= info->monitor_range.max_vfreq;
-}
-
 static bool is_best_fixed_mode(struct intel_connector *connector,
 			       int vrefresh, int fixed_mode_vrefresh,
 			       const struct drm_display_mode *best_mode)
@@ -81,8 +72,8 @@ static bool is_best_fixed_mode(struct intel_connector *connector,
 	 * vrefresh, which we can then reduce to match the requested
 	 * vrefresh by extending the vblank length.
 	 */
-	if (is_in_vrr_range(connector, vrefresh) &&
-	    is_in_vrr_range(connector, fixed_mode_vrefresh) &&
+	if (intel_vrr_is_in_range(connector, vrefresh) &&
+	    intel_vrr_is_in_range(connector, fixed_mode_vrefresh) &&
 	    fixed_mode_vrefresh < vrefresh)
 		return false;
 
@@ -224,8 +215,8 @@ int intel_panel_compute_config(struct intel_connector *connector,
 	 * Assume that we shouldn't muck about with the
 	 * timings if they don't land in the VRR range.
 	 */
-	is_vrr = is_in_vrr_range(connector, vrefresh) &&
-		is_in_vrr_range(connector, fixed_mode_vrefresh);
+	is_vrr = intel_vrr_is_in_range(connector, vrefresh) &&
+		intel_vrr_is_in_range(connector, fixed_mode_vrefresh);
 
 	if (!is_vrr) {
 		/*
@@ -689,7 +680,7 @@ intel_panel_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 
-	if (!INTEL_DISPLAY_ENABLED(i915))
+	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
 	return connector_status_connected;

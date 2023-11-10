@@ -20,7 +20,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/stddef.h>
@@ -829,14 +829,10 @@ static struct snd_soc_dai_driver tas571x_dai = {
 	.ops = &tas571x_dai_ops,
 };
 
-static const struct of_device_id tas571x_of_match[] __maybe_unused;
-static const struct i2c_device_id tas571x_i2c_id[];
-
 static int tas571x_i2c_probe(struct i2c_client *client)
 {
 	struct tas571x_private *priv;
 	struct device *dev = &client->dev;
-	const struct of_device_id *of_id;
 	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -844,14 +840,7 @@ static int tas571x_i2c_probe(struct i2c_client *client)
 		return -ENOMEM;
 	i2c_set_clientdata(client, priv);
 
-	of_id = of_match_device(tas571x_of_match, dev);
-	if (of_id)
-		priv->chip = of_id->data;
-	else {
-		const struct i2c_device_id *id =
-			i2c_match_id(tas571x_i2c_id, client);
-		priv->chip = (void *) id->driver_data;
-	}
+	priv->chip = i2c_get_match_data(client);
 
 	priv->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(priv->mclk) && PTR_ERR(priv->mclk) != -ENOENT) {

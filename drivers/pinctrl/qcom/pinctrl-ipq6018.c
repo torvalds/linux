@@ -1080,7 +1080,7 @@ static struct platform_driver ipq6018_pinctrl_driver = {
 		.of_match_table = ipq6018_pinctrl_of_match,
 	},
 	.probe = ipq6018_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init ipq6018_pinctrl_init(void)

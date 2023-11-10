@@ -46,7 +46,7 @@ struct ingenic_nfc {
 	struct nand_controller controller;
 	unsigned int num_banks;
 	struct list_head chips;
-	struct ingenic_nand_cs cs[];
+	struct ingenic_nand_cs cs[] __counted_by(num_banks);
 };
 
 struct ingenic_nand {

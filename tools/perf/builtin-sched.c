@@ -1385,7 +1385,7 @@ static int pid_cmp(struct work_atoms *l, struct work_atoms *r)
 {
 	pid_t l_tid, r_tid;
 
-	if (RC_CHK_ACCESS(l->thread) == RC_CHK_ACCESS(r->thread))
+	if (RC_CHK_EQUAL(l->thread, r->thread))
 		return 0;
 	l_tid = thread__tid(l->thread);
 	r_tid = thread__tid(r->thread);

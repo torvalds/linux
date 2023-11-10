@@ -799,6 +799,7 @@ void folio_copy(struct folio *dst, struct folio *src)
 		cond_resched();
 	}
 }
+EXPORT_SYMBOL(folio_copy);
 
 int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
 int sysctl_overcommit_ratio __read_mostly = 50;

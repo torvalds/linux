@@ -56,18 +56,18 @@ int __exfat_write_inode(struct inode *inode, int sync)
 			&ep->dentry.file.create_time,
 			&ep->dentry.file.create_date,
 			&ep->dentry.file.create_time_cs);
+	ts = inode_get_mtime(inode);
 	exfat_set_entry_time(sbi, &ts,
 			     &ep->dentry.file.modify_tz,
 			     &ep->dentry.file.modify_time,
 			     &ep->dentry.file.modify_date,
 			     &ep->dentry.file.modify_time_cs);
-	inode_set_mtime_to_ts(inode, ts);
+	ts = inode_get_atime(inode);
 	exfat_set_entry_time(sbi, &ts,
 			     &ep->dentry.file.access_tz,
 			     &ep->dentry.file.access_time,
 			     &ep->dentry.file.access_date,
 			     NULL);
-	inode_set_atime_to_ts(inode, ts);
 
 	/* File size should be zero if there is no cluster allocated */
 	on_disk_size = i_size_read(inode);
@@ -400,9 +400,9 @@ static int exfat_write_end(struct file *file, struct address_space *mapping,
 	if (err < len)
 		exfat_write_failed(mapping, pos+len);
 
-	if (!(err < 0) && !(ei->attr & ATTR_ARCHIVE)) {
+	if (!(err < 0) && !(ei->attr & EXFAT_ATTR_ARCHIVE)) {
 		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
-		ei->attr |= ATTR_ARCHIVE;
+		ei->attr |= EXFAT_ATTR_ARCHIVE;
 		mark_inode_dirty(inode);
 	}
 
@@ -550,7 +550,7 @@ static int exfat_fill_inode(struct inode *inode, struct exfat_dir_entry *info)
 	inode_inc_iversion(inode);
 	inode->i_generation = get_random_u32();
 
-	if (info->attr & ATTR_SUBDIR) { /* directory */
+	if (info->attr & EXFAT_ATTR_SUBDIR) { /* directory */
 		inode->i_generation &= ~1;
 		inode->i_mode = exfat_make_mode(sbi, info->attr, 0777);
 		inode->i_op = &exfat_dir_inode_operations;

@@ -328,7 +328,7 @@ struct denali_chip {
 	struct nand_chip chip;
 	struct list_head node;
 	unsigned int nsels;
-	struct denali_chip_sel sels[];
+	struct denali_chip_sel sels[] __counted_by(nsels);
 };
 
 /**

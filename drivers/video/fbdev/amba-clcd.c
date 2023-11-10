@@ -412,13 +412,12 @@ static int clcdfb_mmap(struct fb_info *info,
 
 static const struct fb_ops clcdfb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= clcdfb_check_var,
 	.fb_set_par	= clcdfb_set_par,
 	.fb_setcolreg	= clcdfb_setcolreg,
 	.fb_blank	= clcdfb_blank,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_mmap	= clcdfb_mmap,
 };
 

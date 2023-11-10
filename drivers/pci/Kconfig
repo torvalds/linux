@@ -170,7 +170,7 @@ config PCI_P2PDMA
 	select GENERIC_ALLOCATOR
 	select NEED_SG_DMA_FLAGS
 	help
-	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
+	  Enables drivers to do PCI peer-to-peer transactions to and from
 	  BARs that are exposed in other devices that are the part of
 	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
 	  specification to work (ie. anything below a single PCI bridge).

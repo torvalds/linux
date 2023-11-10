@@ -3255,15 +3255,15 @@ out_get_port:
 }
 EXPORT_SYMBOL(drm_dp_send_query_stream_enc_status);
 
-static int drm_dp_create_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_atomic_payload *payload)
+static int drm_dp_create_payload_at_dfp(struct drm_dp_mst_topology_mgr *mgr,
+					struct drm_dp_mst_atomic_payload *payload)
 {
 	return drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot,
 					 payload->time_slots);
 }
 
-static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
-				       struct drm_dp_mst_atomic_payload *payload)
+static int drm_dp_create_payload_to_remote(struct drm_dp_mst_topology_mgr *mgr,
+					   struct drm_dp_mst_atomic_payload *payload)
 {
 	int ret;
 	struct drm_dp_mst_port *port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
@@ -3276,17 +3276,20 @@ static int drm_dp_create_payload_step2(struct drm_dp_mst_topology_mgr *mgr,
 	return ret;
 }
 
-static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_dp_mst_topology_state *mst_state,
-					struct drm_dp_mst_atomic_payload *payload)
+static void drm_dp_destroy_payload_at_remote_and_dfp(struct drm_dp_mst_topology_mgr *mgr,
+						     struct drm_dp_mst_topology_state *mst_state,
+						     struct drm_dp_mst_atomic_payload *payload)
 {
 	drm_dbg_kms(mgr->dev, "\n");
 
 	/* it's okay for these to fail */
-	drm_dp_payload_send_msg(mgr, payload->port, payload->vcpi, 0);
-	drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
+	if (payload->payload_allocation_status == DRM_DP_MST_PAYLOAD_ALLOCATION_REMOTE) {
+		drm_dp_payload_send_msg(mgr, payload->port, payload->vcpi, 0);
+		payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_DFP;
+	}
 
-	return 0;
+	if (payload->payload_allocation_status == DRM_DP_MST_PAYLOAD_ALLOCATION_DFP)
+		drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
 }
 
 /**
@@ -3296,10 +3299,9 @@ static int drm_dp_destroy_payload_step1(struct drm_dp_mst_topology_mgr *mgr,
  * @payload: The payload to write
  *
  * Determines the starting time slot for the given payload, and programs the VCPI for this payload
- * into hardware. After calling this, the driver should generate ACT and payload packets.
+ * into the DPCD of DPRX. After calling this, the driver should generate ACT and payload packets.
  *
- * Returns: 0 on success, error code on failure. In the event that this fails,
- * @payload.vc_start_slot will also be set to -1.
+ * Returns: 0 on success, error code on failure.
  */
 int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 			     struct drm_dp_mst_topology_state *mst_state,
@@ -3308,69 +3310,93 @@ int drm_dp_add_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
 	struct drm_dp_mst_port *port;
 	int ret;
 
-	port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
-	if (!port) {
-		drm_dbg_kms(mgr->dev,
-			    "VCPI %d for port %p not in topology, not creating a payload\n",
-			    payload->vcpi, payload->port);
-		payload->vc_start_slot = -1;
-		return 0;
-	}
-
+	/* Update mst mgr info */
 	if (mgr->payload_count == 0)
 		mgr->next_start_slot = mst_state->start_slot;
 
 	payload->vc_start_slot = mgr->next_start_slot;
 
-	ret = drm_dp_create_payload_step1(mgr, payload);
-	drm_dp_mst_topology_put_port(port);
-	if (ret < 0) {
-		drm_warn(mgr->dev, "Failed to create MST payload for port %p: %d\n",
-			 payload->port, ret);
-		payload->vc_start_slot = -1;
-		return ret;
-	}
-
 	mgr->payload_count++;
 	mgr->next_start_slot += payload->time_slots;
 
-	return 0;
+	payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL;
+
+	/* Allocate payload to immediate downstream facing port */
+	port = drm_dp_mst_topology_get_port_validated(mgr, payload->port);
+	if (!port) {
+		drm_dbg_kms(mgr->dev,
+			    "VCPI %d for port %p not in topology, not creating a payload to remote\n",
+			    payload->vcpi, payload->port);
+		return -EIO;
+	}
+
+	ret = drm_dp_create_payload_at_dfp(mgr, payload);
+	if (ret < 0) {
+		drm_dbg_kms(mgr->dev, "Failed to create MST payload for port %p: %d\n",
+			    payload->port, ret);
+		goto put_port;
+	}
+
+	payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_DFP;
+
+put_port:
+	drm_dp_mst_topology_put_port(port);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_add_payload_part1);
 
 /**
- * drm_dp_remove_payload() - Remove an MST payload
+ * drm_dp_remove_payload_part1() - Remove an MST payload along the virtual channel
  * @mgr: Manager to use.
  * @mst_state: The MST atomic state
- * @old_payload: The payload with its old state
- * @new_payload: The payload to write
+ * @payload: The payload to remove
  *
- * Removes a payload from an MST topology if it was successfully assigned a start slot. Also updates
- * the starting time slots of all other payloads which would have been shifted towards the start of
- * the VC table as a result. After calling this, the driver should generate ACT and payload packets.
+ * Removes a payload along the virtual channel if it was successfully allocated.
+ * After calling this, the driver should set HW to generate ACT and then switch to new
+ * payload allocation state.
  */
-void drm_dp_remove_payload(struct drm_dp_mst_topology_mgr *mgr,
-			   struct drm_dp_mst_topology_state *mst_state,
-			   const struct drm_dp_mst_atomic_payload *old_payload,
-			   struct drm_dp_mst_atomic_payload *new_payload)
+void drm_dp_remove_payload_part1(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_topology_state *mst_state,
+				 struct drm_dp_mst_atomic_payload *payload)
 {
-	struct drm_dp_mst_atomic_payload *pos;
+	/* Remove remote payload allocation */
 	bool send_remove = false;
 
-	/* We failed to make the payload, so nothing to do */
-	if (new_payload->vc_start_slot == -1)
-		return;
-
 	mutex_lock(&mgr->lock);
-	send_remove = drm_dp_mst_port_downstream_of_branch(new_payload->port, mgr->mst_primary);
+	send_remove = drm_dp_mst_port_downstream_of_branch(payload->port, mgr->mst_primary);
 	mutex_unlock(&mgr->lock);
 
 	if (send_remove)
-		drm_dp_destroy_payload_step1(mgr, mst_state, new_payload);
+		drm_dp_destroy_payload_at_remote_and_dfp(mgr, mst_state, payload);
 	else
 		drm_dbg_kms(mgr->dev, "Payload for VCPI %d not in topology, not sending remove\n",
-			    new_payload->vcpi);
+			    payload->vcpi);
 
+	payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_LOCAL;
+}
+EXPORT_SYMBOL(drm_dp_remove_payload_part1);
+
+/**
+ * drm_dp_remove_payload_part2() - Remove an MST payload locally
+ * @mgr: Manager to use.
+ * @mst_state: The MST atomic state
+ * @old_payload: The payload with its old state
+ * @new_payload: The payload with its latest state
+ *
+ * Updates the starting time slots of all other payloads which would have been shifted towards
+ * the start of the payload ID table as a result of removing a payload. Driver should call this
+ * function whenever it removes a payload in its HW. It's independent to the result of payload
+ * allocation/deallocation at branch devices along the virtual channel.
+ */
+void drm_dp_remove_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_topology_state *mst_state,
+				 const struct drm_dp_mst_atomic_payload *old_payload,
+				 struct drm_dp_mst_atomic_payload *new_payload)
+{
+	struct drm_dp_mst_atomic_payload *pos;
+
+	/* Remove local payload allocation */
 	list_for_each_entry(pos, &mst_state->payloads, next) {
 		if (pos != new_payload && pos->vc_start_slot > new_payload->vc_start_slot)
 			pos->vc_start_slot -= old_payload->time_slots;
@@ -3382,9 +3408,10 @@ void drm_dp_remove_payload(struct drm_dp_mst_topology_mgr *mgr,
 
 	if (new_payload->delete)
 		drm_dp_mst_put_port_malloc(new_payload->port);
-}
-EXPORT_SYMBOL(drm_dp_remove_payload);
 
+	new_payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_NONE;
+}
+EXPORT_SYMBOL(drm_dp_remove_payload_part2);
 /**
  * drm_dp_add_payload_part2() - Execute payload update part 2
  * @mgr: Manager to use.
@@ -3403,21 +3430,19 @@ int drm_dp_add_payload_part2(struct drm_dp_mst_topology_mgr *mgr,
 	int ret = 0;
 
 	/* Skip failed payloads */
-	if (payload->vc_start_slot == -1) {
-		drm_dbg_kms(mgr->dev, "Part 1 of payload creation for %s failed, skipping part 2\n",
+	if (payload->payload_allocation_status != DRM_DP_MST_PAYLOAD_ALLOCATION_DFP) {
+		drm_dbg_kms(state->dev, "Part 1 of payload creation for %s failed, skipping part 2\n",
 			    payload->port->connector->name);
 		return -EIO;
 	}
 
-	ret = drm_dp_create_payload_step2(mgr, payload);
-	if (ret < 0) {
-		if (!payload->delete)
-			drm_err(mgr->dev, "Step 2 of creating MST payload for %p failed: %d\n",
-				payload->port, ret);
-		else
-			drm_dbg_kms(mgr->dev, "Step 2 of removing MST payload for %p failed: %d\n",
-				    payload->port, ret);
-	}
+	/* Allocate payload to remote end */
+	ret = drm_dp_create_payload_to_remote(mgr, payload);
+	if (ret < 0)
+		drm_err(mgr->dev, "Step 2 of creating MST payload for %p failed: %d\n",
+			payload->port, ret);
+	else
+		payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_REMOTE;
 
 	return ret;
 }
@@ -4328,6 +4353,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 		drm_dp_mst_get_port_malloc(port);
 		payload->port = port;
 		payload->vc_start_slot = -1;
+		payload->payload_allocation_status = DRM_DP_MST_PAYLOAD_ALLOCATION_NONE;
 		list_add(&payload->next, &topology_state->payloads);
 	}
 	payload->time_slots = req_slots;
@@ -4497,7 +4523,7 @@ void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
 		}
 
 		/* Now that previous state is committed, it's safe to copy over the start slot
-		 * assignments
+		 * and allocation status assignments
 		 */
 		list_for_each_entry(old_payload, &old_mst_state->payloads, next) {
 			if (old_payload->delete)
@@ -4506,6 +4532,8 @@ void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
 			new_payload = drm_atomic_get_mst_payload_state(new_mst_state,
 								       old_payload->port);
 			new_payload->vc_start_slot = old_payload->vc_start_slot;
+			new_payload->payload_allocation_status =
+							old_payload->payload_allocation_status;
 		}
 	}
 }
@@ -4822,6 +4850,13 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	struct drm_dp_mst_atomic_payload *payload;
 	int i, ret;
 
+	static const char *const status[] = {
+		"None",
+		"Local",
+		"DFP",
+		"Remote",
+	};
+
 	mutex_lock(&mgr->lock);
 	if (mgr->mst_primary)
 		drm_dp_mst_dump_mstb(m, mgr->mst_primary);
@@ -4838,7 +4873,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	seq_printf(m, "payload_mask: %x, max_payloads: %d, start_slot: %u, pbn_div: %d\n",
 		   state->payload_mask, mgr->max_payloads, state->start_slot, state->pbn_div);
 
-	seq_printf(m, "\n| idx | port | vcpi | slots | pbn | dsc |     sink name     |\n");
+	seq_printf(m, "\n| idx | port | vcpi | slots | pbn | dsc | status |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
 		list_for_each_entry(payload, &state->payloads, next) {
 			char name[14];
@@ -4847,7 +4882,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 				continue;
 
 			fetch_monitor_name(mgr, payload->port, name, sizeof(name));
-			seq_printf(m, " %5d %6d %6d %02d - %02d %5d %5s %19s\n",
+			seq_printf(m, " %5d %6d %6d %02d - %02d %5d %5s %8s %19s\n",
 				   i,
 				   payload->port->port_num,
 				   payload->vcpi,
@@ -4855,6 +4890,7 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 				   payload->vc_start_slot + payload->time_slots - 1,
 				   payload->pbn,
 				   payload->dsc_enabled ? "Y" : "N",
+				   status[payload->payload_allocation_status],
 				   (*name != 0) ? name : "Unknown");
 		}
 	}

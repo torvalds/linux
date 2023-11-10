@@ -40,6 +40,7 @@ config STX104
 	select REGMAP_MMIO
 	select GPIOLIB
 	select GPIO_REGMAP
+	select I8254
 	help
 	  Say yes here to build support for the Apex Embedded Systems STX104
 	  integrated analog PC/104 card.

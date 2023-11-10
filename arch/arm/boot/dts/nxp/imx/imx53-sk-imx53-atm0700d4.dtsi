@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2023 Linaro Ltd.
+
+/dts-v1/;
+
+#include <dt-bindings/pwm/pwm.h>
+#include "imx53-sk-imx53.dts"
+
+/ {
+	panel: panel-rgb {
+		compatible = "powertip,ph800480t013-idf02";
+
+		port {
+			panel_rgb_in: endpoint {
+			};
+		};
+	};
+
+	spi_ts: spi {
+		compatible = "spi-gpio";
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		num-chipselects = <1>;
+
+		touchscreen: touchscreen@0 {
+			reg = <0>;
+			compatible = "ti,ads7843";
+			spi-max-frequency = <300000>;
+
+			ti,vref-mv = /bits/ 16 <3300>;
+			ti,x-plate-ohms = /bits/ 16 <450>;
+			ti,y-plate-ohms = /bits/ 16 <250>;
+			ti,debounce-tol = /bits/ 16 <10>;
+			ti,debounce-rep = /bits/ 16 <0>;
+			touchscreen-size-x = <4096>;
+			touchscreen-size-y = <4096>;
+			touchscreen-swapped-x-y;
+			touchscreen-max-pressure = <100>;
+
+			wakeup-source;
+		};
+	};
+};

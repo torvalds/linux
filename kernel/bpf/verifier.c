@@ -3742,7 +3742,12 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (!bt_is_reg_set(bt, dreg))
 			return 0;
-		if (opcode == BPF_MOV) {
+		if (opcode == BPF_END || opcode == BPF_NEG) {
+			/* sreg is reserved and unused
+			 * dreg still need precision before this insn
+			 */
+			return 0;
+		} else if (opcode == BPF_MOV) {
 			if (BPF_SRC(insn->code) == BPF_X) {
 				/* dreg = sreg or dreg = (s8, s16, s32)sreg
 				 * dreg needs precision after this insn
@@ -4674,7 +4679,7 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 		   insn->imm != 0 && env->bpf_capable) {
 		struct bpf_reg_state fake_reg = {};
 
-		__mark_reg_known(&fake_reg, (u32)insn->imm);
+		__mark_reg_known(&fake_reg, insn->imm);
 		fake_reg.type = SCALAR_VALUE;
 		save_register_state(state, spi, &fake_reg, size);
 	} else if (reg && is_spillable_regtype(reg->type)) {
@@ -5388,7 +5393,9 @@ static bool in_rcu_cs(struct bpf_verifier_env *env)
 /* Once GCC supports btf_type_tag the following mechanism will be replaced with tag check */
 BTF_SET_START(rcu_protected_types)
 BTF_ID(struct, prog_test_ref_kfunc)
+#ifdef CONFIG_CGROUPS
 BTF_ID(struct, cgroup)
+#endif
 BTF_ID(struct, bpf_cpumask)
 BTF_ID(struct, task_struct)
 BTF_SET_END(rcu_protected_types)
@@ -10835,7 +10842,9 @@ BTF_ID(func, bpf_dynptr_clone)
 BTF_ID(func, bpf_percpu_obj_new_impl)
 BTF_ID(func, bpf_percpu_obj_drop_impl)
 BTF_ID(func, bpf_throw)
+#ifdef CONFIG_CGROUPS
 BTF_ID(func, bpf_iter_css_task_new)
+#endif
 BTF_SET_END(special_kfunc_set)
 
 BTF_ID_LIST(special_kfunc_list)
@@ -10861,7 +10870,11 @@ BTF_ID(func, bpf_dynptr_clone)
 BTF_ID(func, bpf_percpu_obj_new_impl)
 BTF_ID(func, bpf_percpu_obj_drop_impl)
 BTF_ID(func, bpf_throw)
+#ifdef CONFIG_CGROUPS
 BTF_ID(func, bpf_iter_css_task_new)
+#else
+BTF_ID_UNUSED
+#endif
 
 static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -11394,6 +11407,12 @@ static int process_kf_arg_ptr_to_rbtree_node(struct bpf_verifier_env *env,
 						  &meta->arg_rbtree_root.field);
 }
 
+/*
+ * css_task iter allowlist is needed to avoid dead locking on css_set_lock.
+ * LSM hooks and iters (both sleepable and non-sleepable) are safe.
+ * Any sleepable progs are also safe since bpf_check_attach_target() enforce
+ * them can only be attached to some specific hook points.
+ */
 static bool check_css_task_iter_allowlist(struct bpf_verifier_env *env)
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
@@ -11401,10 +11420,12 @@ static bool check_css_task_iter_allowlist(struct bpf_verifier_env *env)
 	switch (prog_type) {
 	case BPF_PROG_TYPE_LSM:
 		return true;
-	case BPF_TRACE_ITER:
-		return env->prog->aux->sleepable;
+	case BPF_PROG_TYPE_TRACING:
+		if (env->prog->expected_attach_type == BPF_TRACE_ITER)
+			return true;
+		fallthrough;
 	default:
-		return false;
+		return env->prog->aux->sleepable;
 	}
 }
 
@@ -11663,7 +11684,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		case KF_ARG_PTR_TO_ITER:
 			if (meta->func_id == special_kfunc_list[KF_bpf_iter_css_task_new]) {
 				if (!check_css_task_iter_allowlist(env)) {
-					verbose(env, "css_task_iter is only allowed in bpf_lsm and bpf iter-s\n");
+					verbose(env, "css_task_iter is only allowed in bpf_lsm, bpf_iter and sleepable progs\n");
 					return -EINVAL;
 				}
 			}

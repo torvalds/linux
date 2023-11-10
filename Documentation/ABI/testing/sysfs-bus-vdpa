@@ -1,4 +1,4 @@
-What:		/sys/bus/vdpa/driver_autoprobe
+What:		/sys/bus/vdpa/drivers_autoprobe
 Date:		March 2020
 Contact:	virtualization@lists.linux-foundation.org
 Description:
@@ -17,7 +17,7 @@ Description:
 		Writing a device name to this file will cause the kernel binds
 		devices to a compatible driver.
 
-		This can be useful when /sys/bus/vdpa/driver_autoprobe is
+		This can be useful when /sys/bus/vdpa/drivers_autoprobe is
 		disabled.
 
 What:		/sys/bus/vdpa/drivers/.../bind

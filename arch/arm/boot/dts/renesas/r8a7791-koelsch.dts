@@ -73,11 +73,6 @@
 		reg = <2 0x00000000 0 0x40000000>;
 	};
 
-	lbsc {
-		#address-cells = <1>;
-		#size-cells = <1>;
-	};
-
 	keyboard {
 		compatible = "gpio-keys";
 

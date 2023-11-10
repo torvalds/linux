@@ -309,8 +309,6 @@ properties:
           - nuvoton,w83773g
             # OKI ML86V7667 video decoder
           - oki,ml86v7667
-            # OV5642: Color CMOS QSXGA (5-megapixel) Image Sensor with OmniBSI and Embedded TrueFocus
-          - ovti,ov5642
             # 48-Lane, 12-Port PCI Express Gen 2 (5.0 GT/s) Switch
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
@@ -345,6 +343,8 @@ properties:
           - silabs,em3581
             # Silicon Labs SI3210 Programmable CMOS SLIC/CODEC with SPI interface
           - silabs,si3210
+            # Relative Humidity and Temperature Sensors
+          - silabs,si7005
             # Relative Humidity and Temperature Sensors
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply

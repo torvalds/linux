@@ -1336,6 +1336,7 @@ static struct pci_driver imsttfb_pci_driver = {
 
 static const struct fb_ops imsttfb_ops = {
 	.owner 		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= imsttfb_check_var,
 	.fb_set_par 	= imsttfb_set_par,
 	.fb_setcolreg 	= imsttfb_setcolreg,
@@ -1345,6 +1346,7 @@ static const struct fb_ops imsttfb_ops = {
 	.fb_copyarea	= imsttfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_ioctl 	= imsttfb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int init_imstt(struct fb_info *info)

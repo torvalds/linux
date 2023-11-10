@@ -210,6 +210,35 @@ cgroup v2 currently supports the following mount options.
         relying on the original semantics (e.g. specifying bogusly
         high 'bypass' protection values at higher tree levels).
 
+  memory_hugetlb_accounting
+        Count HugeTLB memory usage towards the cgroup's overall
+        memory usage for the memory controller (for the purpose of
+        statistics reporting and memory protetion). This is a new
+        behavior that could regress existing setups, so it must be
+        explicitly opted in with this mount option.
+
+        A few caveats to keep in mind:
+
+        * There is no HugeTLB pool management involved in the memory
+          controller. The pre-allocated pool does not belong to anyone.
+          Specifically, when a new HugeTLB folio is allocated to
+          the pool, it is not accounted for from the perspective of the
+          memory controller. It is only charged to a cgroup when it is
+          actually used (for e.g at page fault time). Host memory
+          overcommit management has to consider this when configuring
+          hard limits. In general, HugeTLB pool management should be
+          done via other mechanisms (such as the HugeTLB controller).
+        * Failure to charge a HugeTLB folio to the memory controller
+          results in SIGBUS. This could happen even if the HugeTLB pool
+          still has pages available (but the cgroup limit is hit and
+          reclaim attempt fails).
+        * Charging HugeTLB memory towards the memory controller affects
+          memory protection and reclaim dynamics. Any userspace tuning
+          (of low, min limits for e.g) needs to take this into account.
+        * HugeTLB pages utilized while this option is not selected
+          will not be tracked by the memory controller (even if cgroup
+          v2 is remounted later on).
+
 
 Organizing Processes and Threads
 --------------------------------
@@ -1539,6 +1568,15 @@ PAGE_SIZE multiple when read back.
 		collapsing an existing range of pages. This counter is not
 		present when CONFIG_TRANSPARENT_HUGEPAGE is not set.
 
+	  thp_swpout (npn)
+		Number of transparent hugepages which are swapout in one piece
+		without splitting.
+
+	  thp_swpout_fallback (npn)
+		Number of transparent hugepages which were split before swapout.
+		Usually because failed to allocate some continuous swap space
+		for the huge page.
+
   memory.numa_stat
 	A read-only nested-keyed file which exists on non-root cgroups.
 
@@ -2030,7 +2068,7 @@ IO Priority
 ~~~~~~~~~~~
 
 A single attribute controls the behavior of the I/O priority cgroup policy,
-namely the blkio.prio.class attribute. The following values are accepted for
+namely the io.prio.class attribute. The following values are accepted for
 that attribute:
 
   no-change
@@ -2059,9 +2097,11 @@ The following numerical values are associated with the I/O priority policies:
 +----------------+---+
 | no-change      | 0 |
 +----------------+---+
-| rt-to-be       | 2 |
+| promote-to-rt  | 1 |
 +----------------+---+
-| all-to-idle    | 3 |
+| restrict-to-be | 2 |
++----------------+---+
+| idle           | 3 |
 +----------------+---+
 
 The numerical value that corresponds to each I/O priority class is as follows:
@@ -2081,7 +2121,7 @@ The algorithm to set the I/O priority class for a request is as follows:
 - If I/O priority class policy is promote-to-rt, change the request I/O
   priority class to IOPRIO_CLASS_RT and change the request I/O priority
   level to 4.
-- If I/O priorityt class is not promote-to-rt, translate the I/O priority
+- If I/O priority class policy is not promote-to-rt, translate the I/O priority
   class policy into a number, then change the request I/O priority class
   into the maximum of the I/O priority class policy number and the numerical
   I/O priority class.

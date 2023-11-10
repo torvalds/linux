@@ -1010,6 +1010,11 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 		ix = curp->p_idx;
 	}
 
+	if (unlikely(ix > EXT_MAX_INDEX(curp->p_hdr))) {
+		EXT4_ERROR_INODE(inode, "ix > EXT_MAX_INDEX!");
+		return -EFSCORRUPTED;
+	}
+
 	len = EXT_LAST_INDEX(curp->p_hdr) - ix + 1;
 	BUG_ON(len < 0);
 	if (len > 0) {
@@ -1017,11 +1022,6 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 				"move %d indices from 0x%p to 0x%p\n",
 				logical, len, ix, ix + 1);
 		memmove(ix + 1, ix, len * sizeof(struct ext4_extent_idx));
-	}
-
-	if (unlikely(ix > EXT_MAX_INDEX(curp->p_hdr))) {
-		EXT4_ERROR_INODE(inode, "ix > EXT_MAX_INDEX!");
-		return -EFSCORRUPTED;
 	}
 
 	ix->ei_block = cpu_to_le32(logical);
@@ -6081,13 +6081,13 @@ int ext4_ext_clear_bb(struct inode *inode)
 				for (j = 0; j < path->p_depth; j++) {
 
 					ext4_mb_mark_bb(inode->i_sb,
-							path[j].p_block, 1, 0);
+							path[j].p_block, 1, false);
 					ext4_fc_record_regions(inode->i_sb, inode->i_ino,
 							0, path[j].p_block, 1, 1);
 				}
 				ext4_free_ext_path(path);
 			}
-			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, 0);
+			ext4_mb_mark_bb(inode->i_sb, map.m_pblk, map.m_len, false);
 			ext4_fc_record_regions(inode->i_sb, inode->i_ino,
 					map.m_lblk, map.m_pblk, map.m_len, 1);
 		}

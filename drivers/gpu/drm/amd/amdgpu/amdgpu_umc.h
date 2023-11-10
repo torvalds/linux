@@ -32,6 +32,11 @@
  * is the index of 8KB block
  */
 #define ADDR_OF_8KB_BLOCK(addr)			(((addr) & ~0xffULL) << 5)
+/*
+ * (addr / 256) * 32768, the higher 26 bits in ErrorAddr
+ * is the index of 8KB block
+ */
+#define ADDR_OF_32KB_BLOCK(addr)			(((addr) & ~0xffULL) << 7)
 /* channel index is the index of 256B block */
 #define ADDR_OF_256B_BLOCK(channel_index)	((channel_index) << 8)
 /* offset in 256B block */

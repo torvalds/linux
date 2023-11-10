@@ -67,14 +67,8 @@ platforms.
 
 When the time comes for Xe, the protection will be lifted on Xe and kept in i915.
 
-Xe driver will be protected with both STAGING Kconfig and force_probe. Changes in
-the uAPI are expected while the driver is behind these protections. STAGING will
-be removed when the driver uAPI gets to a mature state where we can guarantee the
-‘no regression’ rule. Then force_probe will be lifted only for future platforms
-that will be productized with Xe driver, but not with i915.
-
-Xe – Pre-Merge Goals
-====================
+Xe – Pre-Merge Goals - Work-in-Progress
+=======================================
 
 Drm_scheduler
 -------------
@@ -94,41 +88,6 @@ depend on any other patch touching drm_scheduler itself that was not yet merged
 through drm-misc. This, by itself, already includes the reach of an agreement for
 uniform 1 to 1 relationship implementation / usage across drivers.
 
-GPU VA
-------
-Two main goals of Xe are meeting together here:
-
-1) Have an uAPI that aligns with modern UMD needs.
-
-2) Early upstream engagement.
-
-RedHat engineers working on Nouveau proposed a new DRM feature to handle keeping
-track of GPU virtual address mappings. This is still not merged upstream, but
-this aligns very well with our goals and with our VM_BIND. The engagement with
-upstream and the port of Xe towards GPUVA is already ongoing.
-
-As a key measurable result, Xe needs to be aligned with the GPU VA and working in
-our tree. Missing Nouveau patches should *not* block Xe and any needed GPUVA
-related patch should be independent and present on dri-devel or acked by
-maintainers to go along with the first Xe pull request towards drm-next.
-
-DRM_VM_BIND
------------
-Nouveau, and Xe are all implementing ‘VM_BIND’ and new ‘Exec’ uAPIs in order to
-fulfill the needs of the modern uAPI. Xe merge should *not* be blocked on the
-development of a common new drm_infrastructure. However, the Xe team needs to
-engage with the community to explore the options of a common API.
-
-As a key measurable result, the DRM_VM_BIND needs to be documented in this file
-below, or this entire block deleted if the consensus is for independent drivers
-vm_bind ioctls.
-
-Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
-Xe merged, it is mandatory to enforce the overall locking scheme for all major
-structs and list (so vm and vma). So, a consensus is needed, and possibly some
-common helpers. If helpers are needed, they should be also documented in this
-document.
-
 ASYNC VM_BIND
 -------------
 Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
@@ -138,8 +97,8 @@ memory fences. Ideally with helper support so people don't get it wrong in all
 possible ways.
 
 As a key measurable result, the benefits of ASYNC VM_BIND and a discussion of
-various flavors, error handling and a sample API should be documented here or in
-a separate document pointed to by this document.
+various flavors, error handling and sample API suggestions are documented in
+:doc:`The ASYNC VM_BIND document </gpu/drm-vm-bind-async>`.
 
 Userptr integration and vm_bind
 -------------------------------
@@ -212,6 +171,14 @@ This item ties into the GPUVA, VM_BIND, and even long-running compute support.
 As a key measurable result, we need to have a community consensus documented in
 this document and the Xe driver prepared for the changes, if necessary.
 
+Xe – uAPI high level overview
+=============================
+
+...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
+
+Xe – Pre-Merge Goals - Completed
+================================
+
 Dev_coredump
 ------------
 
@@ -229,7 +196,37 @@ infrastructure with overall possible improvements, like multiple file support
 for better organization of the dumps, snapshot support, dmesg extra print,
 and whatever may make sense and help the overall infrastructure.
 
-Xe – uAPI high level overview
-=============================
+DRM_VM_BIND
+-----------
+Nouveau, and Xe are all implementing ‘VM_BIND’ and new ‘Exec’ uAPIs in order to
+fulfill the needs of the modern uAPI. Xe merge should *not* be blocked on the
+development of a common new drm_infrastructure. However, the Xe team needs to
+engage with the community to explore the options of a common API.
 
-...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
+As a key measurable result, the DRM_VM_BIND needs to be documented in this file
+below, or this entire block deleted if the consensus is for independent drivers
+vm_bind ioctls.
+
+Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
+Xe merged, it is mandatory to enforce the overall locking scheme for all major
+structs and list (so vm and vma). So, a consensus is needed, and possibly some
+common helpers. If helpers are needed, they should be also documented in this
+document.
+
+GPU VA
+------
+Two main goals of Xe are meeting together here:
+
+1) Have an uAPI that aligns with modern UMD needs.
+
+2) Early upstream engagement.
+
+RedHat engineers working on Nouveau proposed a new DRM feature to handle keeping
+track of GPU virtual address mappings. This is still not merged upstream, but
+this aligns very well with our goals and with our VM_BIND. The engagement with
+upstream and the port of Xe towards GPUVA is already ongoing.
+
+As a key measurable result, Xe needs to be aligned with the GPU VA and working in
+our tree. Missing Nouveau patches should *not* block Xe and any needed GPUVA
+related patch should be independent and present on dri-devel or acked by
+maintainers to go along with the first Xe pull request towards drm-next.

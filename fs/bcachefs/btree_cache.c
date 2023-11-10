@@ -285,8 +285,7 @@ static int btree_node_write_and_reclaim(struct bch_fs *c, struct btree *b)
 static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b, *t;
 	unsigned long nr = sc->nr_to_scan;
@@ -384,8 +383,7 @@ out_nounlock:
 static unsigned long bch2_btree_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_cache *bc = &c->btree_cache;
 
 	if (bch2_btree_shrinker_disabled)
@@ -400,7 +398,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	struct btree *b;
 	unsigned i, flags;
 
-	unregister_shrinker(&bc->shrink);
+	shrinker_free(bc->shrink);
 
 	/* vfree() can allocate memory: */
 	flags = memalloc_nofs_save();
@@ -454,6 +452,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 int bch2_fs_btree_cache_init(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
+	struct shrinker *shrink;
 	unsigned i;
 	int ret = 0;
 
@@ -473,12 +472,15 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 
 	mutex_init(&c->verify_lock);
 
-	bc->shrink.count_objects	= bch2_btree_cache_count;
-	bc->shrink.scan_objects		= bch2_btree_cache_scan;
-	bc->shrink.seeks		= 4;
-	ret = register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
-	if (ret)
+	shrink = shrinker_alloc(0, "%s-btree_cache", c->name);
+	if (!shrink)
 		goto err;
+	bc->shrink = shrink;
+	shrink->count_objects	= bch2_btree_cache_count;
+	shrink->scan_objects	= bch2_btree_cache_scan;
+	shrink->seeks		= 4;
+	shrink->private_data	= c;
+	shrinker_register(shrink);
 
 	return 0;
 err:
@@ -783,12 +785,12 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 	       "btree node header doesn't match ptr\n"
 	       "btree %s level %u\n"
 	       "ptr: ",
-	       bch2_btree_ids[b->c.btree_id], b->c.level);
+	       bch2_btree_id_str(b->c.btree_id), b->c.level);
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	prt_printf(&buf, "\nheader: btree %s level %llu\n"
 	       "min ",
-	       bch2_btree_ids[BTREE_NODE_ID(b->data)],
+	       bch2_btree_id_str(BTREE_NODE_ID(b->data)),
 	       BTREE_NODE_LEVEL(b->data));
 	bch2_bpos_to_text(&buf, b->data->min_key);
 
@@ -1151,8 +1153,21 @@ wait_on_io:
 	six_unlock_intent(&b->c.lock);
 }
 
-void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
-			     const struct btree *b)
+const char *bch2_btree_id_str(enum btree_id btree)
+{
+	return btree < BTREE_ID_NR ? __bch2_btree_ids[btree] : "(unknown)";
+}
+
+void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
+{
+	prt_printf(out, "%s level %u/%u\n  ",
+	       bch2_btree_id_str(b->c.btree_id),
+	       b->c.level,
+	       bch2_btree_id_root(c, b->c.btree_id)->level);
+	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+}
+
+void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
 {
 	struct bset_stats stats;
 

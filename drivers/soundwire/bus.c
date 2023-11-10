@@ -1001,7 +1001,7 @@ static int sdw_slave_clk_stop_prepare(struct sdw_slave *slave,
 	return ret;
 }
 
-static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
+static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num, bool prepare)
 {
 	int retry = bus->clk_stop_timeout;
 	int val;
@@ -1015,7 +1015,8 @@ static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
 		}
 		val &= SDW_SCP_STAT_CLK_STP_NF;
 		if (!val) {
-			dev_dbg(bus->dev, "clock stop prep/de-prep done slave:%d\n",
+			dev_dbg(bus->dev, "clock stop %s done slave:%d\n",
+				prepare ? "prepare" : "deprepare",
 				dev_num);
 			return 0;
 		}
@@ -1024,7 +1025,8 @@ static int sdw_bus_wait_for_clk_prep_deprep(struct sdw_bus *bus, u16 dev_num)
 		retry--;
 	} while (retry);
 
-	dev_err(bus->dev, "clock stop prep/de-prep failed slave:%d\n",
+	dev_dbg(bus->dev, "clock stop %s did not complete for slave:%d\n",
+		prepare ? "prepare" : "deprepare",
 		dev_num);
 
 	return -ETIMEDOUT;
@@ -1095,7 +1097,7 @@ int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
 	 */
 	if (!simple_clk_stop) {
 		ret = sdw_bus_wait_for_clk_prep_deprep(bus,
-						       SDW_BROADCAST_DEV_NUM);
+						       SDW_BROADCAST_DEV_NUM, true);
 		/*
 		 * if there are no Slave devices present and the reply is
 		 * Command_Ignored/-ENODATA, we don't need to continue with the
@@ -1215,7 +1217,7 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 	 * state machine
 	 */
 	if (!simple_clk_stop) {
-		ret = sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM);
+		ret = sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM, false);
 		if (ret < 0)
 			dev_warn(bus->dev, "clock stop deprepare wait failed:%d\n", ret);
 	}

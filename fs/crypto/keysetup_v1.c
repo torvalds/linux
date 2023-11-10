@@ -20,8 +20,8 @@
  *    managed alongside the master keys in the filesystem-level keyring)
  */
 
-#include <crypto/algapi.h>
 #include <crypto/skcipher.h>
+#include <crypto/utils.h>
 #include <keys/user-type.h>
 #include <linux/hashtable.h>
 #include <linux/scatterlist.h>

@@ -415,7 +415,7 @@ __sigqueue_alloc(int sig, struct task_struct *t, gfp_t gfp_flags,
 		 int override_rlimit, const unsigned int sigqueue_flags)
 {
 	struct sigqueue *q = NULL;
-	struct ucounts *ucounts = NULL;
+	struct ucounts *ucounts;
 	long sigpending;
 
 	/*
@@ -1058,12 +1058,11 @@ static void complete_signal(int sig, struct task_struct *p, enum pid_type type)
 			signal->flags = SIGNAL_GROUP_EXIT;
 			signal->group_exit_code = sig;
 			signal->group_stop_count = 0;
-			t = p;
-			do {
+			__for_each_thread(signal, t) {
 				task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 				sigaddset(&t->pending.signal, SIGKILL);
 				signal_wake_up(t, 1);
-			} while_each_thread(p, t);
+			}
 			return;
 		}
 	}
@@ -1471,16 +1470,21 @@ int group_send_sig_info(int sig, struct kernel_siginfo *info,
 int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
 {
 	struct task_struct *p = NULL;
-	int retval, success;
+	int ret = -ESRCH;
 
-	success = 0;
-	retval = -ESRCH;
 	do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
 		int err = group_send_sig_info(sig, info, p, PIDTYPE_PGID);
-		success |= !err;
-		retval = err;
+		/*
+		 * If group_send_sig_info() succeeds at least once ret
+		 * becomes 0 and after that the code below has no effect.
+		 * Otherwise we return the last err or -ESRCH if this
+		 * process group is empty.
+		 */
+		if (ret)
+			ret = err;
 	} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
-	return success ? 0 : retval;
+
+	return ret;
 }
 
 int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
@@ -1718,9 +1722,8 @@ void force_sigsegv(int sig)
 		force_sig(SIGSEGV);
 }
 
-int force_sig_fault_to_task(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
-	, struct task_struct *t)
+int force_sig_fault_to_task(int sig, int code, void __user *addr,
+			    struct task_struct *t)
 {
 	struct kernel_siginfo info;
 
@@ -1729,24 +1732,15 @@ int force_sig_fault_to_task(int sig, int code, void __user *addr
 	info.si_errno = 0;
 	info.si_code  = code;
 	info.si_addr  = addr;
-#ifdef __ia64__
-	info.si_imm = imm;
-	info.si_flags = flags;
-	info.si_isr = isr;
-#endif
 	return force_sig_info_to_task(&info, t, HANDLER_CURRENT);
 }
 
-int force_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr))
+int force_sig_fault(int sig, int code, void __user *addr)
 {
-	return force_sig_fault_to_task(sig, code, addr
-				       ___ARCH_SI_IA64(imm, flags, isr), current);
+	return force_sig_fault_to_task(sig, code, addr, current);
 }
 
-int send_sig_fault(int sig, int code, void __user *addr
-	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
-	, struct task_struct *t)
+int send_sig_fault(int sig, int code, void __user *addr, struct task_struct *t)
 {
 	struct kernel_siginfo info;
 
@@ -1755,11 +1749,6 @@ int send_sig_fault(int sig, int code, void __user *addr
 	info.si_errno = 0;
 	info.si_code  = code;
 	info.si_addr  = addr;
-#ifdef __ia64__
-	info.si_imm = imm;
-	info.si_flags = flags;
-	info.si_isr = isr;
-#endif
 	return send_sig_info(info.si_signo, &info, t);
 }
 

@@ -14,6 +14,11 @@ Programs can view status of the events via
 /sys/kernel/tracing/user_events_status and can both register and write
 data out via /sys/kernel/tracing/user_events_data.
 
+Programs can also use /sys/kernel/tracing/dynamic_events to register and
+delete user based events via the u: prefix. The format of the command to
+dynamic_events is the same as the ioctl with the u: prefix applied. This
+requires CAP_PERFMON due to the event persisting, otherwise -EPERM is returned.
+
 Typically programs will register a set of events that they wish to expose to
 tools that can read trace_events (such as ftrace and perf). The registration
 process tells the kernel which address and bit to reflect if any tool has
@@ -45,7 +50,7 @@ This command takes a packed struct user_reg as an argument::
         /* Input: Enable size in bytes at address */
         __u8 enable_size;
 
-        /* Input: Flags for future use, set to 0 */
+        /* Input: Flags to use, if any */
         __u16 flags;
 
         /* Input: Address to update when enabled */
@@ -69,7 +74,7 @@ The struct user_reg requires all the above inputs to be set appropriately.
   This must be 4 (32-bit) or 8 (64-bit). 64-bit values are only allowed to be
   used on 64-bit kernels, however, 32-bit can be used on all kernels.
 
-+ flags: The flags to use, if any. For the initial version this must be 0.
++ flags: The flags to use, if any.
   Callers should first attempt to use flags and retry without flags to ensure
   support for lower versions of the kernel. If a flag is not supported -EINVAL
   is returned.
@@ -79,6 +84,13 @@ The struct user_reg requires all the above inputs to be set appropriately.
 
 + name_args: The name and arguments to describe the event, see command format
   for details.
+
+The following flags are currently supported.
+
++ USER_EVENT_REG_PERSIST: The event will not delete upon the last reference
+  closing. Callers may use this if an event should exist even after the
+  process closes or unregisters the event. Requires CAP_PERFMON otherwise
+  -EPERM is returned.
 
 Upon successful registration the following is set.
 
@@ -141,7 +153,10 @@ event (in both user and kernel space). User programs should use a separate file
 to request deletes than the one used for registration due to this.
 
 **NOTE:** By default events will auto-delete when there are no references left
-to the event. Flags in the future may change this logic.
+to the event. If programs do not want auto-delete, they must use the
+USER_EVENT_REG_PERSIST flag when registering the event. Once that flag is used
+the event exists until DIAG_IOCSDEL is invoked. Both register and delete of an
+event that persists requires CAP_PERFMON, otherwise -EPERM is returned.
 
 Unregistering
 -------------

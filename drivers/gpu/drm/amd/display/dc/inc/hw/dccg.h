@@ -56,6 +56,13 @@ enum dentist_dispclk_change_mode {
 	DISPCLK_CHANGE_MODE_RAMPING,
 };
 
+struct dp_dto_params {
+	int otg_inst;
+	enum signal_type signal;
+	long long pixclk_hz;
+	long long refclk_hz;
+};
+
 enum pixel_rate_div {
    PIXEL_RATE_DIV_BY_1 = 0,
    PIXEL_RATE_DIV_BY_2 = 1,
@@ -182,6 +189,13 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			uint32_t stream_enc_inst,
 			uint32_t link_enc_inst);
+	void (*set_dp_dto)(
+			struct dccg *dccg,
+			const struct dp_dto_params *params);
+	void (*set_dtbclk_p_src)(
+			struct dccg *dccg,
+			enum streamclk_source src,
+			uint32_t otg_inst);
 };
 
 #endif //__DAL_DCCG_H__

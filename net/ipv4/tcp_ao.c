@@ -1315,7 +1315,8 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	key->maclen = cmd->maclen ?: 12; /* 12 is the default in RFC5925 */
 
 	/* Check: maclen + tcp-ao header <= (MAX_TCP_OPTION_SPACE - mss
-	 *					- tstamp - wscale - sackperm),
+	 *					- tstamp (including sackperm)
+	 *					- wscale),
 	 * see tcp_syn_options(), tcp_synack_options(), commit 33ad798c924b.
 	 *
 	 * In order to allow D-SACK with TCP-AO, the header size should be:
@@ -1342,9 +1343,9 @@ static int tcp_ao_parse_crypto(struct tcp_ao_add *cmd, struct tcp_ao_key *key)
 	 * large to leave sufficient option space.
 	 */
 	syn_tcp_option_space = MAX_TCP_OPTION_SPACE;
+	syn_tcp_option_space -= TCPOLEN_MSS_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_TSTAMP_ALIGNED;
 	syn_tcp_option_space -= TCPOLEN_WSCALE_ALIGNED;
-	syn_tcp_option_space -= TCPOLEN_SACKPERM_ALIGNED;
 	if (tcp_ao_len(key) > syn_tcp_option_space) {
 		err = -EMSGSIZE;
 		goto err_kfree;
@@ -1533,10 +1534,6 @@ static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 		goto err_free_pool;
 
 	tfm = crypto_ahash_reqtfm(hp.req);
-	if (crypto_ahash_alignmask(tfm) > TCP_AO_KEY_ALIGN) {
-		err = -EOPNOTSUPP;
-		goto err_pool_end;
-	}
 	digest_size = crypto_ahash_digestsize(tfm);
 	tcp_sigpool_end(&hp);
 
@@ -1551,8 +1548,6 @@ static struct tcp_ao_key *tcp_ao_key_alloc(struct sock *sk,
 	key->digest_size = digest_size;
 	return key;
 
-err_pool_end:
-	tcp_sigpool_end(&hp);
 err_free_pool:
 	tcp_sigpool_release(pool_id);
 	return ERR_PTR(err);

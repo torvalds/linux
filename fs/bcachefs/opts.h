@@ -10,13 +10,12 @@
 
 struct bch_fs;
 
-extern const char * const bch2_iops_measurements[];
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_fsck_fix_opts[];
 extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
-extern const char * const bch2_btree_ids[];
+extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
 extern const char * const bch2_compression_types[];
@@ -74,6 +73,7 @@ enum opt_type {
 struct bch_opt_fn {
 	int (*parse)(struct bch_fs *, const char *, u64 *, struct printbuf *);
 	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
+	int (*validate)(u64, struct printbuf *);
 };
 
 /**

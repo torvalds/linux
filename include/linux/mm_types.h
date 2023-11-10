@@ -188,6 +188,10 @@ struct page {
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
 
+#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+	int _last_cpupid;
+#endif
+
 #ifdef CONFIG_KMSAN
 	/*
 	 * KMSAN metadata for this page:
@@ -198,10 +202,6 @@ struct page {
 	 */
 	struct page *kmsan_shadow;
 	struct page *kmsan_origin;
-#endif
-
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
-	int _last_cpupid;
 #endif
 } _struct_page_alignment;
 
@@ -261,6 +261,8 @@ typedef struct {
  * @_refcount: Do not access this member directly.  Use folio_ref_count()
  *    to find how many references there are to this folio.
  * @memcg_data: Memory Control Group data.
+ * @virtual: Virtual address in the kernel direct map.
+ * @_last_cpupid: IDs of last CPU and last process that accessed the folio.
  * @_entire_mapcount: Do not use directly, call folio_entire_mapcount().
  * @_nr_pages_mapped: Do not use directly, call folio_mapcount().
  * @_pincount: Do not use directly, call folio_maybe_dma_pinned().
@@ -306,6 +308,12 @@ struct folio {
 			atomic_t _refcount;
 #ifdef CONFIG_MEMCG
 			unsigned long memcg_data;
+#endif
+#if defined(WANT_PAGE_VIRTUAL)
+			void *virtual;
+#endif
+#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+			int _last_cpupid;
 #endif
 	/* private: the union with struct page is transitional */
 		};
@@ -361,6 +369,12 @@ FOLIO_MATCH(_mapcount, _mapcount);
 FOLIO_MATCH(_refcount, _refcount);
 #ifdef CONFIG_MEMCG
 FOLIO_MATCH(memcg_data, memcg_data);
+#endif
+#if defined(WANT_PAGE_VIRTUAL)
+FOLIO_MATCH(virtual, virtual);
+#endif
+#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+FOLIO_MATCH(_last_cpupid, _last_cpupid);
 #endif
 #undef FOLIO_MATCH
 #define FOLIO_MATCH(pg, fl)						\
@@ -535,6 +549,27 @@ struct anon_vma_name {
 	char name[];
 };
 
+#ifdef CONFIG_ANON_VMA_NAME
+/*
+ * mmap_lock should be read-locked when calling anon_vma_name(). Caller should
+ * either keep holding the lock while using the returned pointer or it should
+ * raise anon_vma_name refcount before releasing the lock.
+ */
+struct anon_vma_name *anon_vma_name(struct vm_area_struct *vma);
+struct anon_vma_name *anon_vma_name_alloc(const char *name);
+void anon_vma_name_free(struct kref *kref);
+#else /* CONFIG_ANON_VMA_NAME */
+static inline struct anon_vma_name *anon_vma_name(struct vm_area_struct *vma)
+{
+	return NULL;
+}
+
+static inline struct anon_vma_name *anon_vma_name_alloc(const char *name)
+{
+	return NULL;
+}
+#endif
+
 struct vma_lock {
 	struct rw_semaphore lock;
 };
@@ -677,6 +712,12 @@ struct vm_area_struct {
 #endif
 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
 } __randomize_layout;
+
+#ifdef CONFIG_NUMA
+#define vma_policy(vma) ((vma)->vm_policy)
+#else
+#define vma_policy(vma) NULL
+#endif
 
 #ifdef CONFIG_SCHED_MM_CID
 struct mm_cid {

@@ -23,6 +23,8 @@
  */
 #include "priv.h"
 
+#include <subdev/gsp.h>
+
 const struct nvkm_intr_data
 gp100_mc_intrs[] = {
 	{ NVKM_ENGINE_DISP    , 0, 0, 0x04000000, true },
@@ -98,5 +100,8 @@ gp100_mc = {
 int
 gp100_mc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_mc **pmc)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_mc_new_(&gp100_mc, device, type, inst, pmc);
 }

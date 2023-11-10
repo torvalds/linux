@@ -324,7 +324,7 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 		ck = bkey_cached_reuse(bc);
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
-				bch2_btree_ids[path->btree_id]);
+				bch2_btree_id_str(path->btree_id));
 			return ERR_PTR(-BCH_ERR_ENOMEM_btree_key_cache_create);
 		}
 
@@ -407,7 +407,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 			new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 			if (!new_k) {
 				bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
-					bch2_btree_ids[ck->key.btree_id], new_u64s);
+					bch2_btree_id_str(ck->key.btree_id), new_u64s);
 				ret = -BCH_ERR_ENOMEM_btree_key_cache_fill;
 				goto err;
 			}
@@ -509,7 +509,7 @@ fill:
 		 * path->uptodate yet:
 		 */
 		if (!path->locks_want &&
-		    !__bch2_btree_path_upgrade(trans, path, 1)) {
+		    !__bch2_btree_path_upgrade(trans, path, 1, NULL)) {
 			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
@@ -834,8 +834,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_key_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bucket_table *tbl;
 	struct bkey_cached *ck, *t;
@@ -932,8 +931,7 @@ out:
 static unsigned long bch2_btree_key_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_key_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	long nr = atomic_long_read(&bc->nr_keys) -
 		atomic_long_read(&bc->nr_dirty);
@@ -953,7 +951,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	int cpu;
 #endif
 
-	unregister_shrinker(&bc->shrink);
+	shrinker_free(bc->shrink);
 
 	mutex_lock(&bc->lock);
 
@@ -1027,6 +1025,7 @@ void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
 int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 {
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
+	struct shrinker *shrink;
 
 #ifdef __KERNEL__
 	bc->pcpu_freed = alloc_percpu(struct btree_key_cache_freelist);
@@ -1039,11 +1038,15 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 	bc->table_init_done = true;
 
-	bc->shrink.seeks		= 0;
-	bc->shrink.count_objects	= bch2_btree_key_cache_count;
-	bc->shrink.scan_objects		= bch2_btree_key_cache_scan;
-	if (register_shrinker(&bc->shrink, "%s/btree_key_cache", c->name))
+	shrink = shrinker_alloc(0, "%s-btree_key_cache", c->name);
+	if (!shrink)
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+	bc->shrink = shrink;
+	shrink->seeks		= 0;
+	shrink->count_objects	= bch2_btree_key_cache_count;
+	shrink->scan_objects	= bch2_btree_key_cache_scan;
+	shrink->private_data	= c;
+	shrinker_register(shrink);
 	return 0;
 }
 

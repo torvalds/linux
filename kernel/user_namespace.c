@@ -22,7 +22,7 @@
 #include <linux/bsearch.h>
 #include <linux/sort.h>
 
-static struct kmem_cache *user_ns_cachep __read_mostly;
+static struct kmem_cache *user_ns_cachep __ro_after_init;
 static DEFINE_MUTEX(userns_state_mutex);
 
 static bool new_idmap_permitted(const struct file *file,

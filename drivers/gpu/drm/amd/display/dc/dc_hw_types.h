@@ -769,9 +769,6 @@ struct dc_crtc_timing_flags {
 	uint32_t LTE_340MCSC_SCRAMBLE:1;
 
 	uint32_t DSC : 1; /* Use DSC with this timing */
-#ifndef TRIM_FSFT
-	uint32_t FAST_TRANSPORT: 1;
-#endif
 	uint32_t VBLANK_SYNCHRONIZABLE: 1;
 };
 
@@ -949,10 +946,6 @@ struct dc_crtc_timing {
 	enum dc_pixel_encoding pixel_encoding;
 	enum dc_aspect_ratio aspect_ratio;
 	enum scanning_type scan_type;
-
-#ifndef TRIM_FSFT
-	uint32_t fast_transport_output_rate_100hz;
-#endif
 
 	struct dc_crtc_timing_flags flags;
 	uint32_t dsc_fixed_bits_per_pixel_x16; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */

@@ -307,7 +307,7 @@ int uniphier_aiodma_soc_register_platform(struct platform_device *pdev);
 extern const struct snd_compress_ops uniphier_aio_compress_ops;
 
 int uniphier_aio_probe(struct platform_device *pdev);
-int uniphier_aio_remove(struct platform_device *pdev);
+void uniphier_aio_remove(struct platform_device *pdev);
 extern const struct snd_soc_dai_ops uniphier_aio_i2s_ld11_ops;
 extern const struct snd_soc_dai_ops uniphier_aio_i2s_pxs2_ops;
 extern const struct snd_soc_dai_ops uniphier_aio_spdif_ld11_ops;

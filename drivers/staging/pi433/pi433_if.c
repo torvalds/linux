@@ -56,7 +56,10 @@ static DEFINE_IDR(pi433_idr);
 static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
 static struct dentry *root_dir;	/* debugfs root directory for the driver */
 
-static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
+/* mainly for udev to create /dev/pi433 */
+static const struct class pi433_class = {
+	.name = "pi433",
+};
 
 /*
  * tx config is instance specific
@@ -1259,7 +1262,7 @@ static int pi433_probe(struct spi_device *spi)
 
 	/* create device */
 	device->devt = MKDEV(MAJOR(pi433_dev), device->minor);
-	device->dev = device_create(pi433_class,
+	device->dev = device_create(&pi433_class,
 				    &spi->dev,
 				    device->devt,
 				    device,
@@ -1315,7 +1318,7 @@ del_cdev:
 cdev_failed:
 	kthread_stop(device->tx_task_struct);
 send_thread_failed:
-	device_destroy(pi433_class, device->devt);
+	device_destroy(&pi433_class, device->devt);
 device_create_failed:
 	pi433_free_minor(device);
 minor_failed:
@@ -1342,7 +1345,7 @@ static void pi433_remove(struct spi_device *spi)
 
 	kthread_stop(device->tx_task_struct);
 
-	device_destroy(pi433_class, device->devt);
+	device_destroy(&pi433_class, device->devt);
 
 	cdev_del(device->cdev);
 
@@ -1398,18 +1401,18 @@ static int __init pi433_init(void)
 	if (status < 0)
 		return status;
 
-	pi433_class = class_create("pi433");
-	if (IS_ERR(pi433_class)) {
+	status = class_register(&pi433_class);
+	if (status) {
 		unregister_chrdev(MAJOR(pi433_dev),
 				  pi433_spi_driver.driver.name);
-		return PTR_ERR(pi433_class);
+		return status;
 	}
 
 	root_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
 	status = spi_register_driver(&pi433_spi_driver);
 	if (status < 0) {
-		class_destroy(pi433_class);
+		class_unregister(&pi433_class);
 		unregister_chrdev(MAJOR(pi433_dev),
 				  pi433_spi_driver.driver.name);
 	}
@@ -1422,7 +1425,7 @@ module_init(pi433_init);
 static void __exit pi433_exit(void)
 {
 	spi_unregister_driver(&pi433_spi_driver);
-	class_destroy(pi433_class);
+	class_unregister(&pi433_class);
 	unregister_chrdev(MAJOR(pi433_dev), pi433_spi_driver.driver.name);
 	debugfs_remove(root_dir);
 }

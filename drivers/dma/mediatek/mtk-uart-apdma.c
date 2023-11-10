@@ -572,7 +572,7 @@ err_no_dma:
 	return rc;
 }
 
-static int mtk_uart_apdma_remove(struct platform_device *pdev)
+static void mtk_uart_apdma_remove(struct platform_device *pdev)
 {
 	struct mtk_uart_apdmadev *mtkd = platform_get_drvdata(pdev);
 
@@ -583,8 +583,6 @@ static int mtk_uart_apdma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&mtkd->ddev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -639,7 +637,7 @@ static const struct dev_pm_ops mtk_uart_apdma_pm_ops = {
 
 static struct platform_driver mtk_uart_apdma_driver = {
 	.probe	= mtk_uart_apdma_probe,
-	.remove	= mtk_uart_apdma_remove,
+	.remove_new = mtk_uart_apdma_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.pm		= &mtk_uart_apdma_pm_ops,

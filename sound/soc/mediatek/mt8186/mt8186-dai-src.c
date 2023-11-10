@@ -322,7 +322,7 @@ static int mtk_hw_src_event(struct snd_soc_dapm_widget *w,
 	struct mtk_afe_src_priv *src_priv;
 	unsigned int reg;
 
-	if (strcmp(w->name, HW_SRC_1_EN_W_NAME) == 0)
+	if (snd_soc_dapm_widget_name_cmp(w, HW_SRC_1_EN_W_NAME) == 0)
 		id = MT8186_DAI_SRC_1;
 	else
 		id = MT8186_DAI_SRC_2;
@@ -487,7 +487,7 @@ static int mtk_afe_src_en_connect(struct snd_soc_dapm_widget *source,
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_afe_src_priv *src_priv;
 
-	if (strcmp(w->name, HW_SRC_1_EN_W_NAME) == 0)
+	if (snd_soc_dapm_widget_name_cmp(w, HW_SRC_1_EN_W_NAME) == 0)
 		src_priv = afe_priv->dai_priv[MT8186_DAI_SRC_1];
 	else
 		src_priv = afe_priv->dai_priv[MT8186_DAI_SRC_2];

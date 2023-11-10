@@ -8,7 +8,7 @@
 
 enum bkey_invalid_flags;
 
-int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_stripe_invalid(struct bch_fs *, struct bkey_s_c,
 			enum bkey_invalid_flags, struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
@@ -199,7 +199,7 @@ struct ec_stripe_head {
 	struct ec_stripe_new	*s;
 };
 
-int bch2_ec_read_extent(struct bch_fs *, struct bch_read_bio *);
+int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
 

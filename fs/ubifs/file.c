@@ -1375,6 +1375,9 @@ static inline int mctime_update_needed(const struct inode *inode,
 /**
  * ubifs_update_time - update time of inode.
  * @inode: inode to update
+ * @time:  timespec structure to hold the current time value
+ * @flags: time updating control flag determines updating
+ *	    which time fields of @inode
  *
  * This function updates time of the inode.
  */

@@ -47,12 +47,16 @@ properties:
 patternProperties:
   "^display-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         const: qcom,sm8150-dpu
 
   "^dsi@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         items:
@@ -61,6 +65,8 @@ patternProperties:
 
   "^phy@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         const: qcom,dsi-phy-7nm

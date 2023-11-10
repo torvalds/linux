@@ -1312,9 +1312,9 @@ config GPIO_KEMPLD
 
 config GPIO_LJCA
 	tristate "INTEL La Jolla Cove Adapter GPIO support"
-	depends on MFD_LJCA
+	depends on USB_LJCA
 	select GPIOLIB_IRQCHIP
-	default MFD_LJCA
+	default USB_LJCA
 	help
 	  Select this option to enable GPIO driver for the INTEL
 	  La Jolla Cove Adapter (LJCA) board.

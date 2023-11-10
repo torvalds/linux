@@ -42,6 +42,15 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
 
+bool intel_vrr_is_in_range(struct intel_connector *connector, int vrefresh)
+{
+	const struct drm_display_info *info = &connector->base.display_info;
+
+	return intel_vrr_is_capable(connector) &&
+		vrefresh >= info->monitor_range.min_vfreq &&
+		vrefresh <= info->monitor_range.max_vfreq;
+}
+
 void
 intel_vrr_check_modeset(struct intel_atomic_state *state)
 {
@@ -108,11 +117,16 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	const struct drm_display_info *info = &connector->base.display_info;
 	int vmin, vmax;
 
-	if (!intel_vrr_is_capable(connector))
-		return;
-
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return;
+
+	crtc_state->vrr.in_range =
+		intel_vrr_is_in_range(connector, drm_mode_vrefresh(adjusted_mode));
+	if (!crtc_state->vrr.in_range)
+		return;
+
+	if (HAS_LRR(i915))
+		crtc_state->update_lrr = true;
 
 	vmin = DIV_ROUND_UP(adjusted_mode->crtc_clock * 1000,
 			    adjusted_mode->crtc_htotal * info->monitor_range.max_vfreq);

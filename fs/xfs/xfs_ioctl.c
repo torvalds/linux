@@ -38,6 +38,7 @@
 #include "xfs_reflink.h"
 #include "xfs_ioctl.h"
 #include "xfs_xattr.h"
+#include "xfs_rtbitmap.h"
 
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -1004,7 +1005,7 @@ xfs_fill_fsxattr(
 		 * later.
 		 */
 		if ((ip->i_diflags & XFS_DIFLAG_RTINHERIT) &&
-		    ip->i_extsize % mp->m_sb.sb_rextsize > 0) {
+		    xfs_extlen_to_rtxmod(mp, ip->i_extsize) > 0) {
 			fa->fsx_xflags &= ~(FS_XFLAG_EXTSIZE |
 					    FS_XFLAG_EXTSZINHERIT);
 			fa->fsx_extsize = 0;
@@ -1130,7 +1131,7 @@ xfs_ioctl_setattr_xflags(
 	/* If realtime flag is set then must have realtime device */
 	if (fa->fsx_xflags & FS_XFLAG_REALTIME) {
 		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
-		    (ip->i_extsize % mp->m_sb.sb_rextsize))
+		    xfs_extlen_to_rtxmod(mp, ip->i_extsize))
 			return -EINVAL;
 	}
 

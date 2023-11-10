@@ -110,18 +110,15 @@ void __init proc_init_kmemcache(void)
 
 void proc_invalidate_siblings_dcache(struct hlist_head *inodes, spinlock_t *lock)
 {
-	struct inode *inode;
-	struct proc_inode *ei;
 	struct hlist_node *node;
 	struct super_block *old_sb = NULL;
 
 	rcu_read_lock();
-	for (;;) {
+	while ((node = hlist_first_rcu(inodes))) {
+		struct proc_inode *ei = hlist_entry(node, struct proc_inode, sibling_inodes);
 		struct super_block *sb;
-		node = hlist_first_rcu(inodes);
-		if (!node)
-			break;
-		ei = hlist_entry(node, struct proc_inode, sibling_inodes);
+		struct inode *inode;
+
 		spin_lock(lock);
 		hlist_del_init_rcu(&ei->sibling_inodes);
 		spin_unlock(lock);

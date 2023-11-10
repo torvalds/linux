@@ -154,4 +154,15 @@ config KVM_PROVE_MMU
 config KVM_EXTERNAL_WRITE_TRACKING
 	bool
 
+config KVM_MAX_NR_VCPUS
+	int "Maximum number of vCPUs per KVM guest"
+	depends on KVM
+	range 1024 4096
+	default 4096 if MAXSMP
+	default 1024
+	help
+	  Set the maximum number of vCPUs per KVM guest. Larger values will increase
+	  the memory footprint of each KVM guest, regardless of how many vCPUs are
+	  created for a given VM.
+
 endif # VIRTUALIZATION

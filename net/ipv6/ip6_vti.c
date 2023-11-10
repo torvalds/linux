@@ -569,11 +569,11 @@ vti6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto tx_err;
 
 		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
-		xfrm_decode_session(skb, &fl, AF_INET6);
+		xfrm_decode_session(dev_net(dev), skb, &fl, AF_INET6);
 		break;
 	case htons(ETH_P_IP):
 		memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
-		xfrm_decode_session(skb, &fl, AF_INET);
+		xfrm_decode_session(dev_net(dev), skb, &fl, AF_INET);
 		break;
 	default:
 		goto tx_err;

@@ -1287,7 +1287,7 @@ config INTEL_MID_WATCHDOG
 
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
-	depends on (X86 || IA64) && PCI
+	depends on X86 && PCI
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
 	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT

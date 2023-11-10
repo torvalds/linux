@@ -420,7 +420,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
  */
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int playback = SNDRV_PCM_STREAM_PLAYBACK;
 
 	snd_soc_dpcm_mutex_lock(rtd);
@@ -554,8 +554,8 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	 *	  ^cpu_dais         ^codec_dais
 	 *	  |--- num_cpus ---|--- num_codecs --|
 	 * see
-	 *	asoc_rtd_to_cpu()
-	 *	asoc_rtd_to_codec()
+	 *	snd_soc_rtd_to_cpu()
+	 *	snd_soc_rtd_to_codec()
 	 */
 	rtd->card	= card;
 	rtd->dai_link	= dai_link;
@@ -1078,25 +1078,25 @@ static int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 		return -ENOMEM;
 
 	for_each_link_cpus(dai_link, i, cpu) {
-		asoc_rtd_to_cpu(rtd, i) = snd_soc_find_dai(cpu);
-		if (!asoc_rtd_to_cpu(rtd, i)) {
+		snd_soc_rtd_to_cpu(rtd, i) = snd_soc_find_dai(cpu);
+		if (!snd_soc_rtd_to_cpu(rtd, i)) {
 			dev_info(card->dev, "ASoC: CPU DAI %s not registered\n",
 				 cpu->dai_name);
 			goto _err_defer;
 		}
-		snd_soc_rtd_add_component(rtd, asoc_rtd_to_cpu(rtd, i)->component);
+		snd_soc_rtd_add_component(rtd, snd_soc_rtd_to_cpu(rtd, i)->component);
 	}
 
 	/* Find CODEC from registered CODECs */
 	for_each_link_codecs(dai_link, i, codec) {
-		asoc_rtd_to_codec(rtd, i) = snd_soc_find_dai(codec);
-		if (!asoc_rtd_to_codec(rtd, i)) {
+		snd_soc_rtd_to_codec(rtd, i) = snd_soc_find_dai(codec);
+		if (!snd_soc_rtd_to_codec(rtd, i)) {
 			dev_info(card->dev, "ASoC: CODEC DAI %s not registered\n",
 				 codec->dai_name);
 			goto _err_defer;
 		}
 
-		snd_soc_rtd_add_component(rtd, asoc_rtd_to_codec(rtd, i)->component);
+		snd_soc_rtd_add_component(rtd, snd_soc_rtd_to_codec(rtd, i)->component);
 	}
 
 	/* Find PLATFORM from registered PLATFORMs */
@@ -1335,7 +1335,7 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_component *component;
 	int ret, num, i;
 

@@ -1760,6 +1760,11 @@ static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
 			      SOC15_DPG_MODE_OFFSET(VCN, 0, regVCN_RAS_CNTL),
 			      tmp, 0, indirect);
 
+	tmp = UVD_VCPU_INT_EN2__RASCNTL_VCPU_VCODEC_EN_MASK;
+	WREG32_SOC15_DPG_MODE(inst_idx,
+			      SOC15_DPG_MODE_OFFSET(VCN, 0, regUVD_VCPU_INT_EN2),
+			      tmp, 0, indirect);
+
 	tmp = UVD_SYS_INT_EN__RASCNTL_VCPU_VCODEC_EN_MASK;
 	WREG32_SOC15_DPG_MODE(inst_idx,
 			      SOC15_DPG_MODE_OFFSET(VCN, 0, regUVD_SYS_INT_EN),

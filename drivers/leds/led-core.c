@@ -36,6 +36,11 @@ const char * const led_colors[LED_COLOR_ID_MAX] = {
 	[LED_COLOR_ID_IR] = "ir",
 	[LED_COLOR_ID_MULTI] = "multicolor",
 	[LED_COLOR_ID_RGB] = "rgb",
+	[LED_COLOR_ID_PURPLE] = "purple",
+	[LED_COLOR_ID_ORANGE] = "orange",
+	[LED_COLOR_ID_PINK] = "pink",
+	[LED_COLOR_ID_CYAN] = "cyan",
+	[LED_COLOR_ID_LIME] = "lime",
 };
 EXPORT_SYMBOL_GPL(led_colors);
 
@@ -359,17 +364,17 @@ EXPORT_SYMBOL_GPL(led_set_brightness_sync);
 
 int led_update_brightness(struct led_classdev *led_cdev)
 {
-	int ret = 0;
+	int ret;
 
 	if (led_cdev->brightness_get) {
 		ret = led_cdev->brightness_get(led_cdev);
-		if (ret >= 0) {
-			led_cdev->brightness = ret;
-			return 0;
-		}
+		if (ret < 0)
+			return ret;
+
+		led_cdev->brightness = ret;
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(led_update_brightness);
 

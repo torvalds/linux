@@ -1,4 +1,5 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
  *  entry.S  -- interrupt and exception processing for ColdFire
  *
  *  Copyright (C) 1999-2007, Greg Ungerer (gerg@snapgear.com)
@@ -12,10 +13,6 @@
  *  linux/arch/m68k/kernel/entry.S
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file README.legal in the main directory of this archive
- * for more details.
  *
  * Linux/m68k support by Hamish Macdonald
  *

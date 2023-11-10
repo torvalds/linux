@@ -165,6 +165,8 @@ static int exfat_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",sys_tz");
 	else if (opts->time_offset)
 		seq_printf(m, ",time_offset=%d", opts->time_offset);
+	if (opts->zero_size_dir)
+		seq_puts(m, ",zero_size_dir");
 	return 0;
 }
 
@@ -209,6 +211,7 @@ enum {
 	Opt_keep_last_dots,
 	Opt_sys_tz,
 	Opt_time_offset,
+	Opt_zero_size_dir,
 
 	/* Deprecated options */
 	Opt_utf8,
@@ -237,6 +240,7 @@ static const struct fs_parameter_spec exfat_parameters[] = {
 	fsparam_flag("keep_last_dots",		Opt_keep_last_dots),
 	fsparam_flag("sys_tz",			Opt_sys_tz),
 	fsparam_s32("time_offset",		Opt_time_offset),
+	fsparam_flag("zero_size_dir",		Opt_zero_size_dir),
 	__fsparam(NULL, "utf8",			Opt_utf8, fs_param_deprecated,
 		  NULL),
 	__fsparam(NULL, "debug",		Opt_debug, fs_param_deprecated,
@@ -305,6 +309,9 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			return -EINVAL;
 		opts->time_offset = result.int_32;
 		break;
+	case Opt_zero_size_dir:
+		opts->zero_size_dir = true;
+		break;
 	case Opt_utf8:
 	case Opt_debug:
 	case Opt_namecase:
@@ -360,7 +367,7 @@ static int exfat_read_root(struct inode *inode)
 	inode->i_gid = sbi->options.fs_gid;
 	inode_inc_iversion(inode);
 	inode->i_generation = 0;
-	inode->i_mode = exfat_make_mode(sbi, ATTR_SUBDIR, 0777);
+	inode->i_mode = exfat_make_mode(sbi, EXFAT_ATTR_SUBDIR, 0777);
 	inode->i_op = &exfat_dir_inode_operations;
 	inode->i_fop = &exfat_dir_operations;
 
@@ -369,7 +376,7 @@ static int exfat_read_root(struct inode *inode)
 	ei->i_size_aligned = i_size_read(inode);
 	ei->i_size_ondisk = i_size_read(inode);
 
-	exfat_save_attr(inode, ATTR_SUBDIR);
+	exfat_save_attr(inode, EXFAT_ATTR_SUBDIR);
 	ei->i_crtime = simple_inode_init_ts(inode);
 	exfat_truncate_inode_atime(inode);
 	return 0;

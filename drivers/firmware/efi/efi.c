@@ -147,7 +147,7 @@ static ssize_t systab_show(struct kobject *kobj,
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
 
-	if (IS_ENABLED(CONFIG_IA64) || IS_ENABLED(CONFIG_X86))
+	if (IS_ENABLED(CONFIG_X86))
 		str = efi_systab_show_arch(str);
 
 	return str - buf;
@@ -807,7 +807,6 @@ int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr)
 	return 0;
 }
 
-#ifndef CONFIG_IA64
 static const efi_char16_t *__init map_fw_vendor(unsigned long fw_vendor,
 						size_t size)
 {
@@ -823,10 +822,6 @@ static void __init unmap_fw_vendor(const void *fw_vendor, size_t size)
 {
 	early_memunmap((void *)fw_vendor, size);
 }
-#else
-#define map_fw_vendor(p, s)	__va(p)
-#define unmap_fw_vendor(v, s)
-#endif
 
 void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 				     unsigned long fw_vendor)
@@ -930,11 +925,6 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 }
 
 /*
- * IA64 has a funky EFI memory map that doesn't work the same way as
- * other architectures.
- */
-#ifndef CONFIG_IA64
-/*
  * efi_mem_attributes - lookup memmap attributes for physical address
  * @phys_addr: the physical address to lookup
  *
@@ -981,7 +971,6 @@ int efi_mem_type(unsigned long phys_addr)
 	}
 	return -EINVAL;
 }
-#endif
 
 int efi_status_to_err(efi_status_t status)
 {

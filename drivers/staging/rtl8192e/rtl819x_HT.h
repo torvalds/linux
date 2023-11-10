@@ -93,7 +93,7 @@ enum ht_aggre_mode {
 
 struct rt_hi_throughput {
 	u8 enable_ht;
-	u8 bCurrentHTSupport;
+	u8 current_ht_support;
 	u8 bRegBW40MHz;
 	u8 bCurBW40MHz;
 	u8 bRegShortGI40MHz;

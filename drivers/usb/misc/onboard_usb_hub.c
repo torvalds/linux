@@ -240,7 +240,6 @@ static void onboard_hub_attach_usb_driver(struct work_struct *work)
 
 static int onboard_hub_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct onboard_hub *hub;
 	unsigned int i;
@@ -250,11 +249,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	if (!hub)
 		return -ENOMEM;
 
-	of_id = of_match_device(onboard_hub_match, &pdev->dev);
-	if (!of_id)
-		return -ENODEV;
-
-	hub->pdata = of_id->data;
+	hub->pdata = device_get_match_data(&pdev->dev);
 	if (!hub->pdata)
 		return -EINVAL;
 

@@ -5,9 +5,7 @@
  * Copyright (C) 2021, Alibaba Cloud
  */
 #include "internal.h"
-#include <linux/prefetch.h>
 #include <linux/sched/mm.h>
-#include <linux/dax.h>
 #include <trace/events/erofs.h>
 
 void erofs_unmap_metabuf(struct erofs_buf *buf)

@@ -528,51 +528,22 @@ qla_dfs_naqp_show(struct seq_file *s, void *unused)
  *
  * Example for creating "TEST" sysfs file:
  * 1. struct qla_hw_data { ... struct dentry *dfs_TEST; }
- * 2. QLA_DFS_SETUP_RD(TEST, scsi_qla_host_t);
+ * 2. QLA_DFS_SETUP_RD(TEST);
  * 3. In qla2x00_dfs_setup():
  * QLA_DFS_CREATE_FILE(ha, TEST, 0600, ha->dfs_dir, vha);
  * 4. In qla2x00_dfs_remove():
  * QLA_DFS_REMOVE_FILE(ha, TEST);
  */
-#define QLA_DFS_SETUP_RD(_name, _ctx_struct)				\
-static int								\
-qla_dfs_##_name##_open(struct inode *inode, struct file *file)		\
-{									\
-	_ctx_struct *__ctx = inode->i_private;				\
-									\
-	return single_open(file, qla_dfs_##_name##_show, __ctx);	\
-}									\
-									\
-static const struct file_operations qla_dfs_##_name##_ops = {		\
-	.open           = qla_dfs_##_name##_open,			\
-	.read           = seq_read,					\
-	.llseek         = seq_lseek,					\
-	.release        = single_release,				\
-};
+#define QLA_DFS_SETUP_RD(_name)	DEFINE_SHOW_ATTRIBUTE(qla_dfs_##_name)
 
-#define QLA_DFS_SETUP_RW(_name, _ctx_struct)				\
-static int								\
-qla_dfs_##_name##_open(struct inode *inode, struct file *file)		\
-{									\
-	_ctx_struct *__ctx = inode->i_private;				\
-									\
-	return single_open(file, qla_dfs_##_name##_show, __ctx);	\
-}									\
-									\
-static const struct file_operations qla_dfs_##_name##_ops = {		\
-	.open           = qla_dfs_##_name##_open,			\
-	.read           = seq_read,					\
-	.llseek         = seq_lseek,					\
-	.release        = single_release,				\
-	.write		= qla_dfs_##_name##_write,			\
-};
+#define QLA_DFS_SETUP_RW(_name)	DEFINE_SHOW_STORE_ATTRIBUTE(qla_dfs_##_name)
 
 #define QLA_DFS_ROOT_CREATE_FILE(_name, _perm, _ctx)			\
 	do {								\
 		if (!qla_dfs_##_name)					\
 			qla_dfs_##_name = debugfs_create_file(#_name,	\
 					_perm, qla2x00_dfs_root, _ctx,	\
-					&qla_dfs_##_name##_ops);	\
+					&qla_dfs_##_name##_fops);	\
 	} while (0)
 
 #define QLA_DFS_ROOT_REMOVE_FILE(_name)					\
@@ -587,7 +558,7 @@ static const struct file_operations qla_dfs_##_name##_ops = {		\
 	do {								\
 		(_struct)->dfs_##_name = debugfs_create_file(#_name,	\
 					_perm, _parent, _ctx,		\
-					&qla_dfs_##_name##_ops)		\
+					&qla_dfs_##_name##_fops)	\
 	} while (0)
 
 #define QLA_DFS_REMOVE_FILE(_struct, _name)				\
@@ -597,14 +568,6 @@ static const struct file_operations qla_dfs_##_name##_ops = {		\
 			(_struct)->dfs_##_name = NULL;			\
 		}							\
 	} while (0)
-
-static int
-qla_dfs_naqp_open(struct inode *inode, struct file *file)
-{
-	struct scsi_qla_host *vha = inode->i_private;
-
-	return single_open(file, qla_dfs_naqp_show, vha);
-}
 
 static ssize_t
 qla_dfs_naqp_write(struct file *file, const char __user *buffer,
@@ -653,15 +616,7 @@ out_free:
 	kfree(buf);
 	return rc;
 }
-
-static const struct file_operations dfs_naqp_ops = {
-	.open		= qla_dfs_naqp_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= qla_dfs_naqp_write,
-};
-
+QLA_DFS_SETUP_RW(naqp);
 
 int
 qla2x00_dfs_setup(scsi_qla_host_t *vha)
@@ -707,7 +662,7 @@ create_nodes:
 
 	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha)) {
 		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
-		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
+		    0400, ha->dfs_dir, vha, &qla_dfs_naqp_fops);
 		if (IS_ERR(ha->tgt.dfs_naqp)) {
 			ql_log(ql_log_warn, vha, 0xd011,
 			       "Unable to create debugFS naqp node.\n");

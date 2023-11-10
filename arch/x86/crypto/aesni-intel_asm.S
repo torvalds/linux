@@ -672,7 +672,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if if partial block is not being filled and
+	# Determine if partial block is not being filled and
 	# shift mask accordingly
 	jge	.L_no_extra_mask_1_\@
 	sub	%r10, %r12
@@ -708,7 +708,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if if partial block is not being filled and
+	# Determine if partial block is not being filled and
 	# shift mask accordingly
 	jge	.L_no_extra_mask_2_\@
 	sub	%r10, %r12

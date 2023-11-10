@@ -43,12 +43,12 @@
 				     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 257 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 258 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>;
 			status = "okay";
 		};
 
@@ -694,6 +694,8 @@
 			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA234_CLK_UARTE>;
 			resets = <&bpmp TEGRA234_RESET_UARTE>;
+			dmas = <&gpcdma 20>, <&gpcdma 20>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -705,8 +707,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C1
-				  &bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C1>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C1>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -724,8 +726,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C3
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C3>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C3>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -743,8 +745,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C4
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C4>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C4>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -762,8 +764,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C6
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C6>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C6>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -781,8 +783,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C7
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C7>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C7>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -807,8 +809,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C9
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C9>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C9>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
@@ -819,7 +821,7 @@
 		};
 
 		spi@3210000 {
-			compatible = "nvidia,tegra210-spi";
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
 			reg = <0x0 0x03210000 0x0 0x1000>;
 			interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -838,7 +840,7 @@
 		};
 
 		spi@3230000 {
-			compatible = "nvidia,tegra210-spi";
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
 			reg = <0x0 0x03230000 0x0 0x1000>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -1751,8 +1753,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <100000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C2
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C2>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C2>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
@@ -1770,8 +1772,8 @@
 			#size-cells = <0>;
 			status = "disabled";
 			clock-frequency = <400000>;
-			clocks = <&bpmp TEGRA234_CLK_I2C8
-				&bpmp TEGRA234_CLK_PLLP_OUT0>;
+			clocks = <&bpmp TEGRA234_CLK_I2C8>,
+				 <&bpmp TEGRA234_CLK_PLLP_OUT0>;
 			clock-names = "div-clk", "parent";
 			assigned-clocks = <&bpmp TEGRA234_CLK_I2C8>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;
@@ -1782,7 +1784,7 @@
 		};
 
 		spi@c260000 {
-			compatible = "nvidia,tegra210-spi";
+			compatible = "nvidia,tegra210-spi", "nvidia,tegra114-spi";
 			reg = <0x0 0x0c260000 0x0 0x1000>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;

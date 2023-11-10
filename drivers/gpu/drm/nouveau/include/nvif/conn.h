@@ -7,6 +7,21 @@ struct nvif_disp;
 
 struct nvif_conn {
 	struct nvif_object object;
+	u32 id;
+
+	struct {
+		enum {
+			NVIF_CONN_VGA,
+			NVIF_CONN_TV,
+			NVIF_CONN_DVI_I,
+			NVIF_CONN_DVI_D,
+			NVIF_CONN_LVDS,
+			NVIF_CONN_LVDS_SPWG,
+			NVIF_CONN_HDMI,
+			NVIF_CONN_DP,
+			NVIF_CONN_EDP,
+		} type;
+	} info;
 };
 
 int nvif_conn_ctor(struct nvif_disp *, const char *name, int id, struct nvif_conn *);
@@ -17,11 +32,6 @@ nvif_conn_id(struct nvif_conn *conn)
 {
 	return conn->object.handle;
 }
-
-#define NVIF_CONN_HPD_STATUS_UNSUPPORTED 0 /* negative if query fails */
-#define NVIF_CONN_HPD_STATUS_NOT_PRESENT 1
-#define NVIF_CONN_HPD_STATUS_PRESENT     2
-int nvif_conn_hpd_status(struct nvif_conn *);
 
 int nvif_conn_event_ctor(struct nvif_conn *, const char *name, nvif_event_func, u8 types,
 			 struct nvif_event *);

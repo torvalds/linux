@@ -1274,14 +1274,14 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 			      btree_node_type(b), WRITE, &buf) ?:
-	    bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf)) {
+	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf)) {
 		printbuf_reset(&buf);
 		prt_printf(&buf, "inserting invalid bkey\n  ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 		prt_printf(&buf, "\n  ");
 		bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 				  btree_node_type(b), WRITE, &buf);
-		bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf);
+		bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf);
 
 		bch2_fs_inconsistent(c, "%s", buf.buf);
 		dump_stack();
@@ -1987,7 +1987,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 out:
 	if (new_path)
 		bch2_path_put(trans, new_path, true);
-	bch2_btree_path_downgrade(trans, iter->path);
+	bch2_trans_downgrade(trans);
 	return ret;
 err:
 	bch2_btree_node_free_never_used(as, trans, n);
@@ -2411,30 +2411,24 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry
 
 	r->level = entry->level;
 	r->alive = true;
-	bkey_copy(&r->key, &entry->start[0]);
+	bkey_copy(&r->key, (struct bkey_i *) entry->start);
 
 	mutex_unlock(&c->btree_root_lock);
 }
 
 struct jset_entry *
 bch2_btree_roots_to_journal_entries(struct bch_fs *c,
-				    struct jset_entry *start,
-				    struct jset_entry *end)
+				    struct jset_entry *end,
+				    unsigned long skip)
 {
-	struct jset_entry *entry;
-	unsigned long have = 0;
 	unsigned i;
-
-	for (entry = start; entry < end; entry = vstruct_next(entry))
-		if (entry->type == BCH_JSET_ENTRY_btree_root)
-			__set_bit(entry->btree_id, &have);
 
 	mutex_lock(&c->btree_root_lock);
 
 	for (i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
-		if (r->alive && !test_bit(i, &have)) {
+		if (r->alive && !test_bit(i, &skip)) {
 			journal_entry_set(end, BCH_JSET_ENTRY_btree_root,
 					  i, r->level, &r->key, r->key.k.u64s);
 			end = vstruct_next(end);

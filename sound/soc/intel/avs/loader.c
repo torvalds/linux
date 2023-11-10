@@ -662,6 +662,10 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 		}
 	}
 
+	ret = avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
+	if (ret < 0)
+		return ret;
+
 	ret = avs_dsp_boot_firmware(adev, true);
 	if (ret < 0) {
 		dev_err(adev->dev, "firmware boot failed: %d\n", ret);

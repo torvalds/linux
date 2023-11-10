@@ -923,7 +923,7 @@ struct c2port_device *c2port_device_register(char *name,
 	}
 	dev_set_drvdata(c2dev->dev, c2dev);
 
-	strncpy(c2dev->name, name, C2PORT_NAME_LEN - 1);
+	strscpy(c2dev->name, name, sizeof(c2dev->name));
 	c2dev->ops = ops;
 	mutex_init(&c2dev->mutex);
 

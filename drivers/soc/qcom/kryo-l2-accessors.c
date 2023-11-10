@@ -32,7 +32,7 @@ void kryo_l2_set_indirect_reg(u64 reg, u64 val)
 	isb();
 	raw_spin_unlock_irqrestore(&l2_access_lock, flags);
 }
-EXPORT_SYMBOL(kryo_l2_set_indirect_reg);
+EXPORT_SYMBOL_GPL(kryo_l2_set_indirect_reg);
 
 /**
  * kryo_l2_get_indirect_reg() - read an L2 register value
@@ -54,4 +54,4 @@ u64 kryo_l2_get_indirect_reg(u64 reg)
 
 	return val;
 }
-EXPORT_SYMBOL(kryo_l2_get_indirect_reg);
+EXPORT_SYMBOL_GPL(kryo_l2_get_indirect_reg);

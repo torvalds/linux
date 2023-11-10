@@ -107,6 +107,7 @@
 #define HPRE_VIA_MSI_DSM		1
 #define HPRE_SQE_MASK_OFFSET		8
 #define HPRE_SQE_MASK_LEN		24
+#define HPRE_CTX_Q_NUM_DEF		1
 
 #define HPRE_DFX_BASE		0x301000
 #define HPRE_DFX_COMMON1		0x301400
@@ -433,8 +434,11 @@ static u32 uacce_mode = UACCE_MODE_NOUACCE;
 module_param_cb(uacce_mode, &hpre_uacce_mode_ops, &uacce_mode, 0444);
 MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
+static bool pf_q_num_flag;
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
+	pf_q_num_flag = true;
+
 	return q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_HPRE_PF);
 }
 
@@ -1033,7 +1037,7 @@ static int hpre_cluster_debugfs_init(struct hisi_qm *qm)
 
 	for (i = 0; i < clusters_num; i++) {
 		ret = snprintf(buf, HPRE_DBGFS_VAL_MAX_LEN, "cluster%d", i);
-		if (ret < 0)
+		if (ret >= HPRE_DBGFS_VAL_MAX_LEN)
 			return -EINVAL;
 		tmp_d = debugfs_create_dir(buf, qm->debug.debug_root);
 
@@ -1157,6 +1161,8 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = pf_q_num;
 		qm->debug.curr_qm_qp_num = pf_q_num;
 		qm->qm_list = &hpre_devices;
+		if (pf_q_num_flag)
+			set_bit(QM_MODULE_PARAM, &qm->misc_ctl);
 	}
 
 	ret = hisi_qm_init(qm);
@@ -1394,10 +1400,11 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
-	ret = hisi_qm_alg_register(qm, &hpre_devices);
+	hisi_qm_add_list(qm, &hpre_devices);
+	ret = hisi_qm_alg_register(qm, &hpre_devices, HPRE_CTX_Q_NUM_DEF);
 	if (ret < 0) {
 		pci_err(pdev, "fail to register algs to crypto!\n");
-		goto err_with_qm_start;
+		goto err_qm_del_list;
 	}
 
 	if (qm->uacce) {
@@ -1419,9 +1426,10 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_with_alg_register:
-	hisi_qm_alg_unregister(qm, &hpre_devices);
+	hisi_qm_alg_unregister(qm, &hpre_devices, HPRE_CTX_Q_NUM_DEF);
 
-err_with_qm_start:
+err_qm_del_list:
+	hisi_qm_del_list(qm, &hpre_devices);
 	hpre_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
 
@@ -1441,7 +1449,8 @@ static void hpre_remove(struct pci_dev *pdev)
 
 	hisi_qm_pm_uninit(qm);
 	hisi_qm_wait_task_finish(qm, &hpre_devices);
-	hisi_qm_alg_unregister(qm, &hpre_devices);
+	hisi_qm_alg_unregister(qm, &hpre_devices, HPRE_CTX_Q_NUM_DEF);
+	hisi_qm_del_list(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && qm->vfs_num)
 		hisi_qm_sriov_disable(pdev, true);
 

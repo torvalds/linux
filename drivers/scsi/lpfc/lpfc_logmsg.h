@@ -25,7 +25,7 @@
 #define LOG_MBOX	0x00000004	/* Mailbox events */
 #define LOG_INIT	0x00000008	/* Initialization events */
 #define LOG_LINK_EVENT	0x00000010	/* Link events */
-#define LOG_IP		0x00000020	/* IP traffic history */
+#define LOG_NODE_VERBOSE 0x00000020	/* Node verbose events */
 #define LOG_FCP		0x00000040	/* FCP traffic history */
 #define LOG_NODE	0x00000080	/* Node table events */
 #define LOG_TEMP	0x00000100	/* Temperature sensor events */

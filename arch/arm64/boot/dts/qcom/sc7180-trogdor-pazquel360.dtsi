@@ -7,13 +7,7 @@
 
 /* This file must be included after sc7180-trogdor.dtsi */
 #include "sc7180-trogdor-pazquel.dtsi"
-
-&alc5682 {
-	compatible = "realtek,rt5682s";
-	realtek,dmic1-clk-pin = <2>;
-	realtek,dmic-clk-rate-hz = <2048000>;
-	/delete-property/ VBAT-supply;
-};
+#include "sc7180-trogdor-rt5682s-sku.dtsi"
 
 ap_ts_pen_1v8: &i2c4 {
 	clock-frequency = <400000>;
@@ -62,11 +56,6 @@ ap_ts_pen_1v8: &i2c4 {
 		MATRIX_KEY(0x03, 0x09, KEY_SLEEP)
 		CROS_STD_MAIN_KEYMAP
 	>;
-};
-
-&sound {
-	compatible = "google,sc7180-trogdor";
-	model = "sc7180-rt5682s-max98357a-1mic";
 };
 
 &wifi {

@@ -21,6 +21,7 @@
 #include <linux/vmstat.h>
 #include <linux/writeback.h>
 #include <linux/page-flags.h>
+#include <linux/shrinker.h>
 
 struct mem_cgroup;
 struct obj_cgroup;
@@ -88,17 +89,6 @@ struct mem_cgroup_reclaim_iter {
 	unsigned int generation;
 };
 
-/*
- * Bitmap and deferred work of shrinker::id corresponding to memcg-aware
- * shrinkers, which have elements charged to this memcg.
- */
-struct shrinker_info {
-	struct rcu_head rcu;
-	atomic_long_t *nr_deferred;
-	unsigned long *map;
-	int map_nr_max;
-};
-
 struct lruvec_stats_percpu {
 	/* Local (CPU and cgroup) state */
 	long state[NR_VM_NODE_STAT_ITEMS];
@@ -153,7 +143,7 @@ struct mem_cgroup_threshold_ary {
 	/* Size of entries[] */
 	unsigned int size;
 	/* Array of thresholds */
-	struct mem_cgroup_threshold entries[];
+	struct mem_cgroup_threshold entries[] __counted_by(size);
 };
 
 struct mem_cgroup_thresholds {
@@ -299,7 +289,13 @@ struct mem_cgroup {
 
 #ifdef CONFIG_MEMCG_KMEM
 	int kmemcg_id;
-	struct obj_cgroup __rcu *objcg;
+	/*
+	 * memcg->objcg is wiped out as a part of the objcg repaprenting
+	 * process. memcg->orig_objcg preserves a pointer (and a reference)
+	 * to the original objcg until the end of live of memcg.
+	 */
+	struct obj_cgroup __rcu	*objcg;
+	struct obj_cgroup	*orig_objcg;
 	/* list of inherited objcgs, protected by objcg_lock */
 	struct list_head objcg_list;
 #endif
@@ -662,6 +658,8 @@ static inline bool mem_cgroup_below_min(struct mem_cgroup *target,
 		page_counter_read(&memcg->memory);
 }
 
+void mem_cgroup_commit_charge(struct folio *folio, struct mem_cgroup *memcg);
+
 int __mem_cgroup_charge(struct folio *folio, struct mm_struct *mm, gfp_t gfp);
 
 /**
@@ -685,6 +683,9 @@ static inline int mem_cgroup_charge(struct folio *folio, struct mm_struct *mm,
 		return 0;
 	return __mem_cgroup_charge(folio, mm, gfp);
 }
+
+int mem_cgroup_hugetlb_try_charge(struct mem_cgroup *memcg, gfp_t gfp,
+		long nr_pages);
 
 int mem_cgroup_swapin_charge_folio(struct folio *folio, struct mm_struct *mm,
 				  gfp_t gfp, swp_entry_t entry);
@@ -712,6 +713,10 @@ static inline void mem_cgroup_uncharge_list(struct list_head *page_list)
 		return;
 	__mem_cgroup_uncharge_list(page_list);
 }
+
+void mem_cgroup_cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages);
+
+void mem_cgroup_replace_folio(struct folio *old, struct folio *new);
 
 void mem_cgroup_migrate(struct folio *old, struct folio *new);
 
@@ -768,6 +773,8 @@ static inline struct lruvec *folio_lruvec(struct folio *folio)
 struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 
 struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm);
+
+struct mem_cgroup *get_mem_cgroup_from_current(void);
 
 struct lruvec *folio_lruvec_lock(struct folio *folio);
 struct lruvec *folio_lruvec_lock_irq(struct folio *folio);
@@ -1080,15 +1087,6 @@ static inline void count_memcg_events(struct mem_cgroup *memcg,
 	local_irq_restore(flags);
 }
 
-static inline void count_memcg_page_event(struct page *page,
-					  enum vm_event_item idx)
-{
-	struct mem_cgroup *memcg = page_memcg(page);
-
-	if (memcg)
-		count_memcg_events(memcg, idx, 1);
-}
-
 static inline void count_memcg_folio_events(struct folio *folio,
 		enum vm_event_item idx, unsigned long nr)
 {
@@ -1249,8 +1247,19 @@ static inline bool mem_cgroup_below_min(struct mem_cgroup *target,
 	return false;
 }
 
+static inline void mem_cgroup_commit_charge(struct folio *folio,
+		struct mem_cgroup *memcg)
+{
+}
+
 static inline int mem_cgroup_charge(struct folio *folio,
 		struct mm_struct *mm, gfp_t gfp)
+{
+	return 0;
+}
+
+static inline int mem_cgroup_hugetlb_try_charge(struct mem_cgroup *memcg,
+		gfp_t gfp, long nr_pages)
 {
 	return 0;
 }
@@ -1270,6 +1279,16 @@ static inline void mem_cgroup_uncharge(struct folio *folio)
 }
 
 static inline void mem_cgroup_uncharge_list(struct list_head *page_list)
+{
+}
+
+static inline void mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
+		unsigned int nr_pages)
+{
+}
+
+static inline void mem_cgroup_replace_folio(struct folio *old,
+		struct folio *new)
 {
 }
 
@@ -1306,6 +1325,11 @@ static inline bool mm_match_cgroup(struct mm_struct *mm,
 }
 
 static inline struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+{
+	return NULL;
+}
+
+static inline struct mem_cgroup *get_mem_cgroup_from_current(void)
 {
 	return NULL;
 }
@@ -1565,11 +1589,6 @@ static inline void __count_memcg_events(struct mem_cgroup *memcg,
 {
 }
 
-static inline void count_memcg_page_event(struct page *page,
-					  int idx)
-{
-}
-
 static inline void count_memcg_folio_events(struct folio *folio,
 		enum vm_event_item idx, unsigned long nr)
 {
@@ -1763,8 +1782,26 @@ bool mem_cgroup_kmem_disabled(void);
 int __memcg_kmem_charge_page(struct page *page, gfp_t gfp, int order);
 void __memcg_kmem_uncharge_page(struct page *page, int order);
 
-struct obj_cgroup *get_obj_cgroup_from_current(void);
+/*
+ * The returned objcg pointer is safe to use without additional
+ * protection within a scope. The scope is defined either by
+ * the current task (similar to the "current" global variable)
+ * or by set_active_memcg() pair.
+ * Please, use obj_cgroup_get() to get a reference if the pointer
+ * needs to be used outside of the local scope.
+ */
+struct obj_cgroup *current_obj_cgroup(void);
 struct obj_cgroup *get_obj_cgroup_from_folio(struct folio *folio);
+
+static inline struct obj_cgroup *get_obj_cgroup_from_current(void)
+{
+	struct obj_cgroup *objcg = current_obj_cgroup();
+
+	if (objcg)
+		obj_cgroup_get(objcg);
+
+	return objcg;
+}
 
 int obj_cgroup_charge(struct obj_cgroup *objcg, gfp_t gfp, size_t size);
 void obj_cgroup_uncharge(struct obj_cgroup *objcg, size_t size);

@@ -718,7 +718,7 @@ struct snd_soc_dapm_context {
 /* A list of widgets associated with an object, typically a snd_kcontrol */
 struct snd_soc_dapm_widget_list {
 	int num_widgets;
-	struct snd_soc_dapm_widget *widgets[];
+	struct snd_soc_dapm_widget *widgets[] __counted_by(num_widgets);
 };
 
 #define for_each_dapm_widgets(list, i, widget)				\

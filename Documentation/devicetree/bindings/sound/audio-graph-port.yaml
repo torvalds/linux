@@ -13,19 +13,17 @@ select: false
 
 definitions:
   port-base:
-    $ref: /schemas/graph.yaml#/$defs/port-base
+    allOf:
+      - $ref: /schemas/graph.yaml#/$defs/port-base
+      - $ref: /schemas/sound/dai-params.yaml#
     properties:
-      convert-rate:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-sample-rate
-      convert-channels:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-channels
-      convert-sample-format:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-sample-format
       mclk-fs:
         $ref: simple-card.yaml#/definitions/mclk-fs
 
   endpoint-base:
-    $ref: /schemas/graph.yaml#/$defs/endpoint-base
+    allOf:
+      - $ref: /schemas/graph.yaml#/$defs/endpoint-base
+      - $ref: /schemas/sound/dai-params.yaml#
     properties:
       mclk-fs:
         $ref: simple-card.yaml#/definitions/mclk-fs
@@ -68,12 +66,6 @@ definitions:
             - pdm
             - msb
             - lsb
-      convert-rate:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-sample-rate
-      convert-channels:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-channels
-      convert-sample-format:
-        $ref: /schemas/sound/dai-params.yaml#/$defs/dai-sample-format
 
       dai-tdm-slot-num:
         description: Number of slots in use.

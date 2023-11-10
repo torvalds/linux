@@ -8,7 +8,6 @@
 #include <linux/preempt.h>
 #include <linux/rethook.h>
 #include <linux/slab.h>
-#include <linux/sort.h>
 
 /* Return hook list (shadow stack by list) */
 
@@ -36,21 +35,7 @@ void rethook_flush_task(struct task_struct *tk)
 static void rethook_free_rcu(struct rcu_head *head)
 {
 	struct rethook *rh = container_of(head, struct rethook, rcu);
-	struct rethook_node *rhn;
-	struct freelist_node *node;
-	int count = 1;
-
-	node = rh->pool.head;
-	while (node) {
-		rhn = container_of(node, struct rethook_node, freelist);
-		node = node->next;
-		kfree(rhn);
-		count++;
-	}
-
-	/* The rh->ref is the number of pooled node + 1 */
-	if (refcount_sub_and_test(count, &rh->ref))
-		kfree(rh);
+	objpool_fini(&rh->pool);
 }
 
 /**
@@ -83,54 +68,62 @@ void rethook_free(struct rethook *rh)
 	call_rcu(&rh->rcu, rethook_free_rcu);
 }
 
-/**
- * rethook_alloc() - Allocate struct rethook.
- * @data: a data to pass the @handler when hooking the return.
- * @handler: the return hook callback function.
- *
- * Allocate and initialize a new rethook with @data and @handler.
- * Return NULL if memory allocation fails or @handler is NULL.
- * Note that @handler == NULL means this rethook is going to be freed.
- */
-struct rethook *rethook_alloc(void *data, rethook_handler_t handler)
+static int rethook_init_node(void *nod, void *context)
 {
-	struct rethook *rh = kzalloc(sizeof(struct rethook), GFP_KERNEL);
+	struct rethook_node *node = nod;
 
-	if (!rh || !handler) {
-		kfree(rh);
-		return NULL;
-	}
+	node->rethook = context;
+	return 0;
+}
 
-	rh->data = data;
-	rh->handler = handler;
-	rh->pool.head = NULL;
-	refcount_set(&rh->ref, 1);
-
-	return rh;
+static int rethook_fini_pool(struct objpool_head *head, void *context)
+{
+	kfree(context);
+	return 0;
 }
 
 /**
- * rethook_add_node() - Add a new node to the rethook.
- * @rh: the struct rethook.
- * @node: the struct rethook_node to be added.
+ * rethook_alloc() - Allocate struct rethook.
+ * @data: a data to pass the @handler when hooking the return.
+ * @handler: the return hook callback function, must NOT be NULL
+ * @size: node size: rethook node and additional data
+ * @num: number of rethook nodes to be preallocated
  *
- * Add @node to @rh. User must allocate @node (as a part of user's
- * data structure.) The @node fields are initialized in this function.
+ * Allocate and initialize a new rethook with @data and @handler.
+ * Return pointer of new rethook, or error codes for failures.
+ *
+ * Note that @handler == NULL means this rethook is going to be freed.
  */
-void rethook_add_node(struct rethook *rh, struct rethook_node *node)
+struct rethook *rethook_alloc(void *data, rethook_handler_t handler,
+			      int size, int num)
 {
-	node->rethook = rh;
-	freelist_add(&node->freelist, &rh->pool);
-	refcount_inc(&rh->ref);
+	struct rethook *rh;
+
+	if (!handler || num <= 0 || size < sizeof(struct rethook_node))
+		return ERR_PTR(-EINVAL);
+
+	rh = kzalloc(sizeof(struct rethook), GFP_KERNEL);
+	if (!rh)
+		return ERR_PTR(-ENOMEM);
+
+	rh->data = data;
+	rh->handler = handler;
+
+	/* initialize the objpool for rethook nodes */
+	if (objpool_init(&rh->pool, num, size, GFP_KERNEL, rh,
+			 rethook_init_node, rethook_fini_pool)) {
+		kfree(rh);
+		return ERR_PTR(-ENOMEM);
+	}
+	return rh;
 }
 
 static void free_rethook_node_rcu(struct rcu_head *head)
 {
 	struct rethook_node *node = container_of(head, struct rethook_node, rcu);
+	struct rethook *rh = node->rethook;
 
-	if (refcount_dec_and_test(&node->rethook->ref))
-		kfree(node->rethook);
-	kfree(node);
+	objpool_drop(node, &rh->pool);
 }
 
 /**
@@ -145,7 +138,7 @@ void rethook_recycle(struct rethook_node *node)
 	lockdep_assert_preemption_disabled();
 
 	if (likely(READ_ONCE(node->rethook->handler)))
-		freelist_add(&node->freelist, &node->rethook->pool);
+		objpool_push(node, &node->rethook->pool);
 	else
 		call_rcu(&node->rcu, free_rethook_node_rcu);
 }
@@ -161,7 +154,6 @@ NOKPROBE_SYMBOL(rethook_recycle);
 struct rethook_node *rethook_try_get(struct rethook *rh)
 {
 	rethook_handler_t handler = READ_ONCE(rh->handler);
-	struct freelist_node *fn;
 
 	lockdep_assert_preemption_disabled();
 
@@ -178,11 +170,7 @@ struct rethook_node *rethook_try_get(struct rethook *rh)
 	if (unlikely(!rcu_is_watching()))
 		return NULL;
 
-	fn = freelist_try_get(&rh->pool);
-	if (!fn)
-		return NULL;
-
-	return container_of(fn, struct rethook_node, freelist);
+	return (struct rethook_node *)objpool_pop(&rh->pool);
 }
 NOKPROBE_SYMBOL(rethook_try_get);
 

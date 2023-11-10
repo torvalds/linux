@@ -17,8 +17,7 @@
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
-
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/pai.h>
 #include <asm/debug.h>
 
@@ -249,7 +248,7 @@ static int paiext_event_init(struct perf_event *event)
 	if (rc)
 		return rc;
 	/* Allow only CPU wide operation, no process context for now. */
-	if (event->hw.target || event->cpu == -1)
+	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
 		return -ENOENT;
 	/* Allow only event NNPA_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_NNPA_BASE)
@@ -327,7 +326,6 @@ static void paiext_start(struct perf_event *event, int flags)
 	event->hw.last_tag = 1;
 	sum = paiext_getall(event);		/* Get current value */
 	local64_set(&event->hw.prev_count, sum);
-	local64_set(&event->count, 0);
 }
 
 static int paiext_add(struct perf_event *event, int flags)
@@ -340,7 +338,7 @@ static int paiext_add(struct perf_event *event, int flags)
 		S390_lowcore.aicd = virt_to_phys(cpump->paiext_cb);
 		pcb->acc = virt_to_phys(cpump->area) | 0x1;
 		/* Enable CPU instruction lookup for PAIE1 control block */
-		__ctl_set_bit(0, 49);
+		local_ctl_set_bit(0, CR0_PAI_EXTENSION_BIT);
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
 				    __func__, S390_lowcore.aicd, pcb->acc);
 	}
@@ -376,7 +374,7 @@ static void paiext_del(struct perf_event *event, int flags)
 	}
 	if (--cpump->active_events == 0) {
 		/* Disable CPU instruction lookup for PAIE1 control block */
-		__ctl_clear_bit(0, 49);
+		local_ctl_clear_bit(0, CR0_PAI_EXTENSION_BIT);
 		pcb->acc = 0;
 		S390_lowcore.aicd = 0;
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",

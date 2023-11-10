@@ -69,9 +69,9 @@ $(linux-tarballs): .tmp_HEAD FORCE
 # ---------------------------------------------------------------------------
 
 quiet_cmd_mkspec = GEN     $@
-      cmd_mkspec = $(srctree)/scripts/package/mkspec > $@
+      cmd_mkspec = $(srctree)/scripts/package/mkspec $@
 
-kernel.spec: FORCE
+rpmbuild/SPECS/kernel.spec: FORCE
 	$(call cmd,mkspec)
 
 PHONY += rpm-sources
@@ -88,14 +88,12 @@ srcrpm-pkg: private build-type := s
 binrpm-pkg: private build-type := b
 
 rpm-pkg srcrpm-pkg: rpm-sources
-rpm-pkg srcrpm-pkg binrpm-pkg: kernel.spec
-	+$(strip rpmbuild -b$(build-type) kernel.spec \
+rpm-pkg srcrpm-pkg binrpm-pkg: rpmbuild/SPECS/kernel.spec
+	+$(strip rpmbuild -b$(build-type) rpmbuild/SPECS/kernel.spec \
 	--define='_topdir $(abspath rpmbuild)' \
 	$(if $(filter a b, $(build-type)), \
 		--target $(UTS_MACHINE)-linux --build-in-place --noprep --define='_smp_mflags %{nil}' \
 		$$(rpm -q rpm >/dev/null 2>&1 || echo --nodeps)) \
-	$(if $(filter b, $(build-type)), \
-		--without devel) \
 	$(RPMOPTS))
 
 # deb-pkg srcdeb-pkg bindeb-pkg

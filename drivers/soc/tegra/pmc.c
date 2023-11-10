@@ -1393,13 +1393,6 @@ tegra_pmc_core_pd_set_performance_state(struct generic_pm_domain *genpd,
 	return 0;
 }
 
-static unsigned int
-tegra_pmc_core_pd_opp_to_performance_state(struct generic_pm_domain *genpd,
-					   struct dev_pm_opp *opp)
-{
-	return dev_pm_opp_get_level(opp);
-}
-
 static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 {
 	struct generic_pm_domain *genpd;
@@ -1412,7 +1405,6 @@ static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 
 	genpd->name = "core";
 	genpd->set_performance_state = tegra_pmc_core_pd_set_performance_state;
-	genpd->opp_to_performance_state = tegra_pmc_core_pd_opp_to_performance_state;
 
 	err = devm_pm_opp_set_regulators(pmc->dev, rname);
 	if (err)

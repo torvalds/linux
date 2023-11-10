@@ -31,7 +31,7 @@
 #include <linux/completion.h>
 #include <crypto/hash_info.h>
 #include <crypto/hash.h>
-#include <crypto/algapi.h>
+#include <crypto/utils.h>
 
 #include <linux/fscrypt.h>
 

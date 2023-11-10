@@ -3449,5 +3449,6 @@ static void __exit amt_fini(void)
 module_exit(amt_fini);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Driver for Automatic Multicast Tunneling (AMT)");
 MODULE_AUTHOR("Taehee Yoo <ap420073@gmail.com>");
 MODULE_ALIAS_RTNL_LINK("amt");

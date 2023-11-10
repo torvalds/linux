@@ -633,7 +633,7 @@ extern const struct comedi_lrange range_unknown;
  */
 struct comedi_lrange {
 	int length;
-	struct comedi_krange range[];
+	struct comedi_krange range[] __counted_by(length);
 };
 
 /**

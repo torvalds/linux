@@ -314,6 +314,17 @@ struct config_table_setting
 	uint16_t fclk_average_tau;
 };
 
+#define OD_OPS_SUPPORT_FAN_CURVE_RETRIEVE		BIT(0)
+#define OD_OPS_SUPPORT_FAN_CURVE_SET			BIT(1)
+#define OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_RETRIEVE	BIT(2)
+#define OD_OPS_SUPPORT_ACOUSTIC_LIMIT_THRESHOLD_SET		BIT(3)
+#define OD_OPS_SUPPORT_ACOUSTIC_TARGET_THRESHOLD_RETRIEVE	BIT(4)
+#define OD_OPS_SUPPORT_ACOUSTIC_TARGET_THRESHOLD_SET		BIT(5)
+#define OD_OPS_SUPPORT_FAN_TARGET_TEMPERATURE_RETRIEVE		BIT(6)
+#define OD_OPS_SUPPORT_FAN_TARGET_TEMPERATURE_SET		BIT(7)
+#define OD_OPS_SUPPORT_FAN_MINIMUM_PWM_RETRIEVE		BIT(8)
+#define OD_OPS_SUPPORT_FAN_MINIMUM_PWM_SET		BIT(9)
+
 struct amdgpu_pm {
 	struct mutex		mutex;
 	u32                     current_sclk;
@@ -366,6 +377,9 @@ struct amdgpu_pm {
 	struct config_table_setting config_table;
 	/* runtime mode */
 	enum amdgpu_runpm_mode rpm_mode;
+
+	struct list_head	od_kobj_list;
+	uint32_t		od_feature_mask;
 };
 
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
@@ -410,7 +424,10 @@ int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
 int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 			     uint32_t cstate);
 
-int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en);
+int amdgpu_dpm_get_xgmi_plpd_mode(struct amdgpu_device *adev,
+				  char **mode);
+
+int amdgpu_dpm_set_xgmi_plpd_mode(struct amdgpu_device *adev, int mode);
 
 int amdgpu_dpm_enable_mgpu_fan_boost(struct amdgpu_device *adev);
 

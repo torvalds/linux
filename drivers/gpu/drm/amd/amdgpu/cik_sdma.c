@@ -308,8 +308,6 @@ static void cik_sdma_gfx_stop(struct amdgpu_device *adev)
 	u32 rb_cntl;
 	int i;
 
-	amdgpu_sdma_unset_buffer_funcs_helper(adev);
-
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]);
 		rb_cntl &= ~SDMA0_GFX_RB_CNTL__RB_ENABLE_MASK;
@@ -498,9 +496,6 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -925,8 +920,13 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 static int cik_sdma_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
+
+	r = cik_sdma_init_microcode(adev);
+	if (r)
+		return r;
 
 	cik_sdma_set_ring_funcs(adev);
 	cik_sdma_set_irq_funcs(adev);
@@ -941,12 +941,6 @@ static int cik_sdma_sw_init(void *handle)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r, i;
-
-	r = cik_sdma_init_microcode(adev);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	/* SDMA trap event */
 	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, 224,

@@ -31,6 +31,12 @@
 
 #include <linux/usb/gadgetfs.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/composite.h> /* for USB_GADGET_DELAYED_STATUS */
+
+/* Undef helpers from linux/usb/composite.h as gadgetfs redefines them */
+#undef DBG
+#undef ERROR
+#undef INFO
 
 
 /*
@@ -1511,7 +1517,16 @@ delegate:
 			event->u.setup = *ctrl;
 			ep0_readable (dev);
 			spin_unlock (&dev->lock);
-			return 0;
+			/*
+			 * Return USB_GADGET_DELAYED_STATUS as a workaround to
+			 * stop some UDC drivers (e.g. dwc3) from automatically
+			 * proceeding with the status stage for 0-length
+			 * transfers.
+			 * Should be removed once all UDC drivers are fixed to
+			 * always delay the status stage until a response is
+			 * queued to EP0.
+			 */
+			return w_length == 0 ? USB_GADGET_DELAYED_STATUS : 0;
 		}
 	}
 

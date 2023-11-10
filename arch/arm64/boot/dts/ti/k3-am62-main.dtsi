@@ -81,7 +81,8 @@
 	};
 
 	dmss: bus@48000000 {
-		compatible = "simple-mfd";
+		bootph-all;
+		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		dma-ranges;
@@ -90,6 +91,7 @@
 		ti,sci-dev-id = <25>;
 
 		secure_proxy_main: mailbox@4d000000 {
+			bootph-all;
 			compatible = "ti,am654-secure-proxy";
 			#mbox-cells = <1>;
 			reg-names = "target_data", "rt", "scfg";
@@ -165,6 +167,7 @@
 	};
 
 	dmsc: system-controller@44043000 {
+		bootph-all;
 		compatible = "ti,k2g-sci";
 		ti,host-id = <12>;
 		mbox-names = "rx", "tx";
@@ -174,16 +177,19 @@
 		reg = <0x00 0x44043000 0x00 0xfe0>;
 
 		k3_pds: power-controller {
+			bootph-all;
 			compatible = "ti,sci-pm-domain";
 			#power-domain-cells = <2>;
 		};
 
 		k3_clks: clock-controller {
+			bootph-all;
 			compatible = "ti,k2g-sci-clk";
 			#clock-cells = <2>;
 		};
 
 		k3_reset: reset-controller {
+			bootph-all;
 			compatible = "ti,sci-reset";
 			#reset-cells = <2>;
 		};
@@ -202,6 +208,7 @@
 	};
 
 	secure_proxy_sa3: mailbox@43600000 {
+		bootph-pre-ram;
 		compatible = "ti,am654-secure-proxy";
 		#mbox-cells = <1>;
 		reg-names = "target_data", "rt", "scfg";
@@ -217,6 +224,7 @@
 	};
 
 	main_pmx0: pinctrl@f4000 {
+		bootph-all;
 		compatible = "pinctrl-single";
 		reg = <0x00 0xf4000 0x00 0x2ac>;
 		#pinctrl-cells = <1>;
@@ -225,12 +233,14 @@
 	};
 
 	main_esm: esm@420000 {
+		bootph-pre-ram;
 		compatible = "ti,j721e-esm";
 		reg = <0x00 0x420000 0x00 0x1000>;
 		ti,esm-pins = <160>, <161>, <162>, <163>, <177>, <178>;
 	};
 
 	main_timer0: timer@2400000 {
+		bootph-all;
 		compatible = "ti,am654-timer";
 		reg = <0x00 0x2400000 0x00 0x400>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;

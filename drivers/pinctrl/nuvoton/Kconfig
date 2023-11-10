@@ -2,8 +2,7 @@
 
 config PINCTRL_WPCM450
 	tristate "Pinctrl and GPIO driver for Nuvoton WPCM450"
-	depends on ARCH_WPCM450 || COMPILE_TEST
-	depends on OF
+	depends on (ARCH_WPCM450 || COMPILE_TEST) && OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
@@ -32,3 +31,17 @@ config PINCTRL_NPCM7XX
 	help
 	  Say Y here to enable pin controller and GPIO support
 	  for Nuvoton NPCM750/730/715/705 SoCs.
+
+config PINCTRL_NPCM8XX
+	tristate "Pinctrl and GPIO driver for Nuvoton NPCM8XX"
+	depends on (ARCH_NPCM || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to enable pin controller and GPIO support for
+	  the Nuvoton NPCM8XX SoC. This is strongly recommended when
+	  building a kernel that will run on this chip.

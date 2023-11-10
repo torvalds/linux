@@ -8571,12 +8571,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 * is not fatal as the driver will use generic values.
 	 */
 	rc = lpfc_parse_vpd(phba, vpd, vpd_size);
-	if (unlikely(!rc)) {
+	if (unlikely(!rc))
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"0377 Error %d parsing vpd. "
 				"Using defaults.\n", rc);
-		rc = 0;
-	}
 	kfree(vpd);
 
 	/* Save information as VPD data */

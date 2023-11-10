@@ -29,15 +29,18 @@
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
 #include <linux/moduleparam.h>
+#include <linux/virtio_mmio.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
 #include <xen/xen.h>
+#include <xen/events.h>
 #include <xen/privcmd.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/dm_op.h>
+#include <xen/interface/hvm/ioreq.h>
 #include <xen/features.h>
 #include <xen/page.h>
 #include <xen/xen-ops.h>
@@ -782,6 +785,7 @@ static long privcmd_ioctl_mmap_resource(struct file *file,
 			goto out;
 
 		pages = vma->vm_private_data;
+
 		for (i = 0; i < kdata.num; i++) {
 			xen_pfn_t pfn =
 				page_to_xen_pfn(pages[i / XEN_PFN_PER_PAGE]);
@@ -838,7 +842,7 @@ out:
 	return rc;
 }
 
-#ifdef CONFIG_XEN_PRIVCMD_IRQFD
+#ifdef CONFIG_XEN_PRIVCMD_EVENTFD
 /* Irqfd support */
 static struct workqueue_struct *irqfd_cleanup_wq;
 static DEFINE_MUTEX(irqfds_lock);
@@ -935,7 +939,7 @@ static int privcmd_irqfd_assign(struct privcmd_irqfd *irqfd)
 		return -ENOMEM;
 	dm_op = kirqfd + 1;
 
-	if (copy_from_user(dm_op, irqfd->dm_op, irqfd->size)) {
+	if (copy_from_user(dm_op, u64_to_user_ptr(irqfd->dm_op), irqfd->size)) {
 		ret = -EFAULT;
 		goto error_kfree;
 	}
@@ -1079,6 +1083,389 @@ static void privcmd_irqfd_exit(void)
 
 	destroy_workqueue(irqfd_cleanup_wq);
 }
+
+/* Ioeventfd Support */
+#define QUEUE_NOTIFY_VQ_MASK 0xFFFF
+
+static DEFINE_MUTEX(ioreq_lock);
+static LIST_HEAD(ioreq_list);
+
+/* per-eventfd structure */
+struct privcmd_kernel_ioeventfd {
+	struct eventfd_ctx *eventfd;
+	struct list_head list;
+	u64 addr;
+	unsigned int addr_len;
+	unsigned int vq;
+};
+
+/* per-guest CPU / port structure */
+struct ioreq_port {
+	int vcpu;
+	unsigned int port;
+	struct privcmd_kernel_ioreq *kioreq;
+};
+
+/* per-guest structure */
+struct privcmd_kernel_ioreq {
+	domid_t dom;
+	unsigned int vcpus;
+	u64 uioreq;
+	struct ioreq *ioreq;
+	spinlock_t lock; /* Protects ioeventfds list */
+	struct list_head ioeventfds;
+	struct list_head list;
+	struct ioreq_port ports[0];
+};
+
+static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
+{
+	struct ioreq_port *port = dev_id;
+	struct privcmd_kernel_ioreq *kioreq = port->kioreq;
+	struct ioreq *ioreq = &kioreq->ioreq[port->vcpu];
+	struct privcmd_kernel_ioeventfd *kioeventfd;
+	unsigned int state = STATE_IOREQ_READY;
+
+	if (ioreq->state != STATE_IOREQ_READY ||
+	    ioreq->type != IOREQ_TYPE_COPY || ioreq->dir != IOREQ_WRITE)
+		return IRQ_NONE;
+
+	/*
+	 * We need a barrier, smp_mb(), here to ensure reads are finished before
+	 * `state` is updated. Since the lock implementation ensures that
+	 * appropriate barrier will be added anyway, we can avoid adding
+	 * explicit barrier here.
+	 *
+	 * Ideally we don't need to update `state` within the locks, but we do
+	 * that here to avoid adding explicit barrier.
+	 */
+
+	spin_lock(&kioreq->lock);
+	ioreq->state = STATE_IOREQ_INPROCESS;
+
+	list_for_each_entry(kioeventfd, &kioreq->ioeventfds, list) {
+		if (ioreq->addr == kioeventfd->addr + VIRTIO_MMIO_QUEUE_NOTIFY &&
+		    ioreq->size == kioeventfd->addr_len &&
+		    (ioreq->data & QUEUE_NOTIFY_VQ_MASK) == kioeventfd->vq) {
+			eventfd_signal(kioeventfd->eventfd, 1);
+			state = STATE_IORESP_READY;
+			break;
+		}
+	}
+	spin_unlock(&kioreq->lock);
+
+	/*
+	 * We need a barrier, smp_mb(), here to ensure writes are finished
+	 * before `state` is updated. Since the lock implementation ensures that
+	 * appropriate barrier will be added anyway, we can avoid adding
+	 * explicit barrier here.
+	 */
+
+	ioreq->state = state;
+
+	if (state == STATE_IORESP_READY) {
+		notify_remote_via_evtchn(port->port);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
+static void ioreq_free(struct privcmd_kernel_ioreq *kioreq)
+{
+	struct ioreq_port *ports = kioreq->ports;
+	int i;
+
+	lockdep_assert_held(&ioreq_lock);
+
+	list_del(&kioreq->list);
+
+	for (i = kioreq->vcpus - 1; i >= 0; i--)
+		unbind_from_irqhandler(irq_from_evtchn(ports[i].port), &ports[i]);
+
+	kfree(kioreq);
+}
+
+static
+struct privcmd_kernel_ioreq *alloc_ioreq(struct privcmd_ioeventfd *ioeventfd)
+{
+	struct privcmd_kernel_ioreq *kioreq;
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	struct page **pages;
+	unsigned int *ports;
+	int ret, size, i;
+
+	lockdep_assert_held(&ioreq_lock);
+
+	size = struct_size(kioreq, ports, ioeventfd->vcpus);
+	kioreq = kzalloc(size, GFP_KERNEL);
+	if (!kioreq)
+		return ERR_PTR(-ENOMEM);
+
+	kioreq->dom = ioeventfd->dom;
+	kioreq->vcpus = ioeventfd->vcpus;
+	kioreq->uioreq = ioeventfd->ioreq;
+	spin_lock_init(&kioreq->lock);
+	INIT_LIST_HEAD(&kioreq->ioeventfds);
+
+	/* The memory for ioreq server must have been mapped earlier */
+	mmap_write_lock(mm);
+	vma = find_vma(mm, (unsigned long)ioeventfd->ioreq);
+	if (!vma) {
+		pr_err("Failed to find vma for ioreq page!\n");
+		mmap_write_unlock(mm);
+		ret = -EFAULT;
+		goto error_kfree;
+	}
+
+	pages = vma->vm_private_data;
+	kioreq->ioreq = (struct ioreq *)(page_to_virt(pages[0]));
+	mmap_write_unlock(mm);
+
+	size = sizeof(*ports) * kioreq->vcpus;
+	ports = kzalloc(size, GFP_KERNEL);
+	if (!ports) {
+		ret = -ENOMEM;
+		goto error_kfree;
+	}
+
+	if (copy_from_user(ports, u64_to_user_ptr(ioeventfd->ports), size)) {
+		ret = -EFAULT;
+		goto error_kfree_ports;
+	}
+
+	for (i = 0; i < kioreq->vcpus; i++) {
+		kioreq->ports[i].vcpu = i;
+		kioreq->ports[i].port = ports[i];
+		kioreq->ports[i].kioreq = kioreq;
+
+		ret = bind_evtchn_to_irqhandler_lateeoi(ports[i],
+				ioeventfd_interrupt, IRQF_SHARED, "ioeventfd",
+				&kioreq->ports[i]);
+		if (ret < 0)
+			goto error_unbind;
+	}
+
+	kfree(ports);
+
+	list_add_tail(&kioreq->list, &ioreq_list);
+
+	return kioreq;
+
+error_unbind:
+	while (--i >= 0)
+		unbind_from_irqhandler(irq_from_evtchn(ports[i]), &kioreq->ports[i]);
+error_kfree_ports:
+	kfree(ports);
+error_kfree:
+	kfree(kioreq);
+	return ERR_PTR(ret);
+}
+
+static struct privcmd_kernel_ioreq *
+get_ioreq(struct privcmd_ioeventfd *ioeventfd, struct eventfd_ctx *eventfd)
+{
+	struct privcmd_kernel_ioreq *kioreq;
+	unsigned long flags;
+
+	list_for_each_entry(kioreq, &ioreq_list, list) {
+		struct privcmd_kernel_ioeventfd *kioeventfd;
+
+		/*
+		 * kioreq fields can be accessed here without a lock as they are
+		 * never updated after being added to the ioreq_list.
+		 */
+		if (kioreq->uioreq != ioeventfd->ioreq) {
+			continue;
+		} else if (kioreq->dom != ioeventfd->dom ||
+			   kioreq->vcpus != ioeventfd->vcpus) {
+			pr_err("Invalid ioeventfd configuration mismatch, dom (%u vs %u), vcpus (%u vs %u)\n",
+			       kioreq->dom, ioeventfd->dom, kioreq->vcpus,
+			       ioeventfd->vcpus);
+			return ERR_PTR(-EINVAL);
+		}
+
+		/* Look for a duplicate eventfd for the same guest */
+		spin_lock_irqsave(&kioreq->lock, flags);
+		list_for_each_entry(kioeventfd, &kioreq->ioeventfds, list) {
+			if (eventfd == kioeventfd->eventfd) {
+				spin_unlock_irqrestore(&kioreq->lock, flags);
+				return ERR_PTR(-EBUSY);
+			}
+		}
+		spin_unlock_irqrestore(&kioreq->lock, flags);
+
+		return kioreq;
+	}
+
+	/* Matching kioreq isn't found, allocate a new one */
+	return alloc_ioreq(ioeventfd);
+}
+
+static void ioeventfd_free(struct privcmd_kernel_ioeventfd *kioeventfd)
+{
+	list_del(&kioeventfd->list);
+	eventfd_ctx_put(kioeventfd->eventfd);
+	kfree(kioeventfd);
+}
+
+static int privcmd_ioeventfd_assign(struct privcmd_ioeventfd *ioeventfd)
+{
+	struct privcmd_kernel_ioeventfd *kioeventfd;
+	struct privcmd_kernel_ioreq *kioreq;
+	unsigned long flags;
+	struct fd f;
+	int ret;
+
+	/* Check for range overflow */
+	if (ioeventfd->addr + ioeventfd->addr_len < ioeventfd->addr)
+		return -EINVAL;
+
+	/* Vhost requires us to support length 1, 2, 4, and 8 */
+	if (!(ioeventfd->addr_len == 1 || ioeventfd->addr_len == 2 ||
+	      ioeventfd->addr_len == 4 || ioeventfd->addr_len == 8))
+		return -EINVAL;
+
+	/* 4096 vcpus limit enough ? */
+	if (!ioeventfd->vcpus || ioeventfd->vcpus > 4096)
+		return -EINVAL;
+
+	kioeventfd = kzalloc(sizeof(*kioeventfd), GFP_KERNEL);
+	if (!kioeventfd)
+		return -ENOMEM;
+
+	f = fdget(ioeventfd->event_fd);
+	if (!f.file) {
+		ret = -EBADF;
+		goto error_kfree;
+	}
+
+	kioeventfd->eventfd = eventfd_ctx_fileget(f.file);
+	fdput(f);
+
+	if (IS_ERR(kioeventfd->eventfd)) {
+		ret = PTR_ERR(kioeventfd->eventfd);
+		goto error_kfree;
+	}
+
+	kioeventfd->addr = ioeventfd->addr;
+	kioeventfd->addr_len = ioeventfd->addr_len;
+	kioeventfd->vq = ioeventfd->vq;
+
+	mutex_lock(&ioreq_lock);
+	kioreq = get_ioreq(ioeventfd, kioeventfd->eventfd);
+	if (IS_ERR(kioreq)) {
+		mutex_unlock(&ioreq_lock);
+		ret = PTR_ERR(kioreq);
+		goto error_eventfd;
+	}
+
+	spin_lock_irqsave(&kioreq->lock, flags);
+	list_add_tail(&kioeventfd->list, &kioreq->ioeventfds);
+	spin_unlock_irqrestore(&kioreq->lock, flags);
+
+	mutex_unlock(&ioreq_lock);
+
+	return 0;
+
+error_eventfd:
+	eventfd_ctx_put(kioeventfd->eventfd);
+
+error_kfree:
+	kfree(kioeventfd);
+	return ret;
+}
+
+static int privcmd_ioeventfd_deassign(struct privcmd_ioeventfd *ioeventfd)
+{
+	struct privcmd_kernel_ioreq *kioreq, *tkioreq;
+	struct eventfd_ctx *eventfd;
+	unsigned long flags;
+	int ret = 0;
+
+	eventfd = eventfd_ctx_fdget(ioeventfd->event_fd);
+	if (IS_ERR(eventfd))
+		return PTR_ERR(eventfd);
+
+	mutex_lock(&ioreq_lock);
+	list_for_each_entry_safe(kioreq, tkioreq, &ioreq_list, list) {
+		struct privcmd_kernel_ioeventfd *kioeventfd, *tmp;
+		/*
+		 * kioreq fields can be accessed here without a lock as they are
+		 * never updated after being added to the ioreq_list.
+		 */
+		if (kioreq->dom != ioeventfd->dom ||
+		    kioreq->uioreq != ioeventfd->ioreq ||
+		    kioreq->vcpus != ioeventfd->vcpus)
+			continue;
+
+		spin_lock_irqsave(&kioreq->lock, flags);
+		list_for_each_entry_safe(kioeventfd, tmp, &kioreq->ioeventfds, list) {
+			if (eventfd == kioeventfd->eventfd) {
+				ioeventfd_free(kioeventfd);
+				spin_unlock_irqrestore(&kioreq->lock, flags);
+
+				if (list_empty(&kioreq->ioeventfds))
+					ioreq_free(kioreq);
+				goto unlock;
+			}
+		}
+		spin_unlock_irqrestore(&kioreq->lock, flags);
+		break;
+	}
+
+	pr_err("Ioeventfd isn't already assigned, dom: %u, addr: %llu\n",
+	       ioeventfd->dom, ioeventfd->addr);
+	ret = -ENODEV;
+
+unlock:
+	mutex_unlock(&ioreq_lock);
+	eventfd_ctx_put(eventfd);
+
+	return ret;
+}
+
+static long privcmd_ioctl_ioeventfd(struct file *file, void __user *udata)
+{
+	struct privcmd_data *data = file->private_data;
+	struct privcmd_ioeventfd ioeventfd;
+
+	if (copy_from_user(&ioeventfd, udata, sizeof(ioeventfd)))
+		return -EFAULT;
+
+	/* No other flags should be set */
+	if (ioeventfd.flags & ~PRIVCMD_IOEVENTFD_FLAG_DEASSIGN)
+		return -EINVAL;
+
+	/* If restriction is in place, check the domid matches */
+	if (data->domid != DOMID_INVALID && data->domid != ioeventfd.dom)
+		return -EPERM;
+
+	if (ioeventfd.flags & PRIVCMD_IOEVENTFD_FLAG_DEASSIGN)
+		return privcmd_ioeventfd_deassign(&ioeventfd);
+
+	return privcmd_ioeventfd_assign(&ioeventfd);
+}
+
+static void privcmd_ioeventfd_exit(void)
+{
+	struct privcmd_kernel_ioreq *kioreq, *tmp;
+	unsigned long flags;
+
+	mutex_lock(&ioreq_lock);
+	list_for_each_entry_safe(kioreq, tmp, &ioreq_list, list) {
+		struct privcmd_kernel_ioeventfd *kioeventfd, *tmp;
+
+		spin_lock_irqsave(&kioreq->lock, flags);
+		list_for_each_entry_safe(kioeventfd, tmp, &kioreq->ioeventfds, list)
+			ioeventfd_free(kioeventfd);
+		spin_unlock_irqrestore(&kioreq->lock, flags);
+
+		ioreq_free(kioreq);
+	}
+	mutex_unlock(&ioreq_lock);
+}
 #else
 static inline long privcmd_ioctl_irqfd(struct file *file, void __user *udata)
 {
@@ -1093,7 +1480,16 @@ static inline int privcmd_irqfd_init(void)
 static inline void privcmd_irqfd_exit(void)
 {
 }
-#endif /* CONFIG_XEN_PRIVCMD_IRQFD */
+
+static inline long privcmd_ioctl_ioeventfd(struct file *file, void __user *udata)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void privcmd_ioeventfd_exit(void)
+{
+}
+#endif /* CONFIG_XEN_PRIVCMD_EVENTFD */
 
 static long privcmd_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long data)
@@ -1132,6 +1528,10 @@ static long privcmd_ioctl(struct file *file,
 
 	case IOCTL_PRIVCMD_IRQFD:
 		ret = privcmd_ioctl_irqfd(file, udata);
+		break;
+
+	case IOCTL_PRIVCMD_IOEVENTFD:
+		ret = privcmd_ioctl_ioeventfd(file, udata);
 		break;
 
 	default:
@@ -1278,6 +1678,7 @@ err_privcmdbuf:
 
 static void __exit privcmd_exit(void)
 {
+	privcmd_ioeventfd_exit();
 	privcmd_irqfd_exit();
 	misc_deregister(&privcmd_dev);
 	misc_deregister(&xen_privcmdbuf_dev);

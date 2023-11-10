@@ -243,4 +243,7 @@ void hubp31_soft_reset(struct hubp *hubp, bool reset);
 
 void hubp31_set_unbounded_requesting(struct hubp *hubp, bool enable);
 
+void hubp31_program_extended_blank_value(
+	struct hubp *hubp, unsigned int min_dst_y_next_start_optimized);
+
 #endif /* __DC_HUBP_DCN31_H__ */

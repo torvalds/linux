@@ -212,7 +212,6 @@
 			  "gpio5-24", "UART24-FORCEOFF", "gpio5-26",
 			  "LED-4-GREEN", "gpio5-28", "LED-4-RED", "gpio5-30",
 			  "gpio5-31";
-	ngpios = <32>;
 };
 
 /* Apalis PWM3, MXM3 pin 6 */

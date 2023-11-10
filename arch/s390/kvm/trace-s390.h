@@ -333,6 +333,29 @@ TRACE_EVENT(kvm_s390_airq_suppressed,
 		      __entry->id, __entry->isc)
 	);
 
+/*
+ * Trace point for gmap notifier calls.
+ */
+TRACE_EVENT(kvm_s390_gmap_notifier,
+	    TP_PROTO(unsigned long start, unsigned long end, unsigned int shadow),
+	    TP_ARGS(start, end, shadow),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned long, start)
+		    __field(unsigned long, end)
+		    __field(unsigned int, shadow)
+		    ),
+
+	    TP_fast_assign(
+		    __entry->start = start;
+		    __entry->end = end;
+		    __entry->shadow = shadow;
+		    ),
+
+	    TP_printk("gmap notified (start:0x%lx end:0x%lx shadow:%d)",
+		      __entry->start, __entry->end, __entry->shadow)
+	);
+
 
 #endif /* _TRACE_KVMS390_H */
 
