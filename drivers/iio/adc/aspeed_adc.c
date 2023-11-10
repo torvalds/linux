@@ -653,6 +653,16 @@ static const struct aspeed_adc_trim_locate ast2600_adc1_trim = {
 	.field = GENMASK(7, 4),
 };
 
+static const struct aspeed_adc_trim_locate ast2700_adc0_trim = {
+	.offset = 0x828,
+	.field = GENMASK(3, 0),
+};
+
+static const struct aspeed_adc_trim_locate ast2700_adc1_trim = {
+	.offset = 0x828,
+	.field = GENMASK(7, 4),
+};
+
 static const struct aspeed_adc_model_data ast2400_model_data = {
 	.model_name = "ast2400-adc",
 	.vref_fixed_mv = 2500,
@@ -697,11 +707,35 @@ static const struct aspeed_adc_model_data ast2600_adc1_model_data = {
 	.trim_locate = &ast2600_adc1_trim,
 };
 
+static const struct aspeed_adc_model_data ast2700_adc0_model_data = {
+	.model_name = "ast2700-adc0",
+	.min_sampling_rate = 10000,
+	.max_sampling_rate = 500000,
+	.wait_init_sequence = true,
+	.bat_sense_sup = true,
+	.scaler_bit_width = 16,
+	.num_channels = 8,
+	.trim_locate = &ast2700_adc0_trim,
+};
+
+static const struct aspeed_adc_model_data ast2700_adc1_model_data = {
+	.model_name = "ast2700-adc1",
+	.min_sampling_rate = 10000,
+	.max_sampling_rate = 500000,
+	.wait_init_sequence = true,
+	.bat_sense_sup = true,
+	.scaler_bit_width = 16,
+	.num_channels = 8,
+	.trim_locate = &ast2700_adc1_trim,
+};
+
 static const struct of_device_id aspeed_adc_matches[] = {
 	{ .compatible = "aspeed,ast2400-adc", .data = &ast2400_model_data },
 	{ .compatible = "aspeed,ast2500-adc", .data = &ast2500_model_data },
 	{ .compatible = "aspeed,ast2600-adc0", .data = &ast2600_adc0_model_data },
 	{ .compatible = "aspeed,ast2600-adc1", .data = &ast2600_adc1_model_data },
+	{ .compatible = "aspeed,ast2700-adc0", .data = &ast2700_adc0_model_data },
+	{ .compatible = "aspeed,ast2700-adc1", .data = &ast2700_adc1_model_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, aspeed_adc_matches);
