@@ -181,7 +181,6 @@ struct dentry_operations {
 #define DCACHE_NFSFS_RENAMED		BIT(12)
      /* this dentry has been "silly renamed" and has to be deleted on the last
       * dput() */
-#define DCACHE_COOKIE			BIT(13) /* For use by dcookie subsystem */
 #define DCACHE_FSNOTIFY_PARENT_WATCHED	BIT(14)
      /* Parent inode is watched by some fsnotify listener */
 
