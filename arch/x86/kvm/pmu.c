@@ -29,6 +29,9 @@
 struct x86_pmu_capability __read_mostly kvm_pmu_cap;
 EXPORT_SYMBOL_GPL(kvm_pmu_cap);
 
+struct kvm_pmu_emulated_event_selectors __read_mostly kvm_pmu_eventsel;
+EXPORT_SYMBOL_GPL(kvm_pmu_eventsel);
+
 /* Precise Distribution of Instructions Retired (PDIR) */
 static const struct x86_cpu_id vmx_pebs_pdir_cpu[] = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D, NULL),
@@ -819,13 +822,6 @@ static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 	kvm_pmu_request_counter_reprogram(pmc);
 }
 
-static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
-	unsigned int perf_hw_id)
-{
-	return !((pmc->eventsel ^ perf_get_hw_event_config(perf_hw_id)) &
-		AMD64_RAW_EVENT_MASK_NB);
-}
-
 static inline bool cpl_is_matched(struct kvm_pmc *pmc)
 {
 	bool select_os, select_user;
@@ -845,7 +841,7 @@ static inline bool cpl_is_matched(struct kvm_pmc *pmc)
 	return (static_call(kvm_x86_get_cpl)(pmc->vcpu) == 0) ? select_os : select_user;
 }
 
-void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
+void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 {
 	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -865,7 +861,10 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 			continue;
 
 		/* Ignore checks for edge detect, pin control, invert and CMASK bits */
-		if (eventsel_match_perf_hw_id(pmc, perf_hw_id) && cpl_is_matched(pmc))
+		if ((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB)
+			continue;
+
+		if (cpl_is_matched(pmc))
 			kvm_pmu_incr_counter(pmc);
 	}
 }
