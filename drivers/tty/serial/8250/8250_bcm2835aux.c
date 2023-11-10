@@ -195,14 +195,12 @@ dis_clk:
 	return ret;
 }
 
-static int bcm2835aux_serial_remove(struct platform_device *pdev)
+static void bcm2835aux_serial_remove(struct platform_device *pdev)
 {
 	struct bcm2835aux_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk);
-
-	return 0;
 }
 
 static const struct bcm2835_aux_serial_driver_data bcm2835_acpi_data = {
@@ -228,7 +226,7 @@ static struct platform_driver bcm2835aux_serial_driver = {
 		.acpi_match_table = bcm2835aux_serial_acpi_match,
 	},
 	.probe  = bcm2835aux_serial_probe,
-	.remove = bcm2835aux_serial_remove,
+	.remove_new = bcm2835aux_serial_remove,
 };
 module_platform_driver(bcm2835aux_serial_driver);
 

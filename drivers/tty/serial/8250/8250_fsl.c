@@ -159,12 +159,11 @@ static int fsl8250_acpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int fsl8250_acpi_remove(struct platform_device *pdev)
+static void fsl8250_acpi_remove(struct platform_device *pdev)
 {
 	struct fsl8250_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
-	return 0;
 }
 
 static const struct acpi_device_id fsl_8250_acpi_id[] = {
@@ -179,7 +178,7 @@ static struct platform_driver fsl8250_platform_driver = {
 		.acpi_match_table	= ACPI_PTR(fsl_8250_acpi_id),
 	},
 	.probe			= fsl8250_acpi_probe,
-	.remove			= fsl8250_acpi_remove,
+	.remove_new		= fsl8250_acpi_remove,
 };
 
 module_platform_driver(fsl8250_platform_driver);
