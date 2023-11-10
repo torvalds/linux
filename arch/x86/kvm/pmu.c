@@ -505,7 +505,7 @@ void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 	int bit;
 
 	for_each_set_bit(bit, pmu->reprogram_pmi, X86_PMC_IDX_MAX) {
-		struct kvm_pmc *pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, bit);
+		struct kvm_pmc *pmc = kvm_pmc_idx_to_pmc(pmu, bit);
 
 		if (unlikely(!pmc)) {
 			clear_bit(bit, pmu->reprogram_pmi);
@@ -725,7 +725,7 @@ static void kvm_pmu_reset(struct kvm_vcpu *vcpu)
 	bitmap_zero(pmu->reprogram_pmi, X86_PMC_IDX_MAX);
 
 	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
-		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
+		pmc = kvm_pmc_idx_to_pmc(pmu, i);
 		if (!pmc)
 			continue;
 
@@ -801,7 +801,7 @@ void kvm_pmu_cleanup(struct kvm_vcpu *vcpu)
 		      pmu->pmc_in_use, X86_PMC_IDX_MAX);
 
 	for_each_set_bit(i, bitmask, X86_PMC_IDX_MAX) {
-		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
+		pmc = kvm_pmc_idx_to_pmc(pmu, i);
 
 		if (pmc && pmc->perf_event && !pmc_speculative_in_use(pmc))
 			pmc_stop_counter(pmc);
@@ -856,7 +856,7 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id)
 	int i;
 
 	for_each_set_bit(i, pmu->all_valid_pmc_idx, X86_PMC_IDX_MAX) {
-		pmc = static_call(kvm_x86_pmu_pmc_idx_to_pmc)(pmu, i);
+		pmc = kvm_pmc_idx_to_pmc(pmu, i);
 
 		if (!pmc || !pmc_event_is_allowed(pmc))
 			continue;

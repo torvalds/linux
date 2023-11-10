@@ -4,6 +4,8 @@
 
 #include <linux/nospec.h>
 
+#include <asm/kvm_host.h>
+
 #define vcpu_to_pmu(vcpu) (&(vcpu)->arch.pmu)
 #define pmu_to_vcpu(pmu)  (container_of((pmu), struct kvm_vcpu, arch.pmu))
 #define pmc_to_pmu(pmc)   (&(pmc)->vcpu->arch.pmu)
@@ -21,7 +23,6 @@
 #define KVM_FIXED_PMC_BASE_IDX INTEL_PMC_IDX_FIXED
 
 struct kvm_pmu_ops {
-	struct kvm_pmc *(*pmc_idx_to_pmc)(struct kvm_pmu *pmu, int pmc_idx);
 	struct kvm_pmc *(*rdpmc_ecx_to_pmc)(struct kvm_vcpu *vcpu,
 		unsigned int idx, u64 *mask);
 	struct kvm_pmc *(*msr_idx_to_pmc)(struct kvm_vcpu *vcpu, u32 msr);
@@ -54,6 +55,32 @@ static inline bool kvm_pmu_has_perf_global_ctrl(struct kvm_pmu *pmu)
 	 * AMD's version of PERF_GLOBAL_CTRL conveniently shows up with v2.
 	 */
 	return pmu->version > 1;
+}
+
+/*
+ * KVM tracks all counters in 64-bit bitmaps, with general purpose counters
+ * mapped to bits 31:0 and fixed counters mapped to 63:32, e.g. fixed counter 0
+ * is tracked internally via index 32.  On Intel, (AMD doesn't support fixed
+ * counters), this mirrors how fixed counters are mapped to PERF_GLOBAL_CTRL
+ * and similar MSRs, i.e. tracking fixed counters at base index 32 reduces the
+ * amounter of boilerplate needed to iterate over PMCs *and* simplifies common
+ * enabling/disable/reset operations.
+ *
+ * WARNING!  This helper is only for lookups that are initiated by KVM, it is
+ * NOT safe for guest lookups, e.g. will do the wrong thing if passed a raw
+ * ECX value from RDPMC (fixed counters are accessed by setting bit 30 in ECX
+ * for RDPMC, not by adding 32 to the fixed counter index).
+ */
+static inline struct kvm_pmc *kvm_pmc_idx_to_pmc(struct kvm_pmu *pmu, int idx)
+{
+	if (idx < pmu->nr_arch_gp_counters)
+		return &pmu->gp_counters[idx];
+
+	idx -= KVM_FIXED_PMC_BASE_IDX;
+	if (idx >= 0 && idx < pmu->nr_arch_fixed_counters)
+		return &pmu->fixed_counters[idx];
+
+	return NULL;
 }
 
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
