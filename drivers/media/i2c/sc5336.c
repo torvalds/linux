@@ -51,7 +51,7 @@
 #define SC5336_REG_EXPOSURE_H		0x3e00
 #define SC5336_REG_EXPOSURE_M		0x3e01
 #define SC5336_REG_EXPOSURE_L		0x3e02
-#define	SC5336_EXPOSURE_MIN		1
+#define	SC5336_EXPOSURE_MIN		2
 #define	SC5336_EXPOSURE_STEP		1
 #define SC5336_VTS_MAX			0x7fff
 
@@ -244,7 +244,7 @@ static const struct regval sc5336_linear_10_2880x1620_regs[] = {
 	{0x3633, 0x33},
 	{0x3638, 0xcf},
 	{0x363f, 0xc0},
-	{0x3641, 0x20},
+	{0x3641, 0x38},
 	{0x3670, 0x56},
 	{0x3674, 0xc0},
 	{0x3675, 0xa0},
@@ -287,6 +287,7 @@ static const struct regval sc5336_linear_10_2880x1620_regs[] = {
 	{0x37fb, 0x24},
 	{0x37fc, 0x01},
 	{0x37fd, 0x36},
+	{0x3900, 0x0d},
 	{0x3901, 0x00},
 	{0x3904, 0x04},
 	{0x3905, 0x8c},
@@ -866,6 +867,7 @@ static long sc5336_compat_ioctl32(struct v4l2_subdev *sd,
 static int __sc5336_start_stream(struct sc5336 *sc5336)
 {
 	int ret;
+	u32 chip_version = 0;
 
 	if (!sc5336->is_thunderboot) {
 		ret = sc5336_write_array(sc5336->client, sc5336->cur_mode->reg_list);
@@ -877,6 +879,22 @@ static int __sc5336_start_stream(struct sc5336 *sc5336)
 		if (ret)
 			return ret;
 	}
+	ret = sc5336_read_reg(sc5336->client, 0x3040, SC5336_REG_VALUE_08BIT, &chip_version);
+	if (chip_version == 0x00) {
+		ret |= sc5336_write_reg(sc5336->client, 0x3258, SC5336_REG_VALUE_08BIT, 0x0c);
+		ret |= sc5336_write_reg(sc5336->client, 0x3249, SC5336_REG_VALUE_08BIT, 0x0b);
+		ret |= sc5336_write_reg(sc5336->client, 0x3934, SC5336_REG_VALUE_08BIT, 0x0a);
+		ret |= sc5336_write_reg(sc5336->client, 0x3935, SC5336_REG_VALUE_08BIT, 0x00);
+		ret |= sc5336_write_reg(sc5336->client, 0x3937, SC5336_REG_VALUE_08BIT, 0x75);
+	} else if (chip_version == 0x03) {
+		ret |= sc5336_write_reg(sc5336->client, 0x3258, SC5336_REG_VALUE_08BIT, 0x08);
+		ret |= sc5336_write_reg(sc5336->client, 0x3249, SC5336_REG_VALUE_08BIT, 0x07);
+		ret |= sc5336_write_reg(sc5336->client, 0x3934, SC5336_REG_VALUE_08BIT, 0x05);
+		ret |= sc5336_write_reg(sc5336->client, 0x3935, SC5336_REG_VALUE_08BIT, 0x07);
+		ret |= sc5336_write_reg(sc5336->client, 0x3937, SC5336_REG_VALUE_08BIT, 0x74);
+	}
+	if (ret)
+		return ret;
 
 	return sc5336_write_reg(sc5336->client, SC5336_REG_CTRL_MODE,
 				 SC5336_REG_VALUE_08BIT, SC5336_MODE_STREAMING);
