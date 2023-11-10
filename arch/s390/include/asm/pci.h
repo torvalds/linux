@@ -122,6 +122,7 @@ struct zpci_dev {
 	struct rcu_head rcu;
 	struct hotplug_slot hotplug_slot;
 
+	struct mutex state_lock;	/* protect state changes */
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
