@@ -444,7 +444,7 @@ static bool pmc_event_is_allowed(struct kvm_pmc *pmc)
 	       check_pmu_event_filter(pmc);
 }
 
-static void reprogram_counter(struct kvm_pmc *pmc)
+static int reprogram_counter(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	u64 eventsel = pmc->eventsel;
@@ -455,7 +455,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 	emulate_overflow = pmc_pause_counter(pmc);
 
 	if (!pmc_event_is_allowed(pmc))
-		goto reprogram_complete;
+		return 0;
 
 	if (emulate_overflow)
 		__kvm_perf_overflow(pmc, false);
@@ -476,43 +476,49 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 	}
 
 	if (pmc->current_config == new_config && pmc_resume_counter(pmc))
-		goto reprogram_complete;
+		return 0;
 
 	pmc_release_perf_event(pmc);
 
 	pmc->current_config = new_config;
 
-	/*
-	 * If reprogramming fails, e.g. due to contention, leave the counter's
-	 * regprogram bit set, i.e. opportunistically try again on the next PMU
-	 * refresh.  Don't make a new request as doing so can stall the guest
-	 * if reprogramming repeatedly fails.
-	 */
-	if (pmc_reprogram_counter(pmc, PERF_TYPE_RAW,
-				  (eventsel & pmu->raw_event_mask),
-				  !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
-				  !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
-				  eventsel & ARCH_PERFMON_EVENTSEL_INT))
-		return;
-
-reprogram_complete:
-	clear_bit(pmc->idx, (unsigned long *)&pmc_to_pmu(pmc)->reprogram_pmi);
+	return pmc_reprogram_counter(pmc, PERF_TYPE_RAW,
+				     (eventsel & pmu->raw_event_mask),
+				     !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
+				     !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
+				     eventsel & ARCH_PERFMON_EVENTSEL_INT);
 }
 
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
+	DECLARE_BITMAP(bitmap, X86_PMC_IDX_MAX);
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int bit;
 
-	for_each_set_bit(bit, pmu->reprogram_pmi, X86_PMC_IDX_MAX) {
+	bitmap_copy(bitmap, pmu->reprogram_pmi, X86_PMC_IDX_MAX);
+
+	/*
+	 * The reprogramming bitmap can be written asynchronously by something
+	 * other than the task that holds vcpu->mutex, take care to clear only
+	 * the bits that will actually processed.
+	 */
+	BUILD_BUG_ON(sizeof(bitmap) != sizeof(atomic64_t));
+	atomic64_andnot(*(s64 *)bitmap, &pmu->__reprogram_pmi);
+
+	for_each_set_bit(bit, bitmap, X86_PMC_IDX_MAX) {
 		struct kvm_pmc *pmc = kvm_pmc_idx_to_pmc(pmu, bit);
 
-		if (unlikely(!pmc)) {
-			clear_bit(bit, pmu->reprogram_pmi);
+		if (unlikely(!pmc))
 			continue;
-		}
 
-		reprogram_counter(pmc);
+		/*
+		 * If reprogramming fails, e.g. due to contention, re-set the
+		 * regprogram bit set, i.e. opportunistically try again on the
+		 * next PMU refresh.  Don't make a new request as doing so can
+		 * stall the guest if reprogramming repeatedly fails.
+		 */
+		if (reprogram_counter(pmc))
+			set_bit(pmc->idx, pmu->reprogram_pmi);
 	}
 
 	/*

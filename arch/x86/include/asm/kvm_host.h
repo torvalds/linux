@@ -536,6 +536,7 @@ struct kvm_pmc {
 #define KVM_PMC_MAX_FIXED	3
 #define MSR_ARCH_PERFMON_FIXED_CTR_MAX	(MSR_ARCH_PERFMON_FIXED_CTR0 + KVM_PMC_MAX_FIXED - 1)
 #define KVM_AMD_PMC_MAX_GENERIC	6
+
 struct kvm_pmu {
 	u8 version;
 	unsigned nr_arch_gp_counters;
