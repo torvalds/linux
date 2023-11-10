@@ -1551,10 +1551,14 @@ bool amdgpu_device_seamless_boot_supported(struct amdgpu_device *adev)
  * https://edc.intel.com/content/www/us/en/design/products/platforms/details/raptor-lake-s/13th-generation-core-processors-datasheet-volume-1-of-2/005/pci-express-support/
  * https://gitlab.freedesktop.org/drm/amd/-/issues/2663
  */
-static bool amdgpu_device_pcie_dynamic_switching_supported(void)
+static bool amdgpu_device_pcie_dynamic_switching_supported(struct amdgpu_device *adev)
 {
 #if IS_ENABLED(CONFIG_X86)
 	struct cpuinfo_x86 *c = &cpu_data(0);
+
+	/* eGPU change speeds based on USB4 fabric conditions */
+	if (dev_is_removable(adev->dev))
+		return true;
 
 	if (c->x86_vendor == X86_VENDOR_INTEL)
 		return false;
@@ -2395,7 +2399,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 	if (amdgpu_sriov_vf(adev) && adev->asic_type == CHIP_SIENNA_CICHLID)
 		adev->pm.pp_feature &= ~PP_OVERDRIVE_MASK;
-	if (!amdgpu_device_pcie_dynamic_switching_supported())
+	if (!amdgpu_device_pcie_dynamic_switching_supported(adev))
 		adev->pm.pp_feature &= ~PP_PCIE_DPM_MASK;
 
 	total = true;
