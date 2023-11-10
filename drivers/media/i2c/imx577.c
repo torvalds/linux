@@ -62,7 +62,7 @@
 
 #define IMX577_REG_EXPOSURE_H		0x0202
 #define IMX577_REG_EXPOSURE_L		0x0203
-#define	IMX577_EXPOSURE_MIN		4
+#define	IMX577_EXPOSURE_MIN		8
 #define	IMX577_EXPOSURE_STEP		1
 #define IMX577_VTS_MAX			0xffff
 
@@ -2031,7 +2031,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VBLANK:
 		if (imx577->cur_mode->hdr_mode == NO_HDR) {
 			/* Update max exposure while meeting expected vblanking */
-			max = imx577->cur_mode->height + ctrl->val - 4;
+			max = imx577->cur_mode->height + ctrl->val - 22;
 			__v4l2_ctrl_modify_range(imx577->exposure,
 					 imx577->exposure->minimum, max,
 					 imx577->exposure->step,
@@ -2195,7 +2195,7 @@ static int imx577_initialize_controls(struct imx577 *imx577)
 				IMX577_VTS_MAX - mode->height,
 				1, vblank_def);
 	imx577->cur_vts = mode->vts_def;
-	exposure_max = mode->vts_def - 4;
+	exposure_max = mode->vts_def - 22;
 	imx577->exposure = v4l2_ctrl_new_std(handler, &imx577_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX577_EXPOSURE_MIN,
 				exposure_max, IMX577_EXPOSURE_STEP,
