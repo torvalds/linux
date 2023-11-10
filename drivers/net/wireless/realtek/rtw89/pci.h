@@ -1042,6 +1042,9 @@ struct rtw89_pci_gen_def {
 
 	void (*clr_idx_all)(struct rtw89_dev *rtwdev);
 	int (*rst_bdram)(struct rtw89_dev *rtwdev);
+
+	int (*lv1rst_stop_dma)(struct rtw89_dev *rtwdev);
+	int (*lv1rst_start_dma)(struct rtw89_dev *rtwdev);
 };
 
 struct rtw89_pci_info {
@@ -1369,6 +1372,7 @@ u32 rtw89_pci_fill_txaddr_info(struct rtw89_dev *rtwdev,
 u32 rtw89_pci_fill_txaddr_info_v1(struct rtw89_dev *rtwdev,
 				  void *txaddr_info_addr, u32 total_len,
 				  dma_addr_t dma, u8 *add_info_nr);
+void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable);
 void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev);
 void rtw89_pci_config_intr_mask_v1(struct rtw89_dev *rtwdev);
 void rtw89_pci_enable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci);

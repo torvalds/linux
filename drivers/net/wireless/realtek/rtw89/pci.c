@@ -1755,7 +1755,7 @@ static void rtw89_pci_ctrl_dma_io(struct rtw89_dev *rtwdev, bool enable)
 		rtw89_write32_set(rtwdev, reg->addr, reg->mask);
 }
 
-static void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable)
+void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable)
 {
 	rtw89_pci_ctrl_dma_io(rtwdev, enable);
 	rtw89_pci_ctrl_dma_trx(rtwdev, enable);
@@ -3640,7 +3640,7 @@ static void rtw89_pci_l1ss_cfg(struct rtw89_dev *rtwdev)
 		rtw89_pci_l1ss_set(rtwdev, true);
 }
 
-static int rtw89_pci_poll_io_idle(struct rtw89_dev *rtwdev)
+static int rtw89_pci_poll_io_idle_ax(struct rtw89_dev *rtwdev)
 {
 	int ret = 0;
 	u32 sts;
@@ -3657,7 +3657,7 @@ static int rtw89_pci_poll_io_idle(struct rtw89_dev *rtwdev)
 	return ret;
 }
 
-static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
+static int rtw89_pci_lv1rst_stop_dma_ax(struct rtw89_dev *rtwdev)
 {
 	u32 val;
 	int ret;
@@ -3666,7 +3666,7 @@ static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
 		return 0;
 
 	rtw89_pci_ctrl_dma_all(rtwdev, false);
-	ret = rtw89_pci_poll_io_idle(rtwdev);
+	ret = rtw89_pci_poll_io_idle_ax(rtwdev);
 	if (ret) {
 		val = rtw89_read32(rtwdev, R_AX_DBG_ERR_FLAG);
 		rtw89_debug(rtwdev, RTW89_DBG_HCI,
@@ -3677,7 +3677,7 @@ static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
 		if (val & B_AX_RX_STUCK)
 			rtw89_mac_ctrl_hci_dma_rx(rtwdev, false);
 		rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
-		ret = rtw89_pci_poll_io_idle(rtwdev);
+		ret = rtw89_pci_poll_io_idle_ax(rtwdev);
 		val = rtw89_read32(rtwdev, R_AX_DBG_ERR_FLAG);
 		rtw89_debug(rtwdev, RTW89_DBG_HCI,
 			    "[PCIe] poll_io_idle fail, after 0x%08x: 0x%08x\n",
@@ -3687,7 +3687,7 @@ static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
 	return ret;
 }
 
-static int rtw89_pci_lv1rst_start_dma(struct rtw89_dev *rtwdev)
+static int rtw89_pci_lv1rst_start_dma_ax(struct rtw89_dev *rtwdev)
 {
 	u32 ret;
 
@@ -3709,18 +3709,20 @@ static int rtw89_pci_lv1rst_start_dma(struct rtw89_dev *rtwdev)
 static int rtw89_pci_ops_mac_lv1_recovery(struct rtw89_dev *rtwdev,
 					  enum rtw89_lv1_rcvy_step step)
 {
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 	int ret;
 
 	switch (step) {
 	case RTW89_LV1_RCVY_STEP_1:
-		ret = rtw89_pci_lv1rst_stop_dma(rtwdev);
+		ret = gen_def->lv1rst_stop_dma(rtwdev);
 		if (ret)
 			rtw89_err(rtwdev, "lv1 rcvy pci stop dma fail\n");
 
 		break;
 
 	case RTW89_LV1_RCVY_STEP_2:
-		ret = rtw89_pci_lv1rst_start_dma(rtwdev);
+		ret = gen_def->lv1rst_start_dma(rtwdev);
 		if (ret)
 			rtw89_err(rtwdev, "lv1 rcvy pci start dma fail\n");
 		break;
@@ -3839,6 +3841,9 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_ax,
 	.rst_bdram = rtw89_pci_rst_bdram_ax,
+
+	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_ax,
+	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 

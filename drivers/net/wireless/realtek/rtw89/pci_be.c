@@ -4,6 +4,7 @@
 
 #include <linux/pci.h>
 
+#include "mac.h"
 #include "pci.h"
 #include "reg.h"
 
@@ -420,11 +421,65 @@ static int rtw89_pci_ops_mac_post_init_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_pci_poll_io_idle_be(struct rtw89_dev *rtwdev)
+{
+	u32 sts;
+	int ret;
+
+	ret = read_poll_timeout_atomic(rtw89_read32, sts,
+				       !(sts & B_BE_HAXI_MST_BUSY),
+				       10, 1000, false, rtwdev,
+				       R_BE_HAXI_DMA_BUSY1);
+	if (ret) {
+		rtw89_err(rtwdev, "pci dmach busy1 0x%X\n", sts);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rtw89_pci_lv1rst_stop_dma_be(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	rtw89_pci_ctrl_dma_all(rtwdev, false);
+	ret = rtw89_pci_poll_io_idle_be(rtwdev);
+	if (!ret)
+		return 0;
+
+	rtw89_debug(rtwdev, RTW89_DBG_HCI,
+		    "[PCIe] poll_io_idle fail; reset hci dma trx\n");
+
+	rtw89_mac_ctrl_hci_dma_trx(rtwdev, false);
+	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
+
+	return rtw89_pci_poll_io_idle_be(rtwdev);
+}
+
+static int rtw89_pci_lv1rst_start_dma_be(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	rtw89_mac_ctrl_hci_dma_trx(rtwdev, false);
+	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
+	rtw89_pci_clr_idx_all(rtwdev);
+
+	ret = rtw89_pci_rst_bdram_be(rtwdev);
+	if (ret)
+		return ret;
+
+	rtw89_pci_ctrl_dma_all(rtwdev, true);
+	return 0;
+}
+
 const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_be,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_be,
 	.rst_bdram = rtw89_pci_rst_bdram_be,
+
+	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_be,
+	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_be,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_be);
