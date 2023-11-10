@@ -1021,7 +1021,7 @@ err_out:
 	return ret;
 }
 
-static int sccnxp_remove(struct platform_device *pdev)
+static void sccnxp_remove(struct platform_device *pdev)
 {
 	int i;
 	struct sccnxp_port *s = platform_get_drvdata(pdev);
@@ -1041,8 +1041,6 @@ static int sccnxp_remove(struct platform_device *pdev)
 		if (ret)
 			dev_err(&pdev->dev, "Failed to disable regulator\n");
 	}
-
-	return 0;
 }
 
 static struct platform_driver sccnxp_uart_driver = {
@@ -1050,7 +1048,7 @@ static struct platform_driver sccnxp_uart_driver = {
 		.name	= SCCNXP_NAME,
 	},
 	.probe		= sccnxp_probe,
-	.remove		= sccnxp_remove,
+	.remove_new	= sccnxp_remove,
 	.id_table	= sccnxp_id_table,
 };
 module_platform_driver(sccnxp_uart_driver);
