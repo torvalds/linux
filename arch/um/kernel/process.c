@@ -332,17 +332,9 @@ int __init make_proc_sysemu(void)
 
 late_initcall(make_proc_sysemu);
 
-int singlestepping(void * t)
+int singlestepping(void)
 {
-	struct task_struct *task = t ? t : current;
-
-	if (!test_thread_flag(TIF_SINGLESTEP))
-		return 0;
-
-	if (task->thread.singlestep_syscall)
-		return 1;
-
-	return 2;
+	return test_thread_flag(TIF_SINGLESTEP);
 }
 
 /*

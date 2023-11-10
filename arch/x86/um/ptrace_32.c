@@ -25,30 +25,6 @@ void arch_switch_to(struct task_struct *to)
 		printk(KERN_WARNING "arch_switch_tls failed, errno = EINVAL\n");
 }
 
-int is_syscall(unsigned long addr)
-{
-	unsigned short instr;
-	int n;
-
-	n = copy_from_user(&instr, (void __user *) addr, sizeof(instr));
-	if (n) {
-		/* access_process_vm() grants access to vsyscall and stub,
-		 * while copy_from_user doesn't. Maybe access_process_vm is
-		 * slow, but that doesn't matter, since it will be called only
-		 * in case of singlestepping, if copy_from_user failed.
-		 */
-		n = access_process_vm(current, addr, &instr, sizeof(instr),
-				FOLL_FORCE);
-		if (n != sizeof(instr)) {
-			printk(KERN_ERR "is_syscall : failed to read "
-			       "instruction from 0x%lx\n", addr);
-			return 1;
-		}
-	}
-	/* int 0x80 or sysenter */
-	return (instr == 0x80cd) || (instr == 0x340f);
-}
-
 /* determines which flags the user has access to. */
 /* 1 = access 0 = no access */
 #define FLAG_MASK 0x00044dd5

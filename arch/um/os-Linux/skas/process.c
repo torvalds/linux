@@ -177,47 +177,10 @@ static void handle_segv(int pid, struct uml_pt_regs *regs, unsigned long *aux_fp
 	segv(regs->faultinfo, 0, 1, NULL);
 }
 
-/*
- * To use the same value of using_sysemu as the caller, ask it that value
- * (in local_using_sysemu
- */
-static void handle_trap(int pid, struct uml_pt_regs *regs,
-			int local_using_sysemu)
+static void handle_trap(int pid, struct uml_pt_regs *regs)
 {
-	int err, status;
-
 	if ((UPT_IP(regs) >= STUB_START) && (UPT_IP(regs) < STUB_END))
 		fatal_sigsegv();
-
-	if (!local_using_sysemu)
-	{
-		err = ptrace(PTRACE_POKEUSER, pid, PT_SYSCALL_NR_OFFSET,
-			     __NR_getpid);
-		if (err < 0) {
-			printk(UM_KERN_ERR "%s - nullifying syscall failed, errno = %d\n",
-			       __func__, errno);
-			fatal_sigsegv();
-		}
-
-		err = ptrace(PTRACE_SYSCALL, pid, 0, 0);
-		if (err < 0) {
-			printk(UM_KERN_ERR "%s - continuing to end of syscall failed, errno = %d\n",
-			       __func__, errno);
-			fatal_sigsegv();
-		}
-
-		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED | __WALL));
-		if ((err < 0) || !WIFSTOPPED(status) ||
-		    (WSTOPSIG(status) != SIGTRAP + 0x80)) {
-			err = ptrace_dump_regs(pid);
-			if (err)
-				printk(UM_KERN_ERR "Failed to get registers from process, errno = %d\n",
-				       -err);
-			printk(UM_KERN_ERR "%s - failed to wait at end of syscall, errno = %d, status = %d\n",
-			       __func__, errno, status);
-			fatal_sigsegv();
-		}
-	}
 
 	handle_syscall(regs);
 }
@@ -355,10 +318,10 @@ int start_userspace(unsigned long stub_stack)
 		goto out_kill;
 	}
 
-	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL,
+	if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
 		   (void *) PTRACE_O_TRACESYSGOOD) < 0) {
 		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_OLDSETOPTIONS failed, errno = %d\n",
+		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
 		       __func__, errno);
 		goto out_kill;
 	}
@@ -380,8 +343,6 @@ int start_userspace(unsigned long stub_stack)
 void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 {
 	int err, status, op, pid = userspace_pid[0];
-	/* To prevent races if using_sysemu changes under us.*/
-	int local_using_sysemu;
 	siginfo_t si;
 
 	/* Handle any immediate reschedules or signals */
@@ -411,11 +372,10 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 			fatal_sigsegv();
 		}
 
-		/* Now we set local_using_sysemu to be used for one loop */
-		local_using_sysemu = get_using_sysemu();
-
-		op = SELECT_PTRACE_OPERATION(local_using_sysemu,
-					     singlestepping(NULL));
+		if (singlestepping())
+			op = PTRACE_SYSEMU_SINGLESTEP;
+		else
+			op = PTRACE_SYSEMU;
 
 		if (ptrace(op, pid, 0, 0)) {
 			printk(UM_KERN_ERR "%s - ptrace continue failed, op = %d, errno = %d\n",
@@ -474,7 +434,7 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 				else handle_segv(pid, regs, aux_fp_regs);
 				break;
 			case SIGTRAP + 0x80:
-			        handle_trap(pid, regs, local_using_sysemu);
+				handle_trap(pid, regs);
 				break;
 			case SIGTRAP:
 				relay_signal(SIGTRAP, (struct siginfo *)&si, regs);
@@ -597,10 +557,10 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 		goto out_kill;
 	}
 
-	if (ptrace(PTRACE_OLDSETOPTIONS, pid, NULL,
+	if (ptrace(PTRACE_SETOPTIONS, pid, NULL,
 		   (void *)PTRACE_O_TRACESYSGOOD) < 0) {
 		err = -errno;
-		printk(UM_KERN_ERR "%s : PTRACE_OLDSETOPTIONS failed, errno = %d\n",
+		printk(UM_KERN_ERR "%s : PTRACE_SETOPTIONS failed, errno = %d\n",
 		       __func__, errno);
 		goto out_kill;
 	}
