@@ -230,10 +230,8 @@ static int bch2_journal_replay(struct bch_fs *c)
 	j->replay_journal_seq = 0;
 
 	bch2_journal_set_replay_done(j);
-	bch2_journal_flush_all_pins(j);
-	ret = bch2_journal_error(j);
 
-	if (keys->nr && !ret)
+	if (keys->nr)
 		bch2_journal_log_msg(c, "journal replay finished");
 err:
 	if (trans)
