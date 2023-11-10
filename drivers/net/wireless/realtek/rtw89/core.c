@@ -4236,6 +4236,8 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 
 	rtw89_core_setup_phycap(rtwdev);
 
+	rtw89_hci_mac_pre_deinit(rtwdev);
+
 	rtw89_mac_pwr_off(rtwdev);
 
 	return 0;

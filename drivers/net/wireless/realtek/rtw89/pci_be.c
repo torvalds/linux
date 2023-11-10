@@ -329,6 +329,23 @@ static int rtw89_pci_ops_mac_pre_init_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_pci_ops_mac_pre_deinit_be(struct rtw89_dev *rtwdev)
+{
+	u32 val;
+
+	_patch_pcie_power_wake_be(rtwdev, false);
+
+	val = rtw89_read32_mask(rtwdev, R_BE_IC_PWR_STATE, B_BE_WLMAC_PWR_STE_MASK);
+	if (val == 0)
+		return 0;
+
+	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_DISABLE,
+				      MAC_AX_PCIE_DISABLE, MAC_AX_PCIE_DISABLE);
+	rtw89_pci_clr_idx_all_be(rtwdev);
+
+	return 0;
+}
+
 int rtw89_pci_ltr_set_v2(struct rtw89_dev *rtwdev, bool en)
 {
 	u32 ctrl0, cfg0, cfg1, dec_ctrl, idle_ltcy, act_ltcy, dis_ltcy;
@@ -474,6 +491,7 @@ static int rtw89_pci_lv1rst_start_dma_be(struct rtw89_dev *rtwdev)
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_be,
+	.mac_pre_deinit = rtw89_pci_ops_mac_pre_deinit_be,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_be,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_be,

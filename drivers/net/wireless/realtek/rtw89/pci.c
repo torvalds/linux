@@ -3837,6 +3837,7 @@ EXPORT_SYMBOL(rtw89_pm_ops);
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_ax,
+	.mac_pre_deinit = NULL,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_ax,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_ax,
@@ -3866,6 +3867,7 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.write32	= rtw89_pci_ops_write32,
 
 	.mac_pre_init	= rtw89_pci_ops_mac_pre_init,
+	.mac_pre_deinit	= rtw89_pci_ops_mac_pre_deinit,
 	.mac_post_init	= rtw89_pci_ops_mac_post_init,
 	.deinit		= rtw89_pci_ops_deinit,
 

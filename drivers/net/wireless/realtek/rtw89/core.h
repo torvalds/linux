@@ -3064,6 +3064,7 @@ struct rtw89_hci_ops {
 	void (*write32)(struct rtw89_dev *rtwdev, u32 addr, u32 data);
 
 	int (*mac_pre_init)(struct rtw89_dev *rtwdev);
+	int (*mac_pre_deinit)(struct rtw89_dev *rtwdev);
 	int (*mac_post_init)(struct rtw89_dev *rtwdev);
 	int (*deinit)(struct rtw89_dev *rtwdev);
 
@@ -4801,6 +4802,11 @@ static inline u32 rtw89_hci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwd
 static inline void rtw89_hci_tx_kick_off(struct rtw89_dev *rtwdev, u8 txch)
 {
 	return rtwdev->hci.ops->tx_kick_off(rtwdev, txch);
+}
+
+static inline int rtw89_hci_mac_pre_deinit(struct rtw89_dev *rtwdev)
+{
+	return rtwdev->hci.ops->mac_pre_deinit(rtwdev);
 }
 
 static inline void rtw89_hci_flush_queues(struct rtw89_dev *rtwdev, u32 queues,
