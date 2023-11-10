@@ -838,6 +838,13 @@ static inline bool cpl_is_matched(struct kvm_pmc *pmc)
 		select_user = config & 0x2;
 	}
 
+	/*
+	 * Skip the CPL lookup, which isn't free on Intel, if the result will
+	 * be the same regardless of the CPL.
+	 */
+	if (select_os == select_user)
+		return select_os;
+
 	return (static_call(kvm_x86_get_cpl)(pmc->vcpu) == 0) ? select_os : select_user;
 }
 
