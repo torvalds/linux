@@ -425,5 +425,6 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 	.mac_post_init = rtw89_pci_ops_mac_post_init_be,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_be,
+	.rst_bdram = rtw89_pci_rst_bdram_be,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_be);

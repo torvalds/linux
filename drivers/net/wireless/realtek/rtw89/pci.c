@@ -19,22 +19,18 @@ MODULE_PARM_DESC(disable_clkreq, "Set Y to disable PCI clkreq support");
 MODULE_PARM_DESC(disable_aspm_l1, "Set Y to disable PCI ASPM L1 support");
 MODULE_PARM_DESC(disable_aspm_l1ss, "Set Y to disable PCI L1SS support");
 
-static int rtw89_pci_rst_bdram_pcie(struct rtw89_dev *rtwdev)
+static int rtw89_pci_rst_bdram_ax(struct rtw89_dev *rtwdev)
 {
 	u32 val;
 	int ret;
 
-	rtw89_write32(rtwdev, R_AX_PCIE_INIT_CFG1,
-		      rtw89_read32(rtwdev, R_AX_PCIE_INIT_CFG1) | B_AX_RST_BDRAM);
+	rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, B_AX_RST_BDRAM);
 
 	ret = read_poll_timeout_atomic(rtw89_read32, val, !(val & B_AX_RST_BDRAM),
 				       1, RTW89_PCI_POLL_BDRAM_RST_CNT, false,
 				       rtwdev, R_AX_PCIE_INIT_CFG1);
 
-	if (ret)
-		return -EBUSY;
-
-	return 0;
+	return ret;
 }
 
 static u32 rtw89_pci_dma_recalc(struct rtw89_dev *rtwdev,
@@ -2608,7 +2604,7 @@ static int rtw89_pci_ops_mac_pre_init_ax(struct rtw89_dev *rtwdev)
 	/* fill TRX BD indexes */
 	rtw89_pci_ops_reset(rtwdev);
 
-	ret = rtw89_pci_rst_bdram_pcie(rtwdev);
+	ret = rtw89_pci_rst_bdram_ax(rtwdev);
 	if (ret) {
 		rtw89_warn(rtwdev, "reset bdram busy\n");
 		return ret;
@@ -3691,22 +3687,6 @@ static int rtw89_pci_lv1rst_stop_dma(struct rtw89_dev *rtwdev)
 	return ret;
 }
 
-
-
-static int rtw89_pci_rst_bdram(struct rtw89_dev *rtwdev)
-{
-	int ret = 0;
-	u32 val32, sts;
-
-	val32 = B_AX_RST_BDRAM;
-	rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1, val32);
-
-	ret = read_poll_timeout_atomic(rtw89_read32, sts,
-				       (sts & B_AX_RST_BDRAM) == 0x0, 1, 100,
-				       true, rtwdev, R_AX_PCIE_INIT_CFG1);
-	return ret;
-}
-
 static int rtw89_pci_lv1rst_start_dma(struct rtw89_dev *rtwdev)
 {
 	u32 ret;
@@ -3718,7 +3698,7 @@ static int rtw89_pci_lv1rst_start_dma(struct rtw89_dev *rtwdev)
 	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 	rtw89_pci_clr_idx_all(rtwdev);
 
-	ret = rtw89_pci_rst_bdram(rtwdev);
+	ret = rtw89_pci_rst_bdram_ax(rtwdev);
 	if (ret)
 		return ret;
 
@@ -3858,6 +3838,7 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.mac_post_init = rtw89_pci_ops_mac_post_init_ax,
 
 	.clr_idx_all = rtw89_pci_clr_idx_all_ax,
+	.rst_bdram = rtw89_pci_rst_bdram_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
@@ -3899,7 +3880,7 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.clear		= rtw89_pci_clear_resource,
 	.disable_intr	= rtw89_pci_disable_intr_lock,
 	.enable_intr	= rtw89_pci_enable_intr_lock,
-	.rst_bdram	= rtw89_pci_rst_bdram_pcie,
+	.rst_bdram	= rtw89_pci_reset_bdram,
 };
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
