@@ -137,11 +137,11 @@ static int aspeed_udma_free_chan(u32 ch_no, bool is_tx)
 	spin_lock_irqsave(&udma->lock, flags);
 
 	reg = readl(udma->regs +
-			((is_tx) ? UDMA_TX_DMA_INT_EN : UDMA_RX_DMA_INT_EN));
+		    ((is_tx) ? UDMA_TX_DMA_INT_EN : UDMA_RX_DMA_INT_EN));
 	reg &= ~(0x1 << ch_no);
 
 	writel(reg, udma->regs +
-			((is_tx) ? UDMA_TX_DMA_INT_EN : UDMA_RX_DMA_INT_EN));
+	       ((is_tx) ? UDMA_TX_DMA_INT_EN : UDMA_RX_DMA_INT_EN));
 
 	spin_unlock_irqrestore(&udma->lock, flags);
 
@@ -199,10 +199,9 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		reg |= (0x1 << ch_no);
 		writel(reg, udma->regs + UDMA_TX_DMA_INT_EN);
 
-		reg = readl(udma->regs + UDMA_CHX_TX_CTRL(ch_no));
-		reg |= FIELD_PREP(UDMA_TX_CTRL_BUF_ADDRH, (u64)addr >> 32);
-		reg |= (dis_tmout) ? UDMA_TX_CTRL_TMOUT_DIS : 0;
-		reg |= FIELD_PREP(UDMA_TX_CTRL_BUFSZ, rbsz_code);
+		reg = FIELD_PREP(UDMA_TX_CTRL_BUF_ADDRH, (u64)addr >> 32) |
+		      (dis_tmout) ? UDMA_TX_CTRL_TMOUT_DIS : 0 |
+		      FIELD_PREP(UDMA_TX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_TX_CTRL(ch_no));
 
 		writel(addr, udma->regs + UDMA_CHX_TX_BUF_ADDR(ch_no));
@@ -216,10 +215,9 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		reg |= (0x1 << ch_no);
 		writel(reg, udma->regs + UDMA_RX_DMA_INT_EN);
 
-		reg = readl(udma->regs + UDMA_CHX_RX_CTRL(ch_no));
-		reg |= FIELD_PREP(UDMA_RX_CTRL_BUF_ADDRH, (u64)addr >> 32);
-		reg |= (dis_tmout) ? UDMA_RX_CTRL_TMOUT_DIS : 0;
-		reg |= FIELD_PREP(UDMA_RX_CTRL_BUFSZ, rbsz_code);
+		reg = FIELD_PREP(UDMA_RX_CTRL_BUF_ADDRH, (u64)addr >> 32) |
+		      (dis_tmout) ? UDMA_RX_CTRL_TMOUT_DIS : 0 |
+		      FIELD_PREP(UDMA_RX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_RX_CTRL(ch_no));
 
 		writel(addr, udma->regs + UDMA_CHX_RX_BUF_ADDR(ch_no));
