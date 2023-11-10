@@ -10419,6 +10419,8 @@ static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
 	int ret = 0;
 
 	for (i = 0; i < p->num_subdevs; i++) {
+		if (p->subdevs[i] == terminal_sensor->sd && on)
+			rkcif_set_sof(cif_dev, cif_dev->stream[0].frame_idx);
 		if (p->subdevs[i] == terminal_sensor->sd && cif_dev->is_rtt_suspend) {
 			if (!rk_tb_mcu_is_done() && on) {
 				cif_dev->tb_client.data = p->subdevs[i];
