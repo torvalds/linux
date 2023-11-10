@@ -2582,6 +2582,9 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	if (u->gamut_remap_matrix)
 		update_flags->bits.gamut_remap_change = 1;
 
+	if (u->blend_tf)
+		update_flags->bits.gamma_change = 1;
+
 	if (u->gamma) {
 		enum surface_pixel_format format = SURFACE_PIXEL_FORMAT_GRPH_BEGIN;
 
@@ -4113,8 +4116,17 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 	bool success = false;
 	struct dc_state *minimal_transition_context;
 	struct pipe_split_policy_backup policy;
+	struct mall_temp_config mall_temp_config;
 
 	/* commit based on new context */
+	/* Since all phantom pipes are removed in full validation,
+	 * we have to save and restore the subvp/mall config when
+	 * we do a minimal transition since the flags marking the
+	 * pipe as subvp/phantom will be cleared (dc copy constructor
+	 * creates a shallow copy).
+	 */
+	if (dc->res_pool->funcs->save_mall_state)
+		dc->res_pool->funcs->save_mall_state(dc, context, &mall_temp_config);
 	minimal_transition_context = create_minimal_transition_state(dc,
 			context, &policy);
 	if (minimal_transition_context) {
@@ -4123,9 +4135,20 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 			dc->hwss.is_pipe_topology_transition_seamless(
 					dc, minimal_transition_context, context)) {
 			DC_LOG_DC("%s base = new state\n", __func__);
+
 			success = dc_commit_state_no_check(dc, minimal_transition_context) == DC_OK;
 		}
 		release_minimal_transition_state(dc, minimal_transition_context, &policy);
+		if (dc->res_pool->funcs->restore_mall_state)
+			dc->res_pool->funcs->restore_mall_state(dc, context, &mall_temp_config);
+		/* If we do a minimal transition with plane removal and the context
+		 * has subvp we also have to retain back the phantom stream / planes
+		 * since the refcount is decremented as part of the min transition
+		 * (we commit a state with no subvp, so the phantom streams / planes
+		 * had to be removed).
+		 */
+		if (dc->res_pool->funcs->retain_phantom_pipes)
+			dc->res_pool->funcs->retain_phantom_pipes(dc, context);
 	}
 
 	if (!success) {
@@ -4884,7 +4907,7 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
 
-	if (dc->caps.ips_support && dc->config.disable_ips)
+	if (dc->caps.ips_support && (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return;
 
 	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->is_smu_present)
@@ -4905,7 +4928,7 @@ bool dc_dmub_is_ips_idle_state(struct dc *dc)
 	if (dc->debug.disable_idle_power_optimizations)
 		return false;
 
-	if (!dc->caps.ips_support || dc->config.disable_ips)
+	if (!dc->caps.ips_support || (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return false;
 
 	if (dc->hwss.get_idle_state)

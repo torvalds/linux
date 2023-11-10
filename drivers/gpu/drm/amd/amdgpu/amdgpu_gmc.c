@@ -826,7 +826,10 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver == IP_VERSION(9, 4, 3) ||
 				gc_ver >= IP_VERSION(10, 3, 0));
 
-	gmc->noretry = (amdgpu_noretry == -1) ? noretry_default : amdgpu_noretry;
+	if (!amdgpu_sriov_xnack_support(adev))
+		gmc->noretry = 1;
+	else
+		gmc->noretry = (amdgpu_noretry == -1) ? noretry_default : amdgpu_noretry;
 }
 
 void amdgpu_gmc_set_vm_fault_masks(struct amdgpu_device *adev, int hub_type,

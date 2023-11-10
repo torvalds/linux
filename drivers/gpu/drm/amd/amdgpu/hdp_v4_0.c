@@ -145,6 +145,10 @@ static void hdp_v4_0_init_registers(struct amdgpu_device *adev)
 		break;
 	}
 
+	/* Do not program registers if VF */
+	if (amdgpu_sriov_vf(adev))
+		return;
+
 	WREG32_FIELD15(HDP, 0, HDP_MISC_CNTL, FLUSH_INVALIDATE_CACHE, 1);
 
 	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(4, 4, 0))
