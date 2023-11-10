@@ -290,6 +290,62 @@
 #define B_BE_RTK_LDO_BIAS_LATENCY_MASK GENMASK(9, 8)
 #define B_BE_CLK_REQ_LAT_MASK GENMASK(7, 4)
 
+#define R_BE_PCIE_DMA_ISR 0x30BC
+#define B_BE_PCIE_RX_RX1P1_ISR_V1 BIT(23)
+#define B_BE_PCIE_RX_RX0P1_ISR_V1 BIT(22)
+#define B_BE_PCIE_RX_ROQ1_ISR_V1 BIT(21)
+#define B_BE_PCIE_RX_RPQ1_ISR_V1 BIT(20)
+#define B_BE_PCIE_RX_RX1P2_ISR_V1 BIT(19)
+#define B_BE_PCIE_RX_ROQ0_ISR_V1 BIT(18)
+#define B_BE_PCIE_RX_RPQ0_ISR_V1 BIT(17)
+#define B_BE_PCIE_RX_RX0P2_ISR_V1 BIT(16)
+#define B_BE_PCIE_TX_CH14_ISR BIT(14)
+#define B_BE_PCIE_TX_CH13_ISR BIT(13)
+#define B_BE_PCIE_TX_CH12_ISR BIT(12)
+#define B_BE_PCIE_TX_CH11_ISR BIT(11)
+#define B_BE_PCIE_TX_CH10_ISR BIT(10)
+#define B_BE_PCIE_TX_CH9_ISR BIT(9)
+#define B_BE_PCIE_TX_CH8_ISR BIT(8)
+#define B_BE_PCIE_TX_CH7_ISR BIT(7)
+#define B_BE_PCIE_TX_CH6_ISR BIT(6)
+#define B_BE_PCIE_TX_CH5_ISR BIT(5)
+#define B_BE_PCIE_TX_CH4_ISR BIT(4)
+#define B_BE_PCIE_TX_CH3_ISR BIT(3)
+#define B_BE_PCIE_TX_CH2_ISR BIT(2)
+#define B_BE_PCIE_TX_CH1_ISR BIT(1)
+#define B_BE_PCIE_TX_CH0_ISR BIT(0)
+
+#define R_BE_HAXI_HISR00 0xB0B4
+#define B_BE_RDU_CH6_INT BIT(28)
+#define B_BE_RDU_CH5_INT BIT(27)
+#define B_BE_RDU_CH4_INT BIT(26)
+#define B_BE_RDU_CH2_INT BIT(25)
+#define B_BE_RDU_CH1_INT BIT(24)
+#define B_BE_RDU_CH0_INT BIT(23)
+#define B_BE_RXDMA_STUCK_INT BIT(22)
+#define B_BE_TXDMA_STUCK_INT BIT(21)
+#define B_BE_TXDMA_CH14_INT BIT(20)
+#define B_BE_TXDMA_CH13_INT BIT(19)
+#define B_BE_TXDMA_CH12_INT BIT(18)
+#define B_BE_TXDMA_CH11_INT BIT(17)
+#define B_BE_TXDMA_CH10_INT BIT(16)
+#define B_BE_TXDMA_CH9_INT BIT(15)
+#define B_BE_TXDMA_CH8_INT BIT(14)
+#define B_BE_TXDMA_CH7_INT BIT(13)
+#define B_BE_TXDMA_CH6_INT BIT(12)
+#define B_BE_TXDMA_CH5_INT BIT(11)
+#define B_BE_TXDMA_CH4_INT BIT(10)
+#define B_BE_TXDMA_CH3_INT BIT(9)
+#define B_BE_TXDMA_CH2_INT BIT(8)
+#define B_BE_TXDMA_CH1_INT BIT(7)
+#define B_BE_TXDMA_CH0_INT BIT(6)
+#define B_BE_RPQ1DMA_INT BIT(5)
+#define B_BE_RX1P1DMA_INT BIT(4)
+#define B_BE_RX1DMA_INT BIT(3)
+#define B_BE_RPQ0DMA_INT BIT(2)
+#define B_BE_RX0P1DMA_INT BIT(1)
+#define B_BE_RX0DMA_INT BIT(0)
+
 /* TX/RX */
 #define R_AX_DRV_FW_HSK_0	0x01B0
 #define R_AX_DRV_FW_HSK_1	0x01B4
@@ -1037,6 +1093,12 @@ struct rtw89_pci_bd_ram {
 };
 
 struct rtw89_pci_gen_def {
+	u32 isr_rdu;
+	u32 isr_halt_c2h;
+	u32 isr_wdt_timeout;
+	struct rtw89_reg2_def isr_clear_rpq;
+	struct rtw89_reg2_def isr_clear_rxq;
+
 	int (*mac_pre_init)(struct rtw89_dev *rtwdev);
 	int (*mac_pre_deinit)(struct rtw89_dev *rtwdev);
 	int (*mac_post_init)(struct rtw89_dev *rtwdev);

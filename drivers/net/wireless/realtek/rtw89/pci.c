@@ -696,12 +696,6 @@ void rtw89_pci_recognize_intrs_v1(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_pci_recognize_intrs_v1);
 
-static void rtw89_pci_clear_isr0(struct rtw89_dev *rtwdev, u32 isr00)
-{
-	/* write 1 clear */
-	rtw89_write32(rtwdev, R_AX_PCIE_HISR00, isr00);
-}
-
 void rtw89_pci_enable_intr(struct rtw89_dev *rtwdev, struct rtw89_pci *rtwpci)
 {
 	rtw89_write32(rtwdev, R_AX_HIMR0, rtwpci->halt_c2h_intrs);
@@ -773,6 +767,8 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 {
 	struct rtw89_dev *rtwdev = dev;
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 	struct rtw89_pci_isrs isrs;
 	unsigned long flags;
 
@@ -780,13 +776,13 @@ static irqreturn_t rtw89_pci_interrupt_threadfn(int irq, void *dev)
 	rtw89_chip_recognize_intrs(rtwdev, rtwpci, &isrs);
 	spin_unlock_irqrestore(&rtwpci->irq_lock, flags);
 
-	if (unlikely(isrs.isrs[0] & B_AX_RDU_INT))
+	if (unlikely(isrs.isrs[0] & gen_def->isr_rdu))
 		rtw89_pci_isr_rxd_unavail(rtwdev, rtwpci);
 
-	if (unlikely(isrs.halt_c2h_isrs & B_AX_HALT_C2H_INT_EN))
+	if (unlikely(isrs.halt_c2h_isrs & gen_def->isr_halt_c2h))
 		rtw89_ser_notify(rtwdev, rtw89_mac_get_err_status(rtwdev));
 
-	if (unlikely(isrs.halt_c2h_isrs & B_AX_WDT_TIMEOUT_INT_EN))
+	if (unlikely(isrs.halt_c2h_isrs & gen_def->isr_wdt_timeout))
 		rtw89_ser_notify(rtwdev, MAC_AX_ERR_L2_ERR_WDT_TIMEOUT_INT);
 
 	if (unlikely(rtwpci->under_recovery))
@@ -3748,17 +3744,19 @@ static int rtw89_pci_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct rtw89_dev *rtwdev = container_of(napi, struct rtw89_dev, napi);
 	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 	unsigned long flags;
 	int work_done;
 
 	rtwdev->napi_budget_countdown = budget;
 
-	rtw89_pci_clear_isr0(rtwdev, B_AX_RPQDMA_INT | B_AX_RPQBD_FULL_INT);
+	rtw89_write32(rtwdev, gen_def->isr_clear_rpq.addr, gen_def->isr_clear_rpq.data);
 	work_done = rtw89_pci_poll_rpq_dma(rtwdev, rtwpci, rtwdev->napi_budget_countdown);
 	if (work_done == budget)
 		return budget;
 
-	rtw89_pci_clear_isr0(rtwdev, B_AX_RXP1DMA_INT | B_AX_RXDMA_INT | B_AX_RDU_INT);
+	rtw89_write32(rtwdev, gen_def->isr_clear_rxq.addr, gen_def->isr_clear_rxq.data);
 	work_done += rtw89_pci_poll_rxq_dma(rtwdev, rtwpci, rtwdev->napi_budget_countdown);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		spin_lock_irqsave(&rtwpci->irq_lock, flags);
@@ -3836,6 +3834,13 @@ SIMPLE_DEV_PM_OPS(rtw89_pm_ops, rtw89_pci_suspend, rtw89_pci_resume);
 EXPORT_SYMBOL(rtw89_pm_ops);
 
 const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
+	.isr_rdu = B_AX_RDU_INT,
+	.isr_halt_c2h = B_AX_HALT_C2H_INT_EN,
+	.isr_wdt_timeout = B_AX_WDT_TIMEOUT_INT_EN,
+	.isr_clear_rpq = {R_AX_PCIE_HISR00, B_AX_RPQDMA_INT | B_AX_RPQBD_FULL_INT},
+	.isr_clear_rxq = {R_AX_PCIE_HISR00, B_AX_RXP1DMA_INT | B_AX_RXDMA_INT |
+					    B_AX_RDU_INT},
+
 	.mac_pre_init = rtw89_pci_ops_mac_pre_init_ax,
 	.mac_pre_deinit = NULL,
 	.mac_post_init = rtw89_pci_ops_mac_post_init_ax,
