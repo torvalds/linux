@@ -857,9 +857,6 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 		return;
 
 	kvm_for_each_pmc(pmu, pmc, i, bitmap) {
-		if (!pmc_event_is_allowed(pmc))
-			continue;
-
 		/*
 		 * Ignore checks for edge detect (all events currently emulated
 		 * but KVM are always rising edges), pin control (unsupported
@@ -874,11 +871,11 @@ void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel)
 		 * might be wrong if they are defined in the future, but so
 		 * could ignoring them, so do the simple thing for now.
 		 */
-		if ((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB)
+		if (((pmc->eventsel ^ eventsel) & AMD64_RAW_EVENT_MASK_NB) ||
+		    !pmc_event_is_allowed(pmc) || !cpl_is_matched(pmc))
 			continue;
 
-		if (cpl_is_matched(pmc))
-			kvm_pmu_incr_counter(pmc);
+		kvm_pmu_incr_counter(pmc);
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
