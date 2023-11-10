@@ -737,19 +737,17 @@ static int esp32_uart_probe(struct platform_device *pdev)
 	return uart_add_one_port(&esp32_uart_reg, port);
 }
 
-static int esp32_uart_remove(struct platform_device *pdev)
+static void esp32_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&esp32_uart_reg, port);
-
-	return 0;
 }
 
 
 static struct platform_driver esp32_uart_driver = {
 	.probe		= esp32_uart_probe,
-	.remove		= esp32_uart_remove,
+	.remove_new	= esp32_uart_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32_uart_dt_ids,
