@@ -10,7 +10,6 @@ config VIDEO_VIVID
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_V4L2_TPG
 	select MEDIA_CONTROLLER
-	select MEDIA_CONTROLLER_REQUEST_API
 	help
 	  Enables a virtual video driver. This driver emulates a webcam,
 	  TV, S-Video and HDMI capture hardware, including VBI support for
