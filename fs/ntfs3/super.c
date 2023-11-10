@@ -122,13 +122,12 @@ void ntfs_inode_printk(struct inode *inode, const char *fmt, ...)
 
 	if (name) {
 		struct dentry *de = d_find_alias(inode);
-		const u32 name_len = ARRAY_SIZE(s_name_buf) - 1;
 
 		if (de) {
 			spin_lock(&de->d_lock);
-			snprintf(name, name_len, " \"%s\"", de->d_name.name);
+			snprintf(name, sizeof(s_name_buf), " \"%s\"",
+				 de->d_name.name);
 			spin_unlock(&de->d_lock);
-			name[name_len] = 0; /* To be sure. */
 		} else {
 			name[0] = 0;
 		}
