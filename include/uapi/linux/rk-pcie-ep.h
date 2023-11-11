@@ -90,7 +90,8 @@ struct pcie_ep_obj_info {
 		__u16 mode;
 		__u16 submode;
 	} devmode;
-	__u8 reserved[0x1F4];
+	__u32 msi_data[0x8];
+	__u8 reserved[0x1D4];
 
 	__u32 irq_type_rc;					/* Generate in ep isr, valid only for rc, clear in rc */
 	struct pcie_ep_obj_irq_dma_status dma_status_rc;	/* Generate in ep isr, valid only for rc, clear in rc */
