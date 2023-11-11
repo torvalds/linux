@@ -897,7 +897,6 @@ out_oiter:
 static struct dentry *udf_get_parent(struct dentry *child)
 {
 	struct kernel_lb_addr tloc;
-	struct inode *inode = NULL;
 	struct udf_fileident_iter iter;
 	int err;
 
@@ -907,11 +906,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 
 	tloc = lelb_to_cpu(iter.fi.icb.extLocation);
 	udf_fiiter_release(&iter);
-	inode = udf_iget(child->d_sb, &tloc);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	return d_obtain_alias(inode);
+	return d_obtain_alias(udf_iget(child->d_sb, &tloc));
 }
 
 
