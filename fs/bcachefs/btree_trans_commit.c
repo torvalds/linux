@@ -675,6 +675,9 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	    bch2_trans_fs_usage_apply(trans, trans->fs_usage_deltas))
 		return -BCH_ERR_btree_insert_need_mark_replicas;
 
+	/* XXX: we only want to run this if deltas are nonzero */
+	bch2_trans_account_disk_usage_change(trans);
+
 	h = trans->hooks;
 	while (h) {
 		ret = h->fn(trans, h);
@@ -988,6 +991,8 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	if (!trans->nr_updates &&
 	    !trans->journal_entries_u64s)
 		goto out_reset;
+
+	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));
 
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)

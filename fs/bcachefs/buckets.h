@@ -356,6 +356,8 @@ int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
 	ret;											\
 })
 
+void bch2_trans_account_disk_usage_change(struct btree_trans *);
+
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 

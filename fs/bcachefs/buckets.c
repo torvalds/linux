@@ -694,48 +694,25 @@ void bch2_trans_fs_usage_revert(struct btree_trans *trans,
 	percpu_up_read(&c->mark_lock);
 }
 
-int bch2_trans_fs_usage_apply(struct btree_trans *trans,
-			      struct replicas_delta_list *deltas)
+void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
+	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
 	static int warned_disk_usage = 0;
 	bool warn = false;
-	u64 disk_res_sectors = trans->disk_res ? trans->disk_res->sectors : 0;
-	struct replicas_delta *d, *d2;
-	struct replicas_delta *top = (void *) deltas->d + deltas->used;
-	struct bch_fs_usage *dst;
-	s64 added = 0, should_not_have_added;
-	unsigned i;
 
 	percpu_down_read(&c->mark_lock);
 	preempt_disable();
-	dst = fs_usage_ptr(c, trans->journal_res.seq, false);
+	struct bch_fs_usage_base *dst = &fs_usage_ptr(c, trans->journal_res.seq, false)->b;
+	struct bch_fs_usage_base *src = &trans->fs_usage_delta;
 
-	for (d = deltas->d; d != top; d = replicas_delta_next(d)) {
-		switch (d->r.data_type) {
-		case BCH_DATA_btree:
-		case BCH_DATA_user:
-		case BCH_DATA_parity:
-			added += d->delta;
-		}
-
-		if (__update_replicas(c, dst, &d->r, d->delta))
-			goto need_mark;
-	}
-
-	dst->b.nr_inodes += deltas->nr_inodes;
-
-	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
-		added				+= deltas->persistent_reserved[i];
-		dst->b.reserved			+= deltas->persistent_reserved[i];
-		dst->persistent_reserved[i]	+= deltas->persistent_reserved[i];
-	}
+	s64 added = src->btree + src->data + src->reserved;
 
 	/*
 	 * Not allowed to reduce sectors_available except by getting a
 	 * reservation:
 	 */
-	should_not_have_added = added - (s64) disk_res_sectors;
+	s64 should_not_have_added = added - (s64) disk_res_sectors;
 	if (unlikely(should_not_have_added > 0)) {
 		u64 old, new, v = atomic64_read(&c->sectors_available);
 
@@ -754,6 +731,13 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		this_cpu_sub(*c->online_reserved, added);
 	}
 
+	dst->hidden	+= src->hidden;
+	dst->btree	+= src->btree;
+	dst->data	+= src->data;
+	dst->cached	+= src->cached;
+	dst->reserved	+= src->reserved;
+	dst->nr_inodes	+= src->nr_inodes;
+
 	preempt_enable();
 	percpu_up_read(&c->mark_lock);
 
@@ -761,6 +745,34 @@ int bch2_trans_fs_usage_apply(struct btree_trans *trans,
 		bch2_trans_inconsistent(trans,
 					"disk usage increased %lli more than %llu sectors reserved)",
 					should_not_have_added, disk_res_sectors);
+}
+
+int bch2_trans_fs_usage_apply(struct btree_trans *trans,
+			      struct replicas_delta_list *deltas)
+{
+	struct bch_fs *c = trans->c;
+	struct replicas_delta *d, *d2;
+	struct replicas_delta *top = (void *) deltas->d + deltas->used;
+	struct bch_fs_usage *dst;
+	unsigned i;
+
+	percpu_down_read(&c->mark_lock);
+	preempt_disable();
+	dst = fs_usage_ptr(c, trans->journal_res.seq, false);
+
+	for (d = deltas->d; d != top; d = replicas_delta_next(d))
+		if (__update_replicas(c, dst, &d->r, d->delta))
+			goto need_mark;
+
+	dst->b.nr_inodes += deltas->nr_inodes;
+
+	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
+		dst->b.reserved			+= deltas->persistent_reserved[i];
+		dst->persistent_reserved[i]	+= deltas->persistent_reserved[i];
+	}
+
+	preempt_enable();
+	percpu_up_read(&c->mark_lock);
 	return 0;
 need_mark:
 	/* revert changes: */
