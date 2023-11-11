@@ -1313,8 +1313,6 @@ static void tb_dp_dump(struct tb_tunnel *tunnel)
 		      "DP IN maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
 		      rate, lanes, tb_dp_bandwidth(rate, lanes));
 
-	out = tunnel->dst_port;
-
 	if (tb_port_read(out, &dp_cap, TB_CFG_PORT,
 			 out->cap_adap + DP_LOCAL_CAP, 1))
 		return;
