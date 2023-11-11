@@ -80,6 +80,15 @@
 		};
 	};
 
+	touch_avdd: touch-avdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_avdd";
+		gpio = <&tlmm 59 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_avdd_default>;
+		enable-active-high;
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -136,9 +145,10 @@
 		interrupts = <22 0x2008>;
 
 		vdd-supply = <&pm6125_l13>;
+		avdd-supply = <&touch_avdd>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&ts_int_default &ts_avdd_default>;
+		pinctrl-0 = <&ts_int_default>;
 	};
 };
 
@@ -417,7 +427,7 @@
 		pins = "gpio59";
 		function = "gpio";
 		drive-strength = <8>;
-		output-high;
+		output-low;
 	};
 };
 
