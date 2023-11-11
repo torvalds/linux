@@ -946,8 +946,10 @@ static int imxfb_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_init;
 
-	/* Calculate maximum bytes used per pixel. In most cases this should
-	 * be the same as m->bpp/8 */
+	/*
+	 * Calculate maximum bytes used per pixel. In most cases this should
+	 * be the same as m->bpp/8
+	 */
 	m = &fbi->mode[0];
 	bytes_per_pixel = (m->bpp + 7) / 8;
 	for (i = 0; i < fbi->num_modes; i++, m++)
