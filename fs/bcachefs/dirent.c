@@ -201,7 +201,8 @@ static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
 int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		       const struct bch_hash_info *hash_info,
 		       u8 type, const struct qstr *name, u64 dst_inum,
-		       u64 *dir_offset, int flags)
+		       u64 *dir_offset,
+		       bch_str_hash_flags_t str_hash_flags)
 {
 	struct bkey_i_dirent *dirent;
 	int ret;
@@ -212,7 +213,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		return ret;
 
 	ret = bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
-			    dir, &dirent->k_i, flags);
+			    dir, &dirent->k_i, str_hash_flags);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;

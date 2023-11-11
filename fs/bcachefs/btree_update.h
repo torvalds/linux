@@ -28,8 +28,6 @@ enum btree_insert_flags {
 	__BTREE_INSERT_LAZY_RW,
 	__BTREE_INSERT_JOURNAL_REPLAY,
 	__BTREE_INSERT_JOURNAL_RECLAIM,
-	__BCH_HASH_SET_MUST_CREATE,
-	__BCH_HASH_SET_MUST_REPLACE,
 };
 
 /* Don't check for -ENOSPC: */
@@ -43,9 +41,6 @@ enum btree_insert_flags {
 
 /* Insert is being called from journal reclaim path: */
 #define BTREE_INSERT_JOURNAL_RECLAIM	BIT(__BTREE_INSERT_JOURNAL_RECLAIM)
-
-#define BCH_HASH_SET_MUST_CREATE	BIT(__BCH_HASH_SET_MUST_CREATE)
-#define BCH_HASH_SET_MUST_REPLACE	BIT(__BCH_HASH_SET_MUST_REPLACE)
 
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);
