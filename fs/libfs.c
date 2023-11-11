@@ -912,7 +912,6 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 		      const struct tree_descr *files)
 {
 	struct inode *inode;
-	struct dentry *root;
 	struct dentry *dentry;
 	int i;
 
@@ -935,8 +934,8 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);
-	root = d_make_root(inode);
-	if (!root)
+	s->s_root = d_make_root(inode);
+	if (!s->s_root)
 		return -ENOMEM;
 	for (i = 0; !files->name || files->name[0]; i++, files++) {
 		if (!files->name)
@@ -948,13 +947,13 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 				"with an index of 1!\n", __func__,
 				s->s_type->name);
 
-		dentry = d_alloc_name(root, files->name);
+		dentry = d_alloc_name(s->s_root, files->name);
 		if (!dentry)
-			goto out;
+			return -ENOMEM;
 		inode = new_inode(s);
 		if (!inode) {
 			dput(dentry);
-			goto out;
+			return -ENOMEM;
 		}
 		inode->i_mode = S_IFREG | files->mode;
 		simple_inode_init_ts(inode);
@@ -962,13 +961,7 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 		inode->i_ino = i;
 		d_add(dentry, inode);
 	}
-	s->s_root = root;
 	return 0;
-out:
-	d_genocide(root);
-	shrink_dcache_parent(root);
-	dput(root);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(simple_fill_super);
 
