@@ -561,8 +561,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 
 		if (have_bucket_gens_key && bkey_cmp(iter.pos, pos)) {
 			ret = commit_do(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW,
+					BCH_TRANS_COMMIT_no_enospc|
+					BCH_TRANS_COMMIT_lazy_rw,
 				bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0));
 			if (ret)
 				break;
@@ -581,8 +581,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 
 	if (have_bucket_gens_key && !ret)
 		ret = commit_do(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW,
+				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_lazy_rw,
 			bch2_btree_insert_trans(trans, BTREE_ID_bucket_gens, &g.k_i, 0));
 
 	bch2_trans_put(trans);
@@ -1267,7 +1267,7 @@ delete:
 	ret =   bch2_btree_delete_extent_at(trans, iter,
 			iter->btree_id == BTREE_ID_freespace ? 1 : 0, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-			BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW);
+			BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw);
 	goto out;
 }
 
@@ -1404,8 +1404,8 @@ int bch2_check_alloc_info(struct bch_fs *c)
 		}
 
 		ret = bch2_trans_commit(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_LAZY_RW);
+					BCH_TRANS_COMMIT_no_enospc|
+					BCH_TRANS_COMMIT_lazy_rw);
 		if (ret)
 			goto bkey_err;
 
@@ -1463,7 +1463,7 @@ bkey_err:
 	ret = for_each_btree_key_commit(trans, iter,
 			BTREE_ID_bucket_gens, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 		bch2_check_bucket_gens_key(trans, &iter, k));
 err:
 	bch2_trans_put(trans);
@@ -1556,7 +1556,7 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN, BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			bch2_check_alloc_to_lru_ref(trans, &iter)));
 	if (ret)
 		bch_err_fn(c, ret);
@@ -1665,7 +1665,7 @@ write:
 	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_WATERMARK_btree|
-				  BTREE_INSERT_NOFAIL);
+				  BCH_TRANS_COMMIT_no_enospc);
 	if (ret)
 		goto out;
 
@@ -1770,7 +1770,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 				BTREE_TRIGGER_BUCKET_INVALIDATE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_WATERMARK_btree|
-				  BTREE_INSERT_NOFAIL);
+				  BCH_TRANS_COMMIT_no_enospc);
 	if (ret)
 		goto out;
 
@@ -1894,8 +1894,8 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 
 			ret =   bch2_bucket_do_index(trans, k, a, true) ?:
 				bch2_trans_commit(trans, NULL, NULL,
-						  BTREE_INSERT_LAZY_RW|
-						  BTREE_INSERT_NOFAIL);
+						  BCH_TRANS_COMMIT_lazy_rw|
+						  BCH_TRANS_COMMIT_no_enospc);
 			if (ret)
 				goto bkey_err;
 
@@ -1915,8 +1915,8 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 
 			ret = bch2_btree_insert_trans(trans, BTREE_ID_freespace, freespace, 0) ?:
 				bch2_trans_commit(trans, NULL, NULL,
-						  BTREE_INSERT_LAZY_RW|
-						  BTREE_INSERT_NOFAIL);
+						  BCH_TRANS_COMMIT_lazy_rw|
+						  BCH_TRANS_COMMIT_no_enospc);
 			if (ret)
 				goto bkey_err;
 

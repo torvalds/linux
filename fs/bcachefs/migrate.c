@@ -90,7 +90,7 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 		ret = for_each_btree_key_commit(trans, iter, id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				NULL, NULL, BTREE_INSERT_NOFAIL,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags));
 		if (ret)
 			break;

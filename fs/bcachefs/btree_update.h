@@ -21,26 +21,28 @@ void bch2_btree_add_journal_pin(struct bch_fs *, struct btree *, u64);
 void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 				struct bkey_i *, u64);
 
-enum btree_insert_flags {
+#define BCH_TRANS_COMMIT_FLAGS()							\
+	x(no_enospc,	"don't check for enospc")					\
+	x(no_check_rw,	"don't attempt to take a ref on c->writes")			\
+	x(lazy_rw,	"go read-write if we haven't yet - only for use in recovery")	\
+	x(no_journal_res, "don't take a journal reservation, instead "			\
+			"pin journal entry referred to by trans->journal_res.seq")	\
+	x(journal_reclaim, "operation required for journal reclaim; may return error"	\
+			"instead of deadlocking if BCH_WATERMARK_reclaim not specified")\
+
+enum __bch_trans_commit_flags {
 	/* First bits for bch_watermark: */
-	__BTREE_INSERT_NOFAIL = BCH_WATERMARK_BITS,
-	__BTREE_INSERT_NOCHECK_RW,
-	__BTREE_INSERT_LAZY_RW,
-	__BTREE_INSERT_JOURNAL_REPLAY,
-	__BTREE_INSERT_JOURNAL_RECLAIM,
+	__BCH_TRANS_COMMIT_FLAGS_START = BCH_WATERMARK_BITS,
+#define x(n, ...)	__BCH_TRANS_COMMIT_##n,
+	BCH_TRANS_COMMIT_FLAGS()
+#undef x
 };
 
-/* Don't check for -ENOSPC: */
-#define BTREE_INSERT_NOFAIL		BIT(__BTREE_INSERT_NOFAIL)
-
-#define BTREE_INSERT_NOCHECK_RW		BIT(__BTREE_INSERT_NOCHECK_RW)
-#define BTREE_INSERT_LAZY_RW		BIT(__BTREE_INSERT_LAZY_RW)
-
-/* Insert is for journal replay - don't get journal reservations: */
-#define BTREE_INSERT_JOURNAL_REPLAY	BIT(__BTREE_INSERT_JOURNAL_REPLAY)
-
-/* Insert is being called from journal reclaim path: */
-#define BTREE_INSERT_JOURNAL_RECLAIM	BIT(__BTREE_INSERT_JOURNAL_RECLAIM)
+enum bch_trans_commit_flags {
+#define x(n, ...)	BCH_TRANS_COMMIT_##n = BIT(__BCH_TRANS_COMMIT_##n),
+	BCH_TRANS_COMMIT_FLAGS()
+#undef x
+};
 
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);

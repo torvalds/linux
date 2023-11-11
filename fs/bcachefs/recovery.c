@@ -175,9 +175,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 		/* Skip fastpath if we're low on space in the journal */
 		ret = c->journal.watermark ? -1 :
 			commit_do(trans, NULL, NULL,
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_JOURNAL_RECLAIM|
-				  (!k->allocated ? BTREE_INSERT_JOURNAL_REPLAY : 0),
+				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_journal_reclaim|
+				  (!k->allocated ? BCH_TRANS_COMMIT_no_journal_res : 0),
 			     bch2_journal_replay_key(trans, k));
 		BUG_ON(!ret && !k->overwritten);
 		if (ret) {
@@ -203,9 +203,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 		replay_now_at(j, k->journal_seq);
 
 		ret = commit_do(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
+				BCH_TRANS_COMMIT_no_enospc|
 				(!k->allocated
-				 ? BTREE_INSERT_JOURNAL_REPLAY|BCH_WATERMARK_reclaim
+				 ? BCH_TRANS_COMMIT_no_journal_res|BCH_WATERMARK_reclaim
 				 : 0),
 			     bch2_journal_replay_key(trans, k));
 		bch_err_msg(c, ret, "while replaying key at btree %s level %u:",
@@ -506,7 +506,7 @@ err:
 noinline_for_stack
 static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_LAZY_RW,
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
 				__bch2_fs_upgrade_for_subvolumes(trans));
 	if (ret)
 		bch_err_fn(c, ret);

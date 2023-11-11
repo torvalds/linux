@@ -89,7 +89,7 @@ int bch2_check_subvols(struct bch_fs *c)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_subvol(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
@@ -237,7 +237,7 @@ static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_d
 				   BTREE_ITER_CACHED, &s)) ?:
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BTREE_INSERT_NOFAIL,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_subvolume_reparent(trans, &iter, k,
 					subvolid_to_delete, le32_to_cpu(s.parent)));
 }
@@ -274,7 +274,7 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 static int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 {
 	return bch2_subvolumes_reparent(trans, subvolid) ?:
-		commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			  __bch2_subvolume_delete(trans, subvolid));
 }
 

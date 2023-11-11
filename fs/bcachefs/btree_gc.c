@@ -1499,7 +1499,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 		ret = for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS(ca->dev_idx, ca->mi.first_bucket),
 				BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BTREE_INSERT_LAZY_RW,
+				NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
 			bch2_alloc_write_key(trans, &iter, k, metadata_only));
 
 		if (ret < 0) {
@@ -1657,7 +1657,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 	ret = for_each_btree_key_commit(trans, iter,
 			BTREE_ID_reflink, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		bch2_gc_write_reflink_key(trans, &iter, k, &idx));
 
 	c->reflink_gc_nr = 0;
@@ -1781,7 +1781,7 @@ static int bch2_gc_stripes_done(struct bch_fs *c, bool metadata_only)
 	ret = for_each_btree_key_commit(trans, iter,
 			BTREE_ID_stripes, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		bch2_gc_write_stripes_key(trans, &iter, k));
 
 	bch2_trans_put(trans);
@@ -2017,7 +2017,7 @@ int bch2_gc_gens(struct bch_fs *c)
 					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
 					k,
 					NULL, NULL,
-					BTREE_INSERT_NOFAIL,
+					BCH_TRANS_COMMIT_no_enospc,
 				gc_btree_gens_key(trans, &iter, k));
 			if (ret && !bch2_err_matches(ret, EROFS))
 				bch_err_fn(c, ret);
@@ -2030,7 +2030,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			BTREE_ITER_PREFETCH,
 			k,
 			NULL, NULL,
-			BTREE_INSERT_NOFAIL,
+			BCH_TRANS_COMMIT_no_enospc,
 		bch2_alloc_write_oldest_gen(trans, &iter, k));
 	if (ret && !bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);

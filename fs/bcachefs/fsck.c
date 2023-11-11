@@ -208,8 +208,8 @@ static int fsck_write_inode(struct btree_trans *trans,
 			    u32 snapshot)
 {
 	int ret = commit_do(trans, NULL, NULL,
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_LAZY_RW,
+				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_lazy_rw,
 				  __write_inode(trans, inode, snapshot));
 	if (ret)
 		bch_err_fn(trans->c, ret);
@@ -354,8 +354,8 @@ static int reattach_inode(struct btree_trans *trans,
 			  u32 inode_snapshot)
 {
 	int ret = commit_do(trans, NULL, NULL,
-				  BTREE_INSERT_LAZY_RW|
-				  BTREE_INSERT_NOFAIL,
+				  BCH_TRANS_COMMIT_lazy_rw|
+				  BCH_TRANS_COMMIT_no_enospc,
 			__reattach_inode(trans, inode, inode_snapshot));
 	bch_err_msg(trans->c, ret, "reattaching inode %llu", inode->bi_inum);
 	return ret;
@@ -757,8 +757,8 @@ static int hash_redo_key(struct btree_trans *trans,
 				       BCH_HASH_SET_MUST_CREATE,
 				       BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_LAZY_RW);
+				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_lazy_rw);
 }
 
 static int hash_check_key(struct btree_trans *trans,
@@ -1015,7 +1015,7 @@ int bch2_check_inodes(struct bch_fs *c)
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
 			POS_MIN,
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_inode(trans, &iter, k, &prev, &s, full));
 
 	snapshots_seen_exit(&s);
@@ -1230,7 +1230,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,
 				k1, k2) ?:
 			bch2_trans_commit(trans, &res, NULL,
-				BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL);
+				BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc);
 		bch2_disk_reservation_put(c, &res);
 
 		if (ret)
@@ -1469,7 +1469,7 @@ int bch2_check_extents(struct bch_fs *c)
 			POS(BCACHEFS_ROOT_INO, 0),
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 			&res, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
+			BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc, ({
 		bch2_disk_reservation_put(c, &res);
 		check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
 		check_extent_overbig(trans, &iter, k);
@@ -1498,7 +1498,7 @@ int bch2_check_indirect_extents(struct bch_fs *c)
 			POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 			&res, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
+			BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc, ({
 		bch2_disk_reservation_put(c, &res);
 		check_extent_overbig(trans, &iter, k);
 	}));
@@ -1871,7 +1871,7 @@ int bch2_check_dirents(struct bch_fs *c)
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
 			k,
 			NULL, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s));
 
 	bch2_trans_put(trans);
@@ -1935,7 +1935,7 @@ int bch2_check_xattrs(struct bch_fs *c)
 			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
 			k,
 			NULL, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_xattr(trans, &iter, k, &hash_info, &inode)));
 	bch_err_fn(c, ret);
 	return ret;
@@ -1966,8 +1966,8 @@ static int check_root_trans(struct btree_trans *trans)
 		root_subvol.v.snapshot	= cpu_to_le32(snapshot);
 		root_subvol.v.inode	= cpu_to_le64(inum);
 		ret = commit_do(trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
+				      BCH_TRANS_COMMIT_no_enospc|
+				      BCH_TRANS_COMMIT_lazy_rw,
 			bch2_btree_insert_trans(trans, BTREE_ID_subvolumes,
 					    &root_subvol.k_i, 0));
 		bch_err_msg(c, ret, "writing root subvol");
@@ -2003,8 +2003,8 @@ int bch2_check_root(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_trans_do(c, NULL, NULL,
-			     BTREE_INSERT_NOFAIL|
-			     BTREE_INSERT_LAZY_RW,
+			     BCH_TRANS_COMMIT_no_enospc|
+			     BCH_TRANS_COMMIT_lazy_rw,
 		check_root_trans(trans));
 	bch_err_fn(c, ret);
 	return ret;
@@ -2133,8 +2133,8 @@ static int check_path(struct btree_trans *trans,
 				return 0;
 
 			ret = commit_do(trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL|
-					      BTREE_INSERT_LAZY_RW,
+					      BCH_TRANS_COMMIT_no_enospc|
+					      BCH_TRANS_COMMIT_lazy_rw,
 					remove_backpointer(trans, inode));
 			if (ret) {
 				bch_err(c, "error removing dirent: %i", ret);
@@ -2415,7 +2415,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
 				POS(0, range_start),
 				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+				NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 			check_nlinks_update_inode(trans, &iter, k, links, &idx, range_end)));
 	if (ret < 0) {
 		bch_err(c, "error in fsck walking inodes: %s", bch2_err_str(ret));
@@ -2500,7 +2500,7 @@ int bch2_fix_reflink_p(struct bch_fs *c)
 				BTREE_ID_extents, POS_MIN,
 				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|
 				BTREE_ITER_ALL_SNAPSHOTS, k,
-				NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			fix_reflink_p_key(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;

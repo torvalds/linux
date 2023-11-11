@@ -398,7 +398,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 			inode_u.bi_size = new_i_size;
 			ret2  = bch2_inode_write(trans, &inode_iter, &inode_u) ?:
 				bch2_trans_commit(trans, NULL, NULL,
-						  BTREE_INSERT_NOFAIL);
+						  BCH_TRANS_COMMIT_no_enospc);
 		}
 
 		bch2_trans_iter_exit(trans, &inode_iter);

@@ -69,7 +69,7 @@ err:
 
 int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			    __bch2_set_rebalance_needs_scan(trans, inum));
 	rebalance_wakeup(c);
 	return ret;
@@ -125,7 +125,7 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 
 	extent_entry_drop(bkey_i_to_s(n),
 			  (void *) bch2_bkey_rebalance_opts(bkey_i_to_s_c(n)));
-	return bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
+	return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
 static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
@@ -273,7 +273,7 @@ static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 	r->state = BCH_REBALANCE_scanning;
 
 	ret = __bch2_move_data(ctxt, r->scan_start, r->scan_end, rebalance_pred, NULL) ?:
-		commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			  bch2_clear_rebalance_needs_scan(trans, inum, cookie));
 
 	bch2_move_stats_exit(&r->scan_stats, trans->c);

@@ -656,8 +656,8 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
 				  BTREE_TRIGGER_NORUN) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				  BTREE_INSERT_NOCHECK_RW|
-				  BTREE_INSERT_NOFAIL|
+				  BCH_TRANS_COMMIT_no_check_rw|
+				  BCH_TRANS_COMMIT_no_enospc|
 				  (ck->journal.seq == journal_last_seq(j)
 				   ? BCH_WATERMARK_reclaim
 				   : 0)|
@@ -734,7 +734,7 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 
 	ret = commit_do(trans, NULL, NULL, 0,
 		btree_key_cache_flush_pos(trans, key, seq,
-				BTREE_INSERT_JOURNAL_RECLAIM, false));
+				BCH_TRANS_COMMIT_journal_reclaim, false));
 unlock:
 	srcu_read_unlock(&c->btree_trans_barrier, srcu_idx);
 

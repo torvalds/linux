@@ -786,7 +786,7 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 
 		ret   = bch2_trans_update(trans, &iter, &delete, update_flags) ?:
 			bch2_trans_commit(trans, &disk_res, journal_seq,
-					  BTREE_INSERT_NOFAIL);
+					  BCH_TRANS_COMMIT_no_enospc);
 		bch2_disk_reservation_put(trans->c, &disk_res);
 err:
 		/*
@@ -891,7 +891,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 		ret = __bch2_trans_log_msg(&c->journal.early_journal_entries, fmt, args);
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL,
-			BTREE_INSERT_LAZY_RW|commit_flags,
+			BCH_TRANS_COMMIT_lazy_rw|commit_flags,
 			__bch2_trans_log_msg(&trans->extra_journal_entries, fmt, args));
 	}
 

@@ -1800,9 +1800,9 @@ static void btree_node_write_work(struct work_struct *work)
 		ret = bch2_trans_do(c, NULL, NULL, 0,
 			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
 					BCH_WATERMARK_reclaim|
-					BTREE_INSERT_JOURNAL_RECLAIM|
-					BTREE_INSERT_NOFAIL|
-					BTREE_INSERT_NOCHECK_RW,
+					BCH_TRANS_COMMIT_journal_reclaim|
+					BCH_TRANS_COMMIT_no_enospc|
+					BCH_TRANS_COMMIT_no_check_rw,
 					!wbio->wbio.failed.nr));
 		if (ret)
 			goto err;

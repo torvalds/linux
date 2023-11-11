@@ -256,7 +256,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 	u64 new_i_size = le64_to_cpu(op->v.new_i_size);
 	int ret;
 
-	ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+	ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			truncate_set_isize(trans, inum, new_i_size));
 	if (ret)
 		goto err;
@@ -378,7 +378,7 @@ case LOGGED_OP_FINSERT_start:
 	op->v.state = LOGGED_OP_FINSERT_shift_extents;
 
 	if (insert) {
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, src_offset, len) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 		if (ret)
@@ -390,7 +390,7 @@ case LOGGED_OP_FINSERT_start:
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto err;
 
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				bch2_logged_op_update(trans, &op->k_i));
 	}
 
@@ -455,7 +455,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:
-			bch2_trans_commit(trans, &disk_res, NULL, BTREE_INSERT_NOFAIL);
+			bch2_trans_commit(trans, &disk_res, NULL, BCH_TRANS_COMMIT_no_enospc);
 btree_err:
 		bch2_disk_reservation_put(c, &disk_res);
 
@@ -470,12 +470,12 @@ btree_err:
 	op->v.state = LOGGED_OP_FINSERT_finish;
 
 	if (!insert) {
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, src_offset, shift) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	} else {
 		/* We need an inode update to update bi_journal_seq for fsync: */
-		ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				adjust_i_size(trans, inum, 0, 0) ?:
 				bch2_logged_op_update(trans, &op->k_i));
 	}

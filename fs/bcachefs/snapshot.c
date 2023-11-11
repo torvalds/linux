@@ -590,7 +590,7 @@ int bch2_check_snapshot_trees(struct bch_fs *c)
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_snapshot_tree(trans, &iter, k)));
 
 	if (ret)
@@ -868,7 +868,7 @@ int bch2_check_snapshots(struct bch_fs *c)
 		for_each_btree_key_reverse_commit(trans, iter,
 			BTREE_ID_snapshots, POS_MAX,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
 		check_snapshot(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
@@ -1449,12 +1449,12 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		ret = for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				&res, NULL, BTREE_INSERT_NOFAIL,
+				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
 			snapshot_delete_key(trans, &iter, k, &deleted, &equiv_seen, &last_pos)) ?:
 		      for_each_btree_key_commit(trans, iter,
 				id, POS_MIN,
 				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-				&res, NULL, BTREE_INSERT_NOFAIL,
+				&res, NULL, BCH_TRANS_COMMIT_no_enospc,
 			move_key_to_correct_snapshot(trans, &iter, k));
 
 		bch2_disk_reservation_put(c, &res);
@@ -1489,7 +1489,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	 */
 	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_snapshots, POS_MIN,
 				  BTREE_ITER_INTENT, k,
-				  NULL, NULL, BTREE_INSERT_NOFAIL,
+				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		bch2_fix_child_of_deleted_snapshot(trans, &iter, k, &deleted_interior));
 	if (ret)
 		goto err_create_lock;

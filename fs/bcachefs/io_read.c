@@ -526,7 +526,7 @@ out:
 
 static noinline void bch2_rbio_narrow_crcs(struct bch_read_bio *rbio)
 {
-	bch2_trans_do(rbio->c, NULL, NULL, BTREE_INSERT_NOFAIL,
+	bch2_trans_do(rbio->c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		      __bch2_rbio_narrow_crcs(trans, rbio));
 }
 

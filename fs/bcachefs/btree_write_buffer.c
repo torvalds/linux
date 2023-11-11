@@ -82,10 +82,10 @@ trans_commit:
 				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  commit_flags|
-				  BTREE_INSERT_NOCHECK_RW|
-				  BTREE_INSERT_NOFAIL|
-				  BTREE_INSERT_JOURNAL_REPLAY|
-				  BTREE_INSERT_JOURNAL_RECLAIM);
+				  BCH_TRANS_COMMIT_no_check_rw|
+				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_no_journal_res|
+				  BCH_TRANS_COMMIT_journal_reclaim);
 }
 
 static union btree_write_buffer_state btree_write_buffer_switch(struct btree_write_buffer *wb)
@@ -175,7 +175,7 @@ int __bch2_btree_write_buffer_flush(struct btree_trans *trans, unsigned commit_f
 	 * However, since we're not flushing in the order they appear in the
 	 * journal we won't be able to drop our journal pin until everything is
 	 * flushed - which means this could deadlock the journal if we weren't
-	 * passing BTREE_INSERT_JOURNAL_RECLAIM. This causes the update to fail
+	 * passing BCH_TRANS_COMMIT_journal_reclaim. This causes the update to fail
 	 * if it would block taking a journal reservation.
 	 *
 	 * If that happens, simply skip the key so we can optimistically insert
@@ -264,9 +264,9 @@ slowpath:
 
 		ret = commit_do(trans, NULL, NULL,
 				commit_flags|
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_JOURNAL_REPLAY|
-				BTREE_INSERT_JOURNAL_RECLAIM,
+				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_no_journal_res|
+				BCH_TRANS_COMMIT_journal_reclaim,
 				btree_write_buffered_insert(trans, i));
 		if (bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret)))
 			break;
@@ -296,7 +296,7 @@ static int bch2_btree_write_buffer_journal_flush(struct journal *j,
 	mutex_lock(&wb->flush_lock);
 
 	return bch2_trans_run(c,
-			__bch2_btree_write_buffer_flush(trans, BTREE_INSERT_NOCHECK_RW, true));
+			__bch2_btree_write_buffer_flush(trans, BCH_TRANS_COMMIT_no_check_rw, true));
 }
 
 static inline u64 btree_write_buffer_ref(int idx)
