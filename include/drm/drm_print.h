@@ -26,20 +26,6 @@
 #ifndef DRM_PRINT_H_
 #define DRM_PRINT_H_
 
-/* Define this before including linux/printk.h, so that the format
- * string in pr_*() macros is correctly set for DRM. If a file wants
- * to define this to something else, it should do so before including
- * this header file.
- *
- * It is encouraged code using pr_err() to prefix their format with
- * the string "*ERROR* ", to make it easier to scan kernel logs. For
- * instance,
- *   pr_err("*ERROR* <the rest of your format string here>", args).
- */
-#ifndef pr_fmt
-#define pr_fmt(fmt) "[drm] " fmt
-#endif
-
 #include <linux/compiler.h>
 #include <linux/printk.h>
 #include <linux/seq_file.h>
