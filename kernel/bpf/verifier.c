@@ -26,6 +26,7 @@
 #include <linux/poison.h>
 #include <linux/module.h>
 #include <linux/cpumask.h>
+#include <linux/bpf_mem_alloc.h>
 #include <net/xdp.h>
 
 #include "disasm.h"
@@ -40,6 +41,9 @@ static const struct bpf_verifier_ops * const bpf_verifier_ops[] = {
 #undef BPF_MAP_TYPE
 #undef BPF_LINK_TYPE
 };
+
+struct bpf_mem_alloc bpf_global_percpu_ma;
+static bool bpf_global_percpu_ma_set;
 
 /* bpf_check() is a static code analyzer that walks eBPF program
  * instruction by instruction and updates register/stack state.
@@ -336,6 +340,7 @@ struct bpf_kfunc_call_arg_meta {
 struct btf *btf_vmlinux;
 
 static DEFINE_MUTEX(bpf_verifier_lock);
+static DEFINE_MUTEX(bpf_percpu_ma_lock);
 
 static const struct bpf_line_info *
 find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
@@ -12091,8 +12096,19 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				if (meta.func_id == special_kfunc_list[KF_bpf_obj_new_impl] && !bpf_global_ma_set)
 					return -ENOMEM;
 
-				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl] && !bpf_global_percpu_ma_set)
-					return -ENOMEM;
+				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
+					if (!bpf_global_percpu_ma_set) {
+						mutex_lock(&bpf_percpu_ma_lock);
+						if (!bpf_global_percpu_ma_set) {
+							err = bpf_mem_alloc_init(&bpf_global_percpu_ma, 0, true);
+							if (!err)
+								bpf_global_percpu_ma_set = true;
+						}
+						mutex_unlock(&bpf_percpu_ma_lock);
+						if (err)
+							return err;
+					}
+				}
 
 				if (((u64)(u32)meta.arg_constant.value) != meta.arg_constant.value) {
 					verbose(env, "local type ID argument must be in range [0, U32_MAX]\n");
