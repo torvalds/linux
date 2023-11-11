@@ -34,6 +34,7 @@
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/bitfield.h>
 
 #include <linux/regulator/consumer.h>
 
@@ -58,48 +59,49 @@ struct imx_fb_videomode {
 #define LCDC_SSA	0x00
 
 #define LCDC_SIZE	0x04
-#define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
+#define SIZE_XMAX_MASK	GENMASK(25, 20)
 
-#define YMAX_MASK_IMX1	0x1ff
-#define YMAX_MASK_IMX21	0x3ff
+#define YMAX_MASK_IMX1	GENMASK(8, 0)
+#define YMAX_MASK_IMX21	GENMASK(9, 0)
 
 #define LCDC_VPW	0x08
-#define VPW_VPW(x)	((x) & 0x3ff)
+#define VPW_VPW_MASK	GENMASK(9, 0)
 
 #define LCDC_CPOS	0x0C
-#define CPOS_CC1	(1<<31)
-#define CPOS_CC0	(1<<30)
-#define CPOS_OP		(1<<28)
-#define CPOS_CXP(x)	(((x) & 3ff) << 16)
+#define CPOS_CC1	BIT(31)
+#define CPOS_CC0	BIT(30)
+#define CPOS_OP		BIT(28)
+#define CPOS_CXP_MASK	GENMASK(25, 16)
 
 #define LCDC_LCWHB	0x10
-#define LCWHB_BK_EN	(1<<31)
-#define LCWHB_CW(w)	(((w) & 0x1f) << 24)
-#define LCWHB_CH(h)	(((h) & 0x1f) << 16)
-#define LCWHB_BD(x)	((x) & 0xff)
+#define LCWHB_BK_EN	BIT(31)
+#define LCWHB_CW_MASK	GENMASK(28, 24)
+#define LCWHB_CH_MASK	GENMASK(20, 16)
+#define LCWHB_BD_MASK	GENMASK(7, 0)
 
 #define LCDC_LCHCC	0x14
 
 #define LCDC_PCR	0x18
-#define PCR_TFT		(1 << 31)
-#define PCR_COLOR	(1 << 30)
-#define PCR_BPIX_8	(3 << 25)
-#define PCR_BPIX_12	(4 << 25)
-#define PCR_BPIX_16	(5 << 25)
-#define PCR_BPIX_18	(6 << 25)
+#define PCR_TFT		BIT(31)
+#define PCR_COLOR	BIT(30)
+#define PCR_BPIX_MASK	GENMASK(27, 25)
+#define PCR_BPIX_8	3
+#define PCR_BPIX_12	4
+#define PCR_BPIX_16	5
+#define PCR_BPIX_18	6
 
 #define LCDC_HCR	0x1C
-#define HCR_H_WIDTH(x)	(((x) & 0x3f) << 26)
-#define HCR_H_WAIT_1(x)	(((x) & 0xff) << 8)
-#define HCR_H_WAIT_2(x)	((x) & 0xff)
+#define HCR_H_WIDTH_MASK	GENMASK(31, 26)
+#define HCR_H_WAIT_1_MASK	GENMASK(15, 8)
+#define HCR_H_WAIT_2_MASK	GENMASK(7, 0)
 
 #define LCDC_VCR	0x20
-#define VCR_V_WIDTH(x)	(((x) & 0x3f) << 26)
-#define VCR_V_WAIT_1(x)	(((x) & 0xff) << 8)
-#define VCR_V_WAIT_2(x)	((x) & 0xff)
+#define VCR_V_WIDTH_MASK	GENMASK(31, 26)
+#define VCR_V_WAIT_1_MASK	GENMASK(15, 8)
+#define VCR_V_WAIT_2_MASK	GENMASK(7, 0)
 
 #define LCDC_POS	0x24
-#define POS_POS(x)	((x) & 1f)
+#define POS_POS_MASK	GENMASK(4, 0)
 
 #define LCDC_LSCR1	0x28
 /* bit fields in imxfb.h */
@@ -112,24 +114,24 @@ struct imx_fb_videomode {
 
 #define LCDC_RMCR	0x34
 
-#define RMCR_LCDC_EN_MX1	(1<<1)
+#define RMCR_LCDC_EN_MX1	BIT(1)
 
-#define RMCR_SELF_REF	(1<<0)
+#define RMCR_SELF_REF	BIT(0)
 
 #define LCDC_LCDICR	0x38
-#define LCDICR_INT_SYN	(1<<2)
-#define LCDICR_INT_CON	(1)
+#define LCDICR_INT_SYN	BIT(2)
+#define LCDICR_INT_CON	BIT(0)
 
 #define LCDC_LCDISR	0x40
-#define LCDISR_UDR_ERR	(1<<3)
-#define LCDISR_ERR_RES	(1<<2)
-#define LCDISR_EOF	(1<<1)
-#define LCDISR_BOF	(1<<0)
+#define LCDISR_UDR_ERR	BIT(3)
+#define LCDISR_ERR_RES	BIT(2)
+#define LCDISR_EOF	BIT(1)
+#define LCDISR_BOF	BIT(0)
 
 #define IMXFB_LSCR1_DEFAULT 0x00120300
 
 #define LCDC_LAUSCR	0x80
-#define LAUSCR_AUS_MODE	(1<<31)
+#define LAUSCR_AUS_MODE	BIT(31)
 
 /* Used fb-mode. Can be set on kernel command line, therefore file-static. */
 static const char *fb_mode;
@@ -420,15 +422,15 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	switch (var->bits_per_pixel) {
 	case 32:
-		pcr |= PCR_BPIX_18;
+		pcr |= FIELD_PREP(PCR_BPIX_MASK, PCR_BPIX_18);
 		rgb = &def_rgb_18;
 		break;
 	case 16:
 	default:
 		if (is_imx1_fb(fbi))
-			pcr |= PCR_BPIX_12;
+			pcr |= FIELD_PREP(PCR_BPIX_MASK, PCR_BPIX_12);
 		else
-			pcr |= PCR_BPIX_16;
+			pcr |= FIELD_PREP(PCR_BPIX_MASK, PCR_BPIX_16);
 
 		if (imxfb_mode->pcr & PCR_TFT)
 			rgb = &def_rgb_16_tft;
@@ -436,7 +438,7 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 			rgb = &def_rgb_16_stn;
 		break;
 	case 8:
-		pcr |= PCR_BPIX_8;
+		pcr |= FIELD_PREP(PCR_BPIX_MASK, PCR_BPIX_8);
 		rgb = &def_rgb_8;
 		break;
 	}
@@ -520,7 +522,7 @@ static int imxfb_enable_controller(struct imxfb_info *fbi)
 	writel(fbi->map_dma, fbi->regs + LCDC_SSA);
 
 	/* panning offset 0 (0 pixel offset)        */
-	writel(0x00000000, fbi->regs + LCDC_POS);
+	writel(FIELD_PREP(POS_POS_MASK, 0), fbi->regs + LCDC_POS);
 
 	/* disable hardware cursor */
 	writel(readl(fbi->regs + LCDC_CPOS) & ~(CPOS_CC0 | CPOS_CC1),
@@ -654,21 +656,24 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 #endif
 
 	/* physical screen start address	    */
-	writel(VPW_VPW(var->xres * var->bits_per_pixel / 8 / 4),
-		fbi->regs + LCDC_VPW);
+	writel(FIELD_PREP(VPW_VPW_MASK,
+			  var->xres * var->bits_per_pixel / 8 / 4),
+	       fbi->regs + LCDC_VPW);
 
-	writel(HCR_H_WIDTH(var->hsync_len - 1) |
-		HCR_H_WAIT_1(var->right_margin - 1) |
-		HCR_H_WAIT_2(var->left_margin - left_margin_low),
-		fbi->regs + LCDC_HCR);
+	writel(FIELD_PREP(HCR_H_WIDTH_MASK, var->hsync_len - 1) |
+	       FIELD_PREP(HCR_H_WAIT_1_MASK, var->right_margin - 1) |
+	       FIELD_PREP(HCR_H_WAIT_2_MASK,
+			  var->left_margin - left_margin_low),
+	       fbi->regs + LCDC_HCR);
 
-	writel(VCR_V_WIDTH(var->vsync_len) |
-		VCR_V_WAIT_1(var->lower_margin) |
-		VCR_V_WAIT_2(var->upper_margin),
-		fbi->regs + LCDC_VCR);
+	writel(FIELD_PREP(VCR_V_WIDTH_MASK, var->vsync_len) |
+	       FIELD_PREP(VCR_V_WAIT_1_MASK, var->lower_margin) |
+	       FIELD_PREP(VCR_V_WAIT_2_MASK, var->upper_margin),
+	       fbi->regs + LCDC_VCR);
 
-	writel(SIZE_XMAX(var->xres) | (var->yres & ymax_mask),
-			fbi->regs + LCDC_SIZE);
+	writel(FIELD_PREP(SIZE_XMAX_MASK, var->xres >> 4) |
+	       (var->yres & ymax_mask),
+	       fbi->regs + LCDC_SIZE);
 
 	writel(fbi->pcr, fbi->regs + LCDC_PCR);
 	if (fbi->pwmr)
