@@ -2596,54 +2596,54 @@
 			compatible = "arm,armv7-timer-mem";
 			reg = <0x0 0x0f120000 0x0 0x1000>;
 			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x0 0x0 0x20000000>;
 			clock-frequency = <19200000>;
 
 			frame@f121000 {
-				reg = <0x0 0x0f121000 0x0 0x1000>, <0x0 0x0f122000 0x0 0x1000>;
+				reg = <0x0 0x0f121000 0x1000>, <0x0 0x0f122000 0x1000>;
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			frame@f123000 {
-				reg = <0x0 0x0f123000 0x0 0x1000>;
+				reg = <0x0 0x0f123000 0x1000>;
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			frame@f124000 {
-				reg = <0x0 0x0f124000 0x0 0x1000>;
+				reg = <0x0 0x0f124000 0x1000>;
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			frame@f125000 {
-				reg = <0x0 0x0f125000 0x0 0x1000>;
+				reg = <0x0 0x0f125000 0x1000>;
 				frame-number = <3>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			frame@f126000 {
-				reg = <0x0 0x0f126000 0x0 0x1000>;
+				reg = <0x0 0x0f126000 0x1000>;
 				frame-number = <4>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			frame@f127000 {
-				reg = <0x0 0x0f127000 0x0 0x1000>;
+				reg = <0x0 0x0f127000 0x1000>;
 				frame-number = <5>;
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
 			};
 
 			frame@f128000 {
-				reg = <0x0 0x0f128000 0x0 0x1000>;
+				reg = <0x0 0x0f128000 0x1000>;
 				frame-number = <6>;
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				status = "disabled";
