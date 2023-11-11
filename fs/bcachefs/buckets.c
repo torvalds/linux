@@ -453,9 +453,9 @@ int bch2_replicas_deltas_realloc(struct btree_trans *trans, unsigned more)
 				__replicas_deltas_realloc(trans, more, _gfp));
 }
 
-static inline int update_replicas_list(struct btree_trans *trans,
-					struct bch_replicas_entry_v1 *r,
-					s64 sectors)
+int bch2_update_replicas_list(struct btree_trans *trans,
+			 struct bch_replicas_entry_v1 *r,
+			 s64 sectors)
 {
 	struct replicas_delta_list *d;
 	struct replicas_delta *n;
@@ -481,14 +481,13 @@ static inline int update_replicas_list(struct btree_trans *trans,
 	return 0;
 }
 
-static inline int update_cached_sectors_list(struct btree_trans *trans,
-					      unsigned dev, s64 sectors)
+int bch2_update_cached_sectors_list(struct btree_trans *trans, unsigned dev, s64 sectors)
 {
 	struct bch_replicas_padded r;
 
 	bch2_replicas_entry_cached(&r.e, dev);
 
-	return update_replicas_list(trans, &r.e, sectors);
+	return bch2_update_replicas_list(trans, &r.e, sectors);
 }
 
 int bch2_mark_alloc(struct btree_trans *trans,
@@ -579,23 +578,6 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		bucket_unlock(g);
 	}
 	percpu_up_read(&c->mark_lock);
-
-	/*
-	 * need to know if we're getting called from the invalidate path or
-	 * not:
-	 */
-
-	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
-	    old_a->cached_sectors) {
-		ret = update_cached_sectors(c, new, ca->dev_idx,
-					    -((s64) old_a->cached_sectors),
-					    journal_seq, gc);
-		if (ret) {
-			bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
-					    __func__);
-			return ret;
-		}
-	}
 
 	if (new_a->data_type == BCH_DATA_free &&
 	    (!new_a->journal_seq || new_a->journal_seq < c->journal.flushed_seq_ondisk))
@@ -1474,7 +1456,7 @@ static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
 
 	bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
 	r.e.data_type = data_type;
-	ret = update_replicas_list(trans, &r.e, sectors);
+	ret = bch2_update_replicas_list(trans, &r.e, sectors);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1517,8 +1499,8 @@ static int __trans_mark_extent(struct btree_trans *trans,
 
 		if (p.ptr.cached) {
 			if (!stale) {
-				ret = update_cached_sectors_list(trans, p.ptr.dev,
-								 disk_sectors);
+				ret = bch2_update_cached_sectors_list(trans, p.ptr.dev,
+								      disk_sectors);
 				if (ret)
 					return ret;
 			}
@@ -1536,7 +1518,7 @@ static int __trans_mark_extent(struct btree_trans *trans,
 	}
 
 	if (r.e.nr_devs)
-		ret = update_replicas_list(trans, &r.e, dirty_sectors);
+		ret = bch2_update_replicas_list(trans, &r.e, dirty_sectors);
 
 	return ret;
 }
@@ -1673,7 +1655,7 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 		s64 sectors = le16_to_cpu(new_s->sectors);
 
 		bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(new));
-		ret = update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+		ret = bch2_update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
 		if (ret)
 			return ret;
 	}
@@ -1682,7 +1664,7 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 		s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
 
 		bch2_bkey_to_replicas(&r.e, old);
-		ret = update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+		ret = bch2_update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
 		if (ret)
 			return ret;
 	}

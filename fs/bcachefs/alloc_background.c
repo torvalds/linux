@@ -847,6 +847,19 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 			return ret;
 	}
 
+	/*
+	 * need to know if we're getting called from the invalidate path or
+	 * not:
+	 */
+
+	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
+	    old_a->cached_sectors) {
+		ret = bch2_update_cached_sectors_list(trans, new->k.p.inode,
+						      -((s64) old_a->cached_sectors));
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
