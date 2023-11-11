@@ -982,7 +982,6 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
 
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOSPC) &&
-				!(flags & BTREE_INSERT_NOWAIT) &&
 				(flags & BTREE_INSERT_NOFAIL), c,
 		"%s: incorrectly got %s\n", __func__, bch2_err_str(ret));
 
@@ -1039,9 +1038,6 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	    !trans->nr_wb_updates &&
 	    !trans->extra_journal_entries.nr)
 		goto out_reset;
-
-	if (flags & BTREE_INSERT_GC_LOCK_HELD)
-		lockdep_assert_held(&c->gc_lock);
 
 	ret = bch2_trans_commit_run_triggers(trans);
 	if (ret)
