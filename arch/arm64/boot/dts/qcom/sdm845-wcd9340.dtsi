@@ -54,7 +54,7 @@
 				reg = <0x42 0x2>;
 			};
 
-			swm: swm@c85 {
+			swm: soundwire@c85 {
 				compatible = "qcom,soundwire-v1.3.0";
 				reg = <0xc85 0x40>;
 				interrupts-extended = <&wcd9340 20>;
