@@ -665,6 +665,7 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 				goto out_unlock;
 
 			vfpriv->explicit_debug_name = true;
+			ret = 0;
 			break;
 		default:
 			ret = -EINVAL;
