@@ -125,8 +125,6 @@ static struct dentry *udf_lookup(struct inode *dir, struct dentry *dentry,
 		udf_fiiter_release(&iter);
 
 		inode = udf_iget(dir->i_sb, &loc);
-		if (IS_ERR(inode))
-			return ERR_CAST(inode);
 	}
 
 	return d_splice_alias(inode, dentry);
