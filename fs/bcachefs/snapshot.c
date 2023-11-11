@@ -959,7 +959,7 @@ static int bch2_snapshot_node_delete(struct btree_trans *trans, u32 id)
 					parent_id, id))
 			goto err;
 
-		parent->v.children[i] = le32_to_cpu(child_id);
+		parent->v.children[i] = cpu_to_le32(child_id);
 
 		normalize_snapshot_child_pointers(&parent->v);
 	}
