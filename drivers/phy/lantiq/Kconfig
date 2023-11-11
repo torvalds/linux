@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Lantiq / Intel platforms
+#
+config PHY_LANTIQ_VRX200_PCIE
+	tristate "Lantiq VRX200/ARX300 PCIe PHY"
+	depends on SOC_TYPE_XWAY || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Support for the PCIe PHY(s) on the Lantiq / Intel VRX200 and ARX300
+	  family SoCs.
+	  If unsure, say N.
+
+config PHY_LANTIQ_RCU_USB2
+	tristate "Lantiq XWAY SoC RCU based USB PHY"
+	depends on OF && (SOC_TYPE_XWAY || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Support for the USB PHY(s) on the Lantiq / Intel XWAY family SoCs.

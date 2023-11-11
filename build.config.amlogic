@@ -1,0 +1,38 @@
+. ${ROOT_DIR}/${KERNEL_DIR}/build.config.gki.aarch64
+
+DEFCONFIG=amlogic_gki_defconfig
+FRAGMENT_CONFIG=${KERNEL_DIR}/arch/arm64/configs/amlogic_gki.fragment
+
+PRE_DEFCONFIG_CMDS="KCONFIG_CONFIG=${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG} ${ROOT_DIR}/${KERNEL_DIR}/scripts/kconfig/merge_config.sh -m -r ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/gki_defconfig ${ROOT_DIR}/${FRAGMENT_CONFIG}"
+POST_DEFCONFIG_CMDS="rm ${ROOT_DIR}/${KERNEL_DIR}/arch/arm64/configs/${DEFCONFIG}"
+
+# needed for DT overlay support
+DTC_FLAGS="-@"
+
+MAKE_GOALS="
+Image
+modules
+Image.lz4
+Image.gz
+dtbs
+"
+
+FILES="${FILES}
+arch/arm64/boot/Image.lz4
+arch/arm64/boot/dts/amlogic/meson-g12a-sei510*.dtb
+arch/arm64/boot/dts/amlogic/meson-sm1-sei610*.dtb
+arch/arm64/boot/dts/amlogic/meson-sm1-khadas-vim3l*.dtb
+arch/arm64/boot/dts/amlogic/meson-g12b-a311d-khadas-vim3*.dtb
+"
+
+#
+# NOTE: Using Image.lz4 in MAKE_GOALS does not work because
+#   kernel build passes legacy option (-l) to lz4 command
+#   and u-boot fails to decompress.  Instead, add custom
+#   command to lz4 compress same options as kernel, but
+#   without the -l.
+#
+EXTRA_CMDS="lz4_compress"
+function lz4_compress() {
+        lz4 -f -12 --favor-decSpeed ${OUT_DIR}/arch/arm64/boot/Image ${OUT_DIR}/arch/arm64/boot/Image.lz4
+}

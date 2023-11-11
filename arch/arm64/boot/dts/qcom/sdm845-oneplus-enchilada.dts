@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SDM845 OnePlus 6 (enchilada) device tree.
+ *
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ */
+
+#include "sdm845-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 6";
+	compatible = "oneplus,enchilada", "qcom,sdm845";
+	chassis-type = "handset";
+	qcom,msm-id = <0x141 0x20001>;
+	qcom,board-id = <8 0 17819 22>;
+
+	battery: battery {
+		compatible = "simple-battery";
+
+		charge-full-design-microamp-hours = <3300000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4400000>;
+	};
+};
+
+&display_panel {
+	status = "okay";
+
+	compatible = "samsung,sofef00";
+};
+
+&bq27441_fg {
+	monitored-battery = <&battery>;
+};

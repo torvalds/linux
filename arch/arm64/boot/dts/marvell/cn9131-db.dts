@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2019 Marvell International Ltd.
+ *
+ * Device tree for the CN9131-DB board.
+ */
+
+#include "cn9131-db.dtsi"
+
+/ {
+	model = "Marvell Armada CN9131-DB setup A";
+};
+
+/* Setup A has SPI1 flash as a boot device, while setup B uses NAND flash.
+ * Since CP0 SPI1 and CP0 NAND are sharing some pins, they cannot be activated
+ * simultaneously. When SPI controller is enabled, NAND should be disabled.
+ */
+
+&cp0_spi1 {
+	status = "okay";
+};
+

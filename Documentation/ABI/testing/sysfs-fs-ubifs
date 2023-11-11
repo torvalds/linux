@@ -1,0 +1,35 @@
+What:		/sys/fs/ubifsX_Y/error_magic
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Exposes magic errors: every node starts with a magic number.
+
+		This counter keeps track of the number of accesses of nodes
+		with a corrupted magic number.
+
+		The counter is reset to 0 with a remount.
+
+What:		/sys/fs/ubifsX_Y/error_node
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Exposes node errors. Every node embeds its type.
+
+		This counter keeps track of the number of accesses of nodes
+		with a corrupted node type.
+
+		The counter is reset to 0 with a remount.
+
+What:		/sys/fs/ubifsX_Y/error_crc
+Date:		October 2021
+KernelVersion:	5.16
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Exposes crc errors: every node embeds a crc checksum.
+
+		This counter keeps track of the number of accesses of nodes
+		with a bad crc checksum.
+
+		The counter is reset to 0 with a remount.

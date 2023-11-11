@@ -1,0 +1,160 @@
+/*
+ * Copyright (C) 2021 Russell King <rmk@armlinux.org.uk>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+#include <dt-bindings/leds/common.h>
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_solidsense_leds>;
+
+		/* Red/Green LED1 - next to WiFi SMA */
+		led-11 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <0>;
+			gpios = <&gpio2 26 GPIO_ACTIVE_LOW>;
+		};
+
+		led-12 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <0>;
+			gpios = <&gpio2 23 GPIO_ACTIVE_LOW>;
+		};
+
+		/* Red/Green LED2 - next to GPS SMA */
+		led-21 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
+			gpios = <&gpio2 25 GPIO_ACTIVE_LOW>;
+		};
+
+		led-22 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			function-enumerator = <1>;
+			gpios = <&gpio2 24 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&audio {
+	status = "disabled";
+};
+
+&ecspi2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_hog>, <&pinctrl_solidsense_hog>;
+
+	solidsense {
+		pinctrl_solidsense_hog: solidsense-hog {
+			fsl,pins = <
+				/* Nordic RESET_N */
+				MX6QDL_PAD_GPIO_9__GPIO1_IO09 0x400130b1
+				/* Nordic Chip 1 SWDIO - GPIO 125 */
+				MX6QDL_PAD_DISP0_DAT8__GPIO4_IO29 0x400130b1
+				/* Nordic Chip 1 SWDCLK - GPIO 59 */
+				/* already claimed in the HB2 hogs */
+				/* MX6QDL_PAD_EIM_LBA__GPIO2_IO27 0x400130b1 */
+				/* Nordic Chip 2 SWDIO - GPIO 81 */
+				MX6QDL_PAD_EIM_D17__GPIO3_IO17 0x400130b1
+				/* Nordic Chip 2 SWCLK - GPIO 82 */
+				MX6QDL_PAD_EIM_D18__GPIO3_IO18 0x400130b1
+			>;
+		};
+
+		pinctrl_solidsense_leds: solidsense-leds {
+			fsl,pins = <
+				/* Red LED 1 - GPIO 58 */
+				MX6QDL_PAD_EIM_RW__GPIO2_IO26 0x400130b1
+				/* Green LED 1 - GPIO 55 */
+				MX6QDL_PAD_EIM_CS0__GPIO2_IO23 0x400130b1
+				/* Red LED 2 - GPIO 57 */
+				MX6QDL_PAD_EIM_OE__GPIO2_IO25 0x400130b1
+				/* Green LED 2 - GPIO 56 */
+				MX6QDL_PAD_EIM_CS1__GPIO2_IO24 0x400130b1
+			>;
+		};
+
+		pinctrl_solidsense_uart2: solidsense-uart2 {
+			fsl,pins = <
+				MX6QDL_PAD_SD4_DAT7__UART2_TX_DATA	0x1b0b1
+				MX6QDL_PAD_SD4_DAT4__UART2_RX_DATA	0x1b0b1
+			>;
+		};
+
+		pinctrl_solidsense_uart3: solidsense-uart3 {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
+				MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
+			>;
+		};
+	};
+};
+
+&pwm1 {
+	status = "disabled";
+};
+
+&sgtl5000 {
+	status = "disabled";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_solidsense_uart2>;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_solidsense_uart3>;
+	status = "okay";
+};

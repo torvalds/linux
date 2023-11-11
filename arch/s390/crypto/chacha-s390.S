@@ -1,0 +1,907 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Original implementation written by Andy Polyakov, @dot-asm.
+ * This is an adaptation of the original code for kernel use.
+ *
+ * Copyright (C) 2006-2019 CRYPTOGAMS by <appro@openssl.org>. All Rights Reserved.
+ */
+
+#include <linux/linkage.h>
+#include <asm/nospec-insn.h>
+#include <asm/vx-insn.h>
+
+#define SP	%r15
+#define FRAME	(16 * 8 + 4 * 8)
+
+.data
+.align	32
+
+.Lsigma:
+.long	0x61707865,0x3320646e,0x79622d32,0x6b206574	# endian-neutral
+.long	1,0,0,0
+.long	2,0,0,0
+.long	3,0,0,0
+.long	0x03020100,0x07060504,0x0b0a0908,0x0f0e0d0c	# byte swap
+
+.long	0,1,2,3
+.long	0x61707865,0x61707865,0x61707865,0x61707865	# smashed sigma
+.long	0x3320646e,0x3320646e,0x3320646e,0x3320646e
+.long	0x79622d32,0x79622d32,0x79622d32,0x79622d32
+.long	0x6b206574,0x6b206574,0x6b206574,0x6b206574
+
+.previous
+
+	GEN_BR_THUNK %r14
+
+.text
+
+#############################################################################
+# void chacha20_vx_4x(u8 *out, counst u8 *inp, size_t len,
+#		      counst u32 *key, const u32 *counter)
+
+#define	OUT		%r2
+#define	INP		%r3
+#define	LEN		%r4
+#define	KEY		%r5
+#define	COUNTER		%r6
+
+#define BEPERM		%v31
+#define CTR		%v26
+
+#define K0		%v16
+#define K1		%v17
+#define K2		%v18
+#define K3		%v19
+
+#define XA0		%v0
+#define XA1		%v1
+#define XA2		%v2
+#define XA3		%v3
+
+#define XB0		%v4
+#define XB1		%v5
+#define XB2		%v6
+#define XB3		%v7
+
+#define XC0		%v8
+#define XC1		%v9
+#define XC2		%v10
+#define XC3		%v11
+
+#define XD0		%v12
+#define XD1		%v13
+#define XD2		%v14
+#define XD3		%v15
+
+#define XT0		%v27
+#define XT1		%v28
+#define XT2		%v29
+#define XT3		%v30
+
+ENTRY(chacha20_vx_4x)
+	stmg	%r6,%r7,6*8(SP)
+
+	larl	%r7,.Lsigma
+	lhi	%r0,10
+	lhi	%r1,0
+
+	VL	K0,0,,%r7		# load sigma
+	VL	K1,0,,KEY		# load key
+	VL	K2,16,,KEY
+	VL	K3,0,,COUNTER		# load counter
+
+	VL	BEPERM,0x40,,%r7
+	VL	CTR,0x50,,%r7
+
+	VLM	XA0,XA3,0x60,%r7,4	# load [smashed] sigma
+
+	VREPF	XB0,K1,0		# smash the key
+	VREPF	XB1,K1,1
+	VREPF	XB2,K1,2
+	VREPF	XB3,K1,3
+
+	VREPF	XD0,K3,0
+	VREPF	XD1,K3,1
+	VREPF	XD2,K3,2
+	VREPF	XD3,K3,3
+	VAF	XD0,XD0,CTR
+
+	VREPF	XC0,K2,0
+	VREPF	XC1,K2,1
+	VREPF	XC2,K2,2
+	VREPF	XC3,K2,3
+
+.Loop_4x:
+	VAF	XA0,XA0,XB0
+	VX	XD0,XD0,XA0
+	VERLLF	XD0,XD0,16
+
+	VAF	XA1,XA1,XB1
+	VX	XD1,XD1,XA1
+	VERLLF	XD1,XD1,16
+
+	VAF	XA2,XA2,XB2
+	VX	XD2,XD2,XA2
+	VERLLF	XD2,XD2,16
+
+	VAF	XA3,XA3,XB3
+	VX	XD3,XD3,XA3
+	VERLLF	XD3,XD3,16
+
+	VAF	XC0,XC0,XD0
+	VX	XB0,XB0,XC0
+	VERLLF	XB0,XB0,12
+
+	VAF	XC1,XC1,XD1
+	VX	XB1,XB1,XC1
+	VERLLF	XB1,XB1,12
+
+	VAF	XC2,XC2,XD2
+	VX	XB2,XB2,XC2
+	VERLLF	XB2,XB2,12
+
+	VAF	XC3,XC3,XD3
+	VX	XB3,XB3,XC3
+	VERLLF	XB3,XB3,12
+
+	VAF	XA0,XA0,XB0
+	VX	XD0,XD0,XA0
+	VERLLF	XD0,XD0,8
+
+	VAF	XA1,XA1,XB1
+	VX	XD1,XD1,XA1
+	VERLLF	XD1,XD1,8
+
+	VAF	XA2,XA2,XB2
+	VX	XD2,XD2,XA2
+	VERLLF	XD2,XD2,8
+
+	VAF	XA3,XA3,XB3
+	VX	XD3,XD3,XA3
+	VERLLF	XD3,XD3,8
+
+	VAF	XC0,XC0,XD0
+	VX	XB0,XB0,XC0
+	VERLLF	XB0,XB0,7
+
+	VAF	XC1,XC1,XD1
+	VX	XB1,XB1,XC1
+	VERLLF	XB1,XB1,7
+
+	VAF	XC2,XC2,XD2
+	VX	XB2,XB2,XC2
+	VERLLF	XB2,XB2,7
+
+	VAF	XC3,XC3,XD3
+	VX	XB3,XB3,XC3
+	VERLLF	XB3,XB3,7
+
+	VAF	XA0,XA0,XB1
+	VX	XD3,XD3,XA0
+	VERLLF	XD3,XD3,16
+
+	VAF	XA1,XA1,XB2
+	VX	XD0,XD0,XA1
+	VERLLF	XD0,XD0,16
+
+	VAF	XA2,XA2,XB3
+	VX	XD1,XD1,XA2
+	VERLLF	XD1,XD1,16
+
+	VAF	XA3,XA3,XB0
+	VX	XD2,XD2,XA3
+	VERLLF	XD2,XD2,16
+
+	VAF	XC2,XC2,XD3
+	VX	XB1,XB1,XC2
+	VERLLF	XB1,XB1,12
+
+	VAF	XC3,XC3,XD0
+	VX	XB2,XB2,XC3
+	VERLLF	XB2,XB2,12
+
+	VAF	XC0,XC0,XD1
+	VX	XB3,XB3,XC0
+	VERLLF	XB3,XB3,12
+
+	VAF	XC1,XC1,XD2
+	VX	XB0,XB0,XC1
+	VERLLF	XB0,XB0,12
+
+	VAF	XA0,XA0,XB1
+	VX	XD3,XD3,XA0
+	VERLLF	XD3,XD3,8
+
+	VAF	XA1,XA1,XB2
+	VX	XD0,XD0,XA1
+	VERLLF	XD0,XD0,8
+
+	VAF	XA2,XA2,XB3
+	VX	XD1,XD1,XA2
+	VERLLF	XD1,XD1,8
+
+	VAF	XA3,XA3,XB0
+	VX	XD2,XD2,XA3
+	VERLLF	XD2,XD2,8
+
+	VAF	XC2,XC2,XD3
+	VX	XB1,XB1,XC2
+	VERLLF	XB1,XB1,7
+
+	VAF	XC3,XC3,XD0
+	VX	XB2,XB2,XC3
+	VERLLF	XB2,XB2,7
+
+	VAF	XC0,XC0,XD1
+	VX	XB3,XB3,XC0
+	VERLLF	XB3,XB3,7
+
+	VAF	XC1,XC1,XD2
+	VX	XB0,XB0,XC1
+	VERLLF	XB0,XB0,7
+	brct	%r0,.Loop_4x
+
+	VAF	XD0,XD0,CTR
+
+	VMRHF	XT0,XA0,XA1		# transpose data
+	VMRHF	XT1,XA2,XA3
+	VMRLF	XT2,XA0,XA1
+	VMRLF	XT3,XA2,XA3
+	VPDI	XA0,XT0,XT1,0b0000
+	VPDI	XA1,XT0,XT1,0b0101
+	VPDI	XA2,XT2,XT3,0b0000
+	VPDI	XA3,XT2,XT3,0b0101
+
+	VMRHF	XT0,XB0,XB1
+	VMRHF	XT1,XB2,XB3
+	VMRLF	XT2,XB0,XB1
+	VMRLF	XT3,XB2,XB3
+	VPDI	XB0,XT0,XT1,0b0000
+	VPDI	XB1,XT0,XT1,0b0101
+	VPDI	XB2,XT2,XT3,0b0000
+	VPDI	XB3,XT2,XT3,0b0101
+
+	VMRHF	XT0,XC0,XC1
+	VMRHF	XT1,XC2,XC3
+	VMRLF	XT2,XC0,XC1
+	VMRLF	XT3,XC2,XC3
+	VPDI	XC0,XT0,XT1,0b0000
+	VPDI	XC1,XT0,XT1,0b0101
+	VPDI	XC2,XT2,XT3,0b0000
+	VPDI	XC3,XT2,XT3,0b0101
+
+	VMRHF	XT0,XD0,XD1
+	VMRHF	XT1,XD2,XD3
+	VMRLF	XT2,XD0,XD1
+	VMRLF	XT3,XD2,XD3
+	VPDI	XD0,XT0,XT1,0b0000
+	VPDI	XD1,XT0,XT1,0b0101
+	VPDI	XD2,XT2,XT3,0b0000
+	VPDI	XD3,XT2,XT3,0b0101
+
+	VAF	XA0,XA0,K0
+	VAF	XB0,XB0,K1
+	VAF	XC0,XC0,K2
+	VAF	XD0,XD0,K3
+
+	VPERM	XA0,XA0,XA0,BEPERM
+	VPERM	XB0,XB0,XB0,BEPERM
+	VPERM	XC0,XC0,XC0,BEPERM
+	VPERM	XD0,XD0,XD0,BEPERM
+
+	VLM	XT0,XT3,0,INP,0
+
+	VX	XT0,XT0,XA0
+	VX	XT1,XT1,XB0
+	VX	XT2,XT2,XC0
+	VX	XT3,XT3,XD0
+
+	VSTM	XT0,XT3,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+
+	VAF	XA0,XA1,K0
+	VAF	XB0,XB1,K1
+	VAF	XC0,XC1,K2
+	VAF	XD0,XD1,K3
+
+	VPERM	XA0,XA0,XA0,BEPERM
+	VPERM	XB0,XB0,XB0,BEPERM
+	VPERM	XC0,XC0,XC0,BEPERM
+	VPERM	XD0,XD0,XD0,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_4x
+
+	VLM	XT0,XT3,0,INP,0
+
+	VX	XT0,XT0,XA0
+	VX	XT1,XT1,XB0
+	VX	XT2,XT2,XC0
+	VX	XT3,XT3,XD0
+
+	VSTM	XT0,XT3,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_4x
+
+	VAF	XA0,XA2,K0
+	VAF	XB0,XB2,K1
+	VAF	XC0,XC2,K2
+	VAF	XD0,XD2,K3
+
+	VPERM	XA0,XA0,XA0,BEPERM
+	VPERM	XB0,XB0,XB0,BEPERM
+	VPERM	XC0,XC0,XC0,BEPERM
+	VPERM	XD0,XD0,XD0,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_4x
+
+	VLM	XT0,XT3,0,INP,0
+
+	VX	XT0,XT0,XA0
+	VX	XT1,XT1,XB0
+	VX	XT2,XT2,XC0
+	VX	XT3,XT3,XD0
+
+	VSTM	XT0,XT3,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_4x
+
+	VAF	XA0,XA3,K0
+	VAF	XB0,XB3,K1
+	VAF	XC0,XC3,K2
+	VAF	XD0,XD3,K3
+
+	VPERM	XA0,XA0,XA0,BEPERM
+	VPERM	XB0,XB0,XB0,BEPERM
+	VPERM	XC0,XC0,XC0,BEPERM
+	VPERM	XD0,XD0,XD0,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_4x
+
+	VLM	XT0,XT3,0,INP,0
+
+	VX	XT0,XT0,XA0
+	VX	XT1,XT1,XB0
+	VX	XT2,XT2,XC0
+	VX	XT3,XT3,XD0
+
+	VSTM	XT0,XT3,0,OUT,0
+
+.Ldone_4x:
+	lmg	%r6,%r7,6*8(SP)
+	BR_EX	%r14
+
+.Ltail_4x:
+	VLR	XT0,XC0
+	VLR	XT1,XD0
+
+	VST	XA0,8*8+0x00,,SP
+	VST	XB0,8*8+0x10,,SP
+	VST	XT0,8*8+0x20,,SP
+	VST	XT1,8*8+0x30,,SP
+
+	lghi	%r1,0
+
+.Loop_tail_4x:
+	llgc	%r5,0(%r1,INP)
+	llgc	%r6,8*8(%r1,SP)
+	xr	%r6,%r5
+	stc	%r6,0(%r1,OUT)
+	la	%r1,1(%r1)
+	brct	LEN,.Loop_tail_4x
+
+	lmg	%r6,%r7,6*8(SP)
+	BR_EX	%r14
+ENDPROC(chacha20_vx_4x)
+
+#undef	OUT
+#undef	INP
+#undef	LEN
+#undef	KEY
+#undef	COUNTER
+
+#undef BEPERM
+
+#undef K0
+#undef K1
+#undef K2
+#undef K3
+
+
+#############################################################################
+# void chacha20_vx(u8 *out, counst u8 *inp, size_t len,
+#		   counst u32 *key, const u32 *counter)
+
+#define	OUT		%r2
+#define	INP		%r3
+#define	LEN		%r4
+#define	KEY		%r5
+#define	COUNTER		%r6
+
+#define BEPERM		%v31
+
+#define K0		%v27
+#define K1		%v24
+#define K2		%v25
+#define K3		%v26
+
+#define A0		%v0
+#define B0		%v1
+#define C0		%v2
+#define D0		%v3
+
+#define A1		%v4
+#define B1		%v5
+#define C1		%v6
+#define D1		%v7
+
+#define A2		%v8
+#define B2		%v9
+#define C2		%v10
+#define D2		%v11
+
+#define A3		%v12
+#define B3		%v13
+#define C3		%v14
+#define D3		%v15
+
+#define A4		%v16
+#define B4		%v17
+#define C4		%v18
+#define D4		%v19
+
+#define A5		%v20
+#define B5		%v21
+#define C5		%v22
+#define D5		%v23
+
+#define T0		%v27
+#define T1		%v28
+#define T2		%v29
+#define T3		%v30
+
+ENTRY(chacha20_vx)
+	clgfi	LEN,256
+	jle	chacha20_vx_4x
+	stmg	%r6,%r7,6*8(SP)
+
+	lghi	%r1,-FRAME
+	lgr	%r0,SP
+	la	SP,0(%r1,SP)
+	stg	%r0,0(SP)		# back-chain
+
+	larl	%r7,.Lsigma
+	lhi	%r0,10
+
+	VLM	K1,K2,0,KEY,0		# load key
+	VL	K3,0,,COUNTER		# load counter
+
+	VLM	K0,BEPERM,0,%r7,4	# load sigma, increments, ...
+
+.Loop_outer_vx:
+	VLR	A0,K0
+	VLR	B0,K1
+	VLR	A1,K0
+	VLR	B1,K1
+	VLR	A2,K0
+	VLR	B2,K1
+	VLR	A3,K0
+	VLR	B3,K1
+	VLR	A4,K0
+	VLR	B4,K1
+	VLR	A5,K0
+	VLR	B5,K1
+
+	VLR	D0,K3
+	VAF	D1,K3,T1		# K[3]+1
+	VAF	D2,K3,T2		# K[3]+2
+	VAF	D3,K3,T3		# K[3]+3
+	VAF	D4,D2,T2		# K[3]+4
+	VAF	D5,D2,T3		# K[3]+5
+
+	VLR	C0,K2
+	VLR	C1,K2
+	VLR	C2,K2
+	VLR	C3,K2
+	VLR	C4,K2
+	VLR	C5,K2
+
+	VLR	T1,D1
+	VLR	T2,D2
+	VLR	T3,D3
+
+.Loop_vx:
+	VAF	A0,A0,B0
+	VAF	A1,A1,B1
+	VAF	A2,A2,B2
+	VAF	A3,A3,B3
+	VAF	A4,A4,B4
+	VAF	A5,A5,B5
+	VX	D0,D0,A0
+	VX	D1,D1,A1
+	VX	D2,D2,A2
+	VX	D3,D3,A3
+	VX	D4,D4,A4
+	VX	D5,D5,A5
+	VERLLF	D0,D0,16
+	VERLLF	D1,D1,16
+	VERLLF	D2,D2,16
+	VERLLF	D3,D3,16
+	VERLLF	D4,D4,16
+	VERLLF	D5,D5,16
+
+	VAF	C0,C0,D0
+	VAF	C1,C1,D1
+	VAF	C2,C2,D2
+	VAF	C3,C3,D3
+	VAF	C4,C4,D4
+	VAF	C5,C5,D5
+	VX	B0,B0,C0
+	VX	B1,B1,C1
+	VX	B2,B2,C2
+	VX	B3,B3,C3
+	VX	B4,B4,C4
+	VX	B5,B5,C5
+	VERLLF	B0,B0,12
+	VERLLF	B1,B1,12
+	VERLLF	B2,B2,12
+	VERLLF	B3,B3,12
+	VERLLF	B4,B4,12
+	VERLLF	B5,B5,12
+
+	VAF	A0,A0,B0
+	VAF	A1,A1,B1
+	VAF	A2,A2,B2
+	VAF	A3,A3,B3
+	VAF	A4,A4,B4
+	VAF	A5,A5,B5
+	VX	D0,D0,A0
+	VX	D1,D1,A1
+	VX	D2,D2,A2
+	VX	D3,D3,A3
+	VX	D4,D4,A4
+	VX	D5,D5,A5
+	VERLLF	D0,D0,8
+	VERLLF	D1,D1,8
+	VERLLF	D2,D2,8
+	VERLLF	D3,D3,8
+	VERLLF	D4,D4,8
+	VERLLF	D5,D5,8
+
+	VAF	C0,C0,D0
+	VAF	C1,C1,D1
+	VAF	C2,C2,D2
+	VAF	C3,C3,D3
+	VAF	C4,C4,D4
+	VAF	C5,C5,D5
+	VX	B0,B0,C0
+	VX	B1,B1,C1
+	VX	B2,B2,C2
+	VX	B3,B3,C3
+	VX	B4,B4,C4
+	VX	B5,B5,C5
+	VERLLF	B0,B0,7
+	VERLLF	B1,B1,7
+	VERLLF	B2,B2,7
+	VERLLF	B3,B3,7
+	VERLLF	B4,B4,7
+	VERLLF	B5,B5,7
+
+	VSLDB	C0,C0,C0,8
+	VSLDB	C1,C1,C1,8
+	VSLDB	C2,C2,C2,8
+	VSLDB	C3,C3,C3,8
+	VSLDB	C4,C4,C4,8
+	VSLDB	C5,C5,C5,8
+	VSLDB	B0,B0,B0,4
+	VSLDB	B1,B1,B1,4
+	VSLDB	B2,B2,B2,4
+	VSLDB	B3,B3,B3,4
+	VSLDB	B4,B4,B4,4
+	VSLDB	B5,B5,B5,4
+	VSLDB	D0,D0,D0,12
+	VSLDB	D1,D1,D1,12
+	VSLDB	D2,D2,D2,12
+	VSLDB	D3,D3,D3,12
+	VSLDB	D4,D4,D4,12
+	VSLDB	D5,D5,D5,12
+
+	VAF	A0,A0,B0
+	VAF	A1,A1,B1
+	VAF	A2,A2,B2
+	VAF	A3,A3,B3
+	VAF	A4,A4,B4
+	VAF	A5,A5,B5
+	VX	D0,D0,A0
+	VX	D1,D1,A1
+	VX	D2,D2,A2
+	VX	D3,D3,A3
+	VX	D4,D4,A4
+	VX	D5,D5,A5
+	VERLLF	D0,D0,16
+	VERLLF	D1,D1,16
+	VERLLF	D2,D2,16
+	VERLLF	D3,D3,16
+	VERLLF	D4,D4,16
+	VERLLF	D5,D5,16
+
+	VAF	C0,C0,D0
+	VAF	C1,C1,D1
+	VAF	C2,C2,D2
+	VAF	C3,C3,D3
+	VAF	C4,C4,D4
+	VAF	C5,C5,D5
+	VX	B0,B0,C0
+	VX	B1,B1,C1
+	VX	B2,B2,C2
+	VX	B3,B3,C3
+	VX	B4,B4,C4
+	VX	B5,B5,C5
+	VERLLF	B0,B0,12
+	VERLLF	B1,B1,12
+	VERLLF	B2,B2,12
+	VERLLF	B3,B3,12
+	VERLLF	B4,B4,12
+	VERLLF	B5,B5,12
+
+	VAF	A0,A0,B0
+	VAF	A1,A1,B1
+	VAF	A2,A2,B2
+	VAF	A3,A3,B3
+	VAF	A4,A4,B4
+	VAF	A5,A5,B5
+	VX	D0,D0,A0
+	VX	D1,D1,A1
+	VX	D2,D2,A2
+	VX	D3,D3,A3
+	VX	D4,D4,A4
+	VX	D5,D5,A5
+	VERLLF	D0,D0,8
+	VERLLF	D1,D1,8
+	VERLLF	D2,D2,8
+	VERLLF	D3,D3,8
+	VERLLF	D4,D4,8
+	VERLLF	D5,D5,8
+
+	VAF	C0,C0,D0
+	VAF	C1,C1,D1
+	VAF	C2,C2,D2
+	VAF	C3,C3,D3
+	VAF	C4,C4,D4
+	VAF	C5,C5,D5
+	VX	B0,B0,C0
+	VX	B1,B1,C1
+	VX	B2,B2,C2
+	VX	B3,B3,C3
+	VX	B4,B4,C4
+	VX	B5,B5,C5
+	VERLLF	B0,B0,7
+	VERLLF	B1,B1,7
+	VERLLF	B2,B2,7
+	VERLLF	B3,B3,7
+	VERLLF	B4,B4,7
+	VERLLF	B5,B5,7
+
+	VSLDB	C0,C0,C0,8
+	VSLDB	C1,C1,C1,8
+	VSLDB	C2,C2,C2,8
+	VSLDB	C3,C3,C3,8
+	VSLDB	C4,C4,C4,8
+	VSLDB	C5,C5,C5,8
+	VSLDB	B0,B0,B0,12
+	VSLDB	B1,B1,B1,12
+	VSLDB	B2,B2,B2,12
+	VSLDB	B3,B3,B3,12
+	VSLDB	B4,B4,B4,12
+	VSLDB	B5,B5,B5,12
+	VSLDB	D0,D0,D0,4
+	VSLDB	D1,D1,D1,4
+	VSLDB	D2,D2,D2,4
+	VSLDB	D3,D3,D3,4
+	VSLDB	D4,D4,D4,4
+	VSLDB	D5,D5,D5,4
+	brct	%r0,.Loop_vx
+
+	VAF	A0,A0,K0
+	VAF	B0,B0,K1
+	VAF	C0,C0,K2
+	VAF	D0,D0,K3
+	VAF	A1,A1,K0
+	VAF	D1,D1,T1		# +K[3]+1
+
+	VPERM	A0,A0,A0,BEPERM
+	VPERM	B0,B0,B0,BEPERM
+	VPERM	C0,C0,C0,BEPERM
+	VPERM	D0,D0,D0,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VAF	D2,D2,T2		# +K[3]+2
+	VAF	D3,D3,T3		# +K[3]+3
+	VLM	T0,T3,0,INP,0
+
+	VX	A0,A0,T0
+	VX	B0,B0,T1
+	VX	C0,C0,T2
+	VX	D0,D0,T3
+
+	VLM	K0,T3,0,%r7,4		# re-load sigma and increments
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_vx
+
+	VAF	B1,B1,K1
+	VAF	C1,C1,K2
+
+	VPERM	A0,A1,A1,BEPERM
+	VPERM	B0,B1,B1,BEPERM
+	VPERM	C0,C1,C1,BEPERM
+	VPERM	D0,D1,D1,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VLM	A1,D1,0,INP,0
+
+	VX	A0,A0,A1
+	VX	B0,B0,B1
+	VX	C0,C0,C1
+	VX	D0,D0,D1
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_vx
+
+	VAF	A2,A2,K0
+	VAF	B2,B2,K1
+	VAF	C2,C2,K2
+
+	VPERM	A0,A2,A2,BEPERM
+	VPERM	B0,B2,B2,BEPERM
+	VPERM	C0,C2,C2,BEPERM
+	VPERM	D0,D2,D2,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VLM	A1,D1,0,INP,0
+
+	VX	A0,A0,A1
+	VX	B0,B0,B1
+	VX	C0,C0,C1
+	VX	D0,D0,D1
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_vx
+
+	VAF	A3,A3,K0
+	VAF	B3,B3,K1
+	VAF	C3,C3,K2
+	VAF	D2,K3,T3		# K[3]+3
+
+	VPERM	A0,A3,A3,BEPERM
+	VPERM	B0,B3,B3,BEPERM
+	VPERM	C0,C3,C3,BEPERM
+	VPERM	D0,D3,D3,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VAF	D3,D2,T1		# K[3]+4
+	VLM	A1,D1,0,INP,0
+
+	VX	A0,A0,A1
+	VX	B0,B0,B1
+	VX	C0,C0,C1
+	VX	D0,D0,D1
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_vx
+
+	VAF	A4,A4,K0
+	VAF	B4,B4,K1
+	VAF	C4,C4,K2
+	VAF	D4,D4,D3		# +K[3]+4
+	VAF	D3,D3,T1		# K[3]+5
+	VAF	K3,D2,T3		# K[3]+=6
+
+	VPERM	A0,A4,A4,BEPERM
+	VPERM	B0,B4,B4,BEPERM
+	VPERM	C0,C4,C4,BEPERM
+	VPERM	D0,D4,D4,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VLM	A1,D1,0,INP,0
+
+	VX	A0,A0,A1
+	VX	B0,B0,B1
+	VX	C0,C0,C1
+	VX	D0,D0,D1
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	aghi	LEN,-0x40
+	je	.Ldone_vx
+
+	VAF	A5,A5,K0
+	VAF	B5,B5,K1
+	VAF	C5,C5,K2
+	VAF	D5,D5,D3		# +K[3]+5
+
+	VPERM	A0,A5,A5,BEPERM
+	VPERM	B0,B5,B5,BEPERM
+	VPERM	C0,C5,C5,BEPERM
+	VPERM	D0,D5,D5,BEPERM
+
+	clgfi	LEN,0x40
+	jl	.Ltail_vx
+
+	VLM	A1,D1,0,INP,0
+
+	VX	A0,A0,A1
+	VX	B0,B0,B1
+	VX	C0,C0,C1
+	VX	D0,D0,D1
+
+	VSTM	A0,D0,0,OUT,0
+
+	la	INP,0x40(INP)
+	la	OUT,0x40(OUT)
+	lhi	%r0,10
+	aghi	LEN,-0x40
+	jne	.Loop_outer_vx
+
+.Ldone_vx:
+	lmg	%r6,%r7,FRAME+6*8(SP)
+	la	SP,FRAME(SP)
+	BR_EX	%r14
+
+.Ltail_vx:
+	VSTM	A0,D0,8*8,SP,3
+	lghi	%r1,0
+
+.Loop_tail_vx:
+	llgc	%r5,0(%r1,INP)
+	llgc	%r6,8*8(%r1,SP)
+	xr	%r6,%r5
+	stc	%r6,0(%r1,OUT)
+	la	%r1,1(%r1)
+	brct	LEN,.Loop_tail_vx
+
+	lmg	%r6,%r7,FRAME+6*8(SP)
+	la	SP,FRAME(SP)
+	BR_EX	%r14
+ENDPROC(chacha20_vx)
+
+.previous

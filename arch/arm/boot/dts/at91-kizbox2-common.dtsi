@@ -1,0 +1,256 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * at91-kizbox2_common.dtsi - Device Tree Include file for
+ * Overkiz Kizbox 2 family SoC
+ *
+ * Copyright (C) 2014-2018 Overkiz SAS
+ *
+ * Authors: Antoine Aubert <a.aubert@overkiz.com>
+ *          Gaël Portay <g.portay@overkiz.com>
+ *          Kévin Raymond <k.raymond@overkiz.com>
+ */
+#include "sama5d31.dtsi"
+
+/ {
+	chosen {
+		bootargs = "ubi.mtd=ubi";
+		stdout-path = &dbgu;
+	};
+
+	memory@20000000 {
+		reg = <0x20000000 0x10000000>;
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+
+		main_xtal {
+			clock-frequency = <12000000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-prog {
+			label = "PB_PROG";
+			gpios = <&pioE 27 GPIO_ACTIVE_LOW>;
+			linux,code = <0x102>;
+			wakeup-source;
+		};
+
+		button-reset {
+			label = "PB_RST";
+			gpios = <&pioE 29 GPIO_ACTIVE_LOW>;
+			linux,code = <0x100>;
+			wakeup-source;
+		};
+
+		button-user {
+			label = "PB_USER";
+			gpios = <&pioE 31 GPIO_ACTIVE_HIGH>;
+			linux,code = <0x101>;
+			wakeup-source;
+		};
+	};
+
+	led-controller {
+		compatible = "pwm-leds";
+
+		led-1 {
+			label = "pwm:blue:user";
+			pwms = <&pwm0 2 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "none";
+		};
+
+		led-2 {
+			label = "pwm:green:user";
+			pwms = <&pwm0 1 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+
+		led-3 {
+			label = "pwm:red:user";
+			pwms = <&pwm0 0 10000000 0>;
+			max-brightness = <255>;
+			linux,default-trigger = "default-on";
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pmic: act8865@5b {
+		compatible = "active-semi,act8865";
+		reg = <0x5b>;
+		status = "okay";
+
+		regulators {
+			vcc_1v8_reg: DCDC_REG1 {
+				regulator-name = "VCC_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			vcc_1v2_reg: DCDC_REG2 {
+				regulator-name = "VCC_1V2";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+			};
+
+			vcc_3v3_reg: DCDC_REG3 {
+				regulator-name = "VCC_3V3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vddfuse_reg: LDO_REG1 {
+				regulator-name = "FUSE_2V5";
+				regulator-min-microvolt = <2500000>;
+				regulator-max-microvolt = <2500000>;
+			};
+
+			vddana_reg: LDO_REG2 {
+				regulator-name = "VDDANA";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vled_reg: LDO_REG3 {
+				regulator-name = "VLED";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			v3v8_rf_reg: LDO_REG4 {
+				regulator-name = "V3V8_RF";
+				regulator-min-microvolt = <3800000>;
+				regulator-max-microvolt = <3800000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&usart0 {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
+	status = "disabled";
+};
+
+&usart1 {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
+	status = "disabled";
+};
+
+&usart2 {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
+	status = "disabled";
+};
+
+&pwm0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_pwmh0_1
+		     &pinctrl_pwm0_pwmh1_1
+		     &pinctrl_pwm0_pwmh2_0>;
+	status = "okay";
+};
+
+&adc0 {
+	atmel,adc-vref = <3333>;
+	status = "okay";
+};
+
+&macb1 {
+	phy-mode = "rmii";
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&ebi {
+	pinctrl-0 = <&pinctrl_ebi_nand_addr>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@3 {
+		reg = <0x3 0x0 0x2>;
+		atmel,rb = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-on-flash-bbt;
+		label = "atmel_nand";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			bootstrap@0 {
+				label = "bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			ubi@20000 {
+				label = "ubi";
+				reg = <0x20000 0x7fe0000>;
+			};
+		};
+	};
+};
+
+&usb1 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+};
+
+/* WMBUS (inverted with IO in the latest schematic) */
+&pinctrl_usart0 {
+	atmel,pins =
+		<AT91_PIOD 17 AT91_PERIPH_A AT91_PINCTRL_NONE
+		 AT91_PIOD 18 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+		 AT91_PIOE 2 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>;
+};
+
+/* RTS */
+&pinctrl_usart1 {
+	atmel,pins =
+		<AT91_PIOB 28 AT91_PERIPH_A AT91_PINCTRL_NONE
+		 AT91_PIOB 29 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+		 AT91_PIOE 7 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>;
+};
+
+/* IO (inverted with WMBUS in the latest schematic) */
+&pinctrl_usart2 {
+	atmel,pins =
+		<AT91_PIOE 25 AT91_PERIPH_B AT91_PINCTRL_NONE
+		 AT91_PIOE 26 AT91_PERIPH_B AT91_PINCTRL_PULL_UP
+		 AT91_PIOE 8 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>;
+};

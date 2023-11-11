@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/engine/msppp/base.o
+nvkm-y += nvkm/engine/msppp/g98.o
+nvkm-y += nvkm/engine/msppp/gt215.o
+nvkm-y += nvkm/engine/msppp/gf100.o

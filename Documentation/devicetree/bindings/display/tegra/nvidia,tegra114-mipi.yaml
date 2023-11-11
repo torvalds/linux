@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra114-mipi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra MIPI pad calibration controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^mipi@[0-9a-f]+$"
+
+  compatible:
+    enum:
+      - nvidia,tegra114-mipi
+      - nvidia,tegra210-mipi
+      - nvidia,tegra186-mipi
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: module clock
+
+  clock-names:
+    items:
+      - const: mipi-cal
+
+  power-domains:
+    maxItems: 1
+
+  "#nvidia,mipi-calibrate-cells":
+    description: The number of cells in a MIPI calibration specifier.
+      Should be 1. The single cell specifies a bitmask of the pads that
+      need to be calibrated for a given device.
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    const: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - "#nvidia,mipi-calibrate-cells"
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra114-car.h>
+
+    mipi@700e3000 {
+        compatible = "nvidia,tegra114-mipi";
+        reg = <0x700e3000 0x100>;
+        clocks = <&tegra_car TEGRA114_CLK_MIPI_CAL>;
+        clock-names = "mipi-cal";
+        #nvidia,mipi-calibrate-cells = <1>;
+    };
+
+    dsia: dsi@54300000 {
+        compatible = "nvidia,tegra114-dsi";
+        reg = <0x54300000 0x00040000>;
+        clocks = <&tegra_car TEGRA114_CLK_DSIA>,
+                 <&tegra_car TEGRA114_CLK_DSIALP>,
+                 <&tegra_car TEGRA114_CLK_PLL_D_OUT0>;
+        clock-names = "dsi", "lp", "parent";
+        resets = <&tegra_car 48>;
+        reset-names = "dsi";
+        nvidia,mipi-calibrate = <&mipi 0x060>; /* DSIA & DSIB pads */
+    };

@@ -1,0 +1,39 @@
+[
+   {
+           "BriefDescription": "ddr cycles event",
+           "EventCode": "0x00",
+           "EventName": "imx8mm_ddr.cycles",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "BriefDescription": "ddr read-cycles event",
+           "EventCode": "0x2a",
+           "EventName": "imx8mm_ddr.read_cycles",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "BriefDescription": "ddr write-cycles event",
+           "EventCode": "0x2b",
+           "EventName": "imx8mm_ddr.write_cycles",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "BriefDescription": "ddr read event",
+           "EventCode": "0x35",
+           "EventName": "imx8mm_ddr.read",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   },
+   {
+           "BriefDescription": "ddr write event",
+           "EventCode": "0x38",
+           "EventName": "imx8mm_ddr.write",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   }
+]
+
+

@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/adi,ad799x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD799x analog to digital converters
+
+maintainers:
+  - Michael Hennerich <Michael.Hennerich@analog.com>
+
+description: |
+    Support for Analog Devices AD7991, AD7992, AD7993, AD7994, AD7995, AD7997, AD7998,
+    AD7999 and similar analog to digital converters.
+    Specifications on the converters can be found at:
+    AD7991, AD7995, AD7999:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7991_7995_7999.pdf
+    AD7992:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7992.pdf
+    AD7993, AD7994:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7993_7994.pdf
+    AD7997, AD7998:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7997_7998.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ad7991
+      - adi,ad7992
+      - adi,ad7993
+      - adi,ad7994
+      - adi,ad7995
+      - adi,ad7997
+      - adi,ad7998
+      - adi,ad7999
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vcc-supply:
+    description:
+      ADC power supply
+
+  vref-supply:
+    description:
+      ADC reference voltage supply, optional for AD7991, AD7995 and AD7999
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+       adc1: adc@28 {
+               reg = <0x28>;
+               compatible = "adi,ad7991";
+               interrupts = <13 2>;
+               interrupt-parent = <&gpio6>;
+
+               vcc-supply = <&vcc_3v3>;
+               vref-supply = <&adc_vref>;
+        };
+    };
+...

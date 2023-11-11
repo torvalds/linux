@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config B43LEGACY
+	tristate "Broadcom 43xx-legacy wireless support (mac80211 stack)"
+	depends on SSB_POSSIBLE && MAC80211 && HAS_DMA
+	select SSB
+	select FW_LOADER
+	help
+	  b43legacy is a driver for 802.11b devices from Broadcom (BCM4301 and
+	  BCM4303) and early model 802.11g chips (BCM4306 Ver. 2) used in the
+	  Linksys WPC54G V1 PCMCIA devices.
+
+	  Newer 802.11g and 802.11a devices need b43.
+
+	  It is safe to include both b43 and b43legacy as the underlying glue
+	  layer will automatically load the correct version for your device.
+
+	  This driver uses V3 firmware, which must be installed separately using
+	  b43-fwcutter.
+
+	  This driver can be built as a module (recommended) that will be
+	  called "b43legacy". If unsure, say M.
+
+# Auto-select SSB PCI-HOST support, if possible
+config B43LEGACY_PCI_AUTOSELECT
+	bool
+	depends on B43LEGACY && SSB_PCIHOST_POSSIBLE
+	select SSB_PCIHOST
+	select SSB_B43_PCI_BRIDGE
+	default y
+
+# Auto-select SSB PCICORE driver, if possible
+config B43LEGACY_PCICORE_AUTOSELECT
+	bool
+	depends on B43LEGACY && SSB_DRIVER_PCICORE_POSSIBLE
+	select SSB_DRIVER_PCICORE
+	default y
+
+# LED support
+# This config option automatically enables b43legacy LEDS support,
+# if it's possible.
+config B43LEGACY_LEDS
+	bool
+	depends on B43LEGACY && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43LEGACY)
+	default y
+
+# This config option automatically enables b43 HW-RNG support,
+# if the HW-RNG core is enabled.
+config B43LEGACY_HWRNG
+	bool
+	depends on B43LEGACY && (HW_RANDOM = y || HW_RANDOM = B43LEGACY)
+	default y
+
+config B43LEGACY_DEBUG
+	bool "Broadcom 43xx-legacy debugging"
+	depends on B43LEGACY
+	default y
+	help
+	  Say Y, because this information will help you get the driver running.
+	  This option generates a minimum of log output.
+
+config B43LEGACY_DMA
+	bool
+	depends on B43LEGACY
+
+config B43LEGACY_PIO
+	bool
+	depends on B43LEGACY
+
+choice
+	prompt "Broadcom 43xx-legacy data transfer mode"
+	depends on B43LEGACY
+	default B43LEGACY_DMA_AND_PIO_MODE
+
+config B43LEGACY_DMA_AND_PIO_MODE
+	bool "DMA + PIO"
+	select B43LEGACY_DMA
+	select B43LEGACY_PIO
+	help
+	  Include both, Direct Memory Access (DMA) and Programmed I/O (PIO)
+	  data transfer modes. The mode actually used is selectable through
+	  the module parameter "pio". With pio=0 as a module parameter, the
+	  default DMA is used, otherwise PIO is used.
+
+	  If unsure, choose this option.
+
+config B43LEGACY_DMA_MODE
+	bool "DMA (Direct Memory Access) only"
+	select B43LEGACY_DMA
+	help
+	  Only include Direct Memory Access (DMA).
+	  This reduces the size of the driver module, by omitting the PIO code.
+
+config B43LEGACY_PIO_MODE
+	bool "PIO (Programmed I/O) only"
+	select B43LEGACY_PIO
+	help
+	  Only include Programmed I/O (PIO).
+	  This reduces the size of the driver module, by omitting the DMA code.
+	  Please note that PIO transfers are slow (compared to DMA).
+
+	  Also note that not all devices of the b43legacy series support PIO.
+
+	  You should use PIO only if DMA does not work for you.
+
+endchoice

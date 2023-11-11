@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/imx/fsl,imx8mp-hdmi-blk-ctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8MP HDMI blk-ctrl
+
+maintainers:
+  - Lucas Stach <l.stach@pengutronix.de>
+
+description:
+  The i.MX8MP HDMMI blk-ctrl is a top-level peripheral providing access to
+  the NoC and ensuring proper power sequencing of the display pipeline
+  peripherals located in the HDMI domain of the SoC.
+
+properties:
+  compatible:
+    items:
+      - const: fsl,imx8mp-hdmi-blk-ctrl
+      - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#power-domain-cells':
+    const: 1
+
+  power-domains:
+    minItems: 8
+    maxItems: 8
+
+  power-domain-names:
+    items:
+      - const: bus
+      - const: irqsteer
+      - const: lcdif
+      - const: pai
+      - const: pvi
+      - const: trng
+      - const: hdmi-tx
+      - const: hdmi-tx-phy
+
+  clocks:
+    minItems: 4
+    maxItems: 4
+
+  clock-names:
+    items:
+      - const: apb
+      - const: axi
+      - const: ref_266m
+      - const: ref_24m
+
+  interconnects:
+    maxItems: 3
+
+  interconnect-names:
+    items:
+      - const: hrv
+      - const: lcdif-hdmi
+      - const: hdcp
+
+required:
+  - compatible
+  - reg
+  - power-domains
+  - power-domain-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8mp-clock.h>
+    #include <dt-bindings/power/imx8mp-power.h>
+
+    blk-ctrl@32fc0000 {
+        compatible = "fsl,imx8mp-hdmi-blk-ctrl", "syscon";
+        reg = <0x32fc0000 0x23c>;
+        clocks = <&clk IMX8MP_CLK_HDMI_APB>,
+                 <&clk IMX8MP_CLK_HDMI_ROOT>,
+                 <&clk IMX8MP_CLK_HDMI_REF_266M>,
+                 <&clk IMX8MP_CLK_HDMI_24M>;
+        clock-names = "apb", "axi", "ref_266m", "ref_24m";
+        power-domains = <&pgc_hdmimix>, <&pgc_hdmimix>, <&pgc_hdmimix>,
+                        <&pgc_hdmimix>, <&pgc_hdmimix>, <&pgc_hdmimix>,
+                        <&pgc_hdmimix>, <&pgc_hdmi_phy>;
+        power-domain-names = "bus", "irqsteer", "lcdif", "pai", "pvi", "trng",
+                             "hdmi-tx", "hdmi-tx-phy";
+        #power-domain-cells = <1>;
+    };

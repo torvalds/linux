@@ -1,0 +1,287 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# PCI configuration
+#
+
+# select this to offer the PCI prompt
+config HAVE_PCI
+	bool
+
+# select this to unconditionally force on PCI support
+config FORCE_PCI
+	bool
+	select HAVE_PCI
+	select PCI
+
+menuconfig PCI
+	bool "PCI support"
+	depends on HAVE_PCI
+	help
+	  This option enables support for the PCI local bus, including
+	  support for PCI-X and the foundations for PCI Express support.
+	  Say 'Y' here unless you know what you are doing.
+
+if PCI
+
+config PCI_DOMAINS
+	bool
+	depends on PCI
+
+config PCI_DOMAINS_GENERIC
+	bool
+	select PCI_DOMAINS
+
+config PCI_SYSCALL
+	bool
+
+source "drivers/pci/pcie/Kconfig"
+
+config PCI_MSI
+	bool "Message Signaled Interrupts (MSI and MSI-X)"
+	select GENERIC_MSI_IRQ
+	help
+	   This allows device drivers to enable MSI (Message Signaled
+	   Interrupts).  Message Signaled Interrupts enable a device to
+	   generate an interrupt using an inbound Memory Write on its
+	   PCI bus instead of asserting a device IRQ pin.
+
+	   Use of PCI MSI interrupts can be disabled at kernel boot time
+	   by using the 'pci=nomsi' option.  This disables MSI for the
+	   entire system.
+
+	   If you don't know what to do here, say Y.
+
+config PCI_MSI_IRQ_DOMAIN
+	def_bool y
+	depends on PCI_MSI
+	select GENERIC_MSI_IRQ_DOMAIN
+
+config PCI_MSI_ARCH_FALLBACKS
+	bool
+
+config PCI_QUIRKS
+	default y
+	bool "Enable PCI quirk workarounds" if EXPERT
+	help
+	  This enables workarounds for various PCI chipset bugs/quirks.
+	  Disable this only if your target machine is unaffected by PCI
+	  quirks.
+
+config PCI_DEBUG
+	bool "PCI Debugging"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here if you want the PCI core to produce a bunch of debug
+	  messages to the system log.  Select this if you are having a
+	  problem with PCI support and want to see more of what is going on.
+
+	  When in doubt, say N.
+
+config PCI_REALLOC_ENABLE_AUTO
+	bool "Enable PCI resource re-allocation detection"
+	depends on PCI_IOV
+	help
+	  Say Y here if you want the PCI core to detect if PCI resource
+	  re-allocation needs to be enabled. You can always use pci=realloc=on
+	  or pci=realloc=off to override it.  It will automatically
+	  re-allocate PCI resources if SR-IOV BARs have not been allocated by
+	  the BIOS.
+
+	  When in doubt, say N.
+
+config PCI_STUB
+	tristate "PCI Stub driver"
+	help
+	  Say Y or M here if you want be able to reserve a PCI device
+	  when it is going to be assigned to a guest operating system.
+
+	  When in doubt, say N.
+
+config PCI_PF_STUB
+	tristate "PCI PF Stub driver"
+	depends on PCI_IOV
+	help
+	  Say Y or M here if you want to enable support for devices that
+	  require SR-IOV support, while at the same time the PF (Physical
+	  Function) itself is not providing any actual services on the
+	  host itself such as storage or networking.
+
+	  When in doubt, say N.
+
+config XEN_PCIDEV_FRONTEND
+	tristate "Xen PCI Frontend"
+	depends on XEN_PV
+	select PCI_XEN
+	select XEN_XENBUS_FRONTEND
+	default y
+	help
+	  The PCI device frontend driver allows the kernel to import arbitrary
+	  PCI devices from a PCI backend to support PCI driver domains.
+
+config PCI_ATS
+	bool
+
+config PCI_DOE
+	bool
+
+config PCI_ECAM
+	bool
+
+config PCI_LOCKLESS_CONFIG
+	bool
+
+config PCI_BRIDGE_EMUL
+	bool
+
+config PCI_IOV
+	bool "PCI IOV support"
+	select PCI_ATS
+	help
+	  I/O Virtualization is a PCI feature supported by some devices
+	  which allows them to create virtual devices which share their
+	  physical resources.
+
+	  If unsure, say N.
+
+config PCI_PRI
+	bool "PCI PRI support"
+	select PCI_ATS
+	help
+	  PRI is the PCI Page Request Interface. It allows PCI devices that are
+	  behind an IOMMU to recover from page faults.
+
+	  If unsure, say N.
+
+config PCI_PASID
+	bool "PCI PASID support"
+	select PCI_ATS
+	help
+	  Process Address Space Identifiers (PASIDs) can be used by PCI devices
+	  to access more than one IO address space at the same time. To make
+	  use of this feature an IOMMU is required which also supports PASIDs.
+	  Select this option if you have such an IOMMU and want to compile the
+	  driver for it into your kernel.
+
+	  If unsure, say N.
+
+config PCI_P2PDMA
+	bool "PCI peer-to-peer transfer support"
+	depends on ZONE_DEVICE
+	#
+	# The need for the scatterlist DMA bus address flag means PCI P2PDMA
+	# requires 64bit
+	#
+	depends on 64BIT
+	select GENERIC_ALLOCATOR
+	help
+	  Enableѕ drivers to do PCI peer-to-peer transactions to and from
+	  BARs that are exposed in other devices that are the part of
+	  the hierarchy where peer-to-peer DMA is guaranteed by the PCI
+	  specification to work (ie. anything below a single PCI bridge).
+
+	  Many PCIe root complexes do not support P2P transactions and
+	  it's hard to tell which support it at all, so at this time,
+	  P2P DMA transactions must be between devices behind the same root
+	  port.
+
+	  If unsure, say N.
+
+config PCI_LABEL
+	def_bool y if (DMI || ACPI)
+	select NLS
+
+config PCI_HYPERV
+	tristate "Hyper-V PCI Frontend"
+	depends on ((X86 && X86_64) || ARM64) && HYPERV && PCI_MSI && PCI_MSI_IRQ_DOMAIN && SYSFS
+	select PCI_HYPERV_INTERFACE
+	help
+	  The PCI device frontend driver allows the kernel to import arbitrary
+	  PCI devices from a PCI backend to support PCI driver domains.
+
+choice
+	prompt "PCI Express hierarchy optimization setting"
+	default PCIE_BUS_DEFAULT
+	depends on PCI && EXPERT
+	help
+	  MPS (Max Payload Size) and MRRS (Max Read Request Size) are PCIe
+	  device parameters that affect performance and the ability to
+	  support hotplug and peer-to-peer DMA.
+
+	  The following choices set the MPS and MRRS optimization strategy
+	  at compile-time.  The choices are the same as those offered for
+	  the kernel command-line parameter 'pci', i.e.,
+	  'pci=pcie_bus_tune_off', 'pci=pcie_bus_safe',
+	  'pci=pcie_bus_perf', and 'pci=pcie_bus_peer2peer'.
+
+	  This is a compile-time setting and can be overridden by the above
+	  command-line parameters.  If unsure, choose PCIE_BUS_DEFAULT.
+
+config PCIE_BUS_TUNE_OFF
+	bool "Tune Off"
+	depends on PCI
+	help
+	  Use the BIOS defaults; don't touch MPS at all.  This is the same
+	  as booting with 'pci=pcie_bus_tune_off'.
+
+config PCIE_BUS_DEFAULT
+	bool "Default"
+	depends on PCI
+	help
+	  Default choice; ensure that the MPS matches upstream bridge.
+
+config PCIE_BUS_SAFE
+	bool "Safe"
+	depends on PCI
+	help
+	  Use largest MPS that boot-time devices support.  If you have a
+	  closed system with no possibility of adding new devices, this
+	  will use the largest MPS that's supported by all devices.  This
+	  is the same as booting with 'pci=pcie_bus_safe'.
+
+config PCIE_BUS_PERFORMANCE
+	bool "Performance"
+	depends on PCI
+	help
+	  Use MPS and MRRS for best performance.  Ensure that a given
+	  device's MPS is no larger than its parent MPS, which allows us to
+	  keep all switches/bridges to the max MPS supported by their
+	  parent.  This is the same as booting with 'pci=pcie_bus_perf'.
+
+config PCIE_BUS_PEER2PEER
+	bool "Peer2peer"
+	depends on PCI
+	help
+	  Set MPS = 128 for all devices.  MPS configuration effected by the
+	  other options could cause the MPS on one root port to be
+	  different than that of the MPS on another, which may cause
+	  hot-added devices or peer-to-peer DMA to fail.  Set MPS to the
+	  smallest possible value (128B) system-wide to avoid these issues.
+	  This is the same as booting with 'pci=pcie_bus_peer2peer'.
+
+endchoice
+
+config VGA_ARB
+	bool "VGA Arbitration" if EXPERT
+	default y
+	depends on (PCI && !S390)
+	help
+	  Some "legacy" VGA devices implemented on PCI typically have the same
+	  hard-decoded addresses as they did on ISA. When multiple PCI devices
+	  are accessed at same time they need some kind of coordination. Please
+	  see Documentation/gpu/vgaarbiter.rst for more details. Select this to
+	  enable VGA arbiter.
+
+config VGA_ARB_MAX_GPUS
+	int "Maximum number of GPUs"
+	default 16
+	depends on VGA_ARB
+	help
+	  Reserves space in the kernel to maintain resource locking for
+	  multiple GPUS.  The overhead for each GPU is very small.
+
+source "drivers/pci/hotplug/Kconfig"
+source "drivers/pci/controller/Kconfig"
+source "drivers/pci/endpoint/Kconfig"
+source "drivers/pci/switch/Kconfig"
+
+endif

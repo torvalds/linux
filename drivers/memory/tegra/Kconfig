@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config TEGRA_MC
+	bool "NVIDIA Tegra Memory Controller support"
+	default y
+	depends on ARCH_TEGRA || (COMPILE_TEST && COMMON_CLK)
+	select INTERCONNECT
+	help
+	  This driver supports the Memory Controller (MC) hardware found on
+	  NVIDIA Tegra SoCs.
+
+if TEGRA_MC
+
+config TEGRA20_EMC
+	tristate "NVIDIA Tegra20 External Memory Controller driver"
+	default y
+	depends on ARCH_TEGRA_2x_SOC || COMPILE_TEST
+	select DEVFREQ_GOV_SIMPLE_ONDEMAND
+	select PM_DEVFREQ
+	select DDR
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra20 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
+config TEGRA30_EMC
+	tristate "NVIDIA Tegra30 External Memory Controller driver"
+	default y
+	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
+	select PM_OPP
+	select DDR
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra30 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
+config TEGRA124_EMC
+	tristate "NVIDIA Tegra124 External Memory Controller driver"
+	default y
+	depends on ARCH_TEGRA_124_SOC || COMPILE_TEST
+	select TEGRA124_CLK_EMC if ARCH_TEGRA
+	select PM_OPP
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra124 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
+config TEGRA210_EMC_TABLE
+	bool
+	depends on ARCH_TEGRA_210_SOC || COMPILE_TEST
+
+config TEGRA210_EMC
+	tristate "NVIDIA Tegra210 External Memory Controller driver"
+	depends on ARCH_TEGRA_210_SOC || COMPILE_TEST
+	select TEGRA210_EMC_TABLE
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra210 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
+endif

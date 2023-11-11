@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2016 Jamie Lentin <jm@lentin.co.uk>
+
+#include "orion5x.dtsi"
+
+/ {
+	compatible = "marvell,orion5x-88f5181", "marvell,orion5x";
+
+	soc {
+		compatible = "marvell,orion5x-88f5181-mbus", "simple-bus";
+
+		internal-regs {
+			pinctrl: pinctrl@10000 {
+				compatible = "marvell,88f5181-pinctrl";
+				reg = <0x10000 0x8>, <0x10050 0x4>;
+			};
+
+			core_clk: core-clocks@10030 {
+				compatible = "marvell,mv88f5181-core-clock";
+				reg = <0x10010 0x4>;
+				#clock-cells = <1>;
+			};
+
+			mbusc: mbus-controller@20000 {
+				compatible = "marvell,mbus-controller";
+				reg = <0x20000 0x100>, <0x1500 0x20>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pmx_ge: pmx-ge {
+		marvell,pins = "mpp8", "mpp9", "mpp10", "mpp11",
+			       "mpp12", "mpp13", "mpp14", "mpp15",
+			       "mpp16", "mpp17", "mpp18", "mpp19";
+		marvell,function = "ge";
+	};
+};
+
+&eth {
+	pinctrl-0 = <&pmx_ge>;
+	pinctrl-names = "default";
+};

@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018 Nuvoton Technology
+
+/ {
+	pinctrl: pinctrl@f0800000 {
+		pin8_input: pin8-input {
+			pins = "GPIO8/LKGPO1";
+			bias-disable;
+			input-enable;
+		};
+		pin9_output_high: pin9-output-high {
+			pins = "GPIO9/LKGPO2";
+			bias-disable;
+			output-high;
+		};
+		pin10_input: pin10-input {
+			pins = "GPIO10/IOXHLD";
+			bias-disable;
+			input-enable;
+		};
+		pin11_output_high: pin11-output-high {
+			pins = "GPIO11/IOXHCK";
+			bias-disable;
+			output-high;
+		};
+		pin16_input: pin16-input {
+			pins = "GPIO16/LKGPO0";
+			bias-disable;
+			input-enable;
+		};
+		pin24_output_high: pin24-output-high {
+			pins = "GPIO24/IOXHDO";
+			bias-disable;
+			output-high;
+		};
+		pin25_output_low: pin25-output-low {
+			pins = "GPIO25/IOXHDI";
+			bias-disable;
+			output-low;
+		};
+		pin32_output_high: pin32-output-high {
+			pins = "GPIO32/nSPI0CS1";
+			bias-disable;
+			output-high;
+		};
+		pin61_output_high: pin61-output-high {
+			pins = "GPO61/nDTR1_BOUT1/STRAP6";
+			bias-disable;
+			output-high;
+		};
+		pin62_output_high: pin62-output-high {
+			pins = "GPO62/nRTST1/STRAP5";
+			bias-disable;
+			output-high;
+		};
+		pin63_output_high: pin63-output-high {
+			pins = "GPO63/TXD1/STRAP4";
+			bias-disable;
+			output-high;
+		};
+		pin160_input: pin160-input {
+			pins = "GPIO160/CLKOUT/RNGOSCOUT";
+			bias-disable;
+			input-enable;
+		};
+		pin162_input: pin162-input {
+			pins = "GPIO162/SERIRQ";
+			bias-disable;
+			input-enable;
+		};
+		pin168_input: pin168-input {
+			pins = "GPIO168/nCLKRUN/nESPIALERT";
+			bias-disable;
+			input-enable;
+		};
+		pin169_input: pin169-input {
+			pins = "GPIO169/nSCIPME";
+			bias-disable;
+			input-enable;
+		};
+		pin170_input: pin170-input {
+			pins = "GPIO170/nSMI";
+			bias-disable;
+			input-enable;
+		};
+		pin187_output_high: pin187-output-high {
+			pins = "GPIO187/nSPI3CS1";
+			bias-disable;
+			output-high;
+		};
+		pin190_input: pin190-input {
+			pins = "GPIO190/nPRD_SMI";
+			bias-disable;
+			input-enable;
+		};
+		pin191_output_high: pin191-output-high {
+			pins = "GPIO191";
+			bias-disable;
+			output-high;
+		};
+		pin192_output_high: pin192-output-high {
+			pins = "GPIO192";
+			bias-disable;
+			output-high;
+		};
+		pin197_output_low: pin197-output-low {
+			pins = "GPIO197/SMB0DEN";
+			bias-disable;
+			output-low;
+		};
+		pin218_input: pin218-input {
+			pins = "GPIO218/nWDO1";
+			bias-disable;
+			input-enable;
+		};
+		pin219_output_low: pin219-output-low {
+			pins = "GPIO219/nWDO2";
+			bias-disable;
+			output-low;
+		};
+		pin220_output_low: pin220-output-low {
+			pins = "GPIO220/SMB12SCL";
+			bias-disable;
+			output-low;
+		};
+		pin221_output_high: pin221-output-high {
+			pins = "GPIO221/SMB12SDA";
+			bias-disable;
+			output-high;
+		};
+		pin222_input: pin222-input {
+			pins = "GPIO222/SMB13SCL";
+			bias-disable;
+			input-enable;
+		};
+		pin223_output_low: pin223-output-low {
+			pins = "GPIO223/SMB13SDA";
+			bias-disable;
+			output-low;
+		};
+		pin228_output_low: pin228-output-low {
+			pins = "GPIO228/nSPIXCS1";
+			bias-disable;
+			output-low;
+		};
+		pin231_output_high: pin231-output-high {
+			pins = "GPIO230/SPIXD3";
+			bias-disable;
+			output-high;
+		};
+		pin255_input: pin255-input {
+			pins = "GPI255/DACOSEL";
+			bias-disable;
+			input-enable;
+		};
+	};
+};

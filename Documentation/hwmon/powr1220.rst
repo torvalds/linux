@@ -1,0 +1,53 @@
+Kernel driver powr1220
+======================
+
+Supported chips:
+
+  * Lattice POWR1220AT8
+
+    Prefix: 'powr1220'
+
+    Addresses scanned: none
+
+    Datasheet: Publicly available at the Lattice website
+
+	       http://www.latticesemi.com/
+
+Author: Scott Kanowitz <scott.kanowitz@gmail.com>
+
+Description
+-----------
+
+This driver supports the Lattice POWR1220AT8 chip. The POWR1220
+includes voltage monitoring for 14 inputs as well as trim settings
+for output voltages and GPIOs. This driver implements the voltage
+monitoring portion of the chip.
+
+Voltages are sampled by a 12-bit ADC with a step size of 2 mV.
+An in-line attenuator allows measurements from 0 to 6 V. The
+attenuator is enabled or disabled depending on the setting of the
+input's max value. The driver will enable the attenuator for any
+value over the low measurement range maximum of 2 V.
+
+The input naming convention is as follows:
+
+============== ========
+driver name    pin name
+============== ========
+in0            VMON1
+in1            VMON2
+in2            VMON3
+in2            VMON4
+in4            VMON5
+in5            VMON6
+in6            VMON7
+in7            VMON8
+in8            VMON9
+in9            VMON10
+in10           VMON11
+in11           VMON12
+in12           VCCA
+in13           VCCINP
+============== ========
+
+The ADC readings are updated on request with a minimum period of 1s.

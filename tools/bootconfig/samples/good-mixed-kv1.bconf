@@ -1,0 +1,3 @@
+# value -> subkey pattern
+key = value
+key.subkey = another-value

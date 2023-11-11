@@ -1,0 +1,28 @@
+* Freescale 8xxx/3.0 Gb/s SATA nodes
+
+SATA nodes are defined to describe on-chip Serial ATA controllers.
+Each SATA port should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains 2 entries, first is
+		 "fsl,CHIP-sata", where CHIP is the processor
+		 (mpc8315, mpc8379, etc.) and the second is
+		 "fsl,pq-sata"
+- interrupts        : <interrupt mapping for SATA IRQ>
+- cell-index        : controller index.
+                          1 for controller @ 0x18000
+                          2 for controller @ 0x19000
+                          3 for controller @ 0x1a000
+                          4 for controller @ 0x1b000
+
+Optional properties:
+- reg               : <registers mapping>
+
+Example:
+	sata@18000 {
+		compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
+		reg = <0x18000 0x1000>;
+		cell-index = <1>;
+		interrupts = <2c 8>;
+		interrupt-parent = < &ipic >;
+	};

@@ -1,0 +1,159 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/panel-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Common Properties for Display Panels
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+
+description: |
+  This document defines device tree properties common to several classes of
+  display panels. It doesn't constitue a device tree binding specification by
+  itself but is meant to be referenced by device tree bindings.
+
+  When referenced from panel device tree bindings the properties defined in this
+  document are defined as follows. The panel device tree bindings are
+  responsible for defining whether each property is required or optional.
+
+properties:
+  # Descriptive Properties
+  width-mm:
+    description:
+      Specifies the width of the physical area where images are displayed. This
+      property is expressed in millimeters and rounded to the closest unit.
+
+  height-mm:
+    description:
+      Specifies the height of the physical area where images are displayed. This
+      property is expressed in millimeters and rounded to the closest unit.
+
+  label:
+    description: |
+      The label property specifies a symbolic name for the panel as a
+      string suitable for use by humans. It typically contains a name inscribed
+      on the system (e.g. as an affixed label) or specified in the system's
+      documentation (e.g. in the user's manual).
+
+      If no such name exists, and unless the property is mandatory according to
+      device tree bindings, it shall rather be omitted than constructed of
+      non-descriptive information. For instance an LCD panel in a system that
+      contains a single panel shall not be labelled "LCD" if that name is not
+      inscribed on the system or used in a descriptive fashion in system
+      documentation.
+
+  rotation:
+    description:
+      Display rotation in degrees counter clockwise (0,90,180,270)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 90, 180, 270]
+
+  # Display Timings
+  panel-timing:
+    description:
+      Most display panels are restricted to a single resolution and
+      require specific display timings. The panel-timing subnode expresses those
+      timings.
+    $ref: panel-timing.yaml#
+
+  display-timings:
+    description:
+      Some display panels support several resolutions with different timings.
+      The display-timings bindings supports specifying several timings and
+      optionally specifying which is the native mode.
+    $ref: display-timings.yaml#
+
+  # Connectivity
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+
+  ddc-i2c-bus:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Some panels expose EDID information through an I2C-compatible
+      bus such as DDC2 or E-DDC. For such panels the ddc-i2c-bus contains a
+      phandle to the system I2C controller connected to that bus.
+
+  no-hpd:
+    type: boolean
+    description:
+      This panel is supposed to communicate that it's ready via HPD
+      (hot plug detect) signal, but the signal isn't hooked up so we should
+      hardcode the max delay from the panel spec when powering up the panel.
+
+  hpd-gpios:
+    maxItems: 1
+    description:
+      If Hot Plug Detect (HPD) is connected to a GPIO in the system rather
+      than a dedicated HPD pin the pin can be specified here.
+
+  # Control I/Os
+
+  # Many display panels can be controlled through pins driven by GPIOs. The nature
+  # and timing of those control signals are device-specific and left for panel
+  # device tree bindings to specify. The following GPIO specifiers can however be
+  # used for panels that implement compatible control signals.
+
+  enable-gpios:
+    maxItems: 1
+    description: |
+      Specifier for a GPIO connected to the panel enable control signal. The
+      enable signal is active high and enables operation of the panel. This
+      property can also be used for panels implementing an active low power down
+      signal, which is a negated version of the enable signal. Active low enable
+      signals (or active high power down signals) can be supported by inverting
+      the GPIO specifier polarity flag.
+
+      Note that the enable signal control panel operation only and must not be
+      confused with a backlight enable signal.
+
+  reset-gpios:
+    maxItems: 1
+    description:
+      Specifier for a GPIO connected to the panel reset control signal.
+      The reset signal is active low and resets the panel internal logic
+      while active. Active high reset signals can be supported by inverting the
+      GPIO specifier polarity flag.
+
+  te-gpios:
+    maxItems: 1
+    description:
+      GPIO spec for the tearing effect synchronization signal.
+      The tearing effect signal is active high. Active low signals can be
+      supported by inverting the GPIO specifier polarity flag.
+
+  # Power
+  power-supply:
+    description:
+      Display panels require power to be supplied. While several panels need
+      more than one power supply with panel-specific constraints governing the
+      order and timings of the power supplies, in many cases a single power
+      supply is sufficient, either because the panel has a single power rail, or
+      because all its power rails can be driven by the same supply. In that case
+      the power-supply property specifies the supply powering the panel as a
+      phandle to a regulator.
+
+  # Backlight
+
+  # Most display panels include a backlight. Some of them also include a backlight
+  # controller exposed through a control bus such as I2C or DSI. Others expose
+  # backlight control through GPIO, PWM or other signals connected to an external
+  # backlight controller.
+
+  backlight:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      For panels whose backlight is controlled by an external backlight
+      controller, this property contains a phandle that references the
+      controller.
+
+dependencies:
+  width-mm: [ height-mm ]
+  height-mm: [ width-mm ]
+
+additionalProperties: true
+
+...

@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SUNXI_CCU
+	tristate "Clock support for Allwinner SoCs"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select RESET_CONTROLLER
+	default ARCH_SUNXI
+
+if SUNXI_CCU
+
+config SUNIV_F1C100S_CCU
+	tristate "Support for the Allwinner newer F1C100s CCU"
+	default MACH_SUNIV
+	depends on MACH_SUNIV || COMPILE_TEST
+
+config SUN20I_D1_CCU
+	tristate "Support for the Allwinner D1 CCU"
+	default RISCV && ARCH_SUNXI
+	depends on (RISCV && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN20I_D1_R_CCU
+	tristate "Support for the Allwinner D1 PRCM CCU"
+	default RISCV && ARCH_SUNXI
+	depends on (RISCV && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_A64_CCU
+	tristate "Support for the Allwinner A64 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_A100_CCU
+	tristate "Support for the Allwinner A100 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_A100_R_CCU
+	tristate "Support for the Allwinner A100 PRCM CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_H6_CCU
+	tristate "Support for the Allwinner H6 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_H616_CCU
+	tristate "Support for the Allwinner H616 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN50I_H6_R_CCU
+	tristate "Support for the Allwinner H6 and H616 PRCM CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN4I_A10_CCU
+	tristate "Support for the Allwinner A10/A20 CCU"
+	default MACH_SUN4I
+	default MACH_SUN7I
+	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
+
+config SUN5I_CCU
+	bool "Support for the Allwinner sun5i family CCM"
+	default MACH_SUN5I
+	depends on MACH_SUN5I || COMPILE_TEST
+	depends on SUNXI_CCU=y
+
+config SUN6I_A31_CCU
+	tristate "Support for the Allwinner A31/A31s CCU"
+	default MACH_SUN6I
+	depends on MACH_SUN6I || COMPILE_TEST
+
+config SUN6I_RTC_CCU
+	tristate "Support for the Allwinner H616/R329 RTC CCU"
+	default ARCH_SUNXI
+	depends on ARCH_SUNXI || COMPILE_TEST
+
+config SUN8I_A23_CCU
+	tristate "Support for the Allwinner A23 CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
+config SUN8I_A33_CCU
+	tristate "Support for the Allwinner A33 CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
+config SUN8I_A83T_CCU
+	tristate "Support for the Allwinner A83T CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
+config SUN8I_H3_CCU
+	tristate "Support for the Allwinner H3 CCU"
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
+	depends on MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
+config SUN8I_V3S_CCU
+	tristate "Support for the Allwinner V3s CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
+config SUN8I_DE2_CCU
+	tristate "Support for the Allwinner SoCs DE2 CCU"
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
+
+config SUN8I_R40_CCU
+	tristate "Support for the Allwinner R40 CCU"
+	default MACH_SUN8I
+	depends on MACH_SUN8I || COMPILE_TEST
+
+config SUN9I_A80_CCU
+	tristate "Support for the Allwinner A80 CCU"
+	default MACH_SUN9I
+	depends on MACH_SUN9I || COMPILE_TEST
+
+config SUN8I_R_CCU
+	tristate "Support for Allwinner SoCs' PRCM CCUs"
+	default MACH_SUN8I || (ARCH_SUNXI && ARM64)
+
+endif

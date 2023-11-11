@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig SOUND
+	tristate "Sound card support"
+	depends on HAS_IOMEM
+	help
+	  If you have a sound card in your computer, i.e. if it can say more
+	  than an occasional beep, say Y.
+
+if SOUND
+
+config SOUND_OSS_CORE
+	bool
+	default n
+
+config SOUND_OSS_CORE_PRECLAIM
+	bool "Preclaim OSS device numbers"
+	depends on SOUND_OSS_CORE
+	default y
+	help
+	  With this option enabled, the kernel will claim all OSS device
+	  numbers if any OSS support (native or emulation) is enabled
+	  whether the respective module is loaded or not and try to load the
+	  appropriate module using sound-slot/service-* and char-major-*
+	  module aliases when one of the device numbers is opened.  With
+	  this option disabled, kernel will only claim actually in-use
+	  device numbers and opening a missing device will generate only the
+	  standard char-major-* aliases.
+
+	  The only visible difference is use of additional module aliases
+	  and whether OSS sound devices appear multiple times in
+	  /proc/devices.  sound-slot/service-* module aliases are scheduled
+	  to be removed (ie. PRECLAIM won't be available) and this option is
+	  to make the transition easier.  This option can be overridden
+	  during boot using the kernel parameter soundcore.preclaim_oss.
+
+	  Disabling this allows alternative OSS implementations.
+
+	  If unsure, say Y.
+
+source "sound/oss/dmasound/Kconfig"
+
+if !UML
+
+menuconfig SND
+	tristate "Advanced Linux Sound Architecture"
+	help
+	  Say 'Y' or 'M' to enable ALSA (Advanced Linux Sound Architecture),
+	  the new base sound system.
+
+	  For more information, see <http://www.alsa-project.org/>
+
+if SND
+
+source "sound/core/Kconfig"
+
+source "sound/drivers/Kconfig"
+
+source "sound/isa/Kconfig"
+
+source "sound/pci/Kconfig"
+
+source "sound/hda/Kconfig"
+
+source "sound/ppc/Kconfig"
+
+source "sound/ac97/Kconfig"
+
+source "sound/aoa/Kconfig"
+
+source "sound/arm/Kconfig"
+
+source "sound/atmel/Kconfig"
+
+source "sound/spi/Kconfig"
+
+source "sound/mips/Kconfig"
+
+source "sound/sh/Kconfig"
+
+# the following will depend on the order of config.
+# here assuming USB is defined before ALSA
+source "sound/usb/Kconfig"
+
+source "sound/firewire/Kconfig"
+
+# the following will depend on the order of config.
+# here assuming PCMCIA is defined before ALSA
+source "sound/pcmcia/Kconfig"
+
+source "sound/sparc/Kconfig"
+
+source "sound/parisc/Kconfig"
+
+source "sound/soc/Kconfig"
+
+source "sound/x86/Kconfig"
+
+source "sound/synth/Kconfig"
+
+source "sound/xen/Kconfig"
+
+source "sound/virtio/Kconfig"
+
+endif # SND
+
+endif # !UML
+
+endif # SOUND
+
+# AC97_BUS is used from both sound and ucb1400
+config AC97_BUS
+	tristate
+	help
+	  This is used to avoid config and link hard dependencies between the
+	  sound subsystem and other function drivers completely unrelated to
+	  sound although they're sharing the AC97 bus. Concerned drivers
+	  should "select" this.

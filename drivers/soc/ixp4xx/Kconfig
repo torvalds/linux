@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if ARCH_IXP4XX || COMPILE_TEST
+
+menu "IXP4xx SoC drivers"
+
+config IXP4XX_QMGR
+	tristate "IXP4xx Queue Manager support"
+	help
+	  This driver supports IXP4xx built-in hardware queue manager
+	  and is automatically selected by Ethernet and HSS drivers.
+
+config IXP4XX_NPE
+	tristate "IXP4xx Network Processor Engine support"
+	select FW_LOADER
+	select MFD_SYSCON
+	help
+	  This driver supports IXP4xx built-in network coprocessors
+	  and is automatically selected by Ethernet and HSS drivers.
+
+endmenu
+
+endif

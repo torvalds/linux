@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/marvell,mmp2-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell MMP2 and MMP3 Clock Controller
+
+maintainers:
+  - Lubomir Rintel <lkundrak@v3.sk>
+
+description: |
+  The clock subsystem on MMP2 or MMP3 generates and supplies clock to various
+  controllers within the SoC.
+
+  Each clock is assigned an identifier and client nodes use this identifier
+  to specify the clock which they consume.
+
+  All these identifiers could be found in <dt-bindings/clock/marvell,mmp2.h>.
+
+properties:
+  compatible:
+    enum:
+      - marvell,mmp2-clock # controller compatible with MMP2 SoC
+      - marvell,mmp3-clock # controller compatible with MMP3 SoC
+
+  reg:
+    items:
+      - description: MPMU register region
+      - description: APMU register region
+      - description: APBC register region
+
+  reg-names:
+    items:
+      - const: mpmu
+      - const: apmu
+      - const: apbc
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+  '#power-domain-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - '#clock-cells'
+  - '#reset-cells'
+  - '#power-domain-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@d4050000 {
+      compatible = "marvell,mmp2-clock";
+      reg = <0xd4050000 0x1000>,
+            <0xd4282800 0x400>,
+            <0xd4015000 0x1000>;
+      reg-names = "mpmu", "apmu", "apbc";
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      #power-domain-cells = <1>;
+    };

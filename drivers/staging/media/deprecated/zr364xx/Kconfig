@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config USB_ZR364XX
+	tristate "USB ZR364XX Camera support (DEPRECATED)"
+	depends on USB && VIDEO_DEV
+	select VIDEOBUF_GEN
+	select VIDEOBUF_VMALLOC
+	help
+	  Say Y here if you want to connect this type of camera to your
+	  computer's USB port.
+	  See <file:Documentation/admin-guide/media/zr364xx.rst> for more info
+	  and list of supported cameras.
+
+	  This driver is deprecated and is scheduled for removal by
+	  the beginning of 2023. See the TODO file for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zr364xx.
+

@@ -1,0 +1,84 @@
+* System Management Interface (SMI) / MDIO
+
+Properties:
+- compatible: One of:
+
+   "cavium,octeon-3860-mdio": Compatibility with all cn3XXX, cn5XXX
+                       and cn6XXX SOCs.
+
+   "cavium,thunder-8890-mdio": Compatibility with all cn8XXX SOCs.
+
+- reg: The base address of the MDIO bus controller register bank.
+
+- #address-cells: Must be <1>.
+
+- #size-cells: Must be <0>.  MDIO addresses have no size component.
+
+Typically an MDIO bus might have several children.
+
+Example:
+	mdio@1180000001800 {
+		compatible = "cavium,octeon-3860-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x11800 0x00001800 0x0 0x40>;
+
+		ethernet-phy@0 {
+			...
+			reg = <0>;
+		};
+	};
+
+
+* System Management Interface (SMI) / MDIO Nexus
+
+  Several mdio buses may be gathered as children of a single PCI
+  device, this PCI device is the nexus of the buses.
+
+Properties:
+
+- compatible: "cavium,thunder-8890-mdio-nexus";
+
+- reg: The PCI device and function numbers of the nexus device.
+
+- #address-cells: Must be <2>.
+
+- #size-cells: Must be <2>.
+
+- ranges: As needed for mapping of the MDIO bus device registers.
+
+- assigned-addresses: As needed for mapping of the MDIO bus device registers.
+
+Example:
+
+        mdio-nexus@1,3 {
+                compatible = "cavium,thunder-8890-mdio-nexus";
+                #address-cells = <2>;
+                #size-cells = <2>;
+                reg = <0x0b00 0 0 0 0>; /* DEVFN = 0x0b (1:3) */
+                assigned-addresses = <0x03000000 0x87e0 0x05000000 0x0 0x800000>;
+                ranges = <0x87e0 0x05000000 0x03000000 0x87e0 0x05000000 0x0 0x800000>;
+
+                mdio0@87e0,05003800 {
+                        compatible = "cavium,thunder-8890-mdio";
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        reg = <0x87e0 0x05003800 0x0 0x30>;
+
+                        ethernet-phy@0 {
+                                ...
+                                reg = <0>;
+                        };
+                };
+                mdio0@87e0,05003880 {
+                        compatible = "cavium,thunder-8890-mdio";
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+                        reg = <0x87e0 0x05003880 0x0 0x30>;
+
+                        ethernet-phy@0 {
+                                ...
+                                reg = <0>;
+                        };
+                };
+        };

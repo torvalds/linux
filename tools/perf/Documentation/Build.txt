@@ -1,0 +1,73 @@
+
+1) perf build
+=============
+The perf build process consists of several separated building blocks,
+which are linked together to form the perf binary:
+  - libperf library (static)
+  - perf builtin commands
+  - traceevent library (static)
+  - GTK ui library
+
+Several makefiles govern the perf build:
+
+  - Makefile
+    top level Makefile working as a wrapper that calls the main
+    Makefile.perf with a -j option to do parallel builds.
+
+  - Makefile.perf
+    main makefile that triggers build of all perf objects including
+    installation and documentation processing.
+
+  - tools/build/Makefile.build
+    main makefile of the build framework
+
+  - tools/build/Build.include
+    build framework generic definitions
+
+  - Build makefiles
+    makefiles that defines build objects
+
+Please refer to tools/build/Documentation/Build.txt for more
+information about build framework.
+
+
+2) perf build
+=============
+The Makefile.perf triggers the build framework for build objects:
+   perf, libperf, gtk
+
+resulting in following objects:
+  $ ls  *-in.o
+  gtk-in.o  libperf-in.o  perf-in.o
+
+Those objects are then used in final linking:
+  libperf-gtk.so <- gtk-in.o  libperf-in.o
+  perf           <- perf-in.o libperf-in.o
+
+
+NOTE this description is omitting other libraries involved, only
+     focusing on build framework outcomes
+
+3) Build with ASan or UBSan
+==========================
+  $ cd tools/perf
+  $ make DESTDIR=/usr
+  $ make DESTDIR=/usr install
+
+AddressSanitizer (or ASan) is a GCC feature that detects memory corruption bugs
+such as buffer overflows and memory leaks.
+
+  $ cd tools/perf
+  $ make DEBUG=1 EXTRA_CFLAGS='-fno-omit-frame-pointer -fsanitize=address'
+  $ ASAN_OPTIONS=log_path=asan.log ./perf record -a
+
+ASan outputs all detected issues into a log file named 'asan.log.<pid>'.
+
+UndefinedBehaviorSanitizer (or UBSan) is a fast undefined behavior detector
+supported by GCC. UBSan detects undefined behaviors of programs at runtime.
+
+  $ cd tools/perf
+  $ make DEBUG=1 EXTRA_CFLAGS='-fno-omit-frame-pointer -fsanitize=undefined'
+  $ UBSAN_OPTIONS=print_stacktrace=1 ./perf record -a
+
+If UBSan detects any problem at runtime, it outputs a “runtime error:” message.

@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# asm headers that all architectures except um should have
+# (This file is not included when SRCARCH=um since UML borrows several
+# asm headers from the host architecutre.)
+
+mandatory-y += atomic.h
+mandatory-y += archrandom.h
+mandatory-y += barrier.h
+mandatory-y += bitops.h
+mandatory-y += bug.h
+mandatory-y += bugs.h
+mandatory-y += cacheflush.h
+mandatory-y += checksum.h
+mandatory-y += compat.h
+mandatory-y += current.h
+mandatory-y += delay.h
+mandatory-y += device.h
+mandatory-y += div64.h
+mandatory-y += dma-mapping.h
+mandatory-y += dma.h
+mandatory-y += emergency-restart.h
+mandatory-y += exec.h
+mandatory-y += fb.h
+mandatory-y += ftrace.h
+mandatory-y += futex.h
+mandatory-y += hardirq.h
+mandatory-y += hw_irq.h
+mandatory-y += io.h
+mandatory-y += irq.h
+mandatory-y += irq_regs.h
+mandatory-y += irq_work.h
+mandatory-y += kdebug.h
+mandatory-y += kmap_size.h
+mandatory-y += kprobes.h
+mandatory-y += linkage.h
+mandatory-y += local.h
+mandatory-y += local64.h
+mandatory-y += mmiowb.h
+mandatory-y += mmu.h
+mandatory-y += mmu_context.h
+mandatory-y += module.h
+mandatory-y += module.lds.h
+mandatory-y += msi.h
+mandatory-y += pci.h
+mandatory-y += percpu.h
+mandatory-y += pgalloc.h
+mandatory-y += preempt.h
+mandatory-y += rwonce.h
+mandatory-y += sections.h
+mandatory-y += serial.h
+mandatory-y += shmparam.h
+mandatory-y += simd.h
+mandatory-y += softirq_stack.h
+mandatory-y += switch_to.h
+mandatory-y += timex.h
+mandatory-y += tlbflush.h
+mandatory-y += topology.h
+mandatory-y += trace_clock.h
+mandatory-y += uaccess.h
+mandatory-y += unaligned.h
+mandatory-y += vermagic.h
+mandatory-y += vga.h
+mandatory-y += word-at-a-time.h
+mandatory-y += xor.h

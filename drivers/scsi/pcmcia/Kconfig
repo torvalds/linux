@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PCMCIA SCSI adapter configuration
+#
+
+menuconfig SCSI_LOWLEVEL_PCMCIA
+	bool "PCMCIA SCSI adapter support"
+	depends on SCSI!=n && PCMCIA!=n
+
+# drivers have problems when build in, so require modules
+if SCSI_LOWLEVEL_PCMCIA && SCSI && PCMCIA && m
+
+config PCMCIA_AHA152X
+	tristate "Adaptec AHA152X PCMCIA support"
+	select SCSI_SPI_ATTRS
+	help
+	  Say Y here if you intend to attach this type of PCMCIA SCSI host
+	  adapter to your computer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called aha152x_cs.
+
+config PCMCIA_FDOMAIN
+	tristate "Future Domain PCMCIA support"
+	select SCSI_FDOMAIN
+	help
+	  Say Y here if you intend to attach this type of PCMCIA SCSI host
+	  adapter to your computer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called fdomain_cs.
+
+config PCMCIA_NINJA_SCSI
+	tristate "NinjaSCSI-3 / NinjaSCSI-32Bi (16bit) PCMCIA support"
+	depends on !64BIT || COMPILE_TEST
+	help
+	  If you intend to attach this type of PCMCIA SCSI host adapter to
+	  your computer, say Y here and read
+	  <file:Documentation/scsi/NinjaSCSI.rst>.
+
+	  Supported cards:
+
+	  NinjaSCSI-3: (version string: "WBT","NinjaSCSI-3","R1.0")
+	    IO-DATA     PCSC-FP
+	    ALPHA DATA  AD-PCS201
+	    CyQ've      SFC-201  
+	    LOGITECH    LPM-SCSI2E
+	    Pioneer PCR-PR24's card
+	    I-O DATA CDPS-PX24's card (PCSC-F)
+	    Panasonic KXL-RW10AN CD-RW's card
+	    etc.
+
+	  NinjaSCSI-32Bit (in 16bit mode):
+	    [Workbit (version string: "WORKBIT","UltraNinja-16","1")]
+	    Jazz SCP050
+	    [I-O DATA (OEM) (version string: "IO DATA","CBSC16       ","1")]
+	    I-O DATA CBSC-II
+	    [Kyusyu Matsushita Kotobuki (OEM)
+               (version string: "KME    ","SCSI-CARD-001","1")]
+	    KME KXL-820AN's card
+	    HP M820e CDRW's card
+	    etc.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nsp_cs.
+
+config PCMCIA_QLOGIC
+	tristate "Qlogic PCMCIA support"
+	help
+	  Say Y here if you intend to attach this type of PCMCIA SCSI host
+	  adapter to your computer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qlogic_cs.
+
+config PCMCIA_SYM53C500
+	tristate "Symbios 53c500 PCMCIA support"
+	help
+	  Say Y here if you have a New Media Bus Toaster or other PCMCIA
+	  SCSI adapter based on the Symbios 53c500 controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sym53c500_cs.
+
+endif # SCSI_LOWLEVEL_PCMCIA

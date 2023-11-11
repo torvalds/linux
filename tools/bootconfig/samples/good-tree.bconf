@@ -1,0 +1,12 @@
+key {
+  word {
+    tree {
+      value = "0"}
+  }
+  word2 {
+    tree {
+      value = 1,2 }
+  }
+}
+other.tree {
+  value = 2; value2 = 3;}

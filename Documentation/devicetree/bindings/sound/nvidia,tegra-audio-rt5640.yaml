@@ -1,0 +1,84 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-rt5640.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with RT5639 or RT5640 CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - pattern: '^[a-z0-9]+,tegra-audio-rt56(39|40)(-[a-z0-9]+)+$'
+      - const: nvidia,tegra-audio-rt5640
+
+  nvidia,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components.
+      Each entry is a pair of strings, the first being the connection's sink,
+      the second being the connection's source. Valid names for sources and
+      sinks are the pins (documented in the binding document),
+      and the jacks on the board.
+    minItems: 2
+    items:
+      enum:
+        # Board Connectors
+        - "Headphones"
+        - "Speakers"
+        - "Mic Jack"
+
+        # CODEC Pins
+        - DMIC1
+        - DMIC2
+        - MICBIAS1
+        - IN1P
+        - IN1R
+        - IN2P
+        - IN2R
+        - HPOL
+        - HPOR
+        - LOUTL
+        - LOUTR
+        - MONOP
+        - MONON
+        - SPOLP
+        - SPOLN
+        - SPORP
+        - SPORN
+
+required:
+  - nvidia,i2s-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "nvidia,tegra-audio-rt5640-dalmore",
+                     "nvidia,tegra-audio-rt5640";
+        nvidia,model = "NVIDIA Tegra Dalmore";
+
+        nvidia,audio-routing =
+                "Headphones", "HPOR",
+                "Headphones", "HPOL",
+                "Speakers", "SPORP",
+                "Speakers", "SPORN",
+                "Speakers", "SPOLP",
+                "Speakers", "SPOLN";
+
+        nvidia,i2s-controller = <&tegra_i2s1>;
+        nvidia,audio-codec = <&rt5640>;
+
+        nvidia,hp-det-gpios = <&gpio 143 0>;
+
+        clocks = <&clk 216>, <&clk 217>, <&clk 120>;
+        clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

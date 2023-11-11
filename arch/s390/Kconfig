@@ -1,0 +1,930 @@
+# SPDX-License-Identifier: GPL-2.0
+config MMU
+	def_bool y
+
+config CPU_BIG_ENDIAN
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config ARCH_HAS_ILOG2_U32
+	def_bool n
+
+config ARCH_HAS_ILOG2_U64
+	def_bool n
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config GENERIC_BUG
+	def_bool y if BUG
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+
+config GENERIC_LOCKBREAK
+	def_bool y if PREEMPTION
+
+config PGSTE
+	def_bool y if KVM
+
+config AUDIT_ARCH
+	def_bool y
+
+config NO_IOPORT_MAP
+	def_bool y
+
+config PCI_QUIRKS
+	def_bool n
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
+
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN
+	default 0x1C000000000000
+
+config S390
+	def_bool y
+	#
+	# Note: keep this list sorted alphabetically
+	#
+	imply IMA_SECURE_AND_OR_TRUSTED_BOOT
+	select ALTERNATE_USER_ADDRESS_SPACE
+	select ARCH_32BIT_USTAT_F_TINODE
+	select ARCH_BINFMT_ELF_STATE
+	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE
+	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
+	select ARCH_ENABLE_MEMORY_HOTREMOVE
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_HAS_CURRENT_STACK_POINTER
+	select ARCH_HAS_DEBUG_VM_PGTABLE
+	select ARCH_HAS_DEBUG_WX
+	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
+	select ARCH_HAS_FORTIFY_SOURCE
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_GIGANTIC_PAGE
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_MEM_ENCRYPT
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_SCALED_CPUTIME
+	select ARCH_HAS_SET_MEMORY
+	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
+	select ARCH_HAS_SYSCALL_WRAPPER
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_VDSO_DATA
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select ARCH_INLINE_READ_LOCK
+	select ARCH_INLINE_READ_LOCK_BH
+	select ARCH_INLINE_READ_LOCK_IRQ
+	select ARCH_INLINE_READ_LOCK_IRQSAVE
+	select ARCH_INLINE_READ_TRYLOCK
+	select ARCH_INLINE_READ_UNLOCK
+	select ARCH_INLINE_READ_UNLOCK_BH
+	select ARCH_INLINE_READ_UNLOCK_IRQ
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_SPIN_LOCK
+	select ARCH_INLINE_SPIN_LOCK_BH
+	select ARCH_INLINE_SPIN_LOCK_IRQ
+	select ARCH_INLINE_SPIN_LOCK_IRQSAVE
+	select ARCH_INLINE_SPIN_TRYLOCK
+	select ARCH_INLINE_SPIN_TRYLOCK_BH
+	select ARCH_INLINE_SPIN_UNLOCK
+	select ARCH_INLINE_SPIN_UNLOCK_BH
+	select ARCH_INLINE_SPIN_UNLOCK_IRQ
+	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE
+	select ARCH_INLINE_WRITE_LOCK
+	select ARCH_INLINE_WRITE_LOCK_BH
+	select ARCH_INLINE_WRITE_LOCK_IRQ
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE
+	select ARCH_INLINE_WRITE_TRYLOCK
+	select ARCH_INLINE_WRITE_UNLOCK
+	select ARCH_INLINE_WRITE_UNLOCK_BH
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+	select ARCH_STACKWALK
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select ARCH_USE_BUILTIN_BSWAP
+	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
+	select ARCH_WANTS_NO_INSTR
+	select ARCH_WANT_DEFAULT_BPF_JIT
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select BUILDTIME_TABLE_SORT
+	select CLONE_BACKWARDS2
+	select DMA_OPS if PCI
+	select DYNAMIC_FTRACE if FUNCTION_TRACER
+	select GCC12_NO_ARRAY_BOUNDS
+	select GENERIC_ALLOCATOR
+	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_VULNERABILITIES
+	select GENERIC_ENTRY
+	select GENERIC_GETTIMEOFDAY
+	select GENERIC_PTDUMP
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_TIME_NS
+	select HAVE_ALIGNED_STRUCT_PAGE if SLUB
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KASAN
+	select HAVE_ARCH_KASAN_VMALLOC
+	select HAVE_ARCH_KCSAN
+	select HAVE_ARCH_KFENCE
+	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_SOFT_DIRTY
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_VMAP_STACK
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_CMPXCHG_DOUBLE
+	select HAVE_CMPXCHG_LOCAL
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DMA_CONTIGUOUS
+	select HAVE_DYNAMIC_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
+	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select HAVE_FAST_GUP
+	select HAVE_FENTRY
+	select HAVE_FTRACE_MCOUNT_RECORD
+	select HAVE_FUNCTION_ARG_ACCESS_API
+	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER
+	select HAVE_GCC_PLUGINS
+	select HAVE_GENERIC_VDSO
+	select HAVE_IOREMAP_PROT if PCI
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_UNCOMPRESSED
+	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
+	select HAVE_KPROBES
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_KRETPROBES
+	select HAVE_KVM
+	select HAVE_LIVEPATCH
+	select HAVE_MEMBLOCK_PHYS_MAP
+	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NMI
+	select HAVE_NOP_MCOUNT
+	select HAVE_PCI
+	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RELIABLE_STACKTRACE
+	select HAVE_RSEQ
+	select HAVE_SAMPLE_FTRACE_DIRECT
+	select HAVE_SAMPLE_FTRACE_DIRECT_MULTI
+	select HAVE_SOFTIRQ_ON_OWN_STACK
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_VIRT_CPU_ACCOUNTING
+	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
+	select IOMMU_HELPER		if PCI
+	select IOMMU_SUPPORT		if PCI
+	select MMU_GATHER_NO_GATHER
+	select MMU_GATHER_RCU_TABLE_FREE
+	select MMU_GATHER_MERGE_VMAS
+	select MODULES_USE_ELF_RELA
+	select NEED_DMA_MAP_STATE	if PCI
+	select NEED_SG_DMA_LENGTH	if PCI
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND3
+	select PCI_DOMAINS		if PCI
+	select PCI_MSI			if PCI
+	select PCI_MSI_ARCH_FALLBACKS	if PCI_MSI
+	select SPARSE_IRQ
+	select SWIOTLB
+	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
+	select TRACE_IRQFLAGS_SUPPORT
+	select TTY
+	select VIRT_CPU_ACCOUNTING
+	select ZONE_DMA
+	# Note: keep the above list sorted alphabetically
+
+config SCHED_OMIT_FRAME_POINTER
+	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 5
+
+source "kernel/livepatch/Kconfig"
+
+menu "Processor type and features"
+
+config HAVE_MARCH_Z10_FEATURES
+	def_bool n
+
+config HAVE_MARCH_Z196_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z10_FEATURES
+
+config HAVE_MARCH_ZEC12_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z196_FEATURES
+
+config HAVE_MARCH_Z13_FEATURES
+	def_bool n
+	select HAVE_MARCH_ZEC12_FEATURES
+
+config HAVE_MARCH_Z14_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z13_FEATURES
+
+config HAVE_MARCH_Z15_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z14_FEATURES
+
+config HAVE_MARCH_Z16_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z15_FEATURES
+
+choice
+	prompt "Processor type"
+	default MARCH_Z196
+
+config MARCH_Z10
+	bool "IBM System z10"
+	select HAVE_MARCH_Z10_FEATURES
+	depends on $(cc-option,-march=z10)
+	help
+	  Select this to enable optimizations for IBM System z10 (2097 and 2098
+	  series). This is the oldest machine generation currently supported.
+
+config MARCH_Z196
+	bool "IBM zEnterprise 114 and 196"
+	select HAVE_MARCH_Z196_FEATURES
+	depends on $(cc-option,-march=z196)
+	help
+	  Select this to enable optimizations for IBM zEnterprise 114 and 196
+	  (2818 and 2817 series). The kernel will be slightly faster but will
+	  not work on older machines.
+
+config MARCH_ZEC12
+	bool "IBM zBC12 and zEC12"
+	select HAVE_MARCH_ZEC12_FEATURES
+	depends on $(cc-option,-march=zEC12)
+	help
+	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
+	  2827 series). The kernel will be slightly faster but will not work on
+	  older machines.
+
+config MARCH_Z13
+	bool "IBM z13s and z13"
+	select HAVE_MARCH_Z13_FEATURES
+	depends on $(cc-option,-march=z13)
+	help
+	  Select this to enable optimizations for IBM z13s and z13 (2965 and
+	  2964 series). The kernel will be slightly faster but will not work on
+	  older machines.
+
+config MARCH_Z14
+	bool "IBM z14 ZR1 and z14"
+	select HAVE_MARCH_Z14_FEATURES
+	depends on $(cc-option,-march=z14)
+	help
+	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
+	  and 3906 series). The kernel will be slightly faster but will not
+	  work on older machines.
+
+config MARCH_Z15
+	bool "IBM z15"
+	select HAVE_MARCH_Z15_FEATURES
+	depends on $(cc-option,-march=z15)
+	help
+	  Select this to enable optimizations for IBM z15 (8562
+	  and 8561 series). The kernel will be slightly faster but will not
+	  work on older machines.
+
+config MARCH_Z16
+	bool "IBM z16"
+	select HAVE_MARCH_Z16_FEATURES
+	depends on $(cc-option,-march=z16)
+	help
+	  Select this to enable optimizations for IBM z16 (3931 and
+	  3932 series).
+
+endchoice
+
+config MARCH_Z10_TUNE
+	def_bool TUNE_Z10 || MARCH_Z10 && TUNE_DEFAULT
+
+config MARCH_Z196_TUNE
+	def_bool TUNE_Z196 || MARCH_Z196 && TUNE_DEFAULT
+
+config MARCH_ZEC12_TUNE
+	def_bool TUNE_ZEC12 || MARCH_ZEC12 && TUNE_DEFAULT
+
+config MARCH_Z13_TUNE
+	def_bool TUNE_Z13 || MARCH_Z13 && TUNE_DEFAULT
+
+config MARCH_Z14_TUNE
+	def_bool TUNE_Z14 || MARCH_Z14 && TUNE_DEFAULT
+
+config MARCH_Z15_TUNE
+	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
+
+config MARCH_Z16_TUNE
+	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
+
+choice
+	prompt "Tune code generation"
+	default TUNE_DEFAULT
+	help
+	  Cause the compiler to tune (-mtune) the generated code for a machine.
+	  This will make the code run faster on the selected machine but
+	  somewhat slower on other machines.
+	  This option only changes how the compiler emits instructions, not the
+	  selection of instructions itself, so the resulting kernel will run on
+	  all other machines.
+
+config TUNE_DEFAULT
+	bool "Default"
+	help
+	  Tune the generated code for the target processor for which the kernel
+	  will be compiled.
+
+config TUNE_Z10
+	bool "IBM System z10"
+
+config TUNE_Z196
+	bool "IBM zEnterprise 114 and 196"
+	depends on $(cc-option,-mtune=z196)
+
+config TUNE_ZEC12
+	bool "IBM zBC12 and zEC12"
+	depends on $(cc-option,-mtune=zEC12)
+
+config TUNE_Z13
+	bool "IBM z13s and z13"
+	depends on $(cc-option,-mtune=z13)
+
+config TUNE_Z14
+	bool "IBM z14 ZR1 and z14"
+	depends on $(cc-option,-mtune=z14)
+
+config TUNE_Z15
+	bool "IBM z15"
+	depends on $(cc-option,-mtune=z15)
+
+config TUNE_Z16
+	bool "IBM z16"
+	depends on $(cc-option,-mtune=z16)
+
+endchoice
+
+config 64BIT
+	def_bool y
+
+config COMMAND_LINE_SIZE
+	int "Maximum size of kernel command line"
+	default 4096
+	range 896 1048576
+	help
+	  This allows you to specify the maximum length of the kernel command
+	  line.
+
+config COMPAT
+	def_bool y
+	prompt "Kernel support for 31 bit emulation"
+	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
+	select HAVE_UID16
+	depends on MULTIUSER
+	depends on !CC_IS_CLANG
+	help
+	  Select this option if you want to enable your system kernel to
+	  handle system-calls from ELF binaries for 31 bit ESA.  This option
+	  (and some other stuff like libraries and such) is needed for
+	  executing 31 bit applications.  It is safe to say "Y".
+
+config SMP
+	def_bool y
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-512)"
+	range 2 512
+	default "64"
+	help
+	  This allows you to specify the maximum number of CPUs which this
+	  kernel will support. The maximum supported value is 512 and the
+	  minimum value which makes sense is 2.
+
+	  This is purely to save memory - each supported CPU adds
+	  approximately sixteen kilobytes to the kernel image.
+
+config HOTPLUG_CPU
+	def_bool y
+
+config NUMA
+	bool "NUMA support"
+	depends on SCHED_TOPOLOGY
+	default n
+	help
+	  Enable NUMA support
+
+	  This option adds NUMA support to the kernel.
+
+config NODES_SHIFT
+	int
+	depends on NUMA
+	default "1"
+
+config SCHED_SMT
+	def_bool n
+
+config SCHED_MC
+	def_bool n
+
+config SCHED_BOOK
+	def_bool n
+
+config SCHED_DRAWER
+	def_bool n
+
+config SCHED_TOPOLOGY
+	def_bool y
+	prompt "Topology scheduler support"
+	select SCHED_SMT
+	select SCHED_MC
+	select SCHED_BOOK
+	select SCHED_DRAWER
+	help
+	  Topology scheduler support improves the CPU scheduler's decision
+	  making when dealing with machines that have multi-threading,
+	  multiple cores or multiple books.
+
+source "kernel/Kconfig.hz"
+
+config KEXEC
+	def_bool y
+	select KEXEC_CORE
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	depends on CRYPTO
+	depends on CRYPTO_SHA256
+	depends on CRYPTO_SHA256_S390
+	help
+	  Enable the kexec file based system call. In contrast to the normal
+	  kexec system call this system call takes file descriptors for the
+	  kernel and initramfs as arguments.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool y
+	depends on KEXEC_FILE
+
+config KEXEC_SIG
+	bool "Verify kernel signature during kexec_file_load() syscall"
+	depends on KEXEC_FILE && MODULE_SIG_FORMAT
+	help
+	  This option makes kernel signature verification mandatory for
+	  the kexec_file_load() syscall.
+
+	  In addition to that option, you need to enable signature
+	  verification for the corresponding kernel image type being
+	  loaded in order for this to work.
+
+config KERNEL_NOBP
+	def_bool n
+	prompt "Enable modified branch prediction for the kernel by default"
+	help
+	  If this option is selected the kernel will switch to a modified
+	  branch prediction mode if the firmware interface is available.
+	  The modified branch prediction mode improves the behaviour in
+	  regard to speculative execution.
+
+	  With the option enabled the kernel parameter "nobp=0" or "nospec"
+	  can be used to run the kernel in the normal branch prediction mode.
+
+	  With the option disabled the modified branch prediction mode is
+	  enabled with the "nobp=1" kernel parameter.
+
+	  If unsure, say N.
+
+config EXPOLINE
+	def_bool n
+	depends on $(cc-option,-mindirect-branch=thunk)
+	prompt "Avoid speculative indirect branches in the kernel"
+	help
+	  Compile the kernel with the expoline compiler options to guard
+	  against kernel-to-user data leaks by avoiding speculative indirect
+	  branches.
+	  Requires a compiler with -mindirect-branch=thunk support for full
+	  protection. The kernel may run slower.
+
+	  If unsure, say N.
+
+config EXPOLINE_EXTERN
+	def_bool n
+	depends on EXPOLINE
+	depends on CC_IS_GCC && GCC_VERSION >= 110200
+	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
+	prompt "Generate expolines as extern functions."
+	help
+	  This option is required for some tooling like kpatch. The kernel is
+	  compiled with -mindirect-branch=thunk-extern and requires a newer
+	  compiler.
+
+	  If unsure, say N.
+
+choice
+	prompt "Expoline default"
+	depends on EXPOLINE
+	default EXPOLINE_FULL
+
+config EXPOLINE_OFF
+	bool "spectre_v2=off"
+
+config EXPOLINE_AUTO
+	bool "spectre_v2=auto"
+
+config EXPOLINE_FULL
+	bool "spectre_v2=on"
+
+endchoice
+
+config RELOCATABLE
+	def_bool y
+	help
+	  This builds a kernel image that retains relocation information
+	  so it can be loaded at an arbitrary address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early in the
+	  bootup process.
+	  The relocations make the kernel image about 15% larger (compressed
+	  10%), but are discarded at runtime.
+	  Note: this option exists only for documentation purposes, please do
+	  not remove it.
+
+config RANDOMIZE_BASE
+	bool "Randomize the address of the kernel image (KASLR)"
+	default y
+	help
+	  In support of Kernel Address Space Layout Randomization (KASLR),
+	  this randomizes the address at which the kernel image is loaded,
+	  as a security feature that deters exploit attempts relying on
+	  knowledge of the location of kernel internals.
+
+endmenu
+
+menu "Memory setup"
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	select SPARSEMEM_VMEMMAP_ENABLE
+	select SPARSEMEM_VMEMMAP
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
+config MAX_PHYSMEM_BITS
+	int "Maximum size of supported physical memory in bits (42-53)"
+	range 42 53
+	default "46"
+	help
+	  This option specifies the maximum supported size of physical memory
+	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
+	  Increasing the number of bits also increases the kernel image size.
+	  By default 46 bits (64TB) are supported.
+
+config CHECK_STACK
+	def_bool y
+	depends on !VMAP_STACK
+	prompt "Detect kernel stack overflow"
+	help
+	  This option enables the compiler option -mstack-guard and
+	  -mstack-size if they are available. If the compiler supports them
+	  it will emit additional code to each function prolog to trigger
+	  an illegal operation if the kernel stack is about to overflow.
+
+	  Say N if you are unsure.
+
+config STACK_GUARD
+	int "Size of the guard area (128-1024)"
+	range 128 1024
+	depends on CHECK_STACK
+	default "256"
+	help
+	  This allows you to specify the size of the guard area at the lower
+	  end of the kernel stack. If the kernel stack points into the guard
+	  area on function entry an illegal operation is triggered. The size
+	  needs to be a power of 2. Please keep in mind that the size of an
+	  interrupt frame is 184 bytes for 31 bit and 328 bytes on 64 bit.
+	  The minimum size for the stack guard should be 256 for 31 bit and
+	  512 for 64 bit.
+
+endmenu
+
+menu "I/O subsystem"
+
+config QDIO
+	def_tristate y
+	prompt "QDIO support"
+	help
+	  This driver provides the Queued Direct I/O base support for
+	  IBM System z.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qdio.
+
+	  If unsure, say Y.
+
+if PCI
+
+config PCI_NR_FUNCTIONS
+	int "Maximum number of PCI functions (1-4096)"
+	range 1 4096
+	default "512"
+	help
+	  This allows you to specify the maximum number of PCI functions which
+	  this kernel will support.
+
+endif # PCI
+
+config HAS_IOMEM
+	def_bool PCI
+
+config CHSC_SCH
+	def_tristate m
+	prompt "Support for CHSC subchannels"
+	help
+	  This driver allows usage of CHSC subchannels. A CHSC subchannel
+	  is usually present on LPAR only.
+	  The driver creates a device /dev/chsc, which may be used to
+	  obtain I/O configuration information about the machine and
+	  to issue asynchronous chsc commands (DANGEROUS).
+	  You will usually only want to use this interface on a special
+	  LPAR designated for system management.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called chsc_sch.
+
+	  If unsure, say N.
+
+config SCM_BUS
+	def_bool y
+	prompt "SCM bus driver"
+	help
+	  Bus driver for Storage Class Memory.
+
+config EADM_SCH
+	def_tristate m
+	prompt "Support for EADM subchannels"
+	depends on SCM_BUS
+	help
+	  This driver allows usage of EADM subchannels. EADM subchannels act
+	  as a communication vehicle for SCM increments.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called eadm_sch.
+
+config VFIO_CCW
+	def_tristate n
+	prompt "Support for VFIO-CCW subchannels"
+	depends on S390_CCW_IOMMU && VFIO_MDEV
+	help
+	  This driver allows usage of I/O subchannels via VFIO-CCW.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vfio_ccw.
+
+config VFIO_AP
+	def_tristate n
+	prompt "VFIO support for AP devices"
+	depends on S390_AP_IOMMU && VFIO_MDEV && KVM
+	depends on ZCRYPT
+	help
+	  This driver grants access to Adjunct Processor (AP) devices
+	  via the VFIO mediated device interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vfio_ap.
+
+endmenu
+
+menu "Dump support"
+
+config CRASH_DUMP
+	bool "kernel crash dumps"
+	select KEXEC
+	help
+	  Generate crash dump after being started by kexec.
+	  Crash dump kernels are loaded in the main kernel with kexec-tools
+	  into a specially reserved region and then later executed after
+	  a crash by kdump/kexec.
+	  Refer to <file:Documentation/s390/zfcpdump.rst> for more details on this.
+	  This option also enables s390 zfcpdump.
+	  See also <file:Documentation/s390/zfcpdump.rst>
+
+endmenu
+
+config CCW
+	def_bool y
+
+config HAVE_PNETID
+	tristate
+	default (SMC || CCWGROUP)
+
+menu "Virtualization"
+
+config PROTECTED_VIRTUALIZATION_GUEST
+	def_bool n
+	prompt "Protected virtualization guest support"
+	help
+	  Select this option, if you want to be able to run this
+	  kernel as a protected virtualization KVM guest.
+	  Protected virtualization capable machines have a mini hypervisor
+	  located at machine level (an ultravisor). With help of the
+	  Ultravisor, KVM will be able to run "protected" VMs, special
+	  VMs whose memory and management data are unavailable to KVM.
+
+config PFAULT
+	def_bool y
+	prompt "Pseudo page fault support"
+	help
+	  Select this option, if you want to use PFAULT pseudo page fault
+	  handling under VM. If running native or in LPAR, this option
+	  has no effect. If your VM does not support PFAULT, PAGEEX
+	  pseudo page fault handling will be used.
+	  Note that VM 4.2 supports PFAULT but has a bug in its
+	  implementation that causes some problems.
+	  Everybody who wants to run Linux under VM != VM4.2 should select
+	  this option.
+
+config CMM
+	def_tristate n
+	prompt "Cooperative memory management"
+	help
+	  Select this option, if you want to enable the kernel interface
+	  to reduce the memory size of the system. This is accomplished
+	  by allocating pages of memory and put them "on hold". This only
+	  makes sense for a system running under VM where the unused pages
+	  will be reused by VM for other guest systems. The interface
+	  allows an external monitor to balance memory of many systems.
+	  Everybody who wants to run Linux under VM should select this
+	  option.
+
+config CMM_IUCV
+	def_bool y
+	prompt "IUCV special message interface to cooperative memory management"
+	depends on CMM && (SMSGIUCV=y || CMM=SMSGIUCV)
+	help
+	  Select this option to enable the special message interface to
+	  the cooperative memory management.
+
+config APPLDATA_BASE
+	def_bool n
+	prompt "Linux - VM Monitor Stream, base infrastructure"
+	depends on PROC_SYSCTL
+	help
+	  This provides a kernel interface for creating and updating z/VM APPLDATA
+	  monitor records. The monitor records are updated at certain time
+	  intervals, once the timer is started.
+	  Writing 1 or 0 to /proc/appldata/timer starts(1) or stops(0) the timer,
+	  i.e. enables or disables monitoring on the Linux side.
+	  A custom interval value (in seconds) can be written to
+	  /proc/appldata/interval.
+
+	  Defaults are 60 seconds interval and timer off.
+	  The /proc entries can also be read from, showing the current settings.
+
+config APPLDATA_MEM
+	def_tristate m
+	prompt "Monitor memory management statistics"
+	depends on APPLDATA_BASE && VM_EVENT_COUNTERS
+	help
+	  This provides memory management related data to the Linux - VM Monitor
+	  Stream, like paging/swapping rate, memory utilisation, etc.
+	  Writing 1 or 0 to /proc/appldata/memory creates(1) or removes(0) a z/VM
+	  APPLDATA monitor record, i.e. enables or disables monitoring this record
+	  on the z/VM side.
+
+	  Default is disabled.
+	  The /proc entry can also be read from, showing the current settings.
+
+	  This can also be compiled as a module, which will be called
+	  appldata_mem.o.
+
+config APPLDATA_OS
+	def_tristate m
+	prompt "Monitor OS statistics"
+	depends on APPLDATA_BASE
+	help
+	  This provides OS related data to the Linux - VM Monitor Stream, like
+	  CPU utilisation, etc.
+	  Writing 1 or 0 to /proc/appldata/os creates(1) or removes(0) a z/VM
+	  APPLDATA monitor record, i.e. enables or disables monitoring this record
+	  on the z/VM side.
+
+	  Default is disabled.
+	  This can also be compiled as a module, which will be called
+	  appldata_os.o.
+
+config APPLDATA_NET_SUM
+	def_tristate m
+	prompt "Monitor overall network statistics"
+	depends on APPLDATA_BASE && NET
+	help
+	  This provides network related data to the Linux - VM Monitor Stream,
+	  currently there is only a total sum of network I/O statistics, no
+	  per-interface data.
+	  Writing 1 or 0 to /proc/appldata/net_sum creates(1) or removes(0) a z/VM
+	  APPLDATA monitor record, i.e. enables or disables monitoring this record
+	  on the z/VM side.
+
+	  Default is disabled.
+	  This can also be compiled as a module, which will be called
+	  appldata_net_sum.o.
+
+config S390_HYPFS_FS
+	def_bool y
+	prompt "s390 hypervisor file system support"
+	select SYS_HYPERVISOR
+	help
+	  This is a virtual file system intended to provide accounting
+	  information in an s390 hypervisor environment.
+
+source "arch/s390/kvm/Kconfig"
+
+config S390_GUEST
+	def_bool y
+	prompt "s390 support for virtio devices"
+	select TTY
+	select VIRTUALIZATION
+	select VIRTIO
+	help
+	  Enabling this option adds support for virtio based paravirtual device
+	  drivers on s390.
+
+	  Select this option if you want to run the kernel as a guest under
+	  the KVM hypervisor.
+
+endmenu
+
+config S390_MODULES_SANITY_TEST_HELPERS
+	def_bool n
+
+menu "Selftests"
+
+config S390_UNWIND_SELFTEST
+	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	prompt "Test unwind functions"
+	help
+	  This option enables s390 specific stack unwinder testing kernel
+	  module. This option is not useful for distributions or general
+	  kernels, but only for kernel developers working on architecture code.
+
+	  Say N if you are unsure.
+
+config S390_KPROBES_SANITY_TEST
+	def_tristate n
+	prompt "Enable s390 specific kprobes tests"
+	depends on KPROBES
+	depends on KUNIT
+	help
+	  This option enables an s390 specific kprobes test module. This option
+	  is not useful for distributions or general kernels, but only for kernel
+	  developers working on architecture code.
+
+	  Say N if you are unsure.
+
+config S390_MODULES_SANITY_TEST
+	def_tristate n
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	prompt "Enable s390 specific modules tests"
+	select S390_MODULES_SANITY_TEST_HELPERS
+	help
+	  This option enables an s390 specific modules test. This option is
+	  not useful for distributions or general kernels, but only for
+	  kernel developers working on architecture code.
+
+	  Say N if you are unsure.
+endmenu

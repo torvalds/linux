@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/qcom,usb-hs-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm's USB HS PHY binding description
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: qcom,usb-hs-phy-apq8064
+then:
+  properties:
+    resets:
+      maxItems: 1
+
+    reset-names:
+      const: por
+
+else:
+  properties:
+    resets:
+      minItems: 2
+      maxItems: 2
+
+    reset-names:
+      items:
+        - const: phy
+        - const: por
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - qcom,usb-hs-phy-apq8064
+          - qcom,usb-hs-phy-msm8226
+          - qcom,usb-hs-phy-msm8916
+          - qcom,usb-hs-phy-msm8974
+      - const: qcom,usb-hs-phy
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    maxItems: 2
+    contains:
+      items:
+        - const: ref
+        - const: sleep
+
+  resets: true
+
+  reset-names: true
+
+  v1p8-supply: true
+
+  v3p3-supply: true
+
+  extcon: true
+
+  "#phy-cells":
+    const: 0
+
+  qcom,init-seq:
+    $ref: /schemas/types.yaml#/definitions/uint8-matrix
+    description: >
+      Sequence of ULPI address and value pairs to
+      program into the ULPI_EXT_VENDOR_SPECIFIC area.
+      This is related to Device Mode Eye Diagram test.
+    maxItems: 32 # no hard limit
+    items:
+      items:
+        - description: >
+            the address is offset from the ULPI_EXT_VENDOR_SPECIFIC address
+        - description: value
+
+required:
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - "#phy-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    otg: usb-controller {
+      #reset-cells = <1>;
+
+      ulpi {
+        phy {
+          compatible = "qcom,usb-hs-phy-msm8974", "qcom,usb-hs-phy";
+          #phy-cells = <0>;
+          clocks = <&clk 0>, <&clk 258>;
+          clock-names = "ref", "sleep";
+          resets = <&gcc 10>, <&otg 0>;
+          reset-names = "phy", "por";
+          v3p3-supply = <&pm8941_l24>;
+          v1p8-supply = <&pm8941_l6>;
+          extcon = <&smbb>;
+          qcom,init-seq = /bits/ 8 <0x1 0x63>;
+        };
+      };
+    };

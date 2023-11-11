@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/silergy,sy8106a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Silergy SY8106A Voltage Regulator
+
+maintainers:
+  - Ondrej Jirman <megous@megous.com>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    const: silergy,sy8106a
+
+  reg:
+    maxItems: 1
+
+  silergy,fixed-microvolt:
+    description: >
+      The voltage when I2C regulating is disabled (set by external resistor
+      like a fixed voltage)
+
+required:
+  - compatible
+  - reg
+  - silergy,fixed-microvolt
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@65 {
+            compatible = "silergy,sy8106a";
+            reg = <0x65>;
+            regulator-name = "sy8106a-vdd";
+            silergy,fixed-microvolt = <1200000>;
+            regulator-min-microvolt = <1000000>;
+            regulator-max-microvolt = <1400000>;
+            regulator-boot-on;
+            regulator-always-on;
+        };
+    };
+
+...

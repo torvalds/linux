@@ -1,0 +1,415 @@
+/*
+ * Device Tree Source for IBM Embedded PPC 476 Platform
+ *
+ * Copyright © 2013 Tony Breeds IBM Corporation
+ * Copyright © 2013 Alistair Popple IBM Corporation
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x01f00000 0x00100000;	// spin table
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "ibm,akebono";
+	compatible = "ibm,akebono", "ibm,476gtr";
+	dcr-parent = <&{/cpus/cpu@0}>;
+
+	aliases {
+		serial0 = &UART0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,476";
+			reg = <0>;
+			clock-frequency = <1600000000>; // 1.6 GHz
+			timebase-frequency = <100000000>; // 100Mhz
+			i-cache-line-size = <32>;
+			d-cache-line-size = <32>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			dcr-controller;
+			dcr-access-method = "native";
+			status = "okay";
+		};
+		cpu@1 {
+			device_type = "cpu";
+			model = "PowerPC,476";
+			reg = <1>;
+			clock-frequency = <1600000000>; // 1.6 GHz
+			timebase-frequency = <100000000>; // 100Mhz
+			i-cache-line-size = <32>;
+			d-cache-line-size = <32>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			dcr-controller;
+			dcr-access-method = "native";
+			status = "disabled";
+			enable-method = "spin-table";
+			cpu-release-addr = <0x0 0x01f00000>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x0>; // filled in by zImage
+	};
+
+	MPIC: interrupt-controller {
+		compatible = "chrp,open-pic";
+		interrupt-controller;
+		dcr-reg = <0xffc00000 0x00040000>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		single-cpu-affinity;
+	};
+
+	plb {
+		compatible = "ibm,plb6";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		clock-frequency = <200000000>; // 200Mhz
+
+		HSTA0: hsta@310000e0000 {
+			compatible = "ibm,476gtr-hsta-msi", "ibm,hsta-msi";
+			reg = <0x310 0x000e0000 0x0 0xf0>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <108 0
+				      109 0
+				      110 0
+				      111 0
+				      112 0
+				      113 0
+				      114 0
+				      115 0
+				      116 0
+				      117 0
+				      118 0
+				      119 0
+				      120 0
+				      121 0
+				      122 0
+				      123 0>;
+		};
+
+		MAL0: mcmal {
+			compatible = "ibm,mcmal-476gtr", "ibm,mcmal2";
+			dcr-reg = <0xc0000000 0x062>;
+			num-tx-chans = <1>;
+			num-rx-chans = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <	/*TXEOB*/ 77 0x4
+					/*RXEOB*/ 78 0x4
+					/*SERR*/  76 0x4
+					/*TXDE*/  79 0x4
+					/*RXDE*/  80 0x4>;
+		};
+
+		SATA0: sata@30000010000 {
+			compatible = "ibm,476gtr-ahci";
+			reg = <0x300 0x00010000 0x0 0x10000>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <93 2>;
+		};
+
+		EHCI0: ehci@30010000000 {
+			compatible = "ibm,476gtr-ehci", "generic-ehci";
+			reg = <0x300 0x10000000 0x0 0x10000>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <85 2>;
+		};
+
+		SD0: sd@30000000000 {
+			compatible = "ibm,476gtr-sdhci", "generic-sdhci";
+			reg = <0x300 0x00000000 0x0 0x10000>;
+			interrupts = <91 2>;
+			interrupt-parent = <&MPIC>;
+		};
+
+		OHCI0: ohci@30010010000 {
+			compatible = "ibm,476gtr-ohci", "generic-ohci";
+			reg = <0x300 0x10010000 0x0 0x10000>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <89 1>;
+			};
+
+		OHCI1: ohci@30010020000 {
+			compatible = "ibm,476gtr-ohci", "generic-ohci";
+			reg = <0x300 0x10020000 0x0 0x10000>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <88 1>;
+			};
+
+		POB0: opb {
+			compatible = "ibm,opb-4xx", "ibm,opb";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/* Wish there was a nicer way of specifying a full
+			 * 32-bit range
+			 */
+			ranges = <0x00000000 0x0000033f 0x00000000 0x80000000
+				  0x80000000 0x0000033f 0x80000000 0x80000000>;
+			clock-frequency = <100000000>;
+
+			RGMII0: emac-rgmii-wol@50004 {
+				compatible = "ibm,rgmii-wol-476gtr", "ibm,rgmii-wol";
+				reg = <0x50004 0x00000008>;
+				has-mdio;
+			};
+
+			EMAC0: ethernet@30000 {
+				device_type = "network";
+				compatible = "ibm,emac-476gtr", "ibm,emac4sync";
+				interrupt-parent = <&EMAC0>;
+				interrupts = <0x0 0x1>;
+				#interrupt-cells = <1>;
+				#address-cells = <0>;
+				#size-cells = <0>;
+				interrupt-map = </*Status*/ 0x0 &MPIC 81 0x4
+						 /*Wake*/   0x1 &MPIC 82 0x4>;
+				reg = <0x30000 0x78>;
+
+				/* local-mac-address will normally be added by
+				 * the wrapper. If your device doesn't support
+				 * passing data to the wrapper (in the form
+				 * local-mac-addr=<hwaddr>) then you will need
+				 * to set it manually here. */
+				//local-mac-address = [000000000000];
+
+				mal-device = <&MAL0>;
+				mal-tx-channel = <0>;
+				mal-rx-channel = <0>;
+				cell-index = <0>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				rx-fifo-size-gige = <16384>;
+				phy-mode = "rgmii";
+				phy-map = <0x00000000>;
+				rgmii-wol-device = <&RGMII0>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+			};
+
+			UART0: serial@10000 {
+				device_type = "serial";
+				compatible = "ns16750", "ns16550";
+				reg = <0x10000 0x00000008>;
+				virtual-reg = <0xe8010000>;
+				clock-frequency = <1851851>;
+				current-speed = <38400>;
+				interrupt-parent = <&MPIC>;
+				interrupts = <39 2>;
+			};
+
+			IIC0: i2c@0 {
+				compatible = "ibm,iic-476gtr", "ibm,iic";
+				reg = <0x0 0x00000020>;
+				interrupt-parent = <&MPIC>;
+				interrupts = <37 2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				rtc@68 {
+					compatible = "st,m41t80", "m41st85";
+					reg = <0x68>;
+				};
+			};
+
+			IIC1: i2c@100 {
+				compatible = "ibm,iic-476gtr", "ibm,iic";
+				reg = <0x100 0x00000020>;
+				interrupt-parent = <&MPIC>;
+				interrupts = <38 2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				avr@58 {
+					compatible = "ibm,akebono-avr";
+					reg = <0x58>;
+				};
+			};
+
+			FPGA0: fpga@ebc00000 {
+				compatible = "ibm,akebono-fpga";
+				reg = <0xebc00000 0x8>;
+			};
+		};
+
+		PCIE0: pcie@10100000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-476fpe", "ibm,plb-pciex";
+			primary;
+			port = <0x0>; /* port number */
+			reg = <0x00000101 0x00000000 0x0 0x10000000	       /* Config space access */
+			       0x00000100 0x00000000 0x0 0x00001000>;	/* UTL Registers space access */
+			dcr-reg = <0xc0 0x20>;
+
+//                                pci_space  < pci_addr          > < cpu_addr          > < size       >
+			ranges = <0x02000000 0x00000000 0x80000000 0x00000110 0x80000000 0x0 0x80000000
+			          0x01000000 0x0        0x0        0x00000140 0x0        0x0 0x00010000>;
+
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
+
+			/* This drives busses 0 to 0xf */
+			bus-range = <0x0 0xf>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &MPIC 45 0x2 /* int A */
+				0x0 0x0 0x0 0x2 &MPIC 46 0x2 /* int B */
+				0x0 0x0 0x0 0x3 &MPIC 47 0x2 /* int C */
+				0x0 0x0 0x0 0x4 &MPIC 48 0x2 /* int D */>;
+		};
+
+		PCIE1: pcie@20100000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-476fpe", "ibm,plb-pciex";
+			primary;
+			port = <0x1>; /* port number */
+			reg = <0x00000201 0x00000000 0x0 0x10000000	       /* Config space access */
+			       0x00000200 0x00000000 0x0 0x00001000>;	/* UTL Registers space access */
+			dcr-reg = <0x100 0x20>;
+
+//                                pci_space  < pci_addr          > < cpu_addr          > < size       >
+			ranges = <0x02000000 0x00000000 0x80000000 0x00000210 0x80000000 0x0 0x80000000
+			          0x01000000 0x0        0x0        0x00000240 0x0        0x0 0x00010000>;
+
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
+
+			/* This drives busses 0 to 0xf */
+			bus-range = <0x0 0xf>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &MPIC 53 0x2 /* int A */
+				0x0 0x0 0x0 0x2 &MPIC 54 0x2 /* int B */
+				0x0 0x0 0x0 0x3 &MPIC 55 0x2 /* int C */
+				0x0 0x0 0x0 0x4 &MPIC 56 0x2 /* int D */>;
+		};
+
+		PCIE2: pcie@18100000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-476fpe", "ibm,plb-pciex";
+			primary;
+			port = <0x2>; /* port number */
+			reg = <0x00000181 0x00000000 0x0 0x10000000	       /* Config space access */
+			       0x00000180 0x00000000 0x0 0x00001000>;	/* UTL Registers space access */
+			dcr-reg = <0xe0 0x20>;
+
+//                                pci_space  < pci_addr          > < cpu_addr          > < size       >
+			ranges = <0x02000000 0x00000000 0x80000000 0x00000190 0x80000000 0x0 0x80000000
+			          0x01000000 0x0        0x0        0x000001c0 0x0        0x0 0x00010000>;
+
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
+
+			/* This drives busses 0 to 0xf */
+			bus-range = <0x0 0xf>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &MPIC 61 0x2 /* int A */
+				0x0 0x0 0x0 0x2 &MPIC 62 0x2 /* int B */
+				0x0 0x0 0x0 0x3 &MPIC 63 0x2 /* int C */
+				0x0 0x0 0x0 0x4 &MPIC 64 0x2 /* int D */>;
+		};
+
+		PCIE3: pcie@28100000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-476fpe", "ibm,plb-pciex";
+			primary;
+			port = <0x3>; /* port number */
+			reg = <0x00000281 0x00000000 0x0 0x10000000	       /* Config space access */
+			       0x00000280 0x00000000 0x0 0x00001000>;	/* UTL Registers space access */
+			dcr-reg = <0x120 0x20>;
+
+//                                pci_space  < pci_addr          > < cpu_addr          > < size       >
+			ranges = <0x02000000 0x00000000 0x80000000 0x00000290 0x80000000 0x0 0x80000000
+			          0x01000000 0x0        0x0        0x000002c0 0x0        0x0 0x00010000>;
+
+			/* Inbound starting at 0x0 to 0x40000000000. In order to use MSI
+			 * PCI devices must be able to write to the HSTA module.
+			 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x400 0x0>;
+
+			/* This drives busses 0 to 0xf */
+			bus-range = <0x0 0xf>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &MPIC 69 0x2 /* int A */
+				0x0 0x0 0x0 0x2 &MPIC 70 0x2 /* int B */
+				0x0 0x0 0x0 0x3 &MPIC 71 0x2 /* int C */
+				0x0 0x0 0x0 0x4 &MPIC 72 0x2 /* int D */>;
+		};
+	};
+
+	chosen {
+		stdout-path = &UART0;
+	};
+};

@@ -1,0 +1,148 @@
+#!/bin/sh
+#
+#	Output a simple RPM spec file.
+#	This version assumes a minimum of RPM 4.0.3.
+#
+#	The only gothic bit here is redefining install_post to avoid
+#	stripping the symbols from files in the kernel which we want
+#
+#	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
+#
+
+# how we were called determines which rpms we build and how we build them
+if [ "$1" = prebuilt ]; then
+	S=DEL
+	MAKE="$MAKE -f $srctree/Makefile"
+else
+	S=
+fi
+
+if grep -q CONFIG_MODULES=y .config; then
+	M=
+else
+	M=DEL
+fi
+
+if grep -q CONFIG_DRM=y .config; then
+	PROVIDES=kernel-drm
+fi
+
+PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
+__KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
+EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
+--exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation \
+--exclude=.config.old --exclude=.missing-syscalls.d --exclude=*.s"
+
+# We can label the here-doc lines for conditional output to the spec file
+#
+# Labels:
+#  $S: this line is enabled only when building source package
+#  $M: this line is enabled only when CONFIG_MODULES is enabled
+sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
+	Name: kernel
+	Summary: The Linux Kernel
+	Version: $__KERNELRELEASE
+	Release: $(cat .version 2>/dev/null || echo 1)
+	License: GPL
+	Group: System Environment/Kernel
+	Vendor: The Linux Community
+	URL: https://www.kernel.org
+$S	Source: kernel-$__KERNELRELEASE.tar.gz
+	Provides: $PROVIDES
+	# $UTS_MACHINE as a fallback of _arch in case
+	# /usr/lib/rpm/platform/*/macros was not included.
+	%define _arch %{?_arch:$UTS_MACHINE}
+	%define __spec_install_post /usr/lib/rpm/brp-compress || :
+	%define debug_package %{nil}
+
+	%description
+	The Linux Kernel, the operating system core itself
+
+	%package headers
+	Summary: Header files for the Linux kernel for use by glibc
+	Group: Development/System
+	Obsoletes: kernel-headers
+	Provides: kernel-headers = %{version}
+	%description headers
+	Kernel-headers includes the C header files that specify the interface
+	between the Linux kernel and userspace libraries and programs.  The
+	header files define structures and constants that are needed for
+	building most standard programs and are also needed for rebuilding the
+	glibc package.
+
+$S$M	%package devel
+$S$M	Summary: Development package for building kernel modules to match the $__KERNELRELEASE kernel
+$S$M	Group: System Environment/Kernel
+$S$M	AutoReqProv: no
+$S$M	%description -n kernel-devel
+$S$M	This package provides kernel headers and makefiles sufficient to build modules
+$S$M	against the $__KERNELRELEASE kernel package.
+$S$M
+$S	%prep
+$S	%setup -q
+$S
+$S	%build
+$S	$MAKE %{?_smp_mflags} KBUILD_BUILD_VERSION=%{release}
+$S
+	%install
+	mkdir -p %{buildroot}/boot
+	%ifarch ia64
+	mkdir -p %{buildroot}/boot/efi
+	cp \$($MAKE -s image_name) %{buildroot}/boot/efi/vmlinuz-$KERNELRELEASE
+	ln -s efi/vmlinuz-$KERNELRELEASE %{buildroot}/boot/
+	%else
+	cp \$($MAKE -s image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+	%endif
+$M	$MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} modules_install
+	$MAKE %{?_smp_mflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
+	cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
+	cp .config %{buildroot}/boot/config-$KERNELRELEASE
+$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
+$S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
+$S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE
+$S$M	tar cf - $EXCLUDES . | tar xf - -C %{buildroot}/usr/src/kernels/$KERNELRELEASE
+$S$M	cd %{buildroot}/lib/modules/$KERNELRELEASE
+$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE build
+$S$M	ln -sf /usr/src/kernels/$KERNELRELEASE source
+
+	%clean
+	rm -rf %{buildroot}
+
+	%post
+	if [ -x /sbin/installkernel -a -r /boot/vmlinuz-$KERNELRELEASE -a -r /boot/System.map-$KERNELRELEASE ]; then
+	cp /boot/vmlinuz-$KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm
+	cp /boot/System.map-$KERNELRELEASE /boot/.System.map-$KERNELRELEASE-rpm
+	rm -f /boot/vmlinuz-$KERNELRELEASE /boot/System.map-$KERNELRELEASE
+	/sbin/installkernel $KERNELRELEASE /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
+	rm -f /boot/.vmlinuz-$KERNELRELEASE-rpm /boot/.System.map-$KERNELRELEASE-rpm
+	fi
+
+	%preun
+	if [ -x /sbin/new-kernel-pkg ]; then
+	new-kernel-pkg --remove $KERNELRELEASE --rminitrd --initrdfile=/boot/initramfs-$KERNELRELEASE.img
+	elif [ -x /usr/bin/kernel-install ]; then
+	kernel-install remove $KERNELRELEASE
+	fi
+
+	%postun
+	if [ -x /sbin/update-bootloader ]; then
+	/sbin/update-bootloader --remove $KERNELRELEASE
+	fi
+
+	%files
+	%defattr (-, root, root)
+$M	/lib/modules/$KERNELRELEASE
+$M	%exclude /lib/modules/$KERNELRELEASE/build
+$M	%exclude /lib/modules/$KERNELRELEASE/source
+	/boot/*
+
+	%files headers
+	%defattr (-, root, root)
+	/usr/include
+$S$M
+$S$M	%files devel
+$S$M	%defattr (-, root, root)
+$S$M	/usr/src/kernels/$KERNELRELEASE
+$S$M	/lib/modules/$KERNELRELEASE/build
+$S$M	/lib/modules/$KERNELRELEASE/source
+EOF

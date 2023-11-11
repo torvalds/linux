@@ -1,0 +1,837 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos5420 based Arndale Octa board device tree source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos5420.dtsi"
+#include "exynos5420-cpus.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/samsung,s2mps11.h>
+
+/ {
+	model = "Insignal Arndale Octa evaluation board based on Exynos5420";
+	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
+
+	memory@20000000 {
+		device_type = "memory";
+		reg = <0x20000000 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+
+	firmware@2073000 {
+		compatible = "samsung,secure-firmware";
+		reg = <0x02073000 0x1000>;
+	};
+
+	fixed-rate-clocks {
+		oscclk {
+			compatible = "samsung,exynos5420-oscclk";
+			clock-frequency = <24000000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-wakeup {
+			label = "SW-TACT1";
+			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_WAKEUP>;
+			wakeup-source;
+		};
+	};
+};
+
+&adc {
+	vdd-supply = <&ldo4_reg>;
+	status = "okay";
+};
+
+&cci {
+	status = "disabled";
+};
+
+&cpu0 {
+	cpu-supply = <&buck2_reg>;
+};
+
+&cpu4 {
+	cpu-supply = <&buck6_reg>;
+};
+
+&cpu0_thermal {
+	trips {
+		cpu0_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu0_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		/*
+		 * Reduce the CPU speed by 2 steps, down to: 1600 MHz
+		 * and 1100 MHz.
+		 */
+		map0 {
+			trip = <&cpu0_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		/*
+		 * Reduce the CPU speed down to 1200 MHz big (6 steps)
+		 * and 800 MHz LITTLE (5 steps).
+		 */
+		map1 {
+			trip = <&cpu0_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		/*
+		 * Reduce the CPU speed as much as possible, down to 700 MHz
+		 * big (11 steps) and 600 MHz LITTLE (7 steps).
+		 */
+		map2 {
+			trip = <&cpu0_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
+&cpu1_thermal {
+	trips {
+		cpu1_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu1_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu1_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu1_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu1_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
+&cpu2_thermal {
+	trips {
+		cpu2_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu2_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu2_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu2_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu2_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 6 7>,
+					 <&cpu5 6 7>,
+					 <&cpu6 6 7>,
+					 <&cpu7 6 7>;
+		};
+	};
+};
+
+&cpu3_thermal {
+	trips {
+		cpu3_alert0: cpu-alert-0 {
+			temperature = <60000>; /* millicelsius */
+			hysteresis = <5000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_alert1: cpu-alert-1 {
+			temperature = <80000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_alert2: cpu-alert-2 {
+			temperature = <110000>; /* millicelsius */
+			hysteresis = <10000>; /* millicelsius */
+			type = "passive";
+		};
+		cpu3_crit0: cpu-crit-0 {
+			temperature = <120000>; /* millicelsius */
+			hysteresis = <0>; /* millicelsius */
+			type = "critical";
+		};
+	};
+
+	cooling-maps {
+		map0 {
+			trip = <&cpu3_alert0>;
+			cooling-device = <&cpu0 0 2>,
+					 <&cpu1 0 2>,
+					 <&cpu2 0 2>,
+					 <&cpu3 0 2>,
+					 <&cpu4 0 2>,
+					 <&cpu5 0 2>,
+					 <&cpu6 0 2>,
+					 <&cpu7 0 2>;
+		};
+
+		map1 {
+			trip = <&cpu3_alert1>;
+			cooling-device = <&cpu0 3 6>,
+					 <&cpu1 3 6>,
+					 <&cpu2 3 6>,
+					 <&cpu3 3 6>,
+					 <&cpu4 3 5>,
+					 <&cpu5 3 5>,
+					 <&cpu6 3 5>,
+					 <&cpu7 3 5>;
+		};
+
+		map2 {
+			trip = <&cpu3_alert2>;
+			cooling-device = <&cpu0 6 11>,
+					 <&cpu1 6 11>,
+					 <&cpu2 6 11>,
+					 <&cpu3 6 11>,
+					 <&cpu4 5 7>,
+					 <&cpu5 5 7>,
+					 <&cpu6 5 7>,
+					 <&cpu7 5 7>;
+		};
+	};
+};
+
+&hdmi {
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	vdd_osc-supply = <&ldo7_reg>;
+	vdd_pll-supply = <&ldo6_reg>;
+	vdd-supply = <&ldo6_reg>;
+	ddc = <&i2c_2>;
+	status = "okay";
+};
+
+&hsi2c_4 {
+	status = "okay";
+
+	pmic@66 {
+		compatible = "samsung,s2mps11-pmic";
+		reg = <0x66>;
+
+		interrupt-parent = <&gpx3>;
+		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s2mps11_irq>;
+		wakeup-source;
+
+		s2mps11_osc: clocks {
+			compatible = "samsung,s2mps11-clk";
+			#clock-cells = <1>;
+			clock-output-names = "s2mps11_ap",
+					"s2mps11_cp", "s2mps11_bt";
+		};
+
+		regulators {
+			ldo1_reg: LDO1 {
+				regulator-name = "PVDD_ALIVE_1V0";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo2_reg: LDO2 {
+				regulator-name = "PVDD_APIO_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo3_reg: LDO3 {
+				regulator-name = "PVDD_APIO_MMCON_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				/*
+				 * Must be always on, even though there is
+				 * a consumer (mmc_0).  Otherwise the board
+				 * does not reboot with vendor U-Boot
+				 * (Linaro for Arndale Octa, v2012.07).
+				 */
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo4_reg: LDO4 {
+				regulator-name = "PVDD_ADC_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo5_reg: LDO5 {
+				regulator-name = "PVDD_PLL_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo6_reg: LDO6 {
+				regulator-name = "PVDD_ANAIP_1V0";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+			};
+
+			ldo7_reg: LDO7 {
+				regulator-name = "PVDD_ANAIP_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo8_reg: LDO8 {
+				regulator-name = "PVDD_ABB_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo9_reg: LDO9 {
+				regulator-name = "PVDD_USB_3V3";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-always-on;
+			};
+
+			ldo10_reg: LDO10 {
+				regulator-name = "PVDD_PRE_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			ldo11_reg: LDO11 {
+				regulator-name = "PVDD_USB_1V0";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-always-on;
+			};
+
+			ldo12_reg: LDO12 {
+				regulator-name = "PVDD_HSIC_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo13_reg: LDO13 {
+				regulator-name = "PVDD_APIO_MMCOFF_2V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2800000>;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo14_reg: LDO14 {
+				/* Unused */
+				regulator-name = "PVDD_LDO14";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo15_reg: LDO15 {
+				regulator-name = "PVDD_PERI_2V8";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+				};
+			};
+
+			ldo16_reg: LDO16 {
+				regulator-name = "PVDD_PERI_3V3";
+				regulator-min-microvolt = <2200000>;
+				regulator-max-microvolt = <2200000>;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+				};
+			};
+
+			ldo17_reg: LDO17 {
+				/* Unused */
+				regulator-name = "PVDD_LDO17";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo18_reg: LDO18 {
+				regulator-name = "PVDD_EMMC_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				/*
+				 * Must stay in "off" mode during shutdown for
+				 * proper eMMC reset.  The "off" mode is in
+				 * fact controlled by LDO18EN.  The eMMC does
+				 * not have reset pin connected so the reset
+				 * will be triggered by falling edge of
+				 * LDO18EN.
+				 */
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo19_reg: LDO19 {
+				regulator-name = "PVDD_TFLASH_2V8";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			ldo20_reg: LDO20 {
+				regulator-name = "PVDD_BTWIFI_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo21_reg: LDO21 {
+				regulator-name = "PVDD_CAM1IO_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo22_reg: LDO22 {
+				/* Unused */
+				regulator-name = "PVDD_LDO22";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <2375000>;
+			};
+
+			ldo23_reg: LDO23 {
+				regulator-name = "PVDD_MIFS_1V1";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+				};
+			};
+
+			ldo24_reg: LDO24 {
+				regulator-name = "PVDD_CAM1_AVDD_2V8";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+				};
+			};
+
+			ldo25_reg: LDO25 {
+				/* Unused */
+				regulator-name = "PVDD_LDO25";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo26_reg: LDO26 {
+				regulator-name = "PVDD_CAM0_AF_2V8";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+			};
+
+			ldo27_reg: LDO27 {
+				regulator-name = "PVDD_G3DS_1V0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1100000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-on-in-suspend;
+				};
+			};
+
+			ldo28_reg: LDO28 {
+				regulator-name = "PVDD_TSP_3V3";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			ldo29_reg: LDO29 {
+				regulator-name = "PVDD_AUDIO_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo30_reg: LDO30 {
+				/* Unused */
+				regulator-name = "PVDD_LDO30";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo31_reg: LDO31 {
+				regulator-name = "PVDD_PERI_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo32_reg: LDO32 {
+				regulator-name = "PVDD_LCD_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo33_reg: LDO33 {
+				regulator-name = "PVDD_CAM0IO_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			ldo34_reg: LDO34 {
+				/* Unused */
+				regulator-name = "PVDD_LDO34";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo35_reg: LDO35 {
+				regulator-name = "PVDD_CAM0_DVDD_1V2";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+			};
+
+			ldo36_reg: LDO36 {
+				/* Unused */
+				regulator-name = "PVDD_LDO36";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo37_reg: LDO37 {
+				/* Unused */
+				regulator-name = "PVDD_LDO37";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <3950000>;
+			};
+
+			ldo38_reg: LDO38 {
+				regulator-name = "PVDD_CAM0_AVDD_2V8";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+
+			buck1_reg: BUCK1 {
+				regulator-name = "PVDD_MIF_1V1";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			buck2_reg: BUCK2 {
+				regulator-name = "PVDD_ARM_1V0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			buck3_reg: BUCK3 {
+				regulator-name = "PVDD_INT_1V0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			buck4_reg: BUCK4 {
+				regulator-name = "PVDD_G3D_1V0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			buck5_reg: BUCK5 {
+				regulator-name = "PVDD_LPDDR3_1V2";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-always-on;
+			};
+
+			buck6_reg: BUCK6 {
+				regulator-name = "PVDD_KFC_1V0";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+
+			buck7_reg: BUCK7 {
+				regulator-name = "VIN_LLDO_1V4";
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+			};
+
+			buck8_reg: BUCK8 {
+				regulator-name = "VIN_MLDO_2V0";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <2100000>;
+				regulator-always-on;
+			};
+
+			buck9_reg: BUCK9 {
+				regulator-name = "VIN_HLDO_3V5";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3500000>;
+				regulator-always-on;
+			};
+
+			buck10_reg: BUCK10 {
+				regulator-name = "PVDD_EMMCF_2V8";
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+				/*
+				 * Must stay in "off" mode during shutdown for
+				 * proper eMMC reset.  The "off" mode is in
+				 * fact controlled by BUCK10EN.  The eMMC does
+				 * not have reset pin connected so the reset
+				 * will be triggered by falling edge of
+				 * BUCK10EN.
+				 */
+
+				regulator-state-mem {
+					regulator-off-in-suspend;
+				};
+			};
+		};
+	};
+};
+
+&i2c_2 {
+	status = "okay";
+};
+
+&mixer {
+	status = "okay";
+};
+
+&mmc_0 {
+	status = "okay";
+	non-removable;
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus1 &sd0_bus4 &sd0_bus8>;
+	vmmc-supply = <&ldo18_reg>;
+	vqmmc-supply = <&ldo3_reg>;
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+};
+
+&mmc_2 {
+	status = "okay";
+	card-detect-delay = <200>;
+	samsung,dw-mshc-ciu-div = <3>;
+	samsung,dw-mshc-sdr-timing = <0 4>;
+	samsung,dw-mshc-ddr-timing = <0 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus1 &sd2_bus4>;
+	vmmc-supply = <&ldo19_reg>;
+	vqmmc-supply = <&ldo13_reg>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	sd-uhs-ddr50;
+};
+
+&pinctrl_0 {
+	s2mps11_irq: s2mps11-irq-pins {
+		samsung,pins = "gpx3-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+};
+
+&usbdrd3_0 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
+};
+
+&usbdrd3_1 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
+};

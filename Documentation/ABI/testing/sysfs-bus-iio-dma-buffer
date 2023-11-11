@@ -1,0 +1,19 @@
+What:		/sys/bus/iio/devices/iio:deviceX/buffer/length_align_bytes
+KernelVersion:	5.4
+Contact:	linux-iio@vger.kernel.org
+Description:
+		DMA buffers tend to have a alignment requirement for the
+		buffers. If this alignment requirement is not met samples might
+		be dropped from the buffer.
+
+		This property reports the alignment requirements in bytes.
+		This means that the buffer size in bytes needs to be a integer
+		multiple of the number reported by this file.
+
+		The alignment requirements in number of sample sets will depend
+		on the enabled channels and the bytes per channel. This means
+		that the alignment requirement in samples sets might change
+		depending on which and how many channels are enabled. Whereas
+		the alignment requirement reported in bytes by this property
+		will remain static and does not depend on which channels are
+		enabled.

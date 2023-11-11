@@ -1,0 +1,9 @@
+KSP :=  /lib/modules/$(shell uname -r)/build \
+	/usr/src/linux-$(shell uname -r) \
+	/usr/src/linux-$(shell uname -r | sed 's/-.*//') \
+#	/usr/src/kernel-headers-$(shell uname -r) \
+#	/usr/src/kernel-source-$(shell uname -r) \
+#	/usr/src/linux-$(shell uname -r | sed 's/\([0-9]*\.[0-9]*\)\..*/\1/') \
+#	/usr/src/linux   /home/plice
+test_dir = $(shell [ -e $(dir)/include/linux ] && echo $(dir))
+KSP := $(foreach dir, $(KSP), $(test_dir))

@@ -1,0 +1,52 @@
+LEDs connected to pca9632, pca9633 or pca9634
+
+Required properties:
+- compatible : should be : "nxp,pca9632", "nxp,pca9633", "nxp,pca9634" or "nxp,pca9635"
+
+Optional properties:
+- nxp,totem-pole : use totem pole (push-pull) instead of open-drain (pca9632 defaults
+  to open-drain, newer chips to totem pole)
+- nxp,hw-blink : use hardware blinking instead of software blinking
+- nxp,period-scale : In some configurations, the chip blinks faster than expected.
+		     This parameter provides a scaling ratio (fixed point, decimal divided
+		     by 1000) to compensate, e.g. 1300=1.3x and 750=0.75x.
+- nxp,inverted-out: invert the polarity of the generated PWM
+
+Each led is represented as a sub-node of the nxp,pca963x device.
+
+LED sub-node properties:
+- label : (optional) see Documentation/devicetree/bindings/leds/common.txt
+- reg : number of LED line (could be from 0 to 3 in pca9632 or pca9633,
+		0 to 7 in pca9634, or 0 to 15 in pca9635)
+- linux,default-trigger : (optional)
+   see Documentation/devicetree/bindings/leds/common.txt
+
+Examples:
+
+pca9632: pca9632 {
+	compatible = "nxp,pca9632";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x62>;
+
+	red@0 {
+		label = "red";
+		reg = <0>;
+		linux,default-trigger = "none";
+	};
+	green@1 {
+		label = "green";
+		reg = <1>;
+		linux,default-trigger = "none";
+	};
+	blue@2 {
+		label = "blue";
+		reg = <2>;
+		linux,default-trigger = "none";
+	};
+	unused@3 {
+		label = "unused";
+		reg = <3>;
+		linux,default-trigger = "none";
+	};
+};

@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0
+
+# Shorthand
+warning = $(warning-if,y,$(1))
+
+# You can not pass commas directly to a function since they are treated as
+# delimiters. You can use the following trick to do so.
+comma   := ,
+$(warning,hello$(comma) world)
+
+# Like Make, single quotes, double quotes, spaces are treated verbatim.
+# The following prints the text as-is.
+$(warning,  ' " '"   ' ''' "'")
+
+# Unlike Make, '$' has special meaning only when it is followed by '('.
+# No need to escape '$' itself.
+$(warning,$)
+$(warning,$$)
+$ := 1
+$(warning,$($))
+
+# You need a trick to escape '$' followed by '('
+# The following should print "$(X)". It should not be expanded further.
+dollar := $
+$(warning,$(dollar)(X))
+
+# You need a trick to treat unbalanced parentheses.
+# The following should print "(".
+left_paren := (
+$(warning,$(left_paren))
+
+# A simple expanded should not be expanded multiple times.
+# The following should print "$(X)". It should not be expanded further.
+Y := $(dollar)(X)
+$(warning,$(Y))
+
+# The following should print "$(X)" as well.
+Y = $(dollar)(X)
+$(warning,$(Y))
+
+# The following should print "$(".
+# It should not be emit "unterminated reference" error.
+unterminated := $(dollar)(
+$(warning,$(unterminated))

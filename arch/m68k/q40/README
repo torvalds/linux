@@ -1,0 +1,137 @@
+Linux for the Q40
+=================
+
+You may try http://www.geocities.com/SiliconValley/Bay/2602/ for
+some up to date information. Booter and other tools will be also
+available from this place or http://ftp.uni-erlangen.de/pub/unix/Linux/680x0/q40/
+and mirrors.
+
+Hints to documentation usually refer to the linux source tree in
+/usr/src/linux/Documentation unless URL given.
+
+It seems IRQ unmasking can't be safely done on a Q40. IRQ probing
+is not implemented - do not try it! (See below)
+
+For a list of kernel command-line options read the documentation for the
+particular device drivers.
+
+The floppy imposes a very high interrupt load on the CPU, approx 30K/s.
+When something blocks interrupts (HD) it will lose some of them, so far
+this is not known to have caused any data loss. On highly loaded systems
+it can make the floppy very slow or practically stop. Other Q40 OS' simply
+poll the floppy for this reason - something that can't be done in Linux.
+Only possible cure is getting a 82072 controller with fifo instead of
+the 8272A.
+
+drivers used by the Q40, apart from the very obvious (console etc.):
+	drivers/char/q40_keyb.c		# use PC keymaps for national keyboards
+		     serial.c		# normal PC driver - any speed
+	             lp.c		# printer driver
+		     genrtc.c		# RTC
+		char/joystick/*		# most of this should work, not
+				        # in default config.in
+	        block/floppy.c		# normal PC driver, DMA emu in asm/floppy.h
+					# and arch/m68k/kernel/entry.S
+					# see drivers/block/README.fd
+		ata/pata_falcon.c
+		net/ne.c
+		video/q40fb.c
+		parport/*
+		sound/dmasound_core.c
+		      dmasound_q40.c
+
+Various other PC drivers can be enabled simply by adding them to
+arch/m68k/config.in, especially 8 bit devices should be without any
+problems. For cards using 16bit io/mem more care is required, like
+checking byte order issues, hacking memcpy_*_io etc.
+
+
+Debugging
+=========
+
+Upon startup the kernel will usually output "ABCQGHIJ" into the SRAM,
+preceded by the booter signature. This is a trace just in case something
+went wrong during earliest setup stages of head.S.
+**Changed** to preserve SRAM contents by default, this is only done when
+requested - SRAM must start with '%LX$' signature to do this. '-d' option
+to 'lxx' loader enables this.
+
+SRAM can also be used as additional console device, use debug=mem.
+This will save kernel startup msgs into SRAM, the screen will display
+only the penguin - and shell prompt if it gets that far..
+Unfortunately only 2000 bytes are available.
+
+Serial console works and can also be used for debugging, see loader_txt
+
+Most problems seem to be caused by fawlty or badly configured io-cards or
+hard drives anyway.
+Make sure to configure the parallel port as SPP and remove IRQ/DMA jumpers
+for first testing. The Q40 does not support DMA and may have trouble with
+parallel ports version of interrupts.
+
+
+Q40 Hardware Description
+========================
+
+This is just an overview, see asm-m68k/* for details ask if you have any
+questions.
+
+The Q40 consists of a 68040@40 MHz, 1MB video RAM, up to 32MB RAM, AT-style
+keyboard interface, 1 Programmable LED, 2x8bit DACs and up to 1MB ROM, 1MB
+shadow ROM.
+The Q60 has any of 68060 or 68LC060 and up to 128 MB RAM.
+
+Most interfacing like floppy, IDE, serial and parallel ports is done via ISA
+slots. The ISA io and mem range is mapped (sparse&byteswapped!) into separate
+regions of the memory.
+The main interrupt register IIRQ_REG will indicate whether an IRQ was internal
+or from some ISA devices, EIRQ_REG can distinguish up to 8 ISA IRQs.
+
+The Q40 custom chip is programmable to provide 2 periodic timers:
+	- 50 or 200 Hz - level 2, !!THIS CAN'T BE DISABLED!!
+	- 10 or 20 KHz - level 4, used for dma-sound
+
+Linux uses the 200 Hz interrupt for timer and beep by default.
+
+
+Interrupts
+==========
+
+q40 master chip handles only a subset of level triggered interrupts.
+
+Linux has some requirements wrt interrupt architecture, these are
+to my knowledge:
+	(a) interrupt handler must not be reentered even when sti() is called
+	    from within handler
+	(b) working enable/disable_irq
+
+Luckily these requirements are only important for drivers shared
+with other architectures - ide,serial,parallel, ethernet.
+q40ints.c now contains a trivial hack for (a), (b) is more difficult
+because only irq's 4-15 can be disabled - and only all of them at once.
+Thus disable_irq() can effectively block the machine if the driver goes
+asleep.
+One thing to keep in mind when hacking around the interrupt code is
+that there is no way to find out which IRQ caused a request, [EI]IRQ_REG
+displays current state of the various IRQ lines.
+
+Keyboard
+========
+
+q40 receives AT make/break codes from the keyboard, these are translated to
+the PC scancodes x86 Linux uses. So by theory every national keyboard should
+work just by loading the appropriate x86 keytable - see any national-HOWTO.
+
+Unfortunately the AT->PC translation isn't quite trivial and even worse, my
+documentation of it is absolutely minimal - thus some exotic keys may not
+behave exactly as expected.
+
+There is still hope that it can be fixed completely though. If you encounter
+problems, email me ideally this:
+	- exact keypress/release sequence
+	- 'showkey -s' run on q40, non-X session
+	- 'showkey -s' run on a PC, non-X session
+	- AT codes as displayed by the q40 debugging ROM
+btw if the showkey output from PC and Q40 doesn't differ then you have some
+classic configuration problem - don't send me anything in this case
+

@@ -1,0 +1,35 @@
+[
+    {
+        "ArchStdEvent": "MEM_ACCESS"
+    },
+    {
+        "ArchStdEvent": "REMOTE_ACCESS_RD"
+    },
+    {
+        "ArchStdEvent": "MEM_ACCESS_RD"
+    },
+    {
+        "ArchStdEvent": "MEM_ACCESS_WR"
+    },
+    {
+        "ArchStdEvent": "UNALIGNED_LD_SPEC"
+    },
+    {
+        "ArchStdEvent": "UNALIGNED_ST_SPEC"
+    },
+    {
+        "ArchStdEvent": "UNALIGNED_LDST_SPEC"
+    },
+    {
+        "PublicDescription": "External memory request",
+        "EventCode": "0xC1",
+        "EventName": "BIU_EXT_MEM_REQ",
+        "BriefDescription": "External memory request"
+    },
+    {
+        "PublicDescription": "External memory request to non-cacheable memory",
+        "EventCode": "0xC2",
+        "EventName": "BIU_EXT_MEM_REQ_NC",
+        "BriefDescription": "External memory request to non-cacheable memory"
+    }
+]

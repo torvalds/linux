@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
+ * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
+ */
+/dts-v1/;
+#include "stih407.dtsi"
+#include "stihxxx-b2120.dtsi"
+/ {
+	model = "STiH407 B2120";
+	compatible = "st,stih407-b2120", "st,stih407";
+
+	chosen {
+		stdout-path = &sbc_serial0;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x80000000>;
+	};
+
+	aliases {
+		serial0 = &sbc_serial0;
+		ethernet0 = &ethernet0;
+	};
+
+};

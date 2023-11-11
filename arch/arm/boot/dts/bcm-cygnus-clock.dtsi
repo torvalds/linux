@@ -1,0 +1,133 @@
+/*
+ *  BSD LICENSE
+ *
+ *  Copyright(c) 2014 Broadcom Corporation.  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Broadcom Corporation nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+clocks {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	osc: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+	};
+
+	/* Cygnus ARM PLL */
+	armpll: armpll@19000000 {
+		#clock-cells = <0>;
+		compatible = "brcm,cygnus-armpll";
+		clocks = <&osc>;
+		reg = <0x19000000 0x1000>;
+	};
+
+	/* peripheral clock for system timer */
+	periph_clk: arm_periph_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&armpll>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	/* APB bus clock */
+	apb_clk: apb_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&armpll>;
+		clock-div = <4>;
+		clock-mult = <1>;
+	};
+
+	genpll: genpll@301d000 {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-genpll";
+		reg = <0x0301d000 0x2c>, <0x0301c020 0x4>;
+		clocks = <&osc>;
+		clock-output-names = "genpll", "axi21", "250mhz", "ihost_sys",
+				     "enet_sw", "audio_125", "can";
+	};
+
+	/* always 1/2 of the axi21 clock */
+	axi41_clk: axi41_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll 1>;
+		clock-div = <2>;
+		clock-mult = <1>;
+	};
+
+	/* always 1/4 of the axi21 clock */
+	axi81_clk: axi81_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&genpll 1>;
+		clock-div = <4>;
+		clock-mult = <1>;
+	};
+
+	lcpll0: lcpll0@301d02c {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-lcpll0";
+		reg = <0x0301d02c 0x1c>, <0x0301c020 0x4>;
+		clocks = <&osc>;
+		clock-output-names = "lcpll0", "pcie_phy", "ddr_phy", "sdio",
+				     "usb_phy", "smart_card", "ch5";
+	};
+
+	mipipll: mipipll@180a9800 {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-mipipll";
+		reg = <0x180a9800 0x2c>, <0x0301c020 0x4>, <0x180aa024 0x4>;
+		clocks = <&osc>;
+		clock-output-names = "mipipll", "ch0_unused", "ch1_lcd",
+				     "ch2_v3d", "ch3_unused", "ch4_unused",
+				     "ch5_unused";
+	};
+
+	asiu_clks: asiu_clks@301d048 {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-asiu-clk";
+		reg = <0x0301d048 0xc>, <0x180aa024 0x4>;
+
+		clocks = <&osc>;
+		clock-output-names = "keypad", "adc/touch", "pwm";
+	};
+
+	audiopll: audiopll@180aeb00 {
+		#clock-cells = <1>;
+		compatible = "brcm,cygnus-audiopll";
+		reg = <0x180aeb00 0x68>;
+		clocks = <&osc>;
+		clock-output-names = "audiopll", "ch0_audio",
+					"ch1_audio", "ch2_audio";
+	};
+};

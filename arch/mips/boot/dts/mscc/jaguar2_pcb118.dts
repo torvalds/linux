@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Microsemi Corporation
+ */
+
+/dts-v1/;
+#include "jaguar2_common.dtsi"
+
+/ {
+	model = "Jaguar2/Aquantia PCB118 Reference Board";
+	compatible = "mscc,jr2-pcb118", "mscc,jr2";
+
+	aliases {
+		i2c150  = &i2c150;
+		i2c151  = &i2c151;
+	};
+
+	i2c0_imux: i2c0-imux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-parent = <&i2c0>;
+		pinctrl-names =
+			"i2c150", "i2c151", "idle";
+		pinctrl-0 = <&i2cmux_0>;
+		pinctrl-1 = <&i2cmux_1>;
+		pinctrl-2 = <&i2cmux_pins_i>;
+		i2c150: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+		i2c151: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};
+
+&gpio {
+	i2cmux_pins_i: i2cmux-pins {
+		pins = "GPIO_17", "GPIO_16";
+		function = "twi_scl_m";
+		output-low;
+	};
+	i2cmux_0: i2cmux-0-pins {
+		pins = "GPIO_17";
+		function = "twi_scl_m";
+		output-high;
+	};
+	i2cmux_1: i2cmux-1-pins {
+		pins = "GPIO_16";
+		function = "twi_scl_m";
+		output-high;
+	};
+};

@@ -1,0 +1,35 @@
+Texas Instruments Palmas family power button module
+
+This module is part of the Palmas family of PMICs. For more details
+about the whole chip see:
+Documentation/devicetree/bindings/mfd/palmas.txt.
+
+This module provides a simple power button event via an Interrupt.
+
+Required properties:
+- compatible: should be one of the following
+   - "ti,palmas-pwrbutton": For Palmas compatible power on button
+- interrupts: Interrupt number of power button submodule on device.
+
+Optional Properties:
+
+- ti,palmas-long-press-seconds: Duration in seconds which the power
+  button should be kept pressed for Palmas to power off automatically.
+  NOTE: This depends on OTP support and POWERHOLD signal configuration
+  on platform. Valid values are 6, 8, 10 and 12.
+- ti,palmas-pwron-debounce-milli-seconds: Duration in milliseconds
+  which the power button should be kept pressed for Palmas to register
+  a press for debouncing purposes. NOTE: This depends on specific
+  Palmas variation capability. Valid values are 15, 100, 500 and 1000.
+
+Example:
+
+&palmas {
+	palmas_pwr_button: pwrbutton {
+		compatible = "ti,palmas-pwrbutton";
+		interrupt-parent = <&tps659038>;
+		interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+		ti,palmas-long-press-seconds = <12>;
+		ti,palmas-pwron-debounce-milli-seconds = <15>;
+	};
+};

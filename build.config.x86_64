@@ -1,0 +1,16 @@
+ARCH=x86_64
+MAKE_GOALS="
+bzImage
+modules
+"
+
+FILES="
+arch/x86/boot/bzImage
+vmlinux
+System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
+"
+
+NDK_TRIPLE=${X86_64_NDK_TRIPLE}

@@ -1,0 +1,296 @@
+[
+    {
+        "id": "ddd9",
+        "name": "Add prio qdisc on egress",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "aa71",
+        "name": "Add prio qdisc on egress with handle of maximum value",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY root handle ffff: prio",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio ffff: root",
+        "matchCount": "1",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "db37",
+        "name": "Add prio qdisc on egress with invalid handle exceeding maximum value",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY root handle 10000: prio",
+        "expExitCode": "255",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 10000: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "39d8",
+        "name": "Add prio qdisc on egress with unsupported argument",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio foorbar",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "5769",
+        "name": "Add prio qdisc on egress with 4 bands and new priomap",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio bands 4 priomap 1 1 2 2 3 3 0 0 1 2 3 0 0 0 0 0",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 4 priomap.*1 1 2 2 3 3 0 0 1 2 3 0 0 0 0 0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "fe0f",
+        "name": "Add prio qdisc on egress with 4 bands and priomap exceeding TC_PRIO_MAX entries",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio bands 4 priomap 1 1 2 2 3 3 0 0 1 2 3 0 0 0 0 0 1 1",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 4 priomap.*1 1 2 2 3 3 0 0 1 2 3 0 0 0 0 0 1 1",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "1f91",
+        "name": "Add prio qdisc on egress with 4 bands and priomap's values exceeding bands number",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio bands 4 priomap 1 1 2 2 7 5 0 0 1 2 3 0 0 0 0 0",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 4 priomap.*1 1 2 2 7 5 0 0 1 2 3 0 0 0 0 0",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "d248",
+        "name": "Add prio qdisc on egress with invalid bands value (< 2)",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio bands 1 priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 1 priomap.*0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "1d0e",
+        "name": "Add prio qdisc on egress with invalid bands value exceeding TCQ_PRIO_BANDS",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio bands 1024 priomap 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 1024 priomap.*1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "1971",
+        "name": "Replace default prio qdisc on egress with 8 bands and new priomap",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY handle 1: root prio"
+        ],
+        "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root prio bands 8 priomap 1 1 2 2 3 3 4 4 5 5 6 6 7 7 0 0",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root.*bands 8 priomap.*1 1 2 2 3 3 4 4 5 5 6 6 7 7 0 0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "d88a",
+        "name": "Add duplicate prio qdisc on egress",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY handle 1: root prio"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "5948",
+        "name": "Delete nonexistent prio qdisc",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DUMMY root handle 1: prio",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 1: root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "6c0a",
+        "name": "Add prio qdisc on egress with invalid format for handles",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY root handle 123^ prio",
+        "expExitCode": "255",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc prio 123 root",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "0175",
+        "name": "Delete prio qdisc twice",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY root handle 1: prio",
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root prio",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc ingress ffff:",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "2410",
+        "name": "Show prio class",
+        "category": [
+            "qdisc",
+            "prio"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root prio",
+        "expExitCode": "0",
+        "verifyCmd": "$TC class show dev $DUMMY",
+        "matchPattern": "class prio 1:[0-9]+ parent 1:",
+        "matchCount": "3",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root prio",
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    }
+]

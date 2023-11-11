@@ -1,0 +1,12 @@
+set noparent
+
+# GKI Dr. No Enforcement is active on this branch. Approval of one of the Dr.
+# No reviewers is required following a regular CodeReview+2 vote of a code
+# reviewer.
+#
+# See the GKI release documentation (go/gki-dr-no) for further details.
+#
+# The expanded list of reviewers can be found at:
+# https://android.googlesource.com/kernel/common/+/android-mainline/OWNERS_DrNo
+
+include kernel/common:android-mainline:/OWNERS_DrNo

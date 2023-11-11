@@ -1,0 +1,64 @@
+* Maxim max8925 Power Management IC
+
+Required parent device properties:
+- compatible : "maxim,max8925"
+- reg : the I2C slave address for the max8925 chip
+- interrupts : IRQ line for the max8925 chip
+- interrupt-controller: describes the max8925 as an interrupt
+  controller (has its own domain)
+- #interrupt-cells : should be 1.
+	- The cell is the max8925 local IRQ number
+
+Optional parent device properties:
+- maxim,tsc-irq: there are 2 IRQ lines for max8925, one is indicated in
+  interrupts property, the other is indicated here.
+
+max8925 consists of a large and varied group of sub-devices:
+
+Device			 Supply Names	 Description
+------			 ------------	 -----------
+max8925-onkey		:		: On key
+max8925-rtc		:		: RTC
+max8925-regulator	:		: Regulators
+max8925-backlight	:		: Backlight
+max8925-touch		:		: Touchscreen
+max8925-power		:		: Charger
+
+Example:
+
+	pmic: max8925@3c {
+		compatible = "maxim,max8925";
+		reg = <0x3c>;
+		interrupts = <1>;
+		interrupt-parent = <&intcmux4>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		maxim,tsc-irq = <0>;
+
+		regulators {
+			SDV1 {
+				regulator-min-microvolt = <637500>;
+				regulator-max-microvolt = <1425000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			LDO1 {
+				regulator-min-microvolt = <750000>;
+				regulator-max-microvolt = <3900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+		};
+		backlight {
+			maxim,max8925-dual-string = <0>;
+		};
+		charger {
+			batt-detect = <0>;
+			topoff-threshold = <1>;
+			fast-charge = <7>;
+			no-temp-support = <0>;
+			no-insert-detect = <0>;
+		};
+	};

@@ -1,0 +1,341 @@
+[
+  {
+    "EventName": "ls_bad_status2.stli_other",
+    "EventCode": "0x24",
+    "BriefDescription": "Non-forwardable conflict; used to reduce STLI's via software. All reasons. Store To Load Interlock (STLI) are loads that were unable to complete because of a possible match with an older store, and the older store could not do STLF for some reason.",
+    "PublicDescription" : "Store-to-load conflicts: A load was unable to complete due to a non-forwardable conflict with an older store. Most commonly, a load's address range partially but not completely overlaps with an uncompleted older store. Software can avoid this problem by using same-size and same-alignment loads and stores when accessing the same data. Vector/SIMD code is particularly susceptible to this problem; software should construct wide vector stores by manipulating vector elements in registers using shuffle/blend/swap instructions prior to storing to memory, instead of using narrow element-by-element stores.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_locks.spec_lock_hi_spec",
+    "EventCode": "0x25",
+    "BriefDescription": "Retired lock instructions. High speculative cacheable lock speculation succeeded.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_locks.spec_lock_lo_spec",
+    "EventCode": "0x25",
+    "BriefDescription": "Retired lock instructions. Low speculative cacheable lock speculation succeeded.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "ls_locks.non_spec_lock",
+    "EventCode": "0x25",
+    "BriefDescription": "Retired lock instructions. Non-speculative lock succeeded.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_locks.bus_lock",
+    "EventCode": "0x25",
+    "BriefDescription": "Retired lock instructions. Bus lock when a locked operations crosses a cache boundary or is done on an uncacheable memory type. Comparable to legacy bus lock.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_ret_cl_flush",
+    "EventCode": "0x26",
+    "BriefDescription": "Number of retired CLFLUSH instructions."
+  },
+  {
+    "EventName": "ls_ret_cpuid",
+    "EventCode": "0x27",
+    "BriefDescription": "Number of retired CPUID instructions."
+  },
+  {
+    "EventName": "ls_dispatch.ld_st_dispatch",
+    "EventCode": "0x29",
+    "BriefDescription": "Dispatch of a single op that performs a load from and store to the same memory address. Number of single ops that do load/store to an address.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "ls_dispatch.store_dispatch",
+    "EventCode": "0x29",
+    "BriefDescription": "Number of stores dispatched. Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_dispatch.ld_dispatch",
+    "EventCode": "0x29",
+    "BriefDescription": "Number of loads dispatched. Counts the number of operations dispatched to the LS unit. Unit Masks ADDed.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_smi_rx",
+    "EventCode": "0x2b",
+    "BriefDescription": "Number of SMIs received."
+  },
+  {
+    "EventName": "ls_int_taken",
+    "EventCode": "0x2c",
+    "BriefDescription": "Number of interrupts taken."
+  },
+  {
+    "EventName": "ls_rdtsc",
+    "EventCode": "0x2d",
+    "BriefDescription": "Number of reads of the TSC (RDTSC instructions). The count is speculative."
+  },
+  {
+    "EventName": "ls_stlf",
+    "EventCode": "0x35",
+    "BriefDescription": "Number of STLF hits."
+  },
+  {
+    "EventName": "ls_st_commit_cancel2.st_commit_cancel_wcb_full",
+    "EventCode": "0x37",
+    "BriefDescription": "A non-cacheable store and the non-cacheable commit buffer is full."
+  },
+  {
+    "EventName": "ls_dc_accesses",
+    "EventCode": "0x40",
+    "BriefDescription": "Number of accesses to the dcache for load/store references.",
+    "PublicDescription": "The number of accesses to the data cache for load and store references. This may include certain microcode scratchpad accesses, although these are generally rare. Each increment represents an eight-byte access, although the instruction may only be accessing a portion of that. This event is a speculative event."
+  },
+  {
+    "EventName": "ls_mab_alloc.dc_prefetcher",
+    "EventCode": "0x41",
+    "BriefDescription": "LS MAB Allocates by Type. DC prefetcher.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_mab_alloc.stores",
+    "EventCode": "0x41",
+    "BriefDescription": "LS MAB Allocates by Type. Stores.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_mab_alloc.loads",
+    "EventCode": "0x41",
+    "BriefDescription": "LS MAB Allocates by Type. Loads.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_refills_from_sys.ls_mabresp_rmt_dram",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. DRAM or IO from different die.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_refills_from_sys.ls_mabresp_rmt_cache",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; Remote CCX and the address's Home Node is on a different die.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "ls_refills_from_sys.ls_mabresp_lcl_dram",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. DRAM or IO from this thread's die.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_refills_from_sys.ls_mabresp_lcl_cache",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. Hit in cache; local CCX (not Local L2), or Remote CCX and the address's Home Node is on this thread's die.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_refills_from_sys.ls_mabresp_lcl_l2",
+    "EventCode": "0x43",
+    "BriefDescription": "Demand Data Cache Fills by Data Source. Local L2 hit.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.all",
+    "EventCode": "0x45",
+    "BriefDescription": "All L1 DTLB Misses or Reloads.",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_1g_l2_miss",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 1G page that miss in the L2 TLB.",
+    "UMask": "0x80"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_2m_l2_miss",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 2M page that miss in the L2 TLB.",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_coalesced_page_miss",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload coalesced page miss.",
+    "UMask": "0x20"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_4k_l2_miss",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 4K page that miss the L2 TLB.",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_1g_l2_hit",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 1G page that hit in the L2 TLB.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_2m_l2_hit",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 2M page that hit in the L2 TLB.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_coalesced_page_hit",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload hit a coalesced page.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_l1_d_tlb_miss.tlb_reload_4k_l2_hit",
+    "EventCode": "0x45",
+    "BriefDescription": "L1 DTLB Miss. DTLB reload to a 4K page that hit in the L2 TLB.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_tablewalker.iside",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks on I-side.",
+    "UMask": "0x0c"
+  },
+  {
+    "EventName": "ls_tablewalker.ic_type1",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks IC Type 1.",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_tablewalker.ic_type0",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks IC Type 0.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "ls_tablewalker.dside",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks on D-side.",
+    "UMask": "0x03"
+  },
+  {
+    "EventName": "ls_tablewalker.dc_type1",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks DC Type 1.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_tablewalker.dc_type0",
+    "EventCode": "0x46",
+    "BriefDescription": "Total Page Table Walks DC Type 0.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_misal_accesses",
+    "EventCode": "0x47",
+    "BriefDescription": "Misaligned loads."
+  },
+  {
+    "EventName": "ls_pref_instr_disp",
+    "EventCode": "0x4b",
+    "BriefDescription": "Software Prefetch Instructions Dispatched (Speculative).",
+    "UMask": "0xff"
+  },
+  {
+    "EventName": "ls_pref_instr_disp.prefetch_nta",
+    "EventCode": "0x4b",
+    "BriefDescription": "Software Prefetch Instructions Dispatched (Speculative). PrefetchNTA instruction. See docAPM3 PREFETCHlevel.",
+    "UMask": "0x04"
+  },
+  {
+    "EventName": "ls_pref_instr_disp.prefetch_w",
+    "EventCode": "0x4b",
+    "BriefDescription": "Software Prefetch Instructions Dispatched (Speculative). See docAPM3 PREFETCHW.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_pref_instr_disp.prefetch",
+    "EventCode": "0x4b",
+    "BriefDescription": "Software Prefetch Instructions Dispatched (Speculative). Prefetch_T0_T1_T2. PrefetchT0, T1 and T2 instructions. See docAPM3 PREFETCHlevel.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_inef_sw_pref.mab_mch_cnt",
+    "EventCode": "0x52",
+    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a match on an already-allocated miss request buffer.",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_inef_sw_pref.data_pipe_sw_pf_dc_hit",
+    "EventCode": "0x52",
+    "BriefDescription": "The number of software prefetches that did not fetch data outside of the processor core. Software PREFETCH instruction saw a DC hit.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fill.ls_mabresp_rmt_dram",
+    "EventCode": "0x59",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From DRAM (home node remote).",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fill.ls_mabresp_rmt_cache",
+    "EventCode": "0x59",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From another cache (home node remote).",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fill.ls_mabresp_lcl_dram",
+    "EventCode": "0x59",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. DRAM or IO from this thread's die.  From DRAM (home node local).",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fill.ls_mabresp_lcl_cache",
+    "EventCode": "0x59",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. From another cache (home node local).",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_sw_pf_dc_fill.ls_mabresp_lcl_l2",
+    "EventCode": "0x59",
+    "BriefDescription": "Software Prefetch Data Cache Fills by Data Source. Local L2 hit.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_dram",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node remote).",
+    "UMask": "0x40"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fill.ls_mabresp_rmt_cache",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node remote).",
+    "UMask": "0x10"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_dram",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From DRAM (home node local).",
+    "UMask": "0x08"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_cache",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. From another cache (home node local).",
+    "UMask": "0x02"
+  },
+  {
+    "EventName": "ls_hw_pf_dc_fill.ls_mabresp_lcl_l2",
+    "EventCode": "0x5a",
+    "BriefDescription": "Hardware Prefetch Data Cache Fills by Data Source. Local L2 hit.",
+    "UMask": "0x01"
+  },
+  {
+    "EventName": "ls_not_halted_cyc",
+    "EventCode": "0x76",
+    "BriefDescription": "Cycles not in Halt."
+  },
+  {
+    "EventName": "ls_tlb_flush",
+    "EventCode": "0x78",
+    "BriefDescription": "All TLB Flushes"
+  }
+]

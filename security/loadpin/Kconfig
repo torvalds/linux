@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SECURITY_LOADPIN
+	bool "Pin load of kernel files (modules, fw, etc) to one filesystem"
+	depends on SECURITY && BLOCK
+	help
+	  Any files read through the kernel file reading interface
+	  (kernel modules, firmware, kexec images, security policy)
+	  can be pinned to the first filesystem used for loading. When
+	  enabled, any files that come from other filesystems will be
+	  rejected. This is best used on systems without an initrd that
+	  have a root filesystem backed by a read-only device such as
+	  dm-verity or a CDROM.
+
+config SECURITY_LOADPIN_ENFORCE
+	bool "Enforce LoadPin at boot"
+	depends on SECURITY_LOADPIN
+	help
+	  If selected, LoadPin will enforce pinning at boot. If not
+	  selected, it can be enabled at boot with the kernel parameter
+	  "loadpin.enforce=1".
+
+config SECURITY_LOADPIN_VERITY
+	bool "Allow reading files from certain other filesystems that use dm-verity"
+	depends on SECURITY_LOADPIN && DM_VERITY=y && SECURITYFS
+	help
+	  If selected LoadPin can allow reading files from filesystems
+	  that use dm-verity. LoadPin maintains a list of verity root
+	  digests it considers trusted. A verity backed filesystem is
+	  considered trusted if its root digest is found in the list
+	  of trusted digests.
+
+	  The list of trusted verity can be populated through an ioctl
+	  on the LoadPin securityfs entry 'dm-verity'. The ioctl
+	  expects a file descriptor of a file with verity digests as
+	  parameter. The file must be located on the pinned root and
+	  start with the line:
+
+	  # LOADPIN_TRUSTED_VERITY_ROOT_DIGESTS
+
+	  This is followed by the verity digests, with one digest per
+	  line.

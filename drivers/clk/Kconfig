@@ -1,0 +1,489 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config HAVE_CLK
+	bool
+	help
+	  The <linux/clk.h> calls support software clock gating and
+	  thus are a key power management tool on many systems.
+
+config HAVE_CLK_PREPARE
+	bool
+
+config HAVE_LEGACY_CLK # TODO: Remove once all legacy users are migrated
+	bool
+	select HAVE_CLK
+	help
+	  Select this option when the clock API in <linux/clk.h> is implemented
+	  by platform/architecture code. This method is deprecated. Modern
+	  code should select COMMON_CLK instead and not define a custom
+	  'struct clk'.
+
+menuconfig COMMON_CLK
+	bool "Common Clock Framework"
+	depends on !HAVE_LEGACY_CLK
+	select HAVE_CLK_PREPARE
+	select HAVE_CLK
+	select SRCU
+	select RATIONAL
+	help
+	  The common clock framework is a single definition of struct
+	  clk, useful across many platforms, as well as an
+	  implementation of the clock API in include/linux/clk.h.
+	  Architectures utilizing the common struct clk should select
+	  this option.
+
+if COMMON_CLK
+
+config COMMON_CLK_WM831X
+	tristate "Clock driver for WM831x/2x PMICs"
+	depends on MFD_WM831X
+	help
+	  Supports the clocking subsystem of the WM831x/2x series of
+	  PMICs from Wolfson Microelectronics.
+
+source "drivers/clk/versatile/Kconfig"
+
+config CLK_HSDK
+	bool "PLL Driver for HSDK platform"
+	depends on ARC_SOC_HSDK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver supports the HSDK core, system, ddr, tunnel and hdmi PLLs
+	  control.
+
+config LMK04832
+	tristate "Ti LMK04832 JESD204B Compliant Clock Jitter Cleaner"
+	depends on SPI
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for Texas Instruments' LMK04832 Ultra
+	  Low-Noise JESD204B Compliant Clock Jitter Cleaner With Dual Loop PLLs
+
+config COMMON_CLK_APPLE_NCO
+	tristate "Clock driver for Apple SoC NCOs"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  This driver supports NCO (Numerically Controlled Oscillator) blocks
+	  found on Apple SoCs such as t8103 (M1). The blocks are typically
+	  generators of audio clocks.
+
+config COMMON_CLK_MAX77686
+	tristate "Clock driver for Maxim 77620/77686/77802 MFD"
+	depends on MFD_MAX77686 || MFD_MAX77620 || COMPILE_TEST
+	help
+	  This driver supports Maxim 77620/77686/77802 crystal oscillator
+	  clock.
+
+config COMMON_CLK_MAX9485
+	tristate "Maxim 9485 Programmable Clock Generator"
+	depends on I2C
+	help
+	  This driver supports Maxim 9485 Programmable Audio Clock Generator
+
+config COMMON_CLK_RK808
+	tristate "Clock driver for RK805/RK808/RK809/RK817/RK818"
+	depends on MFD_RK808
+	help
+	  This driver supports RK805, RK809 and RK817, RK808 and RK818 crystal oscillator clock.
+	  These multi-function devices have two fixed-rate oscillators, clocked at 32KHz each.
+	  Clkout1 is always on, Clkout2 can off by control register.
+
+config COMMON_CLK_HI655X
+	tristate "Clock driver for Hi655x" if EXPERT
+	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
+	select REGMAP
+	default MFD_HI655X_PMIC
+	help
+	  This driver supports the hi655x PMIC clock. This
+	  multi-function device has one fixed-rate oscillator, clocked
+	  at 32KHz.
+
+config COMMON_CLK_SCMI
+	tristate "Clock driver controlled via SCMI interface"
+	depends on ARM_SCMI_PROTOCOL || COMPILE_TEST
+	help
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCMI interface.
+
+	  This driver uses SCMI Message Protocol to interact with the
+	  firmware providing all the clock controls.
+
+config COMMON_CLK_SCPI
+	tristate "Clock driver controlled via SCPI interface"
+	depends on ARM_SCPI_PROTOCOL || COMPILE_TEST
+	help
+	  This driver provides support for clocks that are controlled
+	  by firmware that implements the SCPI interface.
+
+	  This driver uses SCPI Message Protocol to interact with the
+	  firmware providing all the clock controls.
+
+config COMMON_CLK_SI5341
+	tristate "Clock driver for SiLabs 5341 and 5340 A/B/C/D devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Silicon Labs Si5341 and Si5340 programmable clock
+	  generators. Not all features of these chips are currently supported
+	  by the driver, in particular it only supports XTAL input. The chip can
+	  be pre-programmed to support other configurations and features not yet
+	  implemented in the driver.
+
+config COMMON_CLK_SI5351
+	tristate "Clock driver for SiLabs 5351A/B/C"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Silicon Labs 5351A/B/C programmable clock
+	  generators.
+
+config COMMON_CLK_SI514
+	tristate "Clock driver for SiLabs 514 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the Silicon Labs 514 programmable clock
+	  generator.
+
+config COMMON_CLK_SI544
+	tristate "Clock driver for SiLabs 544 devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports the Silicon Labs 544 programmable clock
+	  generator.
+
+config COMMON_CLK_SI570
+	tristate "Clock driver for SiLabs 570 and compatible devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports Silicon Labs 570/571/598/599 programmable
+	  clock generators.
+
+config COMMON_CLK_BM1880
+	bool "Clock driver for Bitmain BM1880 SoC"
+	depends on ARCH_BITMAIN || COMPILE_TEST
+	default ARCH_BITMAIN
+	help
+	  This driver supports the clocks on Bitmain BM1880 SoC.
+
+config COMMON_CLK_CDCE706
+	tristate "Clock driver for TI CDCE706 clock synthesizer"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
+
+config COMMON_CLK_TPS68470
+	tristate "Clock Driver for TI TPS68470 PMIC"
+	depends on I2C
+	depends on INTEL_SKL_INT3472 || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  This driver supports the clocks provided by the TPS68470 PMIC.
+
+config COMMON_CLK_CDCE925
+	tristate "Clock driver for TI CDCE913/925/937/949 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the TI CDCE913/925/937/949 programmable clock
+	  synthesizer. Each chip has different number of PLLs and outputs.
+	  For example, the CDCE925 contains two PLLs with spread-spectrum
+	  clocking support and five output dividers. The driver only supports
+	  the following setup, and uses a fixed setting for the output muxes.
+	  Y1 is derived from the input clock
+	  Y2 and Y3 derive from PLL1
+	  Y4 and Y5 derive from PLL2
+	  Given a target output frequency, the driver will set the PLL and
+	  divider to best approximate the desired output.
+
+config COMMON_CLK_CS2000_CP
+	tristate "Clock driver for CS2000 Fractional-N Clock Synthesizer & Clock Multiplier"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the CS2000 clock multiplier.
+
+config COMMON_CLK_EN7523
+	bool "Clock driver for Airoha EN7523 SoC system clocks"
+	depends on OF
+	depends on ARCH_AIROHA || COMPILE_TEST
+	default ARCH_AIROHA
+	help
+	  This driver provides the fixed clocks and gates present on Airoha
+	  ARM silicon.
+
+config COMMON_CLK_FSL_FLEXSPI
+	tristate "Clock driver for FlexSPI on Layerscape SoCs"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	default ARCH_LAYERSCAPE && SPI_NXP_FLEXSPI
+	help
+	  On Layerscape SoCs there is a special clock for the FlexSPI
+	  interface.
+
+config COMMON_CLK_FSL_SAI
+	bool "Clock driver for BCLK of Freescale SAI cores"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	help
+	  This driver supports the Freescale SAI (Synchronous Audio Interface)
+	  to be used as a generic clock output. Some SoCs have restrictions
+	  regarding the possible pin multiplexer settings. Eg. on some SoCs
+	  two SAI interfaces can only be enabled together. If just one is
+	  needed, the BCLK pin of the second one can be used as general
+	  purpose clock output. Ideally, it can be used to drive an audio
+	  codec (sometimes known as MCLK).
+
+config COMMON_CLK_GEMINI
+	bool "Clock driver for Cortina Systems Gemini SoC"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	select MFD_SYSCON
+	select RESET_CONTROLLER
+	help
+	  This driver supports the SoC clocks on the Cortina Systems Gemini
+	  platform, also known as SL3516 or CS3516.
+
+config COMMON_CLK_LAN966X
+	tristate "Generic Clock Controller driver for LAN966X SoC"
+	depends on HAS_IOMEM
+	depends on OF
+	depends on SOC_LAN966 || COMPILE_TEST
+	help
+	  This driver provides support for Generic Clock Controller(GCK) on
+	  LAN966X SoC. GCK generates and supplies clock to various peripherals
+	  within the SoC.
+
+config COMMON_CLK_ASPEED
+	bool "Clock driver for Aspeed BMC SoCs"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	default ARCH_ASPEED
+	select MFD_SYSCON
+	select RESET_CONTROLLER
+	help
+	  This driver supports the SoC clocks on the Aspeed BMC platforms.
+
+	  The G4 and G5 series, including the ast2400 and ast2500, are supported
+	  by this driver.
+
+config COMMON_CLK_S2MPS11
+	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
+	depends on MFD_SEC_CORE || COMPILE_TEST
+	help
+	  This driver supports S2MPS11/S2MPS14/S5M8767 crystal oscillator
+	  clock. These multi-function devices have two (S2MPS14) or three
+	  (S2MPS11, S5M8767) fixed-rate oscillators, clocked at 32KHz each.
+
+config CLK_TWL6040
+	tristate "External McPDM functional clock from twl6040"
+	depends on TWL6040_CORE
+	help
+	  Enable the external functional clock support on OMAP4+ platforms for
+	  McPDM. McPDM module is using the external bit clock on the McPDM bus
+	  as functional clock.
+
+config COMMON_CLK_AXI_CLKGEN
+	tristate "AXI clkgen driver"
+	depends on HAS_IOMEM || COMPILE_TEST
+	depends on OF
+	help
+	  Support for the Analog Devices axi-clkgen pcore clock generator for Xilinx
+	  FPGAs. It is commonly used in Analog Devices' reference designs.
+
+config CLK_QORIQ
+	bool "Clock driver for Freescale QorIQ platforms"
+	depends on OF
+	depends on PPC_E500MC || SOC_LS1021A || ARCH_LAYERSCAPE || COMPILE_TEST
+	help
+	  This adds the clock driver support for Freescale QorIQ platforms
+	  using common clock framework.
+
+config CLK_LS1028A_PLLDIG
+        tristate "Clock driver for LS1028A Display output"
+        depends on ARCH_LAYERSCAPE || COMPILE_TEST
+        default ARCH_LAYERSCAPE
+        help
+          This driver support the Display output interfaces(LCD, DPHY) pixel clocks
+          of the QorIQ Layerscape LS1028A, as implemented TSMC CLN28HPM PLL. Not all
+          features of the PLL are currently supported by the driver. By default,
+          configured bypass mode with this PLL.
+
+config COMMON_CLK_XGENE
+	bool "Clock driver for APM XGene SoC"
+	default ARCH_XGENE
+	depends on ARM64 || COMPILE_TEST
+	help
+	  Support for the APM X-Gene SoC reference, PLL, and device clocks.
+
+config COMMON_CLK_LOCHNAGAR
+	tristate "Cirrus Logic Lochnagar clock driver"
+	depends on MFD_LOCHNAGAR
+	help
+	  This driver supports the clocking features of the Cirrus Logic
+	  Lochnagar audio development board.
+
+config COMMON_CLK_NXP
+	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
+	select REGMAP_MMIO if ARCH_LPC32XX
+	select MFD_SYSCON if ARCH_LPC18XX
+	help
+	  Support for clock providers on NXP platforms.
+
+config COMMON_CLK_PALMAS
+	tristate "Clock driver for TI Palmas devices"
+	depends on MFD_PALMAS
+	help
+	  This driver supports TI Palmas devices 32KHz output KG and KG_AUDIO
+	  using common clock framework.
+
+config COMMON_CLK_PWM
+	tristate "Clock driver for PWMs used as clock outputs"
+	depends on PWM
+	help
+	  Adapter driver so that any PWM output can be (mis)used as clock signal
+	  at 50% duty cycle.
+
+config COMMON_CLK_PXA
+	def_bool COMMON_CLK && ARCH_PXA
+	help
+	  Support for the Marvell PXA SoC.
+
+config COMMON_CLK_OXNAS
+	bool "Clock driver for the OXNAS SoC Family"
+	depends on ARCH_OXNAS || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Support for the OXNAS SoC Family clocks.
+
+config COMMON_CLK_RS9_PCIE
+	tristate "Clock driver for Renesas 9-series PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the Renesas 9-series PCIe clock generator
+	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.
+
+config COMMON_CLK_VC5
+	tristate "Clock driver for IDT VersaClock 5,6 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the IDT VersaClock 5 and VersaClock 6
+	  programmable clock generators.
+
+config COMMON_CLK_VC7
+	tristate "Clock driver for Renesas Versaclock 7 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Renesas Versaclock7 is a family of configurable clock generator
+	  and jitter attenuator ICs with fractional and integer dividers.
+
+config COMMON_CLK_STM32MP135
+	def_bool COMMON_CLK && MACH_STM32MP13
+	help
+	  Support for stm32mp135 SoC family clocks
+
+config COMMON_CLK_STM32MP157
+	def_bool COMMON_CLK && MACH_STM32MP157
+	help
+	  Support for stm32mp157 SoC family clocks
+
+config COMMON_CLK_STM32F
+	def_bool COMMON_CLK && (MACH_STM32F429 || MACH_STM32F469 || MACH_STM32F746)
+	help
+	  Support for stm32f4 and stm32f7 SoC families clocks
+
+config COMMON_CLK_STM32H7
+	def_bool COMMON_CLK && MACH_STM32H743
+	help
+	  Support for stm32h7 SoC family clocks
+
+config COMMON_CLK_MMP2
+	def_bool COMMON_CLK && (MACH_MMP2_DT || MACH_MMP3_DT)
+	help
+	  Support for Marvell MMP2 and MMP3 SoC clocks
+
+config COMMON_CLK_MMP2_AUDIO
+        tristate "Clock driver for MMP2 Audio subsystem"
+        depends on COMMON_CLK_MMP2 || COMPILE_TEST
+        help
+          This driver supports clocks for Audio subsystem on MMP2 SoC.
+
+config COMMON_CLK_BD718XX
+	tristate "Clock driver for 32K clk gates on ROHM PMICs"
+	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD71828
+	help
+	  This driver supports ROHM BD71837, BD71847, BD71850, BD71815
+	  and BD71828 PMICs clock gates.
+
+config COMMON_CLK_FIXED_MMIO
+	bool "Clock driver for Memory Mapped Fixed values"
+	depends on COMMON_CLK && OF
+	help
+	  Support for Memory Mapped IO Fixed clocks
+
+config COMMON_CLK_K210
+	bool "Clock driver for the Canaan Kendryte K210 SoC"
+	depends on OF && RISCV && SOC_CANAAN
+	default SOC_CANAAN
+	help
+	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
+
+source "drivers/clk/actions/Kconfig"
+source "drivers/clk/analogbits/Kconfig"
+source "drivers/clk/baikal-t1/Kconfig"
+source "drivers/clk/bcm/Kconfig"
+source "drivers/clk/hisilicon/Kconfig"
+source "drivers/clk/imgtec/Kconfig"
+source "drivers/clk/imx/Kconfig"
+source "drivers/clk/ingenic/Kconfig"
+source "drivers/clk/keystone/Kconfig"
+source "drivers/clk/mediatek/Kconfig"
+source "drivers/clk/meson/Kconfig"
+source "drivers/clk/mstar/Kconfig"
+source "drivers/clk/microchip/Kconfig"
+source "drivers/clk/mvebu/Kconfig"
+source "drivers/clk/pistachio/Kconfig"
+source "drivers/clk/qcom/Kconfig"
+source "drivers/clk/ralink/Kconfig"
+source "drivers/clk/renesas/Kconfig"
+source "drivers/clk/rockchip/Kconfig"
+source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/sifive/Kconfig"
+source "drivers/clk/socfpga/Kconfig"
+source "drivers/clk/sprd/Kconfig"
+source "drivers/clk/starfive/Kconfig"
+source "drivers/clk/sunxi/Kconfig"
+source "drivers/clk/sunxi-ng/Kconfig"
+source "drivers/clk/tegra/Kconfig"
+source "drivers/clk/ti/Kconfig"
+source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/visconti/Kconfig"
+source "drivers/clk/x86/Kconfig"
+source "drivers/clk/xilinx/Kconfig"
+source "drivers/clk/zynqmp/Kconfig"
+
+# Kunit test cases
+config CLK_KUNIT_TEST
+	tristate "Basic Clock Framework Kunit Tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit tests for the common clock framework.
+
+config CLK_GATE_KUNIT_TEST
+	tristate "Basic gate type Kunit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit test for the basic clk gate type.
+
+endif

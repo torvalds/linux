@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Device Tree file for QNAP TS41X with 6281 SoC
+ *
+ * Copyright (C) 2013, Andrew Lunn <andrew@lunn.ch>
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include "kirkwood-ts219.dtsi"
+#include "kirkwood-ts419.dtsi"
+
+&ethphy0 { reg = <8>; };
+&ethphy1 { reg = <0>; };

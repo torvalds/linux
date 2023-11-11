@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/remoteproc/qcom,smd-edge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm SMD Edge communication channel nodes
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description:
+  Qualcomm SMD subnode represents a remote subsystem or a remote processor of
+  some sort - or in SMD language an "edge". The name of the edges are not
+  important.
+
+  In turn, subnodes of the "edges" represent devices tied to SMD channels on
+  that "edge". The names of the devices are not important. The properties of
+  these nodes are defined by the individual bindings for the SMD devices.
+  See also Documentation/devicetree/bindings/soc/qcom/qcom,smd.yaml
+
+properties:
+  $nodename:
+    const: "smd-edge"
+
+  apr:
+    $ref: /schemas/soc/qcom/qcom,apr.yaml#
+    required:
+      - qcom,smd-channels
+    description:
+      Qualcomm APR/GPR (Asynchronous/Generic Packet Router)
+
+  fastrpc:
+    $ref: /schemas/misc/qcom,fastrpc.yaml#
+    required:
+      - qcom,smd-channels
+    description:
+      Qualcomm FastRPC
+
+  interrupts:
+    maxItems: 1
+
+  label:
+    description:
+      Name of the edge, used for debugging and identification purposes. The
+      node name will be used if this is not present.
+
+  mboxes:
+    maxItems: 1
+    description:
+      Reference to the mailbox representing the outgoing doorbell in APCS for
+      this client.
+
+  qcom,ipc:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to a syscon node representing the APCS registers
+          - description: u32 representing offset to the register within the syscon
+          - description: u32 representing the ipc bit within the register
+    description:
+      Three entries specifying the outgoing ipc bit used for signaling the
+      remote processor.
+
+  qcom,smd-edge:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The identifier of the remote processor in the smd channel allocation
+      table.
+
+  qcom,remote-pid:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The identifier for the remote processor as known by the rest of the
+      system.
+
+  rpm-requests:
+    $ref: /schemas/soc/qcom/qcom,smd-rpm.yaml#
+    required:
+      - qcom,smd-channels
+    description:
+      Qualcomm Resource Power Manager (RPM) over SMD.
+
+  wcnss:
+    $ref: /schemas/soc/qcom/qcom,wcnss.yaml
+    required:
+      - qcom,smd-channels
+    description:
+      Qualcomm WCNSS for Bluetooth, WiFi and FM radio.
+
+required:
+  - interrupts
+  - qcom,smd-edge
+
+oneOf:
+  - required:
+      - mboxes
+  - required:
+      - qcom,ipc
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/mailbox/qcom-ipcc.h>
+
+    remoteproc {
+        // ...
+
+        smd-edge {
+            interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
+
+            qcom,ipc = <&apcs 8 8>;
+            qcom,smd-edge = <1>;
+        };
+    };

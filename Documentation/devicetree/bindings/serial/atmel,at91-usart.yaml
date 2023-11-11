@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2022 Microchip Technology, Inc. and its subsidiaries
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/atmel,at91-usart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Atmel Universal Synchronous Asynchronous Receiver/Transmitter (USART)
+
+maintainers:
+  - Richard Genoud <richard.genoud@gmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - atmel,at91rm9200-usart
+          - atmel,at91sam9260-usart
+          - microchip,sam9x60-usart
+      - items:
+          - const: atmel,at91rm9200-dbgu
+          - const: atmel,at91rm9200-usart
+      - items:
+          - const: atmel,at91sam9260-dbgu
+          - const: atmel,at91sam9260-usart
+      - items:
+          - const: microchip,sam9x60-dbgu
+          - const: microchip,sam9x60-usart
+          - const: atmel,at91sam9260-dbgu
+          - const: atmel,at91sam9260-usart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: usart
+      - const: gclk
+
+  clocks:
+    minItems: 1
+    items:
+      - description: USART Peripheral Clock
+      - description: USART Generic Clock
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  atmel,usart-mode:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Must be either <AT91_USART_MODE_SPI> for SPI or
+      <AT91_USART_MODE_SERIAL> for USART (found in dt-bindings/mfd/at91-usart.h).
+    enum: [ 0, 1 ]
+
+  atmel,use-dma-rx:
+    type: boolean
+    description: use of PDC or DMA for receiving data
+
+  atmel,use-dma-tx:
+    type: boolean
+    description: use of PDC or DMA for transmitting data
+
+  atmel,fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Maximum number of data the RX and TX FIFOs can store for FIFO
+      capable USARTS.
+    enum: [ 16, 32 ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+  - atmel,usart-mode
+
+allOf:
+  - if:
+      properties:
+        atmel,usart-mode:
+          const: 1
+    then:
+      allOf:
+        - $ref: /schemas/spi/spi-controller.yaml#
+
+      properties:
+        atmel,use-dma-rx: false
+
+        atmel,use-dma-tx: false
+
+        atmel,fifo-size: false
+
+        "#size-cells":
+          const: 0
+
+        "#address-cells":
+          const: 1
+
+      required:
+        - "#size-cells"
+        - "#address-cells"
+
+    else:
+      allOf:
+        - $ref: /schemas/serial/serial.yaml#
+        - $ref: /schemas/serial/rs485.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/mfd/at91-usart.h>
+    #include <dt-bindings/dma/at91.h>
+
+    /* use PDC */
+    usart0: serial@fff8c000 {
+        compatible = "atmel,at91sam9260-usart";
+        reg = <0xfff8c000 0x4000>;
+        atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
+        interrupts = <7>;
+        clocks = <&usart0_clk>;
+        clock-names = "usart";
+        atmel,use-dma-rx;
+        atmel,use-dma-tx;
+        rts-gpios = <&pioD 15 GPIO_ACTIVE_LOW>;
+        cts-gpios = <&pioD 16 GPIO_ACTIVE_LOW>;
+        dtr-gpios = <&pioD 17 GPIO_ACTIVE_LOW>;
+        dsr-gpios = <&pioD 18 GPIO_ACTIVE_LOW>;
+        dcd-gpios = <&pioD 20 GPIO_ACTIVE_LOW>;
+        rng-gpios = <&pioD 19 GPIO_ACTIVE_LOW>;
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/mfd/at91-usart.h>
+    #include <dt-bindings/dma/at91.h>
+
+    /* use DMA */
+    usart1: serial@f001c000 {
+        compatible = "atmel,at91sam9260-usart";
+        reg = <0xf001c000 0x100>;
+        atmel,usart-mode = <AT91_USART_MODE_SERIAL>;
+        interrupts = <12 IRQ_TYPE_LEVEL_HIGH 5>;
+        clocks = <&usart0_clk>;
+        clock-names = "usart";
+        atmel,use-dma-rx;
+        atmel,use-dma-tx;
+        dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(3)>,
+               <&dma0 2 (AT91_DMA_CFG_PER_ID(4) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+        dma-names = "tx", "rx";
+        atmel,fifo-size = <32>;
+    };
+
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/mfd/at91-usart.h>
+    #include <dt-bindings/dma/at91.h>
+
+    /* SPI mode */
+    spi0: spi@f001c000 {
+        compatible = "atmel,at91sam9260-usart";
+        reg = <0xf001c000 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        atmel,usart-mode = <AT91_USART_MODE_SPI>;
+        interrupts = <12 IRQ_TYPE_LEVEL_HIGH 5>;
+        clocks = <&usart0_clk>;
+        clock-names = "usart";
+        dmas = <&dma0 2 AT91_DMA_CFG_PER_ID(3)>,
+               <&dma0 2 (AT91_DMA_CFG_PER_ID(4) | AT91_DMA_CFG_FIFOCFG_ASAP)>;
+        dma-names = "tx", "rx";
+        cs-gpios = <&pioB 3 GPIO_ACTIVE_HIGH>;
+    };

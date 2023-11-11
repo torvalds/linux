@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/samsung,s5pv210-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S5P6442/S5PC110/S5PV210 SoC clock controller
+
+maintainers:
+  - Chanwoo Choi <cw00.choi@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  Expected external clocks, defined in DTS as fixed-rate clocks with a matching
+  name::
+    - "xxti" - external crystal oscillator connected to XXTI and XXTO pins of
+      the SoC,
+    - "xusbxti" - external crystal oscillator connected to XUSBXTI and XUSBXTO
+      pins of the SoC,
+
+  All available clocks are defined as preprocessor macros in
+  include/dt-bindings/clock/s5pv210.h header.
+
+properties:
+  compatible:
+    enum:
+      - samsung,s5pv210-clock
+      - samsung,s5p6442-clock
+
+  clocks:
+    items:
+      - description: xxti clock
+      - description: xusbxti clock
+
+  clock-names:
+    items:
+      - const: xxti
+      - const: xusbxti
+
+  "#clock-cells":
+    const: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#clock-cells"
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/s5pv210.h>
+
+    xxti: clock-0 {
+        compatible = "fixed-clock";
+        clock-frequency = <0>;
+        clock-output-names = "xxti";
+        #clock-cells = <0>;
+    };
+
+    xusbxti: clock-1 {
+        compatible = "fixed-clock";
+        clock-frequency = <0>;
+        clock-output-names = "xusbxti";
+        #clock-cells = <0>;
+    };
+
+    clock-controller@e0100000 {
+        compatible = "samsung,s5pv210-clock";
+        reg = <0xe0100000 0x10000>;
+        clock-names = "xxti", "xusbxti";
+        clocks = <&xxti>, <&xusbxti>;
+        #clock-cells = <1>;
+    };

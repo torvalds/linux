@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if SOC_BRCMSTB
+
+config BRCMSTB_PM
+	bool "Support suspend/resume for STB platforms"
+	default y
+	depends on PM
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
+	select ARM_CPU_SUSPEND if ARM
+
+endif # SOC_BRCMSTB

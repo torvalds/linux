@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config SH_STANDARD_BIOS
+	bool "Use LinuxSH standard BIOS"
+	help
+	  Say Y here if your target has the gdb-sh-stub
+	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)
+	  in FLASH or EPROM.  The kernel will use standard BIOS calls during
+	  boot for various housekeeping tasks (including calls to read and
+	  write characters to a system console, get a MAC address from an
+	  on-board Ethernet interface, and shut down the hardware).  Note this
+	  does not work with machines with an existing operating system in
+	  mask ROM and no flash (WindowsCE machines fall in this category).
+	  If unsure, say N.
+
+config STACK_DEBUG
+	bool "Check for stack overflows"
+	depends on DEBUG_KERNEL && PRINTK
+	help
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit. Saying Y here will add overhead to
+	  every function call and will therefore incur a major
+	  performance hit. Most users should say N.
+
+config 4KSTACKS
+	bool "Use 4Kb for kernel stacks instead of 8Kb"
+	depends on DEBUG_KERNEL && (MMU || BROKEN) && !PAGE_SIZE_64KB
+	help
+	  If you say Y here the kernel will use a 4Kb stacksize for the
+	  kernel stack attached to each process/thread. This facilitates
+	  running more threads on a system and also reduces the pressure
+	  on the VM subsystem for higher order allocations. This option
+	  will also use IRQ stacks to compensate for the reduced stackspace.
+
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	depends on DEBUG_KERNEL && BROKEN
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
+
+config DUMP_CODE
+	bool "Show disassembly of nearby code in register dumps"
+	depends on DEBUG_KERNEL
+	default y if DEBUG_BUGVERBOSE
+	default n
+	help
+	  This prints out a code trace of the instructions leading up to
+	  the faulting instruction as a debugging aid. As this does grow
+	  the kernel in size a bit, most users will want to say N here.
+
+	  Those looking for more verbose debugging output should say Y.
+
+config DWARF_UNWINDER
+	bool "Enable the DWARF unwinder for stacktraces"
+	depends on DEBUG_KERNEL
+	select FRAME_POINTER
+	default n
+	help
+	  Enabling this option will make stacktraces more accurate, at
+	  the cost of an increase in overall kernel size.
+
+config SH_NO_BSS_INIT
+	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
+	depends on DEBUG_KERNEL
+	default n
+	help
+	  If running in painfully slow environments, such as an RTL
+	  simulation or from remote memory via SHdebug, where the memory
+	  can already be guaranteed to ber zeroed on boot, say Y.
+
+	  For all other cases, say N. If this option seems perplexing, or
+	  you aren't sure, say N.
+
+config MCOUNT
+	def_bool y
+	depends on STACK_DEBUG || FUNCTION_TRACER
