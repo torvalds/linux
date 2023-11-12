@@ -27,38 +27,39 @@ properties:
   iommus: {}
   power-domains: {}
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: samsung,exynos5250-g2d
-
-then:
-  properties:
-    clocks:
-      items:
-        - description: fimg2d clock
-    clock-names:
-      items:
-        - const: fimg2d
-
-else:
-  properties:
-    clocks:
-      items:
-        - description: sclk_fimg2d clock
-        - description: fimg2d clock
-    clock-names:
-      items:
-        - const: sclk_fimg2d
-        - const: fimg2d
-
 required:
   - compatible
   - reg
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5250-g2d
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: fimg2d clock
+        clock-names:
+          items:
+            - const: fimg2d
+
+    else:
+      properties:
+        clocks:
+          items:
+            - description: sclk_fimg2d clock
+            - description: fimg2d clock
+        clock-names:
+          items:
+            - const: sclk_fimg2d
+            - const: fimg2d
 
 additionalProperties: false
 

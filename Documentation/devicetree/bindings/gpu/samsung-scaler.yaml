@@ -26,42 +26,41 @@ properties:
   iommus: {}
   power-domains: {}
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: samsung,exynos5420-scaler
-
-then:
-  properties:
-    clocks:
-      items:
-        - description: mscl clock
-
-    clock-names:
-      items:
-        - const: mscl
-
-else:
-  properties:
-    clocks:
-      items:
-        - description: pclk clock
-        - description: aclk clock
-        - description: aclk_xiu clock
-
-    clock-names:
-      items:
-        - const: pclk
-        - const: aclk
-        - const: aclk_xiu
-
 required:
   - compatible
   - reg
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5420-scaler
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: mscl clock
+        clock-names:
+          items:
+            - const: mscl
+
+    else:
+      properties:
+        clocks:
+          items:
+            - description: pclk clock
+            - description: aclk clock
+            - description: aclk_xiu clock
+        clock-names:
+          items:
+            - const: pclk
+            - const: aclk
+            - const: aclk_xiu
 
 additionalProperties: false
 
