@@ -96,13 +96,6 @@ static int brx_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_rect *brx_get_compose(struct vsp1_brx *brx,
-					 struct v4l2_subdev_state *sd_state,
-					 unsigned int pad)
-{
-	return v4l2_subdev_state_get_compose(sd_state, pad);
-}
-
 static void brx_try_format(struct vsp1_brx *brx,
 			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad, struct v4l2_mbus_framefmt *fmt)
@@ -157,7 +150,7 @@ static int brx_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad != brx->entity.source_pad) {
 		struct v4l2_rect *compose;
 
-		compose = brx_get_compose(brx, state, fmt->pad);
+		compose = v4l2_subdev_state_get_compose(state, fmt->pad);
 		compose->left = 0;
 		compose->top = 0;
 		compose->width = format->width;
@@ -204,7 +197,7 @@ static int brx_get_selection(struct v4l2_subdev *subdev,
 			return -EINVAL;
 
 		mutex_lock(&brx->entity.lock);
-		sel->r = *brx_get_compose(brx, state, sel->pad);
+		sel->r = *v4l2_subdev_state_get_compose(state, sel->pad);
 		mutex_unlock(&brx->entity.lock);
 		return 0;
 
@@ -253,7 +246,7 @@ static int brx_set_selection(struct v4l2_subdev *subdev,
 	sel->r.width = format->width;
 	sel->r.height = format->height;
 
-	compose = brx_get_compose(brx, state, sel->pad);
+	compose = v4l2_subdev_state_get_compose(state, sel->pad);
 	*compose = sel->r;
 
 done:
