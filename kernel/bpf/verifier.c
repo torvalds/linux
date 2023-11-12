@@ -2615,6 +2615,56 @@ static void reg_bounds_sync(struct bpf_reg_state *reg)
 	__update_reg_bounds(reg);
 }
 
+static int reg_bounds_sanity_check(struct bpf_verifier_env *env,
+				   struct bpf_reg_state *reg, const char *ctx)
+{
+	const char *msg;
+
+	if (reg->umin_value > reg->umax_value ||
+	    reg->smin_value > reg->smax_value ||
+	    reg->u32_min_value > reg->u32_max_value ||
+	    reg->s32_min_value > reg->s32_max_value) {
+		    msg = "range bounds violation";
+		    goto out;
+	}
+
+	if (tnum_is_const(reg->var_off)) {
+		u64 uval = reg->var_off.value;
+		s64 sval = (s64)uval;
+
+		if (reg->umin_value != uval || reg->umax_value != uval ||
+		    reg->smin_value != sval || reg->smax_value != sval) {
+			msg = "const tnum out of sync with range bounds";
+			goto out;
+		}
+	}
+
+	if (tnum_subreg_is_const(reg->var_off)) {
+		u32 uval32 = tnum_subreg(reg->var_off).value;
+		s32 sval32 = (s32)uval32;
+
+		if (reg->u32_min_value != uval32 || reg->u32_max_value != uval32 ||
+		    reg->s32_min_value != sval32 || reg->s32_max_value != sval32) {
+			msg = "const subreg tnum out of sync with range bounds";
+			goto out;
+		}
+	}
+
+	return 0;
+out:
+	verbose(env, "REG SANITY VIOLATION (%s): %s u64=[%#llx, %#llx] "
+		"s64=[%#llx, %#llx] u32=[%#x, %#x] s32=[%#x, %#x] var_off=(%#llx, %#llx)\n",
+		ctx, msg, reg->umin_value, reg->umax_value,
+		reg->smin_value, reg->smax_value,
+		reg->u32_min_value, reg->u32_max_value,
+		reg->s32_min_value, reg->s32_max_value,
+		reg->var_off.value, reg->var_off.mask);
+	if (env->test_sanity_strict)
+		return -EFAULT;
+	__mark_reg_unbounded(reg);
+	return 0;
+}
+
 static bool __reg32_bound_s64(s32 a)
 {
 	return a >= 0 && a <= S32_MAX;
@@ -9982,14 +10032,15 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 	return 0;
 }
 
-static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
-				   int func_id,
-				   struct bpf_call_arg_meta *meta)
+static int do_refine_retval_range(struct bpf_verifier_env *env,
+				  struct bpf_reg_state *regs, int ret_type,
+				  int func_id,
+				  struct bpf_call_arg_meta *meta)
 {
 	struct bpf_reg_state *ret_reg = &regs[BPF_REG_0];
 
 	if (ret_type != RET_INTEGER)
-		return;
+		return 0;
 
 	switch (func_id) {
 	case BPF_FUNC_get_stack:
@@ -10015,6 +10066,8 @@ static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
 		reg_bounds_sync(ret_reg);
 		break;
 	}
+
+	return reg_bounds_sanity_check(env, ret_reg, "retval");
 }
 
 static int
@@ -10666,7 +10719,9 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		regs[BPF_REG_0].ref_obj_id = id;
 	}
 
-	do_refine_retval_range(regs, fn->ret_type, func_id, &meta);
+	err = do_refine_retval_range(env, regs, fn->ret_type, func_id, &meta);
+	if (err)
+		return err;
 
 	err = check_map_func_compatibility(env, meta.map_ptr, func_id);
 	if (err)
@@ -14166,13 +14221,12 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 
 		/* check dest operand */
 		err = check_reg_arg(env, insn->dst_reg, DST_OP_NO_MARK);
+		err = err ?: adjust_reg_min_max_vals(env, insn);
 		if (err)
 			return err;
-
-		return adjust_reg_min_max_vals(env, insn);
 	}
 
-	return 0;
+	return reg_bounds_sanity_check(env, &regs[insn->dst_reg], "alu");
 }
 
 static void find_good_pkt_pointers(struct bpf_verifier_state *vstate,
@@ -14653,18 +14707,21 @@ again:
  * Technically we can do similar adjustments for pointers to the same object,
  * but we don't support that right now.
  */
-static void reg_set_min_max(struct bpf_reg_state *true_reg1,
-			    struct bpf_reg_state *true_reg2,
-			    struct bpf_reg_state *false_reg1,
-			    struct bpf_reg_state *false_reg2,
-			    u8 opcode, bool is_jmp32)
+static int reg_set_min_max(struct bpf_verifier_env *env,
+			   struct bpf_reg_state *true_reg1,
+			   struct bpf_reg_state *true_reg2,
+			   struct bpf_reg_state *false_reg1,
+			   struct bpf_reg_state *false_reg2,
+			   u8 opcode, bool is_jmp32)
 {
+	int err;
+
 	/* If either register is a pointer, we can't learn anything about its
 	 * variable offset from the compare (unless they were a pointer into
 	 * the same object, but we don't bother with that).
 	 */
 	if (false_reg1->type != SCALAR_VALUE || false_reg2->type != SCALAR_VALUE)
-		return;
+		return 0;
 
 	/* fallthrough (FALSE) branch */
 	regs_refine_cond_op(false_reg1, false_reg2, rev_opcode(opcode), is_jmp32);
@@ -14675,6 +14732,12 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg1,
 	regs_refine_cond_op(true_reg1, true_reg2, opcode, is_jmp32);
 	reg_bounds_sync(true_reg1);
 	reg_bounds_sync(true_reg2);
+
+	err = reg_bounds_sanity_check(env, true_reg1, "true_reg1");
+	err = err ?: reg_bounds_sanity_check(env, true_reg2, "true_reg2");
+	err = err ?: reg_bounds_sanity_check(env, false_reg1, "false_reg1");
+	err = err ?: reg_bounds_sanity_check(env, false_reg2, "false_reg2");
+	return err;
 }
 
 static void mark_ptr_or_null_reg(struct bpf_func_state *state,
@@ -14968,15 +15031,20 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	other_branch_regs = other_branch->frame[other_branch->curframe]->regs;
 
 	if (BPF_SRC(insn->code) == BPF_X) {
-		reg_set_min_max(&other_branch_regs[insn->dst_reg],
-				&other_branch_regs[insn->src_reg],
-				dst_reg, src_reg, opcode, is_jmp32);
+		err = reg_set_min_max(env,
+				      &other_branch_regs[insn->dst_reg],
+				      &other_branch_regs[insn->src_reg],
+				      dst_reg, src_reg, opcode, is_jmp32);
 	} else /* BPF_SRC(insn->code) == BPF_K */ {
-		reg_set_min_max(&other_branch_regs[insn->dst_reg],
-				src_reg /* fake one */,
-				dst_reg, src_reg /* same fake one */,
-				opcode, is_jmp32);
+		err = reg_set_min_max(env,
+				      &other_branch_regs[insn->dst_reg],
+				      src_reg /* fake one */,
+				      dst_reg, src_reg /* same fake one */,
+				      opcode, is_jmp32);
 	}
+	if (err)
+		return err;
+
 	if (BPF_SRC(insn->code) == BPF_X &&
 	    src_reg->type == SCALAR_VALUE && src_reg->id &&
 	    !WARN_ON_ONCE(src_reg->id != other_branch_regs[insn->src_reg].id)) {
@@ -17479,10 +17547,8 @@ static int do_check(struct bpf_verifier_env *env)
 					       insn->off, BPF_SIZE(insn->code),
 					       BPF_READ, insn->dst_reg, false,
 					       BPF_MODE(insn->code) == BPF_MEMSX);
-			if (err)
-				return err;
-
-			err = save_aux_ptr_type(env, src_reg_type, true);
+			err = err ?: save_aux_ptr_type(env, src_reg_type, true);
+			err = err ?: reg_bounds_sanity_check(env, &regs[insn->dst_reg], "ldx");
 			if (err)
 				return err;
 		} else if (class == BPF_STX) {
@@ -20769,6 +20835,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 
 	if (is_priv)
 		env->test_state_freq = attr->prog_flags & BPF_F_TEST_STATE_FREQ;
+	env->test_sanity_strict = attr->prog_flags & BPF_F_TEST_SANITY_STRICT;
 
 	env->explored_states = kvcalloc(state_htab_size(env),
 				       sizeof(struct bpf_verifier_state_list *),
