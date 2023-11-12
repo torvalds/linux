@@ -298,7 +298,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	 * offsets are needed, as planes 2 and 3 always have identical
 	 * strides.
 	 */
-	crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.state);
+	crop = *v4l2_subdev_state_get_crop(rpf->entity.state, RWPF_PAD_SINK);
 
 	/*
 	 * Partition Algorithm Control
