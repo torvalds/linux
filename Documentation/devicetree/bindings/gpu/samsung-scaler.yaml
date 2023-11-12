@@ -29,8 +29,12 @@ properties:
     minItems: 1
     maxItems: 3
 
-  iommus: {}
-  power-domains: {}
+  iommus:
+    minItems: 1
+    maxItems: 2
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -54,6 +58,8 @@ allOf:
         clock-names:
           items:
             - const: mscl
+        iommus:
+          minItems: 2
 
     else:
       properties:
@@ -67,6 +73,8 @@ allOf:
             - const: pclk
             - const: aclk
             - const: aclk_xiu
+        iommus:
+          maxItems: 1
 
 additionalProperties: false
 
