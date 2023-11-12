@@ -974,13 +974,22 @@ static void setup_fte_esp(struct mlx5_flow_spec *spec)
 	MLX5_SET(fte_match_param, spec->match_value, outer_headers.ip_protocol, IPPROTO_ESP);
 }
 
-static void setup_fte_spi(struct mlx5_flow_spec *spec, u32 spi)
+static void setup_fte_spi(struct mlx5_flow_spec *spec, u32 spi, bool encap)
 {
 	/* SPI number */
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS;
 
-	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, misc_parameters.outer_esp_spi);
-	MLX5_SET(fte_match_param, spec->match_value, misc_parameters.outer_esp_spi, spi);
+	if (encap) {
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+				 misc_parameters.inner_esp_spi);
+		MLX5_SET(fte_match_param, spec->match_value,
+			 misc_parameters.inner_esp_spi, spi);
+	} else {
+		MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+				 misc_parameters.outer_esp_spi);
+		MLX5_SET(fte_match_param, spec->match_value,
+			 misc_parameters.outer_esp_spi, spi);
+	}
 }
 
 static void setup_fte_no_frags(struct mlx5_flow_spec *spec)
@@ -1339,8 +1348,9 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	else
 		setup_fte_addr6(spec, attrs->saddr.a6, attrs->daddr.a6);
 
-	setup_fte_spi(spec, attrs->spi);
-	setup_fte_esp(spec);
+	setup_fte_spi(spec, attrs->spi, attrs->encap);
+	if (!attrs->encap)
+		setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
 	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
@@ -1443,7 +1453,7 @@ static int tx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	switch (attrs->type) {
 	case XFRM_DEV_OFFLOAD_CRYPTO:
-		setup_fte_spi(spec, attrs->spi);
+		setup_fte_spi(spec, attrs->spi, false);
 		setup_fte_esp(spec);
 		setup_fte_reg_a(spec);
 		break;
