@@ -83,6 +83,17 @@ static __always_inline u64 max_t(enum num_t t, u64 x, u64 y)
 	}
 }
 
+static __always_inline u64 cast_t(enum num_t t, u64 x)
+{
+	switch (t) {
+	case U64: return (u64)x;
+	case U32: return (u32)x;
+	case S64: return (s64)x;
+	case S32: return (u32)(s32)x;
+	default: printf("cast_t!\n"); exit(1);
+	}
+}
+
 static const char *t_str(enum num_t t)
 {
 	switch (t) {
@@ -1312,8 +1323,10 @@ struct ctx {
 	struct range *usubranges, *ssubranges;
 	int max_failure_cnt, cur_failure_cnt;
 	int total_case_cnt, case_cnt;
+	int rand_case_cnt;
+	unsigned rand_seed;
 	__u64 start_ns;
-	char progress_ctx[32];
+	char progress_ctx[64];
 };
 
 static void cleanup_ctx(struct ctx *ctx)
@@ -1644,11 +1657,6 @@ static int parse_env_vars(struct ctx *ctx)
 {
 	const char *s;
 
-	if (!(s = getenv("SLOW_TESTS")) || strcmp(s, "1") != 0) {
-		test__skip();
-		return -ENOTSUP;
-	}
-
 	if ((s = getenv("REG_BOUNDS_MAX_FAILURE_CNT"))) {
 		errno = 0;
 		ctx->max_failure_cnt = strtol(s, NULL, 10);
@@ -1658,12 +1666,36 @@ static int parse_env_vars(struct ctx *ctx)
 		}
 	}
 
+	if ((s = getenv("REG_BOUNDS_RAND_CASE_CNT"))) {
+		errno = 0;
+		ctx->rand_case_cnt = strtol(s, NULL, 10);
+		if (errno || ctx->rand_case_cnt < 0) {
+			ASSERT_OK(-errno, "REG_BOUNDS_RAND_CASE_CNT");
+			return -EINVAL;
+		}
+	}
+
+	if ((s = getenv("REG_BOUNDS_RAND_SEED"))) {
+		errno = 0;
+		ctx->rand_seed = strtoul(s, NULL, 10);
+		if (errno) {
+			ASSERT_OK(-errno, "REG_BOUNDS_RAND_SEED");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
 static int prepare_gen_tests(struct ctx *ctx)
 {
+	const char *s;
 	int err;
+
+	if (!(s = getenv("SLOW_TESTS")) || strcmp(s, "1") != 0) {
+		test__skip();
+		return -ENOTSUP;
+	}
 
 	err = parse_env_vars(ctx);
 	if (err)
@@ -1794,7 +1826,7 @@ static void validate_gen_range_vs_range(enum num_t init_t, enum num_t cond_t)
 		exit(1);
 	}
 
-	ctx.total_case_cnt = (MAX_OP - MIN_OP + 1) * (2 * rcnt * (rcnt + 1) / 2);
+	ctx.total_case_cnt = (last_op - first_op + 1) * (2 * rcnt * (rcnt + 1) / 2);
 	ctx.start_ns = get_time_ns();
 	snprintf(ctx.progress_ctx, sizeof(ctx.progress_ctx),
 		 "RANGE x RANGE, %s -> %s",
@@ -1864,6 +1896,126 @@ void test_reg_bounds_gen_ranges_s32_u64(void) { validate_gen_range_vs_range(S32,
 void test_reg_bounds_gen_ranges_s32_s64(void) { validate_gen_range_vs_range(S32, S64); }
 void test_reg_bounds_gen_ranges_s32_u32(void) { validate_gen_range_vs_range(S32, U32); }
 void test_reg_bounds_gen_ranges_s32_s32(void) { validate_gen_range_vs_range(S32, S32); }
+
+#define DEFAULT_RAND_CASE_CNT 25
+
+#define RAND_21BIT_MASK ((1 << 22) - 1)
+
+static u64 rand_u64()
+{
+	/* RAND_MAX is guaranteed to be at least 1<<15, but in practice it
+	 * seems to be 1<<31, so we need to call it thrice to get full u64;
+	 * we'll use rougly equal split: 22 + 21 + 21 bits
+	 */
+	return ((u64)random() << 42) |
+	       (((u64)random() & RAND_21BIT_MASK) << 21) |
+	       (random() & RAND_21BIT_MASK);
+}
+
+static u64 rand_const(enum num_t t)
+{
+	return cast_t(t, rand_u64());
+}
+
+static struct range rand_range(enum num_t t)
+{
+	u64 x = rand_const(t), y = rand_const(t);
+
+	return range(t, min_t(t, x, y), max_t(t, x, y));
+}
+
+static void validate_rand_ranges(enum num_t init_t, enum num_t cond_t, bool const_range)
+{
+	struct ctx ctx;
+	struct range range1, range2;
+	int err, i;
+	u64 t;
+
+	memset(&ctx, 0, sizeof(ctx));
+
+	err = parse_env_vars(&ctx);
+	if (err) {
+		ASSERT_OK(err, "parse_env_vars");
+		return;
+	}
+
+	if (ctx.rand_case_cnt == 0)
+		ctx.rand_case_cnt = DEFAULT_RAND_CASE_CNT;
+	if (ctx.rand_seed == 0)
+		ctx.rand_seed = (unsigned)get_time_ns();
+
+	srandom(ctx.rand_seed);
+
+	ctx.total_case_cnt = (last_op - first_op + 1) * (2 * ctx.rand_case_cnt);
+	ctx.start_ns = get_time_ns();
+	snprintf(ctx.progress_ctx, sizeof(ctx.progress_ctx),
+		 "[RANDOM SEED %u] RANGE x %s, %s -> %s",
+		 ctx.rand_seed, const_range ? "CONST" : "RANGE",
+		 t_str(init_t), t_str(cond_t));
+	fprintf(env.stdout, "%s\n", ctx.progress_ctx);
+
+	for (i = 0; i < ctx.rand_case_cnt; i++) {
+		range1 = rand_range(init_t);
+		if (const_range) {
+			t = rand_const(init_t);
+			range2 = range(init_t, t, t);
+		} else {
+			range2 = rand_range(init_t);
+		}
+
+		/* <range1> x <range2> */
+		if (verify_case(&ctx, init_t, cond_t, range1, range2))
+			goto cleanup;
+		/* <range2> x <range1> */
+		if (verify_case(&ctx, init_t, cond_t, range2, range1))
+			goto cleanup;
+	}
+
+cleanup:
+	cleanup_ctx(&ctx);
+}
+
+/* [RANDOM] RANGE x CONST, U64 initial range */
+void test_reg_bounds_rand_consts_u64_u64(void) { validate_rand_ranges(U64, U64, true /* const */); }
+void test_reg_bounds_rand_consts_u64_s64(void) { validate_rand_ranges(U64, S64, true /* const */); }
+void test_reg_bounds_rand_consts_u64_u32(void) { validate_rand_ranges(U64, U32, true /* const */); }
+void test_reg_bounds_rand_consts_u64_s32(void) { validate_rand_ranges(U64, S32, true /* const */); }
+/* [RANDOM] RANGE x CONST, S64 initial range */
+void test_reg_bounds_rand_consts_s64_u64(void) { validate_rand_ranges(S64, U64, true /* const */); }
+void test_reg_bounds_rand_consts_s64_s64(void) { validate_rand_ranges(S64, S64, true /* const */); }
+void test_reg_bounds_rand_consts_s64_u32(void) { validate_rand_ranges(S64, U32, true /* const */); }
+void test_reg_bounds_rand_consts_s64_s32(void) { validate_rand_ranges(S64, S32, true /* const */); }
+/* [RANDOM] RANGE x CONST, U32 initial range */
+void test_reg_bounds_rand_consts_u32_u64(void) { validate_rand_ranges(U32, U64, true /* const */); }
+void test_reg_bounds_rand_consts_u32_s64(void) { validate_rand_ranges(U32, S64, true /* const */); }
+void test_reg_bounds_rand_consts_u32_u32(void) { validate_rand_ranges(U32, U32, true /* const */); }
+void test_reg_bounds_rand_consts_u32_s32(void) { validate_rand_ranges(U32, S32, true /* const */); }
+/* [RANDOM] RANGE x CONST, S32 initial range */
+void test_reg_bounds_rand_consts_s32_u64(void) { validate_rand_ranges(S32, U64, true /* const */); }
+void test_reg_bounds_rand_consts_s32_s64(void) { validate_rand_ranges(S32, S64, true /* const */); }
+void test_reg_bounds_rand_consts_s32_u32(void) { validate_rand_ranges(S32, U32, true /* const */); }
+void test_reg_bounds_rand_consts_s32_s32(void) { validate_rand_ranges(S32, S32, true /* const */); }
+
+/* [RANDOM] RANGE x RANGE, U64 initial range */
+void test_reg_bounds_rand_ranges_u64_u64(void) { validate_rand_ranges(U64, U64, false /* range */); }
+void test_reg_bounds_rand_ranges_u64_s64(void) { validate_rand_ranges(U64, S64, false /* range */); }
+void test_reg_bounds_rand_ranges_u64_u32(void) { validate_rand_ranges(U64, U32, false /* range */); }
+void test_reg_bounds_rand_ranges_u64_s32(void) { validate_rand_ranges(U64, S32, false /* range */); }
+/* [RANDOM] RANGE x RANGE, S64 initial range */
+void test_reg_bounds_rand_ranges_s64_u64(void) { validate_rand_ranges(S64, U64, false /* range */); }
+void test_reg_bounds_rand_ranges_s64_s64(void) { validate_rand_ranges(S64, S64, false /* range */); }
+void test_reg_bounds_rand_ranges_s64_u32(void) { validate_rand_ranges(S64, U32, false /* range */); }
+void test_reg_bounds_rand_ranges_s64_s32(void) { validate_rand_ranges(S64, S32, false /* range */); }
+/* [RANDOM] RANGE x RANGE, U32 initial range */
+void test_reg_bounds_rand_ranges_u32_u64(void) { validate_rand_ranges(U32, U64, false /* range */); }
+void test_reg_bounds_rand_ranges_u32_s64(void) { validate_rand_ranges(U32, S64, false /* range */); }
+void test_reg_bounds_rand_ranges_u32_u32(void) { validate_rand_ranges(U32, U32, false /* range */); }
+void test_reg_bounds_rand_ranges_u32_s32(void) { validate_rand_ranges(U32, S32, false /* range */); }
+/* [RANDOM] RANGE x RANGE, S32 initial range */
+void test_reg_bounds_rand_ranges_s32_u64(void) { validate_rand_ranges(S32, U64, false /* range */); }
+void test_reg_bounds_rand_ranges_s32_s64(void) { validate_rand_ranges(S32, S64, false /* range */); }
+void test_reg_bounds_rand_ranges_s32_u32(void) { validate_rand_ranges(S32, U32, false /* range */); }
+void test_reg_bounds_rand_ranges_s32_s32(void) { validate_rand_ranges(S32, S32, false /* range */); }
 
 /* A set of hard-coded "interesting" cases to validate as part of normal
  * test_progs test runs
