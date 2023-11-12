@@ -145,6 +145,7 @@ static struct env {
 	bool debug;
 	bool quiet;
 	bool force_checkpoints;
+	bool strict_range_sanity;
 	enum resfmt out_fmt;
 	bool show_version;
 	bool comparison_mode;
@@ -214,8 +215,6 @@ static const struct argp_option opts[] = {
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
-	{ "test-states", 't', NULL, 0,
-	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
 	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
@@ -224,6 +223,10 @@ static const struct argp_option opts[] = {
 	{ "compare", 'C', NULL, 0, "Comparison mode" },
 	{ "replay", 'R', NULL, 0, "Replay mode" },
 	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
+	{ "test-states", 't', NULL, 0,
+	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
+	{ "test-sanity", 'r', NULL, 0,
+	  "Force strict BPF verifier register sanity behavior (BPF_F_TEST_SANITY_STRICT program flag)" },
 	{},
 };
 
@@ -295,6 +298,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 't':
 		env.force_checkpoints = true;
 		break;
+	case 'r':
+		env.strict_range_sanity = true;
+		break;
 	case 'n':
 		errno = 0;
 		env.top_n = strtol(arg, NULL, 10);
@@ -302,7 +308,6 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 			fprintf(stderr, "invalid top N specifier: %s\n", arg);
 			argp_usage(state);
 		}
-		break;
 	case 'C':
 		env.comparison_mode = true;
 		break;
@@ -1023,6 +1028,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	if (env.force_checkpoints)
 		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_STATE_FREQ);
+	if (env.strict_range_sanity)
+		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_SANITY_STRICT);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
