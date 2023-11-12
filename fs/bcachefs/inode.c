@@ -1134,7 +1134,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 		 * unlinked inodes in the snapshot leaves:
 		 */
 		*need_another_pass = true;
-		return 0;
+		goto out;
 	}
 
 	ret = 1;
