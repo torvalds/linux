@@ -623,7 +623,6 @@
 			ranges;
 
 			resets = <&gcc USB30_0_MASTER_RESET>;
-			reset-names = "master";
 
 			status = "disabled";
 
@@ -669,7 +668,6 @@
 			ranges;
 
 			resets = <&gcc USB30_1_MASTER_RESET>;
-			reset-names = "master";
 
 			status = "disabled";
 
