@@ -352,30 +352,21 @@ done:
 	return ret;
 }
 
-static int histo_get_format(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_state *sd_state,
-			    struct v4l2_subdev_format *fmt)
-{
-	if (fmt->pad == HISTO_PAD_SOURCE) {
-		fmt->format.code = MEDIA_BUS_FMT_FIXED;
-		fmt->format.width = 0;
-		fmt->format.height = 0;
-		fmt->format.field = V4L2_FIELD_NONE;
-		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
-		return 0;
-	}
-
-	return vsp1_subdev_get_pad_format(subdev, sd_state, fmt);
-}
-
 static int histo_set_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
 
-	if (fmt->pad != HISTO_PAD_SINK)
-		return histo_get_format(subdev, sd_state, fmt);
+	if (fmt->pad == HISTO_PAD_SOURCE) {
+		fmt->format.code = MEDIA_BUS_FMT_FIXED;
+		fmt->format.width = 0;
+		fmt->format.height = 0;
+		fmt->format.field = V4L2_FIELD_NONE;
+		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
+
+		return 0;
+	}
 
 	return vsp1_subdev_set_pad_format(subdev, sd_state, fmt,
 					  histo->formats, histo->num_formats,
@@ -386,7 +377,7 @@ static int histo_set_format(struct v4l2_subdev *subdev,
 static const struct v4l2_subdev_pad_ops histo_pad_ops = {
 	.enum_mbus_code = histo_enum_mbus_code,
 	.enum_frame_size = histo_enum_frame_size,
-	.get_fmt = histo_get_format,
+	.get_fmt = vsp1_subdev_get_pad_format,
 	.set_fmt = histo_set_format,
 	.get_selection = histo_get_selection,
 	.set_selection = histo_set_selection,
