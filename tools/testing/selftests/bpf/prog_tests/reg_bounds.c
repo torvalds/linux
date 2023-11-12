@@ -1760,6 +1760,60 @@ cleanup:
 	cleanup_ctx(&ctx);
 }
 
+static void validate_gen_range_vs_range(enum num_t init_t, enum num_t cond_t)
+{
+	struct ctx ctx;
+	const struct range *ranges;
+	int i, j, rcnt;
+
+	memset(&ctx, 0, sizeof(ctx));
+
+	if (prepare_gen_tests(&ctx))
+		goto cleanup;
+
+	switch (init_t)
+	{
+	case U64:
+		ranges = ctx.uranges;
+		rcnt = ctx.range_cnt;
+		break;
+	case U32:
+		ranges = ctx.usubranges;
+		rcnt = ctx.subrange_cnt;
+		break;
+	case S64:
+		ranges = ctx.sranges;
+		rcnt = ctx.range_cnt;
+		break;
+	case S32:
+		ranges = ctx.ssubranges;
+		rcnt = ctx.subrange_cnt;
+		break;
+	default:
+		printf("validate_gen_range_vs_range!\n");
+		exit(1);
+	}
+
+	ctx.total_case_cnt = (MAX_OP - MIN_OP + 1) * (2 * rcnt * (rcnt + 1) / 2);
+	ctx.start_ns = get_time_ns();
+	snprintf(ctx.progress_ctx, sizeof(ctx.progress_ctx),
+		 "RANGE x RANGE, %s -> %s",
+		 t_str(init_t), t_str(cond_t));
+
+	for (i = 0; i < rcnt; i++) {
+		for (j = i; j < rcnt; j++) {
+			/* (<range> x <range>) */
+			if (verify_case(&ctx, init_t, cond_t, ranges[i], ranges[j]))
+				goto cleanup;
+			if (verify_case(&ctx, init_t, cond_t, ranges[j], ranges[i]))
+				goto cleanup;
+		}
+	}
+
+cleanup:
+	cleanup_ctx(&ctx);
+}
+
 /* Go over thousands of test cases generated from initial seed values.
  * Given this take a long time, guard this begind SLOW_TESTS=1 envvar. If
  * envvar is not set, this test is skipped during test_progs testing.
@@ -1790,6 +1844,27 @@ void test_reg_bounds_gen_consts_s32_s64(void) { validate_gen_range_vs_const_32(S
 void test_reg_bounds_gen_consts_s32_u32(void) { validate_gen_range_vs_const_32(S32, U32); }
 void test_reg_bounds_gen_consts_s32_s32(void) { validate_gen_range_vs_const_32(S32, S32); }
 
+/* RANGE x RANGE, U64 initial range */
+void test_reg_bounds_gen_ranges_u64_u64(void) { validate_gen_range_vs_range(U64, U64); }
+void test_reg_bounds_gen_ranges_u64_s64(void) { validate_gen_range_vs_range(U64, S64); }
+void test_reg_bounds_gen_ranges_u64_u32(void) { validate_gen_range_vs_range(U64, U32); }
+void test_reg_bounds_gen_ranges_u64_s32(void) { validate_gen_range_vs_range(U64, S32); }
+/* RANGE x RANGE, S64 initial range */
+void test_reg_bounds_gen_ranges_s64_u64(void) { validate_gen_range_vs_range(S64, U64); }
+void test_reg_bounds_gen_ranges_s64_s64(void) { validate_gen_range_vs_range(S64, S64); }
+void test_reg_bounds_gen_ranges_s64_u32(void) { validate_gen_range_vs_range(S64, U32); }
+void test_reg_bounds_gen_ranges_s64_s32(void) { validate_gen_range_vs_range(S64, S32); }
+/* RANGE x RANGE, U32 initial range */
+void test_reg_bounds_gen_ranges_u32_u64(void) { validate_gen_range_vs_range(U32, U64); }
+void test_reg_bounds_gen_ranges_u32_s64(void) { validate_gen_range_vs_range(U32, S64); }
+void test_reg_bounds_gen_ranges_u32_u32(void) { validate_gen_range_vs_range(U32, U32); }
+void test_reg_bounds_gen_ranges_u32_s32(void) { validate_gen_range_vs_range(U32, S32); }
+/* RANGE x RANGE, S32 initial range */
+void test_reg_bounds_gen_ranges_s32_u64(void) { validate_gen_range_vs_range(S32, U64); }
+void test_reg_bounds_gen_ranges_s32_s64(void) { validate_gen_range_vs_range(S32, S64); }
+void test_reg_bounds_gen_ranges_s32_u32(void) { validate_gen_range_vs_range(S32, U32); }
+void test_reg_bounds_gen_ranges_s32_s32(void) { validate_gen_range_vs_range(S32, S32); }
+
 /* A set of hard-coded "interesting" cases to validate as part of normal
  * test_progs test runs
  */
@@ -1802,6 +1877,12 @@ static struct subtest_case crafted_cases[] = {
 	{U64, U64, {0x100000000ULL, 0x1ffffff01ULL}, {0, 0}},
 	{U64, U64, {0x100000000ULL, 0x1fffffffeULL}, {0, 0}},
 	{U64, U64, {0x100000001ULL, 0x1000000ffULL}, {0, 0}},
+
+	/* single point overlap, interesting BPF_EQ and BPF_NE interactions */
+	{U64, U64, {0, 1}, {1, 0x80000000}},
+	{U64, S64, {0, 1}, {1, 0x80000000}},
+	{U64, U32, {0, 1}, {1, 0x80000000}},
+	{U64, S32, {0, 1}, {1, 0x80000000}},
 
 	{U64, S64, {0, 0xffffffff00000000ULL}, {0, 0}},
 	{U64, S64, {0x7fffffffffffffffULL, 0xffffffff00000000ULL}, {0, 0}},
@@ -1837,6 +1918,11 @@ static struct subtest_case crafted_cases[] = {
 	{U32, U32, {1, U32_MAX}, {0, 0}},
 
 	{U32, S32, {0, U32_MAX}, {U32_MAX, U32_MAX}},
+
+	{S32, U64, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}, {(u32)(s32)-255, 0}},
+	{S32, S64, {(u32)(s32)S32_MIN, (u32)(s32)-255}, {(u32)(s32)-2, 0}},
+	{S32, S64, {0, 1}, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}},
+	{S32, U32, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}},
 };
 
 /* Go over crafted hard-coded cases. This is fast, so we do it as part of
