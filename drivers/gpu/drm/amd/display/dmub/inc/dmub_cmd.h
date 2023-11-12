@@ -185,8 +185,7 @@ union abm_flags {
 		unsigned int disable_abm_requested : 1;
 
 		/**
-		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled
-		 * immediately.
+		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled immediately.
 		 */
 		unsigned int disable_abm_immediately : 1;
 
@@ -866,6 +865,13 @@ enum dmub_gpint_command {
 	 * DESC: Updates the trace buffer mask bit32~bit63.
 	 */
 	DMUB_GPINT__GET_TRACE_BUFFER_MASK_WORD3 = 119,
+
+	/**
+	 * DESC: Enable measurements for various task duration
+	 * ARGS: 0 - Disable measurement
+	 *       1 - Enable measurement
+	 */
+	DMUB_GPINT__TRACE_DMUB_WAKE_ACTIVITY = 123,
 };
 
 /**
