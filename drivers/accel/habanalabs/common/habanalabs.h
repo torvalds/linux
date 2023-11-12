@@ -3964,6 +3964,8 @@ long hl_fw_get_max_power(struct hl_device *hdev);
 void hl_fw_set_max_power(struct hl_device *hdev);
 int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_info *sec_attest_info,
 				u32 nonce);
+int hl_fw_get_dev_info_signed(struct hl_device *hdev,
+			      struct cpucp_dev_info_signed *dev_info_signed, u32 nonce);
 int hl_set_voltage(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 int hl_set_current(struct hl_device *hdev, int sensor_index, u32 attr, long value);
 int hl_set_power(struct hl_device *hdev, int sensor_index, u32 attr, long value);

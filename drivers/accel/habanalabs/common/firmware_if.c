@@ -3244,6 +3244,14 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
 
+int hl_fw_get_dev_info_signed(struct hl_device *hdev,
+			      struct cpucp_dev_info_signed *dev_info_signed, u32 nonce)
+{
+	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_INFO_SIGNED_GET, dev_info_signed,
+					 sizeof(struct cpucp_dev_info_signed), nonce,
+					 HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
+}
+
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
 						dma_addr_t buff, u32 *size)
 {
