@@ -170,6 +170,7 @@ static const struct v4l2_subdev_ops clu_ops = {
  */
 
 static void clu_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -181,7 +182,7 @@ static void clu_configure_stream(struct vsp1_entity *entity,
 	 * The yuv_mode can't be changed during streaming. Cache it internally
 	 * for future runtime configuration calls.
 	 */
-	format = v4l2_subdev_state_get_format(clu->entity.state, CLU_PAD_SINK);
+	format = v4l2_subdev_state_get_format(state, CLU_PAD_SINK);
 	clu->yuv_mode = format->code == MEDIA_BUS_FMT_AYUV8_1X32;
 }
 

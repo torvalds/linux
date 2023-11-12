@@ -699,7 +699,9 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 			if (!entity->ops->max_width)
 				continue;
 
-			entity_max = entity->ops->max_width(entity, pipe);
+			entity_max = entity->ops->max_width(entity,
+							    entity->state,
+							    pipe);
 			if (entity_max)
 				div_size = min(div_size, entity_max);
 		}
@@ -760,7 +762,7 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 
 	list_for_each_entry(entity, &pipe->entities, list_pipe) {
 		vsp1_entity_route_setup(entity, pipe, pipe->stream_config);
-		vsp1_entity_configure_stream(entity, pipe, NULL,
+		vsp1_entity_configure_stream(entity, entity->state, pipe, NULL,
 					     pipe->stream_config);
 	}
 

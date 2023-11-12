@@ -229,6 +229,7 @@ static int wpf_configure_writeback_chain(struct vsp1_rwpf *wpf,
 }
 
 static void wpf_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -243,10 +244,8 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 	u32 srcrpf = 0;
 	int ret;
 
-	sink_format = v4l2_subdev_state_get_format(wpf->entity.state,
-						   RWPF_PAD_SINK);
-	source_format = v4l2_subdev_state_get_format(wpf->entity.state,
-						     RWPF_PAD_SOURCE);
+	sink_format = v4l2_subdev_state_get_format(state, RWPF_PAD_SINK);
+	source_format = v4l2_subdev_state_get_format(state, RWPF_PAD_SOURCE);
 
 	/* Format */
 	if (!pipe->lif || wpf->writeback) {
@@ -496,6 +495,7 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 }
 
 static unsigned int wpf_max_width(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
@@ -504,6 +504,7 @@ static unsigned int wpf_max_width(struct vsp1_entity *entity,
 }
 
 static void wpf_partition(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,

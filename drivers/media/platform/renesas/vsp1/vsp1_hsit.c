@@ -127,6 +127,7 @@ static const struct v4l2_subdev_ops hsit_ops = {
  */
 
 static void hsit_configure_stream(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe,
 				  struct vsp1_dl_list *dl,
 				  struct vsp1_dl_body *dlb)

@@ -126,6 +126,7 @@ static const struct v4l2_ctrl_config hgt_hue_areas = {
  */
 
 static void hgt_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -139,8 +140,8 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 	u8 upper;
 	unsigned int i;
 
-	crop = v4l2_subdev_state_get_crop(entity->state, HISTO_PAD_SINK);
-	compose = v4l2_subdev_state_get_compose(entity->state, HISTO_PAD_SINK);
+	crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
+	compose = v4l2_subdev_state_get_compose(state, HISTO_PAD_SINK);
 
 	vsp1_hgt_write(hgt, dlb, VI6_HGT_REGRST, VI6_HGT_REGRST_RCLEA);
 

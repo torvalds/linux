@@ -265,6 +265,7 @@ static const struct v4l2_subdev_ops sru_ops = {
  */
 
 static void sru_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -275,9 +276,8 @@ static void sru_configure_stream(struct vsp1_entity *entity,
 	struct v4l2_mbus_framefmt *output;
 	u32 ctrl0;
 
-	input = v4l2_subdev_state_get_format(sru->entity.state, SRU_PAD_SINK);
-	output = v4l2_subdev_state_get_format(sru->entity.state,
-					      SRU_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, SRU_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, SRU_PAD_SOURCE);
 
 	if (input->code == MEDIA_BUS_FMT_ARGB8888_1X32)
 		ctrl0 = VI6_SRU_CTRL0_PARAM2 | VI6_SRU_CTRL0_PARAM3
@@ -298,15 +298,14 @@ static void sru_configure_stream(struct vsp1_entity *entity,
 }
 
 static unsigned int sru_max_width(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe)
 {
-	struct vsp1_sru *sru = to_sru(&entity->subdev);
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
 
-	input = v4l2_subdev_state_get_format(sru->entity.state, SRU_PAD_SINK);
-	output = v4l2_subdev_state_get_format(sru->entity.state,
-					      SRU_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, SRU_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, SRU_PAD_SOURCE);
 
 	/*
 	 * The maximum input width of the SRU is 288 input pixels, but 32
@@ -320,18 +319,17 @@ static unsigned int sru_max_width(struct vsp1_entity *entity,
 }
 
 static void sru_partition(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,
 			  struct v4l2_rect *window)
 {
-	struct vsp1_sru *sru = to_sru(&entity->subdev);
 	struct v4l2_mbus_framefmt *input;
 	struct v4l2_mbus_framefmt *output;
 
-	input = v4l2_subdev_state_get_format(sru->entity.state, SRU_PAD_SINK);
-	output = v4l2_subdev_state_get_format(sru->entity.state,
-					      SRU_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, SRU_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, SRU_PAD_SOURCE);
 
 	/* Adapt if SRUx2 is enabled. */
 	if (input->width != output->width) {

@@ -272,6 +272,7 @@ static const struct v4l2_subdev_ops brx_ops = {
  */
 
 static void brx_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -281,8 +282,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 	unsigned int flags;
 	unsigned int i;
 
-	format = v4l2_subdev_state_get_format(brx->entity.state,
-					      brx->entity.source_pad);
+	format = v4l2_subdev_state_get_format(state, brx->entity.source_pad);
 
 	/*
 	 * The hardware is extremely flexible but we have no userspace API to

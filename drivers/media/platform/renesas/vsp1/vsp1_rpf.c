@@ -48,6 +48,7 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
  */
 
 static void rpf_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -80,10 +81,8 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
-	sink_format = v4l2_subdev_state_get_format(rpf->entity.state,
-						   RWPF_PAD_SINK);
-	source_format = v4l2_subdev_state_get_format(rpf->entity.state,
-						     RWPF_PAD_SOURCE);
+	sink_format = v4l2_subdev_state_get_format(state, RWPF_PAD_SINK);
+	source_format = v4l2_subdev_state_get_format(state, RWPF_PAD_SOURCE);
 
 	infmt = VI6_RPF_INFMT_CIPM
 	      | (fmtinfo->hwfmt << VI6_RPF_INFMT_RDFMT_SHIFT);
@@ -347,6 +346,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 }
 
 static void rpf_partition(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,
@@ -364,7 +364,7 @@ static void rpf_partition(struct vsp1_entity *entity,
 	 * our crop to provide a 'sub-crop' matching the expected partition
 	 * window.
 	 */
-	*rpf_rect = *v4l2_subdev_state_get_crop(entity->state, RWPF_PAD_SINK);
+	*rpf_rect = *v4l2_subdev_state_get_crop(state, RWPF_PAD_SINK);
 
 	if (pipe->partitions > 1) {
 		rpf_rect->width = window->width;

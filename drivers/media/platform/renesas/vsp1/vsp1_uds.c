@@ -252,6 +252,7 @@ static const struct v4l2_subdev_ops uds_ops = {
  */
 
 static void uds_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -263,9 +264,8 @@ static void uds_configure_stream(struct vsp1_entity *entity,
 	unsigned int vscale;
 	bool multitap;
 
-	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
-	output = v4l2_subdev_state_get_format(uds->entity.state,
-					      UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, UDS_PAD_SOURCE);
 
 	hscale = uds_compute_ratio(input->width, output->width);
 	vscale = uds_compute_ratio(input->height, output->height);
@@ -321,16 +321,15 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 }
 
 static unsigned int uds_max_width(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe)
 {
-	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
 	unsigned int hscale;
 
-	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
-	output = v4l2_subdev_state_get_format(uds->entity.state,
-					      UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, UDS_PAD_SOURCE);
 	hscale = output->width / input->width;
 
 	/*
@@ -356,18 +355,17 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
  */
 
 static void uds_partition(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,
 			  struct v4l2_rect *window)
 {
-	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
 
-	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
-	output = v4l2_subdev_state_get_format(uds->entity.state,
-					      UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(state, UDS_PAD_SOURCE);
 
 	partition->uds_sink.width = window->width * input->width
 				  / output->width;

@@ -79,6 +79,7 @@ struct vsp1_route {
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *entity);
 	void (*configure_stream)(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb);
@@ -92,8 +93,10 @@ struct vsp1_entity_operations {
 				    struct vsp1_dl_list *dl,
 				    struct vsp1_dl_body *dlb);
 	unsigned int (*max_width)(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe);
 	void (*partition)(struct vsp1_entity *entity,
+			  struct v4l2_subdev_state *state,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int index,
@@ -151,6 +154,7 @@ void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_dl_body *dlb);
 
 void vsp1_entity_configure_stream(struct vsp1_entity *entity,
+				  struct v4l2_subdev_state *state,
 				  struct vsp1_pipeline *pipe,
 				  struct vsp1_dl_list *dl,
 				  struct vsp1_dl_body *dlb);

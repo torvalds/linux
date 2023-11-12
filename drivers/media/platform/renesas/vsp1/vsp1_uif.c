@@ -188,6 +188,7 @@ static const struct v4l2_subdev_ops uif_ops = {
  */
 
 static void uif_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -200,7 +201,7 @@ static void uif_configure_stream(struct vsp1_entity *entity,
 	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMPMR,
 		       VI6_UIF_DISCOM_DOCMPMR_SEL(9));
 
-	crop = v4l2_subdev_state_get_crop(entity->state, UIF_PAD_SINK);
+	crop = v4l2_subdev_state_get_crop(state, UIF_PAD_SINK);
 
 	left = crop->left;
 	width = crop->width;

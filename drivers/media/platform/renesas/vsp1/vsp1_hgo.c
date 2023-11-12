@@ -130,6 +130,7 @@ static const struct v4l2_ctrl_config hgo_num_bins_control = {
  */
 
 static void hgo_configure_stream(struct vsp1_entity *entity,
+				 struct v4l2_subdev_state *state,
 				 struct vsp1_pipeline *pipe,
 				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
@@ -140,8 +141,8 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	crop = v4l2_subdev_state_get_crop(entity->state, HISTO_PAD_SINK);
-	compose = v4l2_subdev_state_get_compose(entity->state, HISTO_PAD_SINK);
+	crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
+	compose = v4l2_subdev_state_get_compose(state, HISTO_PAD_SINK);
 
 	vsp1_hgo_write(hgo, dlb, VI6_HGO_REGRST, VI6_HGO_REGRST_RCLEA);
 

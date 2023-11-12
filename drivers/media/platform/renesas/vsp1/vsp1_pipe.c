@@ -487,8 +487,8 @@ static void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
 
 	list_for_each_entry_reverse(entity, &pipe->entities, list_pipe) {
 		if (entity->ops->partition)
-			entity->ops->partition(entity, pipe, partition, index,
-					       window);
+			entity->ops->partition(entity, entity->state, pipe,
+					       partition, index, window);
 	}
 }
 
