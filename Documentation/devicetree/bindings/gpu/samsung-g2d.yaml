@@ -22,8 +22,14 @@ properties:
   interrupts:
     maxItems: 1
 
-  clocks: {}
-  clock-names: {}
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    maxItems: 2
+
   iommus: {}
   power-domains: {}
 
