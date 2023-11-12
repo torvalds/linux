@@ -496,7 +496,7 @@ static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 
 static inline void *bch2_trans_kmalloc_nomemzero(struct btree_trans *trans, size_t size)
 {
-	size = roundup(size, 8);
+	size = round_up(size, 8);
 
 	if (likely(trans->mem_top + size <= trans->mem_bytes)) {
 		void *p = trans->mem + trans->mem_top;

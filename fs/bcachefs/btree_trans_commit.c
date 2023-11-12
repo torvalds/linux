@@ -624,7 +624,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
-	struct btree_write_buffered_key *wb;
 	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
 	int ret;
@@ -743,14 +742,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			bkey_copy((struct bkey_i *) entry->start, i->k);
 		}
 
-		trans_for_each_wb_update(trans, wb) {
-			entry = bch2_journal_add_entry(j, &trans->journal_res,
-					       BCH_JSET_ENTRY_write_buffer_keys,
-					       wb->btree, 0,
-					       wb->k.k.u64s);
-			bkey_copy((struct bkey_i *) entry->start, &wb->k);
-		}
-
 		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
 				  trans->journal_entries,
 				  trans->journal_entries_u64s);
@@ -785,13 +776,9 @@ revert_fs_usage:
 static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
-	struct btree_write_buffered_key *wb;
 
 	trans_for_each_update(trans, i)
 		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
-
-	trans_for_each_wb_update(trans, wb)
-		bch2_journal_key_overwritten(trans->c, wb->btree, 0, wb->k.k.p);
 }
 
 static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
@@ -993,11 +980,9 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i = NULL;
-	struct btree_write_buffered_key *wb;
 	int ret = 0;
 
 	if (!trans->nr_updates &&
-	    !trans->nr_wb_updates &&
 	    !trans->journal_entries_u64s)
 		goto out_reset;
 
@@ -1063,9 +1048,6 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (trans->journal_transaction_names)
 			trans->journal_u64s += jset_u64s(i->old_k.u64s);
 	}
-
-	trans_for_each_wb_update(trans, wb)
-		trans->journal_u64s += jset_u64s(wb->k.k.u64s);
 
 	if (trans->extra_journal_res) {
 		ret = bch2_disk_reservation_add(c, trans->disk_res,

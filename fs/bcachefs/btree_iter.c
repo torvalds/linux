@@ -13,6 +13,7 @@
 #include "error.h"
 #include "extents.h"
 #include "journal.h"
+#include "journal_io.h"
 #include "replicas.h"
 #include "snapshot.h"
 #include "trace.h"
@@ -1369,7 +1370,6 @@ noinline __cold
 void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 {
 	struct btree_insert_entry *i;
-	struct btree_write_buffered_key *wb;
 
 	prt_printf(buf, "transaction updates for %s journal seq %llu",
 	       trans->fn, trans->journal_res.seq);
@@ -1394,16 +1394,10 @@ void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 		prt_newline(buf);
 	}
 
-	trans_for_each_wb_update(trans, wb) {
-		prt_printf(buf, "update: btree=%s wb=1 %pS",
-		       bch2_btree_id_str(wb->btree),
-		       (void *) i->ip_allocated);
-		prt_newline(buf);
-
-		prt_printf(buf, "  new ");
-		bch2_bkey_val_to_text(buf, trans->c, bkey_i_to_s_c(&wb->k));
-		prt_newline(buf);
-	}
+	for (struct jset_entry *e = trans->journal_entries;
+	     e != btree_trans_journal_entries_top(trans);
+	     e = vstruct_next(e))
+		bch2_journal_entry_to_text(buf, trans->c, e);
 
 	printbuf_indent_sub(buf, 2);
 }
@@ -2922,7 +2916,6 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 
 	if (s) {
 		trans->nr_max_paths = s->nr_max_paths;
-		trans->wb_updates_size = s->wb_updates_size;
 		trans->journal_entries_size = s->journal_entries_size;
 	}
 

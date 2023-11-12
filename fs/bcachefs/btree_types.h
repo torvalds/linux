@@ -388,8 +388,6 @@ struct btree_trans {
 	u8			fn_idx;
 	u8			nr_sorted;
 	u8			nr_updates;
-	u8			nr_wb_updates;
-	u8			wb_updates_size;
 	bool			srcu_held:1;
 	bool			used_mempool:1;
 	bool			in_traverse_all:1;
@@ -424,7 +422,6 @@ struct btree_trans {
 	u8			sorted[BTREE_ITER_MAX + 8];
 	struct btree_path	paths[BTREE_ITER_MAX];
 	struct btree_insert_entry updates[BTREE_ITER_MAX];
-	struct btree_write_buffered_key *wb_updates;
 
 	/* update path: */
 	struct btree_trans_commit_hook *hooks;

@@ -532,9 +532,9 @@ int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter 
 	return bch2_trans_update_by_path(trans, path, k, flags, _RET_IP_);
 }
 
-static noinline int bch2_btree_insert_clone_trans(struct btree_trans *trans,
-						  enum btree_id btree,
-						  struct bkey_i *k)
+int bch2_btree_insert_clone_trans(struct btree_trans *trans,
+				  enum btree_id btree,
+				  struct bkey_i *k)
 {
 	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(&k->k));
 	int ret = PTR_ERR_OR_ZERO(n);
@@ -571,62 +571,6 @@ struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsi
 	struct jset_entry *e = btree_trans_journal_entries_top(trans);
 	trans->journal_entries_u64s = new_top;
 	return e;
-}
-
-int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
-					    enum btree_id btree,
-					    struct bkey_i *k)
-{
-	struct btree_write_buffered_key *i;
-	int ret;
-
-	EBUG_ON(trans->nr_wb_updates > trans->wb_updates_size);
-	EBUG_ON(k->k.u64s > BTREE_WRITE_BUFERED_U64s_MAX);
-
-	if (unlikely(trans->journal_replay_not_finished))
-		return bch2_btree_insert_clone_trans(trans, btree, k);
-
-	trans_for_each_wb_update(trans, i) {
-		if (i->btree == btree && bpos_eq(i->k.k.p, k->k.p)) {
-			bkey_copy(&i->k, k);
-			return 0;
-		}
-	}
-
-	if (!trans->wb_updates ||
-	    trans->nr_wb_updates == trans->wb_updates_size) {
-		struct btree_write_buffered_key *u;
-
-		if (trans->nr_wb_updates == trans->wb_updates_size) {
-			struct btree_transaction_stats *s = btree_trans_stats(trans);
-
-			BUG_ON(trans->wb_updates_size > U8_MAX / 2);
-			trans->wb_updates_size = max(1, trans->wb_updates_size * 2);
-			if (s)
-				s->wb_updates_size = trans->wb_updates_size;
-		}
-
-		u = bch2_trans_kmalloc_nomemzero(trans,
-					trans->wb_updates_size *
-					sizeof(struct btree_write_buffered_key));
-		ret = PTR_ERR_OR_ZERO(u);
-		if (ret)
-			return ret;
-
-		if (trans->nr_wb_updates)
-			memcpy(u, trans->wb_updates, trans->nr_wb_updates *
-			       sizeof(struct btree_write_buffered_key));
-		trans->wb_updates = u;
-	}
-
-	trans->wb_updates[trans->nr_wb_updates] = (struct btree_write_buffered_key) {
-		.btree	= btree,
-	};
-
-	bkey_copy(&trans->wb_updates[trans->nr_wb_updates].k, k);
-	trans->nr_wb_updates++;
-
-	return 0;
 }
 
 int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
