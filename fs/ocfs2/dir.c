@@ -1593,9 +1593,6 @@ int __ocfs2_add_entry(handle_t *handle,
 	struct buffer_head *insert_bh = lookup->dl_leaf_bh;
 	char *data_start = insert_bh->b_data;
 
-	if (!namelen)
-		return -EINVAL;
-
 	if (ocfs2_dir_indexed(dir)) {
 		struct buffer_head *bh;
 
@@ -4244,12 +4241,6 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 
 	trace_ocfs2_prepare_dir_for_insert(
 		(unsigned long long)OCFS2_I(dir)->ip_blkno, namelen);
-
-	if (!namelen) {
-		ret = -EINVAL;
-		mlog_errno(ret);
-		goto out;
-	}
 
 	/*
 	 * Do this up front to reduce confusion.
