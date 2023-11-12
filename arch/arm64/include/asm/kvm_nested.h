@@ -14,10 +14,6 @@ static inline bool vcpu_has_nv(const struct kvm_vcpu *vcpu)
 
 extern bool __check_nv_sr_forward(struct kvm_vcpu *vcpu);
 
-struct sys_reg_params;
-struct sys_reg_desc;
-
-void access_nested_id_reg(struct kvm_vcpu *v, struct sys_reg_params *p,
-			  const struct sys_reg_desc *r);
+int kvm_init_nv_sysregs(struct kvm *kvm);
 
 #endif /* __ARM64_KVM_NESTED_H */
