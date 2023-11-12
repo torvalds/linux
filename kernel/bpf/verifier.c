@@ -2399,17 +2399,13 @@ static void __reg32_deduce_bounds(struct bpf_reg_state *reg)
 		reg->s32_min_value = max_t(s32, reg->s32_min_value, reg->u32_min_value);
 		reg->s32_max_value = min_t(s32, reg->s32_max_value, reg->u32_max_value);
 	}
-	/* Learn sign from signed bounds.
-	 * If we cannot cross the sign boundary, then signed and unsigned bounds
+	/* If we cannot cross the sign boundary, then signed and unsigned bounds
 	 * are the same, so combine.  This works even in the negative case, e.g.
 	 * -3 s<= x s<= -1 implies 0xf...fd u<= x u<= 0xf...ff.
 	 */
-	if (reg->s32_min_value >= 0 || reg->s32_max_value < 0) {
-		reg->s32_min_value = reg->u32_min_value =
-			max_t(u32, reg->s32_min_value, reg->u32_min_value);
-		reg->s32_max_value = reg->u32_max_value =
-			min_t(u32, reg->s32_max_value, reg->u32_max_value);
-		return;
+	if ((u32)reg->s32_min_value <= (u32)reg->s32_max_value) {
+		reg->u32_min_value = max_t(u32, reg->s32_min_value, reg->u32_min_value);
+		reg->u32_max_value = min_t(u32, reg->s32_max_value, reg->u32_max_value);
 	}
 }
 
@@ -2486,17 +2482,13 @@ static void __reg64_deduce_bounds(struct bpf_reg_state *reg)
 		reg->smin_value = max_t(s64, reg->smin_value, reg->umin_value);
 		reg->smax_value = min_t(s64, reg->smax_value, reg->umax_value);
 	}
-	/* Learn sign from signed bounds.
-	 * If we cannot cross the sign boundary, then signed and unsigned bounds
+	/* If we cannot cross the sign boundary, then signed and unsigned bounds
 	 * are the same, so combine.  This works even in the negative case, e.g.
 	 * -3 s<= x s<= -1 implies 0xf...fd u<= x u<= 0xf...ff.
 	 */
-	if (reg->smin_value >= 0 || reg->smax_value < 0) {
-		reg->smin_value = reg->umin_value = max_t(u64, reg->smin_value,
-							  reg->umin_value);
-		reg->smax_value = reg->umax_value = min_t(u64, reg->smax_value,
-							  reg->umax_value);
-		return;
+	if ((u64)reg->smin_value <= (u64)reg->smax_value) {
+		reg->umin_value = max_t(u64, reg->smin_value, reg->umin_value);
+		reg->umax_value = min_t(u64, reg->smax_value, reg->umax_value);
 	}
 }
 
