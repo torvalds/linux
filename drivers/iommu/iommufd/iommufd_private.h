@@ -154,7 +154,8 @@ static inline bool iommufd_lock_obj(struct iommufd_object *obj)
 
 struct iommufd_object *iommufd_get_object(struct iommufd_ctx *ictx, u32 id,
 					  enum iommufd_object_type type);
-static inline void iommufd_put_object(struct iommufd_object *obj)
+static inline void iommufd_put_object(struct iommufd_ctx *ictx,
+				      struct iommufd_object *obj)
 {
 	refcount_dec(&obj->users);
 	up_read(&obj->destroy_rwsem);
