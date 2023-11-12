@@ -555,6 +555,7 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 	case TARGET_DEV: {
 		struct bch_dev *ca;
 
+		out->atomic++;
 		rcu_read_lock();
 		ca = t.dev < c->sb.nr_devices
 			? rcu_dereference(c->devs[t.dev])
@@ -570,6 +571,7 @@ void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 		}
 
 		rcu_read_unlock();
+		out->atomic--;
 		break;
 	}
 	case TARGET_GROUP:
