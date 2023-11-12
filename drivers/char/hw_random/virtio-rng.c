@@ -208,7 +208,6 @@ static void virtrng_scan(struct virtio_device *vdev)
 		vi->hwrng_register_done = true;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int virtrng_freeze(struct virtio_device *vdev)
 {
 	remove_common(vdev);
@@ -238,7 +237,6 @@ static int virtrng_restore(struct virtio_device *vdev)
 
 	return err;
 }
-#endif
 
 static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_RNG, VIRTIO_DEV_ANY_ID },
@@ -252,10 +250,8 @@ static struct virtio_driver virtio_rng_driver = {
 	.probe =	virtrng_probe,
 	.remove =	virtrng_remove,
 	.scan =		virtrng_scan,
-#ifdef CONFIG_PM_SLEEP
-	.freeze =	virtrng_freeze,
-	.restore =	virtrng_restore,
-#endif
+	.freeze =	pm_sleep_ptr(virtrng_freeze),
+	.restore =	pm_sleep_ptr(virtrng_restore),
 };
 
 module_virtio_driver(virtio_rng_driver);
