@@ -1079,6 +1079,12 @@ found:
 
 	if (ja->bucket_seq[ja->cur_idx] &&
 	    ja->sectors_free == ca->mi.bucket_size) {
+#if 0
+		/*
+		 * Debug code for ZNS support, where we (probably) want to be
+		 * correlated where we stopped in the journal to the zone write
+		 * points:
+		 */
 		bch_err(c, "ja->sectors_free == ca->mi.bucket_size");
 		bch_err(c, "cur_idx %u/%u", ja->cur_idx, ja->nr);
 		for (i = 0; i < 3; i++) {
@@ -1086,6 +1092,7 @@ found:
 
 			bch_err(c, "bucket_seq[%u] = %llu", idx, ja->bucket_seq[idx]);
 		}
+#endif
 		ja->sectors_free = 0;
 	}
 
