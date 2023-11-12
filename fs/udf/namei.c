@@ -228,8 +228,6 @@ static int udf_fiiter_add_entry(struct inode *dir, struct dentry *dentry,
 	char name[UDF_NAME_LEN_CS0];
 
 	if (dentry) {
-		if (!dentry->d_name.len)
-			return -EINVAL;
 		namelen = udf_put_filename(dir->i_sb, dentry->d_name.name,
 					   dentry->d_name.len,
 					   name, UDF_NAME_LEN_CS0);
