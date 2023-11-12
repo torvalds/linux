@@ -30,8 +30,12 @@ properties:
     minItems: 1
     maxItems: 2
 
-  iommus: {}
-  power-domains: {}
+  iommus:
+    minItems: 1
+    maxItems: 2
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
