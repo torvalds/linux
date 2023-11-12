@@ -1209,32 +1209,15 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (!pdata)
 		dev_warn(&pdev->dev, "no platform data available\n");
 
-	err = pcim_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to enable CI ISP device (%d)\n", err);
-		return err;
-	}
-
 	start = pci_resource_start(pdev, ATOM_ISP_PCI_BAR);
 	dev_dbg(&pdev->dev, "start: 0x%x\n", start);
 
-	err = pcim_iomap_regions(pdev, BIT(ATOM_ISP_PCI_BAR), pci_name(pdev));
-	if (err) {
-		dev_err(&pdev->dev, "Failed to I/O memory remapping (%d)\n", err);
-		goto ioremap_fail;
-	}
-
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
-	if (!isp) {
-		err = -ENOMEM;
-		goto atomisp_dev_alloc_fail;
-	}
+	if (!isp)
+		return -ENOMEM;
 
 	isp->dev = &pdev->dev;
-	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
 	isp->saved_regs.ispmmadr = start;
-
-	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
 
 	mutex_init(&isp->mutex);
 	spin_lock_init(&isp->lock);
@@ -1337,8 +1320,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		break;
 	default:
 		dev_err(&pdev->dev, "un-supported IUNIT device\n");
-		err = -ENODEV;
-		goto atomisp_dev_alloc_fail;
+		return -ENODEV;
 	}
 
 	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
@@ -1363,6 +1345,20 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_dbg(&pdev->dev, "Firmware version check failed\n");
 		goto fw_validation_fail;
 	}
+
+	err = pcim_enable_device(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to enable ISP PCI device (%d)\n", err);
+		goto pci_enable_fail;
+	}
+
+	err = pcim_iomap_regions(pdev, BIT(ATOM_ISP_PCI_BAR), pci_name(pdev));
+	if (err) {
+		dev_err(&pdev->dev, "Failed to I/O memory remapping (%d)\n", err);
+		goto ioremap_fail;
+	}
+
+	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
 
 	pci_set_master(pdev);
 
@@ -1495,6 +1491,9 @@ initialize_modules_fail:
 	atomisp_msi_irq_uninit(isp);
 	pci_free_irq_vectors(pdev);
 enable_msi_fail:
+	pcim_iounmap_regions(pdev, BIT(ATOM_ISP_PCI_BAR));
+ioremap_fail:
+pci_enable_fail:
 fw_validation_fail:
 	release_firmware(isp->firmware);
 load_fw_fail:
@@ -1519,10 +1518,6 @@ load_fw_fail:
 	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power(isp, false))
 		dev_err(&pdev->dev, "Failed to switch off ISP\n");
 
-atomisp_dev_alloc_fail:
-	pcim_iounmap_regions(pdev, BIT(ATOM_ISP_PCI_BAR));
-
-ioremap_fail:
 	return err;
 }
 
