@@ -155,10 +155,8 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	if (pipe->brx) {
 		const struct v4l2_rect *compose;
 
-		compose = vsp1_entity_get_pad_selection(pipe->brx,
-							pipe->brx->state,
-							rpf->brx_input,
-							V4L2_SEL_TGT_COMPOSE);
+		compose = v4l2_subdev_state_get_compose(pipe->brx->state,
+							rpf->brx_input);
 		left = compose->left;
 		top = compose->top;
 	}

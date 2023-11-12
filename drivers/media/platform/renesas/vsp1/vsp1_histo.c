@@ -218,9 +218,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
-		crop = vsp1_entity_get_pad_selection(&histo->entity, state,
-						     HISTO_PAD_SINK,
-						     V4L2_SEL_TGT_CROP);
+		crop = v4l2_subdev_state_get_crop(state, HISTO_PAD_SINK);
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = crop->width;
@@ -237,9 +235,11 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	case V4L2_SEL_TGT_COMPOSE:
+		sel->r = *v4l2_subdev_state_get_compose(state, sel->pad);
+		break;
+
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *vsp1_entity_get_pad_selection(&histo->entity, state,
-							sel->pad, sel->target);
+		sel->r = *v4l2_subdev_state_get_crop(state, sel->pad);
 		break;
 
 	default:
@@ -256,9 +256,7 @@ static int histo_set_crop(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_selection *sel)
 {
-	struct vsp1_histogram *histo = subdev_to_histo(subdev);
 	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *selection;
 
 	/* The crop rectangle must be inside the input frame. */
 	format = v4l2_subdev_state_get_format(sd_state, HISTO_PAD_SINK);
@@ -270,14 +268,8 @@ static int histo_set_crop(struct v4l2_subdev *subdev,
 				format->height - sel->r.top);
 
 	/* Set the crop rectangle and reset the compose rectangle. */
-	selection = vsp1_entity_get_pad_selection(&histo->entity, sd_state,
-						  sel->pad, V4L2_SEL_TGT_CROP);
-	*selection = sel->r;
-
-	selection = vsp1_entity_get_pad_selection(&histo->entity, sd_state,
-						  sel->pad,
-						  V4L2_SEL_TGT_COMPOSE);
-	*selection = sel->r;
+	*v4l2_subdev_state_get_crop(sd_state, sel->pad) = sel->r;
+	*v4l2_subdev_state_get_compose(sd_state, sel->pad) = sel->r;
 
 	return 0;
 }
@@ -286,7 +278,6 @@ static int histo_set_compose(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
 {
-	struct vsp1_histogram *histo = subdev_to_histo(subdev);
 	struct v4l2_rect *compose;
 	struct v4l2_rect *crop;
 	unsigned int ratio;
@@ -299,9 +290,7 @@ static int histo_set_compose(struct v4l2_subdev *subdev,
 	sel->r.left = 0;
 	sel->r.top = 0;
 
-	crop = vsp1_entity_get_pad_selection(&histo->entity, sd_state,
-					     sel->pad,
-					     V4L2_SEL_TGT_CROP);
+	crop = v4l2_subdev_state_get_crop(sd_state, sel->pad);
 
 	/*
 	 * Clamp the width and height to acceptable values first and then
@@ -326,9 +315,7 @@ static int histo_set_compose(struct v4l2_subdev *subdev,
 	ratio = 1 << (crop->height * 2 / sel->r.height / 3);
 	sel->r.height = crop->height / ratio;
 
-	compose = vsp1_entity_get_pad_selection(&histo->entity, sd_state,
-						sel->pad,
-						V4L2_SEL_TGT_COMPOSE);
+	compose = v4l2_subdev_state_get_compose(sd_state, sel->pad);
 	*compose = sel->r;
 
 	return 0;

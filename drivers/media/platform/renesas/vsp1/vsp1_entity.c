@@ -127,32 +127,6 @@ vsp1_entity_get_state(struct vsp1_entity *entity,
 	}
 }
 
-/**
- * vsp1_entity_get_pad_selection - Get a pad selection from storage for entity
- * @entity: the entity
- * @sd_state: the state storage
- * @pad: the pad number
- * @target: the selection target
- *
- * Return the selection rectangle stored in the given configuration for an
- * entity's pad. The configuration can be an ACTIVE or TRY configuration. The
- * selection target can be COMPOSE or CROP.
- */
-struct v4l2_rect *
-vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
-			      struct v4l2_subdev_state *sd_state,
-			      unsigned int pad, unsigned int target)
-{
-	switch (target) {
-	case V4L2_SEL_TGT_COMPOSE:
-		return v4l2_subdev_state_get_compose(sd_state, pad);
-	case V4L2_SEL_TGT_CROP:
-		return v4l2_subdev_state_get_crop(sd_state, pad);
-	default:
-		return NULL;
-	}
-}
-
 /*
  * vsp1_subdev_get_pad_format - Subdev pad get_fmt handler
  * @subdev: V4L2 subdevice
@@ -361,15 +335,13 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	*format = fmt->format;
 
 	/* Reset the crop and compose rectangles. */
-	selection = vsp1_entity_get_pad_selection(entity, state, fmt->pad,
-						  V4L2_SEL_TGT_CROP);
+	selection = v4l2_subdev_state_get_crop(state, fmt->pad);
 	selection->left = 0;
 	selection->top = 0;
 	selection->width = format->width;
 	selection->height = format->height;
 
-	selection = vsp1_entity_get_pad_selection(entity, state, fmt->pad,
-						  V4L2_SEL_TGT_COMPOSE);
+	selection = v4l2_subdev_state_get_compose(state, fmt->pad);
 	selection->left = 0;
 	selection->top = 0;
 	selection->width = format->width;

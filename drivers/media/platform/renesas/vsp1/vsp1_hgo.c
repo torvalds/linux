@@ -140,11 +140,8 @@ static void hgo_configure_stream(struct vsp1_entity *entity,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	crop = vsp1_entity_get_pad_selection(entity, entity->state,
-					     HISTO_PAD_SINK, V4L2_SEL_TGT_CROP);
-	compose = vsp1_entity_get_pad_selection(entity, entity->state,
-						HISTO_PAD_SINK,
-						V4L2_SEL_TGT_COMPOSE);
+	crop = v4l2_subdev_state_get_crop(entity->state, HISTO_PAD_SINK);
+	compose = v4l2_subdev_state_get_compose(entity->state, HISTO_PAD_SINK);
 
 	vsp1_hgo_write(hgo, dlb, VI6_HGO_REGRST, VI6_HGO_REGRST_RCLEA);
 

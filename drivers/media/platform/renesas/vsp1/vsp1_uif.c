@@ -112,8 +112,7 @@ static int uif_get_selection(struct v4l2_subdev *subdev,
 		break;
 
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *vsp1_entity_get_pad_selection(&uif->entity, state,
-							sel->pad, sel->target);
+		sel->r = *v4l2_subdev_state_get_crop(state, sel->pad);
 		break;
 
 	default:
@@ -159,8 +158,7 @@ static int uif_set_selection(struct v4l2_subdev *subdev,
 				format->height - sel->r.top);
 
 	/* Store the crop rectangle. */
-	selection = vsp1_entity_get_pad_selection(&uif->entity, state,
-						  sel->pad, V4L2_SEL_TGT_CROP);
+	selection = v4l2_subdev_state_get_crop(state, sel->pad);
 	*selection = sel->r;
 
 done:
@@ -202,8 +200,7 @@ static void uif_configure_stream(struct vsp1_entity *entity,
 	vsp1_uif_write(uif, dlb, VI6_UIF_DISCOM_DOCMPMR,
 		       VI6_UIF_DISCOM_DOCMPMR_SEL(9));
 
-	crop = vsp1_entity_get_pad_selection(entity, entity->state,
-					     UIF_PAD_SINK, V4L2_SEL_TGT_CROP);
+	crop = v4l2_subdev_state_get_crop(entity->state, UIF_PAD_SINK);
 
 	left = crop->left;
 	width = crop->width;
