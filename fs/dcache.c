@@ -1890,9 +1890,15 @@ struct dentry *d_alloc_cursor(struct dentry * parent)
  */
 struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
 {
+	static const struct dentry_operations anon_ops = {
+		.d_dname = simple_dname
+	};
 	struct dentry *dentry = __d_alloc(sb, name);
-	if (likely(dentry))
+	if (likely(dentry)) {
 		dentry->d_flags |= DCACHE_NORCU;
+		if (!sb->s_d_op)
+			d_set_d_op(dentry, &anon_ops);
+	}
 	return dentry;
 }
 
