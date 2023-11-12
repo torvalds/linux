@@ -1443,6 +1443,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  * @flush_type: flush type
+ * @xcc_mask: mask of XCCs that belong to the compute partition in need of a TLB flush.
  *
  * Flush TLB if needed for a compute VM.
  *
