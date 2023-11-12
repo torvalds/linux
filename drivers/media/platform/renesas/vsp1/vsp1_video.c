@@ -203,9 +203,8 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 	 * Partitions are computed on the size before rotation, use the format
 	 * at the WPF sink.
 	 */
-	format = vsp1_entity_get_pad_format(&pipe->output->entity,
-					    pipe->output->entity.state,
-					    RWPF_PAD_SINK);
+	format = v4l2_subdev_state_get_format(pipe->output->entity.state,
+					      RWPF_PAD_SINK);
 
 	/* A single partition simply processes the output size in full. */
 	if (pipe->partitions <= 1) {
@@ -268,9 +267,8 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 	 * Partitions are computed on the size before rotation, use the format
 	 * at the WPF sink.
 	 */
-	format = vsp1_entity_get_pad_format(&pipe->output->entity,
-					    pipe->output->entity.state,
-					    RWPF_PAD_SINK);
+	format = v4l2_subdev_state_get_format(pipe->output->entity.state,
+					      RWPF_PAD_SINK);
 	div_size = format->width;
 
 	/*

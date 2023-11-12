@@ -80,12 +80,10 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	vsp1_rpf_write(rpf, dlb, VI6_RPF_SRCM_PSTRIDE, pstride);
 
 	/* Format */
-	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
-						 rpf->entity.state,
-						 RWPF_PAD_SINK);
-	source_format = vsp1_entity_get_pad_format(&rpf->entity,
-						   rpf->entity.state,
-						   RWPF_PAD_SOURCE);
+	sink_format = v4l2_subdev_state_get_format(rpf->entity.state,
+						   RWPF_PAD_SINK);
+	source_format = v4l2_subdev_state_get_format(rpf->entity.state,
+						     RWPF_PAD_SOURCE);
 
 	infmt = VI6_RPF_INFMT_CIPM
 	      | (fmtinfo->hwfmt << VI6_RPF_INFMT_RDFMT_SHIFT);

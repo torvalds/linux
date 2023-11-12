@@ -138,10 +138,6 @@ struct v4l2_subdev_state *
 vsp1_entity_get_state(struct vsp1_entity *entity,
 		      struct v4l2_subdev_state *sd_state,
 		      enum v4l2_subdev_format_whence which);
-struct v4l2_mbus_framefmt *
-vsp1_entity_get_pad_format(struct vsp1_entity *entity,
-			   struct v4l2_subdev_state *sd_state,
-			   unsigned int pad);
 struct v4l2_rect *
 vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 			      struct v4l2_subdev_state *sd_state,

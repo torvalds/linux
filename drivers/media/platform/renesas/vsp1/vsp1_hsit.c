@@ -78,7 +78,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	format = vsp1_entity_get_pad_format(&hsit->entity, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	if (fmt->pad == HSIT_PAD_SOURCE) {
 		/*
@@ -101,8 +101,7 @@ static int hsit_set_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(&hsit->entity, state,
-					    HSIT_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(state, HSIT_PAD_SOURCE);
 	*format = fmt->format;
 	format->code = hsit->inverse ? MEDIA_BUS_FMT_ARGB8888_1X32
 		     : MEDIA_BUS_FMT_AHSV8888_1X32;

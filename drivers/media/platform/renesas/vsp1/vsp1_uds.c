@@ -136,7 +136,7 @@ static int uds_enum_frame_size(struct v4l2_subdev *subdev,
 	if (!state)
 		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&uds->entity, state, UDS_PAD_SINK);
+	format = v4l2_subdev_state_get_format(state, UDS_PAD_SINK);
 
 	mutex_lock(&uds->entity.lock);
 
@@ -183,8 +183,7 @@ static void uds_try_format(struct vsp1_uds *uds,
 
 	case UDS_PAD_SOURCE:
 		/* The UDS scales but can't perform format conversion. */
-		format = vsp1_entity_get_pad_format(&uds->entity, sd_state,
-						    UDS_PAD_SINK);
+		format = v4l2_subdev_state_get_format(sd_state, UDS_PAD_SINK);
 		fmt->code = format->code;
 
 		uds_output_limits(format->width, &minimum, &maximum);
@@ -217,13 +216,12 @@ static int uds_set_format(struct v4l2_subdev *subdev,
 
 	uds_try_format(uds, state, fmt->pad, &fmt->format);
 
-	format = vsp1_entity_get_pad_format(&uds->entity, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 	*format = fmt->format;
 
 	if (fmt->pad == UDS_PAD_SINK) {
 		/* Propagate the format to the source pad. */
-		format = vsp1_entity_get_pad_format(&uds->entity, state,
-						    UDS_PAD_SOURCE);
+		format = v4l2_subdev_state_get_format(state, UDS_PAD_SOURCE);
 		*format = fmt->format;
 
 		uds_try_format(uds, state, UDS_PAD_SOURCE, format);
@@ -265,10 +263,9 @@ static void uds_configure_stream(struct vsp1_entity *entity,
 	unsigned int vscale;
 	bool multitap;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					    UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(uds->entity.state,
+					      UDS_PAD_SOURCE);
 
 	hscale = uds_compute_ratio(input->width, output->width);
 	vscale = uds_compute_ratio(input->height, output->height);
@@ -310,8 +307,8 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 	struct vsp1_partition *partition = pipe->partition;
 	const struct v4l2_mbus_framefmt *output;
 
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					    UDS_PAD_SOURCE);
+	output = v4l2_subdev_state_get_format(uds->entity.state,
+					      UDS_PAD_SOURCE);
 
 	/* Input size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
@@ -335,10 +332,9 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
 	const struct v4l2_mbus_framefmt *input;
 	unsigned int hscale;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					    UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(uds->entity.state,
+					      UDS_PAD_SOURCE);
 	hscale = output->width / input->width;
 
 	/*
@@ -377,10 +373,9 @@ static void uds_partition(struct vsp1_entity *entity,
 	partition->uds_sink = *window;
 	partition->uds_source = *window;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
-					    UDS_PAD_SOURCE);
+	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
+	output = v4l2_subdev_state_get_format(uds->entity.state,
+					      UDS_PAD_SOURCE);
 
 	partition->uds_sink.width = window->width * input->width
 				  / output->width;

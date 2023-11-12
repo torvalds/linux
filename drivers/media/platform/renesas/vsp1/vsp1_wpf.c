@@ -65,12 +65,10 @@ static int vsp1_wpf_set_rotation(struct vsp1_rwpf *wpf, unsigned int rotation)
 		goto done;
 	}
 
-	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
-						 wpf->entity.state,
-						 RWPF_PAD_SINK);
-	source_format = vsp1_entity_get_pad_format(&wpf->entity,
-						   wpf->entity.state,
-						   RWPF_PAD_SOURCE);
+	sink_format = v4l2_subdev_state_get_format(wpf->entity.state,
+						   RWPF_PAD_SINK);
+	source_format = v4l2_subdev_state_get_format(wpf->entity.state,
+						     RWPF_PAD_SOURCE);
 
 	mutex_lock(&wpf->entity.lock);
 
@@ -245,12 +243,10 @@ static void wpf_configure_stream(struct vsp1_entity *entity,
 	u32 srcrpf = 0;
 	int ret;
 
-	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
-						 wpf->entity.state,
-						 RWPF_PAD_SINK);
-	source_format = vsp1_entity_get_pad_format(&wpf->entity,
-						   wpf->entity.state,
-						   RWPF_PAD_SOURCE);
+	sink_format = v4l2_subdev_state_get_format(wpf->entity.state,
+						   RWPF_PAD_SINK);
+	source_format = v4l2_subdev_state_get_format(wpf->entity.state,
+						     RWPF_PAD_SOURCE);
 
 	/* Format */
 	if (!pipe->lif || wpf->writeback) {
@@ -383,9 +379,8 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	unsigned int flip;
 	unsigned int i;
 
-	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
-						 wpf->entity.state,
-						 RWPF_PAD_SINK);
+	sink_format = v4l2_subdev_state_get_format(wpf->entity.state,
+						   RWPF_PAD_SINK);
 	width = sink_format->width;
 	height = sink_format->height;
 	left = 0;

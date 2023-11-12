@@ -93,8 +93,8 @@ static void lif_configure_stream(struct vsp1_entity *entity,
 	unsigned int obth;
 	unsigned int lbth;
 
-	format = vsp1_entity_get_pad_format(&lif->entity, lif->entity.state,
-					    LIF_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(lif->entity.state,
+					      LIF_PAD_SOURCE);
 
 	switch (entity->vsp1->version & VI6_IP_VERSION_MODEL_MASK) {
 	case VI6_IP_VERSION_MODEL_VSPD_GEN2:

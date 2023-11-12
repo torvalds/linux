@@ -128,23 +128,6 @@ vsp1_entity_get_state(struct vsp1_entity *entity,
 }
 
 /**
- * vsp1_entity_get_pad_format - Get a pad format from storage for an entity
- * @entity: the entity
- * @sd_state: the state storage
- * @pad: the pad number
- *
- * Return the format stored in the given configuration for an entity's pad. The
- * configuration can be an ACTIVE or TRY configuration.
- */
-struct v4l2_mbus_framefmt *
-vsp1_entity_get_pad_format(struct vsp1_entity *entity,
-			   struct v4l2_subdev_state *sd_state,
-			   unsigned int pad)
-{
-	return v4l2_subdev_state_get_format(sd_state, pad);
-}
-
-/**
  * vsp1_entity_get_pad_selection - Get a pad selection from storage for entity
  * @entity: the entity
  * @sd_state: the state storage
@@ -191,7 +174,7 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 		return -EINVAL;
 
 	mutex_lock(&entity->lock);
-	fmt->format = *vsp1_entity_get_pad_format(entity, state, fmt->pad);
+	fmt->format = *v4l2_subdev_state_get_format(state, fmt->pad);
 	mutex_unlock(&entity->lock);
 
 	return 0;
@@ -238,7 +221,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 			return -EINVAL;
 
 		mutex_lock(&entity->lock);
-		format = vsp1_entity_get_pad_format(entity, state, 0);
+		format = v4l2_subdev_state_get_format(state, 0);
 		code->code = format->code;
 		mutex_unlock(&entity->lock);
 	}
@@ -276,7 +259,7 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 	if (!state)
 		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(entity, state, fse->pad);
+	format = v4l2_subdev_state_get_format(state, fse->pad);
 
 	mutex_lock(&entity->lock);
 
@@ -346,7 +329,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	format = vsp1_entity_get_pad_format(entity, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	if (fmt->pad == entity->source_pad) {
 		/* The output format can't be modified. */
@@ -374,7 +357,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(entity, state, entity->source_pad);
+	format = v4l2_subdev_state_get_format(state, entity->source_pad);
 	*format = fmt->format;
 
 	/* Reset the crop and compose rectangles. */

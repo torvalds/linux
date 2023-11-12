@@ -229,8 +229,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		format = vsp1_entity_get_pad_format(&histo->entity, state,
-						    HISTO_PAD_SINK);
+		format = v4l2_subdev_state_get_format(state, HISTO_PAD_SINK);
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = format->width;
@@ -262,8 +261,7 @@ static int histo_set_crop(struct v4l2_subdev *subdev,
 	struct v4l2_rect *selection;
 
 	/* The crop rectangle must be inside the input frame. */
-	format = vsp1_entity_get_pad_format(&histo->entity, sd_state,
-					    HISTO_PAD_SINK);
+	format = v4l2_subdev_state_get_format(sd_state, HISTO_PAD_SINK);
 	sel->r.left = clamp_t(unsigned int, sel->r.left, 0, format->width - 1);
 	sel->r.top = clamp_t(unsigned int, sel->r.top, 0, format->height - 1);
 	sel->r.width = clamp_t(unsigned int, sel->r.width, HISTO_MIN_SIZE,
