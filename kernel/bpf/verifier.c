@@ -14283,6 +14283,18 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 			return 0;
 		if (smin1 > smax2 || smax1 < smin2)
 			return 0;
+		if (!is_jmp32) {
+			/* if 64-bit ranges are inconclusive, see if we can
+			 * utilize 32-bit subrange knowledge to eliminate
+			 * branches that can't be taken a priori
+			 */
+			if (reg1->u32_min_value > reg2->u32_max_value ||
+			    reg1->u32_max_value < reg2->u32_min_value)
+				return 0;
+			if (reg1->s32_min_value > reg2->s32_max_value ||
+			    reg1->s32_max_value < reg2->s32_min_value)
+				return 0;
+		}
 		break;
 	case BPF_JNE:
 		/* constants, umin/umax and smin/smax checks would be
@@ -14295,6 +14307,18 @@ static int is_scalar_branch_taken(struct bpf_reg_state *reg1, struct bpf_reg_sta
 			return 1;
 		if (smin1 > smax2 || smax1 < smin2)
 			return 1;
+		if (!is_jmp32) {
+			/* if 64-bit ranges are inconclusive, see if we can
+			 * utilize 32-bit subrange knowledge to eliminate
+			 * branches that can't be taken a priori
+			 */
+			if (reg1->u32_min_value > reg2->u32_max_value ||
+			    reg1->u32_max_value < reg2->u32_min_value)
+				return 1;
+			if (reg1->s32_min_value > reg2->s32_max_value ||
+			    reg1->s32_max_value < reg2->s32_min_value)
+				return 1;
+		}
 		break;
 	case BPF_JSET:
 		if (!is_reg_const(reg2, is_jmp32)) {
