@@ -48,10 +48,6 @@ enum {
 	NFSD_MaxBlkSize,
 	NFSD_MaxConnections,
 	NFSD_Filecache,
-	/*
-	 * The below MUST come last.  Otherwise we leave a hole in nfsd_files[]
-	 * with !CONFIG_NFSD_V4 and simple_fill_super() goes oops
-	 */
 #ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
 	NFSD_Gracetime,
