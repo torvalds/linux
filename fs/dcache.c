@@ -2692,7 +2692,7 @@ retry:
 	/* we can't take ->d_lock here; it's OK, though. */
 	new->d_flags |= DCACHE_PAR_LOOKUP;
 	new->d_wait = wq;
-	hlist_bl_add_head_rcu(&new->d_u.d_in_lookup_hash, b);
+	hlist_bl_add_head(&new->d_u.d_in_lookup_hash, b);
 	hlist_bl_unlock(b);
 	return new;
 mismatch:
