@@ -411,7 +411,11 @@ static int add_exception_handler(const struct bpf_insn *insn,
 	off_t offset;
 	struct exception_table_entry *ex;
 
-	if (!ctx->image || !ctx->prog->aux->extable || BPF_MODE(insn->code) != BPF_PROBE_MEM)
+	if (!ctx->image || !ctx->prog->aux->extable)
+		return 0;
+
+	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
+	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX)
 		return 0;
 
 	if (WARN_ON_ONCE(ctx->num_exentries >= ctx->prog->aux->num_exentries))
@@ -450,7 +454,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 {
 	u8 tm = -1;
 	u64 func_addr;
-	bool func_addr_fixed;
+	bool func_addr_fixed, sign_extend;
 	int i = insn - ctx->prog->insnsi;
 	int ret, jmp_offset;
 	const u8 code = insn->code;
@@ -468,8 +472,23 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
-		move_reg(ctx, dst, src);
-		emit_zext_32(ctx, dst, is32);
+		switch (off) {
+		case 0:
+			move_reg(ctx, dst, src);
+			emit_zext_32(ctx, dst, is32);
+			break;
+		case 8:
+			move_reg(ctx, t1, src);
+			emit_insn(ctx, extwb, dst, t1);
+			break;
+		case 16:
+			move_reg(ctx, t1, src);
+			emit_insn(ctx, extwh, dst, t1);
+			break;
+		case 32:
+			emit_insn(ctx, addw, dst, src, LOONGARCH_GPR_ZERO);
+			break;
+		}
 		break;
 
 	/* dst = imm */
@@ -534,39 +553,71 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	/* dst = dst / src */
 	case BPF_ALU | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_DIV | BPF_X:
-		emit_zext_32(ctx, dst, is32);
-		move_reg(ctx, t1, src);
-		emit_zext_32(ctx, t1, is32);
-		emit_insn(ctx, divdu, dst, dst, t1);
-		emit_zext_32(ctx, dst, is32);
+		if (!off) {
+			emit_zext_32(ctx, dst, is32);
+			move_reg(ctx, t1, src);
+			emit_zext_32(ctx, t1, is32);
+			emit_insn(ctx, divdu, dst, dst, t1);
+			emit_zext_32(ctx, dst, is32);
+		} else {
+			emit_sext_32(ctx, dst, is32);
+			move_reg(ctx, t1, src);
+			emit_sext_32(ctx, t1, is32);
+			emit_insn(ctx, divd, dst, dst, t1);
+			emit_sext_32(ctx, dst, is32);
+		}
 		break;
 
 	/* dst = dst / imm */
 	case BPF_ALU | BPF_DIV | BPF_K:
 	case BPF_ALU64 | BPF_DIV | BPF_K:
-		move_imm(ctx, t1, imm, is32);
-		emit_zext_32(ctx, dst, is32);
-		emit_insn(ctx, divdu, dst, dst, t1);
-		emit_zext_32(ctx, dst, is32);
+		if (!off) {
+			move_imm(ctx, t1, imm, is32);
+			emit_zext_32(ctx, dst, is32);
+			emit_insn(ctx, divdu, dst, dst, t1);
+			emit_zext_32(ctx, dst, is32);
+		} else {
+			move_imm(ctx, t1, imm, false);
+			emit_sext_32(ctx, t1, is32);
+			emit_sext_32(ctx, dst, is32);
+			emit_insn(ctx, divd, dst, dst, t1);
+			emit_sext_32(ctx, dst, is32);
+		}
 		break;
 
 	/* dst = dst % src */
 	case BPF_ALU | BPF_MOD | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		emit_zext_32(ctx, dst, is32);
-		move_reg(ctx, t1, src);
-		emit_zext_32(ctx, t1, is32);
-		emit_insn(ctx, moddu, dst, dst, t1);
-		emit_zext_32(ctx, dst, is32);
+		if (!off) {
+			emit_zext_32(ctx, dst, is32);
+			move_reg(ctx, t1, src);
+			emit_zext_32(ctx, t1, is32);
+			emit_insn(ctx, moddu, dst, dst, t1);
+			emit_zext_32(ctx, dst, is32);
+		} else {
+			emit_sext_32(ctx, dst, is32);
+			move_reg(ctx, t1, src);
+			emit_sext_32(ctx, t1, is32);
+			emit_insn(ctx, modd, dst, dst, t1);
+			emit_sext_32(ctx, dst, is32);
+		}
 		break;
 
 	/* dst = dst % imm */
 	case BPF_ALU | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
-		move_imm(ctx, t1, imm, is32);
-		emit_zext_32(ctx, dst, is32);
-		emit_insn(ctx, moddu, dst, dst, t1);
-		emit_zext_32(ctx, dst, is32);
+		if (!off) {
+			move_imm(ctx, t1, imm, is32);
+			emit_zext_32(ctx, dst, is32);
+			emit_insn(ctx, moddu, dst, dst, t1);
+			emit_zext_32(ctx, dst, is32);
+		} else {
+			move_imm(ctx, t1, imm, false);
+			emit_sext_32(ctx, t1, is32);
+			emit_sext_32(ctx, dst, is32);
+			emit_insn(ctx, modd, dst, dst, t1);
+			emit_sext_32(ctx, dst, is32);
+		}
 		break;
 
 	/* dst = -dst */
@@ -712,6 +763,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 		break;
 
 	case BPF_ALU | BPF_END | BPF_FROM_BE:
+	case BPF_ALU64 | BPF_END | BPF_FROM_LE:
 		switch (imm) {
 		case 16:
 			emit_insn(ctx, revb2h, dst, dst);
@@ -828,7 +880,11 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 
 	/* PC += off */
 	case BPF_JMP | BPF_JA:
-		jmp_offset = bpf2la_offset(i, off, ctx);
+	case BPF_JMP32 | BPF_JA:
+		if (BPF_CLASS(code) == BPF_JMP)
+			jmp_offset = bpf2la_offset(i, off, ctx);
+		else
+			jmp_offset = bpf2la_offset(i, imm, ctx);
 		if (emit_uncond_jmp(ctx, jmp_offset) < 0)
 			goto toofar;
 		break;
@@ -879,31 +935,56 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
+	/* dst_reg = (s64)*(signed size *)(src_reg + off) */
+	case BPF_LDX | BPF_MEMSX | BPF_B:
+	case BPF_LDX | BPF_MEMSX | BPF_H:
+	case BPF_LDX | BPF_MEMSX | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_B:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
+		sign_extend = BPF_MODE(insn->code) == BPF_MEMSX ||
+			      BPF_MODE(insn->code) == BPF_PROBE_MEMSX;
 		switch (BPF_SIZE(code)) {
 		case BPF_B:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldbu, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldb, dst, src, off);
+				else
+					emit_insn(ctx, ldbu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxbu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxb, dst, src, t1);
+				else
+					emit_insn(ctx, ldxbu, dst, src, t1);
 			}
 			break;
 		case BPF_H:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldhu, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldh, dst, src, off);
+				else
+					emit_insn(ctx, ldhu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxhu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxh, dst, src, t1);
+				else
+					emit_insn(ctx, ldxhu, dst, src, t1);
 			}
 			break;
 		case BPF_W:
 			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldwu, dst, src, off);
-			} else if (is_signed_imm14(off)) {
-				emit_insn(ctx, ldptrw, dst, src, off);
+				if (sign_extend)
+					emit_insn(ctx, ldw, dst, src, off);
+				else
+					emit_insn(ctx, ldwu, dst, src, off);
 			} else {
 				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxwu, dst, src, t1);
+				if (sign_extend)
+					emit_insn(ctx, ldxw, dst, src, t1);
+				else
+					emit_insn(ctx, ldxwu, dst, src, t1);
 			}
 			break;
 		case BPF_DW:
