@@ -424,8 +424,7 @@ dm_mst_atomic_best_encoder(struct drm_connector *connector,
 {
 	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
 											 connector);
-	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(connector_state->crtc);
 
 	return &adev->dm.mst_encoders[acrtc->crtc_id].base;

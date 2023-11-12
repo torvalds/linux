@@ -894,8 +894,7 @@ static int dm_early_init(void *handle);
 /* Allocate memory for FBC compressed data  */
 static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct dm_compressor_info *compressor = &adev->dm.compressor;
 	struct amdgpu_dm_connector *aconn = to_amdgpu_dm_connector(connector);
 	struct drm_display_mode *mode;
@@ -989,8 +988,7 @@ static int amdgpu_dm_audio_component_bind(struct device *kdev,
 static void amdgpu_dm_audio_component_unbind(struct device *kdev,
 					  struct device *hda_kdev, void *data)
 {
-	struct drm_device *dev = dev_get_drvdata(kdev);
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = drm_to_adev(dev_get_drvdata(kdev));
 	struct drm_audio_component *acomp = data;
 
 	acomp->ops = NULL;
@@ -10788,8 +10786,7 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 	struct dm_connector_state *dm_con_state = NULL;
 	struct dc_sink *sink;
 
-	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
 	bool freesync_capable = false;
 	enum adaptive_sync_type as_type = ADAPTIVE_SYNC_TYPE_NONE;
