@@ -13,6 +13,7 @@
 
 #define MT7996_MAX_INTERFACES		19	/* per-band */
 #define MT7996_MAX_WMM_SETS		4
+#define MT7996_WTBL_BMC_SIZE		(is_mt7992(&dev->mt76) ? 32 : 64)
 #define MT7996_WTBL_RESERVED		(mt7996_wtbl_size(dev) - 1)
 #define MT7996_WTBL_STA			(MT7996_WTBL_RESERVED - \
 					 mt7996_max_interface_num(dev))
@@ -512,13 +513,14 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 
 static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
 {
-	return MT7996_MAX_INTERFACES * (1 + mt7996_band_valid(dev, MT_BAND1) +
-					mt7996_band_valid(dev, MT_BAND2));
+	return min(MT7996_MAX_INTERFACES * (1 + mt7996_band_valid(dev, MT_BAND1) +
+					    mt7996_band_valid(dev, MT_BAND2)),
+		   MT7996_WTBL_BMC_SIZE);
 }
 
 static inline u16 mt7996_wtbl_size(struct mt7996_dev *dev)
 {
-	return (dev->wtbl_size_group << 8) + 64;
+	return (dev->wtbl_size_group << 8) + MT7996_WTBL_BMC_SIZE;
 }
 
 void mt7996_dual_hif_set_irq_mask(struct mt7996_dev *dev, bool write_reg,

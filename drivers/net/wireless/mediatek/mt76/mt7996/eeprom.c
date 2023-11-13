@@ -111,7 +111,8 @@ static int mt7996_eeprom_parse_efuse_hw_cap(struct mt7996_dev *dev)
 		dev->wtbl_size_group = u32_get_bits(cap, WTBL_SIZE_GROUP);
 	}
 
-	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4)
+	if (dev->wtbl_size_group < 2 || dev->wtbl_size_group > 4 ||
+	    is_mt7992(&dev->mt76))
 		dev->wtbl_size_group = 2; /* set default */
 
 	return 0;
