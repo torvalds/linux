@@ -280,6 +280,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct device *dev = &pdev->dev;
+	u32 uart_clk_source = 0;
 	void __iomem *clk_base;
 	struct clk_hw **clks;
 	struct clk_hw *hw;
@@ -433,6 +434,14 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 		ast2700_clk_hw_register_gate(NULL, "mac2clk-gate", NULL,
 					     0, clk_base + AST2700_SOC1_CLK_STOP,
 					     10, 0, &ast2700_clk_lock);
+
+	of_property_read_u32(dev->of_node, "uart-clk-source", &uart_clk_source);
+
+	if (uart_clk_source) {
+		val = readl(clk_base + AST2700_SOC1_CLK_SEL1) & GENMASK(12, 0);
+		uart_clk_source &= GENMASK(12, 0);
+		writel(val | uart_clk_source, clk_base + AST2700_SOC1_CLK_SEL1);
+	}
 
 	//UART0
 	clks[AST2700_SOC1_CLK_UART0] =
