@@ -14,7 +14,9 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 
 	switch (val) {
 	case 0x7990:
-		return 0;
+		return is_mt7996(&dev->mt76) ? 0 : -EINVAL;
+	case 0x7992:
+		return is_mt7992(&dev->mt76) ? 0 : -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -22,8 +24,14 @@ static int mt7996_check_eeprom(struct mt7996_dev *dev)
 
 static char *mt7996_eeprom_name(struct mt7996_dev *dev)
 {
-	/* reserve for future variants */
-	return MT7996_EEPROM_DEFAULT;
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7990:
+		return MT7996_EEPROM_DEFAULT;
+	case 0x7992:
+		return MT7992_EEPROM_DEFAULT;
+	default:
+		return MT7996_EEPROM_DEFAULT;
+	}
 }
 
 static int
