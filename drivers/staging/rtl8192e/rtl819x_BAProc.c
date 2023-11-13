@@ -382,7 +382,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		activate_ba_entry(pAdmittedBA, *pBaTimeoutVal);
 	} else {
 		ts->add_ba_req_delayed = true;
-		ts->bDisable_AddBa = true;
+		ts->disable_add_ba = true;
 		reason_code = DELBA_REASON_END_BA;
 		goto OnADDBARsp_Reject;
 	}

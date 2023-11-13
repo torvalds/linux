@@ -300,7 +300,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 				;
 			} else if (tcb_desc->bdhcp == 1) {
 				;
-			} else if (!pTxTs->bDisable_AddBa) {
+			} else if (!pTxTs->disable_add_ba) {
 				TsStartAddBaProcess(ieee, pTxTs);
 			}
 			goto FORCED_AGG_SETTING;
