@@ -856,7 +856,7 @@ static void hdmi_select_link_config(struct rockchip_hdmi *hdmi,
 				    struct drm_crtc_state *crtc_state,
 				    unsigned int tmdsclk)
 {
-	struct drm_display_mode mode;
+	struct drm_display_mode mode = {};
 	int max_lanes, max_rate_per_lane;
 	int max_dsc_lanes, max_dsc_rate_per_lane;
 	unsigned long max_frl_rate;
@@ -1982,7 +1982,7 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 			       unsigned int *eotf)
 {
 	struct drm_display_info *info = &conn_state->connector->display_info;
-	struct drm_display_mode mode;
+	struct drm_display_mode mode = {};
 	struct hdr_output_metadata *hdr_metadata;
 	u32 vic;
 	unsigned long tmdsclock, pixclock;
@@ -2237,7 +2237,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	unsigned int colorformat, bus_width, tmdsclk;
-	struct drm_display_mode mode;
+	struct drm_display_mode mode = {};
 	unsigned int output_mode;
 	unsigned long bus_format;
 	int color_depth;
