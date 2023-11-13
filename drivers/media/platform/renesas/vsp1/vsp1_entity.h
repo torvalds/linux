@@ -19,7 +19,6 @@ struct vsp1_dl_body;
 struct vsp1_dl_list;
 struct vsp1_pipeline;
 struct vsp1_partition;
-struct vsp1_partition_window;
 
 enum vsp1_entity_type {
 	VSP1_ENTITY_BRS,
@@ -91,7 +90,7 @@ struct vsp1_entity_operations {
 	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
 	void (*partition)(struct vsp1_entity *, struct vsp1_pipeline *,
 			  struct vsp1_partition *, unsigned int,
-			  struct vsp1_partition_window *);
+			  struct v4l2_rect *);
 };
 
 struct vsp1_entity {

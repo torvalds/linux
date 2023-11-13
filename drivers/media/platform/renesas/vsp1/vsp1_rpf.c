@@ -366,7 +366,7 @@ static void rpf_partition(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,
-			  struct vsp1_partition_window *window)
+			  struct v4l2_rect *window)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 

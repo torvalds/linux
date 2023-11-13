@@ -363,15 +363,11 @@ static void uds_partition(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
 			  struct vsp1_partition *partition,
 			  unsigned int partition_idx,
-			  struct vsp1_partition_window *window)
+			  struct v4l2_rect *window)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
 	const struct v4l2_mbus_framefmt *output;
 	const struct v4l2_mbus_framefmt *input;
-
-	/* Initialise the partition state. */
-	partition->uds_sink = *window;
-	partition->uds_source = *window;
 
 	input = v4l2_subdev_state_get_format(uds->entity.state, UDS_PAD_SINK);
 	output = v4l2_subdev_state_get_format(uds->entity.state,
@@ -381,6 +377,10 @@ static void uds_partition(struct vsp1_entity *entity,
 				  / output->width;
 	partition->uds_sink.left = window->left * input->width
 				 / output->width;
+	partition->uds_sink.height = input->height;
+	partition->uds_sink.top = 0;
+
+	partition->uds_source = *window;
 
 	*window = partition->uds_sink;
 }

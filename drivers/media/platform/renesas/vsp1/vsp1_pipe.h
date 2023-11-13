@@ -54,17 +54,6 @@ enum vsp1_pipeline_state {
 };
 
 /*
- * struct vsp1_partition_window - Partition window coordinates
- * @left: horizontal coordinate of the partition start in pixels relative to the
- *	  left edge of the image
- * @width: partition width in pixels
- */
-struct vsp1_partition_window {
-	unsigned int left;
-	unsigned int width;
-};
-
-/*
  * struct vsp1_partition - A description of a slice for the partition algorithm
  * @rpf: The RPF partition window configuration
  * @uds_sink: The UDS input partition window configuration
@@ -73,11 +62,11 @@ struct vsp1_partition_window {
  * @wpf: The WPF partition window configuration
  */
 struct vsp1_partition {
-	struct vsp1_partition_window rpf[VSP1_MAX_RPF];
-	struct vsp1_partition_window uds_sink;
-	struct vsp1_partition_window uds_source;
-	struct vsp1_partition_window sru;
-	struct vsp1_partition_window wpf;
+	struct v4l2_rect rpf[VSP1_MAX_RPF];
+	struct v4l2_rect uds_sink;
+	struct v4l2_rect uds_source;
+	struct v4l2_rect sru;
+	struct v4l2_rect wpf;
 };
 
 /*

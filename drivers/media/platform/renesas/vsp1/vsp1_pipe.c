@@ -459,7 +459,7 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 static void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
 					      struct vsp1_partition *partition,
 					      unsigned int index,
-					      struct vsp1_partition_window *window)
+					      struct v4l2_rect *window)
 {
 	struct vsp1_entity *entity;
 
@@ -485,7 +485,7 @@ void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
 				       unsigned int index)
 {
 	const struct v4l2_mbus_framefmt *format;
-	struct vsp1_partition_window window;
+	struct v4l2_rect window;
 	unsigned int modulus;
 
 	/*
@@ -498,6 +498,8 @@ void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
 	/* Initialise the partition with sane starting conditions. */
 	window.left = index * div_size;
 	window.width = div_size;
+	window.top = 0;
+	window.height = format->height;
 
 	modulus = format->width % div_size;
 
