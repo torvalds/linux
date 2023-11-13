@@ -37,6 +37,16 @@ config PINCTRL_INTEL
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 
+config PINCTRL_INTEL_PLATFORM
+	tristate "Intel pinctrl and GPIO platform driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel PCH pins and using them as GPIOs. Currently the following
+	  Intel SoCs / platforms require this to be functional:
+	  - Lunar Lake
+
 config PINCTRL_ALDERLAKE
 	tristate "Intel Alder Lake pinctrl and GPIO driver"
 	select PINCTRL_INTEL
