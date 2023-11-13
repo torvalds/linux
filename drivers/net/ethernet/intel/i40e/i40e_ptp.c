@@ -1211,7 +1211,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
-		if (!test_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features))
+		if (!test_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps))
 			return -ERANGE;
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V1MESSTYPE0_MASK |
@@ -1225,7 +1225,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		if (!test_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features))
+		if (!test_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps))
 			return -ERANGE;
 		fallthrough;
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -1234,7 +1234,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 		pf->ptp_rx = true;
 		tsyntype = I40E_PRTTSYN_CTL1_V2MESSTYPE0_MASK |
 			   I40E_PRTTSYN_CTL1_TSYNTYPE_V2;
-		if (test_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features)) {
+		if (test_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps)) {
 			tsyntype |= I40E_PRTTSYN_CTL1_UDP_ENA_MASK;
 			config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		} else {

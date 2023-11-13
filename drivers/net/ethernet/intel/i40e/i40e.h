@@ -34,11 +34,11 @@
 #define I40E_MIN_VSI_ALLOC		83 /* LAN, ATR, FCOE, 64 VF */
 /* max 16 qps */
 #define i40e_default_queues_per_vmdq(pf) \
-	(test_bit(I40E_HW_RSS_AQ_CAPABLE, (pf)->hw_features) ? 4 : 1)
+	(test_bit(I40E_HW_CAP_RSS_AQ, (pf)->hw.caps) ? 4 : 1)
 #define I40E_DEFAULT_QUEUES_PER_VF	4
 #define I40E_MAX_VF_QUEUES		16
 #define i40e_pf_get_max_q_per_tc(pf) \
-	(test_bit(I40E_HW_128_QP_RSS_CAPABLE, (pf)->hw_features) ? 128 : 64)
+	(test_bit(I40E_HW_CAP_128_QP_RSS, (pf)->hw.caps) ? 128 : 64)
 #define I40E_FDIR_RING_COUNT		32
 #define I40E_MAX_AQ_BUF_SIZE		4096
 #define I40E_AQ_LEN			256
@@ -137,28 +137,6 @@ enum i40e_vsi_state {
 	__I40E_VSI_RELEASING,
 	/* This must be last as it determines the size of the BITMAP */
 	__I40E_VSI_STATE_SIZE__,
-};
-
-enum i40e_pf_hw_features {
-	I40E_HW_RSS_AQ_CAPABLE,
-	I40E_HW_128_QP_RSS_CAPABLE,
-	I40E_HW_ATR_EVICT_CAPABLE,
-	I40E_HW_WB_ON_ITR_CAPABLE,
-	I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
-	I40E_HW_NO_PCI_LINK_CHECK,
-	I40E_HW_100M_SGMII_CAPABLE,
-	I40E_HW_NO_DCB_SUPPORT,
-	I40E_HW_USE_SET_LLDP_MIB,
-	I40E_HW_GENEVE_OFFLOAD_CAPABLE,
-	I40E_HW_PTP_L4_CAPABLE,
-	I40E_HW_WOL_MC_MAGIC_PKT_WAKE,
-	I40E_HW_HAVE_CRT_RETIMER,
-	I40E_HW_OUTER_UDP_CSUM_CAPABLE,
-	I40E_HW_PHY_CONTROLS_LEDS,
-	I40E_HW_STOP_FW_LLDP,
-	I40E_HW_PORT_ID_VALID,
-	I40E_HW_RESTART_AUTONEG,
-	I40E_PF_HW_FEATURES_NBITS,	/* must be last */
 };
 
 enum i40e_pf_flags {
@@ -557,7 +535,6 @@ struct i40e_pf {
 	struct timer_list service_timer;
 	struct work_struct service_task;
 
-	DECLARE_BITMAP(hw_features, I40E_PF_HW_FEATURES_NBITS);
 	DECLARE_BITMAP(flags, I40E_PF_FLAGS_NBITS);
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;

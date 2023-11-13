@@ -502,7 +502,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     1000baseT_Full);
-		if (test_bit(I40E_HW_100M_SGMII_CAPABLE, pf->hw_features)) {
+		if (test_bit(I40E_HW_CAP_100M_SGMII, pf->hw.caps)) {
 			ethtool_link_ksettings_add_link_mode(ks, supported,
 							     100baseT_Full);
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
@@ -601,7 +601,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 							     10000baseKX4_Full);
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_10GBASE_KR &&
-	    !test_bit(I40E_HW_HAVE_CRT_RETIMER, pf->hw_features)) {
+	    !test_bit(I40E_HW_CAP_CRT_RETIMER, pf->hw.caps)) {
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     10000baseKR_Full);
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
@@ -609,7 +609,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 							     10000baseKR_Full);
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_1000BASE_KX &&
-	    !test_bit(I40E_HW_HAVE_CRT_RETIMER, pf->hw_features)) {
+	    !test_bit(I40E_HW_CAP_CRT_RETIMER, pf->hw.caps)) {
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     1000baseKX_Full);
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
@@ -917,7 +917,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     1000baseT_Full);
-		if (test_bit(I40E_HW_100M_SGMII_CAPABLE, pf->hw_features)) {
+		if (test_bit(I40E_HW_CAP_100M_SGMII, pf->hw.caps)) {
 			ethtool_link_ksettings_add_link_mode(ks, supported,
 							     100baseT_Full);
 			if (hw_link_info->requested_speeds &
@@ -2579,7 +2579,7 @@ static int i40e_get_ts_info(struct net_device *dev,
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
 
-	if (test_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features))
+	if (test_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps))
 		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 				    BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
 				    BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
@@ -2828,7 +2828,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features)) {
+		if (!test_bit(I40E_HW_CAP_PHY_CONTROLS_LEDS, pf->hw.caps)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
 			if (!test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps))
@@ -2840,19 +2840,19 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		}
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features))
+		if (!test_bit(I40E_HW_CAP_PHY_CONTROLS_LEDS, pf->hw.caps))
 			i40e_led_set(hw, 0xf, false);
 		else
 			ret = i40e_led_set_phy(hw, true, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_OFF:
-		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features))
+		if (!test_bit(I40E_HW_CAP_PHY_CONTROLS_LEDS, pf->hw.caps))
 			i40e_led_set(hw, 0x0, false);
 		else
 			ret = i40e_led_set_phy(hw, false, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features)) {
+		if (!test_bit(I40E_HW_CAP_PHY_CONTROLS_LEDS, pf->hw.caps)) {
 			i40e_led_set(hw, pf->led_status, false);
 		} else {
 			ret = i40e_led_set_phy(hw, false, pf->led_status,
@@ -3653,22 +3653,22 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_TCP, flow_pctypes);
-		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
-			     pf->hw_features))
+		if (test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE,
+			     pf->hw.caps))
 			set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK,
 				flow_pctypes);
 		break;
 	case TCP_V6_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_TCP, flow_pctypes);
-		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
-			     pf->hw_features))
+		if (test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE,
+			     pf->hw.caps))
 			set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK,
 				flow_pctypes);
 		break;
 	case UDP_V4_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_UDP, flow_pctypes);
-		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
-			     pf->hw_features)) {
+		if (test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE,
+			     pf->hw.caps)) {
 			set_bit(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP,
 				flow_pctypes);
 			set_bit(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP,
@@ -3678,8 +3678,8 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		break;
 	case UDP_V6_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_UDP, flow_pctypes);
-		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
-			     pf->hw_features)) {
+		if (test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE,
+			     pf->hw.caps)) {
 			set_bit(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP,
 				flow_pctypes);
 			set_bit(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP,
@@ -5328,7 +5328,7 @@ flags_complete:
 
 	/* ATR eviction is not supported on all devices */
 	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, new_flags) &&
-	    !test_bit(I40E_HW_ATR_EVICT_CAPABLE, pf->hw_features))
+	    !test_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps))
 		return -EOPNOTSUPP;
 
 	/* If the driver detected FW LLDP was disabled on init, this flag could

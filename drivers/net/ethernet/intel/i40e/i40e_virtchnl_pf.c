@@ -2137,14 +2137,14 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_RSS_PF) {
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_RSS_PF;
 	} else {
-		if (test_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features) &&
+		if (test_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps) &&
 		    (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_RSS_AQ))
 			vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_RSS_AQ;
 		else
 			vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_RSS_REG;
 	}
 
-	if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE, pf->hw.caps)) {
 		if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2)
 			vfres->vf_cap_flags |=
 				VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2;
@@ -2153,7 +2153,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 	if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_ENCAP)
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_ENCAP;
 
-	if (test_bit(I40E_HW_OUTER_UDP_CSUM_CAPABLE, pf->hw_features) &&
+	if (test_bit(I40E_HW_CAP_OUTER_UDP_CSUM, pf->hw.caps) &&
 	    (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM))
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM;
 
@@ -2168,7 +2168,7 @@ static int i40e_vc_get_vf_resources_msg(struct i40e_vf *vf, u8 *msg)
 		vfres->vf_cap_flags |= VIRTCHNL_VF_OFFLOAD_RX_POLLING;
 	}
 
-	if (test_bit(I40E_HW_WB_ON_ITR_CAPABLE, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_WB_ON_ITR, pf->hw.caps)) {
 		if (vf->driver_caps & VIRTCHNL_VF_OFFLOAD_WB_ON_ITR)
 			vfres->vf_cap_flags |=
 					VIRTCHNL_VF_OFFLOAD_WB_ON_ITR;

@@ -1890,7 +1890,7 @@ static int i40e_vsi_config_rss(struct i40e_vsi *vsi)
 	u8 *lut;
 	int ret;
 
-	if (!test_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features))
+	if (!test_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps))
 		return 0;
 	if (!vsi->rss_size)
 		vsi->rss_size = min_t(int, pf->alloc_rss_size,
@@ -7085,7 +7085,7 @@ out:
 			set_bit(__I40E_CLIENT_L2_CHANGE, pf->state);
 		}
 		/* registers are set, lets apply */
-		if (test_bit(I40E_HW_USE_SET_LLDP_MIB, pf->hw_features))
+		if (test_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps))
 			ret = i40e_hw_set_dcb_config(pf, new_cfg);
 	}
 
@@ -7106,7 +7106,7 @@ int i40e_dcb_sw_default_config(struct i40e_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	int err;
 
-	if (test_bit(I40E_HW_USE_SET_LLDP_MIB, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps)) {
 		/* Update the local cached instance with TC0 ETS */
 		memset(&pf->tmp_cfg, 0, sizeof(struct i40e_dcbx_config));
 		pf->tmp_cfg.etscfg.willing = I40E_IEEE_DEFAULT_ETS_WILLING;
@@ -7167,7 +7167,7 @@ static int i40e_init_pf_dcb(struct i40e_pf *pf)
 	/* Do not enable DCB for SW1 and SW2 images even if the FW is capable
 	 * Also do not enable DCBx if FW LLDP agent is disabled
 	 */
-	if (test_bit(I40E_HW_NO_DCB_SUPPORT, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_NO_DCB_SUPPORT, pf->hw.caps)) {
 		dev_info(&pf->pdev->dev, "DCB is not supported.\n");
 		err = -EOPNOTSUPP;
 		goto out;
@@ -11069,7 +11069,7 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 		wr32(hw, I40E_REG_MSS, val);
 	}
 
-	if (test_bit(I40E_HW_RESTART_AUTONEG, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_RESTART_AUTONEG, pf->hw.caps)) {
 		msleep(75);
 		ret = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
 		if (ret)
@@ -11672,7 +11672,7 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		ring->count = vsi->num_tx_desc;
 		ring->size = 0;
 		ring->dcb_tc = 0;
-		if (test_bit(I40E_HW_WB_ON_ITR_CAPABLE, vsi->back->hw_features))
+		if (test_bit(I40E_HW_CAP_WB_ON_ITR, vsi->back->hw.caps))
 			ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
 		ring->itr_setting = pf->tx_itr_default;
 		WRITE_ONCE(vsi->tx_rings[i], ring++);
@@ -11689,7 +11689,7 @@ static int i40e_alloc_rings(struct i40e_vsi *vsi)
 		ring->count = vsi->num_tx_desc;
 		ring->size = 0;
 		ring->dcb_tc = 0;
-		if (test_bit(I40E_HW_WB_ON_ITR_CAPABLE, vsi->back->hw_features))
+		if (test_bit(I40E_HW_CAP_WB_ON_ITR, vsi->back->hw.caps))
 			ring->flags = I40E_TXR_FLAGS_WB_ON_ITR;
 		set_ring_xdp(ring);
 		ring->itr_setting = pf->tx_itr_default;
@@ -12367,7 +12367,7 @@ int i40e_config_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 {
 	struct i40e_pf *pf = vsi->back;
 
-	if (test_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features))
+	if (test_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps))
 		return i40e_config_rss_aq(vsi, seed, lut, lut_size);
 	else
 		return i40e_config_rss_reg(vsi, seed, lut, lut_size);
@@ -12386,7 +12386,7 @@ int i40e_get_rss(struct i40e_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size)
 {
 	struct i40e_pf *pf = vsi->back;
 
-	if (test_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features))
+	if (test_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps))
 		return i40e_get_rss_aq(vsi, seed, lut, lut_size);
 	else
 		return i40e_get_rss_reg(vsi, seed, lut, lut_size);
@@ -12783,60 +12783,60 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	}
 
 	if (pf->hw.mac.type == I40E_MAC_X722) {
-		set_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_128_QP_RSS_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_ATR_EVICT_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_WB_ON_ITR_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE, pf->hw_features);
-		set_bit(I40E_HW_NO_PCI_LINK_CHECK, pf->hw_features);
-		set_bit(I40E_HW_USE_SET_LLDP_MIB, pf->hw_features);
-		set_bit(I40E_HW_GENEVE_OFFLOAD_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features);
-		set_bit(I40E_HW_WOL_MC_MAGIC_PKT_WAKE, pf->hw_features);
-		set_bit(I40E_HW_OUTER_UDP_CSUM_CAPABLE, pf->hw_features);
+		set_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps);
+		set_bit(I40E_HW_CAP_128_QP_RSS, pf->hw.caps);
+		set_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps);
+		set_bit(I40E_HW_CAP_WB_ON_ITR, pf->hw.caps);
+		set_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE, pf->hw.caps);
+		set_bit(I40E_HW_CAP_NO_PCI_LINK_CHECK, pf->hw.caps);
+		set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps);
+		set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, pf->hw.caps);
+		set_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps);
+		set_bit(I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE, pf->hw.caps);
+		set_bit(I40E_HW_CAP_OUTER_UDP_CSUM, pf->hw.caps);
 
 #define I40E_FDEVICT_PCTYPE_DEFAULT 0xc03
 		if (rd32(&pf->hw, I40E_GLQF_FDEVICTENA(1)) !=
 		    I40E_FDEVICT_PCTYPE_DEFAULT) {
 			dev_warn(&pf->pdev->dev,
 				 "FD EVICT PCTYPES are not right, disable FD HW EVICT\n");
-			clear_bit(I40E_HW_ATR_EVICT_CAPABLE, pf->hw_features);
+			clear_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps);
 		}
 	} else if ((pf->hw.aq.api_maj_ver > 1) ||
 		   ((pf->hw.aq.api_maj_ver == 1) &&
 		    (pf->hw.aq.api_min_ver > 4))) {
 		/* Supported in FW API version higher than 1.4 */
-		set_bit(I40E_HW_GENEVE_OFFLOAD_CAPABLE, pf->hw_features);
+		set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, pf->hw.caps);
 	}
 
 	/* Enable HW ATR eviction if possible */
-	if (test_bit(I40E_HW_ATR_EVICT_CAPABLE, pf->hw_features))
+	if (test_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps))
 		set_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags);
 
 	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
 	    (pf->hw.aq.fw_maj_ver < 4))) {
-		set_bit(I40E_HW_RESTART_AUTONEG, pf->hw_features);
+		set_bit(I40E_HW_CAP_RESTART_AUTONEG, pf->hw.caps);
 		/* No DCB support  for FW < v4.33 */
-		set_bit(I40E_HW_NO_DCB_SUPPORT, pf->hw_features);
+		set_bit(I40E_HW_CAP_NO_DCB_SUPPORT, pf->hw.caps);
 	}
 
 	/* Disable FW LLDP if FW < v4.3 */
 	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
 	    (pf->hw.aq.fw_maj_ver < 4)))
-		set_bit(I40E_HW_STOP_FW_LLDP, pf->hw_features);
+		set_bit(I40E_HW_CAP_STOP_FW_LLDP, pf->hw.caps);
 
 	/* Use the FW Set LLDP MIB API if FW > v4.40 */
 	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
 	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver >= 40)) ||
 	    (pf->hw.aq.fw_maj_ver >= 5)))
-		set_bit(I40E_HW_USE_SET_LLDP_MIB, pf->hw_features);
+		set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps);
 
 	/* Enable PTP L4 if FW > v6.0 */
 	if (pf->hw.mac.type == I40E_MAC_XL710 &&
 	    pf->hw.aq.fw_maj_ver >= 6)
-		set_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features);
+		set_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps);
 
 	if (pf->hw.func_caps.vmdq && num_online_cpus() != 1) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
@@ -13092,7 +13092,7 @@ static int i40e_get_phys_port_id(struct net_device *netdev,
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 
-	if (!test_bit(I40E_HW_PORT_ID_VALID, pf->hw_features))
+	if (!test_bit(I40E_HW_CAP_PORT_ID_VALID, pf->hw.caps))
 		return -EOPNOTSUPP;
 
 	ppid->id_len = min_t(int, sizeof(hw->mac.port_addr), sizeof(ppid->id));
@@ -13767,7 +13767,7 @@ static int i40e_config_netdev(struct i40e_vsi *vsi)
 			  NETIF_F_RXCSUM		|
 			  0;
 
-	if (!test_bit(I40E_HW_OUTER_UDP_CSUM_CAPABLE, pf->hw_features))
+	if (!test_bit(I40E_HW_CAP_OUTER_UDP_CSUM, pf->hw.caps))
 		netdev->gso_partial_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 
 	netdev->udp_tunnel_nic_info = &pf->udp_tunnel_nic;
@@ -14593,7 +14593,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 		break;
 	}
 
-	if (test_bit(I40E_HW_RSS_AQ_CAPABLE, pf->hw_features) &&
+	if (test_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps) &&
 	    vsi->type == I40E_VSI_VMDQ2) {
 		ret = i40e_vsi_config_rss(vsi);
 		if (ret)
@@ -15927,7 +15927,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * Ignore error return codes because if it was already disabled via
 	 * hardware settings this will fail
 	 */
-	if (test_bit(I40E_HW_STOP_FW_LLDP, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_STOP_FW_LLDP, pf->hw.caps)) {
 		dev_info(&pdev->dev, "Stopping firmware LLDP agent.\n");
 		i40e_aq_stop_lldp(hw, true, false, NULL);
 	}
@@ -15944,7 +15944,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ether_addr_copy(hw->mac.perm_addr, hw->mac.addr);
 	i40e_get_port_mac_addr(hw, hw->mac.port_addr);
 	if (is_valid_ether_addr(hw->mac.port_addr))
-		set_bit(I40E_HW_PORT_ID_VALID, pf->hw_features);
+		set_bit(I40E_HW_CAP_PORT_ID_VALID, pf->hw.caps);
 
 	i40e_ptp_alloc_pins(pf);
 	pci_set_drvdata(pdev, pf);
@@ -16081,7 +16081,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		wr32(hw, I40E_REG_MSS, val);
 	}
 
-	if (test_bit(I40E_HW_RESTART_AUTONEG, pf->hw_features)) {
+	if (test_bit(I40E_HW_CAP_RESTART_AUTONEG, pf->hw.caps)) {
 		msleep(75);
 		err = i40e_aq_set_link_restart_an(&pf->hw, true, NULL);
 		if (err)
@@ -16170,7 +16170,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * and will report PCI Gen 1 x 1 by default so don't bother
 	 * checking them.
 	 */
-	if (!test_bit(I40E_HW_NO_PCI_LINK_CHECK, pf->hw_features)) {
+	if (!test_bit(I40E_HW_CAP_NO_PCI_LINK_CHECK, pf->hw.caps)) {
 		char speed[PCI_SPEED_SIZE] = "Unknown";
 		char width[PCI_WIDTH_SIZE] = "Unknown";
 
@@ -16252,9 +16252,9 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if ((pf->hw.device_id == I40E_DEV_ID_10G_BASE_T) ||
 	    (pf->hw.device_id == I40E_DEV_ID_10G_BASE_T4))
-		set_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features);
+		set_bit(I40E_HW_CAP_PHY_CONTROLS_LEDS, pf->hw.caps);
 	if (pf->hw.device_id == I40E_DEV_ID_SFP_I_X722)
-		set_bit(I40E_HW_HAVE_CRT_RETIMER, pf->hw_features);
+		set_bit(I40E_HW_CAP_CRT_RETIMER, pf->hw.caps);
 	/* print a string summarizing features */
 	i40e_print_features(pf);
 
@@ -16616,7 +16616,7 @@ static void i40e_shutdown(struct pci_dev *pdev)
 	 */
 	i40e_notify_client_of_netdev_close(pf->vsi[pf->lan_vsi], false);
 
-	if (test_bit(I40E_HW_WOL_MC_MAGIC_PKT_WAKE, pf->hw_features) &&
+	if (test_bit(I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE, pf->hw.caps) &&
 	    pf->wol_en)
 		i40e_enable_mc_magic_wake(pf);
 
@@ -16670,7 +16670,7 @@ static int __maybe_unused i40e_suspend(struct device *dev)
 	 */
 	i40e_notify_client_of_netdev_close(pf->vsi[pf->lan_vsi], false);
 
-	if (test_bit(I40E_HW_WOL_MC_MAGIC_PKT_WAKE, pf->hw_features) &&
+	if (test_bit(I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE, pf->hw.caps) &&
 	    pf->wol_en)
 		i40e_enable_mc_magic_wake(pf);
 
