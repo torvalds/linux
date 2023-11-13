@@ -191,12 +191,6 @@ struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1)
 	if (hgt == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	/* Initialize the control handler. */
-	v4l2_ctrl_handler_init(&hgt->ctrls, 1);
-	v4l2_ctrl_new_custom(&hgt->ctrls, &hgt_hue_areas, NULL);
-
-	hgt->histo.entity.subdev.ctrl_handler = &hgt->ctrls;
-
 	/* Initialize the video device and queue for statistics data. */
 	ret = vsp1_histogram_init(vsp1, &hgt->histo, VSP1_ENTITY_HGT, "hgt",
 				  &hgt_entity_ops, hgt_mbus_formats,
@@ -206,6 +200,12 @@ struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1)
 		vsp1_entity_destroy(&hgt->histo.entity);
 		return ERR_PTR(ret);
 	}
+
+	/* Initialize the control handler. */
+	v4l2_ctrl_handler_init(&hgt->ctrls, 1);
+	v4l2_ctrl_new_custom(&hgt->ctrls, &hgt_hue_areas, NULL);
+
+	hgt->histo.entity.subdev.ctrl_handler = &hgt->ctrls;
 
 	v4l2_ctrl_handler_setup(&hgt->ctrls);
 

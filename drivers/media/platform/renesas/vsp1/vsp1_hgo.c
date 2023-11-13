@@ -192,6 +192,16 @@ struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1)
 	if (hgo == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	/* Initialize the video device and queue for statistics data. */
+	ret = vsp1_histogram_init(vsp1, &hgo->histo, VSP1_ENTITY_HGO, "hgo",
+				  &hgo_entity_ops, hgo_mbus_formats,
+				  ARRAY_SIZE(hgo_mbus_formats),
+				  HGO_DATA_SIZE, V4L2_META_FMT_VSP1_HGO);
+	if (ret < 0) {
+		vsp1_entity_destroy(&hgo->histo.entity);
+		return ERR_PTR(ret);
+	}
+
 	/* Initialize the control handler. */
 	v4l2_ctrl_handler_init(&hgo->ctrls.handler,
 			       vsp1->info->gen >= 3 ? 2 : 1);
@@ -206,16 +216,6 @@ struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1)
 	hgo->num_bins = 64;
 
 	hgo->histo.entity.subdev.ctrl_handler = &hgo->ctrls.handler;
-
-	/* Initialize the video device and queue for statistics data. */
-	ret = vsp1_histogram_init(vsp1, &hgo->histo, VSP1_ENTITY_HGO, "hgo",
-				  &hgo_entity_ops, hgo_mbus_formats,
-				  ARRAY_SIZE(hgo_mbus_formats),
-				  HGO_DATA_SIZE, V4L2_META_FMT_VSP1_HGO);
-	if (ret < 0) {
-		vsp1_entity_destroy(&hgo->histo.entity);
-		return ERR_PTR(ret);
-	}
 
 	return hgo;
 }
