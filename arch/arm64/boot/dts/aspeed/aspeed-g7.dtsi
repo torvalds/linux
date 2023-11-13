@@ -1752,6 +1752,20 @@
 			pinctrl-names = "default";
 		};
 
+		ltpi0: ltpi@14c34000 {
+			compatible = "aspeed-ltpi";
+			reg = <0x0 0x14c34000 0x0 0x100>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_LTPICLK>;
+			status = "disabled";
+		};
+
+		ltpi1: ltpi@14c35000 {
+			compatible = "aspeed-ltpi";
+			reg = <0x0 0x14c35000 0x0 0x100>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_GATE_LTPICLK>;
+			status = "disabled";
+		};
+
 		wdt1: watchdog@14c37000 {
 			compatible = "aspeed,ast2700-wdt";
 			reg = <0x0 0x14c37000 0x0 0x40>;

@@ -5,6 +5,14 @@
 #include "ast2700-evb.dts"
 #include "aspeed-ltpi0.dtsi"
 
+&ltpi0 {
+	status = "okay";
+};
+
+&ltpi1 {
+	status = "okay";
+};
+
 &uart9 {
 	status = "okay";
 };
