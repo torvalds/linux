@@ -30,6 +30,58 @@ static const struct __base mt7996_reg_base[] = {
 	[WF_RATE_BASE]		= { { 0x820ee000, 0x820fe000, 0x830ee000 } },
 };
 
+static const u32 mt7996_offs[] = {
+	[MIB_RVSR0]		= 0x720,
+	[MIB_RVSR1]		= 0x724,
+	[MIB_BTSCR5]		= 0x788,
+	[MIB_BTSCR6]		= 0x798,
+	[MIB_RSCR1]		= 0x7ac,
+	[MIB_RSCR27]		= 0x954,
+	[MIB_RSCR28]		= 0x958,
+	[MIB_RSCR29]		= 0x95c,
+	[MIB_RSCR30]		= 0x960,
+	[MIB_RSCR31]		= 0x964,
+	[MIB_RSCR33]		= 0x96c,
+	[MIB_RSCR35]		= 0x974,
+	[MIB_RSCR36]		= 0x978,
+	[MIB_BSCR0]		= 0x9cc,
+	[MIB_BSCR1]		= 0x9d0,
+	[MIB_BSCR2]		= 0x9d4,
+	[MIB_BSCR3]		= 0x9d8,
+	[MIB_BSCR4]		= 0x9dc,
+	[MIB_BSCR5]		= 0x9e0,
+	[MIB_BSCR6]		= 0x9e4,
+	[MIB_BSCR7]		= 0x9e8,
+	[MIB_BSCR17]		= 0xa10,
+	[MIB_TRDR1]		= 0xa28,
+};
+
+static const u32 mt7992_offs[] = {
+	[MIB_RVSR0]		= 0x760,
+	[MIB_RVSR1]		= 0x764,
+	[MIB_BTSCR5]		= 0x7c8,
+	[MIB_BTSCR6]		= 0x7d8,
+	[MIB_RSCR1]		= 0x7f0,
+	[MIB_RSCR27]		= 0x998,
+	[MIB_RSCR28]		= 0x99c,
+	[MIB_RSCR29]		= 0x9a0,
+	[MIB_RSCR30]		= 0x9a4,
+	[MIB_RSCR31]		= 0x9a8,
+	[MIB_RSCR33]		= 0x9b0,
+	[MIB_RSCR35]		= 0x9b8,
+	[MIB_RSCR36]		= 0x9bc,
+	[MIB_BSCR0]		= 0xac8,
+	[MIB_BSCR1]		= 0xacc,
+	[MIB_BSCR2]		= 0xad0,
+	[MIB_BSCR3]		= 0xad4,
+	[MIB_BSCR4]		= 0xad8,
+	[MIB_BSCR5]		= 0xadc,
+	[MIB_BSCR6]		= 0xae0,
+	[MIB_BSCR7]		= 0xae4,
+	[MIB_BSCR17]		= 0xb0c,
+	[MIB_TRDR1]		= 0xb24,
+};
+
 static const struct __map mt7996_reg_map[] = {
 	{ 0x54000000, 0x02000, 0x1000 }, /* WFDMA_0 (PCIE0 MCU DMA0) */
 	{ 0x55000000, 0x03000, 0x1000 }, /* WFDMA_1 (PCIE0 MCU DMA1) */
@@ -382,6 +434,13 @@ static int mt7996_mmio_init(struct mt76_dev *mdev,
 	switch (device_id) {
 	case 0x7990:
 		dev->reg.base = mt7996_reg_base;
+		dev->reg.offs_rev = mt7996_offs;
+		dev->reg.map = mt7996_reg_map;
+		dev->reg.map_size = ARRAY_SIZE(mt7996_reg_map);
+		break;
+	case 0x7992:
+		dev->reg.base = mt7996_reg_base;
+		dev->reg.offs_rev = mt7992_offs;
 		dev->reg.map = mt7996_reg_map;
 		dev->reg.map_size = ARRAY_SIZE(mt7996_reg_map);
 		break;

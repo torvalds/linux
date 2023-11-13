@@ -19,6 +19,7 @@ struct __base {
 /* used to differentiate between generations */
 struct mt7996_reg_desc {
 	const struct __base *base;
+	const u32 *offs_rev;
 	const struct __map *map;
 	u32 map_size;
 };
@@ -38,6 +39,35 @@ enum base_rev {
 };
 
 #define __BASE(_id, _band)			(dev->reg.base[(_id)].band_base[(_band)])
+
+enum offs_rev {
+	MIB_RVSR0,
+	MIB_RVSR1,
+	MIB_BTSCR5,
+	MIB_BTSCR6,
+	MIB_RSCR1,
+	MIB_RSCR27,
+	MIB_RSCR28,
+	MIB_RSCR29,
+	MIB_RSCR30,
+	MIB_RSCR31,
+	MIB_RSCR33,
+	MIB_RSCR35,
+	MIB_RSCR36,
+	MIB_BSCR0,
+	MIB_BSCR1,
+	MIB_BSCR2,
+	MIB_BSCR3,
+	MIB_BSCR4,
+	MIB_BSCR5,
+	MIB_BSCR6,
+	MIB_BSCR7,
+	MIB_BSCR17,
+	MIB_TRDR1,
+	__MT_OFFS_MAX,
+};
+
+#define __OFFS(id)			(dev->reg.offs_rev[(id)])
 
 /* RRO TOP */
 #define MT_RRO_TOP_BASE				0xA000
@@ -178,32 +208,32 @@ enum base_rev {
 #define MT_WF_MIB_BASE(_band)			__BASE(WF_MIB_BASE, (_band))
 #define MT_WF_MIB(_band, ofs)			(MT_WF_MIB_BASE(_band) + (ofs))
 
-#define MT_MIB_BSCR0(_band)			MT_WF_MIB(_band, 0x9cc)
-#define MT_MIB_BSCR1(_band)			MT_WF_MIB(_band, 0x9d0)
-#define MT_MIB_BSCR2(_band)			MT_WF_MIB(_band, 0x9d4)
-#define MT_MIB_BSCR3(_band)			MT_WF_MIB(_band, 0x9d8)
-#define MT_MIB_BSCR4(_band)			MT_WF_MIB(_band, 0x9dc)
-#define MT_MIB_BSCR5(_band)			MT_WF_MIB(_band, 0x9e0)
-#define MT_MIB_BSCR6(_band)			MT_WF_MIB(_band, 0x9e4)
-#define MT_MIB_BSCR7(_band)			MT_WF_MIB(_band, 0x9e8)
-#define MT_MIB_BSCR17(_band)			MT_WF_MIB(_band, 0xa10)
+#define MT_MIB_BSCR0(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR0))
+#define MT_MIB_BSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR1))
+#define MT_MIB_BSCR2(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR2))
+#define MT_MIB_BSCR3(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR3))
+#define MT_MIB_BSCR4(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR4))
+#define MT_MIB_BSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR5))
+#define MT_MIB_BSCR6(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR6))
+#define MT_MIB_BSCR7(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR7))
+#define MT_MIB_BSCR17(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR17))
 
 #define MT_MIB_TSCR5(_band)			MT_WF_MIB(_band, 0x6c4)
 #define MT_MIB_TSCR6(_band)			MT_WF_MIB(_band, 0x6c8)
 #define MT_MIB_TSCR7(_band)			MT_WF_MIB(_band, 0x6d0)
 
-#define MT_MIB_RSCR1(_band)			MT_WF_MIB(_band, 0x7ac)
+#define MT_MIB_RSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR1))
 /* rx mpdu counter, full 32 bits */
-#define MT_MIB_RSCR31(_band)			MT_WF_MIB(_band, 0x964)
-#define MT_MIB_RSCR33(_band)			MT_WF_MIB(_band, 0x96c)
+#define MT_MIB_RSCR31(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR31))
+#define MT_MIB_RSCR33(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR33))
 
 #define MT_MIB_SDR6(_band)			MT_WF_MIB(_band, 0x020)
 #define MT_MIB_SDR6_CHANNEL_IDL_CNT_MASK	GENMASK(15, 0)
 
-#define MT_MIB_RVSR0(_band)			MT_WF_MIB(_band, 0x720)
+#define MT_MIB_RVSR0(_band)			MT_WF_MIB(_band, __OFFS(MIB_RVSR0))
 
-#define MT_MIB_RSCR35(_band)			MT_WF_MIB(_band, 0x974)
-#define MT_MIB_RSCR36(_band)			MT_WF_MIB(_band, 0x978)
+#define MT_MIB_RSCR35(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR35))
+#define MT_MIB_RSCR36(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR36))
 
 /* tx ampdu cnt, full 32 bits */
 #define MT_MIB_TSCR0(_band)			MT_WF_MIB(_band, 0x6b0)
@@ -216,16 +246,16 @@ enum base_rev {
 #define MT_MIB_TSCR4(_band)			MT_WF_MIB(_band, 0x6c0)
 
 /* rx ampdu count, 32-bit */
-#define MT_MIB_RSCR27(_band)			MT_WF_MIB(_band, 0x954)
+#define MT_MIB_RSCR27(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR27))
 
 /* rx ampdu bytes count, 32-bit */
-#define MT_MIB_RSCR28(_band)			MT_WF_MIB(_band, 0x958)
+#define MT_MIB_RSCR28(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR28))
 
 /* rx ampdu valid subframe count */
-#define MT_MIB_RSCR29(_band)			MT_WF_MIB(_band, 0x95c)
+#define MT_MIB_RSCR29(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR29))
 
 /* rx ampdu valid subframe bytes count, 32bits */
-#define MT_MIB_RSCR30(_band)			MT_WF_MIB(_band, 0x960)
+#define MT_MIB_RSCR30(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR30))
 
 /* remaining windows protected stats */
 #define MT_MIB_SDR27(_band)			MT_WF_MIB(_band, 0x080)
@@ -234,18 +264,18 @@ enum base_rev {
 #define MT_MIB_SDR28(_band)			MT_WF_MIB(_band, 0x084)
 #define MT_MIB_SDR28_TX_RWP_NEED_CNT		GENMASK(15, 0)
 
-#define MT_MIB_RVSR1(_band)			MT_WF_MIB(_band, 0x724)
+#define MT_MIB_RVSR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RVSR1))
 
 /* rx blockack count, 32 bits */
 #define MT_MIB_TSCR1(_band)			MT_WF_MIB(_band, 0x6b4)
 
 #define MT_MIB_BTSCR0(_band)			MT_WF_MIB(_band, 0x5e0)
-#define MT_MIB_BTSCR5(_band)			MT_WF_MIB(_band, 0x788)
-#define MT_MIB_BTSCR6(_band)			MT_WF_MIB(_band, 0x798)
+#define MT_MIB_BTSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_BTSCR5))
+#define MT_MIB_BTSCR6(_band)			MT_WF_MIB(_band, __OFFS(MIB_BTSCR6))
 
 #define MT_MIB_BFTFCR(_band)			MT_WF_MIB(_band, 0x5d0)
 
-#define MT_TX_AGG_CNT(_band, n)			MT_WF_MIB(_band, 0xa28 + ((n) << 2))
+#define MT_TX_AGG_CNT(_band, n)			MT_WF_MIB(_band, __OFFS(MIB_TRDR1) + ((n) << 2))
 #define MT_MIB_ARNG(_band, n)			MT_WF_MIB(_band, 0x0b0 + ((n) << 2))
 #define MT_MIB_ARNCR_RANGE(val, n)		(((val) >> ((n) << 4)) & GENMASK(9, 0))
 
