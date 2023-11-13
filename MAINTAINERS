@@ -21795,6 +21795,15 @@ F:	Documentation/devicetree/bindings/media/i2c/ti,ds90*
 F:	drivers/media/i2c/ds90*
 F:	include/media/i2c/ds90*
 
+TI ICSSG ETHERNET DRIVER (ICSSG)
+R:	MD Danish Anwar <danishanwar@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/ti,icss*.yaml
+F:	drivers/net/ethernet/ti/icssg/*
+
 TI J721E CSI2RX DRIVER
 M:	Jai Luthra <j-luthra@ti.com>
 L:	linux-media@vger.kernel.org
