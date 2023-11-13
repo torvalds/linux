@@ -518,7 +518,6 @@
 				compatible = "fsl,imx93-edma4";
 				reg = <0x42000000 0x210000>;
 				#dma-cells = <3>;
-				shared-interrupt;
 				dma-channels = <64>;
 				interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
