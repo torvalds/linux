@@ -514,12 +514,12 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	else
 		ht_info->nCurrent_AMSDU_MaxSize = ht_info->nAMSDU_MaxSize;
 
-	ht_info->bCurrentAMPDUEnable = ht_info->bAMPDUEnable;
+	ht_info->current_ampdu_enable = ht_info->bAMPDUEnable;
 	if (ieee->rtllib_ap_sec_type &&
 	    (ieee->rtllib_ap_sec_type(ieee) & (SEC_ALG_WEP | SEC_ALG_TKIP))) {
 		if ((ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) ||
 		    (ht_info->IOTPeer == HT_IOT_PEER_UNKNOWN))
-			ht_info->bCurrentAMPDUEnable = false;
+			ht_info->current_ampdu_enable = false;
 	}
 
 	if (!ht_info->reg_rt2rt_aggregation) {
@@ -544,7 +544,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	ht_info->current_mpdu_density = max_t(u8, ht_info->MPDU_Density,
 					      pPeerHTCap->MPDUDensity);
 	if (ht_info->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
-		ht_info->bCurrentAMPDUEnable = false;
+		ht_info->current_ampdu_enable = false;
 		ht_info->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
 	}
 	ht_info->cur_rx_reorder_enable = ht_info->reg_rx_reorder_enable;
