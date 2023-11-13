@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/iio/sysfs.h>
 #include <linux/interrupt.h>
+#include <linux/of_irq.h>
 #include <asm/unaligned.h>
 
 #include <linux/platform_data/st_sensors_pdata.h>
@@ -289,7 +290,7 @@ static u16 st_lis2dw12_check_odr_dependency(struct st_lis2dw12_hw *hw, u16 odr,
 
 	if (enable) {
 		if (hw->enable_mask & BIT(ref_id))
-			ret = (ref->odr < odr) ? odr : ref->odr;
+			ret = max_t(u32, ref->odr, odr);
 		else
 			ret = odr;
 	} else {
@@ -302,6 +303,7 @@ static u16 st_lis2dw12_check_odr_dependency(struct st_lis2dw12_hw *hw, u16 odr,
 static int st_lis2dw12_set_odr(struct st_lis2dw12_sensor *sensor, u16 req_odr)
 {
 	struct st_lis2dw12_hw *hw = sensor->hw;
+	u16 upd_odr = req_odr;
 	u8 mode, val, i;
 	int err, odr;
 
@@ -309,13 +311,12 @@ static int st_lis2dw12_set_odr(struct st_lis2dw12_sensor *sensor, u16 req_odr)
 		if (i == sensor->id)
 			continue;
 
-		odr = st_lis2dw12_check_odr_dependency(hw, req_odr, i);
-		if (odr != req_odr)
-			/* devince already configured */
-			return 0;
+		odr = st_lis2dw12_check_odr_dependency(hw, upd_odr, i);
+		if (odr > upd_odr)
+			upd_odr = odr;
 	}
 
-	err = st_lis2dw12_get_odr_idx(req_odr, &i);
+	err = st_lis2dw12_get_odr_idx(upd_odr, &i);
 	if (err < 0)
 		return err;
 
@@ -350,35 +351,62 @@ static int st_lis2dw12_check_whoami(struct st_lis2dw12_hw *hw)
 	return 0;
 }
 
-static int st_lis2dw12_of_get_drdy_pin(struct st_lis2dw12_hw *hw,
-				       int *drdy_pin)
+static int st_lis2dw12_of_get_drdy_pin(struct st_lis2dw12_hw *hw)
 {
 	struct device_node *np = hw->dev->of_node;
+	int err;
 
 	if (!np)
 		return -EINVAL;
 
-	return of_property_read_u32(np, "st,drdy-int-pin", drdy_pin);
+	err = of_property_read_u32(np, "st,drdy-int-pin", &hw->irq_pin);
+	if (err != 0)
+		return -EINVAL;
+
+	hw->irq = of_irq_get(np, 0);
+	if (hw->irq < 0)
+		return hw->irq;
+
+	if (hw->irq_pin == 1) {
+		/* in case same pin only one irq is requested */
+		hw->irq_emb = -1;
+
+		return 0;
+	}
+
+	/*
+	 * embedded feature when irq is on int 2 require a new dedicated
+	 * irq line
+	 */
+	hw->irq_emb = of_irq_get(np, 1);
+	if (hw->irq_emb < 0) {
+		dev_err(hw->dev,
+			"embedded feature require a irq line\n");
+
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
-static int st_lis2dw12_get_drdy_pin(struct st_lis2dw12_hw *hw, u8 *drdy_reg)
+static int st_lis2dw12_get_drdy_pin(struct st_lis2dw12_hw *hw)
 {
-	int err = 0, drdy_pin;
+	int err = 0;
 
-	if (st_lis2dw12_of_get_drdy_pin(hw, &drdy_pin) < 0) {
+	if (st_lis2dw12_of_get_drdy_pin(hw) < 0) {
 		struct st_sensors_platform_data *pdata;
 		struct device *dev = hw->dev;
 
 		pdata = (struct st_sensors_platform_data *)dev->platform_data;
-		drdy_pin = pdata ? pdata->drdy_int_pin : 1;
+		hw->irq_pin = pdata ? pdata->drdy_int_pin : 1;
 	}
 
-	switch (drdy_pin) {
+	switch (hw->irq_pin) {
 	case 1:
-		*drdy_reg = ST_LIS2DW12_CTRL4_INT1_CTRL_ADDR;
+		hw->irq_reg = ST_LIS2DW12_CTRL4_INT1_CTRL_ADDR;
 		break;
 	case 2:
-		*drdy_reg = ST_LIS2DW12_CTRL5_INT2_CTRL_ADDR;
+		hw->irq_reg = ST_LIS2DW12_CTRL5_INT2_CTRL_ADDR;
 		break;
 	default:
 		dev_err(hw->dev, "unsupported interrupt pin\n");
@@ -391,7 +419,6 @@ static int st_lis2dw12_get_drdy_pin(struct st_lis2dw12_hw *hw, u8 *drdy_reg)
 
 static int st_lis2dw12_init_hw(struct st_lis2dw12_hw *hw)
 {
-	u8 drdy_reg;
 	int err;
 
 	/* soft reset the device */
@@ -463,12 +490,18 @@ static int st_lis2dw12_init_hw(struct st_lis2dw12_hw *hw)
 	if (err < 0)
 		return err;
 
-	/* configure interrupt pin */
-	err = st_lis2dw12_get_drdy_pin(hw, &drdy_reg);
+	/* enable latched mode */
+	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL3_ADDR,
+					  ST_LIS2DW12_LIR_MASK, 1);
 	if (err < 0)
 		return err;
 
-	return st_lis2dw12_write_with_mask(hw, drdy_reg,
+	/* configure interrupt pin */
+	err = st_lis2dw12_get_drdy_pin(hw);
+	if (err < 0)
+		return err;
+
+	return st_lis2dw12_write_with_mask(hw, hw->irq_reg,
 					   ST_LIS2DW12_FTH_INT_MASK, 1);
 }
 
@@ -962,7 +995,7 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
 
-		sensor->odr = st_lis2dw12_odr_table[7].hz;
+		sensor->odr = st_lis2dw12_odr_table[5].hz;
 		break;
 	case ST_LIS2DW12_ID_TAP_TAP:
 		iio_dev->channels = st_lis2dw12_tap_tap_channels;
@@ -973,7 +1006,7 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
 
-		sensor->odr = st_lis2dw12_odr_table[7].hz;
+		sensor->odr = st_lis2dw12_odr_table[6].hz;
 		break;
 	case ST_LIS2DW12_ID_TAP:
 		iio_dev->channels = st_lis2dw12_tap_channels;
@@ -983,7 +1016,7 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 		iio_dev->available_scan_masks =
 				st_lis2dw12_event_avail_scan_masks;
 
-		sensor->odr = st_lis2dw12_odr_table[7].hz;
+		sensor->odr = st_lis2dw12_odr_table[6].hz;
 		break;
 	default:
 		return NULL;

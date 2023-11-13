@@ -66,6 +66,9 @@ struct st_lis2dw12_sensor {
 struct st_lis2dw12_hw {
 	struct device *dev;
 	int irq;
+	int irq_emb;
+	int irq_pin;
+	u8 irq_reg;
 
 	struct mutex fifo_lock;
 	struct mutex lock;
@@ -103,4 +106,3 @@ int st_lis2dw12_sensor_set_enable(struct st_lis2dw12_sensor *sensor,
 				  bool enable);
 
 #endif /* ST_LIS2DW12_H */
-

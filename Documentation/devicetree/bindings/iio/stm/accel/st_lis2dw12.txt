@@ -17,9 +17,15 @@ Required properties for the spi bindings:
 Optional properties for all bus drivers:
 - st,drdy-int-pin: the pin on the package that will be used to signal
                    "data ready" (valid values: 1 or 2, default: 1).
+                   The interrupt pin used by embedded events is hardwired to 1
+                   by hardware design.
 
-- interrupts:      interrupt mapping for IRQ. It should be configured with
-                   flags IRQ_TYPE_LEVEL_HIGH.
+- interrupts:      interrupt mapping for IRQs. It is recommended to configure
+                   them with flags IRQ_TYPE_LEVEL_HIGH. It is possible to
+                   configure an interrupt array of two elements where the first
+                   one is related to the accelerometer sensor data interrupt
+                   while the second represents the embedded events detection
+                   interrupt.
 
                    Refer to interrupt-controller/interrupts.txt for generic
                    interrupt client node bindings.
@@ -31,6 +37,6 @@ lis2dw12-accel@0 {
 	reg = <0x0>;
 	spi-max-frequency = <1000000>;
 	interrupt-parent = <&gpio0>;
-	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>, <2 IRQ_TYPE_LEVEL_HIGH>;
 	st,drdy-int-pin = <1>;
 };
