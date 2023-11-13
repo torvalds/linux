@@ -103,7 +103,7 @@ static void ResetTxTsEntry(struct tx_ts_record *ts)
 	ts->TxCurSeq = 0;
 	ts->add_ba_req_in_progress = false;
 	ts->add_ba_req_delayed = false;
-	ts->bUsingBa = false;
+	ts->using_ba = false;
 	ts->bDisable_AddBa = false;
 	rtllib_reset_ba_entry(&ts->TxAdmittedBARecord);
 	rtllib_reset_ba_entry(&ts->TxPendingBARecord);
