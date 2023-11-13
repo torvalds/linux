@@ -518,7 +518,7 @@ static int run_workload(const char *work, int argc, const char **argv)
 static int perf_test__config(const char *var, const char *value,
 			     void *data __maybe_unused)
 {
-	if (!strcmp(var, "test.objdump"))
+	if (!strcmp(var, "annotate.objdump"))
 		test_objdump_path = value;
 
 	return 0;
