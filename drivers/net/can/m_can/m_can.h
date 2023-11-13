@@ -97,6 +97,7 @@ struct m_can_classdev {
 	u32 irqstatus;
 
 	int pm_clock_support;
+	int pm_wake_source;
 	int is_peripheral;
 
 	// Cached M_CAN_IE register content

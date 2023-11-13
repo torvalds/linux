@@ -2382,7 +2382,15 @@ int m_can_class_suspend(struct device *dev)
 	if (netif_running(ndev)) {
 		netif_stop_queue(ndev);
 		netif_device_detach(ndev);
-		m_can_stop(ndev);
+
+		/* leave the chip running with rx interrupt enabled if it is
+		 * used as a wake-up source.
+		 */
+		if (cdev->pm_wake_source)
+			m_can_write(cdev, M_CAN_IE, IR_RF0N);
+		else
+			m_can_stop(ndev);
+
 		m_can_clk_stop(cdev);
 	}
 
@@ -2409,11 +2417,15 @@ int m_can_class_resume(struct device *dev)
 		ret = m_can_clk_start(cdev);
 		if (ret)
 			return ret;
-		ret  = m_can_start(ndev);
-		if (ret) {
-			m_can_clk_stop(cdev);
 
-			return ret;
+		if (cdev->pm_wake_source) {
+			m_can_write(cdev, M_CAN_IE, cdev->active_interrupts);
+		} else {
+			ret  = m_can_start(ndev);
+			if (ret) {
+				m_can_clk_stop(cdev);
+				return ret;
+			}
 		}
 
 		netif_device_attach(ndev);
