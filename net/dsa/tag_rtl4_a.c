@@ -23,7 +23,6 @@
 #define RTL4_A_NAME		"rtl4a"
 
 #define RTL4_A_HDR_LEN		4
-#define RTL4_A_ETHERTYPE	0x8899
 #define RTL4_A_PROTOCOL_SHIFT	12
 /*
  * 0x1 = Realtek Remote Control protocol (RRCP)
@@ -54,7 +53,7 @@ static struct sk_buff *rtl4a_tag_xmit(struct sk_buff *skb,
 
 	/* Set Ethertype */
 	p = (__be16 *)tag;
-	*p = htons(RTL4_A_ETHERTYPE);
+	*p = htons(ETH_P_REALTEK);
 
 	out = (RTL4_A_PROTOCOL_RTL8366RB << RTL4_A_PROTOCOL_SHIFT);
 	/* The lower bits indicate the port number */
@@ -82,7 +81,7 @@ static struct sk_buff *rtl4a_tag_rcv(struct sk_buff *skb,
 	tag = dsa_etype_header_pos_rx(skb);
 	p = (__be16 *)tag;
 	etype = ntohs(*p);
-	if (etype != RTL4_A_ETHERTYPE) {
+	if (etype != ETH_P_REALTEK) {
 		/* Not custom, just pass through */
 		netdev_dbg(dev, "non-realtek ethertype 0x%04x\n", etype);
 		return skb;
