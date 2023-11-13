@@ -45,16 +45,12 @@ blocklist mxl5005s
 blocklist radio-i2c-rtc6226-qca
 blocklist dummy-cpufreq
 blocklist dummy_hcd
-blocklist kheaders
 blocklist atomic64_test
 blocklist test_user_copy
 blocklist lkdtm
 blocklist net_failover
 blocklist adc-tm
 blocklist rtc-test
-blocklist can-bcm
-blocklist can-gw
-blocklist can-raw
 blocklist failover
 blocklist vmw_vsock_virtio_transport
 blocklist vmw_vsock_virtio_transport_common
