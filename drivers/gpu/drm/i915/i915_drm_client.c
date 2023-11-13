@@ -191,22 +191,20 @@ void i915_drm_client_add_object(struct i915_drm_client *client,
 	spin_unlock_irqrestore(&client->objects_lock, flags);
 }
 
-bool i915_drm_client_remove_object(struct drm_i915_gem_object *obj)
+void i915_drm_client_remove_object(struct drm_i915_gem_object *obj)
 {
 	struct i915_drm_client *client = fetch_and_zero(&obj->client);
 	unsigned long flags;
 
 	/* Object may not be associated with a client. */
 	if (!client)
-		return false;
+		return;
 
 	spin_lock_irqsave(&client->objects_lock, flags);
 	list_del_rcu(&obj->client_link);
 	spin_unlock_irqrestore(&client->objects_lock, flags);
 
 	i915_drm_client_put(client);
-
-	return true;
 }
 
 void i915_drm_client_add_context_objects(struct i915_drm_client *client,
