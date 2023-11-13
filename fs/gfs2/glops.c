@@ -494,7 +494,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 /**
  * inode_go_instantiate - read in an inode if necessary
- * @gh: The glock holder
+ * @gl: The glock
  *
  * Returns: errno
  */
