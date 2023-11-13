@@ -199,6 +199,9 @@ int intel_pxp_init(struct drm_i915_private *i915)
 	struct intel_gt *gt;
 	bool is_full_feature = false;
 
+	if (intel_gt_is_wedged(to_gt(i915)))
+		return -ENOTCONN;
+
 	/*
 	 * NOTE: Get the ctrl_gt before checking intel_pxp_is_supported since
 	 * we still need it if PXP's backend tee transport is needed.
