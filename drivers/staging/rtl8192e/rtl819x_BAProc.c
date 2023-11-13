@@ -27,31 +27,31 @@ static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs
 {
 	struct ba_record *admitted_ba = &pTxTs->TxAdmittedBARecord;
 	struct ba_record *pending_ba = &pTxTs->TxPendingBARecord;
-	u8 bSendDELBA = false;
+	u8 send_del_ba = false;
 
 	if (pending_ba->b_valid) {
 		deactivate_ba_entry(ieee, pending_ba);
-		bSendDELBA = true;
+		send_del_ba = true;
 	}
 
 	if (admitted_ba->b_valid) {
 		deactivate_ba_entry(ieee, admitted_ba);
-		bSendDELBA = true;
+		send_del_ba = true;
 	}
-	return bSendDELBA;
+	return send_del_ba;
 }
 
 static u8 rx_ts_delete_ba(struct rtllib_device *ieee, struct rx_ts_record *ts)
 {
 	struct ba_record *ba = &ts->rx_admitted_ba_record;
-	u8			bSendDELBA = false;
+	u8			send_del_ba = false;
 
 	if (ba->b_valid) {
 		deactivate_ba_entry(ieee, ba);
-		bSendDELBA = true;
+		send_del_ba = true;
 	}
 
-	return bSendDELBA;
+	return send_del_ba;
 }
 
 void rtllib_reset_ba_entry(struct ba_record *ba)
