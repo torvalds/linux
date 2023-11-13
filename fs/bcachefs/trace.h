@@ -1252,22 +1252,37 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 TRACE_EVENT(path_downgrade,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
-		 struct btree_path *path),
-	TP_ARGS(trans, caller_ip, path),
+		 struct btree_path *path,
+		 unsigned old_locks_want),
+	TP_ARGS(trans, caller_ip, path, old_locks_want),
 
 	TP_STRUCT__entry(
 		__array(char,			trans_fn, 32	)
 		__field(unsigned long,		caller_ip	)
+		__field(unsigned,		old_locks_want	)
+		__field(unsigned,		new_locks_want	)
+		__field(unsigned,		btree		)
+		TRACE_BPOS_entries(pos)
 	),
 
 	TP_fast_assign(
 		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
 		__entry->caller_ip		= caller_ip;
+		__entry->old_locks_want		= old_locks_want;
+		__entry->new_locks_want		= path->locks_want;
+		__entry->btree			= path->btree_id;
+		TRACE_BPOS_assign(pos, path->pos);
 	),
 
-	TP_printk("%s %pS",
+	TP_printk("%s %pS locks_want %u -> %u %s %llu:%llu:%u",
 		  __entry->trans_fn,
-		  (void *) __entry->caller_ip)
+		  (void *) __entry->caller_ip,
+		  __entry->old_locks_want,
+		  __entry->new_locks_want,
+		  bch2_btree_id_str(__entry->btree),
+		  __entry->pos_inode,
+		  __entry->pos_offset,
+		  __entry->pos_snapshot)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,
