@@ -200,7 +200,7 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		writel(reg, udma->regs + UDMA_TX_DMA_INT_EN);
 
 		reg = FIELD_PREP(UDMA_TX_CTRL_BUF_ADDRH, (u64)addr >> 32) |
-		      (dis_tmout) ? UDMA_TX_CTRL_TMOUT_DIS : 0 |
+		      ((dis_tmout) ? UDMA_TX_CTRL_TMOUT_DIS : 0) |
 		      FIELD_PREP(UDMA_TX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_TX_CTRL(ch_no));
 
@@ -216,7 +216,7 @@ static int aspeed_udma_request_chan(u32 ch_no, dma_addr_t addr,
 		writel(reg, udma->regs + UDMA_RX_DMA_INT_EN);
 
 		reg = FIELD_PREP(UDMA_RX_CTRL_BUF_ADDRH, (u64)addr >> 32) |
-		      (dis_tmout) ? UDMA_RX_CTRL_TMOUT_DIS : 0 |
+		      ((dis_tmout) ? UDMA_RX_CTRL_TMOUT_DIS : 0) |
 		      FIELD_PREP(UDMA_RX_CTRL_BUFSZ, rbsz_code);
 		writel(reg, udma->regs + UDMA_CHX_RX_CTRL(ch_no));
 
