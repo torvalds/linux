@@ -150,7 +150,7 @@ ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons, 
 	cons->tx_vpu_addr = 0;
 	cons->request_id = 0;
 	cons->aborted = false;
-	spin_lock_init(&cons->rx_msg_lock);
+	spin_lock_init(&cons->rx_lock);
 	INIT_LIST_HEAD(&cons->rx_msg_list);
 	init_waitqueue_head(&cons->rx_msg_wq);
 
@@ -168,7 +168,7 @@ void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *c
 	list_del(&cons->link);
 	spin_unlock_irq(&ipc->cons_list_lock);
 
-	spin_lock_irq(&cons->rx_msg_lock);
+	spin_lock_irq(&cons->rx_lock);
 	list_for_each_entry_safe(rx_msg, r, &cons->rx_msg_list, link) {
 		list_del(&rx_msg->link);
 		if (!cons->aborted)
@@ -176,7 +176,7 @@ void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *c
 		atomic_dec(&ipc->rx_msg_count);
 		kfree(rx_msg);
 	}
-	spin_unlock_irq(&cons->rx_msg_lock);
+	spin_unlock_irq(&cons->rx_lock);
 
 	ivpu_ipc_tx_release(vdev, cons->tx_vpu_addr);
 }
@@ -212,9 +212,9 @@ static int ivpu_ipc_rx_need_wakeup(struct ivpu_ipc_consumer *cons)
 	if (IS_KTHREAD())
 		ret |= (kthread_should_stop() || kthread_should_park());
 
-	spin_lock_irq(&cons->rx_msg_lock);
+	spin_lock_irq(&cons->rx_lock);
 	ret |= !list_empty(&cons->rx_msg_list) || cons->aborted;
-	spin_unlock_irq(&cons->rx_msg_lock);
+	spin_unlock_irq(&cons->rx_lock);
 
 	return ret;
 }
@@ -237,20 +237,19 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	if (wait_ret == 0)
 		return -ETIMEDOUT;
 
-	spin_lock_irq(&cons->rx_msg_lock);
+	spin_lock_irq(&cons->rx_lock);
 	rx_msg = list_first_entry_or_null(&cons->rx_msg_list, struct ivpu_ipc_rx_msg, link);
 	if (!rx_msg) {
-		spin_unlock_irq(&cons->rx_msg_lock);
+		spin_unlock_irq(&cons->rx_lock);
 		return -EAGAIN;
 	}
 	list_del(&rx_msg->link);
 	if (cons->aborted) {
-		spin_unlock_irq(&cons->rx_msg_lock);
+		spin_unlock_irq(&cons->rx_lock);
 		ret = -ECANCELED;
 		goto out;
 	}
-
-	spin_unlock_irq(&cons->rx_msg_lock);
+	spin_unlock_irq(&cons->rx_lock);
 
 	if (ipc_buf)
 		memcpy(ipc_buf, rx_msg->ipc_hdr, sizeof(*ipc_buf));
@@ -383,9 +382,9 @@ ivpu_ipc_dispatch(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	rx_msg->ipc_hdr = ipc_hdr;
 	rx_msg->jsm_msg = jsm_msg;
 
-	spin_lock_irqsave(&cons->rx_msg_lock, flags);
+	spin_lock_irqsave(&cons->rx_lock, flags);
 	list_add_tail(&rx_msg->link, &cons->rx_msg_list);
-	spin_unlock_irqrestore(&cons->rx_msg_lock, flags);
+	spin_unlock_irqrestore(&cons->rx_lock, flags);
 
 	wake_up(&cons->rx_msg_wq);
 }
@@ -529,9 +528,9 @@ void ivpu_ipc_disable(struct ivpu_device *vdev)
 
 	spin_lock_irqsave(&ipc->cons_list_lock, flags);
 	list_for_each_entry_safe(cons, c, &ipc->cons_list, link) {
-		spin_lock(&cons->rx_msg_lock);
+		spin_lock(&cons->rx_lock);
 		cons->aborted = true;
-		spin_unlock(&cons->rx_msg_lock);
+		spin_unlock(&cons->rx_lock);
 		wake_up(&cons->rx_msg_wq);
 	}
 	spin_unlock_irqrestore(&ipc->cons_list_lock, flags);
