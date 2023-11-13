@@ -19,6 +19,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pm.h>
 #include <linux/spinlock.h>
 #include <linux/string_helpers.h>
 #include <linux/types.h>
@@ -530,6 +531,8 @@ int tng_gpio_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(tng_gpio_resume, GPIO_TANGIER);
+
+EXPORT_NS_GPL_SIMPLE_DEV_PM_OPS(tng_gpio_pm_ops, tng_gpio_suspend, tng_gpio_resume, GPIO_TANGIER);
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_AUTHOR("Pandith N <pandith.n@intel.com>");
