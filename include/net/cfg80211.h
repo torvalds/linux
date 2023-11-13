@@ -2608,6 +2608,8 @@ struct cfg80211_scan_6ghz_params {
  * @n_6ghz_params: number of 6 GHz params
  * @scan_6ghz_params: 6 GHz params
  * @bssid: BSSID to scan for (most commonly, the wildcard BSSID)
+ * @tsf_report_link_id: for MLO, indicates the link ID of the BSS that should be
+ *      used for TSF reporting. Can be set to -1 to indicate no preference.
  */
 struct cfg80211_scan_request {
 	struct cfg80211_ssid *ssids;
@@ -2636,6 +2638,7 @@ struct cfg80211_scan_request {
 	bool scan_6ghz;
 	u32 n_6ghz_params;
 	struct cfg80211_scan_6ghz_params *scan_6ghz_params;
+	s8 tsf_report_link_id;
 
 	/* keep last */
 	struct ieee80211_channel *channels[] __counted_by(n_channels);

@@ -6241,9 +6241,11 @@ enum nl80211_feature_flags {
  *	the BSS that the interface that requested the scan is connected to
  *	(if available).
  * @NL80211_EXT_FEATURE_BSS_PARENT_TSF: Per BSS, this driver reports the
- *	time the last beacon/probe was received. The time is the TSF of the
- *	BSS that the interface that requested the scan is connected to
- *	(if available).
+ *	time the last beacon/probe was received. For a non MLO connection, the
+ *	time is the TSF of the BSS that the interface that requested the scan is
+ *	connected to (if available). For an MLO connection, the time is the TSF
+ *	of the BSS corresponding with link ID specified in the scan request (if
+ *	specified).
  * @NL80211_EXT_FEATURE_SET_SCAN_DWELL: This driver supports configuration of
  *	channel dwell time.
  * @NL80211_EXT_FEATURE_BEACON_RATE_LEGACY: Driver supports beacon rate
