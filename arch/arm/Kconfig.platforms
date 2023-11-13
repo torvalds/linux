@@ -115,6 +115,21 @@ config MACH_UC7112LX
 
 endif
 
+config ARCH_NSPIRE
+	bool "TI-NSPIRE based"
+	depends on ARCH_MULTI_V4T
+	depends on CPU_LITTLE_ENDIAN
+	select CPU_ARM926T
+	select GENERIC_IRQ_CHIP
+	select ARM_AMBA
+	select ARM_VIC
+	select ARM_TIMER_SP804
+	select NSPIRE_TIMER
+	select POWER_RESET
+	select POWER_RESET_SYSCON
+	help
+	  This enables support for systems using the TI-NSPIRE CPU
+
 config ARCH_RDA
 	bool "RDA Micro SoCs"
 	depends on ARCH_MULTI_V7
