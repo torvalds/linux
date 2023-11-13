@@ -366,6 +366,10 @@ static int rk628_combtxphy_set_mode(struct phy *phy, enum phy_mode mode,
 		ref_clk = clk_get_rate(combtxphy->ref_clk) / 1000; /* khz */
 		if (combtxphy->division_mode)
 			ref_clk /= 2;
+
+		if (!ref_clk)
+			return -EINVAL;
+
 		/*
 		 * the reference clock at PFD(FPFD = ref_clk / ref_div) about
 		 * 25MHz is recommende, FPFD must range from 16MHz to 35MHz,
