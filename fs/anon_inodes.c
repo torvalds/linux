@@ -183,6 +183,7 @@ struct file *anon_inode_create_getfile(const char *name,
 	return __anon_inode_getfile(name, fops, priv, flags,
 				    context_inode, true);
 }
+EXPORT_SYMBOL_GPL(anon_inode_create_getfile);
 
 static int __anon_inode_getfd(const char *name,
 			      const struct file_operations *fops,
