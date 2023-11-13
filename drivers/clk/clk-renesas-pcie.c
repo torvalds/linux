@@ -50,16 +50,10 @@
 #define RS9_REG_DID_TYPE_DMV			(0x2 << RS9_REG_DID_TYPE_SHIFT)
 #define RS9_REG_DID_TYPE_SHIFT			0x6
 
-/* Supported Renesas 9-series models. */
-enum rs9_model {
-	RENESAS_9FGV0241,
-	RENESAS_9FGV0441,
-};
-
 /* Structure to describe features of a particular 9-series model */
 struct rs9_chip_info {
-	const enum rs9_model	model;
 	unsigned int		num_clks;
+	u8			outshift;
 	u8			did;
 };
 
@@ -161,14 +155,12 @@ static const struct regmap_config rs9_regmap_config = {
 
 static u8 rs9_calc_dif(const struct rs9_driver_data *rs9, int idx)
 {
-	enum rs9_model model = rs9->chip_info->model;
-
-	if (model == RENESAS_9FGV0241)
-		return BIT(idx) + 1;
-	else if (model == RENESAS_9FGV0441)
-		return BIT(idx);
-
-	return 0;
+	/*
+	 * On 9FGV0241, the DIF OE0 is BIT(1) and DIF OE(1) is BIT(2),
+	 * on 9FGV0441 and 9FGV0841 the DIF OE0 is BIT(0) and so on.
+	 * Increment the index in the 9FGV0241 special case here.
+	 */
+	return BIT(idx + rs9->chip_info->outshift);
 }
 
 static int rs9_get_output_config(struct rs9_driver_data *rs9, int idx)
@@ -382,14 +374,14 @@ static int __maybe_unused rs9_resume(struct device *dev)
 }
 
 static const struct rs9_chip_info renesas_9fgv0241_info = {
-	.model		= RENESAS_9FGV0241,
 	.num_clks	= 2,
+	.outshift	= 1,
 	.did		= RS9_REG_DID_TYPE_FGV | 0x02,
 };
 
 static const struct rs9_chip_info renesas_9fgv0441_info = {
-	.model		= RENESAS_9FGV0441,
 	.num_clks	= 4,
+	.outshift	= 0,
 	.did		= RS9_REG_DID_TYPE_FGV | 0x04,
 };
 
