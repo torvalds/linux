@@ -185,6 +185,14 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	struct clk_hw *p_parent;
 	unsigned long scale;
 
+	if (rate == 0) {
+		pr_warn("%s p_rate(%ld), rate(%ld), maybe invalid frequency setting!\n",
+			clk_hw_get_name(hw), *parent_rate, rate);
+		*m = 0;
+		*n = 1;
+		return;
+	}
+
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
 		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
@@ -221,6 +229,13 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	 * for m and n. In the result it will be the nearest rate left shifted
 	 * by (scale - fd->nwidth) bits.
 	 */
+	if (*parent_rate == 0) {
+		pr_warn("%s p_rate(%ld), rate(%ld), maybe invalid frequency setting!\n",
+			clk_hw_get_name(hw), *parent_rate, rate);
+		*m = 0;
+		*n = 1;
+		return;
+	}
 	scale = fls_long(*parent_rate / rate - 1);
 	if (scale > fd->nwidth)
 		rate <<= scale - fd->nwidth;
