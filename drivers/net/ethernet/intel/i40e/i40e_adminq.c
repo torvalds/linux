@@ -555,10 +555,8 @@ static void i40e_set_hw_flags(struct i40e_hw *hw)
 
 	if (aq->api_maj_ver > 1 ||
 	    (aq->api_maj_ver == 1 &&
-	     aq->api_min_ver >= 8)) {
+	     aq->api_min_ver >= 8))
 		hw->flags |= I40E_HW_FLAG_FW_LLDP_PERSISTENT;
-		hw->flags |= I40E_HW_FLAG_DROP_MODE;
-	}
 
 	if (aq->api_maj_ver > 1 ||
 	    (aq->api_maj_ver == 1 &&
