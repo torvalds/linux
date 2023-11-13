@@ -286,6 +286,16 @@ static const struct sof_topology_token acpi2s_tokens[] = {
 		offsetof(struct sof_ipc_dai_acp_params, tdm_mode)},
 };
 
+/* MICFIL PDM */
+static const struct sof_topology_token micfil_pdm_tokens[] = {
+	{SOF_TKN_IMX_MICFIL_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_micfil_params, pdm_rate)},
+	{SOF_TKN_IMX_MICFIL_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_micfil_params, pdm_ch)},
+};
+
 /* Core tokens */
 static const struct sof_topology_token core_tokens[] = {
 	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -322,6 +332,8 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_AFE_TOKENS] = {"AFE tokens", afe_tokens, ARRAY_SIZE(afe_tokens)},
 	[SOF_ACPDMIC_TOKENS] = {"ACPDMIC tokens", acpdmic_tokens, ARRAY_SIZE(acpdmic_tokens)},
 	[SOF_ACPI2S_TOKENS]   = {"ACPI2S tokens", acpi2s_tokens, ARRAY_SIZE(acpi2s_tokens)},
+	[SOF_MICFIL_TOKENS] = {"MICFIL PDM tokens",
+		micfil_pdm_tokens, ARRAY_SIZE(micfil_pdm_tokens)},
 };
 
 /**
@@ -1136,6 +1148,37 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, struct snd_sof_da
 	return 0;
 }
 
+static int sof_link_micfil_load(struct snd_soc_component *scomp, struct snd_sof_dai_link *slink,
+				struct sof_ipc_dai_config *config, struct snd_sof_dai *dai)
+{
+	struct snd_soc_tplg_hw_config *hw_config = slink->hw_configs;
+	struct sof_dai_private_data *private = dai->private;
+	u32 size = sizeof(*config);
+	int ret;
+
+       /* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	config->hdr.size = size;
+
+	/* parse the required set of MICFIL PDM tokens based on num_hw_cfgs */
+	ret = sof_update_ipc_object(scomp, &config->micfil, SOF_MICFIL_TOKENS, slink->tuples,
+				    slink->num_tuples, size, slink->num_hw_configs);
+	if (ret < 0)
+		return ret;
+
+	dev_info(scomp->dev, "MICFIL PDM config dai_index %d channel %d rate %d\n",
+		 config->dai_index, config->micfil.pdm_ch, config->micfil.pdm_rate);
+
+	dai->number_configs = 1;
+	dai->current_config = 0;
+	private->dai_config = kmemdup(config, size, GFP_KERNEL);
+	if (!private->dai_config)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, struct snd_sof_dai_link *slink,
 				  struct sof_ipc_dai_config *config, struct snd_sof_dai *dai)
 {
@@ -1558,6 +1601,9 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			break;
 		case SOF_DAI_IMX_ESAI:
 			ret = sof_link_esai_load(scomp, slink, config, dai);
+			break;
+		case SOF_DAI_IMX_MICFIL:
+			ret = sof_link_micfil_load(scomp, slink, config, dai);
 			break;
 		case SOF_DAI_AMD_BT:
 			ret = sof_link_acp_bt_load(scomp, slink, config, dai);

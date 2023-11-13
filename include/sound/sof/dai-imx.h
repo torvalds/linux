@@ -51,4 +51,11 @@ struct sof_ipc_dai_sai_params {
 	uint16_t tdm_slot_width;
 	uint16_t reserved2;	/* alignment */
 } __packed;
+
+/* MICFIL Configuration Request - SOF_IPC_DAI_MICFIL_CONFIG */
+struct sof_ipc_dai_micfil_params {
+	uint32_t pdm_rate;
+	uint32_t pdm_ch;
+} __packed;
+
 #endif
