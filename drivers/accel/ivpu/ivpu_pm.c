@@ -23,6 +23,10 @@ static bool ivpu_disable_recovery;
 module_param_named_unsafe(disable_recovery, ivpu_disable_recovery, bool, 0644);
 MODULE_PARM_DESC(disable_recovery, "Disables recovery when VPU hang is detected");
 
+static unsigned long ivpu_tdr_timeout_ms;
+module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, ulong, 0644);
+MODULE_PARM_DESC(tdr_timeout_ms, "Timeout for device hang detection, in milliseconds, 0 - default");
+
 #define PM_RESCHEDULE_LIMIT     5
 
 static void ivpu_pm_prepare_cold_boot(struct ivpu_device *vdev)
@@ -139,6 +143,31 @@ void ivpu_pm_schedule_recovery(struct ivpu_device *vdev)
 		ivpu_hw_irq_disable(vdev);
 		queue_work(system_long_wq, &pm->recovery_work);
 	}
+}
+
+static void ivpu_job_timeout_work(struct work_struct *work)
+{
+	struct ivpu_pm_info *pm = container_of(work, struct ivpu_pm_info, job_timeout_work.work);
+	struct ivpu_device *vdev = pm->vdev;
+	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
+
+	ivpu_err(vdev, "TDR detected, timeout %lu ms", timeout_ms);
+	ivpu_hw_diagnose_failure(vdev);
+
+	ivpu_pm_schedule_recovery(vdev);
+}
+
+void ivpu_start_job_timeout_detection(struct ivpu_device *vdev)
+{
+	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
+
+	/* No-op if already queued */
+	queue_delayed_work(system_wq, &vdev->pm->job_timeout_work, msecs_to_jiffies(timeout_ms));
+}
+
+void ivpu_stop_job_timeout_detection(struct ivpu_device *vdev)
+{
+	cancel_delayed_work_sync(&vdev->pm->job_timeout_work);
 }
 
 int ivpu_pm_suspend_cb(struct device *dev)
@@ -317,6 +346,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 	atomic_set(&pm->in_reset, 0);
 	INIT_WORK(&pm->recovery_work, ivpu_pm_recovery_work);
+	INIT_DELAYED_WORK(&pm->job_timeout_work, ivpu_job_timeout_work);
 
 	if (ivpu_disable_recovery)
 		delay = -1;
@@ -331,6 +361,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)
 {
+	drm_WARN_ON(&vdev->drm, delayed_work_pending(&vdev->pm->job_timeout_work));
 	cancel_work_sync(&vdev->pm->recovery_work);
 }
 

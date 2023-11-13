@@ -24,10 +24,6 @@
 #define JOB_ID_CONTEXT_MASK  GENMASK(31, 8)
 #define JOB_MAX_BUFFER_COUNT 65535
 
-static unsigned int ivpu_tdr_timeout_ms;
-module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, uint, 0644);
-MODULE_PARM_DESC(tdr_timeout_ms, "Timeout for device hang detection, in milliseconds, 0 - default");
-
 static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 {
 	ivpu_hw_reg_db_set(vdev, cmdq->db_id);
@@ -342,6 +338,8 @@ static int ivpu_job_done(struct ivpu_device *vdev, u32 job_id, u32 job_status)
 	ivpu_dbg(vdev, JOB, "Job complete:  id %3u ctx %2d engine %d status 0x%x\n",
 		 job->job_id, job->file_priv->ctx.id, job->engine_idx, job_status);
 
+	ivpu_stop_job_timeout_detection(vdev);
+
 	job_put(job);
 	return 0;
 }
@@ -357,6 +355,9 @@ static void ivpu_job_done_message(struct ivpu_device *vdev, void *msg)
 	ret = ivpu_job_done(vdev, payload->job_id, payload->job_status);
 	if (ret)
 		ivpu_err(vdev, "Failed to finish job %d: %d\n", payload->job_id, ret);
+
+	if (!ret && !xa_empty(&vdev->submitted_jobs_xa))
+		ivpu_start_job_timeout_detection(vdev);
 }
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev)
@@ -399,6 +400,8 @@ static int ivpu_direct_job_submission(struct ivpu_job *job)
 	ret = ivpu_cmdq_push_job(cmdq, job);
 	if (ret)
 		goto err_xa_erase;
+
+	ivpu_start_job_timeout_detection(vdev);
 
 	ivpu_dbg(vdev, JOB, "Job submitted: id %3u addr 0x%llx ctx %2d engine %d next %d\n",
 		 job->job_id, job->cmd_buf_vpu_addr, file_priv->ctx.id,
@@ -569,7 +572,6 @@ static int ivpu_job_done_thread(void *arg)
 	struct ivpu_device *vdev = (struct ivpu_device *)arg;
 	struct ivpu_ipc_consumer cons;
 	struct vpu_jsm_msg jsm_msg;
-	bool jobs_submitted;
 	unsigned int timeout;
 	int ret;
 
@@ -578,18 +580,10 @@ static int ivpu_job_done_thread(void *arg)
 	ivpu_ipc_consumer_add(vdev, &cons, VPU_IPC_CHAN_JOB_RET);
 
 	while (!kthread_should_stop()) {
-		timeout = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
-		jobs_submitted = !xa_empty(&vdev->submitted_jobs_xa);
 		ret = ivpu_ipc_receive(vdev, &cons, NULL, &jsm_msg, timeout);
-		if (!ret) {
+		if (!ret)
 			ivpu_job_done_message(vdev, &jsm_msg);
-		} else if (ret == -ETIMEDOUT) {
-			if (jobs_submitted && !xa_empty(&vdev->submitted_jobs_xa)) {
-				ivpu_err(vdev, "TDR detected, timeout %d ms", timeout);
-				ivpu_hw_diagnose_failure(vdev);
-				ivpu_pm_schedule_recovery(vdev);
-			}
-		}
+
 		if (kthread_should_park()) {
 			ivpu_dbg(vdev, JOB, "Parked %s\n", __func__);
 			kthread_parkme();
