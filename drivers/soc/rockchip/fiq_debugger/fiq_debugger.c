@@ -50,6 +50,7 @@
 #endif
 
 #include <linux/uaccess.h>
+#include <linux/cpuhotplug.h>
 
 #include "fiq_debugger.h"
 #include "fiq_debugger_priv.h"
@@ -148,10 +149,7 @@ static bool initial_debug_enable;
 static bool initial_console_enable;
 #endif
 
-#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
-static struct fiq_debugger_state *state_tf;
-#endif
-
+static struct fiq_debugger_state *g_state;
 static bool fiq_kgdb_enable;
 static bool fiq_debugger_disable;
 
@@ -1077,7 +1075,7 @@ static void fiq_debugger_fiq(struct fiq_glue_handler *h,
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 void fiq_debugger_fiq(void *regs, u32 cpu)
 {
-	struct fiq_debugger_state *state = state_tf;
+	struct fiq_debugger_state *state = g_state;
 	bool need_irq;
 
 	if (!state)
@@ -1444,6 +1442,18 @@ static int fiq_debugger_dev_resume(struct device *dev)
 	return 0;
 }
 
+static int fiq_debugger_cpu_offine_migrate_irq(unsigned int cpu)
+{
+	if (g_state && cpu == g_state->current_cpu) {
+		unsigned int new_cpu = cpumask_any_but(cpu_online_mask, cpu);
+
+		if (new_cpu < nr_cpu_ids)
+			g_state->current_cpu = new_cpu;
+	}
+
+	return 0;
+}
+
 static int fiq_debugger_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -1451,6 +1461,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	struct fiq_debugger_state *state;
 	int fiq;
 	int uart_irq;
+	enum cpuhp_state cs = -1;
 
 	if (pdev->id >= MAX_FIQ_DEBUGGER_PORTS)
 		return -EINVAL;
@@ -1570,6 +1581,15 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		 * can.
 		 */
 		enable_irq_wake(state->uart_irq);
+
+		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+						"soc/fiq_debugger",
+						NULL,
+						fiq_debugger_cpu_offine_migrate_irq);
+		if (ret < 0)
+			pr_err("%s: could not setup cpu offine handler\n", __func__);
+		else
+			cs = ret;
 	}
 
 	if (state->signal_irq >= 0) {
@@ -1600,10 +1620,6 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	if (state->no_sleep)
 		fiq_debugger_handle_wakeup(state);
 
-#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
-	state_tf = state;
-#endif
-
 	if (pdata->uart_init) {
 		ret = pdata->uart_init(pdev);
 		if (ret)
@@ -1630,7 +1646,7 @@ console_out:
 
 	/* switch to cpu0 default */
 	fiq_debugger_switch_cpu(state, 0);
-
+	g_state = state;
 	return 0;
 
 err_register_irq:
@@ -1641,6 +1657,8 @@ err_uart_init:
 		clk_disable(state->clk);
 	if (state->clk)
 		clk_put(state->clk);
+	if (cs >= 0)
+		cpuhp_remove_state_nocalls(cs);
 	wakeup_source_remove(&state->debugger_wake_src);
 	__pm_relax(&state->debugger_wake_src);
 	platform_set_drvdata(pdev, NULL);
