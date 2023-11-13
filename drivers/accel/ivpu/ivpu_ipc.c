@@ -238,17 +238,16 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 		return -ETIMEDOUT;
 
 	spin_lock_irq(&cons->rx_lock);
+	if (cons->aborted) {
+		spin_unlock_irq(&cons->rx_lock);
+		return -ECANCELED;
+	}
 	rx_msg = list_first_entry_or_null(&cons->rx_msg_list, struct ivpu_ipc_rx_msg, link);
 	if (!rx_msg) {
 		spin_unlock_irq(&cons->rx_lock);
 		return -EAGAIN;
 	}
 	list_del(&rx_msg->link);
-	if (cons->aborted) {
-		spin_unlock_irq(&cons->rx_lock);
-		ret = -ECANCELED;
-		goto out;
-	}
 	spin_unlock_irq(&cons->rx_lock);
 
 	if (ipc_buf)
@@ -266,7 +265,6 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	}
 
 	ivpu_ipc_rx_mark_free(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
-out:
 	atomic_dec(&ipc->rx_msg_count);
 	kfree(rx_msg);
 
@@ -528,9 +526,11 @@ void ivpu_ipc_disable(struct ivpu_device *vdev)
 
 	spin_lock_irqsave(&ipc->cons_list_lock, flags);
 	list_for_each_entry_safe(cons, c, &ipc->cons_list, link) {
-		spin_lock(&cons->rx_lock);
-		cons->aborted = true;
-		spin_unlock(&cons->rx_lock);
+		if (cons->channel != VPU_IPC_CHAN_JOB_RET) {
+			spin_lock(&cons->rx_lock);
+			cons->aborted = true;
+			spin_unlock(&cons->rx_lock);
+		}
 		wake_up(&cons->rx_msg_wq);
 	}
 	spin_unlock_irqrestore(&ipc->cons_list_lock, flags);
