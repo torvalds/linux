@@ -33,6 +33,11 @@
 #define MT7996_FIRMWARE_DSP		"mediatek/mt7996/mt7996_dsp.bin"
 #define MT7996_ROM_PATCH		"mediatek/mt7996/mt7996_rom_patch.bin"
 
+#define MT7992_FIRMWARE_WA		"mediatek/mt7996/mt7992_wa.bin"
+#define MT7992_FIRMWARE_WM		"mediatek/mt7996/mt7992_wm.bin"
+#define MT7992_FIRMWARE_DSP		"mediatek/mt7996/mt7992_dsp.bin"
+#define MT7992_ROM_PATCH		"mediatek/mt7996/mt7992_rom_patch.bin"
+
 #define MT7996_EEPROM_DEFAULT		"mediatek/mt7996/mt7996_eeprom.bin"
 #define MT7996_EEPROM_SIZE		7680
 #define MT7996_EEPROM_BLOCK_SIZE	16

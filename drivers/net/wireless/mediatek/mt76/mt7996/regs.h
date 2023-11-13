@@ -683,4 +683,11 @@ enum base_rev {
 #define MT_MCU_WM_EXCP_LR_CTRL			MT_MCU_WM_EXCP(0x200)
 #define MT_MCU_WM_EXCP_LR_LOG			MT_MCU_WM_EXCP(0x204)
 
+/* CONN AFE CTL CON */
+#define MT_AFE_CTL_BASE				0x18043000
+#define MT_AFE_CTL_BAND(_band, ofs)		(MT_AFE_CTL_BASE + \
+						 ((_band) * 0x1000) + (ofs))
+#define MT_AFE_CTL_BAND_PLL_03(_band)		MT_AFE_CTL_BAND(_band, 0x2c)
+#define MT_AFE_CTL_BAND_PLL_03_MSB_EN		BIT(1)
+
 #endif

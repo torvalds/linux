@@ -10,6 +10,20 @@
 #include "mac.h"
 #include "eeprom.h"
 
+#define fw_name(_dev, name, ...)	({			\
+	char *_fw;						\
+	switch (mt76_chip(&(_dev)->mt76)) {			\
+	case 0x7992:						\
+		_fw = MT7992_##name;				\
+		break;						\
+	case 0x7990:						\
+	default:						\
+		_fw = MT7996_##name;				\
+		break;						\
+	}							\
+	_fw;							\
+})
+
 struct mt7996_patch_hdr {
 	char build_date[16];
 	char platform[4];
@@ -2639,7 +2653,7 @@ static int mt7996_load_patch(struct mt7996_dev *dev)
 		return -EAGAIN;
 	}
 
-	ret = request_firmware(&fw, MT7996_ROM_PATCH, dev->mt76.dev);
+	ret = request_firmware(&fw, fw_name(dev, ROM_PATCH), dev->mt76.dev);
 	if (ret)
 		goto out;
 
@@ -2802,17 +2816,17 @@ static int mt7996_load_ram(struct mt7996_dev *dev)
 {
 	int ret;
 
-	ret = __mt7996_load_ram(dev, "WM", MT7996_FIRMWARE_WM,
+	ret = __mt7996_load_ram(dev, "WM", fw_name(dev, FIRMWARE_WM),
 				MT7996_RAM_TYPE_WM);
 	if (ret)
 		return ret;
 
-	ret = __mt7996_load_ram(dev, "DSP", MT7996_FIRMWARE_DSP,
+	ret = __mt7996_load_ram(dev, "DSP", fw_name(dev, FIRMWARE_DSP),
 				MT7996_RAM_TYPE_DSP);
 	if (ret)
 		return ret;
 
-	return __mt7996_load_ram(dev, "WA", MT7996_FIRMWARE_WA,
+	return __mt7996_load_ram(dev, "WA", fw_name(dev, FIRMWARE_WA),
 				 MT7996_RAM_TYPE_WA);
 }
 

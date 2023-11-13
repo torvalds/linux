@@ -888,6 +888,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
+	if (is_mt7992(&dev->mt76)) {
+		mt76_rmw(dev, MT_AFE_CTL_BAND_PLL_03(MT_BAND0), MT_AFE_CTL_BAND_PLL_03_MSB_EN, 0);
+		mt76_rmw(dev, MT_AFE_CTL_BAND_PLL_03(MT_BAND1), MT_AFE_CTL_BAND_PLL_03_MSB_EN, 0);
+	}
 
 	INIT_WORK(&dev->init_work, mt7996_init_work);
 	INIT_WORK(&dev->wed_rro.work, mt7996_wed_rro_work);
