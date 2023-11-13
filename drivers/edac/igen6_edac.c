@@ -222,6 +222,36 @@ static struct work_struct ecclog_work;
 #define DID_ADL_SKU3	0x4621
 #define DID_ADL_SKU4	0x4641
 
+static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
+{
+	union  {
+		u64 v;
+		struct {
+			u32 v_lo;
+			u32 v_hi;
+		};
+	} u;
+
+	if (pci_read_config_dword(pdev, MCHBAR_OFFSET, &u.v_lo)) {
+		igen6_printk(KERN_ERR, "Failed to read lower MCHBAR\n");
+		return -ENODEV;
+	}
+
+	if (pci_read_config_dword(pdev, MCHBAR_OFFSET + 4, &u.v_hi)) {
+		igen6_printk(KERN_ERR, "Failed to read upper MCHBAR\n");
+		return -ENODEV;
+	}
+
+	if (!(u.v & MCHBAR_EN)) {
+		igen6_printk(KERN_ERR, "MCHBAR is disabled\n");
+		return -ENODEV;
+	}
+
+	*mchbar = MCHBAR_BASE(u.v);
+
+	return 0;
+}
+
 static bool ehl_ibecc_available(struct pci_dev *pdev)
 {
 	u32 v;
@@ -969,22 +999,8 @@ static int igen6_pci_setup(struct pci_dev *pdev, u64 *mchbar)
 
 	igen6_tom = u.v & GENMASK_ULL(38, 20);
 
-	if (pci_read_config_dword(pdev, MCHBAR_OFFSET, &u.v_lo)) {
-		igen6_printk(KERN_ERR, "Failed to read lower MCHBAR\n");
+	if (get_mchbar(pdev, mchbar))
 		goto fail;
-	}
-
-	if (pci_read_config_dword(pdev, MCHBAR_OFFSET + 4, &u.v_hi)) {
-		igen6_printk(KERN_ERR, "Failed to read upper MCHBAR\n");
-		goto fail;
-	}
-
-	if (!(u.v & MCHBAR_EN)) {
-		igen6_printk(KERN_ERR, "MCHBAR is disabled\n");
-		goto fail;
-	}
-
-	*mchbar = MCHBAR_BASE(u.v);
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (pci_read_config_dword(pdev, TOUUD_OFFSET, &u.v_lo))
