@@ -257,6 +257,10 @@
 	snoop-ports = <0x80>, <0x81>;
 };
 
+&lpc0_uart_routing {
+	status = "okay";
+};
+
 &video0 {
 	status = "okay";
 	memory-region = <&video_engine_memory0>;
