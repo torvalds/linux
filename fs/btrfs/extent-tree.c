@@ -102,7 +102,8 @@ int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
  */
 int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info, u64 bytenr,
-			     u64 offset, int metadata, u64 *refs, u64 *flags)
+			     u64 offset, int metadata, u64 *refs, u64 *flags,
+			     u64 *owning_root)
 {
 	struct btrfs_root *extent_root;
 	struct btrfs_delayed_ref_head *head;
@@ -114,6 +115,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	u64 num_refs;
 	u64 extent_flags;
+	u64 owner = 0;
 	int ret;
 
 	/*
@@ -167,6 +169,8 @@ search_again:
 					    struct btrfs_extent_item);
 			num_refs = btrfs_extent_refs(leaf, ei);
 			extent_flags = btrfs_extent_flags(leaf, ei);
+			owner = btrfs_get_extent_owner_root(fs_info, leaf,
+							    path->slots[0]);
 		} else {
 			ret = -EUCLEAN;
 			btrfs_err(fs_info,
@@ -226,6 +230,8 @@ out:
 		*refs = num_refs;
 	if (flags)
 		*flags = extent_flags;
+	if (owning_root)
+		*owning_root = owner;
 out_free:
 	btrfs_free_path(path);
 	return ret;
@@ -5234,7 +5240,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 		/* We don't lock the tree block, it's OK to be racy here */
 		ret = btrfs_lookup_extent_info(trans, fs_info, bytenr,
 					       wc->level - 1, 1, &refs,
-					       &flags);
+					       &flags, NULL);
 		/* We don't care about errors in readahead. */
 		if (ret < 0)
 			continue;
@@ -5301,7 +5307,8 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 		ret = btrfs_lookup_extent_info(trans, fs_info,
 					       eb->start, level, 1,
 					       &wc->refs[level],
-					       &wc->flags[level]);
+					       &wc->flags[level],
+					       NULL);
 		BUG_ON(ret == -ENOMEM);
 		if (ret)
 			return ret;
@@ -5391,6 +5398,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 parent;
+	u64 owner_root = 0;
 	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_key key;
 	struct btrfs_ref ref = { 0 };
@@ -5434,7 +5442,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_lookup_extent_info(trans, fs_info, bytenr, level - 1, 1,
 				       &wc->refs[level - 1],
-				       &wc->flags[level - 1]);
+				       &wc->flags[level - 1],
+				       &owner_root);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -5567,8 +5576,7 @@ skip:
 		find_next_key(path, level, &wc->drop_progress);
 
 		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, bytenr,
-				       fs_info->nodesize, parent,
-				       btrfs_header_owner(next));
+				       fs_info->nodesize, parent, owner_root);
 		btrfs_init_tree_ref(&ref, level - 1, root->root_key.objectid,
 				    0, false);
 		ret = btrfs_free_extent(trans, &ref);
@@ -5635,7 +5643,8 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_extent_info(trans, fs_info,
 						       eb->start, level, 1,
 						       &wc->refs[level],
-						       &wc->flags[level]);
+						       &wc->flags[level],
+						       NULL);
 			if (ret < 0) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
 				path->locks[level] = 0;
@@ -5880,7 +5889,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			ret = btrfs_lookup_extent_info(trans, fs_info,
 						path->nodes[level]->start,
 						level, 1, &wc->refs[level],
-						&wc->flags[level]);
+						&wc->flags[level], NULL);
 			if (ret < 0) {
 				err = ret;
 				goto out_end_trans;
