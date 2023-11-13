@@ -28,7 +28,7 @@ struct tx_ts_record {
 	struct ba_record TxPendingBARecord;
 	struct ba_record TxAdmittedBARecord;
 	u8				add_ba_req_in_progress;
-	u8				bAddBaReqDelayed;
+	u8				add_ba_req_delayed;
 	u8				bUsingBa;
 	u8				bDisable_AddBa;
 	struct timer_list		TsAddBaTimer;
