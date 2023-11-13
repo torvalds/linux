@@ -64,6 +64,26 @@
 	 *	cpu2 <--| |		| |-> codec2
 	 *		+-+		+-+
 	 *
+	 * [Multi-CPU/Codec-1]
+	 *
+	 *		+-+		+-+
+	 *		| |<-@--------->| |
+	 *		| |		| |
+	 *	cpu8 <--| |<----------->| |-> codec14
+	 *	cpu9 <--| |<---+------->| |-> codec15
+	 *		+-+	\------>| |-> codec16
+	 *				+-+
+	 *
+	 * [Multi-CPU/Codec-2]
+	 *
+	 *		+-+		+-+
+	 *		| |<-@--------->| |
+	 *		| |		| |
+	 *	cpu10 <-| |<----------->| |-> codec17
+	 *	cpu11 <-| |<-----+----->| |-> codec18
+	 *	cpu12 <-| |<----/	+-+
+	 *		+-+
+	 *
 	 * [DPCM]
 	 *
 	 *	CPU3/CPU4 are converting rate to 44100
@@ -155,6 +175,26 @@
 			 * cpu1/cpu2/codec1/codec2
 			 */
 			 &mcpu0
+
+			/*
+			 * [Multi-CPU/Codec-1]: cpu side only
+			 * cpu8/cpu9/codec14/codec15/codec16
+			 *
+			 * Because it will reach to the maximum of sound minor number,
+			 * disable it so far.
+			 * If you want to try it, please disable some other one instead.
+			 */
+			//&mcpu1
+
+			/*
+			 * [Multi-CPU/Codec-2]: cpu side only
+			 * cpu10/cpu11/cpu12/codec17/codec18
+			 *
+			 * Because it will reach to the maximum of sound minor number,
+			 * disable it so far.
+			 * If you want to try it, please disable some other one instead.
+			 */
+			//&mcpu2
 
 			/*
 			 * [DPCM]: both FE / BE
@@ -294,6 +334,150 @@
 				port@0 { reg = <0>; smcodec0_ep: endpoint { remote-endpoint = <&cpu7_ep>;    };};/* (X) to pair */
 				port@1 { reg = <1>; smcodec1_ep: endpoint { remote-endpoint = <&codec12_ep>; };};/* (A) Multi Element */
 				port@2 { reg = <2>; smcodec2_ep: endpoint { remote-endpoint = <&codec13_ep>; };};/* (B) Multi Element */
+			};
+
+			/*
+			 * [Multi-CPU-1]
+			 *
+			 *		+---+		+---+
+			 *		|  X|<-@------->|x  |
+			 *		|   |		|   |
+			 *	cpu8 <--|A 1|<--------->|3 a|-> codec14
+			 *	cpu9 <--|B 2|<---+----->|4 b|-> codec15
+			 *		+---+	  \---->|5 c|-> codec16
+			 *				+---+
+			 */
+			ports@6 {
+				reg = <6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			mcpu1:	port@0 { reg = <0>; mcpu10_ep: endpoint { remote-endpoint = <&mcodec10_ep>; };};    /* (X) to pair */
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcpu11_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu8_ep>;       }; /* (A) Multi Element */
+					mcpu11_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec11_ep_0>; }; /* (1) connected Codec */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcpu12_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu9_ep>;       }; /* (B) Multi Element */
+					mcpu12_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec12_ep_0>; }; /* (2) connected Codec */
+					mcpu12_ep_1: endpoint@2 { reg = <2>; remote-endpoint = <&mcodec13_ep_0>; }; /* (2) connected Codec */
+				};
+			};
+
+			/*
+			 * [Multi-Codec-1]
+			 *
+			 *		+---+		+---+
+			 *		|  X|<-@------->|x  |
+			 *		|   |		|   |
+			 *	cpu8 <--|A 1|<--------->|3 a|-> codec14
+			 *	cpu9 <--|B 2|<---+----->|4 b|-> codec15
+			 *		+---+	  \---->|5 c|-> codec16
+			 *				+---+
+			 */
+			ports@7 {
+				reg = <7>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 { reg = <0>; mcodec10_ep: endpoint { remote-endpoint = <&mcpu10_ep>;  };};   /* (x) to pair */
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcodec11_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec14_ep>;  }; /* (a) Multi Element */
+					mcodec11_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu11_ep_0>; }; /* (3) connected CPU */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcodec12_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec15_ep>;  }; /* (b) Multi Element */
+					mcodec12_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu12_ep_0>; }; /* (4) connected CPU */
+				};
+				port@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <3>;
+					mcodec13_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec16_ep>;  }; /* (c) Multi Element */
+					mcodec13_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu12_ep_1>; }; /* (5) connected CPU */
+				};
+			};
+
+			/*
+			 * [Multi-CPU-2]
+			 *
+			 *		+---+		+---+
+			 *		|  X|<-@------->|x  |
+			 *		|   |		|   |
+			 *	cpu10 <-|A 1|<--------->|4 a|-> codec17
+			 *	cpu11 <-|B 2|<-----+--->|5 b|-> codec18
+			 *	cpu12 <-|C 3|<----/	+---+
+			 *		+---+
+			 */
+			ports@8 {
+				reg = <8>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			mcpu2:	port@0 { reg = <0>; mcpu20_ep: endpoint { remote-endpoint = <&mcodec20_ep>; };};    /* (X) to pair */
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcpu21_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu10_ep>;      }; /* (A) Multi Element */
+					mcpu21_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec21_ep_0>; }; /* (1) connected Codec */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcpu22_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu11_ep>;      }; /* (B) Multi Element */
+					mcpu22_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec22_ep_0>; }; /* (2) connected Codec */
+				};
+				port@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <3>;
+					mcpu23_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&cpu12_ep>;      }; /* (C) Multi Element */
+					mcpu23_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcodec22_ep_1>; }; /* (3) connected Codec */
+				};
+			};
+
+			/*
+			 * [Multi-Codec-2]
+			 *
+			 *		+---+		+---+
+			 *		|  X|<-@------->|x  |
+			 *		|   |		|   |
+			 *	cpu10 <-|A 1|<--------->|4 a|-> codec17
+			 *	cpu11 <-|B 2|<-----+--->|5 b|-> codec18
+			 *	cpu12 <-|C 3|<----/	+---+
+			 *		+---+
+			 */
+			ports@9 {
+				reg = <9>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 { reg = <0>; mcodec20_ep: endpoint { remote-endpoint = <&mcpu20_ep>;  };};   /* (x) to pair */
+				port@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					mcodec21_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec17_ep>;  }; /* (a) Multi Element */
+					mcodec21_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu21_ep_0>; }; /* (4) connected CPU */
+				};
+				port@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					mcodec22_ep:   endpoint@0 { reg = <0>; remote-endpoint = <&codec18_ep>;  }; /* (b) Multi Element */
+					mcodec22_ep_0: endpoint@1 { reg = <1>; remote-endpoint = <&mcpu22_ep_0>; }; /* (5) connected CPU */
+					mcodec22_ep_1: endpoint@2 { reg = <2>; remote-endpoint = <&mcpu23_ep_0>; }; /* (5) connected CPU */
+				};
 			};
 		};
 
@@ -440,6 +624,14 @@
 
 			/* [Semi-Multi] */
 			sm0:  port@7 { reg = <7>; cpu7_ep: endpoint { remote-endpoint = <&smcodec0_ep>; }; };
+
+			/* [Multi-CPU-1] */
+			      port@8 { reg = <8>; cpu8_ep: endpoint { remote-endpoint = <&mcpu11_ep>;   }; };
+			      port@9 { reg = <9>; cpu9_ep: endpoint { remote-endpoint = <&mcpu12_ep>;   }; };
+			/* [Multi-CPU-2] */
+			      port@a { reg = <10>; cpu10_ep: endpoint { remote-endpoint = <&mcpu21_ep>; }; };
+			      port@b { reg = <11>; cpu11_ep: endpoint { remote-endpoint = <&mcpu22_ep>; }; };
+			      port@c { reg = <12>; cpu12_ep: endpoint { remote-endpoint = <&mcpu23_ep>; }; };
 		};
 	};
 
@@ -498,6 +690,13 @@
 			port@c { reg = <12>; codec12_ep: endpoint { remote-endpoint = <&smcodec1_ep>; }; };
 			port@d { reg = <13>; codec13_ep: endpoint { remote-endpoint = <&smcodec2_ep>; }; };
 
+			/* [Multi-Codec-1] */
+			port@e  { reg = <14>; codec14_ep: endpoint { remote-endpoint = <&mcodec11_ep>; }; };
+			port@f  { reg = <15>; codec15_ep: endpoint { remote-endpoint = <&mcodec12_ep>; }; };
+			port@10 { reg = <16>; codec16_ep: endpoint { remote-endpoint = <&mcodec13_ep>; }; };
+			/* [Multi-Codec-2] */
+			port@11 { reg = <17>; codec17_ep: endpoint { remote-endpoint = <&mcodec21_ep>; }; };
+			port@12 { reg = <18>; codec18_ep: endpoint { remote-endpoint = <&mcodec22_ep>; }; };
 		};
 	};
 };
