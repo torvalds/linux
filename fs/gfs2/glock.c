@@ -517,6 +517,23 @@ static inline struct gfs2_holder *find_first_waiter(const struct gfs2_glock *gl)
 }
 
 /**
+ * find_last_waiter - find the last gh that's waiting for the glock
+ * @gl: the glock
+ *
+ * This also is a fast way of finding out if there are any waiters.
+ */
+
+static inline struct gfs2_holder *find_last_waiter(const struct gfs2_glock *gl)
+{
+	struct gfs2_holder *gh;
+
+	if (list_empty(&gl->gl_holders))
+		return NULL;
+	gh = list_last_entry(&gl->gl_holders, struct gfs2_holder, gh_list);
+	return test_bit(HIF_HOLDER, &gh->gh_iflags) ? NULL : gh;
+}
+
+/**
  * state_change - record that the glock is now in a different state
  * @gl: the glock
  * @new_state: the new state
@@ -1555,10 +1572,29 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	int error = 0;
+	int error;
 
 	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_NOEXP))
 		return -EIO;
+
+	if (gh->gh_flags & GL_NOBLOCK) {
+		struct gfs2_holder *current_gh;
+
+		error = -ECHILD;
+		spin_lock(&gl->gl_lockref.lock);
+		if (find_last_waiter(gl))
+			goto unlock;
+		current_gh = find_first_holder(gl);
+		if (!may_grant(gl, current_gh, gh))
+			goto unlock;
+		set_bit(HIF_HOLDER, &gh->gh_iflags);
+		list_add_tail(&gh->gh_list, &gl->gl_holders);
+		trace_gfs2_promote(gh);
+		error = 0;
+unlock:
+		spin_unlock(&gl->gl_lockref.lock);
+		return error;
+	}
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))
 		gfs2_glock_remove_from_lru(gl);
@@ -1575,6 +1611,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	run_queue(gl, 1);
 	spin_unlock(&gl->gl_lockref.lock);
 
+	error = 0;
 	if (!(gh->gh_flags & GL_ASYNC))
 		error = gfs2_glock_wait(gh);
 
