@@ -462,11 +462,11 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 }
 
 void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *ts,
-			   u8 policy, u8	bOverwritePending)
+			   u8 policy, u8	overwrite_pending)
 {
 	struct ba_record *ba = &ts->TxPendingBARecord;
 
-	if (ba->b_valid && !bOverwritePending)
+	if (ba->b_valid && !overwrite_pending)
 		return;
 
 	deactivate_ba_entry(ieee, ba);
