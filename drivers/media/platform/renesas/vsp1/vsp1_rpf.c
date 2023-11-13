@@ -289,7 +289,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	struct vsp1_device *vsp1 = rpf->entity.vsp1;
 	const struct vsp1_format_info *fmtinfo = rpf->fmtinfo;
 	const struct v4l2_pix_format_mplane *format = &rpf->format;
-	struct v4l2_rect crop;
+	struct v4l2_rect crop = partition->rpf[rpf->entity.index];
 
 	/*
 	 * Source size and crop offsets.
@@ -299,22 +299,6 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	 * offsets are needed, as planes 2 and 3 always have identical
 	 * strides.
 	 */
-	crop = *v4l2_subdev_state_get_crop(rpf->entity.state, RWPF_PAD_SINK);
-
-	/*
-	 * Partition Algorithm Control
-	 *
-	 * The partition algorithm can split this frame into multiple
-	 * slices. We must scale our partition window based on the pipe
-	 * configuration to match the destination partition window.
-	 * To achieve this, we adjust our crop to provide a 'sub-crop'
-	 * matching the expected partition window. Only 'left' and
-	 * 'width' need to be adjusted.
-	 */
-	if (pipe->partitions > 1) {
-		crop.width = partition->rpf[rpf->entity.index].width;
-		crop.left += partition->rpf[rpf->entity.index].left;
-	}
 
 	if (pipe->interlaced) {
 		crop.height = round_down(crop.height / 2, fmtinfo->vsub);
@@ -369,8 +353,23 @@ static void rpf_partition(struct vsp1_entity *entity,
 			  struct v4l2_rect *window)
 {
 	struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
+	struct v4l2_rect *rpf_rect = &partition->rpf[rpf->entity.index];
 
-	partition->rpf[rpf->entity.index] = *window;
+	/*
+	 * Partition Algorithm Control
+	 *
+	 * The partition algorithm can split this frame into multiple slices. We
+	 * must adjust our partition window based on the pipe configuration to
+	 * match the destination partition window. To achieve this, we adjust
+	 * our crop to provide a 'sub-crop' matching the expected partition
+	 * window.
+	 */
+	*rpf_rect = *v4l2_subdev_state_get_crop(entity->state, RWPF_PAD_SINK);
+
+	if (pipe->partitions > 1) {
+		rpf_rect->width = window->width;
+		rpf_rect->left += window->left;
+	}
 }
 
 static const struct vsp1_entity_operations rpf_entity_ops = {

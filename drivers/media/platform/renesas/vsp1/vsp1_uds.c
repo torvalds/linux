@@ -305,10 +305,6 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 				    struct vsp1_dl_body *dlb)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
-	const struct v4l2_mbus_framefmt *output;
-
-	output = v4l2_subdev_state_get_format(uds->entity.state,
-					      UDS_PAD_SOURCE);
 
 	/* Input size clipping. */
 	vsp1_uds_write(uds, dlb, VI6_UDS_HSZCLIP, VI6_UDS_HSZCLIP_HCEN |
@@ -320,7 +316,7 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 	vsp1_uds_write(uds, dlb, VI6_UDS_CLIP_SIZE,
 		       (partition->uds_source.width
 				<< VI6_UDS_CLIP_SIZE_HSIZE_SHIFT) |
-		       (output->height
+		       (partition->uds_source.height
 				<< VI6_UDS_CLIP_SIZE_VSIZE_SHIFT));
 }
 

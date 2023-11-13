@@ -370,7 +370,6 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	struct vsp1_rwpf_memory mem = wpf->mem;
-	const struct v4l2_mbus_framefmt *sink_format;
 	const struct v4l2_pix_format_mplane *format = &wpf->format;
 	const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 	unsigned int width;
@@ -380,20 +379,13 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	unsigned int flip;
 	unsigned int i;
 
-	sink_format = v4l2_subdev_state_get_format(wpf->entity.state,
-						   RWPF_PAD_SINK);
-	width = sink_format->width;
-	height = sink_format->height;
-	left = 0;
-
 	/*
-	 * Cropping. The partition algorithm can split the image into
-	 * multiple slices.
+	 * Cropping. The partition algorithm can split the image into multiple
+	 * slices.
 	 */
-	if (pipe->partitions > 1) {
-		width = partition->wpf.width;
-		left = partition->wpf.left;
-	}
+	width = partition->wpf.width;
+	left = partition->wpf.left;
+	height = partition->wpf.height;
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
