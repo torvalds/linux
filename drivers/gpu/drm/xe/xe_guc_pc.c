@@ -247,6 +247,12 @@ static u32 decode_freq(u32 raw)
 				 GEN9_FREQ_SCALER);
 }
 
+static u32 encode_freq(u32 freq)
+{
+	return DIV_ROUND_CLOSEST(freq * GEN9_FREQ_SCALER,
+				 GT_FREQUENCY_MULTIPLIER);
+}
+
 static u32 pc_get_min_freq(struct xe_guc_pc *pc)
 {
 	u32 freq;
@@ -255,6 +261,32 @@ static u32 pc_get_min_freq(struct xe_guc_pc *pc)
 			 slpc_shared_data_read(pc, task_state_data.freq));
 
 	return decode_freq(freq);
+}
+
+static void pc_set_manual_rp_ctrl(struct xe_guc_pc *pc, bool enable)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	u32 state = enable ? RPSWCTL_ENABLE : RPSWCTL_DISABLE;
+
+	/* Allow/Disallow punit to process software freq requests */
+	xe_mmio_write32(gt, RP_CONTROL, state);
+}
+
+static void pc_set_cur_freq(struct xe_guc_pc *pc, u32 freq)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	u32 rpnswreq;
+
+	pc_set_manual_rp_ctrl(pc, true);
+
+	/* Req freq is in units of 16.66 Mhz */
+	rpnswreq = REG_FIELD_PREP(REQ_RATIO_MASK, encode_freq(freq));
+	xe_mmio_write32(gt, RPNSWREQ, rpnswreq);
+
+	/* Sleep for a small time to allow pcode to respond */
+	usleep_range(100, 300);
+
+	pc_set_manual_rp_ctrl(pc, false);
 }
 
 static int pc_set_min_freq(struct xe_guc_pc *pc, u32 freq)
@@ -685,6 +717,21 @@ static void pc_init_fused_rp_values(struct xe_guc_pc *pc)
 	else
 		tgl_init_fused_rp_values(pc);
 }
+
+/**
+ * xe_guc_pc_init_early - Initialize RPx values and request a higher GT
+ * frequency to allow faster GuC load times
+ * @pc: Xe_GuC_PC instance
+ */
+void xe_guc_pc_init_early(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+	pc_init_fused_rp_values(pc);
+	pc_set_cur_freq(pc, pc->rp0_freq);
+}
+
 static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 {
 	int ret;
@@ -917,8 +964,6 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 		return PTR_ERR(bo);
 
 	pc->bo = bo;
-
-	pc_init_fused_rp_values(pc);
 
 	err = sysfs_create_files(gt->sysfs, pc_attrs);
 	if (err)

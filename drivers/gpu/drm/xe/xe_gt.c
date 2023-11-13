@@ -30,6 +30,7 @@
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
 #include "xe_guc_exec_queue_types.h"
+#include "xe_guc_pc.h"
 #include "xe_hw_fence.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
@@ -348,6 +349,9 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	err = xe_uc_init(&gt->uc);
 	if (err)
 		goto err_force_wake;
+
+	/* Raise GT freq to speed up HuC/GuC load */
+	xe_guc_pc_init_early(&gt->uc.guc.pc);
 
 	err = xe_uc_init_hwconfig(&gt->uc);
 	if (err)
