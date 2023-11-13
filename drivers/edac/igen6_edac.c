@@ -58,6 +58,7 @@
 /* Capability register E */
 #define CAPID_E_OFFSET			0xf0
 #define CAPID_E_IBECC			BIT(12)
+#define CAPID_E_IBECC_BIT18		BIT(18)
 
 /* Error Status */
 #define ERRSTS_OFFSET			0xc8
@@ -251,6 +252,11 @@ static struct work_struct ecclog_work;
 #define DID_MTL_PS_SKU3	0x7d23
 #define DID_MTL_PS_SKU4	0x7d24
 
+/* Compute die IDs for Meteor Lake-P with IBECC */
+#define DID_MTL_P_SKU1	0x7d01
+#define DID_MTL_P_SKU2	0x7d02
+#define DID_MTL_P_SKU3	0x7d14
+
 static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 {
 	union  {
@@ -329,6 +335,16 @@ static bool tgl_ibecc_available(struct pci_dev *pdev)
 		return false;
 
 	return !(CAPID_E_IBECC & v);
+}
+
+static bool mtl_p_ibecc_available(struct pci_dev *pdev)
+{
+	u32 v;
+
+	if (pci_read_config_dword(pdev, CAPID_E_OFFSET, &v))
+		return false;
+
+	return !(CAPID_E_IBECC_BIT18 & v);
 }
 
 static bool mtl_ps_ibecc_available(struct pci_dev *pdev)
@@ -524,6 +540,17 @@ static struct res_config mtl_ps_cfg = {
 	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
 };
 
+static struct res_config mtl_p_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x170,
+	.ibecc_available	= mtl_p_ibecc_available,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
 static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU5), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU6), (kernel_ulong_t)&ehl_cfg },
@@ -565,6 +592,9 @@ static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU2), (kernel_ulong_t)&mtl_ps_cfg },
 	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU3), (kernel_ulong_t)&mtl_ps_cfg },
 	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU4), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU1), (kernel_ulong_t)&mtl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU2), (kernel_ulong_t)&mtl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU3), (kernel_ulong_t)&mtl_p_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, igen6_pci_tbl);
