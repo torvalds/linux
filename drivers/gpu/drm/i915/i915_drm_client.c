@@ -78,7 +78,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 	struct drm_i915_private *i915 = fpriv->i915;
 	struct drm_i915_gem_object *obj;
 	struct intel_memory_region *mr;
-	struct list_head *pos;
+	struct list_head __rcu *pos;
 	unsigned int id;
 
 	/* Public objects. */
