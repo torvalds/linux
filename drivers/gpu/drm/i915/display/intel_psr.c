@@ -1141,12 +1141,12 @@ static bool _compute_psr2_wake_times(struct intel_dp *intel_dp,
 	return true;
 }
 
-static u8 intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
-				       const struct drm_display_mode *adjusted_mode)
+static int intel_psr_entry_setup_frames(struct intel_dp *intel_dp,
+					const struct drm_display_mode *adjusted_mode)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int psr_setup_time = drm_dp_psr_setup_time(intel_dp->psr_dpcd);
-	u8 entry_setup_frames = 0;
+	int entry_setup_frames = 0;
 
 	if (psr_setup_time < 0) {
 		drm_dbg_kms(&i915->drm,
