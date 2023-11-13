@@ -2257,8 +2257,8 @@ static void wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
 		return;
 
 	if (err == -ETIMEDOUT)
-		drm_err(&i915->drm, "Timeout waiting for FEC %s to get detected\n",
-			str_enabled_disabled(enabled));
+		drm_dbg_kms(&i915->drm, "Timeout waiting for FEC %s to get detected\n",
+			    str_enabled_disabled(enabled));
 	else
 		drm_dbg_kms(&i915->drm, "FEC detected status read error: %d\n", status);
 }
