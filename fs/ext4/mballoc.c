@@ -1957,8 +1957,7 @@ done:
 static int mb_find_extent(struct ext4_buddy *e4b, int block,
 				int needed, struct ext4_free_extent *ex)
 {
-	int next = block;
-	int max, order;
+	int max, order, next;
 	void *buddy;
 
 	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
@@ -1976,16 +1975,12 @@ static int mb_find_extent(struct ext4_buddy *e4b, int block,
 
 	/* find actual order */
 	order = mb_find_order_for_block(e4b, block);
-	block = block >> order;
 
-	ex->fe_len = 1 << order;
-	ex->fe_start = block << order;
+	ex->fe_len = (1 << order) - (block & ((1 << order) - 1));
+	ex->fe_start = block;
 	ex->fe_group = e4b->bd_group;
 
-	/* calc difference from given start */
-	next = next - ex->fe_start;
-	ex->fe_len -= next;
-	ex->fe_start += next;
+	block = block >> order;
 
 	while (needed > ex->fe_len &&
 	       mb_find_buddy(e4b, order, &max)) {
