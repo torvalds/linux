@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Intel pin control drivers
 menu "Intel pinctrl drivers"
-	depends on ACPI && (X86 || COMPILE_TEST)
+	depends on (ACPI && X86) || COMPILE_TEST
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
