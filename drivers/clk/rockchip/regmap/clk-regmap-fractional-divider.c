@@ -47,6 +47,16 @@ static void clk_regmap_fractional_divider_approximation(struct clk_hw *hw,
 	struct clk_hw *p_parent;
 	unsigned long scale;
 
+	if (!rate) {
+		*m = 0;
+		*n = 1;
+
+		dev_dbg(fd->dev, "%s rate:(%ld) maybe invalid frequency setting!\n",
+			clk_hw_get_name(hw), rate);
+
+		return;
+	}
+
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
 		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
