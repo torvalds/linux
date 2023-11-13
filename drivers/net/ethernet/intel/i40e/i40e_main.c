@@ -12782,61 +12782,9 @@ static int i40e_sw_init(struct i40e_pf *pf)
 				 pf->hw.func_caps.fd_filters_best_effort;
 	}
 
-	if (pf->hw.mac.type == I40E_MAC_X722) {
-		set_bit(I40E_HW_CAP_RSS_AQ, pf->hw.caps);
-		set_bit(I40E_HW_CAP_128_QP_RSS, pf->hw.caps);
-		set_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps);
-		set_bit(I40E_HW_CAP_WB_ON_ITR, pf->hw.caps);
-		set_bit(I40E_HW_CAP_MULTI_TCP_UDP_RSS_PCTYPE, pf->hw.caps);
-		set_bit(I40E_HW_CAP_NO_PCI_LINK_CHECK, pf->hw.caps);
-		set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps);
-		set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, pf->hw.caps);
-		set_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps);
-		set_bit(I40E_HW_CAP_WOL_MC_MAGIC_PKT_WAKE, pf->hw.caps);
-		set_bit(I40E_HW_CAP_OUTER_UDP_CSUM, pf->hw.caps);
-
-#define I40E_FDEVICT_PCTYPE_DEFAULT 0xc03
-		if (rd32(&pf->hw, I40E_GLQF_FDEVICTENA(1)) !=
-		    I40E_FDEVICT_PCTYPE_DEFAULT) {
-			dev_warn(&pf->pdev->dev,
-				 "FD EVICT PCTYPES are not right, disable FD HW EVICT\n");
-			clear_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps);
-		}
-	} else if ((pf->hw.aq.api_maj_ver > 1) ||
-		   ((pf->hw.aq.api_maj_ver == 1) &&
-		    (pf->hw.aq.api_min_ver > 4))) {
-		/* Supported in FW API version higher than 1.4 */
-		set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, pf->hw.caps);
-	}
-
 	/* Enable HW ATR eviction if possible */
 	if (test_bit(I40E_HW_CAP_ATR_EVICT, pf->hw.caps))
 		set_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags);
-
-	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
-	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
-	    (pf->hw.aq.fw_maj_ver < 4))) {
-		set_bit(I40E_HW_CAP_RESTART_AUTONEG, pf->hw.caps);
-		/* No DCB support  for FW < v4.33 */
-		set_bit(I40E_HW_CAP_NO_DCB_SUPPORT, pf->hw.caps);
-	}
-
-	/* Disable FW LLDP if FW < v4.3 */
-	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
-	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 3)) ||
-	    (pf->hw.aq.fw_maj_ver < 4)))
-		set_bit(I40E_HW_CAP_STOP_FW_LLDP, pf->hw.caps);
-
-	/* Use the FW Set LLDP MIB API if FW > v4.40 */
-	if ((pf->hw.mac.type == I40E_MAC_XL710) &&
-	    (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver >= 40)) ||
-	    (pf->hw.aq.fw_maj_ver >= 5)))
-		set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, pf->hw.caps);
-
-	/* Enable PTP L4 if FW > v6.0 */
-	if (pf->hw.mac.type == I40E_MAC_XL710 &&
-	    pf->hw.aq.fw_maj_ver >= 6)
-		set_bit(I40E_HW_CAP_PTP_L4, pf->hw.caps);
 
 	if (pf->hw.func_caps.vmdq && num_online_cpus() != 1) {
 		pf->num_vmdq_vsis = I40E_DEFAULT_NUM_VMDQ_VSI;
@@ -12855,8 +12803,7 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	 * if NPAR is functioning so unset this hw flag in this case.
 	 */
 	if (pf->hw.mac.type == I40E_MAC_XL710 &&
-	    pf->hw.func_caps.npar_enable &&
-	    test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, pf->hw.caps))
+	    pf->hw.func_caps.npar_enable)
 		clear_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, pf->hw.caps);
 
 #ifdef CONFIG_PCI_IOV
