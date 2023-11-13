@@ -80,6 +80,7 @@
 #define ECC_ERROR_LOG_UE		BIT_ULL(63)
 #define ECC_ERROR_LOG_ADDR_SHIFT	5
 #define ECC_ERROR_LOG_ADDR(v)		GET_BITFIELD(v, 5, 38)
+#define ECC_ERROR_LOG_ADDR45(v)		GET_BITFIELD(v, 5, 45)
 #define ECC_ERROR_LOG_SYND(v)		GET_BITFIELD(v, 46, 61)
 
 /* Host MMIO base address */
@@ -133,6 +134,8 @@ static struct res_config {
 	u32 ibecc_base;
 	u32 ibecc_error_log_offset;
 	bool (*ibecc_available)(struct pci_dev *pdev);
+	/* Extract error address logged in IBECC */
+	u64 (*err_addr)(u64 ecclog);
 	/* Convert error address logged in IBECC to system physical address */
 	u64 (*err_addr_to_sys_addr)(u64 eaddr, int mc);
 	/* Convert error address logged in IBECC to integrated memory controller address */
@@ -234,6 +237,13 @@ static struct work_struct ecclog_work;
 #define DID_ADL_N_SKU9	0x4678
 #define DID_ADL_N_SKU10	0x4679
 #define DID_ADL_N_SKU11	0x467c
+
+/* Compute die IDs for Raptor Lake-P with IBECC */
+#define DID_RPL_P_SKU1	0xa706
+#define DID_RPL_P_SKU2	0xa707
+#define DID_RPL_P_SKU3	0xa708
+#define DID_RPL_P_SKU4	0xa716
+#define DID_RPL_P_SKU5	0xa718
 
 static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 {
@@ -401,6 +411,11 @@ static u64 adl_err_addr_to_imc_addr(u64 eaddr, int mc)
 	return imc_addr;
 }
 
+static u64 rpl_p_err_addr(u64 ecclog)
+{
+	return ECC_ERROR_LOG_ADDR45(ecclog);
+}
+
 static struct res_config ehl_cfg = {
 	.num_imc		= 1,
 	.imc_base		= 0x5000,
@@ -457,6 +472,18 @@ static struct res_config adl_n_cfg = {
 	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
 };
 
+static struct res_config rpl_p_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x68,
+	.ibecc_available	= tgl_ibecc_available,
+	.err_addr		= rpl_p_err_addr,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
 static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU5), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU6), (kernel_ulong_t)&ehl_cfg },
@@ -489,6 +516,11 @@ static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU9), (kernel_ulong_t)&adl_n_cfg },
 	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU10), (kernel_ulong_t)&adl_n_cfg },
 	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU11), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU1), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU2), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU3), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU4), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU5), (kernel_ulong_t)&rpl_p_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, igen6_pci_tbl);
@@ -744,8 +776,11 @@ static void ecclog_work_cb(struct work_struct *work)
 
 	llist_for_each_entry_safe(node, tmp, head, llnode) {
 		memset(&res, 0, sizeof(res));
-		eaddr = ECC_ERROR_LOG_ADDR(node->ecclog) <<
-			ECC_ERROR_LOG_ADDR_SHIFT;
+		if (res_cfg->err_addr)
+			eaddr = res_cfg->err_addr(node->ecclog);
+		else
+			eaddr = ECC_ERROR_LOG_ADDR(node->ecclog) <<
+				ECC_ERROR_LOG_ADDR_SHIFT;
 		res.mc	     = node->mc;
 		res.sys_addr = res_cfg->err_addr_to_sys_addr(eaddr, res.mc);
 		res.imc_addr = res_cfg->err_addr_to_imc_addr(eaddr, res.mc);
