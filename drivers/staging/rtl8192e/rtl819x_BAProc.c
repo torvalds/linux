@@ -344,7 +344,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		goto OnADDBARsp_Reject;
 	}
 
-	ts->bAddBaReqInProgress = false;
+	ts->add_ba_req_in_progress = false;
 	pending_ba = &ts->TxPendingBARecord;
 	pAdmittedBA = &ts->TxAdmittedBARecord;
 
@@ -453,7 +453,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		}
 
 		pTxTs->bUsingBa = false;
-		pTxTs->bAddBaReqInProgress = false;
+		pTxTs->add_ba_req_in_progress = false;
 		pTxTs->bAddBaReqDelayed = false;
 		del_timer_sync(&pTxTs->TsAddBaTimer);
 		tx_ts_delete_ba(ieee, pTxTs);
@@ -513,7 +513,7 @@ void rtllib_ba_setup_timeout(struct timer_list *t)
 	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
 					      TxPendingBARecord.timer);
 
-	pTxTs->bAddBaReqInProgress = false;
+	pTxTs->add_ba_req_in_progress = false;
 	pTxTs->bAddBaReqDelayed = true;
 	pTxTs->TxPendingBARecord.b_valid = false;
 }
