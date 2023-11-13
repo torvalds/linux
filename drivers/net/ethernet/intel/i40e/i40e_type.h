@@ -594,6 +594,20 @@ static inline bool i40e_is_vf(struct i40e_hw *hw)
 		hw->mac.type == I40E_MAC_X722_VF);
 }
 
+/**
+ * i40e_is_aq_api_ver_ge
+ * @hw: pointer to i40e_hw structure
+ * @maj: API major value to compare
+ * @min: API minor value to compare
+ *
+ * Assert whether current HW API version is greater/equal than provided.
+ **/
+static inline bool i40e_is_aq_api_ver_ge(struct i40e_hw *hw, u16 maj, u16 min)
+{
+	return (hw->aq.api_maj_ver > maj ||
+		(hw->aq.api_maj_ver == maj && hw->aq.api_min_ver >= min));
+}
+
 struct i40e_driver_version {
 	u8 major_version;
 	u8 minor_version;
