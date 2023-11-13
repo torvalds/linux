@@ -1631,8 +1631,10 @@ static bool allow_pixel_rate_crb(struct dc *dc, struct dc_state *context)
 	int i;
 	struct resource_context *res_ctx = &context->res_ctx;
 
-	/*Don't apply for single stream*/
-	if (context->stream_count < 2)
+	/* Only apply for dual stream scenarios with edp*/
+	if (context->stream_count != 2)
+		return false;
+	if (context->streams[0]->signal != SIGNAL_TYPE_EDP && context->streams[1]->signal != SIGNAL_TYPE_EDP)
 		return false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
