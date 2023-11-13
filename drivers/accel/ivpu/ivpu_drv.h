@@ -17,6 +17,7 @@
 #include <uapi/drm/ivpu_accel.h>
 
 #include "ivpu_mmu_context.h"
+#include "ivpu_ipc.h"
 
 #define DRIVER_NAME "intel_vpu"
 #define DRIVER_DESC "Driver for Intel NPU (Neural Processing Unit)"
@@ -120,7 +121,7 @@ struct ivpu_device {
 	struct list_head bo_list;
 
 	struct xarray submitted_jobs_xa;
-	struct task_struct *job_done_thread;
+	struct ivpu_ipc_consumer job_done_consumer;
 
 	atomic64_t unique_id_counter;
 

@@ -1047,13 +1047,12 @@ static void ivpu_hw_40xx_irq_noc_firewall_handler(struct ivpu_device *vdev)
 }
 
 /* Handler for IRQs from VPU core (irqV) */
-static irqreturn_t ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq)
+static bool ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq, bool *wake_thread)
 {
 	u32 status = REGV_RD32(VPU_40XX_HOST_SS_ICB_STATUS_0) & ICB_0_IRQ_MASK;
-	irqreturn_t ret = IRQ_NONE;
 
 	if (!status)
-		return IRQ_NONE;
+		return false;
 
 	REGV_WR32(VPU_40XX_HOST_SS_ICB_CLEAR_0, status);
 
@@ -1061,7 +1060,7 @@ static irqreturn_t ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq)
 		ivpu_mmu_irq_evtq_handler(vdev);
 
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, HOST_IPC_FIFO_INT, status))
-		ret |= ivpu_ipc_irq_handler(vdev);
+		ivpu_ipc_irq_handler(vdev, wake_thread);
 
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, MMU_IRQ_1_INT, status))
 		ivpu_dbg(vdev, IRQ, "MMU sync complete\n");
@@ -1078,17 +1077,17 @@ static irqreturn_t ivpu_hw_40xx_irqv_handler(struct ivpu_device *vdev, int irq)
 	if (REG_TEST_FLD(VPU_40XX_HOST_SS_ICB_STATUS_0, NOC_FIREWALL_INT, status))
 		ivpu_hw_40xx_irq_noc_firewall_handler(vdev);
 
-	return ret;
+	return true;
 }
 
 /* Handler for IRQs from Buttress core (irqB) */
-static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
+static bool ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 {
 	bool schedule_recovery = false;
 	u32 status = REGB_RD32(VPU_40XX_BUTTRESS_INTERRUPT_STAT) & BUTTRESS_IRQ_MASK;
 
-	if (status == 0)
-		return IRQ_NONE;
+	if (!status)
+		return false;
 
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
@@ -1140,26 +1139,27 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (schedule_recovery)
 		ivpu_pm_schedule_recovery(vdev);
 
-	return IRQ_HANDLED;
+	return true;
 }
 
 static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 {
+	bool irqv_handled, irqb_handled, wake_thread = false;
 	struct ivpu_device *vdev = ptr;
-	irqreturn_t ret = IRQ_NONE;
 
 	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
 
-	ret |= ivpu_hw_40xx_irqv_handler(vdev, irq);
-	ret |= ivpu_hw_40xx_irqb_handler(vdev, irq);
+	irqv_handled = ivpu_hw_40xx_irqv_handler(vdev, irq, &wake_thread);
+	irqb_handled = ivpu_hw_40xx_irqb_handler(vdev, irq);
 
 	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
 	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
 
-	if (ret & IRQ_WAKE_THREAD)
+	if (wake_thread)
 		return IRQ_WAKE_THREAD;
-
-	return ret;
+	if (irqv_handled || irqb_handled)
+		return IRQ_HANDLED;
+	return IRQ_NONE;
 }
 
 static void ivpu_hw_40xx_diagnose_failure(struct ivpu_device *vdev)
