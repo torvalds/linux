@@ -250,6 +250,13 @@ config DA8XX_MSTPRI
 	  configuration. Allows to adjust the priorities of all master
 	  peripherals.
 
+config ASPEED_LTPI
+	bool "Aspeed LTPI bus controller driver"
+	depends on MACH_ASPEED_G7
+	help
+	  LVDS Tunneling Protocol and Interface (LTPI) bus controller
+
+
 source "drivers/bus/fsl-mc/Kconfig"
 source "drivers/bus/mhi/Kconfig"
 
