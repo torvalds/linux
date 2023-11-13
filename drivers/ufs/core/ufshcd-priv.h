@@ -370,10 +370,11 @@ static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info, u8 
 
 static inline void ufshcd_inc_sq_tail(struct ufs_hw_queue *q)
 {
-	u32 mask = q->max_entries - 1;
 	u32 val;
 
-	q->sq_tail_slot = (q->sq_tail_slot + 1) & mask;
+	q->sq_tail_slot++;
+	if (q->sq_tail_slot == q->max_entries)
+		q->sq_tail_slot = 0;
 	val = q->sq_tail_slot * sizeof(struct utp_transfer_req_desc);
 	writel(val, q->mcq_sq_tail);
 }
