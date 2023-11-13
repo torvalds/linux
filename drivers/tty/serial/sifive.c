@@ -1031,8 +1031,8 @@ static int sifive_serial_resume(struct device *dev)
 	return uart_resume_port(&sifive_serial_uart_driver, &ssp->port);
 }
 
-DEFINE_SIMPLE_DEV_PM_OPS(sifive_uart_pm_ops, sifive_serial_suspend,
-			 sifive_serial_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sifive_uart_pm_ops, sifive_serial_suspend,
+				sifive_serial_resume);
 
 static const struct of_device_id sifive_serial_of_match[] = {
 	{ .compatible = "sifive,fu540-c000-uart0" },
