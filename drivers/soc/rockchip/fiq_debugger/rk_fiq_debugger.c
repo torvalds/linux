@@ -763,6 +763,11 @@ static int fiq_debugger_cpu_offine_migrate_fiq(unsigned int cpu)
 	if ((sip_fiq_debugger_is_enabled()) &&
 	    (sip_fiq_debugger_get_target_cpu() == cpu)) {
 		target_cpu = cpumask_any_but(cpu_online_mask, cpu);
+		if (target_cpu >= nr_cpu_ids) {
+			pr_err("%s: migrate fiq fail!\n", __func__);
+			return -EBUSY;
+		}
+
 		sip_fiq_debugger_switch_cpu(target_cpu);
 	}
 
