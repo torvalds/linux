@@ -636,7 +636,7 @@ static int crypto_rsa_run(struct fcrypt *fcr, struct kernel_crypt_rsa_op *krop)
 	const char *driver = "rsa-rk";
 	struct crypto_akcipher *tfm = NULL;
 	struct akcipher_request *req = NULL;
-	struct crypto_wait wait;
+	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist src, dst;
 	bool is_priv_key = (rop->flags & COP_FLAG_RSA_PRIV) == COP_FLAG_RSA_PRIV;
 

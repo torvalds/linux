@@ -90,7 +90,7 @@ int __cryptodev_get_userbuf(uint8_t __user *addr, uint32_t len, int write,
 #else
 	mmap_read_unlock(mm);
 #endif
-	if (ret != pgcount)
+	if (ret < 0 || ret != pgcount)
 		return -EINVAL;
 
 	sg_init_table(sg, pgcount);

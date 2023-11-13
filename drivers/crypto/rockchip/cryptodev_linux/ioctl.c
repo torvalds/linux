@@ -131,6 +131,8 @@ crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		return -EINVAL;
 	}
 
+	memset(&keys, 0x00, sizeof(keys));
+
 	switch (sop->cipher) {
 	case 0:
 		break;
