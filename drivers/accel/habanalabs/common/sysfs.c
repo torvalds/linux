@@ -386,6 +386,14 @@ static ssize_t security_enabled_show(struct device *dev,
 	return sprintf(buf, "%d\n", hdev->asic_prop.fw_security_enabled);
 }
 
+static ssize_t module_id_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hl_device *hdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", le32_to_cpu(hdev->asic_prop.cpucp_info.card_location));
+}
+
 static DEVICE_ATTR_RO(armcp_kernel_ver);
 static DEVICE_ATTR_RO(armcp_ver);
 static DEVICE_ATTR_RO(cpld_ver);
@@ -405,6 +413,7 @@ static DEVICE_ATTR_RO(thermal_ver);
 static DEVICE_ATTR_RO(uboot_ver);
 static DEVICE_ATTR_RO(fw_os_ver);
 static DEVICE_ATTR_RO(security_enabled);
+static DEVICE_ATTR_RO(module_id);
 
 static struct bin_attribute bin_attr_eeprom = {
 	.attr = {.name = "eeprom", .mode = (0444)},
@@ -430,6 +439,7 @@ static struct attribute *hl_dev_attrs[] = {
 	&dev_attr_uboot_ver.attr,
 	&dev_attr_fw_os_ver.attr,
 	&dev_attr_security_enabled.attr,
+	&dev_attr_module_id.attr,
 	NULL,
 };
 
