@@ -430,35 +430,35 @@ static const char i40e_gstrings_test[][ETH_GSTRING_LEN] = {
 
 struct i40e_priv_flags {
 	char flag_string[ETH_GSTRING_LEN];
-	u64 flag;
+	u8 bitno;
 	bool read_only;
 };
 
-#define I40E_PRIV_FLAG(_name, _flag, _read_only) { \
+#define I40E_PRIV_FLAG(_name, _bitno, _read_only) { \
 	.flag_string = _name, \
-	.flag = _flag, \
+	.bitno = _bitno, \
 	.read_only = _read_only, \
 }
 
 static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	/* NOTE: MFP setting cannot be changed */
-	I40E_PRIV_FLAG("MFP", I40E_FLAG_MFP_ENABLED, 1),
+	I40E_PRIV_FLAG("MFP", I40E_FLAG_MFP_ENA, 1),
 	I40E_PRIV_FLAG("total-port-shutdown",
-		       I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED, 1),
-	I40E_PRIV_FLAG("LinkPolling", I40E_FLAG_LINK_POLLING_ENABLED, 0),
-	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENABLED, 0),
-	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENABLED, 0),
-	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_ENABLED, 0),
+		       I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENA, 1),
+	I40E_PRIV_FLAG("LinkPolling", I40E_FLAG_LINK_POLLING_ENA, 0),
+	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENA, 0),
+	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENA, 0),
+	I40E_PRIV_FLAG("hw-atr-eviction", I40E_FLAG_HW_ATR_EVICT_ENA, 0),
 	I40E_PRIV_FLAG("link-down-on-close",
-		       I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED, 0),
-	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX, 0),
+		       I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA, 0),
+	I40E_PRIV_FLAG("legacy-rx", I40E_FLAG_LEGACY_RX_ENA, 0),
 	I40E_PRIV_FLAG("disable-source-pruning",
-		       I40E_FLAG_SOURCE_PRUNING_DISABLED, 0),
-	I40E_PRIV_FLAG("disable-fw-lldp", I40E_FLAG_DISABLE_FW_LLDP, 0),
+		       I40E_FLAG_SOURCE_PRUNING_DIS, 0),
+	I40E_PRIV_FLAG("disable-fw-lldp", I40E_FLAG_FW_LLDP_DIS, 0),
 	I40E_PRIV_FLAG("rs-fec", I40E_FLAG_RS_FEC, 0),
 	I40E_PRIV_FLAG("base-r-fec", I40E_FLAG_BASE_R_FEC, 0),
 	I40E_PRIV_FLAG("vf-vlan-pruning",
-		       I40E_FLAG_VF_VLAN_PRUNING, 0),
+		       I40E_FLAG_VF_VLAN_PRUNING_ENA, 0),
 };
 
 #define I40E_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gstrings_priv_flags)
@@ -466,7 +466,7 @@ static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 /* Private flags with a global effect, restricted to PF 0 */
 static const struct i40e_priv_flags i40e_gl_gstrings_priv_flags[] = {
 	I40E_PRIV_FLAG("vf-true-promisc-support",
-		       I40E_FLAG_TRUE_PROMISC_SUPPORT, 0),
+		       I40E_FLAG_TRUE_PROMISC_ENA, 0),
 };
 
 #define I40E_GL_PRIV_FLAGS_STR_LEN ARRAY_SIZE(i40e_gl_gstrings_priv_flags)
@@ -502,7 +502,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     1000baseT_Full);
-		if (pf->hw_features & I40E_HW_100M_SGMII_CAPABLE) {
+		if (test_bit(I40E_HW_100M_SGMII_CAPABLE, pf->hw_features)) {
 			ethtool_link_ksettings_add_link_mode(ks, supported,
 							     100baseT_Full);
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
@@ -601,7 +601,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 							     10000baseKX4_Full);
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_10GBASE_KR &&
-	    !(pf->hw_features & I40E_HW_HAVE_CRT_RETIMER)) {
+	    !test_bit(I40E_HW_HAVE_CRT_RETIMER, pf->hw_features)) {
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     10000baseKR_Full);
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_10GB)
@@ -609,7 +609,7 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf,
 							     10000baseKR_Full);
 	}
 	if (phy_types & I40E_CAP_PHY_TYPE_1000BASE_KX &&
-	    !(pf->hw_features & I40E_HW_HAVE_CRT_RETIMER)) {
+	    !test_bit(I40E_HW_HAVE_CRT_RETIMER, pf->hw_features)) {
 		ethtool_link_ksettings_add_link_mode(ks, supported,
 						     1000baseKX_Full);
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
@@ -917,7 +917,7 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     1000baseT_Full);
-		if (pf->hw_features & I40E_HW_100M_SGMII_CAPABLE) {
+		if (test_bit(I40E_HW_100M_SGMII_CAPABLE, pf->hw_features)) {
 			ethtool_link_ksettings_add_link_mode(ks, supported,
 							     100baseT_Full);
 			if (hw_link_info->requested_speeds &
@@ -1488,11 +1488,7 @@ static int i40e_set_fec_cfg(struct net_device *netdev, u8 fec_cfg)
 	struct i40e_pf *pf = np->vsi->back;
 	struct i40e_hw *hw = &pf->hw;
 	int status = 0;
-	u32 flags = 0;
 	int err = 0;
-
-	flags = READ_ONCE(pf->flags);
-	i40e_set_fec_in_flags(fec_cfg, &flags);
 
 	/* Get the current phy config */
 	memset(&abilities, 0, sizeof(abilities));
@@ -1525,7 +1521,7 @@ static int i40e_set_fec_cfg(struct net_device *netdev, u8 fec_cfg)
 			err = -EAGAIN;
 			goto done;
 		}
-		pf->flags = flags;
+		i40e_set_fec_in_flags(fec_cfg, pf->flags);
 		status = i40e_update_link_info(hw);
 		if (status)
 			/* debug level message only due to relation to the link
@@ -2432,7 +2428,7 @@ static void i40e_get_ethtool_stats(struct net_device *netdev,
 
 	veb_stats = ((pf->lan_veb != I40E_NO_VEB) &&
 		     (pf->lan_veb < I40E_MAX_VEB) &&
-		     (pf->flags & I40E_FLAG_VEB_STATS_ENABLED));
+		     test_bit(I40E_FLAG_VEB_STATS_ENA, pf->flags));
 
 	if (veb_stats) {
 		veb = pf->veb[pf->lan_veb];
@@ -2561,7 +2557,7 @@ static int i40e_get_ts_info(struct net_device *dev,
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
 	/* only report HW timestamping if PTP is enabled */
-	if (!(pf->flags & I40E_FLAG_PTP))
+	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return ethtool_op_get_ts_info(dev, info);
 
 	info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
@@ -2583,7 +2579,7 @@ static int i40e_get_ts_info(struct net_device *dev,
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
 			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
 
-	if (pf->hw_features & I40E_HW_PTP_L4_CAPABLE)
+	if (test_bit(I40E_HW_PTP_L4_CAPABLE, pf->hw_features))
 		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
 				    BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
 				    BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
@@ -2832,7 +2828,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		if (!(pf->hw_features & I40E_HW_PHY_CONTROLS_LEDS)) {
+		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
 			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
@@ -2844,19 +2840,19 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		}
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		if (!(pf->hw_features & I40E_HW_PHY_CONTROLS_LEDS))
+		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features))
 			i40e_led_set(hw, 0xf, false);
 		else
 			ret = i40e_led_set_phy(hw, true, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_OFF:
-		if (!(pf->hw_features & I40E_HW_PHY_CONTROLS_LEDS))
+		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features))
 			i40e_led_set(hw, 0x0, false);
 		else
 			ret = i40e_led_set_phy(hw, false, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		if (!(pf->hw_features & I40E_HW_PHY_CONTROLS_LEDS)) {
+		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features)) {
 			i40e_led_set(hw, pf->led_status, false);
 		} else {
 			ret = i40e_led_set_phy(hw, false, pf->led_status,
@@ -3641,7 +3637,7 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 
 	bitmap_zero(flow_pctypes, FLOW_PCTYPES_SIZE);
 
-	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags)) {
 		dev_err(&pf->pdev->dev,
 			"Change of RSS hash input set is not supported when MFP mode is enabled\n");
 		return -EOPNOTSUPP;
@@ -3657,19 +3653,22 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_TCP, flow_pctypes);
-		if (pf->hw_features & I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE)
+		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
+			     pf->hw_features))
 			set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_TCP_SYN_NO_ACK,
 				flow_pctypes);
 		break;
 	case TCP_V6_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_TCP, flow_pctypes);
-		if (pf->hw_features & I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE)
+		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
+			     pf->hw_features))
 			set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_TCP_SYN_NO_ACK,
 				flow_pctypes);
 		break;
 	case UDP_V4_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV4_UDP, flow_pctypes);
-		if (pf->hw_features & I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE) {
+		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
+			     pf->hw_features)) {
 			set_bit(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV4_UDP,
 				flow_pctypes);
 			set_bit(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV4_UDP,
@@ -3679,7 +3678,8 @@ static int i40e_set_rss_hash_opt(struct i40e_pf *pf, struct ethtool_rxnfc *nfc)
 		break;
 	case UDP_V6_FLOW:
 		set_bit(I40E_FILTER_PCTYPE_NONF_IPV6_UDP, flow_pctypes);
-		if (pf->hw_features & I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE) {
+		if (test_bit(I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE,
+			     pf->hw_features)) {
 			set_bit(I40E_FILTER_PCTYPE_NONF_UNICAST_IPV6_UDP,
 				flow_pctypes);
 			set_bit(I40E_FILTER_PCTYPE_NONF_MULTICAST_IPV6_UDP,
@@ -4657,7 +4657,7 @@ static int i40e_check_fdir_input_set(struct i40e_vsi *vsi,
 	 * main port cannot change them when in MFP mode as this would impact
 	 * any filters on the other ports.
 	 */
-	if (pf->flags & I40E_FLAG_MFP_ENABLED) {
+	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags)) {
 		netif_err(pf, drv, vsi->netdev, "Cannot change Flow Director input sets while MFP is enabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -4817,7 +4817,7 @@ static int i40e_add_fdir_ethtool(struct i40e_vsi *vsi,
 		return -EINVAL;
 	pf = vsi->back;
 
-	if (!(pf->flags & I40E_FLAG_FD_SB_ENABLED))
+	if (!test_bit(I40E_FLAG_FD_SB_ENA, pf->flags))
 		return -EOPNOTSUPP;
 
 	if (test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state))
@@ -5014,7 +5014,7 @@ static void i40e_get_channels(struct net_device *dev,
 	ch->max_combined = i40e_max_channels(vsi);
 
 	/* report info for other vector */
-	ch->other_count = (pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0;
+	ch->other_count = test_bit(I40E_FLAG_FD_SB_ENA, pf->flags) ? 1 : 0;
 	ch->max_other = ch->other_count;
 
 	/* Note: This code assumes DCB is disabled for now. */
@@ -5057,7 +5057,7 @@ static int i40e_set_channels(struct net_device *dev,
 		return -EINVAL;
 
 	/* verify other_count has not changed */
-	if (ch->other_count != ((pf->flags & I40E_FLAG_FD_SB_ENABLED) ? 1 : 0))
+	if (ch->other_count != (test_bit(I40E_FLAG_FD_SB_ENA, pf->flags) ? 1 : 0))
 		return -EINVAL;
 
 	/* verify the number of channels does not exceed hardware limits */
@@ -5228,11 +5228,11 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 	u32 i, j, ret_flags = 0;
 
 	for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
-		const struct i40e_priv_flags *priv_flags;
+		const struct i40e_priv_flags *priv_flag;
 
-		priv_flags = &i40e_gstrings_priv_flags[i];
+		priv_flag = &i40e_gstrings_priv_flags[i];
 
-		if (priv_flags->flag & pf->flags)
+		if (test_bit(priv_flag->bitno, pf->flags))
 			ret_flags |= BIT(i);
 	}
 
@@ -5240,11 +5240,11 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
 		return ret_flags;
 
 	for (j = 0; j < I40E_GL_PRIV_FLAGS_STR_LEN; j++) {
-		const struct i40e_priv_flags *priv_flags;
+		const struct i40e_priv_flags *priv_flag;
 
-		priv_flags = &i40e_gl_gstrings_priv_flags[j];
+		priv_flag = &i40e_gl_gstrings_priv_flags[j];
 
-		if (priv_flags->flag & pf->flags)
+		if (test_bit(priv_flag->bitno, pf->flags))
 			ret_flags |= BIT(i + j);
 	}
 
@@ -5258,8 +5258,10 @@ static u32 i40e_get_priv_flags(struct net_device *dev)
  **/
 static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 {
+	DECLARE_BITMAP(changed_flags, I40E_PF_FLAGS_NBITS);
+	DECLARE_BITMAP(orig_flags, I40E_PF_FLAGS_NBITS);
+	DECLARE_BITMAP(new_flags, I40E_PF_FLAGS_NBITS);
 	struct i40e_netdev_priv *np = netdev_priv(dev);
-	u64 orig_flags, new_flags, changed_flags;
 	enum i40e_admin_queue_err adq_err;
 	struct i40e_vsi *vsi = np->vsi;
 	struct i40e_pf *pf = vsi->back;
@@ -5267,51 +5269,57 @@ static int i40e_set_priv_flags(struct net_device *dev, u32 flags)
 	int status;
 	u32 i, j;
 
-	orig_flags = READ_ONCE(pf->flags);
-	new_flags = orig_flags;
+	bitmap_copy(orig_flags, pf->flags, I40E_PF_FLAGS_NBITS);
+	bitmap_copy(new_flags, pf->flags, I40E_PF_FLAGS_NBITS);
 
 	for (i = 0; i < I40E_PRIV_FLAGS_STR_LEN; i++) {
-		const struct i40e_priv_flags *priv_flags;
+		const struct i40e_priv_flags *priv_flag;
+		bool new_val;
 
-		priv_flags = &i40e_gstrings_priv_flags[i];
-
-		if (flags & BIT(i))
-			new_flags |= priv_flags->flag;
-		else
-			new_flags &= ~(priv_flags->flag);
+		priv_flag = &i40e_gstrings_priv_flags[i];
+		new_val = (flags & BIT(i)) ? true : false;
 
 		/* If this is a read-only flag, it can't be changed */
-		if (priv_flags->read_only &&
-		    ((orig_flags ^ new_flags) & ~BIT(i)))
+		if (priv_flag->read_only &&
+		    test_bit(priv_flag->bitno, orig_flags) != new_val)
 			return -EOPNOTSUPP;
+
+		if (new_val)
+			set_bit(priv_flag->bitno, new_flags);
+		else
+			clear_bit(priv_flag->bitno, new_flags);
 	}
 
 	if (pf->hw.pf_id != 0)
 		goto flags_complete;
 
 	for (j = 0; j < I40E_GL_PRIV_FLAGS_STR_LEN; j++) {
-		const struct i40e_priv_flags *priv_flags;
+		const struct i40e_priv_flags *priv_flag;
+		bool new_val;
 
-		priv_flags = &i40e_gl_gstrings_priv_flags[j];
-
-		if (flags & BIT(i + j))
-			new_flags |= priv_flags->flag;
-		else
-			new_flags &= ~(priv_flags->flag);
+		priv_flag = &i40e_gl_gstrings_priv_flags[j];
+		new_val = (flags & BIT(i + j)) ? true : false;
 
 		/* If this is a read-only flag, it can't be changed */
-		if (priv_flags->read_only &&
-		    ((orig_flags ^ new_flags) & ~BIT(i)))
+		if (priv_flag->read_only &&
+		    test_bit(priv_flag->bitno, orig_flags) != new_val)
 			return -EOPNOTSUPP;
+
+		if (new_val)
+			set_bit(priv_flag->bitno, new_flags);
+		else
+			clear_bit(priv_flag->bitno, new_flags);
 	}
 
 flags_complete:
-	changed_flags = orig_flags ^ new_flags;
+	bitmap_xor(changed_flags, pf->flags, orig_flags, I40E_PF_FLAGS_NBITS);
 
-	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP)
+	if (test_bit(I40E_FLAG_FW_LLDP_DIS, changed_flags))
 		reset_needed = I40E_PF_RESET_AND_REBUILD_FLAG;
-	if (changed_flags & (I40E_FLAG_VEB_STATS_ENABLED |
-	    I40E_FLAG_LEGACY_RX | I40E_FLAG_SOURCE_PRUNING_DISABLED))
+
+	if (test_bit(I40E_FLAG_VEB_STATS_ENA, changed_flags) ||
+	    test_bit(I40E_FLAG_LEGACY_RX_ENA, changed_flags) ||
+	    test_bit(I40E_FLAG_SOURCE_PRUNING_DIS, changed_flags))
 		reset_needed = BIT(__I40E_PF_RESET_REQUESTED);
 
 	/* Before we finalize any flag changes, we need to perform some
@@ -5319,8 +5327,8 @@ flags_complete:
 	 */
 
 	/* ATR eviction is not supported on all devices */
-	if ((new_flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) &&
-	    !(pf->hw_features & I40E_HW_ATR_EVICT_CAPABLE))
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, new_flags) &&
+	    !test_bit(I40E_HW_ATR_EVICT_CAPABLE, pf->hw_features))
 		return -EOPNOTSUPP;
 
 	/* If the driver detected FW LLDP was disabled on init, this flag could
@@ -5331,15 +5339,14 @@ flags_complete:
 	 * disable LLDP, however we _must_ not allow the user to enable/disable
 	 * LLDP with this flag on unsupported FW versions.
 	 */
-	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE)) {
-			dev_warn(&pf->pdev->dev,
-				 "Device does not support changing FW LLDP\n");
-			return -EOPNOTSUPP;
-		}
+	if (test_bit(I40E_FLAG_FW_LLDP_DIS, changed_flags) &&
+	    (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))) {
+		dev_warn(&pf->pdev->dev,
+			 "Device does not support changing FW LLDP\n");
+		return -EOPNOTSUPP;
 	}
 
-	if (changed_flags & I40E_FLAG_RS_FEC &&
+	if (test_bit(I40E_FLAG_RS_FEC, changed_flags) &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_SFP28 &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_B) {
 		dev_warn(&pf->pdev->dev,
@@ -5347,7 +5354,7 @@ flags_complete:
 		return -EOPNOTSUPP;
 	}
 
-	if (changed_flags & I40E_FLAG_BASE_R_FEC &&
+	if (test_bit(I40E_FLAG_BASE_R_FEC, changed_flags) &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_SFP28 &&
 	    pf->hw.device_id != I40E_DEV_ID_25G_B &&
 	    pf->hw.device_id != I40E_DEV_ID_KX_X722) {
@@ -5362,17 +5369,17 @@ flags_complete:
 	 */
 
 	/* Flush current ATR settings if ATR was disabled */
-	if ((changed_flags & I40E_FLAG_FD_ATR_ENABLED) &&
-	    !(new_flags & I40E_FLAG_FD_ATR_ENABLED)) {
+	if (test_bit(I40E_FLAG_FD_ATR_ENA, changed_flags) &&
+	    !test_bit(I40E_FLAG_FD_ATR_ENA, new_flags)) {
 		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 		set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 	}
 
-	if (changed_flags & I40E_FLAG_TRUE_PROMISC_SUPPORT) {
+	if (test_bit(I40E_FLAG_TRUE_PROMISC_ENA, changed_flags)) {
 		u16 sw_flags = 0, valid_flags = 0;
 		int ret;
 
-		if (!(new_flags & I40E_FLAG_TRUE_PROMISC_SUPPORT))
+		if (!test_bit(I40E_FLAG_TRUE_PROMISC_ENA, new_flags))
 			sw_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
 		valid_flags = I40E_AQ_SET_SWITCH_CFG_PROMISC;
 		ret = i40e_aq_set_switch_config(&pf->hw, sw_flags, valid_flags,
@@ -5387,17 +5394,17 @@ flags_complete:
 		}
 	}
 
-	if ((changed_flags & I40E_FLAG_RS_FEC) ||
-	    (changed_flags & I40E_FLAG_BASE_R_FEC)) {
+	if (test_bit(I40E_FLAG_RS_FEC, changed_flags) ||
+	    test_bit(I40E_FLAG_BASE_R_FEC, changed_flags)) {
 		u8 fec_cfg = 0;
 
-		if (new_flags & I40E_FLAG_RS_FEC &&
-		    new_flags & I40E_FLAG_BASE_R_FEC) {
+		if (test_bit(I40E_FLAG_RS_FEC, new_flags) &&
+		    test_bit(I40E_FLAG_BASE_R_FEC, new_flags)) {
 			fec_cfg = I40E_AQ_SET_FEC_AUTO;
-		} else if (new_flags & I40E_FLAG_RS_FEC) {
+		} else if (test_bit(I40E_FLAG_RS_FEC, new_flags)) {
 			fec_cfg = (I40E_AQ_SET_FEC_REQUEST_RS |
 				   I40E_AQ_SET_FEC_ABILITY_RS);
-		} else if (new_flags & I40E_FLAG_BASE_R_FEC) {
+		} else if (test_bit(I40E_FLAG_BASE_R_FEC, new_flags)) {
 			fec_cfg = (I40E_AQ_SET_FEC_REQUEST_KR |
 				   I40E_AQ_SET_FEC_ABILITY_KR);
 		}
@@ -5405,35 +5412,35 @@ flags_complete:
 			dev_warn(&pf->pdev->dev, "Cannot change FEC config\n");
 	}
 
-	if ((changed_flags & I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
-	    (orig_flags & I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED)) {
+	if (test_bit(I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA, changed_flags) &&
+	    test_bit(I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENA, orig_flags)) {
 		dev_err(&pf->pdev->dev,
 			"Setting link-down-on-close not supported on this port (because total-port-shutdown is enabled)\n");
 		return -EOPNOTSUPP;
 	}
 
-	if ((changed_flags & I40E_FLAG_VF_VLAN_PRUNING) &&
+	if (test_bit(I40E_FLAG_VF_VLAN_PRUNING_ENA, changed_flags) &&
 	    pf->num_alloc_vfs) {
 		dev_warn(&pf->pdev->dev,
 			 "Changing vf-vlan-pruning flag while VF(s) are active is not supported\n");
 		return -EOPNOTSUPP;
 	}
 
-	if ((changed_flags & I40E_FLAG_LEGACY_RX) &&
+	if (test_bit(I40E_FLAG_LEGACY_RX_ENA, changed_flags) &&
 	    I40E_2K_TOO_SMALL_WITH_PADDING) {
 		dev_warn(&pf->pdev->dev,
 			 "2k Rx buffer is too small to fit standard MTU and skb_shared_info\n");
 		return -EOPNOTSUPP;
 	}
 
-	if ((changed_flags & new_flags &
-	     I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
-	    (new_flags & I40E_FLAG_MFP_ENABLED))
+	if (test_bit(I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA, changed_flags) &&
+	    test_bit(I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA, new_flags) &&
+	    test_bit(I40E_FLAG_MFP_ENA, new_flags))
 		dev_warn(&pf->pdev->dev,
 			 "Turning on link-down-on-close flag may affect other partitions\n");
 
-	if (changed_flags & I40E_FLAG_DISABLE_FW_LLDP) {
-		if (new_flags & I40E_FLAG_DISABLE_FW_LLDP) {
+	if (test_bit(I40E_FLAG_FW_LLDP_DIS, changed_flags)) {
+		if (test_bit(I40E_FLAG_FW_LLDP_DIS, new_flags)) {
 #ifdef CONFIG_I40E_DCB
 			i40e_dcb_sw_default_config(pf);
 #endif /* CONFIG_I40E_DCB */
@@ -5474,7 +5481,7 @@ flags_complete:
 	 * initialization or (b) while holding the RTNL lock, we don't need
 	 * anything fancy here.
 	 */
-	pf->flags = new_flags;
+	bitmap_copy(pf->flags, new_flags, I40E_PF_FLAGS_NBITS);
 
 	/* Issue reset to cause things to take effect, as additional bits
 	 * are added we will need to create a mask of bits requiring reset

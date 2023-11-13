@@ -464,7 +464,7 @@ static int i40e_add_del_fdir_tcp(struct i40e_vsi *vsi,
 			       &pf->fd_tcp6_filter_cnt);
 
 	if (add) {
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		if (test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
@@ -734,7 +734,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 		 * FD ATR/SB and then re-enable it when there is room.
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
-			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+			if (test_bit(I40E_FLAG_FD_SB_ENA, pf->flags) &&
 			    !test_and_set_bit(__I40E_FD_SB_AUTO_DISABLED,
 					      pf->state))
 				if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -1071,7 +1071,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 	if (q_vector->arm_wb_state)
 		return;
 
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK |
 		      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
@@ -1095,7 +1095,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
  **/
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
 			  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
 			  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
@@ -2699,7 +2699,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	u32 intval;
 
 	/* If we don't have MSIX, then we only need to re-enable icr0 */
-	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
+	if (!test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
@@ -2888,7 +2888,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u16 i;
 
 	/* make sure ATR is enabled */
-	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+	if (!test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags))
 		return;
 
 	if (test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
@@ -2933,7 +2933,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* Due to lack of space, no more new filters can be programmed */
 	if (th->syn && test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		return;
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) {
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags)) {
 		/* HW ATR eviction will take care of removing filters on FIN
 		 * and RST packets.
 		 */
@@ -2995,7 +2995,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
 			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
 
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED)
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -3053,7 +3053,7 @@ static inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_SW_VLAN;
 	}
 
-	if (!(tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED))
+	if (!test_bit(I40E_FLAG_DCB_ENA, tx_ring->vsi->back->flags))
 		goto out;
 
 	/* Insert 802.1p priority into VLAN header */
@@ -3229,7 +3229,7 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * we are not already transmitting a packet to be timestamped
 	 */
 	pf = i40e_netdev_to_pf(tx_ring->netdev);
-	if (!(pf->flags & I40E_FLAG_PTP))
+	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return 0;
 
 	if (pf->ptp_tx &&

@@ -820,8 +820,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		/* By default we are in VEPA mode, if this is the first VF/VMDq
 		 * VSI to be added switch to VEB mode.
 		 */
-		if (!(pf->flags & I40E_FLAG_VEB_MODE_ENABLED)) {
-			pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+		if (!test_bit(I40E_FLAG_VEB_MODE_ENA, pf->flags)) {
+			set_bit(I40E_FLAG_VEB_MODE_ENA, pf->flags);
 			i40e_do_reset_safe(pf, I40E_PF_RESET_FLAG);
 		}
 
