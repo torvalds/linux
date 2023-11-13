@@ -1797,23 +1797,15 @@ err:
 
 inline bool bch2_btree_iter_advance(struct btree_iter *iter)
 {
-	if (likely(!(iter->flags & BTREE_ITER_ALL_LEVELS))) {
-		struct bpos pos = iter->k.p;
-		bool ret = !(iter->flags & BTREE_ITER_ALL_SNAPSHOTS
-			     ? bpos_eq(pos, SPOS_MAX)
-			     : bkey_eq(pos, SPOS_MAX));
+	struct bpos pos = iter->k.p;
+	bool ret = !(iter->flags & BTREE_ITER_ALL_SNAPSHOTS
+		     ? bpos_eq(pos, SPOS_MAX)
+		     : bkey_eq(pos, SPOS_MAX));
 
-		if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
-			pos = bkey_successor(iter, pos);
-		bch2_btree_iter_set_pos(iter, pos);
-		return ret;
-	} else {
-		if (!btree_path_node(iter->path, iter->path->level))
-			return true;
-
-		iter->advanced = true;
-		return false;
-	}
+	if (ret && !(iter->flags & BTREE_ITER_IS_EXTENTS))
+		pos = bkey_successor(iter, pos);
+	bch2_btree_iter_set_pos(iter, pos);
+	return ret;
 }
 
 inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
@@ -2064,7 +2056,6 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 	struct bpos iter_pos;
 	int ret;
 
-	EBUG_ON(iter->flags & BTREE_ITER_ALL_LEVELS);
 	EBUG_ON((iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) && bkey_eq(end, POS_MAX));
 
 	if (iter->update_path) {
@@ -2201,103 +2192,6 @@ end:
 	bch2_btree_iter_set_pos(iter, end);
 	k = bkey_s_c_null;
 	goto out_no_locked;
-}
-
-/**
- * bch2_btree_iter_peek_all_levels() - returns the first key greater than or
- * equal to iterator's current position, returning keys from every level of the
- * btree. For keys at different levels of the btree that compare equal, the key
- * from the lower level (leaf) is returned first.
- * @iter:	iterator to peek from
- *
- * Returns:	key if found, or an error extractable with bkey_err().
- */
-struct bkey_s_c bch2_btree_iter_peek_all_levels(struct btree_iter *iter)
-{
-	struct btree_trans *trans = iter->trans;
-	struct bkey_s_c k;
-	int ret;
-
-	EBUG_ON(iter->path->cached);
-	bch2_btree_iter_verify(iter);
-	BUG_ON(iter->path->level < iter->min_depth);
-	BUG_ON(!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS));
-	EBUG_ON(!(iter->flags & BTREE_ITER_ALL_LEVELS));
-
-	while (1) {
-		iter->path = bch2_btree_path_set_pos(trans, iter->path, iter->pos,
-					iter->flags & BTREE_ITER_INTENT,
-					btree_iter_ip_allocated(iter));
-
-		ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
-		if (unlikely(ret)) {
-			/* ensure that iter->k is consistent with iter->pos: */
-			bch2_btree_iter_set_pos(iter, iter->pos);
-			k = bkey_s_c_err(ret);
-			goto out_no_locked;
-		}
-
-		/* Already at end? */
-		if (!btree_path_node(iter->path, iter->path->level)) {
-			k = bkey_s_c_null;
-			goto out_no_locked;
-		}
-
-		k = btree_path_level_peek_all(trans->c,
-				&iter->path->l[iter->path->level], &iter->k);
-
-		/* Check if we should go up to the parent node: */
-		if (!k.k ||
-		    (iter->advanced &&
-		     bpos_eq(path_l(iter->path)->b->key.k.p, iter->pos))) {
-			iter->pos = path_l(iter->path)->b->key.k.p;
-			btree_path_set_level_up(trans, iter->path);
-			iter->advanced = false;
-			continue;
-		}
-
-		/*
-		 * Check if we should go back down to a leaf:
-		 * If we're not in a leaf node, we only return the current key
-		 * if it exactly matches iter->pos - otherwise we first have to
-		 * go back to the leaf:
-		 */
-		if (iter->path->level != iter->min_depth &&
-		    (iter->advanced ||
-		     !k.k ||
-		     !bpos_eq(iter->pos, k.k->p))) {
-			btree_path_set_level_down(trans, iter->path, iter->min_depth);
-			iter->pos = bpos_successor(iter->pos);
-			iter->advanced = false;
-			continue;
-		}
-
-		/* Check if we should go to the next key: */
-		if (iter->path->level == iter->min_depth &&
-		    iter->advanced &&
-		    k.k &&
-		    bpos_eq(iter->pos, k.k->p)) {
-			iter->pos = bpos_successor(iter->pos);
-			iter->advanced = false;
-			continue;
-		}
-
-		if (iter->advanced &&
-		    iter->path->level == iter->min_depth &&
-		    !bpos_eq(k.k->p, iter->pos))
-			iter->advanced = false;
-
-		BUG_ON(iter->advanced);
-		BUG_ON(!k.k);
-		break;
-	}
-
-	iter->pos = k.k->p;
-	btree_path_set_should_be_locked(iter->path);
-out_no_locked:
-	bch2_btree_iter_verify(iter);
-
-	return k;
 }
 
 /**
@@ -2466,7 +2360,6 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
-	EBUG_ON(iter->flags & BTREE_ITER_ALL_LEVELS);
 	EBUG_ON(iter->path->level && (iter->flags & BTREE_ITER_WITH_KEY_CACHE));
 
 	/* extents can't span inode numbers: */
