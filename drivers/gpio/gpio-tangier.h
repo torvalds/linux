@@ -112,9 +112,6 @@ struct tng_gpio {
 
 int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio);
 
-int tng_gpio_suspend(struct device *dev);
-int tng_gpio_resume(struct device *dev);
-
 extern const struct dev_pm_ops tng_gpio_pm_ops;
 
 #endif /* _GPIO_TANGIER_H_ */
