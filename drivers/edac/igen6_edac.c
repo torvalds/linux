@@ -245,6 +245,12 @@ static struct work_struct ecclog_work;
 #define DID_RPL_P_SKU4	0xa716
 #define DID_RPL_P_SKU5	0xa718
 
+/* Compute die IDs for Meteor Lake-PS with IBECC */
+#define DID_MTL_PS_SKU1	0x7d21
+#define DID_MTL_PS_SKU2	0x7d22
+#define DID_MTL_PS_SKU3	0x7d23
+#define DID_MTL_PS_SKU4	0x7d24
+
 static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 {
 	union  {
@@ -323,6 +329,29 @@ static bool tgl_ibecc_available(struct pci_dev *pdev)
 		return false;
 
 	return !(CAPID_E_IBECC & v);
+}
+
+static bool mtl_ps_ibecc_available(struct pci_dev *pdev)
+{
+#define MCHBAR_MEMSS_IBECCDIS	0x13c00
+	void __iomem *window;
+	u64 mchbar;
+	u32 val;
+
+	if (get_mchbar(pdev, &mchbar))
+		return false;
+
+	window = ioremap(mchbar, MCHBAR_SIZE * 2);
+	if (!window) {
+		igen6_printk(KERN_ERR, "Failed to ioremap 0x%llx\n", mchbar);
+		return false;
+	}
+
+	val = readl(window + MCHBAR_MEMSS_IBECCDIS);
+	iounmap(window);
+
+	/* Bit6: 1 - IBECC is disabled, 0 - IBECC isn't disabled */
+	return !GET_BITFIELD(val, 6, 6);
 }
 
 static u64 mem_addr_to_sys_addr(u64 maddr)
@@ -484,6 +513,17 @@ static struct res_config rpl_p_cfg = {
 	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
 };
 
+static struct res_config mtl_ps_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x170,
+	.ibecc_available	= mtl_ps_ibecc_available,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
 static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU5), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU6), (kernel_ulong_t)&ehl_cfg },
@@ -521,6 +561,10 @@ static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU3), (kernel_ulong_t)&rpl_p_cfg },
 	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU4), (kernel_ulong_t)&rpl_p_cfg },
 	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU5), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU1), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU2), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU3), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU4), (kernel_ulong_t)&mtl_ps_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, igen6_pci_tbl);
