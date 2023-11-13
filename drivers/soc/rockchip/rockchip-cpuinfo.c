@@ -57,12 +57,9 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	}
 
 	cell = nvmem_cell_get(dev, "id");
-	if (IS_ERR(cell)) {
-		dev_err(dev, "failed to get id cell: %ld\n", PTR_ERR(cell));
-		if (PTR_ERR(cell) == -EPROBE_DEFER)
-			return PTR_ERR(cell);
-		return PTR_ERR(cell);
-	}
+	if (IS_ERR(cell))
+		return dev_err_probe(dev, PTR_ERR(cell), "failed to get id cell\n");
+
 	efuse_buf = nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
 	if (IS_ERR(efuse_buf))
