@@ -1269,14 +1269,6 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad, u32 stream,
 	struct v4l2_subdev *sd;
 	int ret;
 
-	if (!is_media_entity_v4l2_subdev(pad->entity)) {
-		WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
-		     "Driver bug! Wrong media entity type 0x%08x, entity %s\n",
-		     pad->entity->function, pad->entity->name);
-
-		return -EINVAL;
-	}
-
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
