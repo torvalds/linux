@@ -5584,8 +5584,8 @@ static int i40e_get_module_info(struct net_device *netdev,
 		modinfo->eeprom_len = I40E_MODULE_QSFP_MAX_LEN;
 		break;
 	default:
-		netdev_err(vsi->netdev, "Module type unrecognized\n");
-		return -EINVAL;
+		netdev_dbg(vsi->netdev, "SFP module type unrecognized or no SFP connector used.\n");
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }
