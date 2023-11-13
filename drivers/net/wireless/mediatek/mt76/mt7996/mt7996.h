@@ -280,8 +280,6 @@ struct mt7996_dev {
 
 	u32 hw_pattern;
 
-	bool dbdc_support:1;
-	bool tbtc_support:1;
 	bool flash_mode:1;
 	bool has_eht:1;
 	bool has_rro:1;
@@ -393,6 +391,17 @@ mt7996_phy3(struct mt7996_dev *dev)
 	return __mt7996_phy(dev, MT_BAND2);
 }
 
+static inline bool
+mt7996_band_valid(struct mt7996_dev *dev, u8 band)
+{
+	/* tri-band support */
+	if (band <= MT_BAND2 &&
+	    mt76_get_field(dev, MT_PAD_GPIO, MT_PAD_GPIO_ADIE_COMB) <= 1)
+		return true;
+
+	return band == MT_BAND0 || band == MT_BAND2;
+}
+
 extern const struct ieee80211_ops mt7996_ops;
 extern struct pci_driver mt7996_pci_driver;
 extern struct pci_driver mt7996_hif_driver;
@@ -494,7 +503,8 @@ int mt7996_mcu_wed_rro_reset_sessions(struct mt7996_dev *dev, u16 id);
 
 static inline u8 mt7996_max_interface_num(struct mt7996_dev *dev)
 {
-	return MT7996_MAX_INTERFACES * (1 + dev->dbdc_support + dev->tbtc_support);
+	return MT7996_MAX_INTERFACES * (1 + mt7996_band_valid(dev, MT_BAND1) +
+					mt7996_band_valid(dev, MT_BAND2));
 }
 
 static inline u16 mt7996_wtbl_size(struct mt7996_dev *dev)

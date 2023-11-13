@@ -2964,9 +2964,10 @@ mt7996_mcu_init_rx_airtime(struct mt7996_dev *dev)
 {
 	struct uni_header hdr = {};
 	struct sk_buff *skb;
-	int len, num;
+	int len, num, i;
 
-	num = 2 + 2 * (dev->dbdc_support + dev->tbtc_support);
+	num = 2 + 2 * (mt7996_band_valid(dev, MT_BAND1) +
+		       mt7996_band_valid(dev, MT_BAND2));
 	len = sizeof(hdr) + num * sizeof(struct vow_rx_airtime);
 	skb = mt76_mcu_msg_alloc(&dev->mt76, NULL, len);
 	if (!skb)
@@ -2974,13 +2975,10 @@ mt7996_mcu_init_rx_airtime(struct mt7996_dev *dev)
 
 	skb_put_data(skb, &hdr, sizeof(hdr));
 
-	mt7996_add_rx_airtime_tlv(skb, dev->mt76.phy.band_idx);
-
-	if (dev->dbdc_support)
-		mt7996_add_rx_airtime_tlv(skb, MT_BAND1);
-
-	if (dev->tbtc_support)
-		mt7996_add_rx_airtime_tlv(skb, MT_BAND2);
+	for (i = 0; i < __MT_MAX_BAND; i++) {
+		if (mt7996_band_valid(dev, i))
+			mt7996_add_rx_airtime_tlv(skb, i);
+	}
 
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WM_UNI_CMD(VOW), true);

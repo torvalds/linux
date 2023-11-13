@@ -233,13 +233,13 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 	/* enable interrupts for TX/RX rings */
 	irq_mask = MT_INT_MCU_CMD | MT_INT_RX_DONE_MCU | MT_INT_TX_DONE_MCU;
 
-	if (!dev->mphy.band_idx)
+	if (mt7996_band_valid(dev, MT_BAND0))
 		irq_mask |= MT_INT_BAND0_RX_DONE;
 
-	if (dev->dbdc_support)
+	if (mt7996_band_valid(dev, MT_BAND1))
 		irq_mask |= MT_INT_BAND1_RX_DONE;
 
-	if (dev->tbtc_support)
+	if (mt7996_band_valid(dev, MT_BAND2))
 		irq_mask |= MT_INT_BAND2_RX_DONE;
 
 	if (mtk_wed_device_active(wed) && wed_reset) {
@@ -382,7 +382,7 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	if (dev->dbdc_support) {
+	if (mt7996_band_valid(dev, MT_BAND1)) {
 		/* rx msdu page queue for band1 */
 		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND1].flags =
 			MT_WED_RRO_Q_MSDU_PG(1) | MT_QFLAG_WED_RRO_EN;
@@ -396,7 +396,7 @@ int mt7996_dma_rro_init(struct mt7996_dev *dev)
 			return ret;
 	}
 
-	if (dev->tbtc_support) {
+	if (mt7996_band_valid(dev, MT_BAND2)) {
 		/* rx msdu page queue for band2 */
 		mdev->q_rx[MT_RXQ_MSDU_PAGE_BAND2].flags =
 			MT_WED_RRO_Q_MSDU_PG(2) | MT_QFLAG_WED_RRO_EN;
@@ -516,7 +516,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	if (dev->tbtc_support || dev->mphy.band_idx == MT_BAND2) {
+	if (mt7996_band_valid(dev, MT_BAND2)) {
 		/* rx data queue for band2 */
 		rx_base = MT_RXQ_RING_BASE(MT_RXQ_BAND2) + hif1_ofs;
 		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_BAND2],
@@ -570,7 +570,7 @@ int mt7996_dma_init(struct mt7996_dev *dev)
 		if (ret)
 			return ret;
 
-		if (dev->tbtc_support || dev->mphy.band_idx == MT_BAND2) {
+		if (mt7996_band_valid(dev, MT_BAND2)) {
 			/* rx rro data queue for band2 */
 			dev->mt76.q_rx[MT_RXQ_RRO_BAND2].flags =
 				MT_WED_RRO_Q_DATA(1) | MT_QFLAG_WED_RRO_EN;
