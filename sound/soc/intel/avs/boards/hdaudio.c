@@ -218,12 +218,21 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_hdaudio_driver_ids[] = {
+	{
+		.name = "avs_hdaudio",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_hdaudio_driver_ids);
+
 static struct platform_driver avs_hdaudio_driver = {
 	.probe = avs_hdaudio_probe,
 	.driver = {
 		.name = "avs_hdaudio",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_hdaudio_driver_ids,
 };
 
 module_platform_driver(avs_hdaudio_driver)
@@ -231,4 +240,3 @@ module_platform_driver(avs_hdaudio_driver)
 MODULE_DESCRIPTION("Intel HD-Audio machine driver");
 MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_hdaudio");
