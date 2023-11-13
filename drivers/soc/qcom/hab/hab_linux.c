@@ -346,7 +346,7 @@ static void reclaim_cleanup(struct work_struct *reclaim_work)
 		spin_lock_bh(&pchan->expid_lock);
 		idr_remove(&pchan->expid_idr, exp->export_id);
 		spin_unlock_bh(&pchan->expid_lock);
-		pr_info("cleanup exp id %d from %s\n", exp->export_id, exp->pchan->name);
+		pr_info("cleanup exp id %u from %s\n", exp->export_id, pchan->name);
 		habmem_export_put(exp_super);
 	}
 }
