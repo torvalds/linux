@@ -508,42 +508,35 @@ shutdown_arq_out:
  **/
 static void i40e_set_hw_caps(struct i40e_hw *hw)
 {
-	struct i40e_adminq_info *aq = &hw->aq;
-
 	bitmap_zero(hw->caps, I40E_HW_CAPS_NBITS);
 
 	switch (hw->mac.type) {
 	case I40E_MAC_XL710:
-		if (aq->api_maj_ver > 1 ||
-		    (aq->api_maj_ver == 1 &&
-		     aq->api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_XL710)) {
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_GET_LINK_INFO_XL710)) {
 			set_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps);
 			set_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps);
 			/* The ability to RX (not drop) 802.1ad frames */
 			set_bit(I40E_HW_CAP_802_1AD, hw->caps);
 		}
-		if ((aq->api_maj_ver == 1 && aq->api_min_ver > 4) ||
-		    aq->api_maj_ver > 1) {
+		if (i40e_is_aq_api_ver_ge(hw, 1, 5)) {
 			/* Supported in FW API version higher than 1.4 */
 			set_bit(I40E_HW_CAP_GENEVE_OFFLOAD, hw->caps);
 		}
-		if ((aq->fw_maj_ver == 4 && aq->fw_min_ver < 33) ||
-		    aq->fw_maj_ver < 4) {
+		if (i40e_is_fw_ver_lt(hw, 4, 33)) {
 			set_bit(I40E_HW_CAP_RESTART_AUTONEG, hw->caps);
 			/* No DCB support  for FW < v4.33 */
 			set_bit(I40E_HW_CAP_NO_DCB_SUPPORT, hw->caps);
 		}
-		if ((aq->fw_maj_ver == 4 && aq->fw_min_ver < 3) ||
-		    aq->fw_maj_ver < 4) {
+		if (i40e_is_fw_ver_lt(hw, 4, 3)) {
 			/* Disable FW LLDP if FW < v4.3 */
 			set_bit(I40E_HW_CAP_STOP_FW_LLDP, hw->caps);
 		}
-		if ((aq->fw_maj_ver == 4 && aq->fw_min_ver >= 40) ||
-		    aq->fw_maj_ver >= 5) {
-			/* Use the FW Set LLDP MIB API if FW > v4.40 */
+		if (i40e_is_fw_ver_ge(hw, 4, 40)) {
+			/* Use the FW Set LLDP MIB API if FW >= v4.40 */
 			set_bit(I40E_HW_CAP_USE_SET_LLDP_MIB, hw->caps);
 		}
-		if (aq->fw_maj_ver >= 6) {
+		if (i40e_is_fw_ver_ge(hw, 6, 0)) {
 			/* Enable PTP L4 if FW > v6.0 */
 			set_bit(I40E_HW_CAP_PTP_L4, hw->caps);
 		}
@@ -569,19 +562,16 @@ static void i40e_set_hw_caps(struct i40e_hw *hw)
 			clear_bit(I40E_HW_CAP_ATR_EVICT, hw->caps);
 		}
 
-		if (aq->api_maj_ver > 1 ||
-		    (aq->api_maj_ver == 1 &&
-		     aq->api_min_ver >= I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722))
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722))
 			set_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps);
 
-		if (aq->api_maj_ver > 1 ||
-		    (aq->api_maj_ver == 1 &&
-		     aq->api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_X722))
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_GET_LINK_INFO_X722))
 			set_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps);
 
-		if (aq->api_maj_ver > 1 ||
-		    (aq->api_maj_ver == 1 &&
-		     aq->api_min_ver >= I40E_MINOR_VER_FW_REQUEST_FEC_X722))
+		if (i40e_is_aq_api_ver_ge(hw, 1,
+					  I40E_MINOR_VER_FW_REQUEST_FEC_X722))
 			set_bit(I40E_HW_CAP_X722_FEC_REQUEST, hw->caps);
 
 		fallthrough;
@@ -590,25 +580,17 @@ static void i40e_set_hw_caps(struct i40e_hw *hw)
 	}
 
 	/* Newer versions of firmware require lock when reading the NVM */
-	if (aq->api_maj_ver > 1 ||
-	    (aq->api_maj_ver == 1 &&
-	     aq->api_min_ver >= 5))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 5))
 		set_bit(I40E_HW_CAP_NVM_READ_REQUIRES_LOCK, hw->caps);
 
 	/* The ability to RX (not drop) 802.1ad frames was added in API 1.7 */
-	if (aq->api_maj_ver > 1 ||
-	    (aq->api_maj_ver == 1 &&
-	     aq->api_min_ver >= 7))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 7))
 		set_bit(I40E_HW_CAP_802_1AD, hw->caps);
 
-	if (aq->api_maj_ver > 1 ||
-	    (aq->api_maj_ver == 1 &&
-	     aq->api_min_ver >= 8))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 8))
 		set_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps);
 
-	if (aq->api_maj_ver > 1 ||
-	    (aq->api_maj_ver == 1 &&
-	     aq->api_min_ver >= 9))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 9))
 		set_bit(I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED, hw->caps);
 }
 
@@ -694,7 +676,7 @@ int i40e_init_adminq(struct i40e_hw *hw)
 			   &oem_lo);
 	hw->nvm.oem_ver = ((u32)oem_hi << 16) | oem_lo;
 
-	if (hw->aq.api_maj_ver > I40E_FW_API_VERSION_MAJOR) {
+	if (i40e_is_aq_api_ver_ge(hw, I40E_FW_API_VERSION_MAJOR + 1, 0)) {
 		ret_code = -EIO;
 		goto init_adminq_free_arq;
 	}
