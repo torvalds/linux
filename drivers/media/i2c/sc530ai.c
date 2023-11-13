@@ -43,6 +43,7 @@
 #include <linux/printk.h>
 
 #include <linux/rk-camera-module.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
@@ -195,6 +196,8 @@ struct sc530ai {
 	const char		*module_name;
 	const char		*len_name;
 	bool			has_init_exp;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
@@ -1351,21 +1354,23 @@ static int __sc530ai_start_stream(struct sc530ai *sc530ai)
 {
 	int ret;
 
-	ret = sc530ai_write_array(sc530ai->client, sc530ai->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&sc530ai->ctrl_handler);
-	if (ret)
-		return ret;
-	if (sc530ai->has_init_exp && sc530ai->cur_mode->hdr_mode != NO_HDR) {
-		ret = sc530ai_ioctl(&sc530ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
-				    &sc530ai->init_hdrae_exp);
-		if (ret) {
-			dev_err(&sc530ai->client->dev,
-				"init exp fail in hdr mode\n");
+	if (!sc530ai->is_thunderboot) {
+		ret = sc530ai_write_array(sc530ai->client, sc530ai->cur_mode->reg_list);
+		if (ret)
 			return ret;
+
+		/* In case these controls are set before streaming */
+		ret = __v4l2_ctrl_handler_setup(&sc530ai->ctrl_handler);
+		if (ret)
+			return ret;
+		if (sc530ai->has_init_exp && sc530ai->cur_mode->hdr_mode != NO_HDR) {
+			ret = sc530ai_ioctl(&sc530ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
+						&sc530ai->init_hdrae_exp);
+			if (ret) {
+				dev_err(&sc530ai->client->dev,
+					"init exp fail in hdr mode\n");
+				return ret;
+			}
 		}
 	}
 	return sc530ai_write_reg(sc530ai->client, SC530AI_REG_CTRL_MODE,
@@ -1376,11 +1381,16 @@ static int __sc530ai_start_stream(struct sc530ai *sc530ai)
 static int __sc530ai_stop_stream(struct sc530ai *sc530ai)
 {
 	sc530ai->has_init_exp = false;
+	if (sc530ai->is_thunderboot) {
+		sc530ai->is_first_streamoff = true;
+		pm_runtime_put(&sc530ai->client->dev);
+	}
 	return sc530ai_write_reg(sc530ai->client, SC530AI_REG_CTRL_MODE,
 				 SC530AI_REG_VALUE_08BIT,
 				 SC530AI_MODE_SW_STANDBY);
 }
 
+static int __sc530ai_power_on(struct sc530ai *sc530ai);
 static int sc530ai_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct sc530ai *sc530ai = to_sc530ai(sd);
@@ -1392,6 +1402,10 @@ static int sc530ai_s_stream(struct v4l2_subdev *sd, int on)
 	if (on == sc530ai->streaming)
 		goto unlock_and_return;
 	if (on) {
+		if (sc530ai->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			sc530ai->is_thunderboot = false;
+			__sc530ai_power_on(sc530ai);
+		}
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -1434,13 +1448,18 @@ static int sc530ai_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-
-		ret |= sc530ai_write_reg(sc530ai->client,
-					 SC530AI_SOFTWARE_RESET_REG,
-					 SC530AI_REG_VALUE_08BIT,
-					 0x01);
-		usleep_range(100, 200);
-
+		if (!sc530ai->is_thunderboot) {
+			ret |= sc530ai_write_reg(sc530ai->client,
+						SC530AI_SOFTWARE_RESET_REG,
+						SC530AI_REG_VALUE_08BIT,
+						0x01);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
+			usleep_range(100, 200);
+		}
 		sc530ai->power_on = true;
 	} else {
 		pm_runtime_put(&client->dev);
@@ -1474,6 +1493,10 @@ static int __sc530ai_power_on(struct sc530ai *sc530ai)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+
+	if (sc530ai->is_thunderboot)
+		return 0;
+
 	if (!IS_ERR(sc530ai->reset_gpio))
 		gpiod_set_value_cansleep(sc530ai->reset_gpio, 0);
 
@@ -1503,6 +1526,15 @@ static void __sc530ai_power_off(struct sc530ai *sc530ai)
 {
 	int ret;
 	struct device *dev = &sc530ai->client->dev;
+
+	if (sc530ai->is_thunderboot) {
+		if (sc530ai->is_first_streamoff) {
+			sc530ai->is_thunderboot = false;
+			sc530ai->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
 
 	if (!IS_ERR(sc530ai->pwdn_gpio))
 		gpiod_set_value_cansleep(sc530ai->pwdn_gpio, 0);
@@ -1903,6 +1935,10 @@ static int sc530ai_check_sensor_id(struct sc530ai *sc530ai,
 	u32 id = 0;
 	int ret;
 
+	if (sc530ai->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
 	ret = sc530ai_read_reg(client, SC530AI_REG_CHIP_ID,
 			       SC530AI_REG_VALUE_16BIT, &id);
 	if (id != SC530AI_CHIP_ID) {
@@ -1961,6 +1997,7 @@ static int sc530ai_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	sc530ai->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	sc530ai->client = client;
 
 	ret = sc530ai_parse_of(sc530ai);
@@ -1973,11 +2010,13 @@ static int sc530ai_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc530ai->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	sc530ai->reset_gpio = devm_gpiod_get(dev, "reset",
+		sc530ai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc530ai->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc530ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	sc530ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn",
+		sc530ai->is_thunderboot ? GPIOD_ASIS : GPIOD_OUT_LOW);
 	if (IS_ERR(sc530ai->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
@@ -2051,7 +2090,10 @@ static int sc530ai_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (sc530ai->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
