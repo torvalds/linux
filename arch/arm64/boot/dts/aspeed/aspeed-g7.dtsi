@@ -966,6 +966,28 @@
 			};
 		};
 
+		adc0: adc@14c00000 {
+			compatible = "aspeed,ast2700-adc0";
+			reg = <0x0 0x14c00000 0 0x100>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&soc1_rst ASPEED_RESET_ADC>;
+			interrupts-extended = <&intc2 16>;
+			#io-channel-cells = <1>;
+			aspeed,scu = <&syscon1>;
+			status = "disabled";
+		};
+
+		adc1: adc@14c00100 {
+			compatible = "aspeed,ast2700-adc1";
+			reg = <0x0 0x14c00100 0x0 0x100>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&soc1_rst ASPEED_RESET_ADC>;
+			interrupts-extended = <&intc2 16>;
+			#io-channel-cells = <1>;
+			aspeed,scu = <&syscon1>;
+			status = "disabled";
+		};
+
 		syscon1: syscon@14c02000 {
 			compatible = "syscon", "simple-mfd";
 			reg = <0x0 0x14c02000 0x0 0x1000>;
