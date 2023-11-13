@@ -64,9 +64,7 @@ typedef void (*I40E_ADMINQ_CALLBACK)(struct i40e_hw *, struct i40e_aq_desc *);
 enum i40e_mac_type {
 	I40E_MAC_UNKNOWN = 0,
 	I40E_MAC_XL710,
-	I40E_MAC_VF,
 	I40E_MAC_X722,
-	I40E_MAC_X722_VF,
 	I40E_MAC_GENERIC,
 };
 
@@ -587,12 +585,6 @@ struct i40e_hw {
 	u32 debug_mask;
 	char err_str[16];
 };
-
-static inline bool i40e_is_vf(struct i40e_hw *hw)
-{
-	return (hw->mac.type == I40E_MAC_VF ||
-		hw->mac.type == I40E_MAC_X722_VF);
-}
 
 /**
  * i40e_is_aq_api_ver_ge

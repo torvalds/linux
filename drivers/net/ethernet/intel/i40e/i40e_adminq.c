@@ -17,29 +17,16 @@ static void i40e_resume_aq(struct i40e_hw *hw);
 static void i40e_adminq_init_regs(struct i40e_hw *hw)
 {
 	/* set head and tail registers in our local struct */
-	if (i40e_is_vf(hw)) {
-		hw->aq.asq.tail = I40E_VF_ATQT1;
-		hw->aq.asq.head = I40E_VF_ATQH1;
-		hw->aq.asq.len  = I40E_VF_ATQLEN1;
-		hw->aq.asq.bal  = I40E_VF_ATQBAL1;
-		hw->aq.asq.bah  = I40E_VF_ATQBAH1;
-		hw->aq.arq.tail = I40E_VF_ARQT1;
-		hw->aq.arq.head = I40E_VF_ARQH1;
-		hw->aq.arq.len  = I40E_VF_ARQLEN1;
-		hw->aq.arq.bal  = I40E_VF_ARQBAL1;
-		hw->aq.arq.bah  = I40E_VF_ARQBAH1;
-	} else {
-		hw->aq.asq.tail = I40E_PF_ATQT;
-		hw->aq.asq.head = I40E_PF_ATQH;
-		hw->aq.asq.len  = I40E_PF_ATQLEN;
-		hw->aq.asq.bal  = I40E_PF_ATQBAL;
-		hw->aq.asq.bah  = I40E_PF_ATQBAH;
-		hw->aq.arq.tail = I40E_PF_ARQT;
-		hw->aq.arq.head = I40E_PF_ARQH;
-		hw->aq.arq.len  = I40E_PF_ARQLEN;
-		hw->aq.arq.bal  = I40E_PF_ARQBAL;
-		hw->aq.arq.bah  = I40E_PF_ARQBAH;
-	}
+	hw->aq.asq.tail = I40E_PF_ATQT;
+	hw->aq.asq.head = I40E_PF_ATQH;
+	hw->aq.asq.len  = I40E_PF_ATQLEN;
+	hw->aq.asq.bal  = I40E_PF_ATQBAL;
+	hw->aq.asq.bah  = I40E_PF_ATQBAH;
+	hw->aq.arq.tail = I40E_PF_ARQT;
+	hw->aq.arq.head = I40E_PF_ARQH;
+	hw->aq.arq.len  = I40E_PF_ARQLEN;
+	hw->aq.arq.bal  = I40E_PF_ARQBAL;
+	hw->aq.arq.bah  = I40E_PF_ARQBAH;
 }
 
 /**
