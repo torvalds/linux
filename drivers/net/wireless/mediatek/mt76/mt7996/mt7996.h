@@ -104,10 +104,10 @@ enum mt7996_rxq_id {
 	MT7996_RXQ_MCU_WM = 0,
 	MT7996_RXQ_MCU_WA,
 	MT7996_RXQ_MCU_WA_MAIN = 2,
-	MT7996_RXQ_MCU_WA_EXT = 2,/* unused */
+	MT7996_RXQ_MCU_WA_EXT = 3, /* for mt7992 */
 	MT7996_RXQ_MCU_WA_TRI = 3,
 	MT7996_RXQ_BAND0 = 4,
-	MT7996_RXQ_BAND1 = 4,/* unused */
+	MT7996_RXQ_BAND1 = 5, /* for mt7992 */
 	MT7996_RXQ_BAND2 = 5,
 	MT7996_RXQ_RRO_BAND0 = 8,
 	MT7996_RXQ_RRO_BAND1 = 8,/* unused */
@@ -399,6 +399,9 @@ mt7996_phy3(struct mt7996_dev *dev)
 static inline bool
 mt7996_band_valid(struct mt7996_dev *dev, u8 band)
 {
+	if (is_mt7992(&dev->mt76))
+		return band <= MT_BAND1;
+
 	/* tri-band support */
 	if (band <= MT_BAND2 &&
 	    mt76_get_field(dev, MT_PAD_GPIO, MT_PAD_GPIO_ADIE_COMB) <= 1)

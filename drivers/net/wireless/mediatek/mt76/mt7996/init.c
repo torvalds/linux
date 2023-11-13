@@ -513,7 +513,12 @@ void mt7996_mac_init(struct mt7996_dev *dev)
 	mt76_rmw_field(dev, MT_DMA_TCRF1(2), MT_DMA_TCRF1_QIDX, 0);
 
 	/* rro module init */
-	mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, 2);
+	if (is_mt7996(&dev->mt76))
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, 2);
+	else
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE,
+				   dev->hif2 ? 7 : 0);
+
 	if (dev->has_rro) {
 		u16 timeout;
 
@@ -570,7 +575,7 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	if (phy)
 		return 0;
 
-	if (band == MT_BAND2 && dev->hif2) {
+	if (is_mt7996(&dev->mt76) && band == MT_BAND2 && dev->hif2) {
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
 		wed = &dev->mt76.mmio.wed_hif2;
 	}

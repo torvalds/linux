@@ -461,12 +461,12 @@ enum base_rev {
 #define MT_INT1_MASK_CSR			MT_WFDMA0_PCIE1(0x204)
 
 #define MT_INT_RX_DONE_BAND0			BIT(12)
-#define MT_INT_RX_DONE_BAND1			BIT(12)
+#define MT_INT_RX_DONE_BAND1			BIT(13) /* for mt7992 */
 #define MT_INT_RX_DONE_BAND2			BIT(13)
 #define MT_INT_RX_DONE_WM			BIT(0)
 #define MT_INT_RX_DONE_WA			BIT(1)
 #define MT_INT_RX_DONE_WA_MAIN			BIT(2)
-#define MT_INT_RX_DONE_WA_EXT			BIT(2)
+#define MT_INT_RX_DONE_WA_EXT			BIT(3) /* for mt7992 */
 #define MT_INT_RX_DONE_WA_TRI			BIT(3)
 #define MT_INT_RX_TXFREE_MAIN			BIT(17)
 #define MT_INT_RX_TXFREE_TRI			BIT(15)
