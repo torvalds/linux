@@ -873,8 +873,11 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		val |= MT_TXD5_TX_STATUS_HOST;
 	txwi[5] = cpu_to_le32(val);
 
-	val = MT_TXD6_DIS_MAT | MT_TXD6_DAS |
-	      FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
+	val = MT_TXD6_DIS_MAT | MT_TXD6_DAS;
+	if (is_mt7996(&dev->mt76))
+		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
+	else
+		val |= FIELD_PREP(MT_TXD6_MSDU_CNT_V2, 1);
 	txwi[6] = cpu_to_le32(val);
 	txwi[7] = 0;
 
