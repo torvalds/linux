@@ -274,6 +274,7 @@ static const struct serdev_controller_ops ctrl_ops = {
 };
 
 struct device *serdev_tty_port_register(struct tty_port *port,
+					struct device *host,
 					struct device *parent,
 					struct tty_driver *drv, int idx)
 {
@@ -284,7 +285,7 @@ struct device *serdev_tty_port_register(struct tty_port *port,
 	if (!port || !drv || !parent)
 		return ERR_PTR(-ENODEV);
 
-	ctrl = serdev_controller_alloc(parent, sizeof(struct serport));
+	ctrl = serdev_controller_alloc(host, parent, sizeof(struct serport));
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 	serport = serdev_controller_get_drvdata(ctrl);

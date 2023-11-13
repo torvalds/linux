@@ -468,6 +468,7 @@ EXPORT_SYMBOL_GPL(serdev_device_alloc);
 
 /**
  * serdev_controller_alloc() - Allocate a new serdev controller
+ * @host:	serial port hardware controller device
  * @parent:	parent device
  * @size:	size of private data
  *
@@ -476,8 +477,9 @@ EXPORT_SYMBOL_GPL(serdev_device_alloc);
  * The allocated private data region may be accessed via
  * serdev_controller_get_drvdata()
  */
-struct serdev_controller *serdev_controller_alloc(struct device *parent,
-					      size_t size)
+struct serdev_controller *serdev_controller_alloc(struct device *host,
+						  struct device *parent,
+						  size_t size)
 {
 	struct serdev_controller *ctrl;
 	int id;
@@ -502,7 +504,8 @@ struct serdev_controller *serdev_controller_alloc(struct device *parent,
 	ctrl->dev.type = &serdev_ctrl_type;
 	ctrl->dev.bus = &serdev_bus_type;
 	ctrl->dev.parent = parent;
-	device_set_node(&ctrl->dev, dev_fwnode(parent));
+	ctrl->host = host;
+	device_set_node(&ctrl->dev, dev_fwnode(host));
 	serdev_controller_set_drvdata(ctrl, &ctrl[1]);
 
 	dev_set_name(&ctrl->dev, "serial%d", id);
@@ -665,7 +668,7 @@ static int acpi_serdev_check_resources(struct serdev_controller *ctrl,
 		acpi_get_parent(adev->handle, &lookup.controller_handle);
 
 	/* Make sure controller and ResourceSource handle match */
-	if (!device_match_acpi_handle(ctrl->dev.parent, lookup.controller_handle))
+	if (!device_match_acpi_handle(ctrl->host, lookup.controller_handle))
 		return -ENODEV;
 
 	return 0;
@@ -730,7 +733,7 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 	bool skip;
 	int ret;
 
-	if (!has_acpi_companion(ctrl->dev.parent))
+	if (!has_acpi_companion(ctrl->host))
 		return -ENODEV;
 
 	/*
@@ -739,7 +742,7 @@ static int acpi_serdev_register_devices(struct serdev_controller *ctrl)
 	 * succeed in this case, so that the proper serdev devices can be
 	 * added "manually" later.
 	 */
-	ret = acpi_quirk_skip_serdev_enumeration(ctrl->dev.parent, &skip);
+	ret = acpi_quirk_skip_serdev_enumeration(ctrl->host, &skip);
 	if (ret)
 		return ret;
 	if (skip)

@@ -99,12 +99,14 @@ struct serdev_controller_ops {
 /**
  * struct serdev_controller - interface to the serdev controller
  * @dev:	Driver model representation of the device.
+ * @host:	Serial port hardware controller device
  * @nr:		number identifier for this controller/bus.
  * @serdev:	Pointer to slave device for this controller.
  * @ops:	Controller operations.
  */
 struct serdev_controller {
 	struct device		dev;
+	struct device		*host;
 	unsigned int		nr;
 	struct serdev_device	*serdev;
 	const struct serdev_controller_ops *ops;
@@ -167,7 +169,9 @@ struct serdev_device *serdev_device_alloc(struct serdev_controller *);
 int serdev_device_add(struct serdev_device *);
 void serdev_device_remove(struct serdev_device *);
 
-struct serdev_controller *serdev_controller_alloc(struct device *, size_t);
+struct serdev_controller *serdev_controller_alloc(struct device *host,
+						  struct device *parent,
+						  size_t size);
 int serdev_controller_add(struct serdev_controller *);
 void serdev_controller_remove(struct serdev_controller *);
 
@@ -311,11 +315,13 @@ struct tty_driver;
 
 #ifdef CONFIG_SERIAL_DEV_CTRL_TTYPORT
 struct device *serdev_tty_port_register(struct tty_port *port,
+					struct device *host,
 					struct device *parent,
 					struct tty_driver *drv, int idx);
 int serdev_tty_port_unregister(struct tty_port *port);
 #else
 static inline struct device *serdev_tty_port_register(struct tty_port *port,
+					   struct device *host,
 					   struct device *parent,
 					   struct tty_driver *drv, int idx)
 {
