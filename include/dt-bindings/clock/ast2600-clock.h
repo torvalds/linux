@@ -72,7 +72,7 @@
 #define ASPEED_CLK_D1CLK		55
 #define ASPEED_CLK_VCLK			56
 #define ASPEED_CLK_LHCLK		57
-#define ASPEED_CLK_UART			58
+#define ASPEED_CLK_UART5		58
 #define ASPEED_CLK_UARTX		59
 #define ASPEED_CLK_SDIO			60
 #define ASPEED_CLK_EMMC			61
@@ -86,6 +86,9 @@
 #define ASPEED_CLK_MAC3RCLK		69
 #define ASPEED_CLK_MAC4RCLK		70
 #define ASPEED_CLK_I3C			71
+#define ASPEED_CLK_HUARTX		72
+#define ASPEED_CLK_UXCLK		73
+#define ASPEED_CLK_HUXCLK		74
 
 /* Only list resets here that are not part of a clock gate + reset pair */
 #define ASPEED_RESET_ESPI		57

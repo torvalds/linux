@@ -19,7 +19,7 @@
  * This includes the gates (configured from aspeed_g6_gates), plus the
  * explicitly-configured clocks (ASPEED_CLK_HPLL and up).
  */
-#define ASPEED_G6_NUM_CLKS		72
+#define ASPEED_G6_NUM_CLKS		75
 
 #define ASPEED_G6_SILICON_REV		0x014
 #define CHIP_REVISION_ID			GENMASK(23, 16)
@@ -58,6 +58,8 @@
 #define ASPEED_DPLL_PARAM		0x260
 
 #define ASPEED_G6_STRAP1		0x500
+
+#define ASPEED_UARTCLK_FROM_UXCLK	0x338
 
 #define ASPEED_MAC12_CLK_DLY		0x340
 #define ASPEED_MAC34_CLK_DLY		0x350
@@ -99,7 +101,7 @@ static u8 soc_rev;
  *  ref0 and ref1 are essential for the SoC to operate
  *  mpll is required if SDRAM is used
  */
-static const struct aspeed_gate_data aspeed_g6_gates[] = {
+static struct aspeed_gate_data aspeed_g6_gates[] = {
 	/*				    clk rst  name		parent	 flags */
 	[ASPEED_CLK_GATE_MCLK]		= {  0, -1, "mclk-gate",	"mpll",	 CLK_IS_CRITICAL }, /* SDRAM */
 	[ASPEED_CLK_GATE_ECLK]		= {  1,  6, "eclk-gate",	"eclk",	 0 },	/* Video Engine */
@@ -144,20 +146,20 @@ static const struct aspeed_gate_data aspeed_g6_gates[] = {
 	[ASPEED_CLK_GATE_I3C4CLK]	= { 44,  44, "i3c4clk-gate",	"i3cclk", 0 }, /* I3C4 */
 	[ASPEED_CLK_GATE_I3C5CLK]	= { 45,  45, "i3c5clk-gate",	"i3cclk", 0 }, /* I3C5 */
 	/* Reserved: 46 & 47 */
-	[ASPEED_CLK_GATE_UART1CLK]	= { 48,  -1, "uart1clk-gate",	"uart",	 CLK_IS_CRITICAL },	/* UART1 */
-	[ASPEED_CLK_GATE_UART2CLK]	= { 49,  -1, "uart2clk-gate",	"uart",	 CLK_IS_CRITICAL },	/* UART2 */
-	[ASPEED_CLK_GATE_UART3CLK]	= { 50,  -1, "uart3clk-gate",	"uart",  0 },	/* UART3 */
-	[ASPEED_CLK_GATE_UART4CLK]	= { 51,  -1, "uart4clk-gate",	"uart",	 0 },	/* UART4 */
+	[ASPEED_CLK_GATE_UART1CLK]	= { 48,  -1, "uart1clk-gate",	"uxclk",	 CLK_IS_CRITICAL },	/* UART1 */
+	[ASPEED_CLK_GATE_UART2CLK]	= { 49,  -1, "uart2clk-gate",	"uxclk",	 CLK_IS_CRITICAL },	/* UART2 */
+	[ASPEED_CLK_GATE_UART3CLK]	= { 50,  -1, "uart3clk-gate",	"uxclk",  0 },	/* UART3 */
+	[ASPEED_CLK_GATE_UART4CLK]	= { 51,  -1, "uart4clk-gate",	"uxclk",	 0 },	/* UART4 */
 	[ASPEED_CLK_GATE_MAC3CLK]	= { 52,  52, "mac3clk-gate",	"mac34", 0 },	/* MAC3 */
 	[ASPEED_CLK_GATE_MAC4CLK]	= { 53,  53, "mac4clk-gate",	"mac34", 0 },	/* MAC4 */
-	[ASPEED_CLK_GATE_UART6CLK]	= { 54,  -1, "uart6clk-gate",	"uartx", 0 },	/* UART6 */
-	[ASPEED_CLK_GATE_UART7CLK]	= { 55,  -1, "uart7clk-gate",	"uartx", 0 },	/* UART7 */
-	[ASPEED_CLK_GATE_UART8CLK]	= { 56,  -1, "uart8clk-gate",	"uartx", 0 },	/* UART8 */
-	[ASPEED_CLK_GATE_UART9CLK]	= { 57,  -1, "uart9clk-gate",	"uartx", 0 },	/* UART9 */
-	[ASPEED_CLK_GATE_UART10CLK]	= { 58,  -1, "uart10clk-gate",	"uartx", 0 },	/* UART10 */
-	[ASPEED_CLK_GATE_UART11CLK]	= { 59,  -1, "uart11clk-gate",	"uartx", 0 },	/* UART11 */
-	[ASPEED_CLK_GATE_UART12CLK]	= { 60,  -1, "uart12clk-gate",	"uartx", 0 },	/* UART12 */
-	[ASPEED_CLK_GATE_UART13CLK]	= { 61,  -1, "uart13clk-gate",	"uartx", 0 },	/* UART13 */
+	[ASPEED_CLK_GATE_UART6CLK]	= { 54,  -1, "uart6clk-gate",	"uxclk", 0 },	/* UART6 */
+	[ASPEED_CLK_GATE_UART7CLK]	= { 55,  -1, "uart7clk-gate",	"uxclk", 0 },	/* UART7 */
+	[ASPEED_CLK_GATE_UART8CLK]	= { 56,  -1, "uart8clk-gate",	"uxclk", 0 },	/* UART8 */
+	[ASPEED_CLK_GATE_UART9CLK]	= { 57,  -1, "uart9clk-gate",	"uxclk", 0 },	/* UART9 */
+	[ASPEED_CLK_GATE_UART10CLK]	= { 58,  -1, "uart10clk-gate",	"uxclk", 0 },	/* UART10 */
+	[ASPEED_CLK_GATE_UART11CLK]	= { 59,  -1, "uart11clk-gate",	"uxclk", CLK_IS_CRITICAL },	/* UART11 */
+	[ASPEED_CLK_GATE_UART12CLK]	= { 60,  -1, "uart12clk-gate",	"uxclk", 0 },	/* UART12 */
+	[ASPEED_CLK_GATE_UART13CLK]	= { 61,  -1, "uart13clk-gate",	"uxclk", 0 },	/* UART13 */
 	[ASPEED_CLK_GATE_FSICLK]	= { 62,  59, "fsiclk-gate",	NULL,	 0 },	/* FSI */
 };
 
@@ -502,7 +504,7 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 	struct aspeed_reset *ar;
 	struct regmap *map;
 	struct clk_hw *hw;
-	u32 val, rate;
+	u32 val;
 	int i, ret;
 
 	map = syscon_node_to_regmap(dev->of_node);
@@ -528,27 +530,6 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* UART clock div13 setting */
-	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
-	if (val & UART_DIV13_EN)
-		rate = 24000000 / 13;
-	else
-		rate = 24000000;
-	hw = clk_hw_register_fixed_rate(dev, "uart", NULL, 0, rate);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_UART] = hw;
-
-	/* UART6~13 clock div13 setting */
-	regmap_read(map, 0x80, &val);
-	if (val & BIT(31))
-		rate = 24000000 / 13;
-	else
-		rate = 24000000;
-	hw = clk_hw_register_fixed_rate(dev, "uartx", NULL, 0, rate);
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-	aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = hw;
 
 	/* EMMC ext clock */
 	hw = clk_hw_register_fixed_factor(dev, "emmc_extclk_hpll_in", "hpll",
@@ -714,6 +695,26 @@ static int aspeed_g6_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_ECLK] = hw;
 
+	/* uartx parent assign*/
+	for (i = 0; i < 13; i++) {
+		if (i < 6 && i != 4) {
+			regmap_read(map, 0x310, &val);
+			if (val & BIT(i))
+				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "huxclk";
+			else
+				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uxclk";
+		}
+		if (i == 4)
+			aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uart5";
+		if (i > 5 && i != 4) {
+			regmap_read(map, 0x314, &val);
+			if (val & BIT(i))
+				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "huxclk";
+			else
+				aspeed_g6_gates[ASPEED_CLK_GATE_UART1CLK + i].parent_name = "uxclk";
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(aspeed_g6_gates); i++) {
 		const struct aspeed_gate_data *gd = &aspeed_g6_gates[i];
 		u32 gate_flags;
@@ -777,7 +778,8 @@ static const u32 ast2600_a1_axi_ahb200_tbl[] = {
 static void __init aspeed_g6_cc(struct regmap *map)
 {
 	struct clk_hw *hw;
-	u32 val, div, divbits, axi_div, ahb_div;
+	u32 val, freq, div, divbits, axi_div, ahb_div;
+	u32 mult;
 
 	clk_hw_register_fixed_rate(NULL, "clkin", NULL, 0, 25000000);
 
@@ -842,6 +844,55 @@ static void __init aspeed_g6_cc(struct regmap *map)
 	hw = clk_hw_register_fixed_rate(NULL, "usb-phy-40m", NULL, 0, 40000000);
 	aspeed_g6_clk_data->hws[ASPEED_CLK_USBPHY_40M] = hw;
 
+	/* uart5 clock selection */
+	regmap_read(map, ASPEED_G6_MISC_CTRL, &val);
+	if (val & UART_DIV13_EN)
+		div = 13;
+	else
+		div = 1;
+	regmap_read(map, ASPEED_G6_CLK_SELECTION2, &val);
+	if (val & BIT(14))
+		freq = 192000000;
+	else
+		freq = 24000000;
+	freq = freq / div;
+
+	aspeed_g6_clk_data->hws[ASPEED_CLK_UART5] = clk_hw_register_fixed_rate(NULL, "uart5", NULL, 0, freq);
+
+	/* UART1~13 clock div13 setting except uart5 */
+	regmap_read(map, ASPEED_G6_CLK_SELECTION5, &val);
+
+	switch (val & 0x3) {
+	case 0:
+		aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "apll", 0, 1, 4);
+		break;
+	case 1:
+		aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "apll", 0, 1, 2);
+		break;
+	case 2:
+		aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "apll", 0, 1, 1);
+		break;
+	case 3:
+		aspeed_g6_clk_data->hws[ASPEED_CLK_UARTX] = clk_hw_register_fixed_factor(NULL, "uartx", "ahb", 0, 1, 1);
+		break;
+	}
+
+	/* uxclk */
+	regmap_read(map, ASPEED_UARTCLK_FROM_UXCLK, &val);
+	div = ((val >> 8) & 0x3ff) * 2;
+	mult = val & 0xff;
+
+	hw = clk_hw_register_fixed_factor(NULL, "uxclk", "uartx", 0, mult, div);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_UXCLK] = hw;
+
+	/* huxclk */
+	regmap_read(map, 0x33c, &val);
+	div = ((val >> 8) & 0x3ff) * 2;
+	mult = val & 0xff;
+
+	hw = clk_hw_register_fixed_factor(NULL, "huxclk", "uartx", 0, mult, div);
+	aspeed_g6_clk_data->hws[ASPEED_CLK_HUXCLK] = hw;
+
 	/* i3c clock: source from apll, divide by 8 */
 	regmap_update_bits(map, ASPEED_G6_CLK_SELECTION5,
 			   I3C_CLK_SELECTION | APLL_DIV_SELECTION,
@@ -854,6 +905,7 @@ static void __init aspeed_g6_cc(struct regmap *map)
 static void __init aspeed_g6_cc_init(struct device_node *np)
 {
 	struct regmap *map;
+	u32 uart_clk_source = 0;
 	int ret;
 	int i;
 
@@ -886,6 +938,16 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	if (IS_ERR(map)) {
 		pr_err("no syscon regmap\n");
 		return;
+	}
+
+	of_property_read_u32(np, "uart-clk-source", &uart_clk_source);
+
+	if (uart_clk_source) {
+		if (uart_clk_source & GENMASK(5, 0))
+			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION4, GENMASK(5, 0), uart_clk_source & GENMASK(5, 0));
+
+		if (uart_clk_source & GENMASK(12, 6))
+			regmap_update_bits(map, ASPEED_G6_CLK_SELECTION5, GENMASK(12, 6), uart_clk_source & GENMASK(12, 6));
 	}
 
 	aspeed_g6_cc(map);
