@@ -1650,7 +1650,7 @@ int i40e_aq_get_link_info(struct i40e_hw *hw,
 	     hw->aq.fw_min_ver < 40)) && hw_link_info->phy_type == 0xE)
 		hw_link_info->phy_type = I40E_PHY_TYPE_10GBASE_SFPP_CU;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE &&
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps) &&
 	    hw->mac.type != I40E_MAC_X722) {
 		__le32 tmp;
 
@@ -2253,7 +2253,7 @@ int i40e_aq_set_switch_config(struct i40e_hw *hw,
 	scfg->flags = cpu_to_le16(flags);
 	scfg->valid_flags = cpu_to_le16(valid_flags);
 	scfg->mode = mode;
-	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_802_1AD, hw->caps)) {
 		scfg->switch_tag = cpu_to_le16(hw->switch_tag);
 		scfg->first_tag = cpu_to_le16(hw->first_tag);
 		scfg->second_tag = cpu_to_le16(hw->second_tag);
@@ -3637,7 +3637,7 @@ i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
 		(struct i40e_aqc_lldp_restore *)&desc.params.raw;
 	int status;
 
-	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)) {
+	if (!test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
 		i40e_debug(hw, I40E_DEBUG_ALL,
 			   "Restore LLDP not supported by current FW version.\n");
 		return -ENODEV;
@@ -3680,7 +3680,7 @@ int i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 		cmd->command |= I40E_AQ_LLDP_AGENT_SHUTDOWN;
 
 	if (persist) {
-		if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)
+		if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps))
 			cmd->command |= I40E_AQ_LLDP_AGENT_STOP_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
@@ -3713,7 +3713,7 @@ int i40e_aq_start_lldp(struct i40e_hw *hw, bool persist,
 	cmd->command = I40E_AQ_LLDP_AGENT_START;
 
 	if (persist) {
-		if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)
+		if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps))
 			cmd->command |= I40E_AQ_LLDP_AGENT_START_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
@@ -3741,7 +3741,7 @@ i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
 		(struct i40e_aqc_set_dcb_parameters *)&desc.params.raw;
 	int status;
 
-	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))
+	if (!test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps))
 		return -ENODEV;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
@@ -5043,7 +5043,7 @@ static int i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
 	u32 i;
 
 	*reg_val = 0;
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		       i40e_aq_get_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5076,7 +5076,7 @@ static int i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
 	int status;
 	u32 i;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		       i40e_aq_set_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5115,7 +5115,7 @@ int i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 	u8 port_num;
 	u32 i;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		      i40e_aq_get_phy_register(hw,
 					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5335,7 +5335,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
 					  struct i40e_aqc_phy_register_access *cmd)
 {
 	if (set_mdio && cmd->phy_interface == I40E_AQ_PHY_REG_ACCESS_EXTERNAL) {
-		if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED)
+		if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED, hw->caps))
 			cmd->cmd_flags |=
 				I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER |
 				((mdio_num <<

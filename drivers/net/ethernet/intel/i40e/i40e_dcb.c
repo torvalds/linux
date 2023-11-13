@@ -877,7 +877,7 @@ int i40e_init_dcb(struct i40e_hw *hw, bool enable_mib_change)
 		return -EOPNOTSUPP;
 
 	/* Read LLDP NVM area */
-	if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT) {
+	if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
 		u8 offset = 0;
 
 		if (hw->mac.type == I40E_MAC_XL710)

@@ -12856,8 +12856,8 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	 */
 	if (pf->hw.mac.type == I40E_MAC_XL710 &&
 	    pf->hw.func_caps.npar_enable &&
-	    (pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))
-		pf->hw.flags &= ~I40E_HW_FLAG_FW_LLDP_STOPPABLE;
+	    test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, pf->hw.caps))
+		clear_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, pf->hw.caps);
 
 #ifdef CONFIG_PCI_IOV
 	if (pf->hw.func_caps.num_vfs && pf->hw.partition_id == 1) {

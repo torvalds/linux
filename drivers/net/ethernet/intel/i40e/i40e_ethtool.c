@@ -1595,7 +1595,7 @@ static int i40e_set_fec_param(struct net_device *netdev,
 		return -EPERM;
 
 	if (hw->mac.type == I40E_MAC_X722 &&
-	    !(hw->flags & I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE)) {
+	    !test_bit(I40E_HW_CAP_X722_FEC_REQUEST, hw->caps)) {
 		netdev_err(netdev, "Setting FEC encoding not supported by firmware. Please update the NVM image.\n");
 		return -EOPNOTSUPP;
 	}
@@ -2831,7 +2831,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		if (!test_bit(I40E_HW_PHY_CONTROLS_LEDS, pf->hw_features)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
-			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
+			if (!test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps))
 				i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL,
 						      NULL);
 			ret = i40e_led_get_phy(hw, &temp_status,
@@ -2858,7 +2858,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 			ret = i40e_led_set_phy(hw, false, pf->led_status,
 					       (pf->phy_led_val |
 					       I40E_PHY_LED_MODE_ORIG));
-			if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE))
+			if (!test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps))
 				i40e_aq_set_phy_debug(hw, 0, NULL);
 		}
 		break;
@@ -5340,7 +5340,7 @@ flags_complete:
 	 * LLDP with this flag on unsupported FW versions.
 	 */
 	if (test_bit(I40E_FLAG_FW_LLDP_DIS, changed_flags) &&
-	    (!(pf->hw.flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))) {
+	    !test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, pf->hw.caps)) {
 		dev_warn(&pf->pdev->dev,
 			 "Device does not support changing FW LLDP\n");
 		return -EOPNOTSUPP;
@@ -5511,7 +5511,7 @@ static int i40e_get_module_info(struct net_device *netdev,
 	int status;
 
 	/* Check if firmware supports reading module EEPROM. */
-	if (!(hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE)) {
+	if (!test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		netdev_err(vsi->netdev, "Module EEPROM memory read not supported. Please update the NVM image.\n");
 		return -EINVAL;
 	}

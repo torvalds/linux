@@ -482,6 +482,18 @@ struct i40e_dcbx_config {
 	struct i40e_dcb_app_priority_table app[I40E_DCBX_MAX_APPS];
 };
 
+enum i40e_hw_flags {
+	I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE,
+	I40E_HW_CAP_802_1AD,
+	I40E_HW_CAP_AQ_PHY_ACCESS,
+	I40E_HW_CAP_NVM_READ_REQUIRES_LOCK,
+	I40E_HW_CAP_FW_LLDP_STOPPABLE,
+	I40E_HW_CAP_FW_LLDP_PERSISTENT,
+	I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED,
+	I40E_HW_CAP_X722_FEC_REQUEST,
+	I40E_HW_CAPS_NBITS,
+};
+
 /* Port hardware description */
 struct i40e_hw {
 	u8 __iomem *hw_addr;
@@ -546,15 +558,7 @@ struct i40e_hw {
 	struct i40e_dcbx_config remote_dcbx_config; /* Peer Cfg */
 	struct i40e_dcbx_config desired_dcbx_config; /* CEE Desired Cfg */
 
-#define I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE BIT_ULL(0)
-#define I40E_HW_FLAG_802_1AD_CAPABLE        BIT_ULL(1)
-#define I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE  BIT_ULL(2)
-#define I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK BIT_ULL(3)
-#define I40E_HW_FLAG_FW_LLDP_STOPPABLE      BIT_ULL(4)
-#define I40E_HW_FLAG_FW_LLDP_PERSISTENT     BIT_ULL(5)
-#define I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED BIT_ULL(6)
-#define I40E_HW_FLAG_X722_FEC_REQUEST_CAPABLE BIT_ULL(7)
-	u64 flags;
+	DECLARE_BITMAP(caps, I40E_HW_CAPS_NBITS);
 
 	/* Used in set switch config AQ command */
 	u16 switch_tag;
