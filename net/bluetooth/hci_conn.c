@@ -1086,8 +1086,9 @@ static void hci_conn_cleanup_child(struct hci_conn *conn, u8 reason)
 			hci_conn_failed(conn, reason);
 		break;
 	case ISO_LINK:
-		if (conn->state != BT_CONNECTED &&
-		    !test_bit(HCI_CONN_CREATE_CIS, &conn->flags))
+		if ((conn->state != BT_CONNECTED &&
+		    !test_bit(HCI_CONN_CREATE_CIS, &conn->flags)) ||
+		    test_bit(HCI_CONN_BIG_CREATED, &conn->flags))
 			hci_conn_failed(conn, reason);
 		break;
 	}
@@ -2228,7 +2229,17 @@ struct hci_conn *hci_bind_bis(struct hci_dev *hdev, bdaddr_t *dst,
 			      __u8 base_len, __u8 *base)
 {
 	struct hci_conn *conn;
+	struct hci_conn *parent;
 	__u8 eir[HCI_MAX_PER_AD_LENGTH];
+	struct hci_link *link;
+
+	/* Look for any BIS that is open for rebinding */
+	conn = hci_conn_hash_lookup_big_state(hdev, qos->bcast.big, BT_OPEN);
+	if (conn) {
+		memcpy(qos, &conn->iso_qos, sizeof(*qos));
+		conn->state = BT_CONNECTED;
+		return conn;
+	}
 
 	if (base_len && base)
 		base_len = eir_append_service_data(eir, 0,  0x1851,
@@ -2255,6 +2266,20 @@ struct hci_conn *hci_bind_bis(struct hci_dev *hdev, bdaddr_t *dst,
 
 	conn->iso_qos = *qos;
 	conn->state = BT_BOUND;
+
+	/* Link BISes together */
+	parent = hci_conn_hash_lookup_big(hdev,
+					  conn->iso_qos.bcast.big);
+	if (parent && parent != conn) {
+		link = hci_conn_link(parent, conn);
+		if (!link) {
+			hci_conn_drop(conn);
+			return ERR_PTR(-ENOLINK);
+		}
+
+		/* Link takes the refcount */
+		hci_conn_drop(conn);
+	}
 
 	return conn;
 }
@@ -2285,6 +2310,9 @@ struct hci_conn *hci_connect_bis(struct hci_dev *hdev, bdaddr_t *dst,
 
 	conn = hci_bind_bis(hdev, dst, qos, base_len, base);
 	if (IS_ERR(conn))
+		return conn;
+
+	if (conn->state == BT_CONNECTED)
 		return conn;
 
 	data.big = qos->bcast.big;
