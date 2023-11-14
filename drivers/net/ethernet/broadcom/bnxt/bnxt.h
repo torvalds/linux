@@ -543,6 +543,19 @@ struct nqe_cn {
 	__le32	cq_handle_high;
 };
 
+#define BNXT_NQ_HDL_IDX_MASK	0x00ffffff
+#define BNXT_NQ_HDL_TYPE_MASK	0xff000000
+#define BNXT_NQ_HDL_TYPE_SHIFT	24
+#define BNXT_NQ_HDL_TYPE_RX	0x00
+#define BNXT_NQ_HDL_TYPE_TX	0x01
+
+#define BNXT_NQ_HDL_IDX(hdl)	((hdl) & BNXT_NQ_HDL_IDX_MASK)
+#define BNXT_NQ_HDL_TYPE(hdl)	(((hdl) & BNXT_NQ_HDL_TYPE_MASK) >>	\
+				 BNXT_NQ_HDL_TYPE_SHIFT)
+
+#define BNXT_SET_NQ_HDL(cpr)						\
+	(((cpr)->cp_ring_type << BNXT_NQ_HDL_TYPE_SHIFT) | (cpr)->cp_idx)
+
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
 #define DB_IRQ_DIS						(0x1 << 27)
@@ -997,6 +1010,8 @@ struct bnxt_cp_ring_info {
 
 	u8			had_work_done:1;
 	u8			has_more_work:1;
+	u8			cp_ring_type;
+	u8			cp_idx;
 
 	u32			last_cp_raw_cons;
 
@@ -1023,8 +1038,6 @@ struct bnxt_cp_ring_info {
 
 	int			cp_ring_count;
 	struct bnxt_cp_ring_info *cp_ring_arr;
-#define BNXT_RX_HDL	0
-#define BNXT_TX_HDL	1
 };
 
 struct bnxt_napi {

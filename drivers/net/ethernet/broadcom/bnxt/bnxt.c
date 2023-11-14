@@ -2906,12 +2906,15 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 
 		if (nqcmp->type == cpu_to_le16(NQ_CN_TYPE_CQ_NOTIFICATION)) {
 			u32 idx = le32_to_cpu(nqcmp->cq_handle_low);
+			u32 cq_type = BNXT_NQ_HDL_TYPE(idx);
 			struct bnxt_cp_ring_info *cpr2;
 
 			/* No more budget for RX work */
-			if (budget && work_done >= budget && idx == BNXT_RX_HDL)
+			if (budget && work_done >= budget &&
+			    cq_type == BNXT_NQ_HDL_TYPE_RX)
 				break;
 
+			idx = BNXT_NQ_HDL_IDX(idx);
 			cpr2 = &cpr->cp_ring_arr[idx];
 			work_done += __bnxt_poll_work(bp, cpr2,
 						      budget - work_done);
@@ -2927,8 +2930,9 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		BNXT_DB_NQ_P5(&cpr->cp_db, raw_cons);
 	}
 poll_done:
-	cpr_rx = &cpr->cp_ring_arr[BNXT_RX_HDL];
-	if (cpr_rx->bnapi && (bp->flags & BNXT_FLAG_DIM)) {
+	cpr_rx = &cpr->cp_ring_arr[0];
+	if (cpr_rx->cp_ring_type == BNXT_NQ_HDL_TYPE_RX &&
+	    (bp->flags & BNXT_FLAG_DIM)) {
 		struct dim_sample dim_sample = {};
 
 		dim_update_sample(cpr->event_ctr,
@@ -3592,6 +3596,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr, *cpr2;
 		struct bnxt_ring_struct *ring;
+		int cp_count = 0, k;
 
 		if (!bnapi)
 			continue;
@@ -3612,30 +3617,32 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
 			continue;
 
-		cpr->cp_ring_count = 2;
-		cpr->cp_ring_arr = kcalloc(cpr->cp_ring_count, sizeof(*cpr),
-					   GFP_KERNEL);
-		if (!cpr->cp_ring_arr) {
-			cpr->cp_ring_count = 0;
-			return -ENOMEM;
-		}
-
-		if (i < bp->rx_nr_rings) {
-			cpr2 = &cpr->cp_ring_arr[BNXT_RX_HDL];
-			rc = bnxt_alloc_cp_sub_ring(bp, cpr2);
-			if (rc)
-				return rc;
-			cpr2->bnapi = bnapi;
-			bp->rx_ring[i].rx_cpr = cpr2;
-		}
+		if (i < bp->rx_nr_rings)
+			cp_count++;
 		if ((sh && i < bp->tx_nr_rings) ||
-		    (!sh && i >= bp->rx_nr_rings)) {
-			cpr2 = &cpr->cp_ring_arr[BNXT_TX_HDL];
+		    (!sh && i >= bp->rx_nr_rings))
+			cp_count++;
+
+		cpr->cp_ring_arr = kcalloc(cp_count, sizeof(*cpr),
+					   GFP_KERNEL);
+		if (!cpr->cp_ring_arr)
+			return -ENOMEM;
+		cpr->cp_ring_count = cp_count;
+
+		for (k = 0; k < cp_count; k++) {
+			cpr2 = &cpr->cp_ring_arr[k];
 			rc = bnxt_alloc_cp_sub_ring(bp, cpr2);
 			if (rc)
 				return rc;
 			cpr2->bnapi = bnapi;
-			bp->tx_ring[j++].tx_cpr = cpr2;
+			cpr2->cp_idx = k;
+			if (!k && i < bp->rx_nr_rings) {
+				bp->rx_ring[i].rx_cpr = cpr2;
+				cpr2->cp_ring_type = BNXT_NQ_HDL_TYPE_RX;
+			} else {
+				bp->tx_ring[j++].tx_cpr = cpr2;
+				cpr2->cp_ring_type = BNXT_NQ_HDL_TYPE_TX;
+			}
 		}
 	}
 	return 0;
@@ -6023,7 +6030,7 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			u32 type2 = HWRM_RING_ALLOC_CMPL;
 
 			ring = &cpr2->cp_ring_struct;
-			ring->handle = BNXT_TX_HDL;
+			ring->handle = BNXT_SET_NQ_HDL(cpr2);
 			map_idx = bnapi->index;
 			rc = hwrm_ring_alloc_send_msg(bp, ring, type2, map_idx);
 			if (rc)
@@ -6060,7 +6067,7 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			u32 type2 = HWRM_RING_ALLOC_CMPL;
 
 			ring = &cpr2->cp_ring_struct;
-			ring->handle = BNXT_RX_HDL;
+			ring->handle = BNXT_SET_NQ_HDL(cpr2);
 			rc = hwrm_ring_alloc_send_msg(bp, ring, type2, map_idx);
 			if (rc)
 				goto err_out;
