@@ -820,6 +820,9 @@ static netdev_tx_t octep_start_xmit(struct sk_buff *skb,
 	u16 nr_frags, si;
 	u16 q_no, wi;
 
+	if (skb_put_padto(skb, ETH_ZLEN))
+		return NETDEV_TX_OK;
+
 	q_no = skb_get_queue_mapping(skb);
 	if (q_no >= oct->num_iqs) {
 		netdev_err(netdev, "Invalid Tx skb->queue_mapping=%d\n", q_no);
