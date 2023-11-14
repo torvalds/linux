@@ -2095,6 +2095,14 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 			smu_v13_0_6_get_current_pcie_link_speed(smu);
 		gpu_metrics->pcie_bandwidth_acc =
 				SMUQ10_ROUND(metrics->PcieBandwidthAcc[0]);
+		gpu_metrics->pcie_bandwidth_inst =
+				SMUQ10_ROUND(metrics->PcieBandwidth[0]);
+		gpu_metrics->pcie_l0_to_recov_count_acc =
+				metrics->PCIeL0ToRecoveryCountAcc;
+		gpu_metrics->pcie_replay_count_acc =
+				metrics->PCIenReplayAAcc;
+		gpu_metrics->pcie_replay_rover_count_acc =
+				metrics->PCIenReplayARolloverCountAcc;
 	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
