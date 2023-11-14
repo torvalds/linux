@@ -265,7 +265,6 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 		pwm = &chip->pwms[i];
 
 		pwm->chip = chip;
-		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
 	}
 
