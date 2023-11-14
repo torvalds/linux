@@ -1438,6 +1438,7 @@ struct scmi_msg_resp_domain_name_get {
  * @ph: A protocol handle reference.
  * @cmd_id: The specific command ID to use.
  * @res_id: The specific resource ID to use.
+ * @flags: A pointer to specific flags to use, if any.
  * @name: A pointer to the preallocated area where the retrieved name will be
  *	  stored as a NULL terminated string.
  * @len: The len in bytes of the @name char array.
@@ -1445,19 +1446,22 @@ struct scmi_msg_resp_domain_name_get {
  * Return: 0 on Succcess
  */
 static int scmi_common_extended_name_get(const struct scmi_protocol_handle *ph,
-					 u8 cmd_id, u32 res_id, char *name,
-					 size_t len)
+					 u8 cmd_id, u32 res_id, u32 *flags,
+					 char *name, size_t len)
 {
 	int ret;
+	size_t txlen;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_domain_name_get *resp;
 
-	ret = ph->xops->xfer_get_init(ph, cmd_id, sizeof(res_id),
-				      sizeof(*resp), &t);
+	txlen = !flags ? sizeof(res_id) : sizeof(res_id) + sizeof(*flags);
+	ret = ph->xops->xfer_get_init(ph, cmd_id, txlen, sizeof(*resp), &t);
 	if (ret)
 		goto out;
 
 	put_unaligned_le32(res_id, t->tx.buf);
+	if (flags)
+		put_unaligned_le32(*flags, t->tx.buf + sizeof(res_id));
 	resp = t->rx.buf;
 
 	ret = ph->xops->do_xfer(ph, t);

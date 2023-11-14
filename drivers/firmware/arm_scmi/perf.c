@@ -288,7 +288,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(flags))
 		ph->hops->extended_name_get(ph, PERF_DOMAIN_NAME_GET,
-					    dom_info->id, dom_info->info.name,
+					    dom_info->id, NULL, dom_info->info.name,
 					    SCMI_MAX_STR_SIZE);
 
 	if (dom_info->level_indexing_mode) {

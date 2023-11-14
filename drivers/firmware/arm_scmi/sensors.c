@@ -644,7 +644,7 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 	if (PROTOCOL_REV_MAJOR(si->version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(attrl))
 		ph->hops->extended_name_get(ph, SENSOR_NAME_GET, s->id,
-					    s->name, SCMI_MAX_STR_SIZE);
+					    NULL, s->name, SCMI_MAX_STR_SIZE);
 
 	if (s->extended_scalar_attrs) {
 		s->sensor_power = le32_to_cpu(sdesc->power);
