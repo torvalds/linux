@@ -924,6 +924,8 @@ use_clean:
 	    test_bit(BCH_FS_ERRORS_FIXED, &c->flags) &&
 	    !test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags) &&
 	    !test_bit(BCH_FS_ERROR, &c->flags)) {
+		bch2_flush_fsck_errs(c);
+
 		bch_info(c, "Fixed errors, running fsck a second time to verify fs is clean");
 		clear_bit(BCH_FS_ERRORS_FIXED, &c->flags);
 
