@@ -448,9 +448,11 @@ pick_server:
 	op->server_index = -1;
 	rtt = UINT_MAX;
 	for (i = 0; i < op->server_list->nr_servers; i++) {
-		struct afs_server *s = op->server_list->servers[i].server;
+		struct afs_server_entry *se = &op->server_list->servers[i];
+		struct afs_server *s = se->server;
 
 		if (!test_bit(i, &op->untried_servers) ||
+		    test_bit(AFS_SE_EXCLUDED, &se->flags) ||
 		    !test_bit(AFS_SERVER_FL_RESPONDING, &s->flags))
 			continue;
 		if (s->rtt <= rtt) {

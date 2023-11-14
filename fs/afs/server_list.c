@@ -31,23 +31,53 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 	struct afs_server_list *slist;
 	struct afs_server *server;
 	unsigned int type_mask = 1 << volume->type;
-	int ret = -ENOMEM, nr_servers = 0, i, j;
+	bool use_newrepsites = false;
+	int ret = -ENOMEM, nr_servers = 0, newrep = 0, i, j, usable = 0;
 
-	for (i = 0; i < vldb->nr_servers; i++)
-		if (vldb->fs_mask[i] & type_mask)
-			nr_servers++;
+	/* Work out if we're going to restrict to NEWREPSITE-marked servers or
+	 * not.  If at least one site is marked as NEWREPSITE, then it's likely
+	 * that "vos release" is busy updating RO sites.  We cut over from one
+	 * to the other when >=50% of the sites have been updated.  Sites that
+	 * are in the process of being updated are marked DONTUSE.
+	 */
+	for (i = 0; i < vldb->nr_servers; i++) {
+		if (!(vldb->fs_mask[i] & type_mask))
+			continue;
+		nr_servers++;
+		if (vldb->vlsf_flags[i] & AFS_VLSF_DONTUSE)
+			continue;
+		usable++;
+		if (vldb->vlsf_flags[i] & AFS_VLSF_NEWREPSITE)
+			newrep++;
+	}
 
 	slist = kzalloc(struct_size(slist, servers, nr_servers), GFP_KERNEL);
 	if (!slist)
 		goto error;
+
+	if (newrep) {
+		if (newrep < usable / 2) {
+			slist->ro_replicating = AFS_RO_REPLICATING_USE_OLD;
+		} else {
+			slist->ro_replicating = AFS_RO_REPLICATING_USE_NEW;
+			use_newrepsites = true;
+		}
+	}
 
 	refcount_set(&slist->usage, 1);
 	rwlock_init(&slist->lock);
 
 	/* Make sure a records exists for each server in the list. */
 	for (i = 0; i < vldb->nr_servers; i++) {
+		unsigned long se_flags = 0;
+		bool newrepsite = vldb->vlsf_flags[i] & AFS_VLSF_NEWREPSITE;
+
 		if (!(vldb->fs_mask[i] & type_mask))
 			continue;
+		if (vldb->vlsf_flags[i] & AFS_VLSF_DONTUSE)
+			__set_bit(AFS_SE_EXCLUDED, &se_flags);
+		if (newrep && (newrepsite ^ use_newrepsites))
+			__set_bit(AFS_SE_EXCLUDED, &se_flags);
 
 		server = afs_lookup_server(volume->cell, key, &vldb->fs_server[i],
 					   vldb->addr_version[i]);
@@ -79,6 +109,7 @@ struct afs_server_list *afs_alloc_server_list(struct afs_volume *volume,
 
 		slist->servers[j].server = server;
 		slist->servers[j].volume = volume;
+		slist->servers[j].flags = se_flags;
 		slist->nr_servers++;
 	}
 
@@ -101,16 +132,20 @@ error:
 bool afs_annotate_server_list(struct afs_server_list *new,
 			      struct afs_server_list *old)
 {
+	unsigned long mask = 1UL << AFS_SE_EXCLUDED;
 	struct afs_server *cur;
 	int i, j;
 
-	if (old->nr_servers != new->nr_servers)
+	if (old->nr_servers != new->nr_servers ||
+	    old->ro_replicating != new->ro_replicating)
 		goto changed;
 
-	for (i = 0; i < old->nr_servers; i++)
+	for (i = 0; i < old->nr_servers; i++) {
 		if (old->servers[i].server != new->servers[i].server)
 			goto changed;
-
+		if ((old->servers[i].flags & mask) != (new->servers[i].flags & mask))
+			goto changed;
+	}
 	return false;
 
 changed:
@@ -118,7 +153,8 @@ changed:
 	cur = old->servers[old->preferred].server;
 	for (j = 0; j < new->nr_servers; j++) {
 		if (new->servers[j].server == cur) {
-			new->preferred = j;
+			if (!test_bit(AFS_SE_EXCLUDED, &new->servers[j].flags))
+				new->preferred = j;
 			break;
 		}
 	}

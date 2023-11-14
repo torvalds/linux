@@ -515,6 +515,7 @@ struct afs_vldb_entry {
 #define AFS_VOL_VTM_RW	0x01 /* R/W version of the volume is available (on this server) */
 #define AFS_VOL_VTM_RO	0x02 /* R/O version of the volume is available (on this server) */
 #define AFS_VOL_VTM_BAK	0x04 /* backup version of the volume is available (on this server) */
+	u8			vlsf_flags[AFS_NMAXNSERVERS];
 	short			error;
 	u8			nr_servers;	/* Number of server records */
 	u8			name_len;
@@ -601,6 +602,12 @@ struct afs_server {
 	spinlock_t		probe_lock;
 };
 
+enum afs_ro_replicating {
+	AFS_RO_NOT_REPLICATING,			/* Not doing replication */
+	AFS_RO_REPLICATING_USE_OLD,		/* Replicating; use old version */
+	AFS_RO_REPLICATING_USE_NEW,		/* Replicating; switch to new version */
+} __mode(byte);
+
 /*
  * Replaceable volume server list.
  */
@@ -608,12 +615,15 @@ struct afs_server_entry {
 	struct afs_server	*server;
 	struct afs_volume	*volume;
 	struct list_head	slink;		/* Link in server->volumes */
+	unsigned long		flags;
+#define AFS_SE_EXCLUDED		0		/* Set if server is to be excluded in rotation */
 };
 
 struct afs_server_list {
 	struct rcu_head		rcu;
 	refcount_t		usage;
 	bool			attached;	/* T if attached to servers */
+	enum afs_ro_replicating	ro_replicating;	/* RW->RO update (probably) in progress */
 	unsigned char		nr_servers;
 	unsigned char		preferred;	/* Preferred server */
 	unsigned short		vnovol_mask;	/* Servers to be skipped due to VNOVOL */

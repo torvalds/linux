@@ -18,8 +18,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 {
 	struct afs_uvldbentry__xdr *uvldb;
 	struct afs_vldb_entry *entry;
-	bool new_only = false;
-	u32 tmp, nr_servers, vlflags;
+	u32 nr_servers, vlflags;
 	int i, ret;
 
 	_enter("");
@@ -41,27 +40,14 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	entry->name[i] = 0;
 	entry->name_len = strlen(entry->name);
 
-	/* If there is a new replication site that we can use, ignore all the
-	 * sites that aren't marked as new.
-	 */
-	for (i = 0; i < nr_servers; i++) {
-		tmp = ntohl(uvldb->serverFlags[i]);
-		if (!(tmp & AFS_VLSF_DONTUSE) &&
-		    (tmp & AFS_VLSF_NEWREPSITE))
-			new_only = true;
-	}
-
 	vlflags = ntohl(uvldb->flags);
 	for (i = 0; i < nr_servers; i++) {
 		struct afs_uuid__xdr *xdr;
 		struct afs_uuid *uuid;
+		u32 tmp = ntohl(uvldb->serverFlags[i]);
 		int j;
 		int n = entry->nr_servers;
 
-		tmp = ntohl(uvldb->serverFlags[i]);
-		if (tmp & AFS_VLSF_DONTUSE ||
-		    (new_only && !(tmp & AFS_VLSF_NEWREPSITE)))
-			continue;
 		if (tmp & AFS_VLSF_RWVOL) {
 			entry->fs_mask[n] |= AFS_VOL_VTM_RW;
 			if (vlflags & AFS_VLF_BACKEXISTS)
@@ -82,6 +68,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		for (j = 0; j < 6; j++)
 			uuid->node[j] = (u8)ntohl(xdr->node[j]);
 
+		entry->vlsf_flags[n] = tmp;
 		entry->addr_version[n] = ntohl(uvldb->serverUnique[i]);
 		entry->nr_servers++;
 	}
