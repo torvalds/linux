@@ -232,6 +232,10 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 	if (dc->work_arounds.skip_clock_update)
 		return;
 
+	/* DTBCLK is fixed, so set a default if unspecified. */
+	if (new_clocks->dtbclk_en && !new_clocks->ref_dtbclk_khz)
+		new_clocks->ref_dtbclk_khz = 600000;
+
 	/*
 	 * if it is safe to lower, but we are already in the lower state, we don't have to do anything
 	 * also if safe to lower is false, we just go in the higher state
@@ -265,8 +269,10 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		if (!clk_mgr_base->clks.dtbclk_en && new_clocks->dtbclk_en) {
 			dcn35_smu_set_dtbclk(clk_mgr, true);
-			dcn35_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
+
+			dcn35_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
+			clk_mgr_base->clks.ref_dtbclk_khz = new_clocks->ref_dtbclk_khz;
 		}
 
 		/* check that we're not already in D0 */
@@ -314,17 +320,12 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		update_dispclk = true;
 	}
 
-	if (!new_clocks->dtbclk_en) {
-		new_clocks->ref_dtbclk_khz = 600000;
-	}
-
 	/* clock limits are received with MHz precision, divide by 1000 to prevent setting clocks at every call */
 	if (!dc->debug.disable_dtb_ref_clk_switch &&
-			should_set_clock(safe_to_lower, new_clocks->ref_dtbclk_khz / 1000, clk_mgr_base->clks.ref_dtbclk_khz / 1000)) {
-		/* DCCG requires KHz precision for DTBCLK */
-		dcn35_smu_set_dtbclk(clk_mgr, true);
-
-		dcn35_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
+	    should_set_clock(safe_to_lower, new_clocks->ref_dtbclk_khz / 1000,
+			     clk_mgr_base->clks.ref_dtbclk_khz / 1000)) {
+		dcn35_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
+		clk_mgr_base->clks.ref_dtbclk_khz = new_clocks->ref_dtbclk_khz;
 	}
 
 	if (dpp_clock_lowered) {
@@ -1048,12 +1049,8 @@ void dcn35_clk_mgr_construct(
 	dcn35_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = dcn35_smu_get_dprefclk(&clk_mgr->base);
-	clk_mgr->base.base.clks.ref_dtbclk_khz = dcn35_smu_get_dtbclk(&clk_mgr->base);
+	clk_mgr->base.base.clks.ref_dtbclk_khz = 600000;
 
-	if (!clk_mgr->base.base.clks.ref_dtbclk_khz)
-		dcn35_smu_set_dtbclk(&clk_mgr->base, true);
-
-	clk_mgr->base.base.clks.dtbclk_en = true;
 	dce_clock_read_ss_info(&clk_mgr->base);
 	/*when clk src is from FCH, it could have ss, same clock src as DPREF clk*/
 
