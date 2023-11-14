@@ -658,10 +658,16 @@ static int aqr107_resume(struct phy_device *phydev)
 
 static int aqr107_probe(struct phy_device *phydev)
 {
+	int ret;
+
 	phydev->priv = devm_kzalloc(&phydev->mdio.dev,
 				    sizeof(struct aqr107_priv), GFP_KERNEL);
 	if (!phydev->priv)
 		return -ENOMEM;
+
+	ret = aqr_firmware_load(phydev);
+	if (ret)
+		return ret;
 
 	return aqr_hwmon_probe(phydev);
 }
