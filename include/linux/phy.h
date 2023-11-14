@@ -604,6 +604,8 @@ struct macsec_ops;
  *                 handling shall be postponed until PHY has resumed
  * @irq_rerun: Flag indicating interrupts occurred while PHY was suspended,
  *             requiring a rerun of the interrupt handler after resume
+ * @default_timestamp: Flag indicating whether we are using the phy
+ *		       timestamp as the default one
  * @interface: enum phy_interface_t value
  * @skb: Netlink message for cable diagnostics
  * @nest: Netlink nest used for cable diagnostics
@@ -666,6 +668,8 @@ struct phy_device {
 	unsigned interrupts:1;
 	unsigned irq_suspended:1;
 	unsigned irq_rerun:1;
+
+	unsigned default_timestamp:1;
 
 	int rate_matching;
 
