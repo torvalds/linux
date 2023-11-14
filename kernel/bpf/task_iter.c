@@ -978,7 +978,6 @@ __bpf_kfunc int bpf_iter_task_new(struct bpf_iter_task *it,
 	BUILD_BUG_ON(__alignof__(struct bpf_iter_task_kern) !=
 					__alignof__(struct bpf_iter_task));
 
-	kit->task = kit->pos = NULL;
 	switch (flags) {
 	case BPF_TASK_ITER_ALL_THREADS:
 	case BPF_TASK_ITER_ALL_PROCS:
@@ -1016,18 +1015,15 @@ __bpf_kfunc struct task_struct *bpf_iter_task_next(struct bpf_iter_task *it)
 		goto get_next_task;
 
 	kit->pos = __next_thread(kit->pos);
-	if (!kit->pos) {
-		if (flags == BPF_TASK_ITER_PROC_THREADS)
-			return pos;
-		kit->pos = kit->task;
-	} else
+	if (kit->pos || flags == BPF_TASK_ITER_PROC_THREADS)
 		return pos;
 
 get_next_task:
-	kit->pos = next_task(kit->pos);
-	kit->task = kit->pos;
-	if (kit->pos == &init_task)
+	kit->task = next_task(kit->task);
+	if (kit->task == &init_task)
 		kit->pos = NULL;
+	else
+		kit->pos = kit->task;
 
 	return pos;
 }
