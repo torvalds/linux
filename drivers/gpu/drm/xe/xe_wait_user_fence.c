@@ -25,22 +25,22 @@ static int do_compare(u64 addr, u64 value, u64 mask, u16 op)
 		return -EFAULT;
 
 	switch (op) {
-	case DRM_XE_UFENCE_WAIT_EQ:
+	case DRM_XE_UFENCE_WAIT_OP_EQ:
 		passed = (rvalue & mask) == (value & mask);
 		break;
-	case DRM_XE_UFENCE_WAIT_NEQ:
+	case DRM_XE_UFENCE_WAIT_OP_NEQ:
 		passed = (rvalue & mask) != (value & mask);
 		break;
-	case DRM_XE_UFENCE_WAIT_GT:
+	case DRM_XE_UFENCE_WAIT_OP_GT:
 		passed = (rvalue & mask) > (value & mask);
 		break;
-	case DRM_XE_UFENCE_WAIT_GTE:
+	case DRM_XE_UFENCE_WAIT_OP_GTE:
 		passed = (rvalue & mask) >= (value & mask);
 		break;
-	case DRM_XE_UFENCE_WAIT_LT:
+	case DRM_XE_UFENCE_WAIT_OP_LT:
 		passed = (rvalue & mask) < (value & mask);
 		break;
-	case DRM_XE_UFENCE_WAIT_LTE:
+	case DRM_XE_UFENCE_WAIT_OP_LTE:
 		passed = (rvalue & mask) <= (value & mask);
 		break;
 	default:
@@ -81,7 +81,7 @@ static int check_hw_engines(struct xe_device *xe,
 
 #define VALID_FLAGS	(DRM_XE_UFENCE_WAIT_FLAG_SOFT_OP | \
 			 DRM_XE_UFENCE_WAIT_FLAG_ABSTIME)
-#define MAX_OP		DRM_XE_UFENCE_WAIT_LTE
+#define MAX_OP		DRM_XE_UFENCE_WAIT_OP_LTE
 
 static long to_jiffies_timeout(struct xe_device *xe,
 			       struct drm_xe_wait_user_fence *args)
