@@ -143,6 +143,7 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
  * @pinctrl_desc:   pin controller description
  * @name:           Chip controller name
  * @tpin:           Total number of pins
+ * @gpio_reset:     GPIO line handler that can reset the IC
  */
 struct cy8c95x0_pinctrl {
 	struct regmap *regmap;
