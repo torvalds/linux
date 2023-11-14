@@ -9,6 +9,14 @@ from TdcPlugin import TdcPlugin
 
 from tdc_config import *
 
+try:
+    from pyroute2 import netns
+    from pyroute2 import IPRoute
+    netlink = True
+except ImportError:
+    netlink = False
+    print("!!! Consider installing pyroute2 !!!")
+
 def prepare_suite(obj, test):
     original = obj.args.NAMES
 
@@ -28,7 +36,10 @@ def prepare_suite(obj, test):
     shadow['DEV2'] = original['DEV2']
     obj.args.NAMES = shadow
 
-    obj._ns_create()
+    if netlink == True:
+        obj._nl_ns_create()
+    else:
+        obj._ns_create()
 
     # Make sure the netns is visible in the fs
     while True:
@@ -66,7 +77,6 @@ class SubPlugin(TdcPlugin):
 
         if test_skip:
             return
-
 
     def post_case(self):
         if self.args.verbose:
@@ -119,23 +129,41 @@ class SubPlugin(TdcPlugin):
             print('adjust_command:  return command [{}]'.format(command))
         return command
 
-    def _ports_create_cmds(self):
-        cmds = []
+    def _nl_ns_create(self):
+        ns = self.args.NAMES["NS"];
+        dev0 = self.args.NAMES["DEV0"];
+        dev1 = self.args.NAMES["DEV1"];
+        dummy = self.args.NAMES["DUMMY"];
 
-        cmds.append(self._replace_keywords('link add $DEV0 type veth peer name $DEV1'))
-        cmds.append(self._replace_keywords('link set $DEV0 up'))
-        cmds.append(self._replace_keywords('link add $DUMMY type dummy'))
+        if self.args.verbose:
+            print('{}._nl_ns_create'.format(self.sub_class))
 
-        return cmds
+        netns.create(ns)
+        netns.pushns(newns=ns)
+        with IPRoute() as ip:
+            ip.link('add', ifname=dev1, kind='veth', peer={'ifname': dev0, 'net_ns_fd':'/proc/1/ns/net'})
+            ip.link('add', ifname=dummy, kind='dummy')
+            while True:
+                try:
+                    dev1_idx = ip.link_lookup(ifname=dev1)[0]
+                    dummy_idx = ip.link_lookup(ifname=dummy)[0]
+                    ip.link('set', index=dev1_idx, state='up')
+                    ip.link('set', index=dummy_idx, state='up')
+                    break
+                except:
+                    time.sleep(0.1)
+                    continue
+        netns.popns()
 
-    def _ports_create(self):
-        self._exec_cmd_batched('pre', self._ports_create_cmds())
-
-    def _ports_destroy_cmd(self):
-        return self._replace_keywords('link del $DEV0')
-
-    def _ports_destroy(self):
-        self._exec_cmd('post', self._ports_destroy_cmd())
+        with IPRoute() as ip:
+            while True:
+                try:
+                    dev0_idx = ip.link_lookup(ifname=dev0)[0]
+                    ip.link('set', index=dev0_idx, state='up')
+                    break
+                except:
+                    time.sleep(0.1)
+                    continue
 
     def _ns_create_cmds(self):
         cmds = []
@@ -143,10 +171,13 @@ class SubPlugin(TdcPlugin):
         ns = self.args.NAMES['NS']
 
         cmds.append(self._replace_keywords('netns add {}'.format(ns)))
+        cmds.append(self._replace_keywords('link add $DEV1 type veth peer name $DEV0'))
         cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('link add $DUMMY type dummy'.format(ns)))
         cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
         cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
         cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
+        cmds.append(self._replace_keywords('link set $DEV0 up'.format(ns)))
 
         if self.args.device:
             cmds.append(self._replace_keywords('link set $DEV2 netns {}'.format(ns)))
@@ -159,7 +190,6 @@ class SubPlugin(TdcPlugin):
         Create the network namespace in which the tests will be run and set up
         the required network devices for it.
         '''
-        self._ports_create()
         self._exec_cmd_batched('pre', self._ns_create_cmds())
 
     def _ns_destroy_cmd(self):
@@ -171,7 +201,6 @@ class SubPlugin(TdcPlugin):
         devices as well)
         '''
         self._exec_cmd('post', self._ns_destroy_cmd())
-        self._ports_destroy()
 
     @cached_property
     def _proc(self):
