@@ -444,12 +444,70 @@ const struct amdgpu_ras_block_hw_ops umc_v12_0_ras_hw_ops = {
 	.query_ras_error_address = umc_v12_0_query_ras_error_address,
 };
 
+static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct aca_bank *bank, enum aca_error_type type,
+					      struct aca_bank_report *report, void *data)
+{
+	struct amdgpu_device *adev = handle->adev;
+	u64 status;
+	int ret;
+
+	ret = aca_bank_info_decode(bank, &report->info);
+	if (ret)
+		return ret;
+
+	status = bank->regs[ACA_REG_IDX_STATUS];
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+		if (umc_v12_0_is_uncorrectable_error(adev, status)) {
+			report->count[type] = 1;
+		}
+		break;
+	case ACA_ERROR_TYPE_CE:
+		if (umc_v12_0_is_correctable_error(adev, status)) {
+			report->count[type] = 1;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct aca_bank_ops umc_v12_0_aca_bank_ops = {
+	.aca_bank_generate_report = umc_v12_0_aca_bank_generate_report,
+};
+
+const struct aca_info umc_v12_0_aca_info = {
+	.hwip = ACA_HWIP_TYPE_UMC,
+	.mask = ACA_ERROR_UE_MASK | ACA_ERROR_CE_MASK,
+	.bank_ops = &umc_v12_0_aca_bank_ops,
+};
+
+static int umc_v12_0_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int ret;
+
+	ret = amdgpu_umc_ras_late_init(adev, ras_block);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__UMC,
+				  &umc_v12_0_aca_info, NULL);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 struct amdgpu_umc_ras umc_v12_0_ras = {
 	.ras_block = {
 		.hw_ops = &umc_v12_0_ras_hw_ops,
+		.ras_late_init = umc_v12_0_ras_late_init,
 	},
 	.err_cnt_init = umc_v12_0_err_cnt_init,
 	.query_ras_poison_mode = umc_v12_0_query_ras_poison_mode,
 	.ecc_info_query_ras_error_count = umc_v12_0_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v12_0_ecc_info_query_ras_error_address,
 };
+
