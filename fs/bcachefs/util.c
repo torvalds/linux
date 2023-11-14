@@ -322,6 +322,7 @@ void bch2_prt_datetime(struct printbuf *out, time64_t sec)
 	time_t t = sec;
 	char buf[64];
 	ctime_r(&t, buf);
+	strim(buf);
 	prt_str(out, buf);
 }
 #else
