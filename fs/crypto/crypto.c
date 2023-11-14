@@ -70,14 +70,14 @@ void fscrypt_free_bounce_page(struct page *bounce_page)
 EXPORT_SYMBOL(fscrypt_free_bounce_page);
 
 /*
- * Generate the IV for the given logical block number within the given file.
- * For filenames encryption, lblk_num == 0.
+ * Generate the IV for the given data unit index within the given file.
+ * For filenames encryption, index == 0.
  *
  * Keep this in sync with fscrypt_limit_io_blocks().  fscrypt_limit_io_blocks()
  * needs to know about any IV generation methods where the low bits of IV don't
- * simply contain the lblk_num (e.g., IV_INO_LBLK_32).
+ * simply contain the data unit index (e.g., IV_INO_LBLK_32).
  */
-void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
+void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 			 const struct fscrypt_info *ci)
 {
 	u8 flags = fscrypt_policy_flags(&ci->ci_policy);
@@ -85,29 +85,29 @@ void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
 	memset(iv, 0, ci->ci_mode->ivsize);
 
 	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) {
-		WARN_ON_ONCE(lblk_num > U32_MAX);
+		WARN_ON_ONCE(index > U32_MAX);
 		WARN_ON_ONCE(ci->ci_inode->i_ino > U32_MAX);
-		lblk_num |= (u64)ci->ci_inode->i_ino << 32;
+		index |= (u64)ci->ci_inode->i_ino << 32;
 	} else if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
-		WARN_ON_ONCE(lblk_num > U32_MAX);
-		lblk_num = (u32)(ci->ci_hashed_ino + lblk_num);
+		WARN_ON_ONCE(index > U32_MAX);
+		index = (u32)(ci->ci_hashed_ino + index);
 	} else if (flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
 		memcpy(iv->nonce, ci->ci_nonce, FSCRYPT_FILE_NONCE_SIZE);
 	}
-	iv->lblk_num = cpu_to_le64(lblk_num);
+	iv->index = cpu_to_le64(index);
 }
 
-/* Encrypt or decrypt a single filesystem block of file contents */
-int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
-			u64 lblk_num, struct page *src_page,
-			struct page *dest_page, unsigned int len,
-			unsigned int offs, gfp_t gfp_flags)
+/* Encrypt or decrypt a single "data unit" of file contents. */
+int fscrypt_crypt_data_unit(const struct fscrypt_info *ci,
+			    fscrypt_direction_t rw, u64 index,
+			    struct page *src_page, struct page *dest_page,
+			    unsigned int len, unsigned int offs,
+			    gfp_t gfp_flags)
 {
 	union fscrypt_iv iv;
 	struct skcipher_request *req = NULL;
 	DECLARE_CRYPTO_WAIT(wait);
 	struct scatterlist dst, src;
-	struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_enc_key.tfm;
 	int res = 0;
 
@@ -116,7 +116,7 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 	if (WARN_ON_ONCE(len % FSCRYPT_CONTENTS_ALIGNMENT != 0))
 		return -EINVAL;
 
-	fscrypt_generate_iv(&iv, lblk_num, ci);
+	fscrypt_generate_iv(&iv, index, ci);
 
 	req = skcipher_request_alloc(tfm, gfp_flags);
 	if (!req)
@@ -137,28 +137,29 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 		res = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
 	skcipher_request_free(req);
 	if (res) {
-		fscrypt_err(inode, "%scryption failed for block %llu: %d",
-			    (rw == FS_DECRYPT ? "De" : "En"), lblk_num, res);
+		fscrypt_err(ci->ci_inode,
+			    "%scryption failed for data unit %llu: %d",
+			    (rw == FS_DECRYPT ? "De" : "En"), index, res);
 		return res;
 	}
 	return 0;
 }
 
 /**
- * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a
- *					pagecache page
- * @page:      The locked pagecache page containing the block(s) to encrypt
- * @len:       Total size of the block(s) to encrypt.  Must be a nonzero
- *		multiple of the filesystem's block size.
- * @offs:      Byte offset within @page of the first block to encrypt.  Must be
- *		a multiple of the filesystem's block size.
- * @gfp_flags: Memory allocation flags.  See details below.
+ * fscrypt_encrypt_pagecache_blocks() - Encrypt data from a pagecache page
+ * @page: the locked pagecache page containing the data to encrypt
+ * @len: size of the data to encrypt, in bytes
+ * @offs: offset within @page of the data to encrypt, in bytes
+ * @gfp_flags: memory allocation flags; see details below
  *
- * A new bounce page is allocated, and the specified block(s) are encrypted into
- * it.  In the bounce page, the ciphertext block(s) will be located at the same
- * offsets at which the plaintext block(s) were located in the source page; any
- * other parts of the bounce page will be left uninitialized.  However, normally
- * blocksize == PAGE_SIZE and the whole page is encrypted at once.
+ * This allocates a new bounce page and encrypts the given data into it.  The
+ * length and offset of the data must be aligned to the file's crypto data unit
+ * size.  Alignment to the filesystem block size fulfills this requirement, as
+ * the filesystem block size is always a multiple of the data unit size.
+ *
+ * In the bounce page, the ciphertext data will be located at the same offset at
+ * which the plaintext data was located in the source page.  Any other parts of
+ * the bounce page will be left uninitialized.
  *
  * This is for use by the filesystem's ->writepages() method.
  *
@@ -176,28 +177,29 @@ struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 
 {
 	const struct inode *inode = page->mapping->host;
-	const unsigned int blockbits = inode->i_blkbits;
-	const unsigned int blocksize = 1 << blockbits;
+	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const unsigned int du_bits = ci->ci_data_unit_bits;
+	const unsigned int du_size = 1U << du_bits;
 	struct page *ciphertext_page;
-	u64 lblk_num = ((u64)page->index << (PAGE_SHIFT - blockbits)) +
-		       (offs >> blockbits);
+	u64 index = ((u64)page->index << (PAGE_SHIFT - du_bits)) +
+		    (offs >> du_bits);
 	unsigned int i;
 	int err;
 
 	if (WARN_ON_ONCE(!PageLocked(page)))
 		return ERR_PTR(-EINVAL);
 
-	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, blocksize)))
+	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, du_size)))
 		return ERR_PTR(-EINVAL);
 
 	ciphertext_page = fscrypt_alloc_bounce_page(gfp_flags);
 	if (!ciphertext_page)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
-		err = fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num,
-					  page, ciphertext_page,
-					  blocksize, i, gfp_flags);
+	for (i = offs; i < offs + len; i += du_size, index++) {
+		err = fscrypt_crypt_data_unit(ci, FS_ENCRYPT, index,
+					      page, ciphertext_page,
+					      du_size, i, gfp_flags);
 		if (err) {
 			fscrypt_free_bounce_page(ciphertext_page);
 			return ERR_PTR(err);
@@ -224,30 +226,34 @@ EXPORT_SYMBOL(fscrypt_encrypt_pagecache_blocks);
  * arbitrary page, not necessarily in the original pagecache page.  The @inode
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
+ * This is not compatible with FS_CFLG_SUPPORTS_SUBBLOCK_DATA_UNITS.
+ *
  * Return: 0 on success; -errno on failure
  */
 int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num, gfp_t gfp_flags)
 {
-	return fscrypt_crypt_block(inode, FS_ENCRYPT, lblk_num, page, page,
-				   len, offs, gfp_flags);
+	if (WARN_ON_ONCE(inode->i_sb->s_cop->flags &
+			 FS_CFLG_SUPPORTS_SUBBLOCK_DATA_UNITS))
+		return -EOPNOTSUPP;
+	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_ENCRYPT,
+				       lblk_num, page, page, len, offs,
+				       gfp_flags);
 }
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
 /**
- * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a
- *					pagecache folio
- * @folio:     The locked pagecache folio containing the block(s) to decrypt
- * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
- *		multiple of the filesystem's block size.
- * @offs:      Byte offset within @folio of the first block to decrypt.  Must be
- *		a multiple of the filesystem's block size.
+ * fscrypt_decrypt_pagecache_blocks() - Decrypt data from a pagecache folio
+ * @folio: the pagecache folio containing the data to decrypt
+ * @len: size of the data to decrypt, in bytes
+ * @offs: offset within @folio of the data to decrypt, in bytes
  *
- * The specified block(s) are decrypted in-place within the pagecache folio,
- * which must still be locked and not uptodate.
- *
- * This is for use by the filesystem's ->readahead() method.
+ * Decrypt data that has just been read from an encrypted file.  The data must
+ * be located in a pagecache folio that is still locked and not yet uptodate.
+ * The length and offset of the data must be aligned to the file's crypto data
+ * unit size.  Alignment to the filesystem block size fulfills this requirement,
+ * as the filesystem block size is always a multiple of the data unit size.
  *
  * Return: 0 on success; -errno on failure
  */
@@ -255,25 +261,26 @@ int fscrypt_decrypt_pagecache_blocks(struct folio *folio, size_t len,
 				     size_t offs)
 {
 	const struct inode *inode = folio->mapping->host;
-	const unsigned int blockbits = inode->i_blkbits;
-	const unsigned int blocksize = 1 << blockbits;
-	u64 lblk_num = ((u64)folio->index << (PAGE_SHIFT - blockbits)) +
-		       (offs >> blockbits);
+	const struct fscrypt_info *ci = inode->i_crypt_info;
+	const unsigned int du_bits = ci->ci_data_unit_bits;
+	const unsigned int du_size = 1U << du_bits;
+	u64 index = ((u64)folio->index << (PAGE_SHIFT - du_bits)) +
+		    (offs >> du_bits);
 	size_t i;
 	int err;
 
 	if (WARN_ON_ONCE(!folio_test_locked(folio)))
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, blocksize)))
+	if (WARN_ON_ONCE(len <= 0 || !IS_ALIGNED(len | offs, du_size)))
 		return -EINVAL;
 
-	for (i = offs; i < offs + len; i += blocksize, lblk_num++) {
+	for (i = offs; i < offs + len; i += du_size, index++) {
 		struct page *page = folio_page(folio, i >> PAGE_SHIFT);
 
-		err = fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page,
-					  page, blocksize, i & ~PAGE_MASK,
-					  GFP_NOFS);
+		err = fscrypt_crypt_data_unit(ci, FS_DECRYPT, index, page,
+					      page, du_size, i & ~PAGE_MASK,
+					      GFP_NOFS);
 		if (err)
 			return err;
 	}
@@ -295,14 +302,20 @@ EXPORT_SYMBOL(fscrypt_decrypt_pagecache_blocks);
  * arbitrary page, not necessarily in the original pagecache page.  The @inode
  * and @lblk_num must be specified, as they can't be determined from @page.
  *
+ * This is not compatible with FS_CFLG_SUPPORTS_SUBBLOCK_DATA_UNITS.
+ *
  * Return: 0 on success; -errno on failure
  */
 int fscrypt_decrypt_block_inplace(const struct inode *inode, struct page *page,
 				  unsigned int len, unsigned int offs,
 				  u64 lblk_num)
 {
-	return fscrypt_crypt_block(inode, FS_DECRYPT, lblk_num, page, page,
-				   len, offs, GFP_NOFS);
+	if (WARN_ON_ONCE(inode->i_sb->s_cop->flags &
+			 FS_CFLG_SUPPORTS_SUBBLOCK_DATA_UNITS))
+		return -EOPNOTSUPP;
+	return fscrypt_crypt_data_unit(inode->i_crypt_info, FS_DECRYPT,
+				       lblk_num, page, page, len, offs,
+				       GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_block_inplace);
 
