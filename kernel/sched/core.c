@@ -1131,6 +1131,28 @@ static void wake_up_idle_cpu(int cpu)
 	if (cpu == smp_processor_id())
 		return;
 
+	/*
+	 * Set TIF_NEED_RESCHED and send an IPI if in the non-polling
+	 * part of the idle loop. This forces an exit from the idle loop
+	 * and a round trip to schedule(). Now this could be optimized
+	 * because a simple new idle loop iteration is enough to
+	 * re-evaluate the next tick. Provided some re-ordering of tick
+	 * nohz functions that would need to follow TIF_NR_POLLING
+	 * clearing:
+	 *
+	 * - On most archs, a simple fetch_or on ti::flags with a
+	 *   "0" value would be enough to know if an IPI needs to be sent.
+	 *
+	 * - x86 needs to perform a last need_resched() check between
+	 *   monitor and mwait which doesn't take timers into account.
+	 *   There a dedicated TIF_TIMER flag would be required to
+	 *   fetch_or here and be checked along with TIF_NEED_RESCHED
+	 *   before mwait().
+	 *
+	 * However, remote timer enqueue is not such a frequent event
+	 * and testing of the above solutions didn't appear to report
+	 * much benefits.
+	 */
 	if (set_nr_and_not_polling(rq->idle))
 		smp_send_reschedule(cpu);
 	else
