@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+config ROCKCHIP_MPP_OSAL
+	bool "mpp osal"
+	depends on CPU_RV1106
+	default y
+	help
+	  rockchip mpp osal adapt for kmpp
