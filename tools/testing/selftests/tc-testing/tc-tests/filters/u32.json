@@ -272,5 +272,62 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 parent root drr"
         ]
+    },
+    {
+        "id": "bd32",
+        "name": "Try to delete hashtable referenced by another u32 filter",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 parent root handle 10: drr",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 handle 1: u32 divisor 1",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 800: match ip src any link 1:"
+        ],
+        "cmdUnderTest": "$TC filter delete dev $DEV1 parent 10: prio 2 handle 1: u32",
+        "expExitCode": "2",
+        "verifyCmd": "$TC filter show dev $DEV1",
+        "matchPattern": "protocol ip pref 2 u32 chain 0 fh 1:",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 parent root drr"
+        ]
+    },
+    {
+        "id": "4585",
+        "name": "Delete small tree of u32 hashtables and filters",
+        "category": [
+            "filter",
+            "u32"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 parent root handle 10: drr",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 handle 1: u32 divisor 1",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 handle 2: u32 divisor 1",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 handle 3: u32 divisor 2",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 handle 4: u32 divisor 1",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 1: match ip src any action drop",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 2: match ip src any action drop",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 3: match ip src any link 2:",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 3: match ip src any link 1:",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 4: match ip src any action drop",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 800: match ip src any link 3:",
+            "$TC filter add dev $DEV1 parent 10:0 protocol ip prio 2 u32 ht 800: match ip src any link 4:"
+        ],
+        "cmdUnderTest": "$TC filter delete dev $DEV1 parent 10:",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV1",
+        "matchPattern": "protocol ip pref 2 u32",
+        "matchCount": "0",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 parent root drr"
+        ]
     }
 ]
