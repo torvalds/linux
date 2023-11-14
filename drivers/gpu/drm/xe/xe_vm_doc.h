@@ -32,9 +32,9 @@
  * Operations
  * ----------
  *
- * XE_VM_BIND_OP_MAP		- Create mapping for a BO
- * XE_VM_BIND_OP_UNMAP		- Destroy mapping for a BO / userptr
- * XE_VM_BIND_OP_MAP_USERPTR	- Create mapping for userptr
+ * DRM_XE_VM_BIND_OP_MAP		- Create mapping for a BO
+ * DRM_XE_VM_BIND_OP_UNMAP		- Destroy mapping for a BO / userptr
+ * DRM_XE_VM_BIND_OP_MAP_USERPTR	- Create mapping for userptr
  *
  * Implementation details
  * ~~~~~~~~~~~~~~~~~~~~~~
@@ -113,7 +113,7 @@
  * VM uses to report errors to. The ufence wait interface can be used to wait on
  * a VM going into an error state. Once an error is reported the VM's async
  * worker is paused. While the VM's async worker is paused sync,
- * XE_VM_BIND_OP_UNMAP operations are allowed (this can free memory). Once the
+ * DRM_XE_VM_BIND_OP_UNMAP operations are allowed (this can free memory). Once the
  * uses believe the error state is fixed, the async worker can be resumed via
  * XE_VM_BIND_OP_RESTART operation. When VM async bind work is restarted, the
  * first operation processed is the operation that caused the original error.
@@ -193,7 +193,7 @@
  * In a VM is in fault mode (TODO: link to fault mode), new bind operations that
  * create mappings are by default are deferred to the page fault handler (first
  * use). This behavior can be overriden by setting the flag
- * XE_VM_BIND_FLAG_IMMEDIATE which indicates to creating the mapping
+ * DRM_XE_VM_BIND_FLAG_IMMEDIATE which indicates to creating the mapping
  * immediately.
  *
  * User pointer
@@ -322,7 +322,7 @@
  *
  * By default, on a faulting VM binds just allocate the VMA and the actual
  * updating of the page tables is defered to the page fault handler. This
- * behavior can be overridden by setting the flag XE_VM_BIND_FLAG_IMMEDIATE in
+ * behavior can be overridden by setting the flag DRM_XE_VM_BIND_FLAG_IMMEDIATE in
  * the VM bind which will then do the bind immediately.
  *
  * Page fault handler

@@ -393,7 +393,7 @@ static int exec_queue_set_acc_granularity(struct xe_device *xe, struct xe_exec_q
 	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
 		return -EINVAL;
 
-	if (value > XE_ACC_GRANULARITY_64M)
+	if (value > DRM_XE_ACC_GRANULARITY_64M)
 		return -EINVAL;
 
 	q->usm.acc_granularity = value;
@@ -406,14 +406,14 @@ typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
 					     u64 value, bool create);
 
 static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
-	[XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY] = exec_queue_set_priority,
-	[XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE] = exec_queue_set_timeslice,
-	[XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT] = exec_queue_set_preemption_timeout,
-	[XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE] = exec_queue_set_persistence,
-	[XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT] = exec_queue_set_job_timeout,
-	[XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER] = exec_queue_set_acc_trigger,
-	[XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY] = exec_queue_set_acc_notify,
-	[XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY] = exec_queue_set_acc_granularity,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY] = exec_queue_set_priority,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE] = exec_queue_set_timeslice,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT] = exec_queue_set_preemption_timeout,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE] = exec_queue_set_persistence,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT] = exec_queue_set_job_timeout,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER] = exec_queue_set_acc_trigger,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY] = exec_queue_set_acc_notify,
+	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY] = exec_queue_set_acc_granularity,
 };
 
 static int exec_queue_user_ext_set_property(struct xe_device *xe,
@@ -445,7 +445,7 @@ typedef int (*xe_exec_queue_user_extension_fn)(struct xe_device *xe,
 					       bool create);
 
 static const xe_exec_queue_set_property_fn exec_queue_user_extension_funcs[] = {
-	[XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY] = exec_queue_user_ext_set_property,
+	[DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY] = exec_queue_user_ext_set_property,
 };
 
 #define MAX_USER_EXTENSIONS	16
@@ -764,7 +764,7 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	switch (args->property) {
-	case XE_EXEC_QUEUE_GET_PROPERTY_BAN:
+	case DRM_XE_EXEC_QUEUE_GET_PROPERTY_BAN:
 		args->value = !!(q->flags & EXEC_QUEUE_FLAG_BANNED);
 		ret = 0;
 		break;

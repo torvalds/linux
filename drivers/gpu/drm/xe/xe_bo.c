@@ -209,7 +209,7 @@ static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 
 	/* The order of placements should indicate preferred location */
 
-	if (bo->props.preferred_mem_class == XE_MEM_REGION_CLASS_SYSMEM) {
+	if (bo->props.preferred_mem_class == DRM_XE_MEM_REGION_CLASS_SYSMEM) {
 		try_add_system(bo, places, bo_flags, &c);
 		try_add_vram(xe, bo, places, bo_flags, &c);
 	} else {
@@ -1814,9 +1814,9 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	if (XE_IOCTL_DBG(xe, args->flags &
-			 ~(XE_GEM_CREATE_FLAG_DEFER_BACKING |
-			   XE_GEM_CREATE_FLAG_SCANOUT |
-			   XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM |
+			 ~(DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING |
+			   DRM_XE_GEM_CREATE_FLAG_SCANOUT |
+			   DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM |
 			   xe->info.mem_region_mask)))
 		return -EINVAL;
 
@@ -1836,15 +1836,15 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, args->size & ~PAGE_MASK))
 		return -EINVAL;
 
-	if (args->flags & XE_GEM_CREATE_FLAG_DEFER_BACKING)
+	if (args->flags & DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING)
 		bo_flags |= XE_BO_DEFER_BACKING;
 
-	if (args->flags & XE_GEM_CREATE_FLAG_SCANOUT)
+	if (args->flags & DRM_XE_GEM_CREATE_FLAG_SCANOUT)
 		bo_flags |= XE_BO_SCANOUT_BIT;
 
 	bo_flags |= args->flags << (ffs(XE_BO_CREATE_SYSTEM_BIT) - 1);
 
-	if (args->flags & XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM) {
+	if (args->flags & DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM) {
 		if (XE_IOCTL_DBG(xe, !(bo_flags & XE_BO_CREATE_VRAM_MASK)))
 			return -EINVAL;
 

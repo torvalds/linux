@@ -2177,8 +2177,8 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	       (ULL)bo_offset_or_userptr);
 
 	switch (operation) {
-	case XE_VM_BIND_OP_MAP:
-	case XE_VM_BIND_OP_MAP_USERPTR:
+	case DRM_XE_VM_BIND_OP_MAP:
+	case DRM_XE_VM_BIND_OP_MAP_USERPTR:
 		ops = drm_gpuvm_sm_map_ops_create(&vm->gpuvm, addr, range,
 						  obj, bo_offset_or_userptr);
 		if (IS_ERR(ops))
@@ -2189,13 +2189,13 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 
 			op->tile_mask = tile_mask;
 			op->map.immediate =
-				flags & XE_VM_BIND_FLAG_IMMEDIATE;
+				flags & DRM_XE_VM_BIND_FLAG_IMMEDIATE;
 			op->map.read_only =
-				flags & XE_VM_BIND_FLAG_READONLY;
-			op->map.is_null = flags & XE_VM_BIND_FLAG_NULL;
+				flags & DRM_XE_VM_BIND_FLAG_READONLY;
+			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
 		}
 		break;
-	case XE_VM_BIND_OP_UNMAP:
+	case DRM_XE_VM_BIND_OP_UNMAP:
 		ops = drm_gpuvm_sm_unmap_ops_create(&vm->gpuvm, addr, range);
 		if (IS_ERR(ops))
 			return ops;
@@ -2206,7 +2206,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			op->tile_mask = tile_mask;
 		}
 		break;
-	case XE_VM_BIND_OP_PREFETCH:
+	case DRM_XE_VM_BIND_OP_PREFETCH:
 		ops = drm_gpuvm_prefetch_ops_create(&vm->gpuvm, addr, range);
 		if (IS_ERR(ops))
 			return ops;
@@ -2218,7 +2218,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			op->prefetch.region = region;
 		}
 		break;
-	case XE_VM_BIND_OP_UNMAP_ALL:
+	case DRM_XE_VM_BIND_OP_UNMAP_ALL:
 		xe_assert(vm->xe, bo);
 
 		err = xe_bo_lock(bo, true);
@@ -2828,13 +2828,13 @@ static int vm_bind_ioctl_ops_execute(struct xe_vm *vm,
 
 #ifdef TEST_VM_ASYNC_OPS_ERROR
 #define SUPPORTED_FLAGS	\
-	(FORCE_ASYNC_OP_ERROR | XE_VM_BIND_FLAG_ASYNC | \
-	 XE_VM_BIND_FLAG_READONLY | XE_VM_BIND_FLAG_IMMEDIATE | \
-	 XE_VM_BIND_FLAG_NULL | 0xffff)
+	(FORCE_ASYNC_OP_ERROR | DRM_XE_VM_BIND_FLAG_ASYNC | \
+	 DRM_XE_VM_BIND_FLAG_READONLY | DRM_XE_VM_BIND_FLAG_IMMEDIATE | \
+	 DRM_XE_VM_BIND_FLAG_NULL | 0xffff)
 #else
 #define SUPPORTED_FLAGS	\
-	(XE_VM_BIND_FLAG_ASYNC | XE_VM_BIND_FLAG_READONLY | \
-	 XE_VM_BIND_FLAG_IMMEDIATE | XE_VM_BIND_FLAG_NULL | \
+	(DRM_XE_VM_BIND_FLAG_ASYNC | DRM_XE_VM_BIND_FLAG_READONLY | \
+	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL | \
 	 0xffff)
 #endif
 #define XE_64K_PAGE_MASK 0xffffull
@@ -2882,45 +2882,45 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		u32 obj = (*bind_ops)[i].obj;
 		u64 obj_offset = (*bind_ops)[i].obj_offset;
 		u32 region = (*bind_ops)[i].region;
-		bool is_null = flags & XE_VM_BIND_FLAG_NULL;
+		bool is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
 
 		if (i == 0) {
-			*async = !!(flags & XE_VM_BIND_FLAG_ASYNC);
+			*async = !!(flags & DRM_XE_VM_BIND_FLAG_ASYNC);
 			if (XE_IOCTL_DBG(xe, !*async && args->num_syncs)) {
 				err = -EINVAL;
 				goto free_bind_ops;
 			}
 		} else if (XE_IOCTL_DBG(xe, *async !=
-					!!(flags & XE_VM_BIND_FLAG_ASYNC))) {
+					!!(flags & DRM_XE_VM_BIND_FLAG_ASYNC))) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
 
-		if (XE_IOCTL_DBG(xe, op > XE_VM_BIND_OP_PREFETCH) ||
+		if (XE_IOCTL_DBG(xe, op > DRM_XE_VM_BIND_OP_PREFETCH) ||
 		    XE_IOCTL_DBG(xe, flags & ~SUPPORTED_FLAGS) ||
 		    XE_IOCTL_DBG(xe, obj && is_null) ||
 		    XE_IOCTL_DBG(xe, obj_offset && is_null) ||
-		    XE_IOCTL_DBG(xe, op != XE_VM_BIND_OP_MAP &&
+		    XE_IOCTL_DBG(xe, op != DRM_XE_VM_BIND_OP_MAP &&
 				 is_null) ||
 		    XE_IOCTL_DBG(xe, !obj &&
-				 op == XE_VM_BIND_OP_MAP &&
+				 op == DRM_XE_VM_BIND_OP_MAP &&
 				 !is_null) ||
 		    XE_IOCTL_DBG(xe, !obj &&
-				 op == XE_VM_BIND_OP_UNMAP_ALL) ||
+				 op == DRM_XE_VM_BIND_OP_UNMAP_ALL) ||
 		    XE_IOCTL_DBG(xe, addr &&
-				 op == XE_VM_BIND_OP_UNMAP_ALL) ||
+				 op == DRM_XE_VM_BIND_OP_UNMAP_ALL) ||
 		    XE_IOCTL_DBG(xe, range &&
-				 op == XE_VM_BIND_OP_UNMAP_ALL) ||
+				 op == DRM_XE_VM_BIND_OP_UNMAP_ALL) ||
 		    XE_IOCTL_DBG(xe, obj &&
-				 op == XE_VM_BIND_OP_MAP_USERPTR) ||
+				 op == DRM_XE_VM_BIND_OP_MAP_USERPTR) ||
 		    XE_IOCTL_DBG(xe, obj &&
-				 op == XE_VM_BIND_OP_PREFETCH) ||
+				 op == DRM_XE_VM_BIND_OP_PREFETCH) ||
 		    XE_IOCTL_DBG(xe, region &&
-				 op != XE_VM_BIND_OP_PREFETCH) ||
+				 op != DRM_XE_VM_BIND_OP_PREFETCH) ||
 		    XE_IOCTL_DBG(xe, !(BIT(region) &
 				       xe->info.mem_region_mask)) ||
 		    XE_IOCTL_DBG(xe, obj &&
-				 op == XE_VM_BIND_OP_UNMAP)) {
+				 op == DRM_XE_VM_BIND_OP_UNMAP)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
@@ -2929,7 +2929,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		    XE_IOCTL_DBG(xe, addr & ~PAGE_MASK) ||
 		    XE_IOCTL_DBG(xe, range & ~PAGE_MASK) ||
 		    XE_IOCTL_DBG(xe, !range &&
-				 op != XE_VM_BIND_OP_UNMAP_ALL)) {
+				 op != DRM_XE_VM_BIND_OP_UNMAP_ALL)) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}

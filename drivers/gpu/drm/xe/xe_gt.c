@@ -560,7 +560,7 @@ static void xe_uevent_gt_reset_failure(struct pci_dev *pdev, u8 tile_id, u8 gt_i
 {
 	char *reset_event[4];
 
-	reset_event[0] = XE_RESET_FAILED_UEVENT "=NEEDS_RESET";
+	reset_event[0] = DRM_XE_RESET_FAILED_UEVENT "=NEEDS_RESET";
 	reset_event[1] = kasprintf(GFP_KERNEL, "TILE_ID=%d", tile_id);
 	reset_event[2] = kasprintf(GFP_KERNEL, "GT_ID=%d", gt_id);
 	reset_event[3] = NULL;
