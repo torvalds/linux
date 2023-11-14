@@ -227,6 +227,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ``ETHTOOL_MSG_TS_GET``                get current timestamping
   ``ETHTOOL_MSG_TS_LIST_GET``           list available timestampings
+  ``ETHTOOL_MSG_TS_SET``                set current timestamping
   ===================================== =================================
 
 Kernel to userspace:
@@ -2038,6 +2039,21 @@ Kernel response contents:
 
 This command lists all the possible timestamp layer available.
 
+TS_SET
+======
+
+Modify the selected timestamping.
+
+Request contents:
+
+  =======================  ======  ===================
+  ``ETHTOOL_A_TS_HEADER``  nested  reply header
+  ``ETHTOOL_A_TS_LAYER``   u32     timestamping
+  =======================  ======  ===================
+
+This command set the timestamping with one that should be listed by the
+TSLIST_GET command.
+
 Request translation
 ===================
 
@@ -2146,4 +2162,5 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_MM_SET``
   n/a                                 ``ETHTOOL_MSG_TS_GET``
   n/a                                 ``ETHTOOL_MSG_TS_LIST_GET``
+  n/a                                 ``ETHTOOL_MSG_TS_SET``
   =================================== =====================================

@@ -59,6 +59,7 @@ enum {
 	ETHTOOL_MSG_MM_SET,
 	ETHTOOL_MSG_TS_GET,
 	ETHTOOL_MSG_TS_LIST_GET,
+	ETHTOOL_MSG_TS_SET,
 
 	/* add new constants above here */
 	__ETHTOOL_MSG_USER_CNT,
