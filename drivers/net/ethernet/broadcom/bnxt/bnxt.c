@@ -687,14 +687,14 @@ tx_kick_pending:
 	return NETDEV_TX_OK;
 }
 
-static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
+static void __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
+			  int budget)
 {
-	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
 	struct netdev_queue *txq = netdev_get_tx_queue(bp->dev, txr->txq_index);
-	u16 hw_cons = txr->tx_hw_cons;
-	u16 cons = txr->tx_cons;
 	struct pci_dev *pdev = bp->pdev;
+	u16 hw_cons = txr->tx_hw_cons;
 	unsigned int tx_bytes = 0;
+	u16 cons = txr->tx_cons;
 	int tx_pkts = 0;
 
 	while (cons != hw_cons) {
@@ -749,12 +749,19 @@ next_tx_int:
 		dev_consume_skb_any(skb);
 	}
 
-	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 	WRITE_ONCE(txr->tx_cons, cons);
 
 	__netif_txq_completed_wake(txq, tx_pkts, tx_bytes,
 				   bnxt_tx_avail(bp, txr), bp->tx_wake_thresh,
 				   READ_ONCE(txr->dev_state) == BNXT_DEV_STATE_CLOSING);
+}
+
+static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
+{
+	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+
+	__bnxt_tx_int(bp, txr, budget);
+	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 }
 
 static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
