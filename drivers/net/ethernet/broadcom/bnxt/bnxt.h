@@ -1046,6 +1046,14 @@ struct bnxt_cp_ring_info {
 	struct bnxt_cp_ring_info *cp_ring_arr;
 };
 
+#define BNXT_MAX_QUEUE		8
+#define BNXT_MAX_TXR_PER_NAPI	BNXT_MAX_QUEUE
+
+#define bnxt_for_each_napi_tx(iter, bnapi, txr)		\
+	for (iter = 0, txr = (bnapi)->tx_ring[0]; txr;	\
+	     txr = (iter < BNXT_MAX_TXR_PER_NAPI - 1) ?	\
+	     (bnapi)->tx_ring[++iter] : NULL)
+
 struct bnxt_napi {
 	struct napi_struct	napi;
 	struct bnxt		*bp;
@@ -1053,7 +1061,7 @@ struct bnxt_napi {
 	int			index;
 	struct bnxt_cp_ring_info	cp_ring;
 	struct bnxt_rx_ring_info	*rx_ring;
-	struct bnxt_tx_ring_info	*tx_ring;
+	struct bnxt_tx_ring_info	*tx_ring[BNXT_MAX_TXR_PER_NAPI];
 
 	void			(*tx_int)(struct bnxt *, struct bnxt_napi *,
 					  int budget);
@@ -1390,8 +1398,6 @@ struct bnxt_link_info {
 #define BNXT_FEC_ALL_OFF(link_info)				\
 	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE |		\
 	 BNXT_FEC_RS_OFF(link_info))
-
-#define BNXT_MAX_QUEUE	8
 
 struct bnxt_queue_info {
 	u8	queue_id;

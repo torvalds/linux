@@ -127,7 +127,7 @@ static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
 
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 {
-	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+	struct bnxt_tx_ring_info *txr = bnapi->tx_ring[0];
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
 	u16 tx_hw_cons = txr->tx_hw_cons;
 	bool rx_doorbell_needed = false;
@@ -249,7 +249,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	pdev = bp->pdev;
 	offset = bp->rx_offset;
 
-	txr = rxr->bnapi->tx_ring;
+	txr = rxr->bnapi->tx_ring[0];
 	/* BNXT_RX_PAGE_MODE(bp) when XDP enabled */
 	orig_data = xdp.data;
 
