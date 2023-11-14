@@ -12,8 +12,10 @@
 #include <asm/alternative.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
+#include <asm/dma-noncoherent.h>
 #include <asm/errata_list.h>
 #include <asm/hwprobe.h>
+#include <asm/io.h>
 #include <asm/patch.h>
 #include <asm/vendorid_list.h>
 
@@ -33,6 +35,75 @@ static bool errata_probe_pbmt(unsigned int stage,
 	return false;
 }
 
+/*
+ * th.dcache.ipa rs1 (invalidate, physical address)
+ * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
+ *   0000001    01010      rs1       000      00000  0001011
+ * th.dcache.iva rs1 (invalidate, virtual address)
+ *   0000001    00110      rs1       000      00000  0001011
+ *
+ * th.dcache.cpa rs1 (clean, physical address)
+ * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
+ *   0000001    01001      rs1       000      00000  0001011
+ * th.dcache.cva rs1 (clean, virtual address)
+ *   0000001    00101      rs1       000      00000  0001011
+ *
+ * th.dcache.cipa rs1 (clean then invalidate, physical address)
+ * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
+ *   0000001    01011      rs1       000      00000  0001011
+ * th.dcache.civa rs1 (clean then invalidate, virtual address)
+ *   0000001    00111      rs1       000      00000  0001011
+ *
+ * th.sync.s (make sure all cache operations finished)
+ * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
+ *   0000000    11001     00000      000      00000  0001011
+ */
+#define THEAD_INVAL_A0	".long 0x0265000b"
+#define THEAD_CLEAN_A0	".long 0x0255000b"
+#define THEAD_FLUSH_A0	".long 0x0275000b"
+#define THEAD_SYNC_S	".long 0x0190000b"
+
+#define THEAD_CMO_OP(_op, _start, _size, _cachesize)			\
+asm volatile("mv a0, %1\n\t"						\
+	     "j 2f\n\t"							\
+	     "3:\n\t"							\
+	     THEAD_##_op##_A0 "\n\t"					\
+	     "add a0, a0, %0\n\t"					\
+	     "2:\n\t"							\
+	     "bltu a0, %2, 3b\n\t"					\
+	     THEAD_SYNC_S						\
+	     : : "r"(_cachesize),					\
+		 "r"((unsigned long)(_start) & ~((_cachesize) - 1UL)),	\
+		 "r"((unsigned long)(_start) + (_size))			\
+	     : "a0")
+
+static void thead_errata_cache_inv(phys_addr_t paddr, size_t size)
+{
+	void *vaddr = phys_to_virt(paddr);
+
+	THEAD_CMO_OP(INVAL, vaddr, size, riscv_cbom_block_size);
+}
+
+static void thead_errata_cache_wback(phys_addr_t paddr, size_t size)
+{
+	void *vaddr = phys_to_virt(paddr);
+
+	THEAD_CMO_OP(CLEAN, vaddr, size, riscv_cbom_block_size);
+}
+
+static void thead_errata_cache_wback_inv(phys_addr_t paddr, size_t size)
+{
+	void *vaddr = phys_to_virt(paddr);
+
+	THEAD_CMO_OP(FLUSH, vaddr, size, riscv_cbom_block_size);
+}
+
+static const struct riscv_nonstd_cache_ops thead_errata_cmo_ops = {
+	.wback = &thead_errata_cache_wback,
+	.inv = &thead_errata_cache_inv,
+	.wback_inv = &thead_errata_cache_wback_inv,
+};
+
 static bool errata_probe_cmo(unsigned int stage,
 			     unsigned long arch_id, unsigned long impid)
 {
@@ -48,6 +119,7 @@ static bool errata_probe_cmo(unsigned int stage,
 	if (stage == RISCV_ALTERNATIVES_BOOT) {
 		riscv_cbom_block_size = L1_CACHE_BYTES;
 		riscv_noncoherent_supported();
+		riscv_noncoherent_register_cache_ops(&thead_errata_cmo_ops);
 	}
 
 	return true;
@@ -77,8 +149,7 @@ static u32 thead_errata_probe(unsigned int stage,
 	if (errata_probe_pbmt(stage, archid, impid))
 		cpu_req_errata |= BIT(ERRATA_THEAD_PBMT);
 
-	if (errata_probe_cmo(stage, archid, impid))
-		cpu_req_errata |= BIT(ERRATA_THEAD_CMO);
+	errata_probe_cmo(stage, archid, impid);
 
 	if (errata_probe_pmu(stage, archid, impid))
 		cpu_req_errata |= BIT(ERRATA_THEAD_PMU);
