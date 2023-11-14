@@ -6896,10 +6896,29 @@ int bnxt_hwrm_set_ring_coal(struct bnxt *bp, struct bnxt_napi *bnapi)
 	return hwrm_req_send(bp, req_rx);
 }
 
+static int
+bnxt_hwrm_set_rx_coal(struct bnxt *bp, struct bnxt_napi *bnapi,
+		      struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+{
+	u16 ring_id = bnxt_cp_ring_for_rx(bp, bnapi->rx_ring);
+
+	req->ring_id = cpu_to_le16(ring_id);
+	return hwrm_req_send(bp, req);
+}
+
+static int
+bnxt_hwrm_set_tx_coal(struct bnxt *bp, struct bnxt_napi *bnapi,
+		      struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
+{
+	u16 ring_id = bnxt_cp_ring_for_tx(bp, bnapi->tx_ring);
+
+	req->ring_id = cpu_to_le16(ring_id);
+	return hwrm_req_send(bp, req);
+}
+
 int bnxt_hwrm_set_coal(struct bnxt *bp)
 {
-	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req_rx, *req_tx,
-							   *req;
+	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req_rx, *req_tx;
 	int i, rc;
 
 	rc = hwrm_req_init(bp, req_rx, HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS);
@@ -6920,18 +6939,11 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_coal *hw_coal;
-		u16 ring_id;
 
-		req = req_rx;
-		if (!bnapi->rx_ring) {
-			ring_id = bnxt_cp_ring_for_tx(bp, bnapi->tx_ring);
-			req = req_tx;
-		} else {
-			ring_id = bnxt_cp_ring_for_rx(bp, bnapi->rx_ring);
-		}
-		req->ring_id = cpu_to_le16(ring_id);
-
-		rc = hwrm_req_send(bp, req);
+		if (!bnapi->rx_ring)
+			rc = bnxt_hwrm_set_tx_coal(bp, bnapi, req_tx);
+		else
+			rc = bnxt_hwrm_set_rx_coal(bp, bnapi, req_rx);
 		if (rc)
 			break;
 
@@ -6939,10 +6951,7 @@ int bnxt_hwrm_set_coal(struct bnxt *bp)
 			continue;
 
 		if (bnapi->rx_ring && bnapi->tx_ring) {
-			req = req_tx;
-			ring_id = bnxt_cp_ring_for_tx(bp, bnapi->tx_ring);
-			req->ring_id = cpu_to_le16(ring_id);
-			rc = hwrm_req_send(bp, req);
+			rc = bnxt_hwrm_set_tx_coal(bp, bnapi, req_tx);
 			if (rc)
 				break;
 		}
