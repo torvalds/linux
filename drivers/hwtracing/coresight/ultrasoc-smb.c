@@ -99,7 +99,7 @@ static int smb_open(struct inode *inode, struct file *file)
 					struct smb_drv_data, miscdev);
 	int ret = 0;
 
-	mutex_lock(&drvdata->mutex);
+	spin_lock(&drvdata->spinlock);
 
 	if (drvdata->reading) {
 		ret = -EBUSY;
@@ -115,7 +115,7 @@ static int smb_open(struct inode *inode, struct file *file)
 
 	drvdata->reading = true;
 out:
-	mutex_unlock(&drvdata->mutex);
+	spin_unlock(&drvdata->spinlock);
 
 	return ret;
 }
@@ -132,10 +132,8 @@ static ssize_t smb_read(struct file *file, char __user *data, size_t len,
 	if (!len)
 		return 0;
 
-	mutex_lock(&drvdata->mutex);
-
 	if (!sdb->data_size)
-		goto out;
+		return 0;
 
 	to_copy = min(sdb->data_size, len);
 
@@ -145,20 +143,15 @@ static ssize_t smb_read(struct file *file, char __user *data, size_t len,
 
 	if (copy_to_user(data, sdb->buf_base + sdb->buf_rdptr, to_copy)) {
 		dev_dbg(dev, "Failed to copy data to user\n");
-		to_copy = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	*ppos += to_copy;
-
 	smb_update_read_ptr(drvdata, to_copy);
-
-	dev_dbg(dev, "%zu bytes copied\n", to_copy);
-out:
 	if (!sdb->data_size)
 		smb_reset_buffer(drvdata);
-	mutex_unlock(&drvdata->mutex);
 
+	dev_dbg(dev, "%zu bytes copied\n", to_copy);
 	return to_copy;
 }
 
@@ -167,9 +160,9 @@ static int smb_release(struct inode *inode, struct file *file)
 	struct smb_drv_data *drvdata = container_of(file->private_data,
 					struct smb_drv_data, miscdev);
 
-	mutex_lock(&drvdata->mutex);
+	spin_lock(&drvdata->spinlock);
 	drvdata->reading = false;
-	mutex_unlock(&drvdata->mutex);
+	spin_unlock(&drvdata->spinlock);
 
 	return 0;
 }
@@ -262,7 +255,7 @@ static int smb_enable(struct coresight_device *csdev, enum cs_mode mode,
 	struct smb_drv_data *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret = 0;
 
-	mutex_lock(&drvdata->mutex);
+	spin_lock(&drvdata->spinlock);
 
 	/* Do nothing, the trace data is reading by other interface now */
 	if (drvdata->reading) {
@@ -294,7 +287,7 @@ static int smb_enable(struct coresight_device *csdev, enum cs_mode mode,
 
 	dev_dbg(&csdev->dev, "Ultrasoc SMB enabled\n");
 out:
-	mutex_unlock(&drvdata->mutex);
+	spin_unlock(&drvdata->spinlock);
 
 	return ret;
 }
@@ -304,7 +297,7 @@ static int smb_disable(struct coresight_device *csdev)
 	struct smb_drv_data *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret = 0;
 
-	mutex_lock(&drvdata->mutex);
+	spin_lock(&drvdata->spinlock);
 
 	if (drvdata->reading) {
 		ret = -EBUSY;
@@ -327,7 +320,7 @@ static int smb_disable(struct coresight_device *csdev)
 
 	dev_dbg(&csdev->dev, "Ultrasoc SMB disabled\n");
 out:
-	mutex_unlock(&drvdata->mutex);
+	spin_unlock(&drvdata->spinlock);
 
 	return ret;
 }
@@ -408,7 +401,7 @@ static unsigned long smb_update_buffer(struct coresight_device *csdev,
 	if (!buf)
 		return 0;
 
-	mutex_lock(&drvdata->mutex);
+	spin_lock(&drvdata->spinlock);
 
 	/* Don't do anything if another tracer is using this sink. */
 	if (atomic_read(&csdev->refcnt) != 1)
@@ -432,7 +425,7 @@ static unsigned long smb_update_buffer(struct coresight_device *csdev,
 	if (!buf->snapshot && lost)
 		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 out:
-	mutex_unlock(&drvdata->mutex);
+	spin_unlock(&drvdata->spinlock);
 
 	return data_size;
 }
@@ -590,7 +583,7 @@ static int smb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mutex_init(&drvdata->mutex);
+	spin_lock_init(&drvdata->spinlock);
 	drvdata->pid = -1;
 
 	ret = smb_register_sink(pdev, drvdata);
