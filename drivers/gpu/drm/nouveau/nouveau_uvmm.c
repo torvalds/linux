@@ -963,6 +963,12 @@ nouveau_uvmm_bind_job_free(struct kref *kref)
 {
 	struct nouveau_uvmm_bind_job *job =
 		container_of(kref, struct nouveau_uvmm_bind_job, kref);
+	struct bind_job_op *op, *next;
+
+	list_for_each_op_safe(op, next, &job->ops) {
+		list_del(&op->entry);
+		kfree(op);
+	}
 
 	nouveau_job_free(&job->base);
 	kfree(job);
@@ -1004,14 +1010,16 @@ bind_validate_op(struct nouveau_job *job,
 static void
 bind_validate_map_sparse(struct nouveau_job *job, u64 addr, u64 range)
 {
-	struct nouveau_uvmm_bind_job *bind_job;
-	struct nouveau_sched_entity *entity = job->entity;
+	struct nouveau_sched *sched = job->sched;
+	struct nouveau_job *__job;
 	struct bind_job_op *op;
 	u64 end = addr + range;
 
 again:
-	spin_lock(&entity->job.list.lock);
-	list_for_each_entry(bind_job, &entity->job.list.head, entry) {
+	spin_lock(&sched->job.list.lock);
+	list_for_each_entry(__job, &sched->job.list.head, entry) {
+		struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(__job);
+
 		list_for_each_op(op, &bind_job->ops) {
 			if (op->op == OP_UNMAP) {
 				u64 op_addr = op->va.addr;
@@ -1019,7 +1027,7 @@ again:
 
 				if (!(end <= op_addr || addr >= op_end)) {
 					nouveau_uvmm_bind_job_get(bind_job);
-					spin_unlock(&entity->job.list.lock);
+					spin_unlock(&sched->job.list.lock);
 					wait_for_completion(&bind_job->complete);
 					nouveau_uvmm_bind_job_put(bind_job);
 					goto again;
@@ -1027,7 +1035,7 @@ again:
 			}
 		}
 	}
-	spin_unlock(&entity->job.list.lock);
+	spin_unlock(&sched->job.list.lock);
 }
 
 static int
@@ -1183,7 +1191,6 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 {
 	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
 	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
-	struct nouveau_sched_entity *entity = job->entity;
 	struct drm_exec *exec = &vme->exec;
 	struct bind_job_op *op;
 	int ret;
@@ -1380,10 +1387,6 @@ nouveau_uvmm_bind_job_submit(struct nouveau_job *job,
 	}
 	nouveau_uvmm_unlock(uvmm);
 
-	spin_lock(&entity->job.list.lock);
-	list_add(&bind_job->entry, &entity->job.list.head);
-	spin_unlock(&entity->job.list.lock);
-
 	return 0;
 
 unwind_continue:
@@ -1466,14 +1469,11 @@ out:
 }
 
 static void
-nouveau_uvmm_bind_job_free_work_fn(struct work_struct *work)
+nouveau_uvmm_bind_job_cleanup(struct nouveau_job *job)
 {
-	struct nouveau_uvmm_bind_job *bind_job =
-		container_of(work, struct nouveau_uvmm_bind_job, work);
-	struct nouveau_job *job = &bind_job->base;
+	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
 	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(job->cli);
-	struct nouveau_sched_entity *entity = job->entity;
-	struct bind_job_op *op, *next;
+	struct bind_job_op *op;
 
 	list_for_each_op(op, &bind_job->ops) {
 		struct drm_gem_object *obj = op->gem.obj;
@@ -1525,38 +1525,17 @@ nouveau_uvmm_bind_job_free_work_fn(struct work_struct *work)
 			drm_gem_object_put(obj);
 	}
 
-	spin_lock(&entity->job.list.lock);
-	list_del(&bind_job->entry);
-	spin_unlock(&entity->job.list.lock);
-
+	nouveau_job_done(job);
 	complete_all(&bind_job->complete);
-	wake_up(&entity->job.wq);
-
-	/* Remove and free ops after removing the bind job from the job list to
-	 * avoid races against bind_validate_map_sparse().
-	 */
-	list_for_each_op_safe(op, next, &bind_job->ops) {
-		list_del(&op->entry);
-		kfree(op);
-	}
 
 	nouveau_uvmm_bind_job_put(bind_job);
-}
-
-static void
-nouveau_uvmm_bind_job_free_qwork(struct nouveau_job *job)
-{
-	struct nouveau_uvmm_bind_job *bind_job = to_uvmm_bind_job(job);
-	struct nouveau_sched_entity *entity = job->entity;
-
-	nouveau_sched_entity_qwork(entity, &bind_job->work);
 }
 
 static struct nouveau_job_ops nouveau_bind_job_ops = {
 	.submit = nouveau_uvmm_bind_job_submit,
 	.armed_submit = nouveau_uvmm_bind_job_armed_submit,
 	.run = nouveau_uvmm_bind_job_run,
-	.free = nouveau_uvmm_bind_job_free_qwork,
+	.free = nouveau_uvmm_bind_job_cleanup,
 };
 
 static int
@@ -1617,7 +1596,6 @@ nouveau_uvmm_bind_job_init(struct nouveau_uvmm_bind_job **pjob,
 		return ret;
 
 	INIT_LIST_HEAD(&job->ops);
-	INIT_LIST_HEAD(&job->entry);
 
 	for (i = 0; i < __args->op.count; i++) {
 		ret = bind_job_op_from_uop(&op, &__args->op.s[i]);
@@ -1628,9 +1606,8 @@ nouveau_uvmm_bind_job_init(struct nouveau_uvmm_bind_job **pjob,
 	}
 
 	init_completion(&job->complete);
-	INIT_WORK(&job->work, nouveau_uvmm_bind_job_free_work_fn);
 
-	args.sched_entity = __args->sched_entity;
+	args.sched = __args->sched;
 	args.file_priv = __args->file_priv;
 
 	args.in_sync.count = __args->in_sync.count;
@@ -1758,7 +1735,7 @@ nouveau_uvmm_ioctl_vm_bind(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	args.sched_entity = &cli->sched_entity;
+	args.sched = &cli->sched;
 	args.file_priv = file_priv;
 
 	ret = nouveau_uvmm_vm_bind(&args);
@@ -1910,11 +1887,7 @@ nouveau_uvmm_fini(struct nouveau_uvmm *uvmm)
 	MA_STATE(mas, &uvmm->region_mt, 0, 0);
 	struct nouveau_uvma_region *reg;
 	struct nouveau_cli *cli = uvmm->vmm.cli;
-	struct nouveau_sched_entity *entity = &cli->sched_entity;
 	struct drm_gpuva *va, *next;
-
-	rmb(); /* for list_empty to work without lock */
-	wait_event(entity->job.wq, list_empty(&entity->job.list.head));
 
 	nouveau_uvmm_lock(uvmm);
 	drm_gpuvm_for_each_va_safe(va, next, &uvmm->base) {

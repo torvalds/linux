@@ -8,7 +8,7 @@
 
 struct nouveau_exec_job_args {
 	struct drm_file *file_priv;
-	struct nouveau_sched_entity *sched_entity;
+	struct nouveau_sched *sched;
 	struct nouveau_channel *chan;
 
 	struct {

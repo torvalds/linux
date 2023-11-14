@@ -165,6 +165,7 @@ nouveau_exec_job_free(struct nouveau_job *job)
 {
 	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
 
+	nouveau_job_done(job);
 	nouveau_job_free(job);
 
 	kfree(exec_job->fence);
@@ -183,8 +184,6 @@ nouveau_exec_job_timeout(struct nouveau_job *job)
 
 	NV_PRINTK(warn, job->cli, "job timeout, channel %d killed!\n",
 		  chan->chid);
-
-	nouveau_sched_entity_fini(job->entity);
 
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
@@ -234,7 +233,7 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 
 	job->chan = __args->chan;
 
-	args.sched_entity = __args->sched_entity;
+	args.sched = __args->sched;
 	args.file_priv = __args->file_priv;
 
 	args.in_sync.count = __args->in_sync.count;
@@ -388,7 +387,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	args.sched_entity = &chan16->sched_entity;
+	args.sched = &chan16->sched;
 	args.file_priv = file_priv;
 	args.chan = chan;
 

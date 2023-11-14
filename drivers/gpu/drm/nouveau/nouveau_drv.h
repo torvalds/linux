@@ -98,7 +98,7 @@ struct nouveau_cli {
 		bool disabled;
 	} uvmm;
 
-	struct nouveau_sched_entity sched_entity;
+	struct nouveau_sched sched;
 
 	const struct nvif_mclass *mem;
 
@@ -258,6 +258,9 @@ struct nouveau_drm {
 		u64 context_base;
 	} *runl;
 
+	/* Workqueue used for channel schedulers. */
+	struct workqueue_struct *sched_wq;
+
 	/* context for accelerated drm-internal operations */
 	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;
@@ -298,10 +301,6 @@ struct nouveau_drm {
 		struct mutex lock;
 		bool component_registered;
 	} audio;
-
-	struct drm_gpu_scheduler sched;
-	struct workqueue_struct *sched_wq;
-
 };
 
 static inline struct nouveau_drm *

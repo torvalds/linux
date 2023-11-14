@@ -26,7 +26,7 @@ enum nouveau_job_state {
 
 struct nouveau_job_args {
 	struct drm_file *file_priv;
-	struct nouveau_sched_entity *sched_entity;
+	struct nouveau_sched *sched;
 
 	enum dma_resv_usage resv_usage;
 	bool sync;
@@ -49,7 +49,8 @@ struct nouveau_job {
 
 	enum nouveau_job_state state;
 
-	struct nouveau_sched_entity *entity;
+	struct nouveau_sched *sched;
+	struct list_head entry;
 
 	struct drm_file *file_priv;
 	struct nouveau_cli *cli;
@@ -89,19 +90,16 @@ int nouveau_job_ucopy_syncs(struct nouveau_job_args *args,
 
 int nouveau_job_init(struct nouveau_job *job,
 		     struct nouveau_job_args *args);
+void nouveau_job_fini(struct nouveau_job *job);
+int nouveau_job_submit(struct nouveau_job *job);
+void nouveau_job_done(struct nouveau_job *job);
 void nouveau_job_free(struct nouveau_job *job);
 
-int nouveau_job_submit(struct nouveau_job *job);
-void nouveau_job_fini(struct nouveau_job *job);
-
-#define to_nouveau_sched_entity(entity)		\
-		container_of((entity), struct nouveau_sched_entity, base)
-
-struct nouveau_sched_entity {
-	struct drm_sched_entity base;
+struct nouveau_sched {
+	struct drm_gpu_scheduler base;
+	struct drm_sched_entity entity;
+	struct workqueue_struct *wq;
 	struct mutex mutex;
-
-	struct workqueue_struct *sched_wq;
 
 	struct {
 		struct {
@@ -112,15 +110,8 @@ struct nouveau_sched_entity {
 	} job;
 };
 
-int nouveau_sched_entity_init(struct nouveau_sched_entity *entity,
-			      struct drm_gpu_scheduler *sched,
-			      struct workqueue_struct *sched_wq);
-void nouveau_sched_entity_fini(struct nouveau_sched_entity *entity);
-
-bool nouveau_sched_entity_qwork(struct nouveau_sched_entity *entity,
-				struct work_struct *work);
-
-int nouveau_sched_init(struct nouveau_drm *drm);
-void nouveau_sched_fini(struct nouveau_drm *drm);
+int nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
+		       struct workqueue_struct *wq);
+void nouveau_sched_fini(struct nouveau_sched *sched);
 
 #endif

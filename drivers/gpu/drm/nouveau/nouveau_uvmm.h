@@ -44,8 +44,6 @@ struct nouveau_uvmm_bind_job {
 	struct nouveau_job base;
 
 	struct kref kref;
-	struct list_head entry;
-	struct work_struct work;
 	struct completion complete;
 
 	/* struct bind_job_op */
@@ -54,7 +52,7 @@ struct nouveau_uvmm_bind_job {
 
 struct nouveau_uvmm_bind_job_args {
 	struct drm_file *file_priv;
-	struct nouveau_sched_entity *sched_entity;
+	struct nouveau_sched *sched;
 
 	unsigned int flags;
 
