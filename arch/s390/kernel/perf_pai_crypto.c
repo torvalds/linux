@@ -373,8 +373,7 @@ static void paicrypt_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paicrypt_copy(struct pai_userdata *userdata,
-			    struct paicrypt_map *cpump,
+static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
 			    bool exclude_user, bool exclude_kernel)
 {
 	int i, outidx = 0;
@@ -383,9 +382,9 @@ static size_t paicrypt_copy(struct pai_userdata *userdata,
 		u64 val = 0;
 
 		if (!exclude_kernel)
-			val += paicrypt_getctr(cpump->page, i, true);
+			val += paicrypt_getctr(page, i, true);
 		if (!exclude_user)
-			val += paicrypt_getctr(cpump->page, i, false);
+			val += paicrypt_getctr(page, i, false);
 		if (val) {
 			userdata[outidx].num = i;
 			userdata[outidx].value = val;
@@ -395,24 +394,13 @@ static size_t paicrypt_copy(struct pai_userdata *userdata,
 	return outidx * sizeof(struct pai_userdata);
 }
 
-static int paicrypt_push_sample(void)
+static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
+				struct perf_event *event)
 {
-	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
-	struct perf_event *event = cpump->event;
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
-	size_t rawsize;
 	int overflow;
-
-	if (!cpump->event)		/* No event active */
-		return 0;
-	rawsize = paicrypt_copy(cpump->save, cpump,
-				cpump->event->attr.exclude_user,
-				cpump->event->attr.exclude_kernel);
-	if (!rawsize)			/* No incremented counters */
-		return 0;
 
 	/* Setup perf sample */
 	memset(&regs, 0, sizeof(regs));
@@ -444,6 +432,25 @@ static int paicrypt_push_sample(void)
 	return overflow;
 }
 
+/* Check if there is data to be saved on schedule out of a task. */
+static int paicrypt_have_sample(void)
+{
+	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct paicrypt_map *cpump = mp->mapptr;
+	struct perf_event *event = cpump->event;
+	size_t rawsize;
+	int rc = 0;
+
+	if (!event)		/* No event active */
+		return 0;
+	rawsize = paicrypt_copy(cpump->save, cpump->page,
+				cpump->event->attr.exclude_user,
+				cpump->event->attr.exclude_kernel);
+	if (rawsize)			/* No incremented counters */
+		rc = paicrypt_push_sample(rawsize, cpump, event);
+	return rc;
+}
+
 /* Called on schedule-in and schedule-out. No access to event structure,
  * but for sampling only event CRYPTO_ALL is allowed.
  */
@@ -453,7 +460,7 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sch
 	 * results on schedule_out and if page was dirty, clear values.
 	 */
 	if (!sched_in)
-		paicrypt_push_sample();
+		paicrypt_have_sample();
 }
 
 /* Attribute definitions for paicrypt interface. As with other CPU
