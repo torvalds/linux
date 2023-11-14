@@ -198,6 +198,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
 	TP_PROTO(struct task_struct *p, struct rq *rq, bool *need_update),
 	TP_ARGS(p, rq, need_update), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_util_fits_cpu,
+	TP_PROTO(unsigned long util, unsigned long uclamp_min, unsigned long uclamp_max,
+		int cpu, bool *fits, bool *done),
+	TP_ARGS(util, uclamp_min, uclamp_max, cpu, fits, done), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork_init,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p), 1);
