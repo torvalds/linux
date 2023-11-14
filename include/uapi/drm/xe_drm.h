@@ -349,17 +349,19 @@ struct drm_xe_query_gt {
 	/** @clock_freq: A clock frequency for timestamp */
 	__u32 clock_freq;
 	/**
-	 * @native_mem_regions: Bit mask of instances from
-	 * drm_xe_query_mem_usage that lives on the same GPU/Tile and have
-	 * direct access.
+	 * @near_mem_regions: Bit mask of instances from
+	 * drm_xe_query_mem_usage that are nearest to the current engines
+	 * of this GT.
 	 */
-	__u64 native_mem_regions;
+	__u64 near_mem_regions;
 	/**
-	 * @slow_mem_regions: Bit mask of instances from
-	 * drm_xe_query_mem_usage that this GT can indirectly access, although
-	 * they live on a different GPU/Tile.
+	 * @far_mem_regions: Bit mask of instances from
+	 * drm_xe_query_mem_usage that are far from the engines of this GT.
+	 * In general, they have extra indirections when compared to the
+	 * @near_mem_regions. For a discrete device this could mean system
+	 * memory and memory living in a different tile.
 	 */
-	__u64 slow_mem_regions;
+	__u64 far_mem_regions;
 	/** @reserved: Reserved */
 	__u64 reserved[8];
 };

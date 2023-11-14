@@ -377,12 +377,12 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 		gt_list->gt_list[id].gt_id = gt->info.id;
 		gt_list->gt_list[id].clock_freq = gt->info.clock_freq;
 		if (!IS_DGFX(xe))
-			gt_list->gt_list[id].native_mem_regions = 0x1;
+			gt_list->gt_list[id].near_mem_regions = 0x1;
 		else
-			gt_list->gt_list[id].native_mem_regions =
+			gt_list->gt_list[id].near_mem_regions =
 				BIT(gt_to_tile(gt)->id) << 1;
-		gt_list->gt_list[id].slow_mem_regions = xe->info.mem_region_mask ^
-			gt_list->gt_list[id].native_mem_regions;
+		gt_list->gt_list[id].far_mem_regions = xe->info.mem_region_mask ^
+			gt_list->gt_list[id].near_mem_regions;
 	}
 
 	if (copy_to_user(query_ptr, gt_list, size)) {
