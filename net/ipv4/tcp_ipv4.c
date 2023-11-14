@@ -482,6 +482,7 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
 	struct request_sock *fastopen;
+	bool harderr = false;
 	u32 seq, snd_una;
 	int err;
 	struct net *net = dev_net(skb->dev);
@@ -555,6 +556,7 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 		goto out;
 	case ICMP_PARAMETERPROB:
 		err = EPROTO;
+		harderr = true;
 		break;
 	case ICMP_DEST_UNREACH:
 		if (code > NR_ICMP_UNREACH)
@@ -579,6 +581,7 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 		}
 
 		err = icmp_err_convert[code].errno;
+		harderr = icmp_err_convert[code].fatal;
 		/* check if this ICMP message allows revert of backoff.
 		 * (see RFC 6069)
 		 */
@@ -603,6 +606,9 @@ int tcp_v4_err(struct sk_buff *skb, u32 info)
 			break;
 
 		ip_icmp_error(sk, skb, err, th->dest, info, (u8 *)th);
+
+		if (!harderr)
+			break;
 
 		if (!sock_owned_by_user(sk)) {
 			WRITE_ONCE(sk->sk_err, err);
