@@ -10327,7 +10327,7 @@ static bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw)
 		return true;
 	for (i = 0; i < hw->dev_num; i++) {
 		cif_dev = hw->cif_dev[i];
-		for (j = 0; j < RKCIF_MAX_STREAM_MIPI; i++) {
+		for (j = 0; j < RKCIF_MAX_STREAM_MIPI; j++) {
 			stream = &cif_dev->stream[j];
 			if (stream->state == RKCIF_STATE_STREAMING ||
 			    stream->state ==  RKCIF_STATE_RESET_IN_STREAMING) {
@@ -10518,11 +10518,11 @@ int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode)
 		}
 	}
 
-	if (!cif_dev->resume_mode)
-		rkcif_subdevs_set_power(cif_dev, on);
-
 	if (suspend_cnt == 0)
 		goto out_suspend;
+
+	if (!cif_dev->resume_mode)
+		rkcif_subdevs_set_power(cif_dev, on);
 
 	rkcif_subdevs_set_stream(cif_dev, on);
 
@@ -10538,7 +10538,7 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 	int ret = 0;
 	int i = 0;
 	u32 capture_mode = 0;
-	int on = 0;
+	int on = 1;
 	int resume_cnt = 0;
 	unsigned long flags;
 	bool is_single_dev = false;
@@ -10624,12 +10624,12 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 		}
 
 		spin_unlock_irqrestore(&stream->vbq_lock, flags);
-
-		if (capture_mode == RKCIF_STREAM_MODE_TOISP)
-			sditf_change_to_online(priv);
-		else
-			sditf_disable_immediately(priv);
-
+		if (priv) {
+			if (capture_mode == RKCIF_STREAM_MODE_TOISP)
+				sditf_change_to_online(priv);
+			else
+				sditf_disable_immediately(priv);
+		}
 		if (!stream->total_buf_num && priv &&
 		    (capture_mode == RKCIF_STREAM_MODE_TOISP_RDBK ||
 		    (capture_mode == RKCIF_STREAM_MODE_TOISP &&
@@ -10658,13 +10658,11 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 			 rkcif_get_sof(cif_dev));
 	}
 
-	on = 1;
+	if (resume_cnt == 0)
+		goto out_resume;
 
 	if (!cif_dev->resume_mode)
 		rkcif_subdevs_set_power(cif_dev, on);
-
-	if (resume_cnt == 0)
-		goto out_resume;
 
 	atomic_set(&cif_dev->streamoff_cnt, 0);
 	rkcif_subdevs_set_stream(cif_dev, on);
