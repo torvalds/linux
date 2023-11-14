@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 
-//#include "bkey_methods.h"
+#include "btree_key_cache_types.h"
 #include "buckets_types.h"
 #include "darray.h"
 #include "errcode.h"
@@ -311,31 +311,6 @@ struct btree_iter {
 	unsigned long		ip_allocated;
 #endif
 };
-
-struct btree_key_cache_freelist {
-	struct bkey_cached	*objs[16];
-	unsigned		nr;
-};
-
-struct btree_key_cache {
-	struct mutex		lock;
-	struct rhashtable	table;
-	bool			table_init_done;
-	struct list_head	freed_pcpu;
-	struct list_head	freed_nonpcpu;
-	struct shrinker		*shrink;
-	unsigned		shrink_iter;
-	struct btree_key_cache_freelist __percpu *pcpu_freed;
-
-	atomic_long_t		nr_freed;
-	atomic_long_t		nr_keys;
-	atomic_long_t		nr_dirty;
-};
-
-struct bkey_cached_key {
-	u32			btree_id;
-	struct bpos		pos;
-} __packed __aligned(4);
 
 #define BKEY_CACHED_ACCESSED		0
 #define BKEY_CACHED_DIRTY		1
