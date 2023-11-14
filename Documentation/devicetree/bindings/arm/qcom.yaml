@@ -186,7 +186,17 @@ properties:
 
       - items:
           - enum:
+              - microsoft,dempsey
+              - microsoft,makepeace
+              - microsoft,moneypenny
               - samsung,s3ve3g
+          - const: qcom,msm8226
+
+      - items:
+          - enum:
+              - microsoft,superman-lte
+              - microsoft,tesla
+          - const: qcom,msm8926
           - const: qcom,msm8226
 
       - items:
