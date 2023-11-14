@@ -85,6 +85,7 @@ struct vsp1_entity_operations {
 				struct vsp1_dl_list *, struct vsp1_dl_body *);
 	void (*configure_partition)(struct vsp1_entity *,
 				    struct vsp1_pipeline *,
+				    const struct vsp1_partition *,
 				    struct vsp1_dl_list *,
 				    struct vsp1_dl_body *);
 	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
@@ -155,6 +156,7 @@ void vsp1_entity_configure_frame(struct vsp1_entity *entity,
 
 void vsp1_entity_configure_partition(struct vsp1_entity *entity,
 				     struct vsp1_pipeline *pipe,
+				     const struct vsp1_partition *partition,
 				     struct vsp1_dl_list *dl,
 				     struct vsp1_dl_body *dlb);
 

@@ -106,7 +106,6 @@ struct vsp1_partition {
  * @configured: when false the @stream_config shall be written to the hardware
  * @interlaced: True when the pipeline is configured in interlaced mode
  * @partitions: The number of partitions used to process one frame
- * @partition: The current partition for configuration to process
  * @part_table: The pre-calculated partitions used by the pipeline
  */
 struct vsp1_pipeline {
@@ -146,7 +145,6 @@ struct vsp1_pipeline {
 	bool interlaced;
 
 	unsigned int partitions;
-	struct vsp1_partition *partition;
 	struct vsp1_partition *part_table;
 
 	u32 underrun_count;

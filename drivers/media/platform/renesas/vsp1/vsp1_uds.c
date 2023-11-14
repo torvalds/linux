@@ -300,11 +300,11 @@ static void uds_configure_stream(struct vsp1_entity *entity,
 
 static void uds_configure_partition(struct vsp1_entity *entity,
 				    struct vsp1_pipeline *pipe,
+				    const struct vsp1_partition *partition,
 				    struct vsp1_dl_list *dl,
 				    struct vsp1_dl_body *dlb)
 {
 	struct vsp1_uds *uds = to_uds(&entity->subdev);
-	struct vsp1_partition *partition = pipe->partition;
 	const struct v4l2_mbus_framefmt *output;
 
 	output = v4l2_subdev_state_get_format(uds->entity.state,

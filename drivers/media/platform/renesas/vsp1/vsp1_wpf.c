@@ -363,6 +363,7 @@ static void wpf_configure_frame(struct vsp1_entity *entity,
 
 static void wpf_configure_partition(struct vsp1_entity *entity,
 				    struct vsp1_pipeline *pipe,
+				    const struct vsp1_partition *partition,
 				    struct vsp1_dl_list *dl,
 				    struct vsp1_dl_body *dlb)
 {
@@ -390,8 +391,8 @@ static void wpf_configure_partition(struct vsp1_entity *entity,
 	 * multiple slices.
 	 */
 	if (pipe->partitions > 1) {
-		width = pipe->partition->wpf.width;
-		left = pipe->partition->wpf.left;
+		width = partition->wpf.width;
+		left = partition->wpf.left;
 	}
 
 	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
