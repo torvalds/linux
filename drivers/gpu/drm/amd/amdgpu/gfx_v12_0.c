@@ -461,6 +461,14 @@ static int gfx_v12_0_init_microcode(struct amdgpu_device *adev)
 	/* only one MEC for gfx 12 */
 	adev->gfx.mec2_fw = NULL;
 
+	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
+		if (adev->gfx.imu.funcs->init_microcode) {
+			err = adev->gfx.imu.funcs->init_microcode(adev);
+			if (err)
+				dev_err(adev->dev, "Failed to load imu firmware!\n");
+		}
+	}
+
 out:
 	if (err) {
 		amdgpu_ucode_release(&adev->gfx.pfp_fw);
@@ -1171,14 +1179,6 @@ static int gfx_v12_0_sw_init(void *handle)
 		return r;
 
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
-
-	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
-		if (adev->gfx.imu.funcs->init_microcode) {
-			r = adev->gfx.imu.funcs->init_microcode(adev);
-			if (r)
-				dev_err(adev->dev, "Failed to load imu firmware!\n");
-		}
-	}
 
 	gfx_v12_0_me_init(adev);
 
