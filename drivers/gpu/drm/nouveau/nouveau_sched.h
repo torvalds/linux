@@ -27,6 +27,7 @@ enum nouveau_job_state {
 struct nouveau_job_args {
 	struct drm_file *file_priv;
 	struct nouveau_sched *sched;
+	u32 credits;
 
 	enum dma_resv_usage resv_usage;
 	bool sync;
@@ -111,7 +112,7 @@ struct nouveau_sched {
 };
 
 int nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
-		       struct workqueue_struct *wq);
+		       struct workqueue_struct *wq, u32 credit_limit);
 void nouveau_sched_fini(struct nouveau_sched *sched);
 
 #endif

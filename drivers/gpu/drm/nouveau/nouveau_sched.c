@@ -12,7 +12,6 @@
 #include "nouveau_abi16.h"
 #include "nouveau_sched.h"
 
-#define NOUVEAU_SCHED_HW_SUBMISSIONS		1
 #define NOUVEAU_SCHED_JOB_TIMEOUT_MS		10000
 
 /* Starts at 0, since the DRM scheduler interprets those parameters as (initial)
@@ -85,10 +84,10 @@ nouveau_job_init(struct nouveau_job *job,
 			ret = -ENOMEM;
 			goto err_free_objs;
 		}
-
 	}
 
-	ret = drm_sched_job_init(&job->base, &sched->entity, 1, NULL);
+	ret = drm_sched_job_init(&job->base, &sched->entity,
+				 args->credits, NULL);
 	if (ret)
 		goto err_free_chains;
 
@@ -401,7 +400,7 @@ static const struct drm_sched_backend_ops nouveau_sched_ops = {
 
 int
 nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
-		   struct workqueue_struct *wq)
+		   struct workqueue_struct *wq, u32 credit_limit)
 {
 	struct drm_gpu_scheduler *drm_sched = &sched->base;
 	struct drm_sched_entity *entity = &sched->entity;
@@ -419,7 +418,7 @@ nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
 
 	ret = drm_sched_init(drm_sched, &nouveau_sched_ops, wq,
 			     NOUVEAU_SCHED_PRIORITY_COUNT,
-			     NOUVEAU_SCHED_HW_SUBMISSIONS, 0, job_hang_limit,
+			     credit_limit, 0, job_hang_limit,
 			     NULL, NULL, "nouveau_sched", drm->dev->dev);
 	if (ret)
 		goto fail_wq;

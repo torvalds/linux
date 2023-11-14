@@ -1607,8 +1607,10 @@ nouveau_uvmm_bind_job_init(struct nouveau_uvmm_bind_job **pjob,
 
 	init_completion(&job->complete);
 
-	args.sched = __args->sched;
 	args.file_priv = __args->file_priv;
+
+	args.sched = __args->sched;
+	args.credits = 1;
 
 	args.in_sync.count = __args->in_sync.count;
 	args.in_sync.s = __args->in_sync.s;

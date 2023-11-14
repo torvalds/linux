@@ -231,10 +231,12 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 		}
 	}
 
+	args.file_priv = __args->file_priv;
 	job->chan = __args->chan;
 
 	args.sched = __args->sched;
-	args.file_priv = __args->file_priv;
+	/* Plus one to account for the HW fence. */
+	args.credits = job->push.count + 1;
 
 	args.in_sync.count = __args->in_sync.count;
 	args.in_sync.s = __args->in_sync.s;

@@ -320,7 +320,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	 * locks which indirectly or directly are held for allocations
 	 * elsewhere.
 	 */
-	ret = nouveau_sched_init(&cli->sched, drm, NULL);
+	ret = nouveau_sched_init(&cli->sched, drm, NULL, 1);
 	if (ret)
 		goto done;
 
