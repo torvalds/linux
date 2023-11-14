@@ -398,7 +398,7 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 {
 	struct net_device *dev = bp->dev;
-	int tx_xdp = 0, rc, tc;
+	int tx_xdp = 0, tx_cp, rc, tc;
 	struct bpf_prog *old;
 
 	if (prog && !prog->aux->xdp_has_frags &&
@@ -446,7 +446,8 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	}
 	bp->tx_nr_rings_xdp = tx_xdp;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc + tx_xdp;
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = max_t(int, tx_cp, bp->rx_nr_rings);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 

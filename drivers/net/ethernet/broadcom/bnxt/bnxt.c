@@ -6284,7 +6284,8 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 			if (bp->flags & BNXT_FLAG_AGG_RINGS)
 				rx >>= 1;
 			if (cp < (rx + tx)) {
-				bnxt_trim_rings(bp, &rx, &tx, cp, false);
+				rx = cp / 2;
+				tx = rx;
 				if (bp->flags & BNXT_FLAG_AGG_RINGS)
 					rx <<= 1;
 				hw_resc->resv_rx_rings = rx;
@@ -6585,6 +6586,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	int grp, rx_rings, rc;
 	int vnic = 1, stat;
 	bool sh = false;
+	int tx_cp;
 
 	if (!bnxt_need_reserve_rings(bp))
 		return 0;
@@ -6634,7 +6636,8 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	rc = bnxt_trim_rings(bp, &rx_rings, &tx, cp, sh);
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx = rx_rings << 1;
-	cp = sh ? max_t(int, tx, rx_rings) : tx + rx_rings;
+	tx_cp = bnxt_num_tx_to_cp(bp, tx);
+	cp = sh ? max_t(int, tx_cp, rx_rings) : tx_cp + rx_rings;
 	bp->tx_nr_rings = tx;
 
 	/* If we cannot reserve all the RX rings, reset the RSS map only
@@ -9061,8 +9064,8 @@ static int bnxt_set_real_num_queues(struct bnxt *bp)
 	return rc;
 }
 
-static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
-			   bool shared)
+static int __bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
+			     bool shared)
 {
 	int _rx = *rx, _tx = *tx;
 
@@ -9083,6 +9086,46 @@ static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 		*tx = _tx;
 	}
 	return 0;
+}
+
+static int __bnxt_num_tx_to_cp(struct bnxt *bp, int tx, int tx_sets, int tx_xdp)
+{
+	return tx;
+}
+
+int bnxt_num_tx_to_cp(struct bnxt *bp, int tx)
+{
+	int tcs = netdev_get_num_tc(bp->dev);
+
+	if (!tcs)
+		tcs = 1;
+	return __bnxt_num_tx_to_cp(bp, tx, tcs, bp->tx_nr_rings_xdp);
+}
+
+static int bnxt_num_cp_to_tx(struct bnxt *bp, int tx_cp)
+{
+	int tcs = netdev_get_num_tc(bp->dev);
+
+	return (tx_cp - bp->tx_nr_rings_xdp) * tcs +
+	       bp->tx_nr_rings_xdp;
+}
+
+static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
+			   bool sh)
+{
+	int tx_cp = bnxt_num_tx_to_cp(bp, *tx);
+
+	if (tx_cp != *tx) {
+		int tx_saved = tx_cp, rc;
+
+		rc = __bnxt_trim_rings(bp, rx, &tx_cp, max, sh);
+		if (rc)
+			return rc;
+		if (tx_cp != tx_saved)
+			*tx = bnxt_num_cp_to_tx(bp, tx_cp);
+		return 0;
+	}
+	return __bnxt_trim_rings(bp, rx, tx, max, sh);
 }
 
 static void bnxt_setup_msix(struct bnxt *bp)
@@ -9247,7 +9290,7 @@ static int bnxt_get_num_msix(struct bnxt *bp)
 
 static int bnxt_init_msix(struct bnxt *bp)
 {
-	int i, total_vecs, max, rc = 0, min = 1, ulp_msix;
+	int i, total_vecs, max, rc = 0, min = 1, ulp_msix, tx_cp;
 	struct msix_entry *msix_ent;
 
 	total_vecs = bnxt_get_num_msix(bp);
@@ -9289,9 +9332,10 @@ static int bnxt_init_msix(struct bnxt *bp)
 		if (rc)
 			goto msix_setup_exit;
 
+		tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
 		bp->cp_nr_rings = (min == 1) ?
-				  max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
-				  bp->tx_nr_rings + bp->rx_nr_rings;
+				  max_t(int, tx_cp, bp->rx_nr_rings) :
+				  tx_cp + bp->rx_nr_rings;
 
 	} else {
 		rc = -ENOMEM;
@@ -12186,23 +12230,27 @@ static void bnxt_sp_task(struct work_struct *work)
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
 }
 
+static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
+				int *max_cp);
+
 /* Under rtnl_lock */
 int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 		     int tx_xdp)
 {
-	int max_rx, max_tx, tx_sets = 1;
+	int max_rx, max_tx, max_cp, tx_sets = 1, tx_cp;
 	int tx_rings_needed, stats;
 	int rx_rings = rx;
-	int cp, vnics, rc;
+	int cp, vnics;
 
 	if (tcs)
 		tx_sets = tcs;
 
-	rc = bnxt_get_max_rings(bp, &max_rx, &max_tx, sh);
-	if (rc)
-		return rc;
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		rx_rings <<= 1;
 
-	if (max_rx < rx)
+	_bnxt_get_max_rings(bp, &max_rx, &max_tx, &max_cp);
+
+	if (max_rx < rx_rings)
 		return -ENOMEM;
 
 	tx_rings_needed = tx * tx_sets + tx_xdp;
@@ -12211,11 +12259,12 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 
 	vnics = 1;
 	if ((bp->flags & (BNXT_FLAG_RFS | BNXT_FLAG_CHIP_P5)) == BNXT_FLAG_RFS)
-		vnics += rx_rings;
+		vnics += rx;
 
-	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		rx_rings <<= 1;
-	cp = sh ? max_t(int, tx_rings_needed, rx) : tx_rings_needed + rx;
+	tx_cp = __bnxt_num_tx_to_cp(bp, tx_rings_needed, tx_sets, tx_xdp);
+	cp = sh ? max_t(int, tx_cp, rx) : tx_cp + rx;
+	if (max_cp < cp)
+		return -ENOMEM;
 	stats = cp;
 	if (BNXT_NEW_RM(bp)) {
 		cp += bnxt_get_ulp_msix_num(bp);
@@ -12849,7 +12898,7 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	bool sh = false;
-	int rc;
+	int rc, tx_cp;
 
 	if (tc > bp->max_tc) {
 		netdev_err(dev, "Too many traffic classes requested: %d. Max supported is %d.\n",
@@ -12880,8 +12929,9 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		netdev_reset_tc(dev);
 	}
 	bp->tx_nr_rings += bp->tx_nr_rings_xdp;
-	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
-			       bp->tx_nr_rings + bp->rx_nr_rings;
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
+			       tx_cp + bp->rx_nr_rings;
 
 	if (netif_running(bp->dev))
 		return bnxt_open_nic(bp, true, false);
@@ -13360,7 +13410,10 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		bnxt_trim_rings(bp, max_rx, max_tx, *max_cp, false);
+		if (*max_cp < (*max_rx + *max_tx)) {
+			*max_rx = *max_cp / 2;
+			*max_tx = *max_rx;
+		}
 		/* On P5 chips, max_cp output param should be available NQs */
 		*max_cp = max_irq;
 	}
