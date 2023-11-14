@@ -41,7 +41,15 @@
 static int hns_roce_cmd_mbox_post_hw(struct hns_roce_dev *hr_dev,
 				     struct hns_roce_mbox_msg *mbox_msg)
 {
-	return hr_dev->hw->post_mbox(hr_dev, mbox_msg);
+	int ret;
+
+	ret = hr_dev->hw->post_mbox(hr_dev, mbox_msg);
+	if (ret)
+		return ret;
+
+	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MBX_POSTED_CNT]);
+
+	return 0;
 }
 
 /* this should be called with "poll_sem" */
@@ -58,7 +66,13 @@ static int __hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev,
 		return ret;
 	}
 
-	return hr_dev->hw->poll_mbox_done(hr_dev);
+	ret = hr_dev->hw->poll_mbox_done(hr_dev);
+	if (ret)
+		return ret;
+
+	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MBX_POLLED_CNT]);
+
+	return 0;
 }
 
 static int hns_roce_cmd_mbox_poll(struct hns_roce_dev *hr_dev,
@@ -89,6 +103,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 	context->result = (status == HNS_ROCE_CMD_SUCCESS) ? 0 : (-EIO);
 	context->out_param = out_param;
 	complete(&context->done);
+	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MBX_EVENT_CNT]);
 }
 
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev,

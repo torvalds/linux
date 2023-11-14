@@ -12,9 +12,15 @@ struct hns_debugfs_seqfile {
 	void *data;
 };
 
+struct hns_sw_stat_debugfs {
+	struct dentry *root;
+	struct hns_debugfs_seqfile sw_stat;
+};
+
 /* Debugfs for device */
 struct hns_roce_dev_debugfs {
 	struct dentry *root;
+	struct hns_sw_stat_debugfs sw_stat_root;
 };
 
 struct hns_roce_dev;
