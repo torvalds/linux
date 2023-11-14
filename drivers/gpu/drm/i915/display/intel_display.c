@@ -73,7 +73,6 @@
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
-#include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 #include "intel_dpt.h"
@@ -2859,67 +2858,6 @@ static void i9xx_get_pfit_config(struct intel_crtc_state *crtc_state)
 		intel_de_read(dev_priv, PFIT_PGM_RATIOS);
 }
 
-static void vlv_crtc_clock_get(struct intel_crtc *crtc,
-			       struct intel_crtc_state *pipe_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe = crtc->pipe;
-	struct dpll clock;
-	u32 mdiv;
-	int refclk = 100000;
-
-	/* In case of DSI, DPLL will not be used */
-	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
-		return;
-
-	vlv_dpio_get(dev_priv);
-	mdiv = vlv_dpio_read(dev_priv, pipe, VLV_PLL_DW3(pipe));
-	vlv_dpio_put(dev_priv);
-
-	clock.m1 = (mdiv >> DPIO_M1DIV_SHIFT) & 7;
-	clock.m2 = mdiv & DPIO_M2DIV_MASK;
-	clock.n = (mdiv >> DPIO_N_SHIFT) & 0xf;
-	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
-	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
-
-	pipe_config->port_clock = vlv_calc_dpll_params(refclk, &clock);
-}
-
-static void chv_crtc_clock_get(struct intel_crtc *crtc,
-			       struct intel_crtc_state *pipe_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum pipe pipe = crtc->pipe;
-	enum dpio_channel port = vlv_pipe_to_channel(pipe);
-	struct dpll clock;
-	u32 cmn_dw13, pll_dw0, pll_dw1, pll_dw2, pll_dw3;
-	int refclk = 100000;
-
-	/* In case of DSI, DPLL will not be used */
-	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
-		return;
-
-	vlv_dpio_get(dev_priv);
-	cmn_dw13 = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW13(port));
-	pll_dw0 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW0(port));
-	pll_dw1 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW1(port));
-	pll_dw2 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW2(port));
-	pll_dw3 = vlv_dpio_read(dev_priv, pipe, CHV_PLL_DW3(port));
-	vlv_dpio_put(dev_priv);
-
-	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
-	clock.m2 = (pll_dw0 & 0xff) << 22;
-	if (pll_dw3 & DPIO_CHV_FRAC_DIV_EN)
-		clock.m2 |= pll_dw2 & 0x3fffff;
-	clock.n = (pll_dw1 >> DPIO_CHV_N_DIV_SHIFT) & 0xf;
-	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
-	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
-
-	pipe_config->port_clock = chv_calc_dpll_params(refclk, &clock);
-}
-
 static enum intel_output_format
 bdw_get_pipe_misc_output_format(struct intel_crtc *crtc)
 {
@@ -3838,115 +3776,6 @@ bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state)
 	intel_crtc_readout_derived_state(crtc_state);
 
 	return true;
-}
-
-static int i9xx_pll_refclk(struct drm_device *dev,
-			   const struct intel_crtc_state *pipe_config)
-{
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 dpll = pipe_config->dpll_hw_state.dpll;
-
-	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
-		return dev_priv->display.vbt.lvds_ssc_freq;
-	else if (HAS_PCH_SPLIT(dev_priv))
-		return 120000;
-	else if (DISPLAY_VER(dev_priv) != 2)
-		return 96000;
-	else
-		return 48000;
-}
-
-/* Returns the clock of the currently programmed mode of the given pipe. */
-void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-			 struct intel_crtc_state *pipe_config)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 dpll = pipe_config->dpll_hw_state.dpll;
-	u32 fp;
-	struct dpll clock;
-	int port_clock;
-	int refclk = i9xx_pll_refclk(dev, pipe_config);
-
-	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = pipe_config->dpll_hw_state.fp0;
-	else
-		fp = pipe_config->dpll_hw_state.fp1;
-
-	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
-	if (IS_PINEVIEW(dev_priv)) {
-		clock.n = ffs((fp & FP_N_PINEVIEW_DIV_MASK) >> FP_N_DIV_SHIFT) - 1;
-		clock.m2 = (fp & FP_M2_PINEVIEW_DIV_MASK) >> FP_M2_DIV_SHIFT;
-	} else {
-		clock.n = (fp & FP_N_DIV_MASK) >> FP_N_DIV_SHIFT;
-		clock.m2 = (fp & FP_M2_DIV_MASK) >> FP_M2_DIV_SHIFT;
-	}
-
-	if (DISPLAY_VER(dev_priv) != 2) {
-		if (IS_PINEVIEW(dev_priv))
-			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW) >>
-				DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW);
-		else
-			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK) >>
-			       DPLL_FPA01_P1_POST_DIV_SHIFT);
-
-		switch (dpll & DPLL_MODE_MASK) {
-		case DPLLB_MODE_DAC_SERIAL:
-			clock.p2 = dpll & DPLL_DAC_SERIAL_P2_CLOCK_DIV_5 ?
-				5 : 10;
-			break;
-		case DPLLB_MODE_LVDS:
-			clock.p2 = dpll & DPLLB_LVDS_P2_CLOCK_DIV_7 ?
-				7 : 14;
-			break;
-		default:
-			drm_dbg_kms(&dev_priv->drm,
-				    "Unknown DPLL mode %08x in programmed "
-				    "mode\n", (int)(dpll & DPLL_MODE_MASK));
-			return;
-		}
-
-		if (IS_PINEVIEW(dev_priv))
-			port_clock = pnv_calc_dpll_params(refclk, &clock);
-		else
-			port_clock = i9xx_calc_dpll_params(refclk, &clock);
-	} else {
-		enum pipe lvds_pipe;
-
-		if (IS_I85X(dev_priv) &&
-		    intel_lvds_port_enabled(dev_priv, LVDS, &lvds_pipe) &&
-		    lvds_pipe == crtc->pipe) {
-			u32 lvds = intel_de_read(dev_priv, LVDS);
-
-			clock.p1 = ffs((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
-				       DPLL_FPA01_P1_POST_DIV_SHIFT);
-
-			if (lvds & LVDS_CLKB_POWER_UP)
-				clock.p2 = 7;
-			else
-				clock.p2 = 14;
-		} else {
-			if (dpll & PLL_P1_DIVIDE_BY_TWO)
-				clock.p1 = 2;
-			else {
-				clock.p1 = ((dpll & DPLL_FPA01_P1_POST_DIV_MASK_I830) >>
-					    DPLL_FPA01_P1_POST_DIV_SHIFT) + 2;
-			}
-			if (dpll & PLL_P2_DIVIDE_BY_4)
-				clock.p2 = 4;
-			else
-				clock.p2 = 2;
-		}
-
-		port_clock = i9xx_calc_dpll_params(refclk, &clock);
-	}
-
-	/*
-	 * This value includes pixel_multiplier. We will use
-	 * port_clock to compute adjusted_mode.crtc_clock in the
-	 * encoder's get_config() function.
-	 */
-	pipe_config->port_clock = port_clock;
 }
 
 int intel_dotclock_calculate(int link_freq,
