@@ -276,9 +276,9 @@ static int paiext_event_init(struct perf_event *event)
 	return 0;
 }
 
-static u64 paiext_getctr(struct paiext_map *cpump, int nr)
+static u64 paiext_getctr(unsigned long *area, int nr)
 {
-	return cpump->area[nr];
+	return area[nr];
 }
 
 /* Read the counter values. Return value from location in buffer. For event
@@ -292,10 +292,11 @@ static u64 paiext_getdata(struct perf_event *event)
 	int i;
 
 	if (event->attr.config != PAI_NNPA_BASE)
-		return paiext_getctr(cpump, event->attr.config - PAI_NNPA_BASE);
+		return paiext_getctr(cpump->area,
+				     event->attr.config - PAI_NNPA_BASE);
 
 	for (i = 1; i <= paiext_cnt; i++)
-		sum += paiext_getctr(cpump, i);
+		sum += paiext_getctr(cpump->area, i);
 
 	return sum;
 }
@@ -392,7 +393,7 @@ static size_t paiext_copy(struct paiext_map *cpump)
 	int i, outidx = 0;
 
 	for (i = 1; i <= paiext_cnt; i++) {
-		u64 val = paiext_getctr(cpump, i);
+		u64 val = paiext_getctr(cpump->area, i);
 
 		if (val) {
 			userdata[outidx].num = i;

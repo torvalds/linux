@@ -111,11 +111,11 @@ static void paicrypt_event_destroy(struct perf_event *event)
 	mutex_unlock(&pai_reserve_mutex);
 }
 
-static u64 paicrypt_getctr(struct paicrypt_map *cpump, int nr, bool kernel)
+static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
 {
 	if (kernel)
 		nr += PAI_CRYPTO_MAXCTR;
-	return cpump->page[nr];
+	return page[nr];
 }
 
 /* Read the counter values. Return value from location in CMP. For event
@@ -129,13 +129,13 @@ static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
 	int i;
 
 	if (event->attr.config != PAI_CRYPTO_BASE) {
-		return paicrypt_getctr(cpump,
+		return paicrypt_getctr(cpump->page,
 				       event->attr.config - PAI_CRYPTO_BASE,
 				       kernel);
 	}
 
 	for (i = 1; i <= paicrypt_cnt; i++) {
-		u64 val = paicrypt_getctr(cpump, i, kernel);
+		u64 val = paicrypt_getctr(cpump->page, i, kernel);
 
 		if (!val)
 			continue;
@@ -383,9 +383,9 @@ static size_t paicrypt_copy(struct pai_userdata *userdata,
 		u64 val = 0;
 
 		if (!exclude_kernel)
-			val += paicrypt_getctr(cpump, i, true);
+			val += paicrypt_getctr(cpump->page, i, true);
 		if (!exclude_user)
-			val += paicrypt_getctr(cpump, i, false);
+			val += paicrypt_getctr(cpump->page, i, false);
 		if (val) {
 			userdata[outidx].num = i;
 			userdata[outidx].value = val;
