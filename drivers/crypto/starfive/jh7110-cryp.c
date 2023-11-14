@@ -109,12 +109,6 @@ static irqreturn_t starfive_cryp_irq(int irq, void *priv)
 		tasklet_schedule(&cryp->hash_done);
 	}
 
-	if (status & STARFIVE_IE_FLAG_PKA_DONE) {
-		mask |= STARFIVE_IE_MASK_PKA_DONE;
-		writel(mask, cryp->base + STARFIVE_IE_MASK_OFFSET);
-		complete(&cryp->pka_done);
-	}
-
 	return IRQ_HANDLED;
 }
 
@@ -158,8 +152,6 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	if (IS_ERR(cryp->rst))
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->rst),
 				     "Error getting hardware reset line\n");
-
-	init_completion(&cryp->pka_done);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

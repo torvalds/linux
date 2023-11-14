@@ -125,6 +125,15 @@ union starfive_pka_cacr {
 	};
 };
 
+union starfive_pka_casr {
+	u32 v;
+	struct {
+#define STARFIVE_PKA_DONE			BIT(0)
+		u32 done			:1;
+		u32 rsvd_0			:31;
+	};
+};
+
 struct starfive_rsa_key {
 	u8	*n;
 	u8	*e;
@@ -183,7 +192,6 @@ struct starfive_cryp_dev {
 	struct crypto_engine			*engine;
 	struct tasklet_struct			aes_done;
 	struct tasklet_struct			hash_done;
-	struct completion			pka_done;
 	size_t					assoclen;
 	size_t					total_in;
 	size_t					total_out;
