@@ -1380,7 +1380,8 @@ static void __insert_discard_cmd(struct f2fs_sb_info *sbi,
 			p = &(*p)->rb_right;
 			leftmost = false;
 		} else {
-			f2fs_bug_on(sbi, 1);
+			/* Let's skip to add, if exists */
+			return;
 		}
 	}
 
