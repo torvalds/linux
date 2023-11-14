@@ -291,13 +291,13 @@ struct drm_xe_query_engine_cycles {
 };
 
 /**
- * struct drm_xe_query_mem_usage - describe memory regions and usage
+ * struct drm_xe_query_mem_regions - describe memory regions
  *
  * If a query is made with a struct drm_xe_device_query where .query
- * is equal to DRM_XE_DEVICE_QUERY_MEM_USAGE, then the reply uses
- * struct drm_xe_query_mem_usage in .data.
+ * is equal to DRM_XE_DEVICE_QUERY_MEM_REGIONS, then the reply uses
+ * struct drm_xe_query_mem_regions in .data.
  */
-struct drm_xe_query_mem_usage {
+struct drm_xe_query_mem_regions {
 	/** @num_regions: number of memory regions returned in @regions */
 	__u32 num_regions;
 	/** @pad: MBZ */
@@ -350,13 +350,13 @@ struct drm_xe_query_gt {
 	__u32 clock_freq;
 	/**
 	 * @near_mem_regions: Bit mask of instances from
-	 * drm_xe_query_mem_usage that are nearest to the current engines
+	 * drm_xe_query_mem_regions that are nearest to the current engines
 	 * of this GT.
 	 */
 	__u64 near_mem_regions;
 	/**
 	 * @far_mem_regions: Bit mask of instances from
-	 * drm_xe_query_mem_usage that are far from the engines of this GT.
+	 * drm_xe_query_mem_regions that are far from the engines of this GT.
 	 * In general, they have extra indirections when compared to the
 	 * @near_mem_regions. For a discrete device this could mean system
 	 * memory and memory living in a different tile.
@@ -470,7 +470,7 @@ struct drm_xe_device_query {
 	__u64 extensions;
 
 #define DRM_XE_DEVICE_QUERY_ENGINES		0
-#define DRM_XE_DEVICE_QUERY_MEM_USAGE		1
+#define DRM_XE_DEVICE_QUERY_MEM_REGIONS		1
 #define DRM_XE_DEVICE_QUERY_CONFIG		2
 #define DRM_XE_DEVICE_QUERY_GT_LIST		3
 #define DRM_XE_DEVICE_QUERY_HWCONFIG		4

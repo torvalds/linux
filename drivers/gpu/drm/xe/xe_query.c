@@ -230,7 +230,7 @@ static int query_engines(struct xe_device *xe,
 	return 0;
 }
 
-static size_t calc_memory_usage_size(struct xe_device *xe)
+static size_t calc_mem_regions_size(struct xe_device *xe)
 {
 	u32 num_managers = 1;
 	int i;
@@ -239,15 +239,15 @@ static size_t calc_memory_usage_size(struct xe_device *xe)
 		if (ttm_manager_type(&xe->ttm, i))
 			num_managers++;
 
-	return offsetof(struct drm_xe_query_mem_usage, regions[num_managers]);
+	return offsetof(struct drm_xe_query_mem_regions, regions[num_managers]);
 }
 
-static int query_memory_usage(struct xe_device *xe,
-			      struct drm_xe_device_query *query)
+static int query_mem_regions(struct xe_device *xe,
+			     struct drm_xe_device_query *query)
 {
-	size_t size = calc_memory_usage_size(xe);
-	struct drm_xe_query_mem_usage *usage;
-	struct drm_xe_query_mem_usage __user *query_ptr =
+	size_t size = calc_mem_regions_size(xe);
+	struct drm_xe_query_mem_regions *usage;
+	struct drm_xe_query_mem_regions __user *query_ptr =
 		u64_to_user_ptr(query->data);
 	struct ttm_resource_manager *man;
 	int ret, i;
@@ -499,7 +499,7 @@ static int query_gt_topology(struct xe_device *xe,
 static int (* const xe_query_funcs[])(struct xe_device *xe,
 				      struct drm_xe_device_query *query) = {
 	query_engines,
-	query_memory_usage,
+	query_mem_regions,
 	query_config,
 	query_gt_list,
 	query_hwconfig,
