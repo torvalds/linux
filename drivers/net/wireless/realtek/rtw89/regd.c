@@ -291,18 +291,21 @@ static void rtw89_regd_setup_unii4(struct rtw89_dev *rtwdev,
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	bool regd_allow_unii_4 = chip->support_unii4;
 	struct ieee80211_supported_band *sband;
+	struct rtw89_acpi_dsm_result res = {};
 	int ret;
 	u8 val;
 
 	if (!chip->support_unii4)
 		goto bottom;
 
-	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_59G_EN, &val);
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_59G_EN, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
 			    "acpi: cannot eval unii 4: %d\n", ret);
 		goto bottom;
 	}
+
+	val = res.u.value;
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD,
 		    "acpi: eval if allow unii 4: %d\n", val);
@@ -338,18 +341,21 @@ static void rtw89_regd_setup_6ghz(struct rtw89_dev *rtwdev, struct wiphy *wiphy)
 	bool chip_support_6ghz = chip->support_bands & BIT(NL80211_BAND_6GHZ);
 	bool regd_allow_6ghz = chip_support_6ghz;
 	struct ieee80211_supported_band *sband;
+	struct rtw89_acpi_dsm_result res = {};
 	int ret;
 	u8 val;
 
 	if (!chip_support_6ghz)
 		goto bottom;
 
-	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6G_DIS, &val);
+	ret = rtw89_acpi_evaluate_dsm(rtwdev, RTW89_ACPI_DSM_FUNC_6G_DIS, &res);
 	if (ret) {
 		rtw89_debug(rtwdev, RTW89_DBG_REGD,
 			    "acpi: cannot eval 6ghz: %d\n", ret);
 		goto bottom;
 	}
+
+	val = res.u.value;
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD,
 		    "acpi: eval if disallow 6ghz: %d\n", val);
