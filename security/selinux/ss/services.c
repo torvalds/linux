@@ -1322,8 +1322,19 @@ static int security_sid_to_context_core(u32 sid, char **scontext,
 	if (!selinux_initialized()) {
 		if (sid <= SECINITSID_NUM) {
 			char *scontextp;
-			const char *s = initial_sid_to_string[sid];
+			const char *s;
 
+			/*
+			 * Before the policy is loaded, translate
+			 * SECINITSID_INIT to "kernel", because systemd and
+			 * libselinux < 2.6 take a getcon_raw() result that is
+			 * both non-null and not "kernel" to mean that a policy
+			 * is already loaded.
+			 */
+			if (sid == SECINITSID_INIT)
+				sid = SECINITSID_KERNEL;
+
+			s = initial_sid_to_string[sid];
 			if (!s)
 				return -EINVAL;
 			*scontext_len = strlen(s) + 1;
