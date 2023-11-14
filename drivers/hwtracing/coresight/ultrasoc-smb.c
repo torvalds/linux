@@ -583,22 +583,20 @@ static int smb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = smb_config_inport(dev, true);
+	if (ret)
+		return ret;
+
+	platform_set_drvdata(pdev, drvdata);
 	spin_lock_init(&drvdata->spinlock);
 	drvdata->pid = -1;
 
 	ret = smb_register_sink(pdev, drvdata);
 	if (ret) {
+		smb_config_inport(&pdev->dev, false);
 		dev_err(dev, "Failed to register SMB sink\n");
 		return ret;
 	}
-
-	ret = smb_config_inport(dev, true);
-	if (ret) {
-		smb_unregister_sink(drvdata);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, drvdata);
 
 	return 0;
 }
@@ -606,13 +604,10 @@ static int smb_probe(struct platform_device *pdev)
 static int smb_remove(struct platform_device *pdev)
 {
 	struct smb_drv_data *drvdata = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = smb_config_inport(&pdev->dev, false);
-	if (ret)
-		return ret;
 
 	smb_unregister_sink(drvdata);
+
+	smb_config_inport(&pdev->dev, false);
 
 	return 0;
 }
