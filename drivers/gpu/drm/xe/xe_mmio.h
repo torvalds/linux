@@ -135,7 +135,6 @@ static inline bool xe_mmio_in_range(const struct xe_gt *gt,
 }
 
 int xe_mmio_probe_vram(struct xe_device *xe);
-int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size, u64 *tile_size, u64 *tile_base);
 u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg);
 
 #endif

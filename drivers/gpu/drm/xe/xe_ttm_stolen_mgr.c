@@ -62,12 +62,9 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 	u64 stolen_size;
 	u64 tile_offset;
 	u64 tile_size;
-	u64 vram_size;
 
-	if (xe_mmio_tile_vram_size(tile, &vram_size, &tile_size, &tile_offset)) {
-		drm_err(&xe->drm, "Querying total vram size failed\n");
-		return 0;
-	}
+	tile_offset = tile->mem.vram.io_start - xe->mem.vram.io_start;
+	tile_size = tile->mem.vram.actual_physical_size;
 
 	/* Use DSM base address instead for stolen memory */
 	mgr->stolen_base = (xe_mmio_read64_2x32(mmio, DSMBASE) & BDSM_MASK) - tile_offset;
