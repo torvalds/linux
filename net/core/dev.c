@@ -10054,6 +10054,14 @@ static int netdev_do_alloc_pcpu_stats(struct net_device *dev)
 {
 	void __percpu *v;
 
+	/* Drivers implementing ndo_get_peer_dev must support tstat
+	 * accounting, so that skb_do_redirect() can bump the dev's
+	 * RX stats upon network namespace switch.
+	 */
+	if (dev->netdev_ops->ndo_get_peer_dev &&
+	    dev->pcpu_stat_type != NETDEV_PCPU_STAT_TSTATS)
+		return -EOPNOTSUPP;
+
 	switch (dev->pcpu_stat_type) {
 	case NETDEV_PCPU_STAT_NONE:
 		return 0;
