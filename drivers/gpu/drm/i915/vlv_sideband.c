@@ -227,9 +227,8 @@ static u32 vlv_dpio_phy_iosf_port(struct drm_i915_private *i915, enum dpio_phy p
 		return IOSF_PORT_DPIO;
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
+u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg)
 {
-	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
 	u32 val = 0;
 
@@ -240,16 +239,15 @@ u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 	 * so ideally we should check the register offset instead...
 	 */
 	drm_WARN(&i915->drm, val == 0xffffffff,
-		 "DPIO read pipe %c reg 0x%x == 0x%x\n",
-		 pipe_name(pipe), reg, val);
+		 "DPIO PHY%d read reg 0x%x == 0x%x\n",
+		 phy, reg, val);
 
 	return val;
 }
 
 void vlv_dpio_write(struct drm_i915_private *i915,
-		    enum pipe pipe, int reg, u32 val)
+		    enum dpio_phy phy, int reg, u32 val)
 {
-	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
 
 	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MWR_NP, reg, &val);
