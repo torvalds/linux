@@ -1015,12 +1015,11 @@ __bpf_kfunc struct task_struct *bpf_iter_task_next(struct bpf_iter_task *it)
 	if (flags == BPF_TASK_ITER_ALL_PROCS)
 		goto get_next_task;
 
-	kit->pos = next_thread(kit->pos);
-	if (kit->pos == kit->task) {
-		if (flags == BPF_TASK_ITER_PROC_THREADS) {
-			kit->pos = NULL;
+	kit->pos = __next_thread(kit->pos);
+	if (!kit->pos) {
+		if (flags == BPF_TASK_ITER_PROC_THREADS)
 			return pos;
-		}
+		kit->pos = kit->task;
 	} else
 		return pos;
 
