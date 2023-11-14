@@ -6974,24 +6974,6 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	drm_WARN_ON(&dev_priv->drm, update_pipes);
 }
 
-static void intel_atomic_helper_free_state(struct drm_i915_private *dev_priv)
-{
-	struct intel_atomic_state *state, *next;
-	struct llist_node *freed;
-
-	freed = llist_del_all(&dev_priv->display.atomic_helper.free_list);
-	llist_for_each_entry_safe(state, next, freed, freed)
-		drm_atomic_state_put(&state->base);
-}
-
-void intel_atomic_helper_free_state_worker(struct work_struct *work)
-{
-	struct drm_i915_private *dev_priv =
-		container_of(work, typeof(*dev_priv), display.atomic_helper.free_work);
-
-	intel_atomic_helper_free_state(dev_priv);
-}
-
 static void intel_atomic_commit_fence_wait(struct intel_atomic_state *intel_state)
 {
 	struct drm_i915_private *i915 = to_i915(intel_state->base.dev);
@@ -7027,8 +7009,6 @@ static void intel_atomic_cleanup_work(struct work_struct *work)
 	drm_atomic_helper_cleanup_planes(&i915->drm, &state->base);
 	drm_atomic_helper_commit_cleanup_done(&state->base);
 	drm_atomic_state_put(&state->base);
-
-	intel_atomic_helper_free_state(i915);
 }
 
 static void intel_atomic_prepare_plane_clear_colors(struct intel_atomic_state *state)

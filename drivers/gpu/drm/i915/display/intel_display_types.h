@@ -684,8 +684,6 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
-
-	struct llist_node freed;
 };
 
 struct intel_plane_state {
