@@ -457,8 +457,8 @@ static void ljca_auxdev_acpi_bind(struct ljca_adapter *adap,
 				  u64 adr, u8 id)
 {
 	struct ljca_match_ids_walk_data wd = { 0 };
-	struct acpi_device *parent, *adev;
 	struct device *dev = adap->dev;
+	struct acpi_device *parent;
 	char uid[4];
 
 	parent = ACPI_COMPANION(dev);
@@ -466,17 +466,7 @@ static void ljca_auxdev_acpi_bind(struct ljca_adapter *adap,
 		return;
 
 	/*
-	 * get auxdev ACPI handle from the ACPI device directly
-	 * under the parent that matches _ADR.
-	 */
-	adev = acpi_find_child_device(parent, adr, false);
-	if (adev) {
-		ACPI_COMPANION_SET(&auxdev->dev, adev);
-		return;
-	}
-
-	/*
-	 * _ADR is a grey area in the ACPI specification, some
+	 * Currently LJCA hw doesn't use _ADR instead the shipped
 	 * platforms use _HID to distinguish children devices.
 	 */
 	switch (adr) {
