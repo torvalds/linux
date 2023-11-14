@@ -226,6 +226,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_MM_GET``                get MAC merge layer state
   ``ETHTOOL_MSG_MM_SET``                set MAC merge layer parameters
   ``ETHTOOL_MSG_TS_GET``                get current timestamping
+  ``ETHTOOL_MSG_TS_LIST_GET``           list available timestampings
   ===================================== =================================
 
 Kernel to userspace:
@@ -270,6 +271,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_RSS_GET_REPLY``            RSS settings
   ``ETHTOOL_MSG_MM_GET_REPLY``             MAC merge layer status
   ``ETHTOOL_MSG_TS_GET_REPLY``             current timestamping
+  ``ETHTOOL_MSG_TS_LIST_GET_REPLY``        available timestampings
   ======================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -2016,6 +2018,26 @@ Kernel response contents:
 
 This command get the current timestamp layer.
 
+TS_LIST_GET
+===========
+
+Get the list of available timestampings.
+
+Request contents:
+
+  =================================  ======  ====================
+  ``ETHTOOL_A_TS_HEADER``            nested  request header
+  =================================  ======  ====================
+
+Kernel response contents:
+
+  ===========================  ======  ==============================
+  ``ETHTOOL_A_TS_HEADER``      nested  reply header
+  ``ETHTOOL_A_TS_LIST_LAYER``  binary  available timestampings
+  ===========================  ======  ==============================
+
+This command lists all the possible timestamp layer available.
+
 Request translation
 ===================
 
@@ -2123,4 +2145,5 @@ are netlink only.
   n/a                                 ``ETHTOOL_MSG_MM_GET``
   n/a                                 ``ETHTOOL_MSG_MM_SET``
   n/a                                 ``ETHTOOL_MSG_TS_GET``
+  n/a                                 ``ETHTOOL_MSG_TS_LIST_GET``
   =================================== =====================================
