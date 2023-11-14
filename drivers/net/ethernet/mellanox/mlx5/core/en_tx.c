@@ -494,10 +494,10 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 err_drop:
 	stats->dropped++;
-	dev_kfree_skb_any(skb);
 	if (unlikely(sq->ptpsq && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
 		mlx5e_ptp_metadata_fifo_push(&sq->ptpsq->metadata_freelist,
 					     be32_to_cpu(eseg->flow_table_metadata));
+	dev_kfree_skb_any(skb);
 	mlx5e_tx_flush(sq);
 }
 
