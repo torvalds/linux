@@ -2053,7 +2053,7 @@ void memcg_slab_alloc_error_hook(struct kmem_cache *s, int objects,
  * production configuration these hooks all should produce no code at all.
  *
  * Returns true if freeing of the object can proceed, false if its reuse
- * was delayed by KASAN quarantine.
+ * was delayed by KASAN quarantine, or it was returned to KFENCE.
  */
 static __always_inline
 bool slab_free_hook(struct kmem_cache *s, void *x, bool init)
@@ -2070,6 +2070,9 @@ bool slab_free_hook(struct kmem_cache *s, void *x, bool init)
 	if (!(s->flags & SLAB_TYPESAFE_BY_RCU))
 		__kcsan_check_access(x, s->object_size,
 				     KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT);
+
+	if (kfence_free(x))
+		return false;
 
 	/*
 	 * As memory initialization might be integrated into KASAN,
@@ -2100,23 +2103,25 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
 	void *object;
 	void *next = *head;
 	void *old_tail = *tail;
+	bool init;
 
 	if (is_kfence_address(next)) {
 		slab_free_hook(s, next, false);
-		return true;
+		return false;
 	}
 
 	/* Head and tail of the reconstructed freelist */
 	*head = NULL;
 	*tail = NULL;
 
+	init = slab_want_init_on_free(s);
+
 	do {
 		object = next;
 		next = get_freepointer(s, object);
 
 		/* If object's reuse doesn't have to be delayed */
-		if (likely(slab_free_hook(s, object,
-					  slab_want_init_on_free(s)))) {
+		if (likely(slab_free_hook(s, object, init))) {
 			/* Move object to the new freelist */
 			set_freepointer(s, object, *head);
 			*head = object;
@@ -4117,9 +4122,6 @@ static void __slab_free(struct kmem_cache *s, struct slab *slab,
 
 	stat(s, FREE_SLOWPATH);
 
-	if (kfence_free(head))
-		return;
-
 	if (IS_ENABLED(CONFIG_SLUB_TINY) || kmem_cache_debug(s)) {
 		free_to_partial_list(s, slab, head, tail, cnt, addr);
 		return;
@@ -4304,13 +4306,9 @@ static __fastpath_inline
 void slab_free(struct kmem_cache *s, struct slab *slab, void *object,
 	       unsigned long addr)
 {
-	bool init;
-
 	memcg_slab_free_hook(s, slab, &object, 1);
 
-	init = !is_kfence_address(object) && slab_want_init_on_free(s);
-
-	if (likely(slab_free_hook(s, object, init)))
+	if (likely(slab_free_hook(s, object, slab_want_init_on_free(s))))
 		do_slab_free(s, slab, object, object, 1, addr);
 }
 
