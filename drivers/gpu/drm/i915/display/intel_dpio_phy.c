@@ -666,6 +666,20 @@ enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port)
 	}
 }
 
+enum dpio_phy vlv_pipe_to_phy(enum pipe pipe)
+{
+	switch (pipe) {
+	default:
+		MISSING_CASE(pipe);
+		fallthrough;
+	case PIPE_A:
+	case PIPE_B:
+		return DPIO_PHY0;
+	case PIPE_C:
+		return DPIO_PHY1;
+	}
+}
+
 enum dpio_channel vlv_pipe_to_channel(enum pipe pipe)
 {
 	switch (pipe) {

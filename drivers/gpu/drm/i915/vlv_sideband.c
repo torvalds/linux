@@ -229,7 +229,8 @@ static u32 vlv_dpio_phy_iosf_port(struct drm_i915_private *i915, enum dpio_phy p
 
 u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, DPIO_PHY(pipe));
+	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
+	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
 	u32 val = 0;
 
 	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MRD_NP, reg, &val);
@@ -248,7 +249,8 @@ u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 void vlv_dpio_write(struct drm_i915_private *i915,
 		    enum pipe pipe, int reg, u32 val)
 {
-	u32 port = vlv_dpio_phy_iosf_port(i915, DPIO_PHY(pipe));
+	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
+	u32 port = vlv_dpio_phy_iosf_port(i915, phy);
 
 	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MWR_NP, reg, &val);
 }

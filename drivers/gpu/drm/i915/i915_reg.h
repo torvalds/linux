@@ -195,8 +195,6 @@
 #define  DPIO_SFR_BYPASS		(1 << 1)
 #define  DPIO_CMNRST			(1 << 0)
 
-#define DPIO_PHY(pipe)			((pipe) >> 1)
-
 /*
  * Per pipe/PLL DPIO regs
  */
