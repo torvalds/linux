@@ -6,6 +6,8 @@
  *
  * V0.0X01.0X00 first version.
  *
+ * V0.0X01.0X01
+ *  - Support V4L2 DV class features
  */
 #define DEBUG
 
@@ -22,21 +24,29 @@
 #include <linux/version.h>
 #include <linux/compat.h>
 #include <linux/rk-camera-module.h>
+#include <linux/v4l2-dv-timings.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-dv-timings.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include "max96756.h"
 
-#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION KERNEL_VERSION(0, 0x01, 0x01)
+
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "debug level (0-3)");
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN V4L2_CID_GAIN
 #endif
 
-#define MAX96756_LINK_FREQ_450MHZ (450 * 1000 * 1000UL)
-#define MAX96756_PIXEL_RATE (MAX96756_LINK_FREQ_450MHZ * 2LL * 4LL / 8LL)
+#define MAX96756_LINK_FREQ_MHZ(x) ((x)*1000 * 1000ULL)
+#define MAX96756_PIXEL_RATE (450LL * 2 * 4 / 8)
 
 #define MAX96756_REG_CHIP_ID 0x0D
 #define CHIP_ID 0x90
@@ -92,30 +102,43 @@ struct max96756_mode {
 	const struct regval *reg_list;
 };
 
+static const struct v4l2_dv_timings_cap max96756_timings_cap = {
+	.type = V4L2_DV_BT_656_1120,
+	.reserved = { 0 },
+	V4L2_INIT_BT_TIMINGS(
+		1, 10000, 1, 10000, 0, 800000000,
+		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
+			V4L2_DV_BT_STD_GTF | V4L2_DV_BT_STD_CVT,
+		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_INTERLACED |
+			V4L2_DV_BT_CAP_REDUCED_BLANKING | V4L2_DV_BT_CAP_CUSTOM)
+};
+
 struct max96756 {
 	struct i2c_client *client;
 
 	struct clk *xvclk;
 
 	struct gpio_desc *pwdn_gpio;
-
 	struct regulator_bulk_data supplies[MAX96756_NUM_SUPPLIES];
 
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default;
 	struct pinctrl_state *pins_sleep;
 
+	struct gpio_desc *lock_gpio;
+	int lock_irq;
+	struct delayed_work delayed_work_lock;
+	struct work_struct work_i2c_poll;
+
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl *exposure;
-	struct v4l2_ctrl *anal_gain;
-	struct v4l2_ctrl *digi_gain;
-	struct v4l2_ctrl *hblank;
-	struct v4l2_ctrl *vblank;
+	struct v4l2_ctrl *lock_det;
 	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *test_pattern;
+	struct v4l2_dv_timings timings;
 
 	struct mutex mutex;
 	bool streaming;
@@ -223,8 +246,22 @@ static const struct max96756_mode supported_modes[] = {
 	},
 };
 
+static const struct max96756_mode supported_modes_dcphy[] = {
+	{
+		.width = 1920,
+		.height = 1080,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.reg_list = max96756_mipi_1080p_60fps,
+		.link_freq_idx = 1,
+	},
+};
+
 static const s64 link_freq_items[] = {
-	MAX96756_LINK_FREQ_450MHZ,
+	MAX96756_LINK_FREQ_MHZ(450),
+	MAX96756_LINK_FREQ_MHZ(900),
 };
 
 static int max96756_write_reg(struct i2c_client *client, u16 reg, u32 len,
@@ -478,6 +515,9 @@ static long max96756_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_MODULE_INFO:
 		max96756_get_module_inf(max96756, (struct rkmodule_inf *)arg);
 		break;
+	case RKMODULE_GET_HDMI_MODE:
+		*(int *)arg = RKMODULE_HDMIIN_MODE;
+		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		stream = *((u32 *)arg);
 		if (stream)
@@ -522,11 +562,11 @@ static long max96756_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 {
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
-	struct rkmodule_awb_cfg *cfg;
 	struct rkmodule_vicap_reset_info *vicap_rst_inf;
 	long ret = 0;
 	int *seq;
 	u32 stream = 0;
+	struct rkmodule_csi_dphy_param *dphy_param;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -544,19 +584,20 @@ static long max96756_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 		}
 		kfree(inf);
 		break;
-	case RKMODULE_AWB_CFG:
-		cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
-		if (!cfg) {
+	case RKMODULE_GET_HDMI_MODE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
 			ret = -ENOMEM;
 			return ret;
 		}
 
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = max96756_ioctl(sd, cmd, cfg);
-		else
-			ret = -EFAULT;
-		kfree(cfg);
+		ret = max96756_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
 		break;
 	case RKMODULE_GET_VICAP_RST_INFO:
 		vicap_rst_inf = kzalloc(sizeof(*vicap_rst_inf), GFP_KERNEL);
@@ -588,27 +629,41 @@ static long max96756_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 			ret = -EFAULT;
 		kfree(vicap_rst_inf);
 		break;
-	case RKMODULE_GET_START_STREAM_SEQ:
-		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
-		if (!seq) {
-			ret = -ENOMEM;
-			return ret;
-		}
-
-		ret = max96756_ioctl(sd, cmd, seq);
-		if (!ret) {
-			ret = copy_to_user(up, seq, sizeof(*seq));
-			if (ret)
-				ret = -EFAULT;
-		}
-		kfree(seq);
-		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = max96756_ioctl(sd, cmd, &stream);
 		else
 			ret = -EFAULT;
+		break;
+	case RKMODULE_SET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = copy_from_user(dphy_param, up, sizeof(*dphy_param));
+		if (!ret)
+			ret = max96756_ioctl(sd, cmd, dphy_param);
+		else
+			ret = -EFAULT;
+		kfree(dphy_param);
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = max96756_ioctl(sd, cmd, dphy_param);
+		if (!ret) {
+			ret = copy_to_user(up, dphy_param, sizeof(*dphy_param));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(dphy_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -618,6 +673,19 @@ static long max96756_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 	return ret;
 }
 #endif
+
+static int max96756_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+				    struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_SOURCE_CHANGE:
+		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
+	case V4L2_EVENT_CTRL:
+		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	default:
+		return -EINVAL;
+	}
+}
 
 static int __max96756_start_stream(struct max96756 *max96756)
 {
@@ -654,6 +722,143 @@ static int __max96756_stop_stream(struct max96756 *max96756)
 				 MAX96756_MODE_SW_STANDBY);
 
 	return ret;
+}
+
+static bool max96756_match_timings(const struct v4l2_dv_timings *t1,
+				   const struct v4l2_dv_timings *t2)
+{
+	if (t1->type != t2->type || t1->type != V4L2_DV_BT_656_1120)
+		return false;
+	if (t1->bt.width == t2->bt.width && t1->bt.height == t2->bt.height &&
+	    t1->bt.interlaced == t2->bt.interlaced)
+		return true;
+
+	return false;
+}
+
+static inline bool max96756_detect_lock_status(struct max96756 *max96756)
+{
+	bool ret;
+	int val, i, cnt;
+
+	/* if not use lock gpio */
+	if (!max96756->lock_gpio)
+		return true;
+
+	cnt = 0;
+	for (i = 0; i < 5; i++) {
+		val = gpiod_get_value(max96756->lock_gpio);
+		if (val > 0)
+			cnt++;
+		usleep_range(500, 600);
+	}
+
+	ret = (cnt >= 3) ? true : false;
+
+	v4l2_dbg(1, debug, &max96756->subdev, "%s: %d\n", __func__, ret);
+
+	return ret;
+}
+
+static bool max96756_check_signal(struct max96756 *max96756)
+{
+	u32 val = 0;
+
+	max96756_read_reg(max96756->client, 0x11A, MAX96756_REG_VALUE_08BIT,
+			  &val);
+
+	return val & (1 << 6);
+}
+
+static int max96756_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+	*status = 0;
+	*status |= max96756_check_signal(max96756) ? V4L2_IN_ST_NO_SIGNAL : 0;
+
+	v4l2_dbg(1, debug, sd, "%s: status = 0x%x\n", __func__, *status);
+
+	return 0;
+}
+
+static int max96756_s_dv_timings(struct v4l2_subdev *sd,
+				 struct v4l2_dv_timings *timings)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+
+	if (!timings)
+		return -EINVAL;
+
+	if (debug)
+		v4l2_print_dv_timings(sd->name, "s_dv_timings: ", timings,
+				      false);
+
+	if (max96756_match_timings(&max96756->timings, timings)) {
+		v4l2_dbg(1, debug, sd, "%s: no change\n", __func__);
+		return 0;
+	}
+
+	if (!v4l2_valid_dv_timings(timings, &max96756_timings_cap, NULL,
+				   NULL)) {
+		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
+		return -ERANGE;
+	}
+
+	max96756->timings = *timings;
+
+	__max96756_stop_stream(max96756);
+
+	return 0;
+}
+static int max96756_g_dv_timings(struct v4l2_subdev *sd,
+				 struct v4l2_dv_timings *timings)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+
+	*timings = max96756->timings;
+
+	return 0;
+}
+
+static int max96756_enum_dv_timings(struct v4l2_subdev *sd,
+				    struct v4l2_enum_dv_timings *timings)
+{
+	if (timings->pad != 0)
+		return -EINVAL;
+
+	return v4l2_enum_dv_timings_cap(timings, &max96756_timings_cap, NULL,
+					NULL);
+}
+
+static int max96756_query_dv_timings(struct v4l2_subdev *sd,
+				     struct v4l2_dv_timings *timings)
+{
+	struct max96756 *max96756 = to_max96756(sd);
+
+	*timings = max96756->timings;
+	if (debug)
+		v4l2_print_dv_timings(sd->name, "query_dv_timings: ", timings,
+				      false);
+
+	if (!v4l2_valid_dv_timings(timings, &max96756_timings_cap, NULL,
+				   NULL)) {
+		v4l2_dbg(1, debug, sd, "%s: timings out of range\n", __func__);
+
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+static int max96756_dv_timings_cap(struct v4l2_subdev *sd,
+				   struct v4l2_dv_timings_cap *cap)
+{
+	if (cap->pad != 0)
+		return -EINVAL;
+
+	*cap = max96756_timings_cap;
+
+	return 0;
 }
 
 static int max96756_s_stream(struct v4l2_subdev *sd, int on)
@@ -831,8 +1036,6 @@ static int max96756_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 {
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = V4L2_MBUS_CSI2_4_LANE | V4L2_MBUS_CSI2_CHANNEL_0 |
-			V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_2 |
-			V4L2_MBUS_CSI2_CHANNEL_3 |
 			V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
 	return 0;
@@ -866,6 +1069,8 @@ static const struct v4l2_subdev_internal_ops max96756_internal_ops = {
 
 static const struct v4l2_subdev_core_ops max96756_core_ops = {
 	.s_power = max96756_s_power,
+	.subscribe_event = max96756_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.ioctl = max96756_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = max96756_compat_ioctl32,
@@ -873,6 +1078,10 @@ static const struct v4l2_subdev_core_ops max96756_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops max96756_video_ops = {
+	.g_input_status = max96756_g_input_status,
+	.s_dv_timings = max96756_s_dv_timings,
+	.g_dv_timings = max96756_g_dv_timings,
+	.query_dv_timings = max96756_query_dv_timings,
 	.s_stream = max96756_s_stream,
 	.g_frame_interval = max96756_g_frame_interval,
 };
@@ -885,6 +1094,8 @@ static const struct v4l2_subdev_pad_ops max96756_pad_ops = {
 	.set_fmt = max96756_set_fmt,
 	.get_selection = max96756_get_selection,
 	.get_mbus_config = max96756_g_mbus_config,
+	.enum_dv_timings = max96756_enum_dv_timings,
+	.dv_timings_cap = max96756_dv_timings_cap,
 };
 
 static const struct v4l2_subdev_ops max96756_subdev_ops = {
@@ -901,20 +1112,26 @@ static int max96756_initialize_controls(struct max96756 *max96756)
 
 	handler = &max96756->ctrl_handler;
 	mode = max96756->cur_mode;
-	ret = v4l2_ctrl_handler_init(handler, 2);
+	ret = v4l2_ctrl_handler_init(handler, 3);
 	if (ret)
 		return ret;
 
 	handler->lock = &max96756->mutex;
 
-	max96756->link_freq = v4l2_ctrl_new_int_menu(
-		handler, NULL, V4L2_CID_LINK_FREQ, 1, 0, link_freq_items);
-
+	max96756->link_freq =
+		v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+				       ARRAY_SIZE(link_freq_items) - 1, 0,
+				       link_freq_items);
 	max96756->pixel_rate =
 		v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE, 0,
 				  MAX96756_PIXEL_RATE, 1, MAX96756_PIXEL_RATE);
+	max96756->lock_det = v4l2_ctrl_new_std(
+		handler, NULL, V4L2_CID_DV_RX_POWER_PRESENT, 0, 1, 0, 0);
 
+	__v4l2_ctrl_s_ctrl_int64(max96756->pixel_rate, MAX96756_PIXEL_RATE);
 	__v4l2_ctrl_s_ctrl(max96756->link_freq, mode->link_freq_idx);
+	__v4l2_ctrl_s_ctrl(max96756->lock_det,
+			   max96756_detect_lock_status(max96756));
 
 	if (handler->error) {
 		ret = handler->error;
@@ -952,6 +1169,29 @@ static int max96756_check_sensor_id(struct max96756 *max96756,
 	return 0;
 }
 
+static void max96756_delayed_work_lock(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct max96756 *max96756 =
+		container_of(dwork, struct max96756, delayed_work_lock);
+
+	__v4l2_ctrl_s_ctrl(max96756->lock_det,
+			   max96756_detect_lock_status(max96756));
+}
+
+static irqreturn_t lock_irq_handler(int irq, void *dev_id)
+{
+	struct max96756 *max96756 = dev_id;
+
+	mutex_lock(&max96756->mutex);
+	if (max96756->streaming)
+		schedule_delayed_work(&max96756->delayed_work_lock,
+				      msecs_to_jiffies(50));
+	mutex_unlock(&max96756->mutex);
+
+	return IRQ_HANDLED;
+}
+
 static int max96756_configure_regulators(struct max96756 *max96756)
 {
 	unsigned int i;
@@ -964,8 +1204,7 @@ static int max96756_configure_regulators(struct max96756 *max96756)
 				       max96756->supplies);
 }
 
-static int max96756_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max96756_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *node = dev->of_node;
@@ -1000,6 +1239,25 @@ static int max96756_probe(struct i2c_client *client,
 	max96756->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
 	if (IS_ERR(max96756->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
+
+	max96756->lock_gpio = devm_gpiod_get_optional(dev, "lock", GPIOD_IN);
+	if (IS_ERR(max96756->lock_gpio)) {
+		dev_warn(dev, "failed to get lock gpio, will use i2c poll\n");
+	} else {
+		max96756->lock_irq = gpiod_to_irq(max96756->lock_gpio);
+		if (max96756->lock_irq < 0)
+			dev_err(dev, "failed to get lock irq, maybe no use\n");
+
+		ret = devm_request_threaded_irq(
+			dev, max96756->lock_irq, NULL, lock_irq_handler,
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+				IRQF_ONESHOT,
+			"max96756", max96756);
+		if (ret)
+			dev_err(dev,
+				"failed to register lock irq (%d), maybe no use\n",
+				ret);
+	}
 
 	ret = max96756_configure_regulators(max96756);
 	if (ret) {
@@ -1036,9 +1294,12 @@ static int max96756_probe(struct i2c_client *client,
 	if (ret)
 		goto err_power_off;
 
+	INIT_DELAYED_WORK(&max96756->delayed_work_lock,
+			  max96756_delayed_work_lock);
+
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &max96756_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	max96756->pad.flags = MEDIA_PAD_FL_SOURCE;
@@ -1088,6 +1349,8 @@ static int max96756_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct max96756 *max96756 = to_max96756(sd);
 
+	cancel_delayed_work_sync(&max96756->delayed_work_lock);
+
 	v4l2_async_unregister_subdev(sd);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&sd->entity);
@@ -1122,26 +1385,13 @@ static struct i2c_driver max96756_i2c_driver = {
 		.pm = &max96756_pm_ops,
 		.of_match_table = of_match_ptr(max96756_of_match),
 	},
-	.probe		= &max96756_probe,
+	.probe_new	= &max96756_probe,
 	.remove		= &max96756_remove,
 	.id_table	= max96756_match_id,
 };
 
-int max96756_sensor_mod_init(void)
-{
-	return i2c_add_driver(&max96756_i2c_driver);
-}
+module_i2c_driver(max96756_i2c_driver);
 
-#ifndef CONFIG_VIDEO_REVERSE_IMAGE
-device_initcall_sync(max96756_sensor_mod_init);
-#endif
-
-static void __exit sensor_mod_exit(void)
-{
-	i2c_del_driver(&max96756_i2c_driver);
-}
-
-module_exit(sensor_mod_exit);
-
-MODULE_DESCRIPTION("Maxim max96756 sensor driver");
+MODULE_DESCRIPTION("Maxim MAX96756 GMSL1/2 CSI display deserializer driver");
+MODULE_AUTHOR("Cody Xie <cody.xie@rock-chips.com>");
 MODULE_LICENSE("GPL");
