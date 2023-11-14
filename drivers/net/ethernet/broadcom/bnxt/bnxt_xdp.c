@@ -129,17 +129,17 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 {
 	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	u16 tx_hw_cons = txr->tx_hw_cons;
 	bool rx_doorbell_needed = false;
-	int nr_pkts = bnapi->tx_pkts;
 	struct bnxt_sw_tx_bd *tx_buf;
 	u16 tx_cons = txr->tx_cons;
 	u16 last_tx_cons = tx_cons;
-	int i, j, frags;
+	int j, frags;
 
 	if (!budget)
 		return;
 
-	for (i = 0; i < nr_pkts; i++) {
+	while (tx_cons != tx_hw_cons) {
 		tx_buf = &txr->tx_buf_ring[tx_cons];
 
 		if (tx_buf->action == XDP_REDIRECT) {
@@ -164,13 +164,13 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 				page_pool_recycle_direct(rxr->page_pool, tx_buf->page);
 			}
 		} else {
-			bnxt_sched_reset_txr(bp, txr, i);
+			bnxt_sched_reset_txr(bp, txr, tx_cons);
 			return;
 		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
 
-	bnapi->tx_pkts = 0;
+	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 	WRITE_ONCE(txr->tx_cons, tx_cons);
 	if (rx_doorbell_needed) {
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
@@ -275,7 +275,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	case XDP_TX:
 		rx_buf = &rxr->rx_buf_ring[cons];
 		mapping = rx_buf->mapping - bp->rx_dma_offset;
-		*event = 0;
+		*event &= BNXT_TX_CMP_EVENT;
 
 		if (unlikely(xdp_buff_has_frags(&xdp))) {
 			struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(&xdp);
