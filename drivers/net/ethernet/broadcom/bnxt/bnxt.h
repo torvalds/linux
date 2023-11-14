@@ -1019,7 +1019,8 @@ struct bnxt_cp_ring_info {
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
-	struct bnxt_cp_ring_info *cp_ring_arr[2];
+	int			cp_ring_count;
+	struct bnxt_cp_ring_info *cp_ring_arr;
 #define BNXT_RX_HDL	0
 #define BNXT_TX_HDL	1
 };
