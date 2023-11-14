@@ -381,6 +381,8 @@ static u16 bnxt_xmit_get_cfa_action(struct sk_buff *skb)
 static void bnxt_txr_db_kick(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 			     u16 prod)
 {
+	/* Sync BD data before updating doorbell */
+	wmb();
 	bnxt_db_write(bp, &txr->tx_db, prod);
 	txr->kick_pending = 0;
 }
@@ -388,7 +390,7 @@ static void bnxt_txr_db_kick(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct tx_bd *txbd;
+	struct tx_bd *txbd, *txbd0;
 	struct tx_bd_ext *txbd1;
 	struct netdev_queue *txq;
 	int i;
@@ -602,6 +604,7 @@ normal_tx:
 	txbd1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
 	txbd1->tx_bd_cfa_action =
 			cpu_to_le32(cfa_action << TX_BD_CFA_ACTION_SHIFT);
+	txbd0 = txbd;
 	for (i = 0; i < last_frag; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -633,16 +636,17 @@ normal_tx:
 
 	skb_tx_timestamp(skb);
 
-	/* Sync BD data before updating doorbell */
-	wmb();
-
 	prod = NEXT_TX(prod);
 	WRITE_ONCE(txr->tx_prod, prod);
 
-	if (!netdev_xmit_more() || netif_xmit_stopped(txq))
+	if (!netdev_xmit_more() || netif_xmit_stopped(txq)) {
 		bnxt_txr_db_kick(bp, txr, prod);
-	else
+	} else {
+		if (free_size >= bp->tx_wake_thresh)
+			txbd0->tx_bd_len_flags_type |=
+				cpu_to_le32(TX_BD_FLAGS_NO_CMPL);
 		txr->kick_pending = 1;
+	}
 
 tx_done:
 
