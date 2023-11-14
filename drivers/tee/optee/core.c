@@ -27,7 +27,10 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
 						   unsigned long start))
 {
 	unsigned int order = get_order(size);
+	unsigned int nr_pages = 1 << order;
+	struct page **pages;
 	struct page *page;
+	unsigned int i;
 	int rc = 0;
 
 	/*
@@ -42,30 +45,29 @@ int optee_pool_op_alloc_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
 	shm->paddr = page_to_phys(page);
 	shm->size = PAGE_SIZE << order;
 
+	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	if (!pages) {
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	for (i = 0; i < nr_pages; i++)
+		pages[i] = page + i;
+
+	shm->pages = pages;
+	shm->num_pages = nr_pages;
+
 	if (shm_register) {
-		unsigned int nr_pages = 1 << order, i;
-		struct page **pages;
-
-		pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
-		if (!pages) {
-			rc = -ENOMEM;
-			goto err;
-		}
-
-		for (i = 0; i < nr_pages; i++)
-			pages[i] = page + i;
-
 		rc = shm_register(shm->ctx, shm, pages, nr_pages,
 				  (unsigned long)shm->kaddr);
-		kfree(pages);
 		if (rc)
 			goto err;
 	}
 
 	return 0;
-
 err:
 	free_pages((unsigned long)shm->kaddr, order);
+	shm->kaddr = NULL;
 	return rc;
 }
 
@@ -77,6 +79,8 @@ void optee_pool_op_free_helper(struct tee_shm_pool *pool, struct tee_shm *shm,
 		shm_unregister(shm->ctx, shm);
 	free_pages((unsigned long)shm->kaddr, get_order(shm->size));
 	shm->kaddr = NULL;
+	kfree(shm->pages);
+	shm->pages = NULL;
 }
 
 static void optee_bus_scan(struct work_struct *work)
