@@ -292,7 +292,7 @@ struct pwm_chip {
 	struct device *dev;
 	const struct pwm_ops *ops;
 	struct module *owner;
-	int base;
+	unsigned int id;
 	unsigned int npwm;
 
 	struct pwm_device * (*of_xlate)(struct pwm_chip *chip,
@@ -300,7 +300,6 @@ struct pwm_chip {
 	unsigned int of_pwm_n_cells;
 
 	/* only used internally by the PWM framework */
-	struct list_head list;
 	struct pwm_device *pwms;
 };
 

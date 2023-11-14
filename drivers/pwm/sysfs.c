@@ -510,7 +510,7 @@ void pwmchip_sysfs_export(struct pwm_chip *chip)
 	 * the kernel it's just not exported.
 	 */
 	parent = device_create(&pwm_class, chip->dev, MKDEV(0, 0), chip,
-			       "pwmchip%d", chip->base);
+			       "pwmchip%d", chip->id);
 	if (IS_ERR(parent)) {
 		dev_warn(chip->dev,
 			 "device_create failed for pwm_chip sysfs export\n");
