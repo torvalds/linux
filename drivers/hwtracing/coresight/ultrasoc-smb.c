@@ -477,7 +477,6 @@ static int smb_init_data_buffer(struct platform_device *pdev,
 static void smb_init_hw(struct smb_drv_data *drvdata)
 {
 	smb_disable_hw(drvdata);
-	smb_reset_buffer(drvdata);
 
 	writel(SMB_LB_CFG_LO_DEFAULT, drvdata->base + SMB_LB_CFG_LO_REG);
 	writel(SMB_LB_CFG_HI_DEFAULT, drvdata->base + SMB_LB_CFG_HI_REG);
@@ -587,6 +586,7 @@ static int smb_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	smb_reset_buffer(drvdata);
 	platform_set_drvdata(pdev, drvdata);
 	spin_lock_init(&drvdata->spinlock);
 	drvdata->pid = -1;
