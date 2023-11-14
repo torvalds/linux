@@ -382,13 +382,13 @@ static void uvcg_video_pump(struct work_struct *work)
 {
 	struct uvc_video *video = container_of(work, struct uvc_video, pump);
 	struct uvc_video_queue *queue = &video->queue;
-	/* video->max_payload_size is only set when using bulk transfer */
-	bool is_bulk = video->max_payload_size;
 	struct usb_request *req = NULL;
 	struct uvc_buffer *buf;
 	unsigned long flags;
-	bool buf_done;
 	int ret;
+	bool buf_int;
+	/* video->max_payload_size is only set when using bulk transfer */
+	bool is_bulk = video->max_payload_size;
 
 	while (video->ep->enabled) {
 		/*
@@ -414,19 +414,20 @@ static void uvcg_video_pump(struct work_struct *work)
 
 		if (buf != NULL) {
 			video->encode(req, video, buf);
-			buf_done = buf->state == UVC_BUF_STATE_DONE;
+			/* Always interrupt for the last request of a video buffer */
+			buf_int = buf->state == UVC_BUF_STATE_DONE;
 		} else if (!(queue->flags & UVC_QUEUE_DISCONNECTED) && !is_bulk) {
 			/*
 			 * No video buffer available; the queue is still connected and
-			 * we're transferring over ISOC. Queue a 0 length request to
+			 * we're traferring over ISOC. Queue a 0 length request to
 			 * prevent missed ISOC transfers.
 			 */
 			req->length = 0;
-			buf_done = false;
+			buf_int = false;
 		} else {
 			/*
-			 * Either the queue has been disconnected or no video buffer
-			 * available for bulk transfer. Either way, stop processing
+			 * Either queue has been disconnected or no video buffer
+			 * available to bulk transfer. Either way, stop processing
 			 * further.
 			 */
 			spin_unlock_irqrestore(&queue->irqlock, flags);
@@ -434,24 +435,11 @@ static void uvcg_video_pump(struct work_struct *work)
 		}
 
 		/*
-		 * With USB3 handling more requests at a higher speed, we can't
-		 * afford to generate an interrupt for every request. Decide to
-		 * interrupt:
-		 *
-		 * - When no more requests are available in the free queue, as
-		 *   this may be our last chance to refill the endpoint's
-		 *   request queue.
-		 *
-		 * - When this is request is the last request for the video
-		 *   buffer, as we want to start sending the next video buffer
-		 *   ASAP in case it doesn't get started already in the next
-		 *   iteration of this loop.
-		 *
-		 * - Four times over the length of the requests queue (as
-		 *   indicated by video->uvc_num_requests), as a trade-off
-		 *   between latency and interrupt load.
+		 * With usb3 we have more requests. This will decrease the
+		 * interrupt load to a quarter but also catches the corner
+		 * cases, which needs to be handled.
 		 */
-		if (list_empty(&video->req_free) || buf_done ||
+		if (list_empty(&video->req_free) || buf_int ||
 		    !(video->req_int_count %
 		       DIV_ROUND_UP(video->uvc_num_requests, 4))) {
 			video->req_int_count = 0;
