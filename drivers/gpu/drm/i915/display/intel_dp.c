@@ -5517,8 +5517,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 * (eg. Acer Chromebook C710), so we'll check it only if multiple
 	 * ports are attempting to use the same AUX CH, according to VBT.
 	 */
-	if (intel_bios_dp_has_shared_aux_ch(encoder->devdata) &&
-	    !intel_digital_port_connected(encoder)) {
+	if (intel_bios_dp_has_shared_aux_ch(encoder->devdata)) {
 		/*
 		 * If this fails, presume the DPCD answer came
 		 * from some other port using the same AUX CH.
@@ -5526,10 +5525,27 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		 * FIXME maybe cleaner to check this before the
 		 * DPCD read? Would need sort out the VDD handling...
 		 */
-		drm_info(&dev_priv->drm,
-			 "[ENCODER:%d:%s] HPD is down, disabling eDP\n",
-			 encoder->base.base.id, encoder->base.name);
-		goto out_vdd_off;
+		if (!intel_digital_port_connected(encoder)) {
+			drm_info(&dev_priv->drm,
+				 "[ENCODER:%d:%s] HPD is down, disabling eDP\n",
+				 encoder->base.base.id, encoder->base.name);
+			goto out_vdd_off;
+		}
+
+		/*
+		 * Unfortunately even the HPD based detection fails on
+		 * eg. Asus B360M-A (CFL+CNP), so as a last resort fall
+		 * back to checking for a VGA branch device. Only do this
+		 * on known affected platforms to minimize false positives.
+		 */
+		if (DISPLAY_VER(dev_priv) == 9 && drm_dp_is_branch(intel_dp->dpcd) &&
+		    (intel_dp->dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_TYPE_MASK) ==
+		    DP_DWN_STRM_PORT_TYPE_ANALOG) {
+			drm_info(&dev_priv->drm,
+				 "[ENCODER:%d:%s] VGA converter detected, disabling eDP\n",
+				 encoder->base.base.id, encoder->base.name);
+			goto out_vdd_off;
+		}
 	}
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
