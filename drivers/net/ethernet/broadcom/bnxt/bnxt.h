@@ -806,6 +806,7 @@ struct bnxt_db_info {
 
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
+	struct bnxt_cp_ring_info	*tx_cpr;
 	u16			tx_prod;
 	u16			tx_cons;
 	u16			tx_hw_cons;
@@ -916,6 +917,7 @@ struct bnxt_tpa_idx_map {
 
 struct bnxt_rx_ring_info {
 	struct bnxt_napi	*bnapi;
+	struct bnxt_cp_ring_info	*rx_cpr;
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
