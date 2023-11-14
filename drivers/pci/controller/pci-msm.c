@@ -6116,8 +6116,8 @@ int msm_pcie_enumerate(u32 rc_idx)
 		}
 	} else {
 		bridge = dev->bridge;
-		msm_msi_config_access(dev_get_msi_domain(&dev->dev->dev),
-			true);
+		if (!dev->lpi_enable)
+			msm_msi_config_access(dev_get_msi_domain(&dev->dev->dev), true);
 	}
 
 	bridge->sysdata = dev;
