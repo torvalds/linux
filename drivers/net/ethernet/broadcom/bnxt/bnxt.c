@@ -3609,7 +3609,10 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 {
 	bool sh = !!(bp->flags & BNXT_FLAG_SHARED_RINGS);
 	int i, j, rc, ulp_base_vec, ulp_msix;
+	int tcs = netdev_get_num_tc(bp->dev);
 
+	if (!tcs)
+		tcs = 1;
 	ulp_msix = bnxt_get_ulp_msix_num(bp);
 	ulp_base_vec = bnxt_get_ulp_msix_base(bp);
 	for (i = 0, j = 0; i < bp->cp_nr_rings; i++) {
@@ -3617,6 +3620,7 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		struct bnxt_cp_ring_info *cpr, *cpr2;
 		struct bnxt_ring_struct *ring;
 		int cp_count = 0, k;
+		int rx = 0, tx = 0;
 
 		if (!bnapi)
 			continue;
@@ -3637,11 +3641,18 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
 			continue;
 
-		if (i < bp->rx_nr_rings)
+		if (i < bp->rx_nr_rings) {
 			cp_count++;
-		if ((sh && i < bp->tx_nr_rings) ||
-		    (!sh && i >= bp->rx_nr_rings))
+			rx = 1;
+		}
+		if (i < bp->tx_nr_rings_xdp) {
 			cp_count++;
+			tx = 1;
+		} else if ((sh && i < bp->tx_nr_rings) ||
+			 (!sh && i >= bp->rx_nr_rings)) {
+			cp_count += tcs;
+			tx = 1;
+		}
 
 		cpr->cp_ring_arr = kcalloc(cp_count, sizeof(*cpr),
 					   GFP_KERNEL);
@@ -3656,14 +3667,19 @@ static int bnxt_alloc_cp_rings(struct bnxt *bp)
 				return rc;
 			cpr2->bnapi = bnapi;
 			cpr2->cp_idx = k;
-			if (!k && i < bp->rx_nr_rings) {
+			if (!k && rx) {
 				bp->rx_ring[i].rx_cpr = cpr2;
 				cpr2->cp_ring_type = BNXT_NQ_HDL_TYPE_RX;
 			} else {
-				bp->tx_ring[j++].tx_cpr = cpr2;
+				int n, tc = k - rx;
+
+				n = BNXT_TC_TO_RING_BASE(bp, tc) + j;
+				bp->tx_ring[n].tx_cpr = cpr2;
 				cpr2->cp_ring_type = BNXT_NQ_HDL_TYPE_TX;
 			}
 		}
+		if (tx)
+			j++;
 	}
 	return 0;
 }
@@ -4704,24 +4720,33 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 		else
 			j = bp->rx_nr_rings;
 
-		for (i = 0; i < bp->tx_nr_rings; i++, j++) {
+		for (i = 0; i < bp->tx_nr_rings; i++) {
 			struct bnxt_tx_ring_info *txr = &bp->tx_ring[i];
+			struct bnxt_napi *bnapi2;
 
 			if (bp->flags & BNXT_FLAG_CHIP_P5)
 				txr->tx_ring_struct.ring_mem.flags =
 					BNXT_RMEM_RING_PTE_FLAG;
-			else
-				txr->tx_cpr =  &bp->bnapi[i]->cp_ring;
-			txr->bnapi = bp->bnapi[j];
-			bp->bnapi[j]->tx_ring[0] = txr;
 			bp->tx_ring_map[i] = bp->tx_nr_rings_xdp + i;
 			if (i >= bp->tx_nr_rings_xdp) {
+				int k = j + BNXT_RING_TO_TC_OFF(bp, i);
+
+				bnapi2 = bp->bnapi[k];
 				txr->txq_index = i - bp->tx_nr_rings_xdp;
-				bp->bnapi[j]->tx_int = bnxt_tx_int;
+				txr->tx_napi_idx =
+					BNXT_RING_TO_TC(bp, txr->txq_index);
+				bnapi2->tx_ring[txr->tx_napi_idx] = txr;
+				bnapi2->tx_int = bnxt_tx_int;
 			} else {
-				bp->bnapi[j]->flags |= BNXT_NAPI_FLAG_XDP;
-				bp->bnapi[j]->tx_int = bnxt_tx_int_xdp;
+				bnapi2 = bp->bnapi[j];
+				bnapi2->flags |= BNXT_NAPI_FLAG_XDP;
+				bnapi2->tx_ring[0] = txr;
+				bnapi2->tx_int = bnxt_tx_int_xdp;
+				j++;
 			}
+			txr->bnapi = bnapi2;
+			if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+				txr->tx_cpr = &bnapi2->cp_ring;
 		}
 
 		rc = bnxt_alloc_stats(bp);
@@ -9099,7 +9124,7 @@ static int __bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 
 static int __bnxt_num_tx_to_cp(struct bnxt *bp, int tx, int tx_sets, int tx_xdp)
 {
-	return tx;
+	return (tx - tx_xdp) / tx_sets + tx_xdp;
 }
 
 int bnxt_num_tx_to_cp(struct bnxt *bp, int tx)
@@ -13723,7 +13748,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	max_irqs = bnxt_get_max_irq(pdev);
-	dev = alloc_etherdev_mq(sizeof(*bp), max_irqs);
+	dev = alloc_etherdev_mqs(sizeof(*bp), max_irqs * BNXT_MAX_QUEUE,
+				 max_irqs);
 	if (!dev)
 		return -ENOMEM;
 
