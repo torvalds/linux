@@ -28,10 +28,7 @@ def prepare_suite(obj, test):
     shadow['DEV2'] = original['DEV2']
     obj.args.NAMES = shadow
 
-    if obj.args.namespace:
-        obj._ns_create()
-    else:
-        obj._ports_create()
+    obj._ns_create()
 
     # Make sure the netns is visible in the fs
     while True:
@@ -75,10 +72,7 @@ class SubPlugin(TdcPlugin):
         if self.args.verbose:
             print('{}.post_case'.format(self.sub_class))
 
-        if self.args.namespace:
-            self._ns_destroy()
-        else:
-            self._ports_destroy()
+        self._ns_destroy()
 
     def post_suite(self, index):
         if self.args.verbose:
@@ -93,23 +87,10 @@ class SubPlugin(TdcPlugin):
 
             subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def add_args(self, parser):
-        super().add_args(parser)
-        self.argparser_group = self.argparser.add_argument_group(
-            'netns',
-            'options for nsPlugin(run commands in net namespace)')
-        self.argparser_group.add_argument(
-            '-N', '--no-namespace', action='store_false', default=True,
-            dest='namespace', help='Don\'t run commands in namespace')
-        return self.argparser
-
     def adjust_command(self, stage, command):
         super().adjust_command(stage, command)
         cmdform = 'list'
         cmdlist = list()
-
-        if not self.args.namespace:
-            return command
 
         if self.args.verbose:
             print('{}.adjust_command'.format(self.sub_class))
@@ -144,8 +125,6 @@ class SubPlugin(TdcPlugin):
         cmds.append(self._replace_keywords('link add $DEV0 type veth peer name $DEV1'))
         cmds.append(self._replace_keywords('link set $DEV0 up'))
         cmds.append(self._replace_keywords('link add $DUMMY type dummy'))
-        if not self.args.namespace:
-            cmds.append(self._replace_keywords('link set $DEV1 up'))
 
         return cmds
 
@@ -161,18 +140,17 @@ class SubPlugin(TdcPlugin):
     def _ns_create_cmds(self):
         cmds = []
 
-        if self.args.namespace:
-            ns = self.args.NAMES['NS']
+        ns = self.args.NAMES['NS']
 
-            cmds.append(self._replace_keywords('netns add {}'.format(ns)))
-            cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
-            cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
-            cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
-            cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
+        cmds.append(self._replace_keywords('netns add {}'.format(ns)))
+        cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
+        cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
 
-            if self.args.device:
-                cmds.append(self._replace_keywords('link set $DEV2 netns {}'.format(ns)))
-                cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV2 up'.format(ns)))
+        if self.args.device:
+            cmds.append(self._replace_keywords('link set $DEV2 netns {}'.format(ns)))
+            cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV2 up'.format(ns)))
 
         return cmds
 
@@ -192,9 +170,8 @@ class SubPlugin(TdcPlugin):
         Destroy the network namespace for testing (and any associated network
         devices as well)
         '''
-        if self.args.namespace:
-            self._exec_cmd('post', self._ns_destroy_cmd())
-            self._ports_destroy()
+        self._exec_cmd('post', self._ns_destroy_cmd())
+        self._ports_destroy()
 
     @cached_property
     def _proc(self):
