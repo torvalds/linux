@@ -1023,25 +1023,6 @@ static bool dirent_points_to_inode(struct bkey_s_c_dirent d,
 		: le64_to_cpu(d.v->d_inum)		== inode->bi_inum;
 }
 
-static int inode_backpointer_exists(struct btree_trans *trans,
-				    struct bch_inode_unpacked *inode,
-				    u32 snapshot)
-{
-	struct btree_iter iter;
-	struct bkey_s_c_dirent d;
-	int ret;
-
-	d = dirent_get_by_pos(trans, &iter,
-			SPOS(inode->bi_dir, inode->bi_dir_offset, snapshot));
-	ret = bkey_err(d);
-	if (ret)
-		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
-
-	ret = dirent_points_to_inode(d, inode);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
 static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
@@ -1553,8 +1534,8 @@ static int check_dirent_target(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_i_dirent *n;
-	bool backpointer_exists = true;
 	struct printbuf buf = PRINTBUF;
+	struct btree_iter bp_iter = { NULL };
 	int ret = 0;
 
 	if (!target->bi_dir &&
@@ -1568,25 +1549,37 @@ static int check_dirent_target(struct btree_trans *trans,
 	}
 
 	if (!inode_points_to_dirent(target, d)) {
-		ret = inode_backpointer_exists(trans, target, d.k->p.snapshot);
-		if (ret < 0)
+		struct bkey_s_c_dirent bp_dirent = dirent_get_by_pos(trans, &bp_iter,
+				      SPOS(target->bi_dir, target->bi_dir_offset, target_snapshot));
+		ret = bkey_err(bp_dirent);
+		if (ret && !bch2_err_matches(ret, ENOENT))
 			goto err;
 
-		backpointer_exists = ret;
+		bool backpointer_exists = !ret;
 		ret = 0;
+
+		bch2_bkey_val_to_text(&buf, c, d.s_c);
+		prt_newline(&buf);
+		if (backpointer_exists)
+			bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
 
 		if (fsck_err_on(S_ISDIR(target->bi_mode) && backpointer_exists,
 				c, inode_dir_multiple_links,
-				"directory %llu with multiple links",
-				target->bi_inum)) {
+				"directory %llu:%u with multiple links\n%s",
+				target->bi_inum, target_snapshot, buf.buf)) {
 			ret = __remove_dirent(trans, d.k->p);
 			goto out;
 		}
 
+		/*
+		 * hardlinked file with nlink 0:
+		 * We're just adjusting nlink here so check_nlinks() will pick
+		 * it up, it ignores inodes with nlink 0
+		 */
 		if (fsck_err_on(backpointer_exists && !target->bi_nlink,
 				c, inode_multiple_links_but_nlink_0,
-				"inode %llu type %s has multiple links but i_nlink 0",
-				target->bi_inum, bch2_d_types[d.v->d_type])) {
+				"inode %llu:%u type %s has multiple links but i_nlink 0\n%s",
+				target->bi_inum, target_snapshot, bch2_d_types[d.v->d_type], buf.buf)) {
 			target->bi_nlink++;
 			target->bi_flags &= ~BCH_INODE_unlinked;
 
@@ -1660,6 +1653,7 @@ static int check_dirent_target(struct btree_trans *trans,
 out:
 err:
 fsck_err:
+	bch2_trans_iter_exit(trans, &bp_iter);
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
@@ -2401,7 +2395,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 				NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
 			check_nlinks_update_inode(trans, &iter, k, links, &idx, range_end)));
 	if (ret < 0) {
-		bch_err(c, "error in fsck: btree error %i while walking inodes", ret);
+		bch_err(c, "error in fsck walking inodes: %s", bch2_err_str(ret));
 		return ret;
 	}
 
