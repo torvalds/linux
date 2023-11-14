@@ -585,10 +585,10 @@ struct drm_xe_vm_create {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-#define DRM_XE_VM_CREATE_SCRATCH_PAGE		(0x1 << 0)
-#define DRM_XE_VM_CREATE_COMPUTE_MODE		(0x1 << 1)
-#define DRM_XE_VM_CREATE_ASYNC_DEFAULT		(0x1 << 2)
-#define DRM_XE_VM_CREATE_FAULT_MODE		(0x1 << 3)
+#define DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE	(0x1 << 0)
+#define DRM_XE_VM_CREATE_FLAG_COMPUTE_MODE	(0x1 << 1)
+#define DRM_XE_VM_CREATE_FLAG_ASYNC_DEFAULT	(0x1 << 2)
+#define DRM_XE_VM_CREATE_FLAG_FAULT_MODE	(0x1 << 3)
 	/** @flags: Flags */
 	__u32 flags;
 
@@ -831,11 +831,11 @@ struct drm_xe_sync {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
-#define DRM_XE_SYNC_SYNCOBJ		0x0
-#define DRM_XE_SYNC_TIMELINE_SYNCOBJ	0x1
-#define DRM_XE_SYNC_DMA_BUF		0x2
-#define DRM_XE_SYNC_USER_FENCE		0x3
-#define DRM_XE_SYNC_SIGNAL		0x10
+#define DRM_XE_SYNC_FLAG_SYNCOBJ		0x0
+#define DRM_XE_SYNC_FLAG_TIMELINE_SYNCOBJ	0x1
+#define DRM_XE_SYNC_FLAG_DMA_BUF		0x2
+#define DRM_XE_SYNC_FLAG_USER_FENCE		0x3
+#define DRM_XE_SYNC_FLAG_SIGNAL		0x10
 	__u32 flags;
 
 	/** @pad: MBZ */
@@ -921,8 +921,8 @@ struct drm_xe_wait_user_fence {
 	/** @op: wait operation (type of comparison) */
 	__u16 op;
 
-#define DRM_XE_UFENCE_WAIT_SOFT_OP	(1 << 0)	/* e.g. Wait on VM bind */
-#define DRM_XE_UFENCE_WAIT_ABSTIME	(1 << 1)
+#define DRM_XE_UFENCE_WAIT_FLAG_SOFT_OP	(1 << 0)	/* e.g. Wait on VM bind */
+#define DRM_XE_UFENCE_WAIT_FLAG_ABSTIME	(1 << 1)
 	/** @flags: wait flags */
 	__u16 flags;
 
@@ -940,10 +940,10 @@ struct drm_xe_wait_user_fence {
 	__u64 mask;
 	/**
 	 * @timeout: how long to wait before bailing, value in nanoseconds.
-	 * Without DRM_XE_UFENCE_WAIT_ABSTIME flag set (relative timeout)
+	 * Without DRM_XE_UFENCE_WAIT_FLAG_ABSTIME flag set (relative timeout)
 	 * it contains timeout expressed in nanoseconds to wait (fence will
 	 * expire at now() + timeout).
-	 * When DRM_XE_UFENCE_WAIT_ABSTIME flat is set (absolute timeout) wait
+	 * When DRM_XE_UFENCE_WAIT_FLAG_ABSTIME flat is set (absolute timeout) wait
 	 * will end at timeout (uses system MONOTONIC_CLOCK).
 	 * Passing negative timeout leads to neverending wait.
 	 *
@@ -956,13 +956,13 @@ struct drm_xe_wait_user_fence {
 
 	/**
 	 * @num_engines: number of engine instances to wait on, must be zero
-	 * when DRM_XE_UFENCE_WAIT_SOFT_OP set
+	 * when DRM_XE_UFENCE_WAIT_FLAG_SOFT_OP set
 	 */
 	__u64 num_engines;
 
 	/**
 	 * @instances: user pointer to array of drm_xe_engine_class_instance to
-	 * wait on, must be NULL when DRM_XE_UFENCE_WAIT_SOFT_OP set
+	 * wait on, must be NULL when DRM_XE_UFENCE_WAIT_FLAG_SOFT_OP set
 	 */
 	__u64 instances;
 

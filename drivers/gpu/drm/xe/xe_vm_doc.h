@@ -18,7 +18,7 @@
  * Scratch page
  * ------------
  *
- * If the VM is created with the flag, DRM_XE_VM_CREATE_SCRATCH_PAGE, set the
+ * If the VM is created with the flag, DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE, set the
  * entire page table structure defaults pointing to blank page allocated by the
  * VM. Invalid memory access rather than fault just read / write to this page.
  *

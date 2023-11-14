@@ -110,14 +110,14 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		return -EFAULT;
 
 	if (XE_IOCTL_DBG(xe, sync_in.flags &
-			 ~(SYNC_FLAGS_TYPE_MASK | DRM_XE_SYNC_SIGNAL)) ||
+			 ~(SYNC_FLAGS_TYPE_MASK | DRM_XE_SYNC_FLAG_SIGNAL)) ||
 	    XE_IOCTL_DBG(xe, sync_in.pad) ||
 	    XE_IOCTL_DBG(xe, sync_in.reserved[0] || sync_in.reserved[1]))
 		return -EINVAL;
 
-	signal = sync_in.flags & DRM_XE_SYNC_SIGNAL;
+	signal = sync_in.flags & DRM_XE_SYNC_FLAG_SIGNAL;
 	switch (sync_in.flags & SYNC_FLAGS_TYPE_MASK) {
-	case DRM_XE_SYNC_SYNCOBJ:
+	case DRM_XE_SYNC_FLAG_SYNCOBJ:
 		if (XE_IOCTL_DBG(xe, no_dma_fences && signal))
 			return -EOPNOTSUPP;
 
@@ -135,7 +135,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		}
 		break;
 
-	case DRM_XE_SYNC_TIMELINE_SYNCOBJ:
+	case DRM_XE_SYNC_FLAG_TIMELINE_SYNCOBJ:
 		if (XE_IOCTL_DBG(xe, no_dma_fences && signal))
 			return -EOPNOTSUPP;
 
@@ -165,12 +165,12 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 		}
 		break;
 
-	case DRM_XE_SYNC_DMA_BUF:
+	case DRM_XE_SYNC_FLAG_DMA_BUF:
 		if (XE_IOCTL_DBG(xe, "TODO"))
 			return -EINVAL;
 		break;
 
-	case DRM_XE_SYNC_USER_FENCE:
+	case DRM_XE_SYNC_FLAG_USER_FENCE:
 		if (XE_IOCTL_DBG(xe, !signal))
 			return -EOPNOTSUPP;
 
@@ -225,7 +225,7 @@ int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 void xe_sync_entry_signal(struct xe_sync_entry *sync, struct xe_sched_job *job,
 			  struct dma_fence *fence)
 {
-	if (!(sync->flags & DRM_XE_SYNC_SIGNAL))
+	if (!(sync->flags & DRM_XE_SYNC_FLAG_SIGNAL))
 		return;
 
 	if (sync->chain_fence) {
@@ -253,7 +253,7 @@ void xe_sync_entry_signal(struct xe_sync_entry *sync, struct xe_sched_job *job,
 			dma_fence_put(fence);
 		}
 	} else if ((sync->flags & SYNC_FLAGS_TYPE_MASK) ==
-		   DRM_XE_SYNC_USER_FENCE) {
+		   DRM_XE_SYNC_FLAG_USER_FENCE) {
 		job->user_fence.used = true;
 		job->user_fence.addr = sync->addr;
 		job->user_fence.value = sync->timeline_value;
