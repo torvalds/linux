@@ -13,6 +13,16 @@
 #include <linux/types.h>
 #include <linux/socket.h>   /* for SO_TIMESTAMPING */
 
+/* Layer of the TIMESTAMPING provider */
+enum timestamping_layer {
+	NO_TIMESTAMPING,
+	SOFTWARE_TIMESTAMPING,
+	MAC_TIMESTAMPING,
+	PHY_TIMESTAMPING,
+
+	__TIMESTAMPING_COUNT,
+};
+
 /* SO_TIMESTAMPING flags */
 enum {
 	SOF_TIMESTAMPING_TX_HARDWARE = (1<<0),
