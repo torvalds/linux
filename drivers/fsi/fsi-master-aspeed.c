@@ -3,6 +3,7 @@
 // FSI master driver for AST2600
 
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/delay.h>
 #include <linux/fsi.h>
 #include <linux/io.h>
@@ -24,6 +25,7 @@ struct fsi_master_aspeed {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
+	struct reset_control	*rst;
 	struct gpio_desc	*cfam_reset_gpio;
 };
 
@@ -558,16 +560,22 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 		goto err_free_aspeed;
 	}
 
+	aspeed->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(aspeed->rst))
+		dev_warn(aspeed->dev, "couldn't get reset\n");
+	else
+		reset_control_deassert(aspeed->rst);
+
 	aspeed->clk = devm_clk_get(aspeed->dev, NULL);
 	if (IS_ERR(aspeed->clk)) {
 		dev_err(aspeed->dev, "couldn't get clock\n");
 		rc = PTR_ERR(aspeed->clk);
-		goto err_free_aspeed;
+		goto err_reset;
 	}
 	rc = clk_prepare_enable(aspeed->clk);
 	if (rc) {
 		dev_err(aspeed->dev, "couldn't enable clock\n");
-		goto err_free_aspeed;
+		goto err_reset;
 	}
 
 	rc = setup_cfam_reset(aspeed);
@@ -641,6 +649,9 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 
 err_release:
 	clk_disable_unprepare(aspeed->clk);
+err_reset:
+	if (!IS_ERR(aspeed->rst))
+		reset_control_assert(aspeed->rst);
 err_free_aspeed:
 	kfree(aspeed);
 	return rc;
@@ -652,6 +663,8 @@ static int fsi_master_aspeed_remove(struct platform_device *pdev)
 
 	fsi_master_unregister(&aspeed->master);
 	clk_disable_unprepare(aspeed->clk);
+	if (!IS_ERR(aspeed->rst))
+		reset_control_assert(aspeed->rst);
 
 	return 0;
 }
