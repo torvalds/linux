@@ -24,6 +24,7 @@
 #define I40E_MAX_VEB			16
 
 #define I40E_MAX_NUM_DESCRIPTORS	4096
+#define I40E_MAX_NUM_DESCRIPTORS_XL710	8160
 #define I40E_MAX_CSR_SPACE		(4 * 1024 * 1024 - 64 * 1024)
 #define I40E_DEFAULT_NUM_DESCRIPTORS	512
 #define I40E_REQ_DESCRIPTOR_MULTIPLE	32
@@ -33,11 +34,11 @@
 #define I40E_MIN_VSI_ALLOC		83 /* LAN, ATR, FCOE, 64 VF */
 /* max 16 qps */
 #define i40e_default_queues_per_vmdq(pf) \
-		(((pf)->hw_features & I40E_HW_RSS_AQ_CAPABLE) ? 4 : 1)
+	(test_bit(I40E_HW_CAP_RSS_AQ, (pf)->hw.caps) ? 4 : 1)
 #define I40E_DEFAULT_QUEUES_PER_VF	4
 #define I40E_MAX_VF_QUEUES		16
 #define i40e_pf_get_max_q_per_tc(pf) \
-		(((pf)->hw_features & I40E_HW_128_QP_RSS_CAPABLE) ? 128 : 64)
+	(test_bit(I40E_HW_CAP_128_QP_RSS, (pf)->hw.caps) ? 128 : 64)
 #define I40E_FDIR_RING_COUNT		32
 #define I40E_MAX_AQ_BUF_SIZE		4096
 #define I40E_AQ_LEN			256
@@ -78,7 +79,7 @@
 #define I40E_MAX_BW_INACTIVE_ACCUM	4 /* accumulate 4 credits max */
 
 /* driver state flags */
-enum i40e_state_t {
+enum i40e_state {
 	__I40E_TESTING,
 	__I40E_CONFIG_BUSY,
 	__I40E_CONFIG_DONE,
@@ -126,7 +127,7 @@ enum i40e_state_t {
 	BIT_ULL(__I40E_PF_RESET_AND_REBUILD_REQUESTED)
 
 /* VSI state flags */
-enum i40e_vsi_state_t {
+enum i40e_vsi_state {
 	__I40E_VSI_DOWN,
 	__I40E_VSI_NEEDS_RESTART,
 	__I40E_VSI_SYNCING_FILTERS,
@@ -136,6 +137,60 @@ enum i40e_vsi_state_t {
 	__I40E_VSI_RELEASING,
 	/* This must be last as it determines the size of the BITMAP */
 	__I40E_VSI_STATE_SIZE__,
+};
+
+enum i40e_pf_flags {
+	I40E_FLAG_MSI_ENA,
+	I40E_FLAG_MSIX_ENA,
+	I40E_FLAG_RSS_ENA,
+	I40E_FLAG_VMDQ_ENA,
+	I40E_FLAG_SRIOV_ENA,
+	I40E_FLAG_DCB_CAPABLE,
+	I40E_FLAG_DCB_ENA,
+	I40E_FLAG_FD_SB_ENA,
+	I40E_FLAG_FD_ATR_ENA,
+	I40E_FLAG_MFP_ENA,
+	I40E_FLAG_HW_ATR_EVICT_ENA,
+	I40E_FLAG_VEB_MODE_ENA,
+	I40E_FLAG_VEB_STATS_ENA,
+	I40E_FLAG_LINK_POLLING_ENA,
+	I40E_FLAG_TRUE_PROMISC_ENA,
+	I40E_FLAG_LEGACY_RX_ENA,
+	I40E_FLAG_PTP_ENA,
+	I40E_FLAG_IWARP_ENA,
+	I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA,
+	I40E_FLAG_SOURCE_PRUNING_DIS,
+	I40E_FLAG_TC_MQPRIO_ENA,
+	I40E_FLAG_FD_SB_INACTIVE,
+	I40E_FLAG_FD_SB_TO_CLOUD_FILTER,
+	I40E_FLAG_FW_LLDP_DIS,
+	I40E_FLAG_RS_FEC,
+	I40E_FLAG_BASE_R_FEC,
+	/* TOTAL_PORT_SHUTDOWN_ENA
+	 * Allows to physically disable the link on the NIC's port.
+	 * If enabled, (after link down request from the OS)
+	 * no link, traffic or led activity is possible on that port.
+	 *
+	 * If I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENA is set, the
+	 * I40E_FLAG_LINK_DOWN_ON_CLOSE_ENA must be explicitly forced
+	 * to true and cannot be disabled by system admin at that time.
+	 * The functionalities are exclusive in terms of configuration, but
+	 * they also have similar behavior (allowing to disable physical
+	 * link of the port), with following differences:
+	 * - LINK_DOWN_ON_CLOSE_ENA is configurable at host OS run-time and
+	 *   is supported by whole family of 7xx Intel Ethernet Controllers
+	 * - TOTAL_PORT_SHUTDOWN_ENA may be enabled only before OS loads
+	 *   (in BIOS) only if motherboard's BIOS and NIC's FW has support of it
+	 * - when LINK_DOWN_ON_CLOSE_ENABLED is used, the link is being brought
+	 *   down by sending phy_type=0 to NIC's FW
+	 * - when TOTAL_PORT_SHUTDOWN_ENA is used, phy_type is not altered,
+	 *   instead the link is being brought down by clearing
+	 *   bit (I40E_AQ_PHY_ENABLE_LINK) in abilities field of
+	 *   i40e_aq_set_phy_config structure
+	 */
+	I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENA,
+	I40E_FLAG_VF_VLAN_PRUNING_ENA,
+	I40E_PF_FLAGS_NBITS,		/* must be last */
 };
 
 enum i40e_interrupt_policy {
@@ -480,78 +535,7 @@ struct i40e_pf {
 	struct timer_list service_timer;
 	struct work_struct service_task;
 
-	u32 hw_features;
-#define I40E_HW_RSS_AQ_CAPABLE			BIT(0)
-#define I40E_HW_128_QP_RSS_CAPABLE		BIT(1)
-#define I40E_HW_ATR_EVICT_CAPABLE		BIT(2)
-#define I40E_HW_WB_ON_ITR_CAPABLE		BIT(3)
-#define I40E_HW_MULTIPLE_TCP_UDP_RSS_PCTYPE	BIT(4)
-#define I40E_HW_NO_PCI_LINK_CHECK		BIT(5)
-#define I40E_HW_100M_SGMII_CAPABLE		BIT(6)
-#define I40E_HW_NO_DCB_SUPPORT			BIT(7)
-#define I40E_HW_USE_SET_LLDP_MIB		BIT(8)
-#define I40E_HW_GENEVE_OFFLOAD_CAPABLE		BIT(9)
-#define I40E_HW_PTP_L4_CAPABLE			BIT(10)
-#define I40E_HW_WOL_MC_MAGIC_PKT_WAKE		BIT(11)
-#define I40E_HW_HAVE_CRT_RETIMER		BIT(13)
-#define I40E_HW_OUTER_UDP_CSUM_CAPABLE		BIT(14)
-#define I40E_HW_PHY_CONTROLS_LEDS		BIT(15)
-#define I40E_HW_STOP_FW_LLDP			BIT(16)
-#define I40E_HW_PORT_ID_VALID			BIT(17)
-#define I40E_HW_RESTART_AUTONEG			BIT(18)
-
-	u32 flags;
-#define I40E_FLAG_RX_CSUM_ENABLED		BIT(0)
-#define I40E_FLAG_MSI_ENABLED			BIT(1)
-#define I40E_FLAG_MSIX_ENABLED			BIT(2)
-#define I40E_FLAG_RSS_ENABLED			BIT(3)
-#define I40E_FLAG_VMDQ_ENABLED			BIT(4)
-#define I40E_FLAG_SRIOV_ENABLED			BIT(5)
-#define I40E_FLAG_DCB_CAPABLE			BIT(6)
-#define I40E_FLAG_DCB_ENABLED			BIT(7)
-#define I40E_FLAG_FD_SB_ENABLED			BIT(8)
-#define I40E_FLAG_FD_ATR_ENABLED		BIT(9)
-#define I40E_FLAG_MFP_ENABLED			BIT(10)
-#define I40E_FLAG_HW_ATR_EVICT_ENABLED		BIT(11)
-#define I40E_FLAG_VEB_MODE_ENABLED		BIT(12)
-#define I40E_FLAG_VEB_STATS_ENABLED		BIT(13)
-#define I40E_FLAG_LINK_POLLING_ENABLED		BIT(14)
-#define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT(15)
-#define I40E_FLAG_LEGACY_RX			BIT(16)
-#define I40E_FLAG_PTP				BIT(17)
-#define I40E_FLAG_IWARP_ENABLED			BIT(18)
-#define I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED	BIT(19)
-#define I40E_FLAG_SOURCE_PRUNING_DISABLED       BIT(20)
-#define I40E_FLAG_TC_MQPRIO			BIT(21)
-#define I40E_FLAG_FD_SB_INACTIVE		BIT(22)
-#define I40E_FLAG_FD_SB_TO_CLOUD_FILTER		BIT(23)
-#define I40E_FLAG_DISABLE_FW_LLDP		BIT(24)
-#define I40E_FLAG_RS_FEC			BIT(25)
-#define I40E_FLAG_BASE_R_FEC			BIT(26)
-/* TOTAL_PORT_SHUTDOWN
- * Allows to physically disable the link on the NIC's port.
- * If enabled, (after link down request from the OS)
- * no link, traffic or led activity is possible on that port.
- *
- * If I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED is set, the
- * I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED must be explicitly forced to true
- * and cannot be disabled by system admin at that time.
- * The functionalities are exclusive in terms of configuration, but they also
- * have similar behavior (allowing to disable physical link of the port),
- * with following differences:
- * - LINK_DOWN_ON_CLOSE_ENABLED is configurable at host OS run-time and is
- *   supported by whole family of 7xx Intel Ethernet Controllers
- * - TOTAL_PORT_SHUTDOWN may be enabled only before OS loads (in BIOS)
- *   only if motherboard's BIOS and NIC's FW has support of it
- * - when LINK_DOWN_ON_CLOSE_ENABLED is used, the link is being brought down
- *   by sending phy_type=0 to NIC's FW
- * - when TOTAL_PORT_SHUTDOWN is used, phy_type is not altered, instead
- *   the link is being brought down by clearing bit (I40E_AQ_PHY_ENABLE_LINK)
- *   in abilities field of i40e_aq_set_phy_config structure
- */
-#define I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED	BIT(27)
-#define I40E_FLAG_VF_VLAN_PRUNING		BIT(28)
-
+	DECLARE_BITMAP(flags, I40E_PF_FLAGS_NBITS);
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
 	struct i40e_hw_port_stats stats;
@@ -1267,7 +1251,7 @@ struct i40e_mac_filter *i40e_find_mac(struct i40e_vsi *vsi, const u8 *macaddr);
 void i40e_vlan_stripping_enable(struct i40e_vsi *vsi);
 static inline bool i40e_is_sw_dcb(struct i40e_pf *pf)
 {
-	return !!(pf->flags & I40E_FLAG_DISABLE_FW_LLDP);
+	return test_bit(I40E_FLAG_FW_LLDP_DIS, pf->flags);
 }
 
 #ifdef CONFIG_I40E_DCB
@@ -1301,7 +1285,7 @@ int i40e_set_partition_bw_setting(struct i40e_pf *pf);
 int i40e_commit_partition_bw_setting(struct i40e_pf *pf);
 void i40e_print_link_message(struct i40e_vsi *vsi, bool isup);
 
-void i40e_set_fec_in_flags(u8 fec_cfg, u32 *flags);
+void i40e_set_fec_in_flags(u8 fec_cfg, unsigned long *flags);
 
 static inline bool i40e_enabled_xdp_vsi(struct i40e_vsi *vsi)
 {
@@ -1321,13 +1305,13 @@ int i40e_add_del_cloud_filter_big_buf(struct i40e_vsi *vsi,
  * i40e_is_tc_mqprio_enabled - check if TC MQPRIO is enabled on PF
  * @pf: pointer to a pf.
  *
- * Check and return value of flag I40E_FLAG_TC_MQPRIO.
+ * Check and return state of flag I40E_FLAG_TC_MQPRIO.
  *
- * Return: I40E_FLAG_TC_MQPRIO set state.
+ * Return: true/false if I40E_FLAG_TC_MQPRIO is set or not
  **/
-static inline u32 i40e_is_tc_mqprio_enabled(struct i40e_pf *pf)
+static inline bool i40e_is_tc_mqprio_enabled(struct i40e_pf *pf)
 {
-	return pf->flags & I40E_FLAG_TC_MQPRIO;
+	return test_bit(I40E_FLAG_TC_MQPRIO_ENA, pf->flags);
 }
 
 /**

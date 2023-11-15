@@ -291,7 +291,7 @@ static int i40e_read_nvm_word_aq(struct i40e_hw *hw, u16 offset,
 static int __i40e_read_nvm_word(struct i40e_hw *hw,
 				u16 offset, u16 *data)
 {
-	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
+	if (test_bit(I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE, hw->caps))
 		return i40e_read_nvm_word_aq(hw, offset, data);
 
 	return i40e_read_nvm_word_srctl(hw, offset, data);
@@ -310,14 +310,14 @@ int i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 {
 	int ret_code = 0;
 
-	if (hw->flags & I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK)
+	if (test_bit(I40E_HW_CAP_NVM_READ_REQUIRES_LOCK, hw->caps))
 		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 	if (ret_code)
 		return ret_code;
 
 	ret_code = __i40e_read_nvm_word(hw, offset, data);
 
-	if (hw->flags & I40E_HW_FLAG_NVM_READ_REQUIRES_LOCK)
+	if (test_bit(I40E_HW_CAP_NVM_READ_REQUIRES_LOCK, hw->caps))
 		i40e_release_nvm(hw);
 
 	return ret_code;
@@ -499,7 +499,7 @@ static int __i40e_read_nvm_buffer(struct i40e_hw *hw,
 				  u16 offset, u16 *words,
 				  u16 *data)
 {
-	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE)
+	if (test_bit(I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE, hw->caps))
 		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
 
 	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
@@ -521,7 +521,7 @@ int i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
 {
 	int ret_code = 0;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_SRCTL_ACCESS_ENABLE, hw->caps)) {
 		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
 		if (!ret_code) {
 			ret_code = i40e_read_nvm_buffer_aq(hw, offset, words,
