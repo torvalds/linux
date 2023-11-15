@@ -11597,6 +11597,7 @@ static int vop2_win_init(struct vop2 *vop2)
 	struct vop2_win *win;
 	struct vop2_layer *layer;
 	char name[DRM_PROP_NAME_LEN];
+	char area_name[DRM_PROP_NAME_LEN];
 	unsigned int num_wins = 0;
 	uint8_t plane_id = 0;
 	unsigned int i, j;
@@ -11672,8 +11673,8 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->phys_id = win->phys_id;
 			area->area_id = j + 1;
 			area->plane_id = plane_id++;
-			snprintf(name, min(sizeof(name), strlen(win->name)), "%s", win->name);
-			snprintf(name, sizeof(name), "%s%d", name, area->area_id);
+			snprintf(area_name, min(sizeof(area_name), strlen(win->name)), "%s", win->name);
+			snprintf(name, sizeof(name), "%s%d", area_name, area->area_id);
 			area->name = devm_kstrdup(vop2->dev, name, GFP_KERNEL);
 			num_wins++;
 		}
