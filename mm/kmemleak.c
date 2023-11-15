@@ -1152,6 +1152,7 @@ EXPORT_SYMBOL_GPL(kmemleak_free_percpu);
 void __ref kmemleak_update_trace(const void *ptr)
 {
 	struct kmemleak_object *object;
+	depot_stack_handle_t trace_handle;
 	unsigned long flags;
 
 	pr_debug("%s(0x%px)\n", __func__, ptr);
@@ -1168,8 +1169,9 @@ void __ref kmemleak_update_trace(const void *ptr)
 		return;
 	}
 
+	trace_handle = set_track_prepare();
 	raw_spin_lock_irqsave(&object->lock, flags);
-	object->trace_handle = set_track_prepare();
+	object->trace_handle = trace_handle;
 	raw_spin_unlock_irqrestore(&object->lock, flags);
 
 	put_object(object);
