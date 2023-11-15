@@ -725,10 +725,12 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 	if (!de)
 		hpfs_error(s, "unable to find root dir");
 	else {
-		root->i_atime.tv_sec = local_to_gmt(s, le32_to_cpu(de->read_date));
-		root->i_atime.tv_nsec = 0;
-		root->i_mtime.tv_sec = local_to_gmt(s, le32_to_cpu(de->write_date));
-		root->i_mtime.tv_nsec = 0;
+		inode_set_atime(root,
+				local_to_gmt(s, le32_to_cpu(de->read_date)),
+				0);
+		inode_set_mtime(root,
+				local_to_gmt(s, le32_to_cpu(de->write_date)),
+				0);
 		inode_set_ctime(root,
 				local_to_gmt(s, le32_to_cpu(de->creation_date)),
 				0);

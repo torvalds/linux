@@ -12,12 +12,12 @@
  */
 #define pr_fmt(fmt) "pinmux core: " fmt
 
+#include <linux/array_size.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/radix-tree.h>
@@ -173,10 +173,8 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	else
 		status = 0;
 
-	if (status) {
-		dev_err(pctldev->dev, "request() failed for pin %d\n", pin);
+	if (status)
 		module_put(pctldev->owner);
-	}
 
 out_free_pin:
 	if (status) {

@@ -490,6 +490,8 @@ static __always_inline void hystart_update(struct sock *sk, __u32 delay)
 	}
 }
 
+int bpf_cubic_acked_called = 0;
+
 void BPF_STRUCT_OPS(bpf_cubic_acked, struct sock *sk,
 		    const struct ack_sample *sample)
 {
@@ -497,6 +499,7 @@ void BPF_STRUCT_OPS(bpf_cubic_acked, struct sock *sk,
 	struct bictcp *ca = inet_csk_ca(sk);
 	__u32 delay;
 
+	bpf_cubic_acked_called = 1;
 	/* Some calls are for duplicates without timetamps */
 	if (sample->rtt_us < 0)
 		return;

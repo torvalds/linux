@@ -48,6 +48,7 @@ struct efx_tc_encap_action; /* see tc_encap_actions.h */
  * @vlan_push: the number of vlan headers to push
  * @vlan_pop: the number of vlan headers to pop
  * @decap: used to indicate a tunnel header decapsulation should take place
+ * @do_nat: perform NAT/NPT with values returned by conntrack match
  * @do_ttl_dec: used to indicate IP TTL / Hop Limit should be decremented
  * @deliver: used to indicate a deliver action should take place
  * @vlan_tci: tci fields for vlan push actions
@@ -68,6 +69,7 @@ struct efx_tc_action_set {
 	u16 vlan_push:2;
 	u16 vlan_pop:2;
 	u16 decap:1;
+	u16 do_nat:1;
 	u16 do_ttl_dec:1;
 	u16 deliver:1;
 	__be16 vlan_tci[2];
@@ -140,10 +142,14 @@ static inline bool efx_tc_match_is_encap(const struct efx_tc_match_fields *mask)
  *	The pseudo encap match may be referenced again by an encap match
  *	with different values for these fields, but all masks must match the
  *	first (stored in our child_* fields).
+ * @EFX_TC_EM_PSEUDO_OR: registered by an fLHS rule that fits in the OR
+ *	table.  The &struct efx_tc_lhs_rule already holds the HW OR entry.
+ *	Only one reference to this encap match may exist.
  */
 enum efx_tc_em_pseudo_type {
 	EFX_TC_EM_DIRECT,
 	EFX_TC_EM_PSEUDO_MASK,
+	EFX_TC_EM_PSEUDO_OR,
 };
 
 struct efx_tc_encap_match {
@@ -183,6 +189,7 @@ struct efx_tc_action_set_list {
 };
 
 struct efx_tc_lhs_action {
+	enum efx_encap_type tun_type;
 	struct efx_tc_recirc_id *rid;
 	struct efx_tc_ct_zone *zone;
 	struct efx_tc_counter_index *count;
@@ -203,6 +210,7 @@ struct efx_tc_lhs_rule {
 	struct efx_tc_lhs_action lhs_act;
 	struct rhash_head linkage;
 	u32 fw_id;
+	bool is_ar; /* Action Rule (for OR-AR-CT-AR sequence) */
 };
 
 enum efx_tc_rule_prios {

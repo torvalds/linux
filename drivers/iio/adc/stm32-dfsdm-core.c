@@ -436,7 +436,7 @@ pm_put:
 	return ret;
 }
 
-static int stm32_dfsdm_core_remove(struct platform_device *pdev)
+static void stm32_dfsdm_core_remove(struct platform_device *pdev)
 {
 	struct stm32_dfsdm *dfsdm = platform_get_drvdata(pdev);
 
@@ -446,8 +446,6 @@ static int stm32_dfsdm_core_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 	stm32_dfsdm_clk_disable_unprepare(dfsdm);
-
-	return 0;
 }
 
 static int stm32_dfsdm_core_suspend(struct device *dev)
@@ -508,7 +506,7 @@ static const struct dev_pm_ops stm32_dfsdm_core_pm_ops = {
 
 static struct platform_driver stm32_dfsdm_driver = {
 	.probe = stm32_dfsdm_probe,
-	.remove = stm32_dfsdm_core_remove,
+	.remove_new = stm32_dfsdm_core_remove,
 	.driver = {
 		.name = "stm32-dfsdm",
 		.of_match_table = stm32_dfsdm_of_match,

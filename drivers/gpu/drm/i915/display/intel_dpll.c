@@ -7,6 +7,7 @@
 #include <linux/string_helpers.h>
 
 #include "i915_reg.h"
+#include "intel_atomic.h"
 #include "intel_crtc.h"
 #include "intel_cx0_phy.h"
 #include "intel_de.h"
@@ -2006,7 +2007,7 @@ int vlv_force_pll_on(struct drm_i915_private *dev_priv, enum pipe pipe,
 		vlv_enable_pll(crtc_state);
 	}
 
-	kfree(crtc_state);
+	intel_crtc_destroy_state(&crtc->base, &crtc_state->uapi);
 
 	return 0;
 }

@@ -537,7 +537,8 @@ bool dm_helpers_dp_read_dpcd(
 	struct amdgpu_dm_connector *aconnector = link->priv;
 
 	if (!aconnector) {
-		DC_LOG_DC("Failed to find connector for link!\n");
+		drm_dbg_dp(aconnector->base.dev,
+			   "Failed to find connector for link!\n");
 		return false;
 	}
 
@@ -659,7 +660,7 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		drm_dp_dpcd_read(aux, SYNAPTICS_RC_DATA, data, length);
 	}
 
-	DC_LOG_DC("%s: success = %d\n", __func__, success);
+	drm_dbg_dp(aux->drm_dev, "success = %d\n", success);
 
 	return success;
 }
@@ -668,7 +669,7 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 {
 	unsigned char data[16] = {0};
 
-	DC_LOG_DC("Start %s\n", __func__);
+	drm_dbg_dp(aux->drm_dev, "Start\n");
 
 	// Step 2
 	data[0] = 'P';
@@ -726,7 +727,7 @@ static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
 	if (!execute_synaptics_rc_command(aux, true, 0x02, 0, 0, NULL))
 		return;
 
-	DC_LOG_DC("Done %s\n", __func__);
+	drm_dbg_dp(aux->drm_dev, "Done\n");
 }
 
 /* MST Dock */
@@ -739,7 +740,8 @@ static uint8_t write_dsc_enable_synaptics_non_virtual_dpcd_mst(
 {
 	uint8_t ret = 0;
 
-	DC_LOG_DC("Configure DSC to non-virtual dpcd synaptics\n");
+	drm_dbg_dp(aux->drm_dev,
+		   "Configure DSC to non-virtual dpcd synaptics\n");
 
 	if (enable) {
 		/* When DSC is enabled on previous boot and reboot with the hub,
@@ -777,7 +779,9 @@ bool dm_helpers_dp_write_dsc_enable(
 	static const uint8_t DSC_DECODING = 0x01;
 	static const uint8_t DSC_PASSTHROUGH = 0x02;
 
-	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_dm_connector *aconnector =
+		(struct amdgpu_dm_connector *)stream->dm_stream_context;
+	struct drm_device *dev = aconnector->base.dev;
 	struct drm_dp_mst_port *port;
 	uint8_t enable_dsc = enable ? DSC_DECODING : DSC_DISABLE;
 	uint8_t enable_passthrough = enable ? DSC_PASSTHROUGH : DSC_DISABLE;
@@ -787,8 +791,6 @@ bool dm_helpers_dp_write_dsc_enable(
 		return false;
 
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
-		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
-
 		if (!aconnector->dsc_aux)
 			return false;
 
@@ -805,30 +807,34 @@ bool dm_helpers_dp_write_dsc_enable(
 				ret = drm_dp_dpcd_write(port->passthrough_aux,
 							DP_DSC_ENABLE,
 							&enable_passthrough, 1);
-				DC_LOG_DC("Sent DSC pass-through enable to virtual dpcd port, ret = %u\n",
-					  ret);
+				drm_dbg_dp(dev,
+					   "Sent DSC pass-through enable to virtual dpcd port, ret = %u\n",
+					   ret);
 			}
 
 			ret = drm_dp_dpcd_write(aconnector->dsc_aux,
 						DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Sent DSC decoding enable to %s port, ret = %u\n",
-				  (port->passthrough_aux) ? "remote RX" :
-				  "virtual dpcd",
-				  ret);
+			drm_dbg_dp(dev,
+				   "Sent DSC decoding enable to %s port, ret = %u\n",
+				   (port->passthrough_aux) ? "remote RX" :
+				   "virtual dpcd",
+				   ret);
 		} else {
 			ret = drm_dp_dpcd_write(aconnector->dsc_aux,
 						DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Sent DSC decoding disable to %s port, ret = %u\n",
-				  (port->passthrough_aux) ? "remote RX" :
-				  "virtual dpcd",
-				  ret);
+			drm_dbg_dp(dev,
+				   "Sent DSC decoding disable to %s port, ret = %u\n",
+				   (port->passthrough_aux) ? "remote RX" :
+				   "virtual dpcd",
+				   ret);
 
 			if (port->passthrough_aux) {
 				ret = drm_dp_dpcd_write(port->passthrough_aux,
 							DP_DSC_ENABLE,
 							&enable_passthrough, 1);
-				DC_LOG_DC("Sent DSC pass-through disable to virtual dpcd port, ret = %u\n",
-					  ret);
+				drm_dbg_dp(dev,
+					   "Sent DSC pass-through disable to virtual dpcd port, ret = %u\n",
+					   ret);
 			}
 		}
 	}
@@ -836,10 +842,14 @@ bool dm_helpers_dp_write_dsc_enable(
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT || stream->signal == SIGNAL_TYPE_EDP) {
 		if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_NONE) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Send DSC %s to SST RX\n", enable_dsc ? "enable" : "disable");
+			drm_dbg_dp(dev,
+				   "Send DSC %s to SST RX\n",
+				   enable_dsc ? "enable" : "disable");
 		} else if (stream->sink->link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER) {
 			ret = dm_helpers_dp_write_dpcd(ctx, stream->link, DP_DSC_ENABLE, &enable_dsc, 1);
-			DC_LOG_DC("Send DSC %s to DP-HDMI PCON\n", enable_dsc ? "enable" : "disable");
+			drm_dbg_dp(dev,
+				   "Send DSC %s to DP-HDMI PCON\n",
+				   enable_dsc ? "enable" : "disable");
 		}
 	}
 
@@ -1108,6 +1118,7 @@ bool dm_helpers_dp_handle_test_pattern_request(
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct amdgpu_dm_connector *aconnector = link->priv;
+	struct drm_device *dev = aconnector->base.dev;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1185,12 +1196,12 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth)
 		|| (requestPixelEncoding != PIXEL_ENCODING_UNDEFINED
 		&& pipe_ctx->stream->timing.pixel_encoding != requestPixelEncoding)) {
-		DC_LOG_DEBUG("%s: original bpc %d pix encoding %d, changing to %d  %d\n",
-				__func__,
-				pipe_ctx->stream->timing.display_color_depth,
-				pipe_ctx->stream->timing.pixel_encoding,
-				requestColorDepth,
-				requestPixelEncoding);
+		drm_dbg(dev,
+			"original bpc %d pix encoding %d, changing to %d  %d\n",
+			pipe_ctx->stream->timing.display_color_depth,
+			pipe_ctx->stream->timing.pixel_encoding,
+			requestColorDepth,
+			requestPixelEncoding);
 		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
 		pipe_ctx->stream->timing.pixel_encoding = requestPixelEncoding;
 
@@ -1201,9 +1212,12 @@ bool dm_helpers_dp_handle_test_pattern_request(
 		if (aconnector->timing_requested)
 			*aconnector->timing_requested = pipe_ctx->stream->timing;
 		else
-			DC_LOG_ERROR("%s: timing storage failed\n", __func__);
+			drm_err(dev, "timing storage failed\n");
 
 	}
+
+	pipe_ctx->stream->test_pattern.type = test_pattern;
+	pipe_ctx->stream->test_pattern.color_space = test_pattern_color_space;
 
 	dc_link_dp_set_test_pattern(
 		(struct dc_link *) link,

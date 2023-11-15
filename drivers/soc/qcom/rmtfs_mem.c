@@ -200,6 +200,15 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	rmtfs_mem->client_id = client_id;
 	rmtfs_mem->size = rmem->size;
 
+	/*
+	 * If requested, discard the first and last 4k block in order to ensure
+	 * that the rmtfs region isn't adjacent to other protected regions.
+	 */
+	if (of_property_read_bool(node, "qcom,use-guard-pages")) {
+		rmtfs_mem->addr += SZ_4K;
+		rmtfs_mem->size -= 2 * SZ_4K;
+	}
+
 	device_initialize(&rmtfs_mem->dev);
 	rmtfs_mem->dev.parent = &pdev->dev;
 	rmtfs_mem->dev.groups = qcom_rmtfs_mem_groups;
@@ -281,7 +290,7 @@ put_device:
 	return ret;
 }
 
-static int qcom_rmtfs_mem_remove(struct platform_device *pdev)
+static void qcom_rmtfs_mem_remove(struct platform_device *pdev)
 {
 	struct qcom_rmtfs_mem *rmtfs_mem = dev_get_drvdata(&pdev->dev);
 	struct qcom_scm_vmperm perm;
@@ -296,8 +305,6 @@ static int qcom_rmtfs_mem_remove(struct platform_device *pdev)
 
 	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 	put_device(&rmtfs_mem->dev);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_rmtfs_mem_of_match[] = {
@@ -308,7 +315,7 @@ MODULE_DEVICE_TABLE(of, qcom_rmtfs_mem_of_match);
 
 static struct platform_driver qcom_rmtfs_mem_driver = {
 	.probe = qcom_rmtfs_mem_probe,
-	.remove = qcom_rmtfs_mem_remove,
+	.remove_new = qcom_rmtfs_mem_remove,
 	.driver  = {
 		.name  = "qcom_rmtfs_mem",
 		.of_match_table = qcom_rmtfs_mem_of_match,

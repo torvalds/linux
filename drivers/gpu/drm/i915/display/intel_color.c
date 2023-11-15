@@ -1895,9 +1895,6 @@ void intel_color_prepare_commit(struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
-	/* FIXME DSB has issues loading LUTs, disable it for now */
-	return;
-
 	if (!crtc_state->hw.active ||
 	    intel_crtc_needs_modeset(crtc_state))
 		return;
@@ -3702,6 +3699,7 @@ static const struct intel_color_funcs vlv_color_funcs = {
 	.read_luts = i965_read_luts,
 	.lut_equal = i965_lut_equal,
 	.read_csc = vlv_read_csc,
+	.get_config = i9xx_get_config,
 };
 
 static const struct intel_color_funcs i965_color_funcs = {

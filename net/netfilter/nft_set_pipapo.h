@@ -147,7 +147,7 @@ struct nft_pipapo_match {
 	unsigned long * __percpu *scratch;
 	size_t bsize_max;
 	struct rcu_head rcu;
-	struct nft_pipapo_field f[];
+	struct nft_pipapo_field f[] __counted_by(field_count);
 };
 
 /**
@@ -170,10 +170,12 @@ struct nft_pipapo_elem;
 
 /**
  * struct nft_pipapo_elem - API-facing representation of single set element
+ * @priv:	element placeholder
  * @ext:	nftables API extensions
  */
 struct nft_pipapo_elem {
-	struct nft_set_ext ext;
+	struct nft_elem_priv	priv;
+	struct nft_set_ext	ext;
 };
 
 int pipapo_refill(unsigned long *map, int len, int rules, unsigned long *dst,

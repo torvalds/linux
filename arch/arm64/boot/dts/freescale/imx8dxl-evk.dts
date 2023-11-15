@@ -186,7 +186,6 @@
 &flexspi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexspi0>;
-	nxp,fspi-dll-slvdly = <4>;
 	status = "okay";
 
 	mt35xu512aba0: flash@0 {
@@ -365,7 +364,6 @@
 	fsl,spi-only-use-cs1-sel;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lpspi3>;
-	pinctrl-assert-gpios = <&pca6416_1 7 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	spidev0: spi@0 {

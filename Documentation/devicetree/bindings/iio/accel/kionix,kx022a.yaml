@@ -4,19 +4,23 @@
 $id: http://devicetree.org/schemas/iio/accel/kionix,kx022a.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ROHM/Kionix KX022A Accelerometer
+title: ROHM/Kionix KX022A, KX132-1211 and KX132ACR-LBZ Accelerometers
 
 maintainers:
   - Matti Vaittinen <mazziesaccount@gmail.com>
 
 description: |
-  KX022A is a 3-axis accelerometer supporting +/- 2G, 4G, 8G and 16G ranges,
-  output data-rates from 0.78Hz to 1600Hz and a hardware-fifo buffering.
-  KX022A can be accessed either via I2C or SPI.
+  KX022A, KX132ACR-LBZ and KX132-1211 are 3-axis accelerometers supporting
+  +/- 2G, 4G, 8G and 16G ranges, variable output data-rates and a
+  hardware-fifo buffering. These accelerometers can be accessed either
+  via I2C or SPI.
 
 properties:
   compatible:
-    const: kionix,kx022a
+    enum:
+      - kionix,kx022a
+      - kionix,kx132-1211
+      - rohm,kx132acr-lbz
 
   reg:
     maxItems: 1

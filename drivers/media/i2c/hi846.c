@@ -1607,17 +1607,12 @@ static int hi846_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (hi846->streaming == enable)
-		return 0;
-
 	mutex_lock(&hi846->mutex);
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret)
 			goto out;
-		}
 
 		ret = hi846_start_streaming(hi846);
 	}
@@ -1680,9 +1675,6 @@ static int __maybe_unused hi846_suspend(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi846 *hi846 = to_hi846(sd);
 
-	if (hi846->streaming)
-		hi846_stop_streaming(hi846);
-
 	return hi846_power_off(hi846);
 }
 
@@ -1691,26 +1683,8 @@ static int __maybe_unused hi846_resume(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct hi846 *hi846 = to_hi846(sd);
-	int ret;
 
-	ret = hi846_power_on(hi846);
-	if (ret)
-		return ret;
-
-	if (hi846->streaming) {
-		ret = hi846_start_streaming(hi846);
-		if (ret) {
-			dev_err(dev, "%s: start streaming failed: %d\n",
-				__func__, ret);
-			goto error;
-		}
-	}
-
-	return 0;
-
-error:
-	hi846_power_off(hi846);
-	return ret;
+	return hi846_power_on(hi846);
 }
 
 static int hi846_set_format(struct v4l2_subdev *sd,
@@ -2173,8 +2147,6 @@ static void hi846_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops hi846_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(hi846_suspend, hi846_resume, NULL)
 };
 

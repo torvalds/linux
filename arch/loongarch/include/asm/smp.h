@@ -70,6 +70,7 @@ struct secondary_data {
 extern struct secondary_data cpuboot_data;
 
 extern asmlinkage void smpboot_entry(void);
+extern asmlinkage void start_secondary(void);
 
 extern void calculate_cpu_foreign_map(void);
 

@@ -18,8 +18,7 @@
 #include <linux/fpga/fpga-mgr.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/sizes.h>
 
@@ -70,12 +69,6 @@ static struct altera_ps_data a10_data = {
 	.status_wait_max_us = 3000, /* max(t_CF2ST1) */
 	.t_cfg_us = 2,    /* max { min(t_CFG), max(tCF2ST0) } */
 	.t_st2ck_us = 10, /* min(t_ST2CK) */
-};
-
-/* Array index is enum altera_ps_devtype */
-static const struct altera_ps_data *altera_ps_data_map[] = {
-	&c5_data,
-	&a10_data,
 };
 
 static const struct of_device_id of_ef_match[] = {
@@ -237,43 +230,16 @@ static const struct fpga_manager_ops altera_ps_ops = {
 	.write_complete = altera_ps_write_complete,
 };
 
-static const struct altera_ps_data *id_to_data(const struct spi_device_id *id)
-{
-	kernel_ulong_t devtype = id->driver_data;
-	const struct altera_ps_data *data;
-
-	/* someone added a altera_ps_devtype without adding to the map array */
-	if (devtype >= ARRAY_SIZE(altera_ps_data_map))
-		return NULL;
-
-	data = altera_ps_data_map[devtype];
-	if (!data || data->devtype != devtype)
-		return NULL;
-
-	return data;
-}
-
 static int altera_ps_probe(struct spi_device *spi)
 {
 	struct altera_ps_conf *conf;
-	const struct of_device_id *of_id;
 	struct fpga_manager *mgr;
 
 	conf = devm_kzalloc(&spi->dev, sizeof(*conf), GFP_KERNEL);
 	if (!conf)
 		return -ENOMEM;
 
-	if (spi->dev.of_node) {
-		of_id = of_match_device(of_ef_match, &spi->dev);
-		if (!of_id)
-			return -ENODEV;
-		conf->data = of_id->data;
-	} else {
-		conf->data = id_to_data(spi_get_device_id(spi));
-		if (!conf->data)
-			return -ENODEV;
-	}
-
+	conf->data = spi_get_device_match_data(spi);
 	conf->spi = spi;
 	conf->config = devm_gpiod_get(&spi->dev, "nconfig", GPIOD_OUT_LOW);
 	if (IS_ERR(conf->config)) {
@@ -308,9 +274,9 @@ static int altera_ps_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id altera_ps_spi_ids[] = {
-	{ "cyclone-ps-spi", CYCLONE5 },
-	{ "fpga-passive-serial", CYCLONE5 },
-	{ "fpga-arria10-passive-serial", ARRIA10 },
+	{ "cyclone-ps-spi", (uintptr_t)&c5_data },
+	{ "fpga-passive-serial", (uintptr_t)&c5_data },
+	{ "fpga-arria10-passive-serial", (uintptr_t)&a10_data },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, altera_ps_spi_ids);
@@ -319,7 +285,7 @@ static struct spi_driver altera_ps_driver = {
 	.driver = {
 		.name = "altera-ps-spi",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(of_ef_match),
+		.of_match_table = of_ef_match,
 	},
 	.id_table = altera_ps_spi_ids,
 	.probe = altera_ps_probe,

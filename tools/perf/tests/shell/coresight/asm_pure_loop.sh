@@ -5,9 +5,13 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="asm_pure_loop"
+
+# shellcheck source=../lib/coresight.sh
 . "$(dirname $0)"/../lib/coresight.sh
+
 ARGS=""
 DATV="out"
+# shellcheck disable=SC2153
 DATA="$DATD/perf-$TEST-$DATV.data"
 
 perf record $PERFRECOPT -o "$DATA" "$BIN" $ARGS

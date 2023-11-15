@@ -29,7 +29,7 @@ static void constant_event_handler(struct clock_event_device *dev)
 {
 }
 
-irqreturn_t constant_timer_interrupt(int irq, void *data)
+static irqreturn_t constant_timer_interrupt(int irq, void *data)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *cd;

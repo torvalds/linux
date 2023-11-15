@@ -375,14 +375,20 @@ nouveau_sched_run_job(struct drm_sched_job *sched_job)
 static enum drm_gpu_sched_stat
 nouveau_sched_timedout_job(struct drm_sched_job *sched_job)
 {
+	struct drm_gpu_scheduler *sched = sched_job->sched;
 	struct nouveau_job *job = to_nouveau_job(sched_job);
+	enum drm_gpu_sched_stat stat = DRM_GPU_SCHED_STAT_NOMINAL;
 
-	NV_PRINTK(warn, job->cli, "Job timed out.\n");
+	drm_sched_stop(sched, sched_job);
 
 	if (job->ops->timeout)
-		return job->ops->timeout(job);
+		stat = job->ops->timeout(job);
+	else
+		NV_PRINTK(warn, job->cli, "Generic job timeout.\n");
 
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	drm_sched_start(sched, true);
+
+	return stat;
 }
 
 static void

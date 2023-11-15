@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include <subdev/gsp.h>
 
 #include <nvfw/acr.h>
 
@@ -322,5 +323,8 @@ int
 ga102_acr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_acr **pacr)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_acr_new_(ga102_acr_fwif, device, type, inst, pacr);
 }

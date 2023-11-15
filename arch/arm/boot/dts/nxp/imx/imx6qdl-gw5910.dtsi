@@ -326,7 +326,6 @@
 		st,drdy-int-pin = <1>;
 		interrupt-parent = <&gpio7>;
 		interrupts = <13 0>;
-		interrupt-names = "INT1";
 	};
 };
 

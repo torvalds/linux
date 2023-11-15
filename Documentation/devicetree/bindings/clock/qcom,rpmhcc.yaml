@@ -28,6 +28,7 @@ properties:
       - qcom,sdx55-rpmh-clk
       - qcom,sdx65-rpmh-clk
       - qcom,sdx75-rpmh-clk
+      - qcom,sm4450-rpmh-clk
       - qcom,sm6350-rpmh-clk
       - qcom,sm8150-rpmh-clk
       - qcom,sm8250-rpmh-clk

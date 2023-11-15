@@ -1,6 +1,6 @@
 [
     {
-        "BriefDescription": "Counts the number of load micro-ops retired that cause a DTLB miss",
+        "BriefDescription": "Counts the number of load micro-ops retired that cause a DTLB miss (Precise Event)",
         "Data_LA": "1",
         "EventCode": "0x04",
         "EventName": "MEM_UOPS_RETIRED.DTLB_MISS_LOADS",

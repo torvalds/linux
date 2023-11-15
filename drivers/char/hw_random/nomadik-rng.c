@@ -88,4 +88,5 @@ static struct amba_driver nmk_rng_driver = {
 
 module_amba_driver(nmk_rng_driver);
 
+MODULE_DESCRIPTION("ST-Ericsson Nomadik Random Number Generator");
 MODULE_LICENSE("GPL");

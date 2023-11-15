@@ -849,7 +849,7 @@ static int acp_dma_hw_params(struct snd_soc_component *component,
 	u32 val = 0;
 	struct snd_pcm_runtime *runtime;
 	struct audio_substream_data *rtd;
-	struct snd_soc_pcm_runtime *prtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *prtd = snd_soc_substream_to_rtd(substream);
 	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 	struct snd_soc_card *card = prtd->card;
 	struct acp_platform_info *pinfo = snd_soc_card_get_drvdata(card);

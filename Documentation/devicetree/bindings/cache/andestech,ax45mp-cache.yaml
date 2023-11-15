@@ -69,7 +69,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    cache-controller@2010000 {
+    cache-controller@13400000 {
         compatible = "andestech,ax45mp-cache", "cache";
         reg = <0x13400000 0x100000>;
         interrupts = <508 IRQ_TYPE_LEVEL_HIGH>;

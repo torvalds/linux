@@ -60,6 +60,8 @@ struct hdac_ext_stream {
 	bool link_locked:1;
 	bool link_prepared;
 
+	int (*host_setup)(struct hdac_stream *, bool);
+
 	struct snd_pcm_substream *link_substream;
 };
 
@@ -86,6 +88,7 @@ void snd_hdac_ext_stream_start(struct hdac_ext_stream *hext_stream);
 void snd_hdac_ext_stream_clear(struct hdac_ext_stream *hext_stream);
 void snd_hdac_ext_stream_reset(struct hdac_ext_stream *hext_stream);
 int snd_hdac_ext_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
+int snd_hdac_ext_host_stream_setup(struct hdac_ext_stream *hext_stream, bool code_loading);
 
 struct hdac_ext_link {
 	struct hdac_bus *bus;

@@ -11,6 +11,9 @@ maintainers:
   - Daniel Thompson <daniel.thompson@linaro.org>
   - Jingoo Han <jingoohan1@gmail.com>
 
+allOf:
+  - $ref: common.yaml#
+
 properties:
   compatible:
     const: pwm-backlight
@@ -39,21 +42,6 @@ properties:
       Delay in ms between disabling the backlight using GPIO and setting PWM
       value to 0.
 
-  brightness-levels:
-    description:
-      Array of distinct brightness levels. Typically these are in the range
-      from 0 to 255, but any range starting at 0 will do. The actual brightness
-      level (PWM duty cycle) will be interpolated from these values. 0 means a
-      0% duty cycle (darkest/off), while the last value in the array represents
-      a 100% duty cycle (brightest).
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-
-  default-brightness-level:
-    description:
-      The default brightness level (index into the array defined by the
-      "brightness-levels" property).
-    $ref: /schemas/types.yaml#/definitions/uint32
-
   num-interpolated-steps:
     description:
       Number of interpolated steps between each value of brightness-levels
@@ -69,7 +57,7 @@ required:
   - compatible
   - pwms
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

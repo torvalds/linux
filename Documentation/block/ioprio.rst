@@ -80,9 +80,6 @@ ionice.c tool::
   #elif defined(__x86_64__)
   #define __NR_ioprio_set		251
   #define __NR_ioprio_get		252
-  #elif defined(__ia64__)
-  #define __NR_ioprio_set		1274
-  #define __NR_ioprio_get		1275
   #else
   #error "Unsupported arch"
   #endif

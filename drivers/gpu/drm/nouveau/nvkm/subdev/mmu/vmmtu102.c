@@ -35,9 +35,11 @@ tu102_vmm_flush(struct nvkm_vmm *vmm, int depth)
 
 	mutex_lock(&vmm->mmu->mutex);
 
-	nvkm_wr32(device, 0xb830a0, vmm->pd->pt[0]->addr >> 8);
+	if (!vmm->rm.bar2_pdb)
+		nvkm_wr32(device, 0xb830a0, vmm->pd->pt[0]->addr >> 8);
+	else
+		nvkm_wr32(device, 0xb830a0, vmm->rm.bar2_pdb >> 8);
 	nvkm_wr32(device, 0xb830a4, 0x00000000);
-	nvkm_wr32(device, 0x100e68, 0x00000000);
 	nvkm_wr32(device, 0xb830b0, 0x80000000 | type);
 
 	nvkm_msec(device, 2000,

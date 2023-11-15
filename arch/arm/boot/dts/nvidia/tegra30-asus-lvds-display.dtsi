@@ -10,7 +10,7 @@
 			rgb {
 				status = "okay";
 
-				port@0 {
+				port {
 					dpi_output: endpoint {
 						remote-endpoint = <&bridge_input>;
 						bus-width = <24>;

@@ -13,7 +13,7 @@
 #
 # Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
-T=/tmp/kvm-recheck.sh.$$
+T="`mktemp ${TMPDIR-/tmp}/kvm-recheck.sh.XXXXXX`"
 trap 'rm -f $T' 0 2
 
 configerrors=0

@@ -24,6 +24,7 @@ properties:
           - qcom,scm-apq8064
           - qcom,scm-apq8084
           - qcom,scm-ipq4019
+          - qcom,scm-ipq5018
           - qcom,scm-ipq5332
           - qcom,scm-ipq6018
           - qcom,scm-ipq806x
@@ -56,6 +57,7 @@ properties:
           - qcom,scm-sm6125
           - qcom,scm-sm6350
           - qcom,scm-sm6375
+          - qcom,scm-sm7150
           - qcom,scm-sm8150
           - qcom,scm-sm8250
           - qcom,scm-sm8350
@@ -88,6 +90,14 @@ properties:
       The wait-queue interrupt that firmware raises as part of handshake
       protocol to handle sleeping SCM calls.
     maxItems: 1
+
+  qcom,sdi-enabled:
+    description:
+      Indicates that the SDI (Secure Debug Image) has been enabled by TZ
+      by default and it needs to be disabled.
+      If not disabled WDT assertion or reboot will cause the board to hang
+      in the debug mode.
+    type: boolean
 
   qcom,dload-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array

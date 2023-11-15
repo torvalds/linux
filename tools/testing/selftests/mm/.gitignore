@@ -18,6 +18,8 @@ mremap_dontunmap
 mremap_test
 on-fault-limit
 transhuge-stress
+pagemap_ioctl
+*.tmp*
 protection_keys
 protection_keys_32
 protection_keys_64

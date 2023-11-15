@@ -39,8 +39,10 @@ struct ice_lag {
 	u8 bonded:1; /* currently bonded */
 	u8 primary:1; /* this is primary */
 	u16 pf_recipe;
+	u16 lport_recipe;
 	u16 pf_rule_id;
 	u16 cp_rule_idx;
+	u16 lport_rule_idx;
 	u8 role;
 };
 
@@ -62,4 +64,5 @@ void ice_lag_move_new_vf_nodes(struct ice_vf *vf);
 int ice_init_lag(struct ice_pf *pf);
 void ice_deinit_lag(struct ice_pf *pf);
 void ice_lag_rebuild(struct ice_pf *pf);
+bool ice_lag_is_switchdev_running(struct ice_pf *pf);
 #endif /* _ICE_LAG_H_ */

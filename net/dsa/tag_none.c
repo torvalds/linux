@@ -12,8 +12,8 @@
 
 #define NONE_NAME	"none"
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
-					    struct net_device *dev)
+static struct sk_buff *dsa_user_notag_xmit(struct sk_buff *skb,
+					   struct net_device *dev)
 {
 	/* Just return the original SKB */
 	return skb;
@@ -22,7 +22,7 @@ static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 static const struct dsa_device_ops none_ops = {
 	.name	= NONE_NAME,
 	.proto	= DSA_TAG_PROTO_NONE,
-	.xmit	= dsa_slave_notag_xmit,
+	.xmit	= dsa_user_notag_xmit,
 };
 
 module_dsa_tag_driver(none_ops);

@@ -471,7 +471,7 @@ out:
 	return err;
 }
 
-static int mlxbf_gige_remove(struct platform_device *pdev)
+static void mlxbf_gige_remove(struct platform_device *pdev)
 {
 	struct mlxbf_gige *priv = platform_get_drvdata(pdev);
 
@@ -479,8 +479,6 @@ static int mlxbf_gige_remove(struct platform_device *pdev)
 	phy_disconnect(priv->netdev->phydev);
 	mlxbf_gige_mdio_remove(priv);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static void mlxbf_gige_shutdown(struct platform_device *pdev)
@@ -499,7 +497,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_gige_acpi_match);
 
 static struct platform_driver mlxbf_gige_driver = {
 	.probe = mlxbf_gige_probe,
-	.remove = mlxbf_gige_remove,
+	.remove_new = mlxbf_gige_remove,
 	.shutdown = mlxbf_gige_shutdown,
 	.driver = {
 		.name = KBUILD_MODNAME,

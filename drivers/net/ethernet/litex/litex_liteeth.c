@@ -294,13 +294,11 @@ static int liteeth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int liteeth_remove(struct platform_device *pdev)
+static void liteeth_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 
 	unregister_netdev(netdev);
-
-	return 0;
 }
 
 static const struct of_device_id liteeth_of_match[] = {
@@ -311,7 +309,7 @@ MODULE_DEVICE_TABLE(of, liteeth_of_match);
 
 static struct platform_driver liteeth_driver = {
 	.probe = liteeth_probe,
-	.remove = liteeth_remove,
+	.remove_new = liteeth_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = liteeth_of_match,

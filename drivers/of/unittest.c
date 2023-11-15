@@ -1186,6 +1186,82 @@ static void __init of_unittest_reg(void)
 	of_node_put(np);
 }
 
+struct of_unittest_expected_res {
+	int index;
+	struct resource res;
+};
+
+static void __init of_unittest_check_addr(const char *node_path,
+					  const struct of_unittest_expected_res *tab_exp,
+					  unsigned int tab_exp_count)
+{
+	const struct of_unittest_expected_res *expected;
+	struct device_node *np;
+	struct resource res;
+	unsigned int count;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_OF_ADDRESS))
+		return;
+
+	np = of_find_node_by_path(node_path);
+	if (!np) {
+		pr_err("missing testcase data (%s)\n", node_path);
+		return;
+	}
+
+	expected = tab_exp;
+	count = tab_exp_count;
+	while (count--) {
+		ret = of_address_to_resource(np, expected->index, &res);
+		unittest(!ret, "of_address_to_resource(%pOF, %d) returned error %d\n",
+			 np, expected->index, ret);
+		unittest(resource_type(&res) == resource_type(&expected->res) &&
+			 res.start == expected->res.start &&
+			 resource_size(&res) == resource_size(&expected->res),
+			"of_address_to_resource(%pOF, %d) wrong resource %pR, expected %pR\n",
+			np, expected->index, &res, &expected->res);
+		expected++;
+	}
+
+	of_node_put(np);
+}
+
+static const struct of_unittest_expected_res of_unittest_reg_2cell_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xa0a01000, 0x100) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xa0a02000, 0x100) },
+	{.index = 2, .res = DEFINE_RES_MEM(0xc0c01000, 0x100) },
+	{.index = 3, .res = DEFINE_RES_MEM(0xd0d01000, 0x100) },
+};
+
+static const struct of_unittest_expected_res of_unittest_reg_3cell_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xa0a01000, 0x100) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xa0b02000, 0x100) },
+	{.index = 2, .res = DEFINE_RES_MEM(0xc0c01000, 0x100) },
+	{.index = 3, .res = DEFINE_RES_MEM(0xc0c09000, 0x100) },
+	{.index = 4, .res = DEFINE_RES_MEM(0xd0d01000, 0x100) },
+};
+
+static const struct of_unittest_expected_res of_unittest_reg_pci_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xe8001000, 0x1000) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xea002000, 0x2000) },
+};
+
+static void __init of_unittest_translate_addr(void)
+{
+	of_unittest_check_addr("/testcase-data/address-tests2/bus-2cell@10000000/device@100000",
+			       of_unittest_reg_2cell_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_2cell_expected_res));
+
+	of_unittest_check_addr("/testcase-data/address-tests2/bus-3cell@20000000/local-bus@100000/device@f1001000",
+			       of_unittest_reg_3cell_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_3cell_expected_res));
+
+	of_unittest_check_addr("/testcase-data/address-tests2/pcie@d1070000/pci@0,0/dev@0,0/local-bus@0/dev@e0000000",
+			       of_unittest_reg_pci_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_pci_expected_res));
+}
+
 static void __init of_unittest_parse_interrupts(void)
 {
 	struct device_node *np;
@@ -4034,6 +4110,7 @@ static int __init of_unittest(void)
 	of_unittest_bus_ranges();
 	of_unittest_bus_3cell_ranges();
 	of_unittest_reg();
+	of_unittest_translate_addr();
 	of_unittest_match_node();
 	of_unittest_platform_populate();
 	of_unittest_overlay();

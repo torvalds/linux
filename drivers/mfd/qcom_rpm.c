@@ -7,6 +7,8 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -528,7 +530,6 @@ static irqreturn_t qcom_rpm_wakeup_interrupt(int irq, void *dev)
 
 static int qcom_rpm_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device_node *syscon_np;
 	struct qcom_rpm *rpm;
 	u32 fw_version[3];
@@ -570,10 +571,9 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	if (irq_wakeup < 0)
 		return irq_wakeup;
 
-	match = of_match_device(qcom_rpm_of_match, &pdev->dev);
-	if (!match)
+	rpm->data = device_get_match_data(&pdev->dev);
+	if (!rpm->data)
 		return -ENODEV;
-	rpm->data = match->data;
 
 	rpm->status_regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(rpm->status_regs))

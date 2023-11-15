@@ -77,8 +77,8 @@ static void kvm_spapr_tce_liobn_put(struct kref *kref)
 	call_rcu(&stit->rcu, kvm_spapr_tce_iommu_table_free);
 }
 
-extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
-		struct iommu_group *grp)
+void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
+				       struct iommu_group *grp)
 {
 	int i;
 	struct kvmppc_spapr_tce_table *stt;
@@ -105,8 +105,8 @@ extern void kvm_spapr_tce_release_iommu_group(struct kvm *kvm,
 	rcu_read_unlock();
 }
 
-extern long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
-		struct iommu_group *grp)
+long kvm_spapr_tce_attach_iommu_group(struct kvm *kvm, int tablefd,
+				      struct iommu_group *grp)
 {
 	struct kvmppc_spapr_tce_table *stt = NULL;
 	bool found = false;
@@ -786,12 +786,12 @@ long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 	idx = (ioba >> stt->page_shift) - stt->offset;
 	page = stt->pages[idx / TCES_PER_PAGE];
 	if (!page) {
-		vcpu->arch.regs.gpr[4] = 0;
+		kvmppc_set_gpr(vcpu, 4, 0);
 		return H_SUCCESS;
 	}
 	tbl = (u64 *)page_address(page);
 
-	vcpu->arch.regs.gpr[4] = tbl[idx % TCES_PER_PAGE];
+	kvmppc_set_gpr(vcpu, 4, tbl[idx % TCES_PER_PAGE]);
 
 	return H_SUCCESS;
 }

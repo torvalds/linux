@@ -142,7 +142,7 @@ static int cros_typec_port_amode_vdm(struct typec_altmode *amode, const u32 hdr,
 			   sizeof(req), NULL, 0);
 }
 
-struct typec_altmode_ops port_amode_ops = {
+const struct typec_altmode_ops port_amode_ops = {
 	.enter = cros_typec_port_amode_enter,
 	.vdm = cros_typec_port_amode_vdm,
 };

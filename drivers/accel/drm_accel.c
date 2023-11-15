@@ -21,7 +21,6 @@ static DEFINE_SPINLOCK(accel_minor_lock);
 static struct idr accel_minors_idr;
 
 static struct dentry *accel_debugfs_root;
-static struct class *accel_class;
 
 static struct device_type accel_sysfs_device_minor = {
 	.name = "accel_minor"
@@ -32,23 +31,19 @@ static char *accel_devnode(const struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "accel/%s", dev_name(dev));
 }
 
+static const struct class accel_class = {
+	.name = "accel",
+	.devnode = accel_devnode,
+};
+
 static int accel_sysfs_init(void)
 {
-	accel_class = class_create("accel");
-	if (IS_ERR(accel_class))
-		return PTR_ERR(accel_class);
-
-	accel_class->devnode = accel_devnode;
-
-	return 0;
+	return class_register(&accel_class);
 }
 
 static void accel_sysfs_destroy(void)
 {
-	if (IS_ERR_OR_NULL(accel_class))
-		return;
-	class_destroy(accel_class);
-	accel_class = NULL;
+	class_unregister(&accel_class);
 }
 
 static int accel_name_info(struct seq_file *m, void *data)
@@ -117,7 +112,7 @@ void accel_debugfs_register(struct drm_device *dev)
 void accel_set_device_instance_params(struct device *kdev, int index)
 {
 	kdev->devt = MKDEV(ACCEL_MAJOR, index);
-	kdev->class = accel_class;
+	kdev->class = &accel_class;
 	kdev->type = &accel_sysfs_device_minor;
 }
 

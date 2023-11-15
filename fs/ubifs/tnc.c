@@ -65,6 +65,7 @@ static void do_insert_old_idx(struct ubifs_info *c,
 		else {
 			ubifs_err(c, "old idx added twice!");
 			kfree(old_idx);
+			return;
 		}
 	}
 	rb_link_node(&old_idx->rb, parent, p);

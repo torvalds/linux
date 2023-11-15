@@ -136,7 +136,8 @@ EXPORT_SYMBOL_GPL(mt76x02_resync_beacon_timer);
 void
 mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
-	struct mt76x02_dev *dev = (struct mt76x02_dev *)priv;
+	struct beacon_bc_data *data = priv;
+	struct mt76x02_dev *dev = data->dev;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct sk_buff *skb = NULL;
 
@@ -147,7 +148,7 @@ mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!skb)
 		return;
 
-	mt76x02_mac_set_beacon(dev, skb);
+	__skb_queue_tail(&data->q, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_beacon_iter);
 
@@ -181,9 +182,6 @@ mt76x02_enqueue_buffered_bc(struct mt76x02_dev *dev,
 			    int max_nframes)
 {
 	int i, nframes;
-
-	data->dev = dev;
-	__skb_queue_head_init(&data->q);
 
 	do {
 		nframes = skb_queue_len(&data->q);

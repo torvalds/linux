@@ -7,6 +7,7 @@
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include "bus.h"
+#include "irq.h"
 #include "sysfs_local.h"
 
 /**
@@ -122,11 +123,8 @@ static int sdw_drv_probe(struct device *dev)
 	if (drv->ops && drv->ops->read_prop)
 		drv->ops->read_prop(slave);
 
-	if (slave->prop.use_domain_irq) {
-		slave->irq = irq_create_mapping(slave->bus->domain, slave->dev_num);
-		if (!slave->irq)
-			dev_warn(dev, "Failed to map IRQ\n");
-	}
+	if (slave->prop.use_domain_irq)
+		sdw_irq_create_mapping(slave);
 
 	/* init the sysfs as we have properties now */
 	ret = sdw_slave_sysfs_init(slave);
@@ -176,8 +174,7 @@ static int sdw_drv_remove(struct device *dev)
 	slave->probed = false;
 
 	if (slave->prop.use_domain_irq)
-		irq_dispose_mapping(irq_find_mapping(slave->bus->domain,
-						     slave->dev_num));
+		sdw_irq_dispose_mapping(slave);
 
 	mutex_unlock(&slave->sdw_dev_lock);
 

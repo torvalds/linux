@@ -35,6 +35,7 @@
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/pgalloc.h>
+#include <asm/ctlreg.h>
 #include <asm/kfence.h>
 #include <asm/ptdump.h>
 #include <asm/dma.h>
@@ -42,7 +43,6 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
-#include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 #include <asm/set_memory.h>
 #include <asm/kasan.h>
@@ -54,7 +54,7 @@
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
 pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
+struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
@@ -164,14 +164,10 @@ void __init mem_init(void)
 
 	pv_init();
 	kfence_split_mapping();
-	/* Setup guest page hinting */
-	cmma_init();
 
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
 	setup_zero_pages();	/* Setup zeroed pages. */
-
-	cmma_init_nodat();
 }
 
 void free_initmem(void)

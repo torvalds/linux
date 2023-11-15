@@ -477,6 +477,7 @@ void dso__set_module_info(struct dso *dso, struct kmod_path *m,
 		dso->comp = m->comp;
 	}
 
+	dso->is_kmod = 1;
 	dso__set_short_name(dso, strdup(m->name), true);
 }
 
@@ -1338,6 +1339,7 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->has_srcline = 1;
 		dso->a2l_fails = 1;
 		dso->kernel = DSO_SPACE__USER;
+		dso->is_kmod = 0;
 		dso->needs_swap = DSO_SWAP__UNSET;
 		dso->comp = COMP_ID__NONE;
 		RB_CLEAR_NODE(&dso->rb_node);

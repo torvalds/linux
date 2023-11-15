@@ -353,7 +353,7 @@ static const struct xattr_handler afs_xattr_afs_volume_handler = {
 	.get	= afs_xattr_get_volume,
 };
 
-const struct xattr_handler *afs_xattr_handlers[] = {
+const struct xattr_handler * const afs_xattr_handlers[] = {
 	&afs_xattr_afs_acl_handler,
 	&afs_xattr_afs_cell_handler,
 	&afs_xattr_afs_fid_handler,

@@ -57,7 +57,7 @@ struct cached_fids {
 	spinlock_t cfid_list_lock;
 	int num_entries;
 	struct list_head entries;
-	struct task_struct *laundromat;
+	struct delayed_work laundromat_work;
 };
 
 extern struct cached_fids *init_cached_dirs(void);

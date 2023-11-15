@@ -10,9 +10,8 @@
 
 static int mcp230xx_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
+	const struct mcp23s08_info *info;
 	struct device *dev = &client->dev;
-	unsigned int type = id->driver_data;
 	struct mcp23s08 *mcp;
 	int ret;
 
@@ -20,40 +19,21 @@ static int mcp230xx_probe(struct i2c_client *client)
 	if (!mcp)
 		return -ENOMEM;
 
-	switch (type) {
-	case MCP_TYPE_008:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x08_regmap);
-		mcp->reg_shift = 0;
-		mcp->chip.ngpio = 8;
-		mcp->chip.label = "mcp23008";
-		break;
+	info = i2c_get_match_data(client);
+	if (!info)
+		return dev_err_probe(dev, -EINVAL, "invalid device type\n");
 
-	case MCP_TYPE_017:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x17_regmap);
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = "mcp23017";
-		break;
-
-	case MCP_TYPE_018:
-		mcp->regmap = devm_regmap_init_i2c(client, &mcp23x17_regmap);
-		mcp->reg_shift = 1;
-		mcp->chip.ngpio = 16;
-		mcp->chip.label = "mcp23018";
-		break;
-
-	default:
-		dev_err(dev, "invalid device type (%d)\n", type);
-		return -EINVAL;
-	}
-
+	mcp->reg_shift = info->reg_shift;
+	mcp->chip.ngpio = info->ngpio;
+	mcp->chip.label = info->label;
+	mcp->regmap = devm_regmap_init_i2c(client, info->regmap);
 	if (IS_ERR(mcp->regmap))
 		return PTR_ERR(mcp->regmap);
 
 	mcp->irq = client->irq;
 	mcp->pinctrl_desc.name = "mcp23xxx-pinctrl";
 
-	ret = mcp23s08_probe_one(mcp, dev, client->addr, type, -1);
+	ret = mcp23s08_probe_one(mcp, dev, client->addr, info->type, -1);
 	if (ret)
 		return ret;
 
@@ -62,36 +42,45 @@ static int mcp230xx_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct mcp23s08_info mcp23008_i2c = {
+	.regmap = &mcp23x08_regmap,
+	.label = "mcp23008",
+	.type = MCP_TYPE_008,
+	.ngpio = 8,
+	.reg_shift = 0,
+};
+
+static const struct mcp23s08_info mcp23017_i2c = {
+	.regmap = &mcp23x17_regmap,
+	.label = "mcp23017",
+	.type = MCP_TYPE_017,
+	.ngpio = 16,
+	.reg_shift = 1,
+};
+
+static const struct mcp23s08_info  mcp23018_i2c = {
+	.regmap = &mcp23x17_regmap,
+	.label = "mcp23018",
+	.type = MCP_TYPE_018,
+	.ngpio = 16,
+	.reg_shift = 1,
+};
+
 static const struct i2c_device_id mcp230xx_id[] = {
-	{ "mcp23008", MCP_TYPE_008 },
-	{ "mcp23017", MCP_TYPE_017 },
-	{ "mcp23018", MCP_TYPE_018 },
+	{ "mcp23008", (kernel_ulong_t)&mcp23008_i2c },
+	{ "mcp23017", (kernel_ulong_t)&mcp23017_i2c },
+	{ "mcp23018", (kernel_ulong_t)&mcp23018_i2c },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
 
 static const struct of_device_id mcp23s08_i2c_of_match[] = {
-	{
-		.compatible = "microchip,mcp23008",
-		.data = (void *) MCP_TYPE_008,
-	},
-	{
-		.compatible = "microchip,mcp23017",
-		.data = (void *) MCP_TYPE_017,
-	},
-	{
-		.compatible = "microchip,mcp23018",
-		.data = (void *) MCP_TYPE_018,
-	},
+	{ .compatible = "microchip,mcp23008", .data = &mcp23008_i2c },
+	{ .compatible = "microchip,mcp23017", .data = &mcp23017_i2c },
+	{ .compatible = "microchip,mcp23018", .data = &mcp23018_i2c },
 /* NOTE: The use of the mcp prefix is deprecated and will be removed. */
-	{
-		.compatible = "mcp,mcp23008",
-		.data = (void *) MCP_TYPE_008,
-	},
-	{
-		.compatible = "mcp,mcp23017",
-		.data = (void *) MCP_TYPE_017,
-	},
+	{ .compatible = "mcp,mcp23008", .data = &mcp23008_i2c },
+	{ .compatible = "mcp,mcp23017", .data = &mcp23017_i2c },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mcp23s08_i2c_of_match);

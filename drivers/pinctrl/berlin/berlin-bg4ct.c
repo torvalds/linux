@@ -8,8 +8,9 @@
  */
 
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #include "berlin.h"
@@ -449,8 +450,8 @@ static const struct of_device_id berlin4ct_pinctrl_match[] = {
 
 static int berlin4ct_pinctrl_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match =
-		of_match_device(berlin4ct_pinctrl_match, &pdev->dev);
+	const struct berlin_pinctrl_desc *desc =
+		device_get_match_data(&pdev->dev);
 	struct regmap_config *rmconfig;
 	struct regmap *regmap;
 	struct resource *res;
@@ -473,7 +474,7 @@ static int berlin4ct_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return berlin_pinctrl_probe_regmap(pdev, match->data, regmap);
+	return berlin_pinctrl_probe_regmap(pdev, desc, regmap);
 }
 
 static struct platform_driver berlin4ct_pinctrl_driver = {

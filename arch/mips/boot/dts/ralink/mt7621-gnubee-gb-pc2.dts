@@ -8,7 +8,7 @@
 
 / {
 	compatible = "gnubee,gb-pc2", "mediatek,mt7621-soc";
-	model = "GB-PC2";
+	model = "GnuBee GB-PC2";
 
 	memory@0 {
 		device_type = "memory";

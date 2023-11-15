@@ -19,6 +19,7 @@ properties:
   compatible:
     items:
       - enum:
+          - nxp,cbdtu02043
           - onnn,fsusb43l10x
           - pericom,pi3usb102
       - const: gpio-sbu-mux
@@ -50,7 +51,6 @@ required:
   - compatible
   - enable-gpios
   - select-gpios
-  - mode-switch
   - orientation-switch
   - port
 

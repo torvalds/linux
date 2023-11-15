@@ -20,10 +20,10 @@ struct qdisc_walker {
 	int	(*fn)(struct Qdisc *, unsigned long cl, struct qdisc_walker *);
 };
 
-static inline void *qdisc_priv(struct Qdisc *q)
-{
-	return &q->privdata;
-}
+#define qdisc_priv(q)							\
+	_Generic(q,							\
+		 const struct Qdisc * : (const void *)&q->privdata,	\
+		 struct Qdisc * : (void *)&q->privdata)
 
 static inline struct Qdisc *qdisc_from_priv(void *priv)
 {

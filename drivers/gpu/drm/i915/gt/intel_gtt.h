@@ -171,6 +171,9 @@ struct intel_gt;
 #define for_each_sgt_daddr(__dp, __iter, __sgt) \
 	__for_each_sgt_daddr(__dp, __iter, __sgt, I915_GTT_PAGE_SIZE)
 
+#define for_each_sgt_daddr_next(__dp, __iter) \
+	__for_each_daddr_next(__dp, __iter, I915_GTT_PAGE_SIZE)
+
 struct i915_page_table {
 	struct drm_i915_gem_object *base;
 	union {
@@ -687,5 +690,7 @@ static inline struct sgt_dma {
 
 	return (struct sgt_dma){ sg, addr, addr + sg_dma_len(sg) };
 }
+
+bool i915_ggtt_require_binder(struct drm_i915_private *i915);
 
 #endif

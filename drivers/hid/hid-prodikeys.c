@@ -639,9 +639,9 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 		goto fail;
 	}
 
-	strncpy(card->driver, shortname, sizeof(card->driver));
-	strncpy(card->shortname, shortname, sizeof(card->shortname));
-	strncpy(card->longname, longname, sizeof(card->longname));
+	strscpy(card->driver, shortname, sizeof(card->driver));
+	strscpy(card->shortname, shortname, sizeof(card->shortname));
+	strscpy(card->longname, longname, sizeof(card->longname));
 
 	/* Set up rawmidi */
 	err = snd_rawmidi_new(card, card->shortname, 0,
@@ -652,7 +652,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 		goto fail;
 	}
 	pm->rwmidi = rwmidi;
-	strncpy(rwmidi->name, card->shortname, sizeof(rwmidi->name));
+	strscpy(rwmidi->name, card->shortname, sizeof(rwmidi->name));
 	rwmidi->info_flags = SNDRV_RAWMIDI_INFO_INPUT;
 	rwmidi->private_data = pm;
 

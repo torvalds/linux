@@ -193,8 +193,8 @@ error:
 
 void test_bloom_filter_map(void)
 {
-	__u32 *rand_vals, nr_rand_vals;
-	struct bloom_filter_map *skel;
+	__u32 *rand_vals = NULL, nr_rand_vals = 0;
+	struct bloom_filter_map *skel = NULL;
 	int err;
 
 	test_fail_cases();

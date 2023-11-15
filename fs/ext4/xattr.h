@@ -193,7 +193,7 @@ extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			    struct ext4_inode *raw_inode, handle_t *handle);
 extern void ext4_evict_ea_inode(struct inode *inode);
 
-extern const struct xattr_handler *ext4_xattr_handlers[];
+extern const struct xattr_handler * const ext4_xattr_handlers[];
 
 extern int ext4_xattr_ibody_find(struct inode *inode, struct ext4_xattr_info *i,
 				 struct ext4_xattr_ibody_find *is);

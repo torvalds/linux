@@ -25,7 +25,7 @@
 
 CFLAGS_$(AMDDALPATH)/dc/dce100/dce100_resource.o = $(call cc-disable-warning, override-init)
 
-DCE100 = dce100_resource.o dce100_hw_sequencer.o
+DCE100 = dce100_resource.o
 
 AMD_DAL_DCE100 = $(addprefix $(AMDDALPATH)/dc/dce100/,$(DCE100))
 

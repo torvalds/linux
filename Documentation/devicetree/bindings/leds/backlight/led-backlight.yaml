@@ -16,6 +16,9 @@ description:
   can also be used to describe a backlight device controlled by the output of
   a LED driver.
 
+allOf:
+  - $ref: common.yaml#
+
 properties:
   compatible:
     const: led-backlight
@@ -26,25 +29,11 @@ properties:
     items:
       maxItems: 1
 
-  brightness-levels:
-    description:
-      Array of distinct brightness levels. The levels must be in the range
-      accepted by the underlying LED devices. This is used to translate a
-      backlight brightness level into a LED brightness level. If it is not
-      provided, the identity mapping is used.
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-
-  default-brightness-level:
-    description:
-      The default brightness level (index into the array defined by the
-      "brightness-levels" property).
-    $ref: /schemas/types.yaml#/definitions/uint32
-
 required:
   - compatible
   - leds
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

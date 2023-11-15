@@ -673,8 +673,11 @@ struct drm_gem_open {
  * Bitfield of supported PRIME sharing capabilities. See &DRM_PRIME_CAP_IMPORT
  * and &DRM_PRIME_CAP_EXPORT.
  *
- * PRIME buffers are exposed as dma-buf file descriptors. See
- * Documentation/gpu/drm-mm.rst, section "PRIME Buffer Sharing".
+ * Starting from kernel version 6.6, both &DRM_PRIME_CAP_IMPORT and
+ * &DRM_PRIME_CAP_EXPORT are always advertised.
+ *
+ * PRIME buffers are exposed as dma-buf file descriptors.
+ * See :ref:`prime_buffer_sharing`.
  */
 #define DRM_CAP_PRIME			0x5
 /**
@@ -682,6 +685,8 @@ struct drm_gem_open {
  *
  * If this bit is set in &DRM_CAP_PRIME, the driver supports importing PRIME
  * buffers via the &DRM_IOCTL_PRIME_FD_TO_HANDLE ioctl.
+ *
+ * Starting from kernel version 6.6, this bit is always set in &DRM_CAP_PRIME.
  */
 #define  DRM_PRIME_CAP_IMPORT		0x1
 /**
@@ -689,6 +694,8 @@ struct drm_gem_open {
  *
  * If this bit is set in &DRM_CAP_PRIME, the driver supports exporting PRIME
  * buffers via the &DRM_IOCTL_PRIME_HANDLE_TO_FD ioctl.
+ *
+ * Starting from kernel version 6.6, this bit is always set in &DRM_CAP_PRIME.
  */
 #define  DRM_PRIME_CAP_EXPORT		0x2
 /**
@@ -756,15 +763,14 @@ struct drm_gem_open {
 /**
  * DRM_CAP_SYNCOBJ
  *
- * If set to 1, the driver supports sync objects. See
- * Documentation/gpu/drm-mm.rst, section "DRM Sync Objects".
+ * If set to 1, the driver supports sync objects. See :ref:`drm_sync_objects`.
  */
 #define DRM_CAP_SYNCOBJ		0x13
 /**
  * DRM_CAP_SYNCOBJ_TIMELINE
  *
  * If set to 1, the driver supports timeline operations on sync objects. See
- * Documentation/gpu/drm-mm.rst, section "DRM Sync Objects".
+ * :ref:`drm_sync_objects`.
  */
 #define DRM_CAP_SYNCOBJ_TIMELINE	0x14
 
@@ -906,6 +912,27 @@ struct drm_syncobj_timeline_wait {
 	__u32 count_handles;
 	__u32 flags;
 	__u32 first_signaled; /* only valid when not waiting all */
+	__u32 pad;
+};
+
+/**
+ * struct drm_syncobj_eventfd
+ * @handle: syncobj handle.
+ * @flags: Zero to wait for the point to be signalled, or
+ *         &DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE to wait for a fence to be
+ *         available for the point.
+ * @point: syncobj timeline point (set to zero for binary syncobjs).
+ * @fd: Existing eventfd to sent events to.
+ * @pad: Must be zero.
+ *
+ * Register an eventfd to be signalled by a syncobj. The eventfd counter will
+ * be incremented by one.
+ */
+struct drm_syncobj_eventfd {
+	__u32 handle;
+	__u32 flags;
+	__u64 point;
+	__s32 fd;
 	__u32 pad;
 };
 
@@ -1169,6 +1196,8 @@ extern "C" {
  */
 #define DRM_IOCTL_MODE_GETFB2		DRM_IOWR(0xCE, struct drm_mode_fb_cmd2)
 
+#define DRM_IOCTL_SYNCOBJ_EVENTFD	DRM_IOWR(0xCF, struct drm_syncobj_eventfd)
+
 /*
  * Device specific ioctls should only be in their respective headers
  * The device specific ioctl range is from 0x40 to 0x9f.
@@ -1180,25 +1209,50 @@ extern "C" {
 #define DRM_COMMAND_BASE                0x40
 #define DRM_COMMAND_END			0xA0
 
-/*
- * Header for events written back to userspace on the drm fd.  The
- * type defines the type of event, the length specifies the total
- * length of the event (including the header), and user_data is
- * typically a 64 bit value passed with the ioctl that triggered the
- * event.  A read on the drm fd will always only return complete
- * events, that is, if for example the read buffer is 100 bytes, and
- * there are two 64 byte events pending, only one will be returned.
+/**
+ * struct drm_event - Header for DRM events
+ * @type: event type.
+ * @length: total number of payload bytes (including header).
  *
- * Event types 0 - 0x7fffffff are generic drm events, 0x80000000 and
- * up are chipset specific.
+ * This struct is a header for events written back to user-space on the DRM FD.
+ * A read on the DRM FD will always only return complete events: e.g. if the
+ * read buffer is 100 bytes large and there are two 64 byte events pending,
+ * only one will be returned.
+ *
+ * Event types 0 - 0x7fffffff are generic DRM events, 0x80000000 and
+ * up are chipset specific. Generic DRM events include &DRM_EVENT_VBLANK,
+ * &DRM_EVENT_FLIP_COMPLETE and &DRM_EVENT_CRTC_SEQUENCE.
  */
 struct drm_event {
 	__u32 type;
 	__u32 length;
 };
 
+/**
+ * DRM_EVENT_VBLANK - vertical blanking event
+ *
+ * This event is sent in response to &DRM_IOCTL_WAIT_VBLANK with the
+ * &_DRM_VBLANK_EVENT flag set.
+ *
+ * The event payload is a struct drm_event_vblank.
+ */
 #define DRM_EVENT_VBLANK 0x01
+/**
+ * DRM_EVENT_FLIP_COMPLETE - page-flip completion event
+ *
+ * This event is sent in response to an atomic commit or legacy page-flip with
+ * the &DRM_MODE_PAGE_FLIP_EVENT flag set.
+ *
+ * The event payload is a struct drm_event_vblank.
+ */
 #define DRM_EVENT_FLIP_COMPLETE 0x02
+/**
+ * DRM_EVENT_CRTC_SEQUENCE - CRTC sequence event
+ *
+ * This event is sent in response to &DRM_IOCTL_CRTC_QUEUE_SEQUENCE.
+ *
+ * The event payload is a struct drm_event_crtc_sequence.
+ */
 #define DRM_EVENT_CRTC_SEQUENCE	0x03
 
 struct drm_event_vblank {

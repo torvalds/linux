@@ -564,6 +564,8 @@ gk20a_instmem_dtor(struct nvkm_instmem *base)
 static const struct nvkm_instmem_func
 gk20a_instmem = {
 	.dtor = gk20a_instmem_dtor,
+	.suspend = nv04_instmem_suspend,
+	.resume = nv04_instmem_resume,
 	.memory_new = gk20a_instobj_new,
 	.zero = false,
 };

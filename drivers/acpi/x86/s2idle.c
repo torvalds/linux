@@ -417,11 +417,10 @@ static int validate_dsm(acpi_handle handle, const char *uuid, int rev, guid_t *d
 	int ret = -EINVAL;
 
 	guid_parse(uuid, dsm_guid);
-	obj = acpi_evaluate_dsm(handle, dsm_guid, rev, 0, NULL);
 
 	/* Check if the _DSM is present and as expected. */
-	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length == 0 ||
-	    obj->buffer.length > sizeof(u32)) {
+	obj = acpi_evaluate_dsm_typed(handle, dsm_guid, rev, 0, NULL, ACPI_TYPE_BUFFER);
+	if (!obj || obj->buffer.length == 0 || obj->buffer.length > sizeof(u32)) {
 		acpi_handle_debug(handle,
 				"_DSM UUID %s rev %d function 0 evaluation failed\n", uuid, rev);
 		goto out;

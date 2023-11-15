@@ -6,8 +6,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ip matchall action ok",
@@ -16,8 +18,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 1 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -27,8 +28,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol ip matchall action ok",
@@ -37,8 +40,7 @@
         "matchPattern": "^filter parent 1: protocol ip pref 1 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -48,8 +50,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall action drop",
@@ -58,8 +62,7 @@
         "matchPattern": "^filter parent ffff: protocol ipv6 pref 1 matchall.*handle 0x1.*gact action drop.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -69,8 +72,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol ipv6 matchall action drop",
@@ -79,8 +84,7 @@
         "matchPattern": "^filter parent 1: protocol ipv6 pref 1 matchall.*handle 0x1.*gact action drop.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -90,8 +94,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
@@ -100,8 +106,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 65535 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -111,8 +116,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 65535 protocol ipv4 matchall action pass",
@@ -121,8 +128,7 @@
         "matchPattern": "^filter parent 1: protocol ip pref 65535 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -132,8 +138,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
@@ -142,8 +150,7 @@
         "matchPattern": "^filter parent ffff: protocol ip pref 655355 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -153,8 +160,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 655355 protocol ipv4 matchall action pass",
@@ -163,8 +172,7 @@
         "matchPattern": "^filter parent 1: protocol ip pref 655355 matchall.*handle 0x1.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -174,8 +182,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0xffffffff prio 1 protocol all matchall action continue",
@@ -184,8 +194,7 @@
         "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0xffffffff.*gact action continue.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -195,8 +204,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0xffffffff prio 1 protocol all matchall action continue",
@@ -205,8 +216,7 @@
         "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0xffffffff.*gact action continue.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -216,8 +226,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
@@ -226,8 +238,7 @@
         "matchPattern": "^filter parent ffff: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -237,8 +248,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY root handle 1: prio"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: handle 0x1 prio 1 protocol all matchall skip_hw action reclassify",
@@ -247,8 +260,7 @@
         "matchPattern": "^filter parent 1: protocol all pref 1 matchall.*handle 0x1.*skip_hw.*not_in_hw.*gact action reclassify.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY root handle 1: prio",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY root handle 1: prio"
         ]
     },
     {
@@ -258,8 +270,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:1 action pass",
@@ -268,8 +282,7 @@
         "matchPattern": "^filter parent ffff: protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 1:1.*gact action pass.*ref 1 bind 1",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -279,8 +292,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress"
         ],
         "cmdUnderTest": "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 6789defg action pass",
@@ -289,8 +304,7 @@
         "matchPattern": "^filter protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 6789defg.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -300,8 +314,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv6 matchall classid 1:2 action pass"
         ],
@@ -311,8 +327,7 @@
         "matchPattern": "^filter protocol ipv6 pref 1 matchall.*handle 0x1.*flowid 1:2.*gact action pass.*ref 1 bind 1",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -322,8 +337,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
             "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
@@ -336,8 +353,7 @@
         "matchPattern": "^filter protocol all pref.*matchall.*handle.*flowid.*gact action pass",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -347,8 +363,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all matchall classid 1:2 action pass",
             "$TC filter add dev $DUMMY parent ffff: handle 0x2 prio 2 protocol all matchall classid 1:3 action pass",
@@ -361,8 +379,7 @@
         "matchPattern": "^filter protocol all pref 2 matchall.*handle 0x2 flowid 1:2.*gact action pass",
         "matchCount": "0",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -372,8 +389,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol all chain 1 matchall classid 1:1 action pass",
             "$TC filter add dev $DUMMY parent ffff: handle 0x1 prio 1 protocol ipv4 chain 2 matchall classid 1:3 action continue"
@@ -384,8 +403,7 @@
         "matchPattern": "^filter protocol all pref 1 matchall chain 1 handle 0x1 flowid 1:1.*gact action pass",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY ingress"
         ]
     },
     {
@@ -395,8 +413,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions flush action police",
             "$TC actions add action police rate 1mbit burst 100k index 199 skip_hw"
@@ -408,7 +428,6 @@
         "matchCount": "0",
         "teardown": [
             "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
             "$TC actions del action police index 199"
         ]
     },
@@ -419,8 +438,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions flush action police",
             "$TC actions add action police rate 1mbit burst 100k index 199"
@@ -432,7 +453,6 @@
         "matchCount": "0",
         "teardown": [
             "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
             "$TC actions del action police index 199"
         ]
     },
@@ -443,8 +463,10 @@
             "filter",
             "matchall"
         ],
+	"plugins": {
+		"requires": "nsPlugin"
+	},
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY ingress",
             "$TC actions flush action police",
             "$TC actions add action police rate 1mbit burst 100k index 199"
@@ -456,7 +478,6 @@
         "matchCount": "0",
         "teardown": [
             "$TC qdisc del dev $DUMMY ingress",
-            "$IP link del dev $DUMMY type dummy",
             "$TC actions del action police index 199"
         ]
     }

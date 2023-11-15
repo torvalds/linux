@@ -19,8 +19,16 @@ properties:
           - fsl,imx35-gpio
           - fsl,imx7d-gpio
       - items:
+          - enum:
+              - fsl,imx27-gpio
+          - const: fsl,imx21-gpio
+      - items:
           - const: fsl,imx35-gpio
           - const: fsl,imx31-gpio
+      - items:
+          - enum:
+              - fsl,imx25-gpio
+          - const: fsl,imx35-gpio
       - items:
           - enum:
               - fsl,imx50-gpio

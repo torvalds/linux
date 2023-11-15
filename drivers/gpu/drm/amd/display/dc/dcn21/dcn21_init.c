@@ -23,10 +23,10 @@
  *
  */
 
-#include "dce110/dce110_hw_sequencer.h"
-#include "dcn10/dcn10_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
+#include "dcn10/dcn10_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
-#include "dcn21_hwseq.h"
+#include "dcn21/dcn21_hwseq.h"
 
 #include "dcn21_init.h"
 
@@ -96,9 +96,6 @@ static const struct hw_sequencer_funcs dcn21_funcs = {
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.set_pipe = dcn21_set_pipe,
-#ifndef TRIM_FSFT
-	.optimize_timing_for_fsft = dcn20_optimize_timing_for_fsft,
-#endif
 	.enable_lvds_link_output = dce110_enable_lvds_link_output,
 	.enable_tmds_link_output = dce110_enable_tmds_link_output,
 	.enable_dp_link_output = dce110_enable_dp_link_output,

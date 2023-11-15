@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <linux/types.h>
+#include <linux/seq_file.h>
 #include <linux/memblock.h>
 #include <linux/sizes.h>
 #include <linux/printk.h>

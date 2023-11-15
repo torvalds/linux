@@ -183,11 +183,23 @@ struct fsl_edma_desc {
 #define FSL_EDMA_DRV_BUS_8BYTE		BIT(10)
 #define FSL_EDMA_DRV_DEV_TO_DEV		BIT(11)
 #define FSL_EDMA_DRV_ALIGN_64BYTE	BIT(12)
+/* Need clean CHn_CSR DONE before enable TCD's ESG */
+#define FSL_EDMA_DRV_CLEAR_DONE_E_SG	BIT(13)
+/* Need clean CHn_CSR DONE before enable TCD's MAJORELINK */
+#define FSL_EDMA_DRV_CLEAR_DONE_E_LINK	BIT(14)
 
 #define FSL_EDMA_DRV_EDMA3	(FSL_EDMA_DRV_SPLIT_REG |	\
 				 FSL_EDMA_DRV_BUS_8BYTE |	\
 				 FSL_EDMA_DRV_DEV_TO_DEV |	\
-				 FSL_EDMA_DRV_ALIGN_64BYTE)
+				 FSL_EDMA_DRV_ALIGN_64BYTE |	\
+				 FSL_EDMA_DRV_CLEAR_DONE_E_SG |	\
+				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK)
+
+#define FSL_EDMA_DRV_EDMA4	(FSL_EDMA_DRV_SPLIT_REG |	\
+				 FSL_EDMA_DRV_BUS_8BYTE |	\
+				 FSL_EDMA_DRV_DEV_TO_DEV |	\
+				 FSL_EDMA_DRV_ALIGN_64BYTE |	\
+				 FSL_EDMA_DRV_CLEAR_DONE_E_LINK)
 
 struct fsl_edma_drvdata {
 	u32			dmamuxs; /* only used before v3 */
@@ -213,7 +225,7 @@ struct fsl_edma_engine {
 	bool			big_endian;
 	struct edma_regs	regs;
 	u64			chan_masked;
-	struct fsl_edma_chan	chans[];
+	struct fsl_edma_chan	chans[] __counted_by(n_chans);
 };
 
 #define edma_read_tcdreg(chan, __name)				\

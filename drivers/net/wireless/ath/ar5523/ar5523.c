@@ -256,7 +256,7 @@ static int ar5523_cmd(struct ar5523 *ar, u32 code, const void *idata,
 	/* always bulk-out a multiple of 4 bytes */
 	xferlen = (sizeof(struct ar5523_cmd_hdr) + ilen + 3) & ~3;
 
-	hdr = (struct ar5523_cmd_hdr *)cmd->buf_tx;
+	hdr = cmd->buf_tx;
 	memset(hdr, 0, sizeof(struct ar5523_cmd_hdr));
 	hdr->len  = cpu_to_be32(xferlen);
 	hdr->code = cpu_to_be32(code);

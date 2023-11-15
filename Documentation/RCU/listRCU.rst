@@ -8,6 +8,15 @@ One of the most common uses of RCU is protecting read-mostly linked lists
 that all of the required memory ordering is provided by the list macros.
 This document describes several list-based RCU use cases.
 
+When iterating a list while holding the rcu_read_lock(), writers may
+modify the list.  The reader is guaranteed to see all of the elements
+which were added to the list before they acquired the rcu_read_lock()
+and are still on the list when they drop the rcu_read_unlock().
+Elements which are added to, or removed from the list may or may not
+be seen.  If the writer calls list_replace_rcu(), the reader may see
+either the old element or the new element; they will not see both,
+nor will they see neither.
+
 
 Example 1: Read-mostly list: Deferred Destruction
 -------------------------------------------------

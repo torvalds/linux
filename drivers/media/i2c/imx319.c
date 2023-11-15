@@ -138,8 +138,6 @@ struct imx319 {
 	 */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -2166,10 +2164,6 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx319->mutex);
-	if (imx319->streaming == enable) {
-		mutex_unlock(&imx319->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2188,8 +2182,6 @@ static int imx319_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	imx319->streaming = enable;
-
 	/* vflip and hflip cannot change during streaming */
 	__v4l2_ctrl_grab(imx319->vflip, enable);
 	__v4l2_ctrl_grab(imx319->hflip, enable);
@@ -2203,37 +2195,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&imx319->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused imx319_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx319 *imx319 = to_imx319(sd);
-
-	if (imx319->streaming)
-		imx319_stop_streaming(imx319);
-
-	return 0;
-}
-
-static int __maybe_unused imx319_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct imx319 *imx319 = to_imx319(sd);
-	int ret;
-
-	if (imx319->streaming) {
-		ret = imx319_start_streaming(imx319);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx319_stop_streaming(imx319);
-	imx319->streaming = 0;
 	return ret;
 }
 
@@ -2542,10 +2503,6 @@ static void imx319_remove(struct i2c_client *client)
 	mutex_destroy(&imx319->mutex);
 }
 
-static const struct dev_pm_ops imx319_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx319_suspend, imx319_resume)
-};
-
 static const struct acpi_device_id imx319_acpi_ids[] __maybe_unused = {
 	{ "SONY319A" },
 	{ /* sentinel */ }
@@ -2555,7 +2512,6 @@ MODULE_DEVICE_TABLE(acpi, imx319_acpi_ids);
 static struct i2c_driver imx319_i2c_driver = {
 	.driver = {
 		.name = "imx319",
-		.pm = &imx319_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx319_acpi_ids),
 	},
 	.probe = imx319_probe,

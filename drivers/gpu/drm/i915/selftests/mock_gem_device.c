@@ -114,7 +114,6 @@ static struct dev_pm_domain pm_domain = {
 
 static void mock_gt_probe(struct drm_i915_private *i915)
 {
-	i915->gt[0] = to_gt(i915);
 	i915->gt[0]->name = "Mock GT";
 }
 

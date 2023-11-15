@@ -45,7 +45,7 @@ struct axp20x_ac_power {
 	struct iio_channel *acin_i;
 	bool has_acin_path_sel;
 	unsigned int num_irqs;
-	unsigned int irqs[];
+	unsigned int irqs[] __counted_by(num_irqs);
 };
 
 static irqreturn_t axp20x_ac_power_irq(int irq, void *devid)

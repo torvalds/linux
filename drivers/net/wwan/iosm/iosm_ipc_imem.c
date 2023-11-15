@@ -4,7 +4,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/pm_runtime.h>
 
 #include "iosm_ipc_chnl_cfg.h"
 #include "iosm_ipc_devlink.h"
@@ -632,11 +631,6 @@ static void ipc_imem_run_state_worker(struct work_struct *instance)
 	/* Complete all memory stores after setting bit */
 	smp_mb__after_atomic();
 
-	if (ipc_imem->pcie->pci->device == INTEL_CP_DEVICE_7560_ID) {
-		pm_runtime_mark_last_busy(ipc_imem->dev);
-		pm_runtime_put_autosuspend(ipc_imem->dev);
-	}
-
 	return;
 
 err_ipc_mux_deinit:
@@ -1240,7 +1234,6 @@ void ipc_imem_cleanup(struct iosm_imem *ipc_imem)
 
 	/* forward MDM_NOT_READY to listeners */
 	ipc_uevent_send(ipc_imem->dev, UEVENT_MDM_NOT_READY);
-	pm_runtime_get_sync(ipc_imem->dev);
 
 	hrtimer_cancel(&ipc_imem->td_alloc_timer);
 	hrtimer_cancel(&ipc_imem->tdupdate_timer);
@@ -1426,16 +1419,6 @@ struct iosm_imem *ipc_imem_init(struct iosm_pcie *pcie, unsigned int device_id,
 
 		set_bit(IOSM_DEVLINK_INIT, &ipc_imem->flag);
 	}
-
-	if (!pm_runtime_enabled(ipc_imem->dev))
-		pm_runtime_enable(ipc_imem->dev);
-
-	pm_runtime_set_autosuspend_delay(ipc_imem->dev,
-					 IPC_MEM_AUTO_SUSPEND_DELAY_MS);
-	pm_runtime_use_autosuspend(ipc_imem->dev);
-	pm_runtime_allow(ipc_imem->dev);
-	pm_runtime_mark_last_busy(ipc_imem->dev);
-
 	return ipc_imem;
 devlink_channel_fail:
 	ipc_devlink_deinit(ipc_imem->ipc_devlink);

@@ -988,6 +988,17 @@ config TOUCHSCREEN_DMI
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
 
+config INSPUR_PLATFORM_PROFILE
+	tristate "Inspur WMI platform profile driver"
+	depends on ACPI_WMI
+	select ACPI_PLATFORM_PROFILE
+	help
+	This will allow users to determine and control the platform modes
+	between low-power, balanced and performance modes.
+
+	To compile this driver as a module, choose M here: the module
+	will be called inspur-platform-profile.
+
 source "drivers/platform/x86/x86-android-tablets/Kconfig"
 
 config FW_ATTR_CLASS

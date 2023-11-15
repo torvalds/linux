@@ -33,15 +33,13 @@ static const struct gpio_led_platform_data simatic_ipc_gpio_leds_pdata = {
 	.leds		= simatic_ipc_gpio_leds,
 };
 
-int simatic_ipc_leds_gpio_remove(struct platform_device *pdev,
+void simatic_ipc_leds_gpio_remove(struct platform_device *pdev,
 				 struct gpiod_lookup_table *table,
 				 struct gpiod_lookup_table *table_extra)
 {
 	gpiod_remove_lookup_table(table);
 	gpiod_remove_lookup_table(table_extra);
 	platform_device_unregister(simatic_leds_pdev);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(simatic_ipc_leds_gpio_remove);
 

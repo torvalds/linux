@@ -80,7 +80,7 @@ struct uniphier_xdmac_desc {
 	unsigned int nr_node;
 	unsigned int cur_node;
 	enum dma_transfer_direction dir;
-	struct uniphier_xdmac_desc_node nodes[];
+	struct uniphier_xdmac_desc_node nodes[] __counted_by(nr_node);
 };
 
 struct uniphier_xdmac_chan {
@@ -97,7 +97,7 @@ struct uniphier_xdmac_device {
 	struct dma_device ddev;
 	void __iomem *reg_base;
 	int nr_chans;
-	struct uniphier_xdmac_chan channels[];
+	struct uniphier_xdmac_chan channels[] __counted_by(nr_chans);
 };
 
 static struct uniphier_xdmac_chan *
@@ -295,6 +295,7 @@ uniphier_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	xd = kzalloc(struct_size(xd, nodes, nr), GFP_NOWAIT);
 	if (!xd)
 		return NULL;
+	xd->nr_node = nr;
 
 	for (i = 0; i < nr; i++) {
 		burst_size = min_t(size_t, len, XDMAC_MAX_WORD_SIZE);
@@ -309,7 +310,6 @@ uniphier_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dst,
 	}
 
 	xd->dir = DMA_MEM_TO_MEM;
-	xd->nr_node = nr;
 	xd->cur_node = 0;
 
 	return vchan_tx_prep(vc, &xd->vd, flags);
@@ -351,6 +351,7 @@ uniphier_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	xd = kzalloc(struct_size(xd, nodes, sg_len), GFP_NOWAIT);
 	if (!xd)
 		return NULL;
+	xd->nr_node = sg_len;
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		xd->nodes[i].src = (direction == DMA_DEV_TO_MEM)
@@ -385,7 +386,6 @@ uniphier_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	}
 
 	xd->dir = direction;
-	xd->nr_node = sg_len;
 	xd->cur_node = 0;
 
 	return vchan_tx_prep(vc, &xd->vd, flags);

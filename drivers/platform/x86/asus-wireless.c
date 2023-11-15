@@ -148,15 +148,11 @@ static int asus_wireless_add(struct acpi_device *adev)
 	if (err)
 		return err;
 
-	for (id = device_ids; id->id[0]; id++) {
-		if (!strcmp((char *) id->id, acpi_device_hid(adev))) {
-			data->hswc_params =
-				(const struct hswc_params *)id->driver_data;
-			break;
-		}
-	}
-	if (!data->hswc_params)
+	id = acpi_match_acpi_device(device_ids, adev);
+	if (!id)
 		return 0;
+
+	data->hswc_params = (const struct hswc_params *)id->driver_data;
 
 	data->wq = create_singlethread_workqueue("asus_wireless_workqueue");
 	if (!data->wq)
