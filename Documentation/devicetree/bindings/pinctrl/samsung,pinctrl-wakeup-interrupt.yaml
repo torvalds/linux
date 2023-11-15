@@ -38,6 +38,7 @@ properties:
           - samsung,exynos7-wakeup-eint
           - samsung,exynos850-wakeup-eint
           - samsung,exynosautov9-wakeup-eint
+          - samsung,exynosautov920-wakeup-eint
       - items:
           - enum:
               - samsung,exynos5433-wakeup-eint
@@ -105,6 +106,7 @@ allOf:
             enum:
               - samsung,exynos850-wakeup-eint
               - samsung,exynosautov9-wakeup-eint
+              - samsung,exynosautov920-wakeup-eint
     then:
       properties:
         interrupts: false
