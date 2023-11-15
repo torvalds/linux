@@ -2334,7 +2334,7 @@ mpt3sas_config_update_driver_trigger_pg2(struct MPT3SAS_ADAPTER *ioc,
 		tg_pg2.NumMPIEventTrigger = 0;
 		memset(&tg_pg2.MPIEventTriggers[0], 0,
 		    NUM_VALID_ENTRIES * sizeof(
-		    MPI26_DRIVER_MPI_EVENT_TIGGER_ENTRY));
+		    MPI26_DRIVER_MPI_EVENT_TRIGGER_ENTRY));
 	}
 
 	rc = _config_set_driver_trigger_pg2(ioc, &mpi_reply, &tg_pg2);
@@ -2493,7 +2493,7 @@ mpt3sas_config_update_driver_trigger_pg3(struct MPT3SAS_ADAPTER *ioc,
 		tg_pg3.NumSCSISenseTrigger = 0;
 		memset(&tg_pg3.SCSISenseTriggers[0], 0,
 		    NUM_VALID_ENTRIES * sizeof(
-		    MPI26_DRIVER_SCSI_SENSE_TIGGER_ENTRY));
+		    MPI26_DRIVER_SCSI_SENSE_TRIGGER_ENTRY));
 	}
 
 	rc = _config_set_driver_trigger_pg3(ioc, &mpi_reply, &tg_pg3);
@@ -2649,7 +2649,7 @@ mpt3sas_config_update_driver_trigger_pg4(struct MPT3SAS_ADAPTER *ioc,
 		tg_pg4.NumIOCStatusLogInfoTrigger = 0;
 		memset(&tg_pg4.IOCStatusLoginfoTriggers[0], 0,
 		    NUM_VALID_ENTRIES * sizeof(
-		    MPI26_DRIVER_IOCSTATUS_LOGINFO_TIGGER_ENTRY));
+		    MPI26_DRIVER_IOCSTATUS_LOGINFO_TRIGGER_ENTRY));
 	}
 
 	rc = _config_set_driver_trigger_pg4(ioc, &mpi_reply, &tg_pg4);

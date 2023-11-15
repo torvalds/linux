@@ -1237,7 +1237,6 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @ioc_pg8: static ioc page 8
  * @iounit_pg0: static iounit page 0
  * @iounit_pg1: static iounit page 1
- * @iounit_pg8: static iounit page 8
  * @sas_hba: sas host object
  * @sas_expander_list: expander object list
  * @enclosure_list: enclosure object list
@@ -1465,7 +1464,6 @@ struct MPT3SAS_ADAPTER {
 	Mpi2IOCPage8_t ioc_pg8;
 	Mpi2IOUnitPage0_t iounit_pg0;
 	Mpi2IOUnitPage1_t iounit_pg1;
-	Mpi2IOUnitPage8_t iounit_pg8;
 	Mpi2IOCPage1_t	ioc_pg1_copy;
 
 	struct _boot_device req_boot_device;
