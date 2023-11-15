@@ -33,6 +33,17 @@
 			};
 		};
 
+		ltpi0_spi2: spi@30030000 {
+			reg = <0x0 0x30030000 0x0 0x1f0>, <0x2 0x80000000 0x0 0x04000000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&ltpi0_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&ltpi0_rst ASPEED_RESET_SPI2>;
+			num-cs = <2>;
+			ltpi-base = <0x0 0x34000000>;
+			status = "disabled";
+		};
+
 		ltpi0_i2c: bus@30c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
