@@ -24,16 +24,13 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
+#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
-
-#ifdef CONFIG_GPIOLIB
-#include "../gpio/gpiolib.h"
-#endif
 
 #include "core.h"
 #include "devicetree.h"
