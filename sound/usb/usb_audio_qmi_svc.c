@@ -1610,7 +1610,8 @@ static void handle_uaudio_stream_req(struct qmi_handle *handle,
 		disable_audio_stream(subs);
 	}
 
-	atomic_dec(&chip->usage_count);
+	if (atomic_dec_and_test(&chip->usage_count) && atomic_read(&chip->shutdown))
+		wake_up(&chip->shutdown_wait);
 
 response:
 	if (!req_msg->enable && ret != -EINVAL && ret != -ENODEV) {
