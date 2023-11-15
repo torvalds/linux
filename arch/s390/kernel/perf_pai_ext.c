@@ -321,11 +321,15 @@ static void paiext_start(struct perf_event *event, int flags)
 {
 	u64 sum;
 
-	if (event->hw.last_tag)
-		return;
-	event->hw.last_tag = 1;
-	sum = paiext_getall(event);		/* Get current value */
-	local64_set(&event->hw.prev_count, sum);
+	if (!event->attr.sample_period) {	/* Counting */
+		if (!event->hw.last_tag) {
+			event->hw.last_tag = 1;
+			sum = paiext_getall(event);	/* Get current value */
+			local64_set(&event->hw.prev_count, sum);
+		}
+	} else {				/* Sampling */
+		perf_sched_cb_inc(event->pmu);
+	}
 }
 
 static int paiext_add(struct perf_event *event, int flags)
@@ -342,21 +346,19 @@ static int paiext_add(struct perf_event *event, int flags)
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
 				    __func__, S390_lowcore.aicd, pcb->acc);
 	}
-	if (flags & PERF_EF_START && !event->attr.sample_period) {
-		/* Only counting needs initial counter value */
+	cpump->event = event;
+	if (flags & PERF_EF_START)
 		paiext_start(event, PERF_EF_RELOAD);
-	}
 	event->hw.state = 0;
-	if (event->attr.sample_period) {
-		cpump->event = event;
-		perf_sched_cb_inc(event->pmu);
-	}
 	return 0;
 }
 
 static void paiext_stop(struct perf_event *event, int flags)
 {
-	paiext_read(event);
+	if (!event->attr.sample_period)	/* Counting */
+		paiext_read(event);
+	else				/* Sampling */
+		perf_sched_cb_dec(event->pmu);
 	event->hw.state = PERF_HES_STOPPED;
 }
 
@@ -366,12 +368,7 @@ static void paiext_del(struct perf_event *event, int flags)
 	struct paiext_map *cpump = mp->mapptr;
 	struct paiext_cb *pcb = cpump->paiext_cb;
 
-	if (event->attr.sample_period)
-		perf_sched_cb_dec(event->pmu);
-	if (!event->attr.sample_period) {
-		/* Only counting needs to read counter */
-		paiext_stop(event, PERF_EF_UPDATE);
-	}
+	paiext_stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
 		/* Disable CPU instruction lookup for PAIE1 control block */
 		local_ctl_clear_bit(0, CR0_PAI_EXTENSION_BIT);
