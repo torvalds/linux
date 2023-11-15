@@ -1476,8 +1476,8 @@ static int mlxsw_pci_sys_ready_wait(struct mlxsw_pci *mlxsw_pci,
 	return -EBUSY;
 }
 
-static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
-			      const struct pci_device_id *id)
+static int
+mlxsw_pci_reset(struct mlxsw_pci *mlxsw_pci, const struct pci_device_id *id)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
 	char mrsr_pl[MLXSW_REG_MRSR_LEN];
@@ -1537,9 +1537,9 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	if (!mbox)
 		return -ENOMEM;
 
-	err = mlxsw_pci_sw_reset(mlxsw_pci, mlxsw_pci->id);
+	err = mlxsw_pci_reset(mlxsw_pci, mlxsw_pci->id);
 	if (err)
-		goto err_sw_reset;
+		goto err_reset;
 
 	err = mlxsw_pci_alloc_irq_vectors(mlxsw_pci);
 	if (err < 0) {
@@ -1672,7 +1672,7 @@ err_iface_rev:
 err_query_fw:
 	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 err_alloc_irq:
-err_sw_reset:
+err_reset:
 mbox_put:
 	mlxsw_cmd_mbox_free(mbox);
 	return err;
