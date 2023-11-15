@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) "pinctrl core: " fmt
 
 #include <linux/array_size.h>
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -1649,8 +1650,8 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 	unsigned i, pin;
 #ifdef CONFIG_GPIOLIB
+	struct gpio_device *gdev __free(gpio_device_put) = NULL;
 	struct pinctrl_gpio_range *range;
-	struct gpio_chip *chip;
 	int gpio_num;
 #endif
 
@@ -1685,11 +1686,11 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 			 * we need to get rid of the range->base eventually and
 			 * get the descriptor directly from the gpio_chip.
 			 */
-			chip = gpiod_to_chip(gpio_to_desc(gpio_num));
-		else
-			chip = NULL;
-		if (chip)
-			seq_printf(s, "%u:%s ", gpio_num - chip->gpiodev->base, chip->label);
+			gdev = gpiod_to_gpio_device(gpio_to_desc(gpio_num));
+		if (gdev)
+			seq_printf(s, "%u:%s ",
+				   gpio_num - gpio_device_get_base(gdev),
+				   gpio_device_get_label(gdev));
 		else
 			seq_puts(s, "0:? ");
 #endif
