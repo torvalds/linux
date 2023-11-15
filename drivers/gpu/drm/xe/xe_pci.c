@@ -735,6 +735,10 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe_step_name(xe->info.step.display),
 		xe_step_name(xe->info.step.basedie));
 
+	drm_dbg(&xe->drm, "SR-IOV support: %s (mode: %s)\n",
+		str_yes_no(xe_device_has_sriov(xe)),
+		xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
+
 	err = xe_device_probe(xe);
 	if (err)
 		goto err_pci_disable;
