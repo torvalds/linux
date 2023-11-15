@@ -634,6 +634,33 @@ static const struct drm_bridge_funcs lt8912_bridge_funcs = {
 	.get_edid = lt8912_bridge_get_edid,
 };
 
+static int lt8912_bridge_resume(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+	int ret;
+
+	ret = lt8912_hard_power_on(lt);
+	if (ret)
+		return ret;
+
+	ret = lt8912_soft_power_on(lt);
+	if (ret)
+		return ret;
+
+	return lt8912_video_on(lt);
+}
+
+static int lt8912_bridge_suspend(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+
+	lt8912_hard_power_off(lt);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(lt8912_bridge_pm_ops, lt8912_bridge_suspend, lt8912_bridge_resume);
+
 static int lt8912_parse_dt(struct lt8912 *lt)
 {
 	struct gpio_desc *gp_reset;
@@ -770,6 +797,7 @@ static struct i2c_driver lt8912_i2c_driver = {
 	.driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
+		.pm = pm_sleep_ptr(&lt8912_bridge_pm_ops),
 	},
 	.probe = lt8912_probe,
 	.remove = lt8912_remove,
