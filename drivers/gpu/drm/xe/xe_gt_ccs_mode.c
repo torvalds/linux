@@ -3,10 +3,13 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <drm/drm_managed.h>
+
 #include "regs/xe_gt_regs.h"
 #include "xe_assert.h"
 #include "xe_gt.h"
 #include "xe_gt_ccs_mode.h"
+#include "xe_gt_sysfs.h"
 #include "xe_mmio.h"
 
 static void __xe_gt_apply_ccs_mode(struct xe_gt *gt, u32 num_engines)
@@ -75,4 +78,104 @@ void xe_gt_apply_ccs_mode(struct xe_gt *gt)
 		return;
 
 	__xe_gt_apply_ccs_mode(gt, gt->ccs_mode);
+}
+
+static ssize_t
+num_cslices_show(struct device *kdev,
+		 struct device_attribute *attr, char *buf)
+{
+	struct xe_gt *gt = kobj_to_gt(&kdev->kobj);
+
+	return sysfs_emit(buf, "%u\n", hweight32(CCS_MASK(gt)));
+}
+
+static DEVICE_ATTR_RO(num_cslices);
+
+static ssize_t
+ccs_mode_show(struct device *kdev,
+	      struct device_attribute *attr, char *buf)
+{
+	struct xe_gt *gt = kobj_to_gt(&kdev->kobj);
+
+	return sysfs_emit(buf, "%u\n", gt->ccs_mode);
+}
+
+static ssize_t
+ccs_mode_store(struct device *kdev, struct device_attribute *attr,
+	       const char *buff, size_t count)
+{
+	struct xe_gt *gt = kobj_to_gt(&kdev->kobj);
+	u32 num_engines, num_slices;
+	int ret;
+
+	ret = kstrtou32(buff, 0, &num_engines);
+	if (ret)
+		return ret;
+
+	/*
+	 * Ensure number of engines specified is valid and there is an
+	 * exact multiple of engines for slices.
+	 */
+	num_slices = hweight32(CCS_MASK(gt));
+	if (!num_engines || num_engines > num_slices || num_slices % num_engines) {
+		xe_gt_dbg(gt, "Invalid compute config, %d engines %d slices\n",
+			  num_engines, num_slices);
+		return -EINVAL;
+	}
+
+	if (gt->ccs_mode != num_engines) {
+		xe_gt_info(gt, "Setting compute mode to %d\n", num_engines);
+		gt->ccs_mode = num_engines;
+		xe_gt_reset_async(gt);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(ccs_mode);
+
+static const struct attribute *gt_ccs_mode_attrs[] = {
+	&dev_attr_ccs_mode.attr,
+	&dev_attr_num_cslices.attr,
+	NULL,
+};
+
+static void xe_gt_ccs_mode_sysfs_fini(struct drm_device *drm, void *arg)
+{
+	struct xe_gt *gt = arg;
+
+	sysfs_remove_files(gt->sysfs, gt_ccs_mode_attrs);
+}
+
+/**
+ * xe_gt_ccs_mode_sysfs_init - Initialize CCS mode sysfs interfaces
+ * @gt: GT structure
+ *
+ * Through a per-gt 'ccs_mode' sysfs interface, the user can enable a fixed
+ * number of compute hardware engines to which the available compute slices
+ * are to be allocated. This user configuration change triggers a gt reset
+ * and it is expected that there are no open drm clients while doing so.
+ * The number of available compute slices is exposed to user through a per-gt
+ * 'num_cslices' sysfs interface.
+ */
+void xe_gt_ccs_mode_sysfs_init(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	int err;
+
+	if (!xe_gt_ccs_mode_enabled(gt))
+		return;
+
+	err = sysfs_create_files(gt->sysfs, gt_ccs_mode_attrs);
+	if (err) {
+		drm_warn(&xe->drm, "Sysfs creation for ccs_mode failed err: %d\n", err);
+		return;
+	}
+
+	err = drmm_add_action_or_reset(&xe->drm, xe_gt_ccs_mode_sysfs_fini, gt);
+	if (err) {
+		sysfs_remove_files(gt->sysfs, gt_ccs_mode_attrs);
+		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
+			 __func__, err);
+	}
 }

@@ -378,6 +378,9 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			 "failed to register engines sysfs directory, err: %d\n",
 			 err);
 
+	/* Initialize CCS mode sysfs after early initialization of HW engines */
+	xe_gt_ccs_mode_sysfs_init(gt);
+
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	XE_WARN_ON(err);
 	xe_device_mem_access_put(gt_to_xe(gt));
