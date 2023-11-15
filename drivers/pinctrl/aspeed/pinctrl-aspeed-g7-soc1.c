@@ -2777,7 +2777,7 @@ static int aspeed_g7_soc1_gpio_request_enable(struct pinctrl_dev *pctldev,
 	const struct aspeed_g7_soc1_pincfg *cfg = &pin_cfg[offset];
 	const struct aspeed_g7_soc1_funcfg *funcfg;
 
-	if (!cfg) {
+	if (cfg) {
 		funcfg = &cfg->funcfg[0];
 		while (funcfg->name) {
 			writel((readl(pinctrl->regs + funcfg->reg) & ~funcfg->mask),
@@ -2807,6 +2807,7 @@ static const struct pinmux_ops aspeed_g7_soc1_pinmux_ops = {
 	.set_mux = aspeed_g7_soc1_pinmux_set_mux,
 	.gpio_request_enable = aspeed_g7_soc1_gpio_request_enable,
 	.gpio_disable_free = aspeed_g7_soc1_gpio_request_free,
+	.strict = true,
 };
 
 static int aspeed_g7_soc1_config_get(struct pinctrl_dev *pctldev,
