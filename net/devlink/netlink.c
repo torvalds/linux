@@ -138,6 +138,12 @@ int devlink_nl_pre_doit_port(const struct genl_split_ops *ops,
 	return __devlink_nl_pre_doit(skb, info, DEVLINK_NL_FLAG_NEED_PORT);
 }
 
+int devlink_nl_pre_doit_dev_lock(const struct genl_split_ops *ops,
+				 struct sk_buff *skb, struct genl_info *info)
+{
+	return __devlink_nl_pre_doit(skb, info, DEVLINK_NL_FLAG_NEED_DEV_LOCK);
+}
+
 int devlink_nl_pre_doit_port_optional(const struct genl_split_ops *ops,
 				      struct sk_buff *skb,
 				      struct genl_info *info)
@@ -160,6 +166,13 @@ void devlink_nl_post_doit(const struct genl_split_ops *ops,
 			  struct sk_buff *skb, struct genl_info *info)
 {
 	__devlink_nl_post_doit(skb, info, 0);
+}
+
+void
+devlink_nl_post_doit_dev_lock(const struct genl_split_ops *ops,
+			      struct sk_buff *skb, struct genl_info *info)
+{
+	__devlink_nl_post_doit(skb, info, DEVLINK_NL_FLAG_NEED_DEV_LOCK);
 }
 
 static int devlink_nl_inst_single_dumpit(struct sk_buff *msg,

@@ -1484,8 +1484,8 @@ operations:
       dont-validate: [ strict ]
       flags: [ admin-perm ]
       do:
-        pre: devlink-nl-pre-doit
-        post: devlink-nl-post-doit
+        pre: devlink-nl-pre-doit-dev-lock
+        post: devlink-nl-post-doit-dev-lock
         request:
           attributes:
             - bus-name

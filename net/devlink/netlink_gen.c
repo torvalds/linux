@@ -846,9 +846,9 @@ const struct genl_split_ops devlink_nl_ops[73] = {
 	{
 		.cmd		= DEVLINK_CMD_RELOAD,
 		.validate	= GENL_DONT_VALIDATE_STRICT,
-		.pre_doit	= devlink_nl_pre_doit,
+		.pre_doit	= devlink_nl_pre_doit_dev_lock,
 		.doit		= devlink_nl_reload_doit,
-		.post_doit	= devlink_nl_post_doit,
+		.post_doit	= devlink_nl_post_doit_dev_lock,
 		.policy		= devlink_reload_nl_policy,
 		.maxattr	= DEVLINK_ATTR_RELOAD_LIMITS,
 		.flags		= GENL_ADMIN_PERM | GENL_CMD_CAP_DO,
