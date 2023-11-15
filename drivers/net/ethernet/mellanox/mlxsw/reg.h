@@ -10594,6 +10594,8 @@ MLXSW_ITEM32(reg, mcam, feature_group, 0x00, 16, 8);
 enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
 	/* If set, MCIA supports 128 bytes payloads. Otherwise, 48 bytes. */
 	MLXSW_REG_MCAM_MCIA_128B = 34,
+	/* If set, MRSR.command=6 is supported. */
+	MLXSW_REG_MCAM_PCI_RESET = 48,
 };
 
 #define MLXSW_REG_BYTES_PER_DWORD 0x4
