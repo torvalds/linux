@@ -1200,6 +1200,9 @@ enum bpf_perf_event_type {
  */
 #define BPF_F_XDP_DEV_BOUND_ONLY	(1U << 6)
 
+/* The verifier internal test flag. Behavior is undefined */
+#define BPF_F_TEST_SANITY_STRICT	(1U << 7)
+
 /* link_create.kprobe_multi.flags used in LINK_CREATE command for
  * BPF_TRACE_KPROBE_MULTI attach type to create return probe.
  */

@@ -208,7 +208,12 @@ struct tnum tnum_clear_subreg(struct tnum a)
 	return tnum_lshift(tnum_rshift(a, 32), 32);
 }
 
+struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg)
+{
+	return tnum_or(tnum_clear_subreg(reg), tnum_subreg(subreg));
+}
+
 struct tnum tnum_const_subreg(struct tnum a, u32 value)
 {
-	return tnum_or(tnum_clear_subreg(a), tnum_const(value));
+	return tnum_with_subreg(a, tnum_const(value));
 }
