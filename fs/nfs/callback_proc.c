@@ -450,6 +450,7 @@ static int referring_call_exists(struct nfs_client *clp,
 	__acquires(lock)
 {
 	int status = 0;
+	int found = 0;
 	int i, j;
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;
@@ -478,11 +479,12 @@ static int referring_call_exists(struct nfs_client *clp,
 			spin_lock(lock);
 			if (status)
 				goto out;
+			found++;
 		}
 	}
 
 out:
-	return status;
+	return status < 0 ? status : found;
 }
 
 __be32 nfs4_callback_sequence(void *argp, void *resp,
@@ -493,6 +495,7 @@ __be32 nfs4_callback_sequence(void *argp, void *resp,
 	struct nfs4_slot_table *tbl;
 	struct nfs4_slot *slot;
 	struct nfs_client *clp;
+	int ret;
 	int i;
 	__be32 status = htonl(NFS4ERR_BADSESSION);
 
@@ -552,11 +555,13 @@ __be32 nfs4_callback_sequence(void *argp, void *resp,
 	 * related callback was received before the response to the original
 	 * call.
 	 */
-	if (referring_call_exists(clp, args->csa_nrclists, args->csa_rclists,
-				&tbl->slot_tbl_lock) < 0) {
+	ret = referring_call_exists(clp, args->csa_nrclists, args->csa_rclists,
+				    &tbl->slot_tbl_lock);
+	if (ret < 0) {
 		status = htonl(NFS4ERR_DELAY);
 		goto out_unlock;
 	}
+	cps->referring_calls = ret;
 
 	/*
 	 * RFC5661 20.9.3
