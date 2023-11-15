@@ -284,6 +284,166 @@
 		groups = "ADC15";
 	};
 
+	pinctrl_pwm0_default: pwm0_default {
+		function = "PWM0";
+		groups = "PWM0";
+	};
+
+	pinctrl_pwm1_default: pwm1_default {
+		function = "PWM1";
+		groups = "PWM1";
+	};
+
+	pinctrl_pwm2_default: pwm2_default {
+		function = "PWM2";
+		groups = "PWM2";
+	};
+
+	pinctrl_pwm3_default: pwm3_default {
+		function = "PWM3";
+		groups = "PWM3";
+	};
+
+	pinctrl_pwm4_default: pwm4_default {
+		function = "PWM4";
+		groups = "PWM4";
+	};
+
+	pinctrl_pwm5_default: pwm5_default {
+		function = "PWM5";
+		groups = "PWM5";
+	};
+
+	pinctrl_pwm6_default: pwm6_default {
+		function = "PWM6";
+		groups = "PWM6";
+	};
+
+	pinctrl_pwm7_default: pwm7_default {
+		function = "PWM7";
+		groups = "PWM7";
+	};
+
+	pinctrl_pwm8_default: pwm8_default {
+		function = "PWM8";
+		groups = "PWM8";
+	};
+
+	pinctrl_pwm9_default: pwm9_default {
+		function = "PWM9";
+		groups = "PWM9";
+	};
+
+	pinctrl_pwm10_default: pwm10_default {
+		function = "PWM10";
+		groups = "PWM10";
+	};
+
+	pinctrl_pwm11_default: pwm11_default {
+		function = "PWM11";
+		groups = "PWM11";
+	};
+
+	pinctrl_pwm12_default: pwm12_default {
+		function = "PWM12";
+		groups = "PWM12";
+	};
+
+	pinctrl_pwm13_default: pwm13_default {
+		function = "PWM13";
+		groups = "PWM13";
+	};
+
+	pinctrl_pwm14_default: pwm14_default {
+		function = "PWM14";
+		groups = "PWM14";
+	};
+
+	pinctrl_pwm15_default: pwm15_default {
+		function = "PWM15";
+		groups = "PWM15";
+	};
+
+	pinctrl_tach0_default: tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+
+	pinctrl_tach1_default: tach1_default {
+		function = "TACH1";
+		groups = "TACH1";
+	};
+
+	pinctrl_tach2_default: tach2_default {
+		function = "TACH2";
+		groups = "TACH2";
+	};
+
+	pinctrl_tach3_default: tach3_default {
+		function = "TACH3";
+		groups = "TACH3";
+	};
+
+	pinctrl_tach4_default: tach4_default {
+		function = "TACH4";
+		groups = "TACH4";
+	};
+
+	pinctrl_tach5_default: tach5_default {
+		function = "TACH5";
+		groups = "TACH5";
+	};
+
+	pinctrl_tach6_default: tach6_default {
+		function = "TACH6";
+		groups = "TACH6";
+	};
+
+	pinctrl_tach7_default: tach7_default {
+		function = "TACH7";
+		groups = "TACH7";
+	};
+
+	pinctrl_tach8_default: tach8_default {
+		function = "TACH8";
+		groups = "TACH8";
+	};
+
+	pinctrl_tach9_default: tach9_default {
+		function = "TACH9";
+		groups = "TACH9";
+	};
+
+	pinctrl_tach10_default: tach10_default {
+		function = "TACH10";
+		groups = "TACH10";
+	};
+
+	pinctrl_tach11_default: tach11_default {
+		function = "TACH11";
+		groups = "TACH11";
+	};
+
+	pinctrl_tach12_default: tach12_default {
+		function = "TACH12";
+		groups = "TACH12";
+	};
+
+	pinctrl_tach13_default: tach13_default {
+		function = "TACH13";
+		groups = "TACH13";
+	};
+
+	pinctrl_tach14_default: tach14_default {
+		function = "TACH14";
+		groups = "TACH14";
+	};
+
+	pinctrl_tach15_default: tach15_default {
+		function = "TACH15";
+		groups = "TACH15";
+	};
+
 	pinctrl_mdio0_default: mdio0_default {
 		function = "MDIO0";
 		groups = "MDIO0";
