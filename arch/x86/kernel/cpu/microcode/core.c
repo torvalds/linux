@@ -75,6 +75,8 @@ static u32 final_levels[] = {
 	0, /* T-101 terminator */
 };
 
+struct early_load_data early_data;
+
 /*
  * Check the current patch level on this CPU.
  *
@@ -153,9 +155,9 @@ void __init load_ucode_bsp(void)
 		return;
 
 	if (intel)
-		load_ucode_intel_bsp();
+		load_ucode_intel_bsp(&early_data);
 	else
-		load_ucode_amd_bsp(cpuid_1_eax);
+		load_ucode_amd_bsp(&early_data, cpuid_1_eax);
 }
 
 void load_ucode_ap(void)
@@ -825,6 +827,11 @@ static int __init microcode_init(void)
 
 	if (!microcode_ops)
 		return -ENODEV;
+
+	pr_info_once("Current revision: 0x%08x\n", (early_data.new_rev ?: early_data.old_rev));
+
+	if (early_data.new_rev)
+		pr_info_once("Updated early from: 0x%08x\n", early_data.old_rev);
 
 	microcode_pdev = platform_device_register_simple("microcode", -1, NULL, 0);
 	if (IS_ERR(microcode_pdev))
