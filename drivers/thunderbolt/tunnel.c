@@ -173,16 +173,28 @@ static int tb_pci_set_ext_encapsulation(struct tb_tunnel *tunnel, bool enable)
 	int ret;
 
 	/* Only supported of both routers are at least USB4 v2 */
-	if (tb_port_get_link_generation(port) < 4)
+	if ((usb4_switch_version(tunnel->src_port->sw) < 2) ||
+	   (usb4_switch_version(tunnel->dst_port->sw) < 2))
+		return 0;
+
+	if (enable && tb_port_get_link_generation(port) < 4)
 		return 0;
 
 	ret = usb4_pci_port_set_ext_encapsulation(tunnel->src_port, enable);
 	if (ret)
 		return ret;
 
+	/*
+	 * Downstream router could be unplugged so disable of encapsulation
+	 * in upstream router is still possible.
+	 */
 	ret = usb4_pci_port_set_ext_encapsulation(tunnel->dst_port, enable);
-	if (ret)
-		return ret;
+	if (ret) {
+		if (enable)
+			return ret;
+		if (ret != -ENODEV)
+			return ret;
+	}
 
 	tb_tunnel_dbg(tunnel, "extended encapsulation %s\n",
 		      str_enabled_disabled(enable));
