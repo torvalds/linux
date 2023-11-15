@@ -61,6 +61,24 @@ struct tx_bd {
 	__le64 tx_bd_haddr;
 } __packed;
 
+#define TX_OPAQUE_IDX_MASK	0x0000ffff
+#define TX_OPAQUE_BDS_MASK	0x00ff0000
+#define TX_OPAQUE_BDS_SHIFT	16
+#define TX_OPAQUE_RING_MASK	0xff000000
+#define TX_OPAQUE_RING_SHIFT	24
+
+#define SET_TX_OPAQUE(bp, txr, idx, bds)				\
+	(((txr)->tx_napi_idx << TX_OPAQUE_RING_SHIFT) |			\
+	 ((bds) << TX_OPAQUE_BDS_SHIFT) | ((idx) & (bp)->tx_ring_mask))
+
+#define TX_OPAQUE_IDX(opq)	((opq) & TX_OPAQUE_IDX_MASK)
+#define TX_OPAQUE_RING(opq)	(((opq) & TX_OPAQUE_RING_MASK) >>	\
+				 TX_OPAQUE_RING_SHIFT)
+#define TX_OPAQUE_BDS(opq)	(((opq) & TX_OPAQUE_BDS_MASK) >>	\
+				 TX_OPAQUE_BDS_SHIFT)
+#define TX_OPAQUE_PROD(bp, opq)	((TX_OPAQUE_IDX(opq) + TX_OPAQUE_BDS(opq)) &\
+				 (bp)->tx_ring_mask)
+
 struct tx_bd_ext {
 	__le32 tx_bd_hsize_lflags;
 	#define TX_BD_FLAGS_TCP_UDP_CHKSUM			(1 << 0)
@@ -530,6 +548,19 @@ struct nqe_cn {
 	__le32	cq_handle_high;
 };
 
+#define BNXT_NQ_HDL_IDX_MASK	0x00ffffff
+#define BNXT_NQ_HDL_TYPE_MASK	0xff000000
+#define BNXT_NQ_HDL_TYPE_SHIFT	24
+#define BNXT_NQ_HDL_TYPE_RX	0x00
+#define BNXT_NQ_HDL_TYPE_TX	0x01
+
+#define BNXT_NQ_HDL_IDX(hdl)	((hdl) & BNXT_NQ_HDL_IDX_MASK)
+#define BNXT_NQ_HDL_TYPE(hdl)	(((hdl) & BNXT_NQ_HDL_TYPE_MASK) >>	\
+				 BNXT_NQ_HDL_TYPE_SHIFT)
+
+#define BNXT_SET_NQ_HDL(cpr)						\
+	(((cpr)->cp_ring_type << BNXT_NQ_HDL_TYPE_SHIFT) | (cpr)->cp_idx)
+
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
 #define DB_IRQ_DIS						(0x1 << 27)
@@ -702,6 +733,7 @@ struct nqe_cn {
 #define BNXT_AGG_EVENT		2
 #define BNXT_TX_EVENT		4
 #define BNXT_REDIRECT_EVENT	8
+#define BNXT_TX_CMP_EVENT	0x10
 
 struct bnxt_sw_tx_bd {
 	union {
@@ -792,9 +824,12 @@ struct bnxt_db_info {
 
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
+	struct bnxt_cp_ring_info	*tx_cpr;
 	u16			tx_prod;
 	u16			tx_cons;
+	u16			tx_hw_cons;
 	u16			txq_index;
+	u8			tx_napi_idx;
 	u8			kick_pending;
 	struct bnxt_db_info	tx_db;
 
@@ -901,6 +936,7 @@ struct bnxt_tpa_idx_map {
 
 struct bnxt_rx_ring_info {
 	struct bnxt_napi	*bnapi;
+	struct bnxt_cp_ring_info	*rx_cpr;
 	u16			rx_prod;
 	u16			rx_agg_prod;
 	u16			rx_sw_agg_prod;
@@ -980,6 +1016,8 @@ struct bnxt_cp_ring_info {
 
 	u8			had_work_done:1;
 	u8			has_more_work:1;
+	u8			cp_ring_type;
+	u8			cp_idx;
 
 	u32			last_cp_raw_cons;
 
@@ -1004,10 +1042,17 @@ struct bnxt_cp_ring_info {
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
-	struct bnxt_cp_ring_info *cp_ring_arr[2];
-#define BNXT_RX_HDL	0
-#define BNXT_TX_HDL	1
+	int			cp_ring_count;
+	struct bnxt_cp_ring_info *cp_ring_arr;
 };
+
+#define BNXT_MAX_QUEUE		8
+#define BNXT_MAX_TXR_PER_NAPI	BNXT_MAX_QUEUE
+
+#define bnxt_for_each_napi_tx(iter, bnapi, txr)		\
+	for (iter = 0, txr = (bnapi)->tx_ring[0]; txr;	\
+	     txr = (iter < BNXT_MAX_TXR_PER_NAPI - 1) ?	\
+	     (bnapi)->tx_ring[++iter] : NULL)
 
 struct bnxt_napi {
 	struct napi_struct	napi;
@@ -1016,11 +1061,10 @@ struct bnxt_napi {
 	int			index;
 	struct bnxt_cp_ring_info	cp_ring;
 	struct bnxt_rx_ring_info	*rx_ring;
-	struct bnxt_tx_ring_info	*tx_ring;
+	struct bnxt_tx_ring_info	*tx_ring[BNXT_MAX_TXR_PER_NAPI];
 
 	void			(*tx_int)(struct bnxt *, struct bnxt_napi *,
 					  int budget);
-	int			tx_pkts;
 	u8			events;
 	u8			tx_fault:1;
 
@@ -1354,8 +1398,6 @@ struct bnxt_link_info {
 #define BNXT_FEC_ALL_OFF(link_info)				\
 	(PORT_PHY_CFG_REQ_FLAGS_FEC_CLAUSE74_DISABLE |		\
 	 BNXT_FEC_RS_OFF(link_info))
-
-#define BNXT_MAX_QUEUE	8
 
 struct bnxt_queue_info {
 	u8	queue_id;
@@ -2351,6 +2393,7 @@ int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
 int bnxt_nq_rings_in_use(struct bnxt *bp);
 int bnxt_hwrm_set_coal(struct bnxt *);
 void bnxt_free_ctx_mem(struct bnxt *bp);
+int bnxt_num_tx_to_cp(struct bnxt *bp, int tx);
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp);
 unsigned int bnxt_get_avail_stat_ctxs_for_en(struct bnxt *bp);
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp);
@@ -2360,7 +2403,7 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init);
 void bnxt_tx_disable(struct bnxt *bp);
 void bnxt_tx_enable(struct bnxt *bp);
 void bnxt_sched_reset_txr(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
-			  int idx);
+			  u16 curr);
 void bnxt_report_link(struct bnxt *bp);
 int bnxt_update_link(struct bnxt *bp, bool chng_link_state);
 int bnxt_hwrm_set_pause(struct bnxt *);

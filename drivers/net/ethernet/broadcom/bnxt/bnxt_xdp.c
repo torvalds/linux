@@ -52,7 +52,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 		((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT) |
 		bnxt_lhint_arr[len >> 9];
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
-	txbd->tx_bd_opaque = prod;
+	txbd->tx_bd_opaque = SET_TX_OPAQUE(bp, txr, prod, 1 + num_frags);
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
 
 	/* now let us fill up the frags into the next buffers */
@@ -127,19 +127,19 @@ static void __bnxt_xmit_xdp_redirect(struct bnxt *bp,
 
 void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 {
-	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
+	struct bnxt_tx_ring_info *txr = bnapi->tx_ring[0];
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	u16 tx_hw_cons = txr->tx_hw_cons;
 	bool rx_doorbell_needed = false;
-	int nr_pkts = bnapi->tx_pkts;
 	struct bnxt_sw_tx_bd *tx_buf;
 	u16 tx_cons = txr->tx_cons;
 	u16 last_tx_cons = tx_cons;
-	int i, j, frags;
+	int j, frags;
 
 	if (!budget)
 		return;
 
-	for (i = 0; i < nr_pkts; i++) {
+	while (tx_cons != tx_hw_cons) {
 		tx_buf = &txr->tx_buf_ring[tx_cons];
 
 		if (tx_buf->action == XDP_REDIRECT) {
@@ -164,13 +164,13 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 				page_pool_recycle_direct(rxr->page_pool, tx_buf->page);
 			}
 		} else {
-			bnxt_sched_reset_txr(bp, txr, i);
+			bnxt_sched_reset_txr(bp, txr, tx_cons);
 			return;
 		}
 		tx_cons = NEXT_TX(tx_cons);
 	}
 
-	bnapi->tx_pkts = 0;
+	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 	WRITE_ONCE(txr->tx_cons, tx_cons);
 	if (rx_doorbell_needed) {
 		tx_buf = &txr->tx_buf_ring[last_tx_cons];
@@ -249,7 +249,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	pdev = bp->pdev;
 	offset = bp->rx_offset;
 
-	txr = rxr->bnapi->tx_ring;
+	txr = rxr->bnapi->tx_ring[0];
 	/* BNXT_RX_PAGE_MODE(bp) when XDP enabled */
 	orig_data = xdp.data;
 
@@ -275,7 +275,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 	case XDP_TX:
 		rx_buf = &rxr->rx_buf_ring[cons];
 		mapping = rx_buf->mapping - bp->rx_dma_offset;
-		*event = 0;
+		*event &= BNXT_TX_CMP_EVENT;
 
 		if (unlikely(xdp_buff_has_frags(&xdp))) {
 			struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(&xdp);
@@ -398,7 +398,7 @@ int bnxt_xdp_xmit(struct net_device *dev, int num_frames,
 static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 {
 	struct net_device *dev = bp->dev;
-	int tx_xdp = 0, rc, tc;
+	int tx_xdp = 0, tx_cp, rc, tc;
 	struct bpf_prog *old;
 
 	if (prog && !prog->aux->xdp_has_frags &&
@@ -446,7 +446,8 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	}
 	bp->tx_nr_rings_xdp = tx_xdp;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tc + tx_xdp;
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = max_t(int, tx_cp, bp->rx_nr_rings);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 

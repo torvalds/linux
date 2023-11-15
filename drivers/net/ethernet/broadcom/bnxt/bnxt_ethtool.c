@@ -528,7 +528,8 @@ static int bnxt_get_num_ring_stats(struct bnxt *bp)
 	     bnxt_get_num_tpa_ring_stats(bp);
 	tx = NUM_RING_TX_HW_STATS;
 	cmn = NUM_RING_CMN_SW_STATS;
-	return rx * bp->rx_nr_rings + tx * bp->tx_nr_rings +
+	return rx * bp->rx_nr_rings +
+	       tx * (bp->tx_nr_rings_xdp + bp->tx_nr_rings_per_tc) +
 	       cmn * bp->cp_nr_rings;
 }
 
@@ -923,6 +924,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	bool sh = false;
 	int tx_xdp = 0;
 	int rc = 0;
+	int tx_cp;
 
 	if (channel->other_count)
 		return -EINVAL;
@@ -994,8 +996,9 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (tcs > 1)
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs + tx_xdp;
 
-	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
-			       bp->tx_nr_rings + bp->rx_nr_rings;
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, tx_cp, bp->rx_nr_rings) :
+			       tx_cp + bp->rx_nr_rings;
 
 	/* After changing number of rx channels, update NTUPLE feature. */
 	netdev_update_features(dev);
@@ -3941,7 +3944,7 @@ static int bnxt_run_loopback(struct bnxt *bp)
 
 	cpr = &rxr->bnapi->cp_ring;
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
-		cpr = cpr->cp_ring_arr[BNXT_RX_HDL];
+		cpr = rxr->rx_cpr;
 	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_copy_thresh);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
