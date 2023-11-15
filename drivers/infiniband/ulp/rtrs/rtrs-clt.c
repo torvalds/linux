@@ -2025,6 +2025,8 @@ static int rtrs_clt_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		/*
 		 * Device removal is a special case.  Queue close and return 0.
 		 */
+		rtrs_wrn_rl(s, "CM event: %s, status: %d\n", rdma_event_msg(ev->event),
+			    ev->status);
 		rtrs_clt_close_conns(clt_path, false);
 		return 0;
 	default:
