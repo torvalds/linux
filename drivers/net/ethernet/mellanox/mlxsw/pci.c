@@ -1491,7 +1491,7 @@ static int mlxsw_pci_sw_reset(struct mlxsw_pci *mlxsw_pci,
 		return err;
 	}
 
-	mlxsw_reg_mrsr_pack(mrsr_pl);
+	mlxsw_reg_mrsr_pack(mrsr_pl, MLXSW_REG_MRSR_COMMAND_SOFTWARE_RESET);
 	err = mlxsw_reg_write(mlxsw_pci->core, MLXSW_REG(mrsr), mrsr_pl);
 	if (err)
 		return err;
