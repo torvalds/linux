@@ -870,10 +870,8 @@ static void armv7_pmnc_dump_regs(struct arm_pmu *cpu_pmu)
 
 static void armv7pmu_enable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 	int idx = hwc->idx;
 
 	if (!armv7_pmnc_counter_valid(cpu_pmu, idx)) {
@@ -886,7 +884,6 @@ static void armv7pmu_enable_event(struct perf_event *event)
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/*
 	 * Disable counter
@@ -910,16 +907,12 @@ static void armv7pmu_enable_event(struct perf_event *event)
 	 * Enable counter
 	 */
 	armv7_pmnc_enable_counter(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void armv7pmu_disable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 	int idx = hwc->idx;
 
 	if (!armv7_pmnc_counter_valid(cpu_pmu, idx)) {
@@ -931,7 +924,6 @@ static void armv7pmu_disable_event(struct perf_event *event)
 	/*
 	 * Disable counter and interrupt
 	 */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/*
 	 * Disable counter
@@ -942,8 +934,6 @@ static void armv7pmu_disable_event(struct perf_event *event)
 	 * Disable interrupt for this counter
 	 */
 	armv7_pmnc_disable_intens(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static irqreturn_t armv7pmu_handle_irq(struct arm_pmu *cpu_pmu)
@@ -1009,24 +999,14 @@ static irqreturn_t armv7pmu_handle_irq(struct arm_pmu *cpu_pmu)
 
 static void armv7pmu_start(struct arm_pmu *cpu_pmu)
 {
-	unsigned long flags;
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
-
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 	/* Enable all counters */
 	armv7_pmnc_write(armv7_pmnc_read() | ARMV7_PMNC_E);
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void armv7pmu_stop(struct arm_pmu *cpu_pmu)
 {
-	unsigned long flags;
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
-
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 	/* Disable all counters */
 	armv7_pmnc_write(armv7_pmnc_read() & ~ARMV7_PMNC_E);
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static int armv7pmu_get_event_idx(struct pmu_hw_events *cpuc,
@@ -1492,14 +1472,10 @@ static void krait_clearpmu(u32 config_base)
 
 static void krait_pmu_disable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 
 	/* Disable counter and interrupt */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/* Disable counter */
 	armv7_pmnc_disable_counter(idx);
@@ -1512,23 +1488,17 @@ static void krait_pmu_disable_event(struct perf_event *event)
 
 	/* Disable interrupt for this counter */
 	armv7_pmnc_disable_intens(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void krait_pmu_enable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 
 	/*
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/* Disable counter */
 	armv7_pmnc_disable_counter(idx);
@@ -1548,8 +1518,6 @@ static void krait_pmu_enable_event(struct perf_event *event)
 
 	/* Enable counter */
 	armv7_pmnc_enable_counter(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void krait_pmu_reset(void *info)
@@ -1825,14 +1793,10 @@ static void scorpion_clearpmu(u32 config_base)
 
 static void scorpion_pmu_disable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 
 	/* Disable counter and interrupt */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/* Disable counter */
 	armv7_pmnc_disable_counter(idx);
@@ -1845,23 +1809,17 @@ static void scorpion_pmu_disable_event(struct perf_event *event)
 
 	/* Disable interrupt for this counter */
 	armv7_pmnc_disable_intens(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void scorpion_pmu_enable_event(struct perf_event *event)
 {
-	unsigned long flags;
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
-	struct arm_pmu *cpu_pmu = to_arm_pmu(event->pmu);
-	struct pmu_hw_events *events = this_cpu_ptr(cpu_pmu->hw_events);
 
 	/*
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
-	raw_spin_lock_irqsave(&events->pmu_lock, flags);
 
 	/* Disable counter */
 	armv7_pmnc_disable_counter(idx);
@@ -1881,8 +1839,6 @@ static void scorpion_pmu_enable_event(struct perf_event *event)
 
 	/* Enable counter */
 	armv7_pmnc_enable_counter(idx);
-
-	raw_spin_unlock_irqrestore(&events->pmu_lock, flags);
 }
 
 static void scorpion_pmu_reset(void *info)
