@@ -893,7 +893,6 @@ struct arm_pmu *armpmu_alloc(void)
 		struct pmu_hw_events *events;
 
 		events = per_cpu_ptr(pmu->hw_events, cpu);
-		raw_spin_lock_init(&events->pmu_lock);
 		events->percpu_pmu = pmu;
 	}
 

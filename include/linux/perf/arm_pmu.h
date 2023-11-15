@@ -60,12 +60,6 @@ struct pmu_hw_events {
 	DECLARE_BITMAP(used_mask, ARMPMU_MAX_HWEVENTS);
 
 	/*
-	 * Hardware lock to serialize accesses to PMU registers. Needed for the
-	 * read/modify/write sequences.
-	 */
-	raw_spinlock_t		pmu_lock;
-
-	/*
 	 * When using percpu IRQs, we need a percpu dev_id. Place it here as we
 	 * already have to allocate this struct per cpu.
 	 */
