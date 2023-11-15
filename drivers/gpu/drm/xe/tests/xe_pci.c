@@ -42,8 +42,8 @@ static int dev_to_xe_device_fn(struct device *dev, void *__data)
  * function. Across each function call, drm_dev_enter() / drm_dev_exit() is
  * called for the corresponding drm device.
  *
- * Return: Zero or the error code of a call to @xe_fn returning an error
- * code.
+ * Return: Number of devices iterated or
+ *         the error code of a call to @xe_fn returning an error code.
  */
 int xe_call_for_each_device(xe_device_fn xe_fn)
 {
@@ -59,7 +59,7 @@ int xe_call_for_each_device(xe_device_fn xe_fn)
 	if (!data.ndevs)
 		kunit_skip(current->kunit_test, "test runs only on hardware\n");
 
-	return ret;
+	return ret ?: data.ndevs;
 }
 
 /**
