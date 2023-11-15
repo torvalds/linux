@@ -2757,7 +2757,7 @@ dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_link *link = &dp->link;
-	struct drm_display_mode m;
+	struct drm_display_mode m = {};
 	u32 min_bpp;
 
 	drm_mode_copy(&m, mode);
