@@ -688,9 +688,10 @@ static void batch_unpin(struct pfn_batch *batch, struct iopt_pages *pages,
 		size_t to_unpin = min_t(size_t, npages,
 					batch->npfns[cur] - first_page_off);
 
-		unpin_user_page_range_dirty_lock(
-			pfn_to_page(batch->pfns[cur] + first_page_off),
-			to_unpin, pages->writable);
+		if (pfn_valid(batch->pfns[cur] + first_page_off))
+			unpin_user_page_range_dirty_lock(
+				pfn_to_page(batch->pfns[cur] + first_page_off),
+				to_unpin, pages->writable);
 		iopt_pages_sub_npinned(pages, to_unpin);
 		cur++;
 		first_page_off = 0;
@@ -850,6 +851,41 @@ static long pin_memfd_pages(struct pfn_reader_user *user, unsigned long start,
 	return npages_out;
 }
 
+static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
+			    unsigned long vaddr, unsigned long *pfn,
+			    bool write_fault)
+{
+	struct follow_pfnmap_args args = { .vma = vma, .address = vaddr };
+	int ret;
+
+	ret = follow_pfnmap_start(&args);
+	if (ret) {
+		bool unlocked = false;
+
+		ret = fixup_user_fault(mm, vaddr,
+				       FAULT_FLAG_REMOTE |
+				       (write_fault ?  FAULT_FLAG_WRITE : 0),
+				       &unlocked);
+		if (unlocked)
+			return -EAGAIN;
+
+		if (ret)
+			return ret;
+
+		ret = follow_pfnmap_start(&args);
+		if (ret)
+			return ret;
+	}
+
+	if (write_fault && !args.writable)
+		ret = -EFAULT;
+	else
+		*pfn = args.pfn;
+
+	follow_pfnmap_end(&args);
+	return ret;
+}
+
 static int pfn_reader_user_pin(struct pfn_reader_user *user,
 			       struct iopt_pages *pages,
 			       unsigned long start_index,
@@ -918,6 +954,42 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 					   user->gup_flags, user->upages,
 					   &user->locked);
 	}
+
+	if (rc < 0) {
+		struct vm_area_struct *vma;
+		unsigned long vaddr;
+		unsigned long pfn;
+		int pinned = 0;
+
+		/* fast path above doesn't hold the lock */
+		if (!user->locked)
+			mmap_read_lock(pages->source_mm);
+		vaddr = untagged_addr_remote(pages->source_mm, uptr);
+retry:
+		vma = vma_lookup(pages->source_mm, vaddr);
+		if (vma && vma->vm_flags & VM_PFNMAP) {
+			do {
+				rc = follow_fault_pfn(vma, pages->source_mm, vaddr,
+						      &pfn, pages->writable);
+				if (rc == -EAGAIN)
+					goto retry;
+				if (!rc) {
+					if (!pfn_valid(pfn)) {
+						user->upages[pinned] = pfn_to_page(pfn);
+						pinned += 1;
+						vaddr += PAGE_SIZE;
+					} else {
+						rc = -EFAULT;
+					}
+				}
+			} while (pinned < npages && vaddr < vma->vm_end && !rc);
+		}
+		if (pinned)
+			rc = pinned;
+		if (!user->locked)
+			mmap_read_unlock(pages->source_mm);
+	}
+
 	if (rc <= 0) {
 		if (WARN_ON(!rc))
 			return -EFAULT;
@@ -1240,7 +1312,8 @@ static void pfn_reader_release_pins(struct pfn_reader *pfns)
 					    user->upages_start;
 
 		if (!user->file) {
-			unpin_user_pages(user->upages + start_index, npages);
+			if (pfn_valid(page_to_pfn(user->upages[0])))
+				unpin_user_pages(user->upages + start_index, npages);
 		} else {
 			long n = user->ufolios_len / sizeof(*user->ufolios);
 
