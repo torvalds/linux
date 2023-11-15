@@ -1050,6 +1050,8 @@
 			interrupts-extended = <&intc5 2>;
 			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			resets = <&soc1_rst ASPEED_RESET_JTAG1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_jtagm1_default>;
 			status = "disabled";
 		};
 

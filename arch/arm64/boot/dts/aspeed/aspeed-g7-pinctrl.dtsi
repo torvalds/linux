@@ -444,6 +444,11 @@
 		groups = "TACH15";
 	};
 
+	pinctrl_jtagm1_default: jtagm1_default {
+		function = "JTAGM1";
+		groups = "JTAGM1";
+	};
+
 	pinctrl_mdio0_default: mdio0_default {
 		function = "MDIO0";
 		groups = "MDIO0";
