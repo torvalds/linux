@@ -32,6 +32,7 @@ properties:
               - samsung,exynos5433-pwm
               - samsung,exynos7-pwm
               - samsung,exynosautov9-pwm
+              - samsung,exynosautov920-pwm
           - const: samsung,exynos4210-pwm
 
   reg:
