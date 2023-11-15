@@ -935,12 +935,11 @@ static void gpio_config(void)
 	gpio0_set_pull(0, RV1106_GPIO_PULL_DOWN);
 	gpio0_set_direct(0, 0);
 
-#ifdef RV1106_GPIO0_A1_LOWPOWER
 	/* gpio0_a1, input, pulldown */
 	gpio0_set_iomux(1, 0);
 	gpio0_set_pull(1, RV1106_GPIO_PULL_DOWN);
 	gpio0_set_direct(1, 0);
-#endif
+
 	/* gpio0_a2, input, pulldown */
 	gpio0_set_iomux(2, 0);
 	gpio0_set_pull(2, RV1106_GPIO_PULL_DOWN);
