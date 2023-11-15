@@ -38,6 +38,11 @@
 #include <linux/phy.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
+#include <linux/dma/xilinx_dma.h>
+#include <linux/circ_buf.h>
+#include <net/netdev_queues.h>
 
 #include "xilinx_axienet.h"
 
@@ -47,6 +52,9 @@
 #define TX_BD_NUM_MIN			(MAX_SKB_FRAGS + 1)
 #define TX_BD_NUM_MAX			4096
 #define RX_BD_NUM_MAX			4096
+#define DMA_NUM_APP_WORDS		5
+#define LEN_APP				4
+#define RX_BUF_NUM_DEFAULT		128
 
 /* Must be shorter than length of ethtool_drvinfo.driver field to fit */
 #define DRIVER_NAME		"xaxienet"
@@ -54,6 +62,8 @@
 #define DRIVER_VERSION		"1.00a"
 
 #define AXIENET_REGS_N		40
+
+static void axienet_rx_submit_desc(struct net_device *ndev);
 
 /* Match table for of_platform binding */
 static const struct of_device_id axienet_of_match[] = {
@@ -119,6 +129,16 @@ static struct axienet_option axienet_options[] = {
 	},
 	{}
 };
+
+static struct skbuf_dma_descriptor *axienet_get_rx_desc(struct axienet_local *lp, int i)
+{
+	return lp->rx_skb_ring[i & (RX_BUF_NUM_DEFAULT - 1)];
+}
+
+static struct skbuf_dma_descriptor *axienet_get_tx_desc(struct axienet_local *lp, int i)
+{
+	return lp->tx_skb_ring[i & (TX_BD_NUM_MAX - 1)];
+}
 
 /**
  * axienet_dma_in32 - Memory mapped Axi DMA register read
@@ -728,6 +748,128 @@ static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
 }
 
 /**
+ * axienet_dma_tx_cb - DMA engine callback for TX channel.
+ * @data:       Pointer to the axienet_local structure.
+ * @result:     error reporting through dmaengine_result.
+ * This function is called by dmaengine driver for TX channel to notify
+ * that the transmit is done.
+ */
+static void axienet_dma_tx_cb(void *data, const struct dmaengine_result *result)
+{
+	struct skbuf_dma_descriptor *skbuf_dma;
+	struct axienet_local *lp = data;
+	struct netdev_queue *txq;
+	int len;
+
+	skbuf_dma = axienet_get_tx_desc(lp, lp->tx_ring_tail++);
+	len = skbuf_dma->skb->len;
+	txq = skb_get_tx_queue(lp->ndev, skbuf_dma->skb);
+	u64_stats_update_begin(&lp->tx_stat_sync);
+	u64_stats_add(&lp->tx_bytes, len);
+	u64_stats_add(&lp->tx_packets, 1);
+	u64_stats_update_end(&lp->tx_stat_sync);
+	dma_unmap_sg(lp->dev, skbuf_dma->sgl, skbuf_dma->sg_len, DMA_TO_DEVICE);
+	dev_consume_skb_any(skbuf_dma->skb);
+	netif_txq_completed_wake(txq, 1, len,
+				 CIRC_SPACE(lp->tx_ring_head, lp->tx_ring_tail, TX_BD_NUM_MAX),
+				 2 * MAX_SKB_FRAGS);
+}
+
+/**
+ * axienet_start_xmit_dmaengine - Starts the transmission.
+ * @skb:        sk_buff pointer that contains data to be Txed.
+ * @ndev:       Pointer to net_device structure.
+ *
+ * Return: NETDEV_TX_OK on success or any non space errors.
+ *         NETDEV_TX_BUSY when free element in TX skb ring buffer
+ *         is not available.
+ *
+ * This function is invoked to initiate transmission. The
+ * function sets the skbs, register dma callback API and submit
+ * the dma transaction.
+ * Additionally if checksum offloading is supported,
+ * it populates AXI Stream Control fields with appropriate values.
+ */
+static netdev_tx_t
+axienet_start_xmit_dmaengine(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct dma_async_tx_descriptor *dma_tx_desc = NULL;
+	struct axienet_local *lp = netdev_priv(ndev);
+	u32 app_metadata[DMA_NUM_APP_WORDS] = {0};
+	struct skbuf_dma_descriptor *skbuf_dma;
+	struct dma_device *dma_dev;
+	struct netdev_queue *txq;
+	u32 csum_start_off;
+	u32 csum_index_off;
+	int sg_len;
+	int ret;
+
+	dma_dev = lp->tx_chan->device;
+	sg_len = skb_shinfo(skb)->nr_frags + 1;
+	if (CIRC_SPACE(lp->tx_ring_head, lp->tx_ring_tail, TX_BD_NUM_MAX) <= sg_len) {
+		netif_stop_queue(ndev);
+		if (net_ratelimit())
+			netdev_warn(ndev, "TX ring unexpectedly full\n");
+		return NETDEV_TX_BUSY;
+	}
+
+	skbuf_dma = axienet_get_tx_desc(lp, lp->tx_ring_head);
+	if (!skbuf_dma)
+		goto xmit_error_drop_skb;
+
+	lp->tx_ring_head++;
+	sg_init_table(skbuf_dma->sgl, sg_len);
+	ret = skb_to_sgvec(skb, skbuf_dma->sgl, 0, skb->len);
+	if (ret < 0)
+		goto xmit_error_drop_skb;
+
+	ret = dma_map_sg(lp->dev, skbuf_dma->sgl, sg_len, DMA_TO_DEVICE);
+	if (!ret)
+		goto xmit_error_drop_skb;
+
+	/* Fill up app fields for checksum */
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (lp->features & XAE_FEATURE_FULL_TX_CSUM) {
+			/* Tx Full Checksum Offload Enabled */
+			app_metadata[0] |= 2;
+		} else if (lp->features & XAE_FEATURE_PARTIAL_TX_CSUM) {
+			csum_start_off = skb_transport_offset(skb);
+			csum_index_off = csum_start_off + skb->csum_offset;
+			/* Tx Partial Checksum Offload Enabled */
+			app_metadata[0] |= 1;
+			app_metadata[1] = (csum_start_off << 16) | csum_index_off;
+		}
+	} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+		app_metadata[0] |= 2; /* Tx Full Checksum Offload Enabled */
+	}
+
+	dma_tx_desc = dma_dev->device_prep_slave_sg(lp->tx_chan, skbuf_dma->sgl,
+			sg_len, DMA_MEM_TO_DEV,
+			DMA_PREP_INTERRUPT, (void *)app_metadata);
+	if (!dma_tx_desc)
+		goto xmit_error_unmap_sg;
+
+	skbuf_dma->skb = skb;
+	skbuf_dma->sg_len = sg_len;
+	dma_tx_desc->callback_param = lp;
+	dma_tx_desc->callback_result = axienet_dma_tx_cb;
+	dmaengine_submit(dma_tx_desc);
+	dma_async_issue_pending(lp->tx_chan);
+	txq = skb_get_tx_queue(lp->ndev, skb);
+	netdev_tx_sent_queue(txq, skb->len);
+	netif_txq_maybe_stop(txq, CIRC_SPACE(lp->tx_ring_head, lp->tx_ring_tail, TX_BD_NUM_MAX),
+			     MAX_SKB_FRAGS + 1, 2 * MAX_SKB_FRAGS);
+
+	return NETDEV_TX_OK;
+
+xmit_error_unmap_sg:
+	dma_unmap_sg(lp->dev, skbuf_dma->sgl, sg_len, DMA_TO_DEVICE);
+xmit_error_drop_skb:
+	dev_kfree_skb_any(skb);
+	return NETDEV_TX_OK;
+}
+
+/**
  * axienet_tx_poll - Invoked once a transmit is completed by the
  * Axi DMA Tx channel.
  * @napi:	Pointer to NAPI structure.
@@ -891,6 +1033,42 @@ axienet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	return NETDEV_TX_OK;
+}
+
+/**
+ * axienet_dma_rx_cb - DMA engine callback for RX channel.
+ * @data:       Pointer to the skbuf_dma_descriptor structure.
+ * @result:     error reporting through dmaengine_result.
+ * This function is called by dmaengine driver for RX channel to notify
+ * that the packet is received.
+ */
+static void axienet_dma_rx_cb(void *data, const struct dmaengine_result *result)
+{
+	struct skbuf_dma_descriptor *skbuf_dma;
+	size_t meta_len, meta_max_len, rx_len;
+	struct axienet_local *lp = data;
+	struct sk_buff *skb;
+	u32 *app_metadata;
+
+	skbuf_dma = axienet_get_rx_desc(lp, lp->rx_ring_tail++);
+	skb = skbuf_dma->skb;
+	app_metadata = dmaengine_desc_get_metadata_ptr(skbuf_dma->desc, &meta_len,
+						       &meta_max_len);
+	dma_unmap_single(lp->dev, skbuf_dma->dma_address, lp->max_frm_size,
+			 DMA_FROM_DEVICE);
+	/* TODO: Derive app word index programmatically */
+	rx_len = (app_metadata[LEN_APP] & 0xFFFF);
+	skb_put(skb, rx_len);
+	skb->protocol = eth_type_trans(skb, lp->ndev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	__netif_rx(skb);
+	u64_stats_update_begin(&lp->rx_stat_sync);
+	u64_stats_add(&lp->rx_packets, 1);
+	u64_stats_add(&lp->rx_bytes, rx_len);
+	u64_stats_update_end(&lp->rx_stat_sync);
+	axienet_rx_submit_desc(lp->ndev);
+	dma_async_issue_pending(lp->rx_chan);
 }
 
 /**
@@ -1127,6 +1305,144 @@ static irqreturn_t axienet_eth_irq(int irq, void *_ndev)
 static void axienet_dma_err_handler(struct work_struct *work);
 
 /**
+ * axienet_rx_submit_desc - Submit the rx descriptors to dmaengine.
+ * allocate skbuff, map the scatterlist and obtain a descriptor
+ * and then add the callback information and submit descriptor.
+ *
+ * @ndev:	net_device pointer
+ *
+ */
+static void axienet_rx_submit_desc(struct net_device *ndev)
+{
+	struct dma_async_tx_descriptor *dma_rx_desc = NULL;
+	struct axienet_local *lp = netdev_priv(ndev);
+	struct skbuf_dma_descriptor *skbuf_dma;
+	struct sk_buff *skb;
+	dma_addr_t addr;
+
+	skbuf_dma = axienet_get_rx_desc(lp, lp->rx_ring_head);
+	if (!skbuf_dma)
+		return;
+
+	lp->rx_ring_head++;
+	skb = netdev_alloc_skb(ndev, lp->max_frm_size);
+	if (!skb)
+		return;
+
+	sg_init_table(skbuf_dma->sgl, 1);
+	addr = dma_map_single(lp->dev, skb->data, lp->max_frm_size, DMA_FROM_DEVICE);
+	if (unlikely(dma_mapping_error(lp->dev, addr))) {
+		if (net_ratelimit())
+			netdev_err(ndev, "DMA mapping error\n");
+		goto rx_submit_err_free_skb;
+	}
+	sg_dma_address(skbuf_dma->sgl) = addr;
+	sg_dma_len(skbuf_dma->sgl) = lp->max_frm_size;
+	dma_rx_desc = dmaengine_prep_slave_sg(lp->rx_chan, skbuf_dma->sgl,
+					      1, DMA_DEV_TO_MEM,
+					      DMA_PREP_INTERRUPT);
+	if (!dma_rx_desc)
+		goto rx_submit_err_unmap_skb;
+
+	skbuf_dma->skb = skb;
+	skbuf_dma->dma_address = sg_dma_address(skbuf_dma->sgl);
+	skbuf_dma->desc = dma_rx_desc;
+	dma_rx_desc->callback_param = lp;
+	dma_rx_desc->callback_result = axienet_dma_rx_cb;
+	dmaengine_submit(dma_rx_desc);
+
+	return;
+
+rx_submit_err_unmap_skb:
+	dma_unmap_single(lp->dev, addr, lp->max_frm_size, DMA_FROM_DEVICE);
+rx_submit_err_free_skb:
+	dev_kfree_skb(skb);
+}
+
+/**
+ * axienet_init_dmaengine - init the dmaengine code.
+ * @ndev:       Pointer to net_device structure
+ *
+ * Return: 0, on success.
+ *          non-zero error value on failure
+ *
+ * This is the dmaengine initialization code.
+ */
+static int axienet_init_dmaengine(struct net_device *ndev)
+{
+	struct axienet_local *lp = netdev_priv(ndev);
+	struct skbuf_dma_descriptor *skbuf_dma;
+	int i, ret;
+
+	lp->tx_chan = dma_request_chan(lp->dev, "tx_chan0");
+	if (IS_ERR(lp->tx_chan)) {
+		dev_err(lp->dev, "No Ethernet DMA (TX) channel found\n");
+		return PTR_ERR(lp->tx_chan);
+	}
+
+	lp->rx_chan = dma_request_chan(lp->dev, "rx_chan0");
+	if (IS_ERR(lp->rx_chan)) {
+		ret = PTR_ERR(lp->rx_chan);
+		dev_err(lp->dev, "No Ethernet DMA (RX) channel found\n");
+		goto err_dma_release_tx;
+	}
+
+	lp->tx_ring_tail = 0;
+	lp->tx_ring_head = 0;
+	lp->rx_ring_tail = 0;
+	lp->rx_ring_head = 0;
+	lp->tx_skb_ring = kcalloc(TX_BD_NUM_MAX, sizeof(*lp->tx_skb_ring),
+				  GFP_KERNEL);
+	if (!lp->tx_skb_ring) {
+		ret = -ENOMEM;
+		goto err_dma_release_rx;
+	}
+	for (i = 0; i < TX_BD_NUM_MAX; i++) {
+		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
+		if (!skbuf_dma) {
+			ret = -ENOMEM;
+			goto err_free_tx_skb_ring;
+		}
+		lp->tx_skb_ring[i] = skbuf_dma;
+	}
+
+	lp->rx_skb_ring = kcalloc(RX_BUF_NUM_DEFAULT, sizeof(*lp->rx_skb_ring),
+				  GFP_KERNEL);
+	if (!lp->rx_skb_ring) {
+		ret = -ENOMEM;
+		goto err_free_tx_skb_ring;
+	}
+	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++) {
+		skbuf_dma = kzalloc(sizeof(*skbuf_dma), GFP_KERNEL);
+		if (!skbuf_dma) {
+			ret = -ENOMEM;
+			goto err_free_rx_skb_ring;
+		}
+		lp->rx_skb_ring[i] = skbuf_dma;
+	}
+	/* TODO: Instead of BD_NUM_DEFAULT use runtime support */
+	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++)
+		axienet_rx_submit_desc(ndev);
+	dma_async_issue_pending(lp->rx_chan);
+
+	return 0;
+
+err_free_rx_skb_ring:
+	for (i = 0; i < RX_BUF_NUM_DEFAULT; i++)
+		kfree(lp->rx_skb_ring[i]);
+	kfree(lp->rx_skb_ring);
+err_free_tx_skb_ring:
+	for (i = 0; i < TX_BD_NUM_MAX; i++)
+		kfree(lp->tx_skb_ring[i]);
+	kfree(lp->tx_skb_ring);
+err_dma_release_rx:
+	dma_release_channel(lp->rx_chan);
+err_dma_release_tx:
+	dma_release_channel(lp->tx_chan);
+	return ret;
+}
+
+/**
  * axienet_init_legacy_dma - init the dma legacy code.
  * @ndev:       Pointer to net_device structure
  *
@@ -1216,7 +1532,19 @@ static int axienet_open(struct net_device *ndev)
 
 	phylink_start(lp->phylink);
 
-	if (!lp->use_dmaengine) {
+	if (lp->use_dmaengine) {
+		/* Enable interrupts for Axi Ethernet core (if defined) */
+		if (lp->eth_irq > 0) {
+			ret = request_irq(lp->eth_irq, axienet_eth_irq, IRQF_SHARED,
+					  ndev->name, ndev);
+			if (ret)
+				goto err_phy;
+		}
+
+		ret = axienet_init_dmaengine(ndev);
+		if (ret < 0)
+			goto err_free_eth_irq;
+	} else {
 		ret = axienet_init_legacy_dma(ndev);
 		if (ret)
 			goto err_phy;
@@ -1224,6 +1552,9 @@ static int axienet_open(struct net_device *ndev)
 
 	return 0;
 
+err_free_eth_irq:
+	if (lp->eth_irq > 0)
+		free_irq(lp->eth_irq, ndev);
 err_phy:
 	phylink_stop(lp->phylink);
 	phylink_disconnect_phy(lp->phylink);
@@ -1243,6 +1574,7 @@ err_phy:
 static int axienet_stop(struct net_device *ndev)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
+	int i;
 
 	dev_dbg(&ndev->dev, "axienet_close()\n");
 
@@ -1263,6 +1595,21 @@ static int axienet_stop(struct net_device *ndev)
 		free_irq(lp->tx_irq, ndev);
 		free_irq(lp->rx_irq, ndev);
 		axienet_dma_bd_release(ndev);
+	} else {
+		dmaengine_terminate_sync(lp->tx_chan);
+		dmaengine_synchronize(lp->tx_chan);
+		dmaengine_terminate_sync(lp->rx_chan);
+		dmaengine_synchronize(lp->rx_chan);
+
+		for (i = 0; i < TX_BD_NUM_MAX; i++)
+			kfree(lp->tx_skb_ring[i]);
+		kfree(lp->tx_skb_ring);
+		for (i = 0; i < RX_BUF_NUM_DEFAULT; i++)
+			kfree(lp->rx_skb_ring[i]);
+		kfree(lp->rx_skb_ring);
+
+		dma_release_channel(lp->rx_chan);
+		dma_release_channel(lp->tx_chan);
 	}
 
 	axienet_iow(lp, XAE_IE_OFFSET, 0);
@@ -1363,6 +1710,18 @@ static const struct net_device_ops axienet_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = axienet_poll_controller,
 #endif
+};
+
+static const struct net_device_ops axienet_netdev_dmaengine_ops = {
+	.ndo_open = axienet_open,
+	.ndo_stop = axienet_stop,
+	.ndo_start_xmit = axienet_start_xmit_dmaengine,
+	.ndo_get_stats64 = axienet_get_stats64,
+	.ndo_change_mtu	= axienet_change_mtu,
+	.ndo_set_mac_address = netdev_set_mac_address,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_eth_ioctl = axienet_ioctl,
+	.ndo_set_rx_mode = axienet_set_multicast_list,
 };
 
 /**
@@ -1897,7 +2256,6 @@ static int axienet_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
 	ndev->features = NETIF_F_SG;
-	ndev->netdev_ops = &axienet_netdev_ops;
 	ndev->ethtool_ops = &axienet_ethtool_ops;
 
 	/* MTU range: 64 - 9000 */
@@ -2118,8 +2476,39 @@ static int axienet_probe(struct platform_device *pdev)
 		}
 		netif_napi_add(ndev, &lp->napi_rx, axienet_rx_poll);
 		netif_napi_add(ndev, &lp->napi_tx, axienet_tx_poll);
+	} else {
+		struct xilinx_vdma_config cfg;
+		struct dma_chan *tx_chan;
+
+		lp->eth_irq = platform_get_irq_optional(pdev, 0);
+		if (lp->eth_irq < 0 && lp->eth_irq != -ENXIO) {
+			ret = lp->eth_irq;
+			goto cleanup_clk;
+		}
+		tx_chan = dma_request_chan(lp->dev, "tx_chan0");
+		if (IS_ERR(tx_chan)) {
+			ret = PTR_ERR(tx_chan);
+			dev_err_probe(lp->dev, ret, "No Ethernet DMA (TX) channel found\n");
+			goto cleanup_clk;
+		}
+
+		cfg.reset = 1;
+		/* As name says VDMA but it has support for DMA channel reset */
+		ret = xilinx_vdma_channel_set_config(tx_chan, &cfg);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Reset channel failed\n");
+			dma_release_channel(tx_chan);
+			goto cleanup_clk;
+		}
+
+		dma_release_channel(tx_chan);
+		lp->use_dmaengine = 1;
 	}
 
+	if (lp->use_dmaengine)
+		ndev->netdev_ops = &axienet_netdev_dmaengine_ops;
+	else
+		ndev->netdev_ops = &axienet_netdev_ops;
 	/* Check for Ethernet core IRQ (optional) */
 	if (lp->eth_irq <= 0)
 		dev_info(&pdev->dev, "Ethernet core IRQ not defined\n");
