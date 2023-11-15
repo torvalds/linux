@@ -67,7 +67,7 @@ MODULE_PARM_DESC(hw_changes_brightness,
 static bool device_id_scheme = false;
 module_param(device_id_scheme, bool, 0444);
 
-static int only_lcd = -1;
+static int only_lcd;
 module_param(only_lcd, int, 0444);
 
 static bool may_report_brightness_keys;
@@ -2141,57 +2141,6 @@ static int __init intel_opregion_present(void)
 	return opregion;
 }
 
-/* Check if the chassis-type indicates there is no builtin LCD panel */
-static bool dmi_is_desktop(void)
-{
-	const char *chassis_type;
-	unsigned long type;
-
-	chassis_type = dmi_get_system_info(DMI_CHASSIS_TYPE);
-	if (!chassis_type)
-		return false;
-
-	if (kstrtoul(chassis_type, 10, &type) != 0)
-		return false;
-
-	switch (type) {
-	case 0x03: /* Desktop */
-	case 0x04: /* Low Profile Desktop */
-	case 0x05: /* Pizza Box */
-	case 0x06: /* Mini Tower */
-	case 0x07: /* Tower */
-	case 0x10: /* Lunch Box */
-	case 0x11: /* Main Server Chassis */
-		return true;
-	}
-
-	return false;
-}
-
-/*
- * We're seeing a lot of bogus backlight interfaces on newer machines
- * without a LCD such as desktops, servers and HDMI sticks. Checking the
- * lcd flag fixes this, enable this by default on any machines which are:
- * 1.  Win8 ready (where we also prefer the native backlight driver, so
- *     normally the acpi_video code should not register there anyways); *and*
- * 2.1 Report a desktop/server DMI chassis-type, or
- * 2.2 Are an ACPI-reduced-hardware platform (and thus won't use the EC for
-       backlight control)
- */
-static bool should_check_lcd_flag(void)
-{
-	if (!acpi_osi_is_win8())
-		return false;
-
-	if (dmi_is_desktop())
-		return true;
-
-	if (acpi_reduced_hardware())
-		return true;
-
-	return false;
-}
-
 int acpi_video_register(void)
 {
 	int ret = 0;
@@ -2204,9 +2153,6 @@ int acpi_video_register(void)
 		 */
 		goto leave;
 	}
-
-	if (only_lcd == -1)
-		only_lcd = should_check_lcd_flag();
 
 	dmi_check_system(video_dmi_table);
 
