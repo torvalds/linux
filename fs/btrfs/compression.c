@@ -163,11 +163,25 @@ static int compression_decompress(int type, struct list_head *ws,
 static void btrfs_free_compressed_pages(struct compressed_bio *cb)
 {
 	for (unsigned int i = 0; i < cb->nr_pages; i++)
-		put_page(cb->compressed_pages[i]);
+		btrfs_free_compr_page(cb->compressed_pages[i]);
 	kfree(cb->compressed_pages);
 }
 
 static int btrfs_decompress_bio(struct compressed_bio *cb);
+
+/*
+ * Common wrappers for page allocation from compression wrappers
+ */
+struct page *btrfs_alloc_compr_page(void)
+{
+	return alloc_page(GFP_NOFS);
+}
+
+void btrfs_free_compr_page(struct page *page)
+{
+	ASSERT(page_ref_count(page) == 1);
+	put_page(page);
+}
 
 static void end_compressed_bio_read(struct btrfs_bio *bbio)
 {
