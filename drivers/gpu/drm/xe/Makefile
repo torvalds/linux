@@ -122,6 +122,9 @@ xe-y += xe_bb.o \
 # graphics hardware monitoring (HWMON) support
 xe-$(CONFIG_HWMON) += xe_hwmon.o
 
+# graphics virtualization (SR-IOV) support
+xe-y += xe_sriov.o
+
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
 	-I$(srctree)/$(src)/display/ext \

@@ -24,6 +24,7 @@
 #include "xe_module.h"
 #include "xe_pci_types.h"
 #include "xe_pm.h"
+#include "xe_sriov.h"
 #include "xe_step.h"
 
 enum toggle_d3cold {
@@ -704,6 +705,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_drm_put;
 
 	pci_set_master(pdev);
+
+	xe_sriov_probe_early(xe, desc->has_sriov);
 
 	err = xe_info_init(xe, desc, subplatform_desc);
 	if (err)

@@ -18,6 +18,7 @@
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_pmu.h"
+#include "xe_sriov_types.h"
 #include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DISPLAY)
@@ -298,6 +299,12 @@ struct xe_device {
 		/** @sys_mgr: system TTM manager */
 		struct ttm_resource_manager sys_mgr;
 	} mem;
+
+	/** @sriov: device level virtualization data */
+	struct {
+		/** @sriov.__mode: SR-IOV mode (Don't access directly!) */
+		enum xe_sriov_mode __mode;
+	} sriov;
 
 	/** @usm: unified memory state */
 	struct {
