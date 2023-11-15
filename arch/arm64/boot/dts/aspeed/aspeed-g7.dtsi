@@ -966,6 +966,15 @@
 			};
 		};
 
+		pwm_tach: pwm-tach-controller@140c0000 {
+			compatible = "aspeed,ast2700-pwm-tach";
+			reg = <0x0 0x140c0000 0 0x100>;
+			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
+			resets = <&soc1_rst ASPEED_RESET_PWM>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		adc0: adc@14c00000 {
 			compatible = "aspeed,ast2700-adc0";
 			reg = <0x0 0x14c00000 0 0x100>;
