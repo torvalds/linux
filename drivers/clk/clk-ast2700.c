@@ -385,12 +385,6 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 					     CLK_IS_CRITICAL, clk_base + AST2700_SOC1_CLK_STOP,
 					     3, 0, &ast2700_clk_lock);
 
-	//sd pll divn
-	clks[AST2700_SOC1_CLK_HPLL_DIVN] =
-		clk_hw_register_divider_table(dev, "soc1-hpll_divn", "soc1-hpll",
-					      0, clk_base + AST2700_SOC1_CLK_SEL2,
-					      20, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
-
 	clks[AST2700_SOC1_CLK_APLL_DIVN] =
 		clk_hw_register_divider_table(dev, "soc1-apll_divn", "soc1-apll",
 					      0, clk_base + AST2700_SOC1_CLK_SEL2,
