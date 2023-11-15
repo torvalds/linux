@@ -1903,7 +1903,7 @@ static void tb_dp_resource_available(struct tb *tb, struct tb_port *port)
 			return;
 	}
 
-	tb_port_dbg(port, "DP %s resource available\n",
+	tb_port_dbg(port, "DP %s resource available after hotplug\n",
 		    tb_port_is_dpin(port) ? "IN" : "OUT");
 	list_add_tail(&port->list, &tcm->dp_resources);
 
