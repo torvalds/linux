@@ -41,8 +41,6 @@
 
 #include "internal.h"
 
-#define DRIVER_VERSION	"2.2"
-
 static struct microcode_ops	*microcode_ops;
 bool dis_ucode_ldr = true;
 
@@ -845,8 +843,6 @@ static int __init microcode_init(void)
 	register_syscore_ops(&mc_syscore_ops);
 	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/microcode:online",
 			  mc_cpu_online, mc_cpu_down_prep);
-
-	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);
 
 	return 0;
 
