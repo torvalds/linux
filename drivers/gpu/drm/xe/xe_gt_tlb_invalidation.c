@@ -13,12 +13,6 @@
 
 #define TLB_TIMEOUT	(HZ / 4)
 
-static struct xe_gt *
-guc_to_gt(struct xe_guc *guc)
-{
-	return container_of(guc, struct xe_gt, uc.guc);
-}
-
 static void xe_gt_tlb_fence_timeout(struct work_struct *work)
 {
 	struct xe_gt *gt = container_of(work, struct xe_gt,

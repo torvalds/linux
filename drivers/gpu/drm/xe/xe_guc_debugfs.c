@@ -15,18 +15,6 @@
 #include "xe_guc_log.h"
 #include "xe_macros.h"
 
-static struct xe_gt *
-guc_to_gt(struct xe_guc *guc)
-{
-	return container_of(guc, struct xe_gt, uc.guc);
-}
-
-static struct xe_device *
-guc_to_xe(struct xe_guc *guc)
-{
-	return gt_to_xe(guc_to_gt(guc));
-}
-
 static struct xe_guc *node_to_guc(struct drm_info_node *node)
 {
 	return node->info_ent->data;

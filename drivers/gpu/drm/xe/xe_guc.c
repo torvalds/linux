@@ -27,18 +27,6 @@
 #include "xe_wa.h"
 #include "xe_wopcm.h"
 
-static struct xe_gt *
-guc_to_gt(struct xe_guc *guc)
-{
-	return container_of(guc, struct xe_gt, uc.guc);
-}
-
-static struct xe_device *
-guc_to_xe(struct xe_guc *guc)
-{
-	return gt_to_xe(guc_to_gt(guc));
-}
-
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
 #define GUC_GGTT_TOP    0xFEE00000
 static u32 guc_bo_ggtt_addr(struct xe_guc *guc,

@@ -13,18 +13,6 @@
 #include "xe_guc.h"
 #include "xe_map.h"
 
-static struct xe_gt *
-guc_to_gt(struct xe_guc *guc)
-{
-	return container_of(guc, struct xe_gt, uc.guc);
-}
-
-static struct xe_device *
-guc_to_xe(struct xe_guc *guc)
-{
-	return gt_to_xe(guc_to_gt(guc));
-}
-
 static int send_get_hwconfig(struct xe_guc *guc, u32 ggtt_addr, u32 size)
 {
 	u32 action[] = {

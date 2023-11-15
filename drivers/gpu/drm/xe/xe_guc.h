@@ -6,6 +6,7 @@
 #ifndef _XE_GUC_H_
 #define _XE_GUC_H_
 
+#include "xe_gt.h"
 #include "xe_guc_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_macros.h"
@@ -56,6 +57,16 @@ static inline u16 xe_engine_class_to_guc_class(enum xe_engine_class class)
 		XE_WARN_ON(class);
 		return -1;
 	}
+}
+
+static inline struct xe_gt *guc_to_gt(struct xe_guc *guc)
+{
+	return container_of(guc, struct xe_gt, uc.guc);
+}
+
+static inline struct xe_device *guc_to_xe(struct xe_guc *guc)
+{
+	return gt_to_xe(guc_to_gt(guc));
 }
 
 #endif

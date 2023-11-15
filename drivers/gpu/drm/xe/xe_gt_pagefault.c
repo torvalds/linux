@@ -59,12 +59,6 @@ struct acc {
 	u8 engine_instance;
 };
 
-static struct xe_gt *
-guc_to_gt(struct xe_guc *guc)
-{
-	return container_of(guc, struct xe_gt, uc.guc);
-}
-
 static bool access_is_atomic(enum access_type access_type)
 {
 	return access_type == ACCESS_TYPE_ATOMIC;
