@@ -42,6 +42,7 @@
 #include <soc/qcom/secure_buffer.h>
 #include <linux/irq.h>
 #include <linux/wait.h>
+#include <trace/hooks/iommu.h>
 
 #include <linux/fsl/mc.h>
 
@@ -3499,6 +3500,17 @@ static void arm_smmu_rmr_install_bypass_smr(struct arm_smmu_device *smmu)
 	iort_put_rmr_sids(dev_fwnode(smmu->dev), &rmr_list);
 }
 
+/* skip pcie iommu bus probe if smmuv2 and smmuv3 both enabled. */
+#if IS_ENABLED(CONFIG_ARM_PARAVIRT_SMMU_V3)
+static void arm_smmu_iommu_pcie_device_probe(void *data, struct iommu_device *iommu,
+					struct bus_type *bus, bool *skip)
+{
+	if (iommu != (struct iommu_device *)data)
+		return;
+	*skip = !strcmp(bus->name, "pci");
+}
+#endif
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -3633,6 +3645,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		goto out_power_off;
 	}
 
+	#if IS_ENABLED(CONFIG_ARM_PARAVIRT_SMMU_V3)
+	if (of_find_compatible_node(NULL, NULL, "arm,virt-smmu-v3"))
+		register_trace_android_vh_bus_iommu_probe(arm_smmu_iommu_pcie_device_probe,
+							(void *)&smmu->iommu);
+	#endif
 	err = iommu_device_register(&smmu->iommu, &arm_smmu_ops.iommu_ops, dev);
 	if (err) {
 		dev_err(dev, "Failed to register iommu\n");

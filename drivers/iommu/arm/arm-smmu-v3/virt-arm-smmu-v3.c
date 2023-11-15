@@ -34,6 +34,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/amba/bus.h>
 #include <linux/qcom-iommu-util.h>
+#include <trace/hooks/iommu.h>
 
 #include "../../dma-iommu.h"
 #define MSI_IOVA_BASE                     0x8000000
@@ -814,6 +815,14 @@ static struct iommu_ops  virt_arm_smmu_ops = {
 	}
 };
 
+static void virt_arm_smmu_iommu_pcie_device_probe(void *data, struct iommu_device *iommu,
+					struct bus_type *bus, bool *skip)
+{
+	if (iommu != (struct iommu_device *)data)
+		return;
+	*skip = strcmp(bus->name, "pci");
+}
+
 static int virt_arm_smmu_device_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -838,6 +847,10 @@ static int virt_arm_smmu_device_probe(struct platform_device *pdev)
 				     "virt-smmuv3");
 	if (ret)
 		return ret;
+
+	register_trace_android_vh_bus_iommu_probe(virt_arm_smmu_iommu_pcie_device_probe,
+						(void *)&smmu->iommu);
+
 	ret = iommu_device_register(&smmu->iommu, &virt_arm_smmu_ops, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register iommu\n");
