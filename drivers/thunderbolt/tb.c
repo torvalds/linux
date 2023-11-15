@@ -1821,47 +1821,13 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 	return NULL;
 }
 
-static bool tb_tunnel_one_dp(struct tb *tb)
+static bool tb_tunnel_one_dp(struct tb *tb, struct tb_port *in,
+			     struct tb_port *out)
 {
 	int available_up, available_down, ret, link_nr;
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_port *port, *in, *out;
 	int consumed_up, consumed_down;
 	struct tb_tunnel *tunnel;
-
-	/*
-	 * Find pair of inactive DP IN and DP OUT adapters and then
-	 * establish a DP tunnel between them.
-	 */
-	tb_dbg(tb, "looking for DP IN <-> DP OUT pairs:\n");
-
-	in = NULL;
-	out = NULL;
-	list_for_each_entry(port, &tcm->dp_resources, list) {
-		if (!tb_port_is_dpin(port))
-			continue;
-
-		if (tb_port_is_enabled(port)) {
-			tb_port_dbg(port, "DP IN in use\n");
-			continue;
-		}
-
-		in = port;
-		tb_port_dbg(in, "DP IN available\n");
-
-		out = tb_find_dp_out(tb, port);
-		if (out)
-			break;
-	}
-
-	if (!in) {
-		tb_dbg(tb, "no suitable DP IN adapter available, not tunneling\n");
-		return false;
-	}
-	if (!out) {
-		tb_dbg(tb, "no suitable DP OUT adapter available, not tunneling\n");
-		return false;
-	}
 
 	/*
 	 * This is only applicable to links that are not bonded (so
@@ -1923,15 +1889,19 @@ static bool tb_tunnel_one_dp(struct tb *tb)
 		goto err_free;
 	}
 
-	list_add_tail(&tunnel->list, &tcm->tunnel_list);
-	tb_reclaim_usb3_bandwidth(tb, in, out);
+	/* If fail reading tunnel's consumed bandwidth, tear it down */
+	ret = tb_tunnel_consumed_bandwidth(tunnel, &consumed_up, &consumed_down);
+	if (ret)
+		goto err_deactivate;
 
+	list_add_tail(&tunnel->list, &tcm->tunnel_list);
+
+	tb_reclaim_usb3_bandwidth(tb, in, out);
 	/*
 	 * Transition the links to asymmetric if the consumption exceeds
 	 * the threshold.
 	 */
-	if (!tb_tunnel_consumed_bandwidth(tunnel, &consumed_up, &consumed_down))
-		tb_configure_asym(tb, in, out, consumed_up, consumed_down);
+	tb_configure_asym(tb, in, out, consumed_up, consumed_down);
 
 	/* Update the domain with the new bandwidth estimation */
 	tb_recalc_estimated_bandwidth(tb);
@@ -1943,6 +1913,8 @@ static bool tb_tunnel_one_dp(struct tb *tb)
 	tb_increase_tmu_accuracy(tunnel);
 	return true;
 
+err_deactivate:
+	tb_tunnel_deactivate(tunnel);
 err_free:
 	tb_tunnel_free(tunnel);
 err_reclaim_usb:
@@ -1962,13 +1934,43 @@ err_rpm_put:
 
 static void tb_tunnel_dp(struct tb *tb)
 {
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_port *port, *in, *out;
+
 	if (!tb_acpi_may_tunnel_dp()) {
 		tb_dbg(tb, "DP tunneling disabled, not creating tunnel\n");
 		return;
 	}
 
-	while (tb_tunnel_one_dp(tb))
-		;
+	/*
+	 * Find pair of inactive DP IN and DP OUT adapters and then
+	 * establish a DP tunnel between them.
+	 */
+	tb_dbg(tb, "looking for DP IN <-> DP OUT pairs:\n");
+
+	in = NULL;
+	out = NULL;
+	list_for_each_entry(port, &tcm->dp_resources, list) {
+		if (!tb_port_is_dpin(port))
+			continue;
+
+		if (tb_port_is_enabled(port)) {
+			tb_port_dbg(port, "DP IN in use\n");
+			continue;
+		}
+
+		in = port;
+		tb_port_dbg(in, "DP IN available\n");
+
+		out = tb_find_dp_out(tb, port);
+		if (out)
+			tb_tunnel_one_dp(tb, in, out);
+		else
+			tb_port_dbg(in, "no suitable DP OUT adapter available, not tunneling\n");
+	}
+
+	if (!in)
+		tb_dbg(tb, "no suitable DP IN adapter available, not tunneling\n");
 }
 
 static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
