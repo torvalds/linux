@@ -2535,7 +2535,7 @@ F:	drivers/*/*/*wpcm*
 F:	drivers/*/*wpcm*
 
 ARM/NXP S32G ARCHITECTURE
-M:	Chester Lin <clin@suse.com>
+M:	Chester Lin <chester62515@gmail.com>
 R:	Andreas Färber <afaerber@suse.de>
 R:	Matthias Brugger <mbrugger@suse.com>
 R:	NXP S32 Linux Team <s32@nxp.com>
