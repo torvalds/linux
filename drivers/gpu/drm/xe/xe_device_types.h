@@ -253,6 +253,8 @@ struct xe_device {
 		u8 has_llc:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
 		u8 has_range_tlb_invalidation:1;
+		/** @has_sriov: Supports SR-IOV */
+		u8 has_sriov:1;
 		/** @enable_display: display enabled */
 		u8 enable_display:1;
 		/** @bypass_mtcfg: Bypass Multi-Tile configuration from MTCFG register */

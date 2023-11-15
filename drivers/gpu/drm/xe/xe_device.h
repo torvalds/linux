@@ -158,6 +158,11 @@ static inline bool xe_device_has_flat_ccs(struct xe_device *xe)
 	return xe->info.has_flat_ccs;
 }
 
+static inline bool xe_device_has_sriov(struct xe_device *xe)
+{
+	return xe->info.has_sriov;
+}
+
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);
 
 #endif
