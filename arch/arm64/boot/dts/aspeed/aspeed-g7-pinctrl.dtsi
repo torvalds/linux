@@ -489,6 +489,26 @@
 		groups = "FWQSPI";
 	};
 
+	pinctrl_fsi0_default: fsi0_default {
+		function = "FSI0";
+		groups = "FSI0";
+	};
+
+	pinctrl_fsi1_default: fsi1_default {
+		function = "FSI1";
+		groups = "FSI1";
+	};
+
+	pinctrl_fsi2_default: fsi2_default {
+		function = "FSI2";
+		groups = "FSI2";
+	};
+
+	pinctrl_fsi3_default: fsi3_default {
+		function = "FSI3";
+		groups = "FSI3";
+	};
+
 	pinctrl_spi0_default: spi0_default {
 		function = "SPI0";
 		groups = "SPI0";
