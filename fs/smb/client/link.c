@@ -42,23 +42,11 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 
 	rc = cifs_alloc_hash("md5", &md5);
 	if (rc)
-		goto symlink_hash_err;
+		return rc;
 
-	rc = crypto_shash_init(md5);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init md5 shash\n", __func__);
-		goto symlink_hash_err;
-	}
-	rc = crypto_shash_update(md5, link_str, link_len);
-	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with link_str\n", __func__);
-		goto symlink_hash_err;
-	}
-	rc = crypto_shash_final(md5, md5_hash);
+	rc = crypto_shash_digest(md5, link_str, link_len, md5_hash);
 	if (rc)
 		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
-
-symlink_hash_err:
 	cifs_free_hash(&md5);
 	return rc;
 }

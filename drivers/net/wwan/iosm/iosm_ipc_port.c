@@ -3,8 +3,6 @@
  * Copyright (C) 2020-21 Intel Corporation.
  */
 
-#include <linux/pm_runtime.h>
-
 #include "iosm_ipc_chnl_cfg.h"
 #include "iosm_ipc_imem_ops.h"
 #include "iosm_ipc_port.h"
@@ -15,15 +13,11 @@ static int ipc_port_ctrl_start(struct wwan_port *port)
 	struct iosm_cdev *ipc_port = wwan_port_get_drvdata(port);
 	int ret = 0;
 
-	pm_runtime_get_sync(ipc_port->ipc_imem->dev);
 	ipc_port->channel = ipc_imem_sys_port_open(ipc_port->ipc_imem,
 						   ipc_port->chl_id,
 						   IPC_HP_CDEV_OPEN);
 	if (!ipc_port->channel)
 		ret = -EIO;
-
-	pm_runtime_mark_last_busy(ipc_port->ipc_imem->dev);
-	pm_runtime_put_autosuspend(ipc_port->ipc_imem->dev);
 
 	return ret;
 }
@@ -33,24 +27,15 @@ static void ipc_port_ctrl_stop(struct wwan_port *port)
 {
 	struct iosm_cdev *ipc_port = wwan_port_get_drvdata(port);
 
-	pm_runtime_get_sync(ipc_port->ipc_imem->dev);
 	ipc_imem_sys_port_close(ipc_port->ipc_imem, ipc_port->channel);
-	pm_runtime_mark_last_busy(ipc_port->ipc_imem->dev);
-	pm_runtime_put_autosuspend(ipc_port->ipc_imem->dev);
 }
 
 /* transfer control data to modem */
 static int ipc_port_ctrl_tx(struct wwan_port *port, struct sk_buff *skb)
 {
 	struct iosm_cdev *ipc_port = wwan_port_get_drvdata(port);
-	int ret;
 
-	pm_runtime_get_sync(ipc_port->ipc_imem->dev);
-	ret = ipc_imem_sys_cdev_write(ipc_port, skb);
-	pm_runtime_mark_last_busy(ipc_port->ipc_imem->dev);
-	pm_runtime_put_autosuspend(ipc_port->ipc_imem->dev);
-
-	return ret;
+	return ipc_imem_sys_cdev_write(ipc_port, skb);
 }
 
 static const struct wwan_port_ops ipc_wwan_ctrl_ops = {

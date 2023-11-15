@@ -659,7 +659,7 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 					  const char *guid, int min_elements,
 					  int instance_id)
 {
-	struct kobject *attr_name_kobj;
+	struct kobject *attr_name_kobj, *duplicate;
 	union acpi_object *elements;
 	struct kset *temp_kset;
 
@@ -704,8 +704,11 @@ static int hp_init_bios_package_attribute(enum hp_wmi_data_type attr_type,
 	}
 
 	/* All duplicate attributes found are ignored */
-	if (kset_find_obj(temp_kset, str_value)) {
+	duplicate = kset_find_obj(temp_kset, str_value);
+	if (duplicate) {
 		pr_debug("Duplicate attribute name found - %s\n", str_value);
+		/* kset_find_obj() returns a reference */
+		kobject_put(duplicate);
 		goto pack_attr_exit;
 	}
 
@@ -768,7 +771,7 @@ static int hp_init_bios_buffer_attribute(enum hp_wmi_data_type attr_type,
 					 const char *guid, int min_elements,
 					 int instance_id)
 {
-	struct kobject *attr_name_kobj;
+	struct kobject *attr_name_kobj, *duplicate;
 	struct kset *temp_kset;
 	char str[MAX_BUFF_SIZE];
 
@@ -794,8 +797,11 @@ static int hp_init_bios_buffer_attribute(enum hp_wmi_data_type attr_type,
 		temp_kset = bioscfg_drv.main_dir_kset;
 
 	/* All duplicate attributes found are ignored */
-	if (kset_find_obj(temp_kset, str)) {
+	duplicate = kset_find_obj(temp_kset, str);
+	if (duplicate) {
 		pr_debug("Duplicate attribute name found - %s\n", str);
+		/* kset_find_obj() returns a reference */
+		kobject_put(duplicate);
 		goto buff_attr_exit;
 	}
 

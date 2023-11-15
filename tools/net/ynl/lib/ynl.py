@@ -100,6 +100,7 @@ class NlAttr:
     def __init__(self, raw, offset):
         self._len, self._type = struct.unpack("HH", raw[offset:offset + 4])
         self.type = self._type & ~Netlink.NLA_TYPE_MASK
+        self.is_nest = self._type & Netlink.NLA_F_NESTED
         self.payload_len = self._len
         self.full_len = (self.payload_len + 3) & ~3
         self.raw = raw[offset + 4:offset + self.payload_len]
@@ -128,6 +129,13 @@ class NlAttr:
 
     def as_scalar(self, attr_type, byte_order=None):
         format = self.get_format(attr_type, byte_order)
+        return format.unpack(self.raw)[0]
+
+    def as_auto_scalar(self, attr_type, byte_order=None):
+        if len(self.raw) != 4 and len(self.raw) != 8:
+            raise Exception(f"Auto-scalar len payload be 4 or 8 bytes, got {len(self.raw)}")
+        real_type = attr_type[0] + str(len(self.raw) * 8)
+        format = self.get_format(real_type, byte_order)
         return format.unpack(self.raw)[0]
 
     def as_strz(self):
@@ -404,10 +412,11 @@ class GenlProtocol(NetlinkProtocol):
 
 
 class YnlFamily(SpecFamily):
-    def __init__(self, def_path, schema=None):
+    def __init__(self, def_path, schema=None, process_unknown=False):
         super().__init__(def_path, schema)
 
         self.include_raw = False
+        self.process_unknown = process_unknown
 
         try:
             if self.proto == "netlink-raw":
@@ -463,9 +472,16 @@ class YnlFamily(SpecFamily):
                 attr_payload = bytes.fromhex(value)
             else:
                 raise Exception(f'Unknown type for binary attribute, value: {value}')
+        elif attr.is_auto_scalar:
+            scalar = int(value)
+            real_type = attr["type"][0] + ('32' if scalar.bit_length() <= 32 else '64')
+            format = NlAttr.get_format(real_type, attr.byte_order)
+            attr_payload = format.pack(int(value))
         elif attr['type'] in NlAttr.type_formats:
             format = NlAttr.get_format(attr['type'], attr.byte_order)
             attr_payload = format.pack(int(value))
+        elif attr['type'] in "bitfield32":
+            attr_payload = struct.pack("II", int(value["value"]), int(value["selector"]))
         else:
             raise Exception(f'Unknown type at {space} {name} {value} {attr["type"]}')
 
@@ -474,7 +490,7 @@ class YnlFamily(SpecFamily):
 
     def _decode_enum(self, raw, attr_spec):
         enum = self.consts[attr_spec['enum']]
-        if 'enum-as-flags' in attr_spec and attr_spec['enum-as-flags']:
+        if enum.type == 'flags' or attr_spec.get('enum-as-flags', False):
             i = 0
             value = set()
             while raw:
@@ -512,14 +528,41 @@ class YnlFamily(SpecFamily):
             decoded.append({ item.type: subattrs })
         return decoded
 
+    def _decode_unknown(self, attr):
+        if attr.is_nest:
+            return self._decode(NlAttrs(attr.raw), None)
+        else:
+            return attr.as_bin()
+
+    def _rsp_add(self, rsp, name, is_multi, decoded):
+        if is_multi == None:
+            if name in rsp and type(rsp[name]) is not list:
+                rsp[name] = [rsp[name]]
+                is_multi = True
+            else:
+                is_multi = False
+
+        if not is_multi:
+            rsp[name] = decoded
+        elif name in rsp:
+            rsp[name].append(decoded)
+        else:
+            rsp[name] = [decoded]
+
     def _decode(self, attrs, space):
-        attr_space = self.attr_sets[space]
+        if space:
+            attr_space = self.attr_sets[space]
         rsp = dict()
         for attr in attrs:
             try:
                 attr_spec = attr_space.attrs_by_val[attr.type]
-            except KeyError:
-                raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
+            except (KeyError, UnboundLocalError):
+                if not self.process_unknown:
+                    raise Exception(f"Space '{space}' has no attribute with value '{attr.type}'")
+                attr_name = f"UnknownAttr({attr.type})"
+                self._rsp_add(rsp, attr_name, None, self._decode_unknown(attr))
+                continue
+
             if attr_spec["type"] == 'nest':
                 subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
                 decoded = subdict
@@ -529,22 +572,26 @@ class YnlFamily(SpecFamily):
                 decoded = self._decode_binary(attr, attr_spec)
             elif attr_spec["type"] == 'flag':
                 decoded = True
+            elif attr_spec.is_auto_scalar:
+                decoded = attr.as_auto_scalar(attr_spec['type'], attr_spec.byte_order)
             elif attr_spec["type"] in NlAttr.type_formats:
                 decoded = attr.as_scalar(attr_spec['type'], attr_spec.byte_order)
+                if 'enum' in attr_spec:
+                    decoded = self._decode_enum(decoded, attr_spec)
             elif attr_spec["type"] == 'array-nest':
                 decoded = self._decode_array_nest(attr, attr_spec)
+            elif attr_spec["type"] == 'bitfield32':
+                value, selector = struct.unpack("II", attr.raw)
+                if 'enum' in attr_spec:
+                    value = self._decode_enum(value, attr_spec)
+                    selector = self._decode_enum(selector, attr_spec)
+                decoded = {"value": value, "selector": selector}
             else:
-                raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
+                if not self.process_unknown:
+                    raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
+                decoded = self._decode_unknown(attr)
 
-            if 'enum' in attr_spec:
-                decoded = self._decode_enum(decoded, attr_spec)
-
-            if not attr_spec.is_multi:
-                rsp[attr_spec['name']] = decoded
-            elif attr_spec.name in rsp:
-                rsp[attr_spec.name].append(decoded)
-            else:
-                rsp[attr_spec.name] = [decoded]
+            self._rsp_add(rsp, attr_spec["name"], attr_spec.is_multi, decoded)
 
         return rsp
 

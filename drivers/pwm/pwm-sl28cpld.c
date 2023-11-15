@@ -200,7 +200,6 @@ static int sl28cpld_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops sl28cpld_pwm_ops = {
 	.apply = sl28cpld_pwm_apply,
 	.get_state = sl28cpld_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int sl28cpld_pwm_probe(struct platform_device *pdev)

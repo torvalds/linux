@@ -100,11 +100,7 @@ static char *IMM_MODE_STRING[] =
 	[IMM_PS2]	 = "PS/2",
 	[IMM_EPP_8]	 = "EPP 8 bit",
 	[IMM_EPP_16]	 = "EPP 16 bit",
-#ifdef CONFIG_SCSI_IZIP_EPP16
-	[IMM_EPP_32]	 = "EPP 16 bit",
-#else
 	[IMM_EPP_32]	 = "EPP 32 bit",
-#endif
 	[IMM_UNKNOWN]	 = "Unknown",
 };
 

@@ -6,9 +6,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bits.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/pm.h>
 #include <linux/init.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
@@ -31,6 +35,10 @@
 #define SCH5627_REG_COMPANY_ID		0x3e
 #define SCH5627_REG_PRIMARY_ID		0x3f
 #define SCH5627_REG_CTRL		0x40
+
+#define SCH5627_CTRL_START		BIT(0)
+#define SCH5627_CTRL_LOCK		BIT(1)
+#define SCH5627_CTRL_VBAT		BIT(4)
 
 #define SCH5627_NO_TEMPS		8
 #define SCH5627_NO_FANS			4
@@ -67,11 +75,9 @@ static const char * const SCH5627_IN_LABELS[SCH5627_NO_IN] = {
 	"VCC", "VTT", "VBAT", "VTR", "V_IN" };
 
 struct sch5627_data {
+	struct regmap *regmap;
 	unsigned short addr;
 	u8 control;
-	u8 temp_max[SCH5627_NO_TEMPS];
-	u8 temp_crit[SCH5627_NO_TEMPS];
-	u16 fan_min[SCH5627_NO_FANS];
 
 	struct mutex update_lock;
 	unsigned long last_battery;	/* In jiffies */
@@ -84,6 +90,36 @@ struct sch5627_data {
 	u16 temp[SCH5627_NO_TEMPS];
 	u16 fan[SCH5627_NO_FANS];
 	u16 in[SCH5627_NO_IN];
+};
+
+static const struct regmap_range sch5627_tunables_ranges[] = {
+	regmap_reg_range(0x57, 0x57),
+	regmap_reg_range(0x59, 0x59),
+	regmap_reg_range(0x5B, 0x5B),
+	regmap_reg_range(0x5D, 0x5D),
+	regmap_reg_range(0x5F, 0x5F),
+	regmap_reg_range(0x61, 0x69),
+	regmap_reg_range(0x96, 0x9B),
+	regmap_reg_range(0xA0, 0xA3),
+	regmap_reg_range(0x184, 0x184),
+	regmap_reg_range(0x186, 0x186),
+	regmap_reg_range(0x1A8, 0x1A9),
+};
+
+static const struct regmap_access_table sch5627_tunables_table = {
+	.yes_ranges = sch5627_tunables_ranges,
+	.n_yes_ranges = ARRAY_SIZE(sch5627_tunables_ranges),
+};
+
+static const struct regmap_config sch5627_regmap_config = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.wr_table = &sch5627_tunables_table,
+	.rd_table = &sch5627_tunables_table,
+	.cache_type = REGCACHE_RBTREE,
+	.use_single_read = true,
+	.use_single_write = true,
+	.can_sleep = true,
 };
 
 static int sch5627_update_temp(struct sch5627_data *data)
@@ -147,7 +183,8 @@ static int sch5627_update_in(struct sch5627_data *data)
 
 	/* Trigger a Vbat voltage measurement every 5 minutes */
 	if (time_after(jiffies, data->last_battery + 300 * HZ)) {
-		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | 0x10);
+		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
+					  data->control | SCH5627_CTRL_VBAT);
 		data->last_battery = jiffies;
 	}
 
@@ -171,38 +208,6 @@ abort:
 	return ret;
 }
 
-static int sch5627_read_limits(struct sch5627_data *data)
-{
-	int i, val;
-
-	for (i = 0; i < SCH5627_NO_TEMPS; i++) {
-		/*
-		 * Note what SMSC calls ABS, is what lm_sensors calls max
-		 * (aka high), and HIGH is what lm_sensors calls crit.
-		 */
-		val = sch56xx_read_virtual_reg(data->addr,
-					       SCH5627_REG_TEMP_ABS[i]);
-		if (val < 0)
-			return val;
-		data->temp_max[i] = val;
-
-		val = sch56xx_read_virtual_reg(data->addr,
-					       SCH5627_REG_TEMP_HIGH[i]);
-		if (val < 0)
-			return val;
-		data->temp_crit[i] = val;
-	}
-	for (i = 0; i < SCH5627_NO_FANS; i++) {
-		val = sch56xx_read_virtual_reg16(data->addr,
-						 SCH5627_REG_FAN_MIN[i]);
-		if (val < 0)
-			return val;
-		data->fan_min[i] = val;
-	}
-
-	return 0;
-}
-
 static int reg_to_temp(u16 reg)
 {
 	return (reg * 625) / 10 - 64000;
@@ -223,11 +228,65 @@ static int reg_to_rpm(u16 reg)
 	return 5400540 / reg;
 }
 
+static u8 sch5627_temp_limit_to_reg(long value)
+{
+	long limit = (value / 1000) + 64;
+
+	return clamp_val(limit, 0, U8_MAX);
+}
+
+static u16 sch5627_rpm_to_reg(long value)
+{
+	long pulses;
+
+	if (value <= 0)
+		return U16_MAX - 1;
+
+	pulses = 5400540 / value;
+
+	return clamp_val(pulses, 1, U16_MAX - 1);
+}
+
 static umode_t sch5627_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
 				  int channel)
 {
-	if (type == hwmon_pwm && attr == hwmon_pwm_auto_channels_temp)
-		return 0644;
+	const struct sch5627_data *data = drvdata;
+
+	/* Once the lock bit is set, the virtual registers become read-only
+	 * until the next power cycle.
+	 */
+	if (data->control & SCH5627_CTRL_LOCK)
+		return 0444;
+
+	switch (type) {
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_max:
+		case hwmon_temp_crit:
+			return 0644;
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		switch (attr) {
+		case hwmon_fan_min:
+			return 0644;
+		default:
+			break;
+		}
+		break;
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_auto_channels_temp:
+			return 0644;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
 
 	return 0444;
 }
@@ -236,24 +295,37 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 			long *val)
 {
 	struct sch5627_data *data = dev_get_drvdata(dev);
-	int ret;
+	int ret, value;
 
 	switch (type) {
 	case hwmon_temp:
-		ret = sch5627_update_temp(data);
-		if (ret < 0)
-			return ret;
 		switch (attr) {
 		case hwmon_temp_input:
+			ret = sch5627_update_temp(data);
+			if (ret < 0)
+				return ret;
+
 			*val = reg_to_temp(data->temp[channel]);
 			return 0;
 		case hwmon_temp_max:
-			*val = reg_to_temp_limit(data->temp_max[channel]);
+			ret = regmap_read(data->regmap, SCH5627_REG_TEMP_ABS[channel], &value);
+			if (ret < 0)
+				return ret;
+
+			*val = reg_to_temp_limit((u8)value);
 			return 0;
 		case hwmon_temp_crit:
-			*val = reg_to_temp_limit(data->temp_crit[channel]);
+			ret = regmap_read(data->regmap, SCH5627_REG_TEMP_HIGH[channel], &value);
+			if (ret < 0)
+				return ret;
+
+			*val = reg_to_temp_limit((u8)value);
 			return 0;
 		case hwmon_temp_fault:
+			ret = sch5627_update_temp(data);
+			if (ret < 0)
+				return ret;
+
 			*val = (data->temp[channel] == 0);
 			return 0;
 		default:
@@ -261,23 +333,35 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 		}
 		break;
 	case hwmon_fan:
-		ret = sch5627_update_fan(data);
-		if (ret < 0)
-			return ret;
 		switch (attr) {
 		case hwmon_fan_input:
+			ret = sch5627_update_fan(data);
+			if (ret < 0)
+				return ret;
+
 			ret = reg_to_rpm(data->fan[channel]);
 			if (ret < 0)
 				return ret;
+
 			*val = ret;
 			return 0;
 		case hwmon_fan_min:
-			ret = reg_to_rpm(data->fan_min[channel]);
+			ret = sch56xx_regmap_read16(data->regmap, SCH5627_REG_FAN_MIN[channel],
+						    &value);
 			if (ret < 0)
 				return ret;
+
+			ret = reg_to_rpm((u16)value);
+			if (ret < 0)
+				return ret;
+
 			*val = ret;
 			return 0;
 		case hwmon_fan_fault:
+			ret = sch5627_update_fan(data);
+			if (ret < 0)
+				return ret;
+
 			*val = (data->fan[channel] == 0xffff);
 			return 0;
 		default:
@@ -287,15 +371,11 @@ static int sch5627_read(struct device *dev, enum hwmon_sensor_types type, u32 at
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_auto_channels_temp:
-			mutex_lock(&data->update_lock);
-			ret = sch56xx_read_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel]);
-			mutex_unlock(&data->update_lock);
-
+			ret = regmap_read(data->regmap, SCH5627_REG_PWM_MAP[channel], &value);
 			if (ret < 0)
 				return ret;
 
-			*val = ret;
-
+			*val = value;
 			return 0;
 		default:
 			break;
@@ -345,9 +425,33 @@ static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 			 long val)
 {
 	struct sch5627_data *data = dev_get_drvdata(dev);
-	int ret;
+	u16 fan;
+	u8 temp;
 
 	switch (type) {
+	case hwmon_temp:
+		temp = sch5627_temp_limit_to_reg(val);
+
+		switch (attr) {
+		case hwmon_temp_max:
+			return regmap_write(data->regmap, SCH5627_REG_TEMP_ABS[channel], temp);
+		case hwmon_temp_crit:
+			return regmap_write(data->regmap, SCH5627_REG_TEMP_HIGH[channel], temp);
+		default:
+			break;
+		}
+		break;
+	case hwmon_fan:
+		switch (attr) {
+		case hwmon_fan_min:
+			fan = sch5627_rpm_to_reg(val);
+
+			return sch56xx_regmap_write16(data->regmap, SCH5627_REG_FAN_MIN[channel],
+						      fan);
+		default:
+			break;
+		}
+		break;
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_auto_channels_temp:
@@ -355,12 +459,7 @@ static int sch5627_write(struct device *dev, enum hwmon_sensor_types type, u32 a
 			if (val > U8_MAX || val < 0)
 				return -EINVAL;
 
-			mutex_lock(&data->update_lock);
-			ret = sch56xx_write_virtual_reg(data->addr, SCH5627_REG_PWM_MAP[channel],
-							val);
-			mutex_unlock(&data->update_lock);
-
-			return ret;
+			return regmap_write(data->regmap, SCH5627_REG_PWM_MAP[channel], val);
 		default:
 			break;
 		}
@@ -422,7 +521,7 @@ static int sch5627_probe(struct platform_device *pdev)
 {
 	struct sch5627_data *data;
 	struct device *hwmon_dev;
-	int err, build_code, build_id, hwmon_rev, val;
+	int build_code, build_id, hwmon_rev, val;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct sch5627_data),
 			    GFP_KERNEL);
@@ -483,23 +582,20 @@ static int sch5627_probe(struct platform_device *pdev)
 		return val;
 
 	data->control = val;
-	if (!(data->control & 0x01)) {
+	if (!(data->control & SCH5627_CTRL_START)) {
 		pr_err("hardware monitoring not enabled\n");
 		return -ENODEV;
 	}
+
+	data->regmap = devm_regmap_init_sch56xx(&pdev->dev, &data->update_lock, data->addr,
+						&sch5627_regmap_config);
+	if (IS_ERR(data->regmap))
+		return PTR_ERR(data->regmap);
+
 	/* Trigger a Vbat voltage measurement, so that we get a valid reading
 	   the first time we read Vbat */
-	sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
-				  data->control | 0x10);
+	sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | SCH5627_CTRL_VBAT);
 	data->last_battery = jiffies;
-
-	/*
-	 * Read limits, we do this only once as reading a register on
-	 * the sch5627 is quite expensive (and they don't change).
-	 */
-	err = sch5627_read_limits(data);
-	if (err)
-		return err;
 
 	pr_info("found %s chip at %#hx\n", DEVNAME, data->addr);
 	pr_info("firmware build: code 0x%02X, id 0x%04X, hwmon: rev 0x%02X\n",
@@ -518,6 +614,30 @@ static int sch5627_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int sch5627_suspend(struct device *dev)
+{
+	struct sch5627_data *data = dev_get_drvdata(dev);
+
+	regcache_cache_only(data->regmap, true);
+	regcache_mark_dirty(data->regmap);
+
+	return 0;
+}
+
+static int sch5627_resume(struct device *dev)
+{
+	struct sch5627_data *data = dev_get_drvdata(dev);
+
+	regcache_cache_only(data->regmap, false);
+	/* We must not access the virtual registers when the lock bit is set */
+	if (data->control & SCH5627_CTRL_LOCK)
+		return regcache_drop_region(data->regmap, 0, U16_MAX);
+
+	return regcache_sync(data->regmap);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(sch5627_dev_pm_ops, sch5627_suspend, sch5627_resume);
+
 static const struct platform_device_id sch5627_device_id[] = {
 	{
 		.name = "sch5627",
@@ -529,6 +649,7 @@ MODULE_DEVICE_TABLE(platform, sch5627_device_id);
 static struct platform_driver sch5627_driver = {
 	.driver = {
 		.name	= DRVNAME,
+		.pm	= pm_sleep_ptr(&sch5627_dev_pm_ops),
 	},
 	.probe		= sch5627_probe,
 	.id_table	= sch5627_device_id,

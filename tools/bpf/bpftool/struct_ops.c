@@ -276,6 +276,9 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 
 	res.nr_maps++;
 
+	if (wtr)
+		jsonw_start_array(wtr);
+
 	if (func(fd, info, data, wtr))
 		res.nr_errs++;
 	else if (!wtr && json_output)
@@ -287,6 +290,9 @@ static struct res do_one_id(const char *id_str, work_func func, void *data,
 		 * other cmds.
 		 */
 		jsonw_null(json_wtr);
+
+	if (wtr)
+		jsonw_end_array(wtr);
 
 done:
 	free(info);

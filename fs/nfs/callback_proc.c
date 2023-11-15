@@ -60,7 +60,7 @@ __be32 nfs4_callback_getattr(void *argp, void *resp,
 	if (nfs_have_writebacks(inode))
 		res->change_attr++;
 	res->ctime = inode_get_ctime(inode);
-	res->mtime = inode->i_mtime;
+	res->mtime = inode_get_mtime(inode);
 	res->bitmap[0] = (FATTR4_WORD0_CHANGE|FATTR4_WORD0_SIZE) &
 		args->bitmap[0];
 	res->bitmap[1] = (FATTR4_WORD1_TIME_METADATA|FATTR4_WORD1_TIME_MODIFY) &

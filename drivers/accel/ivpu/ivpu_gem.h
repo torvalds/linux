@@ -8,8 +8,6 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_mm.h>
 
-#define DRM_IVPU_BO_NOSNOOP       0x10000000
-
 struct dma_buf;
 struct ivpu_bo_ops;
 struct ivpu_file_priv;
@@ -70,9 +68,19 @@ static inline struct ivpu_bo *to_ivpu_bo(struct drm_gem_object *obj)
 	return container_of(obj, struct ivpu_bo, base);
 }
 
+static inline void *ivpu_bo_vaddr(struct ivpu_bo *bo)
+{
+	return bo->kvaddr;
+}
+
+static inline size_t ivpu_bo_size(struct ivpu_bo *bo)
+{
+	return bo->base.size;
+}
+
 static inline struct page *ivpu_bo_get_page(struct ivpu_bo *bo, u64 offset)
 {
-	if (offset > bo->base.size || !bo->pages)
+	if (offset > ivpu_bo_size(bo) || !bo->pages)
 		return NULL;
 
 	return bo->pages[offset / PAGE_SIZE];
@@ -85,9 +93,6 @@ static inline u32 ivpu_bo_cache_mode(struct ivpu_bo *bo)
 
 static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
 {
-	if (bo->flags & DRM_IVPU_BO_NOSNOOP)
-		return false;
-
 	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
 }
 
@@ -112,21 +117,21 @@ static inline void *ivpu_to_cpu_addr(struct ivpu_bo *bo, u32 vpu_addr)
 	if (vpu_addr < bo->vpu_addr)
 		return NULL;
 
-	if (vpu_addr >= (bo->vpu_addr + bo->base.size))
+	if (vpu_addr >= (bo->vpu_addr + ivpu_bo_size(bo)))
 		return NULL;
 
-	return bo->kvaddr + (vpu_addr - bo->vpu_addr);
+	return ivpu_bo_vaddr(bo) + (vpu_addr - bo->vpu_addr);
 }
 
 static inline u32 cpu_to_vpu_addr(struct ivpu_bo *bo, void *cpu_addr)
 {
-	if (cpu_addr < bo->kvaddr)
+	if (cpu_addr < ivpu_bo_vaddr(bo))
 		return 0;
 
-	if (cpu_addr >= (bo->kvaddr + bo->base.size))
+	if (cpu_addr >= (ivpu_bo_vaddr(bo) + ivpu_bo_size(bo)))
 		return 0;
 
-	return bo->vpu_addr + (cpu_addr - bo->kvaddr);
+	return bo->vpu_addr + (cpu_addr - ivpu_bo_vaddr(bo));
 }
 
 #endif /* __IVPU_GEM_H__ */

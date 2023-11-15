@@ -42,6 +42,19 @@ definitions:
         doc:
           This feature informs if netdev implements non-linear XDP buffer
           support in ndo_xdp_xmit callback.
+  -
+    type: flags
+    name: xdp-rx-metadata
+    render-max: true
+    entries:
+      -
+        name: timestamp
+        doc:
+          Device is capable of exposing receive HW timestamp via bpf_xdp_metadata_rx_timestamp().
+      -
+        name: hash
+        doc:
+          Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
 
 attribute-sets:
   -
@@ -61,13 +74,18 @@ attribute-sets:
         doc: Bitmask of enabled xdp-features.
         type: u64
         enum: xdp-act
-        enum-as-flags: true
       -
         name: xdp-zc-max-segs
         doc: max fragment count supported by ZC driver
         type: u32
         checks:
           min: 1
+      -
+        name: xdp-rx-metadata-features
+        doc: Bitmask of supported XDP receive metadata features.
+             See Documentation/networking/xdp-rx-metadata.rst for more details.
+        type: u64
+        enum: xdp-rx-metadata
 
 operations:
   list:
@@ -84,6 +102,7 @@ operations:
             - ifindex
             - xdp-features
             - xdp-zc-max-segs
+            - xdp-rx-metadata-features
       dump:
         reply: *dev-all
     -

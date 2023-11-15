@@ -566,6 +566,7 @@ void *card_thread(void *data)
 int main(void)
 {
 	struct card_data *card;
+	struct card_cfg_data *conf;
 	struct pcm_data *pcm;
 	snd_config_t *global_config, *cfg;
 	int num_pcm_tests = 0, num_tests, num_std_pcm_tests;
@@ -583,6 +584,10 @@ int main(void)
 
 	find_pcms();
 
+	for (conf = conf_cards; conf; conf = conf->next)
+		if (conf->card < 0)
+			num_missing++;
+
 	num_std_pcm_tests = conf_get_count(default_pcm_config, "test", NULL);
 
 	for (pcm = pcm_list; pcm != NULL; pcm = pcm->next) {
@@ -597,6 +602,11 @@ int main(void)
 	}
 
 	ksft_set_plan(num_missing + num_pcm_tests);
+
+	for (conf = conf_cards; conf; conf = conf->next)
+		if (conf->card < 0)
+			ksft_test_result_fail("test.missing.%s.%s\n",
+					      conf->filename, conf->config_id);
 
 	for (pcm = pcm_missing; pcm != NULL; pcm = pcm->next) {
 		ksft_test_result(false, "test.missing.%d.%d.%d.%s\n",

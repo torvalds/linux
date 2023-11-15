@@ -497,21 +497,19 @@ static int mdss_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mdss_remove(struct platform_device *pdev)
+static void mdss_remove(struct platform_device *pdev)
 {
 	struct msm_mdss *mdss = platform_get_drvdata(pdev);
 
 	of_platform_depopulate(&pdev->dev);
 
 	msm_mdss_destroy(mdss);
-
-	return 0;
 }
 
 static const struct msm_mdss_data msm8998_data = {
 	.ubwc_enc_version = UBWC_1_0,
 	.ubwc_dec_version = UBWC_1_0,
-	.highest_bank_bit = 1,
+	.highest_bank_bit = 2,
 };
 
 static const struct msm_mdss_data qcm2290_data = {
@@ -629,7 +627,7 @@ MODULE_DEVICE_TABLE(of, mdss_dt_match);
 
 static struct platform_driver mdss_platform_driver = {
 	.probe      = mdss_probe,
-	.remove     = mdss_remove,
+	.remove_new = mdss_remove,
 	.driver     = {
 		.name   = "msm-mdss",
 		.of_match_table = mdss_dt_match,

@@ -12,7 +12,6 @@
 	model = "Toradex Colibri iMX7D 1GB (eMMC) on Aster Carrier Board";
 	compatible = "toradex,colibri-imx7d-emmc-aster",
 		     "toradex,colibri-imx7d-emmc",
-		     "toradex,colibri-imx7d",
 		     "fsl,imx7d";
 };
 

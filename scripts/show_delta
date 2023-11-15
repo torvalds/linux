@@ -125,4 +125,5 @@ def main():
 	for line in lines:
 		print (convert_line(line, base_time),)
 
-main()
+if __name__ == "__main__":
+	main()

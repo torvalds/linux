@@ -289,13 +289,6 @@ config SH_EDOSK7760
 	  Select if configuring for a Renesas EDOSK7760
 	  evaluation board.
 
-config SH_SH4202_MICRODEV
-	bool "SH4-202 MicroDev"
-	depends on CPU_SUBTYPE_SH4_202
-	help
-	  Select SH4-202 MicroDev if configuring for a SuperH MicroDev board
-	  with an SH4-202 CPU.
-
 config SH_LANDISK
 	bool "LANDISK"
 	depends on CPU_SUBTYPE_SH7751R

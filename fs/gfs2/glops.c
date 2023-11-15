@@ -403,7 +403,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	const struct gfs2_dinode *str = buf;
-	struct timespec64 atime;
+	struct timespec64 atime, iatime;
 	u16 height, depth;
 	umode_t mode = be32_to_cpu(str->di_mode);
 	struct inode *inode = &ip->i_inode;
@@ -433,10 +433,11 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	gfs2_set_inode_blocks(inode, be64_to_cpu(str->di_blocks));
 	atime.tv_sec = be64_to_cpu(str->di_atime);
 	atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
-	if (timespec64_compare(&inode->i_atime, &atime) < 0)
-		inode->i_atime = atime;
-	inode->i_mtime.tv_sec = be64_to_cpu(str->di_mtime);
-	inode->i_mtime.tv_nsec = be32_to_cpu(str->di_mtime_nsec);
+	iatime = inode_get_atime(inode);
+	if (timespec64_compare(&iatime, &atime) < 0)
+		inode_set_atime_to_ts(inode, atime);
+	inode_set_mtime(inode, be64_to_cpu(str->di_mtime),
+			be32_to_cpu(str->di_mtime_nsec));
 	inode_set_ctime(inode, be64_to_cpu(str->di_ctime),
 			be32_to_cpu(str->di_ctime_nsec));
 
@@ -614,18 +615,6 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl)
 }
 
 /**
- * freeze_go_demote_ok
- * @gl: the glock
- *
- * Always returns 0
- */
-
-static int freeze_go_demote_ok(const struct gfs2_glock *gl)
-{
-	return 0;
-}
-
-/**
  * iopen_go_callback - schedule the dcache entry for the inode to be deleted
  * @gl: the glock
  * @remote: true if this came from a different cluster node
@@ -744,7 +733,6 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 
 const struct gfs2_glock_operations gfs2_freeze_glops = {
 	.go_xmote_bh = freeze_go_xmote_bh,
-	.go_demote_ok = freeze_go_demote_ok,
 	.go_callback = freeze_go_callback,
 	.go_type = LM_TYPE_NONDISK,
 	.go_flags = GLOF_NONDISK,

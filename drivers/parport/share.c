@@ -361,7 +361,6 @@ static void free_port(struct device *dev)
 		kfree(port->probe_info[d].description);
 	}
 
-	kfree(port->name);
 	kfree(port);
 }
 
@@ -438,7 +437,6 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	struct parport *tmp;
 	int num;
 	int device;
-	char *name;
 	int ret;
 
 	tmp = kzalloc(sizeof(struct parport), GFP_KERNEL);
@@ -450,13 +448,9 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	tmp->irq = irq;
 	tmp->dma = dma;
 	tmp->muxport = tmp->daisy = tmp->muxsel = -1;
-	tmp->modes = 0;
 	INIT_LIST_HEAD(&tmp->list);
-	tmp->devices = tmp->cad = NULL;
-	tmp->flags = 0;
 	tmp->ops = ops;
 	tmp->physport = tmp;
-	memset(tmp->probe_info, 0, 5 * sizeof(struct parport_device_info));
 	rwlock_init(&tmp->cad_lock);
 	spin_lock_init(&tmp->waitlist_lock);
 	spin_lock_init(&tmp->pardevice_lock);
@@ -465,19 +459,15 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	sema_init(&tmp->ieee1284.irq, 0);
 	tmp->spintime = parport_default_spintime;
 	atomic_set(&tmp->ref_count, 1);
-	INIT_LIST_HEAD(&tmp->full_list);
 
-	name = kmalloc(PARPORT_NAME_MAX_LEN, GFP_KERNEL);
-	if (!name) {
-		kfree(tmp);
-		return NULL;
-	}
 	/* Search for the lowest free parport number. */
 
 	spin_lock(&full_list_lock);
-	for (l = all_ports.next, num = 0; l != &all_ports; l = l->next, num++) {
+	num = 0;
+	list_for_each(l, &all_ports) {
 		struct parport *p = list_entry(l, struct parport, full_list);
-		if (p->number != num)
+
+		if (p->number != num++)
 			break;
 	}
 	tmp->portnum = tmp->number = num;
@@ -487,18 +477,16 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	/*
 	 * Now that the portnum is known finish doing the Init.
 	 */
-	sprintf(name, "parport%d", tmp->portnum = tmp->number);
-	tmp->name = name;
+	dev_set_name(&tmp->bus_dev, "parport%d", tmp->portnum);
 	tmp->bus_dev.bus = &parport_bus_type;
 	tmp->bus_dev.release = free_port;
-	dev_set_name(&tmp->bus_dev, name);
 	tmp->bus_dev.type = &parport_device_type;
+
+	tmp->name = dev_name(&tmp->bus_dev);
 
 	for (device = 0; device < 5; device++)
 		/* assume the worst */
 		tmp->probe_info[device].class = PARPORT_CLASS_LEGACY;
-
-	tmp->waithead = tmp->waittail = NULL;
 
 	ret = device_register(&tmp->bus_dev);
 	if (ret) {

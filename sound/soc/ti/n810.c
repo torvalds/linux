@@ -15,14 +15,14 @@
 #include <sound/soc.h>
 
 #include <asm/mach-types.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"
 
-#define N810_HEADSET_AMP_GPIO	10
-#define N810_SPEAKER_AMP_GPIO	101
+static struct gpio_desc *n810_headset_amp;
+static struct gpio_desc *n810_speaker_amp;
 
 enum {
 	N810_JACK_DISABLED,
@@ -84,7 +84,7 @@ static void n810_ext_control(struct snd_soc_dapm_context *dapm)
 static int n810_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
 
@@ -100,8 +100,8 @@ static void n810_shutdown(struct snd_pcm_substream *substream)
 static int n810_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int err;
 
 	/* Set the codec system clock for DAC and ADC */
@@ -187,9 +187,9 @@ static int n810_spk_event(struct snd_soc_dapm_widget *w,
 			  struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(N810_SPEAKER_AMP_GPIO, 1);
+		gpiod_set_value(n810_speaker_amp, 1);
 	else
-		gpio_set_value(N810_SPEAKER_AMP_GPIO, 0);
+		gpiod_set_value(n810_speaker_amp, 0);
 
 	return 0;
 }
@@ -198,9 +198,9 @@ static int n810_jack_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *k, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		gpio_set_value(N810_HEADSET_AMP_GPIO, 1);
+		gpiod_set_value(n810_headset_amp, 1);
 	else
-		gpio_set_value(N810_HEADSET_AMP_GPIO, 0);
+		gpiod_set_value(n810_headset_amp, 0);
 
 	return 0;
 }
@@ -327,14 +327,19 @@ static int __init n810_soc_init(void)
 	clk_set_parent(sys_clkout2_src, func96m_clk);
 	clk_set_rate(sys_clkout2, 12000000);
 
-	if (WARN_ON((gpio_request(N810_HEADSET_AMP_GPIO, "hs_amp") < 0) ||
-		    (gpio_request(N810_SPEAKER_AMP_GPIO, "spk_amp") < 0))) {
-		err = -EINVAL;
+	n810_headset_amp = devm_gpiod_get(&n810_snd_device->dev,
+					  "headphone", GPIOD_OUT_LOW);
+	if (IS_ERR(n810_headset_amp)) {
+		err = PTR_ERR(n810_headset_amp);
 		goto err4;
 	}
 
-	gpio_direction_output(N810_HEADSET_AMP_GPIO, 0);
-	gpio_direction_output(N810_SPEAKER_AMP_GPIO, 0);
+	n810_speaker_amp = devm_gpiod_get(&n810_snd_device->dev,
+					  "speaker", GPIOD_OUT_LOW);
+	if (IS_ERR(n810_speaker_amp)) {
+		err = PTR_ERR(n810_speaker_amp);
+		goto err4;
+	}
 
 	return 0;
 err4:
@@ -351,8 +356,6 @@ err1:
 
 static void __exit n810_soc_exit(void)
 {
-	gpio_free(N810_SPEAKER_AMP_GPIO);
-	gpio_free(N810_HEADSET_AMP_GPIO);
 	clk_put(sys_clkout2_src);
 	clk_put(sys_clkout2);
 	clk_put(func96m_clk);

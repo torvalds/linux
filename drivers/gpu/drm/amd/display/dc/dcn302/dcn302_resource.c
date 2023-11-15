@@ -74,6 +74,8 @@
 #include "nbio/nbio_7_4_offset.h"
 #include "amdgpu_socbb.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 static const struct dc_debug_options debug_defaults_drv = {
@@ -97,6 +99,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.use_max_lb = true,
 		.exit_idle_opt_for_cursor_updates = true,
 		.enable_legacy_fast_update = false,
+		.using_dml2 = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -1137,6 +1140,7 @@ static struct resource_funcs dcn302_res_pool_funcs = {
 		.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 		.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 		.acquire_free_pipe_as_secondary_dpp_pipe = dcn20_acquire_free_pipe_for_layer,
+		.release_pipe = dcn20_release_pipe,
 		.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 		.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 		.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,

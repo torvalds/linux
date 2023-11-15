@@ -308,7 +308,7 @@ void test_fill_link_info(void)
 		return;
 
 	/* load kallsyms to compare the addr */
-	if (!ASSERT_OK(load_kallsyms_refresh(), "load_kallsyms_refresh"))
+	if (!ASSERT_OK(load_kallsyms(), "load_kallsyms"))
 		goto cleanup;
 
 	kprobe_addr = ksym_get_addr(KPROBE_FUNC);

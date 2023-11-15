@@ -208,7 +208,7 @@ static void mv88e639x_sgmii_pcs_pre_config(struct phylink_pcs *pcs,
 
 static int mv88e6390_erratum_3_14(struct mv88e639x_pcs *mpcs)
 {
-	const int lanes[] = { MV88E6390_PORT9_LANE0, MV88E6390_PORT9_LANE1,
+	static const int lanes[] = { MV88E6390_PORT9_LANE0, MV88E6390_PORT9_LANE1,
 		MV88E6390_PORT9_LANE2, MV88E6390_PORT9_LANE3,
 		MV88E6390_PORT10_LANE0, MV88E6390_PORT10_LANE1,
 		MV88E6390_PORT10_LANE2, MV88E6390_PORT10_LANE3 };

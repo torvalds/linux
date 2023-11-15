@@ -106,6 +106,14 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&periphs_pinctrl 0 0 82>;
 				};
+
+				remote_pins: remote-pin {
+					mux {
+						groups = "remote_in";
+						function = "remote_in";
+						bias-disable;
+					};
+				};
 			};
 
 			gpio_intc: interrupt-controller@4080 {
@@ -132,6 +140,18 @@
 				compatible = "amlogic,meson-s4-reset";
 				reg = <0x0 0x2000 0x0 0x98>;
 				#reset-cells = <1>;
+			};
+
+			ir: ir@84040 {
+				compatible = "amlogic,meson-s4-ir";
+				reg = <0x0 0x84040 0x0 0x30>;
+				interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+				status = "disabled";
+			};
+
+			hwrng: rng@440788 {
+				compatible = "amlogic,meson-s4-rng";
+				reg = <0x0 0x440788 0x0 0x0c>;
 			};
 		};
 	};

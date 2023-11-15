@@ -592,30 +592,16 @@ static void rtl92d_dm_check_edca_turbo(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	const u32 edca_be_ul = 0x5ea42b;
+	const u32 edca_be_dl = 0x5ea42b;
 	static u64 last_txok_cnt;
 	static u64 last_rxok_cnt;
 	u64 cur_txok_cnt;
 	u64 cur_rxok_cnt;
-	u32 edca_be_ul = 0x5ea42b;
-	u32 edca_be_dl = 0x5ea42b;
 
 	if (mac->link_state != MAC80211_LINKED) {
 		rtlpriv->dm.current_turbo_edca = false;
 		goto exit;
-	}
-
-	/* Enable BEQ TxOP limit configuration in wireless G-mode. */
-	/* To check whether we shall force turn on TXOP configuration. */
-	if ((!rtlpriv->dm.disable_framebursting) &&
-	    (rtlpriv->sec.pairwise_enc_algorithm == WEP40_ENCRYPTION ||
-	    rtlpriv->sec.pairwise_enc_algorithm == WEP104_ENCRYPTION ||
-	    rtlpriv->sec.pairwise_enc_algorithm == TKIP_ENCRYPTION)) {
-		/* Force TxOP limit to 0x005e for UL. */
-		if (!(edca_be_ul & 0xffff0000))
-			edca_be_ul |= 0x005e0000;
-		/* Force TxOP limit to 0x005e for DL. */
-		if (!(edca_be_dl & 0xffff0000))
-			edca_be_dl |= 0x005e0000;
 	}
 
 	if ((!rtlpriv->dm.is_any_nonbepkts) &&

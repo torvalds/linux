@@ -185,7 +185,6 @@ static const struct pwm_ops hibvt_pwm_ops = {
 	.get_state = hibvt_pwm_get_state,
 	.apply = hibvt_pwm_apply,
 
-	.owner = THIS_MODULE,
 };
 
 static int hibvt_pwm_probe(struct platform_device *pdev)

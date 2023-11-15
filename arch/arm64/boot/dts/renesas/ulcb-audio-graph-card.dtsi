@@ -18,10 +18,10 @@
 / {
 	sound_card: sound {
 		compatible = "audio-graph-card";
-		label = "rcar-sound";
+		label = "snd-ulcb";
 
-		dais = <&rsnd_port0 /* (A) CPU0 <-> ak4613 */
-			&rsnd_port1 /* (B) CPU1  -> HDMI   */
+		dais = <&snd_ulcb1 /* (A) CPU0 <-> ak4613 */
+			&snd_ulcb2 /* (B) CPU1  -> HDMI   */
 		>;
 	};
 };
@@ -53,10 +53,15 @@
 };
 
 &rcar_sound {
-	ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ports@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		rsnd_port0: port@0 {
+		reg = <0>;
+
+		snd_ulcb1: port@0 {
 			/*
 			 * (A) CPU0 <-> ak4613
 			 */
@@ -69,7 +74,7 @@
 				capture  = <&ssi1>, <&src1>, <&dvc1>;
 			};
 		};
-		rsnd_port1: port@1 {
+		snd_ulcb2: port@1 {
 			/*
 			 * (B) CPU1 -> HDMI
 			 */

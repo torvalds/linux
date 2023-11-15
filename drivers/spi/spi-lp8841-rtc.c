@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * SPI master driver for ICP DAS LP-8841 RTC
+ * SPI host driver for ICP DAS LP-8841 RTC
  *
  * Copyright (C) 2016 Sergei Ianovich
  *
@@ -73,13 +73,13 @@ bitbang_txrx_be_cpha0_lsb(struct spi_lp8841_rtc *data,
 	/* clock starts at inactive polarity */
 	for (; likely(bits); bits--) {
 
-		/* setup LSB (to slave) on leading edge */
+		/* setup LSB (to target) on leading edge */
 		if ((flags & SPI_CONTROLLER_NO_TX) == 0)
 			setmosi(data, (word & 1));
 
 		usleep_range(usecs, usecs + 1);	/* T(setup) */
 
-		/* sample LSB (from slave) on trailing edge */
+		/* sample LSB (from target) on trailing edge */
 		word >>= 1;
 		if ((flags & SPI_CONTROLLER_NO_RX) == 0)
 			word |= (getmiso(data) << 31);
@@ -95,11 +95,11 @@ bitbang_txrx_be_cpha0_lsb(struct spi_lp8841_rtc *data,
 }
 
 static int
-spi_lp8841_rtc_transfer_one(struct spi_master *master,
+spi_lp8841_rtc_transfer_one(struct spi_controller *host,
 			    struct spi_device *spi,
 			    struct spi_transfer *t)
 {
-	struct spi_lp8841_rtc	*data = spi_master_get_devdata(master);
+	struct spi_lp8841_rtc	*data = spi_controller_get_devdata(host);
 	unsigned		count = t->len;
 	const u8		*tx = t->tx_buf;
 	u8			*rx = t->rx_buf;
@@ -128,7 +128,7 @@ spi_lp8841_rtc_transfer_one(struct spi_master *master,
 		ret = -EINVAL;
 	}
 
-	spi_finalize_current_transfer(master);
+	spi_finalize_current_transfer(host);
 
 	return ret;
 }
@@ -136,7 +136,7 @@ spi_lp8841_rtc_transfer_one(struct spi_master *master,
 static void
 spi_lp8841_rtc_set_cs(struct spi_device *spi, bool enable)
 {
-	struct spi_lp8841_rtc *data = spi_master_get_devdata(spi->master);
+	struct spi_lp8841_rtc *data = spi_controller_get_devdata(spi->controller);
 
 	data->state = 0;
 	writeb(data->state, data->iomem);
@@ -182,48 +182,48 @@ static int
 spi_lp8841_rtc_probe(struct platform_device *pdev)
 {
 	int				ret;
-	struct spi_master		*master;
+	struct spi_controller		*host;
 	struct spi_lp8841_rtc		*data;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*data));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*data));
+	if (!host)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 
-	master->flags = SPI_CONTROLLER_HALF_DUPLEX;
-	master->mode_bits = SPI_CS_HIGH | SPI_3WIRE | SPI_LSB_FIRST;
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
+	host->mode_bits = SPI_CS_HIGH | SPI_3WIRE | SPI_LSB_FIRST;
 
-	master->bus_num = pdev->id;
-	master->num_chipselect = 1;
-	master->setup = spi_lp8841_rtc_setup;
-	master->set_cs = spi_lp8841_rtc_set_cs;
-	master->transfer_one = spi_lp8841_rtc_transfer_one;
-	master->bits_per_word_mask = SPI_BPW_MASK(8);
+	host->bus_num = pdev->id;
+	host->num_chipselect = 1;
+	host->setup = spi_lp8841_rtc_setup;
+	host->set_cs = spi_lp8841_rtc_set_cs;
+	host->transfer_one = spi_lp8841_rtc_transfer_one;
+	host->bits_per_word_mask = SPI_BPW_MASK(8);
 #ifdef CONFIG_OF
-	master->dev.of_node = pdev->dev.of_node;
+	host->dev.of_node = pdev->dev.of_node;
 #endif
 
-	data = spi_master_get_devdata(master);
+	data = spi_controller_get_devdata(host);
 
 	data->iomem = devm_platform_ioremap_resource(pdev, 0);
 	ret = PTR_ERR_OR_ZERO(data->iomem);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get IO address\n");
-		goto err_put_master;
+		goto err_put_host;
 	}
 
 	/* register with the SPI framework */
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register spi master\n");
-		goto err_put_master;
+		dev_err(&pdev->dev, "cannot register spi host\n");
+		goto err_put_host;
 	}
 
 	return ret;
 
 
-err_put_master:
-	spi_master_put(master);
+err_put_host:
+	spi_controller_put(host);
 
 	return ret;
 }
@@ -239,6 +239,6 @@ static struct platform_driver spi_lp8841_rtc_driver = {
 };
 module_platform_driver(spi_lp8841_rtc_driver);
 
-MODULE_DESCRIPTION("SPI master driver for ICP DAS LP-8841 RTC");
+MODULE_DESCRIPTION("SPI host driver for ICP DAS LP-8841 RTC");
 MODULE_AUTHOR("Sergei Ianovich");
 MODULE_LICENSE("GPL");

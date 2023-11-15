@@ -22,13 +22,6 @@ struct resv_map;
 struct file_region;
 
 #ifdef CONFIG_CGROUP_HUGETLB
-/*
- * Minimum page order trackable by hugetlb cgroup.
- * At least 3 pages are necessary for all the tracking information.
- * The second tail page contains all of the hugetlb-specific fields.
- */
-#define HUGETLB_CGROUP_MIN_ORDER order_base_2(__NR_USED_SUBPAGE)
-
 enum hugetlb_memory_event {
 	HUGETLB_MAX,
 	HUGETLB_NR_MEMORY_EVENTS,
@@ -68,8 +61,6 @@ static inline struct hugetlb_cgroup *
 __hugetlb_cgroup_from_folio(struct folio *folio, bool rsvd)
 {
 	VM_BUG_ON_FOLIO(!folio_test_hugetlb(folio), folio);
-	if (folio_order(folio) < HUGETLB_CGROUP_MIN_ORDER)
-		return NULL;
 	if (rsvd)
 		return folio->_hugetlb_cgroup_rsvd;
 	else
@@ -91,8 +82,6 @@ static inline void __set_hugetlb_cgroup(struct folio *folio,
 				       struct hugetlb_cgroup *h_cg, bool rsvd)
 {
 	VM_BUG_ON_FOLIO(!folio_test_hugetlb(folio), folio);
-	if (folio_order(folio) < HUGETLB_CGROUP_MIN_ORDER)
-		return;
 	if (rsvd)
 		folio->_hugetlb_cgroup_rsvd = h_cg;
 	else

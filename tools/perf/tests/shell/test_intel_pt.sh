@@ -8,6 +8,7 @@ set -e
 perf list | grep -q 'intel_pt//' || exit 2
 
 shelldir=$(dirname "$0")
+# shellcheck source=lib/waiting.sh
 . "${shelldir}"/lib/waiting.sh
 
 skip_cnt=0

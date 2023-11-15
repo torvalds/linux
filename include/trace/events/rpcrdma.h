@@ -1667,7 +1667,7 @@ TRACE_EVENT(svcrdma_encode_wseg,
 		__entry->offset = offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1703,7 +1703,7 @@ TRACE_EVENT(svcrdma_decode_rseg,
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u position=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->position, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1740,7 +1740,7 @@ TRACE_EVENT(svcrdma_decode_wseg,
 		__entry->offset = segment->rs_offset;
 	),
 
-	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+	TP_printk("cq.id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->segno, __entry->length,
 		(unsigned long long)__entry->offset, __entry->handle
@@ -1959,7 +1959,7 @@ TRACE_EVENT(svcrdma_send_pullup,
 		__entry->msglen = msglen;
 	),
 
-	TP_printk("cq_id=%u cid=%d hdr=%u msg=%u (total %u)",
+	TP_printk("cq.id=%u cid=%d hdr=%u msg=%u (total %u)",
 		__entry->cq_id, __entry->completion_id,
 		__entry->hdrlen, __entry->msglen,
 		__entry->hdrlen + __entry->msglen)
@@ -2014,7 +2014,7 @@ TRACE_EVENT(svcrdma_post_send,
 					wr->ex.invalidate_rkey : 0;
 	),
 
-	TP_printk("cq_id=%u cid=%d num_sge=%u inv_rkey=0x%08x",
+	TP_printk("cq.id=%u cid=%d num_sge=%u inv_rkey=0x%08x",
 		__entry->cq_id, __entry->completion_id,
 		__entry->num_sge, __entry->inv_rkey
 	)

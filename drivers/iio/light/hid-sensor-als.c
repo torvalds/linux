@@ -14,8 +14,11 @@
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 enum {
-	CHANNEL_SCAN_INDEX_INTENSITY = 0,
-	CHANNEL_SCAN_INDEX_ILLUM = 1,
+	CHANNEL_SCAN_INDEX_INTENSITY,
+	CHANNEL_SCAN_INDEX_ILLUM,
+	CHANNEL_SCAN_INDEX_COLOR_TEMP,
+	CHANNEL_SCAN_INDEX_CHROMATICITY_X,
+	CHANNEL_SCAN_INDEX_CHROMATICITY_Y,
 	CHANNEL_SCAN_INDEX_MAX
 };
 
@@ -24,7 +27,7 @@ enum {
 struct als_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
-	struct hid_sensor_hub_attribute_info als_illum;
+	struct hid_sensor_hub_attribute_info als[CHANNEL_SCAN_INDEX_MAX];
 	struct {
 		u32 illum[CHANNEL_SCAN_INDEX_MAX];
 		u64 timestamp __aligned(8);
@@ -65,6 +68,40 @@ static const struct iio_chan_spec als_channels[] = {
 		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_ILLUM,
 	},
+	{
+		.type = IIO_COLORTEMP,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
+		.scan_index = CHANNEL_SCAN_INDEX_COLOR_TEMP,
+	},
+	{
+		.type = IIO_CHROMATICITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_X,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
+		.scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_X,
+	},
+	{
+		.type = IIO_CHROMATICITY,
+		.modified = 1,
+		.channel2 = IIO_MOD_Y,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
+		.scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_Y,
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
 };
 
@@ -99,9 +136,24 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		switch (chan->scan_index) {
 		case  CHANNEL_SCAN_INDEX_INTENSITY:
 		case  CHANNEL_SCAN_INDEX_ILLUM:
-			report_id = als_state->als_illum.report_id;
-			min = als_state->als_illum.logical_minimum;
+			report_id = als_state->als[chan->scan_index].report_id;
+			min = als_state->als[chan->scan_index].logical_minimum;
 			address = HID_USAGE_SENSOR_LIGHT_ILLUM;
+			break;
+		case  CHANNEL_SCAN_INDEX_COLOR_TEMP:
+			report_id = als_state->als[chan->scan_index].report_id;
+			min = als_state->als[chan->scan_index].logical_minimum;
+			address = HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE;
+			break;
+		case  CHANNEL_SCAN_INDEX_CHROMATICITY_X:
+			report_id = als_state->als[chan->scan_index].report_id;
+			min = als_state->als[chan->scan_index].logical_minimum;
+			address = HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X;
+			break;
+		case  CHANNEL_SCAN_INDEX_CHROMATICITY_Y:
+			report_id = als_state->als[chan->scan_index].report_id;
+			min = als_state->als[chan->scan_index].logical_minimum;
+			address = HID_USAGE_SENSOR_LIGHT_CHROMATICITY_Y;
 			break;
 		default:
 			report_id = -1;
@@ -223,6 +275,18 @@ static int als_capture_sample(struct hid_sensor_hub_device *hsdev,
 		als_state->scan.illum[CHANNEL_SCAN_INDEX_ILLUM] = sample_data;
 		ret = 0;
 		break;
+	case HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE:
+		als_state->scan.illum[CHANNEL_SCAN_INDEX_COLOR_TEMP] = sample_data;
+		ret = 0;
+		break;
+	case HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X:
+		als_state->scan.illum[CHANNEL_SCAN_INDEX_CHROMATICITY_X] = sample_data;
+		ret = 0;
+		break;
+	case HID_USAGE_SENSOR_LIGHT_CHROMATICITY_Y:
+		als_state->scan.illum[CHANNEL_SCAN_INDEX_CHROMATICITY_Y] = sample_data;
+		ret = 0;
+		break;
 	case HID_USAGE_SENSOR_TIME_TIMESTAMP:
 		als_state->timestamp = hid_sensor_convert_timestamp(&als_state->common_attributes,
 								    *(s64 *)raw_data);
@@ -242,22 +306,56 @@ static int als_parse_report(struct platform_device *pdev,
 				struct als_state *st)
 {
 	int ret;
+	int i;
+
+	for (i = 0; i <= CHANNEL_SCAN_INDEX_ILLUM; ++i) {
+		ret = sensor_hub_input_get_attribute_info(hsdev,
+						HID_INPUT_REPORT,
+						usage_id,
+						HID_USAGE_SENSOR_LIGHT_ILLUM,
+						&st->als[i]);
+		if (ret < 0)
+			return ret;
+		als_adjust_channel_bit_mask(channels, i, st->als[i].size);
+
+		dev_dbg(&pdev->dev, "als %x:%x\n", st->als[i].index,
+			st->als[i].report_id);
+	}
 
 	ret = sensor_hub_input_get_attribute_info(hsdev, HID_INPUT_REPORT,
-			usage_id,
-			HID_USAGE_SENSOR_LIGHT_ILLUM,
-			&st->als_illum);
+				usage_id,
+				HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE,
+				&st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP]);
 	if (ret < 0)
 		return ret;
-	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_INTENSITY,
-				    st->als_illum.size);
-	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_ILLUM,
-					st->als_illum.size);
+	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_COLOR_TEMP,
+				st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].size);
 
-	dev_dbg(&pdev->dev, "als %x:%x\n", st->als_illum.index,
-			st->als_illum.report_id);
+	dev_dbg(&pdev->dev, "als %x:%x\n",
+		st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].index,
+		st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].report_id);
 
-	st->scale_precision = hid_sensor_format_scale(usage_id, &st->als_illum,
+	for (i = 0; i < 2; i++) {
+		int next_scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_X + i;
+
+		ret = sensor_hub_input_get_attribute_info(hsdev,
+				HID_INPUT_REPORT, usage_id,
+				HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X + i,
+				&st->als[next_scan_index]);
+		if (ret < 0)
+			return ret;
+
+		als_adjust_channel_bit_mask(channels,
+					CHANNEL_SCAN_INDEX_CHROMATICITY_X + i,
+					st->als[next_scan_index].size);
+
+		dev_dbg(&pdev->dev, "als %x:%x\n",
+			st->als[next_scan_index].index,
+			st->als[next_scan_index].report_id);
+	}
+
+	st->scale_precision = hid_sensor_format_scale(usage_id,
+				&st->als[CHANNEL_SCAN_INDEX_INTENSITY],
 				&st->scale_pre_decml, &st->scale_post_decml);
 
 	return ret;
@@ -347,7 +445,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_als_remove(struct platform_device *pdev)
+static void hid_als_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -356,8 +454,6 @@ static int hid_als_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &als_state->common_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_als_ids[] = {
@@ -380,7 +476,7 @@ static struct platform_driver hid_als_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_als_probe,
-	.remove		= hid_als_remove,
+	.remove_new	= hid_als_remove,
 };
 module_platform_driver(hid_als_platform_driver);
 

@@ -19,6 +19,12 @@ struct mlx5_sf_dev {
 	u16 fn_id;
 };
 
+struct mlx5_sf_peer_devlink_event_ctx {
+	u16 fn_id;
+	struct devlink *devlink;
+	int err;
+};
+
 void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev);
 void mlx5_sf_dev_table_destroy(struct mlx5_core_dev *dev);
 

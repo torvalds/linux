@@ -138,7 +138,6 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct pci_dev *pdev = dev->pdev;
-	bool sf_dev_allocated;
 	int ret = 0;
 
 	if (mlx5_dev_is_lightweight(dev)) {
@@ -146,16 +145,6 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 			return -EOPNOTSUPP;
 		mlx5_unload_one_light(dev);
 		return 0;
-	}
-
-	sf_dev_allocated = mlx5_sf_dev_allocated(dev);
-	if (sf_dev_allocated) {
-		/* Reload results in deleting SF device which further results in
-		 * unregistering devlink instance while holding devlink_mutext.
-		 * Hence, do not support reload.
-		 */
-		NL_SET_ERR_MSG_MOD(extack, "reload is unsupported when SFs are allocated");
-		return -EOPNOTSUPP;
 	}
 
 	if (mlx5_lag_is_active(dev)) {

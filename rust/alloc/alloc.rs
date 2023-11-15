@@ -6,9 +6,7 @@
 
 #[cfg(not(test))]
 use core::intrinsics;
-use core::intrinsics::{min_align_of_val, size_of_val};
 
-use core::ptr::Unique;
 #[cfg(not(test))]
 use core::ptr::{self, NonNull};
 
@@ -40,7 +38,6 @@ extern "Rust" {
     #[rustc_nounwind]
     fn __rust_alloc_zeroed(size: usize, align: usize) -> *mut u8;
 
-    #[cfg(not(bootstrap))]
     static __rust_no_alloc_shim_is_unstable: u8;
 }
 
@@ -98,7 +95,6 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
     unsafe {
         // Make sure we don't accidentally allow omitting the allocator shim in
         // stable code until it is actually stabilized.
-        #[cfg(not(bootstrap))]
         core::ptr::read_volatile(&__rust_no_alloc_shim_is_unstable);
 
         __rust_alloc(layout.size(), layout.align())
@@ -339,22 +335,6 @@ unsafe fn exchange_malloc(size: usize, align: usize) -> *mut u8 {
     }
 }
 
-#[cfg_attr(not(test), lang = "box_free")]
-#[inline]
-// This signature has to be the same as `Box`, otherwise an ICE will happen.
-// When an additional parameter to `Box` is added (like `A: Allocator`), this has to be added here as
-// well.
-// For example if `Box` is changed to  `struct Box<T: ?Sized, A: Allocator>(Unique<T>, A)`,
-// this function has to be changed to `fn box_free<T: ?Sized, A: Allocator>(Unique<T>, A)` as well.
-pub(crate) unsafe fn box_free<T: ?Sized, A: Allocator>(ptr: Unique<T>, alloc: A) {
-    unsafe {
-        let size = size_of_val(ptr.as_ref());
-        let align = min_align_of_val(ptr.as_ref());
-        let layout = Layout::from_size_align_unchecked(size, align);
-        alloc.deallocate(From::from(ptr.cast()), layout)
-    }
-}
-
 // # Allocation error handler
 
 #[cfg(not(no_global_oom_handling))]
@@ -414,7 +394,6 @@ pub mod __alloc_error_handler {
             static __rust_alloc_error_handler_should_panic: u8;
         }
 
-        #[allow(unused_unsafe)]
         if unsafe { __rust_alloc_error_handler_should_panic != 0 } {
             panic!("memory allocation of {size} bytes failed")
         } else {

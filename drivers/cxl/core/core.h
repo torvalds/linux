@@ -73,8 +73,10 @@ struct cxl_rcrb_info;
 resource_size_t __rcrb_to_component(struct device *dev,
 				    struct cxl_rcrb_info *ri,
 				    enum cxl_rcrb which);
+u16 cxl_rcrb_to_aer(struct device *dev, resource_size_t rcrb);
 
 extern struct rw_semaphore cxl_dpa_rwsem;
+extern struct rw_semaphore cxl_region_rwsem;
 
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);

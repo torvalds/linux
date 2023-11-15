@@ -418,8 +418,9 @@ config IIO_KX022A_SPI
 	select IIO_KX022A
 	select REGMAP_SPI
 	help
-	  Enable support for the Kionix KX022A digital tri-axis
-	  accelerometer connected to I2C interface.
+	  Enable support for the Kionix digital tri-axis accelerometers
+	  connected to SPI interface. Supported devices are:
+	    KX022A, KX132-1211, KX132ACR-LBZ
 
 config IIO_KX022A_I2C
 	tristate "Kionix KX022A tri-axis digital accelerometer I2C interface"
@@ -427,8 +428,9 @@ config IIO_KX022A_I2C
 	select IIO_KX022A
 	select REGMAP_I2C
 	help
-	  Enable support for the Kionix KX022A digital tri-axis
-	  accelerometer connected to I2C interface.
+	  Enable support for the Kionix digital tri-axis accelerometers
+	  connected to I2C interface. Supported devices are:
+	    KX022A, KX132-1211, KX132ACR-LBZ
 
 config KXSD9
 	tristate "Kionix KXSD9 Accelerometer Driver"

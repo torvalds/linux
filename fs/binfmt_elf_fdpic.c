@@ -899,10 +899,12 @@ static int elf_fdpic_map_file(struct elf_fdpic_params *params,
 	kdebug("- DYNAMIC[]: %lx", params->dynamic_addr);
 	seg = loadmap->segs;
 	for (loop = 0; loop < loadmap->nsegs; loop++, seg++)
-		kdebug("- LOAD[%d] : %08x-%08x [va=%x ms=%x]",
+		kdebug("- LOAD[%d] : %08llx-%08llx [va=%llx ms=%llx]",
 		       loop,
-		       seg->addr, seg->addr + seg->p_memsz - 1,
-		       seg->p_vaddr, seg->p_memsz);
+		       (unsigned long long) seg->addr,
+		       (unsigned long long) seg->addr + seg->p_memsz - 1,
+		       (unsigned long long) seg->p_vaddr,
+		       (unsigned long long) seg->p_memsz);
 
 	return 0;
 
@@ -1081,9 +1083,10 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 		maddr = vm_mmap(file, maddr, phdr->p_memsz + disp, prot, flags,
 				phdr->p_offset - disp);
 
-		kdebug("mmap[%d] <file> sz=%lx pr=%x fl=%x of=%lx --> %08lx",
-		       loop, phdr->p_memsz + disp, prot, flags,
-		       phdr->p_offset - disp, maddr);
+		kdebug("mmap[%d] <file> sz=%llx pr=%x fl=%x of=%llx --> %08lx",
+		       loop, (unsigned long long) phdr->p_memsz + disp,
+		       prot, flags, (unsigned long long) phdr->p_offset - disp,
+		       maddr);
 
 		if (IS_ERR_VALUE(maddr))
 			return (int) maddr;
@@ -1145,8 +1148,9 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 #else
 		if (excess > 0) {
-			kdebug("clear[%d] ad=%lx sz=%lx",
-			       loop, maddr + phdr->p_filesz, excess);
+			kdebug("clear[%d] ad=%llx sz=%lx", loop,
+			       (unsigned long long) maddr + phdr->p_filesz,
+			       excess);
 			if (clear_user((void *) maddr + phdr->p_filesz, excess))
 				return -EFAULT;
 		}

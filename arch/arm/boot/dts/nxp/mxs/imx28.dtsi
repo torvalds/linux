@@ -1003,7 +1003,7 @@
 			};
 
 			dcp: crypto@80028000 {
-				compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
+				compatible = "fsl,imx28-dcp";
 				reg = <0x80028000 0x2000>;
 				interrupts = <52>, <53>, <54>;
 				status = "okay";
@@ -1185,7 +1185,7 @@
 				compatible = "fsl,imx28-pwm", "fsl,imx23-pwm";
 				reg = <0x80064000 0x2000>;
 				clocks = <&clks 44>;
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				fsl,pwm-number = <8>;
 				status = "disabled";
 			};
@@ -1252,7 +1252,7 @@
 				reg = <0x80074000 0x1000>;
 				interrupts = <47>;
 				clocks = <&clks 45>, <&clks 26>;
-				clock-names = "uart", "apb_pclk";
+				clock-names = "uartclk", "apb_pclk";
 				status = "disabled";
 			};
 

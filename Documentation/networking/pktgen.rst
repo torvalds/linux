@@ -178,6 +178,7 @@ Examples::
 			      IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
 			      NODE_ALLOC # node specific memory allocation
 			      NO_TIMESTAMP # disable timestamping
+			      SHARED # enable shared SKB
  pgset 'flag ![name]'    Clear a flag to determine behaviour.
 			 Note that you might need to use single quote in
 			 interactive mode, so that your shell wouldn't expand
@@ -288,6 +289,16 @@ To avoid breaking existing testbed scripts for using AH type and tunnel mode,
 you can use "pgset spi SPI_VALUE" to specify which transformation mode
 to employ.
 
+Disable shared SKB
+==================
+By default, SKBs sent by pktgen are shared (user count > 1).
+To test with non-shared SKBs, remove the "SHARED" flag by simply setting::
+
+	pg_set "flag !SHARED"
+
+However, if the "clone_skb" or "burst" parameters are configured, the skb
+still needs to be held by pktgen for further access. Hence the skb must be
+shared.
 
 Current commands and configuration options
 ==========================================
@@ -357,6 +368,7 @@ Current commands and configuration options
     IPSEC
     NODE_ALLOC
     NO_TIMESTAMP
+    SHARED
 
     spi (ipsec)
 

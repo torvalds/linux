@@ -190,5 +190,6 @@ void komeda_crtc_flush_and_wait_for_flip_done(struct komeda_crtc *kcrtc,
 
 struct komeda_kms_dev *komeda_kms_attach(struct komeda_dev *mdev);
 void komeda_kms_detach(struct komeda_kms_dev *kms);
+void komeda_kms_shutdown(struct komeda_kms_dev *kms);
 
 #endif /*_KOMEDA_KMS_H_*/

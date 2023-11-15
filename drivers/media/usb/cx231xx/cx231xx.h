@@ -120,6 +120,9 @@
 #define CX23417_OSC_EN   8
 #define CX23417_RESET    9
 
+#define EP5_BUF_SIZE     4096
+#define EP5_TIMEOUT_MS   2000
+
 struct cx23417_fmt {
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;

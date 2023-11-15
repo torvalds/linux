@@ -665,7 +665,6 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		blocked = cookie & RCFW_CMD_IS_BLOCKING;
 		cookie &= RCFW_MAX_COOKIE_VALUE;
 		crsqe = &rcfw->crsqe_tbl[cookie];
-		crsqe->is_in_used = false;
 
 		if (WARN_ONCE(test_bit(FIRMWARE_STALL_DETECTED,
 				       &rcfw->cmdq.flags),
@@ -681,8 +680,14 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			atomic_dec(&rcfw->timeout_send);
 
 		if (crsqe->is_waiter_alive) {
-			if (crsqe->resp)
+			if (crsqe->resp) {
 				memcpy(crsqe->resp, qp_event, sizeof(*qp_event));
+				/* Insert write memory barrier to ensure that
+				 * response data is copied before clearing the
+				 * flags
+				 */
+				smp_wmb();
+			}
 			if (!blocked)
 				wait_cmds++;
 		}
@@ -693,6 +698,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		crsqe->req_size = 0;
 		if (!is_waiter_alive)
 			crsqe->resp = NULL;
+
+		crsqe->is_in_used = false;
 
 		hwq->cons += req_size;
 

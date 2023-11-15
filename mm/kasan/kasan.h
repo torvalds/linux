@@ -562,7 +562,6 @@ void kasan_restore_multi_shot(bool enabled);
  * code. Declared here to avoid warnings about missing declarations.
  */
 
-asmlinkage void kasan_unpoison_task_stack_below(const void *watermark);
 void __asan_register_globals(void *globals, ssize_t size);
 void __asan_unregister_globals(void *globals, ssize_t size);
 void __asan_handle_no_return(void);

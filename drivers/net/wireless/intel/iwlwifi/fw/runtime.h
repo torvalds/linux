@@ -98,6 +98,8 @@ struct iwl_txf_iter_data {
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
  * @dump: debug dump data
+ * @uats_enabled: VLP or AFC AP is enabled
+ * @uats_table: AP type table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -171,6 +173,8 @@ struct iwl_fw_runtime {
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	u8 reduced_power_flags;
+	bool uats_enabled;
+	struct iwl_uats_table_cmd uats_table;
 #endif
 };
 

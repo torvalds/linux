@@ -871,6 +871,18 @@
 #define LED_CFG_LED_POLAR		FIELD32(0x40000000)
 
 /*
+ * AMPDU_MAX_LEN_20M1S: Per MCS max A-MPDU length, 20 MHz, MCS 0-7
+ * AMPDU_MAX_LEN_20M2S: Per MCS max A-MPDU length, 20 MHz, MCS 8-15
+ * AMPDU_MAX_LEN_40M1S: Per MCS max A-MPDU length, 40 MHz, MCS 0-7
+ * AMPDU_MAX_LEN_40M2S: Per MCS max A-MPDU length, 40 MHz, MCS 8-15
+ * Maximum A-MPDU length = 2^(AMPDU_MAX - 5) kilobytes
+ */
+#define AMPDU_MAX_LEN_20M1S		0x1030
+#define AMPDU_MAX_LEN_20M2S		0x1034
+#define AMPDU_MAX_LEN_40M1S		0x1038
+#define AMPDU_MAX_LEN_40M2S		0x103C
+
+/*
  * AMPDU_BA_WINSIZE: Force BlockAck window size
  * FORCE_WINSIZE_ENABLE:
  *   0: Disable forcing of BlockAck window size
@@ -1544,6 +1556,12 @@
  * EXP_ACK_TIME:
  */
 #define EXP_ACK_TIME			0x1380
+
+/*
+ * HT_FBK_TO_LEGACY: Enable/Disable HT/RTS fallback to OFDM/CCK rate
+ * Not available for legacy SoCs
+ */
+#define HT_FBK_TO_LEGACY		0x1384
 
 /* TX_PWR_CFG_5 */
 #define TX_PWR_CFG_5			0x1384

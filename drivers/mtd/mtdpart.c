@@ -426,7 +426,11 @@ int add_mtd_partitions(struct mtd_info *parent,
 		mtd_add_partition_attrs(child);
 
 		/* Look for subpartitions */
-		parse_mtd_partitions(child, parts[i].types, NULL);
+		ret = parse_mtd_partitions(child, parts[i].types, NULL);
+		if (ret < 0) {
+			pr_err("Failed to parse subpartitions: %d\n", ret);
+			goto err_del_partitions;
+		}
 
 		cur_offset = child->part.offset + child->part.size;
 	}

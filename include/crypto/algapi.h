@@ -195,11 +195,6 @@ static inline void *crypto_tfm_ctx_align(struct crypto_tfm *tfm,
 	return PTR_ALIGN(crypto_tfm_ctx(tfm), align);
 }
 
-static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
-{
-	return crypto_tfm_ctx_align(tfm, crypto_tfm_alg_alignmask(tfm) + 1);
-}
-
 static inline unsigned int crypto_dma_align(void)
 {
 	return CRYPTO_DMA_ALIGN;

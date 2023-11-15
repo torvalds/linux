@@ -77,7 +77,7 @@ struct imx8_acm_priv {
 static const struct clk_parent_data imx8qm_aud_clk_sels[] = {
 	{ .fw_name = "aud_rec_clk0_lpcg_clk" },
 	{ .fw_name = "aud_rec_clk1_lpcg_clk" },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 	{ .fw_name = "hdmi_rx_mclk" },
 	{ .fw_name = "ext_aud_mclk0" },
 	{ .fw_name = "ext_aud_mclk1" },
@@ -103,7 +103,7 @@ static const struct clk_parent_data imx8qm_aud_clk_sels[] = {
 static const struct clk_parent_data imx8qm_mclk_out_sels[] = {
 	{ .fw_name = "aud_rec_clk0_lpcg_clk" },
 	{ .fw_name = "aud_rec_clk1_lpcg_clk" },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 	{ .fw_name = "hdmi_rx_mclk" },
 	{ .fw_name = "spdif0_rx" },
 	{ .fw_name = "spdif1_rx" },
@@ -122,7 +122,7 @@ static const struct clk_parent_data imx8qm_asrc_mux_clk_sels[] = {
 	{ .fw_name = "sai4_rx_bclk" },
 	{ .fw_name = "sai5_tx_bclk" },
 	{ .index = -1 },
-	{ .fw_name = "mlb_clk" },
+	{ .fw_name = "dummy" },
 
 };
 
@@ -279,8 +279,10 @@ static int clk_imx_acm_attach_pm_domains(struct device *dev,
 
 	for (i = 0; i < dev_pm->num_domains; i++) {
 		dev_pm->pd_dev[i] = dev_pm_domain_attach_by_id(dev, i);
-		if (IS_ERR(dev_pm->pd_dev[i]))
-			return PTR_ERR(dev_pm->pd_dev[i]);
+		if (IS_ERR(dev_pm->pd_dev[i])) {
+			ret = PTR_ERR(dev_pm->pd_dev[i]);
+			goto detach_pm;
+		}
 
 		dev_pm->pd_dev_link[i] = device_link_add(dev,
 							 dev_pm->pd_dev[i],
@@ -308,20 +310,18 @@ detach_pm:
  * @dev: deivice pointer
  * @dev_pm: multi power domain for device
  */
-static int clk_imx_acm_detach_pm_domains(struct device *dev,
-					 struct clk_imx_acm_pm_domains *dev_pm)
+static void clk_imx_acm_detach_pm_domains(struct device *dev,
+					  struct clk_imx_acm_pm_domains *dev_pm)
 {
 	int i;
 
 	if (dev_pm->num_domains <= 1)
-		return 0;
+		return;
 
 	for (i = 0; i < dev_pm->num_domains; i++) {
 		device_link_del(dev_pm->pd_dev_link[i]);
 		dev_pm_domain_detach(dev_pm->pd_dev[i], false);
 	}
-
-	return 0;
 }
 
 static int imx8_acm_clk_probe(struct platform_device *pdev)
@@ -371,22 +371,25 @@ static int imx8_acm_clk_probe(struct platform_device *pdev)
 										sels[i].shift, sels[i].width,
 										0, NULL, NULL);
 		if (IS_ERR(hws[sels[i].clkid])) {
-			pm_runtime_disable(&pdev->dev);
+			ret = PTR_ERR(hws[sels[i].clkid]);
+			imx_check_clk_hws(hws, IMX_ADMA_ACM_CLK_END);
 			goto err_clk_register;
 		}
 	}
 
-	imx_check_clk_hws(hws, IMX_ADMA_ACM_CLK_END);
-
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_hw_data);
 	if (ret < 0) {
 		dev_err(dev, "failed to register hws for ACM\n");
-		pm_runtime_disable(&pdev->dev);
+		goto err_clk_register;
 	}
 
-err_clk_register:
-
 	pm_runtime_put_sync(&pdev->dev);
+	return 0;
+
+err_clk_register:
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+	clk_imx_acm_detach_pm_domains(&pdev->dev, &priv->dev_pm);
 
 	return ret;
 }

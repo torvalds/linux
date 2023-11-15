@@ -1286,13 +1286,11 @@ static int wistron_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int wistron_remove(struct platform_device *dev)
+static void wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
 	input_unregister_device(wistron_idev);
 	bios_detach();
-
-	return 0;
 }
 
 static int wistron_suspend(struct device *dev)
@@ -1336,7 +1334,7 @@ static struct platform_driver wistron_driver = {
 		.pm	= pm_sleep_ptr(&wistron_pm_ops),
 	},
 	.probe		= wistron_probe,
-	.remove		= wistron_remove,
+	.remove_new	= wistron_remove,
 };
 
 static int __init wb_module_init(void)

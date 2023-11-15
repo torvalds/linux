@@ -5,6 +5,10 @@
 
 %{
 
+#ifndef NDEBUG
+#define YYDEBUG 1
+#endif
+
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>

@@ -585,17 +585,11 @@ static const struct clk_ops vc3_clk_mux_ops = {
 	.get_parent = vc3_clk_mux_get_parent,
 };
 
-static bool vc3_regmap_is_writeable(struct device *dev, unsigned int reg)
-{
-	return true;
-}
-
 static const struct regmap_config vc3_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 0x24,
-	.writeable_reg = vc3_regmap_is_writeable,
 };
 
 static struct vc3_hw_data clk_div[5];

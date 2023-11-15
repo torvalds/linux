@@ -151,24 +151,6 @@ int drm_mode_addfb_ioctl(struct drm_device *dev,
 	return drm_mode_addfb(dev, data, file_priv);
 }
 
-static int fb_plane_width(int width,
-			  const struct drm_format_info *format, int plane)
-{
-	if (plane == 0)
-		return width;
-
-	return DIV_ROUND_UP(width, format->hsub);
-}
-
-static int fb_plane_height(int height,
-			   const struct drm_format_info *format, int plane)
-{
-	if (plane == 0)
-		return height;
-
-	return DIV_ROUND_UP(height, format->vsub);
-}
-
 static int framebuffer_check(struct drm_device *dev,
 			     const struct drm_mode_fb_cmd2 *r)
 {
@@ -196,8 +178,8 @@ static int framebuffer_check(struct drm_device *dev,
 	info = drm_get_format_info(dev, r);
 
 	for (i = 0; i < info->num_planes; i++) {
-		unsigned int width = fb_plane_width(r->width, info, i);
-		unsigned int height = fb_plane_height(r->height, info, i);
+		unsigned int width = drm_format_info_plane_width(info, r->width, i);
+		unsigned int height = drm_format_info_plane_height(info, r->height, i);
 		unsigned int block_size = info->char_per_block[i];
 		u64 min_pitch = drm_format_info_min_pitch(info, i, width);
 
@@ -1136,44 +1118,6 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);
 
-/**
- * drm_framebuffer_plane_width - width of the plane given the first plane
- * @width: width of the first plane
- * @fb: the framebuffer
- * @plane: plane index
- *
- * Returns:
- * The width of @plane, given that the width of the first plane is @width.
- */
-int drm_framebuffer_plane_width(int width,
-				const struct drm_framebuffer *fb, int plane)
-{
-	if (plane >= fb->format->num_planes)
-		return 0;
-
-	return fb_plane_width(width, fb->format, plane);
-}
-EXPORT_SYMBOL(drm_framebuffer_plane_width);
-
-/**
- * drm_framebuffer_plane_height - height of the plane given the first plane
- * @height: height of the first plane
- * @fb: the framebuffer
- * @plane: plane index
- *
- * Returns:
- * The height of @plane, given that the height of the first plane is @height.
- */
-int drm_framebuffer_plane_height(int height,
-				 const struct drm_framebuffer *fb, int plane)
-{
-	if (plane >= fb->format->num_planes)
-		return 0;
-
-	return fb_plane_height(height, fb->format, plane);
-}
-EXPORT_SYMBOL(drm_framebuffer_plane_height);
-
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb)
 {
@@ -1189,8 +1133,8 @@ void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 
 	for (i = 0; i < fb->format->num_planes; i++) {
 		drm_printf_indent(p, indent + 1, "size[%u]=%dx%d\n", i,
-				  drm_framebuffer_plane_width(fb->width, fb, i),
-				  drm_framebuffer_plane_height(fb->height, fb, i));
+				  drm_format_info_plane_width(fb->format, fb->width, i),
+				  drm_format_info_plane_height(fb->format, fb->height, i));
 		drm_printf_indent(p, indent + 1, "pitch[%u]=%u\n", i, fb->pitches[i]);
 		drm_printf_indent(p, indent + 1, "offset[%u]=%u\n", i, fb->offsets[i]);
 		drm_printf_indent(p, indent + 1, "obj[%u]:%s\n", i,
@@ -1222,9 +1166,9 @@ static const struct drm_debugfs_info drm_framebuffer_debugfs_list[] = {
 	{ "framebuffer", drm_framebuffer_info, 0 },
 };
 
-void drm_framebuffer_debugfs_init(struct drm_minor *minor)
+void drm_framebuffer_debugfs_init(struct drm_device *dev)
 {
-	drm_debugfs_add_files(minor->dev, drm_framebuffer_debugfs_list,
+	drm_debugfs_add_files(dev, drm_framebuffer_debugfs_list,
 			      ARRAY_SIZE(drm_framebuffer_debugfs_list));
 }
 #endif

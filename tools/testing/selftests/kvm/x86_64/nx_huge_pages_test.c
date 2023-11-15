@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * tools/testing/selftests/kvm/nx_huge_page_test.c
- *
  * Usage: to be run via nx_huge_page_test.sh, which does the necessary
  * environment setup and teardown
  *

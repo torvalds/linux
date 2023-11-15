@@ -566,6 +566,7 @@ struct spi_controller {
 #define SPI_CONTROLLER_MUST_RX		BIT(3)	/* Requires rx */
 #define SPI_CONTROLLER_MUST_TX		BIT(4)	/* Requires tx */
 #define SPI_CONTROLLER_GPIO_SS		BIT(5)	/* GPIO CS must select slave */
+#define SPI_CONTROLLER_SUSPENDED	BIT(6)	/* Currently suspended */
 
 	/* Flag indicating if the allocation of this struct is devres-managed */
 	bool			devm_allocated;
@@ -867,6 +868,7 @@ extern int devm_spi_register_controller(struct device *dev,
 extern void spi_unregister_controller(struct spi_controller *ctlr);
 
 #if IS_ENABLED(CONFIG_ACPI)
+extern struct spi_controller *acpi_spi_find_controller_by_adev(struct acpi_device *adev);
 extern struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 						struct acpi_device *adev,
 						int index);
@@ -1086,8 +1088,6 @@ struct spi_transfer {
  * @state: for use by whichever driver currently owns the message
  * @resources: for resource management when the SPI message is processed
  * @prepared: spi_prepare_message was called for the this message
- * @t: for use with spi_message_alloc() when message and transfers have
- *	been allocated together
  *
  * A @spi_message is used to execute an atomic sequence of data transfers,
  * each represented by a struct spi_transfer.  The sequence is "atomic"
@@ -1142,9 +1142,6 @@ struct spi_message {
 
 	/* List of spi_res resources when the SPI message is processed */
 	struct list_head        resources;
-
-	/* For embedding transfers into the memory of the message */
-	struct spi_transfer	t[];
 };
 
 static inline void spi_message_init_no_memset(struct spi_message *m)
@@ -1203,17 +1200,21 @@ struct spi_transfer *xfers, unsigned int num_xfers)
  */
 static inline struct spi_message *spi_message_alloc(unsigned ntrans, gfp_t flags)
 {
-	struct spi_message *m;
+	struct spi_message_with_transfers {
+		struct spi_message m;
+		struct spi_transfer t[];
+	} *mwt;
+	unsigned i;
 
-	m = kzalloc(struct_size(m, t, ntrans), flags);
-	if (m) {
-		unsigned i;
+	mwt = kzalloc(struct_size(mwt, t, ntrans), flags);
+	if (!mwt)
+		return NULL;
 
-		spi_message_init_no_memset(m);
-		for (i = 0; i < ntrans; i++)
-			spi_message_add_tail(&m->t[i], m);
-	}
-	return m;
+	spi_message_init_no_memset(&mwt->m);
+	for (i = 0; i < ntrans; i++)
+		spi_message_add_tail(&mwt->t[i], &mwt->m);
+
+	return &mwt->m;
 }
 
 static inline void spi_message_free(struct spi_message *m)

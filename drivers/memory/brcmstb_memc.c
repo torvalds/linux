@@ -8,8 +8,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #define REG_MEMC_CNTRLR_CONFIG		0x00
 #define  CNTRLR_CONFIG_LPDDR4_SHIFT	5
@@ -121,12 +122,9 @@ static struct attribute_group dev_attr_group = {
 	.attrs = dev_attrs,
 };
 
-static const struct of_device_id brcmstb_memc_of_match[];
-
 static int brcmstb_memc_probe(struct platform_device *pdev)
 {
 	const struct brcmstb_memc_data *memc_data;
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct brcmstb_memc *memc;
 	int ret;
@@ -137,8 +135,7 @@ static int brcmstb_memc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, memc);
 
-	of_id = of_match_device(brcmstb_memc_of_match, dev);
-	memc_data = of_id->data;
+	memc_data = device_get_match_data(dev);
 	memc->srpd_offset = memc_data->srpd_offset;
 
 	memc->ddr_ctrl = devm_platform_ioremap_resource(pdev, 0);

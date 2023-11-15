@@ -1419,10 +1419,7 @@ static struct attribute *mip4_attrs[] = {
 	&dev_attr_update_fw.attr,
 	NULL,
 };
-
-static const struct attribute_group mip4_attr_group = {
-	.attrs = mip4_attrs,
-};
+ATTRIBUTE_GROUPS(mip4);
 
 static int mip4_probe(struct i2c_client *client)
 {
@@ -1514,13 +1511,6 @@ static int mip4_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &mip4_attr_group);
-	if (error) {
-		dev_err(&client->dev,
-			"Failed to create sysfs attribute group: %d\n", error);
-		return error;
-	}
-
 	return 0;
 }
 
@@ -1589,6 +1579,7 @@ static struct i2c_driver mip4_driver = {
 	.probe = mip4_probe,
 	.driver = {
 		.name = MIP4_DEVICE_NAME,
+		.dev_groups = mip4_groups,
 		.of_match_table = of_match_ptr(mip4_of_match),
 		.acpi_match_table = ACPI_PTR(mip4_acpi_match),
 		.pm = pm_sleep_ptr(&mip4_pm_ops),

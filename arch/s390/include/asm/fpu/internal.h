@@ -10,7 +10,6 @@
 #define _ASM_S390_FPU_INTERNAL_H
 
 #include <linux/string.h>
-#include <asm/ctl_reg.h>
 #include <asm/fpu/types.h>
 
 static inline void save_vx_regs(__vector128 *vxrs)

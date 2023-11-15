@@ -39,7 +39,7 @@ void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
-	if (!kvm_arm_support_pmu_v3() || !pmu || !kvm_pmu_switch_needed(attr))
+	if (!kvm_arm_support_pmu_v3() || !kvm_pmu_switch_needed(attr))
 		return;
 
 	if (!attr->exclude_host)
@@ -55,7 +55,7 @@ void kvm_clr_pmu_events(u32 clr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
-	if (!kvm_arm_support_pmu_v3() || !pmu)
+	if (!kvm_arm_support_pmu_v3())
 		return;
 
 	pmu->events_host &= ~clr;

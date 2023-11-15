@@ -104,7 +104,7 @@ class KernelFeat(Directive):
 
         lines = self.runCmd(cmd, shell=True, cwd=cwd, env=shell_env)
 
-        line_regex = re.compile("^\.\. FILE (\S+)$")
+        line_regex = re.compile(r"^\.\. FILE (\S+)$")
 
         out_lines = ""
 

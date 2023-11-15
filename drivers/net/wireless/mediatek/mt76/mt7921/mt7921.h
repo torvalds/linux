@@ -23,10 +23,8 @@
 #define MT7921_SKU_MAX_DELTA_IDX	MT7921_SKU_RATE_NUM
 #define MT7921_SKU_TABLE_SIZE		(MT7921_SKU_RATE_NUM + 1)
 
-#define MT7921_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
-#define MT7921_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
-
 #define MCU_UNI_EVENT_ROC  0x27
+#define MCU_UNI_EVENT_CLC  0x80
 
 enum {
 	UNI_ROC_ACQUIRE,
@@ -235,20 +233,6 @@ mt7921_l1_rmw(struct mt792x_dev *dev, u32 addr, u32 mask, u32 val)
 #define mt7921_l1_set(dev, addr, val)	mt7921_l1_rmw(dev, addr, 0, val)
 #define mt7921_l1_clear(dev, addr, val)	mt7921_l1_rmw(dev, addr, val, 0)
 
-static inline void
-mt7921_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,
-			    int type)
-{
-	u32 hdr, len;
-
-	len = mt76_is_usb(&dev->mt76) ? skb->len : skb->len + sizeof(hdr);
-	hdr = FIELD_PREP(MT7921_SDIO_HDR_TX_BYTES, len) |
-	      FIELD_PREP(MT7921_SDIO_HDR_PKT_TYPE, type);
-
-	put_unaligned_le32(hdr, skb_push(skb, sizeof(hdr)));
-}
-
-void mt7921_stop(struct ieee80211_hw *hw);
 int mt7921_mac_init(struct mt792x_dev *dev);
 bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask);
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,

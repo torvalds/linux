@@ -2,18 +2,16 @@
 /* Copyright(c) 2022 Intel Corporation */
 #include <linux/bitfield.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+
 #include "adf_accel_devices.h"
+#include "adf_admin.h"
 #include "adf_common_drv.h"
 #include "adf_gen4_pm.h"
 #include "adf_cfg_strings.h"
 #include "icp_qat_fw_init_admin.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_cfg.h"
-
-enum qat_pm_host_msg {
-	PM_NO_CHANGE = 0,
-	PM_SET_MIN,
-};
 
 struct adf_gen4_pm_data {
 	struct work_struct pm_irq_work;
@@ -25,6 +23,7 @@ static int send_host_msg(struct adf_accel_dev *accel_dev)
 {
 	char pm_idle_support_cfg[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {};
 	void __iomem *pmisc = adf_get_pmisc_base(accel_dev);
+	struct adf_pm *pm = &accel_dev->power_management;
 	bool pm_idle_support;
 	u32 msg;
 	int ret;
@@ -38,6 +37,11 @@ static int send_host_msg(struct adf_accel_dev *accel_dev)
 	ret = kstrtobool(pm_idle_support_cfg, &pm_idle_support);
 	if (ret)
 		pm_idle_support = true;
+
+	if (pm_idle_support)
+		pm->host_ack_counter++;
+	else
+		pm->host_nack_counter++;
 
 	/* Send HOST_MSG */
 	msg = FIELD_PREP(ADF_GEN4_PM_MSG_PAYLOAD_BIT_MASK,
@@ -59,16 +63,26 @@ static void pm_bh_handler(struct work_struct *work)
 		container_of(work, struct adf_gen4_pm_data, pm_irq_work);
 	struct adf_accel_dev *accel_dev = pm_data->accel_dev;
 	void __iomem *pmisc = adf_get_pmisc_base(accel_dev);
+	struct adf_pm *pm = &accel_dev->power_management;
 	u32 pm_int_sts = pm_data->pm_int_sts;
 	u32 val;
 
 	/* PM Idle interrupt */
 	if (pm_int_sts & ADF_GEN4_PM_IDLE_STS) {
+		pm->idle_irq_counters++;
 		/* Issue host message to FW */
 		if (send_host_msg(accel_dev))
 			dev_warn_ratelimited(&GET_DEV(accel_dev),
 					     "Failed to send host msg to FW\n");
 	}
+
+	/* PM throttle interrupt */
+	if (pm_int_sts & ADF_GEN4_PM_THR_STS)
+		pm->throttle_irq_counters++;
+
+	/* PM fw interrupt */
+	if (pm_int_sts & ADF_GEN4_PM_FW_INT_STS)
+		pm->fw_irq_counters++;
 
 	/* Clear interrupt status */
 	ADF_CSR_WR(pmisc, ADF_GEN4_PM_INTERRUPT, pm_int_sts);
@@ -128,6 +142,9 @@ int adf_gen4_enable_pm(struct adf_accel_dev *accel_dev)
 	ret = adf_init_admin_pm(accel_dev, ADF_GEN4_PM_DEFAULT_IDLE_FILTER);
 	if (ret)
 		return ret;
+
+	/* Initialize PM internal data */
+	adf_gen4_init_dev_pm_data(accel_dev);
 
 	/* Enable default PM interrupts: IDLE, THROTTLE */
 	val = ADF_CSR_RD(pmisc, ADF_GEN4_PM_INTERRUPT);

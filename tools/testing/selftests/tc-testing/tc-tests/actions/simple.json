@@ -6,6 +6,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -30,6 +33,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -54,6 +60,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -79,6 +88,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -106,6 +118,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -131,6 +146,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -158,6 +176,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -183,6 +204,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",
@@ -213,6 +237,9 @@
             "actions",
             "simple"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action simple",

@@ -16,7 +16,6 @@ struct tm5p5_nt35596 {
 	struct mipi_dsi_device *dsi;
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
-	bool prepared;
 };
 
 static inline struct tm5p5_nt35596 *to_tm5p5_nt35596(struct drm_panel *panel)
@@ -112,9 +111,6 @@ static int tm5p5_nt35596_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
@@ -132,7 +128,6 @@ static int tm5p5_nt35596_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	ctx->prepared = true;
 	return 0;
 }
 
@@ -142,9 +137,6 @@ static int tm5p5_nt35596_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = tm5p5_nt35596_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -153,7 +145,6 @@ static int tm5p5_nt35596_unprepare(struct drm_panel *panel)
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies),
 			       ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 

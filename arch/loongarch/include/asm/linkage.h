@@ -33,4 +33,12 @@
 	.cfi_endproc;					\
 	SYM_END(name, SYM_T_FUNC)
 
+#define SYM_CODE_START(name)				\
+	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)	\
+	.cfi_startproc;
+
+#define SYM_CODE_END(name)				\
+	.cfi_endproc;					\
+	SYM_END(name, SYM_T_NONE)
+
 #endif

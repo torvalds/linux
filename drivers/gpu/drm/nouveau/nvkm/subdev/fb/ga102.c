@@ -22,6 +22,7 @@
 #include "gf100.h"
 #include "ram.h"
 
+#include <subdev/gsp.h>
 #include <engine/nvdec.h>
 
 static u64
@@ -59,6 +60,9 @@ ga102_fb = {
 int
 ga102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_fb_new(&ga102_fb, device, type, inst, pfb);
+
 	return gf100_fb_new_(&ga102_fb, device, type, inst, pfb);
 }
 

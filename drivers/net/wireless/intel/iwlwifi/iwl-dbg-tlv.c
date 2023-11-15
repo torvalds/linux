@@ -509,6 +509,8 @@ void iwl_dbg_tlv_load_bin(struct device *dev, struct iwl_trans *trans)
 	if (res)
 		return;
 
+	trans->dbg.yoyo_bin_loaded = true;
+
 	iwl_dbg_tlv_parse_bin(trans, fw->data, fw->size);
 
 	release_firmware(fw);

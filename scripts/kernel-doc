@@ -185,7 +185,7 @@ if (defined($ENV{'KBUILD_VERBOSE'}) && $ENV{'KBUILD_VERBOSE'} =~ '1') {
 if (defined($ENV{'KCFLAGS'})) {
 	my $kcflags = "$ENV{'KCFLAGS'}";
 
-	if ($kcflags =~ /Werror/) {
+	if ($kcflags =~ /(\s|^)-Werror(\s|$)/) {
 		$Werror = 1;
 	}
 }

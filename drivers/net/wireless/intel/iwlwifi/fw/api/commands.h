@@ -30,6 +30,8 @@
  * @REGULATORY_AND_NVM_GROUP: regulatory/NVM group, uses command IDs from
  *	&enum iwl_regulatory_and_nvm_subcmd_ids
  * @DEBUG_GROUP: Debug group, uses command IDs from &enum iwl_debug_cmds
+ * @STATISTICS_GROUP: Statistics group, uses command IDs from
+ *	&enum iwl_statistics_subcmd_ids
  */
 enum iwl_mvm_command_groups {
 	LEGACY_GROUP = 0x0,
@@ -44,6 +46,7 @@ enum iwl_mvm_command_groups {
 	PROT_OFFLOAD_GROUP = 0xb,
 	REGULATORY_AND_NVM_GROUP = 0xc,
 	DEBUG_GROUP = 0xf,
+	STATISTICS_GROUP = 0x10,
 };
 
 /**
@@ -617,9 +620,36 @@ enum iwl_system_subcmd_ids {
 	SYSTEM_FEATURES_CONTROL_CMD = 0xd,
 
 	/**
+	 * @SYSTEM_STATISTICS_CMD: &struct iwl_system_statistics_cmd
+	 */
+	SYSTEM_STATISTICS_CMD = 0xf,
+
+	/**
+	 * @SYSTEM_STATISTICS_END_NOTIF: &struct iwl_system_statistics_end_notif
+	 */
+	SYSTEM_STATISTICS_END_NOTIF = 0xfd,
+
+	/**
 	 * @RFI_DEACTIVATE_NOTIF: &struct iwl_rfi_deactivate_notif
 	 */
 	RFI_DEACTIVATE_NOTIF = 0xff,
+};
+
+/**
+ * enum iwl_statistics_subcmd_ids - Statistics group command IDs
+ */
+enum iwl_statistics_subcmd_ids {
+	/**
+	 * @STATISTICS_OPER_NOTIF: Notification about operational
+	 *	statistics &struct iwl_system_statistics_notif_oper
+	 */
+	STATISTICS_OPER_NOTIF = 0x0,
+
+	/**
+	 * @STATISTICS_OPER_PART1_NOTIF: Notification about operational part1
+	 *	statistics &struct iwl_system_statistics_part1_notif_oper
+	 */
+	STATISTICS_OPER_PART1_NOTIF = 0x1,
 };
 
 #endif /* __iwl_fw_api_commands_h__ */

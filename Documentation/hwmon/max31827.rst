@@ -73,8 +73,8 @@ the conversion frequency to 1 conv/s. The conversion time varies depending on
 the resolution. The conversion time doubles with every bit of increased
 resolution. For 10 bit resolution 35ms are needed, while for 12 bit resolution
 (default) 140ms. When chip is in shutdown mode and a read operation is
-requested, one-shot is triggered, the device waits for 140 (conversion time) + 1
-(error) ms, and only after that is the temperature value register read.
+requested, one-shot is triggered, the device waits for 140 (conversion time) ms,
+and only after that is the temperature value register read.
 
 The LSB of the temperature values is 0.0625 degrees Celsius, but the values of
 the temperatures are displayed in milli-degrees. This means, that some data is

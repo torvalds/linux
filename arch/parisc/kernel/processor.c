@@ -242,9 +242,9 @@ void __init collect_boot_cpu_data(void)
 	/* get CPU-Model Information... */
 #define p ((unsigned long *)&boot_cpu_data.pdc.model)
 	if (pdc_model_info(&boot_cpu_data.pdc.model) == PDC_OK) {
-		printk(KERN_INFO 
-			"model %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
-			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]);
+		printk(KERN_INFO
+			"model %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx %08lx\n",
+			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8], p[9]);
 
 		add_device_randomness(&boot_cpu_data.pdc.model,
 			sizeof(boot_cpu_data.pdc.model));

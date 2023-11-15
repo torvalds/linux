@@ -442,10 +442,11 @@ lio_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	oct = lio->oct_dev;
 
 	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
-	strcpy(drvinfo->driver, "liquidio");
-	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
-		ETHTOOL_FWVERS_LEN);
-	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
+	strscpy(drvinfo->driver, "liquidio", sizeof(drvinfo->driver));
+	strscpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
+		sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(oct->pci_dev),
+		sizeof(drvinfo->bus_info));
 }
 
 static void
@@ -458,10 +459,11 @@ lio_get_vf_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	oct = lio->oct_dev;
 
 	memset(drvinfo, 0, sizeof(struct ethtool_drvinfo));
-	strcpy(drvinfo->driver, "liquidio_vf");
-	strncpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
-		ETHTOOL_FWVERS_LEN);
-	strncpy(drvinfo->bus_info, pci_name(oct->pci_dev), 32);
+	strscpy(drvinfo->driver, "liquidio_vf", sizeof(drvinfo->driver));
+	strscpy(drvinfo->fw_version, oct->fw_info.liquidio_firmware_version,
+		sizeof(drvinfo->fw_version));
+	strscpy(drvinfo->bus_info, pci_name(oct->pci_dev),
+		sizeof(drvinfo->bus_info));
 }
 
 static int

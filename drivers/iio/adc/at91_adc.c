@@ -1013,28 +1013,25 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
 
-	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
-		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop))
+		return dev_err_probe(&idev->dev, -EINVAL,
+				     "Missing adc-channels-used property in the DT.\n");
 	st->channels_mask = prop;
 
 	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
 
-	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
-		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop))
+		return dev_err_probe(&idev->dev, -EINVAL,
+				     "Missing adc-startup-time property in the DT.\n");
 	st->startup_time = prop;
 
 	prop = 0;
 	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
 	st->sample_hold_time = prop;
 
-	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
-		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
-		return -EINVAL;
-	}
+	if (of_property_read_u32(node, "atmel,adc-vref", &prop))
+		return dev_err_probe(&idev->dev, -EINVAL,
+				     "Missing adc-vref property in the DT.\n");
 	st->vref_mv = prop;
 
 	st->res = st->caps->high_res_bits;
@@ -1069,7 +1066,6 @@ static int at91_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(st->reg_base))
 		return PTR_ERR(st->reg_base);
 
-
 	/*
 	 * Disable all IRQs before setting up the handler
 	 */
@@ -1077,43 +1073,26 @@ static int at91_adc_probe(struct platform_device *pdev)
 	at91_adc_writel(st, AT91_ADC_IDR, 0xFFFFFFFF);
 
 	if (st->caps->has_tsmr)
-		ret = request_irq(st->irq, at91_adc_9x5_interrupt, 0,
-				  pdev->dev.driver->name, idev);
+		ret = devm_request_irq(&pdev->dev, st->irq,
+				       at91_adc_9x5_interrupt, 0,
+				       pdev->dev.driver->name, idev);
 	else
-		ret = request_irq(st->irq, at91_adc_rl_interrupt, 0,
-				  pdev->dev.driver->name, idev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to allocate IRQ.\n");
-		return ret;
-	}
+		ret = devm_request_irq(&pdev->dev, st->irq,
+				       at91_adc_rl_interrupt, 0,
+				       pdev->dev.driver->name, idev);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to allocate IRQ.\n");
 
-	st->clk = devm_clk_get(&pdev->dev, "adc_clk");
-	if (IS_ERR(st->clk)) {
-		dev_err(&pdev->dev, "Failed to get the clock.\n");
-		ret = PTR_ERR(st->clk);
-		goto error_free_irq;
-	}
+	st->clk = devm_clk_get_enabled(&pdev->dev, "adc_clk");
+	if (IS_ERR(st->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(st->clk),
+				     "Could not prepare or enable the clock.\n");
 
-	ret = clk_prepare_enable(st->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the clock.\n");
-		goto error_free_irq;
-	}
-
-	st->adc_clk = devm_clk_get(&pdev->dev, "adc_op_clk");
-	if (IS_ERR(st->adc_clk)) {
-		dev_err(&pdev->dev, "Failed to get the ADC clock.\n");
-		ret = PTR_ERR(st->adc_clk);
-		goto error_disable_clk;
-	}
-
-	ret = clk_prepare_enable(st->adc_clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Could not prepare or enable the ADC clock.\n");
-		goto error_disable_clk;
-	}
+	st->adc_clk = devm_clk_get_enabled(&pdev->dev, "adc_op_clk");
+	if (IS_ERR(st->adc_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(st->adc_clk),
+				     "Could not prepare or enable the ADC clock.\n");
 
 	/*
 	 * Prescaler rate computation using the formula from the Atmel's
@@ -1129,11 +1108,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	prsc = (mstrclk / (2 * adc_clk)) - 1;
 
-	if (!st->startup_time) {
-		dev_err(&pdev->dev, "No startup time available.\n");
-		ret = -EINVAL;
-		goto error_disable_adc_clk;
-	}
+	if (!st->startup_time)
+		return dev_err_probe(&pdev->dev, -EINVAL,
+				     "No startup time available.\n");
 	ticks = (*st->caps->calc_startup_ticks)(st->startup_time, adc_clk_khz);
 
 	/*
@@ -1158,10 +1135,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	/* Setup the ADC channels available on the board */
 	ret = at91_adc_channel_init(idev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Couldn't initialize the channels.\n");
-		goto error_disable_adc_clk;
-	}
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Couldn't initialize the channels.\n");
 
 	init_waitqueue_head(&st->wq_data_avail);
 	mutex_init(&st->lock);
@@ -1173,21 +1149,20 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	if (!st->touchscreen_type) {
 		ret = at91_adc_buffer_init(idev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Couldn't initialize the buffer.\n");
-			goto error_disable_adc_clk;
-		}
+		if (ret < 0)
+			return dev_err_probe(&pdev->dev, ret,
+					     "Couldn't initialize the buffer.\n");
 
 		ret = at91_adc_trigger_init(idev);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Couldn't setup the triggers.\n");
 			at91_adc_buffer_remove(idev);
-			goto error_disable_adc_clk;
+			return ret;
 		}
 	} else {
 		ret = at91_ts_register(idev, pdev);
 		if (ret)
-			goto error_disable_adc_clk;
+			return ret;
 
 		at91_ts_hw_init(idev, adc_clk_khz);
 	}
@@ -1207,16 +1182,10 @@ error_iio_device_register:
 	} else {
 		at91_ts_unregister(st);
 	}
-error_disable_adc_clk:
-	clk_disable_unprepare(st->adc_clk);
-error_disable_clk:
-	clk_disable_unprepare(st->clk);
-error_free_irq:
-	free_irq(st->irq, idev);
 	return ret;
 }
 
-static int at91_adc_remove(struct platform_device *pdev)
+static void at91_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *idev = platform_get_drvdata(pdev);
 	struct at91_adc_state *st = iio_priv(idev);
@@ -1228,11 +1197,6 @@ static int at91_adc_remove(struct platform_device *pdev)
 	} else {
 		at91_ts_unregister(st);
 	}
-	clk_disable_unprepare(st->adc_clk);
-	clk_disable_unprepare(st->clk);
-	free_irq(st->irq, idev);
-
-	return 0;
 }
 
 static int at91_adc_suspend(struct device *dev)
@@ -1382,7 +1346,7 @@ MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
 
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
-	.remove = at91_adc_remove,
+	.remove_new = at91_adc_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = at91_adc_dt_ids,

@@ -1021,22 +1021,18 @@ struct iwl_dump_ini_region_data {
 	struct iwl_fwrt_dump_data *dump_data;
 };
 
-static int
-iwl_dump_ini_prph_mac_iter(struct iwl_fw_runtime *fwrt,
-			   struct iwl_dump_ini_region_data *reg_data,
-			   void *range_ptr, u32 range_len, int idx)
+static int iwl_dump_ini_prph_mac_iter_common(struct iwl_fw_runtime *fwrt,
+					     void *range_ptr, u32 addr,
+					     __le32 size)
 {
-	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	__le32 *val = range->data;
 	u32 prph_val;
-	u32 addr = le32_to_cpu(reg->addrs[idx]) +
-		   le32_to_cpu(reg->dev_addr.offset);
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
-	range->range_data_size = reg->dev_addr.size;
-	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
+	range->range_data_size = size;
+	for (i = 0; i < le32_to_cpu(size); i += 4) {
 		prph_val = iwl_read_prph(fwrt->trans, addr + i);
 		if (iwl_trans_is_hw_error_value(prph_val))
 			return -EBUSY;
@@ -1047,38 +1043,61 @@ iwl_dump_ini_prph_mac_iter(struct iwl_fw_runtime *fwrt,
 }
 
 static int
-iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
+iwl_dump_ini_prph_mac_iter(struct iwl_fw_runtime *fwrt,
 			   struct iwl_dump_ini_region_data *reg_data,
 			   void *range_ptr, u32 range_len, int idx)
 {
 	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	u32 addr = le32_to_cpu(reg->addrs[idx]) +
+		   le32_to_cpu(reg->dev_addr.offset);
+
+	return iwl_dump_ini_prph_mac_iter_common(fwrt, range_ptr, addr,
+						 reg->dev_addr.size);
+}
+
+static int
+iwl_dump_ini_prph_mac_block_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dump_ini_region_data *reg_data,
+				 void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 addr = le32_to_cpu(reg->dev_addr_range.offset) +
+		   le32_to_cpu(pairs[idx].addr);
+
+	return iwl_dump_ini_prph_mac_iter_common(fwrt, range_ptr, addr,
+						 pairs[idx].size);
+}
+
+static int iwl_dump_ini_prph_phy_iter_common(struct iwl_fw_runtime *fwrt,
+					     void *range_ptr, u32 addr,
+					     __le32 size, __le32 offset)
+{
 	struct iwl_fw_ini_error_dump_range *range = range_ptr;
 	__le32 *val = range->data;
 	u32 indirect_wr_addr = WMAL_INDRCT_RD_CMD1;
 	u32 indirect_rd_addr = WMAL_MRSPF_1;
 	u32 prph_val;
-	u32 addr = le32_to_cpu(reg->addrs[idx]);
 	u32 dphy_state;
 	u32 dphy_addr;
 	int i;
 
 	range->internal_base_addr = cpu_to_le32(addr);
-	range->range_data_size = reg->dev_addr.size;
+	range->range_data_size = size;
 
 	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		indirect_wr_addr = WMAL_INDRCT_CMD1;
 
-	indirect_wr_addr += le32_to_cpu(reg->dev_addr.offset);
-	indirect_rd_addr += le32_to_cpu(reg->dev_addr.offset);
+	indirect_wr_addr += le32_to_cpu(offset);
+	indirect_rd_addr += le32_to_cpu(offset);
 
 	if (!iwl_trans_grab_nic_access(fwrt->trans))
 		return -EBUSY;
 
-	dphy_addr = (reg->dev_addr.offset) ? WFPM_LMAC2_PS_CTL_RW :
-					     WFPM_LMAC1_PS_CTL_RW;
+	dphy_addr = (offset) ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
 	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
 
-	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
+	for (i = 0; i < le32_to_cpu(size); i += 4) {
 		if (dphy_state == HBUS_TIMEOUT ||
 		    (dphy_state & WFPM_PS_CTL_RW_PHYRF_PD_FSM_CURSTATE_MSK) !=
 		    WFPM_PHYRF_STATE_ON) {
@@ -1095,6 +1114,33 @@ iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
 
 	iwl_trans_release_nic_access(fwrt->trans);
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int
+iwl_dump_ini_prph_phy_iter(struct iwl_fw_runtime *fwrt,
+			   struct iwl_dump_ini_region_data *reg_data,
+			   void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	u32 addr = le32_to_cpu(reg->addrs[idx]);
+
+	return iwl_dump_ini_prph_phy_iter_common(fwrt, range_ptr, addr,
+						 reg->dev_addr.size,
+						 reg->dev_addr.offset);
+}
+
+static int
+iwl_dump_ini_prph_phy_block_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_dump_ini_region_data *reg_data,
+				 void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 addr = le32_to_cpu(pairs[idx].addr);
+
+	return iwl_dump_ini_prph_phy_iter_common(fwrt, range_ptr, addr,
+						 pairs[idx].size,
+						 reg->dev_addr_range.offset);
 }
 
 static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
@@ -1367,6 +1413,53 @@ static int iwl_dump_ini_txf_iter(struct iwl_fw_runtime *fwrt,
 out:
 	iwl_trans_release_nic_access(fwrt->trans);
 
+	return sizeof(*range) + le32_to_cpu(range->range_data_size);
+}
+
+static int
+iwl_dump_ini_prph_snps_dphyip_iter(struct iwl_fw_runtime *fwrt,
+				   struct iwl_dump_ini_region_data *reg_data,
+				   void *range_ptr, u32 range_len, int idx)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_error_dump_range *range = range_ptr;
+	__le32 *val = range->data;
+	__le32 offset = reg->dev_addr.offset;
+	u32 indirect_rd_wr_addr = DPHYIP_INDIRECT;
+	u32 addr = le32_to_cpu(reg->addrs[idx]);
+	u32 dphy_state, dphy_addr, prph_val;
+	int i;
+
+	range->internal_base_addr = cpu_to_le32(addr);
+	range->range_data_size = reg->dev_addr.size;
+
+	if (!iwl_trans_grab_nic_access(fwrt->trans))
+		return -EBUSY;
+
+	indirect_rd_wr_addr += le32_to_cpu(offset);
+
+	dphy_addr = offset ? WFPM_LMAC2_PS_CTL_RW : WFPM_LMAC1_PS_CTL_RW;
+	dphy_state = iwl_read_umac_prph_no_grab(fwrt->trans, dphy_addr);
+
+	for (i = 0; i < le32_to_cpu(reg->dev_addr.size); i += 4) {
+		if (dphy_state == HBUS_TIMEOUT ||
+		    (dphy_state & WFPM_PS_CTL_RW_PHYRF_PD_FSM_CURSTATE_MSK) !=
+		    WFPM_PHYRF_STATE_ON) {
+			*val++ = cpu_to_le32(WFPM_DPHY_OFF);
+			continue;
+		}
+
+		iwl_write_prph_no_grab(fwrt->trans, indirect_rd_wr_addr,
+				       addr + i);
+		/* wait a bit for value to be ready in register */
+		udelay(1);
+		prph_val = iwl_read_prph_no_grab(fwrt->trans,
+						 indirect_rd_wr_addr);
+		*val++ = cpu_to_le32((prph_val & DPHYIP_INDIRECT_RD_MSK) >>
+				     DPHYIP_INDIRECT_RD_SHIFT);
+	}
+
+	iwl_trans_release_nic_access(fwrt->trans);
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
@@ -1781,6 +1874,16 @@ static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 	return iwl_tlv_array_len(reg_data->reg_tlv, reg, addrs);
 }
 
+static u32
+iwl_dump_ini_mem_block_ranges(struct iwl_fw_runtime *fwrt,
+			      struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	size_t size = sizeof(struct iwl_fw_ini_addr_size);
+
+	return iwl_tlv_array_len_with_size(reg_data->reg_tlv, reg, size);
+}
+
 static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
 				      struct iwl_dump_ini_region_data *reg_data)
 {
@@ -1864,6 +1967,25 @@ static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
 
 	return sizeof(struct iwl_fw_ini_error_dump) + ranges *
 		(size + sizeof(struct iwl_fw_ini_error_dump_range));
+}
+
+static u32
+iwl_dump_ini_mem_block_get_size(struct iwl_fw_runtime *fwrt,
+				struct iwl_dump_ini_region_data *reg_data)
+{
+	struct iwl_fw_ini_region_tlv *reg = (void *)reg_data->reg_tlv->data;
+	struct iwl_fw_ini_addr_size *pairs = (void *)reg->addrs;
+	u32 ranges = iwl_dump_ini_mem_block_ranges(fwrt, reg_data);
+	u32 size = sizeof(struct iwl_fw_ini_error_dump);
+	int range;
+
+	if (!ranges)
+		return 0;
+
+	for (range = 0; range < ranges; range++)
+		size += le32_to_cpu(pairs[range].size);
+
+	return size + ranges * sizeof(struct iwl_fw_ini_error_dump_range);
 }
 
 static u32
@@ -2413,6 +2535,18 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
 		.fill_range = iwl_dump_ini_prph_phy_iter,
 	},
+	[IWL_FW_INI_REGION_PERIPHERY_MAC_RANGE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_block_ranges,
+		.get_size = iwl_dump_ini_mem_block_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_mac_block_iter,
+	},
+	[IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_block_ranges,
+		.get_size = iwl_dump_ini_mem_block_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_phy_block_iter,
+	},
 	[IWL_FW_INI_REGION_PERIPHERY_AUX] = {},
 	[IWL_FW_INI_REGION_PAGING] = {
 		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
@@ -2449,6 +2583,12 @@ static const struct iwl_dump_ini_mem_ops iwl_dump_ini_region_ops[] = {
 		.get_size = iwl_dump_ini_mon_dbgi_get_size,
 		.fill_mem_hdr = iwl_dump_ini_mon_dbgi_fill_header,
 		.fill_range = iwl_dump_ini_dbgi_sram_iter,
+	},
+	[IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP] = {
+		.get_num_of_ranges = iwl_dump_ini_mem_ranges,
+		.get_size = iwl_dump_ini_mem_get_size,
+		.fill_mem_hdr = iwl_dump_ini_mem_fill_header,
+		.fill_range = iwl_dump_ini_prph_snps_dphyip_iter,
 	},
 };
 
@@ -2492,7 +2632,9 @@ static u32 iwl_dump_ini_trigger(struct iwl_fw_runtime *fwrt,
 		if (reg_type >= ARRAY_SIZE(iwl_dump_ini_region_ops))
 			continue;
 
-		if (reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY &&
+		if ((reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY ||
+		     reg_type == IWL_FW_INI_REGION_PERIPHERY_PHY_RANGE ||
+		     reg_type == IWL_FW_INI_REGION_PERIPHERY_SNPS_DPHYIP) &&
 		    tp_id != IWL_FW_INI_TIME_POINT_FW_ASSERT) {
 			IWL_WARN(fwrt,
 				 "WRT: trying to collect phy prph at time point: %d, skipping\n",
@@ -3228,3 +3370,28 @@ void iwl_fw_dbg_stop_restart_recording(struct iwl_fw_runtime *fwrt,
 #endif
 }
 IWL_EXPORT_SYMBOL(iwl_fw_dbg_stop_restart_recording);
+
+void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dbg_config_cmd cmd = {
+		.type = cpu_to_le32(DEBUG_TOKEN_CONFIG_TYPE),
+		.conf = cpu_to_le32(IWL_FW_DBG_CONFIG_TOKEN),
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(LONG_GROUP, LDBG_CONFIG_CMD),
+		.data[0] = &cmd,
+		.len[0] = sizeof(cmd),
+	};
+	u32 preset = u32_get_bits(fwrt->trans->dbg.domains_bitmap,
+				  GENMASK(31, IWL_FW_DBG_DOMAIN_POS + 1));
+
+	/* supported starting from 9000 devices */
+	if (fwrt->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
+		return;
+
+	if (fwrt->trans->dbg.yoyo_bin_loaded || (preset && preset != 1))
+		return;
+
+	iwl_trans_send_cmd(fwrt->trans, &hcmd);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_disable_dbg_asserts);

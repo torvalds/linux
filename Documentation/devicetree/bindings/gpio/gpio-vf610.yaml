@@ -20,6 +20,7 @@ description: |
 properties:
   compatible:
     oneOf:
+      - const: fsl,imx8ulp-gpio
       - const: fsl,vf610-gpio
       - items:
           - const: fsl,imx7ulp-gpio
@@ -27,16 +28,18 @@ properties:
       - items:
           - enum:
               - fsl,imx93-gpio
-              - fsl,imx8ulp-gpio
-          - const: fsl,imx7ulp-gpio
+              - fsl,imx95-gpio
+          - const: fsl,imx8ulp-gpio
 
   reg:
-    description: The first reg tuple represents the PORT module, the second tuple
-      represents the GPIO module.
+    minItems: 1
     maxItems: 2
 
   interrupts:
-    maxItems: 1
+    items:
+      - description: GPIO Trustzone non-secure interrupt number
+      - description: GPIO Trustzone secure interrupt number
+    minItems: 1
 
   interrupt-controller: true
 
@@ -59,7 +62,8 @@ properties:
       - const: port
 
   gpio-ranges:
-    maxItems: 1
+    minItems: 1
+    maxItems: 4
 
 patternProperties:
   "^.+-hog(-[0-9]+)?$":
@@ -76,6 +80,30 @@ required:
   - "#interrupt-cells"
   - "#gpio-cells"
   - gpio-controller
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,vf610-gpio
+              - fsl,imx7ulp-gpio
+    then:
+      properties:
+        interrupts:
+          maxItems: 1
+        reg:
+          items:
+            - description: PORT register base address
+            - description: GPIO register base address
+    else:
+      properties:
+        interrupts:
+          minItems: 2
+        reg:
+          items:
+            - description: GPIO register base address
 
 additionalProperties: false
 

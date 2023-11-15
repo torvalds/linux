@@ -28,7 +28,8 @@
 
 #include "uncore-frequency-common.h"
 
-#define	UNCORE_HEADER_VERSION		1
+#define	UNCORE_MAJOR_VERSION		0
+#define	UNCORE_MINOR_VERSION		1
 #define UNCORE_HEADER_INDEX		0
 #define UNCORE_FABRIC_CLUSTER_OFFSET	8
 
@@ -302,11 +303,20 @@ static int uncore_probe(struct auxiliary_device *auxdev, const struct auxiliary_
 		/* Check for version and skip this resource if there is mismatch */
 		header = readq(pd_info->uncore_base);
 		pd_info->ufs_header_ver = header & UNCORE_VERSION_MASK;
-		if (pd_info->ufs_header_ver != UNCORE_HEADER_VERSION) {
-			dev_info(&auxdev->dev, "Uncore: Unsupported version:%d\n",
-				pd_info->ufs_header_ver);
+
+		if (pd_info->ufs_header_ver == TPMI_VERSION_INVALID)
 			continue;
+
+		if (TPMI_MAJOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MAJOR_VERSION) {
+			dev_err(&auxdev->dev, "Uncore: Unsupported major version:%lx\n",
+				TPMI_MAJOR_VERSION(pd_info->ufs_header_ver));
+			ret = -ENODEV;
+			goto remove_clusters;
 		}
+
+		if (TPMI_MINOR_VERSION(pd_info->ufs_header_ver) != UNCORE_MINOR_VERSION)
+			dev_info(&auxdev->dev, "Uncore: Ignore: Unsupported minor version:%lx\n",
+				 TPMI_MINOR_VERSION(pd_info->ufs_header_ver));
 
 		/* Get Cluster ID Mask */
 		cluster_mask = FIELD_GET(UNCORE_LOCAL_FABRIC_CLUSTER_ID_MASK, header);

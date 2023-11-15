@@ -146,7 +146,6 @@ static int pwm_imx1_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pwm_imx1_ops = {
 	.apply = pwm_imx1_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id pwm_imx1_dt_ids[] = {

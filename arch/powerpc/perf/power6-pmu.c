@@ -335,26 +335,38 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ 0x3000fe, 0x400056 },			/* PM_DATA_FROM_L3MISS */
 };
 
-/*
- * This could be made more efficient with a binary search on
- * a presorted list, if necessary
- */
 static int find_alternatives_list(u64 event)
 {
-	int i, j;
-	unsigned int alt;
+	const unsigned int presorted_event_table[] = {
+		0x0130e8, 0x080080, 0x080088, 0x10000a, 0x10000b, 0x10000d, 0x10000e,
+		0x100010, 0x10001a, 0x100026, 0x100054, 0x100056, 0x1000f0, 0x1000f8,
+		0x1000fc, 0x200008, 0x20000e, 0x200010, 0x200012, 0x200054, 0x2000f0,
+		0x2000f2, 0x2000f4, 0x2000f5, 0x2000f6, 0x2000f8, 0x2000fc, 0x2000fe,
+		0x2d0030, 0x30000a, 0x30000c, 0x300010, 0x300012, 0x30001a, 0x300056,
+		0x3000f0, 0x3000f2, 0x3000f6, 0x3000f8, 0x3000fc, 0x3000fe, 0x400006,
+		0x400007, 0x40000a, 0x40000e, 0x400010, 0x400018, 0x400056, 0x4000f0,
+		0x4000f8, 0x600005
+	};
+	const unsigned int event_index_table[] = {
+		0,  1,  2,  3,  4,  1, 5,  6,  7,  8,  9,  10, 11, 12, 13, 12, 14,
+		7,  15, 2,  9,  16, 3, 4,  0,  17, 10, 18, 19, 20, 1,  17, 15, 19,
+		18, 2,  16, 21, 8,  0, 22, 13, 14, 11, 21, 5,  20, 22, 1,  6,  3
+	};
+	int hi = ARRAY_SIZE(presorted_event_table) - 1;
+	int lo = 0;
 
-	for (i = 0; i < ARRAY_SIZE(event_alternatives); ++i) {
-		if (event < event_alternatives[i][0])
-			return -1;
-		for (j = 0; j < MAX_ALT; ++j) {
-			alt = event_alternatives[i][j];
-			if (!alt || event < alt)
-				break;
-			if (event == alt)
-				return i;
-		}
+	while (lo <= hi) {
+		int mid = lo + (hi - lo) / 2;
+		unsigned int alt = presorted_event_table[mid];
+
+		if (alt < event)
+			lo = mid + 1;
+		else if (alt > event)
+			hi = mid - 1;
+		else
+			return event_index_table[mid];
 	}
+
 	return -1;
 }
 

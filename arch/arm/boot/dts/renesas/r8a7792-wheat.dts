@@ -38,22 +38,6 @@
 		regulator-always-on;
 	};
 
-	ethernet@18000000 {
-		compatible = "smsc,lan89218", "smsc,lan9115";
-		reg = <0 0x18000000 0 0x100>;
-		phy-mode = "mii";
-		interrupt-parent = <&irqc>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
-		smsc,irq-push-pull;
-		smsc,save-mac-address;
-		reg-io-width = <4>;
-		vddvario-supply = <&d3_3v>;
-		vdd33a-supply = <&d3_3v>;
-
-		pinctrl-0 = <&lan89218_pins>;
-		pinctrl-names = "default";
-	};
-
 	keyboard {
 		compatible = "gpio-keys";
 
@@ -115,6 +99,24 @@
 
 &extal_clk {
 	clock-frequency = <20000000>;
+};
+
+&lbsc {
+	ethernet@18000000 {
+		compatible = "smsc,lan89218", "smsc,lan9115";
+		reg = <0x18000000 0x100>;
+		phy-mode = "mii";
+		interrupt-parent = <&irqc>;
+		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		smsc,irq-push-pull;
+		smsc,save-mac-address;
+		reg-io-width = <4>;
+		vddvario-supply = <&d3_3v>;
+		vdd33a-supply = <&d3_3v>;
+
+		pinctrl-0 = <&lan89218_pins>;
+		pinctrl-names = "default";
+	};
 };
 
 &pfc {

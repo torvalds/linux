@@ -67,7 +67,6 @@ static struct ctl_table abi_table2[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{}
 };
 
 static __init int ia32_binfmt_init(void)

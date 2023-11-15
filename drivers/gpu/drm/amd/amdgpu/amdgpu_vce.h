@@ -55,7 +55,7 @@ struct amdgpu_vce {
 
 int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size);
 int amdgpu_vce_sw_fini(struct amdgpu_device *adev);
-int amdgpu_vce_entity_init(struct amdgpu_device *adev);
+int amdgpu_vce_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 int amdgpu_vce_suspend(struct amdgpu_device *adev);
 int amdgpu_vce_resume(struct amdgpu_device *adev);
 void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp);

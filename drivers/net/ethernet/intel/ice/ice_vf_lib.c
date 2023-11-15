@@ -56,6 +56,8 @@ static void ice_release_vf(struct kref *ref)
 {
 	struct ice_vf *vf = container_of(ref, struct ice_vf, refcnt);
 
+	pci_dev_put(vf->vfdev);
+
 	vf->vf_ops->free(vf);
 }
 

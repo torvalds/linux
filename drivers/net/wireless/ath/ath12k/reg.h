@@ -83,6 +83,12 @@ struct ath12k_reg_info {
 		[WMI_REG_CURRENT_MAX_AP_TYPE][WMI_REG_MAX_CLIENT_TYPE];
 };
 
+/* Phy bitmaps */
+enum ath12k_reg_phy_bitmap {
+	ATH12K_REG_PHY_BITMAP_NO11AX	= BIT(5),
+	ATH12K_REG_PHY_BITMAP_NO11BE	= BIT(6),
+};
+
 void ath12k_reg_init(struct ath12k *ar);
 void ath12k_reg_free(struct ath12k_base *ab);
 void ath12k_regd_update_work(struct work_struct *work);

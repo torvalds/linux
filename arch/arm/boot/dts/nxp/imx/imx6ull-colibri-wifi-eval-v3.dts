@@ -10,7 +10,7 @@
 
 / {
 	model = "Toradex Colibri iMX6ULL 512MB on Colibri Evaluation Board V3";
-	compatible = "toradex,colibri-imx6ull-wifi-eval", "fsl,imx6ull";
+	compatible = "toradex,colibri-imx6ull-wifi-eval", "toradex,colibri-imx6ull-wifi", "fsl,imx6ull";
 };
 
 &ad7879_ts {

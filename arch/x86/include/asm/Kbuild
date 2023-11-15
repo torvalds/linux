@@ -10,5 +10,4 @@ generated-y += unistd_64_x32.h
 generated-y += xen-hypercalls.h
 
 generic-y += early_ioremap.h
-generic-y += export.h
 generic-y += mcs_spinlock.h

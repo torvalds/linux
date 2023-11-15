@@ -152,7 +152,7 @@ static int qcom_apq8064_sata_phy_init(struct phy *generic_phy)
 		return ret;
 	}
 
-	/* SATA phy calibrated succesfully, power up to functional mode */
+	/* SATA phy calibrated successfully, power up to functional mode */
 	writel_relaxed(0x3E, base + SATA_PHY_POW_DWN_CTRL1);
 	writel_relaxed(0x01, base + SATA_PHY_RX_IMCAL0);
 	writel_relaxed(0x01, base + SATA_PHY_TX_IMCAL0);

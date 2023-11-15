@@ -188,7 +188,6 @@ typedef struct {
 } mm_context_t;
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
-#define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
 
 /* Page size definitions, common between 32 and 64-bit
  *

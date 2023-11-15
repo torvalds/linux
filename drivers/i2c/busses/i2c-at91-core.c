@@ -221,11 +221,10 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
-	dev->clk = devm_clk_get(dev->dev, NULL);
+	dev->clk = devm_clk_get_enabled(dev->dev, NULL);
 	if (IS_ERR(dev->clk))
-		return dev_err_probe(dev->dev, PTR_ERR(dev->clk), "no clock defined\n");
-
-	clk_prepare_enable(dev->clk);
+		return dev_err_probe(dev->dev, PTR_ERR(dev->clk),
+				     "failed to enable clock\n");
 
 	snprintf(dev->adapter.name, sizeof(dev->adapter.name), "AT91");
 	i2c_set_adapdata(&dev->adapter, dev);
@@ -254,8 +253,6 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	rc = i2c_add_numbered_adapter(&dev->adapter);
 	if (rc) {
-		clk_disable_unprepare(dev->clk);
-
 		pm_runtime_disable(dev->dev);
 		pm_runtime_set_suspended(dev->dev);
 
@@ -272,7 +269,6 @@ static void at91_twi_remove(struct platform_device *pdev)
 	struct at91_twi_dev *dev = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&dev->adapter);
-	clk_disable_unprepare(dev->clk);
 
 	pm_runtime_disable(dev->dev);
 	pm_runtime_set_suspended(dev->dev);

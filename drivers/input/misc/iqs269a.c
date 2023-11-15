@@ -1586,10 +1586,7 @@ static struct attribute *iqs269_attrs[] = {
 	&dev_attr_ati_trigger.attr,
 	NULL,
 };
-
-static const struct attribute_group iqs269_attr_group = {
-	.attrs = iqs269_attrs,
-};
+ATTRIBUTE_GROUPS(iqs269);
 
 static const struct regmap_config iqs269_regmap_config = {
 	.reg_bits = 8,
@@ -1671,10 +1668,6 @@ static int iqs269_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &iqs269_attr_group);
-	if (error)
-		dev_err(&client->dev, "Failed to add attributes: %d\n", error);
-
 	return error;
 }
 
@@ -1743,6 +1736,7 @@ MODULE_DEVICE_TABLE(of, iqs269_of_match);
 static struct i2c_driver iqs269_i2c_driver = {
 	.driver = {
 		.name = "iqs269a",
+		.dev_groups = iqs269_groups,
 		.of_match_table = iqs269_of_match,
 		.pm = pm_sleep_ptr(&iqs269_pm),
 	},

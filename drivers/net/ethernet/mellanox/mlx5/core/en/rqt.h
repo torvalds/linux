@@ -6,12 +6,14 @@
 
 #include <linux/kernel.h>
 
-#define MLX5E_INDIR_RQT_SIZE (1 << 8)
+#define MLX5E_INDIR_MIN_RQT_SIZE (BIT(8))
 
 struct mlx5_core_dev;
 
 struct mlx5e_rss_params_indir {
-	u32 table[MLX5E_INDIR_RQT_SIZE];
+	u32 *table;
+	u32 actual_table_size;
+	u32 max_table_size;
 };
 
 void mlx5e_rss_params_indir_init_uniform(struct mlx5e_rss_params_indir *indir,
@@ -24,7 +26,7 @@ struct mlx5e_rqt {
 };
 
 int mlx5e_rqt_init_direct(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
-			  bool indir_enabled, u32 init_rqn);
+			  bool indir_enabled, u32 init_rqn, u32 indir_table_size);
 int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 			 u32 *rqns, unsigned int num_rqns,
 			 u8 hfunc, struct mlx5e_rss_params_indir *indir);
@@ -35,6 +37,7 @@ static inline u32 mlx5e_rqt_get_rqtn(struct mlx5e_rqt *rqt)
 	return rqt->rqtn;
 }
 
+u32 mlx5e_rqt_size(struct mlx5_core_dev *mdev, unsigned int num_channels);
 int mlx5e_rqt_redirect_direct(struct mlx5e_rqt *rqt, u32 rqn);
 int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int num_rqns,
 			     u8 hfunc, struct mlx5e_rss_params_indir *indir);

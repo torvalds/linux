@@ -69,8 +69,20 @@ extern "C" {
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
 
-#define DRM_IVPU_CAP_METRIC_STREAMER	    1
-#define DRM_IVPU_CAP_DMA_MEMORY_RANGE       2
+/**
+ * DRM_IVPU_CAP_METRIC_STREAMER
+ *
+ * Metric streamer support. Provides sampling of various hardware performance
+ * metrics like DMA bandwidth and cache miss/hits. Can be used for profiling.
+ */
+#define DRM_IVPU_CAP_METRIC_STREAMER	1
+/**
+ * DRM_IVPU_CAP_DMA_MEMORY_RANGE
+ *
+ * Driver has capability to allocate separate memory range
+ * accessible by hardware DMA.
+ */
+#define DRM_IVPU_CAP_DMA_MEMORY_RANGE	2
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters
@@ -123,6 +135,8 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_SKU:
 	 * VPU SKU ID (read-only)
 	 *
+	 * %DRM_IVPU_PARAM_CAPABILITIES:
+	 * Supported capabilities (read-only)
 	 */
 	__u32 param;
 

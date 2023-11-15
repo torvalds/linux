@@ -51,8 +51,8 @@
 
 #define RNGC_ERROR_STATUS_STAT_ERR	0x00000008
 
-#define RNGC_TIMEOUT  3000 /* 3 sec */
-
+#define RNGC_SELFTEST_TIMEOUT 2500 /* us */
+#define RNGC_SEED_TIMEOUT      200 /* ms */
 
 static bool self_test = true;
 module_param(self_test, bool, 0);
@@ -110,7 +110,8 @@ static int imx_rngc_self_test(struct imx_rngc *rngc)
 	cmd = readl(rngc->base + RNGC_COMMAND);
 	writel(cmd | RNGC_CMD_SELF_TEST, rngc->base + RNGC_COMMAND);
 
-	ret = wait_for_completion_timeout(&rngc->rng_op_done, msecs_to_jiffies(RNGC_TIMEOUT));
+	ret = wait_for_completion_timeout(&rngc->rng_op_done,
+					  usecs_to_jiffies(RNGC_SELFTEST_TIMEOUT));
 	imx_rngc_irq_mask_clear(rngc);
 	if (!ret)
 		return -ETIMEDOUT;
@@ -182,7 +183,8 @@ static int imx_rngc_init(struct hwrng *rng)
 		cmd = readl(rngc->base + RNGC_COMMAND);
 		writel(cmd | RNGC_CMD_SEED, rngc->base + RNGC_COMMAND);
 
-		ret = wait_for_completion_timeout(&rngc->rng_op_done, msecs_to_jiffies(RNGC_TIMEOUT));
+		ret = wait_for_completion_timeout(&rngc->rng_op_done,
+						  msecs_to_jiffies(RNGC_SEED_TIMEOUT));
 		if (!ret) {
 			ret = -ETIMEDOUT;
 			goto err;

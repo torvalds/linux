@@ -910,6 +910,10 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp, struct ib_udata *udata)
 	list_del(&qp->list);
 	mutex_unlock(&rdev->qp_lock);
 	atomic_dec(&rdev->stats.res.qp_count);
+	if (qp->qplib_qp.type == CMDQ_CREATE_QP_TYPE_RC)
+		atomic_dec(&rdev->stats.res.rc_qp_count);
+	else if (qp->qplib_qp.type == CMDQ_CREATE_QP_TYPE_UD)
+		atomic_dec(&rdev->stats.res.ud_qp_count);
 
 	ib_umem_release(qp->rumem);
 	ib_umem_release(qp->sumem);

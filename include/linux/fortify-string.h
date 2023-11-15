@@ -93,13 +93,9 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 #if __has_builtin(__builtin_dynamic_object_size)
 #define POS			__pass_dynamic_object_size(1)
 #define POS0			__pass_dynamic_object_size(0)
-#define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
-#define __member_size(p)	__builtin_dynamic_object_size(p, 1)
 #else
 #define POS			__pass_object_size(1)
 #define POS0			__pass_object_size(0)
-#define __struct_size(p)	__builtin_object_size(p, 0)
-#define __member_size(p)	__builtin_object_size(p, 1)
 #endif
 
 #define __compiletime_lessthan(bounds, length)	(	\
@@ -643,7 +639,7 @@ __FORTIFY_INLINE bool fortify_memcpy_chk(__kernel_size_t size,
 				     __q_size_field, #op),		\
 		  #op ": detected field-spanning write (size %zu) of single %s (size %zu)\n", \
 		  __fortify_size,					\
-		  "field \"" #p "\" at " __FILE__ ":" __stringify(__LINE__), \
+		  "field \"" #p "\" at " FILE_LINE,			\
 		  __p_size_field);					\
 	__underlying_##op(p, q, __fortify_size);			\
 })

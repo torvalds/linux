@@ -332,7 +332,6 @@ static const struct pwm_ops imx_tpm_pwm_ops = {
 	.free = pwm_imx_tpm_free,
 	.get_state = pwm_imx_tpm_get_state,
 	.apply = pwm_imx_tpm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_imx_tpm_probe(struct platform_device *pdev)
@@ -351,17 +350,10 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	if (IS_ERR(tpm->base))
 		return PTR_ERR(tpm->base);
 
-	tpm->clk = devm_clk_get(&pdev->dev, NULL);
+	tpm->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(tpm->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(tpm->clk),
 				     "failed to get PWM clock\n");
-
-	ret = clk_prepare_enable(tpm->clk);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"failed to prepare or enable clock: %d\n", ret);
-		return ret;
-	}
 
 	tpm->chip.dev = &pdev->dev;
 	tpm->chip.ops = &imx_tpm_pwm_ops;
@@ -372,22 +364,11 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 
 	mutex_init(&tpm->lock);
 
-	ret = pwmchip_add(&tpm->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
-		clk_disable_unprepare(tpm->clk);
-	}
+	ret = devm_pwmchip_add(&pdev->dev, &tpm->chip);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
-	return ret;
-}
-
-static void pwm_imx_tpm_remove(struct platform_device *pdev)
-{
-	struct imx_tpm_pwm_chip *tpm = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&tpm->chip);
-
-	clk_disable_unprepare(tpm->clk);
+	return 0;
 }
 
 static int __maybe_unused pwm_imx_tpm_suspend(struct device *dev)
@@ -437,7 +418,6 @@ static struct platform_driver imx_tpm_pwm_driver = {
 		.pm = &imx_tpm_pwm_pm,
 	},
 	.probe	= pwm_imx_tpm_probe,
-	.remove_new = pwm_imx_tpm_remove,
 };
 module_platform_driver(imx_tpm_pwm_driver);
 
