@@ -22,3 +22,4 @@ DG2, etc is provided to prototype the driver.
    xe_rtp
    xe_firmware
    xe_tile
+   xe_debugging
