@@ -1011,6 +1011,20 @@ static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
 }
 
 /**
+ * nlmsg_new_large - Allocate a new netlink message with non-contiguous
+ * physical memory
+ * @payload: size of the message payload
+ *
+ * The allocated skb is unable to have frag page for shinfo->frags*,
+ * as the NULL setting for skb->head in netlink_skb_destructor() will
+ * bypass most of the handling in skb_release_data()
+ */
+static inline struct sk_buff *nlmsg_new_large(size_t payload)
+{
+	return netlink_alloc_large_skb(nlmsg_total_size(payload), 0);
+}
+
+/**
  * nlmsg_end - Finalize a netlink message
  * @skb: socket buffer the message is stored in
  * @nlh: netlink message header

@@ -1204,8 +1204,7 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
 	return sock;
 }
 
-static struct sk_buff *netlink_alloc_large_skb(unsigned int size,
-					       int broadcast)
+struct sk_buff *netlink_alloc_large_skb(unsigned int size, int broadcast)
 {
 	struct sk_buff *skb;
 	void *data;

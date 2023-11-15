@@ -3849,7 +3849,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	err = -ENOBUFS;
-	nskb = nlmsg_new(if_nlmsg_size(dev, ext_filter_mask), GFP_KERNEL);
+	nskb = nlmsg_new_large(if_nlmsg_size(dev, ext_filter_mask));
 	if (nskb == NULL)
 		goto out;
 
