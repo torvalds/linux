@@ -199,14 +199,21 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 			return res;
 	}
 
-	res = tb_pci_port_enable(tunnel->src_port, activate);
+	if (activate)
+		res = tb_pci_port_enable(tunnel->dst_port, activate);
+	else
+		res = tb_pci_port_enable(tunnel->src_port, activate);
 	if (res)
 		return res;
 
-	if (tb_port_is_pcie_up(tunnel->dst_port)) {
-		res = tb_pci_port_enable(tunnel->dst_port, activate);
+
+	if (activate) {
+		res = tb_pci_port_enable(tunnel->src_port, activate);
 		if (res)
 			return res;
+	} else {
+		/* Downstream router could be unplugged */
+		tb_pci_port_enable(tunnel->dst_port, activate);
 	}
 
 	return activate ? 0 : tb_pci_set_ext_encapsulation(tunnel, activate);
