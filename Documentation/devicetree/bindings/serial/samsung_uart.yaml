@@ -35,7 +35,9 @@ properties:
               - samsung,exynos7885-uart
           - const: samsung,exynos5433-uart
       - items:
-          - const: samsung,exynosautov9-uart
+          - enum:
+              - samsung,exynosautov9-uart
+              - samsung,exynosautov920-uart
           - const: samsung,exynos850-uart
 
   reg:
