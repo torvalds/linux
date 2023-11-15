@@ -156,6 +156,10 @@ static unsigned int dw_wdt_get_min_timeout(struct dw_wdt *dw_wdt)
 			break;
 	}
 
+	/* For Coverity check */
+	if (idx == DW_WDT_NUM_TOPS)
+		idx = 0;
+
 	return dw_wdt->timeouts[idx].sec;
 }
 
@@ -178,6 +182,9 @@ static unsigned int dw_wdt_get_timeout(struct dw_wdt *dw_wdt)
 		if (dw_wdt->timeouts[idx].top_val == top_val)
 			break;
 	}
+
+	if (idx == DW_WDT_NUM_TOPS)
+		idx = 0;
 
 	/*
 	 * In IRQ mode due to the two stages counter, the actual timeout is
