@@ -1328,8 +1328,8 @@ static bool rt2800_watchdog_dma_busy(struct rt2x00_dev *rt2x00dev)
 	else
 		rt2x00dev->txdma_busy = 0;
 
-	busy_rx = rt2x00dev->rxdma_busy > 30 ? true : false;
-	busy_tx = rt2x00dev->txdma_busy > 30 ? true : false;
+	busy_rx = rt2x00dev->rxdma_busy > 30;
+	busy_tx = rt2x00dev->txdma_busy > 30;
 
 	if (!busy_rx && !busy_tx)
 		return false;
