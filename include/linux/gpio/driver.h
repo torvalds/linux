@@ -786,6 +786,7 @@ struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc);
 
 /* struct gpio_device getters */
 int gpio_device_get_base(struct gpio_device *gdev);
+const char *gpio_device_get_label(struct gpio_device *gdev);
 
 #else /* CONFIG_GPIOLIB */
 
