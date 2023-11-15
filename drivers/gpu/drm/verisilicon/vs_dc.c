@@ -1242,79 +1242,24 @@ static void update_cursor_size(struct drm_plane_state *state, struct dc_hw_curso
 	cursor->size = size_type;
 }
 
-static void update_cursor_plane(struct vs_dc *dc, struct vs_plane *plane, struct drm_plane *drm_plane,
-									struct drm_atomic_state *drm_state)
-{
-	//struct drm_plane_state *state = plane->base.state;
-	struct drm_plane_state *state = drm_atomic_get_new_plane_state(drm_state,
-									   drm_plane);
-	struct drm_framebuffer *drm_fb = state->fb;
-	struct dc_hw_cursor cursor;
-	static u32 pre_address = 0;
-
-	cursor.address = plane->dma_addr[0];
-	cursor.x = state->crtc_x;
-	cursor.y = state->crtc_y;
-	cursor.hot_x = drm_fb->hot_x;
-	cursor.hot_y = drm_fb->hot_y;
-	cursor.display_id = to_vs_display_id(dc, state->crtc);
-	update_cursor_size(state, &cursor);
-	cursor.enable = true;
-
-	if (cursor.address != pre_address) {
-		sifive_l2_flush64_range(cursor.address, ((cursor.size == CURSOR_SIZE_32X32) ?
-					CURSOR_MEM_SIZE_32X32 : CURSOR_MEM_SIZE_64X64));
-		pre_address = cursor.address;
-	}
-
-	dc_hw_update_cursor(&dc->hw, cursor.display_id, &cursor);
-}
-
 static void vs_dc_update_plane(struct device *dev, struct vs_plane *plane, struct drm_plane *drm_plane,
 								struct drm_atomic_state *drm_state)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
-	enum drm_plane_type type = plane->base.type;
 
-	switch (type) {
-	case DRM_PLANE_TYPE_PRIMARY:
-	case DRM_PLANE_TYPE_OVERLAY:
-		update_plane(dc, plane, drm_plane, drm_state);
-		update_qos(dc, plane, drm_plane, drm_state);
-		break;
-	case DRM_PLANE_TYPE_CURSOR:
-		update_cursor_plane(dc, plane, drm_plane, drm_state);
-		break;
-	default:
-		break;
-	}
+	update_plane(dc, plane, drm_plane, drm_state);
+	update_qos(dc, plane, drm_plane, drm_state);
+
 }
 
 static void vs_dc_disable_plane(struct device *dev, struct vs_plane *plane,
 								struct drm_plane_state *old_state)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
-	enum drm_plane_type type = plane->base.type;
 	struct dc_hw_fb fb = {0};
-	struct dc_hw_cursor cursor = {0};
 
-	switch (type) {
-	case DRM_PLANE_TYPE_PRIMARY:
-	case DRM_PLANE_TYPE_OVERLAY:
-		fb.enable = false;
-		dc_hw_update_plane(&dc->hw, plane->id, &fb, NULL, NULL, NULL);
-#ifdef CONFIG_VERISILICON_DEC
-		disable_fbc(dc, plane);
-#endif
-		break;
-	case DRM_PLANE_TYPE_CURSOR:
-		cursor.enable = false;
-		cursor.display_id = to_vs_display_id(dc, old_state->crtc);
-		dc_hw_update_cursor(&dc->hw, cursor.display_id, &cursor);
-		break;
-	default:
-		break;
-	}
+	fb.enable = false;
+	dc_hw_update_plane(&dc->hw, plane->id, &fb, NULL, NULL, NULL);
 }
 
 static bool vs_dc_mod_supported(const struct vs_plane_info *plane_info,
@@ -1370,6 +1315,80 @@ static int vs_dc_check_plane(struct device *dev, struct drm_plane *plane,
 						  plane_info->min_scale,
 						  plane_info->max_scale,
 						  true, true);
+}
+
+static void update_cursor_plane(struct vs_dc *dc, struct vs_plane *plane,
+			  struct drm_plane *drm_plane,
+			  struct drm_atomic_state *drm_state)
+{
+  struct drm_plane_state *state = drm_atomic_get_new_plane_state(drm_state,
+									 drm_plane);
+  struct drm_framebuffer *drm_fb = state->fb;
+  struct dc_hw_cursor cursor;
+  static u32 pre_address = 0;
+
+  cursor.address = plane->dma_addr[0];
+  cursor.x = state->crtc_x;
+  cursor.y = state->crtc_y;
+  cursor.hot_x = drm_fb->hot_x;
+  cursor.hot_y = drm_fb->hot_y;
+  cursor.display_id = to_vs_display_id(dc, state->crtc);
+  update_cursor_size(state, &cursor);
+  cursor.enable = true;
+
+  if (cursor.address != pre_address) {
+	  sifive_l2_flush64_range(cursor.address, ((cursor.size == CURSOR_SIZE_32X32) ?
+				  CURSOR_MEM_SIZE_32X32 : CURSOR_MEM_SIZE_64X64));
+	  pre_address = cursor.address;
+  }
+
+  dc_hw_update_cursor(&dc->hw, cursor.display_id, &cursor);
+}
+
+void vs_dc_update_cursor_plane(struct vs_dc *dc, struct vs_plane *plane,
+				 struct drm_plane *drm_plane,
+				 struct drm_atomic_state *drm_state)
+{
+	update_cursor_plane(dc, plane, drm_plane, drm_state);
+}
+
+void vs_dc_disable_cursor_plane(struct vs_dc *dc, struct vs_plane *plane,
+				 struct drm_plane_state *old_state)
+{
+	 struct dc_hw_cursor cursor = {0};
+
+	 cursor.enable = false;
+	 cursor.display_id = to_vs_display_id(dc, old_state->crtc);
+	 dc_hw_update_cursor(&dc->hw, cursor.display_id, &cursor);
+}
+
+int vs_dc_check_cursor_plane(struct vs_dc *dc, struct drm_plane *plane,
+				  struct drm_atomic_state *state)
+{
+	 struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+										plane);
+	 struct drm_framebuffer *fb = new_plane_state->fb;
+	 const struct vs_plane_info *plane_info;
+	 struct drm_crtc *crtc = new_plane_state->crtc;
+	 struct drm_crtc_state *crtc_state;
+	 struct vs_plane *vs_plane = to_vs_plane(plane);
+
+	 plane_info = &dc->hw.info->planes[vs_plane->id];
+
+	 if (fb->width < plane_info->min_width ||
+		 fb->width > plane_info->max_width ||
+		 fb->height < plane_info->min_height ||
+		 fb->height > plane_info->max_height)
+		 drm_err_once(plane->dev, "buffer size may not support on plane%d.\n", vs_plane->id);
+
+	 crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+	 if (IS_ERR(crtc_state))
+		 return -EINVAL;
+
+	 return drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+						 plane_info->min_scale,
+						 plane_info->max_scale,
+						 true, true);
 }
 
 static irqreturn_t dc_isr(int irq, void *data)
@@ -1456,20 +1475,6 @@ static int dc_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dev, "Failed to initialize DC hardware.\n");
 		return ret;
 	}
-
-#ifdef CONFIG_VERISILICON_MMU
-	ret = dc_mmu_construct(priv->dma_dev, &priv->mmu);
-	if (ret) {
-		dev_err(dev, "failed to construct DC MMU\n");
-		goto err_clean_dc;
-	}
-
-	ret = dc_hw_mmu_init(&dc->hw, priv->mmu);
-	if (ret) {
-		dev_err(dev, "failed to init DC MMU\n");
-		goto err_clean_dc;
-	}
-#endif
 
 	ret = vs_drm_iommu_attach_device(drm_dev, dev);
 	if (ret < 0) {
