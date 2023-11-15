@@ -59,8 +59,8 @@ config ZRAM_WRITEBACK
        bool "Write back incompressible or idle page to backing device"
        depends on ZRAM
        help
-	 With incompressible page, there is no memory saving to keep it
-	 in memory. Instead, write it out to backing device.
+	 This lets zram entries (incompressible or idle pages) be written
+	 back to a backing device, helping save memory.
 	 For this feature, admin should set up backing device via
 	 /sys/block/zramX/backing_dev.
 
