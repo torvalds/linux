@@ -297,12 +297,18 @@ static int vpe_early_init(void *handle)
 	case IP_VERSION(6, 1, 0):
 		vpe_v6_1_set_funcs(vpe);
 		break;
+	case IP_VERSION(6, 1, 1):
+		vpe_v6_1_set_funcs(vpe);
+		vpe->collaborate_mode = true;
+		break;
 	default:
 		return -EINVAL;
 	}
 
 	vpe_set_ring_funcs(adev);
 	vpe_set_regs(vpe);
+
+	dev_info(adev->dev, "VPE: collaborate mode %s", vpe->collaborate_mode ? "true" : "false");
 
 	return 0;
 }
@@ -492,8 +498,6 @@ static void vpe_ring_emit_fence(struct amdgpu_ring *ring, uint64_t addr,
 				uint64_t seq, unsigned int flags)
 {
 	int i = 0;
-
-	vpe_ring_emit_pred_exec(ring, 0, 10);
 
 	do {
 		/* write the fence */
@@ -705,16 +709,22 @@ static void vpe_ring_set_wptr(struct amdgpu_ring *ring)
 			upper_32_bits(ring->wptr << 2));
 		atomic64_set((atomic64_t *)ring->wptr_cpu_addr, ring->wptr << 2);
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
+		if (vpe->collaborate_mode)
+			WDOORBELL64(ring->doorbell_index + 4, ring->wptr << 2);
 	} else {
-		dev_dbg(adev->dev, "Not using doorbell, \
-			regVPEC_QUEUE0_RB_WPTR == 0x%08x, \
-			regVPEC_QUEUE0_RB_WPTR_HI == 0x%08x\n",
-			lower_32_bits(ring->wptr << 2),
-			upper_32_bits(ring->wptr << 2));
-		WREG32(vpe_get_reg_offset(vpe, ring->me, vpe->regs.queue0_rb_wptr_lo),
-		       lower_32_bits(ring->wptr << 2));
-		WREG32(vpe_get_reg_offset(vpe, ring->me, vpe->regs.queue0_rb_wptr_hi),
-		       upper_32_bits(ring->wptr << 2));
+		int i;
+
+		for (i = 0; i < vpe->num_instances; i++) {
+			dev_dbg(adev->dev, "Not using doorbell, \
+				regVPEC_QUEUE0_RB_WPTR == 0x%08x, \
+				regVPEC_QUEUE0_RB_WPTR_HI == 0x%08x\n",
+				lower_32_bits(ring->wptr << 2),
+				upper_32_bits(ring->wptr << 2));
+			WREG32(vpe_get_reg_offset(vpe, i, vpe->regs.queue0_rb_wptr_lo),
+			       lower_32_bits(ring->wptr << 2));
+			WREG32(vpe_get_reg_offset(vpe, i, vpe->regs.queue0_rb_wptr_hi),
+			       upper_32_bits(ring->wptr << 2));
+		}
 	}
 }
 
