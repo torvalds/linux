@@ -141,14 +141,20 @@ int devlink_nl_pre_doit_port_optional(const struct genl_split_ops *ops,
 	return __devlink_nl_pre_doit(skb, info, DEVLINK_NL_FLAG_NEED_DEVLINK_OR_PORT);
 }
 
-void devlink_nl_post_doit(const struct genl_split_ops *ops,
-			  struct sk_buff *skb, struct genl_info *info)
+static void __devlink_nl_post_doit(struct sk_buff *skb, struct genl_info *info,
+				   u8 flags)
 {
 	struct devlink *devlink;
 
 	devlink = info->user_ptr[0];
 	devl_unlock(devlink);
 	devlink_put(devlink);
+}
+
+void devlink_nl_post_doit(const struct genl_split_ops *ops,
+			  struct sk_buff *skb, struct genl_info *info)
+{
+	__devlink_nl_post_doit(skb, info, 0);
 }
 
 static int devlink_nl_inst_single_dumpit(struct sk_buff *msg,
