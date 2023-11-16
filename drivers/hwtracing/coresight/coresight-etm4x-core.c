@@ -2303,7 +2303,7 @@ static void etm4_remove_amba(struct amba_device *adev)
 		etm4_remove_dev(drvdata);
 }
 
-static int etm4_remove_platform_dev(struct platform_device *pdev)
+static void etm4_remove_platform_dev(struct platform_device *pdev)
 {
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
@@ -2313,8 +2313,6 @@ static int etm4_remove_platform_dev(struct platform_device *pdev)
 
 	if (drvdata && !IS_ERR_OR_NULL(drvdata->pclk))
 		clk_put(drvdata->pclk);
-
-	return 0;
 }
 
 static const struct amba_id etm4_ids[] = {
@@ -2400,7 +2398,7 @@ MODULE_DEVICE_TABLE(acpi, etm4x_acpi_ids);
 
 static struct platform_driver etm4_platform_driver = {
 	.probe		= etm4_probe_platform_dev,
-	.remove		= etm4_remove_platform_dev,
+	.remove_new	= etm4_remove_platform_dev,
 	.driver			= {
 		.name			= "coresight-etm4x",
 		.of_match_table		= etm4_sysreg_match,
