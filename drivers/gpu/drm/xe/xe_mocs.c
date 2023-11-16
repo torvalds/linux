@@ -574,3 +574,7 @@ void xe_mocs_init(struct xe_gt *gt)
 	if (flags & HAS_LNCF_MOCS)
 		init_l3cc_table(gt, &table);
 }
+
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+#include "tests/xe_mocs.c"
+#endif
