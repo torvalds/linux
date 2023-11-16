@@ -296,7 +296,7 @@ static void amlogic_thermal_remove(struct platform_device *pdev)
 	amlogic_thermal_disable(data);
 }
 
-static int __maybe_unused amlogic_thermal_suspend(struct device *dev)
+static int amlogic_thermal_suspend(struct device *dev)
 {
 	struct amlogic_thermal *data = dev_get_drvdata(dev);
 
@@ -305,20 +305,21 @@ static int __maybe_unused amlogic_thermal_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused amlogic_thermal_resume(struct device *dev)
+static int amlogic_thermal_resume(struct device *dev)
 {
 	struct amlogic_thermal *data = dev_get_drvdata(dev);
 
 	return amlogic_thermal_enable(data);
 }
 
-static SIMPLE_DEV_PM_OPS(amlogic_thermal_pm_ops,
-			 amlogic_thermal_suspend, amlogic_thermal_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(amlogic_thermal_pm_ops,
+				amlogic_thermal_suspend,
+				amlogic_thermal_resume);
 
 static struct platform_driver amlogic_thermal_driver = {
 	.driver = {
 		.name		= "amlogic_thermal",
-		.pm		= &amlogic_thermal_pm_ops,
+		.pm		= pm_ptr(&amlogic_thermal_pm_ops),
 		.of_match_table = of_amlogic_thermal_match,
 	},
 	.probe = amlogic_thermal_probe,
