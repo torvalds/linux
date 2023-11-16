@@ -601,15 +601,13 @@ static int smb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int smb_remove(struct platform_device *pdev)
+static void smb_remove(struct platform_device *pdev)
 {
 	struct smb_drv_data *drvdata = platform_get_drvdata(pdev);
 
 	smb_unregister_sink(drvdata);
 
 	smb_config_inport(&pdev->dev, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -627,7 +625,7 @@ static struct platform_driver smb_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = smb_probe,
-	.remove = smb_remove,
+	.remove_new = smb_remove,
 };
 module_platform_driver(smb_driver);
 
