@@ -85,17 +85,56 @@ void amdgpu_dm_init_color_mod(void)
 }
 
 #ifdef AMD_PRIVATE_COLOR
-static const struct drm_prop_enum_list amdgpu_transfer_function_enum_list[] = {
-	{ AMDGPU_TRANSFER_FUNCTION_DEFAULT, "Default" },
-	{ AMDGPU_TRANSFER_FUNCTION_SRGB, "sRGB" },
-	{ AMDGPU_TRANSFER_FUNCTION_BT709, "BT.709" },
-	{ AMDGPU_TRANSFER_FUNCTION_PQ, "PQ (Perceptual Quantizer)" },
-	{ AMDGPU_TRANSFER_FUNCTION_LINEAR, "Linear" },
-	{ AMDGPU_TRANSFER_FUNCTION_UNITY, "Unity" },
-	{ AMDGPU_TRANSFER_FUNCTION_GAMMA22, "Gamma 2.2" },
-	{ AMDGPU_TRANSFER_FUNCTION_GAMMA24, "Gamma 2.4" },
-	{ AMDGPU_TRANSFER_FUNCTION_GAMMA26, "Gamma 2.6" },
+static const char * const
+amdgpu_transfer_function_names[] = {
+	[AMDGPU_TRANSFER_FUNCTION_DEFAULT]		= "Default",
+	[AMDGPU_TRANSFER_FUNCTION_IDENTITY]		= "Identity",
+	[AMDGPU_TRANSFER_FUNCTION_SRGB_EOTF]		= "sRGB EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_BT709_INV_OETF]	= "BT.709 inv_OETF",
+	[AMDGPU_TRANSFER_FUNCTION_PQ_EOTF]		= "PQ EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA22_EOTF]		= "Gamma 2.2 EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA24_EOTF]		= "Gamma 2.4 EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA26_EOTF]		= "Gamma 2.6 EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_SRGB_INV_EOTF]	= "sRGB inv_EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_BT709_OETF]		= "BT.709 OETF",
+	[AMDGPU_TRANSFER_FUNCTION_PQ_INV_EOTF]		= "PQ inv_EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA22_INV_EOTF]	= "Gamma 2.2 inv_EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA24_INV_EOTF]	= "Gamma 2.4 inv_EOTF",
+	[AMDGPU_TRANSFER_FUNCTION_GAMMA26_INV_EOTF]	= "Gamma 2.6 inv_EOTF",
 };
+
+static const u32 amdgpu_eotf =
+	BIT(AMDGPU_TRANSFER_FUNCTION_SRGB_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_BT709_INV_OETF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_PQ_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA22_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA24_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA26_EOTF);
+
+static struct drm_property *
+amdgpu_create_tf_property(struct drm_device *dev,
+			  const char *name,
+			  u32 supported_tf)
+{
+	u32 transfer_functions = supported_tf |
+				 BIT(AMDGPU_TRANSFER_FUNCTION_DEFAULT) |
+				 BIT(AMDGPU_TRANSFER_FUNCTION_IDENTITY);
+	struct drm_prop_enum_list enum_list[AMDGPU_TRANSFER_FUNCTION_COUNT];
+	int i, len;
+
+	len = 0;
+	for (i = 0; i < AMDGPU_TRANSFER_FUNCTION_COUNT; i++) {
+		if ((transfer_functions & BIT(i)) == 0)
+			continue;
+
+		enum_list[len].type = i;
+		enum_list[len].name = amdgpu_transfer_function_names[i];
+		len++;
+	}
+
+	return drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
+					name, enum_list, len);
+}
 
 int
 amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
@@ -117,11 +156,9 @@ amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
 		return -ENOMEM;
 	adev->mode_info.plane_degamma_lut_size_property = prop;
 
-	prop = drm_property_create_enum(adev_to_drm(adev),
-					DRM_MODE_PROP_ENUM,
-					"AMD_PLANE_DEGAMMA_TF",
-					amdgpu_transfer_function_enum_list,
-					ARRAY_SIZE(amdgpu_transfer_function_enum_list));
+	prop = amdgpu_create_tf_property(adev_to_drm(adev),
+					 "AMD_PLANE_DEGAMMA_TF",
+					 amdgpu_eotf);
 	if (!prop)
 		return -ENOMEM;
 	adev->mode_info.plane_degamma_tf_property = prop;
