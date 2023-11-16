@@ -135,10 +135,11 @@ static inline void acquire_rq_locks_irqsave(const cpumask_t *cpus,
 				     unsigned long *flags)
 {
 	int cpu;
-	int level = 0;
+	int level;
 
 	local_irq_save(*flags);
 
+	level = 0;
 	for_each_cpu(cpu, cpus) {
 		if (level == 0)
 			raw_spin_lock(&cpu_rq(cpu)->__lock);
@@ -4453,7 +4454,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 {
 	cpumask_t lock_cpus;
 	struct walt_rq *wrq;
-	int level = 0;
+	int level;
 	int cpu;
 	bool is_migration = false, is_asym_migration = false, is_shared_rail_migration = false;
 	u32 wakeup_ctr_sum = 0;
@@ -4487,6 +4488,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		}
 	}
 
+	level = 0;
 	for_each_cpu(cpu, &lock_cpus) {
 		if (level == 0)
 			raw_spin_lock(&cpu_rq(cpu)->__lock);
@@ -5330,9 +5332,10 @@ static int walt_init_stop_handler(void *data)
 	int cpu;
 	struct task_struct *g, *p;
 	struct walt_rq *wrq;
-	int level = 0;
+	int level;
 
 	read_lock(&tasklist_lock);
+	level = 0;
 	for_each_possible_cpu(cpu) {
 		if (level == 0)
 			raw_spin_lock(&cpu_rq(cpu)->__lock);
