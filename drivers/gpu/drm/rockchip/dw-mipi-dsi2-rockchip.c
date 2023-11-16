@@ -271,7 +271,7 @@ struct dw_mipi_dsi2 {
 	u32 lanes;
 	u32 format;
 	unsigned long mode_flags;
-
+	u64 mipi_pixel_rate;
 	const struct dw_mipi_dsi2_plat_data *pdata;
 	struct rockchip_drm_sub_dev sub_dev;
 
@@ -610,9 +610,8 @@ static void dw_mipi_dsi2_phy_clk_mode_cfg(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 {
-	struct drm_display_mode *mode = &dsi2->mode;
 	u64 sys_clk = clk_get_rate(dsi2->sys_clk);
-	u64 pixel_clk, ipi_clk, phy_hsclk;
+	u64 ipi_clk, phy_hsclk;
 	u64 tmp;
 
 	/*
@@ -626,9 +625,7 @@ static void dw_mipi_dsi2_phy_ratio_cfg(struct dw_mipi_dsi2 *dsi2)
 		phy_hsclk = DIV_ROUND_CLOSEST_ULL(dsi2->lane_hs_rate * MSEC_PER_SEC, 16);
 
 	/* IPI_RATIO_MAN_CFG = PHY_HSTX_CLK / IPI_CLK */
-	pixel_clk = mode->crtc_clock * MSEC_PER_SEC;
-	ipi_clk = pixel_clk / 4;
-
+	ipi_clk = dsi2->mipi_pixel_rate;
 	if (!sys_clk || !ipi_clk)
 		return;
 
@@ -845,6 +842,31 @@ static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 		dw_mipi_dsi2_enable(dsi2->slave);
 }
 
+static void dw_mipi_dsi2_get_mipi_pixel_clk(struct dw_mipi_dsi2 *dsi2,
+					    struct rockchip_crtc_state *s)
+{
+	struct drm_display_mode *mode = &dsi2->mode;
+	u8 k = dsi2->slave ? 2 : 1;
+
+	/* 1.When MIPI works in uncompressed mode:
+	 * (Video Timing Pixel Rate)/(4)=(MIPI Pixel ClockxK)=(dclk_out×K)=dclk_core
+	 * 2.When MIPI works in compressed mode:
+	 * MIPI Pixel Clock = cds_clk / 2
+	 * MIPI is configured as double channel display mode, K=2, otherwise K=1.
+	 */
+	if (dsi2->dsc_enable) {
+		dsi2->mipi_pixel_rate = s->dsc_cds_clk_rate / 2;
+		if (dsi2->slave)
+			dsi2->slave->mipi_pixel_rate = dsi2->mipi_pixel_rate;
+
+		return;
+	}
+
+	dsi2->mipi_pixel_rate = (mode->crtc_clock * MSEC_PER_SEC) / (4 * k);
+	if (dsi2->slave)
+		dsi2->slave->mipi_pixel_rate = dsi2->mipi_pixel_rate;
+}
+
 static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 					 struct drm_atomic_state *state)
 {
@@ -852,6 +874,7 @@ static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
+	struct rockchip_crtc_state *vcstate;
 	const struct drm_display_mode *adjusted_mode;
 	struct drm_display_mode *mode = &dsi2->mode;
 
@@ -869,6 +892,7 @@ static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 		return -ENODEV;
 	}
 
+	vcstate = to_rockchip_crtc_state(crtc_state);
 	adjusted_mode = &crtc_state->adjusted_mode;
 	drm_mode_copy(mode, adjusted_mode);
 
@@ -877,6 +901,8 @@ static int dw_mipi_dsi2_encoder_mode_set(struct dw_mipi_dsi2 *dsi2,
 
 	if (dsi2->slave)
 		drm_mode_copy(&dsi2->slave->mode, mode);
+
+	dw_mipi_dsi2_get_mipi_pixel_clk(dsi2, vcstate);
 
 	return 0;
 }
