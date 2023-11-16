@@ -79,6 +79,18 @@ static int gve_verify_driver_compatibility(struct gve_priv *priv)
 	return err;
 }
 
+static netdev_features_t gve_features_check(struct sk_buff *skb,
+					    struct net_device *dev,
+					    netdev_features_t features)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	if (!gve_is_gqi(priv))
+		return gve_features_check_dqo(skb, dev, features);
+
+	return features;
+}
+
 static netdev_tx_t gve_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gve_priv *priv = netdev_priv(dev);
@@ -1879,6 +1891,7 @@ err:
 
 static const struct net_device_ops gve_netdev_ops = {
 	.ndo_start_xmit		=	gve_start_xmit,
+	.ndo_features_check	=	gve_features_check,
 	.ndo_open		=	gve_open,
 	.ndo_stop		=	gve_close,
 	.ndo_get_stats64	=	gve_get_stats,
