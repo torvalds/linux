@@ -80,6 +80,7 @@ config SND_AMD_ASOC_ACP70
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	help
 	This option enables Acp7.0 PDM support on AMD platform.
 	Say Y if you want to enable AUDIO on ACP7.0
