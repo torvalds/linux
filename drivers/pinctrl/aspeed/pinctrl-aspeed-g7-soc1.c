@@ -284,6 +284,9 @@ static const int fwspiwpn_pins[] = { 131 };
 static const int thru2_pins[] = { 114, 115 };
 static const int thru3_pins[] = { 120, 121 };
 
+//GPIOQ
+static const int jtagm1_pins[] = { 126, 127, 128, 129, 130 };
+
 //GPIY
 static const int salt4_pins[] = { 188 };
 static const int salt5_pins[] = { 189 };
@@ -320,8 +323,6 @@ static const int sgpm0_pins[] = { 204, 205, 207, 208 };
 static const int sgpm1_pins[] = { 209, 210, 58, 59 };
 
 static const int ltpi_pins[] = { 84, 85, 86, 87 };
-
-static const int jtagm1_pins[] = { 126, 127, 128, 129, 130 };
 
 static const int mdio0_pins[] = { 144, 145 };
 static const int mdio1_pins[] = { 160, 161 };
@@ -2127,27 +2128,27 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MNTRST1, SCU40, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(JTAGM1, SCU40, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MTCK1, SCU40, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(JTAGM1, SCU40, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MTMS1, SCU40, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(JTAGM1, SCU40, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MTDI1, SCU40, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(JTAGM1, SCU40, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MTDO1, SCU40, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(JTAGM1, SCU40, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
