@@ -78,6 +78,13 @@ struct extent_buffer {
 	unsigned long len;
 	unsigned long bflags;
 	struct btrfs_fs_info *fs_info;
+
+	/*
+	 * The address where the eb can be accessed without any cross-page handling.
+	 * This can be NULL if not possible.
+	 */
+	void *addr;
+
 	spinlock_t refs_lock;
 	atomic_t refs;
 	int read_mirror;

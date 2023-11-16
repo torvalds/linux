@@ -3489,6 +3489,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	struct btrfs_subpage *prealloc = NULL;
 	u64 lockdep_owner = owner_root;
+	bool page_contig = true;
 	int uptodate = 1;
 	int ret;
 
@@ -3575,6 +3576,14 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 
 		WARN_ON(btrfs_page_test_dirty(fs_info, p, eb->start, eb->len));
 		eb->pages[i] = p;
+
+		/*
+		 * Check if the current page is physically contiguous with previous eb
+		 * page.
+		 */
+		if (i && eb->pages[i - 1] + 1 != p)
+			page_contig = false;
+
 		if (!btrfs_page_test_uptodate(fs_info, p, eb->start, eb->len))
 			uptodate = 0;
 
@@ -3588,6 +3597,9 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+	/* All pages are physically contiguous, can skip cross page handling. */
+	if (page_contig)
+		eb->addr = page_address(eb->pages[0]) + offset_in_page(eb->start);
 again:
 	ret = radix_tree_preload(GFP_NOFS);
 	if (ret) {
@@ -4036,6 +4048,11 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 		return;
 	}
 
+	if (eb->addr) {
+		memcpy(dstv, eb->addr + start, len);
+		return;
+	}
+
 	offset = get_eb_offset_in_page(eb, start);
 
 	while (len > 0) {
@@ -4066,6 +4083,12 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 
 	WARN_ON(start > eb->len);
 	WARN_ON(start + len > eb->start + eb->len);
+
+	if (eb->addr) {
+		if (copy_to_user_nofault(dstv, eb->addr + start, len))
+			ret = -EFAULT;
+		return ret;
+	}
 
 	offset = get_eb_offset_in_page(eb, start);
 
@@ -4101,6 +4124,9 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 
 	if (check_eb_range(eb, start, len))
 		return -EINVAL;
+
+	if (eb->addr)
+		return memcmp(ptrv, eb->addr + start, len);
 
 	offset = get_eb_offset_in_page(eb, start);
 
@@ -4169,6 +4195,14 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 	if (check_eb_range(eb, start, len))
 		return;
 
+	if (eb->addr) {
+		if (use_memmove)
+			memmove(eb->addr + start, srcv, len);
+		else
+			memcpy(eb->addr + start, srcv, len);
+		return;
+	}
+
 	offset = get_eb_offset_in_page(eb, start);
 
 	while (len > 0) {
@@ -4200,6 +4234,11 @@ static void memset_extent_buffer(const struct extent_buffer *eb, int c,
 				 unsigned long start, unsigned long len)
 {
 	unsigned long cur = start;
+
+	if (eb->addr) {
+		memset(eb->addr + start, c, len);
+		return;
+	}
 
 	while (cur < start + len) {
 		unsigned long index = get_eb_page_index(cur);
@@ -4428,6 +4467,16 @@ void memcpy_extent_buffer(const struct extent_buffer *dst,
 	    check_eb_range(dst, src_offset, len))
 		return;
 
+	if (dst->addr) {
+		const bool use_memmove = areas_overlap(src_offset, dst_offset, len);
+
+		if (use_memmove)
+			memmove(dst->addr + dst_offset, dst->addr + src_offset, len);
+		else
+			memcpy(dst->addr + dst_offset, dst->addr + src_offset, len);
+		return;
+	}
+
 	while (cur_off < len) {
 		unsigned long cur_src = cur_off + src_offset;
 		unsigned long pg_index = get_eb_page_index(cur_src);
@@ -4457,6 +4506,11 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 
 	if (dst_offset < src_offset) {
 		memcpy_extent_buffer(dst, dst_offset, src_offset, len);
+		return;
+	}
+
+	if (dst->addr) {
+		memmove(dst->addr + dst_offset, dst->addr + src_offset, len);
 		return;
 	}
 
