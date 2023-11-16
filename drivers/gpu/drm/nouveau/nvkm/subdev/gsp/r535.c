@@ -1046,7 +1046,7 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 	char *strings;
 	int str_offset;
 	int i;
-	size_t rpc_size = sizeof(*rpc) + sizeof(rpc->entries[0]) * NV_GSP_REG_NUM_ENTRIES;
+	size_t rpc_size = struct_size(rpc, entries, NV_GSP_REG_NUM_ENTRIES);
 
 	/* add strings + null terminator */
 	for (i = 0; i < NV_GSP_REG_NUM_ENTRIES; i++)
