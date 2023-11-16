@@ -295,6 +295,13 @@ amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
 		return -ENOMEM;
 	adev->mode_info.plane_blend_tf_property = prop;
 
+	prop = amdgpu_create_tf_property(adev_to_drm(adev),
+					 "AMD_CRTC_REGAMMA_TF",
+					 amdgpu_inv_eotf);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.regamma_tf_property = prop;
+
 	return 0;
 }
 #endif
