@@ -1579,6 +1579,9 @@ create_session_full_msg(struct ceph_mds_client *mdsc, int op, u64 seq)
 		size = METRIC_BYTES(count);
 	extra_bytes += 2 + 4 + 4 + size;
 
+	/* flags, mds auth caps and oldest_client_tid */
+	extra_bytes += 4 + 4 + 8;
+
 	/* Allocate the message */
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_SESSION, sizeof(*h) + extra_bytes,
 			   GFP_NOFS, false);
@@ -1597,9 +1600,9 @@ create_session_full_msg(struct ceph_mds_client *mdsc, int op, u64 seq)
 	 * Serialize client metadata into waiting buffer space, using
 	 * the format that userspace expects for map<string, string>
 	 *
-	 * ClientSession messages with metadata are v4
+	 * ClientSession messages with metadata are v7
 	 */
-	msg->hdr.version = cpu_to_le16(4);
+	msg->hdr.version = cpu_to_le16(7);
 	msg->hdr.compat_version = cpu_to_le16(1);
 
 	/* The write pointer, following the session_head structure */
@@ -1634,6 +1637,15 @@ create_session_full_msg(struct ceph_mds_client *mdsc, int op, u64 seq)
 		ceph_msg_put(msg);
 		return ERR_PTR(ret);
 	}
+
+	/* version == 5, flags */
+	ceph_encode_32(&p, 0);
+
+	/* version == 6, mds auth caps */
+	ceph_encode_32(&p, 0);
+
+	/* version == 7, oldest_client_tid */
+	ceph_encode_64(&p, mdsc->oldest_tid);
 
 	msg->front.iov_len = p - msg->front.iov_base;
 	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
@@ -2030,10 +2042,10 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 
 	doutc(cl, "to mds%d (%s)\n", session->s_mds,
 	      ceph_mds_state_name(state));
-	msg = ceph_create_session_msg(CEPH_SESSION_REQUEST_RENEWCAPS,
+	msg = create_session_full_msg(mdsc, CEPH_SESSION_REQUEST_RENEWCAPS,
 				      ++session->s_renew_seq);
-	if (!msg)
-		return -ENOMEM;
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 	ceph_con_send(&session->s_con, msg);
 	return 0;
 }
