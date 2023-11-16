@@ -2388,36 +2388,17 @@ static void compute_m_n(u32 *ret_m, u32 *ret_n,
 	intel_reduce_m_n_ratio(ret_m, ret_n);
 }
 
-static void
-add_bw_alloc_overhead(int link_clock, int bw_overhead,
-		      int pixel_data_rate, int link_data_rate,
-		      u32 *data_m, u32 *data_n)
-{
-	bool is_uhbr = drm_dp_is_uhbr_rate(link_clock);
-	int ch_coding_efficiency =
-		drm_dp_bw_channel_coding_efficiency(is_uhbr);
-
-	*data_m = DIV_ROUND_UP_ULL(mul_u32_u32(pixel_data_rate, bw_overhead),
-				   1000000);
-	*data_n = DIV_ROUND_DOWN_ULL(mul_u32_u32(link_data_rate, ch_coding_efficiency),
-				     1000000);
-}
-
 void
 intel_link_compute_m_n(u16 bits_per_pixel_x16, int nlanes,
 		       int pixel_clock, int link_clock,
 		       int bw_overhead,
 		       struct intel_link_m_n *m_n)
 {
-	u32 data_clock = DIV_ROUND_UP(bits_per_pixel_x16 * pixel_clock, 16);
 	u32 link_symbol_clock = intel_dp_link_symbol_clock(link_clock);
-	u32 data_m;
-	u32 data_n;
+	u32 data_m = intel_dp_effective_data_rate(pixel_clock, bits_per_pixel_x16,
+						  bw_overhead);
+	u32 data_n = intel_dp_max_data_rate(link_clock, nlanes);
 
-	add_bw_alloc_overhead(link_clock, bw_overhead,
-			      data_clock,
-			      link_clock * 10 * nlanes,
-			      &data_m, &data_n);
 	/*
 	 * Windows/BIOS uses fixed M/N values always. Follow suit.
 	 *
