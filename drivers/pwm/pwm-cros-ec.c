@@ -25,7 +25,6 @@
  * @channel: array with per-channel data
  */
 struct cros_ec_pwm_device {
-	struct device *dev;
 	struct cros_ec_device *ec;
 	struct pwm_chip chip;
 	bool use_pwm_type;
