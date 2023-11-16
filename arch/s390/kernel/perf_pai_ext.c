@@ -384,13 +384,12 @@ static void paiext_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paiext_copy(struct paiext_map *cpump)
+static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
 {
-	struct pai_userdata *userdata = cpump->save;
 	int i, outidx = 0;
 
 	for (i = 1; i <= paiext_cnt; i++) {
-		u64 val = paiext_getctr(cpump->area, i);
+		u64 val = paiext_getctr(area, i);
 
 		if (val) {
 			userdata[outidx].num = i;
@@ -427,7 +426,7 @@ static int paiext_push_sample(void)
 	size_t rawsize;
 	int overflow;
 
-	rawsize = paiext_copy(cpump);
+	rawsize = paiext_copy(cpump->save, cpump->area);
 	if (!rawsize)			/* No incremented counters */
 		return 0;
 
