@@ -43,6 +43,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -3578,16 +3579,22 @@ static int drm_dp_send_up_ack_reply(struct drm_dp_mst_topology_mgr *mgr,
  * value is in units of PBNs/(timeslots/1 MTP). This value can be used to
  * convert the number of PBNs required for a given stream to the number of
  * timeslots this stream requires in each MTP.
+ *
+ * Returns the BW / timeslot value in 20.12 fixed point format.
  */
-int drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
-			     int link_rate, int link_lane_count)
+fixed20_12 drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
+				    int link_rate, int link_lane_count)
 {
+	fixed20_12 ret;
+
 	if (link_rate == 0 || link_lane_count == 0)
 		drm_dbg_kms(mgr->dev, "invalid link rate/lane count: (%d / %d)\n",
 			    link_rate, link_lane_count);
 
 	/* See DP v2.0 2.6.4.2, VCPayload_Bandwidth_for_OneTimeSlotPer_MTP_Allocation */
-	return link_rate * link_lane_count / 54000;
+	ret.full = dfixed_const(link_rate * link_lane_count / 54000);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_get_vc_payload_bw);
 
@@ -4335,7 +4342,7 @@ int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
 		}
 	}
 
-	req_slots = DIV_ROUND_UP(pbn, topology_state->pbn_div);
+	req_slots = DIV_ROUND_UP(pbn, dfixed_trunc(topology_state->pbn_div));
 
 	drm_dbg_atomic(mgr->dev, "[CONNECTOR:%d:%s] [MST PORT:%p] TU %d -> %d\n",
 		       port->connector->base.id, port->connector->name,
@@ -4872,7 +4879,8 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 	state = to_drm_dp_mst_topology_state(mgr->base.state);
 	seq_printf(m, "\n*** Atomic state info ***\n");
 	seq_printf(m, "payload_mask: %x, max_payloads: %d, start_slot: %u, pbn_div: %d\n",
-		   state->payload_mask, mgr->max_payloads, state->start_slot, state->pbn_div);
+		   state->payload_mask, mgr->max_payloads, state->start_slot,
+		   dfixed_trunc(state->pbn_div));
 
 	seq_printf(m, "\n| idx | port | vcpi | slots | pbn | dsc | status |     sink name     |\n");
 	for (i = 0; i < mgr->max_payloads; i++) {
@@ -5330,10 +5338,10 @@ drm_dp_mst_atomic_check_payload_alloc_limits(struct drm_dp_mst_topology_mgr *mgr
 	}
 
 	if (!payload_count)
-		mst_state->pbn_div = 0;
+		mst_state->pbn_div.full = dfixed_const(0);
 
 	drm_dbg_atomic(mgr->dev, "[MST MGR:%p] mst state %p TU pbn_div=%d avail=%d used=%d\n",
-		       mgr, mst_state, mst_state->pbn_div, avail_slots,
+		       mgr, mst_state, dfixed_trunc(mst_state->pbn_div), avail_slots,
 		       mst_state->total_avail_slots - avail_slots);
 
 	return 0;

@@ -31,6 +31,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 
 #include "dm_services.h"
 #include "amdgpu.h"
@@ -205,13 +206,14 @@ void dm_helpers_dp_update_branch_info(
 
 static void dm_helpers_construct_old_payload(
 			struct dc_link *link,
-			int pbn_per_slot,
+			fixed20_12 pbn_per_slot_fp,
 			struct drm_dp_mst_atomic_payload *new_payload,
 			struct drm_dp_mst_atomic_payload *old_payload)
 {
 	struct link_mst_stream_allocation_table current_link_table =
 									link->mst_stream_alloc_table;
 	struct link_mst_stream_allocation *dc_alloc;
+	int pbn_per_slot = dfixed_trunc(pbn_per_slot_fp);
 	int i;
 
 	*old_payload = *new_payload;

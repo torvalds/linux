@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_fixed.h>
 
 #if IS_ENABLED(CONFIG_DRM_DEBUG_DP_MST_TOPOLOGY_REFS)
 #include <linux/stackdepot.h>
@@ -617,7 +618,7 @@ struct drm_dp_mst_topology_state {
 	 * @pbn_div: The current PBN divisor for this topology. The driver is expected to fill this
 	 * out itself.
 	 */
-	int pbn_div;
+	fixed20_12 pbn_div;
 };
 
 #define to_dp_mst_topology_mgr(x) container_of(x, struct drm_dp_mst_topology_mgr, base)
@@ -839,8 +840,8 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector,
 				 struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port);
 
-int drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
-			     int link_rate, int link_lane_count);
+fixed20_12 drm_dp_get_vc_payload_bw(const struct drm_dp_mst_topology_mgr *mgr,
+				    int link_rate, int link_lane_count);
 
 int drm_dp_calc_pbn_mode(int clock, int bpp);
 
