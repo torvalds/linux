@@ -254,9 +254,13 @@ static inline struct ast_device *to_ast_device(struct drm_device *dev)
 	return container_of(dev, struct ast_device, base);
 }
 
-struct ast_device *ast_device_create(const struct drm_driver *drv,
-				     struct pci_dev *pdev,
-				     unsigned long flags);
+struct drm_device *ast_device_create(struct pci_dev *pdev,
+				     const struct drm_driver *drv,
+				     enum ast_chip chip,
+				     enum ast_config_mode config_mode,
+				     void __iomem *regs,
+				     void __iomem *ioregs,
+				     bool need_post);
 
 static inline unsigned long __ast_gen(struct ast_device *ast)
 {
