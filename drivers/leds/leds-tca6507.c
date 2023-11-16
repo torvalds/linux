@@ -753,37 +753,25 @@ static int tca6507_probe(struct i2c_client *client)
 			l->led_cdev.brightness_set = tca6507_brightness_set;
 			l->led_cdev.blink_set = tca6507_blink_set;
 			l->bank = -1;
-			err = led_classdev_register(dev, &l->led_cdev);
+			err = devm_led_classdev_register(dev, &l->led_cdev);
 			if (err < 0)
-				goto exit;
+				return err;
 		}
 	}
 	err = tca6507_probe_gpios(dev, tca, pdata);
 	if (err)
-		goto exit;
+		return err;
 	/* set all registers to known state - zero */
 	tca->reg_set = 0x7f;
 	schedule_work(&tca->work);
 
 	return 0;
-exit:
-	while (i--) {
-		if (tca->leds[i].led_cdev.name)
-			led_classdev_unregister(&tca->leds[i].led_cdev);
-	}
-	return err;
 }
 
 static void tca6507_remove(struct i2c_client *client)
 {
-	int i;
 	struct tca6507_chip *tca = i2c_get_clientdata(client);
-	struct tca6507_led *tca_leds = tca->leds;
 
-	for (i = 0; i < NUM_LEDS; i++) {
-		if (tca_leds[i].led_cdev.name)
-			led_classdev_unregister(&tca_leds[i].led_cdev);
-	}
 	cancel_work_sync(&tca->work);
 }
 
