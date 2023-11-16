@@ -35,6 +35,7 @@ struct vs_plane_status {
 struct vs_plane_state {
 	struct drm_plane_state base;
 	struct vs_plane_status status; /* for debugfs */
+	dma_addr_t dma_addr[MAX_NUM_PLANES];
 
 	struct drm_property_blob *watermark;
 	struct drm_property_blob *color_mgmt;

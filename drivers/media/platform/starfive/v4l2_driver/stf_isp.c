@@ -402,7 +402,7 @@ static int isp_set_ctrl_cfa(struct stf_isp_dev *isp_dev, const void * value)
 
 	reg_write(ispbase, reg_addr, ((u32)(cfg->cross_cov & 0x3) << 4) | (cfg->hv_width & 0xf));
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -419,7 +419,7 @@ static int isp_set_ctrl_ctc(struct stf_isp_dev *isp_dev, const void * value)
 	reg_value |= ((u32)(cfg->max_gt & 0x3ff) << 16) | (cfg->min_gt & 0x3ff);
 	reg_write(ispbase, reg_addr, reg_value);
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -434,7 +434,7 @@ static int isp_set_ctrl_dbc(struct stf_isp_dev *isp_dev, const void * value)
 
 	reg_write(ispbase, reg_addr, ((u32)(cfg->bad_gt & 0x3ff) << 16) | (cfg->bad_xt & 0x3ff));
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -459,7 +459,7 @@ static int isp_set_ctrl_dnyuv(struct stf_isp_dev *isp_dev, const void * value)
 	reg_write(ispbase, reg_addr + 36, CREATE_REG_VALUE(u16, &cfg->uv_curve[4], 2, 0x3ff, 16));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -472,7 +472,7 @@ static int isp_set_ctrl_gmargb(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	for(i = 0; i < 15; i++, curve++, reg_addr += 4)
 		reg_write(ispbase, reg_addr, ((u32)curve->sg_val << 16) | (curve->g_val & 0x3ff));
 
@@ -490,7 +490,7 @@ static int isp_set_ctrl_lccf(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	reg_write(ispbase, reg_addr, ((u32)(setting->circle.center_y & 0x7fff) << 16) | (setting->circle.center_x & 0x7fff));
 	reg_write(ispbase, reg_addr + 8, setting->circle.radius & 0xf);
 	reg_addr += 0x90;
@@ -498,7 +498,7 @@ static int isp_set_ctrl_lccf(struct stf_isp_dev *isp_dev, const void * value)
 		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0x1fff, 16));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -511,7 +511,7 @@ static int isp_set_ctrl_obc(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	reg_write(ispbase, reg_addr, ((u32)(setting->win_size.height & 0xf) << 4) | (setting->win_size.width & 0xf));
 
 	reg_addr += 0x2ac;	//0x2e0
@@ -519,7 +519,7 @@ static int isp_set_ctrl_obc(struct stf_isp_dev *isp_dev, const void * value)
 		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u8, params, 4, 0xff, 8));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -535,7 +535,7 @@ static int isp_set_ctrl_oecf(struct stf_isp_dev *isp_dev, const void * value)
 	void __iomem *ispbase = vin->isp_base;
 	u32 x, y, slope;
 	s32 i;
-	
+
 	for(i = 0; i < 32; i++, reg_x_addr += 4, reg_y_addr += 4, reg_s_addr += 4) {
 		x = pts->x & 0x3ff;
 		y = pts->y & 0x3ff;
@@ -565,12 +565,12 @@ static int isp_set_ctrl_r2y(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	for(i = 0; i < 9; i++, reg_addr += 4)
 		reg_write(ispbase, reg_addr, (u32)(params[i] & 0x1ff));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -584,7 +584,7 @@ static int isp_set_ctrl_sat(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	for(i = 0; i < 3; i++, reg_addr += 4, params += 2)
 		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0xfff, 16));
 	reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, &setting->hue_info.cos, 2, 0x3ff, 16));
@@ -597,7 +597,7 @@ static int isp_set_ctrl_sat(struct stf_isp_dev *isp_dev, const void * value)
 		reg_write(ispbase, reg_addr, CREATE_REG_VALUE(u16, params, 2, 0x3fff, 16));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -609,7 +609,7 @@ static int isp_set_ctrl_shrp(struct stf_isp_dev *isp_dev, const void * value)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
 	s32 i;
-	
+
 	for(i = 0; i < 4; i++, reg_addr += 4)
 		reg_write(ispbase, reg_addr, ((u32)(setting->strength.diff[i] & 0x3ff) << 16) | ((u32)(setting->weight.weight[i] & 0xf) << 8));
 	FILL_ISP_REGS(u8, ispbase, reg_addr, (u8 *)(&setting->weight.weight[4]), 15 - 4, 0xf, 8);
@@ -622,7 +622,7 @@ static int isp_set_ctrl_shrp(struct stf_isp_dev *isp_dev, const void * value)
 	reg_write(ispbase, reg_addr, ((u32)(setting->pdirf & 0xf) << 28) | ((u32)(setting->ndirf & 0xf) << 24) | (setting->weight.recip_wei_sum & 0x3fffff));
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -633,11 +633,11 @@ static int isp_set_ctrl_ycrv(struct stf_isp_dev *isp_dev, const void * value)
 	u32 reg_addr = reg_info->cfg_reg;
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase = vin->isp_base;
-	
+
 	FILL_ISP_REGS(u16, ispbase, reg_addr, (u16 *)(setting->curve.y), 64, 0x3ff, 0);
 
 	reg_set_bit(ispbase, reg_info->en_reg, 1 << reg_info->en_nbit, setting->enabled ? 1 << reg_info->en_nbit : 0);
-	
+
 	return 0;
 }
 
@@ -661,11 +661,11 @@ static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
 	reg_write(ispbase, 0xb8, ((u32)(setting->crop_config.v_start) << 16) | setting->crop_config.h_start);
 
 	// SC config1
-	reg_write(ispbase, 0xbc, ((u32)(setting->awb_config.sel) << 30) | ((u32)(setting->awb_config.awb_ps_grb_ba) << 16) | 
+	reg_write(ispbase, 0xbc, ((u32)(setting->awb_config.sel) << 30) | ((u32)(setting->awb_config.awb_ps_grb_ba) << 16) |
 		((u32)(setting->crop_config.sw_height) << 8) | setting->crop_config.sw_width);
 
 	// SC decimation config
-	reg_write(ispbase, 0xd8, ((u32)(setting->crop_config.vkeep) << 24) | ((u32)(setting->crop_config.vperiod) << 16) | 
+	reg_write(ispbase, 0xd8, ((u32)(setting->crop_config.vkeep) << 24) | ((u32)(setting->crop_config.vperiod) << 16) |
 		((u32)(setting->crop_config.hkeep) << 8) | setting->crop_config.hperiod);
 
 	// SC AWB pixel sum config
@@ -676,7 +676,7 @@ static int isp_set_ctrl_sc(struct stf_isp_dev *isp_dev, const void * value)
 	reg_write(ispbase, 0xd4, CREATE_REG_VALUE(u16, &setting->awb_config.ws_ps_config.awb_ps_grbl, 2, 0xffff, 16));
 
 	// AF register
-	reg_write(ispbase, 0xc0, 
+	reg_write(ispbase, 0xc0,
 		((u32)(setting->af_config.es_hor_thr & 0x1ff) << 16) |
 		((u32)(setting->af_config.es_ver_thr & 0xff) << 8) |
 		((setting->af_config.ver_en & 0x1) << 3) |
@@ -1217,7 +1217,7 @@ static int isp_get_interface_type(struct media_entity *entity)
 static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
-	int ret = 0, interface_type;
+	int interface_type;
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_event src_ch = { 0 };
 
@@ -1225,6 +1225,7 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&isp_dev->stream_lock);
 	if (enable) {
 		if (isp_dev->stream_count == 0) {
+			v4l2_ctrl_handler_setup(&isp_dev->ctrls.handler);
 			isp_dev->hw_ops->isp_clk_enable(isp_dev);
 			if (!user_config_isp)
 				isp_dev->hw_ops->isp_config_set(isp_dev);
@@ -1256,15 +1257,7 @@ static int isp_set_stream(struct v4l2_subdev *sd, int enable)
 exit:
 	mutex_unlock(&isp_dev->stream_lock);
 
-	mutex_lock(&isp_dev->power_lock);
-	/* restore controls */
-	if (enable && isp_dev->power_count == 1) {
-		mutex_unlock(&isp_dev->power_lock);
-		ret = v4l2_ctrl_handler_setup(&isp_dev->ctrls.handler);
-	} else
-		mutex_unlock(&isp_dev->power_lock);
-
-	return ret;
+	return 0;
 }
 
 /*Try to match sensor format with sink, and then get the index as default.*/

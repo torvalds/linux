@@ -15,6 +15,7 @@
 #include "vs_plane.h"
 #include "vs_gem.h"
 #include "vs_fb.h"
+#include "vs_dc.h"
 
 void vs_plane_destory(struct drm_plane *plane)
 {
@@ -309,11 +310,89 @@ static void vs_plane_atomic_disable(struct drm_plane *plane,
 	vs_plane->funcs->disable(vs_crtc->dev, vs_plane, old_state);
 }
 
-const struct drm_plane_helper_funcs vs_plane_helper_funcs = {
-	.atomic_check	= vs_plane_atomic_check,
-	.atomic_update	= vs_plane_atomic_update,
-	.atomic_disable = vs_plane_atomic_disable,
+static void vs_cursor_plane_atomic_update(struct drm_plane *plane,
+					   struct drm_atomic_state *state)
+{
+	 struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
+										plane);
+	 struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+										plane);
+	 unsigned char i, num_planes;
+	 struct drm_framebuffer *fb;
+	 struct vs_plane *vs_plane = to_vs_plane(plane);
+	 struct vs_crtc *vs_crtc = to_vs_crtc(new_state->crtc);
+	 struct vs_plane_state *plane_state = to_vs_plane_state(new_state);
+	 struct vs_dc *dc = dev_get_drvdata(vs_crtc->dev);
+
+	 if (!new_state->fb || !new_state->crtc)
+		 return;
+
+	 fb = new_state->fb;
+
+	 num_planes = vs_get_plane_number(fb);
+
+	 for (i = 0; i < num_planes; i++) {
+		 struct vs_gem_object *vs_obj;
+
+		 vs_obj = vs_fb_get_gem_obj(fb, i);
+		 vs_plane->dma_addr[i] = vs_obj->iova + fb->offsets[i];
+	 }
+
+	 plane_state->status.src = drm_plane_state_src(new_state);
+	 plane_state->status.dest = drm_plane_state_dest(new_state);
+
+	 vs_dc_update_cursor_plane(dc, vs_plane, plane, state);
+}
+
+static void vs_cursor_plane_atomic_disable(struct drm_plane *plane,
+						struct drm_atomic_state *state)
+{
+	 struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
+										plane);
+	 struct vs_plane *vs_plane = to_vs_plane(plane);
+	 struct vs_crtc *vs_crtc = to_vs_crtc(old_state->crtc);
+	 struct vs_dc *dc = dev_get_drvdata(vs_crtc->dev);
+
+	 vs_dc_disable_cursor_plane(dc, vs_plane, old_state);
+}
+
+
+static int vs_cursor_plane_atomic_check(struct drm_plane *plane,
+					struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
+									  plane);
+	unsigned char i, num_planes;
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *crtc = new_plane_state->crtc;
+	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
+	struct vs_dc *dc = dev_get_drvdata(vs_crtc->dev);
+	struct vs_plane_state *plane_state = to_vs_plane_state(new_plane_state);
+
+	if (!crtc || !fb)
+		return 0;
+
+	return vs_dc_check_cursor_plane(dc, plane, state);
+}
+
+const struct drm_plane_helper_funcs primary_plane_helpers = {
+	 .atomic_check	 = vs_plane_atomic_check,
+	 .atomic_update  = vs_plane_atomic_update,
+	 .atomic_disable = vs_plane_atomic_disable,
 };
+
+const struct drm_plane_helper_funcs overlay_plane_helpers = {
+	 .atomic_check	 = vs_plane_atomic_check,
+	 .atomic_update  = vs_plane_atomic_update,
+	 .atomic_disable = vs_plane_atomic_disable,
+};
+
+const struct drm_plane_helper_funcs cursor_plane_helpers = {
+	 .atomic_check	 = vs_cursor_plane_atomic_check,
+	 .atomic_update  = vs_cursor_plane_atomic_update,
+	 .atomic_disable = vs_cursor_plane_atomic_disable,
+};
+
 
 static const struct drm_prop_enum_list vs_degamma_mode_enum_list[] = {
 	{ VS_DEGAMMA_DISABLE,	"disabled" },
@@ -343,7 +422,12 @@ struct vs_plane *vs_plane_create(struct drm_device *drm_dev,
 	if (ret)
 		goto err_free_plane;
 
-	drm_plane_helper_add(&plane->base, &vs_plane_helper_funcs);
+	if (info->type == DRM_PLANE_TYPE_PRIMARY)
+		drm_plane_helper_add(&plane->base, &primary_plane_helpers);
+	else if (info->type == DRM_PLANE_TYPE_CURSOR)
+		drm_plane_helper_add(&plane->base, &cursor_plane_helpers);
+	else
+		drm_plane_helper_add(&plane->base, &overlay_plane_helpers);
 
 	/* Set up the plane properties */
 	if (info->degamma_size) {

@@ -385,105 +385,11 @@ static int inno_hdmi_phy_clk_set_rate(struct inno_hdmi *hdmi,unsigned long rate)
 	for (; hdmi->post_cfg->tmdsclock != 0; hdmi->post_cfg++)
 		if (tmdsclock <= hdmi->post_cfg->tmdsclock)
 			break;
-	mdelay(100);
 
 	dev_info(hdmi->dev, "%s hdmi->pre_cfg->pixclock = %lu\n",__func__, hdmi->pre_cfg->pixclock);
 
 	inno_hdmi_config_pll(hdmi);
 
-#if 0 //pre pll + post pll configire
-
-	/*pre-pll power down*/
-	hdmi_modb(hdmi, 0x1a0, INNO_PRE_PLL_POWER_DOWN, INNO_PRE_PLL_POWER_DOWN);
-
-	/* Configure pre-pll */
-	hdmi_modb(hdmi, 0x1a0, INNO_PCLK_VCO_DIV_5_MASK, INNO_PCLK_VCO_DIV_5(hdmi->pre_cfg->vco_div_5_en));
-	hdmi_writeb(hdmi, 0x1a1, INNO_PRE_PLL_PRE_DIV(hdmi->pre_cfg->prediv));
-
-	u32 val;
-	val = INNO_SPREAD_SPECTRUM_MOD_DISABLE;
-	if (!hdmi->pre_cfg->fracdiv)
-		val |= INNO_PRE_PLL_FRAC_DIV_DISABLE;
-	hdmi_writeb(hdmi, 0x1a2, INNO_PRE_PLL_FB_DIV_11_8(hdmi->pre_cfg->fbdiv | val));
-
-	hdmi_writeb(hdmi, 0x1a3, INNO_PRE_PLL_FB_DIV_7_0(hdmi->pre_cfg->fbdiv));
-
-	hdmi_writeb(hdmi, 0x1a5, INNO_PRE_PLL_PCLK_DIV_A(hdmi->pre_cfg->pclk_div_a) |
-			INNO_PRE_PLL_PCLK_DIV_B(hdmi->pre_cfg->pclk_div_b));
-
-	hdmi_writeb(hdmi, 0x1a6, INNO_PRE_PLL_PCLK_DIV_C(hdmi->pre_cfg->pclk_div_c) |
-			INNO_PRE_PLL_PCLK_DIV_D(hdmi->pre_cfg->pclk_div_d));
-
-	hdmi_writeb(hdmi, 0x1a4, INNO_PRE_PLL_TMDSCLK_DIV_C(hdmi->pre_cfg->tmds_div_c) |
-			INNO_PRE_PLL_TMDSCLK_DIV_A(hdmi->pre_cfg->tmds_div_a) |
-			INNO_PRE_PLL_TMDSCLK_DIV_B(hdmi->pre_cfg->tmds_div_b));
-
-	hdmi_writeb(hdmi, 0x1d3, INNO_PRE_PLL_FRAC_DIV_7_0(hdmi->pre_cfg->fracdiv));
-	hdmi_writeb(hdmi, 0x1d2, INNO_PRE_PLL_FRAC_DIV_15_8(hdmi->pre_cfg->fracdiv));
-	hdmi_writeb(hdmi, 0x1d1, INNO_PRE_PLL_FRAC_DIV_23_16(hdmi->pre_cfg->fracdiv));
-
-	/*pre-pll power down*/
-	hdmi_modb(hdmi, 0x1a0, INNO_PRE_PLL_POWER_DOWN, 0);
-
-	const struct phy_config *phy_cfg = inno_phy_cfg;
-
-	for (; phy_cfg->tmdsclock != 0; phy_cfg++)
-		if (tmdsclock <= phy_cfg->tmdsclock)
-			break;
-
-	hdmi_modb(hdmi, 0x1aa, INNO_POST_PLL_POWER_DOWN, INNO_POST_PLL_POWER_DOWN);
-
-	hdmi_writeb(hdmi, 0x1ac, INNO_POST_PLL_FB_DIV_7_0(hdmi->post_cfg->fbdiv));
-
-	if (hdmi->post_cfg->postdiv == 1) {
-		hdmi_modb(hdmi, 0x1aa, INNO_POST_PLL_REFCLK_SEL_TMDS, INNO_POST_PLL_REFCLK_SEL_TMDS);
-		hdmi_modb(hdmi, 0x1aa, BIT(4), INNO_POST_PLL_FB_DIV_8(hdmi->post_cfg->fbdiv));
-		hdmi_modb(hdmi, 0x1ab, INNO_POST_PLL_Pre_DIV_MASK, INNO_POST_PLL_PRE_DIV(hdmi->post_cfg->prediv));
-	} else {
-		v = (hdmi->post_cfg->postdiv / 2) - 1;
-		v &= INNO_POST_PLL_POST_DIV_MASK;
-		hdmi_modb(hdmi, 0x1ad, INNO_POST_PLL_POST_DIV_MASK, v);
-		hdmi_modb(hdmi, 0x1aa, BIT(4), INNO_POST_PLL_FB_DIV_8(hdmi->post_cfg->fbdiv));
-		hdmi_modb(hdmi, 0x1ab, INNO_POST_PLL_Pre_DIV_MASK, INNO_POST_PLL_PRE_DIV(hdmi->post_cfg->prediv));
-		hdmi_modb(hdmi, 0x1aa, INNO_POST_PLL_REFCLK_SEL_TMDS, INNO_POST_PLL_REFCLK_SEL_TMDS);
-		hdmi_modb(hdmi, 0x1aa, INNO_POST_PLL_POST_DIV_ENABLE, INNO_POST_PLL_POST_DIV_ENABLE);
-	}
-
-	for (v = 0; v < 14; v++){
-		hdmi_writeb(hdmi, 0x1b5 + v, phy_cfg->regs[v]);
-	}
-
-	if (phy_cfg->tmdsclock > 340000000) {
-		/* Set termination resistor to 100ohm */
-		v = clk_get_rate(hdmi->sys_clk) / 100000;
-	
-		hdmi_writeb(hdmi, 0x1c5, INNO_TERM_RESISTOR_CALIB_SPEED_14_8(v)
-			   | INNO_BYPASS_TERM_RESISTOR_CALIB);
-	
-		hdmi_writeb(hdmi, 0x1c6, INNO_TERM_RESISTOR_CALIB_SPEED_7_0(v));
-		hdmi_writeb(hdmi, 0x1c7, INNO_TERM_RESISTOR_100);		
-		hdmi_modb(hdmi, 0x1c5, INNO_BYPASS_TERM_RESISTOR_CALIB, 0);
-	} else {
-		hdmi_writeb(hdmi, 0x1c5, INNO_BYPASS_TERM_RESISTOR_CALIB);
-
-		/* clk termination resistor is 50ohm (parallel resistors) */
-		if (phy_cfg->tmdsclock > 165000000){
-			hdmi_modb(hdmi, 0x1c8,
-					 INNO_ESD_DETECT_MASK,
-					 INNO_TERM_RESISTOR_200);
-		}
-		/* data termination resistor for D2, D1 and D0 is 150ohm */
-		for (v = 0; v < 3; v++){
-			hdmi_modb(hdmi, 0x1c9 + v,
-					 INNO_ESD_DETECT_MASK,
-					 INNO_TERM_RESISTOR_200);
-		}
-	}
-
-	hdmi_modb(hdmi, 0x1aa, INNO_POST_PLL_POWER_DOWN, 0);
-
-
-#endif
 	return 0;
 }
 
@@ -618,7 +524,7 @@ static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 	ret = pm_runtime_get_sync(hdmi->dev);
 	if (ret < 0)
 		return;
-	mdelay(10);
+
 	inno_hdmi_setup(hdmi, &hdmi->previous_mode);
 
 }
@@ -665,7 +571,7 @@ inno_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	ret = pm_runtime_get_sync(hdmi->dev);
 	if (ret < 0)
 		return ret;
-	mdelay(500);
+
 	ret = (hdmi_readb(hdmi, HDMI_STATUS) & m_HOTPLUG) ?
 		connector_status_connected : connector_status_disconnected;
 
@@ -683,6 +589,10 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 	if (!hdmi->ddc)
 		return 0;
 
+	ret = pm_runtime_get_sync(hdmi->dev);
+	if (ret < 0)
+		return ret;
+
 	edid = drm_get_edid(connector, hdmi->ddc);
 	if (edid) {
 		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
@@ -691,6 +601,7 @@ static int inno_hdmi_connector_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
+	pm_runtime_put(hdmi->dev);
 
 	return ret;
 }
@@ -1093,8 +1004,6 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (ret)
 		dev_err(dev, "failed to audio init\n");
 
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 5000);
 	pm_runtime_enable(&pdev->dev);
 
 	inno_hdmi_disable_clk_assert_rst(dev, hdmi);
