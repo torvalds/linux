@@ -1534,7 +1534,8 @@ static int encode_metric_spec(void **p, void *end)
  * session message, specialization for CEPH_SESSION_REQUEST_OPEN
  * to include additional client metadata fields.
  */
-static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u64 seq)
+static struct ceph_msg *
+create_session_full_msg(struct ceph_mds_client *mdsc, int op, u64 seq)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_session_head *h;
@@ -1589,7 +1590,7 @@ static struct ceph_msg *create_session_open_msg(struct ceph_mds_client *mdsc, u6
 	end = p + msg->front.iov_len;
 
 	h = p;
-	h->op = cpu_to_le32(CEPH_SESSION_REQUEST_OPEN);
+	h->op = cpu_to_le32(op);
 	h->seq = cpu_to_le64(seq);
 
 	/*
@@ -1663,7 +1664,8 @@ static int __open_session(struct ceph_mds_client *mdsc,
 	session->s_renew_requested = jiffies;
 
 	/* send connect message */
-	msg = create_session_open_msg(mdsc, session->s_seq);
+	msg = create_session_full_msg(mdsc, CEPH_SESSION_REQUEST_OPEN,
+				      session->s_seq);
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 	ceph_con_send(&session->s_con, msg);
