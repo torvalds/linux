@@ -538,6 +538,12 @@ int xe_mmio_wait32(struct xe_gt *gt, struct xe_reg reg, u32 mask, u32 val, u32 t
 		wait <<= 1;
 	}
 
+	if (ret != 0) {
+		read = xe_mmio_read32(gt, reg);
+		if ((read & mask) == val)
+			ret = 0;
+	}
+
 	if (out_val)
 		*out_val = read;
 
