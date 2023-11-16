@@ -21768,7 +21768,9 @@ F:	Documentation/devicetree/bindings/counter/ti-eqep.yaml
 F:	drivers/counter/ti-eqep.c
 
 TI ETHERNET SWITCH DRIVER (CPSW)
-R:	Grygorii Strashko <grygorii.strashko@ti.com>
+R:	Siddharth Vadapalli <s-vadapalli@ti.com>
+R:	Ravi Gunasekaran <r-gunasekaran@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
 L:	linux-omap@vger.kernel.org
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -21791,6 +21793,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/ti,ds90*
 F:	drivers/media/i2c/ds90*
 F:	include/media/i2c/ds90*
+
+TI ICSSG ETHERNET DRIVER (ICSSG)
+R:	MD Danish Anwar <danishanwar@ti.com>
+R:	Roger Quadros <rogerq@kernel.org>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/ti,icss*.yaml
+F:	drivers/net/ethernet/ti/icssg/*
 
 TI J721E CSI2RX DRIVER
 M:	Jai Luthra <j-luthra@ti.com>
