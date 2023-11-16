@@ -113,7 +113,7 @@ static int ast_device_config_init(struct ast_device *ast)
 			/* Patch AST2500/AST2510 */
 			if ((pdev->revision & 0xf0) == 0x40) {
 				if (!(jregd0 & AST_VRAM_INIT_STATUS_MASK))
-					ast_patch_ahb_2500(ast);
+					ast_patch_ahb_2500(ast->regs);
 			}
 
 			/* Double check that it's actually working */
