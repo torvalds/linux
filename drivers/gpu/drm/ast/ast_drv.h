@@ -98,6 +98,12 @@ enum ast_tx_chip {
 #define AST_TX_DP501_BIT	BIT(AST_TX_DP501)
 #define AST_TX_ASTDP_BIT	BIT(AST_TX_ASTDP)
 
+enum ast_config_mode {
+	ast_use_p2a,
+	ast_use_dt,
+	ast_use_defaults
+};
+
 #define AST_DRAM_512Mx16 0
 #define AST_DRAM_1Gx16   1
 #define AST_DRAM_512Mx32 2
@@ -196,7 +202,9 @@ struct ast_device {
 	void __iomem *ioregs;
 	void __iomem *dp501_fw_buf;
 
+	enum ast_config_mode config_mode;
 	enum ast_chip chip;
+
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
@@ -235,11 +243,6 @@ struct ast_device {
 	} output;
 
 	bool support_wide_screen;
-	enum {
-		ast_use_p2a,
-		ast_use_dt,
-		ast_use_defaults
-	} config_mode;
 
 	unsigned long tx_chip_types;		/* bitfield of enum ast_chip_type */
 	u8 *dp501_fw_addr;
