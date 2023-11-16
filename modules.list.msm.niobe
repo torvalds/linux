@@ -8,6 +8,9 @@ qcom_rpmh.ko
 interconnect_qcom.ko
 icc-bcm-voter.ko
 icc-rpmh.ko
+qcom-pmu-lib.ko
+dcvs_fp.ko
+qcom-dcvs.ko
 qnoc-qos.ko
 qnoc-niobe.ko
 icc-debug.ko
@@ -18,6 +21,8 @@ qcom_iommu_util.ko
 arm_smmu.ko
 clk-dummy.ko
 clk-qcom.ko
+qcom_cpucp.ko
+qcom_llcc_pmu.ko
 gdsc-regulator.ko
 stub-regulator.ko
 pinctrl-msm.ko
