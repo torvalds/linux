@@ -173,6 +173,14 @@ static const u32 amdgpu_eotf =
 	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA24_EOTF) |
 	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA26_EOTF);
 
+static const u32 amdgpu_inv_eotf =
+	BIT(AMDGPU_TRANSFER_FUNCTION_SRGB_INV_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_BT709_OETF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_PQ_INV_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA22_INV_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA24_INV_EOTF) |
+	BIT(AMDGPU_TRANSFER_FUNCTION_GAMMA26_INV_EOTF);
+
 static struct drm_property *
 amdgpu_create_tf_property(struct drm_device *dev,
 			  const char *name,
@@ -230,6 +238,27 @@ amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
 	if (!prop)
 		return -ENOMEM;
 	adev->mode_info.plane_hdr_mult_property = prop;
+
+	prop = drm_property_create(adev_to_drm(adev),
+				   DRM_MODE_PROP_BLOB,
+				   "AMD_PLANE_SHAPER_LUT", 0);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.plane_shaper_lut_property = prop;
+
+	prop = drm_property_create_range(adev_to_drm(adev),
+					 DRM_MODE_PROP_IMMUTABLE,
+					 "AMD_PLANE_SHAPER_LUT_SIZE", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.plane_shaper_lut_size_property = prop;
+
+	prop = amdgpu_create_tf_property(adev_to_drm(adev),
+					 "AMD_PLANE_SHAPER_TF",
+					 amdgpu_inv_eotf);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.plane_shaper_tf_property = prop;
 
 	prop = drm_property_create(adev_to_drm(adev),
 				   DRM_MODE_PROP_BLOB,
