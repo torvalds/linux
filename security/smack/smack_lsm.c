@@ -1000,51 +1000,51 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	struct xattr *xattr = lsm_get_xattr_slot(xattrs, xattr_count);
 	int may;
 
+	/*
+	 * If equal, transmuting already occurred in
+	 * smack_dentry_create_files_as(). No need to check again.
+	 */
+	if (tsp->smk_task != tsp->smk_transmuted) {
+		rcu_read_lock();
+		may = smk_access_entry(skp->smk_known, dsp->smk_known,
+				       &skp->smk_rules);
+		rcu_read_unlock();
+	}
+
+	/*
+	 * In addition to having smk_task equal to smk_transmuted,
+	 * if the access rule allows transmutation and the directory
+	 * requests transmutation then by all means transmute.
+	 * Mark the inode as changed.
+	 */
+	if ((tsp->smk_task == tsp->smk_transmuted) ||
+	    (may > 0 && ((may & MAY_TRANSMUTE) != 0) &&
+	     smk_inode_transmutable(dir))) {
+		struct xattr *xattr_transmute;
+
+		/*
+		 * The caller of smack_dentry_create_files_as()
+		 * should have overridden the current cred, so the
+		 * inode label was already set correctly in
+		 * smack_inode_alloc_security().
+		 */
+		if (tsp->smk_task != tsp->smk_transmuted)
+			isp = dsp;
+		xattr_transmute = lsm_get_xattr_slot(xattrs,
+						     xattr_count);
+		if (xattr_transmute) {
+			xattr_transmute->value = kmemdup(TRANS_TRUE,
+							 TRANS_TRUE_SIZE,
+							 GFP_NOFS);
+			if (!xattr_transmute->value)
+				return -ENOMEM;
+
+			xattr_transmute->value_len = TRANS_TRUE_SIZE;
+			xattr_transmute->name = XATTR_SMACK_TRANSMUTE;
+		}
+	}
+
 	if (xattr) {
-		/*
-		 * If equal, transmuting already occurred in
-		 * smack_dentry_create_files_as(). No need to check again.
-		 */
-		if (tsp->smk_task != tsp->smk_transmuted) {
-			rcu_read_lock();
-			may = smk_access_entry(skp->smk_known, dsp->smk_known,
-					       &skp->smk_rules);
-			rcu_read_unlock();
-		}
-
-		/*
-		 * In addition to having smk_task equal to smk_transmuted,
-		 * if the access rule allows transmutation and the directory
-		 * requests transmutation then by all means transmute.
-		 * Mark the inode as changed.
-		 */
-		if ((tsp->smk_task == tsp->smk_transmuted) ||
-		    (may > 0 && ((may & MAY_TRANSMUTE) != 0) &&
-		     smk_inode_transmutable(dir))) {
-			struct xattr *xattr_transmute;
-
-			/*
-			 * The caller of smack_dentry_create_files_as()
-			 * should have overridden the current cred, so the
-			 * inode label was already set correctly in
-			 * smack_inode_alloc_security().
-			 */
-			if (tsp->smk_task != tsp->smk_transmuted)
-				isp = dsp;
-			xattr_transmute = lsm_get_xattr_slot(xattrs,
-							     xattr_count);
-			if (xattr_transmute) {
-				xattr_transmute->value = kmemdup(TRANS_TRUE,
-								 TRANS_TRUE_SIZE,
-								 GFP_NOFS);
-				if (!xattr_transmute->value)
-					return -ENOMEM;
-
-				xattr_transmute->value_len = TRANS_TRUE_SIZE;
-				xattr_transmute->name = XATTR_SMACK_TRANSMUTE;
-			}
-		}
-
 		xattr->value = kstrdup(isp->smk_known, GFP_NOFS);
 		if (!xattr->value)
 			return -ENOMEM;
