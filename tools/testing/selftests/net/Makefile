@@ -91,6 +91,7 @@ TEST_PROGS += test_bridge_neigh_suppress.sh
 TEST_PROGS += test_vxlan_nolocalbypass.sh
 TEST_PROGS += test_bridge_backup_port.sh
 TEST_PROGS += fdb_flush.sh
+TEST_PROGS += fq_band_pktlimit.sh
 
 TEST_FILES := settings
 
