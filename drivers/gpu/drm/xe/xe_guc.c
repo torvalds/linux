@@ -615,7 +615,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 	u32 header, reply;
 	struct xe_reg reply_reg = xe_gt_is_media_type(gt) ?
 		MED_VF_SW_FLAG(0) : VF_SW_FLAG(0);
-	const u32 LAST_INDEX = VF_SW_FLAG_COUNT;
+	const u32 LAST_INDEX = VF_SW_FLAG_COUNT - 1;
 	int ret;
 	int i;
 
