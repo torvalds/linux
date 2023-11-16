@@ -3,12 +3,19 @@
  * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
+/dts-v1/;
+
 #include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-#include "rk3568-evb1-ddr4-v10.dtsi"
+
+#include "rk3567-evb2-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
 
 / {
+	model = "Rockchip RK3567 EVB2 LP4X V10 Board with one vp two single channel lvds";
+	compatible = "rockchip,rk3567-evb2-lp4x-v10-one-vp-two-single-channel-lvds", "rockchip,rk3567";
+
 	/* panel: claa070wp03xg */
 	panel {
 		compatible = "simple-panel";
@@ -27,7 +34,7 @@
 
 			timing0: timing0 {
 				clock-frequency = <134000000>;
-				hactive = <1600>;
+				hactive = <1600>; /* each panel show 1600 / 2 = 800 pxiel */
 				vactive = <1280>;
 				hback-porch = <60>;
 				hfront-porch = <60>;
@@ -68,11 +75,11 @@
 	};
 };
 
-&backlight1 {
+&backlight {
 	status = "okay";
 };
 
-&backlight {
+&backlight1 {
 	status = "okay";
 };
 
@@ -100,7 +107,7 @@
 	status = "okay";
 };
 
-&lvds {
+&lvds0 {
 	status = "okay";
 	dual-channel;
 
@@ -127,28 +134,20 @@
 	};
 };
 
-&lvds_in_vp1 {
+&lvds0_in_vp1 {
 	status = "okay";
 };
 
 &lvds1_in_vp1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &lvds1_in_vp2 {
-	status = "okay";
+	status = "disabled";
 };
 
 &rgb_in_vp2 {
 	status = "disabled";
-};
-
-&video_phy0 {
-	status = "okay";
-};
-
-&video_phy1 {
-	status = "okay";
 };
 
 &vcc3v3_lcd0_n {
@@ -159,4 +158,12 @@
 &vcc3v3_lcd1_n {
 	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "okay";
 };

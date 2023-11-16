@@ -3,21 +3,23 @@
  * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
-/dts-v1/;
-
 #include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
-
-#include "rk3567-evb2-lp4x-v10.dtsi"
+#include "rk3568-evb1-ddr4-v10.dtsi"
 #include "rk3568-android.dtsi"
 
 / {
-	model = "Rockchip RK3567 EVB2 LP4X V10 Board";
-	compatible = "rockchip,rk3567-evb2-lp4x-v10", "rockchip,rk3567";
+	model = "Rockchip RK3568 EVB1 V10 Board with two vp two separate single channel lvds";
+	compatible = "rockchip,rk3568-evb1-ddr4-v10-two-vp-two-separate-single-channel-lvds", "rockchip,rk3568";
+
+	/**
+	 * VP1 -> LVDS0 -> Panel0
+	 * VP2 -> LVDS1 -> Panel1
+	 */
 
 	/* panel: claa070wp03xg */
-	panel {
+	panel-lvds0 {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_lcd0_n>;
@@ -31,10 +33,9 @@
 
 		display-timings {
 			native-mode = <&timing0>;
-
 			timing0: timing0 {
-				clock-frequency = <134000000>;
-				hactive = <1600>;
+				clock-frequency = <67000000>;
+				hactive = <800>;
 				vactive = <1280>;
 				hback-porch = <60>;
 				hfront-porch = <60>;
@@ -52,21 +53,52 @@
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
-
-			/**
-			 *  Panel <----> LVDS0
-			 *  Panel <----> LVDS1
-			 */
 			port@0 {
 				reg = <0>;
-				dual-lvds-left-pixels;
 				panel_in_lvds0: endpoint {
 					remote-endpoint = <&lvds0_out_panel>;
 				};
 			};
-			port@1 {
-				reg = <1>;
-				dual-lvds-right-pixels;
+		};
+	};
+
+	/* panel: claa070wp03xg */
+	panel-lvds1 {
+		compatible = "simple-panel";
+		backlight = <&backlight1>;
+		power-supply = <&vcc3v3_lcd1_n>;
+		enable-delay-ms = <20>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X7X3_SPWG>;
+		width-mm = <217>;
+		height-mm = <136>;
+
+		display-timings {
+			native-mode = <&timing1>;
+			timing1: timing1 {
+				clock-frequency = <67000000>;
+				hactive = <800>;
+				vactive = <1280>;
+				hback-porch = <60>;
+				hfront-porch = <60>;
+				vback-porch = <4>;
+				vfront-porch = <2>;
+				hsync-len = <8>;
+				vsync-len = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
 				panel_in_lvds1: endpoint {
 					remote-endpoint = <&lvds1_out_panel>;
 				};
@@ -75,68 +107,14 @@
 	};
 };
 
-&backlight1 {
-	status = "okay";
-};
-
 &backlight {
 	status = "okay";
 };
 
-&lvds {
-	status = "okay";
-	dual-channel;
-
-	ports {
-		port@1 {
-			reg = <1>;
-			lvds0_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
-	};
-};
-
-&lvds1 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-			lvds1_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds1>;
-			};
-		};
-	};
-};
-
-&lvds_in_vp1 {
+&backlight1 {
 	status = "okay";
 };
 
-&lvds1_in_vp1 {
-	status = "disabled";
-};
-
-&lvds1_in_vp2 {
-	status = "okay";
-};
-
-/* enable hdmi */
-&hdmi_in_vp1 {
-	status = "okay";
-};
-
-/* enable video phy */
-&video_phy0 {
-	status = "okay";
-};
-
-&video_phy1 {
-	status = "okay";
-};
-
-/* disable other encoder output */
 &dsi0 {
 	status = "disabled";
 };
@@ -157,10 +135,49 @@
 	status = "disabled";
 };
 
-&rgb_in_vp2 {
+&hdmi_in_vp1 {
+	status = "okay";
+};
+
+&lvds0 {
+	status = "okay";
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
+	};
+};
+
+&lvds0_in_vp1 {
+	status = "okay";
+};
+
+&lvds1 {
+	status = "okay";
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds1>;
+			};
+		};
+	};
+};
+
+&lvds1_in_vp1 {
 	status = "disabled";
 };
 
+&lvds1_in_vp2 {
+	status = "okay";
+};
+
+&rgb_in_vp2 {
+	status = "disabled";
+};
 
 &vcc3v3_lcd0_n {
 	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
@@ -170,4 +187,12 @@
 &vcc3v3_lcd1_n {
 	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "okay";
 };

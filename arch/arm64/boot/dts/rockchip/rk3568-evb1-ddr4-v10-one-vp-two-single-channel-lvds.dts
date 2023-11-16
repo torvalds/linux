@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rk3568-evb1-ddr4-v10-one-vp-two-single-channel-lvds.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	model = "Rockchip RK3568 EVB1 V10 Board with one vp two single channel lvds";
+	compatible = "rockchip,rk3568-evb1-ddr4-v10-one-vp-two-single-channel-lvds", "rockchip,rk3568";
+};
