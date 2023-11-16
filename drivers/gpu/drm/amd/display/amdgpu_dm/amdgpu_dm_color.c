@@ -1172,6 +1172,8 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 				      struct dc_plane_state *dc_plane_state)
 {
 	struct amdgpu_device *adev = drm_to_adev(crtc->base.state->dev);
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(plane_state);
+	struct drm_color_ctm *ctm = NULL;
 	struct dc_color_caps *color_caps = NULL;
 	bool has_crtc_cm_degamma;
 	int ret;
@@ -1222,6 +1224,30 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 		ret = map_crtc_degamma_to_dc_plane(crtc, dc_plane_state, color_caps);
 		if (ret)
 			return ret;
+	}
+
+	/* Setup CRTC CTM. */
+	if (dm_plane_state->ctm) {
+		ctm = (struct drm_color_ctm *)dm_plane_state->ctm->data;
+		/*
+		 * DCN2 and older don't support both pre-blending and
+		 * post-blending gamut remap. For this HW family, if we have
+		 * the plane and CRTC CTMs simultaneously, CRTC CTM takes
+		 * priority, and we discard plane CTM, as implemented in
+		 * dcn10_program_gamut_remap(). However, DCN3+ has DPP
+		 * (pre-blending) and MPC (post-blending) `gamut remap` blocks;
+		 * therefore, we can program plane and CRTC CTMs together by
+		 * mapping CRTC CTM to MPC and keeping plane CTM setup at DPP,
+		 * as it's done by dcn30_program_gamut_remap().
+		 */
+		__drm_ctm_to_dc_matrix(ctm, dc_plane_state->gamut_remap_matrix.matrix);
+
+		dc_plane_state->gamut_remap_matrix.enable_remap = true;
+		dc_plane_state->input_csc_color_matrix.enable_adjustment = false;
+	} else {
+		/* Bypass CTM. */
+		dc_plane_state->gamut_remap_matrix.enable_remap = false;
+		dc_plane_state->input_csc_color_matrix.enable_adjustment = false;
 	}
 
 	return amdgpu_dm_plane_set_color_properties(plane_state, dc_plane_state);
