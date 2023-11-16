@@ -166,10 +166,10 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 				   struct vsp1_dl_body *dlb,
 				   unsigned int alpha);
 
-void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
+void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
 				       struct vsp1_partition *partition,
-				       unsigned int index,
-				       struct vsp1_partition_window *window);
+				       unsigned int div_size,
+				       unsigned int index);
 
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 						    u32 fourcc);
