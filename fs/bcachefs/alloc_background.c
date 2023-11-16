@@ -1212,7 +1212,7 @@ fsck_err:
 	return ret;
 }
 
-static noinline_for_stack int __bch2_check_discard_freespace_key(struct btree_trans *trans,
+static noinline_for_stack int bch2_check_discard_freespace_key(struct btree_trans *trans,
 					      struct btree_iter *iter)
 {
 	struct bch_fs *c = trans->c;
@@ -1269,24 +1269,6 @@ delete:
 		bch2_trans_commit(trans, NULL, NULL,
 			BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW);
 	goto out;
-}
-
-static int bch2_check_discard_freespace_key(struct btree_trans *trans,
-					    struct btree_iter *iter,
-					    struct bpos end)
-{
-	if (!btree_id_is_extents(iter->btree_id)) {
-		return __bch2_check_discard_freespace_key(trans, iter);
-	} else {
-		int ret = 0;
-
-		while (!bkey_eq(iter->pos, end) &&
-		       !(ret = btree_trans_too_many_iters(trans) ?:
-			       __bch2_check_discard_freespace_key(trans, iter)))
-			bch2_btree_iter_set_pos(iter, bpos_nosnap_successor(iter->pos));
-
-		return ret;
-	}
 }
 
 /*
@@ -1445,12 +1427,40 @@ bkey_err:
 	ret = for_each_btree_key2(trans, iter,
 			BTREE_ID_need_discard, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-		bch2_check_discard_freespace_key(trans, &iter, k.k->p)) ?:
-	      for_each_btree_key2(trans, iter,
-			BTREE_ID_freespace, POS_MIN,
-			BTREE_ITER_PREFETCH, k,
-		bch2_check_discard_freespace_key(trans, &iter, k.k->p)) ?:
-	      for_each_btree_key_commit(trans, iter,
+		bch2_check_discard_freespace_key(trans, &iter));
+	if (ret)
+		goto err;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_freespace, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	while (1) {
+		bch2_trans_begin(trans);
+		k = bch2_btree_iter_peek(&iter);
+		if (!k.k)
+			break;
+
+		ret = bkey_err(k) ?:
+			bch2_check_discard_freespace_key(trans, &iter);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+			ret = 0;
+			continue;
+		}
+		if (ret) {
+			struct printbuf buf = PRINTBUF;
+			bch2_bkey_val_to_text(&buf, c, k);
+
+			bch_err(c, "while checking %s", buf.buf);
+			printbuf_exit(&buf);
+			break;
+		}
+
+		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
+	}
+	bch2_trans_iter_exit(trans, &iter);
+	if (ret)
+		goto err;
+
+	ret = for_each_btree_key_commit(trans, iter,
 			BTREE_ID_bucket_gens, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
