@@ -861,7 +861,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	    abs(pos_src - pos_dst) < len)
 		return -EINVAL;
 
-	bch2_lock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
+	lock_two_nondirectories(&src->v, &dst->v);
+	bch2_lock_inodes(INODE_PAGECACHE_BLOCK, src, dst);
 
 	inode_dio_wait(&src->v);
 	inode_dio_wait(&dst->v);
@@ -914,7 +915,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 		ret = bch2_flush_inode(c, dst);
 err:
 	bch2_quota_reservation_put(c, dst, &quota_res);
-	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
+	bch2_unlock_inodes(INODE_PAGECACHE_BLOCK, src, dst);
+	unlock_two_nondirectories(&src->v, &dst->v);
 
 	return bch2_err_class(ret);
 }
