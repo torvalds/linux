@@ -54,19 +54,21 @@ static void ast_enable_vga(void __iomem *ioregs)
  */
 static void ast_enable_mmio_release(void *data)
 {
-	struct ast_device *ast = data;
+	void __iomem *ioregs = (void __force __iomem *)data;
 
 	/* enable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x04);
+	__ast_write8_i(ioregs, AST_IO_VGACRI, 0xa1, AST_IO_VGACRA1_MMIO_ENABLED);
 }
 
-static int ast_enable_mmio(struct ast_device *ast)
+static int ast_enable_mmio(struct device *dev, void __iomem *ioregs)
 {
-	struct drm_device *dev = &ast->base;
+	void *data = (void __force *)ioregs;
 
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
+	__ast_write8_i(ioregs, AST_IO_VGACRI, 0xa1,
+		       AST_IO_VGACRA1_MMIO_ENABLED |
+		       AST_IO_VGACRA1_VGAIO_DISABLED);
 
-	return devm_add_action_or_reset(dev->dev, ast_enable_mmio_release, ast);
+	return devm_add_action_or_reset(dev, ast_enable_mmio_release, data);
 }
 
 static void ast_open_key(void __iomem *ioregs)
@@ -496,7 +498,7 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	/* Enable extended register access */
 	ast_open_key(ioregs);
 
-	ret = ast_enable_mmio(ast);
+	ret = ast_enable_mmio(&pdev->dev, ioregs);
 	if (ret)
 		return ERR_PTR(ret);
 
