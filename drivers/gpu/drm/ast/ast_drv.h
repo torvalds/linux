@@ -273,55 +273,94 @@ static inline bool __ast_gen_is_eq(struct ast_device *ast, unsigned long gen)
 #define IS_AST_GEN6(__ast)	__ast_gen_is_eq(__ast, 6)
 #define IS_AST_GEN7(__ast)	__ast_gen_is_eq(__ast, 7)
 
+static inline u8 __ast_read8(const void __iomem *addr, u32 reg)
+{
+	return ioread8(addr + reg);
+}
+
+static inline u32 __ast_read32(const void __iomem *addr, u32 reg)
+{
+	return ioread32(addr + reg);
+}
+
+static inline void __ast_write8(void __iomem *addr, u32 reg, u8 val)
+{
+	iowrite8(val, addr + reg);
+}
+
+static inline void __ast_write32(void __iomem *addr, u32 reg, u32 val)
+{
+	iowrite32(val, addr + reg);
+}
+
+static inline u8 __ast_read8_i(void __iomem *addr, u32 reg, u8 index)
+{
+	__ast_write8(addr, reg, index);
+	return __ast_read8(addr, reg + 1);
+}
+
+static inline u8 __ast_read8_i_masked(void __iomem *addr, u32 reg, u8 index, u8 read_mask)
+{
+	u8 val = __ast_read8_i(addr, reg, index);
+
+	return val & read_mask;
+}
+
+static inline void __ast_write8_i(void __iomem *addr, u32 reg, u8 index, u8 val)
+{
+	__ast_write8(addr, reg, index);
+	__ast_write8(addr, reg + 1, val);
+}
+
+static inline void __ast_write8_i_masked(void __iomem *addr, u32 reg, u8 index, u8 read_mask,
+					 u8 val)
+{
+	u8 tmp = __ast_read8_i_masked(addr, reg, index, read_mask);
+
+	tmp |= val;
+	__ast_write8_i(addr, reg, index, tmp);
+}
+
 static inline u32 ast_read32(struct ast_device *ast, u32 reg)
 {
-	return ioread32(ast->regs + reg);
+	return __ast_read32(ast->regs, reg);
 }
 
 static inline void ast_write32(struct ast_device *ast, u32 reg, u32 val)
 {
-	iowrite32(val, ast->regs + reg);
+	__ast_write32(ast->regs, reg, val);
 }
 
 static inline u8 ast_io_read8(struct ast_device *ast, u32 reg)
 {
-	return ioread8(ast->ioregs + reg);
+	return __ast_read8(ast->ioregs, reg);
 }
 
 static inline void ast_io_write8(struct ast_device *ast, u32 reg, u8 val)
 {
-	iowrite8(val, ast->ioregs + reg);
+	__ast_write8(ast->ioregs, reg, val);
 }
 
 static inline u8 ast_get_index_reg(struct ast_device *ast, u32 base, u8 index)
 {
-	ast_io_write8(ast, base, index);
-	++base;
-	return ast_io_read8(ast, base);
+	return __ast_read8_i(ast->ioregs, base, index);
 }
 
 static inline u8 ast_get_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
 					u8 preserve_mask)
 {
-	u8 val = ast_get_index_reg(ast, base, index);
-
-	return val & preserve_mask;
+	return __ast_read8_i_masked(ast->ioregs, base, index, preserve_mask);
 }
 
 static inline void ast_set_index_reg(struct ast_device *ast, u32 base, u8 index, u8 val)
 {
-	ast_io_write8(ast, base, index);
-	++base;
-	ast_io_write8(ast, base, val);
+	__ast_write8_i(ast->ioregs, base, index, val);
 }
 
 static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
 					  u8 preserve_mask, u8 val)
 {
-	u8 tmp = ast_get_index_reg_mask(ast, base, index, preserve_mask);
-
-	tmp |= val;
-	ast_set_index_reg(ast, base, index, tmp);
+	__ast_write8_i_masked(ast->ioregs, base, index, preserve_mask, val);
 }
 
 #define AST_VIDMEM_SIZE_8M    0x00800000
