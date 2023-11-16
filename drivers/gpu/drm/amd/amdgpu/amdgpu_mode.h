@@ -360,6 +360,10 @@ struct amdgpu_mode_info {
 	 * to go from scanout/encoded values to linear values.
 	 */
 	struct drm_property *plane_degamma_tf_property;
+	/**
+	 * @plane_hdr_mult_property:
+	 */
+	struct drm_property *plane_hdr_mult_property;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
