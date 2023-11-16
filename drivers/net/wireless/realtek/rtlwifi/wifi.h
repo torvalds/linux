@@ -2008,8 +2008,6 @@ struct rtl_ps_ctl {
 	u32 cur_ps_level;
 	u32 reg_rfps_level;
 
-	/*just for PCIE ASPM */
-	u8 const_amdpci_aspm;
 	bool pwrdown_mode;
 
 	enum rf_pwrstate inactive_pwrstate;

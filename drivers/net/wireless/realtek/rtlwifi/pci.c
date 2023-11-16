@@ -70,7 +70,6 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	ppsc->support_aspm = false;
 
 	/*Update PCI ASPM setting */
-	ppsc->const_amdpci_aspm = rtlpci->const_amdpci_aspm;
 	switch (rtlpci->const_pci_aspm) {
 	case 0:
 		/*No ASPM */
