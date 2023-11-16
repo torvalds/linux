@@ -495,16 +495,6 @@ void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
 	format = v4l2_subdev_state_get_format(pipe->output->entity.state,
 					      RWPF_PAD_SINK);
 
-	/* A single partition simply processes the output size in full. */
-	if (pipe->partitions <= 1) {
-		window.left = 0;
-		window.width = format->width;
-
-		vsp1_pipeline_propagate_partition(pipe, partition, index,
-						  &window);
-		return;
-	}
-
 	/* Initialise the partition with sane starting conditions. */
 	window.left = index * div_size;
 	window.width = div_size;
