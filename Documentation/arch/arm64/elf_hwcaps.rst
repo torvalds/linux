@@ -174,7 +174,7 @@ HWCAP2_DCPODP
     Functionality implied by ID_AA64ISAR1_EL1.DPB == 0b0010.
 
 HWCAP2_SVE2
-    Functionality implied by ID_AA64ZFR0_EL1.SVEVer == 0b0001.
+    Functionality implied by ID_AA64ZFR0_EL1.SVEver == 0b0001.
 
 HWCAP2_SVEAES
     Functionality implied by ID_AA64ZFR0_EL1.AES == 0b0001.
@@ -222,7 +222,7 @@ HWCAP2_RNG
     Functionality implied by ID_AA64ISAR0_EL1.RNDR == 0b0001.
 
 HWCAP2_BTI
-    Functionality implied by ID_AA64PFR0_EL1.BT == 0b0001.
+    Functionality implied by ID_AA64PFR1_EL1.BT == 0b0001.
 
 HWCAP2_MTE
     Functionality implied by ID_AA64PFR1_EL1.MTE == 0b0010, as described
@@ -232,7 +232,7 @@ HWCAP2_ECV
     Functionality implied by ID_AA64MMFR0_EL1.ECV == 0b0001.
 
 HWCAP2_AFP
-    Functionality implied by ID_AA64MFR1_EL1.AFP == 0b0001.
+    Functionality implied by ID_AA64MMFR1_EL1.AFP == 0b0001.
 
 HWCAP2_RPRES
     Functionality implied by ID_AA64ISAR2_EL1.RPRES == 0b0001.

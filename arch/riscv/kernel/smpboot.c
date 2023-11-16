@@ -248,7 +248,6 @@ asmlinkage __visible void smp_callin(void)
 
 	numa_add_cpu(curr_cpuid);
 	set_cpu_online(curr_cpuid, 1);
-	check_unaligned_access(curr_cpuid);
 
 	if (has_vector()) {
 		if (riscv_v_setup_vsize())

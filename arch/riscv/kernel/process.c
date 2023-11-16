@@ -25,6 +25,7 @@
 #include <asm/thread_info.h>
 #include <asm/cpuidle.h>
 #include <asm/vector.h>
+#include <asm/cpufeature.h>
 
 register unsigned long gp_in_global __asm__("gp");
 
@@ -39,6 +40,23 @@ extern asmlinkage void ret_from_fork(void);
 void arch_cpu_idle(void)
 {
 	cpu_do_idle();
+}
+
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	if (!unaligned_ctl_available())
+		return -EINVAL;
+
+	tsk->thread.align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	if (!unaligned_ctl_available())
+		return -EINVAL;
+
+	return put_user(tsk->thread.align_ctl, (unsigned long __user *)adr);
 }
 
 void __show_regs(struct pt_regs *regs)

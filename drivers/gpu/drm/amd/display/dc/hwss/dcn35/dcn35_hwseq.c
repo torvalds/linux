@@ -138,16 +138,25 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0x3F000000);
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0x1f7c3fcf);
-
 	//dcn35_set_dmu_fgcg(hws, dc->debug.enable_fine_grain_clock_gating.bits.dmu);
 
 	if (!dcb->funcs->is_accelerated_mode(dcb)) {
 		/*this calls into dmubfw to do the init*/
 		hws->funcs.bios_golden_init(dc);
 	}
+
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL2,  0);
+
+	/* Disable gating for PHYASYMCLK. This will be enabled in dccg if needed */
+	REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, PHYASYMCLK_ROOT_GATE_DISABLE, 1,
+			PHYBSYMCLK_ROOT_GATE_DISABLE, 1,
+			PHYCSYMCLK_ROOT_GATE_DISABLE, 1,
+			PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
+			PHYESYMCLK_ROOT_GATE_DISABLE, 1);
+
+	REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0x1f7c3fcf);
+
 	// Initialize the dccg
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
@@ -274,7 +283,19 @@ void dcn35_init_hw(struct dc *dc)
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
 		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-		REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, SYMCLKA_FE_GATE_DISABLE, 0,
+				SYMCLKB_FE_GATE_DISABLE, 0,
+				SYMCLKC_FE_GATE_DISABLE, 0,
+				SYMCLKD_FE_GATE_DISABLE, 0,
+				SYMCLKE_FE_GATE_DISABLE, 0);
+		REG_UPDATE(DCCG_GATE_DISABLE_CNTL2, HDMICHARCLK0_GATE_DISABLE, 0);
+		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, SYMCLKA_GATE_DISABLE, 0,
+				SYMCLKB_GATE_DISABLE, 0,
+				SYMCLKC_GATE_DISABLE, 0,
+				SYMCLKD_GATE_DISABLE, 0,
+				SYMCLKE_GATE_DISABLE, 0);
+
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
 
@@ -311,6 +332,9 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->res_pool->pg_cntl) {
 		if (dc->res_pool->pg_cntl->funcs->init_pg_status)
 			dc->res_pool->pg_cntl->funcs->init_pg_status(dc->res_pool->pg_cntl);
+
+		if (dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22)
+			dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22(dc->res_pool->pg_cntl, false);
 	}
 }
 

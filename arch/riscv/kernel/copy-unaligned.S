@@ -9,7 +9,7 @@
 /* void __riscv_copy_words_unaligned(void *, const void *, size_t) */
 /* Performs a memcpy without aligning buffers, using word loads and stores. */
 /* Note: The size is truncated to a multiple of 8 * SZREG */
-ENTRY(__riscv_copy_words_unaligned)
+SYM_FUNC_START(__riscv_copy_words_unaligned)
 	andi  a4, a2, ~((8*SZREG)-1)
 	beqz  a4, 2f
 	add   a3, a1, a4
@@ -36,12 +36,12 @@ ENTRY(__riscv_copy_words_unaligned)
 
 2:
 	ret
-END(__riscv_copy_words_unaligned)
+SYM_FUNC_END(__riscv_copy_words_unaligned)
 
 /* void __riscv_copy_bytes_unaligned(void *, const void *, size_t) */
 /* Performs a memcpy without aligning buffers, using only byte accesses. */
 /* Note: The size is truncated to a multiple of 8 */
-ENTRY(__riscv_copy_bytes_unaligned)
+SYM_FUNC_START(__riscv_copy_bytes_unaligned)
 	andi a4, a2, ~(8-1)
 	beqz a4, 2f
 	add  a3, a1, a4
@@ -68,4 +68,4 @@ ENTRY(__riscv_copy_bytes_unaligned)
 
 2:
 	ret
-END(__riscv_copy_bytes_unaligned)
+SYM_FUNC_END(__riscv_copy_bytes_unaligned)
