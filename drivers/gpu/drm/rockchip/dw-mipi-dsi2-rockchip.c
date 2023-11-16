@@ -247,6 +247,7 @@ struct dw_mipi_dsi2 {
 	union phy_configure_opts phy_opts;
 
 	bool disable_hold_mode;
+	bool auto_calc_mode;
 	bool c_option;
 	bool scrambling_en;
 	unsigned int slice_width;
@@ -667,6 +668,10 @@ static void dw_mipi_dsi2_phy_init(struct dw_mipi_dsi2 *dsi2)
 {
 	dw_mipi_dsi2_phy_mode_cfg(dsi2);
 	dw_mipi_dsi2_phy_clk_mode_cfg(dsi2);
+
+	if (dsi2->auto_calc_mode)
+		return;
+
 	dw_mipi_dsi2_phy_ratio_cfg(dsi2);
 	dw_mipi_dsi2_lp2hs_or_hs2lp_cfg(dsi2);
 
@@ -734,6 +739,9 @@ static void dw_mipi_dsi2_ipi_set(struct dw_mipi_dsi2 *dsi2)
 	regmap_write(dsi2->regmap, DSI2_IPI_PIX_PKT_CFG, MAX_PIX_PKT(val));
 
 	dw_mipi_dsi2_ipi_color_coding_cfg(dsi2);
+
+	if (dsi2->auto_calc_mode)
+		return;
 
 	/*
 	 * if the controller is intended to operate in data stream mode,
@@ -808,7 +816,7 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 
 	/* there may be some timeout registers may be configured if desired */
 
-	dw_mipi_dsi2_work_mode(dsi2, MANUAL_MODE_EN);
+	dw_mipi_dsi2_work_mode(dsi2, dsi2->auto_calc_mode ? 0 : MANUAL_MODE_EN);
 	dw_mipi_dsi2_phy_init(dsi2);
 	dw_mipi_dsi2_tx_option_set(dsi2);
 	dw_mipi_dsi2_irq_enable(dsi2, 1);
@@ -831,7 +839,19 @@ static void dw_mipi_dsi2_pre_enable(struct dw_mipi_dsi2 *dsi2)
 
 static void dw_mipi_dsi2_enable(struct dw_mipi_dsi2 *dsi2)
 {
+	u32 mode;
+	int ret;
+
 	dw_mipi_dsi2_ipi_set(dsi2);
+
+	if (dsi2->auto_calc_mode) {
+		regmap_write(dsi2->regmap, DSI2_MODE_CTRL, AUTOCALC_MODE);
+		ret = regmap_read_poll_timeout(dsi2->regmap, DSI2_MODE_STATUS,
+					       mode, mode == IDLE_MODE,
+					       1000, MODE_STATUS_TIMEOUT_US);
+		if (ret < 0)
+			dev_err(dsi2->dev, "auto calculation training failed\n");
+	}
 
 	if (dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)
 		dw_mipi_dsi2_set_vid_mode(dsi2);
@@ -1194,6 +1214,7 @@ static int dw_mipi_dsi2_dual_channel_probe(struct dw_mipi_dsi2 *dsi2)
 		dsi2->slave->master = dsi2;
 		dsi2->lanes /= 2;
 
+		dsi2->slave->auto_calc_mode = dsi2->auto_calc_mode;
 		dsi2->slave->lanes = dsi2->lanes;
 		dsi2->slave->channel = dsi2->channel;
 		dsi2->slave->format = dsi2->format;
@@ -1668,6 +1689,9 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 	dsi2->id = id;
 	dsi2->pdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, dsi2);
+
+	if (device_property_read_bool(dev, "auto-calculation-mode"))
+		dsi2->auto_calc_mode = true;
 
 	if (device_property_read_bool(dev, "disable-hold-mode"))
 		dsi2->disable_hold_mode = true;
