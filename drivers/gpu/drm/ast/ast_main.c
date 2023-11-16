@@ -35,22 +35,17 @@
 
 #include "ast_drv.h"
 
-static bool ast_is_vga_enabled(struct drm_device *dev)
+static bool ast_is_vga_enabled(void __iomem *ioregs)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u8 ch;
+	u8 vgaer = __ast_read8(ioregs, AST_IO_VGAER);
 
-	ch = ast_io_read8(ast, AST_IO_VGAER);
-
-	return !!(ch & 0x01);
+	return vgaer & AST_IO_VGAER_VGA_ENABLE;
 }
 
-static void ast_enable_vga(struct drm_device *dev)
+static void ast_enable_vga(void __iomem *ioregs)
 {
-	struct ast_device *ast = to_ast_device(dev);
-
-	ast_io_write8(ast, AST_IO_VGAER, 0x01);
-	ast_io_write8(ast, AST_IO_VGAMR_W, 0x01);
+	__ast_write8(ioregs, AST_IO_VGAER, AST_IO_VGAER_VGA_ENABLE);
+	__ast_write8(ioregs, AST_IO_VGAMR_W, AST_IO_VGAMR_IOSEL);
 }
 
 /*
@@ -74,9 +69,9 @@ static int ast_enable_mmio(struct ast_device *ast)
 	return devm_add_action_or_reset(dev->dev, ast_enable_mmio_release, ast);
 }
 
-static void ast_open_key(struct ast_device *ast)
+static void ast_open_key(void __iomem *ioregs)
 {
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0x80, 0xA8);
+	__ast_write8_i(ioregs, AST_IO_VGACRI, 0x80, AST_IO_VGACR80_PASSWORD);
 }
 
 static int ast_device_config_init(struct ast_device *ast)
@@ -487,7 +482,7 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	ast->regs = regs;
 	ast->ioregs = ioregs;
 
-	if (!ast_is_vga_enabled(dev)) {
+	if (!ast_is_vga_enabled(ioregs)) {
 		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
 		need_post = true;
 	}
@@ -497,10 +492,10 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	 * access to the scratch registers will fail.
 	 */
 	if (need_post)
-		ast_enable_vga(dev);
-
+		ast_enable_vga(ioregs);
 	/* Enable extended register access */
-	ast_open_key(ast);
+	ast_open_key(ioregs);
+
 	ret = ast_enable_mmio(ast);
 	if (ret)
 		return ERR_PTR(ret);
