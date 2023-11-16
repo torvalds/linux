@@ -2392,6 +2392,12 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 		return -EINVAL;
 	}
 
+	/* Genpd core takes care of propagation to parent genpd */
+	if (opp_table->is_genpd) {
+		dev_err(dev, "%s: Operation not supported for genpds\n", __func__);
+		return -EOPNOTSUPP;
+	}
+
 	/* Checking only the first one is enough ? */
 	if (opp_table->required_devs[0])
 		return 0;
@@ -2453,8 +2459,16 @@ static int _opp_set_required_devs(struct opp_table *opp_table,
 	if (opp_table->required_devs[0])
 		return 0;
 
-	for (i = 0; i < opp_table->required_opp_count; i++)
+	for (i = 0; i < opp_table->required_opp_count; i++) {
+		/* Genpd core takes care of propagation to parent genpd */
+		if (required_devs[i] && opp_table->is_genpd &&
+		    opp_table->required_opp_tables[i]->is_genpd) {
+			dev_err(dev, "%s: Operation not supported for genpds\n", __func__);
+			return -EOPNOTSUPP;
+		}
+
 		opp_table->required_devs[i] = required_devs[i];
+	}
 
 	return 0;
 }

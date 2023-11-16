@@ -339,8 +339,11 @@ static int _link_required_opps(struct dev_pm_opp *opp, struct opp_table *opp_tab
 	 */
 	if (required_table->is_genpd && opp_table->required_opp_count == 1 &&
 	    !opp_table->required_devs[0]) {
-		if (!WARN_ON(opp->level != OPP_LEVEL_UNSET))
-			opp->level = opp->required_opps[0]->level;
+		/* Genpd core takes care of propagation to parent genpd */
+		if (!opp_table->is_genpd) {
+			if (!WARN_ON(opp->level != OPP_LEVEL_UNSET))
+				opp->level = opp->required_opps[0]->level;
+		}
 	}
 
 	return 0;
