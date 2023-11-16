@@ -189,20 +189,20 @@ static struct attribute *attrs_empty[] = {
  * "events" group (with empty attrs) before updating
  * it with detected events.
  */
-static struct attribute_group core_events_attr_group = {
+static struct attribute_group cstate_events_attr_group = {
 	.name = "events",
 	.attrs = attrs_empty,
 };
 
-DEFINE_CSTATE_FORMAT_ATTR(core_event, event, "config:0-63");
-static struct attribute *core_format_attrs[] = {
-	&format_attr_core_event.attr,
+DEFINE_CSTATE_FORMAT_ATTR(cstate_event, event, "config:0-63");
+static struct attribute *cstate_format_attrs[] = {
+	&format_attr_cstate_event.attr,
 	NULL,
 };
 
-static struct attribute_group core_format_attr_group = {
+static struct attribute_group cstate_format_attr_group = {
 	.name = "format",
-	.attrs = core_format_attrs,
+	.attrs = cstate_format_attrs,
 };
 
 static cpumask_t cstate_core_cpu_mask;
@@ -217,9 +217,9 @@ static struct attribute_group cpumask_attr_group = {
 	.attrs = cstate_cpumask_attrs,
 };
 
-static const struct attribute_group *core_attr_groups[] = {
-	&core_events_attr_group,
-	&core_format_attr_group,
+static const struct attribute_group *cstate_attr_groups[] = {
+	&cstate_events_attr_group,
+	&cstate_format_attr_group,
 	&cpumask_attr_group,
 	NULL,
 };
@@ -268,29 +268,7 @@ static struct perf_msr pkg_msr[] = {
 	[PERF_CSTATE_PKG_C10_RES] = { MSR_PKG_C10_RESIDENCY,	&group_cstate_pkg_c10,	test_msr },
 };
 
-static struct attribute_group pkg_events_attr_group = {
-	.name = "events",
-	.attrs = attrs_empty,
-};
-
-DEFINE_CSTATE_FORMAT_ATTR(pkg_event, event, "config:0-63");
-static struct attribute *pkg_format_attrs[] = {
-	&format_attr_pkg_event.attr,
-	NULL,
-};
-static struct attribute_group pkg_format_attr_group = {
-	.name = "format",
-	.attrs = pkg_format_attrs,
-};
-
 static cpumask_t cstate_pkg_cpu_mask;
-
-static const struct attribute_group *pkg_attr_groups[] = {
-	&pkg_events_attr_group,
-	&pkg_format_attr_group,
-	&cpumask_attr_group,
-	NULL,
-};
 
 static ssize_t cstate_get_attr_cpumask(struct device *dev,
 				       struct device_attribute *attr,
@@ -478,7 +456,7 @@ static const struct attribute_group *pkg_attr_update[] = {
 };
 
 static struct pmu cstate_core_pmu = {
-	.attr_groups	= core_attr_groups,
+	.attr_groups	= cstate_attr_groups,
 	.attr_update	= core_attr_update,
 	.name		= "cstate_core",
 	.task_ctx_nr	= perf_invalid_context,
@@ -493,7 +471,7 @@ static struct pmu cstate_core_pmu = {
 };
 
 static struct pmu cstate_pkg_pmu = {
-	.attr_groups	= pkg_attr_groups,
+	.attr_groups	= cstate_attr_groups,
 	.attr_update	= pkg_attr_update,
 	.name		= "cstate_pkg",
 	.task_ctx_nr	= perf_invalid_context,
