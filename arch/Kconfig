@@ -305,13 +305,8 @@ config ARCH_HAS_CPU_FINALIZE_INIT
 config ARCH_TASK_STRUCT_ON_STACK
 	bool
 
-# Select if arch has its private alloc_task_struct() function
-config ARCH_TASK_STRUCT_ALLOCATOR
-	bool
-
 config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	bool
-	depends on !ARCH_TASK_STRUCT_ALLOCATOR
 	help
 	  An architecture should select this to provide hardened usercopy
 	  knowledge about what region of the thread_struct should be
