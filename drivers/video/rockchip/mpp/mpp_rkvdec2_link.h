@@ -221,9 +221,9 @@ void rkvdec2_link_session_deinit(struct mpp_session *session);
 int rkvdec2_attach_ccu(struct device *dev, struct rkvdec2_dev *dec);
 int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec);
 void *rkvdec2_ccu_alloc_task(struct mpp_session *session, struct mpp_task_msgs *msgs);
-int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
-				   struct device *iommu_dev,
-				   unsigned long iova, int status, void *arg);
+int rkvdec2_soft_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+					struct device *iommu_dev,
+					unsigned long iova, int status, void *arg);
 irqreturn_t rkvdec2_soft_ccu_irq(int irq, void *param);
 void rkvdec2_soft_ccu_worker(struct kthread_work *work_s);
 
@@ -231,5 +231,8 @@ int rkvdec2_ccu_alloc_table(struct rkvdec2_dev *dec,
 			    struct rkvdec_link_dev *link_dec);
 irqreturn_t rkvdec2_hard_ccu_irq(int irq, void *param);
 void rkvdec2_hard_ccu_worker(struct kthread_work *work_s);
+int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+					struct device *iommu_dev,
+					unsigned long iova, int status, void *arg);
 
 #endif

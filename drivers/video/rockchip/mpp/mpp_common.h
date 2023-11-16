@@ -490,7 +490,6 @@ struct mpp_taskqueue {
 	u32 core_id_max;
 	u32 core_count;
 	unsigned long dev_active_flags;
-	u32 iommu_fault;
 };
 
 struct mpp_reset_group {

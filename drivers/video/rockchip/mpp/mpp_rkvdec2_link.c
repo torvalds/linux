@@ -1555,7 +1555,7 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue,
 		if (mpp->disable)
 			continue;
 
-		dev_info(mpp->dev, "resetting...\n");
+		dev_info(mpp->dev, "resetting for err %#x\n", mpp->irq_status);
 		disable_hardirq(mpp->irq);
 
 		/* foce idle, disconnect core and ccu */
@@ -1618,61 +1618,104 @@ void *rkvdec2_ccu_alloc_task(struct mpp_session *session,
 	return &task->mpp_task;
 }
 
-static void rkvdec2_ccu_check_pagefault_info(struct mpp_dev *mpp)
+static struct mpp_dev *rkvdec2_ccu_dev_match_by_iommu(struct mpp_taskqueue *queue,
+						      struct device *iommu_dev)
 {
-	u32 i = 0;
+	struct mpp_dev *mpp = NULL;
+	struct rkvdec2_dev *dec = NULL;
+	u32 mmu[2] = {0, 0x40};
+	u32 i;
 
-	for (i = 0; i < mpp->queue->core_count; i++) {
-		struct mpp_dev *core = mpp->queue->cores[i];
-		struct rkvdec2_dev *dec = to_rkvdec2_dev(core);
-		void __iomem *mmu_base = dec->mmu_base;
-		u32 mmu0_st;
-		u32 mmu1_st;
-		u32 mmu0_pta;
-		u32 mmu1_pta;
+	for (i = 0; i < queue->core_count; i++) {
+		struct mpp_dev *core = queue->cores[i];
 
-		if (!mmu_base)
-			return;
-
-		#define FAULT_STATUS 0x7e2
-		rkvdec2_ccu_power_on(mpp->queue, dec->ccu);
-
-		mmu0_st = readl(mmu_base + 0x4);
-		mmu1_st = readl(mmu_base + 0x44);
-		mmu0_pta = readl(mmu_base + 0xc);
-		mmu1_pta = readl(mmu_base + 0x4c);
-
-		dec->mmu0_st = mmu0_st;
-		dec->mmu1_st = mmu1_st;
-		dec->mmu0_pta = mmu0_pta;
-		dec->mmu1_pta = mmu1_pta;
-
-		pr_err("core %d mmu0 %08x %08x mm1 %08x %08x\n",
-			core->core_id, mmu0_st, mmu0_pta, mmu1_st, mmu1_pta);
-		if ((mmu0_st & FAULT_STATUS) || (mmu1_st & FAULT_STATUS) ||
-		    mmu0_pta || mmu1_pta) {
-			dec->fault_iova = readl(dec->link_dec->reg_base + 0x4);
-			dec->mmu_fault = 1;
-			pr_err("core %d fault iova %08x\n", core->core_id, dec->fault_iova);
-			rockchip_iommu_mask_irq(core->dev);
-		} else {
-			dec->mmu_fault = 0;
-			dec->fault_iova = 0;
+		if (&core->iommu_info->pdev->dev == iommu_dev) {
+			mpp = core;
+			dec = to_rkvdec2_dev(mpp);
 		}
 	}
+
+	if (!dec || !dec->mmu_base)
+		goto out;
+
+	/* there are two iommus */
+	for (i = 0; i < 2; i++) {
+		u32 status = readl(dec->mmu_base + mmu[i] + 0x4);
+		u32 iova = readl(dec->mmu_base + mmu[i] + 0xc);
+		u32 is_write = (status & BIT(5)) ? 1 : 0;
+
+		if (status && iova)
+			dev_err(iommu_dev, "core %d pagfault at iova %#08x type %s status %#x\n",
+				mpp->core_id, iova, is_write ? "write" : "read", status);
+	}
+out:
+	return mpp;
 }
 
-int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
-				   struct device *iommu_dev,
-				   unsigned long iova, int status, void *arg)
+int rkvdec2_soft_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+					struct device *iommu_dev,
+					unsigned long iova, int status, void *arg)
 {
 	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct mpp_taskqueue *queue = mpp->queue;
+	struct mpp_task *mpp_task;
 
 	mpp_debug_enter();
 
-	rkvdec2_ccu_check_pagefault_info(mpp);
+	mpp = rkvdec2_ccu_dev_match_by_iommu(queue, iommu_dev);
+	if (!mpp) {
+		dev_err(iommu_dev, "iommu fault, but no dev match\n");
+		return 0;
+	}
+	mpp_task = mpp->cur_task;
+	if (mpp_task)
+		mpp_task_dump_mem_region(mpp, mpp_task);
 
-	mpp->queue->iommu_fault = 1;
+	/*
+	 * Mask iommu irq, in order for iommu not repeatedly trigger pagefault.
+	 * Until the pagefault task finish by hw timeout.
+	 */
+	rockchip_iommu_mask_irq(mpp->dev);
+	atomic_inc(&mpp->queue->reset_request);
+	kthread_queue_work(&mpp->queue->worker, &mpp->work);
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
+int rkvdec2_hard_ccu_iommu_fault_handle(struct iommu_domain *iommu,
+					struct device *iommu_dev,
+					unsigned long iova, int status, void *arg)
+{
+	struct mpp_dev *mpp = (struct mpp_dev *)arg;
+	struct mpp_taskqueue *queue = mpp->queue;
+	struct mpp_task *mpp_task = NULL, *n;
+	struct rkvdec2_dev *dec;
+	u32 err_task_iova;
+
+	mpp_debug_enter();
+
+	mpp = rkvdec2_ccu_dev_match_by_iommu(queue, iommu_dev);
+	if (!mpp) {
+		dev_err(iommu_dev, "iommu fault, but no dev match\n");
+		return 0;
+	}
+
+	dec = to_rkvdec2_dev(mpp);
+	err_task_iova = readl(dec->link_dec->reg_base + 0x4);
+	dev_err(mpp->dev, "core %d err task iova %#08x\n", mpp->core_id, err_task_iova);
+	rockchip_iommu_mask_irq(mpp->dev);
+
+	list_for_each_entry_safe(mpp_task, n, &queue->running_list, queue_link) {
+		struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+
+		if ((u32)task->table->iova == err_task_iova) {
+			mpp_task_dump_mem_region(mpp, mpp_task);
+			set_bit(TASK_STATE_ABORT, &mpp_task->state);
+			break;
+		}
+	}
 	atomic_inc(&mpp->queue->reset_request);
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 
@@ -2041,7 +2084,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 		ccu_decoded_num = readl(ccu->reg_base + RKVDEC_CCU_DEC_NUM_BASE);
 		ccu_total_dec_num = readl(ccu->reg_base + RKVDEC_CCU_TOTAL_NUM_BASE);
 		mpp_debug(DEBUG_IRQ_CHECK,
-			  "session %d task %d w:h[%d %d] err %d irq_status %08x timeout=%u abort=%u iova %08x next %08x ccu[%d %d]\n",
+			  "session %d task %d w:h[%d %d] err %d irq_status %#x timeout=%u abort=%u iova %08x next %08x ccu[%d %d]\n",
 			  mpp_task->session->index, mpp_task->task_index, task->width,
 			  task->height, !!(irq_status & RKVDEC_INT_ERROR_MASK), irq_status,
 			  timeout_flag, abort_flag, (u32)task->table->iova,
@@ -2055,7 +2098,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 			cancel_delayed_work(&mpp_task->timeout_work);
 			mpp_task->hw_cycles = tb_reg[hw->tb_reg_cycle];
 			mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
-			task->irq_status = irq_status;
+			task->irq_status = irq_status ? irq_status : RKVDEC_ERROR_STA;
 
 			if (irq_status)
 				rkvdec2_hard_ccu_finish(hw, task);
@@ -2081,7 +2124,7 @@ static int rkvdec2_hard_ccu_dequeue(struct mpp_taskqueue *queue,
 			/* Wake up the GET thread */
 			wake_up(&mpp_task->wait);
 			if ((irq_status & RKVDEC_INT_ERROR_MASK) || timeout_flag) {
-				pr_err("session %d task %d irq_status %08x timeout=%u abort=%u\n",
+				pr_err("session %d task %d irq_status %#x timeout=%u abort=%u\n",
 					mpp_task->session->index, mpp_task->task_index,
 					irq_status, timeout_flag, abort_flag);
 				atomic_inc(&queue->reset_request);
@@ -2339,51 +2382,6 @@ done:
 	return 0;
 }
 
-static void rkvdec2_hard_ccu_handle_pagefault_task(struct rkvdec2_dev *dec,
-						   struct mpp_task *mpp_task)
-{
-	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
-
-	mpp_dbg_ccu("session %d task %d w:h[%d %d] pagefault mmu0[%08x %08x] mmu1[%08x %08x] fault_iova %08x\n",
-		    mpp_task->session->index, mpp_task->task_index,
-		    task->width, task->height, dec->mmu0_st, dec->mmu0_pta,
-		    dec->mmu1_st, dec->mmu1_pta, dec->fault_iova);
-
-	set_bit(TASK_STATE_HANDLE, &mpp_task->state);
-	task->irq_status |= BIT(4);
-	cancel_delayed_work(&mpp_task->timeout_work);
-	rkvdec2_hard_ccu_finish(dec->link_dec->info, task);
-	set_bit(TASK_STATE_FINISH, &mpp_task->state);
-	set_bit(TASK_STATE_DONE, &mpp_task->state);
-	list_move_tail(&task->table->link, &dec->ccu->unused_list);
-	list_del_init(&mpp_task->queue_link);
-	/* Wake up the GET thread */
-	wake_up(&mpp_task->wait);
-	kref_put(&mpp_task->ref, mpp_free_task);
-	dec->mmu_fault = 0;
-	dec->fault_iova = 0;
-}
-
-static void rkvdec2_hard_ccu_pagefault_proc(struct mpp_taskqueue *queue)
-{
-	struct mpp_task *loop = NULL, *n;
-
-	list_for_each_entry_safe(loop, n, &queue->running_list, queue_link) {
-		struct rkvdec2_task *task = to_rkvdec2_task(loop);
-		u32 iova = (u32)task->table->iova;
-		u32 i;
-
-		for (i = 0; i < queue->core_count; i++) {
-			struct mpp_dev *core = queue->cores[i];
-			struct rkvdec2_dev *dec = to_rkvdec2_dev(core);
-
-			if (!dec->mmu_fault || dec->fault_iova != iova)
-				continue;
-			rkvdec2_hard_ccu_handle_pagefault_task(dec, loop);
-		}
-	}
-}
-
 static void rkvdec2_hard_ccu_resend_tasks(struct mpp_dev *mpp, struct mpp_taskqueue *queue)
 {
 	struct rkvdec2_task *task_pre = NULL;
@@ -2463,11 +2461,6 @@ void rkvdec2_hard_ccu_worker(struct kthread_work *work_s)
 		/* reset process */
 		rkvdec2_hard_ccu_reset(queue, dec->ccu);
 		atomic_set(&queue->reset_request, 0);
-		/* if iommu pagefault, find the fault task and drop it */
-		if (queue->iommu_fault) {
-			rkvdec2_hard_ccu_pagefault_proc(queue);
-			queue->iommu_fault = 0;
-		}
 
 		/* relink running task iova in list, and resend them to hw */
 		if (!list_empty(&queue->running_list))

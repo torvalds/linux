@@ -220,12 +220,7 @@ struct rkvdec2_dev {
 	u32 task_index;
 	/* mmu info */
 	void __iomem *mmu_base;
-	u32 fault_iova;
 	u32 mmu_fault;
-	u32 mmu0_st;
-	u32 mmu1_st;
-	u32 mmu0_pta;
-	u32 mmu1_pta;
 };
 
 int mpp_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,

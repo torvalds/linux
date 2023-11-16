@@ -1571,6 +1571,7 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 	if (dec->ccu->ccu_mode == RKVDEC2_CCU_TASK_SOFT) {
 		mpp->dev_ops->task_worker = rkvdec2_soft_ccu_worker;
 		irq_proc = rkvdec2_soft_ccu_irq;
+		mpp->fault_handler = rkvdec2_soft_ccu_iommu_fault_handle;
 	} else if (dec->ccu->ccu_mode == RKVDEC2_CCU_TASK_HARD) {
 		if (mpp->core_id == 0 && mpp->task_capacity > 1) {
 			dec->link_dec->task_capacity = mpp->task_capacity;
@@ -1580,8 +1581,8 @@ static int rkvdec2_core_probe(struct platform_device *pdev)
 		}
 		mpp->dev_ops->task_worker = rkvdec2_hard_ccu_worker;
 		irq_proc = rkvdec2_hard_ccu_irq;
+		mpp->fault_handler = rkvdec2_hard_ccu_iommu_fault_handle;
 	}
-	mpp->fault_handler = rkvdec2_ccu_iommu_fault_handle;
 	kthread_init_work(&mpp->work, mpp->dev_ops->task_worker);
 
 	/* get irq request */
