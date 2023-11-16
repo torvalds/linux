@@ -192,7 +192,6 @@ to_ast_bmc_connector(struct drm_connector *connector)
 struct ast_device {
 	struct drm_device base;
 
-	struct mutex ioregs_lock; /* Protects access to I/O registers in ioregs */
 	void __iomem *regs;
 	void __iomem *ioregs;
 	void __iomem *dp501_fw_buf;
@@ -206,6 +205,8 @@ struct ast_device {
 	unsigned long	vram_base;
 	unsigned long	vram_size;
 	unsigned long	vram_fb_available;
+
+	struct mutex modeset_lock; /* Protects access to modeset I/O registers in ioregs */
 
 	struct ast_plane primary_plane;
 	struct ast_plane cursor_plane;
