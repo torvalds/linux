@@ -54,6 +54,8 @@
 		mdio2 = &mdio2;
 		video0 = &video0;
 		video1 = &video1;
+		xdma0 = &xdma0;
+		xdma1 = &xdma1;
 	};
 
 	cpus {
@@ -746,7 +748,7 @@
 		};
 
 		xdma0: xdma@12c04000 {
-			compatible = "aspeed,ast2700-xdma";
+			compatible = "aspeed,ast2700-xdma0";
 			reg = <0x0 0x12c04000 0x0 0x100>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_BCLK>;
 			resets = <&soc0_rst ASPEED_RESET_XDMA0>;
@@ -759,7 +761,7 @@
 		};
 
 		xdma1: xdma@12c05000 {
-			compatible = "aspeed,ast2700-xdma";
+			compatible = "aspeed,ast2700-xdma1";
 			reg = <0x0 0x12c05000 0x0 0x100>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_BCLK>;
 			resets = <&soc0_rst ASPEED_RESET_XDMA1>;
