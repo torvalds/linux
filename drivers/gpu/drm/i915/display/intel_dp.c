@@ -405,29 +405,27 @@ int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
 int
 intel_dp_max_data_rate(int max_link_rate, int max_lanes)
 {
-	if (max_link_rate >= 1000000) {
-		/*
-		 * UHBR rates always use 128b/132b channel encoding, and have
-		 * 97.71% data bandwidth efficiency. Consider max_link_rate the
-		 * link bit rate in units of 10000 bps.
-		 */
-		int max_link_rate_kbps = max_link_rate * 10;
+	int ch_coding_efficiency =
+		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(max_link_rate));
+	int max_link_rate_kbps = max_link_rate * 10;
 
-		max_link_rate_kbps = DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate_kbps, 9671), 10000);
-		max_link_rate = max_link_rate_kbps / 8;
-	}
-
+	/*
+	 * UHBR rates always use 128b/132b channel encoding, and have
+	 * 97.71% data bandwidth efficiency. Consider max_link_rate the
+	 * link bit rate in units of 10000 bps.
+	 */
 	/*
 	 * Lower than UHBR rates always use 8b/10b channel encoding, and have
 	 * 80% data bandwidth efficiency for SST non-FEC. However, this turns
-	 * out to be a nop by coincidence, and can be skipped:
+	 * out to be a nop by coincidence:
 	 *
 	 *	int max_link_rate_kbps = max_link_rate * 10;
 	 *	max_link_rate_kbps = DIV_ROUND_DOWN_ULL(max_link_rate_kbps * 8, 10);
 	 *	max_link_rate = max_link_rate_kbps / 8;
 	 */
-
-	return max_link_rate * max_lanes;
+	return DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate_kbps * max_lanes,
+					      ch_coding_efficiency),
+				  1000000 * 8);
 }
 
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
