@@ -703,7 +703,7 @@ proto:
 		response_buf[0] = header;
 
 		for (i = 1; i < VF_SW_FLAG_COUNT; i++) {
-			reply_reg.addr += i * sizeof(u32);
+			reply_reg.addr += sizeof(u32);
 			response_buf[i] = xe_mmio_read32(gt, reply_reg);
 		}
 	}
