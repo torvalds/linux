@@ -122,14 +122,13 @@ static int dummy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dummy_remove(struct platform_device *pdev)
+static void dummy_remove(struct platform_device *pdev)
 {
 	struct dummy_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_disable(dev);
 	coresight_unregister(drvdata->csdev);
-	return 0;
 }
 
 static const struct of_device_id dummy_match[] = {
@@ -140,7 +139,7 @@ static const struct of_device_id dummy_match[] = {
 
 static struct platform_driver dummy_driver = {
 	.probe	= dummy_probe,
-	.remove	= dummy_remove,
+	.remove_new = dummy_remove,
 	.driver	= {
 		.name   = "coresight-dummy",
 		.of_match_table = dummy_match,
