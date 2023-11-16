@@ -1530,14 +1530,13 @@ probe_failed:
 	return ret;
 }
 
-static int arm_trbe_device_remove(struct platform_device *pdev)
+static void arm_trbe_device_remove(struct platform_device *pdev)
 {
 	struct trbe_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	arm_trbe_remove_cpuhp(drvdata);
 	arm_trbe_remove_coresight(drvdata);
 	arm_trbe_remove_irq(drvdata);
-	return 0;
 }
 
 static const struct of_device_id arm_trbe_of_match[] = {
@@ -1562,7 +1561,7 @@ static struct platform_driver arm_trbe_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= arm_trbe_device_probe,
-	.remove	= arm_trbe_device_remove,
+	.remove_new = arm_trbe_device_remove,
 };
 
 static int __init arm_trbe_init(void)
