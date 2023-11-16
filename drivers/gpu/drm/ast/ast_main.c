@@ -76,25 +76,27 @@ static void ast_open_key(void __iomem *ioregs)
 	__ast_write8_i(ioregs, AST_IO_VGACRI, 0x80, AST_IO_VGACR80_PASSWORD);
 }
 
-static int ast_device_config_init(struct ast_device *ast)
+static int ast_detect_chip(struct pci_dev *pdev,
+			   void __iomem *regs, void __iomem *ioregs,
+			   enum ast_chip *chip_out,
+			   enum ast_config_mode *config_mode_out)
 {
-	struct drm_device *dev = &ast->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	struct device_node *np = dev->dev->of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	enum ast_config_mode config_mode = ast_use_defaults;
 	uint32_t scu_rev = 0xffffffff;
+	enum ast_chip chip;
 	u32 data;
-	u8 jregd0, jregd1;
+	u8 vgacrd0, vgacrd1;
 
 	/*
 	 * Find configuration mode and read SCU revision
 	 */
 
-	ast->config_mode = ast_use_defaults;
-
 	/* Check if we have device-tree properties */
 	if (np && !of_property_read_u32(np, "aspeed,scu-revision-id", &data)) {
 		/* We do, disable P2A access */
-		ast->config_mode = ast_use_dt;
+		config_mode = ast_use_dt;
 		scu_rev = data;
 	} else if (pdev->device == PCI_CHIP_AST2000) { // Not all families have a P2A bridge
 		/*
@@ -102,9 +104,9 @@ static int ast_device_config_init(struct ast_device *ast)
 		 * is disabled. We force using P2A if VGA only mode bit
 		 * is set D[7]
 		 */
-		jregd0 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
-		jregd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
-		if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
+		vgacrd0 = __ast_read8_i(ioregs, AST_IO_VGACRI, 0xd0);
+		vgacrd1 = __ast_read8_i(ioregs, AST_IO_VGACRI, 0xd1);
+		if (!(vgacrd0 & 0x80) || !(vgacrd1 & 0x10)) {
 
 			/*
 			 * We have a P2A bridge and it is enabled.
@@ -112,32 +114,32 @@ static int ast_device_config_init(struct ast_device *ast)
 
 			/* Patch AST2500/AST2510 */
 			if ((pdev->revision & 0xf0) == 0x40) {
-				if (!(jregd0 & AST_VRAM_INIT_STATUS_MASK))
-					ast_patch_ahb_2500(ast->regs);
+				if (!(vgacrd0 & AST_VRAM_INIT_STATUS_MASK))
+					ast_patch_ahb_2500(regs);
 			}
 
 			/* Double check that it's actually working */
-			data = ast_read32(ast, 0xf004);
+			data = __ast_read32(regs, 0xf004);
 			if ((data != 0xffffffff) && (data != 0x00)) {
-				ast->config_mode = ast_use_p2a;
+				config_mode = ast_use_p2a;
 
 				/* Read SCU7c (silicon revision register) */
-				ast_write32(ast, 0xf004, 0x1e6e0000);
-				ast_write32(ast, 0xf000, 0x1);
-				scu_rev = ast_read32(ast, 0x1207c);
+				__ast_write32(regs, 0xf004, 0x1e6e0000);
+				__ast_write32(regs, 0xf000, 0x1);
+				scu_rev = __ast_read32(regs, 0x1207c);
 			}
 		}
 	}
 
-	switch (ast->config_mode) {
+	switch (config_mode) {
 	case ast_use_defaults:
-		drm_info(dev, "Using default configuration\n");
+		dev_info(dev, "Using default configuration\n");
 		break;
 	case ast_use_dt:
-		drm_info(dev, "Using device-tree for configuration\n");
+		dev_info(dev, "Using device-tree for configuration\n");
 		break;
 	case ast_use_p2a:
-		drm_info(dev, "Using P2A bridge for configuration\n");
+		dev_info(dev, "Using P2A bridge for configuration\n");
 		break;
 	}
 
@@ -146,62 +148,67 @@ static int ast_device_config_init(struct ast_device *ast)
 	 */
 
 	if (pdev->revision >= 0x50) {
-		ast->chip = AST2600;
-		drm_info(dev, "AST 2600 detected\n");
+		chip = AST2600;
+		dev_info(dev, "AST 2600 detected\n");
 	} else if (pdev->revision >= 0x40) {
 		switch (scu_rev & 0x300) {
 		case 0x0100:
-			ast->chip = AST2510;
-			drm_info(dev, "AST 2510 detected\n");
+			chip = AST2510;
+			dev_info(dev, "AST 2510 detected\n");
 			break;
 		default:
-			ast->chip = AST2500;
-			drm_info(dev, "AST 2500 detected\n");
+			chip = AST2500;
+			dev_info(dev, "AST 2500 detected\n");
+			break;
 		}
 	} else if (pdev->revision >= 0x30) {
 		switch (scu_rev & 0x300) {
 		case 0x0100:
-			ast->chip = AST1400;
-			drm_info(dev, "AST 1400 detected\n");
+			chip = AST1400;
+			dev_info(dev, "AST 1400 detected\n");
 			break;
 		default:
-			ast->chip = AST2400;
-			drm_info(dev, "AST 2400 detected\n");
+			chip = AST2400;
+			dev_info(dev, "AST 2400 detected\n");
+			break;
 		}
 	} else if (pdev->revision >= 0x20) {
 		switch (scu_rev & 0x300) {
 		case 0x0000:
-			ast->chip = AST1300;
-			drm_info(dev, "AST 1300 detected\n");
+			chip = AST1300;
+			dev_info(dev, "AST 1300 detected\n");
 			break;
 		default:
-			ast->chip = AST2300;
-			drm_info(dev, "AST 2300 detected\n");
+			chip = AST2300;
+			dev_info(dev, "AST 2300 detected\n");
 			break;
 		}
 	} else if (pdev->revision >= 0x10) {
 		switch (scu_rev & 0x0300) {
 		case 0x0200:
-			ast->chip = AST1100;
-			drm_info(dev, "AST 1100 detected\n");
+			chip = AST1100;
+			dev_info(dev, "AST 1100 detected\n");
 			break;
 		case 0x0100:
-			ast->chip = AST2200;
-			drm_info(dev, "AST 2200 detected\n");
+			chip = AST2200;
+			dev_info(dev, "AST 2200 detected\n");
 			break;
 		case 0x0000:
-			ast->chip = AST2150;
-			drm_info(dev, "AST 2150 detected\n");
+			chip = AST2150;
+			dev_info(dev, "AST 2150 detected\n");
 			break;
 		default:
-			ast->chip = AST2100;
-			drm_info(dev, "AST 2100 detected\n");
+			chip = AST2100;
+			dev_info(dev, "AST 2100 detected\n");
 			break;
 		}
 	} else {
-		ast->chip = AST2000;
-		drm_info(dev, "AST 2000 detected\n");
+		chip = AST2000;
+		dev_info(dev, "AST 2000 detected\n");
 	}
+
+	*chip_out = chip;
+	*config_mode_out = config_mode;
 
 	return 0;
 }
@@ -431,6 +438,8 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	int ret = 0;
 	void __iomem *regs;
 	void __iomem *ioregs;
+	enum ast_config_mode config_mode;
+	enum ast_chip chip;
 
 	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
 	if (IS_ERR(ast))
@@ -502,9 +511,12 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = ast_device_config_init(ast);
+	ret = ast_detect_chip(pdev, regs, ioregs, &chip, &config_mode);
 	if (ret)
 		return ERR_PTR(ret);
+
+	ast->chip = chip;
+	ast->config_mode = config_mode;
 
 	ast_detect_widescreen(ast);
 	ast_detect_tx_chip(ast, need_post);
