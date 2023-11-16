@@ -89,7 +89,7 @@
 #define H1_REG_STR_BUF_LIMIT				0x060
 #define H1_REG_MAD_CTRL					0x064
 #define    H1_REG_MAD_CTRL_QP_ADJUST(x)			((x) << 28)
-#define    H1_REG_MAD_CTRL_MAD_THREDHOLD(x)		((x) << 22)
+#define    H1_REG_MAD_CTRL_MAD_THRESHOLD(x)		((x) << 22)
 #define    H1_REG_MAD_CTRL_QP_SUM_DIV2(x)		((x))
 #define H1_REG_ADDR_VP8_PROB_CNT			0x068
 #define H1_REG_QP_VAL					0x06c
