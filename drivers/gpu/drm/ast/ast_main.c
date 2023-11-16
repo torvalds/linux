@@ -444,22 +444,42 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	if (!ast->regs)
 		return ERR_PTR(-EIO);
 
-	/*
-	 * After AST2500, MMIO is enabled by default, and it should be adopted
-	 * to be compatible with Arm.
-	 */
 	if (pdev->revision >= 0x40) {
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
-	} else if (!(pci_resource_flags(pdev, 2) & IORESOURCE_IO)) {
-		drm_info(dev, "platform has no IO space, trying MMIO\n");
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
-	}
+		/*
+		 * On AST2500 and later models, MMIO is enabled by
+		 * default. Adopt it to be compatible with ARM.
+		 */
+		resource_size_t len = pci_resource_len(pdev, 1);
 
-	/* "map" IO regs if the above hasn't done so already */
-	if (!ast->ioregs) {
+		if (len < AST_IO_MM_OFFSET)
+			return ERR_PTR(-EIO);
+		if ((len - AST_IO_MM_OFFSET) < AST_IO_MM_LENGTH)
+			return ERR_PTR(-EIO);
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+	} else if (pci_resource_flags(pdev, 2) & IORESOURCE_IO) {
+		/*
+		 * Map I/O registers if we have a PCI BAR for I/O.
+		 */
+		resource_size_t len = pci_resource_len(pdev, 2);
+
+		if (len < AST_IO_MM_LENGTH)
+			return -EIO;
 		ast->ioregs = pcim_iomap(pdev, 2, 0);
 		if (!ast->ioregs)
 			return ERR_PTR(-EIO);
+	} else {
+		/*
+		 * Anything else is best effort.
+		 */
+		resource_size_t len = pci_resource_len(pdev, 1);
+
+		if (len < AST_IO_MM_OFFSET)
+			return ERR_PTR(-EIO);
+		if ((len - AST_IO_MM_OFFSET) < AST_IO_MM_LENGTH)
+			return ERR_PTR(-EIO);
+		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+
+		drm_info(dev, "Platform has no I/O space, using MMIO\n");
 	}
 
 	if (!ast_is_vga_enabled(dev)) {

@@ -10,6 +10,7 @@
  */
 
 #define AST_IO_MM_OFFSET		(0x380)
+#define AST_IO_MM_LENGTH		(128)
 
 #define AST_IO_VGAARI_W			(0x40)
 #define AST_IO_VGAMR_W			(0x42)
