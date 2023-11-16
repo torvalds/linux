@@ -320,10 +320,6 @@ config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	  should be implemented. Without this, the entire thread_struct
 	  field in task_struct will be left whitelisted.
 
-# Select if arch has its private alloc_thread_stack() function
-config ARCH_THREAD_STACK_ALLOCATOR
-	bool
-
 # Select if arch wants to size task_struct dynamically via arch_task_struct_size:
 config ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	bool
