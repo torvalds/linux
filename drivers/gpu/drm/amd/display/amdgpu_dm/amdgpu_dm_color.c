@@ -944,8 +944,19 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 	has_crtc_cm_degamma = (crtc->cm_has_degamma || crtc->cm_is_degamma_srgb);
 
 	ret = __set_dm_plane_degamma(plane_state, dc_plane_state);
-	if (ret != -EINVAL)
+	if (ret == -ENOMEM)
 		return ret;
+
+	/* We only have one degamma block available (pre-blending) for the
+	 * whole color correction pipeline, so that we can't actually perform
+	 * plane and CRTC degamma at the same time. Explicitly reject atomic
+	 * updates when userspace sets both plane and CRTC degamma properties.
+	 */
+	if (has_crtc_cm_degamma && ret != -EINVAL){
+		drm_dbg_kms(crtc->base.crtc->dev,
+			    "doesn't support plane and CRTC degamma at the same time\n");
+			return -EINVAL;
+	}
 
 	/* If we are here, it means we don't have plane degamma settings, check
 	 * if we have CRTC degamma waiting for mapping to pre-blending degamma
