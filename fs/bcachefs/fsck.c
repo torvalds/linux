@@ -826,6 +826,18 @@ fsck_err:
 	goto out;
 }
 
+static int check_inode_deleted_list(struct btree_trans *trans, struct bpos p)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_deleted_inodes, p, 0);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	bch2_trans_iter_exit(trans, &iter);
+	return k.k->type == KEY_TYPE_set;
+}
+
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
@@ -867,7 +879,7 @@ static int check_inode(struct btree_trans *trans,
 			c, inode_snapshot_mismatch,
 			"inodes in different snapshots don't match")) {
 		bch_err(c, "repair not implemented yet");
-		return -EINVAL;
+		return -BCH_ERR_fsck_repair_unimplemented;
 	}
 
 	if ((u.bi_flags & (BCH_INODE_i_size_dirty|BCH_INODE_unlinked)) &&
@@ -888,6 +900,18 @@ static int check_inode(struct btree_trans *trans,
 		if (!bpos_eq(new_min_pos, POS_MIN))
 			bch2_btree_iter_set_pos(iter, bpos_predecessor(new_min_pos));
 		return 0;
+	}
+
+	if (u.bi_flags & BCH_INODE_unlinked &&
+	    c->sb.version >= bcachefs_metadata_version_deleted_inodes) {
+		ret = check_inode_deleted_list(trans, k.k->p);
+		if (ret < 0)
+			return ret;
+
+		fsck_err_on(ret, c, unlinked_inode_not_on_deleted_list,
+			    "inode %llu:%u unlinked, but not on deleted list",
+			    u.bi_inum, k.k->p.snapshot);
+		ret = 0;
 	}
 
 	if (u.bi_flags & BCH_INODE_unlinked &&
@@ -976,7 +1000,6 @@ fsck_err:
 	return ret;
 }
 
-noinline_for_stack
 int bch2_check_inodes(struct bch_fs *c)
 {
 	bool full = c->opts.fsck;
