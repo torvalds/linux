@@ -48,3 +48,19 @@
 	/delete-property/ pinctrl-0;
 	status = "okay";
 };
+
+&ltpi0_spi2 {
+	compatible = "aspeed,ast2700-spi";
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		reg = < 0 >;
+		compatible = "jedec,spi-nor";
+		m25p,fast-read;
+		label = "ltpi0-spi2:0";
+		spi-max-frequency = <12500000>;
+		spi-tx-bus-width = <2>;
+		spi-rx-bus-width = <2>;
+	};
+};
