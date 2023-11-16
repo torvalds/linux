@@ -15,45 +15,39 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include "pinctrl-aspeed.h"
 
-#define SCU00 0x00 /* Multi-function Pin Control #1 */
-#define SCU04 0x04 /* Multi-function Pin Control #2 */
-#define SCU08 0x08 /* Multi-function Pin Control #3 */
-#define SCU0C 0x0C /* Multi-function Pin Control #4 */
-#define SCU10 0x10 /* Multi-function Pin Control #5 */
-#define SCU14 0x14 /* Multi-function Pin Control #6 */
-#define SCU18 0x18 /* Multi-function Pin Control #7 */
-#define SCU1C 0x1C /* Multi-function Pin Control #8 */
-#define SCU20 0x20 /* Multi-function Pin Control #9 */
-#define SCU24 0x24 /* Multi-function Pin Control #10 */
-#define SCU28 0x28 /* Multi-function Pin Control #11 */
-#define SCU2C 0x2C /* Multi-function Pin Control #12 */
-#define SCU30 0x30 /* Multi-function Pin Control #13 */
-#define SCU34 0x34 /* Multi-function Pin Control #14 */
-#define SCU38 0x38 /* Multi-function Pin Control #15 */
-#define SCU3C 0x3C /* Multi-function Pin Control #16 */
-#define SCU40 0x40 /* Multi-function Pin Control #17 */
-#define SCU44 0x44 /* Multi-function Pin Control #18 */
-#define SCU48 0x48 /* Multi-function Pin Control #19 */
-#define SCU4C 0x4C /* Multi-function Pin Control #20 */
-#define SCU50 0x50 /* Multi-function Pin Control #21 */
-#define SCU54 0x54 /* Multi-function Pin Control #22 */
-#define SCU58 0x58 /* Multi-function Pin Control #23 */
-#define SCU5C 0x5C /* Multi-function Pin Control #24 */
-#define SCU60 0x60 /* Multi-function Pin Control #25 */
-#define SCU64 0x64 /* Multi-function Pin Control #26 */
-#define SCU68 0x68 /* Multi-function Pin Control #27 */
-#define SCU6C 0x6C /* Multi-function Pin Control #28 */
-#define SCU70 0x70 /* Multi-function Pin Control #29 */
-#define SCU74 0x74 /* Multi-function Pin Control #30 */
-#define SCU78 0x78 /* Multi-function Pin Control #31 */
-
-struct aspeed_g7_soc1_pinctrl {
-	struct pinctrl_dev *pctldev;
-	struct device *dev;
-	struct irq_domain *domain;
-	void __iomem *regs;
-};
+#define SCU400 0x400 /* Multi-function Pin Control #1 */
+#define SCU404 0x404 /* Multi-function Pin Control #2 */
+#define SCU408 0x408 /* Multi-function Pin Control #3 */
+#define SCU40C 0x40C /* Multi-function Pin Control #4 */
+#define SCU410 0x410 /* Multi-function Pin Control #5 */
+#define SCU414 0x414 /* Multi-function Pin Control #6 */
+#define SCU418 0x418 /* Multi-function Pin Control #7 */
+#define SCU41C 0x41C /* Multi-function Pin Control #8 */
+#define SCU420 0x420 /* Multi-function Pin Control #9 */
+#define SCU424 0x424 /* Multi-function Pin Control #10 */
+#define SCU428 0x428 /* Multi-function Pin Control #11 */
+#define SCU42C 0x42C /* Multi-function Pin Control #12 */
+#define SCU430 0x430 /* Multi-function Pin Control #13 */
+#define SCU434 0x434 /* Multi-function Pin Control #14 */
+#define SCU438 0x438 /* Multi-function Pin Control #15 */
+#define SCU43C 0x43C /* Multi-function Pin Control #16 */
+#define SCU440 0x440 /* Multi-function Pin Control #17 */
+#define SCU444 0x444 /* Multi-function Pin Control #18 */
+#define SCU448 0x448 /* Multi-function Pin Control #19 */
+#define SCU44C 0x44C /* Multi-function Pin Control #20 */
+#define SCU450 0x450 /* Multi-function Pin Control #21 */
+#define SCU454 0x454 /* Multi-function Pin Control #22 */
+#define SCU458 0x458 /* Multi-function Pin Control #23 */
+#define SCU45C 0x45C /* Multi-function Pin Control #24 */
+#define SCU460 0x460 /* Multi-function Pin Control #25 */
+#define SCU464 0x464 /* Multi-function Pin Control #26 */
+#define SCU468 0x468 /* Multi-function Pin Control #27 */
+#define SCU46C 0x46C /* Multi-function Pin Control #28 */
+#define SCU470 0x470 /* Multi-function Pin Control #29 */
+#define SCU474 0x474 /* Multi-function Pin Control #30 */
+#define SCU478 0x478 /* Multi-function Pin Control #31 */
 
 static const int espi1_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 static const int lpc1_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
@@ -1292,1381 +1286,1381 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 //GPIO A
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(2, 0), 1),
-			PIN_CFG(LPC1, SCU00, GENMASK(2, 0), 2),
-			PIN_CFG(SD0, SCU00, GENMASK(2, 0), 3),
-			PIN_CFG(HVI3C4, SCU00, GENMASK(2, 0), 4),
-			PIN_CFG(VPI, SCU00, GENMASK(2, 0), 5),
+			PIN_CFG(ESPI1, SCU400, GENMASK(2, 0), 1),
+			PIN_CFG(LPC1, SCU400, GENMASK(2, 0), 2),
+			PIN_CFG(SD0, SCU400, GENMASK(2, 0), 3),
+			PIN_CFG(HVI3C4, SCU400, GENMASK(2, 0), 4),
+			PIN_CFG(VPI, SCU400, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(LPC1, SCU00, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(SD0, SCU00, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(HVI3C4, SCU00, GENMASK(6, 4), (4 << 4)),
-			PIN_CFG(VPI, SCU00, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(LPC1, SCU400, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(SD0, SCU400, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(HVI3C4, SCU400, GENMASK(6, 4), (4 << 4)),
+			PIN_CFG(VPI, SCU400, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(LPC1, SCU00, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(SD0, SCU00, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(HVI3C5, SCU00, GENMASK(10, 8), (4 << 8)),
-			PIN_CFG(VPI, SCU00, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(LPC1, SCU400, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(SD0, SCU400, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(HVI3C5, SCU400, GENMASK(10, 8), (4 << 8)),
+			PIN_CFG(VPI, SCU400, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(LPC1, SCU00, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(SD0, SCU00, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(HVI3C5, SCU00, GENMASK(14, 12), (4 << 12)),
-			PIN_CFG(VPI, SCU00, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(LPC1, SCU400, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(SD0, SCU400, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(HVI3C5, SCU400, GENMASK(14, 12), (4 << 12)),
+			PIN_CFG(VPI, SCU400, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(LPC1, SCU00, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(SD0, SCU00, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(HVI3C6, SCU00, GENMASK(18, 16), (4 << 16)),
-			PIN_CFG(VPI, SCU00, GENMASK(18, 16), (5 << 16)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(LPC1, SCU400, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(SD0, SCU400, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(HVI3C6, SCU400, GENMASK(18, 16), (4 << 16)),
+			PIN_CFG(VPI, SCU400, GENMASK(18, 16), (5 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(LPC1, SCU00, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(SD0, SCU00, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(HVI3C6, SCU00, GENMASK(22, 20), (4 << 20)),
-			PIN_CFG(VPI, SCU00, GENMASK(22, 20), (5 << 20)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(LPC1, SCU400, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(SD0, SCU400, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(HVI3C6, SCU400, GENMASK(22, 20), (4 << 20)),
+			PIN_CFG(VPI, SCU400, GENMASK(22, 20), (5 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(LPC1, SCU00, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(SD0, SCU00, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(LPC1, SCU400, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(SD0, SCU400, GENMASK(26, 24), (3 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI1, SCU00, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(LPC1, SCU00, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(SD0, SCU00, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(ESPI1, SCU400, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(LPC1, SCU400, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(SD0, SCU400, GENMASK(30, 28), (3 << 28)),
 		},
 	},
 //GPIO B
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH0, SCU04, GENMASK(2, 0), 1),
-			PIN_CFG(THRU0, SCU04, GENMASK(2, 0), 2),
-			PIN_CFG(VPI, SCU04, GENMASK(2, 0), 3),
+			PIN_CFG(TACH0, SCU404, GENMASK(2, 0), 1),
+			PIN_CFG(THRU0, SCU404, GENMASK(2, 0), 2),
+			PIN_CFG(VPI, SCU404, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH1, SCU04, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(THRU0, SCU04, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(VPI, SCU04, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(TACH1, SCU404, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(THRU0, SCU404, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(VPI, SCU404, GENMASK(6, 4), (3 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH2, SCU04, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(THRU1, SCU04, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(VPI, SCU04, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(TACH2, SCU404, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(THRU1, SCU404, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(VPI, SCU404, GENMASK(10, 8), (3 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH3, SCU04, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(THRU1, SCU04, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(VPI, SCU04, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(TACH3, SCU404, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(THRU1, SCU404, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(VPI, SCU404, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH4, SCU04, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(VPI, SCU04, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(NCTS5, SCU04, GENMASK(18, 16), (4 << 16)),
+			PIN_CFG(TACH4, SCU404, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(VPI, SCU404, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(NCTS5, SCU404, GENMASK(18, 16), (4 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH5, SCU04, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(VPI, SCU04, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(NDCD5, SCU04, GENMASK(22, 20), (4 << 20)),
+			PIN_CFG(TACH5, SCU404, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(VPI, SCU404, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(NDCD5, SCU404, GENMASK(22, 20), (4 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH6, SCU04, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(VPI, SCU04, GENMASK(26, 24), (3 << 24)),
-			PIN_CFG(NDSR5, SCU04, GENMASK(26, 24), (4 << 24)),
+			PIN_CFG(TACH6, SCU404, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(VPI, SCU404, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(NDSR5, SCU404, GENMASK(26, 24), (4 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH7, SCU04, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(VPI, SCU04, GENMASK(30, 28), (3 << 28)),
-			PIN_CFG(NRI5, SCU04, GENMASK(30, 28), (4 << 28)),
+			PIN_CFG(TACH7, SCU404, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(VPI, SCU404, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(NRI5, SCU404, GENMASK(30, 28), (4 << 28)),
 		},
 	},
 //GPIO C
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH8, SCU08, GENMASK(2, 0), 1),
-			PIN_CFG(VPI, SCU08, GENMASK(2, 0), 3),
-			PIN_CFG(NDTR5, SCU08, GENMASK(2, 0), 4),
+			PIN_CFG(TACH8, SCU408, GENMASK(2, 0), 1),
+			PIN_CFG(VPI, SCU408, GENMASK(2, 0), 3),
+			PIN_CFG(NDTR5, SCU408, GENMASK(2, 0), 4),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH9, SCU08, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(VPI, SCU08, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(NRTS5, SCU08, GENMASK(6, 4), (4 << 4)),
+			PIN_CFG(TACH9, SCU408, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(VPI, SCU408, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(NRTS5, SCU408, GENMASK(6, 4), (4 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH10, SCU08, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(SALT12, SCU08, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(VPI, SCU08, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(NCTS6, SCU08, GENMASK(10, 8), (4 << 8)),
+			PIN_CFG(TACH10, SCU408, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(SALT12, SCU408, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(VPI, SCU408, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(NCTS6, SCU408, GENMASK(10, 8), (4 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH11, SCU08, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SALT13, SCU08, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(VPI, SCU08, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(NDCD6, SCU08, GENMASK(14, 12), (4 << 12)),
+			PIN_CFG(TACH11, SCU408, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SALT13, SCU408, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(VPI, SCU408, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(NDCD6, SCU408, GENMASK(14, 12), (4 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH12, SCU08, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(SALT14, SCU08, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(VPI, SCU08, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(NDSR6, SCU08, GENMASK(18, 16), (4 << 16)),
+			PIN_CFG(TACH12, SCU408, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(SALT14, SCU408, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(VPI, SCU408, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(NDSR6, SCU408, GENMASK(18, 16), (4 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH13, SCU08, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(SALT15, SCU08, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(VPI, SCU08, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(NRI6, SCU08, GENMASK(22, 20), (4 << 20)),
+			PIN_CFG(TACH13, SCU408, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(SALT15, SCU408, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(VPI, SCU408, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(NRI6, SCU408, GENMASK(22, 20), (4 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH14, SCU08, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(LPCPME0, SCU08, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(VPI, SCU08, GENMASK(26, 24), (3 << 24)),
-			PIN_CFG(NDTR6, SCU08, GENMASK(26, 24), (4 << 24)),
+			PIN_CFG(TACH14, SCU408, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(LPCPME0, SCU408, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(VPI, SCU408, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(NDTR6, SCU408, GENMASK(26, 24), (4 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TACH15, SCU08, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(LPCSMIN0, SCU08, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(VPI, SCU08, GENMASK(30, 28), (3 << 28)),
-			PIN_CFG(NRTS6, SCU08, GENMASK(30, 28), (4 << 28)),
-			PIN_CFG(SPIM0, SCU08, GENMASK(30, 28), (5 << 28)),
+			PIN_CFG(TACH15, SCU408, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(LPCSMIN0, SCU408, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(VPI, SCU408, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(NRTS6, SCU408, GENMASK(30, 28), (4 << 28)),
+			PIN_CFG(SPIM0, SCU408, GENMASK(30, 28), (5 << 28)),
 		},
 	},
 //GPIO D
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM0, SCU0C, GENMASK(2, 0), 1),
-			PIN_CFG(SIOPBON0, SCU0C, GENMASK(2, 0), 2),
-			PIN_CFG(VPI, SCU0C, GENMASK(2, 0), 3),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(2, 0), 5),
+			PIN_CFG(PWM0, SCU40C, GENMASK(2, 0), 1),
+			PIN_CFG(SIOPBON0, SCU40C, GENMASK(2, 0), 2),
+			PIN_CFG(VPI, SCU40C, GENMASK(2, 0), 3),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM1, SCU0C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(SIOPBIN0, SCU0C, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(VPI, SCU0C, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(PWM1, SCU40C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SIOPBIN0, SCU40C, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(VPI, SCU40C, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM2, SCU0C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(SIOSCIN0, SCU0C, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(VPI, SCU0C, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(PWM2, SCU40C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(SIOSCIN0, SCU40C, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(VPI, SCU40C, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM3, SCU0C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SIOS3N0, SCU0C, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(VPI, SCU0C, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(PWM3, SCU40C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SIOS3N0, SCU40C, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(VPI, SCU40C, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM4, SCU0C, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(SIOS5N0, SCU0C, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(VPI, SCU0C, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(18, 16), (5 << 16)),
+			PIN_CFG(PWM4, SCU40C, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(SIOS5N0, SCU40C, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(VPI, SCU40C, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(18, 16), (5 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM5, SCU0C, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(SIOPWREQN0, SCU0C, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(VPI, SCU0C, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(22, 20), (5 << 20)),
+			PIN_CFG(PWM5, SCU40C, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(SIOPWREQN0, SCU40C, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(VPI, SCU40C, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(22, 20), (5 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM6, SCU0C, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(SIOONCTRLN0, SCU0C, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(PWM6, SCU40C, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(SIOONCTRLN0, SCU40C, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(PWM7, SCU0C, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(SPIM0, SCU0C, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(PWM7, SCU40C, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(SPIM0, SCU40C, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 // GPIO E
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NCTS0, SCU10, GENMASK(2, 0), 1),
+			PIN_CFG(NCTS0, SCU410, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDCD0, SCU10, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(NDCD0, SCU410, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDSR0, SCU10, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(NDSR0, SCU410, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NRI0, SCU10, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(NRI0, SCU410, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDTR0, SCU10, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(NDTR0, SCU410, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NRTS0, SCU10, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(NRTS0, SCU410, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD0, SCU10, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD0, SCU410, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD0, SCU10, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD0, SCU410, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 // GPIO F
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NCTS1, SCU14, GENMASK(2, 0), 1),
+			PIN_CFG(NCTS1, SCU414, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDCD1, SCU14, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(NDCD1, SCU414, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDSR1, SCU14, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(NDSR1, SCU414, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NRI1, SCU14, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(NRI1, SCU414, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NDTR1, SCU14, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(NDTR1, SCU414, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(NRTS1, SCU14, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(NRTS1, SCU414, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD1, SCU14, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD1, SCU414, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD1, SCU14, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD1, SCU414, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO G
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD2, SCU18, GENMASK(2, 0), 1),
+			PIN_CFG(TXD2, SCU418, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD2, SCU18, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RXD2, SCU418, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD3, SCU18, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(WDTRST0N, SCU18, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(PWM8, SCU18, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(TXD3, SCU418, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(WDTRST0N, SCU418, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(PWM8, SCU418, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD3, SCU18, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(WDTRST1N, SCU18, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(PWM9, SCU18, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(RXD3, SCU418, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(WDTRST1N, SCU418, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(PWM9, SCU418, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD5, SCU18, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(WDTRST2N, SCU18, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(PWM10, SCU18, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(18, 16), (5 << 16)),
+			PIN_CFG(TXD5, SCU418, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(WDTRST2N, SCU418, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(PWM10, SCU418, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(18, 16), (5 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD5, SCU18, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(WDTRST3N, SCU18, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(PWM11, SCU18, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(22, 20), (5 << 20)),
+			PIN_CFG(RXD5, SCU418, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(WDTRST3N, SCU418, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(PWM11, SCU418, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(22, 20), (5 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD6, SCU18, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(SALT0, SCU18, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(PWM12, SCU18, GENMASK(26, 24), (3 << 24)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(TXD6, SCU418, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(SALT0, SCU418, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(PWM12, SCU418, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD6, SCU18, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(SALT1, SCU18, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(PWM13, SCU18, GENMASK(30, 28), (3 << 28)),
-			PIN_CFG(SPIM1, SCU18, GENMASK(30, 28), (5 << 28)),
+			PIN_CFG(RXD6, SCU418, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(SALT1, SCU418, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(PWM13, SCU418, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(SPIM1, SCU418, GENMASK(30, 28), (5 << 28)),
 		},
 	},
 //GPIO H
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(TXD7, SCU1C, GENMASK(2, 0), 1),
-			PIN_CFG(SALT2, SCU1C, GENMASK(2, 0), 2),
-			PIN_CFG(PWM14, SCU1C, GENMASK(2, 0), 3),
-			PIN_CFG(SPIM1, SCU1C, GENMASK(2, 0), 5),
+			PIN_CFG(TXD7, SCU41C, GENMASK(2, 0), 1),
+			PIN_CFG(SALT2, SCU41C, GENMASK(2, 0), 2),
+			PIN_CFG(PWM14, SCU41C, GENMASK(2, 0), 3),
+			PIN_CFG(SPIM1, SCU41C, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RXD7, SCU1C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(SALT3, SCU1C, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(PWM15, SCU1C, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(SPIM1, SCU1C, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(RXD7, SCU41C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SALT3, SCU41C, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(PWM15, SCU41C, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(SPIM1, SCU41C, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM1, SCU1C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(WDTRST7N, SCU1C, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(PESGWAKEN, SCU1C, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(SMON1, SCU1C, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(SGPM1, SCU41C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(WDTRST7N, SCU41C, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(PESGWAKEN, SCU41C, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(SMON1, SCU41C, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM1, SCU1C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SMON1, SCU1C, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(SGPM1, SCU41C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SMON1, SCU41C, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 //GPIO I
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C12, SCU20, GENMASK(2, 0), 1),
-			PIN_CFG(I2C12, SCU20, GENMASK(2, 0), 2),
-			PIN_CFG(SIOPBON1, SCU20, GENMASK(2, 0), 3),
-			PIN_CFG(SPIM2, SCU20, GENMASK(2, 0), 5),
+			PIN_CFG(HVI3C12, SCU420, GENMASK(2, 0), 1),
+			PIN_CFG(I2C12, SCU420, GENMASK(2, 0), 2),
+			PIN_CFG(SIOPBON1, SCU420, GENMASK(2, 0), 3),
+			PIN_CFG(SPIM2, SCU420, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C12, SCU20, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(I2C12, SCU20, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(SIOPBIN1, SCU20, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(HVI3C12, SCU420, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I2C12, SCU420, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(SIOPBIN1, SCU420, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C13, SCU20, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(I2C13, SCU20, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(SIOSCIN1, SCU20, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(HVI3C13, SCU420, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I2C13, SCU420, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(SIOSCIN1, SCU420, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C13, SCU20, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(I2C13, SCU20, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(SIOS3N1, SCU20, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(HVI3C13, SCU420, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(I2C13, SCU420, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(SIOS3N1, SCU420, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C14, SCU20, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(I2C14, SCU20, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(SIOS5N1, SCU20, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(18, 16), (5 << 16)),
+			PIN_CFG(HVI3C14, SCU420, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(I2C14, SCU420, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(SIOS5N1, SCU420, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(18, 16), (5 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C14, SCU20, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(I2C14, SCU20, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(SIOPWREQN1, SCU20, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(22, 20), (5 << 20)),
+			PIN_CFG(HVI3C14, SCU420, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(I2C14, SCU420, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(SIOPWREQN1, SCU420, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(22, 20), (5 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C15, SCU20, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(I2C15, SCU20, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(SIOONCTRLN1, SCU20, GENMASK(26, 24), (3 << 24)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(HVI3C15, SCU420, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(I2C15, SCU420, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(SIOONCTRLN1, SCU420, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(HVI3C15, SCU20, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(I2C15, SCU20, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(SIOPWRGD1, SCU20, GENMASK(30, 28), (3 << 28)),
-			PIN_CFG(SPIM2, SCU20, GENMASK(30, 28), (5 << 28)),
+			PIN_CFG(HVI3C15, SCU420, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(I2C15, SCU420, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(SIOPWRGD1, SCU420, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(SPIM2, SCU420, GENMASK(30, 28), (5 << 28)),
 		},
 	},
 //GPIO J
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C4, SCU24, GENMASK(2, 0), 1),
+			PIN_CFG(I3C4, SCU424, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C4, SCU24, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I3C4, SCU424, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C5, SCU24, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I3C5, SCU424, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C5, SCU24, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(I3C5, SCU424, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C6, SCU24, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(I3C6, SCU424, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C6, SCU24, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(I3C6, SCU424, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C7, SCU24, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(I3C7, SCU424, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C7, SCU24, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(I3C7, SCU424, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO K
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C8, SCU28, GENMASK(2, 0), 1),
+			PIN_CFG(I3C8, SCU428, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C8, SCU28, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I3C8, SCU428, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C9, SCU28, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I3C9, SCU428, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C9, SCU28, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(I3C9, SCU428, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C10, SCU28, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(I3C10, SCU428, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C10, SCU28, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(I3C10, SCU428, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C11, SCU28, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(I3C11, SCU428, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C11, SCU28, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(I3C11, SCU428, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO L
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C0, SCU2C, GENMASK(2, 0), 1),
-			PIN_CFG(FSI0, SCU2C, GENMASK(2, 0), 2),
-			PIN_CFG(LTPI, SCU2C, GENMASK(2, 0), 3),
+			PIN_CFG(I3C0, SCU42C, GENMASK(2, 0), 1),
+			PIN_CFG(FSI0, SCU42C, GENMASK(2, 0), 2),
+			PIN_CFG(LTPI, SCU42C, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C0, SCU2C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(FSI0, SCU2C, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(LTPI, SCU2C, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(I3C0, SCU42C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(FSI0, SCU42C, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(LTPI, SCU42C, GENMASK(6, 4), (3 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C1, SCU2C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(FSI1, SCU2C, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(LTPI, SCU2C, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(I3C1, SCU42C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(FSI1, SCU42C, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(LTPI, SCU42C, GENMASK(10, 8), (3 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C1, SCU2C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(FSI1, SCU2C, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(LTPI, SCU2C, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(I3C1, SCU42C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(FSI1, SCU42C, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(LTPI, SCU42C, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C2, SCU2C, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(FSI2, SCU2C, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(I3C2, SCU42C, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(FSI2, SCU42C, GENMASK(18, 16), (2 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C2, SCU2C, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(FSI2, SCU2C, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(I3C2, SCU42C, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(FSI2, SCU42C, GENMASK(22, 20), (2 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C3, SCU2C, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(FSI3, SCU2C, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(I3C3, SCU42C, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(FSI3, SCU42C, GENMASK(26, 24), (2 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I3C3, SCU2C, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(FSI3, SCU2C, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(I3C3, SCU42C, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(FSI3, SCU42C, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO M
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(2, 0), 1),
-			PIN_CFG(LPC0, SCU30, GENMASK(2, 0), 2),
+			PIN_CFG(ESPI0, SCU430, GENMASK(2, 0), 1),
+			PIN_CFG(LPC0, SCU430, GENMASK(2, 0), 2),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(LPC0, SCU30, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(LPC0, SCU430, GENMASK(6, 4), (2 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(LPC0, SCU30, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(LPC0, SCU430, GENMASK(10, 8), (2 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(LPC0, SCU30, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(LPC0, SCU430, GENMASK(14, 12), (2 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(LPC0, SCU30, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(OSCCLK, SCU30, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(LPC0, SCU430, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(OSCCLK, SCU430, GENMASK(18, 16), (3 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(LPC0, SCU30, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(LPC0, SCU430, GENMASK(22, 20), (2 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(LPC0, SCU30, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(LPC0, SCU430, GENMASK(26, 24), (2 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ESPI0, SCU30, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(LPC0, SCU30, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(ESPI0, SCU430, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(LPC0, SCU430, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO N
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0, SCU34, GENMASK(2, 0), 1),
+			PIN_CFG(SPI0, SCU434, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0, SCU34, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SPI0, SCU434, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0, SCU34, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(SPI0, SCU434, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI0, SCU34, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(QSPI0, SCU434, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI0, SCU34, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(QSPI0, SCU434, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0CS1, SCU34, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(SPI0CS1, SCU434, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0ABR, SCU34, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(TXD8, SCU34, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(SPI0ABR, SCU434, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(TXD8, SCU434, GENMASK(26, 24), (3 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI0WPN, SCU34, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(RXD8, SCU34, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(SPI0WPN, SCU434, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RXD8, SCU434, GENMASK(30, 28), (3 << 28)),
 		},
 	},
 //GPIO O
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1, SCU38, GENMASK(2, 0), 1),
-			PIN_CFG(TXD9, SCU38, GENMASK(2, 0), 3),
+			PIN_CFG(SPI1, SCU438, GENMASK(2, 0), 1),
+			PIN_CFG(TXD9, SCU438, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1, SCU38, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(RXD9, SCU38, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(SPI1, SCU438, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RXD9, SCU438, GENMASK(6, 4), (3 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1, SCU38, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(TXD10, SCU38, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(SPI1, SCU438, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(TXD10, SCU438, GENMASK(10, 8), (3 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI1, SCU38, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(RXD10, SCU38, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(QSPI1, SCU438, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(RXD10, SCU438, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI1, SCU38, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(TXD11, SCU38, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(QSPI1, SCU438, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(TXD11, SCU438, GENMASK(18, 16), (3 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1CS1, SCU38, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(RXD11, SCU38, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(SPI1CS1, SCU438, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(RXD11, SCU438, GENMASK(22, 20), (3 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1ABR, SCU38, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(THRU2, SCU38, GENMASK(26, 24), (4 << 24)),
+			PIN_CFG(SPI1ABR, SCU438, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(THRU2, SCU438, GENMASK(26, 24), (4 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI1WPN, SCU38, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(THRU2, SCU38, GENMASK(30, 28), (4 << 28)),
+			PIN_CFG(SPI1WPN, SCU438, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(THRU2, SCU438, GENMASK(30, 28), (4 << 28)),
 		},
 	},
 //GPIO P
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI2, SCU3C, GENMASK(2, 0), 1),
-			PIN_CFG(DI2C13, SCU3C, GENMASK(2, 0), 2),
-			PIN_CFG(HVI3C7, SCU3C, GENMASK(2, 0), 3),
+			PIN_CFG(SPI2, SCU43C, GENMASK(2, 0), 1),
+			PIN_CFG(DI2C13, SCU43C, GENMASK(2, 0), 2),
+			PIN_CFG(HVI3C7, SCU43C, GENMASK(2, 0), 3),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI2, SCU3C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(DI2C13, SCU3C, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(HVI3C7, SCU3C, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(EM_SPICK, SCU3C, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(SPI2, SCU43C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(DI2C13, SCU43C, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(HVI3C7, SCU43C, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(EM_SPICK, SCU43C, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI2, SCU3C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(DI2C14, SCU3C, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(HVI3C10, SCU3C, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(EM_SPIMOSI, SCU3C, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(SPI2, SCU43C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(DI2C14, SCU43C, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(HVI3C10, SCU43C, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(EM_SPIMOSI, SCU43C, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI2, SCU3C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(DI2C14, SCU3C, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(HVI3C10, SCU3C, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(EM_SPIMISO, SCU3C, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(SPI2, SCU43C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(DI2C14, SCU43C, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(HVI3C10, SCU43C, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(EM_SPIMISO, SCU43C, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI2, SCU3C, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(DI2C15, SCU3C, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(HVI3C11, SCU3C, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(THRU3, SCU3C, GENMASK(18, 16), (4 << 16)),
+			PIN_CFG(QSPI2, SCU43C, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(DI2C15, SCU43C, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(HVI3C11, SCU43C, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(THRU3, SCU43C, GENMASK(18, 16), (4 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(QSPI2, SCU3C, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(DI2C15, SCU3C, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(HVI3C11, SCU3C, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(THRU3, SCU3C, GENMASK(22, 20), (4 << 20)),
+			PIN_CFG(QSPI2, SCU43C, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(DI2C15, SCU43C, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(HVI3C11, SCU43C, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(THRU3, SCU43C, GENMASK(22, 20), (4 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SPI2CS1, SCU3C, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(EM_SPICSN, SCU3C, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(SPI2CS1, SCU43C, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(EM_SPICSN, SCU43C, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(FWSPIABR, SCU3C, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(FWSPIABR, SCU43C, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO Q
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO2, SCU40, GENMASK(2, 0), 1),
-			PIN_CFG(PE2SGRSTN, SCU40, GENMASK(2, 0), 2),
+			PIN_CFG(MDIO2, SCU440, GENMASK(2, 0), 1),
+			PIN_CFG(PE2SGRSTN, SCU440, GENMASK(2, 0), 2),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO2, SCU40, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(MDIO2, SCU440, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(JTAGM1, SCU40, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(JTAGM1, SCU440, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(JTAGM1, SCU40, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(JTAGM1, SCU440, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(JTAGM1, SCU40, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(JTAGM1, SCU440, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(JTAGM1, SCU40, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(JTAGM1, SCU440, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(JTAGM1, SCU40, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(JTAGM1, SCU440, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(FWSPIWPEN, SCU40, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(FWSPIWPEN, SCU440, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO R
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(2, 0), 1),
-			PIN_CFG(RMII0R, SCU44, GENMASK(2, 0), 2),
+			PIN_CFG(RGMII0, SCU444, GENMASK(2, 0), 1),
+			PIN_CFG(RMII0R, SCU444, GENMASK(2, 0), 2),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(RMII0R, SCU44, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(RMII0R, SCU444, GENMASK(10, 8), (2 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(RMII0R, SCU44, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(RMII0R, SCU444, GENMASK(14, 12), (2 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(RMII0C, SCU44, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(RMII0C, SCU444, GENMASK(18, 16), (2 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(RMII0, SCU44, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(RMII0, SCU444, GENMASK(22, 20), (2 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(RMII0, SCU44, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(RMII0, SCU444, GENMASK(26, 24), (2 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU44, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(RMII0, SCU44, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(RGMII0, SCU444, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RMII0, SCU444, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO S
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU48, GENMASK(2, 0), 1),
-			PIN_CFG(RMII0, SCU48, GENMASK(2, 0), 2),
+			PIN_CFG(RGMII0, SCU448, GENMASK(2, 0), 1),
+			PIN_CFG(RMII0, SCU448, GENMASK(2, 0), 2),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU48, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(RMII0, SCU48, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(RGMII0, SCU448, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RMII0, SCU448, GENMASK(6, 4), (2 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU48, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(RGMII0, SCU448, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII0, SCU48, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(RGMII0, SCU448, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO0, SCU48, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(MDIO0, SCU448, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO0, SCU48, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(MDIO0, SCU448, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(VGA, SCU48, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(VGA, SCU448, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(VGA, SCU48, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(VGA, SCU448, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO T
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(2, 0), 1),
-			PIN_CFG(RMII1, SCU4C, GENMASK(2, 0), 2),
-			PIN_CFG(DI2C8, SCU4C, GENMASK(2, 0), 3),
-			PIN_CFG(DSGPM1, SCU4C, GENMASK(2, 0), 4),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(2, 0), 1),
+			PIN_CFG(RMII1, SCU44C, GENMASK(2, 0), 2),
+			PIN_CFG(DI2C8, SCU44C, GENMASK(2, 0), 3),
+			PIN_CFG(DSGPM1, SCU44C, GENMASK(2, 0), 4),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(SGPS, SCU4C, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SGPS, SCU44C, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(RMII1, SCU4C, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(DI2C9, SCU4C, GENMASK(10, 8), (3 << 8)),
-			PIN_CFG(TXD3, SCU4C, GENMASK(10, 8), (4 << 8)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(RMII1, SCU44C, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(DI2C9, SCU44C, GENMASK(10, 8), (3 << 8)),
+			PIN_CFG(TXD3, SCU44C, GENMASK(10, 8), (4 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(RMII1, SCU4C, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(DI2C9, SCU4C, GENMASK(14, 12), (3 << 12)),
-			PIN_CFG(RXD3, SCU4C, GENMASK(14, 12), (4 << 12)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(RMII1, SCU44C, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(DI2C9, SCU44C, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(RXD3, SCU44C, GENMASK(14, 12), (4 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(RMII1, SCU4C, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(DI2C8, SCU4C, GENMASK(18, 16), (3 << 16)),
-			PIN_CFG(DSGPM1, SCU4C, GENMASK(18, 16), (4 << 16)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(RMII1, SCU44C, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(DI2C8, SCU44C, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(DSGPM1, SCU44C, GENMASK(18, 16), (4 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(RMII1, SCU4C, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(SGPS, SCU4C, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(RMII1, SCU44C, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(SGPS, SCU44C, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU4C, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(RMII1, SCU4C, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(RGMII1, SCU44C, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(RMII1, SCU44C, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO U
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU50, GENMASK(2, 0), 1),
-			PIN_CFG(RMII1, SCU50, GENMASK(2, 0), 2),
-			PIN_CFG(DI2C10, SCU50, GENMASK(2, 0), 3),
-			PIN_CFG(DSGPM1, SCU50, GENMASK(2, 0), 4),
+			PIN_CFG(RGMII1, SCU450, GENMASK(2, 0), 1),
+			PIN_CFG(RMII1, SCU450, GENMASK(2, 0), 2),
+			PIN_CFG(DI2C10, SCU450, GENMASK(2, 0), 3),
+			PIN_CFG(DSGPM1, SCU450, GENMASK(2, 0), 4),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU50, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(RMII1, SCU50, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(DI2C10, SCU50, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(DSGPM1, SCU50, GENMASK(6, 4), (4 << 4)),
+			PIN_CFG(RGMII1, SCU450, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(RMII1, SCU450, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(DI2C10, SCU450, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(DSGPM1, SCU450, GENMASK(6, 4), (4 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU50, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(SGPS, SCU50, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(RGMII1, SCU450, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(SGPS, SCU450, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(RGMII1, SCU50, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SGPS, SCU50, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(RGMII1, SCU450, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SGPS, SCU450, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO1, SCU50, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(MDIO1, SCU450, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(MDIO1, SCU50, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(MDIO1, SCU450, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(FWQSPI, SCU50, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(FWQSPI, SCU450, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(FWQSPI, SCU50, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(FWQSPI, SCU450, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO V
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C0, SCU54, GENMASK(2, 0), 1),
+			PIN_CFG(I2C0, SCU454, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C0, SCU54, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I2C0, SCU454, GENMASK(6, 4), (1 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C1, SCU54, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I2C1, SCU454, GENMASK(10, 8), (1 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C1, SCU54, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(I2C1, SCU454, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C2, SCU54, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(I2C2, SCU454, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C2, SCU54, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(I2C2, SCU454, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C3, SCU54, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(I2C3, SCU454, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C3, SCU54, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(I2C3, SCU454, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO W
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C4, SCU58, GENMASK(2, 0), 1),
-			PIN_CFG(ESPI1, SCU58, GENMASK(2, 0), 2),
-			PIN_CFG(I2CF1, SCU58, GENMASK(2, 0), 5),
+			PIN_CFG(I2C4, SCU458, GENMASK(2, 0), 1),
+			PIN_CFG(ESPI1, SCU458, GENMASK(2, 0), 2),
+			PIN_CFG(I2CF1, SCU458, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C4, SCU58, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(I2CF1, SCU58, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(I2C4, SCU458, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(I2CF1, SCU458, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C5, SCU58, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(I2CF1, SCU58, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(I2C5, SCU458, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(I2CF1, SCU458, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C5, SCU58, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(I2CF1, SCU58, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(I2C5, SCU458, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(I2CF1, SCU458, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C6, SCU58, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(I2CF2, SCU58, GENMASK(18, 16), (5 << 16)),
+			PIN_CFG(I2C6, SCU458, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(I2CF2, SCU458, GENMASK(18, 16), (5 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C6, SCU58, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(I2CF2, SCU58, GENMASK(22, 20), (5 << 20)),
+			PIN_CFG(I2C6, SCU458, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(I2CF2, SCU458, GENMASK(22, 20), (5 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C7, SCU58, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(I2CF2, SCU58, GENMASK(26, 24), (5 << 24)),
+			PIN_CFG(I2C7, SCU458, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(I2CF2, SCU458, GENMASK(26, 24), (5 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C7, SCU58, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(ESPI1, SCU58, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(I2CF2, SCU58, GENMASK(30, 28), (5 << 28)),
+			PIN_CFG(I2C7, SCU458, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(ESPI1, SCU458, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(I2CF2, SCU458, GENMASK(30, 28), (5 << 28)),
 		},
 	},
 //GPIO X
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C8, SCU5C, GENMASK(2, 0), 1),
-			PIN_CFG(I2CF0, SCU5C, GENMASK(2, 0), 5),
+			PIN_CFG(I2C8, SCU45C, GENMASK(2, 0), 1),
+			PIN_CFG(I2CF0, SCU45C, GENMASK(2, 0), 5),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C8, SCU5C, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(I2CF0, SCU5C, GENMASK(6, 4), (5 << 4)),
+			PIN_CFG(I2C8, SCU45C, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(I2CF0, SCU45C, GENMASK(6, 4), (5 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C9, SCU5C, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(I2CF0, SCU5C, GENMASK(10, 8), (5 << 8)),
+			PIN_CFG(I2C9, SCU45C, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(I2CF0, SCU45C, GENMASK(10, 8), (5 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C9, SCU5C, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(CANBUS, SCU5C, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(I2CF0, SCU5C, GENMASK(14, 12), (5 << 12)),
+			PIN_CFG(I2C9, SCU45C, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(CANBUS, SCU45C, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(I2CF0, SCU45C, GENMASK(14, 12), (5 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C10, SCU5C, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(CANBUS, SCU5C, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(I2C10, SCU45C, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(CANBUS, SCU45C, GENMASK(18, 16), (2 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C10, SCU5C, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(CANBUS, SCU5C, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(I2C10, SCU45C, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(CANBUS, SCU45C, GENMASK(22, 20), (2 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C11, SCU5C, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(USBUART, SCU5C, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(I2C11, SCU45C, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(USBUART, SCU45C, GENMASK(26, 24), (2 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(I2C11, SCU5C, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(USBUART, SCU5C, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(I2C11, SCU45C, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(USBUART, SCU45C, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO Y
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC0, SCU60, GENMASK(2, 0), 0),
-			PIN_CFG(GPIY0, SCU60, GENMASK(2, 0), 1),
-			PIN_CFG(SALT4, SCU60, GENMASK(2, 0), 2),
+			PIN_CFG(ADC0, SCU460, GENMASK(2, 0), 0),
+			PIN_CFG(GPIY0, SCU460, GENMASK(2, 0), 1),
+			PIN_CFG(SALT4, SCU460, GENMASK(2, 0), 2),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC1, SCU60, GENMASK(6, 4), 0),
-			PIN_CFG(GPIY1, SCU60, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(SALT5, SCU60, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(ADC1, SCU460, GENMASK(6, 4), 0),
+			PIN_CFG(GPIY1, SCU460, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SALT5, SCU460, GENMASK(6, 4), (2 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC2, SCU60, GENMASK(10, 8), 0),
-			PIN_CFG(GPIY2, SCU60, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(SALT6, SCU60, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(ADC2, SCU460, GENMASK(10, 8), 0),
+			PIN_CFG(GPIY2, SCU460, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(SALT6, SCU460, GENMASK(10, 8), (2 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC3, SCU60, GENMASK(14, 12), 0),
-			PIN_CFG(GPIY3, SCU60, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SALT7, SCU60, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(ADC3, SCU460, GENMASK(14, 12), 0),
+			PIN_CFG(GPIY3, SCU460, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SALT7, SCU460, GENMASK(14, 12), (2 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC4, SCU60, GENMASK(18, 16), 0),
-			PIN_CFG(GPIY4, SCU60, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(SALT8, SCU60, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(ADC4, SCU460, GENMASK(18, 16), 0),
+			PIN_CFG(GPIY4, SCU460, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(SALT8, SCU460, GENMASK(18, 16), (2 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC5, SCU60, GENMASK(22, 20), 0),
-			PIN_CFG(GPIY5, SCU60, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(SALT9, SCU60, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(ADC5, SCU460, GENMASK(22, 20), 0),
+			PIN_CFG(GPIY5, SCU460, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(SALT9, SCU460, GENMASK(22, 20), (2 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC6, SCU60, GENMASK(26, 24), 0),
-			PIN_CFG(GPIY6, SCU60, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(SALT10, SCU60, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(ADC6, SCU460, GENMASK(26, 24), 0),
+			PIN_CFG(GPIY6, SCU460, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(SALT10, SCU460, GENMASK(26, 24), (2 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC7, SCU60, GENMASK(30, 28), 0),
-			PIN_CFG(GPIY7, SCU60, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(SALT11, SCU60, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(ADC7, SCU460, GENMASK(30, 28), 0),
+			PIN_CFG(GPIY7, SCU460, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(SALT11, SCU460, GENMASK(30, 28), (2 << 28)),
 		},
 	},
 //GPIO Z
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC15, SCU64, GENMASK(2, 0), 0),
-			PIN_CFG(GPIZ7, SCU64, GENMASK(2, 0), 1),
+			PIN_CFG(ADC15, SCU464, GENMASK(2, 0), 0),
+			PIN_CFG(GPIZ7, SCU464, GENMASK(2, 0), 1),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC14, SCU64, GENMASK(6, 4), 0),
-			PIN_CFG(GPIZ6, SCU64, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(AUXPWRGOOD1, SCU64, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(ADC14, SCU464, GENMASK(6, 4), 0),
+			PIN_CFG(GPIZ6, SCU464, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(AUXPWRGOOD1, SCU464, GENMASK(6, 4), (2 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC13, SCU64, GENMASK(10, 8), 0),
-			PIN_CFG(GPIZ5, SCU64, GENMASK(10, 8), (1 << 8)),
-			PIN_CFG(AUXPWRGOOD0, SCU64, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(ADC13, SCU464, GENMASK(10, 8), 0),
+			PIN_CFG(GPIZ5, SCU464, GENMASK(10, 8), (1 << 8)),
+			PIN_CFG(AUXPWRGOOD0, SCU464, GENMASK(10, 8), (2 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC12, SCU64, GENMASK(14, 12), 0),
-			PIN_CFG(GPIZ4, SCU64, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(ADC12, SCU464, GENMASK(14, 12), 0),
+			PIN_CFG(GPIZ4, SCU464, GENMASK(14, 12), (1 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC11, SCU64, GENMASK(18, 16), 0),
-			PIN_CFG(GPIZ3, SCU64, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(ADC11, SCU464, GENMASK(18, 16), 0),
+			PIN_CFG(GPIZ3, SCU464, GENMASK(18, 16), (1 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC10, SCU64, GENMASK(22, 20), 0),
-			PIN_CFG(GPIZ2, SCU64, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(ADC10, SCU464, GENMASK(22, 20), 0),
+			PIN_CFG(GPIZ2, SCU464, GENMASK(22, 20), (1 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC9, SCU64, GENMASK(26, 24), 0),
-			PIN_CFG(GPIZ1, SCU64, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(ADC9, SCU464, GENMASK(26, 24), 0),
+			PIN_CFG(GPIZ1, SCU464, GENMASK(26, 24), (1 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(ADC8, SCU64, GENMASK(30, 28), 0),
-			PIN_CFG(GPIZ0, SCU64, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(ADC8, SCU464, GENMASK(30, 28), 0),
+			PIN_CFG(GPIZ0, SCU464, GENMASK(30, 28), (1 << 28)),
 		},
 	},
 //GPIO AA
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM0, SCU68, GENMASK(2, 0), 1),
-			PIN_CFG(SMON0, SCU68, GENMASK(2, 0), 2),
-			PIN_CFG(NCTS2, SCU68, GENMASK(2, 0), 3),
-			PIN_CFG(MACLINK0, SCU68, GENMASK(2, 0), 4),
+			PIN_CFG(SGPM0, SCU468, GENMASK(2, 0), 1),
+			PIN_CFG(SMON0, SCU468, GENMASK(2, 0), 2),
+			PIN_CFG(NCTS2, SCU468, GENMASK(2, 0), 3),
+			PIN_CFG(MACLINK0, SCU468, GENMASK(2, 0), 4),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM0, SCU68, GENMASK(6, 4), (1 << 4)),
-			PIN_CFG(SMON0, SCU68, GENMASK(6, 4), (2 << 4)),
-			PIN_CFG(NDCD2, SCU68, GENMASK(6, 4), (3 << 4)),
-			PIN_CFG(MACLINK2, SCU68, GENMASK(6, 4), (4 << 4)),
+			PIN_CFG(SGPM0, SCU468, GENMASK(6, 4), (1 << 4)),
+			PIN_CFG(SMON0, SCU468, GENMASK(6, 4), (2 << 4)),
+			PIN_CFG(NDCD2, SCU468, GENMASK(6, 4), (3 << 4)),
+			PIN_CFG(MACLINK2, SCU468, GENMASK(6, 4), (4 << 4)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM0LD_R, SCU68, GENMASK(10, 8), (2 << 8)),
-			PIN_CFG(HBLED, SCU68, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(SGPM0LD_R, SCU468, GENMASK(10, 8), (2 << 8)),
+			PIN_CFG(HBLED, SCU468, GENMASK(10, 8), (2 << 8)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM0, SCU68, GENMASK(14, 12), (1 << 12)),
-			PIN_CFG(SMON0, SCU68, GENMASK(14, 12), (2 << 12)),
-			PIN_CFG(NDSR2, SCU68, GENMASK(14, 12), (3 << 12)),
+			PIN_CFG(SGPM0, SCU468, GENMASK(14, 12), (1 << 12)),
+			PIN_CFG(SMON0, SCU468, GENMASK(14, 12), (2 << 12)),
+			PIN_CFG(NDSR2, SCU468, GENMASK(14, 12), (3 << 12)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM0, SCU68, GENMASK(18, 16), (1 << 16)),
-			PIN_CFG(SMON0, SCU68, GENMASK(18, 16), (2 << 16)),
-			PIN_CFG(NRI2, SCU68, GENMASK(18, 16), (3 << 16)),
+			PIN_CFG(SGPM0, SCU468, GENMASK(18, 16), (1 << 16)),
+			PIN_CFG(SMON0, SCU468, GENMASK(18, 16), (2 << 16)),
+			PIN_CFG(NRI2, SCU468, GENMASK(18, 16), (3 << 16)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM1, SCU68, GENMASK(22, 20), (1 << 20)),
-			PIN_CFG(WDTRST4N, SCU68, GENMASK(22, 20), (2 << 20)),
-			PIN_CFG(NDTR2, SCU68, GENMASK(22, 20), (3 << 20)),
-			PIN_CFG(SMON1, SCU68, GENMASK(22, 20), (4 << 20)),
+			PIN_CFG(SGPM1, SCU468, GENMASK(22, 20), (1 << 20)),
+			PIN_CFG(WDTRST4N, SCU468, GENMASK(22, 20), (2 << 20)),
+			PIN_CFG(NDTR2, SCU468, GENMASK(22, 20), (3 << 20)),
+			PIN_CFG(SMON1, SCU468, GENMASK(22, 20), (4 << 20)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM1, SCU68, GENMASK(26, 24), (1 << 24)),
-			PIN_CFG(WDTRST5N, SCU68, GENMASK(26, 24), (2 << 24)),
-			PIN_CFG(NRTS2, SCU68, GENMASK(26, 24), (3 << 24)),
-			PIN_CFG(SMON1, SCU68, GENMASK(26, 24), (4 << 24)),
+			PIN_CFG(SGPM1, SCU468, GENMASK(26, 24), (1 << 24)),
+			PIN_CFG(WDTRST5N, SCU468, GENMASK(26, 24), (2 << 24)),
+			PIN_CFG(NRTS2, SCU468, GENMASK(26, 24), (3 << 24)),
+			PIN_CFG(SMON1, SCU468, GENMASK(26, 24), (4 << 24)),
 		},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
-			PIN_CFG(SGPM1LD_R, SCU68, GENMASK(30, 28), (1 << 28)),
-			PIN_CFG(WDTRST6N, SCU68, GENMASK(30, 28), (2 << 28)),
-			PIN_CFG(MACLINK1, SCU68, GENMASK(30, 28), (3 << 28)),
+			PIN_CFG(SGPM1LD_R, SCU468, GENMASK(30, 28), (1 << 28)),
+			PIN_CFG(WDTRST6N, SCU468, GENMASK(30, 28), (2 << 28)),
+			PIN_CFG(MACLINK1, SCU468, GENMASK(30, 28), (3 << 28)),
 		},
 	},
 };
@@ -2746,7 +2740,7 @@ static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	int pin;
 	const struct aspeed_g7_soc1_pincfg *cfg;
 	const struct aspeed_g7_soc1_funcfg *funcfg;
-	struct aspeed_g7_soc1_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct aspeed_g7_soc1_pingroup *pingroup = &aspeed_g7_soc1_pingroups[group];
 
 	for (i = 0; i < pingroup->npins; i++) {
@@ -2755,9 +2749,8 @@ static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 		funcfg = &cfg->funcfg[0];
 		while (funcfg->name) {
 			if (strcmp(funcfg->name, pingroup->name) == 0) {
-				writel((readl(pinctrl->regs + funcfg->reg) &
-					~funcfg->mask) | funcfg->val,
-					   pinctrl->regs + funcfg->reg);
+				regmap_update_bits(pinctrl->scu, funcfg->reg,
+						   funcfg->mask, funcfg->val);
 				break;
 			}
 			funcfg++;
@@ -2774,31 +2767,19 @@ static int aspeed_g7_soc1_gpio_request_enable(struct pinctrl_dev *pctldev,
 					      struct pinctrl_gpio_range *range,
 					      unsigned int offset)
 {
-	struct aspeed_g7_soc1_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_g7_soc1_pincfg *cfg = &pin_cfg[offset];
 	const struct aspeed_g7_soc1_funcfg *funcfg;
 
 	if (cfg) {
 		funcfg = &cfg->funcfg[0];
 		while (funcfg->name) {
-			writel((readl(pinctrl->regs + funcfg->reg) & ~funcfg->mask),
-			       pinctrl->regs + funcfg->reg);
+			regmap_update_bits(pinctrl->scu, funcfg->reg,
+					   funcfg->mask, 0);
 			funcfg++;
 		}
 	}
 	return 0;
-}
-
-static void aspeed_g7_soc1_gpio_request_free(struct pinctrl_dev *pctldev,
-					     struct pinctrl_gpio_range *range,
-					     unsigned int offset)
-{
-	struct aspeed_g7_soc1_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	int virq;
-
-	virq = irq_find_mapping(pinctrl->domain, offset);
-	if (virq)
-		irq_dispose_mapping(virq);
 }
 
 static const struct pinmux_ops aspeed_g7_soc1_pinmux_ops = {
@@ -2807,103 +2788,15 @@ static const struct pinmux_ops aspeed_g7_soc1_pinmux_ops = {
 	.get_function_groups = aspeed_g7_soc1_get_function_groups,
 	.set_mux = aspeed_g7_soc1_pinmux_set_mux,
 	.gpio_request_enable = aspeed_g7_soc1_gpio_request_enable,
-	.gpio_disable_free = aspeed_g7_soc1_gpio_request_free,
 	.strict = true,
 };
 
-static int aspeed_g7_soc1_config_get(struct pinctrl_dev *pctldev,
-				     unsigned int pin, unsigned long *config)
-{
-//	struct aspeed_g7_soc1_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(*config);
-	int rc = 0;
-
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		break;
-	case PIN_CONFIG_OUTPUT:
-	case PIN_CONFIG_INPUT_ENABLE:
-		break;
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		break;
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		break;
-	case PIN_CONFIG_INPUT_DEBOUNCE:
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-		break;
-	case PIN_CONFIG_SLEW_RATE:
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	if (!rc)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int aspeed_g7_soc1_config_set_one(struct aspeed_g7_soc1_pinctrl *pinctrl,
-					 unsigned int pin, unsigned long config)
-{
-	enum pin_config_param param = pinconf_to_config_param(config);
-
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		break;
-	case PIN_CONFIG_BIAS_PULL_UP:
-		break;
-	case PIN_CONFIG_INPUT_ENABLE:
-		break;
-	case PIN_CONFIG_OUTPUT:
-		break;
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-
-		break;
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-
-		break;
-	case PIN_CONFIG_INPUT_DEBOUNCE:
-		break;
-	case PIN_CONFIG_SLEW_RATE:
-
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	return 0;
-}
-
-static int aspeed_g7_soc1_config_set(struct pinctrl_dev *pctldev,
-				     unsigned int pin, unsigned long *configs,
-				     unsigned int num_configs)
-{
-	struct aspeed_g7_soc1_pinctrl *pinctrl =
-		pinctrl_dev_get_drvdata(pctldev);
-	int rc;
-
-	while (num_configs--) {
-		rc = aspeed_g7_soc1_config_set_one(pinctrl, pin, *configs++);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
-}
-
 static const struct pinconf_ops aspeed_g7_soc1_pinconf_ops = {
 	.is_generic = true,
-	.pin_config_get = aspeed_g7_soc1_config_get,
-	.pin_config_set = aspeed_g7_soc1_config_set,
+	.pin_config_get = aspeed_pin_config_get,
+	.pin_config_set = aspeed_pin_config_set,
+	.pin_config_group_get = aspeed_pin_config_group_get,
+	.pin_config_group_set = aspeed_pin_config_group_set,
 };
 
 /* pinctrl_desc */
@@ -2917,26 +2810,15 @@ static struct pinctrl_desc aspeed_g7_soc1_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static struct aspeed_pinctrl_data aspeed_g7_pinctrl_data = {
+	.pins = aspeed_g7_soc1_pins,
+	.npins = ARRAY_SIZE(aspeed_g7_soc1_pins),
+};
+
 static int aspeed_g7_soc1_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct aspeed_g7_soc1_pinctrl *pctrl;
-
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
-	if (!pctrl)
-		return -ENOMEM;
-
-	pctrl->dev = dev;
-	platform_set_drvdata(pdev, pctrl);
-
-	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
-	pctrl->pctldev =
-		devm_pinctrl_register(dev, &aspeed_g7_soc1_pinctrl_desc, pctrl);
-	if (IS_ERR(pctrl->pctldev))
-		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev),
-				     "Failed to register pinctrl device\n");
-
-	return 0;
+	return aspeed_pinctrl_probe(pdev, &aspeed_g7_soc1_pinctrl_desc,
+				    &aspeed_g7_pinctrl_data);
 }
 
 static const struct of_device_id aspeed_g7_soc1_pinctrl_match[] = {
