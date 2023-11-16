@@ -994,6 +994,7 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 				     struct xattr *xattrs, int *xattr_count)
 {
 	struct task_smack *tsp = smack_cred(current_cred());
+	struct inode_smack *issp = smack_inode(inode);
 	struct smack_known *skp = smk_of_task(tsp);
 	struct smack_known *isp = smk_of_inode(inode);
 	struct smack_known *dsp = smk_of_inode(dir);
@@ -1029,7 +1030,9 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 		 * smack_inode_alloc_security().
 		 */
 		if (tsp->smk_task != tsp->smk_transmuted)
-			isp = dsp;
+			isp = issp->smk_inode = dsp;
+
+		issp->smk_flags |= SMK_INODE_TRANSMUTE;
 		xattr_transmute = lsm_get_xattr_slot(xattrs,
 						     xattr_count);
 		if (xattr_transmute) {
@@ -1043,6 +1046,8 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 			xattr_transmute->name = XATTR_SMACK_TRANSMUTE;
 		}
 	}
+
+	issp->smk_flags |= SMK_INODE_INSTANT;
 
 	if (xattr) {
 		xattr->value = kstrdup(isp->smk_known, GFP_NOFS);
