@@ -1988,7 +1988,8 @@ static int ftgmac100_probe(struct platform_device *pdev)
 			err = of_get_phy_mode(np, &phy_intf);
 			if (err)
 				phy_intf = PHY_INTERFACE_MODE_RGMII;
-			priv->is_ast2700_rmii = phy_intf == PHY_INTERFACE_MODE_RMII;
+			priv->is_ast2700_rmii = (phy_intf == PHY_INTERFACE_MODE_RMII) ||
+						priv->use_ncsi;
 		}
 	}
 
