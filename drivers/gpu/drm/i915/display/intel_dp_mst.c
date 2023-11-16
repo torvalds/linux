@@ -108,15 +108,12 @@ static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 
 static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
 				     const struct intel_connector *connector,
-				     bool ssc, bool dsc,
+				     int overhead,
 				     int bpp_x16,
 				     struct intel_link_m_n *m_n)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	int overhead = intel_dp_mst_bw_overhead(crtc_state,
-						connector,
-						ssc, dsc, bpp_x16);
 
 	intel_link_compute_m_n(bpp_x16, crtc_state->lane_count,
 			       adjusted_mode->crtc_clock,
@@ -171,7 +168,9 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
 		struct intel_link_m_n remote_m_n;
-		int link_bpp;
+		int local_bw_overhead;
+		int remote_bw_overhead;
+		int link_bpp_x16;
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
@@ -179,12 +178,22 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		if (ret)
 			continue;
 
-		link_bpp = dsc ? bpp :
-			intel_dp_output_bpp(crtc_state->output_format, bpp);
+		link_bpp_x16 = to_bpp_x16(dsc ? bpp :
+					  intel_dp_output_bpp(crtc_state->output_format, bpp));
 
-		intel_dp_mst_compute_m_n(crtc_state, connector, false, dsc, to_bpp_x16(link_bpp),
+		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
+							     false, dsc, link_bpp_x16);
+		remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
+							      true, dsc, link_bpp_x16);
+
+		intel_dp_mst_compute_m_n(crtc_state, connector,
+					 local_bw_overhead,
+					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
-		intel_dp_mst_compute_m_n(crtc_state, connector, true, dsc, to_bpp_x16(link_bpp),
+
+		intel_dp_mst_compute_m_n(crtc_state, connector,
+					 remote_bw_overhead,
+					 link_bpp_x16,
 					 &remote_m_n);
 
 		/*
