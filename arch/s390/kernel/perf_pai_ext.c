@@ -415,20 +415,13 @@ static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
  * sched_task() callback. That callback is not active after paiext_del()
  * returns and has deleted the event on that CPU.
  */
-static int paiext_push_sample(void)
+static int paiext_push_sample(size_t rawsize, struct paiext_map *cpump,
+			      struct perf_event *event)
 {
-	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
-	struct paiext_map *cpump = mp->mapptr;
-	struct perf_event *event = cpump->event;
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
-	size_t rawsize;
 	int overflow;
-
-	rawsize = paiext_copy(cpump->save, cpump->area);
-	if (!rawsize)			/* No incremented counters */
-		return 0;
 
 	/* Setup perf sample */
 	memset(&regs, 0, sizeof(regs));
@@ -458,6 +451,23 @@ static int paiext_push_sample(void)
 	return overflow;
 }
 
+/* Check if there is data to be saved on schedule out of a task. */
+static int paiext_have_sample(void)
+{
+	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
+	struct paiext_map *cpump = mp->mapptr;
+	struct perf_event *event = cpump->event;
+	size_t rawsize;
+	int rc = 0;
+
+	if (!event)
+		return 0;
+	rawsize = paiext_copy(cpump->save, cpump->area);
+	if (rawsize)			/* Incremented counters */
+		rc = paiext_push_sample(rawsize, cpump, event);
+	return rc;
+}
+
 /* Called on schedule-in and schedule-out. No access to event structure,
  * but for sampling only event NNPA_ALL is allowed.
  */
@@ -467,7 +477,7 @@ static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched
 	 * results on schedule_out and if page was dirty, clear values.
 	 */
 	if (!sched_in)
-		paiext_push_sample();
+		paiext_have_sample();
 }
 
 /* Attribute definitions for pai extension1 interface. As with other CPU
