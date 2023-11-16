@@ -432,6 +432,8 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 	struct ast_device *ast;
 	bool need_post = false;
 	int ret = 0;
+	void __iomem *regs;
+	void __iomem *ioregs;
 
 	ast = devm_drm_dev_alloc(&pdev->dev, drv, struct ast_device, base);
 	if (IS_ERR(ast))
@@ -440,8 +442,8 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 
 	pci_set_drvdata(pdev, dev);
 
-	ast->regs = pcim_iomap(pdev, 1, 0);
-	if (!ast->regs)
+	regs = pcim_iomap(pdev, 1, 0);
+	if (!regs)
 		return ERR_PTR(-EIO);
 
 	if (pdev->revision >= 0x40) {
@@ -455,7 +457,7 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 			return ERR_PTR(-EIO);
 		if ((len - AST_IO_MM_OFFSET) < AST_IO_MM_LENGTH)
 			return ERR_PTR(-EIO);
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+		ioregs = regs + AST_IO_MM_OFFSET;
 	} else if (pci_resource_flags(pdev, 2) & IORESOURCE_IO) {
 		/*
 		 * Map I/O registers if we have a PCI BAR for I/O.
@@ -464,8 +466,8 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 
 		if (len < AST_IO_MM_LENGTH)
 			return -EIO;
-		ast->ioregs = pcim_iomap(pdev, 2, 0);
-		if (!ast->ioregs)
+		ioregs = pcim_iomap(pdev, 2, 0);
+		if (!ioregs)
 			return ERR_PTR(-EIO);
 	} else {
 		/*
@@ -477,10 +479,13 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 			return ERR_PTR(-EIO);
 		if ((len - AST_IO_MM_OFFSET) < AST_IO_MM_LENGTH)
 			return ERR_PTR(-EIO);
-		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
+		ioregs = regs + AST_IO_MM_OFFSET;
 
 		drm_info(dev, "Platform has no I/O space, using MMIO\n");
 	}
+
+	ast->regs = regs;
+	ast->ioregs = ioregs;
 
 	if (!ast_is_vga_enabled(dev)) {
 		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
