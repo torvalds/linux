@@ -63,19 +63,19 @@
 
 /* used to set data->name = nct6775_device_names[data->sio_kind] */
 static const char * const nct6775_device_names[] = {
-	"nct6106",
-	"nct6116",
-	"nct6775",
-	"nct6776",
-	"nct6779",
-	"nct6791",
-	"nct6792",
-	"nct6793",
-	"nct6795",
-	"nct6796",
-	"nct6797",
-	"nct6798",
-	"nct6799",
+	[nct6106] = "nct6106",
+	[nct6116] = "nct6116",
+	[nct6775] = "nct6775",
+	[nct6776] = "nct6776",
+	[nct6779] = "nct6779",
+	[nct6791] = "nct6791",
+	[nct6792] = "nct6792",
+	[nct6793] = "nct6793",
+	[nct6795] = "nct6795",
+	[nct6796] = "nct6796",
+	[nct6797] = "nct6797",
+	[nct6798] = "nct6798",
+	[nct6799] = "nct6799",
 };
 
 /* Common and NCT6775 specific data */
