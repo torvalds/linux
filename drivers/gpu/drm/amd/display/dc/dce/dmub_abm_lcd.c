@@ -79,7 +79,7 @@ static void dmub_abm_enable_fractional_pwm(struct dc_context *dc)
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
-void dmub_abm_init(struct abm *abm, uint32_t backlight)
+void dmub_abm_init(struct abm *abm, uint32_t backlight, uint32_t user_level)
 {
 	struct dce_abm *dce_abm = TO_DMUB_ABM(abm);
 
@@ -106,7 +106,7 @@ void dmub_abm_init(struct abm *abm, uint32_t backlight)
 			BL1_PWM_TARGET_ABM_LEVEL, backlight);
 
 	REG_UPDATE(BL1_PWM_USER_LEVEL,
-			BL1_PWM_USER_LEVEL, backlight);
+			BL1_PWM_USER_LEVEL, user_level);
 
 	REG_UPDATE_2(DC_ABM1_LS_MIN_MAX_PIXEL_VALUE_THRES,
 			ABM1_LS_MIN_PIXEL_VALUE_THRES, 0,

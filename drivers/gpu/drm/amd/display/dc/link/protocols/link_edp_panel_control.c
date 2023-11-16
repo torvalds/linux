@@ -529,6 +529,9 @@ bool edp_set_backlight_level(const struct dc_link *link,
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
 
+		if (link->panel_cntl)
+			link->panel_cntl->stored_backlight_registers.USER_LEVEL = backlight_pwm_u16_16;
+
 		if (pipe_ctx) {
 			/* Disable brightness ramping when the display is blanked
 			 * as it can hang the DMCU

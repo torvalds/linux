@@ -1490,6 +1490,7 @@ void dcn10_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
+	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	bool   is_optimized_init_done = false;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -1587,12 +1588,14 @@ void dcn10_init_hw(struct dc *dc)
 		for (i = 0; i < dc->link_count; i++) {
 			struct dc_link *link = dc->links[i];
 
-			if (link->panel_cntl)
+			if (link->panel_cntl) {
 				backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
+				user_level = link->panel_cntl->stored_backlight_registers.USER_LEVEL;
+			}
 		}
 
 		if (abm != NULL)
-			abm->funcs->abm_init(abm, backlight);
+			abm->funcs->abm_init(abm, backlight, user_level);
 
 		if (dmcu != NULL && !dmcu->auto_load_dmcu)
 			dmcu->funcs->dmcu_init(dmcu);
