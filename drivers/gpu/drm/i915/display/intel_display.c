@@ -2393,7 +2393,7 @@ add_bw_alloc_overhead(int link_clock, int bw_overhead,
 		      int pixel_data_rate, int link_data_rate,
 		      u32 *data_m, u32 *data_n)
 {
-	bool is_uhbr = intel_dp_is_uhbr_rate(link_clock);
+	bool is_uhbr = drm_dp_is_uhbr_rate(link_clock);
 	int ch_coding_efficiency =
 		drm_dp_bw_channel_coding_efficiency(is_uhbr);
 

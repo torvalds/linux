@@ -121,15 +121,10 @@ bool intel_dp_is_edp(struct intel_dp *intel_dp)
 
 static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 
-bool intel_dp_is_uhbr_rate(int rate)
-{
-	return rate >= 1000000;
-}
-
 /* Is link rate UHBR and thus 128b/132b? */
 bool intel_dp_is_uhbr(const struct intel_crtc_state *crtc_state)
 {
-	return intel_dp_is_uhbr_rate(crtc_state->port_clock);
+	return drm_dp_is_uhbr_rate(crtc_state->port_clock);
 }
 
 static void intel_dp_set_default_sink_rates(struct intel_dp *intel_dp)
