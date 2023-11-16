@@ -727,6 +727,16 @@ extern const struct amdgpu_ip_block_version dm_ip_block;
 struct dm_plane_state {
 	struct drm_plane_state base;
 	struct dc_plane_state *dc_state;
+
+	/* Plane color mgmt */
+	/**
+	 * @degamma_lut:
+	 *
+	 * 1D LUT for mapping framebuffer/plane pixel data before sampling or
+	 * blending operations. It's usually applied to linearize input space.
+	 * The blob (if not NULL) is an array of &struct drm_color_lut.
+	 */
+	struct drm_property_blob *degamma_lut;
 };
 
 struct dm_crtc_state {
@@ -817,6 +827,7 @@ void amdgpu_dm_trigger_timing_sync(struct drm_device *dev);
 #define MAX_COLOR_LEGACY_LUT_ENTRIES 256
 
 void amdgpu_dm_init_color_mod(void);
+int amdgpu_dm_create_color_properties(struct amdgpu_device *adev);
 int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state);
 int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc);
 int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,

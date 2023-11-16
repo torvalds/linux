@@ -84,6 +84,31 @@ void amdgpu_dm_init_color_mod(void)
 	setup_x_points_distribution();
 }
 
+#ifdef AMD_PRIVATE_COLOR
+int
+amdgpu_dm_create_color_properties(struct amdgpu_device *adev)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create(adev_to_drm(adev),
+				   DRM_MODE_PROP_BLOB,
+				   "AMD_PLANE_DEGAMMA_LUT", 0);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.plane_degamma_lut_property = prop;
+
+	prop = drm_property_create_range(adev_to_drm(adev),
+					 DRM_MODE_PROP_IMMUTABLE,
+					 "AMD_PLANE_DEGAMMA_LUT_SIZE",
+					 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	adev->mode_info.plane_degamma_lut_size_property = prop;
+
+	return 0;
+}
+#endif
+
 /**
  * __extract_blob_lut - Extracts the DRM lut and lut size from a blob.
  * @blob: DRM color mgmt property blob

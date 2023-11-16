@@ -343,6 +343,18 @@ struct amdgpu_mode_info {
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
 	const enum drm_plane_type *plane_type;
+
+	/* Driver-private color mgmt props */
+
+	/* @plane_degamma_lut_property: Plane property to set a degamma LUT to
+	 * convert encoded values to light linear values before sampling or
+	 * blending.
+	 */
+	struct drm_property *plane_degamma_lut_property;
+	/* @plane_degamma_lut_size_property: Plane property to define the max
+	 * size of degamma LUT as supported by the driver (read-only).
+	 */
+	struct drm_property *plane_degamma_lut_size_property;
 };
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
