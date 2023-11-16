@@ -2397,16 +2397,6 @@ add_bw_alloc_overhead(int link_clock, int bw_overhead,
 	int ch_coding_efficiency =
 		drm_dp_bw_channel_coding_efficiency(is_uhbr);
 
-	/*
-	 * TODO: adjust for actual UHBR channel coding efficiency and BW
-	 * overhead.
-	 */
-	if (is_uhbr) {
-		*data_m = pixel_data_rate;
-		*data_n = link_data_rate * 8 / 10;
-		return;
-	}
-
 	*data_m = DIV_ROUND_UP_ULL(mul_u32_u32(pixel_data_rate, bw_overhead),
 				   1000000);
 	*data_n = DIV_ROUND_DOWN_ULL(mul_u32_u32(link_data_rate, ch_coding_efficiency),
