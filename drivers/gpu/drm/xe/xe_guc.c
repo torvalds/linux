@@ -659,9 +659,20 @@ timeout:
 	header = xe_mmio_read32(gt, reply_reg);
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
 	    GUC_HXG_TYPE_NO_RESPONSE_BUSY) {
+		/*
+		 * Once we got a BUSY reply we must wait again for the final
+		 * response but this time we can't use ORIGIN mask anymore.
+		 * To spot a right change in the reply, we take advantage that
+		 * response SUCCESS and FAILURE differ only by the single bit
+		 * and all other bits are set and can be used as a new mask.
+		 */
+		u32 resp_bits = GUC_HXG_TYPE_RESPONSE_SUCCESS & GUC_HXG_TYPE_RESPONSE_FAILURE;
+		u32 resp_mask = FIELD_PREP(GUC_HXG_MSG_0_TYPE, resp_bits);
 
-		ret = xe_mmio_wait32(gt, reply_reg, GUC_HXG_MSG_0_TYPE,
-				     FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_RESPONSE_SUCCESS),
+		BUILD_BUG_ON(FIELD_MAX(GUC_HXG_MSG_0_TYPE) != GUC_HXG_TYPE_RESPONSE_SUCCESS);
+		BUILD_BUG_ON((GUC_HXG_TYPE_RESPONSE_SUCCESS ^ GUC_HXG_TYPE_RESPONSE_FAILURE) != 1);
+
+		ret = xe_mmio_wait32(gt, reply_reg,  resp_mask, resp_mask,
 				     1000000, &header, false);
 
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
