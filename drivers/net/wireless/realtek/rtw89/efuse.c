@@ -291,7 +291,7 @@ int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev)
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_FW, "log_map: ", log_map, full_log_size);
 
-	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map);
+	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map, RTW89_EFUSE_BLOCK_IGNORE);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to read efuse map\n");
 		goto out_free;

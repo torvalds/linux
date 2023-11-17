@@ -537,7 +537,8 @@ static void rtw8852a_efuse_parsing_tssi(struct rtw89_dev *rtwdev,
 	}
 }
 
-static int rtw8852a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+static int rtw8852a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
 {
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw8852a_efuse *map;
@@ -2136,6 +2137,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.limit_efuse_size	= 1152,
 	.dav_phy_efuse_size	= 0,
 	.dav_log_efuse_size	= 0,
+	.efuse_blocks		= NULL,
 	.phycap_addr		= 0x580,
 	.phycap_size		= 128,
 	.para_ver		= 0x0,
