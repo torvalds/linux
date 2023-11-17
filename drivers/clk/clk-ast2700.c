@@ -350,19 +350,19 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 	//rmii
 	clks[AST2700_SOC1_CLK_RMII] =
 		clk_hw_register_divider_table(dev, "rmii", "soc1-hpll",
-					      0, clk_base + AST2700_SOC1_CLK_SEL2,
+					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      21, 3, 0, ast2700_rmii_div_table, &ast2700_clk_lock);
 
 	//rgmii
 	clks[AST2700_SOC1_CLK_RGMII] =
 		clk_hw_register_divider_table(dev, "rgmii", "soc1-hpll",
-					      0, clk_base + AST2700_SOC1_CLK_SEL2,
+					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      25, 3, 0, ast2700_rgmii_div_table, &ast2700_clk_lock);
 
 	//mac hclk
 	clks[AST2700_SOC1_CLK_MACHCLK] =
 		clk_hw_register_divider_table(dev, "machclk", "soc1-hpll",
-					      0, clk_base + AST2700_SOC1_CLK_SEL2,
+					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      29, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_LCLK0] =
