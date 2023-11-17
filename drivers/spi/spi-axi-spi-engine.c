@@ -115,7 +115,6 @@ struct spi_engine {
 
 	struct spi_message *msg;
 	struct ida sync_ida;
-	unsigned int completed_id;
 
 	unsigned int int_enable;
 };
@@ -380,13 +379,14 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	unsigned int disable_int = 0;
 	unsigned int pending;
+	int completed_id = -1;
 
 	pending = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
 
 	if (pending & SPI_ENGINE_INT_SYNC) {
 		writel_relaxed(SPI_ENGINE_INT_SYNC,
 			spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
-		spi_engine->completed_id = readl_relaxed(
+		completed_id = readl_relaxed(
 			spi_engine->base + SPI_ENGINE_REG_SYNC_ID);
 	}
 
@@ -410,7 +410,7 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	if (pending & SPI_ENGINE_INT_SYNC && spi_engine->msg) {
 		struct spi_engine_message_state *st = spi_engine->msg->state;
 
-		if (spi_engine->completed_id == st->sync_id) {
+		if (completed_id == st->sync_id) {
 			struct spi_message *msg = spi_engine->msg;
 
 			msg->status = 0;
