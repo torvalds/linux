@@ -1135,7 +1135,7 @@ static int i3c_master_getmxds_locked(struct i3c_master_controller *master,
 		 * Retry when the device does not support max read turnaround
 		 * while expecting shorter length from this CCC command.
 		 */
-		dest->payload.len -= 3;
+		dest.payload.len -= 3;
 		ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
 		if (ret)
 			goto out;
