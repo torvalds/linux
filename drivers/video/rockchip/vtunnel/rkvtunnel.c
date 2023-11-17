@@ -72,7 +72,6 @@ struct rkvt_dev {
 	char *dev_name;
 	int inst_id_generator;
 	atomic64_t cid_generator;
-	atomic64_t buf_id_generator;
 	struct dentry *debug_root;
 };
 
@@ -123,6 +122,8 @@ struct rkvt_instance {
 	DECLARE_KFIFO_PTR(fifo_to_producer, struct rkvt_buffer*);
 
 	struct rkvt_buffer vt_buffers[RKVT_POOL_SIZE];
+
+	atomic64_t buf_id_generator;
 };
 
 static unsigned int vt_dev_dbg;
@@ -740,10 +741,10 @@ rkvt_reset_proc(struct rkvt_ctrl_data *data, struct rkvt_session *session)
 	mutex_lock(&inst->lock);
 	rkvt_inst_clear_consumer(inst);
 	rkvt_inst_clear_producer(inst);
-	read_buf_id = atomic64_read(&vt_dev->buf_id_generator);
+	read_buf_id = atomic64_read(&inst->buf_id_generator);
 	read_buf_id += 0x100;
 	read_buf_id &= ~0xff;
-	atomic64_set(&vt_dev->buf_id_generator, read_buf_id);
+	atomic64_set(&inst->buf_id_generator, read_buf_id);
 	mutex_unlock(&inst->lock);
 
 	rkvt_inst_put(inst);
@@ -950,7 +951,7 @@ rkvt_queue_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 
 	// buffer id is empty, generate a new id
 	if (base->buffer_id == 0)
-		base->buffer_id = atomic64_inc_return(&vt_dev->buf_id_generator);
+		base->buffer_id = atomic64_inc_return(&inst->buf_id_generator);
 	buffer->base = *base;
 	buffer->base.buf_status = RKVT_BUF_QUEUE;
 	buffer->session_pro = session;
@@ -1234,7 +1235,7 @@ rkvt_release_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 	buffer->base.buf_status = RKVT_BUF_RELEASE;
 
 	mutex_lock(&inst->lock);
-	read_buf_id = atomic64_read(&vt_dev->buf_id_generator);
+	read_buf_id = atomic64_read(&inst->buf_id_generator);
 	/* if producer has disconnect */
 	if (!inst->producer) {
 		rkvt_dbg(RKVT_DBG_BUFFERS, "VTRB [%d], buffer no producer\n", inst->id);
@@ -1298,7 +1299,7 @@ rkvt_cancel_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 	}
 	// buffer id is empty, generate a new id
 	if (buf_base->buffer_id == 0)
-		buf_base->buffer_id = atomic64_inc_return(&vt_dev->buf_id_generator);
+		buf_base->buffer_id = atomic64_inc_return(&inst->buf_id_generator);
 	buffer->base = *buf_base;
 	buffer->base.buf_status = RKVT_BUF_RELEASE;
 	buffer->session_pro = session;
