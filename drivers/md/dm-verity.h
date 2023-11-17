@@ -128,7 +128,7 @@ extern int verity_for_bv_block(struct dm_verity *v, struct dm_verity_io *io,
 					      u8 *data, size_t len));
 
 extern int verity_hash(struct dm_verity *v, struct ahash_request *req,
-		       const u8 *data, size_t len, u8 *digest);
+		       const u8 *data, size_t len, u8 *digest, bool may_sleep);
 
 extern int verity_hash_for_block(struct dm_verity *v, struct dm_verity_io *io,
 				 sector_t block, u8 *digest, bool *is_zero);
