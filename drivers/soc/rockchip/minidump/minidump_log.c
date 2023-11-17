@@ -659,7 +659,7 @@ static int md_register_minidump_entry(char *name, u64 virt_addr,
 	return ret;
 }
 
-struct page *md_vmalloc_to_page(const void *vmalloc_addr)
+static struct page *md_vmalloc_to_page(const void *vmalloc_addr)
 {
 	unsigned long addr = (unsigned long) vmalloc_addr;
 	struct page *page = NULL;
