@@ -123,30 +123,20 @@ struct xe_mocs_info {
  *
  * These tables are intended to be kept reasonably consistent across
  * HW platforms, and for ICL+, be identical across OSes. To achieve
- * that, for Icelake and above, list of entries is published as part
- * of bspec.
+ * that, the list of entries is published as part of bspec.
  *
- * Entries not part of the following tables are undefined as far as
- * userspace is concerned and shouldn't be relied upon.  For Gen < 12
- * they will be initialized to PTE. Gen >= 12 don't have a setting for
- * PTE and those platforms except TGL/RKL will be initialized L3 WB to
- * catch accidental use of reserved and unused mocs indexes.
+ * Entries not part of the following tables are undefined as far as userspace is
+ * concerned and shouldn't be relied upon. The last few entries are reserved by
+ * the hardware. They should be initialized according to bspec and never used.
  *
- * The last few entries are reserved by the hardware. For ICL+ they
- * should be initialized according to bspec and never used, for older
- * platforms they should never be written to.
+ * NOTE1: These tables are part of bspec and defined as part of the hardware
+ * interface. It is expected that, for specific hardware platform, existing
+ * entries will remain constant and the table will only be updated by adding new
+ * entries, filling unused positions.
  *
- * NOTE1: These tables are part of bspec and defined as part of hardware
- *       interface for ICL+. For older platforms, they are part of kernel
- *       ABI. It is expected that, for specific hardware platform, existing
- *       entries will remain constant and the table will only be updated by
- *       adding new entries, filling unused positions.
- *
- * NOTE2: For GEN >= 12 except TGL and RKL, reserved and unspecified MOCS
- *       indices have been set to L3 WB. These reserved entries should never
- *       be used, they may be changed to low performant variants with better
- *       coherency in the future if more entries are needed.
- *       For TGL/RKL, all the unspecified MOCS indexes are mapped to L3 UC.
+ * NOTE2: Reserved and unspecified MOCS indices have been set to L3 WB. These
+ * reserved entries should never be used. They may be changed to low performant
+ * variants with better coherency in the future if more entries are needed.
  */
 
 static const struct xe_mocs_entry gen12_mocs_desc[] = {
