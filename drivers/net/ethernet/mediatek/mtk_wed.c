@@ -670,7 +670,7 @@ mtk_wed_tx_buffer_alloc(struct mtk_wed_device *dev)
 		void *buf;
 		int s;
 
-		page = __dev_alloc_pages(GFP_KERNEL, 0);
+		page = __dev_alloc_page(GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 
