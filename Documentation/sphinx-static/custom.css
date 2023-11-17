@@ -8,6 +8,9 @@ div.body h1 { font-size: 180%; }
 div.body h2 { font-size: 150%; }
 div.body h3 { font-size: 130%; }
 
+/* toctree captions are styled like h2 */
+div.toctree-wrapper p.caption[role=heading] { font-size: 150%; }
+
 /* Tighten up the layout slightly */
 div.body { padding: 0 15px 0 10px; }
 div.sphinxsidebarwrapper { padding: 1em 0.4em; }

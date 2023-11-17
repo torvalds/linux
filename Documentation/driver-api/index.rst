@@ -9,11 +9,8 @@ of device drivers.  This document is an only somewhat organized collection
 of some of those interfaces — it will hopefully get better over time!  The
 available subsections can be seen below.
 
-.. class:: toc-title
-
-	   Table of contents
-
 .. toctree::
+   :caption: Table of contents
    :maxdepth: 2
 
    driver-model/index
