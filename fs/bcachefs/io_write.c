@@ -795,7 +795,7 @@ static int bch2_write_decrypt(struct bch_write_op *op)
 	 * checksum:
 	 */
 	csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	if (bch2_crc_cmp(op->crc.csum, csum))
+	if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 		return -EIO;
 
 	ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
