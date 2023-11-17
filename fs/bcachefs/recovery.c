@@ -995,8 +995,12 @@ use_clean:
 
 		bch2_move_stats_init(&stats, "recovery");
 
-		bch_info(c, "scanning for old btree nodes");
-		ret =   bch2_fs_read_write(c) ?:
+		struct printbuf buf = PRINTBUF;
+		bch2_version_to_text(&buf, c->sb.version_min);
+		bch_info(c, "scanning for old btree nodes: min_version %s", buf.buf);
+		printbuf_exit(&buf);
+
+		ret =   bch2_fs_read_write_early(c) ?:
 			bch2_scan_old_btree_nodes(c, &stats);
 		if (ret)
 			goto err;
