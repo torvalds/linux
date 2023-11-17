@@ -1545,7 +1545,6 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 			__field(u32, fhandle)
 			__field(loff_t, offset)
 			__field(ssize_t, count)
-			__field(ssize_t, bytes_left)
 			__field(ssize_t, error)
 			__field(int, flags)
 		),
@@ -1560,19 +1559,18 @@ DECLARE_EVENT_CLASS(nfs_direct_req_class,
 			__entry->fhandle = nfs_fhandle_hash(fh);
 			__entry->offset = dreq->io_start;
 			__entry->count = dreq->count;
-			__entry->bytes_left = dreq->bytes_left;
 			__entry->error = dreq->error;
 			__entry->flags = dreq->flags;
 		),
 
 		TP_printk(
 			"error=%zd fileid=%02x:%02x:%llu fhandle=0x%08x "
-			"offset=%lld count=%zd bytes_left=%zd flags=%s",
+			"offset=%lld count=%zd flags=%s",
 			__entry->error, MAJOR(__entry->dev),
 			MINOR(__entry->dev),
 			(unsigned long long)__entry->fileid,
 			__entry->fhandle, __entry->offset,
-			__entry->count, __entry->bytes_left,
+			__entry->count,
 			nfs_show_direct_req_flags(__entry->flags)
 		)
 );
