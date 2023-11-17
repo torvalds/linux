@@ -3670,6 +3670,7 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 		val &= ~CSI_HIGH_ALIGN;
 	rkcif_write_register(dev, get_reg_index_of_id_ctrl0(channel->id), val);
 
+	dev->intr_mask = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_INTEN);
 	return 0;
 }
 
@@ -4058,6 +4059,7 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 						       RKCIF_YUV_ADDR_STATE_INIT,
 						       channel->id);
 	}
+	dev->intr_mask = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_INTEN);
 	return 0;
 }
 
@@ -6020,6 +6022,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
 				     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
 	}
+	dev->intr_mask = rkcif_read_register(dev, CIF_REG_DVP_INTSTAT);
 #if IS_ENABLED(CONFIG_CPU_RV1106)
 	rv1106_sdmmc_put_lock();
 #endif
@@ -11008,9 +11011,15 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			return;
 		}
 
-		if (intstat & CSI_BANDWIDTH_LACK_V1) {
+		if (intstat & CSI_BANDWIDTH_LACK_V1 &&
+		    cif_dev->intr_mask & CSI_BANDWIDTH_LACK_V1) {
 			cif_dev->irq_stats.csi_bwidth_lack_cnt++;
 			cif_dev->err_state |= RKCIF_ERR_BANDWIDTH_LACK;
+			if (cif_dev->irq_stats.csi_bwidth_lack_cnt > 10) {
+				rkcif_write_register_and(cif_dev, CIF_REG_MIPI_LVDS_INTEN, ~(CSI_BANDWIDTH_LACK_V1));
+				cif_dev->intr_mask &= ~(CSI_BANDWIDTH_LACK_V1);
+				schedule_delayed_work(&cif_dev->work_deal_err, msecs_to_jiffies(1000));
+			}
 		}
 
 		if (intstat & CSI_ALL_ERROR_INTEN_V1) {

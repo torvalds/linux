@@ -906,6 +906,8 @@ struct rkcif_device {
 	u32				share_mem_size;
 	u32				thunderboot_sensor_num;
 	int				sensor_state;
+	u32				intr_mask;
+	struct delayed_work		work_deal_err;
 };
 
 extern struct platform_driver rkcif_plat_drv;

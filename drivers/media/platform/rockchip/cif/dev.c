@@ -1924,6 +1924,17 @@ void rkcif_set_sensor_stream(struct work_struct *work)
 			&sensor_work->on);
 }
 
+static void rkcif_deal_err_intr(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rkcif_device *cif_dev = container_of(dwork,
+						    struct rkcif_device,
+						    work_deal_err);
+
+	cif_dev->intr_mask |= CSI_BANDWIDTH_LACK_V1;
+	rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN, CSI_BANDWIDTH_LACK_V1);
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -1965,6 +1976,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 
 	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
 	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
+	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
