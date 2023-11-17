@@ -4345,6 +4345,7 @@ struct rtw89_power_trim_info {
 	bool pg_pa_bias_trim;
 	u8 thermal_trim[RF_PATH_MAX];
 	u8 pa_bias_trim[RF_PATH_MAX];
+	u8 pad_bias_trim[RF_PATH_MAX];
 };
 
 struct rtw89_regd {

@@ -175,6 +175,92 @@ static int rtw8922a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
 	}
 }
 
+#define THM_TRIM_POSITIVE_MASK BIT(6)
+#define THM_TRIM_MAGNITUDE_MASK GENMASK(5, 0)
+
+static void rtw8922a_phycap_parsing_thermal_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	static const u32 thm_trim_addr[RF_PATH_NUM_8922A] = {0x1706, 0x1733};
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	bool pg = true;
+	u8 pg_th;
+	s8 val;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		pg_th = phycap_map[thm_trim_addr[i] - addr];
+		if (pg_th == 0xff) {
+			info->thermal_trim[i] = 0;
+			pg = false;
+			break;
+		}
+
+		val = u8_get_bits(pg_th, THM_TRIM_MAGNITUDE_MASK);
+
+		if (!(pg_th & THM_TRIM_POSITIVE_MASK))
+			val *= -1;
+
+		info->thermal_trim[i] = val;
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[THERMAL][TRIM] path=%d thermal_trim=0x%x (%d)\n",
+			    i, pg_th, val);
+	}
+
+	info->pg_thermal_trim = pg;
+}
+
+static void rtw8922a_phycap_parsing_pa_bias_trim(struct rtw89_dev *rtwdev,
+						 u8 *phycap_map)
+{
+	static const u32 pabias_trim_addr[RF_PATH_NUM_8922A] = {0x1707, 0x1734};
+	static const u32 check_pa_pad_trim_addr = 0x1700;
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	u8 val;
+	u8 i;
+
+	val = phycap_map[check_pa_pad_trim_addr - addr];
+	if (val != 0xff)
+		info->pg_pa_bias_trim = true;
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		info->pa_bias_trim[i] = phycap_map[pabias_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PA_BIAS][TRIM] path=%d pa_bias_trim=0x%x\n",
+			    i, info->pa_bias_trim[i]);
+	}
+}
+
+static void rtw8922a_phycap_parsing_pad_bias_trim(struct rtw89_dev *rtwdev,
+						  u8 *phycap_map)
+{
+	static const u32 pad_bias_trim_addr[RF_PATH_NUM_8922A] = {0x1708, 0x1735};
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	u32 addr = rtwdev->chip->phycap_addr;
+	u8 i;
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		info->pad_bias_trim[i] = phycap_map[pad_bias_trim_addr[i] - addr];
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[PAD_BIAS][TRIM] path=%d pad_bias_trim=0x%x\n",
+			    i, info->pad_bias_trim[i]);
+	}
+}
+
+static int rtw8922a_read_phycap(struct rtw89_dev *rtwdev, u8 *phycap_map)
+{
+	rtw8922a_phycap_parsing_thermal_trim(rtwdev, phycap_map);
+	rtw8922a_phycap_parsing_pa_bias_trim(rtwdev, phycap_map);
+	rtw8922a_phycap_parsing_pad_bias_trim(rtwdev, phycap_map);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
@@ -186,6 +272,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 
 static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.read_efuse		= rtw8922a_read_efuse,
+	.read_phycap		= rtw8922a_read_phycap,
 };
 
 const struct rtw89_chip_info rtw8922a_chip_info = {
