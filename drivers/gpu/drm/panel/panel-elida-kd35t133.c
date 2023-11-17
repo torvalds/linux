@@ -296,26 +296,10 @@ static int kd35t133_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static void kd35t133_shutdown(struct mipi_dsi_device *dsi)
-{
-	struct kd35t133 *ctx = mipi_dsi_get_drvdata(dsi);
-	int ret;
-
-	ret = drm_panel_unprepare(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to unprepare panel: %d\n", ret);
-
-	ret = drm_panel_disable(&ctx->panel);
-	if (ret < 0)
-		dev_err(&dsi->dev, "Failed to disable panel: %d\n", ret);
-}
-
 static void kd35t133_remove(struct mipi_dsi_device *dsi)
 {
 	struct kd35t133 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
-
-	kd35t133_shutdown(dsi);
 
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
@@ -337,7 +321,6 @@ static struct mipi_dsi_driver kd35t133_driver = {
 	},
 	.probe	= kd35t133_probe,
 	.remove = kd35t133_remove,
-	.shutdown = kd35t133_shutdown,
 };
 module_mipi_dsi_driver(kd35t133_driver);
 
