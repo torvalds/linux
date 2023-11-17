@@ -1900,6 +1900,8 @@
 		reset-names = "axi",
 			      "ahb",
 			      "dclk_vp0";
+		rockchip,csu = <&csu CSU_VOP_ACLK>;
+		rockchip,csu-names = "aclk";
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3562_PD_VO>;
 		rockchip,grf = <&ioc_grf>;
