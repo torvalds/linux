@@ -532,6 +532,9 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->transfer_one_message = spi_engine_transfer_one_message;
 	host->num_chipselect = 8;
 
+	if (host->max_speed_hz == 0)
+		return dev_err_probe(&pdev->dev, -EINVAL, "spi_clk rate is 0");
+
 	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret)
 		return ret;
