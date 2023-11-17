@@ -18,6 +18,7 @@ mem_buf_dev.ko
 msm_dma_iommu_mapping.ko
 qcom_dma_heaps.ko
 qcom_iommu_util.ko
+iommu-logger.ko
 arm_smmu.ko
 clk-dummy.ko
 clk-qcom.ko
