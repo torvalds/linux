@@ -4,14 +4,10 @@
 #ifndef _DIRTY_H_
 #define _DIRTY_H_
 
-struct pds_vfio_bmp_info {
-	unsigned long *bmp;
-	u32 bmp_bytes;
-};
-
 struct pds_vfio_region {
-	struct pds_vfio_bmp_info host_seq;
-	struct pds_vfio_bmp_info host_ack;
+	unsigned long *host_seq;
+	unsigned long *host_ack;
+	u64 bmp_bytes;
 	u64 size;
 	u64 start;
 	u64 page_size;
