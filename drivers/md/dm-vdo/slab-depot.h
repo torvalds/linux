@@ -257,6 +257,54 @@ struct vdo_slab {
 	struct reference_block *reference_blocks;
 };
 
+enum block_allocator_drain_step {
+	VDO_DRAIN_ALLOCATOR_START,
+	VDO_DRAIN_ALLOCATOR_STEP_SCRUBBER,
+	VDO_DRAIN_ALLOCATOR_STEP_SLABS,
+	VDO_DRAIN_ALLOCATOR_STEP_SUMMARY,
+	VDO_DRAIN_ALLOCATOR_STEP_FINISHED,
+};
+
+struct slab_scrubber {
+	/* The queue of slabs to scrub first */
+	struct list_head high_priority_slabs;
+	/* The queue of slabs to scrub once there are no high_priority_slabs */
+	struct list_head slabs;
+	/* The queue of VIOs waiting for a slab to be scrubbed */
+	struct wait_queue waiters;
+
+	/*
+	 * The number of slabs that are unrecovered or being scrubbed. This field is modified by
+	 * the physical zone thread, but is queried by other threads.
+	 */
+	slab_count_t slab_count;
+
+	/* The administrative state of the scrubber */
+	struct admin_state admin_state;
+	/* Whether to only scrub high-priority slabs */
+	bool high_priority_only;
+	/* The slab currently being scrubbed */
+	struct vdo_slab *slab;
+	/* The vio for loading slab journal blocks */
+	struct vio vio;
+};
+
+/* A sub-structure for applying actions in parallel to all an allocator's slabs. */
+struct slab_actor {
+	/* The number of slabs performing a slab action */
+	slab_count_t slab_action_count;
+	/* The method to call when a slab action has been completed by all slabs */
+	vdo_action_fn callback;
+};
+
+/* A slab_iterator is a structure for iterating over a set of slabs. */
+struct slab_iterator {
+	struct vdo_slab **slabs;
+	struct vdo_slab *next;
+	slab_count_t end;
+	slab_count_t stride;
+};
+
 /*
  * The slab_summary provides hints during load and recovery about the state of the slabs in order
  * to avoid the need to read the slab journals in their entirety before a VDO can come online.
@@ -314,6 +362,81 @@ struct atomic_slab_summary_statistics {
 	atomic64_t blocks_written;
 };
 
+struct block_allocator {
+	struct vdo_completion completion;
+	/* The slab depot for this allocator */
+	struct slab_depot *depot;
+	/* The nonce of the VDO */
+	nonce_t nonce;
+	/* The physical zone number of this allocator */
+	zone_count_t zone_number;
+	/* The thread ID for this allocator's physical zone */
+	thread_id_t thread_id;
+	/* The number of slabs in this allocator */
+	slab_count_t slab_count;
+	/* The number of the last slab owned by this allocator */
+	slab_count_t last_slab;
+	/* The reduced priority level used to preserve unopened slabs */
+	unsigned int unopened_slab_priority;
+	/* The state of this allocator */
+	struct admin_state state;
+	/* The actor for applying an action to all slabs */
+	struct slab_actor slab_actor;
+
+	/* The slab from which blocks are currently being allocated */
+	struct vdo_slab *open_slab;
+	/* A priority queue containing all slabs available for allocation */
+	struct priority_table *prioritized_slabs;
+	/* The slab scrubber */
+	struct slab_scrubber scrubber;
+	/* What phase of the close operation the allocator is to perform */
+	enum block_allocator_drain_step drain_step;
+
+	/*
+	 * These statistics are all mutated only by the physical zone thread, but are read by other
+	 * threads when gathering statistics for the entire depot.
+	 */
+	/*
+	 * The count of allocated blocks in this zone. Not in block_allocator_statistics for
+	 * historical reasons.
+	 */
+	u64 allocated_blocks;
+	/* Statistics for this block allocator */
+	struct block_allocator_statistics statistics;
+	/* Cumulative statistics for the slab journals in this zone */
+	struct slab_journal_statistics slab_journal_statistics;
+	/* Cumulative statistics for the reference counters in this zone */
+	struct ref_counts_statistics ref_counts_statistics;
+
+	/*
+	 * This is the head of a queue of slab journals which have entries in their tail blocks
+	 * which have not yet started to commit. When the recovery journal is under space pressure,
+	 * slab journals which have uncommitted entries holding a lock on the recovery journal head
+	 * are forced to commit their blocks early. This list is kept in order, with the tail
+	 * containing the slab journal holding the most recent recovery journal lock.
+	 */
+	struct list_head dirty_slab_journals;
+
+	/* The vio pool for reading and writing block allocator metadata */
+	struct vio_pool *vio_pool;
+	/* The dm_kcopyd client for erasing slab journals */
+	struct dm_kcopyd_client *eraser;
+	/* Iterator over the slabs to be erased */
+	struct slab_iterator slabs_to_erase;
+
+	/* The portion of the slab summary managed by this allocator */
+	/* The state of the slab summary */
+	struct admin_state summary_state;
+	/* The number of outstanding summary writes */
+	block_count_t summary_write_count;
+	/* The array (owned by the blocks) of all entries */
+	struct slab_summary_entry *summary_entries;
+	/* The array of slab_summary_blocks */
+	struct slab_summary_block *summary_blocks;
+};
+
+struct reference_updater;
+
 bool __must_check vdo_attempt_replay_into_slab(struct vdo_slab *slab,
 					       physical_block_number_t pbn,
 					       enum journal_operation operation,
@@ -321,6 +444,30 @@ bool __must_check vdo_attempt_replay_into_slab(struct vdo_slab *slab,
 					       struct journal_point *recovery_point,
 					       struct vdo_completion *parent);
 
+static inline struct block_allocator *vdo_as_block_allocator(struct vdo_completion *completion)
+{
+	vdo_assert_completion_type(completion, VDO_BLOCK_ALLOCATOR_COMPLETION);
+	return container_of(completion, struct block_allocator, completion);
+}
+
+int __must_check vdo_acquire_provisional_reference(struct vdo_slab *slab,
+						   physical_block_number_t pbn,
+						   struct pbn_lock *lock);
+
+int __must_check vdo_allocate_block(struct block_allocator *allocator,
+				    physical_block_number_t *block_number_ptr);
+
+int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
+				  struct waiter *waiter);
+
+void vdo_modify_reference_count(struct vdo_completion *completion,
+				struct reference_updater *updater);
+
+int __must_check vdo_release_block_reference(struct block_allocator *allocator,
+					     physical_block_number_t pbn);
+
 void vdo_notify_slab_journals_are_recovered(struct vdo_completion *completion);
+
+void vdo_dump_block_allocator(const struct block_allocator *allocator);
 
 #endif /* VDO_SLAB_DEPOT_H */
