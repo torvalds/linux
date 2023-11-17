@@ -93,6 +93,9 @@ enum qmi_ts_sensor {
 	QMI_BEAMER_N_THERM,
 	QMI_BEAMER_E_THERM,
 	QMI_BEAMER_W_THERM,
+	QMI_TS_QFE_RET_PA0_FR1,
+	QMI_TS_QFE_WTR_PA0_FR1,
+	QMI_TS_QFE_WTR0_FR1,
 	QMI_TS_MAX_NR
 };
 
@@ -180,6 +183,9 @@ static char sensor_clients[QMI_TS_MAX_NR][QMI_CLIENT_NAME_LENGTH] = {
 	{"beamer_n_therm"},
 	{"beamer_e_therm"},
 	{"beamer_w_therm"},
+	{"qfe_ret_pa0_fr1"},
+	{"qfe_wtr_pa0_fr1"},
+	{"qfe_wtr0_fr1"},
 };
 
 #endif /* __QMI_SENSORS_H__ */
