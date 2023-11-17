@@ -179,7 +179,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
-	spec->prog_flags = BPF_F_TEST_SANITY_STRICT; /* by default be strict */
+	spec->prog_flags = BPF_F_TEST_REG_INVARIANTS; /* by default be strict */
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
@@ -280,8 +280,8 @@ static int parse_test_spec(struct test_loader *tester,
 				update_flags(&spec->prog_flags, BPF_F_SLEEPABLE, clear);
 			} else if (strcmp(val, "BPF_F_XDP_HAS_FRAGS") == 0) {
 				update_flags(&spec->prog_flags, BPF_F_XDP_HAS_FRAGS, clear);
-			} else if (strcmp(val, "BPF_F_TEST_SANITY_STRICT") == 0) {
-				update_flags(&spec->prog_flags, BPF_F_TEST_SANITY_STRICT, clear);
+			} else if (strcmp(val, "BPF_F_TEST_REG_INVARIANTS") == 0) {
+				update_flags(&spec->prog_flags, BPF_F_TEST_REG_INVARIANTS, clear);
 			} else /* assume numeric value */ {
 				err = parse_int(val, &flags, "test prog flags");
 				if (err)

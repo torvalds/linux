@@ -2608,14 +2608,14 @@ static int reg_bounds_sanity_check(struct bpf_verifier_env *env,
 
 	return 0;
 out:
-	verbose(env, "REG SANITY VIOLATION (%s): %s u64=[%#llx, %#llx] "
+	verbose(env, "REG INVARIANTS VIOLATION (%s): %s u64=[%#llx, %#llx] "
 		"s64=[%#llx, %#llx] u32=[%#x, %#x] s32=[%#x, %#x] var_off=(%#llx, %#llx)\n",
 		ctx, msg, reg->umin_value, reg->umax_value,
 		reg->smin_value, reg->smax_value,
 		reg->u32_min_value, reg->u32_max_value,
 		reg->s32_min_value, reg->s32_max_value,
 		reg->var_off.value, reg->var_off.mask);
-	if (env->test_sanity_strict)
+	if (env->test_reg_invariants)
 		return -EFAULT;
 	__mark_reg_unbounded(reg);
 	return 0;
@@ -20791,7 +20791,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 
 	if (is_priv)
 		env->test_state_freq = attr->prog_flags & BPF_F_TEST_STATE_FREQ;
-	env->test_sanity_strict = attr->prog_flags & BPF_F_TEST_SANITY_STRICT;
+	env->test_reg_invariants = attr->prog_flags & BPF_F_TEST_REG_INVARIANTS;
 
 	env->explored_states = kvcalloc(state_htab_size(env),
 				       sizeof(struct bpf_verifier_state_list *),

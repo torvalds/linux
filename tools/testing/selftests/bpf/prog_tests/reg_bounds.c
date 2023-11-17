@@ -838,7 +838,7 @@ static int load_range_cmp_prog(struct range x, struct range y, enum op op,
 		.log_level = 2,
 		.log_buf = log_buf,
 		.log_size = log_sz,
-		.prog_flags = BPF_F_TEST_SANITY_STRICT,
+		.prog_flags = BPF_F_TEST_REG_INVARIANTS,
 	);
 
 	/* ; skip exit block below

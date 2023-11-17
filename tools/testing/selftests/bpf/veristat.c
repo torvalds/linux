@@ -145,7 +145,7 @@ static struct env {
 	bool debug;
 	bool quiet;
 	bool force_checkpoints;
-	bool strict_range_sanity;
+	bool force_reg_invariants;
 	enum resfmt out_fmt;
 	bool show_version;
 	bool comparison_mode;
@@ -225,8 +225,8 @@ static const struct argp_option opts[] = {
 	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
 	{ "test-states", 't', NULL, 0,
 	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
-	{ "test-sanity", 'r', NULL, 0,
-	  "Force strict BPF verifier register sanity behavior (BPF_F_TEST_SANITY_STRICT program flag)" },
+	{ "test-reg-invariants", 'r', NULL, 0,
+	  "Force BPF verifier failure on register invariant violation (BPF_F_TEST_REG_INVARIANTS program flag)" },
 	{},
 };
 
@@ -299,7 +299,7 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		env.force_checkpoints = true;
 		break;
 	case 'r':
-		env.strict_range_sanity = true;
+		env.force_reg_invariants = true;
 		break;
 	case 'n':
 		errno = 0;
@@ -1028,8 +1028,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	if (env.force_checkpoints)
 		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_STATE_FREQ);
-	if (env.strict_range_sanity)
-		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_SANITY_STRICT);
+	if (env.force_reg_invariants)
+		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_REG_INVARIANTS);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
