@@ -100,35 +100,35 @@ static void pds_vfio_dirty_free_bitmaps(struct pds_vfio_dirty *dirty)
 }
 
 static void __pds_vfio_dirty_free_sgl(struct pds_vfio_pci_device *pds_vfio,
-				      struct pds_vfio_dirty *dirty)
+				      struct pds_vfio_region *region)
 {
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
 
-	dma_unmap_single(pdsc_dev, dirty->region.sgl_addr,
-			 dirty->region.num_sge * sizeof(struct pds_lm_sg_elem),
+	dma_unmap_single(pdsc_dev, region->sgl_addr,
+			 region->num_sge * sizeof(struct pds_lm_sg_elem),
 			 DMA_BIDIRECTIONAL);
-	kfree(dirty->region.sgl);
+	kfree(region->sgl);
 
-	dirty->region.num_sge = 0;
-	dirty->region.sgl = NULL;
-	dirty->region.sgl_addr = 0;
+	region->num_sge = 0;
+	region->sgl = NULL;
+	region->sgl_addr = 0;
 }
 
 static void pds_vfio_dirty_free_sgl(struct pds_vfio_pci_device *pds_vfio)
 {
-	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
+	struct pds_vfio_region *region = &pds_vfio->dirty.region;
 
-	if (dirty->region.sgl)
-		__pds_vfio_dirty_free_sgl(pds_vfio, dirty);
+	if (region->sgl)
+		__pds_vfio_dirty_free_sgl(pds_vfio, region);
 }
 
 static int pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
+				    struct pds_vfio_region *region,
 				    u32 page_count)
 {
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
-	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
 	struct pds_lm_sg_elem *sgl;
 	dma_addr_t sgl_addr;
 	size_t sgl_size;
@@ -147,9 +147,9 @@ static int pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
 		return -EIO;
 	}
 
-	dirty->region.sgl = sgl;
-	dirty->region.num_sge = max_sge;
-	dirty->region.sgl_addr = sgl_addr;
+	region->sgl = sgl;
+	region->num_sge = max_sge;
+	region->sgl_addr = sgl_addr;
 
 	return 0;
 }
@@ -260,7 +260,7 @@ static int pds_vfio_dirty_enable(struct pds_vfio_pci_device *pds_vfio,
 		goto out_free_region_info;
 	}
 
-	err = pds_vfio_dirty_alloc_sgl(pds_vfio, page_count);
+	err = pds_vfio_dirty_alloc_sgl(pds_vfio, &dirty->region, page_count);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to alloc dirty sg lists: %pe\n",
 			ERR_PTR(err));
@@ -300,11 +300,11 @@ void pds_vfio_dirty_disable(struct pds_vfio_pci_device *pds_vfio, bool send_cmd)
 }
 
 static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
+				  struct pds_vfio_region *region,
 				  struct pds_vfio_bmp_info *bmp_info,
 				  u32 offset, u32 bmp_bytes, bool read_seq)
 {
 	const char *bmp_type_str = read_seq ? "read_seq" : "write_ack";
-	struct pds_vfio_region *region = &pds_vfio->dirty.region;
 	u8 dma_dir = read_seq ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
@@ -383,36 +383,36 @@ out_free_pages:
 }
 
 static int pds_vfio_dirty_write_ack(struct pds_vfio_pci_device *pds_vfio,
+				   struct pds_vfio_region *region,
 				    u32 offset, u32 len)
 {
-	struct pds_vfio_region *region = &pds_vfio->dirty.region;
 
-	return pds_vfio_dirty_seq_ack(pds_vfio, &region->host_ack,
+	return pds_vfio_dirty_seq_ack(pds_vfio, region, &region->host_ack,
 				      offset, len, WRITE_ACK);
 }
 
 static int pds_vfio_dirty_read_seq(struct pds_vfio_pci_device *pds_vfio,
+				   struct pds_vfio_region *region,
 				   u32 offset, u32 len)
 {
-	struct pds_vfio_region *region = &pds_vfio->dirty.region;
-
-	return pds_vfio_dirty_seq_ack(pds_vfio, &region->host_seq,
+	return pds_vfio_dirty_seq_ack(pds_vfio, region, &region->host_seq,
 				      offset, len, READ_SEQ);
 }
 
 static int pds_vfio_dirty_process_bitmaps(struct pds_vfio_pci_device *pds_vfio,
+					  struct pds_vfio_region *region,
 					  struct iova_bitmap *dirty_bitmap,
 					  u32 bmp_offset, u32 len_bytes)
 {
-	u64 page_size = pds_vfio->dirty.region.page_size;
-	u64 region_start = pds_vfio->dirty.region.start;
+	u64 page_size = region->page_size;
+	u64 region_start = region->start;
 	u32 bmp_offset_bit;
 	__le64 *seq, *ack;
 	int dword_count;
 
 	dword_count = len_bytes / sizeof(u64);
-	seq = (__le64 *)((u64)pds_vfio->dirty.region.host_seq.bmp + bmp_offset);
-	ack = (__le64 *)((u64)pds_vfio->dirty.region.host_ack.bmp + bmp_offset);
+	seq = (__le64 *)((u64)region->host_seq.bmp + bmp_offset);
+	ack = (__le64 *)((u64)region->host_ack.bmp + bmp_offset);
 	bmp_offset_bit = bmp_offset * 8;
 
 	for (int i = 0; i < dword_count; i++) {
@@ -441,6 +441,7 @@ static int pds_vfio_dirty_sync(struct pds_vfio_pci_device *pds_vfio,
 {
 	struct device *dev = &pds_vfio->vfio_coredev.pdev->dev;
 	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
+	struct pds_vfio_region *region = &dirty->region;
 	u64 bmp_offset, bmp_bytes;
 	u64 bitmap_size, pages;
 	int err;
@@ -453,23 +454,23 @@ static int pds_vfio_dirty_sync(struct pds_vfio_pci_device *pds_vfio,
 		return -EINVAL;
 	}
 
-	pages = DIV_ROUND_UP(length, pds_vfio->dirty.region.page_size);
+	pages = DIV_ROUND_UP(length, region->page_size);
 	bitmap_size =
 		round_up(pages, sizeof(u64) * BITS_PER_BYTE) / BITS_PER_BYTE;
 
 	dev_dbg(dev,
 		"vf%u: iova 0x%lx length %lu page_size %llu pages %llu bitmap_size %llu\n",
-		pds_vfio->vf_id, iova, length, pds_vfio->dirty.region.page_size,
+		pds_vfio->vf_id, iova, length, region->page_size,
 		pages, bitmap_size);
 
-	if (!length || ((iova - dirty->region.start + length) > dirty->region.size)) {
+	if (!length || ((iova - region->start + length) > region->size)) {
 		dev_err(dev, "Invalid iova 0x%lx and/or length 0x%lx to sync\n",
 			iova, length);
 		return -EINVAL;
 	}
 
 	/* bitmap is modified in 64 bit chunks */
-	bmp_bytes = ALIGN(DIV_ROUND_UP(length / dirty->region.page_size,
+	bmp_bytes = ALIGN(DIV_ROUND_UP(length / region->page_size,
 				       sizeof(u64)), sizeof(u64));
 	if (bmp_bytes != bitmap_size) {
 		dev_err(dev,
@@ -478,23 +479,23 @@ static int pds_vfio_dirty_sync(struct pds_vfio_pci_device *pds_vfio,
 		return -EINVAL;
 	}
 
-	bmp_offset = DIV_ROUND_UP((iova - dirty->region.start) /
-				  dirty->region.page_size, sizeof(u64));
+	bmp_offset = DIV_ROUND_UP((iova - region->start) /
+				  region->page_size, sizeof(u64));
 
 	dev_dbg(dev,
 		"Syncing dirty bitmap, iova 0x%lx length 0x%lx, bmp_offset %llu bmp_bytes %llu\n",
 		iova, length, bmp_offset, bmp_bytes);
 
-	err = pds_vfio_dirty_read_seq(pds_vfio, bmp_offset, bmp_bytes);
+	err = pds_vfio_dirty_read_seq(pds_vfio, region, bmp_offset, bmp_bytes);
 	if (err)
 		return err;
 
-	err = pds_vfio_dirty_process_bitmaps(pds_vfio, dirty_bitmap, bmp_offset,
-					     bmp_bytes);
+	err = pds_vfio_dirty_process_bitmaps(pds_vfio, region, dirty_bitmap,
+					     bmp_offset, bmp_bytes);
 	if (err)
 		return err;
 
-	err = pds_vfio_dirty_write_ack(pds_vfio, bmp_offset, bmp_bytes);
+	err = pds_vfio_dirty_write_ack(pds_vfio, region, bmp_offset, bmp_bytes);
 	if (err)
 		return err;
 
