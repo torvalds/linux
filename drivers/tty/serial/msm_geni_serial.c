@@ -793,6 +793,18 @@ static void msm_geni_serial_enable_interrupts(struct uart_port *uport)
 	geni_m_irq_en |= M_IRQ_BITS;
 	geni_s_irq_en |= S_IRQ_BITS;
 
+	/* Enable Rx Frame error & Rx Break error, CTS interrupts only if Port is in open state */
+	if (uport->state && uport->state->port.tty) {
+		geni_m_irq_en |= (M_IO_DATA_DEASSERT_EN | M_IO_DATA_ASSERT_EN);
+		geni_s_irq_en |= (S_GP_IRQ_1_EN | S_GP_IRQ_2_EN | S_GP_IRQ_3_EN);
+	} else {
+		geni_m_irq_en &= ~(M_IO_DATA_DEASSERT_EN | M_IO_DATA_ASSERT_EN);
+		geni_s_irq_en &= ~(S_GP_IRQ_1_EN | S_GP_IRQ_2_EN | S_GP_IRQ_3_EN);
+	}
+	UART_LOG_DBG(port->ipc_log_irqstatus, uport->dev,
+		     "%s: geni_m_irq_en = 0x%x geni_s_irq_en = 0x%x\n",
+		     __func__, geni_m_irq_en, geni_s_irq_en);
+
 	if (port->gsi_mode) {
 		geni_m_irq_en &= ~M_RX_FIFO_WATERMARK_EN;
 		geni_s_irq_en &= ~S_RX_FIFO_WATERMARK_EN;
