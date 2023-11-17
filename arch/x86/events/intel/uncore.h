@@ -72,9 +72,9 @@ struct intel_uncore_type {
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;
 	union {
-		unsigned *msr_offsets;
-		unsigned *pci_offsets;
-		unsigned *mmio_offsets;
+		u64 *msr_offsets;
+		u64 *pci_offsets;
+		u64 *mmio_offsets;
 	};
 	unsigned *box_ids;
 	struct event_constraint unconstrainted;

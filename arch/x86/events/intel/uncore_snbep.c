@@ -5278,7 +5278,7 @@ void snr_uncore_mmio_init(void)
 
 /* ICX uncore support */
 
-static unsigned icx_cha_msr_offsets[] = {
+static u64 icx_cha_msr_offsets[] = {
 	0x2a0, 0x2ae, 0x2bc, 0x2ca, 0x2d8, 0x2e6, 0x2f4, 0x302, 0x310,
 	0x31e, 0x32c, 0x33a, 0x348, 0x356, 0x364, 0x372, 0x380, 0x38e,
 	0x3aa, 0x3b8, 0x3c6, 0x3d4, 0x3e2, 0x3f0, 0x3fe, 0x40c, 0x41a,
@@ -5326,7 +5326,7 @@ static struct intel_uncore_type icx_uncore_chabox = {
 	.format_group		= &snr_uncore_chabox_format_group,
 };
 
-static unsigned icx_msr_offsets[] = {
+static u64 icx_msr_offsets[] = {
 	0x0, 0x20, 0x40, 0x90, 0xb0, 0xd0,
 };
 
@@ -6184,7 +6184,7 @@ static struct intel_uncore_type *spr_uncores[UNCORE_SPR_NUM_UNCORE_TYPES] = {
  */
 #define SPR_UNCORE_UPI_NUM_BOXES	4
 
-static unsigned int spr_upi_pci_offsets[SPR_UNCORE_UPI_NUM_BOXES] = {
+static u64 spr_upi_pci_offsets[SPR_UNCORE_UPI_NUM_BOXES] = {
 	0, 0x8000, 0x10000, 0x18000
 };
 
