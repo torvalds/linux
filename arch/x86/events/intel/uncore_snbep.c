@@ -6079,13 +6079,16 @@ static struct uncore_event_desc spr_uncore_imc_events[] = {
 	{ /* end: all zeroes */ },
 };
 
+#define SPR_UNCORE_MMIO_COMMON_FORMAT()				\
+	SPR_UNCORE_COMMON_FORMAT(),				\
+	.ops			= &spr_uncore_mmio_ops
+
 static struct intel_uncore_type spr_uncore_imc = {
-	SPR_UNCORE_COMMON_FORMAT(),
+	SPR_UNCORE_MMIO_COMMON_FORMAT(),
 	.name			= "imc",
 	.fixed_ctr_bits		= 48,
 	.fixed_ctr		= SNR_IMC_MMIO_PMON_FIXED_CTR,
 	.fixed_ctl		= SNR_IMC_MMIO_PMON_FIXED_CTL,
-	.ops			= &spr_uncore_mmio_ops,
 	.event_descs		= spr_uncore_imc_events,
 };
 
@@ -6412,7 +6415,8 @@ static void uncore_type_customized_copy(struct intel_uncore_type *to_type,
 
 static struct intel_uncore_type **
 uncore_get_uncores(enum uncore_access_type type_id, int num_extra,
-		    struct intel_uncore_type **extra)
+		   struct intel_uncore_type **extra, int max_num_types,
+		   struct intel_uncore_type **uncores)
 {
 	struct intel_uncore_type **types, **start_types;
 	int i;
@@ -6421,9 +6425,9 @@ uncore_get_uncores(enum uncore_access_type type_id, int num_extra,
 
 	/* Only copy the customized features */
 	for (; *types; types++) {
-		if ((*types)->type_id >= UNCORE_SPR_NUM_UNCORE_TYPES)
+		if ((*types)->type_id >= max_num_types)
 			continue;
-		uncore_type_customized_copy(*types, spr_uncores[(*types)->type_id]);
+		uncore_type_customized_copy(*types, uncores[(*types)->type_id]);
 	}
 
 	for (i = 0; i < num_extra; i++, types++)
@@ -6470,7 +6474,9 @@ void spr_uncore_cpu_init(void)
 
 	uncore_msr_uncores = uncore_get_uncores(UNCORE_ACCESS_MSR,
 						UNCORE_SPR_MSR_EXTRA_UNCORES,
-						spr_msr_uncores);
+						spr_msr_uncores,
+						UNCORE_SPR_NUM_UNCORE_TYPES,
+						spr_uncores);
 
 	type = uncore_find_type_by_id(uncore_msr_uncores, UNCORE_SPR_CHA);
 	if (type) {
@@ -6552,7 +6558,9 @@ int spr_uncore_pci_init(void)
 	spr_update_device_location(UNCORE_SPR_M3UPI);
 	uncore_pci_uncores = uncore_get_uncores(UNCORE_ACCESS_PCI,
 						UNCORE_SPR_PCI_EXTRA_UNCORES,
-						spr_pci_uncores);
+						spr_pci_uncores,
+						UNCORE_SPR_NUM_UNCORE_TYPES,
+						spr_uncores);
 	return 0;
 }
 
@@ -6560,12 +6568,16 @@ void spr_uncore_mmio_init(void)
 {
 	int ret = snbep_pci2phy_map_init(0x3250, SKX_CPUNODEID, SKX_GIDNIDMAP, true);
 
-	if (ret)
-		uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO, 0, NULL);
-	else {
+	if (ret) {
+		uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO, 0, NULL,
+							 UNCORE_SPR_NUM_UNCORE_TYPES,
+							 spr_uncores);
+	} else {
 		uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO,
 							 UNCORE_SPR_MMIO_EXTRA_UNCORES,
-							 spr_mmio_uncores);
+							 spr_mmio_uncores,
+							 UNCORE_SPR_NUM_UNCORE_TYPES,
+							 spr_uncores);
 
 		spr_uncore_imc_free_running.num_boxes = uncore_type_max_boxes(uncore_mmio_uncores, UNCORE_SPR_IMC) / 2;
 	}
