@@ -500,6 +500,7 @@ struct cs43130_dai {
 };
 
 struct	cs43130_private {
+	struct device			*dev;
 	struct snd_soc_component	*component;
 	struct regmap			*regmap;
 	struct regulator_bulk_data	supplies[CS43130_NUM_SUPPLIES];
