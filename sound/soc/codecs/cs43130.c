@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -2362,14 +2362,12 @@ static const u16 cs43130_dc_threshold[CS43130_DC_THRESHOLD] = {
 	120,
 };
 
-static int cs43130_handle_device_data(struct i2c_client *i2c_client,
-				      struct cs43130_private *cs43130)
+static int cs43130_handle_device_data(struct cs43130_private *cs43130)
 {
-	struct device_node *np = i2c_client->dev.of_node;
 	unsigned int val;
 	int i;
 
-	if (of_property_read_u32(np, "cirrus,xtal-ibias", &val) < 0) {
+	if (device_property_read_u32(cs43130->dev, "cirrus,xtal-ibias", &val) < 0) {
 		/* Crystal is unused. System clock is used for external MCLK */
 		cs43130->xtal_ibias = CS43130_XTAL_UNUSED;
 		return 0;
@@ -2391,18 +2389,18 @@ static int cs43130_handle_device_data(struct i2c_client *i2c_client,
 		return -EINVAL;
 	}
 
-	cs43130->dc_meas = of_property_read_bool(np, "cirrus,dc-measure");
-	cs43130->ac_meas = of_property_read_bool(np, "cirrus,ac-measure");
+	cs43130->dc_meas = device_property_read_bool(cs43130->dev, "cirrus,dc-measure");
+	cs43130->ac_meas = device_property_read_bool(cs43130->dev, "cirrus,ac-measure");
 
-	if (of_property_read_u16_array(np, "cirrus,ac-freq", cs43130->ac_freq,
-					CS43130_AC_FREQ) < 0) {
+	if (!device_property_read_u16_array(cs43130->dev, "cirrus,ac-freq", cs43130->ac_freq,
+					CS43130_AC_FREQ)) {
 		for (i = 0; i < CS43130_AC_FREQ; i++)
 			cs43130->ac_freq[i] = cs43130_ac_freq[i];
 	}
 
-	if (of_property_read_u16_array(np, "cirrus,dc-threshold",
+	if (!device_property_read_u16_array(cs43130->dev, "cirrus,dc-threshold",
 				       cs43130->dc_threshold,
-				       CS43130_DC_THRESHOLD) < 0) {
+				       CS43130_DC_THRESHOLD)) {
 		for (i = 0; i < CS43130_DC_THRESHOLD; i++)
 			cs43130->dc_threshold[i] = cs43130_dc_threshold[i];
 	}
@@ -2431,11 +2429,12 @@ static int cs43130_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (cs43130->dev->of_node) {
-		ret = cs43130_handle_device_data(client, cs43130);
+	if (dev_fwnode(cs43130->dev)) {
+		ret = cs43130_handle_device_data(cs43130);
 		if (ret != 0)
 			return ret;
 	}
+
 	for (i = 0; i < ARRAY_SIZE(cs43130->supplies); i++)
 		cs43130->supplies[i].supply = cs43130_supply_names[i];
 
@@ -2666,6 +2665,7 @@ static const struct dev_pm_ops cs43130_runtime_pm = {
 			   NULL)
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id cs43130_of_match[] = {
 	{.compatible = "cirrus,cs43130",},
 	{.compatible = "cirrus,cs4399",},
@@ -2675,6 +2675,17 @@ static const struct of_device_id cs43130_of_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, cs43130_of_match);
+#endif
+
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id cs43130_acpi_match[] = {
+	{ "CSC4399", 0 },
+	{}
+};
+
+MODULE_DEVICE_TABLE(acpi, cs43130_acpi_match);
+#endif
+
 
 static const struct i2c_device_id cs43130_i2c_id[] = {
 	{"cs43130", 0},
@@ -2688,9 +2699,10 @@ MODULE_DEVICE_TABLE(i2c, cs43130_i2c_id);
 
 static struct i2c_driver cs43130_i2c_driver = {
 	.driver = {
-		.name		= "cs43130",
-		.of_match_table	= cs43130_of_match,
-		.pm             = &cs43130_runtime_pm,
+		.name			= "cs43130",
+		.of_match_table		= of_match_ptr(cs43130_of_match),
+		.acpi_match_table	= ACPI_PTR(cs43130_acpi_match),
+		.pm			= &cs43130_runtime_pm,
 	},
 	.id_table	= cs43130_i2c_id,
 	.probe		= cs43130_i2c_probe,
