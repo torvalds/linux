@@ -1253,19 +1253,19 @@ static int bch2_gc_done(struct bch_fs *c,
 			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
 
 		copy_fs_field(fs_usage_hidden_wrong,
-			      hidden,		"hidden");
+			      b.hidden,		"hidden");
 		copy_fs_field(fs_usage_btree_wrong,
-			      btree,		"btree");
+			      b.btree,		"btree");
 
 		if (!metadata_only) {
 			copy_fs_field(fs_usage_data_wrong,
-				      data,	"data");
+				      b.data,	"data");
 			copy_fs_field(fs_usage_cached_wrong,
-				      cached,	"cached");
+				      b.cached,	"cached");
 			copy_fs_field(fs_usage_reserved_wrong,
-				      reserved,	"reserved");
+				      b.reserved,	"reserved");
 			copy_fs_field(fs_usage_nr_inodes_wrong,
-				      nr_inodes,"nr_inodes");
+				      b.nr_inodes,"nr_inodes");
 
 			for (i = 0; i < BCH_REPLICAS_MAX; i++)
 				copy_fs_field(fs_usage_persistent_reserved_wrong,

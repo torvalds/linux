@@ -430,6 +430,9 @@ struct btree_trans {
 	struct journal_res	journal_res;
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
+
+	struct bch_fs_usage_base fs_usage_delta;
+
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
 	struct replicas_delta_list *fs_usage_deltas;

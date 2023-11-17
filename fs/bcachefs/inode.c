@@ -597,7 +597,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		struct bch_fs *c = trans->c;
 
 		percpu_down_read(&c->mark_lock);
-		this_cpu_add(c->usage_gc->nr_inodes, nr);
+		this_cpu_add(c->usage_gc->b.nr_inodes, nr);
 		percpu_up_read(&c->mark_lock);
 	}
 
