@@ -367,6 +367,77 @@ static void am65_cpsw_init_host_port_emac(struct am65_cpsw_common *common);
 static void am65_cpsw_init_port_switch_ale(struct am65_cpsw_port *port);
 static void am65_cpsw_init_port_emac_ale(struct am65_cpsw_port *port);
 
+static void am65_cpsw_nuss_rx_cleanup(void *data, dma_addr_t desc_dma)
+{
+	struct am65_cpsw_rx_chn *rx_chn = data;
+	struct cppi5_host_desc_t *desc_rx;
+	struct sk_buff *skb;
+	dma_addr_t buf_dma;
+	u32 buf_dma_len;
+	void **swdata;
+
+	desc_rx = k3_cppi_desc_pool_dma2virt(rx_chn->desc_pool, desc_dma);
+	swdata = cppi5_hdesc_get_swdata(desc_rx);
+	skb = *swdata;
+	cppi5_hdesc_get_obuf(desc_rx, &buf_dma, &buf_dma_len);
+	k3_udma_glue_rx_cppi5_to_dma_addr(rx_chn->rx_chn, &buf_dma);
+
+	dma_unmap_single(rx_chn->dma_dev, buf_dma, buf_dma_len, DMA_FROM_DEVICE);
+	k3_cppi_desc_pool_free(rx_chn->desc_pool, desc_rx);
+
+	dev_kfree_skb_any(skb);
+}
+
+static void am65_cpsw_nuss_xmit_free(struct am65_cpsw_tx_chn *tx_chn,
+				     struct cppi5_host_desc_t *desc)
+{
+	struct cppi5_host_desc_t *first_desc, *next_desc;
+	dma_addr_t buf_dma, next_desc_dma;
+	u32 buf_dma_len;
+
+	first_desc = desc;
+	next_desc = first_desc;
+
+	cppi5_hdesc_get_obuf(first_desc, &buf_dma, &buf_dma_len);
+	k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &buf_dma);
+
+	dma_unmap_single(tx_chn->dma_dev, buf_dma, buf_dma_len, DMA_TO_DEVICE);
+
+	next_desc_dma = cppi5_hdesc_get_next_hbdesc(first_desc);
+	k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &next_desc_dma);
+	while (next_desc_dma) {
+		next_desc = k3_cppi_desc_pool_dma2virt(tx_chn->desc_pool,
+						       next_desc_dma);
+		cppi5_hdesc_get_obuf(next_desc, &buf_dma, &buf_dma_len);
+		k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &buf_dma);
+
+		dma_unmap_page(tx_chn->dma_dev, buf_dma, buf_dma_len,
+			       DMA_TO_DEVICE);
+
+		next_desc_dma = cppi5_hdesc_get_next_hbdesc(next_desc);
+		k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &next_desc_dma);
+
+		k3_cppi_desc_pool_free(tx_chn->desc_pool, next_desc);
+	}
+
+	k3_cppi_desc_pool_free(tx_chn->desc_pool, first_desc);
+}
+
+static void am65_cpsw_nuss_tx_cleanup(void *data, dma_addr_t desc_dma)
+{
+	struct am65_cpsw_tx_chn *tx_chn = data;
+	struct cppi5_host_desc_t *desc_tx;
+	struct sk_buff *skb;
+	void **swdata;
+
+	desc_tx = k3_cppi_desc_pool_dma2virt(tx_chn->desc_pool, desc_dma);
+	swdata = cppi5_hdesc_get_swdata(desc_tx);
+	skb = *(swdata);
+	am65_cpsw_nuss_xmit_free(tx_chn, desc_tx);
+
+	dev_kfree_skb_any(skb);
+}
+
 static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 {
 	struct am65_cpsw_host *host_p = am65_common_get_host(common);
@@ -469,9 +540,6 @@ static int am65_cpsw_nuss_common_open(struct am65_cpsw_common *common)
 	dev_dbg(common->dev, "cpsw_nuss started\n");
 	return 0;
 }
-
-static void am65_cpsw_nuss_tx_cleanup(void *data, dma_addr_t desc_dma);
-static void am65_cpsw_nuss_rx_cleanup(void *data, dma_addr_t desc_dma);
 
 static int am65_cpsw_nuss_common_stop(struct am65_cpsw_common *common)
 {
@@ -646,27 +714,6 @@ runtime_put:
 	return ret;
 }
 
-static void am65_cpsw_nuss_rx_cleanup(void *data, dma_addr_t desc_dma)
-{
-	struct am65_cpsw_rx_chn *rx_chn = data;
-	struct cppi5_host_desc_t *desc_rx;
-	struct sk_buff *skb;
-	dma_addr_t buf_dma;
-	u32 buf_dma_len;
-	void **swdata;
-
-	desc_rx = k3_cppi_desc_pool_dma2virt(rx_chn->desc_pool, desc_dma);
-	swdata = cppi5_hdesc_get_swdata(desc_rx);
-	skb = *swdata;
-	cppi5_hdesc_get_obuf(desc_rx, &buf_dma, &buf_dma_len);
-	k3_udma_glue_rx_cppi5_to_dma_addr(rx_chn->rx_chn, &buf_dma);
-
-	dma_unmap_single(rx_chn->dma_dev, buf_dma, buf_dma_len, DMA_FROM_DEVICE);
-	k3_cppi_desc_pool_free(rx_chn->desc_pool, desc_rx);
-
-	dev_kfree_skb_any(skb);
-}
-
 static void am65_cpsw_nuss_rx_ts(struct sk_buff *skb, u32 *psdata)
 {
 	struct skb_shared_hwtstamps *ssh;
@@ -838,56 +885,6 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 	}
 
 	return num_rx;
-}
-
-static void am65_cpsw_nuss_xmit_free(struct am65_cpsw_tx_chn *tx_chn,
-				     struct cppi5_host_desc_t *desc)
-{
-	struct cppi5_host_desc_t *first_desc, *next_desc;
-	dma_addr_t buf_dma, next_desc_dma;
-	u32 buf_dma_len;
-
-	first_desc = desc;
-	next_desc = first_desc;
-
-	cppi5_hdesc_get_obuf(first_desc, &buf_dma, &buf_dma_len);
-	k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &buf_dma);
-
-	dma_unmap_single(tx_chn->dma_dev, buf_dma, buf_dma_len, DMA_TO_DEVICE);
-
-	next_desc_dma = cppi5_hdesc_get_next_hbdesc(first_desc);
-	k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &next_desc_dma);
-	while (next_desc_dma) {
-		next_desc = k3_cppi_desc_pool_dma2virt(tx_chn->desc_pool,
-						       next_desc_dma);
-		cppi5_hdesc_get_obuf(next_desc, &buf_dma, &buf_dma_len);
-		k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &buf_dma);
-
-		dma_unmap_page(tx_chn->dma_dev, buf_dma, buf_dma_len,
-			       DMA_TO_DEVICE);
-
-		next_desc_dma = cppi5_hdesc_get_next_hbdesc(next_desc);
-		k3_udma_glue_tx_cppi5_to_dma_addr(tx_chn->tx_chn, &next_desc_dma);
-
-		k3_cppi_desc_pool_free(tx_chn->desc_pool, next_desc);
-	}
-
-	k3_cppi_desc_pool_free(tx_chn->desc_pool, first_desc);
-}
-
-static void am65_cpsw_nuss_tx_cleanup(void *data, dma_addr_t desc_dma)
-{
-	struct am65_cpsw_tx_chn *tx_chn = data;
-	struct cppi5_host_desc_t *desc_tx;
-	struct sk_buff *skb;
-	void **swdata;
-
-	desc_tx = k3_cppi_desc_pool_dma2virt(tx_chn->desc_pool, desc_dma);
-	swdata = cppi5_hdesc_get_swdata(desc_tx);
-	skb = *(swdata);
-	am65_cpsw_nuss_xmit_free(tx_chn, desc_tx);
-
-	dev_kfree_skb_any(skb);
 }
 
 static struct sk_buff *
