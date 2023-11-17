@@ -43,7 +43,6 @@ struct kd35t133 {
 	struct regulator *vdd;
 	struct regulator *iovcc;
 	enum drm_panel_orientation orientation;
-	bool prepared;
 };
 
 static inline struct kd35t133 *panel_to_kd35t133(struct drm_panel *panel)
@@ -91,9 +90,6 @@ static int kd35t133_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret < 0)
 		dev_err(ctx->dev, "failed to set display off: %d\n", ret);
@@ -109,8 +105,6 @@ static int kd35t133_unprepare(struct drm_panel *panel)
 	regulator_disable(ctx->iovcc);
 	regulator_disable(ctx->vdd);
 
-	ctx->prepared = false;
-
 	return 0;
 }
 
@@ -119,9 +113,6 @@ static int kd35t133_prepare(struct drm_panel *panel)
 	struct kd35t133 *ctx = panel_to_kd35t133(panel);
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	dev_dbg(ctx->dev, "Resetting the panel\n");
 	ret = regulator_enable(ctx->vdd);
@@ -165,8 +156,6 @@ static int kd35t133_prepare(struct drm_panel *panel)
 	}
 
 	msleep(50);
-
-	ctx->prepared = true;
 
 	return 0;
 
