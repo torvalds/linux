@@ -887,15 +887,6 @@ Description:
 
 		RW
 
-What:		/sys/class/hwmon/hwmonX/humidityY_input
-Description:
-		Humidity
-
-		Unit: milli-percent (per cent mille, pcm)
-
-		RO
-
-
 What:		/sys/class/hwmon/hwmonX/humidityY_enable
 Description:
 		Enable or disable the sensors
@@ -907,6 +898,14 @@ Description:
 		- 0: Disable
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_input
+Description:
+		Humidity
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RO
 
 What:		/sys/class/hwmon/hwmonX/humidityY_rated_min
 Description:
