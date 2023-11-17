@@ -26,6 +26,155 @@ static const struct rtw89_efuse_block_cfg rtw8922a_efuse_blocks[] = {
 	[RTW89_EFUSE_BLOCK_ADIE]		= {.offset = 0x70000, .size = 0x10},
 };
 
+static void rtw8922a_efuse_parsing_tssi(struct rtw89_dev *rtwdev,
+					struct rtw8922a_efuse *map)
+{
+	struct rtw8922a_tssi_offset *ofst[] = {&map->path_a_tssi, &map->path_b_tssi};
+	u8 *bw40_1s_tssi_6g_ofst[] = {map->bw40_1s_tssi_6g_a, map->bw40_1s_tssi_6g_b};
+	struct rtw89_tssi_info *tssi = &rtwdev->tssi;
+	u8 i, j;
+
+	tssi->thermal[RF_PATH_A] = map->path_a_therm;
+	tssi->thermal[RF_PATH_B] = map->path_b_therm;
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		memcpy(tssi->tssi_cck[i], ofst[i]->cck_tssi,
+		       sizeof(ofst[i]->cck_tssi));
+
+		for (j = 0; j < TSSI_CCK_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d cck[%d]=0x%x\n",
+				    i, j, tssi->tssi_cck[i][j]);
+
+		memcpy(tssi->tssi_mcs[i], ofst[i]->bw40_tssi,
+		       sizeof(ofst[i]->bw40_tssi));
+		memcpy(tssi->tssi_mcs[i] + TSSI_MCS_2G_CH_GROUP_NUM,
+		       ofst[i]->bw40_1s_tssi_5g, sizeof(ofst[i]->bw40_1s_tssi_5g));
+		memcpy(tssi->tssi_6g_mcs[i], bw40_1s_tssi_6g_ofst[i],
+		       sizeof(tssi->tssi_6g_mcs[i]));
+
+		for (j = 0; j < TSSI_MCS_CH_GROUP_NUM; j++)
+			rtw89_debug(rtwdev, RTW89_DBG_TSSI,
+				    "[TSSI][EFUSE] path=%d mcs[%d]=0x%x\n",
+				    i, j, tssi->tssi_mcs[i][j]);
+	}
+}
+
+static void rtw8922a_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
+					       struct rtw8922a_efuse *map)
+{
+	struct rtw89_phy_efuse_gain *gain = &rtwdev->efuse_gain;
+	bool all_0xff = true, all_0x00 = true;
+	int i, j;
+	u8 t;
+
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_2G_CCK] = map->rx_gain_a._2g_cck;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_2G_CCK] = map->rx_gain_b._2g_cck;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_2G_OFDM] = map->rx_gain_a._2g_ofdm;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_2G_OFDM] = map->rx_gain_b._2g_ofdm;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_LOW] = map->rx_gain_a._5g_low;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_5G_LOW] = map->rx_gain_b._5g_low;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_MID] = map->rx_gain_a._5g_mid;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_5G_MID] = map->rx_gain_b._5g_mid;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_HIGH] = map->rx_gain_a._5g_high;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_5G_HIGH] = map->rx_gain_b._5g_high;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L0] = map->rx_gain_6g_a._6g_l0;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L0] = map->rx_gain_6g_b._6g_l0;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L1] = map->rx_gain_6g_a._6g_l1;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L1] = map->rx_gain_6g_b._6g_l1;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M0] = map->rx_gain_6g_a._6g_m0;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M0] = map->rx_gain_6g_b._6g_m0;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M1] = map->rx_gain_6g_a._6g_m1;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M1] = map->rx_gain_6g_b._6g_m1;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H0] = map->rx_gain_6g_a._6g_h0;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H0] = map->rx_gain_6g_b._6g_h0;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H1] = map->rx_gain_6g_a._6g_h1;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H1] = map->rx_gain_6g_b._6g_h1;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH0] = map->rx_gain_6g_a._6g_uh0;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH0] = map->rx_gain_6g_b._6g_uh0;
+	gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH1] = map->rx_gain_6g_a._6g_uh1;
+	gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH1] = map->rx_gain_6g_b._6g_uh1;
+
+	for (i = RF_PATH_A; i <= RF_PATH_B; i++)
+		for (j = 0; j < RTW89_GAIN_OFFSET_NR; j++) {
+			t = gain->offset[i][j];
+			if (t != 0xff)
+				all_0xff = false;
+			if (t != 0x0)
+				all_0x00 = false;
+
+			/* transform: sign-bit + U(7,2) to S(8,2) */
+			if (t & 0x80)
+				gain->offset[i][j] = (t ^ 0x7f) + 1;
+		}
+
+	gain->offset_valid = !all_0xff && !all_0x00;
+}
+
+static void rtw8922a_read_efuse_mac_addr(struct rtw89_dev *rtwdev, u32 addr)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	u16 val;
+	int i;
+
+	for (i = 0; i < ETH_ALEN; i += 2, addr += 2) {
+		val = rtw89_read16(rtwdev, addr);
+		efuse->addr[i] = val & 0xff;
+		efuse->addr[i + 1] = val >> 8;
+	}
+}
+
+static int rtw8922a_read_efuse_pci_sdio(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	if (rtwdev->hci.type == RTW89_HCI_TYPE_PCIE)
+		rtw8922a_read_efuse_mac_addr(rtwdev, 0x3104);
+	else
+		ether_addr_copy(efuse->addr, log_map + 0x001A);
+
+	return 0;
+}
+
+static int rtw8922a_read_efuse_usb(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	rtw8922a_read_efuse_mac_addr(rtwdev, 0x4078);
+
+	return 0;
+}
+
+static int rtw8922a_read_efuse_rf(struct rtw89_dev *rtwdev, u8 *log_map)
+{
+	struct rtw8922a_efuse *map = (struct rtw8922a_efuse *)log_map;
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	efuse->rfe_type = map->rfe_type;
+	efuse->xtal_cap = map->xtal_k;
+	efuse->country_code[0] = map->country_code[0];
+	efuse->country_code[1] = map->country_code[1];
+	rtw8922a_efuse_parsing_tssi(rtwdev, map);
+	rtw8922a_efuse_parsing_gain_offset(rtwdev, map);
+
+	rtw89_info(rtwdev, "chip rfe_type is %d\n", efuse->rfe_type);
+
+	return 0;
+}
+
+static int rtw8922a_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
+{
+	switch (block) {
+	case RTW89_EFUSE_BLOCK_HCI_DIG_PCIE_SDIO:
+		return rtw8922a_read_efuse_pci_sdio(rtwdev, log_map);
+	case RTW89_EFUSE_BLOCK_HCI_DIG_USB:
+		return rtw8922a_read_efuse_usb(rtwdev, log_map);
+	case RTW89_EFUSE_BLOCK_RF:
+		return rtw8922a_read_efuse_rf(rtwdev, log_map);
+	default:
+		return 0;
+	}
+}
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
@@ -36,6 +185,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 #endif
 
 static const struct rtw89_chip_ops rtw8922a_chip_ops = {
+	.read_efuse		= rtw8922a_read_efuse,
 };
 
 const struct rtw89_chip_info rtw8922a_chip_info = {
