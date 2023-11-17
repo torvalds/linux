@@ -91,4 +91,30 @@ struct hash_zone * __must_check vdo_select_hash_zone(struct hash_zones *zones,
 
 void vdo_dump_hash_zones(struct hash_zones *zones);
 
+const char *vdo_get_dedupe_index_state_name(struct hash_zones *zones);
+
+u64 vdo_get_dedupe_index_timeout_count(struct hash_zones *zones);
+
+int vdo_message_dedupe_index(struct hash_zones *zones, const char *name);
+
+int vdo_add_dedupe_index_sysfs(struct hash_zones *zones);
+
+void vdo_start_dedupe_index(struct hash_zones *zones, bool create_flag);
+
+void vdo_resume_hash_zones(struct hash_zones *zones, struct vdo_completion *parent);
+
+void vdo_finish_dedupe_index(struct hash_zones *zones);
+
+/* Interval (in milliseconds) from submission until switching to fast path and skipping UDS. */
+extern unsigned int vdo_dedupe_index_timeout_interval;
+
+/*
+ * Minimum time interval (in milliseconds) between timer invocations to check for requests waiting
+ * for UDS that should now time out.
+ */
+extern unsigned int vdo_dedupe_index_min_timer_interval;
+
+void vdo_set_dedupe_index_timeout_interval(unsigned int value);
+void vdo_set_dedupe_index_min_timer_interval(unsigned int value);
+
 #endif /* VDO_DEDUPE_H */
