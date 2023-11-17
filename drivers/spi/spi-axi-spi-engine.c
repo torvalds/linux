@@ -216,13 +216,16 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 	struct spi_device *spi = msg->spi;
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div;
-	bool cs_change = true;
+	bool keep_cs = false;
 
 	clk_div = -1;
 
 	spi_engine_program_add_cmd(p, dry,
 		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
 			spi_engine_get_config(spi)));
+
+	xfer = list_first_entry(&msg->transfers, struct spi_transfer, transfer_list);
+	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		new_clk_div = spi_engine_get_clk_div(spi_engine, spi, xfer);
@@ -233,19 +236,27 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 					clk_div));
 		}
 
-		if (cs_change)
-			spi_engine_gen_cs(p, dry, spi, true);
-
 		spi_engine_gen_xfer(p, dry, xfer);
 		spi_engine_gen_sleep(p, dry, spi_engine, clk_div, xfer);
 
-		cs_change = xfer->cs_change;
-		if (list_is_last(&xfer->transfer_list, &msg->transfers))
-			cs_change = !cs_change;
+		if (xfer->cs_change) {
+			if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
+				keep_cs = true;
+			} else {
+				if (!xfer->cs_off)
+					spi_engine_gen_cs(p, dry, spi, false);
 
-		if (cs_change)
-			spi_engine_gen_cs(p, dry, spi, false);
+				if (!list_next_entry(xfer, transfer_list)->cs_off)
+					spi_engine_gen_cs(p, dry, spi, true);
+			}
+		} else if (!list_is_last(&xfer->transfer_list, &msg->transfers) &&
+			   xfer->cs_off != list_next_entry(xfer, transfer_list)->cs_off) {
+			spi_engine_gen_cs(p, dry, spi, xfer->cs_off);
+		}
 	}
+
+	if (!keep_cs)
+		spi_engine_gen_cs(p, dry, spi, false);
 
 	return 0;
 }
