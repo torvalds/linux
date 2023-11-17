@@ -4725,7 +4725,7 @@ again:
 	/*
 	 * We unlock the page after the io is completed and then re-lock it
 	 * above.  release_folio() could have come in between that and cleared
-	 * PagePrivate(), but left the page in the mapping.  Set the page mapped
+	 * folio private, but left the page in the mapping.  Set the page mapped
 	 * here to make sure it's properly set for the subpage stuff.
 	 */
 	ret = set_page_extent_mapped(page);
@@ -7851,13 +7851,14 @@ static void btrfs_readahead(struct readahead_control *rac)
 static void wait_subpage_spinlock(struct page *page)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
+	struct folio *folio = page_folio(page);
 	struct btrfs_subpage *subpage;
 
 	if (!btrfs_is_subpage(fs_info, page))
 		return;
 
-	ASSERT(PagePrivate(page) && page->private);
-	subpage = (struct btrfs_subpage *)page->private;
+	ASSERT(folio_test_private(folio) && folio_get_private(folio));
+	subpage = folio_get_private(folio);
 
 	/*
 	 * This may look insane as we just acquire the spinlock and release it,
