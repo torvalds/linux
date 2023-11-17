@@ -17,44 +17,6 @@ except ImportError:
     netlink = False
     print("!!! Consider installing pyroute2 !!!")
 
-def prepare_suite(obj, test):
-    original = obj.args.NAMES
-
-    if 'skip' in test and test['skip'] == 'yes':
-        return
-
-    if 'nsPlugin' not in test['plugins']:
-        return
-
-    shadow = {}
-    shadow['IP'] = original['IP']
-    shadow['TC'] = original['TC']
-    shadow['NS'] = '{}-{}'.format(original['NS'], test['random'])
-    shadow['DEV0'] = '{}id{}'.format(original['DEV0'], test['id'])
-    shadow['DEV1'] = '{}id{}'.format(original['DEV1'], test['id'])
-    shadow['DUMMY'] = '{}id{}'.format(original['DUMMY'], test['id'])
-    shadow['DEV2'] = original['DEV2']
-    obj.args.NAMES = shadow
-
-    if netlink == True:
-        obj._nl_ns_create()
-    else:
-        obj._ns_create()
-
-    # Make sure the netns is visible in the fs
-    while True:
-        obj._proc_check()
-        try:
-            ns = obj.args.NAMES['NS']
-            f = open('/run/netns/{}'.format(ns))
-            f.close()
-            break
-        except:
-            time.sleep(0.1)
-            continue
-
-    obj.args.NAMES = original
-
 class SubPlugin(TdcPlugin):
     def __init__(self):
         self.sub_class = 'ns/SubPlugin'
@@ -65,18 +27,38 @@ class SubPlugin(TdcPlugin):
 
         super().pre_suite(testcount, testlist)
 
-        print("Setting up namespaces and devices...")
+    def prepare_test(self, test):
+        if 'skip' in test and test['skip'] == 'yes':
+            return
 
-        with Pool(self.args.mp) as p:
-            it = zip(cycle([self]), testlist)
-            p.starmap(prepare_suite, it)
+        if 'nsPlugin' not in test['plugins']:
+            return
 
-    def pre_case(self, caseinfo, test_skip):
+        if netlink == True:
+            self._nl_ns_create()
+        else:
+            self._ns_create()
+
+        # Make sure the netns is visible in the fs
+        while True:
+            self._proc_check()
+            try:
+                ns = self.args.NAMES['NS']
+                f = open('/run/netns/{}'.format(ns))
+                f.close()
+                break
+            except:
+                time.sleep(0.1)
+                continue
+
+    def pre_case(self, test, test_skip):
         if self.args.verbose:
             print('{}.pre_case'.format(self.sub_class))
 
         if test_skip:
             return
+
+        self.prepare_test(test)
 
     def post_case(self):
         if self.args.verbose:
