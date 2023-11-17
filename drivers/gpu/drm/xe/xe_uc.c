@@ -74,11 +74,17 @@ err:
  */
 int xe_uc_init_post_hwconfig(struct xe_uc *uc)
 {
+	int err;
+
 	/* GuC submission not enabled, nothing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
-	return xe_guc_init_post_hwconfig(&uc->guc);
+	err = xe_guc_init_post_hwconfig(&uc->guc);
+	if (err)
+		return err;
+
+	return xe_gsc_init_post_hwconfig(&uc->gsc);
 }
 
 static int uc_reset(struct xe_uc *uc)
@@ -173,6 +179,9 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	ret = xe_huc_auth(&uc->huc);
 	xe_gt_assert(uc_to_gt(uc), !ret);
 
+	/* GSC load is async */
+	xe_gsc_load_start(&uc->gsc);
+
 	return 0;
 }
 
@@ -197,6 +206,7 @@ void xe_uc_gucrc_disable(struct xe_uc *uc)
 
 void xe_uc_stop_prepare(struct xe_uc *uc)
 {
+	xe_gsc_wait_for_worker_completion(&uc->gsc);
 	xe_guc_stop_prepare(&uc->guc);
 }
 
