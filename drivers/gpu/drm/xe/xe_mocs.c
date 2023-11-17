@@ -69,7 +69,7 @@ struct xe_mocs_info {
 #define L4_CACHE_POLICY_MASK		REG_GENMASK(3, 2)
 
 /* Helper defines */
-#define GEN9_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
+#define XELP_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 #define PVC_NUM_MOCS_ENTRIES	3
 #define MTL_NUM_MOCS_ENTRIES    16
 #define XE2_NUM_MOCS_ENTRIES	16
@@ -419,14 +419,14 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 			info->table = dg2_mocs_desc;
 		}
 		info->uc_index = 1;
-		info->n_entries = GEN9_NUM_MOCS_ENTRIES;
+		info->n_entries = XELP_NUM_MOCS_ENTRIES;
 		info->unused_entries_index = 3;
 		break;
 	case XE_DG1:
 		info->size = ARRAY_SIZE(dg1_mocs_desc);
 		info->table = dg1_mocs_desc;
 		info->uc_index = 1;
-		info->n_entries = GEN9_NUM_MOCS_ENTRIES;
+		info->n_entries = XELP_NUM_MOCS_ENTRIES;
 		info->unused_entries_index = 5;
 		break;
 	case XE_TIGERLAKE:
@@ -436,7 +436,7 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 	case XE_ALDERLAKE_N:
 		info->size  = ARRAY_SIZE(gen12_mocs_desc);
 		info->table = gen12_mocs_desc;
-		info->n_entries = GEN9_NUM_MOCS_ENTRIES;
+		info->n_entries = XELP_NUM_MOCS_ENTRIES;
 		info->uc_index = 3;
 		info->unused_entries_index = 2;
 		break;

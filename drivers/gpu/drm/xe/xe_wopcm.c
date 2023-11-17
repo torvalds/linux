@@ -51,9 +51,10 @@
 #define DGFX_WOPCM_SIZE			SZ_4M
 /* FIXME: Larger size require for MTL, do a proper probe sooner or later */
 #define MTL_WOPCM_SIZE			SZ_4M
-#define GEN11_WOPCM_SIZE		SZ_2M
+#define WOPCM_SIZE			SZ_2M
 
-#define GEN12_MAX_WOPCM_SIZE            SZ_8M
+#define MAX_WOPCM_SIZE			SZ_8M
+
 /* 16KB WOPCM (RSVD WOPCM) is reserved from HuC firmware top. */
 #define WOPCM_RESERVED_SIZE		SZ_16K
 
@@ -65,8 +66,8 @@
 /* GuC WOPCM Offset value needs to be aligned to 16KB. */
 #define GUC_WOPCM_OFFSET_ALIGNMENT	(1UL << GUC_WOPCM_OFFSET_SHIFT)
 
-/* 36KB WOPCM reserved at the end of WOPCM on GEN11. */
-#define GEN11_WOPCM_HW_CTX_RESERVED	(SZ_32K + SZ_4K)
+/* 36KB WOPCM reserved at the end of WOPCM */
+#define WOPCM_HW_CTX_RESERVED		(SZ_32K + SZ_4K)
 
 static inline struct xe_gt *wopcm_to_gt(struct xe_wopcm *wopcm)
 {
@@ -80,7 +81,7 @@ static inline struct xe_device *wopcm_to_xe(struct xe_wopcm *wopcm)
 
 static u32 context_reserved_size(void)
 {
-	return GEN11_WOPCM_HW_CTX_RESERVED;
+	return WOPCM_HW_CTX_RESERVED;
 }
 
 static bool __check_layout(struct xe_device *xe, u32 wopcm_size,
@@ -180,7 +181,7 @@ u32 xe_wopcm_size(struct xe_device *xe)
 {
 	return IS_DGFX(xe) ? DGFX_WOPCM_SIZE :
 		xe->info.platform == XE_METEORLAKE ? MTL_WOPCM_SIZE :
-		GEN11_WOPCM_SIZE;
+		WOPCM_SIZE;
 }
 
 /**
@@ -225,7 +226,7 @@ int xe_wopcm_init(struct xe_wopcm *wopcm)
 		 * BIOS/IFWI, check against the max allowed wopcm size to
 		 * validate if the programmed values align to the wopcm layout.
 		 */
-		wopcm->size = GEN12_MAX_WOPCM_SIZE;
+		wopcm->size = MAX_WOPCM_SIZE;
 
 		goto check;
 	}

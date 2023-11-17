@@ -28,14 +28,14 @@
 
 #define XE_EXECLIST_HANG_LIMIT 1
 
-#define GEN11_SW_CTX_ID_SHIFT 37
-#define GEN11_SW_CTX_ID_WIDTH 11
+#define SW_CTX_ID_SHIFT 37
+#define SW_CTX_ID_WIDTH 11
 #define XEHP_SW_CTX_ID_SHIFT  39
 #define XEHP_SW_CTX_ID_WIDTH  16
 
-#define GEN11_SW_CTX_ID \
-	GENMASK_ULL(GEN11_SW_CTX_ID_WIDTH + GEN11_SW_CTX_ID_SHIFT - 1, \
-		    GEN11_SW_CTX_ID_SHIFT)
+#define SW_CTX_ID \
+	GENMASK_ULL(SW_CTX_ID_WIDTH + SW_CTX_ID_SHIFT - 1, \
+		    SW_CTX_ID_SHIFT)
 
 #define XEHP_SW_CTX_ID \
 	GENMASK_ULL(XEHP_SW_CTX_ID_WIDTH + XEHP_SW_CTX_ID_SHIFT - 1, \
@@ -55,8 +55,8 @@ static void __start_lrc(struct xe_hw_engine *hwe, struct xe_lrc *lrc,
 		xe_gt_assert(hwe->gt, FIELD_FIT(XEHP_SW_CTX_ID, ctx_id));
 		lrc_desc |= FIELD_PREP(XEHP_SW_CTX_ID, ctx_id);
 	} else {
-		xe_gt_assert(hwe->gt, FIELD_FIT(GEN11_SW_CTX_ID, ctx_id));
-		lrc_desc |= FIELD_PREP(GEN11_SW_CTX_ID, ctx_id);
+		xe_gt_assert(hwe->gt, FIELD_FIT(SW_CTX_ID, ctx_id));
+		lrc_desc |= FIELD_PREP(SW_CTX_ID, ctx_id);
 	}
 
 	if (hwe->class == XE_ENGINE_CLASS_COMPUTE)
@@ -96,7 +96,7 @@ static void __xe_execlist_port_start(struct xe_execlist_port *port,
 				     struct xe_execlist_exec_queue *exl)
 {
 	struct xe_device *xe = gt_to_xe(port->hwe->gt);
-	int max_ctx = FIELD_MAX(GEN11_SW_CTX_ID);
+	int max_ctx = FIELD_MAX(SW_CTX_ID);
 
 	if (GRAPHICS_VERx100(xe) >= 1250)
 		max_ctx = FIELD_MAX(XEHP_SW_CTX_ID);

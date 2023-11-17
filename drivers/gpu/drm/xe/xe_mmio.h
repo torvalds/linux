@@ -18,7 +18,7 @@ struct drm_device;
 struct drm_file;
 struct xe_device;
 
-#define GEN12_LMEM_BAR		2
+#define LMEM_BAR		2
 
 int xe_mmio_init(struct xe_device *xe);
 

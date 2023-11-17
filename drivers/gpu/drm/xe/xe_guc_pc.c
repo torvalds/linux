@@ -23,19 +23,19 @@
 
 #define MCHBAR_MIRROR_BASE_SNB	0x140000
 
-#define GEN6_RP_STATE_CAP	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5998)
+#define RP_STATE_CAP		XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 #define   RP0_MASK		REG_GENMASK(7, 0)
 #define   RP1_MASK		REG_GENMASK(15, 8)
 #define   RPN_MASK		REG_GENMASK(23, 16)
 
-#define GEN10_FREQ_INFO_REC	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
+#define FREQ_INFO_REC	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
 
 #define GT_PERF_STATUS		XE_REG(0x1381b4)
-#define   GEN12_CAGF_MASK	REG_GENMASK(19, 11)
+#define   CAGF_MASK	REG_GENMASK(19, 11)
 
 #define GT_FREQUENCY_MULTIPLIER	50
-#define GEN9_FREQ_SCALER	3
+#define GT_FREQUENCY_SCALER	3
 
 /**
  * DOC: GuC Power Conservation (PC)
@@ -244,12 +244,12 @@ static int pc_action_setup_gucrc(struct xe_guc_pc *pc, u32 mode)
 static u32 decode_freq(u32 raw)
 {
 	return DIV_ROUND_CLOSEST(raw * GT_FREQUENCY_MULTIPLIER,
-				 GEN9_FREQ_SCALER);
+				 GT_FREQUENCY_SCALER);
 }
 
 static u32 encode_freq(u32 freq)
 {
-	return DIV_ROUND_CLOSEST(freq * GEN9_FREQ_SCALER,
+	return DIV_ROUND_CLOSEST(freq * GT_FREQUENCY_SCALER,
 				 GT_FREQUENCY_MULTIPLIER);
 }
 
@@ -362,7 +362,7 @@ static void tgl_update_rpe_value(struct xe_guc_pc *pc)
 	if (xe->info.platform == XE_PVC)
 		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, GEN10_FREQ_INFO_REC);
+		reg = xe_mmio_read32(gt, FREQ_INFO_REC);
 
 	pc->rpe_freq = REG_FIELD_GET(RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -402,7 +402,7 @@ static ssize_t freq_act_show(struct device *dev,
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
 		freq = xe_mmio_read32(gt, GT_PERF_STATUS);
-		freq = REG_FIELD_GET(GEN12_CAGF_MASK, freq);
+		freq = REG_FIELD_GET(CAGF_MASK, freq);
 	}
 
 	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
@@ -702,7 +702,7 @@ static void tgl_init_fused_rp_values(struct xe_guc_pc *pc)
 	if (xe->info.platform == XE_PVC)
 		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, GEN6_RP_STATE_CAP);
+		reg = xe_mmio_read32(gt, RP_STATE_CAP);
 	pc->rp0_freq = REG_FIELD_GET(RP0_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 	pc->rpn_freq = REG_FIELD_GET(RPN_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }

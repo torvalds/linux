@@ -74,7 +74,7 @@ static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
 	stolen_size = tile_size - mgr->stolen_base;
 
 	/* Verify usage fits in the actual resource available */
-	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, GEN12_LMEM_BAR))
+	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, LMEM_BAR))
 		mgr->io_base = tile->mem.vram.io_start + mgr->stolen_base;
 
 	/*

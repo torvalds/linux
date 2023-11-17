@@ -532,7 +532,7 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		pte |= xe_walk->default_pte;
 
 		/*
-		 * Set the GEN12_PTE_PS64 hint if possible, otherwise if
+		 * Set the XE_PTE_PS64 hint if possible, otherwise if
 		 * this device *requires* 64K PTE size for VRAM, fail.
 		 */
 		if (level == 0 && !xe_parent->is_compact) {

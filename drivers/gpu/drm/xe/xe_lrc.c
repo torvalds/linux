@@ -23,14 +23,13 @@
 #include "xe_map.h"
 #include "xe_vm.h"
 
-#define GEN8_CTX_VALID				(1 << 0)
-#define GEN8_CTX_L3LLC_COHERENT			(1 << 5)
-#define GEN8_CTX_PRIVILEGE			(1 << 8)
-#define GEN8_CTX_ADDRESSING_MODE_SHIFT		3
-#define INTEL_LEGACY_64B_CONTEXT		3
+#define CTX_VALID				(1 << 0)
+#define CTX_PRIVILEGE				(1 << 8)
+#define CTX_ADDRESSING_MODE_SHIFT		3
+#define LEGACY_64B_CONTEXT			3
 
-#define GEN11_ENGINE_CLASS_SHIFT		61
-#define GEN11_ENGINE_INSTANCE_SHIFT		48
+#define ENGINE_CLASS_SHIFT			61
+#define ENGINE_INSTANCE_SHIFT			48
 
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
@@ -765,19 +764,19 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 				     (q->usm.acc_notify << ACC_NOTIFY_S) |
 				     q->usm.acc_trigger);
 
-	lrc->desc = GEN8_CTX_VALID;
-	lrc->desc |= INTEL_LEGACY_64B_CONTEXT << GEN8_CTX_ADDRESSING_MODE_SHIFT;
+	lrc->desc = CTX_VALID;
+	lrc->desc |= LEGACY_64B_CONTEXT << CTX_ADDRESSING_MODE_SHIFT;
 	/* TODO: Priority */
 
 	/* While this appears to have something about privileged batches or
 	 * some such, it really just means PPGTT mode.
 	 */
 	if (vm)
-		lrc->desc |= GEN8_CTX_PRIVILEGE;
+		lrc->desc |= CTX_PRIVILEGE;
 
 	if (GRAPHICS_VERx100(xe) < 1250) {
-		lrc->desc |= (u64)hwe->instance << GEN11_ENGINE_INSTANCE_SHIFT;
-		lrc->desc |= (u64)hwe->class << GEN11_ENGINE_CLASS_SHIFT;
+		lrc->desc |= (u64)hwe->instance << ENGINE_INSTANCE_SHIFT;
+		lrc->desc |= (u64)hwe->class << ENGINE_CLASS_SHIFT;
 	}
 
 	arb_enable = MI_ARB_ON_OFF | MI_ARB_ENABLE;

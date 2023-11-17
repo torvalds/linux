@@ -84,8 +84,8 @@ static void xe_resize_vram_bar(struct xe_device *xe)
 	int i;
 
 	/* gather some relevant info */
-	current_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
-	bar_size_mask = pci_rebar_get_possible_sizes(pdev, GEN12_LMEM_BAR);
+	current_size = pci_resource_len(pdev, LMEM_BAR);
+	bar_size_mask = pci_rebar_get_possible_sizes(pdev, LMEM_BAR);
 
 	if (!bar_size_mask)
 		return;
@@ -137,7 +137,7 @@ static void xe_resize_vram_bar(struct xe_device *xe)
 	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd & ~PCI_COMMAND_MEMORY);
 
-	_resize_bar(xe, GEN12_LMEM_BAR, rebar_size);
+	_resize_bar(xe, LMEM_BAR, rebar_size);
 
 	pci_assign_unassigned_bus_resources(pdev->bus);
 	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
@@ -161,15 +161,15 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
-	if (!xe_pci_resource_valid(pdev, GEN12_LMEM_BAR)) {
+	if (!xe_pci_resource_valid(pdev, LMEM_BAR)) {
 		drm_err(&xe->drm, "pci resource is not valid\n");
 		return -ENXIO;
 	}
 
 	xe_resize_vram_bar(xe);
 
-	xe->mem.vram.io_start = pci_resource_start(pdev, GEN12_LMEM_BAR);
-	xe->mem.vram.io_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
+	xe->mem.vram.io_start = pci_resource_start(pdev, LMEM_BAR);
+	xe->mem.vram.io_size = pci_resource_len(pdev, LMEM_BAR);
 	if (!xe->mem.vram.io_size)
 		return -EIO;
 
@@ -216,7 +216,7 @@ static int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size,
 
 	/* actual size */
 	if (unlikely(xe->info.platform == XE_DG1)) {
-		*tile_size = pci_resource_len(to_pci_dev(xe->drm.dev), GEN12_LMEM_BAR);
+		*tile_size = pci_resource_len(to_pci_dev(xe->drm.dev), LMEM_BAR);
 		*tile_offset = 0;
 	} else {
 		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_TILE_ADDR_RANGE(gt->info.id));

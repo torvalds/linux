@@ -301,7 +301,7 @@ int xe_guc_reset(struct xe_guc *guc)
 
 	ret = xe_mmio_wait32(gt, GDRST, GRDOM_GUC, 0, 5000, &gdrst, false);
 	if (ret) {
-		drm_err(&xe->drm, "GuC reset timed out, GEN6_GDRST=0x%8x\n",
+		drm_err(&xe->drm, "GuC reset timed out, GDRST=0x%8x\n",
 			gdrst);
 		goto err_out;
 	}
