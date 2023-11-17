@@ -668,7 +668,7 @@ EXPORT_SYMBOL_GPL(of_platform_device_destroy);
  * @parent: device which children will be removed
  *
  * Complementary to of_platform_populate(), this function removes children
- * of the given device (and, recurrently, their children) that have been
+ * of the given device (and, recursively, their children) that have been
  * created from their respective device tree nodes (and only those,
  * leaving others - eg. manually created - unharmed).
  */
@@ -737,7 +737,7 @@ static int devm_of_platform_match(struct device *dev, void *res, void *data)
  * @dev: device that requested to depopulate from device tree data
  *
  * Complementary to devm_of_platform_populate(), this function removes children
- * of the given device (and, recurrently, their children) that have been
+ * of the given device (and, recursively, their children) that have been
  * created from their respective device tree nodes (and only those,
  * leaving others - eg. manually created - unharmed).
  */
