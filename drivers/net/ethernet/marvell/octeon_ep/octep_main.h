@@ -23,6 +23,11 @@
 
 #define  OCTEP_PCI_DEVICE_ID_CNF95N_PF 0xB400    //95N PF
 
+#define  OCTEP_PCI_DEVICE_ID_CN10KA_PF  0xB900   //CN10KA PF
+#define  OCTEP_PCI_DEVICE_ID_CNF10KA_PF 0xBA00   //CNF10KA PF
+#define  OCTEP_PCI_DEVICE_ID_CNF10KB_PF 0xBC00   //CNF10KB PF
+#define  OCTEP_PCI_DEVICE_ID_CN10KB_PF  0xBD00   //CN10KB PF
+
 #define  OCTEP_MAX_QUEUES   63
 #define  OCTEP_MAX_IQ       OCTEP_MAX_QUEUES
 #define  OCTEP_MAX_OQ       OCTEP_MAX_QUEUES
@@ -386,6 +391,7 @@ int octep_setup_oqs(struct octep_device *oct);
 void octep_free_oqs(struct octep_device *oct);
 void octep_oq_dbell_init(struct octep_device *oct);
 void octep_device_setup_cn93_pf(struct octep_device *oct);
+void octep_device_setup_cnxk_pf(struct octep_device *oct);
 int octep_iq_process_completions(struct octep_iq *iq, u16 budget);
 int octep_oq_process_rx(struct octep_oq *oq, int budget);
 void octep_set_ethtool_ops(struct net_device *netdev);
