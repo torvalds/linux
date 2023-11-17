@@ -142,8 +142,11 @@ u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
 			goto unmap;
 		}
 
-		desc->token |= cpu_to_le32(FIELD_PREP(MT_DMA_CTL_TOKEN,
-						      token));
+		token = FIELD_PREP(MT_DMA_CTL_TOKEN, token);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		token |= FIELD_PREP(MT_DMA_CTL_SDP0_H, addr >> 32);
+#endif
+		desc->token |= cpu_to_le32(token);
 		desc++;
 	}
 

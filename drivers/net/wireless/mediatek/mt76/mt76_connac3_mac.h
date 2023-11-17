@@ -261,6 +261,9 @@ enum tx_mgnt_type {
 
 #define MT_TXD9_WLAN_IDX		GENMASK(23, 8)
 
+#define MT_TXP_BUF_LEN			GENMASK(11, 0)
+#define MT_TXP_DMA_ADDR_H		GENMASK(15, 12)
+
 #define MT_TX_RATE_STBC			BIT(14)
 #define MT_TX_RATE_NSS			GENMASK(13, 10)
 #define MT_TX_RATE_MODE			GENMASK(9, 6)

@@ -942,8 +942,16 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	txp = (struct mt76_connac_txp_common *)(txwi + MT_TXD_SIZE);
 	for (i = 0; i < nbuf; i++) {
+		u16 len;
+
+		len = FIELD_PREP(MT_TXP_BUF_LEN, tx_info->buf[i + 1].len);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		len |= FIELD_PREP(MT_TXP_DMA_ADDR_H,
+				  tx_info->buf[i + 1].addr >> 32);
+#endif
+
 		txp->fw.buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
-		txp->fw.len[i] = cpu_to_le16(tx_info->buf[i + 1].len);
+		txp->fw.len[i] = cpu_to_le16(len);
 	}
 	txp->fw.nbuf = nbuf;
 
