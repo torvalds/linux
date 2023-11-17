@@ -253,3 +253,11 @@ config REGULATOR_COOLING_DEVICE
 	  temperature reliability rules to mitigate a regulator at nominal
 	  voltage.
 
+config QTI_DEVFREQ_VDD_COOLING_DEVICE
+	tristate "Devfreq voltage floor cooling device"
+	depends on PM_DEVFREQ && PM_OPP && THERMAL_OF
+	help
+	  This implements a mitigation device to place a minimum frequency floor
+	  on a particular devfreq device. This mitigation device will be used by
+	  low temperature reliability rules to mitigate a devfreq device at
+	  minimum operating level.

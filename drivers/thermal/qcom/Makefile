@@ -35,3 +35,4 @@ obj-$(CONFIG_QTI_RPM_SMD_COOLING_DEVICE) += rpm_smd_cooling_device.o
 obj-$(CONFIG_REGULATOR_COOLING_DEVICE) += regulator_cdev.o
 obj-$(CONFIG_QTI_QMI_SENSOR) += qti_qmi_sensor.o
 qti_qmi_sensor-y += thermal_sensor_service_v01.o qmi_sensors.o
+obj-$(CONFIG_QTI_DEVFREQ_VDD_COOLING_DEVICE) += devfreq_vdd_cdev.o
