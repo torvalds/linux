@@ -14,6 +14,9 @@
 struct xe_gsc {
 	/** @fw: Generic uC firmware management */
 	struct xe_uc_fw fw;
+
+	/** @security_version: SVN found in the fetched blob */
+	u32 security_version;
 };
 
 #endif

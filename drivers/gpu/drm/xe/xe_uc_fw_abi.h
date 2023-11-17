@@ -140,6 +140,58 @@ static_assert(sizeof(struct uc_css_header) == 128);
  *	|      RSA Key (MTL+ only)                       |
  *	|      ...                                       |
  *	+================================================+
+ *
+ * The GSC binary starts instead with a layout header, which contains the
+ * locations of the various partitions of the binary. The one we're interested
+ * in is the boot1 partition, where we can find a BPDT header followed by
+ * entries, one of which points to the RBE sub-section of the partition, which
+ * contains the CPD. The GSC blob does not contain a CSS-based binary, so we
+ * only need to look for the manifest, which is under the "RBEP.man" CPD entry.
+ * Note that we have no need to find where the actual FW code is inside the
+ * image because the GSC ROM will itself parse the headers to find it and load
+ * it.
+ * The GSC firmware header layout looks like this::
+ *
+ *	+================================================+
+ *	|  Layout Pointers                               |
+ *	|      ...                                       |
+ *	|      Boot1 offset  >---------------------------|------o
+ *	|      ...                                       |      |
+ *	+================================================+      |
+ *	                                                        |
+ *	+================================================+      |
+ *	|  BPDT header                                   |<-----o
+ *	+================================================+
+ *	|  BPDT entries[]                                |
+ *	|      entry1                                    |
+ *	|      ...                                       |
+ *	|      entryX                                    |
+ *	|          type == GSC_RBE                       |
+ *	|          offset  >-----------------------------|------o
+ *	|      ...                                       |      |
+ *	+================================================+      |
+ *	                                                        |
+ *	+================================================+      |
+ *	|  CPD Header                                    |<-----o
+ *	+================================================+
+ *	|  CPD entries[]                                 |
+ *	|      entry1                                    |
+ *	|      ...                                       |
+ *	|      entryX                                    |
+ *	|          "RBEP.man"                            |
+ *	|           ...                                  |
+ *	|           offset  >----------------------------|------o
+ *	|      ...                                       |      |
+ *	+================================================+      |
+ *	                                                        |
+ *	+================================================+      |
+ *	| Manifest Header                                |<-----o
+ *	|  ...                                           |
+ *	|  FW version                                    |
+ *	|  ...                                           |
+ *	|  Security version                              |
+ *	|  ...                                           |
+ *	+================================================+
  */
 
 struct gsc_version {
@@ -147,6 +199,67 @@ struct gsc_version {
 	u16 minor;
 	u16 hotfix;
 	u16 build;
+} __packed;
+
+struct gsc_partition {
+	u32 offset;
+	u32 size;
+} __packed;
+
+struct gsc_layout_pointers {
+	u8 rom_bypass_vector[16];
+
+	/* size of this header section, not including ROM bypass vector */
+	u16 size;
+
+	/*
+	 * bit0: Backup copy of layout pointers exists
+	 * bits1-15: reserved
+	 */
+	u8 flags;
+
+	u8 reserved;
+
+	u32 crc32;
+
+	struct gsc_partition datap;
+	struct gsc_partition boot1;
+	struct gsc_partition boot2;
+	struct gsc_partition boot3;
+	struct gsc_partition boot4;
+	struct gsc_partition boot5;
+	struct gsc_partition temp_pages;
+} __packed;
+
+/* Boot partition structures */
+struct gsc_bpdt_header {
+	u32 signature;
+#define GSC_BPDT_HEADER_SIGNATURE 0x000055AA
+
+	u16 descriptor_count; /* num of entries after the header */
+
+	u8 version;
+	u8 configuration;
+
+	u32 crc32;
+
+	u32 build_version;
+	struct gsc_version tool_version;
+} __packed;
+
+struct gsc_bpdt_entry {
+	/*
+	 * Bits 0-15: BPDT entry type
+	 * Bits 16-17: reserved
+	 * Bit 18: code sub-partition
+	 * Bits 19-31: reserved
+	 */
+	u32 type;
+#define GSC_BPDT_ENTRY_TYPE_MASK GENMASK(15, 0)
+#define GSC_BPDT_ENTRY_TYPE_GSC_RBE 0x1
+
+	u32 sub_partition_offset; /* from the base of the BPDT header */
+	u32 sub_partition_size;
 } __packed;
 
 /* Code partition directory (CPD) structures */

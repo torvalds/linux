@@ -12,6 +12,7 @@
 #include "xe_bo.h"
 #include "xe_device_types.h"
 #include "xe_force_wake.h"
+#include "xe_gsc.h"
 #include "xe_gt.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -488,6 +489,13 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	release->minor = manifest->fw_version.minor;
 	release->patch = manifest->fw_version.hotfix;
 
+	if (uc_fw->type == XE_UC_FW_TYPE_GSC) {
+		struct xe_gsc *gsc = container_of(uc_fw, struct xe_gsc, fw);
+
+		release->build = manifest->fw_version.build;
+		gsc->security_version = manifest->security_version;
+	}
+
 	/* then optionally look for the css header */
 	if (css_entry) {
 		int ret;
@@ -517,6 +525,73 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	return 0;
 }
 
+static int parse_gsc_layout(struct xe_uc_fw *uc_fw, const void *data, size_t size)
+{
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	const struct gsc_layout_pointers *layout = data;
+	const struct gsc_bpdt_header *bpdt_header = NULL;
+	const struct gsc_bpdt_entry *bpdt_entry = NULL;
+	size_t min_size = sizeof(*layout);
+	int i;
+
+	if (size < min_size) {
+		xe_gt_err(gt, "GSC FW too small! %zu < %zu\n", size, min_size);
+		return -ENODATA;
+	}
+
+	min_size = layout->boot1.offset + layout->boot1.size;
+	if (size < min_size) {
+		xe_gt_err(gt, "GSC FW too small for boot section! %zu < %zu\n",
+			  size, min_size);
+		return -ENODATA;
+	}
+
+	min_size = sizeof(*bpdt_header);
+	if (layout->boot1.size < min_size) {
+		xe_gt_err(gt, "GSC FW boot section too small for BPDT header: %u < %zu\n",
+			  layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	bpdt_header = data + layout->boot1.offset;
+	if (bpdt_header->signature != GSC_BPDT_HEADER_SIGNATURE) {
+		xe_gt_err(gt, "invalid signature for BPDT header: 0x%08x!\n",
+			  bpdt_header->signature);
+		return -EINVAL;
+	}
+
+	min_size += sizeof(*bpdt_entry) * bpdt_header->descriptor_count;
+	if (layout->boot1.size < min_size) {
+		xe_gt_err(gt, "GSC FW boot section too small for BPDT entries: %u < %zu\n",
+			  layout->boot1.size, min_size);
+		return -ENODATA;
+	}
+
+	bpdt_entry = (void *)bpdt_header + sizeof(*bpdt_header);
+	for (i = 0; i < bpdt_header->descriptor_count; i++, bpdt_entry++) {
+		if ((bpdt_entry->type & GSC_BPDT_ENTRY_TYPE_MASK) !=
+		    GSC_BPDT_ENTRY_TYPE_GSC_RBE)
+			continue;
+
+		min_size = bpdt_entry->sub_partition_offset;
+
+		/* the CPD header parser will check that the CPD header fits */
+		if (layout->boot1.size < min_size) {
+			xe_gt_err(gt, "GSC FW boot section too small for CPD offset: %u < %zu\n",
+				  layout->boot1.size, min_size);
+			return -ENODATA;
+		}
+
+		return parse_cpd_header(uc_fw,
+					(void *)bpdt_header + min_size,
+					layout->boot1.size - min_size,
+					"RBEP.man", NULL);
+	}
+
+	xe_gt_err(gt, "couldn't find CPD header in GSC binary!\n");
+	return -ENODATA;
+}
+
 static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
 {
 	int ret;
@@ -526,6 +601,8 @@ static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
 	 * releases use GSC CPD headers.
 	 */
 	switch (uc_fw->type) {
+	case XE_UC_FW_TYPE_GSC:
+		return parse_gsc_layout(uc_fw, fw->data, fw->size);
 	case XE_UC_FW_TYPE_HUC:
 		ret = parse_cpd_header(uc_fw, fw->data, fw->size, "HUCP.man", "huc_fw");
 		if (!ret || ret != -ENOENT)
