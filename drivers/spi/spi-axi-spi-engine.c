@@ -112,8 +112,6 @@ struct spi_engine {
 	spinlock_t lock;
 
 	void __iomem *base;
-
-	struct spi_message *msg;
 	struct ida sync_ida;
 
 	unsigned int int_enable;
@@ -252,10 +250,9 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 	return 0;
 }
 
-static void spi_engine_xfer_next(struct spi_engine *spi_engine,
+static void spi_engine_xfer_next(struct spi_message *msg,
 	struct spi_transfer **_xfer)
 {
-	struct spi_message *msg = spi_engine->msg;
 	struct spi_transfer *xfer = *_xfer;
 
 	if (!xfer) {
@@ -270,13 +267,13 @@ static void spi_engine_xfer_next(struct spi_engine *spi_engine,
 	*_xfer = xfer;
 }
 
-static void spi_engine_tx_next(struct spi_engine *spi_engine)
+static void spi_engine_tx_next(struct spi_message *msg)
 {
-	struct spi_engine_message_state *st = spi_engine->msg->state;
+	struct spi_engine_message_state *st = msg->state;
 	struct spi_transfer *xfer = st->tx_xfer;
 
 	do {
-		spi_engine_xfer_next(spi_engine, &xfer);
+		spi_engine_xfer_next(msg, &xfer);
 	} while (xfer && !xfer->tx_buf);
 
 	st->tx_xfer = xfer;
@@ -288,13 +285,13 @@ static void spi_engine_tx_next(struct spi_engine *spi_engine)
 	}
 }
 
-static void spi_engine_rx_next(struct spi_engine *spi_engine)
+static void spi_engine_rx_next(struct spi_message *msg)
 {
-	struct spi_engine_message_state *st = spi_engine->msg->state;
+	struct spi_engine_message_state *st = msg->state;
 	struct spi_transfer *xfer = st->rx_xfer;
 
 	do {
-		spi_engine_xfer_next(spi_engine, &xfer);
+		spi_engine_xfer_next(msg, &xfer);
 	} while (xfer && !xfer->rx_buf);
 
 	st->rx_xfer = xfer;
@@ -306,10 +303,11 @@ static void spi_engine_rx_next(struct spi_engine *spi_engine)
 	}
 }
 
-static bool spi_engine_write_cmd_fifo(struct spi_engine *spi_engine)
+static bool spi_engine_write_cmd_fifo(struct spi_engine *spi_engine,
+				      struct spi_message *msg)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_CMD_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
+	struct spi_engine_message_state *st = msg->state;
 	unsigned int n, m, i;
 	const uint16_t *buf;
 
@@ -327,10 +325,11 @@ static bool spi_engine_write_cmd_fifo(struct spi_engine *spi_engine)
 	return st->cmd_length != 0;
 }
 
-static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine)
+static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine,
+				     struct spi_message *msg)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDO_DATA_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
+	struct spi_engine_message_state *st = msg->state;
 	unsigned int n, m, i;
 	const uint8_t *buf;
 
@@ -344,16 +343,17 @@ static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine)
 		st->tx_length -= m;
 		n -= m;
 		if (st->tx_length == 0)
-			spi_engine_tx_next(spi_engine);
+			spi_engine_tx_next(msg);
 	}
 
 	return st->tx_length != 0;
 }
 
-static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine)
+static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine,
+				    struct spi_message *msg)
 {
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDI_DATA_FIFO;
-	struct spi_engine_message_state *st = spi_engine->msg->state;
+	struct spi_engine_message_state *st = msg->state;
 	unsigned int n, m, i;
 	uint8_t *buf;
 
@@ -367,7 +367,7 @@ static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine)
 		st->rx_length -= m;
 		n -= m;
 		if (st->rx_length == 0)
-			spi_engine_rx_next(spi_engine);
+			spi_engine_rx_next(msg);
 	}
 
 	return st->rx_length != 0;
@@ -376,6 +376,7 @@ static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine)
 static irqreturn_t spi_engine_irq(int irq, void *devid)
 {
 	struct spi_controller *host = devid;
+	struct spi_message *msg = host->cur_msg;
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	unsigned int disable_int = 0;
 	unsigned int pending;
@@ -393,29 +394,26 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	spin_lock(&spi_engine->lock);
 
 	if (pending & SPI_ENGINE_INT_CMD_ALMOST_EMPTY) {
-		if (!spi_engine_write_cmd_fifo(spi_engine))
+		if (!spi_engine_write_cmd_fifo(spi_engine, msg))
 			disable_int |= SPI_ENGINE_INT_CMD_ALMOST_EMPTY;
 	}
 
 	if (pending & SPI_ENGINE_INT_SDO_ALMOST_EMPTY) {
-		if (!spi_engine_write_tx_fifo(spi_engine))
+		if (!spi_engine_write_tx_fifo(spi_engine, msg))
 			disable_int |= SPI_ENGINE_INT_SDO_ALMOST_EMPTY;
 	}
 
 	if (pending & (SPI_ENGINE_INT_SDI_ALMOST_FULL | SPI_ENGINE_INT_SYNC)) {
-		if (!spi_engine_read_rx_fifo(spi_engine))
+		if (!spi_engine_read_rx_fifo(spi_engine, msg))
 			disable_int |= SPI_ENGINE_INT_SDI_ALMOST_FULL;
 	}
 
-	if (pending & SPI_ENGINE_INT_SYNC && spi_engine->msg) {
-		struct spi_engine_message_state *st = spi_engine->msg->state;
+	if (pending & SPI_ENGINE_INT_SYNC && msg) {
+		struct spi_engine_message_state *st = msg->state;
 
 		if (completed_id == st->sync_id) {
-			struct spi_message *msg = spi_engine->msg;
-
 			msg->status = 0;
 			msg->actual_length = msg->frame_length;
-			spi_engine->msg = NULL;
 			spi_finalize_current_message(host);
 			disable_int |= SPI_ENGINE_INT_SYNC;
 		}
@@ -499,16 +497,14 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 
 	spin_lock_irqsave(&spi_engine->lock, flags);
 
-	spi_engine->msg = msg;
-
-	if (spi_engine_write_cmd_fifo(spi_engine))
+	if (spi_engine_write_cmd_fifo(spi_engine, msg))
 		int_enable |= SPI_ENGINE_INT_CMD_ALMOST_EMPTY;
 
-	spi_engine_tx_next(spi_engine);
-	if (spi_engine_write_tx_fifo(spi_engine))
+	spi_engine_tx_next(msg);
+	if (spi_engine_write_tx_fifo(spi_engine, msg))
 		int_enable |= SPI_ENGINE_INT_SDO_ALMOST_EMPTY;
 
-	spi_engine_rx_next(spi_engine);
+	spi_engine_rx_next(msg);
 	if (st->rx_length != 0)
 		int_enable |= SPI_ENGINE_INT_SDI_ALMOST_FULL;
 
