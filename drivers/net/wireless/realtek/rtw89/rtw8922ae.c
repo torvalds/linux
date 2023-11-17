@@ -7,6 +7,7 @@
 
 #include "pci.h"
 #include "reg.h"
+#include "rtw8922a.h"
 
 static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.gen_def		= &rtw89_pci_gen_be,
@@ -58,6 +59,7 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 };
 
 static const struct rtw89_driver_info rtw89_8922ae_info = {
+	.chip = &rtw8922a_chip_info,
 	.bus = {
 		.pci = &rtw8922a_pci_info,
 	},
