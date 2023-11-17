@@ -870,9 +870,9 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	if (pltfm_data == &sdhci_dwcmshc_th1520_pdata) {
 		priv->delay_line = PHY_SDCLKDL_DC_DEFAULT;
 
-		if ((device_property_read_bool(dev, "mmc-ddr-1_8v")) |
-		    (device_property_read_bool(dev, "mmc-hs200-1_8v")) |
-		    (device_property_read_bool(dev, "mmc-hs400-1_8v")))
+		if (device_property_read_bool(dev, "mmc-ddr-1_8v") ||
+		    device_property_read_bool(dev, "mmc-hs200-1_8v") ||
+		    device_property_read_bool(dev, "mmc-hs400-1_8v"))
 			priv->flags |= FLAG_IO_FIXED_1V8;
 		else
 			priv->flags &= ~FLAG_IO_FIXED_1V8;
