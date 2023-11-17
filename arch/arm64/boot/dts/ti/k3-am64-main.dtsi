@@ -623,6 +623,7 @@
 		ti,otap-del-sel-mmc-hs = <0x0>;
 		ti,otap-del-sel-ddr52 = <0x6>;
 		ti,otap-del-sel-hs200 = <0x7>;
+		status = "disabled";
 	};
 
 	sdhci1: mmc@fa00000 {
@@ -641,6 +642,7 @@
 		ti,otap-del-sel-sdr104 = <0x6>;
 		ti,otap-del-sel-ddr50 = <0x9>;
 		ti,clkbuf-sel = <0x7>;
+		status = "disabled";
 	};
 
 	cpsw3g: ethernet@8000000 {
