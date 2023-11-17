@@ -7868,15 +7868,15 @@ static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base,
 	is_arc_cq = FIELD_GET(PDMA0_QM_CP_STS_CUR_CQ_MASK, cp_sts); /* 0 - legacy CQ, 1 - ARC_CQ */
 
 	if (is_arc_cq) {
-		lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_OFFSET);
-		hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_OFFSET);
+		lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_STS_OFFSET);
+		hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_STS_OFFSET);
 		cq_ptr = ((u64) hi) << 32 | lo;
-		cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_OFFSET);
+		cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_STS_OFFSET);
 	} else {
-		lo = RREG32(qman_base + QM_CQ_PTR_LO_4_OFFSET);
-		hi = RREG32(qman_base + QM_CQ_PTR_HI_4_OFFSET);
+		lo = RREG32(qman_base + QM_CQ_PTR_LO_STS_4_OFFSET);
+		hi = RREG32(qman_base + QM_CQ_PTR_HI_STS_4_OFFSET);
 		cq_ptr = ((u64) hi) << 32 | lo;
-		cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_4_OFFSET);
+		cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_STS_4_OFFSET);
 	}
 
 	lo = RREG32(qman_base + QM_CP_CURRENT_INST_LO_4_OFFSET);
