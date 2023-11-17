@@ -1763,6 +1763,27 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 }
 
+int nfp_net_fs_add_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	return -EOPNOTSUPP;
+}
+
+int nfp_net_fs_del_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	return -EOPNOTSUPP;
+}
+
+static void nfp_net_fs_clean(struct nfp_net *nn)
+{
+	struct nfp_fs_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &nn->fs.list, node) {
+		nfp_net_fs_del_hw(nn, entry);
+		list_del(&entry->node);
+		kfree(entry);
+	}
+}
+
 static void nfp_net_stat64(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -2740,6 +2761,8 @@ int nfp_net_init(struct nfp_net *nn)
 	INIT_LIST_HEAD(&nn->mbox_amsg.list);
 	INIT_WORK(&nn->mbox_amsg.work, nfp_net_mbox_amsg_work);
 
+	INIT_LIST_HEAD(&nn->fs.list);
+
 	return register_netdev(nn->dp.netdev);
 
 err_clean_mbox:
@@ -2759,6 +2782,7 @@ void nfp_net_clean(struct nfp_net *nn)
 	unregister_netdev(nn->dp.netdev);
 	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
+	nfp_net_fs_clean(nn);
 	flush_work(&nn->mbox_amsg.work);
 	nfp_net_reconfig_wait_posted(nn);
 }

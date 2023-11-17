@@ -1317,6 +1317,116 @@ static int nfp_net_get_rss_hash_opts(struct nfp_net *nn,
 	return 0;
 }
 
+#define NFP_FS_MAX_ENTRY	1024
+
+static int nfp_net_fs_to_ethtool(struct nfp_fs_entry *entry, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	unsigned int i;
+
+	switch (entry->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		fs->h_u.tcp_ip4_spec.ip4src = entry->key.sip4;
+		fs->h_u.tcp_ip4_spec.ip4dst = entry->key.dip4;
+		fs->h_u.tcp_ip4_spec.psrc   = entry->key.sport;
+		fs->h_u.tcp_ip4_spec.pdst   = entry->key.dport;
+		fs->m_u.tcp_ip4_spec.ip4src = entry->msk.sip4;
+		fs->m_u.tcp_ip4_spec.ip4dst = entry->msk.dip4;
+		fs->m_u.tcp_ip4_spec.psrc   = entry->msk.sport;
+		fs->m_u.tcp_ip4_spec.pdst   = entry->msk.dport;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		for (i = 0; i < 4; i++) {
+			fs->h_u.tcp_ip6_spec.ip6src[i] = entry->key.sip6[i];
+			fs->h_u.tcp_ip6_spec.ip6dst[i] = entry->key.dip6[i];
+			fs->m_u.tcp_ip6_spec.ip6src[i] = entry->msk.sip6[i];
+			fs->m_u.tcp_ip6_spec.ip6dst[i] = entry->msk.dip6[i];
+		}
+		fs->h_u.tcp_ip6_spec.psrc = entry->key.sport;
+		fs->h_u.tcp_ip6_spec.pdst = entry->key.dport;
+		fs->m_u.tcp_ip6_spec.psrc = entry->msk.sport;
+		fs->m_u.tcp_ip6_spec.pdst = entry->msk.dport;
+		break;
+	case IPV4_USER_FLOW:
+		fs->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+		fs->h_u.usr_ip4_spec.ip4src = entry->key.sip4;
+		fs->h_u.usr_ip4_spec.ip4dst = entry->key.dip4;
+		fs->h_u.usr_ip4_spec.proto  = entry->key.l4_proto;
+		fs->m_u.usr_ip4_spec.ip4src = entry->msk.sip4;
+		fs->m_u.usr_ip4_spec.ip4dst = entry->msk.dip4;
+		fs->m_u.usr_ip4_spec.proto  = entry->msk.l4_proto;
+		break;
+	case IPV6_USER_FLOW:
+		for (i = 0; i < 4; i++) {
+			fs->h_u.usr_ip6_spec.ip6src[i] = entry->key.sip6[i];
+			fs->h_u.usr_ip6_spec.ip6dst[i] = entry->key.dip6[i];
+			fs->m_u.usr_ip6_spec.ip6src[i] = entry->msk.sip6[i];
+			fs->m_u.usr_ip6_spec.ip6dst[i] = entry->msk.dip6[i];
+		}
+		fs->h_u.usr_ip6_spec.l4_proto = entry->key.l4_proto;
+		fs->m_u.usr_ip6_spec.l4_proto = entry->msk.l4_proto;
+		break;
+	case ETHER_FLOW:
+		fs->h_u.ether_spec.h_proto = entry->key.l3_proto;
+		fs->m_u.ether_spec.h_proto = entry->msk.l3_proto;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fs->flow_type   = entry->flow_type;
+	fs->ring_cookie = entry->action;
+
+	if (fs->flow_type & FLOW_RSS) {
+		/* Only rss_context of 0 is supported. */
+		cmd->rss_context = 0;
+		/* RSS is used, mask the ring. */
+		fs->ring_cookie |= ETHTOOL_RX_FLOW_SPEC_RING;
+	}
+
+	return 0;
+}
+
+static int nfp_net_get_fs_rule(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
+{
+	struct nfp_fs_entry *entry;
+
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FLOW_STEER))
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= NFP_FS_MAX_ENTRY)
+		return -EINVAL;
+
+	list_for_each_entry(entry, &nn->fs.list, node) {
+		if (entry->loc == cmd->fs.location)
+			return nfp_net_fs_to_ethtool(entry, cmd);
+
+		if (entry->loc > cmd->fs.location)
+			/* no need to continue */
+			return -ENOENT;
+	}
+
+	return -ENOENT;
+}
+
+static int nfp_net_get_fs_loc(struct nfp_net *nn, u32 *rule_locs)
+{
+	struct nfp_fs_entry *entry;
+	u32 count = 0;
+
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FLOW_STEER))
+		return -EOPNOTSUPP;
+
+	list_for_each_entry(entry, &nn->fs.list, node)
+		rule_locs[count++] = entry->loc;
+
+	return 0;
+}
+
 static int nfp_net_get_rxnfc(struct net_device *netdev,
 			     struct ethtool_rxnfc *cmd, u32 *rule_locs)
 {
@@ -1326,6 +1436,14 @@ static int nfp_net_get_rxnfc(struct net_device *netdev,
 	case ETHTOOL_GRXRINGS:
 		cmd->data = nn->dp.num_rx_rings;
 		return 0;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = nn->fs.count;
+		return 0;
+	case ETHTOOL_GRXCLSRULE:
+		return nfp_net_get_fs_rule(nn, cmd);
+	case ETHTOOL_GRXCLSRLALL:
+		cmd->data = NFP_FS_MAX_ENTRY;
+		return nfp_net_get_fs_loc(nn, rule_locs);
 	case ETHTOOL_GRXFH:
 		return nfp_net_get_rss_hash_opts(nn, cmd);
 	default:
@@ -1385,6 +1503,253 @@ static int nfp_net_set_rss_hash_opt(struct nfp_net *nn,
 	return 0;
 }
 
+static int nfp_net_fs_from_ethtool(struct nfp_fs_entry *entry, struct ethtool_rx_flow_spec *fs)
+{
+	unsigned int i;
+
+	/* FLOW_EXT/FLOW_MAC_EXT is not supported. */
+	switch (fs->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		entry->msk.sip4  = fs->m_u.tcp_ip4_spec.ip4src;
+		entry->msk.dip4  = fs->m_u.tcp_ip4_spec.ip4dst;
+		entry->msk.sport = fs->m_u.tcp_ip4_spec.psrc;
+		entry->msk.dport = fs->m_u.tcp_ip4_spec.pdst;
+		entry->key.sip4  = fs->h_u.tcp_ip4_spec.ip4src & entry->msk.sip4;
+		entry->key.dip4  = fs->h_u.tcp_ip4_spec.ip4dst & entry->msk.dip4;
+		entry->key.sport = fs->h_u.tcp_ip4_spec.psrc & entry->msk.sport;
+		entry->key.dport = fs->h_u.tcp_ip4_spec.pdst & entry->msk.dport;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		for (i = 0; i < 4; i++) {
+			entry->msk.sip6[i] = fs->m_u.tcp_ip6_spec.ip6src[i];
+			entry->msk.dip6[i] = fs->m_u.tcp_ip6_spec.ip6dst[i];
+			entry->key.sip6[i] = fs->h_u.tcp_ip6_spec.ip6src[i] & entry->msk.sip6[i];
+			entry->key.dip6[i] = fs->h_u.tcp_ip6_spec.ip6dst[i] & entry->msk.dip6[i];
+		}
+		entry->msk.sport = fs->m_u.tcp_ip6_spec.psrc;
+		entry->msk.dport = fs->m_u.tcp_ip6_spec.pdst;
+		entry->key.sport = fs->h_u.tcp_ip6_spec.psrc & entry->msk.sport;
+		entry->key.dport = fs->h_u.tcp_ip6_spec.pdst & entry->msk.dport;
+		break;
+	case IPV4_USER_FLOW:
+		entry->msk.sip4     = fs->m_u.usr_ip4_spec.ip4src;
+		entry->msk.dip4     = fs->m_u.usr_ip4_spec.ip4dst;
+		entry->msk.l4_proto = fs->m_u.usr_ip4_spec.proto;
+		entry->key.sip4     = fs->h_u.usr_ip4_spec.ip4src & entry->msk.sip4;
+		entry->key.dip4     = fs->h_u.usr_ip4_spec.ip4dst & entry->msk.dip4;
+		entry->key.l4_proto = fs->h_u.usr_ip4_spec.proto & entry->msk.l4_proto;
+		break;
+	case IPV6_USER_FLOW:
+		for (i = 0; i < 4; i++) {
+			entry->msk.sip6[i] = fs->m_u.usr_ip6_spec.ip6src[i];
+			entry->msk.dip6[i] = fs->m_u.usr_ip6_spec.ip6dst[i];
+			entry->key.sip6[i] = fs->h_u.usr_ip6_spec.ip6src[i] & entry->msk.sip6[i];
+			entry->key.dip6[i] = fs->h_u.usr_ip6_spec.ip6dst[i] & entry->msk.dip6[i];
+		}
+		entry->msk.l4_proto = fs->m_u.usr_ip6_spec.l4_proto;
+		entry->key.l4_proto = fs->h_u.usr_ip6_spec.l4_proto & entry->msk.l4_proto;
+		break;
+	case ETHER_FLOW:
+		entry->msk.l3_proto = fs->m_u.ether_spec.h_proto;
+		entry->key.l3_proto = fs->h_u.ether_spec.h_proto & entry->msk.l3_proto;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (fs->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case TCP_V6_FLOW:
+		entry->key.l4_proto = IPPROTO_TCP;
+		entry->msk.l4_proto = 0xff;
+		break;
+	case UDP_V4_FLOW:
+	case UDP_V6_FLOW:
+		entry->key.l4_proto = IPPROTO_UDP;
+		entry->msk.l4_proto = 0xff;
+		break;
+	case SCTP_V4_FLOW:
+	case SCTP_V6_FLOW:
+		entry->key.l4_proto = IPPROTO_SCTP;
+		entry->msk.l4_proto = 0xff;
+		break;
+	}
+
+	entry->flow_type = fs->flow_type;
+	entry->action    = fs->ring_cookie;
+	entry->loc       = fs->location;
+
+	return 0;
+}
+
+static int nfp_net_fs_check_existing(struct nfp_net *nn, struct nfp_fs_entry *new)
+{
+	struct nfp_fs_entry *entry;
+
+	list_for_each_entry(entry, &nn->fs.list, node) {
+		if (new->loc != entry->loc &&
+		    !((new->flow_type ^ entry->flow_type) & ~FLOW_RSS) &&
+		    !memcmp(&new->key, &entry->key, sizeof(new->key)) &&
+		    !memcmp(&new->msk, &entry->msk, sizeof(new->msk)))
+			return entry->loc;
+	}
+
+	/* -1 means no duplicates */
+	return -1;
+}
+
+static int nfp_net_fs_add(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	struct nfp_fs_entry *new, *entry;
+	bool unsupp_mask;
+	int err, id;
+
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FLOW_STEER))
+		return -EOPNOTSUPP;
+
+	/* Only default RSS context(0) is supported. */
+	if ((fs->flow_type & FLOW_RSS) && cmd->rss_context)
+		return -EOPNOTSUPP;
+
+	if (fs->location >= NFP_FS_MAX_ENTRY)
+		return -EINVAL;
+
+	if (fs->ring_cookie != RX_CLS_FLOW_DISC &&
+	    fs->ring_cookie >= nn->dp.num_rx_rings)
+		return -EINVAL;
+
+	/* FLOW_EXT/FLOW_MAC_EXT is not supported. */
+	switch (fs->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+		unsupp_mask = !!fs->m_u.tcp_ip4_spec.tos;
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+		unsupp_mask = !!fs->m_u.tcp_ip6_spec.tclass;
+		break;
+	case IPV4_USER_FLOW:
+		unsupp_mask = !!fs->m_u.usr_ip4_spec.l4_4_bytes ||
+			      !!fs->m_u.usr_ip4_spec.tos ||
+			      !!fs->m_u.usr_ip4_spec.ip_ver;
+		/* ip_ver must be ETH_RX_NFC_IP4. */
+		unsupp_mask |= fs->h_u.usr_ip4_spec.ip_ver != ETH_RX_NFC_IP4;
+		break;
+	case IPV6_USER_FLOW:
+		unsupp_mask = !!fs->m_u.usr_ip6_spec.l4_4_bytes ||
+			      !!fs->m_u.usr_ip6_spec.tclass;
+		break;
+	case ETHER_FLOW:
+		if (fs->h_u.ether_spec.h_proto == htons(ETH_P_IP) ||
+		    fs->h_u.ether_spec.h_proto == htons(ETH_P_IPV6)) {
+			nn_err(nn, "Please use ip4/ip6 flow type instead.\n");
+			return -EOPNOTSUPP;
+		}
+		/* Only unmasked ethtype is supported. */
+		unsupp_mask = !is_zero_ether_addr(fs->m_u.ether_spec.h_dest) ||
+			      !is_zero_ether_addr(fs->m_u.ether_spec.h_source) ||
+			      (fs->m_u.ether_spec.h_proto != htons(0xffff));
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (unsupp_mask)
+		return -EOPNOTSUPP;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	nfp_net_fs_from_ethtool(new, fs);
+
+	id = nfp_net_fs_check_existing(nn, new);
+	if (id >= 0) {
+		nn_err(nn, "Identical rule is existing in %d.\n", id);
+		err = -EINVAL;
+		goto err;
+	}
+
+	/* Insert to list in ascending order of location. */
+	list_for_each_entry(entry, &nn->fs.list, node) {
+		if (entry->loc == fs->location) {
+			err = nfp_net_fs_del_hw(nn, entry);
+			if (err)
+				goto err;
+
+			nn->fs.count--;
+			err = nfp_net_fs_add_hw(nn, new);
+			if (err)
+				goto err;
+
+			nn->fs.count++;
+			list_replace(&entry->node, &new->node);
+			kfree(entry);
+
+			return 0;
+		}
+
+		if (entry->loc > fs->location)
+			break;
+	}
+
+	if (nn->fs.count == NFP_FS_MAX_ENTRY) {
+		err = -ENOSPC;
+		goto err;
+	}
+
+	err = nfp_net_fs_add_hw(nn, new);
+	if (err)
+		goto err;
+
+	list_add_tail(&new->node, &entry->node);
+	nn->fs.count++;
+
+	return 0;
+
+err:
+	kfree(new);
+	return err;
+}
+
+static int nfp_net_fs_del(struct nfp_net *nn, struct ethtool_rxnfc *cmd)
+{
+	struct nfp_fs_entry *entry;
+	int err;
+
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FLOW_STEER))
+		return -EOPNOTSUPP;
+
+	if (!nn->fs.count || cmd->fs.location >= NFP_FS_MAX_ENTRY)
+		return -EINVAL;
+
+	list_for_each_entry(entry, &nn->fs.list, node) {
+		if (entry->loc == cmd->fs.location) {
+			err = nfp_net_fs_del_hw(nn, entry);
+			if (err)
+				return err;
+
+			list_del(&entry->node);
+			kfree(entry);
+			nn->fs.count--;
+
+			return 0;
+		} else if (entry->loc > cmd->fs.location) {
+			/* no need to continue */
+			break;
+		}
+	}
+
+	return -ENOENT;
+}
+
 static int nfp_net_set_rxnfc(struct net_device *netdev,
 			     struct ethtool_rxnfc *cmd)
 {
@@ -1393,6 +1758,10 @@ static int nfp_net_set_rxnfc(struct net_device *netdev,
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
 		return nfp_net_set_rss_hash_opt(nn, cmd);
+	case ETHTOOL_SRXCLSRLINS:
+		return nfp_net_fs_add(nn, cmd);
+	case ETHTOOL_SRXCLSRLDEL:
+		return nfp_net_fs_del(nn, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}
