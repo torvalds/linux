@@ -117,6 +117,7 @@
 
 /* RPL-P */
 #define XE_RPLP_IDS(MACRO__, ...)		\
+	XE_RPLU_IDS(MACRO__, ## __VA_ARGS__),	\
 	MACRO__(0xA720, ## __VA_ARGS__),	\
 	MACRO__(0xA7A0, ## __VA_ARGS__),	\
 	MACRO__(0xA7A8, ## __VA_ARGS__)
