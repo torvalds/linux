@@ -45,7 +45,7 @@ static bool has_display(struct xe_device *xe)
  */
 bool xe_display_driver_probe_defer(struct pci_dev *pdev)
 {
-	if (!enable_display)
+	if (!xe_modparam.enable_display)
 		return 0;
 
 	return intel_display_driver_probe_defer(pdev);
@@ -69,7 +69,7 @@ static void xe_display_last_close(struct drm_device *dev)
  */
 void xe_display_driver_set_hooks(struct drm_driver *driver)
 {
-	if (!enable_display)
+	if (!xe_modparam.enable_display)
 		return;
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;

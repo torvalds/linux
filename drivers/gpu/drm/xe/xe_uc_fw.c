@@ -220,11 +220,11 @@ uc_fw_override(struct xe_uc_fw *uc_fw)
 	/* empty string disables, but it's not allowed for GuC */
 	switch (uc_fw->type) {
 	case XE_UC_FW_TYPE_GUC:
-		if (xe_guc_firmware_path && *xe_guc_firmware_path)
-			path_override = xe_guc_firmware_path;
+		if (xe_modparam.guc_firmware_path && *xe_modparam.guc_firmware_path)
+			path_override = xe_modparam.guc_firmware_path;
 		break;
 	case XE_UC_FW_TYPE_HUC:
-		path_override = xe_huc_firmware_path;
+		path_override = xe_modparam.huc_firmware_path;
 		break;
 	default:
 		break;

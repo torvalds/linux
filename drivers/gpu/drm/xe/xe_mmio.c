@@ -73,7 +73,7 @@ _resize_bar(struct xe_device *xe, int resno, resource_size_t size)
  */
 static void xe_resize_vram_bar(struct xe_device *xe)
 {
-	u64 force_vram_bar_size = xe_force_vram_bar_size;
+	u64 force_vram_bar_size = xe_modparam.force_vram_bar_size;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct pci_bus *root = pdev->bus;
 	resource_size_t current_size;

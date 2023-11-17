@@ -3,13 +3,23 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#ifndef _XE_MODULE_H_
+#define _XE_MODULE_H_
+
 #include <linux/types.h>
 
 /* Module modprobe variables */
-extern bool force_execlist;
-extern bool enable_display;
-extern u32 xe_force_vram_bar_size;
-extern int xe_guc_log_level;
-extern char *xe_guc_firmware_path;
-extern char *xe_huc_firmware_path;
-extern char *xe_param_force_probe;
+struct xe_modparam {
+	bool force_execlist;
+	bool enable_display;
+	u32 force_vram_bar_size;
+	int guc_log_level;
+	char *guc_firmware_path;
+	char *huc_firmware_path;
+	char *force_probe;
+};
+
+extern struct xe_modparam xe_modparam;
+
+#endif
+

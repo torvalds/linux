@@ -419,12 +419,12 @@ static bool device_id_in_list(u16 device_id, const char *devices, bool negative)
 
 static bool id_forced(u16 device_id)
 {
-	return device_id_in_list(device_id, xe_param_force_probe, false);
+	return device_id_in_list(device_id, xe_modparam.force_probe, false);
 }
 
 static bool id_blocked(u16 device_id)
 {
-	return device_id_in_list(device_id, xe_param_force_probe, true);
+	return device_id_in_list(device_id, xe_modparam.force_probe, true);
 }
 
 static const struct xe_subplatform_desc *
@@ -593,7 +593,7 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
 
 	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
-				  enable_display &&
+				  xe_modparam.enable_display &&
 				  desc->has_display;
 	/*
 	 * All platforms have at least one primary GT.  Any platform with media
