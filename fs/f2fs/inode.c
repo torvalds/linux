@@ -600,7 +600,7 @@ make_now:
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 		inode->i_mapping->a_ops = &f2fs_compress_aops;
 		/*
-		 * generic_error_remove_page only truncates pages of regular
+		 * generic_error_remove_folio only truncates pages of regular
 		 * inode
 		 */
 		inode->i_mode |= S_IFREG;

@@ -1644,7 +1644,7 @@ const struct address_space_operations ntfs_normal_aops = {
 	.bmap		= ntfs_bmap,
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 /*
@@ -1658,7 +1658,7 @@ const struct address_space_operations ntfs_compressed_aops = {
 #endif /* NTFS_RW */
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 /*
@@ -1673,7 +1673,7 @@ const struct address_space_operations ntfs_mst_aops = {
 #endif /* NTFS_RW */
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate	= block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 #ifdef NTFS_RW

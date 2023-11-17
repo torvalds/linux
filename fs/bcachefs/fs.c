@@ -1103,7 +1103,7 @@ static const struct address_space_operations bch_address_space_operations = {
 #ifdef CONFIG_MIGRATION
 	.migrate_folio	= filemap_migrate_folio,
 #endif
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 struct bcachefs_fid {

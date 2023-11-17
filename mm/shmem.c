@@ -4445,8 +4445,8 @@ static void __init shmem_destroy_inodecache(void)
 }
 
 /* Keep the page in page cache instead of truncating it */
-static int shmem_error_remove_page(struct address_space *mapping,
-				   struct page *page)
+static int shmem_error_remove_folio(struct address_space *mapping,
+				   struct folio *folio)
 {
 	return 0;
 }
@@ -4461,7 +4461,7 @@ const struct address_space_operations shmem_aops = {
 #ifdef CONFIG_MIGRATION
 	.migrate_folio	= migrate_folio,
 #endif
-	.error_remove_page = shmem_error_remove_page,
+	.error_remove_folio = shmem_error_remove_folio,
 };
 EXPORT_SYMBOL(shmem_aops);
 

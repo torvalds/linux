@@ -1944,7 +1944,7 @@ void f2fs_invalidate_compress_pages(struct f2fs_sb_info *sbi, nid_t ino)
 				continue;
 			}
 
-			generic_error_remove_page(mapping, &folio->page);
+			generic_error_remove_folio(mapping, folio);
 			folio_unlock(folio);
 		}
 		folio_batch_release(&fbatch);

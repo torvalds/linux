@@ -242,7 +242,7 @@ static void afs_kill_pages(struct address_space *mapping,
 		folio_clear_uptodate(folio);
 		folio_end_writeback(folio);
 		folio_lock(folio);
-		generic_error_remove_page(mapping, &folio->page);
+		generic_error_remove_folio(mapping, folio);
 		folio_unlock(folio);
 		folio_put(folio);
 

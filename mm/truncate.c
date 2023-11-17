@@ -250,10 +250,9 @@ bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
 /*
  * Used to get rid of pages on hardware memory corruption.
  */
-int generic_error_remove_page(struct address_space *mapping, struct page *page)
+int generic_error_remove_folio(struct address_space *mapping,
+		struct folio *folio)
 {
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
 	if (!mapping)
 		return -EINVAL;
 	/*
@@ -262,9 +261,9 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 	 */
 	if (!S_ISREG(mapping->host->i_mode))
 		return -EIO;
-	return truncate_inode_folio(mapping, page_folio(page));
+	return truncate_inode_folio(mapping, folio);
 }
-EXPORT_SYMBOL(generic_error_remove_page);
+EXPORT_SYMBOL(generic_error_remove_folio);
 
 /**
  * mapping_evict_folio() - Remove an unused folio from the page-cache.
