@@ -31,6 +31,15 @@
 #define to_drm(qddev) (&(qddev)->drm)
 #define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
 
+enum __packed dev_states {
+	/* Device is offline or will be very soon */
+	QAIC_OFFLINE,
+	/* Device is booting, not clear if it's in a usable state */
+	QAIC_BOOT,
+	/* Device is fully operational */
+	QAIC_ONLINE,
+};
+
 extern bool datapath_polling;
 
 struct qaic_user {
@@ -121,8 +130,8 @@ struct qaic_device {
 	struct workqueue_struct	*cntl_wq;
 	/* Synchronizes all the users of device during cleanup */
 	struct srcu_struct	dev_lock;
-	/* true: Device under reset; false: Device not under reset */
-	bool			in_reset;
+	/* Track the state of the device during resets */
+	enum dev_states		dev_state;
 	/* true: single MSI is used to operate device */
 	bool			single_msi;
 	/*

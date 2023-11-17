@@ -64,7 +64,7 @@ static int qaic_open(struct drm_device *dev, struct drm_file *file)
 	int ret;
 
 	rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto dev_unlock;
 	}
@@ -121,7 +121,7 @@ static void qaic_postclose(struct drm_device *dev, struct drm_file *file)
 	if (qddev) {
 		qdev = qddev->qdev;
 		qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-		if (!qdev->in_reset) {
+		if (qdev->dev_state == QAIC_ONLINE) {
 			qaic_release_usr(qdev, usr);
 			for (i = 0; i < qdev->num_dbc; ++i)
 				if (qdev->dbc[i].usr && qdev->dbc[i].usr->handle == usr->handle)
@@ -254,7 +254,7 @@ static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 
 	qdev = pci_get_drvdata(to_pci_dev(mhi_dev->mhi_cntrl->cntrl_dev));
 
-	qdev->in_reset = false;
+	qdev->dev_state = QAIC_ONLINE;
 
 	dev_set_drvdata(&mhi_dev->dev, qdev);
 	qdev->cntl_ch = mhi_dev;
@@ -291,7 +291,7 @@ static void qaic_notify_reset(struct qaic_device *qdev)
 {
 	int i;
 
-	qdev->in_reset = true;
+	qdev->dev_state = QAIC_OFFLINE;
 	/* wake up any waiters to avoid waiting for timeouts at sync */
 	wake_all_cntl(qdev);
 	for (i = 0; i < qdev->num_dbc; ++i)
@@ -313,7 +313,7 @@ void qaic_dev_reset_clean_local_state(struct qaic_device *qdev, bool exit_reset)
 		release_dbc(qdev, i);
 
 	if (exit_reset)
-		qdev->in_reset = false;
+		qdev->dev_state = QAIC_ONLINE;
 }
 
 static void cleanup_qdev(struct qaic_device *qdev)
@@ -550,7 +550,7 @@ static void qaic_pci_reset_done(struct pci_dev *pdev)
 {
 	struct qaic_device *qdev = pci_get_drvdata(pdev);
 
-	qdev->in_reset = false;
+	qdev->dev_state = QAIC_ONLINE;
 	qaic_mhi_reset_done(qdev->mhi_cntrl);
 }
 
