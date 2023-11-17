@@ -1854,19 +1854,11 @@ static struct bkey_i *bch2_btree_journal_peek(struct btree_trans *trans,
 					      struct btree_iter *iter,
 					      struct bpos end_pos)
 {
-	struct bkey_i *k;
-
-	if (bpos_lt(iter->path->pos, iter->journal_pos))
-		iter->journal_idx = 0;
-
-	k = bch2_journal_keys_peek_upto(trans->c, iter->btree_id,
-					iter->path->level,
-					iter->path->pos,
-					end_pos,
-					&iter->journal_idx);
-
-	iter->journal_pos = k ? k->k.p : end_pos;
-	return k;
+	return bch2_journal_keys_peek_upto(trans->c, iter->btree_id,
+					   iter->path->level,
+					   iter->path->pos,
+					   end_pos,
+					   &iter->journal_idx);
 }
 
 static noinline

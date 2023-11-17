@@ -455,7 +455,6 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 	iter->pos		= pos;
 	iter->k			= POS_KEY(pos);
 	iter->journal_idx	= 0;
-	iter->journal_pos	= POS_MIN;
 #ifdef CONFIG_BCACHEFS_DEBUG
 	iter->ip_allocated = ip;
 #endif

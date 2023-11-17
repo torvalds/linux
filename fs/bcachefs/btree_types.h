@@ -304,7 +304,6 @@ struct btree_iter {
 
 	/* BTREE_ITER_WITH_JOURNAL: */
 	size_t			journal_idx;
-	struct bpos		journal_pos;
 #ifdef TRACK_PATH_ALLOCATED
 	unsigned long		ip_allocated;
 #endif

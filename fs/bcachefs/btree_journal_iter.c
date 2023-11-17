@@ -73,6 +73,7 @@ static size_t bch2_journal_key_search(struct journal_keys *keys,
 	return idx_to_pos(keys, __bch2_journal_key_search(keys, id, level, pos));
 }
 
+/* Returns first non-overwritten key >= search key: */
 struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *c, enum btree_id btree_id,
 					   unsigned level, struct bpos pos,
 					   struct bpos end_pos, size_t *idx)
@@ -86,12 +87,26 @@ search:
 	if (!*idx)
 		*idx = __bch2_journal_key_search(keys, btree_id, level, pos);
 
+	while (*idx &&
+	       __journal_key_cmp(btree_id, level, end_pos, idx_to_key(keys, *idx - 1)) <= 0) {
+		--(*idx);
+		iters++;
+		if (iters == 10) {
+			*idx = 0;
+			goto search;
+		}
+	}
+
 	while ((k = *idx < keys->nr ? idx_to_key(keys, *idx) : NULL)) {
 		if (__journal_key_cmp(btree_id, level, end_pos, k) < 0)
 			return NULL;
 
-		if (__journal_key_cmp(btree_id, level, pos, k) <= 0 &&
-		    !k->overwritten)
+		if (k->overwritten) {
+			(*idx)++;
+			continue;
+		}
+
+		if (__journal_key_cmp(btree_id, level, pos, k) <= 0)
 			return k->k;
 
 		(*idx)++;
