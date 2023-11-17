@@ -978,7 +978,7 @@ int ovl_set_protattr(struct inode *inode, struct dentry *upper,
 	return 0;
 }
 
-/**
+/*
  * Caller must hold a reference to inode to prevent it from being freed while
  * it is marked inuse.
  */
