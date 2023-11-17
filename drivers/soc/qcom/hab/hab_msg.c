@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -212,7 +212,7 @@ hab_msg_dequeue(struct virtual_channel *vchan, struct hab_message **msg,
 		else if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		else if (ret == 0) {
-			pr_info("timeout! vcid: %x\n", vchan->id);
+			pr_debug("timeout! vcid: %x\n", vchan->id);
 			ret = -ETIMEDOUT;
 		} else {
 			pr_debug("EAGAIN: ret = %d, flags = %x\n", ret, flags);

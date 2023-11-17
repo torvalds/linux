@@ -194,3 +194,5 @@ int hab_hypervisor_register(void)
 
 	return ret;
 }
+
+int hab_hypervisor_register_post(void) { return 0; }

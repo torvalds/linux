@@ -43,6 +43,12 @@ static int hab_release(struct inode *inodep, struct file *filep)
 
 	pr_debug("inode %pK, filep %pK ctx %pK\n", inodep, filep, ctx);
 
+	/*
+	 * This function will only be called for user-space clients,
+	 * so no need to disable bottom half here since there is no
+	 * potential dead lock issue among these clients racing for
+	 * a ctx_lock of any user-space context.
+	 */
 	write_lock(&ctx->ctx_lock);
 	/* notify remote side on vchan closing */
 	list_for_each_entry_safe(vchan, tmp, &ctx->vchannels, node) {
@@ -388,6 +394,7 @@ static int __init hab_init(void)
 			}
 		}
 	}
+	hab_hypervisor_register_post();
 	hab_stat_init(&hab_driver);
 	return result;
 
