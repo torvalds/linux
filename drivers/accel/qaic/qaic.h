@@ -283,7 +283,7 @@ void wakeup_dbc(struct qaic_device *qdev, u32 dbc_id);
 void release_dbc(struct qaic_device *qdev, u32 dbc_id);
 
 void wake_all_cntl(struct qaic_device *qdev);
-void qaic_dev_reset_clean_local_state(struct qaic_device *qdev, bool exit_reset);
+void qaic_dev_reset_clean_local_state(struct qaic_device *qdev);
 
 struct drm_gem_object *qaic_gem_prime_import(struct drm_device *dev, struct dma_buf *dma_buf);
 
