@@ -57,1223 +57,1347 @@
 #define SCU4D8 0x4D8 /* Driving Strength #6 T-U */
 #define SCU4DC 0x4DC /* Driving Strength #7 W */
 
-static const int espi1_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-static const int lpc1_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-static const int vpi_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-				12, 13, 14, 15, 16, 17, 18, 19, 20,
-				21, 22, 23, 24, 25, 26, 27, 28, 29 };
-static const int sd_pins[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-static const int tach0_pins[] = { 8 };
-static const int tach1_pins[] = { 9 };
-static const int tach2_pins[] = { 10 };
-static const int tach3_pins[] = { 11 };
-static const int thru0_pins[] = { 8, 9 };
-static const int thru1_pins[] = { 10, 11 };
-static const int tach4_pins[] = { 12 };
-static const int tach5_pins[] = { 13 };
-static const int tach6_pins[] = { 14 };
-static const int tach7_pins[] = { 15 };
-static const int tach8_pins[] = { 16 };
-static const int tach9_pins[] = { 17 };
-static const int ncts5_pins[] = { 12 };
-static const int ndcd5_pins[] = { 13 };
-static const int ndsr5_pins[] = { 14 };
-static const int nri5_pins[] = { 15 };
-static const int ndtr5_pins[] = { 16 };
-static const int nrts5_pins[] = { 17 };
-static const int tach10_pins[] = { 18 };
-static const int tach11_pins[] = { 19 };
-static const int tach12_pins[] = { 20 };
-static const int tach13_pins[] = { 21 };
-static const int tach14_pins[] = { 22 };
-static const int tach15_pins[] = { 23 };
-static const int salt12_pins[] = { 18 };
-static const int salt13_pins[] = { 19 };
-static const int salt14_pins[] = { 20 };
-static const int salt15_pins[] = { 21 };
-static const int ncts6_pins[] = { 18 };
-static const int ndcd6_pins[] = { 19 };
-static const int ndsr6_pins[] = { 20 };
-static const int nri6_pins[] = { 21 };
-static const int ndtr6_pins[] = { 22 };
-static const int nrts6_pins[] = { 23 };
-static const int spim0_pins[] = { 23, 24, 25, 26, 27, 28, 29, 30};
-
-//gpiod
-static const int pwm0_pins[] = { 24 };
-static const int pwm1_pins[] = { 25 };
-static const int pwm2_pins[] = { 26 };
-static const int pwm3_pins[] = { 27 };
-static const int pwm4_pins[] = { 28 };
-static const int pwm5_pins[] = { 29 };
-static const int pwm6_pins[] = { 30 };
-static const int pwm7_pins[] = { 31 };
-
-static const int siopbon0_pins[] = { 24 };
-static const int siopbin0_pins[] = { 25 };
-static const int sioscin0_pins[] = { 26 };
-static const int sios3n0_pins[] = { 27 };
-static const int sios5n0_pins[] = { 28 };
-static const int siopwreqn0_pins[] = { 29 };
-static const int sioonctrln0_pins[] = { 30 };
-static const int siopwrgd0_pins[] = { 31 };
-
-//gpioe
-static const int ncts0_pins[] = { 32 };
-static const int ndcd0_pins[] = { 33 };
-static const int ndsr0_pins[] = { 34 };
-static const int nri0_pins[] = { 35 };
-static const int ndtr0_pins[] = { 36 };
-static const int nrts0_pins[] = { 37 };
-static const int txd0_pins[] = { 38 };
-static const int rxd0_pins[] = { 39 };
-
-//GPIOF
-static const int ncts1_pins[] = { 40 };
-static const int ndcd1_pins[] = { 41 };
-static const int ndsr1_pins[] = { 42 };
-static const int nri1_pins[] = { 43 };
-static const int ndtr1_pins[] = { 44 };
-static const int nrts1_pins[] = { 45 };
-static const int txd1_pins[] = { 46 };
-static const int rxd1_pins[] = { 47 };
-
-//GPIOG
-static const int txd2_pins[] = { 48 };
-static const int rxd2_pins[] = { 49 };
-static const int txd3_pins[] = { 50 };
-static const int rxd3_pins[] = { 51 };
-static const int txd5_pins[] = { 52 };
-static const int rxd5_pins[] = { 53 };
-static const int txd6_pins[] = { 54 };
-static const int rxd6_pins[] = { 55 };
-static const int txd7_pins[] = { 56 };
-static const int rxd7_pins[] = { 57 };
-static const int wdtrst0n_pins[] = { 50 };
-static const int wdtrst1n_pins[] = { 51 };
-static const int wdtrst2n_pins[] = { 52 };
-static const int wdtrst3n_pins[] = { 53 };
-static const int salt0_pins[] = { 54 };
-static const int salt1_pins[] = { 55 };
-static const int salt2_pins[] = { 56 };
-static const int salt3_pins[] = { 57 };
-static const int pwm8_pins[] = { 50 };
-static const int pwm9_pins[] = { 51 };
-static const int pwm10_pins[] = { 52 };
-static const int pwm11_pins[] = { 53 };
-static const int pwm12_pins[] = { 54 };
-static const int pwm13_pins[] = { 55 };
-static const int pwm14_pins[] = { 56 };
-static const int pwm15_pins[] = { 57 };
-static const int spim1_pins[] = { 50, 51, 52, 53, 54, 55, 56, 57 };
-static const int wdtrst4n_pins[] = { 209 };
-static const int wdtrst5n_pins[] = { 210 };
-static const int wdtrst6n_pins[] = { 211 };
-static const int wdtrst7n_pins[] = { 58 };
-
-//GPIOH
-static const int smon0_pins[] = { 204, 205, 207, 208 };
-static const int smon1_pins[] = { 58, 59, 209, 210 };
-
-//GPIOI
-static const int hvi3c12_pins[] = { 60, 61 };
-static const int hvi3c13_pins[] = { 62, 63 };
-static const int hvi3c14_pins[] = { 64, 65 };
-static const int hvi3c15_pins[] = { 66, 67 };
-
-static const int hvi3c4_pins[] = { 0, 1 };
-static const int hvi3c5_pins[] = { 2, 3 };
-static const int hvi3c6_pins[] = { 4, 5 };
-
-static const int hvi3c7_pins[] = { 116, 117 };
-static const int hvi3c10_pins[] = { 118, 119 };
-static const int hvi3c11_pins[] = { 120, 121 };
-static const int spim2_pins[] = { 60, 61, 62, 63, 64, 65, 66, 67 };
-static const int siopbon1_pins[] = { 60 };
-static const int siopbin1_pins[] = { 61 };
-static const int sioscin1_pins[] = { 62 };
-static const int sios3n1_pins[] = { 63 };
-static const int sios5n1_pins[] = { 64 };
-static const int siopwreqn1_pins[] = { 65 };
-static const int sioonctrln1_pins[] = { 66 };
-static const int siopwrgd1_pins[] = { 67 };
-//general i2c
-static const int i2c0_pins[] = { 164, 165 };
-static const int i2c1_pins[] = { 166, 167 };
-static const int i2c2_pins[] = { 168, 169 };
-static const int i2c3_pins[] = { 170, 171 };
-static const int i2c4_pins[] = { 172, 173 };
-static const int i2c5_pins[] = { 174, 175 };
-static const int i2c6_pins[] = { 176, 177 };
-static const int i2c7_pins[] = { 178, 179 };
-static const int i2c8_pins[] = { 180, 181 };
-static const int i2c9_pins[] = { 182, 183 };
-static const int i2c10_pins[] = { 184, 185 };
-static const int i2c11_pins[] = { 186, 187 };
-static const int i2c12_pins[] = { 60, 61 };
-static const int i2c13_pins[] = { 62, 63 };
-static const int i2c14_pins[] = { 64, 65 };
-static const int i2c15_pins[] = { 66, 67 };
-
-//dcsci i2c
-static const int di2c8_pins[] = { 148, 152 };
-static const int di2c9_pins[] = { 150, 151 };
-
-static const int di2c10_pins[] = { 156, 157 };
-static const int di2c13_pins[] = { 116, 117 };
-static const int di2c14_pins[] = { 118, 119 };
-static const int di2c15_pins[] = { 120, 121 };
-// GPIOJ
-static const int i3c4_pins[] = { 68, 69 };
-static const int i3c5_pins[] = { 70, 71 };
-static const int i3c6_pins[] = { 72, 73 };
-static const int i3c7_pins[] = { 74, 75 };
-
-// GPIOK
-static const int i3c8_pins[] = { 76, 77 };
-static const int i3c9_pins[] = { 78, 79 };
-static const int i3c10_pins[] = { 80, 81 };
-static const int i3c11_pins[] = { 82, 83 };
-
-// GPIOL
-static const int i3c0_pins[] = { 84, 85 };
-static const int i3c1_pins[] = { 86, 87 };
-static const int i3c2_pins[] = { 88, 89 };
-static const int i3c3_pins[] = { 90, 91 };
-
-static const int fsi0_pins[] = { 84, 85 };
-static const int fsi1_pins[] = { 86, 87 };
-static const int fsi2_pins[] = { 88, 89 };
-static const int fsi3_pins[] = { 90, 91 };
-
-//GPIOM
-static const int espi0_pins[] = { 92, 93, 94, 95, 96, 97, 98, 99 };
-static const int lpc0_pins[] = { 22, 23, 92, 93, 94, 95, 96, 97, 98, 99 };
-static const int oscclk_pins[] = { 96 };
-
-//GPION
-static const int spi0_pins[] = { 100, 101, 102 };
-static const int qspi0_pins[] = { 103, 104 };
-static const int spi0cs1_pins[] = { 105 };
-static const int spi0abr_pins[] = { 106 };
-static const int spi0wpn_pins[] = { 107 };
-static const int txd8_pins[] = { 106 };
-static const int rxd8_pins[] = { 107 };
-
-//GPIOO
-static const int spi1_pins[] = { 108, 109, 110 };
-static const int qspi1_pins[] = { 111, 112 };
-static const int spi1cs1_pins[] = { 113 };
-static const int spi1abr_pins[] = { 114 };
-static const int spi1wpn_pins[] = { 115 };
-
-static const int txd9_pins[] = { 108 };
-static const int rxd9_pins[] = { 109 };
-static const int txd10_pins[] = { 110 };
-static const int rxd10_pins[] = { 111 };
-static const int txd11_pins[] = { 112 };
-static const int rxd11_pins[] = { 113 };
-
-//GPIOP
-static const int spi2_pins[] = { 116, 117, 118, 119 };
-static const int qspi2_pins[] = { 120, 121 };
-static const int spi2cs1_pins[] = { 122 };
-
-static const int fwqspi_pins[] = { 162, 163 };
-static const int fwspiabr_pins[] = { 123 };
-static const int fwspiwpn_pins[] = { 131 };
-
-static const int thru2_pins[] = { 114, 115 };
-static const int thru3_pins[] = { 120, 121 };
-
-//GPIOQ
-static const int jtagm1_pins[] = { 126, 127, 128, 129, 130 };
-
-//GPIY
-static const int salt4_pins[] = { 188 };
-static const int salt5_pins[] = { 189 };
-static const int salt6_pins[] = { 190 };
-static const int salt7_pins[] = { 191 };
-static const int salt8_pins[] = { 192 };
-static const int salt9_pins[] = { 193 };
-static const int salt10_pins[] = { 194 };
-static const int salt11_pins[] = { 195 };
-
-static const int adc0_pins[] = { 188 };
-static const int adc1_pins[] = { 189 };
-static const int adc2_pins[] = { 190 };
-static const int adc3_pins[] = { 191 };
-static const int adc4_pins[] = { 192 };
-static const int adc5_pins[] = { 193 };
-static const int adc6_pins[] = { 194 };
-static const int adc7_pins[] = { 195 };
-//GPIZ
-static const int adc8_pins[] = { 196 };
-static const int adc9_pins[] = { 197 };
-static const int adc10_pins[] = { 198 };
-static const int adc11_pins[] = { 199 };
-static const int adc12_pins[] = { 200 };
-static const int adc13_pins[] = { 201 };
-static const int adc14_pins[] = { 202 };
-static const int adc15_pins[] = { 203 };
-
-static const int auxpwrgood0_pins[] = { 201 };
-static const int auxpwrgood1_pins[] = { 202 };
-
-//GPIAA
-static const int sgpm0_pins[] = { 204, 205, 207, 208 };
-static const int sgpm1_pins[] = { 209, 210, 58, 59 };
-
-static const int ltpi_pins[] = { 84, 85, 86, 87 };
-
-static const int mdio0_pins[] = { 144, 145 };
-static const int mdio1_pins[] = { 160, 161 };
-static const int mdio2_pins[] = { 124, 125 };
-
-static const int rgmii0_pins[] = { 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143 };
-static const int rgmii1_pins[] = { 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159 };
-
-static const int rmii0_pins[] = { 132, 134, 135, 136, 137, 138, 139, 140, 141 };
-static const int rmii1_pins[] = { 148, 150, 151, 152, 153, 154, 155, 156, 157 };
-
-static const int vga_pins[] = { 146, 147 };
-
-static const int dsgpm1_pins[] = { 148, 152, 156, 157 };
-
-static const int sgps_pins[] = { 149, 154, 158, 159 };
-
-static const int i2cf0_pins[] = { 180, 181, 182, 183 };
-static const int i2cf1_pins[] = { 172, 173, 174, 175 };
-static const int i2cf2_pins[] = { 176, 177, 178, 179 };
-
-static const int canbus_pins[] = { 183, 184, 185 };
-
-static const int usbuart_pins[] = { 184, 185 };
-
-static const int hbled_pins[] = { 206 };
-
-static const int maclink0_pins[] = { 204 };
-static const int maclink1_pins[] = { 205 };
-static const int maclink2_pins[] = { 211 };
-
-static const int ncts2_pins[] = { 204 };
-static const int ndcd2_pins[] = { 205 };
-static const int ndsr2_pins[] = { 207 };
-static const int nri2_pins[] = { 208 };
-static const int ndtr2_pins[] = { 209 };
-static const int nrts2_pins[] = { 210 };
-
-/*
- * pin:	     name, number
- * group:    name, npins,   pins
- * function: name, ngroups, groups
- */
-struct aspeed_g7_soc1_pingroup {
-	const char *name;
-	const unsigned int *pins;
-	int npins;
+enum {
+	C16,
+	C14,
+	C11,
+	D9,
+	F14,
+	D10,
+	C12,
+	C13,
+	AA24,
+	AB24,
+	AB23,
+	AC22,
+	AD22,
+	AE21,
+	AF20,
+	AE20,
+	AD20,
+	Y23,
+	W23,
+	AD19,
+	AC20,
+	AA23,
+	AB22,
+	AB21,
+	AA22,
+	Y22,
+	W22,
+	AF18,
+	AE18,
+	AD18,
+	AC19,
+	AB20,
+	AF17,
+	AA16,
+	Y16,
+	V17,
+	J13,
+	AB16,
+	AC16,
+	AF16,
+	AA15,
+	AB15,
+	AC15,
+	AD15,
+	Y15,
+	AA14,
+	W16,
+	V16,
+	AB18,
+	AC18,
+	K13,
+	AA17,
+	AB17,
+	AD16,
+	AC17,
+	AD17,
+	AE16,
+	AE17,
+	U23,
+	T24,
+	AC24,
+	AD24,
+	AE23,
+	AE19,
+	AF23,
+	Y25,
+	AA25,
+	AF19,
+	AB25,
+	AC25,
+	AD25,
+	V22,
+	AE25,
+	V21,
+	AF21,
+	AF25,
+	AF26,
+	AE26,
+	W21,
+	AD26,
+	Y21,
+	AC26,
+	AA26,
+	AB26,
+	T26,
+	AA20,
+	V23,
+	W24,
+	R26,
+	AA21,
+	P26,
+	Y24,
+	B16,
+	D14,
+	B15,
+	B14,
+	C17,
+	B13,
+	E14,
+	C15,
+	D24,
+	B23,
+	B22,
+	C23,
+	B18,
+	B21,
+	B17,
+	B19,
+	B26,
+	A25,
+	A24,
+	B24,
+	E26,
+	A21,
+	A19,
+	A18,
+	D26,
+	C26,
+	A23,
+	B25,
+	A22,
+	F26,
+	A26,
+	A14,
+	E10,
+	E13,
+	D12,
+	F10,
+	E11,
+	F11,
+	F13,
+	N15,
+	C20,
+	C19,
+	A8,
+	R14,
+	A7,
+	P14,
+	D20,
+	A6,
+	B6,
+	N14,
+	B7,
+	B8,
+	B9,
+	M14,
+	J11,
+	E7,
+	D19,
+	B11,
+	D15,
+	B12,
+	B10,
+	P13,
+	C18,
+	C6,
+	C7,
+	D7,
+	N13,
+	C8,
+	C9,
+	C10,
+	M16,
+	A15,
+	G11,
+	H7,
+	H8,
+	H9,
+	H10,
+	H11,
+	J9,
+	J10,
+	E9,
+	F9,
+	F8,
+	M13,
+	F7,
+	D8,
+	E8,
+	L12,
+	F12,
+	E12,
+	J12,
+	G7,
+	G8,
+	G9,
+	G10,
+	K12,
+	W17,
+	V18,
+	W18,
+	Y17,
+	AA18,
+	AA13,
+	Y18,
+	AA12,
+	W20,
+	V20,
+	Y11,
+	V14,
+	V19,
+	W14,
+	Y20,
+	AB19,
+	U26,
+	U25,
+	V26,
+	W26,
+	Y26,
+	W25,
+	V24,
+	U24,
 };
 
-#define PINGROUP(pingrp_name, n) \
-	{ .name = #pingrp_name, \
-	  .pins = n##_pins, .npins = ARRAY_SIZE(n##_pins) }
+GROUP_DECL(ESPI0, B16, D14, B15, B14, C17, B13, E14, C15);
+GROUP_DECL(ESPI1, C16, C14, C11, D9, F14, D10, C12, C13);
+GROUP_DECL(LPC0, AB22, AB21, B16, D14, B15, B14, C17, B13, E14, C15);
+GROUP_DECL(LPC1, C16, C14, C11, D9, F14, D10, C12, C13);
+GROUP_DECL(SD, C16, C14, C11, D9, F14, D10, C12, C13);
+GROUP_DECL(VPI, C16, C14, C11, D9, F14, D10, C12, C13, AA24, AB24, AB23, AC22,
+	   AD22, AE21, AF20, AE20, AD20, Y23, W23, AD19, AC20, AA23, AB22, AB21,
+	   AA22, Y22, W22, AF18, AE18, AD18);
+GROUP_DECL(OSCCLK, C17);
+GROUP_DECL(TACH0, AA24);
+GROUP_DECL(TACH1, AB24);
+GROUP_DECL(TACH2, AB23);
+GROUP_DECL(TACH3, AC22);
+GROUP_DECL(THRU0, AA24, AB24);
+GROUP_DECL(THRU1, AB23, AC22);
+GROUP_DECL(TACH4, AD22);
+GROUP_DECL(TACH5, AE21);
+GROUP_DECL(TACH6, AF20);
+GROUP_DECL(TACH7, AE20);
+GROUP_DECL(NTCS5, AD22);
+GROUP_DECL(NDCD5, AE21);
+GROUP_DECL(NDSR5, AF20);
+GROUP_DECL(NRI5, AE20);
+GROUP_DECL(SALT12, W23);
+GROUP_DECL(SALT13, AD19);
+GROUP_DECL(SALT14, AC20);
+GROUP_DECL(SALT15, AA23);
+GROUP_DECL(NDTR5, AD20);
+GROUP_DECL(NRTS5, Y23);
+GROUP_DECL(NCTS6, W23);
+GROUP_DECL(NDCD6, AD19);
+GROUP_DECL(NDSR6, AC20);
+GROUP_DECL(NRI6, AA23);
+GROUP_DECL(NDTR6, AB22);
+GROUP_DECL(NRTS6, AB21);
+GROUP_DECL(TACH8, AD20);
+GROUP_DECL(TACH9, Y23);
+GROUP_DECL(TACH10, W23);
+GROUP_DECL(TACH11, AD19);
+GROUP_DECL(TACH12, AC20);
+GROUP_DECL(TACH13, AA23);
+GROUP_DECL(TACH14, AB22);
+GROUP_DECL(TACH15, AB21);
+GROUP_DECL(SPIM0, AB21, AA22, Y22, W22, AF18, AE18, AD18, AC19);
+GROUP_DECL(PWM0, AA22);
+GROUP_DECL(PWM1, Y22);
+GROUP_DECL(PWM2, W22);
+GROUP_DECL(PWM3, AF18);
+GROUP_DECL(PWM4, AE18);
+GROUP_DECL(PWM5, AD18);
+GROUP_DECL(PWM6, AC19);
+GROUP_DECL(PWM7, AB20);
+GROUP_DECL(SIOPBON0, AA22);
+GROUP_DECL(SIOPBIN0, Y22);
+GROUP_DECL(SIOSCIN0, W22);
+GROUP_DECL(SIOS3N0, AF18);
+GROUP_DECL(SIOS5N0, AE18);
+GROUP_DECL(SIOPWREQN0, AD18);
+GROUP_DECL(SIOONCTRLN0, AC19);
+GROUP_DECL(SIOPWRGD0, AB20);
+GROUP_DECL(NCTS0, AF17);
+GROUP_DECL(NDCD0, AA16);
+GROUP_DECL(NDSR0, Y16);
+GROUP_DECL(NRI0, V17);
+GROUP_DECL(NDTR0, J13);
+GROUP_DECL(NRTS0, AB16);
+GROUP_DECL(TXD0, AC16);
+GROUP_DECL(RXD0, AF16);
+GROUP_DECL(NCTS1, AA15);
+GROUP_DECL(NDCD1, AB15);
+GROUP_DECL(NDSR1, AC15);
+GROUP_DECL(NRI1, AD15);
+GROUP_DECL(NDTR1, Y15);
+GROUP_DECL(NRTS1, AA14);
+GROUP_DECL(TXD1, W16);
+GROUP_DECL(RXD1, V16);
+GROUP_DECL(TXD2, AB18);
+GROUP_DECL(RXD2, AC18);
+GROUP_DECL(TXD3, K13);
+GROUP_DECL(RXD3, AA17);
+GROUP_DECL(NCTS5, AD22);
+GROUP_DECL(TXD5, AB17);
+GROUP_DECL(RXD5, AD16);
+GROUP_DECL(TXD6, AC17);
+GROUP_DECL(RXD6, AD17);
+GROUP_DECL(TXD7, AE16);
+GROUP_DECL(RXD7, AE17);
+GROUP_DECL(TXD8, B17);
+GROUP_DECL(RXD8, B19);
+GROUP_DECL(TXD9, B26);
+GROUP_DECL(RXD9, A25);
+GROUP_DECL(TXD10, A24);
+GROUP_DECL(RXD10, B24);
+GROUP_DECL(TXD11, E26);
+GROUP_DECL(RXD11, A21);
+GROUP_DECL(SPIM1, K13, AA17, AB17, AD16, AC17, AD17, AE16, AE17);
+GROUP_DECL(WDTRST0N, K13);
+GROUP_DECL(WDTRST1N, AA17);
+GROUP_DECL(WDTRST2N, AB17);
+GROUP_DECL(WDTRST3N, AD16);
+GROUP_DECL(WDTRST4N, W25);
+GROUP_DECL(WDTRST5N, V24);
+GROUP_DECL(WDTRST6N, U24);
+GROUP_DECL(WDTRST7N, U23);
+GROUP_DECL(PWM8, K13);
+GROUP_DECL(PWM9, AA17);
+GROUP_DECL(PWM10, AB17);
+GROUP_DECL(PWM11, AD16);
+GROUP_DECL(PWM12, AC17);
+GROUP_DECL(PWM13, AD17);
+GROUP_DECL(PWM14, AE16);
+GROUP_DECL(PWM15, AE17);
+GROUP_DECL(SALT0, AC17);
+GROUP_DECL(SALT1, AD17);
+GROUP_DECL(SALT2, AE16);
+GROUP_DECL(SALT3, AE17);
+GROUP_DECL(FSI0, T26, AA20);
+GROUP_DECL(FSI1, V23, W24);
+GROUP_DECL(FSI2, R26, AA21);
+GROUP_DECL(FSI3, P26, Y24);
+GROUP_DECL(SPIM2, AC24, AD24, AE23, AE19, AF23, Y25, AA25, AF19);
+GROUP_DECL(SALT4, W17);
+GROUP_DECL(SALT5, V18);
+GROUP_DECL(SALT6, W18);
+GROUP_DECL(SALT7, Y17);
+GROUP_DECL(SALT8, AA18);
+GROUP_DECL(SALT9, AA13);
+GROUP_DECL(SALT10, Y18);
+GROUP_DECL(SALT11, AA12);
+GROUP_DECL(ADC0, W17);
+GROUP_DECL(ADC1, V18);
+GROUP_DECL(ADC2, W18);
+GROUP_DECL(ADC3, Y17);
+GROUP_DECL(ADC4, AA18);
+GROUP_DECL(ADC5, AA13);
+GROUP_DECL(ADC6, Y18);
+GROUP_DECL(ADC7, AA12);
+GROUP_DECL(ADC8, W20);
+GROUP_DECL(ADC9, V20);
+GROUP_DECL(ADC10, Y11);
+GROUP_DECL(ADC11, V14);
+GROUP_DECL(ADC12, V19);
+GROUP_DECL(ADC13, W14);
+GROUP_DECL(ADC14, Y20);
+GROUP_DECL(ADC15, AB19);
+GROUP_DECL(AUXPWRGOOD0, W14);
+GROUP_DECL(AUXPWRGOOD1, Y20);
+GROUP_DECL(SGPM0, U26, U25, W26, Y26);
+GROUP_DECL(SGPM1, W25, V24, U23, T24);
+GROUP_DECL(I2C0, G11, H7);
+GROUP_DECL(I2C1, H8, H9);
+GROUP_DECL(I2C2, H10, H11);
+GROUP_DECL(I2C3, J9, J10);
+GROUP_DECL(I2C4, E9, F9);
+GROUP_DECL(I2C5, F8, M13);
+GROUP_DECL(I2C6, F7, D8);
+GROUP_DECL(I2C7, E8, L12);
+GROUP_DECL(I2C8, F12, E12);
+GROUP_DECL(I2C9, J12, G7);
+GROUP_DECL(I2C10, G8, G9);
+GROUP_DECL(I2C11, G10, K12);
+GROUP_DECL(I2C12, AC24, AD24);
+GROUP_DECL(I2C13, AE23, AE19);
+GROUP_DECL(I2C14, AF23, Y25);
+GROUP_DECL(I2C15, AA25, AF19);
+GROUP_DECL(DI2C8, D19, B10);
+GROUP_DECL(DI2C9, D15, B12);
+GROUP_DECL(DI2C10, C7, D7);
+GROUP_DECL(DI2C13, D26, C26);
+GROUP_DECL(DI2C14, A23, B25);
+GROUP_DECL(DI2C15, A22, F26);
+GROUP_DECL(SIOPBON1, AC24);
+GROUP_DECL(SIOPBIN1, AD24);
+GROUP_DECL(SIOSCIN1, AE23);
+GROUP_DECL(SIOS3N1, AE19);
+GROUP_DECL(SIOS5N1, AF23);
+GROUP_DECL(SIOPWREQN1, Y25);
+GROUP_DECL(SIOONCTRLN1, AA25);
+GROUP_DECL(SIOPWRGD1, AF19);
+GROUP_DECL(HVI3C12, AC24, AD24);
+GROUP_DECL(HVI3C13, AE23, AE19);
+GROUP_DECL(HVI3C14, AF23, Y25);
+GROUP_DECL(HVI3C15, AA25, AF19);
+GROUP_DECL(HVI3C4, C16, C14);
+GROUP_DECL(HVI3C5, C11, D9);
+GROUP_DECL(HVI3C6, F14, D10);
+GROUP_DECL(HVI3C7, D26, C26);
+GROUP_DECL(HVI3C10, A23, B25);
+GROUP_DECL(HVI3C11, A22, F26);
+GROUP_DECL(I3C4, AB25, AC25);
+GROUP_DECL(I3C5, AD25, V22);
+GROUP_DECL(I3C6, AE25, V21);
+GROUP_DECL(I3C7, AF21, AF25);
+GROUP_DECL(I3C8, AF26, AE26);
+GROUP_DECL(I3C9, W21, AD26);
+GROUP_DECL(I3C10, Y21, AC26);
+GROUP_DECL(I3C11, AA26, AB26);
+GROUP_DECL(I3C0, T26, AA20);
+GROUP_DECL(I3C1, V23, W24);
+GROUP_DECL(I3C2, R26, AA21);
+GROUP_DECL(I3C3, P26, Y24);
+GROUP_DECL(LTPI, T26, AA20, V23, W24);
+GROUP_DECL(SPI0, D24, B23, B22);
+GROUP_DECL(QSPI0, C23, B18);
+GROUP_DECL(SPI0CS1, B21);
+GROUP_DECL(SPI0ABR, B17);
+GROUP_DECL(SPI0WPN, B19);
+GROUP_DECL(SPI1, B26, A25, A24);
+GROUP_DECL(QSPI1, B24, E26);
+GROUP_DECL(SPI1CS1, A21);
+GROUP_DECL(SPI1ABR, A19);
+GROUP_DECL(SPI1WPN, A18);
+GROUP_DECL(SPI2, D26, C26, A23, B25);
+GROUP_DECL(QSPI2, A22, F26);
+GROUP_DECL(SPI2CS1, A26);
+GROUP_DECL(THRU2, A19, A18);
+GROUP_DECL(THRU3, A22, F26);
+GROUP_DECL(JTAGM1, D12, F10, E11, F11, F13);
+GROUP_DECL(MDIO0, B9, M14);
+GROUP_DECL(MDIO1, C9, C10);
+GROUP_DECL(MDIO2, E10, E13);
+GROUP_DECL(FWQSPI, M16, A15);
+GROUP_DECL(FWSPIABR, A14);
+GROUP_DECL(FWSPIWPN, N15);
+GROUP_DECL(RGMII0, C20, C19, A8, R14, A7, P14, D20, A6, B6, N14, B7, B8);
+GROUP_DECL(RGMII1, D19, B11, D15, B12, B10, P13, C18, C6, C7, D7, N13, C8);
+GROUP_DECL(RMII0, C20, A8, R14, A7, P14, D20, A6, B6, N14);
+GROUP_DECL(RMII1, D19, D15, B12, B10, P13, C18, C6, C7, D7);
+GROUP_DECL(VGA, J11, E7);
+GROUP_DECL(DSGPM1, D19, B10, C7, D7);
+GROUP_DECL(SGPS, B11, C18, N13, C8);
+GROUP_DECL(I2CF0, F12, E12, J12, G7);
+GROUP_DECL(I2CF1, E9, F9, F8, M13);
+GROUP_DECL(I2CF2, F7, D8, E8, L12);
+GROUP_DECL(CANBUS, G7, G8, G9);
+GROUP_DECL(USBUART, G8, G9);
+GROUP_DECL(HBLED, V26);
+GROUP_DECL(MACLINK0, U26);
+GROUP_DECL(MACLINK1, U25);
+GROUP_DECL(MACLINK2, U24);
+GROUP_DECL(NCTS2, U26);
+GROUP_DECL(NDCD2, U25);
+GROUP_DECL(NDSR2, W26);
+GROUP_DECL(NRI2, Y26);
+GROUP_DECL(NDTR2, W25);
+GROUP_DECL(NRTS2, V24);
+GROUP_DECL(SMON0, U26, U25, W26, Y26);
+GROUP_DECL(SMON1, U23, T24, W25, V24);
 
-static struct aspeed_g7_soc1_pingroup aspeed_g7_soc1_pingroups[] = {
-	PINGROUP(ESPI0, espi0),
-	PINGROUP(ESPI1, espi1),
-	PINGROUP(LPC0, lpc0),
-	PINGROUP(LPC1, lpc1),
-	PINGROUP(SD, sd),
-	PINGROUP(VPI, vpi),
-	PINGROUP(OSCCLK, oscclk),
-	PINGROUP(TACH0, tach0),
-	PINGROUP(TACH1, tach1),
-	PINGROUP(TACH2, tach2),
-	PINGROUP(TACH3, tach3),
-	PINGROUP(THRU0, thru0),
-	PINGROUP(THRU1, thru1),
-	PINGROUP(TACH4, tach4),
-	PINGROUP(TACH5, tach5),
-	PINGROUP(TACH6, tach6),
-	PINGROUP(TACH7, tach7),
-	PINGROUP(NTCS5, ncts5),
-	PINGROUP(NDCD5, ndcd5),
-	PINGROUP(NDSR5, ndsr5),
-	PINGROUP(NRI5, nri5),
-	PINGROUP(SALT12, salt12),
-	PINGROUP(SALT13, salt13),
-	PINGROUP(SALT14, salt14),
-	PINGROUP(SALT15, salt15),
-	PINGROUP(NDTR5, ndtr5),
-	PINGROUP(NRTS5, nrts5),
-	PINGROUP(NCTS6, ncts6),
-	PINGROUP(NDCD6, ndcd6),
-	PINGROUP(NDSR6, ndsr6),
-	PINGROUP(NRI6, nri6),
-	PINGROUP(NDTR6, ndtr6),
-	PINGROUP(NRTS6, nrts6),
-	PINGROUP(TACH8, tach8),
-	PINGROUP(TACH9, tach9),
-	PINGROUP(TACH10, tach10),
-	PINGROUP(TACH11, tach11),
-	PINGROUP(TACH12, tach12),
-	PINGROUP(TACH13, tach13),
-	PINGROUP(TACH14, tach14),
-	PINGROUP(TACH15, tach15),
-	PINGROUP(SPIM0, spim0),
-	PINGROUP(PWM0, pwm0),
-	PINGROUP(PWM1, pwm1),
-	PINGROUP(PWM2, pwm2),
-	PINGROUP(PWM3, pwm3),
-	PINGROUP(PWM4, pwm4),
-	PINGROUP(PWM5, pwm5),
-	PINGROUP(PWM6, pwm6),
-	PINGROUP(PWM7, pwm7),
-	PINGROUP(SIOPBON0, siopbon0),
-	PINGROUP(SIOPBIN0, siopbin0),
-	PINGROUP(SIOSCIN0, sioscin0),
-	PINGROUP(SIOS3N0, sios3n0),
-	PINGROUP(SIOS5N0, sios5n0),
-	PINGROUP(SIOPWREQN0, siopwreqn0),
-	PINGROUP(SIOONCTRLN0, sioonctrln0),
-	PINGROUP(SIOPWRGD0, siopwrgd0),
-	PINGROUP(NCTS0, ncts0),
-	PINGROUP(NDCD0, ndcd0),
-	PINGROUP(NDSR0, ndsr0),
-	PINGROUP(NRI0, nri0),
-	PINGROUP(NDTR0, ndtr0),
-	PINGROUP(NRTS0, nrts0),
-	PINGROUP(TXD0, txd0),
-	PINGROUP(RXD0, rxd0),
-	PINGROUP(NCTS1, ncts1),
-	PINGROUP(NDCD1, ndcd1),
-	PINGROUP(NDSR1, ndsr1),
-	PINGROUP(NRI1, nri1),
-	PINGROUP(NDTR1, ndtr1),
-	PINGROUP(NRTS1, nrts1),
-	PINGROUP(TXD1, txd1),
-	PINGROUP(RXD1, rxd1),
-	PINGROUP(TXD2, txd2),
-	PINGROUP(RXD2, rxd2),
-	PINGROUP(TXD3, txd3),
-	PINGROUP(RXD3, rxd3),
-	PINGROUP(NCTS5, ncts5),
-	PINGROUP(NDCD5, ndcd5),
-	PINGROUP(NDSR5, ndsr5),
-	PINGROUP(NRI5, nri5),
-	PINGROUP(NDTR5, ndtr5),
-	PINGROUP(NRTS5, nrts5),
-	PINGROUP(TXD5, txd5),
-	PINGROUP(RXD5, rxd5),
-	PINGROUP(NCTS6, ncts6),
-	PINGROUP(NDCD6, ndcd6),
-	PINGROUP(NDSR6, ndsr6),
-	PINGROUP(NRI6, nri6),
-	PINGROUP(NDTR6, ndtr6),
-	PINGROUP(NRTS6, nrts6),
-	PINGROUP(TXD6, txd6),
-	PINGROUP(RXD6, rxd6),
-	PINGROUP(TXD6, txd6),
-	PINGROUP(RXD6, rxd6),
-	PINGROUP(TXD7, txd7),
-	PINGROUP(RXD7, rxd7),
-	PINGROUP(TXD8, txd8),
-	PINGROUP(RXD8, rxd8),
-	PINGROUP(TXD9, txd9),
-	PINGROUP(RXD9, rxd9),
-	PINGROUP(TXD10, txd10),
-	PINGROUP(RXD10, rxd10),
-	PINGROUP(TXD11, txd11),
-	PINGROUP(RXD11, rxd11),
-	PINGROUP(SPIM1, spim1),
-	PINGROUP(WDTRST0N, wdtrst0n),
-	PINGROUP(WDTRST1N, wdtrst1n),
-	PINGROUP(WDTRST2N, wdtrst2n),
-	PINGROUP(WDTRST3N, wdtrst3n),
-	PINGROUP(WDTRST4N, wdtrst4n),
-	PINGROUP(WDTRST5N, wdtrst5n),
-	PINGROUP(WDTRST6N, wdtrst6n),
-	PINGROUP(WDTRST7N, wdtrst7n),
-	PINGROUP(PWM8, pwm8),
-	PINGROUP(PWM9, pwm9),
-	PINGROUP(PWM10, pwm10),
-	PINGROUP(PWM11, pwm11),
-	PINGROUP(PWM12, pwm12),
-	PINGROUP(PWM13, pwm13),
-	PINGROUP(PWM14, pwm14),
-	PINGROUP(PWM15, pwm15),
-	PINGROUP(SALT0, salt0),
-	PINGROUP(SALT1, salt1),
-	PINGROUP(SALT2, salt2),
-	PINGROUP(SALT3, salt3),
-	PINGROUP(FSI0, fsi0),
-	PINGROUP(FSI1, fsi1),
-	PINGROUP(FSI2, fsi2),
-	PINGROUP(FSI3, fsi3),
-	PINGROUP(SPIM2, spim2),
-	PINGROUP(SALT4, salt4),
-	PINGROUP(SALT5, salt5),
-	PINGROUP(SALT6, salt6),
-	PINGROUP(SALT7, salt7),
-	PINGROUP(SALT8, salt8),
-	PINGROUP(SALT9, salt9),
-	PINGROUP(SALT10, salt10),
-	PINGROUP(SALT11, salt11),
-	PINGROUP(ADC0, adc0),
-	PINGROUP(ADC1, adc1),
-	PINGROUP(ADC2, adc2),
-	PINGROUP(ADC3, adc3),
-	PINGROUP(ADC4, adc4),
-	PINGROUP(ADC5, adc5),
-	PINGROUP(ADC6, adc6),
-	PINGROUP(ADC7, adc7),
-	PINGROUP(ADC8, adc8),
-	PINGROUP(ADC9, adc9),
-	PINGROUP(ADC10, adc10),
-	PINGROUP(ADC11, adc11),
-	PINGROUP(ADC12, adc12),
-	PINGROUP(ADC13, adc13),
-	PINGROUP(ADC14, adc14),
-	PINGROUP(ADC15, adc15),
-	PINGROUP(AUXPWRGOOD0, auxpwrgood0),
-	PINGROUP(AUXPWRGOOD1, auxpwrgood1),
-	PINGROUP(SGPM0, sgpm0),
-	PINGROUP(SGPM1, sgpm1),
-	PINGROUP(I2C0, i2c0),
-	PINGROUP(I2C1, i2c1),
-	PINGROUP(I2C2, i2c2),
-	PINGROUP(I2C3, i2c3),
-	PINGROUP(I2C4, i2c4),
-	PINGROUP(I2C5, i2c5),
-	PINGROUP(I2C6, i2c6),
-	PINGROUP(I2C7, i2c7),
-	PINGROUP(I2C8, i2c8),
-	PINGROUP(I2C9, i2c9),
-	PINGROUP(I2C10, i2c10),
-	PINGROUP(I2C11, i2c11),
-	PINGROUP(I2C12, i2c12),
-	PINGROUP(I2C13, i2c13),
-	PINGROUP(I2C14, i2c14),
-	PINGROUP(I2C15, i2c15),
-	PINGROUP(DI2C8, di2c8),
-	PINGROUP(DI2C9, di2c9),
-	PINGROUP(DI2C10, di2c10),
-	PINGROUP(DI2C13, di2c13),
-	PINGROUP(DI2C14, di2c14),
-	PINGROUP(DI2C15, di2c15),
-	PINGROUP(SIOPBON1, siopbon1),
-	PINGROUP(SIOPBIN1, siopbin1),
-	PINGROUP(SIOSCIN1, sioscin1),
-	PINGROUP(SIOS3N1, sios3n1),
-	PINGROUP(SIOS5N1, sios5n1),
-	PINGROUP(SIOPWREQN1, siopwreqn1),
-	PINGROUP(SIOONCTRLN1, sioonctrln1),
-	PINGROUP(SIOPWRGD1, siopwrgd1),
-	PINGROUP(HVI3C12, hvi3c12),
-	PINGROUP(HVI3C13, hvi3c13),
-	PINGROUP(HVI3C14, hvi3c14),
-	PINGROUP(HVI3C15, hvi3c15),
-	PINGROUP(HVI3C4, hvi3c4),
-	PINGROUP(HVI3C5, hvi3c5),
-	PINGROUP(HVI3C6, hvi3c6),
-	PINGROUP(HVI3C7, hvi3c7),
-	PINGROUP(HVI3C10, hvi3c10),
-	PINGROUP(HVI3C11, hvi3c11),
-	PINGROUP(I3C4, i3c4),
-	PINGROUP(I3C5, i3c5),
-	PINGROUP(I3C6, i3c6),
-	PINGROUP(I3C7, i3c7),
-	PINGROUP(I3C8, i3c8),
-	PINGROUP(I3C9, i3c9),
-	PINGROUP(I3C10, i3c10),
-	PINGROUP(I3C11, i3c11),
-	PINGROUP(I3C0, i3c0),
-	PINGROUP(I3C1, i3c1),
-	PINGROUP(I3C2, i3c2),
-	PINGROUP(I3C3, i3c3),
-	PINGROUP(LTPI, ltpi),
-	PINGROUP(SPI0, spi0),
-	PINGROUP(QSPI0, qspi0),
-	PINGROUP(SPI0CS1, spi0cs1),
-	PINGROUP(SPI0ABR, spi0abr),
-	PINGROUP(SPI0WPN, spi0wpn),
-	PINGROUP(SPI1, spi1),
-	PINGROUP(QSPI1, qspi1),
-	PINGROUP(SPI1CS1, spi1cs1),
-	PINGROUP(SPI1ABR, spi1abr),
-	PINGROUP(SPI1WPN, spi1wpn),
-	PINGROUP(SPI2, spi2),
-	PINGROUP(QSPI2, qspi2),
-	PINGROUP(SPI2CS1, spi2cs1),
-	PINGROUP(THRU2, thru2),
-	PINGROUP(THRU3, thru3),
-	PINGROUP(JTAGM1, jtagm1),
-	PINGROUP(MDIO0, mdio0),
-	PINGROUP(MDIO1, mdio1),
-	PINGROUP(MDIO2, mdio2),
-	PINGROUP(FWQSPI, fwqspi),
-	PINGROUP(FWSPIABR, fwspiabr),
-	PINGROUP(FWSPIWPN, fwspiwpn),
-	PINGROUP(RGMII0, rgmii0),
-	PINGROUP(RGMII1, rgmii1),
-	PINGROUP(RMII0, rmii0),
-	PINGROUP(RMII1, rmii1),
-	PINGROUP(VGA, vga),
-	PINGROUP(DSGPM1, dsgpm1),
-	PINGROUP(SGPS, sgps),
-	PINGROUP(I2CF0, i2cf0),
-	PINGROUP(I2CF1, i2cf1),
-	PINGROUP(I2CF2, i2cf2),
-	PINGROUP(CANBUS, canbus),
-	PINGROUP(USBUART, usbuart),
-	PINGROUP(HBLED, hbled),
-	PINGROUP(MACLINK0, maclink0),
-	PINGROUP(MACLINK1, maclink1),
-	PINGROUP(MACLINK2, maclink2),
-	PINGROUP(NCTS2, ncts2),
-	PINGROUP(NDCD2, ndcd2),
-	PINGROUP(NDSR2, ndsr2),
-	PINGROUP(NRI2, nri2),
-	PINGROUP(NDTR2, ndtr2),
-	PINGROUP(NRTS2, nrts2),
-	PINGROUP(SMON0, smon0),
-	PINGROUP(SMON1, smon1)
+static struct aspeed_pin_group aspeed_g7_soc1_pingroups[] = {
+	ASPEED_PINCTRL_GROUP(ESPI0),
+	ASPEED_PINCTRL_GROUP(ESPI1),
+	ASPEED_PINCTRL_GROUP(LPC0),
+	ASPEED_PINCTRL_GROUP(LPC1),
+	ASPEED_PINCTRL_GROUP(SD),
+	ASPEED_PINCTRL_GROUP(VPI),
+	ASPEED_PINCTRL_GROUP(OSCCLK),
+	ASPEED_PINCTRL_GROUP(TACH0),
+	ASPEED_PINCTRL_GROUP(TACH1),
+	ASPEED_PINCTRL_GROUP(TACH2),
+	ASPEED_PINCTRL_GROUP(TACH3),
+	ASPEED_PINCTRL_GROUP(THRU0),
+	ASPEED_PINCTRL_GROUP(THRU1),
+	ASPEED_PINCTRL_GROUP(TACH4),
+	ASPEED_PINCTRL_GROUP(TACH5),
+	ASPEED_PINCTRL_GROUP(TACH6),
+	ASPEED_PINCTRL_GROUP(TACH7),
+	ASPEED_PINCTRL_GROUP(NTCS5),
+	ASPEED_PINCTRL_GROUP(NDCD5),
+	ASPEED_PINCTRL_GROUP(NDSR5),
+	ASPEED_PINCTRL_GROUP(NRI5),
+	ASPEED_PINCTRL_GROUP(SALT12),
+	ASPEED_PINCTRL_GROUP(SALT13),
+	ASPEED_PINCTRL_GROUP(SALT14),
+	ASPEED_PINCTRL_GROUP(SALT15),
+	ASPEED_PINCTRL_GROUP(NDTR5),
+	ASPEED_PINCTRL_GROUP(NRTS5),
+	ASPEED_PINCTRL_GROUP(NCTS6),
+	ASPEED_PINCTRL_GROUP(NDCD6),
+	ASPEED_PINCTRL_GROUP(NDSR6),
+	ASPEED_PINCTRL_GROUP(NRI6),
+	ASPEED_PINCTRL_GROUP(NDTR6),
+	ASPEED_PINCTRL_GROUP(NRTS6),
+	ASPEED_PINCTRL_GROUP(TACH8),
+	ASPEED_PINCTRL_GROUP(TACH9),
+	ASPEED_PINCTRL_GROUP(TACH10),
+	ASPEED_PINCTRL_GROUP(TACH11),
+	ASPEED_PINCTRL_GROUP(TACH12),
+	ASPEED_PINCTRL_GROUP(TACH13),
+	ASPEED_PINCTRL_GROUP(TACH14),
+	ASPEED_PINCTRL_GROUP(TACH15),
+	ASPEED_PINCTRL_GROUP(SPIM0),
+	ASPEED_PINCTRL_GROUP(PWM0),
+	ASPEED_PINCTRL_GROUP(PWM1),
+	ASPEED_PINCTRL_GROUP(PWM2),
+	ASPEED_PINCTRL_GROUP(PWM3),
+	ASPEED_PINCTRL_GROUP(PWM4),
+	ASPEED_PINCTRL_GROUP(PWM5),
+	ASPEED_PINCTRL_GROUP(PWM6),
+	ASPEED_PINCTRL_GROUP(PWM7),
+	ASPEED_PINCTRL_GROUP(SIOPBON0),
+	ASPEED_PINCTRL_GROUP(SIOPBIN0),
+	ASPEED_PINCTRL_GROUP(SIOSCIN0),
+	ASPEED_PINCTRL_GROUP(SIOS3N0),
+	ASPEED_PINCTRL_GROUP(SIOS5N0),
+	ASPEED_PINCTRL_GROUP(SIOPWREQN0),
+	ASPEED_PINCTRL_GROUP(SIOONCTRLN0),
+	ASPEED_PINCTRL_GROUP(SIOPWRGD0),
+	ASPEED_PINCTRL_GROUP(NCTS0),
+	ASPEED_PINCTRL_GROUP(NDCD0),
+	ASPEED_PINCTRL_GROUP(NDSR0),
+	ASPEED_PINCTRL_GROUP(NRI0),
+	ASPEED_PINCTRL_GROUP(NDTR0),
+	ASPEED_PINCTRL_GROUP(NRTS0),
+	ASPEED_PINCTRL_GROUP(TXD0),
+	ASPEED_PINCTRL_GROUP(RXD0),
+	ASPEED_PINCTRL_GROUP(NCTS1),
+	ASPEED_PINCTRL_GROUP(NDCD1),
+	ASPEED_PINCTRL_GROUP(NDSR1),
+	ASPEED_PINCTRL_GROUP(NRI1),
+	ASPEED_PINCTRL_GROUP(NDTR1),
+	ASPEED_PINCTRL_GROUP(NRTS1),
+	ASPEED_PINCTRL_GROUP(TXD1),
+	ASPEED_PINCTRL_GROUP(RXD1),
+	ASPEED_PINCTRL_GROUP(TXD2),
+	ASPEED_PINCTRL_GROUP(RXD2),
+	ASPEED_PINCTRL_GROUP(TXD3),
+	ASPEED_PINCTRL_GROUP(RXD3),
+	ASPEED_PINCTRL_GROUP(NCTS5),
+	ASPEED_PINCTRL_GROUP(NDCD5),
+	ASPEED_PINCTRL_GROUP(NDSR5),
+	ASPEED_PINCTRL_GROUP(NRI5),
+	ASPEED_PINCTRL_GROUP(NDTR5),
+	ASPEED_PINCTRL_GROUP(NRTS5),
+	ASPEED_PINCTRL_GROUP(TXD5),
+	ASPEED_PINCTRL_GROUP(RXD5),
+	ASPEED_PINCTRL_GROUP(NCTS6),
+	ASPEED_PINCTRL_GROUP(NDCD6),
+	ASPEED_PINCTRL_GROUP(NDSR6),
+	ASPEED_PINCTRL_GROUP(NRI6),
+	ASPEED_PINCTRL_GROUP(NDTR6),
+	ASPEED_PINCTRL_GROUP(NRTS6),
+	ASPEED_PINCTRL_GROUP(TXD6),
+	ASPEED_PINCTRL_GROUP(RXD6),
+	ASPEED_PINCTRL_GROUP(TXD6),
+	ASPEED_PINCTRL_GROUP(RXD6),
+	ASPEED_PINCTRL_GROUP(TXD7),
+	ASPEED_PINCTRL_GROUP(RXD7),
+	ASPEED_PINCTRL_GROUP(TXD8),
+	ASPEED_PINCTRL_GROUP(RXD8),
+	ASPEED_PINCTRL_GROUP(TXD9),
+	ASPEED_PINCTRL_GROUP(RXD9),
+	ASPEED_PINCTRL_GROUP(TXD10),
+	ASPEED_PINCTRL_GROUP(RXD10),
+	ASPEED_PINCTRL_GROUP(TXD11),
+	ASPEED_PINCTRL_GROUP(RXD11),
+	ASPEED_PINCTRL_GROUP(SPIM1),
+	ASPEED_PINCTRL_GROUP(WDTRST0N),
+	ASPEED_PINCTRL_GROUP(WDTRST1N),
+	ASPEED_PINCTRL_GROUP(WDTRST2N),
+	ASPEED_PINCTRL_GROUP(WDTRST3N),
+	ASPEED_PINCTRL_GROUP(WDTRST4N),
+	ASPEED_PINCTRL_GROUP(WDTRST5N),
+	ASPEED_PINCTRL_GROUP(WDTRST6N),
+	ASPEED_PINCTRL_GROUP(WDTRST7N),
+	ASPEED_PINCTRL_GROUP(PWM8),
+	ASPEED_PINCTRL_GROUP(PWM9),
+	ASPEED_PINCTRL_GROUP(PWM10),
+	ASPEED_PINCTRL_GROUP(PWM11),
+	ASPEED_PINCTRL_GROUP(PWM12),
+	ASPEED_PINCTRL_GROUP(PWM13),
+	ASPEED_PINCTRL_GROUP(PWM14),
+	ASPEED_PINCTRL_GROUP(PWM15),
+	ASPEED_PINCTRL_GROUP(SALT0),
+	ASPEED_PINCTRL_GROUP(SALT1),
+	ASPEED_PINCTRL_GROUP(SALT2),
+	ASPEED_PINCTRL_GROUP(SALT3),
+	ASPEED_PINCTRL_GROUP(FSI0),
+	ASPEED_PINCTRL_GROUP(FSI1),
+	ASPEED_PINCTRL_GROUP(FSI2),
+	ASPEED_PINCTRL_GROUP(FSI3),
+	ASPEED_PINCTRL_GROUP(SPIM2),
+	ASPEED_PINCTRL_GROUP(SALT4),
+	ASPEED_PINCTRL_GROUP(SALT5),
+	ASPEED_PINCTRL_GROUP(SALT6),
+	ASPEED_PINCTRL_GROUP(SALT7),
+	ASPEED_PINCTRL_GROUP(SALT8),
+	ASPEED_PINCTRL_GROUP(SALT9),
+	ASPEED_PINCTRL_GROUP(SALT10),
+	ASPEED_PINCTRL_GROUP(SALT11),
+	ASPEED_PINCTRL_GROUP(ADC0),
+	ASPEED_PINCTRL_GROUP(ADC1),
+	ASPEED_PINCTRL_GROUP(ADC2),
+	ASPEED_PINCTRL_GROUP(ADC3),
+	ASPEED_PINCTRL_GROUP(ADC4),
+	ASPEED_PINCTRL_GROUP(ADC5),
+	ASPEED_PINCTRL_GROUP(ADC6),
+	ASPEED_PINCTRL_GROUP(ADC7),
+	ASPEED_PINCTRL_GROUP(ADC8),
+	ASPEED_PINCTRL_GROUP(ADC9),
+	ASPEED_PINCTRL_GROUP(ADC10),
+	ASPEED_PINCTRL_GROUP(ADC11),
+	ASPEED_PINCTRL_GROUP(ADC12),
+	ASPEED_PINCTRL_GROUP(ADC13),
+	ASPEED_PINCTRL_GROUP(ADC14),
+	ASPEED_PINCTRL_GROUP(ADC15),
+	ASPEED_PINCTRL_GROUP(AUXPWRGOOD0),
+	ASPEED_PINCTRL_GROUP(AUXPWRGOOD1),
+	ASPEED_PINCTRL_GROUP(SGPM0),
+	ASPEED_PINCTRL_GROUP(SGPM1),
+	ASPEED_PINCTRL_GROUP(I2C0),
+	ASPEED_PINCTRL_GROUP(I2C1),
+	ASPEED_PINCTRL_GROUP(I2C2),
+	ASPEED_PINCTRL_GROUP(I2C3),
+	ASPEED_PINCTRL_GROUP(I2C4),
+	ASPEED_PINCTRL_GROUP(I2C5),
+	ASPEED_PINCTRL_GROUP(I2C6),
+	ASPEED_PINCTRL_GROUP(I2C7),
+	ASPEED_PINCTRL_GROUP(I2C8),
+	ASPEED_PINCTRL_GROUP(I2C9),
+	ASPEED_PINCTRL_GROUP(I2C10),
+	ASPEED_PINCTRL_GROUP(I2C11),
+	ASPEED_PINCTRL_GROUP(I2C12),
+	ASPEED_PINCTRL_GROUP(I2C13),
+	ASPEED_PINCTRL_GROUP(I2C14),
+	ASPEED_PINCTRL_GROUP(I2C15),
+	ASPEED_PINCTRL_GROUP(DI2C8),
+	ASPEED_PINCTRL_GROUP(DI2C9),
+	ASPEED_PINCTRL_GROUP(DI2C10),
+	ASPEED_PINCTRL_GROUP(DI2C13),
+	ASPEED_PINCTRL_GROUP(DI2C14),
+	ASPEED_PINCTRL_GROUP(DI2C15),
+	ASPEED_PINCTRL_GROUP(SIOPBON1),
+	ASPEED_PINCTRL_GROUP(SIOPBIN1),
+	ASPEED_PINCTRL_GROUP(SIOSCIN1),
+	ASPEED_PINCTRL_GROUP(SIOS3N1),
+	ASPEED_PINCTRL_GROUP(SIOS5N1),
+	ASPEED_PINCTRL_GROUP(SIOPWREQN1),
+	ASPEED_PINCTRL_GROUP(SIOONCTRLN1),
+	ASPEED_PINCTRL_GROUP(SIOPWRGD1),
+	ASPEED_PINCTRL_GROUP(HVI3C12),
+	ASPEED_PINCTRL_GROUP(HVI3C13),
+	ASPEED_PINCTRL_GROUP(HVI3C14),
+	ASPEED_PINCTRL_GROUP(HVI3C15),
+	ASPEED_PINCTRL_GROUP(HVI3C4),
+	ASPEED_PINCTRL_GROUP(HVI3C5),
+	ASPEED_PINCTRL_GROUP(HVI3C6),
+	ASPEED_PINCTRL_GROUP(HVI3C7),
+	ASPEED_PINCTRL_GROUP(HVI3C10),
+	ASPEED_PINCTRL_GROUP(HVI3C11),
+	ASPEED_PINCTRL_GROUP(I3C4),
+	ASPEED_PINCTRL_GROUP(I3C5),
+	ASPEED_PINCTRL_GROUP(I3C6),
+	ASPEED_PINCTRL_GROUP(I3C7),
+	ASPEED_PINCTRL_GROUP(I3C8),
+	ASPEED_PINCTRL_GROUP(I3C9),
+	ASPEED_PINCTRL_GROUP(I3C10),
+	ASPEED_PINCTRL_GROUP(I3C11),
+	ASPEED_PINCTRL_GROUP(I3C0),
+	ASPEED_PINCTRL_GROUP(I3C1),
+	ASPEED_PINCTRL_GROUP(I3C2),
+	ASPEED_PINCTRL_GROUP(I3C3),
+	ASPEED_PINCTRL_GROUP(LTPI),
+	ASPEED_PINCTRL_GROUP(SPI0),
+	ASPEED_PINCTRL_GROUP(QSPI0),
+	ASPEED_PINCTRL_GROUP(SPI0CS1),
+	ASPEED_PINCTRL_GROUP(SPI0ABR),
+	ASPEED_PINCTRL_GROUP(SPI0WPN),
+	ASPEED_PINCTRL_GROUP(SPI1),
+	ASPEED_PINCTRL_GROUP(QSPI1),
+	ASPEED_PINCTRL_GROUP(SPI1CS1),
+	ASPEED_PINCTRL_GROUP(SPI1ABR),
+	ASPEED_PINCTRL_GROUP(SPI1WPN),
+	ASPEED_PINCTRL_GROUP(SPI2),
+	ASPEED_PINCTRL_GROUP(QSPI2),
+	ASPEED_PINCTRL_GROUP(SPI2CS1),
+	ASPEED_PINCTRL_GROUP(THRU2),
+	ASPEED_PINCTRL_GROUP(THRU3),
+	ASPEED_PINCTRL_GROUP(JTAGM1),
+	ASPEED_PINCTRL_GROUP(MDIO0),
+	ASPEED_PINCTRL_GROUP(MDIO1),
+	ASPEED_PINCTRL_GROUP(MDIO2),
+	ASPEED_PINCTRL_GROUP(FWQSPI),
+	ASPEED_PINCTRL_GROUP(FWSPIABR),
+	ASPEED_PINCTRL_GROUP(FWSPIWPN),
+	ASPEED_PINCTRL_GROUP(RGMII0),
+	ASPEED_PINCTRL_GROUP(RGMII1),
+	ASPEED_PINCTRL_GROUP(RMII0),
+	ASPEED_PINCTRL_GROUP(RMII1),
+	ASPEED_PINCTRL_GROUP(VGA),
+	ASPEED_PINCTRL_GROUP(DSGPM1),
+	ASPEED_PINCTRL_GROUP(SGPS),
+	ASPEED_PINCTRL_GROUP(I2CF0),
+	ASPEED_PINCTRL_GROUP(I2CF1),
+	ASPEED_PINCTRL_GROUP(I2CF2),
+	ASPEED_PINCTRL_GROUP(CANBUS),
+	ASPEED_PINCTRL_GROUP(USBUART),
+	ASPEED_PINCTRL_GROUP(HBLED),
+	ASPEED_PINCTRL_GROUP(MACLINK0),
+	ASPEED_PINCTRL_GROUP(MACLINK1),
+	ASPEED_PINCTRL_GROUP(MACLINK2),
+	ASPEED_PINCTRL_GROUP(NCTS2),
+	ASPEED_PINCTRL_GROUP(NDCD2),
+	ASPEED_PINCTRL_GROUP(NDSR2),
+	ASPEED_PINCTRL_GROUP(NRI2),
+	ASPEED_PINCTRL_GROUP(NDTR2),
+	ASPEED_PINCTRL_GROUP(NRTS2),
+	ASPEED_PINCTRL_GROUP(SMON0),
+	ASPEED_PINCTRL_GROUP(SMON1)
 };
 
-static const char *const espi0_grp[] = { "ESPI0" };
-static const char *const espi1_grp[] = { "ESPI1" };
-static const char *const lpc0_grp[] = { "LPC0" };
-static const char *const lpc1_grp[] = { "LPC1" };
-static const char *const vpi_grp[] = { "VPI" };
-static const char *const sd_grp[] = { "SD" };
-static const char *const oscclk_grp[] = { "OSCCLK" };
-static const char *const tach0_grp[] = { "TACH0" };
-static const char *const tach1_grp[] = { "TACH1" };
-static const char *const tach2_grp[] = { "TACH2" };
-static const char *const tach3_grp[] = { "TACH3" };
-static const char *const tach4_grp[] = { "TACH4" };
-static const char *const tach5_grp[] = { "TACH5" };
-static const char *const tach6_grp[] = { "TACH6" };
-static const char *const tach7_grp[] = { "TACH7" };
-static const char *const thru0_grp[] = { "THRU0" };
-static const char *const thru1_grp[] = { "THRU1" };
+FUNC_DECL_(ESPI0, "ESPI0");
+FUNC_DECL_(ESPI1, "ESPI1");
+FUNC_DECL_(LPC0, "LPC0");
+FUNC_DECL_(LPC1, "LPC1");
+FUNC_DECL_(VPI, "VPI");
+FUNC_DECL_(SD, "SD");
+FUNC_DECL_(OSCCLK, "OSCCLK");
+FUNC_DECL_(TACH0, "TACH0");
+FUNC_DECL_(TACH1, "TACH1");
+FUNC_DECL_(TACH2, "TACH2");
+FUNC_DECL_(TACH3, "TACH3");
+FUNC_DECL_(TACH4, "TACH4");
+FUNC_DECL_(TACH5, "TACH5");
+FUNC_DECL_(TACH6, "TACH6");
+FUNC_DECL_(TACH7, "TACH7");
+FUNC_DECL_(THRU0, "THRU0");
+FUNC_DECL_(THRU1, "THRU1");
+FUNC_DECL_(NTCS5, "NTCS5");
+FUNC_DECL_(NDSR5, "NDSR5");
+FUNC_DECL_(NRI5, "NRI5");
+FUNC_DECL_(TACH8, "TACH8");
+FUNC_DECL_(TACH9, "TACH9");
+FUNC_DECL_(TACH10, "TACH10");
+FUNC_DECL_(TACH11, "TACH11");
+FUNC_DECL_(TACH12, "TACH12");
+FUNC_DECL_(TACH13, "TACH13");
+FUNC_DECL_(TACH14, "TACH14");
+FUNC_DECL_(TACH15, "TACH15");
+FUNC_DECL_(SALT12, "SALT12");
+FUNC_DECL_(SALT13, "SALT13");
+FUNC_DECL_(SALT14, "SALT14");
+FUNC_DECL_(SALT15, "SALT15");
+FUNC_DECL_(SPIM0, "SPIM0");
+FUNC_DECL_(PWM0, "PWM0");
+FUNC_DECL_(PWM1, "PWM1");
+FUNC_DECL_(PWM2, "PWM2");
+FUNC_DECL_(PWM3, "PWM3");
+FUNC_DECL_(PWM4, "PWM4");
+FUNC_DECL_(PWM5, "PWM5");
+FUNC_DECL_(PWM6, "PWM6");
+FUNC_DECL_(PWM7, "PWM7");
+FUNC_DECL_(SIOPBON0, "SIOPBON0");
+FUNC_DECL_(SIOPBIN0, "SIOPBIN0");
+FUNC_DECL_(SIOSCIN0, "SIOSCIN0");
+FUNC_DECL_(SIOS3N0, "SIOS3N0");
+FUNC_DECL_(SIOS5N0, "SIOS5N0");
+FUNC_DECL_(SIOPWREQN0, "SIOPWREQN0");
+FUNC_DECL_(SIOONCTRLN0, "SIOONCTRLN0");
+FUNC_DECL_(SIOPWRGD0, "SIOPWRGD0");
+FUNC_DECL_(UART0, "NCTS0", "NDCD0", "NDSR0", "NRI0", "NDTR0", "NRTS0", "TXD0", "RXD0");
+FUNC_DECL_(UART1, "NCTS1", "NDCD1", "NDSR1", "NRI1", "NDTR1", "NRTS1", "TXD1", "RXD1");
+FUNC_DECL_(UART2, "TXD2", "RXD2");
+FUNC_DECL_(UART3, "TXD3", "RXD3");
+FUNC_DECL_(UART5, "NCTS5", "NDCD5", "NDSR5", "NRI5", "NDTR5", "NRTS5", "TXD5", "RXD5");
+FUNC_DECL_(UART6, "NCTS6", "NDCD6", "NDSR6", "NRI6", "NDTR6", "NRTS6", "TXD6", "RXD6");
+FUNC_DECL_(UART7, "TXD7", "RXD7");
+FUNC_DECL_(UART8, "TXD8", "RXD8");
+FUNC_DECL_(UART9, "TXD9", "RXD9");
+FUNC_DECL_(UART10, "TXD10", "RXD10");
+FUNC_DECL_(UART11, "TXD11", "RXD11");
+FUNC_DECL_(SPIM1, "SPIM1");
+FUNC_DECL_(SPIM2, "SPIM2");
+FUNC_DECL_(PWM8, "PWM8");
+FUNC_DECL_(PWM9, "PWM9");
+FUNC_DECL_(PWM10, "PWM10");
+FUNC_DECL_(PWM11, "PWM11");
+FUNC_DECL_(PWM12, "PWM12");
+FUNC_DECL_(PWM13, "PWM13");
+FUNC_DECL_(PWM14, "PWM14");
+FUNC_DECL_(PWM15, "PWM15");
+FUNC_DECL_(WDTRST0N, "WDTRST0N");
+FUNC_DECL_(WDTRST1N, "WDTRST1N");
+FUNC_DECL_(WDTRST2N, "WDTRST2N");
+FUNC_DECL_(WDTRST3N, "WDTRST3N");
+FUNC_DECL_(WDTRST4N, "WDTRST4N");
+FUNC_DECL_(WDTRST5N, "WDTRST5N");
+FUNC_DECL_(WDTRST6N, "WDTRST6N");
+FUNC_DECL_(WDTRST7N, "WDTRST7N");
+FUNC_DECL_(FSI0, "FSI0");
+FUNC_DECL_(FSI1, "FSI1");
+FUNC_DECL_(FSI2, "FSI2");
+FUNC_DECL_(FSI3, "FSI3");
+FUNC_DECL_(SALT4, "ASLT4");
+FUNC_DECL_(SALT5, "ASLT5");
+FUNC_DECL_(SALT6, "ASLT6");
+FUNC_DECL_(SALT7, "ASLT7");
+FUNC_DECL_(SALT8, "ASLT8");
+FUNC_DECL_(SALT9, "ASLT9");
+FUNC_DECL_(SALT10, "ASLT10");
+FUNC_DECL_(SALT11, "ASLT11");
+FUNC_DECL_(ADC0, "ADC0");
+FUNC_DECL_(ADC1, "ADC1");
+FUNC_DECL_(ADC2, "ADC2");
+FUNC_DECL_(ADC3, "ADC3");
+FUNC_DECL_(ADC4, "ADC4");
+FUNC_DECL_(ADC5, "ADC5");
+FUNC_DECL_(ADC6, "ADC6");
+FUNC_DECL_(ADC7, "ADC7");
+FUNC_DECL_(ADC8, "ADC8");
+FUNC_DECL_(ADC9, "ADC9");
+FUNC_DECL_(ADC10, "ADC10");
+FUNC_DECL_(ADC11, "ADC11");
+FUNC_DECL_(ADC12, "ADC12");
+FUNC_DECL_(ADC13, "ADC13");
+FUNC_DECL_(ADC14, "ADC14");
+FUNC_DECL_(ADC15, "ADC15");
+FUNC_DECL_(AUXPWRGOOD0, "AUXPWRGOOD0");
+FUNC_DECL_(AUXPWRGOOD1, "AUXPWRGOOD1");
+FUNC_DECL_(SGPM0, "SGPM0");
+FUNC_DECL_(SGPM1, "SGPM1");
+FUNC_DECL_(I2C0, "I2C0");
+FUNC_DECL_(I2C1, "I2C1");
+FUNC_DECL_(I2C2, "I2C2");
+FUNC_DECL_(I2C3, "I2C3");
+FUNC_DECL_(I2C4, "I2C4");
+FUNC_DECL_(I2C5, "I2C5");
+FUNC_DECL_(I2C6, "I2C6");
+FUNC_DECL_(I2C7, "I2C7");
+FUNC_DECL_(I2C8, "I2C8");
+FUNC_DECL_(I2C9, "I2C9");
+FUNC_DECL_(I2C10, "I2C10");
+FUNC_DECL_(I2C11, "I2C11");
+FUNC_DECL_(I2C12, "I2C12");
+FUNC_DECL_(I2C13, "I2C13");
+FUNC_DECL_(I2C14, "I2C14");
+FUNC_DECL_(I2C15, "I2C15");
+FUNC_DECL_(DI2C8, "DI2C8");
+FUNC_DECL_(DI2C9, "DI2C9");
+FUNC_DECL_(DI2C10, "DI2C10");
+FUNC_DECL_(DI2C13, "DI2C13");
+FUNC_DECL_(DI2C14, "DI2C14");
+FUNC_DECL_(DI2C15, "DI2C15");
+FUNC_DECL_(SIOPBON1, "SIOPBON1");
+FUNC_DECL_(SIOPBIN1, "SIOPBIN1");
+FUNC_DECL_(SIOSCIN1, "SIOSCIN1");
+FUNC_DECL_(SIOS3N1, "SIOS3N1");
+FUNC_DECL_(SIOS5N1, "SIOS5N1");
+FUNC_DECL_(SIOPWREQN1, "SIOPWREQN1");
+FUNC_DECL_(SIOONCTRLN1, "SIOONCTRLN1");
+FUNC_DECL_(SIOPWRGD1, "SIOPWRGD1");
+FUNC_DECL_(I3C0, "I3C0");
+FUNC_DECL_(I3C1, "I3C1");
+FUNC_DECL_(I3C2, "I3C2");
+FUNC_DECL_(I3C3, "I3C3");
+FUNC_DECL_(I3C4, "I3C4", "HVI3C4");
+FUNC_DECL_(I3C5, "I3C5", "HVI3C5");
+FUNC_DECL_(I3C6, "I3C6", "HVI3C6");
+FUNC_DECL_(I3C7, "I3C7", "HVI3C7");
+FUNC_DECL_(I3C8, "I3C8");
+FUNC_DECL_(I3C9, "I3C9");
+FUNC_DECL_(I3C10, "I3C10", "HVI3C10");
+FUNC_DECL_(I3C11, "I3C11", "HVI3C11");
+FUNC_DECL_(I3C12, "HVI3C12");
+FUNC_DECL_(I3C13, "HVI3C13");
+FUNC_DECL_(I3C14, "HVI3C14");
+FUNC_DECL_(I3C15, "HVI3C15");
+FUNC_DECL_(LTPI, "LTPI");
+FUNC_DECL_(SPI0, "SPI0");
+FUNC_DECL_(QSPI0, "QSPI0");
+FUNC_DECL_(SPI0CS1, "SPI0CS1");
+FUNC_DECL_(SPI0ABR, "SPI0ABR");
+FUNC_DECL_(SPI0WPN, "SPI0WPN");
+FUNC_DECL_(SPI1, "SPI1");
+FUNC_DECL_(QSPI1, "QSPI1");
+FUNC_DECL_(SPI1CS1, "SPI1CS1");
+FUNC_DECL_(SPI1ABR, "SPI1ABR");
+FUNC_DECL_(SPI1WPN, "SPI1WPN");
+FUNC_DECL_(SPI2, "SPI2");
+FUNC_DECL_(QSPI2, "QSPI2");
+FUNC_DECL_(SPI2CS1, "SPI2CS1");
+FUNC_DECL_(THRU2, "THRU2");
+FUNC_DECL_(THRU3, "THRU3");
+FUNC_DECL_(JTAGM1, "JTAGM1");
+FUNC_DECL_(MDIO0, "MDIO0");
+FUNC_DECL_(MDIO1, "MDIO1");
+FUNC_DECL_(MDIO2, "MDIO2");
+FUNC_DECL_(FWQSPI, "FWQSPI");
+FUNC_DECL_(FWSPIABR, "FWSPIABR");
+FUNC_DECL_(FWSPIWPN, "FWSPIWPN");
+FUNC_DECL_(RGMII0, "RGMII0");
+FUNC_DECL_(RGMII1, "RGMII1");
+FUNC_DECL_(RMII0, "RMII0");
+FUNC_DECL_(RMII1, "RMII1");
+FUNC_DECL_(VGA, "VGA");
+FUNC_DECL_(DSGPM1, "DSGPM1");
+FUNC_DECL_(SGPS, "SGPS");
+FUNC_DECL_(I2CF0, "I2CF0");
+FUNC_DECL_(I2CF1, "I2CF1");
+FUNC_DECL_(I2CF2, "I2CF2");
+FUNC_DECL_(CANBUS, "CANBUS");
+FUNC_DECL_(USBUART, "USBUART");
+FUNC_DECL_(HBLED, "HBLED");
+FUNC_DECL_(MACLINK0, "MACLINK0");
+FUNC_DECL_(MACLINK1, "MACLINK1");
+FUNC_DECL_(MACLINK2, "MACLINK2");
+FUNC_DECL_(SMON0, "SMON0");
+FUNC_DECL_(SMON1, "SMON1");
 
-static const char *const ntcs5_grp[] = { "NTCS5" };
-static const char *const ndcd5_grp[] = { "NDCD5" };
-static const char *const ndsr5_grp[] = { "NDSR5" };
-static const char *const nri5_grp[] = { "NRI5" };
-static const char *const tach8_grp[] = { "TACH8" };
-static const char *const tach9_grp[] = { "TACH9" };
-static const char *const tach10_grp[] = { "TACH10" };
-static const char *const tach11_grp[] = { "TACH11" };
-static const char *const tach12_grp[] = { "TACH12" };
-static const char *const tach13_grp[] = { "TACH13" };
-static const char *const tach14_grp[] = { "TACH14" };
-static const char *const tach15_grp[] = { "TACH15" };
-static const char *const salt12_grp[] = { "SALT12" };
-static const char *const salt13_grp[] = { "SALT13" };
-static const char *const salt14_grp[] = { "SALT14" };
-static const char *const salt15_grp[] = { "SALT15" };
-static const char *const ndtr5_grp[] = { "NDTR5" };
-static const char *const nrts5_grp[] = { "NRTS5" };
-static const char *const ncts6_grp[] = { "NCTS6" };
-static const char *const ndcd6_grp[] = { "NDCD6" };
-static const char *const ndsr6_grp[] = { "NDSR6" };
-static const char *const nri6_grp[] = { "NRI6" };
-static const char *const ndtr6_grp[] = { "NDTR6" };
-static const char *const nrts6_grp[] = { "NRTS6" };
-static const char *const spim0_grp[] = { "SPIM0" };
-static const char *const pwm0_grp[] = { "PWM0" };
-static const char *const pwm1_grp[] = { "PWM1" };
-static const char *const pwm2_grp[] = { "PWM2" };
-static const char *const pwm3_grp[] = { "PWM3" };
-static const char *const pwm4_grp[] = { "PWM4" };
-static const char *const pwm5_grp[] = { "PWM5" };
-static const char *const pwm6_grp[] = { "PWM6" };
-static const char *const pwm7_grp[] = { "PWM7" };
-static const char *const siopbon0_grp[] = { "SIOPBON0" };
-static const char *const siopbin0_grp[] = { "SIOPBIN0" };
-static const char *const sioscin0_grp[] = { "SIOSCIN0" };
-static const char *const sios3n0_grp[] = { "SIOS3N0" };
-static const char *const sios5n0_grp[] = { "SIOS5N0" };
-static const char *const siopwreqn0_grp[] = { "SIOPWREQN0" };
-static const char *const sioonctrln0_grp[] = { "SIOONCTRLN0" };
-static const char *const siopwrgd0_grp[] = { "SIOPWRGD0" };
-static const char *const uart0_grp[] = { "NCTS0", "NDCD0", "NDSR0", "NRI0", "NDTR0", "NRTS0", "TXD0", "RXD0" };
-static const char *const uart1_grp[] = { "NCTS1", "NDCD1", "NDSR1", "NRI1", "NDTR1", "NRTS1", "TXD1", "RXD1" };
-static const char *const uart2_grp[] = { "TXD2", "RXD2" };
-static const char *const uart3_grp[] = { "TXD3", "RXD3" };
-static const char *const uart5_grp[] = { "NCTS5", "NDCD5", "NDSR5", "NRI5", "NDTR5", "NRTS5", "TXD5", "RXD5" };
-static const char *const uart6_grp[] = { "NCTS6", "NDCD6", "NDSR6", "NRI6", "NDTR6", "NRTS6", "TXD6", "RXD6" };
-static const char *const uart7_grp[] = { "TXD7", "RXD7" };
-static const char *const uart8_grp[] = { "TXD8", "RXD8" };
-static const char *const uart9_grp[] = { "TXD9", "RXD9" };
-static const char *const uart10_grp[] = { "TXD10", "RXD10" };
-static const char *const uart11_grp[] = { "TXD11", "RXD11" };
-static const char *const spim1_grp[] = { "SPIM1" };
-static const char *const spim2_grp[] = { "SPIM2" };
-static const char *const pwm8_grp[] = { "PWM8" };
-static const char *const pwm9_grp[] = { "PWM9" };
-static const char *const pwm10_grp[] = { "PWM10" };
-static const char *const pwm11_grp[] = { "PWM11" };
-static const char *const pwm12_grp[] = { "PWM12" };
-static const char *const pwm13_grp[] = { "PWM13" };
-static const char *const pwm14_grp[] = { "PWM14" };
-static const char *const pwm15_grp[] = { "PWM15" };
-static const char *const wdtrst0n_grp[] = { "WDTRST0N" };
-static const char *const wdtrst1n_grp[] = { "WDTRST1N" };
-static const char *const wdtrst2n_grp[] = { "WDTRST2N" };
-static const char *const wdtrst3n_grp[] = { "WDTRST3N" };
-static const char *const wdtrst4n_grp[] = { "WDTRST4N" };
-static const char *const wdtrst5n_grp[] = { "WDTRST5N" };
-static const char *const wdtrst6n_grp[] = { "WDTRST6N" };
-static const char *const wdtrst7n_grp[] = { "WDTRST7N" };
-static const char *const fsi0_grp[] = { "FSI0" };
-static const char *const fsi1_grp[] = { "FSI1" };
-static const char *const fsi2_grp[] = { "FSI2" };
-static const char *const fsi3_grp[] = { "FSI3" };
-static const char *const salt4_grp[] = { "ASLT4" };
-static const char *const salt5_grp[] = { "ASLT5" };
-static const char *const salt6_grp[] = { "ASLT6" };
-static const char *const salt7_grp[] = { "ASLT7" };
-static const char *const salt8_grp[] = { "ASLT8" };
-static const char *const salt9_grp[] = { "ASLT9" };
-static const char *const salt10_grp[] = { "ASLT10" };
-static const char *const salt11_grp[] = { "ASLT11" };
-static const char *const adc0_grp[] = { "ADC0" };
-static const char *const adc1_grp[] = { "ADC1" };
-static const char *const adc2_grp[] = { "ADC2" };
-static const char *const adc3_grp[] = { "ADC3" };
-static const char *const adc4_grp[] = { "ADC4" };
-static const char *const adc5_grp[] = { "ADC5" };
-static const char *const adc6_grp[] = { "ADC6" };
-static const char *const adc7_grp[] = { "ADC7" };
-static const char *const adc8_grp[] = { "ADC8" };
-static const char *const adc9_grp[] = { "ADC9" };
-static const char *const adc10_grp[] = { "ADC10" };
-static const char *const adc11_grp[] = { "ADC11" };
-static const char *const adc12_grp[] = { "ADC12" };
-static const char *const adc13_grp[] = { "ADC13" };
-static const char *const adc14_grp[] = { "ADC14" };
-static const char *const adc15_grp[] = { "ADC15" };
-static const char *const auxpwrgood0_grp[] = { "AUXPWRGOOD0" };
-static const char *const auxpwrgood1_grp[] = { "AUXPWRGOOD1" };
-static const char *const sgpm0_grp[] = { "SGPM0" };
-static const char *const sgpm1_grp[] = { "SGPM1" };
-static const char *const i2c0_grp[] = { "I2C0" };
-static const char *const i2c1_grp[] = { "I2C1" };
-static const char *const i2c2_grp[] = { "I2C2" };
-static const char *const i2c3_grp[] = { "I2C3" };
-static const char *const i2c4_grp[] = { "I2C4" };
-static const char *const i2c5_grp[] = { "I2C5" };
-static const char *const i2c6_grp[] = { "I2C6" };
-static const char *const i2c7_grp[] = { "I2C7" };
-static const char *const i2c8_grp[] = { "I2C8" };
-static const char *const i2c9_grp[] = { "I2C9" };
-static const char *const i2c10_grp[] = { "I2C10" };
-static const char *const i2c11_grp[] = { "I2C11" };
-static const char *const i2c12_grp[] = { "I2C12" };
-static const char *const i2c13_grp[] = { "I2C13" };
-static const char *const i2c14_grp[] = { "I2C14" };
-static const char *const i2c15_grp[] = { "I2C15" };
-static const char *const di2c8_grp[] = { "DI2C8" };
-static const char *const di2c9_grp[] = { "DI2C9" };
-static const char *const di2c10_grp[] = { "DI2C10" };
-static const char *const di2c13_grp[] = { "DI2C13" };
-static const char *const di2c14_grp[] = { "DI2C14" };
-static const char *const di2c15_grp[] = { "DI2C15" };
-static const char *const siopbon1_grp[] = { "SIOPBON1" };
-static const char *const siopbin1_grp[] = { "SIOPBIN1" };
-static const char *const sioscin1_grp[] = { "SIOSCIN1" };
-static const char *const sios3n1_grp[] = { "SIOS3N1" };
-static const char *const sios5n1_grp[] = { "SIOS5N1" };
-static const char *const siopwreqn1_grp[] = { "SIOPWREQN1" };
-static const char *const sioonctrln1_grp[] = { "SIOONCTRLN1" };
-static const char *const siopwrgd1_grp[] = { "SIOPWRGD1" };
-static const char *const i3c0_grp[] = { "I3C0" };
-static const char *const i3c1_grp[] = { "I3C1" };
-static const char *const i3c2_grp[] = { "I3C2" };
-static const char *const i3c3_grp[] = { "I3C3" };
-static const char *const i3c4_grp[] = { "I3C4", "HVI3C4" };
-static const char *const i3c5_grp[] = { "I3C5", "HVI3C5" };
-static const char *const i3c6_grp[] = { "I3C6", "HVI3C6" };
-static const char *const i3c7_grp[] = { "I3C7", "HVI3C7" };
-static const char *const i3c8_grp[] = { "I3C8" };
-static const char *const i3c9_grp[] = { "I3C9" };
-static const char *const i3c10_grp[] = { "I3C10", "HVI3C10" };
-static const char *const i3c11_grp[] = { "I3C11", "HVI3C11" };
-static const char *const i3c12_grp[] = { "HVI3C12" };
-static const char *const i3c13_grp[] = { "HVI3C13" };
-static const char *const i3c14_grp[] = { "HVI3C14" };
-static const char *const i3c15_grp[] = { "HVI3C15" };
-static const char *const ltpi_grp[] = { "LTPI" };
-static const char *const spi0_grp[] = { "SPI0" };
-static const char *const qspi0_grp[] = { "QSPI0" };
-static const char *const spi0cs1_grp[] = { "SPI0CS1" };
-static const char *const spi0abr_grp[] = { "SPI0ABR" };
-static const char *const spi0wpn_grp[] = { "SPI0WPN" };
-static const char *const spi1_grp[] = { "SPI1" };
-static const char *const qspi1_grp[] = { "QSPI1" };
-static const char *const spi1cs1_grp[] = { "SPI1CS1" };
-static const char *const spi1abr_grp[] = { "SPI1ABR" };
-static const char *const spi1wpn_grp[] = { "SPI1WPN" };
-static const char *const spi2_grp[] = { "SPI2" };
-static const char *const qspi2_grp[] = { "QSPI2" };
-static const char *const spi2cs1_grp[] = { "SPI2CS1" };
-static const char *const thru2_grp[] = { "THRU2" };
-static const char *const thru3_grp[] = { "THRU3" };
-static const char *const jtagm1_grp[] = { "JTAGM1" };
-static const char *const mdio0_grp[] = { "MDIO0" };
-static const char *const mdio1_grp[] = { "MDIO1" };
-static const char *const mdio2_grp[] = { "MDIO2" };
-static const char *const fwqspi_grp[] = { "FWQSPI" };
-static const char *const fwspiabr_grp[] = { "FWSPIABR" };
-static const char *const fwspiwpn_grp[] = { "FWSPIWPN" };
-static const char *const rgmii0_grp[] = { "RGMII0" };
-static const char *const rgmii1_grp[] = { "RGMII1" };
-static const char *const rmii0_grp[] = { "RMII0" };
-static const char *const rmii1_grp[] = { "RMII1" };
-static const char *const vga_grp[] = { "VGA" };
-static const char *const dsgpm1_grp[] = { "DSGPM1" };
-static const char *const sgps_grp[] = { "SGPS" };
-static const char *const i2cf0_grp[] = { "I2CF0" };
-static const char *const i2cf1_grp[] = { "I2CF1" };
-static const char *const i2cf2_grp[] = { "I2CF2" };
-static const char *const canbus_grp[] = { "CANBUS" };
-static const char *const usbuart_grp[] = { "USBUART" };
-static const char *const hbled_grp[] = { "HBLED" };
-static const char *const maclink0_grp[] = { "MACLINK0" };
-static const char *const maclink1_grp[] = { "MACLINK1" };
-static const char *const maclink2_grp[] = { "MACLINK2" };
-static const char *const smon0_grp[] = { "SMON0" };
-static const char *const smon1_grp[] = { "SMON1" };
-
-struct aspeed_g7_soc1_func {
-	const char *name;
-	const unsigned int ngroups;
-	const char *const *groups;
-};
-
-#define IO_FUNC(fn_name, fn) \
-		{ .name = #fn_name, .ngroups = ARRAY_SIZE(fn##_grp), .groups = fn##_grp }
-
-static struct aspeed_g7_soc1_func aspeed_g7_soc1_funcs[] = {
-	IO_FUNC(ESPI0, espi0),
-	IO_FUNC(ESPI1, espi1),
-	IO_FUNC(LPC0, lpc0),
-	IO_FUNC(LPC1, lpc1),
-	IO_FUNC(VPI, vpi),
-	IO_FUNC(SD, sd),
-	IO_FUNC(OSCCLK, oscclk),
-	IO_FUNC(TACH0, tach0),
-	IO_FUNC(TACH1, tach1),
-	IO_FUNC(TACH2, tach2),
-	IO_FUNC(TACH3, tach3),
-	IO_FUNC(TACH4, tach4),
-	IO_FUNC(TACH5, tach5),
-	IO_FUNC(TACH6, tach6),
-	IO_FUNC(TACH7, tach7),
-	IO_FUNC(THRU0, thru0),
-	IO_FUNC(THRU1, thru1),
-	IO_FUNC(NTCS5, ntcs5),
-	IO_FUNC(NTCS5, ndcd5),
-	IO_FUNC(NDSR5, ndsr5),
-	IO_FUNC(NRI5, nri5),
-	IO_FUNC(NRI5, nri5),
-	IO_FUNC(SALT12, salt12),
-	IO_FUNC(SALT13, salt13),
-	IO_FUNC(SALT14, salt14),
-	IO_FUNC(SALT15, salt15),
-	IO_FUNC(TACH8, tach8),
-	IO_FUNC(TACH9, tach9),
-	IO_FUNC(TACH10, tach10),
-	IO_FUNC(TACH11, tach11),
-	IO_FUNC(TACH12, tach12),
-	IO_FUNC(TACH13, tach13),
-	IO_FUNC(TACH14, tach14),
-	IO_FUNC(TACH15, tach15),
-	IO_FUNC(SPIM0, spim0),
-	IO_FUNC(PWM0, pwm0),
-	IO_FUNC(PWM1, pwm1),
-	IO_FUNC(PWM2, pwm2),
-	IO_FUNC(PWM3, pwm3),
-	IO_FUNC(PWM4, pwm4),
-	IO_FUNC(PWM5, pwm5),
-	IO_FUNC(PWM6, pwm6),
-	IO_FUNC(PWM7, pwm7),
-	IO_FUNC(SIOPBON0, siopbon0),
-	IO_FUNC(SIOPBIN0, siopbin0),
-	IO_FUNC(SIOSCIN0, sioscin0),
-	IO_FUNC(SIOS3N0, sios3n0),
-	IO_FUNC(SIOS5N0, sios5n0),
-	IO_FUNC(SIOPWREQN0, siopwreqn0),
-	IO_FUNC(SIOONCTRLN0, sioonctrln0),
-	IO_FUNC(SIOPWRGD0, siopwrgd0),
-	IO_FUNC(UART0, uart0),
-	IO_FUNC(UART1, uart1),
-	IO_FUNC(UART2, uart2),
-	IO_FUNC(UART3, uart3),
-	IO_FUNC(UART5, uart5),
-	IO_FUNC(UART6, uart6),
-	IO_FUNC(UART7, uart7),
-	IO_FUNC(UART8, uart8),
-	IO_FUNC(UART9, uart9),
-	IO_FUNC(UART10, uart10),
-	IO_FUNC(UART11, uart11),
-	IO_FUNC(SPIM1, spim1),
-	IO_FUNC(PWM7, pwm7),
-	IO_FUNC(PWM8, pwm8),
-	IO_FUNC(PWM9, pwm9),
-	IO_FUNC(PWM10, pwm10),
-	IO_FUNC(PWM11, pwm11),
-	IO_FUNC(PWM12, pwm12),
-	IO_FUNC(PWM13, pwm13),
-	IO_FUNC(PWM14, pwm14),
-	IO_FUNC(PWM15, pwm15),
-	IO_FUNC(WDTRST0N, wdtrst0n),
-	IO_FUNC(WDTRST1N, wdtrst1n),
-	IO_FUNC(WDTRST2N, wdtrst2n),
-	IO_FUNC(WDTRST3N, wdtrst3n),
-	IO_FUNC(WDTRST4N, wdtrst4n),
-	IO_FUNC(WDTRST5N, wdtrst5n),
-	IO_FUNC(WDTRST6N, wdtrst6n),
-	IO_FUNC(WDTRST7N, wdtrst7n),
-	IO_FUNC(FSI0, fsi0),
-	IO_FUNC(FSI1, fsi1),
-	IO_FUNC(FSI2, fsi2),
-	IO_FUNC(FSI3, fsi3),
-	IO_FUNC(SALT4, salt4),
-	IO_FUNC(SALT5, salt5),
-	IO_FUNC(SALT6, salt6),
-	IO_FUNC(SALT7, salt7),
-	IO_FUNC(SALT8, salt8),
-	IO_FUNC(SALT9, salt9),
-	IO_FUNC(SALT10, salt10),
-	IO_FUNC(SALT11, salt11),
-	IO_FUNC(ADC0, adc0),
-	IO_FUNC(ADC1, adc1),
-	IO_FUNC(ADC2, adc2),
-	IO_FUNC(ADC3, adc3),
-	IO_FUNC(ADC4, adc4),
-	IO_FUNC(ADC5, adc5),
-	IO_FUNC(ADC6, adc6),
-	IO_FUNC(ADC7, adc7),
-	IO_FUNC(ADC8, adc8),
-	IO_FUNC(ADC9, adc9),
-	IO_FUNC(ADC10, adc10),
-	IO_FUNC(ADC11, adc11),
-	IO_FUNC(ADC12, adc12),
-	IO_FUNC(ADC13, adc13),
-	IO_FUNC(ADC14, adc14),
-	IO_FUNC(ADC15, adc15),
-	IO_FUNC(AUXPWRGOOD0, auxpwrgood0),
-	IO_FUNC(AUXPWRGOOD1, auxpwrgood1),
-	IO_FUNC(SGPM0, sgpm0),
-	IO_FUNC(SGPM1, sgpm1),
-	IO_FUNC(SPIM2, spim2),
-	IO_FUNC(I2C0, i2c0),
-	IO_FUNC(I2C1, i2c1),
-	IO_FUNC(I2C2, i2c2),
-	IO_FUNC(I2C3, i2c3),
-	IO_FUNC(I2C4, i2c4),
-	IO_FUNC(I2C5, i2c5),
-	IO_FUNC(I2C6, i2c6),
-	IO_FUNC(I2C7, i2c7),
-	IO_FUNC(I2C8, i2c8),
-	IO_FUNC(I2C9, i2c9),
-	IO_FUNC(I2C10, i2c10),
-	IO_FUNC(I2C11, i2c11),
-	IO_FUNC(I2C12, i2c12),
-	IO_FUNC(I2C13, i2c13),
-	IO_FUNC(I2C14, i2c14),
-	IO_FUNC(I2C15, i2c15),
-	IO_FUNC(DI2C8, di2c8),
-	IO_FUNC(DI2C9, di2c9),
-	IO_FUNC(DI2C10, di2c10),
-	IO_FUNC(DI2C13, di2c13),
-	IO_FUNC(DI2C14, di2c14),
-	IO_FUNC(DI2C15, di2c15),
-	IO_FUNC(SIOPBON1, siopbon1),
-	IO_FUNC(SIOPBIN1, siopbin1),
-	IO_FUNC(SIOSCIN1, sioscin1),
-	IO_FUNC(SIOS3N1, sios3n1),
-	IO_FUNC(SIOS5N1, sios5n1),
-	IO_FUNC(SIOPWREQN1, siopwreqn1),
-	IO_FUNC(SIOONCTRLN1, sioonctrln1),
-	IO_FUNC(SIOPWRGD1, siopwrgd1),
-	IO_FUNC(I3C0, i3c0),
-	IO_FUNC(I3C1, i3c1),
-	IO_FUNC(I3C2, i3c2),
-	IO_FUNC(I3C3, i3c3),
-	IO_FUNC(I3C4, i3c4),
-	IO_FUNC(I3C5, i3c5),
-	IO_FUNC(I3C6, i3c6),
-	IO_FUNC(I3C7, i3c7),
-	IO_FUNC(I3C8, i3c8),
-	IO_FUNC(I3C9, i3c9),
-	IO_FUNC(I3C10, i3c10),
-	IO_FUNC(I3C11, i3c11),
-	IO_FUNC(I3C12, i3c12),
-	IO_FUNC(I3C13, i3c13),
-	IO_FUNC(I3C14, i3c14),
-	IO_FUNC(I3C15, i3c15),
-	IO_FUNC(LTPI, ltpi),
-	IO_FUNC(SPI0, spi0),
-	IO_FUNC(QSPI0, qspi0),
-	IO_FUNC(SPI0CS1, spi0cs1),
-	IO_FUNC(SPI0ABR, spi0abr),
-	IO_FUNC(SPI0WPN, spi0wpn),
-	IO_FUNC(SPI1, spi1),
-	IO_FUNC(QSPI1, qspi1),
-	IO_FUNC(SPI1CS1, spi1cs1),
-	IO_FUNC(SPI1ABR, spi1abr),
-	IO_FUNC(SPI1WPN, spi1wpn),
-	IO_FUNC(SPI2, spi2),
-	IO_FUNC(QSPI2, qspi2),
-	IO_FUNC(SPI2CS1, spi2cs1),
-	IO_FUNC(THRU2, thru2),
-	IO_FUNC(THRU3, thru3),
-	IO_FUNC(JTAGM1, jtagm1),
-	IO_FUNC(MDIO0, mdio0),
-	IO_FUNC(MDIO1, mdio1),
-	IO_FUNC(MDIO2, mdio2),
-	IO_FUNC(FWQSPI, fwqspi),
-	IO_FUNC(FWSPIABR, fwspiabr),
-	IO_FUNC(FWSPIWPN, fwspiwpn),
-	IO_FUNC(RGMII0, rgmii0),
-	IO_FUNC(RGMII1, rgmii1),
-	IO_FUNC(RMII0, rmii0),
-	IO_FUNC(RMII1, rmii1),
-	IO_FUNC(VGA, vga),
-	IO_FUNC(DSGPM1, dsgpm1),
-	IO_FUNC(SGPS, sgps),
-	IO_FUNC(I2CF0, i2cf0),
-	IO_FUNC(I2CF1, i2cf1),
-	IO_FUNC(I2CF2, i2cf2),
-	IO_FUNC(CANBUS, canbus),
-	IO_FUNC(USBUART, usbuart),
-	IO_FUNC(HBLED, hbled),
-	IO_FUNC(MACLINK0, maclink0),
-	IO_FUNC(MACLINK1, maclink1),
-	IO_FUNC(MACLINK2, maclink2),
-	IO_FUNC(SMON0, smon0),
-	IO_FUNC(SMON1, smon1),
+static struct aspeed_pin_function aspeed_g7_soc1_funcs[] = {
+	ASPEED_PINCTRL_FUNC(ESPI0),
+	ASPEED_PINCTRL_FUNC(ESPI1),
+	ASPEED_PINCTRL_FUNC(LPC0),
+	ASPEED_PINCTRL_FUNC(LPC1),
+	ASPEED_PINCTRL_FUNC(VPI),
+	ASPEED_PINCTRL_FUNC(SD),
+	ASPEED_PINCTRL_FUNC(OSCCLK),
+	ASPEED_PINCTRL_FUNC(TACH0),
+	ASPEED_PINCTRL_FUNC(TACH1),
+	ASPEED_PINCTRL_FUNC(TACH2),
+	ASPEED_PINCTRL_FUNC(TACH3),
+	ASPEED_PINCTRL_FUNC(TACH4),
+	ASPEED_PINCTRL_FUNC(TACH5),
+	ASPEED_PINCTRL_FUNC(TACH6),
+	ASPEED_PINCTRL_FUNC(TACH7),
+	ASPEED_PINCTRL_FUNC(THRU0),
+	ASPEED_PINCTRL_FUNC(THRU1),
+	ASPEED_PINCTRL_FUNC(NTCS5),
+	ASPEED_PINCTRL_FUNC(NTCS5),
+	ASPEED_PINCTRL_FUNC(NDSR5),
+	ASPEED_PINCTRL_FUNC(NRI5),
+	ASPEED_PINCTRL_FUNC(NRI5),
+	ASPEED_PINCTRL_FUNC(SALT12),
+	ASPEED_PINCTRL_FUNC(SALT13),
+	ASPEED_PINCTRL_FUNC(SALT14),
+	ASPEED_PINCTRL_FUNC(SALT15),
+	ASPEED_PINCTRL_FUNC(TACH8),
+	ASPEED_PINCTRL_FUNC(TACH9),
+	ASPEED_PINCTRL_FUNC(TACH10),
+	ASPEED_PINCTRL_FUNC(TACH11),
+	ASPEED_PINCTRL_FUNC(TACH12),
+	ASPEED_PINCTRL_FUNC(TACH13),
+	ASPEED_PINCTRL_FUNC(TACH14),
+	ASPEED_PINCTRL_FUNC(TACH15),
+	ASPEED_PINCTRL_FUNC(SPIM0),
+	ASPEED_PINCTRL_FUNC(PWM0),
+	ASPEED_PINCTRL_FUNC(PWM1),
+	ASPEED_PINCTRL_FUNC(PWM2),
+	ASPEED_PINCTRL_FUNC(PWM3),
+	ASPEED_PINCTRL_FUNC(PWM4),
+	ASPEED_PINCTRL_FUNC(PWM5),
+	ASPEED_PINCTRL_FUNC(PWM6),
+	ASPEED_PINCTRL_FUNC(PWM7),
+	ASPEED_PINCTRL_FUNC(SIOPBON0),
+	ASPEED_PINCTRL_FUNC(SIOPBIN0),
+	ASPEED_PINCTRL_FUNC(SIOSCIN0),
+	ASPEED_PINCTRL_FUNC(SIOS3N0),
+	ASPEED_PINCTRL_FUNC(SIOS5N0),
+	ASPEED_PINCTRL_FUNC(SIOPWREQN0),
+	ASPEED_PINCTRL_FUNC(SIOONCTRLN0),
+	ASPEED_PINCTRL_FUNC(SIOPWRGD0),
+	ASPEED_PINCTRL_FUNC(UART0),
+	ASPEED_PINCTRL_FUNC(UART1),
+	ASPEED_PINCTRL_FUNC(UART2),
+	ASPEED_PINCTRL_FUNC(UART3),
+	ASPEED_PINCTRL_FUNC(UART5),
+	ASPEED_PINCTRL_FUNC(UART6),
+	ASPEED_PINCTRL_FUNC(UART7),
+	ASPEED_PINCTRL_FUNC(UART8),
+	ASPEED_PINCTRL_FUNC(UART9),
+	ASPEED_PINCTRL_FUNC(UART10),
+	ASPEED_PINCTRL_FUNC(UART11),
+	ASPEED_PINCTRL_FUNC(SPIM1),
+	ASPEED_PINCTRL_FUNC(PWM7),
+	ASPEED_PINCTRL_FUNC(PWM8),
+	ASPEED_PINCTRL_FUNC(PWM9),
+	ASPEED_PINCTRL_FUNC(PWM10),
+	ASPEED_PINCTRL_FUNC(PWM11),
+	ASPEED_PINCTRL_FUNC(PWM12),
+	ASPEED_PINCTRL_FUNC(PWM13),
+	ASPEED_PINCTRL_FUNC(PWM14),
+	ASPEED_PINCTRL_FUNC(PWM15),
+	ASPEED_PINCTRL_FUNC(WDTRST0N),
+	ASPEED_PINCTRL_FUNC(WDTRST1N),
+	ASPEED_PINCTRL_FUNC(WDTRST2N),
+	ASPEED_PINCTRL_FUNC(WDTRST3N),
+	ASPEED_PINCTRL_FUNC(WDTRST4N),
+	ASPEED_PINCTRL_FUNC(WDTRST5N),
+	ASPEED_PINCTRL_FUNC(WDTRST6N),
+	ASPEED_PINCTRL_FUNC(WDTRST7N),
+	ASPEED_PINCTRL_FUNC(FSI0),
+	ASPEED_PINCTRL_FUNC(FSI1),
+	ASPEED_PINCTRL_FUNC(FSI2),
+	ASPEED_PINCTRL_FUNC(FSI3),
+	ASPEED_PINCTRL_FUNC(SALT4),
+	ASPEED_PINCTRL_FUNC(SALT5),
+	ASPEED_PINCTRL_FUNC(SALT6),
+	ASPEED_PINCTRL_FUNC(SALT7),
+	ASPEED_PINCTRL_FUNC(SALT8),
+	ASPEED_PINCTRL_FUNC(SALT9),
+	ASPEED_PINCTRL_FUNC(SALT10),
+	ASPEED_PINCTRL_FUNC(SALT11),
+	ASPEED_PINCTRL_FUNC(ADC0),
+	ASPEED_PINCTRL_FUNC(ADC1),
+	ASPEED_PINCTRL_FUNC(ADC2),
+	ASPEED_PINCTRL_FUNC(ADC3),
+	ASPEED_PINCTRL_FUNC(ADC4),
+	ASPEED_PINCTRL_FUNC(ADC5),
+	ASPEED_PINCTRL_FUNC(ADC6),
+	ASPEED_PINCTRL_FUNC(ADC7),
+	ASPEED_PINCTRL_FUNC(ADC8),
+	ASPEED_PINCTRL_FUNC(ADC9),
+	ASPEED_PINCTRL_FUNC(ADC10),
+	ASPEED_PINCTRL_FUNC(ADC11),
+	ASPEED_PINCTRL_FUNC(ADC12),
+	ASPEED_PINCTRL_FUNC(ADC13),
+	ASPEED_PINCTRL_FUNC(ADC14),
+	ASPEED_PINCTRL_FUNC(ADC15),
+	ASPEED_PINCTRL_FUNC(AUXPWRGOOD0),
+	ASPEED_PINCTRL_FUNC(AUXPWRGOOD1),
+	ASPEED_PINCTRL_FUNC(SGPM0),
+	ASPEED_PINCTRL_FUNC(SGPM1),
+	ASPEED_PINCTRL_FUNC(SPIM2),
+	ASPEED_PINCTRL_FUNC(I2C0),
+	ASPEED_PINCTRL_FUNC(I2C1),
+	ASPEED_PINCTRL_FUNC(I2C2),
+	ASPEED_PINCTRL_FUNC(I2C3),
+	ASPEED_PINCTRL_FUNC(I2C4),
+	ASPEED_PINCTRL_FUNC(I2C5),
+	ASPEED_PINCTRL_FUNC(I2C6),
+	ASPEED_PINCTRL_FUNC(I2C7),
+	ASPEED_PINCTRL_FUNC(I2C8),
+	ASPEED_PINCTRL_FUNC(I2C9),
+	ASPEED_PINCTRL_FUNC(I2C10),
+	ASPEED_PINCTRL_FUNC(I2C11),
+	ASPEED_PINCTRL_FUNC(I2C12),
+	ASPEED_PINCTRL_FUNC(I2C13),
+	ASPEED_PINCTRL_FUNC(I2C14),
+	ASPEED_PINCTRL_FUNC(I2C15),
+	ASPEED_PINCTRL_FUNC(DI2C8),
+	ASPEED_PINCTRL_FUNC(DI2C9),
+	ASPEED_PINCTRL_FUNC(DI2C10),
+	ASPEED_PINCTRL_FUNC(DI2C13),
+	ASPEED_PINCTRL_FUNC(DI2C14),
+	ASPEED_PINCTRL_FUNC(DI2C15),
+	ASPEED_PINCTRL_FUNC(SIOPBON1),
+	ASPEED_PINCTRL_FUNC(SIOPBIN1),
+	ASPEED_PINCTRL_FUNC(SIOSCIN1),
+	ASPEED_PINCTRL_FUNC(SIOS3N1),
+	ASPEED_PINCTRL_FUNC(SIOS5N1),
+	ASPEED_PINCTRL_FUNC(SIOPWREQN1),
+	ASPEED_PINCTRL_FUNC(SIOONCTRLN1),
+	ASPEED_PINCTRL_FUNC(SIOPWRGD1),
+	ASPEED_PINCTRL_FUNC(I3C0),
+	ASPEED_PINCTRL_FUNC(I3C1),
+	ASPEED_PINCTRL_FUNC(I3C2),
+	ASPEED_PINCTRL_FUNC(I3C3),
+	ASPEED_PINCTRL_FUNC(I3C4),
+	ASPEED_PINCTRL_FUNC(I3C5),
+	ASPEED_PINCTRL_FUNC(I3C6),
+	ASPEED_PINCTRL_FUNC(I3C7),
+	ASPEED_PINCTRL_FUNC(I3C8),
+	ASPEED_PINCTRL_FUNC(I3C9),
+	ASPEED_PINCTRL_FUNC(I3C10),
+	ASPEED_PINCTRL_FUNC(I3C11),
+	ASPEED_PINCTRL_FUNC(I3C12),
+	ASPEED_PINCTRL_FUNC(I3C13),
+	ASPEED_PINCTRL_FUNC(I3C14),
+	ASPEED_PINCTRL_FUNC(I3C15),
+	ASPEED_PINCTRL_FUNC(LTPI),
+	ASPEED_PINCTRL_FUNC(SPI0),
+	ASPEED_PINCTRL_FUNC(QSPI0),
+	ASPEED_PINCTRL_FUNC(SPI0CS1),
+	ASPEED_PINCTRL_FUNC(SPI0ABR),
+	ASPEED_PINCTRL_FUNC(SPI0WPN),
+	ASPEED_PINCTRL_FUNC(SPI1),
+	ASPEED_PINCTRL_FUNC(QSPI1),
+	ASPEED_PINCTRL_FUNC(SPI1CS1),
+	ASPEED_PINCTRL_FUNC(SPI1ABR),
+	ASPEED_PINCTRL_FUNC(SPI1WPN),
+	ASPEED_PINCTRL_FUNC(SPI2),
+	ASPEED_PINCTRL_FUNC(QSPI2),
+	ASPEED_PINCTRL_FUNC(SPI2CS1),
+	ASPEED_PINCTRL_FUNC(THRU2),
+	ASPEED_PINCTRL_FUNC(THRU3),
+	ASPEED_PINCTRL_FUNC(JTAGM1),
+	ASPEED_PINCTRL_FUNC(MDIO0),
+	ASPEED_PINCTRL_FUNC(MDIO1),
+	ASPEED_PINCTRL_FUNC(MDIO2),
+	ASPEED_PINCTRL_FUNC(FWQSPI),
+	ASPEED_PINCTRL_FUNC(FWSPIABR),
+	ASPEED_PINCTRL_FUNC(FWSPIWPN),
+	ASPEED_PINCTRL_FUNC(RGMII0),
+	ASPEED_PINCTRL_FUNC(RGMII1),
+	ASPEED_PINCTRL_FUNC(RMII0),
+	ASPEED_PINCTRL_FUNC(RMII1),
+	ASPEED_PINCTRL_FUNC(VGA),
+	ASPEED_PINCTRL_FUNC(DSGPM1),
+	ASPEED_PINCTRL_FUNC(SGPS),
+	ASPEED_PINCTRL_FUNC(I2CF0),
+	ASPEED_PINCTRL_FUNC(I2CF1),
+	ASPEED_PINCTRL_FUNC(I2CF2),
+	ASPEED_PINCTRL_FUNC(CANBUS),
+	ASPEED_PINCTRL_FUNC(USBUART),
+	ASPEED_PINCTRL_FUNC(HBLED),
+	ASPEED_PINCTRL_FUNC(MACLINK0),
+	ASPEED_PINCTRL_FUNC(MACLINK1),
+	ASPEED_PINCTRL_FUNC(MACLINK2),
+	ASPEED_PINCTRL_FUNC(SMON0),
+	ASPEED_PINCTRL_FUNC(SMON1),
 };
 
 /* number, name, drv_data */
 static const struct pinctrl_pin_desc aspeed_g7_soc1_pins[] = {
-	PINCTRL_PIN(0, "ESPI1CK_L1CLK_SD0CLK_I3CSCL4_SM3CS0NI_GPIOA0"),
-	PINCTRL_PIN(1, "ESPI1RSTN_LPC1RSTN_SD0CDN_I3CSDA4_SM3CLKI_GPIOA1"),
-	PINCTRL_PIN(2, "ESPI1ALTN_L1SIRQN_SD0CMD_I3CSCL5_SM3MOSII_GPIOA2"),
-	PINCTRL_PIN(3, "ESPI1CSN_L1FRAMEN_SD0WPN_I3CSDA5_SM3MISOI_GPIOA3"),
-	PINCTRL_PIN(4, "ESPI1D0_L1AD0_SD0DAT0_I3CSCL6_SM3IO2I_GPIOA4"),
-	PINCTRL_PIN(5, "ESPI1D1_L1AD1_SD0DAT1_I3CSDA6_SM3IO3I_GPIOA5"),
-	PINCTRL_PIN(6, "ESPI1D2_L1AD2_SD0DAT2_SM3CS0NO_GPIOA6"),
-	PINCTRL_PIN(7, "ESPI1D3_L1AD3_SD0DAT3_SM3MUXSEL_GPIOA7"),
-	PINCTRL_PIN(8, "GPIOB0_TACH0_THRUIN0_SCMGPI0"),
-	PINCTRL_PIN(9, "GPIOB1_TACH1_THRUOUT0_SCMGPI1"),
-	PINCTRL_PIN(10, "GPIOB2_TACH2_THRUIN1_SCMGPI2"),
-	PINCTRL_PIN(11, "GPIOB3_TACH3_THRUOUT1_SCMGPI3"),
-	PINCTRL_PIN(12, "GPIOB4_TACH4_NCTS5_SCMGPI4"),
-	PINCTRL_PIN(13, "GPIOB5_TACH5_NDCD5_SCMGPO0"),
-	PINCTRL_PIN(14, "GPIOB6_TACH6_NDSR5_SCMGPO1"),
-	PINCTRL_PIN(15, "GPIOB7_TACH7_NRI5_SCMGPO2"),
-	PINCTRL_PIN(16, "GPIOC0_TACH8_NDTR5_SCMGPO3"),
-	PINCTRL_PIN(17, "GPIOC1_TACH9_NRTS5_SCMGPO4"),
-	PINCTRL_PIN(18, "GPIOC2_TACH10_SALT12_NCTS6_SCMGPI5"),
-	PINCTRL_PIN(19, "GPIOC3_TACH11_SALT13_NDCD6_SCMGPI6"),
-	PINCTRL_PIN(20, "GPIOC4_TACH12_SALT14_NDSR6_SCMGPI7"),
-	PINCTRL_PIN(21, "GPIOC5_TACH13_SALT15_NRI6_SCMGPO5"),
-	PINCTRL_PIN(22, "GPIOC6_TACH14_NDTR6_SCMGPO6"),
-	PINCTRL_PIN(23, "GPIOC7_TACH15_NRTS6_SM0CS0NI_SCMGPO7"),
-	PINCTRL_PIN(24, "GPIOD0_PWM0_SIOPBON0_SM0CLKI_HPMGPI0"),
-	PINCTRL_PIN(25, "GPIOD1_PWM1_SIOPBIN0_SM0MOSII_HPMGPI1"),
-	PINCTRL_PIN(26, "GPIOD2_PWM2_SIOSCIN0_SM0MISOI_HPMGPI2"),
-	PINCTRL_PIN(27, "GPIOD3_PWM3_SIOS3N0_SM0IO2I_HPMGPI3"),
-	PINCTRL_PIN(28, "GPIOD4_PWM4_SIOS5N0_SM0IO3I_HPMGPO0"),
-	PINCTRL_PIN(29, "GPIOD5_PWM5_SIOPWREQN0_SM0CS0NO_HPMGPO1"),
-	PINCTRL_PIN(30, "GPIOD6_PWM6_SIOONCTRLN0_SM0MUXSEL_HPMGPO2"),
-	PINCTRL_PIN(31, "GPIOD7_PWM7_SIOPWRGD0_HPMGPO3"),
-	PINCTRL_PIN(32, "GPIOE0_NCTS0"),
-	PINCTRL_PIN(33, "GPIOE1_NDCD0"),
-	PINCTRL_PIN(34, "GPIOE2_NDSR0"),
-	PINCTRL_PIN(35, "GPIOE3_NRI0"),
-	PINCTRL_PIN(36, "GPIOE4_NDTR0"),
-	PINCTRL_PIN(37, "GPIOE5_NRTS0"),
-	PINCTRL_PIN(38, "TXD0_GPIOE6"),
-	PINCTRL_PIN(39, "RXD0_GPIOE7"),
-	PINCTRL_PIN(40, "GPIOF0_NCTS1"),
-	PINCTRL_PIN(41, "GPIOF1_NDCD1"),
-	PINCTRL_PIN(42, "GPIOF2_NDSR1"),
-	PINCTRL_PIN(43, "GPIOF3_NRI1"),
-	PINCTRL_PIN(44, "GPIOF4_NDTR1"),
-	PINCTRL_PIN(45, "GPIOF5_NRTS1"),
-	PINCTRL_PIN(46, "GPIOF6_TXD1"),
-	PINCTRL_PIN(47, "GPIOF7_RXD1"),
-	PINCTRL_PIN(48, "GPIOG0_TXD2"),
-	PINCTRL_PIN(49, "GPIOG1_RXD2"),
-	PINCTRL_PIN(50, "GPIOG2_TXD3_WDTRST0N_PWM8_SM1CS0NI"),
-	PINCTRL_PIN(51, "GPIOG3_RXD3_WDTRST1N_PWM9_SM1CLKI"),
-	PINCTRL_PIN(52, "TXD5_GPIOG4_WDTRST2N_PWM10_SM1MOSII_TXD5"),
-	PINCTRL_PIN(53, "RXD5_GPIOG5_WDTRST3N_PWM11_SM1MISOI_RXD5"),
-	PINCTRL_PIN(54, "GPIOG6_TXD6_SALT0_PWM12_SM1IO2I"),
-	PINCTRL_PIN(55, "GPIOG7_RXD6_SALT1_PWM13_SM1IO3I"),
-	PINCTRL_PIN(56, "GPIOH0_TXD7_SALT2_PWM14_SM1CS0NO"),
-	PINCTRL_PIN(57, "GPIOH1_RXD7_SALT3_PWM15_SM1MUXSEL"),
-	PINCTRL_PIN(58, "GPIOH2_SGPM1O_WDTRST7N_PESGWAKEN_SFF8485I0B"),
-	PINCTRL_PIN(59, "GPIOH3_SGPM1I_SFF8485I1B"),
-	PINCTRL_PIN(60, "GPIOI0_HVI3C12SCL_SCL12_SIOPBON1_SM2MUXSEL"),
-	PINCTRL_PIN(61, "GPIOI1_HVI3C12SDA_SDA12_SIOPBIN1_SM2CS0NI"),
-	PINCTRL_PIN(62, "GPIOI2_HVI3C13SCL_SCL13_SIOSCIN1_SM2CLKI"),
-	PINCTRL_PIN(63, "GPIOI3_HVI3C13SDA_SDA13_SIOS3N1_SM2MOSII"),
-	PINCTRL_PIN(64, "GPIOI4_HVI3C14SCL_SCL14_SIOS5N1_SM2MISOI"),
-	PINCTRL_PIN(65, "GPIOI5_HVI3C14SDA_SDA14_SIOPWREQN1_SM2IO2I"),
-	PINCTRL_PIN(66, "GPIOI6_HVI3C15SCL_SCL15_SIOONCTRLN1_SM2IO3I"),
-	PINCTRL_PIN(67, "GPIOI7_HVI3C15SDA_SDA15_SIOPWRGD1_SM2CS0NO"),
-	PINCTRL_PIN(68, "GPIOJ0_I3CSCL4"),
-	PINCTRL_PIN(69, "GPIOJ1_I3CSDA4"),
-	PINCTRL_PIN(70, "GPIOJ2_I3CSCL5"),
-	PINCTRL_PIN(71, "GPIOJ3_I3CSDA5"),
-	PINCTRL_PIN(72, "GPIOJ4_I3CSCL6"),
-	PINCTRL_PIN(73, "GPIOJ5_I3CSDA6"),
-	PINCTRL_PIN(74, "GPIOJ6_I3CSCL7"),
-	PINCTRL_PIN(75, "GPIOJ7_I3CSDA7"),
-	PINCTRL_PIN(76, "GPIOK0_I3CSCL8"),
-	PINCTRL_PIN(77, "GPIOK1_I3CSDA8"),
-	PINCTRL_PIN(78, "GPIOK2_I3CSCL9"),
-	PINCTRL_PIN(79, "GPIOK3_I3CSDA9"),
-	PINCTRL_PIN(80, "GPIOK4_I3CSCL10"),
-	PINCTRL_PIN(81, "GPIOK5_I3CSDA10"),
-	PINCTRL_PIN(82, "GPIOK6_I3CSCL11"),
-	PINCTRL_PIN(83, "GPIOK7_I3CSDA11"),
-	PINCTRL_PIN(84, "GPIOL0_I3CSCL0_FSI0CLK_LTPITXCLK"),
-	PINCTRL_PIN(85, "GPIOL1_I3CSDA0_FSI0DATA_LTPIRXCLK"),
-	PINCTRL_PIN(86, "GPIOL2_I3CSCL1_FSI1CLK_LTPITXDAT"),
-	PINCTRL_PIN(87, "GPIOL3_I3CSDA1_FSI1DATA_LTPIRXDAT"),
-	PINCTRL_PIN(88, "GPIOL4_I3CSCL2_FSI2CLK"),
-	PINCTRL_PIN(89, "GPIOL5_I3CSDA2_FSI2DATA"),
-	PINCTRL_PIN(90, "GPIOL6_I3CSCL3_FSI3CLK"),
-	PINCTRL_PIN(91, "GPIOL7_I3CSDA3_FSI3DATA"),
-	PINCTRL_PIN(92, "ESPI0D0_L0AD0_GPIOM0"),
-	PINCTRL_PIN(93, "ESPI0D1_L0AD1_GPIOM1"),
-	PINCTRL_PIN(94, "ESPI0D2_L0AD2_GPIOM2"),
-	PINCTRL_PIN(95, "ESPI0D3_L0AD3_GPIOM3"),
-	PINCTRL_PIN(96, "ESPI0CK_L0CLK_OSCCLK_GPIOM4"),
-	PINCTRL_PIN(97, "ESPI0CSN_L0FRAMEN_GPIOM5"),
-	PINCTRL_PIN(98, "ESPI0ALTN_L0SIRQN_GPIOM6"),
-	PINCTRL_PIN(99, "ESPI0RSTN_LPC0RSTN_GPIOM7"),
-	PINCTRL_PIN(100, "SPI0CK_GPION0"),
-	PINCTRL_PIN(101, "SPI0MOSI_GPION1"),
-	PINCTRL_PIN(102, "SPI0MISO_GPION2"),
-	PINCTRL_PIN(103, "GPION3_SPI0DQ2"),
-	PINCTRL_PIN(104, "GPION4_SPI0DQ3"),
-	PINCTRL_PIN(105, "GPION5_SPI0CS1"),
-	PINCTRL_PIN(106, "GPION6_SPI0ABR_TXD8"),
-	PINCTRL_PIN(107, "GPION7_SPI0WPN_RXD8"),
-	PINCTRL_PIN(108, "SPI1CK_TXD9_GPIOO0"),
-	PINCTRL_PIN(109, "SPI1MOSI_RXD9_GPIOO1"),
-	PINCTRL_PIN(110, "SPI1MISO_TXD10_GPIOO2"),
-	PINCTRL_PIN(111, "GPIOO3_SPI1DQ2_RXD10"),
-	PINCTRL_PIN(112, "GPIOO4_SPI1DQ3_TXD11"),
-	PINCTRL_PIN(113, "GPIOO5_SPI1CS1_RXD11"),
-	PINCTRL_PIN(114, "GPIOO6_SPI1ABR_THRUIN2"),
-	PINCTRL_PIN(115, "GPIOO7_SPI1WPN_THRUOUT2"),
-	PINCTRL_PIN(116, "GPIOP0_SPI2CS0N_SDA13_I3CSDA7"),
-	PINCTRL_PIN(117, "GPIOP1_SPI2CK_SCL13_I3CSCL7"),
-	PINCTRL_PIN(118, "GPIOP2_SPI2MOSI_SCL14_I3CSCL10"),
-	PINCTRL_PIN(119, "GPIOP3_SPI2MISO_SDA14_I3CSDA10"),
-	PINCTRL_PIN(120, "GPIOP4_SPI2DQ2_SCL15_I3CSCL11_THRUIN3"),
-	PINCTRL_PIN(121, "GPIOP5_SPI2DQ3_SDA15_I3CSDA11_THRUOUT3"),
-	PINCTRL_PIN(122, "GPIOP6_SPI2CS1N"),
-	PINCTRL_PIN(123, "GPIOP7_FWSPIABR"),
-	PINCTRL_PIN(124, "GPIOQ0_MDIO2_PE2SGRSTN"),
-	PINCTRL_PIN(125, "GPIOQ1_MDC2"),
-	PINCTRL_PIN(126, "GPIOQ2_MNTRST13v3"),
-	PINCTRL_PIN(127, "GPIOQ3_MTCK13v3"),
-	PINCTRL_PIN(128, "GPIOQ4_MTMS13v3"),
-	PINCTRL_PIN(129, "GPIOQ5_MTDI13v3"),
-	PINCTRL_PIN(130, "GPIOQ6_MTDO13v3"),
-	PINCTRL_PIN(131, "GPIOQ7_FWSPIWPN"),
-	PINCTRL_PIN(132, "GPIOR0_RGMII0RXCK_RMII0RCLKI"),
-	PINCTRL_PIN(133, "GPIOR1_RGMII0RXCTL"),
-	PINCTRL_PIN(134, "GPIOR2_RGMII0RXD0_RMII0RXD0"),
-	PINCTRL_PIN(135, "GPIOR3_RGMII0RXD1_RMII0RXD1"),
-	PINCTRL_PIN(136, "GPIOR4_RGMII0RXD2_RMII0CRSDV"),
-	PINCTRL_PIN(137, "GPIOR5_RGMII0RXD3_RMII0RXER"),
-	PINCTRL_PIN(138, "GPIOR6_RGMII0TXCK_RMII0RCLKO"),
-	PINCTRL_PIN(139, "GPIOR7_RGMII0TXCTL_RMII0TXEN"),
-	PINCTRL_PIN(140, "GPIOS0_RGMII0TXD0_RMII0TXD0"),
-	PINCTRL_PIN(141, "GPIOS1_RGMII0TXD1_RMII0TXD1"),
-	PINCTRL_PIN(142, "GPIOS2_RGMII0TXD2"),
-	PINCTRL_PIN(143, "GPIOS3_RGMII0TXD3"),
-	PINCTRL_PIN(144, "GPIOS4_MDC0"),
-	PINCTRL_PIN(145, "GPIOS5_MDIO0"),
-	PINCTRL_PIN(146, "VGAHS_GPIOS6"),
-	PINCTRL_PIN(147, "VGAVS_GPIOS7"),
-	PINCTRL_PIN(148, "GPIOT0_RGMII1RXCK_RMII1RCLKI_SCL8_SGPM1CK"),
-	PINCTRL_PIN(149, "GPIOT1_RGMII1RXCTL_SGPSLD"),
-	PINCTRL_PIN(150, "GPIOT2_RGMII1RXD0_RMII1RXD0_SCL9_TXD3"),
-	PINCTRL_PIN(151, "GPIOT3_RGMII1RXD1_RMII1RXD1_SDA9_RXD3"),
-	PINCTRL_PIN(152, "GPIOT4_RGMII1RXD2_RMII1CRSDV_SDA8_SGPM1LD"),
-	PINCTRL_PIN(153, "GPIOT5_RGMII1RXD3_RMII1RXER"),
-	PINCTRL_PIN(154, "GPIOT6_RGMII1TXCK_RMII1RCLKO_SGPSCK"),
-	PINCTRL_PIN(155, "GPIOT7_RGMII1TXCTL_RMII1TXEN"),
-	PINCTRL_PIN(156, "GPIOU0_RGMII1TXD0_RMII1TXD0_SCL10_SGPM1O"),
-	PINCTRL_PIN(157, "GPIOU1_RGMII1TXD1_RMII1TXD1_SDA10_SGPM1I"),
-	PINCTRL_PIN(158, "GPIOU2_RGMII1TXD2_SGPSMO"),
-	PINCTRL_PIN(159, "GPIOU3_RGMII1TXD3_SGPSMI"),
-	PINCTRL_PIN(160, "GPIOU4_MDC1"),
-	PINCTRL_PIN(161, "GPIOU5_MDIO1"),
-	PINCTRL_PIN(162, "FWSPIDQ2_GPIOU6"),
-	PINCTRL_PIN(163, "FWSPIDQ3_GPIOU7"),
-	PINCTRL_PIN(164, "GPIOV0_SCL0"),
-	PINCTRL_PIN(165, "GPIOV1_SDA0"),
-	PINCTRL_PIN(166, "GPIOV2_SCL1"),
-	PINCTRL_PIN(167, "GPIOV3_SDA1"),
-	PINCTRL_PIN(168, "GPIOV4_SCL2"),
-	PINCTRL_PIN(169, "GPIOV5_SDA2"),
-	PINCTRL_PIN(170, "GPIOV6_SCL3"),
-	PINCTRL_PIN(171, "GPIOV7_SDA3"),
-	PINCTRL_PIN(172, "GPIOW0_SCL4_ESPI1CK_I2CF1SCLI"),
-	PINCTRL_PIN(173, "GPIOW1_SDA4_ESPI1CSN_I2CF1SDAI"),
-	PINCTRL_PIN(174, "GPIOW2_SCL5_ESPI1RSTN_I2CF1SCLO"),
-	PINCTRL_PIN(175, "GPIOW3_SDA5_ESPI1D0_I2CF1SDAO"),
-	PINCTRL_PIN(176, "GPIOW4_SCL6_ESPI1D1_I2CF2SCLI"),
-	PINCTRL_PIN(177, "GPIOW5_SDA6_ESPI1D2_I2CF2SDAI"),
-	PINCTRL_PIN(178, "GPIOW6_SCL7_ESPI1D3_I2CF2SCLO"),
-	PINCTRL_PIN(179, "GPIOW7_SDA7_ESPI1ALTN_I2CF2SDAO"),
-	PINCTRL_PIN(180, "GPIOX0_SCL8_I2CF0SCLI"),
-	PINCTRL_PIN(181, "GPIOX1_SDA8_I2CF0SDAI"),
-	PINCTRL_PIN(182, "GPIOX2_SCL9_I2CF0SCLO"),
-	PINCTRL_PIN(183, "GPIOX3_SDA9_CANBUSSTBY_I2CF0SDAO"),
-	PINCTRL_PIN(184, "GPIOX4_SCL10_CANBUSTX"),
-	PINCTRL_PIN(185, "GPIOX5_SDA10_CANBUSRX"),
-	PINCTRL_PIN(186, "GPIOX6_SCL11_USBUARTP"),
-	PINCTRL_PIN(187, "GPIOX7_SDA11_USBUARTN"),
-	PINCTRL_PIN(188, "ADC0_GPIY0_SALT4"),
-	PINCTRL_PIN(189, "ADC1_GPIY1_SALT5"),
-	PINCTRL_PIN(190, "ADC2_GPIY2_SALT6"),
-	PINCTRL_PIN(191, "ADC3_GPIY3_SALT7"),
-	PINCTRL_PIN(192, "ADC4_GPIY4_SALT8"),
-	PINCTRL_PIN(193, "ADC5_GPIY5_SALT9"),
-	PINCTRL_PIN(194, "ADC6_GPIY6_SALT10"),
-	PINCTRL_PIN(195, "ADC7_GPIY7_SALT11"),
-	PINCTRL_PIN(196, "ADC8_GPIZ0"),
-	PINCTRL_PIN(197, "ADC9_GPIZ1"),
-	PINCTRL_PIN(198, "ADC10_GPIZ2"),
-	PINCTRL_PIN(199, "ADC11_GPIZ3"),
-	PINCTRL_PIN(200, "ADC12_GPIZ4"),
-	PINCTRL_PIN(201, "ADC13_GPIZ5_AUXPWRGOOD0"),
-	PINCTRL_PIN(202, "ADC14_GPIZ6_AUXPWRGOOD1"),
-	PINCTRL_PIN(203, "ADC15_GPIZ7"),
-	PINCTRL_PIN(204, "GPIOAA0_SGPM0CK_SFF8485CKA_NCTS2_MACLINK0"),
-	PINCTRL_PIN(205, "GPIOAA1_SGPM0LD_SFF8485LDA_NDCD2_MACLINK2"),
-	PINCTRL_PIN(206, "HBLEDN_SGPM0LDR_GPIOAA2"),
-	PINCTRL_PIN(207, "GPIOAA3_SGPM0O_SFF8485I0A_NDSR2"),
-	PINCTRL_PIN(208, "GPIOAA4_SGPM0I_SFF8485I1A_NRI2"),
-	PINCTRL_PIN(209, "GPIOAA5_SGPM1CK_WDTRST4N_NDTR2_SFF8485CKB"),
-	PINCTRL_PIN(210, "GPIOAA6_SGPM1LD_WDTRST5N_NRTS2_SFF8485LDB"),
-	PINCTRL_PIN(211, "GPIOAA7_SGPM1LD_R_WDTRST6N_MACLINK1"),
+	PINCTRL_PIN(C16, "C16"),
+	PINCTRL_PIN(C14, "C14"),
+	PINCTRL_PIN(C11, "C11"),
+	PINCTRL_PIN(D9, "D9"),
+	PINCTRL_PIN(F14, "F14"),
+	PINCTRL_PIN(D10, "D10"),
+	PINCTRL_PIN(C12, "C12"),
+	PINCTRL_PIN(C13, "C13"),
+	PINCTRL_PIN(AA24, "AA24"),
+	PINCTRL_PIN(AB24, "AB24"),
+	PINCTRL_PIN(AB23, "AB23"),
+	PINCTRL_PIN(AC22, "AC22"),
+	PINCTRL_PIN(AD22, "AD22"),
+	PINCTRL_PIN(AE21, "AE21"),
+	PINCTRL_PIN(AF20, "AF20"),
+	PINCTRL_PIN(AE20, "AE20"),
+	PINCTRL_PIN(AD20, "AD20"),
+	PINCTRL_PIN(Y23, "Y23"),
+	PINCTRL_PIN(W23, "W23"),
+	PINCTRL_PIN(AD19, "AD19"),
+	PINCTRL_PIN(AC20, "AC20"),
+	PINCTRL_PIN(AA23, "AA23"),
+	PINCTRL_PIN(AB22, "AB22"),
+	PINCTRL_PIN(AB21, "AB21"),
+	PINCTRL_PIN(AA22, "AA22"),
+	PINCTRL_PIN(Y22, "Y22"),
+	PINCTRL_PIN(W22, "W22"),
+	PINCTRL_PIN(AF18, "AF18"),
+	PINCTRL_PIN(AE18, "AE18"),
+	PINCTRL_PIN(AD18, "AD18"),
+	PINCTRL_PIN(AC19, "AC19"),
+	PINCTRL_PIN(AB20, "AB20"),
+	PINCTRL_PIN(AF17, "AF17"),
+	PINCTRL_PIN(AA16, "AA16"),
+	PINCTRL_PIN(Y16, "Y16"),
+	PINCTRL_PIN(V17, "V17"),
+	PINCTRL_PIN(J13, "J13"),
+	PINCTRL_PIN(AB16, "AB16"),
+	PINCTRL_PIN(AC16, "AC16"),
+	PINCTRL_PIN(AF16, "AF16"),
+	PINCTRL_PIN(AA15, "AA15"),
+	PINCTRL_PIN(AB15, "AB15"),
+	PINCTRL_PIN(AC15, "AC15"),
+	PINCTRL_PIN(AD15, "AD15"),
+	PINCTRL_PIN(Y15, "Y15"),
+	PINCTRL_PIN(AA14, "AA14"),
+	PINCTRL_PIN(W16, "W16"),
+	PINCTRL_PIN(V16, "V16"),
+	PINCTRL_PIN(AB18, "AB18"),
+	PINCTRL_PIN(AC18, "AC18"),
+	PINCTRL_PIN(K13, "K13"),
+	PINCTRL_PIN(AA17, "AA17"),
+	PINCTRL_PIN(AB17, "AB17"),
+	PINCTRL_PIN(AD16, "AD16"),
+	PINCTRL_PIN(AC17, "AC17"),
+	PINCTRL_PIN(AD17, "AD17"),
+	PINCTRL_PIN(AE16, "AE16"),
+	PINCTRL_PIN(AE17, "AE17"),
+	PINCTRL_PIN(U23, "U23"),
+	PINCTRL_PIN(T24, "T24"),
+	PINCTRL_PIN(AC24, "AC24"),
+	PINCTRL_PIN(AD24, "AD24"),
+	PINCTRL_PIN(AE23, "AE23"),
+	PINCTRL_PIN(AE19, "AE19"),
+	PINCTRL_PIN(AF23, "AF23"),
+	PINCTRL_PIN(Y25, "Y25"),
+	PINCTRL_PIN(AA25, "AA25"),
+	PINCTRL_PIN(AF19, "AF19"),
+	PINCTRL_PIN(AB25, "AB25"),
+	PINCTRL_PIN(AC25, "AC25"),
+	PINCTRL_PIN(AD25, "AD25"),
+	PINCTRL_PIN(V22, "V22"),
+	PINCTRL_PIN(AE25, "AE25"),
+	PINCTRL_PIN(V21, "V21"),
+	PINCTRL_PIN(AF21, "AF21"),
+	PINCTRL_PIN(AF25, "AF25"),
+	PINCTRL_PIN(AF26, "AF26"),
+	PINCTRL_PIN(AE26, "AE26"),
+	PINCTRL_PIN(W21, "W21"),
+	PINCTRL_PIN(AD26, "AD26"),
+	PINCTRL_PIN(Y21, "Y21"),
+	PINCTRL_PIN(AC26, "AC26"),
+	PINCTRL_PIN(AA26, "AA26"),
+	PINCTRL_PIN(AB26, "AB26"),
+	PINCTRL_PIN(T26, "T26"),
+	PINCTRL_PIN(AA20, "AA20"),
+	PINCTRL_PIN(V23, "V23"),
+	PINCTRL_PIN(W24, "W24"),
+	PINCTRL_PIN(R26, "R26"),
+	PINCTRL_PIN(AA21, "AA21"),
+	PINCTRL_PIN(P26, "P26"),
+	PINCTRL_PIN(Y24, "Y24"),
+	PINCTRL_PIN(B16, "B16"),
+	PINCTRL_PIN(D14, "D14"),
+	PINCTRL_PIN(B15, "B15"),
+	PINCTRL_PIN(B14, "B14"),
+	PINCTRL_PIN(C17, "C17"),
+	PINCTRL_PIN(B13, "B13"),
+	PINCTRL_PIN(E14, "E14"),
+	PINCTRL_PIN(C15, "C15"),
+	PINCTRL_PIN(D24, "D24"),
+	PINCTRL_PIN(B23, "B23"),
+	PINCTRL_PIN(B22, "B22"),
+	PINCTRL_PIN(C23, "C23"),
+	PINCTRL_PIN(B18, "B18"),
+	PINCTRL_PIN(B21, "B21"),
+	PINCTRL_PIN(B17, "B17"),
+	PINCTRL_PIN(B19, "B19"),
+	PINCTRL_PIN(B26, "B26"),
+	PINCTRL_PIN(A25, "A25"),
+	PINCTRL_PIN(A24, "A24"),
+	PINCTRL_PIN(B24, "B24"),
+	PINCTRL_PIN(E26, "E26"),
+	PINCTRL_PIN(A21, "A21"),
+	PINCTRL_PIN(A19, "A19"),
+	PINCTRL_PIN(A18, "A18"),
+	PINCTRL_PIN(D26, "D26"),
+	PINCTRL_PIN(C26, "C26"),
+	PINCTRL_PIN(A23, "A23"),
+	PINCTRL_PIN(B25, "B25"),
+	PINCTRL_PIN(A22, "A22"),
+	PINCTRL_PIN(F26, "F26"),
+	PINCTRL_PIN(A26, "A26"),
+	PINCTRL_PIN(A14, "A14"),
+	PINCTRL_PIN(E10, "E10"),
+	PINCTRL_PIN(E13, "E13"),
+	PINCTRL_PIN(D12, "D12"),
+	PINCTRL_PIN(F10, "F10"),
+	PINCTRL_PIN(E11, "E11"),
+	PINCTRL_PIN(F11, "F11"),
+	PINCTRL_PIN(F13, "F13"),
+	PINCTRL_PIN(N15, "N15"),
+	PINCTRL_PIN(C20, "C20"),
+	PINCTRL_PIN(C19, "C19"),
+	PINCTRL_PIN(A8, "A8"),
+	PINCTRL_PIN(R14, "R14"),
+	PINCTRL_PIN(A7, "A7"),
+	PINCTRL_PIN(P14, "P14"),
+	PINCTRL_PIN(D20, "D20"),
+	PINCTRL_PIN(A6, "A6"),
+	PINCTRL_PIN(B6, "B6"),
+	PINCTRL_PIN(N14, "N14"),
+	PINCTRL_PIN(B7, "B7"),
+	PINCTRL_PIN(B8, "B8"),
+	PINCTRL_PIN(B9, "B9"),
+	PINCTRL_PIN(M14, "M14"),
+	PINCTRL_PIN(J11, "J11"),
+	PINCTRL_PIN(E7, "E7"),
+	PINCTRL_PIN(D19, "D19"),
+	PINCTRL_PIN(B11, "B11"),
+	PINCTRL_PIN(D15, "D15"),
+	PINCTRL_PIN(B12, "B12"),
+	PINCTRL_PIN(B10, "B10"),
+	PINCTRL_PIN(P13, "P13"),
+	PINCTRL_PIN(C18, "C18"),
+	PINCTRL_PIN(C6, "C6"),
+	PINCTRL_PIN(C7, "C7"),
+	PINCTRL_PIN(D7, "D7"),
+	PINCTRL_PIN(N13, "N13"),
+	PINCTRL_PIN(C8, "C8"),
+	PINCTRL_PIN(C9, "C9"),
+	PINCTRL_PIN(C10, "C10"),
+	PINCTRL_PIN(M16, "M16"),
+	PINCTRL_PIN(A15, "A15"),
+	PINCTRL_PIN(G11, "G11"),
+	PINCTRL_PIN(H7, "H7"),
+	PINCTRL_PIN(H8, "H8"),
+	PINCTRL_PIN(H9, "H9"),
+	PINCTRL_PIN(H10, "H10"),
+	PINCTRL_PIN(H11, "H11"),
+	PINCTRL_PIN(J9, "J9"),
+	PINCTRL_PIN(J10, "J10"),
+	PINCTRL_PIN(E9, "E9"),
+	PINCTRL_PIN(F9, "F9"),
+	PINCTRL_PIN(F8, "F8"),
+	PINCTRL_PIN(M13, "M13"),
+	PINCTRL_PIN(F7, "F7"),
+	PINCTRL_PIN(D8, "D8"),
+	PINCTRL_PIN(E8, "E8"),
+	PINCTRL_PIN(L12, "L12"),
+	PINCTRL_PIN(F12, "F12"),
+	PINCTRL_PIN(E12, "E12"),
+	PINCTRL_PIN(J12, "J12"),
+	PINCTRL_PIN(G7, "G7"),
+	PINCTRL_PIN(G8, "G8"),
+	PINCTRL_PIN(G9, "G9"),
+	PINCTRL_PIN(G10, "G10"),
+	PINCTRL_PIN(K12, "K12"),
+	PINCTRL_PIN(W17, "W17"),
+	PINCTRL_PIN(V18, "V18"),
+	PINCTRL_PIN(W18, "W18"),
+	PINCTRL_PIN(Y17, "Y17"),
+	PINCTRL_PIN(AA18, "AA18"),
+	PINCTRL_PIN(AA13, "AA13"),
+	PINCTRL_PIN(Y18, "Y18"),
+	PINCTRL_PIN(AA12, "AA12"),
+	PINCTRL_PIN(W20, "W20"),
+	PINCTRL_PIN(V20, "V20"),
+	PINCTRL_PIN(Y11, "Y11"),
+	PINCTRL_PIN(V14, "V14"),
+	PINCTRL_PIN(V19, "V19"),
+	PINCTRL_PIN(W14, "W14"),
+	PINCTRL_PIN(Y20, "Y20"),
+	PINCTRL_PIN(AB19, "AB19"),
+	PINCTRL_PIN(U26, "U26"),
+	PINCTRL_PIN(U25, "U25"),
+	PINCTRL_PIN(V26, "V26"),
+	PINCTRL_PIN(W26, "W26"),
+	PINCTRL_PIN(Y26, "Y26"),
+	PINCTRL_PIN(W25, "W25"),
+	PINCTRL_PIN(V24, "V24"),
+	PINCTRL_PIN(U24, "U24"),
 };
 
 struct aspeed_g7_soc1_funcfg {
@@ -2673,29 +2797,6 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 	},
 };
 
-/* pinctrl_ops */
-static int aspeed_g7_soc1_get_groups_count(struct pinctrl_dev *pctldev)
-{
-	return ARRAY_SIZE(aspeed_g7_soc1_pingroups);
-}
-
-static const char *aspeed_g7_soc1_get_group_name(struct pinctrl_dev *pctldev,
-						 unsigned int selector)
-{
-	return aspeed_g7_soc1_pingroups[selector].name;
-}
-
-static int aspeed_g7_soc1_get_group_pins(struct pinctrl_dev *pctldev,
-					 unsigned int selector,
-					 const unsigned int **pins,
-					 unsigned int *npins)
-{
-	*npins = aspeed_g7_soc1_pingroups[selector].npins;
-	*pins = aspeed_g7_soc1_pingroups[selector].pins;
-
-	return 0;
-}
-
 static int aspeed_g7_soc1_dt_node_to_map(struct pinctrl_dev *pctldev,
 					 struct device_node *np_config,
 					 struct pinctrl_map **map, u32 *num_maps)
@@ -2711,34 +2812,13 @@ static void aspeed_g7_soc1_dt_free_map(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinctrl_ops aspeed_g7_soc1_pinctrl_ops = {
-	.get_groups_count = aspeed_g7_soc1_get_groups_count,
-	.get_group_name = aspeed_g7_soc1_get_group_name,
-	.get_group_pins = aspeed_g7_soc1_get_group_pins,
+	.get_groups_count = aspeed_pinctrl_get_groups_count,
+	.get_group_name = aspeed_pinctrl_get_group_name,
+	.get_group_pins = aspeed_pinctrl_get_group_pins,
+	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
 	.dt_node_to_map = aspeed_g7_soc1_dt_node_to_map,
 	.dt_free_map = aspeed_g7_soc1_dt_free_map,
 };
-
-static int aspeed_g7_soc1_get_functions_count(struct pinctrl_dev *pctldev)
-{
-	return ARRAY_SIZE(aspeed_g7_soc1_funcs);
-}
-
-static const char *aspeed_g7_soc1_get_function_name(struct pinctrl_dev *pctldev,
-						    unsigned int function)
-{
-	return aspeed_g7_soc1_funcs[function].name;
-}
-
-static int aspeed_g7_soc1_get_function_groups(struct pinctrl_dev *pctldev,
-					      unsigned int function,
-					      const char *const **groups,
-					      unsigned int *const ngroups)
-{
-	*ngroups = aspeed_g7_soc1_funcs[function].ngroups;
-	*groups = aspeed_g7_soc1_funcs[function].groups;
-
-	return 0;
-}
 
 static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 					 unsigned int function,
@@ -2749,7 +2829,7 @@ static int aspeed_g7_soc1_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	const struct aspeed_g7_soc1_pincfg *cfg;
 	const struct aspeed_g7_soc1_funcfg *funcfg;
 	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct aspeed_g7_soc1_pingroup *pingroup = &aspeed_g7_soc1_pingroups[group];
+	struct aspeed_pin_group *pingroup = &aspeed_g7_soc1_pingroups[group];
 
 	for (i = 0; i < pingroup->npins; i++) {
 		pin = pingroup->pins[i];
@@ -2791,9 +2871,9 @@ static int aspeed_g7_soc1_gpio_request_enable(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinmux_ops aspeed_g7_soc1_pinmux_ops = {
-	.get_functions_count = aspeed_g7_soc1_get_functions_count,
-	.get_function_name = aspeed_g7_soc1_get_function_name,
-	.get_function_groups = aspeed_g7_soc1_get_function_groups,
+	.get_functions_count = aspeed_pinmux_get_fn_count,
+	.get_function_name = aspeed_pinmux_get_fn_name,
+	.get_function_groups = aspeed_pinmux_get_fn_groups,
 	.set_mux = aspeed_g7_soc1_pinmux_set_mux,
 	.gpio_request_enable = aspeed_g7_soc1_gpio_request_enable,
 	.strict = true,
@@ -2803,6 +2883,8 @@ static const struct pinconf_ops aspeed_g7_soc1_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_get = aspeed_pin_config_get,
 	.pin_config_set = aspeed_pin_config_set,
+	.pin_config_group_get = aspeed_pin_config_group_get,
+	.pin_config_group_set = aspeed_pin_config_group_set,
 };
 
 /* pinctrl_desc */
@@ -2818,140 +2900,140 @@ static struct pinctrl_desc aspeed_g7_soc1_pinctrl_desc = {
 
 static struct aspeed_pin_config aspeed_g7_configs[] = {
 	/* GPIOA */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 0, 0 }, SCU4C0, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 1, 1 }, SCU4C0, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 2, 2 }, SCU4C0, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 3, 3 }, SCU4C0, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 4, 4 }, SCU4C0, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 5, 5 }, SCU4C0, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 6, 6 }, SCU4C0, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 7, 7 }, SCU4C0, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C16, C16 }, SCU4C0, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C14, C14 }, SCU4C0, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C11, C11 }, SCU4C0, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D9, D9 }, SCU4C0, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F14, F14 }, SCU4C0, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D10, D10 }, SCU4C0, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C12, C12 }, SCU4C0, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C13, C13 }, SCU4C0, GENMASK(15, 14) },
 	/* GPIOI */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 60, 60 }, SCU4C0, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 61, 61 }, SCU4C0, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 62, 62 }, SCU4C0, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 63, 63 }, SCU4C0, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 64, 64 }, SCU4C0, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 65, 65 }, SCU4C0, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 66, 66 }, SCU4C0, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 67, 67 }, SCU4C0, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AC24, AC24 }, SCU4C0, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AD24, AD24 }, SCU4C0, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AE23, AE23 }, SCU4C0, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AE19, AE19 }, SCU4C0, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AF23, AF23 }, SCU4C0, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { Y25, Y25 }, SCU4C0, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AA25, AA25 }, SCU4C0, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AF19, AF19 }, SCU4C0, GENMASK(31, 30) },
 	/* GPIOJ */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 68, 68 }, SCU4C4, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 69, 69 }, SCU4C4, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 70, 70 }, SCU4C4, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 71, 71 }, SCU4C4, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 72, 72 }, SCU4C4, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 73, 73 }, SCU4C4, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 74, 74 }, SCU4C4, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 75, 75 }, SCU4C4, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AB25, AB25 }, SCU4C4, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AC25, AC25 }, SCU4C4, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AD25, AD25 }, SCU4C4, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { V22, V22 }, SCU4C4, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AE25, AE25 }, SCU4C4, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { V21, V21 }, SCU4C4, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AF21, AF21 }, SCU4C4, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AF25, AF25 }, SCU4C4, GENMASK(15, 14) },
 	/* GPIOK */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 76, 76 }, SCU4C4, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 77, 77 }, SCU4C4, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 78, 78 }, SCU4C4, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 79, 79 }, SCU4C4, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 80, 80 }, SCU4C4, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 81, 81 }, SCU4C4, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 82, 82 }, SCU4C4, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 83, 83 }, SCU4C4, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AF26, AF26 }, SCU4C4, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AE26, AE26 }, SCU4C4, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { W21, W21 }, SCU4C4, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AD26, AD26 }, SCU4C4, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { Y21, Y21 }, SCU4C4, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AC26, AC26 }, SCU4C4, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AA26, AA26 }, SCU4C4, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AB26, AB26 }, SCU4C4, GENMASK(31, 30) },
 	/* GPIOL */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 84, 84 }, SCU4C8, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 85, 85 }, SCU4C8, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 86, 86 }, SCU4C8, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 87, 87 }, SCU4C8, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 88, 88 }, SCU4C8, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 89, 89 }, SCU4C8, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 90, 90 }, SCU4C8, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 91, 91 }, SCU4C8, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { T26, T26 }, SCU4C8, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AA20, AA20 }, SCU4C8, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { V23, V23 }, SCU4C8, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { W24, W24 }, SCU4C8, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { R26, R26 }, SCU4C8, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { AA21, AA21 }, SCU4C8, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { P26, P26 }, SCU4C8, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { Y24, Y24 }, SCU4C8, GENMASK(15, 14) },
 	/* GPIOM */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 92, 92 }, SCU4C8, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 93, 93 }, SCU4C8, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 94, 94 }, SCU4C8, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 95, 95 }, SCU4C8, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 96, 96 }, SCU4C8, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 97, 97 }, SCU4C8, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 98, 98 }, SCU4C8, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 99, 99 }, SCU4C8, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B16, B16 }, SCU4C8, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D14, D14 }, SCU4C8, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B15, B15 }, SCU4C8, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B14, B14 }, SCU4C8, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C17, C17 }, SCU4C8, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B13, B13 }, SCU4C8, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E14, E14 }, SCU4C8, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C15, C15 }, SCU4C8, GENMASK(31, 30) },
 	/* GPION */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 100, 100 }, SCU4CC, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 101, 101 }, SCU4CC, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 102, 102 }, SCU4CC, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 103, 103 }, SCU4CC, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 104, 104 }, SCU4CC, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 105, 105 }, SCU4CC, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 106, 106 }, SCU4CC, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 107, 107 }, SCU4CC, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D24, D24 }, SCU4CC, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B23, B23 }, SCU4CC, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B22, B22 }, SCU4CC, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C23, C23 }, SCU4CC, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B18, B18 }, SCU4CC, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B21, B21 }, SCU4CC, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B17, B17 }, SCU4CC, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B19, B19 }, SCU4CC, GENMASK(15, 14) },
 	/* GPIOO */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 108, 108 }, SCU4CC, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 109, 109 }, SCU4CC, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 110, 110 }, SCU4CC, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 111, 111 }, SCU4CC, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 112, 112 }, SCU4CC, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 113, 113 }, SCU4CC, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 114, 114 }, SCU4CC, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 115, 115 }, SCU4CC, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B26, B26 }, SCU4CC, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A25, A25 }, SCU4CC, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A24, A24 }, SCU4CC, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B24, B24 }, SCU4CC, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E26, E26 }, SCU4CC, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A21, A21 }, SCU4CC, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A19, A19 }, SCU4CC, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A18, A18 }, SCU4CC, GENMASK(31, 30) },
 	/* GPIOP */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 116, 116 }, SCU4D0, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 117, 117 }, SCU4D0, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 118, 118 }, SCU4D0, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 119, 119 }, SCU4D0, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 120, 120 }, SCU4D0, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 121, 121 }, SCU4D0, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 122, 122 }, SCU4D0, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 123, 123 }, SCU4D0, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D26, D26 }, SCU4D0, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C26, C26 }, SCU4D0, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A23, A23 }, SCU4D0, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B25, B25 }, SCU4D0, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A22, A22 }, SCU4D0, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F26, F26 }, SCU4D0, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A26, A26 }, SCU4D0, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A14, A14 }, SCU4D0, GENMASK(15, 14) },
 	/* GPIOQ */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 124, 124 }, SCU4D0, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 125, 125 }, SCU4D0, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 126, 126 }, SCU4D0, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 127, 127 }, SCU4D0, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 128, 128 }, SCU4D0, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 129, 129 }, SCU4D0, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 130, 130 }, SCU4D0, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 131, 131 }, SCU4D0, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E10, E10 }, SCU4D0, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E13, E13 }, SCU4D0, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D12, D12 }, SCU4D0, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F10, F10 }, SCU4D0, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E11, E11 }, SCU4D0, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F11, F11 }, SCU4D0, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F13, F13 }, SCU4D0, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { N15, N15 }, SCU4D0, GENMASK(31, 30) },
 	/* GPIOR */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 132, 132 }, SCU4D4, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 133, 133 }, SCU4D4, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 134, 134 }, SCU4D4, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 135, 135 }, SCU4D4, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 136, 136 }, SCU4D4, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 137, 137 }, SCU4D4, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 138, 138 }, SCU4D4, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 139, 139 }, SCU4D4, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C20, C20 }, SCU4D4, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C19, C19 }, SCU4D4, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A8, A8 }, SCU4D4, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { R14, R14 }, SCU4D4, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A7, A7 }, SCU4D4, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { P14, P14 }, SCU4D4, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D20, D20 }, SCU4D4, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A6, A6 }, SCU4D4, GENMASK(15, 14) },
 	/* GPIOS */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 140, 140 }, SCU4D4, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 141, 141 }, SCU4D4, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 142, 142 }, SCU4D4, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 143, 143 }, SCU4D4, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 144, 144 }, SCU4D4, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 145, 145 }, SCU4D4, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 146, 146 }, SCU4D4, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 147, 147 }, SCU4D4, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B6, B6 }, SCU4D4, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { N14, N14 }, SCU4D4, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B7, B7 }, SCU4D4, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B8, B8 }, SCU4D4, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B9, B9 }, SCU4D4, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { M14, M14 }, SCU4D4, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { J11, J11 }, SCU4D4, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E7, E7 }, SCU4D4, GENMASK(31, 30) },
 	/* GPIOT */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 148, 148 }, SCU4D8, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 149, 149 }, SCU4D8, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 150, 150 }, SCU4D8, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 151, 151 }, SCU4D8, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 152, 152 }, SCU4D8, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 153, 153 }, SCU4D8, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 154, 154 }, SCU4D8, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 155, 155 }, SCU4D8, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D19, D19 }, SCU4D8, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B11, B11 }, SCU4D8, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D15, D15 }, SCU4D8, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B12, B12 }, SCU4D8, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { B10, B10 }, SCU4D8, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { P13, P13 }, SCU4D8, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C18, C18 }, SCU4D8, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C6, C6 }, SCU4D8, GENMASK(15, 14) },
 	/* GPIOU */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 156, 156 }, SCU4D8, GENMASK(17, 16) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 157, 157 }, SCU4D8, GENMASK(19, 18) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 158, 158 }, SCU4D8, GENMASK(21, 20) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 159, 159 }, SCU4D8, GENMASK(23, 22) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 160, 160 }, SCU4D8, GENMASK(25, 24) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 161, 161 }, SCU4D8, GENMASK(27, 26) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 162, 162 }, SCU4D8, GENMASK(29, 28) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 163, 163 }, SCU4D8, GENMASK(31, 30) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C7, C7 }, SCU4D8, GENMASK(17, 16) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D7, D7 }, SCU4D8, GENMASK(19, 18) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { N13, N13 }, SCU4D8, GENMASK(21, 20) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C8, C8 }, SCU4D8, GENMASK(23, 22) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C9, C9 }, SCU4D8, GENMASK(25, 24) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { C10, C10 }, SCU4D8, GENMASK(27, 26) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { M16, M16 }, SCU4D8, GENMASK(29, 28) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { A15, A15 }, SCU4D8, GENMASK(31, 30) },
 	/* GPIOW */
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 172, 172 }, SCU4DC, GENMASK(1, 0) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 173, 173 }, SCU4DC, GENMASK(3, 2) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 174, 174 }, SCU4DC, GENMASK(5, 4) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 175, 175 }, SCU4DC, GENMASK(7, 6) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 176, 176 }, SCU4DC, GENMASK(9, 8) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 177, 177 }, SCU4DC, GENMASK(11, 10) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 178, 178 }, SCU4DC, GENMASK(13, 12) },
-	{ PIN_CONFIG_DRIVE_STRENGTH, { 179, 179 }, SCU4DC, GENMASK(15, 14) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E9, E9 }, SCU4DC, GENMASK(1, 0) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F9, F9 }, SCU4DC, GENMASK(3, 2) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F8, F8 }, SCU4DC, GENMASK(5, 4) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { M13, M13 }, SCU4DC, GENMASK(7, 6) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { F7, F7 }, SCU4DC, GENMASK(9, 8) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { D8, D8 }, SCU4DC, GENMASK(11, 10) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { E8, E8 }, SCU4DC, GENMASK(13, 12) },
+	{ PIN_CONFIG_DRIVE_STRENGTH, { L12, L12 }, SCU4DC, GENMASK(15, 14) },
 };
 
 static const struct aspeed_pin_config_map aspeed_g7_pin_config_map[] = {
@@ -2971,6 +3053,12 @@ static const struct aspeed_pin_config_map aspeed_g7_pin_config_map[] = {
 static struct aspeed_pinctrl_data aspeed_g7_pinctrl_data = {
 	.pins = aspeed_g7_soc1_pins,
 	.npins = ARRAY_SIZE(aspeed_g7_soc1_pins),
+	.pinmux = {
+		.groups = aspeed_g7_soc1_pingroups,
+		.ngroups = ARRAY_SIZE(aspeed_g7_soc1_pingroups),
+		.functions = aspeed_g7_soc1_funcs,
+		.nfunctions = ARRAY_SIZE(aspeed_g7_soc1_funcs),
+	},
 	.configs = aspeed_g7_configs,
 	.nconfigs = ARRAY_SIZE(aspeed_g7_configs),
 	.confmaps = aspeed_g7_pin_config_map,
