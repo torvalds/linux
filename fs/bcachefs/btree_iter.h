@@ -445,14 +445,17 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 					  unsigned flags,
 					  unsigned long ip)
 {
-	memset(iter, 0, sizeof(*iter));
-	iter->trans	= trans;
-	iter->btree_id	= btree_id;
-	iter->flags	= flags;
-	iter->snapshot	= pos.snapshot;
-	iter->pos	= pos;
-	iter->k.p	= pos;
-
+	iter->trans		= trans;
+	iter->update_path	= NULL;
+	iter->key_cache_path	= NULL;
+	iter->btree_id		= btree_id;
+	iter->min_depth		= 0;
+	iter->flags		= flags;
+	iter->snapshot		= pos.snapshot;
+	iter->pos		= pos;
+	iter->k			= POS_KEY(pos);
+	iter->journal_idx	= 0;
+	iter->journal_pos	= POS_MIN;
 #ifdef CONFIG_BCACHEFS_DEBUG
 	iter->ip_allocated = ip;
 #endif

@@ -287,8 +287,7 @@ struct btree_iter {
 	struct btree_path	*key_cache_path;
 
 	enum btree_id		btree_id:8;
-	unsigned		min_depth:3;
-	unsigned		advanced:1;
+	u8			min_depth;
 
 	/* btree_iter_copy starts here: */
 	u16			flags;

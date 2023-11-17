@@ -307,6 +307,13 @@ struct bkey_i {
 	struct bch_val	v;
 };
 
+#define POS_KEY(_pos)							\
+((struct bkey) {							\
+	.u64s		= BKEY_U64s,					\
+	.format		= KEY_FORMAT_CURRENT,				\
+	.p		= _pos,						\
+})
+
 #define KEY(_inode, _offset, _size)					\
 ((struct bkey) {							\
 	.u64s		= BKEY_U64s,					\
