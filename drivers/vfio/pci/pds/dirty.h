@@ -13,11 +13,13 @@ struct pds_vfio_region {
 	u64 page_size;
 	struct pds_lm_sg_elem *sgl;
 	dma_addr_t sgl_addr;
+	u32 dev_bmp_offset_start_byte;
 	u16 num_sge;
 };
 
 struct pds_vfio_dirty {
-	struct pds_vfio_region region;
+	struct pds_vfio_region *regions;
+	u8 num_regions;
 	bool is_enabled;
 };
 
