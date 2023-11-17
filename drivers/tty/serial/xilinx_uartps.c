@@ -1663,8 +1663,6 @@ err_out_unregister_driver:
 /**
  * cdns_uart_remove - called when the platform driver is unregistered
  * @pdev: Pointer to the platform device structure
- *
- * Return: 0 on success, negative errno otherwise
  */
 static void cdns_uart_remove(struct platform_device *pdev)
 {
