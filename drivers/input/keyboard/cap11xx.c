@@ -10,7 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/leds.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/i2c.h>
 #include <linux/gpio/consumer.h>
@@ -334,7 +334,7 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	struct cap11xx_priv *priv;
 	struct device_node *node;
 	const struct cap11xx_hw_model *cap;
-	int i, error, irq, gain = 0;
+	int i, error, gain = 0;
 	unsigned int val, rev;
 	u32 gain32;
 
@@ -474,13 +474,8 @@ static int cap11xx_i2c_probe(struct i2c_client *i2c_client)
 	if (error)
 		return error;
 
-	irq = irq_of_parse_and_map(node, 0);
-	if (!irq) {
-		dev_err(dev, "Unable to parse or map IRQ\n");
-		return -ENXIO;
-	}
-
-	error = devm_request_threaded_irq(dev, irq, NULL, cap11xx_thread_func,
+	error = devm_request_threaded_irq(dev, i2c_client->irq,
+					  NULL, cap11xx_thread_func,
 					  IRQF_ONESHOT, dev_name(dev), priv);
 	if (error)
 		return error;
