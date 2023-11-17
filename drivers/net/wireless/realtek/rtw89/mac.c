@@ -5,6 +5,7 @@
 #include "cam.h"
 #include "chan.h"
 #include "debug.h"
+#include "efuse.h"
 #include "fw.h"
 #include "mac.h"
 #include "pci.h"
@@ -2626,20 +2627,26 @@ static int cmac_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 static int rtw89_mac_read_phycap(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_c2h_info *c2h_info)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_mac_h2c_info h2c_info = {0};
 	u32 ret;
+
+	mac->cnv_efuse_state(rtwdev, false);
 
 	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_GET_FEATURE;
 	h2c_info.content_len = 0;
 
 	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, c2h_info);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (c2h_info->id != RTW89_FWCMD_C2HREG_FUNC_PHY_CAP)
-		return -EINVAL;
+		ret = -EINVAL;
 
-	return 0;
+out:
+	mac->cnv_efuse_state(rtwdev, true);
+
+	return ret;
 }
 
 int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
@@ -5775,6 +5782,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
 	.fwdl_get_status = rtw89_fw_get_rdy_ax,
 	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_ax,
+	.parse_efuse_map = rtw89_parse_efuse_map_ax,
+	.parse_phycap_map = rtw89_parse_phycap_map_ax,
+	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
 };

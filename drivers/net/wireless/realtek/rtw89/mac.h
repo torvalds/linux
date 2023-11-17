@@ -873,6 +873,9 @@ struct rtw89_mac_gen_def {
 				bool dlfw, bool include_bb);
 	u8 (*fwdl_get_status)(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
 	int (*fwdl_check_path_ready)(struct rtw89_dev *rtwdev, bool h2c_or_fwdl);
+	int (*parse_efuse_map)(struct rtw89_dev *rtwdev);
+	int (*parse_phycap_map)(struct rtw89_dev *rtwdev);
+	int (*cnv_efuse_state)(struct rtw89_dev *rtwdev, bool idle);
 
 	bool (*get_txpwr_cr)(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx,

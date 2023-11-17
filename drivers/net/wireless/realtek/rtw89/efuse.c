@@ -114,6 +114,11 @@ static int rtw89_dump_physical_efuse_map_ddv(struct rtw89_dev *rtwdev, u8 *map,
 	return 0;
 }
 
+int rtw89_cnv_efuse_state_ax(struct rtw89_dev *rtwdev, bool idle)
+{
+	return 0;
+}
+
 static int rtw89_dump_physical_efuse_map_dav(struct rtw89_dev *rtwdev, u8 *map,
 					     u32 dump_addr, u32 dump_size)
 {
@@ -231,7 +236,7 @@ static int rtw89_dump_logical_efuse_map(struct rtw89_dev *rtwdev, u8 *phy_map,
 	return 0;
 }
 
-int rtw89_parse_efuse_map(struct rtw89_dev *rtwdev)
+int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev)
 {
 	u32 phy_size = rtwdev->chip->physical_efuse_size;
 	u32 log_size = rtwdev->chip->logical_efuse_size;
@@ -300,7 +305,7 @@ out_free:
 	return ret;
 }
 
-int rtw89_parse_phycap_map(struct rtw89_dev *rtwdev)
+int rtw89_parse_phycap_map_ax(struct rtw89_dev *rtwdev)
 {
 	u32 phycap_addr = rtwdev->chip->phycap_addr;
 	u32 phycap_size = rtwdev->chip->phycap_size;
