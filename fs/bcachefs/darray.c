@@ -9,10 +9,12 @@ int __bch2_darray_resize(darray_void *d, size_t element_size, size_t new_size, g
 	if (new_size > d->size) {
 		new_size = roundup_pow_of_two(new_size);
 
-		void *data = krealloc_array(d->data, new_size, element_size, gfp);
+		void *data = kvmalloc_array(new_size, element_size, gfp);
 		if (!data)
 			return -ENOMEM;
 
+		memcpy(data, d->data, d->size * element_size);
+		kvfree(d->data);
 		d->data	= data;
 		d->size = new_size;
 	}

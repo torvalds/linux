@@ -92,7 +92,7 @@ do {									\
 
 #define darray_exit(_d)							\
 do {									\
-	kfree((_d)->data);						\
+	kvfree((_d)->data);						\
 	darray_init(_d);						\
 } while (0)
 
