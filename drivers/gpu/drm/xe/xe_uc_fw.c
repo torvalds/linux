@@ -224,8 +224,11 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 			uc_fw->versions.wanted.minor = entries[i].minor;
 			uc_fw->full_ver_required = entries[i].full_ver_required;
 
-			/* compatibility version checking coming soon */
-			uc_fw->versions.wanted_type = XE_UC_FW_VER_RELEASE;
+			if (uc_fw->type == XE_UC_FW_TYPE_GSC)
+				uc_fw->versions.wanted_type = XE_UC_FW_VER_COMPATIBILITY;
+			else
+				uc_fw->versions.wanted_type = XE_UC_FW_VER_RELEASE;
+
 			break;
 		}
 	}
@@ -321,7 +324,7 @@ static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 	uc_fw->private_data_size = css->private_data_size;
 }
 
-static int uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
+int xe_uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	struct xe_uc_fw_version *wanted = &uc_fw->versions.wanted;
@@ -678,9 +681,12 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 			    "Using %s firmware from %s",
 			    xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
-	err = uc_fw_check_version_requirements(uc_fw);
-	if (err)
-		goto fail;
+	/* for GSC FW we want the compatibility version, which we query after load */
+	if (uc_fw->type != XE_UC_FW_TYPE_GSC) {
+		err = xe_uc_fw_check_version_requirements(uc_fw);
+		if (err)
+			goto fail;
+	}
 
 	obj = xe_bo_create_from_data(xe, tile, fw->data, fw->size,
 				     ttm_bo_type_kernel,

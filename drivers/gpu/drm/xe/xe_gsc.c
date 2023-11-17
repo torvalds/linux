@@ -7,11 +7,13 @@
 
 #include <drm/drm_managed.h>
 
+#include "abi/gsc_mkhi_commands_abi.h"
 #include "generated/xe_wa_oob.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
+#include "xe_gsc_submit.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
 #include "xe_map.h"
@@ -91,6 +93,78 @@ static int emit_gsc_upload(struct xe_gsc *gsc)
 	return 0;
 }
 
+#define version_query_wr(xe_, map_, offset_, field_, val_) \
+	xe_map_wr_field(xe_, map_, offset_, struct gsc_get_compatibility_version_in, field_, val_)
+#define version_query_rd(xe_, map_, offset_, field_) \
+	xe_map_rd_field(xe_, map_, offset_, struct gsc_get_compatibility_version_out, field_)
+
+static u32 emit_version_query_msg(struct xe_device *xe, struct iosys_map *map, u32 wr_offset)
+{
+	xe_map_memset(xe, map, wr_offset, 0, sizeof(struct gsc_get_compatibility_version_in));
+
+	version_query_wr(xe, map, wr_offset, header.group_id, MKHI_GROUP_ID_GFX_SRV);
+	version_query_wr(xe, map, wr_offset, header.command,
+			 MKHI_GFX_SRV_GET_HOST_COMPATIBILITY_VERSION);
+
+	return wr_offset + sizeof(struct gsc_get_compatibility_version_in);
+}
+
+#define GSC_VER_PKT_SZ SZ_4K /* 4K each for input and output */
+static int query_compatibility_version(struct xe_gsc *gsc)
+{
+	struct xe_uc_fw_version *compat = &gsc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
+	struct xe_gt *gt = gsc_to_gt(gsc);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_bo *bo;
+	u32 wr_offset;
+	u32 rd_offset;
+	u64 ggtt_offset;
+	int err;
+
+	bo = xe_bo_create_pin_map(xe, tile, NULL, GSC_VER_PKT_SZ * 2,
+				  ttm_bo_type_kernel,
+				  XE_BO_CREATE_SYSTEM_BIT |
+				  XE_BO_CREATE_GGTT_BIT);
+	if (IS_ERR(bo)) {
+		xe_gt_err(gt, "failed to allocate bo for GSC version query\n");
+		return PTR_ERR(bo);
+	}
+
+	ggtt_offset = xe_bo_ggtt_addr(bo);
+
+	wr_offset = xe_gsc_emit_header(xe, &bo->vmap, 0, HECI_MEADDRESS_MKHI, 0,
+				       sizeof(struct gsc_get_compatibility_version_in));
+	wr_offset = emit_version_query_msg(xe, &bo->vmap, wr_offset);
+
+	err = xe_gsc_pkt_submit_kernel(gsc, ggtt_offset, wr_offset,
+				       ggtt_offset + GSC_VER_PKT_SZ,
+				       GSC_VER_PKT_SZ);
+	if (err) {
+		xe_gt_err(gt,
+			  "failed to submit GSC request for compatibility version: %d\n",
+			  err);
+		goto out_bo;
+	}
+
+	err = xe_gsc_read_out_header(xe, &bo->vmap, GSC_VER_PKT_SZ,
+				     sizeof(struct gsc_get_compatibility_version_out),
+				     &rd_offset);
+	if (err) {
+		xe_gt_err(gt, "HuC: invalid GSC reply for version query (err=%d)\n", err);
+		return err;
+	}
+
+	compat->major = version_query_rd(xe, &bo->vmap, rd_offset, compat_major);
+	compat->minor = version_query_rd(xe, &bo->vmap, rd_offset, compat_minor);
+
+	xe_gt_info(gt, "found GSC cv%u.%u\n", compat->major, compat->minor);
+
+out_bo:
+	xe_bo_unpin_map_no_vm(bo);
+	return err;
+}
+
 static int gsc_fw_is_loaded(struct xe_gt *gt)
 {
 	return xe_mmio_read32(gt, HECI_FWSTS1(MTL_GSC_HECI1_BASE)) &
@@ -158,6 +232,14 @@ static int gsc_upload(struct xe_gsc *gsc)
 		xe_gt_err(gt, "Failed to wait for GSC load (%pe)\n", ERR_PTR(err));
 		return err;
 	}
+
+	err = query_compatibility_version(gsc);
+	if (err)
+		return err;
+
+	err = xe_uc_fw_check_version_requirements(&gsc->fw);
+	if (err)
+		return err;
 
 	xe_gt_dbg(gt, "GSC FW async load completed\n");
 
