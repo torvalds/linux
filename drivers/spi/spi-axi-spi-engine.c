@@ -53,6 +53,7 @@
 
 #define SPI_ENGINE_CMD_REG_CLK_DIV		0x0
 #define SPI_ENGINE_CMD_REG_CONFIG		0x1
+#define SPI_ENGINE_CMD_REG_XFER_BITS		0x2
 
 #define SPI_ENGINE_MISC_SYNC			0x0
 #define SPI_ENGINE_MISC_SLEEP			0x1
@@ -157,7 +158,14 @@ static unsigned int spi_engine_get_clk_div(struct spi_engine *spi_engine,
 static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 	struct spi_transfer *xfer)
 {
-	unsigned int len = xfer->len;
+	unsigned int len;
+
+	if (xfer->bits_per_word <= 8)
+		len = xfer->len;
+	else if (xfer->bits_per_word <= 16)
+		len = xfer->len / 2;
+	else
+		len = xfer->len / 4;
 
 	while (len) {
 		unsigned int n = min(len, 256U);
@@ -217,6 +225,7 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div;
 	bool keep_cs = false;
+	u8 bits_per_word = 0;
 
 	clk_div = -1;
 
@@ -234,6 +243,13 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CLK_DIV,
 					clk_div));
+		}
+
+		if (bits_per_word != xfer->bits_per_word) {
+			bits_per_word = xfer->bits_per_word;
+			spi_engine_program_add_cmd(p, dry,
+				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_XFER_BITS,
+					bits_per_word));
 		}
 
 		spi_engine_gen_xfer(p, dry, xfer);
@@ -342,16 +358,34 @@ static bool spi_engine_write_tx_fifo(struct spi_engine *spi_engine,
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDO_DATA_FIFO;
 	struct spi_engine_message_state *st = msg->state;
 	unsigned int n, m, i;
-	const uint8_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDO_FIFO_ROOM);
 	while (n && st->tx_length) {
-		m = min(n, st->tx_length);
-		buf = st->tx_buf;
-		for (i = 0; i < m; i++)
-			writel_relaxed(buf[i], addr);
-		st->tx_buf += m;
-		st->tx_length -= m;
+		if (st->tx_xfer->bits_per_word <= 8) {
+			const u8 *buf = st->tx_buf;
+
+			m = min(n, st->tx_length);
+			for (i = 0; i < m; i++)
+				writel_relaxed(buf[i], addr);
+			st->tx_buf += m;
+			st->tx_length -= m;
+		} else if (st->tx_xfer->bits_per_word <= 16) {
+			const u16 *buf = (const u16 *)st->tx_buf;
+
+			m = min(n, st->tx_length / 2);
+			for (i = 0; i < m; i++)
+				writel_relaxed(buf[i], addr);
+			st->tx_buf += m * 2;
+			st->tx_length -= m * 2;
+		} else {
+			const u32 *buf = (const u32 *)st->tx_buf;
+
+			m = min(n, st->tx_length / 4);
+			for (i = 0; i < m; i++)
+				writel_relaxed(buf[i], addr);
+			st->tx_buf += m * 4;
+			st->tx_length -= m * 4;
+		}
 		n -= m;
 		if (st->tx_length == 0)
 			spi_engine_tx_next(msg);
@@ -366,16 +400,34 @@ static bool spi_engine_read_rx_fifo(struct spi_engine *spi_engine,
 	void __iomem *addr = spi_engine->base + SPI_ENGINE_REG_SDI_DATA_FIFO;
 	struct spi_engine_message_state *st = msg->state;
 	unsigned int n, m, i;
-	uint8_t *buf;
 
 	n = readl_relaxed(spi_engine->base + SPI_ENGINE_REG_SDI_FIFO_LEVEL);
 	while (n && st->rx_length) {
-		m = min(n, st->rx_length);
-		buf = st->rx_buf;
-		for (i = 0; i < m; i++)
-			buf[i] = readl_relaxed(addr);
-		st->rx_buf += m;
-		st->rx_length -= m;
+		if (st->rx_xfer->bits_per_word <= 8) {
+			u8 *buf = st->rx_buf;
+
+			m = min(n, st->rx_length);
+			for (i = 0; i < m; i++)
+				buf[i] = readl_relaxed(addr);
+			st->rx_buf += m;
+			st->rx_length -= m;
+		} else if (st->rx_xfer->bits_per_word <= 16) {
+			u16 *buf = (u16 *)st->rx_buf;
+
+			m = min(n, st->rx_length / 2);
+			for (i = 0; i < m; i++)
+				buf[i] = readl_relaxed(addr);
+			st->rx_buf += m * 2;
+			st->rx_length -= m * 2;
+		} else {
+			u32 *buf = (u32 *)st->rx_buf;
+
+			m = min(n, st->rx_length / 4);
+			for (i = 0; i < m; i++)
+				buf[i] = readl_relaxed(addr);
+			st->rx_buf += m * 4;
+			st->rx_length -= m * 4;
+		}
 		n -= m;
 		if (st->rx_length == 0)
 			spi_engine_rx_next(msg);
@@ -596,7 +648,7 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	host->dev.of_node = pdev->dev.of_node;
 	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_3WIRE;
-	host->bits_per_word_mask = SPI_BPW_MASK(8);
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	host->max_speed_hz = clk_get_rate(spi_engine->ref_clk) / 2;
 	host->transfer_one_message = spi_engine_transfer_one_message;
 	host->prepare_message = spi_engine_prepare_message;
