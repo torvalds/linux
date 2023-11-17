@@ -16,6 +16,7 @@ struct xe_modparam {
 	int guc_log_level;
 	char *guc_firmware_path;
 	char *huc_firmware_path;
+	char *gsc_firmware_path;
 	char *force_probe;
 };
 

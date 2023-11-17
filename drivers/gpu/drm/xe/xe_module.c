@@ -41,6 +41,10 @@ module_param_named_unsafe(huc_firmware_path, xe_modparam.huc_firmware_path, char
 MODULE_PARM_DESC(huc_firmware_path,
 		 "HuC firmware path to use instead of the default one - empty string disables");
 
+module_param_named_unsafe(gsc_firmware_path, xe_modparam.gsc_firmware_path, charp, 0400);
+MODULE_PARM_DESC(gsc_firmware_path,
+		 "GSC firmware path to use instead of the default one - empty string disables");
+
 module_param_named_unsafe(force_probe, xe_modparam.force_probe, charp, 0400);
 MODULE_PARM_DESC(force_probe,
 		 "Force probe options for specified devices. See CONFIG_DRM_XE_FORCE_PROBE for details.");

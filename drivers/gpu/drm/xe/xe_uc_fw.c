@@ -121,6 +121,10 @@ struct fw_blobs_by_type {
 	fw_def(ROCKETLAKE,	no_ver(i915,	huc,		tgl))		\
 	fw_def(TIGERLAKE,	no_ver(i915,	huc,		tgl))
 
+/* for the GSC FW we match the compatibility version and not the release one */
+#define XE_GSC_FIRMWARE_DEFS(fw_def, major_ver)		\
+	fw_def(METEORLAKE,	major_ver(i915,	gsc,	mtl,	1, 0))
+
 #define MAKE_FW_PATH(dir__, uc__, shortname__, version__)			\
 	__stringify(dir__) "/" __stringify(shortname__) "_" __stringify(uc__) version__ ".bin"
 
@@ -155,6 +159,7 @@ XE_GUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 		     fw_filename_mmp_ver, fw_filename_major_ver)
 XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 		     fw_filename_mmp_ver, fw_filename_no_ver)
+XE_GSC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE, fw_filename_major_ver)
 
 static struct xe_gt *
 __uc_fw_to_gt(struct xe_uc_fw *uc_fw, enum xe_uc_fw_type type)
@@ -196,22 +201,18 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 				     uc_fw_entry_mmp_ver,
 				     uc_fw_entry_no_ver)
 	};
+	static const struct uc_fw_entry entries_gsc[] = {
+		XE_GSC_FIRMWARE_DEFS(XE_UC_FW_ENTRY, uc_fw_entry_major_ver)
+	};
 	static const struct fw_blobs_by_type blobs_all[XE_UC_FW_NUM_TYPES] = {
 		[XE_UC_FW_TYPE_GUC] = { entries_guc, ARRAY_SIZE(entries_guc) },
 		[XE_UC_FW_TYPE_HUC] = { entries_huc, ARRAY_SIZE(entries_huc) },
+		[XE_UC_FW_TYPE_GSC] = { entries_gsc, ARRAY_SIZE(entries_gsc) },
 	};
 	static const struct uc_fw_entry *entries;
 	enum xe_platform p = xe->info.platform;
 	u32 count;
 	int i;
-
-	/*
-	 * GSC FW support is still not fully in place, so we're not defining
-	 * the FW blob yet because we don't want the driver to attempt to load
-	 * it until we're ready for it.
-	 */
-	if (uc_fw->type == XE_UC_FW_TYPE_GSC)
-		return;
 
 	xe_assert(xe, uc_fw->type < ARRAY_SIZE(blobs_all));
 	entries = blobs_all[uc_fw->type].entries;
@@ -247,6 +248,9 @@ uc_fw_override(struct xe_uc_fw *uc_fw)
 		break;
 	case XE_UC_FW_TYPE_HUC:
 		path_override = xe_modparam.huc_firmware_path;
+		break;
+	case XE_UC_FW_TYPE_GSC:
+		path_override = xe_modparam.gsc_firmware_path;
 		break;
 	default:
 		break;
