@@ -74,13 +74,12 @@ class SubPlugin(TdcPlugin):
             print('{}.post_suite'.format(self.sub_class))
 
         # Make sure we don't leak resources
-        for f in os.listdir('/run/netns/'):
-            cmd = self._replace_keywords("$IP netns del {}".format(f))
+        cmd = "$IP -a netns del"
 
-            if self.args.verbose > 3:
-                print('_exec_cmd:  command "{}"'.format(cmd))
+        if self.args.verbose > 3:
+            print('_exec_cmd:  command "{}"'.format(cmd))
 
-            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def adjust_command(self, stage, command):
         super().adjust_command(stage, command)
