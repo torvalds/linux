@@ -7,6 +7,7 @@
 
 #include <drm/drm_managed.h>
 
+#include "generated/xe_wa_oob.h"
 #include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -17,6 +18,7 @@
 #include "xe_mmio.h"
 #include "xe_sched_job.h"
 #include "xe_uc_fw.h"
+#include "xe_wa.h"
 #include "instructions/xe_gsc_commands.h"
 #include "regs/xe_gsc_regs.h"
 
@@ -299,4 +301,31 @@ void xe_gsc_wait_for_worker_completion(struct xe_gsc *gsc)
 {
 	if (xe_uc_fw_is_loadable(&gsc->fw) && gsc->wq)
 		flush_work(&gsc->work);
+}
+
+/*
+ * wa_14015076503: if the GSC FW is loaded, we need to alert it before doing a
+ * GSC engine reset by writing a notification bit in the GS1 register and then
+ * triggering an interrupt to GSC; from the interrupt it will take up to 200ms
+ * for the FW to get prepare for the reset, so we need to wait for that amount
+ * of time.
+ * After the reset is complete we need to then clear the GS1 register.
+ */
+void xe_gsc_wa_14015076503(struct xe_gt *gt, bool prep)
+{
+	u32 gs1_set = prep ? HECI_H_GS1_ER_PREP : 0;
+	u32 gs1_clr = prep ? 0 : HECI_H_GS1_ER_PREP;
+
+	/* WA only applies if the GSC is loaded */
+	if (!XE_WA(gt, 14015076503) || !gsc_fw_is_loaded(gt))
+		return;
+
+	xe_mmio_rmw32(gt, HECI_H_GS1(MTL_GSC_HECI2_BASE), gs1_clr, gs1_set);
+
+	if (prep) {
+		/* make sure the reset bit is clear when writing the CSR reg */
+		xe_mmio_rmw32(gt, HECI_H_CSR(MTL_GSC_HECI2_BASE),
+			      HECI_H_CSR_RST, HECI_H_CSR_IG);
+		msleep(200);
+	}
 }

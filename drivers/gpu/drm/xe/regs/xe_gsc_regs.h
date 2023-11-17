@@ -16,6 +16,13 @@
 #define MTL_GSC_HECI1_BASE	0x00116000
 #define MTL_GSC_HECI2_BASE	0x00117000
 
+#define HECI_H_CSR(base)	XE_REG((base) + 0x4)
+#define   HECI_H_CSR_IE		REG_BIT(0)
+#define   HECI_H_CSR_IS		REG_BIT(1)
+#define   HECI_H_CSR_IG		REG_BIT(2)
+#define   HECI_H_CSR_RDY	REG_BIT(3)
+#define   HECI_H_CSR_RST	REG_BIT(4)
+
 /*
  * The FWSTS register values are FW defined and can be different between
  * HECI1 and HECI2
@@ -25,5 +32,8 @@
 #define   HECI1_FWSTS1_CURRENT_STATE_RESET		0
 #define   HECI1_FWSTS1_PROXY_STATE_NORMAL		5
 #define   HECI1_FWSTS1_INIT_COMPLETE			REG_BIT(9)
+
+#define HECI_H_GS1(base)	XE_REG((base) + 0xc4c)
+#define   HECI_H_GS1_ER_PREP	REG_BIT(0)
 
 #endif
