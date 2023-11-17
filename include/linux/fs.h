@@ -463,9 +463,9 @@ extern const struct address_space_operations empty_aops;
  * @a_ops: Methods.
  * @flags: Error bits and flags (AS_*).
  * @wb_err: The most recent error which has occurred.
- * @private_lock: For use by the owner of the address_space.
- * @private_list: For use by the owner of the address_space.
- * @private_data: For use by the owner of the address_space.
+ * @i_private_lock: For use by the owner of the address_space.
+ * @i_private_list: For use by the owner of the address_space.
+ * @i_private_data: For use by the owner of the address_space.
  */
 struct address_space {
 	struct inode		*host;
@@ -484,9 +484,9 @@ struct address_space {
 	unsigned long		flags;
 	struct rw_semaphore	i_mmap_rwsem;
 	errseq_t		wb_err;
-	spinlock_t		private_lock;
-	struct list_head	private_list;
-	void			*private_data;
+	spinlock_t		i_private_lock;
+	struct list_head	i_private_list;
+	void *			i_private_data;
 } __attribute__((aligned(sizeof(long)))) __randomize_layout;
 	/*
 	 * On most architectures that alignment is already the case; but

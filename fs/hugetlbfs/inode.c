@@ -686,7 +686,7 @@ static void hugetlbfs_evict_inode(struct inode *inode)
 	 * at inode creation time.  If this is a device special inode,
 	 * i_mapping may not point to the original address space.
 	 */
-	resv_map = (struct resv_map *)(&inode->i_data)->private_data;
+	resv_map = (struct resv_map *)(&inode->i_data)->i_private_data;
 	/* Only regular and link inodes have associated reserve maps */
 	if (resv_map)
 		resv_map_release(&resv_map->refs);
@@ -1000,7 +1000,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 				&hugetlbfs_i_mmap_rwsem_key);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
 		simple_inode_init_ts(inode);
-		inode->i_mapping->private_data = resv_map;
+		inode->i_mapping->i_private_data = resv_map;
 		info->seals = F_SEAL_SEAL;
 		switch (mode & S_IFMT) {
 		default:

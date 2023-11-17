@@ -266,7 +266,7 @@ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 		return ERR_CAST(inode);
 
 	inode->i_mapping->a_ops = &aio_ctx_aops;
-	inode->i_mapping->private_data = ctx;
+	inode->i_mapping->i_private_data = ctx;
 	inode->i_size = PAGE_SIZE * nr_pages;
 
 	file = alloc_file_pseudo(inode, aio_mnt, "[aio]",
@@ -316,10 +316,10 @@ static void put_aio_ring_file(struct kioctx *ctx)
 
 		/* Prevent further access to the kioctx from migratepages */
 		i_mapping = aio_ring_file->f_mapping;
-		spin_lock(&i_mapping->private_lock);
-		i_mapping->private_data = NULL;
+		spin_lock(&i_mapping->i_private_lock);
+		i_mapping->i_private_data = NULL;
 		ctx->aio_ring_file = NULL;
-		spin_unlock(&i_mapping->private_lock);
+		spin_unlock(&i_mapping->i_private_lock);
 
 		fput(aio_ring_file);
 	}
@@ -422,9 +422,9 @@ static int aio_migrate_folio(struct address_space *mapping, struct folio *dst,
 
 	rc = 0;
 
-	/* mapping->private_lock here protects against the kioctx teardown.  */
-	spin_lock(&mapping->private_lock);
-	ctx = mapping->private_data;
+	/* mapping->i_private_lock here protects against the kioctx teardown.  */
+	spin_lock(&mapping->i_private_lock);
+	ctx = mapping->i_private_data;
 	if (!ctx) {
 		rc = -EINVAL;
 		goto out;
@@ -476,7 +476,7 @@ static int aio_migrate_folio(struct address_space *mapping, struct folio *dst,
 out_unlock:
 	mutex_unlock(&ctx->ring_lock);
 out:
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 	return rc;
 }
 #else
