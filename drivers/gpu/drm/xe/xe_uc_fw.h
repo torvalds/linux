@@ -96,8 +96,11 @@ static inline const char *xe_uc_fw_type_repr(enum xe_uc_fw_type type)
 		return "GuC";
 	case XE_UC_FW_TYPE_HUC:
 		return "HuC";
+	case XE_UC_FW_TYPE_GSC:
+		return "GSC";
+	default:
+		return "uC";
 	}
-	return "uC";
 }
 
 static inline enum xe_uc_fw_status

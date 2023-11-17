@@ -158,11 +158,18 @@ XE_HUC_FIRMWARE_DEFS(XE_UC_MODULE_FIRMWARE,
 static struct xe_gt *
 __uc_fw_to_gt(struct xe_uc_fw *uc_fw, enum xe_uc_fw_type type)
 {
-	if (type == XE_UC_FW_TYPE_GUC)
-		return container_of(uc_fw, struct xe_gt, uc.guc.fw);
+	XE_WARN_ON(type >= XE_UC_FW_NUM_TYPES);
 
-	XE_WARN_ON(type != XE_UC_FW_TYPE_HUC);
-	return container_of(uc_fw, struct xe_gt, uc.huc.fw);
+	switch (type) {
+	case XE_UC_FW_TYPE_GUC:
+		return container_of(uc_fw, struct xe_gt, uc.guc.fw);
+	case XE_UC_FW_TYPE_HUC:
+		return container_of(uc_fw, struct xe_gt, uc.huc.fw);
+	case XE_UC_FW_TYPE_GSC:
+		return container_of(uc_fw, struct xe_gt, uc.gsc.fw);
+	default:
+		return NULL;
+	}
 }
 
 static struct xe_gt *uc_fw_to_gt(struct xe_uc_fw *uc_fw)
@@ -196,6 +203,14 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	enum xe_platform p = xe->info.platform;
 	u32 count;
 	int i;
+
+	/*
+	 * GSC FW support is still not fully in place, so we're not defining
+	 * the FW blob yet because we don't want the driver to attempt to load
+	 * it until we're ready for it.
+	 */
+	if (uc_fw->type == XE_UC_FW_TYPE_GSC)
+		return;
 
 	xe_assert(xe, uc_fw->type < ARRAY_SIZE(blobs_all));
 	entries = blobs_all[uc_fw->type].entries;

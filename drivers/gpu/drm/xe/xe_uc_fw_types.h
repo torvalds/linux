@@ -55,9 +55,10 @@ enum xe_uc_fw_status {
 
 enum xe_uc_fw_type {
 	XE_UC_FW_TYPE_GUC = 0,
-	XE_UC_FW_TYPE_HUC
+	XE_UC_FW_TYPE_HUC,
+	XE_UC_FW_TYPE_GSC,
+	XE_UC_FW_NUM_TYPES
 };
-#define XE_UC_FW_NUM_TYPES 2
 
 /**
  * struct xe_uc_fw_version - Version for XE micro controller firmware

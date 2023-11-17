@@ -6,6 +6,7 @@
 #include "xe_uc.h"
 
 #include "xe_device.h"
+#include "xe_gsc.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_pc.h"
@@ -32,8 +33,8 @@ int xe_uc_init(struct xe_uc *uc)
 	int ret;
 
 	/*
-	 * We call the GuC/HuC init functions even if GuC submission is off to
-	 * correctly move our tracking of the FW state to "disabled".
+	 * We call the GuC/HuC/GSC init functions even if GuC submission is off
+	 * to correctly move our tracking of the FW state to "disabled".
 	 */
 
 	ret = xe_guc_init(&uc->guc);
@@ -41,6 +42,10 @@ int xe_uc_init(struct xe_uc *uc)
 		goto err;
 
 	ret = xe_huc_init(&uc->huc);
+	if (ret)
+		goto err;
+
+	ret = xe_gsc_init(&uc->gsc);
 	if (ret)
 		goto err;
 
