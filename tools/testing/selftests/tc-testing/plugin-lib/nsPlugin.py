@@ -40,7 +40,10 @@ class SubPlugin(TdcPlugin):
             self._ns_create()
 
         # Make sure the netns is visible in the fs
+        ticks = 20
         while True:
+            if ticks == 0:
+                raise TimeoutError
             self._proc_check()
             try:
                 ns = self.args.NAMES['NS']
@@ -49,6 +52,7 @@ class SubPlugin(TdcPlugin):
                 break
             except:
                 time.sleep(0.1)
+                ticks -= 1
                 continue
 
     def pre_case(self, test, test_skip):
@@ -127,7 +131,10 @@ class SubPlugin(TdcPlugin):
         with IPRoute() as ip:
             ip.link('add', ifname=dev1, kind='veth', peer={'ifname': dev0, 'net_ns_fd':'/proc/1/ns/net'})
             ip.link('add', ifname=dummy, kind='dummy')
+            ticks = 20
             while True:
+                if ticks == 0:
+                    raise TimeoutError
                 try:
                     dev1_idx = ip.link_lookup(ifname=dev1)[0]
                     dummy_idx = ip.link_lookup(ifname=dummy)[0]
@@ -136,17 +143,22 @@ class SubPlugin(TdcPlugin):
                     break
                 except:
                     time.sleep(0.1)
+                    ticks -= 1
                     continue
         netns.popns()
 
         with IPRoute() as ip:
+            ticks = 20
             while True:
+                if ticks == 0:
+                    raise TimeoutError
                 try:
                     dev0_idx = ip.link_lookup(ifname=dev0)[0]
                     ip.link('set', index=dev0_idx, state='up')
                     break
                 except:
                     time.sleep(0.1)
+                    ticks -= 1
                     continue
 
     def _ns_create_cmds(self):
