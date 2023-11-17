@@ -662,6 +662,31 @@ static void am65_cpsw_get_ethtool_stats(struct net_device *ndev,
 					hw_stats[i].offset);
 }
 
+static void am65_cpsw_get_eth_mac_stats(struct net_device *ndev,
+					struct ethtool_eth_mac_stats *s)
+{
+	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
+	struct am65_cpsw_stats_regs __iomem *stats;
+
+	stats = port->stat_base;
+
+	s->FramesTransmittedOK = readl_relaxed(&stats->tx_good_frames);
+	s->SingleCollisionFrames = readl_relaxed(&stats->tx_single_coll_frames);
+	s->MultipleCollisionFrames = readl_relaxed(&stats->tx_mult_coll_frames);
+	s->FramesReceivedOK = readl_relaxed(&stats->rx_good_frames);
+	s->FrameCheckSequenceErrors = readl_relaxed(&stats->rx_crc_errors);
+	s->AlignmentErrors = readl_relaxed(&stats->rx_align_code_errors);
+	s->OctetsTransmittedOK = readl_relaxed(&stats->tx_octets);
+	s->FramesWithDeferredXmissions = readl_relaxed(&stats->tx_deferred_frames);
+	s->LateCollisions = readl_relaxed(&stats->tx_late_collisions);
+	s->CarrierSenseErrors = readl_relaxed(&stats->tx_carrier_sense_errors);
+	s->OctetsReceivedOK = readl_relaxed(&stats->rx_octets);
+	s->MulticastFramesXmittedOK = readl_relaxed(&stats->tx_multicast_frames);
+	s->BroadcastFramesXmittedOK = readl_relaxed(&stats->tx_broadcast_frames);
+	s->MulticastFramesReceivedOK = readl_relaxed(&stats->rx_multicast_frames);
+	s->BroadcastFramesReceivedOK = readl_relaxed(&stats->rx_broadcast_frames);
+};
+
 static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
 					 struct ethtool_ts_info *info)
 {
@@ -729,6 +754,7 @@ const struct ethtool_ops am65_cpsw_ethtool_ops_slave = {
 	.get_sset_count		= am65_cpsw_get_sset_count,
 	.get_strings		= am65_cpsw_get_strings,
 	.get_ethtool_stats	= am65_cpsw_get_ethtool_stats,
+	.get_eth_mac_stats	= am65_cpsw_get_eth_mac_stats,
 	.get_ts_info		= am65_cpsw_get_ethtool_ts_info,
 	.get_priv_flags		= am65_cpsw_get_ethtool_priv_flags,
 	.set_priv_flags		= am65_cpsw_set_ethtool_priv_flags,
