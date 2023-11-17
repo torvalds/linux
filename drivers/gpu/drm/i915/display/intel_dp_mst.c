@@ -115,6 +115,7 @@ static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 
+	/* TODO: Check WA 14013163432 to set data M/N for full BW utilization. */
 	intel_link_compute_m_n(bpp_x16, crtc_state->lane_count,
 			       adjusted_mode->crtc_clock,
 			       crtc_state->port_clock,
@@ -122,6 +123,18 @@ static void intel_dp_mst_compute_m_n(const struct intel_crtc_state *crtc_state,
 			       m_n);
 
 	m_n->tu = DIV_ROUND_UP_ULL(mul_u32_u32(m_n->data_m, 64), m_n->data_n);
+}
+
+static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
+{
+	int effective_data_rate =
+		intel_dp_effective_data_rate(pixel_clock, bpp_x16, bw_overhead);
+
+	/*
+	 * TODO: Use drm_dp_calc_pbn_mode() instead, once it's converted
+	 * to calculate PBN with the BW overhead passed to it.
+	 */
+	return DIV_ROUND_UP(effective_data_rate * 64, 54 * 1000);
 }
 
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
@@ -167,10 +180,10 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		    min_bpp, max_bpp);
 
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
-		struct intel_link_m_n remote_m_n;
 		int local_bw_overhead;
 		int remote_bw_overhead;
 		int link_bpp_x16;
+		int remote_tu;
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
 
@@ -191,11 +204,6 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					 link_bpp_x16,
 					 &crtc_state->dp_m_n);
 
-		intel_dp_mst_compute_m_n(crtc_state, connector,
-					 remote_bw_overhead,
-					 link_bpp_x16,
-					 &remote_m_n);
-
 		/*
 		 * The TU size programmed to the HW determines which slots in
 		 * an MTP frame are used for this stream, which needs to match
@@ -210,9 +218,14 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		 * crtc_state->dp_m_n.tu), provided that the driver doesn't
 		 * enable SSC on the corresponding link.
 		 */
-		drm_WARN_ON(&i915->drm, remote_m_n.tu < crtc_state->dp_m_n.tu);
-		crtc_state->dp_m_n.tu = remote_m_n.tu;
-		crtc_state->pbn = remote_m_n.tu * dfixed_trunc(mst_state->pbn_div);
+		crtc_state->pbn = intel_dp_mst_calc_pbn(adjusted_mode->crtc_clock,
+							link_bpp_x16,
+							remote_bw_overhead);
+
+		remote_tu = DIV_ROUND_UP(dfixed_const(crtc_state->pbn), mst_state->pbn_div.full);
+
+		drm_WARN_ON(&i915->drm, remote_tu < crtc_state->dp_m_n.tu);
+		crtc_state->dp_m_n.tu = remote_tu;
 
 		slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst_mgr,
 						      connector->port,
@@ -221,7 +234,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 			return slots;
 
 		if (slots >= 0) {
-			drm_WARN_ON(&i915->drm, slots != remote_m_n.tu);
+			drm_WARN_ON(&i915->drm, slots != crtc_state->dp_m_n.tu);
 
 			break;
 		}

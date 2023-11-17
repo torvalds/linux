@@ -355,12 +355,31 @@ int intel_dp_max_lane_count(struct intel_dp *intel_dp)
 /*
  * The required data bandwidth for a mode with given pixel clock and bpp. This
  * is the required net bandwidth independent of the data bandwidth efficiency.
+ *
+ * TODO: check if callers of this functions should use
+ * intel_dp_effective_data_rate() instead.
  */
 int
 intel_dp_link_required(int pixel_clock, int bpp)
 {
 	/* pixel_clock is in kHz, divide bpp by 8 for bit to Byte conversion */
 	return DIV_ROUND_UP(pixel_clock * bpp, 8);
+}
+
+/**
+ * intel_dp_effective_data_rate - Return the pixel data rate accounting for BW allocation overhead
+ * @pixel_clock: pixel clock in kHz
+ * @bpp_x16: bits per pixel .4 fixed point format
+ * @bw_overhead: BW allocation overhead in 1ppm units
+ *
+ * Return the effective pixel data rate in kB/sec units taking into account
+ * the provided SSC, FEC, DSC BW allocation overhead.
+ */
+int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
+				 int bw_overhead)
+{
+	return DIV_ROUND_UP_ULL(mul_u32_u32(pixel_clock * bpp_x16, bw_overhead),
+				1000000 * 16 * 8);
 }
 
 /*

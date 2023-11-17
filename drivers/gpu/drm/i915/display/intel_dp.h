@@ -103,6 +103,8 @@ bool intel_dp_source_supports_tps4(struct drm_i915_private *i915);
 
 bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
+int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
+				 int bw_overhead);
 int intel_dp_max_data_rate(int max_link_rate, int max_lanes);
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp);
 bool intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
