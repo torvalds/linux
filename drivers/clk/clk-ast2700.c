@@ -398,7 +398,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 	clks[AST2700_SOC1_CLK_SDCLK] =
 		clk_hw_register_divider_table(dev, "sdclk", "sdclk-mux",
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
-					      14, 4, 0, ast2700_clk_div_table, &ast2700_clk_lock);
+					      14, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
 	clks[AST2700_SOC1_CLK_GATE_SDCLK] =
 		ast2700_clk_hw_register_gate(NULL, "sdclk-gate", "sdclk",
