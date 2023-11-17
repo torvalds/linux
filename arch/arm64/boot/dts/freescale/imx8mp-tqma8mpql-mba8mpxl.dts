@@ -602,7 +602,6 @@
 &usb3_1 {
 	fsl,disable-port-power-control;
 	fsl,permanently-attached;
-	dr_mode = "host";
 	status = "okay";
 };
 
