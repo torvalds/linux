@@ -260,8 +260,6 @@ enum {
 	RQ_LOCAL,		/* local request */
 	RQ_USEDEFERRAL,		/* use deferral */
 	RQ_DROPME,		/* drop current reply */
-	RQ_SPLICE_OK,		/* turned off in gss privacy to prevent
-				 * encrypting page cache pages */
 	RQ_VICTIM,		/* Have agreed to shut down */
 	RQ_DATA,		/* request has data */
 };
