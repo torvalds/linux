@@ -142,7 +142,8 @@ mtk_wed_wo_queue_refill(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q,
 		dma_addr_t addr;
 		void *buf;
 
-		buf = page_frag_alloc(&q->cache, q->buf_size, GFP_ATOMIC);
+		buf = page_frag_alloc(&q->cache, q->buf_size,
+				      GFP_ATOMIC | GFP_DMA32);
 		if (!buf)
 			break;
 
