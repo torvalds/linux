@@ -1138,15 +1138,16 @@ static int me_pagecache_dirty(struct page_state *ps, struct page *p)
  */
 static int me_swapcache_dirty(struct page_state *ps, struct page *p)
 {
+	struct folio *folio = page_folio(p);
 	int ret;
 	bool extra_pins = false;
 
-	ClearPageDirty(p);
+	folio_clear_dirty(folio);
 	/* Trigger EIO in shmem: */
-	ClearPageUptodate(p);
+	folio_clear_uptodate(folio);
 
 	ret = delete_from_lru_cache(p) ? MF_FAILED : MF_DELAYED;
-	unlock_page(p);
+	folio_unlock(folio);
 
 	if (ret == MF_DELAYED)
 		extra_pins = true;
