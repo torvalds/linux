@@ -1034,7 +1034,7 @@ static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *
 	} else if (DISPLAY_VER(i915) >= 10) {
 		max_w = 5120;
 		max_h = 4096;
-	} else if (DISPLAY_VER(i915) >= 8 || IS_HASWELL(i915)) {
+	} else if (DISPLAY_VER(i915) >= 7) {
 		max_w = 4096;
 		max_h = 4096;
 	} else if (IS_G4X(i915) || DISPLAY_VER(i915) >= 5) {
