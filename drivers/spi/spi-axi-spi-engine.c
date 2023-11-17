@@ -412,11 +412,7 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 
 		if (spi_engine->completed_id == st->sync_id) {
 			struct spi_message *msg = spi_engine->msg;
-			struct spi_engine_message_state *st = msg->state;
 
-			ida_free(&spi_engine->sync_ida, st->sync_id);
-			kfree(st->p);
-			kfree(st);
 			msg->status = 0;
 			msg->actual_length = msg->frame_length;
 			spi_engine->msg = NULL;
@@ -436,14 +432,12 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int spi_engine_transfer_one_message(struct spi_controller *host,
-	struct spi_message *msg)
+static int spi_engine_prepare_message(struct spi_controller *host,
+				      struct spi_message *msg)
 {
 	struct spi_engine_program p_dry, *p;
 	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	struct spi_engine_message_state *st;
-	unsigned int int_enable = 0;
-	unsigned long flags;
 	size_t size;
 	int ret;
 
@@ -472,15 +466,41 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 
 	spi_engine_compile_message(spi_engine, msg, false, p);
 
-	spin_lock_irqsave(&spi_engine->lock, flags);
 	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(st->sync_id));
 
-	msg->state = st;
-	spi_engine->msg = msg;
 	st->p = p;
-
 	st->cmd_buf = p->instructions;
 	st->cmd_length = p->length;
+	msg->state = st;
+
+	return 0;
+}
+
+static int spi_engine_unprepare_message(struct spi_controller *host,
+					struct spi_message *msg)
+{
+	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
+	struct spi_engine_message_state *st = msg->state;
+
+	ida_free(&spi_engine->sync_ida, st->sync_id);
+	kfree(st->p);
+	kfree(st);
+
+	return 0;
+}
+
+static int spi_engine_transfer_one_message(struct spi_controller *host,
+	struct spi_message *msg)
+{
+	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
+	struct spi_engine_message_state *st = msg->state;
+	unsigned int int_enable = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&spi_engine->lock, flags);
+
+	spi_engine->msg = msg;
+
 	if (spi_engine_write_cmd_fifo(spi_engine))
 		int_enable |= SPI_ENGINE_INT_CMD_ALMOST_EMPTY;
 
@@ -572,6 +592,8 @@ static int spi_engine_probe(struct platform_device *pdev)
 	host->bits_per_word_mask = SPI_BPW_MASK(8);
 	host->max_speed_hz = clk_get_rate(spi_engine->ref_clk) / 2;
 	host->transfer_one_message = spi_engine_transfer_one_message;
+	host->prepare_message = spi_engine_prepare_message;
+	host->unprepare_message = spi_engine_unprepare_message;
 	host->num_chipselect = 8;
 
 	if (host->max_speed_hz == 0)
