@@ -1028,7 +1028,10 @@ static bool intel_fbc_hw_tracking_covers_screen(const struct intel_plane_state *
 	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
 	unsigned int effective_w, effective_h, max_w, max_h;
 
-	if (DISPLAY_VER(i915) >= 10) {
+	if (DISPLAY_VER(i915) >= 11) {
+		max_w = 8192;
+		max_h = 4096;
+	} else if (DISPLAY_VER(i915) >= 10) {
 		max_w = 5120;
 		max_h = 4096;
 	} else if (DISPLAY_VER(i915) >= 8 || IS_HASWELL(i915)) {
