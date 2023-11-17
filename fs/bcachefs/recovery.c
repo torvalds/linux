@@ -290,6 +290,8 @@ int bch2_journal_replay(struct bch_fs *c)
 		k->overwritten = true;
 	}
 
+	set_bit(BCH_FS_accounting_replay_done, &c->flags);
+
 	/*
 	 * First, attempt to replay keys in sorted order. This is more
 	 * efficient - better locality of btree access -  but some might fail if
@@ -1060,6 +1062,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * set up the journal.pin FIFO and journal.cur pointer:
 	 */
 	bch2_fs_journal_start(&c->journal, 1);
+	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 	bch2_journal_set_replay_done(&c->journal);
 
 	ret = bch2_fs_read_write_early(c);

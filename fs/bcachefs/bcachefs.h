@@ -593,6 +593,7 @@ struct bch_dev {
 	x(new_fs)			\
 	x(started)			\
 	x(btree_running)		\
+	x(accounting_replay_done)	\
 	x(may_go_rw)			\
 	x(rw)				\
 	x(was_rw)			\
