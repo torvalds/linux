@@ -141,7 +141,7 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 		break;
 	default:
 		v4l2_warn(&csi2->sd, "lane num is invalid\n");
-		csi2->bus.num_data_lanes = 0;
+		csi2->bus.num_data_lanes = 4;
 		break;
 	}
 
@@ -399,6 +399,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->crop.left = 0;
 	csi2->crop.width = RKCIF_DEFAULT_WIDTH;
 	csi2->crop.height = RKCIF_DEFAULT_HEIGHT;
+	csi2->bus.num_data_lanes = 4;
 
 	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
@@ -664,15 +665,10 @@ static int csi2_parse_endpoint(struct device *dev,
 			       struct v4l2_fwnode_endpoint *vep,
 			       struct v4l2_async_subdev *asd)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct csi2_dev *csi2 = sd_to_dev(sd);
-
 	if (vep->base.port != 0) {
 		dev_err(dev, "The csi host node needs to parse port 0\n");
 		return -EINVAL;
 	}
-
-	csi2->bus = vep->bus.mipi_csi2;
 
 	return 0;
 }
