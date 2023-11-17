@@ -887,6 +887,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/humidityY_alarm
+Description:
+		Humidity limit detection
+
+		- 0: OK
+		- 1: Humidity limit has been reached
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/humidityY_enable
 Description:
 		Enable or disable the sensors
@@ -899,6 +908,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/humidityY_fault
+Description:
+		Reports a humidity sensor failure.
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/humidityY_input
 Description:
 		Humidity
@@ -906,6 +924,57 @@ Description:
 		Unit: milli-percent (per cent mille, pcm)
 
 		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_label
+Description:
+		Suggested humidity channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this humidity channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max
+Description:
+		Humidity max value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max_hyst
+Description:
+		Humidity hysteresis value for max limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the max value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min
+Description:
+		Humidity min value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min_hyst
+Description:
+		Humidity hysteresis value for min limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the min value.
+
+		RW
 
 What:		/sys/class/hwmon/hwmonX/humidityY_rated_min
 Description:
