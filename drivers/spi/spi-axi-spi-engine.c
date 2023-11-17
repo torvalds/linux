@@ -520,7 +520,8 @@ static int spi_engine_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = request_irq(irq, spi_engine_irq, 0, pdev->name, host);
+	ret = devm_request_irq(&pdev->dev, irq, spi_engine_irq, 0, pdev->name,
+			       host);
 	if (ret)
 		return ret;
 
@@ -533,24 +534,18 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	ret = spi_register_controller(host);
 	if (ret)
-		goto err_free_irq;
+		return ret;
 
 	platform_set_drvdata(pdev, host);
 
 	return 0;
-err_free_irq:
-	free_irq(irq, host);
-	return ret;
 }
 
 static void spi_engine_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
-	int irq = platform_get_irq(pdev, 0);
 
 	spi_unregister_controller(host);
-
-	free_irq(irq, host);
 }
 
 static const struct of_device_id spi_engine_match_table[] = {
