@@ -6584,3 +6584,90 @@ void spr_uncore_mmio_init(void)
 }
 
 /* end of SPR uncore support */
+
+/* GNR uncore support */
+
+#define UNCORE_GNR_NUM_UNCORE_TYPES	23
+#define UNCORE_GNR_TYPE_15		15
+#define UNCORE_GNR_B2UPI		18
+#define UNCORE_GNR_TYPE_21		21
+#define UNCORE_GNR_TYPE_22		22
+
+int gnr_uncore_units_ignore[] = {
+	UNCORE_SPR_UPI,
+	UNCORE_GNR_TYPE_15,
+	UNCORE_GNR_B2UPI,
+	UNCORE_GNR_TYPE_21,
+	UNCORE_GNR_TYPE_22,
+	UNCORE_IGNORE_END
+};
+
+static struct intel_uncore_type gnr_uncore_ubox = {
+	.name			= "ubox",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type gnr_uncore_b2cmi = {
+	SPR_UNCORE_PCI_COMMON_FORMAT(),
+	.name			= "b2cmi",
+};
+
+static struct intel_uncore_type gnr_uncore_b2cxl = {
+	SPR_UNCORE_MMIO_COMMON_FORMAT(),
+	.name			= "b2cxl",
+};
+
+static struct intel_uncore_type gnr_uncore_mdf_sbo = {
+	.name			= "mdf_sbo",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type *gnr_uncores[UNCORE_GNR_NUM_UNCORE_TYPES] = {
+	&spr_uncore_chabox,
+	&spr_uncore_iio,
+	&spr_uncore_irp,
+	NULL,
+	&spr_uncore_pcu,
+	&gnr_uncore_ubox,
+	&spr_uncore_imc,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	&gnr_uncore_b2cmi,
+	&gnr_uncore_b2cxl,
+	NULL,
+	NULL,
+	&gnr_uncore_mdf_sbo,
+	NULL,
+	NULL,
+};
+
+void gnr_uncore_cpu_init(void)
+{
+	uncore_msr_uncores = uncore_get_uncores(UNCORE_ACCESS_MSR, 0, NULL,
+						UNCORE_GNR_NUM_UNCORE_TYPES,
+						gnr_uncores);
+}
+
+int gnr_uncore_pci_init(void)
+{
+	uncore_pci_uncores = uncore_get_uncores(UNCORE_ACCESS_PCI, 0, NULL,
+						UNCORE_GNR_NUM_UNCORE_TYPES,
+						gnr_uncores);
+	return 0;
+}
+
+void gnr_uncore_mmio_init(void)
+{
+	uncore_mmio_uncores = uncore_get_uncores(UNCORE_ACCESS_MMIO, 0, NULL,
+						 UNCORE_GNR_NUM_UNCORE_TYPES,
+						 gnr_uncores);
+}
+
+/* end of GNR uncore support */
