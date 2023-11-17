@@ -153,6 +153,7 @@ struct afs_call {
 		struct afs_vldb_entry	*ret_vldb;
 		char			*ret_str;
 	};
+	struct afs_fid		fid;		/* Primary vnode ID (or all zeroes) */
 	unsigned char		probe_index;	/* Address in ->probe_alist */
 	struct afs_operation	*op;
 	unsigned int		server_index;

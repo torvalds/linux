@@ -1576,6 +1576,42 @@ TRACE_EVENT(afs_rotate,
 		      __entry->extra)
 	    );
 
+TRACE_EVENT(afs_make_call,
+	    TP_PROTO(struct afs_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call)
+		    __field(bool,			is_vl)
+		    __field(enum afs_fs_operation,	op)
+		    __field_struct(struct afs_fid,	fid)
+		    __field_struct(struct sockaddr_rxrpc, srx)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->op = call->operation_ID;
+		    __entry->fid = call->fid;
+		    memcpy(&__entry->srx, rxrpc_kernel_remote_srx(call->peer),
+			   sizeof(__entry->srx));
+		    __entry->srx.srx_service = call->service_id;
+		    __entry->is_vl = (__entry->srx.srx_service == VL_SERVICE ||
+				      __entry->srx.srx_service == YFS_VL_SERVICE);
+			   ),
+
+	    TP_printk("c=%08x %pISpc+%u %s %llx:%llx:%x",
+		      __entry->call,
+		      &__entry->srx.transport,
+		      __entry->srx.srx_service,
+		      __entry->is_vl ?
+		      __print_symbolic(__entry->op, afs_vl_operations) :
+		      __print_symbolic(__entry->op, afs_fs_operations),
+		      __entry->fid.vid,
+		      __entry->fid.vnode,
+		      __entry->fid.unique)
+	    );
+
 #endif /* _TRACE_AFS_H */
 
 /* This part must be outside protection */

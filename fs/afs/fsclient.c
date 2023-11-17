@@ -290,6 +290,7 @@ void afs_fs_fetch_status(struct afs_operation *op)
 	bp[2] = htonl(vp->fid.vnode);
 	bp[3] = htonl(vp->fid.unique);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -442,6 +443,7 @@ static void afs_fs_fetch_data64(struct afs_operation *op)
 	bp[6] = 0;
 	bp[7] = htonl(lower_32_bits(req->len));
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -476,6 +478,7 @@ void afs_fs_fetch_data(struct afs_operation *op)
 	bp[4] = htonl(lower_32_bits(req->pos));
 	bp[5] = htonl(lower_32_bits(req->len));
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -559,6 +562,7 @@ void afs_fs_create_file(struct afs_operation *op)
 	*bp++ = htonl(op->create.mode & S_IALLUGO); /* unix mode */
 	*bp++ = 0; /* segment size */
 
+	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -612,6 +616,7 @@ void afs_fs_make_dir(struct afs_operation *op)
 	*bp++ = htonl(op->create.mode & S_IALLUGO); /* unix mode */
 	*bp++ = 0; /* segment size */
 
+	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -685,6 +690,7 @@ void afs_fs_remove_file(struct afs_operation *op)
 		bp = (void *) bp + padsz;
 	}
 
+	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -732,6 +738,7 @@ void afs_fs_remove_dir(struct afs_operation *op)
 		bp = (void *) bp + padsz;
 	}
 
+	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -812,6 +819,7 @@ void afs_fs_link(struct afs_operation *op)
 	*bp++ = htonl(vp->fid.vnode);
 	*bp++ = htonl(vp->fid.unique);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call1(call, &vp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -907,6 +915,7 @@ void afs_fs_symlink(struct afs_operation *op)
 	*bp++ = htonl(S_IRWXUGO); /* unix mode */
 	*bp++ = 0; /* segment size */
 
+	call->fid = dvp->fid;
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1003,6 +1012,7 @@ void afs_fs_rename(struct afs_operation *op)
 		bp = (void *) bp + n_padsz;
 	}
 
+	call->fid = orig_dvp->fid;
 	trace_afs_make_fs_call2(call, &orig_dvp->fid, orig_name, new_name);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1090,6 +1100,7 @@ static void afs_fs_store_data64(struct afs_operation *op)
 	*bp++ = htonl(upper_32_bits(op->store.i_size));
 	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1140,6 +1151,7 @@ void afs_fs_store_data(struct afs_operation *op)
 	*bp++ = htonl(lower_32_bits(op->store.size));
 	*bp++ = htonl(lower_32_bits(op->store.i_size));
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1206,6 +1218,7 @@ static void afs_fs_setattr_size64(struct afs_operation *op)
 	*bp++ = htonl(upper_32_bits(attr->ia_size));	/* new file length */
 	*bp++ = htonl(lower_32_bits(attr->ia_size));
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1247,6 +1260,7 @@ static void afs_fs_setattr_size(struct afs_operation *op)
 	*bp++ = 0;				/* size of write */
 	*bp++ = htonl(attr->ia_size);		/* new file length */
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1283,6 +1297,7 @@ void afs_fs_setattr(struct afs_operation *op)
 
 	xdr_encode_AFS_StoreStatus(&bp, op->setattr.attr);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1446,6 +1461,7 @@ void afs_fs_get_volume_status(struct afs_operation *op)
 	bp[0] = htonl(FSGETVOLUMESTATUS);
 	bp[1] = htonl(vp->fid.vid);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1528,6 +1544,7 @@ void afs_fs_set_lock(struct afs_operation *op)
 	*bp++ = htonl(vp->fid.unique);
 	*bp++ = htonl(op->lock.type);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_calli(call, &vp->fid, op->lock.type);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1554,6 +1571,7 @@ void afs_fs_extend_lock(struct afs_operation *op)
 	*bp++ = htonl(vp->fid.vnode);
 	*bp++ = htonl(vp->fid.unique);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1580,6 +1598,7 @@ void afs_fs_release_lock(struct afs_operation *op)
 	*bp++ = htonl(vp->fid.vnode);
 	*bp++ = htonl(vp->fid.unique);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -1948,6 +1967,7 @@ void afs_fs_inline_bulk_status(struct afs_operation *op)
 		*bp++ = htonl(op->more_files[i].fid.unique);
 	}
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_NOFS);
 }
@@ -2053,6 +2073,7 @@ void afs_fs_fetch_acl(struct afs_operation *op)
 	bp[2] = htonl(vp->fid.vnode);
 	bp[3] = htonl(vp->fid.unique);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_KERNEL);
 }
@@ -2098,6 +2119,7 @@ void afs_fs_store_acl(struct afs_operation *op)
 	if (acl->size != size)
 		memset((void *)&bp[5] + acl->size, 0, size - acl->size);
 
+	call->fid = vp->fid;
 	trace_afs_make_fs_call(call, &vp->fid);
 	afs_make_op_call(op, call, GFP_KERNEL);
 }

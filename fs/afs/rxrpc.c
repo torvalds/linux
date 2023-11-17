@@ -313,6 +313,8 @@ void afs_make_call(struct afs_call *call, gfp_t gfp)
 	       call, call->type->name, key_serial(call->key),
 	       atomic_read(&call->net->nr_outstanding_calls));
 
+	trace_afs_make_call(call);
+
 	/* Work out the length we're going to transmit.  This is awkward for
 	 * calls such as FS.StoreData where there's an extra injection of data
 	 * after the initial fixed part.
