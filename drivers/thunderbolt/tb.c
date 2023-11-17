@@ -1075,23 +1075,20 @@ static int tb_configure_asym(struct tb *tb, struct tb_port *src_port,
 			     struct tb_port *dst_port, int requested_up,
 			     int requested_down)
 {
+	bool clx = false, clx_disabled = false, downstream;
 	struct tb_switch *sw;
-	bool clx, downstream;
 	struct tb_port *up;
 	int ret = 0;
 
 	if (!asym_threshold)
 		return 0;
 
-	/* Disable CL states before doing any transitions */
 	downstream = tb_port_path_direction_downstream(src_port, dst_port);
 	/* Pick up router deepest in the hierarchy */
 	if (downstream)
 		sw = dst_port->sw;
 	else
 		sw = src_port->sw;
-
-	clx = tb_disable_clx(sw);
 
 	tb_for_each_upstream_port_on_path(src_port, dst_port, up) {
 		struct tb_port *down = tb_switch_downstream_port(up->sw);
@@ -1139,6 +1136,16 @@ static int tb_configure_asym(struct tb *tb, struct tb_port *src_port,
 		    !tb_port_width_supported(down, width_down))
 			continue;
 
+		/*
+		 * Disable CL states before doing any transitions. We
+		 * delayed it until now that we know there is a real
+		 * transition taking place.
+		 */
+		if (!clx_disabled) {
+			clx = tb_disable_clx(sw);
+			clx_disabled = true;
+		}
+
 		tb_sw_dbg(up->sw, "configuring asymmetric link\n");
 
 		/*
@@ -1175,23 +1182,20 @@ static int tb_configure_sym(struct tb *tb, struct tb_port *src_port,
 			    struct tb_port *dst_port, int requested_up,
 			    int requested_down)
 {
+	bool clx = false, clx_disabled = false, downstream;
 	struct tb_switch *sw;
-	bool clx, downstream;
 	struct tb_port *up;
 	int ret = 0;
 
 	if (!asym_threshold)
 		return 0;
 
-	/* Disable CL states before doing any transitions */
 	downstream = tb_port_path_direction_downstream(src_port, dst_port);
 	/* Pick up router deepest in the hierarchy */
 	if (downstream)
 		sw = dst_port->sw;
 	else
 		sw = src_port->sw;
-
-	clx = tb_disable_clx(sw);
 
 	tb_for_each_upstream_port_on_path(src_port, dst_port, up) {
 		int consumed_up, consumed_down;
@@ -1224,6 +1228,12 @@ static int tb_configure_sym(struct tb *tb, struct tb_port *src_port,
 
 		if (up->sw->link_width == TB_LINK_WIDTH_DUAL)
 			continue;
+
+		/* Disable CL states before doing any transitions */
+		if (!clx_disabled) {
+			clx = tb_disable_clx(sw);
+			clx_disabled = true;
+		}
 
 		tb_sw_dbg(up->sw, "configuring symmetric link\n");
 
