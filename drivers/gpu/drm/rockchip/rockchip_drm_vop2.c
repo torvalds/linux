@@ -45,6 +45,7 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/workqueue.h>
 #include <linux/types.h>
+#include <soc/rockchip/rockchip_csu.h>
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <uapi/linux/videodev2.h>
@@ -884,6 +885,7 @@ struct vop2 {
 	struct clk *pclk;
 	struct reset_control *ahb_rst;
 	struct reset_control *axi_rst;
+	struct csu_clk *csu_aclk;
 
 	/* list_head of extend clk */
 	struct list_head extend_clk_list_head;
@@ -6107,6 +6109,27 @@ static int vop2_crtc_get_inital_acm_info(struct drm_crtc *crtc)
 	return 0;
 }
 
+static void vop2_crtc_csu_set_rate(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	unsigned long aclk_rate = 0, dclk_rate = 0;
+	u32 csu_div = 0;
+
+	if (!vop2->csu_aclk)
+		return;
+
+	aclk_rate = clk_get_rate(vop2->aclk);
+	dclk_rate = clk_get_rate(vp->dclk);
+	if (!dclk_rate)
+		return;
+
+	/* aclk >= 1/2 * dclk */
+	csu_div = aclk_rate * 2 / dclk_rate;
+
+	rockchip_csu_set_div(vop2->csu_aclk, csu_div);
+}
+
 static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -6186,6 +6209,8 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on, void *data)
 			cubic_lut_mst = cubic_lut->offset + private->cubic_lut_dma_addr;
 			VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 		}
+
+		vop2_crtc_csu_set_rate(crtc);
 	} else {
 		vop2_crtc_atomic_disable(crtc, NULL);
 	}
@@ -8120,6 +8145,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (is_vop3(vop2))
 		vop3_setup_pipe_dly(vp, NULL);
 
+	vop2_crtc_csu_set_rate(crtc);
 	vop2_cfg_done(crtc);
 
 	/*
@@ -11968,6 +11994,10 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		DRM_DEV_ERROR(vop2->dev, "failed to get axi reset\n");
 		return PTR_ERR(vop2->axi_rst);
 	}
+
+	vop2->csu_aclk = rockchip_csu_get(dev, "aclk");
+	if (IS_ERR(vop2->csu_aclk))
+		vop2->csu_aclk = NULL;
 
 	vop2->irq = platform_get_irq(pdev, 0);
 	if (vop2->irq < 0) {
