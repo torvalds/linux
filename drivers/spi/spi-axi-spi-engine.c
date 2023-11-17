@@ -461,6 +461,15 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 	return 0;
 }
 
+static void spi_engine_release_hw(void *p)
+{
+	struct spi_engine *spi_engine = p;
+
+	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
+	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_INT_ENABLE);
+	writel_relaxed(0x01, spi_engine->base + SPI_ENGINE_REG_RESET);
+}
+
 static int spi_engine_probe(struct platform_device *pdev)
 {
 	struct spi_engine *spi_engine;
@@ -506,6 +515,11 @@ static int spi_engine_probe(struct platform_device *pdev)
 	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
 	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_INT_ENABLE);
 
+	ret = devm_add_action_or_reset(&pdev->dev, spi_engine_release_hw,
+				       spi_engine);
+	if (ret)
+		return ret;
+
 	ret = request_irq(irq, spi_engine_irq, 0, pdev->name, host);
 	if (ret)
 		return ret;
@@ -532,16 +546,11 @@ err_free_irq:
 static void spi_engine_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
-	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	int irq = platform_get_irq(pdev, 0);
 
 	spi_unregister_controller(host);
 
 	free_irq(irq, host);
-
-	writel_relaxed(0xff, spi_engine->base + SPI_ENGINE_REG_INT_PENDING);
-	writel_relaxed(0x00, spi_engine->base + SPI_ENGINE_REG_INT_ENABLE);
-	writel_relaxed(0x01, spi_engine->base + SPI_ENGINE_REG_RESET);
 }
 
 static const struct of_device_id spi_engine_match_table[] = {
