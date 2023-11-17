@@ -100,35 +100,35 @@ static void pds_vfio_dirty_free_bitmaps(struct pds_vfio_dirty *dirty)
 }
 
 static void __pds_vfio_dirty_free_sgl(struct pds_vfio_pci_device *pds_vfio,
-				      struct pds_vfio_bmp_info *bmp_info)
+				      struct pds_vfio_dirty *dirty)
 {
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
 
-	dma_unmap_single(pdsc_dev, bmp_info->sgl_addr,
-			 bmp_info->num_sge * sizeof(struct pds_lm_sg_elem),
+	dma_unmap_single(pdsc_dev, dirty->sgl_addr,
+			 dirty->num_sge * sizeof(struct pds_lm_sg_elem),
 			 DMA_BIDIRECTIONAL);
-	kfree(bmp_info->sgl);
+	kfree(dirty->sgl);
 
-	bmp_info->num_sge = 0;
-	bmp_info->sgl = NULL;
-	bmp_info->sgl_addr = 0;
+	dirty->num_sge = 0;
+	dirty->sgl = NULL;
+	dirty->sgl_addr = 0;
 }
 
 static void pds_vfio_dirty_free_sgl(struct pds_vfio_pci_device *pds_vfio)
 {
-	if (pds_vfio->dirty.host_seq.sgl)
-		__pds_vfio_dirty_free_sgl(pds_vfio, &pds_vfio->dirty.host_seq);
-	if (pds_vfio->dirty.host_ack.sgl)
-		__pds_vfio_dirty_free_sgl(pds_vfio, &pds_vfio->dirty.host_ack);
+	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
+
+	if (dirty->sgl)
+		__pds_vfio_dirty_free_sgl(pds_vfio, dirty);
 }
 
-static int __pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
-				      struct pds_vfio_bmp_info *bmp_info,
-				      u32 page_count)
+static int pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
+				    u32 page_count)
 {
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
+	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
 	struct pds_lm_sg_elem *sgl;
 	dma_addr_t sgl_addr;
 	size_t sgl_size;
@@ -147,30 +147,9 @@ static int __pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
 		return -EIO;
 	}
 
-	bmp_info->sgl = sgl;
-	bmp_info->num_sge = max_sge;
-	bmp_info->sgl_addr = sgl_addr;
-
-	return 0;
-}
-
-static int pds_vfio_dirty_alloc_sgl(struct pds_vfio_pci_device *pds_vfio,
-				    u32 page_count)
-{
-	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
-	int err;
-
-	err = __pds_vfio_dirty_alloc_sgl(pds_vfio, &dirty->host_seq,
-					 page_count);
-	if (err)
-		return err;
-
-	err = __pds_vfio_dirty_alloc_sgl(pds_vfio, &dirty->host_ack,
-					 page_count);
-	if (err) {
-		__pds_vfio_dirty_free_sgl(pds_vfio, &dirty->host_seq);
-		return err;
-	}
+	dirty->sgl = sgl;
+	dirty->num_sge = max_sge;
+	dirty->sgl_addr = sgl_addr;
 
 	return 0;
 }
@@ -328,6 +307,8 @@ static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
 	u8 dma_dir = read_seq ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 	struct pci_dev *pdev = pds_vfio->vfio_coredev.pdev;
 	struct device *pdsc_dev = &pci_physfn(pdev)->dev;
+	struct pds_vfio_dirty *dirty = &pds_vfio->dirty;
+	struct pds_lm_sg_elem *sgl;
 	unsigned long long npages;
 	struct sg_table sg_table;
 	struct scatterlist *sg;
@@ -374,8 +355,9 @@ static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
 	if (err)
 		goto out_free_sg_table;
 
+	sgl = pds_vfio->dirty.sgl;
 	for_each_sgtable_dma_sg(&sg_table, sg, i) {
-		struct pds_lm_sg_elem *sg_elem = &bmp_info->sgl[i];
+		struct pds_lm_sg_elem *sg_elem = &sgl[i];
 
 		sg_elem->addr = cpu_to_le64(sg_dma_address(sg));
 		sg_elem->len = cpu_to_le32(sg_dma_len(sg));
@@ -383,15 +365,15 @@ static int pds_vfio_dirty_seq_ack(struct pds_vfio_pci_device *pds_vfio,
 
 	num_sge = sg_table.nents;
 	size = num_sge * sizeof(struct pds_lm_sg_elem);
-	dma_sync_single_for_device(pdsc_dev, bmp_info->sgl_addr, size, dma_dir);
-	err = pds_vfio_dirty_seq_ack_cmd(pds_vfio, bmp_info->sgl_addr, num_sge,
+	dma_sync_single_for_device(pdsc_dev, dirty->sgl_addr, size, dma_dir);
+	err = pds_vfio_dirty_seq_ack_cmd(pds_vfio, dirty->sgl_addr, num_sge,
 					 offset, bmp_bytes, read_seq);
 	if (err)
 		dev_err(&pdev->dev,
 			"Dirty bitmap %s failed offset %u bmp_bytes %u num_sge %u DMA 0x%llx: %pe\n",
 			bmp_type_str, offset, bmp_bytes,
-			num_sge, bmp_info->sgl_addr, ERR_PTR(err));
-	dma_sync_single_for_cpu(pdsc_dev, bmp_info->sgl_addr, size, dma_dir);
+			num_sge, dirty->sgl_addr, ERR_PTR(err));
+	dma_sync_single_for_cpu(pdsc_dev, dirty->sgl_addr, size, dma_dir);
 
 	dma_unmap_sgtable(pdsc_dev, &sg_table, dma_dir, 0);
 out_free_sg_table:

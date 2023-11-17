@@ -7,9 +7,6 @@
 struct pds_vfio_bmp_info {
 	unsigned long *bmp;
 	u32 bmp_bytes;
-	struct pds_lm_sg_elem *sgl;
-	dma_addr_t sgl_addr;
-	u16 num_sge;
 };
 
 struct pds_vfio_dirty {
@@ -18,6 +15,9 @@ struct pds_vfio_dirty {
 	u64 region_size;
 	u64 region_start;
 	u64 region_page_size;
+	struct pds_lm_sg_elem *sgl;
+	dma_addr_t sgl_addr;
+	u16 num_sge;
 	bool is_enabled;
 };
 
