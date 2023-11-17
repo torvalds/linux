@@ -1366,7 +1366,15 @@ static int cs43130_hpin_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static const char * const bypass_mux_text[] = {
+	"Internal",
+	"Alternative",
+};
+static SOC_ENUM_SINGLE_DECL(bypass_enum, SND_SOC_NOPM, 0, bypass_mux_text);
+static const struct snd_kcontrol_new bypass_ctrl = SOC_DAPM_ENUM("Switch", bypass_enum);
+
 static const struct snd_soc_dapm_widget digital_hp_widgets[] = {
+	SND_SOC_DAPM_MUX("Bypass Switch", SND_SOC_NOPM, 0, 0, &bypass_ctrl),
 	SND_SOC_DAPM_OUTPUT("HPOUTA"),
 	SND_SOC_DAPM_OUTPUT("HPOUTB"),
 
@@ -1419,13 +1427,13 @@ static const struct snd_soc_dapm_route digital_hp_routes[] = {
 	{"DSD", NULL, "XSPIN DSD"},
 	{"HiFi DAC", NULL, "ASPIN PCM"},
 	{"HiFi DAC", NULL, "DSD"},
-	{"HPOUTA", NULL, "HiFi DAC"},
-	{"HPOUTB", NULL, "HiFi DAC"},
+	{"Bypass Switch", "Internal", "HiFi DAC"},
+	{"HPOUTA", NULL, "Bypass Switch"},
+	{"HPOUTB", NULL, "Bypass Switch"},
 };
 
 static const struct snd_soc_dapm_route analog_hp_routes[] = {
-	{"HPOUTA", NULL, "Analog Playback"},
-	{"HPOUTB", NULL, "Analog Playback"},
+	{"Bypass Switch", "Alternative", "Analog Playback"},
 };
 
 static struct snd_soc_dapm_route all_hp_routes[
