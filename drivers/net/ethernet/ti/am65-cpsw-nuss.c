@@ -136,6 +136,8 @@
 			 NETIF_MSG_IFUP	| NETIF_MSG_PROBE | NETIF_MSG_IFDOWN | \
 			 NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
 
+#define AM65_CPSW_DEFAULT_TX_CHNS	8
+
 static void am65_cpsw_port_set_sl_mac(struct am65_cpsw_port *slave,
 				      const u8 *dev_addr)
 {
@@ -2894,7 +2896,7 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 
 	common->rx_flow_id_base = -1;
 	init_completion(&common->tdown_complete);
-	common->tx_ch_num = 1;
+	common->tx_ch_num = AM65_CPSW_DEFAULT_TX_CHNS;
 	common->pf_p0_rx_ptype_rrobin = false;
 	common->default_vlan = 1;
 
