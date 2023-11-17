@@ -2014,6 +2014,11 @@ svcauth_gss_domain_release(struct auth_domain *dom)
 	call_rcu(&dom->rcu_head, svcauth_gss_domain_release_rcu);
 }
 
+static rpc_authflavor_t svcauth_gss_pseudoflavor(struct svc_rqst *rqstp)
+{
+	return svcauth_gss_flavor(rqstp->rq_gssclient);
+}
+
 static struct auth_ops svcauthops_gss = {
 	.name		= "rpcsec_gss",
 	.owner		= THIS_MODULE,
@@ -2022,6 +2027,7 @@ static struct auth_ops svcauthops_gss = {
 	.release	= svcauth_gss_release,
 	.domain_release = svcauth_gss_domain_release,
 	.set_client	= svcauth_gss_set_client,
+	.pseudoflavor	= svcauth_gss_pseudoflavor,
 };
 
 static int rsi_cache_create_net(struct net *net)
