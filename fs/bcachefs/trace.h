@@ -188,6 +188,25 @@ DEFINE_EVENT(bch_fs, journal_entry_full,
 	TP_ARGS(c)
 );
 
+TRACE_EVENT(journal_entry_close,
+	TP_PROTO(struct bch_fs *c, unsigned bytes),
+	TP_ARGS(c, bytes),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u32,		bytes			)
+	),
+
+	TP_fast_assign(
+		__entry->dev			= c->dev;
+		__entry->bytes			= bytes;
+	),
+
+	TP_printk("%d,%d entry bytes %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->bytes)
+);
+
 DEFINE_EVENT(bio, journal_write,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)

@@ -184,6 +184,8 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val)
 	/* Close out old buffer: */
 	buf->data->u64s		= cpu_to_le32(old.cur_entry_offset);
 
+	trace_journal_entry_close(c, vstruct_bytes(buf->data));
+
 	sectors = vstruct_blocks_plus(buf->data, c->block_bits,
 				      buf->u64s_reserved) << c->block_bits;
 	BUG_ON(sectors > buf->sectors);
