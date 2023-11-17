@@ -26,6 +26,7 @@
 #include "xe_rtp.h"
 #include "xe_sched_job.h"
 #include "xe_tuning.h"
+#include "xe_uc_fw.h"
 #include "xe_wa.h"
 
 #define MAX_MMIO_BASES 3
@@ -610,6 +611,24 @@ static void read_compute_fuses(struct xe_gt *gt)
 		read_compute_fuses_from_dss(gt);
 }
 
+static void check_gsc_availability(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (!(gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0)))
+		return;
+
+	/*
+	 * The GSCCS is only used to communicate with the GSC FW, so if we don't
+	 * have the FW there is nothing we need the engine for and can therefore
+	 * skip its initialization.
+	 */
+	if (!xe_uc_fw_is_available(&gt->uc.gsc.fw)) {
+		gt->info.engine_mask &= ~BIT(XE_HW_ENGINE_GSCCS0);
+		drm_info(&xe->drm, "gsccs disabled due to lack of FW\n");
+	}
+}
+
 int xe_hw_engines_init_early(struct xe_gt *gt)
 {
 	int i;
@@ -617,6 +636,7 @@ int xe_hw_engines_init_early(struct xe_gt *gt)
 	read_media_fuses(gt);
 	read_copy_fuses(gt);
 	read_compute_fuses(gt);
+	check_gsc_availability(gt);
 
 	BUILD_BUG_ON(XE_HW_ENGINE_PREEMPT_TIMEOUT < XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN);
 	BUILD_BUG_ON(XE_HW_ENGINE_PREEMPT_TIMEOUT > XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX);

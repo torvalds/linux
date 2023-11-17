@@ -33,13 +33,10 @@ static void check_media_ip(const struct xe_media_desc *media)
 	struct kunit *test = xe_cur_kunit();
 	u64 mask = media->hw_engine_mask;
 
-	/*
-	 * VCS and VECS engines are allowed on the media IP
-	 *
-	 * TODO:  Add GSCCS once support is added to the driver.
-	 */
+	/* VCS, VECS and GSCCS engines are allowed on the media IP */
 	mask &= ~(XE_HW_ENGINE_VCS_MASK |
-		  XE_HW_ENGINE_VECS_MASK);
+		  XE_HW_ENGINE_VECS_MASK |
+		  XE_HW_ENGINE_GSCCS_MASK);
 
 	/* Any remaining engines are an error */
 	KUNIT_ASSERT_EQ(test, mask, 0);
