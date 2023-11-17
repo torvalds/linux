@@ -64,7 +64,10 @@ class SubPlugin(TdcPlugin):
         if self.args.verbose:
             print('{}.post_case'.format(self.sub_class))
 
-        self._ns_destroy()
+        if netlink == True:
+            self._nl_ns_destroy()
+        else:
+            self._ns_destroy()
 
     def post_suite(self, index):
         if self.args.verbose:
@@ -173,6 +176,10 @@ class SubPlugin(TdcPlugin):
         the required network devices for it.
         '''
         self._exec_cmd_batched('pre', self._ns_create_cmds())
+
+    def _nl_ns_destroy(self):
+        ns = self.args.NAMES['NS']
+        netns.remove(ns)
 
     def _ns_destroy_cmd(self):
         return self._replace_keywords('netns delete {}'.format(self.args.NAMES['NS']))
