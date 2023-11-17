@@ -9,15 +9,19 @@ struct pds_vfio_bmp_info {
 	u32 bmp_bytes;
 };
 
-struct pds_vfio_dirty {
+struct pds_vfio_region {
 	struct pds_vfio_bmp_info host_seq;
 	struct pds_vfio_bmp_info host_ack;
-	u64 region_size;
-	u64 region_start;
-	u64 region_page_size;
+	u64 size;
+	u64 start;
+	u64 page_size;
 	struct pds_lm_sg_elem *sgl;
 	dma_addr_t sgl_addr;
 	u16 num_sge;
+};
+
+struct pds_vfio_dirty {
+	struct pds_vfio_region region;
 	bool is_enabled;
 };
 
