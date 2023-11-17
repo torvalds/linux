@@ -365,29 +365,31 @@ static void recover_worker(struct kthread_work *work)
 	DRM_DEV_ERROR(dev->dev, "%s: hangcheck recover!\n", gpu->name);
 
 	submit = find_submit(cur_ring, cur_ring->memptrs->fence + 1);
-	if (submit) {
-		/* Increment the fault counts */
-		submit->queue->faults++;
-		if (submit->aspace)
-			submit->aspace->faults++;
 
-		get_comm_cmdline(submit, &comm, &cmd);
+	/*
+	 * If the submit retired while we were waiting for the worker to run,
+	 * or waiting to acquire the gpu lock, then nothing more to do.
+	 */
+	if (!submit)
+		goto out_unlock;
 
-		if (comm && cmd) {
-			DRM_DEV_ERROR(dev->dev, "%s: offending task: %s (%s)\n",
-				gpu->name, comm, cmd);
+	/* Increment the fault counts */
+	submit->queue->faults++;
+	if (submit->aspace)
+		submit->aspace->faults++;
 
-			msm_rd_dump_submit(priv->hangrd, submit,
-				"offending task: %s (%s)", comm, cmd);
-		} else {
-			msm_rd_dump_submit(priv->hangrd, submit, NULL);
-		}
+	get_comm_cmdline(submit, &comm, &cmd);
+
+	if (comm && cmd) {
+		DRM_DEV_ERROR(dev->dev, "%s: offending task: %s (%s)\n",
+			      gpu->name, comm, cmd);
+
+		msm_rd_dump_submit(priv->hangrd, submit,
+				   "offending task: %s (%s)", comm, cmd);
 	} else {
-		/*
-		 * We couldn't attribute this fault to any particular context,
-		 * so increment the global fault count instead.
-		 */
-		gpu->global_faults++;
+		DRM_DEV_ERROR(dev->dev, "%s: offending task: unknown\n", gpu->name);
+
+		msm_rd_dump_submit(priv->hangrd, submit, NULL);
 	}
 
 	/* Record the crash state */
@@ -440,6 +442,7 @@ static void recover_worker(struct kthread_work *work)
 
 	pm_runtime_put(&gpu->pdev->dev);
 
+out_unlock:
 	mutex_unlock(&gpu->lock);
 
 	msm_gpu_retire(gpu);
