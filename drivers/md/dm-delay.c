@@ -85,23 +85,39 @@ static void flush_bios(struct bio *bio)
 	}
 }
 
-static void flush_delayed_bios_fast(struct delay_c *dc, bool flush_all)
+static void flush_delayed_bios(struct delay_c *dc, bool flush_all)
 {
 	struct dm_delay_info *delayed, *next;
 	struct bio_list flush_bio_list;
+	unsigned long next_expires = 0;
+	bool start_timer = false;
 	bio_list_init(&flush_bio_list);
 
 	mutex_lock(&delayed_bios_lock);
 	list_for_each_entry_safe(delayed, next, &dc->delayed_bios, list) {
+		cond_resched();
 		if (flush_all || time_after_eq(jiffies, delayed->expires)) {
 			struct bio *bio = dm_bio_from_per_bio_data(delayed,
 						sizeof(struct dm_delay_info));
 			list_del(&delayed->list);
 			bio_list_add(&flush_bio_list, bio);
 			delayed->class->ops--;
+			continue;
+		}
+
+		if (!delay_is_fast(dc)) {
+			if (!start_timer) {
+				start_timer = true;
+				next_expires = delayed->expires;
+			} else {
+				next_expires = min(next_expires, delayed->expires);
+			}
 		}
 	}
 	mutex_unlock(&delayed_bios_lock);
+
+	if (start_timer)
+		queue_timeout(dc, next_expires);
 
 	flush_bios(bio_list_get(&flush_bio_list));
 }
@@ -111,7 +127,7 @@ static int flush_worker_fn(void *data)
 	struct delay_c *dc = data;
 
 	while (!kthread_should_stop()) {
-		flush_delayed_bios_fast(dc, false);
+		flush_delayed_bios(dc, false);
 		mutex_lock(&delayed_bios_lock);
 		if (unlikely(list_empty(&dc->delayed_bios))) {
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -126,48 +142,12 @@ static int flush_worker_fn(void *data)
 	return 0;
 }
 
-static void flush_delayed_bios(struct delay_c *dc, bool flush_all)
-{
-	struct dm_delay_info *delayed, *next;
-	unsigned long next_expires = 0;
-	unsigned long start_timer = 0;
-	struct bio_list flush_bio_list;
-	bio_list_init(&flush_bio_list);
-
-	mutex_lock(&delayed_bios_lock);
-	list_for_each_entry_safe(delayed, next, &dc->delayed_bios, list) {
-		if (flush_all || time_after_eq(jiffies, delayed->expires)) {
-			struct bio *bio = dm_bio_from_per_bio_data(delayed,
-						sizeof(struct dm_delay_info));
-			list_del(&delayed->list);
-			bio_list_add(&flush_bio_list, bio);
-			delayed->class->ops--;
-			continue;
-		}
-
-		if (!start_timer) {
-			start_timer = 1;
-			next_expires = delayed->expires;
-		} else
-			next_expires = min(next_expires, delayed->expires);
-	}
-	mutex_unlock(&delayed_bios_lock);
-
-	if (start_timer)
-		queue_timeout(dc, next_expires);
-
-	flush_bios(bio_list_get(&flush_bio_list));
-}
-
 static void flush_expired_bios(struct work_struct *work)
 {
 	struct delay_c *dc;
 
 	dc = container_of(work, struct delay_c, flush_expired_bios);
-	if (delay_is_fast(dc))
-		flush_delayed_bios_fast(dc, false);
-	else
-		flush_delayed_bios(dc, false);
+	flush_delayed_bios(dc, false);
 }
 
 static void delay_dtr(struct dm_target *ti)
@@ -354,12 +334,9 @@ static void delay_presuspend(struct dm_target *ti)
 	dc->may_delay = false;
 	mutex_unlock(&delayed_bios_lock);
 
-	if (delay_is_fast(dc)) {
-		flush_delayed_bios_fast(dc, true);
-	} else {
+	if (!delay_is_fast(dc))
 		del_timer_sync(&dc->delay_timer);
-		flush_delayed_bios(dc, true);
-	}
+	flush_delayed_bios(dc, true);
 }
 
 static void delay_resume(struct dm_target *ti)
