@@ -149,123 +149,87 @@ struct xe_mocs_info {
  *       For TGL/RKL, all the unspecified MOCS indexes are mapped to L3 UC.
  */
 
-#define GEN11_MOCS_ENTRIES \
-	/* Entries 0 and 1 are defined per-platform */ \
-	/* Base - L3 + LLC */ \
-	MOCS_ENTRY(2, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
-		L3_3_WB), \
-	/* Base - Uncached */ \
-	MOCS_ENTRY(3, \
-		LE_1_UC | LE_TC_1_LLC, \
-		L3_1_UC), \
-	/* Base - L3 */ \
-	MOCS_ENTRY(4, \
-		LE_1_UC | LE_TC_1_LLC, \
-		L3_3_WB), \
-	/* Base - LLC */ \
-	MOCS_ENTRY(5, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
-		L3_1_UC), \
-	/* Age 0 - LLC */ \
-	MOCS_ENTRY(6, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
-		L3_1_UC), \
-	/* Age 0 - L3 + LLC */ \
-	MOCS_ENTRY(7, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(1), \
-		L3_3_WB), \
-	/* Age: Don't Chg. - LLC */ \
-	MOCS_ENTRY(8, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
-		L3_1_UC), \
-	/* Age: Don't Chg. - L3 + LLC */ \
-	MOCS_ENTRY(9, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(2), \
-		L3_3_WB), \
-	/* No AOM - LLC */ \
-	MOCS_ENTRY(10, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
-		L3_1_UC), \
-	/* No AOM - L3 + LLC */ \
-	MOCS_ENTRY(11, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1), \
-		L3_3_WB), \
-	/* No AOM; Age 0 - LLC */ \
-	MOCS_ENTRY(12, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
-		L3_1_UC), \
-	/* No AOM; Age 0 - L3 + LLC */ \
-	MOCS_ENTRY(13, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1), \
-		L3_3_WB), \
-	/* No AOM; Age:DC - LLC */ \
-	MOCS_ENTRY(14, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
-		L3_1_UC), \
-	/* No AOM; Age:DC - L3 + LLC */ \
-	MOCS_ENTRY(15, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1), \
-		L3_3_WB), \
-	/* Self-Snoop - L3 + LLC */ \
-	MOCS_ENTRY(18, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3), \
-		L3_3_WB), \
-	/* Skip Caching - L3 + LLC(12.5%) */ \
-	MOCS_ENTRY(19, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(7), \
-		L3_3_WB), \
-	/* Skip Caching - L3 + LLC(25%) */ \
-	MOCS_ENTRY(20, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(3), \
-		L3_3_WB), \
-	/* Skip Caching - L3 + LLC(50%) */ \
-	MOCS_ENTRY(21, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(1), \
-		L3_3_WB), \
-	/* Skip Caching - L3 + LLC(75%) */ \
-	MOCS_ENTRY(22, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(3), \
-		L3_3_WB), \
-	/* Skip Caching - L3 + LLC(87.5%) */ \
-	MOCS_ENTRY(23, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(7), \
-		L3_3_WB), \
-	/* HW Reserved - SW program but never use */ \
-	MOCS_ENTRY(62, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
-		L3_1_UC), \
-	/* HW Reserved - SW program but never use */ \
-	MOCS_ENTRY(63, \
-		LE_3_WB | LE_TC_1_LLC | LE_LRUM(3), \
-		L3_1_UC)
-
-static const struct xe_mocs_entry dg1_mocs_desc[] = {
-	/* UC */
-	MOCS_ENTRY(1, 0, L3_1_UC),
-	/* WB - L3 */
-	MOCS_ENTRY(5, 0, L3_3_WB),
-	/* WB - L3 50% */
-	MOCS_ENTRY(6, 0, L3_ESC(1) | L3_SCC(1) | L3_3_WB),
-	/* WB - L3 25% */
-	MOCS_ENTRY(7, 0, L3_ESC(1) | L3_SCC(3) | L3_3_WB),
-	/* WB - L3 12.5% */
-	MOCS_ENTRY(8, 0, L3_ESC(1) | L3_SCC(7) | L3_3_WB),
-
-	/* HDC:L1 + L3 */
-	MOCS_ENTRY(48, 0, L3_3_WB),
-	/* HDC:L1 */
-	MOCS_ENTRY(49, 0, L3_1_UC),
-
-	/* HW Reserved */
-	MOCS_ENTRY(60, 0, L3_1_UC),
-	MOCS_ENTRY(61, 0, L3_1_UC),
-	MOCS_ENTRY(62, 0, L3_1_UC),
-	MOCS_ENTRY(63, 0, L3_1_UC),
-};
-
 static const struct xe_mocs_entry gen12_mocs_desc[] = {
-	GEN11_MOCS_ENTRIES,
+	/* Base - L3 + LLC */
+	MOCS_ENTRY(2,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_3_WB),
+	/* Base - Uncached */
+	MOCS_ENTRY(3,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_1_UC),
+	/* Base - L3 */
+	MOCS_ENTRY(4,
+		   LE_1_UC | LE_TC_1_LLC,
+		   L3_3_WB),
+	/* Base - LLC */
+	MOCS_ENTRY(5,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* Age 0 - LLC */
+	MOCS_ENTRY(6,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1),
+		   L3_1_UC),
+	/* Age 0 - L3 + LLC */
+	MOCS_ENTRY(7,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1),
+		   L3_3_WB),
+	/* Age: Don't Chg. - LLC */
+	MOCS_ENTRY(8,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2),
+		   L3_1_UC),
+	/* Age: Don't Chg. - L3 + LLC */
+	MOCS_ENTRY(9,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2),
+		   L3_3_WB),
+	/* No AOM - LLC */
+	MOCS_ENTRY(10,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1),
+		   L3_1_UC),
+	/* No AOM - L3 + LLC */
+	MOCS_ENTRY(11,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_AOM(1),
+		   L3_3_WB),
+	/* No AOM; Age 0 - LLC */
+	MOCS_ENTRY(12,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1),
+		   L3_1_UC),
+	/* No AOM; Age 0 - L3 + LLC */
+	MOCS_ENTRY(13,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(1) | LE_AOM(1),
+		   L3_3_WB),
+	/* No AOM; Age:DC - LLC */
+	MOCS_ENTRY(14,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1),
+		   L3_1_UC),
+	/* No AOM; Age:DC - L3 + LLC */
+	MOCS_ENTRY(15,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(2) | LE_AOM(1),
+		   L3_3_WB),
+	/* Self-Snoop - L3 + LLC */
+	MOCS_ENTRY(18,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SSE(3),
+		   L3_3_WB),
+	/* Skip Caching - L3 + LLC(12.5%) */
+	MOCS_ENTRY(19,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(7),
+		   L3_3_WB),
+	/* Skip Caching - L3 + LLC(25%) */
+	MOCS_ENTRY(20,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(3),
+		   L3_3_WB),
+	/* Skip Caching - L3 + LLC(50%) */
+	MOCS_ENTRY(21,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_SCC(1),
+		   L3_3_WB),
+	/* Skip Caching - L3 + LLC(75%) */
+	MOCS_ENTRY(22,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(3),
+		   L3_3_WB),
+	/* Skip Caching - L3 + LLC(87.5%) */
+	MOCS_ENTRY(23,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3) | LE_RSC(1) | LE_SCC(7),
+		   L3_3_WB),
 	/* Implicitly enable L1 - HDC:L1 + L3 + LLC */
 	MOCS_ENTRY(48,
 		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
@@ -290,6 +254,38 @@ static const struct xe_mocs_entry gen12_mocs_desc[] = {
 	MOCS_ENTRY(61,
 		   LE_1_UC | LE_TC_1_LLC,
 		   L3_3_WB),
+	/* HW Reserved - SW program but never use */
+	MOCS_ENTRY(62,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC),
+	/* HW Reserved - SW program but never use */
+	MOCS_ENTRY(63,
+		   LE_3_WB | LE_TC_1_LLC | LE_LRUM(3),
+		   L3_1_UC)
+};
+
+static const struct xe_mocs_entry dg1_mocs_desc[] = {
+	/* UC */
+	MOCS_ENTRY(1, 0, L3_1_UC),
+	/* WB - L3 */
+	MOCS_ENTRY(5, 0, L3_3_WB),
+	/* WB - L3 50% */
+	MOCS_ENTRY(6, 0, L3_ESC(1) | L3_SCC(1) | L3_3_WB),
+	/* WB - L3 25% */
+	MOCS_ENTRY(7, 0, L3_ESC(1) | L3_SCC(3) | L3_3_WB),
+	/* WB - L3 12.5% */
+	MOCS_ENTRY(8, 0, L3_ESC(1) | L3_SCC(7) | L3_3_WB),
+
+	/* HDC:L1 + L3 */
+	MOCS_ENTRY(48, 0, L3_3_WB),
+	/* HDC:L1 */
+	MOCS_ENTRY(49, 0, L3_1_UC),
+
+	/* HW Reserved */
+	MOCS_ENTRY(60, 0, L3_1_UC),
+	MOCS_ENTRY(61, 0, L3_1_UC),
+	MOCS_ENTRY(62, 0, L3_1_UC),
+	MOCS_ENTRY(63, 0, L3_1_UC),
 };
 
 static const struct xe_mocs_entry dg2_mocs_desc[] = {
