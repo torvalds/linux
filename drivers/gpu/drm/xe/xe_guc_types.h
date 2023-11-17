@@ -52,15 +52,6 @@ struct xe_guc {
 			/** @seqno: suspend fences seqno */
 			u32 seqno;
 		} suspend;
-		/** @version: submission version */
-		struct {
-			/** @major: major version of GuC submission */
-			u32 major;
-			/** @minor: minor version of GuC submission */
-			u32 minor;
-			/** @patch: patch version of GuC submission */
-			u32 patch;
-		} version;
 #ifdef CONFIG_PROVE_LOCKING
 #define NUM_SUBMIT_WQ	256
 		/** @submit_wq_pool: submission ordered workqueues pool */

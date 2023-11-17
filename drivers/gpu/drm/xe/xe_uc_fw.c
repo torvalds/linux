@@ -204,9 +204,12 @@ uc_fw_auto_select(struct xe_device *xe, struct xe_uc_fw *uc_fw)
 	for (i = 0; i < count && p <= entries[i].platform; i++) {
 		if (p == entries[i].platform) {
 			uc_fw->path = entries[i].path;
-			uc_fw->major_ver_wanted = entries[i].major;
-			uc_fw->minor_ver_wanted = entries[i].minor;
+			uc_fw->versions.wanted.major = entries[i].major;
+			uc_fw->versions.wanted.minor = entries[i].minor;
 			uc_fw->full_ver_required = entries[i].full_ver_required;
+
+			/* compatibility version checking coming soon */
+			uc_fw->versions.wanted_type = XE_UC_FW_VER_RELEASE;
 			break;
 		}
 	}
@@ -273,32 +276,30 @@ static void uc_fw_fini(struct drm_device *drm, void *arg)
 static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 {
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
-	struct xe_guc *guc = &gt->uc.guc;
+	struct xe_uc_fw_version *release = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
+	struct xe_uc_fw_version *compatibility = &uc_fw->versions.found[XE_UC_FW_VER_COMPATIBILITY];
 
 	xe_gt_assert(gt, uc_fw->type == XE_UC_FW_TYPE_GUC);
-	xe_gt_assert(gt, uc_fw->major_ver_found >= 70);
+	xe_gt_assert(gt, release->major >= 70);
 
-	if (uc_fw->major_ver_found > 70 || uc_fw->minor_ver_found >= 6) {
+	if (release->major > 70 || release->minor >= 6) {
 		/* v70.6.0 adds CSS header support */
-		guc->submission_state.version.major =
-			FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-				  css->submission_version);
-		guc->submission_state.version.minor =
-			FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-				  css->submission_version);
-		guc->submission_state.version.patch =
-			FIELD_GET(CSS_SW_VERSION_UC_PATCH,
-				  css->submission_version);
-	} else if (uc_fw->minor_ver_found >= 3) {
+		compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
+						 css->submission_version);
+		compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
+						 css->submission_version);
+		compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
+						 css->submission_version);
+	} else if (release->minor >= 3) {
 		/* v70.3.0 introduced v1.1.0 */
-		guc->submission_state.version.major = 1;
-		guc->submission_state.version.minor = 1;
-		guc->submission_state.version.patch = 0;
+		compatibility->major = 1;
+		compatibility->minor = 1;
+		compatibility->patch = 0;
 	} else {
 		/* v70.0.0 introduced v1.0.0 */
-		guc->submission_state.version.major = 1;
-		guc->submission_state.version.minor = 0;
-		guc->submission_state.version.patch = 0;
+		compatibility->major = 1;
+		compatibility->minor = 0;
+		compatibility->patch = 0;
 	}
 
 	uc_fw->private_data_size = css->private_data_size;
@@ -307,30 +308,31 @@ static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 static int uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
+	struct xe_uc_fw_version *wanted = &uc_fw->versions.wanted;
+	struct xe_uc_fw_version *found = &uc_fw->versions.found[uc_fw->versions.wanted_type];
 
 	/* Driver has no requirement on any version, any is good. */
-	if (!uc_fw->major_ver_wanted)
+	if (!wanted->major)
 		return 0;
 
 	/*
 	 * If full version is required, both major and minor should match.
 	 * Otherwise, at least the major version.
 	 */
-	if (uc_fw->major_ver_wanted != uc_fw->major_ver_found ||
-	    (uc_fw->full_ver_required &&
-	     uc_fw->minor_ver_wanted != uc_fw->minor_ver_found)) {
+	if (wanted->major != found->major ||
+	    (uc_fw->full_ver_required && wanted->minor != found->minor)) {
 		drm_notice(&xe->drm, "%s firmware %s: unexpected version: %u.%u != %u.%u\n",
 			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
-			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted);
+			   found->major, found->minor,
+			   wanted->major, wanted->minor);
 		goto fail;
 	}
 
-	if (uc_fw->minor_ver_wanted > uc_fw->minor_ver_found) {
+	if (wanted->minor > found->minor) {
 		drm_notice(&xe->drm, "%s firmware (%u.%u) is recommended, but only (%u.%u) was found in %s\n",
 			   xe_uc_fw_type_repr(uc_fw->type),
-			   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
-			   uc_fw->major_ver_found, uc_fw->minor_ver_found,
+			   wanted->major, wanted->minor,
+			   found->major, found->minor,
 			   uc_fw->path);
 		drm_info(&xe->drm, "Consider updating your linux-firmware pkg or downloading from %s\n",
 			 XE_UC_FIRMWARE_URL);
@@ -349,6 +351,7 @@ fail:
 static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t fw_size)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
+	struct xe_uc_fw_version *release = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
 	struct uc_css_header *css;
 	size_t size;
 
@@ -390,12 +393,9 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	}
 
 	/* Get version numbers from the CSS header */
-	uc_fw->major_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-					   css->sw_version);
-	uc_fw->minor_ver_found = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-					   css->sw_version);
-	uc_fw->patch_ver_found = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
-					   css->sw_version);
+	release->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->sw_version);
+	release->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->sw_version);
+	release->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->sw_version);
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
 		guc_read_css_info(uc_fw, css);
@@ -431,6 +431,7 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	struct xe_device *xe = gt_to_xe(gt);
 	const struct gsc_cpd_header_v2 *header = data;
+	struct xe_uc_fw_version *release = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
 	const struct gsc_manifest_header *manifest;
 	size_t min_size = sizeof(*header);
 	u32 offset;
@@ -468,9 +469,9 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 
 	manifest = data + offset;
 
-	uc_fw->major_ver_found = manifest->fw_version.major;
-	uc_fw->minor_ver_found = manifest->fw_version.minor;
-	uc_fw->patch_ver_found = manifest->fw_version.hotfix;
+	release->major = manifest->fw_version.major;
+	release->minor = manifest->fw_version.minor;
+	release->patch = manifest->fw_version.hotfix;
 
 	/* then optionally look for the css header */
 	if (css_entry) {
@@ -524,12 +525,25 @@ static int parse_headers(struct xe_uc_fw *uc_fw, const struct firmware *fw)
 	return 0;
 }
 
+#define print_uc_fw_version(p_, version_, prefix_, ...) \
+do { \
+	struct xe_uc_fw_version *ver_ = (version_); \
+	if (ver_->build) \
+		drm_printf(p_, prefix_ " version %u.%u.%u.%u\n", ##__VA_ARGS__, \
+			   ver_->major, ver_->minor, \
+			   ver_->patch, ver_->build); \
+	else \
+		drm_printf(p_, prefix_ " version %u.%u.%u\n", ##__VA_ARGS__, \
+			  ver_->major, ver_->minor, ver_->patch); \
+} while (0)
+
 int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	struct xe_tile *tile = gt_to_tile(gt);
 	struct device *dev = xe->drm.dev;
+	struct drm_printer p = drm_info_printer(dev);
 	const struct firmware *fw = NULL;
 	struct xe_bo *obj;
 	int err;
@@ -567,9 +581,10 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 	if (err)
 		goto fail;
 
-	drm_info(&xe->drm, "Using %s firmware from %s version %u.%u.%u\n",
-		 xe_uc_fw_type_repr(uc_fw->type), uc_fw->path,
-		 uc_fw->major_ver_found, uc_fw->minor_ver_found, uc_fw->patch_ver_found);
+	print_uc_fw_version(&p,
+			    &uc_fw->versions.found[XE_UC_FW_VER_RELEASE],
+			    "Using %s firmware from %s",
+			    xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 
 	err = uc_fw_check_version_requirements(uc_fw);
 	if (err)
@@ -686,26 +701,40 @@ fail:
 	return err;
 }
 
+static const char *version_type_repr(enum xe_uc_fw_version_types type)
+{
+	switch (type) {
+	case XE_UC_FW_VER_RELEASE:
+		return "release";
+	case XE_UC_FW_VER_COMPATIBILITY:
+		return "compatibility";
+	default:
+		return "Unknown version type";
+	}
+}
 
 void xe_uc_fw_print(struct xe_uc_fw *uc_fw, struct drm_printer *p)
 {
+	int i;
+
 	drm_printf(p, "%s firmware: %s\n",
 		   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
 	drm_printf(p, "\tstatus: %s\n",
 		   xe_uc_fw_status_repr(uc_fw->status));
-	drm_printf(p, "\tversion: wanted %u.%u, found %u.%u.%u\n",
-		   uc_fw->major_ver_wanted, uc_fw->minor_ver_wanted,
-		   uc_fw->major_ver_found, uc_fw->minor_ver_found, uc_fw->patch_ver_found);
-	drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
-	drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 
-	if (uc_fw->type == XE_UC_FW_TYPE_GUC) {
-		struct xe_gt *gt = uc_fw_to_gt(uc_fw);
-		struct xe_guc *guc = &gt->uc.guc;
+	print_uc_fw_version(p, &uc_fw->versions.wanted, "\twanted %s",
+			    version_type_repr(uc_fw->versions.wanted_type));
 
-		drm_printf(p, "\tSubmit version: %u.%u.%u\n",
-			   guc->submission_state.version.major,
-			   guc->submission_state.version.minor,
-			   guc->submission_state.version.patch);
+	for (i = 0; i < XE_UC_FW_VER_TYPE_COUNT; i++) {
+		struct xe_uc_fw_version *ver = &uc_fw->versions.found[i];
+
+		if (ver->major)
+			print_uc_fw_version(p, ver, "\tfound %s",
+					    version_type_repr(i));
 	}
+
+	if (uc_fw->ucode_size)
+		drm_printf(p, "\tuCode: %u bytes\n", uc_fw->ucode_size);
+	if (uc_fw->rsa_size)
+		drm_printf(p, "\tRSA: %u bytes\n", uc_fw->rsa_size);
 }

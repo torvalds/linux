@@ -60,6 +60,26 @@ enum xe_uc_fw_type {
 #define XE_UC_FW_NUM_TYPES 2
 
 /**
+ * struct xe_uc_fw_version - Version for XE micro controller firmware
+ */
+struct xe_uc_fw_version {
+	/** @major: major version of the FW */
+	u16 major;
+	/** @minor: minor version of the FW */
+	u16 minor;
+	/** @patch: patch version of the FW */
+	u16 patch;
+	/** @build: build version of the FW (not always available) */
+	u16 build;
+};
+
+enum xe_uc_fw_version_types {
+	XE_UC_FW_VER_RELEASE,
+	XE_UC_FW_VER_COMPATIBILITY,
+	XE_UC_FW_VER_TYPE_COUNT
+};
+
+/**
  * struct xe_uc_fw - XE micro controller firmware
  */
 struct xe_uc_fw {
@@ -98,16 +118,15 @@ struct xe_uc_fw {
 	 * version required per platform.
 	 */
 
-	/** @major_ver_wanted: major firmware version wanted by platform */
-	u16 major_ver_wanted;
-	/** @minor_ver_wanted: minor firmware version wanted by platform */
-	u16 minor_ver_wanted;
-	/** @major_ver_found: major version found in firmware blob */
-	u16 major_ver_found;
-	/** @minor_ver_found: major version found in firmware blob */
-	u16 minor_ver_found;
-	/** @patch_ver_found: patch version found in firmware blob */
-	u16 patch_ver_found;
+	/** @versions: FW versions wanted and found */
+	struct {
+		/** @wanted: firmware version wanted by platform */
+		struct xe_uc_fw_version wanted;
+		/** @wanted_type: type of firmware version wanted (release vs compatibility) */
+		enum xe_uc_fw_version_types wanted_type;
+		/** @found: fw versions found in firmware blob */
+		struct xe_uc_fw_version found[XE_UC_FW_VER_TYPE_COUNT];
+	} versions;
 
 	/** @rsa_size: RSA size */
 	u32 rsa_size;
