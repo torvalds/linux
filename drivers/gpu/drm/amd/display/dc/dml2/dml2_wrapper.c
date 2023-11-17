@@ -418,7 +418,7 @@ static int find_drr_eligible_stream(struct dc_state *display_state)
 	int i;
 
 	for (i = 0; i < display_state->stream_count; i++) {
-		if (display_state->streams[i]->mall_stream_config.type == SUBVP_NONE
+		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
 			&& display_state->streams[i]->ignore_msa_timing_param) {
 			// Use ignore_msa_timing_param flag to identify as DRR
 			return i;

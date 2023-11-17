@@ -27,6 +27,8 @@
 #define DC_INTERFACE_H_
 
 #include "dc_types.h"
+#include "dc_state.h"
+#include "dc_plane.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
 #include "hdcp_msg_types.h"
@@ -1386,16 +1388,6 @@ struct dc_surface_update {
 	const struct colorspace_transform *gamut_remap_matrix;
 };
 
-/*
- * Create a new surface with default parameters;
- */
-struct dc_plane_state *dc_create_plane_state(struct dc *dc);
-const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state);
-
-void dc_plane_state_retain(struct dc_plane_state *plane_state);
-void dc_plane_state_release(struct dc_plane_state *plane_state);
-
 void dc_gamma_retain(struct dc_gamma *dc_gamma);
 void dc_gamma_release(struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
@@ -1486,10 +1478,6 @@ enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
 				 uint8_t stream_count);
 
-struct dc_state *dc_create_state(struct dc *dc);
-struct dc_state *dc_copy_state(struct dc_state *src_ctx);
-void dc_retain_state(struct dc_state *context);
-void dc_release_state(struct dc_state *context);
 
 struct dc_plane_state *dc_get_surface_for_mpcc(struct dc *dc,
 		struct dc_stream_state *stream,

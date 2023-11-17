@@ -62,7 +62,7 @@ AMD_DC = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/dc/,$(DC_LI
 include $(AMD_DC)
 
 DISPLAY_CORE = dc.o dc_stat.o dc_resource.o dc_hw_sequencer.o dc_sink.o \
-dc_surface.o dc_debug.o dc_stream.o dc_link_enc_cfg.o dc_link_exports.o
+dc_surface.o dc_debug.o dc_stream.o dc_link_enc_cfg.o dc_link_exports.o dc_state.o
 
 DISPLAY_CORE += dc_vm_helper.o
 

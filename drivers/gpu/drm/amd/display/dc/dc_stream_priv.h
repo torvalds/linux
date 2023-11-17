@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: MIT */
 /*
  * Copyright 2023 Advanced Micro Devices, Inc.
  *
@@ -24,20 +23,13 @@
  *
  */
 
+#ifndef _DC_STREAM_PRIV_H_
+#define _DC_STREAM_PRIV_H_
 
-/*
- * Wrapper header for externally defined types from DC.  These types come from
- * dc headers when building DML2 as part of DC, but are defined here when building
- * DML2 as a standalone library (such as for unit testing).
- */
+#include "dc_stream.h"
 
-#ifndef __DML2_DC_TYPES_H__
-#define __DML2_DC_TYPES_H__
+bool dc_stream_construct(struct dc_stream_state *stream,
+	struct dc_sink *dc_sink_data);
+void dc_stream_destruct(struct dc_stream_state *stream);
 
-#include "resource.h"
-#include "core_types.h"
-#include "dsc.h"
-#include "clk_mgr.h"
-#include "dc_state_priv.h"
-
-#endif //__DML2_DC_TYPES_H__
+#endif // _DC_STREAM_PRIV_H_

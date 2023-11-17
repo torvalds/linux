@@ -34,6 +34,8 @@
 #include "dce/dce_hwseq.h"
 
 #include "resource.h"
+#include "dc_state.h"
+#include "dc_state_priv.h"
 
 #include "gpio_service_interface.h"
 #include "clk_mgr.h"
@@ -811,7 +813,7 @@ static void dc_destruct(struct dc *dc)
 		link_enc_cfg_init(dc, dc->current_state);
 
 	if (dc->current_state) {
-		dc_release_state(dc->current_state);
+		dc_state_release(dc->current_state);
 		dc->current_state = NULL;
 	}
 
@@ -1028,7 +1030,7 @@ static bool dc_construct(struct dc *dc,
 	 * on creation it copies the contents of dc->dml
 	 */
 
-	dc->current_state = dc_create_state(dc);
+	dc->current_state = dc_state_create(dc);
 
 	if (!dc->current_state) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
@@ -1118,7 +1120,7 @@ static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *conte
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
-	struct dc_state *dangling_context = dc_create_state(dc);
+	struct dc_state *dangling_context = dc_state_create(dc);
 	struct dc_state *current_ctx;
 	struct pipe_ctx *pipe;
 	struct timing_generator *tg;
@@ -1164,6 +1166,7 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 		}
 
 		if (should_disable && old_stream) {
+			bool is_phantom = dc_state_get_stream_subvp_type(dc->current_state, old_stream) == SUBVP_PHANTOM;
 			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 			tg = pipe->stream_res.tg;
 			/* When disabling plane for a phantom pipe, we must turn on the
@@ -1172,18 +1175,19 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			 * state that can result in underflow or hang when enabling it
 			 * again for different use.
 			 */
-			if (old_stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			if (is_phantom) {
 				if (tg->funcs->enable_crtc) {
 					int main_pipe_width, main_pipe_height;
+					struct dc_stream_state *old_paired_stream = dc_state_get_paired_subvp_stream(dc->current_state, old_stream);
 
-					main_pipe_width = old_stream->mall_stream_config.paired_stream->dst.width;
-					main_pipe_height = old_stream->mall_stream_config.paired_stream->dst.height;
+					main_pipe_width = old_paired_stream->dst.width;
+					main_pipe_height = old_paired_stream->dst.height;
 					if (dc->hwss.blank_phantom)
 						dc->hwss.blank_phantom(dc, tg, main_pipe_width, main_pipe_height);
 					tg->funcs->enable_crtc(tg);
 				}
 			}
-			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
+			dc_state_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
 
 			if (pipe->stream && pipe->plane_state)
@@ -1206,7 +1210,7 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			 * The OTG is set to disable on falling edge of VUPDATE so the plane disable
 			 * will still get it's double buffer update.
 			 */
-			if (old_stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			if (is_phantom) {
 				if (tg->funcs->disable_phantom_crtc)
 					tg->funcs->disable_phantom_crtc(tg);
 			}
@@ -1215,7 +1219,7 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 
 	current_ctx = dc->current_state;
 	dc->current_state = dangling_context;
-	dc_release_state(current_ctx);
+	dc_state_release(current_ctx);
 }
 
 static void disable_vbios_mode_if_required(
@@ -1287,7 +1291,7 @@ static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
 		int count = 0;
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->plane_state || pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (!pipe->plane_state || dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM)
 			continue;
 
 		/* Timeout 100 ms */
@@ -1513,7 +1517,7 @@ static void program_timing_sync(
 		}
 
 		for (k = 0; k < group_size; k++) {
-			struct dc_stream_status *status = dc_stream_get_status_from_state(ctx, pipe_set[k]->stream);
+			struct dc_stream_status *status = dc_state_get_stream_status(ctx, pipe_set[k]->stream);
 
 			status->timing_sync_info.group_id = num_group;
 			status->timing_sync_info.group_size = group_size;
@@ -1840,7 +1844,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		/* Check old context for SubVP */
-		subvp_prev_use |= (old_pipe->stream && old_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM);
+		subvp_prev_use |= (dc_state_get_pipe_subvp_type(dc->current_state, old_pipe) == SUBVP_PHANTOM);
 		if (subvp_prev_use)
 			break;
 	}
@@ -1998,9 +2002,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	old_state = dc->current_state;
 	dc->current_state = context;
 
-	dc_release_state(old_state);
+	dc_state_release(old_state);
 
-	dc_retain_state(dc->current_state);
+	dc_state_retain(dc->current_state);
 
 	return result;
 }
@@ -2071,7 +2075,7 @@ enum dc_status dc_commit_streams(struct dc *dc,
 	if (handle_exit_odm2to1)
 		res = commit_minimal_transition_state(dc, dc->current_state);
 
-	context = dc_create_state(dc);
+	context = dc_state_create(dc);
 	if (!context)
 		goto context_alloc_fail;
 
@@ -2091,7 +2095,7 @@ enum dc_status dc_commit_streams(struct dc *dc,
 				streams[i]->out.otg_offset = context->stream_status[j].primary_otg_inst;
 
 			if (dc_is_embedded_signal(streams[i]->signal)) {
-				struct dc_stream_status *status = dc_stream_get_status_from_state(context, streams[i]);
+				struct dc_stream_status *status = dc_state_get_stream_status(context, streams[i]);
 
 				if (dc->hwss.is_abm_supported)
 					status->is_abm_supported = dc->hwss.is_abm_supported(dc, context, streams[i]);
@@ -2102,7 +2106,7 @@ enum dc_status dc_commit_streams(struct dc *dc,
 	}
 
 fail:
-	dc_release_state(context);
+	dc_state_release(context);
 
 context_alloc_fail:
 
@@ -2156,7 +2160,7 @@ static bool is_flip_pending_in_pipes(struct dc *dc, struct dc_state *context)
 		pipe = &context->res_ctx.pipe_ctx[i];
 
 		// Don't check flip pending on phantom pipes
-		if (!pipe->plane_state || (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM))
+		if (!pipe->plane_state || (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM))
 			continue;
 
 		/* Must set to false to start with, due to OR in update function */
@@ -2226,103 +2230,6 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 	}
 
 	dc->optimized_required = false;
-}
-
-static void init_state(struct dc *dc, struct dc_state *context)
-{
-	/* Each context must have their own instance of VBA and in order to
-	 * initialize and obtain IP and SOC the base DML instance from DC is
-	 * initially copied into every context
-	 */
-	memcpy(&context->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
-}
-
-struct dc_state *dc_create_state(struct dc *dc)
-{
-	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
-					    GFP_KERNEL);
-
-	if (!context)
-		return NULL;
-
-	init_state(dc, context);
-
-#ifdef CONFIG_DRM_AMD_DC_FP
-	if (dc->debug.using_dml2) {
-		dml2_create(dc, &dc->dml2_options, &context->bw_ctx.dml2);
-	}
-#endif
-	kref_init(&context->refcount);
-
-	return context;
-}
-
-struct dc_state *dc_copy_state(struct dc_state *src_ctx)
-{
-	int i, j;
-	struct dc_state *new_ctx = kvmalloc(sizeof(struct dc_state), GFP_KERNEL);
-
-	if (!new_ctx)
-		return NULL;
-	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
-
-#ifdef CONFIG_DRM_AMD_DC_FP
-	if (new_ctx->bw_ctx.dml2 && !dml2_create_copy(&new_ctx->bw_ctx.dml2, src_ctx->bw_ctx.dml2)) {
-		dc_release_state(new_ctx);
-		return NULL;
- 	}
-#endif
-
-	for (i = 0; i < MAX_PIPES; i++) {
-			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
-
-			if (cur_pipe->top_pipe)
-				cur_pipe->top_pipe =  &new_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
-
-			if (cur_pipe->bottom_pipe)
-				cur_pipe->bottom_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
-			if (cur_pipe->prev_odm_pipe)
-				cur_pipe->prev_odm_pipe =  &new_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
-
-			if (cur_pipe->next_odm_pipe)
-				cur_pipe->next_odm_pipe = &new_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
-
-	}
-
-	for (i = 0; i < new_ctx->stream_count; i++) {
-			dc_stream_retain(new_ctx->streams[i]);
-			for (j = 0; j < new_ctx->stream_status[i].plane_count; j++)
-				dc_plane_state_retain(
-					new_ctx->stream_status[i].plane_states[j]);
-	}
-
-	kref_init(&new_ctx->refcount);
-
-	return new_ctx;
-}
-
-void dc_retain_state(struct dc_state *context)
-{
-	kref_get(&context->refcount);
-}
-
-static void dc_state_free(struct kref *kref)
-{
-	struct dc_state *context = container_of(kref, struct dc_state, refcount);
-	dc_resource_state_destruct(context);
-
-#ifdef CONFIG_DRM_AMD_DC_FP
-	dml2_destroy(context->bw_ctx.dml2);
-	context->bw_ctx.dml2 = 0;
-#endif
-
-	kvfree(context);
-}
-
-void dc_release_state(struct dc_state *context)
-{
-	kref_put(&context->refcount, dc_state_free);
 }
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
@@ -2992,7 +2899,7 @@ static void copy_stream_update_to_stream(struct dc *dc,
 				       update->dsc_config->num_slices_v != 0);
 
 		/* Use temporarry context for validating new DSC config */
-		struct dc_state *dsc_validate_context = dc_create_state(dc);
+		struct dc_state *dsc_validate_context = dc_state_create(dc);
 
 		if (dsc_validate_context) {
 			dc_resource_state_copy_construct(dc->current_state, dsc_validate_context);
@@ -3005,7 +2912,7 @@ static void copy_stream_update_to_stream(struct dc *dc,
 				update->dsc_config = NULL;
 			}
 
-			dc_release_state(dsc_validate_context);
+			dc_state_release(dsc_validate_context);
 		} else {
 			DC_ERROR("Failed to allocate new validate context for DSC change\n");
 			update->dsc_config = NULL;
@@ -3104,7 +3011,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 			new_planes[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
-		context = dc_create_state(dc);
+		context = dc_state_create(dc);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return false;
@@ -3120,14 +3027,14 @@ static bool update_planes_and_stream_state(struct dc *dc,
 			dc->res_pool->funcs->remove_phantom_pipes(dc, context, false);
 
 		/*remove old surfaces from context */
-		if (!dc_rem_all_planes_for_stream(dc, stream, context)) {
+		if (!dc_state_rem_all_planes_for_stream(dc, stream, context)) {
 
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}
 
 		/* add surface to context */
-		if (!dc_add_all_planes_for_stream(dc, stream, new_planes, surface_count, context)) {
+		if (!dc_state_add_all_planes_for_stream(dc, stream, new_planes, surface_count, context)) {
 
 			BREAK_TO_DEBUGGER();
 			goto fail;
@@ -3185,7 +3092,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	return true;
 
 fail:
-	dc_release_state(context);
+	dc_state_release(context);
 
 	return false;
 
@@ -3626,7 +3533,7 @@ static void commit_planes_for_stream(struct dc *dc,
 		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		// Check old context for SubVP
-		subvp_prev_use |= (old_pipe->stream && old_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM);
+		subvp_prev_use |= (dc_state_get_pipe_subvp_type(dc->current_state, old_pipe) == SUBVP_PHANTOM);
 		if (subvp_prev_use)
 			break;
 	}
@@ -3634,7 +3541,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 			subvp_curr_use = true;
 			break;
 		}
@@ -4019,7 +3926,7 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE) {
+		if (dc_state_get_pipe_subvp_type(dc->current_state, pipe) != SUBVP_NONE) {
 			subvp_active = true;
 			break;
 		}
@@ -4056,7 +3963,7 @@ struct pipe_split_policy_backup {
 static void release_minimal_transition_state(struct dc *dc,
 		struct dc_state *context, struct pipe_split_policy_backup *policy)
 {
-	dc_release_state(context);
+	dc_state_release(context);
 	/* restore previous pipe split and odm policy */
 	if (!dc->config.is_vmin_only_asic)
 		dc->debug.pipe_split_policy = policy->mpc_policy;
@@ -4067,7 +3974,7 @@ static void release_minimal_transition_state(struct dc *dc,
 static struct dc_state *create_minimal_transition_state(struct dc *dc,
 		struct dc_state *base_context, struct pipe_split_policy_backup *policy)
 {
-	struct dc_state *minimal_transition_context = dc_create_state(dc);
+	struct dc_state *minimal_transition_context = dc_state_create(dc);
 	unsigned int i, j;
 
 	if (!dc->config.is_vmin_only_asic) {
@@ -4211,7 +4118,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(dc->current_state, pipe) == SUBVP_PHANTOM) {
 			subvp_in_use = true;
 			break;
 		}
@@ -4523,7 +4430,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		if (dc->res_pool->funcs->save_mall_state)
 			dc->res_pool->funcs->save_mall_state(dc, context, &mall_temp_config);
 		if (!commit_minimal_transition_state(dc, context)) {
-			dc_release_state(context);
+			dc_state_release(context);
 			return false;
 		}
 		if (dc->res_pool->funcs->restore_mall_state)
@@ -4593,7 +4500,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_state *old = dc->current_state;
 
 		dc->current_state = context;
-		dc_release_state(old);
+		dc_state_release(old);
 
 		// clear any forced full updates
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -4652,7 +4559,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (update_type >= UPDATE_TYPE_FULL) {
 
 		/* initialize scratch memory for building context */
-		context = dc_create_state(dc);
+		context = dc_state_create(dc);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return;
@@ -4698,7 +4605,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (update_type >= UPDATE_TYPE_FULL) {
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, context, false)) {
 			DC_ERROR("Mode validation failed for stream update!\n");
-			dc_release_state(context);
+			dc_state_release(context);
 			return;
 		}
 	}
@@ -4731,7 +4638,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_state *old = dc->current_state;
 
 		dc->current_state = context;
-		dc_release_state(old);
+		dc_state_release(old);
 
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];

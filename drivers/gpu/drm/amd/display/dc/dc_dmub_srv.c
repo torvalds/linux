@@ -33,6 +33,7 @@
 #include "cursor_reg_cache.h"
 #include "resource.h"
 #include "clk_mgr.h"
+#include "dc_state_priv.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -532,12 +533,14 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
  * 3. Populate the drr_info with the min and max supported vtotal values
  */
 static void populate_subvp_cmd_drr_info(struct dc *dc,
+		struct dc_state *context,
 		struct pipe_ctx *subvp_pipe,
 		struct pipe_ctx *vblank_pipe,
 		struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data)
 {
+	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
 	struct dc_crtc_timing *drr_timing = &vblank_pipe->stream->timing;
 	uint16_t drr_frame_us = 0;
 	uint16_t min_drr_supported_us = 0;
@@ -625,7 +628,7 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 			continue;
 
 		// Find the SubVP pipe
-		if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 			break;
 	}
 
@@ -642,7 +645,7 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 
 	if (vblank_pipe->stream->ignore_msa_timing_param &&
 		(vblank_pipe->stream->allow_freesync || vblank_pipe->stream->vrr_active_variable || vblank_pipe->stream->vrr_active_fixed))
-		populate_subvp_cmd_drr_info(dc, pipe, vblank_pipe, pipe_data);
+		populate_subvp_cmd_drr_info(dc, context, pipe, vblank_pipe, pipe_data);
 }
 
 /**
@@ -667,9 +670,14 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	uint32_t subvp0_prefetch_us = 0;
 	uint32_t subvp1_prefetch_us = 0;
 	uint32_t prefetch_delta_us = 0;
-	struct dc_crtc_timing *phantom_timing0 = &subvp_pipes[0]->stream->mall_stream_config.paired_stream->timing;
-	struct dc_crtc_timing *phantom_timing1 = &subvp_pipes[1]->stream->mall_stream_config.paired_stream->timing;
+	struct dc_stream_state *phantom_stream0 = NULL;
+	struct dc_stream_state *phantom_stream1 = NULL;
+	struct dc_crtc_timing *phantom_timing0 = &phantom_stream0->timing;
+	struct dc_crtc_timing *phantom_timing1 = &phantom_stream1->timing;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
+
+	phantom_stream0 = dc_state_get_paired_subvp_stream(context, subvp_pipes[0]->stream);
+	phantom_stream1 = dc_state_get_paired_subvp_stream(context, subvp_pipes[1]->stream);
 
 	subvp0_prefetch_us = div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
 			(uint64_t)phantom_timing0->h_total * 1000000),
@@ -720,8 +728,9 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	uint32_t j;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data =
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
+	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
 	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
 
 	pipe_data->mode = SUBVP;
@@ -775,7 +784,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
 
-		if (phantom_pipe->stream == subvp_pipe->stream->mall_stream_config.paired_stream) {
+		if (phantom_pipe->stream == dc_state_get_paired_subvp_stream(context, subvp_pipe->stream)) {
 			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->stream_res.tg->inst;
 			if (phantom_pipe->bottom_pipe) {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->plane_res.hubp->inst;
@@ -809,6 +818,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	union dmub_rb_cmd cmd;
 	struct pipe_ctx *subvp_pipes[2];
 	uint32_t wm_val_refclk = 0;
+	enum mall_stream_type pipe_mall_type;
 
 	memset(&cmd, 0, sizeof(cmd));
 	// FW command for SUBVP
@@ -824,7 +834,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		 */
 		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
 				resource_is_pipe_type(pipe, DPP_PIPE) &&
-				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 			subvp_pipes[subvp_count++] = pipe;
 	}
 
@@ -832,6 +842,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		// For each pipe that is a "main" SUBVP pipe, fill in pipe data for DMUB SUBVP cmd
 		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+			pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
 			if (!pipe->stream)
 				continue;
@@ -843,11 +854,11 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 			if (resource_is_pipe_type(pipe, OTG_MASTER) &&
 					resource_is_pipe_type(pipe, DPP_PIPE) &&
 					pipe->stream->mall_stream_config.paired_stream &&
-					pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+					pipe_mall_type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 			} else if (resource_is_pipe_type(pipe, OTG_MASTER) &&
 					resource_is_pipe_type(pipe, DPP_PIPE) &&
-					pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+					pipe_mall_type == SUBVP_NONE) {
 				// Don't need to check for ActiveDRAMClockChangeMargin < 0, not valid in cases where
 				// we run through DML without calculating "natural" P-state support
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);

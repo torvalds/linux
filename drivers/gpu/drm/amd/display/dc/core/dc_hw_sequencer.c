@@ -31,6 +31,7 @@
 #include "basics/dc_common.h"
 #include "resource.h"
 #include "dc_dmub_srv.h"
+#include "dc_state_priv.h"
 
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -440,8 +441,7 @@ void get_subvp_visual_confirm_color(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->stream->mall_stream_config.paired_stream &&
-		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
 			/* SubVP enable - red */
 			color->color_g_y = 0;
 			color->color_b_cb = 0;
@@ -454,7 +454,7 @@ void get_subvp_visual_confirm_color(
 		}
 	}
 
-	if (enable_subvp && pipe_ctx->stream->mall_stream_config.type == SUBVP_NONE) {
+	if (enable_subvp && dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_NONE) {
 		color->color_r_cr = 0;
 		if (pipe_ctx->stream->allow_freesync == 1) {
 			/* SubVP enable and DRR on - green */
@@ -529,7 +529,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 			}
 			if (dc->hwss.update_plane_addr && current_mpc_pipe->plane_state->update_flags.bits.addr_update) {
 				if (resource_is_pipe_type(current_mpc_pipe, OTG_MASTER) &&
-						current_mpc_pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+						dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_MAIN) {
 					block_sequence[*num_steps].params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
 					block_sequence[*num_steps].params.subvp_save_surf_addr.addr = &current_mpc_pipe->plane_state->address;
 					block_sequence[*num_steps].params.subvp_save_surf_addr.subvp_index = current_mpc_pipe->subvp_index;

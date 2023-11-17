@@ -146,12 +146,6 @@ struct test_pattern {
 
 #define SUBVP_DRR_MARGIN_US 100 // 100us for DRR margin (SubVP + DRR)
 
-enum mall_stream_type {
-	SUBVP_NONE, // subvp not in use
-	SUBVP_MAIN, // subvp in use, this stream is main stream
-	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
-};
-
 struct mall_stream_config {
 	/* MALL stream config to indicate if the stream is phantom or not.
 	 * We will use a phantom stream to indicate that the pipe is phantom.
@@ -413,41 +407,6 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
-enum dc_status dc_add_stream_to_ctx(
-			struct dc *dc,
-		struct dc_state *new_ctx,
-		struct dc_stream_state *stream);
-
-enum dc_status dc_remove_stream_from_ctx(
-		struct dc *dc,
-			struct dc_state *new_ctx,
-			struct dc_stream_state *stream);
-
-
-bool dc_add_plane_to_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_remove_plane_from_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_rem_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_state *context);
-
-bool dc_add_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state * const *plane_states,
-		int plane_count,
-		struct dc_state *context);
-
 bool dc_stream_add_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_writeback_info *wb_info);
@@ -516,9 +475,6 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);
 
-struct dc_stream_status *dc_stream_get_status_from_state(
-	struct dc_state *state,
-	struct dc_stream_state *stream);
 struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *dc_stream);
 

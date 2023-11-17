@@ -102,6 +102,8 @@
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 
+#include "dc_state_priv.h"
+
 #include "link_enc_cfg.h"
 #define DC_LOGGER_INIT(logger)
 

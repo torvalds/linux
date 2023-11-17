@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: MIT */
 /*
  * Copyright 2023 Advanced Micro Devices, Inc.
  *
@@ -24,20 +23,12 @@
  *
  */
 
+#ifndef _DC_PLANE_PRIV_H_
+#define _DC_PLANE_PRIV_H_
 
-/*
- * Wrapper header for externally defined types from DC.  These types come from
- * dc headers when building DML2 as part of DC, but are defined here when building
- * DML2 as a standalone library (such as for unit testing).
- */
+#include "dc_plane.h"
 
-#ifndef __DML2_DC_TYPES_H__
-#define __DML2_DC_TYPES_H__
+void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_state);
+void dc_plane_destruct(struct dc_plane_state *plane_state);
 
-#include "resource.h"
-#include "core_types.h"
-#include "dsc.h"
-#include "clk_mgr.h"
-#include "dc_state_priv.h"
-
-#endif //__DML2_DC_TYPES_H__
+#endif /* _DC_PLANE_PRIV_H_ */

@@ -51,6 +51,7 @@
 #include "dcn32/dcn32_resource.h"
 #include "link.h"
 #include "../dcn20/dcn20_hwseq.h"
+#include "dc_state_priv.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -349,7 +350,7 @@ void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.paired_stream &&
-				pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN) {
+				dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_MAIN) {
 			// There is at least 1 SubVP pipe, so enable SubVP
 			enable_subvp = true;
 			break;
@@ -375,18 +376,20 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	bool subvp_immediate_flip = false;
 	bool subvp_in_use = false;
 	struct pipe_ctx *pipe;
+	enum mall_stream_type pipe_mall_type = SUBVP_NONE;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
+		pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
-		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		if (pipe->stream && pipe->plane_state && pipe_mall_type == SUBVP_MAIN) {
 			subvp_in_use = true;
 			break;
 		}
 	}
 
 	if (top_pipe_to_program && top_pipe_to_program->stream && top_pipe_to_program->plane_state) {
-		if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_MAIN &&
+		if (dc_state_get_pipe_subvp_type(context, top_pipe_to_program) == SUBVP_MAIN &&
 				top_pipe_to_program->plane_state->flip_immediate)
 			subvp_immediate_flip = true;
 	}
@@ -398,7 +401,7 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		if (!lock) {
 			for (i = 0; i < dc->res_pool->pipe_count; i++) {
 				pipe = &context->res_ctx.pipe_ctx[i];
-				if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+				if (pipe->stream && pipe->plane_state && pipe_mall_type == SUBVP_MAIN &&
 						should_lock_all_pipes)
 					pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VBLANK);
 			}
@@ -420,7 +423,7 @@ void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
 	bool subvp_immediate_flip = false;
 
 	if (pipe_ctx && pipe_ctx->stream && pipe_ctx->plane_state) {
-		if (pipe_ctx->stream->mall_stream_config.type == SUBVP_MAIN &&
+		if (dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_MAIN &&
 				pipe_ctx->plane_state->flip_immediate)
 			subvp_immediate_flip = true;
 	}
@@ -609,7 +612,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (!pipe->stream || !(pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+		if (!pipe->stream || !(dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN ||
 		    pipe->stream->fpo_in_use)) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, false);
@@ -624,7 +627,7 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
-		if (pipe->stream && (pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+		if (pipe->stream && (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN ||
 				pipe->stream->fpo_in_use)) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
@@ -671,8 +674,8 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 			if (cursor_size > 16384)
 				cache_cursor = true;
 
-			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-					hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
+			if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
+				hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
 				// MALL not supported with Stereo3D
 				hubp->funcs->hubp_update_mall_sel(hubp,
@@ -714,9 +717,8 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 			 *        see if CURSOR_REQ_MODE will be back to 1 for SubVP
 			 *        when it should be 0 for MPO
 			 */
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 				hubp->funcs->hubp_prepare_subvp_buffering(hubp, true);
-			}
 		}
 	}
 }
@@ -1228,7 +1230,7 @@ void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_
 			continue;
 
 		if ((pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))
-			&& pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			&& dc_state_get_pipe_subvp_type(dc->current_state, pipe) != SUBVP_PHANTOM) {
 			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
 			reset_sync_context_for_pipe(dc, context, i);
 			otg_disabled[i] = true;
@@ -1379,7 +1381,7 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN &&
 				pipe->stream->mall_stream_config.paired_stream == phantom_pipe->stream) {
 			if (pipe->plane_state && pipe->plane_state->update_flags.bits.position_change) {
 
@@ -1405,7 +1407,7 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 {
 	phantom_pipe->update_flags.raw = 0;
-	if (phantom_pipe->stream && phantom_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+	if (dc_state_get_pipe_subvp_type(NULL, phantom_pipe) == SUBVP_PHANTOM) {
 		if (resource_is_pipe_type(phantom_pipe, DPP_PIPE)) {
 			phantom_pipe->update_flags.bits.enable = 1;
 			phantom_pipe->update_flags.bits.mpcc = 1;
@@ -1491,8 +1493,8 @@ void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
 		 * pipe, wait for the double buffer update to complete first before we do
 		 * ANY phantom pipe programming.
 		 */
-		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM &&
-				old_pipe->stream && old_pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM &&
+				old_pipe->stream && dc_state_get_pipe_subvp_type(dc->current_state, old_pipe) != SUBVP_PHANTOM) {
 			old_pipe->stream_res.tg->funcs->wait_for_state(
 					old_pipe->stream_res.tg,
 					CRTC_STATE_VBLANK);
@@ -1504,7 +1506,7 @@ void dcn32_enable_phantom_streams(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (new_pipe->stream && dc_state_get_pipe_subvp_type(context, new_pipe) == SUBVP_PHANTOM) {
 			// If old context or new context has phantom pipes, apply
 			// the phantom timings now. We can't change the phantom
 			// pipe configuration safely without driver acquiring

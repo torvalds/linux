@@ -31,6 +31,8 @@
 #include "ipp.h"
 #include "timing_generator.h"
 #include "dc_dmub_srv.h"
+#include "dc_state_priv.h"
+#include "dc_stream_priv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -54,7 +56,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static bool dc_stream_construct(struct dc_stream_state *stream,
+bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -127,7 +129,7 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 	return true;
 }
 
-static void dc_stream_destruct(struct dc_stream_state *stream)
+void dc_stream_destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
@@ -209,31 +211,6 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 }
 
 /**
- * dc_stream_get_status_from_state - Get stream status from given dc state
- * @state: DC state to find the stream status in
- * @stream: The stream to get the stream status for
- *
- * The given stream is expected to exist in the given dc state. Otherwise, NULL
- * will be returned.
- */
-struct dc_stream_status *dc_stream_get_status_from_state(
-	struct dc_state *state,
-	struct dc_stream_state *stream)
-{
-	uint8_t i;
-
-	if (state == NULL)
-		return NULL;
-
-	for (i = 0; i < state->stream_count; i++) {
-		if (stream == state->streams[i])
-			return &state->stream_status[i];
-	}
-
-	return NULL;
-}
-
-/**
  * dc_stream_get_status() - Get current stream status of the given stream state
  * @stream: The stream to get the stream status for.
  *
@@ -244,7 +221,7 @@ struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
-	return dc_stream_get_status_from_state(dc->current_state, stream);
+	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
 static void program_cursor_attributes(
