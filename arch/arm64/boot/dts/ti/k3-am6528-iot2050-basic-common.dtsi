@@ -29,11 +29,6 @@
 	/delete-node/ l2-cache1;
 };
 
-/* eMMC */
-&sdhci0 {
-	status = "disabled";
-};
-
 &main_pmx0 {
 	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <

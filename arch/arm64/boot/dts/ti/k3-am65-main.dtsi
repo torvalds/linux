@@ -449,6 +449,7 @@
 		ti,otap-del-sel-hs400 = <0x0>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		status = "disabled";
 	};
 
 	sdhci1: mmc@4fa0000 {
@@ -471,6 +472,7 @@
 		ti,clkbuf-sel = <0x7>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		status = "disabled";
 	};
 
 	scm_conf: scm-conf@100000 {

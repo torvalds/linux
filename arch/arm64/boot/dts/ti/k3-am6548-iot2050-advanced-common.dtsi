@@ -43,6 +43,7 @@
 
 /* eMMC */
 &sdhci0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
 	bus-width = <8>;
