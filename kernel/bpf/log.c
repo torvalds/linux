@@ -509,10 +509,52 @@ static void print_liveness(struct bpf_verifier_env *env,
 		verbose(env, "D");
 }
 
+#define UNUM_MAX_DECIMAL U16_MAX
+#define SNUM_MAX_DECIMAL S16_MAX
+#define SNUM_MIN_DECIMAL S16_MIN
+
+static bool is_unum_decimal(u64 num)
+{
+	return num <= UNUM_MAX_DECIMAL;
+}
+
+static bool is_snum_decimal(s64 num)
+{
+	return num >= SNUM_MIN_DECIMAL && num <= SNUM_MAX_DECIMAL;
+}
+
+static void verbose_unum(struct bpf_verifier_env *env, u64 num)
+{
+	if (is_unum_decimal(num))
+		verbose(env, "%llu", num);
+	else
+		verbose(env, "%#llx", num);
+}
+
+static void verbose_snum(struct bpf_verifier_env *env, s64 num)
+{
+	if (is_snum_decimal(num))
+		verbose(env, "%lld", num);
+	else
+		verbose(env, "%#llx", num);
+}
+
 static void print_scalar_ranges(struct bpf_verifier_env *env,
 				const struct bpf_reg_state *reg,
 				const char **sep)
 {
+	/* For signed ranges, we want to unify 64-bit and 32-bit values in the
+	 * output as much as possible, but there is a bit of a complication.
+	 * If we choose to print values as decimals, this is natural to do,
+	 * because negative 64-bit and 32-bit values >= -S32_MIN have the same
+	 * representation due to sign extension. But if we choose to print
+	 * them in hex format (see is_snum_decimal()), then sign extension is
+	 * misleading.
+	 * E.g., smin=-2 and smin32=-2 are exactly the same in decimal, but in
+	 * hex they will be smin=0xfffffffffffffffe and smin32=0xfffffffe, two
+	 * very different numbers.
+	 * So we avoid sign extension if we choose to print values in hex.
+	 */
 	struct {
 		const char *name;
 		u64 val;
@@ -522,8 +564,14 @@ static void print_scalar_ranges(struct bpf_verifier_env *env,
 		{"smax",   reg->smax_value,         reg->smax_value == S64_MAX},
 		{"umin",   reg->umin_value,         reg->umin_value == 0},
 		{"umax",   reg->umax_value,         reg->umax_value == U64_MAX},
-		{"smin32", (s64)reg->s32_min_value, reg->s32_min_value == S32_MIN},
-		{"smax32", (s64)reg->s32_max_value, reg->s32_max_value == S32_MAX},
+		{"smin32",
+		 is_snum_decimal((s64)reg->s32_min_value)
+			 ? (s64)reg->s32_min_value
+			 : (u32)reg->s32_min_value, reg->s32_min_value == S32_MIN},
+		{"smax32",
+		 is_snum_decimal((s64)reg->s32_max_value)
+			 ? (s64)reg->s32_max_value
+			 : (u32)reg->s32_max_value, reg->s32_max_value == S32_MAX},
 		{"umin32", reg->u32_min_value,      reg->u32_min_value == 0},
 		{"umax32", reg->u32_max_value,      reg->u32_max_value == U32_MAX},
 	}, *m1, *m2, *mend = &minmaxs[ARRAY_SIZE(minmaxs)];
@@ -549,7 +597,10 @@ static void print_scalar_ranges(struct bpf_verifier_env *env,
 			verbose(env, "%s=", m2->name);
 		}
 
-		verbose(env, m1->name[0] == 's' ? "%lld" : "%llu", m1->val);
+		if (m1->name[0] == 's')
+			verbose_snum(env, m1->val);
+		else
+			verbose_unum(env, m1->val);
 	}
 }
 
@@ -576,14 +627,14 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 	    tnum_is_const(reg->var_off)) {
 		/* reg->off should be 0 for SCALAR_VALUE */
 		verbose(env, "%s", t == SCALAR_VALUE ? "" : reg_type_str(env, t));
-		verbose(env, "%lld", reg->var_off.value + reg->off);
+		verbose_snum(env, reg->var_off.value + reg->off);
 		return;
 	}
 /*
  * _a stands for append, was shortened to avoid multiline statements below.
  * This macro is used to output a comma separated list of attributes.
  */
-#define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, __VA_ARGS__); sep = ","; })
+#define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, ##__VA_ARGS__); sep = ","; })
 
 	verbose(env, "%s", reg_type_str(env, t));
 	if (base_type(t) == PTR_TO_BTF_ID)
@@ -602,14 +653,20 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 			  reg->map_ptr->key_size,
 			  reg->map_ptr->value_size);
 	}
-	if (t != SCALAR_VALUE && reg->off)
-		verbose_a("off=%d", reg->off);
-	if (type_is_pkt_pointer(t))
-		verbose_a("r=%d", reg->range);
+	if (t != SCALAR_VALUE && reg->off) {
+		verbose_a("off=");
+		verbose_snum(env, reg->off);
+	}
+	if (type_is_pkt_pointer(t)) {
+		verbose_a("r=");
+		verbose_unum(env, reg->range);
+	}
 	if (tnum_is_const(reg->var_off)) {
 		/* a pointer register with fixed offset */
-		if (reg->var_off.value)
-			verbose_a("imm=%llx", reg->var_off.value);
+		if (reg->var_off.value) {
+			verbose_a("imm=");
+			verbose_snum(env, reg->var_off.value);
+		}
 	} else {
 		print_scalar_ranges(env, reg, &sep);
 		if (!tnum_is_unknown(reg->var_off)) {
