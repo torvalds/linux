@@ -795,13 +795,8 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->chnl_plan >= COUNTRY_CODE_MAX) {
-		netdev_info(dev,
-			    "rtl819x_init:Error channel plan! Set to default.\n");
-		priv->chnl_plan = COUNTRY_CODE_FCC;
-	}
 	dot11d_init(priv->rtllib);
-	dot11d_channel_map(priv->chnl_plan, priv->rtllib);
+	dot11d_channel_map(COUNTRY_CODE_WORLD_WIDE_13, priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;
 	(priv->rtllib->active_channel_map)[12] = 2;

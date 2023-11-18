@@ -396,8 +396,6 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 		break;
 	}
 
-	priv->chnl_plan = COUNTRY_CODE_WORLD_WIDE_13;
-
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->rtllib->bSupportRemoteWakeUp = true;
 	else
