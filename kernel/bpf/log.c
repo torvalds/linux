@@ -602,16 +602,14 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 			  reg->map_ptr->key_size,
 			  reg->map_ptr->value_size);
 	}
-	if (t != SCALAR_VALUE)
+	if (t != SCALAR_VALUE && reg->off)
 		verbose_a("off=%d", reg->off);
 	if (type_is_pkt_pointer(t))
 		verbose_a("r=%d", reg->range);
 	if (tnum_is_const(reg->var_off)) {
-		/* Typically an immediate SCALAR_VALUE, but
-		 * could be a pointer whose offset is too big
-		 * for reg->off
-		 */
-		verbose_a("imm=%llx", reg->var_off.value);
+		/* a pointer register with fixed offset */
+		if (reg->var_off.value)
+			verbose_a("imm=%llx", reg->var_off.value);
 	} else {
 		print_scalar_ranges(env, reg, &sep);
 		if (!tnum_is_unknown(reg->var_off)) {
