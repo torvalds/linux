@@ -337,12 +337,32 @@ e_out:
 	return -1;
 }
 
+/* like getline(), but the newline character is stripped away */
+static ssize_t getline_stripped(char **lineptr, size_t *n, FILE *stream)
+{
+	ssize_t len;
+
+	len = compat_getline(lineptr, n, stream);
+
+	if (len > 0 && (*lineptr)[len - 1] == '\n') {
+		len--;
+		(*lineptr)[len] = '\0';
+
+		if (len > 0 && (*lineptr)[len - 1] == '\r') {
+			len--;
+			(*lineptr)[len] = '\0';
+		}
+	}
+
+	return len;
+}
+
 int conf_read_simple(const char *name, int def)
 {
 	FILE *in = NULL;
 	char   *line = NULL;
 	size_t  line_asize = 0;
-	char *p, *p2, *val;
+	char *p, *val;
 	struct symbol *sym;
 	int i, def_flags;
 	const char *warn_unknown, *werror, *sym_name;
@@ -421,7 +441,7 @@ load:
 		}
 	}
 
-	while (compat_getline(&line, &line_asize, in) != -1) {
+	while (getline_stripped(&line, &line_asize, in) != -1) {
 		conf_lineno++;
 		if (line[0] == '#') {
 			if (line[1] != ' ')
@@ -443,19 +463,11 @@ load:
 			p = strchr(sym_name, '=');
 			if (!p)
 				continue;
-			*p++ = 0;
-			val = p;
-			p2 = strchr(p, '\n');
-			if (p2) {
-				*p2-- = 0;
-				if (*p2 == '\r')
-					*p2 = 0;
-			}
+			*p = 0;
+			val = p + 1;
 		} else {
-			if (line[0] != '\r' && line[0] != '\n')
-				conf_warning("unexpected data: %.*s",
-					     (int)strcspn(line, "\r\n"), line);
-
+			if (line[0] != '\0')
+				conf_warning("unexpected data: %s", line);
 			continue;
 		}
 
