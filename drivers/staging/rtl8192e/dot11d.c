@@ -51,7 +51,7 @@ EXPORT_SYMBOL(dot11d_init);
 
 void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 {
-	int i, max_chan = 14, min_chan = 1;
+	int i;
 
 	ieee->global_domain = false;
 
@@ -59,9 +59,6 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
 		       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
 		for (i = 0; i < channel_array[channel_plan].len; i++) {
-			if (channel_array[channel_plan].channel[i] < min_chan ||
-			    channel_array[channel_plan].channel[i] > max_chan)
-				break;
 			GET_DOT11D_INFO(ieee)->channel_map[channel_array
 					[channel_plan].channel[i]] = 1;
 		}
