@@ -13,10 +13,13 @@
  */
 #define U64_MAX ((u64)UINT64_MAX)
 #define U32_MAX ((u32)UINT_MAX)
+#define U16_MAX ((u32)UINT_MAX)
 #define S64_MIN ((s64)INT64_MIN)
 #define S64_MAX ((s64)INT64_MAX)
 #define S32_MIN ((s32)INT_MIN)
 #define S32_MAX ((s32)INT_MAX)
+#define S16_MIN ((s16)0x80000000)
+#define S16_MAX ((s16)0x7fffffff)
 
 typedef unsigned long long ___u64;
 typedef unsigned int ___u32;
@@ -138,13 +141,17 @@ static enum num_t t_unsigned(enum num_t t)
 	}
 }
 
+#define UNUM_MAX_DECIMAL U16_MAX
+#define SNUM_MAX_DECIMAL S16_MAX
+#define SNUM_MIN_DECIMAL S16_MIN
+
 static bool num_is_small(enum num_t t, u64 x)
 {
 	switch (t) {
-	case U64: return (u64)x <= 256;
-	case U32: return (u32)x <= 256;
-	case S64: return (s64)x >= -256 && (s64)x <= 256;
-	case S32: return (s32)x >= -256 && (s32)x <= 256;
+	case U64: return (u64)x <= UNUM_MAX_DECIMAL;
+	case U32: return (u32)x <= UNUM_MAX_DECIMAL;
+	case S64: return (s64)x >= SNUM_MIN_DECIMAL && (s64)x <= SNUM_MAX_DECIMAL;
+	case S32: return (s32)x >= SNUM_MIN_DECIMAL && (s32)x <= SNUM_MAX_DECIMAL;
 	default: printf("num_is_small!\n"); exit(1);
 	}
 }
@@ -1023,20 +1030,19 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 	 */
 	struct {
 		const char *pfx;
-		const char *fmt;
 		u64 *dst, def;
 		bool is_32, is_set;
 	} *f, fields[8] = {
-		{"smin=", "%lld", &reg->r[S64].a, S64_MIN},
-		{"smax=", "%lld", &reg->r[S64].b, S64_MAX},
-		{"umin=", "%llu", &reg->r[U64].a, 0},
-		{"umax=", "%llu", &reg->r[U64].b, U64_MAX},
-		{"smin32=", "%lld", &reg->r[S32].a, (u32)S32_MIN, true},
-		{"smax32=", "%lld", &reg->r[S32].b, (u32)S32_MAX, true},
-		{"umin32=", "%llu", &reg->r[U32].a, 0,            true},
-		{"umax32=", "%llu", &reg->r[U32].b, U32_MAX,      true},
+		{"smin=", &reg->r[S64].a, S64_MIN},
+		{"smax=", &reg->r[S64].b, S64_MAX},
+		{"umin=", &reg->r[U64].a, 0},
+		{"umax=", &reg->r[U64].b, U64_MAX},
+		{"smin32=", &reg->r[S32].a, (u32)S32_MIN, true},
+		{"smax32=", &reg->r[S32].b, (u32)S32_MAX, true},
+		{"umin32=", &reg->r[U32].a, 0,            true},
+		{"umax32=", &reg->r[U32].b, U32_MAX,      true},
 	};
-	const char *p, *fmt;
+	const char *p;
 	int i;
 
 	p = strchr(s, '=');
@@ -1050,8 +1056,13 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 		long long sval;
 		enum num_t t;
 
-		if (sscanf(p, "%lld", &sval) != 1)
-			return -EINVAL;
+		if (p[0] == '0' && p[1] == 'x') {
+			if (sscanf(p, "%llx", &sval) != 1)
+				return -EINVAL;
+		} else {
+			if (sscanf(p, "%lld", &sval) != 1)
+				return -EINVAL;
+		}
 
 		reg->valid = true;
 		for (t = first_t; t <= last_t; t++) {
@@ -1075,9 +1086,13 @@ static int parse_reg_state(const char *s, struct reg_state *reg)
 
 		if (mcnt) {
 			/* populate all matched fields */
-			fmt = fields[midxs[0]].fmt;
-			if (sscanf(p, fmt, &val) != 1)
-				return -EINVAL;
+			if (p[0] == '0' && p[1] == 'x') {
+				if (sscanf(p, "%llx", &val) != 1)
+					return -EINVAL;
+			} else {
+				if (sscanf(p, "%lld", &val) != 1)
+					return -EINVAL;
+			}
 
 			for (i = 0; i < mcnt; i++) {
 				f = &fields[midxs[i]];
