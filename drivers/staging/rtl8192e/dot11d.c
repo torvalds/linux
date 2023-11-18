@@ -12,28 +12,7 @@ struct channel_list {
 	u8      len;
 };
 
-static struct channel_list channel_array[] = {
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 36, 40, 44, 48, 52, 56, 60, 64,
-	  149, 153, 157, 161, 165}, 24},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 11},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 36, 40, 44, 48, 52, 56,
-	  60, 64}, 21},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 36, 40, 44, 48, 52,
-	  56, 60, 64}, 22},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 36, 40, 44, 48, 52,
-	  56, 60, 64}, 22},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 36, 40, 44, 48, 52,
-	  56, 60, 64}, 22},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 36, 40, 44, 48, 52,
-	 56, 60, 64}, 22},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14}, 14},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13},
-	{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 36, 40, 44, 48, 52,
-	  56, 60, 64}, 21}
-};
+static struct channel_list channel_array = {{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13};
 
 void dot11d_init(struct rtllib_device *ieee)
 {
@@ -49,7 +28,7 @@ void dot11d_init(struct rtllib_device *ieee)
 }
 EXPORT_SYMBOL(dot11d_init);
 
-void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
+void dot11d_channel_map(struct rtllib_device *ieee)
 {
 	int i;
 
@@ -57,10 +36,8 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 
 	memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
 	       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-	for (i = 0; i < channel_array[channel_plan].len; i++) {
-		GET_DOT11D_INFO(ieee)->channel_map[channel_array
-				[channel_plan].channel[i]] = 1;
-	}
+	for (i = 0; i < channel_array.len; i++)
+		GET_DOT11D_INFO(ieee)->channel_map[channel_array.channel[i]] = 1;
 
 	for (i = 12; i <= 13; i++)
 		GET_DOT11D_INFO(ieee)->channel_map[i] = 2;

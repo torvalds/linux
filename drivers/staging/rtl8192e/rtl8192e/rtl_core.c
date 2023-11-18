@@ -796,7 +796,7 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	dot11d_init(priv->rtllib);
-	dot11d_channel_map(COUNTRY_CODE_WORLD_WIDE_13, priv->rtllib);
+	dot11d_channel_map(priv->rtllib);
 	for (i = 1; i <= 11; i++)
 		(priv->rtllib->active_channel_map)[i] = 1;
 	(priv->rtllib->active_channel_map)[12] = 2;
