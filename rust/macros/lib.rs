@@ -254,8 +254,8 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Within the `paste!` macro, identifiers inside `[<` and `>]` are concatenated together to form a
 /// single identifier.
 ///
-/// This is similar to the [`paste`] crate, but with pasting feature limited to identifiers
-/// (literals, lifetimes and documentation strings are not supported). There is a difference in
+/// This is similar to the [`paste`] crate, but with pasting feature limited to identifiers and
+/// literals (lifetimes and documentation strings are not supported). There is a difference in
 /// supported modifiers as well.
 ///
 /// # Example
@@ -335,6 +335,24 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 /// );
 ///
 /// assert_eq!(br_ok(), binder_driver_return_protocol_BR_OK);
+/// ```
+///
+/// # Literals
+///
+/// Literals can also be concatenated with other identifiers:
+///
+/// ```ignore
+/// macro_rules! create_numbered_fn {
+///     ($name:literal, $val:literal) => {
+///         kernel::macros::paste! {
+///             fn [<some_ $name _fn $val>]() -> u32 { $val }
+///         }
+///     };
+/// }
+///
+/// create_numbered_fn!("foo", 100);
+///
+/// assert_eq!(some_foo_fn100(), 100)
 /// ```
 ///
 /// [`paste`]: https://docs.rs/paste/
