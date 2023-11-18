@@ -443,6 +443,10 @@ load:
 
 	while (getline_stripped(&line, &line_asize, in) != -1) {
 		conf_lineno++;
+
+		if (!line[0]) /* blank line */
+			continue;
+
 		if (line[0] == '#') {
 			if (line[1] != ' ')
 				continue;
@@ -458,17 +462,20 @@ load:
 				continue;
 
 			val = "n";
-		} else if (memcmp(line, CONFIG_, strlen(CONFIG_)) == 0) {
+		} else {
+			if (memcmp(line, CONFIG_, strlen(CONFIG_))) {
+				conf_warning("unexpected data: %s", line);
+				continue;
+			}
+
 			sym_name = line + strlen(CONFIG_);
 			p = strchr(sym_name, '=');
-			if (!p)
+			if (!p) {
+				conf_warning("unexpected data: %s", line);
 				continue;
+			}
 			*p = 0;
 			val = p + 1;
-		} else {
-			if (line[0] != '\0')
-				conf_warning("unexpected data: %s", line);
-			continue;
 		}
 
 		sym = sym_find(sym_name);
