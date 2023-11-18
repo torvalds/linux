@@ -387,23 +387,15 @@ static void _rtl92e_read_eeprom_info(struct net_device *dev)
 
 	rtl92e_init_adaptive_rate(dev);
 
-	priv->chnl_plan = priv->eeprom_chnl_plan;
-
 	switch (priv->eeprom_customer_id) {
 	case EEPROM_CID_NetCore:
 		priv->customer_id = RT_CID_819X_NETCORE;
 		break;
 	case EEPROM_CID_TOSHIBA:
 		priv->customer_id = RT_CID_TOSHIBA;
-		if (priv->eeprom_chnl_plan & 0x80)
-			priv->chnl_plan = priv->eeprom_chnl_plan & 0x7f;
-		else
-			priv->chnl_plan = 0x0;
 		break;
 	}
 
-	if (priv->chnl_plan > CHANNEL_PLAN_LEN - 1)
-		priv->chnl_plan = 0;
 	priv->chnl_plan = COUNTRY_CODE_WORLD_WIDE_13;
 
 	if (priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
