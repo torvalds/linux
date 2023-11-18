@@ -778,9 +778,9 @@ static void btree_interior_update_work(struct work_struct *work)
 	}
 }
 
-static void btree_update_set_nodes_written(struct closure *cl)
+static CLOSURE_CALLBACK(btree_update_set_nodes_written)
 {
-	struct btree_update *as = container_of(cl, struct btree_update, cl);
+	closure_type(as, struct btree_update, cl);
 	struct bch_fs *c = as->c;
 
 	mutex_lock(&c->btree_interior_update_lock);
