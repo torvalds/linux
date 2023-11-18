@@ -710,12 +710,6 @@ static inline void name at					\
 #define memcpy_toio memcpy_toio
 
 /*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
-/*
  * We don't do relaxed operations yet, at least not with this semantic
  */
 #define readb_relaxed(addr)	readb(addr)

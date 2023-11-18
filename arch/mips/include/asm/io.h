@@ -507,7 +507,6 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define csr_out32(v, a) (*(volatile u32 *)((unsigned long)(a) + __CSR_32_ADJUST) = (v))
 #define csr_in32(a)    (*(volatile u32 *)((unsigned long)(a) + __CSR_32_ADJUST))
 
-
 #define __raw_readb __raw_readb
 #define __raw_readw __raw_readw
 #define __raw_readl __raw_readl
@@ -560,14 +559,6 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define outsb outsb
 #define outsw outsw
 #define outsl outsl
-
-
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-#define unxlate_dev_mem_ptr(p, v) do { } while (0)
 
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
 

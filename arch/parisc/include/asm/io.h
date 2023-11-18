@@ -265,12 +265,6 @@ extern void iowrite64be(u64 val, void __iomem *addr);
 #define iowrite16_rep iowrite16_rep
 #define iowrite32_rep iowrite32_rep
 
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
 extern int devmem_is_allowed(unsigned long pfn);
 
 #include <asm-generic/io.h>

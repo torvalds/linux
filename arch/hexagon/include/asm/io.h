@@ -59,12 +59,6 @@ static inline void *phys_to_virt(unsigned long address)
 }
 
 /*
- * convert a physical pointer to a virtual kernel pointer for
- * /dev/mem access.
- */
-#define xlate_dev_mem_ptr(p)    __va(p)
-
-/*
  * IO port access primitives.  Hexagon doesn't have special IO access
  * instructions; all I/O is memory mapped.
  *
