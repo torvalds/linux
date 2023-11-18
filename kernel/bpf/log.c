@@ -615,7 +615,9 @@ static bool type_is_map_ptr(enum bpf_reg_type t) {
 	}
 }
 
-static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_state *reg)
+static void print_reg_state(struct bpf_verifier_env *env,
+			    const struct bpf_func_state *state,
+			    const struct bpf_reg_state *reg)
 {
 	enum bpf_reg_type t;
 	const char *sep = "";
@@ -623,10 +625,8 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 	t = reg->type;
 	if (t == SCALAR_VALUE && reg->precise)
 		verbose(env, "P");
-	if ((t == SCALAR_VALUE || t == PTR_TO_STACK) &&
-	    tnum_is_const(reg->var_off)) {
+	if (t == SCALAR_VALUE && tnum_is_const(reg->var_off)) {
 		/* reg->off should be 0 for SCALAR_VALUE */
-		verbose(env, "%s", t == SCALAR_VALUE ? "" : reg_type_str(env, t));
 		verbose_snum(env, reg->var_off.value + reg->off);
 		return;
 	}
@@ -637,6 +637,14 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 #define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, ##__VA_ARGS__); sep = ","; })
 
 	verbose(env, "%s", reg_type_str(env, t));
+	if (t == PTR_TO_STACK) {
+		if (state->frameno != reg->frameno)
+			verbose(env, "[%d]", reg->frameno);
+		if (tnum_is_const(reg->var_off)) {
+			verbose_snum(env, reg->var_off.value + reg->off);
+			return;
+		}
+	}
 	if (base_type(t) == PTR_TO_BTF_ID)
 		verbose(env, "%s", btf_type_name(reg->btf, reg->btf_id));
 	verbose(env, "(");
@@ -698,7 +706,7 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 		verbose(env, " R%d", i);
 		print_liveness(env, reg->live);
 		verbose(env, "=");
-		print_reg_state(env, reg);
+		print_reg_state(env, state, reg);
 	}
 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
 		char types_buf[BPF_REG_SIZE + 1];
@@ -731,7 +739,7 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 			print_liveness(env, reg->live);
 			verbose(env, "=%s", types_buf);
-			print_reg_state(env, reg);
+			print_reg_state(env, state, reg);
 			break;
 		case STACK_DYNPTR:
 			/* skip to main dynptr slot */
