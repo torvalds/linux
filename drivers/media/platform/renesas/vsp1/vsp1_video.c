@@ -526,11 +526,19 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 static int vsp1_video_pipeline_init(struct vsp1_pipeline *pipe,
 				    struct vsp1_video *video)
 {
+	int ret;
+
 	vsp1_pipeline_init(pipe);
 
 	pipe->frame_end = vsp1_video_pipeline_frame_end;
 
-	return vsp1_video_pipeline_build(pipe, video);
+	ret = vsp1_video_pipeline_build(pipe, video);
+	if (ret)
+		return ret;
+
+	vsp1_pipeline_dump(pipe, "video");
+
+	return 0;
 }
 
 static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)

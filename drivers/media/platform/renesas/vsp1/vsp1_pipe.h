@@ -9,6 +9,7 @@
 #ifndef __VSP1_PIPE_H__
 #define __VSP1_PIPE_H__
 
+#include <linux/dynamic_debug.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
@@ -141,6 +142,24 @@ struct vsp1_pipeline {
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_init(struct vsp1_pipeline *pipe);
+
+void __vsp1_pipeline_dump(struct _ddebug *, struct vsp1_pipeline *pipe,
+			  const char *msg);
+
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
+#define vsp1_pipeline_dump(pipe, msg)			\
+	_dynamic_func_call("vsp1_pipeline_dump()", __vsp1_pipeline_dump, pipe, msg)
+#elif defined(DEBUG)
+#define vsp1_pipeline_dump(pipe, msg)			\
+	__vsp1_pipeline_dump(NULL, pipe, msg)
+#else
+#define vsp1_pipeline_dump(pipe, msg)			\
+({							\
+	if (0)						\
+		__vsp1_pipeline_dump(NULL, pipe, msg);	\
+})
+#endif
 
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe);
 bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe);

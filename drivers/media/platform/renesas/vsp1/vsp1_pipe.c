@@ -301,6 +301,28 @@ void vsp1_pipeline_init(struct vsp1_pipeline *pipe)
 	pipe->state = VSP1_PIPELINE_STOPPED;
 }
 
+void __vsp1_pipeline_dump(struct _ddebug *dbg, struct vsp1_pipeline *pipe,
+			  const char *msg)
+{
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	struct vsp1_entity *entity;
+	bool first = true;
+
+	printk(KERN_DEBUG "%s: %s: pipe: ", dev_name(vsp1->dev), msg);
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		const char *name;
+
+		name = strchrnul(entity->subdev.name, ' ');
+		name = name ? name + 1 : entity->subdev.name;
+
+		pr_cont("%s%s", first ? "" : ", ", name);
+		first = false;
+	}
+
+	pr_cont("\n");
+}
+
 /* Must be called with the pipe irqlock held. */
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 {
