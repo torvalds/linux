@@ -7,14 +7,14 @@
 
 #include "xe_device.h"
 #include "xe_gt.h"
-#include "xe_gt_idle_sysfs.h"
+#include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
 #include "xe_guc_pc.h"
 
 /**
  * DOC: Xe GT Idle
  *
- * Provides sysfs entries for idle properties of GT
+ * Contains functions that init GT idle features like C6
  *
  * device/gt#/gtidle/name - name of the state
  * device/gt#/gtidle/idle_residency_ms - Provides residency of the idle state in ms

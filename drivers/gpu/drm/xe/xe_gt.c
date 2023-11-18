@@ -23,7 +23,7 @@
 #include "xe_ggtt.h"
 #include "xe_gsc.h"
 #include "xe_gt_clock.h"
-#include "xe_gt_idle_sysfs.h"
+#include "xe_gt_idle.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_printk.h"

@@ -7,7 +7,7 @@
 #define _XE_GT_TYPES_H_
 
 #include "xe_force_wake_types.h"
-#include "xe_gt_idle_sysfs_types.h"
+#include "xe_gt_idle_types.h"
 #include "xe_hw_engine_types.h"
 #include "xe_hw_fence_types.h"
 #include "xe_reg_sr_types.h"
