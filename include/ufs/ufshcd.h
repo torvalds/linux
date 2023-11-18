@@ -16,6 +16,7 @@
 #include <linux/blk-crypto-profile.h>
 #include <linux/blk-mq.h>
 #include <linux/devfreq.h>
+#include <linux/fault-inject.h>
 #include <linux/msi.h>
 #include <linux/pm_runtime.h>
 #include <linux/dma-direction.h>
@@ -1057,6 +1058,10 @@ struct ufs_hba {
 	struct dentry *debugfs_root;
 	struct delayed_work debugfs_ee_work;
 	u32 debugfs_ee_rate_limit_ms;
+#endif
+#ifdef CONFIG_SCSI_UFS_FAULT_INJECTION
+	struct fault_attr trigger_eh_attr;
+	struct fault_attr timeout_attr;
 #endif
 	u32 luns_avail;
 	unsigned int nr_hw_queues;
