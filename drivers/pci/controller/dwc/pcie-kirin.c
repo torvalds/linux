@@ -366,7 +366,6 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 				      struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	char name[32];
 	int ret, i;
 
 	/* This is an optional property */
@@ -387,9 +386,8 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 		if (pcie->gpio_id_clkreq[i] < 0)
 			return pcie->gpio_id_clkreq[i];
 
-		sprintf(name, "pcie_clkreq_%d", i);
-		pcie->clkreq_names[i] = devm_kstrdup_const(dev, name,
-							    GFP_KERNEL);
+		pcie->clkreq_names[i] = devm_kasprintf(dev, GFP_KERNEL,
+						       "pcie_clkreq_%d", i);
 		if (!pcie->clkreq_names[i])
 			return -ENOMEM;
 	}
@@ -404,7 +402,6 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 	struct device *dev = &pdev->dev;
 	struct device_node *parent, *child;
 	int ret, slot, i;
-	char name[32];
 
 	for_each_available_child_of_node(node, parent) {
 		for_each_available_child_of_node(parent, child) {
@@ -430,9 +427,9 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 
 			slot = PCI_SLOT(ret);
 
-			sprintf(name, "pcie_perst_%d", slot);
-			pcie->reset_names[i] = devm_kstrdup_const(dev, name,
-								GFP_KERNEL);
+			pcie->reset_names[i] = devm_kasprintf(dev, GFP_KERNEL,
+							      "pcie_perst_%d",
+							      slot);
 			if (!pcie->reset_names[i]) {
 				ret = -ENOMEM;
 				goto put_node;
