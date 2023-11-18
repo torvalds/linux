@@ -62,24 +62,9 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 				[channel_plan].channel[i]] = 1;
 	}
 
-	switch (channel_plan) {
-	case COUNTRY_CODE_GLOBAL_DOMAIN:
-		ieee->global_domain = true;
-		for (i = 12; i <= 14; i++)
-			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
-		ieee->bss_start_channel = 10;
-		break;
-
-	case COUNTRY_CODE_WORLD_WIDE_13:
-		for (i = 12; i <= 13; i++)
-			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
-		ieee->bss_start_channel = 10;
-		break;
-
-	default:
-		ieee->bss_start_channel = 1;
-		break;
-	}
+	for (i = 12; i <= 13; i++)
+		GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
+	ieee->bss_start_channel = 10;
 }
 EXPORT_SYMBOL(dot11d_channel_map);
 
