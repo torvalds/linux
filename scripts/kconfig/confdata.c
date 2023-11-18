@@ -289,16 +289,12 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 #define LINE_GROWTH 16
 static int add_byte(int c, char **lineptr, size_t slen, size_t *n)
 {
-	char *nline;
 	size_t new_size = slen + 1;
+
 	if (new_size > *n) {
 		new_size += LINE_GROWTH - 1;
 		new_size *= 2;
-		nline = xrealloc(*lineptr, new_size);
-		if (!nline)
-			return -1;
-
-		*lineptr = nline;
+		*lineptr = xrealloc(*lineptr, new_size);
 		*n = new_size;
 	}
 
