@@ -10122,6 +10122,15 @@ mlxsw_reg_mgir_unpack(char *payload, u32 *hw_rev, char *fw_info_psid,
 
 MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
 
+enum mlxsw_reg_mrsr_command {
+	/* Switch soft reset, does not reset PCI firmware. */
+	MLXSW_REG_MRSR_COMMAND_SOFTWARE_RESET = 1,
+	/* Reset will be done when PCI link will be disabled.
+	 * This command will reset PCI firmware also.
+	 */
+	MLXSW_REG_MRSR_COMMAND_RESET_AT_PCI_DISABLE = 6,
+};
+
 /* reg_mrsr_command
  * Reset/shutdown command
  * 0 - do nothing
@@ -10130,10 +10139,11 @@ MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
  */
 MLXSW_ITEM32(reg, mrsr, command, 0x00, 0, 4);
 
-static inline void mlxsw_reg_mrsr_pack(char *payload)
+static inline void mlxsw_reg_mrsr_pack(char *payload,
+				       enum mlxsw_reg_mrsr_command command)
 {
 	MLXSW_REG_ZERO(mrsr, payload);
-	mlxsw_reg_mrsr_command_set(payload, 1);
+	mlxsw_reg_mrsr_command_set(payload, command);
 }
 
 /* MLCR - Management LED Control Register
@@ -10584,6 +10594,8 @@ MLXSW_ITEM32(reg, mcam, feature_group, 0x00, 16, 8);
 enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
 	/* If set, MCIA supports 128 bytes payloads. Otherwise, 48 bytes. */
 	MLXSW_REG_MCAM_MCIA_128B = 34,
+	/* If set, MRSR.command=6 is supported. */
+	MLXSW_REG_MCAM_PCI_RESET = 48,
 };
 
 #define MLXSW_REG_BYTES_PER_DWORD 0x4
