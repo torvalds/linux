@@ -553,6 +553,17 @@ static void print_scalar_ranges(struct bpf_verifier_env *env,
 	}
 }
 
+static bool type_is_map_ptr(enum bpf_reg_type t) {
+	switch (base_type(t)) {
+	case CONST_PTR_TO_MAP:
+	case PTR_TO_MAP_KEY:
+	case PTR_TO_MAP_VALUE:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_state *reg)
 {
 	enum bpf_reg_type t;
@@ -584,16 +595,17 @@ static void print_reg_state(struct bpf_verifier_env *env, const struct bpf_reg_s
 		verbose_a("ref_obj_id=%d", reg->ref_obj_id);
 	if (type_is_non_owning_ref(reg->type))
 		verbose_a("%s", "non_own_ref");
+	if (type_is_map_ptr(t)) {
+		if (reg->map_ptr->name[0])
+			verbose_a("map=%s", reg->map_ptr->name);
+		verbose_a("ks=%d,vs=%d",
+			  reg->map_ptr->key_size,
+			  reg->map_ptr->value_size);
+	}
 	if (t != SCALAR_VALUE)
 		verbose_a("off=%d", reg->off);
 	if (type_is_pkt_pointer(t))
 		verbose_a("r=%d", reg->range);
-	else if (base_type(t) == CONST_PTR_TO_MAP ||
-		 base_type(t) == PTR_TO_MAP_KEY ||
-		 base_type(t) == PTR_TO_MAP_VALUE)
-		verbose_a("ks=%d,vs=%d",
-			  reg->map_ptr->key_size,
-			  reg->map_ptr->value_size);
 	if (tnum_is_const(reg->var_off)) {
 		/* Typically an immediate SCALAR_VALUE, but
 		 * could be a pointer whose offset is too big
