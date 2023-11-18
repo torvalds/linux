@@ -618,7 +618,6 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 			  bool print_all)
 {
 	const struct bpf_reg_state *reg;
-	enum bpf_reg_type t;
 	int i;
 
 	if (state->frameno)
@@ -637,32 +636,38 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
 		char types_buf[BPF_REG_SIZE + 1];
 		bool valid = false;
+		u8 slot_type;
 		int j;
 
+		if (!print_all && !stack_slot_scratched(env, i))
+			continue;
+
 		for (j = 0; j < BPF_REG_SIZE; j++) {
-			if (state->stack[i].slot_type[j] != STACK_INVALID)
+			slot_type = state->stack[i].slot_type[j];
+			if (slot_type != STACK_INVALID)
 				valid = true;
-			types_buf[j] = slot_type_char[state->stack[i].slot_type[j]];
+			types_buf[j] = slot_type_char[slot_type];
 		}
 		types_buf[BPF_REG_SIZE] = 0;
 		if (!valid)
 			continue;
-		if (!print_all && !stack_slot_scratched(env, i))
-			continue;
+
+		reg = &state->stack[i].spilled_ptr;
 		switch (state->stack[i].slot_type[BPF_REG_SIZE - 1]) {
 		case STACK_SPILL:
-			reg = &state->stack[i].spilled_ptr;
-			t = reg->type;
+			/* print MISC/ZERO/INVALID slots above subreg spill */
+			for (j = 0; j < BPF_REG_SIZE; j++)
+				if (state->stack[i].slot_type[j] == STACK_SPILL)
+					break;
+			types_buf[j] = '\0';
 
 			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 			print_liveness(env, reg->live);
-			verbose(env, "=%s", t == SCALAR_VALUE ? "" : reg_type_str(env, t));
-			if (t == SCALAR_VALUE && reg->precise)
-				verbose(env, "P");
-			if (t == SCALAR_VALUE && tnum_is_const(reg->var_off))
-				verbose(env, "%lld", reg->var_off.value + reg->off);
+			verbose(env, "=%s", types_buf);
+			print_reg_state(env, reg);
 			break;
 		case STACK_DYNPTR:
+			/* skip to main dynptr slot */
 			i += BPF_DYNPTR_NR_SLOTS - 1;
 			reg = &state->stack[i].spilled_ptr;
 
@@ -674,7 +679,6 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 			break;
 		case STACK_ITER:
 			/* only main slot has ref_obj_id set; skip others */
-			reg = &state->stack[i].spilled_ptr;
 			if (!reg->ref_obj_id)
 				continue;
 
@@ -688,12 +692,6 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 		case STACK_MISC:
 		case STACK_ZERO:
 		default:
-			reg = &state->stack[i].spilled_ptr;
-
-			for (j = 0; j < BPF_REG_SIZE; j++)
-				types_buf[j] = slot_type_char[state->stack[i].slot_type[j]];
-			types_buf[BPF_REG_SIZE] = 0;
-
 			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 			print_liveness(env, reg->live);
 			verbose(env, "=%s", types_buf);
