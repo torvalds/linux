@@ -23882,8 +23882,7 @@ T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 P:	Documentation/filesystems/xfs-maintainer-entry-profile.rst
 F:	Documentation/ABI/testing/sysfs-fs-xfs
 F:	Documentation/admin-guide/xfs.rst
-F:	Documentation/filesystems/xfs-delayed-logging-design.rst
-F:	Documentation/filesystems/xfs-self-describing-metadata.rst
+F:	Documentation/filesystems/xfs-*
 F:	fs/xfs/
 F:	include/uapi/linux/dqblk_xfs.h
 F:	include/uapi/linux/fsmap.h
