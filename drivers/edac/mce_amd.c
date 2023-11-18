@@ -1163,11 +1163,51 @@ static void decode_mc6_mce(struct mce *m)
 	pr_emerg(HW_ERR "Corrupted MC6 MCE info?\n");
 }
 
+static const char * const smca_long_names[] = {
+	[SMCA_LS ... SMCA_LS_V2]	= "Load Store Unit",
+	[SMCA_IF]			= "Instruction Fetch Unit",
+	[SMCA_L2_CACHE]			= "L2 Cache",
+	[SMCA_DE]			= "Decode Unit",
+	[SMCA_RESERVED]			= "Reserved",
+	[SMCA_EX]			= "Execution Unit",
+	[SMCA_FP]			= "Floating Point Unit",
+	[SMCA_L3_CACHE]			= "L3 Cache",
+	[SMCA_CS ... SMCA_CS_V2]	= "Coherent Slave",
+	[SMCA_PIE]			= "Power, Interrupts, etc.",
+
+	/* UMC v2 is separate because both of them can exist in a single system. */
+	[SMCA_UMC]			= "Unified Memory Controller",
+	[SMCA_UMC_V2]			= "Unified Memory Controller v2",
+	[SMCA_PB]			= "Parameter Block",
+	[SMCA_PSP ... SMCA_PSP_V2]	= "Platform Security Processor",
+	[SMCA_SMU ... SMCA_SMU_V2]	= "System Management Unit",
+	[SMCA_MP5]			= "Microprocessor 5 Unit",
+	[SMCA_MPDMA]			= "MPDMA Unit",
+	[SMCA_NBIO]			= "Northbridge IO Unit",
+	[SMCA_PCIE ... SMCA_PCIE_V2]	= "PCI Express Unit",
+	[SMCA_XGMI_PCS]			= "Ext Global Memory Interconnect PCS Unit",
+	[SMCA_NBIF]			= "NBIF Unit",
+	[SMCA_SHUB]			= "System Hub Unit",
+	[SMCA_SATA]			= "SATA Unit",
+	[SMCA_USB]			= "USB Unit",
+	[SMCA_GMI_PCS]			= "Global Memory Interconnect PCS Unit",
+	[SMCA_XGMI_PHY]			= "Ext Global Memory Interconnect PHY Unit",
+	[SMCA_WAFL_PHY]			= "WAFL PHY Unit",
+	[SMCA_GMI_PHY]			= "Global Memory Interconnect PHY Unit",
+};
+
+static const char *smca_get_long_name(enum smca_bank_types t)
+{
+	if (t >= N_SMCA_BANK_TYPES)
+		return NULL;
+
+	return smca_long_names[t];
+}
+
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_error(struct mce *m)
 {
 	enum smca_bank_types bank_type = smca_get_bank_type(m->extcpu, m->bank);
-	const char *ip_name;
 	u8 xec = XEC(m->status, xec_mask);
 
 	if (bank_type >= N_SMCA_BANK_TYPES)
@@ -1178,9 +1218,7 @@ static void decode_smca_error(struct mce *m)
 		return;
 	}
 
-	ip_name = smca_get_long_name(bank_type);
-
-	pr_emerg(HW_ERR "%s Ext. Error Code: %d", ip_name, xec);
+	pr_emerg(HW_ERR "%s Ext. Error Code: %d", smca_get_long_name(bank_type), xec);
 
 	/* Only print the decode of valid error codes */
 	if (xec < smca_mce_descs[bank_type].num_descs)

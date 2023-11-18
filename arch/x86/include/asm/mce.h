@@ -333,7 +333,6 @@ enum smca_bank_types {
 	N_SMCA_BANK_TYPES
 };
 
-extern const char *smca_get_long_name(enum smca_bank_types t);
 extern bool amd_mce_is_memory_error(struct mce *m);
 
 extern int mce_threshold_create_device(unsigned int cpu);
