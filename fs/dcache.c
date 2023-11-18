@@ -2054,75 +2054,55 @@ struct dentry *d_make_root(struct inode *root_inode)
 }
 EXPORT_SYMBOL(d_make_root);
 
-static struct dentry *__d_instantiate_anon(struct dentry *dentry,
-					   struct inode *inode,
-					   bool disconnected)
-{
-	struct dentry *res;
-	unsigned add_flags;
-
-	security_d_instantiate(dentry, inode);
-	spin_lock(&inode->i_lock);
-	res = __d_find_any_alias(inode);
-	if (res) {
-		spin_unlock(&inode->i_lock);
-		dput(dentry);
-		goto out_iput;
-	}
-
-	/* attach a disconnected dentry */
-	add_flags = d_flags_for_inode(inode);
-
-	if (disconnected)
-		add_flags |= DCACHE_DISCONNECTED;
-
-	spin_lock(&dentry->d_lock);
-	__d_set_inode_and_type(dentry, inode, add_flags);
-	hlist_add_head(&dentry->d_u.d_alias, &inode->i_dentry);
-	if (!disconnected) {
-		hlist_bl_lock(&dentry->d_sb->s_roots);
-		hlist_bl_add_head(&dentry->d_hash, &dentry->d_sb->s_roots);
-		hlist_bl_unlock(&dentry->d_sb->s_roots);
-	}
-	spin_unlock(&dentry->d_lock);
-	spin_unlock(&inode->i_lock);
-
-	return dentry;
-
- out_iput:
-	iput(inode);
-	return res;
-}
-
-struct dentry *d_instantiate_anon(struct dentry *dentry, struct inode *inode)
-{
-	return __d_instantiate_anon(dentry, inode, true);
-}
-EXPORT_SYMBOL(d_instantiate_anon);
-
 static struct dentry *__d_obtain_alias(struct inode *inode, bool disconnected)
 {
-	struct dentry *tmp;
-	struct dentry *res;
+	struct super_block *sb;
+	struct dentry *new, *res;
 
 	if (!inode)
 		return ERR_PTR(-ESTALE);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	res = d_find_any_alias(inode);
-	if (res)
-		goto out_iput;
+	sb = inode->i_sb;
 
-	tmp = d_alloc_anon(inode->i_sb);
-	if (!tmp) {
+	res = d_find_any_alias(inode); /* existing alias? */
+	if (res)
+		goto out;
+
+	new = d_alloc_anon(sb);
+	if (!new) {
 		res = ERR_PTR(-ENOMEM);
-		goto out_iput;
+		goto out;
 	}
 
-	return __d_instantiate_anon(tmp, inode, disconnected);
+	security_d_instantiate(new, inode);
+	spin_lock(&inode->i_lock);
+	res = __d_find_any_alias(inode); /* recheck under lock */
+	if (likely(!res)) { /* still no alias, attach a disconnected dentry */
+		unsigned add_flags = d_flags_for_inode(inode);
 
-out_iput:
+		if (disconnected)
+			add_flags |= DCACHE_DISCONNECTED;
+
+		spin_lock(&new->d_lock);
+		__d_set_inode_and_type(new, inode, add_flags);
+		hlist_add_head(&new->d_u.d_alias, &inode->i_dentry);
+		if (!disconnected) {
+			hlist_bl_lock(&sb->s_roots);
+			hlist_bl_add_head(&new->d_hash, &sb->s_roots);
+			hlist_bl_unlock(&sb->s_roots);
+		}
+		spin_unlock(&new->d_lock);
+		spin_unlock(&inode->i_lock);
+		inode = NULL; /* consumed by new->d_inode */
+		res = new;
+	} else {
+		spin_unlock(&inode->i_lock);
+		dput(new);
+	}
+
+ out:
 	iput(inode);
 	return res;
 }
