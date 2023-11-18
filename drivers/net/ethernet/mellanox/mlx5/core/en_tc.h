@@ -203,8 +203,6 @@ int mlx5e_tc_configure_matchall(struct mlx5e_priv *priv,
 				struct tc_cls_matchall_offload *f);
 int mlx5e_tc_delete_matchall(struct mlx5e_priv *priv,
 			     struct tc_cls_matchall_offload *f);
-void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
-			     struct tc_cls_matchall_offload *ma);
 
 struct mlx5e_encap_entry;
 void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,

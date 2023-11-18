@@ -112,8 +112,18 @@ static const struct counter_desc vport_rep_stats_desc[] = {
 			     tx_vport_rdma_multicast_bytes) },
 };
 
+static const struct counter_desc vport_rep_loopback_stats_desc[] = {
+	{ MLX5E_DECLARE_STAT(struct mlx5e_rep_stats,
+			     vport_loopback_packets) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_rep_stats,
+			     vport_loopback_bytes) },
+};
+
 #define NUM_VPORT_REP_SW_COUNTERS ARRAY_SIZE(sw_rep_stats_desc)
 #define NUM_VPORT_REP_HW_COUNTERS ARRAY_SIZE(vport_rep_stats_desc)
+#define NUM_VPORT_REP_LOOPBACK_COUNTERS(dev) \
+	(MLX5_CAP_GEN(dev, vport_counter_local_loopback) ? \
+	 ARRAY_SIZE(vport_rep_loopback_stats_desc) : 0)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(sw_rep)
 {
@@ -157,7 +167,8 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(sw_rep)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(vport_rep)
 {
-	return NUM_VPORT_REP_HW_COUNTERS;
+	return NUM_VPORT_REP_HW_COUNTERS +
+	       NUM_VPORT_REP_LOOPBACK_COUNTERS(priv->mdev);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(vport_rep)
@@ -166,6 +177,9 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(vport_rep)
 
 	for (i = 0; i < NUM_VPORT_REP_HW_COUNTERS; i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN, vport_rep_stats_desc[i].format);
+	for (i = 0; i < NUM_VPORT_REP_LOOPBACK_COUNTERS(priv->mdev); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       vport_rep_loopback_stats_desc[i].format);
 	return idx;
 }
 
@@ -176,6 +190,9 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vport_rep)
 	for (i = 0; i < NUM_VPORT_REP_HW_COUNTERS; i++)
 		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
 						   vport_rep_stats_desc, i);
+	for (i = 0; i < NUM_VPORT_REP_LOOPBACK_COUNTERS(priv->mdev); i++)
+		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
+						   vport_rep_loopback_stats_desc, i);
 	return idx;
 }
 
@@ -246,6 +263,13 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)
 		MLX5_GET_CTR(out, transmitted_ib_multicast.octets);
 	rep_stats->tx_vport_rdma_multicast_bytes =
 		MLX5_GET_CTR(out, received_ib_multicast.octets);
+
+	if (MLX5_CAP_GEN(priv->mdev, vport_counter_local_loopback)) {
+		rep_stats->vport_loopback_packets =
+			MLX5_GET_CTR(out, local_loopback.packets);
+		rep_stats->vport_loopback_bytes =
+			MLX5_GET_CTR(out, local_loopback.octets);
+	}
 
 out:
 	kvfree(out);
