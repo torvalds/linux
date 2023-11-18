@@ -167,6 +167,8 @@ static int bch2_journal_replay(struct bch_fs *c)
 			goto err;
 	}
 
+	BUG_ON(!atomic_read(&keys->ref));
+
 	for (i = 0; i < keys->nr; i++) {
 		k = keys_sorted[i];
 
@@ -187,6 +189,9 @@ static int bch2_journal_replay(struct bch_fs *c)
 			goto err;
 		}
 	}
+
+	if (!c->opts.keep_journal)
+		bch2_journal_keys_put_initial(c);
 
 	replay_now_at(j, j->replay_journal_seq_end);
 	j->replay_journal_seq = 0;
@@ -909,10 +914,8 @@ out:
 	bch2_flush_fsck_errs(c);
 
 	if (!c->opts.keep_journal &&
-	    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) {
-		bch2_journal_keys_free(&c->journal_keys);
-		bch2_journal_entries_free(c);
-	}
+	    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
+		bch2_journal_keys_put_initial(c);
 	kfree(clean);
 
 	if (!ret && test_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags)) {

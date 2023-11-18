@@ -638,6 +638,8 @@ struct journal_keys {
 	size_t			gap;
 	size_t			nr;
 	size_t			size;
+	atomic_t		ref;
+	bool			initial_ref_held;
 };
 
 struct btree_trans_buf {
