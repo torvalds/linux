@@ -16,6 +16,7 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_types.h"
 #include "xe_guc_ct.h"
@@ -869,12 +870,23 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 
-	memset(pc->bo->vmap.vaddr, 0, size);
-	slpc_shared_data_write(pc, header.size, size);
-
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (ret)
 		goto out_fail_force_wake;
+
+	if (xe->info.skip_guc_pc) {
+		if (xe->info.platform != XE_PVC)
+			xe_gt_idle_enable_c6(gt);
+
+		/* Request max possible since dynamic freq mgmt is not enabled */
+		pc_set_cur_freq(pc, UINT_MAX);
+
+		ret = 0;
+		goto out;
+	}
+
+	memset(pc->bo->vmap.vaddr, 0, size);
+	slpc_shared_data_write(pc, header.size, size);
 
 	ret = pc_action_reset(pc);
 	if (ret)
@@ -911,9 +923,16 @@ out_fail_force_wake:
  */
 int xe_guc_pc_stop(struct xe_guc_pc *pc)
 {
+	struct xe_device *xe = pc_to_xe(pc);
 	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
+
+	if (xe->info.skip_guc_pc) {
+		xe_gt_idle_disable_c6(pc_to_gt(pc));
+		ret = 0;
+		goto out;
+	}
 
 	mutex_lock(&pc->freq_lock);
 	pc->freq_ready = false;
@@ -935,6 +954,13 @@ out:
 
 void xe_guc_pc_fini(struct xe_guc_pc *pc)
 {
+	struct xe_device *xe = pc_to_xe(pc);
+
+	if (xe->info.skip_guc_pc) {
+		xe_gt_idle_disable_c6(pc_to_gt(pc));
+		return;
+	}
+
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
 	sysfs_remove_files(pc_to_gt(pc)->sysfs, pc_attrs);
@@ -954,6 +980,9 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 	struct xe_bo *bo;
 	u32 size = PAGE_ALIGN(sizeof(struct slpc_shared_data));
 	int err;
+
+	if (xe->info.skip_guc_pc)
+		return 0;
 
 	mutex_init(&pc->freq_lock);
 

@@ -10,6 +10,8 @@
 #include "xe_gt_idle.h"
 #include "xe_gt_sysfs.h"
 #include "xe_guc_pc.h"
+#include "regs/xe_gt_regs.h"
+#include "xe_mmio.h"
 
 /**
  * DOC: Xe GT Idle
@@ -165,4 +167,26 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 	if (err)
 		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
 			 __func__, err);
+}
+
+void xe_gt_idle_enable_c6(struct xe_gt *gt)
+{
+	xe_device_assert_mem_access(gt_to_xe(gt));
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
+
+	/* Units of 1280 ns for a total of 5s */
+	xe_mmio_write32(gt, RC_IDLE_HYSTERSIS, 0x3B9ACA);
+	/* Enable RC6 */
+	xe_mmio_write32(gt, RC_CONTROL,
+			RC_CTL_HW_ENABLE | RC_CTL_TO_MODE | RC_CTL_RC6_ENABLE);
+}
+
+void xe_gt_idle_disable_c6(struct xe_gt *gt)
+{
+	xe_device_assert_mem_access(gt_to_xe(gt));
+	xe_force_wake_assert_held(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+
+	xe_mmio_write32(gt, PG_ENABLE, 0);
+	xe_mmio_write32(gt, RC_CONTROL, 0);
+	xe_mmio_write32(gt, RC_STATE, 0);
 }
