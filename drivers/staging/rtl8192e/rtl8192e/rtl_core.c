@@ -226,16 +226,6 @@ static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	netdev_info(dev, "TXTIMEOUT");
 }
 
-static void _rtl92e_set_chan(struct net_device *dev, u8 ch)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	priv->chan = ch;
-
-	if (priv->rf_set_chan)
-		priv->rf_set_chan(dev, priv->chan);
-}
-
 static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -685,7 +675,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	priv->rtllib->softmac_hard_start_xmit	= _rtl92e_hard_start_xmit;
-	priv->rtllib->set_chan			= _rtl92e_set_chan;
+	priv->rtllib->set_chan			= rtl92e_set_channel;
 	priv->rtllib->link_change		= rtl92e_link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
 	priv->rtllib->check_nic_enough_desc	= _rtl92e_check_nic_enough_desc;
@@ -694,7 +684,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_wireless_mode		= rtl92e_set_wireless_mode;
 	priv->rtllib->leisure_ps_leave		= rtl92e_leisure_ps_leave;
 	priv->rtllib->set_bw_mode_handler	= rtl92e_set_bw_mode;
-	priv->rf_set_chan			= rtl92e_set_channel;
 
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
