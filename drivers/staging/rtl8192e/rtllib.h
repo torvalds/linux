@@ -1469,7 +1469,7 @@ struct rtllib_device {
 	 * This function can sleep. the driver should ensure
 	 * the radio has been switched before return.
 	 */
-	void (*set_chan)(struct net_device *dev, short ch);
+	void (*set_chan)(struct net_device *dev, u8 ch);
 
 	/* indicate the driver that the link state is changed
 	 * for example it may indicate the card is associated now.

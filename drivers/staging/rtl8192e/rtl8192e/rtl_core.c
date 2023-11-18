@@ -226,7 +226,7 @@ static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	netdev_info(dev, "TXTIMEOUT");
 }
 
-static void _rtl92e_set_chan(struct net_device *dev, short ch)
+static void _rtl92e_set_chan(struct net_device *dev, u8 ch)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
