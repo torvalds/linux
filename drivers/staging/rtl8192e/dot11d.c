@@ -55,13 +55,11 @@ void dot11d_channel_map(u8 channel_plan, struct rtllib_device *ieee)
 
 	ieee->global_domain = false;
 
-	if (channel_array[channel_plan].len != 0) {
-		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
-		       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-		for (i = 0; i < channel_array[channel_plan].len; i++) {
-			GET_DOT11D_INFO(ieee)->channel_map[channel_array
-					[channel_plan].channel[i]] = 1;
-		}
+	memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
+	       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
+	for (i = 0; i < channel_array[channel_plan].len; i++) {
+		GET_DOT11D_INFO(ieee)->channel_map[channel_array
+				[channel_plan].channel[i]] = 1;
 	}
 
 	switch (channel_plan) {
