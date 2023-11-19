@@ -444,9 +444,9 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 		 dma_chan_name(uap->dmatx.chan));
 
 	/* Optionally make use of an RX channel as well */
-	chan = dma_request_slave_channel(dev, "rx");
+	chan = dma_request_chan(dev, "rx");
 
-	if (!chan && plat && plat->dma_rx_param) {
+	if (IS_ERR(chan) && plat && plat->dma_rx_param) {
 		chan = dma_request_channel(mask, plat->dma_filter, plat->dma_rx_param);
 
 		if (!chan) {
@@ -455,7 +455,7 @@ static void pl011_dma_probe(struct uart_amba_port *uap)
 		}
 	}
 
-	if (chan) {
+	if (!IS_ERR(chan)) {
 		struct dma_slave_config rx_conf = {
 			.src_addr = uap->port.mapbase +
 				pl011_reg_to_offset(uap, REG_DR),
