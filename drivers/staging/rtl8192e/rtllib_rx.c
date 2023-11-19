@@ -1663,35 +1663,6 @@ static const char *get_info_element_string(u16 id)
 	}
 }
 
-static inline void rtllib_extract_country_ie(
-	struct rtllib_device *ieee,
-	struct rtllib_info_element *info_element,
-	struct rtllib_network *network,
-	u8 *addr2)
-{
-	if (IS_DOT11D_ENABLE(ieee)) {
-		if (info_element->len != 0) {
-			memcpy(network->CountryIeBuf, info_element->data,
-			       info_element->len);
-			network->CountryIeLen = info_element->len;
-
-			if (!IS_COUNTRY_IE_VALID(ieee)) {
-				if (rtllib_act_scanning(ieee, false) &&
-				    ieee->FirstIe_InScan)
-					netdev_info(ieee->dev,
-						    "Received beacon CountryIE, SSID: <%s>\n",
-						    network->ssid);
-				dot11d_update_country(ieee, addr2,
-						       info_element->len,
-						       info_element->data);
-			}
-		}
-
-		if (IS_EQUAL_CIE_SRC(ieee, addr2))
-			UPDATE_CIE_WATCHDOG(ieee);
-	}
-}
-
 static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				      struct rtllib_info_element *info_element,
 				      struct rtllib_network *network,
@@ -2146,8 +2117,6 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_COUNTRY:
 			netdev_dbg(ieee->dev, "MFIE_TYPE_COUNTRY: %d bytes\n",
 				   info_element->len);
-			rtllib_extract_country_ie(ieee, info_element, network,
-						  network->bssid);
 			break;
 /* TODO */
 		default:
