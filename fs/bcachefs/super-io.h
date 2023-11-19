@@ -84,6 +84,7 @@ void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
+int bch2_read_super_silent(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
 void __bch2_check_set_feature(struct bch_fs *, unsigned);
 
