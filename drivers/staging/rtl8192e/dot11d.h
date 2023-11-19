@@ -10,12 +10,6 @@
 
 #include "rtllib.h"
 
-struct chnl_txpow_triple {
-	u8 first_channel;
-	u8  num_channels;
-	u8  max_tx_power;
-};
-
 /**
  * struct rt_dot11d_info
  * @channel_map: holds channel values
