@@ -1324,8 +1324,6 @@ struct rtllib_device {
 	void *dot11d_info;
 	u8 active_channel_map[MAX_CHANNEL_NUMBER+1];
 
-	u8   bss_start_channel;
-
 	int rate;       /* current rate */
 	int basic_rate;
 
