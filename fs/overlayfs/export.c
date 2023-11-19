@@ -460,7 +460,7 @@ static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
 	 * For decoded lower dir file handle, lookup index by origin to check
 	 * if lower dir was copied up and and/or removed.
 	 */
-	if (!this && layer->idx && ofs->indexdir && !WARN_ON(!d_is_dir(real))) {
+	if (!this && layer->idx && ovl_indexdir(sb) && !WARN_ON(!d_is_dir(real))) {
 		index = ovl_lookup_index(ofs, NULL, real, false);
 		if (IS_ERR(index))
 			return index;
@@ -733,7 +733,7 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	}
 
 	/* Then lookup indexed upper/whiteout by origin fh */
-	if (ofs->indexdir) {
+	if (ovl_indexdir(sb)) {
 		index = ovl_get_index_fh(ofs, fh);
 		err = PTR_ERR(index);
 		if (IS_ERR(index)) {
