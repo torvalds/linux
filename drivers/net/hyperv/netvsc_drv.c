@@ -2531,6 +2531,21 @@ static int netvsc_probe(struct hv_device *dev,
 		goto devinfo_failed;
 	}
 
+	/* We must get rtnl lock before scheduling nvdev->subchan_work,
+	 * otherwise netvsc_subchan_work() can get rtnl lock first and wait
+	 * all subchannels to show up, but that may not happen because
+	 * netvsc_probe() can't get rtnl lock and as a result vmbus_onoffer()
+	 * -> ... -> device_add() -> ... -> __device_attach() can't get
+	 * the device lock, so all the subchannels can't be processed --
+	 * finally netvsc_subchan_work() hangs forever.
+	 *
+	 * The rtnl lock also needs to be held before rndis_filter_device_add()
+	 * which advertises nvsp_2_vsc_capability / sriov bit, and triggers
+	 * VF NIC offering and registering. If VF NIC finished register_netdev()
+	 * earlier it may cause name based config failure.
+	 */
+	rtnl_lock();
+
 	nvdev = rndis_filter_device_add(dev, device_info);
 	if (IS_ERR(nvdev)) {
 		ret = PTR_ERR(nvdev);
@@ -2539,16 +2554,6 @@ static int netvsc_probe(struct hv_device *dev,
 	}
 
 	eth_hw_addr_set(net, device_info->mac_adr);
-
-	/* We must get rtnl lock before scheduling nvdev->subchan_work,
-	 * otherwise netvsc_subchan_work() can get rtnl lock first and wait
-	 * all subchannels to show up, but that may not happen because
-	 * netvsc_probe() can't get rtnl lock and as a result vmbus_onoffer()
-	 * -> ... -> device_add() -> ... -> __device_attach() can't get
-	 * the device lock, so all the subchannels can't be processed --
-	 * finally netvsc_subchan_work() hangs forever.
-	 */
-	rtnl_lock();
 
 	if (nvdev->num_chn > 1)
 		schedule_work(&nvdev->subchan_work);
@@ -2586,9 +2591,9 @@ static int netvsc_probe(struct hv_device *dev,
 	return 0;
 
 register_failed:
-	rtnl_unlock();
 	rndis_filter_device_remove(dev, nvdev);
 rndis_failed:
+	rtnl_unlock();
 	netvsc_devinfo_put(device_info);
 devinfo_failed:
 	free_percpu(net_device_ctx->vf_stats);
