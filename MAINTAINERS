@@ -23702,6 +23702,20 @@ F:	arch/x86/kernel/dumpstack.c
 F:	arch/x86/kernel/stacktrace.c
 F:	arch/x86/kernel/unwind_*.c
 
+X86 TRUST DOMAIN EXTENSIONS (TDX)
+M:	Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+R:	Dave Hansen <dave.hansen@linux.intel.com>
+L:	x86@kernel.org
+L:	linux-coco@lists.linux.dev
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/tdx
+F:	arch/x86/boot/compressed/tdx*
+F:	arch/x86/coco/tdx/
+F:	arch/x86/include/asm/shared/tdx.h
+F:	arch/x86/include/asm/tdx.h
+F:	arch/x86/virt/vmx/tdx/
+F:	drivers/virt/coco/tdx-guest
+
 X86 VDSO
 M:	Andy Lutomirski <luto@kernel.org>
 L:	linux-kernel@vger.kernel.org
