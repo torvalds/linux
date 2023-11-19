@@ -550,6 +550,9 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	struct vsp1_dl_body *dlb;
 	unsigned int dl_flags = 0;
 
+	vsp1_pipeline_calculate_partition(pipe, &pipe->part_table[0],
+					  drm_pipe->width, 0);
+
 	if (drm_pipe->force_brx_release)
 		dl_flags |= VSP1_DL_FRAME_END_INTERNAL;
 	if (pipe->output->writeback)
@@ -573,7 +576,8 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		vsp1_entity_route_setup(entity, pipe, dlb);
 		vsp1_entity_configure_stream(entity, pipe, dl, dlb);
 		vsp1_entity_configure_frame(entity, pipe, dl, dlb);
-		vsp1_entity_configure_partition(entity, pipe, NULL, dl, dlb);
+		vsp1_entity_configure_partition(entity, pipe,
+						&pipe->part_table[0], dl, dlb);
 	}
 
 	vsp1_dl_list_commit(dl, dl_flags);
@@ -967,6 +971,9 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 		init_waitqueue_head(&drm_pipe->wait_queue);
 
 		vsp1_pipeline_init(pipe);
+
+		pipe->partitions = 1;
+		pipe->part_table = &drm_pipe->partition;
 
 		pipe->frame_end = vsp1_du_pipeline_frame_end;
 
