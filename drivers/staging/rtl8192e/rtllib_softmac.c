@@ -492,10 +492,6 @@ out:
 	ieee->actscanning = false;
 	ieee->sync_scan_hurryup = 0;
 
-	if (ieee->link_state >= MAC80211_LINKED) {
-		if (IS_DOT11D_ENABLE(ieee))
-			dot11d_scan_complete(ieee);
-	}
 	mutex_unlock(&ieee->scan_mutex);
 
 	ieee->be_scan_inprogress = false;
@@ -552,8 +548,6 @@ static void rtllib_softmac_scan_wq(void *data)
 	return;
 
 out:
-	if (IS_DOT11D_ENABLE(ieee))
-		dot11d_scan_complete(ieee);
 	ieee->current_network.channel = last_channel;
 
 out1:
@@ -609,10 +603,6 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 {
 	ieee->rtllib_ips_leave_wq(ieee->dev);
 
-	if (IS_DOT11D_ENABLE(ieee)) {
-		if (IS_COUNTRY_IE_VALID(ieee))
-			RESET_CIE_WATCHDOG(ieee);
-	}
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN) {
 		if (ieee->scanning_continue == 0) {
 			ieee->actscanning = true;
@@ -625,10 +615,6 @@ static void rtllib_start_scan(struct rtllib_device *ieee)
 /* called with wx_mutex held */
 void rtllib_start_scan_syncro(struct rtllib_device *ieee)
 {
-	if (IS_DOT11D_ENABLE(ieee)) {
-		if (IS_COUNTRY_IE_VALID(ieee))
-			RESET_CIE_WATCHDOG(ieee);
-	}
 	ieee->sync_scan_hurryup = 0;
 	if (ieee->softmac_features & IEEE_SOFTMAC_SCAN)
 		rtllib_softmac_scan_syncro(ieee);
@@ -2090,10 +2076,6 @@ static void rtllib_start_bss(struct rtllib_device *ieee)
 {
 	unsigned long flags;
 
-	if (IS_DOT11D_ENABLE(ieee) && !IS_COUNTRY_IE_VALID(ieee)) {
-		if (!ieee->global_domain)
-			return;
-	}
 	/* check if we have already found the net we
 	 * are interested in (if any).
 	 * if not (we are disassociated and we are not
@@ -2128,8 +2110,6 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)
 		rtllib_reset_queue(ieee);
 
-	if (IS_DOT11D_ENABLE(ieee))
-		dot11d_reset(ieee);
 	ieee->link_state = MAC80211_NOLINK;
 	ieee->is_set_key = false;
 	ieee->wap_set = 0;
