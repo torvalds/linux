@@ -72,6 +72,5 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__ieee_dev)
 
 void dot11d_init(struct rtllib_device *dev);
 void dot11d_channel_map(struct rtllib_device *ieee);
-void dot11d_reset(struct rtllib_device *dev);
 
 #endif

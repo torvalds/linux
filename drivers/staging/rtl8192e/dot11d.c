@@ -42,20 +42,3 @@ void dot11d_channel_map(struct rtllib_device *ieee)
 	ieee->bss_start_channel = 10;
 }
 EXPORT_SYMBOL(dot11d_channel_map);
-
-void dot11d_reset(struct rtllib_device *ieee)
-{
-	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
-	u32 i;
-
-	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	memset(dot11d_info->max_tx_power_list, 0xFF, MAX_CHANNEL_NUMBER + 1);
-	for (i = 1; i <= 11; i++)
-		(dot11d_info->channel_map)[i] = 1;
-	for (i = 12; i <= 14; i++)
-		(dot11d_info->channel_map)[i] = 2;
-	dot11d_info->state = DOT11D_STATE_NONE;
-	dot11d_info->country_len = 0;
-	RESET_CIE_WATCHDOG(ieee);
-}
-
