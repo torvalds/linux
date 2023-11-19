@@ -19,7 +19,6 @@ void dot11d_init(struct rtllib_device *ieee)
 	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
 
 	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-	RESET_CIE_WATCHDOG(ieee);
 }
 EXPORT_SYMBOL(dot11d_init);
 

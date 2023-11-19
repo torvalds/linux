@@ -25,19 +25,11 @@ struct chnl_txpow_triple {
  */
 
 struct rt_dot11d_info {
-	u8  country_watchdog;
 	u8  channel_map[MAX_CHANNEL_NUMBER + 1];
 };
 
 #define GET_DOT11D_INFO(__ieee_dev)			\
 	 ((struct rt_dot11d_info *)((__ieee_dev)->dot11d_info))
-
-#define GET_CIE_WATCHDOG(__ieee_dev)				\
-	 (GET_DOT11D_INFO(__ieee_dev)->country_watchdog)
-static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__ieee_dev)
-{
-	GET_CIE_WATCHDOG(__ieee_dev) = 0;
-}
 
 void dot11d_init(struct rtllib_device *dev);
 void dot11d_channel_map(struct rtllib_device *ieee);
