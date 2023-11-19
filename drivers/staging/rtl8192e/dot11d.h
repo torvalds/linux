@@ -52,23 +52,12 @@ static inline void copy_mac_addr(unsigned char *des, unsigned char *src)
 #define GET_DOT11D_INFO(__ieee_dev)			\
 	 ((struct rt_dot11d_info *)((__ieee_dev)->dot11d_info))
 
-#define IS_COUNTRY_IE_VALID(__ieee_dev)			\
-	(GET_DOT11D_INFO(__ieee_dev)->country_len > 0)
-
-#define IS_EQUAL_CIE_SRC(__ieee_dev, __address)		\
-	 ether_addr_equal_unaligned( \
-		GET_DOT11D_INFO(__ieee_dev)->country_src_addr, __address)
-#define UPDATE_CIE_SRC(__ieee_dev, __address)		\
-	copy_mac_addr(GET_DOT11D_INFO(__ieee_dev)->country_src_addr, __address)
-
 #define GET_CIE_WATCHDOG(__ieee_dev)				\
 	 (GET_DOT11D_INFO(__ieee_dev)->country_watchdog)
 static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__ieee_dev)
 {
 	GET_CIE_WATCHDOG(__ieee_dev) = 0;
 }
-
-#define UPDATE_CIE_WATCHDOG(__ieee_dev) (++GET_CIE_WATCHDOG(__ieee_dev))
 
 void dot11d_init(struct rtllib_device *dev);
 void dot11d_channel_map(struct rtllib_device *ieee);
