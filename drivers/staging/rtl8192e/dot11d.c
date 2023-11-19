@@ -14,14 +14,6 @@ struct channel_list {
 
 static struct channel_list channel_array = {{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}, 13};
 
-void dot11d_init(struct rtllib_device *ieee)
-{
-	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(ieee);
-
-	memset(dot11d_info->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
-}
-EXPORT_SYMBOL(dot11d_init);
-
 void dot11d_channel_map(struct rtllib_device *ieee)
 {
 	int i;
