@@ -893,10 +893,14 @@ ice_eswitch_br_port_deinit(struct ice_esw_br *bridge,
 			ice_eswitch_br_fdb_entry_delete(bridge, fdb_entry);
 	}
 
-	if (br_port->type == ICE_ESWITCH_BR_UPLINK_PORT && vsi->back)
+	if (br_port->type == ICE_ESWITCH_BR_UPLINK_PORT && vsi->back) {
 		vsi->back->br_port = NULL;
-	else if (vsi->vf && vsi->vf->repr)
-		vsi->vf->repr->br_port = NULL;
+	} else {
+		struct ice_repr *repr = ice_repr_get_by_vsi(vsi);
+
+		if (repr)
+			repr->br_port = NULL;
+	}
 
 	xa_erase(&bridge->ports, br_port->vsi_idx);
 	ice_eswitch_br_port_vlans_flush(br_port);
@@ -947,7 +951,7 @@ ice_eswitch_br_vf_repr_port_init(struct ice_esw_br *bridge,
 static int
 ice_eswitch_br_uplink_port_init(struct ice_esw_br *bridge, struct ice_pf *pf)
 {
-	struct ice_vsi *vsi = pf->switchdev.uplink_vsi;
+	struct ice_vsi *vsi = pf->eswitch.uplink_vsi;
 	struct ice_esw_br_port *br_port;
 	int err;
 
@@ -1185,7 +1189,7 @@ ice_eswitch_br_port_event(struct notifier_block *nb,
 static void
 ice_eswitch_br_offloads_dealloc(struct ice_pf *pf)
 {
-	struct ice_esw_br_offloads *br_offloads = pf->switchdev.br_offloads;
+	struct ice_esw_br_offloads *br_offloads = pf->eswitch.br_offloads;
 
 	ASSERT_RTNL();
 
@@ -1194,7 +1198,7 @@ ice_eswitch_br_offloads_dealloc(struct ice_pf *pf)
 
 	ice_eswitch_br_deinit(br_offloads, br_offloads->bridge);
 
-	pf->switchdev.br_offloads = NULL;
+	pf->eswitch.br_offloads = NULL;
 	kfree(br_offloads);
 }
 
@@ -1205,14 +1209,14 @@ ice_eswitch_br_offloads_alloc(struct ice_pf *pf)
 
 	ASSERT_RTNL();
 
-	if (pf->switchdev.br_offloads)
+	if (pf->eswitch.br_offloads)
 		return ERR_PTR(-EEXIST);
 
 	br_offloads = kzalloc(sizeof(*br_offloads), GFP_KERNEL);
 	if (!br_offloads)
 		return ERR_PTR(-ENOMEM);
 
-	pf->switchdev.br_offloads = br_offloads;
+	pf->eswitch.br_offloads = br_offloads;
 	br_offloads->pf = pf;
 
 	return br_offloads;
@@ -1223,7 +1227,7 @@ ice_eswitch_br_offloads_deinit(struct ice_pf *pf)
 {
 	struct ice_esw_br_offloads *br_offloads;
 
-	br_offloads = pf->switchdev.br_offloads;
+	br_offloads = pf->eswitch.br_offloads;
 	if (!br_offloads)
 		return;
 
