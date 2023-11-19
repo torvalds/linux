@@ -44,11 +44,6 @@ struct rt_dot11d_info {
 	enum dot11d_state state;
 };
 
-static inline void copy_mac_addr(unsigned char *des, unsigned char *src)
-{
-	memcpy(des, src, 6);
-}
-
 #define GET_DOT11D_INFO(__ieee_dev)			\
 	 ((struct rt_dot11d_info *)((__ieee_dev)->dot11d_info))
 
