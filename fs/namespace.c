@@ -4766,15 +4766,6 @@ static void statmount_string(struct kstatmount *s, u64 mask, statmount_func_t fu
 	sm->mask |= mask;
 }
 
-static void statmount_numeric(struct kstatmount *s, u64 mask, statmount_func_t func)
-{
-	if (s->err || !(s->mask & mask))
-		return;
-
-	s->err = func(s);
-	s->sm.mask |= mask;
-}
-
 static u64 mnt_to_attr_flags(struct vfsmount *mnt)
 {
 	unsigned int mnt_flags = READ_ONCE(mnt->mnt_flags);
@@ -4822,22 +4813,22 @@ static u64 mnt_to_propagation_flags(struct mount *m)
 	return propagation;
 }
 
-static int statmount_sb_basic(struct kstatmount *s)
+static void statmount_sb_basic(struct kstatmount *s)
 {
 	struct super_block *sb = s->mnt->mnt_sb;
 
+	s->sm.mask |= STATMOUNT_SB_BASIC;
 	s->sm.sb_dev_major = MAJOR(sb->s_dev);
 	s->sm.sb_dev_minor = MINOR(sb->s_dev);
 	s->sm.sb_magic = sb->s_magic;
 	s->sm.sb_flags = sb->s_flags & (SB_RDONLY|SB_SYNCHRONOUS|SB_DIRSYNC|SB_LAZYTIME);
-
-	return 0;
 }
 
-static int statmount_mnt_basic(struct kstatmount *s)
+static void statmount_mnt_basic(struct kstatmount *s)
 {
 	struct mount *m = real_mount(s->mnt);
 
+	s->sm.mask |= STATMOUNT_MNT_BASIC;
 	s->sm.mnt_id = m->mnt_id_unique;
 	s->sm.mnt_parent_id = m->mnt_parent->mnt_id_unique;
 	s->sm.mnt_id_old = m->mnt_id;
@@ -4846,20 +4837,15 @@ static int statmount_mnt_basic(struct kstatmount *s)
 	s->sm.mnt_propagation = mnt_to_propagation_flags(m);
 	s->sm.mnt_peer_group = IS_MNT_SHARED(m) ? m->mnt_group_id : 0;
 	s->sm.mnt_master = IS_MNT_SLAVE(m) ? m->mnt_master->mnt_group_id : 0;
-
-	return 0;
 }
 
-static int statmount_propagate_from(struct kstatmount *s)
+static void statmount_propagate_from(struct kstatmount *s)
 {
 	struct mount *m = real_mount(s->mnt);
 
-	if (!IS_MNT_SLAVE(m))
-		return 0;
-
-	s->sm.propagate_from = get_dominating_id(m, &current->fs->root);
-
-	return 0;
+	s->sm.mask |= STATMOUNT_PROPAGATE_FROM;
+	if (IS_MNT_SLAVE(m))
+		s->sm.propagate_from = get_dominating_id(m, &current->fs->root);
 }
 
 static int statmount_mnt_root(struct kstatmount *s)
@@ -4911,9 +4897,15 @@ static int do_statmount(struct kstatmount *s)
 	if (err)
 		return err;
 
-	statmount_numeric(s, STATMOUNT_SB_BASIC, statmount_sb_basic);
-	statmount_numeric(s, STATMOUNT_MNT_BASIC, statmount_mnt_basic);
-	statmount_numeric(s, STATMOUNT_PROPAGATE_FROM, statmount_propagate_from);
+	if (s->mask & STATMOUNT_SB_BASIC)
+		statmount_sb_basic(s);
+
+	if (s->mask & STATMOUNT_MNT_BASIC)
+		statmount_mnt_basic(s);
+
+	if (s->mask & STATMOUNT_PROPAGATE_FROM)
+		statmount_propagate_from(s);
+
 	statmount_string(s, STATMOUNT_FS_TYPE, statmount_fs_type, &sm->fs_type);
 	statmount_string(s, STATMOUNT_MNT_ROOT, statmount_mnt_root, &sm->mnt_root);
 	statmount_string(s, STATMOUNT_MNT_POINT, statmount_mnt_point, &sm->mnt_point);
