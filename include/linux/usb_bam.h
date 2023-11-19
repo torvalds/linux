@@ -16,13 +16,21 @@
 
 /* Supported USB controllers*/
 enum usb_ctrl {
+	DWC3_CTRL = 0,  /* DWC3 controller */
 	USB_CTRL_UNUSED = 0,
 	CI_CTRL,        /* ChipIdea controller */
+	HSIC_CTRL,      /* HSIC controller */
 	NUM_CTRL,
+};
+
+enum usb_bam_mode {
+	USB_BAM_DEVICE = 0,
+	USB_BAM_HOST,
 };
 
 enum peer_bam {
 	QDSS_P_BAM = 0,
+	IPA_P_BAM,
 	MAX_PEER_BAMS,
 };
 
@@ -192,7 +200,12 @@ int usb_bam_alloc_fifos(enum usb_ctrl cur_bam, u8 idx);
 int usb_bam_free_fifos(enum usb_ctrl cur_bam, u8 idx);
 int get_qdss_bam_info(enum usb_ctrl cur_bam, u8 idx,
 			phys_addr_t *p_addr, u32 *bam_size);
-static inline bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable);
+int msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable);
+void msm_bam_set_hsic_host_dev(struct device *dev);
+bool msm_bam_hsic_lpm_ok(void);
+void msm_bam_hsic_host_notify_on_resume(void);
+void msm_bam_wait_for_hsic_host_prod_granted(void);
+bool msm_bam_hsic_host_pipe_empty(void);
 #else
 static inline int usb_bam_connect(enum usb_ctrl bam, u8 idx, u32 *bam_pipe_idx,
 							unsigned long iova)
@@ -271,6 +284,17 @@ static inline bool msm_usb_bam_enable(enum usb_ctrl ctrl, bool bam_enable)
 {
 	return true;
 }
+static inline void msm_bam_set_hsic_host_dev(struct device *dev) {}
+static inline bool msm_bam_hsic_lpm_ok(void)
+{
+	return false;
+}
+static inline void msm_bam_hsic_host_notify_on_resume(void) {}
+static inline void msm_bam_wait_for_hsic_host_prod_granted(void) {}
+static inline bool msm_bam_hsic_host_pipe_empty(void)
+{
+	return false;
+}
 #endif
 
 /* CONFIG_PM */
@@ -283,5 +307,11 @@ static inline int get_pm_runtime_counter(struct device *dev)
 /* !CONFIG_PM */
 static inline int get_pm_runtime_counter(struct device *dev)
 { return -EOPNOTSUPP; }
+#endif
+#ifdef CONFIG_USB_CI13XXX_MSM
+void msm_hw_bam_disable(bool bam_disable);
+#else
+static inline void msm_hw_bam_disable(bool bam_disable)
+{ }
 #endif
 #endif				/* _USB_BAM_H_ */

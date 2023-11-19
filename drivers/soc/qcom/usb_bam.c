@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
+#include <linux/usb/msm_hsusb.h>
 
 #define USB_THRESHOLD 512
 #define USB_BAM_MAX_STR_LEN 50
@@ -46,6 +47,9 @@ do {									\
 #define log_event_none(x, ...) log_event(LOGLEVEL_NONE, x, ##__VA_ARGS__)
 #define log_event_dbg(x, ...) log_event(LOGLEVEL_DEBUG, x, ##__VA_ARGS__)
 #define log_event_err(x, ...) log_event(LOGLEVEL_ERR, x, ##__VA_ARGS__)
+
+/* Reset BAM with pipes connected */
+#define SPS_BAM_FORCE_RESET         (1UL << 11)
 
 enum usb_bam_event_type {
 	USB_BAM_EVENT_WAKEUP_PIPE = 0,	/* Wake a pipe */
@@ -161,6 +165,7 @@ struct msm_usb_bam_data {
 	bool reset_on_connect;
 	bool reset_on_disconnect;
 	bool disable_clk_gating;
+	bool ignore_core_reset_ack;
 	u32 override_threshold;
 	u32 max_mbps_highspeed;
 	u32 max_mbps_superspeed;
@@ -202,6 +207,18 @@ struct usb_bam_ctx_type {
 	spinlock_t		usb_bam_lock;
 };
 
+static char *bam_enable_strings[MAX_BAMS] = {
+	[DWC3_CTRL] = "ssusb",
+	[CI_CTRL] = "hsusb",
+	[HSIC_CTRL]  = "hsic",
+};
+
+struct usb_bam_host_info {
+	struct device *dev;
+	bool in_lpm;
+};
+
+static struct usb_bam_host_info host_info[MAX_BAMS];
 static struct usb_bam_ctx_type msm_usb_bam[MAX_BAMS];
 /* USB bam type used as a peer of the qdss in bam2bam mode */
 static enum usb_ctrl qdss_usb_bam_type;
@@ -231,9 +248,25 @@ static void __maybe_unused put_timestamp(char *tbuf)
 		nanosec_rem);
 }
 
-static inline enum usb_ctrl get_bam_type_from_core_name(const char *name)
+void msm_bam_set_hsic_host_dev(struct device *dev)
 {
-	return USB_CTRL_UNUSED;
+	if (dev) {
+		/* Hold the device until allowing lpm */
+		log_event_dbg("%s: Getting hsic device %pK\n", __func__, dev);
+		pm_runtime_get(dev);
+	} else if (host_info[HSIC_CTRL].dev) {
+		log_event_dbg("%s: Try Putting hsic device %pK, lpm:%d\n",
+				__func__, host_info[HSIC_CTRL].dev,
+				host_info[HSIC_CTRL].in_lpm);
+		/* Just release previous device if not already done */
+		if (!host_info[HSIC_CTRL].in_lpm) {
+			host_info[HSIC_CTRL].in_lpm = true;
+			pm_runtime_put(host_info[HSIC_CTRL].dev);
+		}
+	}
+
+	host_info[HSIC_CTRL].dev = dev;
+	host_info[HSIC_CTRL].in_lpm = false;
 }
 
 static void usb_bam_set_inactivity_timer(enum usb_ctrl bam)
@@ -270,6 +303,151 @@ static void usb_bam_set_inactivity_timer(enum usb_ctrl bam)
 
 	timer_ctrl.op = SPS_TIMER_OP_RESET;
 	sps_timer_ctrl(pipe, &timer_ctrl, NULL);
+}
+
+static void _msm_bam_host_notify_on_resume(enum usb_ctrl bam_type)
+{
+	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam_type];
+
+	spin_lock(&ctx->usb_bam_lock);
+	log_event_dbg("%s: enter bam=%s\n", __func__,
+			bam_enable_strings[bam_type]);
+
+	host_info[bam_type].in_lpm = false;
+
+	/*
+	 * This function is called to notify the usb bam driver
+	 * that the hsic core and hsic bam hw are fully resumed
+	 * and clocked on. Therefore we can now set the inactivity
+	 * timer to the hsic bam hw.
+	 */
+	if (ctx->inactivity_timer_ms)
+		usb_bam_set_inactivity_timer(bam_type);
+
+	spin_unlock(&ctx->usb_bam_lock);
+}
+
+/**
+ * msm_bam_hsic_host_pipe_empty - Check all HSIC host BAM pipe state
+ *
+ * return true if all BAM pipe used for HSIC Host mode is empty.
+ */
+bool msm_bam_hsic_host_pipe_empty(void)
+{
+	struct usb_bam_pipe_connect *pipe_connect;
+	struct sps_pipe *pipe = NULL;
+	enum usb_ctrl bam = HSIC_CTRL;
+	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam];
+	int i, ret;
+	u32 status;
+
+	for (i = 0; i < ctx->max_connections; i++) {
+		pipe_connect = &ctx->usb_bam_connections[i];
+		if (pipe_connect->enabled) {
+			pipe = ctx->usb_bam_sps.sps_pipes[i];
+			ret = sps_is_pipe_empty(pipe, &status);
+			if (ret) {
+				log_event_err("%s(): sps_is_pipe_empty() failed\n",
+								__func__);
+				log_event_err("%s(): SRC index(%d), DEST index(%d):\n",
+						__func__,
+						pipe_connect->src_pipe_index,
+						pipe_connect->dst_pipe_index);
+				WARN_ON(1);
+			}
+
+			if (!status) {
+				log_event_err("%s(): pipe is not empty.\n",
+						__func__);
+				log_event_err("%s(): SRC index(%d), DEST index(%d):\n",
+						__func__,
+						pipe_connect->src_pipe_index,
+						pipe_connect->dst_pipe_index);
+				return false;
+			}
+
+			pr_debug("%s(): SRC index(%d), DEST index(%d):\n",
+				  __func__,
+				  pipe_connect->src_pipe_index,
+				  pipe_connect->dst_pipe_index);
+		}
+
+	}
+
+	if (!pipe)
+		log_event_err("%s: Bam %s has no connected pipes\n", __func__,
+						bam_enable_strings[bam]);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(msm_bam_hsic_host_pipe_empty);
+
+static bool msm_bam_host_lpm_ok(enum usb_ctrl bam_type)
+{
+	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam_type];
+	struct usb_bam_pipe_connect *pipe_iter;
+	int i;
+
+	log_event_dbg("%s: enter bam=%s\n", __func__,
+			bam_enable_strings[bam_type]);
+
+	if (!host_info[bam_type].dev)
+		return true;
+
+	log_event_dbg("%s: Starting hsic full suspend sequence\n",
+		__func__);
+
+	pr_debug("%s(): checking HSIC Host pipe state\n", __func__);
+	if (!msm_bam_hsic_host_pipe_empty()) {
+		log_event_err("%s(): HSIC HOST Pipe is not empty\n",
+				__func__);
+		return false;
+	}
+
+	/* HSIC host will go now to lpm */
+	log_event_dbg("%s: vote for suspend hsic %pK\n",
+		__func__, host_info[bam_type].dev);
+
+	for (i = 0; i < ctx->max_connections; i++) {
+		pipe_iter = &ctx->usb_bam_connections[i];
+		if (pipe_iter->bam_type == bam_type &&
+		    pipe_iter->enabled && !pipe_iter->suspended)
+			pipe_iter->suspended = true;
+	}
+
+	host_info[bam_type].in_lpm = true;
+
+	return true;
+}
+
+bool msm_bam_hsic_lpm_ok(void)
+{
+	return msm_bam_host_lpm_ok(HSIC_CTRL);
+}
+EXPORT_SYMBOL_GPL(msm_bam_hsic_lpm_ok);
+
+void msm_bam_hsic_host_notify_on_resume(void)
+{
+	_msm_bam_host_notify_on_resume(HSIC_CTRL);
+}
+
+static inline enum usb_ctrl get_bam_type_from_core_name(const char *name)
+{
+	if (strnstr(name, bam_enable_strings[DWC3_CTRL],
+			USB_BAM_MAX_STR_LEN) ||
+		strnstr(name, "dwc3", USB_BAM_MAX_STR_LEN))
+		return DWC3_CTRL;
+	else if (strnstr(name, bam_enable_strings[HSIC_CTRL],
+			USB_BAM_MAX_STR_LEN) ||
+		strnstr(name, "ci13xxx_msm_hsic", USB_BAM_MAX_STR_LEN))
+		return HSIC_CTRL;
+	else if (strnstr(name, bam_enable_strings[CI_CTRL],
+			USB_BAM_MAX_STR_LEN) ||
+		strnstr(name, "ci", USB_BAM_MAX_STR_LEN))
+		return CI_CTRL;
+
+	log_event_err("%s: invalid BAM name(%s)\n", __func__, name);
+	return -EINVAL;
 }
 
 static int usb_bam_alloc_buffer(struct usb_bam_pipe_connect *pipe_connect)
@@ -611,6 +789,54 @@ static int disconnect_pipe(enum usb_ctrl cur_bam, u8 idx)
 	sps_connection->options &= ~SPS_O_AUTO_ENABLE;
 
 	return 0;
+}
+
+static bool _hsic_host_bam_resume_core(void)
+{
+	/* Exit from "full suspend" in case of hsic host */
+	if (host_info[HSIC_CTRL].dev) {
+		log_event_dbg("%s: Getting hsic device %pK\n", __func__,
+			host_info[HSIC_CTRL].dev);
+		pm_runtime_get(host_info[HSIC_CTRL].dev);
+		return true;
+	}
+	return false;
+}
+
+static bool usb_bam_resume_core(enum usb_ctrl bam_type,
+	enum usb_bam_mode bam_mode)
+{
+	log_event_dbg("%s: enter bam=%s\n", __func__,
+			bam_enable_strings[bam_type]);
+
+	if ((bam_mode == USB_BAM_DEVICE) || (bam_type != HSIC_CTRL)) {
+		log_event_err("%s: Invalid BAM type %d\n", __func__, bam_type);
+		return false;
+	}
+
+	return _hsic_host_bam_resume_core();
+}
+
+static void _msm_bam_wait_for_host_prod_granted(enum usb_ctrl bam_type)
+{
+	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam_type];
+
+	spin_lock(&ctx->usb_bam_lock);
+
+	log_event_dbg("%s: enter bam=%s\n", __func__,
+			bam_enable_strings[bam_type]);
+	ctx->is_bam_inactivity = false;
+
+	/* Get back to resume state including wakeup ipa */
+	usb_bam_resume_core(bam_type, USB_BAM_HOST);
+
+	spin_unlock(&ctx->usb_bam_lock);
+
+}
+
+void msm_bam_wait_for_hsic_host_prod_granted(void)
+{
+	_msm_bam_wait_for_host_prod_granted(HSIC_CTRL);
 }
 
 int get_qdss_bam_info(enum usb_ctrl cur_bam, u8 idx,
@@ -1015,6 +1241,18 @@ static struct msm_usb_bam_data *usb_bam_dt_to_data(
 	if (!usb_bam_data)
 		return NULL;
 
+	rc = of_property_read_u32(node, "qcom,bam-type", &bam);
+	if (rc) {
+		log_event_err("%s: bam type is missing in device tree\n",
+			__func__);
+		return NULL;
+	}
+	if (bam >= MAX_BAMS) {
+		log_event_err("%s: Invalid bam type %d in device tree\n",
+			__func__, bam);
+		return NULL;
+	}
+
 	usb_bam_data->bam_type = bam;
 
 	usb_bam_data->reset_on_connect = of_property_read_bool(node,
@@ -1176,6 +1414,54 @@ static struct msm_usb_bam_data *usb_bam_dt_to_data(
 err:
 	log_event_err("%s: failed\n", __func__);
 	return NULL;
+}
+
+static void msm_usb_bam_update_props(struct sps_bam_props *props,
+				struct platform_device *pdev)
+{
+	struct usb_bam_ctx_type *ctx = dev_get_drvdata(&pdev->dev);
+	enum usb_ctrl bam_type = ctx->usb_bam_data->bam_type;
+	struct device *dev;
+
+	props->phys_addr = ctx->io_res->start;
+	props->virt_addr = NULL;
+	props->virt_size = resource_size(ctx->io_res);
+	props->irq = ctx->irq;
+	props->summing_threshold = ctx->usb_bam_data->override_threshold;
+	props->event_threshold = ctx->usb_bam_data->override_threshold;
+	props->num_pipes = ctx->usb_bam_data->usb_bam_num_pipes;
+	props->callback = usb_bam_sps_events;
+	props->user = bam_enable_strings[bam_type];
+
+	/*
+	 * HSUSB and HSIC Cores don't support RESET ACK signal to BAMs
+	 * Hence, let BAM to ignore acknowledge from USB while resetting PIPE
+	 */
+	if (ctx->usb_bam_data->ignore_core_reset_ack && bam_type != DWC3_CTRL)
+		props->options = SPS_BAM_NO_EXT_P_RST;
+
+	if (ctx->usb_bam_data->disable_clk_gating)
+		props->options |= SPS_BAM_NO_LOCAL_CLK_GATING;
+
+	/*
+	 * HSUSB BAM is not NDP BAM and it must be enabled before
+	 * starting peripheral controller to avoid switching USB core mode
+	 * from legacy to BAM with ongoing data transfers.
+	 */
+	if (bam_type == CI_CTRL) {
+		log_event_dbg("Register and enable HSUSB BAM\n");
+		props->options |= SPS_BAM_OPT_ENABLE_AT_BOOT;
+		props->options |= SPS_BAM_FORCE_RESET;
+	}
+
+	dev = &ctx->usb_bam_pdev->dev;
+	if (dev && dev->parent && device_property_present(dev->parent, "iommus")
+		&& !device_property_present(dev->parent,
+						"qcom,smmu-s1-bypass")) {
+		pr_info("%s: setting SPS_BAM_SMMU_EN flag with (%s)\n",
+						__func__, dev_name(dev));
+		props->options |= SPS_BAM_SMMU_EN;
+	}
 }
 
 static int usb_bam_init(struct platform_device *pdev)
@@ -1439,6 +1725,54 @@ enum usb_ctrl usb_bam_get_bam_type(const char *core_name)
 	return bam_type;
 }
 EXPORT_SYMBOL(usb_bam_get_bam_type);
+
+int msm_usb_bam_enable(enum usb_ctrl bam, bool bam_enable)
+{
+	struct msm_usb_bam_data *usb_bam_data;
+	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam];
+	static bool bam_enabled;
+	int ret;
+
+	if (!ctx->usb_bam_pdev)
+		return 0;
+
+	usb_bam_data = ctx->usb_bam_data;
+	if (bam != CI_CTRL)
+		return 0;
+
+	if (bam_enabled == bam_enable) {
+		log_event_dbg("%s: USB BAM is already %s\n", __func__,
+				bam_enable ? "Registered" : "De-registered");
+		return 0;
+	}
+
+	if (bam_enable) {
+		struct sps_bam_props props;
+
+		memset(&props, 0, sizeof(props));
+		msm_usb_bam_update_props(&props, ctx->usb_bam_pdev);
+		msm_hw_bam_disable(1);
+		ret = sps_register_bam_device(&props, &ctx->h_bam);
+		bam_enabled = true;
+		if (ret < 0) {
+			log_event_err("%s: register bam error %d\n",
+					__func__, ret);
+			return -EFAULT;
+		}
+		log_event_dbg("%s: USB BAM Registered\n", __func__);
+		msm_hw_bam_disable(0);
+	} else {
+		msm_hw_soft_reset();
+		msm_hw_bam_disable(1);
+		sps_device_reset(ctx->h_bam);
+		sps_deregister_bam_device(ctx->h_bam);
+		log_event_dbg("%s: USB BAM De-registered\n", __func__);
+		bam_enabled = false;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(msm_usb_bam_enable);
 
 static int usb_bam_remove(struct platform_device *pdev)
 {
