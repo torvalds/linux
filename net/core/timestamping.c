@@ -21,16 +21,11 @@ static unsigned int classify(const struct sk_buff *skb)
 
 void skb_clone_tx_timestamp(struct sk_buff *skb)
 {
-	enum timestamping_layer ts_layer;
 	struct mii_timestamper *mii_ts;
 	struct sk_buff *clone;
 	unsigned int type;
 
 	if (!skb->sk)
-		return;
-
-	ts_layer = skb->dev->ts_layer;
-	if (ts_layer != PHY_TIMESTAMPING)
 		return;
 
 	type = classify(skb);
@@ -49,15 +44,10 @@ EXPORT_SYMBOL_GPL(skb_clone_tx_timestamp);
 
 bool skb_defer_rx_timestamp(struct sk_buff *skb)
 {
-	enum timestamping_layer ts_layer;
 	struct mii_timestamper *mii_ts;
 	unsigned int type;
 
 	if (!skb->dev || !skb->dev->phydev || !skb->dev->phydev->mii_ts)
-		return false;
-
-	ts_layer = skb->dev->ts_layer;
-	if (ts_layer != PHY_TIMESTAMPING)
 		return false;
 
 	if (skb_headroom(skb) < ETH_HLEN)

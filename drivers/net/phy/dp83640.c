@@ -1450,9 +1450,6 @@ static int dp83640_probe(struct phy_device *phydev)
 	phydev->mii_ts = &dp83640->mii_ts;
 	phydev->priv = dp83640;
 
-	/* Timestamp selected by default to keep legacy API */
-	phydev->default_timestamp = true;
-
 	spin_lock_init(&dp83640->rx_lock);
 	skb_queue_head_init(&dp83640->rx_queue);
 	skb_queue_head_init(&dp83640->tx_queue);

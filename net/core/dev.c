@@ -10212,9 +10212,6 @@ int register_netdevice(struct net_device *dev)
 	    dev->rtnl_link_state == RTNL_LINK_INITIALIZED)
 		rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U, GFP_KERNEL, 0, NULL);
 
-	if (dev->ethtool_ops->get_ts_info)
-		dev->ts_layer = MAC_TIMESTAMPING;
-
 out:
 	return ret;
 

@@ -939,26 +939,6 @@ attribute-sets:
       -
         name: burst-tmr
         type: u32
-  -
-    name: ts
-    attributes:
-      -
-        name: header
-        type: nest
-        nested-attributes: header
-      -
-        name: ts-layer
-        type: u32
-  -
-    name: ts-list
-    attributes:
-      -
-        name: header
-        type: nest
-        nested-attributes: header
-      -
-        name: ts-list-layer
-        type: binary
 
 operations:
   enum-model: directional
@@ -1709,40 +1689,3 @@ operations:
       name: mm-ntf
       doc: Notification for change in MAC Merge configuration.
       notify: mm-get
-    -
-      name: ts-get
-      doc: Get current timestamp
-
-      attribute-set: ts
-
-      do:
-        request:
-          attributes:
-            - header
-        reply:
-          attributes: &ts
-            - header
-            - ts-layer
-    -
-      name: ts-list-get
-      doc: Get list of timestamp devices available on an interface
-
-      attribute-set: ts-list
-
-      do:
-        request:
-          attributes:
-            - header
-        reply:
-          attributes:
-            - header
-            - ts-list-layer
-    -
-      name: ts-set
-      doc: Set the timestamp device
-
-      attribute-set: ts
-
-      do:
-        request:
-          attributes: *ts

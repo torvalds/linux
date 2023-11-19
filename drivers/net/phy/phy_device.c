@@ -1412,26 +1412,6 @@ int phy_sfp_probe(struct phy_device *phydev,
 EXPORT_SYMBOL(phy_sfp_probe);
 
 /**
- * phy_set_timestamp - set the default selected timestamping device
- * @dev: Pointer to net_device
- * @phydev: Pointer to phy_device
- *
- * This is used to set default timestamping device taking into account
- * the new API choice, which is selecting the timestamping from MAC by
- * default if the phydev does not have default_timestamp flag enabled.
- */
-static void phy_set_timestamp(struct net_device *dev, struct phy_device *phydev)
-{
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-
-	if (!phy_has_tsinfo(phydev))
-		return;
-
-	if (!ops->get_ts_info || phydev->default_timestamp)
-		dev->ts_layer = PHY_TIMESTAMPING;
-}
-
-/**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
  * @phydev: Pointer to phy_device to attach
@@ -1504,7 +1484,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	phydev->phy_link_change = phy_link_change;
 	if (dev) {
-		phy_set_timestamp(dev, phydev);
 		phydev->attached_dev = dev;
 		dev->phydev = phydev;
 
@@ -1833,22 +1812,6 @@ void phy_detach(struct phy_device *phydev)
 
 	phy_suspend(phydev);
 	if (dev) {
-		const struct ethtool_ops *ops = dev->ethtool_ops;
-		struct ethtool_ts_info ts_info = {0};
-
-		if (ops->get_ts_info) {
-			ops->get_ts_info(dev, &ts_info);
-			if ((ts_info.so_timestamping &
-			    SOF_TIMESTAMPING_HARDWARE_MASK) ==
-			    SOF_TIMESTAMPING_HARDWARE_MASK)
-				dev->ts_layer = MAC_TIMESTAMPING;
-			else if ((ts_info.so_timestamping &
-				 SOF_TIMESTAMPING_SOFTWARE_MASK) ==
-				 SOF_TIMESTAMPING_SOFTWARE_MASK)
-				dev->ts_layer = SOFTWARE_TIMESTAMPING;
-		} else {
-			dev->ts_layer = NO_TIMESTAMPING;
-		}
 		phydev->attached_dev->phydev = NULL;
 		phydev->attached_dev = NULL;
 	}

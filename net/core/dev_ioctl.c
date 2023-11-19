@@ -259,7 +259,9 @@ static int dev_eth_ioctl(struct net_device *dev,
  * @dev: Network device
  * @cfg: Timestamping configuration structure
  *
- * Helper for calling the selected hardware provider timestamping.
+ * Helper for enforcing a common policy that phylib timestamping, if available,
+ * should take precedence in front of hardware timestamping provided by the
+ * netdev.
  *
  * Note: phy_mii_ioctl() only handles SIOCSHWTSTAMP (not SIOCGHWTSTAMP), and
  * there only exists a phydev->mii_ts->hwtstamp() method. So this will return
@@ -269,14 +271,10 @@ static int dev_eth_ioctl(struct net_device *dev,
 static int dev_get_hwtstamp_phylib(struct net_device *dev,
 				   struct kernel_hwtstamp_config *cfg)
 {
-	enum timestamping_layer ts_layer = dev->ts_layer;
-
-	if (ts_layer == PHY_TIMESTAMPING)
+	if (phy_has_hwtstamp(dev->phydev))
 		return phy_hwtstamp_get(dev->phydev, cfg);
-	else if (ts_layer == MAC_TIMESTAMPING)
-		return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
 
-	return -EOPNOTSUPP;
+	return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
 }
 
 static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
@@ -317,8 +315,9 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
  * @cfg: Timestamping configuration structure
  * @extack: Netlink extended ack message structure, for error reporting
  *
- * Helper for calling the selected hardware provider timestamping.
- * If the netdev driver needs to perform specific actions even for PHY
+ * Helper for enforcing a common policy that phylib timestamping, if available,
+ * should take precedence in front of hardware timestamping provided by the
+ * netdev. If the netdev driver needs to perform specific actions even for PHY
  * timestamping to work properly (a switch port must trap the timestamped
  * frames and not forward them), it must set IFF_SEE_ALL_HWTSTAMP_REQUESTS in
  * dev->priv_flags.
@@ -328,26 +327,20 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 			    struct netlink_ext_ack *extack)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	enum timestamping_layer ts_layer = dev->ts_layer;
+	bool phy_ts = phy_has_hwtstamp(dev->phydev);
 	struct kernel_hwtstamp_config old_cfg = {};
 	bool changed = false;
 	int err;
 
-	cfg->source = ts_layer;
+	cfg->source = phy_ts ? HWTSTAMP_SOURCE_PHYLIB : HWTSTAMP_SOURCE_NETDEV;
 
-	if (ts_layer != PHY_TIMESTAMPING &&
-	    ts_layer != MAC_TIMESTAMPING)
-		return -EOPNOTSUPP;
-
-	if (ts_layer == PHY_TIMESTAMPING &&
-	    dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS) {
+	if (phy_ts && (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS)) {
 		err = ops->ndo_hwtstamp_get(dev, &old_cfg);
 		if (err)
 			return err;
 	}
 
-	if (ts_layer == MAC_TIMESTAMPING ||
-	    dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS) {
+	if (!phy_ts || (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS)) {
 		err = ops->ndo_hwtstamp_set(dev, cfg, extack);
 		if (err) {
 			if (extack->_msg)
@@ -356,11 +349,10 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 		}
 	}
 
-	if (ts_layer == PHY_TIMESTAMPING &&
-	    dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS)
+	if (phy_ts && (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS))
 		changed = kernel_hwtstamp_config_changed(&old_cfg, cfg);
 
-	if (ts_layer == PHY_TIMESTAMPING) {
+	if (phy_ts) {
 		err = phy_hwtstamp_set(dev->phydev, cfg, extack);
 		if (err) {
 			if (changed)

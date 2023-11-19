@@ -47,7 +47,6 @@
 #include <uapi/linux/if_bonding.h>
 #include <uapi/linux/pkt_cls.h>
 #include <uapi/linux/netdev.h>
-#include <uapi/linux/net_tstamp.h>
 #include <linux/hashtable.h>
 #include <linux/rbtree.h>
 #include <net/net_trackers.h>
@@ -2075,8 +2074,6 @@ enum netdev_ml_priv_type {
  *
  *	@dpll_pin: Pointer to the SyncE source pin of a DPLL subsystem,
  *		   where the clock is recovered.
- *	@ts_layer:	Tracks which network device
- *			performs packet	time stamping.
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
@@ -2438,8 +2435,6 @@ struct net_device {
 #if IS_ENABLED(CONFIG_DPLL)
 	struct dpll_pin		*dpll_pin;
 #endif
-
-	enum timestamping_layer	ts_layer;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 

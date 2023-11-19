@@ -633,28 +633,13 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct phy_device *phydev = dev->phydev;
-	enum timestamping_layer ts_layer;
-	int ret;
 
 	memset(info, 0, sizeof(*info));
 	info->cmd = ETHTOOL_GET_TS_INFO;
 
-	ts_layer = dev->ts_layer;
-	if (ts_layer == SOFTWARE_TIMESTAMPING) {
-		ret = ops->get_ts_info(dev, info);
-		if (ret)
-			return ret;
-		info->so_timestamping &= ~SOF_TIMESTAMPING_HARDWARE_MASK;
-		info->phc_index = -1;
-		info->rx_filters = 0;
-		info->tx_types = 0;
-		return 0;
-	}
-
-	if (ts_layer == PHY_TIMESTAMPING)
+	if (phy_has_tsinfo(phydev))
 		return phy_ts_info(phydev, info);
-
-	if (ts_layer == MAC_TIMESTAMPING)
+	if (ops->get_ts_info)
 		return ops->get_ts_info(dev, info);
 
 	info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
