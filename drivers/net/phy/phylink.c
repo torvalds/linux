@@ -697,18 +697,16 @@ static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_s) = { 0, };
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(s);
 	struct phylink_link_state t;
-	int intf;
+	int interface;
 
-	for (intf = 0; intf < PHY_INTERFACE_MODE_MAX; intf++) {
-		if (test_bit(intf, interfaces)) {
-			linkmode_copy(s, supported);
+	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX) {
+		linkmode_copy(s, supported);
 
-			t = *state;
-			t.interface = intf;
-			if (!phylink_validate_mac_and_pcs(pl, s, &t)) {
-				linkmode_or(all_s, all_s, s);
-				linkmode_or(all_adv, all_adv, t.advertising);
-			}
+		t = *state;
+		t.interface = interface;
+		if (!phylink_validate_mac_and_pcs(pl, s, &t)) {
+			linkmode_or(all_s, all_s, s);
+			linkmode_or(all_adv, all_adv, t.advertising);
 		}
 	}
 
