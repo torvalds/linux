@@ -1558,10 +1558,9 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	struct dma_slave_config cfg;
 	int ret;
 
-	chan = dma_request_slave_channel(port->dev,
-					 dir == DMA_MEM_TO_DEV ? "tx" : "rx");
-	if (!chan) {
-		dev_dbg(port->dev, "dma_request_slave_channel failed\n");
+	chan = dma_request_chan(port->dev, dir == DMA_MEM_TO_DEV ? "tx" : "rx");
+	if (IS_ERR(chan)) {
+		dev_dbg(port->dev, "dma_request_chan failed\n");
 		return NULL;
 	}
 
