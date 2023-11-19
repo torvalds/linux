@@ -266,6 +266,8 @@
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
 			clock-output-names = "usb480m_phy";
+			assigned-clocks = <&cru SCLK_USB480M>;
+			assigned-clock-parents = <&usb2phy>;
 			#clock-cells = <0>;
 			status = "disabled";
 
