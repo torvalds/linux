@@ -16,12 +16,6 @@ struct chnl_txpow_triple {
 	u8  max_tx_power;
 };
 
-enum dot11d_state {
-	DOT11D_STATE_NONE = 0,
-	DOT11D_STATE_LEARNED,
-	DOT11D_STATE_DONE,
-};
-
 /**
  * struct rt_dot11d_info * @country_len: value greater than 0 if
  *		  @country_buffer contains valid country information element.
@@ -40,8 +34,6 @@ struct rt_dot11d_info {
 
 	u8  channel_map[MAX_CHANNEL_NUMBER + 1];
 	u8  max_tx_power_list[MAX_CHANNEL_NUMBER + 1];
-
-	enum dot11d_state state;
 };
 
 #define GET_DOT11D_INFO(__ieee_dev)			\
