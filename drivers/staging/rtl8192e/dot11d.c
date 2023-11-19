@@ -59,18 +59,3 @@ void dot11d_reset(struct rtllib_device *ieee)
 	RESET_CIE_WATCHDOG(ieee);
 }
 
-void dot11d_scan_complete(struct rtllib_device *dev)
-{
-	struct rt_dot11d_info *dot11d_info = GET_DOT11D_INFO(dev);
-
-	switch (dot11d_info->state) {
-	case DOT11D_STATE_LEARNED:
-		dot11d_info->state = DOT11D_STATE_DONE;
-		break;
-	case DOT11D_STATE_DONE:
-		dot11d_reset(dev);
-		break;
-	case DOT11D_STATE_NONE:
-		break;
-	}
-}
