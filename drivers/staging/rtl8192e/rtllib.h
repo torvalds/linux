@@ -1322,7 +1322,6 @@ struct rtllib_device {
 
 	/* map of allowed channels. 0 is dummy */
 	void *dot11d_info;
-	bool global_domain;
 	u8 active_channel_map[MAX_CHANNEL_NUMBER+1];
 
 	u8   bss_start_channel;

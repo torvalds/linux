@@ -26,8 +26,6 @@ void dot11d_channel_map(struct rtllib_device *ieee)
 {
 	int i;
 
-	ieee->global_domain = false;
-
 	memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
 	       sizeof(GET_DOT11D_INFO(ieee)->channel_map));
 	for (i = 0; i < channel_array.len; i++)
