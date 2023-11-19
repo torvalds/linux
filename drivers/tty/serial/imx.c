@@ -1336,15 +1336,18 @@ static int imx_uart_dma_init(struct imx_port *sport)
 {
 	struct dma_slave_config slave_config = {};
 	struct device *dev = sport->port.dev;
+	struct dma_chan *chan;
 	int ret;
 
 	/* Prepare for RX : */
-	sport->dma_chan_rx = dma_request_slave_channel(dev, "rx");
-	if (!sport->dma_chan_rx) {
+	chan = dma_request_chan(dev, "rx");
+	if (IS_ERR(chan)) {
 		dev_dbg(dev, "cannot get the DMA channel.\n");
-		ret = -EINVAL;
+		sport->dma_chan_rx = NULL;
+		ret = PTR_ERR(chan);
 		goto err;
 	}
+	sport->dma_chan_rx = chan;
 
 	slave_config.direction = DMA_DEV_TO_MEM;
 	slave_config.src_addr = sport->port.mapbase + URXD0;
@@ -1366,12 +1369,14 @@ static int imx_uart_dma_init(struct imx_port *sport)
 	sport->rx_ring.buf = sport->rx_buf;
 
 	/* Prepare for TX : */
-	sport->dma_chan_tx = dma_request_slave_channel(dev, "tx");
-	if (!sport->dma_chan_tx) {
+	chan = dma_request_chan(dev, "tx");
+	if (IS_ERR(chan)) {
 		dev_err(dev, "cannot get the TX DMA channel!\n");
-		ret = -EINVAL;
+		sport->dma_chan_tx = NULL;
+		ret = PTR_ERR(chan);
 		goto err;
 	}
+	sport->dma_chan_tx = chan;
 
 	slave_config.direction = DMA_MEM_TO_DEV;
 	slave_config.dst_addr = sport->port.mapbase + URTX0;
