@@ -317,7 +317,10 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 			list_add_tail(&released_brx->list_pipe,
 				      &pipe->entities);
 
-		/* Add the BRx to the pipeline. */
+		/*
+		 * Add the BRx to the pipeline, inserting it just before the
+		 * WPF.
+		 */
 		dev_dbg(vsp1->dev, "%s: pipe %u: acquired %s\n",
 			__func__, pipe->lif->index, BRX_NAME(brx));
 
@@ -326,7 +329,8 @@ static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 		pipe->brx->sink = &pipe->output->entity;
 		pipe->brx->sink_pad = 0;
 
-		list_add_tail(&pipe->brx->list_pipe, &pipe->entities);
+		list_add_tail(&pipe->brx->list_pipe,
+			      &pipe->output->entity.list_pipe);
 	}
 
 	/*
@@ -420,7 +424,7 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 
 		if (!rpf->entity.pipe) {
 			rpf->entity.pipe = pipe;
-			list_add_tail(&rpf->entity.list_pipe, &pipe->entities);
+			list_add(&rpf->entity.list_pipe, &pipe->entities);
 		}
 
 		brx->inputs[i].rpf = rpf;
