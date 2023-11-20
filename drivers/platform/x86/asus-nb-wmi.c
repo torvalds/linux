@@ -48,9 +48,11 @@ module_param(tablet_mode_sw, uint, 0444);
 MODULE_PARM_DESC(tablet_mode_sw, "Tablet mode detect: -1:auto 0:disable 1:kbd-dock 2:lid-flip 3:lid-flip-rog");
 
 static struct quirk_entry *quirks;
+static bool atkbd_reports_vol_keys;
 
 static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port)
 {
+	static bool extended_e0;
 	static bool extended_e1;
 
 	if (str & I8042_STR_AUXDATA)
@@ -65,6 +67,20 @@ static bool asus_i8042_filter(unsigned char data, unsigned char str, struct seri
 		if (extended_e1) {
 			extended_e1 = false;
 			return true;
+		}
+	}
+
+	if (data == 0xe0) {
+		extended_e0 = true;
+	} else if (extended_e0) {
+		extended_e0 = false;
+
+		switch (data & 0x7f) {
+		case 0x20: /* e0 20 / e0 a0, Volume Mute press / release */
+		case 0x2e: /* e0 2e / e0 ae, Volume Down press / release */
+		case 0x30: /* e0 30 / e0 b0, Volume Up press / release */
+			atkbd_reports_vol_keys = true;
+			break;
 		}
 	}
 
@@ -606,6 +622,13 @@ static void asus_nb_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
 	case ASUS_WMI_BRN_DOWN:
 	case ASUS_WMI_BRN_UP:
 		if (acpi_video_handles_brightness_key_presses())
+			*code = ASUS_WMI_KEY_IGNORE;
+
+		break;
+	case 0x30: /* Volume Up */
+	case 0x31: /* Volume Down */
+	case 0x32: /* Volume Mute */
+		if (atkbd_reports_vol_keys)
 			*code = ASUS_WMI_KEY_IGNORE;
 
 		break;
