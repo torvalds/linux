@@ -2404,7 +2404,7 @@ static int __must_check initialize_zone(struct vdo *vdo, struct hash_zones *zone
 	data_vio_count_t i;
 	struct hash_zone *zone = &zones->zones[zone_number];
 
-	result = vdo_make_int_map(VDO_LOCK_MAP_CAPACITY, 0, &zone->hash_lock_map);
+	result = vdo_int_map_create(VDO_LOCK_MAP_CAPACITY, 0, &zone->hash_lock_map);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -2528,7 +2528,7 @@ void vdo_free_hash_zones(struct hash_zones *zones)
 		struct hash_zone *zone = &zones->zones[i];
 
 		uds_free_funnel_queue(uds_forget(zone->timed_out_complete));
-		vdo_free_int_map(uds_forget(zone->hash_lock_map));
+		vdo_int_map_free(uds_forget(zone->hash_lock_map));
 		uds_free(uds_forget(zone->lock_array));
 	}
 

@@ -23,17 +23,17 @@
 
 struct int_map;
 
-int __must_check
-vdo_make_int_map(size_t initial_capacity, unsigned int initial_load, struct int_map **map_ptr);
+int __must_check vdo_int_map_create(size_t initial_capacity, unsigned int initial_load,
+				    struct int_map **map_ptr);
 
-void vdo_free_int_map(struct int_map *map);
+void vdo_int_map_free(struct int_map *map);
 
 size_t vdo_int_map_size(const struct int_map *map);
 
 void *vdo_int_map_get(struct int_map *map, u64 key);
 
-int __must_check
-vdo_int_map_put(struct int_map *map, u64 key, void *new_value, bool update, void **old_value_ptr);
+int __must_check vdo_int_map_put(struct int_map *map, u64 key, void *new_value,
+				 bool update, void **old_value_ptr);
 
 void *vdo_int_map_remove(struct int_map *map, u64 key);
 
