@@ -199,6 +199,7 @@ static void ath12k_copy_regd(struct ieee80211_regdomain *regd_orig,
 
 int ath12k_regd_update(struct ath12k *ar, bool init)
 {
+	struct ieee80211_hw *hw = ar->hw;
 	struct ieee80211_regdomain *regd, *regd_copy = NULL;
 	int ret, regd_len, pdev_id;
 	struct ath12k_base *ab;
@@ -246,9 +247,9 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	}
 
 	rtnl_lock();
-	wiphy_lock(ar->hw->wiphy);
-	ret = regulatory_set_wiphy_regd_sync(ar->hw->wiphy, regd_copy);
-	wiphy_unlock(ar->hw->wiphy);
+	wiphy_lock(hw->wiphy);
+	ret = regulatory_set_wiphy_regd_sync(hw->wiphy, regd_copy);
+	wiphy_unlock(hw->wiphy);
 	rtnl_unlock();
 
 	kfree(regd_copy);
@@ -729,10 +730,10 @@ void ath12k_regd_update_work(struct work_struct *work)
 	}
 }
 
-void ath12k_reg_init(struct ath12k *ar)
+void ath12k_reg_init(struct ieee80211_hw *hw)
 {
-	ar->hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
-	ar->hw->wiphy->reg_notifier = ath12k_reg_notifier;
+	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
+	hw->wiphy->reg_notifier = ath12k_reg_notifier;
 }
 
 void ath12k_reg_free(struct ath12k_base *ab)
