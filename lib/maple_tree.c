@@ -7257,6 +7257,7 @@ static void mas_validate_gaps(struct ma_state *mas)
 
 counted:
 	if (mt == maple_arange_64) {
+		MT_BUG_ON(mas->tree, !gaps);
 		offset = ma_meta_gap(node, mt);
 		if (offset > i) {
 			pr_err("gap offset %p[%u] is invalid\n", node, offset);
@@ -7269,7 +7270,6 @@ counted:
 			MT_BUG_ON(mas->tree, 1);
 		}
 
-		MT_BUG_ON(mas->tree, !gaps);
 		for (i++ ; i < mt_slot_count(mte); i++) {
 			if (gaps[i] != 0) {
 				pr_err("gap %p[%u] beyond node limit != 0\n",
