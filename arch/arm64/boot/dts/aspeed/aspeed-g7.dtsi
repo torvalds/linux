@@ -504,6 +504,17 @@
 			status = "disabled";
 		};
 
+		gfx: display@12c09000 {
+			compatible = "aspeed,ast2700-gfx", "syscon";
+			reg = <0 0x12c09000 0 0x100>;
+			reg-io-width = <4>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_CRT1>;
+			resets = <&soc0_rst ASPEED_RESET_CRT0>;
+			syscon = <&syscon0>;
+			status = "disabled";
+			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		rtc: rtc@12c0f000 {
 			compatible = "aspeed,ast2700-rtc";
 			reg = <0 0x12c0f000 0 0x18>;
