@@ -9,6 +9,12 @@
 int32_t habmm_socket_open(int32_t *handle, uint32_t mm_ip_id,
 		uint32_t timeout, uint32_t flags)
 {
+	while (unlikely(!READ_ONCE(hab_driver.hab_init_success))) {
+		pr_info_once("opening on mmid %d when hab has not completed init\n",
+					mm_ip_id);
+		schedule();
+	}
+
 	return hab_vchan_open(hab_driver.kctx, mm_ip_id, handle,
 				timeout, flags);
 }
