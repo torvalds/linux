@@ -2854,8 +2854,11 @@ static int __bnxt_poll_cqs(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	for (i = 0; i < cpr->cp_ring_count; i++) {
 		struct bnxt_cp_ring_info *cpr2 = &cpr->cp_ring_arr[i];
 
-		work_done += __bnxt_poll_work(bp, cpr2, budget - work_done);
-		cpr->has_more_work |= cpr2->has_more_work;
+		if (cpr2->had_nqe_notify) {
+			work_done += __bnxt_poll_work(bp, cpr2,
+						      budget - work_done);
+			cpr->has_more_work |= cpr2->has_more_work;
+		}
 	}
 	return work_done;
 }
@@ -2876,6 +2879,8 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 				    DB_RING_IDX(db, cpr2->cp_raw_cons),
 				    db->doorbell);
 			cpr2->had_work_done = 0;
+			if (dbr_type == DBR_TYPE_CQ_ARMALL)
+				cpr2->had_nqe_notify = 0;
 		}
 	}
 	__bnxt_poll_work_done(bp, bnapi, budget);
@@ -2934,6 +2939,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 
 			idx = BNXT_NQ_HDL_IDX(idx);
 			cpr2 = &cpr->cp_ring_arr[idx];
+			cpr2->had_nqe_notify = 1;
 			work_done += __bnxt_poll_work(bp, cpr2,
 						      budget - work_done);
 			cpr->has_more_work |= cpr2->has_more_work;
