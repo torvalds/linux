@@ -7233,6 +7233,8 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 			rc = -ENOMEM;
 			goto ctx_err;
 		}
+		bp->ctx = ctx;
+
 		ctx->qp_max_entries = le32_to_cpu(resp->qp_max_entries);
 		ctx->qp_min_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
 		ctx->qp_max_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
@@ -7276,13 +7278,11 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		tqm_rings = ctx->tqm_fp_rings_count + BNXT_MAX_TQM_SP_RINGS;
 		ctx_pg = kcalloc(tqm_rings, sizeof(*ctx_pg), GFP_KERNEL);
 		if (!ctx_pg) {
-			kfree(ctx);
 			rc = -ENOMEM;
 			goto ctx_err;
 		}
 		for (i = 0; i < tqm_rings; i++, ctx_pg++)
 			ctx->tqm_mem[i] = ctx_pg;
-		bp->ctx = ctx;
 	} else {
 		rc = 0;
 	}
