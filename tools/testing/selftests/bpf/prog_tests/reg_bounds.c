@@ -1361,11 +1361,11 @@ struct subtest_case {
 	enum op op;
 };
 
-static void subtest_case_str(struct strbuf *sb, struct subtest_case *t)
+static void subtest_case_str(struct strbuf *sb, struct subtest_case *t, bool use_op)
 {
 	snappendf(sb, "(%s)", t_str(t->init_t));
 	snprintf_range(t->init_t, sb, t->x);
-	snappendf(sb, " (%s)%s ", t_str(t->cond_t), op_str(t->op));
+	snappendf(sb, " (%s)%s ", t_str(t->cond_t), use_op ? op_str(t->op) : "<op>");
 	snprintf_range(t->init_t, sb, t->y);
 }
 
@@ -1440,8 +1440,8 @@ static int verify_case_op(enum num_t init_t, enum num_t cond_t,
 /* Given setup ranges and number types, go over all supported operations,
  * generating individual subtest for each allowed combination
  */
-static int verify_case(struct ctx *ctx, enum num_t init_t, enum num_t cond_t,
-		       struct range x, struct range y)
+static int verify_case_opt(struct ctx *ctx, enum num_t init_t, enum num_t cond_t,
+			   struct range x, struct range y, bool is_subtest)
 {
 	DEFINE_STRBUF(sb, 256);
 	int err;
@@ -1452,11 +1452,14 @@ static int verify_case(struct ctx *ctx, enum num_t init_t, enum num_t cond_t,
 		.y = y,
 	};
 
+	sb->pos = 0; /* reset position in strbuf */
+	subtest_case_str(sb, &sub, false /* ignore op */);
+	if (is_subtest && !test__start_subtest(sb->buf))
+		return 0;
+
 	for (sub.op = first_op; sub.op <= last_op; sub.op++) {
 		sb->pos = 0; /* reset position in strbuf */
-		subtest_case_str(sb, &sub);
-		if (!test__start_subtest(sb->buf))
-			continue;
+		subtest_case_str(sb, &sub, true /* print op */);
 
 		if (env.verbosity >= VERBOSE_NORMAL) /* this speeds up debugging */
 			printf("TEST CASE: %s\n", sb->buf);
@@ -1489,6 +1492,12 @@ static int verify_case(struct ctx *ctx, enum num_t init_t, enum num_t cond_t,
 	}
 
 	return 0;
+}
+
+static int verify_case(struct ctx *ctx, enum num_t init_t, enum num_t cond_t,
+		       struct range x, struct range y)
+{
+	return verify_case_opt(ctx, init_t, cond_t, x, y, true /* is_subtest */);
 }
 
 /* ================================
@@ -1913,7 +1922,7 @@ void test_reg_bounds_gen_ranges_s32_s64(void) { validate_gen_range_vs_range(S32,
 void test_reg_bounds_gen_ranges_s32_u32(void) { validate_gen_range_vs_range(S32, U32); }
 void test_reg_bounds_gen_ranges_s32_s32(void) { validate_gen_range_vs_range(S32, S32); }
 
-#define DEFAULT_RAND_CASE_CNT 25
+#define DEFAULT_RAND_CASE_CNT 100
 
 #define RAND_21BIT_MASK ((1 << 22) - 1)
 
@@ -1968,7 +1977,6 @@ static void validate_rand_ranges(enum num_t init_t, enum num_t cond_t, bool cons
 		 "[RANDOM SEED %u] RANGE x %s, %s -> %s",
 		 ctx.rand_seed, const_range ? "CONST" : "RANGE",
 		 t_str(init_t), t_str(cond_t));
-	fprintf(env.stdout, "%s\n", ctx.progress_ctx);
 
 	for (i = 0; i < ctx.rand_case_cnt; i++) {
 		range1 = rand_range(init_t);
@@ -1980,14 +1988,16 @@ static void validate_rand_ranges(enum num_t init_t, enum num_t cond_t, bool cons
 		}
 
 		/* <range1> x <range2> */
-		if (verify_case(&ctx, init_t, cond_t, range1, range2))
+		if (verify_case_opt(&ctx, init_t, cond_t, range1, range2, false /* !is_subtest */))
 			goto cleanup;
 		/* <range2> x <range1> */
-		if (verify_case(&ctx, init_t, cond_t, range2, range1))
+		if (verify_case_opt(&ctx, init_t, cond_t, range2, range1, false /* !is_subtest */))
 			goto cleanup;
 	}
 
 cleanup:
+	/* make sure we report random seed for reproducing */
+	ASSERT_TRUE(true, ctx.progress_ctx);
 	cleanup_ctx(&ctx);
 }
 
