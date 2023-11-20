@@ -129,10 +129,8 @@ void vdo_waitq_dequeue_matching_waiters(struct vdo_wait_queue *waitq,
 					void *match_context,
 					struct vdo_wait_queue *matched_waitq)
 {
-	// FIXME: copying a waitq just to iterate it, with matching, is unfortunate
-	struct vdo_wait_queue matched_waiters, iteration_waitq;
+	struct vdo_wait_queue iteration_waitq;
 
-	vdo_waitq_init(&matched_waiters);
 	vdo_waitq_init(&iteration_waitq);
 	vdo_waitq_transfer_all_waiters(waitq, &iteration_waitq);
 
@@ -140,10 +138,8 @@ void vdo_waitq_dequeue_matching_waiters(struct vdo_wait_queue *waitq,
 		struct vdo_waiter *waiter = vdo_waitq_dequeue_next_waiter(&iteration_waitq);
 
 		vdo_waitq_enqueue_waiter((waiter_match(waiter, match_context) ?
-					  &matched_waiters : waitq), waiter);
+					  matched_waitq : waitq), waiter);
 	}
-
-	vdo_waitq_transfer_all_waiters(&matched_waiters, matched_waitq);
 }
 
 /**
