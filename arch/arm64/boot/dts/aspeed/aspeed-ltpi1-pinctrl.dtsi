@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+&ltpi1_pinctrl {
+	pinctrl_ltpi1_i2c0_default: ltpi1_i2c0_default {
+		function = "I2C0";
+		groups = "I2C0";
+	};
+
+	pinctrl_ltpi1_i2c1_default: ltpi1_i2c1_default {
+		function = "I2C1";
+		groups = "I2C1";
+	};
+
+	pinctrl_ltpi1_i2c2_default: ltpi1_i2c2_default {
+		function = "I2C2";
+		groups = "I2C2";
+	};
+
+	pinctrl_ltpi1_i2c3_default: ltpi1_i2c3_default {
+		function = "I2C3";
+		groups = "I2C3";
+	};
+
+	pinctrl_ltpi1_i2c4_default: ltpi1_i2c4_default {
+		function = "I2C4";
+		groups = "I2C4";
+	};
+
+	pinctrl_ltpi1_i2c5_default: ltpi1_i2c5_default {
+		function = "I2C5";
+		groups = "I2C5";
+	};
+};
