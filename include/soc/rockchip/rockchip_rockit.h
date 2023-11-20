@@ -35,6 +35,7 @@ struct rkisp_stream_cfg {
 	int cur_fps;
 	u64 old_time;
 	bool is_discard;
+	struct mutex freebuf_lock;
 };
 
 struct ISP_VIDEO_FRAMES {
@@ -132,6 +133,7 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
 				    struct rkisp_tb_stream_info *info);
 int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg);
+int rkisp_rockit_free_stream_buf(struct rockit_cfg *input_rockit_cfg);
 
 void *rkcif_rockit_function_register(void *function, int cmd);
 int rkcif_rockit_get_cifdev(char **name);
@@ -171,6 +173,11 @@ static inline int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rocki
 }
 
 static inline int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg)
+{
+	return -EINVAL;
+}
+
+static inline int rkisp_rockit_free_stream_buf(struct rockit_cfg *input_rockit_cfg)
 {
 	return -EINVAL;
 }
