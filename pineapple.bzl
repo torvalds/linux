@@ -77,6 +77,7 @@ def define_pineapple():
         "drivers/interconnect/qcom/qnoc-cliffs.ko",
         "drivers/interconnect/qcom/qnoc-pineapple.ko",
         "drivers/interconnect/qcom/qnoc-qos.ko",
+        "drivers/interconnect/qcom/qnoc-volcano.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/iommu/iommu-logger.ko",
         "drivers/iommu/msm_dma_iommu_mapping.ko",
