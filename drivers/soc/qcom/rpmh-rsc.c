@@ -28,6 +28,7 @@
 
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/tcs.h>
+#include <soc/qcom/crm.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
 
 #include "rpmh-internal.h"
@@ -183,6 +184,8 @@ enum {
 	RSC_DRV_CMD_STATUS,
 	RSC_DRV_CMD_RESP_DATA,
 /* DRV channel Registers */
+	RSC_DRV_CHN_SEQ_BUSY,
+	RSC_DRV_CHN_SEQ_PC,
 	RSC_DRV_CHN_TCS_TRIGGER,
 	RSC_DRV_CHN_TCS_COMPLETE,
 	RSC_DRV_CHN_UPDATE,
@@ -207,6 +210,8 @@ static u32 rpmh_rsc_reg_offsets_ver_2_7[] = {
 	[RSC_DRV_CMD_DATA]		=	0x38,
 	[RSC_DRV_CMD_STATUS]		=	0x3C,
 	[RSC_DRV_CMD_RESP_DATA]		=	0x40,
+	[RSC_DRV_CHN_SEQ_BUSY]		=	0x0,
+	[RSC_DRV_CHN_SEQ_PC]		=	0x0,
 	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x0,
 	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x0,
 	[RSC_DRV_CHN_UPDATE]		=	0x0,
@@ -231,6 +236,8 @@ static u32 rpmh_rsc_reg_offsets_ver_3_0[] = {
 	[RSC_DRV_CMD_DATA]		=	0x3C,
 	[RSC_DRV_CMD_STATUS]		=	0x40,
 	[RSC_DRV_CMD_RESP_DATA]		=	0x44,
+	[RSC_DRV_CHN_SEQ_BUSY]		=	0x464,
+	[RSC_DRV_CHN_SEQ_PC]		=	0x468,
 	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x490,
 	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x494,
 	[RSC_DRV_CHN_UPDATE]		=	0x498,
@@ -255,6 +262,8 @@ static u32 rpmh_rsc_reg_offsets_ver_3_0_hw_channel[] = {
 	[RSC_DRV_CMD_DATA]		=	0x3C,
 	[RSC_DRV_CMD_STATUS]		=	0x40,
 	[RSC_DRV_CMD_RESP_DATA]		=	0x44,
+	[RSC_DRV_CHN_SEQ_BUSY]		=	0x464,
+	[RSC_DRV_CHN_SEQ_PC]		=	0x468,
 	[RSC_DRV_CHN_TCS_TRIGGER]	=	0x490,
 	[RSC_DRV_CHN_TCS_COMPLETE]	=	0x494,
 	[RSC_DRV_CHN_UPDATE]		=	0x498,
@@ -950,6 +959,30 @@ print_tcs_data:
 		if (!(sts & CMD_STATUS_COMPL))
 			*accl |= BIT(ACCL_TYPE(addr));
 	}
+}
+
+void rpmh_rsc_debug_channel_busy(struct rsc_drv *drv)
+{
+	u32 event_sts, ctrl_sts;
+	u32 chn_update, chn_busy, chn_en;
+	u32 seq_busy, seq_pc;
+
+	pr_err("RSC:%s\n", drv->name);
+
+	event_sts = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_TCS_COMPLETE]);
+	ctrl_sts = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_TCS_TRIGGER]);
+	chn_update = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_UPDATE]);
+	chn_busy = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_BUSY]);
+	chn_en = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_EN]);
+	seq_busy = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_SEQ_BUSY]);
+	seq_pc = readl_relaxed(drv->base + drv->regs[RSC_DRV_CHN_SEQ_PC]);
+
+	pr_err("event sts: 0x%x ctrl_sts: 0x%x\n", event_sts, ctrl_sts);
+	pr_err("chn_update: 0x%x chn_busy: 0x%x chn_en: 0x%x\n", chn_update, chn_busy, chn_en);
+	pr_err("seq_busy: 0x%x seq_pc: 0x%x\n", seq_busy, seq_pc);
+
+	crm_dump_regs("cam_crm");
+	crm_dump_drv_regs("cam_crm", drv->id);
 }
 
 void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
