@@ -8419,6 +8419,9 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	rif->ops = ops;
 	rif->rif_entries = rif_entries;
 
+	if (ops->setup)
+		ops->setup(rif, params);
+
 	if (ops->fid_get) {
 		fid = ops->fid_get(rif, params, extack);
 		if (IS_ERR(fid)) {
@@ -8427,9 +8430,6 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		}
 		rif->fid = fid;
 	}
-
-	if (ops->setup)
-		ops->setup(rif, params);
 
 	err = ops->configure(rif, extack);
 	if (err)
