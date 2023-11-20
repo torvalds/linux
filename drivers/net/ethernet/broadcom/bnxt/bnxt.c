@@ -7208,6 +7208,72 @@ static int bnxt_alloc_all_ctx_pg_info(struct bnxt *bp, int ctx_max)
 	return 0;
 }
 
+#define BNXT_CTX_INIT_VALID(flags)	\
+	(!!((flags) &			\
+	    FUNC_BACKING_STORE_QCAPS_V2_RESP_FLAGS_ENABLE_CTX_KIND_INIT))
+
+static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
+{
+	struct hwrm_func_backing_store_qcaps_v2_output *resp;
+	struct hwrm_func_backing_store_qcaps_v2_input *req;
+	u16 last_valid_type = BNXT_CTX_INV;
+	struct bnxt_ctx_mem_info *ctx;
+	u16 type;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_FUNC_BACKING_STORE_QCAPS_V2);
+	if (rc)
+		return rc;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	bp->ctx = ctx;
+
+	resp = hwrm_req_hold(bp, req);
+
+	for (type = 0; type < BNXT_CTX_V2_MAX; ) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		u8 init_val, init_off, i;
+		__le32 *p;
+		u32 flags;
+
+		req->type = cpu_to_le16(type);
+		rc = hwrm_req_send(bp, req);
+		if (rc)
+			goto ctx_done;
+		flags = le32_to_cpu(resp->flags);
+		type = le16_to_cpu(resp->next_valid_type);
+		if (!(flags & FUNC_BACKING_STORE_QCAPS_V2_RESP_FLAGS_TYPE_VALID))
+			continue;
+
+		ctxm->type = le16_to_cpu(resp->type);
+		last_valid_type = ctxm->type;
+		ctxm->entry_size = le16_to_cpu(resp->entry_size);
+		ctxm->flags = flags;
+		ctxm->instance_bmap = le32_to_cpu(resp->instance_bit_map);
+		ctxm->entry_multiple = resp->entry_multiple;
+		ctxm->max_entries = le32_to_cpu(resp->max_num_entries);
+		ctxm->min_entries = le32_to_cpu(resp->min_num_entries);
+		init_val = resp->ctx_init_value;
+		init_off = resp->ctx_init_offset;
+		bnxt_init_ctx_initializer(ctxm, init_val, init_off,
+					  BNXT_CTX_INIT_VALID(flags));
+		ctxm->split_entry_cnt = min_t(u8, resp->subtype_valid_cnt,
+					      BNXT_MAX_SPLIT_ENTRY);
+		for (i = 0, p = &resp->split_entry_0; i < ctxm->split_entry_cnt;
+		     i++, p++)
+			ctxm->split[i] = le32_to_cpu(*p);
+	}
+	if (last_valid_type < BNXT_CTX_V2_MAX)
+		ctx->ctx_arr[last_valid_type].last = true;
+	rc = bnxt_alloc_all_ctx_pg_info(bp, BNXT_CTX_V2_MAX);
+
+ctx_done:
+	hwrm_req_drop(bp, req);
+	return rc;
+}
+
 static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 {
 	struct hwrm_func_backing_store_qcaps_output *resp;
@@ -7216,6 +7282,9 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 
 	if (bp->hwrm_spec_code < 0x10902 || BNXT_VF(bp) || bp->ctx)
 		return 0;
+
+	if (bp->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+		return bnxt_hwrm_func_backing_store_qcaps_v2(bp);
 
 	rc = hwrm_req_init(bp, req, HWRM_FUNC_BACKING_STORE_QCAPS);
 	if (rc)
@@ -7229,13 +7298,15 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		u8 init_val, init_idx = 0;
 		u16 init_mask;
 
-		ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+		ctx = bp->ctx;
 		if (!ctx) {
-			rc = -ENOMEM;
-			goto ctx_err;
+			ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+			if (!ctx) {
+				rc = -ENOMEM;
+				goto ctx_err;
+			}
+			bp->ctx = ctx;
 		}
-		bp->ctx = ctx;
-
 		init_val = resp->ctx_kind_initializer;
 		init_mask = le16_to_cpu(resp->ctx_init_mask);
 
@@ -7607,7 +7678,7 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 	if (!ctx)
 		return;
 
-	for (type = 0; type < BNXT_CTX_MAX; type++) {
+	for (type = 0; type < BNXT_CTX_V2_MAX; type++) {
 		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
 		struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
 		int i, n = 1;
@@ -7914,6 +7985,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 	if (BNXT_PF(bp) && (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_FW_LIVEPATCH_SUPPORTED))
 		bp->fw_cap |= BNXT_FW_CAP_LIVEPATCH;
+	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_BS_V2_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_BACKING_STORE_V2;
 
 	flags_ext2 = le32_to_cpu(resp->flags_ext2);
 	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_RX_ALL_PKTS_TIMESTAMPS_SUPPORTED)
