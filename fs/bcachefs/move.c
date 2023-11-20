@@ -819,8 +819,8 @@ typedef bool (*move_btree_pred)(struct bch_fs *, void *,
 				struct data_update_opts *);
 
 static int bch2_move_btree(struct bch_fs *c,
-			   enum btree_id start_btree_id, struct bpos start_pos,
-			   enum btree_id end_btree_id,   struct bpos end_pos,
+			   struct bbpos start,
+			   struct bbpos end,
 			   move_btree_pred pred, void *arg,
 			   struct bch_move_stats *stats)
 {
@@ -830,7 +830,7 @@ static int bch2_move_btree(struct bch_fs *c,
 	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct btree *b;
-	enum btree_id id;
+	enum btree_id btree;
 	struct data_update_opts data_opts;
 	int ret = 0;
 
@@ -841,15 +841,15 @@ static int bch2_move_btree(struct bch_fs *c,
 
 	stats->data_type = BCH_DATA_btree;
 
-	for (id = start_btree_id;
-	     id <= min_t(unsigned, end_btree_id, btree_id_nr_alive(c) - 1);
-	     id++) {
-		stats->pos = BBPOS(id, POS_MIN);
+	for (btree = start.btree;
+	     btree <= min_t(unsigned, end.btree, btree_id_nr_alive(c) - 1);
+	     btree ++) {
+		stats->pos = BBPOS(btree, POS_MIN);
 
-		if (!bch2_btree_id_root(c, id)->b)
+		if (!bch2_btree_id_root(c, btree)->b)
 			continue;
 
-		bch2_trans_node_iter_init(trans, &iter, id, POS_MIN, 0, 0,
+		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);
 retry:
 		ret = 0;
@@ -859,8 +859,8 @@ retry:
 			if (kthread && kthread_should_stop())
 				break;
 
-			if ((cmp_int(id, end_btree_id) ?:
-			     bpos_cmp(b->key.k.p, end_pos)) > 0)
+			if ((cmp_int(btree, end.btree) ?:
+			     bpos_cmp(b->key.k.p, end.pos)) > 0)
 				break;
 
 			stats->pos = BBPOS(iter.btree_id, iter.pos);
@@ -997,8 +997,8 @@ int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
 	int ret;
 
 	ret = bch2_move_btree(c,
-			      0,		POS_MIN,
-			      BTREE_ID_NR,	SPOS_MAX,
+			      BBPOS_MIN,
+			      BBPOS_MAX,
 			      rewrite_old_nodes_pred, c, stats);
 	if (!ret) {
 		mutex_lock(&c->sb_lock);
@@ -1017,6 +1017,8 @@ int bch2_data_job(struct bch_fs *c,
 		  struct bch_move_stats *stats,
 		  struct bch_ioctl_data op)
 {
+	struct bbpos start	= BBPOS(op.start_btree, op.start_pos);
+	struct bbpos end	= BBPOS(op.end_btree, op.end_pos);
 	int ret = 0;
 
 	if (op.op >= BCH_DATA_OP_NR)
@@ -1029,15 +1031,11 @@ int bch2_data_job(struct bch_fs *c,
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, -1);
 
-		ret = bch2_move_btree(c,
-				      op.start_btree,	op.start_pos,
-				      op.end_btree,	op.end_pos,
+		ret = bch2_move_btree(c, start, end,
 				      rereplicate_btree_pred, c, stats) ?: ret;
 		ret = bch2_replicas_gc2(c) ?: ret;
 
-		ret = bch2_move_data(c,
-				     (struct bbpos) { op.start_btree,	op.start_pos },
-				     (struct bbpos) { op.end_btree,	op.end_pos },
+		ret = bch2_move_data(c, start, end,
 				     NULL,
 				     stats,
 				     writepoint_hashed((unsigned long) current),
@@ -1052,15 +1050,11 @@ int bch2_data_job(struct bch_fs *c,
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
 
-		ret = bch2_move_btree(c,
-				      op.start_btree,	op.start_pos,
-				      op.end_btree,	op.end_pos,
+		ret = bch2_move_btree(c, start, end,
 				      migrate_btree_pred, &op, stats) ?: ret;
 		ret = bch2_replicas_gc2(c) ?: ret;
 
-		ret = bch2_move_data(c,
-				     (struct bbpos) { op.start_btree,	op.start_pos },
-				     (struct bbpos) { op.end_btree,	op.end_pos },
+		ret = bch2_move_data(c, start, end,
 				     NULL,
 				     stats,
 				     writepoint_hashed((unsigned long) current),
