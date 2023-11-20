@@ -1430,7 +1430,7 @@ struct bnxt_test_info {
 };
 
 #define CHIMP_REG_VIEW_ADDR				\
-	((bp->flags & BNXT_FLAG_CHIP_P5) ? 0x80000000 : 0xb1000000)
+	((bp->flags & BNXT_FLAG_CHIP_P5_PLUS) ? 0x80000000 : 0xb1000000)
 
 #define BNXT_GRCPF_REG_CHIMP_COMM		0x0
 #define BNXT_GRCPF_REG_CHIMP_COMM_TRIGGER	0x100
@@ -1859,7 +1859,7 @@ struct bnxt {
 	atomic_t		intr_sem;
 
 	u32			flags;
-	#define BNXT_FLAG_CHIP_P5	0x1
+	#define BNXT_FLAG_CHIP_P5_PLUS	0x1
 	#define BNXT_FLAG_VF		0x2
 	#define BNXT_FLAG_LRO		0x4
 #ifdef CONFIG_INET
@@ -1913,21 +1913,21 @@ struct bnxt {
 #define BNXT_CHIP_TYPE_NITRO_A0(bp) ((bp)->flags & BNXT_FLAG_CHIP_NITRO_A0)
 #define BNXT_RX_PAGE_MODE(bp)	((bp)->flags & BNXT_FLAG_RX_PAGE_MODE)
 #define BNXT_SUPPORTS_TPA(bp)	(!BNXT_CHIP_TYPE_NITRO_A0(bp) &&	\
-				 (!((bp)->flags & BNXT_FLAG_CHIP_P5) ||	\
+				 (!((bp)->flags & BNXT_FLAG_CHIP_P5_PLUS) ||\
 				  (bp)->max_tpa_v2) && !is_kdump_kernel())
 #define BNXT_RX_JUMBO_MODE(bp)	((bp)->flags & BNXT_FLAG_JUMBO)
 
 #define BNXT_CHIP_SR2(bp)			\
 	((bp)->chip_num == CHIP_NUM_58818)
 
-#define BNXT_CHIP_P5_THOR(bp)			\
+#define BNXT_CHIP_P5(bp)			\
 	((bp)->chip_num == CHIP_NUM_57508 ||	\
 	 (bp)->chip_num == CHIP_NUM_57504 ||	\
 	 (bp)->chip_num == CHIP_NUM_57502)
 
 /* Chip class phase 5 */
-#define BNXT_CHIP_P5(bp)			\
-	(BNXT_CHIP_P5_THOR(bp) || BNXT_CHIP_SR2(bp))
+#define BNXT_CHIP_P5_PLUS(bp)			\
+	(BNXT_CHIP_P5(bp) || BNXT_CHIP_SR2(bp))
 
 /* Chip class phase 4.x */
 #define BNXT_CHIP_P4(bp)			\
@@ -1938,7 +1938,7 @@ struct bnxt {
 	  !BNXT_CHIP_TYPE_NITRO_A0(bp)))
 
 #define BNXT_CHIP_P4_PLUS(bp)			\
-	(BNXT_CHIP_P4(bp) || BNXT_CHIP_P5(bp))
+	(BNXT_CHIP_P4(bp) || BNXT_CHIP_P5_PLUS(bp))
 
 	struct bnxt_aux_priv	*aux_priv;
 	struct bnxt_en_dev	*edev;
@@ -2362,7 +2362,7 @@ static inline void bnxt_writeq_relaxed(struct bnxt *bp, u64 val,
 static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		bnxt_writeq_relaxed(bp, db->db_key64 | DB_RING_IDX(db, idx),
 				    db->doorbell);
 	} else {
@@ -2378,7 +2378,7 @@ static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 				 u32 idx)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		bnxt_writeq(bp, db->db_key64 | DB_RING_IDX(db, idx),
 			    db->doorbell);
 	} else {
