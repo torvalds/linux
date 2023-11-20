@@ -821,7 +821,7 @@ static int psp_v13_0_query_boot_status(struct psp_context *psp)
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6))
 		return 0;
 
-	if (RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_59) < 0x00a10007)
+	if (RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_59) < 0x00a10109)
 		return 0;
 
 	for_each_inst(i, inst_mask) {
