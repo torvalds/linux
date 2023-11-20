@@ -31,8 +31,6 @@
 			   __stringify(DRM_IVPU_DRIVER_MINOR) "."
 #endif
 
-static const struct drm_driver driver;
-
 static struct lock_class_key submitted_jobs_xa_lock_class_key;
 
 int ivpu_dbg_mask;
@@ -41,7 +39,7 @@ MODULE_PARM_DESC(dbg_mask, "Driver debug mask. See IVPU_DBG_* macros.");
 
 int ivpu_test_mode;
 module_param_named_unsafe(test_mode, ivpu_test_mode, int, 0644);
-MODULE_PARM_DESC(test_mode, "Test mode: 0 - normal operation, 1 - fw unit test, 2 - null hw");
+MODULE_PARM_DESC(test_mode, "Test mode mask. See IVPU_TEST_MODE_* macros.");
 
 u8 ivpu_pll_min_ratio;
 module_param_named(pll_min_ratio, ivpu_pll_min_ratio, byte, 0644);
@@ -93,8 +91,8 @@ static void file_priv_release(struct kref *ref)
 	ivpu_dbg(vdev, FILE, "file_priv release: ctx %u\n", file_priv->ctx.id);
 
 	ivpu_cmdq_release_all(file_priv);
-	ivpu_bo_remove_all_bos_from_context(&file_priv->ctx);
 	ivpu_jsm_context_release(vdev, file_priv->ctx.id);
+	ivpu_bo_remove_all_bos_from_context(vdev, &file_priv->ctx);
 	ivpu_mmu_user_context_fini(vdev, &file_priv->ctx);
 	drm_WARN_ON(&vdev->drm, xa_erase_irq(&vdev->context_xa, file_priv->ctx.id) != file_priv);
 	mutex_destroy(&file_priv->lock);
@@ -317,16 +315,14 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	unsigned long timeout;
 	int ret;
 
-	if (ivpu_test_mode == IVPU_TEST_MODE_FW_TEST)
+	if (ivpu_test_mode & IVPU_TEST_MODE_FW_TEST)
 		return 0;
 
-	ivpu_ipc_consumer_add(vdev, &cons, IVPU_IPC_CHAN_BOOT_MSG);
+	ivpu_ipc_consumer_add(vdev, &cons, IVPU_IPC_CHAN_BOOT_MSG, NULL);
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.boot);
 	while (1) {
-		ret = ivpu_ipc_irq_handler(vdev);
-		if (ret)
-			break;
+		ivpu_ipc_irq_handler(vdev, NULL);
 		ret = ivpu_ipc_receive(vdev, &cons, &ipc_hdr, NULL, 0);
 		if (ret != -ETIMEDOUT || time_after_eq(jiffies, timeout))
 			break;
@@ -362,7 +358,7 @@ int ivpu_boot(struct ivpu_device *vdev)
 	int ret;
 
 	/* Update boot params located at first 4KB of FW memory */
-	ivpu_fw_boot_params_setup(vdev, vdev->fw->mem->kvaddr);
+	ivpu_fw_boot_params_setup(vdev, ivpu_bo_vaddr(vdev->fw->mem));
 
 	ret = ivpu_hw_boot_fw(vdev);
 	if (ret) {
@@ -414,7 +410,9 @@ static const struct drm_driver driver = {
 
 	.open = ivpu_open,
 	.postclose = ivpu_postclose,
-	.gem_prime_import = ivpu_gem_prime_import,
+
+	.gem_create_object = ivpu_gem_create_object,
+	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
 
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
@@ -426,6 +424,13 @@ static const struct drm_driver driver = {
 	.major = DRM_IVPU_DRIVER_MAJOR,
 	.minor = DRM_IVPU_DRIVER_MINOR,
 };
+
+static irqreturn_t ivpu_irq_thread_handler(int irq, void *arg)
+{
+	struct ivpu_device *vdev = arg;
+
+	return ivpu_ipc_irq_thread_handler(vdev);
+}
 
 static int ivpu_irq_init(struct ivpu_device *vdev)
 {
@@ -440,8 +445,8 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 
 	vdev->irq = pci_irq_vector(pdev, 0);
 
-	ret = devm_request_irq(vdev->drm.dev, vdev->irq, vdev->hw->ops->irq_handler,
-			       IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
+	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, vdev->hw->ops->irq_handler,
+					ivpu_irq_thread_handler, IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
 
@@ -533,6 +538,11 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
+	INIT_LIST_HEAD(&vdev->bo_list);
+
+	ret = drmm_mutex_init(&vdev->drm, &vdev->bo_list_lock);
+	if (ret)
+		goto err_xa_destroy;
 
 	ret = ivpu_pci_init(vdev);
 	if (ret)
@@ -550,7 +560,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	/* Power up early so the rest of init code can access VPU registers */
 	ret = ivpu_hw_power_up(vdev);
 	if (ret)
-		goto err_xa_destroy;
+		goto err_power_down;
 
 	ret = ivpu_mmu_global_context_init(vdev);
 	if (ret)
@@ -574,20 +584,15 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 
 	ivpu_pm_init(vdev);
 
-	ret = ivpu_job_done_thread_init(vdev);
+	ret = ivpu_boot(vdev);
 	if (ret)
 		goto err_ipc_fini;
 
-	ret = ivpu_boot(vdev);
-	if (ret)
-		goto err_job_done_thread_fini;
-
+	ivpu_job_done_consumer_init(vdev);
 	ivpu_pm_enable(vdev);
 
 	return 0;
 
-err_job_done_thread_fini:
-	ivpu_job_done_thread_fini(vdev);
 err_ipc_fini:
 	ivpu_ipc_fini(vdev);
 err_fw_fini:
@@ -612,7 +617,7 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 	ivpu_shutdown(vdev);
 	if (IVPU_WA(d3hot_after_power_off))
 		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
-	ivpu_job_done_thread_fini(vdev);
+	ivpu_job_done_consumer_fini(vdev);
 	ivpu_pm_cancel_recovery(vdev);
 
 	ivpu_ipc_fini(vdev);

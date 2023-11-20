@@ -16,6 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/hdmi.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 #include <sound/pcm_params.h>
 #include <sound/jack.h>
 #include <sound/soc.h>

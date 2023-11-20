@@ -123,6 +123,8 @@ struct qaic_device {
 	struct srcu_struct	dev_lock;
 	/* true: Device under reset; false: Device not under reset */
 	bool			in_reset;
+	/* true: single MSI is used to operate device */
+	bool			single_msi;
 	/*
 	 * true: A tx MHI transaction has failed and a rx buffer is still queued
 	 * in control device. Such a buffer is considered lost rx buffer
@@ -137,6 +139,10 @@ struct qaic_device {
 	u32 (*gen_crc)(void *msg);
 	/* Validate the CRC of a control message */
 	bool (*valid_crc)(void *msg);
+	/* MHI "QAIC_TIMESYNC" channel device */
+	struct mhi_device	*qts_ch;
+	/* Work queue for tasks related to MHI "QAIC_TIMESYNC" channel */
+	struct workqueue_struct	*qts_wq;
 };
 
 struct qaic_drm_device {

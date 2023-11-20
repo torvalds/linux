@@ -42,12 +42,19 @@
 static void virtio_gpu_create_context_locked(struct virtio_gpu_device *vgdev,
 					     struct virtio_gpu_fpriv *vfpriv)
 {
-	char dbgname[TASK_COMM_LEN];
+	if (vfpriv->explicit_debug_name) {
+		virtio_gpu_cmd_context_create(vgdev, vfpriv->ctx_id,
+					      vfpriv->context_init,
+					      strlen(vfpriv->debug_name),
+					      vfpriv->debug_name);
+	} else {
+		char dbgname[TASK_COMM_LEN];
 
-	get_task_comm(dbgname, current);
-	virtio_gpu_cmd_context_create(vgdev, vfpriv->ctx_id,
-				      vfpriv->context_init, strlen(dbgname),
-				      dbgname);
+		get_task_comm(dbgname, current);
+		virtio_gpu_cmd_context_create(vgdev, vfpriv->ctx_id,
+					      vfpriv->context_init, strlen(dbgname),
+					      dbgname);
+	}
 
 	vfpriv->context_created = true;
 }
@@ -106,6 +113,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case VIRTGPU_PARAM_SUPPORTED_CAPSET_IDs:
 		value = vgdev->capset_id_mask;
+		break;
+	case VIRTGPU_PARAM_EXPLICIT_DEBUG_NAME:
+		value = vgdev->has_context_init ? 1 : 0;
 		break;
 	default:
 		return -EINVAL;
@@ -565,8 +575,8 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 					 void *data, struct drm_file *file)
 {
 	int ret = 0;
-	uint32_t num_params, i, param, value;
-	uint64_t valid_ring_mask;
+	uint32_t num_params, i;
+	uint64_t valid_ring_mask, param, value;
 	size_t len;
 	struct drm_virtgpu_context_set_param *ctx_set_params = NULL;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
@@ -580,7 +590,7 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	/* Number of unique parameters supported at this time. */
-	if (num_params > 3)
+	if (num_params > 4)
 		return -EINVAL;
 
 	ctx_set_params = memdup_user(u64_to_user_ptr(args->ctx_set_params),
@@ -641,6 +651,21 @@ static int virtio_gpu_context_init_ioctl(struct drm_device *dev,
 			}
 
 			vfpriv->ring_idx_mask = value;
+			break;
+		case VIRTGPU_CONTEXT_PARAM_DEBUG_NAME:
+			if (vfpriv->explicit_debug_name) {
+				ret = -EINVAL;
+				goto out_unlock;
+			}
+
+			ret = strncpy_from_user(vfpriv->debug_name,
+						u64_to_user_ptr(value),
+						DEBUG_NAME_MAX_LEN - 1);
+			if (ret < 0)
+				goto out_unlock;
+
+			vfpriv->explicit_debug_name = true;
+			ret = 0;
 			break;
 		default:
 			ret = -EINVAL;

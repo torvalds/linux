@@ -1323,6 +1323,16 @@ struct drm_mode_rect {
 	__s32 y2;
 };
 
+/**
+ * struct drm_mode_closefb
+ * @fb_id: Framebuffer ID.
+ * @pad: Must be zero.
+ */
+struct drm_mode_closefb {
+	__u32 fb_id;
+	__u32 pad;
+};
+
 #if defined(__cplusplus)
 }
 #endif

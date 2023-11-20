@@ -913,7 +913,7 @@ static void print_size(struct drm_printer *p, const char *stat,
 	unsigned u;
 
 	for (u = 0; u < ARRAY_SIZE(units) - 1; u++) {
-		if (sz < SZ_1K)
+		if (sz == 0 || !IS_ALIGNED(sz, SZ_1K))
 			break;
 		sz = div_u64(sz, SZ_1K);
 	}

@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/sched/clock.h>
 #include <linux/reset.h>
 
 #include <drm/drm_drv.h>
@@ -111,6 +112,10 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
+		v3d_priv->enabled_ns[i] = 0;
+		v3d_priv->start_ns[i] = 0;
+		v3d_priv->jobs_sent[i] = 0;
+
 		sched = &v3d->queue[i].sched;
 		drm_sched_entity_init(&v3d_priv->sched_entity[i],
 				      DRM_SCHED_PRIORITY_NORMAL, &sched,
@@ -136,7 +141,35 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(v3d_priv);
 }
 
-DEFINE_DRM_GEM_FOPS(v3d_drm_fops);
+static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
+{
+	struct v3d_file_priv *file_priv = file->driver_priv;
+	u64 timestamp = local_clock();
+	enum v3d_queue queue;
+
+	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
+		/* Note that, in case of a GPU reset, the time spent during an
+		 * attempt of executing the job is not computed in the runtime.
+		 */
+		drm_printf(p, "drm-engine-%s: \t%llu ns\n",
+			   v3d_queue_to_string(queue),
+			   file_priv->start_ns[queue] ? file_priv->enabled_ns[queue]
+						      + timestamp - file_priv->start_ns[queue]
+						      : file_priv->enabled_ns[queue]);
+
+		/* Note that we only count jobs that completed. Therefore, jobs
+		 * that were resubmitted due to a GPU reset are not computed.
+		 */
+		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
+			   v3d_queue_to_string(queue), file_priv->jobs_sent[queue]);
+	}
+}
+
+static const struct file_operations v3d_drm_fops = {
+	.owner = THIS_MODULE,
+	DRM_GEM_FOPS,
+	.show_fdinfo = drm_show_fdinfo,
+};
 
 /* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
  * protection between clients.  Note that render nodes would be
@@ -176,6 +209,7 @@ static const struct drm_driver v3d_drm_driver = {
 	.ioctls = v3d_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(v3d_drm_ioctls),
 	.fops = &v3d_drm_fops,
+	.show_fdinfo = v3d_show_fdinfo,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -187,6 +221,7 @@ static const struct drm_driver v3d_drm_driver = {
 
 static const struct of_device_id v3d_of_match[] = {
 	{ .compatible = "brcm,2711-v3d" },
+	{ .compatible = "brcm,2712-v3d" },
 	{ .compatible = "brcm,7268-v3d" },
 	{ .compatible = "brcm,7278-v3d" },
 	{},
@@ -281,8 +316,14 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto irq_disable;
 
+	ret = v3d_sysfs_init(dev);
+	if (ret)
+		goto drm_unregister;
+
 	return 0;
 
+drm_unregister:
+	drm_dev_unregister(drm);
 irq_disable:
 	v3d_irq_disable(v3d);
 gem_destroy:
@@ -296,6 +337,9 @@ static void v3d_platform_drm_remove(struct platform_device *pdev)
 {
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct v3d_dev *v3d = to_v3d_dev(drm);
+	struct device *dev = &pdev->dev;
+
+	v3d_sysfs_destroy(dev);
 
 	drm_dev_unregister(drm);
 

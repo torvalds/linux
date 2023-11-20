@@ -47,9 +47,9 @@ v3d_init_hw_state(struct v3d_dev *v3d)
 static void
 v3d_idle_axi(struct v3d_dev *v3d, int core)
 {
-	V3D_CORE_WRITE(core, V3D_GMP_CFG, V3D_GMP_CFG_STOP_REQ);
+	V3D_CORE_WRITE(core, V3D_GMP_CFG(v3d->ver), V3D_GMP_CFG_STOP_REQ);
 
-	if (wait_for((V3D_CORE_READ(core, V3D_GMP_STATUS) &
+	if (wait_for((V3D_CORE_READ(core, V3D_GMP_STATUS(v3d->ver)) &
 		      (V3D_GMP_STATUS_RD_COUNT_MASK |
 		       V3D_GMP_STATUS_WR_COUNT_MASK |
 		       V3D_GMP_STATUS_CFG_BUSY)) == 0, 100)) {
@@ -415,9 +415,10 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	job = *container;
 	job->v3d = v3d;
 	job->free = free;
+	job->file = file_priv;
 
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
-				 v3d_priv);
+				 1, v3d_priv);
 	if (ret)
 		goto fail;
 
@@ -1013,8 +1014,12 @@ v3d_gem_init(struct drm_device *dev)
 	u32 pt_size = 4096 * 1024;
 	int ret, i;
 
-	for (i = 0; i < V3D_MAX_QUEUES; i++)
+	for (i = 0; i < V3D_MAX_QUEUES; i++) {
 		v3d->queue[i].fence_context = dma_fence_context_alloc(1);
+		v3d->queue[i].start_ns = 0;
+		v3d->queue[i].enabled_ns = 0;
+		v3d->queue[i].jobs_sent = 0;
+	}
 
 	spin_lock_init(&v3d->mm_lock);
 	spin_lock_init(&v3d->job_lock);
@@ -1072,6 +1077,8 @@ v3d_gem_destroy(struct drm_device *dev)
 	 */
 	WARN_ON(v3d->bin_job);
 	WARN_ON(v3d->render_job);
+	WARN_ON(v3d->tfu_job);
+	WARN_ON(v3d->csd_job);
 
 	drm_mm_takedown(&v3d->mm);
 
