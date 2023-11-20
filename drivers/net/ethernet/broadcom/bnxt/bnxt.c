@@ -821,8 +821,8 @@ static inline u8 *__bnxt_alloc_rx_frag(struct bnxt *bp, dma_addr_t *mapping,
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		       u16 prod, gfp_t gfp)
 {
-	struct rx_bd *rxbd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
-	struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[prod];
+	struct rx_bd *rxbd = &rxr->rx_desc_ring[RX_RING(bp, prod)][RX_IDX(prod)];
+	struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[RING_RX(bp, prod)];
 	dma_addr_t mapping;
 
 	if (BNXT_RX_PAGE_MODE(bp)) {
@@ -855,9 +855,10 @@ void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons, void *data)
 {
 	u16 prod = rxr->rx_prod;
 	struct bnxt_sw_rx_bd *cons_rx_buf, *prod_rx_buf;
+	struct bnxt *bp = rxr->bnapi->bp;
 	struct rx_bd *cons_bd, *prod_bd;
 
-	prod_rx_buf = &rxr->rx_buf_ring[prod];
+	prod_rx_buf = &rxr->rx_buf_ring[RING_RX(bp, prod)];
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 
 	prod_rx_buf->data = data;
@@ -865,8 +866,8 @@ void bnxt_reuse_rx_data(struct bnxt_rx_ring_info *rxr, u16 cons, void *data)
 
 	prod_rx_buf->mapping = cons_rx_buf->mapping;
 
-	prod_bd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
-	cons_bd = &rxr->rx_desc_ring[RX_RING(cons)][RX_IDX(cons)];
+	prod_bd = &rxr->rx_desc_ring[RX_RING(bp, prod)][RX_IDX(prod)];
+	cons_bd = &rxr->rx_desc_ring[RX_RING(bp, cons)][RX_IDX(cons)];
 
 	prod_bd->rx_bd_haddr = cons_bd->rx_bd_haddr;
 }
@@ -886,7 +887,7 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 				     u16 prod, gfp_t gfp)
 {
 	struct rx_bd *rxbd =
-		&rxr->rx_agg_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+		&rxr->rx_agg_desc_ring[RX_AGG_RING(bp, prod)][RX_IDX(prod)];
 	struct bnxt_sw_rx_agg_bd *rx_agg_buf;
 	struct page *page;
 	dma_addr_t mapping;
@@ -903,7 +904,7 @@ static inline int bnxt_alloc_rx_page(struct bnxt *bp,
 
 	__set_bit(sw_prod, rxr->rx_agg_bmap);
 	rx_agg_buf = &rxr->rx_agg_ring[sw_prod];
-	rxr->rx_sw_agg_prod = NEXT_RX_AGG(sw_prod);
+	rxr->rx_sw_agg_prod = RING_RX_AGG(bp, NEXT_RX_AGG(sw_prod));
 
 	rx_agg_buf->page = page;
 	rx_agg_buf->offset = offset;
@@ -979,13 +980,13 @@ static void bnxt_reuse_rx_agg_bufs(struct bnxt_cp_ring_info *cpr, u16 idx,
 
 		prod_rx_buf->mapping = cons_rx_buf->mapping;
 
-		prod_bd = &rxr->rx_agg_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+		prod_bd = &rxr->rx_agg_desc_ring[RX_AGG_RING(bp, prod)][RX_IDX(prod)];
 
 		prod_bd->rx_bd_haddr = cpu_to_le64(cons_rx_buf->mapping);
 		prod_bd->rx_bd_opaque = sw_prod;
 
 		prod = NEXT_RX_AGG(prod);
-		sw_prod = NEXT_RX_AGG(sw_prod);
+		sw_prod = RING_RX_AGG(bp, NEXT_RX_AGG(sw_prod));
 	}
 	rxr->rx_agg_prod = prod;
 	rxr->rx_sw_agg_prod = sw_prod;
@@ -1327,7 +1328,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	cons = tpa_start->rx_tpa_start_cmp_opaque;
 	prod = rxr->rx_prod;
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
-	prod_rx_buf = &rxr->rx_buf_ring[prod];
+	prod_rx_buf = &rxr->rx_buf_ring[RING_RX(bp, prod)];
 	tpa_info = &rxr->rx_tpa[agg_id];
 
 	if (unlikely(cons != rxr->rx_next_cons ||
@@ -1348,7 +1349,7 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	mapping = tpa_info->mapping;
 	prod_rx_buf->mapping = mapping;
 
-	prod_bd = &rxr->rx_desc_ring[RX_RING(prod)][RX_IDX(prod)];
+	prod_bd = &rxr->rx_desc_ring[RX_RING(bp, prod)][RX_IDX(prod)];
 
 	prod_bd->rx_bd_haddr = cpu_to_le64(mapping);
 
@@ -1381,8 +1382,8 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	tpa_info->agg_count = 0;
 
 	rxr->rx_prod = NEXT_RX(prod);
-	cons = NEXT_RX(cons);
-	rxr->rx_next_cons = NEXT_RX(cons);
+	cons = RING_RX(bp, NEXT_RX(cons));
+	rxr->rx_next_cons = RING_RX(bp, NEXT_RX(cons));
 	cons_rx_buf = &rxr->rx_buf_ring[cons];
 
 	bnxt_reuse_rx_data(rxr, cons, cons_rx_buf->data);
@@ -2050,7 +2051,7 @@ next_rx:
 
 next_rx_no_len:
 	rxr->rx_prod = NEXT_RX(prod);
-	rxr->rx_next_cons = NEXT_RX(cons);
+	rxr->rx_next_cons = RING_RX(bp, NEXT_RX(cons));
 
 next_rx_no_prod_no_len:
 	*raw_cons = tmp_raw_cons;

@@ -686,7 +686,9 @@ struct nqe_cn {
  */
 #define BNXT_MIN_TX_DESC_CNT		(MAX_SKB_FRAGS + 2)
 
-#define RX_RING(x)	(((x) & ~(RX_DESC_CNT - 1)) >> (BNXT_PAGE_SHIFT - 4))
+#define RX_RING(bp, x)	(((x) & (bp)->rx_ring_mask) >> (BNXT_PAGE_SHIFT - 4))
+#define RX_AGG_RING(bp, x)	(((x) & (bp)->rx_agg_ring_mask) >>	\
+				 (BNXT_PAGE_SHIFT - 4))
 #define RX_IDX(x)	((x) & (RX_DESC_CNT - 1))
 
 #define TX_RING(bp, x)	(((x) & (bp)->tx_ring_mask) >> (BNXT_PAGE_SHIFT - 4))
@@ -716,9 +718,11 @@ struct nqe_cn {
 #define RX_CMP_TYPE(rxcmp)					\
 	(le32_to_cpu((rxcmp)->rx_cmp_len_flags_type) & RX_CMP_CMP_TYPE)
 
-#define NEXT_RX(idx)		(((idx) + 1) & bp->rx_ring_mask)
+#define RING_RX(bp, idx)	((idx) & (bp)->rx_ring_mask)
+#define NEXT_RX(idx)		((idx) + 1)
 
-#define NEXT_RX_AGG(idx)	(((idx) + 1) & bp->rx_agg_ring_mask)
+#define RING_RX_AGG(bp, idx)	((idx) & (bp)->rx_agg_ring_mask)
+#define NEXT_RX_AGG(idx)	((idx) + 1)
 
 #define RING_TX(bp, idx)	((idx) & (bp)->tx_ring_mask)
 #define NEXT_TX(idx)		((idx) + 1)
