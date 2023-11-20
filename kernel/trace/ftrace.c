@@ -4202,12 +4202,12 @@ static int
 add_rec_by_index(struct ftrace_hash *hash, struct ftrace_glob *func_g,
 		 int clear_filter)
 {
-	long index = simple_strtoul(func_g->search, NULL, 0);
+	long index;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 
 	/* The index starts at 1 */
-	if (--index < 0)
+	if (kstrtoul(func_g->search, 0, &index) || --index < 0)
 		return 0;
 
 	do_for_each_ftrace_rec(pg, rec) {
@@ -5817,9 +5817,8 @@ __setup("ftrace_graph_notrace=", set_graph_notrace_function);
 
 static int __init set_graph_max_depth_function(char *str)
 {
-	if (!str)
+	if (!str || kstrtouint(str, 0, &fgraph_max_depth))
 		return 0;
-	fgraph_max_depth = simple_strtoul(str, NULL, 0);
 	return 1;
 }
 __setup("ftrace_graph_max_depth=", set_graph_max_depth_function);
