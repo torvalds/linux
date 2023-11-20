@@ -29,6 +29,7 @@
    submitting-patches
    programming-language
    coding-style
+   maintainer-pgp-guide
    development-process
    email-clients
    license-rules
