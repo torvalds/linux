@@ -2182,42 +2182,12 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	case DRM_XE_VM_BIND_OP_MAP_USERPTR:
 		ops = drm_gpuvm_sm_map_ops_create(&vm->gpuvm, addr, range,
 						  obj, bo_offset_or_userptr);
-		if (IS_ERR(ops))
-			return ops;
-
-		drm_gpuva_for_each_op(__op, ops) {
-			struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
-
-			op->tile_mask = tile_mask;
-			op->map.immediate =
-				flags & DRM_XE_VM_BIND_FLAG_IMMEDIATE;
-			op->map.read_only =
-				flags & DRM_XE_VM_BIND_FLAG_READONLY;
-			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
-		}
 		break;
 	case DRM_XE_VM_BIND_OP_UNMAP:
 		ops = drm_gpuvm_sm_unmap_ops_create(&vm->gpuvm, addr, range);
-		if (IS_ERR(ops))
-			return ops;
-
-		drm_gpuva_for_each_op(__op, ops) {
-			struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
-
-			op->tile_mask = tile_mask;
-		}
 		break;
 	case DRM_XE_VM_BIND_OP_PREFETCH:
 		ops = drm_gpuvm_prefetch_ops_create(&vm->gpuvm, addr, range);
-		if (IS_ERR(ops))
-			return ops;
-
-		drm_gpuva_for_each_op(__op, ops) {
-			struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
-
-			op->tile_mask = tile_mask;
-			op->prefetch.region = prefetch_region;
-		}
 		break;
 	case DRM_XE_VM_BIND_OP_UNMAP_ALL:
 		xe_assert(vm->xe, bo);
@@ -2233,19 +2203,13 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 		ops = drm_gpuvm_bo_unmap_ops_create(vm_bo);
 		drm_gpuvm_bo_put(vm_bo);
 		xe_bo_unlock(bo);
-		if (IS_ERR(ops))
-			return ops;
-
-		drm_gpuva_for_each_op(__op, ops) {
-			struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
-
-			op->tile_mask = tile_mask;
-		}
 		break;
 	default:
 		drm_warn(&vm->xe->drm, "NOT POSSIBLE");
 		ops = ERR_PTR(-EINVAL);
 	}
+	if (IS_ERR(ops))
+		return ops;
 
 #ifdef TEST_VM_ASYNC_OPS_ERROR
 	if (operation & FORCE_ASYNC_OP_ERROR) {
@@ -2256,9 +2220,22 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	}
 #endif
 
-	if (!IS_ERR(ops))
-		drm_gpuva_for_each_op(__op, ops)
-			print_op(vm->xe, __op);
+	drm_gpuva_for_each_op(__op, ops) {
+		struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
+
+		op->tile_mask = tile_mask;
+		if (__op->op == DRM_GPUVA_OP_MAP) {
+			op->map.immediate =
+				flags & DRM_XE_VM_BIND_FLAG_IMMEDIATE;
+			op->map.read_only =
+				flags & DRM_XE_VM_BIND_FLAG_READONLY;
+			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
+		} else if (__op->op == DRM_GPUVA_OP_PREFETCH) {
+			op->prefetch.region = prefetch_region;
+		}
+
+		print_op(vm->xe, __op);
+	}
 
 	return ops;
 }
