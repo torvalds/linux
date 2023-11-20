@@ -930,10 +930,8 @@ static inline unsigned char ma_meta_end(struct maple_node *mn,
 /*
  * ma_meta_gap() - Get the largest gap location of a node from the metadata
  * @mn: The maple node
- * @mt: The maple node type
  */
-static inline unsigned char ma_meta_gap(struct maple_node *mn,
-					enum maple_type mt)
+static inline unsigned char ma_meta_gap(struct maple_node *mn)
 {
 	return mn->ma64.meta.gap;
 }
@@ -1587,7 +1585,7 @@ static inline unsigned long mas_max_gap(struct ma_state *mas)
 
 	node = mas_mn(mas);
 	MAS_BUG_ON(mas, mt != maple_arange_64);
-	offset = ma_meta_gap(node, mt);
+	offset = ma_meta_gap(node);
 	gaps = ma_gaps(node, mt);
 	return gaps[offset];
 }
@@ -1618,7 +1616,7 @@ static inline void mas_parent_gap(struct ma_state *mas, unsigned char offset,
 
 ascend:
 	MAS_BUG_ON(mas, pmt != maple_arange_64);
-	meta_offset = ma_meta_gap(pnode, pmt);
+	meta_offset = ma_meta_gap(pnode);
 	meta_gap = pgaps[meta_offset];
 
 	pgaps[offset] = new;
@@ -7260,7 +7258,7 @@ static void mas_validate_gaps(struct ma_state *mas)
 counted:
 	if (mt == maple_arange_64) {
 		MT_BUG_ON(mas->tree, !gaps);
-		offset = ma_meta_gap(node, mt);
+		offset = ma_meta_gap(node);
 		if (offset > i) {
 			pr_err("gap offset %p[%u] is invalid\n", node, offset);
 			MT_BUG_ON(mas->tree, 1);
