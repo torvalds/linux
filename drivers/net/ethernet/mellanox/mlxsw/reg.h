@@ -1973,8 +1973,6 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_op_set(payload, op);
 	mlxsw_reg_sfmr_fid_set(payload, fid);
 	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
-	mlxsw_reg_sfmr_vtfp_set(payload, false);
-	mlxsw_reg_sfmr_vv_set(payload, false);
 	mlxsw_reg_sfmr_flood_rsp_set(payload, flood_rsp);
 	mlxsw_reg_sfmr_flood_bridge_type_set(payload, bridge_type);
 	mlxsw_reg_sfmr_smpe_valid_set(payload, smpe_valid);
