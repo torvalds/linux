@@ -1464,18 +1464,12 @@ blk_status_t null_process_cmd(struct nullb_cmd *cmd, enum req_op op,
 	return BLK_STS_OK;
 }
 
-static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
-				    sector_t nr_sectors, enum req_op op)
+static void null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
+			    sector_t nr_sectors, enum req_op op)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	struct nullb *nullb = dev->nullb;
 	blk_status_t sts;
-
-	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
-		sts = null_handle_throttled(cmd);
-		if (sts != BLK_STS_OK)
-			return sts;
-	}
 
 	if (op == REQ_OP_FLUSH) {
 		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
@@ -1493,7 +1487,6 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 
 out:
 	nullb_complete_cmd(cmd);
-	return BLK_STS_OK;
 }
 
 static enum hrtimer_restart nullb_bwtimer_fn(struct hrtimer *timer)
@@ -1724,8 +1717,6 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->fake_timeout = should_timeout_request(rq) ||
 		blk_should_fake_timeout(rq->q);
 
-	blk_mq_start_request(rq);
-
 	if (should_requeue_request(rq)) {
 		/*
 		 * Alternate between hitting the core BUSY path, and the
@@ -1738,6 +1729,15 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
+	if (test_bit(NULLB_DEV_FL_THROTTLED, &nq->dev->flags)) {
+		blk_status_t sts = null_handle_throttled(cmd);
+
+		if (sts != BLK_STS_OK)
+			return sts;
+	}
+
+	blk_mq_start_request(rq);
+
 	if (is_poll) {
 		spin_lock(&nq->poll_lock);
 		list_add_tail(&rq->queuelist, &nq->poll_list);
@@ -1747,7 +1747,8 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (cmd->fake_timeout)
 		return BLK_STS_OK;
 
-	return null_handle_cmd(cmd, sector, nr_sectors, req_op(rq));
+	null_handle_cmd(cmd, sector, nr_sectors, req_op(rq));
+	return BLK_STS_OK;
 }
 
 static void null_queue_rqs(struct request **rqlist)
