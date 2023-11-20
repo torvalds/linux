@@ -3026,6 +3026,7 @@ static inline bool path_overmounted(const struct path *path)
  * can_move_mount_beneath - check that we can mount beneath the top mount
  * @from: mount to mount beneath
  * @to:   mount under which to mount
+ * @mp:   mountpoint of @to
  *
  * - Make sure that @to->dentry is actually the root of a mount under
  *   which we can mount another mount.
