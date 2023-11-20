@@ -1548,6 +1548,7 @@ struct bnxt_ctx_mem_type {
 	u16	type;
 	u16	entry_size;
 	u32	flags;
+#define BNXT_CTX_MEM_TYPE_VALID FUNC_BACKING_STORE_QCAPS_V2_RESP_FLAGS_TYPE_VALID
 	u32	instance_bmap;
 	u8	init_value;
 	u8	entry_multiple;
