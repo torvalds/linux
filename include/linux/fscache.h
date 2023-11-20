@@ -437,9 +437,6 @@ const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_r
  * indicates the cache resources to which the operation state should be
  * attached; @cookie indicates the cache object that will be accessed.
  *
- * This is intended to be called from the ->begin_cache_operation() netfs lib
- * operation as implemented by the network filesystem.
- *
  * @cres->inval_counter is set from @cookie->inval_counter for comparison at
  * the end of the operation.  This allows invalidation during the operation to
  * be detected by the caller.
