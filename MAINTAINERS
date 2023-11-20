@@ -8133,6 +8133,19 @@ S:	Supported
 F:	fs/iomap/
 F:	include/linux/iomap.h
 
+FILESYSTEMS [NETFS LIBRARY]
+M:	David Howells <dhowells@redhat.com>
+L:	linux-cachefs@redhat.com (moderated for non-subscribers)
+L:	linux-fsdevel@vger.kernel.org
+S:	Supported
+F:	Documentation/filesystems/caching/
+F:	Documentation/filesystems/netfs_library.rst
+F:	fs/netfs/
+F:	include/linux/fscache*.h
+F:	include/linux/netfs.h
+F:	include/trace/events/fscache.h
+F:	include/trace/events/netfs.h
+
 FINTEK F75375S HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 M:	Riku Voipio <riku.voipio@iki.fi>
 L:	linux-hwmon@vger.kernel.org
@@ -8566,14 +8579,6 @@ S:	Supported
 F:	Documentation/power/freezing-of-tasks.rst
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
-
-FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
-M:	David Howells <dhowells@redhat.com>
-L:	linux-cachefs@redhat.com (moderated for non-subscribers)
-S:	Supported
-F:	Documentation/filesystems/caching/
-F:	fs/fscache/
-F:	include/linux/fscache*.h
 
 FSCRYPT: FILE SYSTEM LEVEL ENCRYPTION SUPPORT
 M:	Eric Biggers <ebiggers@kernel.org>
