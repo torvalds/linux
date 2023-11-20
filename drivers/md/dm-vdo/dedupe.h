@@ -40,7 +40,7 @@ struct hash_zone {
 	thread_id_t thread_id;
 
 	/* Mapping from record name fields to hash_locks */
-	struct pointer_map *hash_lock_map;
+	struct int_map *hash_lock_map;
 
 	/* List containing all unused hash_locks */
 	struct list_head lock_pool;
