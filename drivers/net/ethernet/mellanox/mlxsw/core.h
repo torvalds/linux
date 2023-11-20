@@ -324,7 +324,12 @@ struct mlxsw_config_profile {
 	u16	max_regions;
 	u8	max_flood_tables;
 	u8	max_vid_flood_tables;
+
+	/* Flood mode to use if used_flood_mode. If flood_mode_prefer_cff,
+	 * the backup flood mode (if any) when CFF unsupported.
+	 */
 	u8	flood_mode;
+
 	u8	max_fid_offset_flood_tables;
 	u16	fid_offset_flood_table_size;
 	u8	max_fid_flood_tables;
@@ -340,6 +345,7 @@ struct mlxsw_config_profile {
 	u8	kvd_hash_double_parts;
 	u8	cqe_time_stamp_type;
 	bool	lag_mode_prefer_sw;
+	bool	flood_mode_prefer_cff;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
