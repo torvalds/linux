@@ -54,7 +54,7 @@ enum async_operation_number {
 struct lbn_lock {
 	logical_block_number_t lbn;
 	bool locked;
-	struct wait_queue waiters;
+	struct vdo_wait_queue waiters;
 	struct logical_zone *zone;
 };
 
@@ -75,7 +75,7 @@ struct tree_lock {
 	/* The key for the lock map */
 	u64 key;
 	/* The queue of waiters for the page this vio is allocating or loading */
-	struct wait_queue waiters;
+	struct vdo_wait_queue waiters;
 	/* The block map tree slots for this LBN */
 	struct block_map_tree_slot tree_slots[VDO_BLOCK_MAP_TREE_HEIGHT + 1];
 };
@@ -168,13 +168,13 @@ struct reference_updater {
 	bool increment;
 	struct zoned_pbn zpbn;
 	struct pbn_lock *lock;
-	struct waiter waiter;
+	struct vdo_waiter waiter;
 };
 
 /* A vio for processing user data requests. */
 struct data_vio {
-	/* The wait_queue entry structure */
-	struct waiter waiter;
+	/* The vdo_wait_queue entry structure */
+	struct vdo_waiter waiter;
 
 	/* The logical block of this request */
 	struct lbn_lock logical;
@@ -288,7 +288,7 @@ static inline struct data_vio *as_data_vio(struct vdo_completion *completion)
 	return vio_as_data_vio(as_vio(completion));
 }
 
-static inline struct data_vio *waiter_as_data_vio(struct waiter *waiter)
+static inline struct data_vio *vdo_waiter_as_data_vio(struct vdo_waiter *waiter)
 {
 	if (waiter == NULL)
 		return NULL;

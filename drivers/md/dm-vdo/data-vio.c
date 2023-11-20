@@ -249,7 +249,7 @@ static void initialize_lbn_lock(struct data_vio *data_vio, logical_block_number_
 
 	lock->lbn = lbn;
 	lock->locked = false;
-	vdo_initialize_wait_queue(&lock->waiters);
+	vdo_waitq_init(&lock->waiters);
 	zone_number = vdo_compute_logical_zone(data_vio);
 	lock->zone = &vdo->logical_zones->zones[zone_number];
 }
@@ -466,7 +466,7 @@ static void attempt_logical_block_lock(struct vdo_completion *completion)
 	}
 
 	data_vio->last_async_operation = VIO_ASYNC_OP_ATTEMPT_LOGICAL_BLOCK_LOCK;
-	vdo_enqueue_waiter(&lock_holder->logical.waiters, &data_vio->waiter);
+	vdo_waitq_enqueue_waiter(&lock_holder->logical.waiters, &data_vio->waiter);
 
 	/*
 	 * Prevent writes and read-modify-writes from blocking indefinitely on lock holders in the
@@ -1191,11 +1191,11 @@ static void transfer_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 
 	/* Another data_vio is waiting for the lock, transfer it in a single lock map operation. */
 	next_lock_holder =
-		waiter_as_data_vio(vdo_dequeue_next_waiter(&lock->waiters));
+		vdo_waiter_as_data_vio(vdo_waitq_dequeue_next_waiter(&lock->waiters));
 
 	/* Transfer the remaining lock waiters to the next lock holder. */
-	vdo_transfer_all_waiters(&lock->waiters,
-				 &next_lock_holder->logical.waiters);
+	vdo_waitq_transfer_all_waiters(&lock->waiters,
+				       &next_lock_holder->logical.waiters);
 
 	result = vdo_int_map_put(lock->zone->lbn_operations, lock->lbn,
 				 next_lock_holder, true, (void **) &lock_holder);
@@ -1213,7 +1213,7 @@ static void transfer_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 	 * If there are still waiters, other data_vios must be trying to get the lock we just
 	 * transferred. We must ensure that the new lock holder doesn't block in the packer.
 	 */
-	if (vdo_has_waiters(&next_lock_holder->logical.waiters))
+	if (vdo_waitq_has_waiters(&next_lock_holder->logical.waiters))
 		cancel_data_vio_compression(next_lock_holder);
 
 	/*
@@ -1235,7 +1235,7 @@ static void release_logical_lock(struct vdo_completion *completion)
 
 	assert_data_vio_in_logical_zone(data_vio);
 
-	if (vdo_has_waiters(&lock->waiters))
+	if (vdo_waitq_has_waiters(&lock->waiters))
 		transfer_lock(data_vio, lock);
 	else
 		release_lock(data_vio, lock);

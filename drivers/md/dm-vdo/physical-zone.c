@@ -519,9 +519,9 @@ static int allocate_and_lock_block(struct allocation *allocation)
  * @waiter: The allocating_vio that was waiting to allocate.
  * @context: The context (unused).
  */
-static void retry_allocation(struct waiter *waiter, void *context __always_unused)
+static void retry_allocation(struct vdo_waiter *waiter, void *context __always_unused)
 {
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 
 	/* Now that some slab has scrubbed, restart the allocation process. */
 	data_vio->allocation.wait_for_clean_slab = false;

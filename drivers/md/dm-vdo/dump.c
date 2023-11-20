@@ -146,25 +146,25 @@ void vdo_dump_all(struct vdo *vdo, const char *why)
 }
 
 /*
- * Dump out the data_vio waiters on a wait queue.
+ * Dump out the data_vio waiters on a waitq.
  * wait_on should be the label to print for queue (e.g. logical or physical)
  */
-static void dump_vio_waiters(struct wait_queue *queue, char *wait_on)
+static void dump_vio_waiters(struct vdo_wait_queue *waitq, char *wait_on)
 {
-	struct waiter *waiter, *first = vdo_get_first_waiter(queue);
+	struct vdo_waiter *waiter, *first = vdo_waitq_get_first_waiter(waitq);
 	struct data_vio *data_vio;
 
 	if (first == NULL)
 		return;
 
-	data_vio = waiter_as_data_vio(first);
+	data_vio = vdo_waiter_as_data_vio(first);
 
 	uds_log_info("      %s is locked. Waited on by: vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
 		     wait_on, data_vio, data_vio->allocation.pbn, data_vio->logical.lbn,
 		     data_vio->duplicate.pbn, get_data_vio_operation_name(data_vio));
 
 	for (waiter = first->next_waiter; waiter != first; waiter = waiter->next_waiter) {
-		data_vio = waiter_as_data_vio(waiter);
+		data_vio = vdo_waiter_as_data_vio(waiter);
 		uds_log_info("     ... and : vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
 			     data_vio, data_vio->allocation.pbn, data_vio->logical.lbn,
 			     data_vio->duplicate.pbn,
@@ -177,7 +177,7 @@ static void dump_vio_waiters(struct wait_queue *queue, char *wait_on)
  * logging brevity:
  *
  * R => vio completion result not VDO_SUCCESS
- * W => vio is on a wait queue
+ * W => vio is on a waitq
  * D => vio is a duplicate
  * p => vio is a partial block operation
  * z => vio is a zero block

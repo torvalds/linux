@@ -25,7 +25,7 @@ struct vio_pool {
 	/** The list of objects which are available */
 	struct list_head available;
 	/** The queue of requestors waiting for objects from the pool */
-	struct wait_queue waiting;
+	struct vdo_wait_queue waiting;
 	/** The number of objects currently in use */
 	size_t busy_count;
 	/** The list of objects which are in use */
@@ -364,7 +364,7 @@ void free_vio_pool(struct vio_pool *pool)
 		return;
 
 	/* Remove all available vios from the object pool. */
-	ASSERT_LOG_ONLY(!vdo_has_waiters(&pool->waiting),
+	ASSERT_LOG_ONLY(!vdo_waitq_has_waiters(&pool->waiting),
 			"VIO pool must not have any waiters when being freed");
 	ASSERT_LOG_ONLY((pool->busy_count == 0),
 			"VIO pool must not have %zu busy entries when being freed",
@@ -400,7 +400,7 @@ bool is_vio_pool_busy(struct vio_pool *pool)
  * @pool: The vio pool.
  * @waiter: Object that is requesting a vio.
  */
-void acquire_vio_from_pool(struct vio_pool *pool, struct waiter *waiter)
+void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter)
 {
 	struct pooled_vio *pooled;
 
@@ -408,7 +408,7 @@ void acquire_vio_from_pool(struct vio_pool *pool, struct waiter *waiter)
 			"acquire from active vio_pool called from correct thread");
 
 	if (list_empty(&pool->available)) {
-		vdo_enqueue_waiter(&pool->waiting, waiter);
+		vdo_waitq_enqueue_waiter(&pool->waiting, waiter);
 		return;
 	}
 
@@ -430,8 +430,8 @@ void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio)
 
 	vio->vio.completion.error_handler = NULL;
 	vio->vio.completion.parent = NULL;
-	if (vdo_has_waiters(&pool->waiting)) {
-		vdo_notify_next_waiter(&pool->waiting, NULL, vio);
+	if (vdo_waitq_has_waiters(&pool->waiting)) {
+		vdo_waitq_notify_next_waiter(&pool->waiting, NULL, vio);
 		return;
 	}
 

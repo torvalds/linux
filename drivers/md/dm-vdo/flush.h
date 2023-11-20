@@ -18,7 +18,7 @@ struct vdo_flush {
 	/* The flush bios covered by this request */
 	struct bio_list bios;
 	/* The wait queue entry for this flush */
-	struct waiter waiter;
+	struct vdo_waiter waiter;
 	/* Which flush this struct represents */
 	sequence_number_t flush_generation;
 };

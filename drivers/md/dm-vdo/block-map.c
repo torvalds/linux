@@ -85,7 +85,7 @@ struct cursor_level {
 struct cursors;
 
 struct cursor {
-	struct waiter waiter;
+	struct vdo_waiter waiter;
 	struct block_map_tree *tree;
 	height_t height;
 	struct cursors *parent;
@@ -162,7 +162,7 @@ static char *get_page_buffer(struct page_info *info)
 	return &cache->pages[(info - cache->infos) * VDO_BLOCK_SIZE];
 }
 
-static inline struct vdo_page_completion *page_completion_from_waiter(struct waiter *waiter)
+static inline struct vdo_page_completion *page_completion_from_waiter(struct vdo_waiter *waiter)
 {
 	struct vdo_page_completion *completion;
 
@@ -407,7 +407,7 @@ static int reset_page_info(struct page_info *info)
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = ASSERT(!vdo_has_waiters(&info->waiting),
+	result = ASSERT(!vdo_waitq_has_waiters(&info->waiting),
 			"VDO Page must not have waiters");
 	if (result != UDS_SUCCESS)
 		return result;
@@ -506,7 +506,7 @@ static void complete_with_page(struct page_info *info,
  *
  * Implements waiter_callback_fn.
  */
-static void complete_waiter_with_error(struct waiter *waiter, void *result_ptr)
+static void complete_waiter_with_error(struct vdo_waiter *waiter, void *result_ptr)
 {
 	int *result = result_ptr;
 
@@ -520,25 +520,25 @@ static void complete_waiter_with_error(struct waiter *waiter, void *result_ptr)
  *
  * Implements waiter_callback_fn.
  */
-static void complete_waiter_with_page(struct waiter *waiter, void *page_info)
+static void complete_waiter_with_page(struct vdo_waiter *waiter, void *page_info)
 {
 	complete_with_page(page_info, page_completion_from_waiter(waiter));
 }
 
 /**
- * distribute_page_over_queue() - Complete a queue of VDO page completions with a page result.
+ * distribute_page_over_waitq() - Complete a waitq of VDO page completions with a page result.
  *
- * Upon completion the queue will be empty.
+ * Upon completion the waitq will be empty.
  *
  * Return: The number of pages distributed.
  */
-static unsigned int distribute_page_over_queue(struct page_info *info,
-					       struct wait_queue *queue)
+static unsigned int distribute_page_over_waitq(struct page_info *info,
+					       struct vdo_wait_queue *waitq)
 {
 	size_t pages;
 
 	update_lru(info);
-	pages = vdo_count_waiters(queue);
+	pages = vdo_waitq_num_waiters(waitq);
 
 	/*
 	 * Increment the busy count once for each pending completion so that this page does not
@@ -546,7 +546,7 @@ static unsigned int distribute_page_over_queue(struct page_info *info,
 	 */
 	info->busy += pages;
 
-	vdo_notify_all_waiters(queue, complete_waiter_with_page, info);
+	vdo_waitq_notify_all_waiters(waitq, complete_waiter_with_page, info);
 	return pages;
 }
 
@@ -572,13 +572,14 @@ static void set_persistent_error(struct vdo_page_cache *cache, const char *conte
 
 	assert_on_cache_thread(cache, __func__);
 
-	vdo_notify_all_waiters(&cache->free_waiters, complete_waiter_with_error,
-			       &result);
+	vdo_waitq_notify_all_waiters(&cache->free_waiters,
+				     complete_waiter_with_error, &result);
 	cache->waiter_count = 0;
 
-	for (info = cache->infos; info < cache->infos + cache->page_count; info++)
-		vdo_notify_all_waiters(&info->waiting, complete_waiter_with_error,
-				       &result);
+	for (info = cache->infos; info < cache->infos + cache->page_count; info++) {
+		vdo_waitq_notify_all_waiters(&info->waiting,
+					     complete_waiter_with_error, &result);
+	}
 }
 
 /**
@@ -625,7 +626,7 @@ static void check_for_drain_complete(struct block_map_zone *zone)
 {
 	if (vdo_is_state_draining(&zone->state) &&
 	    (zone->active_lookups == 0) &&
-	    !vdo_has_waiters(&zone->flush_waiters) &&
+	    !vdo_waitq_has_waiters(&zone->flush_waiters) &&
 	    !is_vio_pool_busy(zone->vio_pool) &&
 	    (zone->page_cache.outstanding_reads == 0) &&
 	    (zone->page_cache.outstanding_writes == 0)) {
@@ -643,8 +644,8 @@ static void enter_zone_read_only_mode(struct block_map_zone *zone, int result)
 	 * We are in read-only mode, so we won't ever write any page out. Just take all waiters off
 	 * the queue so the zone can drain.
 	 */
-	while (vdo_has_waiters(&zone->flush_waiters))
-		vdo_dequeue_next_waiter(&zone->flush_waiters);
+	while (vdo_waitq_has_waiters(&zone->flush_waiters))
+		vdo_waitq_dequeue_next_waiter(&zone->flush_waiters);
 
 	check_for_drain_complete(zone);
 }
@@ -677,7 +678,7 @@ static void handle_load_error(struct vdo_completion *completion)
 	vdo_enter_read_only_mode(cache->zone->block_map->vdo, result);
 	ADD_ONCE(cache->stats.failed_reads, 1);
 	set_info_state(info, PS_FAILED);
-	vdo_notify_all_waiters(&info->waiting, complete_waiter_with_error, &result);
+	vdo_waitq_notify_all_waiters(&info->waiting, complete_waiter_with_error, &result);
 	reset_page_info(info);
 
 	/*
@@ -720,7 +721,7 @@ static void page_is_loaded(struct vdo_completion *completion)
 
 	info->recovery_lock = 0;
 	set_info_state(info, PS_RESIDENT);
-	distribute_page_over_queue(info, &info->waiting);
+	distribute_page_over_waitq(info, &info->waiting);
 
 	/*
 	 * Don't decrement until right before calling check_for_drain_complete() to
@@ -874,7 +875,7 @@ static void launch_page_save(struct page_info *info)
  *
  * Return: true if the page completion is for the desired page number.
  */
-static bool completion_needs_page(struct waiter *waiter, void *context)
+static bool completion_needs_page(struct vdo_waiter *waiter, void *context)
 {
 	physical_block_number_t *pbn = context;
 
@@ -888,13 +889,13 @@ static bool completion_needs_page(struct waiter *waiter, void *context)
 static void allocate_free_page(struct page_info *info)
 {
 	int result;
-	struct waiter *oldest_waiter;
+	struct vdo_waiter *oldest_waiter;
 	physical_block_number_t pbn;
 	struct vdo_page_cache *cache = info->cache;
 
 	assert_on_cache_thread(cache, __func__);
 
-	if (!vdo_has_waiters(&cache->free_waiters)) {
+	if (!vdo_waitq_has_waiters(&cache->free_waiters)) {
 		if (cache->stats.cache_pressure > 0) {
 			uds_log_info("page cache pressure relieved");
 			WRITE_ONCE(cache->stats.cache_pressure, 0);
@@ -909,20 +910,22 @@ static void allocate_free_page(struct page_info *info)
 		return;
 	}
 
-	oldest_waiter = vdo_get_first_waiter(&cache->free_waiters);
+	oldest_waiter = vdo_waitq_get_first_waiter(&cache->free_waiters);
 	pbn = page_completion_from_waiter(oldest_waiter)->pbn;
 
 	/*
 	 * Remove all entries which match the page number in question and push them onto the page
 	 * info's wait queue.
 	 */
-	vdo_dequeue_matching_waiters(&cache->free_waiters, completion_needs_page,
-				     &pbn, &info->waiting);
-	cache->waiter_count -= vdo_count_waiters(&info->waiting);
+	vdo_waitq_dequeue_matching_waiters(&cache->free_waiters, completion_needs_page,
+					   &pbn, &info->waiting);
+	cache->waiter_count -= vdo_waitq_num_waiters(&info->waiting);
 
 	result = launch_page_load(info, pbn);
-	if (result != VDO_SUCCESS)
-		vdo_notify_all_waiters(&info->waiting, complete_waiter_with_error, &result);
+	if (result != VDO_SUCCESS) {
+		vdo_waitq_notify_all_waiters(&info->waiting,
+					     complete_waiter_with_error, &result);
+	}
 }
 
 /**
@@ -966,7 +969,7 @@ static void discard_page_for_completion(struct vdo_page_completion *vdo_page_com
 	struct vdo_page_cache *cache = vdo_page_comp->cache;
 
 	cache->waiter_count++;
-	vdo_enqueue_waiter(&cache->free_waiters, &vdo_page_comp->waiter);
+	vdo_waitq_enqueue_waiter(&cache->free_waiters, &vdo_page_comp->waiter);
 	discard_a_page(cache);
 }
 
@@ -1069,11 +1072,11 @@ static void page_is_written_out(struct vdo_completion *completion)
 						     cache->zone->zone_number);
 	info->recovery_lock = 0;
 	was_discard = write_has_finished(info);
-	reclaimed = (!was_discard || (info->busy > 0) || vdo_has_waiters(&info->waiting));
+	reclaimed = (!was_discard || (info->busy > 0) || vdo_waitq_has_waiters(&info->waiting));
 
 	set_info_state(info, PS_RESIDENT);
 
-	reclamations = distribute_page_over_queue(info, &info->waiting);
+	reclamations = distribute_page_over_waitq(info, &info->waiting);
 	ADD_ONCE(cache->stats.reclaimed, reclamations);
 
 	if (was_discard)
@@ -1187,10 +1190,12 @@ static void load_page_for_completion(struct page_info *info,
 {
 	int result;
 
-	vdo_enqueue_waiter(&info->waiting, &vdo_page_comp->waiter);
+	vdo_waitq_enqueue_waiter(&info->waiting, &vdo_page_comp->waiter);
 	result = launch_page_load(info, vdo_page_comp->pbn);
-	if (result != VDO_SUCCESS)
-		vdo_notify_all_waiters(&info->waiting, complete_waiter_with_error, &result);
+	if (result != VDO_SUCCESS) {
+		vdo_waitq_notify_all_waiters(&info->waiting,
+					     complete_waiter_with_error, &result);
+	}
 }
 
 /**
@@ -1251,7 +1256,7 @@ void vdo_get_page(struct vdo_page_completion *page_completion,
 		    (is_outgoing(info) && page_completion->writable)) {
 			/* The page is unusable until it has finished I/O. */
 			ADD_ONCE(cache->stats.wait_for_page, 1);
-			vdo_enqueue_waiter(&info->waiting, &page_completion->waiter);
+			vdo_waitq_enqueue_waiter(&info->waiting, &page_completion->waiter);
 			return;
 		}
 
@@ -1476,7 +1481,7 @@ static void set_generation(struct block_map_zone *zone, struct tree_page *page,
 {
 	u32 new_count;
 	int result;
-	bool decrement_old = vdo_is_waiting(&page->waiter);
+	bool decrement_old = vdo_waiter_is_waiting(&page->waiter);
 	u8 old_generation = page->generation;
 
 	if (decrement_old && (old_generation == new_generation))
@@ -1498,12 +1503,12 @@ static void set_generation(struct block_map_zone *zone, struct tree_page *page,
 static void write_page(struct tree_page *tree_page, struct pooled_vio *vio);
 
 /* Implements waiter_callback_fn */
-static void write_page_callback(struct waiter *waiter, void *context)
+static void write_page_callback(struct vdo_waiter *waiter, void *context)
 {
 	write_page(container_of(waiter, struct tree_page, waiter), context);
 }
 
-static void acquire_vio(struct waiter *waiter, struct block_map_zone *zone)
+static void acquire_vio(struct vdo_waiter *waiter, struct block_map_zone *zone)
 {
 	waiter->callback = write_page_callback;
 	acquire_vio_from_pool(zone->vio_pool, waiter);
@@ -1530,10 +1535,10 @@ static void enqueue_page(struct tree_page *page, struct block_map_zone *zone)
 		return;
 	}
 
-	vdo_enqueue_waiter(&zone->flush_waiters, &page->waiter);
+	vdo_waitq_enqueue_waiter(&zone->flush_waiters, &page->waiter);
 }
 
-static void write_page_if_not_dirtied(struct waiter *waiter, void *context)
+static void write_page_if_not_dirtied(struct vdo_waiter *waiter, void *context)
 {
 	struct tree_page *page = container_of(waiter, struct tree_page, waiter);
 	struct write_if_not_dirtied_context *write_context = context;
@@ -1576,8 +1581,8 @@ static void finish_page_write(struct vdo_completion *completion)
 			.generation = page->writing_generation,
 		};
 
-		vdo_notify_all_waiters(&zone->flush_waiters,
-				       write_page_if_not_dirtied, &context);
+		vdo_waitq_notify_all_waiters(&zone->flush_waiters,
+					     write_page_if_not_dirtied, &context);
 		if (dirty && attempt_increment(zone)) {
 			write_page(page, pooled);
 			return;
@@ -1588,10 +1593,10 @@ static void finish_page_write(struct vdo_completion *completion)
 
 	if (dirty) {
 		enqueue_page(page, zone);
-	} else if ((zone->flusher == NULL) && vdo_has_waiters(&zone->flush_waiters) &&
+	} else if ((zone->flusher == NULL) && vdo_waitq_has_waiters(&zone->flush_waiters) &&
 		   attempt_increment(zone)) {
 		zone->flusher =
-			container_of(vdo_dequeue_next_waiter(&zone->flush_waiters),
+			container_of(vdo_waitq_dequeue_next_waiter(&zone->flush_waiters),
 				     struct tree_page, waiter);
 		write_page(zone->flusher, pooled);
 		return;
@@ -1724,9 +1729,9 @@ static void finish_lookup(struct data_vio *data_vio, int result)
 	continue_data_vio_with_error(data_vio, result);
 }
 
-static void abort_lookup_for_waiter(struct waiter *waiter, void *context)
+static void abort_lookup_for_waiter(struct vdo_waiter *waiter, void *context)
 {
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 	int result = *((int *) context);
 
 	if (!data_vio->write) {
@@ -1746,8 +1751,9 @@ static void abort_lookup(struct data_vio *data_vio, int result, char *what)
 
 	if (data_vio->tree_lock.locked) {
 		release_page_lock(data_vio, what);
-		vdo_notify_all_waiters(&data_vio->tree_lock.waiters,
-				       abort_lookup_for_waiter, &result);
+		vdo_waitq_notify_all_waiters(&data_vio->tree_lock.waiters,
+					     abort_lookup_for_waiter,
+					     &result);
 	}
 
 	finish_lookup(data_vio, result);
@@ -1813,9 +1819,9 @@ static void continue_with_loaded_page(struct data_vio *data_vio,
 	load_block_map_page(data_vio->logical.zone->block_map_zone, data_vio);
 }
 
-static void continue_load_for_waiter(struct waiter *waiter, void *context)
+static void continue_load_for_waiter(struct vdo_waiter *waiter, void *context)
 {
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 
 	data_vio->tree_lock.height--;
 	continue_with_loaded_page(data_vio, context);
@@ -1845,7 +1851,7 @@ static void finish_block_map_page_load(struct vdo_completion *completion)
 
 	/* Release our claim to the load and wake any waiters */
 	release_page_lock(data_vio, "load");
-	vdo_notify_all_waiters(&tree_lock->waiters, continue_load_for_waiter, page);
+	vdo_waitq_notify_all_waiters(&tree_lock->waiters, continue_load_for_waiter, page);
 	continue_with_loaded_page(data_vio, page);
 }
 
@@ -1871,10 +1877,10 @@ static void load_page_endio(struct bio *bio)
 			      data_vio->logical.zone->thread_id);
 }
 
-static void load_page(struct waiter *waiter, void *context)
+static void load_page(struct vdo_waiter *waiter, void *context)
 {
 	struct pooled_vio *pooled = context;
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 	struct tree_lock *lock = &data_vio->tree_lock;
 	physical_block_number_t pbn = lock->tree_slots[lock->height - 1].block_map_slot.pbn;
 
@@ -1916,7 +1922,7 @@ static int attempt_page_lock(struct block_map_zone *zone, struct data_vio *data_
 	}
 
 	/* Someone else is loading or allocating the page we need */
-	vdo_enqueue_waiter(&lock_holder->waiters, &data_vio->waiter);
+	vdo_waitq_enqueue_waiter(&lock_holder->waiters, &data_vio->waiter);
 	return VDO_SUCCESS;
 }
 
@@ -1948,9 +1954,9 @@ static void allocation_failure(struct vdo_completion *completion)
 	abort_lookup(data_vio, completion->result, "allocation");
 }
 
-static void continue_allocation_for_waiter(struct waiter *waiter, void *context)
+static void continue_allocation_for_waiter(struct vdo_waiter *waiter, void *context)
 {
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 	struct tree_lock *tree_lock = &data_vio->tree_lock;
 	physical_block_number_t pbn = *((physical_block_number_t *) context);
 
@@ -2010,7 +2016,7 @@ static void write_expired_elements(struct block_map_zone *zone)
 
 		list_del_init(&page->entry);
 
-		result = ASSERT(!vdo_is_waiting(&page->waiter),
+		result = ASSERT(!vdo_waiter_is_waiting(&page->waiter),
 				"Newly expired page not already waiting to write");
 		if (result != VDO_SUCCESS) {
 			enter_zone_read_only_mode(zone, result);
@@ -2089,7 +2095,7 @@ static void finish_block_map_allocation(struct vdo_completion *completion)
 				  VDO_MAPPING_STATE_UNCOMPRESSED,
 				  &tree_page->recovery_lock);
 
-	if (vdo_is_waiting(&tree_page->waiter)) {
+	if (vdo_waiter_is_waiting(&tree_page->waiter)) {
 		/* This page is waiting to be written out. */
 		if (zone->flusher != tree_page) {
 			/*
@@ -2117,8 +2123,8 @@ static void finish_block_map_allocation(struct vdo_completion *completion)
 
 	/* Release our claim to the allocation and wake any waiters */
 	release_page_lock(data_vio, "allocation");
-	vdo_notify_all_waiters(&tree_lock->waiters, continue_allocation_for_waiter,
-			       &pbn);
+	vdo_waitq_notify_all_waiters(&tree_lock->waiters,
+				     continue_allocation_for_waiter, &pbn);
 	if (tree_lock->height == 0) {
 		finish_lookup(data_vio, VDO_SUCCESS);
 		return;
@@ -2324,7 +2330,7 @@ physical_block_number_t vdo_find_block_map_page_pbn(struct block_map *map,
  */
 void vdo_write_tree_page(struct tree_page *page, struct block_map_zone *zone)
 {
-	bool waiting = vdo_is_waiting(&page->waiter);
+	bool waiting = vdo_waiter_is_waiting(&page->waiter);
 
 	if (waiting && (zone->flusher == page))
 		return;
@@ -2630,7 +2636,7 @@ static void traverse(struct cursor *cursor)
  *
  * Implements waiter_callback_fn.
  */
-static void launch_cursor(struct waiter *waiter, void *context)
+static void launch_cursor(struct vdo_waiter *waiter, void *context)
 {
 	struct cursor *cursor = container_of(waiter, struct cursor, waiter);
 	struct pooled_vio *pooled = context;

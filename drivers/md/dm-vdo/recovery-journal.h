@@ -113,7 +113,7 @@ struct recovery_journal_block {
 	/* The doubly linked pointers for the free or active lists */
 	struct list_head list_node;
 	/* The waiter for the pending full block list */
-	struct waiter write_waiter;
+	struct vdo_waiter write_waiter;
 	/* The journal to which this block belongs */
 	struct recovery_journal *journal;
 	/* A pointer to the current sector in the packed block buffer */
@@ -133,9 +133,9 @@ struct recovery_journal_block {
 	/* The number of new entries in the current commit */
 	journal_entry_count_t entries_in_commit;
 	/* The queue of vios which will make entries for the next commit */
-	struct wait_queue entry_waiters;
+	struct vdo_wait_queue entry_waiters;
 	/* The queue of vios waiting for the current commit */
-	struct wait_queue commit_waiters;
+	struct vdo_wait_queue commit_waiters;
 };
 
 struct recovery_journal {
@@ -146,7 +146,7 @@ struct recovery_journal {
 	/* The block map which can hold locks on this journal */
 	struct block_map *block_map;
 	/* The queue of vios waiting to make entries */
-	struct wait_queue entry_waiters;
+	struct vdo_wait_queue entry_waiters;
 	/* The number of free entries in the journal */
 	u64 available_space;
 	/* The number of decrement entries which need to be made */
@@ -184,7 +184,7 @@ struct recovery_journal {
 	/* A pointer to the active block (the one we are adding entries to now) */
 	struct recovery_journal_block *active_block;
 	/* Journal blocks that need writing */
-	struct wait_queue pending_writes;
+	struct vdo_wait_queue pending_writes;
 	/* The new block map reap head after reaping */
 	sequence_number_t block_map_reap_head;
 	/* The head block number for the block map rebuild range */

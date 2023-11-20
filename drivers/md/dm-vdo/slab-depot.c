@@ -65,7 +65,7 @@ static bool is_slab_open(struct vdo_slab *slab)
 static inline bool __must_check must_make_entries_to_flush(struct slab_journal *journal)
 {
 	return ((journal->slab->status != VDO_SLAB_REBUILDING) &&
-		vdo_has_waiters(&journal->entry_waiters));
+		vdo_waitq_has_waiters(&journal->entry_waiters));
 }
 
 /**
@@ -122,7 +122,7 @@ static bool __must_check block_is_full(struct slab_journal *journal)
 
 static void add_entries(struct slab_journal *journal);
 static void update_tail_block_location(struct slab_journal *journal);
-static void release_journal_locks(struct waiter *waiter, void *context);
+static void release_journal_locks(struct vdo_waiter *waiter, void *context);
 
 /**
  * is_slab_journal_blank() - Check whether a slab's journal is blank.
@@ -184,7 +184,7 @@ static void check_if_slab_drained(struct vdo_slab *slab)
 	code = vdo_get_admin_state_code(&slab->state);
 	read_only = vdo_is_read_only(slab->allocator->depot->vdo);
 	if (!read_only &&
-	    vdo_has_waiters(&slab->dirty_blocks) &&
+	    vdo_waitq_has_waiters(&slab->dirty_blocks) &&
 	    (code != VDO_ADMIN_STATE_SUSPENDING) &&
 	    (code != VDO_ADMIN_STATE_RECOVERING))
 		return;
@@ -229,14 +229,13 @@ static u8 __must_check compute_fullness_hint(struct slab_depot *depot,
  */
 static void check_summary_drain_complete(struct block_allocator *allocator)
 {
-	struct vdo *vdo = allocator->depot->vdo;
-
 	if (!vdo_is_state_draining(&allocator->summary_state) ||
 	    (allocator->summary_write_count > 0))
 		return;
 
 	vdo_finish_operation(&allocator->summary_state,
-			     (vdo_is_read_only(vdo) ? VDO_READ_ONLY : VDO_SUCCESS));
+			     (vdo_is_read_only(allocator->depot->vdo) ?
+			      VDO_READ_ONLY : VDO_SUCCESS));
 }
 
 /**
@@ -245,11 +244,12 @@ static void check_summary_drain_complete(struct block_allocator *allocator)
  * @queue: The queue to notify.
  */
 static void notify_summary_waiters(struct block_allocator *allocator,
-				   struct wait_queue *queue)
+				   struct vdo_wait_queue *queue)
 {
-	int result = (vdo_is_read_only(allocator->depot->vdo) ? VDO_READ_ONLY : VDO_SUCCESS);
+	int result = (vdo_is_read_only(allocator->depot->vdo) ?
+		      VDO_READ_ONLY : VDO_SUCCESS);
 
-	vdo_notify_all_waiters(queue, NULL, &result);
+	vdo_waitq_notify_all_waiters(queue, NULL, &result);
 }
 
 static void launch_write(struct slab_summary_block *summary_block);
@@ -264,7 +264,7 @@ static void finish_updating_slab_summary_block(struct slab_summary_block *block)
 	notify_summary_waiters(block->allocator, &block->current_update_waiters);
 	block->writing = false;
 	block->allocator->summary_write_count--;
-	if (vdo_has_waiters(&block->next_update_waiters))
+	if (vdo_waitq_has_waiters(&block->next_update_waiters))
 		launch_write(block);
 	else
 		check_summary_drain_complete(block->allocator);
@@ -320,8 +320,8 @@ static void launch_write(struct slab_summary_block *block)
 		return;
 
 	allocator->summary_write_count++;
-	vdo_transfer_all_waiters(&block->next_update_waiters,
-				 &block->current_update_waiters);
+	vdo_waitq_transfer_all_waiters(&block->next_update_waiters,
+				       &block->current_update_waiters);
 	block->writing = true;
 
 	if (vdo_is_read_only(depot->vdo)) {
@@ -351,7 +351,7 @@ static void launch_write(struct slab_summary_block *block)
  * @is_clean: Whether the slab is clean.
  * @free_blocks: The number of free blocks.
  */
-static void update_slab_summary_entry(struct vdo_slab *slab, struct waiter *waiter,
+static void update_slab_summary_entry(struct vdo_slab *slab, struct vdo_waiter *waiter,
 				      tail_block_offset_t tail_block_offset,
 				      bool load_ref_counts, bool is_clean,
 				      block_count_t free_blocks)
@@ -382,7 +382,7 @@ static void update_slab_summary_entry(struct vdo_slab *slab, struct waiter *wait
 		.is_dirty = !is_clean,
 		.fullness_hint = compute_fullness_hint(allocator->depot, free_blocks),
 	};
-	vdo_enqueue_waiter(&block->next_update_waiters, waiter);
+	vdo_waitq_enqueue_waiter(&block->next_update_waiters, waiter);
 	launch_write(block);
 }
 
@@ -441,7 +441,7 @@ static void flush_endio(struct bio *bio)
  * @waiter: The journal as a flush waiter.
  * @context: The newly acquired flush vio.
  */
-static void flush_for_reaping(struct waiter *waiter, void *context)
+static void flush_for_reaping(struct vdo_waiter *waiter, void *context)
 {
 	struct slab_journal *journal =
 		container_of(waiter, struct slab_journal, flush_waiter);
@@ -550,7 +550,7 @@ static void adjust_slab_journal_block_reference(struct slab_journal *journal,
  *
  * Implements waiter_callback_fn.
  */
-static void release_journal_locks(struct waiter *waiter, void *context)
+static void release_journal_locks(struct vdo_waiter *waiter, void *context)
 {
 	sequence_number_t first, i;
 	struct slab_journal *journal =
@@ -734,7 +734,7 @@ static void write_slab_journal_endio(struct bio *bio)
  *
  * Callback from acquire_vio_from_pool() registered in commit_tail().
  */
-static void write_slab_journal_block(struct waiter *waiter, void *context)
+static void write_slab_journal_block(struct vdo_waiter *waiter, void *context)
 {
 	struct pooled_vio *pooled = context;
 	struct vio *vio = &pooled->vio;
@@ -1006,7 +1006,7 @@ static bool requires_reaping(const struct slab_journal *journal)
 }
 
 /** finish_summary_update() - A waiter callback that resets the writing state of a slab. */
-static void finish_summary_update(struct waiter *waiter, void *context)
+static void finish_summary_update(struct vdo_waiter *waiter, void *context)
 {
 	struct vdo_slab *slab = container_of(waiter, struct vdo_slab, summary_waiter);
 	int result = *((int *) context);
@@ -1021,7 +1021,7 @@ static void finish_summary_update(struct waiter *waiter, void *context)
 	check_if_slab_drained(slab);
 }
 
-static void write_reference_block(struct waiter *waiter, void *context);
+static void write_reference_block(struct vdo_waiter *waiter, void *context);
 
 /**
  * launch_reference_block_write() - Launch the write of a dirty reference block by first acquiring
@@ -1032,7 +1032,7 @@ static void write_reference_block(struct waiter *waiter, void *context);
  * This can be asynchronous since the writer will have to wait if all VIOs in the pool are
  * currently in use.
  */
-static void launch_reference_block_write(struct waiter *waiter, void *context)
+static void launch_reference_block_write(struct vdo_waiter *waiter, void *context)
 {
 	struct vdo_slab *slab = context;
 
@@ -1047,7 +1047,8 @@ static void launch_reference_block_write(struct waiter *waiter, void *context)
 
 static void save_dirty_reference_blocks(struct vdo_slab *slab)
 {
-	vdo_notify_all_waiters(&slab->dirty_blocks, launch_reference_block_write, slab);
+	vdo_waitq_notify_all_waiters(&slab->dirty_blocks,
+				     launch_reference_block_write, slab);
 	check_if_slab_drained(slab);
 }
 
@@ -1084,7 +1085,7 @@ static void finish_reference_block_write(struct vdo_completion *completion)
 
 	/* Re-queue the block if it was re-dirtied while it was writing. */
 	if (block->is_dirty) {
-		vdo_enqueue_waiter(&block->slab->dirty_blocks, &block->waiter);
+		vdo_waitq_enqueue_waiter(&block->slab->dirty_blocks, &block->waiter);
 		if (vdo_is_state_draining(&slab->state)) {
 			/* We must be saving, and this block will otherwise not be relaunched. */
 			save_dirty_reference_blocks(slab);
@@ -1097,7 +1098,7 @@ static void finish_reference_block_write(struct vdo_completion *completion)
 	 * Mark the slab as clean in the slab summary if there are no dirty or writing blocks
 	 * and no summary update in progress.
 	 */
-	if ((slab->active_count > 0) || vdo_has_waiters(&slab->dirty_blocks)) {
+	if ((slab->active_count > 0) || vdo_waitq_has_waiters(&slab->dirty_blocks)) {
 		check_if_slab_drained(slab);
 		return;
 	}
@@ -1175,7 +1176,7 @@ static void handle_io_error(struct vdo_completion *completion)
  * @waiter: The waiter of the dirty block.
  * @context: The VIO returned by the pool.
  */
-static void write_reference_block(struct waiter *waiter, void *context)
+static void write_reference_block(struct vdo_waiter *waiter, void *context)
 {
 	size_t block_offset;
 	physical_block_number_t pbn;
@@ -1213,7 +1214,7 @@ static void reclaim_journal_space(struct slab_journal *journal)
 {
 	block_count_t length = journal_length(journal);
 	struct vdo_slab *slab = journal->slab;
-	block_count_t write_count = vdo_count_waiters(&slab->dirty_blocks);
+	block_count_t write_count = vdo_waitq_num_waiters(&slab->dirty_blocks);
 	block_count_t written;
 
 	if ((length < journal->flushing_threshold) || (write_count == 0))
@@ -1228,8 +1229,8 @@ static void reclaim_journal_space(struct slab_journal *journal)
 	}
 
 	for (written = 0; written < write_count; written++) {
-		vdo_notify_next_waiter(&slab->dirty_blocks,
-				       launch_reference_block_write, slab);
+		vdo_waitq_notify_next_waiter(&slab->dirty_blocks,
+					     launch_reference_block_write, slab);
 	}
 }
 
@@ -1263,7 +1264,7 @@ static void dirty_block(struct reference_block *block)
 
 	block->is_dirty = true;
 	if (!block->is_writing)
-		vdo_enqueue_waiter(&block->slab->dirty_blocks, &block->waiter);
+		vdo_waitq_enqueue_waiter(&block->slab->dirty_blocks, &block->waiter);
 }
 
 /**
@@ -1678,7 +1679,7 @@ static int __must_check adjust_reference_count(struct vdo_slab *slab,
  * This callback is invoked by add_entries() once it has determined that we are ready to make
  * another entry in the slab journal. Implements waiter_callback_fn.
  */
-static void add_entry_from_waiter(struct waiter *waiter, void *context)
+static void add_entry_from_waiter(struct vdo_waiter *waiter, void *context)
 {
 	int result;
 	struct reference_updater *updater =
@@ -1744,7 +1745,7 @@ static void add_entry_from_waiter(struct waiter *waiter, void *context)
  */
 static inline bool is_next_entry_a_block_map_increment(struct slab_journal *journal)
 {
-	struct waiter *waiter = vdo_get_first_waiter(&journal->entry_waiters);
+	struct vdo_waiter *waiter = vdo_waitq_get_first_waiter(&journal->entry_waiters);
 	struct reference_updater *updater = container_of(waiter,
 							 struct reference_updater,
 							 waiter);
@@ -1767,7 +1768,7 @@ static void add_entries(struct slab_journal *journal)
 	}
 
 	journal->adding_entries = true;
-	while (vdo_has_waiters(&journal->entry_waiters)) {
+	while (vdo_waitq_has_waiters(&journal->entry_waiters)) {
 		struct slab_journal_block_header *header = &journal->tail_header;
 
 		if (journal->partial_write_in_progress ||
@@ -1864,8 +1865,8 @@ static void add_entries(struct slab_journal *journal)
 			}
 		}
 
-		vdo_notify_next_waiter(&journal->entry_waiters,
-				       add_entry_from_waiter, journal);
+		vdo_waitq_notify_next_waiter(&journal->entry_waiters,
+					     add_entry_from_waiter, journal);
 	}
 
 	journal->adding_entries = false;
@@ -1873,7 +1874,7 @@ static void add_entries(struct slab_journal *journal)
 	/* If there are no waiters, and we are flushing or saving, commit the tail block. */
 	if (vdo_is_state_draining(&journal->slab->state) &&
 	    !vdo_is_state_suspending(&journal->slab->state) &&
-	    !vdo_has_waiters(&journal->entry_waiters))
+	    !vdo_waitq_has_waiters(&journal->entry_waiters))
 		commit_tail(journal);
 }
 
@@ -2259,7 +2260,7 @@ static void load_reference_block_endio(struct bio *bio)
  * @waiter: The waiter of the block to load.
  * @context: The VIO returned by the pool.
  */
-static void load_reference_block(struct waiter *waiter, void *context)
+static void load_reference_block(struct vdo_waiter *waiter, void *context)
 {
 	struct pooled_vio *pooled = context;
 	struct vio *vio = &pooled->vio;
@@ -2284,7 +2285,7 @@ static void load_reference_blocks(struct vdo_slab *slab)
 	slab->free_blocks = slab->block_count;
 	slab->active_count = slab->reference_block_count;
 	for (i = 0; i < slab->reference_block_count; i++) {
-		struct waiter *waiter = &slab->reference_blocks[i].waiter;
+		struct vdo_waiter *waiter = &slab->reference_blocks[i].waiter;
 
 		waiter->callback = load_reference_block;
 		acquire_vio_from_pool(slab->allocator->vio_pool, waiter);
@@ -2455,7 +2456,7 @@ static void handle_load_error(struct vdo_completion *completion)
  *
  * This is the success callback from acquire_vio_from_pool() when loading a slab journal.
  */
-static void read_slab_journal_tail(struct waiter *waiter, void *context)
+static void read_slab_journal_tail(struct vdo_waiter *waiter, void *context)
 {
 	struct slab_journal *journal =
 		container_of(waiter, struct slab_journal, resource_waiter);
@@ -2662,7 +2663,7 @@ static void uninitialize_scrubber_vio(struct slab_scrubber *scrubber)
  */
 static void finish_scrubbing(struct slab_scrubber *scrubber, int result)
 {
-	bool notify = vdo_has_waiters(&scrubber->waiters);
+	bool notify = vdo_waitq_has_waiters(&scrubber->waiters);
 	bool done = !has_slabs_to_scrub(scrubber);
 	struct block_allocator *allocator =
 		container_of(scrubber, struct block_allocator, scrubber);
@@ -2709,7 +2710,7 @@ static void finish_scrubbing(struct slab_scrubber *scrubber, int result)
 	 * Fortunately if there were waiters, we can't have been freed yet.
 	 */
 	if (notify)
-		vdo_notify_all_waiters(&scrubber->waiters, NULL, NULL);
+		vdo_waitq_notify_all_waiters(&scrubber->waiters, NULL, NULL);
 }
 
 static void scrub_next_slab(struct slab_scrubber *scrubber);
@@ -2933,7 +2934,7 @@ static void scrub_next_slab(struct slab_scrubber *scrubber)
 	 * Note: this notify call is always safe only because scrubbing can only be started when
 	 * the VDO is quiescent.
 	 */
-	vdo_notify_all_waiters(&scrubber->waiters, NULL, NULL);
+	vdo_waitq_notify_all_waiters(&scrubber->waiters, NULL, NULL);
 
 	if (vdo_is_read_only(completion->vdo)) {
 		finish_scrubbing(scrubber, VDO_READ_ONLY);
@@ -3053,7 +3054,7 @@ static struct vdo_slab *next_slab(struct slab_iterator *iterator)
  * This callback is invoked on all vios waiting to make slab journal entries after the VDO has gone
  * into read-only mode. Implements waiter_callback_fn.
  */
-static void abort_waiter(struct waiter *waiter, void *context __always_unused)
+static void abort_waiter(struct vdo_waiter *waiter, void *context __always_unused)
 {
 	struct reference_updater *updater =
 		container_of(waiter, struct reference_updater, waiter);
@@ -3079,8 +3080,8 @@ static void notify_block_allocator_of_read_only_mode(void *listener,
 	while (iterator.next != NULL) {
 		struct vdo_slab *slab = next_slab(&iterator);
 
-		vdo_notify_all_waiters(&slab->journal.entry_waiters,
-				       abort_waiter, &slab->journal);
+		vdo_waitq_notify_all_waiters(&slab->journal.entry_waiters,
+					     abort_waiter, &slab->journal);
 		check_if_slab_drained(slab);
 	}
 
@@ -3210,7 +3211,7 @@ int vdo_allocate_block(struct block_allocator *allocator,
  *         some other error otherwise.
  */
 int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
-				  struct waiter *waiter)
+				  struct vdo_waiter *waiter)
 {
 	if (vdo_is_read_only(allocator->depot->vdo))
 		return VDO_READ_ONLY;
@@ -3218,7 +3219,7 @@ int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
 	if (vdo_is_state_quiescent(&allocator->scrubber.admin_state))
 		return VDO_NO_SPACE;
 
-	vdo_enqueue_waiter(&allocator->scrubber.waiters, waiter);
+	vdo_waitq_enqueue_waiter(&allocator->scrubber.waiters, waiter);
 	return VDO_SUCCESS;
 }
 
@@ -3244,7 +3245,7 @@ void vdo_modify_reference_count(struct vdo_completion *completion,
 		return;
 	}
 
-	vdo_enqueue_waiter(&slab->journal.entry_waiters, &updater->waiter);
+	vdo_waitq_enqueue_waiter(&slab->journal.entry_waiters, &updater->waiter);
 	if ((slab->status != VDO_SLAB_REBUILT) && requires_reaping(&slab->journal))
 		register_slab_for_scrubbing(slab, true);
 
@@ -3587,7 +3588,7 @@ void vdo_dump_block_allocator(const struct block_allocator *allocator)
 		}
 
 		uds_log_info("  slab journal: entry_waiters=%zu waiting_to_commit=%s updating_slab_summary=%s head=%llu unreapable=%llu tail=%llu next_commit=%llu summarized=%llu last_summarized=%llu recovery_lock=%llu dirty=%s",
-			     vdo_count_waiters(&journal->entry_waiters),
+			     vdo_waitq_num_waiters(&journal->entry_waiters),
 			     uds_bool_to_string(journal->waiting_to_commit),
 			     uds_bool_to_string(journal->updating_slab_summary),
 			     (unsigned long long) journal->head,
@@ -3608,7 +3609,7 @@ void vdo_dump_block_allocator(const struct block_allocator *allocator)
 			uds_log_info("  slab: free=%u/%u blocks=%u dirty=%zu active=%zu journal@(%llu,%u)",
 				     slab->free_blocks, slab->block_count,
 				     slab->reference_block_count,
-				     vdo_count_waiters(&slab->dirty_blocks),
+				     vdo_waitq_num_waiters(&slab->dirty_blocks),
 				     slab->active_count,
 				     (unsigned long long) slab->slab_journal_point.sequence_number,
 				     slab->slab_journal_point.entry_count);
@@ -3628,7 +3629,7 @@ void vdo_dump_block_allocator(const struct block_allocator *allocator)
 
 	uds_log_info("slab_scrubber slab_count %u waiters %zu %s%s",
 		     READ_ONCE(scrubber->slab_count),
-		     vdo_count_waiters(&scrubber->waiters),
+		     vdo_waitq_num_waiters(&scrubber->waiters),
 		     vdo_get_admin_state_code(&scrubber->admin_state)->name,
 		     scrubber->high_priority_only ? ", high_priority_only " : "");
 }

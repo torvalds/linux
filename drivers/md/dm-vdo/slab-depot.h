@@ -60,13 +60,13 @@ struct journal_lock {
 
 struct slab_journal {
 	/* A waiter object for getting a VIO pool entry */
-	struct waiter resource_waiter;
+	struct vdo_waiter resource_waiter;
 	/* A waiter object for updating the slab summary */
-	struct waiter slab_summary_waiter;
+	struct vdo_waiter slab_summary_waiter;
 	/* A waiter object for getting a vio with which to flush */
-	struct waiter flush_waiter;
+	struct vdo_waiter flush_waiter;
 	/* The queue of VIOs waiting to make an entry */
-	struct wait_queue entry_waiters;
+	struct vdo_wait_queue entry_waiters;
 	/* The parent slab reference of this journal */
 	struct vdo_slab *slab;
 
@@ -149,7 +149,7 @@ struct slab_journal {
  */
 struct reference_block {
 	/* This block waits on the ref_counts to tell it to write */
-	struct waiter waiter;
+	struct vdo_waiter waiter;
 	/* The slab to which this reference_block belongs */
 	struct vdo_slab *slab;
 	/* The number of references in this block that represent allocations */
@@ -241,12 +241,12 @@ struct vdo_slab {
 	struct search_cursor search_cursor;
 
 	/* A list of the dirty blocks waiting to be written out */
-	struct wait_queue dirty_blocks;
+	struct vdo_wait_queue dirty_blocks;
 	/* The number of blocks which are currently writing */
 	size_t active_count;
 
 	/* A waiter object for updating the slab summary */
-	struct waiter summary_waiter;
+	struct vdo_waiter summary_waiter;
 
 	/* The latest slab journal for which there has been a reference count update */
 	struct journal_point slab_journal_point;
@@ -271,7 +271,7 @@ struct slab_scrubber {
 	/* The queue of slabs to scrub once there are no high_priority_slabs */
 	struct list_head slabs;
 	/* The queue of VIOs waiting for a slab to be scrubbed */
-	struct wait_queue waiters;
+	struct vdo_wait_queue waiters;
 
 	/*
 	 * The number of slabs that are unrecovered or being scrubbed. This field is modified by
@@ -341,9 +341,9 @@ struct slab_summary_block {
 	/* Whether this block has a write outstanding */
 	bool writing;
 	/* Ring of updates waiting on the outstanding write */
-	struct wait_queue current_update_waiters;
+	struct vdo_wait_queue current_update_waiters;
 	/* Ring of updates waiting on the next write */
-	struct wait_queue next_update_waiters;
+	struct vdo_wait_queue next_update_waiters;
 	/* The active slab_summary_entry array for this block */
 	struct slab_summary_entry *entries;
 	/* The vio used to write this block */
@@ -522,7 +522,7 @@ int __must_check vdo_allocate_block(struct block_allocator *allocator,
 				    physical_block_number_t *block_number_ptr);
 
 int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
-				  struct waiter *waiter);
+				  struct vdo_waiter *waiter);
 
 void vdo_modify_reference_count(struct vdo_completion *completion,
 				struct reference_updater *updater);

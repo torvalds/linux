@@ -270,7 +270,7 @@ struct hash_lock {
 	 * to get the information they all need to deduplicate--either against each other, or
 	 * against an existing duplicate on disk.
 	 */
-	struct wait_queue waiters;
+	struct vdo_wait_queue waiters;
 };
 
 enum {
@@ -351,7 +351,7 @@ static void return_hash_lock_to_pool(struct hash_zone *zone, struct hash_lock *l
 	memset(lock, 0, sizeof(*lock));
 	INIT_LIST_HEAD(&lock->pool_node);
 	INIT_LIST_HEAD(&lock->duplicate_ring);
-	vdo_initialize_wait_queue(&lock->waiters);
+	vdo_waitq_init(&lock->waiters);
 	list_add_tail(&lock->pool_node, &zone->lock_pool);
 }
 
@@ -420,7 +420,7 @@ static void set_duplicate_lock(struct hash_lock *hash_lock, struct pbn_lock *pbn
  */
 static inline struct data_vio *dequeue_lock_waiter(struct hash_lock *lock)
 {
-	return waiter_as_data_vio(vdo_dequeue_next_waiter(&lock->waiters));
+	return vdo_waiter_as_data_vio(vdo_waitq_dequeue_next_waiter(&lock->waiters));
 }
 
 /**
@@ -536,7 +536,7 @@ static struct data_vio *retire_lock_agent(struct hash_lock *lock)
  */
 static void wait_on_hash_lock(struct hash_lock *lock, struct data_vio *data_vio)
 {
-	vdo_enqueue_waiter(&lock->waiters, &data_vio->waiter);
+	vdo_waitq_enqueue_waiter(&lock->waiters, &data_vio->waiter);
 
 	/*
 	 * Make sure the agent doesn't block indefinitely in the packer since it now has at least
@@ -562,9 +562,9 @@ static void wait_on_hash_lock(struct hash_lock *lock, struct data_vio *data_vio)
  * @waiter: The data_vio's waiter link.
  * @context: Not used.
  */
-static void abort_waiter(struct waiter *waiter, void *context __always_unused)
+static void abort_waiter(struct vdo_waiter *waiter, void *context __always_unused)
 {
-	write_data_vio(waiter_as_data_vio(waiter));
+	write_data_vio(vdo_waiter_as_data_vio(waiter));
 }
 
 /**
@@ -602,7 +602,7 @@ void vdo_clean_failed_hash_lock(struct data_vio *data_vio)
 	/* Ensure we don't attempt to update advice when cleaning up. */
 	lock->update_advice = false;
 
-	vdo_notify_all_waiters(&lock->waiters, abort_waiter, NULL);
+	vdo_waitq_notify_all_waiters(&lock->waiters, abort_waiter, NULL);
 
 	if (lock->duplicate_lock != NULL) {
 		/* The agent must reference the duplicate zone to launch it. */
@@ -650,7 +650,7 @@ static void finish_unlocking(struct vdo_completion *completion)
 	 */
 	lock->verified = false;
 
-	if (vdo_has_waiters(&lock->waiters)) {
+	if (vdo_waitq_has_waiters(&lock->waiters)) {
 		/*
 		 * UNLOCKING -> LOCKING transition: A new data_vio entered the hash lock while the
 		 * agent was releasing the PBN lock. The current agent exits and the waiter has to
@@ -750,7 +750,7 @@ static void finish_updating(struct vdo_completion *completion)
 	 */
 	lock->update_advice = false;
 
-	if (vdo_has_waiters(&lock->waiters)) {
+	if (vdo_waitq_has_waiters(&lock->waiters)) {
 		/*
 		 * UPDATING -> DEDUPING transition: A new data_vio arrived during the UDS update.
 		 * Send it on the verified dedupe path. The agent is done with the lock, but the
@@ -812,7 +812,7 @@ static void finish_deduping(struct hash_lock *lock, struct data_vio *data_vio)
 	struct data_vio *agent = data_vio;
 
 	ASSERT_LOG_ONLY(lock->agent == NULL, "shouldn't have an agent in DEDUPING");
-	ASSERT_LOG_ONLY(!vdo_has_waiters(&lock->waiters),
+	ASSERT_LOG_ONLY(!vdo_waitq_has_waiters(&lock->waiters),
 			"shouldn't have any lock waiters in DEDUPING");
 
 	/* Just release the lock reference if other data_vios are still deduping. */
@@ -917,9 +917,9 @@ static int __must_check acquire_lock(struct hash_zone *zone,
  * Implements waiter_callback_fn. Binds the data_vio that was waiting to a new hash lock and waits
  * on that lock.
  */
-static void enter_forked_lock(struct waiter *waiter, void *context)
+static void enter_forked_lock(struct vdo_waiter *waiter, void *context)
 {
-	struct data_vio *data_vio = waiter_as_data_vio(waiter);
+	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 	struct hash_lock *new_lock = context;
 
 	set_hash_lock(data_vio, new_lock);
@@ -956,7 +956,7 @@ static void fork_hash_lock(struct hash_lock *old_lock, struct data_vio *new_agen
 	set_hash_lock(new_agent, new_lock);
 	new_lock->agent = new_agent;
 
-	vdo_notify_all_waiters(&old_lock->waiters, enter_forked_lock, new_lock);
+	vdo_waitq_notify_all_waiters(&old_lock->waiters, enter_forked_lock, new_lock);
 
 	new_agent->is_duplicate = false;
 	start_writing(new_lock, new_agent);
@@ -1033,7 +1033,7 @@ static void start_deduping(struct hash_lock *lock, struct data_vio *agent,
 		launch_dedupe(lock, agent, true);
 		agent = NULL;
 	}
-	while (vdo_has_waiters(&lock->waiters))
+	while (vdo_waitq_has_waiters(&lock->waiters))
 		launch_dedupe(lock, dequeue_lock_waiter(lock), false);
 
 	if (agent_is_done) {
@@ -1454,7 +1454,7 @@ static void finish_writing(struct hash_lock *lock, struct data_vio *agent)
 		lock->update_advice = true;
 
 	/* If there are any waiters, we need to start deduping them. */
-	if (vdo_has_waiters(&lock->waiters)) {
+	if (vdo_waitq_has_waiters(&lock->waiters)) {
 		/*
 		 * WRITING -> DEDUPING transition: an asynchronously-written block failed to
 		 * compress, so the PBN lock on the written copy was already transferred. The agent
@@ -1502,10 +1502,10 @@ static void finish_writing(struct hash_lock *lock, struct data_vio *agent)
  */
 static struct data_vio *select_writing_agent(struct hash_lock *lock)
 {
-	struct wait_queue temp_queue;
+	struct vdo_wait_queue temp_queue;
 	struct data_vio *data_vio;
 
-	vdo_initialize_wait_queue(&temp_queue);
+	vdo_waitq_init(&temp_queue);
 
 	/*
 	 * Move waiters to the temp queue one-by-one until we find an allocation. Not ideal to
@@ -1514,7 +1514,7 @@ static struct data_vio *select_writing_agent(struct hash_lock *lock)
 	while (((data_vio = dequeue_lock_waiter(lock)) != NULL) &&
 	       !data_vio_has_allocation(data_vio)) {
 		/* Use the lower-level enqueue since we're just moving waiters around. */
-		vdo_enqueue_waiter(&temp_queue, &data_vio->waiter);
+		vdo_waitq_enqueue_waiter(&temp_queue, &data_vio->waiter);
 	}
 
 	if (data_vio != NULL) {
@@ -1522,13 +1522,13 @@ static struct data_vio *select_writing_agent(struct hash_lock *lock)
 		 * Move the rest of the waiters over to the temp queue, preserving the order they
 		 * arrived at the lock.
 		 */
-		vdo_transfer_all_waiters(&lock->waiters, &temp_queue);
+		vdo_waitq_transfer_all_waiters(&lock->waiters, &temp_queue);
 
 		/*
 		 * The current agent is being replaced and will have to wait to dedupe; make it the
 		 * first waiter since it was the first to reach the lock.
 		 */
-		vdo_enqueue_waiter(&lock->waiters, &lock->agent->waiter);
+		vdo_waitq_enqueue_waiter(&lock->waiters, &lock->agent->waiter);
 		lock->agent = data_vio;
 	} else {
 		/* No one has an allocation, so keep the current agent. */
@@ -1536,7 +1536,7 @@ static struct data_vio *select_writing_agent(struct hash_lock *lock)
 	}
 
 	/* Swap all the waiters back onto the lock's queue. */
-	vdo_transfer_all_waiters(&temp_queue, &lock->waiters);
+	vdo_waitq_transfer_all_waiters(&temp_queue, &lock->waiters);
 	return data_vio;
 }
 
@@ -1577,7 +1577,7 @@ static void start_writing(struct hash_lock *lock, struct data_vio *agent)
 	 * If the agent compresses, it might wait indefinitely in the packer, which would be bad if
 	 * there are any other data_vios waiting.
 	 */
-	if (vdo_has_waiters(&lock->waiters))
+	if (vdo_waitq_has_waiters(&lock->waiters))
 		cancel_data_vio_compression(agent);
 
 	/*
@@ -1928,7 +1928,7 @@ void vdo_release_hash_lock(struct data_vio *data_vio)
 				"unregistered hash lock must not be in the lock map");
 	}
 
-	ASSERT_LOG_ONLY(!vdo_has_waiters(&lock->waiters),
+	ASSERT_LOG_ONLY(!vdo_waitq_has_waiters(&lock->waiters),
 			"hash lock returned to zone must have no waiters");
 	ASSERT_LOG_ONLY((lock->duplicate_lock == NULL),
 			"hash lock returned to zone must not reference a PBN lock");
@@ -2812,7 +2812,7 @@ static void dump_hash_lock(const struct hash_lock *lock)
 		     lock, state, (lock->registered ? 'D' : 'U'),
 		     (unsigned long long) lock->duplicate.pbn,
 		     lock->duplicate.state, lock->reference_count,
-		     vdo_count_waiters(&lock->waiters), lock->agent);
+		     vdo_waitq_num_waiters(&lock->waiters), lock->agent);
 }
 
 static const char *index_state_to_string(struct hash_zones *zones,
