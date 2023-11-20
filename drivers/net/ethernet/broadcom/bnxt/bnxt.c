@@ -7552,6 +7552,8 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 	bnxt_free_ctx_pg_tbls(bp, &ctx->srq_mem);
 	bnxt_free_ctx_pg_tbls(bp, &ctx->qp_mem);
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
+	kfree(ctx);
+	bp->ctx = NULL;
 }
 
 static int bnxt_alloc_ctx_mem(struct bnxt *bp)
@@ -10321,8 +10323,6 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 			if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 				bnxt_ulp_stop(bp);
 			bnxt_free_ctx_mem(bp);
-			kfree(bp->ctx);
-			bp->ctx = NULL;
 			bnxt_dcb_free(bp);
 			rc = bnxt_fw_init_one(bp);
 			if (rc) {
@@ -11948,8 +11948,6 @@ static void bnxt_fw_reset_close(struct bnxt *bp)
 	if (pci_is_enabled(bp->pdev))
 		pci_disable_device(bp->pdev);
 	bnxt_free_ctx_mem(bp);
-	kfree(bp->ctx);
-	bp->ctx = NULL;
 }
 
 static bool is_bnxt_fw_ok(struct bnxt *bp)
@@ -13368,8 +13366,6 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bp->fw_health = NULL;
 	bnxt_cleanup_pci(bp);
 	bnxt_free_ctx_mem(bp);
-	kfree(bp->ctx);
-	bp->ctx = NULL;
 	kfree(bp->rss_indir_tbl);
 	bp->rss_indir_tbl = NULL;
 	bnxt_free_port_stats(bp);
@@ -13969,8 +13965,6 @@ init_err_pci_clean:
 	bp->fw_health = NULL;
 	bnxt_cleanup_pci(bp);
 	bnxt_free_ctx_mem(bp);
-	kfree(bp->ctx);
-	bp->ctx = NULL;
 	kfree(bp->rss_indir_tbl);
 	bp->rss_indir_tbl = NULL;
 
@@ -14023,8 +14017,6 @@ static int bnxt_suspend(struct device *device)
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	pci_disable_device(bp->pdev);
 	bnxt_free_ctx_mem(bp);
-	kfree(bp->ctx);
-	bp->ctx = NULL;
 	rtnl_unlock();
 	return rc;
 }
@@ -14121,8 +14113,6 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 	if (pci_is_enabled(pdev))
 		pci_disable_device(pdev);
 	bnxt_free_ctx_mem(bp);
-	kfree(bp->ctx);
-	bp->ctx = NULL;
 	rtnl_unlock();
 
 	/* Request a slot slot reset. */
