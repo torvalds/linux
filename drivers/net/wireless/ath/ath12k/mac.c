@@ -4995,7 +4995,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to queue management frame %d\n",
 				    ret);
-			ieee80211_free_txskb(ar->hw, skb);
+			ieee80211_free_txskb(hw, skb);
 		}
 		return;
 	}
@@ -5003,7 +5003,7 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 	ret = ath12k_dp_tx(ar, arvif, skb);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to transmit frame %d\n", ret);
-		ieee80211_free_txskb(ar->hw, skb);
+		ieee80211_free_txskb(hw, skb);
 	}
 }
 
@@ -5604,7 +5604,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 		goto err_peer_del;
 
 	param_id = WMI_VDEV_PARAM_RTS_THRESHOLD;
-	param_value = ar->hw->wiphy->rts_threshold;
+	param_value = hw->wiphy->rts_threshold;
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
 					    param_id, param_value);
 	if (ret) {
@@ -6844,7 +6844,7 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 			return ret;
 		}
-		ieee80211_iterate_stations_atomic(ar->hw,
+		ieee80211_iterate_stations_atomic(hw,
 						  ath12k_mac_disable_peer_fixed_rate,
 						  arvif);
 	} else if (ath12k_mac_bitrate_mask_get_single_nss(ar, band, mask,
@@ -6890,14 +6890,14 @@ ath12k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 			return -EINVAL;
 		}
 
-		ieee80211_iterate_stations_atomic(ar->hw,
+		ieee80211_iterate_stations_atomic(hw,
 						  ath12k_mac_disable_peer_fixed_rate,
 						  arvif);
 
 		mutex_lock(&ar->conf_mutex);
 
 		arvif->bitrate_mask = *mask;
-		ieee80211_iterate_stations_atomic(ar->hw,
+		ieee80211_iterate_stations_atomic(hw,
 						  ath12k_mac_set_bitrate_mask_iter,
 						  arvif);
 
@@ -6935,7 +6935,7 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 		ath12k_warn(ar->ab, "pdev %d successfully recovered\n",
 			    ar->pdev->pdev_id);
 		ar->state = ATH12K_STATE_ON;
-		ieee80211_wake_queues(ar->hw);
+		ieee80211_wake_queues(hw);
 
 		if (ab->is_reset) {
 			recovery_count = atomic_inc_return(&ab->recovery_count);

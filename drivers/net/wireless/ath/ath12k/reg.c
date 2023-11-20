@@ -28,11 +28,11 @@ static const struct ieee80211_regdomain ath12k_world_regd = {
 	}
 };
 
-static bool ath12k_regdom_changes(struct ath12k *ar, char *alpha2)
+static bool ath12k_regdom_changes(struct ieee80211_hw *hw, char *alpha2)
 {
 	const struct ieee80211_regdomain *regd;
 
-	regd = rcu_dereference_rtnl(ar->hw->wiphy->regd);
+	regd = rcu_dereference_rtnl(hw->wiphy->regd);
 	/* This can happen during wiphy registration where the previous
 	 * user request is received before we update the regd received
 	 * from firmware.
@@ -71,7 +71,7 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 		return;
 	}
 
-	if (!ath12k_regdom_changes(ar, request->alpha2)) {
+	if (!ath12k_regdom_changes(hw, request->alpha2)) {
 		ath12k_dbg(ar->ab, ATH12K_DBG_REG, "Country is already set\n");
 		return;
 	}
