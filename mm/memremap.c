@@ -7,6 +7,7 @@
 #include <linux/memremap.h>
 #include <linux/pfn_t.h>
 #include <linux/swap.h>
+#include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/swapops.h>
 #include <linux/types.h>
@@ -421,19 +422,6 @@ void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap)
 	devm_release_action(dev, devm_memremap_pages_release, pgmap);
 }
 EXPORT_SYMBOL_GPL(devm_memunmap_pages);
-
-unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
-{
-	/* number of pfns from base where pfn_to_page() is valid */
-	if (altmap)
-		return altmap->reserve + altmap->free;
-	return 0;
-}
-
-void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
-{
-	altmap->alloc -= nr_pfns;
-}
 
 /**
  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
