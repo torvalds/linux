@@ -273,6 +273,15 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 			 SET(XEHPC_L3CLOS_MASK(3), ~0))
 	},
 
+	/* Xe2_LPM */
+
+	{ XE_RTP_NAME("14017421178"),
+	  XE_RTP_RULES(MEDIA_VERSION(2000),
+		       ENGINE_CLASS(VIDEO_DECODE)),
+	  XE_RTP_ACTIONS(SET(VDBOX_CGCTL3F10(0), IECPUNIT_CLKGATE_DIS)),
+	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE),
+	},
+
 	{}
 };
 
