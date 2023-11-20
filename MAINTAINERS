@@ -12986,6 +12986,14 @@ F:	Documentation/devicetree/bindings/hwmon/adi,max31827.yaml
 F:	Documentation/hwmon/max31827.rst
 F:	drivers/hwmon/max31827.c
 
+MAX31335 RTC DRIVER
+M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
+L:	linux-rtc@vger.kernel.org
+S:	Supported
+W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/rtc/adi,max31335.yaml
+F:	drivers/rtc/rtc-max31335.c
+
 MAX6650 HARDWARE MONITOR AND FAN CONTROLLER DRIVER
 L:	linux-hwmon@vger.kernel.org
 S:	Orphan

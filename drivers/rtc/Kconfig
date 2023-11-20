@@ -373,6 +373,19 @@ config RTC_DRV_MAX8997
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max8997.
 
+config RTC_DRV_MAX31335
+	tristate "Analog Devices MAX31335"
+	depends on I2C
+	depends on COMMON_CLK
+	depends on HWMON || HWMON=n
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  MAX31335.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max31335.
+
 config RTC_DRV_MAX77686
 	tristate "Maxim MAX77686"
 	depends on MFD_MAX77686 || MFD_MAX77620 || MFD_MAX77714 || COMPILE_TEST
