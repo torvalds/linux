@@ -30,9 +30,11 @@ properties:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
 
-      - description: Anbernic RG351M
+      - description: Anbernic RK3326 Handheld Gaming Console
         items:
-          - const: anbernic,rg351m
+          - enum:
+              - anbernic,rg351m
+              - anbernic,rg351v
           - const: rockchip,rk3326
 
       - description: Anbernic RG353P
