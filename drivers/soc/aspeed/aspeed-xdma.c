@@ -1059,6 +1059,7 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *memory_region;
 	const void *md = of_device_get_match_data(dev);
+	bool rc_f;
 
 	if (!md)
 		return -ENODEV;
@@ -1074,6 +1075,8 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 	spin_lock_init(&ctx->engine_lock);
 	INIT_WORK(&ctx->reset_work, aspeed_xdma_reset_work);
 	init_waitqueue_head(&ctx->wait);
+
+	rc_f = of_find_property(dev->of_node, "pcie_rc", NULL) ? 1 : 0;
 
 	rc = aspeed_xdma_iomap(ctx, pdev);
 	if (rc) {
@@ -1108,10 +1111,12 @@ static int aspeed_xdma_probe(struct platform_device *pdev)
 		goto err_noreset;
 	}
 
-	ctx->reset_rc = reset_control_get_exclusive(dev, "root-complex");
-	if (IS_ERR(ctx->reset_rc)) {
-		dev_dbg(dev, "Failed to request reset RC control.\n");
-		ctx->reset_rc = NULL;
+	if (rc_f) {
+		ctx->reset_rc = reset_control_get_exclusive(dev, "root-complex");
+		if (IS_ERR(ctx->reset_rc)) {
+			dev_dbg(dev, "Failed to request reset RC control.\n");
+			ctx->reset_rc = NULL;
+		}
 	}
 
 	memory_region = of_parse_phandle(dev->of_node, "memory-region", 0);
