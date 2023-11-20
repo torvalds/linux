@@ -461,7 +461,7 @@ static u64 vvop_get_soc_id(void)
 		return 0;
 }
 
-static int vvop_crtc_deinit(struct drm_crtc *vcrtc)
+static void vvop_crtc_deinit(struct drm_crtc *crtc)
 {
 	struct vvop_crtc *vcrtc = drm_crtc_to_vvop_crtc(crtc);
 
