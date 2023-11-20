@@ -422,7 +422,7 @@ static const struct geni_i3c_clk_fld geni_i3c_clk_map[] = {
 	{ KHZ(1920),   19200,  1,  4,  9,  7,  8,  19},
 	{ KHZ(3500),   19200,  1, 72, 168, 3, 4,  300},
 	{ KHZ(370),   100000, 20,  4,  7,  8, 14,  14},
-	{ KHZ(12500), 100000,  1, 45, 63, 6,  7, 110},
+	{ KHZ(12500), 100000,  1, 72, 168, 6,  7, 300},
 };
 
 #define GENI_SE_I3C_ERR(log_ctx, print, dev, x...) do { \
