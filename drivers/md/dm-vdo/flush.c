@@ -196,7 +196,7 @@ static void finish_notification(struct vdo_completion *completion)
 	assert_on_flusher_thread(flusher, __func__);
 
 	vdo_waitq_enqueue_waiter(&flusher->pending_flushes,
-				 vdo_waitq_dequeue_next_waiter(&flusher->notifiers));
+				 vdo_waitq_dequeue_waiter(&flusher->notifiers));
 	vdo_complete_flushes(flusher);
 	if (vdo_waitq_has_waiters(&flusher->notifiers))
 		notify_flush(flusher);
@@ -335,7 +335,7 @@ void vdo_complete_flushes(struct flusher *flusher)
 				"acknowledged next expected flush, %llu, was: %llu",
 				(unsigned long long) flusher->first_unacknowledged_generation,
 				(unsigned long long) flush->flush_generation);
-		vdo_waitq_dequeue_next_waiter(&flusher->pending_flushes);
+		vdo_waitq_dequeue_waiter(&flusher->pending_flushes);
 		vdo_complete_flush(flush);
 		flusher->first_unacknowledged_generation++;
 	}

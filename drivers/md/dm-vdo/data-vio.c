@@ -1191,7 +1191,7 @@ static void transfer_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 
 	/* Another data_vio is waiting for the lock, transfer it in a single lock map operation. */
 	next_lock_holder =
-		vdo_waiter_as_data_vio(vdo_waitq_dequeue_next_waiter(&lock->waiters));
+		vdo_waiter_as_data_vio(vdo_waitq_dequeue_waiter(&lock->waiters));
 
 	/* Transfer the remaining lock waiters to the next lock holder. */
 	vdo_waitq_transfer_all_waiters(&lock->waiters,

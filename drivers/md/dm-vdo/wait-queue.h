@@ -106,6 +106,8 @@ static inline bool __must_check vdo_waitq_has_waiters(const struct vdo_wait_queu
 void vdo_waitq_enqueue_waiter(struct vdo_wait_queue *waitq,
 			      struct vdo_waiter *waiter);
 
+struct vdo_waiter *vdo_waitq_dequeue_waiter(struct vdo_wait_queue *waitq);
+
 void vdo_waitq_notify_all_waiters(struct vdo_wait_queue *waitq,
 				  vdo_waiter_callback_fn callback, void *context);
 
@@ -121,8 +123,6 @@ void vdo_waitq_dequeue_matching_waiters(struct vdo_wait_queue *waitq,
 					vdo_waiter_match_fn waiter_match,
 					void *match_context,
 					struct vdo_wait_queue *matched_waitq);
-
-struct vdo_waiter *vdo_waitq_dequeue_next_waiter(struct vdo_wait_queue *waitq);
 
 /**
  * vdo_waitq_num_waiters() - Return the number of waiters in a vdo_wait_queue.

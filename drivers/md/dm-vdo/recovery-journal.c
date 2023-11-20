@@ -1332,7 +1332,7 @@ static void add_queued_recovery_entries(struct recovery_journal_block *block)
 {
 	while (vdo_waitq_has_waiters(&block->entry_waiters)) {
 		struct data_vio *data_vio =
-			vdo_waiter_as_data_vio(vdo_waitq_dequeue_next_waiter(&block->entry_waiters));
+			vdo_waiter_as_data_vio(vdo_waitq_dequeue_waiter(&block->entry_waiters));
 		struct tree_lock *lock = &data_vio->tree_lock;
 		struct packed_recovery_journal_entry *packed_entry;
 		struct recovery_journal_entry new_entry;

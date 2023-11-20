@@ -413,14 +413,14 @@ static void set_duplicate_lock(struct hash_lock *hash_lock, struct pbn_lock *pbn
 }
 
 /**
- * dequeue_lock_waiter() - Remove the first data_vio from the lock's wait queue and return it.
+ * dequeue_lock_waiter() - Remove the first data_vio from the lock's waitq and return it.
  * @lock: The lock containing the wait queue.
  *
  * Return: The first (oldest) waiter in the queue, or NULL if the queue is empty.
  */
 static inline struct data_vio *dequeue_lock_waiter(struct hash_lock *lock)
 {
-	return vdo_waiter_as_data_vio(vdo_waitq_dequeue_next_waiter(&lock->waiters));
+	return vdo_waiter_as_data_vio(vdo_waitq_dequeue_waiter(&lock->waiters));
 }
 
 /**
