@@ -2102,9 +2102,23 @@ static __be32 nfsd_buffered_readdir(struct file *file, struct svc_fh *fhp,
 	return cdp->err;
 }
 
-/*
- * Read entries from a directory.
- * The  NFSv3/4 verifier we ignore for now.
+/**
+ * nfsd_readdir - Read entries from a directory
+ * @rqstp: RPC transaction context
+ * @fhp: NFS file handle of directory to be read
+ * @offsetp: OUT: seek offset of final entry that was read
+ * @cdp: OUT: an eof error value
+ * @func: entry filler actor
+ *
+ * This implementation ignores the NFSv3/4 verifier cookie.
+ *
+ * NB: normal system calls hold file->f_pos_lock when calling
+ * ->iterate_shared and ->llseek, but nfsd_readdir() does not.
+ * Because the struct file acquired here is not visible to other
+ * threads, it's internal state does not need mutex protection.
+ *
+ * Returns nfs_ok on success, otherwise an nfsstat code is
+ * returned.
  */
 __be32
 nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp, 
