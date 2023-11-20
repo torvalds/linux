@@ -2397,12 +2397,15 @@ static void pxa25x_udc_shutdown(struct platform_device *_dev)
 	pullup_off();
 }
 
-static int pxa25x_udc_remove(struct platform_device *pdev)
+static void pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
-	if (dev->driver)
-		return -EBUSY;
+	if (dev->driver) {
+		dev_err(&pdev->dev,
+			"Driver still in use but removing anyhow\n");
+		return;
+	}
 
 	usb_del_gadget_udc(&dev->gadget);
 	dev->pullup = 0;
@@ -2414,7 +2417,6 @@ static int pxa25x_udc_remove(struct platform_device *pdev)
 		dev->transceiver = NULL;
 
 	the_controller = NULL;
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2472,7 +2474,7 @@ static int pxa25x_udc_resume(struct platform_device *dev)
 static struct platform_driver udc_driver = {
 	.shutdown	= pxa25x_udc_shutdown,
 	.probe		= pxa25x_udc_probe,
-	.remove		= pxa25x_udc_remove,
+	.remove_new	= pxa25x_udc_remove,
 	.suspend	= pxa25x_udc_suspend,
 	.resume		= pxa25x_udc_resume,
 	.driver		= {
