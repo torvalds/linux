@@ -18,6 +18,14 @@ config NO_GKI
 
 	  If unsure, say Y.
 
+config ROCKCHIP_DISABLE_UNUSED
+	tristate "Rockchip Disable Unused"
+	default m if GKI_HACKS_TO_FIX
+	help
+	  Disable unused clk and power down after module init.
+
+	  If unsure, say "N".
+
 #
 # Rockchip Soc drivers
 #
