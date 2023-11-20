@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/edac.h>
 #include <linux/mmzone.h>
+#include <linux/sizes.h>
 #include <linux/smp.h>
 #include <linux/bitmap.h>
 #include <linux/math64.h>
@@ -109,7 +110,6 @@ static struct mem_ctl_info *pnd2_mci;
 #define MOT_CHAN_INTLV_BIT_1SLC_2CH 12
 #define MOT_CHAN_INTLV_BIT_2SLC_2CH 13
 #define SELECTOR_DISABLED (-1)
-#define _4GB (1ul << 32)
 
 #define PMI_ADDRESS_WIDTH	31
 #define PND_MAX_PHYS_BIT	39
@@ -587,7 +587,7 @@ static int get_registers(void)
 /* Get a contiguous memory address (remove the MMIO gap) */
 static u64 remove_mmio_gap(u64 sys)
 {
-	return (sys < _4GB) ? sys : sys - (_4GB - top_lm);
+	return (sys < SZ_4G) ? sys : sys - (SZ_4G - top_lm);
 }
 
 /* Squeeze out one address bit, shift upper part down to fill gap */
@@ -643,7 +643,7 @@ static int sys2pmi(const u64 addr, u32 *pmiidx, u64 *pmiaddr, char *msg)
 
 	/* Give up if address is out of range, or in MMIO gap */
 	if (addr >= (1ul << PND_MAX_PHYS_BIT) ||
-	   (addr >= top_lm && addr < _4GB) || addr >= top_hm) {
+	   (addr >= top_lm && addr < SZ_4G) || addr >= top_hm) {
 		snprintf(msg, PND2_MSG_SIZE, "Error address 0x%llx is not DRAM", addr);
 		return -EINVAL;
 	}
