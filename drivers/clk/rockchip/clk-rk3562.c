@@ -137,7 +137,7 @@ static struct rockchip_pll_clock rk3562_pll_clks[] __initdata = {
 		     0, RK3562_PMU1_PLL_CON(0),
 		     RK3562_PMU1_MODE_CON, 0, 2, 0, rk3562_pll_rates),
 	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
-		     0, RK3562_SUBDDR_PLL_CON(0),
+		     CLK_IS_CRITICAL, RK3562_SUBDDR_PLL_CON(0),
 		     RK3562_SUBDDR_MODE_CON, 0, 1, 0, NULL),
 };
 
