@@ -49,24 +49,26 @@ MODULE_PARM_DESC(tablet_mode_sw, "Tablet mode detect: -1:auto 0:disable 1:kbd-do
 
 static struct quirk_entry *quirks;
 
-static bool asus_q500a_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
+static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port)
 {
-	static bool extended;
-	bool ret = false;
+	static bool extended_e1;
 
 	if (str & I8042_STR_AUXDATA)
 		return false;
 
-	if (unlikely(data == 0xe1)) {
-		extended = true;
-		ret = true;
-	} else if (unlikely(extended)) {
-		extended = false;
-		ret = true;
+	if (quirks->filter_i8042_e1_extended_codes) {
+		if (data == 0xe1) {
+			extended_e1 = true;
+			return true;
+		}
+
+		if (extended_e1) {
+			extended_e1 = false;
+			return true;
+		}
 	}
 
-	return ret;
+	return false;
 }
 
 static struct quirk_entry quirk_asus_unknown = {
@@ -75,7 +77,7 @@ static struct quirk_entry quirk_asus_unknown = {
 };
 
 static struct quirk_entry quirk_asus_q500a = {
-	.i8042_filter = asus_q500a_i8042_filter,
+	.filter_i8042_e1_extended_codes = true,
 	.wmi_backlight_set_devstate = true,
 };
 
@@ -619,6 +621,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
 	.detect_quirks = asus_nb_wmi_quirks,
 	.key_filter = asus_nb_wmi_key_filter,
+	.i8042_filter = asus_i8042_filter,
 };
 
 
