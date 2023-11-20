@@ -188,7 +188,7 @@ if (q2spi_ptr) { \
 } while (0)
 
 #define DATA_BYTES_PER_LINE	(64)
-#define CHUNK_SIZE (16)
+#define Q2SPI_DATA_DUMP_SIZE	(16)
 
 static unsigned int q2spi_max_speed;
 /* global storage for device Major number */
@@ -401,8 +401,9 @@ struct q2spi_dma_transfer {
  * @irq: IRQ of the SE
  * @lock: Lock to protect xfer
  * @tid_idr: tid id allocator
- * @readq: waitqueue for rx data.
- * @hw_state_is_bad: used when HW is in un-recoverable state.
+ * @readq: waitqueue for rx data
+ * @hw_state_is_bad: used when HW is in un-recoverable state
+ * @max_dump_data_size: max size of data to be dumped as part of dump_ipc function
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -477,6 +478,7 @@ struct q2spi_geni {
 	struct qup_q2spi_cr_header_event q2spi_cr_hdr_event;
 	wait_queue_head_t read_wq;
 	bool hw_state_is_bad;
+	int max_data_dump_size;
 };
 
 /**

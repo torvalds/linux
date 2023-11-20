@@ -114,14 +114,63 @@ void q2spi_dump_ipc(struct q2spi_geni *q2spi, void *ipc_ctx, char *prefix,
 		Q2SPI_ERROR(q2spi, "%s: Err str is NULL\n", __func__);
 		return;
 	}
-	while (size > CHUNK_SIZE) {
+
+	if (q2spi->max_data_dump_size > 0 && size > q2spi->max_data_dump_size)
+		size = q2spi->max_data_dump_size;
+
+	while (size > Q2SPI_DATA_DUMP_SIZE) {
 		__q2spi_dump_ipc(q2spi, prefix, (char *)str + offset, total_bytes,
-				 offset, CHUNK_SIZE);
-		offset += CHUNK_SIZE;
-		size -= CHUNK_SIZE;
+				 offset, Q2SPI_DATA_DUMP_SIZE);
+		offset += Q2SPI_DATA_DUMP_SIZE;
+		size -= Q2SPI_DATA_DUMP_SIZE;
 	}
 	__q2spi_dump_ipc(q2spi, prefix, (char *)str + offset, total_bytes, offset, size);
 }
+
+/*
+ * max_dump_size_show() - Prints the value stored in max_dump_size sysfs entry
+ *
+ * @dev: pointer to device
+ * @attr: device attributes
+ * @buf: buffer to store the max_dump_size value
+ *
+ * Return: prints max_dump_size value
+ */
+static ssize_t max_dump_size_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+
+	return scnprintf(buf, sizeof(int), "%d\n", q2spi->max_data_dump_size);
+}
+
+/*
+ * max_dump_size_store() - store the max_dump_size sysfs value
+ *
+ * @uport: pointer to device
+ * @attr: device attributes
+ * @buf: buffer which contains the max_dump_size in string format
+ * @size: returns the value of size
+ *
+ * Return: Size copied in the buffer
+ */
+static ssize_t max_dump_size_store(struct device *dev, struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+
+	if (kstrtoint(buf, 0, &q2spi->max_data_dump_size)) {
+		dev_err(dev, "%s Invalid input\n", __func__);
+		return -EINVAL;
+	}
+
+	if (q2spi->max_data_dump_size <= 0)
+		q2spi->max_data_dump_size = Q2SPI_DATA_DUMP_SIZE;
+	return size;
+}
+
+static DEVICE_ATTR_RW(max_dump_size);
 
 /**
  * q2spi_free_bulk_buf - free bulk buffers from pool
@@ -3038,6 +3087,10 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, q2spi);
 
+	if (device_create_file(dev, &dev_attr_max_dump_size))
+		Q2SPI_INFO(q2spi, "Unable to create device file for max_dump_size\n");
+	q2spi->max_data_dump_size = Q2SPI_DATA_DUMP_SIZE;
+
 	Q2SPI_INFO(q2spi, "%s Q2SPI GENI SE Driver probed\n", __func__);
 	return 0;
 
@@ -3052,6 +3105,9 @@ static int q2spi_geni_remove(struct platform_device *pdev)
 	int i, ret;
 
 	Q2SPI_DEBUG(q2spi, "%s q2spi=0x%p\n", __func__, q2spi);
+
+	device_remove_file(&pdev->dev, &dev_attr_max_dump_size);
+
 	if (q2spi->doorbell_wq)
 		destroy_workqueue(q2spi->doorbell_wq);
 	if (q2spi->kworker) {
