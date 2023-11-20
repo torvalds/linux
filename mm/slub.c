@@ -3518,6 +3518,19 @@ void *__kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags,
 			       caller, orig_size);
 }
 
+/**
+ * kmem_cache_alloc_node - Allocate an object on the specified node
+ * @s: The cache to allocate from.
+ * @gfpflags: See kmalloc().
+ * @node: node number of the target node.
+ *
+ * Identical to kmem_cache_alloc but it will allocate memory on the given
+ * node, which can improve the performance for cpu bound structures.
+ *
+ * Fallback to other node is possible if __GFP_THISNODE is not set.
+ *
+ * Return: pointer to the new object or %NULL in case of error
+ */
 void *kmem_cache_alloc_node(struct kmem_cache *s, gfp_t gfpflags, int node)
 {
 	void *ret = slab_alloc_node(s, NULL, gfpflags, node, _RET_IP_, s->object_size);
@@ -3822,6 +3835,14 @@ void __kmem_cache_free(struct kmem_cache *s, void *x, unsigned long caller)
 	slab_free(s, virt_to_slab(x), x, NULL, &x, 1, caller);
 }
 
+/**
+ * kmem_cache_free - Deallocate an object
+ * @s: The cache the allocation was from.
+ * @x: The previously allocated object.
+ *
+ * Free an object which was previously allocated from this
+ * cache.
+ */
 void kmem_cache_free(struct kmem_cache *s, void *x)
 {
 	s = cache_from_obj(s, x);
