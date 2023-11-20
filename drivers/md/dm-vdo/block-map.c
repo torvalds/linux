@@ -641,12 +641,10 @@ static void enter_zone_read_only_mode(struct block_map_zone *zone, int result)
 	vdo_enter_read_only_mode(zone->block_map->vdo, result);
 
 	/*
-	 * We are in read-only mode, so we won't ever write any page out. Just take all waiters off
-	 * the queue so the zone can drain.
+	 * We are in read-only mode, so we won't ever write any page out.
+	 * Just take all waiters off the waitq so the zone can drain.
 	 */
-	while (vdo_waitq_has_waiters(&zone->flush_waiters))
-		vdo_waitq_dequeue_next_waiter(&zone->flush_waiters);
-
+	vdo_waitq_init(&zone->flush_waiters);
 	check_for_drain_complete(zone);
 }
 
