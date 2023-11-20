@@ -41,7 +41,17 @@
 #define DEPOT_OFFSET_BITS (DEPOT_POOL_ORDER + PAGE_SHIFT - DEPOT_STACK_ALIGN)
 #define DEPOT_POOL_INDEX_BITS (DEPOT_HANDLE_BITS - DEPOT_OFFSET_BITS - \
 			       STACK_DEPOT_EXTRA_BITS)
+#if IS_ENABLED(CONFIG_KMSAN) && CONFIG_STACKDEPOT_MAX_FRAMES >= 32
+/*
+ * KMSAN is frequently used in fuzzing scenarios and thus saves a lot of stack
+ * traces. As KMSAN does not support evicting stack traces from the stack
+ * depot, the stack depot capacity might be reached quickly with large stack
+ * records. Adjust the maximum number of stack depot pools for this case.
+ */
+#define DEPOT_POOLS_CAP (8192 * (CONFIG_STACKDEPOT_MAX_FRAMES / 16))
+#else
 #define DEPOT_POOLS_CAP 8192
+#endif
 #define DEPOT_MAX_POOLS \
 	(((1LL << (DEPOT_POOL_INDEX_BITS)) < DEPOT_POOLS_CAP) ? \
 	 (1LL << (DEPOT_POOL_INDEX_BITS)) : DEPOT_POOLS_CAP)
