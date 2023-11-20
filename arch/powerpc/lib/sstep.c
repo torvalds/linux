@@ -688,7 +688,7 @@ static nokprobe_inline int do_vec_load(int rn, unsigned long ea,
 	if (err)
 		return err;
 	if (unlikely(cross_endian))
-		do_byte_reverse(&u.b[ea & 0xf], size);
+		do_byte_reverse(&u.b[ea & 0xf], min_t(size_t, size, sizeof(u)));
 	preempt_disable();
 	if (regs->msr & MSR_VEC)
 		put_vr(rn, &u.v);
@@ -719,7 +719,7 @@ static nokprobe_inline int do_vec_store(int rn, unsigned long ea,
 		u.v = current->thread.vr_state.vr[rn];
 	preempt_enable();
 	if (unlikely(cross_endian))
-		do_byte_reverse(&u.b[ea & 0xf], size);
+		do_byte_reverse(&u.b[ea & 0xf], min_t(size_t, size, sizeof(u)));
 	return copy_mem_out(&u.b[ea & 0xf], ea, size, regs);
 }
 #endif /* CONFIG_ALTIVEC */
