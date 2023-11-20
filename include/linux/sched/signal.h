@@ -432,7 +432,6 @@ static inline bool fault_signal_pending(vm_fault_t fault_flags,
  * This is required every time the blocked sigset_t changes.
  * callers must hold sighand->siglock.
  */
-extern void recalc_sigpending_and_wake(struct task_struct *t);
 extern void recalc_sigpending(void);
 extern void calculate_sigpending(void);
 
