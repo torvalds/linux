@@ -42,12 +42,12 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 
 	/* fill up the first buffer */
 	prod = txr->tx_prod;
-	tx_buf = &txr->tx_buf_ring[prod];
+	tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 	tx_buf->nr_frags = num_frags;
 	if (xdp)
 		tx_buf->page = virt_to_head_page(xdp->data);
 
-	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+	txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 	flags = (len << TX_BD_LEN_SHIFT) |
 		((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT) |
 		bnxt_lhint_arr[len >> 9];
@@ -67,10 +67,10 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 		WRITE_ONCE(txr->tx_prod, prod);
 
 		/* first fill up the first buffer */
-		frag_tx_buf = &txr->tx_buf_ring[prod];
+		frag_tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 		frag_tx_buf->page = skb_frag_page(frag);
 
-		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+		txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 
 		frag_len = skb_frag_size(frag);
 		frag_mapping = skb_frag_dma_map(&pdev->dev, frag, 0,
@@ -139,8 +139,8 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	if (!budget)
 		return;
 
-	while (tx_cons != tx_hw_cons) {
-		tx_buf = &txr->tx_buf_ring[tx_cons];
+	while (RING_TX(bp, tx_cons) != tx_hw_cons) {
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, tx_cons)];
 
 		if (tx_buf->action == XDP_REDIRECT) {
 			struct pci_dev *pdev = bp->pdev;
@@ -160,7 +160,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 			frags = tx_buf->nr_frags;
 			for (j = 0; j < frags; j++) {
 				tx_cons = NEXT_TX(tx_cons);
-				tx_buf = &txr->tx_buf_ring[tx_cons];
+				tx_buf = &txr->tx_buf_ring[RING_TX(bp, tx_cons)];
 				page_pool_recycle_direct(rxr->page_pool, tx_buf->page);
 			}
 		} else {

@@ -689,7 +689,7 @@ struct nqe_cn {
 #define RX_RING(x)	(((x) & ~(RX_DESC_CNT - 1)) >> (BNXT_PAGE_SHIFT - 4))
 #define RX_IDX(x)	((x) & (RX_DESC_CNT - 1))
 
-#define TX_RING(x)	(((x) & ~(TX_DESC_CNT - 1)) >> (BNXT_PAGE_SHIFT - 4))
+#define TX_RING(bp, x)	(((x) & (bp)->tx_ring_mask) >> (BNXT_PAGE_SHIFT - 4))
 #define TX_IDX(x)	((x) & (TX_DESC_CNT - 1))
 
 #define CP_RING(x)	(((x) & ~(CP_DESC_CNT - 1)) >> (BNXT_PAGE_SHIFT - 4))
@@ -720,7 +720,8 @@ struct nqe_cn {
 
 #define NEXT_RX_AGG(idx)	(((idx) + 1) & bp->rx_agg_ring_mask)
 
-#define NEXT_TX(idx)		(((idx) + 1) & bp->tx_ring_mask)
+#define RING_TX(bp, idx)	((idx) & (bp)->tx_ring_mask)
+#define NEXT_TX(idx)		((idx) + 1)
 
 #define ADV_RAW_CMP(idx, n)	((idx) + (n))
 #define NEXT_RAW_CMP(idx)	ADV_RAW_CMP(idx, 1)

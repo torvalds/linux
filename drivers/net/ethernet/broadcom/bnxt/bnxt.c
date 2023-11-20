@@ -432,9 +432,9 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	len = skb_headlen(skb);
 	last_frag = skb_shinfo(skb)->nr_frags;
 
-	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+	txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 
-	tx_buf = &txr->tx_buf_ring[prod];
+	tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 	tx_buf->skb = skb;
 	tx_buf->nr_frags = last_frag;
 
@@ -522,7 +522,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		txbd->tx_bd_opaque = SET_TX_OPAQUE(bp, txr, prod, 2);
 		prod = NEXT_TX(prod);
 		tx_push->tx_bd_opaque = txbd->tx_bd_opaque;
-		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+		txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 		memcpy(txbd, tx_push1, sizeof(*txbd));
 		prod = NEXT_TX(prod);
 		tx_push->doorbell =
@@ -569,7 +569,7 @@ normal_tx:
 
 	prod = NEXT_TX(prod);
 	txbd1 = (struct tx_bd_ext *)
-		&txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+		&txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 
 	txbd1->tx_bd_hsize_lflags = lflags;
 	if (skb_is_gso(skb)) {
@@ -610,7 +610,7 @@ normal_tx:
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		prod = NEXT_TX(prod);
-		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
+		txbd = &txr->tx_desc_ring[TX_RING(bp, prod)][TX_IDX(prod)];
 
 		len = skb_frag_size(frag);
 		mapping = skb_frag_dma_map(&pdev->dev, frag, 0, len,
@@ -619,7 +619,7 @@ normal_tx:
 		if (unlikely(dma_mapping_error(&pdev->dev, mapping)))
 			goto tx_dma_error;
 
-		tx_buf = &txr->tx_buf_ring[prod];
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 		dma_unmap_addr_set(tx_buf, mapping, mapping);
 
 		txbd->tx_bd_haddr = cpu_to_le64(mapping);
@@ -668,7 +668,7 @@ tx_dma_error:
 
 	/* start back at beginning and unmap skb */
 	prod = txr->tx_prod;
-	tx_buf = &txr->tx_buf_ring[prod];
+	tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 	dma_unmap_single(&pdev->dev, dma_unmap_addr(tx_buf, mapping),
 			 skb_headlen(skb), DMA_TO_DEVICE);
 	prod = NEXT_TX(prod);
@@ -676,7 +676,7 @@ tx_dma_error:
 	/* unmap remaining mapped pages */
 	for (i = 0; i < last_frag; i++) {
 		prod = NEXT_TX(prod);
-		tx_buf = &txr->tx_buf_ring[prod];
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, prod)];
 		dma_unmap_page(&pdev->dev, dma_unmap_addr(tx_buf, mapping),
 			       skb_frag_size(&skb_shinfo(skb)->frags[i]),
 			       DMA_TO_DEVICE);
@@ -702,12 +702,12 @@ static void __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 	u16 cons = txr->tx_cons;
 	int tx_pkts = 0;
 
-	while (cons != hw_cons) {
+	while (RING_TX(bp, cons) != hw_cons) {
 		struct bnxt_sw_tx_bd *tx_buf;
 		struct sk_buff *skb;
 		int j, last;
 
-		tx_buf = &txr->tx_buf_ring[cons];
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, cons)];
 		cons = NEXT_TX(cons);
 		skb = tx_buf->skb;
 		tx_buf->skb = NULL;
@@ -731,7 +731,7 @@ static void __bnxt_tx_int(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
 
 		for (j = 0; j < last; j++) {
 			cons = NEXT_TX(cons);
-			tx_buf = &txr->tx_buf_ring[cons];
+			tx_buf = &txr->tx_buf_ring[RING_TX(bp, cons)];
 			dma_unmap_page(
 				&pdev->dev,
 				dma_unmap_addr(tx_buf, mapping),
