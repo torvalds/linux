@@ -785,6 +785,11 @@ enum mlxsw_cmd_mbox_config_profile_flood_mode {
 	 * used.
 	 */
 	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CONTROLLED = 4,
+	/* CFF - Compressed FID Flood (CFF) mode.
+	 * Reserved when legacy bridge model is used.
+	 * Supported only by Spectrum-2+.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CFF = 5,
 };
 
 /* cmd_mbox_config_profile_flood_mode
