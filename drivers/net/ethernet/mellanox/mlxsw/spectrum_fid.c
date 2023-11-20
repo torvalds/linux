@@ -1692,9 +1692,6 @@ mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 	int err;
 	int i;
 
-	if (!fid_family->nr_flood_tables)
-		return 0;
-
 	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
 	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &fid_family->pgt_base,
 					   pgt_size);
@@ -1722,9 +1719,6 @@ mlxsw_sp_fid_flood_tables_fini(struct mlxsw_sp_fid_family *fid_family)
 {
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 	u16 pgt_size;
-
-	if (!fid_family->nr_flood_tables)
-		return;
 
 	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
 	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, fid_family->pgt_base, pgt_size);
