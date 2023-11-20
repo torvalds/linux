@@ -1061,3 +1061,21 @@ export_operations ->encode_fh() no longer has a default implementation to
 encode FILEID_INO32_GEN* file handles.
 Filesystems that used the default implementation may use the generic helper
 generic_encode_ino32_fh() explicitly.
+
+---
+
+**mandatory**
+
+If ->rename() update of .. on cross-directory move needs an exclusion with
+directory modifications, do *not* lock the subdirectory in question in your
+->rename() - it's done by the caller now [that item should've been added in
+28eceeda130f "fs: Lock moved directories"].
+
+---
+
+**mandatory**
+
+On same-directory ->rename() the (tautological) update of .. is not protected
+by any locks; just don't do it if the old parent is the same as the new one.
+We really can't lock two subdirectories in same-directory rename - not without
+deadlocks.
