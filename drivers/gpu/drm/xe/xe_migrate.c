@@ -215,10 +215,13 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	}
 
 	if (!IS_DGFX(xe)) {
-		xe_tile_assert(tile, !xe->info.supports_usm);
-
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
+		if (xe->info.supports_usm) {
+			batch = tile->primary_gt->usm.bb_pool->bo;
+			m->usm_batch_base_ofs = m->batch_base_ofs;
+		}
+
 		for (i = 0; i < batch->size;
 		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {

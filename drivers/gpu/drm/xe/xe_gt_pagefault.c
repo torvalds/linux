@@ -106,7 +106,7 @@ static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 	if (err)
 		return err;
 
-	if (atomic) {
+	if (atomic && IS_DGFX(vm->xe)) {
 		if (xe_vma_is_userptr(vma)) {
 			err = -EACCES;
 			return err;
