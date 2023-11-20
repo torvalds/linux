@@ -762,13 +762,6 @@ struct bnxt_sw_rx_agg_bd {
 	dma_addr_t		mapping;
 };
 
-struct bnxt_mem_init {
-	u8	init_val;
-	u16	offset;
-#define	BNXT_MEM_INVALID_OFFSET	0xffff
-	u16	size;
-};
-
 struct bnxt_ring_mem_info {
 	int			nr_pages;
 	int			page_size;
@@ -778,7 +771,7 @@ struct bnxt_ring_mem_info {
 #define BNXT_RMEM_USE_FULL_PAGE_FLAG	4
 
 	u16			depth;
-	struct bnxt_mem_init	*mem_init;
+	struct bnxt_ctx_mem_type	*ctx_mem;
 
 	void			**pg_arr;
 	dma_addr_t		*dma_arr;
@@ -1551,35 +1544,70 @@ do {									\
 		attr = FUNC_BACKING_STORE_CFG_REQ_QPC_PG_SIZE_PG_4K;	\
 } while (0)
 
+struct bnxt_ctx_mem_type {
+	u16	type;
+	u16	entry_size;
+	u32	flags;
+	u32	instance_bmap;
+	u8	init_value;
+	u8	entry_multiple;
+	u16	init_offset;
+#define	BNXT_CTX_INIT_INVALID_OFFSET	0xffff
+	u32	max_entries;
+	u32	min_entries;
+	u8	last:1;
+	u8	split_entry_cnt;
+#define BNXT_MAX_SPLIT_ENTRY	4
+	union {
+		struct {
+			u32	qp_l2_entries;
+			u32	qp_qp1_entries;
+			u32	qp_fast_qpmd_entries;
+		};
+		u32	srq_l2_entries;
+		u32	cq_l2_entries;
+		u32	vnic_entries;
+		struct {
+			u32	mrav_av_entries;
+			u32	mrav_num_entries_units;
+		};
+		u32	split[BNXT_MAX_SPLIT_ENTRY];
+	};
+};
+
+#define BNXT_CTX_MRAV_AV_SPLIT_ENTRY	0
+
+#define BNXT_CTX_QP	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_QP
+#define BNXT_CTX_SRQ	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_SRQ
+#define BNXT_CTX_CQ	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_CQ
+#define BNXT_CTX_VNIC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_VNIC
+#define BNXT_CTX_STAT	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_STAT
+#define BNXT_CTX_STQM	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_SP_TQM_RING
+#define BNXT_CTX_FTQM	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_FP_TQM_RING
+#define BNXT_CTX_MRAV	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_MRAV
+#define BNXT_CTX_TIM	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_TIM
+#define BNXT_CTX_TKC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_TKC
+#define BNXT_CTX_RKC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_RKC
+#define BNXT_CTX_MTQM	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_MP_TQM_RING
+#define BNXT_CTX_SQDBS	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_SQ_DB_SHADOW
+#define BNXT_CTX_RQDBS	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_RQ_DB_SHADOW
+#define BNXT_CTX_SRQDBS	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_SRQ_DB_SHADOW
+#define BNXT_CTX_CQDBS	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_CQ_DB_SHADOW
+#define BNXT_CTX_QTKC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_QUIC_TKC
+#define BNXT_CTX_QRKC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_QUIC_RKC
+#define BNXT_CTX_TBLSC	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_TBL_SCOPE
+#define BNXT_CTX_XPAR	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_XID_PARTITION
+
+#define BNXT_CTX_MAX	(BNXT_CTX_TIM + 1)
+#define BNXT_CTX_V2_MAX	(BNXT_CTX_XPAR + 1)
+#define BNXT_CTX_INV	((u16)-1)
+
 struct bnxt_ctx_mem_info {
-	u32	qp_max_entries;
-	u16	qp_min_qp1_entries;
-	u16	qp_max_l2_entries;
-	u16	qp_entry_size;
-	u16	srq_max_l2_entries;
-	u32	srq_max_entries;
-	u16	srq_entry_size;
-	u16	cq_max_l2_entries;
-	u32	cq_max_entries;
-	u16	cq_entry_size;
-	u16	vnic_max_vnic_entries;
-	u16	vnic_max_ring_table_entries;
-	u16	vnic_entry_size;
-	u32	stat_max_entries;
-	u16	stat_entry_size;
-	u16	tqm_entry_size;
-	u32	tqm_min_entries_per_ring;
-	u32	tqm_max_entries_per_ring;
-	u32	mrav_max_entries;
-	u16	mrav_entry_size;
-	u16	tim_entry_size;
-	u32	tim_max_entries;
-	u16	mrav_num_entries_units;
-	u8	tqm_entries_multiple;
 	u8	tqm_fp_rings_count;
 
 	u32	flags;
 	#define BNXT_CTX_FLAG_INITED	0x01
+	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_MAX];
 
 	struct bnxt_ctx_pg_info qp_mem;
 	struct bnxt_ctx_pg_info srq_mem;
@@ -1589,15 +1617,6 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_ctx_pg_info mrav_mem;
 	struct bnxt_ctx_pg_info tim_mem;
 	struct bnxt_ctx_pg_info *tqm_mem[BNXT_MAX_TQM_RINGS];
-
-#define BNXT_CTX_MEM_INIT_QP	0
-#define BNXT_CTX_MEM_INIT_SRQ	1
-#define BNXT_CTX_MEM_INIT_CQ	2
-#define BNXT_CTX_MEM_INIT_VNIC	3
-#define BNXT_CTX_MEM_INIT_STAT	4
-#define BNXT_CTX_MEM_INIT_MRAV	5
-#define BNXT_CTX_MEM_INIT_MAX	6
-	struct bnxt_mem_init	mem_init[BNXT_CTX_MEM_INIT_MAX];
 };
 
 enum bnxt_health_severity {
