@@ -1099,9 +1099,9 @@ error:
 static u32 calc_checksum(struct page *page)
 {
 	u32 checksum;
-	void *addr = kmap_atomic(page);
+	void *addr = kmap_local_page(page);
 	checksum = xxhash(addr, PAGE_SIZE, 0);
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 	return checksum;
 }
 
