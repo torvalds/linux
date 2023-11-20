@@ -15057,6 +15057,7 @@ F:	Documentation/networking/
 F:	Documentation/process/maintainer-netdev.rst
 F:	Documentation/userspace-api/netlink/
 F:	include/linux/in.h
+F:	include/linux/indirect_call_wrapper.h
 F:	include/linux/net.h
 F:	include/linux/netdevice.h
 F:	include/net/
