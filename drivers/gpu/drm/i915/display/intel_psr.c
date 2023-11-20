@@ -1373,6 +1373,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	else
 		crtc_state->has_psr = _psr_compute_config(intel_dp, crtc_state);
 
+	if (!(crtc_state->has_panel_replay || crtc_state->has_psr))
+		return;
+
 	crtc_state->has_psr2 = intel_psr2_config_valid(intel_dp, crtc_state);
 
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
