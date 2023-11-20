@@ -64,7 +64,7 @@ LIST_HEAD(hpet_map);
 LIST_HEAD(acpihid_map);
 
 const struct iommu_ops amd_iommu_ops;
-const struct iommu_dirty_ops amd_dirty_ops;
+static const struct iommu_dirty_ops amd_dirty_ops;
 
 int amd_iommu_max_glx_val = -1;
 
@@ -2635,7 +2635,7 @@ static bool amd_iommu_enforce_cache_coherency(struct iommu_domain *domain)
 	return true;
 }
 
-const struct iommu_dirty_ops amd_dirty_ops = {
+static const struct iommu_dirty_ops amd_dirty_ops = {
 	.set_dirty_tracking = amd_iommu_set_dirty_tracking,
 	.read_and_clear_dirty = amd_iommu_read_and_clear_dirty,
 };
