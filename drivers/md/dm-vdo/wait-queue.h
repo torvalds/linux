@@ -135,7 +135,4 @@ static inline size_t __must_check vdo_waitq_num_waiters(const struct vdo_wait_qu
 	return waitq->length;
 }
 
-const struct vdo_waiter * __must_check
-vdo_waitq_get_next_waiter(const struct vdo_wait_queue *waitq, const struct vdo_waiter *waiter);
-
 #endif /* VDO_WAIT_QUEUE_H */
