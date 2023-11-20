@@ -62,6 +62,9 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
+	/* Cache the data early to ensure is_visible() works */
+	read_cdat_data(port);
+
 	rc = devm_cxl_port_enumerate_dports(port);
 	if (rc < 0)
 		return rc;

@@ -7,13 +7,12 @@
 #ifndef _NOLIBC_STDIO_H
 #define _NOLIBC_STDIO_H
 
-#include <stdarg.h>
-
 #include "std.h"
 #include "arch.h"
 #include "errno.h"
 #include "types.h"
 #include "sys.h"
+#include "stdarg.h"
 #include "stdlib.h"
 #include "string.h"
 

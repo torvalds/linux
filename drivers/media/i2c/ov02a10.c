@@ -570,8 +570,6 @@ unlock_and_return:
 }
 
 static const struct dev_pm_ops ov02a10_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(ov02a10_power_off, ov02a10_power_on, NULL)
 };
 

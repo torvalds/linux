@@ -554,7 +554,7 @@ err:
 	kfree(pds);
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(pdr_add_lookup);
+EXPORT_SYMBOL_GPL(pdr_add_lookup);
 
 /**
  * pdr_restart_pd() - restart PD
@@ -634,7 +634,7 @@ int pdr_restart_pd(struct pdr_handle *pdr, struct pdr_service *pds)
 
 	return 0;
 }
-EXPORT_SYMBOL(pdr_restart_pd);
+EXPORT_SYMBOL_GPL(pdr_restart_pd);
 
 /**
  * pdr_handle_alloc() - initialize the PDR client handle
@@ -715,7 +715,7 @@ free_pdr_handle:
 
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL(pdr_handle_alloc);
+EXPORT_SYMBOL_GPL(pdr_handle_alloc);
 
 /**
  * pdr_handle_release() - release the PDR client handle
@@ -749,7 +749,7 @@ void pdr_handle_release(struct pdr_handle *pdr)
 
 	kfree(pdr);
 }
-EXPORT_SYMBOL(pdr_handle_release);
+EXPORT_SYMBOL_GPL(pdr_handle_release);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Qualcomm Protection Domain Restart helpers");

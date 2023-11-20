@@ -113,10 +113,12 @@ static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
 	struct file *file;
 
 	rcu_read_lock();
-	file = task_lookup_fd_rcu(task, fd);
-	if (file)
-		*mode = file->f_mode;
+	file = task_lookup_fdget_rcu(task, fd);
 	rcu_read_unlock();
+	if (file) {
+		*mode = file->f_mode;
+		fput(file);
+	}
 	return !!file;
 }
 
@@ -259,12 +261,13 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 		char name[10 + 1];
 		unsigned int len;
 
-		f = task_lookup_next_fd_rcu(p, &fd);
+		f = task_lookup_next_fdget_rcu(p, &fd);
 		ctx->pos = fd + 2LL;
 		if (!f)
 			break;
 		data.mode = f->f_mode;
 		rcu_read_unlock();
+		fput(f);
 		data.fd = fd;
 
 		len = snprintf(name, sizeof(name), "%u", fd);

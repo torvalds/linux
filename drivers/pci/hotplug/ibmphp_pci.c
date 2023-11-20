@@ -1087,7 +1087,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 				pci_bus_read_config_dword(ibmphp_pci_bus, devfn, PCI_CLASS_REVISION, &class);
 
 				debug("hdr_type behind the bridge is %x\n", hdr_type);
-				if ((hdr_type & 0x7f) == PCI_HEADER_TYPE_BRIDGE) {
+				if ((hdr_type & PCI_HEADER_TYPE_MASK) == PCI_HEADER_TYPE_BRIDGE) {
 					err("embedded bridges not supported for hot-plugging.\n");
 					amount->not_correct = 1;
 					return amount;

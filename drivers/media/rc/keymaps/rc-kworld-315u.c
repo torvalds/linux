@@ -77,3 +77,4 @@ module_exit(exit_rc_map_kworld_315u)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Kworld 315U remote controller keytable");

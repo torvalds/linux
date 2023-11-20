@@ -3242,10 +3242,8 @@ disable_clks:
 /**
  * xilinx_dma_remove - Driver remove function
  * @pdev: Pointer to the platform_device structure
- *
- * Return: Always '0'
  */
-static int xilinx_dma_remove(struct platform_device *pdev)
+static void xilinx_dma_remove(struct platform_device *pdev)
 {
 	struct xilinx_dma_device *xdev = platform_get_drvdata(pdev);
 	int i;
@@ -3259,8 +3257,6 @@ static int xilinx_dma_remove(struct platform_device *pdev)
 			xilinx_dma_chan_remove(xdev->chan[i]);
 
 	xdma_disable_allclks(xdev);
-
-	return 0;
 }
 
 static struct platform_driver xilinx_vdma_driver = {
@@ -3269,7 +3265,7 @@ static struct platform_driver xilinx_vdma_driver = {
 		.of_match_table = xilinx_dma_of_ids,
 	},
 	.probe = xilinx_dma_probe,
-	.remove = xilinx_dma_remove,
+	.remove_new = xilinx_dma_remove,
 };
 
 module_platform_driver(xilinx_vdma_driver);

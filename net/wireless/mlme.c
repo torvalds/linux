@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2015		Intel Deutschland GmbH
- * Copyright (C) 2019-2020, 2022 Intel Corporation
+ * Copyright (C) 2019-2020, 2022-2023 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -22,7 +22,7 @@
 
 
 void cfg80211_rx_assoc_resp(struct net_device *dev,
-			    struct cfg80211_rx_assoc_resp *data)
+			    struct cfg80211_rx_assoc_resp_data *data)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
@@ -43,10 +43,11 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 
 	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
 		cr.links[link_id].status = data->links[link_id].status;
+		cr.links[link_id].bss = data->links[link_id].bss;
+
 		WARN_ON_ONCE(cr.links[link_id].status != WLAN_STATUS_SUCCESS &&
 			     (!cr.ap_mld_addr || !cr.links[link_id].bss));
 
-		cr.links[link_id].bss = data->links[link_id].bss;
 		if (!cr.links[link_id].bss)
 			continue;
 		cr.links[link_id].bssid = data->links[link_id].bss->bssid;
@@ -150,7 +151,7 @@ void cfg80211_rx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len)
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_mgmt *mgmt = (void *)buf;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	trace_cfg80211_rx_mlme_mgmt(dev, buf, len);
 
@@ -215,7 +216,7 @@ void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_mgmt *mgmt = (void *)buf;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	trace_cfg80211_tx_mlme_mgmt(dev, buf, len, reconnect);
 
@@ -263,7 +264,7 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!req->bss)
 		return -ENOENT;
@@ -332,7 +333,7 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err, i, j;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	for (i = 1; i < ARRAY_SIZE(req->links); i++) {
 		if (!req->links[i].bss)
@@ -394,7 +395,7 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 		.local_state_change = local_state_change,
 	};
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (local_state_change &&
 	    (!wdev->connected ||
@@ -424,7 +425,7 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	};
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!wdev->connected)
 		return -ENOTCONN;
@@ -447,7 +448,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	u8 bssid[ETH_ALEN];
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!rdev->ops->deauth)
 		return;
@@ -727,6 +728,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
+	lockdep_assert_wiphy(&rdev->wiphy);
+
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
 
@@ -748,8 +751,6 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	if (ieee80211_is_action(mgmt->frame_control) &&
 	    mgmt->u.action.category != WLAN_CATEGORY_PUBLIC) {
 		int err = 0;
-
-		wdev_lock(wdev);
 
 		switch (wdev->iftype) {
 		case NL80211_IFTYPE_ADHOC:
@@ -815,7 +816,6 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			err = -EOPNOTSUPP;
 			break;
 		}
-		wdev_unlock(wdev);
 
 		if (err)
 			return err;

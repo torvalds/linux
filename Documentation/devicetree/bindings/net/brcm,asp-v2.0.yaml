@@ -53,7 +53,7 @@ properties:
         const: 0
 
     patternProperties:
-      "^port@[0-9]+$":
+      "^port@[0-9a-f]+$":
         type: object
 
         $ref: ethernet-controller.yaml#

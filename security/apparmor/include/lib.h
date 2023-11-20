@@ -16,6 +16,8 @@
 
 #include "match.h"
 
+extern struct aa_dfa *stacksplitdfa;
+
 /*
  * DEBUG remains global (no per profile flag) since it is mostly used in sysctl
  * which is not related to profile accesses.

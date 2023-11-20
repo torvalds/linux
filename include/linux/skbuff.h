@@ -3679,6 +3679,9 @@ static inline int __must_check skb_put_padto(struct sk_buff *skb, unsigned int l
 	return __skb_put_padto(skb, len, true);
 }
 
+bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i)
+	__must_check;
+
 static inline int skb_add_data(struct sk_buff *skb,
 			       struct iov_iter *from, int copy)
 {

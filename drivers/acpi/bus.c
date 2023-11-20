@@ -556,12 +556,12 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device,
 
 int acpi_dev_install_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler)
+				    acpi_notify_handler handler, void *context)
 {
 	acpi_status status;
 
 	status = acpi_install_notify_handler(adev->handle, handler_type,
-					     handler, adev);
+					     handler, context);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 

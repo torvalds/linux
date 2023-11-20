@@ -94,7 +94,7 @@ extern int do_jffs2_getxattr(struct inode *inode, int xprefix, const char *xname
 extern int do_jffs2_setxattr(struct inode *inode, int xprefix, const char *xname,
 			     const char *buffer, size_t size, int flags);
 
-extern const struct xattr_handler *jffs2_xattr_handlers[];
+extern const struct xattr_handler * const jffs2_xattr_handlers[];
 extern const struct xattr_handler jffs2_user_xattr_handler;
 extern const struct xattr_handler jffs2_trusted_xattr_handler;
 

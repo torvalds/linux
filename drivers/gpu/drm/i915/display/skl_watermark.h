@@ -38,13 +38,15 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
 				 int num_entries, int ignore_idx);
 
-void intel_wm_state_verify(struct intel_crtc *crtc,
-			   struct intel_crtc_state *new_crtc_state);
+void intel_wm_state_verify(struct intel_atomic_state *state,
+			   struct intel_crtc *crtc);
 
 void skl_watermark_ipc_init(struct drm_i915_private *i915);
 void skl_watermark_ipc_update(struct drm_i915_private *i915);
 bool skl_watermark_ipc_enabled(struct drm_i915_private *i915);
 void skl_watermark_debugfs_register(struct drm_i915_private *i915);
+
+unsigned int skl_watermark_max_latency(struct drm_i915_private *i915);
 
 void skl_wm_init(struct drm_i915_private *i915);
 

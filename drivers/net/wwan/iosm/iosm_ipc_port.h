@@ -18,7 +18,7 @@
  * @pcie:		PCIe component
  * @port_type:		WWAN port type
  * @channel:		Channel instance
- * @chl_id:		Channel Indentifier
+ * @chl_id:		Channel Identifier
  */
 struct iosm_cdev {
 	struct wwan_port *iosm_port;

@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/fsl,imx93-mipi-dsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX93 specific extensions to Synopsys Designware MIPI DSI
+
+maintainers:
+  - Liu Ying <victor.liu@nxp.com>
+
+description: |
+  There is a Synopsys Designware MIPI DSI Host Controller and a Synopsys
+  Designware MIPI DPHY embedded in Freescale i.MX93 SoC.  Some configurations
+  and extensions to them are controlled by i.MX93 media blk-ctrl.
+
+allOf:
+  - $ref: snps,dw-mipi-dsi.yaml#
+
+properties:
+  compatible:
+    const: fsl,imx93-mipi-dsi
+
+  clocks:
+    items:
+      - description: apb clock
+      - description: pixel clock
+      - description: PHY configuration clock
+      - description: PHY reference clock
+
+  clock-names:
+    items:
+      - const: pclk
+      - const: pix
+      - const: phy_cfg
+      - const: phy_ref
+
+  interrupts:
+    maxItems: 1
+
+  fsl,media-blk-ctrl:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      i.MX93 media blk-ctrl, as a syscon, controls pixel component bit map
+      configurations from LCDIF display controller to the MIPI DSI host
+      controller and MIPI DPHY PLL related configurations through PLL SoC
+      interface.
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - interrupts
+  - fsl,media-blk-ctrl
+  - power-domains
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx93-clock.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/fsl,imx93-power.h>
+
+    dsi@4ae10000 {
+        compatible = "fsl,imx93-mipi-dsi";
+        reg = <0x4ae10000 0x10000>;
+        interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clk IMX93_CLK_MIPI_DSI_GATE>,
+                 <&clk IMX93_CLK_MEDIA_DISP_PIX>,
+                 <&clk IMX93_CLK_MIPI_PHY_CFG>,
+                 <&clk IMX93_CLK_24M>;
+        clock-names = "pclk", "pix", "phy_cfg", "phy_ref";
+        fsl,media-blk-ctrl = <&media_blk_ctrl>;
+        power-domains = <&media_blk_ctrl IMX93_MEDIABLK_PD_MIPI_DSI>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        panel@0 {
+            compatible = "raydium,rm67191";
+            reg = <0>;
+            reset-gpios = <&adp5585gpio 6 GPIO_ACTIVE_LOW>;
+            dsi-lanes = <4>;
+            video-mode = <2>;
+
+            port {
+                panel_in: endpoint {
+                    remote-endpoint = <&dsi_out>;
+                };
+            };
+        };
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+
+                dsi_to_lcdif: endpoint {
+                    remote-endpoint = <&lcdif_to_dsi>;
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+
+                dsi_out: endpoint {
+                    remote-endpoint = <&panel_in>;
+                };
+            };
+        };
+    };

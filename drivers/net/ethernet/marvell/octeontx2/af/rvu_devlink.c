@@ -14,26 +14,16 @@
 
 #define DRV_NAME "octeontx2-af"
 
-static int rvu_report_pair_start(struct devlink_fmsg *fmsg, const char *name)
+static void rvu_report_pair_start(struct devlink_fmsg *fmsg, const char *name)
 {
-	int err;
-
-	err = devlink_fmsg_pair_nest_start(fmsg, name);
-	if (err)
-		return err;
-
-	return  devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_pair_nest_start(fmsg, name);
+	devlink_fmsg_obj_nest_start(fmsg);
 }
 
-static int rvu_report_pair_end(struct devlink_fmsg *fmsg)
+static void rvu_report_pair_end(struct devlink_fmsg *fmsg)
 {
-	int err;
-
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		return err;
-
-	return devlink_fmsg_pair_nest_end(fmsg);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 
 static bool rvu_common_request_irq(struct rvu *rvu, int offset,
@@ -284,175 +274,81 @@ static int rvu_nix_report_show(struct devlink_fmsg *fmsg, void *ctx,
 {
 	struct rvu_nix_event_ctx *nix_event_context;
 	u64 intr_val;
-	int err;
 
 	nix_event_context = ctx;
 	switch (health_reporter) {
 	case NIX_AF_RVU_INTR:
 		intr_val = nix_event_context->nix_af_rvu_int;
-		err = rvu_report_pair_start(fmsg, "NIX_AF_RVU");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNIX RVU Interrupt Reg ",
-						nix_event_context->nix_af_rvu_int);
-		if (err)
-			return err;
-		if (intr_val & BIT_ULL(0)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tUnmap Slot Error");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NIX_AF_RVU");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNIX RVU Interrupt Reg ",
+					  nix_event_context->nix_af_rvu_int);
+		if (intr_val & BIT_ULL(0))
+			devlink_fmsg_string_put(fmsg, "\n\tUnmap Slot Error");
+		rvu_report_pair_end(fmsg);
 		break;
 	case NIX_AF_RVU_GEN:
 		intr_val = nix_event_context->nix_af_rvu_gen;
-		err = rvu_report_pair_start(fmsg, "NIX_AF_GENERAL");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNIX General Interrupt Reg ",
-						nix_event_context->nix_af_rvu_gen);
-		if (err)
-			return err;
-		if (intr_val & BIT_ULL(0)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tRx multicast pkt drop");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(1)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tRx mirror pkt drop");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(4)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tSMQ flush done");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NIX_AF_GENERAL");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNIX General Interrupt Reg ",
+					  nix_event_context->nix_af_rvu_gen);
+		if (intr_val & BIT_ULL(0))
+			devlink_fmsg_string_put(fmsg, "\n\tRx multicast pkt drop");
+		if (intr_val & BIT_ULL(1))
+			devlink_fmsg_string_put(fmsg, "\n\tRx mirror pkt drop");
+		if (intr_val & BIT_ULL(4))
+			devlink_fmsg_string_put(fmsg, "\n\tSMQ flush done");
+		rvu_report_pair_end(fmsg);
 		break;
 	case NIX_AF_RVU_ERR:
 		intr_val = nix_event_context->nix_af_rvu_err;
-		err = rvu_report_pair_start(fmsg, "NIX_AF_ERR");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNIX Error Interrupt Reg ",
-						nix_event_context->nix_af_rvu_err);
-		if (err)
-			return err;
-		if (intr_val & BIT_ULL(14)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_AQ_INST_S read");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(13)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_AQ_RES_S write");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(12)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAQ Doorbell Error");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(6)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tRx on unmapped PF_FUNC");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(5)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tRx multicast replication error");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(4)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_RX_MCE_S read");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(3)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on multicast WQE read");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(2)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on mirror WQE read");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(1)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on mirror pkt write");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(0)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on multicast pkt write");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NIX_AF_ERR");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNIX Error Interrupt Reg ",
+					  nix_event_context->nix_af_rvu_err);
+		if (intr_val & BIT_ULL(14))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_AQ_INST_S read");
+		if (intr_val & BIT_ULL(13))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_AQ_RES_S write");
+		if (intr_val & BIT_ULL(12))
+			devlink_fmsg_string_put(fmsg, "\n\tAQ Doorbell Error");
+		if (intr_val & BIT_ULL(6))
+			devlink_fmsg_string_put(fmsg, "\n\tRx on unmapped PF_FUNC");
+		if (intr_val & BIT_ULL(5))
+			devlink_fmsg_string_put(fmsg, "\n\tRx multicast replication error");
+		if (intr_val & BIT_ULL(4))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on NIX_RX_MCE_S read");
+		if (intr_val & BIT_ULL(3))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on multicast WQE read");
+		if (intr_val & BIT_ULL(2))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on mirror WQE read");
+		if (intr_val & BIT_ULL(1))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on mirror pkt write");
+		if (intr_val & BIT_ULL(0))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on multicast pkt write");
+		rvu_report_pair_end(fmsg);
 		break;
 	case NIX_AF_RVU_RAS:
 		intr_val = nix_event_context->nix_af_rvu_err;
-		err = rvu_report_pair_start(fmsg, "NIX_AF_RAS");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNIX RAS Interrupt Reg ",
-						nix_event_context->nix_af_rvu_err);
-		if (err)
-			return err;
-		err = devlink_fmsg_string_put(fmsg, "\n\tPoison Data on:");
-		if (err)
-			return err;
-		if (intr_val & BIT_ULL(34)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX_AQ_INST_S");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(33)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX_AQ_RES_S");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(32)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tHW ctx");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(4)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tPacket from mirror buffer");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(3)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tPacket from multicast buffer");
-
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(2)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tWQE read from mirror buffer");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(1)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tWQE read from multicast buffer");
-			if (err)
-				return err;
-		}
-		if (intr_val & BIT_ULL(0)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX_RX_MCE_S read");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NIX_AF_RAS");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNIX RAS Interrupt Reg ",
+					  nix_event_context->nix_af_rvu_err);
+		devlink_fmsg_string_put(fmsg, "\n\tPoison Data on:");
+		if (intr_val & BIT_ULL(34))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX_AQ_INST_S");
+		if (intr_val & BIT_ULL(33))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX_AQ_RES_S");
+		if (intr_val & BIT_ULL(32))
+			devlink_fmsg_string_put(fmsg, "\n\tHW ctx");
+		if (intr_val & BIT_ULL(4))
+			devlink_fmsg_string_put(fmsg, "\n\tPacket from mirror buffer");
+		if (intr_val & BIT_ULL(3))
+			devlink_fmsg_string_put(fmsg, "\n\tPacket from multicast buffer");
+		if (intr_val & BIT_ULL(2))
+			devlink_fmsg_string_put(fmsg, "\n\tWQE read from mirror buffer");
+		if (intr_val & BIT_ULL(1))
+			devlink_fmsg_string_put(fmsg, "\n\tWQE read from multicast buffer");
+		if (intr_val & BIT_ULL(0))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX_RX_MCE_S read");
+		rvu_report_pair_end(fmsg);
 		break;
 	default:
 		return -EINVAL;
@@ -922,181 +818,87 @@ static int rvu_npa_report_show(struct devlink_fmsg *fmsg, void *ctx,
 	struct rvu_npa_event_ctx *npa_event_context;
 	unsigned int alloc_dis, free_dis;
 	u64 intr_val;
-	int err;
 
 	npa_event_context = ctx;
 	switch (health_reporter) {
 	case NPA_AF_RVU_GEN:
 		intr_val = npa_event_context->npa_af_rvu_gen;
-		err = rvu_report_pair_start(fmsg, "NPA_AF_GENERAL");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNPA General Interrupt Reg ",
-						npa_event_context->npa_af_rvu_gen);
-		if (err)
-			return err;
-		if (intr_val & BIT_ULL(32)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tUnmap PF Error");
-			if (err)
-				return err;
-		}
+		rvu_report_pair_start(fmsg, "NPA_AF_GENERAL");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNPA General Interrupt Reg ",
+					  npa_event_context->npa_af_rvu_gen);
+		if (intr_val & BIT_ULL(32))
+			devlink_fmsg_string_put(fmsg, "\n\tUnmap PF Error");
 
 		free_dis = FIELD_GET(GENMASK(15, 0), intr_val);
-		if (free_dis & BIT(NPA_INPQ_NIX0_RX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX0: free disabled RX");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_NIX0_TX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX0:free disabled TX");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_NIX1_RX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX1: free disabled RX");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_NIX1_TX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX1:free disabled TX");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_SSO)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for SSO");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_TIM)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for TIM");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_DPI)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for DPI");
-			if (err)
-				return err;
-		}
-		if (free_dis & BIT(NPA_INPQ_AURA_OP)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for AURA");
-			if (err)
-				return err;
-		}
+		if (free_dis & BIT(NPA_INPQ_NIX0_RX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX0: free disabled RX");
+		if (free_dis & BIT(NPA_INPQ_NIX0_TX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX0:free disabled TX");
+		if (free_dis & BIT(NPA_INPQ_NIX1_RX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX1: free disabled RX");
+		if (free_dis & BIT(NPA_INPQ_NIX1_TX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX1:free disabled TX");
+		if (free_dis & BIT(NPA_INPQ_SSO))
+			devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for SSO");
+		if (free_dis & BIT(NPA_INPQ_TIM))
+			devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for TIM");
+		if (free_dis & BIT(NPA_INPQ_DPI))
+			devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for DPI");
+		if (free_dis & BIT(NPA_INPQ_AURA_OP))
+			devlink_fmsg_string_put(fmsg, "\n\tFree Disabled for AURA");
 
 		alloc_dis = FIELD_GET(GENMASK(31, 16), intr_val);
-		if (alloc_dis & BIT(NPA_INPQ_NIX0_RX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX0: alloc disabled RX");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_NIX0_TX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX0:alloc disabled TX");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_NIX1_RX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX1: alloc disabled RX");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_NIX1_TX)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tNIX1:alloc disabled TX");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_SSO)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for SSO");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_TIM)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for TIM");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_DPI)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for DPI");
-			if (err)
-				return err;
-		}
-		if (alloc_dis & BIT(NPA_INPQ_AURA_OP)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for AURA");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		if (alloc_dis & BIT(NPA_INPQ_NIX0_RX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX0: alloc disabled RX");
+		if (alloc_dis & BIT(NPA_INPQ_NIX0_TX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX0:alloc disabled TX");
+		if (alloc_dis & BIT(NPA_INPQ_NIX1_RX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX1: alloc disabled RX");
+		if (alloc_dis & BIT(NPA_INPQ_NIX1_TX))
+			devlink_fmsg_string_put(fmsg, "\n\tNIX1:alloc disabled TX");
+		if (alloc_dis & BIT(NPA_INPQ_SSO))
+			devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for SSO");
+		if (alloc_dis & BIT(NPA_INPQ_TIM))
+			devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for TIM");
+		if (alloc_dis & BIT(NPA_INPQ_DPI))
+			devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for DPI");
+		if (alloc_dis & BIT(NPA_INPQ_AURA_OP))
+			devlink_fmsg_string_put(fmsg, "\n\tAlloc Disabled for AURA");
+
+		rvu_report_pair_end(fmsg);
 		break;
 	case NPA_AF_RVU_ERR:
-		err = rvu_report_pair_start(fmsg, "NPA_AF_ERR");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNPA Error Interrupt Reg ",
-						npa_event_context->npa_af_rvu_err);
-		if (err)
-			return err;
-
-		if (npa_event_context->npa_af_rvu_err & BIT_ULL(14)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on NPA_AQ_INST_S read");
-			if (err)
-				return err;
-		}
-		if (npa_event_context->npa_af_rvu_err & BIT_ULL(13)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tFault on NPA_AQ_RES_S write");
-			if (err)
-				return err;
-		}
-		if (npa_event_context->npa_af_rvu_err & BIT_ULL(12)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tAQ Doorbell Error");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NPA_AF_ERR");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNPA Error Interrupt Reg ",
+					  npa_event_context->npa_af_rvu_err);
+		if (npa_event_context->npa_af_rvu_err & BIT_ULL(14))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on NPA_AQ_INST_S read");
+		if (npa_event_context->npa_af_rvu_err & BIT_ULL(13))
+			devlink_fmsg_string_put(fmsg, "\n\tFault on NPA_AQ_RES_S write");
+		if (npa_event_context->npa_af_rvu_err & BIT_ULL(12))
+			devlink_fmsg_string_put(fmsg, "\n\tAQ Doorbell Error");
+		rvu_report_pair_end(fmsg);
 		break;
 	case NPA_AF_RVU_RAS:
-		err = rvu_report_pair_start(fmsg, "NPA_AF_RVU_RAS");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNPA RAS Interrupt Reg ",
-						npa_event_context->npa_af_rvu_ras);
-		if (err)
-			return err;
-		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(34)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tPoison data on NPA_AQ_INST_S");
-			if (err)
-				return err;
-		}
-		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(33)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tPoison data on NPA_AQ_RES_S");
-			if (err)
-				return err;
-		}
-		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(32)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tPoison data on HW context");
-			if (err)
-				return err;
-		}
-		err = rvu_report_pair_end(fmsg);
-		if (err)
-			return err;
+		rvu_report_pair_start(fmsg, "NPA_AF_RVU_RAS");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNPA RAS Interrupt Reg ",
+					  npa_event_context->npa_af_rvu_ras);
+		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(34))
+			devlink_fmsg_string_put(fmsg, "\n\tPoison data on NPA_AQ_INST_S");
+		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(33))
+			devlink_fmsg_string_put(fmsg, "\n\tPoison data on NPA_AQ_RES_S");
+		if (npa_event_context->npa_af_rvu_ras & BIT_ULL(32))
+			devlink_fmsg_string_put(fmsg, "\n\tPoison data on HW context");
+		rvu_report_pair_end(fmsg);
 		break;
 	case NPA_AF_RVU_INTR:
-		err = rvu_report_pair_start(fmsg, "NPA_AF_RVU");
-		if (err)
-			return err;
-		err = devlink_fmsg_u64_pair_put(fmsg, "\tNPA RVU Interrupt Reg ",
-						npa_event_context->npa_af_rvu_int);
-		if (err)
-			return err;
-		if (npa_event_context->npa_af_rvu_int & BIT_ULL(0)) {
-			err = devlink_fmsg_string_put(fmsg, "\n\tUnmap Slot Error");
-			if (err)
-				return err;
-		}
-		return rvu_report_pair_end(fmsg);
+		rvu_report_pair_start(fmsg, "NPA_AF_RVU");
+		devlink_fmsg_u64_pair_put(fmsg, "\tNPA RVU Interrupt Reg ",
+					  npa_event_context->npa_af_rvu_int);
+		if (npa_event_context->npa_af_rvu_int & BIT_ULL(0))
+			devlink_fmsg_string_put(fmsg, "\n\tUnmap Slot Error");
+		rvu_report_pair_end(fmsg);
+		break;
 	default:
 		return -EINVAL;
 	}

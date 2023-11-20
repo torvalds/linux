@@ -858,6 +858,24 @@ struct rtw89_mac_gen_def {
 	u32 indir_access_addr;
 	const u32 *mem_base_addrs;
 	u32 rx_fltr;
+	const struct rtw89_port_reg *port_base;
+	u32 agg_len_ht;
+
+	struct rtw89_reg_def muedca_ctrl;
+	struct rtw89_reg_def bfee_ctrl;
+
+	void (*bf_assoc)(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta);
+
+	void (*disable_cpu)(struct rtw89_dev *rtwdev);
+	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
+				bool dlfw, bool include_bb);
+	u8 (*fwdl_get_status)(struct rtw89_dev *rtwdev, enum rtw89_fwdl_check_type type);
+	int (*fwdl_check_path_ready)(struct rtw89_dev *rtwdev, bool h2c_or_fwdl);
+
+	bool (*get_txpwr_cr)(struct rtw89_dev *rtwdev,
+			     enum rtw89_phy_idx phy_idx,
+			     u32 reg_base, u32 *cr);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -957,7 +975,7 @@ rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 }
 
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev);
-int rtw89_mac_partial_init(struct rtw89_dev *rtwdev);
+int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb);
 int rtw89_mac_init(struct rtw89_dev *rtwdev);
 int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 			   enum rtw89_mac_hwmod_sel sel);
@@ -975,8 +993,6 @@ void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
 void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
-void rtw89_mac_disable_cpu(struct rtw89_dev *rtwdev);
-int rtw89_mac_enable_cpu(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw);
 int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
 int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
 
@@ -1023,13 +1039,19 @@ u32 rtw89_mac_get_sb(struct rtw89_dev *rtwdev);
 bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev);
 int rtw89_mac_cfg_ctrl_path(struct rtw89_dev *rtwdev, bool wl);
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl);
-bool rtw89_mac_get_txpwr_cr(struct rtw89_dev *rtwdev,
-			    enum rtw89_phy_idx phy_idx,
-			    u32 reg_base, u32 *cr);
 void rtw89_mac_power_mode_change(struct rtw89_dev *rtwdev, bool enter);
 void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev);
+
+static inline
 void rtw89_mac_bf_assoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
-			struct ieee80211_sta *sta);
+			struct ieee80211_sta *sta)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (mac->bf_assoc)
+		mac->bf_assoc(rtwdev, vif, sta);
+}
+
 void rtw89_mac_bf_disassoc(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
@@ -1037,6 +1059,7 @@ void rtw89_mac_bf_set_gid_table(struct rtw89_dev *rtwdev, struct ieee80211_vif *
 void rtw89_mac_bf_monitor_calc(struct rtw89_dev *rtwdev,
 			       struct ieee80211_sta *sta, bool disconnect);
 void _rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev);
+void rtw89_mac_bfee_ctrl(struct rtw89_dev *rtwdev, u8 mac_idx, bool en);
 int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_vif_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,
@@ -1045,6 +1068,9 @@ int rtw89_mac_set_macid_pause(struct rtw89_dev *rtwdev, u8 macid, bool pause);
 
 static inline void rtw89_mac_bf_monitor_track(struct rtw89_dev *rtwdev)
 {
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return;
+
 	if (!test_bit(RTW89_FLAG_BFEE_MON, rtwdev->flags))
 		return;
 
@@ -1055,9 +1081,10 @@ static inline int rtw89_mac_txpwr_read32(struct rtw89_dev *rtwdev,
 					 enum rtw89_phy_idx phy_idx,
 					 u32 reg_base, u32 *val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	*val = rtw89_read32(rtwdev, cr);
@@ -1068,9 +1095,10 @@ static inline int rtw89_mac_txpwr_write32(struct rtw89_dev *rtwdev,
 					  enum rtw89_phy_idx phy_idx,
 					  u32 reg_base, u32 val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	rtw89_write32(rtwdev, cr, val);
@@ -1081,9 +1109,10 @@ static inline int rtw89_mac_txpwr_write32_mask(struct rtw89_dev *rtwdev,
 					       enum rtw89_phy_idx phy_idx,
 					       u32 reg_base, u32 mask, u32 val)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 cr;
 
-	if (!rtw89_mac_get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
+	if (!mac->get_txpwr_cr(rtwdev, phy_idx, reg_base, &cr))
 		return -EINVAL;
 
 	rtw89_write32_mask(rtwdev, cr, mask, val);

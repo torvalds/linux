@@ -36,8 +36,8 @@
 #include "irq/dcn10/irq_service_dcn10.h"
 #include "dcn10_dpp.h"
 #include "dcn10_optc.h"
-#include "dcn10_hw_sequencer.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dcn10_opp.h"
 #include "dcn10_link_encoder.h"
 #include "dcn10_stream_encoder.h"
@@ -554,6 +554,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_legacy_fast_update = true,
+		.using_dml2 = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {

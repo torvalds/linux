@@ -123,6 +123,16 @@ DRM_IOCTL_QAIC_PART_DEV
   AIC100 device and can be used for limiting a process to some subset of
   resources.
 
+DRM_IOCTL_QAIC_DETACH_SLICE_BO
+  This IOCTL allows userspace to remove the slicing information from a BO that
+  was originally provided by a call to DRM_IOCTL_QAIC_ATTACH_SLICE_BO. This
+  is the inverse of DRM_IOCTL_QAIC_ATTACH_SLICE_BO. The BO must be idle for
+  DRM_IOCTL_QAIC_DETACH_SLICE_BO to be called. After a successful detach slice
+  operation the BO may have new slicing information attached with a new call
+  to DRM_IOCTL_QAIC_ATTACH_SLICE_BO. After detach slice, the BO cannot be
+  executed until after a new attach slice operation. Combining attach slice
+  and detach slice calls allows userspace to use a BO with multiple workloads.
+
 Userspace Client Isolation
 ==========================
 

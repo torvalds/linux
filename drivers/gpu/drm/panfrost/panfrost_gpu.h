@@ -16,6 +16,10 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev);
 void panfrost_gpu_power_on(struct panfrost_device *pfdev);
 void panfrost_gpu_power_off(struct panfrost_device *pfdev);
 
+void panfrost_cycle_counter_get(struct panfrost_device *pfdev);
+void panfrost_cycle_counter_put(struct panfrost_device *pfdev);
+unsigned long long panfrost_cycle_counter_read(struct panfrost_device *pfdev);
+
 void panfrost_gpu_amlogic_quirk(struct panfrost_device *pfdev);
 
 #endif

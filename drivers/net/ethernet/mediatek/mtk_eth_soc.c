@@ -197,6 +197,7 @@ static const struct mtk_reg_map mt7988_reg_map = {
 	.wdma_base = {
 		[0]		= 0x4800,
 		[1]		= 0x4c00,
+		[2]		= 0x5000,
 	},
 	.pse_iq_sta		= 0x0180,
 	.pse_oq_sta		= 0x01a0,
@@ -2210,7 +2211,7 @@ rx_done:
 	net_dim(&eth->rx_dim, dim_sample);
 
 	if (xdp_flush)
-		xdp_do_flush_map();
+		xdp_do_flush();
 
 	return done;
 }
@@ -3328,7 +3329,7 @@ static int mtk_device_event(struct notifier_block *n, unsigned long event, void 
 	return NOTIFY_DONE;
 
 found:
-	if (!dsa_slave_dev_check(dev))
+	if (!dsa_user_dev_check(dev))
 		return NOTIFY_DONE;
 
 	if (__ethtool_get_link_ksettings(dev, &s))
@@ -5002,7 +5003,7 @@ err_destroy_sgmii:
 	return err;
 }
 
-static int mtk_remove(struct platform_device *pdev)
+static void mtk_remove(struct platform_device *pdev)
 {
 	struct mtk_eth *eth = platform_get_drvdata(pdev);
 	struct mtk_mac *mac;
@@ -5024,8 +5025,6 @@ static int mtk_remove(struct platform_device *pdev)
 	netif_napi_del(&eth->rx_napi);
 	mtk_cleanup(eth);
 	mtk_mdio_cleanup(eth);
-
-	return 0;
 }
 
 static const struct mtk_soc_data mt2701_data = {
@@ -5226,7 +5225,7 @@ MODULE_DEVICE_TABLE(of, of_mtk_match);
 
 static struct platform_driver mtk_driver = {
 	.probe = mtk_probe,
-	.remove = mtk_remove,
+	.remove_new = mtk_remove,
 	.driver = {
 		.name = "mtk_soc_eth",
 		.of_match_table = of_mtk_match,

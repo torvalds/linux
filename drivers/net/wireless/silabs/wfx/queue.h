@@ -17,6 +17,7 @@ struct wfx_vif;
 struct wfx_queue {
 	struct sk_buff_head normal;
 	struct sk_buff_head cab; /* Content After (DTIM) Beacon */
+	struct sk_buff_head offchan;
 	atomic_t            pending_frames;
 	int                 priority;
 };

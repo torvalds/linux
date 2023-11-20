@@ -327,6 +327,11 @@ static void lsdc_pci_remove(struct pci_dev *pdev)
 	drm_atomic_helper_shutdown(ddev);
 }
 
+static void lsdc_pci_shutdown(struct pci_dev *pdev)
+{
+	drm_atomic_helper_shutdown(pci_get_drvdata(pdev));
+}
+
 static int lsdc_drm_freeze(struct drm_device *ddev)
 {
 	struct lsdc_device *ldev = to_lsdc(ddev);
@@ -447,6 +452,7 @@ struct pci_driver lsdc_pci_driver = {
 	.id_table = lsdc_pciid_list,
 	.probe = lsdc_pci_probe,
 	.remove = lsdc_pci_remove,
+	.shutdown = lsdc_pci_shutdown,
 	.driver.pm = &lsdc_pm_ops,
 };
 

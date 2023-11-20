@@ -132,7 +132,7 @@ err_free_input:
 	return err;
 }
 
-static int da9055_onkey_remove(struct platform_device *pdev)
+static void da9055_onkey_remove(struct platform_device *pdev)
 {
 	struct da9055_onkey *onkey = platform_get_drvdata(pdev);
 	int irq = platform_get_irq_byname(pdev, "ONKEY");
@@ -141,13 +141,11 @@ static int da9055_onkey_remove(struct platform_device *pdev)
 	free_irq(irq, onkey);
 	cancel_delayed_work_sync(&onkey->work);
 	input_unregister_device(onkey->input);
-
-	return 0;
 }
 
 static struct platform_driver da9055_onkey_driver = {
 	.probe	= da9055_onkey_probe,
-	.remove	= da9055_onkey_remove,
+	.remove_new = da9055_onkey_remove,
 	.driver = {
 		.name	= "da9055-onkey",
 	},

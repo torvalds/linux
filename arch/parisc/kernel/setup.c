@@ -100,9 +100,6 @@ static void __init dma_ops_init(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_64BIT
-	extern int parisc_narrow_firmware;
-#endif
 	unwind_init();
 
 	init_per_cpu(smp_processor_id());	/* Set Modes & Enable FP */

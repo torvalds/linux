@@ -814,6 +814,31 @@ struct dev_pm_opp *dev_pm_opp_find_level_ceil(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_level_ceil);
 
 /**
+ * dev_pm_opp_find_level_floor() - Search for a rounded floor level
+ * @dev:	device for which we do this operation
+ * @level:	Start level
+ *
+ * Search for the matching floor *available* OPP from a starting level
+ * for a device.
+ *
+ * Return: matching *opp and refreshes *level accordingly, else returns
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
+ *
+ * The callers are required to call dev_pm_opp_put() for the returned OPP after
+ * use.
+ */
+struct dev_pm_opp *dev_pm_opp_find_level_floor(struct device *dev,
+					       unsigned long *level)
+{
+	return _find_key_floor(dev, level, 0, true, _read_level, NULL);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_find_level_floor);
+
+/**
  * dev_pm_opp_find_bw_ceil() - Search for a rounded ceil bandwidth
  * @dev:	device for which we do this operation
  * @bw:	start bandwidth
@@ -1030,7 +1055,7 @@ static int _set_performance_state(struct device *dev, struct device *pd_dev,
 	if (!pd_dev)
 		return 0;
 
-	ret = dev_pm_genpd_set_performance_state(pd_dev, pstate);
+	ret = dev_pm_domain_set_performance_state(pd_dev, pstate);
 	if (ret) {
 		dev_err(dev, "Failed to set performance state of %s: %d (%d)\n",
 			dev_name(pd_dev), pstate, ret);
@@ -1051,32 +1076,28 @@ static int _opp_set_required_opps_genpd(struct device *dev,
 {
 	struct device **genpd_virt_devs =
 		opp_table->genpd_virt_devs ? opp_table->genpd_virt_devs : &dev;
-	int i, ret = 0;
-
-	/*
-	 * Acquire genpd_virt_dev_lock to make sure we don't use a genpd_dev
-	 * after it is freed from another thread.
-	 */
-	mutex_lock(&opp_table->genpd_virt_dev_lock);
+	int index, target, delta, ret;
 
 	/* Scaling up? Set required OPPs in normal order, else reverse */
 	if (!scaling_down) {
-		for (i = 0; i < opp_table->required_opp_count; i++) {
-			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
-			if (ret)
-				break;
-		}
+		index = 0;
+		target = opp_table->required_opp_count;
+		delta = 1;
 	} else {
-		for (i = opp_table->required_opp_count - 1; i >= 0; i--) {
-			ret = _set_performance_state(dev, genpd_virt_devs[i], opp, i);
-			if (ret)
-				break;
-		}
+		index = opp_table->required_opp_count - 1;
+		target = -1;
+		delta = -1;
 	}
 
-	mutex_unlock(&opp_table->genpd_virt_dev_lock);
+	while (index != target) {
+		ret = _set_performance_state(dev, genpd_virt_devs[index], opp, index);
+		if (ret)
+			return ret;
 
-	return ret;
+		index += delta;
+	}
+
+	return 0;
 }
 
 /* This is only called for PM domain for now */
@@ -1105,6 +1126,28 @@ void _update_set_required_opps(struct opp_table *opp_table)
 		opp_table->set_required_opps = _opp_set_required_opps_genpd;
 	else
 		opp_table->set_required_opps = _opp_set_required_opps_generic;
+}
+
+static int _set_opp_level(struct device *dev, struct opp_table *opp_table,
+			  struct dev_pm_opp *opp)
+{
+	unsigned int level = 0;
+	int ret = 0;
+
+	if (opp) {
+		if (!opp->level)
+			return 0;
+
+		level = opp->level;
+	}
+
+	/* Request a new performance state through the device's PM domain. */
+	ret = dev_pm_domain_set_performance_state(dev, level);
+	if (ret)
+		dev_err(dev, "Failed to set performance state %u (%d)\n", level,
+			ret);
+
+	return ret;
 }
 
 static void _find_current_opp(struct device *dev, struct opp_table *opp_table)
@@ -1154,8 +1197,13 @@ static int _disable_opp_table(struct device *dev, struct opp_table *opp_table)
 	if (opp_table->regulators)
 		regulator_disable(opp_table->regulators[0]);
 
+	ret = _set_opp_level(dev, opp_table, NULL);
+	if (ret)
+		goto out;
+
 	ret = _set_required_opps(dev, opp_table, NULL, false);
 
+out:
 	opp_table->enabled = false;
 	return ret;
 }
@@ -1197,6 +1245,10 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 			dev_err(dev, "Failed to set required opps: %d\n", ret);
 			return ret;
 		}
+
+		ret = _set_opp_level(dev, opp_table, opp);
+		if (ret)
+			return ret;
 
 		ret = _set_opp_bw(opp_table, opp, dev);
 		if (ret) {
@@ -1240,6 +1292,10 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 			dev_err(dev, "Failed to set bw: %d\n", ret);
 			return ret;
 		}
+
+		ret = _set_opp_level(dev, opp_table, opp);
+		if (ret)
+			return ret;
 
 		ret = _set_required_opps(dev, opp_table, opp, false);
 		if (ret) {
@@ -1410,7 +1466,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&opp_table->lock);
-	mutex_init(&opp_table->genpd_virt_dev_lock);
 	INIT_LIST_HEAD(&opp_table->dev_list);
 	INIT_LIST_HEAD(&opp_table->lazy);
 
@@ -1446,7 +1501,6 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 remove_opp_dev:
 	_of_clear_opp_table(opp_table);
 	_remove_opp_dev(opp_dev, opp_table);
-	mutex_destroy(&opp_table->genpd_virt_dev_lock);
 	mutex_destroy(&opp_table->lock);
 err:
 	kfree(opp_table);
@@ -1614,7 +1668,6 @@ static void _opp_table_kref_release(struct kref *kref)
 	list_for_each_entry_safe(opp_dev, temp, &opp_table->dev_list, node)
 		_remove_opp_dev(opp_dev, opp_table);
 
-	mutex_destroy(&opp_table->genpd_virt_dev_lock);
 	mutex_destroy(&opp_table->lock);
 	kfree(opp_table);
 }
@@ -2002,8 +2055,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  * _opp_add_v1() - Allocate a OPP based on v1 bindings.
  * @opp_table:	OPP table
  * @dev:	device for which we do this operation
- * @freq:	Frequency in Hz for this OPP
- * @u_volt:	Voltage in uVolts for this OPP
+ * @data:	The OPP data for the OPP to add
  * @dynamic:	Dynamically added OPPs.
  *
  * This function adds an opp definition to the opp table and returns status.
@@ -2021,10 +2073,10 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  * -ENOMEM	Memory allocation failure
  */
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
-		unsigned long freq, long u_volt, bool dynamic)
+		struct dev_pm_opp_data *data, bool dynamic)
 {
 	struct dev_pm_opp *new_opp;
-	unsigned long tol;
+	unsigned long tol, u_volt = data->u_volt;
 	int ret;
 
 	if (!assert_single_clk(opp_table))
@@ -2035,7 +2087,8 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 		return -ENOMEM;
 
 	/* populate the opp table */
-	new_opp->rates[0] = freq;
+	new_opp->rates[0] = data->freq;
+	new_opp->level = data->level;
 	tol = u_volt * opp_table->voltage_tolerance_v1 / 100;
 	new_opp->supplies[0].u_volt = u_volt;
 	new_opp->supplies[0].u_volt_min = u_volt - tol;
@@ -2064,12 +2117,7 @@ free_opp:
 	return ret;
 }
 
-/**
- * _opp_set_supported_hw() - Set supported platforms
- * @dev: Device for which supported-hw has to be set.
- * @versions: Array of hierarchy of versions to match.
- * @count: Number of elements in the array.
- *
+/*
  * This is required only for the V2 bindings, and it enables a platform to
  * specify the hierarchy of versions it supports. OPP layer will then enable
  * OPPs, which are available for those versions, based on its 'opp-supported-hw'
@@ -2092,14 +2140,6 @@ static int _opp_set_supported_hw(struct opp_table *opp_table,
 	return 0;
 }
 
-/**
- * _opp_put_supported_hw() - Releases resources blocked for supported hw
- * @opp_table: OPP table returned by _opp_set_supported_hw().
- *
- * This is required only for the V2 bindings, and is called for a matching
- * _opp_set_supported_hw(). Until this is called, the opp_table structure
- * will not be freed.
- */
 static void _opp_put_supported_hw(struct opp_table *opp_table)
 {
 	if (opp_table->supported_hw) {
@@ -2109,11 +2149,7 @@ static void _opp_put_supported_hw(struct opp_table *opp_table)
 	}
 }
 
-/**
- * _opp_set_prop_name() - Set prop-extn name
- * @dev: Device for which the prop-name has to be set.
- * @name: name to postfix to properties.
- *
+/*
  * This is required only for the V2 bindings, and it enables a platform to
  * specify the extn to be used for certain property names. The properties to
  * which the extension will apply are opp-microvolt and opp-microamp. OPP core
@@ -2131,14 +2167,6 @@ static int _opp_set_prop_name(struct opp_table *opp_table, const char *name)
 	return 0;
 }
 
-/**
- * _opp_put_prop_name() - Releases resources blocked for prop-name
- * @opp_table: OPP table returned by _opp_set_prop_name().
- *
- * This is required only for the V2 bindings, and is called for a matching
- * _opp_set_prop_name(). Until this is called, the opp_table structure
- * will not be freed.
- */
 static void _opp_put_prop_name(struct opp_table *opp_table)
 {
 	if (opp_table->prop_name) {
@@ -2147,12 +2175,7 @@ static void _opp_put_prop_name(struct opp_table *opp_table)
 	}
 }
 
-/**
- * _opp_set_regulators() - Set regulator names for the device
- * @dev: Device for which regulator name is being set.
- * @names: Array of pointers to the names of the regulator.
- * @count: Number of regulators.
- *
+/*
  * In order to support OPP switching, OPP layer needs to know the name of the
  * device's regulators, as the core would be required to switch voltages as
  * well.
@@ -2214,10 +2237,6 @@ free_regulators:
 	return ret;
 }
 
-/**
- * _opp_put_regulators() - Releases resources blocked for regulator
- * @opp_table: OPP table returned from _opp_set_regulators().
- */
 static void _opp_put_regulators(struct opp_table *opp_table)
 {
 	int i;
@@ -2249,11 +2268,7 @@ static void _put_clks(struct opp_table *opp_table, int count)
 	opp_table->clks = NULL;
 }
 
-/**
- * _opp_set_clknames() - Set clk names for the device
- * @dev: Device for which clk names is being set.
- * @names: Clk names.
- *
+/*
  * In order to support OPP switching, OPP layer needs to get pointers to the
  * clocks for the device. Simple cases work fine without using this routine
  * (i.e. by passing connection-id as NULL), but for a device with multiple
@@ -2337,10 +2352,6 @@ free_clks:
 	return ret;
 }
 
-/**
- * _opp_put_clknames() - Releases resources blocked for clks.
- * @opp_table: OPP table returned from _opp_set_clknames().
- */
 static void _opp_put_clknames(struct opp_table *opp_table)
 {
 	if (!opp_table->clks)
@@ -2352,11 +2363,7 @@ static void _opp_put_clknames(struct opp_table *opp_table)
 	_put_clks(opp_table, opp_table->clk_count);
 }
 
-/**
- * _opp_set_config_regulators_helper() - Register custom set regulator helper.
- * @dev: Device for which the helper is getting registered.
- * @config_regulators: Custom set regulator helper.
- *
+/*
  * This is useful to support platforms with multiple regulators per device.
  *
  * This must be called before any OPPs are initialized for the device.
@@ -2371,20 +2378,13 @@ static int _opp_set_config_regulators_helper(struct opp_table *opp_table,
 	return 0;
 }
 
-/**
- * _opp_put_config_regulators_helper() - Releases resources blocked for
- *					 config_regulators helper.
- * @opp_table: OPP table returned from _opp_set_config_regulators_helper().
- *
- * Release resources blocked for platform specific config_regulators helper.
- */
 static void _opp_put_config_regulators_helper(struct opp_table *opp_table)
 {
 	if (opp_table->config_regulators)
 		opp_table->config_regulators = NULL;
 }
 
-static void _detach_genpd(struct opp_table *opp_table)
+static void _opp_detach_genpd(struct opp_table *opp_table)
 {
 	int index;
 
@@ -2403,12 +2403,7 @@ static void _detach_genpd(struct opp_table *opp_table)
 	opp_table->genpd_virt_devs = NULL;
 }
 
-/**
- * _opp_attach_genpd - Attach genpd(s) for the device and save virtual device pointer
- * @dev: Consumer device for which the genpd is getting attached.
- * @names: Null terminated array of pointers containing names of genpd to attach.
- * @virt_devs: Pointer to return the array of virtual devices.
- *
+/*
  * Multiple generic power domains for a device are supported with the help of
  * virtual genpd devices, which are created for each consumer device - genpd
  * pair. These are the device structures which are attached to the power domain
@@ -2435,21 +2430,11 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 	if (opp_table->genpd_virt_devs)
 		return 0;
 
-	/*
-	 * If the genpd's OPP table isn't already initialized, parsing of the
-	 * required-opps fail for dev. We should retry this after genpd's OPP
-	 * table is added.
-	 */
-	if (!opp_table->required_opp_count)
-		return -EPROBE_DEFER;
-
-	mutex_lock(&opp_table->genpd_virt_dev_lock);
-
 	opp_table->genpd_virt_devs = kcalloc(opp_table->required_opp_count,
 					     sizeof(*opp_table->genpd_virt_devs),
 					     GFP_KERNEL);
 	if (!opp_table->genpd_virt_devs)
-		goto unlock;
+		return -ENOMEM;
 
 	while (*name) {
 		if (index >= opp_table->required_opp_count) {
@@ -2472,34 +2457,13 @@ static int _opp_attach_genpd(struct opp_table *opp_table, struct device *dev,
 
 	if (virt_devs)
 		*virt_devs = opp_table->genpd_virt_devs;
-	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 
 	return 0;
 
 err:
-	_detach_genpd(opp_table);
-unlock:
-	mutex_unlock(&opp_table->genpd_virt_dev_lock);
+	_opp_detach_genpd(opp_table);
 	return ret;
 
-}
-
-/**
- * _opp_detach_genpd() - Detach genpd(s) from the device.
- * @opp_table: OPP table returned by _opp_attach_genpd().
- *
- * This detaches the genpd(s), resets the virtual device pointers, and puts the
- * OPP table.
- */
-static void _opp_detach_genpd(struct opp_table *opp_table)
-{
-	/*
-	 * Acquire genpd_virt_dev_lock to make sure virt_dev isn't getting
-	 * used in parallel.
-	 */
-	mutex_lock(&opp_table->genpd_virt_dev_lock);
-	_detach_genpd(opp_table);
-	mutex_unlock(&opp_table->genpd_virt_dev_lock);
 }
 
 static void _opp_clear_config(struct opp_config_data *data)
@@ -2642,7 +2606,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_set_config);
 
 /**
  * dev_pm_opp_clear_config() - Releases resources blocked for OPP configuration.
- * @opp_table: OPP table returned from dev_pm_opp_set_config().
+ * @token: The token returned by dev_pm_opp_set_config() previously.
  *
  * This allows all device OPP configurations to be cleared at once. This must be
  * called once for each call made to dev_pm_opp_set_config(), in order to free
@@ -2825,10 +2789,9 @@ unlock:
 }
 
 /**
- * dev_pm_opp_add()  - Add an OPP table from a table definitions
- * @dev:	device for which we do this operation
- * @freq:	Frequency in Hz for this OPP
- * @u_volt:	Voltage in uVolts for this OPP
+ * dev_pm_opp_add_dynamic()  - Add an OPP table from a table definitions
+ * @dev:	The device for which we do this operation
+ * @data:	The OPP data for the OPP to add
  *
  * This function adds an opp definition to the opp table and returns status.
  * The opp is made available by default and it can be controlled using
@@ -2841,7 +2804,7 @@ unlock:
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
  */
-int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
+int dev_pm_opp_add_dynamic(struct device *dev, struct dev_pm_opp_data *data)
 {
 	struct opp_table *opp_table;
 	int ret;
@@ -2853,13 +2816,13 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	/* Fix regulator count for dynamic OPPs */
 	opp_table->regulator_count = 1;
 
-	ret = _opp_add_v1(opp_table, dev, freq, u_volt, true);
+	ret = _opp_add_v1(opp_table, dev, data, true);
 	if (ret)
 		dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_add);
+EXPORT_SYMBOL_GPL(dev_pm_opp_add_dynamic);
 
 /**
  * _opp_set_availability() - helper to set the availability of an opp

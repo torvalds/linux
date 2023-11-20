@@ -91,6 +91,14 @@
         "UMask": "0xf7"
     },
     {
+        "BriefDescription": "Counts the number of near taken branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xc0"
+    },
+    {
         "BriefDescription": "This event is deprecated. Refer to new event BR_INST_RETIRED.INDIRECT",
         "Deprecated": "1",
         "EventCode": "0xc4",
@@ -182,6 +190,14 @@
         "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
+    },
+    {
+        "BriefDescription": "Counts the number of mispredicted near taken branch instructions retired.",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0x80"
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event BR_MISP_RETIRED.INDIRECT",

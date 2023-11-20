@@ -139,4 +139,10 @@ static inline void netif_set_gro_ipv4_max_size(struct net_device *dev,
 }
 
 int rps_cpumask_housekeeping(struct cpumask *mask);
+
+#if defined(CONFIG_DEBUG_NET) && defined(CONFIG_BPF_SYSCALL)
+void xdp_do_check_flushed(struct napi_struct *napi);
+#else
+static inline void xdp_do_check_flushed(struct napi_struct *napi) { }
+#endif
 #endif

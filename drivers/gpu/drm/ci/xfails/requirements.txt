@@ -1,0 +1,17 @@
+git+https://gitlab.freedesktop.org/gfx-ci/ci-collate@09e7142715c16f54344ddf97013331ba063b162b
+termcolor==2.3.0
+
+# ci-collate dependencies
+certifi==2023.7.22
+charset-normalizer==3.2.0
+idna==3.4
+pip==23.3
+python-gitlab==3.15.0
+requests==2.31.0
+requests-toolbelt==1.0.0
+ruamel.yaml==0.17.32
+ruamel.yaml.clib==0.2.7
+setuptools==68.0.0
+tenacity==8.2.3
+urllib3==2.0.7
+wheel==0.41.1

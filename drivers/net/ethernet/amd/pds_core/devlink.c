@@ -104,7 +104,7 @@ int pdsc_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	struct pds_core_fw_list_info fw_list;
 	struct pdsc *pdsc = devlink_priv(dl);
 	union pds_core_dev_comp comp;
-	char buf[16];
+	char buf[32];
 	int listlen;
 	int err;
 	int i;
@@ -124,6 +124,8 @@ int pdsc_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			snprintf(buf, sizeof(buf), "fw.slot_%d", i);
 		err = devlink_info_version_stored_put(req, buf,
 						      fw_list.fw_names[i].fw_version);
+		if (err)
+			return err;
 	}
 
 	err = devlink_info_version_running_put(req,
@@ -154,33 +156,20 @@ int pdsc_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 			      struct netlink_ext_ack *extack)
 {
 	struct pdsc *pdsc = devlink_health_reporter_priv(reporter);
-	int err;
 
 	mutex_lock(&pdsc->config_lock);
-
 	if (test_bit(PDSC_S_FW_DEAD, &pdsc->state))
-		err = devlink_fmsg_string_pair_put(fmsg, "Status", "dead");
+		devlink_fmsg_string_pair_put(fmsg, "Status", "dead");
 	else if (!pdsc_is_fw_good(pdsc))
-		err = devlink_fmsg_string_pair_put(fmsg, "Status", "unhealthy");
+		devlink_fmsg_string_pair_put(fmsg, "Status", "unhealthy");
 	else
-		err = devlink_fmsg_string_pair_put(fmsg, "Status", "healthy");
-
+		devlink_fmsg_string_pair_put(fmsg, "Status", "healthy");
 	mutex_unlock(&pdsc->config_lock);
 
-	if (err)
-		return err;
+	devlink_fmsg_u32_pair_put(fmsg, "State",
+				  pdsc->fw_status & ~PDS_CORE_FW_STS_F_GENERATION);
+	devlink_fmsg_u32_pair_put(fmsg, "Generation", pdsc->fw_generation >> 4);
+	devlink_fmsg_u32_pair_put(fmsg, "Recoveries", pdsc->fw_recoveries);
 
-	err = devlink_fmsg_u32_pair_put(fmsg, "State",
-					pdsc->fw_status &
-						~PDS_CORE_FW_STS_F_GENERATION);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u32_pair_put(fmsg, "Generation",
-					pdsc->fw_generation >> 4);
-	if (err)
-		return err;
-
-	return devlink_fmsg_u32_pair_put(fmsg, "Recoveries",
-					 pdsc->fw_recoveries);
+	return 0;
 }

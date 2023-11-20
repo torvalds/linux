@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <linux/xz.h>
-#include <linux/module.h>
 #include "compress.h"
 
 struct z_erofs_lzma {
@@ -72,10 +71,10 @@ int __init z_erofs_lzma_init(void)
 }
 
 int z_erofs_load_lzma_config(struct super_block *sb,
-			     struct erofs_super_block *dsb,
-			     struct z_erofs_lzma_cfgs *lzma, int size)
+			struct erofs_super_block *dsb, void *data, int size)
 {
 	static DEFINE_MUTEX(lzma_resize_mutex);
+	struct z_erofs_lzma_cfgs *lzma = data;
 	unsigned int dict_size, i;
 	struct z_erofs_lzma *strm, *head = NULL;
 	int err;
@@ -95,8 +94,6 @@ int z_erofs_load_lzma_config(struct super_block *sb,
 			  dict_size);
 		return -EINVAL;
 	}
-
-	erofs_info(sb, "EXPERIMENTAL MicroLZMA in use. Use at your own risk!");
 
 	/* in case 2 z_erofs_load_lzma_config() race to avoid deadlock */
 	mutex_lock(&lzma_resize_mutex);

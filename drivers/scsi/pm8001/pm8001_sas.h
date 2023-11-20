@@ -83,10 +83,7 @@ do {									\
 		pm8001_info(HBA, fmt, ##__VA_ARGS__);			\
 } while (0)
 
-#define PM8001_USE_TASKLET
-#define PM8001_USE_MSIX
-#define PM8001_READ_VPD
-
+extern bool pm8001_use_msix;
 
 #define IS_SPCV_12G(dev)	((dev->device == 0X8074)		\
 				|| (dev->device == 0X8076)		\
@@ -520,14 +517,12 @@ struct pm8001_hba_info {
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
 	u32			ccb_count;
-#ifdef PM8001_USE_MSIX
+
+	bool			use_msix;
 	int			number_of_intr;/*will be used in remove()*/
 	char			intr_drvname[PM8001_MAX_MSIX_VEC]
 				[PM8001_NAME_LENGTH+1+3+1];
-#endif
-#ifdef PM8001_USE_TASKLET
 	struct tasklet_struct	tasklet[PM8001_MAX_MSIX_VEC];
-#endif
 	u32			logging_level;
 	u32			link_rate;
 	u32			fw_status;

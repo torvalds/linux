@@ -569,7 +569,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 	if ((termios->c_cflag & CREAD) == 0)
 		port->read_status_mask &= ~BD_SC_EMPTY;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (IS_SMC(pinfo)) {
 		unsigned int bits = tty_get_frame_size(termios->c_cflag);
@@ -609,7 +609,7 @@ static void cpm_uart_set_termios(struct uart_port *port,
 		clk_set_rate(pinfo->clk, baud);
 	else
 		cpm_setbrg(pinfo->brg - 1, baud);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *cpm_uart_type(struct uart_port *port)
@@ -1386,9 +1386,9 @@ static void cpm_uart_console_write(struct console *co, const char *s,
 		cpm_uart_early_write(pinfo, s, count, true);
 		local_irq_restore(flags);
 	} else {
-		spin_lock_irqsave(&pinfo->port.lock, flags);
+		uart_port_lock_irqsave(&pinfo->port, &flags);
 		cpm_uart_early_write(pinfo, s, count, true);
-		spin_unlock_irqrestore(&pinfo->port.lock, flags);
+		uart_port_unlock_irqrestore(&pinfo->port, flags);
 	}
 }
 

@@ -48,9 +48,9 @@ struct mei_me_client *mei_me_cl_get(struct mei_me_client *me_cl)
 /**
  * mei_me_cl_release - free me client
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @ref: me_client refcount
+ *
+ * Locking: called under "dev->device_lock" lock
  */
 static void mei_me_cl_release(struct kref *ref)
 {
@@ -63,9 +63,9 @@ static void mei_me_cl_release(struct kref *ref)
 /**
  * mei_me_cl_put - decrease me client refcount and free client if necessary
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @me_cl: me client
+ *
+ * Locking: called under "dev->device_lock" lock
  */
 void mei_me_cl_put(struct mei_me_client *me_cl)
 {
@@ -329,10 +329,10 @@ void mei_io_cb_free(struct mei_cl_cb *cb)
 /**
  * mei_tx_cb_enqueue - queue tx callback
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @cb: mei callback struct
  * @head: an instance of list to queue on
+ *
+ * Locking: called under "dev->device_lock" lock
  */
 static inline void mei_tx_cb_enqueue(struct mei_cl_cb *cb,
 				     struct list_head *head)
@@ -344,9 +344,9 @@ static inline void mei_tx_cb_enqueue(struct mei_cl_cb *cb,
 /**
  * mei_tx_cb_dequeue - dequeue tx callback
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @cb: mei callback struct to dequeue and free
+ *
+ * Locking: called under "dev->device_lock" lock
  */
 static inline void mei_tx_cb_dequeue(struct mei_cl_cb *cb)
 {
@@ -359,10 +359,10 @@ static inline void mei_tx_cb_dequeue(struct mei_cl_cb *cb)
 /**
  * mei_cl_set_read_by_fp - set pending_read flag to vtag struct for given fp
  *
- * Locking: called under "dev->device_lock" lock
- *
  * @cl: mei client
  * @fp: pointer to file structure
+ *
+ * Locking: called under "dev->device_lock" lock
  */
 static void mei_cl_set_read_by_fp(const struct mei_cl *cl,
 				  const struct file *fp)

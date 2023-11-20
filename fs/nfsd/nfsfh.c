@@ -771,7 +771,7 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
  * assume that the new change attr is always logged to stable storage in some
  * fashion before the results can be seen.
  */
-u64 nfsd4_change_attribute(struct kstat *stat, struct inode *inode)
+u64 nfsd4_change_attribute(const struct kstat *stat, const struct inode *inode)
 {
 	u64 chattr;
 

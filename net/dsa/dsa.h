@@ -21,16 +21,16 @@ void dsa_lag_map(struct dsa_switch_tree *dst, struct dsa_lag *lag);
 void dsa_lag_unmap(struct dsa_switch_tree *dst, struct dsa_lag *lag);
 struct dsa_lag *dsa_tree_lag_find(struct dsa_switch_tree *dst,
 				  const struct net_device *lag_dev);
-struct net_device *dsa_tree_find_first_master(struct dsa_switch_tree *dst);
+struct net_device *dsa_tree_find_first_conduit(struct dsa_switch_tree *dst);
 int dsa_tree_change_tag_proto(struct dsa_switch_tree *dst,
 			      const struct dsa_device_ops *tag_ops,
 			      const struct dsa_device_ops *old_tag_ops);
-void dsa_tree_master_admin_state_change(struct dsa_switch_tree *dst,
-					struct net_device *master,
+void dsa_tree_conduit_admin_state_change(struct dsa_switch_tree *dst,
+					 struct net_device *conduit,
+					 bool up);
+void dsa_tree_conduit_oper_state_change(struct dsa_switch_tree *dst,
+					struct net_device *conduit,
 					bool up);
-void dsa_tree_master_oper_state_change(struct dsa_switch_tree *dst,
-				       struct net_device *master,
-				       bool up);
 unsigned int dsa_bridge_num_get(const struct net_device *bridge_dev, int max);
 void dsa_bridge_num_put(const struct net_device *bridge_dev,
 			unsigned int bridge_num);

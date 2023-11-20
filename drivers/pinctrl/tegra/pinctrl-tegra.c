@@ -120,7 +120,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		/* EINVAL=missing, which is fine since it's optional */
 		if (ret != -EINVAL)
 			dev_err(dev,
-				"could not parse property nvidia,function\n");
+				"%pOF: could not parse property nvidia,function\n", np);
 		function = NULL;
 	}
 
@@ -134,8 +134,8 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 				goto exit;
 		/* EINVAL=missing, which is fine since it's optional */
 		} else if (ret != -EINVAL) {
-			dev_err(dev, "could not parse property %s\n",
-				cfg_params[i].property);
+			dev_err(dev, "%pOF: could not parse property %s\n",
+				np, cfg_params[i].property);
 		}
 	}
 
@@ -146,7 +146,7 @@ static int tegra_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		reserve++;
 	ret = of_property_count_strings(np, "nvidia,pins");
 	if (ret < 0) {
-		dev_err(dev, "could not parse property nvidia,pins\n");
+		dev_err(dev, "%pOF: could not parse property nvidia,pins\n", np);
 		goto exit;
 	}
 	reserve *= ret;

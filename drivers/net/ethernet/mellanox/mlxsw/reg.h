@@ -38,18 +38,18 @@ static const struct mlxsw_reg_info mlxsw_reg_##_name = {		\
 
 MLXSW_REG_DEFINE(sgcr, MLXSW_REG_SGCR_ID, MLXSW_REG_SGCR_LEN);
 
-/* reg_sgcr_llb
- * Link Local Broadcast (Default=0)
- * When set, all Link Local packets (224.0.0.X) will be treated as broadcast
- * packets and ignore the IGMP snooping entries.
+/* reg_sgcr_lag_lookup_pgt_base
+ * Base address used for lookup in PGT table
+ * Supported when CONFIG_PROFILE.lag_mode = 1
+ * Note: when IGCR.ddd_lag_mode=0, the address shall be aligned to 8 entries.
  * Access: RW
  */
-MLXSW_ITEM32(reg, sgcr, llb, 0x04, 0, 1);
+MLXSW_ITEM32(reg, sgcr, lag_lookup_pgt_base, 0x0C, 0, 16);
 
-static inline void mlxsw_reg_sgcr_pack(char *payload, bool llb)
+static inline void mlxsw_reg_sgcr_pack(char *payload, u16 lag_lookup_pgt_base)
 {
 	MLXSW_REG_ZERO(sgcr, payload);
-	mlxsw_reg_sgcr_llb_set(payload, !!llb);
+	mlxsw_reg_sgcr_lag_lookup_pgt_base_set(payload, lag_lookup_pgt_base);
 }
 
 /* SPAD - Switch Physical Address Register
@@ -9551,7 +9551,7 @@ MLXSW_ITEM_BIT_ARRAY(reg, mtwe, sensor_warning, 0x0, 0x10, 1);
 #define MLXSW_REG_MTBR_ID 0x900F
 #define MLXSW_REG_MTBR_BASE_LEN 0x10 /* base length, without records */
 #define MLXSW_REG_MTBR_REC_LEN 0x04 /* record length */
-#define MLXSW_REG_MTBR_REC_MAX_COUNT 47 /* firmware limitation */
+#define MLXSW_REG_MTBR_REC_MAX_COUNT 1
 #define MLXSW_REG_MTBR_LEN (MLXSW_REG_MTBR_BASE_LEN +	\
 			    MLXSW_REG_MTBR_REC_LEN *	\
 			    MLXSW_REG_MTBR_REC_MAX_COUNT)
@@ -9597,12 +9597,12 @@ MLXSW_ITEM32_INDEXED(reg, mtbr, rec_temp, MLXSW_REG_MTBR_BASE_LEN, 0, 16,
 		     MLXSW_REG_MTBR_REC_LEN, 0x00, false);
 
 static inline void mlxsw_reg_mtbr_pack(char *payload, u8 slot_index,
-				       u16 base_sensor_index, u8 num_rec)
+				       u16 base_sensor_index)
 {
 	MLXSW_REG_ZERO(mtbr, payload);
 	mlxsw_reg_mtbr_slot_index_set(payload, slot_index);
 	mlxsw_reg_mtbr_base_sensor_index_set(payload, base_sensor_index);
-	mlxsw_reg_mtbr_num_rec_set(payload, num_rec);
+	mlxsw_reg_mtbr_num_rec_set(payload, 1);
 }
 
 /* Error codes from temperatute reading */

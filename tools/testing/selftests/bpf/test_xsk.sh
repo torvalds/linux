@@ -73,17 +73,33 @@
 #
 # Run test suite for physical device in loopback mode
 #   sudo ./test_xsk.sh -i IFACE
+#
+# Run test suite in a specific mode only [skb,drv,zc]
+#   sudo ./test_xsk.sh -m MODE
+#
+# List available tests
+#   ./test_xsk.sh -l
+#
+# Run a specific test from the test suite
+#   sudo ./test_xsk.sh -t TEST_NAME
+#
+# Display the available command line options
+#   ./test_xsk.sh -h
 
 . xsk_prereqs.sh
 
 ETH=""
 
-while getopts "vi:d" flag
+while getopts "vi:dm:lt:h" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
 		d) debug=1;;
 		i) ETH=${OPTARG};;
+		m) MODE=${OPTARG};;
+		l) list=1;;
+		t) TEST=${OPTARG};;
+		h) help=1;;
 	esac
 done
 
@@ -131,6 +147,16 @@ setup_vethPairs() {
 	ip link set ${VETH0} up
 }
 
+if [[ $list -eq 1 ]]; then
+        ./${XSKOBJ} -l
+        exit
+fi
+
+if [[ $help -eq 1 ]]; then
+	./${XSKOBJ}
+        exit
+fi
+
 if [ ! -z $ETH ]; then
 	VETH0=${ETH}
 	VETH1=${ETH}
@@ -153,6 +179,14 @@ if [[ $verbose -eq 1 ]]; then
 	ARGS+="-v "
 fi
 
+if [ -n "$MODE" ]; then
+	ARGS+="-m ${MODE} "
+fi
+
+if [ -n "$TEST" ]; then
+	ARGS+="-t ${TEST} "
+fi
+
 retval=$?
 test_status $retval "${TEST_NAME}"
 
@@ -173,6 +207,10 @@ if [ -z $ETH ]; then
 	cleanup_exit ${VETH0} ${VETH1}
 else
 	cleanup_iface ${ETH} ${MTU}
+fi
+
+if [[ $list -eq 1 ]]; then
+    exit
 fi
 
 TEST_NAME="XSK_SELFTESTS_${VETH0}_BUSY_POLL"

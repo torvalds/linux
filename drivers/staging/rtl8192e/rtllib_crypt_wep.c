@@ -35,7 +35,7 @@ static void *prism2_wep_init(int keyidx)
 		return NULL;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
-	if (priv == NULL)
+	if (!priv)
 		return NULL;
 	priv->key_idx = keyidx;
 

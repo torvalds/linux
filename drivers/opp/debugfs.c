@@ -56,7 +56,7 @@ static void opp_debug_create_bw(struct dev_pm_opp *opp,
 				struct dentry *pdentry)
 {
 	struct dentry *d;
-	char name[11];
+	char name[20];
 	int i;
 
 	for (i = 0; i < opp_table->path_count; i++) {

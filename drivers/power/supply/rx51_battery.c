@@ -246,7 +246,7 @@ error:
 	return ret;
 }
 
-static int rx51_battery_remove(struct platform_device *pdev)
+static void rx51_battery_remove(struct platform_device *pdev)
 {
 	struct rx51_device_info *di = platform_get_drvdata(pdev);
 
@@ -255,8 +255,6 @@ static int rx51_battery_remove(struct platform_device *pdev)
 	iio_channel_release(di->channel_vbat);
 	iio_channel_release(di->channel_bsi);
 	iio_channel_release(di->channel_temp);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -269,7 +267,7 @@ MODULE_DEVICE_TABLE(of, n900_battery_of_match);
 
 static struct platform_driver rx51_battery_driver = {
 	.probe = rx51_battery_probe,
-	.remove = rx51_battery_remove,
+	.remove_new = rx51_battery_remove,
 	.driver = {
 		.name = "rx51-battery",
 		.of_match_table = of_match_ptr(n900_battery_of_match),

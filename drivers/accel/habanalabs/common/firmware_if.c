@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "../include/common/hl_boot_if.h"
+#include <linux/habanalabs/hl_boot_if.h>
 
 #include <linux/firmware.h>
 #include <linux/crc32.h>
@@ -721,6 +721,11 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 
 	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
+		err_exists = true;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL) {
+		dev_err(hdev->dev, "Device boot error - Failed to set threshold for temperature sensor\n");
 		err_exists = true;
 	}
 
@@ -1459,6 +1464,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		dev_err(hdev->dev,
 			"Device boot progress - Stuck in preboot after security initialization\n");
 		break;
+	case CPU_BOOT_STATUS_FW_SHUTDOWN_PREP:
+		dev_err(hdev->dev,
+			"Device boot progress - Stuck in preparation for shutdown\n");
+		break;
 	default:
 		dev_err(hdev->dev,
 			"Device boot progress - Invalid or unexpected status code %d\n", status);
@@ -1469,8 +1478,9 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
 	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
-	u32 status;
-	int rc;
+	u32 status = 0, timeout;
+	int rc, tries = 1;
+	bool preboot_still_runs;
 
 	/* Need to check two possible scenarios:
 	 *
@@ -1480,6 +1490,8 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 	 * All other status values - for older firmwares where the uboot was
 	 * loaded from the FLASH
 	 */
+	timeout = pre_fw_load->wait_for_preboot_timeout;
+retry:
 	rc = hl_poll_timeout(
 		hdev,
 		pre_fw_load->cpu_boot_status_reg,
@@ -1488,7 +1500,24 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		hdev->fw_poll_interval_usec,
-		pre_fw_load->wait_for_preboot_timeout);
+		timeout);
+	/*
+	 * if F/W reports "security-ready" it means preboot might take longer.
+	 * If the field 'wait_for_preboot_extended_timeout' is non 0 we wait again
+	 * with that timeout
+	 */
+	preboot_still_runs = (status == CPU_BOOT_STATUS_SECURITY_READY ||
+				status == CPU_BOOT_STATUS_IN_PREBOOT ||
+				status == CPU_BOOT_STATUS_FW_SHUTDOWN_PREP ||
+				status == CPU_BOOT_STATUS_DRAM_RDY);
+
+	if (rc && tries && preboot_still_runs) {
+		tries--;
+		if (pre_fw_load->wait_for_preboot_extended_timeout) {
+			timeout = pre_fw_load->wait_for_preboot_extended_timeout;
+			goto retry;
+		}
+	}
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
@@ -2743,7 +2772,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
 		struct lkd_fw_binning_info *binning_info;
 
-		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader, 0);
+		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader,
+							sizeof(struct lkd_msg_comms));
 		if (rc)
 			goto protocol_err;
 
@@ -2775,6 +2805,11 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 				"Read binning masks: tpc: 0x%llx, dram: 0x%llx, edma: 0x%x, dec: 0x%x, rot:0x%x\n",
 				hdev->tpc_binning, hdev->dram_binning, hdev->edma_binning,
 				hdev->decoder_binning, hdev->rotator_binning);
+		}
+
+		if (hdev->asic_prop.support_dynamic_resereved_fw_size) {
+			hdev->asic_prop.reserved_fw_mem_size =
+				le32_to_cpu(fw_loader->dynamic_loader.comm_desc.rsvd_mem_size_mb);
 		}
 
 		return 0;

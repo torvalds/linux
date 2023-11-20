@@ -90,11 +90,6 @@
     "BriefDescription": "The L1 cache was reloaded with a line that fulfills a demand miss request. Counted at reload time, before finish."
   },
   {
-    "EventCode": "0x300FE",
-    "EventName": "PM_DATA_FROM_L3MISS",
-    "BriefDescription": "The processor's data cache was reloaded from a source other than the local core's L1, L2, or L3 due to a demand miss."
-  },
-  {
     "EventCode": "0x40012",
     "EventName": "PM_L1_ICACHE_RELOADED_ALL",
     "BriefDescription": "Counts all instruction cache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
@@ -113,10 +108,5 @@
     "EventCode": "0x400F0",
     "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
     "BriefDescription": "Load missed L1, counted at finish time."
-  },
-  {
-    "EventCode": "0x400FE",
-    "EventName": "PM_DATA_FROM_MEMORY",
-    "BriefDescription": "The processor's data cache was reloaded from local, remote, or distant memory due to a demand miss."
   }
 ]

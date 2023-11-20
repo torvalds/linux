@@ -9,8 +9,12 @@
  * Enable reference count checking implicitly with leak checking, which is
  * integrated into address sanitizer.
  */
-#if defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
+#if defined(__SANITIZE_ADDRESS__) || defined(LEAK_SANITIZER) || defined(ADDRESS_SANITIZER)
 #define REFCNT_CHECKING 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(leak_sanitizer)
+#define REFCNT_CHECKING 1
+#endif
 #endif
 
 /*
@@ -49,6 +53,9 @@
 
 /* A put operation removing the indirection layer. */
 #define RC_CHK_PUT(object) {}
+
+/* Pointer equality when the indirection may or may not be there. */
+#define RC_CHK_EQUAL(object1, object2) (object1 == object2)
 
 #else
 
@@ -96,6 +103,10 @@
 			free(object);		\
 		}				\
 	} while(0)
+
+/* Pointer equality when the indirection may or may not be there. */
+#define RC_CHK_EQUAL(object1, object2) (object1 == object2 || \
+		(object1 && object2 && object1->orig == object2->orig))
 
 #endif
 

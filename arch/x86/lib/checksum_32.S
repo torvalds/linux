@@ -21,10 +21,10 @@
  *                   converted to pure assembler
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/errno.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 #include <asm/nospec-branch.h>
 
 /*

@@ -59,7 +59,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 		 * This code mirrors kvm_write_wall_clock() except that it writes
 		 * directly through the pfn cache and doesn't mark the page dirty.
 		 */
-		wall_nsec = ktime_get_real_ns() - get_kvmclock_ns(kvm);
+		wall_nsec = kvm_get_wall_clock_epoch(kvm);
 
 		/* It could be invalid again already, so we need to check */
 		read_lock_irq(&gpc->lock);
@@ -98,7 +98,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	wc_version = wc->version = (wc->version + 1) | 1;
 	smp_wmb();
 
-	wc->nsec = do_div(wall_nsec,  1000000000);
+	wc->nsec = do_div(wall_nsec, NSEC_PER_SEC);
 	wc->sec = (u32)wall_nsec;
 	*wc_sec_hi = wall_nsec >> 32;
 	smp_wmb();
@@ -134,8 +134,22 @@ static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
 {
 	struct kvm_vcpu *vcpu = container_of(timer, struct kvm_vcpu,
 					     arch.xen.timer);
+	struct kvm_xen_evtchn e;
+	int rc;
+
 	if (atomic_read(&vcpu->arch.xen.timer_pending))
 		return HRTIMER_NORESTART;
+
+	e.vcpu_id = vcpu->vcpu_id;
+	e.vcpu_idx = vcpu->vcpu_idx;
+	e.port = vcpu->arch.xen.timer_virq;
+	e.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
+
+	rc = kvm_xen_set_evtchn_fast(&e, vcpu->kvm);
+	if (rc != -EWOULDBLOCK) {
+		vcpu->arch.xen.timer_expires = 0;
+		return HRTIMER_NORESTART;
+	}
 
 	atomic_inc(&vcpu->arch.xen.timer_pending);
 	kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
@@ -146,6 +160,14 @@ static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
 
 static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs, s64 delta_ns)
 {
+	/*
+	 * Avoid races with the old timer firing. Checking timer_expires
+	 * to avoid calling hrtimer_cancel() will only have false positives
+	 * so is fine.
+	 */
+	if (vcpu->arch.xen.timer_expires)
+		hrtimer_cancel(&vcpu->arch.xen.timer);
+
 	atomic_set(&vcpu->arch.xen.timer_pending, 0);
 	vcpu->arch.xen.timer_expires = guest_abs;
 
@@ -1019,9 +1041,36 @@ int kvm_xen_vcpu_get_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_TIMER:
+		/*
+		 * Ensure a consistent snapshot of state is captured, with a
+		 * timer either being pending, or the event channel delivered
+		 * to the corresponding bit in the shared_info. Not still
+		 * lurking in the timer_pending flag for deferred delivery.
+		 * Purely as an optimisation, if the timer_expires field is
+		 * zero, that means the timer isn't active (or even in the
+		 * timer_pending flag) and there is no need to cancel it.
+		 */
+		if (vcpu->arch.xen.timer_expires) {
+			hrtimer_cancel(&vcpu->arch.xen.timer);
+			kvm_xen_inject_timer_irqs(vcpu);
+		}
+
 		data->u.timer.port = vcpu->arch.xen.timer_virq;
 		data->u.timer.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
 		data->u.timer.expires_ns = vcpu->arch.xen.timer_expires;
+
+		/*
+		 * The hrtimer may trigger and raise the IRQ immediately,
+		 * while the returned state causes it to be set up and
+		 * raised again on the destination system after migration.
+		 * That's fine, as the guest won't even have had a chance
+		 * to run and handle the interrupt. Asserting an already
+		 * pending event channel is idempotent.
+		 */
+		if (vcpu->arch.xen.timer_expires)
+			hrtimer_start_expires(&vcpu->arch.xen.timer,
+					      HRTIMER_MODE_ABS_HARD);
+
 		r = 0;
 		break;
 
@@ -1374,12 +1423,8 @@ static bool kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, bool longmode, int cmd,
 			return true;
 		}
 
+		/* A delta <= 0 results in an immediate callback, which is what we want */
 		delta = oneshot.timeout_abs_ns - get_kvmclock_ns(vcpu->kvm);
-		if ((oneshot.flags & VCPU_SSHOTTMR_future) && delta < 0) {
-			*r = -ETIME;
-			return true;
-		}
-
 		kvm_xen_start_timer(vcpu, oneshot.timeout_abs_ns, delta);
 		*r = 0;
 		return true;

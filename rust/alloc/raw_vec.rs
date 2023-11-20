@@ -471,16 +471,26 @@ impl<T, A: Allocator> RawVec<T, A> {
         let (ptr, layout) = if let Some(mem) = self.current_memory() { mem } else { return Ok(()) };
         // See current_memory() why this assert is here
         let _: () = const { assert!(mem::size_of::<T>() % mem::align_of::<T>() == 0) };
-        let ptr = unsafe {
-            // `Layout::array` cannot overflow here because it would have
-            // overflowed earlier when capacity was larger.
-            let new_size = mem::size_of::<T>().unchecked_mul(cap);
-            let new_layout = Layout::from_size_align_unchecked(new_size, layout.align());
-            self.alloc
-                .shrink(ptr, layout, new_layout)
-                .map_err(|_| AllocError { layout: new_layout, non_exhaustive: () })?
-        };
-        self.set_ptr_and_cap(ptr, cap);
+
+        // If shrinking to 0, deallocate the buffer. We don't reach this point
+        // for the T::IS_ZST case since current_memory() will have returned
+        // None.
+        if cap == 0 {
+            unsafe { self.alloc.deallocate(ptr, layout) };
+            self.ptr = Unique::dangling();
+            self.cap = 0;
+        } else {
+            let ptr = unsafe {
+                // `Layout::array` cannot overflow here because it would have
+                // overflowed earlier when capacity was larger.
+                let new_size = mem::size_of::<T>().unchecked_mul(cap);
+                let new_layout = Layout::from_size_align_unchecked(new_size, layout.align());
+                self.alloc
+                    .shrink(ptr, layout, new_layout)
+                    .map_err(|_| AllocError { layout: new_layout, non_exhaustive: () })?
+            };
+            self.set_ptr_and_cap(ptr, cap);
+        }
         Ok(())
     }
 }

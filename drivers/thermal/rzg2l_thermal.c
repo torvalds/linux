@@ -150,14 +150,12 @@ static void rzg2l_thermal_reset_assert_pm_disable_put(struct platform_device *pd
 	reset_control_assert(priv->rstc);
 }
 
-static int rzg2l_thermal_remove(struct platform_device *pdev)
+static void rzg2l_thermal_remove(struct platform_device *pdev)
 {
 	struct rzg2l_thermal_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	thermal_remove_hwmon_sysfs(priv->zone);
 	rzg2l_thermal_reset_assert_pm_disable_put(pdev);
-
-	return 0;
 }
 
 static int rzg2l_thermal_probe(struct platform_device *pdev)
@@ -242,7 +240,7 @@ static struct platform_driver rzg2l_thermal_driver = {
 		.of_match_table = rzg2l_thermal_dt_ids,
 	},
 	.probe = rzg2l_thermal_probe,
-	.remove = rzg2l_thermal_remove,
+	.remove_new = rzg2l_thermal_remove,
 };
 module_platform_driver(rzg2l_thermal_driver);
 

@@ -41,11 +41,8 @@ static int wlcore_boot_parse_fw_ver(struct wl1271 *wl,
 {
 	int ret;
 
-	strncpy(wl->chip.fw_ver_str, static_data->fw_version,
+	strscpy(wl->chip.fw_ver_str, static_data->fw_version,
 		sizeof(wl->chip.fw_ver_str));
-
-	/* make sure the string is NULL-terminated */
-	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';
 
 	ret = sscanf(wl->chip.fw_ver_str + 4, "%u.%u.%u.%u.%u",
 		     &wl->chip.fw_ver[0], &wl->chip.fw_ver[1],

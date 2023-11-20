@@ -332,6 +332,8 @@ static void ngbe_disable_device(struct wx *wx)
 
 		wr32(wx, WX_PX_TR_CFG(reg_idx), WX_PX_TR_CFG_SWFLSH);
 	}
+
+	wx_update_stats(wx);
 }
 
 static void ngbe_down(struct wx *wx)
@@ -676,11 +678,6 @@ static int ngbe_probe(struct pci_dev *pdev,
 		goto err_register;
 
 	pci_set_drvdata(pdev, wx);
-
-	netif_info(wx, probe, netdev,
-		   "PHY: %s, PBA No: Wang Xun GbE Family Controller\n",
-		   wx->mac_type == em_mac_type_mdi ? "Internal" : "External");
-	netif_info(wx, probe, netdev, "%pM\n", netdev->dev_addr);
 
 	return 0;
 

@@ -1084,19 +1084,17 @@ static int madera_pin_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int madera_pin_remove(struct platform_device *pdev)
+static void madera_pin_remove(struct platform_device *pdev)
 {
 	struct madera_pin_private *priv = platform_get_drvdata(pdev);
 
 	if (priv->madera->pdata.gpio_configs)
 		pinctrl_unregister_mappings(priv->madera->pdata.gpio_configs);
-
-	return 0;
 }
 
 static struct platform_driver madera_pin_driver = {
 	.probe = madera_pin_probe,
-	.remove = madera_pin_remove,
+	.remove_new = madera_pin_remove,
 	.driver = {
 		.name = "madera-pinctrl",
 	},

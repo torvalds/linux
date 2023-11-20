@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * OpenCores tiny SPI master driver
+ * OpenCores tiny SPI host driver
  *
  * https://opencores.org/project,tiny_spi
  *
@@ -53,7 +53,7 @@ struct tiny_spi {
 
 static inline struct tiny_spi *tiny_spi_to_hw(struct spi_device *sdev)
 {
-	return spi_master_get_devdata(sdev->master);
+	return spi_controller_get_devdata(sdev->controller);
 }
 
 static unsigned int tiny_spi_baud(struct spi_device *spi, unsigned int hz)
@@ -212,24 +212,24 @@ static int tiny_spi_probe(struct platform_device *pdev)
 {
 	struct tiny_spi_platform_data *platp = dev_get_platdata(&pdev->dev);
 	struct tiny_spi *hw;
-	struct spi_master *master;
+	struct spi_controller *host;
 	int err = -ENODEV;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct tiny_spi));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(struct tiny_spi));
+	if (!host)
 		return err;
 
-	/* setup the master state. */
-	master->bus_num = pdev->id;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-	master->setup = tiny_spi_setup;
-	master->use_gpio_descriptors = true;
+	/* setup the host state. */
+	host->bus_num = pdev->id;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	host->setup = tiny_spi_setup;
+	host->use_gpio_descriptors = true;
 
-	hw = spi_master_get_devdata(master);
+	hw = spi_controller_get_devdata(host);
 	platform_set_drvdata(pdev, hw);
 
 	/* setup the state for the bitbang driver */
-	hw->bitbang.master = master;
+	hw->bitbang.master = host;
 	hw->bitbang.setup_transfer = tiny_spi_setup_transfer;
 	hw->bitbang.txrx_bufs = tiny_spi_txrx_bufs;
 
@@ -267,17 +267,17 @@ static int tiny_spi_probe(struct platform_device *pdev)
 	return 0;
 
 exit:
-	spi_master_put(master);
+	spi_controller_put(host);
 	return err;
 }
 
 static void tiny_spi_remove(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
-	struct spi_master *master = hw->bitbang.master;
+	struct spi_controller *host = hw->bitbang.master;
 
 	spi_bitbang_stop(&hw->bitbang);
-	spi_master_put(master);
+	spi_controller_put(host);
 }
 
 #ifdef CONFIG_OF

@@ -936,13 +936,11 @@ unregister_gpiochip:
 	return ret;
 }
 
-static int pm8xxx_mpp_remove(struct platform_device *pdev)
+static void pm8xxx_mpp_remove(struct platform_device *pdev)
 {
 	struct pm8xxx_mpp *pctrl = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&pctrl->chip);
-
-	return 0;
 }
 
 static struct platform_driver pm8xxx_mpp_driver = {
@@ -951,7 +949,7 @@ static struct platform_driver pm8xxx_mpp_driver = {
 		.of_match_table = pm8xxx_mpp_of_match,
 	},
 	.probe = pm8xxx_mpp_probe,
-	.remove = pm8xxx_mpp_remove,
+	.remove_new = pm8xxx_mpp_remove,
 };
 
 module_platform_driver(pm8xxx_mpp_driver);

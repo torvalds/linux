@@ -15,10 +15,10 @@
 #include "dsa.h"
 #include "netlink.h"
 #include "port.h"
-#include "slave.h"
 #include "switch.h"
 #include "tag_8021q.h"
 #include "trace.h"
+#include "user.h"
 
 static unsigned int dsa_switch_fastest_ageing_time(struct dsa_switch *ds,
 						   unsigned int ageing_time)
@@ -894,12 +894,12 @@ static int dsa_switch_change_tag_proto(struct dsa_switch *ds,
 	 * bits that depend on the tagger, such as the MTU.
 	 */
 	dsa_switch_for_each_user_port(dp, ds) {
-		struct net_device *slave = dp->slave;
+		struct net_device *user = dp->user;
 
-		dsa_slave_setup_tagger(slave);
+		dsa_user_setup_tagger(user);
 
 		/* rtnl_mutex is held in dsa_tree_change_tag_proto */
-		dsa_slave_change_mtu(slave, slave->mtu);
+		dsa_user_change_mtu(user, user->mtu);
 	}
 
 	return 0;
@@ -960,13 +960,13 @@ dsa_switch_disconnect_tag_proto(struct dsa_switch *ds,
 }
 
 static int
-dsa_switch_master_state_change(struct dsa_switch *ds,
-			       struct dsa_notifier_master_state_info *info)
+dsa_switch_conduit_state_change(struct dsa_switch *ds,
+				struct dsa_notifier_conduit_state_info *info)
 {
-	if (!ds->ops->master_state_change)
+	if (!ds->ops->conduit_state_change)
 		return 0;
 
-	ds->ops->master_state_change(ds, info->master, info->operational);
+	ds->ops->conduit_state_change(ds, info->conduit, info->operational);
 
 	return 0;
 }
@@ -1056,8 +1056,8 @@ static int dsa_switch_event(struct notifier_block *nb,
 	case DSA_NOTIFIER_TAG_8021Q_VLAN_DEL:
 		err = dsa_switch_tag_8021q_vlan_del(ds, info);
 		break;
-	case DSA_NOTIFIER_MASTER_STATE_CHANGE:
-		err = dsa_switch_master_state_change(ds, info);
+	case DSA_NOTIFIER_CONDUIT_STATE_CHANGE:
+		err = dsa_switch_conduit_state_change(ds, info);
 		break;
 	default:
 		err = -EOPNOTSUPP;

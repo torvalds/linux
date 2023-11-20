@@ -37,7 +37,7 @@ DESCRIPTION
 	**bpftool net { show | list }** [ **dev** *NAME* ]
 		  List bpf program attachments in the kernel networking subsystem.
 
-		  Currently, device driver xdp attachments, tcx and old-style tc
+		  Currently, device driver xdp attachments, tcx, netkit and old-style tc
 		  classifier/action attachments, flow_dissector as well as netfilter
 		  attachments are implemented, i.e., for
 		  program types **BPF_PROG_TYPE_XDP**, **BPF_PROG_TYPE_SCHED_CLS**,
@@ -52,11 +52,11 @@ DESCRIPTION
 		  bpf programs, users should consult other tools, e.g., iproute2.
 
 		  The current output will start with all xdp program attachments, followed by
-		  all tcx, then tc class/qdisc bpf program attachments, then flow_dissector
-		  and finally netfilter programs. Both xdp programs and tcx/tc programs are
+		  all tcx, netkit, then tc class/qdisc bpf program attachments, then flow_dissector
+		  and finally netfilter programs. Both xdp programs and tcx/netkit/tc programs are
 		  ordered based on ifindex number. If multiple bpf programs attached
 		  to the same networking device through **tc**, the order will be first
-		  all bpf programs attached to tcx, then tc classes, then all bpf programs
+		  all bpf programs attached to tcx, netkit, then tc classes, then all bpf programs
 		  attached to non clsact qdiscs, and finally all bpf programs attached
 		  to root and clsact qdisc.
 

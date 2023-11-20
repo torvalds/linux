@@ -660,7 +660,7 @@ report_read_failure:
 	return -EINVAL;
 }
 
-static int qcom_smp2p_remove(struct platform_device *pdev)
+static void qcom_smp2p_remove(struct platform_device *pdev)
 {
 	struct qcom_smp2p *smp2p = platform_get_drvdata(pdev);
 	struct smp2p_entry *entry;
@@ -676,8 +676,6 @@ static int qcom_smp2p_remove(struct platform_device *pdev)
 	mbox_free_channel(smp2p->mbox_chan);
 
 	smp2p->out->valid_entries = 0;
-
-	return 0;
 }
 
 static const struct of_device_id qcom_smp2p_of_match[] = {
@@ -688,7 +686,7 @@ MODULE_DEVICE_TABLE(of, qcom_smp2p_of_match);
 
 static struct platform_driver qcom_smp2p_driver = {
 	.probe = qcom_smp2p_probe,
-	.remove = qcom_smp2p_remove,
+	.remove_new = qcom_smp2p_remove,
 	.driver  = {
 		.name  = "qcom_smp2p",
 		.of_match_table = qcom_smp2p_of_match,

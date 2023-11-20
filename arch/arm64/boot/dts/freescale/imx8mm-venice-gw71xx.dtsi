@@ -96,7 +96,6 @@
 		st,drdy-int-pin = <1>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-names = "INT1";
 	};
 };
 

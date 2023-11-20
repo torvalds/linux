@@ -290,7 +290,7 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	u16 new[8] = { 0 };
+	u16 new[8] = {};
 	int level;
 	int ret;
 	char tmp[32];

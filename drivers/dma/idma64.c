@@ -660,13 +660,11 @@ static int idma64_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int idma64_platform_remove(struct platform_device *pdev)
+static void idma64_platform_remove(struct platform_device *pdev)
 {
 	struct idma64_chip *chip = platform_get_drvdata(pdev);
 
 	idma64_remove(chip);
-
-	return 0;
 }
 
 static int __maybe_unused idma64_pm_suspend(struct device *dev)
@@ -691,7 +689,7 @@ static const struct dev_pm_ops idma64_dev_pm_ops = {
 
 static struct platform_driver idma64_platform_driver = {
 	.probe		= idma64_platform_probe,
-	.remove		= idma64_platform_remove,
+	.remove_new	= idma64_platform_remove,
 	.driver = {
 		.name	= LPSS_IDMA64_DRIVER_NAME,
 		.pm	= &idma64_dev_pm_ops,

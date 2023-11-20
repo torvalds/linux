@@ -14,7 +14,12 @@ description:
 
 properties:
   compatible:
-    const: qcom,sm8550-snps-eusb2-phy
+    oneOf:
+      - items:
+          - enum:
+              - qcom,sdx75-snps-eusb2-phy
+          - const: qcom,sm8550-snps-eusb2-phy
+      - const: qcom,sm8550-snps-eusb2-phy
 
   reg:
     maxItems: 1

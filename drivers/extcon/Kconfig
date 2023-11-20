@@ -191,4 +191,15 @@ config EXTCON_USBC_TUSB320
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.
 
+config EXTCON_RTK_TYPE_C
+	tristate "Realtek RTD SoC extcon Type-C Driver"
+	depends on ARCH_REALTEK || COMPILE_TEST
+	depends on TYPEC
+	select USB_COMMON
+	help
+	  Say Y here to enable extcon support for USB Type C cable detection
+	  when using the Realtek RTD SoC USB Type-C port.
+	  The DHC (Digital Home Hub) RTD series SoC contains a type c module.
+	  This driver will detect the status of the type-c port.
+
 endif

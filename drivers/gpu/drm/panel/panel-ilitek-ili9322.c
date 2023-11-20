@@ -325,11 +325,6 @@ static struct regmap_bus ili9322_regmap_bus = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
-static bool ili9322_volatile_reg(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
 static bool ili9322_writeable_reg(struct device *dev, unsigned int reg)
 {
 	/* Just register 0 is read-only */
@@ -342,8 +337,7 @@ static const struct regmap_config ili9322_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x44,
-	.cache_type = REGCACHE_RBTREE,
-	.volatile_reg = ili9322_volatile_reg,
+	.cache_type = REGCACHE_MAPLE,
 	.writeable_reg = ili9322_writeable_reg,
 };
 

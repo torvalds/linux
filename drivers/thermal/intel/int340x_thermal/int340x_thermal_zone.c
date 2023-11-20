@@ -67,6 +67,16 @@ static struct thermal_zone_device_ops int340x_thermal_zone_ops = {
 	.critical	= int340x_thermal_critical,
 };
 
+static inline void *int_to_trip_priv(int i)
+{
+	return (void *)(long)i;
+}
+
+static inline int trip_priv_to_int(const struct thermal_trip *trip)
+{
+	return (long)trip->priv;
+}
+
 static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 				      struct thermal_trip *zone_trips,
 				      int trip_cnt)
@@ -101,6 +111,7 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 			break;
 
 		zone_trips[trip_cnt].type = THERMAL_TRIP_ACTIVE;
+		zone_trips[trip_cnt].priv = int_to_trip_priv(i);
 		trip_cnt++;
 	}
 
@@ -212,45 +223,40 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone *int34x_zone)
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);
 
+static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
+{
+	struct acpi_device *zone_adev = arg;
+	int temp, err;
+
+	switch (trip->type) {
+	case THERMAL_TRIP_CRITICAL:
+		err = thermal_acpi_critical_trip_temp(zone_adev, &temp);
+		break;
+	case THERMAL_TRIP_HOT:
+		err = thermal_acpi_hot_trip_temp(zone_adev, &temp);
+		break;
+	case THERMAL_TRIP_PASSIVE:
+		err = thermal_acpi_passive_trip_temp(zone_adev, &temp);
+		break;
+	case THERMAL_TRIP_ACTIVE:
+		err = thermal_acpi_active_trip_temp(zone_adev,
+						    trip_priv_to_int(trip),
+						    &temp);
+		break;
+	default:
+		err = -ENODEV;
+	}
+	if (err)
+		temp = THERMAL_TEMP_INVALID;
+
+	trip->temperature = temp;
+	return 0;
+}
+
 void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 {
-	struct acpi_device *zone_adev = int34x_zone->adev;
-	struct thermal_trip *zone_trips = int34x_zone->trips;
-	int trip_cnt = int34x_zone->zone->num_trips;
-	int act_trip_nr = 0;
-	int i;
-
-	mutex_lock(&int34x_zone->zone->lock);
-
-	for (i = int34x_zone->aux_trip_nr; i < trip_cnt; i++) {
-		int temp, err;
-
-		switch (zone_trips[i].type) {
-		case THERMAL_TRIP_CRITICAL:
-			err = thermal_acpi_critical_trip_temp(zone_adev, &temp);
-			break;
-		case THERMAL_TRIP_HOT:
-			err = thermal_acpi_hot_trip_temp(zone_adev, &temp);
-			break;
-		case THERMAL_TRIP_PASSIVE:
-			err = thermal_acpi_passive_trip_temp(zone_adev, &temp);
-			break;
-		case THERMAL_TRIP_ACTIVE:
-			err = thermal_acpi_active_trip_temp(zone_adev, act_trip_nr++,
-							    &temp);
-			break;
-		default:
-			err = -ENODEV;
-		}
-		if (err) {
-			zone_trips[i].temperature = THERMAL_TEMP_INVALID;
-			continue;
-		}
-
-		zone_trips[i].temperature = temp;
-	}
-
-	mutex_unlock(&int34x_zone->zone->lock);
+	thermal_zone_for_each_trip(int34x_zone->zone, int340x_update_one_trip,
+				   int34x_zone->adev);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_update_trips);
 

@@ -16,14 +16,30 @@
 #include "mtk_wed_wo.h"
 #include "mtk_wed.h"
 
-static u32 wo_r32(struct mtk_wed_wo *wo, u32 reg)
+static struct mtk_wed_wo_memory_region mem_region[] = {
+	[MTK_WED_WO_REGION_EMI] = {
+		.name = "wo-emi",
+	},
+	[MTK_WED_WO_REGION_ILM] = {
+		.name = "wo-ilm",
+	},
+	[MTK_WED_WO_REGION_DATA] = {
+		.name = "wo-data",
+		.shared = true,
+	},
+	[MTK_WED_WO_REGION_BOOT] = {
+		.name = "wo-boot",
+	},
+};
+
+static u32 wo_r32(u32 reg)
 {
-	return readl(wo->boot.addr + reg);
+	return readl(mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
 
-static void wo_w32(struct mtk_wed_wo *wo, u32 reg, u32 val)
+static void wo_w32(u32 reg, u32 val)
 {
-	writel(val, wo->boot.addr + reg);
+	writel(val, mem_region[MTK_WED_WO_REGION_BOOT].addr + reg);
 }
 
 static struct sk_buff *
@@ -67,6 +83,9 @@ mtk_wed_update_rx_stats(struct mtk_wed_device *wed, struct sk_buff *skb)
 	u32 count = get_unaligned_le32(skb->data);
 	struct mtk_wed_wo_rx_stats *stats;
 	int i;
+
+	if (!wed->wlan.update_wo_rx_stats)
+		return;
 
 	if (count * sizeof(*stats) > skb->len - sizeof(u32))
 		return;
@@ -204,7 +223,7 @@ int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
 {
 	struct mtk_wed_wo *wo = dev->hw->wed_wo;
 
-	if (dev->hw->version == 1)
+	if (!mtk_wed_get_rx_capa(dev))
 		return 0;
 
 	if (WARN_ON(!wo))
@@ -215,19 +234,13 @@ int mtk_wed_mcu_msg_update(struct mtk_wed_device *dev, int id, void *data,
 }
 
 static int
-mtk_wed_get_memory_region(struct mtk_wed_wo *wo,
+mtk_wed_get_memory_region(struct mtk_wed_hw *hw, int index,
 			  struct mtk_wed_wo_memory_region *region)
 {
 	struct reserved_mem *rmem;
 	struct device_node *np;
-	int index;
 
-	index = of_property_match_string(wo->hw->node, "memory-region-names",
-					 region->name);
-	if (index < 0)
-		return index;
-
-	np = of_parse_phandle(wo->hw->node, "memory-region", index);
+	np = of_parse_phandle(hw->node, "memory-region", index);
 	if (!np)
 		return -ENODEV;
 
@@ -239,14 +252,13 @@ mtk_wed_get_memory_region(struct mtk_wed_wo *wo,
 
 	region->phy_addr = rmem->base;
 	region->size = rmem->size;
-	region->addr = devm_ioremap(wo->hw->dev, region->phy_addr, region->size);
+	region->addr = devm_ioremap(hw->dev, region->phy_addr, region->size);
 
 	return !region->addr ? -EINVAL : 0;
 }
 
 static int
-mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw,
-			 struct mtk_wed_wo_memory_region *region)
+mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw)
 {
 	const u8 *first_region_ptr, *region_ptr, *trailer_ptr, *ptr = fw->data;
 	const struct mtk_wed_fw_trailer *trailer;
@@ -259,50 +271,46 @@ mtk_wed_mcu_run_firmware(struct mtk_wed_wo *wo, const struct firmware *fw,
 
 	while (region_ptr < trailer_ptr) {
 		u32 length;
+		int i;
 
 		fw_region = (const struct mtk_wed_fw_region *)region_ptr;
 		length = le32_to_cpu(fw_region->len);
-
-		if (region->phy_addr != le32_to_cpu(fw_region->addr))
-			goto next;
-
-		if (region->size < length)
-			goto next;
-
 		if (first_region_ptr < ptr + length)
 			goto next;
 
-		if (region->shared && region->consumed)
-			return 0;
+		for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
+			struct mtk_wed_wo_memory_region *region;
 
-		if (!region->shared || !region->consumed) {
-			memcpy_toio(region->addr, ptr, length);
-			region->consumed = true;
-			return 0;
+			region = &mem_region[i];
+			if (region->phy_addr != le32_to_cpu(fw_region->addr))
+				continue;
+
+			if (region->size < length)
+				continue;
+
+			if (region->shared && region->consumed)
+				break;
+
+			if (!region->shared || !region->consumed) {
+				memcpy_toio(region->addr, ptr, length);
+				region->consumed = true;
+				break;
+			}
 		}
+
+		if (i == ARRAY_SIZE(mem_region))
+			return -EINVAL;
 next:
 		region_ptr += sizeof(*fw_region);
 		ptr += length;
 	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int
 mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 {
-	static struct mtk_wed_wo_memory_region mem_region[] = {
-		[MTK_WED_WO_REGION_EMI] = {
-			.name = "wo-emi",
-		},
-		[MTK_WED_WO_REGION_ILM] = {
-			.name = "wo-ilm",
-		},
-		[MTK_WED_WO_REGION_DATA] = {
-			.name = "wo-data",
-			.shared = true,
-		},
-	};
 	const struct mtk_wed_fw_trailer *trailer;
 	const struct firmware *fw;
 	const char *fw_name;
@@ -311,25 +319,38 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 
 	/* load firmware region metadata */
 	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		ret = mtk_wed_get_memory_region(wo, &mem_region[i]);
+		int index = of_property_match_string(wo->hw->node,
+						     "memory-region-names",
+						     mem_region[i].name);
+		if (index < 0)
+			continue;
+
+		ret = mtk_wed_get_memory_region(wo->hw, index, &mem_region[i]);
 		if (ret)
 			return ret;
 	}
-
-	wo->boot.name = "wo-boot";
-	ret = mtk_wed_get_memory_region(wo, &wo->boot);
-	if (ret)
-		return ret;
 
 	/* set dummy cr */
 	wed_w32(wo->hw->wed_dev, MTK_WED_SCR0 + 4 * MTK_WED_DUMMY_CR_FWDL,
 		wo->hw->index + 1);
 
 	/* load firmware */
-	if (of_device_is_compatible(wo->hw->node, "mediatek,mt7981-wed"))
-		fw_name = MT7981_FIRMWARE_WO;
-	else
-		fw_name = wo->hw->index ? MT7986_FIRMWARE_WO1 : MT7986_FIRMWARE_WO0;
+	switch (wo->hw->version) {
+	case 2:
+		if (of_device_is_compatible(wo->hw->node,
+					    "mediatek,mt7981-wed"))
+			fw_name = MT7981_FIRMWARE_WO;
+		else
+			fw_name = wo->hw->index ? MT7986_FIRMWARE_WO1
+						: MT7986_FIRMWARE_WO0;
+		break;
+	case 3:
+		fw_name = wo->hw->index ? MT7988_FIRMWARE_WO1
+					: MT7988_FIRMWARE_WO0;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	ret = request_firmware(&fw, fw_name, wo->hw->dev);
 	if (ret)
@@ -343,23 +364,22 @@ mtk_wed_mcu_load_firmware(struct mtk_wed_wo *wo)
 	dev_info(wo->hw->dev, "MTK WED WO Chip ID %02x Region %d\n",
 		 trailer->chip_id, trailer->num_region);
 
-	for (i = 0; i < ARRAY_SIZE(mem_region); i++) {
-		ret = mtk_wed_mcu_run_firmware(wo, fw, &mem_region[i]);
-		if (ret)
-			goto out;
-	}
+	ret = mtk_wed_mcu_run_firmware(wo, fw);
+	if (ret)
+		goto out;
 
 	/* set the start address */
-	boot_cr = wo->hw->index ? MTK_WO_MCU_CFG_LS_WA_BOOT_ADDR_ADDR
-				: MTK_WO_MCU_CFG_LS_WM_BOOT_ADDR_ADDR;
-	wo_w32(wo, boot_cr, mem_region[MTK_WED_WO_REGION_EMI].phy_addr >> 16);
+	if (!mtk_wed_is_v3_or_greater(wo->hw) && wo->hw->index)
+		boot_cr = MTK_WO_MCU_CFG_LS_WA_BOOT_ADDR_ADDR;
+	else
+		boot_cr = MTK_WO_MCU_CFG_LS_WM_BOOT_ADDR_ADDR;
+	wo_w32(boot_cr, mem_region[MTK_WED_WO_REGION_EMI].phy_addr >> 16);
 	/* wo firmware reset */
-	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCCR_CLR_ADDR, 0xc00);
+	wo_w32(MTK_WO_MCU_CFG_LS_WF_MCCR_CLR_ADDR, 0xc00);
 
-	val = wo_r32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR);
-	val |= wo->hw->index ? MTK_WO_MCU_CFG_LS_WF_WM_WA_WA_CPU_RSTB_MASK
-			     : MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK;
-	wo_w32(wo, MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
+	val = wo_r32(MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR) |
+	      MTK_WO_MCU_CFG_LS_WF_WM_WA_WM_CPU_RSTB_MASK;
+	wo_w32(MTK_WO_MCU_CFG_LS_WF_MCU_CFG_WM_WA_ADDR, val);
 out:
 	release_firmware(fw);
 
@@ -393,3 +413,5 @@ int mtk_wed_mcu_init(struct mtk_wed_wo *wo)
 MODULE_FIRMWARE(MT7981_FIRMWARE_WO);
 MODULE_FIRMWARE(MT7986_FIRMWARE_WO0);
 MODULE_FIRMWARE(MT7986_FIRMWARE_WO1);
+MODULE_FIRMWARE(MT7988_FIRMWARE_WO0);
+MODULE_FIRMWARE(MT7988_FIRMWARE_WO1);

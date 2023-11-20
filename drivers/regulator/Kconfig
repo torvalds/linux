@@ -564,6 +564,16 @@ config REGULATOR_MAX5970
 	  The MAX5970/5978 is a smart switch with no output regulation, but
 	  fault protection and voltage and current monitoring capabilities.
 
+config REGULATOR_MAX77503
+	tristate "Analog Devices MAX77503 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a Analog Devices MAX77503 14V input, 1.5A
+	  high-efficiency buck converter via I2C bus.
+	  Say M here if you want to include support for the regulator as a
+	  module.
+
 config REGULATOR_MAX77541
 	tristate "Analog Devices MAX77541/77540 Regulator"
 	depends on MFD_MAX77541

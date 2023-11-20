@@ -160,10 +160,6 @@ static inline struct net *nf_ct_net(const struct nf_conn *ct)
 	return read_pnet(&ct->ct_net);
 }
 
-/* Alter reply tuple (maybe alter helper). */
-void nf_conntrack_alter_reply(struct nf_conn *ct,
-			      const struct nf_conntrack_tuple *newreply);
-
 /* Is this tuple taken? (ignoring any belonging to the given
    conntrack). */
 int nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
@@ -282,6 +278,16 @@ static inline int nf_ct_is_dying(const struct nf_conn *ct)
 static inline bool nf_is_loopback_packet(const struct sk_buff *skb)
 {
 	return skb->dev && skb->skb_iif && skb->dev->flags & IFF_LOOPBACK;
+}
+
+static inline void nf_conntrack_alter_reply(struct nf_conn *ct,
+					    const struct nf_conntrack_tuple *newreply)
+{
+	/* Must be unconfirmed, so not in hash table yet */
+	if (WARN_ON(nf_ct_is_confirmed(ct)))
+		return;
+
+	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
 }
 
 #define nfct_time_stamp ((u32)(jiffies))

@@ -9,9 +9,11 @@ struct lock_filter {
 	int			nr_types;
 	int			nr_addrs;
 	int			nr_syms;
+	int			nr_cgrps;
 	unsigned int		*types;
 	unsigned long		*addrs;
 	char			**syms;
+	u64			*cgrps;
 };
 
 struct lock_stat {
@@ -136,6 +138,7 @@ struct lock_contention {
 	struct hlist_head *result;
 	struct lock_filter *filters;
 	struct lock_contention_fails fails;
+	struct rb_root cgroups;
 	unsigned long map_nr_entries;
 	int max_stack;
 	int stack_skip;
@@ -151,7 +154,7 @@ int lock_contention_prepare(struct lock_contention *con);
 int lock_contention_start(void);
 int lock_contention_stop(void);
 int lock_contention_read(struct lock_contention *con);
-int lock_contention_finish(void);
+int lock_contention_finish(struct lock_contention *con);
 
 #else  /* !HAVE_BPF_SKEL */
 
@@ -162,7 +165,10 @@ static inline int lock_contention_prepare(struct lock_contention *con __maybe_un
 
 static inline int lock_contention_start(void) { return 0; }
 static inline int lock_contention_stop(void) { return 0; }
-static inline int lock_contention_finish(void) { return 0; }
+static inline int lock_contention_finish(struct lock_contention *con __maybe_unused)
+{
+	return 0;
+}
 
 static inline int lock_contention_read(struct lock_contention *con __maybe_unused)
 {

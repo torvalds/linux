@@ -368,7 +368,7 @@ struct mlxplat_priv {
 };
 
 static struct platform_device *mlxplat_dev;
-static int mlxplat_i2c_main_complition_notify(void *handle, int id);
+static int mlxplat_i2c_main_completion_notify(void *handle, int id);
 static void __iomem *i2c_bridge_addr, *jtag_bridge_addr;
 
 /* Regions for LPC I2C controller and LPC base register space */
@@ -384,7 +384,7 @@ static const struct resource mlxplat_lpc_resources[] = {
 
 /* Platform systems default i2c data */
 static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_default_data = {
-	.completion_notify = mlxplat_i2c_main_complition_notify,
+	.completion_notify = mlxplat_i2c_main_completion_notify,
 };
 
 /* Platform i2c next generation systems data */
@@ -409,7 +409,7 @@ static struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_i2c_ng_data = {
 	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRCO_OFFSET,
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_I2C,
-	.completion_notify = mlxplat_i2c_main_complition_notify,
+	.completion_notify = mlxplat_i2c_main_completion_notify,
 };
 
 /* Platform default channels */
@@ -6291,7 +6291,7 @@ static void mlxplat_pci_fpga_devices_exit(void)
 }
 
 static int
-mlxplat_pre_init(struct resource **hotplug_resources, unsigned int *hotplug_resources_size)
+mlxplat_logicdev_init(struct resource **hotplug_resources, unsigned int *hotplug_resources_size)
 {
 	int err;
 
@@ -6302,7 +6302,7 @@ mlxplat_pre_init(struct resource **hotplug_resources, unsigned int *hotplug_reso
 	return err;
 }
 
-static void mlxplat_post_exit(void)
+static void mlxplat_logicdev_exit(void)
 {
 	if (lpc_bridge)
 		mlxplat_pci_fpga_devices_exit();
@@ -6310,7 +6310,7 @@ static void mlxplat_post_exit(void)
 		mlxplat_lpc_cpld_device_exit();
 }
 
-static int mlxplat_post_init(struct mlxplat_priv *priv)
+static int mlxplat_platdevs_init(struct mlxplat_priv *priv)
 {
 	int i = 0, err;
 
@@ -6407,7 +6407,7 @@ fail_platform_hotplug_register:
 	return err;
 }
 
-static void mlxplat_pre_exit(struct mlxplat_priv *priv)
+static void mlxplat_platdevs_exit(struct mlxplat_priv *priv)
 {
 	int i;
 
@@ -6429,7 +6429,7 @@ mlxplat_i2c_mux_complition_notify(void *handle, struct i2c_adapter *parent,
 {
 	struct mlxplat_priv *priv = handle;
 
-	return mlxplat_post_init(priv);
+	return mlxplat_platdevs_init(priv);
 }
 
 static int mlxplat_i2c_mux_topology_init(struct mlxplat_priv *priv)
@@ -6471,7 +6471,7 @@ static void mlxplat_i2c_mux_topology_exit(struct mlxplat_priv *priv)
 	}
 }
 
-static int mlxplat_i2c_main_complition_notify(void *handle, int id)
+static int mlxplat_i2c_main_completion_notify(void *handle, int id)
 {
 	struct mlxplat_priv *priv = handle;
 
@@ -6522,7 +6522,7 @@ fail_mlxplat_mlxcpld_verify_bus_topology:
 
 static void mlxplat_i2c_main_exit(struct mlxplat_priv *priv)
 {
-	mlxplat_pre_exit(priv);
+	mlxplat_platdevs_exit(priv);
 	mlxplat_i2c_mux_topology_exit(priv);
 	if (priv->pdev_i2c)
 		platform_device_unregister(priv->pdev_i2c);
@@ -6544,7 +6544,7 @@ static int mlxplat_probe(struct platform_device *pdev)
 		mlxplat_dev = pdev;
 	}
 
-	err = mlxplat_pre_init(&hotplug_resources, &hotplug_resources_size);
+	err = mlxplat_logicdev_init(&hotplug_resources, &hotplug_resources_size);
 	if (err)
 		return err;
 
@@ -6603,12 +6603,12 @@ fail_regcache_sync:
 fail_mlxplat_i2c_main_init:
 fail_regmap_write:
 fail_alloc:
-	mlxplat_post_exit();
+	mlxplat_logicdev_exit();
 
 	return err;
 }
 
-static int mlxplat_remove(struct platform_device *pdev)
+static void mlxplat_remove(struct platform_device *pdev)
 {
 	struct mlxplat_priv *priv = platform_get_drvdata(mlxplat_dev);
 
@@ -6617,8 +6617,7 @@ static int mlxplat_remove(struct platform_device *pdev)
 	if (mlxplat_reboot_nb)
 		unregister_reboot_notifier(mlxplat_reboot_nb);
 	mlxplat_i2c_main_exit(priv);
-	mlxplat_post_exit();
-	return 0;
+	mlxplat_logicdev_exit();
 }
 
 static const struct acpi_device_id mlxplat_acpi_table[] = {
@@ -6634,7 +6633,7 @@ static struct platform_driver mlxplat_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe		= mlxplat_probe,
-	.remove		= mlxplat_remove,
+	.remove_new	= mlxplat_remove,
 };
 
 static int __init mlxplat_init(void)

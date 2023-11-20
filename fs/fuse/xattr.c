@@ -209,7 +209,7 @@ static const struct xattr_handler fuse_xattr_handler = {
 	.set    = fuse_xattr_set,
 };
 
-const struct xattr_handler *fuse_xattr_handlers[] = {
+const struct xattr_handler * const fuse_xattr_handlers[] = {
 	&fuse_xattr_handler,
 	NULL
 };

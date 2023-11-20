@@ -414,7 +414,7 @@ static int devlink_trap_action_set(struct devlink *devlink,
 					 info->extack);
 }
 
-int devlink_nl_cmd_trap_set_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_trap_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
@@ -684,8 +684,7 @@ static int devlink_trap_group_set(struct devlink *devlink,
 	return 0;
 }
 
-int devlink_nl_cmd_trap_group_set_doit(struct sk_buff *skb,
-				       struct genl_info *info)
+int devlink_nl_trap_group_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct devlink *devlink = info->user_ptr[0];
@@ -926,8 +925,8 @@ devlink_trap_policer_set(struct devlink *devlink,
 	return 0;
 }
 
-int devlink_nl_cmd_trap_policer_set_doit(struct sk_buff *skb,
-					 struct genl_info *info)
+int devlink_nl_trap_policer_set_doit(struct sk_buff *skb,
+				     struct genl_info *info)
 {
 	struct devlink_trap_policer_item *policer_item;
 	struct netlink_ext_ack *extack = info->extack;

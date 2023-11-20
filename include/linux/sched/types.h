@@ -20,4 +20,4 @@ struct task_cputime {
 	unsigned long long		sum_exec_runtime;
 };
 
-#endif
+#endif /* _LINUX_SCHED_TYPES_H */

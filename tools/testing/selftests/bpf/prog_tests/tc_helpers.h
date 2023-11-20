@@ -4,6 +4,10 @@
 #define TC_HELPERS
 #include <test_progs.h>
 
+#ifndef loopback
+# define loopback 1
+#endif
+
 static inline __u32 id_from_prog_fd(int fd)
 {
 	struct bpf_prog_info prog_info = {};

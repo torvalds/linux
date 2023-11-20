@@ -200,10 +200,12 @@ this documentation.
    when the in-band link state changes - otherwise the link will never
    come up.
 
-   The :c:func:`validate` method should mask the supplied supported mask,
-   and ``state->advertising`` with the supported ethtool link modes.
-   These are the new ethtool link modes, so bitmask operations must be
-   used. For an example, see ``drivers/net/ethernet/marvell/mvneta.c``.
+   The :c:func:`mac_get_caps` method is optional, and if provided should
+   return the phylink MAC capabilities that are supported for the passed
+   ``interface`` mode. In general, there is no need to implement this method.
+   Phylink will use these capabilities in combination with permissible
+   capabilities for ``interface`` to determine the allowable ethtool link
+   modes.
 
    The :c:func:`mac_link_state` method is used to read the link state
    from the MAC, and report back the settings that the MAC is currently

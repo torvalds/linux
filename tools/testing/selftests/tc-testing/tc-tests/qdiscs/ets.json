@@ -6,8 +6,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 2",
         "expExitCode": "0",
@@ -15,8 +17,7 @@
         "matchPattern": "qdisc ets 1: root .* bands 2",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -26,8 +27,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 900 800 700",
         "expExitCode": "0",
@@ -35,8 +38,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 4 quanta 1000 900 800 700",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -46,8 +48,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 3",
         "expExitCode": "0",
@@ -55,8 +59,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 3 strict 3",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -66,8 +69,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4 quanta 1000 900 800 700",
         "expExitCode": "0",
@@ -75,8 +80,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 4 quanta 1000 900 800 700 priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -86,8 +90,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 3 strict 3",
         "expExitCode": "0",
@@ -95,8 +101,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 3 strict 3 priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -106,8 +111,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 3 quanta 1500 750",
         "expExitCode": "0",
@@ -115,8 +122,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 5 strict 3 quanta 1500 750 priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -126,8 +132,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 0 quanta 1500 750",
         "expExitCode": "0",
@@ -135,8 +143,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 2 quanta 1500 750 priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -146,8 +153,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 5 strict 3 quanta 1500 750",
         "expExitCode": "0",
@@ -155,8 +164,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 5 .*strict 3 quanta 1500 750 priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -166,8 +174,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 2 quanta 1000",
         "expExitCode": "0",
@@ -175,8 +185,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 2 .*quanta 1000 [1-9][0-9]* priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -186,8 +195,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 3 strict 1",
         "expExitCode": "0",
@@ -195,8 +206,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 3 strict 1 quanta ([1-9][0-9]* ){2}priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -206,8 +216,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 3 strict 1 quanta 1000",
         "expExitCode": "0",
@@ -215,8 +227,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 3 strict 1 quanta 1000 [1-9][0-9]* priomap",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -226,8 +237,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 16",
         "expExitCode": "0",
@@ -235,8 +248,7 @@
         "matchPattern": "qdisc ets 1: root .* bands 16",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -246,8 +258,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 17",
         "expExitCode": "1",
@@ -255,7 +269,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -265,8 +278,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 17",
         "expExitCode": "1",
@@ -274,7 +289,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -284,8 +298,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16",
         "expExitCode": "0",
@@ -293,8 +309,7 @@
         "matchPattern": "qdisc ets 1: root .* bands 16",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -304,8 +319,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17",
         "expExitCode": "2",
@@ -313,7 +330,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -323,8 +339,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 8 quanta 1 2 3 4 5 6 7 8",
         "expExitCode": "0",
@@ -332,8 +350,7 @@
         "matchPattern": "qdisc ets 1: root .* bands 16",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -343,8 +360,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 9 quanta 1 2 3 4 5 6 7 8",
         "expExitCode": "2",
@@ -352,7 +371,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -362,8 +380,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 5 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "expExitCode": "0",
@@ -371,8 +391,7 @@
         "matchPattern": "qdisc ets 1: root .*priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -382,8 +401,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 2000 3000 4000 5000 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "expExitCode": "0",
@@ -391,8 +412,7 @@
         "matchPattern": "qdisc ets 1: root .*quanta 1000 2000 3000 4000 5000 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -402,8 +422,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 5 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "expExitCode": "0",
@@ -411,8 +433,7 @@
         "matchPattern": "qdisc ets 1: root .*bands 5 strict 5 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -422,8 +443,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 2 quanta 1000 2000 3000 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "expExitCode": "0",
@@ -431,8 +454,7 @@
         "matchPattern": "qdisc ets 1: root .*strict 2 quanta 1000 2000 3000 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -442,8 +464,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 4000 3000 2000",
         "expExitCode": "0",
@@ -451,8 +475,7 @@
         "matchPattern": "class ets 1:1 root quantum 4000",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -462,8 +485,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 4000 3000 2000",
         "expExitCode": "0",
@@ -471,8 +496,7 @@
         "matchPattern": "class ets 1:2 root quantum 3000",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -482,8 +506,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 4000 3000 2000",
         "expExitCode": "0",
@@ -491,8 +517,7 @@
         "matchPattern": "class ets 1:3 root quantum 2000",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -502,8 +527,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 3",
         "expExitCode": "0",
@@ -511,8 +538,7 @@
         "matchPattern": "class ets 1:1 root $",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -522,8 +548,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 2 quanta 1000 2000 3000",
         "expExitCode": "1",
@@ -531,7 +559,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -541,8 +568,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 2 strict 3",
         "expExitCode": "1",
@@ -550,7 +579,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -560,8 +588,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4 strict 2 quanta 1000 2000 3000",
         "expExitCode": "1",
@@ -569,7 +599,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -579,8 +608,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 5 priomap 0 0 1 0 1 2 0 1 2 3 0 1 2 3 4 0 1 2",
         "expExitCode": "1",
@@ -588,7 +619,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -598,8 +628,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 2 priomap 0 1 2",
         "expExitCode": "1",
@@ -607,7 +639,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -617,8 +648,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 500 priomap 0 1 2",
         "expExitCode": "1",
@@ -626,7 +659,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -636,8 +668,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 2 priomap 0 1 2",
         "expExitCode": "1",
@@ -645,7 +679,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -655,8 +688,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets strict 1 quanta 1000 500 priomap 0 1 2 3",
         "expExitCode": "1",
@@ -664,7 +699,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -674,8 +708,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4 strict 1 quanta 1000 500 priomap 0 1 2 3",
         "expExitCode": "0",
@@ -683,7 +719,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -693,8 +728,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4 strict 1 quanta 1000 500 priomap 0 1 2 3 4",
         "expExitCode": "1",
@@ -702,7 +739,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -712,8 +748,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4 priomap 0 0 0 0",
         "expExitCode": "0",
@@ -721,7 +759,6 @@
         "matchPattern": "qdisc ets .*priomap 0 0 0 0 3 3 3 3 3 3 3 3 3 3 3 3",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -731,8 +768,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 4",
         "expExitCode": "0",
@@ -740,7 +779,6 @@
         "matchPattern": "qdisc ets .*priomap 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -750,8 +788,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 0",
         "expExitCode": "1",
@@ -759,7 +799,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -769,8 +808,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets bands 17",
         "expExitCode": "1",
@@ -778,7 +819,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -788,8 +828,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets",
         "expExitCode": "1",
@@ -797,7 +839,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -807,8 +848,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 0 800 700",
         "expExitCode": "1",
@@ -816,7 +859,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -826,8 +868,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta 0",
         "expExitCode": "1",
@@ -835,7 +879,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -845,8 +888,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root ets quanta",
         "expExitCode": "255",
@@ -854,7 +899,6 @@
         "matchPattern": "qdisc ets",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -864,8 +908,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 2000 3000"
         ],
         "cmdUnderTest": "$TC class change dev $DUMMY classid 1:1 ets quantum 1500",
@@ -874,7 +920,6 @@
         "matchPattern": "qdisc ets 1: root .*quanta 1500 2000 3000 priomap ",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -884,8 +929,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root ets quanta 1000 2000 3000"
         ],
         "cmdUnderTest": "$TC class change dev $DUMMY classid 1:1 ets",
@@ -894,7 +941,6 @@
         "matchPattern": "qdisc ets 1: root .*quanta 1000 2000 3000 priomap ",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -904,8 +950,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root ets strict 5"
         ],
         "cmdUnderTest": "$TC class change dev $DUMMY classid 1:2 ets quantum 1500",
@@ -914,7 +962,6 @@
         "matchPattern": "qdisc ets .*bands 5 .*strict 5",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -924,8 +971,10 @@
             "qdisc",
             "ets"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root ets strict 5"
         ],
         "cmdUnderTest": "$TC class change dev $DUMMY classid 1:2 ets",
@@ -934,7 +983,6 @@
         "matchPattern": "qdisc ets .*bands 5 .*strict 5",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     }
 ]
