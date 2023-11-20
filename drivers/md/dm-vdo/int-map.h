@@ -23,8 +23,7 @@
 
 struct int_map;
 
-int __must_check vdo_int_map_create(size_t initial_capacity, unsigned int initial_load,
-				    struct int_map **map_ptr);
+int __must_check vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr);
 
 void vdo_int_map_free(struct int_map *map);
 

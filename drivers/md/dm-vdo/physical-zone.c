@@ -330,7 +330,7 @@ static int initialize_zone(struct vdo *vdo, struct physical_zones *zones)
 	zone_count_t zone_number = zones->zone_count;
 	struct physical_zone *zone = &zones->zones[zone_number];
 
-	result = vdo_int_map_create(VDO_LOCK_MAP_CAPACITY, 0, &zone->pbn_operations);
+	result = vdo_int_map_create(VDO_LOCK_MAP_CAPACITY, &zone->pbn_operations);
 	if (result != VDO_SUCCESS)
 		return result;
 

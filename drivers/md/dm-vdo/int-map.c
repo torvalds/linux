@@ -174,24 +174,15 @@ static int allocate_buckets(struct int_map *map, size_t capacity)
  * vdo_int_map_create() - Allocate and initialize an int_map.
  * @initial_capacity: The number of entries the map should initially be capable of holding (zero
  *                    tells the map to use its own small default).
- * @initial_load: The load factor of the map, expressed as an integer percentage (typically in the
- *                range 50 to 90, with zero telling the map to use its own default).
  * @map_ptr: Output, a pointer to hold the new int_map.
  *
  * Return: UDS_SUCCESS or an error code.
  */
-int vdo_int_map_create(size_t initial_capacity, unsigned int initial_load,
-		       struct int_map **map_ptr)
+int vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr)
 {
 	struct int_map *map;
 	int result;
 	size_t capacity;
-
-	/* Use the default initial load if the caller did not specify one. */
-	if (initial_load == 0)
-		initial_load = DEFAULT_LOAD;
-	if (initial_load > 100)
-		return UDS_INVALID_ARGUMENT;
 
 	result = uds_allocate(1, struct int_map, "struct int_map", &map);
 	if (result != UDS_SUCCESS)
@@ -204,7 +195,7 @@ int vdo_int_map_create(size_t initial_capacity, unsigned int initial_load,
 	 * Scale up the capacity by the specified initial load factor. (i.e to hold 1000 entries at
 	 * 80% load we need a capacity of 1250)
 	 */
-	capacity = capacity * 100 / initial_load;
+	capacity = capacity * 100 / DEFAULT_LOAD;
 
 	result = allocate_buckets(map, capacity);
 	if (result != UDS_SUCCESS) {

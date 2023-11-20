@@ -57,7 +57,7 @@ static int initialize_zone(struct logical_zones *zones, zone_count_t zone_number
 	struct logical_zone *zone = &zones->zones[zone_number];
 	zone_count_t allocation_zone_number;
 
-	result = vdo_int_map_create(VDO_LOCK_MAP_CAPACITY, 0, &zone->lbn_operations);
+	result = vdo_int_map_create(VDO_LOCK_MAP_CAPACITY, &zone->lbn_operations);
 	if (result != VDO_SUCCESS)
 		return result;
 
