@@ -1944,6 +1944,26 @@ MLXSW_ITEM32(reg, sfmr, irif_v, 0x14, 24, 1);
  */
 MLXSW_ITEM32(reg, sfmr, irif, 0x14, 0, 16);
 
+/* reg_sfmr_cff_mid_base
+ * Pointer to PGT table.
+ * Range: 0..(cap_max_pgt-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1.
+ * Supported when CONFIG_PROFILE.flood_mode = CFF.
+ */
+MLXSW_ITEM32(reg, sfmr, cff_mid_base, 0x20, 0, 16);
+
+/* reg_sfmr_cff_prf_id
+ * Compressed Fid Flooding profile_id
+ * Range 0..(max_cap_nve_flood_prf-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1
+ * Supported only when CONFIG_PROFLE.flood_mode = CFF.
+ */
+MLXSW_ITEM32(reg, sfmr, cff_prf_id, 0x24, 0, 2);
+
 /* reg_sfmr_smpe_valid
  * SMPE is valid.
  * Access: RW
