@@ -12447,6 +12447,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/har
 F:	Documentation/admin-guide/LSM/LoadPin.rst
 F:	security/loadpin/
 
+LOCKDOWN SECURITY MODULE
+L:	linux-security-module@vger.kernel.org
+S:	Odd Fixes
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/lsm.git
+F:	security/lockdown/
+
 LOCKING PRIMITIVES
 M:	Peter Zijlstra <peterz@infradead.org>
 M:	Ingo Molnar <mingo@redhat.com>
