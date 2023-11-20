@@ -7307,6 +7307,7 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 			ctx->tqm_fp_rings_count = BNXT_MAX_TQM_FP_RINGS;
 
 		ctxm = &ctx->ctx_arr[BNXT_CTX_FTQM];
+		memcpy(ctxm, &ctx->ctx_arr[BNXT_CTX_STQM], sizeof(*ctxm));
 		ctxm->instance_bmap = (1 << ctx->tqm_fp_rings_count) - 1;
 
 		rc = bnxt_alloc_all_ctx_pg_info(bp, BNXT_CTX_MAX);
@@ -7574,6 +7575,30 @@ static void bnxt_free_ctx_pg_tbls(struct bnxt *bp,
 	ctx_pg->nr_pages = 0;
 }
 
+static int bnxt_setup_ctxm_pg_tbls(struct bnxt *bp,
+				   struct bnxt_ctx_mem_type *ctxm, u32 entries,
+				   u8 pg_lvl)
+{
+	struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+	int i, rc = 0, n = 1;
+	u32 mem_size;
+
+	if (!ctxm->entry_size || !ctx_pg)
+		return -EINVAL;
+	if (ctxm->instance_bmap)
+		n = hweight32(ctxm->instance_bmap);
+	if (ctxm->entry_multiple)
+		entries = roundup(entries, ctxm->entry_multiple);
+	entries = clamp_t(u32, entries, ctxm->min_entries, ctxm->max_entries);
+	mem_size = entries * ctxm->entry_size;
+	for (i = 0; i < n && !rc; i++) {
+		ctx_pg[i].entries = entries;
+		rc = bnxt_alloc_ctx_pg_tbls(bp, &ctx_pg[i], mem_size, pg_lvl,
+					    ctxm->init_value ? ctxm : NULL);
+	}
+	return rc;
+}
+
 void bnxt_free_ctx_mem(struct bnxt *bp)
 {
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
@@ -7605,13 +7630,11 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 
 static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 {
-	struct bnxt_ctx_pg_info *ctx_pg;
 	struct bnxt_ctx_mem_type *ctxm;
 	struct bnxt_ctx_mem_info *ctx;
 	u32 l2_qps, qp1_qps, max_qps;
-	u32 mem_size, ena, entries;
-	u32 entries_sp, min;
-	u32 srqs, max_srqs;
+	u32 ena, entries_sp, entries;
+	u32 srqs, max_srqs, min;
 	u32 num_mr, num_ah;
 	u32 extra_srqs = 0;
 	u32 extra_qps = 0;
@@ -7642,61 +7665,37 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	}
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = l2_qps + qp1_qps + extra_qps;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, l2_qps + qp1_qps + extra_qps,
+				     pg_lvl);
+	if (rc)
+		return rc;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = srqs + extra_srqs;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, srqs + extra_srqs, pg_lvl);
+	if (rc)
+		return rc;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_CQ];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = ctxm->cq_l2_entries + extra_qps * 2;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, pg_lvl, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, ctxm->cq_l2_entries +
+				     extra_qps * 2, pg_lvl);
+	if (rc)
+		return rc;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_VNIC];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = ctxm->max_entries;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, ctxm->max_entries, 1);
+	if (rc)
+		return rc;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_STAT];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = ctxm->max_entries;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, ctxm->max_entries, 1);
+	if (rc)
+		return rc;
 
 	ena = 0;
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
 		goto skip_rdma;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_MRAV];
-	ctx_pg = ctxm->pg_info;
 	/* 128K extra is needed to accommodate static AH context
 	 * allocation by f/w.
 	 */
@@ -7706,24 +7705,15 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (!ctxm->mrav_av_entries || ctxm->mrav_av_entries > num_ah)
 		ctxm->mrav_av_entries = num_ah;
 
-	ctx_pg->entries = num_mr + num_ah;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 2, ctxm);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, num_mr + num_ah, 2);
+	if (rc)
+		return rc;
 	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
-	ctx_pg = ctxm->pg_info;
-	ctx_pg->entries = l2_qps + qp1_qps + extra_qps;
-	if (ctxm->entry_size) {
-		mem_size = ctxm->entry_size * ctx_pg->entries;
-		rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1, NULL);
-		if (rc)
-			return rc;
-	}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, l2_qps + qp1_qps + extra_qps, 1);
+	if (rc)
+		return rc;
 	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM;
 
 skip_rdma:
@@ -7731,22 +7721,17 @@ skip_rdma:
 	min = ctxm->min_entries;
 	entries_sp = ctx->ctx_arr[BNXT_CTX_VNIC].vnic_entries + l2_qps +
 		     2 * (extra_qps + qp1_qps) + min;
-	entries_sp = roundup(entries_sp, ctxm->entry_multiple);
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, entries_sp, 2);
+	if (rc)
+		return rc;
+
+	ctxm = &ctx->ctx_arr[BNXT_CTX_FTQM];
 	entries = l2_qps + 2 * (extra_qps + qp1_qps);
-	entries = roundup(entries, ctxm->entry_multiple);
-	entries = clamp_t(u32, entries, min, ctxm->max_entries);
-	for (i = 0, ctx_pg = ctxm->pg_info; i < ctx->tqm_fp_rings_count + 1;
-	     ctx_pg = &ctx->ctx_arr[BNXT_CTX_FTQM].pg_info[i], i++) {
-		ctx_pg->entries = i ? entries : entries_sp;
-		if (ctxm->entry_size) {
-			mem_size = ctxm->entry_size * ctx_pg->entries;
-			rc = bnxt_alloc_ctx_pg_tbls(bp, ctx_pg, mem_size, 1,
-						    NULL);
-			if (rc)
-				return rc;
-		}
+	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, entries, 2);
+	if (rc)
+		return rc;
+	for (i = 0; i < ctx->tqm_fp_rings_count + 1; i++)
 		ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_TQM_SP << i;
-	}
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
 	rc = bnxt_hwrm_func_backing_store_cfg(bp, ena);
 	if (rc) {
