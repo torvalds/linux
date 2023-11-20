@@ -163,7 +163,8 @@
 	XE_DG2_G12_IDS(MACRO__, ## __VA_ARGS__)
 
 #define XE_ATS_M150_IDS(MACRO__, ...)		\
-	MACRO__(0x56C0, ## __VA_ARGS__)
+	MACRO__(0x56C0, ## __VA_ARGS__),	\
+	MACRO__(0x56C2, ## __VA_ARGS__)
 
 #define XE_ATS_M75_IDS(MACRO__, ...)		\
 	MACRO__(0x56C1, ## __VA_ARGS__)
