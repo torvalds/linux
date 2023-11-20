@@ -7187,6 +7187,27 @@ static void bnxt_init_ctx_initializer(struct bnxt_ctx_mem_type *ctxm,
 		ctxm->init_value = 0;
 }
 
+static int bnxt_alloc_all_ctx_pg_info(struct bnxt *bp, int ctx_max)
+{
+	struct bnxt_ctx_mem_info *ctx = bp->ctx;
+	u16 type;
+
+	for (type = 0; type < ctx_max; type++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		int n = 1;
+
+		if (!ctxm->max_entries)
+			continue;
+
+		if (ctxm->instance_bmap)
+			n = hweight32(ctxm->instance_bmap);
+		ctxm->pg_info = kcalloc(n, sizeof(*ctxm->pg_info), GFP_KERNEL);
+		if (!ctxm->pg_info)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
 static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 {
 	struct hwrm_func_backing_store_qcaps_output *resp;
@@ -7298,6 +7319,7 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		}
 		for (i = 0; i < tqm_rings; i++, ctx_pg++)
 			ctx->tqm_mem[i] = ctx_pg;
+		rc = bnxt_alloc_all_ctx_pg_info(bp, BNXT_CTX_MAX);
 	} else {
 		rc = 0;
 	}
@@ -7564,6 +7586,7 @@ static void bnxt_free_ctx_pg_tbls(struct bnxt *bp,
 void bnxt_free_ctx_mem(struct bnxt *bp)
 {
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
+	u16 type;
 	int i;
 
 	if (!ctx)
@@ -7583,6 +7606,14 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 	bnxt_free_ctx_pg_tbls(bp, &ctx->cq_mem);
 	bnxt_free_ctx_pg_tbls(bp, &ctx->srq_mem);
 	bnxt_free_ctx_pg_tbls(bp, &ctx->qp_mem);
+
+	for (type = 0; type < BNXT_CTX_MAX; type++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+
+		kfree(ctxm->pg_info);
+		ctxm->pg_info = NULL;
+	}
+
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
 	kfree(ctx);
 	bp->ctx = NULL;
