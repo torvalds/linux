@@ -813,7 +813,10 @@ struct bnxt_db_info {
 		u64		db_key64;
 		u32		db_key32;
 	};
+	u32			db_ring_mask;
 };
+
+#define DB_RING_IDX(db, idx)	((idx) & (db)->db_ring_mask)
 
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
@@ -2353,9 +2356,10 @@ static inline void bnxt_db_write_relaxed(struct bnxt *bp,
 					 struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		bnxt_writeq_relaxed(bp, db->db_key64 | idx, db->doorbell);
+		bnxt_writeq_relaxed(bp, db->db_key64 | DB_RING_IDX(db, idx),
+				    db->doorbell);
 	} else {
-		u32 db_val = db->db_key32 | idx;
+		u32 db_val = db->db_key32 | DB_RING_IDX(db, idx);
 
 		writel_relaxed(db_val, db->doorbell);
 		if (bp->flags & BNXT_FLAG_DOUBLE_DB)
@@ -2368,9 +2372,10 @@ static inline void bnxt_db_write(struct bnxt *bp, struct bnxt_db_info *db,
 				 u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
-		bnxt_writeq(bp, db->db_key64 | idx, db->doorbell);
+		bnxt_writeq(bp, db->db_key64 | DB_RING_IDX(db, idx),
+			    db->doorbell);
 	} else {
-		u32 db_val = db->db_key32 | idx;
+		u32 db_val = db->db_key32 | DB_RING_IDX(db, idx);
 
 		writel(db_val, db->doorbell);
 		if (bp->flags & BNXT_FLAG_DOUBLE_DB)

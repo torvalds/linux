@@ -254,18 +254,18 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 		writel(DB_CP_IRQ_DIS_FLAGS, db)
 
 #define BNXT_DB_CQ(db, idx)						\
-	writel(DB_CP_FLAGS | RING_CMP(idx), (db)->doorbell)
+	writel(DB_CP_FLAGS | DB_RING_IDX(db, idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_P5(db, idx)						\
-	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | RING_CMP(idx),	\
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | DB_RING_IDX(db, idx),\
 		    (db)->doorbell)
 
 #define BNXT_DB_CQ_ARM(db, idx)						\
-	writel(DB_CP_REARM_FLAGS | RING_CMP(idx), (db)->doorbell)
+	writel(DB_CP_REARM_FLAGS | DB_RING_IDX(db, idx), (db)->doorbell)
 
 #define BNXT_DB_NQ_ARM_P5(db, idx)					\
-	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_ARM | RING_CMP(idx),\
-		    (db)->doorbell)
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_ARM |		\
+		    DB_RING_IDX(db, idx), (db)->doorbell)
 
 static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
@@ -287,7 +287,7 @@ static void bnxt_db_cq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5)
 		bnxt_writeq(bp, db->db_key64 | DBR_TYPE_CQ_ARMALL |
-			    RING_CMP(idx), db->doorbell);
+			    DB_RING_IDX(db, idx), db->doorbell);
 	else
 		BNXT_DB_CQ(db, idx);
 }
@@ -526,7 +526,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		memcpy(txbd, tx_push1, sizeof(*txbd));
 		prod = NEXT_TX(prod);
 		tx_push->doorbell =
-			cpu_to_le32(DB_KEY_TX_PUSH | DB_LONG_TX_PUSH | prod);
+			cpu_to_le32(DB_KEY_TX_PUSH | DB_LONG_TX_PUSH |
+				    DB_RING_IDX(&txr->tx_db, prod));
 		WRITE_ONCE(txr->tx_prod, prod);
 
 		tx_buf->is_push = 1;
@@ -2871,7 +2872,8 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 		if (cpr2->had_work_done) {
 			db = &cpr2->cp_db;
 			bnxt_writeq(bp, db->db_key64 | dbr_type |
-				    RING_CMP(cpr2->cp_raw_cons), db->doorbell);
+				    DB_RING_IDX(db, cpr2->cp_raw_cons),
+				    db->doorbell);
 			cpr2->had_work_done = 0;
 		}
 	}
@@ -5987,6 +5989,26 @@ static int bnxt_hwrm_set_async_event_cr(struct bnxt *bp, int idx)
 	}
 }
 
+static void bnxt_set_db_mask(struct bnxt *bp, struct bnxt_db_info *db,
+			     u32 ring_type)
+{
+	switch (ring_type) {
+	case HWRM_RING_ALLOC_TX:
+		db->db_ring_mask = bp->tx_ring_mask;
+		break;
+	case HWRM_RING_ALLOC_RX:
+		db->db_ring_mask = bp->rx_ring_mask;
+		break;
+	case HWRM_RING_ALLOC_AGG:
+		db->db_ring_mask = bp->rx_agg_ring_mask;
+		break;
+	case HWRM_RING_ALLOC_CMPL:
+	case HWRM_RING_ALLOC_NQ:
+		db->db_ring_mask = bp->cp_ring_mask;
+		break;
+	}
+}
+
 static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			u32 map_idx, u32 xid)
 {
@@ -6026,6 +6048,7 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			break;
 		}
 	}
+	bnxt_set_db_mask(bp, db, ring_type);
 }
 
 static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
