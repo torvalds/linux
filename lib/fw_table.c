@@ -85,11 +85,6 @@ acpi_get_subtable_type(char *id)
 	return ACPI_SUBTABLE_COMMON;
 }
 
-static __init_or_acpilib bool has_handler(struct acpi_subtable_proc *proc)
-{
-	return proc->handler || proc->handler_arg;
-}
-
 static __init_or_acpilib int call_handler(struct acpi_subtable_proc *proc,
 					  union acpi_subtable_headers *hdr,
 					  unsigned long end)
@@ -133,7 +128,6 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	unsigned long table_end, subtable_len, entry_len;
 	struct acpi_subtable_entry entry;
 	int count = 0;
-	int errs = 0;
 	int i;
 
 	table_end = (unsigned long)table_header + table_header->length;
@@ -145,25 +139,19 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	    ((unsigned long)table_header + table_size);
 	subtable_len = acpi_get_subtable_header_length(&entry);
 
-	while (((unsigned long)entry.hdr) + subtable_len  < table_end) {
-		if (max_entries && count >= max_entries)
-			break;
-
+	while (((unsigned long)entry.hdr) + subtable_len < table_end) {
 		for (i = 0; i < proc_num; i++) {
 			if (acpi_get_entry_type(&entry) != proc[i].id)
 				continue;
-			if (!has_handler(&proc[i]) ||
-			    (!errs &&
-			     call_handler(&proc[i], entry.hdr, table_end))) {
-				errs++;
-				continue;
-			}
+
+			if (!max_entries || count < max_entries)
+				if (call_handler(&proc[i], entry.hdr, table_end))
+					return -EINVAL;
 
 			proc[i].count++;
+			count++;
 			break;
 		}
-		if (i != proc_num)
-			count++;
 
 		/*
 		 * If entry->length is 0, break from this loop to avoid
@@ -180,9 +168,9 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	}
 
 	if (max_entries && count > max_entries) {
-		pr_warn("[%4.4s:0x%02x] found the maximum %i entries\n",
-			id, proc->id, count);
+		pr_warn("[%4.4s:0x%02x] ignored %i entries of %i found\n",
+			id, proc->id, count - max_entries, count);
 	}
 
-	return errs ? -EINVAL : count;
+	return count;
 }
