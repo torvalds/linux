@@ -67,6 +67,7 @@
 	MACRO__(0x4682, ## __VA_ARGS__),	\
 	MACRO__(0x4688, ## __VA_ARGS__),	\
 	MACRO__(0x468A, ## __VA_ARGS__),	\
+	MACRO__(0x468B, ## __VA_ARGS__),	\
 	MACRO__(0x4690, ## __VA_ARGS__),	\
 	MACRO__(0x4692, ## __VA_ARGS__),	\
 	MACRO__(0x4693, ## __VA_ARGS__)
@@ -113,14 +114,18 @@
 #define XE_RPLU_IDS(MACRO__, ...)		\
 	MACRO__(0xA721, ## __VA_ARGS__),	\
 	MACRO__(0xA7A1, ## __VA_ARGS__),	\
-	MACRO__(0xA7A9, ## __VA_ARGS__)
+	MACRO__(0xA7A9, ## __VA_ARGS__),	\
+	MACRO__(0xA7AC, ## __VA_ARGS__),	\
+	MACRO__(0xA7AD, ## __VA_ARGS__)
 
 /* RPL-P */
 #define XE_RPLP_IDS(MACRO__, ...)		\
 	XE_RPLU_IDS(MACRO__, ## __VA_ARGS__),	\
 	MACRO__(0xA720, ## __VA_ARGS__),	\
 	MACRO__(0xA7A0, ## __VA_ARGS__),	\
-	MACRO__(0xA7A8, ## __VA_ARGS__)
+	MACRO__(0xA7A8, ## __VA_ARGS__),	\
+	MACRO__(0xA7AA, ## __VA_ARGS__),	\
+	MACRO__(0xA7AB, ## __VA_ARGS__)
 
 /* DG2 */
 #define XE_DG2_G10_IDS(MACRO__, ...)		\
