@@ -1609,15 +1609,6 @@ struct bnxt_ctx_mem_info {
 	u32	flags;
 	#define BNXT_CTX_FLAG_INITED	0x01
 	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_MAX];
-
-	struct bnxt_ctx_pg_info qp_mem;
-	struct bnxt_ctx_pg_info srq_mem;
-	struct bnxt_ctx_pg_info cq_mem;
-	struct bnxt_ctx_pg_info vnic_mem;
-	struct bnxt_ctx_pg_info stat_mem;
-	struct bnxt_ctx_pg_info mrav_mem;
-	struct bnxt_ctx_pg_info tim_mem;
-	struct bnxt_ctx_pg_info *tqm_mem[BNXT_MAX_TQM_RINGS];
 };
 
 enum bnxt_health_severity {
