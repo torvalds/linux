@@ -163,12 +163,18 @@ void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt)
 		atomic_read(&ctxt->write_sectors) != sectors_pending);
 }
 
+static void bch2_moving_ctxt_flush_all(struct moving_context *ctxt)
+{
+	move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
+	bch2_trans_unlock_long(ctxt->trans);
+	closure_sync(&ctxt->cl);
+}
+
 void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 {
 	struct bch_fs *c = ctxt->trans->c;
 
-	move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
-	closure_sync(&ctxt->cl);
+	bch2_moving_ctxt_flush_all(ctxt);
 
 	EBUG_ON(atomic_read(&ctxt->write_sectors));
 	EBUG_ON(atomic_read(&ctxt->write_ios));
@@ -484,8 +490,8 @@ int bch2_move_ratelimit(struct moving_context *ctxt)
 	struct bch_fs *c = ctxt->trans->c;
 	u64 delay;
 
-	if (ctxt->wait_on_copygc && !c->copygc_running) {
-		bch2_trans_unlock_long(ctxt->trans);
+	if (ctxt->wait_on_copygc && c->copygc_running) {
+		bch2_moving_ctxt_flush_all(ctxt);
 		wait_event_killable(c->copygc_running_wq,
 				    !c->copygc_running ||
 				    kthread_should_stop());
@@ -512,7 +518,7 @@ int bch2_move_ratelimit(struct moving_context *ctxt)
 			schedule_timeout(delay);
 
 		if (unlikely(freezing(current))) {
-			move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
+			bch2_moving_ctxt_flush_all(ctxt);
 			try_to_freeze();
 		}
 	} while (delay);
