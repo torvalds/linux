@@ -329,7 +329,7 @@ static void mk_region_mask(char *name, struct region *rp, u64 base, u64 mask)
 		return;
 	}
 	if (mask != GENMASK_ULL(PND_MAX_PHYS_BIT, __ffs(mask))) {
-		pr_info(FW_BUG "MOT mask not power of two\n");
+		pr_info(FW_BUG "MOT mask is invalid\n");
 		return;
 	}
 	if (base & ~mask) {
