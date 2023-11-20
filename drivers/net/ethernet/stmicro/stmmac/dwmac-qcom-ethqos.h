@@ -11,6 +11,8 @@
 #define ETHQOSINFO(fmt, args...) \
 	pr_info(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
 
+#define PM_WAKEUP_MS			5000
+
 #define RGMII_IO_MACRO_CONFIG		0x0
 #define SDCC_HC_REG_DLL_CONFIG		0x4
 #define SDCC_TEST_CTL			0x8
@@ -75,6 +77,10 @@ struct qcom_ethqos {
 	struct regulator *reg_rgmii_io_pads;
 
 	int curr_serdes_speed;
+
+	/* Boolean to check if clock is suspended*/
+	int clks_suspended;
+	struct completion clk_enable_done;
 };
 
 int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
