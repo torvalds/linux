@@ -500,7 +500,7 @@ static int starfive_aes_prepare_req(struct skcipher_request *req,
 	scatterwalk_start(&cryp->out_walk, rctx->out_sg);
 
 	if (cryp->assoclen) {
-		rctx->adata = kzalloc(ALIGN(cryp->assoclen, AES_BLOCK_SIZE), GFP_KERNEL);
+		rctx->adata = kzalloc(cryp->assoclen + AES_BLOCK_SIZE, GFP_KERNEL);
 		if (!rctx->adata)
 			return dev_err_probe(cryp->dev, -ENOMEM,
 					     "Failed to alloc memory for adata");
@@ -569,7 +569,7 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	struct starfive_cryp_ctx *ctx =
 		crypto_aead_ctx(crypto_aead_reqtfm(req));
 	struct starfive_cryp_dev *cryp = ctx->cryp;
-	struct starfive_cryp_request_ctx *rctx = ctx->rctx;
+	struct starfive_cryp_request_ctx *rctx;
 	u32 block[AES_BLOCK_32];
 	u32 stat;
 	int err;
@@ -578,6 +578,8 @@ static int starfive_aes_aead_do_one_req(struct crypto_engine *engine, void *areq
 	err = starfive_aes_prepare_req(NULL, req);
 	if (err)
 		return err;
+
+	rctx = ctx->rctx;
 
 	if (!cryp->assoclen)
 		goto write_text;
