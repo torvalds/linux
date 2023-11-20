@@ -27,6 +27,13 @@
 #include <linux/ioprio.h>
 #include <linux/kthread.h>
 
+const char * const bch2_data_ops_strs[] = {
+#define x(t, n, ...) [n] = #t,
+	BCH_DATA_OPS()
+#undef x
+	NULL
+};
+
 static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k)
 {
 	if (trace_move_extent_enabled()) {
@@ -211,7 +218,7 @@ void bch2_move_stats_exit(struct bch_move_stats *stats, struct bch_fs *c)
 	trace_move_data(c, stats);
 }
 
-void bch2_move_stats_init(struct bch_move_stats *stats, char *name)
+void bch2_move_stats_init(struct bch_move_stats *stats, const char *name)
 {
 	memset(stats, 0, sizeof(*stats));
 	stats->data_type = BCH_DATA_user;
@@ -1012,9 +1019,13 @@ int bch2_data_job(struct bch_fs *c,
 {
 	int ret = 0;
 
+	if (op.op >= BCH_DATA_OP_NR)
+		return -EINVAL;
+
+	bch2_move_stats_init(stats, bch2_data_ops_strs[op.op]);
+
 	switch (op.op) {
-	case BCH_DATA_OP_REREPLICATE:
-		bch2_move_stats_init(stats, "rereplicate");
+	case BCH_DATA_OP_rereplicate:
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, -1);
 
@@ -1033,14 +1044,11 @@ int bch2_data_job(struct bch_fs *c,
 				     true,
 				     rereplicate_pred, c) ?: ret;
 		ret = bch2_replicas_gc2(c) ?: ret;
-
-		bch2_move_stats_exit(stats, c);
 		break;
-	case BCH_DATA_OP_MIGRATE:
+	case BCH_DATA_OP_migrate:
 		if (op.migrate.dev >= c->sb.nr_devices)
 			return -EINVAL;
 
-		bch2_move_stats_init(stats, "migrate");
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
 
@@ -1059,18 +1067,15 @@ int bch2_data_job(struct bch_fs *c,
 				     true,
 				     migrate_pred, &op) ?: ret;
 		ret = bch2_replicas_gc2(c) ?: ret;
-
-		bch2_move_stats_exit(stats, c);
 		break;
-	case BCH_DATA_OP_REWRITE_OLD_NODES:
-		bch2_move_stats_init(stats, "rewrite_old_nodes");
+	case BCH_DATA_OP_rewrite_old_nodes:
 		ret = bch2_scan_old_btree_nodes(c, stats);
-		bch2_move_stats_exit(stats, c);
 		break;
 	default:
 		ret = -EINVAL;
 	}
 
+	bch2_move_stats_exit(stats, c);
 	return ret;
 }
 

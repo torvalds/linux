@@ -173,12 +173,17 @@ struct bch_ioctl_disk_set_state {
 	__u64			dev;
 };
 
+#define BCH_DATA_OPS()			\
+	x(scrub,		0)	\
+	x(rereplicate,		1)	\
+	x(migrate,		2)	\
+	x(rewrite_old_nodes,	3)
+
 enum bch_data_ops {
-	BCH_DATA_OP_SCRUB		= 0,
-	BCH_DATA_OP_REREPLICATE		= 1,
-	BCH_DATA_OP_MIGRATE		= 2,
-	BCH_DATA_OP_REWRITE_OLD_NODES	= 3,
-	BCH_DATA_OP_NR			= 4,
+#define x(t, n) BCH_DATA_OP_##t = n,
+	BCH_DATA_OPS()
+#undef x
+	BCH_DATA_OP_NR
 };
 
 /*
