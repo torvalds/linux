@@ -1024,6 +1024,8 @@ static inline void mlxsw_reg_spaft_pack(char *payload, u16 local_port,
  * ------------------------------------------
  * The following register controls the association of flooding tables and MIDs
  * to packet types used for flooding.
+ *
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF.
  */
 #define MLXSW_REG_SFGC_ID 0x2011
 #define MLXSW_REG_SFGC_LEN 0x14
@@ -1862,6 +1864,7 @@ MLXSW_ITEM32(reg, sfmr, fid, 0x00, 0, 16);
  * Access: RW
  *
  * Note: Reserved when legacy bridge model is used.
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF.
  */
 MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
 
@@ -1872,6 +1875,7 @@ MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
  * Access: RW
  *
  * Note: Reserved when legacy bridge model is used and when flood_rsp=1.
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF
  */
 MLXSW_ITEM32(reg, sfmr, flood_bridge_type, 0x08, 28, 1);
 
@@ -1880,6 +1884,8 @@ MLXSW_ITEM32(reg, sfmr, flood_bridge_type, 0x08, 28, 1);
  * Used to point into the flooding table selected by SFGC register if
  * the table is of type FID-Offset. Otherwise, this field is reserved.
  * Access: RW
+ *
+ * Note: Reserved when CONFIG_PROFILE.flood_mode = CFF
  */
 MLXSW_ITEM32(reg, sfmr, fid_offset, 0x08, 0, 16);
 
