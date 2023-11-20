@@ -2089,15 +2089,18 @@ static void gr_ep_remove(struct gr_udc *dev, int num, int is_in)
 				  ep->tailbuf, ep->tailbuf_paddr);
 }
 
-static int gr_remove(struct platform_device *pdev)
+static void gr_remove(struct platform_device *pdev)
 {
 	struct gr_udc *dev = platform_get_drvdata(pdev);
 	int i;
 
 	if (dev->added)
 		usb_del_gadget_udc(&dev->gadget); /* Shuts everything down */
-	if (dev->driver)
-		return -EBUSY;
+	if (dev->driver) {
+		dev_err(&pdev->dev,
+			"Driver still in use but removing anyhow\n");
+		return;
+	}
 
 	gr_dfs_delete(dev);
 	dma_pool_destroy(dev->desc_pool);
@@ -2110,8 +2113,6 @@ static int gr_remove(struct platform_device *pdev)
 		gr_ep_remove(dev, i, 0);
 	for (i = 0; i < dev->nepi; i++)
 		gr_ep_remove(dev, i, 1);
-
-	return 0;
 }
 static int gr_request_irq(struct gr_udc *dev, int irq)
 {
@@ -2248,7 +2249,7 @@ static struct platform_driver gr_driver = {
 		.of_match_table = gr_match,
 	},
 	.probe = gr_probe,
-	.remove = gr_remove,
+	.remove_new = gr_remove,
 };
 module_platform_driver(gr_driver);
 
