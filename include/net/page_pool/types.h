@@ -125,6 +125,8 @@ struct page_pool_stats {
 struct page_pool {
 	struct page_pool_params_fast p;
 
+	bool has_init_callback;
+
 	long frag_users;
 	struct page *frag_page;
 	unsigned int frag_offset;
