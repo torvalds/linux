@@ -34,3 +34,4 @@ phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 sdhci-msm-scaling.ko
 ufs_qcom.ko
+dispcc-pitti.ko
