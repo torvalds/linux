@@ -252,6 +252,8 @@ static int csi2_start(struct csi2_dev *csi2)
 			v4l2_err(&csi2->sd, "%s: enable clks failed\n", __func__);
 			return ret;
 		}
+		enable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		enable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_enable(csi2->csi2_hw[csi_idx], host_type);
 	}
 
@@ -269,6 +271,8 @@ static int csi2_start(struct csi2_dev *csi2)
 err_assert_reset:
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
+		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_disable(csi2->csi2_hw[csi_idx]);
 		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
 	}
@@ -286,6 +290,8 @@ static void csi2_stop(struct csi2_dev *csi2)
 
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
+		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_disable(csi2->csi2_hw[csi_idx]);
 		csi2_hw_do_reset(csi2->csi2_hw[csi_idx]);
 		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
@@ -782,6 +788,11 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	char vc_info[CSI_VCINFO_LEN] = {0};
 	bool is_add_cnt = false;
 
+	if (!csi2_hw || !csi2) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
+
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR1);
 	if (val) {
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
@@ -881,6 +892,11 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	char cur_str[CSI_ERRSTR_LEN] = {0};
 	char err_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
+
+	if (!csi2_hw) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
 
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR2);
 	if (val) {
@@ -1259,7 +1275,7 @@ static int csi2_hw_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "csi-intr1");
 	if (irq > 0) {
 		ret = devm_request_irq(&pdev->dev, irq,
-				       rk_csirx_irq1_handler, 0,
+				       rk_csirx_irq1_handler, IRQ_NOAUTOEN,
 				       dev_driver_string(&pdev->dev),
 				       &pdev->dev);
 		if (ret < 0)
@@ -1273,7 +1289,7 @@ static int csi2_hw_probe(struct platform_device *pdev)
 	irq = platform_get_irq_byname(pdev, "csi-intr2");
 	if (irq > 0) {
 		ret = devm_request_irq(&pdev->dev, irq,
-				       rk_csirx_irq2_handler, 0,
+				       rk_csirx_irq2_handler, IRQ_NOAUTOEN,
 				       dev_driver_string(&pdev->dev),
 				       &pdev->dev);
 		if (ret < 0)
