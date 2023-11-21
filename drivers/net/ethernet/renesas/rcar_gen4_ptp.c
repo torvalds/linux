@@ -141,8 +141,18 @@ static int rcar_gen4_ptp_set_offs(struct rcar_gen4_ptp_private *ptp_priv,
 	return 0;
 }
 
+static s64 rcar_gen4_ptp_rate_to_increment(u32 rate)
+{
+	/* Timer increment in ns.
+	 * bit[31:27] - integer
+	 * bit[26:0]  - decimal
+	 * increment[ns] = perid[ns] * 2^27 => (1ns * 2^27) / rate[hz]
+	 */
+	return div_s64(1000000000LL << 27, rate);
+}
+
 int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv,
-			   enum rcar_gen4_ptp_reg_layout layout, u32 clock)
+			   enum rcar_gen4_ptp_reg_layout layout, u32 rate)
 {
 	int ret;
 
@@ -155,7 +165,7 @@ int rcar_gen4_ptp_register(struct rcar_gen4_ptp_private *ptp_priv,
 	if (ret)
 		return ret;
 
-	ptp_priv->default_addend = clock;
+	ptp_priv->default_addend = rcar_gen4_ptp_rate_to_increment(rate);
 	iowrite32(ptp_priv->default_addend, ptp_priv->addr + ptp_priv->offs->increment);
 	ptp_priv->clock = ptp_clock_register(&ptp_priv->info, NULL);
 	if (IS_ERR(ptp_priv->clock))

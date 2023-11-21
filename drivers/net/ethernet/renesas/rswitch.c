@@ -1829,7 +1829,7 @@ static int rswitch_init(struct rswitch_private *priv)
 	rswitch_fwd_init(priv);
 
 	err = rcar_gen4_ptp_register(priv->ptp_priv, RCAR_GEN4_PTP_REG_LAYOUT,
-				     RCAR_GEN4_PTP_CLOCK_S4);
+				     clk_get_rate(priv->clk));
 	if (err < 0)
 		goto err_ptp_register;
 
