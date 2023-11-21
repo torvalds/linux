@@ -340,6 +340,26 @@ static const char * const svs_type_names[SVSB_TYPE_MAX] = {
 	"", "_LOW", "_HIGH"
 };
 
+enum svs_fusemap_dev {
+	BDEV_BDES,
+	BDEV_MDES,
+	BDEV_MTDES,
+	BDEV_DCBDET,
+	BDEV_DCMDET,
+	BDEV_MAX
+};
+
+enum svs_fusemap_glb {
+	GLB_FT_PGM,
+	GLB_VMIN,
+	GLB_MAX
+};
+
+struct svs_fusemap {
+	s8 index;
+	u8 ofst;
+};
+
 /**
  * struct svs_platform - svs platform control
  * @base: svs platform register base
@@ -375,12 +395,14 @@ struct svs_platform_data {
 	struct svs_bank *banks;
 	bool (*efuse_parsing)(struct svs_platform *svsp);
 	int (*probe)(struct svs_platform *svsp);
+	const struct svs_fusemap *glb_fuse_map;
 	const u32 *regs;
 	u32 bank_max;
 };
 
 /**
  * struct svs_bank - svs bank representation
+ * @dev_fuse_map: Bank fuse map data
  * @dev: bank device
  * @opp_dev: device for opp table/buck control
  * @init_completion: the timeout completion for bank init
@@ -444,6 +466,7 @@ struct svs_platform_data {
  * opp_volt[i] = (volt[i] * volt_step) + volt_base;
  */
 struct svs_bank {
+	const struct svs_fusemap *dev_fuse_map;
 	struct device *dev;
 	struct device *opp_dev;
 	struct completion init_completion;
@@ -2457,6 +2480,9 @@ static struct svs_bank svs_mt8195_banks[] = {
 		.core_sel		= 0x0fff0100,
 		.int_st			= BIT(0),
 		.ctl0			= 0x00540003,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 10, 16 }, { 10, 24 }, { 10, 0 }, { 8, 0 }, { 8, 8 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_GPU,
@@ -2486,6 +2512,9 @@ static struct svs_bank svs_mt8195_banks[] = {
 		.tzone_htemp_voffset	= 0,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 7,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 9, 16 }, { 9, 24 }, { 9, 0 }, { 8, 0 }, { 8, 8 }
+		},
 	},
 };
 
@@ -2517,6 +2546,9 @@ static struct svs_bank svs_mt8192_banks[] = {
 		.tzone_htemp_voffset	= 0,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 7,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 10, 16 }, { 10, 24 }, { 10, 0 }, { 17, 0 }, { 17, 8 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_GPU,
@@ -2546,6 +2578,9 @@ static struct svs_bank svs_mt8192_banks[] = {
 		.tzone_htemp_voffset	= 0,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 7,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 9, 16 }, { 9, 24 }, { 17, 0 }, { 17, 16 }, { 17, 24 }
+		}
 	},
 };
 
@@ -2572,6 +2607,9 @@ static struct svs_bank svs_mt8188_banks[] = {
 		.core_sel		= 0x0fff0000,
 		.int_st			= BIT(0),
 		.ctl0			= 0x00100003,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 5, 16 }, { 5, 24 }, { 5, 0 }, { 15, 16 }, { 15, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_GPU,
@@ -2601,6 +2639,9 @@ static struct svs_bank svs_mt8188_banks[] = {
 		.tzone_htemp_voffset	= 0,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 7,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 4, 16 }, { 4, 24 }, { 4, 0 }, { 14, 0 }, { 14, 8 }
+		}
 	},
 };
 
@@ -2629,6 +2670,9 @@ static struct svs_bank svs_mt8186_banks[] = {
 		.core_sel		= 0x0fff0100,
 		.int_st			= BIT(0),
 		.ctl0			= 0x00540003,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 3, 16 }, { 3, 24 }, { 3, 0 }, { 14, 16 }, { 14, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_CPU_BIG,
@@ -2660,6 +2704,9 @@ static struct svs_bank svs_mt8186_banks[] = {
 		.tzone_htemp_voffset	= 8,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 8,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 2, 16 }, { 2, 24 }, { 2, 0 }, { 13, 0 }, { 13, 8 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_CPU_LITTLE,
@@ -2689,6 +2736,9 @@ static struct svs_bank svs_mt8186_banks[] = {
 		.tzone_htemp_voffset	= 8,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 8,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 4, 16 }, { 4, 24 }, { 4, 0 }, { 14, 0 }, { 14, 8 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_CCI,
@@ -2717,6 +2767,9 @@ static struct svs_bank svs_mt8186_banks[] = {
 		.tzone_htemp_voffset	= 8,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 8,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 5, 16 }, { 5, 24 }, { 5, 0 }, { 15, 16 }, { 15, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_GPU,
@@ -2744,6 +2797,9 @@ static struct svs_bank svs_mt8186_banks[] = {
 		.tzone_htemp_voffset	= 8,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 7,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 6, 16 }, { 6, 24 }, { 6, 0 }, { 15, 8 }, { 15, 0 }
+		}
 	},
 };
 
@@ -2771,6 +2827,9 @@ static struct svs_bank svs_mt8183_banks[] = {
 		.core_sel		= 0x8fff0000,
 		.int_st			= BIT(0),
 		.ctl0			= 0x00010001,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 16, 0 }, { 16, 8 }, { 17, 16 }, { 16, 16 }, { 16, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_CPU_BIG,
@@ -2795,6 +2854,9 @@ static struct svs_bank svs_mt8183_banks[] = {
 		.core_sel		= 0x8fff0001,
 		.int_st			= BIT(1),
 		.ctl0			= 0x00000001,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 18, 0 }, { 18, 8 }, { 17, 0 }, { 18, 16 }, { 18, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_CCI,
@@ -2818,6 +2880,9 @@ static struct svs_bank svs_mt8183_banks[] = {
 		.core_sel		= 0x8fff0002,
 		.int_st			= BIT(2),
 		.ctl0			= 0x00100003,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 4, 0 }, { 4, 8 }, { 5, 16 }, { 4, 16 }, { 4, 24 }
+		}
 	},
 	{
 		.sw_id			= SVSB_SWID_GPU,
@@ -2848,6 +2913,9 @@ static struct svs_bank svs_mt8183_banks[] = {
 		.tzone_htemp_voffset	= 0,
 		.tzone_ltemp		= 25000,
 		.tzone_ltemp_voffset	= 3,
+		.dev_fuse_map		= (const struct svs_fusemap[BDEV_MAX]) {
+			{ 6, 0 }, { 6, 8 }, { 5, 0 }, { 6, 16 }, { 6, 24 }
+		}
 	},
 };
 
@@ -2858,6 +2926,9 @@ static const struct svs_platform_data svs_mt8195_platform_data = {
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8195_banks),
+	.glb_fuse_map = (const struct svs_fusemap[GLB_MAX]) {
+		{ 0, 0 }, { 19, 4 }
+	}
 };
 
 static const struct svs_platform_data svs_mt8192_platform_data = {
@@ -2867,6 +2938,10 @@ static const struct svs_platform_data svs_mt8192_platform_data = {
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8192_banks),
+	.glb_fuse_map = (const struct svs_fusemap[GLB_MAX]) {
+		/* FT_PGM not present */
+		{ -1, 0 }, { 19, 4 }
+	}
 };
 
 static const struct svs_platform_data svs_mt8188_platform_data = {
@@ -2876,6 +2951,10 @@ static const struct svs_platform_data svs_mt8188_platform_data = {
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8188_banks),
+	.glb_fuse_map = (const struct svs_fusemap[GLB_MAX]) {
+		/* FT_PGM and VMIN not present */
+		{ -1, 0 }, { -1, 0 }
+	}
 };
 
 static const struct svs_platform_data svs_mt8186_platform_data = {
@@ -2885,6 +2964,10 @@ static const struct svs_platform_data svs_mt8186_platform_data = {
 	.probe = svs_mt8186_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8186_banks),
+	.glb_fuse_map = (const struct svs_fusemap[GLB_MAX]) {
+		/* FT_PGM and VMIN not present */
+		{ -1, 0 }, { -1, 0 }
+	}
 };
 
 static const struct svs_platform_data svs_mt8183_platform_data = {
@@ -2894,6 +2977,10 @@ static const struct svs_platform_data svs_mt8183_platform_data = {
 	.probe = svs_mt8183_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8183_banks),
+	.glb_fuse_map = (const struct svs_fusemap[GLB_MAX]) {
+		/* VMIN not present */
+		{ 0, 4 }, { -1, 0 }
+	}
 };
 
 static const struct of_device_id svs_of_match[] = {
