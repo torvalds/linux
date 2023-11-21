@@ -1400,6 +1400,16 @@ static irqreturn_t svs_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static bool svs_mode_available(struct svs_platform *svsp, u8 mode)
+{
+	int i;
+
+	for (i = 0; i < svsp->bank_max; i++)
+		if (svsp->banks[i].mode_support & mode)
+			return true;
+	return false;
+}
+
 static int svs_init01(struct svs_platform *svsp)
 {
 	struct svs_bank *svsb;
@@ -1407,6 +1417,9 @@ static int svs_init01(struct svs_platform *svsp)
 	bool search_done;
 	int ret = 0, r;
 	u32 opp_freq, opp_vboot, buck_volt, idx, i;
+
+	if (!svs_mode_available(svsp, SVSB_MODE_INIT01))
+		return 0;
 
 	/* Keep CPUs' core power on for svs_init01 initialization */
 	cpuidle_pause_and_lock();
@@ -1574,6 +1587,9 @@ static int svs_init02(struct svs_platform *svsp)
 	unsigned long flags, time_left;
 	int ret;
 	u32 idx;
+
+	if (!svs_mode_available(svsp, SVSB_MODE_INIT02))
+		return 0;
 
 	for (idx = 0; idx < svsp->bank_max; idx++) {
 		svsb = &svsp->banks[idx];
