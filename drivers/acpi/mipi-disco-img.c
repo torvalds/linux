@@ -533,7 +533,7 @@ static void init_csi2_port(struct acpi_device *adev,
 	if (ret < 0) {
 		acpi_handle_debug(handle, "Lane polarity bytes missing\n");
 	} else if (ret * BITS_PER_TYPE(u8) < num_lanes + 1) {
-		acpi_handle_info(handle, "Too few lane polarity bytes (%lu vs. %d)\n",
+		acpi_handle_info(handle, "Too few lane polarity bits (%zu vs. %d)\n",
 				 ret * BITS_PER_TYPE(u8), num_lanes + 1);
 	} else {
 		unsigned long mask = 0;
