@@ -579,7 +579,8 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (pci_mmcfg_check_reserved(NULL, cfg, early) == 0) {
-			pr_info(PREFIX "not using MMCONFIG\n");
+			pr_info(PREFIX "not using MMCONFIG (%pR not reserved)\n",
+				&cfg->res);
 			free_all_mmcfg();
 			return;
 		}
@@ -676,6 +677,8 @@ static int pci_mmcfg_for_each_region(int (*func)(__u64 start, __u64 size,
 
 static void __init __pci_mmcfg_init(int early)
 {
+	pr_debug(PREFIX "%s(%s)\n", __func__, early ? "early" : "late");
+
 	pci_mmcfg_reject_broken(early);
 	if (list_empty(&pci_mmcfg_list))
 		return;
@@ -702,6 +705,8 @@ static int __initdata known_bridge;
 
 void __init pci_mmcfg_early_init(void)
 {
+	pr_debug(PREFIX "%s() pci_probe %#x\n", __func__, pci_probe);
+
 	if (pci_probe & PCI_PROBE_MMCONF) {
 		if (pci_mmcfg_check_hostbridge())
 			known_bridge = 1;
@@ -715,6 +720,8 @@ void __init pci_mmcfg_early_init(void)
 
 void __init pci_mmcfg_late_init(void)
 {
+	pr_debug(PREFIX "%s() pci_probe %#x\n", __func__, pci_probe);
+
 	/* MMCONFIG disabled */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
@@ -735,6 +742,8 @@ static int __init pci_mmcfg_late_insert_resources(void)
 
 	pci_mmcfg_running_state = true;
 
+	pr_debug(PREFIX "%s() pci_probe %#x\n", __func__, pci_probe);
+
 	/* If we are not using MMCONFIG, don't insert the resources. */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return 1;
@@ -744,9 +753,12 @@ static int __init pci_mmcfg_late_insert_resources(void)
 	 * marked so it won't cause request errors when __request_region is
 	 * called.
 	 */
-	list_for_each_entry(cfg, &pci_mmcfg_list, list)
-		if (!cfg->res.parent)
+	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
+		if (!cfg->res.parent) {
+			pr_debug(PREFIX "%s() insert %pR\n", __func__, &cfg->res);
 			insert_resource(&iomem_resource, &cfg->res);
+		}
+	}
 
 	return 0;
 }
@@ -765,6 +777,8 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	int rc;
 	struct resource *tmp = NULL;
 	struct pci_mmcfg_region *cfg;
+
+	dev_dbg(dev, "%s(%04x [bus %02x-%02x])\n", __func__, seg, start, end);
 
 	if (!(pci_probe & PCI_PROBE_MMCONF) || pci_mmcfg_arch_init_failed)
 		return -ENODEV;
@@ -810,8 +824,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 				 "%s %pR\n",
 				 &cfg->res, tmp->name, tmp);
 		} else if (pci_mmcfg_arch_map(cfg)) {
-			dev_warn(dev, "fail to map MMCONFIG %pR.\n",
-				 &cfg->res);
+			dev_warn(dev, "fail to map MMCONFIG %pR\n", &cfg->res);
 		} else {
 			list_add_sorted(cfg);
 			dev_info(dev, "MMCONFIG at %pR (base %#lx)\n",
