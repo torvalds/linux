@@ -393,8 +393,10 @@ extern const struct class tty_class;
  * tty_kref_get - get a tty reference
  * @tty: tty device
  *
- * Returns: a new reference to a tty object. The caller must hold sufficient
- * locks/counts to ensure that their existing reference cannot go away
+ * Returns: a new reference to a tty object
+ *
+ * Locking: The caller must hold sufficient locks/counts to ensure that their
+ * existing reference cannot go away.
  */
 static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 {
@@ -436,10 +438,10 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
  * tty_get_baud_rate - get tty bit rates
  * @tty: tty to query
  *
- * Returns: the baud rate as an integer for this terminal. The termios lock
- * must be held by the caller and the terminal bit flags may be updated.
+ * Returns: the baud rate as an integer for this terminal
  *
- * Locking: none
+ * Locking: The termios lock must be held by the caller and the terminal bit
+ * flags may be updated.
  */
 static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
 {
