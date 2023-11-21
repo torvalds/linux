@@ -708,8 +708,8 @@ static int patch_retpoline(void *addr, struct insn *insn, u8 *bytes)
 	/*
 	 * The compiler is supposed to EMIT an INT3 after every unconditional
 	 * JMP instruction due to AMD BTC. However, if the compiler is too old
-	 * or SLS isn't enabled, we still need an INT3 after indirect JMPs
-	 * even on Intel.
+	 * or MITIGATION_SLS isn't enabled, we still need an INT3 after
+	 * indirect JMPs even on Intel.
 	 */
 	if (op == JMP32_INSN_OPCODE && i < insn->length)
 		bytes[i++] = INT3_INSN_OPCODE;

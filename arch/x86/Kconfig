@@ -2577,7 +2577,7 @@ config CPU_SRSO
 	help
 	  Enable the SRSO mitigation needed on AMD Zen1-4 machines.
 
-config SLS
+config MITIGATION_SLS
 	bool "Mitigate Straight-Line-Speculation"
 	depends on CC_HAS_SLS && X86_64
 	select OBJTOOL if HAVE_OBJTOOL
