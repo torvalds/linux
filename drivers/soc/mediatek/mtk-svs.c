@@ -122,6 +122,9 @@
 #define SVSB_TS_COEFF_MT8195		250460
 #define SVSB_TS_COEFF_MT8186		204650
 
+/* Algo helpers */
+#define FUSE_DATA_NOT_VALID		U32_MAX
+
 /* svs bank related setting */
 #define BITS8				8
 #define MAX_OPP_ENTRIES			16
@@ -399,7 +402,7 @@ struct svs_platform {
 struct svs_platform_data {
 	char *name;
 	struct svs_bank *banks;
-	bool (*efuse_parsing)(struct svs_platform *svsp);
+	bool (*efuse_parsing)(struct svs_platform *svsp, const struct svs_platform_data *pdata);
 	int (*probe)(struct svs_platform *svsp);
 	const struct svs_fusemap *glb_fuse_map;
 	const u32 *regs;
@@ -1838,264 +1841,83 @@ static int svs_get_efuse_data(struct svs_platform *svsp,
 	return 0;
 }
 
-static bool svs_mt8195_efuse_parsing(struct svs_platform *svsp)
+static u32 svs_get_fuse_val(u32 *fuse_array, const struct svs_fusemap *fmap, u8 nbits)
 {
-	struct svs_bank *svsb;
-	u32 idx, i, ft_pgm, vmin, golden_temp;
-	int ret;
+	u32 val;
 
-	for (i = 0; i < svsp->efuse_max; i++)
+	if (fmap->index < 0)
+		return FUSE_DATA_NOT_VALID;
+
+	val = fuse_array[fmap->index] >> fmap->ofst;
+	val &= GENMASK(nbits - 1, 0);
+
+	return val;
+}
+
+static bool svs_is_available(struct svs_platform *svsp)
+{
+	int i, num_populated = 0;
+
+	/* If at least two fuse arrays are populated, SVS is calibrated */
+	for (i = 0; i < svsp->efuse_max; i++) {
 		if (svsp->efuse[i])
-			dev_info(svsp->dev, "M_HW_RES%d: 0x%08x\n",
-				 i, svsp->efuse[i]);
+			num_populated++;
 
-	if (!svsp->efuse[10]) {
-		dev_notice(svsp->dev, "svs_efuse[10] = 0x0?\n");
-		return false;
+		if (num_populated > 1)
+			return true;
 	}
 
-	/* Svs efuse parsing */
-	ft_pgm = svsp->efuse[0] & GENMASK(7, 0);
-	vmin = (svsp->efuse[19] >> 4) & GENMASK(1, 0);
+	return false;
+}
 
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
+static bool svs_common_parse_efuse(struct svs_platform *svsp,
+				   const struct svs_platform_data *pdata)
+{
+	const struct svs_fusemap *gfmap = pdata->glb_fuse_map;
+	struct svs_fusemap tfm = { 0, 24 };
+	u32 golden_temp, val;
+	u8 ft_pgm, vmin;
+	int i;
 
-		if (vmin == 0x1)
+	if (!svs_is_available(svsp))
+		return false;
+
+	/* Get golden temperature from SVS-Thermal calibration */
+	val = svs_get_fuse_val(svsp->tefuse, &tfm, 8);
+
+	/* If golden temp is not programmed, use the default of 50 */
+	golden_temp = val ? val : 50;
+
+	/* Parse fused SVS calibration */
+	ft_pgm = svs_get_fuse_val(svsp->efuse, &gfmap[GLB_FT_PGM], 8);
+	vmin = svs_get_fuse_val(svsp->efuse, &gfmap[GLB_VMIN], 2);
+
+	for (i = 0; i < svsp->bank_max; i++) {
+		struct svs_bank *svsb = &svsp->banks[i];
+		const struct svs_fusemap *dfmap = svsb->dev_fuse_map;
+
+		if (vmin == 1)
 			svsb->vmin = 0x1e;
 
 		if (ft_pgm == 0)
 			svsb->volt_flags |= SVSB_INIT01_VOLT_IGNORE;
 
-		if (svsb->type == SVSB_TYPE_LOW) {
-			svsb->mtdes = svsp->efuse[10] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[10] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[10] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[8]) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[8] >> 8) & GENMASK(7, 0);
-		} else if (svsb->type == SVSB_TYPE_HIGH) {
-			svsb->mtdes = svsp->efuse[9] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[9] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[9] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[8]) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[8] >> 8) & GENMASK(7, 0);
-		}
-
+		svsb->mtdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_MTDES], 8);
+		svsb->bdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_BDES], 8);
+		svsb->mdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_MDES], 8);
+		svsb->dcbdet = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_DCBDET], 8);
+		svsb->dcmdet = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_DCMDET], 8);
 		svsb->vmax += svsb->dvt_fixed;
-	}
 
-	for (i = 0; i < svsp->tefuse_max; i++)
-		if (svsp->tefuse[i] != 0)
-			break;
-
-	if (i == svsp->tefuse_max)
-		golden_temp = 50; /* All thermal efuse data are 0 */
-	else
-		golden_temp = (svsp->tefuse[0] >> 24) & GENMASK(7, 0);
-
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-		svsb->mts = 500;
-		svsb->bts = (((500 * golden_temp + 250460) / 1000) - 25) * 4;
+		svsb->mts = (svsp->ts_coeff * 2) / 1000;
+		svsb->bts = (((500 * golden_temp + svsp->ts_coeff) / 1000) - 25) * 4;
 	}
 
 	return true;
 }
 
-static bool svs_mt8192_efuse_parsing(struct svs_platform *svsp)
-{
-	struct svs_bank *svsb;
-	u32 idx, i, vmin, golden_temp;
-	int ret;
-
-	for (i = 0; i < svsp->efuse_max; i++)
-		if (svsp->efuse[i])
-			dev_info(svsp->dev, "M_HW_RES%d: 0x%08x\n",
-				 i, svsp->efuse[i]);
-
-	if (!svsp->efuse[9]) {
-		dev_notice(svsp->dev, "svs_efuse[9] = 0x0?\n");
-		return false;
-	}
-
-	/* Svs efuse parsing */
-	vmin = (svsp->efuse[19] >> 4) & GENMASK(1, 0);
-
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-
-		if (vmin == 0x1)
-			svsb->vmin = 0x1e;
-
-		if (svsb->type == SVSB_TYPE_LOW) {
-			svsb->mtdes = svsp->efuse[10] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[10] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[10] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[17]) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[17] >> 8) & GENMASK(7, 0);
-		} else if (svsb->type == SVSB_TYPE_HIGH) {
-			svsb->mtdes = svsp->efuse[9] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[9] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[9] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[17] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[17] >> 24) & GENMASK(7, 0);
-		}
-
-		svsb->vmax += svsb->dvt_fixed;
-	}
-
-	for (i = 0; i < svsp->tefuse_max; i++)
-		if (svsp->tefuse[i] != 0)
-			break;
-
-	if (i == svsp->tefuse_max)
-		golden_temp = 50; /* All thermal efuse data are 0 */
-	else
-		golden_temp = (svsp->tefuse[0] >> 24) & GENMASK(7, 0);
-
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-		svsb->mts = 500;
-		svsb->bts = (((500 * golden_temp + 250460) / 1000) - 25) * 4;
-	}
-
-	return true;
-}
-
-static bool svs_mt8188_efuse_parsing(struct svs_platform *svsp)
-{
-	struct svs_bank *svsb;
-	u32 idx, i, golden_temp;
-	int ret;
-
-	for (i = 0; i < svsp->efuse_max; i++)
-		if (svsp->efuse[i])
-			dev_info(svsp->dev, "M_HW_RES%d: 0x%08x\n",
-				 i, svsp->efuse[i]);
-
-	if (!svsp->efuse[5]) {
-		dev_notice(svsp->dev, "svs_efuse[5] = 0x0?\n");
-		return false;
-	}
-
-	/* Svs efuse parsing */
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-
-		if (svsb->type == SVSB_TYPE_LOW) {
-			svsb->mtdes = svsp->efuse[5] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[5] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[5] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[15] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[15] >> 24) & GENMASK(7, 0);
-		} else if (svsb->type == SVSB_TYPE_HIGH) {
-			svsb->mtdes = svsp->efuse[4] & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[4] >> 16) & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[4] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = svsp->efuse[14] & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[14] >> 8) & GENMASK(7, 0);
-		}
-
-		svsb->vmax += svsb->dvt_fixed;
-	}
-
-	for (i = 0; i < svsp->tefuse_max; i++)
-		if (svsp->tefuse[i] != 0)
-			break;
-
-	if (i == svsp->tefuse_max)
-		golden_temp = 50; /* All thermal efuse data are 0 */
-	else
-		golden_temp = (svsp->tefuse[0] >> 24) & GENMASK(7, 0);
-
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-		svsb->mts = 500;
-		svsb->bts = (((500 * golden_temp + 250460) / 1000) - 25) * 4;
-	}
-
-	return true;
-}
-
-static bool svs_mt8186_efuse_parsing(struct svs_platform *svsp)
-{
-	struct svs_bank *svsb;
-	u32 idx, i, golden_temp;
-	int ret;
-
-	for (i = 0; i < svsp->efuse_max; i++)
-		if (svsp->efuse[i])
-			dev_info(svsp->dev, "M_HW_RES%d: 0x%08x\n",
-				 i, svsp->efuse[i]);
-
-	if (!svsp->efuse[0]) {
-		dev_notice(svsp->dev, "svs_efuse[0] = 0x0?\n");
-		return false;
-	}
-
-	/* Svs efuse parsing */
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-
-		switch (svsb->sw_id) {
-		case SVSB_SWID_CPU_BIG:
-			if (svsb->type == SVSB_TYPE_HIGH) {
-				svsb->mdes = (svsp->efuse[2] >> 24) & GENMASK(7, 0);
-				svsb->bdes = (svsp->efuse[2] >> 16) & GENMASK(7, 0);
-				svsb->mtdes = svsp->efuse[2] & GENMASK(7, 0);
-				svsb->dcmdet = (svsp->efuse[13] >> 8) & GENMASK(7, 0);
-				svsb->dcbdet = svsp->efuse[13] & GENMASK(7, 0);
-			} else if (svsb->type == SVSB_TYPE_LOW) {
-				svsb->mdes = (svsp->efuse[3] >> 24) & GENMASK(7, 0);
-				svsb->bdes = (svsp->efuse[3] >> 16) & GENMASK(7, 0);
-				svsb->mtdes = svsp->efuse[3] & GENMASK(7, 0);
-				svsb->dcmdet = (svsp->efuse[14] >> 24) & GENMASK(7, 0);
-				svsb->dcbdet = (svsp->efuse[14] >> 16) & GENMASK(7, 0);
-			}
-			break;
-		case SVSB_SWID_CPU_LITTLE:
-			svsb->mdes = (svsp->efuse[4] >> 24) & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[4] >> 16) & GENMASK(7, 0);
-			svsb->mtdes = svsp->efuse[4] & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[14] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = svsp->efuse[14] & GENMASK(7, 0);
-			break;
-		case SVSB_SWID_CCI:
-			svsb->mdes = (svsp->efuse[5] >> 24) & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[5] >> 16) & GENMASK(7, 0);
-			svsb->mtdes = svsp->efuse[5] & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[15] >> 24) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[15] >> 16) & GENMASK(7, 0);
-			break;
-		case SVSB_SWID_GPU:
-			svsb->mdes = (svsp->efuse[6] >> 24) & GENMASK(7, 0);
-			svsb->bdes = (svsp->efuse[6] >> 16) & GENMASK(7, 0);
-			svsb->mtdes = svsp->efuse[6] & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[15] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = svsp->efuse[15] & GENMASK(7, 0);
-			break;
-		default:
-			dev_err(svsb->dev, "unknown sw_id: %u\n", svsb->sw_id);
-			return false;
-		}
-
-		svsb->vmax += svsb->dvt_fixed;
-	}
-
-	golden_temp = (svsp->tefuse[0] >> 24) & GENMASK(7, 0);
-	if (!golden_temp)
-		golden_temp = 50;
-
-	for (idx = 0; idx < svsp->bank_max; idx++) {
-		svsb = &svsp->banks[idx];
-		svsb->mts = 409;
-		svsb->bts = (((500 * golden_temp + 204650) / 1000) - 25) * 4;
-	}
-
-	return true;
-}
-
-static bool svs_mt8183_efuse_parsing(struct svs_platform *svsp)
+static bool svs_mt8183_efuse_parsing(struct svs_platform *svsp,
+				     const struct svs_platform_data *pdata)
 {
 	struct svs_bank *svsb;
 	int format[6], x_roomt[6], o_vtsmcu[5], o_vtsabb, tb_roomt = 0;
@@ -2115,65 +1937,43 @@ static bool svs_mt8183_efuse_parsing(struct svs_platform *svsp)
 	}
 
 	/* Svs efuse parsing */
-	ft_pgm = (svsp->efuse[0] >> 4) & GENMASK(3, 0);
+	ft_pgm = svs_get_fuse_val(svsp->efuse, &pdata->glb_fuse_map[GLB_FT_PGM], 4);
 
 	for (idx = 0; idx < svsp->bank_max; idx++) {
 		svsb = &svsp->banks[idx];
+		const struct svs_fusemap *dfmap = svsb->dev_fuse_map;
 
 		if (ft_pgm <= 1)
 			svsb->volt_flags |= SVSB_INIT01_VOLT_IGNORE;
 
+		svsb->mtdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_MTDES], 8);
+		svsb->bdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_BDES], 8);
+		svsb->mdes = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_MDES], 8);
+		svsb->dcbdet = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_DCBDET], 8);
+		svsb->dcmdet = svs_get_fuse_val(svsp->efuse, &dfmap[BDEV_DCMDET], 8);
+
 		switch (svsb->sw_id) {
 		case SVSB_SWID_CPU_LITTLE:
-			svsb->bdes = svsp->efuse[16] & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[16] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[16] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[16] >> 24) & GENMASK(7, 0);
-			svsb->mtdes  = (svsp->efuse[17] >> 16) & GENMASK(7, 0);
-
+		case SVSB_SWID_CCI:
 			if (ft_pgm <= 3)
 				svsb->volt_od += 10;
 			else
 				svsb->volt_od += 2;
 			break;
 		case SVSB_SWID_CPU_BIG:
-			svsb->bdes = svsp->efuse[18] & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[18] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[18] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[18] >> 24) & GENMASK(7, 0);
-			svsb->mtdes  = svsp->efuse[17] & GENMASK(7, 0);
-
 			if (ft_pgm <= 3)
 				svsb->volt_od += 15;
 			else
 				svsb->volt_od += 12;
 			break;
-		case SVSB_SWID_CCI:
-			svsb->bdes = svsp->efuse[4] & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[4] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[4] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[4] >> 24) & GENMASK(7, 0);
-			svsb->mtdes  = (svsp->efuse[5] >> 16) & GENMASK(7, 0);
-
-			if (ft_pgm <= 3)
-				svsb->volt_od += 10;
-			else
-				svsb->volt_od += 2;
-			break;
 		case SVSB_SWID_GPU:
-			svsb->bdes = svsp->efuse[6] & GENMASK(7, 0);
-			svsb->mdes = (svsp->efuse[6] >> 8) & GENMASK(7, 0);
-			svsb->dcbdet = (svsp->efuse[6] >> 16) & GENMASK(7, 0);
-			svsb->dcmdet = (svsp->efuse[6] >> 24) & GENMASK(7, 0);
-			svsb->mtdes  = svsp->efuse[5] & GENMASK(7, 0);
-
-			if (ft_pgm >= 2) {
+			if (ft_pgm != FUSE_DATA_NOT_VALID && ft_pgm >= 2) {
 				svsb->freq_base = 800000000; /* 800MHz */
 				svsb->dvt_fixed = 2;
 			}
 			break;
 		default:
-			dev_err(svsb->dev, "unknown sw_id: %u\n", svsb->sw_id);
+			dev_err(svsb->dev, "unknown sw_id: %u\n", bdata->sw_id);
 			return false;
 		}
 	}
@@ -2904,7 +2704,7 @@ static struct svs_bank svs_mt8183_banks[] = {
 static const struct svs_platform_data svs_mt8195_platform_data = {
 	.name = "mt8195-svs",
 	.banks = svs_mt8195_banks,
-	.efuse_parsing = svs_mt8195_efuse_parsing,
+	.efuse_parsing = svs_common_parse_efuse,
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8195_banks),
@@ -2917,7 +2717,7 @@ static const struct svs_platform_data svs_mt8195_platform_data = {
 static const struct svs_platform_data svs_mt8192_platform_data = {
 	.name = "mt8192-svs",
 	.banks = svs_mt8192_banks,
-	.efuse_parsing = svs_mt8192_efuse_parsing,
+	.efuse_parsing = svs_common_parse_efuse,
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8192_banks),
@@ -2931,7 +2731,7 @@ static const struct svs_platform_data svs_mt8192_platform_data = {
 static const struct svs_platform_data svs_mt8188_platform_data = {
 	.name = "mt8188-svs",
 	.banks = svs_mt8188_banks,
-	.efuse_parsing = svs_mt8188_efuse_parsing,
+	.efuse_parsing = svs_common_parse_efuse,
 	.probe = svs_mt8192_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8188_banks),
@@ -2945,7 +2745,7 @@ static const struct svs_platform_data svs_mt8188_platform_data = {
 static const struct svs_platform_data svs_mt8186_platform_data = {
 	.name = "mt8186-svs",
 	.banks = svs_mt8186_banks,
-	.efuse_parsing = svs_mt8186_efuse_parsing,
+	.efuse_parsing = svs_common_parse_efuse,
 	.probe = svs_mt8186_platform_probe,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8186_banks),
@@ -3025,7 +2825,7 @@ static int svs_probe(struct platform_device *pdev)
 		goto svs_probe_free_efuse;
 	}
 
-	if (!svsp_data->efuse_parsing(svsp)) {
+	if (!svsp_data->efuse_parsing(svsp, svsp_data)) {
 		dev_err(svsp->dev, "efuse data parsing failed\n");
 		ret = -EPERM;
 		goto svs_probe_free_tefuse;
