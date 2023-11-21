@@ -2570,7 +2570,7 @@ config MITIGATION_IBRS_ENTRY
 	  This mitigates both spectre_v2 and retbleed at great cost to
 	  performance.
 
-config CPU_SRSO
+config MITIGATION_SRSO
 	bool "Mitigate speculative RAS overflow on AMD"
 	depends on CPU_SUP_AMD && X86_64 && RETHUNK
 	default y
