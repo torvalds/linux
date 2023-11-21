@@ -1179,7 +1179,9 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(dentry->d_sb);
 	struct hstate *h = hstate_inode(d_inode(dentry));
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
 
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_type = HUGETLBFS_MAGIC;
 	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {

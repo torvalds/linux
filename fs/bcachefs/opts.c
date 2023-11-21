@@ -12,11 +12,6 @@
 
 #define x(t, n, ...) [n] = #t,
 
-const char * const bch2_iops_measurements[] = {
-	BCH_IOPS_MEASUREMENTS()
-	NULL
-};
-
 const char * const bch2_error_actions[] = {
 	BCH_ERROR_ACTIONS()
 	NULL
@@ -42,9 +37,8 @@ const char * const bch2_sb_compat[] = {
 	NULL
 };
 
-const char * const bch2_btree_ids[] = {
+const char * const __bch2_btree_ids[] = {
 	BCH_BTREE_IDS()
-	"interior btree node",
 	NULL
 };
 
@@ -271,14 +265,14 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 		if (err)
 			prt_printf(err, "%s: too small (min %llu)",
 			       opt->attr.name, opt->min);
-		return -ERANGE;
+		return -BCH_ERR_ERANGE_option_too_small;
 	}
 
 	if (opt->max && v >= opt->max) {
 		if (err)
 			prt_printf(err, "%s: too big (max %llu)",
 			       opt->attr.name, opt->max);
-		return -ERANGE;
+		return -BCH_ERR_ERANGE_option_too_big;
 	}
 
 	if ((opt->flags & OPT_SB_FIELD_SECTORS) && (v & 511)) {
@@ -294,6 +288,9 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 			       opt->attr.name);
 		return -EINVAL;
 	}
+
+	if (opt->fn.validate)
+		return opt->fn.validate(v, err);
 
 	return 0;
 }

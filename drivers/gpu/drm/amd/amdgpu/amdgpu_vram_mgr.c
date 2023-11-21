@@ -77,7 +77,16 @@ static inline bool amdgpu_is_vram_mgr_blocks_contiguous(struct list_head *head)
 	return true;
 }
 
+static inline u64 amdgpu_vram_mgr_blocks_size(struct list_head *head)
+{
+	struct drm_buddy_block *block;
+	u64 size = 0;
 
+	list_for_each_entry(block, head, link)
+		size += amdgpu_vram_mgr_block_size(block);
+
+	return size;
+}
 
 /**
  * DOC: mem_info_vram_total
@@ -516,6 +525,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	mutex_unlock(&mgr->lock);
 
 	vres->base.start = 0;
+	size = max_t(u64, amdgpu_vram_mgr_blocks_size(&vres->blocks),
+		     vres->base.size);
 	list_for_each_entry(block, &vres->blocks, link) {
 		unsigned long start;
 
@@ -523,8 +534,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			amdgpu_vram_mgr_block_size(block);
 		start >>= PAGE_SHIFT;
 
-		if (start > PFN_UP(vres->base.size))
-			start -= PFN_UP(vres->base.size);
+		if (start > PFN_UP(size))
+			start -= PFN_UP(size);
 		else
 			start = 0;
 		vres->base.start = max(vres->base.start, start);

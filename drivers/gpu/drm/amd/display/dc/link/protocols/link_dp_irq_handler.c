@@ -184,14 +184,17 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 	return false;
 }
 
-static bool handle_hpd_irq_replay_sink(struct dc_link *link)
+static void handle_hpd_irq_replay_sink(struct dc_link *link)
 {
 	union dpcd_replay_configuration replay_configuration;
 	/*AMD Replay version reuse DP_PSR_ERROR_STATUS for REPLAY_ERROR status.*/
 	union psr_error_status replay_error_status;
 
+	if (link->replay_settings.config.force_disable_desync_error_check)
+		return;
+
 	if (!link->replay_settings.replay_feature_enabled)
-		return false;
+		return;
 
 	dm_helpers_dp_read_dpcd(
 		link->ctx,
@@ -206,6 +209,9 @@ static bool handle_hpd_irq_replay_sink(struct dc_link *link)
 		DP_PSR_ERROR_STATUS,
 		&replay_error_status.raw,
 		sizeof(replay_error_status.raw));
+
+	if (replay_configuration.bits.DESYNC_ERROR_STATUS)
+		link->replay_settings.config.received_desync_error_hpd = 1;
 
 	link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR =
 		replay_error_status.bits.LINK_CRC_ERROR;
@@ -243,7 +249,6 @@ static bool handle_hpd_irq_replay_sink(struct dc_link *link)
 			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
 		}
 	}
-	return true;
 }
 
 void dp_handle_link_loss(struct dc_link *link)
@@ -424,9 +429,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		/* PSR-related error was detected and handled */
 		return true;
 
-	if (handle_hpd_irq_replay_sink(link))
-		/* Replay-related error was detected and handled */
-		return true;
+	handle_hpd_irq_replay_sink(link);
 
 	/* If PSR-related error handled, Main link may be off,
 	 * so do not handle as a normal sink status change interrupt.

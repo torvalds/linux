@@ -127,7 +127,6 @@ static const char * const imx412_supply_names[] = {
  * @vblank: Vertical blanking in lines
  * @cur_mode: Pointer to current selected sensor mode
  * @mutex: Mutex for serializing sensor controls
- * @streaming: Flag indicating streaming state
  */
 struct imx412 {
 	struct device *dev;
@@ -149,7 +148,6 @@ struct imx412 {
 	u32 vblank;
 	const struct imx412_mode *cur_mode;
 	struct mutex mutex;
-	bool streaming;
 };
 
 static const s64 link_freq[] = {
@@ -857,11 +855,6 @@ static int imx412_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&imx412->mutex);
 
-	if (imx412->streaming == enable) {
-		mutex_unlock(&imx412->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx412->dev);
 		if (ret)
@@ -874,8 +867,6 @@ static int imx412_set_stream(struct v4l2_subdev *sd, int enable)
 		imx412_stop_streaming(imx412);
 		pm_runtime_put(imx412->dev);
 	}
-
-	imx412->streaming = enable;
 
 	mutex_unlock(&imx412->mutex);
 

@@ -1206,25 +1206,6 @@ static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id
 		return false;
 	}
 
-	/*
-	 * FIXME:
-	 * remove the if once the driver become generic
-	 */
-
-#ifndef ISP2401
-	if (IS_ISP2401) {
-		dev_err(&pdev->dev, "Support for %s (ISP2401) was disabled at compile time\n",
-			name);
-		return false;
-	}
-#else
-	if (!IS_ISP2401) {
-		dev_err(&pdev->dev, "Support for %s (ISP2400) was disabled at compile time\n",
-			name);
-		return false;
-	}
-#endif
-
 	dev_info(&pdev->dev, "Detected %s version %d (ISP240%c) on %s\n",
 		 name, pdev->revision, IS_ISP2401 ? '1' : '0', product);
 

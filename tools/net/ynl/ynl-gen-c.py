@@ -3,6 +3,7 @@
 
 import argparse
 import collections
+import filecmp
 import os
 import re
 import shutil
@@ -1168,7 +1169,7 @@ class CodeWriter:
         if out_file is None:
             self._out = os.sys.stdout
         else:
-            self._out = tempfile.TemporaryFile('w+')
+            self._out = tempfile.NamedTemporaryFile('w+')
             self._out_file = out_file
 
     def __del__(self):
@@ -1176,6 +1177,10 @@ class CodeWriter:
 
     def close_out_file(self):
         if self._out == os.sys.stdout:
+            return
+        # Avoid modifying the file if contents didn't change
+        self._out.flush()
+        if os.path.isfile(self._out_file) and filecmp.cmp(self._out.name, self._out_file, shallow=False):
             return
         with open(self._out_file, 'w+') as out_file:
             self._out.seek(0)

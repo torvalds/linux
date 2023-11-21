@@ -739,6 +739,8 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 					&pgio);
 		pgio.pg_error = 0;
 		nfs_pageio_complete(&pgio);
+		if (err == -EAGAIN && mntflags & NFS_MOUNT_SOFTERR)
+			break;
 	} while (err < 0 && !nfs_error_is_fatal(err));
 	nfs_io_completion_put(ioc);
 

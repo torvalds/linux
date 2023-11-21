@@ -752,6 +752,8 @@ static int ppc_rtas_tone_volume_show(struct seq_file *m, void *v)
 
 /**
  * ppc_rtas_rmo_buf_show() - Describe RTAS-addressable region for user space.
+ * @m: seq_file output target.
+ * @v: Unused.
  *
  * Base + size description of a range of RTAS-addressable memory set
  * aside for user space to use as work area(s) for certain RTAS

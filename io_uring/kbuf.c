@@ -52,7 +52,7 @@ static int io_buffer_add_list(struct io_ring_ctx *ctx,
 	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
 }
 
-void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
+bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
@@ -65,7 +65,7 @@ void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	 * multiple use.
 	 */
 	if (req->flags & REQ_F_PARTIAL_IO)
-		return;
+		return false;
 
 	io_ring_submit_lock(ctx, issue_flags);
 
@@ -76,7 +76,7 @@ void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	req->buf_index = buf->bgid;
 
 	io_ring_submit_unlock(ctx, issue_flags);
-	return;
+	return true;
 }
 
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)

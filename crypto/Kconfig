@@ -1297,10 +1297,12 @@ config CRYPTO_JITTERENTROPY
 
 	  See https://www.chronox.de/jent.html
 
+if CRYPTO_JITTERENTROPY
+if CRYPTO_FIPS && EXPERT
+
 choice
 	prompt "CPU Jitter RNG Memory Size"
 	default CRYPTO_JITTERENTROPY_MEMSIZE_2
-	depends on CRYPTO_JITTERENTROPY
 	help
 	  The Jitter RNG measures the execution time of memory accesses.
 	  Multiple consecutive memory accesses are performed. If the memory
@@ -1344,7 +1346,6 @@ config CRYPTO_JITTERENTROPY_OSR
 	int "CPU Jitter RNG Oversampling Rate"
 	range 1 15
 	default 1
-	depends on CRYPTO_JITTERENTROPY
 	help
 	  The Jitter RNG allows the specification of an oversampling rate (OSR).
 	  The Jitter RNG operation requires a fixed amount of timing
@@ -1359,7 +1360,6 @@ config CRYPTO_JITTERENTROPY_OSR
 
 config CRYPTO_JITTERENTROPY_TESTINTERFACE
 	bool "CPU Jitter RNG Test Interface"
-	depends on CRYPTO_JITTERENTROPY
 	help
 	  The test interface allows a privileged process to capture
 	  the raw unconditioned high resolution time stamp noise that
@@ -1376,6 +1376,28 @@ config CRYPTO_JITTERENTROPY_TESTINTERFACE
 	  the first 1000 entropy events since boot can be sampled.
 
 	  If unsure, select N.
+
+endif	# if CRYPTO_FIPS && EXPERT
+
+if !(CRYPTO_FIPS && EXPERT)
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKS
+	int
+	default 64
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
+	int
+	default 32
+
+config CRYPTO_JITTERENTROPY_OSR
+	int
+	default 1
+
+config CRYPTO_JITTERENTROPY_TESTINTERFACE
+	bool
+
+endif	# if !(CRYPTO_FIPS && EXPERT)
+endif	# if CRYPTO_JITTERENTROPY
 
 config CRYPTO_KDF800108_CTR
 	tristate

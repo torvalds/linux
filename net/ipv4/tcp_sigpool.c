@@ -231,7 +231,7 @@ static void cpool_schedule_cleanup(struct kref *kref)
  */
 void tcp_sigpool_release(unsigned int id)
 {
-	if (WARN_ON_ONCE(id > cpool_populated || !cpool[id].alg))
+	if (WARN_ON_ONCE(id >= cpool_populated || !cpool[id].alg))
 		return;
 
 	/* slow-path */
@@ -245,7 +245,7 @@ EXPORT_SYMBOL_GPL(tcp_sigpool_release);
  */
 void tcp_sigpool_get(unsigned int id)
 {
-	if (WARN_ON_ONCE(id > cpool_populated || !cpool[id].alg))
+	if (WARN_ON_ONCE(id >= cpool_populated || !cpool[id].alg))
 		return;
 	kref_get(&cpool[id].kref);
 }
@@ -256,7 +256,7 @@ int tcp_sigpool_start(unsigned int id, struct tcp_sigpool *c) __cond_acquires(RC
 	struct crypto_ahash *hash;
 
 	rcu_read_lock_bh();
-	if (WARN_ON_ONCE(id > cpool_populated || !cpool[id].alg)) {
+	if (WARN_ON_ONCE(id >= cpool_populated || !cpool[id].alg)) {
 		rcu_read_unlock_bh();
 		return -EINVAL;
 	}
@@ -301,7 +301,7 @@ EXPORT_SYMBOL_GPL(tcp_sigpool_end);
  */
 size_t tcp_sigpool_algo(unsigned int id, char *buf, size_t buf_len)
 {
-	if (WARN_ON_ONCE(id > cpool_populated || !cpool[id].alg))
+	if (WARN_ON_ONCE(id >= cpool_populated || !cpool[id].alg))
 		return -EINVAL;
 
 	return strscpy(buf, cpool[id].alg, buf_len);

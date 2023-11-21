@@ -1263,6 +1263,7 @@ static void __exit nf_nat_cleanup(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Network address translation core");
 
 module_init(nf_nat_init);
 module_exit(nf_nat_cleanup);

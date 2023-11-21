@@ -6180,24 +6180,10 @@ EXPORT_SYMBOL_GPL(ata_pci_remove_one);
 void ata_pci_shutdown_one(struct pci_dev *pdev)
 {
 	struct ata_host *host = pci_get_drvdata(pdev);
-	struct ata_port *ap;
-	unsigned long flags;
 	int i;
 
-	/* Tell EH to disable all devices */
 	for (i = 0; i < host->n_ports; i++) {
-		ap = host->ports[i];
-		spin_lock_irqsave(ap->lock, flags);
-		ap->pflags |= ATA_PFLAG_UNLOADING;
-		ata_port_schedule_eh(ap);
-		spin_unlock_irqrestore(ap->lock, flags);
-	}
-
-	for (i = 0; i < host->n_ports; i++) {
-		ap = host->ports[i];
-
-		/* Wait for EH to complete before freezing the port */
-		ata_port_wait_eh(ap);
+		struct ata_port *ap = host->ports[i];
 
 		ap->pflags |= ATA_PFLAG_FROZEN;
 

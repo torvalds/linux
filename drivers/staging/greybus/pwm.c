@@ -258,7 +258,6 @@ static const struct pwm_ops gb_pwm_ops = {
 	.request = gb_pwm_request,
 	.free = gb_pwm_free,
 	.apply = gb_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int gb_pwm_probe(struct gbphy_device *gbphy_dev,

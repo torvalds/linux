@@ -73,7 +73,7 @@ struct amdgpu_uvd {
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
 int amdgpu_uvd_sw_fini(struct amdgpu_device *adev);
-int amdgpu_uvd_entity_init(struct amdgpu_device *adev);
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 int amdgpu_uvd_prepare_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_suspend(struct amdgpu_device *adev);
 int amdgpu_uvd_resume(struct amdgpu_device *adev);

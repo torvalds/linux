@@ -56,8 +56,9 @@ void bch2_io_error_work(struct work_struct *work)
 	up_write(&c->state_lock);
 }
 
-void bch2_io_error(struct bch_dev *ca)
+void bch2_io_error(struct bch_dev *ca, enum bch_member_error_type type)
 {
+	atomic64_inc(&ca->errors[type]);
 	//queue_work(system_long_wq, &ca->io_error_work);
 }
 
@@ -116,31 +117,34 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
 		return NULL;
 
-	list_for_each_entry(s, &c->fsck_errors, list)
+	list_for_each_entry(s, &c->fsck_error_msgs, list)
 		if (s->fmt == fmt) {
 			/*
 			 * move it to the head of the list: repeated fsck errors
 			 * are common
 			 */
-			list_move(&s->list, &c->fsck_errors);
+			list_move(&s->list, &c->fsck_error_msgs);
 			return s;
 		}
 
 	s = kzalloc(sizeof(*s), GFP_NOFS);
 	if (!s) {
-		if (!c->fsck_alloc_err)
+		if (!c->fsck_alloc_msgs_err)
 			bch_err(c, "kmalloc err, cannot ratelimit fsck errs");
-		c->fsck_alloc_err = true;
+		c->fsck_alloc_msgs_err = true;
 		return NULL;
 	}
 
 	INIT_LIST_HEAD(&s->list);
 	s->fmt = fmt;
-	list_add(&s->list, &c->fsck_errors);
+	list_add(&s->list, &c->fsck_error_msgs);
 	return s;
 }
 
-int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
+int bch2_fsck_err(struct bch_fs *c,
+		  enum bch_fsck_flags flags,
+		  enum bch_sb_error_id err,
+		  const char *fmt, ...)
 {
 	struct fsck_err_state *s = NULL;
 	va_list args;
@@ -148,11 +152,13 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 
+	bch2_sb_error_count(c, err);
+
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);
 	va_end(args);
 
-	mutex_lock(&c->fsck_error_lock);
+	mutex_lock(&c->fsck_error_msgs_lock);
 	s = fsck_err_get(c, fmt);
 	if (s) {
 		/*
@@ -162,7 +168,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 		 */
 		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
 			ret = s->ret;
-			mutex_unlock(&c->fsck_error_lock);
+			mutex_unlock(&c->fsck_error_msgs_lock);
 			printbuf_exit(&buf);
 			return ret;
 		}
@@ -257,7 +263,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	if (s)
 		s->ret = ret;
 
-	mutex_unlock(&c->fsck_error_lock);
+	mutex_unlock(&c->fsck_error_msgs_lock);
 
 	printbuf_exit(&buf);
 
@@ -278,9 +284,9 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 {
 	struct fsck_err_state *s, *n;
 
-	mutex_lock(&c->fsck_error_lock);
+	mutex_lock(&c->fsck_error_msgs_lock);
 
-	list_for_each_entry_safe(s, n, &c->fsck_errors, list) {
+	list_for_each_entry_safe(s, n, &c->fsck_error_msgs, list) {
 		if (s->ratelimited && s->last_msg)
 			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->last_msg);
 
@@ -289,5 +295,5 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 		kfree(s);
 	}
 
-	mutex_unlock(&c->fsck_error_lock);
+	mutex_unlock(&c->fsck_error_msgs_lock);
 }

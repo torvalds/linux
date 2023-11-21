@@ -23,6 +23,7 @@
 #include "logged_ops.h"
 #include "move.h"
 #include "quota.h"
+#include "rebalance.h"
 #include "recovery.h"
 #include "replicas.h"
 #include "sb-clean.h"
@@ -182,7 +183,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 			     bch2_journal_replay_key(trans, k));
 		if (ret) {
 			bch_err(c, "journal replay: error while replaying key at btree %s level %u: %s",
-				bch2_btree_ids[k->btree_id], k->level, bch2_err_str(ret));
+				bch2_btree_id_str(k->btree_id), k->level, bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -225,7 +226,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 
 		if (entry->u64s) {
 			r->level = entry->level;
-			bkey_copy(&r->key, &entry->start[0]);
+			bkey_copy(&r->key, (struct bkey_i *) entry->start);
 			r->error = 0;
 		} else {
 			r->error = -EIO;
@@ -364,10 +365,12 @@ static int read_btree_roots(struct bch_fs *c)
 		}
 
 		if (r->error) {
-			__fsck_err(c, btree_id_is_alloc(i)
+			__fsck_err(c,
+				   btree_id_is_alloc(i)
 				   ? FSCK_CAN_IGNORE : 0,
+				   btree_root_bkey_invalid,
 				   "invalid btree root %s",
-				   bch2_btree_ids[i]);
+				   bch2_btree_id_str(i));
 			if (i == BTREE_ID_alloc)
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 		}
@@ -375,8 +378,9 @@ static int read_btree_roots(struct bch_fs *c)
 		ret = bch2_btree_root_read(c, i, &r->key, r->level);
 		if (ret) {
 			fsck_err(c,
+				 btree_root_read_error,
 				 "error reading btree root %s",
-				 bch2_btree_ids[i]);
+				 bch2_btree_id_str(i));
 			if (btree_id_is_alloc(i))
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			ret = 0;
@@ -713,6 +717,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (mustfix_fsck_err_on(c->sb.clean &&
 					last_journal_entry &&
 					!journal_entry_empty(last_journal_entry), c,
+				clean_but_journal_not_empty,
 				"filesystem marked clean but journal not empty")) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
@@ -720,7 +725,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 		}
 
 		if (!last_journal_entry) {
-			fsck_err_on(!c->sb.clean, c, "no journal entries found");
+			fsck_err_on(!c->sb.clean, c,
+				    dirty_but_no_journal_entries,
+				    "no journal entries found");
 			if (clean)
 				goto use_clean;
 
@@ -728,6 +735,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 				if (*i) {
 					last_journal_entry = &(*i)->j;
 					(*i)->ignore = false;
+					/*
+					 * This was probably a NO_FLUSH entry,
+					 * so last_seq was garbage - but we know
+					 * we're only using a single journal
+					 * entry, set it here:
+					 */
+					(*i)->j.last_seq = (*i)->j.seq;
 					break;
 				}
 		}
@@ -901,7 +915,7 @@ out:
 	}
 	kfree(clean);
 
-	if (!ret && test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags)) {
+	if (!ret && test_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags)) {
 		bch2_fs_read_write_early(c);
 		bch2_delete_dead_snapshots_async(c);
 	}
@@ -946,16 +960,12 @@ int bch2_fs_initialize(struct bch_fs *c)
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
 
-	for_each_online_member(ca, c, i)
+	for_each_member_device(ca, c, i)
 		bch2_dev_usage_init(ca);
 
-	for_each_online_member(ca, c, i) {
-		ret = bch2_dev_journal_alloc(ca);
-		if (ret) {
-			percpu_ref_put(&ca->io_ref);
-			goto err;
-		}
-	}
+	ret = bch2_fs_journal_alloc(c);
+	if (ret)
+		goto err;
 
 	/*
 	 * journal_res_get() will crash if called before this has
@@ -973,15 +983,13 @@ int bch2_fs_initialize(struct bch_fs *c)
 	 * btree updates
 	 */
 	bch_verbose(c, "marking superblocks");
-	for_each_member_device(ca, c, i) {
-		ret = bch2_trans_mark_dev_sb(c, ca);
-		if (ret) {
-			percpu_ref_put(&ca->ref);
-			goto err;
-		}
+	ret = bch2_trans_mark_dev_sbs(c);
+	bch_err_msg(c, ret, "marking superblocks");
+	if (ret)
+		goto err;
 
+	for_each_online_member(ca, c, i)
 		ca->new_fs_bucket_idx = 0;
-	}
 
 	ret = bch2_fs_freespace_init(c);
 	if (ret)

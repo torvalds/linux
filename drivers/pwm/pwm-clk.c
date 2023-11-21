@@ -77,7 +77,6 @@ static int pwm_clk_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pwm_clk_ops = {
 	.apply = pwm_clk_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_clk_probe(struct platform_device *pdev)

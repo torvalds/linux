@@ -134,6 +134,7 @@ struct psp_funcs {
 	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*vbflash_stat)(struct psp_context *psp);
 	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
+	int (*query_boot_status)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -536,5 +537,7 @@ int psp_spatial_partition(struct psp_context *psp, int mode);
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
 int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev);
+
+int amdgpu_psp_query_boot_status(struct amdgpu_device *adev);
 
 #endif

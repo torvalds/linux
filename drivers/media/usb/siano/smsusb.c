@@ -279,10 +279,8 @@ static int smsusb1_load_firmware(struct usb_device *udev, int id, int board_id)
 		}
 	}
 
-	fw_buffer = kmalloc(fw->size, GFP_KERNEL);
+	fw_buffer = kmemdup(fw->data, fw->size, GFP_KERNEL);
 	if (fw_buffer) {
-		memcpy(fw_buffer, fw->data, fw->size);
-
 		rc = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 2),
 				  fw_buffer, fw->size, &dummy, 1000);
 

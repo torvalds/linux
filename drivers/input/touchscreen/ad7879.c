@@ -391,6 +391,12 @@ static const struct attribute_group ad7879_attr_group = {
 	.attrs = ad7879_attributes,
 };
 
+const struct attribute_group *ad7879_groups[] = {
+	&ad7879_attr_group,
+	NULL
+};
+EXPORT_SYMBOL_GPL(ad7879_groups);
+
 #ifdef CONFIG_GPIOLIB
 static int ad7879_gpio_direction_input(struct gpio_chip *chip,
 					unsigned gpio)
@@ -611,10 +617,6 @@ int ad7879_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	__ad7879_disable(ts);
-
-	err = devm_device_add_group(dev, &ad7879_attr_group);
-	if (err)
-		return err;
 
 	err = ad7879_gpio_add(ts);
 	if (err)

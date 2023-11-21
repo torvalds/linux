@@ -522,7 +522,7 @@ enum {
 
 enum {
 	AW88399_DEV_VDSEL_DAC = 0,
-	AW88399_DEV_VDSEL_VSENSE = 1,
+	AW88399_DEV_VDSEL_VSENSE = 32,
 };
 
 enum {

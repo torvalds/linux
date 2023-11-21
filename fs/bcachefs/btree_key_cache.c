@@ -324,7 +324,7 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 		ck = bkey_cached_reuse(bc);
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
-				bch2_btree_ids[path->btree_id]);
+				bch2_btree_id_str(path->btree_id));
 			return ERR_PTR(-BCH_ERR_ENOMEM_btree_key_cache_create);
 		}
 
@@ -407,7 +407,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 			new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 			if (!new_k) {
 				bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
-					bch2_btree_ids[ck->key.btree_id], new_u64s);
+					bch2_btree_id_str(ck->key.btree_id), new_u64s);
 				ret = -BCH_ERR_ENOMEM_btree_key_cache_fill;
 				goto err;
 			}
@@ -509,7 +509,7 @@ fill:
 		 * path->uptodate yet:
 		 */
 		if (!path->locks_want &&
-		    !__bch2_btree_path_upgrade(trans, path, 1)) {
+		    !__bch2_btree_path_upgrade(trans, path, 1, NULL)) {
 			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
@@ -1038,7 +1038,7 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 	bc->table_init_done = true;
 
-	shrink = shrinker_alloc(0, "%s/btree_key_cache", c->name);
+	shrink = shrinker_alloc(0, "%s-btree_key_cache", c->name);
 	if (!shrink)
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
 	bc->shrink = shrink;

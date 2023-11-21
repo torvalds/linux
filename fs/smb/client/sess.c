@@ -24,7 +24,7 @@
 #include "fs_context.h"
 
 static int
-cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface);
 
 bool
@@ -69,7 +69,7 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 
 /* channel helper functions. assumed that chan_lock is held by caller. */
 
-unsigned int
+int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
 			struct TCP_Server_Info *server)
 {
@@ -85,14 +85,17 @@ cifs_ses_get_chan_index(struct cifs_ses *ses,
 		cifs_dbg(VFS, "unable to get chan index for server: 0x%llx",
 			 server->conn_id);
 	WARN_ON(1);
-	return 0;
+	return CIFS_INVAL_CHAN_INDEX;
 }
 
 void
 cifs_chan_set_in_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
-	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	ses->chans[chan_index].in_reconnect = true;
 }
@@ -103,6 +106,9 @@ cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
 
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
+
 	ses->chans[chan_index].in_reconnect = false;
 }
 
@@ -112,6 +118,9 @@ cifs_chan_in_reconnect(struct cifs_ses *ses,
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
 
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
+
 	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
 }
 
@@ -120,6 +129,9 @@ cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	set_bit(chan_index, &ses->chans_need_reconnect);
 	cifs_dbg(FYI, "Set reconnect bitmask for chan %u; now 0x%lx\n",
@@ -132,6 +144,9 @@ cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
 
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
+
 	clear_bit(chan_index, &ses->chans_need_reconnect);
 	cifs_dbg(FYI, "Cleared reconnect bitmask for chan %u; now 0x%lx\n",
 		 chan_index, ses->chans_need_reconnect);
@@ -143,6 +158,9 @@ cifs_chan_needs_reconnect(struct cifs_ses *ses,
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
 
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
+
 	return CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index);
 }
 
@@ -152,19 +170,24 @@ cifs_chan_is_iface_active(struct cifs_ses *ses,
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
 
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
+
 	return ses->chans[chan_index].iface &&
 		ses->chans[chan_index].iface->is_active;
 }
 
 /* returns number of channels added */
-int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
+int cifs_try_adding_channels(struct cifs_ses *ses)
 {
 	struct TCP_Server_Info *server = ses->server;
 	int old_chan_count, new_chan_count;
 	int left;
 	int rc = 0;
 	int tries = 0;
+	size_t iface_weight = 0, iface_min_speed = 0;
 	struct cifs_server_iface *iface = NULL, *niface = NULL;
+	struct cifs_server_iface *last_iface = NULL;
 
 	spin_lock(&ses->chan_lock);
 
@@ -192,21 +215,11 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 	}
 	spin_unlock(&ses->chan_lock);
 
-	/*
-	 * Keep connecting to same, fastest, iface for all channels as
-	 * long as its RSS. Try next fastest one if not RSS or channel
-	 * creation fails.
-	 */
-	spin_lock(&ses->iface_lock);
-	iface = list_first_entry(&ses->iface_list, struct cifs_server_iface,
-				 iface_head);
-	spin_unlock(&ses->iface_lock);
-
 	while (left > 0) {
 
 		tries++;
 		if (tries > 3*ses->chan_max) {
-			cifs_dbg(FYI, "too many channel open attempts (%d channels left to open)\n",
+			cifs_dbg(VFS, "too many channel open attempts (%d channels left to open)\n",
 				 left);
 			break;
 		}
@@ -214,23 +227,41 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 		spin_lock(&ses->iface_lock);
 		if (!ses->iface_count) {
 			spin_unlock(&ses->iface_lock);
+			cifs_dbg(VFS, "server %s does not advertise interfaces\n",
+				      ses->server->hostname);
 			break;
 		}
 
+		if (!iface)
+			iface = list_first_entry(&ses->iface_list, struct cifs_server_iface,
+						 iface_head);
+		last_iface = list_last_entry(&ses->iface_list, struct cifs_server_iface,
+					     iface_head);
+		iface_min_speed = last_iface->speed;
+
 		list_for_each_entry_safe_from(iface, niface, &ses->iface_list,
 				    iface_head) {
+			/* do not mix rdma and non-rdma interfaces */
+			if (iface->rdma_capable != ses->server->rdma)
+				continue;
+
 			/* skip ifaces that are unusable */
 			if (!iface->is_active ||
 			    (is_ses_using_iface(ses, iface) &&
-			     !iface->rss_capable)) {
+			     !iface->rss_capable))
 				continue;
-			}
+
+			/* check if we already allocated enough channels */
+			iface_weight = iface->speed / iface_min_speed;
+
+			if (iface->weight_fulfilled >= iface_weight)
+				continue;
 
 			/* take ref before unlock */
 			kref_get(&iface->refcount);
 
 			spin_unlock(&ses->iface_lock);
-			rc = cifs_ses_add_channel(cifs_sb, ses, iface);
+			rc = cifs_ses_add_channel(ses, iface);
 			spin_lock(&ses->iface_lock);
 
 			if (rc) {
@@ -241,9 +272,20 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 				continue;
 			}
 
-			cifs_dbg(FYI, "successfully opened new channel on iface:%pIS\n",
+			iface->num_channels++;
+			iface->weight_fulfilled++;
+			cifs_dbg(VFS, "successfully opened new channel on iface:%pIS\n",
 				 &iface->sockaddr);
 			break;
+		}
+
+		/* reached end of list. reset weight_fulfilled and start over */
+		if (list_entry_is_head(iface, &ses->iface_list, iface_head)) {
+			list_for_each_entry(iface, &ses->iface_list, iface_head)
+				iface->weight_fulfilled = 0;
+			spin_unlock(&ses->iface_lock);
+			iface = NULL;
+			continue;
 		}
 		spin_unlock(&ses->iface_lock);
 
@@ -255,6 +297,60 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 }
 
 /*
+ * called when multichannel is disabled by the server.
+ * this always gets called from smb2_reconnect
+ * and cannot get called in parallel threads.
+ */
+void
+cifs_disable_secondary_channels(struct cifs_ses *ses)
+{
+	int i, chan_count;
+	struct TCP_Server_Info *server;
+	struct cifs_server_iface *iface;
+
+	spin_lock(&ses->chan_lock);
+	chan_count = ses->chan_count;
+	if (chan_count == 1)
+		goto done;
+
+	ses->chan_count = 1;
+
+	/* for all secondary channels reset the need reconnect bit */
+	ses->chans_need_reconnect &= 1;
+
+	for (i = 1; i < chan_count; i++) {
+		iface = ses->chans[i].iface;
+		server = ses->chans[i].server;
+
+		if (iface) {
+			spin_lock(&ses->iface_lock);
+			kref_put(&iface->refcount, release_iface);
+			ses->chans[i].iface = NULL;
+			iface->num_channels--;
+			if (iface->weight_fulfilled)
+				iface->weight_fulfilled--;
+			spin_unlock(&ses->iface_lock);
+		}
+
+		spin_unlock(&ses->chan_lock);
+		if (server && !server->terminate) {
+			server->terminate = true;
+			cifs_signal_cifsd_for_reconnect(server, false);
+		}
+		spin_lock(&ses->chan_lock);
+
+		if (server) {
+			ses->chans[i].server = NULL;
+			cifs_put_tcp_session(server, false);
+		}
+
+	}
+
+done:
+	spin_unlock(&ses->chan_lock);
+}
+
+/*
  * update the iface for the channel if necessary.
  * will return 0 when iface is updated, 1 if removed, 2 otherwise
  * Must be called with chan_lock held.
@@ -263,13 +359,16 @@ int
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {
 	unsigned int chan_index;
+	size_t iface_weight = 0, iface_min_speed = 0;
 	struct cifs_server_iface *iface = NULL;
 	struct cifs_server_iface *old_iface = NULL;
+	struct cifs_server_iface *last_iface = NULL;
+	struct sockaddr_storage ss;
 	int rc = 0;
 
 	spin_lock(&ses->chan_lock);
 	chan_index = cifs_ses_get_chan_index(ses, server);
-	if (!chan_index) {
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
 		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
@@ -283,14 +382,49 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&ses->chan_lock);
 
+	spin_lock(&server->srv_lock);
+	ss = server->dstaddr;
+	spin_unlock(&server->srv_lock);
+
 	spin_lock(&ses->iface_lock);
+	if (!ses->iface_count) {
+		spin_unlock(&ses->iface_lock);
+		cifs_dbg(VFS, "server %s does not advertise interfaces\n", ses->server->hostname);
+		return 0;
+	}
+
+	last_iface = list_last_entry(&ses->iface_list, struct cifs_server_iface,
+				     iface_head);
+	iface_min_speed = last_iface->speed;
+
 	/* then look for a new one */
 	list_for_each_entry(iface, &ses->iface_list, iface_head) {
+		if (!chan_index) {
+			/* if we're trying to get the updated iface for primary channel */
+			if (!cifs_match_ipaddr((struct sockaddr *) &ss,
+					       (struct sockaddr *) &iface->sockaddr))
+				continue;
+
+			kref_get(&iface->refcount);
+			break;
+		}
+
+		/* do not mix rdma and non-rdma interfaces */
+		if (iface->rdma_capable != server->rdma)
+			continue;
+
 		if (!iface->is_active ||
 		    (is_ses_using_iface(ses, iface) &&
 		     !iface->rss_capable)) {
 			continue;
 		}
+
+		/* check if we already allocated enough channels */
+		iface_weight = iface->speed / iface_min_speed;
+
+		if (iface->weight_fulfilled >= iface_weight)
+			continue;
+
 		kref_get(&iface->refcount);
 		break;
 	}
@@ -301,16 +435,41 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 		cifs_dbg(FYI, "unable to find a suitable iface\n");
 	}
 
+	if (!chan_index && !iface) {
+		cifs_dbg(FYI, "unable to get the interface matching: %pIS\n",
+			 &ss);
+		spin_unlock(&ses->iface_lock);
+		return 0;
+	}
+
 	/* now drop the ref to the current iface */
 	if (old_iface && iface) {
 		cifs_dbg(FYI, "replacing iface: %pIS with %pIS\n",
 			 &old_iface->sockaddr,
 			 &iface->sockaddr);
+
+		old_iface->num_channels--;
+		if (old_iface->weight_fulfilled)
+			old_iface->weight_fulfilled--;
+		iface->num_channels++;
+		iface->weight_fulfilled++;
+
 		kref_put(&old_iface->refcount, release_iface);
 	} else if (old_iface) {
 		cifs_dbg(FYI, "releasing ref to iface: %pIS\n",
 			 &old_iface->sockaddr);
+
+		old_iface->num_channels--;
+		if (old_iface->weight_fulfilled)
+			old_iface->weight_fulfilled--;
+
 		kref_put(&old_iface->refcount, release_iface);
+	} else if (!chan_index) {
+		/* special case: update interface for primary channel */
+		cifs_dbg(FYI, "referencing primary channel iface: %pIS\n",
+			 &iface->sockaddr);
+		iface->num_channels++;
+		iface->weight_fulfilled++;
 	} else {
 		WARN_ON(!iface);
 		cifs_dbg(FYI, "adding new iface: %pIS\n", &iface->sockaddr);
@@ -319,6 +478,11 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 
 	spin_lock(&ses->chan_lock);
 	chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+		spin_unlock(&ses->chan_lock);
+		return 0;
+	}
+
 	ses->chans[chan_index].iface = iface;
 
 	/* No iface is found. if secondary chan, drop connection */
@@ -354,7 +518,7 @@ cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
 }
 
 static int
-cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
+cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
 {
 	struct TCP_Server_Info *chan_server;
@@ -433,7 +597,7 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	 * This will be used for encoding/decoding user/domain/pw
 	 * during sess setup auth.
 	 */
-	ctx->local_nls = cifs_sb->local_nls;
+	ctx->local_nls = ses->local_nls;
 
 	/* Use RDMA if possible */
 	ctx->rdma = iface->rdma_capable;
@@ -479,20 +643,16 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 
 	rc = cifs_negotiate_protocol(xid, ses, chan->server);
 	if (!rc)
-		rc = cifs_setup_session(xid, ses, chan->server, cifs_sb->local_nls);
+		rc = cifs_setup_session(xid, ses, chan->server, ses->local_nls);
 
 	mutex_unlock(&ses->session_mutex);
 
 out:
 	if (rc && chan->server) {
-		/*
-		 * we should avoid race with these delayed works before we
-		 * remove this channel
-		 */
-		cancel_delayed_work_sync(&chan->server->echo);
-		cancel_delayed_work_sync(&chan->server->reconnect);
+		cifs_put_tcp_session(chan->server, 0);
 
 		spin_lock(&ses->chan_lock);
+
 		/* we rely on all bits beyond chan_count to be clear */
 		cifs_chan_clear_need_reconnect(ses, chan->server);
 		ses->chan_count--;
@@ -502,8 +662,6 @@ out:
 		 */
 		WARN_ON(ses->chan_count < 1);
 		spin_unlock(&ses->chan_lock);
-
-		cifs_put_tcp_session(chan->server, 0);
 	}
 
 	kfree(ctx->UNC);
@@ -535,8 +693,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses,
 
 	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
-	/* BB verify whether signing required on neg or just on auth frame
-	   (and NTLM case) */
+	/* BB verify whether signing required on neg or just auth frame (and NTLM case) */
 
 	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
 			CAP_LARGE_WRITE_X | CAP_LARGE_READ_X;
@@ -593,8 +750,10 @@ static void unicode_domain_string(char **pbcc_area, struct cifs_ses *ses,
 
 	/* copy domain */
 	if (ses->domainName == NULL) {
-		/* Sending null domain better than using a bogus domain name (as
-		we did briefly in 2.6.18) since server will use its default */
+		/*
+		 * Sending null domain better than using a bogus domain name (as
+		 * we did briefly in 2.6.18) since server will use its default
+		 */
 		*bcc_ptr = 0;
 		*(bcc_ptr+1) = 0;
 		bytes_ret = 0;
@@ -613,8 +772,7 @@ static void unicode_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 	char *bcc_ptr = *pbcc_area;
 	int bytes_ret = 0;
 
-	/* BB FIXME add check that strings total less
-	than 335 or will need to send them as arrays */
+	/* BB FIXME add check that strings less than 335 or will need to send as arrays */
 
 	/* copy user */
 	if (ses->user_name == NULL) {
@@ -659,8 +817,7 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 		if (WARN_ON_ONCE(len < 0))
 			len = CIFS_MAX_DOMAINNAME_LEN - 1;
 		bcc_ptr += len;
-	} /* else we will send a null domain name
-	     so the server will default to its own domain */
+	} /* else we send a null domain name so server will default to its own domain */
 	*bcc_ptr = 0;
 	bcc_ptr++;
 
@@ -756,11 +913,14 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	if (len > bleft)
 		return;
 
-	/* No domain field in LANMAN case. Domain is
-	   returned by old servers in the SMB negprot response */
-	/* BB For newer servers which do not support Unicode,
-	   but thus do return domain here we could add parsing
-	   for it later, but it is not very important */
+	/*
+	 * No domain field in LANMAN case. Domain is
+	 * returned by old servers in the SMB negprot response
+	 *
+	 * BB For newer servers which do not support Unicode,
+	 * but thus do return domain here, we could add parsing
+	 * for it later, but it is not very important
+	 */
 	cifs_dbg(FYI, "ascii: bytes left %d\n", bleft);
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
@@ -816,9 +976,12 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	ses->ntlmssp->server_flags = server_flags;
 
 	memcpy(ses->ntlmssp->cryptkey, pblob->Challenge, CIFS_CRYPTO_KEY_SIZE);
-	/* In particular we can examine sign flags */
-	/* BB spec says that if AvId field of MsvAvTimestamp is populated then
-		we must set the MIC field of the AUTHENTICATE_MESSAGE */
+	/*
+	 * In particular we can examine sign flags
+	 *
+	 * BB spec says that if AvId field of MsvAvTimestamp is populated then
+	 * we must set the MIC field of the AUTHENTICATE_MESSAGE
+	 */
 
 	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
 	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);

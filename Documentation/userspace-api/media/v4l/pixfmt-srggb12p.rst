@@ -60,7 +60,7 @@ Each cell is one byte.
           G\ :sub:`10low`\ (bits 3--0)
        -  G\ :sub:`12high`
        -  R\ :sub:`13high`
-       -  R\ :sub:`13low`\ (bits 3--2)
+       -  R\ :sub:`13low`\ (bits 7--4)
 
           G\ :sub:`12low`\ (bits 3--0)
     -  -  start + 12:
@@ -82,6 +82,6 @@ Each cell is one byte.
           G\ :sub:`30low`\ (bits 3--0)
        -  G\ :sub:`32high`
        -  R\ :sub:`33high`
-       -  R\ :sub:`33low`\ (bits 3--2)
+       -  R\ :sub:`33low`\ (bits 7--4)
 
           G\ :sub:`32low`\ (bits 3--0)

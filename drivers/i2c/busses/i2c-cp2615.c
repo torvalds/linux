@@ -85,7 +85,7 @@ static int cp2615_init_iop_msg(struct cp2615_iop_msg *ret, enum cp2615_iop_msg_t
 	if (!ret)
 		return -EINVAL;
 
-	ret->preamble = 0x2A2A;
+	ret->preamble = htons(0x2A2AU);
 	ret->length = htons(data_len + 6);
 	ret->msg = htons(msg);
 	if (data && data_len)

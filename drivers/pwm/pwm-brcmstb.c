@@ -220,7 +220,6 @@ static int brcmstb_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops brcmstb_pwm_ops = {
 	.apply = brcmstb_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id brcmstb_pwm_of_match[] = {
@@ -238,17 +237,10 @@ static int brcmstb_pwm_probe(struct platform_device *pdev)
 	if (!p)
 		return -ENOMEM;
 
-	p->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(p->clk)) {
-		dev_err(&pdev->dev, "failed to obtain clock\n");
-		return PTR_ERR(p->clk);
-	}
-
-	ret = clk_prepare_enable(p->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable clock: %d\n", ret);
-		return ret;
-	}
+	p->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(p->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(p->clk),
+				     "failed to obtain clock\n");
 
 	platform_set_drvdata(pdev, p);
 
@@ -257,30 +249,14 @@ static int brcmstb_pwm_probe(struct platform_device *pdev)
 	p->chip.npwm = 2;
 
 	p->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(p->base)) {
-		ret = PTR_ERR(p->base);
-		goto out_clk;
-	}
+	if (IS_ERR(p->base))
+		return PTR_ERR(p->base);
 
-	ret = pwmchip_add(&p->chip);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
-		goto out_clk;
-	}
+	ret = devm_pwmchip_add(&pdev->dev, &p->chip);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
 	return 0;
-
-out_clk:
-	clk_disable_unprepare(p->clk);
-	return ret;
-}
-
-static void brcmstb_pwm_remove(struct platform_device *pdev)
-{
-	struct brcmstb_pwm *p = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&p->chip);
-	clk_disable_unprepare(p->clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -288,7 +264,7 @@ static int brcmstb_pwm_suspend(struct device *dev)
 {
 	struct brcmstb_pwm *p = dev_get_drvdata(dev);
 
-	clk_disable(p->clk);
+	clk_disable_unprepare(p->clk);
 
 	return 0;
 }
@@ -297,9 +273,7 @@ static int brcmstb_pwm_resume(struct device *dev)
 {
 	struct brcmstb_pwm *p = dev_get_drvdata(dev);
 
-	clk_enable(p->clk);
-
-	return 0;
+	return clk_prepare_enable(p->clk);
 }
 #endif
 
@@ -308,7 +282,6 @@ static SIMPLE_DEV_PM_OPS(brcmstb_pwm_pm_ops, brcmstb_pwm_suspend,
 
 static struct platform_driver brcmstb_pwm_driver = {
 	.probe = brcmstb_pwm_probe,
-	.remove_new = brcmstb_pwm_remove,
 	.driver = {
 		.name = "pwm-brcmstb",
 		.of_match_table = brcmstb_pwm_of_match,

@@ -15,10 +15,17 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx23-pwm
+    oneOf:
+      - const: fsl,imx23-pwm
+      - items:
+          - enum:
+              - fsl,imx28-pwm
+          - const: fsl,imx23-pwm
 
   reg:
+    maxItems: 1
+
+  clocks:
     maxItems: 1
 
   "#pwm-cells":
@@ -31,6 +38,7 @@ properties:
 required:
   - compatible
   - reg
+  - clocks
   - fsl,pwm-number
 
 additionalProperties: false
@@ -40,6 +48,7 @@ examples:
     pwm@80064000 {
         compatible = "fsl,imx23-pwm";
         reg = <0x80064000 0x2000>;
+        clocks = <&clks 30>;
         #pwm-cells = <3>;
         fsl,pwm-number = <8>;
     };

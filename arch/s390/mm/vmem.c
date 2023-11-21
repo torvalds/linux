@@ -50,8 +50,7 @@ void *vmem_crst_alloc(unsigned long val)
 	if (!table)
 		return NULL;
 	crst_table_init(table, val);
-	if (slab_is_available())
-		arch_set_page_dat(virt_to_page(table), CRST_ALLOC_ORDER);
+	__arch_set_page_dat(table, 1UL << CRST_ALLOC_ORDER);
 	return table;
 }
 
@@ -67,6 +66,7 @@ pte_t __ref *vmem_pte_alloc(void)
 	if (!pte)
 		return NULL;
 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
+	__arch_set_page_dat(pte, 1);
 	return pte;
 }
 

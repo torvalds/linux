@@ -167,9 +167,6 @@ struct rkisp1_sensor_async {
  * @is_dphy_errctrl_disabled: if dphy errctrl is disabled (avoid endless interrupt)
  * @sd: v4l2_subdev variable
  * @pads: media pads
- * @pad_cfg: configurations for the pads
- * @sink_fmt: input format
- * @lock: protects pad_cfg and sink_fmt
  * @source: source in-use, set when starting streaming
  */
 struct rkisp1_csi {
@@ -178,9 +175,6 @@ struct rkisp1_csi {
 	bool is_dphy_errctrl_disabled;
 	struct v4l2_subdev sd;
 	struct media_pad pads[RKISP1_CSI_PAD_NUM];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_CSI_PAD_NUM];
-	const struct rkisp1_mbus_info *sink_fmt;
-	struct mutex lock;
 	struct v4l2_subdev *source;
 };
 
@@ -190,20 +184,14 @@ struct rkisp1_csi {
  * @sd:				v4l2_subdev variable
  * @rkisp1:			pointer to rkisp1_device
  * @pads:			media pads
- * @pad_cfg:			pads configurations
  * @sink_fmt:			input format
- * @src_fmt:			output format
- * @ops_lock:			ops serialization
  * @frame_sequence:		used to synchronize frame_id between video devices.
  */
 struct rkisp1_isp {
 	struct v4l2_subdev sd;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
 	const struct rkisp1_mbus_info *sink_fmt;
-	const struct rkisp1_mbus_info *src_fmt;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 	__u32 frame_sequence;
 };
 
@@ -390,10 +378,7 @@ struct rkisp1_params {
  * @id:	       id of the resizer, one of RKISP1_SELFPATH, RKISP1_MAINPATH
  * @rkisp1:    pointer to the rkisp1 device
  * @pads:      media pads
- * @pad_cfg:   configurations for the pads
  * @config:    the set of registers to configure the resizer
- * @pixel_enc: pixel encoding of the resizer
- * @ops_lock:  a lock for the subdev ops
  */
 struct rkisp1_resizer {
 	struct v4l2_subdev sd;
@@ -401,10 +386,7 @@ struct rkisp1_resizer {
 	enum rkisp1_stream_id id;
 	struct rkisp1_device *rkisp1;
 	struct media_pad pads[RKISP1_RSZ_PAD_MAX];
-	struct v4l2_subdev_pad_config pad_cfg[RKISP1_RSZ_PAD_MAX];
 	const struct rkisp1_rsz_config *config;
-	enum v4l2_pixel_encoding pixel_enc;
-	struct mutex ops_lock; /* serialize the subdevice ops */
 };
 
 /*
