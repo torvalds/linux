@@ -713,9 +713,8 @@ static void dcn21_resource_destruct(struct dcn21_resource_pool *pool)
 			pool->base.hubps[i] = NULL;
 		}
 
-		if (pool->base.irqs != NULL) {
+		if (pool->base.irqs != NULL)
 			dal_irq_service_destroy(&pool->base.irqs);
-		}
 	}
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
