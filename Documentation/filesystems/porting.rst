@@ -1079,3 +1079,12 @@ On same-directory ->rename() the (tautological) update of .. is not protected
 by any locks; just don't do it if the old parent is the same as the new one.
 We really can't lock two subdirectories in same-directory rename - not without
 deadlocks.
+
+---
+
+**mandatory**
+
+lock_rename() and lock_rename_child() may fail in cross-directory case, if
+their arguments do not have a common ancestor.  In that case ERR_PTR(-EXDEV)
+is returned, with no locks taken.  In-tree users updated; out-of-tree ones
+would need to do so.
