@@ -59,6 +59,7 @@
 #include <linux/device.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/init.h>
 #include <linux/ratelimit.h>
 #include <linux/interrupt.h>
@@ -1883,8 +1884,13 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		mReq->req.dma = dma_map_single(mEp->device, mReq->req.buf,
 					length, mEp->dir ? DMA_TO_DEVICE :
 					DMA_FROM_DEVICE);
-		if (mReq->req.dma == 0)
+
+		if (dma_mapping_error(mEp->device, mReq->req.dma)) {
+			dev_err(mEp->device, "%s: dma_mapping error.\n",
+					__func__);
+			mReq->req.dma = DMA_MAPPING_ERROR;
 			return -ENOMEM;
+		}
 
 		mReq->map = 1;
 	}
@@ -3716,6 +3722,7 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	struct ci13xxx *udc;
 	struct ci13xxx_platform_data *pdata;
 	int retval = 0, i, j;
+	static u64 ci13xxx_dma_mask = DMA_BIT_MASK(32);
 
 	trace("%pK, %pK, %pK", dev, regs, driver->name);
 
@@ -3736,6 +3743,8 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.max_speed    = USB_SPEED_HIGH;
 	udc->gadget.is_otg       = 0;
 	udc->gadget.name         = driver->name;
+	udc->gadget.dev.dma_mask = &ci13xxx_dma_mask;
+	udc->gadget.dev.coherent_dma_mask = ci13xxx_dma_mask;
 
 	/* alloc resources */
 	udc->qh_pool = dma_pool_create("ci13xxx_qh", dev,
