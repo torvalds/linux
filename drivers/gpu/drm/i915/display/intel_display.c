@@ -995,7 +995,9 @@ static bool audio_enabling(const struct intel_crtc_state *old_crtc_state,
 	if (!new_crtc_state->hw.active)
 		return false;
 
-	return is_enabling(has_audio, old_crtc_state, new_crtc_state);
+	return is_enabling(has_audio, old_crtc_state, new_crtc_state) ||
+		(new_crtc_state->has_audio &&
+		 memcmp(old_crtc_state->eld, new_crtc_state->eld, MAX_ELD_BYTES) != 0);
 }
 
 static bool audio_disabling(const struct intel_crtc_state *old_crtc_state,
@@ -1004,7 +1006,9 @@ static bool audio_disabling(const struct intel_crtc_state *old_crtc_state,
 	if (!old_crtc_state->hw.active)
 		return false;
 
-	return is_disabling(has_audio, old_crtc_state, new_crtc_state);
+	return is_disabling(has_audio, old_crtc_state, new_crtc_state) ||
+		(old_crtc_state->has_audio &&
+		 memcmp(old_crtc_state->eld, new_crtc_state->eld, MAX_ELD_BYTES) != 0);
 }
 
 #undef is_disabling
@@ -4956,23 +4960,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
-/*
- * Checks state where we only read out the enabling, but not the entire
- * state itself (like full infoframes or ELD for audio). These states
- * require a full modeset on bootup to fix up.
- */
-#define PIPE_CONF_CHECK_BOOL_INCOMPLETE(name) do { \
-	if (!fixup_inherited || (!current_config->name && !pipe_config->name)) { \
-		PIPE_CONF_CHECK_BOOL(name); \
-	} else { \
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
-				     "unable to verify whether state matches exactly, forcing modeset (expected %s, found %s)", \
-				     str_yes_no(current_config->name), \
-				     str_yes_no(pipe_config->name)); \
-		ret = false; \
-	} \
-} while (0)
-
 #define PIPE_CONF_CHECK_P(name) do { \
 	if (current_config->name != pipe_config->name) { \
 		pipe_config_mismatch(fastset, crtc, __stringify(name), \
@@ -5160,8 +5147,10 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(enhanced_framing);
 	PIPE_CONF_CHECK_BOOL(fec_enable);
 
-	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
-	PIPE_CONF_CHECK_BUFFER(eld, MAX_ELD_BYTES);
+	if (!fastset) {
+		PIPE_CONF_CHECK_BOOL(has_audio);
+		PIPE_CONF_CHECK_BUFFER(eld, MAX_ELD_BYTES);
+	}
 
 	PIPE_CONF_CHECK_X(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */
@@ -5331,7 +5320,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_BOOL
-#undef PIPE_CONF_CHECK_BOOL_INCOMPLETE
 #undef PIPE_CONF_CHECK_P
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_COLOR_LUT
