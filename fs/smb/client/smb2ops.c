@@ -2894,27 +2894,26 @@ parse_reparse_posix(struct reparse_posix_data *symlink_buf,
 	return 0;
 }
 
-static int
-parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
-		      u32 plen, char **target_path,
-		      struct cifs_sb_info *cifs_sb)
+static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
+				 u32 plen, bool unicode, char **target_path,
+				 struct cifs_sb_info *cifs_sb)
 {
 	unsigned int sub_len;
 	unsigned int sub_offset;
 
 	/* We handle Symbolic Link reparse tag here. See: MS-FSCC 2.1.2.4 */
 
-	sub_offset = le16_to_cpu(symlink_buf->SubstituteNameOffset);
-	sub_len = le16_to_cpu(symlink_buf->SubstituteNameLength);
+	sub_offset = le16_to_cpu(sym->SubstituteNameOffset);
+	sub_len = le16_to_cpu(sym->SubstituteNameLength);
 	if (sub_offset + 20 > plen ||
 	    sub_offset + sub_len + 20 > plen) {
 		cifs_dbg(VFS, "srv returned malformed symlink buffer\n");
 		return -EIO;
 	}
 
-	*target_path = cifs_strndup_from_utf16(
-				symlink_buf->PathBuffer + sub_offset,
-				sub_len, true, cifs_sb->local_nls);
+	*target_path = cifs_strndup_from_utf16(sym->PathBuffer + sub_offset,
+					       sub_len, unicode,
+					       cifs_sb->local_nls);
 	if (!(*target_path))
 		return -ENOMEM;
 
@@ -2924,19 +2923,17 @@ parse_reparse_symlink(struct reparse_symlink_data_buffer *symlink_buf,
 	return 0;
 }
 
-static int
-parse_reparse_point(struct reparse_data_buffer *buf,
-		    u32 plen, char **target_path,
-		    struct cifs_sb_info *cifs_sb)
+int parse_reparse_point(struct reparse_data_buffer *buf,
+			u32 plen, struct cifs_sb_info *cifs_sb,
+			bool unicode, char **target_path)
 {
-	if (plen < sizeof(struct reparse_data_buffer)) {
+	if (plen < sizeof(*buf)) {
 		cifs_dbg(VFS, "reparse buffer is too small. Must be at least 8 bytes but was %d\n",
 			 plen);
 		return -EIO;
 	}
 
-	if (plen < le16_to_cpu(buf->ReparseDataLength) +
-	    sizeof(struct reparse_data_buffer)) {
+	if (plen < le16_to_cpu(buf->ReparseDataLength) + sizeof(*buf)) {
 		cifs_dbg(VFS, "srv returned invalid reparse buf length: %d\n",
 			 plen);
 		return -EIO;
@@ -2951,7 +2948,7 @@ parse_reparse_point(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_SYMLINK:
 		return parse_reparse_symlink(
 			(struct reparse_symlink_data_buffer *)buf,
-			plen, target_path, cifs_sb);
+			plen, unicode, target_path, cifs_sb);
 	default:
 		cifs_dbg(VFS, "srv returned unknown symlink buffer tag:0x%08x\n",
 			 le32_to_cpu(buf->ReparseTag));
@@ -2970,11 +2967,11 @@ static int smb2_query_symlink(const unsigned int xid,
 	struct smb2_ioctl_rsp *io = rsp_iov->iov_base;
 	u32 plen = le32_to_cpu(io->OutputCount);
 
-	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+	cifs_tcon_dbg(FYI, "%s: path: %s\n", __func__, full_path);
 
 	buf = (struct reparse_data_buffer *)((u8 *)io +
 					     le32_to_cpu(io->OutputOffset));
-	return parse_reparse_point(buf, plen, target_path, cifs_sb);
+	return parse_reparse_point(buf, plen, cifs_sb, true, target_path);
 }
 
 static int smb2_query_reparse_point(const unsigned int xid,
