@@ -3227,12 +3227,7 @@ static struct usb_driver hso_driver = {
 
 static int __init hso_init(void)
 {
-	int i;
 	int result;
-
-	/* Initialise the serial table semaphore and table */
-	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++)
-		serial_table[i] = NULL;
 
 	/* allocate our driver using the proper amount of supported minors */
 	tty_drv = tty_alloc_driver(HSO_SERIAL_TTY_MINORS, TTY_DRIVER_REAL_RAW |
