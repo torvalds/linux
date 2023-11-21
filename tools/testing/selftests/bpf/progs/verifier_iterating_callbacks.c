@@ -25,6 +25,7 @@ struct buf_context {
 
 struct num_context {
 	__u64 i;
+	__u64 j;
 };
 
 __u8 choice_arr[2] = { 0, 1 };
@@ -67,6 +68,25 @@ int unsafe_on_zero_iter(void *unused)
 
 	bpf_loop(100, unsafe_on_zero_iter_cb, &loop_ctx, 0);
 	return choice_arr[loop_ctx.i];
+}
+
+static int widening_cb(__u32 idx, struct num_context *ctx)
+{
+	++ctx->i;
+	return 0;
+}
+
+SEC("?raw_tp")
+__success
+int widening(void *unused)
+{
+	struct num_context loop_ctx = { .i = 0, .j = 1 };
+
+	bpf_loop(100, widening_cb, &loop_ctx, 0);
+	/* loop_ctx.j is not changed during callback iteration,
+	 * verifier should not apply widening to it.
+	 */
+	return choice_arr[loop_ctx.j];
 }
 
 static int loop_detection_cb(__u32 idx, struct num_context *ctx)
