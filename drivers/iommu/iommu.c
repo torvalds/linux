@@ -2143,12 +2143,31 @@ __iommu_group_domain_alloc(struct iommu_group *group, unsigned int type)
 	return __iommu_domain_alloc(dev_iommu_ops(dev), dev, type);
 }
 
+static int __iommu_domain_alloc_dev(struct device *dev, void *data)
+{
+	const struct iommu_ops **ops = data;
+
+	if (!dev_has_iommu(dev))
+		return 0;
+
+	if (WARN_ONCE(*ops && *ops != dev_iommu_ops(dev),
+		      "Multiple IOMMU drivers present for bus %s, which the public IOMMU API can't fully support yet. You will still need to disable one or more for this to work, sorry!\n",
+		      dev_bus_name(dev)))
+		return -EBUSY;
+
+	*ops = dev_iommu_ops(dev);
+	return 0;
+}
+
 struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
 {
-	if (bus == NULL || bus->iommu_ops == NULL)
+	const struct iommu_ops *ops = NULL;
+	int err = bus_for_each_dev(bus, NULL, &ops, __iommu_domain_alloc_dev);
+
+	if (err || !ops)
 		return NULL;
-	return __iommu_domain_alloc(bus->iommu_ops, NULL,
-				    IOMMU_DOMAIN_UNMANAGED);
+
+	return __iommu_domain_alloc(ops, NULL, IOMMU_DOMAIN_UNMANAGED);
 }
 EXPORT_SYMBOL_GPL(iommu_domain_alloc);
 
