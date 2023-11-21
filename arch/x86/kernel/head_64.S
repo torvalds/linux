@@ -622,7 +622,7 @@ SYM_CODE_END(vc_no_ghcb)
 #define SYM_DATA_START_PAGE_ALIGNED(name)			\
 	SYM_START(name, SYM_L_GLOBAL, .balign PAGE_SIZE)
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 /*
  * Each PGD needs to be 8k long and 8k aligned.  We do not
  * ever go out to userspace with these, so we do not

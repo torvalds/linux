@@ -2484,7 +2484,7 @@ menuconfig SPECULATION_MITIGATIONS
 
 if SPECULATION_MITIGATIONS
 
-config PAGE_TABLE_ISOLATION
+config MITIGATION_PAGE_TABLE_ISOLATION
 	bool "Remove the kernel mapping in user mode"
 	default y
 	depends on (X86_64 || X86_PAE)

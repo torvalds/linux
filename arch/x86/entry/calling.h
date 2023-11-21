@@ -142,10 +142,10 @@ For 32-bit we have the following conventions - kernel is built with
 	.endif
 .endm
 
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
+#ifdef CONFIG_MITIGATION_PAGE_TABLE_ISOLATION
 
 /*
- * PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
+ * MITIGATION_PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two
  * halves:
  */
 #define PTI_USER_PGTABLE_BIT		PAGE_SHIFT
@@ -160,7 +160,7 @@ For 32-bit we have the following conventions - kernel is built with
 
 .macro ADJUST_KERNEL_CR3 reg:req
 	ALTERNATIVE "", "SET_NOFLUSH_BIT \reg", X86_FEATURE_PCID
-	/* Clear PCID and "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
+	/* Clear PCID and "MITIGATION_PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
 	andq    $(~PTI_USER_PGTABLE_AND_PCID_MASK), \reg
 .endm
 
@@ -275,7 +275,7 @@ For 32-bit we have the following conventions - kernel is built with
 .Lend_\@:
 .endm
 
-#else /* CONFIG_PAGE_TABLE_ISOLATION=n: */
+#else /* CONFIG_MITIGATION_PAGE_TABLE_ISOLATION=n: */
 
 .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
 .endm
