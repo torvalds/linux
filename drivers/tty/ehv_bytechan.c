@@ -143,9 +143,12 @@ static unsigned int local_ev_byte_channel_send(unsigned int handle,
 	char buffer[EV_BYTE_CHANNEL_MAX_BYTES];
 	unsigned int c = *count;
 
+	/*
+	 * ev_byte_channel_send() expects at least EV_BYTE_CHANNEL_MAX_BYTES
+	 * (16 B) in the buffer. Fake it using a local buffer if needed.
+	 */
 	if (c < sizeof(buffer)) {
-		memcpy(buffer, p, c);
-		memset(&buffer[c], 0, sizeof(buffer) - c);
+		memcpy_and_pad(buffer, sizeof(buffer), p, c, 0);
 		p = buffer;
 	}
 	return ev_byte_channel_send(handle, count, p);
