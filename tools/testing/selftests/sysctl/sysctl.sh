@@ -35,6 +35,7 @@ ALL_TESTS="$ALL_TESTS 0007:1:1:boot_int:1"
 ALL_TESTS="$ALL_TESTS 0008:1:1:match_int:1"
 ALL_TESTS="$ALL_TESTS 0009:1:1:unregister_error:0"
 ALL_TESTS="$ALL_TESTS 0010:1:1:mnt/mnt_error:0"
+ALL_TESTS="$ALL_TESTS 0011:1:1:empty_add:0"
 
 function allow_user_defaults()
 {
@@ -828,6 +829,27 @@ sysctl_test_0010()
 	return 0
 }
 
+sysctl_test_0011()
+{
+	TARGET="${SYSCTL}/$(get_test_target 0011)"
+	echo -n "Testing empty dir handling in ${TARGET} ... "
+	if [ ! -d ${TARGET} ]; then
+		echo -e "FAIL\nCould not create ${TARGET}" >&2
+		rc=1
+		test_rc
+	fi
+
+	TARGET2="${TARGET}/empty"
+	if [ ! -d ${TARGET2} ]; then
+		echo -e "FAIL\nCould not create ${TARGET2}" >&2
+		rc=1
+		test_rc
+	fi
+
+	echo "OK"
+	return 0
+}
+
 list_tests()
 {
 	echo "Test ID list:"
@@ -846,6 +868,7 @@ list_tests()
 	echo "0008 x $(get_test_count 0008) - tests sysctl macro values match"
 	echo "0009 x $(get_test_count 0009) - tests sysct unregister"
 	echo "0010 x $(get_test_count 0010) - tests sysct mount point"
+	echo "0011 x $(get_test_count 0011) - tests empty directories"
 }
 
 usage()
