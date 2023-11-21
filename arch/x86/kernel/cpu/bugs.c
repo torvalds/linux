@@ -1003,15 +1003,15 @@ static void __init retbleed_select_mitigation(void)
 		break;
 
 	case RETBLEED_CMD_STUFF:
-		if (IS_ENABLED(CONFIG_CALL_DEPTH_TRACKING) &&
+		if (IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING) &&
 		    spectre_v2_enabled == SPECTRE_V2_RETPOLINE) {
 			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
 
 		} else {
-			if (IS_ENABLED(CONFIG_CALL_DEPTH_TRACKING))
+			if (IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING))
 				pr_err("WARNING: retbleed=stuff depends on spectre_v2=retpoline\n");
 			else
-				pr_err("WARNING: kernel not compiled with CALL_DEPTH_TRACKING.\n");
+				pr_err("WARNING: kernel not compiled with MITIGATION_CALL_DEPTH_TRACKING.\n");
 
 			goto do_cmd_auto;
 		}

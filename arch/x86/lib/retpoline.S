@@ -71,7 +71,7 @@ SYM_CODE_END(__x86_indirect_thunk_array)
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
-#ifdef CONFIG_CALL_DEPTH_TRACKING
+#ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 .macro CALL_THUNK reg
 	.align RETPOLINE_THUNK_SIZE
 
@@ -327,7 +327,7 @@ __EXPORT_THUNK(entry_untrain_ret)
 
 #endif /* CONFIG_CPU_UNRET_ENTRY || CONFIG_CPU_SRSO */
 
-#ifdef CONFIG_CALL_DEPTH_TRACKING
+#ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 
 	.align 64
 SYM_FUNC_START(call_depth_return_thunk)
@@ -359,7 +359,7 @@ SYM_FUNC_START(call_depth_return_thunk)
 	int3
 SYM_FUNC_END(call_depth_return_thunk)
 
-#endif /* CONFIG_CALL_DEPTH_TRACKING */
+#endif /* CONFIG_MITIGATION_CALL_DEPTH_TRACKING */
 
 /*
  * This function name is magical and is used by -mfunction-return=thunk-extern

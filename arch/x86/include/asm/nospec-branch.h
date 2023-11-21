@@ -73,7 +73,7 @@
 # define CALL_THUNKS_DEBUG_INC_CTXSW
 #endif
 
-#if defined(CONFIG_CALL_DEPTH_TRACKING) && !defined(COMPILE_OFFSETS)
+#if defined(CONFIG_MITIGATION_CALL_DEPTH_TRACKING) && !defined(COMPILE_OFFSETS)
 
 #include <asm/asm-offsets.h>
 
@@ -309,7 +309,7 @@
 
 
 .macro CALL_DEPTH_ACCOUNT
-#ifdef CONFIG_CALL_DEPTH_TRACKING
+#ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 	ALTERNATIVE "",							\
 		    __stringify(ASM_INCREMENT_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
 #endif
@@ -357,7 +357,7 @@ extern void entry_ibpb(void);
 
 extern void (*x86_return_thunk)(void);
 
-#ifdef CONFIG_CALL_DEPTH_TRACKING
+#ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 extern void call_depth_return_thunk(void);
 
 #define CALL_DEPTH_ACCOUNT					\
@@ -371,12 +371,12 @@ DECLARE_PER_CPU(u64, __x86_ret_count);
 DECLARE_PER_CPU(u64, __x86_stuffs_count);
 DECLARE_PER_CPU(u64, __x86_ctxsw_count);
 #endif
-#else /* !CONFIG_CALL_DEPTH_TRACKING */
+#else /* !CONFIG_MITIGATION_CALL_DEPTH_TRACKING */
 
 static inline void call_depth_return_thunk(void) {}
 #define CALL_DEPTH_ACCOUNT ""
 
-#endif /* CONFIG_CALL_DEPTH_TRACKING */
+#endif /* CONFIG_MITIGATION_CALL_DEPTH_TRACKING */
 
 #ifdef CONFIG_RETPOLINE
 
