@@ -512,8 +512,8 @@ static bool __ref is_mmconf_reserved(check_reserved_t is_reserved,
 	return true;
 }
 
-static bool __ref
-pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int early)
+static bool __ref pci_mmcfg_reserved(struct device *dev,
+				     struct pci_mmcfg_region *cfg, int early)
 {
 	struct resource *conflict;
 
@@ -567,7 +567,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 	struct pci_mmcfg_region *cfg;
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
-		if (pci_mmcfg_check_reserved(NULL, cfg, early) == 0) {
+		if (!pci_mmcfg_reserved(NULL, cfg, early)) {
 			pr_info("not using ECAM (%pR not reserved)\n",
 				&cfg->res);
 			free_all_mmcfg();
@@ -796,7 +796,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 	if (cfg == NULL) {
 		dev_warn(dev, "fail to add ECAM (out of memory)\n");
 		rc = -ENOMEM;
-	} else if (!pci_mmcfg_check_reserved(dev, cfg, 0)) {
+	} else if (!pci_mmcfg_reserved(dev, cfg, 0)) {
 		dev_warn(dev, FW_BUG "ECAM %pR isn't reserved\n",
 			 &cfg->res);
 	} else {
