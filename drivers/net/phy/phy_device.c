@@ -1235,13 +1235,12 @@ int phy_init_hw(struct phy_device *phydev)
 
 	if (phydev->drv->soft_reset) {
 		ret = phydev->drv->soft_reset(phydev);
-		/* see comment in genphy_soft_reset for an explanation */
-		if (!ret)
-			phydev->suspended = 0;
-	}
+		if (ret < 0)
+			return ret;
 
-	if (ret < 0)
-		return ret;
+		/* see comment in genphy_soft_reset for an explanation */
+		phydev->suspended = 0;
+	}
 
 	ret = phy_scan_fixups(phydev);
 	if (ret < 0)
