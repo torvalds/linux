@@ -143,6 +143,7 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 
 	svc_rdma_send_cid_init(rdma, &ctxt->sc_cid);
 
+	ctxt->sc_rdma = rdma;
 	ctxt->sc_send_wr.next = NULL;
 	ctxt->sc_send_wr.wr_cqe = &ctxt->sc_cqe;
 	ctxt->sc_send_wr.sg_list = ctxt->sc_sges;
@@ -223,15 +224,8 @@ out_empty:
 	goto out;
 }
 
-/**
- * svc_rdma_send_ctxt_put - Return send_ctxt to free list
- * @rdma: controlling svcxprt_rdma
- * @ctxt: object to return to the free list
- *
- * Pages left in sc_pages are DMA unmapped and released.
- */
-void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
-			    struct svc_rdma_send_ctxt *ctxt)
+static void svc_rdma_send_ctxt_release(struct svcxprt_rdma *rdma,
+				       struct svc_rdma_send_ctxt *ctxt)
 {
 	struct ib_device *device = rdma->sc_cm_id->device;
 	unsigned int i;
@@ -253,6 +247,28 @@ void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 	}
 
 	llist_add(&ctxt->sc_node, &rdma->sc_send_ctxts);
+}
+
+static void svc_rdma_send_ctxt_put_async(struct work_struct *work)
+{
+	struct svc_rdma_send_ctxt *ctxt;
+
+	ctxt = container_of(work, struct svc_rdma_send_ctxt, sc_work);
+	svc_rdma_send_ctxt_release(ctxt->sc_rdma, ctxt);
+}
+
+/**
+ * svc_rdma_send_ctxt_put - Return send_ctxt to free list
+ * @rdma: controlling svcxprt_rdma
+ * @ctxt: object to return to the free list
+ *
+ * Pages left in sc_pages are DMA unmapped and released.
+ */
+void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
+			    struct svc_rdma_send_ctxt *ctxt)
+{
+	INIT_WORK(&ctxt->sc_work, svc_rdma_send_ctxt_put_async);
+	queue_work(svcrdma_wq, &ctxt->sc_work);
 }
 
 /**

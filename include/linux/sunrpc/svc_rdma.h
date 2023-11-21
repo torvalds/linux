@@ -152,7 +152,9 @@ struct svc_rdma_recv_ctxt {
 struct svc_rdma_send_ctxt {
 	struct llist_node	sc_node;
 	struct rpc_rdma_cid	sc_cid;
+	struct work_struct	sc_work;
 
+	struct svcxprt_rdma	*sc_rdma;
 	struct ib_send_wr	sc_send_wr;
 	struct ib_cqe		sc_cqe;
 	struct xdr_buf		sc_hdrbuf;
