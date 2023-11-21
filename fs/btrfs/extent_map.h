@@ -77,13 +77,6 @@ static inline u64 extent_map_end(struct extent_map *em)
 	return em->start + em->len;
 }
 
-static inline u64 extent_map_block_end(struct extent_map *em)
-{
-	if (em->block_start + em->block_len < em->block_start)
-		return (u64)-1;
-	return em->block_start + em->block_len;
-}
-
 void extent_map_tree_init(struct extent_map_tree *tree);
 struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 					 u64 start, u64 len);

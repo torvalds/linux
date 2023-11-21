@@ -182,6 +182,13 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 	return NULL;
 }
 
+static inline u64 extent_map_block_end(const struct extent_map *em)
+{
+	if (em->block_start + em->block_len < em->block_start)
+		return (u64)-1;
+	return em->block_start + em->block_len;
+}
+
 /* Check to see if two extent_map structs are adjacent and safe to merge. */
 static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 {
