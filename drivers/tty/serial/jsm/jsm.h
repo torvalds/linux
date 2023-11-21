@@ -115,8 +115,6 @@ struct board_ops {
 	void (*send_start_character)(struct jsm_channel *ch);
 	void (*send_stop_character)(struct jsm_channel *ch);
 	void (*copy_data_from_queue_to_uart)(struct jsm_channel *ch);
-	u32 (*get_uart_bytes_left)(struct jsm_channel *ch);
-	void (*send_immediate_char)(struct jsm_channel *ch, unsigned char);
 };
 
 
