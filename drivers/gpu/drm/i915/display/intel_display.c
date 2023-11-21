@@ -989,6 +989,24 @@ static bool vrr_disabling(const struct intel_crtc_state *old_crtc_state,
 		  vrr_params_changed(old_crtc_state, new_crtc_state)));
 }
 
+static bool audio_enabling(const struct intel_crtc_state *old_crtc_state,
+			   const struct intel_crtc_state *new_crtc_state)
+{
+	if (!new_crtc_state->hw.active)
+		return false;
+
+	return is_enabling(has_audio, old_crtc_state, new_crtc_state);
+}
+
+static bool audio_disabling(const struct intel_crtc_state *old_crtc_state,
+			    const struct intel_crtc_state *new_crtc_state)
+{
+	if (!old_crtc_state->hw.active)
+		return false;
+
+	return is_disabling(has_audio, old_crtc_state, new_crtc_state);
+}
+
 #undef is_disabling
 #undef is_enabling
 
@@ -1029,6 +1047,9 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 
 	if (intel_crtc_needs_color_update(new_crtc_state))
 		intel_color_post_update(new_crtc_state);
+
+	if (audio_enabling(old_crtc_state, new_crtc_state))
+		intel_encoders_audio_enable(state, crtc);
 }
 
 static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
@@ -1111,6 +1132,9 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 		intel_vrr_disable(old_crtc_state);
 		intel_crtc_update_active_timings(old_crtc_state, false);
 	}
+
+	if (audio_disabling(old_crtc_state, new_crtc_state))
+		intel_encoders_audio_disable(state, crtc);
 
 	intel_drrs_deactivate(old_crtc_state);
 
@@ -1502,7 +1526,6 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
-	intel_encoders_audio_enable(state, crtc);
 
 	if (HAS_PCH_CPT(dev_priv))
 		intel_wait_for_pipe_scanline_moving(crtc);
@@ -1676,7 +1699,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 		intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
-	intel_encoders_audio_enable(state, crtc);
 
 	if (psl_clkgate_wa) {
 		intel_crtc_wait_for_next_vblank(crtc);
@@ -1728,7 +1750,6 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
 
-	intel_encoders_audio_disable(state, crtc);
 	intel_encoders_disable(state, crtc);
 
 	intel_crtc_vblank_off(old_crtc_state);
@@ -1763,7 +1784,6 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 	 * Need care with mst->ddi interactions.
 	 */
 	if (!intel_crtc_is_bigjoiner_slave(old_crtc_state)) {
-		intel_encoders_audio_disable(state, crtc);
 		intel_encoders_disable(state, crtc);
 		intel_encoders_post_disable(state, crtc);
 	}
@@ -2033,7 +2053,6 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
-	intel_encoders_audio_enable(state, crtc);
 }
 
 static void i9xx_crtc_enable(struct intel_atomic_state *state,
@@ -2075,7 +2094,6 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	intel_crtc_vblank_on(new_crtc_state);
 
 	intel_encoders_enable(state, crtc);
-	intel_encoders_audio_enable(state, crtc);
 
 	/* prevents spurious underruns */
 	if (DISPLAY_VER(dev_priv) == 2)
@@ -2112,7 +2130,6 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 	if (DISPLAY_VER(dev_priv) == 2)
 		intel_crtc_wait_for_next_vblank(crtc);
 
-	intel_encoders_audio_disable(state, crtc);
 	intel_encoders_disable(state, crtc);
 
 	intel_crtc_vblank_off(old_crtc_state);
