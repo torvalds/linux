@@ -2280,7 +2280,7 @@ static bool tty_legacy_tiocsti __read_mostly = IS_ENABLED(CONFIG_LEGACY_TIOCSTI)
  */
 static int tiocsti(struct tty_struct *tty, char __user *p)
 {
-	char ch, mbz = 0;
+	char ch;
 	struct tty_ldisc *ld;
 
 	if (!tty_legacy_tiocsti && !capable(CAP_SYS_ADMIN))
@@ -2296,7 +2296,7 @@ static int tiocsti(struct tty_struct *tty, char __user *p)
 		return -EIO;
 	tty_buffer_lock_exclusive(tty->port);
 	if (ld->ops->receive_buf)
-		ld->ops->receive_buf(tty, &ch, &mbz, 1);
+		ld->ops->receive_buf(tty, &ch, NULL, 1);
 	tty_buffer_unlock_exclusive(tty->port);
 	tty_ldisc_deref(ld);
 	return 0;
