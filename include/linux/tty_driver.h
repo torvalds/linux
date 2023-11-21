@@ -72,8 +72,7 @@ struct serial_struct;
  *	is closed for the last time freeing up the resources. This is
  *	actually the second part of shutdown for routines that might sleep.
  *
- * @write: ``ssize_t ()(struct tty_struct *tty, const unsigned char *buf,
- *		    size_t count)``
+ * @write: ``ssize_t ()(struct tty_struct *tty, const u8 *buf, size_t count)``
  *
  *	This routine is called by the kernel to write a series (@count) of
  *	characters (@buf) to the @tty device. The characters may come from
@@ -85,7 +84,7 @@ struct serial_struct;
  *
  *	Optional: Required for writable devices. May not sleep.
  *
- * @put_char: ``int ()(struct tty_struct *tty, unsigned char ch)``
+ * @put_char: ``int ()(struct tty_struct *tty, u8 ch)``
  *
  *	This routine is called by the kernel to write a single character @ch to
  *	the @tty device. If the kernel uses this routine, it must call the
