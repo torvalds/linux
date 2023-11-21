@@ -37,7 +37,6 @@ struct hvc_struct {
 	spinlock_t lock;
 	int index;
 	int do_wakeup;
-	char *outbuf;
 	int outbuf_size;
 	int n_outbuf;
 	uint32_t vtermno;
@@ -48,6 +47,7 @@ struct hvc_struct {
 	struct work_struct tty_resize;
 	struct list_head next;
 	unsigned long flags;
+	u8 outbuf[] __aligned(sizeof(long));
 };
 
 /* implemented by a low level driver */
