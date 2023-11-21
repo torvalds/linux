@@ -35,8 +35,7 @@ OBJECT_FILES_NON_STANDARD_extable.o	:= n
 # vDSO images to build
 obj-$(CONFIG_X86_64)		+= vdso-image-64.o
 obj-$(CONFIG_X86_X32_ABI)	+= vdso-image-x32.o
-obj-$(CONFIG_X86_32)		+= vdso-image-32.o vdso32-setup.o
-obj-$(CONFIG_IA32_EMULATION)	+= vdso-image-32.o vdso32-setup.o
+obj-$(CONFIG_COMPAT_32)		+= vdso-image-32.o vdso32-setup.o
 
 OBJECT_FILES_NON_STANDARD_vdso32-setup.o := n
 
