@@ -403,12 +403,16 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 	if (err)
 		goto free_encap;
 
+	e->encap_size = ipv4_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto free_encap;
+		goto release_neigh;
 	}
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
@@ -421,10 +425,6 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 		err = PTR_ERR(e->pkt_reformat);
 		goto free_encap;
 	}
-
-	e->encap_size = ipv4_encap_size;
-	kfree(e->encap_header);
-	e->encap_header = encap_header;
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
@@ -669,12 +669,16 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 	if (err)
 		goto free_encap;
 
+	e->encap_size = ipv6_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto free_encap;
+		goto release_neigh;
 	}
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
@@ -687,10 +691,6 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 		err = PTR_ERR(e->pkt_reformat);
 		goto free_encap;
 	}
-
-	e->encap_size = ipv6_encap_size;
-	kfree(e->encap_header);
-	e->encap_header = encap_header;
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
