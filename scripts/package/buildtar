@@ -37,11 +37,9 @@ fi
 
 
 #
-# Try to install modules
+# Install modules
 #
-if grep -q '^CONFIG_MODULES=y' include/config/auto.conf; then
-	make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
-fi
+make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
 
 
 #
