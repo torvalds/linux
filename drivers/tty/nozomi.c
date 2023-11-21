@@ -65,23 +65,7 @@ do {							\
 #define DBG3(args...) DBG_(0x04, ##args)
 #define DBG4(args...) DBG_(0x08, ##args)
 
-/* TODO: rewrite to optimize macros... */
-
 #define TMP_BUF_MAX 256
-
-#define DUMP(buf__, len__)						\
-	do {								\
-		char tbuf[TMP_BUF_MAX] = {0};				\
-		if (len__ > 1) {					\
-			u32 data_len = min_t(u32, len__, TMP_BUF_MAX);	\
-			strscpy(tbuf, buf__, data_len);			\
-			if (tbuf[data_len - 2] == '\r')			\
-				tbuf[data_len - 2] = 'r';		\
-			DBG1("SENDING: '%s' (%d+n)", tbuf, len__);	\
-		} else {						\
-			DBG1("SENDING: '%s' (%d)", tbuf, len__);	\
-		}							\
-	} while (0)
 
 /*    Defines */
 #define NOZOMI_NAME		"nozomi"
@@ -753,8 +737,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 		DBG4("No more data to send, disable link:");
 		return 0;
 	}
-
-	/* DUMP(buf, size); */
 
 	/* Write length + data */
 	write_mem32(addr, (u32 *) &size, 4);
