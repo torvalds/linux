@@ -2165,7 +2165,6 @@ static struct ctl_table fs_exec_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
-	{ }
 };
 
 static int __init init_fs_exec_sysctls(void)

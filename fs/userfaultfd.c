@@ -45,7 +45,6 @@ static struct ctl_table vm_userfaultfd_table[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{ }
 };
 #endif
 

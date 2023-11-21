@@ -2969,7 +2969,6 @@ static struct ctl_table fs_dqstats_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 #endif
-	{ },
 };
 
 static int __init dquot_init(void)
