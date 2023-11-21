@@ -49,7 +49,6 @@ void __init smp_prepare_boot_cpu(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpuid;
-	int ret;
 	unsigned int curr_cpuid;
 
 	init_cpu_topology();
@@ -66,11 +65,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	for_each_possible_cpu(cpuid) {
 		if (cpuid == curr_cpuid)
 			continue;
-		if (cpu_ops[cpuid]->cpu_prepare) {
-			ret = cpu_ops[cpuid]->cpu_prepare(cpuid);
-			if (ret)
-				continue;
-		}
 		set_cpu_present(cpuid, true);
 		numa_store_cpu_info(cpuid);
 	}

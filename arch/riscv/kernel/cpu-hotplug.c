@@ -29,17 +29,10 @@ bool cpu_has_hotplug(unsigned int cpu)
  */
 int __cpu_disable(void)
 {
-	int ret = 0;
 	unsigned int cpu = smp_processor_id();
 
 	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_stop)
 		return -EOPNOTSUPP;
-
-	if (cpu_ops[cpu]->cpu_disable)
-		ret = cpu_ops[cpu]->cpu_disable(cpu);
-
-	if (ret)
-		return ret;
 
 	remove_cpu_topology(cpu);
 	numa_remove_cpu(cpu);
@@ -47,7 +40,7 @@ int __cpu_disable(void)
 	riscv_ipi_disable();
 	irq_migrate_all_off_this_cpu();
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

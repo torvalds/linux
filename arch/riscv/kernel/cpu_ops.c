@@ -18,8 +18,6 @@ const struct cpu_operations *cpu_ops[NR_CPUS] __ro_after_init;
 extern const struct cpu_operations cpu_ops_sbi;
 #ifndef CONFIG_RISCV_BOOT_SPINWAIT
 const struct cpu_operations cpu_ops_spinwait = {
-	.name		= "",
-	.cpu_prepare	= NULL,
 	.cpu_start	= NULL,
 };
 #endif
