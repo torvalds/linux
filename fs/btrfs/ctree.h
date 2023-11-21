@@ -212,8 +212,6 @@ struct btrfs_root {
 
 	u64 last_trans;
 
-	u32 type;
-
 	u64 free_objectid;
 
 	struct btrfs_key defrag_progress;
