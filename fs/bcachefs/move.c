@@ -1013,6 +1013,41 @@ int bch2_scan_old_btree_nodes(struct bch_fs *c, struct bch_move_stats *stats)
 	return ret;
 }
 
+static bool drop_extra_replicas_pred(struct bch_fs *c, void *arg,
+			     struct bkey_s_c k,
+			     struct bch_io_opts *io_opts,
+			     struct data_update_opts *data_opts)
+{
+	unsigned durability = bch2_bkey_durability(c, k);
+	unsigned replicas = bkey_is_btree_ptr(k.k)
+		? c->opts.metadata_replicas
+		: io_opts->data_replicas;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	unsigned i = 0;
+
+	bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
+		unsigned d = bch2_extent_ptr_durability(c, &p);
+
+		if (d && durability - d >= replicas) {
+			data_opts->kill_ptrs |= BIT(i);
+			durability -= d;
+		}
+
+		i++;
+	}
+
+	return data_opts->kill_ptrs != 0;
+}
+
+static bool drop_extra_replicas_btree_pred(struct bch_fs *c, void *arg,
+				   struct btree *b,
+				   struct bch_io_opts *io_opts,
+				   struct data_update_opts *data_opts)
+{
+	return drop_extra_replicas_pred(c, arg, bkey_i_to_s_c(&b->key), io_opts, data_opts);
+}
+
 int bch2_data_job(struct bch_fs *c,
 		  struct bch_move_stats *stats,
 		  struct bch_ioctl_data op)
@@ -1030,11 +1065,8 @@ int bch2_data_job(struct bch_fs *c,
 	case BCH_DATA_OP_rereplicate:
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, -1);
-
 		ret = bch2_move_btree(c, start, end,
 				      rereplicate_btree_pred, c, stats) ?: ret;
-		ret = bch2_replicas_gc2(c) ?: ret;
-
 		ret = bch2_move_data(c, start, end,
 				     NULL,
 				     stats,
@@ -1049,11 +1081,8 @@ int bch2_data_job(struct bch_fs *c,
 
 		stats->data_type = BCH_DATA_journal;
 		ret = bch2_journal_flush_device_pins(&c->journal, op.migrate.dev);
-
 		ret = bch2_move_btree(c, start, end,
 				      migrate_btree_pred, &op, stats) ?: ret;
-		ret = bch2_replicas_gc2(c) ?: ret;
-
 		ret = bch2_move_data(c, start, end,
 				     NULL,
 				     stats,
@@ -1064,6 +1093,15 @@ int bch2_data_job(struct bch_fs *c,
 		break;
 	case BCH_DATA_OP_rewrite_old_nodes:
 		ret = bch2_scan_old_btree_nodes(c, stats);
+		break;
+	case BCH_DATA_OP_drop_extra_replicas:
+		ret = bch2_move_btree(c, start, end,
+				drop_extra_replicas_btree_pred, c, stats) ?: ret;
+		ret = bch2_move_data(c, start, end, NULL, stats,
+				writepoint_hashed((unsigned long) current),
+				true,
+				drop_extra_replicas_pred, c) ?: ret;
+		ret = bch2_replicas_gc2(c) ?: ret;
 		break;
 	default:
 		ret = -EINVAL;

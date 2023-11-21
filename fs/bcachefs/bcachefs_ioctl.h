@@ -177,7 +177,8 @@ struct bch_ioctl_disk_set_state {
 	x(scrub,		0)	\
 	x(rereplicate,		1)	\
 	x(migrate,		2)	\
-	x(rewrite_old_nodes,	3)
+	x(rewrite_old_nodes,	3)	\
+	x(drop_extra_replicas,	4)
 
 enum bch_data_ops {
 #define x(t, n) BCH_DATA_OP_##t = n,
