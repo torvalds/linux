@@ -131,7 +131,7 @@ const struct pci_raw_ops pci_mmcfg = {
 
 int __init pci_mmcfg_arch_init(void)
 {
-	printk(KERN_INFO "PCI: Using MMCONFIG for extended config space\n");
+	printk(KERN_INFO "PCI: Using ECAM for extended config space\n");
 	raw_pci_ext_ops = &pci_mmcfg;
 	return 1;
 }

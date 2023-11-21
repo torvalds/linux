@@ -6,6 +6,8 @@
  * space mapped. This allows lockless config space operation.
  */
 
+#define pr_fmt(fmt) "PCI: " fmt
+
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
@@ -13,8 +15,6 @@
 #include <linux/rcupdate.h>
 #include <asm/e820/api.h>
 #include <asm/pci_x86.h>
-
-#define PREFIX "PCI: "
 
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
@@ -138,7 +138,7 @@ int pci_mmcfg_arch_map(struct pci_mmcfg_region *cfg)
 {
 	cfg->virt = mcfg_ioremap(cfg);
 	if (!cfg->virt) {
-		pr_err(PREFIX "can't map MMCONFIG at %pR\n", &cfg->res);
+		pr_err("can't map ECAM at %pR\n", &cfg->res);
 		return -ENOMEM;
 	}
 
