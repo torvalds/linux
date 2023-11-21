@@ -191,7 +191,7 @@ static const enum gpiod_flags gpio_flags[] = {
  * R_PHY_RETRY is the number of attempts.
  */
 #define T_PHY_RETRY		msecs_to_jiffies(50)
-#define R_PHY_RETRY		12
+#define R_PHY_RETRY		25
 
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
@@ -274,7 +274,7 @@ struct sfp {
 	struct sfp_eeprom_id id;
 	unsigned int module_power_mW;
 	unsigned int module_t_start_up;
-	unsigned int module_t_wait;
+	unsigned int phy_t_retry;
 
 	unsigned int rate_kbd;
 	unsigned int rs_threshold_kbd;
@@ -372,18 +372,22 @@ static void sfp_fixup_10gbaset_30m(struct sfp *sfp)
 	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SR;
 }
 
-static void sfp_fixup_rollball_proto(struct sfp *sfp, unsigned int secs)
+static void sfp_fixup_rollball(struct sfp *sfp)
 {
 	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
-	sfp->module_t_wait = msecs_to_jiffies(secs * 1000);
+
+	/* RollBall modules may disallow access to PHY registers for up to 25
+	 * seconds, and the reads return 0xffff before that. Increase the time
+	 * between PHY probe retries from 50ms to 1s so that we will wait for
+	 * the PHY for a sufficient amount of time.
+	 */
+	sfp->phy_t_retry = msecs_to_jiffies(1000);
 }
 
 static void sfp_fixup_fs_10gt(struct sfp *sfp)
 {
 	sfp_fixup_10gbaset_30m(sfp);
-
-	// These SFPs need 4 seconds before the PHY can be accessed
-	sfp_fixup_rollball_proto(sfp, 4);
+	sfp_fixup_rollball(sfp);
 }
 
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
@@ -393,12 +397,6 @@ static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 	 * module, e.g. a serial port.
 	 */
 	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
-}
-
-static void sfp_fixup_rollball(struct sfp *sfp)
-{
-	// Rollball SFPs need 25 seconds before the PHY can be accessed
-	sfp_fixup_rollball_proto(sfp, 25);
 }
 
 static void sfp_fixup_rollball_cc(struct sfp *sfp)
@@ -2331,7 +2329,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		mask |= SFP_F_RS1;
 
 	sfp->module_t_start_up = T_START_UP;
-	sfp->module_t_wait = T_WAIT;
+	sfp->phy_t_retry = T_PHY_RETRY;
 
 	sfp->state_ignore_mask = 0;
 
@@ -2568,10 +2566,9 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 
 		/* We need to check the TX_FAULT state, which is not defined
 		 * while TX_DISABLE is asserted. The earliest we want to do
-		 * anything (such as probe for a PHY) is 50ms (or more on
-		 * specific modules).
+		 * anything (such as probe for a PHY) is 50ms.
 		 */
-		sfp_sm_next(sfp, SFP_S_WAIT, sfp->module_t_wait);
+		sfp_sm_next(sfp, SFP_S_WAIT, T_WAIT);
 		break;
 
 	case SFP_S_WAIT:
@@ -2585,8 +2582,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 			 * deasserting.
 			 */
 			timeout = sfp->module_t_start_up;
-			if (timeout > sfp->module_t_wait)
-				timeout -= sfp->module_t_wait;
+			if (timeout > T_WAIT)
+				timeout -= T_WAIT;
 			else
 				timeout = 1;
 
@@ -2629,7 +2626,11 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		ret = sfp_sm_probe_for_phy(sfp);
 		if (ret == -ENODEV) {
 			if (--sfp->sm_phy_retries) {
-				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
+				sfp_sm_next(sfp, SFP_S_INIT_PHY,
+					    sfp->phy_t_retry);
+				dev_dbg(sfp->dev,
+					"no PHY detected, %u tries left\n",
+					sfp->sm_phy_retries);
 				break;
 			} else {
 				dev_info(sfp->dev, "no PHY detected\n");
