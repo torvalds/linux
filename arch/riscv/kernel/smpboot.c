@@ -166,25 +166,22 @@ void __init setup_smp(void)
 {
 	int cpuid;
 
-	cpu_set_ops(0);
+	cpu_set_ops();
 
 	if (acpi_disabled)
 		of_parse_and_init_cpus();
 	else
 		acpi_parse_and_init_cpus();
 
-	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++) {
-		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID) {
-			cpu_set_ops(cpuid);
+	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++)
+		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID)
 			set_cpu_possible(cpuid, true);
-		}
-	}
 }
 
 static int start_secondary_cpu(int cpu, struct task_struct *tidle)
 {
-	if (cpu_ops[cpu]->cpu_start)
-		return cpu_ops[cpu]->cpu_start(cpu, tidle);
+	if (cpu_ops->cpu_start)
+		return cpu_ops->cpu_start(cpu, tidle);
 
 	return -EOPNOTSUPP;
 }

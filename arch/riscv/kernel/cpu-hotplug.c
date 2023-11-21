@@ -18,7 +18,7 @@
 
 bool cpu_has_hotplug(unsigned int cpu)
 {
-	if (cpu_ops[cpu]->cpu_stop)
+	if (cpu_ops->cpu_stop)
 		return true;
 
 	return false;
@@ -31,7 +31,7 @@ int __cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	if (!cpu_ops[cpu] || !cpu_ops[cpu]->cpu_stop)
+	if (!cpu_ops->cpu_stop)
 		return -EOPNOTSUPP;
 
 	remove_cpu_topology(cpu);
@@ -55,8 +55,8 @@ void arch_cpuhp_cleanup_dead_cpu(unsigned int cpu)
 	pr_notice("CPU%u: off\n", cpu);
 
 	/* Verify from the firmware if the cpu is really stopped*/
-	if (cpu_ops[cpu]->cpu_is_stopped)
-		ret = cpu_ops[cpu]->cpu_is_stopped(cpu);
+	if (cpu_ops->cpu_is_stopped)
+		ret = cpu_ops->cpu_is_stopped(cpu);
 	if (ret)
 		pr_warn("CPU%d may not have stopped: %d\n", cpu, ret);
 }
@@ -70,7 +70,7 @@ void __noreturn arch_cpu_idle_dead(void)
 
 	cpuhp_ap_report_dead();
 
-	cpu_ops[smp_processor_id()]->cpu_stop();
+	cpu_ops->cpu_stop();
 	/* It should never reach here */
 	BUG();
 }

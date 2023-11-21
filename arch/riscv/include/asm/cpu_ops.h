@@ -29,7 +29,7 @@ struct cpu_operations {
 };
 
 extern const struct cpu_operations cpu_ops_spinwait;
-extern const struct cpu_operations *cpu_ops[NR_CPUS];
-void __init cpu_set_ops(int cpu);
+extern const struct cpu_operations *cpu_ops;
+void __init cpu_set_ops(void);
 
 #endif /* ifndef __ASM_CPU_OPS_H */
