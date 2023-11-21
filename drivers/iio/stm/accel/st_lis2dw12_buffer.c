@@ -18,31 +18,6 @@
 
 #include "st_lis2dw12.h"
 
-#define ST_LIS2DW12_STATUS_ADDR			0x27
-#define ST_LIS2DW12_STATUS_FF_MASK		BIT(0)
-#define ST_LIS2DW12_STATUS_TAP_TAP_MASK		BIT(4)
-#define ST_LIS2DW12_STATUS_TAP_MASK		BIT(3)
-#define ST_LIS2DW12_STATUS_WU_MASK		BIT(6)
-#define ST_LIS2DW12_STATUS_FTH_MASK		BIT(7)
-#define ST_LIS2DW12_FIFO_CTRL_ADDR		0x2e
-#define ST_LIS2DW12_FIFOMODE_MASK		GENMASK(7, 5)
-#define ST_LIS2DW12_FTH_MASK			GENMASK(4, 0)
-#define ST_LIS2DW12_FIFO_SAMPLES_ADDR		0x2f
-#define ST_LIS2DW12_FIFO_SAMPLES_FTH_MASK	BIT(7)
-#define ST_LIS2DW12_FIFO_SAMPLES_OVR_MASK	BIT(6)
-#define ST_LIS2DW12_WU_SRC_ADDR			0x38
-#define ST_LIS2DW12_TAP_SRC_ADDR		0x39
-#define ST_LIS2DW12_STAP_SRC_MASK		BIT(5)
-#define ST_LIS2DW12_DTAP_SRC_MASK		BIT(4)
-#define ST_LIS2DW12_TAP_EVT_MASK		GENMASK(2, 0)
-#define ST_LIS2DW12_FIFO_SAMPLES_DIFF_MASK	GENMASK(5, 0)
-
-#define ST_LIS2DW12_ALL_INT_SRC_ADDR		0x3b
-#define ST_LIS2DW12_ALL_INT_SRC_FF_MASK		BIT(0)
-#define ST_LIS2DW12_ALL_INT_SRC_WU_MASK		BIT(1)
-#define ST_LIS2DW12_ALL_INT_SRC_TAP_MASK	BIT(2)
-#define ST_LIS2DW12_ALL_INT_SRC_TAP_TAP_MASK	BIT(3)
-
 static inline s64 st_lis2dw12_get_timestamp(struct st_lis2dw12_hw *hw)
 {
 	return iio_get_time_ns(hw->iio_devs[ST_LIS2DW12_ID_ACC]);
@@ -211,6 +186,18 @@ ssize_t st_lis2dw12_flush_fifo(struct device *dev,
 	iio_push_event(iio_dev, code, hw->ts_irq);
 
 	return err < 0 ? err : size;
+}
+
+int st_lis2dw12_suspend_fifo(struct st_lis2dw12_hw *hw)
+{
+	int err;
+
+	mutex_lock(&hw->fifo_lock);
+	st_lis2dw12_read_fifo(hw);
+	err = st_lis2dw12_set_fifo_mode(hw, ST_LIS2DW12_FIFO_BYPASS);
+	mutex_unlock(&hw->fifo_lock);
+
+	return err;
 }
 
 static irqreturn_t st_lis2dw12_emb_event(struct st_lis2dw12_hw *hw)

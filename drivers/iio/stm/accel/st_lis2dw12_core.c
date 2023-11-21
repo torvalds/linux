@@ -20,71 +20,6 @@
 
 #include "st_lis2dw12.h"
 
-#define ST_LIS2DW12_WHOAMI_ADDR			0x0f
-#define ST_LIS2DW12_WHOAMI_VAL			0x44
-
-#define ST_LIS2DW12_CTRL1_ADDR			0x20
-#define ST_LIS2DW12_ODR_MASK			GENMASK(7, 4)
-#define ST_LIS2DW12_MODE_MASK			GENMASK(3, 2)
-#define ST_LIS2DW12_LP_MODE_MASK		GENMASK(1, 0)
-
-#define ST_LIS2DW12_CTRL2_ADDR			0x21
-#define ST_LIS2DW12_BDU_MASK			BIT(3)
-#define ST_LIS2DW12_RESET_MASK			BIT(6)
-
-#define ST_LIS2DW12_CTRL3_ADDR			0x22
-#define ST_LIS2DW12_LIR_MASK			BIT(4)
-#define ST_LIS2DW12_ST_MASK			GENMASK(7, 6)
-
-#define ST_LIS2DW12_CTRL4_INT1_CTRL_ADDR	0x23
-#define ST_LIS2DW12_DRDY_MASK			BIT(0)
-#define ST_LIS2DW12_FTH_INT_MASK		BIT(1)
-#define ST_LIS2DW12_TAP_INT1_MASK		BIT(6)
-#define ST_LIS2DW12_TAP_TAP_INT1_MASK		BIT(3)
-#define ST_LIS2DW12_FF_INT1_MASK		BIT(4)
-#define ST_LIS2DW12_WU_INT1_MASK		BIT(5)
-
-#define ST_LIS2DW12_CTRL5_INT2_CTRL_ADDR	0x24
-
-#define ST_LIS2DW12_CTRL6_ADDR			0x25
-#define ST_LIS2DW12_LN_MASK			BIT(2)
-#define ST_LIS2DW12_FS_MASK			GENMASK(5, 4)
-#define ST_LIS2DW12_BW_MASK			GENMASK(7, 6)
-
-#define ST_LIS2DW12_OUT_X_L_ADDR		0x28
-#define ST_LIS2DW12_OUT_Y_L_ADDR		0x2a
-#define ST_LIS2DW12_OUT_Z_L_ADDR		0x2c
-
-#define ST_LIS2DW12_TAP_THS_X_ADDR		0x30
-#define ST_LIS2DW12_TAP_THS_Y_ADDR		0x31
-#define ST_LIS2DW12_TAP_THS_Z_ADDR		0x32
-
-#define ST_LIS2DW12_TAP_AXIS_MASK		GENMASK(7, 5)
-#define ST_LIS2DW12_TAP_THS_MAK			GENMASK(4, 0)
-
-#define ST_LIS2DW12_INT_DUR_ADDR		0x33
-
-#define ST_LIS2DW12_WAKE_UP_THS_ADDR		0x34
-#define ST_LIS2DW12_WAKE_UP_THS_MAK		GENMASK(5, 0)
-#define ST_LIS2DW12_SINGLE_DOUBLE_TAP_MAK	BIT(7)
-
-#define ST_LIS2DW12_FREE_FALL_ADDR		0x36
-#define ST_LIS2DW12_FREE_FALL_THS_MASK		GENMASK(2, 0)
-#define ST_LIS2DW12_FREE_FALL_DUR_MASK		GENMASK(7, 3)
-
-#define ST_LIS2DW12_ABS_INT_CFG_ADDR		0x3f
-#define ST_LIS2DW12_ALL_INT_MASK		BIT(5)
-#define ST_LIS2DW12_INT2_ON_INT1_MASK		BIT(6)
-#define ST_LIS2DW12_DRDY_PULSED_MASK		BIT(7)
-
-#define ST_LIS2DW12_FS_2G_GAIN			IIO_G_TO_M_S_2(244)
-#define ST_LIS2DW12_FS_4G_GAIN			IIO_G_TO_M_S_2(488)
-#define ST_LIS2DW12_FS_8G_GAIN			IIO_G_TO_M_S_2(976)
-#define ST_LIS2DW12_FS_16G_GAIN			IIO_G_TO_M_S_2(1952)
-
-#define ST_LIS2DW12_SELFTEST_MIN		285
-#define ST_LIS2DW12_SELFTEST_MAX		6150
-
 struct st_lis2dw12_std_entry {
 	u16 odr;
 	u8 val;
@@ -299,8 +234,15 @@ static int st_lis2dw12_set_odr(struct st_lis2dw12_sensor *sensor, u16 req_odr)
 	val = (st_lis2dw12_odr_table[i].val << __ffs(ST_LIS2DW12_ODR_MASK)) |
 	      (mode << __ffs(ST_LIS2DW12_MODE_MASK)) | 0x01;
 
+	/*
+	 * disable cache support when setting odr register, use the
+	 * driver api to restore it
+	 */
+	regcache_cache_bypass(hw->regmap, true);
 	err = st_lis2dw12_write_locked(hw, ST_LIS2DW12_CTRL1_ADDR,
 				       &val, sizeof(val));
+
+	regcache_cache_bypass(hw->regmap, false);
 
 	return err < 0 ? err : 0;
 }
@@ -1057,9 +999,104 @@ int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
 			return err;
 	}
 
+	device_init_wakeup(dev,
+			   device_property_read_bool(dev,
+						     "wakeup-source"));
 	return 0;
 }
 EXPORT_SYMBOL(st_lis2dw12_probe);
+
+static int __maybe_unused st_lis2dw12_suspend(struct device *dev)
+{
+	struct st_lis2dw12_hw *hw = dev_get_drvdata(dev);
+	struct st_lis2dw12_sensor *sensor;
+	int i, err = 0;
+
+	if (hw->irq > 0)
+		disable_hardirq(hw->irq);
+
+	for (i = 0; i < ST_LIS2DW12_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!hw->iio_devs[i])
+			continue;
+
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		/* do not disable sensors if requested by wake-up */
+		if (!((hw->enable_mask & BIT(sensor->id)) &
+		      ST_LIS2DW12_WAKE_UP_SENSORS)) {
+			err = st_lis2dw12_set_odr(sensor, 0);
+			if (err < 0)
+				return err;
+		} else {
+			err = st_lis2dw12_set_odr(sensor,
+					 ST_LIS2DW12_MIN_ODR_IN_WAKEUP);
+			if (err < 0)
+				return err;
+		}
+	}
+
+	if (st_lis2dw12_is_fifo_enabled(hw)) {
+		err = st_lis2dw12_suspend_fifo(hw);
+		if (err < 0)
+			return err;
+	}
+
+	regcache_mark_dirty(hw->regmap);
+
+	if (hw->enable_mask & ST_LIS2DW12_WAKE_UP_SENSORS) {
+		if (device_may_wakeup(dev))
+			enable_irq_wake(hw->irq);
+	}
+
+	dev_info(dev, "Suspending device\n");
+
+	return err < 0 ? err : 0;
+}
+
+static int __maybe_unused st_lis2dw12_resume(struct device *dev)
+{
+	struct st_lis2dw12_hw *hw = dev_get_drvdata(dev);
+	struct st_lis2dw12_sensor *sensor;
+	int i, err = 0;
+
+	dev_info(dev, "Resuming device\n");
+
+	regcache_sync(hw->regmap);
+
+	if (hw->enable_mask & ST_LIS2DW12_WAKE_UP_SENSORS) {
+		if (device_may_wakeup(dev))
+			disable_irq_wake(hw->irq);
+	}
+
+	for (i = 0; i < ST_LIS2DW12_ID_MAX; i++) {
+		sensor = iio_priv(hw->iio_devs[i]);
+		if (!hw->iio_devs[i])
+			continue;
+
+		if (!(hw->enable_mask & BIT(sensor->id)))
+			continue;
+
+		err = st_lis2dw12_set_odr(sensor, sensor->odr);
+		if (err < 0)
+			return err;
+	}
+
+	if (st_lis2dw12_is_fifo_enabled(hw))
+		err = st_lis2dw12_set_fifo_mode(hw,
+					   ST_LIS2DW12_FIFO_CONTINUOUS);
+
+	if (hw->irq > 0)
+		enable_irq(hw->irq);
+
+	return err < 0 ? err : 0;
+}
+
+const struct dev_pm_ops st_lis2dw12_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(st_lis2dw12_suspend, st_lis2dw12_resume)
+};
+EXPORT_SYMBOL(st_lis2dw12_pm_ops);
 
 MODULE_AUTHOR("MEMS Software Solutions Team");
 MODULE_DESCRIPTION("STMicroelectronics st_lis2dw12 driver");

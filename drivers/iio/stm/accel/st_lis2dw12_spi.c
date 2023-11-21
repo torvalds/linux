@@ -15,8 +15,12 @@
 #include "st_lis2dw12.h"
 
 static const struct regmap_config st_lis2dw12_spi_regmap_config = {
+	.name = ST_LIS2DW12_REGMAP,
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = ST_LIS2DW12_ABS_INT_CFG_ADDR,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = st_lis2dw12_is_volatile_reg,
 };
 
 static int st_lis2dw12_spi_probe(struct spi_device *spi)
@@ -62,6 +66,7 @@ MODULE_DEVICE_TABLE(spi, st_lis2dw12_spi_id_table);
 static struct spi_driver st_lis2dw12_driver = {
 	.driver = {
 		.name = "st_lis2dw12_spi",
+		.pm = &st_lis2dw12_pm_ops,
 		.of_match_table = of_match_ptr(st_lis2dw12_spi_of_match),
 	},
 	.probe = st_lis2dw12_spi_probe,

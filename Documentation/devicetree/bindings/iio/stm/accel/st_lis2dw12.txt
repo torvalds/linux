@@ -30,6 +30,8 @@ Optional properties for all bus drivers:
                    Refer to interrupt-controller/interrupts.txt for generic
                    interrupt client node bindings.
 
+wakeup-source:     https://www.kernel.org/doc/Documentation/devicetree/bindings/power/wakeup-source.txt
+
 Example for an i2c device node (SA0 set to gnd):
 
 lis2dw12-accel@19 {
@@ -38,6 +40,7 @@ lis2dw12-accel@19 {
         interrupt-parent = <&gpio0>;
         interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
         st,drdy-int-pin = <1>;
+	wakeup-source;
 };
 
 Example for an spi device node:
@@ -49,4 +52,5 @@ lis2dw12-accel@0 {
 	interrupt-parent = <&gpio0>;
 	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>, <2 IRQ_TYPE_LEVEL_HIGH>;
 	st,drdy-int-pin = <1>;
+	wakeup-source;
 };

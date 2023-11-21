@@ -15,8 +15,12 @@
 #include "st_lis2dw12.h"
 
 static const struct regmap_config st_lis2dw12_i2c_regmap_config = {
+	.name = ST_LIS2DW12_REGMAP,
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = ST_LIS2DW12_ABS_INT_CFG_ADDR,
+	.cache_type = REGCACHE_RBTREE,
+	.volatile_reg = st_lis2dw12_is_volatile_reg,
 };
 
 static int st_lis2dw12_i2c_probe(struct i2c_client *client,
@@ -65,6 +69,7 @@ MODULE_DEVICE_TABLE(i2c, st_lis2dw12_i2c_id_table);
 static struct i2c_driver st_lis2dw12_driver = {
 	.driver = {
 		.name = "st_lis2dw12_i2c",
+		.pm = &st_lis2dw12_pm_ops,
 		.of_match_table = of_match_ptr(st_lis2dw12_i2c_of_match),
 	},
 	.probe = st_lis2dw12_i2c_probe,
