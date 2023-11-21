@@ -53,6 +53,8 @@ def define_pitti():
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/rpm_master_stat.ko",
         "drivers/soc/qcom/smem.ko",
+        "drivers/soc/qcom/smp2p.ko",
+        "drivers/soc/qcom/smp2p_sleepstate.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/wcd_usbss_i2c.ko",
         "drivers/ufs/host/ufs_qcom.ko",
