@@ -1041,15 +1041,7 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct inode *newinode = NULL;
-	int rc = -EPERM;
-	struct cifs_open_info_data buf = {};
-	struct cifs_io_parms io_parms;
-	__u32 oplock = 0;
-	struct cifs_fid fid;
-	struct cifs_open_parms oparms;
-	unsigned int bytes_written;
-	struct win_dev *pdev;
-	struct kvec iov[2];
+	int rc;
 
 	if (tcon->unix_ext) {
 		/*
@@ -1083,73 +1075,17 @@ cifs_make_node(unsigned int xid, struct inode *inode,
 			d_instantiate(dentry, newinode);
 		return rc;
 	}
-
 	/*
-	 * SMB1 SFU emulation: should work with all servers, but only
-	 * support block and char device (no socket & fifo)
+	 * Check if mounted with mount parm 'sfu' mount parm.
+	 * SFU emulation should work with all servers, but only
+	 * supports block and char device (no socket & fifo),
+	 * and was used by default in earlier versions of Windows
 	 */
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
-		return rc;
-
-	if (!S_ISCHR(mode) && !S_ISBLK(mode))
-		return rc;
-
-	cifs_dbg(FYI, "sfu compat create special file\n");
-
-	oparms = (struct cifs_open_parms) {
-		.tcon = tcon,
-		.cifs_sb = cifs_sb,
-		.desired_access = GENERIC_WRITE,
-		.create_options = cifs_create_options(cifs_sb, CREATE_NOT_DIR |
-						      CREATE_OPTION_SPECIAL),
-		.disposition = FILE_CREATE,
-		.path = full_path,
-		.fid = &fid,
-	};
-
-	if (tcon->ses->server->oplocks)
-		oplock = REQ_OPLOCK;
-	else
-		oplock = 0;
-	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, &buf);
-	if (rc)
-		return rc;
-
-	/*
-	 * BB Do not bother to decode buf since no local inode yet to put
-	 * timestamps in, but we can reuse it safely.
-	 */
-
-	pdev = (struct win_dev *)&buf.fi;
-	io_parms.pid = current->tgid;
-	io_parms.tcon = tcon;
-	io_parms.offset = 0;
-	io_parms.length = sizeof(struct win_dev);
-	iov[1].iov_base = &buf.fi;
-	iov[1].iov_len = sizeof(struct win_dev);
-	if (S_ISCHR(mode)) {
-		memcpy(pdev->type, "IntxCHR", 8);
-		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
-	} else if (S_ISBLK(mode)) {
-		memcpy(pdev->type, "IntxBLK", 8);
-		pdev->major = cpu_to_le64(MAJOR(dev));
-		pdev->minor = cpu_to_le64(MINOR(dev));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
-	}
-	tcon->ses->server->ops->close(xid, tcon, &fid);
-	d_drop(dentry);
-
-	/* FIXME: add code here to set EAs */
-
-	cifs_free_open_info(&buf);
-	return rc;
+		return -EPERM;
+	return cifs_sfu_make_node(xid, inode, dentry, tcon,
+				  full_path, mode, dev);
 }
-
-
 
 struct smb_version_operations smb1_operations = {
 	.send_cancel = send_nt_cancel,

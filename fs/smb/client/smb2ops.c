@@ -5068,41 +5068,24 @@ smb2_next_header(char *buf)
 	return le32_to_cpu(hdr->NextCommand);
 }
 
-static int
-smb2_make_node(unsigned int xid, struct inode *inode,
-	       struct dentry *dentry, struct cifs_tcon *tcon,
-	       const char *full_path, umode_t mode, dev_t dev)
+int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
+		       struct dentry *dentry, struct cifs_tcon *tcon,
+		       const char *full_path, umode_t mode, dev_t dev)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	int rc = -EPERM;
 	struct cifs_open_info_data buf = {};
-	struct cifs_io_parms io_parms = {0};
-	__u32 oplock = 0;
-	struct cifs_fid fid;
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
+	struct cifs_io_parms io_parms = {};
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_fid fid;
 	unsigned int bytes_written;
 	struct win_dev *pdev;
 	struct kvec iov[2];
-
-	/*
-	 * Check if mounted with mount parm 'sfu' mount parm.
-	 * SFU emulation should work with all servers, but only
-	 * supports block and char device (no socket & fifo),
-	 * and was used by default in earlier versions of Windows
-	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
-		return rc;
-
-	/*
-	 * TODO: Add ability to create instead via reparse point. Windows (e.g.
-	 * their current NFS server) uses this approach to expose special files
-	 * over SMB2/SMB3 and Samba will do this with SMB3.1.1 POSIX Extensions
-	 */
+	__u32 oplock = server->oplocks ? REQ_OPLOCK : 0;
+	int rc;
 
 	if (!S_ISCHR(mode) && !S_ISBLK(mode) && !S_ISFIFO(mode))
-		return rc;
-
-	cifs_dbg(FYI, "sfu compat create special file\n");
+		return -EPERM;
 
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
@@ -5115,11 +5098,7 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 		.fid = &fid,
 	};
 
-	if (tcon->ses->server->oplocks)
-		oplock = REQ_OPLOCK;
-	else
-		oplock = 0;
-	rc = tcon->ses->server->ops->open(xid, &oparms, &oplock, &buf);
+	rc = server->ops->open(xid, &oparms, &oplock, &buf);
 	if (rc)
 		return rc;
 
@@ -5127,40 +5106,54 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 	 * BB Do not bother to decode buf since no local inode yet to put
 	 * timestamps in, but we can reuse it safely.
 	 */
-
 	pdev = (struct win_dev *)&buf.fi;
 	io_parms.pid = current->tgid;
 	io_parms.tcon = tcon;
-	io_parms.offset = 0;
-	io_parms.length = sizeof(struct win_dev);
-	iov[1].iov_base = &buf.fi;
-	iov[1].iov_len = sizeof(struct win_dev);
+	io_parms.length = sizeof(*pdev);
+	iov[1].iov_base = pdev;
+	iov[1].iov_len = sizeof(*pdev);
 	if (S_ISCHR(mode)) {
 		memcpy(pdev->type, "IntxCHR", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
 		pdev->minor = cpu_to_le64(MINOR(dev));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
 	} else if (S_ISBLK(mode)) {
 		memcpy(pdev->type, "IntxBLK", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
 		pdev->minor = cpu_to_le64(MINOR(dev));
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
 	} else if (S_ISFIFO(mode)) {
 		memcpy(pdev->type, "LnxFIFO", 8);
-		pdev->major = 0;
-		pdev->minor = 0;
-		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
-							&bytes_written, iov, 1);
 	}
-	tcon->ses->server->ops->close(xid, tcon, &fid);
+
+	rc = server->ops->sync_write(xid, &fid, &io_parms,
+				     &bytes_written, iov, 1);
+	server->ops->close(xid, tcon, &fid);
 	d_drop(dentry);
-
 	/* FIXME: add code here to set EAs */
-
 	cifs_free_open_info(&buf);
 	return rc;
+}
+
+static int smb2_make_node(unsigned int xid, struct inode *inode,
+			  struct dentry *dentry, struct cifs_tcon *tcon,
+			  const char *full_path, umode_t mode, dev_t dev)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
+	/*
+	 * Check if mounted with mount parm 'sfu' mount parm.
+	 * SFU emulation should work with all servers, but only
+	 * supports block and char device (no socket & fifo),
+	 * and was used by default in earlier versions of Windows
+	 */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
+		return -EPERM;
+	/*
+	 * TODO: Add ability to create instead via reparse point. Windows (e.g.
+	 * their current NFS server) uses this approach to expose special files
+	 * over SMB2/SMB3 and Samba will do this with SMB3.1.1 POSIX Extensions
+	 */
+	return cifs_sfu_make_node(xid, inode, dentry, tcon,
+				  full_path, mode, dev);
 }
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
