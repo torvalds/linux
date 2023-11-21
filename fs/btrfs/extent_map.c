@@ -67,8 +67,6 @@ void free_extent_map(struct extent_map *em)
 	if (refcount_dec_and_test(&em->refs)) {
 		WARN_ON(extent_map_in_tree(em));
 		WARN_ON(!list_empty(&em->list));
-		if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags))
-			kfree(em->map_lookup);
 		kmem_cache_free(extent_map_cache, em);
 	}
 }
@@ -217,13 +215,8 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	ASSERT(next->block_start != EXTENT_MAP_DELALLOC &&
 	       prev->block_start != EXTENT_MAP_DELALLOC);
 
-	if (prev->map_lookup || next->map_lookup)
-		ASSERT(test_bit(EXTENT_FLAG_FS_MAPPING, &prev->flags) &&
-		       test_bit(EXTENT_FLAG_FS_MAPPING, &next->flags));
-
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
-	    prev->map_lookup == next->map_lookup &&
 	    ((next->block_start == EXTENT_MAP_HOLE &&
 	      prev->block_start == EXTENT_MAP_HOLE) ||
 	     (next->block_start == EXTENT_MAP_INLINE &&
@@ -361,39 +354,6 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 		try_merge_map(tree, em);
 }
 
-static void extent_map_device_set_bits(struct extent_map *em, unsigned bits)
-{
-	struct map_lookup *map = em->map_lookup;
-	u64 stripe_size = em->orig_block_len;
-	int i;
-
-	for (i = 0; i < map->num_stripes; i++) {
-		struct btrfs_io_stripe *stripe = &map->stripes[i];
-		struct btrfs_device *device = stripe->dev;
-
-		set_extent_bit(&device->alloc_state, stripe->physical,
-			       stripe->physical + stripe_size - 1,
-			       bits | EXTENT_NOWAIT, NULL);
-	}
-}
-
-static void extent_map_device_clear_bits(struct extent_map *em, unsigned bits)
-{
-	struct map_lookup *map = em->map_lookup;
-	u64 stripe_size = em->orig_block_len;
-	int i;
-
-	for (i = 0; i < map->num_stripes; i++) {
-		struct btrfs_io_stripe *stripe = &map->stripes[i];
-		struct btrfs_device *device = stripe->dev;
-
-		__clear_extent_bit(&device->alloc_state, stripe->physical,
-				   stripe->physical + stripe_size - 1,
-				   bits | EXTENT_NOWAIT,
-				   NULL, NULL);
-	}
-}
-
 /*
  * Add new extent map to the extent tree
  *
@@ -419,10 +379,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		goto out;
 
 	setup_extent_mapping(tree, em, modified);
-	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags)) {
-		extent_map_device_set_bits(em, CHUNK_ALLOCATED);
-		extent_map_device_clear_bits(em, CHUNK_TRIMMED);
-	}
 out:
 	return ret;
 }
@@ -506,8 +462,6 @@ void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 	rb_erase_cached(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
 		list_del_init(&em->list);
-	if (test_bit(EXTENT_FLAG_FS_MAPPING, &em->flags))
-		extent_map_device_clear_bits(em, CHUNK_ALLOCATED);
 	RB_CLEAR_NODE(&em->rb_node);
 }
 

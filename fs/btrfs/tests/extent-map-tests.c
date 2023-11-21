@@ -859,33 +859,21 @@ struct rmap_test_vector {
 static int test_rmap_block(struct btrfs_fs_info *fs_info,
 			   struct rmap_test_vector *test)
 {
-	struct extent_map *em;
-	struct map_lookup *map = NULL;
+	struct btrfs_chunk_map *map;
 	u64 *logical = NULL;
 	int i, out_ndaddrs, out_stripe_len;
 	int ret;
 
-	em = alloc_extent_map();
-	if (!em) {
-		test_std_err(TEST_ALLOC_EXTENT_MAP);
-		return -ENOMEM;
-	}
-
-	map = kmalloc(map_lookup_size(test->num_stripes), GFP_KERNEL);
+	map = btrfs_alloc_chunk_map(test->num_stripes, GFP_KERNEL);
 	if (!map) {
-		kfree(em);
-		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		test_std_err(TEST_ALLOC_CHUNK_MAP);
 		return -ENOMEM;
 	}
 
-	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
 	/* Start at 4GiB logical address */
-	em->start = SZ_4G;
-	em->len = test->data_stripe_size * test->num_data_stripes;
-	em->block_len = em->len;
-	em->orig_block_len = test->data_stripe_size;
-	em->map_lookup = map;
-
+	map->start = SZ_4G;
+	map->chunk_len = test->data_stripe_size * test->num_data_stripes;
+	map->stripe_size = test->data_stripe_size;
 	map->num_stripes = test->num_stripes;
 	map->type = test->raid_type;
 
@@ -901,15 +889,13 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 		map->stripes[i].physical = test->data_stripe_phys_start[i];
 	}
 
-	write_lock(&fs_info->mapping_tree.lock);
-	ret = add_extent_mapping(&fs_info->mapping_tree, em, 0);
-	write_unlock(&fs_info->mapping_tree.lock);
+	ret = btrfs_add_chunk_map(fs_info, map);
 	if (ret) {
-		test_err("error adding block group mapping to mapping tree");
+		test_err("error adding chunk map to mapping tree");
 		goto out_free;
 	}
 
-	ret = btrfs_rmap_block(fs_info, em->start, btrfs_sb_offset(1),
+	ret = btrfs_rmap_block(fs_info, map->start, btrfs_sb_offset(1),
 			       &logical, &out_ndaddrs, &out_stripe_len);
 	if (ret || (out_ndaddrs == 0 && test->expected_mapped_addr)) {
 		test_err("didn't rmap anything but expected %d",
@@ -938,14 +924,8 @@ static int test_rmap_block(struct btrfs_fs_info *fs_info,
 
 	ret = 0;
 out:
-	write_lock(&fs_info->mapping_tree.lock);
-	remove_extent_mapping(&fs_info->mapping_tree, em);
-	write_unlock(&fs_info->mapping_tree.lock);
-	/* For us */
-	free_extent_map(em);
+	btrfs_remove_chunk_map(fs_info, map);
 out_free:
-	/* For the tree */
-	free_extent_map(em);
 	kfree(logical);
 	return ret;
 }

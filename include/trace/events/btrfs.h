@@ -21,7 +21,7 @@ struct btrfs_delayed_data_ref;
 struct btrfs_delayed_ref_head;
 struct btrfs_block_group;
 struct btrfs_free_cluster;
-struct map_lookup;
+struct btrfs_chunk_map;
 struct extent_buffer;
 struct btrfs_work;
 struct btrfs_workqueue;
@@ -277,8 +277,7 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
 		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
 		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
-		{ (1 << EXTENT_FLAG_FILLING),	 	"FILLING" 	},\
-		{ (1 << EXTENT_FLAG_FS_MAPPING),	"FS_MAPPING"	})
+		{ (1 << EXTENT_FLAG_FILLING),		"FILLING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
@@ -1061,7 +1060,7 @@ DEFINE_EVENT(btrfs_delayed_ref_head,  run_delayed_ref_head,
 DECLARE_EVENT_CLASS(btrfs__chunk,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size),
 
@@ -1095,7 +1094,7 @@ DECLARE_EVENT_CLASS(btrfs__chunk,
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_alloc,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size)
 );
@@ -1103,7 +1102,7 @@ DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_alloc,
 DEFINE_EVENT(btrfs__chunk,  btrfs_chunk_free,
 
 	TP_PROTO(const struct btrfs_fs_info *fs_info,
-		 const struct map_lookup *map, u64 offset, u64 size),
+		 const struct btrfs_chunk_map *map, u64 offset, u64 size),
 
 	TP_ARGS(fs_info, map, offset, size)
 );

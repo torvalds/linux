@@ -1742,19 +1742,18 @@ out:
 
 static u64 find_next_chunk(struct btrfs_fs_info *fs_info)
 {
-	struct extent_map_tree *em_tree;
-	struct extent_map *em;
 	struct rb_node *n;
 	u64 ret = 0;
 
-	em_tree = &fs_info->mapping_tree;
-	read_lock(&em_tree->lock);
-	n = rb_last(&em_tree->map.rb_root);
+	read_lock(&fs_info->mapping_tree_lock);
+	n = rb_last(&fs_info->mapping_tree.rb_root);
 	if (n) {
-		em = rb_entry(n, struct extent_map, rb_node);
-		ret = em->start + em->len;
+		struct btrfs_chunk_map *map;
+
+		map = rb_entry(n, struct btrfs_chunk_map, rb_node);
+		ret = map->start + map->chunk_len;
 	}
-	read_unlock(&em_tree->lock);
+	read_unlock(&fs_info->mapping_tree_lock);
 
 	return ret;
 }
@@ -2986,6 +2985,81 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	return ret;
 }
 
+struct btrfs_chunk_map *btrfs_find_chunk_map_nolock(struct btrfs_fs_info *fs_info,
+						    u64 logical, u64 length)
+{
+	struct rb_node *node = fs_info->mapping_tree.rb_root.rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *orig_prev;
+	struct btrfs_chunk_map *map;
+	struct btrfs_chunk_map *prev_map = NULL;
+
+	while (node) {
+		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
+		prev = node;
+		prev_map = map;
+
+		if (logical < map->start) {
+			node = node->rb_left;
+		} else if (logical >= map->start + map->chunk_len) {
+			node = node->rb_right;
+		} else {
+			refcount_inc(&map->refs);
+			return map;
+		}
+	}
+
+	if (!prev)
+		return NULL;
+
+	orig_prev = prev;
+	while (prev && logical >= prev_map->start + prev_map->chunk_len) {
+		prev = rb_next(prev);
+		prev_map = rb_entry(prev, struct btrfs_chunk_map, rb_node);
+	}
+
+	if (!prev) {
+		prev = orig_prev;
+		prev_map = rb_entry(prev, struct btrfs_chunk_map, rb_node);
+		while (prev && logical < prev_map->start) {
+			prev = rb_prev(prev);
+			prev_map = rb_entry(prev, struct btrfs_chunk_map, rb_node);
+		}
+	}
+
+	if (prev) {
+		u64 end = logical + length;
+
+		/*
+		 * Caller can pass a U64_MAX length when it wants to get any
+		 * chunk starting at an offset of 'logical' or higher, so deal
+		 * with underflow by resetting the end offset to U64_MAX.
+		 */
+		if (end < logical)
+			end = U64_MAX;
+
+		if (end > prev_map->start &&
+		    logical < prev_map->start + prev_map->chunk_len) {
+			refcount_inc(&prev_map->refs);
+			return prev_map;
+		}
+	}
+
+	return NULL;
+}
+
+struct btrfs_chunk_map *btrfs_find_chunk_map(struct btrfs_fs_info *fs_info,
+					     u64 logical, u64 length)
+{
+	struct btrfs_chunk_map *map;
+
+	read_lock(&fs_info->mapping_tree_lock);
+	map = btrfs_find_chunk_map_nolock(fs_info, logical, length);
+	read_unlock(&fs_info->mapping_tree_lock);
+
+	return map;
+}
+
 /*
  * Find the mapping containing the given logical extent.
  *
@@ -2994,38 +3068,37 @@ static int btrfs_del_sys_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
  *
  * Return: Chunk mapping or ERR_PTR.
  */
-struct extent_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
-				       u64 logical, u64 length)
+struct btrfs_chunk_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
+					    u64 logical, u64 length)
 {
-	struct extent_map_tree *em_tree;
-	struct extent_map *em;
+	struct btrfs_chunk_map *map;
 
-	em_tree = &fs_info->mapping_tree;
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, logical, length);
-	read_unlock(&em_tree->lock);
+	map = btrfs_find_chunk_map(fs_info, logical, length);
 
-	if (unlikely(!em)) {
+	if (unlikely(!map)) {
+		read_unlock(&fs_info->mapping_tree_lock);
 		btrfs_crit(fs_info,
 			   "unable to find chunk map for logical %llu length %llu",
 			   logical, length);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (unlikely(em->start > logical || em->start + em->len <= logical)) {
+	if (unlikely(map->start > logical || map->start + map->chunk_len <= logical)) {
+		read_unlock(&fs_info->mapping_tree_lock);
 		btrfs_crit(fs_info,
 			   "found a bad chunk map, wanted %llu-%llu, found %llu-%llu",
-			   logical, logical + length, em->start, em->start + em->len);
-		free_extent_map(em);
+			   logical, logical + length, map->start,
+			   map->start + map->chunk_len);
+		btrfs_free_chunk_map(map);
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* callers are responsible for dropping em's ref. */
-	return em;
+	/* Callers are responsible for dropping the reference. */
+	return map;
 }
 
 static int remove_chunk_item(struct btrfs_trans_handle *trans,
-			     struct map_lookup *map, u64 chunk_offset)
+			     struct btrfs_chunk_map *map, u64 chunk_offset)
 {
 	int i;
 
@@ -3050,23 +3123,21 @@ static int remove_chunk_item(struct btrfs_trans_handle *trans,
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	u64 dev_extent_len = 0;
 	int i, ret = 0;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 
-	em = btrfs_get_chunk_map(fs_info, chunk_offset, 1);
-	if (IS_ERR(em)) {
+	map = btrfs_get_chunk_map(fs_info, chunk_offset, 1);
+	if (IS_ERR(map)) {
 		/*
 		 * This is a logic error, but we don't want to just rely on the
 		 * user having built with ASSERT enabled, so if ASSERT doesn't
 		 * do anything we still error out.
 		 */
 		ASSERT(0);
-		return PTR_ERR(em);
+		return PTR_ERR(map);
 	}
-	map = em->map_lookup;
 
 	/*
 	 * First delete the device extent items from the devices btree.
@@ -3169,7 +3240,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 		goto out;
 	}
 
-	trace_btrfs_chunk_free(fs_info, map, chunk_offset, em->len);
+	trace_btrfs_chunk_free(fs_info, map, chunk_offset, map->chunk_len);
 
 	if (map->type & BTRFS_BLOCK_GROUP_SYSTEM) {
 		ret = btrfs_del_sys_chunk(fs_info, chunk_offset);
@@ -3188,7 +3259,7 @@ int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset)
 	 */
 	btrfs_trans_release_chunk_metadata(trans);
 
-	ret = btrfs_remove_block_group(trans, chunk_offset, em);
+	ret = btrfs_remove_block_group(trans, map);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -3200,7 +3271,7 @@ out:
 		trans->removing_chunk = false;
 	}
 	/* once for us */
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
@@ -5347,24 +5418,131 @@ static int decide_stripe_size(struct btrfs_fs_devices *fs_devices,
 	}
 }
 
+static void chunk_map_device_set_bits(struct btrfs_chunk_map *map, unsigned int bits)
+{
+	for (int i = 0; i < map->num_stripes; i++) {
+		struct btrfs_io_stripe *stripe = &map->stripes[i];
+		struct btrfs_device *device = stripe->dev;
+
+		set_extent_bit(&device->alloc_state, stripe->physical,
+			       stripe->physical + map->stripe_size - 1,
+			       bits | EXTENT_NOWAIT, NULL);
+	}
+}
+
+static void chunk_map_device_clear_bits(struct btrfs_chunk_map *map, unsigned int bits)
+{
+	for (int i = 0; i < map->num_stripes; i++) {
+		struct btrfs_io_stripe *stripe = &map->stripes[i];
+		struct btrfs_device *device = stripe->dev;
+
+		__clear_extent_bit(&device->alloc_state, stripe->physical,
+				   stripe->physical + map->stripe_size - 1,
+				   bits | EXTENT_NOWAIT,
+				   NULL, NULL);
+	}
+}
+
+void btrfs_remove_chunk_map(struct btrfs_fs_info *fs_info, struct btrfs_chunk_map *map)
+{
+	write_lock(&fs_info->mapping_tree_lock);
+	rb_erase_cached(&map->rb_node, &fs_info->mapping_tree);
+	RB_CLEAR_NODE(&map->rb_node);
+	chunk_map_device_clear_bits(map, CHUNK_ALLOCATED);
+	write_unlock(&fs_info->mapping_tree_lock);
+
+	/* Once for the tree reference. */
+	btrfs_free_chunk_map(map);
+}
+
+EXPORT_FOR_TESTS
+int btrfs_add_chunk_map(struct btrfs_fs_info *fs_info, struct btrfs_chunk_map *map)
+{
+	struct rb_node **p;
+	struct rb_node *parent = NULL;
+	bool leftmost = true;
+
+	write_lock(&fs_info->mapping_tree_lock);
+	p = &fs_info->mapping_tree.rb_root.rb_node;
+	while (*p) {
+		struct btrfs_chunk_map *entry;
+
+		parent = *p;
+		entry = rb_entry(parent, struct btrfs_chunk_map, rb_node);
+
+		if (map->start < entry->start) {
+			p = &(*p)->rb_left;
+		} else if (map->start > entry->start) {
+			p = &(*p)->rb_right;
+			leftmost = false;
+		} else {
+			write_unlock(&fs_info->mapping_tree_lock);
+			return -EEXIST;
+		}
+	}
+	rb_link_node(&map->rb_node, parent, p);
+	rb_insert_color_cached(&map->rb_node, &fs_info->mapping_tree, leftmost);
+	chunk_map_device_set_bits(map, CHUNK_ALLOCATED);
+	chunk_map_device_clear_bits(map, CHUNK_TRIMMED);
+	write_unlock(&fs_info->mapping_tree_lock);
+
+	return 0;
+}
+
+EXPORT_FOR_TESTS
+struct btrfs_chunk_map *btrfs_alloc_chunk_map(int num_stripes, gfp_t gfp)
+{
+	struct btrfs_chunk_map *map;
+
+	map = kmalloc(btrfs_chunk_map_size(num_stripes), gfp);
+	if (!map)
+		return NULL;
+
+	refcount_set(&map->refs, 1);
+	RB_CLEAR_NODE(&map->rb_node);
+
+	return map;
+}
+
+struct btrfs_chunk_map *btrfs_clone_chunk_map(struct btrfs_chunk_map *map, gfp_t gfp)
+{
+	const int size = btrfs_chunk_map_size(map->num_stripes);
+	struct btrfs_chunk_map *clone;
+
+	clone = kmemdup(map, size, gfp);
+	if (!clone)
+		return NULL;
+
+	refcount_set(&clone->refs, 1);
+	RB_CLEAR_NODE(&clone->rb_node);
+
+	return clone;
+}
+
 static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 			struct alloc_chunk_ctl *ctl,
 			struct btrfs_device_info *devices_info)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
-	struct map_lookup *map = NULL;
-	struct extent_map_tree *em_tree;
+	struct btrfs_chunk_map *map;
 	struct btrfs_block_group *block_group;
-	struct extent_map *em;
 	u64 start = ctl->start;
 	u64 type = ctl->type;
 	int ret;
 	int i;
 	int j;
 
-	map = kmalloc(map_lookup_size(ctl->num_stripes), GFP_NOFS);
+	map = btrfs_alloc_chunk_map(ctl->num_stripes, GFP_NOFS);
 	if (!map)
 		return ERR_PTR(-ENOMEM);
+
+	map->start = start;
+	map->chunk_len = ctl->chunk_size;
+	map->stripe_size = ctl->stripe_size;
+	map->type = type;
+	map->io_align = BTRFS_STRIPE_LEN;
+	map->io_width = BTRFS_STRIPE_LEN;
+	map->sub_stripes = ctl->sub_stripes;
 	map->num_stripes = ctl->num_stripes;
 
 	for (i = 0; i < ctl->ndevs; ++i) {
@@ -5375,41 +5553,22 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 						   j * ctl->stripe_size;
 		}
 	}
-	map->io_align = BTRFS_STRIPE_LEN;
-	map->io_width = BTRFS_STRIPE_LEN;
-	map->type = type;
-	map->sub_stripes = ctl->sub_stripes;
 
 	trace_btrfs_chunk_alloc(info, map, start, ctl->chunk_size);
 
-	em = alloc_extent_map();
-	if (!em) {
-		kfree(map);
-		return ERR_PTR(-ENOMEM);
-	}
-	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
-	em->map_lookup = map;
-	em->start = start;
-	em->len = ctl->chunk_size;
-	em->block_start = 0;
-	em->block_len = em->len;
-	em->orig_block_len = ctl->stripe_size;
-
-	em_tree = &info->mapping_tree;
-	write_lock(&em_tree->lock);
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = btrfs_add_chunk_map(info, map);
 	if (ret) {
-		write_unlock(&em_tree->lock);
-		free_extent_map(em);
+		btrfs_free_chunk_map(map);
 		return ERR_PTR(ret);
 	}
-	write_unlock(&em_tree->lock);
 
 	block_group = btrfs_make_block_group(trans, type, start, ctl->chunk_size);
-	if (IS_ERR(block_group))
-		goto error_del_extent;
+	if (IS_ERR(block_group)) {
+		btrfs_remove_chunk_map(info, map);
+		return block_group;
+	}
 
-	for (i = 0; i < map->num_stripes; i++) {
+	for (int i = 0; i < map->num_stripes; i++) {
 		struct btrfs_device *dev = map->stripes[i].dev;
 
 		btrfs_device_set_bytes_used(dev,
@@ -5422,21 +5581,8 @@ static struct btrfs_block_group *create_chunk(struct btrfs_trans_handle *trans,
 	atomic64_sub(ctl->stripe_size * map->num_stripes,
 		     &info->free_chunk_space);
 
-	free_extent_map(em);
 	check_raid56_incompat_flag(info, type);
 	check_raid1c34_incompat_flag(info, type);
-
-	return block_group;
-
-error_del_extent:
-	write_lock(&em_tree->lock);
-	remove_extent_mapping(em_tree, em);
-	write_unlock(&em_tree->lock);
-
-	/* One for our allocation */
-	free_extent_map(em);
-	/* One for the tree reference */
-	free_extent_map(em);
 
 	return block_group;
 }
@@ -5514,8 +5660,7 @@ int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	struct btrfs_chunk *chunk;
 	struct btrfs_stripe *stripe;
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	size_t item_size;
 	int i;
 	int ret;
@@ -5544,14 +5689,13 @@ int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 	 */
 	lockdep_assert_held(&fs_info->chunk_mutex);
 
-	em = btrfs_get_chunk_map(fs_info, bg->start, bg->length);
-	if (IS_ERR(em)) {
-		ret = PTR_ERR(em);
+	map = btrfs_get_chunk_map(fs_info, bg->start, bg->length);
+	if (IS_ERR(map)) {
+		ret = PTR_ERR(map);
 		btrfs_abort_transaction(trans, ret);
 		return ret;
 	}
 
-	map = em->map_lookup;
 	item_size = btrfs_chunk_item_size(map->num_stripes);
 
 	chunk = kzalloc(item_size, GFP_NOFS);
@@ -5608,7 +5752,7 @@ int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 
 out:
 	kfree(chunk);
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
@@ -5653,7 +5797,7 @@ static noinline int init_first_rw_device(struct btrfs_trans_handle *trans)
 	return 0;
 }
 
-static inline int btrfs_chunk_max_errors(struct map_lookup *map)
+static inline int btrfs_chunk_max_errors(struct btrfs_chunk_map *map)
 {
 	const int index = btrfs_bg_flags_to_raid_index(map->type);
 
@@ -5662,17 +5806,15 @@ static inline int btrfs_chunk_max_errors(struct map_lookup *map)
 
 bool btrfs_chunk_writeable(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	int miss_ndevs = 0;
 	int i;
 	bool ret = true;
 
-	em = btrfs_get_chunk_map(fs_info, chunk_offset, 1);
-	if (IS_ERR(em))
+	map = btrfs_get_chunk_map(fs_info, chunk_offset, 1);
+	if (IS_ERR(map))
 		return false;
 
-	map = em->map_lookup;
 	for (i = 0; i < map->num_stripes; i++) {
 		if (test_bit(BTRFS_DEV_STATE_MISSING,
 					&map->stripes[i].dev->dev_state)) {
@@ -5693,38 +5835,37 @@ bool btrfs_chunk_writeable(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	if (miss_ndevs > btrfs_chunk_max_errors(map))
 		ret = false;
 end:
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
-void btrfs_mapping_tree_free(struct extent_map_tree *tree)
+void btrfs_mapping_tree_free(struct btrfs_fs_info *fs_info)
 {
-	struct extent_map *em;
+	write_lock(&fs_info->mapping_tree_lock);
+	while (!RB_EMPTY_ROOT(&fs_info->mapping_tree.rb_root)) {
+		struct btrfs_chunk_map *map;
+		struct rb_node *node;
 
-	while (1) {
-		write_lock(&tree->lock);
-		em = lookup_extent_mapping(tree, 0, (u64)-1);
-		if (em)
-			remove_extent_mapping(tree, em);
-		write_unlock(&tree->lock);
-		if (!em)
-			break;
-		/* once for us */
-		free_extent_map(em);
-		/* once for the tree */
-		free_extent_map(em);
+		node = rb_first_cached(&fs_info->mapping_tree);
+		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
+		rb_erase_cached(&map->rb_node, &fs_info->mapping_tree);
+		RB_CLEAR_NODE(&map->rb_node);
+		chunk_map_device_clear_bits(map, CHUNK_ALLOCATED);
+		/* Once for the tree ref. */
+		btrfs_free_chunk_map(map);
+		cond_resched_rwlock_write(&fs_info->mapping_tree_lock);
 	}
+	write_unlock(&fs_info->mapping_tree_lock);
 }
 
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	enum btrfs_raid_types index;
 	int ret = 1;
 
-	em = btrfs_get_chunk_map(fs_info, logical, len);
-	if (IS_ERR(em))
+	map = btrfs_get_chunk_map(fs_info, logical, len);
+	if (IS_ERR(map))
 		/*
 		 * We could return errors for these cases, but that could get
 		 * ugly and we'd probably do the same thing which is just not do
@@ -5733,7 +5874,6 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		 */
 		return 1;
 
-	map = em->map_lookup;
 	index = btrfs_bg_flags_to_raid_index(map->type);
 
 	/* Non-RAID56, use their ncopies from btrfs_raid_array. */
@@ -5750,53 +5890,49 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 		 * stripe under reconstruction.
 		 */
 		ret = map->num_stripes;
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    u64 logical)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	unsigned long len = fs_info->sectorsize;
 
 	if (!btrfs_fs_incompat(fs_info, RAID56))
 		return len;
 
-	em = btrfs_get_chunk_map(fs_info, logical, len);
+	map = btrfs_get_chunk_map(fs_info, logical, len);
 
-	if (!WARN_ON(IS_ERR(em))) {
-		map = em->map_lookup;
+	if (!WARN_ON(IS_ERR(map))) {
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 			len = btrfs_stripe_nr_to_offset(nr_data_stripes(map));
-		free_extent_map(em);
+		btrfs_free_chunk_map(map);
 	}
 	return len;
 }
 
 int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	int ret = 0;
 
 	if (!btrfs_fs_incompat(fs_info, RAID56))
 		return 0;
 
-	em = btrfs_get_chunk_map(fs_info, logical, len);
+	map = btrfs_get_chunk_map(fs_info, logical, len);
 
-	if(!WARN_ON(IS_ERR(em))) {
-		map = em->map_lookup;
+	if (!WARN_ON(IS_ERR(map))) {
 		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
 			ret = 1;
-		free_extent_map(em);
+		btrfs_free_chunk_map(map);
 	}
 	return ret;
 }
 
 static int find_live_mirror(struct btrfs_fs_info *fs_info,
-			    struct map_lookup *map, int first,
+			    struct btrfs_chunk_map *map, int first,
 			    int dev_replace_is_ongoing)
 {
 	int i;
@@ -5903,8 +6039,7 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 					       u64 logical, u64 *length_ret,
 					       u32 *num_stripes)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	struct btrfs_discard_stripe *stripes;
 	u64 length = *length_ret;
 	u64 offset;
@@ -5922,11 +6057,9 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 	int ret;
 	int i;
 
-	em = btrfs_get_chunk_map(fs_info, logical, length);
-	if (IS_ERR(em))
-		return ERR_CAST(em);
-
-	map = em->map_lookup;
+	map = btrfs_get_chunk_map(fs_info, logical, length);
+	if (IS_ERR(map))
+		return ERR_CAST(map);
 
 	/* we don't discard raid56 yet */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
@@ -5934,8 +6067,8 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 		goto out_free_map;
 	}
 
-	offset = logical - em->start;
-	length = min_t(u64, em->start + em->len - logical, length);
+	offset = logical - map->start;
+	length = min_t(u64, map->start + map->chunk_len - logical, length);
 	*length_ret = length;
 
 	/*
@@ -6032,10 +6165,10 @@ struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return stripes;
 out_free_map:
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ERR_PTR(ret);
 }
 
@@ -6133,7 +6266,7 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 	bioc->replace_nr_stripes = nr_extra_stripes;
 }
 
-static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
+static u64 btrfs_max_io_len(struct btrfs_chunk_map *map, enum btrfs_map_op op,
 			    u64 offset, u32 *stripe_nr, u64 *stripe_offset,
 			    u64 *full_stripe_start)
 {
@@ -6183,7 +6316,7 @@ static u64 btrfs_max_io_len(struct map_lookup *map, enum btrfs_map_op op,
 
 static int set_io_stripe(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 			 u64 logical, u64 *length, struct btrfs_io_stripe *dst,
-			 struct map_lookup *map, u32 stripe_index,
+			 struct btrfs_chunk_map *map, u32 stripe_index,
 			 u64 stripe_offset, u64 stripe_nr)
 {
 	dst->dev = map->stripes[stripe_index].dev;
@@ -6237,8 +6370,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    struct btrfs_io_context **bioc_ret,
 		    struct btrfs_io_stripe *smap, int *mirror_num_ret)
 {
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	u64 map_offset;
 	u64 stripe_offset;
 	u32 stripe_nr;
@@ -6263,17 +6395,16 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	if (mirror_num > num_copies)
 		return -EINVAL;
 
-	em = btrfs_get_chunk_map(fs_info, logical, *length);
-	if (IS_ERR(em))
-		return PTR_ERR(em);
+	map = btrfs_get_chunk_map(fs_info, logical, *length);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
 
-	map = em->map_lookup;
 	data_stripes = nr_data_stripes(map);
 
-	map_offset = logical - em->start;
+	map_offset = logical - map->start;
 	max_len = btrfs_max_io_len(map, op, map_offset, &stripe_nr,
 				   &stripe_offset, &raid56_full_stripe_start);
-	*length = min_t(u64, em->len - map_offset, max_len);
+	*length = min_t(u64, map->chunk_len - map_offset, max_len);
 
 	down_read(&dev_replace->rwsem);
 	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
@@ -6350,7 +6481,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 
 			/* Return the length to the full stripe end */
 			*length = min(logical + *length,
-				      raid56_full_stripe_start + em->start +
+				      raid56_full_stripe_start + map->start +
 				      btrfs_stripe_nr_to_offset(data_stripes)) -
 				  logical;
 			stripe_index = 0;
@@ -6437,7 +6568,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		 * In this case, we just add @stripe_nr with @i, then do the
 		 * modulo, to reduce one modulo call.
 		 */
-		bioc->full_stripe_logical = em->start +
+		bioc->full_stripe_logical = map->start +
 			btrfs_stripe_nr_to_offset(stripe_nr * data_stripes);
 		for (int i = 0; i < num_stripes; i++) {
 			ret = set_io_stripe(fs_info, op, logical, length,
@@ -6488,7 +6619,7 @@ out:
 		/* Unlock and let waiting writers proceed */
 		up_read(&dev_replace->rwsem);
 	}
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
@@ -6660,12 +6791,11 @@ static void btrfs_report_missing_device(struct btrfs_fs_info *fs_info,
 			      devid, uuid);
 }
 
-u64 btrfs_calc_stripe_length(const struct extent_map *em)
+u64 btrfs_calc_stripe_length(const struct btrfs_chunk_map *map)
 {
-	const struct map_lookup *map = em->map_lookup;
 	const int data_stripes = calc_data_stripes(map->type, map->num_stripes);
 
-	return div_u64(em->len, data_stripes);
+	return div_u64(map->chunk_len, data_stripes);
 }
 
 #if BITS_PER_LONG == 32
@@ -6734,9 +6864,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 {
 	BTRFS_DEV_LOOKUP_ARGS(args);
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
-	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
-	struct map_lookup *map;
-	struct extent_map *em;
+	struct btrfs_chunk_map *map;
 	u64 logical;
 	u64 length;
 	u64 devid;
@@ -6770,35 +6898,22 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 			return ret;
 	}
 
-	read_lock(&map_tree->lock);
-	em = lookup_extent_mapping(map_tree, logical, 1);
-	read_unlock(&map_tree->lock);
+	map = btrfs_find_chunk_map(fs_info, logical, 1);
 
 	/* already mapped? */
-	if (em && em->start <= logical && em->start + em->len > logical) {
-		free_extent_map(em);
+	if (map && map->start <= logical && map->start + map->chunk_len > logical) {
+		btrfs_free_chunk_map(map);
 		return 0;
-	} else if (em) {
-		free_extent_map(em);
+	} else if (map) {
+		btrfs_free_chunk_map(map);
 	}
 
-	em = alloc_extent_map();
-	if (!em)
+	map = btrfs_alloc_chunk_map(num_stripes, GFP_NOFS);
+	if (!map)
 		return -ENOMEM;
-	map = kmalloc(map_lookup_size(num_stripes), GFP_NOFS);
-	if (!map) {
-		free_extent_map(em);
-		return -ENOMEM;
-	}
 
-	set_bit(EXTENT_FLAG_FS_MAPPING, &em->flags);
-	em->map_lookup = map;
-	em->start = logical;
-	em->len = length;
-	em->orig_start = 0;
-	em->block_start = 0;
-	em->block_len = em->len;
-
+	map->start = logical;
+	map->chunk_len = length;
 	map->num_stripes = num_stripes;
 	map->io_width = btrfs_chunk_io_width(leaf, chunk);
 	map->io_align = btrfs_chunk_io_align(leaf, chunk);
@@ -6813,7 +6928,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 	 */
 	map->sub_stripes = btrfs_raid_array[index].sub_stripes;
 	map->verified_stripes = 0;
-	em->orig_block_len = btrfs_calc_stripe_length(em);
+	map->stripe_size = btrfs_calc_stripe_length(map);
 	for (i = 0; i < num_stripes; i++) {
 		map->stripes[i].physical =
 			btrfs_stripe_offset_nr(leaf, chunk, i);
@@ -6829,7 +6944,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 								    devid, uuid);
 			if (IS_ERR(map->stripes[i].dev)) {
 				ret = PTR_ERR(map->stripes[i].dev);
-				free_extent_map(em);
+				btrfs_free_chunk_map(map);
 				return ret;
 			}
 		}
@@ -6838,15 +6953,12 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 				&(map->stripes[i].dev->dev_state));
 	}
 
-	write_lock(&map_tree->lock);
-	ret = add_extent_mapping(map_tree, em, 0);
-	write_unlock(&map_tree->lock);
+	ret = btrfs_add_chunk_map(fs_info, map);
 	if (ret < 0) {
 		btrfs_err(fs_info,
 			  "failed to add chunk map, start=%llu len=%llu: %d",
-			  em->start, em->len, ret);
+			  map->start, map->chunk_len, ret);
 	}
-	free_extent_map(em);
 
 	return ret;
 }
@@ -7156,26 +7268,21 @@ out_short_read:
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev)
 {
-	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
-	struct extent_map *em;
-	u64 next_start = 0;
+	struct btrfs_chunk_map *map;
+	u64 next_start;
 	bool ret = true;
 
-	read_lock(&map_tree->lock);
-	em = lookup_extent_mapping(map_tree, 0, (u64)-1);
-	read_unlock(&map_tree->lock);
+	map = btrfs_find_chunk_map(fs_info, 0, U64_MAX);
 	/* No chunk at all? Return false anyway */
-	if (!em) {
+	if (!map) {
 		ret = false;
 		goto out;
 	}
-	while (em) {
-		struct map_lookup *map;
+	while (map) {
 		int missing = 0;
 		int max_tolerated;
 		int i;
 
-		map = em->map_lookup;
 		max_tolerated =
 			btrfs_get_num_tolerated_disk_barrier_failures(
 					map->type);
@@ -7193,18 +7300,15 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 			if (!failing_dev)
 				btrfs_warn(fs_info,
 	"chunk %llu missing %d devices, max tolerance is %d for writable mount",
-				   em->start, missing, max_tolerated);
-			free_extent_map(em);
+				   map->start, missing, max_tolerated);
+			btrfs_free_chunk_map(map);
 			ret = false;
 			goto out;
 		}
-		next_start = extent_map_end(em);
-		free_extent_map(em);
+		next_start = map->start + map->chunk_len;
+		btrfs_free_chunk_map(map);
 
-		read_lock(&map_tree->lock);
-		em = lookup_extent_mapping(map_tree, next_start,
-					   (u64)(-1) - next_start);
-		read_unlock(&map_tree->lock);
+		map = btrfs_find_chunk_map(fs_info, next_start, U64_MAX - next_start);
 	}
 out:
 	return ret;
@@ -7697,20 +7801,15 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 				 u64 physical_offset, u64 physical_len)
 {
 	struct btrfs_dev_lookup_args args = { .devid = devid };
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
-	struct extent_map *em;
-	struct map_lookup *map;
+	struct btrfs_chunk_map *map;
 	struct btrfs_device *dev;
 	u64 stripe_len;
 	bool found = false;
 	int ret = 0;
 	int i;
 
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
-	read_unlock(&em_tree->lock);
-
-	if (!em) {
+	map = btrfs_find_chunk_map(fs_info, chunk_offset, 1);
+	if (!map) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu doesn't have corresponding chunk",
 			  physical_offset, devid);
@@ -7718,12 +7817,11 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	map = em->map_lookup;
-	stripe_len = btrfs_calc_stripe_length(em);
+	stripe_len = btrfs_calc_stripe_length(map);
 	if (physical_len != stripe_len) {
 		btrfs_err(fs_info,
 "dev extent physical offset %llu on devid %llu length doesn't match chunk %llu, have %llu expect %llu",
-			  physical_offset, devid, em->start, physical_len,
+			  physical_offset, devid, map->start, physical_len,
 			  stripe_len);
 		ret = -EUCLEAN;
 		goto out;
@@ -7746,7 +7844,7 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 			if (map->verified_stripes >= map->num_stripes) {
 				btrfs_err(fs_info,
 				"too many dev extents for chunk %llu found",
-					  em->start);
+					  map->start);
 				ret = -EUCLEAN;
 				goto out;
 			}
@@ -7792,32 +7890,30 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 	}
 
 out:
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 	return ret;
 }
 
 static int verify_chunk_dev_extent_mapping(struct btrfs_fs_info *fs_info)
 {
-	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
-	struct extent_map *em;
 	struct rb_node *node;
 	int ret = 0;
 
-	read_lock(&em_tree->lock);
-	for (node = rb_first_cached(&em_tree->map); node; node = rb_next(node)) {
-		em = rb_entry(node, struct extent_map, rb_node);
-		if (em->map_lookup->num_stripes !=
-		    em->map_lookup->verified_stripes) {
+	read_lock(&fs_info->mapping_tree_lock);
+	for (node = rb_first_cached(&fs_info->mapping_tree); node; node = rb_next(node)) {
+		struct btrfs_chunk_map *map;
+
+		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
+		if (map->num_stripes != map->verified_stripes) {
 			btrfs_err(fs_info,
 			"chunk %llu has missing dev extent, have %d expect %d",
-				  em->start, em->map_lookup->verified_stripes,
-				  em->map_lookup->num_stripes);
+				  map->start, map->verified_stripes, map->num_stripes);
 			ret = -EUCLEAN;
 			goto out;
 		}
 	}
 out:
-	read_unlock(&em_tree->lock);
+	read_unlock(&fs_info->mapping_tree_lock);
 	return ret;
 }
 

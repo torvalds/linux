@@ -23,8 +23,6 @@ enum {
 	EXTENT_FLAG_LOGGING,
 	/* Filling in a preallocated extent */
 	EXTENT_FLAG_FILLING,
-	/* filesystem extent mapping type */
-	EXTENT_FLAG_FS_MAPPING,
 	/* This em is merged from two or more physically adjacent ems */
 	EXTENT_FLAG_MERGED,
 };
@@ -50,8 +48,6 @@ struct extent_map {
 	 */
 	u64 generation;
 	unsigned long flags;
-	/* Used for chunk mappings, flag EXTENT_FLAG_FS_MAPPING must be set */
-	struct map_lookup *map_lookup;
 	refcount_t refs;
 	unsigned int compress_type;
 	struct list_head list;

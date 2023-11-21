@@ -398,7 +398,8 @@ struct btrfs_fs_info {
 	struct extent_io_tree excluded_extents;
 
 	/* logical->physical extent mapping */
-	struct extent_map_tree mapping_tree;
+	struct rb_root_cached mapping_tree;
+	rwlock_t mapping_tree_lock;
 
 	/*
 	 * Block reservation for extent, checksum, root tree and delayed dir
