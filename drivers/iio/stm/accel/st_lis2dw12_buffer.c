@@ -76,8 +76,10 @@ static int st_lis2dw12_update_fifo(struct iio_dev *iio_dev, bool enable)
 	}
 
 	mode = enable ? ST_LIS2DW12_FIFO_CONTINUOUS : ST_LIS2DW12_FIFO_BYPASS;
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_FIFO_CTRL_ADDR,
-					  ST_LIS2DW12_FIFOMODE_MASK, mode);
+	err = st_lis2dw12_write_with_mask_locked(hw,
+					     ST_LIS2DW12_FIFO_CTRL_ADDR,
+					     ST_LIS2DW12_FIFOMODE_MASK,
+					     mode);
 	if (err < 0)
 		return err;
 
@@ -86,8 +88,10 @@ static int st_lis2dw12_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 int st_lis2dw12_update_fifo_watermark(struct st_lis2dw12_hw *hw, u8 watermark)
 {
-	return st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_FIFO_CTRL_ADDR,
-					   ST_LIS2DW12_FTH_MASK, watermark);
+	return st_lis2dw12_write_with_mask_locked(hw,
+						  ST_LIS2DW12_FIFO_CTRL_ADDR,
+						  ST_LIS2DW12_FTH_MASK,
+						  watermark);
 }
 
 ssize_t st_lis2dw12_set_hwfifo_watermark(struct device *dev,
@@ -144,14 +148,14 @@ static const struct iio_buffer_setup_ops st_lis2dw12_acc_buffer_setup_ops = {
 static int st_lis2dw12_read_fifo(struct st_lis2dw12_hw *hw)
 {
 	u8 iio_buff[ALIGN(ST_LIS2DW12_DATA_SIZE, sizeof(s64)) + sizeof(s64)];
-	u8 buff[ST_LIS2DW12_RX_MAX_LENGTH], status, samples;
+	u8 buff[6 * ST_LIS2DW12_DATA_SIZE], status, samples;
 	struct iio_dev *iio_dev = hw->iio_devs[ST_LIS2DW12_ID_ACC];
 	struct iio_chan_spec const *ch = iio_dev->channels;
 	int i, err, word_len, fifo_len, read_len = 0;
 	s64 delta_ts;
 
-	err = hw->tf->read(hw->dev, ST_LIS2DW12_FIFO_SAMPLES_ADDR,
-			   sizeof(status), &status);
+	err = st_lis2dw12_read(hw, ST_LIS2DW12_FIFO_SAMPLES_ADDR,
+			       &status, sizeof(status));
 	if (err < 0)
 		return err;
 
@@ -161,7 +165,7 @@ static int st_lis2dw12_read_fifo(struct st_lis2dw12_hw *hw)
 
 	while (read_len < fifo_len) {
 		word_len = min_t(int, fifo_len - read_len, sizeof(buff));
-		err = hw->tf->read(hw->dev, ch[0].address, word_len, buff);
+		err = st_lis2dw12_read(hw, ch[0].address, buff, word_len);
 		if (err < 0)
 			return err;
 
@@ -215,8 +219,8 @@ static irqreturn_t st_lis2dw12_emb_event(struct st_lis2dw12_hw *hw)
 	s64 code;
 	int err;
 
-	err = hw->tf->read(hw->dev, ST_LIS2DW12_ALL_INT_SRC_ADDR,
-			   sizeof(status), &status);
+	err = st_lis2dw12_read(hw, ST_LIS2DW12_ALL_INT_SRC_ADDR,
+			       &status, sizeof(status));
 	if (err < 0)
 		return IRQ_HANDLED;
 
@@ -228,8 +232,8 @@ static irqreturn_t st_lis2dw12_emb_event(struct st_lis2dw12_hw *hw)
 		enum iio_chan_type type;
 		u8 source;
 
-		err = hw->tf->read(hw->dev, ST_LIS2DW12_TAP_SRC_ADDR,
-				   sizeof(source), &source);
+		err = st_lis2dw12_read(hw, ST_LIS2DW12_TAP_SRC_ADDR,
+			       &source, sizeof(source));
 		if (err < 0)
 			return IRQ_HANDLED;
 
@@ -259,8 +263,8 @@ static irqreturn_t st_lis2dw12_emb_event(struct st_lis2dw12_hw *hw)
 	if (status & ST_LIS2DW12_ALL_INT_SRC_WU_MASK) {
 		u8 wu_src;
 
-		err = hw->tf->read(hw->dev, ST_LIS2DW12_WU_SRC_ADDR,
-				   sizeof(wu_src), &wu_src);
+		err = st_lis2dw12_read(hw, ST_LIS2DW12_WU_SRC_ADDR,
+			       &wu_src, sizeof(wu_src));
 		if (err < 0)
 			return IRQ_HANDLED;
 
@@ -304,8 +308,8 @@ static irqreturn_t st_lis2dw12_handler_thread(int irq, void *private)
 	u8 status;
 	int err;
 
-	err = hw->tf->read(hw->dev, ST_LIS2DW12_STATUS_ADDR,
-			   sizeof(status), &status);
+	err = st_lis2dw12_read(hw, ST_LIS2DW12_STATUS_ADDR,
+			       &status, sizeof(status));
 	if (err < 0)
 		return IRQ_HANDLED;
 

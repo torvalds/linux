@@ -10,10 +10,12 @@
 #ifndef ST_LIS2DW12_H
 #define ST_LIS2DW12_H
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/of_device.h>
+#include <linux/regmap.h>
 
 #include "../common/stm_iio_types.h"
 
@@ -23,18 +25,8 @@
 #define ST_LIS2DW12_MAX_WATERMARK	31
 #define ST_LIS2DW12_DATA_SIZE		6
 
-struct st_lis2dw12_transfer_function {
-	int (*read)(struct device *dev, u8 addr, int len, u8 *data);
-	int (*write)(struct device *dev, u8 addr, int len, u8 *data);
-};
-
-#define ST_LIS2DW12_RX_MAX_LENGTH	96
-#define ST_LIS2DW12_TX_MAX_LENGTH	8
-
-struct st_lis2dw12_transfer_buffer {
-	u8 rx_buf[ST_LIS2DW12_RX_MAX_LENGTH];
-	u8 tx_buf[ST_LIS2DW12_TX_MAX_LENGTH] ____cacheline_aligned;
-};
+#define ST_LIS2DW12_SHIFT_VAL(val, mask) (((val) << __ffs(mask)) & \
+					  (mask))
 
 enum st_lis2dw12_fifo_mode {
 	ST_LIS2DW12_FIFO_BYPASS = 0x0,
@@ -65,6 +57,7 @@ struct st_lis2dw12_sensor {
 };
 
 struct st_lis2dw12_hw {
+	struct regmap *regmap;
 	struct device *dev;
 	int irq;
 	int irq_emb;
@@ -87,17 +80,73 @@ struct st_lis2dw12_hw {
 	s64 delta_ts;
 	s64 ts_irq;
 	s64 ts;
-
-	const struct st_lis2dw12_transfer_function *tf;
-	struct st_lis2dw12_transfer_buffer tb;
 };
 
+static inline int
+__st_lis2dw12_write_with_mask(struct st_lis2dw12_hw *hw,
+			      unsigned int addr,  int mask,
+			      unsigned int data)
+{
+	int err;
+	unsigned int val = ST_LIS2DW12_SHIFT_VAL(data, mask);
+
+	err = regmap_update_bits(hw->regmap, addr, mask, val);
+
+	return err;
+}
+
+static inline int
+st_lis2dw12_update_bits_locked(struct st_lis2dw12_hw *hw,
+			       unsigned int addr, unsigned int mask,
+			       unsigned int val)
+{
+	int err;
+
+	mutex_lock(&hw->lock);
+	err = __st_lis2dw12_write_with_mask(hw, addr, mask, val);
+	mutex_unlock(&hw->lock);
+
+	return err;
+}
+
+static inline int
+st_lis2dw12_write_with_mask_locked(struct st_lis2dw12_hw *hw,
+				   unsigned int addr, unsigned int mask,
+				   unsigned int data)
+{
+	int err;
+
+	mutex_lock(&hw->lock);
+	err = __st_lis2dw12_write_with_mask(hw, addr, mask, data);
+	mutex_unlock(&hw->lock);
+
+	return err;
+}
+
+static inline int st_lis2dw12_write_locked(struct st_lis2dw12_hw *hw,
+					   unsigned int addr, u8 *val,
+					   unsigned int len)
+{
+	int err;
+
+	mutex_lock(&hw->lock);
+	err = regmap_bulk_write(hw->regmap, addr, val, len);
+	mutex_unlock(&hw->lock);
+
+	return err;
+}
+
+
+static inline int st_lis2dw12_read(struct st_lis2dw12_hw *hw, unsigned int addr,
+				   void *val, unsigned int len)
+{
+	return regmap_bulk_read(hw->regmap, addr, val, len);
+}
+
 int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
-		      const struct st_lis2dw12_transfer_function *tf_ops);
+		      struct regmap *regmap);
 int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw);
 int st_lis2dw12_update_fifo_watermark(struct st_lis2dw12_hw *hw, u8 watermark);
-int st_lis2dw12_write_with_mask(struct st_lis2dw12_hw *hw, u8 addr, u8 mask,
-				u8 val);
 ssize_t st_lis2dw12_flush_fifo(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t size);

@@ -14,54 +14,27 @@
 
 #include "st_lis2dw12.h"
 
-static int st_lis2dw12_i2c_read(struct device *dev, u8 addr, int len, u8 *data)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct i2c_msg msg[2];
-
-	msg[0].addr = client->addr;
-	msg[0].flags = client->flags;
-	msg[0].len = 1;
-	msg[0].buf = &addr;
-
-	msg[1].addr = client->addr;
-	msg[1].flags = client->flags | I2C_M_RD;
-	msg[1].len = len;
-	msg[1].buf = data;
-
-	return i2c_transfer(client->adapter, msg, 2);
-}
-
-static int st_lis2dw12_i2c_write(struct device *dev, u8 addr, int len, u8 *data)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct i2c_msg msg;
-	u8 send[4];
-
-	if (len >= ARRAY_SIZE(send))
-		return -ENOMEM;
-
-	send[0] = addr;
-	memcpy(&send[1], data, len * sizeof(u8));
-
-	msg.addr = client->addr;
-	msg.flags = client->flags;
-	msg.len = len + 1;
-	msg.buf = send;
-
-	return i2c_transfer(client->adapter, &msg, 1);
-}
-
-static const struct st_lis2dw12_transfer_function st_lis2dw12_transfer_fn = {
-	.read = st_lis2dw12_i2c_read,
-	.write = st_lis2dw12_i2c_write,
+static const struct regmap_config st_lis2dw12_i2c_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
 };
 
 static int st_lis2dw12_i2c_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
-	return st_lis2dw12_probe(&client->dev, client->irq, client->name,
-				 &st_lis2dw12_transfer_fn);
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init_i2c(client, &st_lis2dw12_i2c_regmap_config);
+	if (IS_ERR(regmap)) {
+		dev_err(&client->dev,
+			"Failed to register i2c regmap %d\n",
+			(int)PTR_ERR(regmap));
+
+		return PTR_ERR(regmap);
+	}
+
+	return st_lis2dw12_probe(&client->dev, client->irq,
+				 client->name, regmap);
 }
 
 static const struct of_device_id st_lis2dw12_i2c_of_match[] = {

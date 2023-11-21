@@ -201,32 +201,6 @@ static const struct iio_chan_spec st_lis2dw12_wu_channels[] = {
 	ST_LIS2DW12_EVENT_CHANNEL(STM_IIO_GESTURE, &st_lis2dw12_rthr_event),
 };
 
-int st_lis2dw12_write_with_mask(struct st_lis2dw12_hw *hw, u8 addr, u8 mask,
-				u8 val)
-{
-	u8 data;
-	int err;
-
-	mutex_lock(&hw->lock);
-
-	err = hw->tf->read(hw->dev, addr, sizeof(data), &data);
-	if (err < 0) {
-		dev_err(hw->dev, "failed to read %02x register\n", addr);
-		goto unlock;
-	}
-
-	data = (data & ~mask) | ((val << __ffs(mask)) & mask);
-
-	err = hw->tf->write(hw->dev, addr, sizeof(data), &data);
-	if (err < 0)
-		dev_err(hw->dev, "failed to write %02x register\n", addr);
-
-unlock:
-	mutex_unlock(&hw->lock);
-
-	return err;
-}
-
 static int st_lis2dw12_set_fs(struct st_lis2dw12_sensor *sensor, u16 gain)
 {
 	int i, err;
@@ -238,9 +212,10 @@ static int st_lis2dw12_set_fs(struct st_lis2dw12_sensor *sensor, u16 gain)
 	if (i == ARRAY_SIZE(st_lis2dw12_fs_table))
 		return -EINVAL;
 
-	err = st_lis2dw12_write_with_mask(sensor->hw, ST_LIS2DW12_CTRL6_ADDR,
-					  ST_LIS2DW12_FS_MASK,
-					  st_lis2dw12_fs_table[i].val);
+	err = st_lis2dw12_write_with_mask_locked(sensor->hw,
+						 ST_LIS2DW12_CTRL6_ADDR,
+						 ST_LIS2DW12_FS_MASK,
+						 st_lis2dw12_fs_table[i].val);
 	if (err < 0)
 		return err;
 
@@ -324,19 +299,17 @@ static int st_lis2dw12_set_odr(struct st_lis2dw12_sensor *sensor, u16 req_odr)
 	val = (st_lis2dw12_odr_table[i].val << __ffs(ST_LIS2DW12_ODR_MASK)) |
 	      (mode << __ffs(ST_LIS2DW12_MODE_MASK)) | 0x01;
 
-	err = hw->tf->write(hw->dev, ST_LIS2DW12_CTRL1_ADDR, sizeof(val),
-			    &val);
+	err = st_lis2dw12_write_locked(hw, ST_LIS2DW12_CTRL1_ADDR,
+				       &val, sizeof(val));
 
 	return err < 0 ? err : 0;
 }
 
 static int st_lis2dw12_check_whoami(struct st_lis2dw12_hw *hw)
 {
-	int err;
-	u8 data;
+	int data, err;
 
-	err = hw->tf->read(hw->dev, ST_LIS2DW12_WHOAMI_ADDR, sizeof(data),
-			   &data);
+	err = regmap_read(hw->regmap, ST_LIS2DW12_WHOAMI_ADDR, &data);
 	if (err < 0) {
 		dev_err(hw->dev, "failed to read whoami register\n");
 		return err;
@@ -422,20 +395,21 @@ static int st_lis2dw12_init_hw(struct st_lis2dw12_hw *hw)
 	int err;
 
 	/* soft reset the device */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL2_ADDR,
-					  ST_LIS2DW12_RESET_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL2_ADDR,
+						 ST_LIS2DW12_RESET_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* enable BDU */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL2_ADDR,
-					  ST_LIS2DW12_BDU_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL2_ADDR,
+						 ST_LIS2DW12_BDU_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* enable all interrupts */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_ABS_INT_CFG_ADDR,
-					  ST_LIS2DW12_ALL_INT_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw,
+						 ST_LIS2DW12_ABS_INT_CFG_ADDR,
+						 ST_LIS2DW12_ALL_INT_MASK, 1);
 	if (err < 0)
 		return err;
 
@@ -445,54 +419,57 @@ static int st_lis2dw12_init_hw(struct st_lis2dw12_hw *hw)
 		return err;
 
 	/* configure default free fall event threshold */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_FREE_FALL_ADDR,
-					  ST_LIS2DW12_FREE_FALL_THS_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_FREE_FALL_ADDR,
+						 ST_LIS2DW12_FREE_FALL_THS_MASK,
+						 1);
 	if (err < 0)
 		return err;
 
 	/* configure default free fall event duration */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_FREE_FALL_ADDR,
-					  ST_LIS2DW12_FREE_FALL_DUR_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_FREE_FALL_ADDR,
+						 ST_LIS2DW12_FREE_FALL_DUR_MASK,
+						 1);
 	if (err < 0)
 		return err;
 
 	/* enable tap event on all axes */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_TAP_THS_Z_ADDR,
-					  ST_LIS2DW12_TAP_AXIS_MASK, 0x7);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_TAP_THS_Z_ADDR,
+						 ST_LIS2DW12_TAP_AXIS_MASK,
+						 0x7);
 	if (err < 0)
 		return err;
 
 	/* configure default threshold for Tap event recognition */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_TAP_THS_X_ADDR,
-					  ST_LIS2DW12_TAP_THS_MAK, 9);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_TAP_THS_X_ADDR,
+						 ST_LIS2DW12_TAP_THS_MAK, 9);
 	if (err < 0)
 		return err;
 
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_TAP_THS_Y_ADDR,
-					  ST_LIS2DW12_TAP_THS_MAK, 9);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_TAP_THS_Y_ADDR,
+						 ST_LIS2DW12_TAP_THS_MAK, 9);
 	if (err < 0)
 		return err;
 
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_TAP_THS_Z_ADDR,
-					  ST_LIS2DW12_TAP_THS_MAK, 9);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_TAP_THS_Z_ADDR,
+						 ST_LIS2DW12_TAP_THS_MAK, 9);
 	if (err < 0)
 		return err;
 
 	/* low noise enabled by default */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL6_ADDR,
-					  ST_LIS2DW12_LN_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL6_ADDR,
+						 ST_LIS2DW12_LN_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* BW = ODR/4 */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL6_ADDR,
-					  ST_LIS2DW12_BW_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL6_ADDR,
+						 ST_LIS2DW12_BW_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* enable latched mode */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL3_ADDR,
-					  ST_LIS2DW12_LIR_MASK, 1);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL3_ADDR,
+						 ST_LIS2DW12_LIR_MASK, 1);
 	if (err < 0)
 		return err;
 
@@ -501,8 +478,8 @@ static int st_lis2dw12_init_hw(struct st_lis2dw12_hw *hw)
 	if (err < 0)
 		return err;
 
-	return st_lis2dw12_write_with_mask(hw, hw->irq_reg,
-					   ST_LIS2DW12_FTH_INT_MASK, 1);
+	return st_lis2dw12_write_with_mask_locked(hw, hw->irq_reg,
+						  ST_LIS2DW12_FTH_INT_MASK, 1);
 }
 
 static ssize_t
@@ -568,7 +545,7 @@ static int st_lis2dw12_read_oneshot(struct st_lis2dw12_sensor *sensor,
 	delay = 3000000 / sensor->odr;
 	usleep_range(delay, delay + 1);
 
-	err = hw->tf->read(hw->dev, addr, sizeof(data), data);
+	err = st_lis2dw12_read(hw, addr, &data, sizeof(data));
 	if (err < 0)
 		return err;
 
@@ -672,8 +649,8 @@ static int st_lis2dw12_write_event_config(struct iio_dev *iio_dev,
 	int err;
 
 	/* Read initial configuration data */
-	err = hw->tf->read(hw->dev, ST_LIS2DW12_INT_DUR_ADDR,
-				   sizeof(data), data);
+	err = st_lis2dw12_read(hw, ST_LIS2DW12_INT_DUR_ADDR,
+			       &data, sizeof(data));
 	if (err < 0)
 		return -EINVAL;
 
@@ -707,13 +684,14 @@ static int st_lis2dw12_write_event_config(struct iio_dev *iio_dev,
 		return -EINVAL;
 	}
 
-	err = hw->tf->write(hw->dev, ST_LIS2DW12_INT_DUR_ADDR,
-			    sizeof(data), data);
+	err = st_lis2dw12_write_locked(hw, ST_LIS2DW12_INT_DUR_ADDR,
+				       data, sizeof(data));
 	if (err < 0)
 		return err;
 
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL4_INT1_CTRL_ADDR,
-					  drdy_mask, drdy_val);
+	err = st_lis2dw12_write_with_mask_locked(hw,
+					       ST_LIS2DW12_CTRL4_INT1_CTRL_ADDR,
+					       drdy_mask, drdy_val);
 	if (err < 0)
 		return err;
 
@@ -817,8 +795,8 @@ static ssize_t st_lis2dw12_enable_selftest(struct device *dev,
 	msleep(200);
 
 	for (i = 0; i < 5; i++) {
-		err = hw->tf->read(hw->dev, ST_LIS2DW12_OUT_X_L_ADDR,
-				   sizeof(data), data);
+		err = st_lis2dw12_read(hw, ST_LIS2DW12_OUT_X_L_ADDR,
+				       &data, sizeof(data));
 		if (err < 0)
 			goto unlock;
 
@@ -830,16 +808,16 @@ static ssize_t st_lis2dw12_enable_selftest(struct device *dev,
 	}
 
 	/* enable self test */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL3_ADDR,
-					  ST_LIS2DW12_ST_MASK, val);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL3_ADDR,
+						 ST_LIS2DW12_ST_MASK, val);
 	if (err < 0)
 		goto unlock;
 
 	msleep(200);
 
 	for (i = 0; i < 5; i++) {
-		err = hw->tf->read(hw->dev, ST_LIS2DW12_OUT_X_L_ADDR,
-				   sizeof(data), data);
+		err = st_lis2dw12_read(hw, ST_LIS2DW12_OUT_X_L_ADDR,
+				       &data, sizeof(data));
 		if (err < 0)
 			goto unlock;
 
@@ -861,8 +839,8 @@ static ssize_t st_lis2dw12_enable_selftest(struct device *dev,
 		hw->st_status = ST_LIS2DW12_ST_FAIL;
 
 	/* disable self test */
-	err = st_lis2dw12_write_with_mask(hw, ST_LIS2DW12_CTRL3_ADDR,
-					  ST_LIS2DW12_ST_MASK, 0);
+	err = st_lis2dw12_write_with_mask_locked(hw, ST_LIS2DW12_CTRL3_ADDR,
+						 ST_LIS2DW12_ST_MASK, 0);
 	if (err < 0)
 		goto unlock;
 
@@ -1032,7 +1010,7 @@ static struct iio_dev *st_lis2dw12_alloc_iiodev(struct st_lis2dw12_hw *hw,
 }
 
 int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
-		      const struct st_lis2dw12_transfer_function *tf_ops)
+		      struct regmap *regmap)
 {
 	struct st_lis2dw12_hw *hw;
 	int i, err;
@@ -1048,7 +1026,7 @@ int st_lis2dw12_probe(struct device *dev, int irq, const char *name,
 
 	hw->dev = dev;
 	hw->irq = irq;
-	hw->tf = tf_ops;
+	hw->regmap = regmap;
 	hw->watermark = 1;
 
 	err = st_lis2dw12_check_whoami(hw);
