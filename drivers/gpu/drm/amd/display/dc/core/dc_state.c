@@ -31,6 +31,7 @@
 
 #include "dm_services.h"
 #include "resource.h"
+#include "link_enc_cfg.h"
 
 #include "dml2/dml2_wrapper.h"
 #include "dml2/dml2_internal_types.h"
@@ -39,7 +40,144 @@
 	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
-/* Public dc_state functions */
+/* Private dc_state helper functions */
+static bool dc_state_track_phantom_stream(struct dc_state *state,
+		struct dc_stream_state *phantom_stream)
+{
+	if (state->phantom_stream_count >= MAX_PHANTOM_PIPES)
+		return false;
+
+	state->phantom_streams[state->phantom_stream_count++] = phantom_stream;
+
+	return true;
+}
+
+static bool dc_state_untrack_phantom_stream(struct dc_state *state, struct dc_stream_state *phantom_stream)
+{
+	bool res = false;
+	int i;
+
+	/* first find phantom stream in the dc_state */
+	for (i = 0; i < state->phantom_stream_count; i++) {
+		if (state->phantom_streams[i] == phantom_stream) {
+			state->phantom_streams[i] = NULL;
+			res = true;
+			break;
+		}
+	}
+
+	/* failed to find stream in state */
+	if (!res)
+		return res;
+
+	/* trim back phantom streams */
+	state->phantom_stream_count--;
+	for (; i < state->phantom_stream_count; i++)
+		state->phantom_streams[i] = state->phantom_streams[i + 1];
+
+	return res;
+}
+
+static bool dc_state_is_phantom_stream_tracked(struct dc_state *state, struct dc_stream_state *phantom_stream)
+{
+	int i;
+
+	for (i = 0; i < state->phantom_stream_count; i++) {
+		if (state->phantom_streams[i] == phantom_stream)
+			return true;
+	}
+
+	return false;
+}
+
+static bool dc_state_track_phantom_plane(struct dc_state *state,
+		struct dc_plane_state *phantom_plane)
+{
+	if (state->phantom_plane_count >= MAX_PHANTOM_PIPES)
+		return false;
+
+	state->phantom_planes[state->phantom_plane_count++] = phantom_plane;
+
+	return true;
+}
+
+static bool dc_state_untrack_phantom_plane(struct dc_state *state, struct dc_plane_state *phantom_plane)
+{
+	bool res = false;
+	int i;
+
+	/* first find phantom plane in the dc_state */
+	for (i = 0; i < state->phantom_plane_count; i++) {
+		if (state->phantom_planes[i] == phantom_plane) {
+			state->phantom_planes[i] = NULL;
+			res = true;
+			break;
+		}
+	}
+
+	/* failed to find plane in state */
+	if (!res)
+		return res;
+
+	/* trim back phantom planes */
+	state->phantom_plane_count--;
+	for (; i < state->phantom_plane_count; i++)
+		state->phantom_planes[i] = state->phantom_planes[i + 1];
+
+	return res;
+}
+
+static bool dc_state_is_phantom_plane_tracked(struct dc_state *state, struct dc_plane_state *phantom_plane)
+{
+	int i;
+
+	for (i = 0; i < state->phantom_plane_count; i++) {
+		if (state->phantom_planes[i] == phantom_plane)
+			return true;
+	}
+
+	return false;
+}
+
+static void dc_state_copy_internal(struct dc_state *dst_state, struct dc_state *src_state)
+{
+	int i, j;
+
+	memcpy(dst_state, src_state, sizeof(struct dc_state));
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *cur_pipe = &dst_state->res_ctx.pipe_ctx[i];
+
+		if (cur_pipe->top_pipe)
+			cur_pipe->top_pipe =  &dst_state->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
+
+		if (cur_pipe->bottom_pipe)
+			cur_pipe->bottom_pipe = &dst_state->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
+
+		if (cur_pipe->prev_odm_pipe)
+			cur_pipe->prev_odm_pipe =  &dst_state->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
+
+		if (cur_pipe->next_odm_pipe)
+			cur_pipe->next_odm_pipe = &dst_state->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
+	}
+
+	/* retain phantoms */
+	for (i = 0; i < dst_state->phantom_stream_count; i++)
+		dc_stream_retain(dst_state->phantom_streams[i]);
+
+	for (i = 0; i < dst_state->phantom_plane_count; i++)
+		dc_plane_state_retain(dst_state->phantom_planes[i]);
+
+	/* retain streams and planes */
+	for (i = 0; i < dst_state->stream_count; i++) {
+		dc_stream_retain(dst_state->streams[i]);
+		for (j = 0; j < dst_state->stream_status[i].plane_count; j++)
+			dc_plane_state_retain(
+					dst_state->stream_status[i].plane_states[j]);
+	}
+
+}
+
 static void init_state(struct dc *dc, struct dc_state *state)
 {
 	/* Each context must have their own instance of VBA and in order to
@@ -49,6 +187,7 @@ static void init_state(struct dc *dc, struct dc_state *state)
 	memcpy(&state->bw_ctx.dml, &dc->dml, sizeof(struct display_mode_lib));
 }
 
+/* Public dc_state functions */
 struct dc_state *dc_state_create(struct dc *dc)
 {
 	struct dc_state *state = kvzalloc(sizeof(struct dc_state),
@@ -58,6 +197,7 @@ struct dc_state *dc_state_create(struct dc *dc)
 		return NULL;
 
 	init_state(dc, state);
+	dc_state_construct(dc, state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 	if (dc->debug.using_dml2)
@@ -69,61 +209,112 @@ struct dc_state *dc_state_create(struct dc *dc)
 	return state;
 }
 
+void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
+{
+	struct kref refcount = dst_state->refcount;
+
+	dc_state_copy_internal(dst_state, src_state);
+
+#ifdef CONFIG_DRM_AMD_DC_FP
+	if (src_state->bw_ctx.dml2)
+		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
+#endif
+
+	/* context refcount should not be overridden */
+	dst_state->refcount = refcount;
+}
+
 struct dc_state *dc_state_create_copy(struct dc_state *src_state)
 {
-	int i, j;
-	struct dc_state *new_state = kvmalloc(sizeof(struct dc_state), GFP_KERNEL);
+	struct dc_state *new_state;
 
+	new_state = kvmalloc(sizeof(struct dc_state),
+			GFP_KERNEL);
 	if (!new_state)
 		return NULL;
 
-	memcpy(new_state, src_state, sizeof(struct dc_state));
+	dc_state_copy_internal(new_state, src_state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
-	if (new_state->bw_ctx.dml2 && !dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2)) {
+	if (src_state->bw_ctx.dml2 &&
+			!dml2_create_copy(&new_state->bw_ctx.dml2, src_state->bw_ctx.dml2)) {
 		dc_state_release(new_state);
 		return NULL;
 	}
 #endif
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *cur_pipe = &new_state->res_ctx.pipe_ctx[i];
-
-		if (cur_pipe->top_pipe)
-			cur_pipe->top_pipe =  &new_state->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
-
-		if (cur_pipe->bottom_pipe)
-			cur_pipe->bottom_pipe = &new_state->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
-		if (cur_pipe->prev_odm_pipe)
-			cur_pipe->prev_odm_pipe =  &new_state->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
-
-		if (cur_pipe->next_odm_pipe)
-			cur_pipe->next_odm_pipe = &new_state->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
-	}
-
-	for (i = 0; i < new_state->stream_count; i++) {
-		dc_stream_retain(new_state->streams[i]);
-		for (j = 0; j < new_state->stream_status[i].plane_count; j++)
-			dc_plane_state_retain(
-					new_state->stream_status[i].plane_states[j]);
-	}
 
 	kref_init(&new_state->refcount);
 
 	return new_state;
 }
 
-void dc_state_retain(struct dc_state *context)
+void dc_state_copy_current(struct dc *dc, struct dc_state *dst_state)
 {
-	kref_get(&context->refcount);
+	dc_state_copy(dst_state, dc->current_state);
+}
+
+struct dc_state *dc_state_create_current_copy(struct dc *dc)
+{
+	return dc_state_create_copy(dc->current_state);
+}
+
+void dc_state_construct(struct dc *dc, struct dc_state *state)
+{
+	state->clk_mgr = dc->clk_mgr;
+
+	/* Initialise DIG link encoder resource tracking variables. */
+	link_enc_cfg_init(dc, state);
+}
+
+void dc_state_destruct(struct dc_state *state)
+{
+	int i, j;
+
+	for (i = 0; i < state->stream_count; i++) {
+		for (j = 0; j < state->stream_status[i].plane_count; j++)
+			dc_plane_state_release(
+					state->stream_status[i].plane_states[j]);
+
+		state->stream_status[i].plane_count = 0;
+		dc_stream_release(state->streams[i]);
+		state->streams[i] = NULL;
+	}
+	state->stream_count = 0;
+
+	/* release tracked phantoms */
+	for (i = 0; i < state->phantom_stream_count; i++) {
+		dc_stream_release(state->phantom_streams[i]);
+		state->phantom_streams[i] = NULL;
+	}
+
+	for (i = 0; i < state->phantom_plane_count; i++) {
+		dc_plane_state_release(state->phantom_planes[i]);
+		state->phantom_planes[i] = NULL;
+	}
+	state->stream_mask = 0;
+	memset(&state->res_ctx, 0, sizeof(state->res_ctx));
+	memset(&state->pp_display_cfg, 0, sizeof(state->pp_display_cfg));
+	memset(&state->dcn_bw_vars, 0, sizeof(state->dcn_bw_vars));
+	state->clk_mgr = NULL;
+	memset(&state->bw_ctx.bw, 0, sizeof(state->bw_ctx.bw));
+	memset(state->block_sequence, 0, sizeof(state->block_sequence));
+	state->block_sequence_steps = 0;
+	memset(state->dc_dmub_cmd, 0, sizeof(state->dc_dmub_cmd));
+	state->dmub_cmd_count = 0;
+	memset(&state->perf_params, 0, sizeof(state->perf_params));
+	memset(&state->scratch, 0, sizeof(state->scratch));
+}
+
+void dc_state_retain(struct dc_state *state)
+{
+	kref_get(&state->refcount);
 }
 
 static void dc_state_free(struct kref *kref)
 {
 	struct dc_state *state = container_of(kref, struct dc_state, refcount);
 
-	dc_resource_state_destruct(state);
+	dc_state_destruct(state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 	dml2_destroy(state->bw_ctx.dml2);
@@ -403,34 +594,64 @@ struct dc_stream_status *dc_state_get_stream_status(
 enum mall_stream_type dc_state_get_pipe_subvp_type(const struct dc_state *state,
 		const struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->stream == NULL)
-		return SUBVP_NONE;
-
-	return pipe_ctx->stream->mall_stream_config.type;
+	return dc_state_get_stream_subvp_type(state, pipe_ctx->stream);
 }
 
 enum mall_stream_type dc_state_get_stream_subvp_type(const struct dc_state *state,
 		const struct dc_stream_state *stream)
 {
-	return stream->mall_stream_config.type;
+	int i;
+
+	enum mall_stream_type type = SUBVP_NONE;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i] == stream) {
+			type = state->stream_status[i].mall_stream_config.type;
+			break;
+		}
+	}
+
+	return type;
 }
 
 struct dc_stream_state *dc_state_get_paired_subvp_stream(const struct dc_state *state,
 		const struct dc_stream_state *stream)
 {
-	return stream->mall_stream_config.paired_stream;
+	int i;
+
+	struct dc_stream_state *paired_stream = NULL;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i] == stream) {
+			paired_stream = state->stream_status[i].mall_stream_config.paired_stream;
+			break;
+		}
+	}
+
+	return paired_stream;
 }
 
 struct dc_stream_state *dc_state_create_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *main_stream)
 {
-	struct dc_stream_state *phantom_stream = dc_create_stream_for_sink(main_stream->sink);
+	struct dc_stream_state *phantom_stream;
 
-	if (phantom_stream != NULL) {
-		phantom_stream->signal = SIGNAL_TYPE_VIRTUAL;
-		phantom_stream->dpms_off = true;
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	phantom_stream = dc_create_stream_for_sink(main_stream->sink);
+
+	if (!phantom_stream) {
+		DC_LOG_ERROR("Failed to allocate phantom stream.\n");
+		return NULL;
 	}
+
+	/* track phantom stream in dc_state */
+	dc_state_track_phantom_stream(state, phantom_stream);
+
+	phantom_stream->is_phantom = true;
+	phantom_stream->signal = SIGNAL_TYPE_VIRTUAL;
+	phantom_stream->dpms_off = true;
 
 	return phantom_stream;
 }
@@ -439,6 +660,13 @@ void dc_state_release_phantom_stream(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream)
 {
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (!dc_state_untrack_phantom_stream(state, phantom_stream)) {
+		DC_LOG_ERROR("Failed to free phantom stream %p in dc state %p.\n", phantom_stream, state);
+		return;
+	}
+
 	dc_stream_release(phantom_stream);
 }
 
@@ -448,8 +676,17 @@ struct dc_plane_state *dc_state_create_phantom_plane(struct dc *dc,
 {
 	struct dc_plane_state *phantom_plane = dc_create_plane_state(dc);
 
-	if (phantom_plane != NULL)
-		phantom_plane->is_phantom = true;
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (!phantom_plane) {
+		DC_LOG_ERROR("Failed to allocate phantom plane.\n");
+		return NULL;
+	}
+
+	/* track phantom inside dc_state */
+	dc_state_track_phantom_plane(state, phantom_plane);
+
+	phantom_plane->is_phantom = true;
 
 	return phantom_plane;
 }
@@ -458,6 +695,13 @@ void dc_state_release_phantom_plane(const struct dc *dc,
 		struct dc_state *state,
 		struct dc_plane_state *phantom_plane)
 {
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	if (!dc_state_untrack_phantom_plane(state, phantom_plane)) {
+		DC_LOG_ERROR("Failed to free phantom plane %p in dc state %p.\n", phantom_plane, state);
+		return;
+	}
+
 	dc_plane_state_release(phantom_plane);
 }
 
@@ -467,13 +711,23 @@ enum dc_status dc_state_add_phantom_stream(struct dc *dc,
 		struct dc_stream_state *phantom_stream,
 		struct dc_stream_state *main_stream)
 {
+	struct dc_stream_status *main_stream_status;
+	struct dc_stream_status *phantom_stream_status;
 	enum dc_status res = dc_state_add_stream(dc, state, phantom_stream);
 
+	/* check if stream is tracked */
+	if (res == DC_OK && !dc_state_is_phantom_stream_tracked(state, phantom_stream)) {
+		/* stream must be tracked if added to state */
+		dc_state_track_phantom_stream(state, phantom_stream);
+	}
+
 	/* setup subvp meta */
-	phantom_stream->mall_stream_config.type = SUBVP_PHANTOM;
-	phantom_stream->mall_stream_config.paired_stream = main_stream;
-	main_stream->mall_stream_config.type = SUBVP_MAIN;
-	main_stream->mall_stream_config.paired_stream = phantom_stream;
+	main_stream_status = dc_state_get_stream_status(state, main_stream);
+	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
+	phantom_stream_status->mall_stream_config.type = SUBVP_PHANTOM;
+	phantom_stream_status->mall_stream_config.paired_stream = main_stream;
+	main_stream_status->mall_stream_config.type = SUBVP_MAIN;
+	main_stream_status->mall_stream_config.paired_stream = phantom_stream;
 
 	return res;
 }
@@ -482,9 +736,18 @@ enum dc_status dc_state_remove_phantom_stream(struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *phantom_stream)
 {
+	struct dc_stream_status *main_stream_status;
+	struct dc_stream_status *phantom_stream_status;
+
 	/* reset subvp meta */
-	phantom_stream->mall_stream_config.paired_stream->mall_stream_config.type = SUBVP_NONE;
-	phantom_stream->mall_stream_config.paired_stream->mall_stream_config.paired_stream = NULL;
+	phantom_stream_status = dc_state_get_stream_status(state, phantom_stream);
+	main_stream_status = dc_state_get_stream_status(state, phantom_stream_status->mall_stream_config.paired_stream);
+	phantom_stream_status->mall_stream_config.type = SUBVP_NONE;
+	phantom_stream_status->mall_stream_config.paired_stream = NULL;
+	if (main_stream_status) {
+		main_stream_status->mall_stream_config.type = SUBVP_NONE;
+		main_stream_status->mall_stream_config.paired_stream = NULL;
+	}
 
 	/* remove stream from state */
 	return dc_state_remove_stream(dc, state, phantom_stream);
@@ -496,7 +759,15 @@ bool dc_state_add_phantom_plane(
 		struct dc_plane_state *phantom_plane,
 		struct dc_state *state)
 {
-	return dc_state_add_plane(dc, phantom_stream, phantom_plane, state);
+	bool res = dc_state_add_plane(dc, phantom_stream, phantom_plane, state);
+
+	/* check if stream is tracked */
+	if (res && !dc_state_is_phantom_plane_tracked(state, phantom_plane)) {
+		/* stream must be tracked if added to state */
+		dc_state_track_phantom_plane(state, phantom_plane);
+	}
+
+	return res;
 }
 
 bool dc_state_remove_phantom_plane(
@@ -511,9 +782,37 @@ bool dc_state_remove_phantom_plane(
 bool dc_state_rem_all_phantom_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *phantom_stream,
-		struct dc_state *state)
+		struct dc_state *state,
+		bool should_release_planes)
 {
-	return dc_state_rem_all_planes_for_stream(dc, phantom_stream, state);
+	int i, old_plane_count;
+	struct dc_stream_status *stream_status = NULL;
+	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
+
+	for (i = 0; i < state->stream_count; i++)
+		if (state->streams[i] == phantom_stream) {
+			stream_status = &state->stream_status[i];
+			break;
+		}
+
+	if (stream_status == NULL) {
+		dm_error("Existing stream %p not found!\n", phantom_stream);
+		return false;
+	}
+
+	old_plane_count = stream_status->plane_count;
+
+	for (i = 0; i < old_plane_count; i++)
+		del_planes[i] = stream_status->plane_states[i];
+
+	for (i = 0; i < old_plane_count; i++) {
+		if (!dc_state_remove_plane(dc, phantom_stream, del_planes[i], state))
+			return false;
+		if (should_release_planes)
+			dc_state_release_phantom_plane(dc, state, del_planes[i]);
+	}
+
+	return true;
 }
 
 bool dc_state_add_all_phantom_planes_for_stream(
@@ -524,4 +823,39 @@ bool dc_state_add_all_phantom_planes_for_stream(
 		struct dc_state *state)
 {
 	return dc_state_add_all_planes_for_stream(dc, phantom_stream, phantom_planes, plane_count, state);
+}
+
+bool dc_state_remove_phantom_streams_and_planes(
+	struct dc *dc,
+	struct dc_state *state)
+{
+	int i;
+	bool removed_phantom = false;
+	struct dc_stream_state *phantom_stream = NULL;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state && pipe->stream && dc_state_get_pipe_subvp_type(state, pipe) == SUBVP_PHANTOM) {
+			phantom_stream = pipe->stream;
+
+			dc_state_rem_all_phantom_planes_for_stream(dc, phantom_stream, state, false);
+			dc_state_remove_phantom_stream(dc, state, phantom_stream);
+			removed_phantom = true;
+		}
+	}
+	return removed_phantom;
+}
+
+void dc_state_release_phantom_streams_and_planes(
+		struct dc *dc,
+		struct dc_state *state)
+{
+	int i;
+
+	for (i = 0; i < state->phantom_stream_count; i++)
+		dc_state_release_phantom_stream(dc, state, state->phantom_streams[i]);
+
+	for (i = 0; i < state->phantom_plane_count; i++)
+		dc_state_release_phantom_plane(dc, state, state->phantom_planes[i]);
 }

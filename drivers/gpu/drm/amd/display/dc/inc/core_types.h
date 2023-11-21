@@ -200,11 +200,7 @@ struct resource_funcs {
 			unsigned int pipe_cnt,
             unsigned int index);
 
-	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context, bool fast_update);
-	void (*retain_phantom_pipes)(struct dc *dc, struct dc_state *context);
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
-	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
-	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
 	void (*build_pipe_pix_clk_params)(struct pipe_ctx *pipe_ctx);
 };
 
@@ -526,6 +522,14 @@ struct dc_state {
 	 * @stream_status: Planes status on a given stream
 	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+	/**
+	 * @phantom_streams: Stream state properties for phantoms
+	 */
+	struct dc_stream_state *phantom_streams[MAX_PHANTOM_PIPES];
+	/**
+	 * @phantom_planes: Planes state properties for phantoms
+	 */
+	struct dc_plane_state *phantom_planes[MAX_PHANTOM_PIPES];
 
 	/**
 	 * @stream_count: Total of streams in use
@@ -533,6 +537,14 @@ struct dc_state {
 	uint8_t stream_count;
 	uint8_t stream_mask;
 
+	/**
+	 * @stream_count: Total phantom streams in use
+	 */
+	uint8_t phantom_stream_count;
+	/**
+	 * @stream_count: Total phantom planes in use
+	 */
+	uint8_t phantom_plane_count;
 	/**
 	 * @res_ctx: Persistent state of resources
 	 */

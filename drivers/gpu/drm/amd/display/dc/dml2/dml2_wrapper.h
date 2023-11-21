@@ -104,7 +104,10 @@ struct dml2_dc_svp_callbacks {
 			struct dc_stream_state *phantom_stream,
 			struct dc_stream_state *main_stream);
 	bool (*add_phantom_plane)(const struct dc *dc, struct dc_stream_state *stream, struct dc_plane_state *plane_state, struct dc_state *context);
-	bool (*remove_phantom_plane)(const struct dc *dc, struct dc_stream_state *stream, struct dc_plane_state *plane_state, struct dc_state *context);
+	bool (*remove_phantom_plane)(const struct dc *dc,
+			struct dc_stream_state *stream,
+			struct dc_plane_state *plane_state,
+			struct dc_state *context);
 	enum dc_status (*remove_phantom_stream)(struct dc *dc,
 			struct dc_state *state,
 			struct dc_stream_state *stream);

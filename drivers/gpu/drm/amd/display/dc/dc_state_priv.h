@@ -29,10 +29,6 @@
 #include "dc_state.h"
 #include "dc_stream.h"
 
-struct dc_stream_status *dc_state_get_stream_status(
-	struct dc_state *state,
-	struct dc_stream_state *stream);
-
 /* Get the type of the provided resource (none, phantom, main) based on the provided
  * context. If the context is unavailable, determine only if phantom or not.
  */
@@ -85,13 +81,22 @@ bool dc_state_remove_phantom_plane(
 bool dc_state_rem_all_phantom_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *phantom_stream,
-		struct dc_state *state);
+		struct dc_state *state,
+		bool should_release_planes);
 
 bool dc_state_add_all_phantom_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *phantom_stream,
 		struct dc_plane_state * const *phantom_planes,
 		int plane_count,
+		struct dc_state *state);
+
+bool dc_state_remove_phantom_streams_and_planes(
+		struct dc *dc,
+		struct dc_state *state);
+
+void dc_state_release_phantom_streams_and_planes(
+		struct dc *dc,
 		struct dc_state *state);
 
 #endif /* _DC_STATE_PRIV_H_ */

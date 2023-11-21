@@ -473,7 +473,8 @@ void hwss_build_fast_sequence(struct dc *dc,
 		unsigned int dmub_cmd_count,
 		struct block_sequence block_sequence[],
 		int *num_steps,
-		struct pipe_ctx *pipe_ctx)
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_status *stream_status)
 {
 	struct dc_plane_state *plane = pipe_ctx->plane_state;
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -490,7 +491,8 @@ void hwss_build_fast_sequence(struct dc *dc,
 	if (dc->hwss.subvp_pipe_control_lock_fast) {
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.lock = true;
-		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.pipe_ctx = pipe_ctx;
+		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.subvp_immediate_flip =
+				plane->flip_immediate && stream_status->mall_stream_config.type == SUBVP_MAIN;
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}
@@ -529,7 +531,7 @@ void hwss_build_fast_sequence(struct dc *dc,
 			}
 			if (dc->hwss.update_plane_addr && current_mpc_pipe->plane_state->update_flags.bits.addr_update) {
 				if (resource_is_pipe_type(current_mpc_pipe, OTG_MASTER) &&
-						dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_MAIN) {
+						stream_status->mall_stream_config.type == SUBVP_MAIN) {
 					block_sequence[*num_steps].params.subvp_save_surf_addr.dc_dmub_srv = dc->ctx->dmub_srv;
 					block_sequence[*num_steps].params.subvp_save_surf_addr.addr = &current_mpc_pipe->plane_state->address;
 					block_sequence[*num_steps].params.subvp_save_surf_addr.subvp_index = current_mpc_pipe->subvp_index;
@@ -612,7 +614,8 @@ void hwss_build_fast_sequence(struct dc *dc,
 	if (dc->hwss.subvp_pipe_control_lock_fast) {
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.dc = dc;
 		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.lock = false;
-		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.pipe_ctx = pipe_ctx;
+		block_sequence[*num_steps].params.subvp_pipe_control_lock_fast_params.subvp_immediate_flip =
+				plane->flip_immediate && stream_status->mall_stream_config.type == SUBVP_MAIN;
 		block_sequence[*num_steps].func = DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST;
 		(*num_steps)++;
 	}

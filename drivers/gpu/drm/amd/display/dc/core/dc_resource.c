@@ -42,6 +42,7 @@
 #include "link_enc_cfg.h"
 #include "link.h"
 #include "clk_mgr.h"
+#include "dc_state_priv.h"
 #include "virtual/virtual_link_hwss.h"
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
@@ -3523,34 +3524,6 @@ enum dc_status resource_map_pool_resources(
 	return DC_ERROR_UNEXPECTED;
 }
 
-/**
- * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
- *
- * @dc: copy out of dc->current_state
- * @dst_ctx: copy into this
- *
- * This function makes a shallow copy of the current DC state and increments
- * refcounts on existing streams and planes.
- */
-void dc_resource_state_copy_construct_current(
-		const struct dc *dc,
-		struct dc_state *dst_ctx)
-{
-	dc_resource_state_copy_construct(dc->current_state, dst_ctx);
-}
-
-
-void dc_resource_state_construct(
-		const struct dc *dc,
-		struct dc_state *dst_ctx)
-{
-	dst_ctx->clk_mgr = dc->clk_mgr;
-
-	/* Initialise DIG link encoder resource tracking variables. */
-	link_enc_cfg_init(dc, dst_ctx);
-}
-
-
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
 {
 	if (dc->res_pool == NULL)
@@ -3724,6 +3697,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 						       unchanged_streams[i],
 						       set,
 						       set_count)) {
+
 			if (!dc_state_rem_all_planes_for_stream(dc,
 							  unchanged_streams[i],
 							  context)) {
@@ -3746,12 +3720,24 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 			}
 		}
 
-		if (!dc_state_rem_all_planes_for_stream(dc, del_streams[i], context)) {
-			res = DC_FAIL_DETACH_SURFACES;
-			goto fail;
+		if (dc_state_get_stream_subvp_type(context, del_streams[i]) == SUBVP_PHANTOM) {
+			/* remove phantoms specifically */
+			if (!dc_state_rem_all_phantom_planes_for_stream(dc, del_streams[i], context, true)) {
+				res = DC_FAIL_DETACH_SURFACES;
+				goto fail;
+			}
+
+			res = dc_state_remove_phantom_stream(dc, context, del_streams[i]);
+			dc_state_release_phantom_stream(dc, context, del_streams[i]);
+		} else {
+			if (!dc_state_rem_all_planes_for_stream(dc, del_streams[i], context)) {
+				res = DC_FAIL_DETACH_SURFACES;
+				goto fail;
+			}
+
+			res = dc_state_remove_stream(dc, context, del_streams[i]);
 		}
 
-		res = dc_state_remove_stream(dc, context, del_streams[i]);
 		if (res != DC_OK)
 			goto fail;
 	}
@@ -4278,84 +4264,6 @@ static void set_vtem_info_packet(
 		return;
 
 	*info_packet = stream->vtem_infopacket;
-}
-
-void dc_resource_state_destruct(struct dc_state *context)
-{
-	int i, j;
-
-	for (i = 0; i < context->stream_count; i++) {
-		for (j = 0; j < context->stream_status[i].plane_count; j++)
-			dc_plane_state_release(
-				context->stream_status[i].plane_states[j]);
-
-		context->stream_status[i].plane_count = 0;
-		dc_stream_release(context->streams[i]);
-		context->streams[i] = NULL;
-	}
-	context->stream_count = 0;
-	context->stream_mask = 0;
-	memset(&context->res_ctx, 0, sizeof(context->res_ctx));
-	memset(&context->pp_display_cfg, 0, sizeof(context->pp_display_cfg));
-	memset(&context->dcn_bw_vars, 0, sizeof(context->dcn_bw_vars));
-	context->clk_mgr = NULL;
-	memset(&context->bw_ctx.bw, 0, sizeof(context->bw_ctx.bw));
-	memset(context->block_sequence, 0, sizeof(context->block_sequence));
-	context->block_sequence_steps = 0;
-	memset(context->dc_dmub_cmd, 0, sizeof(context->dc_dmub_cmd));
-	context->dmub_cmd_count = 0;
-	memset(&context->perf_params, 0, sizeof(context->perf_params));
-	memset(&context->scratch, 0, sizeof(context->scratch));
-}
-
-void dc_resource_state_copy_construct(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx)
-{
-	int i, j;
-	struct kref refcount = dst_ctx->refcount;
-#ifdef CONFIG_DRM_AMD_DC_FP
-	struct dml2_context *dml2 = NULL;
-
-	// Need to preserve allocated dml2 context
-	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
-		dml2 = dst_ctx->bw_ctx.dml2;
-#endif
-
-	*dst_ctx = *src_ctx;
-
-#ifdef CONFIG_DRM_AMD_DC_FP
-	// Preserve allocated dml2 context
-	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
-		dst_ctx->bw_ctx.dml2 = dml2;
-#endif
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *cur_pipe = &dst_ctx->res_ctx.pipe_ctx[i];
-
-		if (cur_pipe->top_pipe)
-			cur_pipe->top_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
-
-		if (cur_pipe->bottom_pipe)
-			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
-		if (cur_pipe->next_odm_pipe)
-			cur_pipe->next_odm_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
-
-		if (cur_pipe->prev_odm_pipe)
-			cur_pipe->prev_odm_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
-	}
-
-	for (i = 0; i < dst_ctx->stream_count; i++) {
-		dc_stream_retain(dst_ctx->streams[i]);
-		for (j = 0; j < dst_ctx->stream_status[i].plane_count; j++)
-			dc_plane_state_retain(
-				dst_ctx->stream_status[i].plane_states[j]);
-	}
-
-	/* context refcount should not be overridden */
-	dst_ctx->refcount = refcount;
-
 }
 
 struct clock_source *dc_resource_find_first_free_pll(

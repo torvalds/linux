@@ -1181,7 +1181,9 @@ void dcn10_verify_allow_pstate_change_high(struct dc *dc)
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn10_plane_atomic_disconnect(struct dc *dc,
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
@@ -1201,7 +1203,7 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
 	// Phantom pipes have OTG disabled by default, so MPCC_STATUS will never assert idle,
 	// so don't wait for MPCC_IDLE in the programming sequence
-	if (opp != NULL && dc_state_get_pipe_subvp_type(NULL, pipe_ctx) != SUBVP_PHANTOM)
+	if (opp != NULL && dc_state_get_pipe_subvp_type(state, pipe_ctx) != SUBVP_PHANTOM)
 		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;
@@ -1291,7 +1293,7 @@ void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_state = NULL;
 }
 
-void dcn10_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn10_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -1417,12 +1419,12 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -2263,6 +2265,7 @@ void dcn10_enable_vblanks_synchronization(
 
 void dcn10_enable_timing_synchronization(
 	struct dc *dc,
+	struct dc_state *state,
 	int group_index,
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
@@ -2277,7 +2280,7 @@ void dcn10_enable_timing_synchronization(
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(NULL, grouped_pipes[i]) == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		opp = grouped_pipes[i]->stream_res.opp;
@@ -2297,14 +2300,14 @@ void dcn10_enable_timing_synchronization(
 		if (grouped_pipes[i]->stream == NULL)
 			continue;
 
-		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(NULL, grouped_pipes[i]) == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream->vblank_synchronized = false;
 	}
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(NULL, grouped_pipes[i]) == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
@@ -2318,11 +2321,11 @@ void dcn10_enable_timing_synchronization(
 	 * synchronized. Look at last pipe programmed to reset.
 	 */
 
-	if (grouped_pipes[1]->stream && dc_state_get_pipe_subvp_type(NULL, grouped_pipes[1]) != SUBVP_PHANTOM)
+	if (grouped_pipes[1]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[1]) != SUBVP_PHANTOM)
 		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
 
 	for (i = 1; i < group_size; i++) {
-		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(NULL, grouped_pipes[i]) == SUBVP_PHANTOM)
+		if (grouped_pipes[i]->stream && dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
@@ -3022,7 +3025,7 @@ void dcn10_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
-			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable) {

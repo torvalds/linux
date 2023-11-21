@@ -32,4 +32,6 @@ bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data);
 void dc_stream_destruct(struct dc_stream_state *stream);
 
+void dc_stream_assign_stream_id(struct dc_stream_state *stream);
+
 #endif // _DC_STREAM_PRIV_H_

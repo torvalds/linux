@@ -1046,8 +1046,6 @@ static bool dc_construct(struct dc *dc,
 	if (!create_link_encoders(dc))
 		goto fail;
 
-	dc_resource_state_construct(dc, dc->current_state);
-
 	return true;
 
 fail:
@@ -1120,15 +1118,13 @@ static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *conte
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
-	struct dc_state *dangling_context = dc_state_create(dc);
+	struct dc_state *dangling_context = dc_state_create_current_copy(dc);
 	struct dc_state *current_ctx;
 	struct pipe_ctx *pipe;
 	struct timing_generator *tg;
 
 	if (dangling_context == NULL)
 		return;
-
-	dc_resource_state_copy_construct(dc->current_state, dangling_context);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_stream_state *old_stream =
@@ -1187,7 +1183,11 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 					tg->funcs->enable_crtc(tg);
 				}
 			}
-			dc_state_rem_all_planes_for_stream(dc, old_stream, dangling_context);
+
+			if (is_phantom)
+				dc_state_rem_all_phantom_planes_for_stream(dc, old_stream, dangling_context, true);
+			else
+				dc_state_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
 
 			if (pipe->stream && pipe->plane_state)
@@ -1562,7 +1562,7 @@ static void program_timing_sync(
 		if (group_size > 1) {
 			if (sync_type == TIMING_SYNCHRONIZABLE) {
 				dc->hwss.enable_timing_synchronization(
-					dc, group_index, group_size, pipe_set);
+					dc, ctx, group_index, group_size, pipe_set);
 			} else
 				if (sync_type == VBLANK_SYNCHRONIZABLE) {
 				dc->hwss.enable_vblanks_synchronization(
@@ -2075,11 +2075,9 @@ enum dc_status dc_commit_streams(struct dc *dc,
 	if (handle_exit_odm2to1)
 		res = commit_minimal_transition_state(dc, dc->current_state);
 
-	context = dc_state_create(dc);
+	context = dc_state_create_current_copy(dc);
 	if (!context)
 		goto context_alloc_fail;
-
-	dc_resource_state_copy_construct_current(dc, context);
 
 	res = dc_validate_with_context(dc, set, stream_count, context, false);
 	if (res != DC_OK) {
@@ -2218,7 +2216,7 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 			if (context->res_ctx.pipe_ctx[i].stream == NULL ||
 					context->res_ctx.pipe_ctx[i].plane_state == NULL) {
 				context->res_ctx.pipe_ctx[i].pipe_idx = i;
-				dc->hwss.disable_plane(dc, &context->res_ctx.pipe_ctx[i]);
+				dc->hwss.disable_plane(dc, context, &context->res_ctx.pipe_ctx[i]);
 			}
 
 		process_deferred_updates(dc);
@@ -2899,11 +2897,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 				       update->dsc_config->num_slices_v != 0);
 
 		/* Use temporarry context for validating new DSC config */
-		struct dc_state *dsc_validate_context = dc_state_create(dc);
+		struct dc_state *dsc_validate_context = dc_state_create_copy(dc->current_state);
 
 		if (dsc_validate_context) {
-			dc_resource_state_copy_construct(dc->current_state, dsc_validate_context);
-
 			stream->timing.dsc_cfg = *update->dsc_config;
 			stream->timing.flags.DSC = enable_dsc;
 			if (!dc->res_pool->funcs->validate_bandwidth(dc, dsc_validate_context, true)) {
@@ -3011,20 +3007,17 @@ static bool update_planes_and_stream_state(struct dc *dc,
 			new_planes[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
-		context = dc_state_create(dc);
+		context = dc_state_create_copy(dc->current_state);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return false;
 		}
 
-		dc_resource_state_copy_construct(
-				dc->current_state, context);
-
 		/* For each full update, remove all existing phantom pipes first.
 		 * Ensures that we have enough pipes for newly added MPO planes
 		 */
-		if (dc->res_pool->funcs->remove_phantom_pipes)
-			dc->res_pool->funcs->remove_phantom_pipes(dc, context, false);
+		dc_state_remove_phantom_streams_and_planes(dc, context);
+		dc_state_release_phantom_streams_and_planes(dc, context);
 
 		/*remove old surfaces from context */
 		if (!dc_state_rem_all_planes_for_stream(dc, stream, context)) {
@@ -3059,19 +3052,6 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	if (update_type == UPDATE_TYPE_FULL) {
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, context, false)) {
-			/* For phantom pipes we remove and create a new set of phantom pipes
-			 * for each full update (because we don't know if we'll need phantom
-			 * pipes until after the first round of validation). However, if validation
-			 * fails we need to keep the existing phantom pipes (because we don't update
-			 * the dc->current_state).
-			 *
-			 * The phantom stream/plane refcount is decremented for validation because
-			 * we assume it'll be removed (the free comes when the dc_state is freed),
-			 * but if validation fails we have to increment back the refcount so it's
-			 * consistent.
-			 */
-			if (dc->res_pool->funcs->retain_phantom_pipes)
-				dc->res_pool->funcs->retain_phantom_pipes(dc, dc->current_state);
 			BREAK_TO_DEBUGGER();
 			goto fail;
 		}
@@ -3390,6 +3370,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 {
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
+	struct dc_stream_status *stream_status = NULL;
 	dc_z10_restore(dc);
 
 	top_pipe_to_program = resource_get_otg_master_for_stream(
@@ -3425,6 +3406,8 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 		}
 	}
 
+	stream_status = dc_state_get_stream_status(context, stream);
+
 	build_dmub_cmd_list(dc,
 			srf_updates,
 			surface_count,
@@ -3437,7 +3420,8 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 			context->dmub_cmd_count,
 			context->block_sequence,
 			&(context->block_sequence_steps),
-			top_pipe_to_program);
+			top_pipe_to_program,
+			stream_status);
 	hwss_execute_sequence(dc,
 			context->block_sequence,
 			context->block_sequence_steps);
@@ -3974,7 +3958,7 @@ static void release_minimal_transition_state(struct dc *dc,
 static struct dc_state *create_minimal_transition_state(struct dc *dc,
 		struct dc_state *base_context, struct pipe_split_policy_backup *policy)
 {
-	struct dc_state *minimal_transition_context = dc_state_create(dc);
+	struct dc_state *minimal_transition_context = NULL;
 	unsigned int i, j;
 
 	if (!dc->config.is_vmin_only_asic) {
@@ -3986,7 +3970,7 @@ static struct dc_state *create_minimal_transition_state(struct dc *dc,
 	policy->subvp_policy = dc->debug.force_disable_subvp;
 	dc->debug.force_disable_subvp = true;
 
-	dc_resource_state_copy_construct(base_context, minimal_transition_context);
+	minimal_transition_context = dc_state_create_copy(base_context);
 
 	/* commit minimal state */
 	if (dc->res_pool->funcs->validate_bandwidth(dc, minimal_transition_context, false)) {
@@ -4018,7 +4002,6 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 	bool success = false;
 	struct dc_state *minimal_transition_context;
 	struct pipe_split_policy_backup policy;
-	struct mall_temp_config mall_temp_config;
 
 	/* commit based on new context */
 	/* Since all phantom pipes are removed in full validation,
@@ -4027,8 +4010,6 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 	 * pipe as subvp/phantom will be cleared (dc copy constructor
 	 * creates a shallow copy).
 	 */
-	if (dc->res_pool->funcs->save_mall_state)
-		dc->res_pool->funcs->save_mall_state(dc, context, &mall_temp_config);
 	minimal_transition_context = create_minimal_transition_state(dc,
 			context, &policy);
 	if (minimal_transition_context) {
@@ -4041,16 +4022,6 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 			success = dc_commit_state_no_check(dc, minimal_transition_context) == DC_OK;
 		}
 		release_minimal_transition_state(dc, minimal_transition_context, &policy);
-		if (dc->res_pool->funcs->restore_mall_state)
-			dc->res_pool->funcs->restore_mall_state(dc, context, &mall_temp_config);
-		/* If we do a minimal transition with plane removal and the context
-		 * has subvp we also have to retain back the phantom stream / planes
-		 * since the refcount is decremented as part of the min transition
-		 * (we commit a state with no subvp, so the phantom streams / planes
-		 * had to be removed).
-		 */
-		if (dc->res_pool->funcs->retain_phantom_pipes)
-			dc->res_pool->funcs->retain_phantom_pipes(dc, context);
 	}
 
 	if (!success) {
@@ -4383,7 +4354,6 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	struct dc_state *context;
 	enum surface_update_type update_type;
 	int i;
-	struct mall_temp_config mall_temp_config;
 	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
 	/* In cases where MPO and split or ODM are used transitions can
@@ -4427,23 +4397,10 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		 * pipe as subvp/phantom will be cleared (dc copy constructor
 		 * creates a shallow copy).
 		 */
-		if (dc->res_pool->funcs->save_mall_state)
-			dc->res_pool->funcs->save_mall_state(dc, context, &mall_temp_config);
 		if (!commit_minimal_transition_state(dc, context)) {
 			dc_state_release(context);
 			return false;
 		}
-		if (dc->res_pool->funcs->restore_mall_state)
-			dc->res_pool->funcs->restore_mall_state(dc, context, &mall_temp_config);
-
-		/* If we do a minimal transition with plane removal and the context
-		 * has subvp we also have to retain back the phantom stream / planes
-		 * since the refcount is decremented as part of the min transition
-		 * (we commit a state with no subvp, so the phantom streams / planes
-		 * had to be removed).
-		 */
-		if (dc->res_pool->funcs->retain_phantom_pipes)
-			dc->res_pool->funcs->retain_phantom_pipes(dc, context);
 		update_type = UPDATE_TYPE_FULL;
 	}
 
@@ -4559,13 +4516,11 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	if (update_type >= UPDATE_TYPE_FULL) {
 
 		/* initialize scratch memory for building context */
-		context = dc_state_create(dc);
+		context = dc_state_create_copy(state);
 		if (context == NULL) {
 			DC_ERROR("Failed to allocate new validate context!\n");
 			return;
 		}
-
-		dc_resource_state_copy_construct(state, context);
 
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *new_pipe = &context->res_ctx.pipe_ctx[i];
@@ -4711,7 +4666,7 @@ void dc_set_power_state(
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
-		dc_resource_state_construct(dc, dc->current_state);
+		dc_state_construct(dc, dc->current_state);
 
 		dc_z10_restore(dc);
 
@@ -4726,7 +4681,7 @@ void dc_set_power_state(
 	default:
 		ASSERT(dc->current_state->stream_count == 0);
 
-		dc_resource_state_destruct(dc->current_state);
+		dc_state_destruct(dc->current_state);
 
 		break;
 	}

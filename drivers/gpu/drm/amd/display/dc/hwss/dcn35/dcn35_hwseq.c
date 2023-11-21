@@ -814,12 +814,12 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -946,10 +946,10 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_state = NULL;
 }
 
-void dcn35_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn35_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	bool is_phantom = dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_PHANTOM;
+	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
 	DC_LOGGER_INIT(dc->ctx->logger);

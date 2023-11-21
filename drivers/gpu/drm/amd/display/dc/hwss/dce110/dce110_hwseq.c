@@ -1685,7 +1685,7 @@ static void disable_vga_and_power_gate_all_controllers(
 				true);
 
 		dc->current_state->res_ctx.pipe_ctx[i].pipe_idx = i;
-		dc->hwss.disable_plane(dc,
+		dc->hwss.disable_plane(dc, dc->current_state,
 			&dc->current_state->res_ctx.pipe_ctx[i]);
 	}
 }
@@ -2134,7 +2134,7 @@ static void dce110_reset_hw_ctx_wrap(
 										old_clk))
 				old_clk->funcs->cs_power_down(old_clk);
 
-			dc->hwss.disable_plane(dc, pipe_ctx_old);
+			dc->hwss.disable_plane(dc, dc->current_state, pipe_ctx_old);
 
 			pipe_ctx_old->stream = NULL;
 		}
@@ -2498,6 +2498,7 @@ static bool wait_for_reset_trigger_to_occur(
 /* Enable timing synchronization for a group of Timing Generators. */
 static void dce110_enable_timing_synchronization(
 		struct dc *dc,
+		struct dc_state *state,
 		int group_index,
 		int group_size,
 		struct pipe_ctx *grouped_pipes[])
@@ -2843,7 +2844,7 @@ static void dce110_post_unlock_program_front_end(
 {
 }
 
-static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
+static void dce110_power_down_fe(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	int fe_idx = pipe_ctx->plane_res.mi ?

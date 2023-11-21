@@ -1388,6 +1388,9 @@ struct dc_surface_update {
 	const struct colorspace_transform *gamut_remap_matrix;
 };
 
+/*
+ * Create a new surface with default parameters;
+ */
 void dc_gamma_retain(struct dc_gamma *dc_gamma);
 void dc_gamma_release(struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
@@ -1451,26 +1454,11 @@ enum dc_status dc_validate_global_state(
 		struct dc_state *new_ctx,
 		bool fast_validate);
 
-
-void dc_resource_state_construct(
-		const struct dc *dc,
-		struct dc_state *dst_ctx);
-
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
 		struct dc_stream_state *stream,
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
-
-void dc_resource_state_copy_construct(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx);
-
-void dc_resource_state_copy_construct_current(
-		const struct dc *dc,
-		struct dc_state *dst_ctx);
-
-void dc_resource_state_destruct(struct dc_state *context);
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 

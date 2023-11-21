@@ -349,8 +349,7 @@ void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->stream && pipe_ctx->stream->mall_stream_config.paired_stream &&
-				dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_MAIN) {
+		if (pipe_ctx->stream && dc_state_get_pipe_subvp_type(context, pipe_ctx) == SUBVP_MAIN) {
 			// There is at least 1 SubVP pipe, so enable SubVP
 			enable_subvp = true;
 			break;
@@ -419,14 +418,7 @@ void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params)
 {
 	struct dc *dc = params->subvp_pipe_control_lock_fast_params.dc;
 	bool lock = params->subvp_pipe_control_lock_fast_params.lock;
-	struct pipe_ctx *pipe_ctx = params->subvp_pipe_control_lock_fast_params.pipe_ctx;
-	bool subvp_immediate_flip = false;
-
-	if (pipe_ctx && pipe_ctx->stream && pipe_ctx->plane_state) {
-		if (dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_MAIN &&
-				pipe_ctx->plane_state->flip_immediate)
-			subvp_immediate_flip = true;
-	}
+	bool subvp_immediate_flip = params->subvp_pipe_control_lock_fast_params.subvp_immediate_flip;
 
 	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
 	if (subvp_immediate_flip) {
@@ -1382,7 +1374,7 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN &&
-				pipe->stream->mall_stream_config.paired_stream == phantom_pipe->stream) {
+				dc_state_get_paired_subvp_stream(context, pipe->stream) == phantom_pipe->stream) {
 			if (pipe->plane_state && pipe->plane_state->update_flags.bits.position_change) {
 
 				phantom_plane->src_rect.x = pipe->plane_state->src_rect.x;
@@ -1407,21 +1399,19 @@ void dcn32_update_phantom_vp_position(struct dc *dc,
 void dcn32_apply_update_flags_for_phantom(struct pipe_ctx *phantom_pipe)
 {
 	phantom_pipe->update_flags.raw = 0;
-	if (dc_state_get_pipe_subvp_type(NULL, phantom_pipe) == SUBVP_PHANTOM) {
-		if (resource_is_pipe_type(phantom_pipe, DPP_PIPE)) {
-			phantom_pipe->update_flags.bits.enable = 1;
-			phantom_pipe->update_flags.bits.mpcc = 1;
-			phantom_pipe->update_flags.bits.dppclk = 1;
-			phantom_pipe->update_flags.bits.hubp_interdependent = 1;
-			phantom_pipe->update_flags.bits.hubp_rq_dlg_ttu = 1;
-			phantom_pipe->update_flags.bits.gamut_remap = 1;
-			phantom_pipe->update_flags.bits.scaler = 1;
-			phantom_pipe->update_flags.bits.viewport = 1;
-			phantom_pipe->update_flags.bits.det_size = 1;
-			if (resource_is_pipe_type(phantom_pipe, OTG_MASTER)) {
-				phantom_pipe->update_flags.bits.odm = 1;
-				phantom_pipe->update_flags.bits.global_sync = 1;
-			}
+	if (resource_is_pipe_type(phantom_pipe, DPP_PIPE)) {
+		phantom_pipe->update_flags.bits.enable = 1;
+		phantom_pipe->update_flags.bits.mpcc = 1;
+		phantom_pipe->update_flags.bits.dppclk = 1;
+		phantom_pipe->update_flags.bits.hubp_interdependent = 1;
+		phantom_pipe->update_flags.bits.hubp_rq_dlg_ttu = 1;
+		phantom_pipe->update_flags.bits.gamut_remap = 1;
+		phantom_pipe->update_flags.bits.scaler = 1;
+		phantom_pipe->update_flags.bits.viewport = 1;
+		phantom_pipe->update_flags.bits.det_size = 1;
+		if (resource_is_pipe_type(phantom_pipe, OTG_MASTER)) {
+			phantom_pipe->update_flags.bits.odm = 1;
+			phantom_pipe->update_flags.bits.global_sync = 1;
 		}
 	}
 }

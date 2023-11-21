@@ -1697,69 +1697,6 @@ static struct dc_stream_state *dcn32_enable_phantom_stream(struct dc *dc,
 	return phantom_stream;
 }
 
-void dcn32_retain_phantom_pipes(struct dc *dc, struct dc_state *context)
-{
-	int i;
-	struct dc_plane_state *phantom_plane = NULL;
-	struct dc_stream_state *phantom_stream = NULL;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
-				resource_is_pipe_type(pipe, DPP_PIPE) &&
-				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
-			phantom_stream = pipe->stream;
-
-			dc_plane_state_retain(phantom_plane);
-			dc_stream_retain(phantom_stream);
-		}
-	}
-}
-
-// return true if removed piped from ctx, false otherwise
-bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context, bool fast_update)
-{
-	int i;
-	bool removed_pipe = false;
-	struct dc_plane_state *phantom_plane = NULL;
-	struct dc_stream_state *phantom_stream = NULL;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		// build scaling params for phantom pipes
-		if (pipe->plane_state && pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
-			phantom_stream = pipe->stream;
-
-			dc_state_rem_all_planes_for_stream(dc, pipe->stream, context);
-
-			/* For non-full updates, a shallow copy of the current state
-			 * is created. In this case we don't want to erase the current
-			 * state (there can be 2 HIRQL threads, one in flip, and one in
-			 * checkMPO) that can cause a race condition.
-			 *
-			 * This is just a workaround, needs a proper fix.
-			 */
-			if (!fast_update)
-				dc_state_remove_phantom_stream(dc, context, pipe->stream);
-			else
-				dc_state_remove_stream(dc, context, pipe->stream);
-
-			/* Ref count is incremented on allocation and also when added to the context.
-			 * Therefore we must call release for the the phantom plane and stream once
-			 * they are removed from the ctx to finally decrement the refcount to 0 to free.
-			 */
-			dc_state_release_phantom_plane(dc, context, phantom_plane);
-			dc_state_release_phantom_stream(dc, context, phantom_stream);
-
-			removed_pipe = true;
-		}
-	}
-	return removed_pipe;
-}
-
 /* TODO: Input to this function should indicate which pipe indexes (or streams)
  * require a phantom pipe / stream
  */
@@ -1803,7 +1740,6 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
-	struct mall_temp_config mall_temp_config;
 
 	/* To handle Freesync properly, setting FreeSync DML parameters
 	 * to its default state for the first stage of validation
@@ -1813,28 +1749,11 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	/* For fast validation, there are situations where a shallow copy of
-	 * of the dc->current_state is created for the validation. In this case
-	 * we want to save and restore the mall config because we always
-	 * teardown subvp at the beginning of validation (and don't attempt
-	 * to add it back if it's fast validation). If we don't restore the
-	 * subvp config in cases of fast validation + shallow copy of the
-	 * dc->current_state, the dc->current_state will have a partially
-	 * removed subvp state when we did not intend to remove it.
-	 */
-	if (fast_validate) {
-		memset(&mall_temp_config, 0, sizeof(mall_temp_config));
-		dcn32_save_mall_state(dc, context, &mall_temp_config);
-	}
-
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
 	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 	DC_FP_END();
-
-	if (fast_validate)
-		dcn32_restore_mall_state(dc, context, &mall_temp_config);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
@@ -2023,10 +1942,6 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
-	.remove_phantom_pipes = dcn32_remove_phantom_pipes,
-	.retain_phantom_pipes = dcn32_retain_phantom_pipes,
-	.save_mall_state = dcn32_save_mall_state,
-	.restore_mall_state = dcn32_restore_mall_state,
 	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
 };
 

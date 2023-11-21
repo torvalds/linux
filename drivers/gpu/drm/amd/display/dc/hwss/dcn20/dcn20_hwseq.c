@@ -624,9 +624,9 @@ void dcn20_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 }
 
 
-void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn20_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
-	bool is_phantom = dc_state_get_pipe_subvp_type(NULL, pipe_ctx) == SUBVP_PHANTOM;
+	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -1369,10 +1369,13 @@ void dcn20_pipe_control_lock(
 	}
 }
 
-static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx *new_pipe)
+static void dcn20_detect_pipe_changes(struct dc_state *old_state,
+		struct dc_state *new_state,
+		struct pipe_ctx *old_pipe,
+		struct pipe_ctx *new_pipe)
 {
-	bool old_is_phantom = dc_state_get_pipe_subvp_type(NULL, old_pipe) == SUBVP_PHANTOM;
-	bool new_is_phantom = dc_state_get_pipe_subvp_type(NULL, new_pipe) == SUBVP_PHANTOM;
+	bool old_is_phantom = dc_state_get_pipe_subvp_type(old_state, old_pipe) == SUBVP_PHANTOM;
+	bool new_is_phantom = dc_state_get_pipe_subvp_type(new_state, new_pipe) == SUBVP_PHANTOM;
 
 	new_pipe->update_flags.raw = 0;
 
@@ -1420,7 +1423,7 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	 * The remove-add sequence of the phantom pipe always results in the pipe
 	 * being blanked in enable_stream_timing (DPG).
 	 */
-	if (new_pipe->stream && dc_state_get_pipe_subvp_type(NULL, new_pipe) == SUBVP_PHANTOM)
+	if (new_pipe->stream && dc_state_get_pipe_subvp_type(new_state, new_pipe) == SUBVP_PHANTOM)
 		new_pipe->update_flags.bits.enable = 1;
 
 	/* Phantom pipes are effectively disabled, if the pipe was previously phantom
@@ -1782,7 +1785,7 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_offset,
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
-		if (pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM)
+		if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM)
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
@@ -1921,7 +1924,7 @@ void dcn20_program_front_end_for_ctx(
 
 	/* Set pipe update flags and lock pipes */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
-		dcn20_detect_pipe_changes(&dc->current_state->res_ctx.pipe_ctx[i],
+		dcn20_detect_pipe_changes(dc->current_state, context, &dc->current_state->res_ctx.pipe_ctx[i],
 				&context->res_ctx.pipe_ctx[i]);
 
 	/* When disabling phantom pipes, turn on phantom OTG first (so we can get double
@@ -1971,7 +1974,7 @@ void dcn20_program_front_end_for_ctx(
 			if (hubbub->funcs->program_det_size && (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
 					(context->res_ctx.pipe_ctx[i].plane_state && dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[i]) == SUBVP_PHANTOM)))
 				hubbub->funcs->program_det_size(hubbub, dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
-			hws->funcs.plane_atomic_disconnect(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			hws->funcs.plane_atomic_disconnect(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 			DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);
 		}
 
@@ -2044,7 +2047,7 @@ void dcn20_post_unlock_program_front_end(
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
-			dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
+			dc->hwss.disable_plane(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
 
 	/*
 	 * If we are enabling a pipe, we need to wait for pending clear as this is a critical
@@ -2954,7 +2957,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 		/*to do*/
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 	}
 
 	/* initialize DWB pointer to MCIF_WB */
@@ -2971,7 +2974,7 @@ void dcn20_fpga_init_hw(struct dc *dc)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;

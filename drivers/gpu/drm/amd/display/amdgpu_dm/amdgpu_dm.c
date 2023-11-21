@@ -2608,11 +2608,9 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 
 	memset(del_streams, 0, sizeof(del_streams));
 
-	context = dc_state_create(dc);
+	context = dc_state_create_current_copy(dc);
 	if (context == NULL)
 		goto context_alloc_fail;
-
-	dc_resource_state_copy_construct_current(dc, context);
 
 	/* First remove from context all streams */
 	for (i = 0; i < context->stream_count; i++) {
@@ -2923,7 +2921,6 @@ static int dm_resume(void *handle)
 	dc_state_release(dm_state->context);
 	dm_state->context = dc_state_create(dm->dc);
 	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
-	dc_resource_state_construct(dm->dc, dm_state->context);
 
 	/* Before powering on DC we need to re-initialize DMUB. */
 	dm_dmub_hw_resume(adev);
@@ -4051,13 +4048,11 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	if (!state)
 		return -ENOMEM;
 
-	state->context = dc_state_create(adev->dm.dc);
+	state->context = dc_state_create_current_copy(adev->dm.dc);
 	if (!state->context) {
 		kfree(state);
 		return -ENOMEM;
 	}
-
-	dc_resource_state_copy_construct_current(adev->dm.dc, state->context);
 
 	drm_atomic_private_obj_init(adev_to_drm(adev),
 				    &adev->dm.atomic_obj,

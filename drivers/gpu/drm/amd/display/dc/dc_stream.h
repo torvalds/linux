@@ -38,6 +38,14 @@ struct timing_sync_info {
 	bool master;
 };
 
+struct mall_stream_config {
+	/* MALL stream config to indicate if the stream is phantom or not.
+	 * We will use a phantom stream to indicate that the pipe is phantom.
+	 */
+	enum mall_stream_type type;
+	struct dc_stream_state *paired_stream;	// master / slave stream
+};
+
 struct dc_stream_status {
 	int primary_otg_inst;
 	int stream_enc_inst;
@@ -50,6 +58,7 @@ struct dc_stream_status {
 	struct timing_sync_info timing_sync_info;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 	bool is_abm_supported;
+	struct mall_stream_config mall_stream_config;
 };
 
 enum hubp_dmdata_mode {
@@ -145,25 +154,6 @@ struct test_pattern {
 };
 
 #define SUBVP_DRR_MARGIN_US 100 // 100us for DRR margin (SubVP + DRR)
-
-struct mall_stream_config {
-	/* MALL stream config to indicate if the stream is phantom or not.
-	 * We will use a phantom stream to indicate that the pipe is phantom.
-	 */
-	enum mall_stream_type type;
-	struct dc_stream_state *paired_stream;	// master / slave stream
-};
-
-/* Temp struct used to save and restore MALL config
- * during validation.
- *
- * TODO: Move MALL config into dc_state instead of stream struct
- * to avoid needing to save/restore.
- */
-struct mall_temp_config {
-	struct mall_stream_config mall_stream_config[MAX_PIPES];
-	bool is_phantom_plane[MAX_PIPES];
-};
 
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
@@ -294,7 +284,7 @@ struct dc_stream_state {
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
 	bool fpo_in_use;
-	struct mall_stream_config mall_stream_config;
+	bool is_phantom;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255

@@ -672,12 +672,14 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	uint32_t prefetch_delta_us = 0;
 	struct dc_stream_state *phantom_stream0 = NULL;
 	struct dc_stream_state *phantom_stream1 = NULL;
-	struct dc_crtc_timing *phantom_timing0 = &phantom_stream0->timing;
-	struct dc_crtc_timing *phantom_timing1 = &phantom_stream1->timing;
+	struct dc_crtc_timing *phantom_timing0 = NULL;
+	struct dc_crtc_timing *phantom_timing1 = NULL;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
 
 	phantom_stream0 = dc_state_get_paired_subvp_stream(context, subvp_pipes[0]->stream);
 	phantom_stream1 = dc_state_get_paired_subvp_stream(context, subvp_pipes[1]->stream);
+	phantom_timing0 = &phantom_stream0->timing;
+	phantom_timing1 = &phantom_stream1->timing;
 
 	subvp0_prefetch_us = div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
 			(uint64_t)phantom_timing0->h_total * 1000000),
@@ -853,7 +855,6 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 			 */
 			if (resource_is_pipe_type(pipe, OTG_MASTER) &&
 					resource_is_pipe_type(pipe, DPP_PIPE) &&
-					pipe->stream->mall_stream_config.paired_stream &&
 					pipe_mall_type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 			} else if (resource_is_pipe_type(pipe, OTG_MASTER) &&

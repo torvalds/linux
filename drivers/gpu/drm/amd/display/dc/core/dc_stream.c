@@ -123,8 +123,7 @@ bool dc_stream_construct(struct dc_stream_state *stream,
 	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 
-	stream->stream_id = stream->ctx->dc_stream_id_count;
-	stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(stream);
 
 	return true;
 }
@@ -136,6 +135,13 @@ void dc_stream_destruct(struct dc_stream_state *stream)
 		dc_transfer_func_release(stream->out_transfer_func);
 		stream->out_transfer_func = NULL;
 	}
+}
+
+void dc_stream_assign_stream_id(struct dc_stream_state *stream)
+{
+	/* MSB is reserved to indicate phantoms */
+	stream->stream_id = stream->ctx->dc_stream_id_count;
+	stream->ctx->dc_stream_id_count++;
 }
 
 void dc_stream_retain(struct dc_stream_state *stream)
@@ -198,8 +204,7 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
-	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
-	new_stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(new_stream);
 
 	/* If using dynamic encoder assignment, wait till stream committed to assign encoder. */
 	if (new_stream->ctx->dc->res_pool->funcs->link_encs_assign)

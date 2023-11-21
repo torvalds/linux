@@ -807,7 +807,7 @@ static void add_phantom_pipes_for_main_pipe(struct dml2_context *ctx, struct dc_
 	}
 }
 
-static bool remove_all_planes_for_stream(struct dml2_context *ctx, struct dc_stream_state *stream, struct dc_state *context)
+static bool remove_all_phantom_planes_for_stream(struct dml2_context *ctx, struct dc_stream_state *stream, struct dc_state *context)
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
@@ -828,9 +828,11 @@ static bool remove_all_planes_for_stream(struct dml2_context *ctx, struct dc_str
 	for (i = 0; i < old_plane_count; i++)
 		del_planes[i] = stream_status->plane_states[i];
 
-	for (i = 0; i < old_plane_count; i++)
+	for (i = 0; i < old_plane_count; i++) {
 		if (!ctx->config.svp_pstate.callbacks.remove_phantom_plane(ctx->config.svp_pstate.callbacks.dc, stream, del_planes[i], context))
 			return false;
+		ctx->config.svp_pstate.callbacks.release_phantom_plane(ctx->config.svp_pstate.callbacks.dc, context, del_planes[i]);
+	}
 
 	return true;
 }
@@ -839,37 +841,19 @@ bool dml2_svp_remove_all_phantom_pipes(struct dml2_context *ctx, struct dc_state
 {
 	int i;
 	bool removed_pipe = false;
-	struct dc_plane_state *phantom_plane = NULL;
 	struct dc_stream_state *phantom_stream = NULL;
 
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
 		// build scaling params for phantom pipes
 		if (pipe->plane_state && pipe->stream && ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
 			phantom_stream = pipe->stream;
 
-			remove_all_planes_for_stream(ctx, pipe->stream, state);
-			ctx->config.svp_pstate.callbacks.remove_phantom_stream(ctx->config.svp_pstate.callbacks.dc, state, pipe->stream);
-
-			/* Ref count is incremented on allocation and also when added to the context.
-			 * Therefore we must call release for the the phantom plane and stream once
-			 * they are removed from the ctx to finally decrement the refcount to 0 to free.
-			 */
-			ctx->config.svp_pstate.callbacks.release_phantom_plane(ctx->config.svp_pstate.callbacks.dc,
-					state,
-					phantom_plane);
-			ctx->config.svp_pstate.callbacks.release_phantom_stream(ctx->config.svp_pstate.callbacks.dc,
-					state,
-					phantom_stream);
+			remove_all_phantom_planes_for_stream(ctx, phantom_stream, state);
+			ctx->config.svp_pstate.callbacks.remove_phantom_stream(ctx->config.svp_pstate.callbacks.dc, state, phantom_stream);
+			ctx->config.svp_pstate.callbacks.release_phantom_stream(ctx->config.svp_pstate.callbacks.dc, state, phantom_stream);
 
 			removed_pipe = true;
-		}
-
-		// Clear all phantom stream info
-		if (pipe->stream) {
-			pipe->stream->mall_stream_config.type = SUBVP_NONE;
-			pipe->stream->mall_stream_config.paired_stream = NULL;
 		}
 
 		if (pipe->plane_state) {

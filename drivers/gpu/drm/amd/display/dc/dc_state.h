@@ -29,9 +29,13 @@
 #include "dc.h"
 #include "inc/core_status.h"
 
-
 struct dc_state *dc_state_create(struct dc *dc);
+void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state);
 struct dc_state *dc_state_create_copy(struct dc_state *src_state);
+void dc_state_copy_current(struct dc *dc, struct dc_state *dst_state);
+struct dc_state *dc_state_create_current_copy(struct dc *dc);
+void dc_state_construct(struct dc *dc, struct dc_state *state);
+void dc_state_destruct(struct dc_state *state);
 void dc_state_retain(struct dc_state *state);
 void dc_state_release(struct dc_state *state);
 
