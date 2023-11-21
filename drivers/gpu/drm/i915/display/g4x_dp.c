@@ -432,7 +432,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
-	intel_dp->DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	intel_dp->DP &= ~DP_PORT_EN;
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
 
@@ -479,8 +479,15 @@ static void g4x_dp_audio_enable(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
 				const struct drm_connector_state *conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (!crtc_state->has_audio)
 		return;
+
+	/* Enable audio presence detect */
+	intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
+	intel_de_write(i915, intel_dp->output_reg, intel_dp->DP);
 
 	intel_audio_codec_enable(encoder, crtc_state, conn_state);
 }
@@ -489,10 +496,17 @@ static void g4x_dp_audio_disable(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
 				 const struct drm_connector_state *old_conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+
 	if (!old_crtc_state->has_audio)
 		return;
 
 	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+
+	/* Disable audio presence detect */
+	intel_dp->DP &= ~DP_AUDIO_OUTPUT_ENABLE;
+	intel_de_write(i915, intel_dp->output_reg, intel_dp->DP);
 }
 
 static void intel_disable_dp(struct intel_atomic_state *state,
@@ -651,8 +665,6 @@ static void intel_dp_enable_port(struct intel_dp *intel_dp,
 	 * fail when the power sequencer is freshly used for this port.
 	 */
 	intel_dp->DP |= DP_PORT_EN;
-	if (crtc_state->has_audio)
-		intel_dp->DP |= DP_AUDIO_OUTPUT_ENABLE;
 
 	intel_de_write(dev_priv, intel_dp->output_reg, intel_dp->DP);
 	intel_de_posting_read(dev_priv, intel_dp->output_reg);
