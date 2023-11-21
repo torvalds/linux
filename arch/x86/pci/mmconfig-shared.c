@@ -786,6 +786,10 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 		return -EEXIST;
 	}
 
+	/*
+	 * Don't move earlier; we must return -EEXIST, not -EINVAL, if
+	 * pci_mmconfig_lookup() finds something
+	 */
 	if (!addr) {
 		mutex_unlock(&pci_mmcfg_lock);
 		return -EINVAL;
