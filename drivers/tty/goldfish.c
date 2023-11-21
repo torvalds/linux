@@ -128,16 +128,14 @@ static void goldfish_tty_rw(struct goldfish_tty *qtty,
 static void goldfish_tty_do_write(int line, const u8 *buf, unsigned int count)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
-	unsigned long address = (unsigned long)(void *)buf;
 
-	goldfish_tty_rw(qtty, address, count, 1);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, 1);
 }
 
 static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 {
 	struct goldfish_tty *qtty = dev_id;
 	void __iomem *base = qtty->base;
-	unsigned long address;
 	unsigned char *buf;
 	u32 count;
 
@@ -147,8 +145,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 
-	address = (unsigned long)(void *)buf;
-	goldfish_tty_rw(qtty, address, count, 0);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, 0);
 
 	tty_flip_buffer_push(&qtty->port);
 	return IRQ_HANDLED;
