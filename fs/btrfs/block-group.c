@@ -1303,7 +1303,8 @@ struct btrfs_trans_handle *btrfs_start_trans_remove_block_group(
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
 	read_unlock(&em_tree->lock);
-	ASSERT(em && em->start == chunk_offset);
+	ASSERT(em != NULL);
+	ASSERT(em->start == chunk_offset);
 
 	/*
 	 * We need to reserve 3 + N units from the metadata space info in order
