@@ -516,8 +516,6 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
-
 	intel_dp->link_trained = false;
 
 	/*

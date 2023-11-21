@@ -3359,7 +3359,6 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 
 	intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 
-	encoder->audio_enable(encoder, crtc_state, conn_state);
 }
 
 static void intel_disable_ddi_dp(struct intel_atomic_state *state,
@@ -3403,8 +3402,6 @@ static void intel_disable_ddi(struct intel_atomic_state *state,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
-	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
-
 	intel_tc_port_link_cancel_reset_work(enc_to_dig_port(encoder));
 
 	intel_hdcp_disable(to_intel_connector(old_conn_state->connector));

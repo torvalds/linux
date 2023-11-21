@@ -918,8 +918,6 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	drm_dbg_kms(&i915->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 
-	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
-
 	intel_hdcp_disable(intel_mst->connector);
 
 	intel_dp_sink_disable_decompression(state, connector, old_crtc_state);
@@ -1165,8 +1163,6 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	intel_crtc_vblank_on(pipe_config);
 
 	intel_hdcp_enable(state, encoder, pipe_config, conn_state);
-
-	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
