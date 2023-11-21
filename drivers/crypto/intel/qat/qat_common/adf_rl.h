@@ -79,6 +79,7 @@ struct adf_rl_interface_data {
 	struct adf_rl_sla_input_data input;
 	enum adf_base_services cap_rem_srv;
 	struct rw_semaphore lock;
+	bool sysfs_added;
 };
 
 struct adf_rl_hw_data {
