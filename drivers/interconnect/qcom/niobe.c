@@ -386,16 +386,17 @@ static struct qcom_icc_node qnm_gemnoc_cnoc = {
 	.channels = 1,
 	.buswidth = 16,
 	.noc_ops = &qcom_qnoc4_ops,
-	.num_links = 18,
+	.num_links = 19,
 	.links = { SLAVE_AOSS, SLAVE_APPSS,
 		   SLAVE_DISPLAY1_CFG, SLAVE_DISPLAY_CFG,
 		   SLAVE_GFX3D_CFG, SLAVE_IPA_CFG,
-		   SLAVE_IPC_ROUTER_CFG, SLAVE_PCIE_0_CFG,
-		   SLAVE_PCIE_1_CFG, SLAVE_PCIE_2_CFG,
-		   SLAVE_SOCCP, SLAVE_TME_CFG,
-		   SLAVE_CNOC_CFG, SLAVE_DDRSS_CFG,
-		   SLAVE_BOOT_IMEM, SLAVE_BOOT_IMEM_2,
-		   SLAVE_IMEM, SLAVE_SERVICE_CNOC },
+		   SLAVE_IPC_ROUTER_CFG, SLAVE_LPASS,
+		   SLAVE_PCIE_0_CFG, SLAVE_PCIE_1_CFG,
+		   SLAVE_PCIE_2_CFG, SLAVE_SOCCP,
+		   SLAVE_TME_CFG, SLAVE_CNOC_CFG,
+		   SLAVE_DDRSS_CFG, SLAVE_BOOT_IMEM,
+		   SLAVE_BOOT_IMEM_2, SLAVE_IMEM,
+		   SLAVE_SERVICE_CNOC },
 };
 
 static struct qcom_icc_node qnm_gemnoc_pcie = {
@@ -484,6 +485,29 @@ static struct qcom_icc_node qnm_gpu = {
 	.qosbox = &qnm_gpu_qos,
 	.num_links = 2,
 	.links = { SLAVE_GEM_NOC_CNOC, SLAVE_LLCC },
+};
+
+static struct qcom_icc_qosbox qnm_lpass_gemnoc_qos = {
+	.regs = icc_qnoc_qos_regs[ICC_QNOC_QOSGEN_TYPE_RPMH],
+	.num_ports = 1,
+	.offsets = { 0xb5000 },
+	.config = &(struct qos_config) {
+		.prio = 0,
+		.urg_fwd = 1,
+		.prio_fwd_disable = 0,
+	},
+};
+
+static struct qcom_icc_node qnm_lpass_gemnoc = {
+	.name = "qnm_lpass_gemnoc",
+	.id = MASTER_LPASS_GEM_NOC,
+	.channels = 1,
+	.buswidth = 16,
+	.noc_ops = &qcom_qnoc4_ops,
+	.qosbox = &qnm_lpass_gemnoc_qos,
+	.num_links = 3,
+	.links = { SLAVE_GEM_NOC_CNOC, SLAVE_LLCC,
+		   SLAVE_MEM_NOC_PCIE_SNOC },
 };
 
 static struct qcom_icc_qosbox qnm_mnoc_hf_qos = {
@@ -618,6 +642,29 @@ static struct qcom_icc_node xm_gic = {
 	.qosbox = &xm_gic_qos,
 	.num_links = 1,
 	.links = { SLAVE_LLCC },
+};
+
+static struct qcom_icc_node qhm_config_noc = {
+	.name = "qhm_config_noc",
+	.id = MASTER_CNOC_LPASS_AG_NOC,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 6,
+	.links = { SLAVE_LPASS_CORE_CFG, SLAVE_LPASS_LPI_CFG,
+		   SLAVE_LPASS_MPU_CFG, SLAVE_LPASS_TOP_CFG,
+		   SLAVE_SERVICES_LPASS_AML_NOC, SLAVE_SERVICE_LPASS_AG_NOC },
+};
+
+static struct qcom_icc_node qxm_lpass_dsp = {
+	.name = "qxm_lpass_dsp",
+	.id = MASTER_LPASS_PROC,
+	.channels = 1,
+	.buswidth = 8,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 4,
+	.links = { SLAVE_LPASS_TOP_CFG, SLAVE_LPASS_GEM_NOC,
+		   SLAVE_SERVICES_LPASS_AML_NOC, SLAVE_SERVICE_LPASS_AG_NOC },
 };
 
 static struct qcom_icc_node llcc_mc = {
@@ -1591,6 +1638,16 @@ static struct qcom_icc_node qhs_ipc_router = {
 	.num_links = 0,
 };
 
+static struct qcom_icc_node qhs_lpass_cfg = {
+	.name = "qhs_lpass_cfg",
+	.id = SLAVE_LPASS,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 1,
+	.links = { MASTER_CNOC_LPASS_AG_NOC },
+};
+
 static struct qcom_icc_node qhs_pcie3_0_cfg = {
 	.name = "qhs_pcie3_0_cfg",
 	.id = SLAVE_PCIE_0_CFG,
@@ -1746,6 +1803,70 @@ static struct qcom_icc_node qns_pcie = {
 	.noc_ops = &qcom_qnoc4_ops,
 	.num_links = 1,
 	.links = { MASTER_GEM_NOC_PCIE_SNOC },
+};
+
+static struct qcom_icc_node qhs_lpass_core = {
+	.name = "qhs_lpass_core",
+	.id = SLAVE_LPASS_CORE_CFG,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
+};
+
+static struct qcom_icc_node qhs_lpass_lpi = {
+	.name = "qhs_lpass_lpi",
+	.id = SLAVE_LPASS_LPI_CFG,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
+};
+
+static struct qcom_icc_node qhs_lpass_mpu = {
+	.name = "qhs_lpass_mpu",
+	.id = SLAVE_LPASS_MPU_CFG,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
+};
+
+static struct qcom_icc_node qhs_lpass_top = {
+	.name = "qhs_lpass_top",
+	.id = SLAVE_LPASS_TOP_CFG,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
+};
+
+static struct qcom_icc_node qns_lpass_ag_noc_gemnoc = {
+	.name = "qns_lpass_ag_noc_gemnoc",
+	.id = SLAVE_LPASS_GEM_NOC,
+	.channels = 1,
+	.buswidth = 16,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 1,
+	.links = { MASTER_LPASS_GEM_NOC },
+};
+
+static struct qcom_icc_node srvc_niu_aml_noc = {
+	.name = "srvc_niu_aml_noc",
+	.id = SLAVE_SERVICES_LPASS_AML_NOC,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
+};
+
+static struct qcom_icc_node srvc_niu_lpass_agnoc = {
+	.name = "srvc_niu_lpass_agnoc",
+	.id = SLAVE_SERVICE_LPASS_AG_NOC,
+	.channels = 1,
+	.buswidth = 4,
+	.noc_ops = &qcom_qnoc4_ops,
+	.num_links = 0,
 };
 
 static struct qcom_icc_node ebi = {
@@ -2031,7 +2152,7 @@ static struct qcom_icc_bcm bcm_cn0 = {
 	.voter_idx = VOTER_IDX_HLOS,
 	.enable_mask = 0x1,
 	.keepalive = true,
-	.num_nodes = 47,
+	.num_nodes = 48,
 	.nodes = { &qsm_cfg, &qhs_ahb2phy0,
 		   &qhs_ahb2phy1, &qhs_ahb2phy2,
 		   &qhs_camera_cfg, &qhs_clk_ctl,
@@ -2048,14 +2169,14 @@ static struct qcom_icc_bcm bcm_cn0 = {
 		   &qhs_aoss, &qhs_apss,
 		   &qhs_display1_cfg, &qhs_display_cfg,
 		   &qhs_gpuss_cfg, &qhs_ipa,
-		   &qhs_ipc_router, &qhs_pcie3_0_cfg,
-		   &qhs_pcie4_1_cfg, &qhs_pcie4_0_cfg,
-		   &qhs_soccp, &qhs_tme_cfg,
-		   &qss_cfg, &qss_ddrss_cfg,
-		   &qxs_boot_imem, &qxs_boot_imem2,
-		   &qxs_imem, &srvc_cnoc_main,
-		   &xs_pcie3_0, &xs_pcie4_1,
-		   &xs_pcie4_0 },
+		   &qhs_ipc_router, &qhs_lpass_cfg,
+		   &qhs_pcie3_0_cfg, &qhs_pcie4_1_cfg,
+		   &qhs_pcie4_0_cfg, &qhs_soccp,
+		   &qhs_tme_cfg, &qss_cfg,
+		   &qss_ddrss_cfg, &qxs_boot_imem,
+		   &qxs_boot_imem2, &qxs_imem,
+		   &srvc_cnoc_main, &xs_pcie3_0,
+		   &xs_pcie4_1, &xs_pcie4_0 },
 };
 
 static struct qcom_icc_bcm bcm_cn1 = {
@@ -2543,6 +2664,7 @@ static struct qcom_icc_node *cnoc_main_nodes[] = {
 	[SLAVE_GFX3D_CFG] = &qhs_gpuss_cfg,
 	[SLAVE_IPA_CFG] = &qhs_ipa,
 	[SLAVE_IPC_ROUTER_CFG] = &qhs_ipc_router,
+	[SLAVE_LPASS] = &qhs_lpass_cfg,
 	[SLAVE_PCIE_0_CFG] = &qhs_pcie3_0_cfg,
 	[SLAVE_PCIE_1_CFG] = &qhs_pcie4_1_cfg,
 	[SLAVE_PCIE_2_CFG] = &qhs_pcie4_0_cfg,
@@ -2593,6 +2715,7 @@ static struct qcom_icc_node *gem_noc_nodes[] = {
 	[MASTER_SYS_TCU] = &alm_sys_tcu,
 	[MASTER_APPSS_PROC] = &chm_apps,
 	[MASTER_GFX3D] = &qnm_gpu,
+	[MASTER_LPASS_GEM_NOC] = &qnm_lpass_gemnoc,
 	[MASTER_MNOC_HF_MEM_NOC] = &qnm_mnoc_hf,
 	[MASTER_MNOC_SF_MEM_NOC] = &qnm_mnoc_sf,
 	[MASTER_COMPUTE_NOC] = &qnm_nsp_gemnoc,
@@ -2640,6 +2763,15 @@ static struct qcom_icc_bcm *lpass_ag_noc_bcms[] = {
 };
 
 static struct qcom_icc_node *lpass_ag_noc_nodes[] = {
+	[MASTER_CNOC_LPASS_AG_NOC] = &qhm_config_noc,
+	[MASTER_LPASS_PROC] = &qxm_lpass_dsp,
+	[SLAVE_LPASS_CORE_CFG] = &qhs_lpass_core,
+	[SLAVE_LPASS_LPI_CFG] = &qhs_lpass_lpi,
+	[SLAVE_LPASS_MPU_CFG] = &qhs_lpass_mpu,
+	[SLAVE_LPASS_TOP_CFG] = &qhs_lpass_top,
+	[SLAVE_LPASS_GEM_NOC] = &qns_lpass_ag_noc_gemnoc,
+	[SLAVE_SERVICES_LPASS_AML_NOC] = &srvc_niu_aml_noc,
+	[SLAVE_SERVICE_LPASS_AG_NOC] = &srvc_niu_lpass_agnoc,
 };
 
 static char *lpass_ag_noc_voters[] = {
