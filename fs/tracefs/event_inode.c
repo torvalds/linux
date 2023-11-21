@@ -327,6 +327,8 @@ create_file_dentry(struct eventfs_inode *ei, int idx,
 	struct dentry **e_dentry = &ei->d_children[idx];
 	struct dentry *dentry;
 
+	WARN_ON_ONCE(!inode_is_locked(parent->d_inode));
+
 	mutex_lock(&eventfs_mutex);
 	if (ei->is_freed) {
 		mutex_unlock(&eventfs_mutex);
@@ -429,6 +431,8 @@ create_dir_dentry(struct eventfs_inode *pei, struct eventfs_inode *ei,
 		  struct dentry *parent, bool lookup)
 {
 	struct dentry *dentry = NULL;
+
+	WARN_ON_ONCE(!inode_is_locked(parent->d_inode));
 
 	mutex_lock(&eventfs_mutex);
 	if (pei->is_freed || ei->is_freed) {
