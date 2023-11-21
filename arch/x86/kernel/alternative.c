@@ -544,7 +544,7 @@ static inline bool is_jcc32(struct insn *insn)
 	return insn->opcode.bytes[0] == 0x0f && (insn->opcode.bytes[1] & 0xf0) == 0x80;
 }
 
-#if defined(CONFIG_RETPOLINE) && defined(CONFIG_OBJTOOL)
+#if defined(CONFIG_MITIGATION_RETPOLINE) && defined(CONFIG_OBJTOOL)
 
 /*
  * CALL/JMP *%\reg
@@ -844,12 +844,12 @@ void __init_or_module noinline apply_returns(s32 *start, s32 *end)
 void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
 #endif /* CONFIG_RETHUNK */
 
-#else /* !CONFIG_RETPOLINE || !CONFIG_OBJTOOL */
+#else /* !CONFIG_MITIGATION_RETPOLINE || !CONFIG_OBJTOOL */
 
 void __init_or_module noinline apply_retpolines(s32 *start, s32 *end) { }
 void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
 
-#endif /* CONFIG_RETPOLINE && CONFIG_OBJTOOL */
+#endif /* CONFIG_MITIGATION_RETPOLINE && CONFIG_OBJTOOL */
 
 #ifdef CONFIG_X86_KERNEL_IBT
 
