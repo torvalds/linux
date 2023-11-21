@@ -313,10 +313,14 @@ static inline struct extent_state *tree_search(struct extent_io_tree *tree, u64 
 	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
-static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
+static void extent_io_tree_panic(const struct extent_io_tree *tree,
+				 const struct extent_state *state,
+				 const char *opname,
+				 int err)
 {
 	btrfs_panic(tree->fs_info, err,
-	"locking error: extent tree was modified by another thread while locked");
+		    "extent io tree error on %s state start %llu end %llu",
+		    opname, state->start, state->end);
 }
 
 static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *state)
@@ -676,7 +680,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		prealloc = NULL;
 		if (err)
@@ -698,7 +702,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		if (wake)
 			wake_up(&state->wq);
@@ -1133,7 +1137,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		prealloc = NULL;
 		if (err)
@@ -1181,7 +1185,7 @@ hit_next:
 		inserted_state = insert_state(tree, prealloc, bits, changeset);
 		if (IS_ERR(inserted_state)) {
 			err = PTR_ERR(inserted_state);
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, prealloc, "insert", err);
 		}
 
 		cache_state(inserted_state, cached_state);
@@ -1209,7 +1213,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		set_state_bits(tree, prealloc, bits, changeset);
 		cache_state(prealloc, cached_state);
@@ -1363,7 +1367,7 @@ hit_next:
 		}
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 		prealloc = NULL;
 		if (err)
 			goto out;
@@ -1411,7 +1415,7 @@ hit_next:
 		inserted_state = insert_state(tree, prealloc, bits, NULL);
 		if (IS_ERR(inserted_state)) {
 			err = PTR_ERR(inserted_state);
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, prealloc, "insert", err);
 		}
 		cache_state(inserted_state, cached_state);
 		if (inserted_state == prealloc)
@@ -1434,7 +1438,7 @@ hit_next:
 
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		set_state_bits(tree, prealloc, bits, NULL);
 		cache_state(prealloc, cached_state);
