@@ -1549,7 +1549,6 @@ struct btrfs_plug_cb {
 	struct blk_plug_cb cb;
 	struct btrfs_fs_info *info;
 	struct list_head rbio_list;
-	struct work_struct work;
 };
 
 /*
