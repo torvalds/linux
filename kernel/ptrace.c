@@ -145,19 +145,8 @@ void __ptrace_unlink(struct task_struct *child)
 	 */
 	if (!(child->flags & PF_EXITING) &&
 	    (child->signal->flags & SIGNAL_STOP_STOPPED ||
-	     child->signal->group_stop_count)) {
+	     child->signal->group_stop_count))
 		child->jobctl |= JOBCTL_STOP_PENDING;
-
-		/*
-		 * This is only possible if this thread was cloned by the
-		 * traced task running in the stopped group, set the signal
-		 * for the future reports.
-		 * FIXME: we should change ptrace_init_task() to handle this
-		 * case.
-		 */
-		if (!(child->jobctl & JOBCTL_STOP_SIGMASK))
-			child->jobctl |= SIGSTOP;
-	}
 
 	/*
 	 * If transition to TASK_STOPPED is pending or in TASK_TRACED, kick
