@@ -901,12 +901,18 @@ static bool needs_async_flip_vtd_wa(const struct intel_crtc_state *crtc_state)
 static bool planes_enabling(const struct intel_crtc_state *old_crtc_state,
 			    const struct intel_crtc_state *new_crtc_state)
 {
+	if (!new_crtc_state->hw.active)
+		return false;
+
 	return is_enabling(active_planes, old_crtc_state, new_crtc_state);
 }
 
 static bool planes_disabling(const struct intel_crtc_state *old_crtc_state,
 			     const struct intel_crtc_state *new_crtc_state)
 {
+	if (!old_crtc_state->hw.active)
+		return false;
+
 	return is_disabling(active_planes, old_crtc_state, new_crtc_state);
 }
 
@@ -923,6 +929,9 @@ static bool vrr_params_changed(const struct intel_crtc_state *old_crtc_state,
 static bool vrr_enabling(const struct intel_crtc_state *old_crtc_state,
 			 const struct intel_crtc_state *new_crtc_state)
 {
+	if (!new_crtc_state->hw.active)
+		return false;
+
 	return is_enabling(vrr.enable, old_crtc_state, new_crtc_state) ||
 		(new_crtc_state->vrr.enable &&
 		 (new_crtc_state->update_m_n || new_crtc_state->update_lrr ||
@@ -932,6 +941,9 @@ static bool vrr_enabling(const struct intel_crtc_state *old_crtc_state,
 static bool vrr_disabling(const struct intel_crtc_state *old_crtc_state,
 			  const struct intel_crtc_state *new_crtc_state)
 {
+	if (!old_crtc_state->hw.active)
+		return false;
+
 	return is_disabling(vrr.enable, old_crtc_state, new_crtc_state) ||
 		(old_crtc_state->vrr.enable &&
 		 (new_crtc_state->update_m_n || new_crtc_state->update_lrr ||
