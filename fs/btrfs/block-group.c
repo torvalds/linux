@@ -2597,15 +2597,12 @@ static int insert_dev_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_device *device;
 	struct btrfs_chunk_map *map;
 	u64 dev_offset;
-	u64 stripe_size;
 	int i;
 	int ret = 0;
 
 	map = btrfs_get_chunk_map(fs_info, chunk_offset, chunk_size);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
-
-	stripe_size = map->stripe_size;
 
 	/*
 	 * Take the device list mutex to prevent races with the final phase of
@@ -2622,7 +2619,7 @@ static int insert_dev_extents(struct btrfs_trans_handle *trans,
 		dev_offset = map->stripes[i].physical;
 
 		ret = insert_dev_extent(trans, device, chunk_offset, dev_offset,
-				       stripe_size);
+					map->stripe_size);
 		if (ret)
 			break;
 	}
