@@ -162,6 +162,7 @@ static int rk3588_npu_set_read_margin(struct device *dev,
 				      struct rockchip_opp_info *opp_info,
 				      u32 rm)
 {
+	struct rknpu_device *rknpu_dev = dev_get_drvdata(dev);
 	u32 offset = 0, val = 0;
 	int i, ret = 0;
 
@@ -173,7 +174,7 @@ static int rk3588_npu_set_read_margin(struct device *dev,
 
 	LOG_DEV_DEBUG(dev, "set rm to %d\n", rm);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < rknpu_dev->config->num_irqs; i++) {
 		ret = regmap_read(opp_info->grf, offset, &val);
 		if (ret < 0) {
 			LOG_DEV_ERROR(dev, "failed to get rm from 0x%x\n",

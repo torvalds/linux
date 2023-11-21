@@ -251,7 +251,7 @@ struct rknpu_subcore_task {
  * @task_obj_addr: address of task object
  * @regcfg_obj_addr: address of register config object
  * @task_base_addr: task base address
- * @user_data: (optional) user data
+ * @hw_elapse_time: hardware elapse time
  * @core_mask: core mask of rknpu
  * @fence_fd: dma fence fd
  * @subcore_task: subcore task
@@ -267,7 +267,7 @@ struct rknpu_submit {
 	__u64 task_obj_addr;
 	__u64 regcfg_obj_addr;
 	__u64 task_base_addr;
-	__u64 user_data;
+	__s64 hw_elapse_time;
 	__u32 core_mask;
 	__s32 fence_fd;
 	struct rknpu_subcore_task subcore_task[5];

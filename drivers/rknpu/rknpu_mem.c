@@ -109,22 +109,27 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 			  __LINE__, &phys, length);
 	}
 
-	page_count = length >> PAGE_SHIFT;
-	pages = vmalloc(page_count * sizeof(struct page));
-	if (!pages) {
-		LOG_ERROR("alloc pages failed\n");
-		ret = -ENOMEM;
-		goto err_detach_dma_buf;
-	}
+	if (args.flags & RKNPU_MEM_KERNEL_MAPPING) {
+		page_count = length >> PAGE_SHIFT;
+		pages = vmalloc(page_count * sizeof(struct page));
+		if (!pages) {
+			LOG_ERROR("alloc pages failed\n");
+			ret = -ENOMEM;
+			goto err_detach_dma_buf;
+		}
 
-	for (i = 0; i < page_count; i++)
-		pages[i] = &page[i];
+		for (i = 0; i < page_count; i++)
+			pages[i] = &page[i];
 
-	rknpu_obj->kv_addr = vmap(pages, page_count, VM_MAP, PAGE_KERNEL);
-	if (!rknpu_obj->kv_addr) {
-		LOG_ERROR("vmap pages addr failed\n");
-		ret = -ENOMEM;
-		goto err_free_pages;
+		rknpu_obj->kv_addr =
+			vmap(pages, page_count, VM_MAP, PAGE_KERNEL);
+		if (!rknpu_obj->kv_addr) {
+			LOG_ERROR("vmap pages addr failed\n");
+			ret = -ENOMEM;
+			goto err_free_pages;
+		}
+		vfree(pages);
+		pages = NULL;
 	}
 
 	rknpu_obj->size = PAGE_ALIGN(args.size);
@@ -148,8 +153,6 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data,
 		goto err_unmap_kv_addr;
 	}
 
-	vfree(pages);
-	pages = NULL;
 	dma_buf_unmap_attachment(attachment, table, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 

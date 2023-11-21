@@ -112,7 +112,8 @@ static const struct rknpu_config rk356x_rknpu_config = {
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
-	.max_submit_number = (1 << 12) - 1
+	.max_submit_number = (1 << 12) - 1,
+	.core_mask = 0x1,
 };
 
 static const struct rknpu_config rk3588_rknpu_config = {
@@ -131,7 +132,28 @@ static const struct rknpu_config rk3588_rknpu_config = {
 	.num_resets = ARRAY_SIZE(rk3588_npu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
-	.max_submit_number = (1 << 12) - 1
+	.max_submit_number = (1 << 12) - 1,
+	.core_mask = 0x7,
+};
+
+static const struct rknpu_config rk3583_rknpu_config = {
+	.bw_priority_addr = 0x0,
+	.bw_priority_length = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.pc_data_amount_scale = 2,
+	.pc_task_number_bits = 12,
+	.pc_task_number_mask = 0xfff,
+	.pc_task_status_offset = 0x3c,
+	.pc_dma_ctrl = 0,
+	.bw_enable = 0,
+	.irqs = rk3588_npu_irqs,
+	.resets = rk3588_npu_resets,
+	.num_irqs = 2,
+	.num_resets = 2,
+	.nbuf_phyaddr = 0,
+	.nbuf_size = 0,
+	.max_submit_number = (1 << 12) - 1,
+	.core_mask = 0x3,
 };
 
 static const struct rknpu_config rv1106_rknpu_config = {
@@ -150,7 +172,8 @@ static const struct rknpu_config rv1106_rknpu_config = {
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0,
 	.nbuf_size = 0,
-	.max_submit_number = (1 << 16) - 1
+	.max_submit_number = (1 << 16) - 1,
+	.core_mask = 0x1,
 };
 
 static const struct rknpu_config rk3562_rknpu_config = {
@@ -169,7 +192,8 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.num_resets = ARRAY_SIZE(rknpu_resets),
 	.nbuf_phyaddr = 0xfe400000,
 	.nbuf_size = 256 * 1024,
-	.max_submit_number = (1 << 16) - 1
+	.max_submit_number = (1 << 16) - 1,
+	.core_mask = 0x1,
 };
 
 /* driver probe and init */
@@ -621,13 +645,14 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 		if (job) {
 			now = ktime_get();
 			subcore_data->timer.busy_time +=
-				ktime_us_delta(now, job->hw_recoder_time);
+				ktime_sub(now, job->hw_recoder_time);
 			job->hw_recoder_time = now;
 		}
 
-		subcore_data->timer.busy_time_record =
+		subcore_data->timer.total_busy_time =
 			subcore_data->timer.busy_time;
 		subcore_data->timer.busy_time = 0;
+
 		spin_unlock_irqrestore(&rknpu_dev->irq_lock, flags);
 	}
 
@@ -1047,6 +1072,28 @@ static int rknpu_find_nbuf_resource(struct rknpu_device *rknpu_dev)
 	return 0;
 }
 
+static int rknpu_get_invalid_core_mask(struct device *dev)
+{
+	int ret = 0;
+	u8 invalid_core_mask = 0;
+
+	if (of_property_match_string(dev->of_node, "nvmem-cell-names",
+				     "cores") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(dev->of_node, "cores",
+						  &invalid_core_mask);
+		/* The default valid npu cores for RK3583 are core0 and core1 */
+		invalid_core_mask |= RKNPU_CORE2_MASK;
+		if (ret) {
+			LOG_DEV_ERROR(
+				dev,
+				"failed to get specification_serial_number\n");
+			return invalid_core_mask;
+		}
+	}
+
+	return (int)invalid_core_mask;
+}
+
 static int rknpu_probe(struct platform_device *pdev)
 {
 	struct resource *res = NULL;
@@ -1077,6 +1124,22 @@ static int rknpu_probe(struct platform_device *pdev)
 	config = of_device_get_match_data(dev);
 	if (!config)
 		return -EINVAL;
+
+	if (match->data == (void *)&rk3588_rknpu_config) {
+		int invalid_core_mask = rknpu_get_invalid_core_mask(dev);
+		/* The default valid npu cores for RK3583 are core0 and core1 */
+		if (invalid_core_mask & RKNPU_CORE2_MASK) {
+			if ((invalid_core_mask & RKNPU_CORE0_MASK) ||
+			    (invalid_core_mask & RKNPU_CORE1_MASK)) {
+				LOG_DEV_ERROR(
+					dev,
+					"rknpu core invalid, invalid core mask: %#x\n",
+					invalid_core_mask);
+				return -ENODEV;
+			}
+			config = &rk3583_rknpu_config;
+		}
+	}
 
 	rknpu_dev->config = config;
 	rknpu_dev->dev = dev;
@@ -1232,9 +1295,11 @@ static int rknpu_probe(struct platform_device *pdev)
 		virt_dev = dev_pm_domain_attach_by_name(dev, "npu1");
 		if (!IS_ERR(virt_dev))
 			rknpu_dev->genpd_dev_npu1 = virt_dev;
-		virt_dev = dev_pm_domain_attach_by_name(dev, "npu2");
-		if (!IS_ERR(virt_dev))
-			rknpu_dev->genpd_dev_npu2 = virt_dev;
+		if (config->num_irqs > 2) {
+			virt_dev = dev_pm_domain_attach_by_name(dev, "npu2");
+			if (!IS_ERR(virt_dev))
+				rknpu_dev->genpd_dev_npu2 = virt_dev;
+		}
 		rknpu_dev->multiple_domains = true;
 	}
 
