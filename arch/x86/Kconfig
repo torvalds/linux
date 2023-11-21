@@ -2516,7 +2516,7 @@ config RETHUNK
 	  Requires a compiler with -mfunction-return=thunk-extern
 	  support for full protection. The kernel may run slower.
 
-config CPU_UNRET_ENTRY
+config MITIGATION_UNRET_ENTRY
 	bool "Enable UNRET on kernel entry"
 	depends on CPU_SUP_AMD && RETHUNK && X86_64
 	default y

@@ -230,7 +230,7 @@ SYM_CODE_END(srso_return_thunk)
 #define JMP_SRSO_ALIAS_UNTRAIN_RET "ud2"
 #endif /* CONFIG_CPU_SRSO */
 
-#ifdef CONFIG_CPU_UNRET_ENTRY
+#ifdef CONFIG_MITIGATION_UNRET_ENTRY
 
 /*
  * Some generic notes on the untraining sequences:
@@ -312,11 +312,11 @@ SYM_CODE_END(retbleed_return_thunk)
 SYM_FUNC_END(retbleed_untrain_ret)
 
 #define JMP_RETBLEED_UNTRAIN_RET "jmp retbleed_untrain_ret"
-#else /* !CONFIG_CPU_UNRET_ENTRY */
+#else /* !CONFIG_MITIGATION_UNRET_ENTRY */
 #define JMP_RETBLEED_UNTRAIN_RET "ud2"
-#endif /* CONFIG_CPU_UNRET_ENTRY */
+#endif /* CONFIG_MITIGATION_UNRET_ENTRY */
 
-#if defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO)
+#if defined(CONFIG_MITIGATION_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO)
 
 SYM_FUNC_START(entry_untrain_ret)
 	ALTERNATIVE_2 JMP_RETBLEED_UNTRAIN_RET,				\
@@ -325,7 +325,7 @@ SYM_FUNC_START(entry_untrain_ret)
 SYM_FUNC_END(entry_untrain_ret)
 __EXPORT_THUNK(entry_untrain_ret)
 
-#endif /* CONFIG_CPU_UNRET_ENTRY || CONFIG_CPU_SRSO */
+#endif /* CONFIG_MITIGATION_UNRET_ENTRY || CONFIG_CPU_SRSO */
 
 #ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 

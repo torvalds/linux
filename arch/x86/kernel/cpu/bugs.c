@@ -982,10 +982,10 @@ static void __init retbleed_select_mitigation(void)
 		return;
 
 	case RETBLEED_CMD_UNRET:
-		if (IS_ENABLED(CONFIG_CPU_UNRET_ENTRY)) {
+		if (IS_ENABLED(CONFIG_MITIGATION_UNRET_ENTRY)) {
 			retbleed_mitigation = RETBLEED_MITIGATION_UNRET;
 		} else {
-			pr_err("WARNING: kernel not compiled with CPU_UNRET_ENTRY.\n");
+			pr_err("WARNING: kernel not compiled with MITIGATION_UNRET_ENTRY.\n");
 			goto do_cmd_auto;
 		}
 		break;
@@ -1021,7 +1021,7 @@ do_cmd_auto:
 	case RETBLEED_CMD_AUTO:
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
 		    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) {
-			if (IS_ENABLED(CONFIG_CPU_UNRET_ENTRY))
+			if (IS_ENABLED(CONFIG_MITIGATION_UNRET_ENTRY))
 				retbleed_mitigation = RETBLEED_MITIGATION_UNRET;
 			else if (IS_ENABLED(CONFIG_MITIGATION_IBPB_ENTRY) &&
 				 boot_cpu_has(X86_FEATURE_IBPB))
