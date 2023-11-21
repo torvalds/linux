@@ -107,6 +107,7 @@ def define_sdmsteppeauto():
         "drivers/rpmsg/qcom_glink_spss.ko",
         "drivers/rpmsg/qcom_smd.ko",
         "drivers/rtc/rtc-pm8xxx.ko",
+        "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/cdsprm.ko",
         "drivers/soc/qcom/cmd-db.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
