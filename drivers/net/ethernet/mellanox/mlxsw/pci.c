@@ -106,7 +106,9 @@ struct mlxsw_pci {
 	u64 utc_sec_offset;
 	u64 utc_nsec_offset;
 	bool lag_mode_support;
+	bool cff_support;
 	enum mlxsw_cmd_mbox_config_profile_lag_mode lag_mode;
+	enum mlxsw_cmd_mbox_config_profile_flood_mode flood_mode;
 	struct mlxsw_pci_queue_type_group queues[MLXSW_PCI_QUEUE_TYPE_COUNT];
 	u32 doorbell_offset;
 	struct mlxsw_core *core;
@@ -1246,11 +1248,22 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_fid_flood_table_size_set(
 			mbox, profile->fid_flood_table_size);
 	}
-	if (profile->used_flood_mode) {
+	if (profile->flood_mode_prefer_cff && mlxsw_pci->cff_support) {
+		enum mlxsw_cmd_mbox_config_profile_flood_mode flood_mode =
+			MLXSW_CMD_MBOX_CONFIG_PROFILE_FLOOD_MODE_CFF;
+
+		mlxsw_cmd_mbox_config_profile_set_flood_mode_set(mbox, 1);
+		mlxsw_cmd_mbox_config_profile_flood_mode_set(mbox, flood_mode);
+		mlxsw_pci->flood_mode = flood_mode;
+	} else if (profile->used_flood_mode) {
 		mlxsw_cmd_mbox_config_profile_set_flood_mode_set(
 			mbox, 1);
 		mlxsw_cmd_mbox_config_profile_flood_mode_set(
 			mbox, profile->flood_mode);
+		mlxsw_pci->flood_mode = profile->flood_mode;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
 	}
 	if (profile->used_max_ib_mc) {
 		mlxsw_cmd_mbox_config_profile_set_max_ib_mc_set(
@@ -1654,6 +1667,9 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 
 	mlxsw_pci->lag_mode_support =
 		mlxsw_cmd_mbox_query_fw_lag_mode_support_get(mbox);
+	mlxsw_pci->cff_support =
+		mlxsw_cmd_mbox_query_fw_cff_support_get(mbox);
+
 	num_pages = mlxsw_cmd_mbox_query_fw_fw_pages_get(mbox);
 	err = mlxsw_pci_fw_area_init(mlxsw_pci, mbox, num_pages);
 	if (err)
@@ -1970,6 +1986,14 @@ mlxsw_pci_lag_mode(void *bus_priv)
 	return mlxsw_pci->lag_mode;
 }
 
+static enum mlxsw_cmd_mbox_config_profile_flood_mode
+mlxsw_pci_flood_mode(void *bus_priv)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+
+	return mlxsw_pci->flood_mode;
+}
+
 static const struct mlxsw_bus mlxsw_pci_bus = {
 	.kind			= "pci",
 	.init			= mlxsw_pci_init,
@@ -1982,6 +2006,7 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 	.read_utc_sec		= mlxsw_pci_read_utc_sec,
 	.read_utc_nsec		= mlxsw_pci_read_utc_nsec,
 	.lag_mode		= mlxsw_pci_lag_mode,
+	.flood_mode		= mlxsw_pci_flood_mode,
 	.features		= MLXSW_BUS_F_TXRX | MLXSW_BUS_F_RESET,
 };
 
