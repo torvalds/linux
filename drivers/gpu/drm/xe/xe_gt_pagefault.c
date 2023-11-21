@@ -34,6 +34,7 @@ struct pagefault {
 	u8 engine_class;
 	u8 engine_instance;
 	u8 fault_unsuccessful;
+	bool trva_fault;
 };
 
 enum access_type {
@@ -137,6 +138,10 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	bool write_locked;
 	int ret = 0;
 	bool atomic;
+
+	/* SW isn't expected to handle TRTT faults */
+	if (pf->trva_fault)
+		return -EFAULT;
 
 	/* ASID to VM */
 	mutex_lock(&xe->usm.lock);
@@ -282,6 +287,7 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 			(pf_queue->data + pf_queue->head);
 
 		pf->fault_level = FIELD_GET(PFD_FAULT_LEVEL, desc->dw0);
+		pf->trva_fault = FIELD_GET(XE2_PFD_TRVA_FAULT, desc->dw0);
 		pf->engine_class = FIELD_GET(PFD_ENG_CLASS, desc->dw0);
 		pf->engine_instance = FIELD_GET(PFD_ENG_INSTANCE, desc->dw0);
 		pf->pdata = FIELD_GET(PFD_PDATA_HI, desc->dw1) <<
