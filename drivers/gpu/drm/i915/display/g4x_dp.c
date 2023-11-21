@@ -482,9 +482,9 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-	intel_dp->link_trained = false;
-
 	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+
+	intel_dp->link_trained = false;
 
 	/*
 	 * Make sure the panel is off before trying to change the mode.
@@ -686,8 +686,8 @@ static void g4x_enable_dp(struct intel_atomic_state *state,
 			  const struct drm_connector_state *conn_state)
 {
 	intel_enable_dp(state, encoder, pipe_config, conn_state);
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(pipe_config, conn_state);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void vlv_enable_dp(struct intel_atomic_state *state,
@@ -695,8 +695,8 @@ static void vlv_enable_dp(struct intel_atomic_state *state,
 			  const struct intel_crtc_state *pipe_config,
 			  const struct drm_connector_state *conn_state)
 {
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(pipe_config, conn_state);
+	intel_audio_codec_enable(encoder, pipe_config, conn_state);
 }
 
 static void g4x_pre_enable_dp(struct intel_atomic_state *state,
