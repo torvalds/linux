@@ -92,6 +92,7 @@ enum ras_errors {
 
 struct adf_error_counters {
 	atomic_t counter[ADF_RAS_ERRORS];
+	bool sysfs_added;
 	bool enabled;
 };
 
