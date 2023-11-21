@@ -78,14 +78,6 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 #define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
-/*
- * For the file_extent_tree, we want to hold the inode lock when we lookup and
- * update the disk_i_size, but lockdep will complain because our io_tree we hold
- * the tree lock and get the inode lock when setting delalloc.  These two things
- * are unrelated, so make a class for the file_extent_tree so we don't get the
- * two locking patterns mixed up.
- */
-static struct lock_class_key file_extent_tree_class;
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner)
@@ -95,8 +87,6 @@ void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 	spin_lock_init(&tree->lock);
 	tree->inode = NULL;
 	tree->owner = owner;
-	if (owner == IO_TREE_INODE_FILE_EXTENT)
-		lockdep_set_class(&tree->lock, &file_extent_tree_class);
 }
 
 /*
