@@ -1408,14 +1408,11 @@ search_forward:
 		if (ret > 0)
 			break;
 next:
-		path->slots[0]++;
-		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-			ret = btrfs_next_leaf(extent_root, path);
-			if (ret) {
-				/* Either no more item or fatal error */
-				btrfs_release_path(path);
-				return ret;
-			}
+		ret = btrfs_next_item(extent_root, path);
+		if (ret) {
+			/* Either no more items or a fatal error. */
+			btrfs_release_path(path);
+			return ret;
 		}
 	}
 	btrfs_release_path(path);
