@@ -102,14 +102,15 @@ struct pci_mmcfg_region *__init pci_mmconfig_add(int segment, int start,
 	struct pci_mmcfg_region *new;
 
 	new = pci_mmconfig_alloc(segment, start, end, addr);
-	if (new) {
-		mutex_lock(&pci_mmcfg_lock);
-		list_add_sorted(new);
-		mutex_unlock(&pci_mmcfg_lock);
+	if (!new)
+		return NULL;
 
-		pr_info("ECAM %pR (base %#lx) for domain %04x [bus %02x-%02x]\n",
-			&new->res, (unsigned long)addr, segment, start, end);
-	}
+	mutex_lock(&pci_mmcfg_lock);
+	list_add_sorted(new);
+	mutex_unlock(&pci_mmcfg_lock);
+
+	pr_info("ECAM %pR (base %#lx) for domain %04x [bus %02x-%02x]\n",
+		&new->res, (unsigned long)addr, segment, start, end);
 
 	return new;
 }
