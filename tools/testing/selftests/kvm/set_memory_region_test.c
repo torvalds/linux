@@ -349,8 +349,8 @@ static void test_invalid_memory_region_flags(void)
 		if ((supported_flags & BIT(i)) && !(v2_only_flags & BIT(i)))
 			continue;
 
-		r = __vm_set_user_memory_region(vm, MEM_REGION_SLOT, BIT(i),
-						MEM_REGION_GPA, MEM_REGION_SIZE, NULL);
+		r = __vm_set_user_memory_region(vm, 0, BIT(i),
+						0, MEM_REGION_SIZE, NULL);
 
 		TEST_ASSERT(r && errno == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION should have failed on v2 only flag 0x%lx", BIT(i));
@@ -358,16 +358,16 @@ static void test_invalid_memory_region_flags(void)
 		if (supported_flags & BIT(i))
 			continue;
 
-		r = __vm_set_user_memory_region2(vm, MEM_REGION_SLOT, BIT(i),
-						 MEM_REGION_GPA, MEM_REGION_SIZE, NULL, 0, 0);
+		r = __vm_set_user_memory_region2(vm, 0, BIT(i),
+						 0, MEM_REGION_SIZE, NULL, 0, 0);
 		TEST_ASSERT(r && errno == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION2 should have failed on unsupported flag 0x%lx", BIT(i));
 	}
 
 	if (supported_flags & KVM_MEM_GUEST_MEMFD) {
-		r = __vm_set_user_memory_region2(vm, MEM_REGION_SLOT,
+		r = __vm_set_user_memory_region2(vm, 0,
 						 KVM_MEM_LOG_DIRTY_PAGES | KVM_MEM_GUEST_MEMFD,
-						 MEM_REGION_GPA, MEM_REGION_SIZE, NULL, 0, 0);
+						 0, MEM_REGION_SIZE, NULL, 0, 0);
 		TEST_ASSERT(r && errno == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION2 should have failed, dirty logging private memory is unsupported");
 	}
