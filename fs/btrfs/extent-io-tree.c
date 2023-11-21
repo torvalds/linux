@@ -87,12 +87,6 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
  */
 static struct lock_class_key file_extent_tree_class;
 
-struct tree_entry {
-	u64 start;
-	u64 end;
-	struct rb_node rb_node;
-};
-
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner)
 {
