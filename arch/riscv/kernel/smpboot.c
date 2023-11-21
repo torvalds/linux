@@ -125,18 +125,7 @@ static int __init acpi_parse_rintc(union acpi_subtable_headers *header, const un
 
 static void __init acpi_parse_and_init_cpus(void)
 {
-	int cpuid;
-
-	cpu_set_ops(0);
-
 	acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, acpi_parse_rintc, 0);
-
-	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++) {
-		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID) {
-			cpu_set_ops(cpuid);
-			set_cpu_possible(cpuid, true);
-		}
-	}
 }
 #else
 #define acpi_parse_and_init_cpus(...)	do { } while (0)
@@ -149,8 +138,6 @@ static void __init of_parse_and_init_cpus(void)
 	bool found_boot_cpu = false;
 	int cpuid = 1;
 	int rc;
-
-	cpu_set_ops(0);
 
 	for_each_of_cpu_node(dn) {
 		rc = riscv_early_of_processor_hartid(dn, &hart);
@@ -179,6 +166,18 @@ static void __init of_parse_and_init_cpus(void)
 	if (cpuid > nr_cpu_ids)
 		pr_warn("Total number of cpus [%d] is greater than nr_cpus option value [%d]\n",
 			cpuid, nr_cpu_ids);
+}
+
+void __init setup_smp(void)
+{
+	int cpuid;
+
+	cpu_set_ops(0);
+
+	if (acpi_disabled)
+		of_parse_and_init_cpus();
+	else
+		acpi_parse_and_init_cpus();
 
 	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++) {
 		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID) {
@@ -186,14 +185,6 @@ static void __init of_parse_and_init_cpus(void)
 			set_cpu_possible(cpuid, true);
 		}
 	}
-}
-
-void __init setup_smp(void)
-{
-	if (acpi_disabled)
-		of_parse_and_init_cpus();
-	else
-		acpi_parse_and_init_cpus();
 }
 
 static int start_secondary_cpu(int cpu, struct task_struct *tidle)
