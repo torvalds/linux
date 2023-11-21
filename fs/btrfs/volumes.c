@@ -3005,14 +3005,14 @@ struct extent_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 	em = lookup_extent_mapping(em_tree, logical, length);
 	read_unlock(&em_tree->lock);
 
-	if (!em) {
+	if (unlikely(!em)) {
 		btrfs_crit(fs_info,
 			   "unable to find chunk map for logical %llu length %llu",
 			   logical, length);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (em->start > logical || em->start + em->len <= logical) {
+	if (unlikely(em->start > logical || em->start + em->len <= logical)) {
 		btrfs_crit(fs_info,
 			   "found a bad chunk map, wanted %llu-%llu, found %llu-%llu",
 			   logical, logical + length, em->start, em->start + em->len);
