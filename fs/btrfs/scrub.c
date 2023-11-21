@@ -192,7 +192,6 @@ struct scrub_ctx {
 	int			cur_stripe;
 	atomic_t		cancel_req;
 	int			readonly;
-	int			sectors_per_bio;
 
 	/* State of IO submission throttling affecting the associated device */
 	ktime_t			throttle_deadline;
