@@ -3359,7 +3359,7 @@ static void intel_enable_ddi(struct intel_atomic_state *state,
 
 	intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 
-	intel_audio_codec_enable(encoder, crtc_state, conn_state);
+	encoder->audio_enable(encoder, crtc_state, conn_state);
 }
 
 static void intel_disable_ddi_dp(struct intel_atomic_state *state,
@@ -3403,7 +3403,7 @@ static void intel_disable_ddi(struct intel_atomic_state *state,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
-	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
 
 	intel_tc_port_link_cancel_reset_work(enc_to_dig_port(encoder));
 
@@ -4936,6 +4936,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 	encoder->post_pll_disable = intel_ddi_post_pll_disable;
 	encoder->post_disable = intel_ddi_post_disable;
 	encoder->update_pipe = intel_ddi_update_pipe;
+	encoder->audio_enable = intel_audio_codec_enable;
+	encoder->audio_disable = intel_audio_codec_disable;
 	encoder->get_hw_state = intel_ddi_get_hw_state;
 	encoder->sync_state = intel_ddi_sync_state;
 	encoder->initial_fastset_check = intel_ddi_initial_fastset_check;

@@ -918,7 +918,7 @@ static void intel_mst_disable_dp(struct intel_atomic_state *state,
 	drm_dbg_kms(&i915->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 
-	intel_audio_codec_disable(encoder, old_crtc_state, old_conn_state);
+	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
 
 	intel_hdcp_disable(intel_mst->connector);
 
@@ -1166,7 +1166,7 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	intel_hdcp_enable(state, encoder, pipe_config, conn_state);
 
-	intel_audio_codec_enable(encoder, pipe_config, conn_state);
+	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
@@ -1626,6 +1626,8 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
 	intel_encoder->pre_enable = intel_mst_pre_enable_dp;
 	intel_encoder->enable = intel_mst_enable_dp;
+	intel_encoder->audio_enable = intel_audio_codec_enable;
+	intel_encoder->audio_disable = intel_audio_codec_disable;
 	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
 	intel_encoder->get_config = intel_dp_mst_enc_get_config;
 	intel_encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;

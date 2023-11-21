@@ -516,7 +516,7 @@ static void intel_disable_dp(struct intel_atomic_state *state,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
-	g4x_dp_audio_disable(encoder, old_crtc_state, old_conn_state);
+	encoder->audio_disable(encoder, old_crtc_state, old_conn_state);
 
 	intel_dp->link_trained = false;
 
@@ -719,7 +719,7 @@ static void g4x_enable_dp(struct intel_atomic_state *state,
 {
 	intel_enable_dp(state, encoder, pipe_config, conn_state);
 	intel_edp_backlight_on(pipe_config, conn_state);
-	g4x_dp_audio_enable(encoder, pipe_config, conn_state);
+	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static void vlv_enable_dp(struct intel_atomic_state *state,
@@ -728,7 +728,7 @@ static void vlv_enable_dp(struct intel_atomic_state *state,
 			  const struct drm_connector_state *conn_state)
 {
 	intel_edp_backlight_on(pipe_config, conn_state);
-	g4x_dp_audio_enable(encoder, pipe_config, conn_state);
+	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static void g4x_pre_enable_dp(struct intel_atomic_state *state,
@@ -1357,6 +1357,8 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 		intel_encoder->disable = g4x_disable_dp;
 		intel_encoder->post_disable = g4x_post_disable_dp;
 	}
+	intel_encoder->audio_enable = g4x_dp_audio_enable;
+	intel_encoder->audio_disable = g4x_dp_audio_disable;
 
 	if ((IS_IVYBRIDGE(dev_priv) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev_priv) && port != PORT_A))
