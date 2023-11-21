@@ -442,9 +442,6 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 			}
 			node = &(*node)->rb_right;
 		} else {
-			btrfs_err(tree->fs_info,
-			       "found node %llu %llu on insert of %llu %llu",
-			       entry->start, entry->end, state->start, state->end);
 			return ERR_PTR(-EEXIST);
 		}
 	}
