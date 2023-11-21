@@ -1156,9 +1156,10 @@ void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
 	u64 sof_time = 0, frame_timestamp = 0;
 	u32 frame_id = 0;
 
-	if (!IS_HDR_RDBK(dev->rd_mode) && id) {
-		*id = atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
-		return;
+	if (!IS_HDR_RDBK(dev->rd_mode)) {
+		frame_id = atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
+		frame_timestamp = dev->isp_sdev.frm_timestamp;
+		goto end;
 	}
 
 	spin_lock_irqsave(&dev->rdbk_lock, flag);
@@ -1172,6 +1173,7 @@ void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
 		frame_timestamp = dev->dmarx_dev.pre_frame.timestamp;
 	}
 	spin_unlock_irqrestore(&dev->rdbk_lock, flag);
+end:
 	if (id)
 		*id = frame_id;
 	if (sof_timestamp)
