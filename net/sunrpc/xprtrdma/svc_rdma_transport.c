@@ -547,6 +547,7 @@ static void __svc_rdma_free(struct work_struct *work)
 	/* This blocks until the Completion Queues are empty */
 	if (rdma->sc_qp && !IS_ERR(rdma->sc_qp))
 		ib_drain_qp(rdma->sc_qp);
+	flush_workqueue(svcrdma_wq);
 
 	svc_rdma_flush_recv_queues(rdma);
 
