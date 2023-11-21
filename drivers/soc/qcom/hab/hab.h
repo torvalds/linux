@@ -629,6 +629,9 @@ struct uhab_context *hab_ctx_alloc(int kernel);
 
 void hab_ctx_free(struct kref *ref);
 
+void hab_ctx_free_fn(struct uhab_context *ctx);
+void hab_ctx_free_os(struct kref *ref);
+
 static inline void hab_ctx_get(struct uhab_context *ctx)
 {
 	if (ctx)
