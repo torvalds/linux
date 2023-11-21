@@ -94,24 +94,23 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 	static char str_cr[1] = "\r";
 	long c, remaining = count;
 	srmcons_result result;
-	char *cur;
 	int need_cr;
 
-	for (cur = (char *)buf; remaining > 0; ) {
+	while (remaining > 0) {
 		need_cr = 0;
 		/* 
 		 * Break it up into reasonable size chunks to allow a chance
 		 * for input to get in
 		 */
 		for (c = 0; c < min_t(long, 128L, remaining) && !need_cr; c++)
-			if (cur[c] == '\n')
+			if (buf[c] == '\n')
 				need_cr = 1;
 		
 		while (c > 0) {
-			result.as_long = callback_puts(0, cur, c);
+			result.as_long = callback_puts(0, buf, c);
 			c -= result.bits.c;
 			remaining -= result.bits.c;
-			cur += result.bits.c;
+			buf += result.bits.c;
 
 			/*
 			 * Check for pending input iff a tty port was provided
