@@ -576,22 +576,22 @@ static void __init pci_mmcfg_reject_broken(int early)
 	}
 }
 
-static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
-					struct acpi_mcfg_allocation *cfg)
+static bool __init acpi_mcfg_valid_entry(struct acpi_table_mcfg *mcfg,
+					 struct acpi_mcfg_allocation *cfg)
 {
 	if (cfg->address < 0xFFFFFFFF)
-		return 0;
+		return true;
 
 	if (!strncmp(mcfg->header.oem_id, "SGI", 3))
-		return 0;
+		return true;
 
 	if ((mcfg->header.revision >= 1) && (dmi_get_bios_year() >= 2010))
-		return 0;
+		return true;
 
 	pr_err("ECAM at %#llx for %04x [bus %02x-%02x] is above 4GB, ignored\n",
 	       cfg->address, cfg->pci_segment, cfg->start_bus_number,
 	       cfg->end_bus_number);
-	return -EINVAL;
+	return false;
 }
 
 static int __init pci_parse_mcfg(struct acpi_table_header *header)
@@ -622,7 +622,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 	cfg_table = (struct acpi_mcfg_allocation *) &mcfg[1];
 	for (i = 0; i < entries; i++) {
 		cfg = &cfg_table[i];
-		if (acpi_mcfg_check_entry(mcfg, cfg)) {
+		if (!acpi_mcfg_valid_entry(mcfg, cfg)) {
 			free_all_mmcfg();
 			return -ENODEV;
 		}
