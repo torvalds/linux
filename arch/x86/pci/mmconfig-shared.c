@@ -443,9 +443,11 @@ static bool is_acpi_reserved(u64 start, u64 end, enum e820_type not_used)
 	return mcfg_res.flags;
 }
 
-static bool is_efi_mmio(u64 start, u64 end, enum e820_type not_used)
+static bool is_efi_mmio(struct resource *res)
 {
 #ifdef CONFIG_EFI
+	u64 start = res->start;
+	u64 end = res->start + resource_size(res);
 	efi_memory_desc_t *md;
 	u64 size, mmio_start, mmio_end;
 
@@ -455,11 +457,6 @@ static bool is_efi_mmio(u64 start, u64 end, enum e820_type not_used)
 			mmio_start = md->phys_addr;
 			mmio_end = mmio_start + size;
 
-			/*
-			 * N.B. Caller supplies (start, start + size),
-			 * so to match, mmio_end is the first address
-			 * *past* the EFI_MEMORY_MAPPED_IO area.
-			 */
 			if (mmio_start <= start && end <= mmio_end)
 				return true;
 		}
@@ -543,8 +540,9 @@ pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int e
 			       "ACPI motherboard resources\n",
 			       &cfg->res);
 
-		if (is_mmconf_reserved(is_efi_mmio, cfg, dev,
-				       "EfiMemoryMappedIO")) {
+		if (is_efi_mmio(&cfg->res)) {
+			pr_info("ECAM %pR is EfiMemoryMappedIO; assuming valid\n",
+				&cfg->res);
 			conflict = insert_resource_conflict(&iomem_resource,
 							    &cfg->res);
 			if (conflict)
