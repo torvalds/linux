@@ -363,7 +363,6 @@ static int disable_net;
 /* driver info */
 static const char driver_name[] = "hso";
 static const char tty_filename[] = "ttyHS";
-static const char *version = __FILE__ ": " MOD_AUTHOR;
 /* the usb driver itself (registered in hso_init) */
 static struct usb_driver hso_driver;
 /* serial structures */
@@ -3231,9 +3230,6 @@ static int __init hso_init(void)
 	int i;
 	int result;
 
-	/* put it in the log */
-	pr_info("%s\n", version);
-
 	/* Initialise the serial table semaphore and table */
 	for (i = 0; i < HSO_SERIAL_TTY_MINORS; i++)
 		serial_table[i] = NULL;
@@ -3285,8 +3281,6 @@ err_free_tty:
 
 static void __exit hso_exit(void)
 {
-	pr_info("unloaded\n");
-
 	tty_unregister_driver(tty_drv);
 	/* deregister the usb driver */
 	usb_deregister(&hso_driver);
