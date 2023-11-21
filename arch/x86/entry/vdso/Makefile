@@ -40,8 +40,8 @@ obj-$(CONFIG_IA32_EMULATION)	+= vdso-image-32.o vdso32-setup.o
 
 OBJECT_FILES_NON_STANDARD_vdso32-setup.o := n
 
-vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
-vobjs32 := $(foreach F,$(vobjs32-y),$(obj)/$F)
+vobjs := $(addprefix $(obj)/, $(vobjs-y))
+vobjs32 := $(addprefix $(obj)/, $(vobjs32-y))
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
@@ -112,7 +112,7 @@ VDSO_LDFLAGS_vdsox32.lds = -m elf32_x86_64 -soname linux-vdso.so.1 \
 vobjx32s-y := $(vobjs-y:.o=-x32.o)
 
 # same thing, but in the output directory
-vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
+vobjx32s := $(addprefix $(obj)/, $(vobjx32s-y))
 
 # Convert 64bit object file to x32 for x32 vDSO.
 quiet_cmd_x32 = X32     $@
