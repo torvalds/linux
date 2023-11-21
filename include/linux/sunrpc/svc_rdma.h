@@ -200,7 +200,8 @@ extern int svc_rdma_send(struct svcxprt_rdma *rdma,
 			 struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *sctxt,
-				  const struct svc_rdma_recv_ctxt *rctxt,
+				  const struct svc_rdma_pcl *write_pcl,
+				  const struct svc_rdma_pcl *reply_pcl,
 				  const struct xdr_buf *xdr);
 extern void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 				    struct svc_rdma_send_ctxt *sctxt,
