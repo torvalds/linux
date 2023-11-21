@@ -662,6 +662,17 @@ config SPI_ROCKCHIP_SFC
 	  ROCKCHIP SFC supports DMA and PIO modes. When DMA is not available,
 	  the driver automatically falls back to PIO mode.
 
+config SPI_ROCKCHIP_SLAVE
+	tristate "Rockchip SPI Slave controller driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	default SPI_ROCKCHIP if !ROCKCHIP_MINI_KERNEL
+	help
+	  This selects a driver for Rockchip SPI Slave controller.
+
+	  If you say yes to this option, support will be included for Rockchip
+	  SPI Slave controller.
+	  Rockchip SPI Slave controller support DMA transport and IRQ mode.
+
 config SPI_RB4XX
 	tristate "Mikrotik RB4XX SPI master"
 	depends on SPI_MASTER && ATH79
