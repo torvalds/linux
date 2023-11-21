@@ -58,12 +58,13 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 						       struct extent_io_tree *tree,
 						       u64 start, u64 end)
 {
-	struct btrfs_inode *inode = tree->inode;
+	const struct btrfs_inode *inode;
 	u64 isize;
 
-	if (!inode)
+	if (tree->owner != IO_TREE_INODE_IO)
 		return;
 
+	inode = extent_io_tree_to_inode_const(tree);
 	isize = i_size_read(&inode->vfs_inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(inode->root->fs_info,
@@ -79,13 +80,44 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 #endif
 
 
+/*
+ * The only tree allowed to set the inode is IO_TREE_INODE_IO.
+ */
+static bool is_inode_io_tree(const struct extent_io_tree *tree)
+{
+	return tree->owner == IO_TREE_INODE_IO;
+}
+
+/* Return the inode if it's valid for the given tree, otherwise NULL. */
+struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode;
+	return NULL;
+}
+
+/* Read-only access to the inode. */
+const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode;
+	return NULL;
+}
+
+/* For read-only access to fs_info. */
+const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode->root->fs_info;
+	return tree->fs_info;
+}
+
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner)
 {
-	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
 	spin_lock_init(&tree->lock);
-	tree->inode = NULL;
+	tree->fs_info = fs_info;
 	tree->owner = owner;
 }
 
@@ -318,7 +350,7 @@ static void extent_io_tree_panic(const struct extent_io_tree *tree,
 				 const char *opname,
 				 int err)
 {
-	btrfs_panic(tree->fs_info, err,
+	btrfs_panic(extent_io_tree_to_fs_info(tree), err,
 		    "extent io tree error on %s state start %llu end %llu",
 		    opname, state->start, state->end);
 }
@@ -329,8 +361,9 @@ static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *s
 
 	prev = prev_state(state);
 	if (prev && prev->end == state->start - 1 && prev->state == state->state) {
-		if (tree->inode)
-			btrfs_merge_delalloc_extent(tree->inode, state, prev);
+		if (is_inode_io_tree(tree))
+			btrfs_merge_delalloc_extent(extent_io_tree_to_inode(tree),
+						    state, prev);
 		state->start = prev->start;
 		rb_erase(&prev->rb_node, &tree->state);
 		RB_CLEAR_NODE(&prev->rb_node);
@@ -344,8 +377,9 @@ static void merge_next_state(struct extent_io_tree *tree, struct extent_state *s
 
 	next = next_state(state);
 	if (next && next->start == state->end + 1 && next->state == state->state) {
-		if (tree->inode)
-			btrfs_merge_delalloc_extent(tree->inode, state, next);
+		if (is_inode_io_tree(tree))
+			btrfs_merge_delalloc_extent(extent_io_tree_to_inode(tree),
+						    state, next);
 		state->end = next->end;
 		rb_erase(&next->rb_node, &tree->state);
 		RB_CLEAR_NODE(&next->rb_node);
@@ -378,8 +412,8 @@ static void set_state_bits(struct extent_io_tree *tree,
 	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->inode)
-		btrfs_set_delalloc_extent(tree->inode, state, bits);
+	if (is_inode_io_tree(tree))
+		btrfs_set_delalloc_extent(extent_io_tree_to_inode(tree), state, bits);
 
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
 	BUG_ON(ret < 0);
@@ -424,9 +458,10 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 		if (state->end < entry->start) {
 			if (try_merge && end == entry->start &&
 			    state->state == entry->state) {
-				if (tree->inode)
-					btrfs_merge_delalloc_extent(tree->inode,
-								    state, entry);
+				if (is_inode_io_tree(tree))
+					btrfs_merge_delalloc_extent(
+							extent_io_tree_to_inode(tree),
+							state, entry);
 				entry->start = state->start;
 				merge_prev_state(tree, entry);
 				state->state = 0;
@@ -436,9 +471,10 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 		} else if (state->end > entry->end) {
 			if (try_merge && entry->end == start &&
 			    state->state == entry->state) {
-				if (tree->inode)
-					btrfs_merge_delalloc_extent(tree->inode,
-								    state, entry);
+				if (is_inode_io_tree(tree))
+					btrfs_merge_delalloc_extent(
+							extent_io_tree_to_inode(tree),
+							state, entry);
 				entry->end = state->end;
 				merge_next_state(tree, entry);
 				state->state = 0;
@@ -490,8 +526,9 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	struct rb_node *parent = NULL;
 	struct rb_node **node;
 
-	if (tree->inode)
-		btrfs_split_delalloc_extent(tree->inode, orig, split);
+	if (is_inode_io_tree(tree))
+		btrfs_split_delalloc_extent(extent_io_tree_to_inode(tree), orig,
+					    split);
 
 	prealloc->start = orig->start;
 	prealloc->end = split - 1;
@@ -538,8 +575,9 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->inode)
-		btrfs_clear_delalloc_extent(tree->inode, state, bits);
+	if (is_inode_io_tree(tree))
+		btrfs_clear_delalloc_extent(extent_io_tree_to_inode(tree), state,
+					    bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
 	BUG_ON(ret < 0);

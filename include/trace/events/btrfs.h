@@ -2098,17 +2098,12 @@ TRACE_EVENT(btrfs_set_extent_bit,
 		__field(	unsigned,	set_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
@@ -2136,17 +2131,12 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->clear_bits	= clear_bits;
@@ -2175,17 +2165,12 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 		__field(	unsigned,	clear_bits)
 	),
 
-	TP_fast_assign_btrfs(tree->fs_info,
-		__entry->owner = tree->owner;
-		if (tree->inode) {
-			const struct btrfs_inode *inode = tree->inode;
+	TP_fast_assign_btrfs(extent_io_tree_to_fs_info(tree),
+		const struct btrfs_inode *inode = extent_io_tree_to_inode_const(tree);
 
-			__entry->ino	= btrfs_ino(inode);
-			__entry->rootid	= inode->root->root_key.objectid;
-		} else {
-			__entry->ino	= 0;
-			__entry->rootid	= 0;
-		}
+		__entry->owner		= tree->owner;
+		__entry->ino		= inode ? btrfs_ino(inode) : 0;
+		__entry->rootid		= inode ? inode->root->root_key.objectid : 0;
 		__entry->start		= start;
 		__entry->len		= len;
 		__entry->set_bits	= set_bits;
