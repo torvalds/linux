@@ -208,7 +208,7 @@ static const struct iio_chan_spec st_lis2duxs12_acc_channels[] = {
 static const struct iio_chan_spec st_lis2duxs12_temp_channels[] = {
 	{
 		.type = IIO_TEMP,
-		.address = ST_LIS2DUXS12_OUT_T_L_ADDR,
+		.address = ST_LIS2DUXS12_OUT_T_AH_QVAR_L_ADDR,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
 				| BIT(IIO_CHAN_INFO_OFFSET)
 				| BIT(IIO_CHAN_INFO_SCALE),
