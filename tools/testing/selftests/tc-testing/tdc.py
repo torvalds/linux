@@ -616,7 +616,7 @@ def test_runner_mp(pm, args, alltests):
     batches.insert(0, serial)
 
     print("Executing {} tests in parallel and {} in serial".format(len(parallel), len(serial)))
-    print("Using {} batches".format(len(batches)))
+    print("Using {} batches and {} workers".format(len(batches), args.mp))
 
     # We can't pickle these objects so workaround them
     global mp_pm
@@ -1017,6 +1017,7 @@ def main():
     parser = pm.call_add_args(parser)
     (args, remaining) = parser.parse_known_args()
     args.NAMES = NAMES
+    args.mp = min(args.mp, 4)
     pm.set_args(args)
     check_default_settings(args, remaining, pm)
     if args.verbose > 2:

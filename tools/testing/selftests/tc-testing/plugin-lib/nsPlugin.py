@@ -17,44 +17,6 @@ except ImportError:
     netlink = False
     print("!!! Consider installing pyroute2 !!!")
 
-def prepare_suite(obj, test):
-    original = obj.args.NAMES
-
-    if 'skip' in test and test['skip'] == 'yes':
-        return
-
-    if 'nsPlugin' not in test['plugins']:
-        return
-
-    shadow = {}
-    shadow['IP'] = original['IP']
-    shadow['TC'] = original['TC']
-    shadow['NS'] = '{}-{}'.format(original['NS'], test['random'])
-    shadow['DEV0'] = '{}id{}'.format(original['DEV0'], test['id'])
-    shadow['DEV1'] = '{}id{}'.format(original['DEV1'], test['id'])
-    shadow['DUMMY'] = '{}id{}'.format(original['DUMMY'], test['id'])
-    shadow['DEV2'] = original['DEV2']
-    obj.args.NAMES = shadow
-
-    if netlink == True:
-        obj._nl_ns_create()
-    else:
-        obj._ns_create()
-
-    # Make sure the netns is visible in the fs
-    while True:
-        obj._proc_check()
-        try:
-            ns = obj.args.NAMES['NS']
-            f = open('/run/netns/{}'.format(ns))
-            f.close()
-            break
-        except:
-            time.sleep(0.1)
-            continue
-
-    obj.args.NAMES = original
-
 class SubPlugin(TdcPlugin):
     def __init__(self):
         self.sub_class = 'ns/SubPlugin'
@@ -65,37 +27,63 @@ class SubPlugin(TdcPlugin):
 
         super().pre_suite(testcount, testlist)
 
-        print("Setting up namespaces and devices...")
+    def prepare_test(self, test):
+        if 'skip' in test and test['skip'] == 'yes':
+            return
 
-        with Pool(self.args.mp) as p:
-            it = zip(cycle([self]), testlist)
-            p.starmap(prepare_suite, it)
+        if 'nsPlugin' not in test['plugins']:
+            return
 
-    def pre_case(self, caseinfo, test_skip):
+        if netlink == True:
+            self._nl_ns_create()
+        else:
+            self._ns_create()
+
+        # Make sure the netns is visible in the fs
+        ticks = 20
+        while True:
+            if ticks == 0:
+                raise TimeoutError
+            self._proc_check()
+            try:
+                ns = self.args.NAMES['NS']
+                f = open('/run/netns/{}'.format(ns))
+                f.close()
+                break
+            except:
+                time.sleep(0.1)
+                ticks -= 1
+                continue
+
+    def pre_case(self, test, test_skip):
         if self.args.verbose:
             print('{}.pre_case'.format(self.sub_class))
 
         if test_skip:
             return
 
+        self.prepare_test(test)
+
     def post_case(self):
         if self.args.verbose:
             print('{}.post_case'.format(self.sub_class))
 
-        self._ns_destroy()
+        if netlink == True:
+            self._nl_ns_destroy()
+        else:
+            self._ns_destroy()
 
     def post_suite(self, index):
         if self.args.verbose:
             print('{}.post_suite'.format(self.sub_class))
 
         # Make sure we don't leak resources
-        for f in os.listdir('/run/netns/'):
-            cmd = self._replace_keywords("$IP netns del {}".format(f))
+        cmd = "$IP -a netns del"
 
-            if self.args.verbose > 3:
-                print('_exec_cmd:  command "{}"'.format(cmd))
+        if self.args.verbose > 3:
+            print('_exec_cmd:  command "{}"'.format(cmd))
 
-            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def adjust_command(self, stage, command):
         super().adjust_command(stage, command)
@@ -143,7 +131,10 @@ class SubPlugin(TdcPlugin):
         with IPRoute() as ip:
             ip.link('add', ifname=dev1, kind='veth', peer={'ifname': dev0, 'net_ns_fd':'/proc/1/ns/net'})
             ip.link('add', ifname=dummy, kind='dummy')
+            ticks = 20
             while True:
+                if ticks == 0:
+                    raise TimeoutError
                 try:
                     dev1_idx = ip.link_lookup(ifname=dev1)[0]
                     dummy_idx = ip.link_lookup(ifname=dummy)[0]
@@ -152,17 +143,22 @@ class SubPlugin(TdcPlugin):
                     break
                 except:
                     time.sleep(0.1)
+                    ticks -= 1
                     continue
         netns.popns()
 
         with IPRoute() as ip:
+            ticks = 20
             while True:
+                if ticks == 0:
+                    raise TimeoutError
                 try:
                     dev0_idx = ip.link_lookup(ifname=dev0)[0]
                     ip.link('set', index=dev0_idx, state='up')
                     break
                 except:
                     time.sleep(0.1)
+                    ticks -= 1
                     continue
 
     def _ns_create_cmds(self):
@@ -191,6 +187,10 @@ class SubPlugin(TdcPlugin):
         the required network devices for it.
         '''
         self._exec_cmd_batched('pre', self._ns_create_cmds())
+
+    def _nl_ns_destroy(self):
+        ns = self.args.NAMES['NS']
+        netns.remove(ns)
 
     def _ns_destroy_cmd(self):
         return self._replace_keywords('netns delete {}'.format(self.args.NAMES['NS']))
