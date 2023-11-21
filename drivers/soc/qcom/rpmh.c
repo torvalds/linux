@@ -36,39 +36,9 @@
 		.cmd = { { 0 } },			\
 		.completion = q,			\
 		.dev = device,				\
-		.needs_free = false,				\
 	}
 
 #define ctrlr_to_drv(ctrlr) container_of(ctrlr, struct rsc_drv, client)
-
-/**
- * struct cache_req: the request object for caching
- *
- * @addr: the address of the resource
- * @sleep_val: the sleep vote
- * @wake_val: the wake vote
- * @list: linked list obj
- */
-struct cache_req {
-	u32 addr;
-	u32 sleep_val;
-	u32 wake_val;
-	struct list_head list;
-};
-
-/**
- * struct batch_cache_req - An entry in our batch catch
- *
- * @list: linked list obj
- * @count: number of messages
- * @rpm_msgs: the messages
- */
-
-struct batch_cache_req {
-	struct list_head list;
-	int count;
-	struct rpmh_request *rpm_msgs;
-};
 
 static struct rpmh_ctrlr *get_rpmh_ctrlr(const struct device *dev)
 {
@@ -108,29 +78,31 @@ void rpmh_tx_done(const struct tcs_request *msg)
 	struct rpmh_request *rpm_msg = container_of(msg, struct rpmh_request,
 						    msg);
 	struct completion *compl = rpm_msg->completion;
-	bool free = rpm_msg->needs_free;
 
 	if (!compl)
-		goto exit;
+		return;
 
 	/* Signal the blocking thread we are done */
 	complete(compl);
-
-exit:
-	if (free)
-		kfree(rpm_msg);
 }
 
-static struct cache_req *__find_req(struct rpmh_ctrlr *ctrlr, u32 addr)
+static struct cache_req *get_non_batch_cache_req(struct rpmh_ctrlr *ctrlr, u32 addr)
 {
-	struct cache_req *p, *req = NULL;
+	struct cache_req *req = ctrlr->non_batch_cache;
+	int i;
 
-	list_for_each_entry(p, &ctrlr->cache, list) {
-		if (p->addr == addr) {
-			req = p;
-			break;
-		}
+	if (ctrlr->non_batch_cache_idx >= CMD_DB_MAX_RESOURCES)
+		return NULL;
+
+	for (i = 0; i < ctrlr->non_batch_cache_idx; i++) {
+		req = &ctrlr->non_batch_cache[i];
+		if (req->addr == addr)
+			return req;
 	}
+
+	req = &ctrlr->non_batch_cache[ctrlr->non_batch_cache_idx];
+	req->sleep_val = req->wake_val = UINT_MAX;
+	ctrlr->non_batch_cache_idx++;
 
 	return req;
 }
@@ -144,21 +116,14 @@ static struct cache_req *cache_rpm_request(struct rpmh_ctrlr *ctrlr,
 	u32 old_sleep_val, old_wake_val;
 
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
-	req = __find_req(ctrlr, cmd->addr);
-	if (req)
-		goto existing;
 
-	req = kzalloc(sizeof(*req), GFP_ATOMIC);
+	req = get_non_batch_cache_req(ctrlr, cmd->addr);
 	if (!req) {
 		req = ERR_PTR(-ENOMEM);
 		goto unlock;
 	}
 
 	req->addr = cmd->addr;
-	req->sleep_val = req->wake_val = UINT_MAX;
-	list_add_tail(&req->list, &ctrlr->cache);
-
-existing:
 	old_sleep_val = req->sleep_val;
 	old_wake_val = req->wake_val;
 
@@ -255,29 +220,23 @@ static int __fill_rpmh_msg(struct rpmh_request *req, enum rpmh_state state,
 int rpmh_write_async(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 n)
 {
+	DEFINE_RPMH_MSG_ONSTACK(dev, state, NULL, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
-	struct rpmh_request *rpm_msg;
 	int ret;
 
 	if (rpmh_standalone)
 		return 0;
 
+	rpm_msg.msg.wait_for_compl = false;
 	ret = check_ctrlr_state(ctrlr, state);
 	if (ret)
 		return ret;
 
-	rpm_msg = kzalloc(sizeof(*rpm_msg), GFP_ATOMIC);
-	if (!rpm_msg)
-		return -ENOMEM;
-	rpm_msg->needs_free = true;
-
-	ret = __fill_rpmh_msg(rpm_msg, state, cmd, n);
-	if (ret) {
-		kfree(rpm_msg);
+	ret = __fill_rpmh_msg(&rpm_msg, state, cmd, n);
+	if (ret)
 		return ret;
-	}
 
-	return __rpmh_write(dev, state, rpm_msg);
+	return __rpmh_write(dev, state, &rpm_msg);
 }
 EXPORT_SYMBOL(rpmh_write_async);
 
@@ -324,35 +283,18 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 }
 EXPORT_SYMBOL(rpmh_write);
 
-static void cache_batch(struct rpmh_ctrlr *ctrlr, struct batch_cache_req *req)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ctrlr->cache_lock, flags);
-	list_add_tail(&req->list, &ctrlr->batch_cache);
-	ctrlr->dirty = true;
-	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
-}
-
 static int flush_batch(struct rpmh_ctrlr *ctrlr, int ch)
 {
-	struct batch_cache_req *req;
-	const struct rpmh_request *rpm_msg;
-	int ret = 0;
-	int i;
+	int ret;
 
-	/* Send Sleep/Wake requests to the controller, expect no response */
-	list_for_each_entry(req, &ctrlr->batch_cache, list) {
-		for (i = 0; i < req->count; i++) {
-			rpm_msg = req->rpm_msgs + i;
-			ret = rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr),
-						       &rpm_msg->msg, ch);
-			if (ret)
-				break;
-		}
-	}
+	/* Send Sleep/Wake requests to the controller, expect no response IRQ */
+	ret = rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr),
+				       &ctrlr->batch_cache[RPMH_SLEEP_STATE].msg, ch);
+	if (ret)
+		return ret;
 
-	return ret;
+	return rpmh_rsc_write_ctrl_data(ctrlr_to_drv(ctrlr),
+					&ctrlr->batch_cache[RPMH_WAKE_ONLY_STATE].msg, ch);
 }
 
 /**
@@ -375,14 +317,10 @@ static int flush_batch(struct rpmh_ctrlr *ctrlr, int ch)
 int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 		     const struct tcs_cmd *cmd, u32 *n)
 {
-	struct batch_cache_req *req;
-	struct rpmh_request *rpm_msgs;
-	struct completion *compls;
+	DECLARE_COMPLETION_ONSTACK(compl);
+	DEFINE_RPMH_MSG_ONSTACK(dev, state, &compl, rpm_msg);
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
-	unsigned long time_left;
-	int count = 0;
-	int ret, i, ch;
-	void *ptr;
+	int ret, ch;
 
 	if (rpmh_standalone)
 		return 0;
@@ -391,73 +329,46 @@ int rpmh_write_batch(const struct device *dev, enum rpmh_state state,
 	if (ret)
 		return ret;
 
-	if (!cmd || !n)
-		return -EINVAL;
+	if (state == RPMH_ACTIVE_ONLY_STATE) {
+		ret = __fill_rpmh_msg(&rpm_msg, state, cmd, *n);
+		if (ret)
+			return ret;
+	} else {
+		memset(&ctrlr->batch_cache[state], 0, sizeof(struct rpmh_request));
+		ret = __fill_rpmh_msg(&ctrlr->batch_cache[state], state, cmd, *n);
+		if (ret)
+			return ret;
 
-	while (n[count] > 0)
-		count++;
-	if (!count)
-		return -EINVAL;
+		spin_lock(&ctrlr->cache_lock);
+		ctrlr->dirty = true;
+		spin_unlock(&ctrlr->cache_lock);
 
-	ptr = kzalloc(sizeof(*req) +
-		      count * (sizeof(req->rpm_msgs[0]) + sizeof(*compls)),
-		      GFP_ATOMIC);
-	if (!ptr)
-		return -ENOMEM;
-
-	req = ptr;
-	rpm_msgs = ptr + sizeof(*req);
-	compls = ptr + sizeof(*req) + count * sizeof(*rpm_msgs);
-
-	req->count = count;
-	req->rpm_msgs = rpm_msgs;
-
-	for (i = 0; i < count; i++) {
-		__fill_rpmh_msg(rpm_msgs + i, state, cmd, n[i]);
-		cmd += n[i];
-	}
-
-	if (state != RPMH_ACTIVE_ONLY_STATE) {
-		cache_batch(ctrlr, req);
 		return 0;
 	}
 
 	ch = rpmh_rsc_get_channel(ctrlr_to_drv(ctrlr));
-	if (ch < 0) {
-		kfree(ptr);
+	if (ch < 0)
 		return ch;
+
+	ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msg.msg, ch);
+	if (ret) {
+		pr_err("Error(%d) sending RPMH message addr=%#x\n",
+		       ret, rpm_msg.msg.cmds[0].addr);
+		return ret;
 	}
 
-	for (i = 0; i < count; i++) {
-		struct completion *compl = &compls[i];
-
-		init_completion(compl);
-		rpm_msgs[i].completion = compl;
-		ret = rpmh_rsc_send_data(ctrlr_to_drv(ctrlr), &rpm_msgs[i].msg, ch);
-		if (ret) {
-			pr_err("Error(%d) sending RPMH message addr=%#x\n",
-			       ret, rpm_msgs[i].msg.cmds[0].addr);
-			break;
-		}
+	ret = wait_for_completion_timeout(&compl, RPMH_TIMEOUT_MS);
+	if (!ret) {
+		/*
+		 * Better hope they never finish because they'll signal
+		 * the completion that we're going to free once
+		 * we've returned from this function.
+		 */
+		rpmh_rsc_debug(ctrlr_to_drv(ctrlr), &compl);
+		BUG_ON(1);
 	}
 
-	time_left = RPMH_TIMEOUT_MS;
-	while (i--) {
-		time_left = wait_for_completion_timeout(&compls[i], time_left);
-		if (!time_left) {
-			/*
-			 * Better hope they never finish because they'll signal
-			 * the completion that we're going to free once
-			 * we've returned from this function.
-			 */
-			rpmh_rsc_debug(ctrlr_to_drv(ctrlr), &compls[i]);
-			BUG_ON(1);
-		}
-	}
-
-	kfree(ptr);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(rpmh_write_batch);
 
@@ -485,7 +396,7 @@ static int send_single(struct rpmh_ctrlr *ctrlr, enum rpmh_state state,
 int _rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 {
 	struct cache_req *p;
-	int ret = 0;
+	int ret = 0, i;
 
 	if (!ctrlr->dirty) {
 		pr_debug("Skipping flush, TCS has latest data.\n");
@@ -500,7 +411,8 @@ int _rpmh_flush(struct rpmh_ctrlr *ctrlr, int ch)
 	if (ret)
 		return ret;
 
-	list_for_each_entry(p, &ctrlr->cache, list) {
+	for (i = 0; i < ctrlr->non_batch_cache_idx; i++) {
+		p = &ctrlr->non_batch_cache[i];
 		if (!is_req_valid(p)) {
 			pr_debug("%s: skipping RPMH req: a:%#x s:%#x w:%#x\n",
 				 __func__, p->addr, p->sleep_val, p->wake_val);
@@ -633,19 +545,14 @@ EXPORT_SYMBOL(rpmh_write_sleep_and_wake_no_child);
 void rpmh_invalidate(const struct device *dev)
 {
 	struct rpmh_ctrlr *ctrlr = get_rpmh_ctrlr(dev);
-	struct batch_cache_req *req, *tmp;
 	unsigned long flags;
 
 	if (rpmh_standalone)
 		return;
 
 	spin_lock_irqsave(&ctrlr->cache_lock, flags);
-	list_for_each_entry_safe(req, tmp, &ctrlr->batch_cache, list) {
-		list_del(&req->list);
-		kfree(req);
-	}
-
-	INIT_LIST_HEAD(&ctrlr->batch_cache);
+	memset(&ctrlr->batch_cache[RPMH_SLEEP_STATE], 0, sizeof(struct rpmh_request));
+	memset(&ctrlr->batch_cache[RPMH_WAKE_ONLY_STATE], 0, sizeof(struct rpmh_request));
 	ctrlr->dirty = true;
 	spin_unlock_irqrestore(&ctrlr->cache_lock, flags);
 }

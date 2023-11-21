@@ -28,7 +28,24 @@
 #define SOLVER_PRESENT			1
 #define HW_CHANNEL_PRESENT		2
 
+#define	CMD_DB_MAX_RESOURCES	250
+
 struct rsc_drv;
+
+/**
+ * struct cache_req: the request object for caching
+ *
+ * @addr: the address of the resource
+ * @sleep_val: the sleep vote
+ * @wake_val: the wake vote
+ * @list: linked list obj
+ */
+struct cache_req {
+	u32 addr;
+	u32 sleep_val;
+	u32 wake_val;
+	struct list_head list;
+};
 
 /**
  * struct tcs_group: group of Trigger Command Sets (TCS) to send state requests
@@ -70,20 +87,17 @@ struct tcs_group {
  * @cmd: the payload that will be part of the @msg
  * @completion: triggered when request is done
  * @dev: the device making the request
- * @needs_free: check to free dynamically allocated request object
  */
 struct rpmh_request {
 	struct tcs_request msg;
 	struct tcs_cmd cmd[MAX_RPMH_PAYLOAD];
 	struct completion *completion;
 	const struct device *dev;
-	bool needs_free;
 };
 
 /**
  * struct rpmh_ctrlr: our representation of the controller
  *
- * @cache: the list of cached requests
  * @cache_lock: synchronize access to the cache data
  * @dirty: was the cache updated since flush
  * @in_solver_mode: Controller is busy in solver mode
@@ -91,12 +105,13 @@ struct rpmh_request {
  * @batch_cache: Cache sleep and wake requests sent as batch
  */
 struct rpmh_ctrlr {
-	struct list_head cache;
 	spinlock_t cache_lock;
 	bool dirty;
 	bool in_solver_mode;
 	u32 flags;
-	struct list_head batch_cache;
+	struct rpmh_request batch_cache[RPMH_ACTIVE_ONLY_STATE];
+	u32 non_batch_cache_idx;
+	struct cache_req *non_batch_cache;
 };
 
 /**
