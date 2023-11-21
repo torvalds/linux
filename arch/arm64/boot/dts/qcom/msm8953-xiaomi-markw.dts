@@ -143,6 +143,30 @@
 	voltage-max-design-microvolt = <4380000>;
 };
 
+&camss {
+	status = "okay";
+	vdda-supply = <&pm8953_s3>;
+
+	ports {
+		port@0 {
+			reg = <0>;
+			csiphy0_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&rear_cam_ep>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			csiphy2_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1>;
+				remote-endpoint = <&front_cam_ep>;
+			};
+		};
+	};
+};
+
 &cci {
 	pinctrl-names = "default";
 	pinctrl-0 = <&cci0_default>,
@@ -151,6 +175,36 @@
 		    <&camss_mclk1_default>;
 
 	status = "okay";
+};
+
+&cci_i2c0 {
+	camera-sensor@2d { // Primary rear camera
+		compatible = "samsung,s5k3l8";
+
+		reg = <0x2d>;
+
+		clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+		clock-frequency = <24000000>;
+
+		reset-gpios = <&tlmm 40 GPIO_ACTIVE_LOW>;
+
+		avdd-supply= <&pm8953_l22>;
+		dvdd-supply = <&pm8953_l2>;
+		vio-supply = <&pm8953_l6>;
+		aux-supply = <&pm8953_l17>;
+
+		rotation = <270>;
+		orientation = <1>;
+
+		status = "okay";
+
+		port {
+			rear_cam_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
 };
 
 &cci_i2c1 {
@@ -180,22 +234,6 @@
 				data-lanes = <0 1>;
 				remote-endpoint = <&csiphy2_ep>;
 				link-frequencies = /bits/ 64 <450000000>;
-			};
-		};
-	};
-};
-
-&camss {
-	status = "okay";
-	vdda-supply = <&pm8953_s3>;
-
-	ports {
-		port@2 {
-			reg = <2>;
-			csiphy2_ep: endpoint {
-				clock-lanes = <7>;
-				data-lanes = <0 1>;
-				remote-endpoint = <&front_cam_ep>;
 			};
 		};
 	};
@@ -234,6 +272,10 @@
 
 &panel {
 	compatible = "xiaomi,markw-panel";
+};
+
+&pm8953_l2 {
+	regulator-min-microvolt = <1200000>;
 };
 
 &sound_card {
