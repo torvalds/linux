@@ -481,6 +481,7 @@ xfs_cui_recover_work(
 	ri->ri_type = pmap->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
+	xfs_refcount_update_get_group(mp, ri);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }
@@ -497,12 +498,8 @@ xfs_cui_item_recover(
 	struct xfs_trans_res		resv;
 	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
-	struct xfs_cud_log_item		*cudp;
 	struct xfs_trans		*tp;
-	struct xfs_btree_cur		*rcur = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_refcount_intent	*fake;
-	bool				requeue_only = false;
 	int				i;
 	int				error = 0;
 
@@ -541,59 +538,17 @@ xfs_cui_item_recover(
 	if (error)
 		return error;
 
-	cudp = xfs_trans_get_cud(tp, cuip);
-	xlog_recover_transfer_intent(tp, dfp);
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&cuip->cui_format,
+				sizeof(cuip->cui_format));
+	if (error)
+		goto abort_error;
 
-	list_for_each_entry(fake, &dfp->dfp_work, ri_list) {
-		if (!requeue_only) {
-			xfs_refcount_update_get_group(mp, fake);
-			error = xfs_trans_log_finish_refcount_update(tp, cudp,
-					fake, &rcur);
-			xfs_refcount_update_put_group(fake);
-		}
-		if (error == -EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					&cuip->cui_format,
-					sizeof(cuip->cui_format));
-		if (error)
-			goto abort_error;
-
-		/* Requeue what we didn't finish. */
-		if (fake->ri_blockcount > 0) {
-			struct xfs_bmbt_irec	irec = {
-				.br_startblock	= fake->ri_startblock,
-				.br_blockcount	= fake->ri_blockcount,
-			};
-
-			switch (fake->ri_type) {
-			case XFS_REFCOUNT_INCREASE:
-				xfs_refcount_increase_extent(tp, &irec);
-				break;
-			case XFS_REFCOUNT_DECREASE:
-				xfs_refcount_decrease_extent(tp, &irec);
-				break;
-			case XFS_REFCOUNT_ALLOC_COW:
-				xfs_refcount_alloc_cow_extent(tp,
-						irec.br_startblock,
-						irec.br_blockcount);
-				break;
-			case XFS_REFCOUNT_FREE_COW:
-				xfs_refcount_free_cow_extent(tp,
-						irec.br_startblock,
-						irec.br_blockcount);
-				break;
-			default:
-				ASSERT(0);
-			}
-			requeue_only = true;
-		}
-	}
-
-	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 
 abort_error:
-	xfs_refcount_finish_one_cleanup(tp, rcur, error);
 	xfs_trans_cancel(tp);
 	return error;
 }

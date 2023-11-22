@@ -665,6 +665,7 @@ xfs_efi_recover_work(
 	xefi->xefi_blockcount = extp->ext_len;
 	xefi->xefi_agresv = XFS_AG_RESV_NONE;
 	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
+	xfs_extent_free_get_group(mp, xefi);
 
 	xfs_defer_add_item(dfp, &xefi->xefi_list);
 }
@@ -682,12 +683,9 @@ xfs_efi_item_recover(
 	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_efi_log_item		*efip = EFI_ITEM(lip);
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_efd_log_item		*efdp;
 	struct xfs_trans		*tp;
-	struct xfs_extent_free_item	*fake;
 	int				i;
 	int				error = 0;
-	bool				requeue_only = false;
 
 	/*
 	 * First check the validity of the extents described by the
@@ -711,40 +709,13 @@ xfs_efi_item_recover(
 	if (error)
 		return error;
 
-	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
-	xlog_recover_transfer_intent(tp, dfp);
-
-	list_for_each_entry(fake, &dfp->dfp_work, xefi_list) {
-		if (!requeue_only) {
-			xfs_extent_free_get_group(mp, fake);
-			error = xfs_trans_free_extent(tp, efdp, fake);
-			xfs_extent_free_put_group(fake);
-		}
-
-		/*
-		 * If we can't free the extent without potentially deadlocking,
-		 * requeue the rest of the extents to a new so that they get
-		 * run again later with a new transaction context.
-		 */
-		if (error == -EAGAIN || requeue_only) {
-			error = xfs_free_extent_later(tp, fake->xefi_startblock,
-					fake->xefi_blockcount,
-					&XFS_RMAP_OINFO_ANY_OWNER,
-					fake->xefi_agresv);
-			if (!error) {
-				requeue_only = true;
-				continue;
-			}
-		}
-
-		if (error == -EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					&efip->efi_format,
-					sizeof(efip->efi_format));
-		if (error)
-			goto abort_error;
-
-	}
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&efip->efi_format,
+				sizeof(efip->efi_format));
+	if (error)
+		goto abort_error;
 
 	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 

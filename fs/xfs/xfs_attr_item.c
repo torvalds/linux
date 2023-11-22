@@ -620,7 +620,6 @@ xfs_attri_item_recover(
 	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
 	int				error;
 	int				total;
-	struct xfs_attrd_log_item	*done_item = NULL;
 
 	/*
 	 * First check the validity of the attr described by the ATTRI.  If any
@@ -645,27 +644,10 @@ xfs_attri_item_recover(
 		return error;
 	args->trans = tp;
 
-	done_item = xfs_trans_get_attrd(tp, attrip);
-	xlog_recover_transfer_intent(tp, dfp);
-
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	error = xfs_xattri_finish_update(attr, done_item);
-	if (error == -EAGAIN) {
-		/*
-		 * There's more work to do, so add the intent item to this
-		 * transaction so that we can continue it later.
-		 */
-		xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_ATTR, &attr->xattri_list);
-		error = xfs_defer_ops_capture_and_commit(tp, capture_list);
-		if (error)
-			goto out_unlock;
-
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_irele(ip);
-		return 0;
-	}
+	error = xlog_recover_finish_intent(tp, dfp);
 	if (error == -EFSCORRUPTED)
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 				&attrip->attri_format,

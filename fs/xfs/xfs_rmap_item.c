@@ -546,6 +546,7 @@ xfs_rui_recover_work(
 	ri->ri_bmap.br_blockcount = map->me_len;
 	ri->ri_bmap.br_state = (map->me_flags & XFS_RMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+	xfs_rmap_update_get_group(mp, ri);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }
@@ -562,11 +563,8 @@ xfs_rui_item_recover(
 	struct xfs_trans_res		resv;
 	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_rui_log_item		*ruip = RUI_ITEM(lip);
-	struct xfs_rud_log_item		*rudp;
 	struct xfs_trans		*tp;
-	struct xfs_btree_cur		*rcur = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_rmap_intent		*fake;
 	int				i;
 	int				error = 0;
 
@@ -593,28 +591,17 @@ xfs_rui_item_recover(
 	if (error)
 		return error;
 
-	rudp = xfs_trans_get_rud(tp, ruip);
-	xlog_recover_transfer_intent(tp, dfp);
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&ruip->rui_format,
+				sizeof(ruip->rui_format));
+	if (error)
+		goto abort_error;
 
-	list_for_each_entry(fake, &dfp->dfp_work, ri_list) {
-		xfs_rmap_update_get_group(mp, fake);
-		error = xfs_trans_log_finish_rmap_update(tp, rudp, fake,
-				&rcur);
-		if (error == -EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					&ruip->rui_format,
-					sizeof(ruip->rui_format));
-		xfs_rmap_update_put_group(fake);
-		if (error)
-			goto abort_error;
-
-	}
-
-	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 
 abort_error:
-	xfs_rmap_finish_one_cleanup(tp, rcur, error);
 	xfs_trans_cancel(tp);
 	return error;
 }

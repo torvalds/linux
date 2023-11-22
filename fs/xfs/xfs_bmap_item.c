@@ -497,6 +497,7 @@ xfs_bui_recover_work(
 	bi->bi_bmap.br_blockcount = map->me_len;
 	bi->bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+	xfs_bmap_update_get_group(mp, bi);
 
 	xfs_defer_add_item(dfp, &bi->bi_list);
 	return bi;
@@ -518,8 +519,7 @@ xfs_bui_item_recover(
 	struct xfs_inode		*ip = NULL;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
 	struct xfs_map_extent		*map;
-	struct xfs_bud_log_item		*budp;
-	struct xfs_bmap_intent		*fake;
+	struct xfs_bmap_intent		*work;
 	int				iext_delta;
 	int				error = 0;
 
@@ -530,7 +530,7 @@ xfs_bui_item_recover(
 	}
 
 	map = &buip->bui_format.bui_extents[0];
-	fake = xfs_bui_recover_work(mp, dfp, map);
+	work = xfs_bui_recover_work(mp, dfp, map);
 
 	error = xlog_recover_iget(mp, map->me_owner, &ip);
 	if (error)
@@ -543,38 +543,28 @@ xfs_bui_item_recover(
 	if (error)
 		goto err_rele;
 
-	budp = xfs_trans_get_bud(tp, buip);
-	xlog_recover_transfer_intent(tp, dfp);
-
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	if (fake->bi_type == XFS_BMAP_MAP)
+	if (work->bi_type == XFS_BMAP_MAP)
 		iext_delta = XFS_IEXT_ADD_NOSPLIT_CNT;
 	else
 		iext_delta = XFS_IEXT_PUNCH_HOLE_CNT;
 
-	error = xfs_iext_count_may_overflow(ip, fake->bi_whichfork, iext_delta);
+	error = xfs_iext_count_may_overflow(ip, work->bi_whichfork, iext_delta);
 	if (error == -EFBIG)
 		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
 	if (error)
 		goto err_cancel;
 
-	fake->bi_owner = ip;
+	work->bi_owner = ip;
 
-	xfs_bmap_update_get_group(mp, fake);
-	error = xfs_trans_log_finish_bmap_update(tp, budp, fake);
+	error = xlog_recover_finish_intent(tp, dfp);
 	if (error == -EFSCORRUPTED)
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 				&buip->bui_format, sizeof(buip->bui_format));
-	xfs_bmap_update_put_group(fake);
 	if (error)
 		goto err_cancel;
-
-	if (fake->bi_bmap.br_blockcount > 0) {
-		ASSERT(fake->bi_type == XFS_BMAP_UNMAP);
-		xfs_bmap_unmap_extent(tp, ip, &fake->bi_bmap);
-	}
 
 	/*
 	 * Commit transaction, which frees the transaction and saves the inode
