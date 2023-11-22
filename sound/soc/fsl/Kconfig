@@ -183,19 +183,6 @@ config SND_SOC_POWERPC_QMC_AUDIO
 
 comment "SoC Audio support for Freescale PPC boards:"
 
-config SND_SOC_MPC8610_HPCD
-	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
-	# I2C is necessary for the CS4270 driver
-	depends on MPC8610_HPCD && I2C
-	select SND_SOC_FSL_SSI
-	select SND_SOC_FSL_UTILS
-	select SND_SOC_POWERPC_DMA
-	select SND_SOC_CS4270
-	select SND_SOC_CS4270_VD33_ERRATA
-	default y if MPC8610_HPCD
-	help
-	  Say Y if you want to enable audio on the Freescale MPC8610 HPCD.
-
 config SND_SOC_P1022_DS
 	tristate "ALSA SoC support for the Freescale P1022 DS board"
 	# I2C is necessary for the WM8776 driver
