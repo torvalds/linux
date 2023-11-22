@@ -829,6 +829,24 @@ static int byt_set_pull_strength(u32 *reg, u16 strength)
 	return 0;
 }
 
+static void byt_gpio_force_input_mode(struct intel_pinctrl *vg, unsigned int offset)
+{
+	void __iomem *reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
+	u32 value;
+
+	value = readl(reg);
+	if (!(value & BYT_INPUT_EN))
+		return;
+
+	/*
+	 * Pull assignment is only applicable in input mode. If
+	 * chip is not in input mode, set it and warn about it.
+	 */
+	value &= ~BYT_INPUT_EN;
+	writel(value, reg);
+	dev_warn(vg->dev, "Pin %i: forcibly set to input mode\n", offset);
+}
+
 static int byt_pin_config_get(struct pinctrl_dev *pctl_dev, unsigned int offset,
 			      unsigned long *config)
 {
@@ -919,9 +937,8 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 {
 	struct intel_pinctrl *vg = pinctrl_dev_get_drvdata(pctl_dev);
 	void __iomem *conf_reg = byt_gpio_reg(vg, offset, BYT_CONF0_REG);
-	void __iomem *val_reg = byt_gpio_reg(vg, offset, BYT_VAL_REG);
 	void __iomem *db_reg = byt_gpio_reg(vg, offset, BYT_DEBOUNCE_REG);
-	u32 conf, val, db_pulse, debounce;
+	u32 conf, db_pulse, debounce;
 	enum pin_config_param param;
 	unsigned long flags;
 	int i, ret = 0;
@@ -930,7 +947,6 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 	raw_spin_lock_irqsave(&byt_lock, flags);
 
 	conf = readl(conf_reg);
-	val = readl(val_reg);
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -945,15 +961,7 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			if (arg == 1)
 				arg = 2000;
 
-			/*
-			 * Pull assignment is only applicable in input mode. If
-			 * chip is not in input mode, set it and warn about it.
-			 */
-			if (val & BYT_INPUT_EN) {
-				val &= ~BYT_INPUT_EN;
-				writel(val, val_reg);
-				dev_warn(vg->dev, "Pin %i: forcibly set to input mode\n", offset);
-			}
+			byt_gpio_force_input_mode(vg, offset);
 
 			conf &= ~BYT_PULL_ASSIGN_MASK;
 			conf |= BYT_PULL_ASSIGN_DOWN;
@@ -965,15 +973,7 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			if (arg == 1)
 				arg = 2000;
 
-			/*
-			 * Pull assignment is only applicable in input mode. If
-			 * chip is not in input mode, set it and warn about it.
-			 */
-			if (val & BYT_INPUT_EN) {
-				val &= ~BYT_INPUT_EN;
-				writel(val, val_reg);
-				dev_warn(vg->dev, "Pin %i: forcibly set to input mode\n", offset);
-			}
+			byt_gpio_force_input_mode(vg, offset);
 
 			conf &= ~BYT_PULL_ASSIGN_MASK;
 			conf |= BYT_PULL_ASSIGN_UP;
