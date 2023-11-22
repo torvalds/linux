@@ -1368,18 +1368,20 @@ static void iavf_clear_cloud_filters(struct iavf_adapter *adapter)
  **/
 static void iavf_clear_fdir_filters(struct iavf_adapter *adapter)
 {
-	struct iavf_fdir_fltr *fdir, *fdirtmp;
+	struct iavf_fdir_fltr *fdir;
 
 	/* remove all Flow Director filters */
 	spin_lock_bh(&adapter->fdir_fltr_lock);
-	list_for_each_entry_safe(fdir, fdirtmp, &adapter->fdir_list_head,
-				 list) {
+	list_for_each_entry(fdir, &adapter->fdir_list_head, list) {
 		if (fdir->state == IAVF_FDIR_FLTR_ADD_REQUEST) {
-			list_del(&fdir->list);
-			kfree(fdir);
-			adapter->fdir_active_fltr--;
-		} else {
-			fdir->state = IAVF_FDIR_FLTR_DEL_REQUEST;
+			/* Cancel a request, keep filter as inactive */
+			fdir->state = IAVF_FDIR_FLTR_INACTIVE;
+		} else if (fdir->state == IAVF_FDIR_FLTR_ADD_PENDING ||
+			 fdir->state == IAVF_FDIR_FLTR_ACTIVE) {
+			/* Disable filters which are active or have a pending
+			 * request to PF to be added
+			 */
+			fdir->state = IAVF_FDIR_FLTR_DIS_REQUEST;
 		}
 	}
 	spin_unlock_bh(&adapter->fdir_fltr_lock);
@@ -4211,6 +4213,33 @@ static int iavf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 }
 
 /**
+ * iavf_restore_fdir_filters
+ * @adapter: board private structure
+ *
+ * Restore existing FDIR filters when VF netdev comes back up.
+ **/
+static void iavf_restore_fdir_filters(struct iavf_adapter *adapter)
+{
+	struct iavf_fdir_fltr *f;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	list_for_each_entry(f, &adapter->fdir_list_head, list) {
+		if (f->state == IAVF_FDIR_FLTR_DIS_REQUEST) {
+			/* Cancel a request, keep filter as active */
+			f->state = IAVF_FDIR_FLTR_ACTIVE;
+		} else if (f->state == IAVF_FDIR_FLTR_DIS_PENDING ||
+			   f->state == IAVF_FDIR_FLTR_INACTIVE) {
+			/* Add filters which are inactive or have a pending
+			 * request to PF to be deleted
+			 */
+			f->state = IAVF_FDIR_FLTR_ADD_REQUEST;
+			adapter->aq_required |= IAVF_FLAG_AQ_ADD_FDIR_FILTER;
+		}
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+}
+
+/**
  * iavf_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -4277,8 +4306,9 @@ static int iavf_open(struct net_device *netdev)
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	/* Restore VLAN filters that were removed with IFF_DOWN */
+	/* Restore filters that were removed with IFF_DOWN */
 	iavf_restore_filters(adapter);
+	iavf_restore_fdir_filters(adapter);
 
 	iavf_configure(adapter);
 
