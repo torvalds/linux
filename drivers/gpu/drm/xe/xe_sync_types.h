@@ -21,6 +21,7 @@ struct xe_sync_entry {
 	struct user_fence *ufence;
 	u64 addr;
 	u64 timeline_value;
+	u32 type;
 	u32 flags;
 };
 
