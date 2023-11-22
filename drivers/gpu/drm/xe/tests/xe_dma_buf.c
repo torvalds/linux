@@ -109,15 +109,21 @@ static void xe_test_dmabuf_import_same_driver(struct xe_device *xe)
 	struct drm_gem_object *import;
 	struct dma_buf *dmabuf;
 	struct xe_bo *bo;
+	size_t size;
 
 	/* No VRAM on this device? */
 	if (!ttm_manager_type(&xe->ttm, XE_PL_VRAM0) &&
 	    (params->mem_mask & XE_BO_CREATE_VRAM0_BIT))
 		return;
 
+	size = PAGE_SIZE;
+	if ((params->mem_mask & XE_BO_CREATE_VRAM0_BIT) &&
+	    xe->info.vram_flags & XE_VRAM_FLAGS_NEED64K)
+		size = SZ_64K;
+
 	kunit_info(test, "running %s\n", __func__);
-	bo = xe_bo_create_user(xe, NULL, NULL, PAGE_SIZE, DRM_XE_GEM_CPU_CACHING_WC,
-			       ttm_bo_type_device, params->mem_mask);
+	bo = xe_bo_create_user(xe, NULL, NULL, size, DRM_XE_GEM_CPU_CACHING_WC,
+			       ttm_bo_type_device, XE_BO_CREATE_USER_BIT | params->mem_mask);
 	if (IS_ERR(bo)) {
 		KUNIT_FAIL(test, "xe_bo_create() failed with err=%ld\n",
 			   PTR_ERR(bo));
