@@ -2517,7 +2517,8 @@ static int domain_add_dev_info(struct dmar_domain *domain, struct device *dev)
 		return ret;
 	}
 
-	iommu_enable_pci_caps(info);
+	if (sm_supported(info->iommu) || !domain_type_is_si(info->domain))
+		iommu_enable_pci_caps(info);
 
 	return 0;
 }
