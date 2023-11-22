@@ -23,6 +23,7 @@ void __net_exit smc_sysctl_net_exit(struct net *net);
 static inline int smc_sysctl_net_init(struct net *net)
 {
 	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
+	net->smc.sysctl_max_links_per_lgr = SMC_LINKS_PER_LGR_MAX_PREFER;
 	return 0;
 }
 
