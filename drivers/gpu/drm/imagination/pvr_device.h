@@ -152,6 +152,14 @@ struct pvr_device {
 	 */
 	atomic_t mmu_flush_cache_flags;
 
+	/**
+	 * @free_list_ids: Array of free lists belonging to this device. Array members
+	 *                 are of type "struct pvr_free_list *".
+	 *
+	 * This array is used to allocate IDs used by the firmware.
+	 */
+	struct xarray free_list_ids;
+
 	struct {
 		/** @work: Work item for watchdog callback. */
 		struct delayed_work work;
@@ -246,6 +254,22 @@ struct pvr_file {
 	 *           to_pvr_device().
 	 */
 	struct pvr_device *pvr_dev;
+
+	/**
+	 * @free_list_handles: Array of free lists belonging to this file. Array
+	 * members are of type "struct pvr_free_list *".
+	 *
+	 * This array is used to allocate handles returned to userspace.
+	 */
+	struct xarray free_list_handles;
+
+	/**
+	 * @hwrt_handles: Array of HWRT datasets belonging to this file. Array
+	 * members are of type "struct pvr_hwrt_dataset *".
+	 *
+	 * This array is used to allocate handles returned to userspace.
+	 */
+	struct xarray hwrt_handles;
 
 	/**
 	 * @vm_ctx_handles: Array of VM contexts belonging to this file. Array

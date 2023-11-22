@@ -4,6 +4,7 @@
 #include "pvr_ccb.h"
 #include "pvr_device.h"
 #include "pvr_drv.h"
+#include "pvr_free_list.h"
 #include "pvr_fw.h"
 #include "pvr_gem.h"
 #include "pvr_power.h"
@@ -137,6 +138,15 @@ process_fwccb_command(struct pvr_device *pvr_dev, struct rogue_fwif_fwccb_cmd *c
 	switch (cmd->cmd_type) {
 	case ROGUE_FWIF_FWCCB_CMD_REQUEST_GPU_RESTART:
 		pvr_power_reset(pvr_dev, false);
+		break;
+
+	case ROGUE_FWIF_FWCCB_CMD_FREELISTS_RECONSTRUCTION:
+		pvr_free_list_process_reconstruct_req(pvr_dev,
+						      &cmd->cmd_data.cmd_freelists_reconstruction);
+		break;
+
+	case ROGUE_FWIF_FWCCB_CMD_FREELIST_GROW:
+		pvr_free_list_process_grow_req(pvr_dev, &cmd->cmd_data.cmd_free_list_gs);
 		break;
 
 	default:

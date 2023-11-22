@@ -8,12 +8,14 @@ powervr-y := \
 	pvr_device.o \
 	pvr_device_info.o \
 	pvr_drv.o \
+	pvr_free_list.o \
 	pvr_fw.o \
 	pvr_fw_meta.o \
 	pvr_fw_mips.o \
 	pvr_fw_startstop.o \
 	pvr_fw_trace.o \
 	pvr_gem.o \
+	pvr_hwrt.o \
 	pvr_mmu.o \
 	pvr_power.o \
 	pvr_vm.o \

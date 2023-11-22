@@ -3,7 +3,9 @@
 
 #include "pvr_device.h"
 #include "pvr_drv.h"
+#include "pvr_free_list.h"
 #include "pvr_gem.h"
+#include "pvr_hwrt.h"
 #include "pvr_mmu.h"
 #include "pvr_power.h"
 #include "pvr_rogue_defs.h"
@@ -711,7 +713,41 @@ static int
 pvr_ioctl_create_free_list(struct drm_device *drm_dev, void *raw_args,
 			   struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_create_free_list_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_free_list *free_list;
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	free_list = pvr_free_list_create(pvr_file, args);
+	if (IS_ERR(free_list)) {
+		err = PTR_ERR(free_list);
+		goto err_drm_dev_exit;
+	}
+
+	/* Allocate object handle for userspace. */
+	err = xa_alloc(&pvr_file->free_list_handles,
+		       &args->handle,
+		       free_list,
+		       xa_limit_32b,
+		       GFP_KERNEL);
+	if (err < 0)
+		goto err_cleanup;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_cleanup:
+	pvr_free_list_put(free_list);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**
@@ -731,7 +767,19 @@ static int
 pvr_ioctl_destroy_free_list(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_destroy_free_list_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_free_list *free_list;
+
+	if (args->_padding_4)
+		return -EINVAL;
+
+	free_list = xa_erase(&pvr_file->free_list_handles, args->handle);
+	if (!free_list)
+		return -EINVAL;
+
+	pvr_free_list_put(free_list);
+	return 0;
 }
 
 /**
@@ -751,7 +799,41 @@ static int
 pvr_ioctl_create_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			      struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_create_hwrt_dataset_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_hwrt_dataset *hwrt;
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	hwrt = pvr_hwrt_dataset_create(pvr_file, args);
+	if (IS_ERR(hwrt)) {
+		err = PTR_ERR(hwrt);
+		goto err_drm_dev_exit;
+	}
+
+	/* Allocate object handle for userspace. */
+	err = xa_alloc(&pvr_file->hwrt_handles,
+		       &args->handle,
+		       hwrt,
+		       xa_limit_32b,
+		       GFP_KERNEL);
+	if (err < 0)
+		goto err_cleanup;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_cleanup:
+	pvr_hwrt_dataset_put(hwrt);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**
@@ -771,7 +853,19 @@ static int
 pvr_ioctl_destroy_hwrt_dataset(struct drm_device *drm_dev, void *raw_args,
 			       struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_destroy_hwrt_dataset_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_hwrt_dataset *hwrt;
+
+	if (args->_padding_4)
+		return -EINVAL;
+
+	hwrt = xa_erase(&pvr_file->hwrt_handles, args->handle);
+	if (!hwrt)
+		return -EINVAL;
+
+	pvr_hwrt_dataset_put(hwrt);
+	return 0;
 }
 
 /**
@@ -1195,6 +1289,8 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	 */
 	pvr_file->pvr_dev = pvr_dev;
 
+	xa_init_flags(&pvr_file->free_list_handles, XA_FLAGS_ALLOC1);
+	xa_init_flags(&pvr_file->hwrt_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->vm_ctx_handles, XA_FLAGS_ALLOC1);
 
 	/*
@@ -1223,6 +1319,8 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 	struct pvr_file *pvr_file = to_pvr_file(file);
 
 	/* Drop references on any remaining objects. */
+	pvr_destroy_free_lists_for_file(pvr_file);
+	pvr_destroy_hwrt_datasets_for_file(pvr_file);
 	pvr_destroy_vm_contexts_for_file(pvr_file);
 
 	kfree(pvr_file);
@@ -1281,6 +1379,8 @@ pvr_probe(struct platform_device *plat_dev)
 	if (err)
 		goto err_device_fini;
 
+	xa_init_flags(&pvr_dev->free_list_ids, XA_FLAGS_ALLOC1);
+
 	return 0;
 
 err_device_fini:
@@ -1297,6 +1397,10 @@ pvr_remove(struct platform_device *plat_dev)
 {
 	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+
+	WARN_ON(!xa_empty(&pvr_dev->free_list_ids));
+
+	xa_destroy(&pvr_dev->free_list_ids);
 
 	pm_runtime_suspend(drm_dev->dev);
 	pvr_device_fini(pvr_dev);
