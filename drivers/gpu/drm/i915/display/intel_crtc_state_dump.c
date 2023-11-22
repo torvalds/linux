@@ -261,6 +261,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_dbg_kms(&i915->drm, "fec: %s, enhanced framing: %s\n",
 			    str_enabled_disabled(pipe_config->fec_enable),
 			    str_enabled_disabled(pipe_config->enhanced_framing));
+
+		drm_dbg_kms(&i915->drm, "sdp split: %s\n",
+			    str_enabled_disabled(pipe_config->sdp_split_enable));
 	}
 
 	drm_dbg_kms(&i915->drm, "framestart delay: %d, MSA timing delay: %d\n",
