@@ -437,15 +437,6 @@ xfs_bmap_update_cancel_item(
 	kmem_cache_free(xfs_bmap_intent_cache, bi);
 }
 
-const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
-	.max_items	= XFS_BUI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_bmap_update_create_intent,
-	.abort_intent	= xfs_bmap_update_abort_intent,
-	.create_done	= xfs_bmap_update_create_done,
-	.finish_item	= xfs_bmap_update_finish_item,
-	.cancel_item	= xfs_bmap_update_cancel_item,
-};
-
 /* Is this recovered BUI ok? */
 static inline bool
 xfs_bui_validate(
@@ -484,9 +475,15 @@ static inline struct xfs_bmap_intent *
 xfs_bui_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
+	struct xfs_inode		**ipp,
 	struct xfs_map_extent		*map)
 {
 	struct xfs_bmap_intent		*bi;
+	int				error;
+
+	error = xlog_recover_iget(mp, map->me_owner, ipp);
+	if (error)
+		return ERR_PTR(error);
 
 	bi = kmem_cache_zalloc(xfs_bmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
 	bi->bi_whichfork = (map->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
@@ -497,6 +494,7 @@ xfs_bui_recover_work(
 	bi->bi_bmap.br_blockcount = map->me_len;
 	bi->bi_bmap.br_state = (map->me_flags & XFS_BMAP_EXTENT_UNWRITTEN) ?
 			XFS_EXT_UNWRITTEN : XFS_EXT_NORM;
+	bi->bi_owner = *ipp;
 	xfs_bmap_update_get_group(mp, bi);
 
 	xfs_defer_add_item(dfp, &bi->bi_list);
@@ -508,7 +506,7 @@ xfs_bui_recover_work(
  * We need to update some inode's bmbt.
  */
 STATIC int
-xfs_bui_item_recover(
+xfs_bmap_recover_work(
 	struct xfs_defer_pending	*dfp,
 	struct list_head		*capture_list)
 {
@@ -530,11 +528,9 @@ xfs_bui_item_recover(
 	}
 
 	map = &buip->bui_format.bui_extents[0];
-	work = xfs_bui_recover_work(mp, dfp, map);
-
-	error = xlog_recover_iget(mp, map->me_owner, &ip);
-	if (error)
-		return error;
+	work = xfs_bui_recover_work(mp, dfp, &ip, map);
+	if (IS_ERR(work))
+		return PTR_ERR(work);
 
 	/* Allocate transaction and do the work. */
 	resv = xlog_recover_resv(&M_RES(mp)->tr_itruncate);
@@ -556,8 +552,6 @@ xfs_bui_item_recover(
 		error = xfs_iext_count_upgrade(tp, ip, iext_delta);
 	if (error)
 		goto err_cancel;
-
-	work->bi_owner = ip;
 
 	error = xlog_recover_finish_intent(tp, dfp);
 	if (error == -EFSCORRUPTED)
@@ -586,6 +580,16 @@ err_rele:
 	xfs_irele(ip);
 	return error;
 }
+
+const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
+	.max_items	= XFS_BUI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_bmap_update_create_intent,
+	.abort_intent	= xfs_bmap_update_abort_intent,
+	.create_done	= xfs_bmap_update_create_done,
+	.finish_item	= xfs_bmap_update_finish_item,
+	.cancel_item	= xfs_bmap_update_cancel_item,
+	.recover_work	= xfs_bmap_recover_work,
+};
 
 STATIC bool
 xfs_bui_item_match(
@@ -627,7 +631,6 @@ static const struct xfs_item_ops xfs_bui_item_ops = {
 	.iop_format	= xfs_bui_item_format,
 	.iop_unpin	= xfs_bui_item_unpin,
 	.iop_release	= xfs_bui_item_release,
-	.iop_recover	= xfs_bui_item_recover,
 	.iop_match	= xfs_bui_item_match,
 	.iop_relog	= xfs_bui_item_relog,
 };

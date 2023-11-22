@@ -544,12 +544,17 @@ xfs_attri_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
 	struct xfs_attri_log_format	*attrp,
-	struct xfs_inode		*ip,
+	struct xfs_inode		**ipp,
 	struct xfs_attri_log_nameval	*nv)
 {
 	struct xfs_attr_intent		*attr;
 	struct xfs_da_args		*args;
 	int				local;
+	int				error;
+
+	error = xlog_recover_iget(mp,  attrp->alfi_ino, ipp);
+	if (error)
+		return ERR_PTR(error);
 
 	attr = kmem_zalloc(sizeof(struct xfs_attr_intent) +
 			   sizeof(struct xfs_da_args), KM_NOFS);
@@ -567,7 +572,7 @@ xfs_attri_recover_work(
 	attr->xattri_nameval = xfs_attri_log_nameval_get(nv);
 	ASSERT(attr->xattri_nameval);
 
-	args->dp = ip;
+	args->dp = *ipp;
 	args->geo = mp->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->name = nv->name.i_addr;
@@ -604,7 +609,7 @@ xfs_attri_recover_work(
  * delete the attr that it describes.
  */
 STATIC int
-xfs_attri_item_recover(
+xfs_attr_recover_work(
 	struct xfs_defer_pending	*dfp,
 	struct list_head		*capture_list)
 {
@@ -630,11 +635,9 @@ xfs_attri_item_recover(
 	    !xfs_attr_namecheck(nv->name.i_addr, nv->name.i_len))
 		return -EFSCORRUPTED;
 
-	error = xlog_recover_iget(mp,  attrp->alfi_ino, &ip);
-	if (error)
-		return error;
-
-	attr = xfs_attri_recover_work(mp, dfp, attrp, ip, nv);
+	attr = xfs_attri_recover_work(mp, dfp, attrp, &ip, nv);
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
 	args = attr->xattri_da_args;
 
 	xfs_init_attr_trans(args, &resv, &total);
@@ -820,6 +823,7 @@ const struct xfs_defer_op_type xfs_attr_defer_type = {
 	.create_done	= xfs_attr_create_done,
 	.finish_item	= xfs_attr_finish_item,
 	.cancel_item	= xfs_attr_cancel_item,
+	.recover_work	= xfs_attr_recover_work,
 };
 
 /*
@@ -856,7 +860,6 @@ static const struct xfs_item_ops xfs_attri_item_ops = {
 	.iop_format	= xfs_attri_item_format,
 	.iop_unpin	= xfs_attri_item_unpin,
 	.iop_release    = xfs_attri_item_release,
-	.iop_recover	= xfs_attri_item_recover,
 	.iop_match	= xfs_attri_item_match,
 	.iop_relog	= xfs_attri_item_relog,
 };
