@@ -810,6 +810,7 @@ static int byt_set_pull_strength(u32 *reg, u16 strength)
 	*reg &= ~BYT_PULL_STR_MASK;
 
 	switch (strength) {
+	case 1: /* Set default strength value in case none is given */
 	case 2000:
 		*reg |= BYT_PULL_STR_2K;
 		break;
@@ -957,10 +958,6 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 			conf &= ~BYT_PULL_ASSIGN_MASK;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			/* Set default strength value in case none is given */
-			if (arg == 1)
-				arg = 2000;
-
 			byt_gpio_force_input_mode(vg, offset);
 
 			conf &= ~BYT_PULL_ASSIGN_MASK;
@@ -969,10 +966,6 @@ static int byt_pin_config_set(struct pinctrl_dev *pctl_dev,
 
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
-			/* Set default strength value in case none is given */
-			if (arg == 1)
-				arg = 2000;
-
 			byt_gpio_force_input_mode(vg, offset);
 
 			conf &= ~BYT_PULL_ASSIGN_MASK;
