@@ -26,6 +26,7 @@
   amba_driver_unregister
   android_rvh_probe_register
   anon_inode_getfd
+  anon_inode_getfile
   arc4_crypt
   arc4_setkey
   __arch_clear_user
