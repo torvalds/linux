@@ -1896,15 +1896,6 @@ static int attach_device(struct device *dev,
 
 	do_attach(dev_data, domain);
 
-	/*
-	 * We might boot into a crash-kernel here. The crashed kernel
-	 * left the caches in the IOMMU dirty. So we have to flush
-	 * here to evict all dirty stuff.
-	 */
-	amd_iommu_domain_flush_tlb_pde(domain);
-
-	amd_iommu_domain_flush_complete(domain);
-
 out:
 	spin_unlock(&dev_data->lock);
 
