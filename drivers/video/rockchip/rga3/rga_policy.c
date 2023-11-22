@@ -108,32 +108,34 @@ static bool rga_check_format(const struct rga_hw_data *data,
 		int rd_mode, int format, int win_num)
 {
 	int i;
-	bool matched = false;
+	const uint32_t *formats;
+	uint32_t format_count;
 
-	if (rd_mode == RGA_RASTER_MODE) {
-		for (i = 0; i < data->win[win_num].num_of_raster_formats; i++) {
-			if (format == data->win[win_num].raster_formats[i]) {
-				matched = true;
-				break;
-			}
-		}
-	} else if (rd_mode == RGA_FBC_MODE) {
-		for (i = 0; i < data->win[win_num].num_of_fbc_formats; i++) {
-			if (format == data->win[win_num].fbc_formats[i]) {
-				matched = true;
-				break;
-			}
-		}
-	} else if (rd_mode == RGA_TILE_MODE) {
-		for (i = 0; i < data->win[win_num].num_of_tile_formats; i++) {
-			if (format == data->win[win_num].tile_formats[i]) {
-				matched = true;
-				break;
-			}
-		}
+	switch (rd_mode) {
+	case RGA_RASTER_MODE:
+		formats = data->win[win_num].formats[RGA_RASTER_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_RASTER_INDEX];
+		break;
+	case RGA_FBC_MODE:
+		formats = data->win[win_num].formats[RGA_AFBC16x16_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_AFBC16x16_INDEX];
+		break;
+	case RGA_TILE_MODE:
+		formats = data->win[win_num].formats[RGA_TILE8x8_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_TILE8x8_INDEX];
+		break;
+	default:
+		return false;
 	}
 
-	return matched;
+	if (formats == NULL || format_count == 0)
+		return false;
+
+	for (i = 0; i < format_count; i++)
+		if (format == formats[i])
+			return true;
+
+	return false;
 }
 
 static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_t w_stride)

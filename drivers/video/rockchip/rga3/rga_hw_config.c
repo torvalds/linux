@@ -175,12 +175,12 @@ const uint32_t rga2e_output_raster_format[] = {
 const struct rga_win_data rga3_win_data[] = {
 	{
 		.name = "rga3-win0",
-		.raster_formats = rga3_input_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga3_input_raster_format),
-		.fbc_formats = rga3_fbcd_format,
-		.num_of_fbc_formats = ARRAY_SIZE(rga3_fbcd_format),
-		.tile_formats = rga3_tile_format,
-		.num_of_tile_formats = ARRAY_SIZE(rga3_tile_format),
+		.formats[RGA_RASTER_INDEX] = rga3_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga3_input_raster_format),
+		.formats[RGA_AFBC16x16_INDEX] = rga3_fbcd_format,
+		.formats_count[RGA_AFBC16x16_INDEX] = ARRAY_SIZE(rga3_fbcd_format),
+		.formats[RGA_TILE8x8_INDEX] = rga3_tile_format,
+		.formats_count[RGA_TILE8x8_INDEX] = ARRAY_SIZE(rga3_tile_format),
 		.supported_rotations = RGA_MODE_ROTATE_MASK,
 		.scale_up_mode = RGA_SCALE_UP_BIC,
 		.scale_down_mode = RGA_SCALE_DOWN_AVG,
@@ -190,12 +190,12 @@ const struct rga_win_data rga3_win_data[] = {
 
 	{
 		.name = "rga3-win1",
-		.raster_formats = rga3_input_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga3_input_raster_format),
-		.fbc_formats = rga3_fbcd_format,
-		.num_of_fbc_formats = ARRAY_SIZE(rga3_fbcd_format),
-		.tile_formats = rga3_tile_format,
-		.num_of_tile_formats = ARRAY_SIZE(rga3_tile_format),
+		.formats[RGA_RASTER_INDEX] = rga3_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga3_input_raster_format),
+		.formats[RGA_AFBC16x16_INDEX] = rga3_fbcd_format,
+		.formats_count[RGA_AFBC16x16_INDEX] = ARRAY_SIZE(rga3_fbcd_format),
+		.formats[RGA_TILE8x8_INDEX] = rga3_tile_format,
+		.formats_count[RGA_TILE8x8_INDEX] = ARRAY_SIZE(rga3_tile_format),
 		.supported_rotations = RGA_MODE_ROTATE_MASK,
 		.scale_up_mode = RGA_SCALE_UP_BIC,
 		.scale_down_mode = RGA_SCALE_DOWN_AVG,
@@ -205,12 +205,12 @@ const struct rga_win_data rga3_win_data[] = {
 
 	{
 		.name = "rga3-wr",
-		.raster_formats = rga3_output_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga3_output_raster_format),
-		.fbc_formats = rga3_fbcd_format,
-		.num_of_fbc_formats = ARRAY_SIZE(rga3_fbcd_format),
-		.tile_formats = rga3_tile_format,
-		.num_of_tile_formats = ARRAY_SIZE(rga3_tile_format),
+		.formats[RGA_RASTER_INDEX] = rga3_output_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga3_output_raster_format),
+		.formats[RGA_AFBC16x16_INDEX] = rga3_fbcd_format,
+		.formats_count[RGA_AFBC16x16_INDEX] = ARRAY_SIZE(rga3_fbcd_format),
+		.formats[RGA_TILE8x8_INDEX] = rga3_tile_format,
+		.formats_count[RGA_TILE8x8_INDEX] = ARRAY_SIZE(rga3_tile_format),
 		.supported_rotations = 0,
 		.scale_up_mode = RGA_SCALE_UP_NONE,
 		.scale_down_mode = RGA_SCALE_DOWN_NONE,
@@ -222,8 +222,8 @@ const struct rga_win_data rga3_win_data[] = {
 const struct rga_win_data rga2e_win_data[] = {
 	{
 		.name = "rga2e-src0",
-		.raster_formats = rga2e_input_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga2e_input_raster_format),
+		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2e_input_raster_format),
 		.supported_rotations = RGA_MODE_ROTATE_MASK,
 		.scale_up_mode = RGA_SCALE_UP_BIC,
 		.scale_down_mode = RGA_SCALE_DOWN_AVG,
@@ -233,8 +233,8 @@ const struct rga_win_data rga2e_win_data[] = {
 
 	{
 		.name = "rga2e-src1",
-		.raster_formats = rga2e_input_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga2e_input_raster_format),
+		.formats[RGA_RASTER_INDEX] = rga2e_input_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2e_input_raster_format),
 		.supported_rotations = RGA_MODE_ROTATE_MASK,
 		.scale_up_mode = RGA_SCALE_UP_BIC,
 		.scale_down_mode = RGA_SCALE_DOWN_AVG,
@@ -244,8 +244,8 @@ const struct rga_win_data rga2e_win_data[] = {
 
 	{
 		.name = "rga2-dst",
-		.raster_formats = rga2e_output_raster_format,
-		.num_of_raster_formats = ARRAY_SIZE(rga2e_output_raster_format),
+		.formats[RGA_RASTER_INDEX] = rga2e_output_raster_format,
+		.formats_count[RGA_RASTER_INDEX] = ARRAY_SIZE(rga2e_output_raster_format),
 		.supported_rotations = 0,
 		.scale_up_mode = RGA_SCALE_UP_NONE,
 		.scale_down_mode = RGA_SCALE_DOWN_NONE,
