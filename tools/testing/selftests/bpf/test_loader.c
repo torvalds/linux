@@ -153,6 +153,14 @@ static int parse_retval(const char *str, int *val, const char *name)
 	return parse_int(str, val, name);
 }
 
+static void update_flags(int *flags, int flag, bool clear)
+{
+	if (clear)
+		*flags &= ~flag;
+	else
+		*flags |= flag;
+}
+
 /* Uses btf_decl_tag attributes to describe the expected test
  * behavior, see bpf_misc.h for detailed description of each attribute
  * and attribute combinations.
@@ -171,6 +179,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
+	spec->prog_flags = BPF_F_TEST_REG_INVARIANTS; /* by default be strict */
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
@@ -187,7 +196,8 @@ static int parse_test_spec(struct test_loader *tester,
 	for (i = 1; i < btf__type_cnt(btf); i++) {
 		const char *s, *val, *msg;
 		const struct btf_type *t;
-		int tmp;
+		bool clear;
+		int flags;
 
 		t = btf__type_by_id(btf, i);
 		if (!btf_is_decl_tag(t))
@@ -253,23 +263,30 @@ static int parse_test_spec(struct test_loader *tester,
 				goto cleanup;
 		} else if (str_has_pfx(s, TEST_TAG_PROG_FLAGS_PFX)) {
 			val = s + sizeof(TEST_TAG_PROG_FLAGS_PFX) - 1;
+
+			clear = val[0] == '!';
+			if (clear)
+				val++;
+
 			if (strcmp(val, "BPF_F_STRICT_ALIGNMENT") == 0) {
-				spec->prog_flags |= BPF_F_STRICT_ALIGNMENT;
+				update_flags(&spec->prog_flags, BPF_F_STRICT_ALIGNMENT, clear);
 			} else if (strcmp(val, "BPF_F_ANY_ALIGNMENT") == 0) {
-				spec->prog_flags |= BPF_F_ANY_ALIGNMENT;
+				update_flags(&spec->prog_flags, BPF_F_ANY_ALIGNMENT, clear);
 			} else if (strcmp(val, "BPF_F_TEST_RND_HI32") == 0) {
-				spec->prog_flags |= BPF_F_TEST_RND_HI32;
+				update_flags(&spec->prog_flags, BPF_F_TEST_RND_HI32, clear);
 			} else if (strcmp(val, "BPF_F_TEST_STATE_FREQ") == 0) {
-				spec->prog_flags |= BPF_F_TEST_STATE_FREQ;
+				update_flags(&spec->prog_flags, BPF_F_TEST_STATE_FREQ, clear);
 			} else if (strcmp(val, "BPF_F_SLEEPABLE") == 0) {
-				spec->prog_flags |= BPF_F_SLEEPABLE;
+				update_flags(&spec->prog_flags, BPF_F_SLEEPABLE, clear);
 			} else if (strcmp(val, "BPF_F_XDP_HAS_FRAGS") == 0) {
-				spec->prog_flags |= BPF_F_XDP_HAS_FRAGS;
+				update_flags(&spec->prog_flags, BPF_F_XDP_HAS_FRAGS, clear);
+			} else if (strcmp(val, "BPF_F_TEST_REG_INVARIANTS") == 0) {
+				update_flags(&spec->prog_flags, BPF_F_TEST_REG_INVARIANTS, clear);
 			} else /* assume numeric value */ {
-				err = parse_int(val, &tmp, "test prog flags");
+				err = parse_int(val, &flags, "test prog flags");
 				if (err)
 					goto cleanup;
-				spec->prog_flags |= tmp;
+				update_flags(&spec->prog_flags, flags, clear);
 			}
 		}
 	}
