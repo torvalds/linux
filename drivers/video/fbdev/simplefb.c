@@ -466,6 +466,10 @@ static int simplefb_attach_genpds(struct simplefb_par *par,
 	err = of_count_phandle_with_args(dev->of_node, "power-domains",
 					 "#power-domain-cells");
 	if (err < 0) {
+		/* Nothing wrong if optional PDs are missing */
+		if (err == -ENOENT)
+			return 0;
+
 		dev_info(dev, "failed to parse power-domains: %d\n", err);
 		return err;
 	}
