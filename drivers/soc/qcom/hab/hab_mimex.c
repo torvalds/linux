@@ -187,9 +187,9 @@ void habmem_remove_export(struct export_desc *exp)
 	}
 
 	ctx = exp->ctx;
-	write_lock_bh(&ctx->exp_lock);
+	write_lock(&ctx->exp_lock);
 	ctx->export_total--;
-	write_unlock_bh(&ctx->exp_lock);
+	write_unlock(&ctx->exp_lock);
 	exp->ctx = NULL;
 
 	habmem_export_put(exp_super);
@@ -197,7 +197,6 @@ void habmem_remove_export(struct export_desc *exp)
 
 static void habmem_export_destroy(struct kref *refcount)
 {
-	struct physical_channel *pchan = NULL;
 	struct export_desc_super *exp_super =
 			container_of(
 				refcount,
@@ -220,12 +219,6 @@ static void habmem_export_destroy(struct kref *refcount)
 		return;
 	}
 
-	pchan = exp->pchan;
-
-	spin_lock_bh(&pchan->expid_lock);
-	idr_remove(&pchan->expid_idr, exp->export_id);
-	spin_unlock_bh(&pchan->expid_lock);
-
 	habmem_exp_release(exp_super);
 	vfree(exp_super);
 }
@@ -241,8 +234,9 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 		uint32_t flags,
 		uint32_t export_id)
 {
-	int ret;
+	int ret = 0;
 	struct export_desc *exp = NULL;
+	struct export_desc_super *exp_super = NULL;
 	uint32_t sizebytes = sizeof(*exp) + payload_size;
 	struct hab_export_ack expected_ack = {0};
 	struct hab_header header = HAB_HEADER_INITIALIZER;
@@ -253,7 +247,9 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 		return -EINVAL;
 	}
 
+	spin_lock_bh(&vchan->pchan->expid_lock);
 	exp = idr_find(&vchan->pchan->expid_idr, export_id);
+	spin_unlock_bh(&vchan->pchan->expid_lock);
 	if (!exp) {
 		pr_err("export vchan failed: exp_id %d, pchan %s\n",
 				export_id, vchan->pchan->name);
@@ -263,34 +259,41 @@ static int habmem_export_vchan(struct uhab_context *ctx,
 	pr_debug("sizebytes including exp_desc: %u = %zu + %d\n",
 		sizebytes, sizeof(*exp), payload_size);
 
-	HAB_HEADER_SET_SIZE(header, sizebytes);
-	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT);
-	HAB_HEADER_SET_ID(header, vchan->otherend_id);
-	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
-	ret = physical_channel_send(vchan->pchan, &header, exp);
+	/* exp_desc will not be sent to remote during export in new protocol */
+	if (vchan->pchan->mem_proto == 0) {
+		HAB_HEADER_SET_SIZE(header, sizebytes);
+		HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT);
+		HAB_HEADER_SET_ID(header, vchan->otherend_id);
+		HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+		ret = physical_channel_send(vchan->pchan, &header, exp);
 
-	if (ret != 0) {
-		pr_err("failed to export payload to the remote %d\n", ret);
-		return ret;
+		if (ret != 0) {
+			pr_err("failed to export payload to the remote %d\n", ret);
+			return ret;
+		}
+
+		expected_ack.export_id = exp->export_id;
+		expected_ack.vcid_local = exp->vcid_local;
+		expected_ack.vcid_remote = exp->vcid_remote;
+		ret = hab_export_ack_wait(ctx, &expected_ack, vchan);
+		if (ret != 0) {
+			pr_err("failed to receive remote export ack %d on vc %x\n",
+					ret, vchan->id);
+			return ret;
+		}
+
+		exp->pchan = vchan->pchan;
+		exp->vchan = vchan;
+		exp->ctx = ctx;
 	}
 
-	expected_ack.export_id = exp->export_id;
-	expected_ack.vcid_local = exp->vcid_local;
-	expected_ack.vcid_remote = exp->vcid_remote;
-	ret = hab_export_ack_wait(ctx, &expected_ack, vchan);
-	if (ret != 0) {
-		pr_err("failed to receive remote export ack %d on vc %x\n",
-				ret, vchan->id);
-		return ret;
-	}
-
-	exp->pchan = vchan->pchan;
-	exp->vchan = vchan;
-	exp->ctx = ctx;
 	write_lock(&ctx->exp_lock);
 	ctx->export_total++;
 	list_add_tail(&exp->node, &ctx->exp_whse);
 	write_unlock(&ctx->exp_lock);
+
+	exp_super = container_of(exp, struct export_desc_super, exp);
+	WRITE_ONCE(exp_super->exp_state, HAB_EXP_SUCCESS);
 
 	return ret;
 }
@@ -315,8 +318,6 @@ int hab_mem_export(struct uhab_context *ctx,
 	struct virtual_channel *vchan;
 	int page_count;
 	int compressed = 0;
-	struct export_desc *exp = NULL;
-	int irqs_disabled = irqs_disabled();
 
 	if (!ctx || !param || !param->sizebytes
 		|| ((param->sizebytes % PAGE_SIZE) != 0)
@@ -357,29 +358,7 @@ int hab_mem_export(struct uhab_context *ctx,
 		goto err;
 	}
 
-	/* exp_desc will not be sent to remote during export in new protocol */
-	if (vchan->pchan->mem_proto == 0)
-		ret = habmem_export_vchan(ctx,
-			vchan,
-			payload_size,
-			param->flags,
-			export_id);
-	else {
-		hab_spin_lock(&vchan->pchan->expid_lock, irqs_disabled);
-		exp = idr_find(&vchan->pchan->expid_idr, export_id);
-		hab_spin_unlock(&vchan->pchan->expid_lock, irqs_disabled);
-		if (!exp) {
-			pr_err("cannot find exp id %d on %s\n", export_id, vchan->pchan->name);
-			ret = -EINVAL;
-			goto err;
-		}
-
-		write_lock_bh(&ctx->exp_lock);
-		ctx->export_total++;
-		list_add_tail(&exp->node, &ctx->exp_whse);
-		write_unlock_bh(&ctx->exp_lock);
-	}
-
+	ret = habmem_export_vchan(ctx, vchan, payload_size, param->flags, export_id);
 	if (!ret)
 		param->exportid = export_id;
 err:
@@ -392,8 +371,8 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		struct hab_unexport *param,
 		int kernel)
 {
-	int ret = 0, found = 0;
-	struct export_desc *exp = NULL, *tmp = NULL;
+	int ret = 0;
+	struct export_desc *exp = NULL;
 	struct export_desc_super *exp_super = NULL;
 	struct virtual_channel *vchan;
 
@@ -407,35 +386,37 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		goto err_novchan;
 	}
 
-	write_lock_bh(&ctx->exp_lock);
-	list_for_each_entry_safe(exp, tmp, &ctx->exp_whse, node) {
-		if (param->exportid == exp->export_id &&
-			vchan->pchan == exp->pchan) {
-			found = 1;
-			exp_super = container_of(exp, struct export_desc_super, exp);
-			if (exp_super->remote_imported == 0)
-				list_del(&exp->node);
-			else {
-				ret = -EBUSY;
-				write_unlock_bh(&ctx->exp_lock);
-				pr_err("remote has not unimported mem yet, vcid %x, exp_id %d, pchan %s\n",
-					vchan,
-					exp->export_id,
-					exp->pchan->name);
-				goto err_novchan;
-			}
-			break;
-		}
-	}
-	write_unlock_bh(&ctx->exp_lock);
-
-	if (!found) {
+	spin_lock_bh(&vchan->pchan->expid_lock);
+	exp = idr_find(&vchan->pchan->expid_idr, param->exportid);
+	if (!exp) {
+		spin_unlock_bh(&vchan->pchan->expid_lock);
+		pr_err("unexp fail, cannot find exp id %d\n", param->exportid);
 		ret = -EINVAL;
 		goto err_novchan;
 	}
 
+	exp_super = container_of(exp, struct export_desc_super, exp);
+	if (exp_super->exp_state == HAB_EXP_SUCCESS &&
+			exp->ctx == ctx &&
+			exp_super->remote_imported == 0)
+		idr_remove(&vchan->pchan->expid_idr, param->exportid);
+	else {
+		ret = exp_super->remote_imported == 0 ? -EINVAL : -EBUSY;
+		pr_err("unexp exp id %d fail, exp state %d, remote imp %d\n",
+				param->exportid, exp_super->exp_state, exp_super->remote_imported);
+		spin_unlock_bh(&vchan->pchan->expid_lock);
+		goto err_novchan;
+	}
+	spin_unlock_bh(&vchan->pchan->expid_lock);
+
+	/* TODO: hab stat is not accurate after idr_remove and before list_del here */
+	write_lock(&ctx->exp_lock);
+	list_del(&exp->node);
+	write_unlock(&ctx->exp_lock);
+
 	ret = habmem_hyp_revoke(exp->payload, exp->payload_count);
 	if (ret) {
+		/* unrecoverable scenario*/
 		pr_err("Error found in revoke grant with ret %d\n", ret);
 		goto err_novchan;
 	}
