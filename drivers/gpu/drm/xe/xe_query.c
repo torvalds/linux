@@ -147,8 +147,6 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	resp.engine_frequency = gt->info.clock_freq;
-
 	xe_device_mem_access_get(xe);
 	xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 
@@ -165,9 +163,6 @@ query_engine_cycles(struct xe_device *xe,
 	resp.width = 36;
 
 	/* Only write to the output fields of user query */
-	if (put_user(resp.engine_frequency, &query_ptr->engine_frequency))
-		return -EFAULT;
-
 	if (put_user(resp.cpu_timestamp, &query_ptr->cpu_timestamp))
 		return -EFAULT;
 
@@ -383,7 +378,7 @@ static int query_gt_list(struct xe_device *xe, struct drm_xe_device_query *query
 		else
 			gt_list->gt_list[id].type = DRM_XE_QUERY_GT_TYPE_MAIN;
 		gt_list->gt_list[id].gt_id = gt->info.id;
-		gt_list->gt_list[id].clock_freq = gt->info.clock_freq;
+		gt_list->gt_list[id].reference_clock = gt->info.reference_clock;
 		if (!IS_DGFX(xe))
 			gt_list->gt_list[id].near_mem_regions = 0x1;
 		else

@@ -75,11 +75,11 @@ int xe_gt_clock_init(struct xe_gt *gt)
 		freq >>= 3 - REG_FIELD_GET(RPM_CONFIG0_CTC_SHIFT_PARAMETER_MASK, c0);
 	}
 
-	gt->info.clock_freq = freq;
+	gt->info.reference_clock = freq;
 	return 0;
 }
 
 u64 xe_gt_clock_cycles_to_ns(const struct xe_gt *gt, u64 count)
 {
-	return DIV_ROUND_CLOSEST_ULL(count * NSEC_PER_SEC, gt->info.clock_freq);
+	return DIV_ROUND_CLOSEST_ULL(count * NSEC_PER_SEC, gt->info.reference_clock);
 }

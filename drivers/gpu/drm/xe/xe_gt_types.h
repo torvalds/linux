@@ -107,8 +107,8 @@ struct xe_gt {
 		enum xe_gt_type type;
 		/** @id: Unique ID of this GT within the PCI Device */
 		u8 id;
-		/** @clock_freq: clock frequency */
-		u32 clock_freq;
+		/** @reference_clock: clock frequency */
+		u32 reference_clock;
 		/** @engine_mask: mask of engines present on GT */
 		u64 engine_mask;
 		/**
