@@ -4523,29 +4523,29 @@ static int btrfs_ioctl_encoded_write(struct file *file, void __user *argp, bool 
 	if (ret < 0)
 		goto out_acct;
 
-	file_start_write(file);
-
 	if (iov_iter_count(&iter) == 0) {
 		ret = 0;
-		goto out_end_write;
+		goto out_iov;
 	}
 	pos = args.offset;
 	ret = rw_verify_area(WRITE, file, &pos, args.len);
 	if (ret < 0)
-		goto out_end_write;
+		goto out_iov;
 
 	init_sync_kiocb(&kiocb, file);
 	ret = kiocb_set_rw_flags(&kiocb, 0);
 	if (ret)
-		goto out_end_write;
+		goto out_iov;
 	kiocb.ki_pos = pos;
+
+	file_start_write(file);
 
 	ret = btrfs_do_write_iter(&kiocb, &iter, &args);
 	if (ret > 0)
 		fsnotify_modify(file);
 
-out_end_write:
 	file_end_write(file);
+out_iov:
 	kfree(iov);
 out_acct:
 	if (ret > 0)
