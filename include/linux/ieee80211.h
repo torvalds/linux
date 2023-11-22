@@ -2830,11 +2830,13 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 static inline const struct ieee80211_he_6ghz_oper *
 ieee80211_he_6ghz_oper(const struct ieee80211_he_operation *he_oper)
 {
-	const u8 *ret = (const void *)&he_oper->optional;
+	const u8 *ret;
 	u32 he_oper_params;
 
 	if (!he_oper)
 		return NULL;
+
+	ret = (const void *)&he_oper->optional;
 
 	he_oper_params = le32_to_cpu(he_oper->he_oper_params);
 
