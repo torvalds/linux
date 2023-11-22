@@ -394,7 +394,14 @@ static int mes_v12_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.disable_mes_log = 1;
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
-	mes_set_hw_res_pkt.oversubscription_timer = 50;
+
+	/*
+	 * No need to enable oversubscribe timer when we have unmapped doorbell
+	 * handling support.
+	 * handling  mode - 0: disabled; 1: basic version; 2: basic+ version
+	 */
+	mes_set_hw_res_pkt.oversubscription_timer = 0;
+	mes_set_hw_res_pkt.unmapped_doorbell_handling = 1;
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
@@ -830,6 +837,13 @@ static int mes_v12_0_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_hqd_ib_control = regCP_HQD_IB_CONTROL_DEFAULT;
 	mqd->cp_hqd_iq_timer = regCP_HQD_IQ_TIMER_DEFAULT;
 	mqd->cp_hqd_quantum = regCP_HQD_QUANTUM_DEFAULT;
+
+	/*
+	 * Set CP_HQD_GFX_CONTROL.DB_UPDATED_MSG_EN[15] to enable unmapped
+	 * doorbell handling. This is a reserved CP internal register can
+	 * not be accesss by others
+	 */
+	mqd->reserved_184 = BIT(15);
 
 	return 0;
 }
