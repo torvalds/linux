@@ -101,9 +101,6 @@ TEST(correct_lsm_list_modules)
 		case LSM_ID_TOMOYO:
 			name = "tomoyo";
 			break;
-		case LSM_ID_IMA:
-			name = "ima";
-			break;
 		case LSM_ID_APPARMOR:
 			name = "apparmor";
 			break;
