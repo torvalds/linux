@@ -14196,11 +14196,12 @@ F:	Documentation/devicetree/bindings/regulator/mcp16502-regulator.txt
 F:	drivers/regulator/mcp16502.c
 
 MICROCHIP MCP3564 ADC DRIVER
-M:      Marius Cristea <marius.cristea@microchip.com>
-L:      linux-iio@vger.kernel.org
-S:      Supported
-F:      Documentation/devicetree/bindings/iio/adc/microchip,mcp3564.yaml
-F:      drivers/iio/adc/mcp3564.c
+M:	Marius Cristea <marius.cristea@microchip.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	Documentation/ABI/testing/sysfs-bus-iio-adc-mcp3564
+F:	Documentation/devicetree/bindings/iio/adc/microchip,mcp3564.yaml
+F:	drivers/iio/adc/mcp3564.c
 
 MICROCHIP MCP3911 ADC DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
