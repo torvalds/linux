@@ -907,6 +907,7 @@ static void ov01a10_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 
 	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 }
 
 static int ov01a10_probe(struct i2c_client *client)
@@ -953,16 +954,25 @@ static int ov01a10_probe(struct i2c_client *client)
 		goto err_media_entity_cleanup;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&ov01a10->sd);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register subdev: %d\n", ret);
-		goto err_media_entity_cleanup;
-	}
-
+	/*
+	 * Device is already turned on by i2c-core with ACPI domain PM.
+	 * Enable runtime PM and turn off the device.
+	 */
+	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
+	ret = v4l2_async_register_subdev_sensor(&ov01a10->sd);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register subdev: %d\n", ret);
+		goto err_pm_disable;
+	}
+
 	return 0;
+
+err_pm_disable:
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(&client->dev);
 
 err_media_entity_cleanup:
 	media_entity_cleanup(&ov01a10->sd.entity);
