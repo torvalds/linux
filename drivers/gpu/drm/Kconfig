@@ -410,27 +410,6 @@ config DRM_HYPERV
 
 	 If M is selected the module will be called hyperv_drm.
 
-# Keep legacy drivers last
-
-menuconfig DRM_LEGACY
-	bool "Enable legacy drivers (DANGEROUS)"
-	depends on DRM && MMU
-	help
-	  Enable legacy DRI1 drivers. Those drivers expose unsafe and dangerous
-	  APIs to user-space, which can be used to circumvent access
-	  restrictions and other security measures. For backwards compatibility
-	  those drivers are still available, but their use is highly
-	  inadvisable and might harm your system.
-
-	  You are recommended to use the safe modeset-only drivers instead, and
-	  perform 3D emulation in user-space.
-
-	  Unless you have strong reasons to go rogue, say "N".
-
-if DRM_LEGACY
-# leave here to list legacy drivers
-endif # DRM_LEGACY
-
 config DRM_EXPORT_FOR_TESTS
 	bool
 
