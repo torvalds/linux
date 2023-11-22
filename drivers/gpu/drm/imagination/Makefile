@@ -7,6 +7,9 @@ powervr-y := \
 	pvr_device.o \
 	pvr_device_info.o \
 	pvr_drv.o \
-	pvr_fw.o
+	pvr_fw.o \
+	pvr_gem.o \
+	pvr_mmu.o \
+	pvr_vm.o
 
 obj-$(CONFIG_DRM_POWERVR) += powervr.o

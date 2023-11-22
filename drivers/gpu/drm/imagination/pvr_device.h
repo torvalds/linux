@@ -123,8 +123,24 @@ struct pvr_device {
 	 */
 	struct clk *mem_clk;
 
+	/**
+	 * @kernel_vm_ctx: Virtual memory context used for kernel mappings.
+	 *
+	 * This is used for mappings in the firmware address region when a META firmware processor
+	 * is in use.
+	 *
+	 * When a MIPS firmware processor is in use, this will be %NULL.
+	 */
+	struct pvr_vm_context *kernel_vm_ctx;
+
 	/** @fw_dev: Firmware related data. */
 	struct pvr_fw_device fw_dev;
+
+	/**
+	 * @mmu_flush_cache_flags: Records which MMU caches require flushing
+	 * before submitting the next job.
+	 */
+	atomic_t mmu_flush_cache_flags;
 };
 
 /**
@@ -145,6 +161,14 @@ struct pvr_file {
 	 *           to_pvr_device().
 	 */
 	struct pvr_device *pvr_dev;
+
+	/**
+	 * @vm_ctx_handles: Array of VM contexts belonging to this file. Array
+	 * members are of type "struct pvr_vm_context *".
+	 *
+	 * This array is used to allocate handles returned to userspace.
+	 */
+	struct xarray vm_ctx_handles;
 };
 
 /**

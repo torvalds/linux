@@ -3,9 +3,12 @@
 
 #include "pvr_device.h"
 #include "pvr_drv.h"
+#include "pvr_gem.h"
+#include "pvr_mmu.h"
 #include "pvr_rogue_defs.h"
 #include "pvr_rogue_fwif_client.h"
 #include "pvr_rogue_fwif_shared.h"
+#include "pvr_vm.h"
 
 #include <uapi/drm/pvr_drm.h>
 
@@ -60,7 +63,72 @@ static int
 pvr_ioctl_create_bo(struct drm_device *drm_dev, void *raw_args,
 		    struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_create_bo_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	struct pvr_file *pvr_file = to_pvr_file(file);
+
+	struct pvr_gem_object *pvr_obj;
+	size_t sanitized_size;
+
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	/* All padding fields must be zeroed. */
+	if (args->_padding_c != 0) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	/*
+	 * On 64-bit platforms (our primary target), size_t is a u64. However,
+	 * on other architectures we have to check for overflow when casting
+	 * down to size_t from u64.
+	 *
+	 * We also disallow zero-sized allocations, and reserved (kernel-only)
+	 * flags.
+	 */
+	if (args->size > SIZE_MAX || args->size == 0 || args->flags &
+	    ~DRM_PVR_BO_FLAGS_MASK || args->size & (PVR_DEVICE_PAGE_SIZE - 1)) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	sanitized_size = (size_t)args->size;
+
+	/*
+	 * Create a buffer object and transfer ownership to a userspace-
+	 * accessible handle.
+	 */
+	pvr_obj = pvr_gem_object_create(pvr_dev, sanitized_size, args->flags);
+	if (IS_ERR(pvr_obj)) {
+		err = PTR_ERR(pvr_obj);
+		goto err_drm_dev_exit;
+	}
+
+	/* This function will not modify &args->handle unless it succeeds. */
+	err = pvr_gem_object_into_handle(pvr_obj, pvr_file, &args->handle);
+	if (err)
+		goto err_destroy_obj;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_destroy_obj:
+	/*
+	 * GEM objects are refcounted, so there is no explicit destructor
+	 * function. Instead, we release the singular reference we currently
+	 * hold on the object and let GEM take care of the rest.
+	 */
+	pvr_gem_object_put(pvr_obj);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**
@@ -87,7 +155,61 @@ static int
 pvr_ioctl_get_bo_mmap_offset(struct drm_device *drm_dev, void *raw_args,
 			     struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_get_bo_mmap_offset_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_gem_object *pvr_obj;
+	struct drm_gem_object *gem_obj;
+	int idx;
+	int ret;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	/* All padding fields must be zeroed. */
+	if (args->_padding_4 != 0) {
+		ret = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	/*
+	 * Obtain a kernel reference to the buffer object. This reference is
+	 * counted and must be manually dropped before returning. If a buffer
+	 * object cannot be found for the specified handle, return -%ENOENT (No
+	 * such file or directory).
+	 */
+	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
+	if (!pvr_obj) {
+		ret = -ENOENT;
+		goto err_drm_dev_exit;
+	}
+
+	gem_obj = gem_from_pvr_gem(pvr_obj);
+
+	/*
+	 * Allocate a fake offset which can be used in userspace calls to mmap
+	 * on the DRM device file. If this fails, return the error code. This
+	 * operation is idempotent.
+	 */
+	ret = drm_gem_create_mmap_offset(gem_obj);
+	if (ret != 0) {
+		/* Drop our reference to the buffer object. */
+		drm_gem_object_put(gem_obj);
+		goto err_drm_dev_exit;
+	}
+
+	/*
+	 * Read out the fake offset allocated by the earlier call to
+	 * drm_gem_create_mmap_offset.
+	 */
+	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
+
+	/* Drop our reference to the buffer object. */
+	pvr_gem_object_put(pvr_obj);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 static __always_inline u64
@@ -516,10 +638,12 @@ pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 		break;
 
 	case DRM_PVR_DEV_QUERY_HEAP_INFO_GET:
-		return -EINVAL;
+		ret = pvr_heap_info_get(pvr_dev, args);
+		break;
 
 	case DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET:
-		return -EINVAL;
+		ret = pvr_static_data_areas_get(pvr_dev, args);
+		break;
 	}
 
 	drm_dev_exit(idx);
@@ -666,7 +790,46 @@ static int
 pvr_ioctl_create_vm_context(struct drm_device *drm_dev, void *raw_args,
 			    struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_create_vm_context_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_vm_context *vm_ctx;
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	if (args->_padding_4) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	vm_ctx = pvr_vm_create_context(pvr_file->pvr_dev, true);
+	if (IS_ERR(vm_ctx)) {
+		err = PTR_ERR(vm_ctx);
+		goto err_drm_dev_exit;
+	}
+
+	/* Allocate object handle for userspace. */
+	err = xa_alloc(&pvr_file->vm_ctx_handles,
+		       &args->handle,
+		       vm_ctx,
+		       xa_limit_32b,
+		       GFP_KERNEL);
+	if (err < 0)
+		goto err_cleanup;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_cleanup:
+	pvr_vm_context_put(vm_ctx);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**
@@ -686,7 +849,19 @@ static int
 pvr_ioctl_destroy_vm_context(struct drm_device *drm_dev, void *raw_args,
 			     struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_destroy_vm_context_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_vm_context *vm_ctx;
+
+	if (args->_padding_4)
+		return -EINVAL;
+
+	vm_ctx = xa_erase(&pvr_file->vm_ctx_handles, args->handle);
+	if (!vm_ctx)
+		return -EINVAL;
+
+	pvr_vm_context_put(vm_ctx);
+	return 0;
 }
 
 /**
@@ -716,7 +891,79 @@ static int
 pvr_ioctl_vm_map(struct drm_device *drm_dev, void *raw_args,
 		 struct drm_file *file)
 {
-	return -ENOTTY;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	struct drm_pvr_ioctl_vm_map_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_vm_context *vm_ctx;
+
+	struct pvr_gem_object *pvr_obj;
+	size_t pvr_obj_size;
+
+	u64 offset_plus_size;
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	/* Initial validation of args. */
+	if (args->_padding_14) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	if (args->flags != 0 ||
+	    check_add_overflow(args->offset, args->size, &offset_plus_size) ||
+	    !pvr_find_heap_containing(pvr_dev, args->device_addr, args->size)) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	vm_ctx = pvr_vm_context_lookup(pvr_file, args->vm_context_handle);
+	if (!vm_ctx) {
+		err = -EINVAL;
+		goto err_drm_dev_exit;
+	}
+
+	pvr_obj = pvr_gem_object_from_handle(pvr_file, args->handle);
+	if (!pvr_obj) {
+		err = -ENOENT;
+		goto err_put_vm_context;
+	}
+
+	pvr_obj_size = pvr_gem_object_size(pvr_obj);
+
+	/*
+	 * Validate offset and size args. The alignment of these will be
+	 * checked when mapping; for now just check that they're within valid
+	 * bounds
+	 */
+	if (args->offset >= pvr_obj_size || offset_plus_size > pvr_obj_size) {
+		err = -EINVAL;
+		goto err_put_pvr_object;
+	}
+
+	err = pvr_vm_map(vm_ctx, pvr_obj, args->offset,
+			 args->device_addr, args->size);
+	if (err)
+		goto err_put_pvr_object;
+
+	/*
+	 * In order to set up the mapping, we needed a reference to &pvr_obj.
+	 * However, pvr_vm_map() obtains and stores its own reference, so we
+	 * must release ours before returning.
+	 */
+
+err_put_pvr_object:
+	pvr_gem_object_put(pvr_obj);
+
+err_put_vm_context:
+	pvr_vm_context_put(vm_ctx);
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**
@@ -739,7 +986,24 @@ static int
 pvr_ioctl_vm_unmap(struct drm_device *drm_dev, void *raw_args,
 		   struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_vm_unmap_args *args = raw_args;
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	struct pvr_vm_context *vm_ctx;
+	int err;
+
+	/* Initial validation of args. */
+	if (args->_padding_4)
+		return -EINVAL;
+
+	vm_ctx = pvr_vm_context_lookup(pvr_file, args->vm_context_handle);
+	if (!vm_ctx)
+		return -EINVAL;
+
+	err = pvr_vm_unmap(vm_ctx, args->device_addr, args->size);
+
+	pvr_vm_context_put(vm_ctx);
+
+	return err;
 }
 
 /*
@@ -930,6 +1194,8 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	 */
 	pvr_file->pvr_dev = pvr_dev;
 
+	xa_init_flags(&pvr_file->vm_ctx_handles, XA_FLAGS_ALLOC1);
+
 	/*
 	 * Store reference to powervr-specific file private data in DRM file
 	 * private data.
@@ -955,6 +1221,9 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 {
 	struct pvr_file *pvr_file = to_pvr_file(file);
 
+	/* Drop references on any remaining objects. */
+	pvr_destroy_vm_contexts_for_file(pvr_file);
+
 	kfree(pvr_file);
 	file->driver_priv = NULL;
 }
@@ -962,7 +1231,7 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 DEFINE_DRM_GEM_FOPS(pvr_drm_driver_fops);
 
 static struct drm_driver pvr_drm_driver = {
-	.driver_features = DRIVER_RENDER,
+	.driver_features = DRIVER_GEM | DRIVER_GEM_GPUVA | DRIVER_RENDER,
 	.open = pvr_drm_driver_open,
 	.postclose = pvr_drm_driver_postclose,
 	.ioctls = pvr_drm_driver_ioctls,
@@ -976,6 +1245,8 @@ static struct drm_driver pvr_drm_driver = {
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
 
+	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
+	.gem_create_object = pvr_gem_create_object,
 };
 
 static int

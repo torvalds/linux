@@ -6,6 +6,7 @@
 
 #include "pvr_fw.h"
 #include "pvr_rogue_cr_defs.h"
+#include "pvr_vm.h"
 
 #include <drm/drm_print.h>
 
@@ -312,7 +313,30 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 	else
 		return -EINVAL;
 
-	return pvr_set_dma_info(pvr_dev);
+	err = pvr_set_dma_info(pvr_dev);
+	if (err)
+		return err;
+
+	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
+		pvr_dev->kernel_vm_ctx = pvr_vm_create_context(pvr_dev, false);
+		if (IS_ERR(pvr_dev->kernel_vm_ctx))
+			return PTR_ERR(pvr_dev->kernel_vm_ctx);
+	}
+
+	return 0;
+}
+
+/**
+ * pvr_device_gpu_fini() - GPU-specific deinitialization for a PowerVR device
+ * @pvr_dev: Target PowerVR device.
+ */
+static void
+pvr_device_gpu_fini(struct pvr_device *pvr_dev)
+{
+	if (pvr_dev->fw_dev.processor_type != PVR_FW_PROCESSOR_TYPE_MIPS) {
+		WARN_ON(!pvr_vm_context_put(pvr_dev->kernel_vm_ctx));
+		pvr_dev->kernel_vm_ctx = NULL;
+	}
 }
 
 /**
@@ -364,6 +388,7 @@ pvr_device_fini(struct pvr_device *pvr_dev)
 	 * Deinitialization stages are performed in reverse order compared to
 	 * the initialization stages in pvr_device_init().
 	 */
+	pvr_device_gpu_fini(pvr_dev);
 }
 
 bool
