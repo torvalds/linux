@@ -40,26 +40,6 @@ static inline bool initial_idmapping(const struct user_namespace *ns)
 }
 
 /**
- * no_idmapping - check whether we can skip remapping a kuid/gid
- * @mnt_userns: the mount's idmapping
- * @fs_userns: the filesystem's idmapping
- *
- * This function can be used to check whether a remapping between two
- * idmappings is required.
- * An idmapped mount is a mount that has an idmapping attached to it that
- * is different from the filsystem's idmapping and the initial idmapping.
- * If the initial mapping is used or the idmapping of the mount and the
- * filesystem are identical no remapping is required.
- *
- * Return: true if remapping can be skipped, false if not.
- */
-static inline bool no_idmapping(const struct user_namespace *mnt_userns,
-				const struct user_namespace *fs_userns)
-{
-	return initial_idmapping(mnt_userns) || mnt_userns == fs_userns;
-}
-
-/**
  * make_vfsuid - map a filesystem kuid according to an idmapping
  * @idmap: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
@@ -68,8 +48,8 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
  * Take a @kuid and remap it from @fs_userns into @idmap. Use this
  * function when preparing a @kuid to be reported to userspace.
  *
- * If no_idmapping() determines that this is not an idmapped mount we can
- * simply return @kuid unchanged.
+ * If initial_idmapping() determines that this is not an idmapped mount
+ * we can simply return @kuid unchanged.
  * If initial_idmapping() tells us that the filesystem is not mounted with an
  * idmapping we know the value of @kuid won't change when calling
  * from_kuid() so we can simply retrieve the value via __kuid_val()
@@ -87,7 +67,7 @@ vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
 	uid_t uid;
 	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return VFSUIDT_INIT(kuid);
 	if (initial_idmapping(fs_userns))
 		uid = __kuid_val(kuid);
@@ -108,8 +88,8 @@ EXPORT_SYMBOL_GPL(make_vfsuid);
  * Take a @kgid and remap it from @fs_userns into @idmap. Use this
  * function when preparing a @kgid to be reported to userspace.
  *
- * If no_idmapping() determines that this is not an idmapped mount we can
- * simply return @kgid unchanged.
+ * If initial_idmapping() determines that this is not an idmapped mount
+ * we can simply return @kgid unchanged.
  * If initial_idmapping() tells us that the filesystem is not mounted with an
  * idmapping we know the value of @kgid won't change when calling
  * from_kgid() so we can simply retrieve the value via __kgid_val()
@@ -125,7 +105,7 @@ vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
 	gid_t gid;
 	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return VFSGIDT_INIT(kgid);
 	if (initial_idmapping(fs_userns))
 		gid = __kgid_val(kgid);
@@ -154,7 +134,7 @@ kuid_t from_vfsuid(struct mnt_idmap *idmap,
 	uid_t uid;
 	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return AS_KUIDT(vfsuid);
 	uid = from_kuid(mnt_userns, AS_KUIDT(vfsuid));
 	if (uid == (uid_t)-1)
@@ -182,7 +162,7 @@ kgid_t from_vfsgid(struct mnt_idmap *idmap,
 	gid_t gid;
 	struct user_namespace *mnt_userns = idmap->owner;
 
-	if (no_idmapping(mnt_userns, fs_userns))
+	if (idmap == &nop_mnt_idmap)
 		return AS_KGIDT(vfsgid);
 	gid = from_kgid(mnt_userns, AS_KGIDT(vfsgid));
 	if (gid == (gid_t)-1)
