@@ -384,8 +384,9 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	regmap_update_bits(bmc_device->device, 0x74, GENMASK(7, 4), BIT(7) | (5 << 4));
 
 	//EnPCIaMSI_EnPCIaIntA_EnPCIaMst_EnPCIaDev
+	//Disable MSI[bit25] in ast2700A0 int only
 	regmap_update_bits(bmc_device->device, 0x70,
-			   BIT(25) | BIT(17) | BIT(9) | BIT(1),
+			   BIT(17) | BIT(9) | BIT(1),
 			   BIT(25) | BIT(17) | BIT(9) | BIT(1));
 
 	//bar size check for 4k align
