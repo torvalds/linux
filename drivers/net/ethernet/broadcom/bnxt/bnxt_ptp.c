@@ -650,7 +650,7 @@ static int bnxt_map_ptp_regs(struct bnxt *bp)
 	int rc, i;
 
 	reg_arr = ptp->refclk_regs;
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+	if (BNXT_CHIP_P5(bp)) {
 		rc = bnxt_map_regs(bp, reg_arr, 2, BNXT_PTP_GRC_WIN);
 		if (rc)
 			return rc;
@@ -967,7 +967,7 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 		rc = err;
 		goto out;
 	}
-	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+	if (BNXT_CHIP_P5(bp)) {
 		spin_lock_bh(&ptp->ptp_lock);
 		bnxt_refclk_read(bp, NULL, &ptp->current_time);
 		WRITE_ONCE(ptp->old_time, ptp->current_time);
