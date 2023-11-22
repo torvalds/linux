@@ -98,6 +98,7 @@ struct btrfs_fs_context {
 	unsigned long mount_opt;
 	unsigned long compress_type:4;
 	unsigned int compress_level;
+	refcount_t refs;
 };
 
 enum {
@@ -2797,6 +2798,180 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
+static int btrfs_fc_test_super(struct super_block *sb, struct fs_context *fc)
+{
+	struct btrfs_fs_info *p = fc->s_fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	return fs_info->fs_devices == p->fs_devices;
+}
+
+static int btrfs_get_tree_super(struct fs_context *fc)
+{
+	struct btrfs_fs_info *fs_info = fc->s_fs_info;
+	struct btrfs_fs_context *ctx = fc->fs_private;
+	struct btrfs_fs_devices *fs_devices = NULL;
+	struct block_device *bdev;
+	struct btrfs_device *device;
+	struct super_block *sb;
+	blk_mode_t mode = sb_open_mode(fc->sb_flags);
+	int ret;
+
+	btrfs_ctx_to_info(fs_info, ctx);
+	mutex_lock(&uuid_mutex);
+
+	/*
+	 * With 'true' passed to btrfs_scan_one_device() (mount time) we expect
+	 * either a valid device or an error.
+	 */
+	device = btrfs_scan_one_device(fc->source, mode, true);
+	ASSERT(device != NULL);
+	if (IS_ERR(device)) {
+		mutex_unlock(&uuid_mutex);
+		return PTR_ERR(device);
+	}
+
+	fs_devices = device->fs_devices;
+	fs_info->fs_devices = fs_devices;
+
+	ret = btrfs_open_devices(fs_devices, mode, &btrfs_fs_type);
+	mutex_unlock(&uuid_mutex);
+	if (ret)
+		return ret;
+
+	if (!(fc->sb_flags & SB_RDONLY) && fs_devices->rw_devices == 0) {
+		ret = -EACCES;
+		goto error;
+	}
+
+	bdev = fs_devices->latest_dev->bdev;
+
+	/*
+	 * From now on the error handling is not straightforward.
+	 *
+	 * If successful, this will transfer the fs_info into the super block,
+	 * and fc->s_fs_info will be NULL.  However if there's an existing
+	 * super, we'll still have fc->s_fs_info populated.  If we error
+	 * completely out it'll be cleaned up when we drop the fs_context,
+	 * otherwise it's tied to the lifetime of the super_block.
+	 */
+	sb = sget_fc(fc, btrfs_fc_test_super, set_anon_super_fc);
+	if (IS_ERR(sb)) {
+		ret = PTR_ERR(sb);
+		goto error;
+	}
+
+	if (sb->s_root) {
+		btrfs_close_devices(fs_devices);
+		if ((fc->sb_flags ^ sb->s_flags) & SB_RDONLY)
+			ret = -EBUSY;
+	} else {
+		snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
+		shrinker_debugfs_rename(sb->s_shrink, "sb-btrfs:%s", sb->s_id);
+		btrfs_sb(sb)->bdev_holder = &btrfs_fs_type;
+		ret = btrfs_fill_super(sb, fs_devices, NULL);
+	}
+
+	if (ret) {
+		deactivate_locked_super(sb);
+		return ret;
+	}
+
+	fc->root = dget(sb->s_root);
+	return 0;
+
+error:
+	btrfs_close_devices(fs_devices);
+	return ret;
+}
+
+static int btrfs_get_tree_subvol(struct fs_context *fc)
+{
+	struct btrfs_fs_info *fs_info = NULL;
+	struct btrfs_fs_context *ctx = fc->fs_private;
+	struct fs_context *dup_fc;
+	struct dentry *dentry;
+	struct vfsmount *mnt;
+
+	/*
+	 * Setup a dummy root and fs_info for test/set super.  This is because
+	 * we don't actually fill this stuff out until open_ctree, but we need
+	 * then open_ctree will properly initialize the file system specific
+	 * settings later.  btrfs_init_fs_info initializes the static elements
+	 * of the fs_info (locks and such) to make cleanup easier if we find a
+	 * superblock with our given fs_devices later on at sget() time.
+	 */
+	fs_info = kvzalloc(sizeof(struct btrfs_fs_info), GFP_KERNEL);
+	if (!fs_info)
+		return -ENOMEM;
+
+	fs_info->super_copy = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
+	fs_info->super_for_commit = kzalloc(BTRFS_SUPER_INFO_SIZE, GFP_KERNEL);
+	if (!fs_info->super_copy || !fs_info->super_for_commit) {
+		btrfs_free_fs_info(fs_info);
+		return -ENOMEM;
+	}
+	btrfs_init_fs_info(fs_info);
+
+	dup_fc = vfs_dup_fs_context(fc);
+	if (IS_ERR(dup_fc)) {
+		btrfs_free_fs_info(fs_info);
+		return PTR_ERR(dup_fc);
+	}
+
+	/*
+	 * When we do the sget_fc this gets transferred to the sb, so we only
+	 * need to set it on the dup_fc as this is what creates the super block.
+	 */
+	dup_fc->s_fs_info = fs_info;
+
+	/*
+	 * We'll do the security settings in our btrfs_get_tree_super() mount
+	 * loop, they were duplicated into dup_fc, we can drop the originals
+	 * here.
+	 */
+	security_free_mnt_opts(&fc->security);
+	fc->security = NULL;
+
+	mnt = fc_mount(dup_fc);
+	put_fs_context(dup_fc);
+	if (IS_ERR(mnt))
+		return PTR_ERR(mnt);
+
+	/*
+	 * This free's ->subvol_name, because if it isn't set we have to
+	 * allocate a buffer to hold the subvol_name, so we just drop our
+	 * reference to it here.
+	 */
+	dentry = mount_subvol(ctx->subvol_name, ctx->subvol_objectid, mnt);
+	ctx->subvol_name = NULL;
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	fc->root = dentry;
+	return 0;
+}
+
+static int btrfs_get_tree(struct fs_context *fc)
+{
+	/*
+	 * Since we use mount_subtree to mount the default/specified subvol, we
+	 * have to do mounts in two steps.
+	 *
+	 * First pass through we call btrfs_get_tree_subvol(), this is just a
+	 * wrapper around fc_mount() to call back into here again, and this time
+	 * we'll call btrfs_get_tree_super().  This will do the open_ctree() and
+	 * everything to open the devices and file system.  Then we return back
+	 * with a fully constructed vfsmount in btrfs_get_tree_subvol(), and
+	 * from there we can do our mount_subvol() call, which will lookup
+	 * whichever subvol we're mounting and setup this fc with the
+	 * appropriate dentry for the subvol.
+	 */
+	if (fc->s_fs_info)
+		return btrfs_get_tree_super(fc);
+	return btrfs_get_tree_subvol(fc);
+}
+
 static void btrfs_kill_super(struct super_block *sb)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
@@ -2807,17 +2982,41 @@ static void btrfs_kill_super(struct super_block *sb)
 static void btrfs_free_fs_context(struct fs_context *fc)
 {
 	struct btrfs_fs_context *ctx = fc->fs_private;
+	struct btrfs_fs_info *fs_info = fc->s_fs_info;
 
-	if (!ctx)
-		return;
+	if (fs_info)
+		btrfs_free_fs_info(fs_info);
 
-	kfree(ctx->subvol_name);
-	kfree(ctx);
+	if (ctx && refcount_dec_and_test(&ctx->refs)) {
+		kfree(ctx->subvol_name);
+		kfree(ctx);
+	}
+}
+
+static int btrfs_dup_fs_context(struct fs_context *fc, struct fs_context *src_fc)
+{
+	struct btrfs_fs_context *ctx = src_fc->fs_private;
+
+	/*
+	 * Give a ref to our ctx to this dup, as we want to keep it around for
+	 * our original fc so we can have the subvolume name or objectid.
+	 *
+	 * We unset ->source in the original fc because the dup needs it for
+	 * mounting, and then once we free the dup it'll free ->source, so we
+	 * need to make sure we're only pointing to it in one fc.
+	 */
+	refcount_inc(&ctx->refs);
+	fc->fs_private = ctx;
+	fc->source = src_fc->source;
+	src_fc->source = NULL;
+	return 0;
 }
 
 static const struct fs_context_operations btrfs_fs_context_ops = {
 	.parse_param	= btrfs_parse_param,
 	.reconfigure	= btrfs_reconfigure,
+	.get_tree	= btrfs_get_tree,
+	.dup		= btrfs_dup_fs_context,
 	.free		= btrfs_free_fs_context,
 };
 
@@ -2829,6 +3028,7 @@ static int __maybe_unused btrfs_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
+	refcount_set(&ctx->refs, 1);
 	fc->fs_private = ctx;
 	fc->ops = &btrfs_fs_context_ops;
 
