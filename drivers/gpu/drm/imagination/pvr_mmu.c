@@ -3,9 +3,11 @@
 
 #include "pvr_mmu.h"
 
+#include "pvr_ccb.h"
 #include "pvr_device.h"
 #include "pvr_fw.h"
 #include "pvr_gem.h"
+#include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_mmu_defs.h"
 
@@ -95,7 +97,7 @@ static void pvr_mmu_set_flush_flags(struct pvr_device *pvr_dev, u32 flags)
  */
 void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev)
 {
-	/* TODO: implement */
+	pvr_mmu_set_flush_flags(pvr_dev, PVR_MMU_SYNC_LEVEL_2_FLAGS);
 }
 
 /**
@@ -120,8 +122,70 @@ void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev)
  */
 int pvr_mmu_flush_exec(struct pvr_device *pvr_dev, bool wait)
 {
-	/* TODO: implement */
-	return -ENODEV;
+	struct rogue_fwif_kccb_cmd cmd_mmu_cache = {};
+	struct rogue_fwif_mmucachedata *cmd_mmu_cache_data =
+		&cmd_mmu_cache.cmd_data.mmu_cache_data;
+	int err = 0;
+	u32 slot;
+	int idx;
+
+	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx))
+		return -EIO;
+
+	/* Can't flush MMU if the firmware hasn't booted yet. */
+	if (!pvr_dev->fw_dev.booted)
+		goto err_drm_dev_exit;
+
+	cmd_mmu_cache_data->cache_flags =
+		atomic_xchg(&pvr_dev->mmu_flush_cache_flags, 0);
+
+	if (!cmd_mmu_cache_data->cache_flags)
+		goto err_drm_dev_exit;
+
+	cmd_mmu_cache.cmd_type = ROGUE_FWIF_KCCB_CMD_MMUCACHE;
+
+	pvr_fw_object_get_fw_addr(pvr_dev->fw_dev.mem.mmucache_sync_obj,
+				  &cmd_mmu_cache_data->mmu_cache_sync_fw_addr);
+	cmd_mmu_cache_data->mmu_cache_sync_update_value = 0;
+
+	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
+	if (err)
+		goto err_reset_and_retry;
+
+	err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+	if (err)
+		goto err_reset_and_retry;
+
+	drm_dev_exit(idx);
+
+	return 0;
+
+err_reset_and_retry:
+	/*
+	 * Flush command failure is most likely the result of a firmware lockup. Hard
+	 * reset the GPU and retry.
+	 */
+	err = pvr_power_reset(pvr_dev, true);
+	if (err)
+		goto err_drm_dev_exit; /* Device is lost. */
+
+	/* Retry sending flush request. */
+	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
+	if (err) {
+		pvr_device_lost(pvr_dev);
+		goto err_drm_dev_exit;
+	}
+
+	if (wait) {
+		err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+		if (err)
+			pvr_device_lost(pvr_dev);
+	}
+
+err_drm_dev_exit:
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 /**

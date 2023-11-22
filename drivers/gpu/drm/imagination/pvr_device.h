@@ -4,6 +4,7 @@
 #ifndef PVR_DEVICE_H
 #define PVR_DEVICE_H
 
+#include "pvr_ccb.h"
 #include "pvr_device_info.h"
 #include "pvr_fw.h"
 
@@ -123,6 +124,12 @@ struct pvr_device {
 	 */
 	struct clk *mem_clk;
 
+	/** @irq: IRQ number. */
+	int irq;
+
+	/** @fwccb: Firmware CCB. */
+	struct pvr_ccb fwccb;
+
 	/**
 	 * @kernel_vm_ctx: Virtual memory context used for kernel mappings.
 	 *
@@ -153,6 +160,49 @@ struct pvr_device {
 		u32 kccb_stall_count;
 	} watchdog;
 
+	struct {
+		/** @ccb: Kernel CCB. */
+		struct pvr_ccb ccb;
+
+		/** @rtn_q: Waitqueue for KCCB command return waiters. */
+		wait_queue_head_t rtn_q;
+
+		/** @rtn_obj: Object representing KCCB return slots. */
+		struct pvr_fw_object *rtn_obj;
+
+		/**
+		 * @rtn: Pointer to CPU mapping of KCCB return slots. Must be accessed by
+		 *       READ_ONCE()/WRITE_ONCE().
+		 */
+		u32 *rtn;
+
+		/** @slot_count: Total number of KCCB slots available. */
+		u32 slot_count;
+
+		/** @reserved_count: Number of KCCB slots reserved for future use. */
+		u32 reserved_count;
+
+		/**
+		 * @waiters: List of KCCB slot waiters.
+		 */
+		struct list_head waiters;
+
+		/** @fence_ctx: KCCB fence context. */
+		struct {
+			/** @id: KCCB fence context ID allocated with dma_fence_context_alloc(). */
+			u64 id;
+
+			/** @seqno: Sequence number incremented each time a fence is created. */
+			atomic_t seqno;
+
+			/**
+			 * @lock: Lock used to synchronize access to fences allocated by this
+			 * context.
+			 */
+			spinlock_t lock;
+		} fence_ctx;
+	} kccb;
+
 	/**
 	 * @lost: %true if the device has been lost.
 	 *
@@ -160,6 +210,16 @@ struct pvr_device {
 	 * firmware processor has stopped responding and can not be revived via a hard reset.
 	 */
 	bool lost;
+
+	/**
+	 * @reset_sem: Reset semaphore.
+	 *
+	 * GPU reset code will lock this for writing. Any code that submits commands to the firmware
+	 * that isn't in an IRQ handler or on the scheduler workqueue must lock this for reading.
+	 * Once this has been successfully locked, &pvr_dev->lost _must_ be checked, and -%EIO must
+	 * be returned if it is set.
+	 */
+	struct rw_semaphore reset_sem;
 
 	/** @sched_wq: Workqueue for schedulers. */
 	struct workqueue_struct *sched_wq;

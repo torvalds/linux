@@ -540,6 +540,16 @@ static const struct drm_gpuvm_ops pvr_vm_gpuva_ops = {
 	.sm_step_unmap = pvr_vm_gpuva_unmap,
 };
 
+static void
+fw_mem_context_init(void *cpu_ptr, void *priv)
+{
+	struct rogue_fwif_fwmemcontext *fw_mem_ctx = cpu_ptr;
+	struct pvr_vm_context *vm_ctx = priv;
+
+	fw_mem_ctx->pc_dev_paddr = pvr_vm_get_page_table_root_addr(vm_ctx);
+	fw_mem_ctx->page_cat_base_reg_set = ROGUE_FW_BIF_INVALID_PCSET;
+}
+
 /**
  * pvr_vm_create_context() - Create a new VM context.
  * @pvr_dev: Target PowerVR device.
@@ -602,12 +612,18 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 	}
 
 	if (is_userspace_context) {
-		/* TODO: Create FW mem context */
-		err = -ENODEV;
-		goto err_put_ctx;
+		err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_fwmemcontext),
+					   PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
+					   fw_mem_context_init, vm_ctx, &vm_ctx->fw_mem_ctx_obj);
+
+		if (err)
+			goto err_page_table_destroy;
 	}
 
 	return vm_ctx;
+
+err_page_table_destroy:
+	pvr_mmu_context_destroy(vm_ctx->mmu_ctx);
 
 err_put_ctx:
 	pvr_vm_context_put(vm_ctx);
@@ -628,8 +644,8 @@ pvr_vm_context_release(struct kref *ref_count)
 	struct pvr_vm_context *vm_ctx =
 		container_of(ref_count, struct pvr_vm_context, ref_count);
 
-	/* TODO: Destroy FW mem context */
-	WARN_ON(vm_ctx->fw_mem_ctx_obj);
+	if (vm_ctx->fw_mem_ctx_obj)
+		pvr_fw_object_destroy(vm_ctx->fw_mem_ctx_obj);
 
 	WARN_ON(pvr_vm_unmap(vm_ctx, vm_ctx->gpuvm_mgr.mm_start,
 			     vm_ctx->gpuvm_mgr.mm_range));
