@@ -53,7 +53,8 @@ static size_t calc_hw_engine_info_size(struct xe_device *xe)
 			i++;
 		}
 
-	return i * sizeof(struct drm_xe_query_engine_info);
+	return sizeof(struct drm_xe_query_engines) +
+		i * sizeof(struct drm_xe_engine);
 }
 
 typedef u64 (*__ktime_func_t)(void);
@@ -186,9 +187,9 @@ static int query_engines(struct xe_device *xe,
 			 struct drm_xe_device_query *query)
 {
 	size_t size = calc_hw_engine_info_size(xe);
-	struct drm_xe_query_engine_info __user *query_ptr =
+	struct drm_xe_query_engines __user *query_ptr =
 		u64_to_user_ptr(query->data);
-	struct drm_xe_query_engine_info *hw_engine_info;
+	struct drm_xe_query_engines *engines;
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	struct xe_gt *gt;
@@ -202,8 +203,8 @@ static int query_engines(struct xe_device *xe,
 		return -EINVAL;
 	}
 
-	hw_engine_info = kmalloc(size, GFP_KERNEL);
-	if (!hw_engine_info)
+	engines = kmalloc(size, GFP_KERNEL);
+	if (!engines)
 		return -ENOMEM;
 
 	for_each_gt(gt, xe, gt_id)
@@ -211,22 +212,26 @@ static int query_engines(struct xe_device *xe,
 			if (xe_hw_engine_is_reserved(hwe))
 				continue;
 
-			hw_engine_info[i].instance.engine_class =
+			engines->engines[i].instance.engine_class =
 				xe_to_user_engine_class[hwe->class];
-			hw_engine_info[i].instance.engine_instance =
+			engines->engines[i].instance.engine_instance =
 				hwe->logical_instance;
-			hw_engine_info[i].instance.gt_id = gt->info.id;
-			hw_engine_info[i].instance.pad = 0;
-			memset(hw_engine_info->reserved, 0, sizeof(hw_engine_info->reserved));
+			engines->engines[i].instance.gt_id = gt->info.id;
+			engines->engines[i].instance.pad = 0;
+			memset(engines->engines[i].reserved, 0,
+			       sizeof(engines->engines[i].reserved));
 
 			i++;
 		}
 
-	if (copy_to_user(query_ptr, hw_engine_info, size)) {
-		kfree(hw_engine_info);
+	engines->pad = 0;
+	engines->num_engines = i;
+
+	if (copy_to_user(query_ptr, engines, size)) {
+		kfree(engines);
 		return -EFAULT;
 	}
-	kfree(hw_engine_info);
+	kfree(engines);
 
 	return 0;
 }
