@@ -900,20 +900,19 @@ static void ks_pcie_am654_raise_legacy_irq(struct keystone_pcie *ks_pcie)
 }
 
 static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				   enum pci_epc_irq_type type,
-				   u16 interrupt_num)
+				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
+	case PCI_IRQ_INTX:
 		ks_pcie_am654_raise_legacy_irq(ks_pcie);
 		break;
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
 		break;
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		dw_pcie_ep_raise_msix_irq(ep, func_no, interrupt_num);
 		break;
 	default:

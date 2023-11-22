@@ -1979,20 +1979,19 @@ static int tegra_pcie_ep_raise_msix_irq(struct tegra_pcie_dw *pcie, u16 irq)
 }
 
 static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				   enum pci_epc_irq_type type,
-				   u16 interrupt_num)
+				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
+	case PCI_IRQ_INTX:
 		return tegra_pcie_ep_raise_legacy_irq(pcie, interrupt_num);
 
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return tegra_pcie_ep_raise_msi_irq(pcie, interrupt_num);
 
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return tegra_pcie_ep_raise_msix_irq(pcie, interrupt_num);
 
 	default:

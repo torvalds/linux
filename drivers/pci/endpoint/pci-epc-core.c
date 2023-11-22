@@ -217,7 +217,7 @@ EXPORT_SYMBOL_GPL(pci_epc_start);
  * Invoke to raise an legacy, MSI or MSI-X interrupt
  */
 int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-		      enum pci_epc_irq_type type, u16 interrupt_num)
+		      unsigned int type, u16 interrupt_num)
 {
 	int ret;
 

@@ -532,25 +532,24 @@ static int cdns_pcie_ep_send_msix_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 }
 
 static int cdns_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn, u8 vfn,
-				  enum pci_epc_irq_type type,
-				  u16 interrupt_num)
+				  unsigned int type, u16 interrupt_num)
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
 	struct device *dev = pcie->dev;
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
+	case PCI_IRQ_INTX:
 		if (vfn > 0) {
 			dev_err(dev, "Cannot raise legacy interrupts for VF\n");
 			return -EINVAL;
 		}
 		return cdns_pcie_ep_send_legacy_irq(ep, fn, vfn, 0);
 
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return cdns_pcie_ep_send_msi_irq(ep, fn, vfn, interrupt_num);
 
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return cdns_pcie_ep_send_msix_irq(ep, fn, vfn, interrupt_num);
 
 	default:

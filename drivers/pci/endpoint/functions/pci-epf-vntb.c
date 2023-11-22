@@ -1172,11 +1172,8 @@ static int vntb_epf_peer_db_set(struct ntb_dev *ndev, u64 db_bits)
 	func_no = ntb->epf->func_no;
 	vfunc_no = ntb->epf->vfunc_no;
 
-	ret = pci_epc_raise_irq(ntb->epf->epc,
-				func_no,
-				vfunc_no,
-				PCI_EPC_IRQ_MSI,
-				interrupt_num + 1);
+	ret = pci_epc_raise_irq(ntb->epf->epc, func_no, vfunc_no,
+				PCI_IRQ_MSI, interrupt_num + 1);
 	if (ret)
 		dev_err(&ntb->ntb.dev, "Failed to raise IRQ\n");
 
