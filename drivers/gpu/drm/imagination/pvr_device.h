@@ -173,6 +173,26 @@ struct pvr_device {
 	 */
 	struct xarray free_list_ids;
 
+	/**
+	 * @job_ids: Array of jobs belonging to this device. Array members
+	 *           are of type "struct pvr_job *".
+	 */
+	struct xarray job_ids;
+
+	/**
+	 * @queues: Queue-related fields.
+	 */
+	struct {
+		/** @active: Active queue list. */
+		struct list_head active;
+
+		/** @idle: Idle queue list. */
+		struct list_head idle;
+
+		/** @lock: Lock protecting access to the active/idle lists. */
+		struct mutex lock;
+	} queues;
+
 	struct {
 		/** @work: Work item for watchdog callback. */
 		struct delayed_work work;
@@ -442,6 +462,7 @@ packed_bvnc_to_pvr_gpu_id(u64 bvnc, struct pvr_gpu_id *gpu_id)
 
 int pvr_device_init(struct pvr_device *pvr_dev);
 void pvr_device_fini(struct pvr_device *pvr_dev);
+void pvr_device_reset(struct pvr_device *pvr_dev);
 
 bool
 pvr_device_has_uapi_quirk(struct pvr_device *pvr_dev, u32 quirk);

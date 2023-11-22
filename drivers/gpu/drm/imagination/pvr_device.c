@@ -6,7 +6,9 @@
 
 #include "pvr_fw.h"
 #include "pvr_power.h"
+#include "pvr_queue.h"
 #include "pvr_rogue_cr_defs.h"
+#include "pvr_stream.h"
 #include "pvr_vm.h"
 
 #include <drm/drm_print.h>
@@ -117,6 +119,32 @@ static int pvr_device_clk_init(struct pvr_device *pvr_dev)
 	return 0;
 }
 
+/**
+ * pvr_device_process_active_queues() - Process all queue related events.
+ * @pvr_dev: PowerVR device to check
+ *
+ * This is called any time we receive a FW event. It iterates over all
+ * active queues and calls pvr_queue_process() on them.
+ */
+void pvr_device_process_active_queues(struct pvr_device *pvr_dev)
+{
+	struct pvr_queue *queue, *tmp_queue;
+	LIST_HEAD(active_queues);
+
+	mutex_lock(&pvr_dev->queues.lock);
+
+	/* Move all active queues to a temporary list. Queues that remain
+	 * active after we're done processing them are re-inserted to
+	 * the queues.active list by pvr_queue_process().
+	 */
+	list_splice_init(&pvr_dev->queues.active, &active_queues);
+
+	list_for_each_entry_safe(queue, tmp_queue, &active_queues, node)
+		pvr_queue_process(queue);
+
+	mutex_unlock(&pvr_dev->queues.lock);
+}
+
 static irqreturn_t pvr_device_irq_thread_handler(int irq, void *data)
 {
 	struct pvr_device *pvr_dev = data;
@@ -132,6 +160,7 @@ static irqreturn_t pvr_device_irq_thread_handler(int irq, void *data)
 		if (pvr_dev->fw_dev.booted) {
 			pvr_fwccb_process(pvr_dev);
 			pvr_kccb_wake_up_waiters(pvr_dev);
+			pvr_device_process_active_queues(pvr_dev);
 		}
 
 		pm_runtime_mark_last_busy(from_pvr_device(pvr_dev)->dev);
@@ -397,6 +426,8 @@ pvr_device_gpu_init(struct pvr_device *pvr_dev)
 		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_RISCV;
 	else
 		return -EINVAL;
+
+	pvr_stream_create_musthave_masks(pvr_dev);
 
 	err = pvr_set_dma_info(pvr_dev);
 	if (err)

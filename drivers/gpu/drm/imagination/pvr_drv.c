@@ -7,6 +7,7 @@
 #include "pvr_free_list.h"
 #include "pvr_gem.h"
 #include "pvr_hwrt.h"
+#include "pvr_job.h"
 #include "pvr_mmu.h"
 #include "pvr_power.h"
 #include "pvr_rogue_defs.h"
@@ -32,6 +33,8 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/xarray.h>
 
 /**
  * DOC: PowerVR (Series 6 and later) and IMG Graphics Driver
@@ -397,7 +400,8 @@ pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
 		return 0;
 	}
 
-	runtime_info.free_list_min_pages = 0; /* FIXME */
+	runtime_info.free_list_min_pages =
+		pvr_get_free_list_min_pages(pvr_dev);
 	runtime_info.free_list_max_pages =
 		ROGUE_PM_MAX_FREELIST_SIZE / ROGUE_PM_PAGE_SIZE;
 	runtime_info.common_store_alloc_region_size =
@@ -1137,7 +1141,20 @@ static int
 pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 		      struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_submit_jobs_args *args = raw_args;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	struct pvr_file *pvr_file = to_pvr_file(file);
+	int idx;
+	int err;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	err = pvr_submit_jobs(pvr_dev, pvr_file, args);
+
+	drm_dev_exit(idx);
+
+	return err;
 }
 
 int
@@ -1353,7 +1370,8 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 DEFINE_DRM_GEM_FOPS(pvr_drm_driver_fops);
 
 static struct drm_driver pvr_drm_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_GEM_GPUVA | DRIVER_RENDER,
+	.driver_features = DRIVER_GEM | DRIVER_GEM_GPUVA | DRIVER_RENDER |
+			   DRIVER_SYNCOBJ | DRIVER_SYNCOBJ_TIMELINE,
 	.open = pvr_drm_driver_open,
 	.postclose = pvr_drm_driver_postclose,
 	.ioctls = pvr_drm_driver_ioctls,
@@ -1386,7 +1404,14 @@ pvr_probe(struct platform_device *plat_dev)
 	drm_dev = &pvr_dev->base;
 
 	platform_set_drvdata(plat_dev, drm_dev);
+
+	init_rwsem(&pvr_dev->reset_sem);
+
 	pvr_context_device_init(pvr_dev);
+
+	err = pvr_queue_device_init(pvr_dev);
+	if (err)
+		goto err_context_fini;
 
 	devm_pm_runtime_enable(&plat_dev->dev);
 	pm_runtime_mark_last_busy(&plat_dev->dev);
@@ -1404,6 +1429,7 @@ pvr_probe(struct platform_device *plat_dev)
 		goto err_device_fini;
 
 	xa_init_flags(&pvr_dev->free_list_ids, XA_FLAGS_ALLOC1);
+	xa_init_flags(&pvr_dev->job_ids, XA_FLAGS_ALLOC1);
 
 	return 0;
 
@@ -1412,6 +1438,11 @@ err_device_fini:
 
 err_watchdog_fini:
 	pvr_watchdog_fini(pvr_dev);
+
+	pvr_queue_device_fini(pvr_dev);
+
+err_context_fini:
+	pvr_context_device_fini(pvr_dev);
 
 	return err;
 }
@@ -1422,14 +1453,17 @@ pvr_remove(struct platform_device *plat_dev)
 	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
 
+	WARN_ON(!xa_empty(&pvr_dev->job_ids));
 	WARN_ON(!xa_empty(&pvr_dev->free_list_ids));
 
+	xa_destroy(&pvr_dev->job_ids);
 	xa_destroy(&pvr_dev->free_list_ids);
 
 	pm_runtime_suspend(drm_dev->dev);
 	pvr_device_fini(pvr_dev);
 	drm_dev_unplug(drm_dev);
 	pvr_watchdog_fini(pvr_dev);
+	pvr_queue_device_fini(pvr_dev);
 	pvr_context_device_fini(pvr_dev);
 
 	return 0;

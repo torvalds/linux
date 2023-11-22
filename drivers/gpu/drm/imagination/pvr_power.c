@@ -5,6 +5,7 @@
 #include "pvr_fw.h"
 #include "pvr_fw_startstop.h"
 #include "pvr_power.h"
+#include "pvr_queue.h"
 #include "pvr_rogue_fwif.h"
 
 #include <drm/drm_drv.h>
@@ -154,6 +155,21 @@ pvr_watchdog_kccb_stalled(struct pvr_device *pvr_dev)
 		if (pvr_dev->watchdog.kccb_stall_count == 2) {
 			pvr_dev->watchdog.kccb_stall_count = 0;
 			return true;
+		}
+	} else if (pvr_dev->watchdog.old_kccb_cmds_executed == kccb_cmds_executed) {
+		bool has_active_contexts;
+
+		mutex_lock(&pvr_dev->queues.lock);
+		has_active_contexts = list_empty(&pvr_dev->queues.active);
+		mutex_unlock(&pvr_dev->queues.lock);
+
+		if (has_active_contexts) {
+			/* Send a HEALTH_CHECK command so we can verify FW is still alive. */
+			struct rogue_fwif_kccb_cmd health_check_cmd;
+
+			health_check_cmd.cmd_type = ROGUE_FWIF_KCCB_CMD_HEALTH_CHECK;
+
+			pvr_kccb_send_cmd_powered(pvr_dev, &health_check_cmd, NULL);
 		}
 	} else {
 		pvr_dev->watchdog.old_kccb_cmds_executed = kccb_cmds_executed;
@@ -318,6 +334,7 @@ pvr_power_device_idle(struct device *dev)
 int
 pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 {
+	bool queues_disabled = false;
 	int err;
 
 	/*
@@ -337,6 +354,11 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 	disable_irq(pvr_dev->irq);
 
 	do {
+		if (hard_reset) {
+			pvr_queue_device_pre_reset(pvr_dev);
+			queues_disabled = true;
+		}
+
 		err = pvr_power_fw_disable(pvr_dev, hard_reset);
 		if (!err) {
 			if (hard_reset) {
@@ -372,6 +394,9 @@ pvr_power_reset(struct pvr_device *pvr_dev, bool hard_reset)
 		}
 	} while (err);
 
+	if (queues_disabled)
+		pvr_queue_device_post_reset(pvr_dev);
+
 	enable_irq(pvr_dev->irq);
 
 	up_write(&pvr_dev->reset_sem);
@@ -385,6 +410,9 @@ err_device_lost:
 	pvr_device_lost(pvr_dev);
 
 	/* Leave IRQs disabled if the device is lost. */
+
+	if (queues_disabled)
+		pvr_queue_device_post_reset(pvr_dev);
 
 err_up_write:
 	up_write(&pvr_dev->reset_sem);

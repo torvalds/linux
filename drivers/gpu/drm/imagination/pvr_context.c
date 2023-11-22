@@ -6,10 +6,12 @@
 #include "pvr_device.h"
 #include "pvr_drv.h"
 #include "pvr_gem.h"
+#include "pvr_job.h"
 #include "pvr_power.h"
 #include "pvr_rogue_fwif.h"
 #include "pvr_rogue_fwif_common.h"
 #include "pvr_rogue_fwif_resetframework.h"
+#include "pvr_stream.h"
 #include "pvr_stream_defs.h"
 #include "pvr_vm.h"
 
@@ -165,6 +167,116 @@ ctx_fw_data_init(void *cpu_ptr, void *priv)
 }
 
 /**
+ * pvr_context_destroy_queues() - Destroy all queues attached to a context.
+ * @ctx: Context to destroy queues on.
+ *
+ * Should be called when the last reference to a context object is dropped.
+ * It releases all resources attached to the queues bound to this context.
+ */
+static void pvr_context_destroy_queues(struct pvr_context *ctx)
+{
+	switch (ctx->type) {
+	case DRM_PVR_CTX_TYPE_RENDER:
+		pvr_queue_destroy(ctx->queues.fragment);
+		pvr_queue_destroy(ctx->queues.geometry);
+		break;
+	case DRM_PVR_CTX_TYPE_COMPUTE:
+		pvr_queue_destroy(ctx->queues.compute);
+		break;
+	case DRM_PVR_CTX_TYPE_TRANSFER_FRAG:
+		pvr_queue_destroy(ctx->queues.transfer);
+		break;
+	}
+}
+
+/**
+ * pvr_context_create_queues() - Create all queues attached to a context.
+ * @ctx: Context to create queues on.
+ * @args: Context creation arguments passed by userspace.
+ * @fw_ctx_map: CPU mapping of the FW context object.
+ *
+ * Return:
+ *  * 0 on success, or
+ *  * A negative error code otherwise.
+ */
+static int pvr_context_create_queues(struct pvr_context *ctx,
+				     struct drm_pvr_ioctl_create_context_args *args,
+				     void *fw_ctx_map)
+{
+	int err;
+
+	switch (ctx->type) {
+	case DRM_PVR_CTX_TYPE_RENDER:
+		ctx->queues.geometry = pvr_queue_create(ctx, DRM_PVR_JOB_TYPE_GEOMETRY,
+							args, fw_ctx_map);
+		if (IS_ERR(ctx->queues.geometry)) {
+			err = PTR_ERR(ctx->queues.geometry);
+			ctx->queues.geometry = NULL;
+			goto err_destroy_queues;
+		}
+
+		ctx->queues.fragment = pvr_queue_create(ctx, DRM_PVR_JOB_TYPE_FRAGMENT,
+							args, fw_ctx_map);
+		if (IS_ERR(ctx->queues.fragment)) {
+			err = PTR_ERR(ctx->queues.fragment);
+			ctx->queues.fragment = NULL;
+			goto err_destroy_queues;
+		}
+		return 0;
+
+	case DRM_PVR_CTX_TYPE_COMPUTE:
+		ctx->queues.compute = pvr_queue_create(ctx, DRM_PVR_JOB_TYPE_COMPUTE,
+						       args, fw_ctx_map);
+		if (IS_ERR(ctx->queues.compute)) {
+			err = PTR_ERR(ctx->queues.compute);
+			ctx->queues.compute = NULL;
+			goto err_destroy_queues;
+		}
+		return 0;
+
+	case DRM_PVR_CTX_TYPE_TRANSFER_FRAG:
+		ctx->queues.transfer = pvr_queue_create(ctx, DRM_PVR_JOB_TYPE_TRANSFER_FRAG,
+							args, fw_ctx_map);
+		if (IS_ERR(ctx->queues.transfer)) {
+			err = PTR_ERR(ctx->queues.transfer);
+			ctx->queues.transfer = NULL;
+			goto err_destroy_queues;
+		}
+		return 0;
+	}
+
+	return -EINVAL;
+
+err_destroy_queues:
+	pvr_context_destroy_queues(ctx);
+	return err;
+}
+
+/**
+ * pvr_context_kill_queues() - Kill queues attached to context.
+ * @ctx: Context to kill queues on.
+ *
+ * Killing the queues implies making them unusable for future jobs, while still
+ * letting the currently submitted jobs a chance to finish. Queue resources will
+ * stay around until pvr_context_destroy_queues() is called.
+ */
+static void pvr_context_kill_queues(struct pvr_context *ctx)
+{
+	switch (ctx->type) {
+	case DRM_PVR_CTX_TYPE_RENDER:
+		pvr_queue_kill(ctx->queues.fragment);
+		pvr_queue_kill(ctx->queues.geometry);
+		break;
+	case DRM_PVR_CTX_TYPE_COMPUTE:
+		pvr_queue_kill(ctx->queues.compute);
+		break;
+	case DRM_PVR_CTX_TYPE_TRANSFER_FRAG:
+		pvr_queue_kill(ctx->queues.transfer);
+		break;
+	}
+}
+
+/**
  * pvr_context_create() - Create a context.
  * @pvr_file: File to attach the created context to.
  * @args: Context creation arguments.
@@ -214,9 +326,13 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 		goto err_put_vm;
 	}
 
-	err = init_fw_objs(ctx, args, ctx->data);
+	err = pvr_context_create_queues(ctx, args, ctx->data);
 	if (err)
 		goto err_free_ctx_data;
+
+	err = init_fw_objs(ctx, args, ctx->data);
+	if (err)
+		goto err_destroy_queues;
 
 	err = pvr_fw_object_create(pvr_dev, ctx_size, PVR_BO_FW_FLAGS_DEVICE_UNCACHED,
 				   ctx_fw_data_init, ctx, &ctx->fw_obj);
@@ -243,6 +359,9 @@ int pvr_context_create(struct pvr_file *pvr_file, struct drm_pvr_ioctl_create_co
 err_destroy_fw_obj:
 	pvr_fw_object_destroy(ctx->fw_obj);
 
+err_destroy_queues:
+	pvr_context_destroy_queues(ctx);
+
 err_free_ctx_data:
 	kfree(ctx->data);
 
@@ -262,6 +381,7 @@ pvr_context_release(struct kref *ref_count)
 	struct pvr_device *pvr_dev = ctx->pvr_dev;
 
 	xa_erase(&pvr_dev->ctx_ids, ctx->ctx_id);
+	pvr_context_destroy_queues(ctx);
 	pvr_fw_object_destroy(ctx->fw_obj);
 	kfree(ctx->data);
 	pvr_vm_context_put(ctx->vm_ctx);
@@ -298,6 +418,9 @@ pvr_context_destroy(struct pvr_file *pvr_file, u32 handle)
 
 	if (!ctx)
 		return -EINVAL;
+
+	/* Make sure nothing can be queued to the queues after that point. */
+	pvr_context_kill_queues(ctx);
 
 	/* Release the reference held by the handle set. */
 	pvr_context_put(ctx);
