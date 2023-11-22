@@ -567,6 +567,37 @@ static struct serdes_chip_gpio_ops max96752_gpio_ops = {
 	.to_irq = max96752_gpio_to_irq,
 };
 
+static int max96752_set_i2c_addr(struct serdes *serdes, int address, int link)
+{
+	int ret;
+
+	if (link == LINKA) {
+		/* TX_SRC_ID[1] = 0 */
+		ret = serdes_reg_write(serdes, 0x73, 0x31);
+		/* Receive packets with this stream ID = 0 */
+		ret = serdes_reg_write(serdes, 0x50, 0x00);
+		ret = serdes_reg_write(serdes, 0x00, address << 1);
+	} else if (link == LINKB) {
+		/* TX_SRC_ID[1] = 1 */
+		ret = serdes_reg_write(serdes, 0x73, 0x32);
+		/* Receive packets with this stream ID = 1 */
+		ret = serdes_reg_write(serdes, 0x50, 0x01);
+		ret = serdes_reg_write(serdes, 0x00, address << 1);
+	} else {
+		dev_info(serdes->dev, "link %d is error\n", link);
+		ret = -1;
+	}
+
+	SERDES_DBG_CHIP("%s: set serdes chip %s i2c 7bit address to 0x%x\n", __func__,
+			serdes->chip_data->name, address);
+
+	return ret;
+}
+
+static struct serdes_chip_split_ops max96752_split_ops = {
+	.set_i2c_addr = max96752_set_i2c_addr,
+};
+
 static int max96752_pm_suspend(struct serdes *serdes)
 {
 	return 0;
@@ -607,6 +638,7 @@ struct serdes_chip_data serdes_max96752_data = {
 	.panel_ops	= &max96752_panel_ops,
 	.bridge_ops	= &max96752_bridge_ops,
 	.pinctrl_ops	= &max96752_pinctrl_ops,
+	.split_ops	= &max96752_split_ops,
 	.gpio_ops	= &max96752_gpio_ops,
 	.pm_ops		= &max96752_pm_ops,
 	.irq_ops	= &max96752_irq_ops,

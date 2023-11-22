@@ -136,4 +136,11 @@
 /* 7074h */
 #define MAX_LINK_RATE		GENMASK(7, 0)
 
+enum link_mode {
+	DUAL_LINK,
+	LINKA,
+	LINKB,
+	SPLITTER_MODE,
+};
+
 #endif

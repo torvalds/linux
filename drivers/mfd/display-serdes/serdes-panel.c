@@ -141,6 +141,8 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 	unsigned int panel_size[2] = {320, 180};
 	unsigned int link_rate_count_ssc[3] = {DP_LINK_BW_2_7, 4, 0};
 
+	//pr_info("%s: node=%s\n", __func__, dev->of_node->name);
+
 	serdes_panel->width_mm = panel_size[0];
 	serdes_panel->height_mm = panel_size[1];
 
@@ -233,7 +235,8 @@ static int serdes_panel_probe(struct platform_device *pdev)
 	}
 	drm_panel_add(&serdes_panel->panel);
 
-	dev_info(dev, "serdes %s serdes_panel_probe successful\n", serdes->chip_data->name);
+	dev_info(dev, "serdes %s-%s serdes_panel_probe successful\n",
+		 dev_name(serdes->dev), serdes->chip_data->name);
 
 	return 0;
 }

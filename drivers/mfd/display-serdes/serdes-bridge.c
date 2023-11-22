@@ -15,7 +15,7 @@ static struct serdes_bridge *to_serdes_bridge(struct drm_bridge *bridge)
 }
 
 static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_bridge,
-						 struct device_node *dsi_node)
+						 struct device_node *remote_node)
 {
 	struct mipi_dsi_device_info info = { "serdes", 0, NULL };
 	struct serdes *serdes = serdes_bridge->parent;
@@ -29,7 +29,7 @@ static struct mipi_dsi_device *serdes_attach_dsi(struct serdes_bridge *serdes_br
 	SERDES_DBG_MFD("%s: type=%s, name=%s\n", __func__,
 		       info.type, serdes->chip_data->name);
 
-	host = of_find_mipi_dsi_host_by_node(dsi_node);
+	host = of_find_mipi_dsi_host_by_node(remote_node);
 	if (!host) {
 		dev_err(serdes_bridge->dev, "failed to find serdes dsi host\n");
 		return ERR_PTR(-EPROBE_DEFER);
@@ -90,7 +90,7 @@ static int serdes_bridge_attach(struct drm_bridge *bridge,
 		dev_info(serdes_bridge->dev->parent, "serdes sel_mipi %d\n",
 			 serdes_bridge->sel_mipi);
 		/* Attach primary DSI */
-		serdes_bridge->dsi = serdes_attach_dsi(serdes_bridge, serdes_bridge->dsi_node);
+		serdes_bridge->dsi = serdes_attach_dsi(serdes_bridge, serdes_bridge->remote_node);
 		if (IS_ERR(serdes_bridge->dsi))
 			return PTR_ERR(serdes_bridge->dsi);
 	}
@@ -281,17 +281,22 @@ static int serdes_bridge_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, -ENODEV, "failed to get serdes regmap\n");
 
 	serdes_bridge->sel_mipi = of_property_read_bool(dev->parent->of_node, "sel-mipi");
-	if (serdes_bridge->sel_mipi) {
-		serdes_bridge->dsi_node = of_graph_get_remote_node(dev->parent->of_node, 0, -1);
-		if (!serdes_bridge->dsi_node)
-			return dev_err_probe(dev->parent, -ENODEV,
-					     "failed to get remote node for serdes dsi\n");
+	SERDES_DBG_MFD("%s: sel_mipi=%d\n", __func__, serdes_bridge->sel_mipi);
 
-		SERDES_DBG_MFD("%s: sel_mipi=%d\n", __func__, serdes_bridge->sel_mipi);
+	serdes_bridge->base_bridge.of_node = dev->parent->of_node;
+	serdes_bridge->remote_node = of_graph_get_remote_node(dev->parent->of_node, 0, -1);
+	if (!serdes_bridge->remote_node) {
+		serdes_bridge->base_bridge.of_node = dev->of_node;
+		SERDES_DBG_MFD("warning: failed to get remote node for serdes on %s\n",
+			       dev_name(dev->parent));
+		serdes_bridge->remote_node = of_graph_get_remote_node(dev->of_node, 0, -1);
+		if (!serdes_bridge->remote_node) {
+			return dev_err_probe(dev, -ENODEV,
+				     "failed to get remote node for serdes dsi\n");
+		}
 	}
 
 	serdes_bridge->base_bridge.funcs = &serdes_bridge_funcs;
-	serdes_bridge->base_bridge.of_node = dev->parent->of_node;
 	serdes_bridge->base_bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_MODES;
 
 	if (serdes_bridge->sel_mipi) {

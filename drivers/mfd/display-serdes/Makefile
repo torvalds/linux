@@ -10,4 +10,4 @@ obj-$(CONFIG_SERDES_DISPLAY_CHIP_NOVO)		+= novo/
 
 serdes-mfd-display-$(CONFIG_MFD_SERDES_DISPLAY) += serdes-core.o serdes-irq.o
 
-obj-$(CONFIG_MFD_SERDES_DISPLAY) += serdes-mfd-display.o serdes-i2c.o serdes-bridge.o serdes-panel.o serdes-gpio.o serdes-pinctrl.o
+obj-$(CONFIG_MFD_SERDES_DISPLAY) += serdes-mfd-display.o serdes-i2c.o serdes-bridge.o serdes-bridge-split.o serdes-panel.o serdes-panel-split.o serdes-gpio.o serdes-pinctrl.o

@@ -35,4 +35,11 @@
 #define OVR_RES_CFG		BIT(7)
 #define GPIO_RX_ID		GENMASK(4, 0)
 
+enum link_mode {
+	DUAL_LINK,
+	LINKA,
+	LINKB,
+	SPLITTER_MODE,
+};
+
 #endif

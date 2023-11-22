@@ -62,6 +62,10 @@ static const struct mfd_cell serdes_max96789_devs[] = {
 		.name = "serdes-bridge",
 		.of_compatible = "maxim,max96789-bridge",
 	},
+	{
+		.name = "serdes-bridge-split",
+		.of_compatible = "maxim,max96789-bridge-split",
+	},
 };
 
 static const struct mfd_cell serdes_max96752_devs[] = {
@@ -72,6 +76,10 @@ static const struct mfd_cell serdes_max96752_devs[] = {
 	{
 		.name = "serdes-panel",
 		.of_compatible = "maxim,max96752-panel",
+	},
+	{
+		.name = "serdes-panel-split",
+		.of_compatible = "maxim,max96752-panel-split",
 	},
 };
 

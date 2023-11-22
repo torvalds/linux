@@ -762,6 +762,84 @@ static struct serdes_chip_gpio_ops max96745_gpio_ops = {
 	.to_irq = max96745_gpio_to_irq,
 };
 
+static int max96745_select(struct serdes *serdes, int chan)
+{
+	/*0076 for linkA and 0086 for linkB*/
+	if (chan == DUAL_LINK) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		SERDES_DBG_CHIP("%s: enable %s remote i2c of linkA and linkB\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == LINKA) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		SERDES_DBG_CHIP("%s: only enable %s remote i2c of linkA\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == LINKB) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		SERDES_DBG_CHIP("%s: only enable %s remote i2c of linkB\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == SPLITTER_MODE) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		SERDES_DBG_CHIP("%s: enable %s remote i2c of linkA and linkB\n", __func__,
+				serdes->chip_data->name);
+	}
+
+	return 0;
+}
+
+static int max96745_deselect(struct serdes *serdes, int chan)
+{
+
+	if (chan == DUAL_LINK) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		SERDES_DBG_CHIP("%s: disable %s remote i2c of linkA and linkB\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == LINKA) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		SERDES_DBG_CHIP("%s: only disable %s remote i2c of linkA\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == LINKB) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		SERDES_DBG_CHIP("%s: only disable %s remote i2c of linkB\n", __func__,
+				serdes->chip_data->name);
+	} else if (chan == SPLITTER_MODE) {
+		serdes_set_bits(serdes, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		serdes_set_bits(serdes, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+		SERDES_DBG_CHIP("%s: disable %s remote i2c of linkA and linkB\n", __func__,
+				serdes->chip_data->name);
+	}
+
+	return 0;
+}
+
+
+static struct serdes_chip_split_ops max96745_split_ops = {
+	.select = max96745_select,
+	.deselect = max96745_deselect,
+};
+
 static int max96745_pm_suspend(struct serdes *serdes)
 {
 	return 0;
@@ -802,6 +880,7 @@ struct serdes_chip_data serdes_max96745_data = {
 	.bridge_ops	= &max96745_bridge_ops,
 	.pinctrl_ops	= &max96745_pinctrl_ops,
 	.gpio_ops	= &max96745_gpio_ops,
+	.split_ops	= &max96745_split_ops,
 	.pm_ops		= &max96745_pm_ops,
 	.irq_ops	= &max96745_irq_ops,
 };

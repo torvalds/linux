@@ -679,6 +679,89 @@ static struct serdes_chip_gpio_ops max96789_gpio_ops = {
 	.to_irq = max96789_gpio_to_irq,
 };
 
+static int max96789_select(struct serdes *serdes, int chan)
+{
+	u32 link_cfg, val;
+	int ret;
+
+	serdes_set_bits(serdes, 0x0001, DIS_REM_CC,
+			   FIELD_PREP(DIS_REM_CC, 0));
+
+	serdes_reg_read(serdes, 0x0010, &link_cfg);
+	if ((link_cfg & LINK_CFG) == SPLITTER_MODE)
+		SERDES_DBG_CHIP("%s: serdes chip %s already split mode cfg=0x%x\n", __func__,
+				serdes->chip_data->name, link_cfg);
+
+	if (chan == 0 && (link_cfg & LINK_CFG) != DUAL_LINK) {
+		serdes_set_bits(serdes, 0x0004,
+				   LINK_EN_B | LINK_EN_A,
+				   FIELD_PREP(LINK_EN_A, 1) |
+				   FIELD_PREP(LINK_EN_B, 1));
+		serdes_set_bits(serdes, 0x0010,
+				   RESET_ONESHOT | AUTO_LINK | LINK_CFG,
+				   FIELD_PREP(RESET_ONESHOT, 1) |
+				   FIELD_PREP(AUTO_LINK, 0) |
+				   FIELD_PREP(LINK_CFG, DUAL_LINK));
+		SERDES_DBG_CHIP("%s: change to use dual link\n", __func__);
+	} else if (chan == 1 && (link_cfg & LINK_CFG) != LINKA) {
+		serdes_set_bits(serdes, 0x0004,
+				   LINK_EN_B | LINK_EN_A,
+				   FIELD_PREP(LINK_EN_A, 1) |
+				   FIELD_PREP(LINK_EN_B, 0));
+		serdes_set_bits(serdes, 0x0010,
+				   RESET_ONESHOT | AUTO_LINK | LINK_CFG,
+				   FIELD_PREP(RESET_ONESHOT, 1) |
+				   FIELD_PREP(AUTO_LINK, 0) |
+				   FIELD_PREP(LINK_CFG, LINKA));
+		SERDES_DBG_CHIP("%s: change to use linkA\n", __func__);
+	} else if (chan == 2 && (link_cfg & LINK_CFG) != LINKB) {
+		serdes_set_bits(serdes, 0x0004,
+				   LINK_EN_B | LINK_EN_A,
+				   FIELD_PREP(LINK_EN_A, 0) |
+				   FIELD_PREP(LINK_EN_B, 1));
+		serdes_set_bits(serdes, 0x0010,
+				   RESET_ONESHOT | AUTO_LINK | LINK_CFG,
+				   FIELD_PREP(RESET_ONESHOT, 1) |
+				   FIELD_PREP(AUTO_LINK, 0) |
+				   FIELD_PREP(LINK_CFG, LINKB));
+		SERDES_DBG_CHIP("%s: change to use linkB\n", __func__);
+	} else if (chan == 3 && (link_cfg & LINK_CFG) != SPLITTER_MODE) {
+		serdes_set_bits(serdes, 0x0004,
+				   LINK_EN_B | LINK_EN_A,
+				   FIELD_PREP(LINK_EN_A, 1) |
+				   FIELD_PREP(LINK_EN_B, 1));
+		serdes_set_bits(serdes, 0x0010,
+				   RESET_ONESHOT | AUTO_LINK | LINK_CFG,
+				   FIELD_PREP(RESET_ONESHOT, 1) |
+				   FIELD_PREP(AUTO_LINK, 0) |
+				   FIELD_PREP(LINK_CFG, SPLITTER_MODE));
+		SERDES_DBG_CHIP("%s: change to use split mode\n", __func__);
+	}
+
+	ret = regmap_read_poll_timeout(serdes->regmap, 0x0013, val,
+				       val & LOCKED, 100,
+				       50 * USEC_PER_MSEC);
+	if (ret < 0) {
+		dev_err(serdes->dev, "GMSL2 link lock timeout\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int max96789_deselect(struct serdes *serdes, int chan)
+{
+	//serdes_set_bits(serdes, 0x0001, DIS_REM_CC,
+	//		   FIELD_PREP(DIS_REM_CC, 1));
+
+	return 0;
+}
+
+static struct serdes_chip_split_ops max96789_split_ops = {
+	.select = max96789_select,
+	.deselect = max96789_deselect,
+};
+
 static int max96789_pm_suspend(struct serdes *serdes)
 {
 	return 0;
@@ -719,6 +802,7 @@ struct serdes_chip_data serdes_max96789_data = {
 	.bridge_ops	= &max96789_bridge_ops,
 	.pinctrl_ops	= &max96789_pinctrl_ops,
 	.gpio_ops	= &max96789_gpio_ops,
+	.split_ops	= &max96789_split_ops,
 	.pm_ops		= &max96789_pm_ops,
 	.irq_ops	= &max96789_irq_ops,
 };

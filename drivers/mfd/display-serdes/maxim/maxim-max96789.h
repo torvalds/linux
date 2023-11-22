@@ -39,6 +39,15 @@
 #define UART_2_EN		BIT(5)
 #define UART_1_EN		BIT(4)
 
+/* 0004h */
+#define GMSL2_B			BIT(7)
+#define GMSL2_A			BIT(6)
+#define LINK_EN_B		BIT(5)
+#define LINK_EN_A		BIT(4)
+#define AUD_TX_SRC_Y	BIT(1)
+#define AUD_TX_SRC_X	BIT(0)
+
+
 /* 0005h */
 #define LOCK_EN			BIT(7)
 #define ERRB_EN			BIT(6)
