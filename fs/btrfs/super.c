@@ -271,6 +271,43 @@ static bool check_options(struct btrfs_fs_info *info, unsigned long flags)
 	return ret;
 }
 
+/*
+ * This is subtle, we only call this during open_ctree().  We need to pre-load
+ * the mount options with the on-disk settings.  Before the new mount API took
+ * effect we would do this on mount and remount.  With the new mount API we'll
+ * only do this on the initial mount.
+ *
+ * This isn't a change in behavior, because we're using the current state of the
+ * file system to set the current mount options.  If you mounted with special
+ * options to disable these features and then remounted we wouldn't revert the
+ * settings, because mounting without these features cleared the on-disk
+ * settings, so this being called on re-mount is not needed.
+ */
+void btrfs_set_free_space_cache_settings(struct btrfs_fs_info *fs_info)
+{
+	if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+		btrfs_set_opt(fs_info->mount_opt, FREE_SPACE_TREE);
+	else if (btrfs_free_space_cache_v1_active(fs_info)) {
+		if (btrfs_is_zoned(fs_info)) {
+			btrfs_info(fs_info,
+			"zoned: clearing existing space cache");
+			btrfs_set_super_cache_generation(fs_info->super_copy, 0);
+		} else {
+			btrfs_set_opt(fs_info->mount_opt, SPACE_CACHE);
+		}
+	}
+
+	if (fs_info->sectorsize < PAGE_SIZE) {
+		btrfs_clear_opt(fs_info->mount_opt, SPACE_CACHE);
+		if (!btrfs_test_opt(fs_info, FREE_SPACE_TREE)) {
+			btrfs_info(fs_info,
+				   "forcing free space tree for sector size %u with page size %lu",
+				   fs_info->sectorsize, PAGE_SIZE);
+			btrfs_set_opt(fs_info->mount_opt, FREE_SPACE_TREE);
+		}
+	}
+}
+
 static int parse_rescue_options(struct btrfs_fs_info *info, const char *options)
 {
 	char *opts;
@@ -349,18 +386,6 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 	int saved_compress_level;
 	bool saved_compress_force;
 	int no_compress = 0;
-
-	if (btrfs_fs_compat_ro(info, FREE_SPACE_TREE))
-		btrfs_set_opt(info->mount_opt, FREE_SPACE_TREE);
-	else if (btrfs_free_space_cache_v1_active(info)) {
-		if (btrfs_is_zoned(info)) {
-			btrfs_info(info,
-			"zoned: clearing existing space cache");
-			btrfs_set_super_cache_generation(info->super_copy, 0);
-		} else {
-			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
-		}
-	}
 
 	/*
 	 * Even the options are empty, we still need to do extra check
@@ -654,8 +679,13 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			 * compat_ro(FREE_SPACE_TREE) set, and we aren't going
 			 * to allow v1 to be set for extent tree v2, simply
 			 * ignore this setting if we're extent tree v2.
+			 *
+			 * For subpage blocksize we don't allow space cache v1,
+			 * and we'll turn on v2, so we can skip the settings
+			 * here as well.
 			 */
-			if (btrfs_fs_incompat(info, EXTENT_TREE_V2))
+			if (btrfs_fs_incompat(info, EXTENT_TREE_V2) ||
+			    info->sectorsize < PAGE_SIZE)
 				break;
 			if (token == Opt_space_cache ||
 			    strcmp(args[0].from, "v1") == 0) {

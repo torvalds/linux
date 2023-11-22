@@ -3305,6 +3305,12 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) / fs_info->csum_size;
 	fs_info->stripesize = stripesize;
 
+	/*
+	 * Handle the space caching options appropriately now that we have the
+	 * super block loaded and validated.
+	 */
+	btrfs_set_free_space_cache_settings(fs_info);
+
 	ret = btrfs_parse_options(fs_info, options, sb->s_flags);
 	if (ret)
 		goto fail_alloc;
@@ -3315,17 +3321,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 
 	if (sectorsize < PAGE_SIZE) {
 		struct btrfs_subpage_info *subpage_info;
-
-		/*
-		 * V1 space cache has some hardcoded PAGE_SIZE usage, and is
-		 * going to be deprecated.
-		 *
-		 * Force to use v2 cache for subpage case.
-		 */
-		btrfs_clear_opt(fs_info->mount_opt, SPACE_CACHE);
-		btrfs_set_and_info(fs_info, FREE_SPACE_TREE,
-			"forcing free space tree for sector size %u with page size %lu",
-			sectorsize, PAGE_SIZE);
 
 		btrfs_warn(fs_info,
 		"read-write for sector size %u with page size %lu is experimental",
