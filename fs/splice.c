@@ -1166,6 +1166,7 @@ static void direct_file_splice_eof(struct splice_desc *sd)
  *    (splice in + splice out, as compared to just sendfile()). So this helper
  *    can splice directly through a process-private pipe.
  *
+ * Callers already called rw_verify_area() on the entire range.
  */
 long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		      loff_t *opos, size_t len, unsigned int flags)
@@ -1186,10 +1187,6 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 	if (unlikely(out->f_flags & O_APPEND))
 		return -EINVAL;
-
-	ret = rw_verify_area(WRITE, out, opos, len);
-	if (unlikely(ret < 0))
-		return ret;
 
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
