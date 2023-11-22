@@ -498,6 +498,20 @@ static const struct rtw89_dig_regs rtw8852a_dig_regs = {
 			      B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
 };
 
+static const struct rtw89_edcca_regs rtw8852a_edcca_regs = {
+	.edcca_level			= R_SEG0R_EDCCA_LVL,
+	.edcca_mask			= B_EDCCA_LVL_MSK0,
+	.edcca_p_mask			= B_EDCCA_LVL_MSK1,
+	.ppdu_level			= R_SEG0R_EDCCA_LVL,
+	.ppdu_mask			= B_EDCCA_LVL_MSK3,
+	.rpt_a				= R_EDCCA_RPT_A,
+	.rpt_b				= R_EDCCA_RPT_B,
+	.rpt_sel			= R_EDCCA_RPT_SEL,
+	.rpt_sel_mask			= B_EDCCA_RPT_SEL_MSK,
+	.tx_collision_t2r_st		= R_TX_COLLISION_T2R_ST,
+	.tx_collision_t2r_st_mask	= B_TX_COLLISION_T2R_ST_M,
+};
+
 static void rtw8852ae_efuse_parsing(struct rtw89_efuse *efuse,
 				    struct rtw8852a_efuse *map)
 {
@@ -2181,7 +2195,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.bss_clr_vld		= {R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
-	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,
+	.edcca_regs		= &rtw8852a_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852a,
 #endif

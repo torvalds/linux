@@ -122,6 +122,13 @@
 #define PHYSTS_RSVD BIT(RTW89_RX_TYPE_RSVD)
 #define PPDU_FILTER_BITMAP (PHYSTS_MGNT | PHYSTS_DATA)
 
+#define EDCCA_MAX 249
+#define EDCCA_TH_L2H_LB 66
+#define EDCCA_TH_REF 3
+#define EDCCA_HL_DIFF_NORMAL 8
+#define RSSI_UNIT_CONVER 110
+#define EDCCA_UNIT_CONVER 128
+
 enum rtw89_phy_c2h_ra_func {
 	RTW89_PHY_C2H_FUNC_STS_RPT,
 	RTW89_PHY_C2H_FUNC_MU_GPTBL_RPT,
@@ -807,5 +814,7 @@ u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band);
 void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 			   u8 *ch, enum nl80211_band *band);
 void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan);
+void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev);
+void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev);
 
 #endif

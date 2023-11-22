@@ -3590,6 +3590,22 @@ struct rtw89_dig_regs {
 	struct rtw89_reg_def p1_s20_pagcugc_en;
 };
 
+struct rtw89_edcca_regs {
+	u32 edcca_level;
+	u32 edcca_mask;
+	u32 edcca_p_mask;
+	u32 ppdu_level;
+	u32 ppdu_mask;
+	u32 rpt_a;
+	u32 rpt_b;
+	u32 rpt_sel;
+	u32 rpt_sel_mask;
+	u32 rpt_sel_be;
+	u32 rpt_sel_be_mask;
+	u32 tx_collision_t2r_st;
+	u32 tx_collision_t2r_st_mask;
+};
+
 struct rtw89_phy_ul_tb_info {
 	bool dyn_tb_tri_en;
 	u8 def_if_bandedge;
@@ -3741,7 +3757,7 @@ struct rtw89_chip_info {
 	struct rtw89_reg_def bss_clr_vld;
 	u32 bss_clr_map_reg;
 	u32 dma_ch_mask;
-	u32 edcca_lvl_reg;
+	const struct rtw89_edcca_regs *edcca_regs;
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const struct rtw89_xtal_info *xtal_info;
 };
@@ -4010,6 +4026,13 @@ struct rtw89_sub_entity {
 	struct rtw89_chanctx_cfg *cfg;
 };
 
+struct rtw89_edcca_bak {
+	u8 a;
+	u8 p;
+	u8 ppdu;
+	u8 th_old;
+};
+
 struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
@@ -4034,7 +4057,7 @@ struct rtw89_hal {
 	bool entity_pause;
 	enum rtw89_entity_mode entity_mode;
 
-	u32 edcca_bak;
+	struct rtw89_edcca_bak edcca_bak;
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
