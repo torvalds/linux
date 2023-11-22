@@ -477,7 +477,7 @@ static unsigned int vc3_get_div(const struct clk_div_table *table,
 		if (clkt->val == val)
 			return clkt->div;
 
-	return 0;
+	return 1;
 }
 
 static unsigned long vc3_div_recalc_rate(struct clk_hw *hw,
