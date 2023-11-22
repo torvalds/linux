@@ -420,7 +420,7 @@ loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 EXPORT_SYMBOL(vfs_clone_file_range);
 
 /* Check whether we are allowed to dedupe the destination file */
-static bool allow_file_dedupe(struct file *file)
+static bool may_dedupe_file(struct file *file)
 {
 	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct inode *inode = file_inode(file);
@@ -445,24 +445,29 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 	WARN_ON_ONCE(remap_flags & ~(REMAP_FILE_DEDUP |
 				     REMAP_FILE_CAN_SHORTEN));
 
-	ret = mnt_want_write_file(dst_file);
-	if (ret)
-		return ret;
-
 	/*
 	 * This is redundant if called from vfs_dedupe_file_range(), but other
 	 * callers need it and it's not performance sesitive...
 	 */
 	ret = remap_verify_area(src_file, src_pos, len, false);
 	if (ret)
-		goto out_drop_write;
+		return ret;
 
 	ret = remap_verify_area(dst_file, dst_pos, len, true);
 	if (ret)
-		goto out_drop_write;
+		return ret;
+
+	/*
+	 * This needs to be called after remap_verify_area() because of
+	 * sb_start_write() and before may_dedupe_file() because the mount's
+	 * MAY_WRITE need to be checked with mnt_get_write_access_file() held.
+	 */
+	ret = mnt_want_write_file(dst_file);
+	if (ret)
+		return ret;
 
 	ret = -EPERM;
-	if (!allow_file_dedupe(dst_file))
+	if (!may_dedupe_file(dst_file))
 		goto out_drop_write;
 
 	ret = -EXDEV;
