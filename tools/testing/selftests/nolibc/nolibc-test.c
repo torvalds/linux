@@ -130,11 +130,17 @@ static const char *errorname(int err)
 	}
 }
 
-static void putcharn(char c, size_t n)
+static void align_result(size_t llen)
 {
-	char buf[64];
+	const size_t align = 64;
+	char buf[align];
+	size_t n;
 
-	memset(buf, c, n);
+	if (llen >= align)
+		return;
+
+	n = align - llen;
+	memset(buf, ' ', n);
 	buf[n] = '\0';
 	fputs(buf, stdout);
 }
@@ -156,8 +162,7 @@ static void result(int llen, enum RESULT r)
 	else
 		msg = " [FAIL]";
 
-	if (llen < 64)
-		putcharn(' ', 64 - llen);
+	align_result(llen);
 	puts(msg);
 }
 
