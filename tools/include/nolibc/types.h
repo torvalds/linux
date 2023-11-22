@@ -13,6 +13,7 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/resource.h>
 
 
 /* Only the generic macros and types may be defined here. The arch-specific
@@ -176,26 +177,6 @@ struct linux_dirent64 {
 	unsigned short d_reclen;
 	unsigned char  d_type;
 	char           d_name[];
-};
-
-/* needed by wait4() */
-struct rusage {
-	struct timeval ru_utime;
-	struct timeval ru_stime;
-	long   ru_maxrss;
-	long   ru_ixrss;
-	long   ru_idrss;
-	long   ru_isrss;
-	long   ru_minflt;
-	long   ru_majflt;
-	long   ru_nswap;
-	long   ru_inblock;
-	long   ru_oublock;
-	long   ru_msgsnd;
-	long   ru_msgrcv;
-	long   ru_nsignals;
-	long   ru_nvcsw;
-	long   ru_nivcsw;
 };
 
 /* The format of the struct as returned by the libc to the application, which
