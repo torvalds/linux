@@ -1124,17 +1124,23 @@ static inline u64 build_inv_address(u64 address, size_t size)
 }
 
 static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
-				  size_t size, u16 domid)
+				  size_t size, u16 domid,
+				  ioasid_t pasid, bool gn)
 {
 	u64 inv_address = build_inv_address(address, size);
 
 	memset(cmd, 0, sizeof(*cmd));
+
 	cmd->data[1] |= domid;
 	cmd->data[2]  = lower_32_bits(inv_address);
 	cmd->data[3]  = upper_32_bits(inv_address);
-	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 	/* PDE bit - we want to flush everything, not only the PTEs */
 	cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
+	if (gn) {
+		cmd->data[0] |= pasid;
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
+	}
+	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 }
 
 static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
@@ -1149,22 +1155,6 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 	cmd->data[2]  = lower_32_bits(inv_address);
 	cmd->data[3]  = upper_32_bits(inv_address);
 	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
-}
-
-static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, u32 pasid,
-				  u64 address, size_t size)
-{
-	u64 inv_address = build_inv_address(address, size);
-
-	memset(cmd, 0, sizeof(*cmd));
-
-	cmd->data[0]  = pasid;
-	cmd->data[1]  = domid;
-	cmd->data[2]  = lower_32_bits(inv_address);
-	cmd->data[3]  = upper_32_bits(inv_address);
-	cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
-	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
-	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 }
 
 static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, u32 pasid,
@@ -1337,7 +1327,7 @@ static void amd_iommu_flush_tlb_all(struct amd_iommu *iommu)
 	for (dom_id = 0; dom_id <= last_bdf; ++dom_id) {
 		struct iommu_cmd cmd;
 		build_inv_iommu_pages(&cmd, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
-				      dom_id);
+				      dom_id, IOMMU_NO_PASID, false);
 		iommu_queue_command(iommu, &cmd);
 	}
 
@@ -1348,7 +1338,8 @@ static void amd_iommu_flush_tlb_domid(struct amd_iommu *iommu, u32 dom_id)
 {
 	struct iommu_cmd cmd;
 
-	build_inv_iommu_pages(&cmd, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS, dom_id);
+	build_inv_iommu_pages(&cmd, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
+			      dom_id, IOMMU_NO_PASID, false);
 	iommu_queue_command(iommu, &cmd);
 
 	iommu_completion_wait(iommu);
@@ -1477,7 +1468,8 @@ static void __domain_flush_pages(struct protection_domain *domain,
 	struct iommu_cmd cmd;
 	int ret = 0, i;
 
-	build_inv_iommu_pages(&cmd, address, size, domain->id);
+	build_inv_iommu_pages(&cmd, address, size, domain->id,
+			      IOMMU_NO_PASID, false);
 
 	for (i = 0; i < amd_iommu_get_num_iommus(); ++i) {
 		if (!domain->dev_iommu[i])
@@ -2661,7 +2653,7 @@ static int __flush_pasid(struct protection_domain *domain, u32 pasid,
 	if (!(domain->flags & PD_IOMMUV2_MASK))
 		return -EINVAL;
 
-	build_inv_iommu_pasid(&cmd, domain->id, pasid, address, size);
+	build_inv_iommu_pages(&cmd, address, size, domain->id, pasid, true);
 
 	/*
 	 * IOMMU TLB needs to be flushed before Device TLB to
