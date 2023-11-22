@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+// Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -58,6 +59,10 @@ enum {
 		.intr_status_reg = 0x1000 * id + 0xc,	\
 		.intr_target_reg = 0x1000 * id + 0x8,	\
 		.tile = _tile,			\
+		.dir_conn_reg = _tile == WEST ? HMSS_WEST : \
+				_tile == EAST ? HMSS_EAST : \
+				_tile == NORTH ? HMSS_NORTH : \
+				HMSS_SOUTH, \
 		.mux_bit = 2,			\
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
@@ -74,6 +79,7 @@ enum {
 		.intr_polarity_bit = 1,		\
 		.intr_detection_bit = 2,	\
 		.intr_detection_width = 2,	\
+		.dir_conn_en_bit = 8,       \
 	}
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
@@ -1525,6 +1531,11 @@ static const struct msm_gpio_wakeirq_map sm8150_pdc_map[] = {
 	{ 152, 108 }, { 153, 109 },
 };
 
+static struct msm_dir_conn sm8150_dir_conn[] = {
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}, {-1, 0},
+	{-1, 0}, {-1, 0}, {-1, 0}, {-1, 0}
+};
+
 static u32 tile_dir_conn_addr[NUM_TILES] = {
 	[0] =   HMSS_NORTH,
 	[1] =   HMSS_SOUTH,
@@ -1546,11 +1557,55 @@ static const struct msm_pinctrl_soc_data sm8150_pinctrl = {
 	.nwakeirq_map = ARRAY_SIZE(sm8150_pdc_map),
 	.wakeirq_dual_edge_errata = true,
 	.dir_conn_addr = tile_dir_conn_addr,
+	.dir_conn = sm8150_dir_conn,
 	.egpio_func = 9,
 };
 
+static int sm8150_pinctrl_dirconn_list_probe(struct platform_device *pdev)
+{
+	int ret, n, dirconn_list_count, m;
+	struct device_node *np = pdev->dev.of_node;
+
+	n = of_property_count_elems_of_size(np, "qcom,dirconn-list",
+									sizeof(u32));
+	if (n <= 0 || n % 2)
+		return -EINVAL;
+
+	m = ARRAY_SIZE(sm8150_dir_conn) - 1;
+
+	dirconn_list_count = n / 2;
+
+	for (n = 0; n < dirconn_list_count; n++) {
+		ret = of_property_read_u32_index(np, "qcom,dirconn-list",
+						n * 2 + 0,
+						&sm8150_dir_conn[m].gpio);
+		if (ret)
+			return ret;
+		ret = of_property_read_u32_index(np, "qcom,dirconn-list",
+						n * 2 + 1,
+						&sm8150_dir_conn[m].irq);
+		if (ret)
+			return ret;
+		m--;
+	}
+
+	return 0;
+}
+
+
 static int sm8150_pinctrl_probe(struct platform_device *pdev)
 {
+	int len, ret;
+
+	if (of_find_property(pdev->dev.of_node, "qcom,dirconn-list", &len)) {
+		ret = sm8150_pinctrl_dirconn_list_probe(pdev);
+		if (ret) {
+			dev_err(&pdev->dev,
+					"Unable to parse Direct Connect List\n");
+			return ret;
+		}
+	}
+
 	return msm_pinctrl_probe(pdev, &sm8150_pinctrl);
 }
 
