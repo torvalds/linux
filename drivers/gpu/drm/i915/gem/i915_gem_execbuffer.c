@@ -9,6 +9,7 @@
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_auth.h>
 #include <drm/drm_syncobj.h>
 
 #include "display/intel_frontbuffer.h"
