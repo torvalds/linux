@@ -117,8 +117,6 @@ void drm_handle_vblank_works(struct drm_vblank_crtc *vblank);
 /* IOCTLS */
 int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
-int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
 
 /* drm_irq.c */
 
