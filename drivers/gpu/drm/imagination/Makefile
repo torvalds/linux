@@ -5,6 +5,8 @@ subdir-ccflags-y := -I$(srctree)/$(src)
 
 powervr-y := \
 	pvr_ccb.o \
+	pvr_cccb.o \
+	pvr_context.o \
 	pvr_device.o \
 	pvr_device_info.o \
 	pvr_drv.o \
@@ -18,6 +20,8 @@ powervr-y := \
 	pvr_hwrt.o \
 	pvr_mmu.o \
 	pvr_power.o \
+	pvr_stream.o \
+	pvr_stream_defs.o \
 	pvr_vm.o \
 	pvr_vm_mips.o
 

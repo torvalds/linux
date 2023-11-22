@@ -7,6 +7,8 @@
 #include "pvr_ccb.h"
 #include "pvr_device_info.h"
 #include "pvr_fw.h"
+#include "pvr_rogue_fwif_stream.h"
+#include "pvr_stream.h"
 
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
@@ -146,11 +148,22 @@ struct pvr_device {
 	/** @fw_dev: Firmware related data. */
 	struct pvr_fw_device fw_dev;
 
+	/** @stream_musthave_quirks: Bit array of "must-have" quirks for stream commands. */
+	u32 stream_musthave_quirks[PVR_STREAM_TYPE_MAX][PVR_STREAM_EXTHDR_TYPE_MAX];
+
 	/**
 	 * @mmu_flush_cache_flags: Records which MMU caches require flushing
 	 * before submitting the next job.
 	 */
 	atomic_t mmu_flush_cache_flags;
+
+	/**
+	 * @ctx_ids: Array of contexts belonging to this device. Array members
+	 *           are of type "struct pvr_context *".
+	 *
+	 * This array is used to allocate IDs used by the firmware.
+	 */
+	struct xarray ctx_ids;
 
 	/**
 	 * @free_list_ids: Array of free lists belonging to this device. Array members
@@ -254,6 +267,14 @@ struct pvr_file {
 	 *           to_pvr_device().
 	 */
 	struct pvr_device *pvr_dev;
+
+	/**
+	 * @ctx_handles: Array of contexts belonging to this file. Array members
+	 *               are of type "struct pvr_context *".
+	 *
+	 * This array is used to allocate handles returned to userspace.
+	 */
+	struct xarray ctx_handles;
 
 	/**
 	 * @free_list_handles: Array of free lists belonging to this file. Array

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 /* Copyright (c) 2023 Imagination Technologies Ltd. */
 
+#include "pvr_context.h"
 #include "pvr_device.h"
 #include "pvr_drv.h"
 #include "pvr_free_list.h"
@@ -673,7 +674,19 @@ static int
 pvr_ioctl_create_context(struct drm_device *drm_dev, void *raw_args,
 			 struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_create_context_args *args = raw_args;
+	struct pvr_file *pvr_file = file->driver_priv;
+	int idx;
+	int ret;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	ret = pvr_context_create(pvr_file, args);
+
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 /**
@@ -693,7 +706,13 @@ static int
 pvr_ioctl_destroy_context(struct drm_device *drm_dev, void *raw_args,
 			  struct drm_file *file)
 {
-	return -ENOTTY;
+	struct drm_pvr_ioctl_destroy_context_args *args = raw_args;
+	struct pvr_file *pvr_file = file->driver_priv;
+
+	if (args->_padding_4)
+		return -EINVAL;
+
+	return pvr_context_destroy(pvr_file, args->handle);
 }
 
 /**
@@ -1289,6 +1308,7 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	 */
 	pvr_file->pvr_dev = pvr_dev;
 
+	xa_init_flags(&pvr_file->ctx_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->free_list_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->hwrt_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->vm_ctx_handles, XA_FLAGS_ALLOC1);
@@ -1317,6 +1337,9 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 			 struct drm_file *file)
 {
 	struct pvr_file *pvr_file = to_pvr_file(file);
+
+	/* Kill remaining contexts. */
+	pvr_destroy_contexts_for_file(pvr_file);
 
 	/* Drop references on any remaining objects. */
 	pvr_destroy_free_lists_for_file(pvr_file);
@@ -1363,6 +1386,7 @@ pvr_probe(struct platform_device *plat_dev)
 	drm_dev = &pvr_dev->base;
 
 	platform_set_drvdata(plat_dev, drm_dev);
+	pvr_context_device_init(pvr_dev);
 
 	devm_pm_runtime_enable(&plat_dev->dev);
 	pm_runtime_mark_last_busy(&plat_dev->dev);
@@ -1406,6 +1430,7 @@ pvr_remove(struct platform_device *plat_dev)
 	pvr_device_fini(pvr_dev);
 	drm_dev_unplug(drm_dev);
 	pvr_watchdog_fini(pvr_dev);
+	pvr_context_device_fini(pvr_dev);
 
 	return 0;
 }
