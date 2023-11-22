@@ -385,14 +385,6 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (!file_in->f_op->remap_file_range)
 		return -EOPNOTSUPP;
 
-	ret = remap_verify_area(file_in, pos_in, len, false);
-	if (ret)
-		return ret;
-
-	ret = remap_verify_area(file_out, pos_out, len, true);
-	if (ret)
-		return ret;
-
 	ret = file_in->f_op->remap_file_range(file_in, pos_in,
 			file_out, pos_out, len, remap_flags);
 	if (ret < 0)
@@ -409,6 +401,14 @@ loff_t vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 			    loff_t len, unsigned int remap_flags)
 {
 	loff_t ret;
+
+	ret = remap_verify_area(file_in, pos_in, len, false);
+	if (ret)
+		return ret;
+
+	ret = remap_verify_area(file_out, pos_out, len, true);
+	if (ret)
+		return ret;
 
 	file_start_write(file_out);
 	ret = do_clone_file_range(file_in, pos_in, file_out, pos_out, len,
