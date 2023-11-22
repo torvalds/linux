@@ -2070,12 +2070,13 @@ def print_kernel_policy_ranges(family, cw):
                 first = False
 
             sign = '' if attr.type[0] == 'u' else '_signed'
+            suffix = 'ULL' if attr.type[0] == 'u' else 'LL'
             cw.block_start(line=f'static const struct netlink_range_validation{sign} {c_lower(attr.enum_name)}_range =')
             members = []
             if 'min' in attr.checks:
-                members.append(('min', attr.get_limit('min')))
+                members.append(('min', str(attr.get_limit('min')) + suffix))
             if 'max' in attr.checks:
-                members.append(('max', attr.get_limit('max')))
+                members.append(('max', str(attr.get_limit('max')) + suffix))
             cw.write_struct_init(members)
             cw.block_end(line=';')
             cw.nl()
