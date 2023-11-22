@@ -2477,13 +2477,15 @@ static int btrfs_reconfigure(struct fs_context *fc)
 	struct btrfs_fs_context *ctx = fc->fs_private;
 	struct btrfs_fs_context old_ctx;
 	int ret = 0;
+	bool mount_reconfigure = (fc->s_fs_info != NULL);
 
 	btrfs_info_to_ctx(fs_info, &old_ctx);
 
 	sync_filesystem(sb);
 	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
 
-	if (!check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
+	if (!mount_reconfigure &&
+	    !check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
 		return -EINVAL;
 
 	ret = btrfs_check_features(fs_info, !(fc->sb_flags & SB_RDONLY));
@@ -2885,6 +2887,129 @@ error:
 	return ret;
 }
 
+/*
+ * Ever since commit 0723a0473fb4 ("btrfs: allow mounting btrfs subvolumes
+ * with different ro/rw options") the following works:
+ *
+ *        (i) mount /dev/sda3 -o subvol=foo,ro /mnt/foo
+ *       (ii) mount /dev/sda3 -o subvol=bar,rw /mnt/bar
+ *
+ * which looks nice and innocent but is actually pretty intricate and deserves
+ * a long comment.
+ *
+ * On another filesystem a subvolume mount is close to something like:
+ *
+ *	(iii) # create rw superblock + initial mount
+ *	      mount -t xfs /dev/sdb /opt/
+ *
+ *	      # create ro bind mount
+ *	      mount --bind -o ro /opt/foo /mnt/foo
+ *
+ *	      # unmount initial mount
+ *	      umount /opt
+ *
+ * Of course, there's some special subvolume sauce and there's the fact that the
+ * sb->s_root dentry is really swapped after mount_subtree(). But conceptually
+ * it's very close and will help us understand the issue.
+ *
+ * The old mount API didn't cleanly distinguish between a mount being made ro
+ * and a superblock being made ro.  The only way to change the ro state of
+ * either object was by passing ms_rdonly. If a new mount was created via
+ * mount(2) such as:
+ *
+ *      mount("/dev/sdb", "/mnt", "xfs", ms_rdonly, null);
+ *
+ * the MS_RDONLY flag being specified had two effects:
+ *
+ * (1) MNT_READONLY was raised -> the resulting mount got
+ *     @mnt->mnt_flags |= MNT_READONLY raised.
+ *
+ * (2) MS_RDONLY was passed to the filesystem's mount method and the filesystems
+ *     made the superblock ro. Note, how SB_RDONLY has the same value as
+ *     ms_rdonly and is raised whenever MS_RDONLY is passed through mount(2).
+ *
+ * Creating a subtree mount via (iii) ends up leaving a rw superblock with a
+ * subtree mounted ro.
+ *
+ * But consider the effect on the old mount API on btrfs subvolume mounting
+ * which combines the distinct step in (iii) into a single step.
+ *
+ * By issuing (i) both the mount and the superblock are turned ro. Now when (ii)
+ * is issued the superblock is ro and thus even if the mount created for (ii) is
+ * rw it wouldn't help. Hence, btrfs needed to transition the superblock from ro
+ * to rw for (ii) which it did using an internal remount call.
+ *
+ * IOW, subvolume mounting was inherently complicated due to the ambiguity of
+ * MS_RDONLY in mount(2). Note, this ambiguity has mount(8) always translate
+ * "ro" to MS_RDONLY. IOW, in both (i) and (ii) "ro" becomes MS_RDONLY when
+ * passed by mount(8) to mount(2).
+ *
+ * Enter the new mount API. The new mount API disambiguates making a mount ro
+ * and making a superblock ro.
+ *
+ * (3) To turn a mount ro the MOUNT_ATTR_ONLY flag can be used with either
+ *     fsmount() or mount_setattr() this is a pure VFS level change for a
+ *     specific mount or mount tree that is never seen by the filesystem itself.
+ *
+ * (4) To turn a superblock ro the "ro" flag must be used with
+ *     fsconfig(FSCONFIG_SET_FLAG, "ro"). This option is seen by the filesystem
+ *     in fc->sb_flags.
+ *
+ * This disambiguation has rather positive consequences.  Mounting a subvolume
+ * ro will not also turn the superblock ro. Only the mount for the subvolume
+ * will become ro.
+ *
+ * So, if the superblock creation request comes from the new mount API the
+ * caller must have explicitly done:
+ *
+ *      fsconfig(FSCONFIG_SET_FLAG, "ro")
+ *      fsmount/mount_setattr(MOUNT_ATTR_RDONLY)
+ *
+ * IOW, at some point the caller must have explicitly turned the whole
+ * superblock ro and we shouldn't just undo it like we did for the old mount
+ * API. In any case, it lets us avoid the hack in the new mount API.
+ *
+ * Consequently, the remounting hack must only be used for requests originating
+ * from the old mount API and should be marked for full deprecation so it can be
+ * turned off in a couple of years.
+ *
+ * The new mount API has no reason to support this hack.
+ */
+static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
+{
+	struct vfsmount *mnt;
+	int ret;
+	const bool ro2rw = !(fc->sb_flags & SB_RDONLY);
+
+	/*
+	 * We got an EBUSY because our SB_RDONLY flag didn't match the existing
+	 * super block, so invert our setting here and retry the mount so we
+	 * can get our vfsmount.
+	 */
+	if (ro2rw)
+		fc->sb_flags |= SB_RDONLY;
+	else
+		fc->sb_flags &= ~SB_RDONLY;
+
+	mnt = fc_mount(fc);
+	if (IS_ERR(mnt))
+		return mnt;
+
+	if (!fc->oldapi || !ro2rw)
+		return mnt;
+
+	/* We need to convert to rw, call reconfigure. */
+	fc->sb_flags &= ~SB_RDONLY;
+	down_write(&mnt->mnt_sb->s_umount);
+	ret = btrfs_reconfigure(fc);
+	up_write(&mnt->mnt_sb->s_umount);
+	if (ret) {
+		mntput(mnt);
+		return ERR_PTR(ret);
+	}
+	return mnt;
+}
+
 static int btrfs_get_tree_subvol(struct fs_context *fc)
 {
 	struct btrfs_fs_info *fs_info = NULL;
@@ -2934,6 +3059,8 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	fc->security = NULL;
 
 	mnt = fc_mount(dup_fc);
+	if (PTR_ERR_OR_ZERO(mnt) == -EBUSY)
+		mnt = btrfs_reconfigure_for_mount(dup_fc);
 	put_fs_context(dup_fc);
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
