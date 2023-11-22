@@ -148,16 +148,16 @@ struct vc3_pfd_data {
 };
 
 struct vc3_pll_data {
+	unsigned long vco_min;
+	unsigned long vco_max;
 	u8 num;
 	u8 int_div_msb_offs;
 	u8 int_div_lsb_offs;
-	unsigned long vco_min;
-	unsigned long vco_max;
 };
 
 struct vc3_div_data {
-	u8 offs;
 	const struct clk_div_table *table;
+	u8 offs;
 	u8 shift;
 	u8 width;
 	u8 flags;
