@@ -3770,6 +3770,58 @@ static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
 	return 0;
 }
 
+#define DM_INFO(type) {RTW89_DM_ ## type, #type}
+
+static const struct rtw89_disabled_dm_info {
+	enum rtw89_dm_type type;
+	const char *name;
+} rtw89_disabled_dm_infos[] = {
+	DM_INFO(DYNAMIC_EDCCA),
+};
+
+static int
+rtw89_debug_priv_disable_dm_get(struct seq_file *m, void *v)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	const struct rtw89_disabled_dm_info *info;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 disabled;
+	int i;
+
+	seq_printf(m, "Disabled DM: 0x%x\n", hal->disabled_dm_bitmap);
+
+	for (i = 0; i < ARRAY_SIZE(rtw89_disabled_dm_infos); i++) {
+		info = &rtw89_disabled_dm_infos[i];
+		disabled = BIT(info->type) & hal->disabled_dm_bitmap;
+
+		seq_printf(m, "[%d] %s: %c\n", info->type, info->name,
+			   disabled ? 'X' : 'O');
+	}
+
+	return 0;
+}
+
+static ssize_t
+rtw89_debug_priv_disable_dm_set(struct file *filp, const char __user *user_buf,
+				size_t count, loff_t *loff)
+{
+	struct seq_file *m = (struct seq_file *)filp->private_data;
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 conf;
+	int ret;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &conf);
+	if (ret)
+		return -EINVAL;
+
+	hal->disabled_dm_bitmap = conf;
+
+	return count;
+}
+
 static struct rtw89_debugfs_priv rtw89_debug_priv_read_reg = {
 	.cb_read = rtw89_debug_priv_read_reg_get,
 	.cb_write = rtw89_debug_priv_read_reg_select,
@@ -3845,6 +3897,11 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_stations = {
 	.cb_read = rtw89_debug_priv_stations_get,
 };
 
+static struct rtw89_debugfs_priv rtw89_debug_priv_disable_dm = {
+	.cb_read = rtw89_debug_priv_disable_dm_get,
+	.cb_write = rtw89_debug_priv_disable_dm_set,
+};
+
 #define rtw89_debugfs_add(name, mode, fopname, parent)				\
 	do {									\
 		rtw89_debug_priv_ ##name.rtwdev = rtwdev;			\
@@ -3885,6 +3942,7 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_w(fw_log_manual);
 	rtw89_debugfs_add_r(phy_info);
 	rtw89_debugfs_add_r(stations);
+	rtw89_debugfs_add_rw(disable_dm);
 }
 #endif
 

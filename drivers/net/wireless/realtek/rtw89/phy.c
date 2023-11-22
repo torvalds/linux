@@ -5091,6 +5091,11 @@ void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev)
 
 void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (hal->disabled_dm_bitmap & BIT(RTW89_DM_DYNAMIC_EDCCA))
+		return;
+
 	rtw89_phy_edcca_thre_calc(rtwdev);
 	rtw89_phy_edcca_log(rtwdev);
 }

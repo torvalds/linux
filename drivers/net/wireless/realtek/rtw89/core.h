@@ -4033,6 +4033,10 @@ struct rtw89_edcca_bak {
 	u8 th_old;
 };
 
+enum rtw89_dm_type {
+	RTW89_DM_DYNAMIC_EDCCA,
+};
+
 struct rtw89_hal {
 	u32 rx_fltr;
 	u8 cv;
@@ -4058,6 +4062,7 @@ struct rtw89_hal {
 	enum rtw89_entity_mode entity_mode;
 
 	struct rtw89_edcca_bak edcca_bak;
+	u32 disabled_dm_bitmap; /* bitmap of enum rtw89_dm_type */
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
