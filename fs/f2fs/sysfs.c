@@ -516,6 +516,13 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "discard_io_aware")) {
+		if (t >= DPOLICY_IO_AWARE_MAX)
+			return -EINVAL;
+		*ui = t;
+		return count;
+	}
+
 	if (!strcmp(a->attr.name, "migration_granularity")) {
 		if (t == 0 || t > sbi->segs_per_sec)
 			return -EINVAL;
@@ -926,6 +933,7 @@ DCC_INFO_GENERAL_RW_ATTR(discard_io_aware_gran);
 DCC_INFO_GENERAL_RW_ATTR(discard_urgent_util);
 DCC_INFO_GENERAL_RW_ATTR(discard_granularity);
 DCC_INFO_GENERAL_RW_ATTR(max_ordered_discard);
+DCC_INFO_GENERAL_RW_ATTR(discard_io_aware);
 
 /* NM_INFO ATTR */
 NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
@@ -1074,6 +1082,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(discard_urgent_util),
 	ATTR_LIST(discard_granularity),
 	ATTR_LIST(max_ordered_discard),
+	ATTR_LIST(discard_io_aware),
 	ATTR_LIST(pending_discard),
 	ATTR_LIST(gc_mode),
 	ATTR_LIST(ipu_policy),
