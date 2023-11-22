@@ -276,6 +276,8 @@ void bch2_fs_read_only(struct bch_fs *c)
 
 	BUG_ON(test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags));
 
+	bch_verbose(c, "going read-only");
+
 	/*
 	 * Block new foreground-end write operations from starting - any new
 	 * writes will return -EROFS:
@@ -303,13 +305,21 @@ void bch2_fs_read_only(struct bch_fs *c)
 		   test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags) ||
 		   test_bit(BCH_FS_EMERGENCY_RO, &c->flags));
 
+	bool writes_disabled = test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
+	if (writes_disabled)
+		bch_verbose(c, "finished waiting for writes to stop");
+
 	__bch2_fs_read_only(c);
 
 	wait_event(bch2_read_only_wait,
 		   test_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags));
 
+	if (!writes_disabled)
+		bch_verbose(c, "finished waiting for writes to stop");
+
 	clear_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
 	clear_bit(BCH_FS_GOING_RO, &c->flags);
+	clear_bit(BCH_FS_RW, &c->flags);
 
 	if (!bch2_journal_error(&c->journal) &&
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
@@ -324,9 +334,9 @@ void bch2_fs_read_only(struct bch_fs *c)
 
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);
+	} else {
+		bch_verbose(c, "done going read-only, filesystem not clean");
 	}
-
-	clear_bit(BCH_FS_RW, &c->flags);
 }
 
 static void bch2_fs_read_only_work(struct work_struct *work)
