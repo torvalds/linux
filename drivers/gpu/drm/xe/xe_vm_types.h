@@ -400,8 +400,6 @@ struct xe_vma_op {
 	u32 num_syncs;
 	/** @link: async operation link */
 	struct list_head link;
-	/** @tile_mask: gt mask for this operation */
-	u8 tile_mask;
 	/** @flags: operation flags */
 	enum xe_vma_op_flags flags;
 

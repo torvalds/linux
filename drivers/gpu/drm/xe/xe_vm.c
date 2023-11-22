@@ -870,7 +870,6 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    u64 start, u64 end,
 				    bool read_only,
 				    bool is_null,
-				    u8 tile_mask,
 				    u16 pat_index)
 {
 	struct xe_vma *vma;
@@ -903,12 +902,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	if (is_null)
 		vma->gpuva.flags |= DRM_GPUVA_SPARSE;
 
-	if (tile_mask) {
-		vma->tile_mask = tile_mask;
-	} else {
-		for_each_tile(tile, vm->xe, id)
-			vma->tile_mask |= 0x1 << id;
-	}
+	for_each_tile(tile, vm->xe, id)
+		vma->tile_mask |= 0x1 << id;
 
 	if (GRAPHICS_VER(vm->xe) >= 20 || vm->xe->info.platform == XE_PVC)
 		vma->gpuva.flags |= XE_VMA_ATOMIC_PTE_BIT;
@@ -2166,7 +2161,7 @@ static void print_op(struct xe_device *xe, struct drm_gpuva_op *op)
 static struct drm_gpuva_ops *
 vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			 u64 bo_offset_or_userptr, u64 addr, u64 range,
-			 u32 operation, u32 flags, u8 tile_mask,
+			 u32 operation, u32 flags,
 			 u32 prefetch_region, u16 pat_index)
 {
 	struct drm_gem_object *obj = bo ? &bo->ttm.base : NULL;
@@ -2229,7 +2224,6 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	drm_gpuva_for_each_op(__op, ops) {
 		struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
 
-		op->tile_mask = tile_mask;
 		if (__op->op == DRM_GPUVA_OP_MAP) {
 			op->map.immediate =
 				flags & DRM_XE_VM_BIND_FLAG_IMMEDIATE;
@@ -2248,8 +2242,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 }
 
 static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
-			      u8 tile_mask, bool read_only, bool is_null,
-			      u16 pat_index)
+			      bool read_only, bool is_null, u16 pat_index)
 {
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct xe_vma *vma;
@@ -2265,7 +2258,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	vma = xe_vma_create(vm, bo, op->gem.offset,
 			    op->va.addr, op->va.addr +
 			    op->va.range - 1, read_only, is_null,
-			    tile_mask, pat_index);
+			    pat_index);
 	if (bo)
 		xe_bo_unlock(bo);
 
@@ -2409,8 +2402,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 		{
 			struct xe_vma *vma;
 
-			vma = new_vma(vm, &op->base.map,
-				      op->tile_mask, op->map.read_only,
+			vma = new_vma(vm, &op->base.map, op->map.read_only,
 				      op->map.is_null, op->map.pat_index);
 			if (IS_ERR(vma))
 				return PTR_ERR(vma);
@@ -2435,8 +2427,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 					op->base.remap.unmap->va->flags &
 					DRM_GPUVA_SPARSE;
 
-				vma = new_vma(vm, op->base.remap.prev,
-					      op->tile_mask, read_only,
+				vma = new_vma(vm, op->base.remap.prev, read_only,
 					      is_null, old->pat_index);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
@@ -2469,8 +2460,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 					op->base.remap.unmap->va->flags &
 					DRM_GPUVA_SPARSE;
 
-				vma = new_vma(vm, op->base.remap.next,
-					      op->tile_mask, read_only,
+				vma = new_vma(vm, op->base.remap.next, read_only,
 					      is_null, old->pat_index);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
@@ -3024,16 +3014,6 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			err = -EINVAL;
 			goto release_vm_lock;
 		}
-
-		if (bind_ops[i].tile_mask) {
-			u64 valid_tiles = BIT(xe->info.tile_count) - 1;
-
-			if (XE_IOCTL_DBG(xe, bind_ops[i].tile_mask &
-					 ~valid_tiles)) {
-				err = -EINVAL;
-				goto release_vm_lock;
-			}
-		}
 	}
 
 	bos = kzalloc(sizeof(*bos) * args->num_binds, GFP_KERNEL);
@@ -3126,14 +3106,12 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u32 op = bind_ops[i].op;
 		u32 flags = bind_ops[i].flags;
 		u64 obj_offset = bind_ops[i].obj_offset;
-		u8 tile_mask = bind_ops[i].tile_mask;
 		u32 prefetch_region = bind_ops[i].prefetch_mem_region_instance;
 		u16 pat_index = bind_ops[i].pat_index;
 
 		ops[i] = vm_bind_ioctl_ops_create(vm, bos[i], obj_offset,
 						  addr, range, op, flags,
-						  tile_mask, prefetch_region,
-						  pat_index);
+						  prefetch_region, pat_index);
 		if (IS_ERR(ops[i])) {
 			err = PTR_ERR(ops[i]);
 			ops[i] = NULL;

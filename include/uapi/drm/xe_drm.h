@@ -750,12 +750,6 @@ struct drm_xe_vm_bind_op {
 	/** @addr: Address to operate on, MBZ for UNMAP_ALL */
 	__u64 addr;
 
-	/**
-	 * @tile_mask: Mask for which tiles to create binds for, 0 == All tiles,
-	 * only applies to creating new VMAs
-	 */
-	__u64 tile_mask;
-
 #define DRM_XE_VM_BIND_OP_MAP		0x0
 #define DRM_XE_VM_BIND_OP_UNMAP		0x1
 #define DRM_XE_VM_BIND_OP_MAP_USERPTR	0x2
@@ -790,7 +784,7 @@ struct drm_xe_vm_bind_op {
 	__u32 prefetch_mem_region_instance;
 
 	/** @reserved: Reserved */
-	__u64 reserved[2];
+	__u64 reserved[3];
 };
 
 struct drm_xe_vm_bind {
