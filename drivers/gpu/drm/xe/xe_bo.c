@@ -317,7 +317,7 @@ static int xe_tt_map_sg(struct ttm_tt *tt)
 	return 0;
 }
 
-struct sg_table *xe_bo_get_sg(struct xe_bo *bo)
+struct sg_table *xe_bo_sg(struct xe_bo *bo)
 {
 	struct ttm_tt *tt = bo->ttm.ttm;
 	struct xe_ttm_tt *xe_tt = container_of(tt, struct xe_ttm_tt, ttm);
@@ -1735,7 +1735,7 @@ dma_addr_t __xe_bo_addr(struct xe_bo *bo, u64 offset, size_t page_size)
 	if (!xe_bo_is_vram(bo) && !xe_bo_is_stolen(bo)) {
 		xe_assert(xe, bo->ttm.ttm);
 
-		xe_res_first_sg(xe_bo_get_sg(bo), page << PAGE_SHIFT,
+		xe_res_first_sg(xe_bo_sg(bo), page << PAGE_SHIFT,
 				page_size, &cur);
 		return xe_res_dma(&cur) + offset;
 	} else {

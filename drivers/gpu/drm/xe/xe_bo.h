@@ -299,7 +299,7 @@ xe_bo_put_deferred(struct xe_bo *bo, struct llist_head *deferred)
 
 void xe_bo_put_commit(struct llist_head *deferred);
 
-struct sg_table *xe_bo_get_sg(struct xe_bo *bo);
+struct sg_table *xe_bo_sg(struct xe_bo *bo);
 
 /*
  * xe_sg_segment_size() - Provides upper limit for sg segment size.
