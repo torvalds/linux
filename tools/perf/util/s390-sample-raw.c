@@ -51,8 +51,6 @@ static bool s390_cpumcfdg_testctr(struct perf_sample *sample)
 	struct cf_trailer_entry *te;
 	struct cf_ctrset_entry *cep, ce;
 
-	if (!len)
-		return false;
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 		ce.def = be16_to_cpu(cep->def);
@@ -234,10 +232,9 @@ struct pai_data {		/* Event number and value */
  */
 static bool s390_pai_all_test(struct perf_sample *sample)
 {
-	unsigned char *buf = sample->raw_data;
 	size_t len = sample->raw_size;
 
-	if (len < 0xa || !buf)
+	if (len < 0xa)
 		return false;
 	return true;
 }
@@ -297,6 +294,10 @@ void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event,
 
 	evsel = evlist__event2evsel(evlist, event);
 	if (!evsel)
+		return;
+
+	/* Check for raw data in sample */
+	if (!sample->raw_size || !sample->raw_data)
 		return;
 
 	/* Display raw data on screen */
