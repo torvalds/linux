@@ -356,11 +356,13 @@ static void aspeed_spi_transfer_tx(struct aspeed_spi_host *host, const u8 *tx_bu
 	}
 }
 
-static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
+static int aspeed_spi_transfer(struct spi_controller *ctlr,
+			       struct spi_message *msg)
 {
 	struct aspeed_spi_host *host =
-		(struct aspeed_spi_host *)spi_master_get_devdata(spi->controller);
+		(struct aspeed_spi_host *)spi_master_get_devdata(ctlr);
 	struct device *dev = host->dev;
+	struct spi_device *spi = msg->spi;
 	struct spi_transfer *xfer;
 	const u8 *tx_buf;
 	bool full_duplex_rx;
@@ -418,7 +420,8 @@ static int aspeed_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 		aspeed_spi_stop_user(spi);
 
 	msg->status = 0;
-	msg->complete(msg->context);
+
+	spi_finalize_current_message(ctlr);
 
 	if (host->cs_change == 0)
 		mutex_unlock(&host->lock);
@@ -506,7 +509,7 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		host->flag |= SPI_FULL_DUPLEX;
 
 	host->ctrl->setup = aspeed_spi_setup;
-	host->ctrl->transfer = aspeed_spi_transfer;
+	host->ctrl->transfer_one_message = aspeed_spi_transfer;
 	host->ctrl->num_chipselect = host->info->max_cs;
 
 	/* configure minimum segment window */
