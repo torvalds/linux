@@ -1484,8 +1484,8 @@ static void __domain_flush_pages(struct protection_domain *domain,
 	WARN_ON(ret);
 }
 
-static void domain_flush_pages(struct protection_domain *domain,
-			       u64 address, size_t size)
+void amd_iommu_domain_flush_pages(struct protection_domain *domain,
+				  u64 address, size_t size)
 {
 	if (likely(!amd_iommu_np_cache)) {
 		__domain_flush_pages(domain, address, size);
@@ -1535,9 +1535,10 @@ static void domain_flush_pages(struct protection_domain *domain,
 }
 
 /* Flush the whole IO/TLB for a given protection domain - including PDE */
-void amd_iommu_domain_flush_tlb_pde(struct protection_domain *domain)
+static void amd_iommu_domain_flush_all(struct protection_domain *domain)
 {
-	domain_flush_pages(domain, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS);
+	amd_iommu_domain_flush_pages(domain, 0,
+				     CMD_INV_IOMMU_ALL_PAGES_ADDRESS);
 }
 
 void amd_iommu_domain_flush_complete(struct protection_domain *domain)
@@ -1564,7 +1565,7 @@ static void domain_flush_np_cache(struct protection_domain *domain,
 		unsigned long flags;
 
 		spin_lock_irqsave(&domain->lock, flags);
-		domain_flush_pages(domain, iova, size);
+		amd_iommu_domain_flush_pages(domain, iova, size);
 		spin_unlock_irqrestore(&domain->lock, flags);
 	}
 }
@@ -1843,7 +1844,7 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	device_flush_dte(dev_data);
 
 	/* Flush IOTLB and wait for the flushes to finish */
-	amd_iommu_domain_flush_tlb_pde(domain);
+	amd_iommu_domain_flush_all(domain);
 
 	/* decrease reference counters - needs to happen after the flushes */
 	domain->dev_iommu[iommu->index] -= 1;
@@ -2020,7 +2021,7 @@ void amd_iommu_domain_update(struct protection_domain *domain)
 	amd_iommu_update_and_flush_device_table(domain);
 
 	/* Flush domain TLB(s) and wait for completion */
-	amd_iommu_domain_flush_tlb_pde(domain);
+	amd_iommu_domain_flush_all(domain);
 }
 
 /*****************************************************************************
@@ -2454,7 +2455,7 @@ static int amd_iommu_set_dirty_tracking(struct iommu_domain *domain,
 
 	/* Flush IOTLB to mark IOPTE dirty on the next translation(s) */
 	if (domain_flush)
-		amd_iommu_domain_flush_tlb_pde(pdomain);
+		amd_iommu_domain_flush_all(pdomain);
 
 	pdomain->dirty_tracking = enable;
 	spin_unlock_irqrestore(&pdomain->lock, flags);
@@ -2558,7 +2559,7 @@ static void amd_iommu_flush_iotlb_all(struct iommu_domain *domain)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dom->lock, flags);
-	amd_iommu_domain_flush_tlb_pde(dom);
+	amd_iommu_domain_flush_all(dom);
 	spin_unlock_irqrestore(&dom->lock, flags);
 }
 
@@ -2569,7 +2570,8 @@ static void amd_iommu_iotlb_sync(struct iommu_domain *domain,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dom->lock, flags);
-	domain_flush_pages(dom, gather->start, gather->end - gather->start + 1);
+	amd_iommu_domain_flush_pages(dom, gather->start,
+				     gather->end - gather->start + 1);
 	spin_unlock_irqrestore(&dom->lock, flags);
 }
 
