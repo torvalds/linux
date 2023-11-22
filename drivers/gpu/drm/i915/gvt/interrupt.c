@@ -453,7 +453,7 @@ static void inject_virtual_interrupt(struct intel_vgpu *vgpu)
 	if (!test_bit(INTEL_VGPU_STATUS_ATTACHED, vgpu->status))
 		return;
 	if (vgpu->msi_trigger)
-		eventfd_signal(vgpu->msi_trigger, 1);
+		eventfd_signal(vgpu->msi_trigger);
 }
 
 static void propagate_event(struct intel_gvt_irq *irq,

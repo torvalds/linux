@@ -72,22 +72,19 @@ __u64 eventfd_signal_mask(struct eventfd_ctx *ctx, __u64 n, __poll_t mask)
 }
 
 /**
- * eventfd_signal - Adds @n to the eventfd counter.
+ * eventfd_signal - Increment the event counter
  * @ctx: [in] Pointer to the eventfd context.
- * @n: [in] Value of the counter to be added to the eventfd internal counter.
- *          The value cannot be negative.
  *
  * This function is supposed to be called by the kernel in paths that do not
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
  * value, and we signal this as overflow condition by returning a EPOLLERR
  * to poll(2).
  *
- * Returns the amount by which the counter was incremented.  This will be less
- * than @n if the counter has overflowed.
+ * Returns the amount by which the counter was incremented.
  */
-__u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
+__u64 eventfd_signal(struct eventfd_ctx *ctx)
 {
-	return eventfd_signal_mask(ctx, n, 0);
+	return eventfd_signal_mask(ctx, 1, 0);
 }
 EXPORT_SYMBOL_GPL(eventfd_signal);
 
