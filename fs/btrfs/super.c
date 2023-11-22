@@ -631,6 +631,18 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
+/*
+ * Some options only have meaning at mount time and shouldn't persist across
+ * remounts, or be displayed. Clear these at the end of mount and remount code
+ * paths.
+ */
+static void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info)
+{
+	btrfs_clear_opt(fs_info->mount_opt, USEBACKUPROOT);
+	btrfs_clear_opt(fs_info->mount_opt, CLEAR_CACHE);
+	btrfs_clear_opt(fs_info->mount_opt, NOSPACECACHE);
+}
+
 static bool check_ro_option(struct btrfs_fs_info *fs_info,
 			    unsigned long mount_opt, unsigned long opt,
 			    const char *opt_name)
@@ -1864,6 +1876,8 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 		deactivate_locked_super(sb);
 		return ret;
 	}
+
+	btrfs_clear_oneshot_options(fs_info);
 
 	fc->root = dget(sb->s_root);
 	return 0;
