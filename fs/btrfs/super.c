@@ -130,10 +130,6 @@ enum {
 	Opt_ignoredatacsums,
 	Opt_rescue_all,
 
-	/* Deprecated options */
-	Opt_recovery,
-	Opt_inode_cache,
-
 	/* Debugging options */
 	Opt_enospc_debug,
 #ifdef CONFIG_BTRFS_DEBUG
@@ -230,7 +226,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	fsparam_enum("discard", Opt_discard_mode, btrfs_parameter_discard),
 	fsparam_enum("fatal_errors", Opt_fatal_errors, btrfs_parameter_fatal_errors),
 	fsparam_flag_no("flushoncommit", Opt_flushoncommit),
-	fsparam_flag_no("inode_cache", Opt_inode_cache),
 	fsparam_string("max_inline", Opt_max_inline),
 	fsparam_u32("metadata_ratio", Opt_ratio),
 	fsparam_flag("rescan_uuid_tree", Opt_rescan_uuid_tree),
@@ -252,10 +247,6 @@ static const struct fs_parameter_spec btrfs_fs_parameters[] = {
 	__fsparam(NULL, "nologreplay", Opt_nologreplay, fs_param_deprecated, NULL),
 	/* Deprecated, with alias rescue=usebackuproot */
 	__fsparam(NULL, "usebackuproot", Opt_usebackuproot, fs_param_deprecated, NULL),
-
-	/* Deprecated options. */
-	__fsparam(NULL, "recovery", Opt_recovery,
-		  fs_param_neg_with_no | fs_param_deprecated, NULL),
 
 	/* Debugging options. */
 	fsparam_flag_no("enospc_debug", Opt_enospc_debug),
@@ -438,28 +429,6 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		else
 			btrfs_clear_opt(ctx->mount_opt, NOTREELOG);
 		break;
-	case Opt_recovery:
-		/*
-		 * -o recovery used to be an alias for usebackuproot, and then
-		 * norecovery was an alias for nologreplay, hence the different
-		 * behaviors for negated and not.
-		 */
-		if (result.negated) {
-			btrfs_warn(NULL,
-		"'norecovery' is deprecated, use 'rescue=nologreplay' instead");
-			btrfs_set_opt(ctx->mount_opt, NOLOGREPLAY);
-		} else {
-			btrfs_warn(NULL,
-		"'recovery' is deprecated, use 'rescue=usebackuproot' instead");
-			btrfs_set_opt(ctx->mount_opt, USEBACKUPROOT);
-
-			/*
-			 * If we're loading the backup roots we can't trust the
-			 * space cache.
-			 */
-			btrfs_set_opt(ctx->mount_opt, CLEAR_CACHE);
-		}
-		break;
 	case Opt_nologreplay:
 		btrfs_warn(NULL,
 		"'nologreplay' is deprecated, use 'rescue=nologreplay' instead");
@@ -529,10 +498,6 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_rescan_uuid_tree:
 		btrfs_set_opt(ctx->mount_opt, RESCAN_UUID_TREE);
-		break;
-	case Opt_inode_cache:
-		btrfs_warn(NULL,
-			   "the 'inode_cache' option is deprecated and has no effect since 5.11");
 		break;
 	case Opt_clear_cache:
 		btrfs_set_opt(ctx->mount_opt, CLEAR_CACHE);
