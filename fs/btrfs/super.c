@@ -725,10 +725,11 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	return 0;
 }
 
-static bool check_ro_option(struct btrfs_fs_info *fs_info, unsigned long opt,
+static bool check_ro_option(struct btrfs_fs_info *fs_info,
+			    unsigned long mount_opt, unsigned long opt,
 			    const char *opt_name)
 {
-	if (fs_info->mount_opt & opt) {
+	if (mount_opt & opt) {
 		btrfs_err(fs_info, "%s must be used with ro mount option",
 			  opt_name);
 		return true;
@@ -736,35 +737,36 @@ static bool check_ro_option(struct btrfs_fs_info *fs_info, unsigned long opt,
 	return false;
 }
 
-static bool check_options(struct btrfs_fs_info *info, unsigned long flags)
+static bool check_options(struct btrfs_fs_info *info, unsigned long *mount_opt,
+			  unsigned long flags)
 {
 	bool ret = true;
 
 	if (!(flags & SB_RDONLY) &&
-	    (check_ro_option(info, BTRFS_MOUNT_NOLOGREPLAY, "nologreplay") ||
-	     check_ro_option(info, BTRFS_MOUNT_IGNOREBADROOTS, "ignorebadroots") ||
-	     check_ro_option(info, BTRFS_MOUNT_IGNOREDATACSUMS, "ignoredatacsums")))
+	    (check_ro_option(info, *mount_opt, BTRFS_MOUNT_NOLOGREPLAY, "nologreplay") ||
+	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGNOREBADROOTS, "ignorebadroots") ||
+	     check_ro_option(info, *mount_opt, BTRFS_MOUNT_IGNOREDATACSUMS, "ignoredatacsums")))
 		ret = false;
 
 	if (btrfs_fs_compat_ro(info, FREE_SPACE_TREE) &&
-	    !btrfs_test_opt(info, FREE_SPACE_TREE) &&
-	    !btrfs_test_opt(info, CLEAR_CACHE)) {
+	    !btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE) &&
+	    !btrfs_raw_test_opt(*mount_opt, CLEAR_CACHE)) {
 		btrfs_err(info, "cannot disable free-space-tree");
 		ret = false;
 	}
 	if (btrfs_fs_compat_ro(info, BLOCK_GROUP_TREE) &&
-	     !btrfs_test_opt(info, FREE_SPACE_TREE)) {
+	     !btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE)) {
 		btrfs_err(info, "cannot disable free-space-tree with block-group-tree feature");
 		ret = false;
 	}
 
-	if (btrfs_check_mountopts_zoned(info))
+	if (btrfs_check_mountopts_zoned(info, mount_opt))
 		ret = false;
 
 	if (!test_bit(BTRFS_FS_STATE_REMOUNTING, &info->fs_state)) {
-		if (btrfs_test_opt(info, SPACE_CACHE))
+		if (btrfs_raw_test_opt(*mount_opt, SPACE_CACHE))
 			btrfs_info(info, "disk space caching is enabled");
-		if (btrfs_test_opt(info, FREE_SPACE_TREE))
+		if (btrfs_raw_test_opt(*mount_opt, FREE_SPACE_TREE))
 			btrfs_info(info, "using free-space-tree");
 	}
 
@@ -1342,7 +1344,7 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		}
 	}
 out:
-	if (!ret && !check_options(info, new_flags))
+	if (!ret && !check_options(info, &info->mount_opt, new_flags))
 		ret = -EINVAL;
 	return ret;
 }
@@ -2378,6 +2380,166 @@ restore:
 	return ret;
 }
 
+static void btrfs_ctx_to_info(struct btrfs_fs_info *fs_info, struct btrfs_fs_context *ctx)
+{
+	fs_info->max_inline = ctx->max_inline;
+	fs_info->commit_interval = ctx->commit_interval;
+	fs_info->metadata_ratio = ctx->metadata_ratio;
+	fs_info->thread_pool_size = ctx->thread_pool_size;
+	fs_info->mount_opt = ctx->mount_opt;
+	fs_info->compress_type = ctx->compress_type;
+	fs_info->compress_level = ctx->compress_level;
+}
+
+static void btrfs_info_to_ctx(struct btrfs_fs_info *fs_info, struct btrfs_fs_context *ctx)
+{
+	ctx->max_inline = fs_info->max_inline;
+	ctx->commit_interval = fs_info->commit_interval;
+	ctx->metadata_ratio = fs_info->metadata_ratio;
+	ctx->thread_pool_size = fs_info->thread_pool_size;
+	ctx->mount_opt = fs_info->mount_opt;
+	ctx->compress_type = fs_info->compress_type;
+	ctx->compress_level = fs_info->compress_level;
+}
+
+#define btrfs_info_if_set(fs_info, old_ctx, opt, fmt, args...)			\
+do {										\
+	if ((!old_ctx || !btrfs_raw_test_opt(old_ctx->mount_opt, opt)) &&	\
+	    btrfs_raw_test_opt(fs_info->mount_opt, opt))			\
+		btrfs_info(fs_info, fmt, ##args);				\
+} while (0)
+
+#define btrfs_info_if_unset(fs_info, old_ctx, opt, fmt, args...)	\
+do {									\
+	if ((old_ctx && btrfs_raw_test_opt(old_ctx->mount_opt, opt)) &&	\
+	    !btrfs_raw_test_opt(fs_info->mount_opt, opt))		\
+		btrfs_info(fs_info, fmt, ##args);			\
+} while (0)
+
+static void btrfs_emit_options(struct btrfs_fs_info *info,
+			       struct btrfs_fs_context *old)
+{
+	btrfs_info_if_set(info, old, NODATASUM, "setting nodatasum");
+	btrfs_info_if_set(info, old, DEGRADED, "allowing degraded mounts");
+	btrfs_info_if_set(info, old, NODATASUM, "setting nodatasum");
+	btrfs_info_if_set(info, old, SSD, "enabling ssd optimizations");
+	btrfs_info_if_set(info, old, SSD_SPREAD, "using spread ssd allocation scheme");
+	btrfs_info_if_set(info, old, NOBARRIER, "turning off barriers");
+	btrfs_info_if_set(info, old, NOTREELOG, "disabling tree log");
+	btrfs_info_if_set(info, old, NOLOGREPLAY, "disabling log replay at mount time");
+	btrfs_info_if_set(info, old, FLUSHONCOMMIT, "turning on flush-on-commit");
+	btrfs_info_if_set(info, old, DISCARD_SYNC, "turning on sync discard");
+	btrfs_info_if_set(info, old, DISCARD_ASYNC, "turning on async discard");
+	btrfs_info_if_set(info, old, FREE_SPACE_TREE, "enabling free space tree");
+	btrfs_info_if_set(info, old, SPACE_CACHE, "enabling disk space caching");
+	btrfs_info_if_set(info, old, CLEAR_CACHE, "force clearing of disk cache");
+	btrfs_info_if_set(info, old, AUTO_DEFRAG, "enabling auto defrag");
+	btrfs_info_if_set(info, old, FRAGMENT_DATA, "fragmenting data");
+	btrfs_info_if_set(info, old, FRAGMENT_METADATA, "fragmenting metadata");
+	btrfs_info_if_set(info, old, REF_VERIFY, "doing ref verification");
+	btrfs_info_if_set(info, old, USEBACKUPROOT, "trying to use backup root at mount time");
+	btrfs_info_if_set(info, old, IGNOREBADROOTS, "ignoring bad roots");
+	btrfs_info_if_set(info, old, IGNOREDATACSUMS, "ignoring data csums");
+
+	btrfs_info_if_unset(info, old, NODATACOW, "setting datacow");
+	btrfs_info_if_unset(info, old, SSD, "not using ssd optimizations");
+	btrfs_info_if_unset(info, old, SSD_SPREAD, "not using spread ssd allocation scheme");
+	btrfs_info_if_unset(info, old, NOBARRIER, "turning off barriers");
+	btrfs_info_if_unset(info, old, NOTREELOG, "enabling tree log");
+	btrfs_info_if_unset(info, old, SPACE_CACHE, "disabling disk space caching");
+	btrfs_info_if_unset(info, old, FREE_SPACE_TREE, "disabling free space tree");
+	btrfs_info_if_unset(info, old, AUTO_DEFRAG, "disabling auto defrag");
+	btrfs_info_if_unset(info, old, COMPRESS, "use no compression");
+
+	/* Did the compression settings change? */
+	if (btrfs_test_opt(info, COMPRESS) &&
+	    (!old ||
+	     old->compress_type != info->compress_type ||
+	     old->compress_level != info->compress_level ||
+	     (!btrfs_raw_test_opt(old->mount_opt, FORCE_COMPRESS) &&
+	      btrfs_raw_test_opt(info->mount_opt, FORCE_COMPRESS)))) {
+		const char *compress_type = btrfs_compress_type2str(info->compress_type);
+
+		btrfs_info(info, "%s %s compression, level %d",
+			   btrfs_test_opt(info, FORCE_COMPRESS) ? "force" : "use",
+			   compress_type, info->compress_level);
+	}
+
+	if (info->max_inline != BTRFS_DEFAULT_MAX_INLINE)
+		btrfs_info(info, "max_inline set to %llu", info->max_inline);
+}
+
+static int btrfs_reconfigure(struct fs_context *fc)
+{
+	struct super_block *sb = fc->root->d_sb;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	struct btrfs_fs_context *ctx = fc->fs_private;
+	struct btrfs_fs_context old_ctx;
+	int ret = 0;
+
+	btrfs_info_to_ctx(fs_info, &old_ctx);
+
+	sync_filesystem(sb);
+	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
+
+	if (!check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
+		return -EINVAL;
+
+	ret = btrfs_check_features(fs_info, !(fc->sb_flags & SB_RDONLY));
+	if (ret < 0)
+		return ret;
+
+	btrfs_ctx_to_info(fs_info, ctx);
+	btrfs_remount_begin(fs_info, old_ctx.mount_opt, fc->sb_flags);
+	btrfs_resize_thread_pool(fs_info, fs_info->thread_pool_size,
+				 old_ctx.thread_pool_size);
+
+	if ((bool)btrfs_test_opt(fs_info, FREE_SPACE_TREE) !=
+	    (bool)btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE) &&
+	    (!sb_rdonly(sb) || (fc->sb_flags & SB_RDONLY))) {
+		btrfs_warn(fs_info,
+		"remount supports changing free space tree only from RO to RW");
+		/* Make sure free space cache options match the state on disk. */
+		if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE)) {
+			btrfs_set_opt(fs_info->mount_opt, FREE_SPACE_TREE);
+			btrfs_clear_opt(fs_info->mount_opt, SPACE_CACHE);
+		}
+		if (btrfs_free_space_cache_v1_active(fs_info)) {
+			btrfs_clear_opt(fs_info->mount_opt, FREE_SPACE_TREE);
+			btrfs_set_opt(fs_info->mount_opt, SPACE_CACHE);
+		}
+	}
+
+	ret = 0;
+	if (!sb_rdonly(sb) && (fc->sb_flags & SB_RDONLY))
+		ret = btrfs_remount_ro(fs_info);
+	else if (sb_rdonly(sb) && !(fc->sb_flags & SB_RDONLY))
+		ret = btrfs_remount_rw(fs_info);
+	if (ret)
+		goto restore;
+
+	/*
+	 * If we set the mask during the parameter parsing VFS would reject the
+	 * remount.  Here we can set the mask and the value will be updated
+	 * appropriately.
+	 */
+	if ((fc->sb_flags & SB_POSIXACL) != (sb->s_flags & SB_POSIXACL))
+		fc->sb_flags_mask |= SB_POSIXACL;
+
+	btrfs_emit_options(fs_info, &old_ctx);
+	wake_up_process(fs_info->transaction_kthread);
+	btrfs_remount_cleanup(fs_info, old_ctx.mount_opt);
+	btrfs_clear_oneshot_options(fs_info);
+	clear_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
+
+	return 0;
+restore:
+	btrfs_ctx_to_info(fs_info, &old_ctx);
+	btrfs_remount_cleanup(fs_info, old_ctx.mount_opt);
+	clear_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
+	return ret;
+}
+
 /* Used to sort the devices by max_avail(descending sort) */
 static int btrfs_cmp_device_free_bytes(const void *a, const void *b)
 {
@@ -2655,6 +2817,7 @@ static void btrfs_free_fs_context(struct fs_context *fc)
 
 static const struct fs_context_operations btrfs_fs_context_ops = {
 	.parse_param	= btrfs_parse_param,
+	.reconfigure	= btrfs_reconfigure,
 	.free		= btrfs_free_fs_context,
 };
 
@@ -2666,16 +2829,17 @@ static int __maybe_unused btrfs_init_fs_context(struct fs_context *fc)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->thread_pool_size = min_t(unsigned long, num_online_cpus() + 2, 8);
-	ctx->max_inline = BTRFS_DEFAULT_MAX_INLINE;
-	ctx->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
-	ctx->subvol_objectid = BTRFS_FS_TREE_OBJECTID;
-#ifndef CONFIG_BTRFS_FS_POSIX_ACL
-	ctx->noacl = true;
-#endif
-
 	fc->fs_private = ctx;
 	fc->ops = &btrfs_fs_context_ops;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		btrfs_info_to_ctx(btrfs_sb(fc->root->d_sb), ctx);
+	} else {
+		ctx->thread_pool_size =
+			min_t(unsigned long, num_online_cpus() + 2, 8);
+		ctx->max_inline = BTRFS_DEFAULT_MAX_INLINE;
+		ctx->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
+	}
 
 	return 0;
 }

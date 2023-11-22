@@ -781,7 +781,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	 * Check mount options here, because we might change fs_info->zoned
 	 * from fs_info->zone_size.
 	 */
-	ret = btrfs_check_mountopts_zoned(fs_info);
+	ret = btrfs_check_mountopts_zoned(fs_info, &fs_info->mount_opt);
 	if (ret)
 		return ret;
 
@@ -789,7 +789,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	return 0;
 }
 
-int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info)
+int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info, unsigned long *mount_opt)
 {
 	if (!btrfs_is_zoned(info))
 		return 0;
@@ -798,18 +798,21 @@ int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info)
 	 * Space cache writing is not COWed. Disable that to avoid write errors
 	 * in sequential zones.
 	 */
-	if (btrfs_test_opt(info, SPACE_CACHE)) {
+	if (btrfs_raw_test_opt(*mount_opt, SPACE_CACHE)) {
 		btrfs_err(info, "zoned: space cache v1 is not supported");
 		return -EINVAL;
 	}
 
-	if (btrfs_test_opt(info, NODATACOW)) {
+	if (btrfs_raw_test_opt(*mount_opt, NODATACOW)) {
 		btrfs_err(info, "zoned: NODATACOW not supported");
 		return -EINVAL;
 	}
 
-	btrfs_clear_and_info(info, DISCARD_ASYNC,
-			"zoned: async discard ignored and disabled for zoned mode");
+	if (btrfs_raw_test_opt(*mount_opt, DISCARD_ASYNC)) {
+		btrfs_info(info,
+			   "zoned: async discard ignored and disabled for zoned mode");
+		btrfs_clear_opt(*mount_opt, DISCARD_ASYNC);
+	}
 
 	return 0;
 }
