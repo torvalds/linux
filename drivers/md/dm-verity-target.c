@@ -642,7 +642,6 @@ static void verity_work(struct work_struct *w)
 
 	io->in_tasklet = false;
 
-	verity_fec_init_io(io);
 	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
 }
 
@@ -791,6 +790,8 @@ static int verity_map(struct dm_target *ti, struct bio *bio)
 	bio->bi_end_io = verity_end_io;
 	bio->bi_private = io;
 	io->iter = bio->bi_iter;
+
+	verity_fec_init_io(io);
 
 	verity_submit_prefetch(v, io);
 
