@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 
+#include <drm/drm_auth.h>
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_print.h>
