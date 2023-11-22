@@ -244,7 +244,4 @@ static inline kgid_t mapped_fsgid(struct mnt_idmap *idmap,
 	return from_vfsgid(idmap, fs_userns, VFSGIDT_INIT(current_fsgid()));
 }
 
-bool check_fsmapping(const struct mnt_idmap *idmap,
-		     const struct super_block *sb);
-
 #endif /* _LINUX_MNT_IDMAPPING_H */

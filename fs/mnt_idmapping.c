@@ -26,19 +26,6 @@ struct mnt_idmap nop_mnt_idmap = {
 EXPORT_SYMBOL_GPL(nop_mnt_idmap);
 
 /**
- * check_fsmapping - check whether an mount idmapping is allowed
- * @idmap: idmap of the relevent mount
- * @sb:    super block of the filesystem
- *
- * Return: true if @idmap is allowed, false if not.
- */
-bool check_fsmapping(const struct mnt_idmap *idmap,
-		     const struct super_block *sb)
-{
-	return idmap->owner != sb->s_user_ns;
-}
-
-/**
  * initial_idmapping - check whether this is the initial mapping
  * @ns: idmapping to check
  *
@@ -94,8 +81,8 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
  */
 
 vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
-				   struct user_namespace *fs_userns,
-				   kuid_t kuid)
+		     struct user_namespace *fs_userns,
+		     kuid_t kuid)
 {
 	uid_t uid;
 	struct user_namespace *mnt_userns = idmap->owner;
