@@ -82,6 +82,23 @@ properties:
 
   ranges: true
 
+patternProperties:
+  '^clock@':
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - hisilicon,hi3620-clock
+          - hisilicon,hi3620-mmc-clock
+
+      reg:
+        maxItems: 1
+
+      '#clock-cells':
+        const: 1
+
 required:
   - compatible
   - reg
