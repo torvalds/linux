@@ -386,7 +386,7 @@ static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)
 	dra7xx_pcie_enable_wrapper_interrupts(dra7xx);
 }
 
-static void dra7xx_pcie_raise_legacy_irq(struct dra7xx_pcie *dra7xx)
+static void dra7xx_pcie_raise_intx_irq(struct dra7xx_pcie *dra7xx)
 {
 	dra7xx_pcie_writel(dra7xx, PCIECTRL_TI_CONF_INTX_ASSERT, 0x1);
 	mdelay(1);
@@ -411,7 +411,7 @@ static int dra7xx_pcie_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 
 	switch (type) {
 	case PCI_IRQ_INTX:
-		dra7xx_pcie_raise_legacy_irq(dra7xx);
+		dra7xx_pcie_raise_intx_irq(dra7xx);
 		break;
 	case PCI_IRQ_MSI:
 		dra7xx_pcie_raise_msi_irq(dra7xx, interrupt_num);
