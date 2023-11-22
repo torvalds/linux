@@ -210,7 +210,7 @@ static const struct clk_div_table div3_divs[] = {
 
 static struct clk_hw *clk_out[6];
 
-static unsigned char vc3_pfd_mux_get_parent(struct clk_hw *hw)
+static u8 vc3_pfd_mux_get_parent(struct clk_hw *hw)
 {
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *pfd_mux = vc3->data;
@@ -440,7 +440,7 @@ static const struct clk_ops vc3_pll_ops = {
 	.set_rate = vc3_pll_set_rate,
 };
 
-static unsigned char vc3_div_mux_get_parent(struct clk_hw *hw)
+static u8 vc3_div_mux_get_parent(struct clk_hw *hw)
 {
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *div_mux = vc3->data;
@@ -558,7 +558,7 @@ static int vc3_clk_mux_determine_rate(struct clk_hw *hw,
 	return ret;
 }
 
-static unsigned char vc3_clk_mux_get_parent(struct clk_hw *hw)
+static u8 vc3_clk_mux_get_parent(struct clk_hw *hw)
 {
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *clk_mux = vc3->data;
