@@ -283,6 +283,77 @@
 	status = "okay";
 };
 
+&bmc_dev0 {
+	status = "okay";
+	memory-region = <&bmc_dev0_memory>;
+};
+
+&pcie_vuart0 {
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_vuart1 {
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_lpc0_kcs0 {
+	status = "okay";
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <8>;
+};
+
+&pcie_lpc0_kcs1 {
+	status = "okay";
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <9>;
+};
+
+&pcie_lpc0_kcs2 {
+	status = "okay";
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <10>;
+};
+
+&pcie_lpc0_kcs3 {
+	status = "okay";
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <11>;
+};
+
+&pcie_lpc0_ibt {
+	status = "okay";
+	bt-channel = <2>;
+};
+
+&bmc_dev1 {
+	status = "okay";
+	memory-region = <&bmc_dev1_memory>;
+};
+
+&pcie_vuart2 {
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_vuart3 {
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -389,56 +460,6 @@
 };
 
 &i2c0 {
-	status = "okay";
-};
-
-
-&bmc_dev0 {
-	status = "okay";
-	memory-region = <&bmc_dev_memory>;
-};
-
-&pcie0_vuart0 {
-	port = <0x3f8>;
-	sirq = <4>;
-	sirq-polarity = <0>;
-
-	status = "okay";
-};
-
-&pcie0_vuart1 {
-	port = <0x2f8>;
-	sirq = <3>;
-	sirq-polarity = <0>;
-
-	status = "okay";
-};
-
-&pcie0_kcs0 {
-	status = "okay";
-	kcs-io-addr = <0x3a0>;
-	kcs-channel = <8>;
-};
-
-&pcie0_kcs1 {
-	status = "okay";
-	kcs-io-addr = <0x3a8>;
-	kcs-channel = <9>;
-};
-
-&pcie0_kcs2 {
-	status = "okay";
-	kcs-io-addr = <0x3a2>;
-	kcs-channel = <10>;
-};
-
-&pcie0_kcs3 {
-	status = "okay";
-	kcs-io-addr = <0x3a4>;
-	kcs-channel = <11>;
-};
-
-&pcie0_ibt {
 	status = "okay";
 };
 
