@@ -425,7 +425,6 @@ out:
 		 * increase_address_space().
 		 */
 		amd_iommu_domain_flush_tlb_pde(dom);
-		amd_iommu_domain_flush_complete(dom);
 		spin_unlock_irqrestore(&dom->lock, flags);
 	}
 
