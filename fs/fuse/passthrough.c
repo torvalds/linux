@@ -10,6 +10,75 @@
 #include <linux/file.h>
 #include <linux/backing-file.h>
 
+static void fuse_file_accessed(struct file *file)
+{
+	struct inode *inode = file_inode(file);
+
+	fuse_invalidate_atime(inode);
+}
+
+static void fuse_file_modified(struct file *file)
+{
+	struct inode *inode = file_inode(file);
+
+	fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
+}
+
+ssize_t fuse_passthrough_read_iter(struct kiocb *iocb, struct iov_iter *iter)
+{
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
+	struct file *backing_file = fuse_file_passthrough(ff);
+	size_t count = iov_iter_count(iter);
+	ssize_t ret;
+	struct backing_file_ctx ctx = {
+		.cred = ff->cred,
+		.user_file = file,
+		.accessed = fuse_file_accessed,
+	};
+
+
+	pr_debug("%s: backing_file=0x%p, pos=%lld, len=%zu\n", __func__,
+		 backing_file, iocb->ki_pos, count);
+
+	if (!count)
+		return 0;
+
+	ret = backing_file_read_iter(backing_file, iter, iocb, iocb->ki_flags,
+				     &ctx);
+
+	return ret;
+}
+
+ssize_t fuse_passthrough_write_iter(struct kiocb *iocb,
+				    struct iov_iter *iter)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct fuse_file *ff = file->private_data;
+	struct file *backing_file = fuse_file_passthrough(ff);
+	size_t count = iov_iter_count(iter);
+	ssize_t ret;
+	struct backing_file_ctx ctx = {
+		.cred = ff->cred,
+		.user_file = file,
+		.end_write = fuse_file_modified,
+	};
+
+	pr_debug("%s: backing_file=0x%p, pos=%lld, len=%zu\n", __func__,
+		 backing_file, iocb->ki_pos, count);
+
+	if (!count)
+		return 0;
+
+	inode_lock(inode);
+	ret = backing_file_write_iter(backing_file, iter, iocb, iocb->ki_flags,
+				      &ctx);
+	inode_unlock(inode);
+
+	return ret;
+}
+
 struct fuse_backing *fuse_backing_get(struct fuse_backing *fb)
 {
 	if (fb && refcount_inc_not_zero(&fb->count))

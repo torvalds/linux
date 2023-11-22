@@ -1466,4 +1466,7 @@ static inline struct file *fuse_file_passthrough(struct fuse_file *ff)
 #endif
 }
 
+ssize_t fuse_passthrough_read_iter(struct kiocb *iocb, struct iov_iter *iter);
+ssize_t fuse_passthrough_write_iter(struct kiocb *iocb, struct iov_iter *iter);
+
 #endif /* _FS_FUSE_I_H */
