@@ -246,7 +246,7 @@ static void hwprobe_one_pair(struct riscv_hwprobe *pair,
 }
 
 static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
-			    size_t pair_count, size_t cpu_count,
+			    size_t pair_count, size_t cpusetsize,
 			    unsigned long __user *cpus_user,
 			    unsigned int flags)
 {
@@ -264,13 +264,13 @@ static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
 	 * 0 as a shortcut to all online CPUs.
 	 */
 	cpumask_clear(&cpus);
-	if (!cpu_count && !cpus_user) {
+	if (!cpusetsize && !cpus_user) {
 		cpumask_copy(&cpus, cpu_online_mask);
 	} else {
-		if (cpu_count > cpumask_size())
-			cpu_count = cpumask_size();
+		if (cpusetsize > cpumask_size())
+			cpusetsize = cpumask_size();
 
-		ret = copy_from_user(&cpus, cpus_user, cpu_count);
+		ret = copy_from_user(&cpus, cpus_user, cpusetsize);
 		if (ret)
 			return -EFAULT;
 
@@ -347,10 +347,10 @@ arch_initcall_sync(init_hwprobe_vdso_data);
 #endif /* CONFIG_MMU */
 
 SYSCALL_DEFINE5(riscv_hwprobe, struct riscv_hwprobe __user *, pairs,
-		size_t, pair_count, size_t, cpu_count, unsigned long __user *,
+		size_t, pair_count, size_t, cpusetsize, unsigned long __user *,
 		cpus, unsigned int, flags)
 {
-	return do_riscv_hwprobe(pairs, pair_count, cpu_count,
+	return do_riscv_hwprobe(pairs, pair_count, cpusetsize,
 				cpus, flags);
 }
 

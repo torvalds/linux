@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 	ksft_test_result(out != 0, "Bad CPU set\n");
 
 	out = riscv_hwprobe(pairs, 8, 1, 0, 0);
-	ksft_test_result(out != 0, "NULL CPU set with non-zero count\n");
+	ksft_test_result(out != 0, "NULL CPU set with non-zero size\n");
 
 	pairs[0].key = RISCV_HWPROBE_KEY_BASE_BEHAVIOR;
 	out = riscv_hwprobe(pairs, 1, 1, &cpus, 0);

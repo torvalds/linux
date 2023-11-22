@@ -8,21 +8,21 @@
 #include <vdso/helpers.h>
 
 extern int riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
-			 size_t cpu_count, unsigned long *cpus,
+			 size_t cpusetsize, unsigned long *cpus,
 			 unsigned int flags);
 
 /* Add a prototype to avoid -Wmissing-prototypes warning. */
 int __vdso_riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
-			 size_t cpu_count, unsigned long *cpus,
+			 size_t cpusetsize, unsigned long *cpus,
 			 unsigned int flags);
 
 int __vdso_riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
-			 size_t cpu_count, unsigned long *cpus,
+			 size_t cpusetsize, unsigned long *cpus,
 			 unsigned int flags)
 {
 	const struct vdso_data *vd = __arch_get_vdso_data();
 	const struct arch_vdso_data *avd = &vd->arch_data;
-	bool all_cpus = !cpu_count && !cpus;
+	bool all_cpus = !cpusetsize && !cpus;
 	struct riscv_hwprobe *p = pairs;
 	struct riscv_hwprobe *end = pairs + pair_count;
 
@@ -33,7 +33,7 @@ int __vdso_riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
 	 * masks.
 	 */
 	if ((flags != 0) || (!all_cpus && !avd->homogeneous_cpus))
-		return riscv_hwprobe(pairs, pair_count, cpu_count, cpus, flags);
+		return riscv_hwprobe(pairs, pair_count, cpusetsize, cpus, flags);
 
 	/* This is something we can handle, fill out the pairs. */
 	while (p < end) {
