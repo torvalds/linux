@@ -277,8 +277,8 @@ enum ipa_reg_idle_indication_cfg_field_id {
 
 /* QTIME_TIMESTAMP_CFG register */
 enum ipa_reg_qtime_timestamp_cfg_field_id {
-	DPL_TIMESTAMP_LSB,
-	DPL_TIMESTAMP_SEL,
+	DPL_TIMESTAMP_LSB,				/* Not IPA v5.5+ */
+	DPL_TIMESTAMP_SEL,				/* Not IPA v5.5+ */
 	TAG_TIMESTAMP_LSB,
 	NAT_TIMESTAMP_LSB,
 };
@@ -329,6 +329,7 @@ enum ipa_reg_endp_init_cfg_field_id {
 	CS_OFFLOAD_EN,
 	CS_METADATA_HDR_OFFSET,
 	CS_GEN_QMB_MASTER_SEL,
+	PIPE_REPLICATE_EN,				/* IPA v5.5+ */
 };
 
 /** enum ipa_cs_offload_en - ENDP_INIT_CFG register CS_OFFLOAD_EN field value */
@@ -387,7 +388,7 @@ enum ipa_reg_endp_init_mode_field_id {
 	DCPH_ENABLE,					/* IPA v4.5+ */
 	DEST_PIPE_INDEX,
 	BYTE_THRESHOLD,
-	PIPE_REPLICATION_EN,
+	PIPE_REPLICATION_EN,				/* Not IPA v5.5+ */
 	PAD_EN,
 	HDR_FTCH_DISABLE,				/* IPA v4.5+ */
 	DRBIP_ACL_ENABLE,				/* IPA v4.9+ */
@@ -412,6 +413,7 @@ enum ipa_reg_endp_init_aggr_field_id {
 	FORCE_CLOSE,
 	HARD_BYTE_LIMIT_EN,
 	AGGR_GRAN_SEL,
+	AGGR_COAL_L2,					/* IPA v5.5+ */
 };
 
 /** enum ipa_aggr_en - ENDP_INIT_AGGR register AGGR_EN field value */
@@ -585,9 +587,11 @@ enum ipa_reg_endp_cache_cfg_field_id {
  * @IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN: (Not currently used)
  * @IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN: (Not currently used)
  * @IPA_IRQ_DRBIP_IMM_CMD_NO_FLSH_HZRD_EN: (Not currently used)
+ * @IPA_IRQ_ERROR_NON_FATAL:		(Not currently used)
+ * @IPA_IRQ_ERROR_FATAL:		(Not currently used)
  */
 enum ipa_irq_id {
-	IPA_IRQ_BAD_SNOC_ACCESS			= 0x0,
+	IPA_IRQ_BAD_SNOC_ACCESS			= 0x0,	/* Not IPA v5.5+ */
 	IPA_IRQ_EOT_COAL			= 0x1,	/* Not IPA v3.5+ */
 	IPA_IRQ_UC_0				= 0x2,
 	IPA_IRQ_UC_1				= 0x3,
@@ -596,11 +600,11 @@ enum ipa_irq_id {
 	IPA_IRQ_UC_IN_Q_NOT_EMPTY		= 0x6,
 	IPA_IRQ_UC_RX_CMD_Q_NOT_FULL		= 0x7,
 	IPA_IRQ_PROC_UC_ACK_Q_NOT_EMPTY		= 0x8,
-	IPA_IRQ_RX_ERR				= 0x9,
-	IPA_IRQ_DEAGGR_ERR			= 0xa,
-	IPA_IRQ_TX_ERR				= 0xb,
-	IPA_IRQ_STEP_MODE			= 0xc,
-	IPA_IRQ_PROC_ERR			= 0xd,
+	IPA_IRQ_RX_ERR				= 0x9,	/* Not IPA v5.5+ */
+	IPA_IRQ_DEAGGR_ERR			= 0xa,	/* Not IPA v5.5+ */
+	IPA_IRQ_TX_ERR				= 0xb,	/* Not IPA v5.5+ */
+	IPA_IRQ_STEP_MODE			= 0xc,	/* Not IPA v5.5+ */
+	IPA_IRQ_PROC_ERR			= 0xd,	/* Not IPA v5.5+ */
 	IPA_IRQ_TX_SUSPEND			= 0xe,
 	IPA_IRQ_TX_HOLB_DROP			= 0xf,
 	IPA_IRQ_BAM_GSI_IDLE			= 0x10,
@@ -613,10 +617,12 @@ enum ipa_irq_id {
 	IPA_IRQ_GSI_EE				= 0x17,
 	IPA_IRQ_GSI_IPA_IF_TLV_RCVD		= 0x18,
 	IPA_IRQ_GSI_UC				= 0x19,
-	IPA_IRQ_TLV_LEN_MIN_DSM			= 0x1a,	/* IPA v4.5+ */
-	IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN	= 0x1b,	/* IPA v4.9+ */
-	IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN	= 0x1c,	/* IPA v4.9+ */
-	IPA_IRQ_DRBIP_IMM_CMD_NO_FLSH_HZRD_EN	= 0x1d,	/* IPA v4.9+ */
+	IPA_IRQ_TLV_LEN_MIN_DSM			= 0x1a,	/* IPA v4.5-v5.2 */
+	IPA_IRQ_DRBIP_PKT_EXCEED_MAX_SIZE_EN	= 0x1b,	/* IPA v4.9-v5.2 */
+	IPA_IRQ_DRBIP_DATA_SCTR_CFG_ERROR_EN	= 0x1c,	/* IPA v4.9-v5.2 */
+	IPA_IRQ_DRBIP_IMM_CMD_NO_FLSH_HZRD_EN	= 0x1d,	/* IPA v4.9-v5.2 */
+	IPA_IRQ_ERROR_NON_FATAL			= 0x1e,	/* IPA v5.5+ */
+	IPA_IRQ_ERROR_FATAL			= 0x1f,	/* IPA v5.5+ */
 	IPA_IRQ_COUNT,				/* Last; not an id */
 };
 

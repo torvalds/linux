@@ -74,6 +74,7 @@
 #define IPA_PAS_ID		15
 
 /* Shift of 19.2 MHz timestamp to achieve lower resolution timestamps */
+/* IPA v5.5+ does not specify Qtime timestamp config for DPL */
 #define DPL_TIMESTAMP_SHIFT	14	/* ~1.172 kHz, ~853 usec per tick */
 #define TAG_TIMESTAMP_SHIFT	14
 #define NAT_TIMESTAMP_SHIFT	24	/* ~1.144 Hz, ~874 msec per tick */
@@ -376,9 +377,11 @@ static void ipa_qtime_config(struct ipa *ipa)
 	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 
 	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
-	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
-	val = reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
-	val |= reg_bit(reg, DPL_TIMESTAMP_SEL);
+	if (ipa->version < IPA_VERSION_5_5) {
+		/* Set DPL time stamp resolution to use Qtime (not 1 msec) */
+		val = reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
+		val |= reg_bit(reg, DPL_TIMESTAMP_SEL);
+	}
 	/* Configure tag and NAT Qtime timestamp resolution as well */
 	val = reg_encode(reg, TAG_TIMESTAMP_LSB, TAG_TIMESTAMP_SHIFT);
 	val = reg_encode(reg, NAT_TIMESTAMP_LSB, NAT_TIMESTAMP_SHIFT);
