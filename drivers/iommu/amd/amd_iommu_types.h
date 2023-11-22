@@ -902,12 +902,6 @@ extern int amd_iommu_max_glx_val;
 extern u64 amd_iommu_efr;
 extern u64 amd_iommu_efr2;
 
-/*
- * This function flushes all internal caches of
- * the IOMMU used by this driver.
- */
-void iommu_flush_all_caches(struct amd_iommu *iommu);
-
 static inline int get_ioapic_devid(int id)
 {
 	struct devid_map *entry;
