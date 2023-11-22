@@ -458,8 +458,17 @@ static void pci_read_bridge_mmio_pref(struct pci_dev *dev, struct resource *res,
 
 static void pci_read_bridge_windows(struct pci_dev *bridge)
 {
+	u32 buses;
 	u16 io;
 	u32 pmem, tmp;
+	struct resource res;
+
+	pci_read_config_dword(bridge, PCI_PRIMARY_BUS, &buses);
+	res.flags = IORESOURCE_BUS;
+	res.start = (buses >> 8) & 0xff;
+	res.end = (buses >> 16) & 0xff;
+	pci_info(bridge, "PCI bridge to %pR%s\n", &res,
+		 bridge->transparent ? " (subtractive decode)" : "");
 
 	pci_read_config_word(bridge, PCI_IO_BASE, &io);
 	if (!io) {
@@ -467,8 +476,12 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 		pci_read_config_word(bridge, PCI_IO_BASE, &io);
 		pci_write_config_word(bridge, PCI_IO_BASE, 0x0);
 	}
-	if (io)
+	if (io) {
 		bridge->io_window = 1;
+		pci_read_bridge_io(bridge, &res, true);
+	}
+
+	pci_read_bridge_mmio(bridge, &res, true);
 
 	/*
 	 * DECchip 21050 pass 2 errata: the bridge may miss an address
@@ -505,6 +518,8 @@ static void pci_read_bridge_windows(struct pci_dev *bridge)
 		if (tmp)
 			bridge->pref_64_window = 1;
 	}
+
+	pci_read_bridge_mmio_pref(bridge, &res, true);
 }
 
 void pci_read_bridge_bases(struct pci_bus *child)
@@ -524,9 +539,9 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
 		child->resource[i] = &dev->resource[PCI_BRIDGE_RESOURCES+i];
 
-	pci_read_bridge_io(child->self, child->resource[0], true);
-	pci_read_bridge_mmio(child->self, child->resource[1], true);
-	pci_read_bridge_mmio_pref(child->self, child->resource[2], true);
+	pci_read_bridge_io(child->self, child->resource[0], false);
+	pci_read_bridge_mmio(child->self, child->resource[1], false);
+	pci_read_bridge_mmio_pref(child->self, child->resource[2], false);
 
 	if (dev->transparent) {
 		pci_bus_for_each_resource(child->parent, res) {
