@@ -4336,6 +4336,10 @@ static inline void __walt_irq_work_locked(bool is_migration, bool is_asym_migrat
 		}
 	}
 
+	/* update fmax cap for frequency relation */
+	for_each_sched_cluster(cluster)
+		update_freq_relation(cluster);
+
 	/*
 	 * If the window change request is in pending, good place to
 	 * change sched_ravg_window since all rq locks are acquired.
@@ -4612,6 +4616,40 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 
 	trace_sched_fmax_uncap(nr_big, window_start, wakeup_ctr_sum,
 			fmax_uncap_load_detected, fmax_uncap_timestamp);
+}
+
+void update_freq_relation(struct walt_sched_cluster *cluster)
+{
+	int cluster_id = cluster->id;
+	int tgt_cpu, i;
+	unsigned int tgt_freq;
+	struct walt_sched_cluster *tgt_cluster;
+	unsigned int prev_cap = fmax_cap[FREQ_REL_CAP][cluster_id];
+
+	for (i = 0; i < MAX_FREQ_RELATIONS; i++) {
+		tgt_cpu = relation_data[cluster_id][i].target_cluster_cpu;
+		if (tgt_cpu < 0)
+			break;
+		tgt_cluster = cpu_cluster(tgt_cpu);
+		tgt_freq = (arch_scale_freq_capacity(tgt_cpu) *
+			(unsigned long)tgt_cluster->max_possible_freq) >> SCHED_CAPACITY_SHIFT;
+
+		if (tgt_freq < relation_data[cluster_id][i].tgt_freq) {
+			fmax_cap[FREQ_REL_CAP][cluster_id] = relation_data[cluster_id][i].src_freq;
+			break;
+		}
+	}
+
+	/*
+	 * If there is no relation further or target cluster is frequency
+	 * limited below the target cluster's frequency threshold.
+	 */
+	if ((tgt_cpu < 0) ||
+	    ((tgt_cpu >= 0) && relation_data[cluster_id][i].tgt_freq > tgt_cluster->max_freq))
+		fmax_cap[FREQ_REL_CAP][cluster_id] = FREQ_QOS_MAX_DEFAULT_VALUE;
+
+	if (prev_cap != fmax_cap[FREQ_REL_CAP][cluster_id])
+		update_fmax_cap_capacities(FREQ_REL_CAP);
 }
 
 void walt_fill_ta_data(struct core_ctl_notif_data *data)
