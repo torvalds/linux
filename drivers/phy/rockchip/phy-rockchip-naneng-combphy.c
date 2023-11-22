@@ -287,9 +287,42 @@ static int rockchip_combphy_exit(struct phy *phy)
 	return 0;
 }
 
+static const char *rockchip_combphy_mode2str(enum phy_mode mode)
+{
+	switch (mode) {
+	case PHY_TYPE_SATA:
+		return "SATA";
+	case PHY_TYPE_PCIE:
+		return "PCIe";
+	case PHY_TYPE_USB3:
+		return "USB3";
+	case PHY_TYPE_SGMII:
+	case PHY_TYPE_QSGMII:
+		return "GMII";
+	default:
+		return "Unknown";
+	}
+}
+
+static int rockchip_combphy_validate(struct phy *phy, enum phy_mode mode, int submode,
+			      union phy_configure_opts *opts)
+{
+	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+
+	if (mode != priv->mode) {
+		dev_err(priv->dev, "expected mode is %s, but current mode is %s\n",
+			rockchip_combphy_mode2str(mode),
+			rockchip_combphy_mode2str(priv->mode));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct phy_ops rochchip_combphy_ops = {
 	.init = rockchip_combphy_init,
 	.exit = rockchip_combphy_exit,
+	.validate = rockchip_combphy_validate,
 	.owner = THIS_MODULE,
 };
 
