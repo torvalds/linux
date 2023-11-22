@@ -245,9 +245,7 @@ static int lo_write_bvec(struct file *file, struct bio_vec *bvec, loff_t *ppos)
 
 	iov_iter_bvec(&i, ITER_SOURCE, bvec, 1, bvec->bv_len);
 
-	file_start_write(file);
 	bw = vfs_iter_write(file, &i, ppos, 0);
-	file_end_write(file);
 
 	if (likely(bw ==  bvec->bv_len))
 		return 0;

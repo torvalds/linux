@@ -332,13 +332,11 @@ static int fd_do_rw(struct se_cmd *cmd, struct file *fd,
 	}
 
 	iov_iter_bvec(&iter, is_write, bvec, sgl_nents, len);
-	if (is_write) {
-		file_start_write(fd);
+	if (is_write)
 		ret = vfs_iter_write(fd, &iter, &pos, 0);
-		file_end_write(fd);
-	} else {
+	else
 		ret = vfs_iter_read(fd, &iter, &pos, 0);
-	}
+
 	if (is_write) {
 		if (ret < 0 || ret != data_length) {
 			pr_err("%s() write returned %d\n", __func__, ret);
@@ -469,9 +467,7 @@ fd_execute_write_same(struct se_cmd *cmd)
 	}
 
 	iov_iter_bvec(&iter, ITER_SOURCE, bvec, nolb, len);
-	file_start_write(fd_dev->fd_file);
 	ret = vfs_iter_write(fd_dev->fd_file, &iter, &pos, 0);
-	file_end_write(fd_dev->fd_file);
 
 	kfree(bvec);
 	if (ret < 0 || ret != len) {
