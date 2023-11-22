@@ -25,8 +25,21 @@ arch, impl), the returned value will only be valid if all CPUs in the given set
 have the same value. Otherwise -1 will be returned. For boolean-like keys, the
 value returned will be a logical AND of the values for the specified CPUs.
 Usermode can supply NULL for ``cpus`` and 0 for ``cpusetsize`` as a shortcut for
-all online CPUs. There are currently no flags, this value must be zero for
-future compatibility.
+all online CPUs. The currently supported flags are:
+
+* :c:macro:`RISCV_HWPROBE_WHICH_CPUS`: This flag basically reverses the behavior
+  of sys_riscv_hwprobe().  Instead of populating the values of keys for a given
+  set of CPUs, the values of each key are given and the set of CPUs is reduced
+  by sys_riscv_hwprobe() to only those which match each of the key-value pairs.
+  How matching is done depends on the key type.  For value-like keys, matching
+  means to be the exact same as the value.  For boolean-like keys, matching
+  means the result of a logical AND of the pair's value with the CPU's value is
+  exactly the same as the pair's value.  Additionally, when ``cpus`` is an empty
+  set, then it is initialized to all online CPUs which fit within it, i.e. the
+  CPU set returned is the reduction of all the online CPUs which can be
+  represented with a CPU set of size ``cpusetsize``.
+
+All other flags are reserved for future compatibility and must be zero.
 
 On success 0 is returned, on failure a negative error code is returned.
 

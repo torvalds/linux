@@ -179,10 +179,10 @@ static void hwprobe_one_pair(struct riscv_hwprobe *pair,
 	}
 }
 
-static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
-			    size_t pair_count, size_t cpusetsize,
-			    unsigned long __user *cpus_user,
-			    unsigned int flags)
+static int hwprobe_get_values(struct riscv_hwprobe __user *pairs,
+			      size_t pair_count, size_t cpusetsize,
+			      unsigned long __user *cpus_user,
+			      unsigned int flags)
 {
 	size_t out;
 	int ret;
@@ -234,6 +234,92 @@ static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
 	}
 
 	return 0;
+}
+
+static int hwprobe_get_cpus(struct riscv_hwprobe __user *pairs,
+			    size_t pair_count, size_t cpusetsize,
+			    unsigned long __user *cpus_user,
+			    unsigned int flags)
+{
+	cpumask_t cpus, one_cpu;
+	bool clear_all = false;
+	size_t i;
+	int ret;
+
+	if (flags != RISCV_HWPROBE_WHICH_CPUS)
+		return -EINVAL;
+
+	if (!cpusetsize || !cpus_user)
+		return -EINVAL;
+
+	if (cpusetsize > cpumask_size())
+		cpusetsize = cpumask_size();
+
+	ret = copy_from_user(&cpus, cpus_user, cpusetsize);
+	if (ret)
+		return -EFAULT;
+
+	if (cpumask_empty(&cpus))
+		cpumask_copy(&cpus, cpu_online_mask);
+
+	cpumask_and(&cpus, &cpus, cpu_online_mask);
+
+	cpumask_clear(&one_cpu);
+
+	for (i = 0; i < pair_count; i++) {
+		struct riscv_hwprobe pair, tmp;
+		int cpu;
+
+		ret = copy_from_user(&pair, &pairs[i], sizeof(pair));
+		if (ret)
+			return -EFAULT;
+
+		if (!riscv_hwprobe_key_is_valid(pair.key)) {
+			clear_all = true;
+			pair = (struct riscv_hwprobe){ .key = -1, };
+			ret = copy_to_user(&pairs[i], &pair, sizeof(pair));
+			if (ret)
+				return -EFAULT;
+		}
+
+		if (clear_all)
+			continue;
+
+		tmp = (struct riscv_hwprobe){ .key = pair.key, };
+
+		for_each_cpu(cpu, &cpus) {
+			cpumask_set_cpu(cpu, &one_cpu);
+
+			hwprobe_one_pair(&tmp, &one_cpu);
+
+			if (!riscv_hwprobe_pair_cmp(&tmp, &pair))
+				cpumask_clear_cpu(cpu, &cpus);
+
+			cpumask_clear_cpu(cpu, &one_cpu);
+		}
+	}
+
+	if (clear_all)
+		cpumask_clear(&cpus);
+
+	ret = copy_to_user(cpus_user, &cpus, cpusetsize);
+	if (ret)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int do_riscv_hwprobe(struct riscv_hwprobe __user *pairs,
+			    size_t pair_count, size_t cpusetsize,
+			    unsigned long __user *cpus_user,
+			    unsigned int flags)
+{
+	if (flags & RISCV_HWPROBE_WHICH_CPUS)
+		return hwprobe_get_cpus(pairs, pair_count, cpusetsize,
+					cpus_user, flags);
+
+	return hwprobe_get_values(pairs, pair_count, cpusetsize,
+				  cpus_user, flags);
 }
 
 #ifdef CONFIG_MMU
