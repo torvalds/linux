@@ -1152,40 +1152,36 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 }
 
 static void build_inv_iommu_pasid(struct iommu_cmd *cmd, u16 domid, u32 pasid,
-				  u64 address, bool size)
+				  u64 address, size_t size)
 {
-	memset(cmd, 0, sizeof(*cmd));
+	u64 inv_address = build_inv_address(address, size);
 
-	address &= ~(0xfffULL);
+	memset(cmd, 0, sizeof(*cmd));
 
 	cmd->data[0]  = pasid;
 	cmd->data[1]  = domid;
-	cmd->data[2]  = lower_32_bits(address);
-	cmd->data[3]  = upper_32_bits(address);
+	cmd->data[2]  = lower_32_bits(inv_address);
+	cmd->data[3]  = upper_32_bits(inv_address);
 	cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
-	if (size)
-		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
 	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 }
 
 static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, u32 pasid,
-				  int qdep, u64 address, bool size)
+				  int qdep, u64 address, size_t size)
 {
-	memset(cmd, 0, sizeof(*cmd));
+	u64 inv_address = build_inv_address(address, size);
 
-	address &= ~(0xfffULL);
+	memset(cmd, 0, sizeof(*cmd));
 
 	cmd->data[0]  = devid;
 	cmd->data[0] |= ((pasid >> 8) & 0xff) << 16;
 	cmd->data[0] |= (qdep  & 0xff) << 24;
 	cmd->data[1]  = devid;
 	cmd->data[1] |= (pasid & 0xff) << 16;
-	cmd->data[2]  = lower_32_bits(address);
+	cmd->data[2]  = lower_32_bits(inv_address);
 	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
-	cmd->data[3]  = upper_32_bits(address);
-	if (size)
-		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
+	cmd->data[3]  = upper_32_bits(inv_address);
 	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
 }
 
@@ -2656,7 +2652,7 @@ const struct iommu_ops amd_iommu_ops = {
 };
 
 static int __flush_pasid(struct protection_domain *domain, u32 pasid,
-			 u64 address, bool size)
+			 u64 address, size_t size)
 {
 	struct iommu_dev_data *dev_data;
 	struct iommu_cmd cmd;
@@ -2720,7 +2716,7 @@ out:
 static int __amd_iommu_flush_page(struct protection_domain *domain, u32 pasid,
 				  u64 address)
 {
-	return __flush_pasid(domain, pasid, address, false);
+	return __flush_pasid(domain, pasid, address, PAGE_SIZE);
 }
 
 int amd_iommu_flush_page(struct iommu_domain *dom, u32 pasid,
@@ -2739,8 +2735,7 @@ int amd_iommu_flush_page(struct iommu_domain *dom, u32 pasid,
 
 static int __amd_iommu_flush_tlb(struct protection_domain *domain, u32 pasid)
 {
-	return __flush_pasid(domain, pasid, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
-			     true);
+	return __flush_pasid(domain, pasid, 0, CMD_INV_IOMMU_ALL_PAGES_ADDRESS);
 }
 
 int amd_iommu_flush_tlb(struct iommu_domain *dom, u32 pasid)
