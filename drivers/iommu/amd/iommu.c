@@ -1144,34 +1144,24 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 }
 
 static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
-				  u64 address, size_t size)
+				  u64 address, size_t size,
+				  ioasid_t pasid, bool gn)
 {
 	u64 inv_address = build_inv_address(address, size);
 
 	memset(cmd, 0, sizeof(*cmd));
+
 	cmd->data[0]  = devid;
 	cmd->data[0] |= (qdep & 0xff) << 24;
 	cmd->data[1]  = devid;
 	cmd->data[2]  = lower_32_bits(inv_address);
 	cmd->data[3]  = upper_32_bits(inv_address);
-	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
-}
+	if (gn) {
+		cmd->data[0] |= ((pasid >> 8) & 0xff) << 16;
+		cmd->data[1] |= (pasid & 0xff) << 16;
+		cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
+	}
 
-static void build_inv_iotlb_pasid(struct iommu_cmd *cmd, u16 devid, u32 pasid,
-				  int qdep, u64 address, size_t size)
-{
-	u64 inv_address = build_inv_address(address, size);
-
-	memset(cmd, 0, sizeof(*cmd));
-
-	cmd->data[0]  = devid;
-	cmd->data[0] |= ((pasid >> 8) & 0xff) << 16;
-	cmd->data[0] |= (qdep  & 0xff) << 24;
-	cmd->data[1]  = devid;
-	cmd->data[1] |= (pasid & 0xff) << 16;
-	cmd->data[2]  = lower_32_bits(inv_address);
-	cmd->data[2] |= CMD_INV_IOMMU_PAGES_GN_MASK;
-	cmd->data[3]  = upper_32_bits(inv_address);
 	CMD_SET_TYPE(cmd, CMD_INV_IOTLB_PAGES);
 }
 
@@ -1404,7 +1394,8 @@ static int device_flush_iotlb(struct iommu_dev_data *dev_data,
 	if (!iommu)
 		return -EINVAL;
 
-	build_inv_iotlb_pages(&cmd, dev_data->devid, qdep, address, size);
+	build_inv_iotlb_pages(&cmd, dev_data->devid, qdep, address,
+			      size, IOMMU_NO_PASID, false);
 
 	return iommu_queue_command(iommu, &cmd);
 }
@@ -2687,8 +2678,8 @@ static int __flush_pasid(struct protection_domain *domain, u32 pasid,
 		iommu = rlookup_amd_iommu(dev_data->dev);
 		if (!iommu)
 			continue;
-		build_inv_iotlb_pasid(&cmd, dev_data->devid, pasid,
-				      qdep, address, size);
+		build_inv_iotlb_pages(&cmd, dev_data->devid, qdep,
+				      address, size, pasid, true);
 
 		ret = iommu_queue_command(iommu, &cmd);
 		if (ret != 0)
