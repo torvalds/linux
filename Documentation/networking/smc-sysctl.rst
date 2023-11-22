@@ -65,3 +65,9 @@ smcr_max_links_per_lgr - INTEGER
 	for SMC-R v2.1 and later.
 
 	Default: 2
+
+smcr_max_conns_per_lgr - INTEGER
+	Controls the max number of connections can be added to a SMC-R link group. The
+	acceptable value ranges from 16 to 255. Only for SMC-R v2.1 and later.
+
+	Default: 255
