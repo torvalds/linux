@@ -287,6 +287,16 @@ int octep_ctrl_net_get_mac_addr(struct octep_device *oct, int vfid, u8 *addr);
 int octep_ctrl_net_set_mac_addr(struct octep_device *oct, int vfid, u8 *addr,
 				bool wait_for_response);
 
+/**
+ * octep_ctrl_net_get_mtu() - Get max MTU from firmware.
+ *
+ * @oct: non-null pointer to struct octep_device.
+ * @vfid: Index of virtual function.
+ *
+ * return value: mtu on success, -errno on failure.
+ */
+int octep_ctrl_net_get_mtu(struct octep_device *oct, int vfid);
+
 /** 
  * octep_ctrl_net_set_mtu() - Set mtu in firmware.
  *

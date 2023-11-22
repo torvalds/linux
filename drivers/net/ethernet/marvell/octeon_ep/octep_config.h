@@ -45,8 +45,6 @@
 
 /* Minimum MTU supported by Octeon network interface */
 #define OCTEP_MIN_MTU        ETH_MIN_MTU
-/* Maximum MTU supported by Octeon interface*/
-#define OCTEP_MAX_MTU        (10000 - (ETH_HLEN + ETH_FCS_LEN))
 /* Default MTU */
 #define OCTEP_DEFAULT_MTU    1500
 
