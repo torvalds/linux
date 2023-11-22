@@ -59,12 +59,10 @@ static inline void rtw89_debugfs_init(struct rtw89_dev *rtwdev) {}
 
 #ifdef CONFIG_RTW89_DEBUGMSG
 extern unsigned int rtw89_debug_mask;
-#define rtw89_debug(rtwdev, a...) __rtw89_debug(rtwdev, ##a)
 
 __printf(3, 4)
-void __rtw89_debug(struct rtw89_dev *rtwdev,
-		   enum rtw89_debug_mask mask,
-		   const char *fmt, ...);
+void rtw89_debug(struct rtw89_dev *rtwdev, enum rtw89_debug_mask mask,
+		 const char *fmt, ...);
 static inline void rtw89_hex_dump(struct rtw89_dev *rtwdev,
 				  enum rtw89_debug_mask mask,
 				  const char *prefix_str,
