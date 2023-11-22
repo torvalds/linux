@@ -944,6 +944,39 @@ static void do_splice_eof(struct splice_desc *sd)
 		sd->splice_eof(sd);
 }
 
+/*
+ * Callers already called rw_verify_area() on the entire range.
+ * No need to call it for sub ranges.
+ */
+static long do_splice_read(struct file *in, loff_t *ppos,
+			   struct pipe_inode_info *pipe, size_t len,
+			   unsigned int flags)
+{
+	unsigned int p_space;
+
+	if (unlikely(!(in->f_mode & FMODE_READ)))
+		return -EBADF;
+	if (!len)
+		return 0;
+
+	/* Don't try to read more the pipe has space for. */
+	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
+	len = min_t(size_t, len, p_space << PAGE_SHIFT);
+
+	if (unlikely(len > MAX_RW_COUNT))
+		len = MAX_RW_COUNT;
+
+	if (unlikely(!in->f_op->splice_read))
+		return warn_unsupported(in, "read");
+	/*
+	 * O_DIRECT and DAX don't deal with the pagecache, so we allocate a
+	 * buffer, copy into it and splice that into the pipe.
+	 */
+	if ((in->f_flags & O_DIRECT) || IS_DAX(in->f_mapping->host))
+		return copy_splice_read(in, ppos, pipe, len, flags);
+	return in->f_op->splice_read(in, ppos, pipe, len, flags);
+}
+
 /**
  * vfs_splice_read - Read data from a file and splice it into a pipe
  * @in:		File to splice from
@@ -963,34 +996,13 @@ long vfs_splice_read(struct file *in, loff_t *ppos,
 		     struct pipe_inode_info *pipe, size_t len,
 		     unsigned int flags)
 {
-	unsigned int p_space;
 	int ret;
-
-	if (unlikely(!(in->f_mode & FMODE_READ)))
-		return -EBADF;
-	if (!len)
-		return 0;
-
-	/* Don't try to read more the pipe has space for. */
-	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
-	len = min_t(size_t, len, p_space << PAGE_SHIFT);
 
 	ret = rw_verify_area(READ, in, ppos, len);
 	if (unlikely(ret < 0))
 		return ret;
 
-	if (unlikely(len > MAX_RW_COUNT))
-		len = MAX_RW_COUNT;
-
-	if (unlikely(!in->f_op->splice_read))
-		return warn_unsupported(in, "read");
-	/*
-	 * O_DIRECT and DAX don't deal with the pagecache, so we allocate a
-	 * buffer, copy into it and splice that into the pipe.
-	 */
-	if ((in->f_flags & O_DIRECT) || IS_DAX(in->f_mapping->host))
-		return copy_splice_read(in, ppos, pipe, len, flags);
-	return in->f_op->splice_read(in, ppos, pipe, len, flags);
+	return do_splice_read(in, ppos, pipe, len, flags);
 }
 EXPORT_SYMBOL_GPL(vfs_splice_read);
 
@@ -1066,7 +1078,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		size_t read_len;
 		loff_t pos = sd->pos, prev_pos = pos;
 
-		ret = vfs_splice_read(in, &pos, pipe, len, flags);
+		ret = do_splice_read(in, &pos, pipe, len, flags);
 		if (unlikely(ret <= 0))
 			goto read_failure;
 
