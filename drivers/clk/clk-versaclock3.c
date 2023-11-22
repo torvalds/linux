@@ -226,9 +226,8 @@ static int vc3_pfd_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *pfd_mux = vc3->data;
 
-	regmap_update_bits(vc3->regmap, pfd_mux->offs, pfd_mux->bitmsk,
-			   index ? pfd_mux->bitmsk : 0);
-	return 0;
+	return regmap_update_bits(vc3->regmap, pfd_mux->offs, pfd_mux->bitmsk,
+				  index ? pfd_mux->bitmsk : 0);
 }
 
 static const struct clk_ops vc3_pfd_mux_ops = {
@@ -456,10 +455,8 @@ static int vc3_div_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *div_mux = vc3->data;
 
-	regmap_update_bits(vc3->regmap, div_mux->offs, div_mux->bitmsk,
-			   index ? div_mux->bitmsk : 0);
-
-	return 0;
+	return regmap_update_bits(vc3->regmap, div_mux->offs, div_mux->bitmsk,
+				  index ? div_mux->bitmsk : 0);
 }
 
 static const struct clk_ops vc3_div_mux_ops = {
@@ -524,10 +521,9 @@ static int vc3_div_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	value = divider_get_val(rate, parent_rate, div_data->table,
 				div_data->width, div_data->flags);
-	regmap_update_bits(vc3->regmap, div_data->offs,
-			   VC3_DIV_MASK(div_data->width) << div_data->shift,
-			   value << div_data->shift);
-	return 0;
+	return regmap_update_bits(vc3->regmap, div_data->offs,
+				  VC3_DIV_MASK(div_data->width) << div_data->shift,
+				  value << div_data->shift);
 }
 
 static const struct clk_ops vc3_div_ops = {
@@ -539,11 +535,9 @@ static const struct clk_ops vc3_div_ops = {
 static int vc3_clk_mux_determine_rate(struct clk_hw *hw,
 				      struct clk_rate_request *req)
 {
-	int ret;
 	int frc;
 
-	ret = clk_mux_determine_rate_flags(hw, req, CLK_SET_RATE_PARENT);
-	if (ret) {
+	if (clk_mux_determine_rate_flags(hw, req, CLK_SET_RATE_PARENT)) {
 		/* The below check is equivalent to (best_parent_rate/rate) */
 		if (req->best_parent_rate >= req->rate) {
 			frc = DIV_ROUND_CLOSEST_ULL(req->best_parent_rate,
@@ -552,10 +546,9 @@ static int vc3_clk_mux_determine_rate(struct clk_hw *hw,
 			return clk_mux_determine_rate_flags(hw, req,
 							    CLK_SET_RATE_PARENT);
 		}
-		ret = 0;
 	}
 
-	return ret;
+	return 0;
 }
 
 static u8 vc3_clk_mux_get_parent(struct clk_hw *hw)
@@ -574,9 +567,8 @@ static int vc3_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct vc3_hw_data *vc3 = container_of(hw, struct vc3_hw_data, hw);
 	const struct vc3_clk_data *clk_mux = vc3->data;
 
-	regmap_update_bits(vc3->regmap, clk_mux->offs,
-			   clk_mux->bitmsk, index ? clk_mux->bitmsk : 0);
-	return 0;
+	return regmap_update_bits(vc3->regmap, clk_mux->offs, clk_mux->bitmsk,
+				  index ? clk_mux->bitmsk : 0);
 }
 
 static const struct clk_ops vc3_clk_mux_ops = {
