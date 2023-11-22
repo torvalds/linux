@@ -2,19 +2,31 @@
 /* Copyright (c) 2023 Imagination Technologies Ltd. */
 
 #include "pvr_device.h"
+#include "pvr_device_info.h"
+
+#include "pvr_fw.h"
+#include "pvr_rogue_cr_defs.h"
 
 #include <drm/drm_print.h>
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/compiler_attributes.h>
 #include <linux/compiler_types.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/firmware.h>
 #include <linux/gfp.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
+
+/* Major number for the supported version of the firmware. */
+#define PVR_FW_VERSION_MAJOR 1
 
 /**
  * pvr_device_reg_init() - Initialize kernel access to a PowerVR device's
@@ -101,6 +113,209 @@ static int pvr_device_clk_init(struct pvr_device *pvr_dev)
 }
 
 /**
+ * pvr_build_firmware_filename() - Construct a PowerVR firmware filename
+ * @pvr_dev: Target PowerVR device.
+ * @base: First part of the filename.
+ * @major: Major version number.
+ *
+ * A PowerVR firmware filename consists of three parts separated by underscores
+ * (``'_'``) along with a '.fw' file suffix. The first part is the exact value
+ * of @base, the second part is the hardware version string derived from @pvr_fw
+ * and the final part is the firmware version number constructed from @major with
+ * a 'v' prefix, e.g. powervr/rogue_4.40.2.51_v1.fw.
+ *
+ * The returned string will have been slab allocated and must be freed with
+ * kfree().
+ *
+ * Return:
+ *  * The constructed filename on success, or
+ *  * Any error returned by kasprintf().
+ */
+static char *
+pvr_build_firmware_filename(struct pvr_device *pvr_dev, const char *base,
+			    u8 major)
+{
+	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
+
+	return kasprintf(GFP_KERNEL, "%s_%d.%d.%d.%d_v%d.fw", base, gpu_id->b,
+			 gpu_id->v, gpu_id->n, gpu_id->c, major);
+}
+
+static void
+pvr_release_firmware(void *data)
+{
+	struct pvr_device *pvr_dev = data;
+
+	release_firmware(pvr_dev->fw_dev.firmware);
+}
+
+/**
+ * pvr_request_firmware() - Load firmware for a PowerVR device
+ * @pvr_dev: Target PowerVR device.
+ *
+ * See pvr_build_firmware_filename() for details on firmware file naming.
+ *
+ * Return:
+ *  * 0 on success,
+ *  * Any error returned by pvr_build_firmware_filename(), or
+ *  * Any error returned by request_firmware().
+ */
+static int
+pvr_request_firmware(struct pvr_device *pvr_dev)
+{
+	struct drm_device *drm_dev = &pvr_dev->base;
+	char *filename;
+	const struct firmware *fw;
+	int err;
+
+	filename = pvr_build_firmware_filename(pvr_dev, "powervr/rogue",
+					       PVR_FW_VERSION_MAJOR);
+	if (IS_ERR(filename))
+		return PTR_ERR(filename);
+
+	/*
+	 * This function takes a copy of &filename, meaning we can free our
+	 * instance before returning.
+	 */
+	err = request_firmware(&fw, filename, pvr_dev->base.dev);
+	if (err) {
+		drm_err(drm_dev, "failed to load firmware %s (err=%d)\n",
+			filename, err);
+		goto err_free_filename;
+	}
+
+	drm_info(drm_dev, "loaded firmware %s\n", filename);
+	kfree(filename);
+
+	pvr_dev->fw_dev.firmware = fw;
+
+	return devm_add_action_or_reset(drm_dev->dev, pvr_release_firmware, pvr_dev);
+
+err_free_filename:
+	kfree(filename);
+
+	return err;
+}
+
+/**
+ * pvr_load_gpu_id() - Load a PowerVR device's GPU ID (BVNC) from control registers.
+ *
+ * Sets struct pvr_dev.gpu_id.
+ *
+ * @pvr_dev: Target PowerVR device.
+ */
+static void
+pvr_load_gpu_id(struct pvr_device *pvr_dev)
+{
+	struct pvr_gpu_id *gpu_id = &pvr_dev->gpu_id;
+	u64 bvnc;
+
+	/*
+	 * Try reading the BVNC using the newer (cleaner) method first. If the
+	 * B value is zero, fall back to the older method.
+	 */
+	bvnc = pvr_cr_read64(pvr_dev, ROGUE_CR_CORE_ID__PBVNC);
+
+	gpu_id->b = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__BRANCH_ID);
+	if (gpu_id->b != 0) {
+		gpu_id->v = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__VERSION_ID);
+		gpu_id->n = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__NUMBER_OF_SCALABLE_UNITS);
+		gpu_id->c = PVR_CR_FIELD_GET(bvnc, CORE_ID__PBVNC__CONFIG_ID);
+	} else {
+		u32 core_rev = pvr_cr_read32(pvr_dev, ROGUE_CR_CORE_REVISION);
+		u32 core_id = pvr_cr_read32(pvr_dev, ROGUE_CR_CORE_ID);
+		u16 core_id_config = PVR_CR_FIELD_GET(core_id, CORE_ID_CONFIG);
+
+		gpu_id->b = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MAJOR);
+		gpu_id->v = PVR_CR_FIELD_GET(core_rev, CORE_REVISION_MINOR);
+		gpu_id->n = FIELD_GET(0xFF00, core_id_config);
+		gpu_id->c = FIELD_GET(0x00FF, core_id_config);
+	}
+}
+
+/**
+ * pvr_set_dma_info() - Set PowerVR device DMA information
+ * @pvr_dev: Target PowerVR device.
+ *
+ * Sets the DMA mask and max segment size for the PowerVR device.
+ *
+ * Return:
+ *  * 0 on success,
+ *  * Any error returned by PVR_FEATURE_VALUE(), or
+ *  * Any error returned by dma_set_mask().
+ */
+
+static int
+pvr_set_dma_info(struct pvr_device *pvr_dev)
+{
+	struct drm_device *drm_dev = from_pvr_device(pvr_dev);
+	u16 phys_bus_width;
+	int err;
+
+	err = PVR_FEATURE_VALUE(pvr_dev, phys_bus_width, &phys_bus_width);
+	if (err) {
+		drm_err(drm_dev, "Failed to get device physical bus width\n");
+		return err;
+	}
+
+	err = dma_set_mask(drm_dev->dev, DMA_BIT_MASK(phys_bus_width));
+	if (err) {
+		drm_err(drm_dev, "Failed to set DMA mask (err=%d)\n", err);
+		return err;
+	}
+
+	dma_set_max_seg_size(drm_dev->dev, UINT_MAX);
+
+	return 0;
+}
+
+/**
+ * pvr_device_gpu_init() - GPU-specific initialization for a PowerVR device
+ * @pvr_dev: Target PowerVR device.
+ *
+ * The following steps are taken to ensure the device is ready:
+ *
+ *  1. Read the hardware version information from control registers,
+ *  2. Initialise the hardware feature information,
+ *  3. Setup the device DMA information,
+ *  4. Setup the device-scoped memory context, and
+ *  5. Load firmware into the device.
+ *
+ * Return:
+ *  * 0 on success,
+ *  * -%ENODEV if the GPU is not supported,
+ *  * Any error returned by pvr_set_dma_info(),
+ *  * Any error returned by pvr_memory_context_init(), or
+ *  * Any error returned by pvr_request_firmware().
+ */
+static int
+pvr_device_gpu_init(struct pvr_device *pvr_dev)
+{
+	int err;
+
+	pvr_load_gpu_id(pvr_dev);
+
+	err = pvr_request_firmware(pvr_dev);
+	if (err)
+		return err;
+
+	err = pvr_fw_validate_init_device_info(pvr_dev);
+	if (err)
+		return err;
+
+	if (PVR_HAS_FEATURE(pvr_dev, meta))
+		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_META;
+	else if (PVR_HAS_FEATURE(pvr_dev, mips))
+		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_MIPS;
+	else if (PVR_HAS_FEATURE(pvr_dev, riscv_fw_processor))
+		pvr_dev->fw_dev.processor_type = PVR_FW_PROCESSOR_TYPE_RISCV;
+	else
+		return -EINVAL;
+
+	return pvr_set_dma_info(pvr_dev);
+}
+
+/**
  * pvr_device_init() - Initialize a PowerVR device
  * @pvr_dev: Target PowerVR device.
  *
@@ -130,7 +345,12 @@ pvr_device_init(struct pvr_device *pvr_dev)
 		return err;
 
 	/* Map the control registers into memory. */
-	return pvr_device_reg_init(pvr_dev);
+	err = pvr_device_reg_init(pvr_dev);
+	if (err)
+		return err;
+
+	/* Perform GPU-specific initialization steps. */
+	return pvr_device_gpu_init(pvr_dev);
 }
 
 /**
@@ -144,4 +364,105 @@ pvr_device_fini(struct pvr_device *pvr_dev)
 	 * Deinitialization stages are performed in reverse order compared to
 	 * the initialization stages in pvr_device_init().
 	 */
+}
+
+bool
+pvr_device_has_uapi_quirk(struct pvr_device *pvr_dev, u32 quirk)
+{
+	switch (quirk) {
+	case 47217:
+		return PVR_HAS_QUIRK(pvr_dev, 47217);
+	case 48545:
+		return PVR_HAS_QUIRK(pvr_dev, 48545);
+	case 49927:
+		return PVR_HAS_QUIRK(pvr_dev, 49927);
+	case 51764:
+		return PVR_HAS_QUIRK(pvr_dev, 51764);
+	case 62269:
+		return PVR_HAS_QUIRK(pvr_dev, 62269);
+	default:
+		return false;
+	};
+}
+
+bool
+pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement)
+{
+	switch (enhancement) {
+	case 35421:
+		return PVR_HAS_ENHANCEMENT(pvr_dev, 35421);
+	case 42064:
+		return PVR_HAS_ENHANCEMENT(pvr_dev, 42064);
+	default:
+		return false;
+	};
+}
+
+/**
+ * pvr_device_has_feature() - Look up device feature based on feature definition
+ * @pvr_dev: Device pointer.
+ * @feature: Feature to look up. Should be one of %PVR_FEATURE_*.
+ *
+ * Returns:
+ *  * %true if feature is present on device, or
+ *  * %false if feature is not present on device.
+ */
+bool
+pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature)
+{
+	switch (feature) {
+	case PVR_FEATURE_CLUSTER_GROUPING:
+		return PVR_HAS_FEATURE(pvr_dev, cluster_grouping);
+
+	case PVR_FEATURE_COMPUTE_MORTON_CAPABLE:
+		return PVR_HAS_FEATURE(pvr_dev, compute_morton_capable);
+
+	case PVR_FEATURE_FB_CDC_V4:
+		return PVR_HAS_FEATURE(pvr_dev, fb_cdc_v4);
+
+	case PVR_FEATURE_GPU_MULTICORE_SUPPORT:
+		return PVR_HAS_FEATURE(pvr_dev, gpu_multicore_support);
+
+	case PVR_FEATURE_ISP_ZLS_D24_S8_PACKING_OGL_MODE:
+		return PVR_HAS_FEATURE(pvr_dev, isp_zls_d24_s8_packing_ogl_mode);
+
+	case PVR_FEATURE_S7_TOP_INFRASTRUCTURE:
+		return PVR_HAS_FEATURE(pvr_dev, s7_top_infrastructure);
+
+	case PVR_FEATURE_TESSELLATION:
+		return PVR_HAS_FEATURE(pvr_dev, tessellation);
+
+	case PVR_FEATURE_TPU_DM_GLOBAL_REGISTERS:
+		return PVR_HAS_FEATURE(pvr_dev, tpu_dm_global_registers);
+
+	case PVR_FEATURE_VDM_DRAWINDIRECT:
+		return PVR_HAS_FEATURE(pvr_dev, vdm_drawindirect);
+
+	case PVR_FEATURE_VDM_OBJECT_LEVEL_LLS:
+		return PVR_HAS_FEATURE(pvr_dev, vdm_object_level_lls);
+
+	case PVR_FEATURE_ZLS_SUBTILE:
+		return PVR_HAS_FEATURE(pvr_dev, zls_subtile);
+
+	/* Derived features. */
+	case PVR_FEATURE_CDM_USER_MODE_QUEUE: {
+		u8 cdm_control_stream_format = 0;
+
+		PVR_FEATURE_VALUE(pvr_dev, cdm_control_stream_format, &cdm_control_stream_format);
+		return (cdm_control_stream_format >= 2 && cdm_control_stream_format <= 4);
+	}
+
+	case PVR_FEATURE_REQUIRES_FB_CDC_ZLS_SETUP:
+		if (PVR_HAS_FEATURE(pvr_dev, fbcdc_algorithm)) {
+			u8 fbcdc_algorithm = 0;
+
+			PVR_FEATURE_VALUE(pvr_dev, fbcdc_algorithm, &fbcdc_algorithm);
+			return (fbcdc_algorithm < 3 || PVR_HAS_FEATURE(pvr_dev, fb_cdc_v4));
+		}
+		return false;
+
+	default:
+		WARN(true, "Looking up undefined feature %u\n", feature);
+		return false;
+	}
 }

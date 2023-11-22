@@ -3,6 +3,9 @@
 
 #include "pvr_device.h"
 #include "pvr_drv.h"
+#include "pvr_rogue_defs.h"
+#include "pvr_rogue_fwif_client.h"
+#include "pvr_rogue_fwif_shared.h"
 
 #include <uapi/drm/pvr_drm.h>
 
@@ -87,6 +90,382 @@ pvr_ioctl_get_bo_mmap_offset(struct drm_device *drm_dev, void *raw_args,
 	return -ENOTTY;
 }
 
+static __always_inline u64
+pvr_fw_version_packed(u32 major, u32 minor)
+{
+	return ((u64)major << 32) | minor;
+}
+
+static u32
+rogue_get_common_store_partition_space_size(struct pvr_device *pvr_dev)
+{
+	u32 max_partitions = 0;
+	u32 tile_size_x = 0;
+	u32 tile_size_y = 0;
+
+	PVR_FEATURE_VALUE(pvr_dev, tile_size_x, &tile_size_x);
+	PVR_FEATURE_VALUE(pvr_dev, tile_size_y, &tile_size_y);
+	PVR_FEATURE_VALUE(pvr_dev, max_partitions, &max_partitions);
+
+	if (tile_size_x == 16 && tile_size_y == 16) {
+		u32 usc_min_output_registers_per_pix = 0;
+
+		PVR_FEATURE_VALUE(pvr_dev, usc_min_output_registers_per_pix,
+				  &usc_min_output_registers_per_pix);
+
+		return tile_size_x * tile_size_y * max_partitions *
+		       usc_min_output_registers_per_pix;
+	}
+
+	return max_partitions * 1024;
+}
+
+static u32
+rogue_get_common_store_alloc_region_size(struct pvr_device *pvr_dev)
+{
+	u32 common_store_size_in_dwords = 512 * 4 * 4;
+	u32 alloc_region_size;
+
+	PVR_FEATURE_VALUE(pvr_dev, common_store_size_in_dwords, &common_store_size_in_dwords);
+
+	alloc_region_size = common_store_size_in_dwords - (256U * 4U) -
+			    rogue_get_common_store_partition_space_size(pvr_dev);
+
+	if (PVR_HAS_QUIRK(pvr_dev, 44079)) {
+		u32 common_store_split_point = (768U * 4U * 4U);
+
+		return min(common_store_split_point - (256U * 4U), alloc_region_size);
+	}
+
+	return alloc_region_size;
+}
+
+static inline u32
+rogue_get_num_phantoms(struct pvr_device *pvr_dev)
+{
+	u32 num_clusters = 1;
+
+	PVR_FEATURE_VALUE(pvr_dev, num_clusters, &num_clusters);
+
+	return ROGUE_REQ_NUM_PHANTOMS(num_clusters);
+}
+
+static inline u32
+rogue_get_max_coeffs(struct pvr_device *pvr_dev)
+{
+	u32 max_coeff_additional_portion = ROGUE_MAX_VERTEX_SHARED_REGISTERS;
+	u32 pending_allocation_shared_regs = 2U * 1024U;
+	u32 pending_allocation_coeff_regs = 0U;
+	u32 num_phantoms = rogue_get_num_phantoms(pvr_dev);
+	u32 tiles_in_flight = 0;
+	u32 max_coeff_pixel_portion;
+
+	PVR_FEATURE_VALUE(pvr_dev, isp_max_tiles_in_flight, &tiles_in_flight);
+	max_coeff_pixel_portion = DIV_ROUND_UP(tiles_in_flight, num_phantoms);
+	max_coeff_pixel_portion *= ROGUE_MAX_PIXEL_SHARED_REGISTERS;
+
+	/*
+	 * Compute tasks on cores with BRN48492 and without compute overlap may lock
+	 * up without two additional lines of coeffs.
+	 */
+	if (PVR_HAS_QUIRK(pvr_dev, 48492) && !PVR_HAS_FEATURE(pvr_dev, compute_overlap))
+		pending_allocation_coeff_regs = 2U * 1024U;
+
+	if (PVR_HAS_ENHANCEMENT(pvr_dev, 38748))
+		pending_allocation_shared_regs = 0;
+
+	if (PVR_HAS_ENHANCEMENT(pvr_dev, 38020))
+		max_coeff_additional_portion += ROGUE_MAX_COMPUTE_SHARED_REGISTERS;
+
+	return rogue_get_common_store_alloc_region_size(pvr_dev) + pending_allocation_coeff_regs -
+		(max_coeff_pixel_portion + max_coeff_additional_portion +
+		 pending_allocation_shared_regs);
+}
+
+static inline u32
+rogue_get_cdm_max_local_mem_size_regs(struct pvr_device *pvr_dev)
+{
+	u32 available_coeffs_in_dwords = rogue_get_max_coeffs(pvr_dev);
+
+	if (PVR_HAS_QUIRK(pvr_dev, 48492) && PVR_HAS_FEATURE(pvr_dev, roguexe) &&
+	    !PVR_HAS_FEATURE(pvr_dev, compute_overlap)) {
+		/* Driver must not use the 2 reserved lines. */
+		available_coeffs_in_dwords -= ROGUE_CSRM_LINE_SIZE_IN_DWORDS * 2;
+	}
+
+	/*
+	 * The maximum amount of local memory available to a kernel is the minimum
+	 * of the total number of coefficient registers available and the max common
+	 * store allocation size which can be made by the CDM.
+	 *
+	 * If any coeff lines are reserved for tessellation or pixel then we need to
+	 * subtract those too.
+	 */
+	return min(available_coeffs_in_dwords, (u32)ROGUE_MAX_PER_KERNEL_LOCAL_MEM_SIZE_REGS);
+}
+
+/**
+ * pvr_dev_query_gpu_info_get()
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_gpu_info.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ *
+ * Returns:
+ *  * 0 on success, or if size is requested using a NULL pointer, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_gpu_info_get(struct pvr_device *pvr_dev,
+			   struct drm_pvr_ioctl_dev_query_args *args)
+{
+	struct drm_pvr_dev_query_gpu_info gpu_info = {0};
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_gpu_info);
+		return 0;
+	}
+
+	gpu_info.gpu_id =
+		pvr_gpu_id_to_packed_bvnc(&pvr_dev->gpu_id);
+	gpu_info.num_phantoms = rogue_get_num_phantoms(pvr_dev);
+
+	err = PVR_UOBJ_SET(args->pointer, args->size, gpu_info);
+	if (err < 0)
+		return err;
+
+	if (args->size > sizeof(gpu_info))
+		args->size = sizeof(gpu_info);
+	return 0;
+}
+
+/**
+ * pvr_dev_query_runtime_info_get()
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_runtime_info.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ *
+ * Returns:
+ *  * 0 on success, or if size is requested using a NULL pointer, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_runtime_info_get(struct pvr_device *pvr_dev,
+			       struct drm_pvr_ioctl_dev_query_args *args)
+{
+	struct drm_pvr_dev_query_runtime_info runtime_info = {0};
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_runtime_info);
+		return 0;
+	}
+
+	runtime_info.free_list_min_pages = 0; /* FIXME */
+	runtime_info.free_list_max_pages =
+		ROGUE_PM_MAX_FREELIST_SIZE / ROGUE_PM_PAGE_SIZE;
+	runtime_info.common_store_alloc_region_size =
+		rogue_get_common_store_alloc_region_size(pvr_dev);
+	runtime_info.common_store_partition_space_size =
+		rogue_get_common_store_partition_space_size(pvr_dev);
+	runtime_info.max_coeffs = rogue_get_max_coeffs(pvr_dev);
+	runtime_info.cdm_max_local_mem_size_regs =
+		rogue_get_cdm_max_local_mem_size_regs(pvr_dev);
+
+	err = PVR_UOBJ_SET(args->pointer, args->size, runtime_info);
+	if (err < 0)
+		return err;
+
+	if (args->size > sizeof(runtime_info))
+		args->size = sizeof(runtime_info);
+	return 0;
+}
+
+/**
+ * pvr_dev_query_quirks_get() - Unpack array of quirks at the address given
+ * in a struct drm_pvr_dev_query_quirks, or gets the amount of space required
+ * for it.
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_query_quirks.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ * If the userspace pointer in the query object is NULL, or the count is
+ * short, no data is copied.
+ * The count field will be updated to that copied, or if either pointer is
+ * NULL, that which would have been copied.
+ * The size field in the query object will be updated to the size copied.
+ *
+ * Returns:
+ *  * 0 on success, or if size/count is requested using a NULL pointer, or
+ *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_quirks_get(struct pvr_device *pvr_dev,
+			 struct drm_pvr_ioctl_dev_query_args *args)
+{
+	/*
+	 * @FIXME - hardcoding of numbers here is intended as an
+	 * intermediate step so the UAPI can be fixed, but requires a
+	 * a refactor in the future to store them in a more appropriate
+	 * location
+	 */
+	static const u32 umd_quirks_musthave[] = {
+		47217,
+		49927,
+		62269,
+	};
+	static const u32 umd_quirks[] = {
+		48545,
+		51764,
+	};
+	struct drm_pvr_dev_query_quirks query;
+	u32 out[ARRAY_SIZE(umd_quirks_musthave) + ARRAY_SIZE(umd_quirks)];
+	size_t out_musthave_count = 0;
+	size_t out_count = 0;
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_quirks);
+		return 0;
+	}
+
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+
+	if (err < 0)
+		return err;
+	if (query._padding_c)
+		return -EINVAL;
+
+	for (int i = 0; i < ARRAY_SIZE(umd_quirks_musthave); i++) {
+		if (pvr_device_has_uapi_quirk(pvr_dev, umd_quirks_musthave[i])) {
+			out[out_count++] = umd_quirks_musthave[i];
+			out_musthave_count++;
+		}
+	}
+
+	for (int i = 0; i < ARRAY_SIZE(umd_quirks); i++) {
+		if (pvr_device_has_uapi_quirk(pvr_dev, umd_quirks[i]))
+			out[out_count++] = umd_quirks[i];
+	}
+
+	if (!query.quirks)
+		goto copy_out;
+	if (query.count < out_count)
+		return -E2BIG;
+
+	if (copy_to_user(u64_to_user_ptr(query.quirks), out,
+			 out_count * sizeof(u32))) {
+		return -EFAULT;
+	}
+
+	query.musthave_count = out_musthave_count;
+
+copy_out:
+	query.count = out_count;
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
+
+	args->size = sizeof(query);
+	return 0;
+}
+
+/**
+ * pvr_dev_query_enhancements_get() - Unpack array of enhancements at the
+ * address given in a struct drm_pvr_dev_query_enhancements, or gets the amount
+ * of space required for it.
+ * @pvr_dev: Device pointer.
+ * @args: [IN] Device query arguments containing a pointer to a userspace
+ *        struct drm_pvr_dev_query_enhancements.
+ *
+ * If the query object pointer is NULL, the size field is updated with the
+ * expected size of the query object.
+ * If the userspace pointer in the query object is NULL, or the count is
+ * short, no data is copied.
+ * The count field will be updated to that copied, or if either pointer is
+ * NULL, that which would have been copied.
+ * The size field in the query object will be updated to the size copied.
+ *
+ * Returns:
+ *  * 0 on success, or if size/count is requested using a NULL pointer, or
+ *  * -%EINVAL if args contained non-zero reserved fields, or
+ *  * -%E2BIG if the indicated length of the allocation is less than is
+ *    required to contain the copied data, or
+ *  * -%EFAULT if local memory could not be copied to userspace.
+ */
+static int
+pvr_dev_query_enhancements_get(struct pvr_device *pvr_dev,
+			       struct drm_pvr_ioctl_dev_query_args *args)
+{
+	/*
+	 * @FIXME - hardcoding of numbers here is intended as an
+	 * intermediate step so the UAPI can be fixed, but requires a
+	 * a refactor in the future to store them in a more appropriate
+	 * location
+	 */
+	const u32 umd_enhancements[] = {
+		35421,
+		42064,
+	};
+	struct drm_pvr_dev_query_enhancements query;
+	u32 out[ARRAY_SIZE(umd_enhancements)];
+	size_t out_idx = 0;
+	int err;
+
+	if (!args->pointer) {
+		args->size = sizeof(struct drm_pvr_dev_query_enhancements);
+		return 0;
+	}
+
+	err = PVR_UOBJ_GET(query, args->size, args->pointer);
+
+	if (err < 0)
+		return err;
+	if (query._padding_a)
+		return -EINVAL;
+	if (query._padding_c)
+		return -EINVAL;
+
+	for (int i = 0; i < ARRAY_SIZE(umd_enhancements); i++) {
+		if (pvr_device_has_uapi_enhancement(pvr_dev, umd_enhancements[i]))
+			out[out_idx++] = umd_enhancements[i];
+	}
+
+	if (!query.enhancements)
+		goto copy_out;
+	if (query.count < out_idx)
+		return -E2BIG;
+
+	if (copy_to_user(u64_to_user_ptr(query.enhancements), out,
+			 out_idx * sizeof(u32))) {
+		return -EFAULT;
+	}
+
+copy_out:
+	query.count = out_idx;
+	err = PVR_UOBJ_SET(args->pointer, args->size, query);
+	if (err < 0)
+		return err;
+
+	args->size = sizeof(query);
+	return 0;
+}
+
 /**
  * pvr_ioctl_dev_query() - IOCTL to copy information about a device
  * @drm_dev: [IN] DRM device.
@@ -111,7 +490,41 @@ static int
 pvr_ioctl_dev_query(struct drm_device *drm_dev, void *raw_args,
 		    struct drm_file *file)
 {
-	return -ENOTTY;
+	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
+	struct drm_pvr_ioctl_dev_query_args *args = raw_args;
+	int idx;
+	int ret = -EINVAL;
+
+	if (!drm_dev_enter(drm_dev, &idx))
+		return -EIO;
+
+	switch ((enum drm_pvr_dev_query)args->type) {
+	case DRM_PVR_DEV_QUERY_GPU_INFO_GET:
+		ret = pvr_dev_query_gpu_info_get(pvr_dev, args);
+		break;
+
+	case DRM_PVR_DEV_QUERY_RUNTIME_INFO_GET:
+		ret = pvr_dev_query_runtime_info_get(pvr_dev, args);
+		break;
+
+	case DRM_PVR_DEV_QUERY_QUIRKS_GET:
+		ret = pvr_dev_query_quirks_get(pvr_dev, args);
+		break;
+
+	case DRM_PVR_DEV_QUERY_ENHANCEMENTS_GET:
+		ret = pvr_dev_query_enhancements_get(pvr_dev, args);
+		break;
+
+	case DRM_PVR_DEV_QUERY_HEAP_INFO_GET:
+		return -EINVAL;
+
+	case DRM_PVR_DEV_QUERY_STATIC_DATA_AREAS_GET:
+		return -EINVAL;
+	}
+
+	drm_dev_exit(idx);
+
+	return ret;
 }
 
 /**
@@ -347,6 +760,112 @@ pvr_ioctl_submit_jobs(struct drm_device *drm_dev, void *raw_args,
 		      struct drm_file *file)
 {
 	return -ENOTTY;
+}
+
+int
+pvr_get_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, void *out)
+{
+	if (usr_stride < min_stride)
+		return -EINVAL;
+
+	return copy_struct_from_user(out, obj_size, u64_to_user_ptr(usr_ptr), usr_stride);
+}
+
+int
+pvr_set_uobj(u64 usr_ptr, u32 usr_stride, u32 min_stride, u32 obj_size, const void *in)
+{
+	if (usr_stride < min_stride)
+		return -EINVAL;
+
+	if (copy_to_user(u64_to_user_ptr(usr_ptr), in, min_t(u32, usr_stride, obj_size)))
+		return -EFAULT;
+
+	if (usr_stride > obj_size &&
+	    clear_user(u64_to_user_ptr(usr_ptr + obj_size), usr_stride - obj_size)) {
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+int
+pvr_get_uobj_array(const struct drm_pvr_obj_array *in, u32 min_stride, u32 obj_size, void **out)
+{
+	int ret = 0;
+	void *out_alloc;
+
+	if (in->stride < min_stride)
+		return -EINVAL;
+
+	if (!in->count)
+		return 0;
+
+	out_alloc = kvmalloc_array(in->count, obj_size, GFP_KERNEL);
+	if (!out_alloc)
+		return -ENOMEM;
+
+	if (obj_size == in->stride) {
+		if (copy_from_user(out_alloc, u64_to_user_ptr(in->array),
+				   (unsigned long)obj_size * in->count))
+			ret = -EFAULT;
+	} else {
+		void __user *in_ptr = u64_to_user_ptr(in->array);
+		void *out_ptr = out_alloc;
+
+		for (u32 i = 0; i < in->count; i++) {
+			ret = copy_struct_from_user(out_ptr, obj_size, in_ptr, in->stride);
+			if (ret)
+				break;
+
+			out_ptr += obj_size;
+			in_ptr += in->stride;
+		}
+	}
+
+	if (ret) {
+		kvfree(out_alloc);
+		return ret;
+	}
+
+	*out = out_alloc;
+	return 0;
+}
+
+int
+pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_size,
+		   const void *in)
+{
+	if (out->stride < min_stride)
+		return -EINVAL;
+
+	if (!out->count)
+		return 0;
+
+	if (obj_size == out->stride) {
+		if (copy_to_user(u64_to_user_ptr(out->array), in,
+				 (unsigned long)obj_size * out->count))
+			return -EFAULT;
+	} else {
+		u32 cpy_elem_size = min_t(u32, out->stride, obj_size);
+		void __user *out_ptr = u64_to_user_ptr(out->array);
+		const void *in_ptr = in;
+
+		for (u32 i = 0; i < out->count; i++) {
+			if (copy_to_user(out_ptr, in_ptr, cpy_elem_size))
+				return -EFAULT;
+
+			out_ptr += obj_size;
+			in_ptr += out->stride;
+		}
+
+		if (out->stride > obj_size &&
+		    clear_user(u64_to_user_ptr(out->array + obj_size),
+			       out->stride - obj_size)) {
+			return -EFAULT;
+		}
+	}
+
+	return 0;
 }
 
 #define DRM_PVR_IOCTL(_name, _func, _flags) \

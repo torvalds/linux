@@ -4,6 +4,9 @@
 #ifndef PVR_DEVICE_H
 #define PVR_DEVICE_H
 
+#include "pvr_device_info.h"
+#include "pvr_fw.h"
+
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/drm_mm.h>
@@ -29,6 +32,26 @@ struct clk;
 struct firmware;
 
 /**
+ * struct pvr_gpu_id - Hardware GPU ID information for a PowerVR device
+ * @b: Branch ID.
+ * @v: Version ID.
+ * @n: Number of scalable units.
+ * @c: Config ID.
+ */
+struct pvr_gpu_id {
+	u16 b, v, n, c;
+};
+
+/**
+ * struct pvr_fw_version - Firmware version information
+ * @major: Major version number.
+ * @minor: Minor version number.
+ */
+struct pvr_fw_version {
+	u16 major, minor;
+};
+
+/**
  * struct pvr_device - powervr-specific wrapper for &struct drm_device
  */
 struct pvr_device {
@@ -39,6 +62,35 @@ struct pvr_device {
 	 * from_pvr_device().
 	 */
 	struct drm_device base;
+
+	/** @gpu_id: GPU ID detected at runtime. */
+	struct pvr_gpu_id gpu_id;
+
+	/**
+	 * @features: Hardware feature information.
+	 *
+	 * Do not access this member directly, instead use PVR_HAS_FEATURE()
+	 * or PVR_FEATURE_VALUE() macros.
+	 */
+	struct pvr_device_features features;
+
+	/**
+	 * @quirks: Hardware quirk information.
+	 *
+	 * Do not access this member directly, instead use PVR_HAS_QUIRK().
+	 */
+	struct pvr_device_quirks quirks;
+
+	/**
+	 * @enhancements: Hardware enhancement information.
+	 *
+	 * Do not access this member directly, instead use
+	 * PVR_HAS_ENHANCEMENT().
+	 */
+	struct pvr_device_enhancements enhancements;
+
+	/** @fw_version: Firmware version detected at runtime. */
+	struct pvr_fw_version fw_version;
 
 	/**
 	 * @regs: Device control registers.
@@ -70,6 +122,9 @@ struct pvr_device {
 	 * Interface (MEMIF). If present, this needs to be enabled/disabled together with @core_clk.
 	 */
 	struct clk *mem_clk;
+
+	/** @fw_dev: Firmware related data. */
+	struct pvr_fw_device fw_dev;
 };
 
 /**
@@ -92,6 +147,76 @@ struct pvr_file {
 	struct pvr_device *pvr_dev;
 };
 
+/**
+ * PVR_HAS_FEATURE() - Tests whether a PowerVR device has a given feature
+ * @pvr_dev: [IN] Target PowerVR device.
+ * @feature: [IN] Hardware feature name.
+ *
+ * Feature names are derived from those found in &struct pvr_device_features by
+ * dropping the 'has_' prefix, which is applied by this macro.
+ *
+ * Return:
+ *  * true if the named feature is present in the hardware
+ *  * false if the named feature is not present in the hardware
+ */
+#define PVR_HAS_FEATURE(pvr_dev, feature) ((pvr_dev)->features.has_##feature)
+
+/**
+ * PVR_FEATURE_VALUE() - Gets a PowerVR device feature value
+ * @pvr_dev: [IN] Target PowerVR device.
+ * @feature: [IN] Feature name.
+ * @value_out: [OUT] Feature value.
+ *
+ * This macro will get a feature value for those features that have values.
+ * If the feature is not present, nothing will be stored to @value_out.
+ *
+ * Feature names are derived from those found in &struct pvr_device_features by
+ * dropping the 'has_' prefix.
+ *
+ * Return:
+ *  * 0 on success, or
+ *  * -%EINVAL if the named feature is not present in the hardware
+ */
+#define PVR_FEATURE_VALUE(pvr_dev, feature, value_out)             \
+	({                                                         \
+		struct pvr_device *_pvr_dev = pvr_dev;             \
+		int _ret = -EINVAL;                                \
+		if (_pvr_dev->features.has_##feature) {            \
+			*(value_out) = _pvr_dev->features.feature; \
+			_ret = 0;                                  \
+		}                                                  \
+		_ret;                                              \
+	})
+
+/**
+ * PVR_HAS_QUIRK() - Tests whether a physical device has a given quirk
+ * @pvr_dev: [IN] Target PowerVR device.
+ * @quirk: [IN] Hardware quirk name.
+ *
+ * Quirk numbers are derived from those found in #pvr_device_quirks by
+ * dropping the 'has_brn' prefix, which is applied by this macro.
+ *
+ * Returns
+ *  * true if the quirk is present in the hardware, or
+ *  * false if the quirk is not present in the hardware.
+ */
+#define PVR_HAS_QUIRK(pvr_dev, quirk) ((pvr_dev)->quirks.has_brn##quirk)
+
+/**
+ * PVR_HAS_ENHANCEMENT() - Tests whether a physical device has a given
+ *                         enhancement
+ * @pvr_dev: [IN] Target PowerVR device.
+ * @enhancement: [IN] Hardware enhancement name.
+ *
+ * Enhancement numbers are derived from those found in #pvr_device_enhancements
+ * by dropping the 'has_ern' prefix, which is applied by this macro.
+ *
+ * Returns
+ *  * true if the enhancement is present in the hardware, or
+ *  * false if the enhancement is not present in the hardware.
+ */
+#define PVR_HAS_ENHANCEMENT(pvr_dev, enhancement) ((pvr_dev)->enhancements.has_ern##enhancement)
+
 #define from_pvr_device(pvr_dev) (&(pvr_dev)->base)
 
 #define to_pvr_device(drm_dev) container_of_const(drm_dev, struct pvr_device, base)
@@ -100,8 +225,76 @@ struct pvr_file {
 
 #define to_pvr_file(file) ((file)->driver_priv)
 
+/**
+ * PVR_PACKED_BVNC() - Packs B, V, N and C values into a 64-bit unsigned integer
+ * @b: Branch ID.
+ * @v: Version ID.
+ * @n: Number of scalable units.
+ * @c: Config ID.
+ *
+ * The packed layout is as follows:
+ *
+ *    +--------+--------+--------+-------+
+ *    | 63..48 | 47..32 | 31..16 | 15..0 |
+ *    +========+========+========+=======+
+ *    | B      | V      | N      | C     |
+ *    +--------+--------+--------+-------+
+ *
+ * pvr_gpu_id_to_packed_bvnc() should be used instead of this macro when a
+ * &struct pvr_gpu_id is available in order to ensure proper type checking.
+ *
+ * Return: Packed BVNC.
+ */
+/* clang-format off */
+#define PVR_PACKED_BVNC(b, v, n, c) \
+	((((u64)(b) & GENMASK_ULL(15, 0)) << 48) | \
+	 (((u64)(v) & GENMASK_ULL(15, 0)) << 32) | \
+	 (((u64)(n) & GENMASK_ULL(15, 0)) << 16) | \
+	 (((u64)(c) & GENMASK_ULL(15, 0)) <<  0))
+/* clang-format on */
+
+/**
+ * pvr_gpu_id_to_packed_bvnc() - Packs B, V, N and C values into a 64-bit
+ * unsigned integer
+ * @gpu_id: GPU ID.
+ *
+ * The packed layout is as follows:
+ *
+ *    +--------+--------+--------+-------+
+ *    | 63..48 | 47..32 | 31..16 | 15..0 |
+ *    +========+========+========+=======+
+ *    | B      | V      | N      | C     |
+ *    +--------+--------+--------+-------+
+ *
+ * This should be used in preference to PVR_PACKED_BVNC() when a &struct
+ * pvr_gpu_id is available in order to ensure proper type checking.
+ *
+ * Return: Packed BVNC.
+ */
+static __always_inline u64
+pvr_gpu_id_to_packed_bvnc(struct pvr_gpu_id *gpu_id)
+{
+	return PVR_PACKED_BVNC(gpu_id->b, gpu_id->v, gpu_id->n, gpu_id->c);
+}
+
+static __always_inline void
+packed_bvnc_to_pvr_gpu_id(u64 bvnc, struct pvr_gpu_id *gpu_id)
+{
+	gpu_id->b = (bvnc & GENMASK_ULL(63, 48)) >> 48;
+	gpu_id->v = (bvnc & GENMASK_ULL(47, 32)) >> 32;
+	gpu_id->n = (bvnc & GENMASK_ULL(31, 16)) >> 16;
+	gpu_id->c = bvnc & GENMASK_ULL(15, 0);
+}
+
 int pvr_device_init(struct pvr_device *pvr_dev);
 void pvr_device_fini(struct pvr_device *pvr_dev);
+
+bool
+pvr_device_has_uapi_quirk(struct pvr_device *pvr_dev, u32 quirk);
+bool
+pvr_device_has_uapi_enhancement(struct pvr_device *pvr_dev, u32 enhancement);
+bool
+pvr_device_has_feature(struct pvr_device *pvr_dev, u32 feature);
 
 /**
  * PVR_CR_FIELD_GET() - Extract a single field from a PowerVR control register
@@ -209,6 +402,29 @@ pvr_cr_poll_reg64(struct pvr_device *pvr_dev, u32 reg_addr, u64 reg_value,
 }
 
 /**
+ * pvr_round_up_to_cacheline_size() - Round up a provided size to be cacheline
+ *                                    aligned
+ * @pvr_dev: Target PowerVR device.
+ * @size: Initial size, in bytes.
+ *
+ * Returns:
+ *  * Size aligned to cacheline size.
+ */
+static __always_inline size_t
+pvr_round_up_to_cacheline_size(struct pvr_device *pvr_dev, size_t size)
+{
+	u16 slc_cacheline_size_bits = 0;
+	u16 slc_cacheline_size_bytes;
+
+	WARN_ON(!PVR_HAS_FEATURE(pvr_dev, slc_cache_line_size_bits));
+	PVR_FEATURE_VALUE(pvr_dev, slc_cache_line_size_bits,
+			  &slc_cacheline_size_bits);
+	slc_cacheline_size_bytes = slc_cacheline_size_bits / 8;
+
+	return round_up(size, slc_cacheline_size_bytes);
+}
+
+/**
  * DOC: IOCTL validation helpers
  *
  * To validate the constraints imposed on IOCTL argument structs, a collection
@@ -301,5 +517,9 @@ pvr_ioctl_union_padding_check(void *instance, size_t union_offset,
 		pvr_ioctl_union_padding_check(__instance, __union_offset,    \
 					      __union_size, __member_size);  \
 	})
+
+#define PVR_FW_PROCESSOR_TYPE_META  0
+#define PVR_FW_PROCESSOR_TYPE_MIPS  1
+#define PVR_FW_PROCESSOR_TYPE_RISCV 2
 
 #endif /* PVR_DEVICE_H */
