@@ -1479,6 +1479,8 @@ struct flow_msg {
 #define OTX2_FLOWER_MASK_MPLS_TTL		GENMASK(7, 0)
 #define OTX2_FLOWER_MASK_MPLS_NON_TTL		GENMASK(31, 8)
 	u32 mpls_lse[4];
+	u8 icmp_type;
+	u8 icmp_code;
 };
 
 struct npc_install_flow_req {

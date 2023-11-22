@@ -51,6 +51,8 @@ static const char * const npc_flow_names[] = {
 	[NPC_MPLS3_TTL]     = "lse depth 3 ttl",
 	[NPC_MPLS4_LBTCBOS] = "lse depth 4 label tc bos",
 	[NPC_MPLS4_TTL]     = "lse depth 4",
+	[NPC_TYPE_ICMP] = "icmp type",
+	[NPC_CODE_ICMP] = "icmp code",
 	[NPC_UNKNOWN]	= "unknown",
 };
 
@@ -526,6 +528,8 @@ do {									       \
 	NPC_SCAN_HDR(NPC_DPORT_TCP, NPC_LID_LD, NPC_LT_LD_TCP, 2, 2);
 	NPC_SCAN_HDR(NPC_SPORT_SCTP, NPC_LID_LD, NPC_LT_LD_SCTP, 0, 2);
 	NPC_SCAN_HDR(NPC_DPORT_SCTP, NPC_LID_LD, NPC_LT_LD_SCTP, 2, 2);
+	NPC_SCAN_HDR(NPC_TYPE_ICMP, NPC_LID_LD, NPC_LT_LD_ICMP, 0, 1);
+	NPC_SCAN_HDR(NPC_CODE_ICMP, NPC_LID_LD, NPC_LT_LD_ICMP, 1, 1);
 	NPC_SCAN_HDR(NPC_ETYPE_ETHER, NPC_LID_LA, NPC_LT_LA_ETHER, 12, 2);
 	NPC_SCAN_HDR(NPC_ETYPE_TAG1, NPC_LID_LB, NPC_LT_LB_CTAG, 4, 2);
 	NPC_SCAN_HDR(NPC_ETYPE_TAG2, NPC_LID_LB, NPC_LT_LB_STAG_QINQ, 8, 2);
@@ -555,7 +559,7 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	u64 *features = &mcam->rx_features;
-	u64 tcp_udp_sctp;
+	u64 proto_flags;
 	int hdr;
 
 	if (is_npc_intf_tx(intf))
@@ -566,18 +570,21 @@ static void npc_set_features(struct rvu *rvu, int blkaddr, u8 intf)
 			*features |= BIT_ULL(hdr);
 	}
 
-	tcp_udp_sctp = BIT_ULL(NPC_SPORT_TCP) | BIT_ULL(NPC_SPORT_UDP) |
+	proto_flags = BIT_ULL(NPC_SPORT_TCP) | BIT_ULL(NPC_SPORT_UDP) |
 		       BIT_ULL(NPC_DPORT_TCP) | BIT_ULL(NPC_DPORT_UDP) |
-		       BIT_ULL(NPC_SPORT_SCTP) | BIT_ULL(NPC_DPORT_SCTP);
+		       BIT_ULL(NPC_SPORT_SCTP) | BIT_ULL(NPC_DPORT_SCTP) |
+		       BIT_ULL(NPC_SPORT_SCTP) | BIT_ULL(NPC_DPORT_SCTP) |
+		       BIT_ULL(NPC_TYPE_ICMP) | BIT_ULL(NPC_CODE_ICMP);
 
 	/* for tcp/udp/sctp corresponding layer type should be in the key */
-	if (*features & tcp_udp_sctp) {
+	if (*features & proto_flags) {
 		if (!npc_check_field(rvu, blkaddr, NPC_LD, intf))
-			*features &= ~tcp_udp_sctp;
+			*features &= ~proto_flags;
 		else
 			*features |= BIT_ULL(NPC_IPPROTO_TCP) |
 				     BIT_ULL(NPC_IPPROTO_UDP) |
-				     BIT_ULL(NPC_IPPROTO_SCTP);
+				     BIT_ULL(NPC_IPPROTO_SCTP) |
+				     BIT_ULL(NPC_IPPROTO_ICMP);
 	}
 
 	/* for AH/ICMP/ICMPv6/, check if corresponding layer type is present in the key */
@@ -971,6 +978,10 @@ do {									      \
 		       ntohs(mask->sport), 0);
 	NPC_WRITE_FLOW(NPC_DPORT_SCTP, dport, ntohs(pkt->dport), 0,
 		       ntohs(mask->dport), 0);
+	NPC_WRITE_FLOW(NPC_TYPE_ICMP, icmp_type, pkt->icmp_type, 0,
+		       mask->icmp_type, 0);
+	NPC_WRITE_FLOW(NPC_CODE_ICMP, icmp_code, pkt->icmp_code, 0,
+		       mask->icmp_code, 0);
 
 	NPC_WRITE_FLOW(NPC_IPSEC_SPI, spi, ntohl(pkt->spi), 0,
 		       ntohl(mask->spi), 0);

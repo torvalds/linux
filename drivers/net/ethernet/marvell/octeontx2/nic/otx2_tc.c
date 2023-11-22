@@ -522,6 +522,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPSEC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_MPLS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ICMP) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))))  {
 		netdev_info(nic->netdev, "unsupported flow used key 0x%llx",
 			    dissector->used_keys);
@@ -796,6 +797,19 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 		}
 	}
 
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ICMP)) {
+		struct flow_match_icmp match;
+
+		flow_rule_match_icmp(rule, &match);
+
+		flow_spec->icmp_type = match.key->type;
+		flow_mask->icmp_type = match.mask->type;
+		req->features |= BIT_ULL(NPC_TYPE_ICMP);
+
+		flow_spec->icmp_code = match.key->code;
+		flow_mask->icmp_code = match.mask->code;
+		req->features |= BIT_ULL(NPC_CODE_ICMP);
+	}
 	return otx2_tc_parse_actions(nic, &rule->action, req, f, node);
 }
 
