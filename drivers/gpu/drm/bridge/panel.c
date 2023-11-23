@@ -23,6 +23,7 @@ struct panel_bridge {
 	struct drm_panel *panel;
 	struct device_link *link;
 	u32 connector_type;
+	bool is_independent;
 };
 
 static inline struct panel_bridge *
@@ -67,12 +68,17 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 	struct drm_device *drm_dev = bridge->dev;
 	int ret;
 
-	panel_bridge->link = device_link_add(drm_dev->dev, panel->dev,
-					     DL_FLAG_STATELESS);
-	if (!panel_bridge->link) {
-		DRM_ERROR("Failed to add device link between %s and %s\n",
-			  dev_name(drm_dev->dev), dev_name(panel->dev));
-		return -EINVAL;
+	panel_bridge->is_independent = !device_is_dependent(drm_dev->dev,
+							    panel->dev);
+
+	if (panel_bridge->is_independent) {
+		panel_bridge->link = device_link_add(drm_dev->dev, panel->dev,
+						     DL_FLAG_STATELESS);
+		if (!panel_bridge->link) {
+			DRM_ERROR("Failed to add device link between %s and %s\n",
+				  dev_name(drm_dev->dev), dev_name(panel->dev));
+			return -EINVAL;
+		}
 	}
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
@@ -80,7 +86,8 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Missing encoder\n");
-		device_link_del(panel_bridge->link);
+		if (panel_bridge->is_independent)
+			device_link_del(panel_bridge->link);
 		return -ENODEV;
 	}
 
@@ -92,7 +99,8 @@ static int panel_bridge_attach(struct drm_bridge *bridge,
 				 panel_bridge->connector_type);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector\n");
-		device_link_del(panel_bridge->link);
+		if (panel_bridge->is_independent)
+			device_link_del(panel_bridge->link);
 		return ret;
 	}
 
@@ -115,7 +123,8 @@ static void panel_bridge_detach(struct drm_bridge *bridge)
 	struct panel_bridge *panel_bridge = drm_bridge_to_panel_bridge(bridge);
 	struct drm_connector *connector = &panel_bridge->connector;
 
-	device_link_del(panel_bridge->link);
+	if (panel_bridge->is_independent)
+		device_link_del(panel_bridge->link);
 
 	/*
 	 * Cleanup the connector if we know it was initialized.
