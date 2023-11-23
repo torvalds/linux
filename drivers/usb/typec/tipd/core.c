@@ -8,6 +8,7 @@
 
 #include <linux/i2c.h>
 #include <linux/acpi.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/power_supply.h>
@@ -64,6 +65,9 @@
 #define TPS_PBMC_RC	0 /* Return code */
 #define TPS_PBMC_DPCS	2 /* device patch complete status */
 
+/* reset de-assertion to ready for operation */
+#define TPS_SETUP_MS			1000
+
 enum {
 	TPS_PORTINFO_SINK,
 	TPS_PORTINFO_SINK_ACCESSORY,
@@ -119,6 +123,7 @@ struct tps6598x {
 	struct mutex lock; /* device lock */
 	u8 i2c_protocol:1;
 
+	struct gpio_desc *reset;
 	struct typec_port *port;
 	struct typec_partner *partner;
 	struct usb_pd_identity partner_identity;
@@ -1191,6 +1196,13 @@ static int tps6598x_probe(struct i2c_client *client)
 	mutex_init(&tps->lock);
 	tps->dev = &client->dev;
 
+	tps->reset = devm_gpiod_get_optional(tps->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(tps->reset))
+		return dev_err_probe(tps->dev, PTR_ERR(tps->reset),
+				     "failed to get reset GPIO\n");
+	if (tps->reset)
+		msleep(TPS_SETUP_MS);
+
 	tps->regmap = devm_regmap_init_i2c(client, &tps6598x_regmap_config);
 	if (IS_ERR(tps->regmap))
 		return PTR_ERR(tps->regmap);
@@ -1348,6 +1360,9 @@ static void tps6598x_remove(struct i2c_client *client)
 	/* Reset PD controller to remove any applied patch */
 	if (device_is_compatible(tps->dev, "ti,tps25750"))
 		tps6598x_exec_cmd_tmo(tps, "GAID", 0, NULL, 0, NULL, 2000, 0);
+
+	if (tps->reset)
+		gpiod_set_value_cansleep(tps->reset, 1);
 }
 
 static int __maybe_unused tps6598x_suspend(struct device *dev)
@@ -1358,6 +1373,8 @@ static int __maybe_unused tps6598x_suspend(struct device *dev)
 	if (tps->wakeup) {
 		disable_irq(client->irq);
 		enable_irq_wake(client->irq);
+	} else if (tps->reset) {
+		gpiod_set_value_cansleep(tps->reset, 1);
 	}
 
 	if (!client->irq)
@@ -1385,6 +1402,9 @@ static int __maybe_unused tps6598x_resume(struct device *dev)
 	if (tps->wakeup) {
 		disable_irq_wake(client->irq);
 		enable_irq(client->irq);
+	} else if (tps->reset) {
+		gpiod_set_value_cansleep(tps->reset, 0);
+		msleep(TPS_SETUP_MS);
 	}
 
 	if (!client->irq)
