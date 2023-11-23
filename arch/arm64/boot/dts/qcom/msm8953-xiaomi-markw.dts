@@ -143,6 +143,64 @@
 	voltage-max-design-microvolt = <4380000>;
 };
 
+&cci {
+	pinctrl-names = "default";
+	pinctrl-0 = <&cci0_default>,
+		    <&cci1_default>,
+		    <&camss_mclk0_default>,
+		    <&camss_mclk1_default>;
+
+	status = "okay";
+};
+
+&cci_i2c1 {
+	camera-sensor@36 { // Front camera
+		compatible = "ovti,ov5670";
+
+		reg = <0x36>;
+
+		clocks = <&gcc GCC_CAMSS_MCLK1_CLK>;
+		clock-rates = <19200000>;
+
+		pinctrl-0 = <&cam_sensor_front_default>;
+		pinctrl-names = "default";
+
+		reset-gpios = <&tlmm 129 GPIO_ACTIVE_LOW>;
+
+		avdd-supply= <&pm8953_l22>;
+		dvdd-supply = <&pm8953_l23>;
+		dovdd-supply = <&pm8953_l6>;
+		orientation = <0>;
+		rotation = <270>;
+
+		status = "okay";
+
+		port {
+			front_cam_ep: endpoint {
+				data-lanes = <0 1>;
+				remote-endpoint = <&csiphy2_ep>;
+				link-frequencies = /bits/ 64 <450000000>;
+			};
+		};
+	};
+};
+
+&camss {
+	status = "okay";
+	vdda-supply = <&pm8953_s3>;
+
+	ports {
+		port@2 {
+			reg = <2>;
+			csiphy2_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1>;
+				remote-endpoint = <&front_cam_ep>;
+			};
+		};
+	};
+};
+
 &ft5406_ts {
 	status = "okay";
 
@@ -200,6 +258,13 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <135 4>;
+
+	cam_sensor_front_default: cam_sensor_front_default {
+		pins = "gpio129";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
 };
 
 &wcd_codec {
