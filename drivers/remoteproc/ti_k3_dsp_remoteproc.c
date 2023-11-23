@@ -815,7 +815,7 @@ free_rproc:
 	return ret;
 }
 
-static int k3_dsp_rproc_remove(struct platform_device *pdev)
+static void k3_dsp_rproc_remove(struct platform_device *pdev)
 {
 	struct k3_dsp_rproc *kproc = platform_get_drvdata(pdev);
 	struct rproc *rproc = kproc->rproc;
@@ -827,7 +827,7 @@ static int k3_dsp_rproc_remove(struct platform_device *pdev)
 		if (ret) {
 			/* Note this error path leaks resources */
 			dev_err(dev, "failed to detach proc (%pe)\n", ERR_PTR(ret));
-			return 0;
+			return;
 		}
 	}
 
@@ -845,8 +845,6 @@ static int k3_dsp_rproc_remove(struct platform_device *pdev)
 
 	k3_dsp_reserved_mem_exit(kproc);
 	rproc_free(kproc->rproc);
-
-	return 0;
 }
 
 static const struct k3_dsp_mem_data c66_mems[] = {
@@ -897,7 +895,7 @@ MODULE_DEVICE_TABLE(of, k3_dsp_of_match);
 
 static struct platform_driver k3_dsp_rproc_driver = {
 	.probe	= k3_dsp_rproc_probe,
-	.remove	= k3_dsp_rproc_remove,
+	.remove_new = k3_dsp_rproc_remove,
 	.driver	= {
 		.name = "k3-dsp-rproc",
 		.of_match_table = k3_dsp_of_match,
