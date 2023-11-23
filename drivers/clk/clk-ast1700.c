@@ -23,6 +23,8 @@
 #define AST1700_UXCLK_CTRL 0xF0
 #define AST1700_HUXCLK_CTRL 0x100
 
+static DEFINE_IDA(ast1700_clk_ida);
+
 /* Globally visible clocks */
 static DEFINE_SPINLOCK(ast1700_clk_lock);
 
@@ -199,32 +201,54 @@ static struct clk_hw *AST1700_clk_hw_register_gate(struct device *dev, const cha
 	return hw;
 }
 
-static const char *const sdclk_sel[] = {
-	"ast1700-hpll_divn",
-	"ast1700-apll_divn",
+static const char *const sdclk_sel0[] = {
+	"ast1700_0-hpll_divn",
+	"ast1700_0-apll_divn",
 };
 
-static const char *const uartclk_sel[] = {
-	"ast1700-uartxclk",
-	"ast1700-huartxclk",
+static const char *const sdclk_sel1[] = {
+	"ast1700_1-hpll_divn",
+	"ast1700_1-apll_divn",
 };
 
-static const char *const uxclk_sel[] = {
-	"ast1700-apll_div4",
-	"ast1700-apll_div2",
-	"ast1700-apll",
-	"ast1700-hpll",
+static const char *const uartclk_sel0[] = {
+	"ast1700_0-uartxclk",
+	"ast1700_0-huartxclk",
 };
+
+static const char *const uartclk_sel1[] = {
+	"ast1700_1-uartxclk",
+	"ast1700_1-huartxclk",
+};
+
+static const char *const uxclk_sel0[] = {
+	"ast1700_0-apll_div4",
+	"ast1700_0-apll_div2",
+	"ast1700_0-apll",
+	"ast1700_0-hpll",
+};
+
+static const char *const uxclk_sel1[] = {
+	"ast1700_1-apll_div4",
+	"ast1700_1-apll_div2",
+	"ast1700_1-apll",
+	"ast1700_1-hpll",
+};
+
+#define CREATE_CLK_NAME(id, suffix) kasprintf(GFP_KERNEL, "ast1700_%d-%s", id, suffix)
 
 static int AST1700_clk_init(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct device *dev = &pdev->dev;
+	u32 uart_clk_source = 0;
 	void __iomem *clk_base;
 	struct clk_hw **clks;
 	struct clk_hw *hw;
 	u32 val;
 	int ret;
+
+	int id = ida_simple_get(&ast1700_clk_ida, 0, 0, GFP_KERNEL);
 
 	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, AST1700_NUM_CLKS), GFP_KERNEL);
 	if (!clk_data)
@@ -237,393 +261,470 @@ static int AST1700_clk_init(struct platform_device *pdev)
 	if (WARN_ON(IS_ERR(clk_base)))
 		return PTR_ERR(clk_base);
 
-	hw = clk_hw_register_fixed_rate(dev, "ast1700-clkin", NULL, 0, AST1700_CLK_25MHZ);
+	hw = clk_hw_register_fixed_rate(dev, CREATE_CLK_NAME(id, "clkin"), NULL, 0, AST1700_CLK_25MHZ);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clks[AST1700_CLKIN] = hw;
 
 	/* HPLL 1000Mhz */
 	val = readl(clk_base + AST1700_HPLL_PARAM);
-	clks[AST1700_CLK_HPLL] = AST1700_calc_pll("ast1700-hpll", "ast1700-clkin", val);
+	clks[AST1700_CLK_HPLL] = AST1700_calc_pll(CREATE_CLK_NAME(id, "hpll"), CREATE_CLK_NAME(id, "clkin"), val);
 
 	/* HPLL 800Mhz */
 	val = readl(clk_base + AST1700_APLL_PARAM);
-	clks[AST1700_CLK_APLL] = AST1700_calc_pll("ast1700-apll", "ast1700-clkin", val);
+	clks[AST1700_CLK_APLL] = AST1700_calc_pll(CREATE_CLK_NAME(id, "apll"), CREATE_CLK_NAME(id, "clkin"), val);
 
 	clks[AST1700_CLK_APLL_DIV2] =
-		clk_hw_register_fixed_factor(dev, "ast1700-apll_div2", "ast1700-apll", 0, 1, 2);
+		clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "apll_div2"), CREATE_CLK_NAME(id, "apll"), 0, 1, 2);
 
 	clks[AST1700_CLK_APLL_DIV4] =
-		clk_hw_register_fixed_factor(dev, "ast1700-apll_div4", "ast1700-apll", 0, 1, 4);
+		clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "apll_div4"), CREATE_CLK_NAME(id, "apll"), 0, 1, 4);
 
 	val = readl(clk_base + AST1700_DPLL_PARAM);
-	clks[AST1700_CLK_DPLL] = AST1700_calc_pll("ast1700-dpll", "ast1700-clkin", val);
+	clks[AST1700_CLK_DPLL] = AST1700_calc_pll(CREATE_CLK_NAME(id, "dpll"), CREATE_CLK_NAME(id, "clkin"), val);
 
 	/* uxclk mux selection */
 	clks[AST1700_CLK_UXCLK] =
-		clk_hw_register_mux(dev, "ast1700-uxclk", uxclk_sel, ARRAY_SIZE(uxclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uxclk"),
+				    (id == 0) ? uxclk_sel0 : uxclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uxclk_sel0) : ARRAY_SIZE(uxclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL2,
 				    0, 2, 0, &ast1700_clk_lock);
 
 	val = readl(clk_base + AST1700_UXCLK_CTRL);
-	clks[AST1700_CLK_UARTX] = AST1700_calc_uclk("ast1700-uartxclk", val);
+	clks[AST1700_CLK_UARTX] = AST1700_calc_uclk(CREATE_CLK_NAME(id, "uartxclk"), val);
 
 	/* huxclk mux selection */
 	clks[AST1700_CLK_HUXCLK] =
-		clk_hw_register_mux(dev, "ast1700-huxclk", uxclk_sel, ARRAY_SIZE(uxclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "huxclk"),
+				    (id == 0) ? uxclk_sel0 : uxclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uxclk_sel0) : ARRAY_SIZE(uxclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL2,
 				    3, 2, 0, &ast1700_clk_lock);
 
 	val = readl(clk_base + AST1700_HUXCLK_CTRL);
-	clks[AST1700_CLK_HUARTX] = AST1700_calc_huclk("ast1700-huartxclk", val);
+	clks[AST1700_CLK_HUARTX] = AST1700_calc_huclk(CREATE_CLK_NAME(id, "huartxclk"), val);
 
 	/* AHB CLK = 200Mhz */
 	clks[AST1700_CLK_AHB] =
-		clk_hw_register_divider_table(dev, "ast1700-ahb", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "ahb"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      20, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	/* APB CLK = 100Mhz */
 	clks[AST1700_CLK_APB] =
-		clk_hw_register_divider_table(dev, "ast1700-apb", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "apb"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL1,
 					      18, 3, 0, ast1700_clk_div_table2, &ast1700_clk_lock);
 
 	//rmii
 	clks[AST1700_CLK_RMII] =
-		clk_hw_register_divider_table(dev, "rmii", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "rmii"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      21, 3, 0, ast1700_rmii_div_table, &ast1700_clk_lock);
 
 	//rgmii
 	clks[AST1700_CLK_RGMII] =
-		clk_hw_register_divider_table(dev, "rgmii", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "rgmii"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      25, 3, 0, ast1700_rgmii_div_table, &ast1700_clk_lock);
 
 	//mac hclk
 	clks[AST1700_CLK_MACHCLK] =
-		clk_hw_register_divider_table(dev, "machclk", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "machclk"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      29, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_LCLK0] =
-		AST1700_clk_hw_register_gate(NULL, "lclk0-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "lclk0-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     0, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_LCLK0] =
-		AST1700_clk_hw_register_gate(NULL, "lclk1-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "lclk1-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_ESPI0CLK] =
-		AST1700_clk_hw_register_gate(NULL, "espi0clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "espi0clk-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     2, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_ESPI1CLK] =
-		AST1700_clk_hw_register_gate(NULL, "espi1clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "espi1clk-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     3, 0, &ast1700_clk_lock);
 
 	//sd pll divn
 	clks[AST1700_CLK_HPLL_DIVN] =
-		clk_hw_register_divider_table(dev, "ast1700-hpll_divn", "ast1700-hpll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "hpll_divn"),
+					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      20, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_APLL_DIVN] =
-		clk_hw_register_divider_table(dev, "ast1700-apll_divn", "ast1700-apll",
+		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "apll_divn"),
+					      CREATE_CLK_NAME(id, "apll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      8, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	//sd clk
 	clks[AST1700_CLK_SDCLK] =
-		clk_hw_register_mux(dev, "sdclk", sdclk_sel, ARRAY_SIZE(sdclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "sdclk"),
+				    (id == 0) ? sdclk_sel0 : sdclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(sdclk_sel0) : ARRAY_SIZE(sdclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    13, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_SDCLK] =
-		AST1700_clk_hw_register_gate(NULL, "sdclk-gate", "sdclk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "sdclk-gate"),
+					     CREATE_CLK_NAME(id, "sdclk"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     4, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_REFCLK] =
-		AST1700_clk_hw_register_gate(NULL, "io-refclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "io-refclk-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     6, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_LPCHCLK] =
-		AST1700_clk_hw_register_gate(NULL, "lpchclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "lpchclk-gate"), NULL,
 					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP,
 					     7, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_MAC0CLK] =
-		AST1700_clk_hw_register_gate(NULL, "mac0clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "mac0clk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP,
 					     8, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_MAC1CLK] =
-		AST1700_clk_hw_register_gate(NULL, "mac1clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "mac1clk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP,
 					     9, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_MAC2CLK] =
-		AST1700_clk_hw_register_gate(NULL, "mac2clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "mac2clk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP,
 					     10, 0, &ast1700_clk_lock);
 
+	of_property_read_u32(dev->of_node, "uart-clk-source", &uart_clk_source);
+
+	if (uart_clk_source) {
+		val = readl(clk_base + AST1700_CLK_SEL1) & GENMASK(12, 0);
+		uart_clk_source &= GENMASK(12, 0);
+		writel(val | uart_clk_source, clk_base + AST1700_CLK_SEL1);
+	}
+
 	//UART0
 	clks[AST1700_CLK_UART0] =
-		clk_hw_register_mux(dev, "uart0clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart0clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    0, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART0CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart0clk-gate", "uart0clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart0clk-gate"),
+					     CREATE_CLK_NAME(id, "uart0clk"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     11, 0, &ast1700_clk_lock);
 
 	//UART1
 	clks[AST1700_CLK_UART1] =
-		clk_hw_register_mux(dev, "uart1clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart1clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    1, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART1CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart1clk-gate", "uart1clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart1clk-gate"),
+					     CREATE_CLK_NAME(id, "uart1clk"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     12, 0, &ast1700_clk_lock);
 
 	//UART2
 	clks[AST1700_CLK_UART2] =
-		clk_hw_register_mux(dev, "uart2clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart2clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    2, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART2CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart2clk-gate", "uart2clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart2clk-gate"),
+					     CREATE_CLK_NAME(id, "uart2clk"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     13, 0, &ast1700_clk_lock);
 
 	//UART3
 	clks[AST1700_CLK_UART3] =
-		clk_hw_register_mux(dev, "uart3clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart3clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    3, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART3CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart3clk-gate", "uart3clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart3clk-gate"),
+					     CREATE_CLK_NAME(id, "uart3clk"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     14, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C0CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c0clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c0clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     16, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C1CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c1clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c1clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     17, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C2CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c2clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c2clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     18, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C3CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c3clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c3clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     19, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C4CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c4clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c4clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     20, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C5CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c5clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c5clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     21, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C6CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c6clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c6clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     22, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C7CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c7clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c7clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     23, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C8CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c8clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c8clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     24, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C9CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c9clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c9clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     25, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C10CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c10clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c10clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     26, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C11CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c11clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c11clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     27, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C12CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c12clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c12clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     28, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C13CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c13clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c13clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     29, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C14CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c14clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c14clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     30, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_I3C15CLK] =
-		AST1700_clk_hw_register_gate(NULL, "i3c15clk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "i3c15clk-gate"),
+					     CREATE_CLK_NAME(id, "ahb"),
 					     0, clk_base + AST1700_CLK_STOP,
 					     31, 0, &ast1700_clk_lock);
 
 	/*clk stop 2 */
 	//UART5
 	clks[AST1700_CLK_UART5] =
-		clk_hw_register_mux(dev, "uart5clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart5clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    5, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART5CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart5clk-gate", "uart5clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart5clk-gate"),
+					     CREATE_CLK_NAME(id, "uart5clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     0, 0, &ast1700_clk_lock);
 
 	//UART6
 	clks[AST1700_CLK_UART6] =
-		clk_hw_register_mux(dev, "uart6clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart6clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    6, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART6CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart6clk-gate", "uart6clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart6clk-gate"),
+					     CREATE_CLK_NAME(id, "uart6clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     1, 0, &ast1700_clk_lock);
 
 	//UART7
 	clks[AST1700_CLK_UART7] =
-		clk_hw_register_mux(dev, "uart7clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart7clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    7, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART7CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart7clk-gate", "uart7clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart7clk-gate"),
+					     CREATE_CLK_NAME(id, "uart7clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     2, 0, &ast1700_clk_lock);
 
 	//UART8
 	clks[AST1700_CLK_UART8] =
-		clk_hw_register_mux(dev, "uart8clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart8clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    8, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART8CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart8clk-gate", "uart8clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart8clk-gate"),
+					     CREATE_CLK_NAME(id, "uart8clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     3, 0, &ast1700_clk_lock);
 
 	//UART9
 	clks[AST1700_CLK_UART9] =
-		clk_hw_register_mux(dev, "uart9clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart9clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    9, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART9CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart9clk-gate", "uart9clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart9clk-gate"),
+					     CREATE_CLK_NAME(id, "uart9clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     4, 0, &ast1700_clk_lock);
 
 	//UART10
 	clks[AST1700_CLK_UART10] =
-		clk_hw_register_mux(dev, "uart10clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart10clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    10, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART10CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart10clk-gate", "uart10clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart10clk-gate"),
+					     CREATE_CLK_NAME(id, "uart10clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     5, 0, &ast1700_clk_lock);
 
 	//UART11
 	clks[AST1700_CLK_UART11] =
-		clk_hw_register_mux(dev, "uart11clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart11clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    11, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART11CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart11clk-gate", "uart11clks",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart11clk-gate"),
+					     CREATE_CLK_NAME(id, "uart11clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     6, 0, &ast1700_clk_lock);
 
 	//uart12: call bmc uart
 	clks[AST1700_CLK_UART12] =
-		clk_hw_register_mux(dev, "uart12clk", uartclk_sel, ARRAY_SIZE(uartclk_sel),
+		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart12clk"),
+				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
+				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
 				    12, 1, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_UART12CLK] =
-		AST1700_clk_hw_register_gate(NULL, "uart12clk-gate", "uart12clk",
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "uart12clk-gate"),
+					     CREATE_CLK_NAME(id, "uart12clk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     7, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_FSICLK] =
-		AST1700_clk_hw_register_gate(NULL, "fsiclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "fsiclk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP2,
 					     8, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_LTPIPHYCLK] =
-		AST1700_clk_hw_register_gate(NULL, "ltpiphyclk-gate", NULL,
-					     0, clk_base + AST1700_CLK_STOP2,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "ltpiphyclk-gate"), NULL,
+					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP2,
 					     9, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_LTPICLK] =
-		AST1700_clk_hw_register_gate(NULL, "ltpiclk-gate", NULL,
-					     0, clk_base + AST1700_CLK_STOP2,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "ltpiclk-gate"), NULL,
+					     CLK_IS_CRITICAL, clk_base + AST1700_CLK_STOP2,
 					     10, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_VGALCLK] =
-		AST1700_clk_hw_register_gate(NULL, "vgalclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "vgalclk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP2,
 					     11, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_USBUARTCLK] =
-		AST1700_clk_hw_register_gate(NULL, "usbuartclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "usbuartclk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP2,
 					     12, 0, &ast1700_clk_lock);
 
+	clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "canclk"), CREATE_CLK_NAME(id, "apll"), 0, 1, 10);
+
 	clks[AST1700_CLK_GATE_CANCLK] =
-		AST1700_clk_hw_register_gate(NULL, "canclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "canclk-gate"),
+					     CREATE_CLK_NAME(id, "canclk"),
 					     0, clk_base + AST1700_CLK_STOP2,
 					     13, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_PCICLK] =
-		AST1700_clk_hw_register_gate(NULL, "pciclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "pciclk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP2,
 					     14, 0, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_GATE_SLICLK] =
-		AST1700_clk_hw_register_gate(NULL, "sliclk-gate", NULL,
+		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "sliclk-gate"), NULL,
 					     0, clk_base + AST1700_CLK_STOP2,
 					     15, 0, &ast1700_clk_lock);
 
@@ -660,8 +761,4 @@ static struct platform_driver AST1700_clk_driver = {
 	},
 };
 
-static int __init AST1700_clk_driver_init(void)
-{
-	return platform_driver_register(&AST1700_clk_driver);
-}
-core_initcall(AST1700_clk_driver_init);
+module_platform_driver(AST1700_clk_driver);
