@@ -319,7 +319,7 @@ static inline int get_insn(struct pt_regs *regs, ulong mepc, ulong *r_insn)
 static inline int load_u8(struct pt_regs *regs, const u8 *addr, u8 *r_val)
 {
 	if (user_mode(regs)) {
-		return __get_user(*r_val, addr);
+		return __get_user(*r_val, (u8 __user *)addr);
 	} else {
 		*r_val = *addr;
 		return 0;
@@ -329,7 +329,7 @@ static inline int load_u8(struct pt_regs *regs, const u8 *addr, u8 *r_val)
 static inline int store_u8(struct pt_regs *regs, u8 *addr, u8 val)
 {
 	if (user_mode(regs)) {
-		return __put_user(val, addr);
+		return __put_user(val, (u8 __user *)addr);
 	} else {
 		*addr = val;
 		return 0;
@@ -343,7 +343,7 @@ static inline int store_u8(struct pt_regs *regs, u8 *addr, u8 val)
 	if (user_mode(regs)) {				\
 		__ret = __get_user(insn, insn_addr);	\
 	} else {					\
-		insn = *insn_addr;			\
+		insn = *(__force u16 *)insn_addr;	\
 		__ret = 0;				\
 	}						\
 							\
