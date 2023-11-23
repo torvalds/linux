@@ -755,10 +755,16 @@ class EnumSet(SpecEnumSet):
         if 'enum-name' in yaml:
             if yaml['enum-name']:
                 self.enum_name = 'enum ' + c_lower(yaml['enum-name'])
+                self.user_type = self.enum_name
             else:
                 self.enum_name = None
         else:
             self.enum_name = 'enum ' + self.render_name
+
+        if self.enum_name:
+            self.user_type = self.enum_name
+        else:
+            self.user_type = 'int'
 
         self.value_pfx = yaml.get('name-prefix', f"{family.name}-{yaml['name']}-")
 
@@ -1483,8 +1489,8 @@ def put_typol(cw, struct):
 
 def _put_enum_to_str_helper(cw, render_name, map_name, arg_name, enum=None):
     args = [f'int {arg_name}']
-    if enum and not ('enum-name' in enum and not enum['enum-name']):
-        args = [f'enum {render_name} {arg_name}']
+    if enum:
+        args = [enum.user_type + ' ' + arg_name]
     cw.write_func_prot('const char *', f'{render_name}_str', args)
     cw.block_start()
     if enum and enum.type == 'flags':
@@ -1522,9 +1528,7 @@ def put_op_name(family, cw):
 
 
 def put_enum_to_str_fwd(family, cw, enum):
-    args = [f'enum {enum.render_name} value']
-    if 'enum-name' in enum and not enum['enum-name']:
-        args = ['int value']
+    args = [enum.user_type + ' value']
     cw.write_func_prot('const char *', f'{enum.render_name}_str', args, suffix=';')
 
 
