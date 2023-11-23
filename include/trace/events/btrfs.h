@@ -265,8 +265,7 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 	__print_symbolic_u64(type,					\
 		{ EXTENT_MAP_LAST_BYTE, "LAST_BYTE" 	},		\
 		{ EXTENT_MAP_HOLE, 	"HOLE" 		},		\
-		{ EXTENT_MAP_INLINE, 	"INLINE" 	},		\
-		{ EXTENT_MAP_DELALLOC,	"DELALLOC" 	})
+		{ EXTENT_MAP_INLINE,	"INLINE"	})
 
 #define show_map_type(type)			\
 	type, (type >= EXTENT_MAP_LAST_BYTE) ? "-" :  __show_map_type(type)

@@ -212,9 +212,6 @@ static int mergable_maps(struct extent_map *prev, struct extent_map *next)
 	if (!list_empty(&prev->list) || !list_empty(&next->list))
 		return 0;
 
-	ASSERT(next->block_start != EXTENT_MAP_DELALLOC &&
-	       prev->block_start != EXTENT_MAP_DELALLOC);
-
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    ((next->block_start == EXTENT_MAP_HOLE &&

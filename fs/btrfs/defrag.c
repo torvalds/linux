@@ -996,9 +996,8 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		    em->len <= inode->root->fs_info->max_inline)
 			goto next;
 
-		/* Skip hole/delalloc/preallocated extents */
+		/* Skip holes and preallocated extents. */
 		if (em->block_start == EXTENT_MAP_HOLE ||
-		    em->block_start == EXTENT_MAP_DELALLOC ||
 		    test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			goto next;
 
