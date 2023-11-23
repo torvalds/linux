@@ -849,6 +849,7 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 				{ 0 } },
 		.reg = { "vfe0" },
 		.interrupt = { "vfe0" },
+		.pd_name = "ife0",
 		.line_num = 3,
 		.has_pd = true,
 		.ops = &vfe_ops_480
@@ -870,6 +871,7 @@ static const struct camss_subdev_resources vfe_res_8250[] = {
 				{ 0 } },
 		.reg = { "vfe1" },
 		.interrupt = { "vfe1" },
+		.pd_name = "ife1",
 		.line_num = 3,
 		.has_pd = true,
 		.ops = &vfe_ops_480
@@ -1813,6 +1815,7 @@ static const struct camss_resources sdm845_resources = {
 
 static const struct camss_resources sm8250_resources = {
 	.version = CAMSS_8250,
+	.pd_name = "top",
 	.csiphy_res = csiphy_res_8250,
 	.csid_res = csid_res_8250,
 	.vfe_res = vfe_res_8250,
