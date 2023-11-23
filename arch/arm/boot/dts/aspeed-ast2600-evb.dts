@@ -552,7 +552,6 @@
 		status = "okay";
 		m25p,fast-read;
 		label = "bmc";
-		spi-rx-bus-width = <4>;
 		spi-max-frequency = <50000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
@@ -602,7 +601,6 @@
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
 		label = "pnor";
-		spi-rx-bus-width = <4>;
 		spi-max-frequency = <100000000>;
 	};
 };
