@@ -174,7 +174,7 @@ static u32 ast_spi_calculate_divisor(struct fmc_spi_host *host, u32 max_speed_hz
 }
 
 /* the spi->mode bits understood by this driver: */
-#define MODEBITS (SPI_CPOL | SPI_CPHA | SPI_CS_HIGH)
+#define MODEBITS (SPI_MODE_0 | SPI_RX_DUAL | SPI_TX_DUAL | SPI_RX_QUAD | SPI_TX_QUAD)
 
 static int fmc_spi_setup(struct spi_device *spi)
 {
@@ -216,15 +216,15 @@ static int fmc_spi_setup(struct spi_device *spi)
 		bits = 8;
 
 	if (bits < 8 || bits > 16) {
-		dev_dbg(&spi->dev,
-				"setup: invalid bits_per_word %u (8 to 16)\n",
-				bits);
+		dev_err(&spi->dev,
+			"setup: invalid bits_per_word %u (8 to 16)\n",
+			bits);
 		return -EINVAL;
 	}
 
 	if (spi->mode & ~MODEBITS) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
-				spi->mode & ~MODEBITS);
+		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
+			spi->mode & ~MODEBITS);
 		return -EINVAL;
 	}
 
@@ -246,6 +246,11 @@ static int fmc_spi_setup(struct spi_device *spi)
 		/* speed zero means "as slow as possible" */
 		divisor = 15;
 	}
+
+	if ((spi->mode & SPI_RX_DUAL) != 0 && (spi->mode & SPI_TX_DUAL) != 0)
+		spi_ctrl |= SPI_DUAL_IO_MODE;
+	else if ((spi->mode & SPI_RX_QUAD) != 0 && (spi->mode & SPI_TX_QUAD) != 0)
+		spi_ctrl |= SPI_QUAD_IO_MODE;
 
 	spi_ctrl &= ~SPI_CLK_DIV_MASK;
 	/* printk("set div %x\n",divisor); */
@@ -408,11 +413,10 @@ static int fmc_spi_probe(struct platform_device *pdev)
 	}
 
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH |
-			    SPI_RX_DUAL | SPI_TX_DUAL;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
 
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_RX_DUAL;
+	master->mode_bits = SPI_MODE_0 | SPI_RX_DUAL | SPI_TX_DUAL |
+			    SPI_RX_QUAD | SPI_TX_QUAD;
 	//master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
 	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = pdev->id;
