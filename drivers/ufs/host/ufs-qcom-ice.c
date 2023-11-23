@@ -200,7 +200,7 @@ void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
 {
 	struct ice_mmio_data mmio_data;
 
-	if (!host)
+	if (!host || !((host->hba->caps & UFSHCD_CAP_CRYPTO)))
 		return;
 
 	mmio_data.ice_base_mmio = host->ice_mmio;
