@@ -27,6 +27,14 @@ KCONFIG_DEFCONFIG_LIST += \
 endif
 KCONFIG_DEFCONFIG_LIST += arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG)
 
+ifneq ($(findstring c, $(KBUILD_EXTRA_WARN)),)
+export KCONFIG_WARN_UNKNOWN_SYMBOLS=1
+endif
+
+ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
+export KCONFIG_WERROR=1
+endif
+
 # We need this, in case the user has it in its environment
 unexport CONFIG_
 
