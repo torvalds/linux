@@ -239,6 +239,34 @@ restart_drop_extra_replicas:
 
 		next_pos = insert->k.p;
 
+		/*
+		 * Check for nonce offset inconsistency:
+		 * This is debug code - we've been seeing this bug rarely, and
+		 * it's been hard to reproduce, so this should give us some more
+		 * information when it does occur:
+		 */
+		struct printbuf err = PRINTBUF;
+		int invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(insert), __btree_node_type(0, m->btree_id), 0, &err);
+		printbuf_exit(&err);
+
+		if (invalid) {
+			struct printbuf buf = PRINTBUF;
+
+			prt_str(&buf, "about to insert invalid key in data update path");
+			prt_str(&buf, "\nold: ");
+			bch2_bkey_val_to_text(&buf, c, old);
+			prt_str(&buf, "\nk:   ");
+			bch2_bkey_val_to_text(&buf, c, k);
+			prt_str(&buf, "\nnew: ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+			bch2_print_string_as_lines(KERN_ERR, buf.buf);
+			printbuf_exit(&buf);
+
+			bch2_fatal_error(c);
+			goto out;
+		}
+
 		ret =   bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,

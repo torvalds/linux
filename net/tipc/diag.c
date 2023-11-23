@@ -113,4 +113,5 @@ module_init(tipc_diag_init);
 module_exit(tipc_diag_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("TIPC socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, AF_TIPC);
