@@ -44,7 +44,16 @@ config RENESAS_ETHER_SWITCH
 	select CRC32
 	select MII
 	select PHYLINK
+	select RENESAS_GEN4_PTP
 	help
 	  Renesas Ethernet Switch device driver.
+
+config RENESAS_GEN4_PTP
+	tristate "Renesas R-Car Gen4 gPTP support" if COMPILE_TEST
+	select CRC32
+	select MII
+	select PHYLIB
+	help
+	  Renesas R-Car Gen4 gPTP device driver.
 
 endif # NET_VENDOR_RENESAS
