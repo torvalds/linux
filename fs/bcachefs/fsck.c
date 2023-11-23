@@ -2220,7 +2220,7 @@ static int nlink_cmp(const void *_l, const void *_r)
 	const struct nlink *l = _l;
 	const struct nlink *r = _r;
 
-	return cmp_int(l->inum, r->inum) ?: cmp_int(l->snapshot, r->snapshot);
+	return cmp_int(l->inum, r->inum);
 }
 
 static void inc_link(struct bch_fs *c, struct snapshots_seen *s,

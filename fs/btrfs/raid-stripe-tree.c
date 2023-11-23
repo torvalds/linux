@@ -145,7 +145,7 @@ int btrfs_insert_raid_extent(struct btrfs_trans_handle *trans,
 		btrfs_put_bioc(bioc);
 	}
 
-	return ret;
+	return 0;
 }
 
 int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,

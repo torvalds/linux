@@ -6,7 +6,6 @@
 
 #include "ice.h"
 
-#define ICE_DPLL_PRIO_MAX	0xF
 #define ICE_DPLL_RCLK_NUM_MAX	4
 
 /** ice_dpll_pin - store info about pins
