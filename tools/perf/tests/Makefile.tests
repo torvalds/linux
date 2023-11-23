@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
+# Athira Rajeev <atrajeev@linux.vnet.ibm.com>, 2023
+
+PROGS := $(shell find tests/shell -perm -o=x -type f -name '*.sh')
+FILE_NAME := $(notdir $(PROGS))
+FILE_NAME := $(FILE_NAME:%=.%)
+LOGS := $(join $(dir $(PROGS)),$(FILE_NAME))
+LOGS := $(LOGS:%=%.shellcheck_log)
+
+.PHONY: all
+all: SHELLCHECK_RUN
+	@:
+
+SHELLCHECK_RUN: $(LOGS)
+
+.%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call frecho-cmd,test)@shellcheck -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+clean:
+	$(eval log_files := $(shell find . -name '.*.shellcheck_log'))
+	@rm -rf $(log_files)
