@@ -835,8 +835,9 @@ static int k3_dsp_rproc_remove(struct platform_device *pdev)
 	if (rproc->state == RPROC_ATTACHED) {
 		ret = rproc_detach(rproc);
 		if (ret) {
+			/* Note this error path leaks resources */
 			dev_err(dev, "failed to detach proc, ret = %d\n", ret);
-			return ret;
+			return 0;
 		}
 	}
 
