@@ -1716,7 +1716,7 @@ void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 	ASSERT(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
 
 	memzero_extent_buffer(eb, 0, eb->len);
-	set_bit(EXTENT_BUFFER_NO_CHECK, &eb->bflags);
+	set_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags);
 	set_extent_buffer_dirty(eb);
 	set_extent_bit(&trans->dirty_pages, eb->start, eb->start + eb->len - 1,
 			EXTENT_DIRTY, NULL);
