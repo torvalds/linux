@@ -170,7 +170,7 @@ static void vdso_test_clock_getres(clockid_t clk_id)
  */
 static inline void vdso_test_clock(clockid_t clock_id)
 {
-	ksft_print_msg("\nclock_id: %s\n", vdso_clock_name[clock_id]);
+	ksft_print_msg("clock_id: %s\n", vdso_clock_name[clock_id]);
 
 	vdso_test_clock_gettime(clock_id);
 
