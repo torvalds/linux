@@ -1713,7 +1713,8 @@ void btrfs_redirty_list_add(struct btrfs_transaction *trans,
 	    btrfs_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN))
 		return;
 
-	ASSERT(!test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
+	ASSERT(test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags));
+	ASSERT(test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags));
 
 	memzero_extent_buffer(eb, 0, eb->len);
 	set_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags);
