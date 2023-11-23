@@ -1561,6 +1561,8 @@ mlxsw_pci_reset(struct mlxsw_pci *mlxsw_pci, const struct pci_device_id *id)
 		pci_dbg(pdev, "Starting software reset flow\n");
 		err = mlxsw_pci_reset_sw(mlxsw_pci);
 	}
+	if (err)
+		return err;
 
 	err = mlxsw_pci_sys_ready_wait(mlxsw_pci, id, &sys_status);
 	if (err) {
