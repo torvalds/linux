@@ -10,6 +10,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-ast2600-dcscm-amd.dtb \
 	aspeed-ast2600-usbadp.dtb \
 	aspeed-ast2600-usbadp-tee.dtb \
+	aspeed-ast2600-raw.dtb \
 	aspeed-bmc-amd-daytonax.dtb \
 	aspeed-bmc-amd-ethanolx.dtb \
 	aspeed-bmc-ampere-mtjade.dtb \
