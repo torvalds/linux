@@ -91,7 +91,7 @@ static long save_v_state(struct pt_regs *regs, void __user **sc_vec)
 	err = __copy_to_user(&state->v_state, &current->thread.vstate,
 			     offsetof(struct __riscv_v_ext_state, datap));
 	/* Copy the pointer datap itself. */
-	err |= __put_user(datap, &state->v_state.datap);
+	err |= __put_user((__force void *)datap, &state->v_state.datap);
 	/* Copy the whole vector content to user space datap. */
 	err |= __copy_to_user(datap, current->thread.vstate.datap, riscv_v_vsize);
 	/* Copy magic to the user space after saving  all vector conetext */
