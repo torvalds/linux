@@ -1078,42 +1078,6 @@ static int __init dell_smm_init_hwmon(struct device *dev)
 	return PTR_ERR_OR_ZERO(dell_smm_hwmon_dev);
 }
 
-struct i8k_config_data {
-	uint fan_mult;
-	uint fan_max;
-};
-
-enum i8k_configs {
-	DELL_LATITUDE_D520,
-	DELL_PRECISION_490,
-	DELL_STUDIO,
-	DELL_XPS,
-};
-
-/*
- * Only use for machines which need some special configuration
- * in order to work correctly (e.g. if autoconfig fails on this machines).
- */
-
-static const struct i8k_config_data i8k_config_data[] __initconst = {
-	[DELL_LATITUDE_D520] = {
-		.fan_mult = 1,
-		.fan_max = I8K_FAN_TURBO,
-	},
-	[DELL_PRECISION_490] = {
-		.fan_mult = 1,
-		.fan_max = I8K_FAN_TURBO,
-	},
-	[DELL_STUDIO] = {
-		.fan_mult = 1,
-		.fan_max = I8K_FAN_HIGH,
-	},
-	[DELL_XPS] = {
-		.fan_mult = 1,
-		.fan_max = I8K_FAN_HIGH,
-	},
-};
-
 static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 	{
 		.ident = "Dell G5 5590",
@@ -1144,14 +1108,6 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		},
 	},
 	{
-		.ident = "Dell Latitude D520",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude D520"),
-		},
-		.driver_data = (void *)&i8k_config_data[DELL_LATITUDE_D520],
-	},
-	{
 		.ident = "Dell Latitude 2",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -1173,15 +1129,6 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		},
 	},
 	{
-		.ident = "Dell Precision 490",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME,
-				  "Precision WorkStation 490"),
-		},
-		.driver_data = (void *)&i8k_config_data[DELL_PRECISION_490],
-	},
-	{
 		.ident = "Dell Precision",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -1201,7 +1148,6 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Studio"),
 		},
-		.driver_data = (void *)&i8k_config_data[DELL_STUDIO],
 	},
 	{
 		.ident = "Dell XPS M140",
@@ -1209,7 +1155,6 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MXC051"),
 		},
-		.driver_data = (void *)&i8k_config_data[DELL_XPS],
 	},
 	{
 		.ident = "Dell XPS",
@@ -1222,6 +1167,78 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 };
 
 MODULE_DEVICE_TABLE(dmi, i8k_dmi_table);
+
+/*
+ * Only use for machines which need some special configuration
+ * in order to work correctly (e.g. if autoconfig fails on this machines).
+ */
+struct i8k_config_data {
+	uint fan_mult;
+	uint fan_max;
+};
+
+enum i8k_configs {
+	DELL_LATITUDE_D520,
+	DELL_PRECISION_490,
+	DELL_STUDIO,
+	DELL_XPS,
+};
+
+static const struct i8k_config_data i8k_config_data[] __initconst = {
+	[DELL_LATITUDE_D520] = {
+		.fan_mult = 1,
+		.fan_max = I8K_FAN_TURBO,
+	},
+	[DELL_PRECISION_490] = {
+		.fan_mult = 1,
+		.fan_max = I8K_FAN_TURBO,
+	},
+	[DELL_STUDIO] = {
+		.fan_mult = 1,
+		.fan_max = I8K_FAN_HIGH,
+	},
+	[DELL_XPS] = {
+		.fan_mult = 1,
+		.fan_max = I8K_FAN_HIGH,
+	},
+};
+
+static const struct dmi_system_id i8k_config_dmi_table[] __initconst = {
+	{
+		.ident = "Dell Latitude D520",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude D520"),
+		},
+		.driver_data = (void *)&i8k_config_data[DELL_LATITUDE_D520],
+	},
+	{
+		.ident = "Dell Precision 490",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME,
+				  "Precision WorkStation 490"),
+		},
+		.driver_data = (void *)&i8k_config_data[DELL_PRECISION_490],
+	},
+	{
+		.ident = "Dell Studio",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Studio"),
+		},
+		.driver_data = (void *)&i8k_config_data[DELL_STUDIO],
+	},
+	{
+		.ident = "Dell XPS M140",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MXC051"),
+		},
+		.driver_data = (void *)&i8k_config_data[DELL_XPS],
+	},
+	{ }
+};
 
 /*
  * On some machines once I8K_SMM_GET_FAN_TYPE is issued then CPU fan speed
@@ -1438,7 +1455,7 @@ static void __init dell_smm_init_dmi(void)
 	 * Set fan multiplier and maximal fan speed from DMI config.
 	 * Values specified in module parameters override values from DMI.
 	 */
-	id = dmi_first_match(i8k_dmi_table);
+	id = dmi_first_match(i8k_config_dmi_table);
 	if (id && id->driver_data) {
 		config = id->driver_data;
 		if (!fan_mult && config->fan_mult)
