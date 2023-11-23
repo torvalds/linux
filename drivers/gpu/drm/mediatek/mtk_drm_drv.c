@@ -5,7 +5,6 @@
  */
 
 #include <linux/component.h>
-#include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -607,9 +606,6 @@ static int mtk_drm_bind(struct device *dev)
 	struct platform_device *pdev;
 	struct drm_device *drm;
 	int ret, i;
-
-	if (!iommu_present(&platform_bus_type))
-		return -EPROBE_DEFER;
 
 	pdev = of_find_device_by_node(private->mutex_node);
 	if (!pdev) {
