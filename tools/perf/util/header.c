@@ -1444,7 +1444,9 @@ static int build_mem_topology(struct memory_node **nodesp, u64 *cntp)
 			nodes = new_nodes;
 			size += 4;
 		}
-		ret = memory_node__read(&nodes[cnt++], idx);
+		ret = memory_node__read(&nodes[cnt], idx);
+		if (!ret)
+			cnt += 1;
 	}
 out:
 	closedir(dir);
