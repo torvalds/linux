@@ -507,6 +507,7 @@ struct	cs43130_private {
 	struct gpio_desc		*reset_gpio;
 	unsigned int			dev_id; /* codec device ID */
 	int				xtal_ibias;
+	bool				has_irq_line;
 
 	/* shared by both DAIs */
 	struct mutex			clk_mutex;
