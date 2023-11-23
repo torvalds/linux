@@ -67,9 +67,9 @@ class Type(SpecAttr):
         if 'nested-attributes' in attr:
             self.nested_attrs = attr['nested-attributes']
             if self.nested_attrs == family.name:
-                self.nested_render_name = f"{family.name}"
+                self.nested_render_name = c_lower(f"{family.name}")
             else:
-                self.nested_render_name = f"{family.name}_{c_lower(self.nested_attrs)}"
+                self.nested_render_name = c_lower(f"{family.name}_{self.nested_attrs}")
 
             if self.nested_attrs in self.family.consts:
                 self.nested_struct_type = 'struct ' + self.nested_render_name + '_'
@@ -335,7 +335,7 @@ class TypeScalar(Type):
 
         maybe_enum = not self.is_bitfield and 'enum' in self.attr
         if maybe_enum and self.family.consts[self.attr['enum']].enum_name:
-            self.type_name = f"enum {self.family.name}_{c_lower(self.attr['enum'])}"
+            self.type_name = c_lower(f"enum {self.family.name}_{self.attr['enum']}")
         elif self.is_auto_scalar:
             self.type_name = '__' + self.type[0] + '64'
         else:
@@ -685,9 +685,9 @@ class Struct:
 
         self.nested = type_list is None
         if family.name == c_lower(space_name):
-            self.render_name = f"{family.name}"
+            self.render_name = c_lower(family.name)
         else:
-            self.render_name = f"{family.name}_{c_lower(space_name)}"
+            self.render_name = c_lower(family.name + '-' + space_name)
         self.struct_name = 'struct ' + self.render_name
         if self.nested and space_name in family.consts:
             self.struct_name += '_'
@@ -841,7 +841,7 @@ class Operation(SpecOperation):
     def __init__(self, family, yaml, req_value, rsp_value):
         super().__init__(family, yaml, req_value, rsp_value)
 
-        self.render_name = family.name + '_' + c_lower(self.name)
+        self.render_name = c_lower(family.name + '_' + self.name)
 
         self.dual_policy = ('do' in yaml and 'request' in yaml['do']) and \
                          ('dump' in yaml and 'request' in yaml['dump'])
@@ -1431,7 +1431,7 @@ def op_prefix(ri, direction, deref=False):
                 suffix += '_rsp'
                 suffix += '_dump' if deref else '_list'
 
-    return f"{ri.family['name']}{suffix}"
+    return f"{ri.family.c_name}{suffix}"
 
 
 def type_name(ri, direction, deref=False):
@@ -1497,11 +1497,11 @@ def _put_enum_to_str_helper(cw, render_name, map_name, arg_name, enum=None):
 
 
 def put_op_name_fwd(family, cw):
-    cw.write_func_prot('const char *', f'{family.name}_op_str', ['int op'], suffix=';')
+    cw.write_func_prot('const char *', f'{family.c_name}_op_str', ['int op'], suffix=';')
 
 
 def put_op_name(family, cw):
-    map_name = f'{family.name}_op_strmap'
+    map_name = f'{family.c_name}_op_strmap'
     cw.block_start(line=f"static const char * const {map_name}[] =")
     for op_name, op in family.msgs.items():
         if op.rsp_value:
@@ -1518,7 +1518,7 @@ def put_op_name(family, cw):
     cw.block_end(line=';')
     cw.nl()
 
-    _put_enum_to_str_helper(cw, family.name + '_op', map_name, 'op')
+    _put_enum_to_str_helper(cw, family.c_name + '_op', map_name, 'op')
 
 
 def put_enum_to_str_fwd(family, cw, enum):
@@ -1840,7 +1840,7 @@ def _print_type(ri, direction, struct):
     if ri.op_mode == 'dump':
         suffix += '_dump'
 
-    ri.cw.block_start(line=f"struct {ri.family['name']}{suffix}")
+    ri.cw.block_start(line=f"struct {ri.family.c_name}{suffix}")
 
     meta_started = False
     for _, attr in struct.member_list():
@@ -2106,7 +2106,7 @@ def print_kernel_op_table_fwd(family, cw, terminate):
             cnt = len(family.ops)
 
         qual = 'static const' if not exported else 'const'
-        line = f"{qual} struct {struct_type} {family.name}_nl_ops[{cnt}]"
+        line = f"{qual} struct {struct_type} {family.c_name}_nl_ops[{cnt}]"
         if terminate:
             cw.p(f"extern {line};")
         else:
@@ -2249,7 +2249,7 @@ def print_kernel_mcgrp_src(family, cw):
     if not family.mcgrps['list']:
         return
 
-    cw.block_start('static const struct genl_multicast_group ' + family.name + '_nl_mcgrps[] =')
+    cw.block_start('static const struct genl_multicast_group ' + family.c_name + '_nl_mcgrps[] =')
     for grp in family.mcgrps['list']:
         name = grp['name']
         grp_id = c_upper(f"{family.name}-nlgrp-{name}")
@@ -2262,7 +2262,7 @@ def print_kernel_family_struct_hdr(family, cw):
     if not kernel_can_gen_family_struct(family):
         return
 
-    cw.p(f"extern struct genl_family {family.name}_nl_family;")
+    cw.p(f"extern struct genl_family {family.c_name}_nl_family;")
     cw.nl()
 
 
@@ -2277,14 +2277,14 @@ def print_kernel_family_struct_src(family, cw):
     cw.p('.parallel_ops\t= true,')
     cw.p('.module\t\t= THIS_MODULE,')
     if family.kernel_policy == 'per-op':
-        cw.p(f'.ops\t\t= {family.name}_nl_ops,')
-        cw.p(f'.n_ops\t\t= ARRAY_SIZE({family.name}_nl_ops),')
+        cw.p(f'.ops\t\t= {family.c_name}_nl_ops,')
+        cw.p(f'.n_ops\t\t= ARRAY_SIZE({family.c_name}_nl_ops),')
     elif family.kernel_policy == 'split':
-        cw.p(f'.split_ops\t= {family.name}_nl_ops,')
-        cw.p(f'.n_split_ops\t= ARRAY_SIZE({family.name}_nl_ops),')
+        cw.p(f'.split_ops\t= {family.c_name}_nl_ops,')
+        cw.p(f'.n_split_ops\t= ARRAY_SIZE({family.c_name}_nl_ops),')
     if family.mcgrps['list']:
-        cw.p(f'.mcgrps\t\t= {family.name}_nl_mcgrps,')
-        cw.p(f'.n_mcgrps\t= ARRAY_SIZE({family.name}_nl_mcgrps),')
+        cw.p(f'.mcgrps\t\t= {family.c_name}_nl_mcgrps,')
+        cw.p(f'.n_mcgrps\t= ARRAY_SIZE({family.c_name}_nl_mcgrps),')
     cw.block_end(';')
 
 
@@ -2294,7 +2294,7 @@ def uapi_enum_start(family, cw, obj, ckey='', enum_name='enum-name'):
         if obj[enum_name]:
             start_line = 'enum ' + c_lower(obj[enum_name])
     elif ckey and ckey in obj:
-        start_line = 'enum ' + family.name + '_' + c_lower(obj[ckey])
+        start_line = 'enum ' + family.c_name + '_' + c_lower(obj[ckey])
     cw.block_start(line=start_line)
 
 
@@ -2478,7 +2478,7 @@ def render_user_family(family, cw, prototype):
         cw.nl()
 
     cw.block_start(f'{symbol} = ')
-    cw.p(f'.name\t\t= "{family.name}",')
+    cw.p(f'.name\t\t= "{family.c_name}",')
     if family.ntfs:
         cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
         cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")
@@ -2560,7 +2560,7 @@ def main():
         render_uapi(parsed, cw)
         return
 
-    hdr_prot = f"_LINUX_{parsed.name.upper()}_GEN_H"
+    hdr_prot = f"_LINUX_{parsed.c_name.upper()}_GEN_H"
     if args.header:
         cw.p('#ifndef ' + hdr_prot)
         cw.p('#define ' + hdr_prot)
