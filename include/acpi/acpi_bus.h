@@ -764,8 +764,14 @@ static inline bool acpi_device_can_poweroff(struct acpi_device *adev)
 		adev->power.states[ACPI_STATE_D3_HOT].flags.explicit_set);
 }
 
-bool acpi_dev_hid_uid_match(struct acpi_device *adev, const char *hid2, const char *uid2);
 int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer);
+
+static inline bool acpi_dev_hid_match(struct acpi_device *adev, const char *hid2)
+{
+	const char *hid1 = acpi_device_hid(adev);
+
+	return hid1 && hid2 && !strcmp(hid1, hid2);
+}
 
 static inline bool acpi_str_uid_match(struct acpi_device *adev, const char *uid2)
 {
@@ -806,6 +812,22 @@ static inline bool acpi_int_uid_match(struct acpi_device *adev, u64 uid2)
 		 ACPI_STR_TYPES(acpi_str_uid_match),			\
 		 /* Treat as an integer otherwise */			\
 		 default: acpi_int_uid_match)(adev, uid2)
+
+/**
+ * acpi_dev_hid_uid_match - Match device by supplied HID and UID
+ * @adev: ACPI device to match.
+ * @hid2: Hardware ID of the device.
+ * @uid2: Unique ID of the device, pass 0 or NULL to not check _UID.
+ *
+ * Matches HID and UID in @adev with given @hid2 and @uid2. Absence of @uid2
+ * will be treated as a match. If user wants to validate @uid2, it should be
+ * done before calling this function.
+ *
+ * Returns: %true if matches or @uid2 is 0 or NULL, %false otherwise.
+ */
+#define acpi_dev_hid_uid_match(adev, hid2, uid2)			\
+	(acpi_dev_hid_match(adev, hid2) &&				\
+		(!(uid2) || acpi_dev_uid_match(adev, uid2)))
 
 void acpi_dev_clear_dependencies(struct acpi_device *supplier);
 bool acpi_dev_ready_for_enumeration(const struct acpi_device *device);
