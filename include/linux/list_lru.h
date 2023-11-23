@@ -73,7 +73,7 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
 
 /**
  * list_lru_add: add an element to the lru list's tail
- * @list_lru: the lru pointer
+ * @lru: the lru pointer
  * @item: the item to be added.
  *
  * If the element is already part of a list, this function returns doing
@@ -83,22 +83,22 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
  * the caller organize itself in a way that elements can be in more than
  * one type of list, it is up to the caller to fully remove the item from
  * the previous list (with list_lru_del() for instance) before moving it
- * to @list_lru
+ * to @lru.
  *
- * Return value: true if the list was updated, false otherwise
+ * Return: true if the list was updated, false otherwise
  */
 bool list_lru_add(struct list_lru *lru, struct list_head *item);
 
 /**
  * list_lru_del: delete an element to the lru list
- * @list_lru: the lru pointer
+ * @lru: the lru pointer
  * @item: the item to be deleted.
  *
- * This function works analogously as list_lru_add in terms of list
+ * This function works analogously as list_lru_add() in terms of list
  * manipulation. The comments about an element already pertaining to
- * a list are also valid for list_lru_del.
+ * a list are also valid for list_lru_del().
  *
- * Return value: true if the list was updated, false otherwise
+ * Return: true if the list was updated, false otherwise
  */
 bool list_lru_del(struct list_lru *lru, struct list_head *item);
 
@@ -108,9 +108,11 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item);
  * @nid: the node id to count from.
  * @memcg: the cgroup to count from.
  *
- * Always return a non-negative number, 0 for empty lists. There is no
- * guarantee that the list is not updated while the count is being computed.
- * Callers that want such a guarantee need to provide an outer lock.
+ * There is no guarantee that the list is not updated while the count is being
+ * computed. Callers that want such a guarantee need to provide an outer lock.
+ *
+ * Return: 0 for empty lists, otherwise the number of objects
+ * currently held by @lru.
  */
 unsigned long list_lru_count_one(struct list_lru *lru,
 				 int nid, struct mem_cgroup *memcg);
@@ -141,7 +143,7 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
 		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
 
 /**
- * list_lru_walk_one: walk a list_lru, isolating and disposing freeable items.
+ * list_lru_walk_one: walk a @lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
  * @nid: the node id to scan from.
  * @memcg: the cgroup to scan from.
@@ -150,24 +152,24 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
  * @cb_arg: opaque type that will be passed to @isolate
  * @nr_to_walk: how many items to scan.
  *
- * This function will scan all elements in a particular list_lru, calling the
+ * This function will scan all elements in a particular @lru, calling the
  * @isolate callback for each of those items, along with the current list
  * spinlock and a caller-provided opaque. The @isolate callback can choose to
  * drop the lock internally, but *must* return with the lock held. The callback
- * will return an enum lru_status telling the list_lru infrastructure what to
+ * will return an enum lru_status telling the @lru infrastructure what to
  * do with the object being scanned.
  *
- * Please note that nr_to_walk does not mean how many objects will be freed,
+ * Please note that @nr_to_walk does not mean how many objects will be freed,
  * just how many objects will be scanned.
  *
- * Return value: the number of objects effectively removed from the LRU.
+ * Return: the number of objects effectively removed from the LRU.
  */
 unsigned long list_lru_walk_one(struct list_lru *lru,
 				int nid, struct mem_cgroup *memcg,
 				list_lru_walk_cb isolate, void *cb_arg,
 				unsigned long *nr_to_walk);
 /**
- * list_lru_walk_one_irq: walk a list_lru, isolating and disposing freeable items.
+ * list_lru_walk_one_irq: walk a @lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
  * @nid: the node id to scan from.
  * @memcg: the cgroup to scan from.
@@ -176,7 +178,7 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
  * @cb_arg: opaque type that will be passed to @isolate
  * @nr_to_walk: how many items to scan.
  *
- * Same as @list_lru_walk_one except that the spinlock is acquired with
+ * Same as list_lru_walk_one() except that the spinlock is acquired with
  * spin_lock_irq().
  */
 unsigned long list_lru_walk_one_irq(struct list_lru *lru,
