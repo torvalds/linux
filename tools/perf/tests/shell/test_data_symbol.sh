@@ -8,12 +8,17 @@ shelldir=$(dirname "$0")
 # shellcheck source=lib/waiting.sh
 . "${shelldir}"/lib/waiting.sh
 
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
 skip_if_no_mem_event() {
 	perf mem record -e list 2>&1 | grep -E -q 'available' && return 0
 	return 2
 }
 
 skip_if_no_mem_event || exit 2
+
+skip_test_missing_symbol buf1
 
 TEST_PROGRAM="perf test -w datasym"
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
