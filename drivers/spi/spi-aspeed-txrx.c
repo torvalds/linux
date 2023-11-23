@@ -30,6 +30,10 @@
 
 #define SPI_FULL_DUPLEX_RX_REG	0x1e4
 
+#define SPI_IO_MASK		(0xf0000000)
+#define SPI_DUAL_IO_MODE	(0x3 << 28)
+#define SPI_QUAD_IO_MODE	(0x5 << 28)
+
 #define SPI_LSB_FIRST_CTRL	BIT(5)
 #define SPI_CE_INACTIVE		BIT(2)
 #define SPI_CMD_USER_MODE	(0x3)
@@ -278,19 +282,17 @@ static int aspeed_spi_setup(struct spi_device *spi)
 		(struct aspeed_spi_host *)spi_controller_get_devdata(spi->controller);
 	struct device *dev = host->dev;
 	u32 clk_div;
+	void __iomem *ctrl_reg = host->ctrl_reg + SPI_CE0_CTRL +
+				 spi->chip_select * 4;
+	u32 unsupport_mode = (u32)(~(SPI_MODE_0 | SPI_RX_DUAL | SPI_TX_DUAL |
+				     SPI_RX_QUAD | SPI_TX_QUAD | SPI_LSB_FIRST));
 
 	dev_dbg(dev, "cs: %d, mode: %d, max_speed: %d, bits_per_word: %d\n",
 		spi->chip_select, spi->mode,
 		spi->max_speed_hz, spi->bits_per_word);
 
-	if (spi->mode & SPI_MODE_X_MASK) {
-		dev_dbg(dev, "unsupported mode bits: %x\n",
-			(u32)(spi->mode & SPI_MODE_X_MASK));
-		return -EINVAL;
-	}
-
-	if (spi->mode & SPI_CS_HIGH) {
-		dev_dbg(dev, "can't be active-high\n");
+	if (spi->mode & unsupport_mode) {
+		dev_dbg(dev, "unsupported mode bits: %x\n", spi->mode);
 		return -EINVAL;
 	}
 
@@ -307,6 +309,8 @@ static int aspeed_spi_setup(struct spi_device *spi)
 
 	if (spi->mode & SPI_LSB_FIRST)
 		host->ctrl_val[spi->chip_select] |= SPI_LSB_FIRST_CTRL;
+
+	writel(host->ctrl_val[spi->chip_select], ctrl_reg);
 
 	dev_info(dev, "cs: %d, ctrl_val: 0x%08x\n",
 		 spi->chip_select, host->ctrl_val[spi->chip_select]);
@@ -369,6 +373,8 @@ static int aspeed_spi_transfer(struct spi_controller *ctlr,
 	u8 *rx_buf;
 	u32 cs;
 	u32 j = 0;
+	u32 ctrl_val;
+	void __iomem *ctrl_reg;
 
 	if (host->cs_change == 0) {
 		mutex_lock(&host->lock);
@@ -376,6 +382,8 @@ static int aspeed_spi_transfer(struct spi_controller *ctlr,
 	}
 
 	cs = spi->chip_select;
+	ctrl_reg = host->ctrl_reg + SPI_CE0_CTRL + cs * 4;
+	ctrl_val = readl(ctrl_reg);
 
 	dev_dbg(dev, "cs: %d\n", cs);
 
@@ -392,6 +400,13 @@ static int aspeed_spi_transfer(struct spi_controller *ctlr,
 		full_duplex_rx = false;
 
 		if (tx_buf) {
+			ctrl_val &= ~SPI_IO_MASK;
+			if (spi->mode & SPI_TX_DUAL)
+				ctrl_val |= SPI_DUAL_IO_MODE;
+			else if (spi->mode & SPI_TX_QUAD)
+				ctrl_val |= SPI_QUAD_IO_MODE;
+			writel(ctrl_val, ctrl_reg);
+
 #if defined(SPI_ASPEED_TXRX_DBG)
 			pr_info("tx : ");
 			spi_aspeed_dump_buf(tx_buf, xfer->len);
@@ -403,6 +418,13 @@ static int aspeed_spi_transfer(struct spi_controller *ctlr,
 		}
 
 		if (rx_buf && !full_duplex_rx) {
+			ctrl_val &= ~SPI_IO_MASK;
+			if (spi->mode & SPI_RX_DUAL)
+				ctrl_val |= SPI_DUAL_IO_MODE;
+			else if (spi->mode & SPI_RX_QUAD)
+				ctrl_val |= SPI_QUAD_IO_MODE;
+			writel(ctrl_val, ctrl_reg);
+
 			ioread8_rep(host->chip_ahb_base[cs], rx_buf, xfer->len);
 
 #if defined(SPI_ASPEED_TXRX_DBG)
@@ -444,7 +466,8 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ctrl->mode_bits = 0;
+	ctrl->mode_bits = SPI_MODE_0 | SPI_RX_DUAL | SPI_TX_DUAL |
+			  SPI_RX_QUAD | SPI_TX_QUAD | SPI_LSB_FIRST;
 	ctrl->bits_per_word_mask = SPI_BPW_MASK(8);
 	ctrl->dev.of_node = pdev->dev.of_node;
 	ctrl->bus_num = pdev->id;
