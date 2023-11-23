@@ -677,6 +677,15 @@ config QDU_GCC_1000
 	  QRU1000 devices. Say Y if you want to use peripheral
 	  devices such as UART, SPI, I2C, USB, SD, PCIe, etc.
 
+config QDU_ECPRICC_1000
+	tristate "QDU1000/QRU1000 ECPRI Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select QDU_GCC_1000
+	help
+	  Support for the ECPRI clock controller on QDU1000 and
+	  QRU1000 devices. Say Y if you want to support the ECPRI
+	  clock controller functionality such as Ethernet.
+
 config SDM_GCC_845
 	tristate "SDM845/SDM670 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
