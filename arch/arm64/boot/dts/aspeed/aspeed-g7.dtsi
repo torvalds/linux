@@ -181,6 +181,15 @@
 			};
 		};
 
+		phy3a: phy3@12010000 {
+			compatible = "aspeed,ast2700-phy3a";
+			reg = <0x0 0x12010000 0x0 0x820>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_PHY3>;
+			aspeed,scu = <&syscon0>;
+			status = "disabled";
+		};
+
 		vhuba1: usb-vhub@12011000 {
 			compatible = "aspeed,ast2700-usb-vhub";
 			reg = <0x0 0x12011000 0x0 0x350>;
@@ -189,6 +198,26 @@
 			resets = <&soc0_rst ASPEED_RESET_P0_VHUB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2axhpd1_default>;
+			status = "disabled";
+		};
+
+		phy2a1: phy2@12011800 {
+			compatible = "aspeed,ast2700-phy2a1";
+			reg = <0x0 0x12011800 0x0 0x10>;
+			ctrl = <0x4 0xbc001e00>;	/* <offset, value> */
+			aspeed,scu = <&syscon0>;
+			status = "disabled";
+		};
+
+		phy3b: phy3@12020000 {
+			compatible = "aspeed,ast2700-phy3b";
+			reg = <0x0 0x12020000 0x0 0x820>;
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_PHY3>;
+			aspeed,bypass_phy_sram_quirk;
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 
@@ -200,6 +229,16 @@
 			resets = <&soc0_rst ASPEED_RESET_P1_VHUB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bxhpd1_default>;
+			status = "disabled";
+		};
+
+		phy2b1: phy2@12021800 {
+			compatible = "aspeed,ast2700-phy2b1";
+			reg = <0x0 0x12021800 0x0 0x10>;
+			ctrl = <0x4 0xbc001e00>;	/* <offset, value> */
+			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
 
@@ -212,6 +251,16 @@
 			//pinctrl-names = "default";
 			//pinctrl-0 = <&pinctrl_usb3axh_default &pinctrl_usb2axh_default>;
 			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb3ahp: usb3ahp {
+			compatible = "aspeed,ast2700-usb3ahp";
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P0_XHCI>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb3axhp_default>;
+			aspeed,device = <&pcie_device0>;
 			status = "disabled";
 		};
 
@@ -234,6 +283,16 @@
 			//pinctrl-names = "default";
 			//pinctrl-0 = <&pinctrl_usb3bxh_default &pinctrl_usb2bxh_default>;
 			dr_mode = "host";
+			status = "disabled";
+		};
+
+		usb3bhp: usb3bhp {
+			compatible = "aspeed,ast2700-usb3bhp";
+			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
+			resets = <&soc0_rst ASPEED_RESET_P1_XHCI>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb3bxhp_default>;
+			aspeed,device = <&pcie_device1>;
 			status = "disabled";
 		};
 

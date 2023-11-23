@@ -481,15 +481,44 @@
 	status = "okay";
 };
 
+&xhci1 {
+	status = "okay";
+};
 #endif
 
-#if 0
+#if 1
 &vhuba1 {
 	status = "okay";
 };
 
-&vhuba0 {
+&vhubb1 {
 	status = "okay";
 };
 
+#endif
+
+#if 1
+&phy3a {
+	status = "okay";
+};
+
+&phy3b {
+	status = "okay";
+};
+
+&usb3ahp {
+	status = "okay";
+};
+
+&usb3bhp {
+	status = "okay";
+};
+
+&phy2a1 {
+	status = "okay";
+};
+
+&phy2b1 {
+	status = "okay";
+};
 #endif
