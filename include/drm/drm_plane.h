@@ -191,6 +191,16 @@ struct drm_plane_state {
 	struct drm_property_blob *fb_damage_clips;
 
 	/**
+	 * @ignore_damage_clips:
+	 *
+	 * Set by drivers to indicate the drm_atomic_helper_damage_iter_init()
+	 * helper that the @fb_damage_clips blob property should be ignored.
+	 *
+	 * See :ref:`damage_tracking_properties` for more information.
+	 */
+	bool ignore_damage_clips;
+
+	/**
 	 * @src:
 	 *
 	 * source coordinates of the plane (in 16.16).
