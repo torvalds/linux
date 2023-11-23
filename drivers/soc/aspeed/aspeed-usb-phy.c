@@ -21,6 +21,12 @@ static const struct of_device_id aspeed_usb_phy_dt_ids[] = {
 	{
 		.compatible = "aspeed,ast2600-uphyb",
 	},
+	{
+		.compatible = "aspeed,ast2700-phy2a1",
+	},
+	{
+		.compatible = "aspeed,ast2700-phy2b1",
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, aspeed_usb_phy_dt_ids);
@@ -41,10 +47,29 @@ static int aspeed_usb_phy_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Check SCU040[3] USB port B controller reset is deassert */
-	regmap_read(scu, 0x40, &val);
-	if ((val & BIT(3)))
-		return -EPROBE_DEFER;
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "aspeed,ast2600-uphyb")) {
+		/* Check SCU040[3] USB port B controller reset is deassert */
+		regmap_read(scu, 0x40, &val);
+		if ((val & BIT(3)))
+			return -EPROBE_DEFER;
+	}
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "aspeed,ast2700-phy2a1")) {
+		/* Check SCU220[0] USB vHubA1 controller reset is deassert */
+		regmap_read(scu, 0x220, &val);
+		if ((val & BIT(0)))
+			return -EPROBE_DEFER;
+	}
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "aspeed,ast2700-phy2b1")) {
+		/* Check SCU220[2] USB vHubB1 controller reset is deassert */
+		regmap_read(scu, 0x220, &val);
+		if ((val & BIT(2)))
+			return -EPROBE_DEFER;
+	}
 
 	ctrl_data = devm_kzalloc(&pdev->dev,
 				 sizeof(struct usb_phy_ctrl) * ctrl_num,

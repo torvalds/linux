@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/dma-mapping.h>
+#include <linux/reset.h>
 
 #include "vhub.h"
 
@@ -348,7 +349,18 @@ static int ast_vhub_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Error couldn't enable clock (%d)\n", rc);
 		goto err;
 	}
+#ifdef CONFIG_MACH_ASPEED_G7
+	vhub->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
+	if (IS_ERR(vhub->rst)) {
+		rc = PTR_ERR(vhub->rst);
+		goto err;
+	}
 
+	mdelay(10);
+	rc = reset_control_deassert(vhub->rst);
+	if (rc)
+		goto err;
+#endif
 	/* Check if we need to limit the HW to USB1 */
 	max_speed = usb_get_maximum_speed(&pdev->dev);
 	if (max_speed != USB_SPEED_UNKNOWN && max_speed < USB_SPEED_HIGH)

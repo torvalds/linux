@@ -15,6 +15,7 @@ obj-$(CONFIG_ASPEED_LPC_MAILBOX)	+= aspeed-lpc-mbox.o
 obj-$(CONFIG_ASPEED_LPC_PCC)	+= aspeed-lpc-pcc.o
 obj-$(CONFIG_ASPEED_UDMA)		+= aspeed-udma.o
 obj-$(CONFIG_ARCH_ASPEED)		+= aspeed-usb-phy.o
+obj-$(CONFIG_ARCH_ASPEED)		+= aspeed-usb-phy3.o
 obj-$(CONFIG_ARCH_ASPEED)		+= aspeed-usb-ahp.o
 obj-$(CONFIG_ASPEED_MCTP)		+= aspeed-mctp.o
 obj-$(CONFIG_ASPEED_OTP)		+= aspeed-otp.o
