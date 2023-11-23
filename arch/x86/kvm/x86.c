@@ -12910,7 +12910,10 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.guest_state_protected)
 		return true;
 
-	return vcpu->arch.preempted_in_kernel;
+	if (vcpu != kvm_get_running_vcpu())
+		return vcpu->arch.preempted_in_kernel;
+
+	return static_call(kvm_x86_get_cpl)(vcpu) == 0;
 }
 
 unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
