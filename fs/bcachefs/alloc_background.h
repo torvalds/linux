@@ -71,6 +71,24 @@ static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
 }
 
+static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors + a.cached_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_dirty(struct bch_alloc_v4 a)
+{
+	return a.dirty_sectors;
+}
+
+static inline unsigned bch2_bucket_sectors_fragmented(struct bch_dev *ca,
+						 struct bch_alloc_v4 a)
+{
+	int d = bch2_bucket_sectors_dirty(a);
+
+	return d ? max(0, ca->mi.bucket_size - d) : 0;
+}
+
 static inline u64 alloc_lru_idx_read(struct bch_alloc_v4 a)
 {
 	return a.data_type == BCH_DATA_cached ? a.io_time[READ] : 0;
@@ -90,10 +108,11 @@ static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
 	if (!data_type_movable(a.data_type) ||
-	    a.dirty_sectors >= ca->mi.bucket_size)
+	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;
 
-	return div_u64((u64) a.dirty_sectors * (1ULL << 31), ca->mi.bucket_size);
+	u64 d = bch2_bucket_sectors_dirty(a);
+	return div_u64(d * (1ULL << 31), ca->mi.bucket_size);
 }
 
 static inline u64 alloc_freespace_genbits(struct bch_alloc_v4 a)

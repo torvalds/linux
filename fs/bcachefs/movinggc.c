@@ -91,7 +91,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(k, &_a);
 	b->k.gen	= a->gen;
-	b->sectors	= a->dirty_sectors;
+	b->sectors	= bch2_bucket_sectors_dirty(*a);
 
 	ret = data_type_movable(a->data_type) &&
 		a->fragmentation_lru &&

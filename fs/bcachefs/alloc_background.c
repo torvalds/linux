@@ -261,10 +261,8 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
 	case BCH_DATA_need_discard:
-		bkey_fsck_err_on(a.v->dirty_sectors ||
-				 a.v->cached_sectors ||
-				 a.v->stripe, c, err,
-				 alloc_key_empty_but_have_data,
+		bkey_fsck_err_on(bch2_bucket_sectors(*a.v) || a.v->stripe,
+				 c, err, alloc_key_empty_but_have_data,
 				 "empty data type free but have data");
 		break;
 	case BCH_DATA_sb:
@@ -272,22 +270,21 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 	case BCH_DATA_btree:
 	case BCH_DATA_user:
 	case BCH_DATA_parity:
-		bkey_fsck_err_on(!a.v->dirty_sectors, c, err,
-				 alloc_key_dirty_sectors_0,
+		bkey_fsck_err_on(!bch2_bucket_sectors_dirty(*a.v),
+				 c, err, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
 				 bch2_data_types[a.v->data_type]);
 		break;
 	case BCH_DATA_cached:
 		bkey_fsck_err_on(!a.v->cached_sectors ||
-				 a.v->dirty_sectors ||
-				 a.v->stripe, c, err,
-				 alloc_key_cached_inconsistency,
+				 bch2_bucket_sectors_dirty(*a.v) ||
+				 a.v->stripe,
+				 c, err, alloc_key_cached_inconsistency,
 				 "data type inconsistency");
 
 		bkey_fsck_err_on(!a.v->io_time[READ] &&
 				 c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs,
-				 c, err,
-				 alloc_key_cached_but_read_time_zero,
+				 c, err, alloc_key_cached_but_read_time_zero,
 				 "cached bucket with read_time == 0");
 		break;
 	case BCH_DATA_stripe:
@@ -790,8 +787,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 
 	new_a->data_type = alloc_data_type(*new_a, new_a->data_type);
 
-	if (new_a->dirty_sectors > old_a->dirty_sectors ||
-	    new_a->cached_sectors > old_a->cached_sectors) {
+	if (bch2_bucket_sectors(*new_a) > bch2_bucket_sectors(*old_a)) {
 		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
 		new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
 		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);

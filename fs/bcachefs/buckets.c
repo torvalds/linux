@@ -277,14 +277,6 @@ void bch2_dev_usage_init(struct bch_dev *ca)
 	ca->usage_base->d[BCH_DATA_free].buckets = ca->mi.nbuckets - ca->mi.first_bucket;
 }
 
-static inline int bucket_sectors_fragmented(struct bch_dev *ca,
-					    struct bch_alloc_v4 a)
-{
-	return a.dirty_sectors
-		? max(0, (int) ca->mi.bucket_size - (int) a.dirty_sectors)
-		: 0;
-}
-
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 				  struct bch_alloc_v4 old,
 				  struct bch_alloc_v4 new,
@@ -306,41 +298,40 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	u->d[old.data_type].buckets--;
 	u->d[new.data_type].buckets++;
 
-	u->buckets_ec -= (int) !!old.stripe;
-	u->buckets_ec += (int) !!new.stripe;
+	u->buckets_ec -= !!old.stripe;
+	u->buckets_ec += !!new.stripe;
 
-	u->d[old.data_type].sectors -= old.dirty_sectors;
-	u->d[new.data_type].sectors += new.dirty_sectors;
+	u->d[old.data_type].sectors -= bch2_bucket_sectors_dirty(old);
+	u->d[new.data_type].sectors += bch2_bucket_sectors_dirty(new);
 
 	u->d[BCH_DATA_cached].sectors += new.cached_sectors;
 	u->d[BCH_DATA_cached].sectors -= old.cached_sectors;
 
-	u->d[old.data_type].fragmented -= bucket_sectors_fragmented(ca, old);
-	u->d[new.data_type].fragmented += bucket_sectors_fragmented(ca, new);
+	u->d[old.data_type].fragmented -= bch2_bucket_sectors_fragmented(ca, old);
+	u->d[new.data_type].fragmented += bch2_bucket_sectors_fragmented(ca, new);
 
 	preempt_enable();
+}
+
+static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
+{
+	return (struct bch_alloc_v4) {
+		.gen		= b.gen,
+		.data_type	= b.data_type,
+		.dirty_sectors	= b.dirty_sectors,
+		.cached_sectors	= b.cached_sectors,
+		.stripe		= b.stripe,
+	};
 }
 
 static void bch2_dev_usage_update_m(struct bch_fs *c, struct bch_dev *ca,
 				    struct bucket old, struct bucket new,
 				    u64 journal_seq, bool gc)
 {
-	struct bch_alloc_v4 old_a = {
-		.gen		= old.gen,
-		.data_type	= old.data_type,
-		.dirty_sectors	= old.dirty_sectors,
-		.cached_sectors	= old.cached_sectors,
-		.stripe		= old.stripe,
-	};
-	struct bch_alloc_v4 new_a = {
-		.gen		= new.gen,
-		.data_type	= new.data_type,
-		.dirty_sectors	= new.dirty_sectors,
-		.cached_sectors	= new.cached_sectors,
-		.stripe		= new.stripe,
-	};
-
-	bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, gc);
+	bch2_dev_usage_update(c, ca,
+			      bucket_m_to_alloc(old),
+			      bucket_m_to_alloc(new),
+			      journal_seq, gc);
 }
 
 static inline int __update_replicas(struct bch_fs *c,
@@ -639,7 +630,6 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		ret = -EIO;
 		goto err;
 	}
-
 
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
