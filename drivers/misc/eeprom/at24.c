@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/nvmem-provider.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
@@ -242,7 +243,7 @@ static const struct i2c_device_id at24_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
 
-static const struct of_device_id at24_of_match[] = {
+static const struct of_device_id __maybe_unused at24_of_match[] = {
 	{ .compatible = "atmel,24c00",		.data = &at24_data_24c00 },
 	{ .compatible = "atmel,24c01",		.data = &at24_data_24c01 },
 	{ .compatible = "atmel,24cs01",		.data = &at24_data_24cs01 },
@@ -812,7 +813,7 @@ static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
 		.pm = &at24_pm_ops,
-		.of_match_table = at24_of_match,
+		.of_match_table = of_match_ptr(at24_of_match),
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
 	.probe = at24_probe,
