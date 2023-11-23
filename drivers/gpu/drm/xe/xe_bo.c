@@ -121,11 +121,13 @@ static struct xe_mem_region *res_to_mem_region(struct ttm_resource *res)
 	return to_xe_ttm_vram_mgr(mgr)->vram;
 }
 
-static void try_add_system(struct xe_bo *bo, struct ttm_place *places,
+static void try_add_system(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
+	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 	if (bo_flags & XE_BO_CREATE_SYSTEM_BIT) {
-		places[*c] = (struct ttm_place) {
+		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_TT,
 		};
 		*c += 1;
@@ -170,26 +172,30 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 }
 
 static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
-			 struct ttm_place *places, u32 bo_flags, u32 *c)
+			 u32 bo_flags, u32 *c)
 {
+	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 	if (bo->props.preferred_gt == XE_GT1) {
 		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
-			add_vram(xe, bo, places, bo_flags, XE_PL_VRAM1, c);
+			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
 		if (bo_flags & XE_BO_CREATE_VRAM0_BIT)
-			add_vram(xe, bo, places, bo_flags, XE_PL_VRAM0, c);
+			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM0, c);
 	} else {
 		if (bo_flags & XE_BO_CREATE_VRAM0_BIT)
-			add_vram(xe, bo, places, bo_flags, XE_PL_VRAM0, c);
+			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM0, c);
 		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
-			add_vram(xe, bo, places, bo_flags, XE_PL_VRAM1, c);
+			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
 	}
 }
 
 static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
-			   struct ttm_place *places, u32 bo_flags, u32 *c)
+			   u32 bo_flags, u32 *c)
 {
+	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 	if (bo_flags & XE_BO_CREATE_STOLEN_BIT) {
-		places[*c] = (struct ttm_place) {
+		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_STOLEN,
 			.flags = bo_flags & (XE_BO_CREATE_PINNED_BIT |
 					     XE_BO_CREATE_GGTT_BIT) ?
@@ -202,7 +208,6 @@ static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
 static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 				       u32 bo_flags)
 {
-	struct ttm_place *places = bo->placements;
 	u32 c = 0;
 
 	bo->props.preferred_mem_type = XE_BO_PROPS_INVALID;
@@ -210,22 +215,22 @@ static int __xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 	/* The order of placements should indicate preferred location */
 
 	if (bo->props.preferred_mem_class == DRM_XE_MEM_REGION_CLASS_SYSMEM) {
-		try_add_system(bo, places, bo_flags, &c);
-		try_add_vram(xe, bo, places, bo_flags, &c);
+		try_add_system(xe, bo, bo_flags, &c);
+		try_add_vram(xe, bo, bo_flags, &c);
 	} else {
-		try_add_vram(xe, bo, places, bo_flags, &c);
-		try_add_system(bo, places, bo_flags, &c);
+		try_add_vram(xe, bo, bo_flags, &c);
+		try_add_system(xe, bo, bo_flags, &c);
 	}
-	try_add_stolen(xe, bo, places, bo_flags, &c);
+	try_add_stolen(xe, bo, bo_flags, &c);
 
 	if (!c)
 		return -EINVAL;
 
 	bo->placement = (struct ttm_placement) {
 		.num_placement = c,
-		.placement = places,
+		.placement = bo->placements,
 		.num_busy_placement = c,
-		.busy_placement = places,
+		.busy_placement = bo->placements,
 	};
 
 	return 0;
