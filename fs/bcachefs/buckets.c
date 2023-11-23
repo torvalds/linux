@@ -657,14 +657,11 @@ static int check_bucket_ref(struct btree_trans *trans,
 			    const struct bch_extent_ptr *ptr,
 			    s64 sectors, enum bch_data_type ptr_data_type,
 			    u8 b_gen, u8 bucket_data_type,
-			    u32 dirty_sectors, u32 cached_sectors)
+			    u32 bucket_sectors)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 	size_t bucket_nr = PTR_BUCKET_NR(ca, ptr);
-	u32 bucket_sectors = !ptr->cached
-		? dirty_sectors
-		: cached_sectors;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
@@ -799,7 +796,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	ret = check_bucket_ref(trans, k, ptr, sectors, data_type,
 			       g->gen, g->data_type,
-			       g->dirty_sectors, g->cached_sectors);
+			       g->dirty_sectors);
 	if (ret)
 		goto err;
 
@@ -829,8 +826,7 @@ static int __mark_pointer(struct btree_trans *trans,
 		? dirty_sectors
 		: cached_sectors;
 	int ret = check_bucket_ref(trans, k, ptr, sectors, ptr_data_type,
-				   bucket_gen, *bucket_data_type,
-				   *dirty_sectors, *cached_sectors);
+				   bucket_gen, *bucket_data_type, *dst_sectors);
 
 	if (ret)
 		return ret;
@@ -1563,7 +1559,7 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 
 	ret = check_bucket_ref(trans, s.s_c, ptr, sectors, data_type,
 			       a->v.gen, a->v.data_type,
-			       a->v.dirty_sectors, a->v.cached_sectors);
+			       a->v.dirty_sectors);
 	if (ret)
 		goto err;
 
