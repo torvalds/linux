@@ -90,8 +90,6 @@ struct dell_smm_data {
 	uint i8k_fan_mult;
 	uint i8k_pwm_mult;
 	uint i8k_fan_max;
-	unsigned int manual_fan;
-	unsigned int auto_fan;
 	int temp_type[DELL_SMM_NO_TEMP];
 	bool fan[DELL_SMM_NO_FANS];
 	int fan_type[DELL_SMM_NO_FANS];
@@ -137,6 +135,8 @@ module_param(fan_max, uint, 0);
 MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed (default: autodetect)");
 
 static bool disallow_fan_type_call, disallow_fan_support;
+
+static unsigned int manual_fan, auto_fan;
 
 static const char * const temp_labels[] = {
 	"CPU",
@@ -329,7 +329,7 @@ static int i8k_enable_fan_auto_mode(const struct dell_smm_data *data, bool enabl
 	if (disallow_fan_support)
 		return -EINVAL;
 
-	regs.eax = enable ? data->auto_fan : data->manual_fan;
+	regs.eax = enable ? auto_fan : manual_fan;
 	return dell_smm_call(data->ops, &regs);
 }
 
@@ -741,7 +741,7 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 
 			break;
 		case hwmon_pwm_enable:
-			if (data->auto_fan)
+			if (auto_fan)
 				/*
 				 * There is no command for retrieve the current status
 				 * from BIOS, and userspace/firmware itself can change
@@ -1370,7 +1370,7 @@ static const struct dmi_system_id i8k_whitelist_fan_control[] __initconst = {
 static int __init dell_smm_probe(struct platform_device *pdev)
 {
 	struct dell_smm_data *data;
-	const struct dmi_system_id *id, *fan_control;
+	const struct dmi_system_id *id;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct dell_smm_data), GFP_KERNEL);
@@ -1406,15 +1406,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	data->i8k_fan_max = fan_max ? : I8K_FAN_HIGH;
 	data->i8k_pwm_mult = DIV_ROUND_UP(255, data->i8k_fan_max);
 
-	fan_control = dmi_first_match(i8k_whitelist_fan_control);
-	if (fan_control && fan_control->driver_data) {
-		const struct i8k_fan_control_data *control = fan_control->driver_data;
-
-		data->manual_fan = control->manual_fan;
-		data->auto_fan = control->auto_fan;
-		dev_info(&pdev->dev, "enabling support for setting automatic/manual fan control\n");
-	}
-
 	ret = dell_smm_init_hwmon(&pdev->dev);
 	if (ret)
 		return ret;
@@ -1437,6 +1428,9 @@ static struct platform_device *dell_smm_device;
  */
 static void __init dell_smm_init_dmi(void)
 {
+	struct i8k_fan_control_data *control;
+	const struct dmi_system_id *id;
+
 	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
 		if (!force) {
 			pr_notice("Disabling fan support due to BIOS bugs\n");
@@ -1453,6 +1447,15 @@ static void __init dell_smm_init_dmi(void)
 		} else {
 			pr_warn("Enabling fan type call despite BIOS bugs\n");
 		}
+	}
+
+	id = dmi_first_match(i8k_whitelist_fan_control);
+	if (id && id->driver_data) {
+		control = id->driver_data;
+		manual_fan = control->manual_fan;
+		auto_fan = control->auto_fan;
+
+		pr_info("Enabling support for setting automatic/manual fan control\n");
 	}
 }
 
