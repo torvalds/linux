@@ -11,13 +11,11 @@
 #ifndef __ASM_SMP_H
 #define __ASM_SMP_H
 
-#include <linux/bitops.h>
+#include <linux/compiler.h>
 #include <linux/linkage.h>
-#include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 
-#include <linux/atomic.h>
 #include <asm/smp-ops.h>
 
 extern int smp_num_siblings;
