@@ -859,7 +859,7 @@ kci_test_gretap()
 
 
 	run_cmd ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
-	run_cmd ip -netns "$testns" link set dev $DEV_NS ups
+	run_cmd ip -netns "$testns" link set dev $DEV_NS up
 	run_cmd ip -netns "$testns" link del "$DEV_NS"
 
 	# test external mode
