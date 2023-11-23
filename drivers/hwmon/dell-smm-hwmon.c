@@ -1370,7 +1370,6 @@ static const struct dmi_system_id i8k_whitelist_fan_control[] __initconst = {
 static int __init dell_smm_probe(struct platform_device *pdev)
 {
 	struct dell_smm_data *data;
-	const struct dmi_system_id *id;
 	int ret;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct dell_smm_data), GFP_KERNEL);
@@ -1385,21 +1384,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 		sizeof(data->bios_version));
 	strscpy(data->bios_machineid, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
 		sizeof(data->bios_machineid));
-
-	/*
-	 * Set fan multiplier and maximal fan speed from dmi config
-	 * Values specified in module parameters override values from dmi
-	 */
-	id = dmi_first_match(i8k_dmi_table);
-	if (id && id->driver_data) {
-		const struct i8k_config_data *conf = id->driver_data;
-
-		if (!fan_mult && conf->fan_mult)
-			fan_mult = conf->fan_mult;
-
-		if (!fan_max && conf->fan_max)
-			fan_max = conf->fan_max;
-	}
 
 	/* All options must not be 0 */
 	data->i8k_fan_mult = fan_mult ? : I8K_FAN_MULT;
@@ -1429,6 +1413,7 @@ static struct platform_device *dell_smm_device;
 static void __init dell_smm_init_dmi(void)
 {
 	struct i8k_fan_control_data *control;
+	struct i8k_config_data *config;
 	const struct dmi_system_id *id;
 
 	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
@@ -1447,6 +1432,20 @@ static void __init dell_smm_init_dmi(void)
 		} else {
 			pr_warn("Enabling fan type call despite BIOS bugs\n");
 		}
+	}
+
+	/*
+	 * Set fan multiplier and maximal fan speed from DMI config.
+	 * Values specified in module parameters override values from DMI.
+	 */
+	id = dmi_first_match(i8k_dmi_table);
+	if (id && id->driver_data) {
+		config = id->driver_data;
+		if (!fan_mult && config->fan_mult)
+			fan_mult = config->fan_mult;
+
+		if (!fan_max && config->fan_max)
+			fan_max = config->fan_max;
 	}
 
 	id = dmi_first_match(i8k_whitelist_fan_control);
