@@ -1067,8 +1067,7 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 	return 0;
 }
 
-static int tb_dp_read_dprx(struct tb_tunnel *tunnel, u32 *rate, u32 *lanes,
-			   int timeout_msec)
+static int tb_dp_wait_dprx(struct tb_tunnel *tunnel, int timeout_msec)
 {
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	struct tb_port *in = tunnel->src_port;
@@ -1087,15 +1086,13 @@ static int tb_dp_read_dprx(struct tb_tunnel *tunnel, u32 *rate, u32 *lanes,
 			return ret;
 
 		if (val & DP_COMMON_CAP_DPRX_DONE) {
-			*rate = tb_dp_cap_get_rate(val);
-			*lanes = tb_dp_cap_get_lanes(val);
-
 			tb_tunnel_dbg(tunnel, "DPRX read done\n");
 			return 0;
 		}
 		usleep_range(100, 150);
 	} while (ktime_before(ktime_get(), timeout));
 
+	tb_tunnel_dbg(tunnel, "DPRX read timeout\n");
 	return -ETIMEDOUT;
 }
 
@@ -1110,6 +1107,7 @@ static int tb_dp_read_cap(struct tb_tunnel *tunnel, unsigned int cap, u32 *rate,
 	switch (cap) {
 	case DP_LOCAL_CAP:
 	case DP_REMOTE_CAP:
+	case DP_COMMON_CAP:
 		break;
 
 	default:
@@ -1182,7 +1180,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		 * reduced one). Otherwise return the remote (possibly
 		 * reduced) caps.
 		 */
-		ret = tb_dp_read_dprx(tunnel, &rate, &lanes, 150);
+		ret = tb_dp_wait_dprx(tunnel, 150);
 		if (ret) {
 			if (ret == -ETIMEDOUT)
 				ret = tb_dp_read_cap(tunnel, DP_REMOTE_CAP,
@@ -1190,6 +1188,9 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 			if (ret)
 				return ret;
 		}
+		ret = tb_dp_read_cap(tunnel, DP_COMMON_CAP, &rate, &lanes);
+		if (ret)
+			return ret;
 	} else if (sw->generation >= 2) {
 		ret = tb_dp_read_cap(tunnel, DP_REMOTE_CAP, &rate, &lanes);
 		if (ret)
