@@ -61,6 +61,9 @@ def define_niobe():
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
         "drivers/ufs/host/ufs_qcom.ko",
+        "drivers/usb/dwc3/dwc3-msm.ko",
+        "drivers/usb/phy/phy-generic.ko",
+        "drivers/usb/phy/phy-qcom-emu.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
     ]
