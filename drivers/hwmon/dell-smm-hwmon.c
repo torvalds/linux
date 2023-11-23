@@ -90,8 +90,6 @@ struct dell_smm_data {
 	uint i8k_fan_mult;
 	uint i8k_pwm_mult;
 	uint i8k_fan_max;
-	bool disallow_fan_type_call;
-	bool disallow_fan_support;
 	unsigned int manual_fan;
 	unsigned int auto_fan;
 	int temp_type[DELL_SMM_NO_TEMP];
@@ -137,6 +135,8 @@ MODULE_PARM_DESC(fan_mult, "Factor to multiply fan speed with (default: autodete
 static uint fan_max;
 module_param(fan_max, uint, 0);
 MODULE_PARM_DESC(fan_max, "Maximum configurable fan speed (default: autodetect)");
+
+static bool disallow_fan_type_call, disallow_fan_support;
 
 static const char * const temp_labels[] = {
 	"CPU",
@@ -256,7 +256,7 @@ static int i8k_get_fan_status(const struct dell_smm_data *data, u8 fan)
 		.ebx = fan,
 	};
 
-	if (data->disallow_fan_support)
+	if (disallow_fan_support)
 		return -EINVAL;
 
 	return dell_smm_call(data->ops, &regs) ? : regs.eax & 0xff;
@@ -272,7 +272,7 @@ static int i8k_get_fan_speed(const struct dell_smm_data *data, u8 fan)
 		.ebx = fan,
 	};
 
-	if (data->disallow_fan_support)
+	if (disallow_fan_support)
 		return -EINVAL;
 
 	return dell_smm_call(data->ops, &regs) ? : (regs.eax & 0xffff) * data->i8k_fan_mult;
@@ -288,7 +288,7 @@ static int _i8k_get_fan_type(const struct dell_smm_data *data, u8 fan)
 		.ebx = fan,
 	};
 
-	if (data->disallow_fan_support || data->disallow_fan_type_call)
+	if (disallow_fan_support || disallow_fan_type_call)
 		return -EINVAL;
 
 	return dell_smm_call(data->ops, &regs) ? : regs.eax & 0xff;
@@ -313,7 +313,7 @@ static int __init i8k_get_fan_nominal_speed(const struct dell_smm_data *data, u8
 		.ebx = fan | (speed << 8),
 	};
 
-	if (data->disallow_fan_support)
+	if (disallow_fan_support)
 		return -EINVAL;
 
 	return dell_smm_call(data->ops, &regs) ? : (regs.eax & 0xffff);
@@ -326,7 +326,7 @@ static int i8k_enable_fan_auto_mode(const struct dell_smm_data *data, bool enabl
 {
 	struct smm_regs regs = { };
 
-	if (data->disallow_fan_support)
+	if (disallow_fan_support)
 		return -EINVAL;
 
 	regs.eax = enable ? data->auto_fan : data->manual_fan;
@@ -340,7 +340,7 @@ static int i8k_set_fan(const struct dell_smm_data *data, u8 fan, int speed)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_SET_FAN, };
 
-	if (data->disallow_fan_support)
+	if (disallow_fan_support)
 		return -EINVAL;
 
 	speed = (speed < 0) ? 0 : ((speed > data->i8k_fan_max) ? data->i8k_fan_max : speed);
@@ -705,7 +705,7 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 		}
 		break;
 	case hwmon_fan:
-		if (data->disallow_fan_support)
+		if (disallow_fan_support)
 			break;
 
 		switch (attr) {
@@ -715,7 +715,7 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 
 			break;
 		case hwmon_fan_label:
-			if (data->fan[channel] && !data->disallow_fan_type_call)
+			if (data->fan[channel] && !disallow_fan_type_call)
 				return 0444;
 
 			break;
@@ -731,7 +731,7 @@ static umode_t dell_smm_is_visible(const void *drvdata, enum hwmon_sensor_types 
 		}
 		break;
 	case hwmon_pwm:
-		if (data->disallow_fan_support)
+		if (disallow_fan_support)
 			break;
 
 		switch (attr) {
@@ -1381,24 +1381,6 @@ static int __init dell_smm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 	data->ops = &i8k_smm_ops;
 
-	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
-		if (!force) {
-			dev_notice(&pdev->dev, "Disabling fan support due to BIOS bugs\n");
-			data->disallow_fan_support = true;
-		} else {
-			dev_warn(&pdev->dev, "Enabling fan support despite BIOS bugs\n");
-		}
-	}
-
-	if (dmi_check_system(i8k_blacklist_fan_type_dmi_table)) {
-		if (!force) {
-			dev_notice(&pdev->dev, "Disabling fan type call due to BIOS bugs\n");
-			data->disallow_fan_type_call = true;
-		} else {
-			dev_warn(&pdev->dev, "Enabling fan type call despite BIOS bugs\n");
-		}
-	}
-
 	strscpy(data->bios_version, i8k_get_dmi_data(DMI_BIOS_VERSION),
 		sizeof(data->bios_version));
 	strscpy(data->bios_machineid, i8k_get_dmi_data(DMI_PRODUCT_SERIAL),
@@ -1453,6 +1435,27 @@ static struct platform_device *dell_smm_device;
 /*
  * Probe for the presence of a supported laptop.
  */
+static void __init dell_smm_init_dmi(void)
+{
+	if (dmi_check_system(i8k_blacklist_fan_support_dmi_table)) {
+		if (!force) {
+			pr_notice("Disabling fan support due to BIOS bugs\n");
+			disallow_fan_support = true;
+		} else {
+			pr_warn("Enabling fan support despite BIOS bugs\n");
+		}
+	}
+
+	if (dmi_check_system(i8k_blacklist_fan_type_dmi_table)) {
+		if (!force) {
+			pr_notice("Disabling fan type call due to BIOS bugs\n");
+			disallow_fan_type_call = true;
+		} else {
+			pr_warn("Enabling fan type call despite BIOS bugs\n");
+		}
+	}
+}
+
 static int __init i8k_init(void)
 {
 	/*
@@ -1468,6 +1471,8 @@ static int __init i8k_init(void)
 			i8k_get_dmi_data(DMI_PRODUCT_NAME),
 			i8k_get_dmi_data(DMI_BIOS_VERSION));
 	}
+
+	dell_smm_init_dmi();
 
 	/*
 	 * Get SMM Dell signature
