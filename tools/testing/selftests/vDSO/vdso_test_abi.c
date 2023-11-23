@@ -187,14 +187,14 @@ int main(int argc, char **argv)
 	ksft_set_plan(VDSO_TEST_PLAN);
 
 	if (!sysinfo_ehdr) {
-		printf("AT_SYSINFO_EHDR is not present!\n");
+		ksft_print_msg("AT_SYSINFO_EHDR is not present!\n");
 		return KSFT_SKIP;
 	}
 
 	version = versions[VDSO_VERSION];
 	name = (const char **)&names[VDSO_NAMES];
 
-	printf("[vDSO kselftest] VDSO_VERSION: %s\n", version);
+	ksft_print_msg("[vDSO kselftest] VDSO_VERSION: %s\n", version);
 
 	vdso_init_from_sysinfo_ehdr(getauxval(AT_SYSINFO_EHDR));
 
