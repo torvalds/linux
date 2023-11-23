@@ -277,6 +277,36 @@ void bch2_dev_usage_init(struct bch_dev *ca)
 	ca->usage_base->d[BCH_DATA_free].buckets = ca->mi.nbuckets - ca->mi.first_bucket;
 }
 
+void bch2_dev_usage_to_text(struct printbuf *out, struct bch_dev_usage *usage)
+{
+	prt_tab(out);
+	prt_str(out, "buckets");
+	prt_tab_rjust(out);
+	prt_str(out, "sectors");
+	prt_tab_rjust(out);
+	prt_str(out, "fragmented");
+	prt_tab_rjust(out);
+	prt_newline(out);
+
+	for (unsigned i = 0; i < BCH_DATA_NR; i++) {
+		prt_str(out, bch2_data_types[i]);
+		prt_tab(out);
+		prt_u64(out, usage->d[i].buckets);
+		prt_tab_rjust(out);
+		prt_u64(out, usage->d[i].sectors);
+		prt_tab_rjust(out);
+		prt_u64(out, usage->d[i].fragmented);
+		prt_tab_rjust(out);
+		prt_newline(out);
+	}
+
+	prt_str(out, "ec");
+	prt_tab(out);
+	prt_u64(out, usage->buckets_ec);
+	prt_tab_rjust(out);
+	prt_newline(out);
+}
+
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 				  struct bch_alloc_v4 old,
 				  struct bch_alloc_v4 new,

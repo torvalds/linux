@@ -786,32 +786,7 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);
 
-	prt_tab(out);
-	prt_str(out, "buckets");
-	prt_tab_rjust(out);
-	prt_str(out, "sectors");
-	prt_tab_rjust(out);
-	prt_str(out, "fragmented");
-	prt_tab_rjust(out);
-	prt_newline(out);
-
-	for (i = 0; i < BCH_DATA_NR; i++) {
-		prt_str(out, bch2_data_types[i]);
-		prt_tab(out);
-		prt_u64(out, stats.d[i].buckets);
-		prt_tab_rjust(out);
-		prt_u64(out, stats.d[i].sectors);
-		prt_tab_rjust(out);
-		prt_u64(out, stats.d[i].fragmented);
-		prt_tab_rjust(out);
-		prt_newline(out);
-	}
-
-	prt_str(out, "ec");
-	prt_tab(out);
-	prt_u64(out, stats.buckets_ec);
-	prt_tab_rjust(out);
-	prt_newline(out);
+	bch2_dev_usage_to_text(out, &stats);
 
 	prt_newline(out);
 
