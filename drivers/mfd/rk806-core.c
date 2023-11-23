@@ -352,13 +352,13 @@ static const struct regmap_access_table rk806_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(rk806_yes_ranges),
 };
 
-const struct regmap_config rk806_regmap_config_spi = {
+const struct regmap_config rk806_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,
 	.volatile_table = &rk806_volatile_table,
 };
-EXPORT_SYMBOL_GPL(rk806_regmap_config_spi);
+EXPORT_SYMBOL_GPL(rk806_regmap_config);
 
 static struct kobject *rk806_kobj[2];
 static struct rk806 *rk806_master;
@@ -824,6 +824,12 @@ int rk806_device_exit(struct rk806 *rk806)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rk806_device_exit);
+
+const struct of_device_id rk806_of_match[] = {
+	{ .compatible = "rockchip,rk806", },
+	{ }
+};
+EXPORT_SYMBOL_GPL(rk806_of_match);
 
 MODULE_AUTHOR("Xu Shengfei <xsf@rock-chips.com>");
 MODULE_DESCRIPTION("rk806 MFD Driver");
