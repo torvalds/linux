@@ -112,6 +112,9 @@
 #define RING_EXECLIST_CONTROL(base)		XE_REG((base) + 0x550)
 #define	  EL_CTRL_LOAD				REG_BIT(0)
 
+#define VDBOX_CGCTL3F08(base)                  XE_REG((base) + 0x3f08)
+#define   CG3DDISHRS_CLKGATE_DIS               REG_BIT(5)
+
 #define VDBOX_CGCTL3F10(base)			XE_REG((base) + 0x3f10)
 #define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
 
