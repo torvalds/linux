@@ -405,60 +405,6 @@
 	lanes-per-direction = <2>;
 };
 
-&spi0 {
-	fmc-spi-user-mode;
-	status = "okay";
-
-	flash@0 {
-		status = "okay";
-		m25p,fast-read;
-		label = "spi1:0";
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-
-	flash@1 {
-		status = "disabled";
-		m25p,fast-read;
-		label = "spi1:1";
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-};
-
-&spi1 {
-	fmc-spi-user-mode;
-	status = "okay";
-
-	flash@0 {
-		status = "okay";
-		m25p,fast-read;
-		label = "spi2:0";
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-
-	flash@1 {
-		status = "disabled";
-		m25p,fast-read;
-		label = "spi2:1";
-		spi-max-frequency = <50000000>;
-		spi-tx-bus-width = <4>;
-		spi-rx-bus-width = <4>;
-	};
-};
-
-&spi2 {
-	status = "okay";
-};
-
-&tpm0 {
-	status = "okay";
-};
-
 &i2c0 {
 	status = "okay";
 };
