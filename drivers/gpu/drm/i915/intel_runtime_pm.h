@@ -11,8 +11,6 @@
 
 #include "intel_wakeref.h"
 
-#include "i915_utils.h"
-
 struct device;
 struct drm_i915_private;
 struct drm_printer;

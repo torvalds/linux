@@ -31,6 +31,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 
 #include "dm_services.h"
 #include "amdgpu.h"
@@ -210,7 +211,7 @@ static void dm_helpers_construct_old_payload(
 			struct drm_dp_mst_atomic_payload *old_payload)
 {
 	struct drm_dp_mst_atomic_payload *pos;
-	int pbn_per_slot = mst_state->pbn_div;
+	int pbn_per_slot = dfixed_trunc(mst_state->pbn_div);
 	u8 next_payload_vc_start = mgr->next_start_slot;
 	u8 payload_vc_start = new_payload->vc_start_slot;
 	u8 allocated_time_slots;

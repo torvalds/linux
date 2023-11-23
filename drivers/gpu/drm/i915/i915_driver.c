@@ -231,15 +231,9 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	mutex_init(&dev_priv->display.backlight.lock);
 
 	mutex_init(&dev_priv->sb_lock);
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
-
-	mutex_init(&dev_priv->display.audio.mutex);
-	mutex_init(&dev_priv->display.wm.wm_mutex);
-	mutex_init(&dev_priv->display.pps.mutex);
-	mutex_init(&dev_priv->display.hdcp.hdcp_mutex);
 
 	i915_memcpy_init_early(dev_priv);
 	intel_runtime_pm_init_early(&dev_priv->runtime_pm);
@@ -909,6 +903,8 @@ static void i915_driver_release(struct drm_device *dev)
 	intel_runtime_pm_driver_release(rpm);
 
 	i915_driver_late_release(dev_priv);
+
+	intel_display_device_remove(dev_priv);
 }
 
 static int i915_driver_open(struct drm_device *dev, struct drm_file *file)

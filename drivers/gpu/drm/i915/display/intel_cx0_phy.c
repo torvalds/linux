@@ -31,7 +31,7 @@
 
 bool intel_is_c10phy(struct drm_i915_private *i915, enum phy phy)
 {
-	if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0) && phy < PHY_C)
+	if ((IS_LUNARLAKE(i915) || IS_METEORLAKE(i915)) && phy < PHY_C)
 		return true;
 
 	return false;
@@ -206,6 +206,13 @@ static int __intel_cx0_read_once(struct drm_i915_private *i915, enum port port,
 
 	intel_clear_response_ready_flag(i915, port, lane);
 
+	/*
+	 * FIXME: Workaround to let HW to settle
+	 * down and let the message bus to end up
+	 * in a known state
+	 */
+	intel_cx0_bus_reset(i915, port, lane);
+
 	return REG_FIELD_GET(XELPDP_PORT_P2M_DATA_MASK, val);
 }
 
@@ -284,6 +291,13 @@ static int __intel_cx0_write_once(struct drm_i915_private *i915, enum port port,
 	}
 
 	intel_clear_response_ready_flag(i915, port, lane);
+
+	/*
+	 * FIXME: Workaround to let HW to settle
+	 * down and let the message bus to end up
+	 * in a known state
+	 */
+	intel_cx0_bus_reset(i915, port, lane);
 
 	return 0;
 }
@@ -1850,8 +1864,8 @@ static int intel_c10pll_calc_state(struct intel_crtc_state *crtc_state,
 	return -EINVAL;
 }
 
-void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
-				   struct intel_c10pll_state *pll_state)
+static void intel_c10pll_readout_hw_state(struct intel_encoder *encoder,
+					  struct intel_c10pll_state *pll_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	u8 lane = INTEL_CX0_LANE0;
@@ -2103,8 +2117,8 @@ static bool intel_c20_use_mplla(u32 clock)
 	return false;
 }
 
-void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
-				   struct intel_c20pll_state *pll_state)
+static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
+					  struct intel_c20pll_state *pll_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	bool cntx;
@@ -2378,8 +2392,8 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 		      BIT(0), cntx ? 0 : 1, MB_WRITE_COMMITTED);
 }
 
-int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
-				 const struct intel_c10pll_state *pll_state)
+static int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
+					const struct intel_c10pll_state *pll_state)
 {
 	unsigned int frac_quot = 0, frac_rem = 0, frac_den = 1;
 	unsigned int multiplier, tx_clk_div, hdmi_div, refclk = 38400;
@@ -2405,8 +2419,8 @@ int intel_c10pll_calc_port_clock(struct intel_encoder *encoder,
 	return tmpclk;
 }
 
-int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
-				 const struct intel_c20pll_state *pll_state)
+static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
+					const struct intel_c20pll_state *pll_state)
 {
 	unsigned int frac, frac_en, frac_quot, frac_rem, frac_den;
 	unsigned int multiplier, refclk = 38400;
@@ -3003,17 +3017,110 @@ intel_mtl_port_pll_type(struct intel_encoder *encoder,
 		return ICL_PORT_DPLL_DEFAULT;
 }
 
-void intel_c10pll_state_verify(struct intel_atomic_state *state,
+static void intel_c10pll_state_verify(const struct intel_crtc_state *state,
+				      struct intel_crtc *crtc,
+				      struct intel_encoder *encoder,
+				      struct intel_c10pll_state *mpllb_hw_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	const struct intel_c10pll_state *mpllb_sw_state = &state->cx0pll_state.c10;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(mpllb_sw_state->pll); i++) {
+		u8 expected = mpllb_sw_state->pll[i];
+
+		I915_STATE_WARN(i915, mpllb_hw_state->pll[i] != expected,
+				"[CRTC:%d:%s] mismatch in C10MPLLB: Register[%d] (expected 0x%02x, found 0x%02x)",
+				crtc->base.base.id, crtc->base.name, i,
+				expected, mpllb_hw_state->pll[i]);
+	}
+
+	I915_STATE_WARN(i915, mpllb_hw_state->tx != mpllb_sw_state->tx,
+			"[CRTC:%d:%s] mismatch in C10MPLLB: Register TX0 (expected 0x%02x, found 0x%02x)",
+			crtc->base.base.id, crtc->base.name,
+			mpllb_sw_state->tx, mpllb_hw_state->tx);
+
+	I915_STATE_WARN(i915, mpllb_hw_state->cmn != mpllb_sw_state->cmn,
+			"[CRTC:%d:%s] mismatch in C10MPLLB: Register CMN0 (expected 0x%02x, found 0x%02x)",
+			crtc->base.base.id, crtc->base.name,
+			mpllb_sw_state->cmn, mpllb_hw_state->cmn);
+}
+
+void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
+				   struct intel_cx0pll_state *pll_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (intel_is_c10phy(i915, phy))
+		intel_c10pll_readout_hw_state(encoder, &pll_state->c10);
+	else
+		intel_c20pll_readout_hw_state(encoder, &pll_state->c20);
+}
+
+int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
+				 const struct intel_cx0pll_state *pll_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	if (intel_is_c10phy(i915, phy))
+		return intel_c10pll_calc_port_clock(encoder, &pll_state->c10);
+
+	return intel_c20pll_calc_port_clock(encoder, &pll_state->c20);
+}
+
+static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
+				      struct intel_crtc *crtc,
+				      struct intel_encoder *encoder,
+				      struct intel_c20pll_state *mpll_hw_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	const struct intel_c20pll_state *mpll_sw_state = &state->cx0pll_state.c20;
+	bool use_mplla;
+	int i;
+
+	use_mplla = intel_c20_use_mplla(mpll_hw_state->clock);
+	if (use_mplla) {
+		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mplla); i++) {
+			I915_STATE_WARN(i915, mpll_hw_state->mplla[i] != mpll_sw_state->mplla[i],
+					"[CRTC:%d:%s] mismatch in C20MPLLA: Register[%d] (expected 0x%04x, found 0x%04x)",
+					crtc->base.base.id, crtc->base.name, i,
+					mpll_sw_state->mplla[i], mpll_hw_state->mplla[i]);
+		}
+	} else {
+		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mpllb); i++) {
+			I915_STATE_WARN(i915, mpll_hw_state->mpllb[i] != mpll_sw_state->mpllb[i],
+					"[CRTC:%d:%s] mismatch in C20MPLLB: Register[%d] (expected 0x%04x, found 0x%04x)",
+					crtc->base.base.id, crtc->base.name, i,
+					mpll_sw_state->mpllb[i], mpll_hw_state->mpllb[i]);
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mpll_sw_state->tx); i++) {
+		I915_STATE_WARN(i915, mpll_hw_state->tx[i] != mpll_sw_state->tx[i],
+				"[CRTC:%d:%s] mismatch in C20: Register TX[%i] (expected 0x%04x, found 0x%04x)",
+				crtc->base.base.id, crtc->base.name, i,
+				mpll_sw_state->tx[i], mpll_hw_state->tx[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mpll_sw_state->cmn); i++) {
+		I915_STATE_WARN(i915, mpll_hw_state->cmn[i] != mpll_sw_state->cmn[i],
+				"[CRTC:%d:%s] mismatch in C20: Register CMN[%i] (expected 0x%04x, found 0x%04x)",
+				crtc->base.base.id, crtc->base.name, i,
+				mpll_sw_state->cmn[i], mpll_hw_state->cmn[i]);
+	}
+}
+
+void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_c10pll_state mpllb_hw_state = {};
-	const struct intel_c10pll_state *mpllb_sw_state = &new_crtc_state->cx0pll_state.c10;
 	struct intel_encoder *encoder;
+	struct intel_cx0pll_state mpll_hw_state = {};
 	enum phy phy;
-	int i;
 
 	if (DISPLAY_VER(i915) < 14)
 		return;
@@ -3029,27 +3136,10 @@ void intel_c10pll_state_verify(struct intel_atomic_state *state,
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	phy = intel_port_to_phy(i915, encoder->port);
 
-	if (!intel_is_c10phy(i915, phy))
-		return;
+	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
 
-	intel_c10pll_readout_hw_state(encoder, &mpllb_hw_state);
-
-	for (i = 0; i < ARRAY_SIZE(mpllb_sw_state->pll); i++) {
-		u8 expected = mpllb_sw_state->pll[i];
-
-		I915_STATE_WARN(i915, mpllb_hw_state.pll[i] != expected,
-				"[CRTC:%d:%s] mismatch in C10MPLLB: Register[%d] (expected 0x%02x, found 0x%02x)",
-				crtc->base.base.id, crtc->base.name, i,
-				expected, mpllb_hw_state.pll[i]);
-	}
-
-	I915_STATE_WARN(i915, mpllb_hw_state.tx != mpllb_sw_state->tx,
-			"[CRTC:%d:%s] mismatch in C10MPLLB: Register TX0 (expected 0x%02x, found 0x%02x)",
-			crtc->base.base.id, crtc->base.name,
-			mpllb_sw_state->tx, mpllb_hw_state.tx);
-
-	I915_STATE_WARN(i915, mpllb_hw_state.cmn != mpllb_sw_state->cmn,
-			"[CRTC:%d:%s] mismatch in C10MPLLB: Register CMN0 (expected 0x%02x, found 0x%02x)",
-			crtc->base.base.id, crtc->base.name,
-			mpllb_sw_state->cmn, mpllb_hw_state.cmn);
+	if (intel_is_c10phy(i915, phy))
+		intel_c10pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c10);
+	else
+		intel_c20pll_state_verify(new_crtc_state, crtc, encoder, &mpll_hw_state.c20);
 }

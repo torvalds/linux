@@ -3047,7 +3047,7 @@ put_obj:
 
 static int combine_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 {
-	u32 per_ctx_start[CACHELINE_DWORDS] = {0};
+	u32 per_ctx_start[CACHELINE_DWORDS] = {};
 	unsigned char *bb_start_sva;
 
 	if (!wa_ctx->per_ctx.valid)
