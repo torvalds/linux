@@ -619,7 +619,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	arg.bucket_size		= ca->mi.bucket_size;
 	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
 
-	for (i = 0; i < BCH_DATA_NR; i++) {
+	for (i = 0; i < ARRAY_SIZE(arg.d); i++) {
 		arg.d[i].buckets	= src.d[i].buckets;
 		arg.d[i].sectors	= src.d[i].sectors;
 		arg.d[i].fragmented	= src.d[i].fragmented;

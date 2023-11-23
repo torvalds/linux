@@ -612,7 +612,8 @@ LE64_BITMASK(BCH_KDF_SCRYPT_P,	struct bch_sb_field_crypt, kdf_flags, 32, 48);
 	x(parity,	6)		\
 	x(stripe,	7)		\
 	x(need_gc_gens,	8)		\
-	x(need_discard,	9)
+	x(need_discard,	9)		\
+	x(unstriped,	10)
 
 enum bch_data_type {
 #define x(t, n) BCH_DATA_##t,

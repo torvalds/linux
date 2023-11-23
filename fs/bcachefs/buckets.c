@@ -309,11 +309,19 @@ void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	u->d[old->data_type].sectors -= bch2_bucket_sectors_dirty(*old);
 	u->d[new->data_type].sectors += bch2_bucket_sectors_dirty(*new);
 
-	u->d[BCH_DATA_cached].sectors += new->cached_sectors;
-	u->d[BCH_DATA_cached].sectors -= old->cached_sectors;
-
 	u->d[old->data_type].fragmented -= bch2_bucket_sectors_fragmented(ca, *old);
 	u->d[new->data_type].fragmented += bch2_bucket_sectors_fragmented(ca, *new);
+
+	u->d[BCH_DATA_cached].sectors -= old->cached_sectors;
+	u->d[BCH_DATA_cached].sectors += new->cached_sectors;
+
+	unsigned old_unstriped = bch2_bucket_sectors_unstriped(*old);
+	u->d[BCH_DATA_unstriped].buckets -= old_unstriped != 0;
+	u->d[BCH_DATA_unstriped].sectors -= old_unstriped;
+
+	unsigned new_unstriped = bch2_bucket_sectors_unstriped(*new);
+	u->d[BCH_DATA_unstriped].buckets += new_unstriped != 0;
+	u->d[BCH_DATA_unstriped].sectors += new_unstriped;
 
 	preempt_enable();
 }
