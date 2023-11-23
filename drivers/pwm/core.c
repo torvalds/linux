@@ -208,7 +208,6 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
  */
 int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 {
-	struct pwm_device *pwm;
 	unsigned int i;
 	int ret;
 
@@ -220,7 +219,7 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 
 	chip->owner = owner;
 
-	chip->pwms = kcalloc(chip->npwm, sizeof(*pwm), GFP_KERNEL);
+	chip->pwms = kcalloc(chip->npwm, sizeof(*chip->pwms), GFP_KERNEL);
 	if (!chip->pwms)
 		return -ENOMEM;
 
@@ -236,7 +235,7 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 	chip->id = ret;
 
 	for (i = 0; i < chip->npwm; i++) {
-		pwm = &chip->pwms[i];
+		struct pwm_device *pwm = &chip->pwms[i];
 
 		pwm->chip = chip;
 		pwm->hwpwm = i;
