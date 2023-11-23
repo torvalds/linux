@@ -3194,6 +3194,9 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 	current_time = ktime_get_real();
 	iocinit_req.time_stamp = cpu_to_le64(ktime_to_ms(current_time));
 
+	iocinit_req.msg_flags |=
+	    MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED;
+
 	init_completion(&mrioc->init_cmds.done);
 	retval = mpi3mr_admin_request_post(mrioc, &iocinit_req,
 	    sizeof(iocinit_req), 1);
