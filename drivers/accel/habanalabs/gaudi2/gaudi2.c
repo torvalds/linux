@@ -7884,7 +7884,7 @@ static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base,
 	cp_current_inst = ((u64) hi) << 32 | lo;
 
 	dev_info(hdev->dev,
-		"LowerQM. %sCQ: {ptr %#llx, size %u}, CP: {instruction %#llx}\n",
+		"LowerQM. %sCQ: {ptr %#llx, size %u}, CP: {instruction %#018llx}\n",
 		is_arc_cq ? "ARC_" : "", cq_ptr, cq_ptr_size, cp_current_inst);
 
 	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
