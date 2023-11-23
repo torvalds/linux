@@ -132,6 +132,11 @@ properties:
           - const: xlnx,zynqmp-smk-k26
           - const: xlnx,zynqmp
 
+      - description: AMD MicroBlaze V (QEMU)
+        items:
+          - const: qemu,mbv
+          - const: amd,mbv
+
 additionalProperties: true
 
 ...
