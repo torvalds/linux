@@ -506,7 +506,7 @@ struct mpi3mr_sas_port {
 	u8 num_phys;
 	u8 marked_responding;
 	int lowest_phy;
-	u32 phy_mask;
+	u64 phy_mask;
 	struct mpi3mr_hba_port *hba_port;
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
