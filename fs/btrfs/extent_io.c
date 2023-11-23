@@ -4208,7 +4208,7 @@ static void memset_extent_buffer(const struct extent_buffer *eb, int c,
 		struct page *page = eb->pages[index];
 
 		assert_eb_page_uptodate(eb, page);
-		memset(page_address(page) + offset, c, cur_len);
+		memset_page(page, offset, c, cur_len);
 
 		cur += cur_len;
 	}
