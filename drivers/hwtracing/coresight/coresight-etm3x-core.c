@@ -1003,7 +1003,7 @@ static const struct amba_id etm_ids[] = {
 	CS_AMBA_ID_DATA(0x000bb95f, "PTM 1.1"),
 	/* PTM 1.1 Qualcomm */
 	CS_AMBA_ID_DATA(0x000b006f, "PTM 1.1"),
-	{ 0, 0},
+	{ 0, 0, NULL},
 };
 
 MODULE_DEVICE_TABLE(amba, etm_ids);
