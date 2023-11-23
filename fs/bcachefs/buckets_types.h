@@ -16,7 +16,8 @@ struct bucket {
 	u32			stripe;
 	u32			dirty_sectors;
 	u32			cached_sectors;
-};
+	u32			stripe_sectors;
+} __aligned(sizeof(long));
 
 struct bucket_array {
 	struct rcu_head		rcu;

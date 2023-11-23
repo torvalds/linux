@@ -268,27 +268,41 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 				 i == READ ? "read" : "write",
 				 a.v->io_time[i], LRU_TIME_MAX);
 
+	unsigned stripe_sectors = BCH_ALLOC_V4_BACKPOINTERS_START(a.v) * sizeof(u64) >
+		offsetof(struct bch_alloc_v4, stripe_sectors)
+		? a.v->stripe_sectors
+		: 0;
+
 	switch (a.v->data_type) {
 	case BCH_DATA_free:
 	case BCH_DATA_need_gc_gens:
 	case BCH_DATA_need_discard:
-		bkey_fsck_err_on(bch2_bucket_sectors_total(*a.v) || a.v->stripe,
+		bkey_fsck_err_on(stripe_sectors ||
+				 a.v->dirty_sectors ||
+				 a.v->cached_sectors ||
+				 a.v->stripe,
 				 c, err, alloc_key_empty_but_have_data,
-				 "empty data type free but have data");
+				 "empty data type free but have data %u.%u.%u %u",
+				 stripe_sectors,
+				 a.v->dirty_sectors,
+				 a.v->cached_sectors,
+				 a.v->stripe);
 		break;
 	case BCH_DATA_sb:
 	case BCH_DATA_journal:
 	case BCH_DATA_btree:
 	case BCH_DATA_user:
 	case BCH_DATA_parity:
-		bkey_fsck_err_on(!bch2_bucket_sectors_dirty(*a.v),
+		bkey_fsck_err_on(!a.v->dirty_sectors &&
+				 !stripe_sectors,
 				 c, err, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
 				 bch2_data_type_str(a.v->data_type));
 		break;
 	case BCH_DATA_cached:
 		bkey_fsck_err_on(!a.v->cached_sectors ||
-				 bch2_bucket_sectors_dirty(*a.v) ||
+				 a.v->dirty_sectors ||
+				 stripe_sectors ||
 				 a.v->stripe,
 				 c, err, alloc_key_cached_inconsistency,
 				 "data type inconsistency");
@@ -319,6 +333,7 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 	a->stripe		= swab32(a->stripe);
 	a->nr_external_backpointers = swab32(a->nr_external_backpointers);
 	a->fragmentation_lru	= swab64(a->fragmentation_lru);
+	a->stripe_sectors	= swab32(a->stripe_sectors);
 
 	bps = alloc_v4_backpointers(a);
 	for (bp = bps; bp < bps + BCH_ALLOC_V4_NR_BACKPOINTERS(a); bp++) {
@@ -343,6 +358,7 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "need_discard      %llu\n",	BCH_ALLOC_V4_NEED_DISCARD(a));
 	prt_printf(out, "need_inc_gen      %llu\n",	BCH_ALLOC_V4_NEED_INC_GEN(a));
 	prt_printf(out, "dirty_sectors     %u\n",	a->dirty_sectors);
+	prt_printf(out, "stripe_sectors    %u\n",	a->stripe_sectors);
 	prt_printf(out, "cached_sectors    %u\n",	a->cached_sectors);
 	prt_printf(out, "stripe            %u\n",	a->stripe);
 	prt_printf(out, "stripe_redundancy %u\n",	a->stripe_redundancy);
@@ -1981,6 +1997,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	a->v.gen++;
 	a->v.data_type		= 0;
 	a->v.dirty_sectors	= 0;
+	a->v.stripe_sectors	= 0;
 	a->v.cached_sectors	= 0;
 	a->v.io_time[READ]	= bch2_current_io_time(c, READ);
 	a->v.io_time[WRITE]	= bch2_current_io_time(c, WRITE);

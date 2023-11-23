@@ -533,6 +533,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			g->gen_valid		= true;
 			g->gen			= p.ptr.gen;
 			g->data_type		= 0;
+			g->stripe_sectors	= 0;
 			g->dirty_sectors	= 0;
 			g->cached_sectors	= 0;
 		} else {
@@ -578,6 +579,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			g->gen_valid		= true;
 			g->gen			= p.ptr.gen;
 			g->data_type		= data_type;
+			g->stripe_sectors	= 0;
 			g->dirty_sectors	= 0;
 			g->cached_sectors	= 0;
 		} else {
@@ -990,14 +992,14 @@ need_mark:
 
 static int __mark_pointer(struct btree_trans *trans, struct bch_dev *ca,
 			  struct bkey_s_c k,
-			  const struct bch_extent_ptr *ptr,
+			  const struct extent_ptr_decoded *p,
 			  s64 sectors, enum bch_data_type ptr_data_type,
 			  struct bch_alloc_v4 *a)
 {
-	u32 *dst_sectors = !ptr->cached
-		? &a->dirty_sectors
-		: &a->cached_sectors;
-	int ret = bch2_bucket_ref_update(trans, ca, k, ptr, sectors, ptr_data_type,
+	u32 *dst_sectors = p->has_ec	? &a->stripe_sectors :
+		!p->ptr.cached		? &a->dirty_sectors :
+					  &a->cached_sectors;
+	int ret = bch2_bucket_ref_update(trans, ca, k, &p->ptr, sectors, ptr_data_type,
 					 a->gen, a->data_type, dst_sectors);
 
 	if (ret)
@@ -1034,7 +1036,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket);
 		ret = PTR_ERR_OR_ZERO(a) ?:
-			__mark_pointer(trans, ca, k, &p.ptr, *sectors, bp.data_type, &a->v);
+			__mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &a->v);
 		if (ret)
 			goto err;
 
@@ -1057,7 +1059,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-		ret = __mark_pointer(trans, ca, k, &p.ptr, *sectors, bp.data_type, &new);
+		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &new);
 		if (!ret) {
 			alloc_to_bucket(g, new);
 			bch2_dev_usage_update(c, ca, &old, &new, 0, true);
