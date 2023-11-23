@@ -305,8 +305,6 @@ static int journal_replay_entry_early(struct bch_fs *c,
 		struct bch_dev *ca = bch_dev_bkey_exists(c, le32_to_cpu(u->dev));
 		unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
-		ca->usage_base->buckets_ec		= le64_to_cpu(u->buckets_ec);
-
 		for (i = 0; i < min_t(unsigned, nr_types, BCH_DATA_NR); i++) {
 			ca->usage_base->d[i].buckets	= le64_to_cpu(u->d[i].buckets);
 			ca->usage_base->d[i].sectors	= le64_to_cpu(u->d[i].sectors);

@@ -1251,9 +1251,6 @@ static int bch2_gc_done(struct bch_fs *c,
 			copy_dev_field(dev_usage_fragmented_wrong,
 				       d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
 		}
-
-		copy_dev_field(dev_usage_buckets_ec_wrong,
-			       buckets_ec,		"buckets_ec");
 	}
 
 	{

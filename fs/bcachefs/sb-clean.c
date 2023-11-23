@@ -256,7 +256,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 
 		u->entry.type = BCH_JSET_ENTRY_dev_usage;
 		u->dev = cpu_to_le32(dev);
-		u->buckets_ec		= cpu_to_le64(ca->usage_base->buckets_ec);
 
 		for (i = 0; i < BCH_DATA_NR; i++) {
 			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);

@@ -2231,8 +2231,8 @@ struct jset_entry_dev_usage {
 	__le32			dev;
 	__u32			pad;
 
-	__le64			buckets_ec;
-	__le64			_buckets_unavailable; /* No longer used */
+	__le64			_buckets_ec;		/* No longer used */
+	__le64			_buckets_unavailable;	/* No longer used */
 
 	struct jset_entry_dev_usage_type d[];
 };

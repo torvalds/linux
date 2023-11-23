@@ -299,12 +299,6 @@ void bch2_dev_usage_to_text(struct printbuf *out, struct bch_dev_usage *usage)
 		prt_tab_rjust(out);
 		prt_newline(out);
 	}
-
-	prt_str(out, "ec");
-	prt_tab(out);
-	prt_u64(out, usage->buckets_ec);
-	prt_tab_rjust(out);
-	prt_newline(out);
 }
 
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
@@ -327,9 +321,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	u->d[old.data_type].buckets--;
 	u->d[new.data_type].buckets++;
-
-	u->buckets_ec -= !!old.stripe;
-	u->buckets_ec += !!new.stripe;
 
 	u->d[old.data_type].sectors -= bch2_bucket_sectors_dirty(old);
 	u->d[new.data_type].sectors += bch2_bucket_sectors_dirty(new);
