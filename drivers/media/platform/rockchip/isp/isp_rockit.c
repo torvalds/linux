@@ -321,8 +321,9 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 				int width, int height, int wrap_line)
 {
 	struct rkisp_stream *stream = NULL;
-	struct rkisp_buffer *isp_buf;
+	struct rkisp_buffer *isp_buf, *buf_temp;
 	int offset, i, ret;
+	unsigned long lock_flags = 0;
 
 	stream = rkisp_rockit_get_stream(input_rockit_cfg);
 
@@ -342,16 +343,18 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 	if (stream->ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP)
 		rkisp_dvbm_init(stream);
 
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->curr_buf == stream->next_buf)
+			stream->next_buf = NULL;
 		stream->curr_buf = NULL;
 	}
 	if (stream->next_buf) {
 		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
 		stream->next_buf = NULL;
 	}
-
-	list_for_each_entry(isp_buf, &stream->buf_queue, queue) {
+	list_for_each_entry_safe(isp_buf, buf_temp, &stream->buf_queue, queue) {
 		if (stream->out_isp_fmt.mplanes == 1) {
 			for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
 				height = stream->out_fmt.height;
@@ -363,6 +366,7 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 			}
 		}
 	}
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	return 0;
 }
