@@ -198,19 +198,17 @@ static int intel_lpss_acpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_lpss_acpi_remove(struct platform_device *pdev)
+static void intel_lpss_acpi_remove(struct platform_device *pdev)
 {
 	intel_lpss_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static INTEL_LPSS_PM_OPS(intel_lpss_acpi_pm_ops);
 
 static struct platform_driver intel_lpss_acpi_driver = {
 	.probe = intel_lpss_acpi_probe,
-	.remove = intel_lpss_acpi_remove,
+	.remove_new = intel_lpss_acpi_remove,
 	.driver = {
 		.name = "intel-lpss",
 		.acpi_match_table = intel_lpss_acpi_ids,
