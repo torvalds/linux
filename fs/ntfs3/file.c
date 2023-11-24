@@ -188,6 +188,7 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 	u32 bh_next, bh_off, to;
 	sector_t iblock;
 	struct folio *folio;
+	bool dirty = false;
 
 	for (; idx < idx_end; idx += 1, from = 0) {
 		page_off = (loff_t)idx << PAGE_SHIFT;
@@ -223,29 +224,27 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 			/* Ok, it's mapped. Make sure it's up-to-date. */
 			if (folio_test_uptodate(folio))
 				set_buffer_uptodate(bh);
-
-			if (!buffer_uptodate(bh)) {
-				err = bh_read(bh, 0);
-				if (err < 0) {
-					folio_unlock(folio);
-					folio_put(folio);
-					goto out;
-				}
+			else if (bh_read(bh, 0) < 0) {
+				err = -EIO;
+				folio_unlock(folio);
+				folio_put(folio);
+				goto out;
 			}
 
 			mark_buffer_dirty(bh);
-
 		} while (bh_off = bh_next, iblock += 1,
 			 head != (bh = bh->b_this_page));
 
 		folio_zero_segment(folio, from, to);
+		dirty = true;
 
 		folio_unlock(folio);
 		folio_put(folio);
 		cond_resched();
 	}
 out:
-	mark_inode_dirty(inode);
+	if (dirty)
+		mark_inode_dirty(inode);
 	return err;
 }
 

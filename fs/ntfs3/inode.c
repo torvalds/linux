@@ -345,9 +345,7 @@ next_attr:
 			inode->i_size = le16_to_cpu(rp.SymbolicLinkReparseBuffer
 							    .PrintNameLength) /
 					sizeof(u16);
-
 			ni->i_valid = inode->i_size;
-
 			/* Clear directory bit. */
 			if (ni->ni_flags & NI_FLAG_DIR) {
 				indx_clear(&ni->dir);
@@ -653,9 +651,10 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 			off = vbo & (PAGE_SIZE - 1);
 			folio_set_bh(bh, folio, off);
 
-			err = bh_read(bh, 0);
-			if (err < 0)
+			if (bh_read(bh, 0) < 0) {
+				err = -EIO;
 				goto out;
+			}
 			folio_zero_segment(folio, off + voff, off + block_size);
 		}
 	}
