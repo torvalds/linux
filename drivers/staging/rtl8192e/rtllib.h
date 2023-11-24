@@ -1760,8 +1760,6 @@ void ht_update_default_setting(struct rtllib_device *ieee);
 void HTConstructCapabilityElement(struct rtllib_device *ieee,
 				  u8 *posHTCap, u8 *len,
 				  u8 isEncrypt, bool bAssoc);
-void HTConstructInfoElement(struct rtllib_device *ieee,
-			    u8 *posHTInfo, u8 *len, u8 isEncrypt);
 void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
 				u8 *posRT2RTAgg, u8 *len);
 void HTOnAssocRsp(struct rtllib_device *ieee);

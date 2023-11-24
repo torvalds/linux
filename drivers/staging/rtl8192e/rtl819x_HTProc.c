@@ -328,22 +328,6 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	}
 }
 
-void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
-			    u8 *len, u8 IsEncrypt)
-{
-	struct ht_info_ele *pHTInfoEle = (struct ht_info_ele *)posHTInfo;
-
-	if (!posHTInfo || !pHTInfoEle) {
-		netdev_warn(ieee->dev,
-			    "%s(): posHTInfo and pHTInfoEle are null\n",
-			    __func__);
-		return;
-	}
-
-	memset(posHTInfo, 0, *len);
-	*len = 0;
-}
-
 void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 				u8 *len)
 {
