@@ -1347,6 +1347,8 @@ static inline bool bpf_prog_has_trampoline(const struct bpf_prog *prog)
 struct bpf_func_info_aux {
 	u16 linkage;
 	bool unreliable;
+	bool called : 1;
+	bool verified : 1;
 };
 
 enum bpf_jit_poke_reason {

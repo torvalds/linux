@@ -434,6 +434,11 @@ static const char *subprog_name(const struct bpf_verifier_env *env, int subprog)
 	return btf_type_name(env->prog->aux->btf, info->type_id);
 }
 
+static struct bpf_func_info_aux *subprog_aux(const struct bpf_verifier_env *env, int subprog)
+{
+	return &env->prog->aux->func_info_aux[subprog];
+}
+
 static bool reg_may_point_to_spin_lock(const struct bpf_reg_state *reg)
 {
 	return btf_record_has_field(reg_btf_record(reg), BPF_SPIN_LOCK);
@@ -9290,6 +9295,8 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 
 		verbose(env, "Func#%d ('%s') is global and assumed valid.\n",
 			subprog, sub_name);
+		/* mark global subprog for verifying after main prog */
+		subprog_aux(env, subprog)->called = true;
 		clear_caller_saved_regs(env, caller->regs);
 
 		/* All global functions return a 64-bit SCALAR_VALUE */
@@ -19873,8 +19880,11 @@ out:
 	return ret;
 }
 
-/* Verify all global functions in a BPF program one by one based on their BTF.
- * All global functions must pass verification. Otherwise the whole program is rejected.
+/* Lazily verify all global functions based on their BTF, if they are called
+ * from main BPF program or any of subprograms transitively.
+ * BPF global subprogs called from dead code are not validated.
+ * All callable global functions must pass verification.
+ * Otherwise the whole program is rejected.
  * Consider:
  * int bar(int);
  * int foo(int f)
@@ -19893,14 +19903,26 @@ out:
 static int do_check_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_prog_aux *aux = env->prog->aux;
-	int i, ret;
+	struct bpf_func_info_aux *sub_aux;
+	int i, ret, new_cnt;
 
 	if (!aux->func_info)
 		return 0;
 
+	/* exception callback is presumed to be always called */
+	if (env->exception_callback_subprog)
+		subprog_aux(env, env->exception_callback_subprog)->called = true;
+
+again:
+	new_cnt = 0;
 	for (i = 1; i < env->subprog_cnt; i++) {
-		if (aux->func_info_aux[i].linkage != BTF_FUNC_GLOBAL)
+		if (!subprog_is_global(env, i))
 			continue;
+
+		sub_aux = subprog_aux(env, i);
+		if (!sub_aux->called || sub_aux->verified)
+			continue;
+
 		env->insn_idx = env->subprog_info[i].start;
 		WARN_ON_ONCE(env->insn_idx == 0);
 		ret = do_check_common(env, i, env->exception_callback_subprog == i);
@@ -19910,7 +19932,21 @@ static int do_check_subprogs(struct bpf_verifier_env *env)
 			verbose(env, "Func#%d ('%s') is safe for any args that match its prototype\n",
 				i, subprog_name(env, i));
 		}
+
+		/* We verified new global subprog, it might have called some
+		 * more global subprogs that we haven't verified yet, so we
+		 * need to do another pass over subprogs to verify those.
+		 */
+		sub_aux->verified = true;
+		new_cnt++;
 	}
+
+	/* We can't loop forever as we verify at least one global subprog on
+	 * each pass.
+	 */
+	if (new_cnt)
+		goto again;
+
 	return 0;
 }
 
@@ -20556,8 +20592,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr, __u3
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = do_check_subprogs(env);
-	ret = ret ?: do_check_main(env);
+	ret = do_check_main(env);
+	ret = ret ?: do_check_subprogs(env);
 
 	if (ret == 0 && bpf_prog_is_offloaded(env->prog->aux))
 		ret = bpf_prog_offload_finalize(env);
