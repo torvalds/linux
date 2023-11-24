@@ -212,7 +212,7 @@ genpd_err:
 	return ret;
 }
 
-static int imx_pgc_power_domain_remove(struct platform_device *pdev)
+static void imx_pgc_power_domain_remove(struct platform_device *pdev)
 {
 	struct imx_pm_domain *domain = pdev->dev.platform_data;
 
@@ -221,8 +221,6 @@ static int imx_pgc_power_domain_remove(struct platform_device *pdev)
 		pm_genpd_remove(&domain->base);
 		imx_pgc_put_clocks(domain);
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id imx_pgc_power_domain_id[] = {
@@ -235,7 +233,7 @@ static struct platform_driver imx_pgc_power_domain_driver = {
 		.name = "imx-pgc-pd",
 	},
 	.probe = imx_pgc_power_domain_probe,
-	.remove = imx_pgc_power_domain_remove,
+	.remove_new = imx_pgc_power_domain_remove,
 	.id_table = imx_pgc_power_domain_id,
 };
 builtin_platform_driver(imx_pgc_power_domain_driver)
