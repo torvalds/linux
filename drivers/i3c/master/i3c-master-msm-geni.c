@@ -3313,8 +3313,8 @@ static int geni_i3c_enable_regulator(struct geni_i3c_dev *gi3c,
 				     struct platform_device *pdev, bool enable)
 {
 	int i = 0;
-	int ret;
-	struct regulator *reg[MAX_REGULATOR];
+	int ret = -EINVAL;
+	struct regulator *reg[MAX_REGULATOR] = { NULL };
 	const char *regulator_name[20] = {"i3c_rgltr1", "i3c_rgltr2", "i3c_rgltr3",
 					  "i3c_rgltr4", "i3c_rgltr5"};
 
