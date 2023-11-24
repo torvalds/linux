@@ -719,7 +719,8 @@ static void phylink_validate_one(struct phylink *pl, struct phy_device *phy,
 	}
 }
 
-static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
+static int phylink_validate_mask(struct phylink *pl, struct phy_device *phy,
+				 unsigned long *supported,
 				 struct phylink_link_state *state,
 				 const unsigned long *interfaces)
 {
@@ -728,7 +729,7 @@ static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
 	int interface;
 
 	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX)
-		phylink_validate_one(pl, NULL, supported, state, interface,
+		phylink_validate_one(pl, phy, supported, state, interface,
 				     all_s, all_adv);
 
 	linkmode_copy(supported, all_s);
@@ -743,7 +744,8 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 	const unsigned long *interfaces = pl->config->supported_interfaces;
 
 	if (state->interface == PHY_INTERFACE_MODE_NA)
-		return phylink_validate_mask(pl, supported, state, interfaces);
+		return phylink_validate_mask(pl, NULL, supported, state,
+					     interfaces);
 
 	if (!test_bit(state->interface, interfaces))
 		return -EINVAL;
@@ -3179,7 +3181,8 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 	/* For all the interfaces that are supported, reduce the sfp_support
 	 * mask to only those link modes that can be supported.
 	 */
-	ret = phylink_validate_mask(pl, pl->sfp_support, &config, interfaces);
+	ret = phylink_validate_mask(pl, NULL, pl->sfp_support, &config,
+				    interfaces);
 	if (ret) {
 		phylink_err(pl, "unsupported SFP module: validation with support %*pb failed\n",
 			    __ETHTOOL_LINK_MODE_MASK_NBITS, support);
