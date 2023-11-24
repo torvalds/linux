@@ -1018,7 +1018,11 @@ def main():
     if args.verbose > 2:
         print('args is {}'.format(args))
 
-    set_operation_mode(pm, parser, args, remaining)
+    try:
+        set_operation_mode(pm, parser, args, remaining)
+    except KeyboardInterrupt:
+        # Cleanup on Ctrl-C
+        pm.call_post_suite(None)
 
 if __name__ == "__main__":
     main()

@@ -78,7 +78,7 @@ class SubPlugin(TdcPlugin):
             print('{}.post_suite'.format(self.sub_class))
 
         # Make sure we don't leak resources
-        cmd = "$IP -a netns del"
+        cmd = self._replace_keywords("$IP -a netns del")
 
         if self.args.verbose > 3:
             print('_exec_cmd:  command "{}"'.format(cmd))
