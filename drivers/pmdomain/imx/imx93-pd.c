@@ -83,7 +83,7 @@ static int imx93_pd_off(struct generic_pm_domain *genpd)
 	return 0;
 };
 
-static int imx93_pd_remove(struct platform_device *pdev)
+static void imx93_pd_remove(struct platform_device *pdev)
 {
 	struct imx93_power_domain *domain = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -94,8 +94,6 @@ static int imx93_pd_remove(struct platform_device *pdev)
 
 	of_genpd_del_provider(np);
 	pm_genpd_remove(&domain->genpd);
-
-	return 0;
 }
 
 static int imx93_pd_probe(struct platform_device *pdev)
@@ -167,7 +165,7 @@ static struct platform_driver imx93_power_domain_driver = {
 		.of_match_table = imx93_pd_ids,
 	},
 	.probe = imx93_pd_probe,
-	.remove = imx93_pd_remove,
+	.remove_new = imx93_pd_remove,
 };
 module_platform_driver(imx93_power_domain_driver);
 
