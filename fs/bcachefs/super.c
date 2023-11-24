@@ -423,6 +423,18 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
+	set_bit(BCH_FS_RW, &c->flags);
+	set_bit(BCH_FS_WAS_RW, &c->flags);
+
+#ifndef BCH_WRITE_REF_DEBUG
+	percpu_ref_reinit(&c->writes);
+#else
+	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
+		BUG_ON(atomic_long_read(&c->writes[i]));
+		atomic_long_inc(&c->writes[i]);
+	}
+#endif
+
 	ret = bch2_gc_thread_start(c);
 	if (ret) {
 		bch_err(c, "error starting gc thread");
@@ -439,24 +451,16 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 			goto err;
 	}
 
-#ifndef BCH_WRITE_REF_DEBUG
-	percpu_ref_reinit(&c->writes);
-#else
-	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
-		BUG_ON(atomic_long_read(&c->writes[i]));
-		atomic_long_inc(&c->writes[i]);
-	}
-#endif
-	set_bit(BCH_FS_RW, &c->flags);
-	set_bit(BCH_FS_WAS_RW, &c->flags);
-
 	bch2_do_discards(c);
 	bch2_do_invalidates(c);
 	bch2_do_stripe_deletes(c);
 	bch2_do_pending_node_rewrites(c);
 	return 0;
 err:
-	__bch2_fs_read_only(c);
+	if (test_bit(BCH_FS_RW, &c->flags))
+		bch2_fs_read_only(c);
+	else
+		__bch2_fs_read_only(c);
 	return ret;
 }
 
