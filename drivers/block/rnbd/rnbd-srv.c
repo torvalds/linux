@@ -136,8 +136,8 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 
 	sess_dev = rnbd_get_sess_dev(dev_id, srv_sess);
 	if (IS_ERR(sess_dev)) {
-		pr_err_ratelimited("Got I/O request on session %s for unknown device id %d\n",
-				   srv_sess->sessname, dev_id);
+		pr_err_ratelimited("Got I/O request on session %s for unknown device id %d: %pe\n",
+				   srv_sess->sessname, dev_id, sess_dev);
 		err = -ENOTCONN;
 		goto err;
 	}
@@ -710,24 +710,24 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	full_path = rnbd_srv_get_full_path(srv_sess, open_msg->dev_name);
 	if (IS_ERR(full_path)) {
 		ret = PTR_ERR(full_path);
-		pr_err("Opening device '%s' for client %s failed, failed to get device full path, err: %d\n",
-		       open_msg->dev_name, srv_sess->sessname, ret);
+		pr_err("Opening device '%s' for client %s failed, failed to get device full path, err: %pe\n",
+		       open_msg->dev_name, srv_sess->sessname, full_path);
 		goto reject;
 	}
 
 	bdev_handle = bdev_open_by_path(full_path, open_flags, NULL, NULL);
 	if (IS_ERR(bdev_handle)) {
 		ret = PTR_ERR(bdev_handle);
-		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %d\n",
-		       full_path, srv_sess->sessname, ret);
+		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %pe\n",
+		       full_path, srv_sess->sessname, bdev_handle);
 		goto free_path;
 	}
 
 	srv_dev = rnbd_srv_get_or_create_srv_dev(bdev_handle->bdev, srv_sess,
 						  open_msg->access_mode);
 	if (IS_ERR(srv_dev)) {
-		pr_err("Opening device '%s' on session %s failed, creating srv_dev failed, err: %ld\n",
-		       full_path, srv_sess->sessname, PTR_ERR(srv_dev));
+		pr_err("Opening device '%s' on session %s failed, creating srv_dev failed, err: %pe\n",
+		       full_path, srv_sess->sessname, srv_dev);
 		ret = PTR_ERR(srv_dev);
 		goto blkdev_put;
 	}
@@ -737,8 +737,8 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 				open_msg->access_mode == RNBD_ACCESS_RO,
 				srv_dev);
 	if (IS_ERR(srv_sess_dev)) {
-		pr_err("Opening device '%s' on session %s failed, creating sess_dev failed, err: %ld\n",
-		       full_path, srv_sess->sessname, PTR_ERR(srv_sess_dev));
+		pr_err("Opening device '%s' on session %s failed, creating sess_dev failed, err: %pe\n",
+		       full_path, srv_sess->sessname, srv_sess_dev);
 		ret = PTR_ERR(srv_sess_dev);
 		goto srv_dev_put;
 	}
@@ -819,7 +819,7 @@ static int __init rnbd_srv_init_module(void)
 	};
 	rtrs_ctx = rtrs_srv_open(&rtrs_ops, port_nr);
 	if (IS_ERR(rtrs_ctx)) {
-		pr_err("rtrs_srv_open(), err: %d\n", err);
+		pr_err("rtrs_srv_open(), err: %pe\n", rtrs_ctx);
 		return PTR_ERR(rtrs_ctx);
 	}
 

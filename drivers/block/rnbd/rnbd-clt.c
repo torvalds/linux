@@ -1569,8 +1569,8 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 
 	dev = init_dev(sess, access_mode, pathname, nr_poll_queues);
 	if (IS_ERR(dev)) {
-		pr_err("map_device: failed to map device '%s' from session %s, can't initialize device, err: %ld\n",
-		       pathname, sess->sessname, PTR_ERR(dev));
+		pr_err("map_device: failed to map device '%s' from session %s, can't initialize device, err: %pe\n",
+		       pathname, sess->sessname, dev);
 		ret = PTR_ERR(dev);
 		goto put_sess;
 	}
