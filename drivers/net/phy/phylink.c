@@ -689,7 +689,7 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
 
-static void phylink_validate_one(struct phylink *pl,
+static void phylink_validate_one(struct phylink *pl, struct phy_device *phy,
 				 const unsigned long *supported,
 				 const struct phylink_link_state *state,
 				 phy_interface_t interface,
@@ -703,6 +703,9 @@ static void phylink_validate_one(struct phylink *pl,
 
 	tmp_state = *state;
 	tmp_state.interface = interface;
+
+	if (phy)
+		tmp_state.rate_matching = phy_get_rate_matching(phy, interface);
 
 	if (!phylink_validate_mac_and_pcs(pl, tmp_supported, &tmp_state)) {
 		phylink_dbg(pl, " interface %u (%s) rate match %s supports %*pbl\n",
@@ -725,7 +728,7 @@ static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
 	int interface;
 
 	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX)
-		phylink_validate_one(pl, supported, state, interface,
+		phylink_validate_one(pl, NULL, supported, state, interface,
 				     all_s, all_adv);
 
 	linkmode_copy(supported, all_s);
