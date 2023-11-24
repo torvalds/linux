@@ -239,7 +239,7 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 		return -EINVAL;
 	}
 
-	if (!pvr_device_addr_and_size_are_valid(device_addr, size) ||
+	if (!pvr_device_addr_and_size_are_valid(vm_ctx, device_addr, size) ||
 	    offset & ~PAGE_MASK || size & ~PAGE_MASK ||
 	    offset >= pvr_obj_size || offset_plus_size > pvr_obj_size)
 		return -EINVAL;
@@ -295,7 +295,7 @@ pvr_vm_bind_op_unmap_init(struct pvr_vm_bind_op *bind_op,
 {
 	int err;
 
-	if (!pvr_device_addr_and_size_are_valid(device_addr, size))
+	if (!pvr_device_addr_and_size_are_valid(vm_ctx, device_addr, size))
 		return -EINVAL;
 
 	bind_op->type = PVR_VM_BIND_TYPE_UNMAP;
@@ -505,6 +505,7 @@ pvr_device_addr_is_valid(u64 device_addr)
 /**
  * pvr_device_addr_and_size_are_valid() - Tests whether a device-virtual
  * address and associated size are both valid.
+ * @vm_ctx: Target VM context.
  * @device_addr: Virtual device address to test.
  * @size: Size of the range based at @device_addr to test.
  *
@@ -523,9 +524,11 @@ pvr_device_addr_is_valid(u64 device_addr)
  *  * %false otherwise.
  */
 bool
-pvr_device_addr_and_size_are_valid(u64 device_addr, u64 size)
+pvr_device_addr_and_size_are_valid(struct pvr_vm_context *vm_ctx,
+				   u64 device_addr, u64 size)
 {
 	return pvr_device_addr_is_valid(device_addr) &&
+	       drm_gpuvm_range_valid(&vm_ctx->gpuvm_mgr, device_addr, size) &&
 	       size != 0 && (size & ~PVR_DEVICE_PAGE_MASK) == 0 &&
 	       (device_addr + size <= PVR_PAGE_TABLE_ADDR_SPACE_SIZE);
 }
