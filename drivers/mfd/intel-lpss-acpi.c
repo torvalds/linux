@@ -8,14 +8,18 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
+#include <linux/device.h>
+#include <linux/gfp_types.h>
 #include <linux/ioport.h>
-#include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+
 #include <linux/pxa2xx_ssp.h>
+
+#include <asm/errno.h>
 
 #include "intel-lpss.h"
 
