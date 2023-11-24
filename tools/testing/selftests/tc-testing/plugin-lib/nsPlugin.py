@@ -37,7 +37,7 @@ class SubPlugin(TdcPlugin):
         if netlink == True:
             self._nl_ns_create()
         else:
-            self._ns_create()
+            self._ipr2_ns_create()
 
         # Make sure the netns is visible in the fs
         ticks = 20
@@ -71,7 +71,7 @@ class SubPlugin(TdcPlugin):
         if netlink == True:
             self._nl_ns_destroy()
         else:
-            self._ns_destroy()
+            self._ipr2_ns_destroy()
 
     def post_suite(self, index):
         if self.args.verbose:
@@ -161,7 +161,7 @@ class SubPlugin(TdcPlugin):
                     ticks -= 1
                     continue
 
-    def _ns_create_cmds(self):
+    def _ipr2_ns_create_cmds(self):
         cmds = []
 
         ns = self.args.NAMES['NS']
@@ -181,26 +181,26 @@ class SubPlugin(TdcPlugin):
 
         return cmds
 
-    def _ns_create(self):
+    def _ipr2_ns_create(self):
         '''
         Create the network namespace in which the tests will be run and set up
         the required network devices for it.
         '''
-        self._exec_cmd_batched('pre', self._ns_create_cmds())
+        self._exec_cmd_batched('pre', self._ipr2_ns_create_cmds())
 
     def _nl_ns_destroy(self):
         ns = self.args.NAMES['NS']
         netns.remove(ns)
 
-    def _ns_destroy_cmd(self):
+    def _ipr2_ns_destroy_cmd(self):
         return self._replace_keywords('netns delete {}'.format(self.args.NAMES['NS']))
 
-    def _ns_destroy(self):
+    def _ipr2_ns_destroy(self):
         '''
         Destroy the network namespace for testing (and any associated network
         devices as well)
         '''
-        self._exec_cmd('post', self._ns_destroy_cmd())
+        self._exec_cmd('post', self._ipr2_ns_destroy_cmd())
 
     @cached_property
     def _proc(self):
