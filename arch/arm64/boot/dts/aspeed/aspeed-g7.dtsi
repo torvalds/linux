@@ -813,7 +813,7 @@
 
 		video0: video@120a0000 {
 			compatible = "aspeed,ast2700-video-engine";
-			reg = <0x0 0x120a0000 0x0 0x1000>;
+			reg = <0x0 0x120a0000 0x0 0x400>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_VCLK>,
 				 <&soc0_clk AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "vclk", "eclk";
@@ -825,7 +825,8 @@
 
 		video1: video@120a1000 {
 			compatible = "aspeed,ast2700-video-engine";
-			reg = <0x0 0x120a1000 0x0 0x1000>;
+			reg = <0x0 0x120a1000 0x0 0x400>,
+			      <0x0 0x12c14800 0x0 0x100>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_VCLK>,
 				 <&soc0_clk AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "vclk", "eclk";

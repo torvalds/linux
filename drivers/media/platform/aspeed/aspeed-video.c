@@ -323,6 +323,7 @@ struct aspeed_video_perf {
  */
 struct aspeed_video {
 	void __iomem *base;
+	void __iomem *vga_base;
 	struct clk *eclk;
 	struct clk *vclk;
 	struct reset_control *reset;
@@ -735,6 +736,25 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 		aspeed_video_write(video, VE_TGS_0, val);
 	} else if (video->input == VIDEO_INPUT_MEM) {
 		aspeed_video_write(video, VE_TGS_0, _make_addr(video->dbg_src.dma));
+	} else if (video->version == 7 && video->id == 1) {
+		// 2700-A0 VE1 auto NG. Manually setup registers.
+		u32 val, offset;
+		u64 addr;
+
+		regmap_read(video->scu, 0xa8c, &val);
+		addr = (val & ~0xf);
+		addr <<= 4;
+
+		val = readl(video->vga_base + 0x6c);
+		offset |= (val >> 8) & 0xff;
+		offset |= (val & 0xff) << 8;
+
+		val = readl(video->vga_base + 0xac);
+		offset |= (val >> 8) & 0x00ff0000;
+		offset <<= 2;
+		addr |= offset;
+
+		aspeed_video_write(video, VE_TGS_0, _make_addr(addr));
 	}
 
 	spin_lock_irqsave(&video->lock, flags);
@@ -825,7 +845,7 @@ static void aspeed_video_on(struct aspeed_video *video)
 static void aspeed_video_reset(struct aspeed_video *v)
 {
 	reset_control_assert(v->reset);
-	udelay(100);
+	mdelay(100);
 	reset_control_deassert(v->reset);
 }
 
@@ -1479,7 +1499,8 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 	aspeed_video_write(video, VE_SRC_SCANLINE_OFFSET, act->width * 4);
 
 	/* Don't use direct mode below 1024 x 768 (irqs don't fire) */
-	if (video->input == VIDEO_INPUT_VGA && size < DIRECT_FETCH_THRESHOLD) {
+	if (video->input == VIDEO_INPUT_VGA && size < DIRECT_FETCH_THRESHOLD &&
+	    (video->version == 7 && video->id == 0)) {
 		v4l2_dbg(1, debug, &video->v4l2_dev, "Capture: Sync Mode\n");
 		aspeed_video_write(video, VE_TGS_0,
 				   FIELD_PREP(VE_TGS_FIRST,
@@ -1504,8 +1525,9 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 			if (bpp == 16)
 				ctrl |= VE_CTRL_INT_DE;
 			aspeed_video_write(video, VE_TGS_1, act->width * (bpp >> 3));
-		} else if (video->input == VIDEO_INPUT_MEM)
+		} else {
 			aspeed_video_write(video, VE_TGS_1, act->width * 4);
+		}
 		aspeed_video_update(video, VE_CTRL,
 				    VE_CTRL_INT_DE | VE_CTRL_DIRECT_FETCH,
 				    ctrl);
@@ -1586,7 +1608,7 @@ static void aspeed_video_update_regs(struct aspeed_video *video)
 	else
 		aspeed_video_update(video, VE_BCD_CTRL, VE_BCD_CTRL_EN_BCD, 0);
 
-	if (video->input == VIDEO_INPUT_VGA)
+	if (video->input == VIDEO_INPUT_VGA && video->id == 0)
 		ctrl |= VE_CTRL_AUTO_OR_CURSOR;
 
 	if (video->frame_rate)
@@ -1656,12 +1678,21 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 	aspeed_video_write(video, VE_SCALING_FILTER3, 0x00200000);
 
 	/* Set mode detection defaults */
-	aspeed_video_write(video, VE_MODE_DETECT,
-			   FIELD_PREP(VE_MODE_DT_HOR_TOLER, 2) |
-			   FIELD_PREP(VE_MODE_DT_VER_TOLER, 2) |
-			   FIELD_PREP(VE_MODE_DT_HOR_STABLE, 6) |
-			   FIELD_PREP(VE_MODE_DT_VER_STABLE, 6) |
-			   FIELD_PREP(VE_MODE_DT_EDG_THROD, 0x65));
+	// 2700-A0 VE1 needs larger threshold to avoid constant res-chg
+	if (video->version == 7 && video->id == 1)
+		aspeed_video_write(video, VE_MODE_DETECT,
+				   FIELD_PREP(VE_MODE_DT_HOR_TOLER, 7) |
+				   FIELD_PREP(VE_MODE_DT_VER_TOLER, 7) |
+				   FIELD_PREP(VE_MODE_DT_HOR_STABLE, 6) |
+				   FIELD_PREP(VE_MODE_DT_VER_STABLE, 6) |
+				   FIELD_PREP(VE_MODE_DT_EDG_THROD, 0x65));
+	else
+		aspeed_video_write(video, VE_MODE_DETECT,
+				   FIELD_PREP(VE_MODE_DT_HOR_TOLER, 2) |
+				   FIELD_PREP(VE_MODE_DT_VER_TOLER, 2) |
+				   FIELD_PREP(VE_MODE_DT_HOR_STABLE, 6) |
+				   FIELD_PREP(VE_MODE_DT_VER_STABLE, 6) |
+				   FIELD_PREP(VE_MODE_DT_EDG_THROD, 0x65));
 
 	aspeed_video_write(video, VE_BCD_CTRL, 0);
 }
@@ -2560,10 +2591,6 @@ static int aspeed_video_init(struct aspeed_video *video)
 	struct device *dev = video->dev;
 	unsigned int mask_size = (video->version >= 7) ? 64 : 32;
 
-	video->id = of_alias_get_id(dev->of_node, "video");
-	if (video->id < 0)
-		video->id = 0;
-
 	if (video->version >= 6) {
 		video->scu = syscon_regmap_lookup_by_phandle(dev->of_node,
 							     "aspeed,scu");
@@ -2669,9 +2696,16 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	if (!video)
 		return -ENOMEM;
 
+	video->id = of_alias_get_id(pdev->dev.of_node, "video");
+	if (video->id < 0)
+		video->id = 0;
+
 	video->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(video->base))
 		return PTR_ERR(video->base);
+
+	if (video->id == 1)
+		video->vga_base = devm_platform_ioremap_resource(pdev, 1);
 
 	config = of_device_get_match_data(&pdev->dev);
 	if (!config)
