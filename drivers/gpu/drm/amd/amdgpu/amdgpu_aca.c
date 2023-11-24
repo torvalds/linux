@@ -577,6 +577,9 @@ int amdgpu_aca_add_handle(struct amdgpu_device *adev, struct aca_handle *handle,
 {
 	struct amdgpu_aca *aca = &adev->aca;
 
+	if (!amdgpu_aca_is_enabled(adev))
+		return 0;
+
 	return add_aca_handle(adev, &aca->mgr, handle, name, ras_info, data);
 }
 
@@ -611,6 +614,11 @@ static void aca_manager_fini(struct aca_handle_manager *mgr)
 
 	list_for_each_entry_safe(handle, tmp, &mgr->list, node)
 		remove_aca(handle);
+}
+
+bool amdgpu_aca_is_enabled(struct amdgpu_device *adev)
+{
+	return adev->aca.is_enabled;
 }
 
 int amdgpu_aca_init(struct amdgpu_device *adev)
