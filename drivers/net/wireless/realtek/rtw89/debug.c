@@ -3330,13 +3330,14 @@ out:
 
 static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_cpuio_ctrl ctrl_para = {0};
 	u16 pkt_id;
 	int ret;
 
 	rtw89_leave_ps_mode(rtwdev);
 
-	ret = rtw89_mac_dle_buf_req(rtwdev, 0x20, true, &pkt_id);
+	ret = mac->dle_buf_req(rtwdev, 0x20, true, &pkt_id);
 	if (ret)
 		return ret;
 
@@ -3348,7 +3349,7 @@ static int rtw89_dbg_trigger_ctrl_error(struct rtw89_dev *rtwdev)
 	ctrl_para.dst_pid = WDE_DLE_PORT_ID_WDRLS;
 	ctrl_para.dst_qid = WDE_DLE_QUEID_NO_REPORT;
 
-	if (rtw89_mac_set_cpuio(rtwdev, &ctrl_para, true))
+	if (mac->set_cpuio(rtwdev, &ctrl_para, true))
 		return -EFAULT;
 
 	return 0;

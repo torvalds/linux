@@ -898,8 +898,29 @@ struct rtw89_mac_gen_def {
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
 
+	void (*hci_func_en)(struct rtw89_dev *rtwdev);
+	void (*dmac_func_pre_en)(struct rtw89_dev *rtwdev);
+	void (*dle_func_en)(struct rtw89_dev *rtwdev, bool enable);
+	void (*dle_clk_en)(struct rtw89_dev *rtwdev, bool enable);
 	void (*bf_assoc)(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta);
+
+	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
+	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
+	int (*dle_buf_req)(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *pkt_id);
+	void (*hfc_func_en)(struct rtw89_dev *rtwdev, bool en, bool h2c_en);
+	void (*hfc_h2c_cfg)(struct rtw89_dev *rtwdev);
+	void (*hfc_mix_cfg)(struct rtw89_dev *rtwdev);
+	void (*hfc_get_mix_info)(struct rtw89_dev *rtwdev);
+	void (*wde_quota_cfg)(struct rtw89_dev *rtwdev,
+			      const struct rtw89_wde_quota *min_cfg,
+			      const struct rtw89_wde_quota *max_cfg,
+			      u16 ext_wde_min_qt_wcpu);
+	void (*ple_quota_cfg)(struct rtw89_dev *rtwdev,
+			      const struct rtw89_ple_quota *min_cfg,
+			      const struct rtw89_ple_quota *max_cfg);
+	int (*set_cpuio)(struct rtw89_dev *rtwdev,
+			 struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
 
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
 	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
@@ -1267,9 +1288,6 @@ enum rtw89_mac_xtal_si_offset {
 int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
 int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val);
 void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
-int rtw89_mac_dle_buf_req(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *pkt_id);
-int rtw89_mac_set_cpuio(struct rtw89_dev *rtwdev,
-			struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
 int rtw89_mac_typ_fltr_opt(struct rtw89_dev *rtwdev,
 			   enum rtw89_machdr_frame_type type,
 			   enum rtw89_mac_fwd_target fwd_target, u8 mac_idx);
