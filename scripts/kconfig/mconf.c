@@ -247,7 +247,7 @@ search_help[] =
 	"      -> PCI support (PCI [=y])\n"
 	"(1)     -> PCI access mode (<choice> [=y])\n"
 	"  Defined at drivers/pci/Kconfig:47\n"
-	"  Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
+	"  Depends on: X86_LOCAL_APIC && X86_IO_APIC\n"
 	"  Selects: LIBCRC32\n"
 	"  Selected by: BAR [=n]\n"
 	"-----------------------------------------------------------------\n"

@@ -216,7 +216,7 @@ search_help[] =
 "Symbol: FOO [ = m]\n"
 "Prompt: Foo bus is used to drive the bar HW\n"
 "Defined at drivers/pci/Kconfig:47\n"
-"Depends on: X86_LOCAL_APIC && X86_IO_APIC || IA64\n"
+"Depends on: X86_LOCAL_APIC && X86_IO_APIC\n"
 "Location:\n"
 "  -> Bus options (PCI, PCMCIA, EISA, ISA)\n"
 "    -> PCI support (PCI [ = y])\n"
