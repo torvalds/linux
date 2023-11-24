@@ -701,3 +701,122 @@ int aca_bank_check_error_codes(struct amdgpu_device *adev, struct aca_bank *bank
 	return -EINVAL;
 }
 
+int amdgpu_aca_smu_set_debug_mode(struct amdgpu_device *adev, bool en)
+{
+	struct amdgpu_aca *aca = &adev->aca;
+	const struct aca_smu_funcs *smu_funcs = aca->smu_funcs;
+
+	if (!smu_funcs || !smu_funcs->set_debug_mode)
+		return -EOPNOTSUPP;
+
+	return smu_funcs->set_debug_mode(adev, en);
+}
+
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_aca_smu_debug_mode_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	int ret;
+
+	ret = amdgpu_ras_set_aca_debug_mode(adev, val ? true : false);
+	if (ret)
+		return ret;
+
+	dev_info(adev->dev, "amdgpu set smu aca debug mode %s success\n", val ? "on" : "off");
+
+	return 0;
+}
+
+static void aca_dump_entry(struct seq_file *m, struct aca_bank *bank, enum aca_error_type type, int idx)
+{
+	struct aca_bank_info info;
+	int i, ret;
+
+	ret = aca_bank_info_decode(bank, &info);
+	if (ret)
+		return;
+
+	seq_printf(m, "aca entry[%d].type: %s\n", idx, type ==  ACA_ERROR_TYPE_UE ? "UE" : "CE");
+	seq_printf(m, "aca entry[%d].info: socketid:%d aid:%d hwid:0x%03x mcatype:0x%04x\n",
+		   idx, info.socket_id, info.die_id, info.hwid, info.mcatype);
+
+	for (i = 0; i < ARRAY_SIZE(aca_regs); i++)
+		seq_printf(m, "aca entry[%d].regs[%d]: 0x%016llx\n", idx, aca_regs[i].reg_idx, bank->regs[aca_regs[i].reg_idx]);
+}
+
+struct aca_dump_context {
+	struct seq_file *m;
+	int idx;
+};
+
+static int handler_aca_bank_dump(struct aca_handle *handle, struct aca_bank *bank,
+				 enum aca_error_type type, void *data)
+{
+	struct aca_dump_context *ctx = (struct aca_dump_context *)data;
+
+	aca_dump_entry(ctx->m, bank, type, ctx->idx++);
+
+	return handler_aca_log_bank_error(handle, bank, type, NULL);
+}
+
+static int aca_dump_show(struct seq_file *m, enum aca_error_type type)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct aca_dump_context context = {
+		.m = m,
+		.idx = 0,
+	};
+
+	return aca_banks_update(adev, type, handler_aca_bank_dump, (void *)&context);
+}
+
+static int aca_dump_ce_show(struct seq_file *m, void *unused)
+{
+	return aca_dump_show(m, ACA_ERROR_TYPE_CE);
+}
+
+static int aca_dump_ce_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aca_dump_ce_show, inode->i_private);
+}
+
+static const struct file_operations aca_ce_dump_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = aca_dump_ce_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int aca_dump_ue_show(struct seq_file *m, void *unused)
+{
+	return aca_dump_show(m, ACA_ERROR_TYPE_UE);
+}
+
+static int aca_dump_ue_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aca_dump_ue_show, inode->i_private);
+}
+
+static const struct file_operations aca_ue_dump_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = aca_dump_ue_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+DEFINE_DEBUGFS_ATTRIBUTE(aca_debug_mode_fops, NULL, amdgpu_aca_smu_debug_mode_set, "%llu\n");
+#endif
+
+void amdgpu_aca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
+{
+#if defined(CONFIG_DEBUG_FS)
+	if (!root || adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 6))
+		return;
+
+	debugfs_create_file("aca_debug_mode", 0200, root, adev, &aca_debug_mode_fops);
+	debugfs_create_file("aca_ue_dump", 0400, root, adev, &aca_ue_dump_debug_fops);
+	debugfs_create_file("aca_ce_dump", 0400, root, adev, &aca_ce_dump_debug_fops);
+#endif
+}

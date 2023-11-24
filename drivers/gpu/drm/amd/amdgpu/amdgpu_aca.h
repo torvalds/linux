@@ -192,4 +192,6 @@ int amdgpu_aca_add_handle(struct amdgpu_device *adev, struct aca_handle *handle,
 void amdgpu_aca_remove_handle(struct aca_handle *handle);
 int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *handle,
 				     enum aca_error_type type, void *data);
+int amdgpu_aca_smu_set_debug_mode(struct amdgpu_device *adev, bool en);
+void amdgpu_aca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root);
 #endif
