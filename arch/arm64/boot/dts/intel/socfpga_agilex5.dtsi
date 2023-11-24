@@ -73,7 +73,7 @@
 		ranges;
 		#interrupt-cells = <3>;
 		#address-cells = <2>;
-		#size-cells =<2>;
+		#size-cells = <2>;
 		interrupt-controller;
 		#redistributor-regions = <1>;
 		redistributor-stride = <0x0 0x20000>;
@@ -315,7 +315,7 @@
 			num-cs = <4>;
 			clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>;
 			dmas = <&dmac0 2>, <&dmac0 3>;
-			dma-names ="tx", "rx";
+			dma-names = "tx", "rx";
 			status = "disabled";
 
 		};
