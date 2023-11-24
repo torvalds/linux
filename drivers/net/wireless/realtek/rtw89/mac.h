@@ -650,6 +650,22 @@ struct rtw89_mac_dle_dfi_qempty {
 	u32 qempty;
 };
 
+enum rtw89_mac_dle_rsvd_qt_type {
+	DLE_RSVD_QT_MPDU_INFO,
+	DLE_RSVD_QT_B0_CSI,
+	DLE_RSVD_QT_B1_CSI,
+	DLE_RSVD_QT_B0_LMR,
+	DLE_RSVD_QT_B1_LMR,
+	DLE_RSVD_QT_B0_FTM,
+	DLE_RSVD_QT_B1_FTM,
+};
+
+struct rtw89_mac_dle_rsvd_qt_cfg {
+	u16 pktid;
+	u16 pg_num;
+	u32 size;
+};
+
 enum rtw89_mac_error_scenario {
 	RTW89_RXI300_ERROR		= 1,
 	RTW89_WCPU_CPU_EXCEPTION	= 2,
@@ -1254,5 +1270,8 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);
 void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool wow);
+int rtw89_mac_get_dle_rsvd_qt_cfg(struct rtw89_dev *rtwdev,
+				  enum rtw89_mac_dle_rsvd_qt_type type,
+				  struct rtw89_mac_dle_rsvd_qt_cfg *cfg);
 
 #endif

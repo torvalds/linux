@@ -1555,12 +1555,67 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 		return NULL;
 	}
 
+	mac->dle_info.rsvd_qt = cfg->rsvd_qt;
 	mac->dle_info.ple_pg_size = cfg->ple_size->pge_size;
+	mac->dle_info.ple_free_pg = cfg->ple_size->lnk_pge_num;
 	mac->dle_info.qta_mode = mode;
 	mac->dle_info.c0_rx_qta = cfg->ple_min_qt->cma0_dma;
 	mac->dle_info.c1_rx_qta = cfg->ple_min_qt->cma1_dma;
 
 	return cfg;
+}
+
+int rtw89_mac_get_dle_rsvd_qt_cfg(struct rtw89_dev *rtwdev,
+				  enum rtw89_mac_dle_rsvd_qt_type type,
+				  struct rtw89_mac_dle_rsvd_qt_cfg *cfg)
+{
+	struct rtw89_dle_info *dle_info = &rtwdev->mac.dle_info;
+	const struct rtw89_rsvd_quota *rsvd_qt = dle_info->rsvd_qt;
+
+	switch (type) {
+	case DLE_RSVD_QT_MPDU_INFO:
+		cfg->pktid = dle_info->ple_free_pg;
+		cfg->pg_num = rsvd_qt->mpdu_info_tbl;
+		break;
+	case DLE_RSVD_QT_B0_CSI:
+		cfg->pktid = dle_info->ple_free_pg + rsvd_qt->mpdu_info_tbl;
+		cfg->pg_num = rsvd_qt->b0_csi;
+		break;
+	case DLE_RSVD_QT_B1_CSI:
+		cfg->pktid = dle_info->ple_free_pg +
+			     rsvd_qt->mpdu_info_tbl + rsvd_qt->b0_csi;
+		cfg->pg_num = rsvd_qt->b1_csi;
+		break;
+	case DLE_RSVD_QT_B0_LMR:
+		cfg->pktid = dle_info->ple_free_pg +
+			     rsvd_qt->mpdu_info_tbl + rsvd_qt->b0_csi + rsvd_qt->b1_csi;
+		cfg->pg_num = rsvd_qt->b0_lmr;
+		break;
+	case DLE_RSVD_QT_B1_LMR:
+		cfg->pktid = dle_info->ple_free_pg +
+			     rsvd_qt->mpdu_info_tbl + rsvd_qt->b0_csi + rsvd_qt->b1_csi +
+			     rsvd_qt->b0_lmr;
+		cfg->pg_num = rsvd_qt->b1_lmr;
+		break;
+	case DLE_RSVD_QT_B0_FTM:
+		cfg->pktid = dle_info->ple_free_pg +
+			     rsvd_qt->mpdu_info_tbl + rsvd_qt->b0_csi + rsvd_qt->b1_csi +
+			     rsvd_qt->b0_lmr + rsvd_qt->b1_lmr;
+		cfg->pg_num = rsvd_qt->b0_ftm;
+		break;
+	case DLE_RSVD_QT_B1_FTM:
+		cfg->pktid = dle_info->ple_free_pg +
+			     rsvd_qt->mpdu_info_tbl + rsvd_qt->b0_csi + rsvd_qt->b1_csi +
+			     rsvd_qt->b0_lmr + rsvd_qt->b1_lmr + rsvd_qt->b0_ftm;
+		cfg->pg_num = rsvd_qt->b1_ftm;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	cfg->size = (u32)cfg->pg_num * dle_info->ple_pg_size;
+
+	return 0;
 }
 
 static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
