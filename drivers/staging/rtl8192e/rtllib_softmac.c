@@ -365,21 +365,6 @@ static void rtllib_send_beacon(struct rtllib_device *ieee)
 		softmac_mgmt_xmit(skb, ieee);
 		ieee->softmac_stats.tx_beacons++;
 	}
-
-	if (ieee->beacon_txing && ieee->ieee_up)
-		mod_timer(&ieee->beacon_timer, jiffies +
-			  (msecs_to_jiffies(ieee->current_network.beacon_interval - 5)));
-}
-
-static void rtllib_send_beacon_cb(struct timer_list *t)
-{
-	struct rtllib_device *ieee =
-		from_timer(ieee, t, beacon_timer);
-	unsigned long flags;
-
-	spin_lock_irqsave(&ieee->beacon_lock, flags);
-	rtllib_send_beacon(ieee);
-	spin_unlock_irqrestore(&ieee->beacon_lock, flags);
 }
 
 /* Enables network monitor mode, all rx packets will be received. */
@@ -2327,8 +2312,6 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->tx_pending.txb = NULL;
 
 	timer_setup(&ieee->associate_timer, rtllib_associate_abort_cb, 0);
-
-	timer_setup(&ieee->beacon_timer, rtllib_send_beacon_cb, 0);
 
 	INIT_DELAYED_WORK(&ieee->link_change_wq, (void *)rtllib_link_change_wq);
 	INIT_WORK(&ieee->associate_complete_wq, (void *)rtllib_associate_complete_wq);
