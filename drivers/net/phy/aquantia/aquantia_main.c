@@ -656,6 +656,80 @@ static int aqr107_resume(struct phy_device *phydev)
 	return aqr107_wait_processor_intensive_op(phydev);
 }
 
+static const u16 aqr_global_cfg_regs[] = {
+	VEND1_GLOBAL_CFG_10M,
+	VEND1_GLOBAL_CFG_100M,
+	VEND1_GLOBAL_CFG_1G,
+	VEND1_GLOBAL_CFG_2_5G,
+	VEND1_GLOBAL_CFG_5G,
+	VEND1_GLOBAL_CFG_10G
+};
+
+static int aqr107_fill_interface_modes(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+	unsigned int serdes_mode, rate_adapt;
+	phy_interface_t interface;
+	int i, val;
+
+	/* Walk the media-speed configuration registers to determine which
+	 * host-side serdes modes may be used by the PHY depending on the
+	 * negotiated media speed.
+	 */
+	for (i = 0; i < ARRAY_SIZE(aqr_global_cfg_regs); i++) {
+		val = phy_read_mmd(phydev, MDIO_MMD_VEND1,
+				   aqr_global_cfg_regs[i]);
+		if (val < 0)
+			return val;
+
+		serdes_mode = FIELD_GET(VEND1_GLOBAL_CFG_SERDES_MODE, val);
+		rate_adapt = FIELD_GET(VEND1_GLOBAL_CFG_RATE_ADAPT, val);
+
+		switch (serdes_mode) {
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI:
+			if (rate_adapt == VEND1_GLOBAL_CFG_RATE_ADAPT_USX)
+				interface = PHY_INTERFACE_MODE_USXGMII;
+			else
+				interface = PHY_INTERFACE_MODE_10GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_XFI5G:
+			interface = PHY_INTERFACE_MODE_5GBASER;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_OCSGMII:
+			interface = PHY_INTERFACE_MODE_2500BASEX;
+			break;
+
+		case VEND1_GLOBAL_CFG_SERDES_MODE_SGMII:
+			interface = PHY_INTERFACE_MODE_SGMII;
+			break;
+
+		default:
+			phydev_warn(phydev, "unrecognised serdes mode %u\n",
+				    serdes_mode);
+			interface = PHY_INTERFACE_MODE_NA;
+			break;
+		}
+
+		if (interface != PHY_INTERFACE_MODE_NA)
+			__set_bit(interface, possible);
+	}
+
+	return 0;
+}
+
+static int aqr113c_config_init(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = aqr107_config_init(phydev);
+	if (ret < 0)
+		return ret;
+
+	return aqr107_fill_interface_modes(phydev);
+}
+
 static int aqr107_probe(struct phy_device *phydev)
 {
 	int ret;
@@ -794,7 +868,7 @@ static struct phy_driver aqr_driver[] = {
 	.name           = "Aquantia AQR113C",
 	.probe          = aqr107_probe,
 	.get_rate_matching = aqr107_get_rate_matching,
-	.config_init    = aqr107_config_init,
+	.config_init    = aqr113c_config_init,
 	.config_aneg    = aqr_config_aneg,
 	.config_intr    = aqr_config_intr,
 	.handle_interrupt       = aqr_handle_interrupt,
