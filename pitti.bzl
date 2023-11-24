@@ -79,6 +79,8 @@ def define_pitti():
         "drivers/usb/phy/phy-msm-snps-hs.ko",
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
+        "drivers/virt/gunyah/gh_rm_drv.ko",
+        "drivers/virt/gunyah/gunyah_loader.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
     ]
