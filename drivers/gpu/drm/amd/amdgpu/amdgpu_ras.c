@@ -1188,7 +1188,7 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 			}
 
 			if (block_obj->hw_ops->query_ras_error_count)
-				block_obj->hw_ops->query_ras_error_count(adev, &err_data);
+				block_obj->hw_ops->query_ras_error_count(adev, err_data);
 
 			if ((info->head.block == AMDGPU_RAS_BLOCK__SDMA) ||
 			    (info->head.block == AMDGPU_RAS_BLOCK__GFX) ||

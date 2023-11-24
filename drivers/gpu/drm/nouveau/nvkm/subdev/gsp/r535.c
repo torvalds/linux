@@ -689,8 +689,8 @@ r535_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 	struct nvfw_gsp_rpc *rpc;
 
 	rpc = r535_gsp_cmdq_get(gsp, ALIGN(sizeof(*rpc) + argc, sizeof(u64)));
-	if (!rpc)
-		return NULL;
+	if (IS_ERR(rpc))
+		return ERR_CAST(rpc);
 
 	rpc->header_version = 0x03000000;
 	rpc->signature = ('C' << 24) | ('P' << 16) | ('R' << 8) | 'V';
@@ -1159,7 +1159,7 @@ static void
 r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
 						 MUX_METHOD_DATA_ELEMENT *part)
 {
-	acpi_handle iter = NULL, handle_mux;
+	acpi_handle iter = NULL, handle_mux = NULL;
 	acpi_status status;
 	unsigned long long value;
 

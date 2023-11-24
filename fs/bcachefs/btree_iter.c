@@ -3087,8 +3087,6 @@ void bch2_trans_put(struct btree_trans *trans)
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 	}
 
-	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
-
 	kfree(trans->extra_journal_entries.data);
 
 	if (trans->fs_usage_deltas) {

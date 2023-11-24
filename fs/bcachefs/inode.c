@@ -1134,7 +1134,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 		 * unlinked inodes in the snapshot leaves:
 		 */
 		*need_another_pass = true;
-		return 0;
+		goto out;
 	}
 
 	ret = 1;
@@ -1169,8 +1169,10 @@ again:
 	 */
 	for_each_btree_key(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
 			   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		ret = lockrestart_do(trans, may_delete_deleted_inode(trans, &iter, k.k->p,
-								     &need_another_pass));
+		ret = commit_do(trans, NULL, NULL,
+				BTREE_INSERT_NOFAIL|
+				BTREE_INSERT_LAZY_RW,
+			may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass));
 		if (ret < 0)
 			break;
 
