@@ -13,6 +13,7 @@
 #include <linux/ioport.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -205,15 +206,13 @@ static void intel_lpss_acpi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static INTEL_LPSS_PM_OPS(intel_lpss_acpi_pm_ops);
-
 static struct platform_driver intel_lpss_acpi_driver = {
 	.probe = intel_lpss_acpi_probe,
 	.remove_new = intel_lpss_acpi_remove,
 	.driver = {
 		.name = "intel-lpss",
 		.acpi_match_table = intel_lpss_acpi_ids,
-		.pm = &intel_lpss_acpi_pm_ops,
+		.pm = pm_ptr(&intel_lpss_pm_ops),
 	},
 };
 

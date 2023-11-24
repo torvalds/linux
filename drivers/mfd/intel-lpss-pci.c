@@ -13,6 +13,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 
@@ -80,8 +81,6 @@ static void intel_lpss_pci_remove(struct pci_dev *pdev)
 
 	intel_lpss_remove(&pdev->dev);
 }
-
-static INTEL_LPSS_PM_OPS(intel_lpss_pci_pm_ops);
 
 static const struct property_entry spt_spi_properties[] = {
 	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_SPT_SSP),
@@ -593,7 +592,7 @@ static struct pci_driver intel_lpss_pci_driver = {
 	.probe = intel_lpss_pci_probe,
 	.remove = intel_lpss_pci_remove,
 	.driver = {
-		.pm = &intel_lpss_pci_pm_ops,
+		.pm = pm_ptr(&intel_lpss_pm_ops),
 	},
 };
 

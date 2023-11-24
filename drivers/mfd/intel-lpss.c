@@ -24,6 +24,7 @@
 #include <linux/ioport.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/sprintf.h>
@@ -470,7 +471,6 @@ void intel_lpss_remove(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(intel_lpss_remove, INTEL_LPSS);
 
-#ifdef CONFIG_PM
 static int resume_lpss_device(struct device *dev, void *data)
 {
 	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
@@ -479,7 +479,7 @@ static int resume_lpss_device(struct device *dev, void *data)
 	return 0;
 }
 
-int intel_lpss_prepare(struct device *dev)
+static int intel_lpss_prepare(struct device *dev)
 {
 	/*
 	 * Resume both child devices before entering system sleep. This
@@ -488,9 +488,8 @@ int intel_lpss_prepare(struct device *dev)
 	device_for_each_child_reverse(dev, NULL, resume_lpss_device);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(intel_lpss_prepare, INTEL_LPSS);
 
-int intel_lpss_suspend(struct device *dev)
+static int intel_lpss_suspend(struct device *dev)
 {
 	struct intel_lpss *lpss = dev_get_drvdata(dev);
 	unsigned int i;
@@ -509,9 +508,8 @@ int intel_lpss_suspend(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(intel_lpss_suspend, INTEL_LPSS);
 
-int intel_lpss_resume(struct device *dev)
+static int intel_lpss_resume(struct device *dev)
 {
 	struct intel_lpss *lpss = dev_get_drvdata(dev);
 	unsigned int i;
@@ -524,8 +522,12 @@ int intel_lpss_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(intel_lpss_resume, INTEL_LPSS);
-#endif
+
+EXPORT_NS_GPL_DEV_PM_OPS(intel_lpss_pm_ops, INTEL_LPSS) = {
+	.prepare = pm_sleep_ptr(&intel_lpss_prepare),
+	LATE_SYSTEM_SLEEP_PM_OPS(intel_lpss_suspend, intel_lpss_resume)
+	RUNTIME_PM_OPS(intel_lpss_suspend, intel_lpss_resume, NULL)
+};
 
 static int __init intel_lpss_init(void)
 {
