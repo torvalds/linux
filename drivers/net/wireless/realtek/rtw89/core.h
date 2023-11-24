@@ -3692,8 +3692,8 @@ struct rtw89_chip_info {
 	u32 rsvd_ple_ofst;
 	const struct rtw89_hfc_param_ini *hfc_param_ini;
 	const struct rtw89_dle_mem *dle_mem;
-	u8 wde_qempty_acq_num;
-	u8 wde_qempty_mgq_sel;
+	u8 wde_qempty_acq_grpnum;
+	u8 wde_qempty_mgq_grpsel;
 	u32 rf_base_addr[2];
 	u8 support_chanctx_num;
 	u8 support_bands;
