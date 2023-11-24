@@ -9,7 +9,7 @@
 #include "keystone-k2g.dtsi"
 
 / {
-	compatible =  "ti,k2g-evm", "ti,k2g", "ti,keystone";
+	compatible = "ti,k2g-evm", "ti,k2g", "ti,keystone";
 	model = "Texas Instruments K2G General Purpose EVM";
 
 	memory@800000000 {
