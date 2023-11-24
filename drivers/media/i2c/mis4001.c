@@ -27,7 +27,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -165,177 +165,177 @@ static const struct regval mis4001_global_regs[] = {
  * mipi_datarate per lane 337.5Mbps, 2lane
  */
 static const struct regval mis4001_linear_10_2560x1440_regs[] = {
-    {0x300a, 0x01},
-    {0x3006, 0x02},
-    {0x4220, 0x2b},
-    {0x4221, 0x6b},
-    {0x4222, 0xab},
-    {0x4223, 0xeb},
-    {0x3011, 0x2b},
-    {0x3302, 0x02},
-    {0x3307, 0x64},
-    {0x3306, 0x01},
-    {0x3309, 0x01},
-    {0x3308, 0x03},
-    {0x330a, 0x04},
-    {0x330b, 0x09},
-    {0x310f, 0x68},
-    {0x310e, 0x0d},
-    {0x310d, 0x25},
-    {0x310c, 0x06},
-    {0x3115, 0x10},
-    {0x3114, 0x00},
-    {0x3117, 0x0f},
-    {0x3116, 0x0a},
-    {0x3111, 0xfc},
-    {0x3110, 0x00},
-    {0x3113, 0x9d},
-    {0x3112, 0x06},
-    {0x3128, 0x0f},//FW<4096 FFF
-    {0x3129, 0xff},
-    {0x3012, 0x03},
-    {0x3f00, 0x01},
-    {0x3f02, 0x07},
-    {0x3f01, 0x00},
-    {0x3f04, 0x2a},
-    {0x3f03, 0x00},
-    {0x3f06, 0xa5},
-    {0x3f05, 0x04},
-    {0x3f08, 0xff},
-    {0x3f07, 0x1f},
-    {0x3f0a, 0xa4},
-    {0x3f09, 0x01},
-    {0x3f0c, 0x38},
-    {0x3f0b, 0x00},
-    {0x3f0e, 0xff},
-    {0x3f0d, 0x1f},
-    {0x3f10, 0xff},
-    {0x3f0f, 0x1f},
-    {0x3f13, 0x07},
-    {0x3f12, 0x00},
-    {0x3f15, 0x9d},
-    {0x3f14, 0x01},
-    {0x3f17, 0x31},
-    {0x3f16, 0x00},
-    {0x3f19, 0x73},
-    {0x3f18, 0x01},
-    {0x3f1b, 0x00},
-    {0x3f1a, 0x00},
-    {0x3f1d, 0xa9},
-    {0x3f1c, 0x04},
-    {0x3f1f, 0xff},
-    {0x3f1e, 0x1f},
-    {0x3f21, 0xff},
-    {0x3f20, 0x1f},
-    {0x3f23, 0x85},
-    {0x3f22, 0x00},
-    {0x3f25, 0x27},
-    {0x3f24, 0x01},
-    {0x3f28, 0x46},
-    {0x3f27, 0x00},
-    {0x3f2a, 0x07},
-    {0x3f29, 0x00},
-    {0x3f2c, 0x3f},
-    {0x3f2b, 0x00},
-    {0x3f2e, 0x70},
-    {0x3f2d, 0x01},
-    {0x3f30, 0x38},
-    {0x3f2f, 0x00},
-    {0x3f32, 0x3f},
-    {0x3f31, 0x00},
-    {0x3f34, 0xd1},
-    {0x3f33, 0x00},
-    {0x3f36, 0xc0},
-    {0x3f35, 0x00},
-    {0x3f38, 0x2f},
-    {0x3f37, 0x02},
-    {0x3f3a, 0x5d},
-    {0x3f39, 0x02},
-    {0x3f4f, 0x5d},
-    {0x3f4e, 0x02},
-    {0x3f51, 0x5d},
-    {0x3f50, 0x02},
-    {0x3f53, 0x5d},
-    {0x3f52, 0x02},
-    {0x3f55, 0x5d},
-    {0x3f54, 0x02},
-    {0x3f3c, 0x9a},
-    {0x3f3b, 0x00},
-    {0x3f3e, 0x09},
-    {0x3f3d, 0x04},
-    {0x3f40, 0x93},
-    {0x3f3f, 0x01},
-    {0x3f42, 0x8f},
-    {0x3f41, 0x00},
-    {0x3f44, 0xb0},
-    {0x3f43, 0x04},
-    {0x3129, 0x45},
-    {0x3128, 0x00},
-    {0x312b, 0x4a},
-    {0x312a, 0x00},
-    {0x312f, 0xb2},
-    {0x312e, 0x00},
-    {0x3124, 0x09},
-    {0x4200, 0x09},
-    {0x4201, 0x00},
-    {0x4214, 0x60},
-    {0x420E, 0x94},
-    {0x4240, 0x8d},
-    {0x4242, 0x03},
-    {0x4224, 0x00},
-    {0x4225, 0x0a},
-    {0x4226, 0xa0},
-    {0x4227, 0x05},
-    {0x4228, 0x00},
-    {0x4229, 0x0a},
-    {0x422a, 0xa0},
-    {0x422b, 0x05},
-    {0x422c, 0x00},
-    {0x422d, 0x0a},
-    {0x422e, 0xa0},
-    {0x422f, 0x05},
-    {0x4230, 0x00},
-    {0x4231, 0x0a},
-    {0x4232, 0xa0},
-    {0x4233, 0x05},
-    {0x4509, 0x0f},
-    {0x4505, 0x00},
-    {0x4501, 0xff},
-    {0x4502, 0x33},
-    {0x4503, 0x11},
-    {0x4501, 0xf0},
-    {0x4502, 0x30},
-    {0x4503, 0x10},
-    {0x3A01, 0xA0},
-    {0x401E, 0x3C},
-    {0x401d, 0xa0},
-    {0x3012, 0x03},
-    {0x3E00, 0x00},
-    {0x3E01, 0x10},
-    {0x400D, 0x30},
-    {0x3500, 0x1b},  //1b/13
-    {0x3501, 0x03},
-    {0x3508, 0x0a},
-    {0x3508, 0x04},
-    {0x3513, 0x01},
-    {0x3514, 0x09},
-    {0x3515, 0x0b},
-    {0x3702, 0x80},
-    {0x3704, 0x80},
-    {0x3706, 0x80},
-    {0x3708, 0x80},
-    {0x400D, 0x30},  //优化奇偶行及行噪
-    {0x4004, 0x20},  //RCS CM电流最小优化横带
-    {0x4005, 0x0c},
-    {0x4009, 0x09},
-    {0x400a, 0x48},
-    {0x4006, 0x86},
-    {0x4019, 0x08},
-    {0x4003, 0x0a},
-    {0x3f42, 0x58},
-    {0x3f49, 0x60},
-    {0x3f38, 0x4d},
-    {REG_NULL, 0x00},
+	{0x300a, 0x01},
+	{0x3006, 0x02},
+	{0x4220, 0x2b},
+	{0x4221, 0x6b},
+	{0x4222, 0xab},
+	{0x4223, 0xeb},
+	{0x3011, 0x2b},
+	{0x3302, 0x02},
+	{0x3307, 0x64},
+	{0x3306, 0x01},
+	{0x3309, 0x01},
+	{0x3308, 0x03},
+	{0x330a, 0x04},
+	{0x330b, 0x09},
+	{0x310f, 0x68},
+	{0x310e, 0x0d},
+	{0x310d, 0x25},
+	{0x310c, 0x06},
+	{0x3115, 0x10},
+	{0x3114, 0x00},
+	{0x3117, 0x0f},
+	{0x3116, 0x0a},
+	{0x3111, 0xfc},
+	{0x3110, 0x00},
+	{0x3113, 0x9d},
+	{0x3112, 0x06},
+	{0x3128, 0x0f},//FW<4096 FFF
+	{0x3129, 0xff},
+	{0x3012, 0x03},
+	{0x3f00, 0x01},
+	{0x3f02, 0x07},
+	{0x3f01, 0x00},
+	{0x3f04, 0x2a},
+	{0x3f03, 0x00},
+	{0x3f06, 0xa5},
+	{0x3f05, 0x04},
+	{0x3f08, 0xff},
+	{0x3f07, 0x1f},
+	{0x3f0a, 0xa4},
+	{0x3f09, 0x01},
+	{0x3f0c, 0x38},
+	{0x3f0b, 0x00},
+	{0x3f0e, 0xff},
+	{0x3f0d, 0x1f},
+	{0x3f10, 0xff},
+	{0x3f0f, 0x1f},
+	{0x3f13, 0x07},
+	{0x3f12, 0x00},
+	{0x3f15, 0x9d},
+	{0x3f14, 0x01},
+	{0x3f17, 0x31},
+	{0x3f16, 0x00},
+	{0x3f19, 0x73},
+	{0x3f18, 0x01},
+	{0x3f1b, 0x00},
+	{0x3f1a, 0x00},
+	{0x3f1d, 0xa9},
+	{0x3f1c, 0x04},
+	{0x3f1f, 0xff},
+	{0x3f1e, 0x1f},
+	{0x3f21, 0xff},
+	{0x3f20, 0x1f},
+	{0x3f23, 0x85},
+	{0x3f22, 0x00},
+	{0x3f25, 0x27},
+	{0x3f24, 0x01},
+	{0x3f28, 0x46},
+	{0x3f27, 0x00},
+	{0x3f2a, 0x07},
+	{0x3f29, 0x00},
+	{0x3f2c, 0x3f},
+	{0x3f2b, 0x00},
+	{0x3f2e, 0x70},
+	{0x3f2d, 0x01},
+	{0x3f30, 0x38},
+	{0x3f2f, 0x00},
+	{0x3f32, 0x3f},
+	{0x3f31, 0x00},
+	{0x3f34, 0xd1},
+	{0x3f33, 0x00},
+	{0x3f36, 0xc0},
+	{0x3f35, 0x00},
+	{0x3f38, 0x2f},
+	{0x3f37, 0x02},
+	{0x3f3a, 0x5d},
+	{0x3f39, 0x02},
+	{0x3f4f, 0x5d},
+	{0x3f4e, 0x02},
+	{0x3f51, 0x5d},
+	{0x3f50, 0x02},
+	{0x3f53, 0x5d},
+	{0x3f52, 0x02},
+	{0x3f55, 0x5d},
+	{0x3f54, 0x02},
+	{0x3f3c, 0x9a},
+	{0x3f3b, 0x00},
+	{0x3f3e, 0x09},
+	{0x3f3d, 0x04},
+	{0x3f40, 0x93},
+	{0x3f3f, 0x01},
+	{0x3f42, 0x8f},
+	{0x3f41, 0x00},
+	{0x3f44, 0xb0},
+	{0x3f43, 0x04},
+	{0x3129, 0x45},
+	{0x3128, 0x00},
+	{0x312b, 0x4a},
+	{0x312a, 0x00},
+	{0x312f, 0xb2},
+	{0x312e, 0x00},
+	{0x3124, 0x09},
+	{0x4200, 0x09},
+	{0x4201, 0x00},
+	{0x4214, 0x60},
+	{0x420E, 0x94},
+	{0x4240, 0x8d},
+	{0x4242, 0x03},
+	{0x4224, 0x00},
+	{0x4225, 0x0a},
+	{0x4226, 0xa0},
+	{0x4227, 0x05},
+	{0x4228, 0x00},
+	{0x4229, 0x0a},
+	{0x422a, 0xa0},
+	{0x422b, 0x05},
+	{0x422c, 0x00},
+	{0x422d, 0x0a},
+	{0x422e, 0xa0},
+	{0x422f, 0x05},
+	{0x4230, 0x00},
+	{0x4231, 0x0a},
+	{0x4232, 0xa0},
+	{0x4233, 0x05},
+	{0x4509, 0x0f},
+	{0x4505, 0x00},
+	{0x4501, 0xff},
+	{0x4502, 0x33},
+	{0x4503, 0x11},
+	{0x4501, 0xf0},
+	{0x4502, 0x30},
+	{0x4503, 0x10},
+	{0x3A01, 0xA0},
+	{0x401E, 0x3C},
+	{0x401d, 0xa0},
+	{0x3012, 0x03},
+	{0x3E00, 0x00},
+	{0x3E01, 0x10},
+	{0x400D, 0x30},
+	{0x3500, 0x1b},  //1b/13
+	{0x3501, 0x03},
+	{0x3508, 0x0a},
+	{0x3508, 0x04},
+	{0x3513, 0x01},
+	{0x3514, 0x09},
+	{0x3515, 0x0b},
+	{0x3702, 0x80},
+	{0x3704, 0x80},
+	{0x3706, 0x80},
+	{0x3708, 0x80},
+	{0x400D, 0x30},  //优化奇偶行及行噪
+	{0x4004, 0x20},  //RCS CM电流最小优化横带
+	{0x4005, 0x0c},
+	{0x4009, 0x09},
+	{0x400a, 0x48},
+	{0x4006, 0x86},
+	{0x4019, 0x08},
+	{0x4003, 0x0a},
+	{0x3f42, 0x58},
+	{0x3f49, 0x60},
+	{0x3f38, 0x4d},
+	{REG_NULL, 0x00},
 };
 
 static const struct mis4001_mode supported_modes[] = {
@@ -483,6 +483,7 @@ static int mis4001_set_gain_reg(struct mis4001 *mis4001, u32 gain)
 {
 	u8 gain_h, gain_l, u8Reg0x3102, u8Reg0x3a00, u8Reg0x3a01, u8Reg0x4003;
 	int ret = 0;
+	u8 u8Reg0x401d = 0;
 
 	if (gain < 128)
 		gain = 128;
@@ -490,89 +491,97 @@ static int mis4001_set_gain_reg(struct mis4001 *mis4001, u32 gain)
 		gain = MIS4001_GAIN_MAX;
 
 	if (128 <= gain && gain < 256) {//128 * 2
-        gain_h = 0;
-        gain_l = (gain-128)/4 ;
-        u8Reg0x3a00 = 0;
-        u8Reg0x3a01 = 160;  //128->160, 高亮偏粉
-    } else if (gain >= 256 && gain < 512) {//128 * 4
-        gain_h = 1;
-        gain_l = (gain-256)/8;
-        u8Reg0x3a00 = 0;
-        u8Reg0x3a01 = 160;
-    } else if (gain >= 512 && gain < 1024) {//128 * 8
-        gain_h = 2;
-        gain_l = (gain-512)/16;
-        u8Reg0x3a00 = 0;
-        u8Reg0x3a01 = 160;
-    } else if (gain >= 1024 && gain < 2048) {//128 * 16
-        gain_h = 3;
-        gain_l = (gain-1024)/32;
-        u8Reg0x3a00 = 0;
-        u8Reg0x3a01 = 160;
-    } else if (2048 <= gain && gain < 4096) {//128 * 32  Dgain
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 0;
-        u8Reg0x3a01 = ((gain-2048)/16 + 128);
-        u8Reg0x3a01 = (u8Reg0x3a01<160)?160:u8Reg0x3a01;
-    } else if (gain >= 4096 && gain < 8192) {//128 * 64
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 1;
-        u8Reg0x3a01 =((gain-4096)/16);
-    } else if (gain >= 8192 && gain < 12288) {//128 * 96
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 2;
-        u8Reg0x3a01 = ((gain-8192)/16);
-    } else if (gain >= 12288 && gain < 16384) {//128 * 128
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 3;
-        u8Reg0x3a01 = ((gain-12288)/16);
-    } else if (gain >= 16384 && gain < 20480) {//128 * 160
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 4;
-        u8Reg0x3a01 = ((gain-16384)/16);
-    } else if (gain >= 20480 && gain < 24576) {//128 * 192
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 5;
-        u8Reg0x3a01 = ((gain-20480)/16);
-    } else if (gain >= 24576 && gain < 28672) {//128 * 224
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 6;
-        u8Reg0x3a01 = ((gain-24576)/16);
-    } else if (gain >= 28672 && gain < 32768) {//128 * 256
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 7;
-        u8Reg0x3a01 = ((gain-28672)/16);
-    } else {
-        gain_h = 3;
-        gain_l = 31;
-        u8Reg0x3a00 = 7;
-        u8Reg0x3a01 = 255;
-    }
+		gain_h = 0;
+		gain_l = (gain - 128) / 4;
+		u8Reg0x3a00 = 0;
+		u8Reg0x3a01 = 160;  //128->160, 高亮偏粉
+	} else if (gain >= 256 && gain < 512) {//128 * 4
+		gain_h = 1;
+		gain_l = (gain - 256) / 8;
+		u8Reg0x3a00 = 0;
+		u8Reg0x3a01 = 160;
+	} else if (gain >= 512 && gain < 1024) {//128 * 8
+		gain_h = 2;
+		gain_l = (gain - 512) / 16;
+		u8Reg0x3a00 = 0;
+		u8Reg0x3a01 = 160;
+	} else if (gain >= 1024 && gain < 2048) {//128 * 16
+		gain_h = 3;
+		gain_l = (gain - 1024) / 32;
+		u8Reg0x3a00 = 0;
+		u8Reg0x3a01 = 160;
+	} else if (gain >= 2048 && gain < 4096) {//128 * 32  Dgain
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 0;
+		u8Reg0x3a01 = ((gain - 2048) / 16 + 128);
+		u8Reg0x3a01 = (u8Reg0x3a01 < 160) ? 160 : u8Reg0x3a01;
+	} else if (gain >= 4096 && gain < 8192) {//128 * 64
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 1;
+		u8Reg0x3a01 = ((gain - 4096) / 16);
+	} else if (gain >= 8192 && gain < 12288) {//128 * 96
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 2;
+		u8Reg0x3a01 = ((gain - 8192) / 16);
+	} else if (gain >= 12288 && gain < 16384) {//128 * 128
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 3;
+		u8Reg0x3a01 = ((gain - 12288) / 16);
+	} else if (gain >= 16384 && gain < 20480) {//128 * 160
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 4;
+		u8Reg0x3a01 = ((gain - 16384) / 16);
+	} else if (gain >= 20480 && gain < 24576) {//128 * 192
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 5;
+		u8Reg0x3a01 = ((gain - 20480) / 16);
+	} else if (gain >= 24576 && gain < 28672) {//128 * 224
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 6;
+		u8Reg0x3a01 = ((gain - 24576) / 16);
+	} else if (gain >= 28672 && gain < 32768) {//128 * 256
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 7;
+		u8Reg0x3a01 = ((gain - 28672) / 16);
+	} else {
+		gain_h = 3;
+		gain_l = 31;
+		u8Reg0x3a00 = 7;
+		u8Reg0x3a01 = 255;
+	}
 
-    u8Reg0x3102 = ((gain_h << 5)|gain_l);
+	u8Reg0x3102 = ((gain_h << 5) | gain_l);
 
 	// 竖条纹优化，但低增益下需添加防止太阳黑子逻辑
-	if (128 <= gain && gain <= 256)
+	if (gain >= 128 && gain <= 256) {
 		u8Reg0x4003 = 0xb;
-	else
+		u8Reg0x401d = 0xa0;
+	} else {
 		u8Reg0x4003 = 0xa;
+		u8Reg0x401d = 0xa7;
+	}
 
 	ret = mis4001_write_reg(mis4001->client,
-				0x4003,
+				0x401d,
 				MIS4001_REG_VALUE_08BIT,
-				u8Reg0x4003);
+				u8Reg0x401d);
+
 	ret |= mis4001_write_reg(mis4001->client,
-				MIS4001_REG_DIG_GAIN,
-				MIS4001_REG_VALUE_08BIT,
-				u8Reg0x3a00);
+				 0x4003,
+				 MIS4001_REG_VALUE_08BIT,
+				 u8Reg0x4003);
+	ret |= mis4001_write_reg(mis4001->client,
+				 MIS4001_REG_DIG_GAIN,
+				 MIS4001_REG_VALUE_08BIT,
+				 u8Reg0x3a00);
 	ret |= mis4001_write_reg(mis4001->client,
 				 MIS4001_REG_DIG_FINE_GAIN,
 				 MIS4001_REG_VALUE_08BIT,
@@ -1211,10 +1220,8 @@ static int mis4001_set_ctrl(struct v4l2_ctrl *ctrl)
 	s64 max;
 	int ret = 0;
 	u32 val = 0;
-	u32 u32Read0x3102 = 0;
-	u32 exp_h = 0;
-	u32 exp_l = 0;
-	u32 u32Reg0x4007, expmin, expmax, exp_value = 0;
+	u32 u32Reg0x4007, expmin, expmax;
+	u64 sleep_time = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1245,6 +1252,25 @@ static int mis4001_set_ctrl(struct v4l2_ctrl *ctrl)
 						MIS4001_REG_EXPOSURE_L,
 						MIS4001_REG_VALUE_08BIT,
 						MIS4001_FETCH_EXP_L(val));
+
+			/* Special strategy: To solve the problem of exposure layering:
+			 * When the exposure is not fully filled, the gain will be increased,
+			 * resulting in layering phenomenon
+			 */
+
+			//When the exposure time is 1/200 (0.005) s, the exp register is 196
+			expmin = (mis4001->cur_mode->max_fps.denominator / mis4001->cur_mode->max_fps.numerator)
+				 * mis4001->cur_mode->vts_def * 1 / 200;
+			expmax = mis4001->cur_mode->vts_def - expmin;
+			if (((expmin <= val) && (expmax >= val)))
+				u32Reg0x4007 = 0x78;
+			else
+				u32Reg0x4007 = 0xc4;
+
+			ret |= mis4001_write_reg(mis4001->client,
+						 0x4007,
+						 MIS4001_REG_VALUE_08BIT,
+						 u32Reg0x4007);
 		}
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
@@ -1254,17 +1280,29 @@ static int mis4001_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VBLANK:
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
+		mis4001->cur_vts = ctrl->val + mis4001->cur_mode->height;
 		ret = mis4001_write_reg(mis4001->client,
-					MIS4001_REG_VTS_H,
+					MIS4001_REG_CTRL_MODE,
 					MIS4001_REG_VALUE_08BIT,
-					(ctrl->val + mis4001->cur_mode->height)
-					>> 8);
+					0x02);
+		sleep_time = mis4001->cur_mode->max_fps.denominator / mis4001->cur_mode->max_fps.numerator *
+			     mis4001->cur_mode->vts_def / mis4001->cur_vts;
+		sleep_time = div_u64(1000000, sleep_time);
+		usleep_range(sleep_time, sleep_time + 1000);
+		ret |= mis4001_write_reg(mis4001->client,
+					 MIS4001_REG_VTS_H,
+					 MIS4001_REG_VALUE_08BIT,
+					 (ctrl->val + mis4001->cur_mode->height)
+					 >> 8);
 		ret |= mis4001_write_reg(mis4001->client,
 					 MIS4001_REG_VTS_L,
 					 MIS4001_REG_VALUE_08BIT,
 					 (ctrl->val + mis4001->cur_mode->height)
 					 & 0xff);
-		mis4001->cur_vts = ctrl->val + mis4001->cur_mode->height;
+		ret |= mis4001_write_reg(mis4001->client,
+					 MIS4001_REG_CTRL_MODE,
+					 MIS4001_REG_VALUE_08BIT,
+					 0x00);
 		if (mis4001->cur_vts != mis4001->cur_mode->vts_def)
 			mis4001_modify_fps_info(mis4001);
 		break;
@@ -1294,38 +1332,6 @@ static int mis4001_set_ctrl(struct v4l2_ctrl *ctrl)
 			 __func__, ctrl->id, ctrl->val);
 		break;
 	}
-	ret = mis4001_read_reg(mis4001->client,
-			 MIS4001_REG_ANA_GAIN,
-			 MIS4001_REG_VALUE_08BIT,
-			 &u32Read0x3102);
-	ret |= mis4001_read_reg(mis4001->client,
-			 MIS4001_REG_EXPOSURE_H,
-			 MIS4001_REG_VALUE_08BIT,
-			 &exp_h);
-	ret |= mis4001_read_reg(mis4001->client,
-			 MIS4001_REG_EXPOSURE_L,
-			 MIS4001_REG_VALUE_08BIT,
-			 &exp_l);
-	exp_value = ((exp_h << 8) | exp_l);
-
-	/* Special strategy: To solve the problem of exposure layering:
-	 * When the exposure is not fully filled, the gain will be increased,
-	 * resulting in layering phenomenon */
-
-	//When the exposure time is 1/200 (0.005) s, the exp register is 196
-	expmin = (mis4001->cur_mode->max_fps.denominator / mis4001->cur_mode->max_fps.numerator)
-		 * mis4001->cur_mode->vts_def * 1/200;
-	expmax = mis4001->cur_mode->vts_def - expmin;
-	if((127 == u32Read0x3102) &&
-		((expmin <= exp_value) && (expmax >= exp_value)))
-		u32Reg0x4007 = 0x78;
-	 else
-		u32Reg0x4007 = 0xc4;
-
-	ret = mis4001_write_reg(mis4001->client,
-			0x4007,
-			MIS4001_REG_VALUE_08BIT,
-			u32Reg0x4007);
 
 	pm_runtime_put(&client->dev);
 
