@@ -4465,11 +4465,9 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 			 struct intel_crtc *crtc,
 			 const struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_dpll_hw_state dpll_hw_state;
+	struct intel_dpll_hw_state dpll_hw_state = {};
 	u8 pipe_mask;
 	bool active;
-
-	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
 
 	drm_dbg_kms(&i915->drm, "%s\n", pll->info->name);
 
