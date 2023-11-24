@@ -351,22 +351,6 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	return skb;
 }
 
-static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee);
-
-static void rtllib_send_beacon(struct rtllib_device *ieee)
-{
-	struct sk_buff *skb;
-
-	if (!ieee->ieee_up)
-		return;
-	skb = rtllib_get_beacon_(ieee);
-
-	if (skb) {
-		softmac_mgmt_xmit(skb, ieee);
-		ieee->softmac_stats.tx_beacons++;
-	}
-}
-
 /* Enables network monitor mode, all rx packets will be received. */
 void rtllib_EnableNetMonitorMode(struct net_device *dev,
 		bool bInitState)
