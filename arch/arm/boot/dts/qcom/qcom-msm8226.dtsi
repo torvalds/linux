@@ -875,8 +875,8 @@
 				offset = <0x65c>;
 
 				mode-bootloader = <0x77665500>;
-				mode-normal     = <0x77665501>;
-				mode-recovery   = <0x77665502>;
+				mode-normal = <0x77665501>;
+				mode-recovery = <0x77665502>;
 			};
 		};
 
