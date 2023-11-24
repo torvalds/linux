@@ -497,11 +497,6 @@ def prepare_run(pm, args, testlist):
         pm.call_post_suite(1)
         return emergency_exit_message
 
-    if args.verbose:
-        print('give test rig 2 seconds to stabilize')
-
-    time.sleep(2)
-
 def purge_run(pm, index):
     pm.call_post_suite(index)
 
