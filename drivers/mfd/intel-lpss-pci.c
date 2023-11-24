@@ -46,6 +46,7 @@ static int intel_lpss_pci_probe(struct pci_dev *pdev,
 	if (!info)
 		return -ENOMEM;
 
+	/* No need to check mem and irq here as intel_lpss_probe() does it for us */
 	info->mem = pci_resource_n(pdev, 0);
 	info->irq = pci_irq_vector(pdev, 0);
 
