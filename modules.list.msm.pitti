@@ -31,6 +31,9 @@ icc-rpm.ko
 qnoc-pitti.ko
 qnoc-qos-rpm.ko
 msm_qmp.ko
+gh_rm_drv.ko
+gunyah_loader.ko
+mdt_loader.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 sdhci-msm-scaling.ko
