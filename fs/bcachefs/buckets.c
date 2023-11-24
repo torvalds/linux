@@ -2091,8 +2091,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bucket_gens->first_bucket = ca->mi.first_bucket;
 	bucket_gens->nbuckets	= nbuckets;
 
-	bch2_copygc_stop(c);
-
 	if (resize) {
 		down_write(&c->gc_lock);
 		down_write(&ca->bucket_lock);
