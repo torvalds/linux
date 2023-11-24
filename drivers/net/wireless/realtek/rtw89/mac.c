@@ -901,7 +901,7 @@ static int hfc_pub_ctrl(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int hfc_upd_mix_info(struct rtw89_dev *rtwdev)
+static void hfc_get_mix_info(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_page_regs *regs = chip->page_regs;
@@ -910,11 +910,6 @@ static int hfc_upd_mix_info(struct rtw89_dev *rtwdev)
 	struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
 	struct rtw89_hfc_pub_info *info = &param->pub_info;
 	u32 val;
-	int ret;
-
-	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_DMAC_SEL);
-	if (ret)
-		return ret;
 
 	val = rtw89_read32(rtwdev, regs->pub_page_info1);
 	info->g0_used = u32_get_bits(val, B_AX_G0_USE_PG_MASK);
@@ -959,6 +954,18 @@ static int hfc_upd_mix_info(struct rtw89_dev *rtwdev)
 	val = rtw89_read32(rtwdev, regs->pub_page_ctrl1);
 	pub_cfg->grp0 = u32_get_bits(val, B_AX_PUBPG_G0_MASK);
 	pub_cfg->grp1 = u32_get_bits(val, B_AX_PUBPG_G1_MASK);
+}
+
+static int hfc_upd_mix_info(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_DMAC_SEL);
+	if (ret)
+		return ret;
+
+	hfc_get_mix_info(rtwdev);
 
 	ret = hfc_pub_info_chk(rtwdev);
 	if (param->en && ret)
@@ -1780,6 +1787,23 @@ static int dle_mix_cfg(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg
 	return 0;
 }
 
+static int chk_dle_rdy(struct rtw89_dev *rtwdev, bool wde_or_ple)
+{
+	u32 reg, mask;
+	u32 ini;
+
+	if (wde_or_ple) {
+		reg = R_AX_WDE_INI_STATUS;
+		mask = WDE_MGN_INI_RDY;
+	} else {
+		reg = R_AX_PLE_INI_STATUS;
+		mask = PLE_MGN_INI_RDY;
+	}
+
+	return read_poll_timeout(rtw89_read32, ini, (ini & mask) == mask, 1,
+				2000, false, rtwdev, reg);
+}
+
 #define INVALID_QT_WCPU U16_MAX
 #define SET_QUOTA_VAL(_min_x, _max_x, _module, _idx)			\
 	do {								\
@@ -1884,7 +1908,6 @@ static int dle_init(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
 	const struct rtw89_dle_mem *cfg, *ext_cfg;
 	u16 ext_wde_min_qt_wcpu = INVALID_QT_WCPU;
 	int ret = 0;
-	u32 ini;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_0, RTW89_DMAC_SEL);
 	if (ret)
@@ -1926,17 +1949,13 @@ static int dle_init(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
 
 	dle_func_en(rtwdev, true);
 
-	ret = read_poll_timeout(rtw89_read32, ini,
-				(ini & WDE_MGN_INI_RDY) == WDE_MGN_INI_RDY, 1,
-				2000, false, rtwdev, R_AX_WDE_INI_STATUS);
+	ret = chk_dle_rdy(rtwdev, true);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]WDE cfg ready\n");
 		return ret;
 	}
 
-	ret = read_poll_timeout(rtw89_read32, ini,
-				(ini & WDE_MGN_INI_RDY) == WDE_MGN_INI_RDY, 1,
-				2000, false, rtwdev, R_AX_PLE_INI_STATUS);
+	ret = chk_dle_rdy(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]PLE cfg ready\n");
 		return ret;
@@ -3598,11 +3617,10 @@ static int rtw89_mac_enable_cpu_ax(struct rtw89_dev *rtwdev, u8 boot_reason,
 	return 0;
 }
 
-static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
+static void rtw89_mac_hci_func_en(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 val;
-	int ret;
 
 	if (chip_id == RTL8852C)
 		val = B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_DISPATCHER_EN |
@@ -3611,6 +3629,12 @@ static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
 		val = B_AX_MAC_FUNC_EN | B_AX_DMAC_FUNC_EN | B_AX_DISPATCHER_EN |
 		      B_AX_PKT_BUF_EN;
 	rtw89_write32(rtwdev, R_AX_DMAC_FUNC_EN, val);
+}
+
+static void rtw89_mac_dmac_func_pre_en(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 val;
 
 	if (chip_id == RTL8851B)
 		val = B_AX_DISPATCHER_CLK_EN | B_AX_AXIDMA_CLK_EN;
@@ -3619,7 +3643,7 @@ static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_AX_DMAC_CLK_EN, val);
 
 	if (chip_id != RTL8852C)
-		goto dle;
+		return;
 
 	val = rtw89_read32(rtwdev, R_AX_HAXI_INIT_CFG1);
 	val &= ~(B_AX_DMA_MODE_MASK | B_AX_STOP_AXI_MST);
@@ -3634,8 +3658,15 @@ static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
 			  B_AX_STOP_CH12 | B_AX_STOP_ACH2);
 	rtw89_write32_clr(rtwdev, R_AX_HAXI_DMA_STOP2, B_AX_STOP_CH10 | B_AX_STOP_CH11);
 	rtw89_write32_set(rtwdev, R_AX_PLATFORM_ENABLE, B_AX_AXIDMA_EN);
+}
 
-dle:
+static int rtw89_mac_dmac_pre_init(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	rtw89_mac_hci_func_en(rtwdev);
+	rtw89_mac_dmac_func_pre_en(rtwdev);
+
 	ret = dle_init(rtwdev, RTW89_QTA_DLFW, rtwdev->mac.qta_mode);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE pre init %d\n", ret);
