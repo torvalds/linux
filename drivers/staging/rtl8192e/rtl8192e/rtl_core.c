@@ -416,38 +416,6 @@ static int _rtl92e_handle_assoc_response(struct net_device *dev,
 	return 0;
 }
 
-static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
-{
-	struct r8192_priv *priv = from_tasklet(priv, t,
-					       irq_prepare_beacon_tasklet);
-	struct net_device *dev = priv->rtllib->dev;
-	struct sk_buff *pskb = NULL, *pnewskb = NULL;
-	struct cb_desc *tcb_desc = NULL;
-	struct rtl8192_tx_ring *ring = NULL;
-	struct tx_desc *pdesc = NULL;
-
-	ring = &priv->tx_ring[BEACON_QUEUE];
-	pskb = __skb_dequeue(&ring->queue);
-	kfree_skb(pskb);
-
-	pnewskb = rtllib_get_beacon(priv->rtllib);
-	if (!pnewskb)
-		return;
-
-	tcb_desc = (struct cb_desc *)(pnewskb->cb + 8);
-	tcb_desc->queue_index = BEACON_QUEUE;
-	tcb_desc->data_rate = 2;
-	tcb_desc->ratr_index = 7;
-	tcb_desc->tx_dis_rate_fallback = 1;
-	tcb_desc->tx_use_drv_assinged_rate = 1;
-	skb_push(pnewskb, priv->rtllib->tx_headroom);
-
-	pdesc = &ring->desc[0];
-	rtl92e_fill_tx_desc(dev, pdesc, tcb_desc, pnewskb);
-	__skb_queue_tail(&ring->queue, pnewskb);
-	pdesc->OWN = 1;
-}
-
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -785,8 +753,6 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 	INIT_DELAYED_WORK(&priv->rtllib->hw_sleep_wq, (void *)rtl92e_hw_sleep_wq);
 	tasklet_setup(&priv->irq_rx_tasklet, _rtl92e_irq_rx_tasklet);
 	tasklet_setup(&priv->irq_tx_tasklet, _rtl92e_irq_tx_tasklet);
-	tasklet_setup(&priv->irq_prepare_beacon_tasklet,
-		      _rtl92e_prepare_beacon);
 }
 
 static short _rtl92e_get_channel_map(struct net_device *dev)
@@ -1809,9 +1775,6 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_ROK)
 		tasklet_schedule(&priv->irq_rx_tasklet);
-
-	if (inta & IMR_BcnInt)
-		tasklet_schedule(&priv->irq_prepare_beacon_tasklet);
 
 	if (inta & IMR_RDU) {
 		rtl92e_writel(dev, INTA_MASK,

@@ -1802,7 +1802,7 @@ rtl92e_init_variables(struct net_device  *dev)
 			    IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK |
 			    IMR_BDOK | IMR_RXCMDOK | IMR_TIMEOUT0 |
 			    IMR_RDU | IMR_RXFOVW | IMR_TXFOVW |
-			    IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
+			    IMR_TBDOK | IMR_TBDER);
 
 	priv->bfirst_after_down = false;
 }
