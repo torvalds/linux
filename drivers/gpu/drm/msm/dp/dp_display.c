@@ -365,9 +365,11 @@ static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 	/* reset video pattern flag on disconnect */
 	if (!hpd) {
 		dp->panel->video_test = false;
-		drm_dp_set_subconnector_property(dp->dp_display.connector,
-						 connector_status_disconnected,
-						 dp->panel->dpcd, dp->panel->downstream_ports);
+		if (!dp->dp_display.is_edp)
+			drm_dp_set_subconnector_property(dp->dp_display.connector,
+							 connector_status_disconnected,
+							 dp->panel->dpcd,
+							 dp->panel->downstream_ports);
 	}
 
 	dp->dp_display.is_connected = hpd;
@@ -396,8 +398,11 @@ static int dp_display_process_hpd_high(struct dp_display_private *dp)
 
 	dp_link_process_request(dp->link);
 
-	drm_dp_set_subconnector_property(dp->dp_display.connector, connector_status_connected,
-					 dp->panel->dpcd, dp->panel->downstream_ports);
+	if (!dp->dp_display.is_edp)
+		drm_dp_set_subconnector_property(dp->dp_display.connector,
+						 connector_status_connected,
+						 dp->panel->dpcd,
+						 dp->panel->downstream_ports);
 
 	edid = dp->panel->edid;
 
