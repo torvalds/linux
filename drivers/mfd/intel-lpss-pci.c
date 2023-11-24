@@ -30,6 +30,7 @@ static const struct pci_device_id ignore_resource_conflicts_ids[] = {
 static int intel_lpss_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
+	const struct intel_lpss_platform_info *data = (void *)id->driver_data;
 	struct intel_lpss_platform_info *info;
 	int ret;
 
@@ -41,8 +42,7 @@ static int intel_lpss_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	info = devm_kmemdup(&pdev->dev, (void *)id->driver_data, sizeof(*info),
-			    GFP_KERNEL);
+	info = devm_kmemdup(&pdev->dev, data, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 

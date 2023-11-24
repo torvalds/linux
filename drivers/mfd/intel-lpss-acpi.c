@@ -8,9 +8,9 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
@@ -169,16 +169,15 @@ MODULE_DEVICE_TABLE(acpi, intel_lpss_acpi_ids);
 
 static int intel_lpss_acpi_probe(struct platform_device *pdev)
 {
+	const struct intel_lpss_platform_info *data;
 	struct intel_lpss_platform_info *info;
-	const struct acpi_device_id *id;
 	int ret;
 
-	id = acpi_match_device(intel_lpss_acpi_ids, &pdev->dev);
-	if (!id)
+	data = device_get_match_data(&pdev->dev);
+	if (!data)
 		return -ENODEV;
 
-	info = devm_kmemdup(&pdev->dev, (void *)id->driver_data, sizeof(*info),
-			    GFP_KERNEL);
+	info = devm_kmemdup(&pdev->dev, data, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
