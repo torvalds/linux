@@ -2180,27 +2180,6 @@ static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
 	return skb;
 }
 
-struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee)
-{
-	struct sk_buff *skb;
-	struct rtllib_probe_response *b;
-
-	skb = rtllib_get_beacon_(ieee);
-	if (!skb)
-		return NULL;
-
-	b = (struct rtllib_probe_response *)skb->data;
-	b->header.seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
-
-	if (ieee->seq_ctrl[0] == 0xFFF)
-		ieee->seq_ctrl[0] = 0;
-	else
-		ieee->seq_ctrl[0]++;
-
-	return skb;
-}
-EXPORT_SYMBOL(rtllib_get_beacon);
-
 void rtllib_softmac_stop_protocol(struct rtllib_device *ieee)
 {
 	rtllib_stop_scan_syncro(ieee);
