@@ -230,7 +230,20 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	init_waitqueue_head(&xe->ufence_wq);
 
 	drmm_mutex_init(&xe->drm, &xe->usm.lock);
-	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC1);
+	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC);
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
+		/* Trigger a large asid and an early asid wrap. */
+		u32 asid;
+
+		BUILD_BUG_ON(XE_MAX_ASID < 2);
+		err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, NULL,
+				      XA_LIMIT(XE_MAX_ASID - 2, XE_MAX_ASID - 1),
+				      &xe->usm.next_asid, GFP_KERNEL);
+		drm_WARN_ON(&xe->drm, err);
+		if (err >= 0)
+			xa_erase(&xe->usm.asid_to_vm, asid);
+	}
 
 	drmm_mutex_init(&xe->drm, &xe->persistent_engines.lock);
 	INIT_LIST_HEAD(&xe->persistent_engines.list);

@@ -1996,13 +1996,14 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (xe->info.has_asid) {
 		mutex_lock(&xe->usm.lock);
 		err = xa_alloc_cyclic(&xe->usm.asid_to_vm, &asid, vm,
-				      XA_LIMIT(0, XE_MAX_ASID - 1),
+				      XA_LIMIT(1, XE_MAX_ASID - 1),
 				      &xe->usm.next_asid, GFP_KERNEL);
 		mutex_unlock(&xe->usm.lock);
-		if (err) {
+		if (err < 0) {
 			xe_vm_close_and_put(vm);
 			return err;
 		}
+		err = 0;
 		vm->usm.asid = asid;
 	}
 
