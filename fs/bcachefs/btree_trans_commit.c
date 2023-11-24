@@ -361,7 +361,6 @@ noinline static int
 btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 				     struct btree_path *path, unsigned new_u64s)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	struct bkey_i *new_k;
@@ -372,7 +371,7 @@ btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 
 	new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 	if (!new_k) {
-		bch_err(c, "error allocating memory for key cache key, btree %s u64s %u",
+		bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
 			bch2_btree_id_str(path->btree_id), new_u64s);
 		return -BCH_ERR_ENOMEM_btree_key_cache_insert;
 	}
