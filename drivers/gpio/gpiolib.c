@@ -255,6 +255,20 @@ int gpio_device_get_base(struct gpio_device *gdev)
 EXPORT_SYMBOL_GPL(gpio_device_get_base);
 
 /**
+ * gpio_device_get_label() - Get the label of this GPIO device
+ * @gdev: GPIO device
+ *
+ * Returns:
+ * Pointer to the string containing the GPIO device label. The string's
+ * lifetime is tied to that of the underlying GPIO device.
+ */
+const char *gpio_device_get_label(struct gpio_device *gdev)
+{
+	return gdev->label;
+}
+EXPORT_SYMBOL(gpio_device_get_label);
+
+/**
  * gpio_device_get_chip() - Get the gpio_chip implementation of this GPIO device
  * @gdev: GPIO device
  *
