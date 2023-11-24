@@ -611,7 +611,7 @@ static void free_pardevice(struct device *dev)
 {
 	struct pardevice *par_dev = to_pardevice(dev);
 
-	kfree(par_dev->name);
+	kfree_const(par_dev->name);
 	kfree(par_dev);
 }
 
@@ -682,8 +682,8 @@ parport_register_dev_model(struct parport *port, const char *name,
 			   const struct pardev_cb *par_dev_cb, int id)
 {
 	struct pardevice *par_dev;
+	const char *devname;
 	int ret;
-	char *devname;
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
@@ -726,7 +726,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	if (!par_dev->state)
 		goto err_put_par_dev;
 
-	devname = kstrdup(name, GFP_KERNEL);
+	devname = kstrdup_const(name, GFP_KERNEL);
 	if (!devname)
 		goto err_free_par_dev;
 
@@ -804,7 +804,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	return par_dev;
 
 err_free_devname:
-	kfree(devname);
+	kfree_const(devname);
 err_free_par_dev:
 	kfree(par_dev->state);
 err_put_par_dev:
