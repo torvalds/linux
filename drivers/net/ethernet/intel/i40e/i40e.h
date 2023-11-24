@@ -687,6 +687,54 @@ struct i40e_pf {
 };
 
 /**
+ * __i40e_pf_next_vsi - get next valid VSI
+ * @pf: pointer to the PF struct
+ * @idx: pointer to start position number
+ *
+ * Find and return next non-NULL VSI pointer in pf->vsi array and
+ * updates idx position. Returns NULL if no VSI is found.
+ **/
+static __always_inline struct i40e_vsi *
+__i40e_pf_next_vsi(struct i40e_pf *pf, int *idx)
+{
+	while (*idx < pf->num_alloc_vsi) {
+		if (pf->vsi[*idx])
+			return pf->vsi[*idx];
+		(*idx)++;
+	}
+	return NULL;
+}
+
+#define i40e_pf_for_each_vsi(_pf, _i, _vsi)			\
+	for (_i = 0, _vsi = __i40e_pf_next_vsi(_pf, &_i);	\
+	     _vsi;						\
+	     _i++, _vsi = __i40e_pf_next_vsi(_pf, &_i))
+
+/**
+ * __i40e_pf_next_veb - get next valid VEB
+ * @pf: pointer to the PF struct
+ * @idx: pointer to start position number
+ *
+ * Find and return next non-NULL VEB pointer in pf->veb array and
+ * updates idx position. Returns NULL if no VEB is found.
+ **/
+static __always_inline struct i40e_veb *
+__i40e_pf_next_veb(struct i40e_pf *pf, int *idx)
+{
+	while (*idx < I40E_MAX_VEB) {
+		if (pf->veb[*idx])
+			return pf->veb[*idx];
+		(*idx)++;
+	}
+	return NULL;
+}
+
+#define i40e_pf_for_each_veb(_pf, _i, _veb)			\
+	for (_i = 0, _veb = __i40e_pf_next_veb(_pf, &_i);	\
+	     _veb;						\
+	     _i++, _veb = __i40e_pf_next_veb(_pf, &_i))
+
+/**
  * i40e_mac_to_hkey - Convert a 6-byte MAC Address to a u64 hash key
  * @macaddr: the MAC Address as the base key
  *
@@ -1120,14 +1168,12 @@ struct i40e_vsi *i40e_find_vsi_from_id(struct i40e_pf *pf, u16 id);
 static inline struct i40e_vsi *
 i40e_find_vsi_by_type(struct i40e_pf *pf, u16 type)
 {
+	struct i40e_vsi *vsi;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vsi; i++) {
-		struct i40e_vsi *vsi = pf->vsi[i];
-
-		if (vsi && vsi->type == type)
+	i40e_pf_for_each_vsi(pf, i, vsi)
+		if (vsi->type == type)
 			return vsi;
-	}
 
 	return NULL;
 }
