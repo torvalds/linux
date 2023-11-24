@@ -405,6 +405,51 @@ static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
 	}
 }
 
+static bool mac_is_txq_empty_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_mac_dle_dfi_qempty qempty;
+	u32 val32, msk32;
+	u32 grpnum;
+	int ret;
+	int i;
+
+	grpnum = rtwdev->chip->wde_qempty_acq_grpnum;
+	qempty.dle_type = DLE_CTRL_TYPE_WDE;
+
+	for (i = 0; i < grpnum; i++) {
+		qempty.grpsel = i;
+		ret = rtw89_mac_dle_dfi_qempty_cfg(rtwdev, &qempty);
+		if (ret) {
+			rtw89_warn(rtwdev,
+				   "%s: failed to dle dfi acq empty: %d\n",
+				   __func__, ret);
+			return false;
+		}
+
+		/* Each acq group contains 32 queues (8 macid * 4 acq),
+		 * but here, we can simply check if all bits are set.
+		 */
+		if (qempty.qempty != MASKDWORD)
+			return false;
+	}
+
+	qempty.grpsel = rtwdev->chip->wde_qempty_mgq_grpsel;
+	ret = rtw89_mac_dle_dfi_qempty_cfg(rtwdev, &qempty);
+	if (ret) {
+		rtw89_warn(rtwdev, "%s: failed to dle dfi mgq empty: %d\n",
+			   __func__, ret);
+		return false;
+	}
+
+	msk32 = B_CMAC0_MGQ_NORMAL_BE | B_CMAC1_MGQ_NORMAL_BE;
+	if ((qempty.qempty & msk32) != msk32)
+		return false;
+
+	msk32 = B_BE_WDE_EMPTY_QUE_OTHERS;
+	val32 = rtw89_read32(rtwdev, R_BE_DLE_EMPTY0);
+	return (val32 & msk32) == msk32;
+}
+
 const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.band1_offset = RTW89_MAC_BE_BAND_REG_OFFSET,
 	.filter_model_addr = R_BE_FILTER_MODEL_ADDR,
@@ -435,5 +480,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_be,
+
+	.is_txq_empty = mac_is_txq_empty_be,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_be);

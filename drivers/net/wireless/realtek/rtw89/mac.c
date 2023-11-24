@@ -174,8 +174,8 @@ static int dle_dfi_quota(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static int dle_dfi_qempty(struct rtw89_dev *rtwdev,
-			  struct rtw89_mac_dle_dfi_qempty *qempty)
+int rtw89_mac_dle_dfi_qempty_cfg(struct rtw89_dev *rtwdev,
+				 struct rtw89_mac_dle_dfi_qempty *qempty)
 {
 	struct rtw89_mac_dle_dfi_ctrl ctrl;
 	u32 ret;
@@ -220,7 +220,7 @@ static void rtw89_mac_dump_qta_lost(struct rtw89_dev *rtwdev)
 	qempty.dle_type = DLE_CTRL_TYPE_PLE;
 	qempty.grpsel = 0;
 	qempty.qempty = ~(u32)0;
-	ret = dle_dfi_qempty(rtwdev, &qempty);
+	ret = rtw89_mac_dle_dfi_qempty_cfg(rtwdev, &qempty);
 	if (ret)
 		rtw89_warn(rtwdev, "%s: query DLE fail\n", __func__);
 	else
@@ -1618,7 +1618,7 @@ int rtw89_mac_get_dle_rsvd_qt_cfg(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
+static bool mac_is_txq_empty_ax(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_mac_dle_dfi_qempty qempty;
 	u32 grpnum, qtmp, val32, msk32;
@@ -1629,7 +1629,7 @@ static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
 
 	for (i = 0; i < grpnum; i++) {
 		qempty.grpsel = i;
-		ret = dle_dfi_qempty(rtwdev, &qempty);
+		ret = rtw89_mac_dle_dfi_qempty_cfg(rtwdev, &qempty);
 		if (ret) {
 			rtw89_warn(rtwdev, "dle dfi acq empty %d\n", ret);
 			return false;
@@ -1644,7 +1644,7 @@ static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
 	}
 
 	qempty.grpsel = rtwdev->chip->wde_qempty_mgq_grpsel;
-	ret = dle_dfi_qempty(rtwdev, &qempty);
+	ret = rtw89_mac_dle_dfi_qempty_cfg(rtwdev, &qempty);
 	if (ret) {
 		rtw89_warn(rtwdev, "dle dfi mgq empty %d\n", ret);
 		return false;
@@ -5797,6 +5797,7 @@ void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_pkt_drop_params params = {0};
 	bool empty;
 	int i, ret = 0, try_cnt = 3;
@@ -5805,7 +5806,7 @@ int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 	params.sel = RTW89_PKT_DROP_SEL_BAND_ONCE;
 
 	for (i = 0; i < try_cnt; i++) {
-		ret = read_poll_timeout(mac_is_txq_empty, empty, empty, 50,
+		ret = read_poll_timeout(mac->is_txq_empty, empty, empty, 50,
 					50000, false, rtwdev);
 		if (ret && !RTW89_CHK_FW_FEATURE(NO_PACKET_DROP, &rtwdev->fw))
 			rtw89_fw_h2c_pkt_drop(rtwdev, &params);
@@ -5864,5 +5865,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
+
+	.is_txq_empty = mac_is_txq_empty_ax,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);

@@ -537,6 +537,9 @@ enum rtw89_mac_bf_rrsc_rate {
 #define B_CMAC1_MGQ_NO_PWRSAV	BIT(11)
 #define B_CMAC1_CPUMGQ		BIT(12)
 
+#define B_CMAC0_MGQ_NORMAL_BE	BIT(2)
+#define B_CMAC1_MGQ_NORMAL_BE	BIT(30)
+
 #define QEMP_ACQ_GRP_MACID_NUM	8
 #define QEMP_ACQ_GRP_QSEL_SH	4
 #define QEMP_ACQ_GRP_QSEL_MASK	0xF
@@ -910,6 +913,8 @@ struct rtw89_mac_gen_def {
 	bool (*get_txpwr_cr)(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx,
 			     u32 reg_base, u32 *cr);
+
+	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -1015,6 +1020,8 @@ int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 			   enum rtw89_mac_hwmod_sel sel);
 int rtw89_mac_write_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 val);
 int rtw89_mac_read_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 *val);
+int rtw89_mac_dle_dfi_qempty_cfg(struct rtw89_dev *rtwdev,
+				 struct rtw89_mac_dle_dfi_qempty *qempty);
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
