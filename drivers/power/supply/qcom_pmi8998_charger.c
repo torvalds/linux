@@ -973,10 +973,14 @@ static int smb2_probe(struct platform_device *pdev)
 	supply_config.of_node = pdev->dev.of_node;
 
 	desc = devm_kzalloc(chip->dev, sizeof(smb2_psy_desc), GFP_KERNEL);
+	if (!desc)
+		return -ENOMEM;
 	memcpy(desc, &smb2_psy_desc, sizeof(smb2_psy_desc));
 	desc->name =
 		devm_kasprintf(chip->dev, GFP_KERNEL, "%s-charger",
 			       (const char *)device_get_match_data(chip->dev));
+	if (!desc->name)
+		return -ENOMEM;
 
 	chip->chg_psy =
 		devm_power_supply_register(chip->dev, desc, &supply_config);
