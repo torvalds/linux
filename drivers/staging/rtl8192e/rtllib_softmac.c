@@ -2130,25 +2130,6 @@ exit:
 	mutex_unlock(&ieee->wx_mutex);
 }
 
-static struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
-{
-	static const u8 broadcast_addr[] = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-	};
-	struct sk_buff *skb;
-	struct rtllib_probe_response *b;
-
-	skb = rtllib_probe_resp(ieee, broadcast_addr);
-
-	if (!skb)
-		return NULL;
-
-	b = (struct rtllib_probe_response *)skb->data;
-	b->header.frame_control = cpu_to_le16(IEEE80211_STYPE_BEACON);
-
-	return skb;
-}
-
 void rtllib_softmac_stop_protocol(struct rtllib_device *ieee)
 {
 	rtllib_stop_scan_syncro(ieee);
