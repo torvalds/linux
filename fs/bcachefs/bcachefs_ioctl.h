@@ -81,6 +81,8 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_SUBVOLUME_CREATE _IOW(0xbc,	16,  struct bch_ioctl_subvolume)
 #define BCH_IOCTL_SUBVOLUME_DESTROY _IOW(0xbc,	17,  struct bch_ioctl_subvolume)
 
+#define BCH_IOCTL_DEV_USAGE_V2	_IOWR(0xbc,	18, struct bch_ioctl_dev_usage_v2)
+
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
 #define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 64, const char __user *)
@@ -298,7 +300,20 @@ struct bch_ioctl_dev_usage {
 		__u64		buckets;
 		__u64		sectors;
 		__u64		fragmented;
-	}			d[BCH_DATA_NR];
+	}			d[10];
+};
+
+struct bch_ioctl_dev_usage_v2 {
+	__u64			dev;
+	__u32			flags;
+	__u8			state;
+	__u8			nr_data_types;
+	__u8			pad[6];
+
+	__u32			bucket_size;
+	__u64			nr_buckets;
+
+	struct bch_ioctl_dev_usage_type  d[0];
 };
 
 /*

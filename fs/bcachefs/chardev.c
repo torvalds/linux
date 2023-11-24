@@ -23,6 +23,12 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+__must_check
+static int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
+{
+	return copy_to_user(to, from, n) ? -EFAULT : 0;
+}
+
 /* returns with ref on ca->ref */
 static struct bch_dev *bch2_device_lookup(struct bch_fs *c, u64 dev,
 					  unsigned flags)
@@ -149,10 +155,8 @@ static long bch2_global_ioctl(unsigned cmd, void __user *arg)
 static long bch2_ioctl_query_uuid(struct bch_fs *c,
 			struct bch_ioctl_query_uuid __user *user_arg)
 {
-	if (copy_to_user(&user_arg->uuid, &c->sb.user_uuid,
-			 sizeof(c->sb.user_uuid)))
-		return -EFAULT;
-	return 0;
+	return copy_to_user_errcode(&user_arg->uuid, &c->sb.user_uuid,
+				    sizeof(c->sb.user_uuid));
 }
 
 #if 0
@@ -341,10 +345,7 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	if (len < sizeof(e))
 		return -EINVAL;
 
-	if (copy_to_user(buf, &e, sizeof(e)))
-		return -EFAULT;
-
-	return sizeof(e);
+	return copy_to_user_errcode(buf, &e, sizeof(e)) ?: sizeof(e);
 }
 
 static const struct file_operations bcachefs_data_ops = {
@@ -474,14 +475,15 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 
 	if (ret)
 		goto err;
-	if (copy_to_user(user_arg, arg,
-			 sizeof(*arg) + arg->replica_entries_bytes))
-		ret = -EFAULT;
+
+	ret = copy_to_user_errcode(user_arg, arg,
+			sizeof(*arg) + arg->replica_entries_bytes);
 err:
 	kfree(arg);
 	return ret;
 }
 
+/* obsolete, didn't allow for new data types: */
 static long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
 {
@@ -511,7 +513,6 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	arg.state		= ca->mi.state;
 	arg.bucket_size		= ca->mi.bucket_size;
 	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
-	arg.buckets_ec		= src.buckets_ec;
 
 	for (i = 0; i < BCH_DATA_NR; i++) {
 		arg.d[i].buckets	= src.d[i].buckets;
@@ -521,10 +522,58 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 
 	percpu_ref_put(&ca->ref);
 
-	if (copy_to_user(user_arg, &arg, sizeof(arg)))
+	return copy_to_user_errcode(user_arg, &arg, sizeof(arg));
+}
+
+static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
+				 struct bch_ioctl_dev_usage_v2 __user *user_arg)
+{
+	struct bch_ioctl_dev_usage_v2 arg;
+	struct bch_dev_usage src;
+	struct bch_dev *ca;
+	int ret = 0;
+
+	if (!test_bit(BCH_FS_STARTED, &c->flags))
+		return -EINVAL;
+
+	if (copy_from_user(&arg, user_arg, sizeof(arg)))
 		return -EFAULT;
 
-	return 0;
+	if ((arg.flags & ~BCH_BY_INDEX) ||
+	    arg.pad[0] ||
+	    arg.pad[1] ||
+	    arg.pad[2])
+		return -EINVAL;
+
+	ca = bch2_device_lookup(c, arg.dev, arg.flags);
+	if (IS_ERR(ca))
+		return PTR_ERR(ca);
+
+	src = bch2_dev_usage_read(ca);
+
+	arg.state		= ca->mi.state;
+	arg.bucket_size		= ca->mi.bucket_size;
+	arg.nr_data_types	= min(arg.nr_data_types, BCH_DATA_NR);
+	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
+
+	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
+	if (ret)
+		goto err;
+
+	for (unsigned i = 0; i < arg.nr_data_types; i++) {
+		struct bch_ioctl_dev_usage_type t = {
+			.buckets	= src.d[i].buckets,
+			.sectors	= src.d[i].sectors,
+			.fragmented	= src.d[i].fragmented,
+		};
+
+		ret = copy_to_user_errcode(&user_arg->d[i], &t, sizeof(t));
+		if (ret)
+			goto err;
+	}
+err:
+	percpu_ref_put(&ca->ref);
+	return ret;
 }
 
 static long bch2_ioctl_read_super(struct bch_fs *c,
@@ -561,9 +610,8 @@ static long bch2_ioctl_read_super(struct bch_fs *c,
 		goto err;
 	}
 
-	if (copy_to_user((void __user *)(unsigned long)arg.sb, sb,
-			 vstruct_bytes(sb)))
-		ret = -EFAULT;
+	ret = copy_to_user_errcode((void __user *)(unsigned long)arg.sb, sb,
+				   vstruct_bytes(sb));
 err:
 	if (!IS_ERR_OR_NULL(ca))
 		percpu_ref_put(&ca->ref);
@@ -663,6 +711,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		return bch2_ioctl_fs_usage(c, arg);
 	case BCH_IOCTL_DEV_USAGE:
 		return bch2_ioctl_dev_usage(c, arg);
+	case BCH_IOCTL_DEV_USAGE_V2:
+		return bch2_ioctl_dev_usage_v2(c, arg);
 #if 0
 	case BCH_IOCTL_START:
 		BCH_IOCTL(start, struct bch_ioctl_start);
