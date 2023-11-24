@@ -408,7 +408,10 @@ member of the rcu_dereference() to use in various situations:
 	RCU flavors, an RCU read-side critical section is entered
 	using rcu_read_lock(), anything that disables bottom halves,
 	anything that disables interrupts, or anything that disables
-	preemption.
+	preemption.  Please note that spinlock critical sections
+	are also implied RCU read-side critical sections, even when
+	they are preemptible, as they are in kernels built with
+	CONFIG_PREEMPT_RT=y.
 
 2.	If the access might be within an RCU read-side critical section
 	on the one hand, or protected by (say) my_lock on the other,
