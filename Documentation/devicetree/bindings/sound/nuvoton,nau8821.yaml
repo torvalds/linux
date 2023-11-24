@@ -135,7 +135,7 @@ examples:
             nuvoton,jack-insert-debounce = <7>;
             nuvoton,jack-eject-debounce = <0>;
             nuvoton,dmic-clk-threshold = <3072000>;
-            nuvoton,dmic-slew-rate= <0>;
+            nuvoton,dmic-slew-rate = <0>;
             #sound-dai-cells = <0>;
         };
     };

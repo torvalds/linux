@@ -497,19 +497,19 @@ examples:
         rcar_sound,dai {
             dai0 {
                 playback = <&ssi5>, <&src5>;
-                capture  = <&ssi6>;
+                capture = <&ssi6>;
             };
             dai1 {
                 playback = <&ssi3>;
             };
             dai2 {
-                capture  = <&ssi4>;
+                capture = <&ssi4>;
             };
             dai3 {
                 playback = <&ssi7>;
             };
             dai4 {
-                capture  = <&ssi8>;
+                capture = <&ssi8>;
             };
         };
 
@@ -523,7 +523,7 @@ examples:
                 frame-master = <&rsnd_endpoint0>;
 
                 playback = <&ssi0>, <&src0>, <&dvc0>;
-                capture  = <&ssi1>, <&src1>, <&dvc1>;
+                capture = <&ssi1>, <&src1>, <&dvc1>;
             };
         };
     };
