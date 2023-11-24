@@ -2271,7 +2271,7 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct pci_dev *pdev = rtlpci->pdev;
-	u8 pmcs_reg;
+	u16 pmcs_reg;
 	u8 pm_cap;
 
 	pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
@@ -2281,23 +2281,16 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 		return;
 	}
 
-	/* Get the PM CSR (Control/Status Register),
-	 * The PME_Status is located at PM Capatibility offset 5, bit 7
-	 */
-	pci_read_config_byte(pdev, pm_cap + 5, &pmcs_reg);
-
-	if (pmcs_reg & BIT(7)) {
+	pci_read_config_word(pdev, pm_cap + PCI_PM_CTRL, &pmcs_reg);
+	if (pmcs_reg & PCI_PM_CTRL_PME_STATUS) {
 		/* Clear PME_Status with write */
-		pci_write_config_byte(pdev, pm_cap + 5, pmcs_reg);
-		/* Read it back to check */
-		pci_read_config_byte(pdev, pm_cap + 5, &pmcs_reg);
+		pci_write_config_word(pdev, pm_cap + PCI_PM_CTRL, pmcs_reg);
+		pci_read_config_word(pdev, pm_cap + PCI_PM_CTRL, &pmcs_reg);
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-			"Clear PME status 0x%2x to 0x%2x\n",
-			pm_cap + 5, pmcs_reg);
+			"Cleared PME status, PMCS reg = 0x%4x\n", pmcs_reg);
 	} else {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-			"PME status(0x%2x) = 0x%2x\n",
-			pm_cap + 5, pmcs_reg);
+			"PMCS reg = 0x%4x\n", pmcs_reg);
 	}
 }
 
