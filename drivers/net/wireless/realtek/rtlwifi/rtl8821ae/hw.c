@@ -2305,30 +2305,31 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 		}
 	} while (cnt++ < 200);
 
-	if (cap_id == 0x01) {
-		/* Get the PM CSR (Control/Status Register),
-		 * The PME_Status is located at PM Capatibility offset 5, bit 7
-		 */
-		pci_read_config_byte(rtlpci->pdev, cap_pointer + 5, &pmcs_reg);
-
-		if (pmcs_reg & BIT(7)) {
-			/* Clear PME_Status with write */
-			pci_write_config_byte(rtlpci->pdev, cap_pointer + 5,
-					      pmcs_reg);
-			/* Read it back to check */
-			pci_read_config_byte(rtlpci->pdev, cap_pointer + 5,
-					     &pmcs_reg);
-			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-				"Clear PME status 0x%2x to 0x%2x\n",
-				cap_pointer + 5, pmcs_reg);
-		} else {
-			rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
-				"PME status(0x%2x) = 0x%2x\n",
-				cap_pointer + 5, pmcs_reg);
-		}
-	} else {
+	if (cap_id != 0x01) {
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_WARNING,
 			"Cannot find PME Capability\n");
+		return;
+	}
+
+	/* Get the PM CSR (Control/Status Register),
+	 * The PME_Status is located at PM Capatibility offset 5, bit 7
+	 */
+	pci_read_config_byte(rtlpci->pdev, cap_pointer + 5, &pmcs_reg);
+
+	if (pmcs_reg & BIT(7)) {
+		/* Clear PME_Status with write */
+		pci_write_config_byte(rtlpci->pdev, cap_pointer + 5,
+				      pmcs_reg);
+		/* Read it back to check */
+		pci_read_config_byte(rtlpci->pdev, cap_pointer + 5,
+				     &pmcs_reg);
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+			"Clear PME status 0x%2x to 0x%2x\n",
+			cap_pointer + 5, pmcs_reg);
+	} else {
+		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
+			"PME status(0x%2x) = 0x%2x\n",
+			cap_pointer + 5, pmcs_reg);
 	}
 }
 
