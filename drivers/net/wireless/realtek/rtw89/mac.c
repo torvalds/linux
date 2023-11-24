@@ -1672,11 +1672,21 @@ static bool mac_is_txq_empty(struct rtw89_dev *rtwdev)
 	return (val32 & msk32) == msk32;
 }
 
-static inline u32 dle_used_size(const struct rtw89_dle_size *wde,
-				const struct rtw89_dle_size *ple)
+static inline u32 dle_used_size(const struct rtw89_dle_mem *cfg)
 {
-	return wde->pge_size * (wde->lnk_pge_num + wde->unlnk_pge_num) +
+	const struct rtw89_dle_size *wde = cfg->wde_size;
+	const struct rtw89_dle_size *ple = cfg->ple_size;
+	u32 used;
+
+	used = wde->pge_size * (wde->lnk_pge_num + wde->unlnk_pge_num) +
 	       ple->pge_size * (ple->lnk_pge_num + ple->unlnk_pge_num);
+
+	if (cfg->rsvd0_size && cfg->rsvd1_size) {
+		used += cfg->rsvd0_size->size;
+		used += cfg->rsvd1_size->size;
+	}
+
+	return used;
 }
 
 static u32 dle_expected_used_size(struct rtw89_dev *rtwdev,
@@ -1898,8 +1908,7 @@ static int dle_init(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
 		ext_wde_min_qt_wcpu = ext_cfg->wde_min_qt->wcpu;
 	}
 
-	if (dle_used_size(cfg->wde_size, cfg->ple_size) !=
-	    dle_expected_used_size(rtwdev, mode)) {
+	if (dle_used_size(cfg) != dle_expected_used_size(rtwdev, mode)) {
 		rtw89_err(rtwdev, "[ERR]wd/dle mem cfg\n");
 		ret = -EINVAL;
 		goto error;
@@ -3037,8 +3046,7 @@ static int dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode)
 		return -EINVAL;
 	}
 
-	if (dle_used_size(cfg->wde_size, cfg->ple_size) !=
-	    dle_expected_used_size(rtwdev, mode)) {
+	if (dle_used_size(cfg) != dle_expected_used_size(rtwdev, mode)) {
 		rtw89_err(rtwdev, "[ERR]wd/dle mem cfg\n");
 		return -EINVAL;
 	}
