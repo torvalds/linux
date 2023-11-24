@@ -783,7 +783,6 @@ struct i40e_new_mac_filter {
 struct i40e_veb {
 	struct i40e_pf *pf;
 	u16 idx;
-	u16 veb_idx;		/* index of VEB parent */
 	u16 seid;
 	u16 uplink_seid;
 	u16 stats_idx;		/* index of VEB parent */

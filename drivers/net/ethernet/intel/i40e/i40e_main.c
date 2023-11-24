@@ -9873,7 +9873,6 @@ static void i40e_vsi_link_event(struct i40e_vsi *vsi, bool link_up)
  **/
 static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
 {
-	struct i40e_veb *veb_it;
 	struct i40e_vsi *vsi;
 	struct i40e_pf *pf;
 	int i;
@@ -9882,12 +9881,7 @@ static void i40e_veb_link_event(struct i40e_veb *veb, bool link_up)
 		return;
 	pf = veb->pf;
 
-	/* depth first... */
-	i40e_pf_for_each_veb(pf, i, veb_it)
-		if (veb_it->uplink_seid == veb->seid)
-			i40e_veb_link_event(veb_it, link_up);
-
-	/* ... now the local VSIs */
+	/* Send link event to contained VSIs */
 	i40e_pf_for_each_vsi(pf, i, vsi)
 		if (vsi->uplink_seid == veb->seid)
 			i40e_vsi_link_event(vsi, link_up);
@@ -10356,56 +10350,57 @@ static void i40e_config_bridge_mode(struct i40e_veb *veb)
 }
 
 /**
- * i40e_reconstitute_veb - rebuild the VEB and anything connected to it
+ * i40e_reconstitute_veb - rebuild the VEB and VSIs connected to it
  * @veb: pointer to the VEB instance
  *
- * This is a recursive function that first builds the attached VSIs then
- * recurses in to build the next layer of VEB.  We track the connections
- * through our own index numbers because the seid's from the HW could
- * change across the reset.
+ * This is a function that builds the attached VSIs. We track the connections
+ * through our own index numbers because the seid's from the HW could change
+ * across the reset.
  **/
 static int i40e_reconstitute_veb(struct i40e_veb *veb)
 {
 	struct i40e_vsi *ctl_vsi = NULL;
 	struct i40e_pf *pf = veb->pf;
-	struct i40e_veb *veb_it;
 	struct i40e_vsi *vsi;
 	int v, ret;
 
-	if (veb->uplink_seid) {
-		/* Look for VSI that owns this VEB, temporarily attached to base VEB */
-		i40e_pf_for_each_vsi(pf, v, vsi)
-			if (vsi->veb_idx == veb->idx &&
-			    vsi->flags & I40E_VSI_FLAG_VEB_OWNER) {
-				ctl_vsi = vsi;
-				break;
-			}
+	/* As we do not maintain PV (port virtualizer) switch element then
+	 * there can be only one non-floating VEB that have uplink to MAC SEID
+	 * and its control VSI is the main one.
+	 */
+	if (WARN_ON(veb->uplink_seid && veb->uplink_seid != pf->mac_seid)) {
+		dev_err(&pf->pdev->dev,
+			"Invalid uplink SEID for VEB %d\n", veb->idx);
+		return -ENOENT;
+	}
 
-		if (!ctl_vsi) {
-			dev_info(&pf->pdev->dev,
-				 "missing owner VSI for veb_idx %d\n",
-				 veb->idx);
-			ret = -ENOENT;
-			goto end_reconstitute;
+	if (veb->uplink_seid == pf->mac_seid) {
+		/* Check that the LAN VSI has VEB owning flag set */
+		ctl_vsi = pf->vsi[pf->lan_vsi];
+
+		if (WARN_ON(ctl_vsi->veb_idx != veb->idx ||
+			    !(ctl_vsi->flags & I40E_VSI_FLAG_VEB_OWNER))) {
+			dev_err(&pf->pdev->dev,
+				"Invalid control VSI for VEB %d\n", veb->idx);
+			return -ENOENT;
 		}
-		if (ctl_vsi != pf->vsi[pf->lan_vsi])
-			ctl_vsi->uplink_seid =
-				pf->vsi[pf->lan_vsi]->uplink_seid;
 
+		/* Add the control VSI to switch */
 		ret = i40e_add_vsi(ctl_vsi);
 		if (ret) {
-			dev_info(&pf->pdev->dev,
-				 "rebuild of veb_idx %d owner VSI failed: %d\n",
-				 veb->idx, ret);
-			goto end_reconstitute;
+			dev_err(&pf->pdev->dev,
+				"Rebuild of owner VSI for VEB %d failed: %d\n",
+				veb->idx, ret);
+			return ret;
 		}
+
 		i40e_vsi_reset_stats(ctl_vsi);
 	}
 
 	/* create the VEB in the switch and move the VSI onto the VEB */
 	ret = i40e_add_veb(veb, ctl_vsi);
 	if (ret)
-		goto end_reconstitute;
+		return ret;
 
 	if (veb->uplink_seid) {
 		if (test_bit(I40E_FLAG_VEB_MODE_ENA, pf->flags))
@@ -10427,23 +10422,12 @@ static int i40e_reconstitute_veb(struct i40e_veb *veb)
 				dev_info(&pf->pdev->dev,
 					 "rebuild of vsi_idx %d failed: %d\n",
 					 v, ret);
-				goto end_reconstitute;
+				return ret;
 			}
 			i40e_vsi_reset_stats(vsi);
 		}
 	}
 
-	/* create any VEBs attached to this VEB - RECURSION */
-	i40e_pf_for_each_veb(pf, v, veb_it) {
-		if (veb_it->veb_idx == veb->idx) {
-			veb_it->uplink_seid = veb->seid;
-			ret = i40e_reconstitute_veb(veb_it);
-			if (ret)
-				break;
-		}
-	}
-
-end_reconstitute:
 	return ret;
 }
 
@@ -10984,31 +10968,29 @@ static void i40e_rebuild(struct i40e_pf *pf, bool reinit, bool lock_acquired)
 	 */
 	if (vsi->uplink_seid != pf->mac_seid) {
 		dev_dbg(&pf->pdev->dev, "attempting to rebuild switch\n");
-		/* find the one VEB connected to the MAC, and find orphans */
-		i40e_pf_for_each_veb(pf, v, veb) {
-			if (veb->uplink_seid == pf->mac_seid ||
-			    veb->uplink_seid == 0) {
-				ret = i40e_reconstitute_veb(veb);
-				if (!ret)
-					continue;
 
-				/* If Main VEB failed, we're in deep doodoo,
-				 * so give up rebuilding the switch and set up
-				 * for minimal rebuild of PF VSI.
-				 * If orphan failed, we'll report the error
-				 * but try to keep going.
-				 */
-				if (veb->uplink_seid == pf->mac_seid) {
-					dev_info(&pf->pdev->dev,
-						 "rebuild of switch failed: %d, will try to set up simple PF connection\n",
-						 ret);
-					vsi->uplink_seid = pf->mac_seid;
-					break;
-				} else if (veb->uplink_seid == 0) {
-					dev_info(&pf->pdev->dev,
-						 "rebuild of orphan VEB failed: %d\n",
-						 ret);
-				}
+		/* Rebuild VEBs */
+		i40e_pf_for_each_veb(pf, v, veb) {
+			ret = i40e_reconstitute_veb(veb);
+			if (!ret)
+				continue;
+
+			/* If Main VEB failed, we're in deep doodoo,
+			 * so give up rebuilding the switch and set up
+			 * for minimal rebuild of PF VSI.
+			 * If orphan failed, we'll report the error
+			 * but try to keep going.
+			 */
+			if (veb->uplink_seid == pf->mac_seid) {
+				dev_info(&pf->pdev->dev,
+					 "rebuild of switch failed: %d, will try to set up simple PF connection\n",
+					 ret);
+				vsi->uplink_seid = pf->mac_seid;
+				break;
+			} else if (veb->uplink_seid == 0) {
+				dev_info(&pf->pdev->dev,
+					 "rebuild of orphan VEB failed: %d\n",
+					 ret);
 			}
 		}
 	}
@@ -14124,9 +14106,9 @@ err:
  **/
 int i40e_vsi_release(struct i40e_vsi *vsi)
 {
-	struct i40e_veb *veb, *veb_it;
 	struct i40e_mac_filter *f;
 	struct hlist_node *h;
+	struct i40e_veb *veb;
 	struct i40e_pf *pf;
 	u16 uplink_seid;
 	int i, n, bkt;
@@ -14190,27 +14172,28 @@ int i40e_vsi_release(struct i40e_vsi *vsi)
 
 	/* If this was the last thing on the VEB, except for the
 	 * controlling VSI, remove the VEB, which puts the controlling
-	 * VSI onto the next level down in the switch.
+	 * VSI onto the uplink port.
 	 *
 	 * Well, okay, there's one more exception here: don't remove
-	 * the orphan VEBs yet.  We'll wait for an explicit remove request
+	 * the floating VEBs yet.  We'll wait for an explicit remove request
 	 * from up the network stack.
 	 */
-	n = 0;
-	i40e_pf_for_each_vsi(pf, i, vsi)
-		if (vsi->uplink_seid == uplink_seid &&
-		    (vsi->flags & I40E_VSI_FLAG_VEB_OWNER) == 0)
-			n++;      /* count the VSIs */
+	veb = i40e_pf_get_veb_by_seid(pf, uplink_seid);
+	if (veb && veb->uplink_seid) {
+		n = 0;
 
-	veb = NULL;
-	i40e_pf_for_each_veb(pf, i, veb_it) {
-		if (veb_it->uplink_seid == uplink_seid)
-			n++;     /* count the VEBs */
-		if (veb_it->seid == uplink_seid)
-			veb = veb_it;
+		/* Count non-controlling VSIs present on  the VEB */
+		i40e_pf_for_each_vsi(pf, i, vsi)
+			if (vsi->uplink_seid == uplink_seid &&
+			    (vsi->flags & I40E_VSI_FLAG_VEB_OWNER) == 0)
+				n++;
+
+		/* If there is no VSI except the control one then release
+		 * the VEB and put the control VSI onto VEB uplink.
+		 */
+		if (!n)
+			i40e_veb_release(veb);
 	}
-	if (n == 0 && veb && veb->uplink_seid != 0)
-		i40e_veb_release(veb);
 
 	return 0;
 }
@@ -14724,14 +14707,11 @@ void i40e_veb_release(struct i40e_veb *veb)
 		return;
 	}
 
-	/* For regular VEB move the owner VSI to uplink VEB */
+	/* For regular VEB move the owner VSI to uplink port */
 	if (veb->uplink_seid) {
 		vsi->flags &= ~I40E_VSI_FLAG_VEB_OWNER;
 		vsi->uplink_seid = veb->uplink_seid;
-		if (veb->uplink_seid == pf->mac_seid)
-			vsi->veb_idx = I40E_NO_VEB;
-		else
-			vsi->veb_idx = veb->veb_idx;
+		vsi->veb_idx = I40E_NO_VEB;
 	}
 
 	i40e_aq_delete_element(&pf->hw, veb->seid, NULL);
@@ -14811,8 +14791,8 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 				u16 uplink_seid, u16 vsi_seid,
 				u8 enabled_tc)
 {
-	struct i40e_veb *veb, *uplink_veb = NULL;
 	struct i40e_vsi *vsi = NULL;
+	struct i40e_veb *veb;
 	int veb_idx;
 	int ret;
 
@@ -14834,14 +14814,6 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 			return NULL;
 		}
 	}
-	if (uplink_seid && uplink_seid != pf->mac_seid) {
-		uplink_veb = i40e_pf_get_veb_by_seid(pf, uplink_seid);
-		if (!uplink_veb) {
-			dev_info(&pf->pdev->dev,
-				 "uplink seid %d not found\n", uplink_seid);
-			return NULL;
-		}
-	}
 
 	/* get veb sw struct */
 	veb_idx = i40e_veb_mem_alloc(pf);
@@ -14850,7 +14822,6 @@ struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags,
 	veb = pf->veb[veb_idx];
 	veb->flags = flags;
 	veb->uplink_seid = uplink_seid;
-	veb->veb_idx = (uplink_veb ? uplink_veb->idx : I40E_NO_VEB);
 	veb->enabled_tc = (enabled_tc ? enabled_tc : 0x1);
 
 	/* create the VEB in the switch */
@@ -14921,7 +14892,6 @@ static void i40e_setup_pf_switch_element(struct i40e_pf *pf,
 		pf->veb[pf->lan_veb]->seid = seid;
 		pf->veb[pf->lan_veb]->uplink_seid = pf->mac_seid;
 		pf->veb[pf->lan_veb]->pf = pf;
-		pf->veb[pf->lan_veb]->veb_idx = I40E_NO_VEB;
 		break;
 	case I40E_SWITCH_ELEMENT_TYPE_VSI:
 		if (num_reported != 1)
