@@ -719,7 +719,7 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
  */
 static void ntfs_shutdown(struct super_block *sb)
 {
-	set_bit(NTFS_FLAGS_SHUTDOWN, &ntfs_sb(sb)->flags);
+	set_bit(NTFS_FLAGS_SHUTDOWN_BIT, &ntfs_sb(sb)->flags);
 }
 
 /*
