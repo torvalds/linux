@@ -224,6 +224,7 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 			struct pvr_gem_object *pvr_obj, u64 offset,
 			u64 device_addr, u64 size)
 {
+	struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
 	const bool is_user = vm_ctx == vm_ctx->pvr_dev->kernel_vm_ctx;
 	const u64 pvr_obj_size = pvr_gem_object_size(pvr_obj);
 	struct sg_table *sgt;
@@ -245,10 +246,11 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 
 	bind_op->type = PVR_VM_BIND_TYPE_MAP;
 
-	bind_op->gpuvm_bo = drm_gpuvm_bo_create(&vm_ctx->gpuvm_mgr,
-						gem_from_pvr_gem(pvr_obj));
-	if (!bind_op->gpuvm_bo)
-		return -ENOMEM;
+	dma_resv_lock(obj->resv, NULL);
+	bind_op->gpuvm_bo = drm_gpuvm_bo_obtain(&vm_ctx->gpuvm_mgr, obj);
+	dma_resv_unlock(obj->resv);
+	if (IS_ERR(bind_op->gpuvm_bo))
+		return PTR_ERR(bind_op->gpuvm_bo);
 
 	bind_op->new_va = kzalloc(sizeof(*bind_op->new_va), GFP_KERNEL);
 	bind_op->prev_va = kzalloc(sizeof(*bind_op->prev_va), GFP_KERNEL);
