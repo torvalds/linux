@@ -100,6 +100,33 @@ static int aca_smu_get_valid_aca_count(struct amdgpu_device *adev, enum aca_erro
 	return smu_funcs->get_valid_aca_count(adev, type, count);
 }
 
+static struct aca_regs_dump {
+	const char *name;
+	int reg_idx;
+} aca_regs[] = {
+	{"CONTROL",		ACA_REG_IDX_CTL},
+	{"STATUS",		ACA_REG_IDX_STATUS},
+	{"ADDR",		ACA_REG_IDX_ADDR},
+	{"MISC",		ACA_REG_IDX_MISC0},
+	{"CONFIG",		ACA_REG_IDX_CONFG},
+	{"IPID",		ACA_REG_IDX_IPID},
+	{"SYND",		ACA_REG_IDX_SYND},
+	{"DESTAT",		ACA_REG_IDX_DESTAT},
+	{"DEADDR",		ACA_REG_IDX_DEADDR},
+	{"CONTROL_MASK",	ACA_REG_IDX_CTL_MASK},
+};
+
+static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, struct aca_bank *bank)
+{
+	int i;
+
+	dev_info(adev->dev, "[Hardware error] Accelerator Check Architecture events logged\n");
+	/* plus 1 for output format, e.g: ACA[08/08]: xxxx */
+	for (i = 0; i < ARRAY_SIZE(aca_regs); i++)
+		dev_info(adev->dev, "[Hardware error] ACA[%02d/%02d].%s=0x%016llx\n",
+			 idx + 1, total, aca_regs[i].name, bank->regs[aca_regs[i].reg_idx]);
+}
+
 static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_error_type type,
 				       int start, int count,
 				       struct aca_banks *banks)
@@ -136,6 +163,8 @@ static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_erro
 		ret = smu_funcs->get_valid_aca_bank(adev, type, start + i, &bank);
 		if (ret)
 			return ret;
+
+		aca_smu_bank_dump(adev, i, count, &bank);
 
 		ret = aca_banks_add_bank(banks, &bank);
 		if (ret)
