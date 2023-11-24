@@ -797,6 +797,12 @@ static void geni_i2c_irq_handle_watermark(struct geni_i2c_dev *gi2c, u32 m_stat)
 	int i, j;
 	u32 rx_st = readl_relaxed(gi2c->base + SE_GENI_RX_FIFO_STATUS);
 
+	if (!cur) {
+		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s: Spurious irq\n", __func__);
+		geni_i2c_err(gi2c, GENI_SPURIOUS_IRQ);
+		return;
+	}
+
 	if (((m_stat & M_RX_FIFO_WATERMARK_EN) ||
 		(m_stat & M_RX_FIFO_LAST_EN)) && (cur->flags & I2C_M_RD)) {
 		u32 rxcnt = rx_st & RX_FIFO_WC_MSK;
@@ -858,7 +864,7 @@ static irqreturn_t geni_i2c_irq(int irq, void *dev)
 		    "%s: m_irq_status:0x%x\n", __func__, m_stat);
 
 	if (!cur) {
-		I2C_LOG_ERR(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
+		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "Spurious irq\n");
 		geni_i2c_err(gi2c, GENI_SPURIOUS_IRQ);
 		gi2c->cmd_done = true;
 		is_clear_watermark = true;
