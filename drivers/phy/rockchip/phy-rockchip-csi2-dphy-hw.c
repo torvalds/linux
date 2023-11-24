@@ -902,10 +902,87 @@ static int csi2_dphy_hw_stream_off(struct csi2_dphy *dphy,
 
 	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, 0x01);
 	csi2_dphy_hw_do_reset(hw);
-	usleep_range(500, 1000);
 
 	mutex_unlock(&hw->mutex);
 
+	return 0;
+}
+
+static int csi2_dphy_hw_quick_stream_on(struct csi2_dphy *dphy,
+					struct v4l2_subdev *sd)
+{
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct csi2_sensor *sensor;
+	struct csi2_dphy_hw *hw = dphy->dphy_hw;
+	u32 val = 0, pre_val = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
+
+	read_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, &pre_val);
+	if (hw->lane_mode == LANE_MODE_FULL) {
+		val |= (GENMASK(sensor->lanes - 1, 0) <<
+			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
+			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+	} else {
+		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
+			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+
+		if (dphy->phy_index % 3 == DPHY1)
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
+
+		if (dphy->phy_index % 3 == DPHY2) {
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
+			if (hw->drv_data->chip_id >= CHIP_ID_RK3588)
+				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
+		}
+	}
+	pre_val |= val;
+	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, pre_val);
+	return 0;
+}
+
+static int csi2_dphy_hw_quick_stream_off(struct csi2_dphy *dphy,
+					 struct v4l2_subdev *sd)
+{
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct csi2_sensor *sensor;
+	struct csi2_dphy_hw *hw = dphy->dphy_hw;
+	u32 val = 0, pre_val = 0;
+
+	if (!sensor_sd)
+		return -ENODEV;
+	sensor = sd_to_sensor(dphy, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
+
+	read_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, &pre_val);
+	if (hw->lane_mode == LANE_MODE_FULL) {
+		val |= (GENMASK(sensor->lanes - 1, 0) <<
+			CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT) |
+			(0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+	} else {
+		if (!(pre_val & (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT)))
+			val |= (0x1 << CSI2_DPHY_CTRL_CLKLANE_ENABLE_OFFSET_BIT);
+
+		if (dphy->phy_index % 3 == DPHY1)
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_ENABLE_OFFSET_BIT);
+
+		if (dphy->phy_index % 3 == DPHY2) {
+			val |= (GENMASK(sensor->lanes - 1, 0) <<
+				CSI2_DPHY_CTRL_DATALANE_SPLIT_LANE2_3_OFFSET_BIT);
+			if (hw->drv_data->chip_id >= CHIP_ID_RK3588)
+				write_csi2_dphy_reg(hw, CSI2PHY_CLK1_LANE_ENABLE, BIT(6));
+		}
+	}
+	pre_val &= ~val;
+	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, pre_val);
 	return 0;
 }
 
@@ -1091,6 +1168,8 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 	}
 	dphy_hw->stream_on = drv_data->stream_on;
 	dphy_hw->stream_off = drv_data->stream_off;
+	dphy_hw->quick_stream_on = csi2_dphy_hw_quick_stream_on;
+	dphy_hw->quick_stream_off = csi2_dphy_hw_quick_stream_off;
 
 	if (drv_data->chip_id == CHIP_ID_RV1106) {
 		dphy_hw->ttl_mode_enable = csi2_dphy_hw_ttl_mode_enable;
