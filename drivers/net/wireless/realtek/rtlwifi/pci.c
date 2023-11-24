@@ -64,7 +64,7 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	u8 pcibridge_vendor = pcipriv->ndis_adapter.pcibridge_vendor;
-	u8 init_aspm;
+	u16 init_aspm;
 
 	ppsc->reg_rfps_level = 0;
 	ppsc->support_aspm = false;
@@ -150,9 +150,10 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 	/* toshiba aspm issue, toshiba will set aspm selfly
 	 * so we should not set aspm in driver
 	 */
-	pci_read_config_byte(rtlpci->pdev, 0x80, &init_aspm);
+	pcie_capability_read_word(rtlpci->pdev, PCI_EXP_LNKCTL, &init_aspm);
 	if (rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8192SE &&
-	    init_aspm == 0x43)
+	    ((u8)init_aspm) == (PCI_EXP_LNKCTL_ASPM_L0S |
+				PCI_EXP_LNKCTL_ASPM_L1 | PCI_EXP_LNKCTL_CCC))
 		ppsc->support_aspm = false;
 }
 
@@ -202,7 +203,7 @@ static void rtl_pci_disable_aspm(struct ieee80211_hw *hw)
 	/*Retrieve original configuration settings. */
 	u8 linkctrl_reg = pcipriv->ndis_adapter.linkctrl_reg;
 	u16 aspmlevel = 0;
-	u8 tmp_u1b = 0;
+	u16 tmp_u1b = 0;
 
 	if (!ppsc->support_aspm)
 		return;
@@ -220,10 +221,10 @@ static void rtl_pci_disable_aspm(struct ieee80211_hw *hw)
 	}
 
 	/*for promising device will in L0 state after an I/O. */
-	pci_read_config_byte(rtlpci->pdev, 0x80, &tmp_u1b);
+	pcie_capability_read_word(rtlpci->pdev, PCI_EXP_LNKCTL, &tmp_u1b);
 
 	/*Set corresponding value. */
-	aspmlevel |= BIT(0) | BIT(1);
+	aspmlevel |= PCI_EXP_LNKCTL_ASPM_L0S | PCI_EXP_LNKCTL_ASPM_L1;
 	linkctrl_reg &= ~aspmlevel;
 
 	_rtl_pci_platform_switch_device_pci_aspm(hw, linkctrl_reg);
@@ -350,9 +351,8 @@ static void rtl_pci_parse_configuration(struct pci_dev *pdev,
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_TRACE, "Link Control Register =%x\n",
 		pcipriv->ndis_adapter.linkctrl_reg);
 
-	pci_read_config_byte(pdev, 0x98, &tmp);
-	tmp |= BIT(4);
-	pci_write_config_byte(pdev, 0x98, tmp);
+	pcie_capability_set_word(pdev, PCI_EXP_DEVCTL2,
+				 PCI_EXP_DEVCTL2_COMP_TMOUT_DIS);
 
 	tmp = 0x17;
 	pci_write_config_byte(pdev, 0x70f, tmp);
