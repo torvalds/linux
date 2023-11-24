@@ -57,6 +57,297 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
 };
 
+static void hfc_get_mix_info_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
+	struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
+	struct rtw89_hfc_pub_cfg *pub_cfg = &param->pub_cfg;
+	struct rtw89_hfc_pub_info *info = &param->pub_info;
+	u32 val;
+
+	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_INFO1);
+	info->g0_used = u32_get_bits(val, B_BE_G0_USE_PG_MASK);
+	info->g1_used = u32_get_bits(val, B_BE_G1_USE_PG_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_INFO3);
+	info->g0_aval = u32_get_bits(val, B_BE_G0_AVAL_PG_MASK);
+	info->g1_aval = u32_get_bits(val, B_BE_G1_AVAL_PG_MASK);
+	info->pub_aval = u32_get_bits(rtw89_read32(rtwdev, R_BE_PUB_PAGE_INFO2),
+				      B_BE_PUB_AVAL_PG_MASK);
+	info->wp_aval = u32_get_bits(rtw89_read32(rtwdev, R_BE_WP_PAGE_INFO1),
+				     B_BE_WP_AVAL_PG_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_HCI_FC_CTRL);
+	param->en = !!(val & B_BE_HCI_FC_EN);
+	param->h2c_en = !!(val & B_BE_HCI_FC_CH12_EN);
+	param->mode = u32_get_bits(val, B_BE_HCI_FC_MODE_MASK);
+	prec_cfg->ch011_full_cond = u32_get_bits(val, B_BE_HCI_FC_WD_FULL_COND_MASK);
+	prec_cfg->h2c_full_cond = u32_get_bits(val, B_BE_HCI_FC_CH12_FULL_COND_MASK);
+	prec_cfg->wp_ch07_full_cond =
+		u32_get_bits(val, B_BE_HCI_FC_WP_CH07_FULL_COND_MASK);
+	prec_cfg->wp_ch811_full_cond =
+		u32_get_bits(val, B_BE_HCI_FC_WP_CH811_FULL_COND_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_CH_PAGE_CTRL);
+	prec_cfg->ch011_prec = u32_get_bits(val, B_BE_PREC_PAGE_CH011_V1_MASK);
+	prec_cfg->h2c_prec = u32_get_bits(val, B_BE_PREC_PAGE_CH12_V1_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_CTRL2);
+	pub_cfg->pub_max = u32_get_bits(val, B_BE_PUBPG_ALL_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_WP_PAGE_CTRL1);
+	prec_cfg->wp_ch07_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH07_MASK);
+	prec_cfg->wp_ch811_prec = u32_get_bits(val, B_BE_PREC_PAGE_WP_CH811_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_WP_PAGE_CTRL2);
+	pub_cfg->wp_thrd = u32_get_bits(val, B_BE_WP_THRD_MASK);
+
+	val = rtw89_read32(rtwdev, R_BE_PUB_PAGE_CTRL1);
+	pub_cfg->grp0 = u32_get_bits(val, B_BE_PUBPG_G0_MASK);
+	pub_cfg->grp1 = u32_get_bits(val, B_BE_PUBPG_G1_MASK);
+}
+
+static void hfc_h2c_cfg_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
+	const struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
+	u32 val;
+
+	val = u32_encode_bits(prec_cfg->h2c_prec, B_BE_PREC_PAGE_CH12_V1_MASK);
+	rtw89_write32(rtwdev, R_BE_CH_PAGE_CTRL, val);
+}
+
+static void hfc_mix_cfg_be(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
+	const struct rtw89_hfc_prec_cfg *prec_cfg = &param->prec_cfg;
+	const struct rtw89_hfc_pub_cfg *pub_cfg = &param->pub_cfg;
+	u32 val;
+
+	val = u32_encode_bits(prec_cfg->ch011_prec, B_BE_PREC_PAGE_CH011_V1_MASK) |
+	      u32_encode_bits(prec_cfg->h2c_prec, B_BE_PREC_PAGE_CH12_V1_MASK);
+	rtw89_write32(rtwdev, R_BE_CH_PAGE_CTRL, val);
+
+	val = u32_encode_bits(pub_cfg->pub_max, B_BE_PUBPG_ALL_MASK);
+	rtw89_write32(rtwdev, R_BE_PUB_PAGE_CTRL2, val);
+
+	val = u32_encode_bits(prec_cfg->wp_ch07_prec, B_BE_PREC_PAGE_WP_CH07_MASK) |
+	      u32_encode_bits(prec_cfg->wp_ch811_prec, B_BE_PREC_PAGE_WP_CH811_MASK);
+	rtw89_write32(rtwdev, R_BE_WP_PAGE_CTRL1, val);
+
+	val = u32_replace_bits(rtw89_read32(rtwdev, R_BE_HCI_FC_CTRL),
+			       param->mode, B_BE_HCI_FC_MODE_MASK);
+	val = u32_replace_bits(val, prec_cfg->ch011_full_cond,
+			       B_BE_HCI_FC_WD_FULL_COND_MASK);
+	val = u32_replace_bits(val, prec_cfg->h2c_full_cond,
+			       B_BE_HCI_FC_CH12_FULL_COND_MASK);
+	val = u32_replace_bits(val, prec_cfg->wp_ch07_full_cond,
+			       B_BE_HCI_FC_WP_CH07_FULL_COND_MASK);
+	val = u32_replace_bits(val, prec_cfg->wp_ch811_full_cond,
+			       B_BE_HCI_FC_WP_CH811_FULL_COND_MASK);
+	rtw89_write32(rtwdev, R_BE_HCI_FC_CTRL, val);
+}
+
+static void hfc_func_en_be(struct rtw89_dev *rtwdev, bool en, bool h2c_en)
+{
+	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
+	u32 val;
+
+	val = rtw89_read32(rtwdev, R_BE_HCI_FC_CTRL);
+	param->en = en;
+	param->h2c_en = h2c_en;
+	val = en ? (val | B_BE_HCI_FC_EN) : (val & ~B_BE_HCI_FC_EN);
+	val = h2c_en ? (val | B_BE_HCI_FC_CH12_EN) :
+		       (val & ~B_BE_HCI_FC_CH12_EN);
+	rtw89_write32(rtwdev, R_BE_HCI_FC_CTRL, val);
+}
+
+static void dle_func_en_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	if (enable)
+		rtw89_write32_set(rtwdev, R_BE_DMAC_FUNC_EN,
+				  B_BE_DLE_WDE_EN | B_BE_DLE_PLE_EN);
+	else
+		rtw89_write32_clr(rtwdev, R_BE_DMAC_FUNC_EN,
+				  B_BE_DLE_WDE_EN | B_BE_DLE_PLE_EN);
+}
+
+static void dle_clk_en_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	if (enable)
+		rtw89_write32_set(rtwdev, R_BE_DMAC_CLK_EN,
+				  B_BE_DLE_WDE_CLK_EN | B_BE_DLE_PLE_CLK_EN);
+	else
+		rtw89_write32_clr(rtwdev, R_BE_DMAC_CLK_EN,
+				  B_BE_DLE_WDE_CLK_EN | B_BE_DLE_PLE_CLK_EN);
+}
+
+static int dle_mix_cfg_be(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg)
+{
+	const struct rtw89_dle_size *wde_size_cfg, *ple_size_cfg;
+	u32 bound;
+	u32 val;
+
+	wde_size_cfg = cfg->wde_size;
+	ple_size_cfg = cfg->ple_size;
+
+	val = rtw89_read32(rtwdev, R_BE_WDE_PKTBUF_CFG);
+
+	switch (wde_size_cfg->pge_size) {
+	default:
+	case RTW89_WDE_PG_64:
+		val = u32_replace_bits(val, S_AX_WDE_PAGE_SEL_64,
+				       B_BE_WDE_PAGE_SEL_MASK);
+		break;
+	case RTW89_WDE_PG_128:
+		val = u32_replace_bits(val, S_AX_WDE_PAGE_SEL_128,
+				       B_BE_WDE_PAGE_SEL_MASK);
+		break;
+	case RTW89_WDE_PG_256:
+		rtw89_err(rtwdev, "[ERR]WDE DLE doesn't support 256 byte!\n");
+		return -EINVAL;
+	}
+
+	bound = wde_size_cfg->srt_ofst / DLE_BOUND_UNIT;
+	val = u32_replace_bits(val, bound, B_BE_WDE_START_BOUND_MASK);
+	val = u32_replace_bits(val, wde_size_cfg->lnk_pge_num,
+			       B_BE_WDE_FREE_PAGE_NUM_MASK);
+	rtw89_write32(rtwdev, R_BE_WDE_PKTBUF_CFG, val);
+
+	val = rtw89_read32(rtwdev, R_BE_PLE_PKTBUF_CFG);
+
+	switch (ple_size_cfg->pge_size) {
+	default:
+	case RTW89_PLE_PG_64:
+		rtw89_err(rtwdev, "[ERR]PLE DLE doesn't support 64 byte!\n");
+		return -EINVAL;
+	case RTW89_PLE_PG_128:
+		val = u32_replace_bits(val, S_AX_PLE_PAGE_SEL_128,
+				       B_BE_PLE_PAGE_SEL_MASK);
+		break;
+	case RTW89_PLE_PG_256:
+		val = u32_replace_bits(val, S_AX_PLE_PAGE_SEL_256,
+				       B_BE_PLE_PAGE_SEL_MASK);
+		break;
+	}
+
+	bound = ple_size_cfg->srt_ofst / DLE_BOUND_UNIT;
+	val = u32_replace_bits(val, bound, B_BE_PLE_START_BOUND_MASK);
+	val = u32_replace_bits(val, ple_size_cfg->lnk_pge_num,
+			       B_BE_PLE_FREE_PAGE_NUM_MASK);
+	rtw89_write32(rtwdev, R_BE_PLE_PKTBUF_CFG, val);
+
+	return 0;
+}
+
+static int chk_dle_rdy_be(struct rtw89_dev *rtwdev, bool wde_or_ple)
+{
+	u32 reg, mask;
+	u32 ini;
+
+	if (wde_or_ple) {
+		reg = R_AX_WDE_INI_STATUS;
+		mask = WDE_MGN_INI_RDY;
+	} else {
+		reg = R_AX_PLE_INI_STATUS;
+		mask = PLE_MGN_INI_RDY;
+	}
+
+	return read_poll_timeout(rtw89_read32, ini, (ini & mask) == mask, 1,
+				2000, false, rtwdev, reg);
+}
+
+#define INVALID_QT_WCPU U16_MAX
+#define SET_QUOTA_VAL(_min_x, _max_x, _module, _idx)			\
+	do {								\
+		val = u32_encode_bits(_min_x, B_BE_ ## _module ## _Q ## _idx ## _MIN_SIZE_MASK) | \
+		      u32_encode_bits(_max_x, B_BE_ ## _module ## _Q ## _idx ## _MAX_SIZE_MASK);  \
+		rtw89_write32(rtwdev,					\
+			      R_BE_ ## _module ## _QTA ## _idx ## _CFG,	\
+			      val);					\
+	} while (0)
+#define SET_QUOTA(_x, _module, _idx)					\
+	SET_QUOTA_VAL(min_cfg->_x, max_cfg->_x, _module, _idx)
+
+static void wde_quota_cfg_be(struct rtw89_dev *rtwdev,
+			     const struct rtw89_wde_quota *min_cfg,
+			     const struct rtw89_wde_quota *max_cfg,
+			     u16 ext_wde_min_qt_wcpu)
+{
+	u16 min_qt_wcpu = ext_wde_min_qt_wcpu != INVALID_QT_WCPU ?
+			  ext_wde_min_qt_wcpu : min_cfg->wcpu;
+	u16 max_qt_wcpu = max(max_cfg->wcpu, min_qt_wcpu);
+	u32 val;
+
+	SET_QUOTA(hif, WDE, 0);
+	SET_QUOTA_VAL(min_qt_wcpu, max_qt_wcpu, WDE, 1);
+	SET_QUOTA_VAL(0, 0, WDE, 2);
+	SET_QUOTA(pkt_in, WDE, 3);
+	SET_QUOTA(cpu_io, WDE, 4);
+}
+
+static void ple_quota_cfg_be(struct rtw89_dev *rtwdev,
+			     const struct rtw89_ple_quota *min_cfg,
+			     const struct rtw89_ple_quota *max_cfg)
+{
+	u32 val;
+
+	SET_QUOTA(cma0_tx, PLE, 0);
+	SET_QUOTA(cma1_tx, PLE, 1);
+	SET_QUOTA(c2h, PLE, 2);
+	SET_QUOTA(h2c, PLE, 3);
+	SET_QUOTA(wcpu, PLE, 4);
+	SET_QUOTA(mpdu_proc, PLE, 5);
+	SET_QUOTA(cma0_dma, PLE, 6);
+	SET_QUOTA(cma1_dma, PLE, 7);
+	SET_QUOTA(bb_rpt, PLE, 8);
+	SET_QUOTA(wd_rel, PLE, 9);
+	SET_QUOTA(cpu_io, PLE, 10);
+	SET_QUOTA(tx_rpt, PLE, 11);
+	SET_QUOTA(h2d, PLE, 12);
+}
+
+static void rtw89_mac_hci_func_en_be(struct rtw89_dev *rtwdev)
+{
+	rtw89_write32_set(rtwdev, R_BE_HCI_FUNC_EN, B_BE_HCI_TXDMA_EN |
+						    B_BE_HCI_RXDMA_EN);
+}
+
+static void rtw89_mac_dmac_func_pre_en_be(struct rtw89_dev *rtwdev)
+{
+	u32 val;
+
+	val = rtw89_read32(rtwdev, R_BE_HAXI_INIT_CFG1);
+
+	switch (rtwdev->hci.type) {
+	case RTW89_HCI_TYPE_PCIE:
+		val = u32_replace_bits(val, S_BE_DMA_MOD_PCIE_NO_DATA_CPU,
+				       B_BE_DMA_MODE_MASK);
+		break;
+	case RTW89_HCI_TYPE_USB:
+		val = u32_replace_bits(val, S_BE_DMA_MOD_USB, B_BE_DMA_MODE_MASK);
+		val = (val & ~B_BE_STOP_AXI_MST) | B_BE_TXDMA_EN | B_BE_RXDMA_EN;
+		break;
+	case RTW89_HCI_TYPE_SDIO:
+		val = u32_replace_bits(val, S_BE_DMA_MOD_SDIO, B_BE_DMA_MODE_MASK);
+		val = (val & ~B_BE_STOP_AXI_MST) | B_BE_TXDMA_EN | B_BE_RXDMA_EN;
+		break;
+	default:
+		return;
+	}
+
+	rtw89_write32(rtwdev, R_BE_HAXI_INIT_CFG1, val);
+
+	rtw89_write32_clr(rtwdev, R_BE_HAXI_DMA_STOP1,
+			  B_BE_STOP_CH0 | B_BE_STOP_CH1 | B_BE_STOP_CH2 |
+			  B_BE_STOP_CH3 | B_BE_STOP_CH4 | B_BE_STOP_CH5 |
+			  B_BE_STOP_CH6 | B_BE_STOP_CH7 | B_BE_STOP_CH8 |
+			  B_BE_STOP_CH9 | B_BE_STOP_CH10 | B_BE_STOP_CH11 |
+			  B_BE_STOP_CH12 | B_BE_STOP_CH13 | B_BE_STOP_CH14);
+
+	rtw89_write32_set(rtwdev, R_BE_DMAC_TABLE_CTRL, B_BE_DMAC_ADDR_MODE);
+}
+
 static void rtw89_mac_disable_cpu_be(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -204,6 +495,90 @@ static int rtw89_fwdl_check_path_ready_be(struct rtw89_dev *rtwdev,
 	return read_poll_timeout_atomic(rtw89_read32, val, val & check,
 					1, 1000000, false,
 					rtwdev, R_BE_WCPU_FW_CTRL);
+}
+
+static int dle_buf_req_be(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *pkt_id)
+{
+	u32 val, reg;
+	int ret;
+
+	reg = wd ? R_BE_WD_BUF_REQ : R_BE_PL_BUF_REQ;
+	val = buf_len;
+	val |= B_BE_WD_BUF_REQ_EXEC;
+	rtw89_write32(rtwdev, reg, val);
+
+	reg = wd ? R_BE_WD_BUF_STATUS : R_BE_PL_BUF_STATUS;
+
+	ret = read_poll_timeout(rtw89_read32, val, val & B_BE_WD_BUF_STAT_DONE,
+				1, 2000, false, rtwdev, reg);
+	if (ret)
+		return ret;
+
+	*pkt_id = u32_get_bits(val, B_BE_WD_BUF_STAT_PKTID_MASK);
+	if (*pkt_id == S_WD_BUF_STAT_PKTID_INVALID)
+		return -ENOENT;
+
+	return 0;
+}
+
+static int set_cpuio_be(struct rtw89_dev *rtwdev,
+			struct rtw89_cpuio_ctrl *ctrl_para, bool wd)
+{
+	u32 val_op0, val_op1, val_op2, val_op3;
+	u32 val, cmd_type, reg;
+	int ret;
+
+	cmd_type = ctrl_para->cmd_type;
+
+	reg = wd ? R_BE_WD_CPUQ_OP_3 : R_BE_PL_CPUQ_OP_3;
+	val_op3 = u32_replace_bits(0, ctrl_para->start_pktid,
+				   B_BE_WD_CPUQ_OP_STRT_PKTID_MASK);
+	val_op3 = u32_replace_bits(val_op3, ctrl_para->end_pktid,
+				   B_BE_WD_CPUQ_OP_END_PKTID_MASK);
+	rtw89_write32(rtwdev, reg, val_op3);
+
+	reg = wd ? R_BE_WD_CPUQ_OP_1 : R_BE_PL_CPUQ_OP_1;
+	val_op1 = u32_replace_bits(0, ctrl_para->src_pid,
+				   B_BE_WD_CPUQ_OP_SRC_PID_MASK);
+	val_op1 = u32_replace_bits(val_op1, ctrl_para->src_qid,
+				   B_BE_WD_CPUQ_OP_SRC_QID_MASK);
+	val_op1 = u32_replace_bits(val_op1, ctrl_para->macid,
+				   B_BE_WD_CPUQ_OP_SRC_MACID_MASK);
+	rtw89_write32(rtwdev, reg, val_op1);
+
+	reg = wd ? R_BE_WD_CPUQ_OP_2 : R_BE_PL_CPUQ_OP_2;
+	val_op2 = u32_replace_bits(0, ctrl_para->dst_pid,
+				   B_BE_WD_CPUQ_OP_DST_PID_MASK);
+	val_op2 = u32_replace_bits(val_op2, ctrl_para->dst_qid,
+				   B_BE_WD_CPUQ_OP_DST_QID_MASK);
+	val_op2 = u32_replace_bits(val_op2, ctrl_para->macid,
+				   B_BE_WD_CPUQ_OP_DST_MACID_MASK);
+	rtw89_write32(rtwdev, reg, val_op2);
+
+	reg = wd ? R_BE_WD_CPUQ_OP_0 : R_BE_PL_CPUQ_OP_0;
+	val_op0 = u32_replace_bits(0, cmd_type,
+				   B_BE_WD_CPUQ_OP_CMD_TYPE_MASK);
+	val_op0 = u32_replace_bits(val_op0, ctrl_para->pkt_num,
+				   B_BE_WD_CPUQ_OP_PKTNUM_MASK);
+	val_op0 |= B_BE_WD_CPUQ_OP_EXEC;
+	rtw89_write32(rtwdev, reg, val_op0);
+
+	reg = wd ? R_BE_WD_CPUQ_OP_STATUS : R_BE_PL_CPUQ_OP_STATUS;
+
+	ret = read_poll_timeout(rtw89_read32, val, val & B_BE_WD_CPUQ_OP_STAT_DONE,
+				1, 2000, false, rtwdev, reg);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR]set cpuio wd timeout\n");
+		rtw89_err(rtwdev, "[ERR]op_0=0x%X, op_1=0x%X, op_2=0x%X\n",
+			  val_op0, val_op1, val_op2);
+		return ret;
+	}
+
+	if (cmd_type == CPUIO_OP_CMD_GET_NEXT_PID ||
+	    cmd_type == CPUIO_OP_CMD_GET_1ST_PID)
+		ctrl_para->pktid = u32_get_bits(val, B_BE_WD_CPUQ_OP_PKTID_MASK);
+
+	return 0;
 }
 
 static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
@@ -469,7 +844,22 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 			B_BE_BFMEE_HE_NDPA_EN | B_BE_BFMEE_EHT_NDPA_EN,
 	},
 
+	.hci_func_en = rtw89_mac_hci_func_en_be,
+	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_be,
+	.dle_func_en = dle_func_en_be,
+	.dle_clk_en = dle_clk_en_be,
 	.bf_assoc = rtw89_mac_bf_assoc_be,
+
+	.dle_mix_cfg = dle_mix_cfg_be,
+	.chk_dle_rdy = chk_dle_rdy_be,
+	.dle_buf_req = dle_buf_req_be,
+	.hfc_func_en = hfc_func_en_be,
+	.hfc_h2c_cfg = hfc_h2c_cfg_be,
+	.hfc_mix_cfg = hfc_mix_cfg_be,
+	.hfc_get_mix_info = hfc_get_mix_info_be,
+	.wde_quota_cfg = wde_quota_cfg_be,
+	.ple_quota_cfg = ple_quota_cfg_be,
+	.set_cpuio = set_cpuio_be,
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
