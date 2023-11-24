@@ -715,6 +715,14 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 }
 
 /*
+ * ntfs_shutdown - super_operations::shutdown
+ */
+static void ntfs_shutdown(struct super_block *sb)
+{
+	set_bit(NTFS_FLAGS_SHUTDOWN, &ntfs_sb(sb)->flags);
+}
+
+/*
  * ntfs_sync_fs - super_operations::sync_fs
  */
 static int ntfs_sync_fs(struct super_block *sb, int wait)
@@ -723,6 +731,9 @@ static int ntfs_sync_fs(struct super_block *sb, int wait)
 	struct ntfs_sb_info *sbi = sb->s_fs_info;
 	struct ntfs_inode *ni;
 	struct inode *inode;
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return -EIO;
 
 	ni = sbi->security.ni;
 	if (ni) {
@@ -763,6 +774,7 @@ static const struct super_operations ntfs_sops = {
 	.put_super = ntfs_put_super,
 	.statfs = ntfs_statfs,
 	.show_options = ntfs_show_options,
+	.shutdown = ntfs_shutdown,
 	.sync_fs = ntfs_sync_fs,
 	.write_inode = ntfs3_write_inode,
 };

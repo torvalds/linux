@@ -181,6 +181,9 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
 
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
+
 	ni_lock_dir(ni);
 
 	err = ntfs_unlink_inode(dir, dentry);
@@ -198,6 +201,9 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 {
 	u32 size = strlen(symname);
 	struct inode *inode;
+
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
 	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
 				  symname, size, NULL);
@@ -226,6 +232,9 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
+
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
 	ni_lock_dir(ni);
 
@@ -263,6 +272,9 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + sizeof(struct NTFS_DE) <
 		      1024);
 	static_assert(PATH_MAX >= 4 * 1024);
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return -EIO;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
