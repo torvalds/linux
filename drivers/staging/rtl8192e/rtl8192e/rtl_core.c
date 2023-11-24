@@ -1433,17 +1433,6 @@ void rtl92e_reset_desc_ring(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 }
 
-void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
-				    struct rtllib_rx_stats *stats)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (stats->bIsAMPDU && !stats->bFirstMPDU)
-		stats->mac_time = priv->last_rx_desc_tsf;
-	else
-		priv->last_rx_desc_tsf = stats->mac_time;
-}
-
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index)
 {
 	long	signal_power;

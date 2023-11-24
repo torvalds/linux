@@ -471,7 +471,6 @@ enum _REG_PREAMBLE_MODE {
  *       any adverse affects.
  */
 struct rtllib_rx_stats {
-	u64 mac_time;
 	s8  rssi;
 	u8  signal;
 	u8  noise;

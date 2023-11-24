@@ -234,8 +234,6 @@ struct r8192_priv {
 	int		rxringcount;
 	u16		rxbuffersize;
 
-	u64 last_rx_desc_tsf;
-
 	u32 receive_config;
 	u8		retry_data;
 	u8		retry_rts;
@@ -391,8 +389,6 @@ void rtl92e_irq_enable(struct net_device *dev);
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config);
 void rtl92e_irq_disable(struct net_device *dev);
 
-void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
-				    struct rtllib_rx_stats *stats);
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index);
 void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 				 struct rtllib_rx_stats *pprevious_stats);
