@@ -455,6 +455,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		phys_addr = sg_phys(buffer->sgt->sgl);
 		if (phys_addr == 0) {
 			pr_err("%s get physical address error!", __func__);
+			ret = -EFAULT;
 			goto unmap_buffer;
 		}
 
@@ -571,6 +572,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		phys_addr = sg_phys(sgt->sgl);
 		if (phys_addr == 0) {
 			pr_err("%s get physical address error!", __func__);
+			ret = -EFAULT;
 			goto free_sgt;
 		}
 
@@ -621,8 +623,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		if (mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 			break;
 
-		pr_err("Current %s[%d] cannot support virtual address!\n",
+		pr_err("Current %s[%d] cannot support physically discontinuous virtual address!\n",
 		       rga_get_mmu_type_str(scheduler->data->mmu), scheduler->data->mmu);
+		ret = -EOPNOTSUPP;
 		goto free_dma_buffer;
 	}
 
@@ -2044,8 +2047,18 @@ void rga_mm_unmap_job_info(struct rga_job *job)
 	}
 }
 
-uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
-			      struct rga_session *session)
+/*
+ * rga_mm_import_buffer - Importing external buffer into the RGA driver
+ *
+ * @external_buffer: [in] Parameters of external buffer
+ * @session:         [in] Session of the current process
+ *
+ * returns:
+ * if return value > 0, the buffer import is successful and is the generated
+ * buffer-handle, negative error code on failure.
+ */
+int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
+			 struct rga_session *session)
 {
 	int ret = 0, new_id;
 	struct rga_mm *mm;
@@ -2054,7 +2067,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
 		pr_err("rga mm is null!\n");
-		return 0;
+		return -EFAULT;
 	}
 
 	mutex_lock(&mm->lock);
@@ -2080,7 +2093,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		pr_err("%s alloc internal_buffer error!\n", __func__);
 
 		mutex_unlock(&mm->lock);
-		return 0;
+		return -ENOMEM;
 	}
 
 	ret = rga_mm_map_buffer(external_buffer, internal_buffer, NULL, true);
@@ -2099,6 +2112,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	idr_preload_end();
 	if (new_id < 0) {
 		pr_err("internal_buffer alloc id failed!\n");
+		ret = new_id;
 		goto FREE_INTERNAL_BUFFER;
 	}
 
@@ -2117,7 +2131,7 @@ FREE_INTERNAL_BUFFER:
 	mutex_unlock(&mm->lock);
 	kfree(internal_buffer);
 
-	return 0;
+	return ret;
 }
 
 int rga_mm_release_buffer(uint32_t handle)

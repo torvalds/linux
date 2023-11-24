@@ -650,7 +650,7 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 		}
 
 		ret = rga_mm_import_buffer(&external_buffer[i], session);
-		if (ret == 0) {
+		if (ret <= 0) {
 			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = %s(0x%x)\n",
 			       i, (unsigned long)external_buffer[i].memory,
 			       rga_get_memory_type_str(external_buffer[i].type),
