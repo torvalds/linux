@@ -803,6 +803,22 @@ static const struct mv3310_mactype mv3340_mactypes[] = {
 	},
 };
 
+static void mv3310_fill_possible_interfaces(struct phy_device *phydev)
+{
+	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
+	unsigned long *possible = phydev->possible_interfaces;
+	const struct mv3310_mactype *mactype = priv->mactype;
+
+	if (mactype->interface_10g != PHY_INTERFACE_MODE_NA)
+		__set_bit(priv->mactype->interface_10g, possible);
+
+	if (!mactype->fixed_interface) {
+		__set_bit(PHY_INTERFACE_MODE_5GBASER, possible);
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX, possible);
+		__set_bit(PHY_INTERFACE_MODE_SGMII, possible);
+	}
+}
+
 static int mv3310_config_init(struct phy_device *phydev)
 {
 	struct mv3310_priv *priv = dev_get_drvdata(&phydev->mdio.dev);
@@ -844,6 +860,8 @@ static int mv3310_config_init(struct phy_device *phydev)
 	}
 
 	priv->mactype = &chip->mactypes[mactype];
+
+	mv3310_fill_possible_interfaces(phydev);
 
 	/* Enable EDPD mode - saving 600mW */
 	err = mv3310_set_edpd(phydev, ETHTOOL_PHY_EDPD_DFLT_TX_MSECS);
