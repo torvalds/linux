@@ -240,6 +240,7 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 {
 	struct msm_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	struct gpio_chip *gc = &pctrl->chip;
+	const struct  msm_pinctrl_soc_data *ps = pctrl->soc;
 	unsigned int irq = irq_find_mapping(gc->irq.domain, group);
 	struct irq_data *d = irq_get_irq_data(irq);
 	unsigned int gpio_func = pctrl->soc->gpio_func;
@@ -303,9 +304,13 @@ static int msm_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	} else {
 		val &= ~mask;
 		val |= i << g->mux_bit;
-		/* Claim ownership of pin if egpio capable */
-		if (egpio_func && val & BIT(g->egpio_present))
-			val |= BIT(g->egpio_enable);
+		/* Claim ownership of pin if egpio capable and
+		 * also need check if setting NA in funcs.
+		 */
+		if (egpio_func && val & BIT(g->egpio_present)) {
+			if (g->funcs[egpio_func] != ps->nfunctions)
+				val |= BIT(g->egpio_enable);
+		}
 	}
 
 	msm_writel_ctl(val, pctrl, g);
