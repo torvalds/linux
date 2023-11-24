@@ -141,7 +141,10 @@ allOf:
         ti,sci-rm-range-tchan: false
 
         reg:
-          maxItems: 3
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: RX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
 
         reg-names:
           items:
@@ -160,7 +163,12 @@ allOf:
     then:
       properties:
         reg:
-          minItems: 5
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: Block Copy Channel Realtime Registers region
+            - description: RX Channel Realtime Registers region
+            - description: TX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
 
         reg-names:
           items:
@@ -184,7 +192,11 @@ allOf:
         ti,sci-rm-range-bchan: false
 
         reg:
-          maxItems: 4
+          items:
+            - description: BCDMA Control /Status Registers region
+            - description: RX Channel Realtime Registers region
+            - description: TX Channel Realtime Registers region
+            - description: Ring Realtime Registers region
 
         reg-names:
           items:

@@ -45,7 +45,11 @@ properties:
       The second cell is the ASEL value for the channel
 
   reg:
-    maxItems: 4
+    items:
+      - description: Packet DMA Control /Status Registers region
+      - description: RX Channel Realtime Registers region
+      - description: TX Channel Realtime Registers region
+      - description: Ring Realtime Registers region
 
   reg-names:
     items:
