@@ -33,6 +33,7 @@
 
 #define regVM_L2_CNTL3_DEFAULT	0x80100007
 #define regVM_L2_CNTL4_DEFAULT	0x000000c1
+#define mmSMNAID_AID0_MCA_SMU 0x03b30400
 
 static u64 mmhub_v1_8_get_fb_location(struct amdgpu_device *adev)
 {
@@ -705,8 +706,94 @@ static const struct amdgpu_ras_block_hw_ops mmhub_v1_8_ras_hw_ops = {
 	.reset_ras_error_count = mmhub_v1_8_reset_ras_error_count,
 };
 
+static int mmhub_v1_8_aca_bank_generate_report(struct aca_handle *handle,
+					       struct aca_bank *bank, enum aca_error_type type,
+					       struct aca_bank_report *report, void *data)
+{
+	u64 status, misc0;
+	int ret;
+
+	status = bank->regs[ACA_REG_IDX_STATUS];
+	if ((type == ACA_ERROR_TYPE_UE &&
+	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_FAULT) ||
+	    (type == ACA_ERROR_TYPE_CE &&
+	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_CE)) {
+
+		ret = aca_bank_info_decode(bank, &report->info);
+		if (ret)
+			return ret;
+
+		misc0 = bank->regs[ACA_REG_IDX_MISC0];
+		report->count[type] = ACA_REG__MISC0__ERRCNT(misc0);
+	}
+
+	return 0;
+}
+
+/* reference to smu driver if header file */
+static int mmhub_v1_8_err_codes[] = {
+	0, 1, 2, 3, 4, /* CODE_DAGB0 - 4 */
+	5, 6, 7, 8, 9, /* CODE_EA0 - 4 */
+	10, /* CODE_UTCL2_ROUTER */
+	11, /* CODE_VML2 */
+	12, /* CODE_VML2_WALKER */
+	13, /* CODE_MMCANE */
+};
+
+static bool mmhub_v1_8_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
+					 enum aca_error_type type, void *data)
+{
+	u32 instlo;
+
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+
+	if (instlo != mmSMNAID_AID0_MCA_SMU)
+		return false;
+
+	if (aca_bank_check_error_codes(handle->adev, bank,
+				       mmhub_v1_8_err_codes,
+				       ARRAY_SIZE(mmhub_v1_8_err_codes)))
+		return false;
+
+	return true;
+}
+
+static const struct aca_bank_ops mmhub_v1_8_aca_bank_ops = {
+	.aca_bank_generate_report = mmhub_v1_8_aca_bank_generate_report,
+	.aca_bank_is_valid = mmhub_v1_8_aca_bank_is_valid,
+};
+
+static const struct aca_info mmhub_v1_8_aca_info = {
+	.hwip = ACA_HWIP_TYPE_SMU,
+	.mask = ACA_ERROR_UE_MASK,
+	.bank_ops = &mmhub_v1_8_aca_bank_ops,
+};
+
+static int mmhub_v1_8_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int r;
+
+	r = amdgpu_ras_block_late_init(adev, ras_block);
+	if (r)
+		return r;
+
+	r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__MMHUB,
+				&mmhub_v1_8_aca_info, NULL);
+	if (r)
+		goto late_fini;
+
+	return 0;
+
+late_fini:
+	amdgpu_ras_block_late_fini(adev, ras_block);
+
+	return r;
+}
+
 struct amdgpu_mmhub_ras mmhub_v1_8_ras = {
 	.ras_block = {
 		.hw_ops = &mmhub_v1_8_ras_hw_ops,
+		.ras_late_init = mmhub_v1_8_ras_late_init,
 	},
 };
