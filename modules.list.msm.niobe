@@ -40,3 +40,4 @@ llcc-qcom.ko
 gcc-niobe.ko
 dispcc0-niobe.ko
 dispcc1-niobe.ko
+tmecom-intf.ko
