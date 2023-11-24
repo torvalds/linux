@@ -1047,8 +1047,8 @@ static int xgmi_v6_4_0_aca_bank_generate_report(struct aca_handle *handle, struc
 	if (ret)
 		return ret;
 
-	status = bank->regs[MCA_REG_IDX_STATUS];
-	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(status);
+	status = bank->regs[ACA_REG_IDX_STATUS];
+	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
 
 	error_str = ext_error_code < ARRAY_SIZE(xgmi_v6_4_0_ras_error_code_ext) ?
 		xgmi_v6_4_0_ras_error_code_ext[ext_error_code] : NULL;
@@ -1158,7 +1158,7 @@ static void amdgpu_xgmi_legacy_reset_ras_error_count(struct amdgpu_device *adev)
 
 static void __xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst, u64 mca_base)
 {
-	WREG64_MCA(xgmi_inst, mca_base, MCA_REG_IDX_STATUS, 0ULL);
+	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_reset_error_count(struct amdgpu_device *adev, int xgmi_inst)
@@ -1336,12 +1336,12 @@ static void amdgpu_xgmi_legacy_query_ras_error_count(struct amdgpu_device *adev,
 	err_data->ce_count += ce_cnt;
 }
 
-static enum amdgpu_mca_error_type xgmi_v6_4_0_pcs_mca_get_error_type(struct amdgpu_device *adev, u64 status)
+static enum aca_error_type xgmi_v6_4_0_pcs_mca_get_error_type(struct amdgpu_device *adev, u64 status)
 {
 	const char *error_str;
 	int ext_error_code;
 
-	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(status);
+	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
 
 	error_str = ext_error_code < ARRAY_SIZE(xgmi_v6_4_0_ras_error_code_ext) ?
 		xgmi_v6_4_0_ras_error_code_ext[ext_error_code] : NULL;
@@ -1350,9 +1350,9 @@ static enum amdgpu_mca_error_type xgmi_v6_4_0_pcs_mca_get_error_type(struct amdg
 
 	switch (ext_error_code) {
 	case 0:
-		return AMDGPU_MCA_ERROR_TYPE_UE;
+		return ACA_ERROR_TYPE_UE;
 	case 6:
-		return AMDGPU_MCA_ERROR_TYPE_CE;
+		return ACA_ERROR_TYPE_CE;
 	default:
 		return -EINVAL;
 	}
@@ -1366,22 +1366,22 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 	int xgmi_inst = mcm_info->die_id;
 	u64 status = 0;
 
-	status = RREG64_MCA(xgmi_inst, mca_base, MCA_REG_IDX_STATUS);
-	if (!MCA_REG__STATUS__VAL(status))
+	status = RREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS);
+	if (!ACA_REG__STATUS__VAL(status))
 		return;
 
 	switch (xgmi_v6_4_0_pcs_mca_get_error_type(adev, status)) {
-	case AMDGPU_MCA_ERROR_TYPE_UE:
+	case ACA_ERROR_TYPE_UE:
 		amdgpu_ras_error_statistic_ue_count(err_data, mcm_info, NULL, 1ULL);
 		break;
-	case AMDGPU_MCA_ERROR_TYPE_CE:
+	case ACA_ERROR_TYPE_CE:
 		amdgpu_ras_error_statistic_ce_count(err_data, mcm_info, NULL, 1ULL);
 		break;
 	default:
 		break;
 	}
 
-	WREG64_MCA(xgmi_inst, mca_base, MCA_REG_IDX_STATUS, 0ULL);
+	WREG64_MCA(xgmi_inst, mca_base, ACA_REG_IDX_STATUS, 0ULL);
 }
 
 static void xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, int xgmi_inst, struct ras_err_data *err_data)
