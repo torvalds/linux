@@ -55,8 +55,8 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/irq-st.h>
     irq-syscfg {
-        compatible    = "st,stih407-irq-syscfg";
-        st,syscfg     = <&syscfg_cpu>;
+        compatible = "st,stih407-irq-syscfg";
+        st,syscfg = <&syscfg_cpu>;
         st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
                         <ST_IRQ_SYSCFG_PMU_1>;
         st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,

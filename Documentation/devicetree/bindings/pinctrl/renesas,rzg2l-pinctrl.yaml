@@ -185,17 +185,17 @@ examples:
                     sd1_mux {
                             pinmux = <RZG2L_PORT_PINMUX(19, 0, 1)>, /* CD */
                                      <RZG2L_PORT_PINMUX(19, 1, 1)>; /* WP */
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
 
                     sd1_data {
                             pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
 
                     sd1_ctrl {
                             pins = "SD1_CLK", "SD1_CMD";
-                            power-source  = <3300>;
+                            power-source = <3300>;
                     };
             };
     };

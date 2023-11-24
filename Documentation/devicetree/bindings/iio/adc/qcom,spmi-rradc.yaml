@@ -46,6 +46,6 @@ examples:
         pmic_rradc: adc@4500 {
             compatible = "qcom,pmi8998-rradc";
             reg = <0x4500>;
-            #io-channel-cells  = <1>;
+            #io-channel-cells = <1>;
         };
     };
