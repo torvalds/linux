@@ -215,8 +215,6 @@ struct mp_adapter {
 	u8 pcibridge_funcnum;
 
 	u8 pcibridge_vendor;
-	u16 pcibridge_vendorid;
-	u16 pcibridge_deviceid;
 
 	bool amd_l1_patch;
 };

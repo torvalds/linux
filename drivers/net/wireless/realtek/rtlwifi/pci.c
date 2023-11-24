@@ -1968,7 +1968,6 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	 */
 	if (bridge_pdev) {
 		/*find bridge info if available */
-		pcipriv->ndis_adapter.pcibridge_vendorid = bridge_pdev->vendor;
 		for (tmp = 0; tmp < PCI_BRIDGE_VENDOR_MAX; tmp++) {
 			if (bridge_pdev->vendor == pcibridge_vendors[tmp]) {
 				pcipriv->ndis_adapter.pcibridge_vendor = tmp;
