@@ -689,26 +689,44 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
 
+static void phylink_validate_one(struct phylink *pl,
+				 const unsigned long *supported,
+				 const struct phylink_link_state *state,
+				 phy_interface_t interface,
+				 unsigned long *accum_supported,
+				 unsigned long *accum_advertising)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp_supported);
+	struct phylink_link_state tmp_state;
+
+	linkmode_copy(tmp_supported, supported);
+
+	tmp_state = *state;
+	tmp_state.interface = interface;
+
+	if (!phylink_validate_mac_and_pcs(pl, tmp_supported, &tmp_state)) {
+		phylink_dbg(pl, " interface %u (%s) rate match %s supports %*pbl\n",
+			    interface, phy_modes(interface),
+			    phy_rate_matching_to_str(tmp_state.rate_matching),
+			    __ETHTOOL_LINK_MODE_MASK_NBITS, tmp_supported);
+
+		linkmode_or(accum_supported, accum_supported, tmp_supported);
+		linkmode_or(accum_advertising, accum_advertising,
+			    tmp_state.advertising);
+	}
+}
+
 static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
 				 struct phylink_link_state *state,
 				 const unsigned long *interfaces)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_adv) = { 0, };
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_s) = { 0, };
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(s);
-	struct phylink_link_state t;
 	int interface;
 
-	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX) {
-		linkmode_copy(s, supported);
-
-		t = *state;
-		t.interface = interface;
-		if (!phylink_validate_mac_and_pcs(pl, s, &t)) {
-			linkmode_or(all_s, all_s, s);
-			linkmode_or(all_adv, all_adv, t.advertising);
-		}
-	}
+	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX)
+		phylink_validate_one(pl, supported, state, interface,
+				     all_s, all_adv);
 
 	linkmode_copy(supported, all_s);
 	linkmode_copy(state->advertising, all_adv);
