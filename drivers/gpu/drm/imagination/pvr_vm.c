@@ -64,6 +64,12 @@ struct pvr_vm_context {
 	struct drm_gem_object dummy_gem;
 };
 
+static inline
+struct pvr_vm_context *to_pvr_vm_context(struct drm_gpuvm *gpuvm)
+{
+	return container_of(gpuvm, struct pvr_vm_context, gpuvm_mgr);
+}
+
 struct pvr_vm_context *pvr_vm_context_get(struct pvr_vm_context *vm_ctx)
 {
 	if (vm_ctx)
@@ -535,7 +541,7 @@ pvr_device_addr_and_size_are_valid(struct pvr_vm_context *vm_ctx,
 
 void pvr_gpuvm_free(struct drm_gpuvm *gpuvm)
 {
-
+	kfree(to_pvr_vm_context(gpuvm));
 }
 
 static const struct drm_gpuvm_ops pvr_vm_gpuva_ops = {
@@ -655,12 +661,11 @@ pvr_vm_context_release(struct kref *ref_count)
 	WARN_ON(pvr_vm_unmap(vm_ctx, vm_ctx->gpuvm_mgr.mm_start,
 			     vm_ctx->gpuvm_mgr.mm_range));
 
-	drm_gpuvm_put(&vm_ctx->gpuvm_mgr);
 	pvr_mmu_context_destroy(vm_ctx->mmu_ctx);
 	drm_gem_private_object_fini(&vm_ctx->dummy_gem);
 	mutex_destroy(&vm_ctx->lock);
 
-	kfree(vm_ctx);
+	drm_gpuvm_put(&vm_ctx->gpuvm_mgr);
 }
 
 /**
