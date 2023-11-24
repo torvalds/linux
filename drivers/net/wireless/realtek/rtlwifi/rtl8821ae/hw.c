@@ -2312,9 +2312,7 @@ static void _rtl8821ae_clear_pci_pme_status(struct ieee80211_hw *hw)
 		pci_read_config_byte(rtlpci->pdev, cap_pointer + 5, &pmcs_reg);
 
 		if (pmcs_reg & BIT(7)) {
-			/* PME event occured, clear the PM_Status by write 1 */
-			pmcs_reg = pmcs_reg | BIT(7);
-
+			/* Clear PME_Status with write */
 			pci_write_config_byte(rtlpci->pdev, cap_pointer + 5,
 					      pmcs_reg);
 			/* Read it back to check */
