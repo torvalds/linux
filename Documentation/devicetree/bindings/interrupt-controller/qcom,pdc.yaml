@@ -44,6 +44,7 @@ properties:
           - qcom,sm8450-pdc
           - qcom,sm8550-pdc
           - qcom,sm8650-pdc
+          - qcom,x1e80100-pdc
       - const: qcom,pdc
 
   reg:
