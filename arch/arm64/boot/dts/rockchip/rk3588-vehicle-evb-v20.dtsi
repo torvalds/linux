@@ -118,14 +118,6 @@
 		status = "okay";
 	};
 
-	dummy_codec: dummy-codec {
-		status = "okay";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk3308_reset>;
-	};
-
 	car_rk3308_sound: car-rk3308-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -140,7 +132,7 @@
 			dai-tdm-slot-width = <32>;
 		};
 		codec_master: simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
+			sound-dai = <&spi_codec>;
 		};
 	};
 };
@@ -324,6 +316,23 @@
 
 &sdmmc {
 	status = "disabled";
+};
+
+&spi4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4m0_cs1 &spi4m0_pins>;
+
+	spi_codec: spi-codec@1 {
+		compatible ="rockchip,spi-codec";
+		reg = <1>;
+		spi-lsb-first;
+		spi-max-frequency = <5000000>;
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk3308_reset>;
+		status = "okay";
+	};
 };
 
 &uart9 {
