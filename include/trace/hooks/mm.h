@@ -199,6 +199,9 @@ DECLARE_HOOK(android_vh_adjust_kvmalloc_flags,
 DECLARE_HOOK(android_vh_slab_folio_alloced,
 	TP_PROTO(unsigned int order, gfp_t flags),
 	TP_ARGS(order, flags));
+DECLARE_HOOK(android_vh_kmalloc_large_alloced,
+	TP_PROTO(struct page *page, unsigned int order, gfp_t flags),
+	TP_ARGS(page, order, flags));
 #endif /* _TRACE_HOOK_MM_H */
 
 /* This part must be outside protection */
