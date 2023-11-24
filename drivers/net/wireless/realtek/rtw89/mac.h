@@ -818,27 +818,37 @@ enum mac_ax_err_info {
 
 struct rtw89_mac_size_set {
 	const struct rtw89_hfc_prec_cfg hfc_preccfg_pcie;
+	const struct rtw89_hfc_prec_cfg hfc_prec_cfg_c0;
+	const struct rtw89_hfc_prec_cfg hfc_prec_cfg_c2;
 	const struct rtw89_dle_size wde_size0;
+	const struct rtw89_dle_size wde_size0_v1;
 	const struct rtw89_dle_size wde_size4;
+	const struct rtw89_dle_size wde_size4_v1;
 	const struct rtw89_dle_size wde_size6;
 	const struct rtw89_dle_size wde_size7;
 	const struct rtw89_dle_size wde_size9;
 	const struct rtw89_dle_size wde_size18;
 	const struct rtw89_dle_size wde_size19;
 	const struct rtw89_dle_size ple_size0;
+	const struct rtw89_dle_size ple_size0_v1;
+	const struct rtw89_dle_size ple_size3_v1;
 	const struct rtw89_dle_size ple_size4;
 	const struct rtw89_dle_size ple_size6;
 	const struct rtw89_dle_size ple_size8;
 	const struct rtw89_dle_size ple_size18;
 	const struct rtw89_dle_size ple_size19;
 	const struct rtw89_wde_quota wde_qt0;
+	const struct rtw89_wde_quota wde_qt0_v1;
 	const struct rtw89_wde_quota wde_qt4;
 	const struct rtw89_wde_quota wde_qt6;
 	const struct rtw89_wde_quota wde_qt7;
 	const struct rtw89_wde_quota wde_qt17;
 	const struct rtw89_wde_quota wde_qt18;
+	const struct rtw89_ple_quota ple_qt0;
+	const struct rtw89_ple_quota ple_qt1;
 	const struct rtw89_ple_quota ple_qt4;
 	const struct rtw89_ple_quota ple_qt5;
+	const struct rtw89_ple_quota ple_qt9;
 	const struct rtw89_ple_quota ple_qt13;
 	const struct rtw89_ple_quota ple_qt18;
 	const struct rtw89_ple_quota ple_qt44;
@@ -849,6 +859,10 @@ struct rtw89_mac_size_set {
 	const struct rtw89_ple_quota ple_qt_52a_wow;
 	const struct rtw89_ple_quota ple_qt_52b_wow;
 	const struct rtw89_ple_quota ple_qt_51b_wow;
+	const struct rtw89_rsvd_quota ple_rsvd_qt0;
+	const struct rtw89_rsvd_quota ple_rsvd_qt1;
+	const struct rtw89_dle_rsvd_size rsvd0_size0;
+	const struct rtw89_dle_rsvd_size rsvd1_size0;
 };
 
 extern const struct rtw89_mac_size_set rtw89_mac_size;

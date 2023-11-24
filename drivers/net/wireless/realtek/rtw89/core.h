@@ -3292,6 +3292,8 @@ struct rtw89_dle_size {
 	u16 pge_size;
 	u16 lnk_pge_num;
 	u16 unlnk_pge_num;
+	/* for WiFi 7 chips below */
+	u32 srt_ofst;
 };
 
 struct rtw89_wde_quota {
@@ -3314,6 +3316,26 @@ struct rtw89_ple_quota {
 	u16 wd_rel;
 	u16 cpu_io;
 	u16 tx_rpt;
+	/* for WiFi 7 chips below */
+	u16 h2d;
+};
+
+struct rtw89_rsvd_quota {
+	u16 mpdu_info_tbl;
+	u16 b0_csi;
+	u16 b1_csi;
+	u16 b0_lmr;
+	u16 b1_lmr;
+	u16 b0_ftm;
+	u16 b1_ftm;
+	u16 b0_smr;
+	u16 b1_smr;
+	u16 others;
+};
+
+struct rtw89_dle_rsvd_size {
+	u32 srt_ofst;
+	u32 size;
 };
 
 struct rtw89_dle_mem {
@@ -3324,6 +3346,10 @@ struct rtw89_dle_mem {
 	const struct rtw89_wde_quota *wde_max_qt;
 	const struct rtw89_ple_quota *ple_min_qt;
 	const struct rtw89_ple_quota *ple_max_qt;
+	/* for WiFi 7 chips below */
+	const struct rtw89_rsvd_quota *rsvd_qt;
+	const struct rtw89_dle_rsvd_size *rsvd0_size;
+	const struct rtw89_dle_rsvd_size *rsvd1_size;
 };
 
 struct rtw89_reg_def {

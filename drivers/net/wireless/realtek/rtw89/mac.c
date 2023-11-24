@@ -1461,10 +1461,14 @@ static int rtw89_mac_sys_init(struct rtw89_dev *rtwdev)
 
 const struct rtw89_mac_size_set rtw89_mac_size = {
 	.hfc_preccfg_pcie = {2, 40, 0, 0, 1, 0, 0, 0},
+	.hfc_prec_cfg_c0 = {2, 32, 0, 0, 0, 0, 0, 0},
+	.hfc_prec_cfg_c2 = {0, 256, 0, 0, 0, 0, 0, 0},
 	/* PCIE 64 */
 	.wde_size0 = {RTW89_WDE_PG_64, 4095, 1,},
+	.wde_size0_v1 = {RTW89_WDE_PG_64, 3328, 0, 0,},
 	/* DLFW */
 	.wde_size4 = {RTW89_WDE_PG_64, 0, 4096,},
+	.wde_size4_v1 = {RTW89_WDE_PG_64, 0, 3328, 0,},
 	/* PCIE 64 */
 	.wde_size6 = {RTW89_WDE_PG_64, 512, 0,},
 	/* 8852B PCIE SCC */
@@ -1477,6 +1481,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_size19 = {RTW89_WDE_PG_64, 3328, 0,},
 	/* PCIE */
 	.ple_size0 = {RTW89_PLE_PG_128, 1520, 16,},
+	.ple_size0_v1 = {RTW89_PLE_PG_128, 2672, 256, 212992,},
+	.ple_size3_v1 = {RTW89_PLE_PG_128, 2928, 0, 212992,},
 	/* DLFW */
 	.ple_size4 = {RTW89_PLE_PG_128, 64, 1472,},
 	/* PCIE 64 */
@@ -1489,6 +1495,7 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_size19 = {RTW89_PLE_PG_128, 1904, 16,},
 	/* PCIE 64 */
 	.wde_qt0 = {3792, 196, 0, 107,},
+	.wde_qt0_v1 = {3302, 6, 0, 20,},
 	/* DLFW */
 	.wde_qt4 = {0, 0, 0, 0,},
 	/* PCIE 64 */
@@ -1499,10 +1506,13 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_qt17 = {0, 0, 0,  0,},
 	/* 8852C PCIE SCC */
 	.wde_qt18 = {3228, 60, 0, 40,},
+	.ple_qt0 = {320, 0, 32, 16, 13, 13, 292, 0, 32, 18, 1, 4, 0,},
+	.ple_qt1 = {320, 0, 32, 16, 1944, 1944, 2223, 0, 1963, 1949, 1, 1935, 0,},
 	/* PCIE SCC */
 	.ple_qt4 = {264, 0, 16, 20, 26, 13, 356, 0, 32, 40, 8,},
 	/* PCIE SCC */
 	.ple_qt5 = {264, 0, 32, 20, 64, 13, 1101, 0, 64, 128, 120,},
+	.ple_qt9 = {0, 0, 32, 256, 0, 0, 0, 0, 0, 0, 1, 0, 0,},
 	/* DLFW */
 	.ple_qt13 = {0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0,},
 	/* PCIE 64 */
@@ -1523,6 +1533,10 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt_52b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
 	/* 8851B PCIE WOW */
 	.ple_qt_51b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
+	.ple_rsvd_qt0 = {2, 112, 56, 6, 6, 6, 6, 0, 0, 62,},
+	.ple_rsvd_qt1 = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0,},
+	.rsvd0_size0 = {212992, 0,},
+	.rsvd1_size0 = {587776, 2048,},
 };
 EXPORT_SYMBOL(rtw89_mac_size);
 

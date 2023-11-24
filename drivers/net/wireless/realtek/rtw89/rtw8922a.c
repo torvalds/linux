@@ -15,6 +15,54 @@
 #define RTW8922A_MODULE_FIRMWARE \
 	RTW8922A_FW_BASENAME ".bin"
 
+static const struct rtw89_hfc_ch_cfg rtw8922a_hfc_chcfg_pcie[] = {
+	{2, 1641, grp_0}, /* ACH 0 */
+	{2, 1641, grp_0}, /* ACH 1 */
+	{2, 1641, grp_0}, /* ACH 2 */
+	{2, 1641, grp_0}, /* ACH 3 */
+	{2, 1641, grp_1}, /* ACH 4 */
+	{2, 1641, grp_1}, /* ACH 5 */
+	{2, 1641, grp_1}, /* ACH 6 */
+	{2, 1641, grp_1}, /* ACH 7 */
+	{2, 1641, grp_0}, /* B0MGQ */
+	{2, 1641, grp_0}, /* B0HIQ */
+	{2, 1641, grp_1}, /* B1MGQ */
+	{2, 1641, grp_1}, /* B1HIQ */
+	{0, 0, 0}, /* FWCMDQ */
+	{0, 0, 0}, /* BMC */
+	{0, 0, 0}, /* H2D */
+};
+
+static const struct rtw89_hfc_pub_cfg rtw8922a_hfc_pubcfg_pcie = {
+	1651, /* Group 0 */
+	1651, /* Group 1 */
+	3302, /* Public Max */
+	0, /* WP threshold */
+};
+
+static const struct rtw89_hfc_param_ini rtw8922a_hfc_param_ini_pcie[] = {
+	[RTW89_QTA_SCC] = {rtw8922a_hfc_chcfg_pcie, &rtw8922a_hfc_pubcfg_pcie,
+			   &rtw89_mac_size.hfc_prec_cfg_c0, RTW89_HCIFC_POH},
+	[RTW89_QTA_DLFW] = {NULL, NULL, &rtw89_mac_size.hfc_prec_cfg_c2,
+			    RTW89_HCIFC_POH},
+	[RTW89_QTA_INVALID] = {NULL},
+};
+
+static const struct rtw89_dle_mem rtw8922a_dle_mem_pcie[] = {
+	[RTW89_QTA_SCC] = {RTW89_QTA_SCC, &rtw89_mac_size.wde_size0_v1,
+			   &rtw89_mac_size.ple_size0_v1, &rtw89_mac_size.wde_qt0_v1,
+			   &rtw89_mac_size.wde_qt0_v1, &rtw89_mac_size.ple_qt0,
+			   &rtw89_mac_size.ple_qt1, &rtw89_mac_size.ple_rsvd_qt0,
+			   &rtw89_mac_size.rsvd0_size0, &rtw89_mac_size.rsvd1_size0},
+	[RTW89_QTA_DLFW] = {RTW89_QTA_DLFW, &rtw89_mac_size.wde_size4_v1,
+			    &rtw89_mac_size.ple_size3_v1, &rtw89_mac_size.wde_qt4,
+			    &rtw89_mac_size.wde_qt4, &rtw89_mac_size.ple_qt9,
+			    &rtw89_mac_size.ple_qt9, &rtw89_mac_size.ple_rsvd_qt1,
+			    &rtw89_mac_size.rsvd0_size0, &rtw89_mac_size.rsvd1_size0},
+	[RTW89_QTA_INVALID] = {RTW89_QTA_INVALID, NULL, NULL, NULL, NULL, NULL,
+			       NULL},
+};
+
 static const struct rtw89_efuse_block_cfg rtw8922a_efuse_blocks[] = {
 	[RTW89_EFUSE_BLOCK_SYS]			= {.offset = 0x00000, .size = 0x310},
 	[RTW89_EFUSE_BLOCK_RF]			= {.offset = 0x10000, .size = 0x240},
@@ -292,6 +340,8 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.max_amsdu_limit	= 8000,
 	.dis_2g_40m_ul_ofdma	= false,
 	.rsvd_ple_ofst		= 0x8f800,
+	.hfc_param_ini		= rtw8922a_hfc_param_ini_pcie,
+	.dle_mem		= rtw8922a_dle_mem_pcie,
 	.rf_base_addr		= {0xe000, 0xf000},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
