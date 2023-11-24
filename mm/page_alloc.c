@@ -1881,9 +1881,12 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone)
 
 	/*
 	 * The number reserved as: minimum is 1 pageblock, maximum is
-	 * roughly 1% of a zone.
+	 * roughly 1% of a zone. But if 1% of a zone falls below a
+	 * pageblock size, then don't reserve any pageblocks.
 	 * Check is race-prone but harmless.
 	 */
+	if ((zone_managed_pages(zone) / 100) < pageblock_nr_pages)
+		return;
 	max_managed = ALIGN((zone_managed_pages(zone) / 100), pageblock_nr_pages);
 	if (zone->nr_reserved_highatomic >= max_managed)
 		return;
