@@ -456,7 +456,7 @@ err_clk_register:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_lpss_probe);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_probe, INTEL_LPSS);
 
 void intel_lpss_remove(struct device *dev)
 {
@@ -468,7 +468,7 @@ void intel_lpss_remove(struct device *dev)
 	intel_lpss_unregister_clock(lpss);
 	ida_free(&intel_lpss_devid_ida, lpss->devid);
 }
-EXPORT_SYMBOL_GPL(intel_lpss_remove);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_remove, INTEL_LPSS);
 
 #ifdef CONFIG_PM
 static int resume_lpss_device(struct device *dev, void *data)
@@ -488,7 +488,7 @@ int intel_lpss_prepare(struct device *dev)
 	device_for_each_child_reverse(dev, NULL, resume_lpss_device);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_lpss_prepare);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_prepare, INTEL_LPSS);
 
 int intel_lpss_suspend(struct device *dev)
 {
@@ -509,7 +509,7 @@ int intel_lpss_suspend(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_lpss_suspend);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_suspend, INTEL_LPSS);
 
 int intel_lpss_resume(struct device *dev)
 {
@@ -524,7 +524,7 @@ int intel_lpss_resume(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_lpss_resume);
+EXPORT_SYMBOL_NS_GPL(intel_lpss_resume, INTEL_LPSS);
 #endif
 
 static int __init intel_lpss_init(void)
