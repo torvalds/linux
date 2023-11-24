@@ -136,6 +136,8 @@ struct netfs_inode {
 	struct fscache_cookie	*cache;
 #endif
 	loff_t			remote_i_size;	/* Size of the remote file */
+	loff_t			zero_point;	/* Size after which we assume there's no data
+						 * on the server */
 	unsigned long		flags;
 #define NETFS_ICTX_ODIRECT	0		/* The file has DIO in progress */
 #define NETFS_ICTX_UNBUFFERED	1		/* I/O should not use the pagecache */
@@ -453,31 +455,44 @@ static inline struct netfs_inode *netfs_inode(struct inode *inode)
  * netfs_inode_init - Initialise a netfslib inode context
  * @ctx: The netfs inode to initialise
  * @ops: The netfs's operations list
+ * @use_zero_point: True to use the zero_point read optimisation
  *
  * Initialise the netfs library context struct.  This is expected to follow on
  * directly from the VFS inode struct.
  */
 static inline void netfs_inode_init(struct netfs_inode *ctx,
-				    const struct netfs_request_ops *ops)
+				    const struct netfs_request_ops *ops,
+				    bool use_zero_point)
 {
 	ctx->ops = ops;
 	ctx->remote_i_size = i_size_read(&ctx->inode);
+	ctx->zero_point = LLONG_MAX;
 	ctx->flags = 0;
 #if IS_ENABLED(CONFIG_FSCACHE)
 	ctx->cache = NULL;
 #endif
+	/* ->releasepage() drives zero_point */
+	if (use_zero_point) {
+		ctx->zero_point = ctx->remote_i_size;
+		mapping_set_release_always(ctx->inode.i_mapping);
+	}
 }
 
 /**
  * netfs_resize_file - Note that a file got resized
  * @ctx: The netfs inode being resized
  * @new_i_size: The new file size
+ * @changed_on_server: The change was applied to the server
  *
  * Inform the netfs lib that a file got resized so that it can adjust its state.
  */
-static inline void netfs_resize_file(struct netfs_inode *ctx, loff_t new_i_size)
+static inline void netfs_resize_file(struct netfs_inode *ctx, loff_t new_i_size,
+				     bool changed_on_server)
 {
-	ctx->remote_i_size = new_i_size;
+	if (changed_on_server)
+		ctx->remote_i_size = new_i_size;
+	if (new_i_size < ctx->zero_point)
+		ctx->zero_point = new_i_size;
 }
 
 /**

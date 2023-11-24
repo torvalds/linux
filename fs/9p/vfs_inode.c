@@ -249,7 +249,7 @@ void v9fs_free_inode(struct inode *inode)
 static void v9fs_set_netfs_context(struct inode *inode)
 {
 	struct v9fs_inode *v9inode = V9FS_I(inode);
-	netfs_inode_init(&v9inode->netfs, &v9fs_req_ops);
+	netfs_inode_init(&v9inode->netfs, &v9fs_req_ops, true);
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
