@@ -247,6 +247,8 @@ static void debugfs_release_dentry(struct dentry *dentry)
 		lockdep_unregister_key(&fsd->key);
 		kfree(fsd->lock_name);
 #endif
+		WARN_ON(!list_empty(&fsd->cancellations));
+		mutex_destroy(&fsd->cancellations_mtx);
 	}
 
 	kfree(fsd);
@@ -756,8 +758,36 @@ static void __debugfs_file_removed(struct dentry *dentry)
 	lock_map_acquire(&fsd->lockdep_map);
 	lock_map_release(&fsd->lockdep_map);
 
-	if (!refcount_dec_and_test(&fsd->active_users))
+	/* if we hit zero, just wait for all to finish */
+	if (!refcount_dec_and_test(&fsd->active_users)) {
 		wait_for_completion(&fsd->active_users_drained);
+		return;
+	}
+
+	/* if we didn't hit zero, try to cancel any we can */
+	while (refcount_read(&fsd->active_users)) {
+		struct debugfs_cancellation *c;
+
+		/*
+		 * Lock the cancellations. Note that the cancellations
+		 * structs are meant to be on the stack, so we need to
+		 * ensure we either use them here or don't touch them,
+		 * and debugfs_leave_cancellation() will wait for this
+		 * to be finished processing before exiting one. It may
+		 * of course win and remove the cancellation, but then
+		 * chances are we never even got into this bit, we only
+		 * do if the refcount isn't zero already.
+		 */
+		mutex_lock(&fsd->cancellations_mtx);
+		while ((c = list_first_entry_or_null(&fsd->cancellations,
+						     typeof(*c), list))) {
+			list_del_init(&c->list);
+			c->cancel(dentry, c->cancel_data);
+		}
+		mutex_unlock(&fsd->cancellations_mtx);
+
+		wait_for_completion(&fsd->active_users_drained);
+	}
 }
 
 static void remove_one(struct dentry *victim)
