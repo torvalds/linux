@@ -1281,7 +1281,7 @@ static int fill_ringbuffer(struct vpu_instance *inst)
 
 		/* Don't write buffers passed the last one while draining. */
 		if (v4l2_m2m_is_last_draining_src_buf(m2m_ctx, vbuf)) {
-			dev_dbg(inst->dev->dev, "last src buffer written to the ring bufferur\n");
+			dev_dbg(inst->dev->dev, "last src buffer written to the ring buffer\n");
 			break;
 		}
 	}
