@@ -497,6 +497,7 @@ struct cs43130_dai {
 	unsigned int			sclk;
 	unsigned int			dai_format;
 	unsigned int			dai_mode;
+	unsigned int			dai_invert;
 };
 
 struct	cs43130_private {
