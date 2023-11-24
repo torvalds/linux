@@ -1400,6 +1400,15 @@ config SXR_TCSRCC_NIOBE
 	  Say Y if you want to support miscellaneous top-level clocks
 	  such as for the PHY references.
 
+config SXR_DEBUGCC_NIOBE
+	tristate "NIOBE Debug Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  Niobe devices.
+	  Say Y if you want to support the debug clocks such as clock
+	  measurement functionality.
+
 endif
 
 config VIRTIO_CLK
