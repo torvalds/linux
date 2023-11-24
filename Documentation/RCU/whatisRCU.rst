@@ -172,14 +172,25 @@ rcu_read_lock()
 	critical section.  Reference counts may be used in conjunction
 	with RCU to maintain longer-term references to data structures.
 
+	Note that anything that disables bottom halves, preemption,
+	or interrupts also enters an RCU read-side critical section.
+	Acquiring a spinlock also enters an RCU read-side critical
+	sections, even for spinlocks that do not disable preemption,
+	as is the case in kernels built with CONFIG_PREEMPT_RT=y.
+	Sleeplocks do *not* enter RCU read-side critical sections.
+
 rcu_read_unlock()
 ^^^^^^^^^^^^^^^^^
 	void rcu_read_unlock(void);
 
 	This temporal primitives is used by a reader to inform the
 	reclaimer that the reader is exiting an RCU read-side critical
-	section.  Note that RCU read-side critical sections may be nested
-	and/or overlapping.
+	section.  Anything that enables bottom halves, preemption,
+	or interrupts also exits an RCU read-side critical section.
+	Releasing a spinlock also exits an RCU read-side critical section.
+
+	Note that RCU read-side critical sections may be nested and/or
+	overlapping.
 
 synchronize_rcu()
 ^^^^^^^^^^^^^^^^^
