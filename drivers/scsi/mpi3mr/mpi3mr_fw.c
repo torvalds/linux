@@ -1892,7 +1892,8 @@ static int mpi3mr_create_op_reply_q(struct mpi3mr_ioc *mrioc, u16 qidx)
 
 	reply_qid = qidx + 1;
 	op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD;
-	if (!mrioc->pdev->revision)
+	if ((mrioc->pdev->device == MPI3_MFGPAGE_DEVID_SAS4116) &&
+		!mrioc->pdev->revision)
 		op_reply_q->num_replies = MPI3MR_OP_REP_Q_QD4K;
 	op_reply_q->ci = 0;
 	op_reply_q->ephase = 1;
@@ -3192,6 +3193,9 @@ static int mpi3mr_issue_iocinit(struct mpi3mr_ioc *mrioc)
 
 	current_time = ktime_get_real();
 	iocinit_req.time_stamp = cpu_to_le64(ktime_to_ms(current_time));
+
+	iocinit_req.msg_flags |=
+	    MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED;
 
 	init_completion(&mrioc->init_cmds.done);
 	retval = mpi3mr_admin_request_post(mrioc, &iocinit_req,

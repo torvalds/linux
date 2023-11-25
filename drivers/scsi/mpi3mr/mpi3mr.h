@@ -55,8 +55,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.5.0.0.0"
-#define MPI3MR_DRIVER_RELDATE	"24-July-2023"
+#define MPI3MR_DRIVER_VERSION	"8.5.0.0.50"
+#define MPI3MR_DRIVER_RELDATE	"22-November-2023"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -506,7 +506,7 @@ struct mpi3mr_sas_port {
 	u8 num_phys;
 	u8 marked_responding;
 	int lowest_phy;
-	u32 phy_mask;
+	u64 phy_mask;
 	struct mpi3mr_hba_port *hba_port;
 	struct sas_identify remote_identify;
 	struct sas_rphy *rphy;
