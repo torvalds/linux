@@ -1863,15 +1863,6 @@ static int raid1_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			goto abort;
 		}
 		p->rdev = NULL;
-		if (!test_bit(RemoveSynchronized, &rdev->flags)) {
-			synchronize_rcu();
-			if (atomic_read(&rdev->nr_pending)) {
-				/* lost the race, try later */
-				err = -EBUSY;
-				p->rdev = rdev;
-				goto abort;
-			}
-		}
 		if (conf->mirrors[conf->raid_disks + number].rdev) {
 			/* We just removed a device that is being replaced.
 			 * Move down the replacement.  We drain all IO before
