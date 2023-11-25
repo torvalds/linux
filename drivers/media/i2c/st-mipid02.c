@@ -96,7 +96,6 @@ struct mipid02_dev {
 	struct gpio_desc *reset_gpio;
 	/* endpoints info */
 	struct v4l2_fwnode_endpoint rx;
-	u64 link_frequency;
 	struct v4l2_fwnode_endpoint tx;
 	/* remote source */
 	struct v4l2_async_notifier notifier;
