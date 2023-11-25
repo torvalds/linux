@@ -112,9 +112,6 @@ struct mipid02_dev {
 		u8 pix_width_ctrl;
 		u8 pix_width_ctrl_emb;
 	} r;
-	/* lock to protect all members below */
-	struct mutex lock;
-	struct v4l2_mbus_framefmt fmt;
 };
 
 static int bpp_from_code(__u32 code)
@@ -190,18 +187,6 @@ static u8 data_type_from_code(__u32 code)
 	default:
 		return 0;
 	}
-}
-
-static void init_format(struct v4l2_mbus_framefmt *fmt)
-{
-	fmt->code = MEDIA_BUS_FMT_SBGGR8_1X8;
-	fmt->field = V4L2_FIELD_NONE;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(V4L2_COLORSPACE_SRGB);
-	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(V4L2_COLORSPACE_SRGB);
-	fmt->width = 640;
-	fmt->height = 480;
 }
 
 static __u32 get_fmt_code(__u32 code)
@@ -317,12 +302,13 @@ static int mipid02_detect(struct mipid02_dev *bridge)
  * will be retrieve from connected device via v4l2_get_link_freq, bit per pixel
  * and number of lanes.
  */
-static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge)
+static int mipid02_configure_from_rx_speed(struct mipid02_dev *bridge,
+					   struct v4l2_mbus_framefmt *fmt)
 {
 	struct i2c_client *client = bridge->i2c_client;
 	struct v4l2_subdev *subdev = bridge->s_subdev;
 	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
-	u32 bpp = bpp_from_code(bridge->fmt.code);
+	u32 bpp = bpp_from_code(fmt->code);
 	/*
 	 * clk_lane_reg1 requires 4 times the unit interval time, and bitrate
 	 * is twice the link frequency, hence ui_4 = 1000000000 * 4 / 2
@@ -394,7 +380,8 @@ static int mipid02_configure_data1_lane(struct mipid02_dev *bridge, int nb,
 	return 0;
 }
 
-static int mipid02_configure_from_rx(struct mipid02_dev *bridge)
+static int mipid02_configure_from_rx(struct mipid02_dev *bridge,
+				     struct v4l2_mbus_framefmt *fmt)
 {
 	struct v4l2_fwnode_endpoint *ep = &bridge->rx;
 	bool are_lanes_swap = ep->bus.mipi_csi2.data_lanes[0] == 2;
@@ -419,7 +406,7 @@ static int mipid02_configure_from_rx(struct mipid02_dev *bridge)
 	bridge->r.mode_reg1 |= are_lanes_swap ? MODE_DATA_SWAP : 0;
 	bridge->r.mode_reg1 |= (nb - 1) << 1;
 
-	return mipid02_configure_from_rx_speed(bridge);
+	return mipid02_configure_from_rx_speed(bridge, fmt);
 }
 
 static int mipid02_configure_from_tx(struct mipid02_dev *bridge)
@@ -439,16 +426,17 @@ static int mipid02_configure_from_tx(struct mipid02_dev *bridge)
 	return 0;
 }
 
-static int mipid02_configure_from_code(struct mipid02_dev *bridge)
+static int mipid02_configure_from_code(struct mipid02_dev *bridge,
+				       struct v4l2_mbus_framefmt *fmt)
 {
 	u8 data_type;
 
 	bridge->r.data_id_rreg = 0;
 
-	if (bridge->fmt.code != MEDIA_BUS_FMT_JPEG_1X8) {
+	if (fmt->code != MEDIA_BUS_FMT_JPEG_1X8) {
 		bridge->r.data_selection_ctrl |= SELECTION_MANUAL_DATA;
 
-		data_type = data_type_from_code(bridge->fmt.code);
+		data_type = data_type_from_code(fmt->code);
 		if (!data_type)
 			return -EINVAL;
 		bridge->r.data_id_rreg = data_type;
@@ -485,22 +473,30 @@ error:
 static int mipid02_stream_enable(struct mipid02_dev *bridge)
 {
 	struct i2c_client *client = bridge->i2c_client;
+	struct v4l2_subdev_state *state;
+	struct v4l2_mbus_framefmt *fmt;
 	int ret = -EINVAL;
 
 	if (!bridge->s_subdev)
 		goto error;
 
 	memset(&bridge->r, 0, sizeof(bridge->r));
+
+	state = v4l2_subdev_lock_and_get_active_state(&bridge->sd);
+	fmt = v4l2_subdev_state_get_format(state, MIPID02_SINK_0);
+
 	/* build registers content */
-	ret = mipid02_configure_from_rx(bridge);
+	ret = mipid02_configure_from_rx(bridge, fmt);
 	if (ret)
 		goto error;
 	ret = mipid02_configure_from_tx(bridge);
 	if (ret)
 		goto error;
-	ret = mipid02_configure_from_code(bridge);
+	ret = mipid02_configure_from_code(bridge, fmt);
 	if (ret)
 		goto error;
+
+	v4l2_subdev_unlock_state(state);
 
 	/* write mipi registers */
 	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1,
@@ -556,11 +552,32 @@ static int mipid02_s_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
+static const struct v4l2_mbus_framefmt default_fmt = {
+	.code = MEDIA_BUS_FMT_SBGGR8_1X8,
+	.field = V4L2_FIELD_NONE,
+	.colorspace = V4L2_COLORSPACE_SRGB,
+	.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT,
+	.quantization = V4L2_QUANTIZATION_FULL_RANGE,
+	.xfer_func = V4L2_XFER_FUNC_DEFAULT,
+	.width = 640,
+	.height = 480,
+};
+
+static int mipid02_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
+{
+	*v4l2_subdev_state_get_format(state, MIPID02_SINK_0) = default_fmt;
+	/* MIPID02_SINK_1 isn't supported yet */
+	*v4l2_subdev_state_get_format(state, MIPID02_SOURCE) = default_fmt;
+
+	return 0;
+}
+
 static int mipid02_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
+	struct v4l2_mbus_framefmt *sink_fmt;
 	int ret = 0;
 
 	switch (code->pad) {
@@ -571,10 +588,13 @@ static int mipid02_enum_mbus_code(struct v4l2_subdev *sd,
 			code->code = mipid02_supported_fmt_codes[code->index];
 		break;
 	case MIPID02_SOURCE:
-		if (code->index == 0)
-			code->code = serial_to_parallel_code(bridge->fmt.code);
-		else
+		if (code->index == 0) {
+			sink_fmt = v4l2_subdev_state_get_format(sd_state,
+								MIPID02_SINK_0);
+			code->code = serial_to_parallel_code(sink_fmt->code);
+		} else {
 			ret = -EINVAL;
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -583,112 +603,36 @@ static int mipid02_enum_mbus_code(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int mipid02_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *format)
-{
-	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
-	struct i2c_client *client = bridge->i2c_client;
-	struct v4l2_mbus_framefmt *fmt;
-
-	dev_dbg(&client->dev, "%s probe %d", __func__, format->pad);
-
-	if (format->pad >= MIPID02_PAD_NB)
-		return -EINVAL;
-	/* second CSI-2 pad not yet supported */
-	if (format->pad == MIPID02_SINK_1)
-		return -EINVAL;
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
-	else
-		fmt = &bridge->fmt;
-
-	mutex_lock(&bridge->lock);
-
-	*mbus_fmt = *fmt;
-	/* code may need to be converted for source */
-	if (format->pad == MIPID02_SOURCE)
-		mbus_fmt->code = serial_to_parallel_code(mbus_fmt->code);
-
-	mutex_unlock(&bridge->lock);
-
-	return 0;
-}
-
-static void mipid02_set_fmt_source(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_format *format)
-{
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
-
-	/* source pad mirror sink pad */
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		format->format = bridge->fmt;
-	else
-		format->format = *v4l2_subdev_state_get_format(sd_state,
-							       MIPID02_SINK_0);
-
-	/* but code may need to be converted */
-	format->format.code = serial_to_parallel_code(format->format.code);
-
-	/* only apply format for V4L2_SUBDEV_FORMAT_TRY case */
-	if (format->which != V4L2_SUBDEV_FORMAT_TRY)
-		return;
-
-	*v4l2_subdev_state_get_format(sd_state, MIPID02_SOURCE) =
-		format->format;
-}
-
-static void mipid02_set_fmt_sink(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state,
-				 struct v4l2_subdev_format *format)
-{
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
-	struct v4l2_subdev_format source_fmt;
-	struct v4l2_mbus_framefmt *fmt;
-
-	format->format.code = get_fmt_code(format->format.code);
-
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
-	else
-		fmt = &bridge->fmt;
-
-	*fmt = format->format;
-
-	/*
-	 * Propagate the format change to the source pad, taking
-	 * care not to update the format pointer given back to user
-	 */
-	source_fmt = *format;
-	mipid02_set_fmt_source(sd, sd_state, &source_fmt);
-}
-
 static int mipid02_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *format)
+			   struct v4l2_subdev_format *fmt)
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
+	struct v4l2_mbus_framefmt *pad_fmt;
 
-	dev_dbg(&client->dev, "%s for %d", __func__, format->pad);
+	dev_dbg(&client->dev, "%s for %d", __func__, fmt->pad);
 
-	if (format->pad >= MIPID02_PAD_NB)
-		return -EINVAL;
 	/* second CSI-2 pad not yet supported */
-	if (format->pad == MIPID02_SINK_1)
+	if (fmt->pad == MIPID02_SINK_1)
 		return -EINVAL;
 
-	mutex_lock(&bridge->lock);
+	pad_fmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
+	fmt->format.code = get_fmt_code(fmt->format.code);
 
-	if (format->pad == MIPID02_SOURCE)
-		mipid02_set_fmt_source(sd, sd_state, format);
-	else
-		mipid02_set_fmt_sink(sd, sd_state, format);
+	/* code may need to be converted */
+	if (fmt->pad == MIPID02_SOURCE)
+		fmt->format.code = serial_to_parallel_code(fmt->format.code);
 
-	mutex_unlock(&bridge->lock);
+	*pad_fmt = fmt->format;
+
+	/* Propagate the format to the source pad in case of sink pad update */
+	if (fmt->pad == MIPID02_SINK_0) {
+		pad_fmt = v4l2_subdev_state_get_format(sd_state,
+						       MIPID02_SOURCE);
+		*pad_fmt = fmt->format;
+		pad_fmt->code = serial_to_parallel_code(fmt->format.code);
+	}
 
 	return 0;
 }
@@ -699,13 +643,17 @@ static const struct v4l2_subdev_video_ops mipid02_video_ops = {
 
 static const struct v4l2_subdev_pad_ops mipid02_pad_ops = {
 	.enum_mbus_code = mipid02_enum_mbus_code,
-	.get_fmt = mipid02_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mipid02_set_fmt,
 };
 
 static const struct v4l2_subdev_ops mipid02_subdev_ops = {
 	.video = &mipid02_video_ops,
 	.pad = &mipid02_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mipid02_subdev_internal_ops = {
+	.init_state = mipid02_init_state,
 };
 
 static const struct media_entity_operations mipid02_subdev_entity_ops = {
@@ -867,8 +815,6 @@ static int mipid02_probe(struct i2c_client *client)
 	if (!bridge)
 		return -ENOMEM;
 
-	init_format(&bridge->fmt);
-
 	bridge->i2c_client = client;
 	v4l2_i2c_subdev_init(&bridge->sd, client, &mipid02_subdev_ops);
 
@@ -906,9 +852,9 @@ static int mipid02_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(bridge->regmap),
 				     "failed to get cci regmap\n");
 
-	mutex_init(&bridge->lock);
 	bridge->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	bridge->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	bridge->sd.internal_ops = &mipid02_subdev_internal_ops;
 	bridge->sd.entity.ops = &mipid02_subdev_entity_ops;
 	bridge->pad[0].flags = MEDIA_PAD_FL_SINK;
 	bridge->pad[1].flags = MEDIA_PAD_FL_SINK;
@@ -917,7 +863,13 @@ static int mipid02_probe(struct i2c_client *client)
 				     bridge->pad);
 	if (ret) {
 		dev_err(&client->dev, "pads init failed %d", ret);
-		goto mutex_cleanup;
+		return ret;
+	}
+
+	ret = v4l2_subdev_init_finalize(&bridge->sd);
+	if (ret < 0) {
+		dev_err(dev, "subdev init error: %d\n", ret);
+		goto entity_cleanup;
 	}
 
 	/* enable clock, power and reset device if available */
@@ -961,8 +913,6 @@ power_off:
 	mipid02_set_power_off(bridge);
 entity_cleanup:
 	media_entity_cleanup(&bridge->sd.entity);
-mutex_cleanup:
-	mutex_destroy(&bridge->lock);
 
 	return ret;
 }
@@ -977,7 +927,6 @@ static void mipid02_remove(struct i2c_client *client)
 	v4l2_async_unregister_subdev(&bridge->sd);
 	mipid02_set_power_off(bridge);
 	media_entity_cleanup(&bridge->sd.entity);
-	mutex_destroy(&bridge->lock);
 }
 
 static const struct of_device_id mipid02_dt_ids[] = {
