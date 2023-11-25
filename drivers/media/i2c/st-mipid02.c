@@ -17,24 +17,25 @@
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <media/v4l2-async.h>
+#include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MIPID02_CLK_LANE_WR_REG1			0x01
-#define MIPID02_CLK_LANE_REG1				0x02
-#define MIPID02_CLK_LANE_REG3				0x04
-#define MIPID02_DATA_LANE0_REG1				0x05
-#define MIPID02_DATA_LANE0_REG2				0x06
-#define MIPID02_DATA_LANE1_REG1				0x09
-#define MIPID02_DATA_LANE1_REG2				0x0a
-#define MIPID02_MODE_REG1				0x14
-#define MIPID02_MODE_REG2				0x15
-#define MIPID02_DATA_ID_RREG				0x17
-#define MIPID02_DATA_SELECTION_CTRL			0x19
-#define MIPID02_PIX_WIDTH_CTRL				0x1e
-#define MIPID02_PIX_WIDTH_CTRL_EMB			0x1f
+#define MIPID02_CLK_LANE_WR_REG1	CCI_REG8(0x01)
+#define MIPID02_CLK_LANE_REG1		CCI_REG8(0x02)
+#define MIPID02_CLK_LANE_REG3		CCI_REG8(0x04)
+#define MIPID02_DATA_LANE0_REG1		CCI_REG8(0x05)
+#define MIPID02_DATA_LANE0_REG2		CCI_REG8(0x06)
+#define MIPID02_DATA_LANE1_REG1		CCI_REG8(0x09)
+#define MIPID02_DATA_LANE1_REG2		CCI_REG8(0x0a)
+#define MIPID02_MODE_REG1		CCI_REG8(0x14)
+#define MIPID02_MODE_REG2		CCI_REG8(0x15)
+#define MIPID02_DATA_ID_RREG		CCI_REG8(0x17)
+#define MIPID02_DATA_SELECTION_CTRL	CCI_REG8(0x19)
+#define MIPID02_PIX_WIDTH_CTRL		CCI_REG8(0x1e)
+#define MIPID02_PIX_WIDTH_CTRL_EMB	CCI_REG8(0x1f)
 
 /* Bits definition for MIPID02_CLK_LANE_REG1 */
 #define CLK_ENABLE					BIT(0)
@@ -88,6 +89,7 @@ struct mipid02_dev {
 	struct i2c_client *i2c_client;
 	struct regulator_bulk_data supplies[MIPID02_NUM_SUPPLIES];
 	struct v4l2_subdev sd;
+	struct regmap *regmap;
 	struct media_pad pad[MIPID02_PAD_NB];
 	struct clk *xclk;
 	struct gpio_desc *reset_gpio;
@@ -237,62 +239,6 @@ static inline struct mipid02_dev *to_mipid02_dev(struct v4l2_subdev *sd)
 	return container_of(sd, struct mipid02_dev, sd);
 }
 
-static int mipid02_read_reg(struct mipid02_dev *bridge, u16 reg, u8 *val)
-{
-	struct i2c_client *client = bridge->i2c_client;
-	struct i2c_msg msg[2];
-	u8 buf[2];
-	int ret;
-
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-
-	msg[0].addr = client->addr;
-	msg[0].flags = client->flags;
-	msg[0].buf = buf;
-	msg[0].len = sizeof(buf);
-
-	msg[1].addr = client->addr;
-	msg[1].flags = client->flags | I2C_M_RD;
-	msg[1].buf = val;
-	msg[1].len = 1;
-
-	ret = i2c_transfer(client->adapter, msg, 2);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: %x i2c_transfer, reg: %x => %d\n",
-			    __func__, client->addr, reg, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int mipid02_write_reg(struct mipid02_dev *bridge, u16 reg, u8 val)
-{
-	struct i2c_client *client = bridge->i2c_client;
-	struct i2c_msg msg;
-	u8 buf[3];
-	int ret;
-
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-	buf[2] = val;
-
-	msg.addr = client->addr;
-	msg.flags = client->flags;
-	msg.buf = buf;
-	msg.len = sizeof(buf);
-
-	ret = i2c_transfer(client->adapter, &msg, 1);
-	if (ret < 0) {
-		dev_dbg(&client->dev, "%s: i2c_transfer, reg: %x => %d\n",
-			    __func__, reg, ret);
-		return ret;
-	}
-
-	return 0;
-}
-
 static int mipid02_get_regulators(struct mipid02_dev *bridge)
 {
 	unsigned int i;
@@ -357,13 +303,13 @@ static void mipid02_set_power_off(struct mipid02_dev *bridge)
 
 static int mipid02_detect(struct mipid02_dev *bridge)
 {
-	u8 reg;
+	u64 reg;
 
 	/*
 	 * There is no version registers. Just try to read register
 	 * MIPID02_CLK_LANE_WR_REG1.
 	 */
-	return mipid02_read_reg(bridge, MIPID02_CLK_LANE_WR_REG1, &reg);
+	return cci_read(bridge->regmap, MIPID02_CLK_LANE_WR_REG1, &reg, NULL);
 }
 
 /*
@@ -524,13 +470,9 @@ static int mipid02_stream_disable(struct mipid02_dev *bridge)
 		goto error;
 
 	/* Disable all lanes */
-	ret = mipid02_write_reg(bridge, MIPID02_CLK_LANE_REG1, 0);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE0_REG1, 0);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE1_REG1, 0);
+	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 	if (ret)
 		goto error;
 error:
@@ -561,51 +503,26 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 		goto error;
 
 	/* write mipi registers */
-	ret = mipid02_write_reg(bridge, MIPID02_CLK_LANE_REG1,
-		bridge->r.clk_lane_reg1);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_CLK_LANE_REG3, CLK_MIPI_CSI);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE0_REG1,
-		bridge->r.data_lane0_reg1);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE0_REG2,
-		DATA_MIPI_CSI);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE1_REG1,
-		bridge->r.data_lane1_reg1);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_LANE1_REG2,
-		DATA_MIPI_CSI);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_MODE_REG1,
-		MODE_NO_BYPASS | bridge->r.mode_reg1);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_MODE_REG2,
-		bridge->r.mode_reg2);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_ID_RREG,
-		bridge->r.data_id_rreg);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_DATA_SELECTION_CTRL,
-		bridge->r.data_selection_ctrl);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_PIX_WIDTH_CTRL,
-		bridge->r.pix_width_ctrl);
-	if (ret)
-		goto error;
-	ret = mipid02_write_reg(bridge, MIPID02_PIX_WIDTH_CTRL_EMB,
-		bridge->r.pix_width_ctrl_emb);
+	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1,
+		  bridge->r.clk_lane_reg1, &ret);
+	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG3, CLK_MIPI_CSI, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1,
+		  bridge->r.data_lane0_reg1, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG2, DATA_MIPI_CSI, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1,
+		  bridge->r.data_lane1_reg1, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG2, DATA_MIPI_CSI, &ret);
+	cci_write(bridge->regmap, MIPID02_MODE_REG1,
+		  MODE_NO_BYPASS | bridge->r.mode_reg1, &ret);
+	cci_write(bridge->regmap, MIPID02_MODE_REG2, bridge->r.mode_reg2, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_ID_RREG, bridge->r.data_id_rreg,
+		  &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_SELECTION_CTRL,
+		  bridge->r.data_selection_ctrl, &ret);
+	cci_write(bridge->regmap, MIPID02_PIX_WIDTH_CTRL,
+		  bridge->r.pix_width_ctrl, &ret);
+	cci_write(bridge->regmap, MIPID02_PIX_WIDTH_CTRL_EMB,
+		  bridge->r.pix_width_ctrl_emb, &ret);
 	if (ret)
 		goto error;
 
@@ -982,6 +899,12 @@ static int mipid02_probe(struct i2c_client *client)
 		dev_err(dev, "failed to get regulators %d", ret);
 		return ret;
 	}
+
+	/* Initialise the regmap for further cci access */
+	bridge->regmap = devm_cci_regmap_init_i2c(client, 16);
+	if (IS_ERR(bridge->regmap))
+		return dev_err_probe(dev, PTR_ERR(bridge->regmap),
+				     "failed to get cci regmap\n");
 
 	mutex_init(&bridge->lock);
 	bridge->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
