@@ -171,6 +171,21 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		return bkey_s_c_null;
 	}
 
+	if (trace_rebalance_extent_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "target=");
+		bch2_target_to_text(&buf, c, r->target);
+		prt_str(&buf, " compression=");
+		struct bch_compression_opt opt = __bch2_compression_decode(r->compression);
+		prt_str(&buf, bch2_compression_opts[opt.type]);
+		prt_str(&buf, " ");
+		bch2_bkey_val_to_text(&buf, c, k);
+
+		trace_rebalance_extent(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+
 	return k;
 }
 

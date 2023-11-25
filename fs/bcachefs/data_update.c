@@ -267,6 +267,20 @@ restart_drop_extra_replicas:
 			goto out;
 		}
 
+		if (trace_data_update_enabled()) {
+			struct printbuf buf = PRINTBUF;
+
+			prt_str(&buf, "\nold: ");
+			bch2_bkey_val_to_text(&buf, c, old);
+			prt_str(&buf, "\nk:   ");
+			bch2_bkey_val_to_text(&buf, c, k);
+			prt_str(&buf, "\nnew: ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+
+			trace_data_update(c, buf.buf);
+			printbuf_exit(&buf);
+		}
+
 		ret =   bch2_insert_snapshot_whiteouts(trans, m->btree_id,
 						k.k->p, bkey_start_pos(&insert->k)) ?:
 			bch2_insert_snapshot_whiteouts(trans, m->btree_id,

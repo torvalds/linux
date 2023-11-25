@@ -32,19 +32,21 @@ DECLARE_EVENT_CLASS(bpos,
 	TP_printk("%llu:%llu:%u", __entry->p_inode, __entry->p_offset, __entry->p_snapshot)
 );
 
-DECLARE_EVENT_CLASS(bkey,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k),
+DECLARE_EVENT_CLASS(str,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str),
 
 	TP_STRUCT__entry(
-		__string(k,	k				)
+		__field(dev_t,		dev			)
+		__string(str,		str			)
 	),
 
 	TP_fast_assign(
-		__assign_str(k, k);
+		__entry->dev		= c->dev;
+		__assign_str(str, str);
 	),
 
-	TP_printk("%s", __get_str(k))
+	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
 );
 
 DECLARE_EVENT_CLASS(btree_node,
@@ -736,22 +738,22 @@ TRACE_EVENT(bucket_evacuate,
 		  __entry->dev_idx, __entry->bucket)
 );
 
-DEFINE_EVENT(bkey, move_extent,
+DEFINE_EVENT(str, move_extent,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(bkey, move_extent_read,
+DEFINE_EVENT(str, move_extent_read,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(bkey, move_extent_write,
+DEFINE_EVENT(str, move_extent_write,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(bkey, move_extent_finish,
+DEFINE_EVENT(str, move_extent_finish,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
@@ -773,7 +775,7 @@ TRACE_EVENT(move_extent_fail,
 	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
 );
 
-DEFINE_EVENT(bkey, move_extent_start_fail,
+DEFINE_EVENT(str, move_extent_start_fail,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
@@ -1347,6 +1349,16 @@ TRACE_EVENT(write_buffer_flush_slowpath,
 	),
 
 	TP_printk("%zu/%zu", __entry->nr, __entry->size)
+);
+
+DEFINE_EVENT(str, rebalance_extent,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
+DEFINE_EVENT(str, data_update,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 #endif /* _TRACE_BCACHEFS_H */
