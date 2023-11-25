@@ -3,9 +3,25 @@
  * Copyright (c) 2023 Edgeble AI Technologies Pvt. Ltd.
  */
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+
 / {
 	aliases {
 		mmc0 = &sdhci;
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led_user: led-0 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_HEARTBEAT;
+			gpios = <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			pinctrl-names = "default";
+			pinctrl-0 = <&led_user_en>;
+		};
 	};
 
 	vcc12v_dcin: vcc12v-dcin-regulator {
@@ -106,6 +122,14 @@
 
 		regulator-state-mem {
 			regulator-off-in-suspend;
+		};
+	};
+};
+
+&pinctrl {
+	leds {
+		led_user_en: led_user_en {
+			rockchip,pins = <0 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
