@@ -1505,6 +1505,27 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	if (a->data_type != BCH_DATA_cached)
 		return 0;
 
+	if (fsck_err_on(!a->io_time[READ], c,
+			alloc_key_cached_but_read_time_zero,
+			"cached bucket with read_time 0\n"
+			"  %s",
+		(printbuf_reset(&buf),
+		 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+		struct bkey_i_alloc_v4 *a_mut =
+			bch2_alloc_to_v4_mut(trans, alloc_k);
+		ret = PTR_ERR_OR_ZERO(a_mut);
+		if (ret)
+			goto err;
+
+		a_mut->v.io_time[READ] = atomic64_read(&c->io_clock[READ].now);
+		ret = bch2_trans_update(trans, alloc_iter,
+					&a_mut->k_i, BTREE_TRIGGER_NORUN);
+		if (ret)
+			goto err;
+
+		a = &a_mut->v;
+	}
+
 	lru_k = bch2_bkey_get_iter(trans, &lru_iter, BTREE_ID_lru,
 			     lru_pos(alloc_k.k->p.inode,
 				     bucket_to_u64(alloc_k.k->p),
@@ -1513,41 +1534,18 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (fsck_err_on(!a->io_time[READ], c,
-			alloc_key_cached_but_read_time_zero,
-			"cached bucket with read_time 0\n"
-			"  %s",
-		(printbuf_reset(&buf),
-		 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)) ||
-	    fsck_err_on(lru_k.k->type != KEY_TYPE_set, c,
+	if (fsck_err_on(lru_k.k->type != KEY_TYPE_set, c,
 			alloc_key_to_missing_lru_entry,
 			"missing lru entry\n"
 			"  %s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		u64 read_time = a->io_time[READ] ?:
-			atomic64_read(&c->io_clock[READ].now);
-
 		ret = bch2_lru_set(trans,
 				   alloc_k.k->p.inode,
 				   bucket_to_u64(alloc_k.k->p),
-				   read_time);
+				   a->io_time[READ]);
 		if (ret)
 			goto err;
-
-		if (a->io_time[READ] != read_time) {
-			struct bkey_i_alloc_v4 *a_mut =
-				bch2_alloc_to_v4_mut(trans, alloc_k);
-			ret = PTR_ERR_OR_ZERO(a_mut);
-			if (ret)
-				goto err;
-
-			a_mut->v.io_time[READ] = read_time;
-			ret = bch2_trans_update(trans, alloc_iter,
-						&a_mut->k_i, BTREE_TRIGGER_NORUN);
-			if (ret)
-				goto err;
-		}
 	}
 err:
 fsck_err:
@@ -1560,15 +1558,13 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	int ret = 0;
 
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN, BTREE_ITER_PREFETCH, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			bch2_check_alloc_to_lru_ref(trans, &iter)));
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
