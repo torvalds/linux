@@ -18,7 +18,7 @@
  * index to the run-queue array.
  */
 enum nouveau_sched_priority {
-	NOUVEAU_SCHED_PRIORITY_SINGLE = DRM_SCHED_PRIORITY_MIN,
+	NOUVEAU_SCHED_PRIORITY_SINGLE = DRM_SCHED_PRIORITY_KERNEL,
 	NOUVEAU_SCHED_PRIORITY_COUNT,
 };
 
@@ -423,7 +423,7 @@ nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
 	if (ret)
 		goto fail_wq;
 
-	/* Using DRM_SCHED_PRIORITY_MIN, since that's what we're required to use
+	/* Using DRM_SCHED_PRIORITY_KERNEL, since that's what we're required to use
 	 * when we want to have a single run-queue only.
 	 *
 	 * It's not documented, but one will find out when trying to use any
@@ -433,7 +433,7 @@ nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
 	 * Can't use NOUVEAU_SCHED_PRIORITY_SINGLE either, because it's not
 	 * matching the enum type used in drm_sched_entity_init().
 	 */
-	ret = drm_sched_entity_init(entity, DRM_SCHED_PRIORITY_MIN,
+	ret = drm_sched_entity_init(entity, DRM_SCHED_PRIORITY_KERNEL,
 				    &drm_sched, 1, NULL);
 	if (ret)
 		goto fail_sched;
