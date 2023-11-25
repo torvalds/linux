@@ -108,17 +108,13 @@ enum qm_stop_reason {
 };
 
 enum qm_state {
-	QM_INIT = 0,
-	QM_START,
-	QM_CLOSE,
+	QM_WORK = 0,
 	QM_STOP,
 };
 
 enum qp_state {
-	QP_INIT = 1,
-	QP_START,
+	QP_START = 1,
 	QP_STOP,
-	QP_CLOSE,
 };
 
 enum qm_hw_ver {

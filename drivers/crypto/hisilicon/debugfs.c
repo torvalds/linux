@@ -31,6 +31,10 @@ static const char * const qm_debug_file_name[] = {
 	[CLEAR_ENABLE] = "clear_enable",
 };
 
+static const char * const qm_s[] = {
+	"work", "stop",
+};
+
 struct qm_dfx_item {
 	const char *name;
 	u32 offset;

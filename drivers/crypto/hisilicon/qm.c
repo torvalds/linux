@@ -402,10 +402,6 @@ static const char * const qm_fifo_overflow[] = {
 	"cq", "eq", "aeq",
 };
 
-static const char * const qp_s[] = {
-	"none", "init", "start", "stop", "close",
-};
-
 struct qm_typical_qos_table {
 	u32 start;
 	u32 end;
@@ -432,85 +428,6 @@ static struct qm_typical_qos_table shaper_cbs_s[] = {
 };
 
 static void qm_irqs_unregister(struct hisi_qm *qm);
-
-static bool qm_avail_state(struct hisi_qm *qm, enum qm_state new)
-{
-	enum qm_state curr = atomic_read(&qm->status.flags);
-	bool avail = false;
-
-	switch (curr) {
-	case QM_INIT:
-		if (new == QM_START || new == QM_CLOSE)
-			avail = true;
-		break;
-	case QM_START:
-		if (new == QM_STOP)
-			avail = true;
-		break;
-	case QM_STOP:
-		if (new == QM_CLOSE || new == QM_START)
-			avail = true;
-		break;
-	default:
-		break;
-	}
-
-	dev_dbg(&qm->pdev->dev, "change qm state from %s to %s\n",
-		qm_s[curr], qm_s[new]);
-
-	if (!avail)
-		dev_warn(&qm->pdev->dev, "Can not change qm state from %s to %s\n",
-			 qm_s[curr], qm_s[new]);
-
-	return avail;
-}
-
-static bool qm_qp_avail_state(struct hisi_qm *qm, struct hisi_qp *qp,
-			      enum qp_state new)
-{
-	enum qm_state qm_curr = atomic_read(&qm->status.flags);
-	enum qp_state qp_curr = 0;
-	bool avail = false;
-
-	if (qp)
-		qp_curr = atomic_read(&qp->qp_status.flags);
-
-	switch (new) {
-	case QP_INIT:
-		if (qm_curr == QM_START || qm_curr == QM_INIT)
-			avail = true;
-		break;
-	case QP_START:
-		if ((qm_curr == QM_START && qp_curr == QP_INIT) ||
-		    (qm_curr == QM_START && qp_curr == QP_STOP))
-			avail = true;
-		break;
-	case QP_STOP:
-		if ((qm_curr == QM_START && qp_curr == QP_START) ||
-		    (qp_curr == QP_INIT))
-			avail = true;
-		break;
-	case QP_CLOSE:
-		if ((qm_curr == QM_START && qp_curr == QP_INIT) ||
-		    (qm_curr == QM_START && qp_curr == QP_STOP) ||
-		    (qm_curr == QM_STOP && qp_curr == QP_STOP)  ||
-		    (qm_curr == QM_STOP && qp_curr == QP_INIT))
-			avail = true;
-		break;
-	default:
-		break;
-	}
-
-	dev_dbg(&qm->pdev->dev, "change qp state from %s to %s in QM %s\n",
-		qp_s[qp_curr], qp_s[new], qm_s[qm_curr]);
-
-	if (!avail)
-		dev_warn(&qm->pdev->dev,
-			 "Can not change qp state from %s to %s in QM %s\n",
-			 qp_s[qp_curr], qp_s[new], qm_s[qm_curr]);
-
-	return avail;
-}
 
 static u32 qm_get_hw_error_status(struct hisi_qm *qm)
 {
@@ -1853,8 +1770,10 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 	struct hisi_qp *qp;
 	int qp_id;
 
-	if (!qm_qp_avail_state(qm, NULL, QP_INIT))
+	if (atomic_read(&qm->status.flags) == QM_STOP) {
+		dev_info_ratelimited(dev, "failed to create qp as qm is stop!\n");
 		return ERR_PTR(-EPERM);
+	}
 
 	if (qm->qp_in_used == qm->qp_num) {
 		dev_info_ratelimited(dev, "All %u queues of QM are busy!\n",
@@ -1881,7 +1800,6 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 	qp->alg_type = alg_type;
 	qp->is_in_kernel = true;
 	qm->qp_in_used++;
-	atomic_set(&qp->qp_status.flags, QP_INIT);
 
 	return qp;
 }
@@ -1923,11 +1841,6 @@ static void hisi_qm_release_qp(struct hisi_qp *qp)
 	struct hisi_qm *qm = qp->qm;
 
 	down_write(&qm->qps_lock);
-
-	if (!qm_qp_avail_state(qm, qp, QP_CLOSE)) {
-		up_write(&qm->qps_lock);
-		return;
-	}
 
 	qm->qp_in_used--;
 	idr_remove(&qm->qp_idr, qp->qp_id);
@@ -2008,8 +1921,10 @@ static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
 	u32 pasid = arg;
 	int ret;
 
-	if (!qm_qp_avail_state(qm, qp, QP_START))
+	if (atomic_read(&qm->status.flags) == QM_STOP) {
+		dev_info_ratelimited(dev, "failed to start qp as qm is stop!\n");
 		return -EPERM;
+	}
 
 	ret = qm_qp_ctx_cfg(qp, qp_id, pasid);
 	if (ret)
@@ -2131,20 +2046,16 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 	 * is_resetting flag should be set negative so that this qp will not
 	 * be restarted after reset.
 	 */
-	if (atomic_read(&qp->qp_status.flags) == QP_STOP) {
+	if (atomic_read(&qp->qp_status.flags) != QP_START) {
 		qp->is_resetting = false;
 		return 0;
 	}
-
-	if (!qm_qp_avail_state(qp->qm, qp, QP_STOP))
-		return -EPERM;
 
 	atomic_set(&qp->qp_status.flags, QP_STOP);
 
 	ret = qm_drain_qp(qp);
 	if (ret)
 		dev_err(dev, "Failed to drain out data for stopping!\n");
-
 
 	flush_workqueue(qp->qm->wq);
 	if (unlikely(qp->is_resetting && atomic_read(&qp->qp_status.used)))
@@ -2865,13 +2776,8 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 {
 	qm_cmd_uninit(qm);
 	hisi_qm_unint_work(qm);
+
 	down_write(&qm->qps_lock);
-
-	if (!qm_avail_state(qm, QM_CLOSE)) {
-		up_write(&qm->qps_lock);
-		return;
-	}
-
 	hisi_qm_memory_uninit(qm);
 	hisi_qm_set_state(qm, QM_NOT_READY);
 	up_write(&qm->qps_lock);
@@ -3045,11 +2951,6 @@ int hisi_qm_start(struct hisi_qm *qm)
 
 	down_write(&qm->qps_lock);
 
-	if (!qm_avail_state(qm, QM_START)) {
-		up_write(&qm->qps_lock);
-		return -EPERM;
-	}
-
 	dev_dbg(dev, "qm start with %u queue pairs\n", qm->qp_num);
 
 	if (!qm->qp_num) {
@@ -3059,10 +2960,12 @@ int hisi_qm_start(struct hisi_qm *qm)
 	}
 
 	ret = __hisi_qm_start(qm);
-	if (!ret)
-		atomic_set(&qm->status.flags, QM_START);
+	if (ret)
+		goto err_unlock;
 
+	atomic_set(&qm->status.flags, QM_WORK);
 	hisi_qm_set_state(qm, QM_READY);
+
 err_unlock:
 	up_write(&qm->qps_lock);
 	return ret;
@@ -3159,10 +3062,11 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 	down_write(&qm->qps_lock);
 
 	qm->status.stop_reason = r;
-	if (!qm_avail_state(qm, QM_STOP)) {
-		ret = -EPERM;
+	if (atomic_read(&qm->status.flags) == QM_STOP)
 		goto err_unlock;
-	}
+
+	/* Stop all the request sending at first. */
+	atomic_set(&qm->status.flags, QM_STOP);
 
 	if (qm->status.stop_reason == QM_SOFT_RESET ||
 	    qm->status.stop_reason == QM_DOWN) {
@@ -3186,7 +3090,6 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 	}
 
 	qm_clear_queues(qm);
-	atomic_set(&qm->status.flags, QM_STOP);
 
 err_unlock:
 	up_write(&qm->qps_lock);
@@ -5350,7 +5253,6 @@ int hisi_qm_init(struct hisi_qm *qm)
 		goto err_free_qm_memory;
 
 	qm_cmd_init(qm);
-	atomic_set(&qm->status.flags, QM_INIT);
 
 	return 0;
 
