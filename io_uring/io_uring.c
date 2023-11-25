@@ -2690,6 +2690,7 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 {
 	struct page **page_array;
 	unsigned int nr_pages;
+	void *page_addr;
 	int ret, i;
 
 	*npages = 0;
@@ -2711,27 +2712,29 @@ err:
 		io_pages_free(&page_array, ret > 0 ? ret : 0);
 		return ret < 0 ? ERR_PTR(ret) : ERR_PTR(-EFAULT);
 	}
-	/*
-	 * Should be a single page. If the ring is small enough that we can
-	 * use a normal page, that is fine. If we need multiple pages, then
-	 * userspace should use a huge page. That's the only way to guarantee
-	 * that we get contigious memory, outside of just being lucky or
-	 * (currently) having low memory fragmentation.
-	 */
-	if (page_array[0] != page_array[ret - 1])
-		goto err;
 
-	/*
-	 * Can't support mapping user allocated ring memory on 32-bit archs
-	 * where it could potentially reside in highmem. Just fail those with
-	 * -EINVAL, just like we did on kernels that didn't support this
-	 * feature.
-	 */
+	page_addr = page_address(page_array[0]);
 	for (i = 0; i < nr_pages; i++) {
-		if (PageHighMem(page_array[i])) {
-			ret = -EINVAL;
+		ret = -EINVAL;
+
+		/*
+		 * Can't support mapping user allocated ring memory on 32-bit
+		 * archs where it could potentially reside in highmem. Just
+		 * fail those with -EINVAL, just like we did on kernels that
+		 * didn't support this feature.
+		 */
+		if (PageHighMem(page_array[i]))
 			goto err;
-		}
+
+		/*
+		 * No support for discontig pages for now, should either be a
+		 * single normal page, or a huge page. Later on we can add
+		 * support for remapping discontig pages, for now we will
+		 * just fail them with EINVAL.
+		 */
+		if (page_address(page_array[i]) != page_addr)
+			goto err;
+		page_addr += PAGE_SIZE;
 	}
 
 	*pages = page_array;
