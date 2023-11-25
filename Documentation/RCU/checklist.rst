@@ -491,6 +491,12 @@ over a rather long period of time, but improvements are always welcome!
 		since the last time that you passed that same object to
 		call_rcu() (or friends).
 
+	CONFIG_RCU_STRICT_GRACE_PERIOD:
+		combine with KASAN to check for pointers leaked out
+		of RCU read-side critical sections.  This Kconfig
+		option is tough on both performance and scalability,
+		and so is limited to four-CPU systems.
+
 	__rcu sparse checks:
 		tag the pointer to the RCU-protected data structure
 		with __rcu, and sparse will warn you if you access that
