@@ -2935,6 +2935,9 @@ static int spi_nor_late_init_params(struct spi_nor *nor)
 			return ret;
 	}
 
+	/* Needed by some flashes late_init hooks. */
+	spi_nor_init_flags(nor);
+
 	if (nor->info->fixups && nor->info->fixups->late_init) {
 		ret = nor->info->fixups->late_init(nor);
 		if (ret)
@@ -2948,7 +2951,6 @@ static int spi_nor_late_init_params(struct spi_nor *nor)
 	if (!params->set_4byte_addr_mode)
 		params->set_4byte_addr_mode = spi_nor_set_4byte_addr_mode_brwr;
 
-	spi_nor_init_flags(nor);
 	spi_nor_init_fixup_flags(nor);
 
 	/*
@@ -3186,6 +3188,18 @@ int spi_nor_set_4byte_addr_mode(struct spi_nor *nor, bool enable)
 	struct spi_nor_flash_parameter *params = nor->params;
 	int ret;
 
+	if (enable) {
+		/*
+		 * If the RESET# pin isn't hooked up properly, or the system
+		 * otherwise doesn't perform a reset command in the boot
+		 * sequence, it's impossible to 100% protect against unexpected
+		 * reboots (e.g., crashes). Warn the user (or hopefully, system
+		 * designer) that this is bad.
+		 */
+		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
+			  "enabling reset hack; may not recover from unexpected reboots\n");
+	}
+
 	ret = params->set_4byte_addr_mode(nor, enable);
 	if (ret && ret != -ENOTSUPP)
 		return ret;
@@ -3234,20 +3248,8 @@ static int spi_nor_init(struct spi_nor *nor)
 
 	if (nor->addr_nbytes == 4 &&
 	    nor->read_proto != SNOR_PROTO_8_8_8_DTR &&
-	    !(nor->flags & SNOR_F_4B_OPCODES)) {
-		/*
-		 * If the RESET# pin isn't hooked up properly, or the system
-		 * otherwise doesn't perform a reset command in the boot
-		 * sequence, it's impossible to 100% protect against unexpected
-		 * reboots (e.g., crashes). Warn the user (or hopefully, system
-		 * designer) that this is bad.
-		 */
-		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
-			  "enabling reset hack; may not recover from unexpected reboots\n");
-		err = spi_nor_set_4byte_addr_mode(nor, true);
-		if (err)
-			return err;
-	}
+	    !(nor->flags & SNOR_F_4B_OPCODES))
+		return spi_nor_set_4byte_addr_mode(nor, true);
 
 	return 0;
 }
