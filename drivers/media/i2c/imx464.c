@@ -1854,7 +1854,7 @@ static int IMX464_set_hdrae(struct IMX464 *IMX464,
 		__LINE__, rhs1, s_exp_time, rhs1_old,
 		(rhs1_old + 2 * BRL - fsc + 2));
 
-	rhs1 = (rhs1 >> 2) * 4 + 1;
+	rhs1 = ((rhs1 + 3) >> 2) * 4 + 1;
 	rhs1_old = rhs1;
 
 	if (rhs1 - s_exp_time <= SHR1_MIN) {
