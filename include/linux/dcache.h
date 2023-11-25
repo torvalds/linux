@@ -68,12 +68,12 @@ extern const struct qstr dotdot_name;
  * large memory footprint increase).
  */
 #ifdef CONFIG_64BIT
-# define DNAME_INLINE_LEN 32 /* 192 bytes */
+# define DNAME_INLINE_LEN 40 /* 192 bytes */
 #else
 # ifdef CONFIG_SMP
-#  define DNAME_INLINE_LEN 36 /* 128 bytes */
-# else
 #  define DNAME_INLINE_LEN 40 /* 128 bytes */
+# else
+#  define DNAME_INLINE_LEN 44 /* 128 bytes */
 # endif
 #endif
 
@@ -101,8 +101,8 @@ struct dentry {
 		struct list_head d_lru;		/* LRU list */
 		wait_queue_head_t *d_wait;	/* in-lookup ones only */
 	};
-	struct list_head d_child;	/* child of parent list */
-	struct list_head d_subdirs;	/* our children */
+	struct hlist_node d_sib;	/* child of parent list */
+	struct hlist_head d_children;	/* our children */
 	/*
 	 * d_alias and d_rcu can share memory
 	 */
@@ -563,5 +563,15 @@ struct name_snapshot {
 };
 void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);
 void release_dentry_name_snapshot(struct name_snapshot *);
+
+static inline struct dentry *d_first_child(const struct dentry *dentry)
+{
+	return hlist_entry_safe(dentry->d_children.first, struct dentry, d_sib);
+}
+
+static inline struct dentry *d_next_sibling(const struct dentry *dentry)
+{
+	return hlist_entry_safe(dentry->d_sib.next, struct dentry, d_sib);
+}
 
 #endif	/* __LINUX_DCACHE_H */
