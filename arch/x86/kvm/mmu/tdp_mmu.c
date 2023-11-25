@@ -73,10 +73,13 @@ static void tdp_mmu_free_sp_rcu_callback(struct rcu_head *head)
 	tdp_mmu_free_sp(sp);
 }
 
-void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
-			  bool shared)
+void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root)
 {
-	kvm_lockdep_assert_mmu_lock_held(kvm, shared);
+	/*
+	 * Either read or write is okay, but mmu_lock must be held because
+	 * writers are not required to take tdp_mmu_pages_lock.
+	 */
+	lockdep_assert_held(&kvm->mmu_lock);
 
 	if (!refcount_dec_and_test(&root->tdp_mmu_root_count))
 		return;
@@ -106,9 +109,15 @@ void kvm_tdp_mmu_put_root(struct kvm *kvm, struct kvm_mmu_page *root,
  */
 static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 					      struct kvm_mmu_page *prev_root,
-					      bool shared, bool only_valid)
+					      bool only_valid)
 {
 	struct kvm_mmu_page *next_root;
+
+	/*
+	 * While the roots themselves are RCU-protected, fields such as
+	 * role.invalid are protected by mmu_lock.
+	 */
+	lockdep_assert_held(&kvm->mmu_lock);
 
 	rcu_read_lock();
 
@@ -132,7 +141,7 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 	rcu_read_unlock();
 
 	if (prev_root)
-		kvm_tdp_mmu_put_root(kvm, prev_root, shared);
+		kvm_tdp_mmu_put_root(kvm, prev_root);
 
 	return next_root;
 }
@@ -144,13 +153,12 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
  * recent root. (Unless keeping a live reference is desirable.)
  *
  * If shared is set, this function is operating under the MMU lock in read
- * mode. In the unlikely event that this thread must free a root, the lock
- * will be temporarily dropped and reacquired in write mode.
+ * mode.
  */
 #define __for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, _only_valid)\
-	for (_root = tdp_mmu_next_root(_kvm, NULL, _shared, _only_valid);	\
+	for (_root = tdp_mmu_next_root(_kvm, NULL, _only_valid);		\
 	     _root;								\
-	     _root = tdp_mmu_next_root(_kvm, _root, _shared, _only_valid))	\
+	     _root = tdp_mmu_next_root(_kvm, _root, _only_valid))		\
 		if (kvm_lockdep_assert_mmu_lock_held(_kvm, _shared) &&		\
 		    kvm_mmu_page_as_id(_root) != _as_id) {			\
 		} else
@@ -159,9 +167,9 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 	__for_each_tdp_mmu_root_yield_safe(_kvm, _root, _as_id, _shared, true)
 
 #define for_each_tdp_mmu_root_yield_safe(_kvm, _root, _shared)			\
-	for (_root = tdp_mmu_next_root(_kvm, NULL, _shared, false);		\
+	for (_root = tdp_mmu_next_root(_kvm, NULL, false);			\
 	     _root;								\
-	     _root = tdp_mmu_next_root(_kvm, _root, _shared, false))		\
+	     _root = tdp_mmu_next_root(_kvm, _root, false))			\
 		if (!kvm_lockdep_assert_mmu_lock_held(_kvm, _shared)) {		\
 		} else
 
@@ -891,7 +899,7 @@ void kvm_tdp_mmu_zap_invalidated_roots(struct kvm *kvm)
 		 * the root must be reachable by mmu_notifiers while it's being
 		 * zapped
 		 */
-		kvm_tdp_mmu_put_root(kvm, root, true);
+		kvm_tdp_mmu_put_root(kvm, root);
 	}
 
 	read_unlock(&kvm->mmu_lock);
@@ -1500,7 +1508,7 @@ void kvm_tdp_mmu_try_split_huge_pages(struct kvm *kvm,
 	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, slot->as_id, shared) {
 		r = tdp_mmu_split_huge_pages_root(kvm, root, start, end, target_level, shared);
 		if (r) {
-			kvm_tdp_mmu_put_root(kvm, root, shared);
+			kvm_tdp_mmu_put_root(kvm, root);
 			break;
 		}
 	}
