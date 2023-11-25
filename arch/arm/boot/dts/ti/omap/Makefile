@@ -79,7 +79,9 @@ dtb-$(CONFIG_ARCH_OMAP4) += \
 	omap4-sdp.dtb \
 	omap4-sdp-es23plus.dtb \
 	omap4-var-dvk-om44.dtb \
-	omap4-var-stk-om44.dtb
+	omap4-var-stk-om44.dtb \
+	omap4-xyboard-mz609.dtb \
+	omap4-xyboard-mz617.dtb
 dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-baltos-ir2110.dtb \
 	am335x-baltos-ir3220.dtb \
