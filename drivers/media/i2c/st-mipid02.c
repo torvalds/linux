@@ -112,7 +112,6 @@ struct mipid02_dev {
 	} r;
 	/* lock to protect all members below */
 	struct mutex lock;
-	bool streaming;
 	struct v4l2_mbus_framefmt fmt;
 };
 
@@ -629,22 +628,13 @@ static int mipid02_s_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = bridge->i2c_client;
 	int ret = 0;
 
-	dev_dbg(&client->dev, "%s : requested %d / current = %d", __func__,
-		    enable, bridge->streaming);
-	mutex_lock(&bridge->lock);
-
-	if (bridge->streaming == enable)
-		goto out;
+	dev_dbg(&client->dev, "%s : requested %d\n", __func__, enable);
 
 	ret = enable ? mipid02_stream_enable(bridge) :
 		       mipid02_stream_disable(bridge);
-	if (!ret)
-		bridge->streaming = enable;
-
-out:
-	dev_dbg(&client->dev, "%s current now = %d / %d", __func__,
-		    bridge->streaming, ret);
-	mutex_unlock(&bridge->lock);
+	if (ret)
+		dev_err(&client->dev, "failed to stream %s (%d)\n",
+			enable ? "enable" : "disable", ret);
 
 	return ret;
 }
@@ -765,7 +755,6 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 {
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
-	int ret = 0;
 
 	dev_dbg(&client->dev, "%s for %d", __func__, format->pad);
 
@@ -777,20 +766,14 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&bridge->lock);
 
-	if (bridge->streaming) {
-		ret = -EBUSY;
-		goto error;
-	}
-
 	if (format->pad == MIPID02_SOURCE)
 		mipid02_set_fmt_source(sd, sd_state, format);
 	else
 		mipid02_set_fmt_sink(sd, sd_state, format);
 
-error:
 	mutex_unlock(&bridge->lock);
 
-	return ret;
+	return 0;
 }
 
 static const struct v4l2_subdev_video_ops mipid02_video_ops = {
