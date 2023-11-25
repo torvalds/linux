@@ -68,7 +68,8 @@ over a rather long period of time, but improvements are always welcome!
 	rcu_read_lock_sched(), or by the appropriate update-side lock.
 	Explicit disabling of preemption (preempt_disable(), for example)
 	can serve as rcu_read_lock_sched(), but is less readable and
-	prevents lockdep from detecting locking issues.
+	prevents lockdep from detecting locking issues.  Acquiring a
+	spinlock also enters an RCU read-side critical section.
 
 	Please note that you *cannot* rely on code known to be built
 	only in non-preemptible kernels.  Such code can and will break,
@@ -444,7 +445,7 @@ over a rather long period of time, but improvements are always welcome!
 	real-time workloads than is synchronize_rcu_expedited().
 
 	It is also permissible to sleep in RCU Tasks Trace read-side
-	critical, which are delimited by rcu_read_lock_trace() and
+	critical section, which are delimited by rcu_read_lock_trace() and
 	rcu_read_unlock_trace().  However, this is a specialized flavor
 	of RCU, and you should not use it without first checking with
 	its current users.  In most cases, you should instead use SRCU.
