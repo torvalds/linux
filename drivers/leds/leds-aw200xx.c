@@ -526,6 +526,7 @@ static const struct regmap_config aw200xx_regmap_config = {
 	.rd_table = &aw200xx_readable_table,
 	.wr_table = &aw200xx_writeable_table,
 	.cache_type = REGCACHE_MAPLE,
+	.disable_locking = true,
 };
 
 static int aw200xx_probe(struct i2c_client *client)
