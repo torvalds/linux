@@ -258,6 +258,11 @@ properties:
 
       - items:
           - enum:
+              - htc,memul
+          - const: qcom,msm8926
+
+      - items:
+          - enum:
               - motorola,potter
               - xiaomi,daisy
               - xiaomi,mido
