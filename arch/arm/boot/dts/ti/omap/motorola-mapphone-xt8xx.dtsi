@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /dts-v1/;
 
-#include "motorola-mapphone-common.dtsi"
+#include "motorola-mapphone-handset.dtsi"
 
 / {
 	backlight: backlight {
