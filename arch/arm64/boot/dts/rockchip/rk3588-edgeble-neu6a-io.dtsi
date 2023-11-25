@@ -19,6 +19,19 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
+	vcc3v3_pcie3x2: vcc3v3-pcie3x2-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>; /* PCIE_4G_PWEN */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie3x2_vcc3v3_en>;
+		regulator-name = "vcc3v3_pcie3x2";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc3v3_pcie3x4: vcc3v3-pcie3x4-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -70,6 +83,15 @@
 	status = "okay";
 };
 
+/* B-Key and E-Key */
+&pcie3x2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie3x2_rst>;
+	reset-gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>; /* PCIE30X4_PERSTn_M1_L */
+	vpcie3v3-supply = <&vcc3v3_pcie3x2>;
+	status = "okay";
+};
+
 /* M-Key */
 &pcie3x4 {
 	pinctrl-names = "default";
@@ -87,6 +109,14 @@
 	};
 
 	pcie3 {
+		pcie3x2_rst: pcie3x2-rst {
+			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		pcie3x2_vcc3v3_en: pcie3x2-vcc3v3-en {
+			rockchip,pins = <2 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		pcie3x4_rst: pcie3x4-rst {
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
