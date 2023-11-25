@@ -151,7 +151,11 @@ struct bpos {
 #else
 #error edit for your odd byteorder.
 #endif
-} __packed __aligned(4);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+__aligned(4)
+#endif
+;
 
 #define KEY_INODE_MAX			((__u64)~0ULL)
 #define KEY_OFFSET_MAX			((__u64)~0ULL)
