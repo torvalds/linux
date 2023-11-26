@@ -346,13 +346,12 @@ static inline struct bch_alloc_v4 bucket_m_to_alloc(struct bucket b)
 }
 
 static void bch2_dev_usage_update_m(struct bch_fs *c, struct bch_dev *ca,
-				    struct bucket old, struct bucket new,
-				    u64 journal_seq, bool gc)
+				    struct bucket old, struct bucket new)
 {
 	bch2_dev_usage_update(c, ca,
 			      bucket_m_to_alloc(old),
 			      bucket_m_to_alloc(new),
-			      journal_seq, gc);
+			      0, true);
 }
 
 static inline int __update_replicas(struct bch_fs *c,
@@ -658,7 +657,7 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 err:
 	bucket_unlock(g);
 	if (!ret)
-		bch2_dev_usage_update_m(c, ca, old, new, 0, true);
+		bch2_dev_usage_update_m(c, ca, old, new);
 	percpu_up_read(&c->mark_lock);
 	return ret;
 }
@@ -773,7 +772,6 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 			      unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	u64 journal_seq = trans->journal_res.seq;
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	unsigned nr_data = s->nr_blocks - s->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
@@ -820,7 +818,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 err:
 	bucket_unlock(g);
 	if (!ret)
-		bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
+		bch2_dev_usage_update_m(c, ca, old, new);
 	percpu_up_read(&c->mark_lock);
 	printbuf_exit(&buf);
 	return ret;
@@ -859,7 +857,6 @@ static int bch2_mark_pointer(struct btree_trans *trans,
 			     s64 sectors,
 			     unsigned flags)
 {
-	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct bucket old, new, *g;
@@ -886,7 +883,7 @@ static int bch2_mark_pointer(struct btree_trans *trans,
 	new = *g;
 	bucket_unlock(g);
 	if (!ret)
-		bch2_dev_usage_update_m(c, ca, old, new, journal_seq, true);
+		bch2_dev_usage_update_m(c, ca, old, new);
 	percpu_up_read(&c->mark_lock);
 
 	return ret;
