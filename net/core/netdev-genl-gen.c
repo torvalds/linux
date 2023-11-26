@@ -60,6 +60,7 @@ static const struct genl_split_ops netdev_nl_ops[] = {
 
 static const struct genl_multicast_group netdev_nl_mcgrps[] = {
 	[NETDEV_NLGRP_MGMT] = { "mgmt", },
+	[NETDEV_NLGRP_PAGE_POOL] = { "page-pool", },
 };
 
 struct genl_family netdev_nl_family __ro_after_init = {

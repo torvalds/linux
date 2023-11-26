@@ -135,6 +135,37 @@ err_cancel:
 	return -EMSGSIZE;
 }
 
+static void netdev_nl_page_pool_event(const struct page_pool *pool, u32 cmd)
+{
+	struct genl_info info;
+	struct sk_buff *ntf;
+	struct net *net;
+
+	lockdep_assert_held(&page_pools_lock);
+
+	/* 'invisible' page pools don't matter */
+	if (hlist_unhashed(&pool->user.list))
+		return;
+	net = dev_net(pool->slow.netdev);
+
+	if (!genl_has_listeners(&netdev_nl_family, net, NETDEV_NLGRP_PAGE_POOL))
+		return;
+
+	genl_info_init_ntf(&info, &netdev_nl_family, cmd);
+
+	ntf = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!ntf)
+		return;
+
+	if (page_pool_nl_fill(ntf, pool, &info)) {
+		nlmsg_free(ntf);
+		return;
+	}
+
+	genlmsg_multicast_netns(&netdev_nl_family, net, ntf,
+				0, NETDEV_NLGRP_PAGE_POOL, GFP_KERNEL);
+}
+
 int netdev_nl_page_pool_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	u32 id;
@@ -168,6 +199,8 @@ int page_pool_list(struct page_pool *pool)
 		hlist_add_head(&pool->user.list,
 			       &pool->slow.netdev->page_pools);
 		pool->user.napi_id = pool->p.napi ? pool->p.napi->napi_id : 0;
+
+		netdev_nl_page_pool_event(pool, NETDEV_CMD_PAGE_POOL_ADD_NTF);
 	}
 
 	mutex_unlock(&page_pools_lock);
@@ -181,6 +214,7 @@ err_unlock:
 void page_pool_unlist(struct page_pool *pool)
 {
 	mutex_lock(&page_pools_lock);
+	netdev_nl_page_pool_event(pool, NETDEV_CMD_PAGE_POOL_DEL_NTF);
 	xa_erase(&page_pools, pool->user.id);
 	hlist_del(&pool->user.list);
 	mutex_unlock(&page_pools_lock);
@@ -210,6 +244,8 @@ static void page_pool_unreg_netdev(struct net_device *netdev)
 	last = NULL;
 	hlist_for_each_entry(pool, &netdev->page_pools, user.list) {
 		pool->slow.netdev = lo;
+		netdev_nl_page_pool_event(pool,
+					  NETDEV_CMD_PAGE_POOL_CHANGE_NTF);
 		last = pool;
 	}
 	if (last)

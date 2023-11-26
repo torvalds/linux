@@ -19,6 +19,7 @@ int netdev_nl_page_pool_get_dumpit(struct sk_buff *skb,
 
 enum {
 	NETDEV_NLGRP_MGMT,
+	NETDEV_NLGRP_PAGE_POOL,
 };
 
 extern struct genl_family netdev_nl_family;

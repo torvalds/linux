@@ -166,8 +166,28 @@ operations:
       dump:
         reply: *pp-reply
       config-cond: page-pool
+    -
+      name: page-pool-add-ntf
+      doc: Notification about page pool appearing.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
+    -
+      name: page-pool-del-ntf
+      doc: Notification about page pool disappearing.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
+    -
+      name: page-pool-change-ntf
+      doc: Notification about page pool configuration being changed.
+      notify: page-pool-get
+      mcgrp: page-pool
+      config-cond: page-pool
 
 mcast-groups:
   list:
     -
       name: mgmt
+    -
+      name: page-pool
