@@ -1356,7 +1356,7 @@ typedef struct smb_com_transaction_ioctl_rsp {
 	__le32 DataDisplacement;
 	__u8 SetupCount;	/* 1 */
 	__le16 ReturnedDataLen;
-	__u16 ByteCount;
+	__le16 ByteCount;
 } __attribute__((packed)) TRANSACT_IOCTL_RSP;
 
 #define CIFS_ACL_OWNER 1
@@ -1509,7 +1509,7 @@ struct reparse_posix_data {
 	__le16	ReparseDataLength;
 	__u16	Reserved;
 	__le64	InodeType; /* LNK, FIFO, CHR etc. */
-	char	PathBuffer[];
+	__u8	DataBuffer[];
 } __attribute__((packed));
 
 struct cifs_quota_data {
