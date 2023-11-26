@@ -2947,7 +2947,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	struct q2spi_geni *q2spi;
 	int ret = 0;
 
-	pr_info("%s start PID=%d\n", __func__, current->pid);
+	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Init\n");
 
 	q2spi = devm_kzalloc(dev, sizeof(*q2spi), GFP_KERNEL);
 	if (!q2spi)
@@ -3092,6 +3092,9 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	q2spi->max_data_dump_size = Q2SPI_DATA_DUMP_SIZE;
 
 	Q2SPI_INFO(q2spi, "%s Q2SPI GENI SE Driver probed\n", __func__);
+
+	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Ready\n");
+
 	return 0;
 
 probe_err:
@@ -3180,13 +3183,11 @@ static int __init q2spi_dev_init(void)
 {
 	int ret = 0;
 
-	pr_info("%s PID=%d\n", __func__, current->pid);
-
 	ret = platform_driver_register(&q2spi_geni_driver);
 	if (ret)
 		pr_err("register platform driver failed, ret [%d]\n", ret);
 
-	pr_err("%s end ret:%d\n", __func__, ret);
+	pr_info("%s end ret:%d\n", __func__, ret);
 	return ret;
 }
 
