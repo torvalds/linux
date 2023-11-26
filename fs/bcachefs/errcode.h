@@ -210,6 +210,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_replicas)			\
+	x(BCH_ERR_invalid_sb,		invalid_replicas_entry)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal_seq_blacklist)	\
 	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
