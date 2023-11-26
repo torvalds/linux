@@ -20,9 +20,29 @@
 #define PCIE_DMA_DATA_FREE_ACK_TABLE_OFFSET	0x10
 #define PCIE_DMA_DATA_READ_REMOTE_TABLE_OFFSET	0x18
 
+/* DMA linked list register filed */
+#define PCIE_DWC_DMA_CB				BIT(0)
+#define PCIE_DWC_DMA_TCB			BIT(1)
+#define PCIE_DWC_DMA_LLP			BIT(2)
+#define PCIE_DWC_DMA_LIE			BIT(3)
+#define PCIE_DWC_DMA_RIE			BIT(4)
+#define PCIE_DWC_DMA_CCS			BIT(8)
+#define PCIE_DWC_DMA_LLE			BIT(9)
+
+#define SET_LL_32(ll, value) \
+	writel(value, ll)
+
+#define SET_LL_64(ll, value) \
+	writeq(value, ll)
+
 enum dma_dir {
 	DMA_FROM_BUS,
 	DMA_TO_BUS,
+};
+
+enum dma_mode {
+	RK_PCIE_DMA_BLOCK,
+	RK_PCIE_DMA_LL,
 };
 
 /**
@@ -155,7 +175,39 @@ struct dma_table {
 	phys_addr_t			local;
 	phys_addr_t			bus;
 	size_t				buf_size;
+	u32				dma_mode;
 };
+
+struct rk_edma_lli {
+	u32 control;
+	u32 transfer_size;
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} sar;
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} dar;
+} __packed;
+
+struct rk_edma_llp {
+	u32 control;
+	u32 reserved;
+	union {
+		u64 reg;
+		struct {
+			u32 lsb;
+			u32 msb;
+		};
+	} llp;
+} __packed;
 
 struct dma_trx_obj {
 	struct device			*dev;
