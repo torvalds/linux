@@ -147,6 +147,19 @@ static int exynos_irq_set_type(struct irq_data *irqd, unsigned int type)
 	return 0;
 }
 
+static int exynos_irq_set_affinity(struct irq_data *irqd,
+				   const struct cpumask *dest, bool force)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pinctrl_drv_data *d = bank->drvdata;
+	struct irq_data *parent = irq_get_irq_data(d->irq);
+
+	if (parent)
+		return parent->chip->irq_set_affinity(parent, dest, force);
+
+	return -EINVAL;
+}
+
 static int exynos_irq_request_resources(struct irq_data *irqd)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
@@ -212,6 +225,7 @@ static const struct exynos_irq_chip exynos_gpio_irq_chip __initconst = {
 		.irq_mask = exynos_irq_mask,
 		.irq_ack = exynos_irq_ack,
 		.irq_set_type = exynos_irq_set_type,
+		.irq_set_affinity = exynos_irq_set_affinity,
 		.irq_request_resources = exynos_irq_request_resources,
 		.irq_release_resources = exynos_irq_release_resources,
 	},
