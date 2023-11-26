@@ -897,18 +897,21 @@ static void page_pool_release_retry(struct work_struct *wq)
 {
 	struct delayed_work *dwq = to_delayed_work(wq);
 	struct page_pool *pool = container_of(dwq, typeof(*pool), release_dw);
+	void *netdev;
 	int inflight;
 
 	inflight = page_pool_release(pool);
 	if (!inflight)
 		return;
 
-	/* Periodic warning */
-	if (time_after_eq(jiffies, pool->defer_warn)) {
+	/* Periodic warning for page pools the user can't see */
+	netdev = READ_ONCE(pool->slow.netdev);
+	if (time_after_eq(jiffies, pool->defer_warn) &&
+	    (!netdev || netdev == NET_PTR_POISON)) {
 		int sec = (s32)((u32)jiffies - (u32)pool->defer_start) / HZ;
 
-		pr_warn("%s() stalled pool shutdown %d inflight %d sec\n",
-			__func__, inflight, sec);
+		pr_warn("%s() stalled pool shutdown: id %u, %d inflight %d sec\n",
+			__func__, pool->user.id, inflight, sec);
 		pool->defer_warn = jiffies + DEFER_WARN_INTERVAL;
 	}
 
