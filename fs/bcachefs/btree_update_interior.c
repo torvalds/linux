@@ -1071,8 +1071,12 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			break;
 		}
 
+		/*
+		 * Always check for space for two keys, even if we won't have to
+		 * split at prior level - it might have been a merge instead:
+		 */
 		if (bch2_btree_node_insert_fits(c, path->l[update_level].b,
-					BKEY_BTREE_PTR_U64s_MAX * (1 + split)))
+						BKEY_BTREE_PTR_U64s_MAX * 2))
 			break;
 
 		split = path->l[update_level].b->nr.live_u64s > BTREE_SPLIT_THRESHOLD(c);
