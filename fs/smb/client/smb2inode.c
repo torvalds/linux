@@ -1053,3 +1053,36 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 	}
 	return rc ? ERR_PTR(rc) : new;
 }
+
+int smb2_query_reparse_point(const unsigned int xid,
+			     struct cifs_tcon *tcon,
+			     struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     u32 *tag, struct kvec *rsp,
+			     int *rsp_buftype)
+{
+	struct cifs_open_info_data data = {};
+	struct cifsFileInfo *cfile;
+	struct kvec in_iov = { .iov_base = &data, .iov_len = sizeof(data), };
+	int rc;
+
+	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+
+	cifs_get_readable_path(tcon, full_path, &cfile);
+	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
+			      FILE_READ_ATTRIBUTES, FILE_OPEN,
+			      OPEN_REPARSE_POINT, ACL_NO_MODE, &in_iov,
+			      &(int){SMB2_OP_GET_REPARSE}, 1, cfile,
+			      NULL, NULL, NULL, NULL);
+	if (rc)
+		goto out;
+
+	*tag = data.reparse.tag;
+	*rsp = data.reparse.io.iov;
+	*rsp_buftype = data.reparse.io.buftype;
+	memset(&data.reparse.io.iov, 0, sizeof(data.reparse.io.iov));
+	data.reparse.io.buftype = CIFS_NO_BUFFER;
+out:
+	cifs_free_open_info(&data);
+	return rc;
+}
