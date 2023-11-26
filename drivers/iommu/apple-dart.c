@@ -1302,7 +1302,7 @@ static __maybe_unused int apple_dart_suspend(struct device *dev)
 	unsigned int sid, idx;
 
 	for (sid = 0; sid < dart->num_streams; sid++) {
-		dart->save_tcr[sid] = readl_relaxed(dart->regs + DART_TCR(dart, sid));
+		dart->save_tcr[sid] = readl(dart->regs + DART_TCR(dart, sid));
 		for (idx = 0; idx < dart->hw->ttbr_count; idx++)
 			dart->save_ttbr[sid][idx] =
 				readl(dart->regs + DART_TTBR(dart, sid, idx));
