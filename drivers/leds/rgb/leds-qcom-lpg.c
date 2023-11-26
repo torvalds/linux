@@ -1095,7 +1095,7 @@ static int lpg_add_pwm(struct lpg *lpg)
 	lpg->pwm.npwm = lpg->num_channels;
 	lpg->pwm.ops = &lpg_pwm_ops;
 
-	ret = pwmchip_add(&lpg->pwm);
+	ret = devm_pwmchip_add(lpg->dev, &lpg->pwm);
 	if (ret)
 		dev_err(lpg->dev, "failed to add PWM chip: ret %d\n", ret);
 
@@ -1324,8 +1324,6 @@ static int lpg_probe(struct platform_device *pdev)
 	if (!lpg->data)
 		return -EINVAL;
 
-	platform_set_drvdata(pdev, lpg);
-
 	lpg->dev = &pdev->dev;
 	mutex_init(&lpg->lock);
 
@@ -1361,13 +1359,6 @@ static int lpg_probe(struct platform_device *pdev)
 		lpg_apply_dtest(&lpg->channels[i]);
 
 	return lpg_add_pwm(lpg);
-}
-
-static void lpg_remove(struct platform_device *pdev)
-{
-	struct lpg *lpg = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&lpg->pwm);
 }
 
 static const struct lpg_data pm8916_pwm_data = {
@@ -1529,7 +1520,6 @@ MODULE_DEVICE_TABLE(of, lpg_of_table);
 
 static struct platform_driver lpg_driver = {
 	.probe = lpg_probe,
-	.remove_new = lpg_remove,
 	.driver = {
 		.name = "qcom-spmi-lpg",
 		.of_match_table = lpg_of_table,
