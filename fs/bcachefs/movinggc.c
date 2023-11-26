@@ -224,7 +224,7 @@ static int bch2_copygc(struct moving_context *ctxt,
 			break;
 		}
 
-		ret = __bch2_evacuate_bucket(ctxt, f, f->bucket.k.bucket,
+		ret = bch2_evacuate_bucket(ctxt, f, f->bucket.k.bucket,
 					     f->bucket.k.gen, data_opts);
 		if (ret)
 			goto err;

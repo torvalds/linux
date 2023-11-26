@@ -135,16 +135,10 @@ int bch2_move_data(struct bch_fs *,
 		   bool,
 		   move_pred_fn, void *);
 
-int __bch2_evacuate_bucket(struct moving_context *,
+int bch2_evacuate_bucket(struct moving_context *,
 			   struct move_bucket_in_flight *,
 			   struct bpos, int,
 			   struct data_update_opts);
-int bch2_evacuate_bucket(struct bch_fs *, struct bpos, int,
-			 struct data_update_opts,
-			 struct bch_ratelimit *,
-			 struct bch_move_stats *,
-			 struct write_point_specifier,
-			 bool);
 int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
 		  struct bch_ioctl_data);

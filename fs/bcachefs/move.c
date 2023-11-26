@@ -636,7 +636,7 @@ int bch2_move_data(struct bch_fs *c,
 	return ret;
 }
 
-int __bch2_evacuate_bucket(struct moving_context *ctxt,
+int bch2_evacuate_bucket(struct moving_context *ctxt,
 			   struct move_bucket_in_flight *bucket_in_flight,
 			   struct bpos bucket, int gen,
 			   struct data_update_opts _data_opts)
@@ -793,24 +793,6 @@ next:
 	trace_evacuate_bucket(c, &bucket, dirty_sectors, bucket_size, fragmentation, ret);
 err:
 	bch2_bkey_buf_exit(&sk, c);
-	return ret;
-}
-
-int bch2_evacuate_bucket(struct bch_fs *c,
-			 struct bpos bucket, int gen,
-			 struct data_update_opts data_opts,
-			 struct bch_ratelimit *rate,
-			 struct bch_move_stats *stats,
-			 struct write_point_specifier wp,
-			 bool wait_on_copygc)
-{
-	struct moving_context ctxt;
-	int ret;
-
-	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
-	ret = __bch2_evacuate_bucket(&ctxt, NULL, bucket, gen, data_opts);
-	bch2_moving_ctxt_exit(&ctxt);
-
 	return ret;
 }
 
