@@ -180,6 +180,7 @@
 	light-sensor@23 {
 		compatible = "liteon,ltr559";
 		reg = <0x23>;
+		proximity-near-level = <75>;
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l5>;
