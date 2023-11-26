@@ -3205,6 +3205,7 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 			tg = stgt_priv_data->throttle_group;
 			throttle_enabled_dev =
 			    stgt_priv_data->io_throttle_enabled;
+			dev_handle = stgt_priv_data->dev_handle;
 		}
 	}
 	if (unlikely((data_len_blks >= mrioc->io_throttle_data_length) &&
