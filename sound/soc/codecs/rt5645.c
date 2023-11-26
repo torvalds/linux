@@ -3877,10 +3877,33 @@ static void rt5645_parse_dt(struct device *dev, struct rt5645_platform_data *pda
 	device_property_read_u32(dev, "realtek,jd-mode", &pdata->jd_mode);
 }
 
+static void rt5645_get_pdata(struct device *codec_dev, struct rt5645_platform_data *pdata)
+{
+	const struct dmi_system_id *dmi_data;
+
+	dmi_data = dmi_first_match(dmi_platform_data);
+	if (dmi_data) {
+		dev_info(codec_dev, "Detected %s platform\n", dmi_data->ident);
+		*pdata = *((struct rt5645_platform_data *)dmi_data->driver_data);
+	} else if (rt5645_check_dp(codec_dev)) {
+		rt5645_parse_dt(codec_dev, pdata);
+	} else {
+		*pdata = jd_mode3_platform_data;
+	}
+
+	if (quirk != -1) {
+		pdata->in2_diff = QUIRK_IN2_DIFF(quirk);
+		pdata->level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
+		pdata->inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
+		pdata->inv_hp_pol = QUIRK_INV_HP_POL(quirk);
+		pdata->jd_mode = QUIRK_JD_MODE(quirk);
+		pdata->dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
+		pdata->dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
+	}
+}
+
 static int rt5645_i2c_probe(struct i2c_client *i2c)
 {
-	struct rt5645_platform_data *pdata = NULL;
-	const struct dmi_system_id *dmi_data;
 	struct rt5645_priv *rt5645;
 	int ret, i;
 	unsigned int val;
@@ -3893,29 +3916,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 
 	rt5645->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5645);
-
-	dmi_data = dmi_first_match(dmi_platform_data);
-	if (dmi_data) {
-		dev_info(&i2c->dev, "Detected %s platform\n", dmi_data->ident);
-		pdata = dmi_data->driver_data;
-	}
-
-	if (pdata)
-		rt5645->pdata = *pdata;
-	else if (rt5645_check_dp(&i2c->dev))
-		rt5645_parse_dt(&i2c->dev, &rt5645->pdata);
-	else
-		rt5645->pdata = jd_mode3_platform_data;
-
-	if (quirk != -1) {
-		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
-		rt5645->pdata.level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
-		rt5645->pdata.inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
-		rt5645->pdata.inv_hp_pol = QUIRK_INV_HP_POL(quirk);
-		rt5645->pdata.jd_mode = QUIRK_JD_MODE(quirk);
-		rt5645->pdata.dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
-		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
-	}
+	rt5645_get_pdata(&i2c->dev, &rt5645->pdata);
 
 	if (has_acpi_companion(&i2c->dev)) {
 		if (cht_rt5645_gpios) {
