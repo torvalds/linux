@@ -764,4 +764,11 @@ static inline void release_mid(struct mid_q_entry *mid)
 	kref_put(&mid->refcount, __release_mid);
 }
 
+static inline void cifs_free_open_info(struct cifs_open_info_data *data)
+{
+	kfree(data->symlink_target);
+	free_rsp_buf(data->reparse.io.buftype, data->reparse.io.iov.iov_base);
+	memset(data, 0, sizeof(*data));
+}
+
 #endif			/* _CIFSPROTO_H */

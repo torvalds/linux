@@ -1078,6 +1078,9 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 						      &rsp_iov, &rsp_buftype);
 		if (!rc)
 			iov = &rsp_iov;
+	} else if (data->reparse.io.buftype != CIFS_NO_BUFFER &&
+		   data->reparse.io.iov.iov_base) {
+		iov = &data->reparse.io.iov;
 	}
 
 	rc = -EOPNOTSUPP;
@@ -1097,7 +1100,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		/* Check for cached reparse point data */
 		if (data->symlink_target || data->reparse.buf) {
 			rc = 0;
-		} else if (server->ops->parse_reparse_point) {
+		} else if (iov && server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
 							      iov, data);
 		}
