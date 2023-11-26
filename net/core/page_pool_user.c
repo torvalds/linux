@@ -5,6 +5,7 @@
 #include <linux/xarray.h>
 #include <net/net_debug.h>
 #include <net/page_pool/types.h>
+#include <net/page_pool/helpers.h>
 #include <net/sock.h>
 
 #include "page_pool_priv.h"
@@ -104,6 +105,108 @@ netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	if (skb->len && err == -EMSGSIZE)
 		return skb->len;
 	return err;
+}
+
+static int
+page_pool_nl_stats_fill(struct sk_buff *rsp, const struct page_pool *pool,
+			const struct genl_info *info)
+{
+#ifdef CONFIG_PAGE_POOL_STATS
+	struct page_pool_stats stats = {};
+	struct nlattr *nest;
+	void *hdr;
+
+	if (!page_pool_get_stats(pool, &stats))
+		return 0;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	nest = nla_nest_start(rsp, NETDEV_A_PAGE_POOL_STATS_INFO);
+
+	if (nla_put_uint(rsp, NETDEV_A_PAGE_POOL_ID, pool->user.id) ||
+	    (pool->slow.netdev->ifindex != LOOPBACK_IFINDEX &&
+	     nla_put_u32(rsp, NETDEV_A_PAGE_POOL_IFINDEX,
+			 pool->slow.netdev->ifindex)))
+		goto err_cancel_nest;
+
+	nla_nest_end(rsp, nest);
+
+	if (nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_FAST,
+			 stats.alloc_stats.fast) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_SLOW,
+			 stats.alloc_stats.slow) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_SLOW_HIGH_ORDER,
+			 stats.alloc_stats.slow_high_order) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_EMPTY,
+			 stats.alloc_stats.empty) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_REFILL,
+			 stats.alloc_stats.refill) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_ALLOC_WAIVE,
+			 stats.alloc_stats.waive) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_RECYCLE_CACHED,
+			 stats.recycle_stats.cached) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_RECYCLE_CACHE_FULL,
+			 stats.recycle_stats.cache_full) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_RECYCLE_RING,
+			 stats.recycle_stats.ring) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_RECYCLE_RING_FULL,
+			 stats.recycle_stats.ring_full) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_STATS_RECYCLE_RELEASED_REFCNT,
+			 stats.recycle_stats.released_refcnt))
+		goto err_cancel_msg;
+
+	genlmsg_end(rsp, hdr);
+
+	return 0;
+err_cancel_nest:
+	nla_nest_cancel(rsp, nest);
+err_cancel_msg:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+#else
+	GENL_SET_ERR_MSG(info, "kernel built without CONFIG_PAGE_POOL_STATS");
+	return -EOPNOTSUPP;
+#endif
+}
+
+int netdev_nl_page_pool_stats_get_doit(struct sk_buff *skb,
+				       struct genl_info *info)
+{
+	struct nlattr *tb[ARRAY_SIZE(netdev_page_pool_info_nl_policy)];
+	struct nlattr *nest;
+	int err;
+	u32 id;
+
+	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_PAGE_POOL_STATS_INFO))
+		return -EINVAL;
+
+	nest = info->attrs[NETDEV_A_PAGE_POOL_STATS_INFO];
+	err = nla_parse_nested(tb, ARRAY_SIZE(tb) - 1, nest,
+			       netdev_page_pool_info_nl_policy,
+			       info->extack);
+	if (err)
+		return err;
+
+	if (NL_REQ_ATTR_CHECK(info->extack, nest, tb, NETDEV_A_PAGE_POOL_ID))
+		return -EINVAL;
+	if (tb[NETDEV_A_PAGE_POOL_IFINDEX]) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[NETDEV_A_PAGE_POOL_IFINDEX],
+				    "selecting by ifindex not supported");
+		return -EINVAL;
+	}
+
+	id = nla_get_uint(tb[NETDEV_A_PAGE_POOL_ID]);
+
+	return netdev_nl_page_pool_get_do(info, id, page_pool_nl_stats_fill);
+}
+
+int netdev_nl_page_pool_stats_get_dumpit(struct sk_buff *skb,
+					 struct netlink_callback *cb)
+{
+	return netdev_nl_page_pool_get_dump(skb, cb, page_pool_nl_stats_fill);
 }
 
 static int

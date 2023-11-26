@@ -16,6 +16,17 @@ static const struct netlink_range_validation netdev_a_page_pool_id_range = {
 	.max	= 4294967295ULL,
 };
 
+static const struct netlink_range_validation netdev_a_page_pool_ifindex_range = {
+	.min	= 1ULL,
+	.max	= 2147483647ULL,
+};
+
+/* Common nested types */
+const struct nla_policy netdev_page_pool_info_nl_policy[NETDEV_A_PAGE_POOL_IFINDEX + 1] = {
+	[NETDEV_A_PAGE_POOL_ID] = NLA_POLICY_FULL_RANGE(NLA_UINT, &netdev_a_page_pool_id_range),
+	[NETDEV_A_PAGE_POOL_IFINDEX] = NLA_POLICY_FULL_RANGE(NLA_U32, &netdev_a_page_pool_ifindex_range),
+};
+
 /* NETDEV_CMD_DEV_GET - do */
 static const struct nla_policy netdev_dev_get_nl_policy[NETDEV_A_DEV_IFINDEX + 1] = {
 	[NETDEV_A_DEV_IFINDEX] = NLA_POLICY_MIN(NLA_U32, 1),
@@ -27,6 +38,13 @@ static const struct nla_policy netdev_page_pool_get_nl_policy[NETDEV_A_PAGE_POOL
 	[NETDEV_A_PAGE_POOL_ID] = NLA_POLICY_FULL_RANGE(NLA_UINT, &netdev_a_page_pool_id_range),
 };
 #endif /* CONFIG_PAGE_POOL */
+
+/* NETDEV_CMD_PAGE_POOL_STATS_GET - do */
+#ifdef CONFIG_PAGE_POOL_STATS
+static const struct nla_policy netdev_page_pool_stats_get_nl_policy[NETDEV_A_PAGE_POOL_STATS_INFO + 1] = {
+	[NETDEV_A_PAGE_POOL_STATS_INFO] = NLA_POLICY_NESTED(netdev_page_pool_info_nl_policy),
+};
+#endif /* CONFIG_PAGE_POOL_STATS */
 
 /* Ops table for netdev */
 static const struct genl_split_ops netdev_nl_ops[] = {
@@ -56,6 +74,20 @@ static const struct genl_split_ops netdev_nl_ops[] = {
 		.flags	= GENL_CMD_CAP_DUMP,
 	},
 #endif /* CONFIG_PAGE_POOL */
+#ifdef CONFIG_PAGE_POOL_STATS
+	{
+		.cmd		= NETDEV_CMD_PAGE_POOL_STATS_GET,
+		.doit		= netdev_nl_page_pool_stats_get_doit,
+		.policy		= netdev_page_pool_stats_get_nl_policy,
+		.maxattr	= NETDEV_A_PAGE_POOL_STATS_INFO,
+		.flags		= GENL_CMD_CAP_DO,
+	},
+	{
+		.cmd	= NETDEV_CMD_PAGE_POOL_STATS_GET,
+		.dumpit	= netdev_nl_page_pool_stats_get_dumpit,
+		.flags	= GENL_CMD_CAP_DUMP,
+	},
+#endif /* CONFIG_PAGE_POOL_STATS */
 };
 
 static const struct genl_multicast_group netdev_nl_mcgrps[] = {
