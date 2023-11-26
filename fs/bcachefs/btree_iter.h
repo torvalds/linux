@@ -627,12 +627,12 @@ static inline struct bkey_s_c bch2_btree_iter_peek_upto_type(struct btree_iter *
 	return bch2_btree_iter_peek_slot(iter);
 }
 
+int __bch2_btree_trans_too_many_iters(struct btree_trans *);
+
 static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 {
-	if (hweight64(trans->paths_allocated) > BTREE_ITER_MAX - 8) {
-		trace_and_count(trans->c, trans_restart_too_many_iters, trans, _THIS_IP_);
-		return btree_trans_restart(trans, BCH_ERR_transaction_restart_too_many_iters);
-	}
+	if (hweight64(trans->paths_allocated) > BTREE_ITER_MAX - 8)
+		return __bch2_btree_trans_too_many_iters(trans);
 
 	return 0;
 }

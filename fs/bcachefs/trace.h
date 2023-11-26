@@ -32,7 +32,7 @@ DECLARE_EVENT_CLASS(bpos,
 	TP_printk("%llu:%llu:%u", __entry->p_inode, __entry->p_offset, __entry->p_snapshot)
 );
 
-DECLARE_EVENT_CLASS(str,
+DECLARE_EVENT_CLASS(fs_str,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str),
 
@@ -47,6 +47,29 @@ DECLARE_EVENT_CLASS(str,
 	),
 
 	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
+);
+
+DECLARE_EVENT_CLASS(trans_str,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *str),
+	TP_ARGS(trans, caller_ip, str),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__field(unsigned long,	caller_ip		)
+		__string(str,		str			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->caller_ip		= caller_ip;
+		__assign_str(str, str);
+	),
+
+	TP_printk("%d,%d %s %pS %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->trans_fn, (void *) __entry->caller_ip, __get_str(str))
 );
 
 DECLARE_EVENT_CLASS(btree_node,
@@ -738,22 +761,22 @@ TRACE_EVENT(bucket_evacuate,
 		  __entry->dev_idx, __entry->bucket)
 );
 
-DEFINE_EVENT(str, move_extent,
+DEFINE_EVENT(fs_str, move_extent,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(str, move_extent_read,
+DEFINE_EVENT(fs_str, move_extent_read,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(str, move_extent_write,
+DEFINE_EVENT(fs_str, move_extent_write,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
 
-DEFINE_EVENT(str, move_extent_finish,
+DEFINE_EVENT(fs_str, move_extent_finish,
 	TP_PROTO(struct bch_fs *c, const char *k),
 	TP_ARGS(c, k)
 );
@@ -775,7 +798,7 @@ TRACE_EVENT(move_extent_fail,
 	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
 );
 
-DEFINE_EVENT(str, move_extent_start_fail,
+DEFINE_EVENT(fs_str, move_extent_start_fail,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
@@ -1008,10 +1031,11 @@ DEFINE_EVENT(transaction_event,	trans_restart_key_cache_raced,
 	TP_ARGS(trans, caller_ip)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_too_many_iters,
+DEFINE_EVENT(trans_str, trans_restart_too_many_iters,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+		 unsigned long caller_ip,
+		 const char *paths),
+	TP_ARGS(trans, caller_ip, paths)
 );
 
 DECLARE_EVENT_CLASS(transaction_restart_iter,
@@ -1368,12 +1392,12 @@ TRACE_EVENT(write_buffer_flush_slowpath,
 	TP_printk("%zu/%zu", __entry->slowpath, __entry->total)
 );
 
-DEFINE_EVENT(str, rebalance_extent,
+DEFINE_EVENT(fs_str, rebalance_extent,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(str, data_update,
+DEFINE_EVENT(fs_str, data_update,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
