@@ -3869,18 +3869,12 @@ static bool rt5645_check_dp(struct device *dev)
 	return false;
 }
 
-static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
+static void rt5645_parse_dt(struct device *dev, struct rt5645_platform_data *pdata)
 {
-	rt5645->pdata.in2_diff = device_property_read_bool(dev,
-		"realtek,in2-differential");
-	device_property_read_u32(dev,
-		"realtek,dmic1-data-pin", &rt5645->pdata.dmic1_data_pin);
-	device_property_read_u32(dev,
-		"realtek,dmic2-data-pin", &rt5645->pdata.dmic2_data_pin);
-	device_property_read_u32(dev,
-		"realtek,jd-mode", &rt5645->pdata.jd_mode);
-
-	return 0;
+	pdata->in2_diff = device_property_read_bool(dev, "realtek,in2-differential");
+	device_property_read_u32(dev, "realtek,dmic1-data-pin", &pdata->dmic1_data_pin);
+	device_property_read_u32(dev, "realtek,dmic2-data-pin", &pdata->dmic2_data_pin);
+	device_property_read_u32(dev, "realtek,jd-mode", &pdata->jd_mode);
 }
 
 static int rt5645_i2c_probe(struct i2c_client *i2c)
@@ -3909,7 +3903,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 	if (pdata)
 		rt5645->pdata = *pdata;
 	else if (rt5645_check_dp(&i2c->dev))
-		rt5645_parse_dt(rt5645, &i2c->dev);
+		rt5645_parse_dt(&i2c->dev, &rt5645->pdata);
 	else
 		rt5645->pdata = jd_mode3_platform_data;
 
