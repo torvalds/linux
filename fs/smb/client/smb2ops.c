@@ -5247,6 +5247,72 @@ static int nfs_make_node(unsigned int xid, struct inode *inode,
 	return rc;
 }
 
+static int smb2_create_reparse_symlink(const unsigned int xid,
+				       struct inode *inode,
+				       struct dentry *dentry,
+				       struct cifs_tcon *tcon,
+				       const char *full_path,
+				       const char *symname)
+{
+	struct reparse_symlink_data_buffer *buf = NULL;
+	struct cifs_open_info_data data;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct inode *new;
+	struct kvec iov;
+	__le16 *path;
+	char *sym;
+	u16 len, plen;
+	int rc = 0;
+
+	sym = kstrdup(symname, GFP_KERNEL);
+	if (!sym)
+		return -ENOMEM;
+
+	data = (struct cifs_open_info_data) {
+		.reparse_point = true,
+		.reparse = { .tag = IO_REPARSE_TAG_SYMLINK, },
+		.symlink_target = sym,
+	};
+
+	path = cifs_convert_path_to_utf16(symname, cifs_sb);
+	if (!path) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	plen = 2 * UniStrnlen((wchar_t *)path, PATH_MAX);
+	len = sizeof(*buf) + plen * 2;
+	buf = kzalloc(len, GFP_KERNEL);
+	if (!buf) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	buf->ReparseTag = cpu_to_le32(IO_REPARSE_TAG_SYMLINK);
+	buf->ReparseDataLength = cpu_to_le16(len - sizeof(struct reparse_data_buffer));
+	buf->SubstituteNameOffset = cpu_to_le16(plen);
+	buf->SubstituteNameLength = cpu_to_le16(plen);
+	memcpy(&buf->PathBuffer[plen], path, plen);
+	buf->PrintNameOffset = 0;
+	buf->PrintNameLength = cpu_to_le16(plen);
+	memcpy(buf->PathBuffer, path, plen);
+	buf->Flags = cpu_to_le32(*symname != '/' ? SYMLINK_FLAG_RELATIVE : 0);
+
+	iov.iov_base = buf;
+	iov.iov_len = len;
+	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+				     tcon, full_path, &iov);
+	if (!IS_ERR(new))
+		d_instantiate(dentry, new);
+	else
+		rc = PTR_ERR(new);
+out:
+	kfree(path);
+	cifs_free_open_info(&data);
+	kfree(buf);
+	return rc;
+}
+
 static int smb2_make_node(unsigned int xid, struct inode *inode,
 			  struct dentry *dentry, struct cifs_tcon *tcon,
 			  const char *full_path, umode_t mode, dev_t dev)
@@ -5323,6 +5389,7 @@ struct smb_version_operations smb20_operations = {
 	.parse_reparse_point = smb2_parse_reparse_point,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
+	.create_reparse_symlink = smb2_create_reparse_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5425,6 +5492,7 @@ struct smb_version_operations smb21_operations = {
 	.parse_reparse_point = smb2_parse_reparse_point,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
+	.create_reparse_symlink = smb2_create_reparse_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5530,6 +5598,7 @@ struct smb_version_operations smb30_operations = {
 	.parse_reparse_point = smb2_parse_reparse_point,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
+	.create_reparse_symlink = smb2_create_reparse_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
@@ -5644,6 +5713,7 @@ struct smb_version_operations smb311_operations = {
 	.parse_reparse_point = smb2_parse_reparse_point,
 	.query_mf_symlink = smb3_query_mf_symlink,
 	.create_mf_symlink = smb3_create_mf_symlink,
+	.create_reparse_symlink = smb2_create_reparse_symlink,
 	.open = smb2_open_file,
 	.set_fid = smb2_set_fid,
 	.close = smb2_close_file,
