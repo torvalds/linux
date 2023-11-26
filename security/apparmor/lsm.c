@@ -987,9 +987,6 @@ static int apparmor_userns_create(const struct cred *cred)
 	return error;
 }
 
-/**
- * apparmor_sk_alloc_security - allocate and attach the sk_security field
- */
 static int apparmor_sk_alloc_security(struct sock *sk, int family, gfp_t flags)
 {
 	struct aa_sk_ctx *ctx;
@@ -1003,9 +1000,6 @@ static int apparmor_sk_alloc_security(struct sock *sk, int family, gfp_t flags)
 	return 0;
 }
 
-/**
- * apparmor_sk_free_security - free the sk_security field
- */
 static void apparmor_sk_free_security(struct sock *sk)
 {
 	struct aa_sk_ctx *ctx = aa_sock(sk);
@@ -1018,6 +1012,8 @@ static void apparmor_sk_free_security(struct sock *sk)
 
 /**
  * apparmor_sk_clone_security - clone the sk_security field
+ * @sk: sock to have security cloned
+ * @newsk: sock getting clone
  */
 static void apparmor_sk_clone_security(const struct sock *sk,
 				       struct sock *newsk)
@@ -1034,9 +1030,6 @@ static void apparmor_sk_clone_security(const struct sock *sk,
 	new->peer = aa_get_label(ctx->peer);
 }
 
-/**
- * apparmor_socket_create - check perms before creating a new socket
- */
 static int apparmor_socket_create(int family, int type, int protocol, int kern)
 {
 	struct aa_label *label;
@@ -1058,10 +1051,14 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 
 /**
  * apparmor_socket_post_create - setup the per-socket security struct
+ * @sock: socket that is being setup
+ * @family: family of socket being created
+ * @type: type of the socket
+ * @ptotocol: protocol of the socket
+ * @kern: socket is a special kernel socket
  *
  * Note:
- * -   kernel sockets currently labeled unconfined but we may want to
- *     move to a special kernel label
+ * -   kernel sockets labeled kernel_t used to use unconfined
  * -   socket may not have sk here if created with sock_create_lite or
  *     sock_alloc. These should be accept cases which will be handled in
  *     sock_graft.
@@ -1087,9 +1084,6 @@ static int apparmor_socket_post_create(struct socket *sock, int family,
 	return 0;
 }
 
-/**
- * apparmor_socket_bind - check perms before bind addr to socket
- */
 static int apparmor_socket_bind(struct socket *sock,
 				struct sockaddr *address, int addrlen)
 {
@@ -1103,9 +1097,6 @@ static int apparmor_socket_bind(struct socket *sock,
 			 aa_sk_perm(OP_BIND, AA_MAY_BIND, sock->sk));
 }
 
-/**
- * apparmor_socket_connect - check perms before connecting @sock to @address
- */
 static int apparmor_socket_connect(struct socket *sock,
 				   struct sockaddr *address, int addrlen)
 {
@@ -1119,9 +1110,6 @@ static int apparmor_socket_connect(struct socket *sock,
 			 aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk));
 }
 
-/**
- * apparmor_socket_listen - check perms before allowing listen
- */
 static int apparmor_socket_listen(struct socket *sock, int backlog)
 {
 	AA_BUG(!sock);
@@ -1133,9 +1121,7 @@ static int apparmor_socket_listen(struct socket *sock, int backlog)
 			 aa_sk_perm(OP_LISTEN, AA_MAY_LISTEN, sock->sk));
 }
 
-/**
- * apparmor_socket_accept - check perms before accepting a new connection.
- *
+/*
  * Note: while @newsock is created and has some information, the accept
  *       has not been done.
  */
@@ -1164,18 +1150,12 @@ static int aa_sock_msg_perm(const char *op, u32 request, struct socket *sock,
 			 aa_sk_perm(op, request, sock->sk));
 }
 
-/**
- * apparmor_socket_sendmsg - check perms before sending msg to another socket
- */
 static int apparmor_socket_sendmsg(struct socket *sock,
 				   struct msghdr *msg, int size)
 {
 	return aa_sock_msg_perm(OP_SENDMSG, AA_MAY_SEND, sock, msg, size);
 }
 
-/**
- * apparmor_socket_recvmsg - check perms before receiving a message
- */
 static int apparmor_socket_recvmsg(struct socket *sock,
 				   struct msghdr *msg, int size, int flags)
 {
@@ -1194,17 +1174,11 @@ static int aa_sock_perm(const char *op, u32 request, struct socket *sock)
 			 aa_sk_perm(op, request, sock->sk));
 }
 
-/**
- * apparmor_socket_getsockname - check perms before getting the local address
- */
 static int apparmor_socket_getsockname(struct socket *sock)
 {
 	return aa_sock_perm(OP_GETSOCKNAME, AA_MAY_GETATTR, sock);
 }
 
-/**
- * apparmor_socket_getpeername - check perms before getting remote address
- */
 static int apparmor_socket_getpeername(struct socket *sock)
 {
 	return aa_sock_perm(OP_GETPEERNAME, AA_MAY_GETATTR, sock);
@@ -1223,9 +1197,6 @@ static int aa_sock_opt_perm(const char *op, u32 request, struct socket *sock,
 			 aa_sk_perm(op, request, sock->sk));
 }
 
-/**
- * apparmor_socket_getsockopt - check perms before getting socket options
- */
 static int apparmor_socket_getsockopt(struct socket *sock, int level,
 				      int optname)
 {
@@ -1233,9 +1204,6 @@ static int apparmor_socket_getsockopt(struct socket *sock, int level,
 				level, optname);
 }
 
-/**
- * apparmor_socket_setsockopt - check perms before setting socket options
- */
 static int apparmor_socket_setsockopt(struct socket *sock, int level,
 				      int optname)
 {
@@ -1243,9 +1211,6 @@ static int apparmor_socket_setsockopt(struct socket *sock, int level,
 				level, optname);
 }
 
-/**
- * apparmor_socket_shutdown - check perms before shutting down @sock conn
- */
 static int apparmor_socket_shutdown(struct socket *sock, int how)
 {
 	return aa_sock_perm(OP_SHUTDOWN, AA_MAY_SHUTDOWN, sock);
@@ -1254,6 +1219,8 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 #ifdef CONFIG_NETWORK_SECMARK
 /**
  * apparmor_socket_sock_rcv_skb - check perms before associating skb to sk
+ * @sk: sk to associate @skb with
+ * @skb: skb to check for perms
  *
  * Note: can not sleep may be called with locks held
  *
@@ -1285,6 +1252,11 @@ static struct aa_label *sk_peer_label(struct sock *sk)
 
 /**
  * apparmor_socket_getpeersec_stream - get security context of peer
+ * @sock: socket that we are trying to get the peer context of
+ * @optval: output - buffer to copy peer name to
+ * @optlen: output - size of copied name in @optval
+ * @len: size of @optval buffer
+ * Returns: 0 on success, -errno of failure
  *
  * Note: for tcp only valid if using ipsec or cipso on lan
  */
