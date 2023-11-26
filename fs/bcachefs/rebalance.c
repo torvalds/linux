@@ -332,8 +332,16 @@ static int do_rebalance(struct moving_context *ctxt)
 			     BTREE_ID_rebalance_work, POS_MIN,
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
-	while (!bch2_move_ratelimit(ctxt) &&
-	       !kthread_wait_freezable(r->enabled)) {
+	while (!bch2_move_ratelimit(ctxt)) {
+		if (!r->enabled) {
+			bch2_moving_ctxt_flush_all(ctxt);
+			kthread_wait_freezable(r->enabled ||
+					       kthread_should_stop());
+		}
+
+		if (kthread_should_stop())
+			break;
+
 		bch2_trans_begin(trans);
 
 		ret = bkey_err(k = next_rebalance_entry(trans, &rebalance_work_iter));

@@ -159,7 +159,7 @@ void bch2_move_ctxt_wait_for_io(struct moving_context *ctxt)
 		atomic_read(&ctxt->write_sectors) != sectors_pending);
 }
 
-static void bch2_moving_ctxt_flush_all(struct moving_context *ctxt)
+void bch2_moving_ctxt_flush_all(struct moving_context *ctxt)
 {
 	move_ctxt_wait_event(ctxt, list_empty(&ctxt->reads));
 	bch2_trans_unlock_long(ctxt->trans);
