@@ -428,6 +428,9 @@ struct rt5645_platform_data {
 	/* Invert HP detect status polarity */
 	bool inv_hp_pol;
 
+	/* Only 1 speaker connected */
+	bool mono_speaker;
+
 	/* Value to assign to snd_soc_card.long_name */
 	const char *long_name;
 
@@ -3653,6 +3656,7 @@ static const struct rt5645_platform_data buddy_platform_data = {
 static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
+	.mono_speaker = true,
 	.long_name = "gpd-win-pocket-rt5645",
 	/* The GPD pocket has a diff. mic, for the win this does not matter. */
 	.in2_diff = true,
@@ -3674,6 +3678,11 @@ static const struct rt5645_platform_data asus_t101ha_platform_data = {
 static const struct rt5645_platform_data lenovo_ideapad_miix_310_pdata = {
 	.jd_mode = 3,
 	.in2_diff = true,
+};
+
+static const struct rt5645_platform_data jd_mode3_monospk_platform_data = {
+	.jd_mode = 3,
+	.mono_speaker = true,
 };
 
 static const struct rt5645_platform_data jd_mode3_platform_data = {
@@ -3795,7 +3804,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X80 Pro"),
 		},
-		.driver_data = (void *)&jd_mode3_platform_data,
+		.driver_data = (void *)&jd_mode3_monospk_platform_data,
 	},
 	{
 		.ident = "Lenovo Ideapad Miix 310",
@@ -3910,6 +3919,9 @@ const char *rt5645_components(struct device *codec_dev)
 	int spk = 2;
 
 	rt5645_get_pdata(codec_dev, &pdata);
+
+	if (pdata.mono_speaker)
+		spk = 1;
 
 	if (pdata.dmic1_data_pin && pdata.dmic2_data_pin)
 		mic = "dmics12";
