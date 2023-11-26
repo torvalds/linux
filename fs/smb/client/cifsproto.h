@@ -211,8 +211,12 @@ int cifs_get_inode_info(struct inode **inode, const char *full_path,
 bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 				 struct cifs_fattr *fattr,
 				 struct cifs_open_info_data *data);
-extern int smb311_posix_get_inode_info(struct inode **pinode, const char *search_path,
-			struct super_block *sb, unsigned int xid);
+
+extern int smb311_posix_get_inode_info(struct inode **inode,
+				       const char *full_path,
+				       struct cifs_open_info_data *data,
+				       struct super_block *sb,
+				       const unsigned int xid);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, unsigned int xid);

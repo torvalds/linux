@@ -614,14 +614,16 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 					cifs_sb_target->local_nls); */
 
 	if (rc == 0) {
-		if (pTcon->posix_extensions)
-			rc = smb311_posix_get_inode_info(&newinode, full_path, inode->i_sb, xid);
-		else if (pTcon->unix_ext)
+		if (pTcon->posix_extensions) {
+			rc = smb311_posix_get_inode_info(&newinode, full_path,
+							 NULL, inode->i_sb, xid);
+		} else if (pTcon->unix_ext) {
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
-		else
+		} else {
 			rc = cifs_get_inode_info(&newinode, full_path, NULL,
 						 inode->i_sb, xid, NULL);
+		}
 
 		if (rc != 0) {
 			cifs_dbg(FYI, "Create symlink ok, getinodeinfo fail rc = %d\n",

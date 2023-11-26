@@ -5171,11 +5171,88 @@ int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 	return rc;
 }
 
+static inline u64 mode_nfs_type(mode_t mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFBLK: return NFS_SPECFILE_BLK;
+	case S_IFCHR: return NFS_SPECFILE_CHR;
+	case S_IFIFO: return NFS_SPECFILE_FIFO;
+	case S_IFSOCK: return NFS_SPECFILE_SOCK;
+	}
+	return 0;
+}
+
+static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
+			       mode_t mode, dev_t dev,
+			       struct kvec *iov)
+{
+	u64 type;
+	u16 len, dlen;
+
+	len = sizeof(*buf);
+
+	switch ((type = mode_nfs_type(mode))) {
+	case NFS_SPECFILE_BLK:
+	case NFS_SPECFILE_CHR:
+		dlen = sizeof(__le64);
+		break;
+	case NFS_SPECFILE_FIFO:
+	case NFS_SPECFILE_SOCK:
+		dlen = 0;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	buf->ReparseTag = cpu_to_le32(IO_REPARSE_TAG_NFS);
+	buf->Reserved = 0;
+	buf->InodeType = cpu_to_le64(type);
+	buf->ReparseDataLength = cpu_to_le16(len + dlen -
+					     sizeof(struct reparse_data_buffer));
+	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MAJOR(dev) << 32) |
+						 MINOR(dev));
+	iov->iov_base = buf;
+	iov->iov_len = len + dlen;
+	return 0;
+}
+
+static int nfs_make_node(unsigned int xid, struct inode *inode,
+			 struct dentry *dentry, struct cifs_tcon *tcon,
+			 const char *full_path, umode_t mode, dev_t dev)
+{
+	struct cifs_open_info_data data;
+	struct reparse_posix_data *p;
+	struct inode *new;
+	struct kvec iov;
+	__u8 buf[sizeof(*p) + sizeof(__le64)];
+	int rc;
+
+	p = (struct reparse_posix_data *)buf;
+	rc = nfs_set_reparse_buf(p, mode, dev, &iov);
+	if (rc)
+		return rc;
+
+	data = (struct cifs_open_info_data) {
+		.reparse_point = true,
+		.reparse = { .tag = IO_REPARSE_TAG_NFS, .posix = p, },
+	};
+
+	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+				     tcon, full_path, &iov);
+	if (!IS_ERR(new))
+		d_instantiate(dentry, new);
+	else
+		rc = PTR_ERR(new);
+	cifs_free_open_info(&data);
+	return rc;
+}
+
 static int smb2_make_node(unsigned int xid, struct inode *inode,
 			  struct dentry *dentry, struct cifs_tcon *tcon,
 			  const char *full_path, umode_t mode, dev_t dev)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	int rc;
 
 	/*
 	 * Check if mounted with mount parm 'sfu' mount parm.
@@ -5183,15 +5260,14 @@ static int smb2_make_node(unsigned int xid, struct inode *inode,
 	 * supports block and char device (no socket & fifo),
 	 * and was used by default in earlier versions of Windows
 	 */
-	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL))
-		return -EPERM;
-	/*
-	 * TODO: Add ability to create instead via reparse point. Windows (e.g.
-	 * their current NFS server) uses this approach to expose special files
-	 * over SMB2/SMB3 and Samba will do this with SMB3.1.1 POSIX Extensions
-	 */
-	return cifs_sfu_make_node(xid, inode, dentry, tcon,
-				  full_path, mode, dev);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+		rc = cifs_sfu_make_node(xid, inode, dentry, tcon,
+					full_path, mode, dev);
+	} else {
+		rc = nfs_make_node(xid, inode, dentry, tcon,
+				   full_path, mode, dev);
+	}
+	return rc;
 }
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY

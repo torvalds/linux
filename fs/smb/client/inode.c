@@ -1061,7 +1061,9 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 				 const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 const char *full_path,
-				 struct cifs_fattr *fattr)
+				 struct cifs_fattr *fattr,
+				 struct cifs_sid *owner,
+				 struct cifs_sid *group)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -1092,7 +1094,8 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		rc = 0;
 		goto out;
 	default:
-		if (data->symlink_target) {
+		/* Check for cached reparse point data */
+		if (data->symlink_target || data->reparse.buf) {
 			rc = 0;
 		} else if (server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
@@ -1101,7 +1104,10 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		break;
 	}
 
-	cifs_open_info_to_fattr(fattr, data, sb);
+	if (tcon->posix_extensions)
+		smb311_posix_info_to_fattr(fattr, data, owner, group, sb);
+	else
+		cifs_open_info_to_fattr(fattr, data, sb);
 out:
 	free_rsp_buf(rsp_buftype, rsp_iov.iov_base);
 	return rc;
@@ -1152,7 +1158,8 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		 */
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr);
+						   full_path, fattr,
+						   NULL, NULL);
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
@@ -1290,18 +1297,19 @@ out:
 	return rc;
 }
 
-static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
+static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
+				  struct cifs_fattr *fattr,
 				  const char *full_path,
 				  struct super_block *sb,
 				  const unsigned int xid)
 {
-	struct cifs_open_info_data data = {};
+	struct cifs_open_info_data tmp_data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifs_sid owner, group;
 	int tmprc;
-	int rc;
+	int rc = 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -1309,12 +1317,14 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 	tcon = tlink_tcon(tlink);
 
 	/*
-	 * 1. Fetch file metadata
+	 * 1. Fetch file metadata if not provided (data)
 	 */
-
-	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
-					  full_path, &data,
-					  &owner, &group);
+	if (!data) {
+		rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
+						  full_path, &tmp_data,
+						  &owner, &group);
+		data = &tmp_data;
+	}
 
 	/*
 	 * 2. Convert it to internal cifs metadata (fattr)
@@ -1322,7 +1332,14 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 
 	switch (rc) {
 	case 0:
-		smb311_posix_info_to_fattr(fattr, &data, &owner, &group, sb);
+		if (cifs_open_data_reparse(data)) {
+			rc = reparse_info_to_fattr(data, sb, xid, tcon,
+						   full_path, fattr,
+						   &owner, &group);
+		} else {
+			smb311_posix_info_to_fattr(fattr, data,
+						   &owner, &group, sb);
+		}
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */
@@ -1353,12 +1370,15 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 
 out:
 	cifs_put_tlink(tlink);
-	cifs_free_open_info(&data);
+	cifs_free_open_info(data);
 	return rc;
 }
 
-int smb311_posix_get_inode_info(struct inode **inode, const char *full_path,
-				struct super_block *sb, const unsigned int xid)
+int smb311_posix_get_inode_info(struct inode **inode,
+				const char *full_path,
+				struct cifs_open_info_data *data,
+				struct super_block *sb,
+				const unsigned int xid)
 {
 	struct cifs_fattr fattr = {};
 	int rc;
@@ -1368,7 +1388,7 @@ int smb311_posix_get_inode_info(struct inode **inode, const char *full_path,
 		return 0;
 	}
 
-	rc = smb311_posix_get_fattr(&fattr, full_path, sb, xid);
+	rc = smb311_posix_get_fattr(data, &fattr, full_path, sb, xid);
 	if (rc)
 		goto out;
 
@@ -1516,7 +1536,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 
 	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
 	if (tcon->posix_extensions)
-		rc = smb311_posix_get_fattr(&fattr, path, sb, xid);
+		rc = smb311_posix_get_fattr(NULL, &fattr, path, sb, xid);
 	else
 		rc = cifs_get_fattr(NULL, sb, xid, NULL, &fattr, &inode, path);
 
@@ -1889,16 +1909,18 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 	int rc = 0;
 	struct inode *inode = NULL;
 
-	if (tcon->posix_extensions)
-		rc = smb311_posix_get_inode_info(&inode, full_path, parent->i_sb, xid);
+	if (tcon->posix_extensions) {
+		rc = smb311_posix_get_inode_info(&inode, full_path,
+						 NULL, parent->i_sb, xid);
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	else if (tcon->unix_ext)
+	} else if (tcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, full_path, parent->i_sb,
 					      xid);
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-	else
+	} else {
 		rc = cifs_get_inode_info(&inode, full_path, NULL, parent->i_sb,
 					 xid, NULL);
+	}
 
 	if (rc)
 		return rc;
@@ -2579,13 +2601,15 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 		 dentry, cifs_get_time(dentry), jiffies);
 
 again:
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->posix_extensions)
-		rc = smb311_posix_get_inode_info(&inode, full_path, sb, xid);
-	else if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
+	if (cifs_sb_master_tcon(CIFS_SB(sb))->posix_extensions) {
+		rc = smb311_posix_get_inode_info(&inode, full_path,
+						 NULL, sb, xid);
+	} else if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
-	else
+	} else {
 		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
 					 xid, NULL);
+	}
 	if (rc == -EAGAIN && count++ < 10)
 		goto again;
 out:
