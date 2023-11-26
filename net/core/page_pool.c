@@ -529,7 +529,7 @@ EXPORT_SYMBOL(page_pool_alloc_pages);
  */
 #define _distance(a, b)	(s32)((a) - (b))
 
-static s32 page_pool_inflight(struct page_pool *pool)
+s32 page_pool_inflight(const struct page_pool *pool, bool strict)
 {
 	u32 release_cnt = atomic_read(&pool->pages_state_release_cnt);
 	u32 hold_cnt = READ_ONCE(pool->pages_state_hold_cnt);
@@ -537,8 +537,13 @@ static s32 page_pool_inflight(struct page_pool *pool)
 
 	inflight = _distance(hold_cnt, release_cnt);
 
-	trace_page_pool_release(pool, inflight, hold_cnt, release_cnt);
-	WARN(inflight < 0, "Negative(%d) inflight packet-pages", inflight);
+	if (strict) {
+		trace_page_pool_release(pool, inflight, hold_cnt, release_cnt);
+		WARN(inflight < 0, "Negative(%d) inflight packet-pages",
+		     inflight);
+	} else {
+		inflight = max(0, inflight);
+	}
 
 	return inflight;
 }
@@ -881,7 +886,7 @@ static int page_pool_release(struct page_pool *pool)
 	int inflight;
 
 	page_pool_scrub(pool);
-	inflight = page_pool_inflight(pool);
+	inflight = page_pool_inflight(pool, true);
 	if (!inflight)
 		__page_pool_destroy(pool);
 

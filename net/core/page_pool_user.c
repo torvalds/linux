@@ -110,6 +110,7 @@ static int
 page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 		  const struct genl_info *info)
 {
+	size_t inflight, refsz;
 	void *hdr;
 
 	hdr = genlmsg_iput(rsp, info);
@@ -125,6 +126,13 @@ page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 		goto err_cancel;
 	if (pool->user.napi_id &&
 	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_NAPI_ID, pool->user.napi_id))
+		goto err_cancel;
+
+	inflight = page_pool_inflight(pool, false);
+	refsz =	PAGE_SIZE << pool->p.order;
+	if (nla_put_uint(rsp, NETDEV_A_PAGE_POOL_INFLIGHT, inflight) ||
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_INFLIGHT_MEM,
+			 inflight * refsz))
 		goto err_cancel;
 
 	genlmsg_end(rsp, hdr);

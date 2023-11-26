@@ -114,6 +114,19 @@ attribute-sets:
         checks:
           min: 1
           max: u32-max
+      -
+        name: inflight
+        type: uint
+        doc: |
+          Number of outstanding references to this page pool (allocated
+          but yet to be freed pages). Allocated pages may be held in
+          socket receive queues, driver receive ring, page pool recycling
+          ring, the page pool cache, etc.
+      -
+        name: inflight-mem
+        type: uint
+        doc: |
+          Amount of memory held by inflight pages.
 
 operations:
   list:
@@ -163,6 +176,8 @@ operations:
             - id
             - ifindex
             - napi-id
+            - inflight
+            - inflight-mem
       dump:
         reply: *pp-reply
       config-cond: page-pool
