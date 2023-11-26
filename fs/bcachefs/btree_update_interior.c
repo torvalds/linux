@@ -2080,7 +2080,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	a->seq		= b->data->keys.seq;
 	INIT_WORK(&a->work, async_btree_node_rewrite_work);
 
-	if (unlikely(!test_bit(BCH_FS_MAY_GO_RW, &c->flags))) {
+	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {
 		mutex_lock(&c->pending_node_rewrites_lock);
 		list_add(&a->list, &c->pending_node_rewrites);
 		mutex_unlock(&c->pending_node_rewrites_lock);
@@ -2088,7 +2088,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	}
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
-		if (test_bit(BCH_FS_STARTED, &c->flags)) {
+		if (test_bit(BCH_FS_started, &c->flags)) {
 			bch_err(c, "%s: error getting c->writes ref", __func__);
 			kfree(a);
 			return;

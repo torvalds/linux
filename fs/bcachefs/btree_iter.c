@@ -781,7 +781,7 @@ static int btree_path_prefetch(struct btree_trans *trans, struct btree_path *pat
 	struct btree_node_iter node_iter = l->iter;
 	struct bkey_packed *k;
 	struct bkey_buf tmp;
-	unsigned nr = test_bit(BCH_FS_STARTED, &c->flags)
+	unsigned nr = test_bit(BCH_FS_started, &c->flags)
 		? (path->level > 1 ? 0 :  2)
 		: (path->level > 1 ? 1 : 16);
 	bool was_locked = btree_node_locked(path, path->level);
@@ -816,7 +816,7 @@ static int btree_path_prefetch_j(struct btree_trans *trans, struct btree_path *p
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
 	struct bkey_buf tmp;
-	unsigned nr = test_bit(BCH_FS_STARTED, &c->flags)
+	unsigned nr = test_bit(BCH_FS_started, &c->flags)
 		? (path->level > 1 ? 0 :  2)
 		: (path->level > 1 ? 1 : 16);
 	bool was_locked = btree_node_locked(path, path->level);

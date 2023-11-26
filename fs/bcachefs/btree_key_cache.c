@@ -778,7 +778,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	ck->valid = true;
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
-		EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
+		EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 		set_bit(BKEY_CACHED_DIRTY, &ck->flags);
 		atomic_long_inc(&c->btree_key_cache.nr_dirty);
 
@@ -1005,7 +1005,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 
 	if (atomic_long_read(&bc->nr_dirty) &&
 	    !bch2_journal_error(&c->journal) &&
-	    test_bit(BCH_FS_WAS_RW, &c->flags))
+	    test_bit(BCH_FS_was_rw, &c->flags))
 		panic("btree key cache shutdown error: nr_dirty nonzero (%li)\n",
 		      atomic_long_read(&bc->nr_dirty));
 

@@ -533,7 +533,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
 
-	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
+	set_bit(BCH_FS_may_go_rw, &c->flags);
 	if (keys->nr)
 		return bch2_fs_read_write_early(c);
 	return 0;
@@ -961,13 +961,13 @@ use_clean:
 
 	/* If we fixed errors, verify that fs is actually clean now: */
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
-	    test_bit(BCH_FS_ERRORS_FIXED, &c->flags) &&
-	    !test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags) &&
-	    !test_bit(BCH_FS_ERROR, &c->flags)) {
+	    test_bit(BCH_FS_errors_fixed, &c->flags) &&
+	    !test_bit(BCH_FS_errors_not_fixed, &c->flags) &&
+	    !test_bit(BCH_FS_error, &c->flags)) {
 		bch2_flush_fsck_errs(c);
 
 		bch_info(c, "Fixed errors, running fsck a second time to verify fs is clean");
-		clear_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+		clear_bit(BCH_FS_errors_fixed, &c->flags);
 
 		c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
 
@@ -975,13 +975,13 @@ use_clean:
 		if (ret)
 			goto err;
 
-		if (test_bit(BCH_FS_ERRORS_FIXED, &c->flags) ||
-		    test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags)) {
+		if (test_bit(BCH_FS_errors_fixed, &c->flags) ||
+		    test_bit(BCH_FS_errors_not_fixed, &c->flags)) {
 			bch_err(c, "Second fsck run was not clean");
-			set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
+			set_bit(BCH_FS_errors_not_fixed, &c->flags);
 		}
 
-		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+		set_bit(BCH_FS_errors_fixed, &c->flags);
 	}
 
 	if (enabled_qtypes(c)) {
@@ -1000,13 +1000,13 @@ use_clean:
 		write_sb = true;
 	}
 
-	if (!test_bit(BCH_FS_ERROR, &c->flags) &&
+	if (!test_bit(BCH_FS_error, &c->flags) &&
 	    !(c->disk_sb.sb->compat[0] & cpu_to_le64(1ULL << BCH_COMPAT_alloc_info))) {
 		c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_alloc_info);
 		write_sb = true;
 	}
 
-	if (!test_bit(BCH_FS_ERROR, &c->flags)) {
+	if (!test_bit(BCH_FS_error, &c->flags)) {
 		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 		if (ext &&
 		    (!bch2_is_zero(ext->recovery_passes_required, sizeof(ext->recovery_passes_required)) ||
@@ -1018,8 +1018,8 @@ use_clean:
 	}
 
 	if (c->opts.fsck &&
-	    !test_bit(BCH_FS_ERROR, &c->flags) &&
-	    !test_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags)) {
+	    !test_bit(BCH_FS_error, &c->flags) &&
+	    !test_bit(BCH_FS_errors_not_fixed, &c->flags)) {
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 0);
 		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, 0);
 		write_sb = true;
@@ -1053,7 +1053,7 @@ use_clean:
 
 	ret = 0;
 out:
-	set_bit(BCH_FS_FSCK_DONE, &c->flags);
+	set_bit(BCH_FS_fsck_done, &c->flags);
 	bch2_flush_fsck_errs(c);
 
 	if (!c->opts.keep_journal &&
@@ -1061,7 +1061,7 @@ out:
 		bch2_journal_keys_put_initial(c);
 	kfree(clean);
 
-	if (!ret && test_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags)) {
+	if (!ret && test_bit(BCH_FS_need_delete_dead_snapshots, &c->flags)) {
 		bch2_fs_read_write_early(c);
 		bch2_delete_dead_snapshots_async(c);
 	}
@@ -1100,8 +1100,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 	mutex_unlock(&c->sb_lock);
 
 	c->curr_recovery_pass = ARRAY_SIZE(recovery_pass_fns);
-	set_bit(BCH_FS_MAY_GO_RW, &c->flags);
-	set_bit(BCH_FS_FSCK_DONE, &c->flags);
+	set_bit(BCH_FS_may_go_rw, &c->flags);
+	set_bit(BCH_FS_fsck_done, &c->flags);
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);

@@ -145,6 +145,7 @@ rw_attribute(gc_gens_pos);
 
 read_attribute(uuid);
 read_attribute(minor);
+read_attribute(flags);
 read_attribute(bucket_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
@@ -268,7 +269,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 
 	memset(s, 0, sizeof(s));
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EPERM;
 
 	trans = bch2_trans_get(c);
@@ -384,6 +385,9 @@ SHOW(bch2_fs)
 	sysfs_print(minor,			c->minor);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
 
+	if (attr == &sysfs_flags)
+		prt_bitflags(out, bch2_fs_flag_strs, c->flags);
+
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
 
 	if (attr == &sysfs_btree_write_stats)
@@ -497,12 +501,12 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EPERM;
 
 	/* Debugging: */
 
-	if (!test_bit(BCH_FS_RW, &c->flags))
+	if (!test_bit(BCH_FS_rw, &c->flags))
 		return -EROFS;
 
 	if (attr == &sysfs_prune_cache) {
@@ -634,6 +638,7 @@ STORE(bch2_fs_internal)
 SYSFS_OPS(bch2_fs_internal);
 
 struct attribute *bch2_fs_internal_files[] = {
+	&sysfs_flags,
 	&sysfs_journal_debug,
 	&sysfs_btree_updates,
 	&sysfs_btree_cache,

@@ -7,7 +7,7 @@
 
 bool bch2_inconsistent_error(struct bch_fs *c)
 {
-	set_bit(BCH_FS_ERROR, &c->flags);
+	set_bit(BCH_FS_error, &c->flags);
 
 	switch (c->opts.errors) {
 	case BCH_ON_ERROR_continue:
@@ -26,8 +26,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 
 void bch2_topology_error(struct bch_fs *c)
 {
-	set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
+	set_bit(BCH_FS_topology_error, &c->flags);
+	if (test_bit(BCH_FS_fsck_done, &c->flags))
 		bch2_inconsistent_error(c);
 }
 
@@ -114,7 +114,7 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 {
 	struct fsck_err_state *s;
 
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
+	if (test_bit(BCH_FS_fsck_done, &c->flags))
 		return NULL;
 
 	list_for_each_entry(s, &c->fsck_error_msgs, list)
@@ -196,7 +196,7 @@ int bch2_fsck_err(struct bch_fs *c,
 		prt_printf(out, bch2_log_msg(c, ""));
 #endif
 
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags)) {
+	if (test_bit(BCH_FS_fsck_done, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
@@ -256,7 +256,7 @@ int bch2_fsck_err(struct bch_fs *c,
 	if (print)
 		bch2_print_string_as_lines(KERN_ERR, out->buf);
 
-	if (!test_bit(BCH_FS_FSCK_DONE, &c->flags) &&
+	if (!test_bit(BCH_FS_fsck_done, &c->flags) &&
 	    (ret != -BCH_ERR_fsck_fix &&
 	     ret != -BCH_ERR_fsck_ignore))
 		bch_err(c, "Unable to continue, halting");
@@ -274,10 +274,10 @@ int bch2_fsck_err(struct bch_fs *c,
 		bch2_inconsistent_error(c);
 
 	if (ret == -BCH_ERR_fsck_fix) {
-		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+		set_bit(BCH_FS_errors_fixed, &c->flags);
 	} else {
-		set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
-		set_bit(BCH_FS_ERROR, &c->flags);
+		set_bit(BCH_FS_errors_not_fixed, &c->flags);
+		set_bit(BCH_FS_error, &c->flags);
 	}
 
 	return ret;

@@ -108,7 +108,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 				goto err;
 			} else {
-				set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
+				set_bit(BCH_FS_initial_gc_unfixed, &c->flags);
 			}
 		}
 	}
@@ -134,7 +134,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 			goto err;
 		} else {
-			set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
+			set_bit(BCH_FS_initial_gc_unfixed, &c->flags);
 		}
 	}
 
@@ -619,7 +619,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				g->data_type		= 0;
 				g->dirty_sectors	= 0;
 				g->cached_sectors	= 0;
-				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+				set_bit(BCH_FS_need_another_gc, &c->flags);
 			} else {
 				do_update = true;
 			}
@@ -664,7 +664,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (data_type == BCH_DATA_btree) {
 				g->data_type	= data_type;
-				set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+				set_bit(BCH_FS_need_another_gc, &c->flags);
 			} else {
 				do_update = true;
 			}
@@ -996,7 +996,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					/* Continue marking when opted to not
 					 * fix the error: */
 					ret = 0;
-					set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
+					set_bit(BCH_FS_initial_gc_unfixed, &c->flags);
 					continue;
 				}
 			} else if (ret) {
@@ -1845,7 +1845,7 @@ again:
 #endif
 	c->gc_count++;
 
-	if (test_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags) ||
+	if (test_bit(BCH_FS_need_another_gc, &c->flags) ||
 	    (!iter && bch2_test_restart_gc)) {
 		if (iter++ > 2) {
 			bch_info(c, "Unable to fix bucket gens, looping");
@@ -1857,7 +1857,7 @@ again:
 		 * XXX: make sure gens we fixed got saved
 		 */
 		bch_info(c, "Second GC pass needed, restarting:");
-		clear_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
+		clear_bit(BCH_FS_need_another_gc, &c->flags);
 		__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
 
 		bch2_gc_stripes_reset(c, metadata_only);

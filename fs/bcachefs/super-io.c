@@ -950,9 +950,9 @@ int bch2_write_super(struct bch_fs *c)
 
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
-	if (test_bit(BCH_FS_ERROR, &c->flags))
+	if (test_bit(BCH_FS_error, &c->flags))
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 1);
-	if (test_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags))
+	if (test_bit(BCH_FS_topology_error, &c->flags))
 		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, 1);
 
 	SET_BCH_SB_BIG_ENDIAN(c->disk_sb.sb, CPU_BIG_ENDIAN);

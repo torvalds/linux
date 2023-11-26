@@ -287,7 +287,7 @@ inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 	bch2_btree_add_journal_pin(c, b, journal_seq);
 
 	if (unlikely(!btree_node_dirty(b))) {
-		EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
+		EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 		set_btree_node_dirty_acct(c, b);
 	}
 
@@ -995,7 +995,7 @@ bch2_trans_commit_get_rw_cold(struct btree_trans *trans, unsigned flags)
 	int ret;
 
 	if (likely(!(flags & BCH_TRANS_COMMIT_lazy_rw)) ||
-	    test_bit(BCH_FS_STARTED, &c->flags))
+	    test_bit(BCH_FS_started, &c->flags))
 		return -BCH_ERR_erofs_trans_commit;
 
 	ret = drop_locks_do(trans, bch2_fs_read_write_early(c));
@@ -1060,7 +1060,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			return ret;
 	}
 
-	if (unlikely(!test_bit(BCH_FS_MAY_GO_RW, &c->flags))) {
+	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {
 		ret = do_bch2_trans_commit_to_journal_replay(trans);
 		goto out_reset;
 	}
@@ -1086,7 +1086,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		goto out;
 	}
 
-	EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
+	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 
 	trans->journal_u64s		= trans->extra_journal_entries.nr;
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);

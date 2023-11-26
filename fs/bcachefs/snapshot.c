@@ -318,7 +318,7 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 		__set_is_ancestor_bitmap(c, id);
 
 		if (BCH_SNAPSHOT_DELETED(s.v)) {
-			set_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags);
+			set_bit(BCH_FS_need_delete_dead_snapshots, &c->flags);
 			if (c->curr_recovery_pass > BCH_RECOVERY_PASS_delete_dead_snapshots)
 				bch2_delete_dead_snapshots_async(c);
 		}
@@ -1376,10 +1376,10 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	u32 *i, id;
 	int ret = 0;
 
-	if (!test_and_clear_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags))
+	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))
 		return 0;
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
+	if (!test_bit(BCH_FS_started, &c->flags)) {
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
 			bch_err_msg(c, ret, "deleting dead snapshots: error going rw");
@@ -1680,7 +1680,7 @@ static int bch2_check_snapshot_needs_deletion(struct btree_trans *trans, struct 
 	if (BCH_SNAPSHOT_DELETED(snap.v) ||
 	    bch2_snapshot_equiv(c, k.k->p.offset) != k.k->p.offset ||
 	    (ret = bch2_snapshot_needs_delete(trans, k)) > 0) {
-		set_bit(BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS, &c->flags);
+		set_bit(BCH_FS_need_delete_dead_snapshots, &c->flags);
 		return 0;
 	}
 

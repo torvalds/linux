@@ -1182,7 +1182,7 @@ again:
 			break;
 
 		if (ret) {
-			if (!test_bit(BCH_FS_RW, &c->flags)) {
+			if (!test_bit(BCH_FS_rw, &c->flags)) {
 				bch2_trans_unlock(trans);
 				bch2_fs_lazy_rw(c);
 			}

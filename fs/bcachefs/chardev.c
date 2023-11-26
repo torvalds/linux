@@ -418,7 +418,7 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	unsigned i;
 	int ret = 0;
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EINVAL;
 
 	if (get_user(replica_entries_bytes, &user_arg->replica_entries_bytes))
@@ -492,7 +492,7 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 	struct bch_dev *ca;
 	unsigned i;
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EINVAL;
 
 	if (copy_from_user(&arg, user_arg, sizeof(arg)))
@@ -533,7 +533,7 @@ static long bch2_ioctl_dev_usage_v2(struct bch_fs *c,
 	struct bch_dev *ca;
 	int ret = 0;
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EINVAL;
 
 	if (copy_from_user(&arg, user_arg, sizeof(arg)))
@@ -725,7 +725,7 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(disk_get_idx, struct bch_ioctl_disk_get_idx);
 	}
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EINVAL;
 
 	switch (cmd) {

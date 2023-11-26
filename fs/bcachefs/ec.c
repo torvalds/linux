@@ -1415,7 +1415,7 @@ __bch2_ec_stripe_head_get(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (test_bit(BCH_FS_GOING_RO, &c->flags)) {
+	if (test_bit(BCH_FS_going_ro, &c->flags)) {
 		h = ERR_PTR(-BCH_ERR_erofs_no_writes);
 		goto found;
 	}

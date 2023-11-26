@@ -1770,7 +1770,7 @@ static int bch2_unfreeze(struct super_block *sb)
 	struct bch_fs *c = sb->s_fs_info;
 	int ret;
 
-	if (test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
+	if (test_bit(BCH_FS_emergency_ro, &c->flags))
 		return 0;
 
 	down_write(&c->state_lock);

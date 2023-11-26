@@ -566,32 +566,38 @@ struct bch_dev {
 	struct io_count __percpu *io_done;
 };
 
-enum {
-	/* startup: */
-	BCH_FS_STARTED,
-	BCH_FS_MAY_GO_RW,
-	BCH_FS_RW,
-	BCH_FS_WAS_RW,
+/*
+ * fsck_done - kill?
+ *
+ * replace with something more general from enumated fsck passes/errors:
+ * initial_gc_unfixed
+ * error
+ * topology error
+ */
 
-	/* shutdown: */
-	BCH_FS_STOPPING,
-	BCH_FS_EMERGENCY_RO,
-	BCH_FS_GOING_RO,
-	BCH_FS_WRITE_DISABLE_COMPLETE,
-	BCH_FS_CLEAN_SHUTDOWN,
+#define BCH_FS_FLAGS()			\
+	x(started)			\
+	x(may_go_rw)			\
+	x(rw)				\
+	x(was_rw)			\
+	x(stopping)			\
+	x(emergency_ro)			\
+	x(going_ro)			\
+	x(write_disable_complete)	\
+	x(clean_shutdown)		\
+	x(fsck_done)			\
+	x(initial_gc_unfixed)		\
+	x(need_another_gc)		\
+	x(need_delete_dead_snapshots)	\
+	x(error)			\
+	x(topology_error)		\
+	x(errors_fixed)			\
+	x(errors_not_fixed)
 
-	/* fsck passes: */
-	BCH_FS_FSCK_DONE,
-	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
-	BCH_FS_NEED_ANOTHER_GC,
-
-	BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS,
-
-	/* errors: */
-	BCH_FS_ERROR,
-	BCH_FS_TOPOLOGY_ERROR,
-	BCH_FS_ERRORS_FIXED,
-	BCH_FS_ERRORS_NOT_FIXED,
+enum bch_fs_flags {
+#define x(n)		BCH_FS_##n,
+	BCH_FS_FLAGS()
+#undef x
 };
 
 struct btree_debug {
@@ -1070,7 +1076,7 @@ static inline void bch2_write_ref_get(struct bch_fs *c, enum bch_write_ref ref)
 static inline bool bch2_write_ref_tryget(struct bch_fs *c, enum bch_write_ref ref)
 {
 #ifdef BCH_WRITE_REF_DEBUG
-	return !test_bit(BCH_FS_GOING_RO, &c->flags) &&
+	return !test_bit(BCH_FS_going_ro, &c->flags) &&
 		atomic_long_inc_not_zero(&c->writes[ref]);
 #else
 	return percpu_ref_tryget_live(&c->writes);
@@ -1089,7 +1095,7 @@ static inline void bch2_write_ref_put(struct bch_fs *c, enum bch_write_ref ref)
 		if (atomic_long_read(&c->writes[i]))
 			return;
 
-	set_bit(BCH_FS_WRITE_DISABLE_COMPLETE, &c->flags);
+	set_bit(BCH_FS_write_disable_complete, &c->flags);
 	wake_up(&bch2_read_only_wait);
 #else
 	percpu_ref_put(&c->writes);

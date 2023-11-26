@@ -177,7 +177,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	struct journal_keys *keys = &c->journal_keys;
 	size_t idx = bch2_journal_key_search(keys, id, level, k->k.p);
 
-	BUG_ON(test_bit(BCH_FS_RW, &c->flags));
+	BUG_ON(test_bit(BCH_FS_rw, &c->flags));
 
 	if (idx < keys->size &&
 	    journal_key_cmp(&n, &keys->d[idx]) == 0) {

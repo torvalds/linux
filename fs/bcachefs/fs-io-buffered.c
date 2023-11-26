@@ -638,7 +638,7 @@ do_io:
 		/* Check for writing past i_size: */
 		WARN_ONCE((bio_end_sector(&w->io->op.wbio.bio) << 9) >
 			  round_up(i_size, block_bytes(c)) &&
-			  !test_bit(BCH_FS_EMERGENCY_RO, &c->flags),
+			  !test_bit(BCH_FS_emergency_ro, &c->flags),
 			  "writing past i_size: %llu > %llu (unrounded %llu)\n",
 			  bio_end_sector(&w->io->op.wbio.bio) << 9,
 			  round_up(i_size, block_bytes(c)),
