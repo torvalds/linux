@@ -959,31 +959,45 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		struct file *file;
 		struct fdtable *fdt = rcu_dereference_raw(files->fdt);
 		struct file __rcu **fdentry;
+		unsigned long nospec_mask;
 
-		if (unlikely(fd >= fdt->max_fds))
-			return NULL;
-
-		fdentry = fdt->fd + array_index_nospec(fd, fdt->max_fds);
+		/* Mask is a 0 for invalid fd's, ~0 for valid ones */
+		nospec_mask = array_index_mask_nospec(fd, fdt->max_fds);
 
 		/*
-		 * Ok, we have a file pointer. However, because we do
-		 * this all locklessly under RCU, we may be racing with
-		 * that file being closed.
+		 * fdentry points to the 'fd' offset, or fdt->fd[0].
+		 * Loading from fdt->fd[0] is always safe, because the
+		 * array always exists.
+		 */
+		fdentry = fdt->fd + (fd & nospec_mask);
+
+		/* Do the load, then mask any invalid result */
+		file = rcu_dereference_raw(*fdentry);
+		file = (void *)(nospec_mask & (unsigned long)file);
+		if (unlikely(!file))
+			return NULL;
+
+		/*
+		 * Ok, we have a file pointer that was valid at
+		 * some point, but it might have become stale since.
 		 *
+		 * We need to confirm it by incrementing the refcount
+		 * and then check the lookup again.
+		 *
+		 * atomic_long_inc_not_zero() gives us a full memory
+		 * barrier. We only really need an 'acquire' one to
+		 * protect the loads below, but we don't have that.
+		 */
+		if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+			continue;
+
+		/*
 		 * Such a race can take two forms:
 		 *
 		 *  (a) the file ref already went down to zero and the
 		 *      file hasn't been reused yet or the file count
 		 *      isn't zero but the file has already been reused.
-		 */
-		file = __get_file_rcu(fdentry);
-		if (unlikely(!file))
-			return NULL;
-
-		if (unlikely(IS_ERR(file)))
-			continue;
-
-		/*
+		 *
 		 *  (b) the file table entry has changed under us.
 		 *       Note that we don't need to re-check the 'fdt->fd'
 		 *       pointer having changed, because it always goes
@@ -991,7 +1005,8 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 *
 		 * If so, we need to put our ref and try again.
 		 */
-		if (unlikely(rcu_dereference_raw(files->fdt) != fdt)) {
+		if (unlikely(file != rcu_dereference_raw(*fdentry)) ||
+		    unlikely(rcu_dereference_raw(files->fdt) != fdt)) {
 			fput(file);
 			continue;
 		}
@@ -1128,13 +1143,13 @@ static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 	 * atomic_read_acquire() pairs with atomic_dec_and_test() in
 	 * put_files_struct().
 	 */
-	if (atomic_read_acquire(&files->count) == 1) {
+	if (likely(atomic_read_acquire(&files->count) == 1)) {
 		file = files_lookup_fd_raw(files, fd);
 		if (!file || unlikely(file->f_mode & mask))
 			return 0;
 		return (unsigned long)file;
 	} else {
-		file = __fget(fd, mask);
+		file = __fget_files(files, fd, mask);
 		if (!file)
 			return 0;
 		return FDPUT_FPUT | (unsigned long)file;
