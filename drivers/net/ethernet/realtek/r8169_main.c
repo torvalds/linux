@@ -4694,7 +4694,7 @@ static int rtl8169_close(struct net_device *dev)
 	rtl8169_down(tp);
 	rtl8169_rx_clear(tp);
 
-	cancel_work_sync(&tp->wk.work);
+	cancel_work(&tp->wk.work);
 
 	free_irq(tp->irq, tp);
 
@@ -4927,6 +4927,8 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
+
+	cancel_work_sync(&tp->wk.work);
 
 	unregister_netdev(tp->dev);
 
