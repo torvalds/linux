@@ -5,8 +5,10 @@
 #include <linux/xarray.h>
 #include <net/net_debug.h>
 #include <net/page_pool/types.h>
+#include <net/sock.h>
 
 #include "page_pool_priv.h"
+#include "netdev-genl-gen.h"
 
 static DEFINE_XARRAY_FLAGS(page_pools, XA_FLAGS_ALLOC1);
 /* Protects: page_pools, netdevice->page_pools, pool->slow.netdev, pool->user.
@@ -25,6 +27,131 @@ static DEFINE_MUTEX(page_pools_lock);
  *      to error, or (c) the entire namespace which owned this pool disappeared
  *    - user.list: unhashed, netdev: unknown
  */
+
+typedef int (*pp_nl_fill_cb)(struct sk_buff *rsp, const struct page_pool *pool,
+			     const struct genl_info *info);
+
+static int
+netdev_nl_page_pool_get_do(struct genl_info *info, u32 id, pp_nl_fill_cb fill)
+{
+	struct page_pool *pool;
+	struct sk_buff *rsp;
+	int err;
+
+	mutex_lock(&page_pools_lock);
+	pool = xa_load(&page_pools, id);
+	if (!pool || hlist_unhashed(&pool->user.list) ||
+	    !net_eq(dev_net(pool->slow.netdev), genl_info_net(info))) {
+		err = -ENOENT;
+		goto err_unlock;
+	}
+
+	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!rsp) {
+		err = -ENOMEM;
+		goto err_unlock;
+	}
+
+	err = fill(rsp, pool, info);
+	if (err)
+		goto err_free_msg;
+
+	mutex_unlock(&page_pools_lock);
+
+	return genlmsg_reply(rsp, info);
+
+err_free_msg:
+	nlmsg_free(rsp);
+err_unlock:
+	mutex_unlock(&page_pools_lock);
+	return err;
+}
+
+struct page_pool_dump_cb {
+	unsigned long ifindex;
+	u32 pp_id;
+};
+
+static int
+netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			     pp_nl_fill_cb fill)
+{
+	struct page_pool_dump_cb *state = (void *)cb->ctx;
+	const struct genl_info *info = genl_info_dump(cb);
+	struct net *net = sock_net(skb->sk);
+	struct net_device *netdev;
+	struct page_pool *pool;
+	int err = 0;
+
+	rtnl_lock();
+	mutex_lock(&page_pools_lock);
+	for_each_netdev_dump(net, netdev, state->ifindex) {
+		hlist_for_each_entry(pool, &netdev->page_pools, user.list) {
+			if (state->pp_id && state->pp_id < pool->user.id)
+				continue;
+
+			state->pp_id = pool->user.id;
+			err = fill(skb, pool, info);
+			if (err)
+				break;
+		}
+
+		state->pp_id = 0;
+	}
+	mutex_unlock(&page_pools_lock);
+	rtnl_unlock();
+
+	if (skb->len && err == -EMSGSIZE)
+		return skb->len;
+	return err;
+}
+
+static int
+page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
+		  const struct genl_info *info)
+{
+	void *hdr;
+
+	hdr = genlmsg_iput(rsp, info);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (nla_put_uint(rsp, NETDEV_A_PAGE_POOL_ID, pool->user.id))
+		goto err_cancel;
+
+	if (pool->slow.netdev->ifindex != LOOPBACK_IFINDEX &&
+	    nla_put_u32(rsp, NETDEV_A_PAGE_POOL_IFINDEX,
+			pool->slow.netdev->ifindex))
+		goto err_cancel;
+	if (pool->user.napi_id &&
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_NAPI_ID, pool->user.napi_id))
+		goto err_cancel;
+
+	genlmsg_end(rsp, hdr);
+
+	return 0;
+err_cancel:
+	genlmsg_cancel(rsp, hdr);
+	return -EMSGSIZE;
+}
+
+int netdev_nl_page_pool_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	u32 id;
+
+	if (GENL_REQ_ATTR_CHECK(info, NETDEV_A_PAGE_POOL_ID))
+		return -EINVAL;
+
+	id = nla_get_uint(info->attrs[NETDEV_A_PAGE_POOL_ID]);
+
+	return netdev_nl_page_pool_get_do(info, id, page_pool_nl_fill);
+}
+
+int netdev_nl_page_pool_get_dumpit(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	return netdev_nl_page_pool_get_dump(skb, cb, page_pool_nl_fill);
+}
 
 int page_pool_list(struct page_pool *pool)
 {
