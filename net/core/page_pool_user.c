@@ -134,6 +134,10 @@ page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_INFLIGHT_MEM,
 			 inflight * refsz))
 		goto err_cancel;
+	if (pool->user.detach_time &&
+	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_DETACH_TIME,
+			 pool->user.detach_time))
+		goto err_cancel;
 
 	genlmsg_end(rsp, hdr);
 
@@ -217,6 +221,14 @@ int page_pool_list(struct page_pool *pool)
 err_unlock:
 	mutex_unlock(&page_pools_lock);
 	return err;
+}
+
+void page_pool_detached(struct page_pool *pool)
+{
+	mutex_lock(&page_pools_lock);
+	pool->user.detach_time = ktime_get_boottime_seconds();
+	netdev_nl_page_pool_event(pool, NETDEV_CMD_PAGE_POOL_CHANGE_NTF);
+	mutex_unlock(&page_pools_lock);
 }
 
 void page_pool_unlist(struct page_pool *pool)

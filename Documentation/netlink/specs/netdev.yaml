@@ -127,6 +127,18 @@ attribute-sets:
         type: uint
         doc: |
           Amount of memory held by inflight pages.
+      -
+        name: detach-time
+        type: uint
+        doc: |
+          Seconds in CLOCK_BOOTTIME of when Page Pool was detached by
+          the driver. Once detached Page Pool can no longer be used to
+          allocate memory.
+          Page Pools wait for all the memory allocated from them to be freed
+          before truly disappearing. "Detached" Page Pools cannot be
+          "re-attached", they are just waiting to disappear.
+          Attribute is absent if Page Pool has not been detached, and
+          can still be used to allocate new memory.
 
 operations:
   list:
@@ -178,6 +190,7 @@ operations:
             - napi-id
             - inflight
             - inflight-mem
+            - detach-time
       dump:
         reply: *pp-reply
       config-cond: page-pool
