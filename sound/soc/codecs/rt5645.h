@@ -2201,4 +2201,7 @@ int rt5645_sel_asrc_clk_src(struct snd_soc_component *component,
 int rt5645_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,
 	struct snd_soc_jack *btn_jack);
+
+const char *rt5645_components(struct device *codec_dev);
+
 #endif /* __RT5645_H__ */
