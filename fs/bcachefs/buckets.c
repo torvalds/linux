@@ -854,8 +854,12 @@ static int __mark_pointer(struct btree_trans *trans,
 		return ret;
 
 	*dst_sectors += sectors;
-	*bucket_data_type = *dirty_sectors || *cached_sectors
-		? ptr_data_type : 0;
+
+	if (!*dirty_sectors && !*cached_sectors)
+		*bucket_data_type = 0;
+	else if (*bucket_data_type != BCH_DATA_stripe)
+		*bucket_data_type = ptr_data_type;
+
 	return 0;
 }
 
