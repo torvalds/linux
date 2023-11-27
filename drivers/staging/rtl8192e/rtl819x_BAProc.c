@@ -25,7 +25,7 @@ static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *ba
 
 static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *ts)
 {
-	struct ba_record *admitted_ba = &ts->TxAdmittedBARecord;
+	struct ba_record *admitted_ba = &ts->tx_admitted_ba_record;
 	struct ba_record *pending_ba = &ts->TxPendingBARecord;
 	u8 send_del_ba = false;
 
@@ -346,7 +346,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	ts->add_ba_req_in_progress = false;
 	pending_ba = &ts->TxPendingBARecord;
-	pAdmittedBA = &ts->TxAdmittedBARecord;
+	pAdmittedBA = &ts->tx_admitted_ba_record;
 
 	if (pAdmittedBA->b_valid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
@@ -494,8 +494,8 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 
 		if (tx_ts_delete_ba(ieee, ts))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
-					  (ts->TxAdmittedBARecord.b_valid) ?
-					 (&ts->TxAdmittedBARecord) :
+					  (ts->tx_admitted_ba_record.b_valid) ?
+					 (&ts->tx_admitted_ba_record) :
 					(&ts->TxPendingBARecord),
 					 TxRxSelect, DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
@@ -521,12 +521,12 @@ void rtllib_ba_setup_timeout(struct timer_list *t)
 void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *ts = from_timer(ts, t,
-					      TxAdmittedBARecord.timer);
+					      tx_admitted_ba_record.timer);
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
 				     TxTsRecord[ts->num]);
 	tx_ts_delete_ba(ieee, ts);
 	rtllib_send_DELBA(ieee, ts->TsCommonInfo.addr,
-			  &ts->TxAdmittedBARecord, TX_DIR,
+			  &ts->tx_admitted_ba_record, TX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }
 

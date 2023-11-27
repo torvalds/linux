@@ -26,7 +26,7 @@ struct tx_ts_record {
 	struct ts_common_info TsCommonInfo;
 	u16				TxCurSeq;
 	struct ba_record TxPendingBARecord;
-	struct ba_record TxAdmittedBARecord;
+	struct ba_record tx_admitted_ba_record;
 	u8				add_ba_req_in_progress;
 	u8				add_ba_req_delayed;
 	u8				using_ba;

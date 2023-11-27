@@ -105,7 +105,7 @@ static void ResetTxTsEntry(struct tx_ts_record *ts)
 	ts->add_ba_req_delayed = false;
 	ts->using_ba = false;
 	ts->disable_add_ba = false;
-	rtllib_reset_ba_entry(&ts->TxAdmittedBARecord);
+	rtllib_reset_ba_entry(&ts->tx_admitted_ba_record);
 	rtllib_reset_ba_entry(&ts->TxPendingBARecord);
 }
 
@@ -134,7 +134,7 @@ void rtllib_ts_init(struct rtllib_device *ieee)
 
 		timer_setup(&pTxTS->TxPendingBARecord.timer, rtllib_ba_setup_timeout,
 			    0);
-		timer_setup(&pTxTS->TxAdmittedBARecord.timer,
+		timer_setup(&pTxTS->tx_admitted_ba_record.timer,
 			    rtllib_tx_ba_inact_timeout, 0);
 
 		ResetTxTsEntry(pTxTS);
