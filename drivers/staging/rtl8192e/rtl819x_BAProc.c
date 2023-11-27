@@ -68,7 +68,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 				    u16 status_code, u8 type)
 {
 	struct sk_buff *skb = NULL;
-	struct ieee80211_hdr_3addr *BAReq = NULL;
+	struct ieee80211_hdr_3addr *ba_req = NULL;
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 
@@ -87,13 +87,13 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *dst,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	BAReq = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
+	ba_req = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
-	ether_addr_copy(BAReq->addr1, dst);
-	ether_addr_copy(BAReq->addr2, ieee->dev->dev_addr);
+	ether_addr_copy(ba_req->addr1, dst);
+	ether_addr_copy(ba_req->addr2, ieee->dev->dev_addr);
 
-	ether_addr_copy(BAReq->addr3, ieee->current_network.bssid);
-	BAReq->frame_control = cpu_to_le16(IEEE80211_STYPE_ACTION);
+	ether_addr_copy(ba_req->addr3, ieee->current_network.bssid);
+	ba_req->frame_control = cpu_to_le16(IEEE80211_STYPE_ACTION);
 
 	tag = skb_put(skb, 9);
 	*tag++ = ACT_CAT_BA;
