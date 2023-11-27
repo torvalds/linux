@@ -249,7 +249,6 @@ struct ath10k_htc_record {
 		struct ath10k_htc_credit_report credit_report[0];
 		struct ath10k_htc_lookahead_report lookahead_report[0];
 		struct ath10k_htc_lookahead_bundle lookahead_bundle[0];
-		u8 pauload[0];
 	};
 } __packed __aligned(4);
 
