@@ -143,6 +143,9 @@ intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 			     u32 bus_id, u8 link_type, u8 vbps, u8 bps,
 			     u8 num_ch, u32 rate, u8 dir, u8 dev_type);
 
+int intel_nhlt_ssp_device_type(struct device *dev, struct nhlt_acpi_table *nhlt,
+			       u8 virtual_bus_id);
+
 #else
 
 static inline struct nhlt_acpi_table *intel_nhlt_init(struct device *dev)
@@ -182,6 +185,13 @@ intel_nhlt_get_endpoint_blob(struct device *dev, struct nhlt_acpi_table *nhlt,
 			     u8 num_ch, u32 rate, u8 dir, u8 dev_type)
 {
 	return NULL;
+}
+
+static inline int intel_nhlt_ssp_device_type(struct device *dev,
+					     struct nhlt_acpi_table *nhlt,
+					     u8 virtual_bus_id)
+{
+	return -EINVAL;
 }
 
 #endif
