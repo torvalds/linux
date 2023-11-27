@@ -591,13 +591,12 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec codec_type,
 		goto devm_err;
 
 	/* codec SSP */
-	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
-					"SSP%d-Codec", ssp_codec);
-	if (!links[id].name)
-		goto devm_err;
+	ret = sof_intel_board_set_codec_link(dev, &links[id], id, codec_type,
+					     ssp_codec);
+	if (ret)
+		return NULL;
 
-	links[id].id = id;
-
+	/* codec-specific fields */
 	switch (codec_type) {
 	case CODEC_RT5650:
 		links[id].codecs = &rt5650_components[0];
@@ -616,23 +615,11 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec codec_type,
 		return NULL;
 	}
 
-	links[id].platforms = platform_component;
-	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
 	links[id].exit = sof_rt5682_codec_exit;
 	links[id].ops = &sof_rt5682_ops;
-	links[id].dpcm_playback = 1;
-	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
-	links[id].cpus = &cpus[id];
-	links[id].num_cpus = 1;
-	if (is_legacy_cpu) {
-		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							  "ssp%d-port",
-							  ssp_codec);
-		if (!links[id].cpus->dai_name)
-			goto devm_err;
-	} else {
+
+	if (!is_legacy_cpu) {
 		/*
 		 * Currently, On SKL+ platforms MCLK will be turned off in sof
 		 * runtime suspended, and it will go into runtime suspended
@@ -643,11 +630,6 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec codec_type,
 		 * It can be removed once we can control MCLK by driver.
 		 */
 		links[id].ignore_pmdown_time = 1;
-		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							  "SSP%d Pin",
-							  ssp_codec);
-		if (!links[id].cpus->dai_name)
-			goto devm_err;
 	}
 	id++;
 
@@ -819,7 +801,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int ret, ssp_amp, ssp_codec;
+	int ret, ssp_amp;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -888,7 +870,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_amp = (sof_rt5682_quirk & SOF_RT5682_SSP_AMP_MASK) >>
 			SOF_RT5682_SSP_AMP_SHIFT;
 
-	ssp_codec = sof_rt5682_quirk & SOF_RT5682_SSP_CODEC_MASK;
+	ctx->ssp_codec = sof_rt5682_quirk & SOF_RT5682_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
 	sof_audio_card_rt5682.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
@@ -905,7 +887,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 					SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT);
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->codec_type,
-					      ctx->amp_type, ssp_codec, ssp_amp,
+					      ctx->amp_type, ctx->ssp_codec, ssp_amp,
 					      ctx->dmic_be_num, ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec,
 					      ctx->rt5682.is_legacy_cpu);
