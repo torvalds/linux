@@ -338,6 +338,10 @@ err:
 	if (ret == -BCH_ERR_data_update_done)
 		return 0;
 
+	if (bch2_err_matches(ret, EROFS) ||
+	    bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		return ret;
+
 	this_cpu_inc(c->counters[BCH_COUNTER_move_extent_start_fail]);
 	if (trace_move_extent_start_fail_enabled()) {
 		struct printbuf buf = PRINTBUF;
