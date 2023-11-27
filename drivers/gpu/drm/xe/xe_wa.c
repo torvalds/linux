@@ -522,27 +522,6 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_ACTIONS(SET(HALF_SLICE_CHICKEN7,
 			     DG2_DISABLE_ROUND_ENABLE_ALLOW_FOR_SSLA))
 	},
-	{ XE_RTP_NAME("22014600077"),
-	  XE_RTP_RULES(SUBPLATFORM(DG2, G11), GRAPHICS_STEP(B0, FOREVER),
-		       ENGINE_CLASS(RENDER)),
-	  XE_RTP_ACTIONS(SET(CACHE_MODE_SS,
-			     ENABLE_EU_COUNT_FOR_TDL_FLUSH,
-			     /*
-			      * Wa_14012342262 write-only reg, so skip
-			      * verification
-			      */
-			     .read_mask = 0))
-	},
-	{ XE_RTP_NAME("22014600077"),
-	  XE_RTP_RULES(SUBPLATFORM(DG2, G10), ENGINE_CLASS(RENDER)),
-	  XE_RTP_ACTIONS(SET(CACHE_MODE_SS,
-			     ENABLE_EU_COUNT_FOR_TDL_FLUSH,
-			     /*
-			      * Wa_14012342262 write-only reg, so skip
-			      * verification
-			      */
-			     .read_mask = 0))
-	},
 	{ XE_RTP_NAME("14015150844"),
 	  XE_RTP_RULES(PLATFORM(DG2), FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(XEHP_HDC_CHICKEN0, DIS_ATOMIC_CHAINING_TYPED_WRITES,
