@@ -56,10 +56,6 @@
 #define FIRMWARE_8125A_3	"rtl_nic/rtl8125a-3.fw"
 #define FIRMWARE_8125B_2	"rtl_nic/rtl8125b-2.fw"
 
-/* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
-   The RTL chips use a 64 element hash table based on the Ethernet CRC. */
-#define	MC_FILTER_LIMIT	32
-
 #define TX_DMA_BURST	7	/* Maximum PCI burst, '7' is unlimited */
 #define InterFrameGap	0x03	/* 3 means InterFrameGap = the shortest one */
 
@@ -2597,8 +2593,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 		rx_mode |= AcceptAllPhys;
 	} else if (!(dev->flags & IFF_MULTICAST)) {
 		rx_mode &= ~AcceptMulticast;
-	} else if (netdev_mc_count(dev) > MC_FILTER_LIMIT ||
-		   dev->flags & IFF_ALLMULTI ||
+	} else if (dev->flags & IFF_ALLMULTI ||
 		   tp->mac_version == RTL_GIGA_MAC_VER_35) {
 		/* accept all multicasts */
 	} else if (netdev_mc_empty(dev)) {
