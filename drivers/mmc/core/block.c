@@ -46,8 +46,11 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#include <trace/hooks/mmc.h>
 
 #include <linux/uaccess.h>
+
+#include <trace/hooks/mmc.h>
 
 #include "queue.h"
 #include "block.h"
@@ -1894,6 +1897,7 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	    err && mmc_blk_reset(md, card->host, type)) {
 		pr_err("%s: recovery failed!\n", req->q->disk->disk_name);
 		mqrq->retries = MMC_NO_RETRIES;
+		trace_android_vh_mmc_blk_mq_rw_recovery(card);
 		return;
 	}
 
@@ -3015,6 +3019,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 		ret = PTR_ERR(md);
 		goto out_free;
 	}
+	trace_android_vh_mmc_update_mmc_queue(card, &md->queue);
 
 	ret = mmc_blk_alloc_parts(card, md);
 	if (ret)

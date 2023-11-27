@@ -26,6 +26,7 @@
   amba_driver_unregister
   android_rvh_probe_register
   anon_inode_getfd
+  anon_inode_getfile
   arc4_crypt
   arc4_setkey
   __arch_clear_user
@@ -2188,6 +2189,7 @@
   __traceiter_android_rvh_update_load_avg
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
+  __traceiter_android_rvh_util_fits_cpu
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
@@ -2252,6 +2254,8 @@
   __traceiter_sched_util_est_cfs_tp
   __traceiter_sched_util_est_se_tp
   __traceiter_sched_wakeup
+  __traceiter_softirq_entry
+  __traceiter_softirq_exit
   __traceiter_suspend_resume
   __traceiter_workqueue_execute_end
   __traceiter_workqueue_execute_start
@@ -2290,6 +2294,7 @@
   __tracepoint_android_rvh_update_load_avg
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
+  __tracepoint_android_rvh_util_fits_cpu
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
@@ -2356,6 +2361,8 @@
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_sched_wakeup
+  __tracepoint_softirq_entry
+  __tracepoint_softirq_exit
   __tracepoint_suspend_resume
   __tracepoint_workqueue_execute_end
   __tracepoint_workqueue_execute_start

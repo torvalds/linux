@@ -6485,6 +6485,8 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 	if (is_mcq_enabled(hba)) {
 		struct ufshcd_lrb *lrbp;
 		int tag;
+		struct ufs_hw_queue *hwq;
+		unsigned long flags;
 
 		for (tag = 0; tag < hba->nutrs; tag++) {
 			lrbp = &hba->lrb[tag];
@@ -6498,6 +6500,11 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 				needs_reset = true;
 				goto out;
 			}
+			hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
+			spin_lock_irqsave(&hwq->cq_lock, flags);
+			if (ufshcd_cmd_inflight(lrbp->cmd))
+				ufshcd_release_scsi_cmd(hba, lrbp);
+			spin_unlock_irqrestore(&hwq->cq_lock, flags);
 		}
 	} else {
 		/* Clear pending transfer requests */
@@ -7385,7 +7392,15 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 	/* Advanced RPMB starts from UFS 4.0, so its command type is UTP_CMD_TYPE_UFS_STORAGE */
 	lrbp->command_type = UTP_CMD_TYPE_UFS_STORAGE;
 
-	ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, dir, 2);
+	/*
+	 * According to UFSHCI 4.0 specification page 24, if EHSLUTRDS is 0, host controller takes
+	 * EHS length from CMD UPIU, and SW driver use EHS Length field in CMD UPIU. if it is 1,
+	 * HW controller takes EHS length from UTRD.
+	 */
+	if (hba->capabilities & MASK_EHSLUTRD_SUPPORTED)
+		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, dir, 2);
+	else
+		ufshcd_prepare_req_desc_hdr(lrbp, &upiu_flags, dir, 0);
 
 	/* update the task tag and LUN in the request upiu */
 	req_upiu->header.dword_0 |= cpu_to_be32(upiu_flags << 16 | UFS_UPIU_RPMB_WLUN << 8 | tag);

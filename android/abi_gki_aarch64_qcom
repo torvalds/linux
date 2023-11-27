@@ -2038,6 +2038,7 @@
   __netif_napi_del
   netif_receive_skb
   netif_receive_skb_list
+  __netif_rx
   netif_rx
   netif_schedule_queue
   netif_set_real_num_rx_queues
@@ -3292,7 +3293,9 @@
   topology_update_thermal_pressure
   _totalram_pages
   _trace_android_vh_record_pcpu_rwsem_starttime
+  trace_array_get_by_name
   trace_array_put
+  trace_array_set_clr_event
   __trace_bprintk
   trace_clock_local
   trace_event_buffer_commit

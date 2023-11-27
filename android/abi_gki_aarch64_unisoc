@@ -719,6 +719,7 @@
   __traceiter_android_vh_modify_thermal_target_freq
   __traceiter_android_vh_regmap_update
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_slab_folio_alloced
   __traceiter_android_vh_thermal_power_cap
   __traceiter_android_vh_thermal_register
   __traceiter_android_vh_thermal_unregister
@@ -798,6 +799,7 @@
   __tracepoint_android_vh_modify_thermal_target_freq
   __tracepoint_android_vh_regmap_update
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_slab_folio_alloced
   __tracepoint_android_vh_thermal_power_cap
   __tracepoint_android_vh_thermal_register
   __tracepoint_android_vh_thermal_unregister

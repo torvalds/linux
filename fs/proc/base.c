@@ -2022,21 +2022,19 @@ static int pid_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	struct task_struct *task;
-	int ret = 0;
 
-	rcu_read_lock();
-	inode = d_inode_rcu(dentry);
-	if (!inode)
-		goto out;
-	task = pid_task(proc_pid(inode), PIDTYPE_PID);
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = d_inode(dentry);
+	task = get_proc_task(inode);
 
 	if (task) {
 		pid_update_inode(task, inode);
-		ret = 1;
+		put_task_struct(task);
+		return 1;
 	}
-out:
-	rcu_read_unlock();
-	return ret;
+	return 0;
 }
 
 static inline bool proc_inode_is_dead(struct inode *inode)
