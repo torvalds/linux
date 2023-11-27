@@ -314,7 +314,7 @@ next:
 		}
 		continue;
 nowork:
-		if (m->stats && m->stats) {
+		if (m->stats) {
 			BUG_ON(k.k->p.offset <= iter.pos.offset);
 			atomic64_inc(&m->stats->keys_raced);
 			atomic64_add(k.k->p.offset - iter.pos.offset,
