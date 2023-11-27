@@ -637,6 +637,17 @@ config VEML6070
 	  To compile this driver as a module, choose M here: the
 	  module will be called veml6070.
 
+config VEML6075
+	tristate "VEML6075 UVA and UVB light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML6075 UVA
+	  and UVB light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml6075.
+
 config VL6180
 	tristate "VL6180 ALS, range and proximity sensor"
 	depends on I2C
