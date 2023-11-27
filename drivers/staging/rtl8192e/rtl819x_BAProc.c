@@ -127,7 +127,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 				    struct ba_record *ba,
 				    enum tr_select TxRxSelect, u16 reason_code)
 {
-	union delba_param_set DelbaParamSet;
+	union delba_param_set del_ba_param_set;
 	struct sk_buff *skb = NULL;
 	struct ieee80211_hdr_3addr *del_ba = NULL;
 	u8 *tag = NULL;
@@ -137,10 +137,10 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 		netdev_dbg(ieee->dev, "%s(): reason_code(%d) sentd to: %pM\n",
 			   __func__, reason_code, dst);
 
-	memset(&DelbaParamSet, 0, 2);
+	memset(&del_ba_param_set, 0, 2);
 
-	DelbaParamSet.field.initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
-	DelbaParamSet.field.tid	= ba->ba_param_set.field.tid;
+	del_ba_param_set.field.initiator = (TxRxSelect == TX_DIR) ? 1 : 0;
+	del_ba_param_set.field.tid	= ba->ba_param_set.field.tid;
 
 	skb = dev_alloc_skb(len + sizeof(struct ieee80211_hdr_3addr));
 	if (!skb)
@@ -160,7 +160,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = ACT_CAT_BA;
 	*tag++ = ACT_DELBA;
 
-	put_unaligned_le16(DelbaParamSet.short_data, tag);
+	put_unaligned_le16(del_ba_param_set.short_data, tag);
 	tag += 2;
 
 	put_unaligned_le16(reason_code, tag);
