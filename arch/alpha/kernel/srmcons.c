@@ -88,7 +88,7 @@ srmcons_receive_chars(struct timer_list *t)
 }
 
 /* called with callback_lock held */
-static int
+static void
 srmcons_do_write(struct tty_port *port, const char *buf, int count)
 {
 	static char str_cr[1] = "\r";
@@ -125,7 +125,6 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 				need_cr = 0;
 		}
 	}
-	return count;
 }
 
 static ssize_t
