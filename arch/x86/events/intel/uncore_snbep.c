@@ -1396,6 +1396,29 @@ err:
 	return ret;
 }
 
+static int topology_gidnid_map(int nodeid, u32 gidnid)
+{
+	int i, die_id = -1;
+
+	/*
+	 * every three bits in the Node ID mapping register maps
+	 * to a particular node.
+	 */
+	for (i = 0; i < 8; i++) {
+		if (nodeid == GIDNIDMAP(gidnid, i)) {
+			if (topology_max_die_per_package() > 1)
+				die_id = i;
+			else
+				die_id = topology_phys_to_logical_pkg(i);
+			if (die_id < 0)
+				die_id = -ENODEV;
+			break;
+		}
+	}
+
+	return die_id;
+}
+
 /*
  * build pci bus to socket mapping
  */
@@ -1435,22 +1458,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 				break;
 			}
 
-			/*
-			 * every three bits in the Node ID mapping register maps
-			 * to a particular node.
-			 */
-			for (i = 0; i < 8; i++) {
-				if (nodeid == GIDNIDMAP(config, i)) {
-					if (topology_max_die_per_package() > 1)
-						die_id = i;
-					else
-						die_id = topology_phys_to_logical_pkg(i);
-					if (die_id < 0)
-						die_id = -ENODEV;
-					map->pbus_to_dieid[bus] = die_id;
-					break;
-				}
-			}
+			map->pbus_to_dieid[bus] = topology_gidnid_map(nodeid, config);
 			raw_spin_unlock(&pci2phy_map_lock);
 		} else {
 			segment = pci_domain_nr(ubox_dev->bus);
@@ -5596,7 +5604,7 @@ static int discover_upi_topology(struct intel_uncore_type *type, int ubox_did, i
 	struct pci_dev *ubox = NULL;
 	struct pci_dev *dev = NULL;
 	u32 nid, gid;
-	int i, idx, lgc_pkg, ret = -EPERM;
+	int idx, lgc_pkg, ret = -EPERM;
 	struct intel_uncore_topology *upi;
 	unsigned int devfn;
 
@@ -5611,27 +5619,22 @@ static int discover_upi_topology(struct intel_uncore_type *type, int ubox_did, i
 			break;
 		}
 
-		for (i = 0; i < 8; i++) {
-			if (nid != GIDNIDMAP(gid, i))
-				continue;
-			lgc_pkg = topology_phys_to_logical_pkg(i);
-			if (lgc_pkg < 0) {
-				ret = -EPERM;
-				goto err;
+		lgc_pkg = topology_gidnid_map(nid, gid);
+		if (lgc_pkg < 0) {
+			ret = -EPERM;
+			goto err;
+		}
+		for (idx = 0; idx < type->num_boxes; idx++) {
+			upi = &type->topology[lgc_pkg][idx];
+			devfn = PCI_DEVFN(dev_link0 + idx, ICX_UPI_REGS_ADDR_FUNCTION);
+			dev = pci_get_domain_bus_and_slot(pci_domain_nr(ubox->bus),
+							  ubox->bus->number,
+							  devfn);
+			if (dev) {
+				ret = upi_fill_topology(dev, upi, idx);
+				if (ret)
+					goto err;
 			}
-			for (idx = 0; idx < type->num_boxes; idx++) {
-				upi = &type->topology[lgc_pkg][idx];
-				devfn = PCI_DEVFN(dev_link0 + idx, ICX_UPI_REGS_ADDR_FUNCTION);
-				dev = pci_get_domain_bus_and_slot(pci_domain_nr(ubox->bus),
-								  ubox->bus->number,
-								  devfn);
-				if (dev) {
-					ret = upi_fill_topology(dev, upi, idx);
-					if (ret)
-						goto err;
-				}
-			}
-			break;
 		}
 	}
 err:
