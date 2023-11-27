@@ -91,7 +91,6 @@ srmcons_receive_chars(struct timer_list *t)
 static void
 srmcons_do_write(struct tty_port *port, const char *buf, int count)
 {
-	static char str_cr[1] = "\r";
 	size_t c;
 	srmcons_result result;
 
@@ -119,7 +118,7 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 		}
 
 		while (need_cr) {
-			result.as_long = callback_puts(0, str_cr, 1);
+			result.as_long = callback_puts(0, "\r", 1);
 			if (result.bits.c > 0)
 				need_cr = false;
 		}
