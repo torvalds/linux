@@ -7,6 +7,7 @@
 #define _PWM_ROCKCHIP_IRQ_CALLBACKS_H_
 
 #include <linux/pwm.h>
+#include <linux/pwm-rockchip.h>
 
 static void rockchip_pwm_oneshot_callback(struct pwm_device *pwm, struct pwm_state *state)
 {
