@@ -67,8 +67,7 @@ static int max_98373_hw_params(struct snd_pcm_substream *substream,
 		if (!strcmp(codec_dai->component->name, MAX_98373_DEV0_NAME)) {
 			/* DEV0 tdm slot configuration */
 			snd_soc_dai_set_tdm_slot(codec_dai, 0x03, 3, 8, 32);
-		}
-		if (!strcmp(codec_dai->component->name, MAX_98373_DEV1_NAME)) {
+		} else if (!strcmp(codec_dai->component->name, MAX_98373_DEV1_NAME)) {
 			/* DEV1 tdm slot configuration */
 			snd_soc_dai_set_tdm_slot(codec_dai, 0x0C, 3, 8, 32);
 		}
