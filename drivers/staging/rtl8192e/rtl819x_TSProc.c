@@ -94,7 +94,7 @@ static void TsAddBaProcess(struct timer_list *t)
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	eth_zero_addr(pTsCommonInfo->addr);
-	memset(&pTsCommonInfo->TSpec, 0, sizeof(struct qos_tsinfo));
+	memset(&pTsCommonInfo->tspec, 0, sizeof(struct qos_tsinfo));
 }
 
 static void ResetTxTsEntry(struct tx_ts_record *ts)
@@ -198,8 +198,8 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 			continue;
 		list_for_each_entry(pRet, psearch_list, List) {
 			if (memcmp(pRet->addr, addr, 6) == 0 &&
-			    pRet->TSpec.ucTSID == TID &&
-			    pRet->TSpec.ucDirection == dir)
+			    pRet->tspec.ucTSID == TID &&
+			    pRet->tspec.ucDirection == dir)
 				break;
 		}
 		if (&pRet->List  != psearch_list)
@@ -220,7 +220,7 @@ static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
 	memcpy(pTsCommonInfo->addr, addr, 6);
 
 	if (pTSPEC)
-		memcpy((u8 *)(&(pTsCommonInfo->TSpec)), (u8 *)pTSPEC,
+		memcpy((u8 *)(&(pTsCommonInfo->tspec)), (u8 *)pTSPEC,
 			sizeof(struct qos_tsinfo));
 }
 
@@ -228,8 +228,8 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
-	struct qos_tsinfo TSpec;
-	struct qos_tsinfo *ts_info = &TSpec;
+	struct qos_tsinfo tspec;
+	struct qos_tsinfo *ts_info = &tspec;
 	struct list_head *pUnusedList;
 	struct list_head *pAddmitList;
 	enum direction_value Dir;
@@ -308,7 +308,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		ts_info->ucTSID = UP;
 		ts_info->ucDirection = Dir;
 
-		MakeTSEntry(*ppTS, addr, &TSpec);
+		MakeTSEntry(*ppTS, addr, &tspec);
 		list_add_tail(&((*ppTS)->List), pAddmitList);
 
 		return true;

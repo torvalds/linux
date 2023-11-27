@@ -19,7 +19,7 @@ enum tr_select {
 struct ts_common_info {
 	struct list_head		List;
 	u8				addr[ETH_ALEN];
-	struct qos_tsinfo TSpec;
+	struct qos_tsinfo tspec;
 };
 
 struct tx_ts_record {
