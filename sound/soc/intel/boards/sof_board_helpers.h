@@ -32,6 +32,8 @@ struct sof_rt5682_private {
  * @hdmi_num: number of Intel HDMI BE link
  * @ssp_codec: ssp port number of headphone BE link
  * @ssp_amp: ssp port number of speaker BE link
+ * @ssp_bt: ssp port number of BT offload BE link
+ * @bt_offload_present: true to create BT offload BE link
  * @rt5682: private data for rt5682 machine driver
  */
 struct sof_card_private {
@@ -46,6 +48,9 @@ struct sof_card_private {
 
 	int ssp_codec;
 	int ssp_amp;
+	int ssp_bt;
+
+	bool bt_offload_present;
 
 	union {
 		struct sof_rt5682_private rt5682;
@@ -71,5 +76,8 @@ int sof_intel_board_set_intel_hdmi_link(struct device *dev,
 int sof_intel_board_set_ssp_amp_link(struct device *dev,
 				     struct snd_soc_dai_link *link, int be_id,
 				     enum sof_ssp_codec amp_type, int ssp_amp);
+int sof_intel_board_set_bt_link(struct device *dev,
+				struct snd_soc_dai_link *link, int be_id,
+				int ssp_bt);
 
 #endif /* __SOF_INTEL_BOARD_HELPERS_H */
