@@ -154,7 +154,7 @@ struct xe_vm {
 	 * from XE_VM_FLAG_BANNED which requires vm->lock to set / read safely
 	 */
 #define XE_VM_FLAG_64K			BIT(0)
-#define XE_VM_FLAG_COMPUTE_MODE		BIT(1)
+#define XE_VM_FLAG_LR_MODE		BIT(1)
 #define XE_VM_FLAG_ASYNC_DEFAULT	BIT(2)
 #define XE_VM_FLAG_MIGRATION		BIT(3)
 #define XE_VM_FLAG_SCRATCH_PAGE		BIT(4)

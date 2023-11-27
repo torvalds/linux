@@ -100,7 +100,7 @@ static int xe_exec_begin(struct drm_exec *exec, struct xe_vm *vm)
 	LIST_HEAD(dups);
 	int err = 0;
 
-	if (xe_vm_no_dma_fences(vm))
+	if (xe_vm_in_lr_mode(vm))
 		return 0;
 
 	/*
@@ -182,7 +182,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	for (i = 0; i < args->num_syncs; i++) {
 		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs++],
 					  &syncs_user[i], true,
-					  xe_vm_no_dma_fences(vm));
+					  xe_vm_in_lr_mode(vm));
 		if (err)
 			goto err_syncs;
 	}
@@ -197,7 +197,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 retry:
-	if (!xe_vm_no_dma_fences(vm) && xe_vm_userptr_check_repin(vm)) {
+	if (!xe_vm_in_lr_mode(vm) && xe_vm_userptr_check_repin(vm)) {
 		err = down_write_killable(&vm->lock);
 		write_locked = true;
 	} else {
@@ -279,7 +279,7 @@ retry:
 	}
 
 	/* Wait behind munmap style rebinds */
-	if (!xe_vm_no_dma_fences(vm)) {
+	if (!xe_vm_in_lr_mode(vm)) {
 		err = drm_sched_job_add_resv_dependencies(&job->drm,
 							  xe_vm_resv(vm),
 							  DMA_RESV_USAGE_KERNEL);
@@ -292,7 +292,7 @@ retry:
 	if (err)
 		goto err_put_job;
 
-	if (!xe_vm_no_dma_fences(vm)) {
+	if (!xe_vm_in_lr_mode(vm)) {
 		err = down_read_interruptible(&vm->userptr.notifier_lock);
 		if (err)
 			goto err_put_job;
@@ -307,7 +307,7 @@ retry:
 	 * the job and let the DRM scheduler / backend clean up the job.
 	 */
 	xe_sched_job_arm(job);
-	if (!xe_vm_no_dma_fences(vm)) {
+	if (!xe_vm_in_lr_mode(vm)) {
 		/* Block userptr invalidations / BO eviction */
 		dma_resv_add_fence(xe_vm_resv(vm),
 				   &job->drm.s_fence->finished,
@@ -330,14 +330,14 @@ retry:
 	xe_sched_job_push(job);
 	xe_vm_reactivate_rebind(vm);
 
-	if (!err && !xe_vm_no_dma_fences(vm)) {
+	if (!err && !xe_vm_in_lr_mode(vm)) {
 		spin_lock(&xe->ttm.lru_lock);
 		ttm_lru_bulk_move_tail(&vm->lru_bulk_move);
 		spin_unlock(&xe->ttm.lru_lock);
 	}
 
 err_repin:
-	if (!xe_vm_no_dma_fences(vm))
+	if (!xe_vm_in_lr_mode(vm))
 		up_read(&vm->userptr.notifier_lock);
 err_put_job:
 	if (err)

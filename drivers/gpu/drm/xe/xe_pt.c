@@ -1292,8 +1292,8 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	 * non-faulting LR, in particular on user-space batch buffer chaining,
 	 * it needs to be done here.
 	 */
-	if ((rebind && !xe_vm_no_dma_fences(vm) && !vm->batch_invalidate_tlb) ||
-	    (!rebind && vm->scratch_bo[tile->id] && xe_vm_in_compute_mode(vm))) {
+	if ((rebind && !xe_vm_in_lr_mode(vm) && !vm->batch_invalidate_tlb) ||
+	    (!rebind && vm->scratch_bo[tile->id] && xe_vm_in_preempt_fence_mode(vm))) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 		if (!ifence)
 			return ERR_PTR(-ENOMEM);
@@ -1355,7 +1355,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 			xe_bo_put_commit(&deferred);
 		}
 		if (!rebind && last_munmap_rebind &&
-		    xe_vm_in_compute_mode(vm))
+		    xe_vm_in_preempt_fence_mode(vm))
 			xe_vm_queue_rebind_worker(vm);
 	} else {
 		kfree(rfence);

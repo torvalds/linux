@@ -327,7 +327,7 @@ static int exec_queue_set_persistence(struct xe_device *xe, struct xe_exec_queue
 	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, xe_vm_in_compute_mode(q->vm)))
+	if (XE_IOCTL_DBG(xe, xe_vm_in_preempt_fence_mode(q->vm)))
 		return -EINVAL;
 
 	if (value)
@@ -705,14 +705,14 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 
 		q = xe_exec_queue_create(xe, vm, logical_mask,
 					 args->width, hwe,
-					 xe_vm_no_dma_fences(vm) ? 0 :
+					 xe_vm_in_lr_mode(vm) ? 0 :
 					 EXEC_QUEUE_FLAG_PERSISTENT);
 		up_read(&vm->lock);
 		xe_vm_put(vm);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 
-		if (xe_vm_in_compute_mode(vm)) {
+		if (xe_vm_in_preempt_fence_mode(vm)) {
 			q->compute.context = dma_fence_context_alloc(1);
 			spin_lock_init(&q->compute.lock);
 
@@ -785,7 +785,7 @@ int xe_exec_queue_get_property_ioctl(struct drm_device *dev, void *data,
  */
 bool xe_exec_queue_is_lr(struct xe_exec_queue *q)
 {
-	return q->vm && xe_vm_no_dma_fences(q->vm) &&
+	return q->vm && xe_vm_in_lr_mode(q->vm) &&
 		!(q->flags & EXEC_QUEUE_FLAG_VM);
 }
 

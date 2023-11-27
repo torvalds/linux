@@ -149,19 +149,19 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data,
 
 void xe_vm_close_and_put(struct xe_vm *vm);
 
-static inline bool xe_vm_in_compute_mode(struct xe_vm *vm)
-{
-	return vm->flags & XE_VM_FLAG_COMPUTE_MODE;
-}
-
 static inline bool xe_vm_in_fault_mode(struct xe_vm *vm)
 {
 	return vm->flags & XE_VM_FLAG_FAULT_MODE;
 }
 
-static inline bool xe_vm_no_dma_fences(struct xe_vm *vm)
+static inline bool xe_vm_in_lr_mode(struct xe_vm *vm)
 {
-	return xe_vm_in_compute_mode(vm) || xe_vm_in_fault_mode(vm);
+	return vm->flags & XE_VM_FLAG_LR_MODE;
+}
+
+static inline bool xe_vm_in_preempt_fence_mode(struct xe_vm *vm)
+{
+	return xe_vm_in_lr_mode(vm) && !xe_vm_in_fault_mode(vm);
 }
 
 int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q);
@@ -181,7 +181,7 @@ extern struct ttm_device_funcs xe_ttm_funcs;
 
 static inline void xe_vm_queue_rebind_worker(struct xe_vm *vm)
 {
-	xe_assert(vm->xe, xe_vm_in_compute_mode(vm));
+	xe_assert(vm->xe, xe_vm_in_preempt_fence_mode(vm));
 	queue_work(vm->xe->ordered_wq, &vm->preempt.rebind_work);
 }
 
@@ -196,7 +196,7 @@ static inline void xe_vm_queue_rebind_worker(struct xe_vm *vm)
  */
 static inline void xe_vm_reactivate_rebind(struct xe_vm *vm)
 {
-	if (xe_vm_in_compute_mode(vm) && vm->preempt.rebind_deactivated) {
+	if (xe_vm_in_preempt_fence_mode(vm) && vm->preempt.rebind_deactivated) {
 		vm->preempt.rebind_deactivated = false;
 		xe_vm_queue_rebind_worker(vm);
 	}

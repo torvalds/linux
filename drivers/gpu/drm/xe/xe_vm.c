@@ -340,7 +340,7 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	int err;
 	bool wait;
 
-	xe_assert(vm->xe, xe_vm_in_compute_mode(vm));
+	xe_assert(vm->xe, xe_vm_in_preempt_fence_mode(vm));
 
 	down_write(&vm->lock);
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
@@ -394,7 +394,7 @@ out_unlock:
  */
 void xe_vm_remove_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 {
-	if (!xe_vm_in_compute_mode(vm))
+	if (!xe_vm_in_preempt_fence_mode(vm))
 		return;
 
 	down_write(&vm->lock);
@@ -596,7 +596,7 @@ static void preempt_rebind_work_func(struct work_struct *w)
 	long wait;
 	int __maybe_unused tries = 0;
 
-	xe_assert(vm->xe, xe_vm_in_compute_mode(vm));
+	xe_assert(vm->xe, xe_vm_in_preempt_fence_mode(vm));
 	trace_xe_vm_rebind_worker_enter(vm);
 
 	down_write(&vm->lock);
@@ -840,7 +840,7 @@ struct dma_fence *xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 	struct xe_vma *vma, *next;
 
 	lockdep_assert_held(&vm->lock);
-	if (xe_vm_no_dma_fences(vm) && !rebind_worker)
+	if (xe_vm_in_lr_mode(vm) && !rebind_worker)
 		return NULL;
 
 	xe_vm_assert_held(vm);
@@ -1436,9 +1436,9 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 		vm->batch_invalidate_tlb = true;
 	}
 
-	if (flags & XE_VM_FLAG_COMPUTE_MODE) {
+	if (flags & XE_VM_FLAG_LR_MODE) {
 		INIT_WORK(&vm->preempt.rebind_work, preempt_rebind_work_func);
-		vm->flags |= XE_VM_FLAG_COMPUTE_MODE;
+		vm->flags |= XE_VM_FLAG_LR_MODE;
 		vm->batch_invalidate_tlb = false;
 	}
 
@@ -1526,7 +1526,7 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	xe_assert(xe, !vm->preempt.num_exec_queues);
 
 	xe_vm_close(vm);
-	if (xe_vm_in_compute_mode(vm))
+	if (xe_vm_in_preempt_fence_mode(vm))
 		flush_work(&vm->preempt.rebind_work);
 
 	down_write(&vm->lock);
@@ -1975,11 +1975,11 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE)
 		flags |= XE_VM_FLAG_SCRATCH_PAGE;
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_COMPUTE_MODE)
-		flags |= XE_VM_FLAG_COMPUTE_MODE;
+		flags |= XE_VM_FLAG_LR_MODE;
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_ASYNC_DEFAULT)
 		flags |= XE_VM_FLAG_ASYNC_DEFAULT;
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE)
-		flags |= XE_VM_FLAG_FAULT_MODE;
+		flags |= XE_VM_FLAG_LR_MODE | XE_VM_FLAG_FAULT_MODE;
 
 	vm = xe_vm_create(xe, flags);
 	if (IS_ERR(vm))
@@ -3066,7 +3066,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	for (num_syncs = 0; num_syncs < args->num_syncs; num_syncs++) {
 		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs],
 					  &syncs_user[num_syncs], false,
-					  xe_vm_no_dma_fences(vm));
+					  xe_vm_in_lr_mode(vm));
 		if (err)
 			goto free_syncs;
 	}
