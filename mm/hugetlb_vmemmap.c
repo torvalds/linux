@@ -95,6 +95,7 @@ static int vmemmap_split_pmd(pmd_t *pmd, struct page *head, unsigned long start,
 static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
 			     unsigned long next, struct mm_walk *walk)
 {
+	int ret = 0;
 	struct page *head;
 	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
 
@@ -104,9 +105,30 @@ static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
 
 	spin_lock(&init_mm.page_table_lock);
 	head = pmd_leaf(*pmd) ? pmd_page(*pmd) : NULL;
+	/*
+	 * Due to HugeTLB alignment requirements and the vmemmap
+	 * pages being at the start of the hotplugged memory
+	 * region in memory_hotplug.memmap_on_memory case. Checking
+	 * the vmemmap page associated with the first vmemmap page
+	 * if it is self-hosted is sufficient.
+	 *
+	 * [                  hotplugged memory                  ]
+	 * [        section        ][...][        section        ]
+	 * [ vmemmap ][              usable memory               ]
+	 *   ^  | ^                        |
+	 *   +--+ |                        |
+	 *        +------------------------+
+	 */
+	if (unlikely(!vmemmap_walk->nr_walked)) {
+		struct page *page = head ? head + pte_index(addr) :
+				    pte_page(ptep_get(pte_offset_kernel(pmd, addr)));
+
+		if (PageVmemmapSelfHosted(page))
+			ret = -ENOTSUPP;
+	}
 	spin_unlock(&init_mm.page_table_lock);
-	if (!head)
-		return 0;
+	if (!head || ret)
+		return ret;
 
 	return vmemmap_split_pmd(pmd, head, addr & PMD_MASK, vmemmap_walk);
 }
@@ -523,50 +545,6 @@ static bool vmemmap_should_optimize(const struct hstate *h, const struct page *h
 
 	if (!hugetlb_vmemmap_optimizable(h))
 		return false;
-
-	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG)) {
-		pmd_t *pmdp, pmd;
-		struct page *vmemmap_page;
-		unsigned long vaddr = (unsigned long)head;
-
-		/*
-		 * Only the vmemmap page's vmemmap page can be self-hosted.
-		 * Walking the page tables to find the backing page of the
-		 * vmemmap page.
-		 */
-		pmdp = pmd_off_k(vaddr);
-		/*
-		 * The READ_ONCE() is used to stabilize *pmdp in a register or
-		 * on the stack so that it will stop changing under the code.
-		 * The only concurrent operation where it can be changed is
-		 * split_vmemmap_huge_pmd() (*pmdp will be stable after this
-		 * operation).
-		 */
-		pmd = READ_ONCE(*pmdp);
-		if (pmd_leaf(pmd))
-			vmemmap_page = pmd_page(pmd) + pte_index(vaddr);
-		else
-			vmemmap_page = pte_page(*pte_offset_kernel(pmdp, vaddr));
-		/*
-		 * Due to HugeTLB alignment requirements and the vmemmap pages
-		 * being at the start of the hotplugged memory region in
-		 * memory_hotplug.memmap_on_memory case. Checking any vmemmap
-		 * page's vmemmap page if it is marked as VmemmapSelfHosted is
-		 * sufficient.
-		 *
-		 * [                  hotplugged memory                  ]
-		 * [        section        ][...][        section        ]
-		 * [ vmemmap ][              usable memory               ]
-		 *   ^   |     |                                        |
-		 *   +---+     |                                        |
-		 *     ^       |                                        |
-		 *     +-------+                                        |
-		 *          ^                                           |
-		 *          +-------------------------------------------+
-		 */
-		if (PageVmemmapSelfHosted(vmemmap_page))
-			return false;
-	}
 
 	return true;
 }
