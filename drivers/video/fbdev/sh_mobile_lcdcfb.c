@@ -1567,6 +1567,7 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 
 	info->fbops = &sh_mobile_lcdc_overlay_ops;
 	info->device = priv->dev;
+	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = ovl->fb_mem;
 	info->par = ovl;
 
@@ -2053,6 +2054,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 
 	info->fbops = &sh_mobile_lcdc_ops;
 	info->device = priv->dev;
+	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = ch->fb_mem;
 	info->pseudo_palette = &ch->pseudo_palette;
 	info->par = ch;
