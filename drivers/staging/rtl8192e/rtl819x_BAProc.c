@@ -217,7 +217,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	u16 rc = 0;
 	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	struct ba_record *ba = NULL;
-	union ba_param_set *pBaParamSet = NULL;
+	union ba_param_set *ba_param_set = NULL;
 	u16 *pBaTimeoutVal = NULL;
 	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record *ts = NULL;
@@ -239,7 +239,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	dst = (u8 *)(&req->addr2[0]);
 	tag += sizeof(struct ieee80211_hdr_3addr);
 	dialog_token = tag + 2;
-	pBaParamSet = (union ba_param_set *)(tag + 3);
+	ba_param_set = (union ba_param_set *)(tag + 3);
 	pBaTimeoutVal = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
@@ -254,14 +254,14 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 		goto OnADDBAReq_Fail;
 	}
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
-		   (u8)(pBaParamSet->field.tid), RX_DIR, true)) {
+		   (u8)(ba_param_set->field.tid), RX_DIR, true)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		goto OnADDBAReq_Fail;
 	}
 	ba = &ts->rx_admitted_ba_record;
 
-	if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
+	if (ba_param_set->field.ba_policy == BA_POLICY_DELAYED) {
 		rc = ADDBA_STATUS_INVALID_PARAM;
 		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
 			    __func__);
@@ -272,7 +272,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	deactivate_ba_entry(ieee, ba);
 	ba->dialog_token = *dialog_token;
-	ba->ba_param_set = *pBaParamSet;
+	ba->ba_param_set = *ba_param_set;
 	ba->ba_timeout_value = *pBaTimeoutVal;
 	ba->ba_start_seq_ctrl = *pBaStartSeqCtrl;
 
@@ -291,7 +291,7 @@ OnADDBAReq_Fail:
 	{
 		struct ba_record BA;
 
-		BA.ba_param_set = *pBaParamSet;
+		BA.ba_param_set = *ba_param_set;
 		BA.ba_timeout_value = *pBaTimeoutVal;
 		BA.dialog_token = *dialog_token;
 		BA.ba_param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
@@ -307,7 +307,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	struct tx_ts_record *ts = NULL;
 	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	u16 *status_code = NULL, *pBaTimeoutVal = NULL;
-	union ba_param_set *pBaParamSet = NULL;
+	union ba_param_set *ba_param_set = NULL;
 	u16			reason_code;
 
 	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
@@ -322,7 +322,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	tag += sizeof(struct ieee80211_hdr_3addr);
 	dialog_token = tag + 2;
 	status_code = (u16 *)(tag + 3);
-	pBaParamSet = (union ba_param_set *)(tag + 5);
+	ba_param_set = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16 *)(tag + 7);
 
 	if (!ieee->current_network.qos_data.active ||
@@ -338,7 +338,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
-		   (u8)(pBaParamSet->field.tid), TX_DIR, false)) {
+		   (u8)(ba_param_set->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		reason_code = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
@@ -367,7 +367,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 
 	if (*status_code == ADDBA_STATUS_SUCCESS) {
-		if (pBaParamSet->field.ba_policy == BA_POLICY_DELAYED) {
+		if (ba_param_set->field.ba_policy == BA_POLICY_DELAYED) {
 			ts->add_ba_req_delayed = true;
 			deactivate_ba_entry(ieee, pAdmittedBA);
 			reason_code = DELBA_REASON_END_BA;
@@ -377,7 +377,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		pAdmittedBA->dialog_token = *dialog_token;
 		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
 		pAdmittedBA->ba_start_seq_ctrl = pending_ba->ba_start_seq_ctrl;
-		pAdmittedBA->ba_param_set = *pBaParamSet;
+		pAdmittedBA->ba_param_set = *ba_param_set;
 		deactivate_ba_entry(ieee, pAdmittedBA);
 		activate_ba_entry(pAdmittedBA, *pBaTimeoutVal);
 	} else {
@@ -393,7 +393,7 @@ OnADDBARsp_Reject:
 	{
 		struct ba_record BA;
 
-		BA.ba_param_set = *pBaParamSet;
+		BA.ba_param_set = *ba_param_set;
 		rtllib_send_DELBA(ieee, dst, &BA, TX_DIR, reason_code);
 		return 0;
 	}
