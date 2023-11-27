@@ -447,15 +447,22 @@ int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
 
 int sysfs__read_bool(const char *entry, bool *value)
 {
-	char *buf;
-	size_t size;
-	int ret;
+	struct io io;
+	char bf[16];
+	int ret = 0;
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
 
-	ret = sysfs__read_str(entry, &buf, &size);
-	if (ret < 0)
-		return ret;
+	if (!sysfs)
+		return -1;
 
-	switch (buf[0]) {
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+	io.fd = open(path, O_RDONLY);
+	if (io.fd < 0)
+		return -errno;
+
+	io__init(&io, io.fd, bf, sizeof(bf));
+	switch (io__get_char(&io)) {
 	case '1':
 	case 'y':
 	case 'Y':
@@ -469,8 +476,7 @@ int sysfs__read_bool(const char *entry, bool *value)
 	default:
 		ret = -1;
 	}
-
-	free(buf);
+	close(io.fd);
 
 	return ret;
 }
