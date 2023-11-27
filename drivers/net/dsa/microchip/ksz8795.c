@@ -1439,6 +1439,57 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	}
 }
 
+/**
+ * ksz8_cpu_port_link_up - Configures the CPU port of the switch.
+ * @dev: The KSZ device instance.
+ * @speed: The desired link speed.
+ * @duplex: The desired duplex mode.
+ * @tx_pause: If true, enables transmit pause.
+ * @rx_pause: If true, enables receive pause.
+ *
+ * Description:
+ * The function configures flow control and speed settings for the CPU
+ * port of the switch based on the desired settings, current duplex mode, and
+ * speed.
+ */
+static void ksz8_cpu_port_link_up(struct ksz_device *dev, int speed, int duplex,
+				  bool tx_pause, bool rx_pause)
+{
+	const u16 *regs = dev->info->regs;
+	u8 ctrl = 0;
+
+	/* SW_FLOW_CTRL, SW_HALF_DUPLEX, and SW_10_MBIT bits are bootstrappable
+	 * at least on KSZ8873. They can have different values depending on your
+	 * board setup.
+	 */
+	if (tx_pause || rx_pause)
+		ctrl |= SW_FLOW_CTRL;
+
+	if (duplex == DUPLEX_HALF)
+		ctrl |= SW_HALF_DUPLEX;
+
+	/* This hardware only supports SPEED_10 and SPEED_100. For SPEED_10
+	 * we need to set the SW_10_MBIT bit. Otherwise, we can leave it 0.
+	 */
+	if (speed == SPEED_10)
+		ctrl |= SW_10_MBIT;
+
+	ksz_rmw8(dev, regs[S_BROADCAST_CTRL], SW_HALF_DUPLEX | SW_FLOW_CTRL |
+		 SW_10_MBIT, ctrl);
+}
+
+void ksz8_phylink_mac_link_up(struct ksz_device *dev, int port,
+			      unsigned int mode, phy_interface_t interface,
+			      struct phy_device *phydev, int speed, int duplex,
+			      bool tx_pause, bool rx_pause)
+{
+	/* If the port is the CPU port, apply special handling. Only the CPU
+	 * port is configured via global registers.
+	 */
+	if (dev->cpu_port == port)
+		ksz8_cpu_port_link_up(dev, speed, duplex, tx_pause, rx_pause);
+}
+
 static int ksz8_handle_global_errata(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -1486,8 +1537,6 @@ int ksz8_setup(struct dsa_switch *ds)
 	 * Enable flag
 	 */
 	ds->vlan_filtering_is_global = true;
-
-	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_FLOW_CTRL, true);
 
 	/* Enable automatic fast aging when link changed detected. */
 	ksz_cfg(dev, S_LINK_AGING_CTRL, SW_LINK_AUTO_AGING, true);
