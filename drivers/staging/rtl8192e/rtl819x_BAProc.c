@@ -215,7 +215,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_3addr *req = NULL;
 	u16 rc = 0;
-	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
+	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	struct ba_record *ba = NULL;
 	union ba_param_set *pBaParamSet = NULL;
 	u16 *pBaTimeoutVal = NULL;
@@ -238,7 +238,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	tag = (u8 *)req;
 	dst = (u8 *)(&req->addr2[0]);
 	tag += sizeof(struct ieee80211_hdr_3addr);
-	pDialogToken = tag + 2;
+	dialog_token = tag + 2;
 	pBaParamSet = (union ba_param_set *)(tag + 3);
 	pBaTimeoutVal = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
@@ -271,7 +271,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	rtllib_FlushRxTsPendingPkts(ieee, ts);
 
 	deactivate_ba_entry(ieee, ba);
-	ba->dialog_token = *pDialogToken;
+	ba->dialog_token = *dialog_token;
 	ba->ba_param_set = *pBaParamSet;
 	ba->ba_timeout_value = *pBaTimeoutVal;
 	ba->ba_start_seq_ctrl = *pBaStartSeqCtrl;
@@ -293,7 +293,7 @@ OnADDBAReq_Fail:
 
 		BA.ba_param_set = *pBaParamSet;
 		BA.ba_timeout_value = *pBaTimeoutVal;
-		BA.dialog_token = *pDialogToken;
+		BA.dialog_token = *dialog_token;
 		BA.ba_param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
 		return 0;
@@ -305,7 +305,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	struct ieee80211_hdr_3addr *rsp = NULL;
 	struct ba_record *pending_ba, *pAdmittedBA;
 	struct tx_ts_record *ts = NULL;
-	u8 *dst = NULL, *pDialogToken = NULL, *tag = NULL;
+	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	u16 *status_code = NULL, *pBaTimeoutVal = NULL;
 	union ba_param_set *pBaParamSet = NULL;
 	u16			reason_code;
@@ -320,7 +320,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	tag = (u8 *)rsp;
 	dst = (u8 *)(&rsp->addr2[0]);
 	tag += sizeof(struct ieee80211_hdr_3addr);
-	pDialogToken = tag + 2;
+	dialog_token = tag + 2;
 	status_code = (u16 *)(tag + 3);
 	pBaParamSet = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16 *)(tag + 7);
@@ -353,7 +353,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			   __func__);
 		return -1;
 	} else if (!pending_ba->b_valid ||
-		   (*pDialogToken != pending_ba->dialog_token)) {
+		   (*dialog_token != pending_ba->dialog_token)) {
 		netdev_warn(ieee->dev,
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
@@ -374,7 +374,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			goto OnADDBARsp_Reject;
 		}
 
-		pAdmittedBA->dialog_token = *pDialogToken;
+		pAdmittedBA->dialog_token = *dialog_token;
 		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
 		pAdmittedBA->ba_start_seq_ctrl = pending_ba->ba_start_seq_ctrl;
 		pAdmittedBA->ba_param_set = *pBaParamSet;
