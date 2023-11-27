@@ -100,7 +100,7 @@ static void ResetTsCommonInfo(struct ts_common_info *ts_common_info)
 static void ResetTxTsEntry(struct tx_ts_record *ts)
 {
 	ResetTsCommonInfo(&ts->TsCommonInfo);
-	ts->TxCurSeq = 0;
+	ts->tx_cur_seq = 0;
 	ts->add_ba_req_in_progress = false;
 	ts->add_ba_req_delayed = false;
 	ts->using_ba = false;

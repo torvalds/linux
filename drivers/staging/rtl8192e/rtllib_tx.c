@@ -306,7 +306,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 			goto FORCED_AGG_SETTING;
 		} else if (!ts->using_ba) {
 			if (SN_LESS(ts->tx_admitted_ba_record.ba_start_seq_ctrl.field.seq_num,
-				    (ts->TxCurSeq + 1) % 4096))
+				    (ts->tx_cur_seq + 1) % 4096))
 				ts->using_ba = true;
 			else
 				goto FORCED_AGG_SETTING;
@@ -500,8 +500,8 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), dst,
 			   skb->priority, TX_DIR, true))
 			return 0;
-		seqnum = ts->TxCurSeq;
-		ts->TxCurSeq = (ts->TxCurSeq + 1) % 4096;
+		seqnum = ts->tx_cur_seq;
+		ts->tx_cur_seq = (ts->tx_cur_seq + 1) % 4096;
 		return seqnum;
 	}
 	return 0;
