@@ -1532,7 +1532,7 @@ struct bch_sb_field_disk_groups {
 	x(move_extent_write,				36)	\
 	x(move_extent_finish,				37)	\
 	x(move_extent_fail,				38)	\
-	x(move_extent_alloc_mem_fail,			39)	\
+	x(move_extent_start_fail,			39)	\
 	x(copygc,					40)	\
 	x(copygc_wait,					41)	\
 	x(gc_gens_end,					42)	\
