@@ -413,8 +413,8 @@ unsigned long find_next_and_bit_wrap(const unsigned long *addr1,
 }
 
 /**
- * find_next_bit_wrap - find the next set bit in both memory regions
- * @addr: The first address to base the search on
+ * find_next_bit_wrap - find the next set bit in a memory region
+ * @addr: The address to base the search on
  * @size: The bitmap size in bits
  * @offset: The bitnumber to start searching at
  *
