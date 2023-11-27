@@ -264,7 +264,7 @@ static bool svc_rdma_refresh_recvs(struct svcxprt_rdma *rdma,
 		if (!ctxt)
 			break;
 
-		trace_svcrdma_post_recv(ctxt);
+		trace_svcrdma_post_recv(&ctxt->rc_cid);
 		ctxt->rc_recv_wr.next = recv_chain;
 		recv_chain = &ctxt->rc_recv_wr;
 		rdma->sc_pending_recvs++;

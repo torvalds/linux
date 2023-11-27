@@ -22,6 +22,36 @@
  ** Event classes
  **/
 
+DECLARE_EVENT_CLASS(rpcrdma_simple_cid_class,
+	TP_PROTO(
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+	),
+
+	TP_printk("cq.id=%d cid=%d",
+		__entry->cq_id, __entry->completion_id
+	)
+);
+
+#define DEFINE_SIMPLE_CID_EVENT(name)					\
+		DEFINE_EVENT(rpcrdma_simple_cid_class, name,		\
+				TP_PROTO(				\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(cid)				\
+		)
+
 DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 	TP_PROTO(
 		const struct ib_wc *wc,
@@ -56,37 +86,6 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 
 #define DEFINE_COMPLETION_EVENT(name)					\
 		DEFINE_EVENT(rpcrdma_completion_class, name,		\
-				TP_PROTO(				\
-					const struct ib_wc *wc,		\
-					const struct rpc_rdma_cid *cid	\
-				),					\
-				TP_ARGS(wc, cid))
-
-DECLARE_EVENT_CLASS(rpcrdma_send_completion_class,
-	TP_PROTO(
-		const struct ib_wc *wc,
-		const struct rpc_rdma_cid *cid
-	),
-
-	TP_ARGS(wc, cid),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = cid->ci_queue_id;
-		__entry->completion_id = cid->ci_completion_id;
-	),
-
-	TP_printk("cq.id=%u cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
-
-#define DEFINE_SEND_COMPLETION_EVENT(name)				\
-		DEFINE_EVENT(rpcrdma_send_completion_class, name,	\
 				TP_PROTO(				\
 					const struct ib_wc *wc,		\
 					const struct rpc_rdma_cid *cid	\
@@ -978,27 +977,7 @@ TRACE_EVENT(xprtrdma_post_send_err,
 	)
 );
 
-TRACE_EVENT(xprtrdma_post_recv,
-	TP_PROTO(
-		const struct rpcrdma_rep *rep
-	),
-
-	TP_ARGS(rep),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = rep->rr_cid.ci_queue_id;
-		__entry->completion_id = rep->rr_cid.ci_completion_id;
-	),
-
-	TP_printk("cq.id=%d cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
+DEFINE_SIMPLE_CID_EVENT(xprtrdma_post_recv);
 
 TRACE_EVENT(xprtrdma_post_recvs,
 	TP_PROTO(
@@ -2020,31 +1999,11 @@ TRACE_EVENT(svcrdma_post_send,
 	)
 );
 
-DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_send);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_send);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_send_err);
 
-TRACE_EVENT(svcrdma_post_recv,
-	TP_PROTO(
-		const struct svc_rdma_recv_ctxt *ctxt
-	),
-
-	TP_ARGS(ctxt),
-
-	TP_STRUCT__entry(
-		__field(u32, cq_id)
-		__field(int, completion_id)
-	),
-
-	TP_fast_assign(
-		__entry->cq_id = ctxt->rc_cid.ci_queue_id;
-		__entry->completion_id = ctxt->rc_cid.ci_completion_id;
-	),
-
-	TP_printk("cq.id=%d cid=%d",
-		__entry->cq_id, __entry->completion_id
-	)
-);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_post_recv);
 
 DEFINE_RECEIVE_SUCCESS_EVENT(svcrdma_wc_recv);
 DEFINE_RECEIVE_FLUSH_EVENT(svcrdma_wc_recv_flush);
@@ -2153,7 +2112,7 @@ TRACE_EVENT(svcrdma_wc_read,
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_err);
 
-DEFINE_SEND_COMPLETION_EVENT(svcrdma_wc_write);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_write);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_err);
 
