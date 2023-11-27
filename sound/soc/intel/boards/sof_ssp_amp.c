@@ -98,7 +98,7 @@ static struct snd_soc_dai_link_component platform_component[] = {
 
 static struct snd_soc_dai_link *
 sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
-			  int ssp_codec, int dmic_be_num, int hdmi_num,
+			  int ssp_amp, int dmic_be_num, int hdmi_num,
 			  bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *cpus;
@@ -156,7 +156,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 	if (amp_type != CODEC_NONE) {
 		be_id = fixed_be ? SPK_BE_ID : id;
 		ret = sof_intel_board_set_ssp_amp_link(dev, &links[id], be_id,
-						       amp_type, ssp_codec);
+						       amp_type, ssp_amp);
 		if (ret)
 			return NULL;
 
