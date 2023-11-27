@@ -15,7 +15,6 @@
  */
 #define IAVF_ITR_DYNAMIC	0x8000	/* use top bit as a flag */
 #define IAVF_ITR_MASK		0x1FFE	/* mask for ITR register value */
-#define IAVF_MIN_ITR		     2	/* reg uses 2 usec resolution */
 #define IAVF_ITR_100K		    10	/* all values below must be even */
 #define IAVF_ITR_50K		    20
 #define IAVF_ITR_20K		    50
