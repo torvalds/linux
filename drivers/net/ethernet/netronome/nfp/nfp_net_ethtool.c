@@ -2235,6 +2235,30 @@ static int nfp_net_set_channels(struct net_device *netdev,
 	return nfp_net_set_num_rings(nn, total_rx, total_tx);
 }
 
+static int nfp_port_set_pauseparam(struct net_device *netdev,
+				   struct ethtool_pauseparam *pause)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return -EOPNOTSUPP;
+
+	if (pause->autoneg != AUTONEG_DISABLE)
+		return -EOPNOTSUPP;
+
+	err = nfp_eth_set_pauseparam(port->app->cpp, eth_port->index,
+				     pause->tx_pause, pause->rx_pause);
+	if (!err)
+		/* Only refresh if we did something */
+		nfp_net_refresh_port_table(port);
+
+	return err < 0 ? err : 0;
+}
+
 static void nfp_port_get_pauseparam(struct net_device *netdev,
 				    struct ethtool_pauseparam *pause)
 {
@@ -2246,10 +2270,10 @@ static void nfp_port_get_pauseparam(struct net_device *netdev,
 	if (!eth_port)
 		return;
 
-	/* Currently pause frame support is fixed */
+	/* Currently pause frame autoneg is fixed */
 	pause->autoneg = AUTONEG_DISABLE;
-	pause->rx_pause = 1;
-	pause->tx_pause = 1;
+	pause->rx_pause = eth_port->rx_pause;
+	pause->tx_pause = eth_port->tx_pause;
 }
 
 static int nfp_net_set_phys_id(struct net_device *netdev,
@@ -2475,6 +2499,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_link_ksettings	= nfp_net_set_link_ksettings,
 	.get_fecparam		= nfp_port_get_fecparam,
 	.set_fecparam		= nfp_port_set_fecparam,
+	.set_pauseparam		= nfp_port_set_pauseparam,
 	.get_pauseparam		= nfp_port_get_pauseparam,
 	.set_phys_id		= nfp_net_set_phys_id,
 };
@@ -2499,6 +2524,7 @@ const struct ethtool_ops nfp_port_ethtool_ops = {
 	.set_link_ksettings	= nfp_net_set_link_ksettings,
 	.get_fecparam		= nfp_port_get_fecparam,
 	.set_fecparam		= nfp_port_set_fecparam,
+	.set_pauseparam		= nfp_port_set_pauseparam,
 	.get_pauseparam		= nfp_port_get_pauseparam,
 	.set_phys_id		= nfp_net_set_phys_id,
 };
