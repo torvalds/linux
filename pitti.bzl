@@ -95,6 +95,8 @@ def define_pitti():
         "drivers/soc/qcom/pmic-pon-log.ko",
         "drivers/soc/qcom/pmic_glink.ko",
         "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
+        "drivers/soc/qcom/qcom_logbuf_boot_log.ko",
+        "drivers/soc/qcom/qcom_logbuf_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qfprom-sys.ko",
