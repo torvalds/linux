@@ -138,13 +138,6 @@ static const struct snd_soc_ops sof_cs42l42_ops = {
 	.hw_params = sof_cs42l42_hw_params,
 };
 
-static struct snd_soc_dai_link_component platform_component[] = {
-	{
-		/* name might be overridden during probe */
-		.name = "0000:00:1f.3"
-	}
-};
-
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	return sof_intel_board_card_late_probe(card);
@@ -189,52 +182,11 @@ static struct snd_soc_dai_link_component cs42l42_component[] = {
 	}
 };
 
-static int create_bt_offload_dai_links(struct device *dev,
-				       struct snd_soc_dai_link *links,
-				       struct snd_soc_dai_link_component *cpus,
-				       int *id, int ssp_bt)
-{
-	/* bt offload */
-	if (!(sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT))
-		return 0;
-
-	links[*id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT",
-					 ssp_bt);
-	if (!links[*id].name)
-		goto devm_err;
-
-	links[*id].id = *id;
-	links[*id].codecs = &snd_soc_dummy_dlc;
-	links[*id].num_codecs = 1;
-	links[*id].platforms = platform_component;
-	links[*id].num_platforms = ARRAY_SIZE(platform_component);
-
-	links[*id].dpcm_playback = 1;
-	links[*id].dpcm_capture = 1;
-	links[*id].no_pcm = 1;
-	links[*id].cpus = &cpus[*id];
-	links[*id].num_cpus = 1;
-
-	links[*id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-						   "SSP%d Pin",
-						   ssp_bt);
-	if (!links[*id].cpus->dai_name)
-		goto devm_err;
-
-	(*id)++;
-
-	return 0;
-
-devm_err:
-	return -ENOMEM;
-}
-
 static struct snd_soc_dai_link *
 sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_codec, int ssp_amp, int ssp_bt,
 			  int dmic_be_num, int hdmi_num, bool idisp_codec)
 {
-	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
 	int ret;
 	int id = 0;
@@ -243,9 +195,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 
 	links = devm_kcalloc(dev, sof_audio_card_cs42l42.num_links,
 			    sizeof(struct snd_soc_dai_link), GFP_KERNEL);
-	cpus = devm_kcalloc(dev, sof_audio_card_cs42l42.num_links,
-			    sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
-	if (!links || !cpus)
+	if (!links)
 		goto devm_err;
 
 	link_seq = (sof_cs42l42_quirk & SOF_CS42L42_DAILINK_MASK) >> SOF_CS42L42_DAILINK_SHIFT;
@@ -350,11 +300,17 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			}
 			break;
 		case LINK_BT:
-			ret = create_bt_offload_dai_links(dev, links, cpus, &id, ssp_bt);
-			if (ret < 0) {
-				dev_err(dev, "fail to create bt offload dai links, ret %d\n",
-					ret);
-				goto devm_err;
+			if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT) {
+				ret = sof_intel_board_set_bt_link(dev,
+								  &links[id], id,
+								  ssp_bt);
+				if (ret) {
+					dev_err(dev, "fail to create bt offload dai links, ret %d\n",
+						ret);
+					goto devm_err;
+				}
+
+				id++;
 			}
 			break;
 		case LINK_NONE:
@@ -377,7 +333,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int ret, ssp_bt;
+	int ret;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -406,7 +362,8 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "sof_cs42l42_quirk = %lx\n", sof_cs42l42_quirk);
 
-	ssp_bt = (sof_cs42l42_quirk & SOF_CS42L42_SSP_BT_MASK) >>
+	/* port number of peripherals attached to ssp interface */
+	ctx->ssp_bt = (sof_cs42l42_quirk & SOF_CS42L42_SSP_BT_MASK) >>
 			SOF_CS42L42_SSP_BT_SHIFT;
 
 	ctx->ssp_amp = (sof_cs42l42_quirk & SOF_CS42L42_SSP_AMP_MASK) >>
@@ -419,12 +376,14 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_cs42l42.num_links++;
-	if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT)
+	if (sof_cs42l42_quirk & SOF_BT_OFFLOAD_PRESENT) {
+		ctx->bt_offload_present = true;
 		sof_audio_card_cs42l42.num_links++;
+	}
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
 					      ctx->ssp_codec, ctx->ssp_amp,
-					      ssp_bt, ctx->dmic_be_num,
+					      ctx->ssp_bt, ctx->dmic_be_num,
 					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
