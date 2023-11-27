@@ -129,7 +129,7 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 {
 	union delba_param_set DelbaParamSet;
 	struct sk_buff *skb = NULL;
-	struct ieee80211_hdr_3addr *Delba = NULL;
+	struct ieee80211_hdr_3addr *del_ba = NULL;
 	u8 *tag = NULL;
 	u16 len = 6 + ieee->tx_headroom;
 
@@ -148,12 +148,12 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 
 	skb_reserve(skb, ieee->tx_headroom);
 
-	Delba = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
+	del_ba = skb_put(skb, sizeof(struct ieee80211_hdr_3addr));
 
-	ether_addr_copy(Delba->addr1, dst);
-	ether_addr_copy(Delba->addr2, ieee->dev->dev_addr);
-	ether_addr_copy(Delba->addr3, ieee->current_network.bssid);
-	Delba->frame_control = cpu_to_le16(IEEE80211_STYPE_ACTION);
+	ether_addr_copy(del_ba->addr1, dst);
+	ether_addr_copy(del_ba->addr2, ieee->dev->dev_addr);
+	ether_addr_copy(del_ba->addr3, ieee->current_network.bssid);
+	del_ba->frame_control = cpu_to_le16(IEEE80211_STYPE_ACTION);
 
 	tag = skb_put(skb, 6);
 
