@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/module.h>
@@ -12,15 +13,23 @@
 struct ledtrig_tty_data {
 	struct led_classdev *led_cdev;
 	struct delayed_work dwork;
-	struct mutex mutex;
+	struct completion sysfs;
 	const char *ttyname;
 	struct tty_struct *tty;
 	int rx, tx;
 };
 
-static void ledtrig_tty_restart(struct ledtrig_tty_data *trigger_data)
+static int ledtrig_tty_wait_for_completion(struct device *dev)
 {
-	schedule_delayed_work(&trigger_data->dwork, 0);
+	struct ledtrig_tty_data *trigger_data = led_trigger_get_drvdata(dev);
+	int ret;
+
+	ret = wait_for_completion_timeout(&trigger_data->sysfs,
+					  msecs_to_jiffies(LEDTRIG_TTY_INTERVAL * 20));
+	if (ret == 0)
+		return -ETIMEDOUT;
+
+	return ret;
 }
 
 static ssize_t ttyname_show(struct device *dev,
@@ -28,13 +37,15 @@ static ssize_t ttyname_show(struct device *dev,
 {
 	struct ledtrig_tty_data *trigger_data = led_trigger_get_drvdata(dev);
 	ssize_t len = 0;
+	int completion;
 
-	mutex_lock(&trigger_data->mutex);
+	reinit_completion(&trigger_data->sysfs);
+	completion = ledtrig_tty_wait_for_completion(dev);
+	if (completion < 0)
+		return completion;
 
 	if (trigger_data->ttyname)
 		len = sprintf(buf, "%s\n", trigger_data->ttyname);
-
-	mutex_unlock(&trigger_data->mutex);
 
 	return len;
 }
@@ -46,7 +57,7 @@ static ssize_t ttyname_store(struct device *dev,
 	struct ledtrig_tty_data *trigger_data = led_trigger_get_drvdata(dev);
 	char *ttyname;
 	ssize_t ret = size;
-	bool running;
+	int completion;
 
 	if (size > 0 && buf[size - 1] == '\n')
 		size -= 1;
@@ -59,20 +70,16 @@ static ssize_t ttyname_store(struct device *dev,
 		ttyname = NULL;
 	}
 
-	mutex_lock(&trigger_data->mutex);
-
-	running = trigger_data->ttyname != NULL;
+	reinit_completion(&trigger_data->sysfs);
+	completion = ledtrig_tty_wait_for_completion(dev);
+	if (completion < 0)
+		return completion;
 
 	kfree(trigger_data->ttyname);
 	tty_kref_put(trigger_data->tty);
 	trigger_data->tty = NULL;
 
 	trigger_data->ttyname = ttyname;
-
-	mutex_unlock(&trigger_data->mutex);
-
-	if (ttyname && !running)
-		ledtrig_tty_restart(trigger_data);
 
 	return ret;
 }
@@ -85,13 +92,8 @@ static void ledtrig_tty_work(struct work_struct *work)
 	struct serial_icounter_struct icount;
 	int ret;
 
-	mutex_lock(&trigger_data->mutex);
-
-	if (!trigger_data->ttyname) {
-		/* exit without rescheduling */
-		mutex_unlock(&trigger_data->mutex);
-		return;
-	}
+	if (!trigger_data->ttyname)
+		goto out;
 
 	/* try to get the tty corresponding to $ttyname */
 	if (!trigger_data->tty) {
@@ -116,11 +118,8 @@ static void ledtrig_tty_work(struct work_struct *work)
 	}
 
 	ret = tty_get_icount(trigger_data->tty, &icount);
-	if (ret) {
-		dev_info(trigger_data->tty->dev, "Failed to get icount, stopped polling\n");
-		mutex_unlock(&trigger_data->mutex);
-		return;
-	}
+	if (ret)
+		goto out;
 
 	if (icount.rx != trigger_data->rx ||
 	    icount.tx != trigger_data->tx) {
@@ -134,7 +133,7 @@ static void ledtrig_tty_work(struct work_struct *work)
 	}
 
 out:
-	mutex_unlock(&trigger_data->mutex);
+	complete_all(&trigger_data->sysfs);
 	schedule_delayed_work(&trigger_data->dwork,
 			      msecs_to_jiffies(LEDTRIG_TTY_INTERVAL * 2));
 }
@@ -157,7 +156,9 @@ static int ledtrig_tty_activate(struct led_classdev *led_cdev)
 
 	INIT_DELAYED_WORK(&trigger_data->dwork, ledtrig_tty_work);
 	trigger_data->led_cdev = led_cdev;
-	mutex_init(&trigger_data->mutex);
+	init_completion(&trigger_data->sysfs);
+
+	schedule_delayed_work(&trigger_data->dwork, 0);
 
 	return 0;
 }
