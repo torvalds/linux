@@ -666,6 +666,7 @@ static int __init ipl_init(void)
 						&ipl_ccw_attr_group_lpar);
 		break;
 	case IPL_TYPE_ECKD:
+	case IPL_TYPE_ECKD_DUMP:
 		rc = sysfs_create_group(&ipl_kset->kobj, &ipl_eckd_attr_group);
 		break;
 	case IPL_TYPE_FCP:
