@@ -96,6 +96,27 @@ enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev)
 }
 EXPORT_SYMBOL_NS(sof_ssp_detect_amp_type, SND_SOC_INTEL_SOF_SSP_COMMON);
 
+const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(codecs); i++) {
+		if (codecs[i].codec_type != codec_type)
+			continue;
+
+		return codecs[i].name;
+	}
+	for (i = 0; i < ARRAY_SIZE(amps); i++) {
+		if (amps[i].codec_type != codec_type)
+			continue;
+
+		return amps[i].name;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS(sof_ssp_get_codec_name, SND_SOC_INTEL_SOF_SSP_COMMON);
+
 MODULE_DESCRIPTION("ASoC Intel SOF Common Machine Driver Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
