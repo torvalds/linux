@@ -234,6 +234,9 @@ static int pci_epf_mhi_iatu_read(struct mhi_ep_cntrl *mhi_cntrl,
 
 	mutex_unlock(&epf_mhi->lock);
 
+	if (buf_info->cb)
+		buf_info->cb(buf_info);
+
 	return 0;
 }
 
@@ -261,6 +264,9 @@ static int pci_epf_mhi_iatu_write(struct mhi_ep_cntrl *mhi_cntrl,
 				 tre_buf, offset, buf_info->size);
 
 	mutex_unlock(&epf_mhi->lock);
+
+	if (buf_info->cb)
+		buf_info->cb(buf_info);
 
 	return 0;
 }
