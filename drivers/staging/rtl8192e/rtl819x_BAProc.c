@@ -303,7 +303,7 @@ OnADDBAReq_Fail:
 int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_3addr *rsp = NULL;
-	struct ba_record *pending_ba, *pAdmittedBA;
+	struct ba_record *pending_ba, *admitted_ba;
 	struct tx_ts_record *ts = NULL;
 	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	u16 *status_code = NULL, *ba_timeout_value = NULL;
@@ -346,9 +346,9 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	ts->add_ba_req_in_progress = false;
 	pending_ba = &ts->tx_pending_ba_record;
-	pAdmittedBA = &ts->tx_admitted_ba_record;
+	admitted_ba = &ts->tx_admitted_ba_record;
 
-	if (pAdmittedBA->b_valid) {
+	if (admitted_ba->b_valid) {
 		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
 			   __func__);
 		return -1;
@@ -369,17 +369,17 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (*status_code == ADDBA_STATUS_SUCCESS) {
 		if (ba_param_set->field.ba_policy == BA_POLICY_DELAYED) {
 			ts->add_ba_req_delayed = true;
-			deactivate_ba_entry(ieee, pAdmittedBA);
+			deactivate_ba_entry(ieee, admitted_ba);
 			reason_code = DELBA_REASON_END_BA;
 			goto OnADDBARsp_Reject;
 		}
 
-		pAdmittedBA->dialog_token = *dialog_token;
-		pAdmittedBA->ba_timeout_value = *ba_timeout_value;
-		pAdmittedBA->ba_start_seq_ctrl = pending_ba->ba_start_seq_ctrl;
-		pAdmittedBA->ba_param_set = *ba_param_set;
-		deactivate_ba_entry(ieee, pAdmittedBA);
-		activate_ba_entry(pAdmittedBA, *ba_timeout_value);
+		admitted_ba->dialog_token = *dialog_token;
+		admitted_ba->ba_timeout_value = *ba_timeout_value;
+		admitted_ba->ba_start_seq_ctrl = pending_ba->ba_start_seq_ctrl;
+		admitted_ba->ba_param_set = *ba_param_set;
+		deactivate_ba_entry(ieee, admitted_ba);
+		activate_ba_entry(admitted_ba, *ba_timeout_value);
 	} else {
 		ts->add_ba_req_delayed = true;
 		ts->disable_add_ba = true;
