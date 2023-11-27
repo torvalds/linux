@@ -280,7 +280,7 @@ static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 		set_nlink(inode, 1);
 	}
 	err = nilfs_delete_entry(de, page);
-	nilfs_put_page(page);
+	unmap_and_put_page(page, de);
 	if (err)
 		goto out;
 
@@ -387,7 +387,7 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 		if (!new_de)
 			goto out_dir;
 		nilfs_set_link(new_dir, new_de, new_page, old_inode);
-		nilfs_put_page(new_page);
+		unmap_and_put_page(new_page, new_de);
 		nilfs_mark_inode_dirty(new_dir);
 		inode_set_ctime_current(new_inode);
 		if (dir_de)
@@ -414,10 +414,10 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 
 	if (dir_de) {
 		nilfs_set_link(old_inode, dir_de, dir_page, new_dir);
-		nilfs_put_page(dir_page);
+		unmap_and_put_page(dir_page, dir_de);
 		drop_nlink(old_dir);
 	}
-	nilfs_put_page(old_page);
+	unmap_and_put_page(old_page, old_de);
 
 	nilfs_mark_inode_dirty(old_dir);
 	nilfs_mark_inode_dirty(old_inode);
@@ -427,9 +427,9 @@ static int nilfs_rename(struct mnt_idmap *idmap,
 
 out_dir:
 	if (dir_de)
-		nilfs_put_page(dir_page);
+		unmap_and_put_page(dir_page, dir_de);
 out_old:
-	nilfs_put_page(old_page);
+	unmap_and_put_page(old_page, old_de);
 out:
 	nilfs_transaction_abort(old_dir->i_sb);
 	return err;
