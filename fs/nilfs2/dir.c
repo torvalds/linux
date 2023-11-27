@@ -107,18 +107,18 @@ static void nilfs_commit_chunk(struct page *page,
 	unlock_page(page);
 }
 
-static bool nilfs_check_page(struct page *page, char *kaddr)
+static bool nilfs_check_folio(struct folio *folio, char *kaddr)
 {
-	struct inode *dir = page->mapping->host;
+	struct inode *dir = folio->mapping->host;
 	struct super_block *sb = dir->i_sb;
 	unsigned int chunk_size = nilfs_chunk_size(dir);
-	unsigned int offs, rec_len;
-	unsigned int limit = PAGE_SIZE;
+	size_t offs, rec_len;
+	size_t limit = folio_size(folio);
 	struct nilfs_dir_entry *p;
 	char *error;
 
-	if ((dir->i_size >> PAGE_SHIFT) == page->index) {
-		limit = dir->i_size & ~PAGE_MASK;
+	if (dir->i_size < folio_pos(folio) + limit) {
+		limit = dir->i_size - folio_pos(folio);
 		if (limit & (chunk_size - 1))
 			goto Ebadsize;
 		if (!limit)
@@ -140,7 +140,7 @@ static bool nilfs_check_page(struct page *page, char *kaddr)
 	if (offs != limit)
 		goto Eend;
 out:
-	SetPageChecked(page);
+	folio_set_checked(folio);
 	return true;
 
 	/* Too bad, we had an error */
@@ -163,8 +163,8 @@ Espan:
 	error = "directory entry across blocks";
 bad_entry:
 	nilfs_error(sb,
-		    "bad entry in directory #%lu: %s - offset=%lu, inode=%lu, rec_len=%d, name_len=%d",
-		    dir->i_ino, error, (page->index << PAGE_SHIFT) + offs,
+		    "bad entry in directory #%lu: %s - offset=%lu, inode=%lu, rec_len=%zd, name_len=%d",
+		    dir->i_ino, error, (folio->index << PAGE_SHIFT) + offs,
 		    (unsigned long)le64_to_cpu(p->inode),
 		    rec_len, p->name_len);
 	goto fail;
@@ -172,35 +172,46 @@ Eend:
 	p = (struct nilfs_dir_entry *)(kaddr + offs);
 	nilfs_error(sb,
 		    "entry in directory #%lu spans the page boundary offset=%lu, inode=%lu",
-		    dir->i_ino, (page->index << PAGE_SHIFT) + offs,
+		    dir->i_ino, (folio->index << PAGE_SHIFT) + offs,
 		    (unsigned long)le64_to_cpu(p->inode));
 fail:
-	SetPageError(page);
+	folio_set_error(folio);
 	return false;
+}
+
+static void *nilfs_get_folio(struct inode *dir, unsigned long n,
+		struct folio **foliop)
+{
+	struct address_space *mapping = dir->i_mapping;
+	struct folio *folio = read_mapping_folio(mapping, n, NULL);
+	void *kaddr;
+
+	if (IS_ERR(folio))
+		return folio;
+
+	kaddr = kmap_local_folio(folio, 0);
+	if (unlikely(!folio_test_checked(folio))) {
+		if (!nilfs_check_folio(folio, kaddr))
+			goto fail;
+	}
+
+	*foliop = folio;
+	return kaddr;
+
+fail:
+	folio_release_kmap(folio, kaddr);
+	return ERR_PTR(-EIO);
 }
 
 static void *nilfs_get_page(struct inode *dir, unsigned long n,
 		struct page **pagep)
 {
-	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_mapping_page(mapping, n, NULL);
-	void *kaddr;
+	struct folio *folio;
+	void *kaddr = nilfs_get_folio(dir, n, &folio);
 
-	if (IS_ERR(page))
-		return page;
-
-	kaddr = kmap_local_page(page);
-	if (unlikely(!PageChecked(page))) {
-		if (!nilfs_check_page(page, kaddr))
-			goto fail;
-	}
-
-	*pagep = page;
+	if (!IS_ERR(kaddr))
+		*pagep = &folio->page;
 	return kaddr;
-
-fail:
-	unmap_and_put_page(page, kaddr);
-	return ERR_PTR(-EIO);
 }
 
 /*
