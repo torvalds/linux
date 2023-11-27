@@ -849,7 +849,10 @@ static inline bool fb_modesetting_disabled(const char *drvname)
 }
 #endif
 
-/* Convenience logging macros */
+/*
+ * Convenience logging macros
+ */
+
 #define fb_err(fb_info, fmt, ...)					\
 	pr_err("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 #define fb_notice(info, fmt, ...)					\
@@ -860,5 +863,8 @@ static inline bool fb_modesetting_disabled(const char *drvname)
 	pr_info("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 #define fb_dbg(fb_info, fmt, ...)					\
 	pr_debug("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+
+#define fb_warn_once(fb_info, fmt, ...)					\
+	pr_warn_once("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 
 #endif /* _LINUX_FB_H */

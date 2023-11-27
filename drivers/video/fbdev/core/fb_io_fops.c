@@ -12,6 +12,9 @@ ssize_t fb_io_read(struct fb_info *info, char __user *buf, size_t count, loff_t 
 	int c, cnt = 0, err = 0;
 	unsigned long total_size, trailing;
 
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
+
 	if (!info->screen_base)
 		return -ENODEV;
 
@@ -72,6 +75,9 @@ ssize_t fb_io_write(struct fb_info *info, const char __user *buf, size_t count, 
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
 	unsigned long total_size, trailing;
+
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
 
 	if (!info->screen_base)
 		return -ENODEV;
@@ -137,6 +143,9 @@ int fb_io_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long start = info->fix.smem_start;
 	u32 len = info->fix.smem_len;
 	unsigned long mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
+
+	if (info->flags & FBINFO_VIRTFB)
+		fb_warn_once(info, "Framebuffer is not in I/O address space.");
 
 	/*
 	 * This can be either the framebuffer mapping, or if pgoff points
