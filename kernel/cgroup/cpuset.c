@@ -3974,7 +3974,7 @@ static struct cftype dfl_files[] = {
 		.name = "cpus.isolated",
 		.seq_show = cpuset_common_seq_show,
 		.private = FILE_ISOLATED_CPULIST,
-		.flags = CFTYPE_ONLY_ON_ROOT | CFTYPE_DEBUG,
+		.flags = CFTYPE_ONLY_ON_ROOT,
 	},
 
 	{ }	/* terminate */

@@ -2316,6 +2316,13 @@ Cpuset Interface Files
 	treated to have an implicit value of "cpuset.cpus" in the
 	formation of local partition.
 
+  cpuset.cpus.isolated
+	A read-only and root cgroup only multiple values file.
+
+	This file shows the set of all isolated CPUs used in existing
+	isolated partitions. It will be empty if no isolated partition
+	is created.
+
   cpuset.cpus.partition
 	A read-write single value file which exists on non-root
 	cpuset-enabled cgroups.  This flag is owned by the parent cgroup

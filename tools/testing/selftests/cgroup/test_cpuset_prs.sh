@@ -508,7 +508,7 @@ dump_states()
 		XECPUS=$DIR/cpuset.cpus.exclusive.effective
 		PRS=$DIR/cpuset.cpus.partition
 		PCPUS=$DIR/.__DEBUG__.cpuset.cpus.subpartitions
-		ISCPUS=$DIR/.__DEBUG__.cpuset.cpus.isolated
+		ISCPUS=$DIR/cpuset.cpus.isolated
 		[[ -e $CPUS   ]] && echo "$CPUS: $(cat $CPUS)"
 		[[ -e $XCPUS  ]] && echo "$XCPUS: $(cat $XCPUS)"
 		[[ -e $ECPUS  ]] && echo "$ECPUS: $(cat $ECPUS)"
@@ -593,17 +593,17 @@ check_cgroup_states()
 
 #
 # Get isolated (including offline) CPUs by looking at
-# /sys/kernel/debug/sched/domains and *cpuset.cpus.isolated control file,
+# /sys/kernel/debug/sched/domains and cpuset.cpus.isolated control file,
 # if available, and compare that with the expected value.
 #
 # Note that isolated CPUs from the sched/domains context include offline
 # CPUs as well as CPUs in non-isolated 1-CPU partition. Those CPUs may
-# not be included in the *cpuset.cpus.isolated control file which contains
+# not be included in the cpuset.cpus.isolated control file which contains
 # only CPUs in isolated partitions.
 #
 # $1 - expected isolated cpu list(s) <isolcpus1>{,<isolcpus2>}
 # <isolcpus1> - expected sched/domains value
-# <isolcpus2> - *cpuset.cpus.isolated value = <isolcpus1> if not defined
+# <isolcpus2> - cpuset.cpus.isolated value = <isolcpus1> if not defined
 #
 check_isolcpus()
 {
@@ -611,7 +611,7 @@ check_isolcpus()
 	ISOLCPUS=
 	LASTISOLCPU=
 	SCHED_DOMAINS=/sys/kernel/debug/sched/domains
-	ISCPUS=${CGROUP2}/.__DEBUG__.cpuset.cpus.isolated
+	ISCPUS=${CGROUP2}/cpuset.cpus.isolated
 	if [[ $EXPECT_VAL = . ]]
 	then
 		EXPECT_VAL=
@@ -692,14 +692,18 @@ test_fail()
 null_isolcpus_check()
 {
 	[[ $VERBOSE -gt 0 ]] || return 0
-	pause 0.02
-	check_isolcpus "."
-	if [[ $? -ne 0 ]]
-	then
-		echo "Unexpected isolated CPUs: $ISOLCPUS"
-		dump_states
-		exit 1
-	fi
+	# Retry a few times before printing error
+	RETRY=0
+	while [[ $RETRY -lt 5 ]]
+	do
+		pause 0.01
+		check_isolcpus "."
+		[[ $? -eq 0 ]] && return 0
+		((RETRY++))
+	done
+	echo "Unexpected isolated CPUs: $ISOLCPUS"
+	dump_states
+	exit 1
 }
 
 #
@@ -776,7 +780,7 @@ run_state_test()
 		#
 		NEWLIST=$(cat cpuset.cpus.effective)
 		RETRY=0
-		while [[ $NEWLIST != $CPULIST && $RETRY -lt 5 ]]
+		while [[ $NEWLIST != $CPULIST && $RETRY -lt 8 ]]
 		do
 			# Wait a bit longer & recheck a few times
 			pause 0.01
