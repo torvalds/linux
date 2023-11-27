@@ -245,45 +245,6 @@ devm_err:
 	return ret;
 }
 
-static int create_hp_codec_dai_links(struct device *dev,
-				     struct snd_soc_dai_link *links,
-				     struct snd_soc_dai_link_component *cpus,
-				     int *id, int ssp_codec)
-{
-	/* codec SSP */
-	links[*id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec",
-					 ssp_codec);
-	if (!links[*id].name)
-		goto devm_err;
-
-	links[*id].id = *id;
-	links[*id].codecs = cs42l42_component;
-	links[*id].num_codecs = ARRAY_SIZE(cs42l42_component);
-	links[*id].platforms = platform_component;
-	links[*id].num_platforms = ARRAY_SIZE(platform_component);
-	links[*id].init = sof_cs42l42_init;
-	links[*id].exit = sof_cs42l42_exit;
-	links[*id].ops = &sof_cs42l42_ops;
-	links[*id].dpcm_playback = 1;
-	links[*id].dpcm_capture = 1;
-	links[*id].no_pcm = 1;
-	links[*id].cpus = &cpus[*id];
-	links[*id].num_cpus = 1;
-
-	links[*id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-						   "SSP%d Pin",
-						   ssp_codec);
-	if (!links[*id].cpus->dai_name)
-		goto devm_err;
-
-	(*id)++;
-
-	return 0;
-
-devm_err:
-	return -ENOMEM;
-}
-
 static int create_bt_offload_dai_links(struct device *dev,
 				       struct snd_soc_dai_link *links,
 				       struct snd_soc_dai_link_component *cpus,
@@ -350,12 +311,23 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 
 		switch (link_type) {
 		case LINK_HP:
-			ret = create_hp_codec_dai_links(dev, links, cpus, &id, ssp_codec);
-			if (ret < 0) {
+			ret = sof_intel_board_set_codec_link(dev, &links[id], id,
+							     CODEC_CS42L42,
+							     ssp_codec);
+			if (ret) {
 				dev_err(dev, "fail to create hp codec dai links, ret %d\n",
 					ret);
 				goto devm_err;
 			}
+
+			/* codec-specific fields */
+			links[id].codecs = cs42l42_component;
+			links[id].num_codecs = ARRAY_SIZE(cs42l42_component);
+			links[id].init = sof_cs42l42_init;
+			links[id].exit = sof_cs42l42_exit;
+			links[id].ops = &sof_cs42l42_ops;
+
+			id++;
 			break;
 		case LINK_SPK:
 			ret = create_spk_amp_dai_links(dev, links, cpus, &id,
@@ -440,7 +412,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int ret, ssp_bt, ssp_amp, ssp_codec;
+	int ret, ssp_bt, ssp_amp;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -475,7 +447,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_amp = (sof_cs42l42_quirk & SOF_CS42L42_SSP_AMP_MASK) >>
 			SOF_CS42L42_SSP_AMP_SHIFT;
 
-	ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
+	ctx->ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
 	sof_audio_card_cs42l42.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
@@ -486,7 +458,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_audio_card_cs42l42.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ssp_codec, ssp_amp, ssp_bt,
+					      ctx->ssp_codec, ssp_amp, ssp_bt,
 					      ctx->dmic_be_num, ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
