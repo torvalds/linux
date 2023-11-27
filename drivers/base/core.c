@@ -328,6 +328,7 @@ int device_is_dependent(struct device *dev, void *target)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(device_is_dependent);
 
 static void device_link_init_status(struct device_link *link,
 				    struct device *consumer,
