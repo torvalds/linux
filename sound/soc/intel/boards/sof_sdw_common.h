@@ -138,12 +138,6 @@ int sof_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 int sof_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* RT712-SDCA support */
-int sof_sdw_rt712_sdca_init(struct snd_soc_card *card,
-			    const struct snd_soc_acpi_link_adr *link,
-			    struct snd_soc_dai_link *dai_links,
-			    struct sof_sdw_codec_info *info,
-			    bool playback);
-int sof_sdw_rt712_sdca_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 int sof_sdw_rt712_spk_init(struct snd_soc_card *card,
 			   const struct snd_soc_acpi_link_adr *link,
 			   struct snd_soc_dai_link *dai_links,
