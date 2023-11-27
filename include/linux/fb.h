@@ -867,4 +867,9 @@ static inline bool fb_modesetting_disabled(const char *drvname)
 #define fb_warn_once(fb_info, fmt, ...)					\
 	pr_warn_once("fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
 
+#define fb_WARN_ONCE(fb_info, condition, fmt, ...) \
+	WARN_ONCE(condition, "fb%d: " fmt, (fb_info)->node, ##__VA_ARGS__)
+#define fb_WARN_ON_ONCE(fb_info, x) \
+	fb_WARN_ONCE(fb_info, (x), "%s", "fb_WARN_ON_ONCE(" __stringify(x) ")")
+
 #endif /* _LINUX_FB_H */

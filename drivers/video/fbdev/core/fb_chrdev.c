@@ -34,13 +34,13 @@ static ssize_t fb_read(struct file *file, char __user *buf, size_t count, loff_t
 	if (!info)
 		return -ENODEV;
 
+	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_read))
+		return -EINVAL;
+
 	if (info->state != FBINFO_STATE_RUNNING)
 		return -EPERM;
 
-	if (info->fbops->fb_read)
-		return info->fbops->fb_read(info, buf, count, ppos);
-
-	return fb_io_read(info, buf, count, ppos);
+	return info->fbops->fb_read(info, buf, count, ppos);
 }
 
 static ssize_t fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -50,13 +50,13 @@ static ssize_t fb_write(struct file *file, const char __user *buf, size_t count,
 	if (!info)
 		return -ENODEV;
 
+	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_write))
+		return -EINVAL;
+
 	if (info->state != FBINFO_STATE_RUNNING)
 		return -EPERM;
 
-	if (info->fbops->fb_write)
-		return info->fbops->fb_write(info, buf, count, ppos);
-
-	return fb_io_write(info, buf, count, ppos);
+	return info->fbops->fb_write(info, buf, count, ppos);
 }
 
 static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
@@ -319,24 +319,11 @@ static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!info)
 		return -ENODEV;
 
+	if (fb_WARN_ON_ONCE(info, !info->fbops->fb_mmap))
+		return -ENODEV;
+
 	mutex_lock(&info->mm_lock);
-
-	if (info->fbops->fb_mmap) {
-
-		res = info->fbops->fb_mmap(info, vma);
-#if IS_ENABLED(CONFIG_FB_DEFERRED_IO)
-	} else if (info->fbdefio) {
-		/*
-		 * FB deferred I/O wants you to handle mmap in your drivers. At a
-		 * minimum, point struct fb_ops.fb_mmap to fb_deferred_io_mmap().
-		 */
-		dev_warn_once(info->dev, "fbdev mmap not set up for deferred I/O.\n");
-		res = -ENODEV;
-#endif
-	} else {
-		res = fb_io_mmap(info, vma);
-	}
-
+	res = info->fbops->fb_mmap(info, vma);
 	mutex_unlock(&info->mm_lock);
 
 	return res;

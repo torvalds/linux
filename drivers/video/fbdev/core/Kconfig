@@ -4,7 +4,6 @@
 #
 
 config FB_CORE
-	select FB_IOMEM_FOPS
 	select VIDEO_CMDLINE
 	tristate
 
