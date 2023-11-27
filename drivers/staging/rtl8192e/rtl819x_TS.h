@@ -23,7 +23,7 @@ struct ts_common_info {
 };
 
 struct tx_ts_record {
-	struct ts_common_info TsCommonInfo;
+	struct ts_common_info ts_common_info;
 	u16				tx_cur_seq;
 	struct ba_record tx_pending_ba_record;
 	struct ba_record tx_admitted_ba_record;

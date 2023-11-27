@@ -99,7 +99,7 @@ static void ResetTsCommonInfo(struct ts_common_info *ts_common_info)
 
 static void ResetTxTsEntry(struct tx_ts_record *ts)
 {
-	ResetTsCommonInfo(&ts->TsCommonInfo);
+	ResetTsCommonInfo(&ts->ts_common_info);
 	ts->tx_cur_seq = 0;
 	ts->add_ba_req_in_progress = false;
 	ts->add_ba_req_delayed = false;
@@ -138,7 +138,7 @@ void rtllib_ts_init(struct rtllib_device *ieee)
 			    rtllib_tx_ba_inact_timeout, 0);
 
 		ResetTxTsEntry(pTxTS);
-		list_add_tail(&pTxTS->TsCommonInfo.List,
+		list_add_tail(&pTxTS->ts_common_info.List,
 				&ieee->Tx_TS_Unused_List);
 		pTxTS++;
 	}
@@ -292,7 +292,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 			struct tx_ts_record *tmp =
 				container_of(*ppTS,
 				struct tx_ts_record,
-				TsCommonInfo);
+				ts_common_info);
 			ResetTxTsEntry(tmp);
 		} else {
 			struct rx_ts_record *ts =
