@@ -119,7 +119,6 @@ static inline void journal_wake(struct journal *j)
 {
 	wake_up(&j->wait);
 	closure_wake_up(&j->async_wait);
-	closure_wake_up(&j->preres_wait);
 }
 
 static inline struct journal_buf *journal_cur_buf(struct journal *j)

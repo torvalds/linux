@@ -195,7 +195,6 @@ struct journal {
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
-	struct closure_waitlist	preres_wait;
 
 	struct closure		io;
 	struct delayed_work	write_work;
