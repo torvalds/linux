@@ -23,6 +23,8 @@ void guest_modes_append_default(void)
 
 		aarch64_get_supported_page_sizes(limit, &ipa4k, &ipa16k, &ipa64k);
 
+		guest_mode_append(VM_MODE_P52V48_4K, ipa4k >= 52);
+		guest_mode_append(VM_MODE_P52V48_16K, ipa16k >= 52);
 		guest_mode_append(VM_MODE_P52V48_64K, ipa64k >= 52);
 
 		guest_mode_append(VM_MODE_P48V48_4K, ipa4k >= 48);
