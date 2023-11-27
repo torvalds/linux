@@ -257,7 +257,7 @@
 #endif
 	non-removable;
 	max-frequency = <200000000>;
-	clk-phase-mmc-hs200 = <0 27>, <1 185>;
+	clk-phase-mmc-hs200 = <0 53>, <1 190>;
 };
 
 &mdio0 {
