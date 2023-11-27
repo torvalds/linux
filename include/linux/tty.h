@@ -440,10 +440,9 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
  *
  * Returns: the baud rate as an integer for this terminal
  *
- * Locking: The termios lock must be held by the caller and the terminal bit
- * flags may be updated.
+ * Locking: The termios lock must be held by the caller.
  */
-static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
+static inline speed_t tty_get_baud_rate(const struct tty_struct *tty)
 {
 	return tty_termios_baud_rate(&tty->termios);
 }
