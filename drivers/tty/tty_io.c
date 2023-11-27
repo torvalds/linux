@@ -2499,6 +2499,24 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 }
 
 /**
+ * tty_get_tiocm - get tiocm status register
+ * @tty: tty device
+ *
+ * Obtain the modem status bits from the tty driver if the feature
+ * is supported.
+ */
+int tty_get_tiocm(struct tty_struct *tty)
+{
+	int retval = -ENOTTY;
+
+	if (tty->ops->tiocmget)
+		retval = tty->ops->tiocmget(tty);
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(tty_get_tiocm);
+
+/**
  * tty_tiocmget - get modem status
  * @tty: tty device
  * @p: pointer to result
@@ -2510,14 +2528,12 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
  */
 static int tty_tiocmget(struct tty_struct *tty, int __user *p)
 {
-	int retval = -ENOTTY;
+	int retval;
 
-	if (tty->ops->tiocmget) {
-		retval = tty->ops->tiocmget(tty);
+	retval = tty_get_tiocm(tty);
+	if (retval >= 0)
+		retval = put_user(retval, p);
 
-		if (retval >= 0)
-			retval = put_user(retval, p);
-	}
 	return retval;
 }
 
