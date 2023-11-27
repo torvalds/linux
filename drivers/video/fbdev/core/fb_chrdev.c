@@ -314,20 +314,16 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fb_info *info = file_fb_info(file);
-	unsigned long mmio_pgoff;
-	unsigned long start;
-	u32 len;
+	int res;
 
 	if (!info)
 		return -ENODEV;
+
 	mutex_lock(&info->mm_lock);
 
 	if (info->fbops->fb_mmap) {
-		int res;
 
 		res = info->fbops->fb_mmap(info, vma);
-		mutex_unlock(&info->mm_lock);
-		return res;
 #if IS_ENABLED(CONFIG_FB_DEFERRED_IO)
 	} else if (info->fbdefio) {
 		/*
@@ -335,35 +331,15 @@ static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 		 * minimum, point struct fb_ops.fb_mmap to fb_deferred_io_mmap().
 		 */
 		dev_warn_once(info->dev, "fbdev mmap not set up for deferred I/O.\n");
-		mutex_unlock(&info->mm_lock);
-		return -ENODEV;
+		res = -ENODEV;
 #endif
+	} else {
+		res = fb_io_mmap(info, vma);
 	}
 
-	/*
-	 * Ugh. This can be either the frame buffer mapping, or
-	 * if pgoff points past it, the mmio mapping.
-	 */
-	start = info->fix.smem_start;
-	len = info->fix.smem_len;
-	mmio_pgoff = PAGE_ALIGN((start & ~PAGE_MASK) + len) >> PAGE_SHIFT;
-	if (vma->vm_pgoff >= mmio_pgoff) {
-		if (info->var.accel_flags) {
-			mutex_unlock(&info->mm_lock);
-			return -EINVAL;
-		}
-
-		vma->vm_pgoff -= mmio_pgoff;
-		start = info->fix.mmio_start;
-		len = info->fix.mmio_len;
-	}
 	mutex_unlock(&info->mm_lock);
 
-	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-	vma->vm_page_prot = pgprot_framebuffer(vma->vm_page_prot, vma->vm_start,
-					       vma->vm_end, start);
-
-	return vm_iomap_memory(vma, start, len);
+	return res;
 }
 
 static int fb_open(struct inode *inode, struct file *file)

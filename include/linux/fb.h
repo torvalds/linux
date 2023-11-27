@@ -536,6 +536,7 @@ extern ssize_t fb_io_read(struct fb_info *info, char __user *buf,
 			  size_t count, loff_t *ppos);
 extern ssize_t fb_io_write(struct fb_info *info, const char __user *buf,
 			   size_t count, loff_t *ppos);
+int fb_io_mmap(struct fb_info *info, struct vm_area_struct *vma);
 
 #define __FB_DEFAULT_IOMEM_OPS_RDWR \
 	.fb_read	= fb_io_read, \
@@ -547,7 +548,7 @@ extern ssize_t fb_io_write(struct fb_info *info, const char __user *buf,
 	.fb_imageblit	= cfb_imageblit
 
 #define __FB_DEFAULT_IOMEM_OPS_MMAP \
-	.fb_mmap	= NULL /* default implementation */
+	.fb_mmap	= fb_io_mmap
 
 #define FB_DEFAULT_IOMEM_OPS \
 	__FB_DEFAULT_IOMEM_OPS_RDWR, \
