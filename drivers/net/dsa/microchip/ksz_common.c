@@ -2967,8 +2967,10 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev)) {
+		dev->ports[port].manual_flow = !(state->pause & MLO_PAUSE_AN);
 		return;
+	}
 
 	/* Internal PHYs */
 	if (dev->info->internal_phy[port])
