@@ -163,9 +163,6 @@ int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	keys = wb->keys[s.idx];
 	nr = s.nr;
 
-	if (race_fault())
-		goto slowpath;
-
 	/*
 	 * We first sort so that we can detect and skip redundant updates, and
 	 * then we attempt to flush in sorted btree order, as this is most
@@ -209,6 +206,11 @@ int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		iter.path->preserve = false;
 
 		do {
+			if (race_fault()) {
+				ret = -BCH_ERR_journal_reclaim_would_deadlock;
+				break;
+			}
+
 			ret = wb_flush_one(trans, &iter, i, &write_locked, &fast);
 			if (!write_locked)
 				bch2_trans_begin(trans);
@@ -227,46 +229,45 @@ int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		bch2_btree_node_unlock_write(trans, iter.path, iter.path->l[0].b);
 	bch2_trans_iter_exit(trans, &iter);
 
-	trace_write_buffer_flush(trans, nr, skipped, fast, wb->size);
+	if (ret)
+		goto err;
 
-	if (slowpath)
-		goto slowpath;
+	if (slowpath) {
+		/*
+		 * Flush in the order they were present in the journal, so that
+		 * we can release journal pins:
+		 * The fastpath zapped the seq of keys that were successfully flushed so
+		 * we can skip those here.
+		 */
+		trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, nr);
 
+		sort(keys, nr, sizeof(keys[0]),
+		     btree_write_buffered_journal_cmp,
+		     NULL);
+
+		for (i = keys; i < keys + nr; i++) {
+			if (!i->journal_seq)
+				continue;
+
+			bch2_journal_pin_update(j, i->journal_seq, &pin,
+				      bch2_btree_write_buffer_journal_flush);
+
+			ret = commit_do(trans, NULL, NULL,
+					BCH_WATERMARK_reclaim|
+					BCH_TRANS_COMMIT_no_check_rw|
+					BCH_TRANS_COMMIT_no_enospc|
+					BCH_TRANS_COMMIT_no_journal_res|
+					BCH_TRANS_COMMIT_journal_reclaim,
+					btree_write_buffered_insert(trans, i));
+			if (ret)
+				goto err;
+		}
+	}
+err:
 	bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret));
-out:
+	trace_write_buffer_flush(trans, nr, skipped, fast, wb->size);
 	bch2_journal_pin_drop(j, &pin);
 	return ret;
-slowpath:
-	trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, nr);
-
-	/*
-	 * Now sort the rest by journal seq and bump the journal pin as we go.
-	 * The slowpath zapped the seq of keys that were successfully flushed so
-	 * we can skip those here.
-	 */
-	sort(keys, nr, sizeof(keys[0]),
-	     btree_write_buffered_journal_cmp,
-	     NULL);
-
-	for (i = keys; i < keys + nr; i++) {
-		if (!i->journal_seq)
-			continue;
-
-		bch2_journal_pin_update(j, i->journal_seq, &pin,
-			      bch2_btree_write_buffer_journal_flush);
-
-		ret = commit_do(trans, NULL, NULL,
-				BCH_WATERMARK_reclaim|
-				BCH_TRANS_COMMIT_no_check_rw|
-				BCH_TRANS_COMMIT_no_enospc|
-				BCH_TRANS_COMMIT_no_journal_res|
-				BCH_TRANS_COMMIT_journal_reclaim,
-				btree_write_buffered_insert(trans, i));
-		if (bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret)))
-			break;
-	}
-
-	goto out;
 }
 
 int bch2_btree_write_buffer_flush_sync(struct btree_trans *trans)
