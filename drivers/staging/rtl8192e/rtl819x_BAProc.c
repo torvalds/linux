@@ -485,24 +485,24 @@ void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *ts,
 }
 
 void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
-			   struct ts_common_info *pTsCommonInfo,
+			   struct ts_common_info *ts_common_info,
 			   enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
 		struct tx_ts_record *ts =
-			 (struct tx_ts_record *)pTsCommonInfo;
+			 (struct tx_ts_record *)ts_common_info;
 
 		if (tx_ts_delete_ba(ieee, ts))
-			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
+			rtllib_send_DELBA(ieee, ts_common_info->addr,
 					  (ts->tx_admitted_ba_record.b_valid) ?
 					 (&ts->tx_admitted_ba_record) :
 					(&ts->tx_pending_ba_record),
 					 TxRxSelect, DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
 		struct rx_ts_record *ts =
-				 (struct rx_ts_record *)pTsCommonInfo;
+				 (struct rx_ts_record *)ts_common_info;
 		if (rx_ts_delete_ba(ieee, ts))
-			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
+			rtllib_send_DELBA(ieee, ts_common_info->addr,
 					  &ts->rx_admitted_ba_record,
 					  TxRxSelect, DELBA_REASON_END_BA);
 	}

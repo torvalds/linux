@@ -91,10 +91,10 @@ static void TsAddBaProcess(struct timer_list *t)
 	netdev_dbg(ieee->dev, "%s(): ADDBA Req is started\n", __func__);
 }
 
-static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
+static void ResetTsCommonInfo(struct ts_common_info *ts_common_info)
 {
-	eth_zero_addr(pTsCommonInfo->addr);
-	memset(&pTsCommonInfo->tspec, 0, sizeof(struct qos_tsinfo));
+	eth_zero_addr(ts_common_info->addr);
+	memset(&ts_common_info->tspec, 0, sizeof(struct qos_tsinfo));
 }
 
 static void ResetTxTsEntry(struct tx_ts_record *ts)
@@ -211,16 +211,16 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 	return NULL;
 }
 
-static void MakeTSEntry(struct ts_common_info *pTsCommonInfo, u8 *addr,
+static void MakeTSEntry(struct ts_common_info *ts_common_info, u8 *addr,
 			struct qos_tsinfo *pTSPEC)
 {
-	if (!pTsCommonInfo)
+	if (!ts_common_info)
 		return;
 
-	memcpy(pTsCommonInfo->addr, addr, 6);
+	memcpy(ts_common_info->addr, addr, 6);
 
 	if (pTSPEC)
-		memcpy((u8 *)(&(pTsCommonInfo->tspec)), (u8 *)pTSPEC,
+		memcpy((u8 *)(&(ts_common_info->tspec)), (u8 *)pTSPEC,
 			sizeof(struct qos_tsinfo));
 }
 
