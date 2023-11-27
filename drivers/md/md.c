@@ -9244,44 +9244,19 @@ static int remove_and_add_spares(struct mddev *mddev,
 	struct md_rdev *rdev;
 	int spares = 0;
 	int removed = 0;
-	bool remove_some = false;
 
 	if (this && test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
 		/* Mustn't remove devices when resync thread is running */
 		return 0;
 
 	rdev_for_each(rdev, mddev) {
-		if ((this == NULL || rdev == this) &&
-		    rdev->raid_disk >= 0 &&
-		    !test_bit(Blocked, &rdev->flags) &&
-		    test_bit(Faulty, &rdev->flags) &&
-		    atomic_read(&rdev->nr_pending)==0) {
-			/* Faulty non-Blocked devices with nr_pending == 0
-			 * never get nr_pending incremented,
-			 * never get Faulty cleared, and never get Blocked set.
-			 * So we can synchronize_rcu now rather than once per device
-			 */
-			remove_some = true;
-			set_bit(RemoveSynchronized, &rdev->flags);
+		if ((this == NULL || rdev == this) && rdev_removeable(rdev) &&
+		    !mddev->pers->hot_remove_disk(mddev, rdev)) {
+			sysfs_unlink_rdev(mddev, rdev);
+			rdev->saved_raid_disk = rdev->raid_disk;
+			rdev->raid_disk = -1;
+			removed++;
 		}
-	}
-
-	if (remove_some)
-		synchronize_rcu();
-	rdev_for_each(rdev, mddev) {
-		if ((this == NULL || rdev == this) &&
-		    (test_bit(RemoveSynchronized, &rdev->flags) ||
-		     rdev_removeable(rdev))) {
-			if (mddev->pers->hot_remove_disk(
-				    mddev, rdev) == 0) {
-				sysfs_unlink_rdev(mddev, rdev);
-				rdev->saved_raid_disk = rdev->raid_disk;
-				rdev->raid_disk = -1;
-				removed++;
-			}
-		}
-		if (remove_some && test_bit(RemoveSynchronized, &rdev->flags))
-			clear_bit(RemoveSynchronized, &rdev->flags);
 	}
 
 	if (removed && mddev->kobj.sd)
