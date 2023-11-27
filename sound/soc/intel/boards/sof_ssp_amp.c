@@ -124,6 +124,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 		/* the topology supports HDMI-IN uses fixed BE ID for DAI links */
 		fixed_be = true;
 
+		be_id = HDMI_IN_BE_ID;
 		for (i = 1; i <= num_of_hdmi_ssp; i++) {
 			int port = (i == 1 ? (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_1_SSP_MASK) >>
 						SOF_HDMI_CAPTURE_1_SSP_SHIFT :
@@ -138,7 +139,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", port);
 			if (!links[id].name)
 				return NULL;
-			links[id].id = fixed_be ? (HDMI_IN_BE_ID + i - 1) : id;
+			links[id].id = be_id;
 			links[id].codecs = &snd_soc_dummy_dlc;
 			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
@@ -147,6 +148,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			links[id].no_pcm = 1;
 			links[id].num_cpus = 1;
 			id++;
+			be_id++;
 		}
 	}
 
