@@ -26,7 +26,7 @@ static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *ba
 static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *ts)
 {
 	struct ba_record *admitted_ba = &ts->tx_admitted_ba_record;
-	struct ba_record *pending_ba = &ts->TxPendingBARecord;
+	struct ba_record *pending_ba = &ts->tx_pending_ba_record;
 	u8 send_del_ba = false;
 
 	if (pending_ba->b_valid) {
@@ -345,7 +345,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	}
 
 	ts->add_ba_req_in_progress = false;
-	pending_ba = &ts->TxPendingBARecord;
+	pending_ba = &ts->tx_pending_ba_record;
 	pAdmittedBA = &ts->tx_admitted_ba_record;
 
 	if (pAdmittedBA->b_valid) {
@@ -464,7 +464,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 void rtllib_ts_init_add_ba(struct rtllib_device *ieee, struct tx_ts_record *ts,
 			   u8 policy, u8	overwrite_pending)
 {
-	struct ba_record *ba = &ts->TxPendingBARecord;
+	struct ba_record *ba = &ts->tx_pending_ba_record;
 
 	if (ba->b_valid && !overwrite_pending)
 		return;
@@ -496,7 +496,7 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
 					  (ts->tx_admitted_ba_record.b_valid) ?
 					 (&ts->tx_admitted_ba_record) :
-					(&ts->TxPendingBARecord),
+					(&ts->tx_pending_ba_record),
 					 TxRxSelect, DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
 		struct rx_ts_record *ts =
@@ -511,11 +511,11 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 void rtllib_ba_setup_timeout(struct timer_list *t)
 {
 	struct tx_ts_record *ts = from_timer(ts, t,
-					      TxPendingBARecord.timer);
+					      tx_pending_ba_record.timer);
 
 	ts->add_ba_req_in_progress = false;
 	ts->add_ba_req_delayed = true;
-	ts->TxPendingBARecord.b_valid = false;
+	ts->tx_pending_ba_record.b_valid = false;
 }
 
 void rtllib_tx_ba_inact_timeout(struct timer_list *t)
