@@ -1762,29 +1762,29 @@ DEFINE_ERROR_EVENT(chunk);
 
 DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		u64 dma_addr,
 		u32 length
 	),
 
-	TP_ARGS(rdma, dma_addr, length),
+	TP_ARGS(cid, dma_addr, length),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(u64, dma_addr)
 		__field(u32, length)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->dma_addr = dma_addr;
 		__entry->length = length;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s dma_addr=%llu length=%u",
-		__get_str(addr), __get_str(device),
+	TP_printk("cq.id=%u cid=%d dma_addr=%llu length=%u",
+		__entry->cq_id, __entry->completion_id,
 		__entry->dma_addr, __entry->length
 	)
 );
@@ -1792,11 +1792,12 @@ DECLARE_EVENT_CLASS(svcrdma_dma_map_class,
 #define DEFINE_SVC_DMA_EVENT(name)					\
 		DEFINE_EVENT(svcrdma_dma_map_class, svcrdma_##name,	\
 				TP_PROTO(				\
-					const struct svcxprt_rdma *rdma,\
+					const struct rpc_rdma_cid *cid, \
 					u64 dma_addr,			\
 					u32 length			\
 				),					\
-				TP_ARGS(rdma, dma_addr, length))
+				TP_ARGS(cid, dma_addr, length)		\
+		)
 
 DEFINE_SVC_DMA_EVENT(dma_map_page);
 DEFINE_SVC_DMA_EVENT(dma_map_err);
