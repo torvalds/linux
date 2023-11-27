@@ -356,12 +356,9 @@ static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 static const struct fb_ops ht16k33_fb_ops = {
 	.owner = THIS_MODULE,
-	.fb_read = fb_sys_read,
-	.fb_write = fb_sys_write,
+	__FB_DEFAULT_SYSMEM_OPS_RDWR,
 	.fb_blank = ht16k33_blank,
-	.fb_fillrect = sys_fillrect,
-	.fb_copyarea = sys_copyarea,
-	.fb_imageblit = sys_imageblit,
+	__FB_DEFAULT_SYSMEM_OPS_DRAW,
 	.fb_mmap = ht16k33_mmap,
 };
 
