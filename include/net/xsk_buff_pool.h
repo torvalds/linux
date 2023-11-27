@@ -33,6 +33,7 @@ struct xdp_buff_xsk {
 };
 
 #define XSK_CHECK_PRIV_TYPE(t) BUILD_BUG_ON(sizeof(t) > offsetofend(struct xdp_buff_xsk, cb))
+#define XSK_TX_COMPL_FITS(t) BUILD_BUG_ON(sizeof(struct xsk_tx_metadata_compl) > sizeof(t))
 
 struct xsk_dma_map {
 	dma_addr_t *dma_pages;
@@ -232,6 +233,11 @@ static inline u64 xp_get_handle(struct xdp_buff_xsk *xskb)
 	if (!xskb->pool->unaligned)
 		return xskb->orig_addr + offset;
 	return xskb->orig_addr + (offset << XSK_UNALIGNED_BUF_OFFSET_SHIFT);
+}
+
+static inline bool xp_tx_metadata_enabled(const struct xsk_buff_pool *pool)
+{
+	return pool->tx_metadata_len > 0;
 }
 
 #endif /* XSK_BUFF_POOL_H_ */
