@@ -246,9 +246,9 @@ struct ath10k_htc_lookahead_bundle {
 struct ath10k_htc_record {
 	struct ath10k_ath10k_htc_record_hdr hdr;
 	union {
-		struct ath10k_htc_credit_report credit_report[0];
-		struct ath10k_htc_lookahead_report lookahead_report[0];
-		struct ath10k_htc_lookahead_bundle lookahead_bundle[0];
+		DECLARE_FLEX_ARRAY(struct ath10k_htc_credit_report, credit_report);
+		DECLARE_FLEX_ARRAY(struct ath10k_htc_lookahead_report, lookahead_report);
+		DECLARE_FLEX_ARRAY(struct ath10k_htc_lookahead_bundle, lookahead_bundle);
 	};
 } __packed __aligned(4);
 
