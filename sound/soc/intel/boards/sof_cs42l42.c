@@ -189,62 +189,6 @@ static struct snd_soc_dai_link_component cs42l42_component[] = {
 	}
 };
 
-static int create_spk_amp_dai_links(struct device *dev,
-				    struct snd_soc_dai_link *links,
-				    struct snd_soc_dai_link_component *cpus,
-				    int *id, enum sof_ssp_codec amp_type,
-				    int ssp_amp)
-{
-	int ret = 0;
-
-	/* speaker amp */
-	if (amp_type == CODEC_NONE)
-		return 0;
-
-	links[*id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec",
-					 ssp_amp);
-	if (!links[*id].name) {
-		ret = -ENOMEM;
-		goto devm_err;
-	}
-
-	links[*id].id = *id;
-
-	switch (amp_type) {
-	case CODEC_MAX98357A:
-		max_98357a_dai_link(&links[*id]);
-		break;
-	case CODEC_MAX98360A:
-		max_98360a_dai_link(&links[*id]);
-		break;
-	default:
-		dev_err(dev, "invalid amp type %d\n", amp_type);
-		return -EINVAL;
-	}
-
-	links[*id].platforms = platform_component;
-	links[*id].num_platforms = ARRAY_SIZE(platform_component);
-	links[*id].dpcm_playback = 1;
-	/* firmware-generated echo reference */
-	links[*id].dpcm_capture = 1;
-
-	links[*id].no_pcm = 1;
-	links[*id].cpus = &cpus[*id];
-	links[*id].num_cpus = 1;
-
-	links[*id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-						   "SSP%d Pin", ssp_amp);
-	if (!links[*id].cpus->dai_name) {
-		ret = -ENOMEM;
-		goto devm_err;
-	}
-
-	(*id)++;
-
-devm_err:
-	return ret;
-}
-
 static int create_bt_offload_dai_links(struct device *dev,
 				       struct snd_soc_dai_link *links,
 				       struct snd_soc_dai_link_component *cpus,
@@ -330,12 +274,33 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			id++;
 			break;
 		case LINK_SPK:
-			ret = create_spk_amp_dai_links(dev, links, cpus, &id,
-						       amp_type, ssp_amp);
-			if (ret < 0) {
-				dev_err(dev, "fail to create spk amp dai links, ret %d\n",
-					ret);
-				goto devm_err;
+			if (amp_type != CODEC_NONE) {
+				ret = sof_intel_board_set_ssp_amp_link(dev,
+								       &links[id],
+								       id,
+								       amp_type,
+								       ssp_amp);
+				if (ret) {
+					dev_err(dev, "fail to create spk amp dai links, ret %d\n",
+						ret);
+					goto devm_err;
+				}
+
+				/* codec-specific fields */
+				switch (amp_type) {
+				case CODEC_MAX98357A:
+					max_98357a_dai_link(&links[id]);
+					break;
+				case CODEC_MAX98360A:
+					max_98360a_dai_link(&links[id]);
+					break;
+				default:
+					dev_err(dev, "invalid amp type %d\n",
+						amp_type);
+					goto devm_err;
+				}
+
+				id++;
 			}
 			break;
 		case LINK_DMIC:
@@ -412,7 +377,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int ret, ssp_bt, ssp_amp;
+	int ret, ssp_bt;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -444,7 +409,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_bt = (sof_cs42l42_quirk & SOF_CS42L42_SSP_BT_MASK) >>
 			SOF_CS42L42_SSP_BT_SHIFT;
 
-	ssp_amp = (sof_cs42l42_quirk & SOF_CS42L42_SSP_AMP_MASK) >>
+	ctx->ssp_amp = (sof_cs42l42_quirk & SOF_CS42L42_SSP_AMP_MASK) >>
 			SOF_CS42L42_SSP_AMP_SHIFT;
 
 	ctx->ssp_codec = sof_cs42l42_quirk & SOF_CS42L42_SSP_CODEC_MASK;
@@ -458,8 +423,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_audio_card_cs42l42.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ctx->ssp_codec, ssp_amp, ssp_bt,
-					      ctx->dmic_be_num, ctx->hdmi_num,
+					      ctx->ssp_codec, ctx->ssp_amp,
+					      ssp_bt, ctx->dmic_be_num,
+					      ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
 		return -ENOMEM;
