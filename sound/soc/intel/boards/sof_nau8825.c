@@ -226,30 +226,17 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 		goto devm_err;
 
 	/* codec SSP */
-	links[id].name = devm_kasprintf(dev, GFP_KERNEL,
-					"SSP%d-Codec", ssp_codec);
-	if (!links[id].name)
-		goto devm_err;
+	ret = sof_intel_board_set_codec_link(dev, &links[id], id, CODEC_NAU8825,
+					     ssp_codec);
+	if (ret)
+		return NULL;
 
-	links[id].id = id;
+	/* codec-specific fields */
 	links[id].codecs = nau8825_component;
 	links[id].num_codecs = ARRAY_SIZE(nau8825_component);
-	links[id].platforms = platform_component;
-	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_nau8825_codec_init;
 	links[id].exit = sof_nau8825_codec_exit;
 	links[id].ops = &sof_nau8825_ops;
-	links[id].dpcm_playback = 1;
-	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
-	links[id].cpus = &cpus[id];
-	links[id].num_cpus = 1;
-
-	links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-						  "SSP%d Pin",
-						  ssp_codec);
-	if (!links[id].cpus->dai_name)
-		goto devm_err;
 
 	id++;
 
@@ -368,7 +355,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
-	int ret, ssp_amp, ssp_codec;
+	int ret, ssp_amp;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -396,7 +383,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_amp = (sof_nau8825_quirk & SOF_NAU8825_SSP_AMP_MASK) >>
 			SOF_NAU8825_SSP_AMP_SHIFT;
 
-	ssp_codec = sof_nau8825_quirk & SOF_NAU8825_SSP_CODEC_MASK;
+	ctx->ssp_codec = sof_nau8825_quirk & SOF_NAU8825_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
 	sof_audio_card_nau8825.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
@@ -408,7 +395,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_audio_card_nau8825.num_links++;
 
 	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ssp_codec, ssp_amp,
+					      ctx->ssp_codec, ssp_amp,
 					      ctx->dmic_be_num, ctx->hdmi_num,
 					      ctx->hdmi.idisp_codec);
 	if (!dai_links)
