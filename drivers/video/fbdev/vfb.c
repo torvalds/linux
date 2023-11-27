@@ -440,6 +440,7 @@ static int vfb_probe(struct platform_device *dev)
 	if (!info)
 		goto err;
 
+	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = videomemory;
 	info->fbops = &vfb_ops;
 
