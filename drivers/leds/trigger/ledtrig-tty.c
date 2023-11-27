@@ -19,17 +19,26 @@ struct ledtrig_tty_data {
 	int rx, tx;
 	bool mode_rx;
 	bool mode_tx;
+	bool mode_cts;
+	bool mode_dsr;
+	bool mode_dcd;
+	bool mode_rng;
 };
 
 /* Indicates which state the LED should now display */
 enum led_trigger_tty_state {
 	TTY_LED_BLINK,
+	TTY_LED_ENABLE,
 	TTY_LED_DISABLE,
 };
 
 enum led_trigger_tty_modes {
 	TRIGGER_TTY_RX = 0,
 	TRIGGER_TTY_TX,
+	TRIGGER_TTY_CTS,
+	TRIGGER_TTY_DSR,
+	TRIGGER_TTY_DCD,
+	TRIGGER_TTY_RNG,
 };
 
 static int ledtrig_tty_wait_for_completion(struct device *dev)
@@ -111,6 +120,18 @@ static ssize_t ledtrig_tty_attr_show(struct device *dev, char *buf,
 	case TRIGGER_TTY_TX:
 		state = trigger_data->mode_tx;
 		break;
+	case TRIGGER_TTY_CTS:
+		state = trigger_data->mode_cts;
+		break;
+	case TRIGGER_TTY_DSR:
+		state = trigger_data->mode_dsr;
+		break;
+	case TRIGGER_TTY_DCD:
+		state = trigger_data->mode_dcd;
+		break;
+	case TRIGGER_TTY_RNG:
+		state = trigger_data->mode_rng;
+		break;
 	}
 
 	return sysfs_emit(buf, "%u\n", state);
@@ -134,6 +155,18 @@ static ssize_t ledtrig_tty_attr_store(struct device *dev, const char *buf,
 	case TRIGGER_TTY_TX:
 		trigger_data->mode_tx = state;
 		break;
+	case TRIGGER_TTY_CTS:
+		trigger_data->mode_cts = state;
+		break;
+	case TRIGGER_TTY_DSR:
+		trigger_data->mode_dsr = state;
+		break;
+	case TRIGGER_TTY_DCD:
+		trigger_data->mode_dcd = state;
+		break;
+	case TRIGGER_TTY_RNG:
+		trigger_data->mode_rng = state;
+		break;
 	}
 
 	return size;
@@ -154,6 +187,10 @@ static ssize_t ledtrig_tty_attr_store(struct device *dev, const char *buf,
 
 DEFINE_TTY_TRIGGER(rx, TRIGGER_TTY_RX);
 DEFINE_TTY_TRIGGER(tx, TRIGGER_TTY_TX);
+DEFINE_TTY_TRIGGER(cts, TRIGGER_TTY_CTS);
+DEFINE_TTY_TRIGGER(dsr, TRIGGER_TTY_DSR);
+DEFINE_TTY_TRIGGER(dcd, TRIGGER_TTY_DCD);
+DEFINE_TTY_TRIGGER(rng, TRIGGER_TTY_RNG);
 
 static void ledtrig_tty_work(struct work_struct *work)
 {
@@ -161,6 +198,8 @@ static void ledtrig_tty_work(struct work_struct *work)
 		container_of(work, struct ledtrig_tty_data, dwork.work);
 	enum led_trigger_tty_state state = TTY_LED_DISABLE;
 	unsigned long interval = LEDTRIG_TTY_INTERVAL;
+	bool invert = false;
+	int status;
 	int ret;
 
 	if (!trigger_data->ttyname)
@@ -188,6 +227,33 @@ static void ledtrig_tty_work(struct work_struct *work)
 		trigger_data->tty = tty;
 	}
 
+	status = tty_get_tiocm(trigger_data->tty);
+	if (status > 0) {
+		if (trigger_data->mode_cts) {
+			if (status & TIOCM_CTS)
+				state = TTY_LED_ENABLE;
+		}
+
+		if (trigger_data->mode_dsr) {
+			if (status & TIOCM_DSR)
+				state = TTY_LED_ENABLE;
+		}
+
+		if (trigger_data->mode_dcd) {
+			if (status & TIOCM_CAR)
+				state = TTY_LED_ENABLE;
+		}
+
+		if (trigger_data->mode_rng) {
+			if (status & TIOCM_RNG)
+				state = TTY_LED_ENABLE;
+		}
+	}
+
+	/*
+	 * The evaluation of rx/tx must be done after the evaluation
+	 * of TIOCM_*, because rx/tx has priority.
+	 */
 	if (trigger_data->mode_rx || trigger_data->mode_tx) {
 		struct serial_icounter_struct icount;
 
@@ -197,11 +263,13 @@ static void ledtrig_tty_work(struct work_struct *work)
 
 		if (trigger_data->mode_tx && (icount.tx != trigger_data->tx)) {
 			trigger_data->tx = icount.tx;
+			invert = state == TTY_LED_ENABLE;
 			state = TTY_LED_BLINK;
 		}
 
 		if (trigger_data->mode_rx && (icount.rx != trigger_data->rx)) {
 			trigger_data->rx = icount.rx;
+			invert = state == TTY_LED_ENABLE;
 			state = TTY_LED_BLINK;
 		}
 	}
@@ -210,7 +278,11 @@ out:
 	switch (state) {
 	case TTY_LED_BLINK:
 		led_blink_set_oneshot(trigger_data->led_cdev, &interval,
-				&interval, 0);
+				&interval, invert);
+		break;
+	case TTY_LED_ENABLE:
+		led_set_brightness(trigger_data->led_cdev,
+				trigger_data->led_cdev->blink_brightness);
 		break;
 	case TTY_LED_DISABLE:
 		fallthrough;
@@ -228,6 +300,10 @@ static struct attribute *ledtrig_tty_attrs[] = {
 	&dev_attr_ttyname.attr,
 	&dev_attr_rx.attr,
 	&dev_attr_tx.attr,
+	&dev_attr_cts.attr,
+	&dev_attr_dsr.attr,
+	&dev_attr_dcd.attr,
+	&dev_attr_rng.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ledtrig_tty);
