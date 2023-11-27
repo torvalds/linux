@@ -311,6 +311,8 @@ static int ep93xxfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned int offset = vma->vm_pgoff << PAGE_SHIFT;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	if (offset < info->fix.smem_len) {
 		return dma_mmap_wc(info->device, vma, info->screen_base,
 				   info->fix.smem_start, info->fix.smem_len);

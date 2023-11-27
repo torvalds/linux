@@ -562,6 +562,8 @@ static int sa1100fb_mmap(struct fb_info *info,
 		container_of(info, struct sa1100fb_info, fb);
 	unsigned long off = vma->vm_pgoff << PAGE_SHIFT;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	if (off < info->fix.smem_len) {
 		vma->vm_pgoff += 1; /* skip over the palette */
 		return dma_mmap_wc(fbi->dev, vma, fbi->map_cpu, fbi->map_dma,

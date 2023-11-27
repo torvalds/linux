@@ -51,6 +51,8 @@ static int cfag12864bfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct page *pages = virt_to_page(cfag12864b_buffer);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	return vm_map_pages_zero(vma, &pages, 1);
 }
 

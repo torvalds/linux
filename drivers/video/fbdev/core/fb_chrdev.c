@@ -325,11 +325,6 @@ static int fb_mmap(struct file *file, struct vm_area_struct *vma)
 	if (info->fbops->fb_mmap) {
 		int res;
 
-		/*
-		 * The framebuffer needs to be accessed decrypted, be sure
-		 * SME protection is removed ahead of the call
-		 */
-		vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 		res = info->fbops->fb_mmap(info, vma);
 		mutex_unlock(&info->mm_lock);
 		return res;

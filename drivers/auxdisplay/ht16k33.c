@@ -351,6 +351,8 @@ static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct ht16k33_priv *priv = info->par;
 	struct page *pages = virt_to_page(priv->fbdev.buffer);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	return vm_map_pages_zero(vma, &pages, 1);
 }
 
