@@ -3,8 +3,8 @@
  * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
-#ifndef _PWM_ROCKCHIP_H_
-#define _PWM_ROCKCHIP_H_
+#ifndef _PWM_ROCKCHIP_IRQ_CALLBACKS_H_
+#define _PWM_ROCKCHIP_IRQ_CALLBACKS_H_
 
 #include <linux/pwm.h>
 

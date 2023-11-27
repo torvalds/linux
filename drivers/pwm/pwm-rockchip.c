@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/time.h>
-#include "pwm-rockchip.h"
+#include "pwm-rockchip-irq-callbacks.h"
 
 #define PWM_MAX_CHANNEL_NUM	4
 
