@@ -170,15 +170,23 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 		saw++;
 
-		if (!bch2_bucket_is_movable(trans, &b, lru_pos_time(k.k->p)))
+		ret2 = bch2_bucket_is_movable(trans, &b, lru_pos_time(k.k->p));
+		if (ret2 < 0)
+			goto err;
+
+		if (!ret2)
 			not_movable++;
 		else if (bucket_in_flight(buckets_in_flight, b.k))
 			in_flight++;
 		else {
-			ret2 = darray_push(buckets, b) ?: buckets->nr >= nr_to_get;
-			if (ret2 >= 0)
-				sectors += b.sectors;
+			ret2 = darray_push(buckets, b);
+			if (ret2)
+				goto err;
+			sectors += b.sectors;
 		}
+
+		ret2 = buckets->nr >= nr_to_get;
+err:
 		ret2;
 	}));
 
