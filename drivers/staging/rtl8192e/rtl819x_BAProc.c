@@ -218,7 +218,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
 	struct ba_record *ba = NULL;
 	union ba_param_set *ba_param_set = NULL;
-	u16 *pBaTimeoutVal = NULL;
+	u16 *ba_timeout_value = NULL;
 	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record *ts = NULL;
 
@@ -240,7 +240,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	tag += sizeof(struct ieee80211_hdr_3addr);
 	dialog_token = tag + 2;
 	ba_param_set = (union ba_param_set *)(tag + 3);
-	pBaTimeoutVal = (u16 *)(tag + 5);
+	ba_timeout_value = (u16 *)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	if (!ieee->current_network.qos_data.active ||
@@ -273,7 +273,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	deactivate_ba_entry(ieee, ba);
 	ba->dialog_token = *dialog_token;
 	ba->ba_param_set = *ba_param_set;
-	ba->ba_timeout_value = *pBaTimeoutVal;
+	ba->ba_timeout_value = *ba_timeout_value;
 	ba->ba_start_seq_ctrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
@@ -292,7 +292,7 @@ OnADDBAReq_Fail:
 		struct ba_record BA;
 
 		BA.ba_param_set = *ba_param_set;
-		BA.ba_timeout_value = *pBaTimeoutVal;
+		BA.ba_timeout_value = *ba_timeout_value;
 		BA.dialog_token = *dialog_token;
 		BA.ba_param_set.field.ba_policy = BA_POLICY_IMMEDIATE;
 		rtllib_send_ADDBARsp(ieee, dst, &BA, rc);
@@ -306,7 +306,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	struct ba_record *pending_ba, *pAdmittedBA;
 	struct tx_ts_record *ts = NULL;
 	u8 *dst = NULL, *dialog_token = NULL, *tag = NULL;
-	u16 *status_code = NULL, *pBaTimeoutVal = NULL;
+	u16 *status_code = NULL, *ba_timeout_value = NULL;
 	union ba_param_set *ba_param_set = NULL;
 	u16			reason_code;
 
@@ -323,7 +323,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 	dialog_token = tag + 2;
 	status_code = (u16 *)(tag + 3);
 	ba_param_set = (union ba_param_set *)(tag + 5);
-	pBaTimeoutVal = (u16 *)(tag + 7);
+	ba_timeout_value = (u16 *)(tag + 7);
 
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->ht_info->current_ht_support ||
@@ -375,11 +375,11 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		}
 
 		pAdmittedBA->dialog_token = *dialog_token;
-		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
+		pAdmittedBA->ba_timeout_value = *ba_timeout_value;
 		pAdmittedBA->ba_start_seq_ctrl = pending_ba->ba_start_seq_ctrl;
 		pAdmittedBA->ba_param_set = *ba_param_set;
 		deactivate_ba_entry(ieee, pAdmittedBA);
-		activate_ba_entry(pAdmittedBA, *pBaTimeoutVal);
+		activate_ba_entry(pAdmittedBA, *ba_timeout_value);
 	} else {
 		ts->add_ba_req_delayed = true;
 		ts->disable_add_ba = true;
