@@ -33,17 +33,32 @@ static int btree_write_buffered_journal_cmp(const void *_l, const void *_r)
 	return  cmp_int(l->journal_seq, r->journal_seq);
 }
 
-static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
-					     struct btree_iter *iter,
-					     struct btree_write_buffered_key *wb,
-					     unsigned commit_flags,
-					     bool *write_locked,
-					     size_t *fast)
+static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
+					  struct btree_iter *iter,
+					  struct btree_write_buffered_key *wb)
+{
+	bch2_btree_node_unlock_write(trans, iter->path, iter->path->l[0].b);
+
+	trans->journal_res.seq = wb->journal_seq;
+
+	return bch2_trans_update(trans, iter, &wb->k,
+				 BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BCH_TRANS_COMMIT_no_enospc|
+				  BCH_TRANS_COMMIT_no_check_rw|
+				  BCH_TRANS_COMMIT_no_journal_res|
+				  BCH_TRANS_COMMIT_journal_reclaim);
+}
+
+static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *iter,
+			       struct btree_write_buffered_key *wb,
+			       bool *write_locked, size_t *fast)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_path *path;
 	int ret;
 
+	EBUG_ON(!wb->journal_seq);
 	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		return ret;
@@ -66,26 +81,14 @@ static int bch2_btree_write_buffer_flush_one(struct btree_trans *trans,
 		*write_locked = true;
 	}
 
-	if (!bch2_btree_node_insert_fits(c, path->l[0].b, wb->k.k.u64s)) {
-		bch2_btree_node_unlock_write(trans, path, path->l[0].b);
+	if (unlikely(!bch2_btree_node_insert_fits(c, path->l[0].b, wb->k.k.u64s))) {
 		*write_locked = false;
-		goto trans_commit;
+		return wb_flush_one_slowpath(trans, iter, wb);
 	}
 
 	bch2_btree_insert_key_leaf(trans, path, &wb->k, wb->journal_seq);
 	(*fast)++;
 	return 0;
-trans_commit:
-	trans->journal_res.seq = wb->journal_seq;
-
-	return  bch2_trans_update(trans, iter, &wb->k,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-				  commit_flags|
-				  BCH_TRANS_COMMIT_no_check_rw|
-				  BCH_TRANS_COMMIT_no_enospc|
-				  BCH_TRANS_COMMIT_no_journal_res|
-				  BCH_TRANS_COMMIT_journal_reclaim);
 }
 
 static union btree_write_buffer_state btree_write_buffer_switch(struct btree_write_buffer *wb)
@@ -206,20 +209,18 @@ int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		iter.path->preserve = false;
 
 		do {
-			ret = bch2_btree_write_buffer_flush_one(trans, &iter, i, 0,
-								&write_locked, &fast);
+			ret = wb_flush_one(trans, &iter, i, &write_locked, &fast);
 			if (!write_locked)
 				bch2_trans_begin(trans);
 		} while (bch2_err_matches(ret, BCH_ERR_transaction_restart));
 
-		if (ret == -BCH_ERR_journal_reclaim_would_deadlock) {
+		if (!ret) {
+			i->journal_seq = 0;
+		} else if (ret == -BCH_ERR_journal_reclaim_would_deadlock) {
 			slowpath++;
-			continue;
-		}
-		if (ret)
+			ret = 0;
+		} else
 			break;
-
-		i->journal_seq = 0;
 	}
 
 	if (write_locked)
