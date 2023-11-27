@@ -744,6 +744,12 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 				skb->csum_start = hr + meta->request.csum_start;
 				skb->csum_offset = meta->request.csum_offset;
 				skb->ip_summed = CHECKSUM_PARTIAL;
+
+				if (unlikely(xs->pool->tx_sw_csum)) {
+					err = skb_checksum_help(skb);
+					if (err)
+						goto free_err;
+				}
 			}
 		}
 	}

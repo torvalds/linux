@@ -33,7 +33,13 @@
 #define XDP_USE_SG	(1 << 4)
 
 /* Flags for xsk_umem_config flags */
-#define XDP_UMEM_UNALIGNED_CHUNK_FLAG (1 << 0)
+#define XDP_UMEM_UNALIGNED_CHUNK_FLAG	(1 << 0)
+
+/* Force checksum calculation in software. Can be used for testing or
+ * working around potential HW issues. This option causes performance
+ * degradation and only works in XDP_COPY mode.
+ */
+#define XDP_UMEM_TX_SW_CSUM		(1 << 1)
 
 struct sockaddr_xdp {
 	__u16 sxdp_family;
