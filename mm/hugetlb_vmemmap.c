@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/bootmem_info.h>
 #include <linux/mmdebug.h>
+#include <linux/pagewalk.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include "hugetlb_vmemmap.h"
@@ -45,20 +46,13 @@ struct vmemmap_remap_walk {
 	unsigned long		flags;
 };
 
-static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
+static int vmemmap_split_pmd(pmd_t *pmd, struct page *head, unsigned long start,
+			     struct vmemmap_remap_walk *walk)
 {
 	pmd_t __pmd;
 	int i;
 	unsigned long addr = start;
-	struct page *head;
 	pte_t *pgtable;
-
-	spin_lock(&init_mm.page_table_lock);
-	head = pmd_leaf(*pmd) ? pmd_page(*pmd) : NULL;
-	spin_unlock(&init_mm.page_table_lock);
-
-	if (!head)
-		return 0;
 
 	pgtable = pte_alloc_one_kernel(&init_mm);
 	if (!pgtable)
@@ -88,7 +82,7 @@ static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
 		/* Make pte visible before pmd. See comment in pmd_install(). */
 		smp_wmb();
 		pmd_populate_kernel(&init_mm, pmd, pgtable);
-		if (flush)
+		if (!(walk->flags & VMEMMAP_SPLIT_NO_TLB_FLUSH))
 			flush_tlb_kernel_range(start, start + PMD_SIZE);
 	} else {
 		pte_free_kernel(&init_mm, pgtable);
@@ -98,123 +92,59 @@ static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
 	return 0;
 }
 
-static void vmemmap_pte_range(pmd_t *pmd, unsigned long addr,
-			      unsigned long end,
-			      struct vmemmap_remap_walk *walk)
+static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
+			     unsigned long next, struct mm_walk *walk)
 {
-	pte_t *pte = pte_offset_kernel(pmd, addr);
+	struct page *head;
+	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
+
+	/* Only splitting, not remapping the vmemmap pages. */
+	if (!vmemmap_walk->remap_pte)
+		walk->action = ACTION_CONTINUE;
+
+	spin_lock(&init_mm.page_table_lock);
+	head = pmd_leaf(*pmd) ? pmd_page(*pmd) : NULL;
+	spin_unlock(&init_mm.page_table_lock);
+	if (!head)
+		return 0;
+
+	return vmemmap_split_pmd(pmd, head, addr & PMD_MASK, vmemmap_walk);
+}
+
+static int vmemmap_pte_entry(pte_t *pte, unsigned long addr,
+			     unsigned long next, struct mm_walk *walk)
+{
+	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
 
 	/*
-	 * The reuse_page is found 'first' in table walk before we start
-	 * remapping (which is calling @walk->remap_pte).
+	 * The reuse_page is found 'first' in page table walking before
+	 * starting remapping.
 	 */
-	if (!walk->reuse_page) {
-		walk->reuse_page = pte_page(ptep_get(pte));
-		/*
-		 * Because the reuse address is part of the range that we are
-		 * walking, skip the reuse address range.
-		 */
-		addr += PAGE_SIZE;
-		pte++;
-		walk->nr_walked++;
-	}
-
-	for (; addr != end; addr += PAGE_SIZE, pte++) {
-		walk->remap_pte(pte, addr, walk);
-		walk->nr_walked++;
-	}
-}
-
-static int vmemmap_pmd_range(pud_t *pud, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	pmd_t *pmd;
-	unsigned long next;
-
-	pmd = pmd_offset(pud, addr);
-	do {
-		int ret;
-
-		ret = split_vmemmap_huge_pmd(pmd, addr & PMD_MASK,
-				!(walk->flags & VMEMMAP_SPLIT_NO_TLB_FLUSH));
-		if (ret)
-			return ret;
-
-		next = pmd_addr_end(addr, end);
-
-		/*
-		 * We are only splitting, not remapping the hugetlb vmemmap
-		 * pages.
-		 */
-		if (!walk->remap_pte)
-			continue;
-
-		vmemmap_pte_range(pmd, addr, next, walk);
-	} while (pmd++, addr = next, addr != end);
+	if (!vmemmap_walk->reuse_page)
+		vmemmap_walk->reuse_page = pte_page(ptep_get(pte));
+	else
+		vmemmap_walk->remap_pte(pte, addr, vmemmap_walk);
+	vmemmap_walk->nr_walked++;
 
 	return 0;
 }
 
-static int vmemmap_pud_range(p4d_t *p4d, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	pud_t *pud;
-	unsigned long next;
-
-	pud = pud_offset(p4d, addr);
-	do {
-		int ret;
-
-		next = pud_addr_end(addr, end);
-		ret = vmemmap_pmd_range(pud, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (pud++, addr = next, addr != end);
-
-	return 0;
-}
-
-static int vmemmap_p4d_range(pgd_t *pgd, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	p4d_t *p4d;
-	unsigned long next;
-
-	p4d = p4d_offset(pgd, addr);
-	do {
-		int ret;
-
-		next = p4d_addr_end(addr, end);
-		ret = vmemmap_pud_range(p4d, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (p4d++, addr = next, addr != end);
-
-	return 0;
-}
+static const struct mm_walk_ops vmemmap_remap_ops = {
+	.pmd_entry	= vmemmap_pmd_entry,
+	.pte_entry	= vmemmap_pte_entry,
+};
 
 static int vmemmap_remap_range(unsigned long start, unsigned long end,
 			       struct vmemmap_remap_walk *walk)
 {
-	unsigned long addr = start;
-	unsigned long next;
-	pgd_t *pgd;
+	int ret;
 
-	VM_BUG_ON(!PAGE_ALIGNED(start));
-	VM_BUG_ON(!PAGE_ALIGNED(end));
+	VM_BUG_ON(!PAGE_ALIGNED(start | end));
 
-	pgd = pgd_offset_k(addr);
-	do {
-		int ret;
-
-		next = pgd_addr_end(addr, end);
-		ret = vmemmap_p4d_range(pgd, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (pgd++, addr = next, addr != end);
+	ret = walk_page_range_novma(&init_mm, start, end, &vmemmap_remap_ops,
+				    NULL, walk);
+	if (ret)
+		return ret;
 
 	if (walk->remap_pte && !(walk->flags & VMEMMAP_REMAP_NO_TLB_FLUSH))
 		flush_tlb_kernel_range(start, end);
