@@ -669,8 +669,10 @@ ice_eswitch_attach(struct ice_pf *pf, struct ice_vf *vf)
 	ice_eswitch_stop_reprs(pf);
 
 	repr = ice_repr_add_vf(vf);
-	if (IS_ERR(repr))
+	if (IS_ERR(repr)) {
+		err = PTR_ERR(repr);
 		goto err_create_repr;
+	}
 
 	err = ice_eswitch_setup_repr(pf, repr);
 	if (err)
