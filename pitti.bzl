@@ -60,6 +60,7 @@ def define_pitti():
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/pdr_interface.ko",
+        "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qfprom-sys.ko",
