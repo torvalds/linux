@@ -1336,8 +1336,8 @@ static int atmel_spi_one_transfer(struct spi_controller *host,
 		}
 
 		dma_timeout = msecs_to_jiffies(spi_controller_xfer_timeout(host, xfer));
-		ret_timeout = wait_for_completion_interruptible_timeout(&as->xfer_completion,
-									dma_timeout);
+		ret_timeout = wait_for_completion_killable_timeout(&as->xfer_completion,
+								   dma_timeout);
 		if (ret_timeout <= 0) {
 			dev_err(&spi->dev, "spi transfer %s\n",
 				!ret_timeout ? "timeout" : "canceled");
