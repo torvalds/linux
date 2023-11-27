@@ -31,7 +31,7 @@ struct tx_ts_record {
 	u8				add_ba_req_delayed;
 	u8				using_ba;
 	u8				disable_add_ba;
-	struct timer_list		TsAddBaTimer;
+	struct timer_list		ts_add_ba_timer;
 	u8				num;
 };
 

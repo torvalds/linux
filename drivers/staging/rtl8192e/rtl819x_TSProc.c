@@ -82,7 +82,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 
 static void TsAddBaProcess(struct timer_list *t)
 {
-	struct tx_ts_record *ts = from_timer(ts, t, TsAddBaTimer);
+	struct tx_ts_record *ts = from_timer(ts, t, ts_add_ba_timer);
 	u8 num = ts->num;
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
 				     TxTsRecord[num]);
@@ -130,7 +130,7 @@ void rtllib_ts_init(struct rtllib_device *ieee)
 
 	for (count = 0; count < TOTAL_TS_NUM; count++) {
 		pTxTS->num = count;
-		timer_setup(&pTxTS->TsAddBaTimer, TsAddBaProcess, 0);
+		timer_setup(&pTxTS->ts_add_ba_timer, TsAddBaProcess, 0);
 
 		timer_setup(&pTxTS->tx_pending_ba_record.timer, rtllib_ba_setup_timeout,
 			    0);
@@ -356,7 +356,7 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 	} else {
 		struct tx_ts_record *pTxTS = (struct tx_ts_record *)pTs;
 
-		del_timer_sync(&pTxTS->TsAddBaTimer);
+		del_timer_sync(&pTxTS->ts_add_ba_timer);
 	}
 }
 
@@ -438,11 +438,11 @@ void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 
 		if (pTxTS->add_ba_req_delayed) {
 			netdev_dbg(ieee->dev, "Start ADDBA after 60 sec!!\n");
-			mod_timer(&pTxTS->TsAddBaTimer, jiffies +
+			mod_timer(&pTxTS->ts_add_ba_timer, jiffies +
 				  msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
 			netdev_dbg(ieee->dev, "Immediately Start ADDBA\n");
-			mod_timer(&pTxTS->TsAddBaTimer, jiffies + 10);
+			mod_timer(&pTxTS->ts_add_ba_timer, jiffies + 10);
 		}
 	} else {
 		netdev_dbg(ieee->dev, "BA timer is already added\n");

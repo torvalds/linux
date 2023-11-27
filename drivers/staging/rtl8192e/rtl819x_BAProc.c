@@ -455,7 +455,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		ts->using_ba = false;
 		ts->add_ba_req_in_progress = false;
 		ts->add_ba_req_delayed = false;
-		del_timer_sync(&ts->TsAddBaTimer);
+		del_timer_sync(&ts->ts_add_ba_timer);
 		tx_ts_delete_ba(ieee, ts);
 	}
 	return 0;
