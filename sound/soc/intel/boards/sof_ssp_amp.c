@@ -71,13 +71,6 @@ static struct snd_soc_card sof_ssp_amp_card = {
 	.late_probe = sof_card_late_probe,
 };
 
-static struct snd_soc_dai_link_component platform_component[] = {
-	{
-		/* name might be overridden during probe */
-		.name = "0000:00:1f.3"
-	}
-};
-
 /* BE ID defined in sof-tgl-rt1308-hdmi-ssp.m4 */
 #define HDMI_IN_BE_ID		0
 #define SPK_BE_ID		2
@@ -90,7 +83,6 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 			  int ssp_amp, int dmic_be_num, int hdmi_num,
 			  bool idisp_codec)
 {
-	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
 	int i;
 	int id = 0;
@@ -101,9 +93,7 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 
 	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
 					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
-	cpus = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
-					sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
-	if (!links || !cpus)
+	if (!links)
 		return NULL;
 
 	/* HDMI-In SSP */
@@ -118,22 +108,11 @@ sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
 
 		be_id = HDMI_IN_BE_ID;
 		for_each_set_bit(port, &ssp_mask_hdmi_in, 32) {
-			links[id].cpus = &cpus[id];
-			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-								  "SSP%d Pin", port);
-			if (!links[id].cpus->dai_name)
+			ret = sof_intel_board_set_hdmi_in_link(dev, &links[id],
+							       be_id, port);
+			if (ret)
 				return NULL;
-			links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", port);
-			if (!links[id].name)
-				return NULL;
-			links[id].id = be_id;
-			links[id].codecs = &snd_soc_dummy_dlc;
-			links[id].num_codecs = 1;
-			links[id].platforms = platform_component;
-			links[id].num_platforms = ARRAY_SIZE(platform_component);
-			links[id].dpcm_capture = 1;
-			links[id].no_pcm = 1;
-			links[id].num_cpus = 1;
+
 			id++;
 			be_id++;
 		}
@@ -218,7 +197,6 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
 	int ret;
-	unsigned long ssp_mask_hdmi_in;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -235,7 +213,7 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 		ctx->dmic_be_num = 0;
 
 	/* port number/mask of peripherals attached to ssp interface */
-	ssp_mask_hdmi_in = (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_SSP_MASK_MASK) >>
+	ctx->ssp_mask_hdmi_in = (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_SSP_MASK_MASK) >>
 			SOF_HDMI_CAPTURE_SSP_MASK_SHIFT;
 
 	ctx->ssp_bt = (sof_ssp_amp_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
@@ -249,8 +227,8 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	if (ctx->amp_type != CODEC_NONE)
 		sof_ssp_amp_card.num_links++;
 
-	if (ssp_mask_hdmi_in)
-		sof_ssp_amp_card.num_links += hweight32(ssp_mask_hdmi_in);
+	if (ctx->ssp_mask_hdmi_in)
+		sof_ssp_amp_card.num_links += hweight32(ctx->ssp_mask_hdmi_in);
 
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
 		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
