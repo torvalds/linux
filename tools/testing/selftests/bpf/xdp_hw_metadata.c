@@ -10,7 +10,9 @@
  *   - rx_hash
  *
  * TX:
- * - TBD
+ * - UDP 9091 packets trigger TX reply
+ * - TX HW timestamp is requested and reported back upon completion
+ * - TX checksum is requested
  */
 
 #include <test_progs.h>
@@ -24,11 +26,14 @@
 #include <linux/net_tstamp.h>
 #include <linux/udp.h>
 #include <linux/sockios.h>
+#include <linux/if_xdp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <ctype.h>
 #include <poll.h>
 #include <time.h>
+#include <unistd.h>
+#include <libgen.h>
 
 #include "xdp_metadata.h"
 
@@ -53,6 +58,9 @@ struct xsk *rx_xsk;
 const char *ifname;
 int ifindex;
 int rxq;
+bool skip_tx;
+__u64 last_hw_rx_timestamp;
+__u64 last_xdp_rx_timestamp;
 
 void test__fail(void) { /* for network_helpers.c */ }
 
@@ -69,6 +77,7 @@ static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
 		.flags = XSK_UMEM__DEFAULT_FLAGS,
+		.tx_metadata_len = sizeof(struct xsk_tx_metadata),
 	};
 	__u32 idx;
 	u64 addr;
@@ -185,15 +194,19 @@ static void verify_xdp_metadata(void *data, clockid_t clock_id)
 		printf("rx_hash: 0x%X with RSS type:0x%X\n",
 		       meta->rx_hash, meta->rx_hash_type);
 
-	printf("rx_timestamp:  %llu (sec:%0.4f)\n", meta->rx_timestamp,
-	       (double)meta->rx_timestamp / NANOSEC_PER_SEC);
 	if (meta->rx_timestamp) {
 		__u64 ref_tstamp = gettime(clock_id);
+
+		/* store received timestamps to calculate a delta at tx */
+		last_hw_rx_timestamp = meta->rx_timestamp;
+		last_xdp_rx_timestamp = meta->xdp_timestamp;
 
 		print_tstamp_delta("HW RX-time", "User RX-time",
 				   meta->rx_timestamp, ref_tstamp);
 		print_tstamp_delta("XDP RX-time", "User RX-time",
 				   meta->xdp_timestamp, ref_tstamp);
+	} else {
+		printf("No rx_timestamp\n");
 	}
 }
 
@@ -240,6 +253,129 @@ static void verify_skb_metadata(int fd)
 	}
 
 	printf("skb hwtstamp is not found!\n");
+}
+
+static bool complete_tx(struct xsk *xsk, clockid_t clock_id)
+{
+	struct xsk_tx_metadata *meta;
+	__u64 addr;
+	void *data;
+	__u32 idx;
+
+	if (!xsk_ring_cons__peek(&xsk->comp, 1, &idx))
+		return false;
+
+	addr = *xsk_ring_cons__comp_addr(&xsk->comp, idx);
+	data = xsk_umem__get_data(xsk->umem_area, addr);
+	meta = data - sizeof(struct xsk_tx_metadata);
+
+	printf("%p: complete tx idx=%u addr=%llx\n", xsk, idx, addr);
+
+	if (meta->completion.tx_timestamp) {
+		__u64 ref_tstamp = gettime(clock_id);
+
+		print_tstamp_delta("HW TX-complete-time", "User TX-complete-time",
+				   meta->completion.tx_timestamp, ref_tstamp);
+		print_tstamp_delta("XDP RX-time", "User TX-complete-time",
+				   last_xdp_rx_timestamp, ref_tstamp);
+		print_tstamp_delta("HW RX-time", "HW TX-complete-time",
+				   last_hw_rx_timestamp, meta->completion.tx_timestamp);
+	} else {
+		printf("No tx_timestamp\n");
+	}
+
+	xsk_ring_cons__release(&xsk->comp, 1);
+
+	return true;
+}
+
+#define swap(a, b, len) do { \
+	for (int i = 0; i < len; i++) { \
+		__u8 tmp = ((__u8 *)a)[i]; \
+		((__u8 *)a)[i] = ((__u8 *)b)[i]; \
+		((__u8 *)b)[i] = tmp; \
+	} \
+} while (0)
+
+static void ping_pong(struct xsk *xsk, void *rx_packet, clockid_t clock_id)
+{
+	struct xsk_tx_metadata *meta;
+	struct ipv6hdr *ip6h = NULL;
+	struct iphdr *iph = NULL;
+	struct xdp_desc *tx_desc;
+	struct udphdr *udph;
+	struct ethhdr *eth;
+	__sum16 want_csum;
+	void *data;
+	__u32 idx;
+	int ret;
+	int len;
+
+	ret = xsk_ring_prod__reserve(&xsk->tx, 1, &idx);
+	if (ret != 1) {
+		printf("%p: failed to reserve tx slot\n", xsk);
+		return;
+	}
+
+	tx_desc = xsk_ring_prod__tx_desc(&xsk->tx, idx);
+	tx_desc->addr = idx % (UMEM_NUM / 2) * UMEM_FRAME_SIZE + sizeof(struct xsk_tx_metadata);
+	data = xsk_umem__get_data(xsk->umem_area, tx_desc->addr);
+
+	meta = data - sizeof(struct xsk_tx_metadata);
+	memset(meta, 0, sizeof(*meta));
+	meta->flags = XDP_TXMD_FLAGS_TIMESTAMP;
+
+	eth = rx_packet;
+
+	if (eth->h_proto == htons(ETH_P_IP)) {
+		iph = (void *)(eth + 1);
+		udph = (void *)(iph + 1);
+	} else if (eth->h_proto == htons(ETH_P_IPV6)) {
+		ip6h = (void *)(eth + 1);
+		udph = (void *)(ip6h + 1);
+	} else {
+		printf("%p: failed to detect IP version for ping pong %04x\n", xsk, eth->h_proto);
+		xsk_ring_prod__cancel(&xsk->tx, 1);
+		return;
+	}
+
+	len = ETH_HLEN;
+	if (ip6h)
+		len += sizeof(*ip6h) + ntohs(ip6h->payload_len);
+	if (iph)
+		len += ntohs(iph->tot_len);
+
+	swap(eth->h_dest, eth->h_source, ETH_ALEN);
+	if (iph)
+		swap(&iph->saddr, &iph->daddr, 4);
+	else
+		swap(&ip6h->saddr, &ip6h->daddr, 16);
+	swap(&udph->source, &udph->dest, 2);
+
+	want_csum = udph->check;
+	if (ip6h)
+		udph->check = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					       ntohs(udph->len), IPPROTO_UDP, 0);
+	else
+		udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+						 ntohs(udph->len), IPPROTO_UDP, 0);
+
+	meta->flags |= XDP_TXMD_FLAGS_CHECKSUM;
+	if (iph)
+		meta->request.csum_start = sizeof(*eth) + sizeof(*iph);
+	else
+		meta->request.csum_start = sizeof(*eth) + sizeof(*ip6h);
+	meta->request.csum_offset = offsetof(struct udphdr, check);
+
+	printf("%p: ping-pong with csum=%04x (want %04x) csum_start=%d csum_offset=%d\n",
+	       xsk, ntohs(udph->check), ntohs(want_csum),
+	       meta->request.csum_start, meta->request.csum_offset);
+
+	memcpy(data, rx_packet, len); /* don't share umem chunk for simplicity */
+	tx_desc->options |= XDP_TX_METADATA;
+	tx_desc->len = len;
+
+	xsk_ring_prod__submit(&xsk->tx, 1);
 }
 
 static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd, clockid_t clock_id)
@@ -307,6 +443,22 @@ peek:
 				verify_xdp_metadata(xsk_umem__get_data(xsk->umem_area, addr),
 						    clock_id);
 				first_seg = false;
+
+				if (!skip_tx) {
+					/* mirror first chunk back */
+					ping_pong(xsk, xsk_umem__get_data(xsk->umem_area, addr),
+						  clock_id);
+
+					ret = kick_tx(xsk);
+					if (ret)
+						printf("kick_tx ret=%d\n", ret);
+
+					for (int j = 0; j < 500; j++) {
+						if (complete_tx(xsk, clock_id))
+							break;
+						usleep(10*1000);
+					}
+				}
 			}
 
 			xsk_ring_cons__release(&xsk->rx, 1);
@@ -442,6 +594,7 @@ static void print_usage(void)
 		"  -c    Run in copy mode (zerocopy is default)\n"
 		"  -h    Display this help and exit\n\n"
 		"  -m    Enable multi-buffer XDP for larger MTU\n"
+		"  -r    Don't generate AF_XDP reply (rx metadata only)\n"
 		"Generate test packets on the other machine with:\n"
 		"  echo -n xdp | nc -u -q1 <dst_ip> 9091\n";
 
@@ -452,7 +605,7 @@ static void read_args(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "chm")) != -1) {
+	while ((opt = getopt(argc, argv, "chmr")) != -1) {
 		switch (opt) {
 		case 'c':
 			bind_flags &= ~XDP_USE_NEED_WAKEUP;
@@ -464,6 +617,9 @@ static void read_args(int argc, char *argv[])
 			exit(0);
 		case 'm':
 			bind_flags |= XDP_USE_SG;
+			break;
+		case 'r':
+			skip_tx = true;
 			break;
 		case '?':
 			if (isprint(optopt))
