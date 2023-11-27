@@ -323,38 +323,35 @@ static int nilfs_readdir(struct file *file, struct dir_context *ctx)
 }
 
 /*
- *	nilfs_find_entry()
+ * nilfs_find_entry()
  *
- * finds an entry in the specified directory with the wanted name. It
- * returns the page in which the entry was found, and the entry itself
- * (as a parameter - res_dir). Page is returned mapped and unlocked.
- * Entry is guaranteed to be valid.
+ * Finds an entry in the specified directory with the wanted name. It
+ * returns the folio in which the entry was found, and the entry itself.
+ * The folio is mapped and unlocked.  When the caller is finished with
+ * the entry, it should call folio_release_kmap().
+ *
+ * On failure, returns NULL and the caller should ignore foliop.
  */
-struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
-		 struct page **res_page)
+struct nilfs_dir_entry *nilfs_find_entry(struct inode *dir,
+		const struct qstr *qstr, struct folio **foliop)
 {
 	const unsigned char *name = qstr->name;
 	int namelen = qstr->len;
 	unsigned int reclen = NILFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
-	struct folio *folio = NULL;
 	struct nilfs_inode_info *ei = NILFS_I(dir);
 	struct nilfs_dir_entry *de;
 
 	if (npages == 0)
 		goto out;
 
-	/* OFFSET_CACHE */
-	*res_page = NULL;
-
 	start = ei->i_dir_start_lookup;
 	if (start >= npages)
 		start = 0;
 	n = start;
 	do {
-		char *kaddr = nilfs_get_folio(dir, n, &folio);
+		char *kaddr = nilfs_get_folio(dir, n, foliop);
 
 		if (!IS_ERR(kaddr)) {
 			de = (struct nilfs_dir_entry *)kaddr;
@@ -363,14 +360,14 @@ nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 				if (de->rec_len == 0) {
 					nilfs_error(dir->i_sb,
 						"zero-length directory entry");
-					folio_release_kmap(folio, kaddr);
+					folio_release_kmap(*foliop, kaddr);
 					goto out;
 				}
 				if (nilfs_match(namelen, name, de))
 					goto found;
 				de = nilfs_next_entry(de);
 			}
-			folio_release_kmap(folio, kaddr);
+			folio_release_kmap(*foliop, kaddr);
 		}
 		if (++n >= npages)
 			n = 0;
@@ -387,14 +384,13 @@ out:
 	return NULL;
 
 found:
-	*res_page = &folio->page;
 	ei->i_dir_start_lookup = n;
 	return de;
 }
 
-struct nilfs_dir_entry *nilfs_dotdot(struct inode *dir, struct page **p)
+struct nilfs_dir_entry *nilfs_dotdot(struct inode *dir, struct folio **foliop)
 {
-	struct nilfs_dir_entry *de = nilfs_get_page(dir, 0, p);
+	struct nilfs_dir_entry *de = nilfs_get_folio(dir, 0, foliop);
 
 	if (IS_ERR(de))
 		return NULL;
@@ -405,30 +401,30 @@ ino_t nilfs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
 	struct nilfs_dir_entry *de;
-	struct page *page;
+	struct folio *folio;
 
-	de = nilfs_find_entry(dir, qstr, &page);
+	de = nilfs_find_entry(dir, qstr, &folio);
 	if (de) {
 		res = le64_to_cpu(de->inode);
-		unmap_and_put_page(page, de);
+		folio_release_kmap(folio, de);
 	}
 	return res;
 }
 
 void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
-		    struct page *page, struct inode *inode)
+		    struct folio *folio, struct inode *inode)
 {
-	unsigned int from = offset_in_page(de);
-	unsigned int to = from + nilfs_rec_len_from_disk(de->rec_len);
-	struct address_space *mapping = page->mapping;
+	size_t from = offset_in_folio(folio, de);
+	size_t to = from + nilfs_rec_len_from_disk(de->rec_len);
+	struct address_space *mapping = folio->mapping;
 	int err;
 
-	lock_page(page);
-	err = nilfs_prepare_chunk(page, from, to);
+	folio_lock(folio);
+	err = nilfs_prepare_chunk(&folio->page, from, to);
 	BUG_ON(err);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
-	nilfs_commit_chunk(page, mapping, from, to);
+	nilfs_commit_chunk(&folio->page, mapping, from, to);
 	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 }
 
@@ -532,14 +528,14 @@ out_unlock:
 
 /*
  * nilfs_delete_entry deletes a directory entry by merging it with the
- * previous entry. Page is up-to-date.
+ * previous entry. Folio is up-to-date.
  */
-int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
+int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct folio *folio)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *inode = mapping->host;
-	char *kaddr = (char *)((unsigned long)dir & PAGE_MASK);
-	unsigned int from, to;
+	char *kaddr = (char *)((unsigned long)dir & ~(folio_size(folio) - 1));
+	size_t from, to;
 	struct nilfs_dir_entry *de, *pde = NULL;
 	int err;
 
@@ -559,13 +555,13 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	}
 	if (pde)
 		from = (char *)pde - kaddr;
-	lock_page(page);
-	err = nilfs_prepare_chunk(page, from, to);
+	folio_lock(folio);
+	err = nilfs_prepare_chunk(&folio->page, from, to);
 	BUG_ON(err);
 	if (pde)
 		pde->rec_len = nilfs_rec_len_to_disk(to - from);
 	dir->inode = 0;
-	nilfs_commit_chunk(page, mapping, from, to);
+	nilfs_commit_chunk(&folio->page, mapping, from, to);
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 out:
 	return err;
