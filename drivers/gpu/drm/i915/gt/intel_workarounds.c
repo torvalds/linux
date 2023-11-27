@@ -2357,14 +2357,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			   0, true);
 	}
 
-	if (IS_DG2_G11(i915) || IS_DG2_G10(i915)) {
-		/* Wa_22014600077:dg2 */
-		wa_mcr_add(wal, GEN10_CACHE_MODE_SS, 0,
-			   _MASKED_BIT_ENABLE(ENABLE_EU_COUNT_FOR_TDL_FLUSH),
-			   0 /* Wa_14012342262 write-only reg, so skip verification */,
-			   true);
-	}
-
 	if (IS_DG2(i915) || IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
 	    IS_DG1(i915) || IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
 		/*
