@@ -728,6 +728,10 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 			}
 
 			meta = buffer - xs->pool->tx_metadata_len;
+			if (unlikely(!xsk_buff_valid_tx_metadata(meta))) {
+				err = -EINVAL;
+				goto free_err;
+			}
 
 			if (meta->flags & XDP_TXMD_FLAGS_CHECKSUM) {
 				if (unlikely(meta->request.csum_start +
