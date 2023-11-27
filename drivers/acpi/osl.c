@@ -544,11 +544,7 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
 
 static irqreturn_t acpi_irq(int irq, void *dev_id)
 {
-	u32 handled;
-
-	handled = (*acpi_irq_handler) (acpi_irq_context);
-
-	if (handled) {
+	if ((*acpi_irq_handler)(acpi_irq_context)) {
 		acpi_irq_handled++;
 		return IRQ_HANDLED;
 	} else {
@@ -582,7 +578,8 @@ acpi_os_install_interrupt_handler(u32 gsi, acpi_osd_handler handler,
 
 	acpi_irq_handler = handler;
 	acpi_irq_context = context;
-	if (request_irq(irq, acpi_irq, IRQF_SHARED, "acpi", acpi_irq)) {
+	if (request_threaded_irq(irq, NULL, acpi_irq, IRQF_SHARED | IRQF_ONESHOT,
+			         "acpi", acpi_irq)) {
 		pr_err("SCI (IRQ%d) allocation failed\n", irq);
 		acpi_irq_handler = NULL;
 		return AE_NOT_ACQUIRED;
