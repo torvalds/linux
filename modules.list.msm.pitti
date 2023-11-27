@@ -7,6 +7,7 @@ rpm-smd.ko
 pinctrl-msm.ko
 pinctrl-pitti.ko
 debug_symbol.ko
+qcom_cpu_vendor_hooks.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
