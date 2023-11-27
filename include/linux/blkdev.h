@@ -331,22 +331,13 @@ typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
 
 void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model);
 
-#ifdef CONFIG_BLK_DEV_ZONED
 #define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
-			unsigned int nr_zones, report_zones_cb cb, void *data);
-unsigned int bdev_nr_zones(struct block_device *bdev);
-extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
-			    sector_t sectors, sector_t nr_sectors,
-			    gfp_t gfp_mask);
+		unsigned int nr_zones, report_zones_cb cb, void *data);
+int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
+		sector_t sectors, sector_t nr_sectors, gfp_t gfp_mask);
 int blk_revalidate_disk_zones(struct gendisk *disk,
-			      void (*update_driver_data)(struct gendisk *disk));
-#else /* CONFIG_BLK_DEV_ZONED */
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-#endif /* CONFIG_BLK_DEV_ZONED */
+		void (*update_driver_data)(struct gendisk *disk));
 
 /*
  * Independent access ranges: struct blk_independent_access_range describes
@@ -643,6 +634,8 @@ static inline bool blk_queue_is_zoned(struct request_queue *q)
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+unsigned int bdev_nr_zones(struct block_device *bdev);
+
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
 	return blk_queue_is_zoned(disk->queue) ? disk->nr_zones : 0;
@@ -687,6 +680,11 @@ static inline unsigned int bdev_max_active_zones(struct block_device *bdev)
 }
 
 #else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	return 0;
+}
+
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
 	return 0;
