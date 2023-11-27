@@ -146,10 +146,8 @@ config FB_ACORN
 config FB_CLPS711X
 	tristate "CLPS711X LCD support"
 	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
+	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
 	select LCD_CLASS_DEVICE
 	select VIDEOMODE_HELPERS
 	help
