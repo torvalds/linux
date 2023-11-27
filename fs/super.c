@@ -81,16 +81,13 @@ static inline void super_unlock_shared(struct super_block *sb)
 	super_unlock(sb, false);
 }
 
-static inline bool wait_born(struct super_block *sb)
+static bool super_flags(const struct super_block *sb, unsigned int flags)
 {
-	unsigned int flags;
-
 	/*
 	 * Pairs with smp_store_release() in super_wake() and ensures
-	 * that we see SB_BORN or SB_DYING after we're woken.
+	 * that we see @flags after we're woken.
 	 */
-	flags = smp_load_acquire(&sb->s_flags);
-	return flags & (SB_BORN | SB_DYING);
+	return smp_load_acquire(&sb->s_flags) & flags;
 }
 
 /**
@@ -111,10 +108,15 @@ static inline bool wait_born(struct super_block *sb)
  */
 static __must_check bool super_lock(struct super_block *sb, bool excl)
 {
-
 	lockdep_assert_not_held(&sb->s_umount);
 
-relock:
+	/* wait until the superblock is ready or dying */
+	wait_var_event(&sb->s_flags, super_flags(sb, SB_BORN | SB_DYING));
+
+	/* Don't pointlessly acquire s_umount. */
+	if (super_flags(sb, SB_DYING))
+		return false;
+
 	__super_lock(sb, excl);
 
 	/*
@@ -127,20 +129,8 @@ relock:
 		return false;
 	}
 
-	/* Has called ->get_tree() successfully. */
-	if (sb->s_flags & SB_BORN)
-		return true;
-
-	super_unlock(sb, excl);
-
-	/* wait until the superblock is ready or dying */
-	wait_var_event(&sb->s_flags, wait_born(sb));
-
-	/*
-	 * Neither SB_BORN nor SB_DYING are ever unset so we never loop.
-	 * Just reacquire @sb->s_umount for the caller.
-	 */
-	goto relock;
+	WARN_ON_ONCE(!(sb->s_flags & SB_BORN));
+	return true;
 }
 
 /* wait and try to acquire read-side of @sb->s_umount */
@@ -523,18 +513,6 @@ void deactivate_super(struct super_block *s)
 
 EXPORT_SYMBOL(deactivate_super);
 
-static inline bool wait_dead(struct super_block *sb)
-{
-	unsigned int flags;
-
-	/*
-	 * Pairs with memory barrier in super_wake() and ensures
-	 * that we see SB_DEAD after we're woken.
-	 */
-	flags = smp_load_acquire(&sb->s_flags);
-	return flags & SB_DEAD;
-}
-
 /**
  * grab_super - acquire an active reference to a superblock
  * @sb: superblock to acquire
@@ -561,7 +539,7 @@ static bool grab_super(struct super_block *sb)
 		}
 		super_unlock_excl(sb);
 	}
-	wait_var_event(&sb->s_flags, wait_dead(sb));
+	wait_var_event(&sb->s_flags, super_flags(sb, SB_DEAD));
 	put_super(sb);
 	return false;
 }
@@ -908,8 +886,7 @@ static void __iterate_supers(void (*f)(struct super_block *))
 
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		/* Pairs with memory marrier in super_wake(). */
-		if (smp_load_acquire(&sb->s_flags) & SB_DYING)
+		if (super_flags(sb, SB_DYING))
 			continue;
 		sb->s_count++;
 		spin_unlock(&sb_lock);
