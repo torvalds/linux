@@ -25,4 +25,40 @@ static void rockchip_pwm_oneshot_callback(struct pwm_device *pwm, struct pwm_sta
 	 */
 }
 
+static void rockchip_pwm_wave_middle_callback(struct pwm_device *pwm)
+{
+	/*
+	 * If you want to update the configuration of wave table, set
+	 * struct rockchip_pwm_wave_table and call rockchip_pwm_set_wave().
+	 *
+	 * struct rockchip_pwm_wave_config wave_config;
+	 * struct rockchip_pwm_wave_table duty_table;
+	 *
+	 * //fill the duty table
+	 * ......
+	 * wave_config.duty_table = &duty_table;
+	 * wave_config.enable = true;
+	 * rockchip_pwm_set_wave(pwm, &wave_config);
+	 *
+	 */
+}
+
+static void rockchip_pwm_wave_max_callback(struct pwm_device *pwm)
+{
+	/*
+	 * If you want to update the configuration of wave table, set
+	 * struct rockchip_pwm_wave_table and call rockchip_pwm_set_wave().
+	 *
+	 * struct rockchip_pwm_wave_config wave_config;
+	 * struct rockchip_pwm_wave_table duty_table;
+	 *
+	 * //fill the duty table
+	 * ......
+	 * wave_config.duty_table = &duty_table;
+	 * wave_config.enable = true;
+	 * rockchip_pwm_set_wave(pwm, &wave_config);
+	 *
+	 */
+}
+
 #endif

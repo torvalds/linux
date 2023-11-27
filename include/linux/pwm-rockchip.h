@@ -32,7 +32,7 @@ enum rockchip_pwm_global_ctrl_cmd {
  * struct rockchip_pwm_wave_table - wave table config object
  * @offset: the offset of wave table to set
  * @len: the length of wave table to set
- * @table: the values of wave table to set (in nanoseconds)
+ * @table: the values of wave table to set
  * @
  */
 struct rockchip_pwm_wave_table {
