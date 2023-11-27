@@ -2143,65 +2143,74 @@ TRACE_EVENT(svcrdma_qp_error,
 	)
 );
 
-DECLARE_EVENT_CLASS(svcrdma_sendqueue_event,
+DECLARE_EVENT_CLASS(svcrdma_sendqueue_class,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma
+		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid
 	),
 
-	TP_ARGS(rdma),
+	TP_ARGS(rdma, cid),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(int, avail)
 		__field(int, depth)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->avail = atomic_read(&rdma->sc_sq_avail);
 		__entry->depth = rdma->sc_sq_depth;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s sc_sq_avail=%d/%d",
-		__get_str(addr), __entry->avail, __entry->depth
+	TP_printk("cq.id=%u cid=%d sc_sq_avail=%d/%d",
+		__entry->cq_id, __entry->completion_id,
+		__entry->avail, __entry->depth
 	)
 );
 
 #define DEFINE_SQ_EVENT(name)						\
-		DEFINE_EVENT(svcrdma_sendqueue_event, svcrdma_sq_##name,\
-				TP_PROTO(				\
-					const struct svcxprt_rdma *rdma \
-				),					\
-				TP_ARGS(rdma))
+		DEFINE_EVENT(svcrdma_sendqueue_class, name,		\
+			TP_PROTO(					\
+				const struct svcxprt_rdma *rdma,	\
+				const struct rpc_rdma_cid *cid		\
+			),						\
+			TP_ARGS(rdma, cid)				\
+		)
 
-DEFINE_SQ_EVENT(full);
-DEFINE_SQ_EVENT(retry);
+DEFINE_SQ_EVENT(svcrdma_sq_full);
+DEFINE_SQ_EVENT(svcrdma_sq_retry);
 
 TRACE_EVENT(svcrdma_sq_post_err,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		int status
 	),
 
-	TP_ARGS(rdma, status),
+	TP_ARGS(rdma, cid, status),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(int, avail)
 		__field(int, depth)
 		__field(int, status)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->avail = atomic_read(&rdma->sc_sq_avail);
 		__entry->depth = rdma->sc_sq_depth;
 		__entry->status = status;
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s sc_sq_avail=%d/%d status=%d",
-		__get_str(addr), __entry->avail, __entry->depth,
-		__entry->status
+	TP_printk("cq.id=%u cid=%d sc_sq_avail=%d/%d status=%d",
+		__entry->cq_id, __entry->completion_id,
+		__entry->avail, __entry->depth, __entry->status
 	)
 );
 

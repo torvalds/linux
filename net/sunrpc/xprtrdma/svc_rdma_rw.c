@@ -406,14 +406,14 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 		}
 
 		percpu_counter_inc(&svcrdma_stat_sq_starve);
-		trace_svcrdma_sq_full(rdma);
+		trace_svcrdma_sq_full(rdma, &cc->cc_cid);
 		atomic_add(cc->cc_sqecount, &rdma->sc_sq_avail);
 		wait_event(rdma->sc_send_wait,
 			   atomic_read(&rdma->sc_sq_avail) > cc->cc_sqecount);
-		trace_svcrdma_sq_retry(rdma);
+		trace_svcrdma_sq_retry(rdma, &cc->cc_cid);
 	} while (1);
 
-	trace_svcrdma_sq_post_err(rdma, ret);
+	trace_svcrdma_sq_post_err(rdma, &cc->cc_cid, ret);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 
 	/* If even one was posted, there will be a completion. */
