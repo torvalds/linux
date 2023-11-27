@@ -17,6 +17,19 @@ struct ledtrig_tty_data {
 	const char *ttyname;
 	struct tty_struct *tty;
 	int rx, tx;
+	bool mode_rx;
+	bool mode_tx;
+};
+
+/* Indicates which state the LED should now display */
+enum led_trigger_tty_state {
+	TTY_LED_BLINK,
+	TTY_LED_DISABLE,
+};
+
+enum led_trigger_tty_modes {
+	TRIGGER_TTY_RX = 0,
+	TRIGGER_TTY_TX,
 };
 
 static int ledtrig_tty_wait_for_completion(struct device *dev)
@@ -85,11 +98,69 @@ static ssize_t ttyname_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(ttyname);
 
+static ssize_t ledtrig_tty_attr_show(struct device *dev, char *buf,
+				     enum led_trigger_tty_modes attr)
+{
+	struct ledtrig_tty_data *trigger_data = led_trigger_get_drvdata(dev);
+	bool state;
+
+	switch (attr) {
+	case TRIGGER_TTY_RX:
+		state = trigger_data->mode_rx;
+		break;
+	case TRIGGER_TTY_TX:
+		state = trigger_data->mode_tx;
+		break;
+	}
+
+	return sysfs_emit(buf, "%u\n", state);
+}
+
+static ssize_t ledtrig_tty_attr_store(struct device *dev, const char *buf,
+				      size_t size, enum led_trigger_tty_modes attr)
+{
+	struct ledtrig_tty_data *trigger_data = led_trigger_get_drvdata(dev);
+	bool state;
+	int ret;
+
+	ret = kstrtobool(buf, &state);
+	if (ret)
+		return ret;
+
+	switch (attr) {
+	case TRIGGER_TTY_RX:
+		trigger_data->mode_rx = state;
+		break;
+	case TRIGGER_TTY_TX:
+		trigger_data->mode_tx = state;
+		break;
+	}
+
+	return size;
+}
+
+#define DEFINE_TTY_TRIGGER(trigger_name, trigger) \
+	static ssize_t trigger_name##_show(struct device *dev, \
+		struct device_attribute *attr, char *buf) \
+	{ \
+		return ledtrig_tty_attr_show(dev, buf, trigger); \
+	} \
+	static ssize_t trigger_name##_store(struct device *dev, \
+		struct device_attribute *attr, const char *buf, size_t size) \
+	{ \
+		return ledtrig_tty_attr_store(dev, buf, size, trigger); \
+	} \
+	static DEVICE_ATTR_RW(trigger_name)
+
+DEFINE_TTY_TRIGGER(rx, TRIGGER_TTY_RX);
+DEFINE_TTY_TRIGGER(tx, TRIGGER_TTY_TX);
+
 static void ledtrig_tty_work(struct work_struct *work)
 {
 	struct ledtrig_tty_data *trigger_data =
 		container_of(work, struct ledtrig_tty_data, dwork.work);
-	struct serial_icounter_struct icount;
+	enum led_trigger_tty_state state = TTY_LED_DISABLE;
+	unsigned long interval = LEDTRIG_TTY_INTERVAL;
 	int ret;
 
 	if (!trigger_data->ttyname)
@@ -117,22 +188,37 @@ static void ledtrig_tty_work(struct work_struct *work)
 		trigger_data->tty = tty;
 	}
 
-	ret = tty_get_icount(trigger_data->tty, &icount);
-	if (ret)
-		goto out;
+	if (trigger_data->mode_rx || trigger_data->mode_tx) {
+		struct serial_icounter_struct icount;
 
-	if (icount.rx != trigger_data->rx ||
-	    icount.tx != trigger_data->tx) {
-		unsigned long interval = LEDTRIG_TTY_INTERVAL;
+		ret = tty_get_icount(trigger_data->tty, &icount);
+		if (ret)
+			goto out;
 
-		led_blink_set_oneshot(trigger_data->led_cdev, &interval,
-				      &interval, 0);
+		if (trigger_data->mode_tx && (icount.tx != trigger_data->tx)) {
+			trigger_data->tx = icount.tx;
+			state = TTY_LED_BLINK;
+		}
 
-		trigger_data->rx = icount.rx;
-		trigger_data->tx = icount.tx;
+		if (trigger_data->mode_rx && (icount.rx != trigger_data->rx)) {
+			trigger_data->rx = icount.rx;
+			state = TTY_LED_BLINK;
+		}
 	}
 
 out:
+	switch (state) {
+	case TTY_LED_BLINK:
+		led_blink_set_oneshot(trigger_data->led_cdev, &interval,
+				&interval, 0);
+		break;
+	case TTY_LED_DISABLE:
+		fallthrough;
+	default:
+		led_set_brightness(trigger_data->led_cdev, LED_OFF);
+		break;
+	}
+
 	complete_all(&trigger_data->sysfs);
 	schedule_delayed_work(&trigger_data->dwork,
 			      msecs_to_jiffies(LEDTRIG_TTY_INTERVAL * 2));
@@ -140,6 +226,8 @@ out:
 
 static struct attribute *ledtrig_tty_attrs[] = {
 	&dev_attr_ttyname.attr,
+	&dev_attr_rx.attr,
+	&dev_attr_tx.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ledtrig_tty);
@@ -151,6 +239,10 @@ static int ledtrig_tty_activate(struct led_classdev *led_cdev)
 	trigger_data = kzalloc(sizeof(*trigger_data), GFP_KERNEL);
 	if (!trigger_data)
 		return -ENOMEM;
+
+	/* Enable default rx/tx mode */
+	trigger_data->mode_rx = true;
+	trigger_data->mode_tx = true;
 
 	led_set_trigger_data(led_cdev, trigger_data);
 
