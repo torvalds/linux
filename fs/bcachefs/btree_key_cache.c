@@ -737,7 +737,7 @@ int bch2_btree_key_cache_journal_flush(struct journal *j,
 	}
 	six_unlock_read(&ck->c.lock);
 
-	ret = commit_do(trans, NULL, NULL, 0,
+	ret = lockrestart_do(trans,
 		btree_key_cache_flush_pos(trans, key, seq,
 				BCH_TRANS_COMMIT_journal_reclaim, false));
 unlock:
