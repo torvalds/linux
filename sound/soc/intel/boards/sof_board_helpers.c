@@ -3,6 +3,7 @@
 // Copyright(c) 2023 Intel Corporation. All rights reserved.
 
 #include <sound/soc.h>
+#include "../common/soc-intel-quirks.h"
 #include "hda_dsp_common.h"
 #include "sof_board_helpers.h"
 
@@ -85,6 +86,55 @@ static struct snd_soc_dai_link_component platform_component[] = {
 		.name = "0000:00:1f.3"
 	}
 };
+
+int sof_intel_board_set_codec_link(struct device *dev,
+				   struct snd_soc_dai_link *link, int be_id,
+				   enum sof_ssp_codec codec_type, int ssp_codec)
+{
+	struct snd_soc_dai_link_component *cpus;
+
+	dev_dbg(dev, "link %d: codec %s, ssp %d\n", be_id,
+		sof_ssp_get_codec_name(codec_type), ssp_codec);
+
+	/* link name */
+	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
+	if (!link->name)
+		return -ENOMEM;
+
+	/* cpus */
+	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component),
+			    GFP_KERNEL);
+	if (!cpus)
+		return -ENOMEM;
+
+	if (soc_intel_is_byt() || soc_intel_is_cht()) {
+		/* backward-compatibility for BYT/CHT boards */
+		cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "ssp%d-port",
+						ssp_codec);
+	} else {
+		cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin",
+						ssp_codec);
+	}
+	if (!cpus->dai_name)
+		return -ENOMEM;
+
+	link->cpus = cpus;
+	link->num_cpus = 1;
+
+	/* codecs - caller to handle */
+
+	/* platforms */
+	link->platforms = platform_component;
+	link->num_platforms = ARRAY_SIZE(platform_component);
+
+	link->id = be_id;
+	link->no_pcm = 1;
+	link->dpcm_capture = 1;
+	link->dpcm_playback = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sof_intel_board_set_codec_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
 int sof_intel_board_set_dmic_link(struct device *dev,
 				  struct snd_soc_dai_link *link, int be_id,
@@ -202,3 +252,4 @@ MODULE_DESCRIPTION("ASoC Intel SOF Machine Driver Board Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);

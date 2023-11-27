@@ -30,6 +30,7 @@ struct sof_rt5682_private {
  * @amp_type: type of speaker amplifier
  * @dmic_be_num: number of Intel PCH DMIC BE link
  * @hdmi_num: number of Intel HDMI BE link
+ * @ssp_codec: ssp port number of headphone BE link
  * @rt5682: private data for rt5682 machine driver
  */
 struct sof_card_private {
@@ -41,6 +42,8 @@ struct sof_card_private {
 
 	int dmic_be_num;
 	int hdmi_num;
+
+	int ssp_codec;
 
 	union {
 		struct sof_rt5682_private rt5682;
@@ -54,6 +57,9 @@ enum sof_dmic_be_type {
 
 int sof_intel_board_card_late_probe(struct snd_soc_card *card);
 
+int sof_intel_board_set_codec_link(struct device *dev,
+				   struct snd_soc_dai_link *link, int be_id,
+				   enum sof_ssp_codec codec_type, int ssp_codec);
 int sof_intel_board_set_dmic_link(struct device *dev,
 				  struct snd_soc_dai_link *link, int be_id,
 				  enum sof_dmic_be_type be_type);
