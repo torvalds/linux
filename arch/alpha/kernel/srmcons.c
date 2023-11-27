@@ -94,17 +94,16 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 	static char str_cr[1] = "\r";
 	size_t c;
 	srmcons_result result;
-	int need_cr;
 
 	while (count > 0) {
-		need_cr = 0;
+		bool need_cr = false;
 		/* 
 		 * Break it up into reasonable size chunks to allow a chance
 		 * for input to get in
 		 */
 		for (c = 0; c < min_t(size_t, 128U, count) && !need_cr; c++)
 			if (buf[c] == '\n')
-				need_cr = 1;
+				need_cr = true;
 		
 		while (c > 0) {
 			result.as_long = callback_puts(0, buf, c);
@@ -122,7 +121,7 @@ srmcons_do_write(struct tty_port *port, const char *buf, int count)
 		while (need_cr) {
 			result.as_long = callback_puts(0, str_cr, 1);
 			if (result.bits.c > 0)
-				need_cr = 0;
+				need_cr = false;
 		}
 	}
 }
