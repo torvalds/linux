@@ -255,7 +255,7 @@ pvr_free_list_insert_pages_locked(struct pvr_free_list *free_list,
 
 		if (!num_pages)
 			break;
-	};
+	}
 	/* clang-format on */
 
 	/* Make sure our free_list update is flushed. */
