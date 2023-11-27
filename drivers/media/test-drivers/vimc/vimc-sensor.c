@@ -41,8 +41,8 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 	.colorspace = V4L2_COLORSPACE_SRGB,
 };
 
-static int vimc_sensor_init_cfg(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state)
+static int vimc_sensor_init_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state)
 {
 	unsigned int i;
 
@@ -183,7 +183,6 @@ static int vimc_sensor_set_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops vimc_sensor_pad_ops = {
-	.init_cfg		= vimc_sensor_init_cfg,
 	.enum_mbus_code		= vimc_sensor_enum_mbus_code,
 	.enum_frame_size	= vimc_sensor_enum_frame_size,
 	.get_fmt		= vimc_sensor_get_fmt,
@@ -292,6 +291,10 @@ static const struct v4l2_subdev_ops vimc_sensor_ops = {
 	.core = &vimc_sensor_core_ops,
 	.pad = &vimc_sensor_pad_ops,
 	.video = &vimc_sensor_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops vimc_sensor_internal_ops = {
+	.init_state = vimc_sensor_init_state,
 };
 
 static int vimc_sensor_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -428,6 +431,8 @@ static struct vimc_ent_device *vimc_sensor_add(struct vimc_device *vimc,
 				   &vimc_sensor_ops);
 	if (ret)
 		goto err_free_tpg;
+
+	vsensor->sd.internal_ops = &vimc_sensor_internal_ops;
 
 	vsensor->ved.process_frame = vimc_sensor_process_frame;
 	vsensor->ved.dev = vimc->mdev.dev;

@@ -996,8 +996,8 @@ out:
 	return ret;
 }
 
-static int ov2640_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int ov2640_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_state_get_format(sd_state, 0);
@@ -1125,7 +1125,6 @@ static const struct v4l2_subdev_core_ops ov2640_subdev_core_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov2640_subdev_pad_ops = {
-	.init_cfg	= ov2640_init_cfg,
 	.enum_mbus_code = ov2640_enum_mbus_code,
 	.get_selection	= ov2640_get_selection,
 	.get_fmt	= ov2640_get_fmt,
@@ -1140,6 +1139,10 @@ static const struct v4l2_subdev_ops ov2640_subdev_ops = {
 	.core	= &ov2640_subdev_core_ops,
 	.pad	= &ov2640_subdev_pad_ops,
 	.video	= &ov2640_subdev_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov2640_internal_ops = {
+	.init_state	= ov2640_init_state,
 };
 
 static int ov2640_probe_dt(struct i2c_client *client,
@@ -1211,6 +1214,7 @@ static int ov2640_probe(struct i2c_client *client)
 	priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
+	priv->subdev.internal_ops = &ov2640_internal_ops;
 	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			      V4L2_SUBDEV_FL_HAS_EVENTS;
 	mutex_init(&priv->lock);

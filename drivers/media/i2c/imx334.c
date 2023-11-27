@@ -935,14 +935,14 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * imx334_init_cfg() - Initialize sub-device state
+ * imx334_init_state() - Initialize sub-device state
  * @sd: pointer to imx334 V4L2 sub-device structure
  * @sd_state: V4L2 sub-device state
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int imx334_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -1190,7 +1190,6 @@ static const struct v4l2_subdev_video_ops imx334_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
-	.init_cfg = imx334_init_cfg,
 	.enum_mbus_code = imx334_enum_mbus_code,
 	.enum_frame_size = imx334_enum_frame_size,
 	.get_fmt = imx334_get_pad_format,
@@ -1200,6 +1199,10 @@ static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
 static const struct v4l2_subdev_ops imx334_subdev_ops = {
 	.video = &imx334_video_ops,
 	.pad = &imx334_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx334_internal_ops = {
+	.init_state = imx334_init_state,
 };
 
 /**
@@ -1359,6 +1362,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx334->sd, client, &imx334_subdev_ops);
+	imx334->sd.internal_ops = &imx334_internal_ops;
 
 	ret = imx334_parse_hw_config(imx334);
 	if (ret) {

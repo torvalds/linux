@@ -1152,8 +1152,8 @@ static inline struct mt9m114 *pa_to_mt9m114(struct v4l2_subdev *sd)
 	return container_of(sd, struct mt9m114, pa.sd);
 }
 
-static int mt9m114_pa_init_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *state)
+static int mt9m114_pa_init_state(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state)
 {
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
@@ -1304,7 +1304,6 @@ static int mt9m114_pa_set_selection(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops mt9m114_pa_pad_ops = {
-	.init_cfg = mt9m114_pa_init_cfg,
 	.enum_mbus_code = mt9m114_pa_enum_mbus_code,
 	.enum_frame_size = mt9m114_pa_enum_framesizes,
 	.get_fmt = v4l2_subdev_get_fmt,
@@ -1315,6 +1314,10 @@ static const struct v4l2_subdev_pad_ops mt9m114_pa_pad_ops = {
 
 static const struct v4l2_subdev_ops mt9m114_pa_ops = {
 	.pad = &mt9m114_pa_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mt9m114_pa_internal_ops = {
+	.init_state = mt9m114_pa_init_state,
 };
 
 static int mt9m114_pa_init(struct mt9m114 *sensor)
@@ -1329,6 +1332,7 @@ static int mt9m114_pa_init(struct mt9m114 *sensor)
 
 	/* Initialize the subdev. */
 	v4l2_subdev_init(sd, &mt9m114_pa_ops);
+	sd->internal_ops = &mt9m114_pa_internal_ops;
 	v4l2_i2c_subdev_set_name(sd, sensor->client, NULL, " pixel array");
 
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1624,8 +1628,8 @@ static int mt9m114_ifp_s_frame_interval(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int mt9m114_ifp_init_cfg(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *state)
+static int mt9m114_ifp_init_state(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state)
 {
 	struct mt9m114 *sensor = ifp_to_mt9m114(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -1968,7 +1972,6 @@ static const struct v4l2_subdev_video_ops mt9m114_ifp_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9m114_ifp_pad_ops = {
-	.init_cfg = mt9m114_ifp_init_cfg,
 	.enum_mbus_code = mt9m114_ifp_enum_mbus_code,
 	.enum_frame_size = mt9m114_ifp_enum_framesizes,
 	.enum_frame_interval = mt9m114_ifp_enum_frameintervals,
@@ -1984,6 +1987,7 @@ static const struct v4l2_subdev_ops mt9m114_ifp_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops mt9m114_ifp_internal_ops = {
+	.init_state = mt9m114_ifp_init_state,
 	.registered = mt9m114_ifp_registered,
 	.unregistered = mt9m114_ifp_unregistered,
 };

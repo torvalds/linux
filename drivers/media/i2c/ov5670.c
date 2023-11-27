@@ -2196,8 +2196,8 @@ error:
 	return ret;
 }
 
-static int ov5670_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int ov5670_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_mbus_framefmt *fmt =
 				v4l2_subdev_state_get_format(state, 0);
@@ -2592,7 +2592,6 @@ static const struct v4l2_subdev_video_ops ov5670_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov5670_pad_ops = {
-	.init_cfg = ov5670_init_cfg,
 	.enum_mbus_code = ov5670_enum_mbus_code,
 	.get_fmt = ov5670_get_pad_format,
 	.set_fmt = ov5670_set_pad_format,
@@ -2610,6 +2609,10 @@ static const struct v4l2_subdev_ops ov5670_subdev_ops = {
 	.video = &ov5670_video_ops,
 	.pad = &ov5670_pad_ops,
 	.sensor = &ov5670_sensor_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov5670_internal_ops = {
+	.init_state = ov5670_init_state,
 };
 
 static const struct media_entity_operations ov5670_subdev_entity_ops = {
@@ -2675,6 +2678,7 @@ static int ov5670_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov5670->sd, client, &ov5670_subdev_ops);
+	ov5670->sd.internal_ops = &ov5670_internal_ops;
 
 	ret = ov5670_regulators_probe(ov5670);
 	if (ret)

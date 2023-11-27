@@ -879,8 +879,8 @@ static int ov2740_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov2740_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int ov2740_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	ov2740_update_pad_format(&supported_modes[0],
 				 v4l2_subdev_state_get_format(sd_state, 0));
@@ -897,12 +897,15 @@ static const struct v4l2_subdev_pad_ops ov2740_pad_ops = {
 	.set_fmt = ov2740_set_format,
 	.enum_mbus_code = ov2740_enum_mbus_code,
 	.enum_frame_size = ov2740_enum_frame_size,
-	.init_cfg = ov2740_init_cfg,
 };
 
 static const struct v4l2_subdev_ops ov2740_subdev_ops = {
 	.video = &ov2740_video_ops,
 	.pad = &ov2740_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov2740_internal_ops = {
+	.init_state = ov2740_init_state,
 };
 
 static const struct media_entity_operations ov2740_subdev_entity_ops = {
@@ -1074,6 +1077,7 @@ static int ov2740_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
+	ov2740->sd.internal_ops = &ov2740_internal_ops;
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
 		ret = ov2740_identify_module(ov2740);

@@ -1322,8 +1322,8 @@ out:
 	return ret;
 }
 
-static int vgxy61_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int vgxy61_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -1469,7 +1469,6 @@ static const struct v4l2_subdev_video_ops vgxy61_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops vgxy61_pad_ops = {
-	.init_cfg = vgxy61_init_cfg,
 	.enum_mbus_code = vgxy61_enum_mbus_code,
 	.get_fmt = vgxy61_get_fmt,
 	.set_fmt = vgxy61_set_fmt,
@@ -1480,6 +1479,10 @@ static const struct v4l2_subdev_pad_ops vgxy61_pad_ops = {
 static const struct v4l2_subdev_ops vgxy61_subdev_ops = {
 	.video = &vgxy61_video_ops,
 	.pad = &vgxy61_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops vgxy61_internal_ops = {
+	.init_state = vgxy61_init_state,
 };
 
 static const struct media_entity_operations vgxy61_subdev_entity_ops = {
@@ -1842,6 +1845,7 @@ static int vgxy61_probe(struct i2c_client *client)
 		device_property_read_bool(dev, "st,strobe-gpios-polarity");
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &vgxy61_subdev_ops);
+	sensor->sd.internal_ops = &vgxy61_internal_ops;
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sensor->sd.entity.ops = &vgxy61_subdev_entity_ops;

@@ -530,8 +530,8 @@ static int rzg2l_csi2_set_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int rzg2l_csi2_init_config(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state)
+static int rzg2l_csi2_init_state(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { .pad = RZG2L_CSI2_SINK, };
 
@@ -582,7 +582,6 @@ static const struct v4l2_subdev_video_ops rzg2l_csi2_video_ops = {
 
 static const struct v4l2_subdev_pad_ops rzg2l_csi2_pad_ops = {
 	.enum_mbus_code = rzg2l_csi2_enum_mbus_code,
-	.init_cfg = rzg2l_csi2_init_config,
 	.enum_frame_size = rzg2l_csi2_enum_frame_size,
 	.set_fmt = rzg2l_csi2_set_format,
 	.get_fmt = v4l2_subdev_get_fmt,
@@ -591,6 +590,10 @@ static const struct v4l2_subdev_pad_ops rzg2l_csi2_pad_ops = {
 static const struct v4l2_subdev_ops rzg2l_csi2_subdev_ops = {
 	.video	= &rzg2l_csi2_video_ops,
 	.pad	= &rzg2l_csi2_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops rzg2l_csi2_internal_ops = {
+	.init_state = rzg2l_csi2_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -777,6 +780,7 @@ static int rzg2l_csi2_probe(struct platform_device *pdev)
 
 	csi2->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&csi2->subdev, &rzg2l_csi2_subdev_ops);
+	csi2->subdev.internal_ops = &rzg2l_csi2_internal_ops;
 	v4l2_set_subdevdata(&csi2->subdev, &pdev->dev);
 	snprintf(csi2->subdev.name, sizeof(csi2->subdev.name),
 		 "csi-%s", dev_name(&pdev->dev));

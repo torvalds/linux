@@ -1729,8 +1729,8 @@ out_unlock:
 	return ret;
 }
 
-static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
+static int imx7_csi_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *sd_state)
 {
 	const struct imx7_csi_pixfmt *cc;
 	int i;
@@ -2006,7 +2006,6 @@ static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx7_csi_pad_ops = {
-	.init_cfg	= imx7_csi_init_cfg,
 	.enum_mbus_code	= imx7_csi_enum_mbus_code,
 	.get_fmt	= v4l2_subdev_get_fmt,
 	.set_fmt	= imx7_csi_set_fmt,
@@ -2019,6 +2018,7 @@ static const struct v4l2_subdev_ops imx7_csi_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
+	.init_state	= imx7_csi_init_state,
 	.registered	= imx7_csi_registered,
 	.unregistered	= imx7_csi_unregistered,
 };

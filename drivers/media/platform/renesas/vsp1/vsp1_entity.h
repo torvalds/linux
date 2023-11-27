@@ -146,8 +146,6 @@ struct v4l2_rect *
 vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 			      struct v4l2_subdev_state *sd_state,
 			      unsigned int pad, unsigned int target);
-int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_state *sd_state);
 
 void vsp1_entity_route_setup(struct vsp1_entity *entity,
 			     struct vsp1_pipeline *pipe,

@@ -426,10 +426,10 @@ EXPORT_SYMBOL_GPL(imx_media_init_mbus_fmt);
 
 /*
  * Initializes the TRY format to the ACTIVE format on all pads
- * of a subdev. Can be used as the .init_cfg pad operation.
+ * of a subdev. Can be used as the .init_state internal operation.
  */
-int imx_media_init_cfg(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_state *sd_state)
+int imx_media_init_state(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mf_try;
 	unsigned int pad;
@@ -451,7 +451,7 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_media_init_cfg);
+EXPORT_SYMBOL_GPL(imx_media_init_state);
 
 /*
  * Default the colorspace in tryfmt to SRGB if set to an unsupported

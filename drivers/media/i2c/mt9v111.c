@@ -948,8 +948,8 @@ done:
 	return 0;
 }
 
-static int mt9v111_init_cfg(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_state *sd_state)
+static int mt9v111_init_state(struct v4l2_subdev *subdev,
+			      struct v4l2_subdev_state *sd_state)
 {
 	*v4l2_subdev_state_get_format(sd_state, 0) = mt9v111_def_fmt;
 
@@ -967,7 +967,6 @@ static const struct v4l2_subdev_video_ops mt9v111_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9v111_pad_ops = {
-	.init_cfg		= mt9v111_init_cfg,
 	.enum_mbus_code		= mt9v111_enum_mbus_code,
 	.enum_frame_size	= mt9v111_enum_frame_size,
 	.enum_frame_interval	= mt9v111_enum_frame_interval,
@@ -979,6 +978,10 @@ static const struct v4l2_subdev_ops mt9v111_ops = {
 	.core	= &mt9v111_core_ops,
 	.video	= &mt9v111_video_ops,
 	.pad	= &mt9v111_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mt9v111_internal_ops = {
+	.init_state		= mt9v111_init_state,
 };
 
 static const struct media_entity_operations mt9v111_subdev_entity_ops = {
@@ -1194,6 +1197,7 @@ static int mt9v111_probe(struct i2c_client *client)
 	mt9v111->pending	= true;
 
 	v4l2_i2c_subdev_init(&mt9v111->sd, client, &mt9v111_ops);
+	mt9v111->sd.internal_ops = &mt9v111_internal_ops;
 
 	mt9v111->sd.flags	|= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	mt9v111->sd.entity.ops	= &mt9v111_subdev_entity_ops;

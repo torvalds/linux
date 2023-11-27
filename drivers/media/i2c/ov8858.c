@@ -1476,8 +1476,8 @@ static int ov8858_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov8858_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int ov8858_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	const struct ov8858_mode *def_mode = &ov8858_modes[0];
 	struct v4l2_subdev_format fmt = {
@@ -1494,7 +1494,6 @@ static int ov8858_init_cfg(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops ov8858_pad_ops = {
-	.init_cfg = ov8858_init_cfg,
 	.enum_mbus_code = ov8858_enum_mbus_code,
 	.enum_frame_size = ov8858_enum_frame_sizes,
 	.get_fmt = v4l2_subdev_get_fmt,
@@ -1510,6 +1509,10 @@ static const struct v4l2_subdev_ops ov8858_subdev_ops = {
 	.core	= &ov8858_core_ops,
 	.video	= &ov8858_video_ops,
 	.pad	= &ov8858_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov8858_internal_ops = {
+	.init_state = ov8858_init_state,
 };
 
 /* ----------------------------------------------------------------------------
@@ -1899,6 +1902,7 @@ static int ov8858_probe(struct i2c_client *client)
 				     "Failed to get powerdown gpio\n");
 
 	v4l2_i2c_subdev_init(&ov8858->subdev, client, &ov8858_subdev_ops);
+	ov8858->subdev.internal_ops = &ov8858_internal_ops;
 
 	ret = ov8858_configure_regulators(ov8858);
 	if (ret)

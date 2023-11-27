@@ -338,8 +338,8 @@ sun8i_a83t_mipi_csi2_mbus_format_prepare(struct v4l2_mbus_framefmt *mbus_format)
 	mbus_format->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 }
 
-static int sun8i_a83t_mipi_csi2_init_cfg(struct v4l2_subdev *subdev,
-					 struct v4l2_subdev_state *state)
+static int sun8i_a83t_mipi_csi2_init_state(struct v4l2_subdev *subdev,
+					   struct v4l2_subdev_state *state)
 {
 	struct sun8i_a83t_mipi_csi2_device *csi2_dev =
 		v4l2_get_subdevdata(subdev);
@@ -422,7 +422,6 @@ static int sun8i_a83t_mipi_csi2_set_fmt(struct v4l2_subdev *subdev,
 }
 
 static const struct v4l2_subdev_pad_ops sun8i_a83t_mipi_csi2_pad_ops = {
-	.init_cfg	= sun8i_a83t_mipi_csi2_init_cfg,
 	.enum_mbus_code	= sun8i_a83t_mipi_csi2_enum_mbus_code,
 	.get_fmt	= sun8i_a83t_mipi_csi2_get_fmt,
 	.set_fmt	= sun8i_a83t_mipi_csi2_set_fmt,
@@ -431,6 +430,10 @@ static const struct v4l2_subdev_pad_ops sun8i_a83t_mipi_csi2_pad_ops = {
 static const struct v4l2_subdev_ops sun8i_a83t_mipi_csi2_subdev_ops = {
 	.video	= &sun8i_a83t_mipi_csi2_video_ops,
 	.pad	= &sun8i_a83t_mipi_csi2_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops sun8i_a83t_mipi_csi2_internal_ops = {
+	.init_state	= sun8i_a83t_mipi_csi2_init_state,
 };
 
 /* Media Entity */
@@ -542,6 +545,7 @@ sun8i_a83t_mipi_csi2_bridge_setup(struct sun8i_a83t_mipi_csi2_device *csi2_dev)
 	/* V4L2 Subdev */
 
 	v4l2_subdev_init(subdev, &sun8i_a83t_mipi_csi2_subdev_ops);
+	subdev->internal_ops = &sun8i_a83t_mipi_csi2_internal_ops;
 	strscpy(subdev->name, SUN8I_A83T_MIPI_CSI2_NAME, sizeof(subdev->name));
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	subdev->owner = THIS_MODULE;

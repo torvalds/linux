@@ -653,8 +653,8 @@ static void gc2145_update_pad_format(struct gc2145 *gc2145,
 	fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 }
 
-static int gc2145_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int gc2145_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct gc2145 *gc2145 = to_gc2145(sd);
 	struct v4l2_mbus_framefmt *format;
@@ -1079,7 +1079,6 @@ static const struct v4l2_subdev_video_ops gc2145_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
-	.init_cfg = gc2145_init_cfg,
 	.enum_mbus_code = gc2145_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = gc2145_set_pad_format,
@@ -1091,6 +1090,10 @@ static const struct v4l2_subdev_ops gc2145_subdev_ops = {
 	.core = &gc2145_core_ops,
 	.video = &gc2145_video_ops,
 	.pad = &gc2145_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops gc2145_subdev_internal_ops = {
+	.init_state = gc2145_init_state,
 };
 
 static int gc2145_set_ctrl_test_pattern(struct gc2145 *gc2145, int value)
@@ -1286,6 +1289,7 @@ static int gc2145_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&gc2145->sd, client, &gc2145_subdev_ops);
+	gc2145->sd.internal_ops = &gc2145_subdev_internal_ops;
 
 	/* Check the hardware configuration in device tree */
 	if (gc2145_check_hwcfg(dev))

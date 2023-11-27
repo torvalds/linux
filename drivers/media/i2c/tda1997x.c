@@ -1734,8 +1734,8 @@ static const struct v4l2_subdev_video_ops tda1997x_video_ops = {
  * v4l2_subdev_pad_ops
  */
 
-static int tda1997x_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
+static int tda1997x_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *sd_state)
 {
 	struct tda1997x_state *state = to_state(sd);
 	struct v4l2_mbus_framefmt *mf;
@@ -1925,7 +1925,6 @@ static int tda1997x_enum_dv_timings(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops tda1997x_pad_ops = {
-	.init_cfg = tda1997x_init_cfg,
 	.enum_mbus_code = tda1997x_enum_mbus_code,
 	.get_fmt = tda1997x_get_format,
 	.set_fmt = tda1997x_set_format,
@@ -2045,6 +2044,10 @@ static const struct v4l2_subdev_ops tda1997x_subdev_ops = {
 	.core = &tda1997x_core_ops,
 	.video = &tda1997x_video_ops,
 	.pad = &tda1997x_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops tda1997x_internal_ops = {
+	.init_state = tda1997x_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -2588,6 +2591,7 @@ static int tda1997x_probe(struct i2c_client *client)
 	/* initialize subdev */
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &tda1997x_subdev_ops);
+	sd->internal_ops = &tda1997x_internal_ops;
 	snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",
 		 id->name, i2c_adapter_id(client->adapter),
 		 client->addr);

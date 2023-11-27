@@ -435,8 +435,8 @@ static int csi2dc_s_stream(struct v4l2_subdev *csi2dc_sd, int enable)
 	return ret;
 }
 
-static int csi2dc_init_cfg(struct v4l2_subdev *csi2dc_sd,
-			   struct v4l2_subdev_state *sd_state)
+static int csi2dc_init_state(struct v4l2_subdev *csi2dc_sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *v4l2_try_fmt =
 		v4l2_subdev_state_get_format(sd_state, 0);
@@ -461,7 +461,6 @@ static const struct v4l2_subdev_pad_ops csi2dc_pad_ops = {
 	.enum_mbus_code = csi2dc_enum_mbus_code,
 	.set_fmt = csi2dc_set_fmt,
 	.get_fmt = csi2dc_get_fmt,
-	.init_cfg = csi2dc_init_cfg,
 };
 
 static const struct v4l2_subdev_video_ops csi2dc_video_ops = {
@@ -471,6 +470,10 @@ static const struct v4l2_subdev_video_ops csi2dc_video_ops = {
 static const struct v4l2_subdev_ops csi2dc_subdev_ops = {
 	.pad = &csi2dc_pad_ops,
 	.video = &csi2dc_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops csi2dc_internal_ops = {
+	.init_state = csi2dc_init_state,
 };
 
 static int csi2dc_async_bound(struct v4l2_async_notifier *notifier,
@@ -677,6 +680,7 @@ static int csi2dc_probe(struct platform_device *pdev)
 	}
 
 	v4l2_subdev_init(&csi2dc->csi2dc_sd, &csi2dc_subdev_ops);
+	csi2dc->csi2dc_sd.internal_ops = &csi2dc_internal_ops;
 
 	csi2dc->csi2dc_sd.owner = THIS_MODULE;
 	csi2dc->csi2dc_sd.dev = dev;

@@ -266,8 +266,8 @@ static const struct v4l2_mbus_framefmt sun4i_csi_pad_fmt_default = {
 	.xfer_func = V4L2_XFER_FUNC_DEFAULT,
 };
 
-static int sun4i_csi_subdev_init_cfg(struct v4l2_subdev *subdev,
-				     struct v4l2_subdev_state *sd_state)
+static int sun4i_csi_subdev_init_state(struct v4l2_subdev *subdev,
+				       struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *fmt;
 
@@ -334,7 +334,6 @@ sun4i_csi_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 
 static const struct v4l2_subdev_pad_ops sun4i_csi_subdev_pad_ops = {
 	.link_validate	= v4l2_subdev_link_validate_default,
-	.init_cfg	= sun4i_csi_subdev_init_cfg,
 	.get_fmt	= sun4i_csi_subdev_get_fmt,
 	.set_fmt	= sun4i_csi_subdev_set_fmt,
 	.enum_mbus_code	= sun4i_csi_subdev_enum_mbus_code,
@@ -342,6 +341,10 @@ static const struct v4l2_subdev_pad_ops sun4i_csi_subdev_pad_ops = {
 
 const struct v4l2_subdev_ops sun4i_csi_subdev_ops = {
 	.pad = &sun4i_csi_subdev_pad_ops,
+};
+
+const struct v4l2_subdev_internal_ops sun4i_csi_subdev_internal_ops = {
+	.init_state	= sun4i_csi_subdev_init_state,
 };
 
 int sun4i_csi_v4l2_register(struct sun4i_csi *csi)

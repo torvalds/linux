@@ -740,8 +740,8 @@ err_out:
 	return v4l2_subdev_call(src, video, s_stream, 0);
 }
 
-static int tc358746_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *state)
+static int tc358746_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state)
 {
 	struct v4l2_mbus_framefmt *fmt;
 
@@ -1038,7 +1038,6 @@ static const struct v4l2_subdev_video_ops tc358746_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops tc358746_pad_ops = {
-	.init_cfg = tc358746_init_cfg,
 	.enum_mbus_code = tc358746_enum_mbus_code,
 	.set_fmt = tc358746_set_fmt,
 	.get_fmt = v4l2_subdev_get_fmt,
@@ -1050,6 +1049,10 @@ static const struct v4l2_subdev_ops tc358746_ops = {
 	.core = &tc358746_core_ops,
 	.video = &tc358746_video_ops,
 	.pad = &tc358746_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops tc358746_internal_ops = {
+	.init_state = tc358746_init_state,
 };
 
 static const struct media_entity_operations tc358746_entity_ops = {
@@ -1282,6 +1285,7 @@ tc358746_init_subdev(struct tc358746 *tc358746, struct i2c_client *client)
 	int err;
 
 	v4l2_i2c_subdev_init(sd, client, &tc358746_ops);
+	sd->internal_ops = &tc358746_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &tc358746_entity_ops;

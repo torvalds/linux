@@ -837,8 +837,8 @@ finish_unlock:
 	return ret;
 }
 
-static int thp7312_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int thp7312_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	const struct thp7312_mode_info *default_mode = &thp7312_mode_info_data[0];
 	struct v4l2_mbus_framefmt *fmt;
@@ -875,7 +875,6 @@ static const struct v4l2_subdev_video_ops thp7312_video_ops = {
 
 static const struct v4l2_subdev_pad_ops thp7312_pad_ops = {
 	.enum_mbus_code = thp7312_enum_mbus_code,
-	.init_cfg = thp7312_init_cfg,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = thp7312_set_fmt,
 	.enum_frame_size = thp7312_enum_frame_size,
@@ -886,6 +885,10 @@ static const struct v4l2_subdev_ops thp7312_subdev_ops = {
 	.core = &thp7312_core_ops,
 	.video = &thp7312_video_ops,
 	.pad = &thp7312_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops thp7312_internal_ops = {
+	.init_state = thp7312_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -2106,6 +2109,7 @@ static int thp7312_probe(struct i2c_client *client)
 		return thp7312_register_flash_mode(thp7312);
 
 	v4l2_i2c_subdev_init(&thp7312->sd, client, &thp7312_subdev_ops);
+	thp7312->sd.internal_ops = &thp7312_internal_ops;
 	thp7312->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	thp7312->pad.flags = MEDIA_PAD_FL_SOURCE;
 	thp7312->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

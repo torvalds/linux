@@ -437,8 +437,8 @@ unlock:
 	return ret;
 }
 
-static int imx8mq_mipi_csi_init_cfg(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *sd_state)
+static int imx8mq_mipi_csi_init_state(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *fmt_sink;
 	struct v4l2_mbus_framefmt *fmt_source;
@@ -535,7 +535,6 @@ static const struct v4l2_subdev_video_ops imx8mq_mipi_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx8mq_mipi_csi_pad_ops = {
-	.init_cfg		= imx8mq_mipi_csi_init_cfg,
 	.enum_mbus_code		= imx8mq_mipi_csi_enum_mbus_code,
 	.get_fmt		= v4l2_subdev_get_fmt,
 	.set_fmt		= imx8mq_mipi_csi_set_fmt,
@@ -544,6 +543,10 @@ static const struct v4l2_subdev_pad_ops imx8mq_mipi_csi_pad_ops = {
 static const struct v4l2_subdev_ops imx8mq_mipi_csi_subdev_ops = {
 	.video	= &imx8mq_mipi_csi_video_ops,
 	.pad	= &imx8mq_mipi_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx8mq_mipi_csi_internal_ops = {
+	.init_state		= imx8mq_mipi_csi_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -760,6 +763,7 @@ static int imx8mq_mipi_csi_subdev_init(struct csi_state *state)
 	int ret;
 
 	v4l2_subdev_init(sd, &imx8mq_mipi_csi_subdev_ops);
+	sd->internal_ops = &imx8mq_mipi_csi_internal_ops;
 	sd->owner = THIS_MODULE;
 	snprintf(sd->name, sizeof(sd->name), "%s %s",
 		 MIPI_CSI2_SUBDEV_NAME, dev_name(state->dev));

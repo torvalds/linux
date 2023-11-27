@@ -341,8 +341,8 @@ mxc_isi_pipe_get_pad_compose(struct mxc_isi_pipe *pipe,
 	return v4l2_subdev_state_get_compose(state, pad);
 }
 
-static int mxc_isi_pipe_init_cfg(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *state)
+static int mxc_isi_pipe_init_state(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state)
 {
 	struct mxc_isi_pipe *pipe = to_isi_pipe(sd);
 	struct v4l2_mbus_framefmt *fmt_source;
@@ -682,7 +682,6 @@ static int mxc_isi_pipe_set_selection(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops mxc_isi_pipe_subdev_pad_ops = {
-	.init_cfg = mxc_isi_pipe_init_cfg,
 	.enum_mbus_code = mxc_isi_pipe_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mxc_isi_pipe_set_fmt,
@@ -692,6 +691,10 @@ static const struct v4l2_subdev_pad_ops mxc_isi_pipe_subdev_pad_ops = {
 
 static const struct v4l2_subdev_ops mxc_isi_pipe_subdev_ops = {
 	.pad = &mxc_isi_pipe_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mxc_isi_pipe_internal_ops = {
+	.init_state = mxc_isi_pipe_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -767,6 +770,7 @@ int mxc_isi_pipe_init(struct mxc_isi_dev *isi, unsigned int id)
 
 	sd = &pipe->sd;
 	v4l2_subdev_init(sd, &mxc_isi_pipe_subdev_ops);
+	sd->internal_ops = &mxc_isi_pipe_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "mxc_isi.%d", pipe->id);
 	sd->dev = isi->dev;

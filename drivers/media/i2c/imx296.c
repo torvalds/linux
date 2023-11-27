@@ -798,8 +798,8 @@ static int imx296_set_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx296_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int imx296_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_selection sel = {
 		.target = V4L2_SEL_TGT_CROP,
@@ -830,12 +830,15 @@ static const struct v4l2_subdev_pad_ops imx296_subdev_pad_ops = {
 	.set_fmt = imx296_set_format,
 	.get_selection = imx296_get_selection,
 	.set_selection = imx296_set_selection,
-	.init_cfg = imx296_init_cfg,
 };
 
 static const struct v4l2_subdev_ops imx296_subdev_ops = {
 	.video = &imx296_subdev_video_ops,
 	.pad = &imx296_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx296_internal_ops = {
+	.init_state = imx296_init_state,
 };
 
 static int imx296_subdev_init(struct imx296 *sensor)
@@ -844,6 +847,7 @@ static int imx296_subdev_init(struct imx296 *sensor)
 	int ret;
 
 	v4l2_i2c_subdev_init(&sensor->subdev, client, &imx296_subdev_ops);
+	sensor->subdev.internal_ops = &imx296_internal_ops;
 
 	ret = imx296_ctrls_init(sensor);
 	if (ret < 0)

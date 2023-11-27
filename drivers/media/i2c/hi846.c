@@ -1871,8 +1871,8 @@ static int hi846_get_selection(struct v4l2_subdev *sd,
 	}
 }
 
-static int hi846_init_cfg(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *sd_state)
+static int hi846_init_state(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *sd_state)
 {
 	struct hi846 *hi846 = to_hi846(sd);
 	struct v4l2_mbus_framefmt *mf;
@@ -1895,7 +1895,6 @@ static const struct v4l2_subdev_video_ops hi846_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops hi846_pad_ops = {
-	.init_cfg = hi846_init_cfg,
 	.enum_frame_size = hi846_enum_frame_size,
 	.enum_mbus_code = hi846_enum_mbus_code,
 	.set_fmt = hi846_set_format,
@@ -1906,6 +1905,10 @@ static const struct v4l2_subdev_pad_ops hi846_pad_ops = {
 static const struct v4l2_subdev_ops hi846_subdev_ops = {
 	.video = &hi846_video_ops,
 	.pad = &hi846_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops hi846_internal_ops = {
+	.init_state = hi846_init_state,
 };
 
 static const struct media_entity_operations hi846_subdev_entity_ops = {
@@ -2071,6 +2074,7 @@ static int hi846_probe(struct i2c_client *client)
 		return ret;
 
 	v4l2_i2c_subdev_init(&hi846->sd, client, &hi846_subdev_ops);
+	hi846->sd.internal_ops = &hi846_internal_ops;
 
 	mutex_init(&hi846->mutex);
 

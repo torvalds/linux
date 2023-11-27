@@ -145,8 +145,8 @@ static int isc_scaler_g_sel(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int isc_scaler_init_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int isc_scaler_init_state(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *v4l2_try_fmt =
 		v4l2_subdev_state_get_format(sd_state, 0);
@@ -170,7 +170,6 @@ static const struct v4l2_subdev_pad_ops isc_scaler_pad_ops = {
 	.set_fmt = isc_scaler_set_fmt,
 	.get_fmt = isc_scaler_get_fmt,
 	.get_selection = isc_scaler_g_sel,
-	.init_cfg = isc_scaler_init_cfg,
 };
 
 static const struct media_entity_operations isc_scaler_entity_ops = {
@@ -181,11 +180,16 @@ static const struct v4l2_subdev_ops xisc_scaler_subdev_ops = {
 	.pad = &isc_scaler_pad_ops,
 };
 
+static const struct v4l2_subdev_internal_ops isc_scaler_internal_ops = {
+	.init_state = isc_scaler_init_state,
+};
+
 int isc_scaler_init(struct isc_device *isc)
 {
 	int ret;
 
 	v4l2_subdev_init(&isc->scaler_sd, &xisc_scaler_subdev_ops);
+	isc->scaler_sd.internal_ops = &isc_scaler_internal_ops;
 
 	isc->scaler_sd.owner = THIS_MODULE;
 	isc->scaler_sd.dev = isc->dev;

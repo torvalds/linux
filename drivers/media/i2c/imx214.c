@@ -633,8 +633,8 @@ static int imx214_get_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx214_entity_init_cfg(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_state *sd_state)
+static int imx214_entity_init_state(struct v4l2_subdev *subdev,
+				    struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { };
 
@@ -839,13 +839,16 @@ static const struct v4l2_subdev_pad_ops imx214_subdev_pad_ops = {
 	.get_fmt = imx214_get_format,
 	.set_fmt = imx214_set_format,
 	.get_selection = imx214_get_selection,
-	.init_cfg = imx214_entity_init_cfg,
 };
 
 static const struct v4l2_subdev_ops imx214_subdev_ops = {
 	.core = &imx214_core_ops,
 	.video = &imx214_video_ops,
 	.pad = &imx214_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx214_internal_ops = {
+	.init_state = imx214_entity_init_state,
 };
 
 static const struct regmap_config sensor_regmap_config = {
@@ -957,6 +960,7 @@ static int imx214_probe(struct i2c_client *client)
 	}
 
 	v4l2_i2c_subdev_init(&imx214->sd, client, &imx214_subdev_ops);
+	imx214->sd.internal_ops = &imx214_internal_ops;
 
 	/*
 	 * Enable power initially, to avoid warnings
@@ -1021,7 +1025,7 @@ static int imx214_probe(struct i2c_client *client)
 		goto free_ctrl;
 	}
 
-	imx214_entity_init_cfg(&imx214->sd, NULL);
+	imx214_entity_init_state(&imx214->sd, NULL);
 
 	ret = v4l2_async_register_subdev_sensor(&imx214->sd);
 	if (ret < 0) {

@@ -171,33 +171,6 @@ vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 }
 
 /*
- * vsp1_entity_init_cfg - Initialize formats on all pads
- * @subdev: V4L2 subdevice
- * @sd_state: V4L2 subdev state
- *
- * Initialize all pad formats with default values in the given subdev state.
- * This function can be used as a handler for the subdev pad::init_cfg
- * operation.
- */
-int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_state *sd_state)
-{
-	unsigned int pad;
-
-	for (pad = 0; pad < subdev->entity.num_pads - 1; ++pad) {
-		struct v4l2_subdev_format format = {
-			.pad = pad,
-			.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
-			       : V4L2_SUBDEV_FORMAT_ACTIVE,
-		};
-
-		v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &format);
-	}
-
-	return 0;
-}
-
-/*
  * vsp1_subdev_get_pad_format - Subdev pad get_fmt handler
  * @subdev: V4L2 subdevice
  * @sd_state: V4L2 subdev state
@@ -423,6 +396,29 @@ done:
 	mutex_unlock(&entity->lock);
 	return ret;
 }
+
+static int vsp1_entity_init_state(struct v4l2_subdev *subdev,
+				  struct v4l2_subdev_state *sd_state)
+{
+	unsigned int pad;
+
+	/* Initialize all pad formats with default values. */
+	for (pad = 0; pad < subdev->entity.num_pads - 1; ++pad) {
+		struct v4l2_subdev_format format = {
+			.pad = pad,
+			.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+			       : V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+
+		v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &format);
+	}
+
+	return 0;
+}
+
+static const struct v4l2_subdev_internal_ops vsp1_entity_internal_ops = {
+	.init_state = vsp1_entity_init_state,
+};
 
 /* -----------------------------------------------------------------------------
  * Media Operations
@@ -658,6 +654,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	/* Initialize the V4L2 subdev. */
 	subdev = &entity->subdev;
 	v4l2_subdev_init(subdev, ops);
+	subdev->internal_ops = &vsp1_entity_internal_ops;
 
 	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
@@ -666,7 +663,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), name);
 
-	vsp1_entity_init_cfg(subdev, NULL);
+	vsp1_entity_init_state(subdev, NULL);
 
 	/*
 	 * Allocate the subdev state to store formats and selection

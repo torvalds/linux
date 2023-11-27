@@ -882,7 +882,6 @@ static void vdic_unregistered(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_pad_ops vdic_pad_ops = {
-	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = vdic_enum_mbus_code,
 	.get_fmt = vdic_get_fmt,
 	.set_fmt = vdic_set_fmt,
@@ -906,6 +905,7 @@ static const struct v4l2_subdev_ops vdic_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops vdic_internal_ops = {
+	.init_state = imx_media_init_state,
 	.registered = vdic_registered,
 	.unregistered = vdic_unregistered,
 };
