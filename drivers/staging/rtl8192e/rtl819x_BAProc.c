@@ -23,10 +23,10 @@ static void deactivate_ba_entry(struct rtllib_device *ieee, struct ba_record *ba
 	del_timer_sync(&ba->timer);
 }
 
-static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *pTxTs)
+static u8 tx_ts_delete_ba(struct rtllib_device *ieee, struct tx_ts_record *ts)
 {
-	struct ba_record *admitted_ba = &pTxTs->TxAdmittedBARecord;
-	struct ba_record *pending_ba = &pTxTs->TxPendingBARecord;
+	struct ba_record *admitted_ba = &ts->TxAdmittedBARecord;
+	struct ba_record *pending_ba = &ts->TxPendingBARecord;
 	u8 send_del_ba = false;
 
 	if (pending_ba->b_valid) {
@@ -443,20 +443,20 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 
 		rx_ts_delete_ba(ieee, ts);
 	} else {
-		struct tx_ts_record *pTxTs;
+		struct tx_ts_record *ts;
 
-		if (!rtllib_get_ts(ieee, (struct ts_common_info **)&pTxTs, dst,
+		if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
 			   (u8)pDelBaParamSet->field.tid, TX_DIR, false)) {
 			netdev_warn(ieee->dev, "%s(): can't get TS for TXTS\n",
 				    __func__);
 			return -1;
 		}
 
-		pTxTs->using_ba = false;
-		pTxTs->add_ba_req_in_progress = false;
-		pTxTs->add_ba_req_delayed = false;
-		del_timer_sync(&pTxTs->TsAddBaTimer);
-		tx_ts_delete_ba(ieee, pTxTs);
+		ts->using_ba = false;
+		ts->add_ba_req_in_progress = false;
+		ts->add_ba_req_delayed = false;
+		del_timer_sync(&ts->TsAddBaTimer);
+		tx_ts_delete_ba(ieee, ts);
 	}
 	return 0;
 }
@@ -489,14 +489,14 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 			   enum tr_select TxRxSelect)
 {
 	if (TxRxSelect == TX_DIR) {
-		struct tx_ts_record *pTxTs =
+		struct tx_ts_record *ts =
 			 (struct tx_ts_record *)pTsCommonInfo;
 
-		if (tx_ts_delete_ba(ieee, pTxTs))
+		if (tx_ts_delete_ba(ieee, ts))
 			rtllib_send_DELBA(ieee, pTsCommonInfo->addr,
-					  (pTxTs->TxAdmittedBARecord.b_valid) ?
-					 (&pTxTs->TxAdmittedBARecord) :
-					(&pTxTs->TxPendingBARecord),
+					  (ts->TxAdmittedBARecord.b_valid) ?
+					 (&ts->TxAdmittedBARecord) :
+					(&ts->TxPendingBARecord),
 					 TxRxSelect, DELBA_REASON_END_BA);
 	} else if (TxRxSelect == RX_DIR) {
 		struct rx_ts_record *ts =
@@ -510,23 +510,23 @@ void rtllib_ts_init_del_ba(struct rtllib_device *ieee,
 
 void rtllib_ba_setup_timeout(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
+	struct tx_ts_record *ts = from_timer(ts, t,
 					      TxPendingBARecord.timer);
 
-	pTxTs->add_ba_req_in_progress = false;
-	pTxTs->add_ba_req_delayed = true;
-	pTxTs->TxPendingBARecord.b_valid = false;
+	ts->add_ba_req_in_progress = false;
+	ts->add_ba_req_delayed = true;
+	ts->TxPendingBARecord.b_valid = false;
 }
 
 void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 {
-	struct tx_ts_record *pTxTs = from_timer(pTxTs, t,
+	struct tx_ts_record *ts = from_timer(ts, t,
 					      TxAdmittedBARecord.timer);
-	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device,
-				     TxTsRecord[pTxTs->num]);
-	tx_ts_delete_ba(ieee, pTxTs);
-	rtllib_send_DELBA(ieee, pTxTs->TsCommonInfo.addr,
-			  &pTxTs->TxAdmittedBARecord, TX_DIR,
+	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
+				     TxTsRecord[ts->num]);
+	tx_ts_delete_ba(ieee, ts);
+	rtllib_send_DELBA(ieee, ts->TsCommonInfo.addr,
+			  &ts->TxAdmittedBARecord, TX_DIR,
 			  DELBA_REASON_TIMEOUT);
 }
 
