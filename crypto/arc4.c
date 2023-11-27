@@ -23,7 +23,7 @@ static int crypto_arc4_setkey(struct crypto_lskcipher *tfm, const u8 *in_key,
 }
 
 static int crypto_arc4_crypt(struct crypto_lskcipher *tfm, const u8 *src,
-			     u8 *dst, unsigned nbytes, u8 *iv, bool final)
+			     u8 *dst, unsigned nbytes, u8 *iv, u32 flags)
 {
 	struct arc4_ctx *ctx = crypto_lskcipher_ctx(tfm);
 

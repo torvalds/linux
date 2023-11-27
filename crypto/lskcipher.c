@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(crypto_lskcipher_setkey);
 static int crypto_lskcipher_crypt_unaligned(
 	struct crypto_lskcipher *tfm, const u8 *src, u8 *dst, unsigned len,
 	u8 *iv, int (*crypt)(struct crypto_lskcipher *tfm, const u8 *src,
-			     u8 *dst, unsigned len, u8 *iv, bool final))
+			     u8 *dst, unsigned len, u8 *iv, u32 flags))
 {
 	unsigned ivsize = crypto_lskcipher_ivsize(tfm);
 	unsigned bs = crypto_lskcipher_blocksize(tfm);
@@ -119,7 +119,7 @@ static int crypto_lskcipher_crypt_unaligned(
 			chunk &= ~(cs - 1);
 
 		memcpy(p, src, chunk);
-		err = crypt(tfm, p, p, chunk, tiv, true);
+		err = crypt(tfm, p, p, chunk, tiv, CRYPTO_LSKCIPHER_FLAG_FINAL);
 		if (err)
 			goto out;
 
@@ -143,7 +143,7 @@ static int crypto_lskcipher_crypt(struct crypto_lskcipher *tfm, const u8 *src,
 				  int (*crypt)(struct crypto_lskcipher *tfm,
 					       const u8 *src, u8 *dst,
 					       unsigned len, u8 *iv,
-					       bool final))
+					       u32 flags))
 {
 	unsigned long alignmask = crypto_lskcipher_alignmask(tfm);
 	struct lskcipher_alg *alg = crypto_lskcipher_alg(tfm);
@@ -156,7 +156,7 @@ static int crypto_lskcipher_crypt(struct crypto_lskcipher *tfm, const u8 *src,
 		goto out;
 	}
 
-	ret = crypt(tfm, src, dst, len, iv, true);
+	ret = crypt(tfm, src, dst, len, iv, CRYPTO_LSKCIPHER_FLAG_FINAL);
 
 out:
 	return crypto_lskcipher_errstat(alg, ret);
@@ -198,7 +198,7 @@ static int crypto_lskcipher_crypt_sg(struct skcipher_request *req,
 				     int (*crypt)(struct crypto_lskcipher *tfm,
 						  const u8 *src, u8 *dst,
 						  unsigned len, u8 *iv,
-						  bool final))
+						  u32 flags))
 {
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct crypto_lskcipher **ctx = crypto_skcipher_ctx(skcipher);
@@ -210,7 +210,9 @@ static int crypto_lskcipher_crypt_sg(struct skcipher_request *req,
 
 	while (walk.nbytes) {
 		err = crypt(tfm, walk.src.virt.addr, walk.dst.virt.addr,
-			    walk.nbytes, walk.iv, walk.nbytes == walk.total);
+			    walk.nbytes, walk.iv,
+			    walk.nbytes == walk.total ?
+			    CRYPTO_LSKCIPHER_FLAG_FINAL : 0);
 		err = skcipher_walk_done(&walk, err);
 	}
 
