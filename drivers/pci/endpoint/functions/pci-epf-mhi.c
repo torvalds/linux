@@ -766,12 +766,13 @@ static int pci_epf_mhi_link_up(struct pci_epf *epf)
 	mhi_cntrl->raise_irq = pci_epf_mhi_raise_irq;
 	mhi_cntrl->alloc_map = pci_epf_mhi_alloc_map;
 	mhi_cntrl->unmap_free = pci_epf_mhi_unmap_free;
+	mhi_cntrl->read_sync = mhi_cntrl->read_async = pci_epf_mhi_iatu_read;
+	mhi_cntrl->write_sync = mhi_cntrl->write_async = pci_epf_mhi_iatu_write;
 	if (info->flags & MHI_EPF_USE_DMA) {
 		mhi_cntrl->read_sync = pci_epf_mhi_edma_read;
 		mhi_cntrl->write_sync = pci_epf_mhi_edma_write;
-	} else {
-		mhi_cntrl->read_sync = pci_epf_mhi_iatu_read;
-		mhi_cntrl->write_sync = pci_epf_mhi_iatu_write;
+		mhi_cntrl->read_async = pci_epf_mhi_edma_read_async;
+		mhi_cntrl->write_async = pci_epf_mhi_edma_write_async;
 	}
 
 	/* Register the MHI EP controller */
