@@ -1890,7 +1890,7 @@ static int dsc_src_max_compressed_bpp(struct intel_dp *intel_dp)
 	 * Max Compressed bpp for Gen 13+ is 27bpp.
 	 * For earlier platform is 23bpp. (Bspec:49259).
 	 */
-	if (DISPLAY_VER(i915) <= 12)
+	if (DISPLAY_VER(i915) < 13)
 		return 23;
 	else
 		return 27;

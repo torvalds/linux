@@ -2627,7 +2627,7 @@ static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_sta
 		crtc_vblank_start = 1;
 	}
 
-	if (DISPLAY_VER(dev_priv) > 3)
+	if (DISPLAY_VER(dev_priv) >= 4)
 		intel_de_write(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder),
 			       vsyncshift);
 
@@ -3167,7 +3167,7 @@ static void bdw_set_pipe_misc(const struct intel_crtc_state *crtc_state)
 		break;
 	case 36:
 		/* Port output 12BPC defined for ADLP+ */
-		if (DISPLAY_VER(dev_priv) > 12)
+		if (DISPLAY_VER(dev_priv) >= 13)
 			val |= PIPE_MISC_BPC_12_ADLP;
 		break;
 	default:
@@ -3224,7 +3224,7 @@ int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc)
 	 * MIPI DSI HW readout.
 	 */
 	case PIPE_MISC_BPC_12_ADLP:
-		if (DISPLAY_VER(dev_priv) > 12)
+		if (DISPLAY_VER(dev_priv) >= 13)
 			return 36;
 		fallthrough;
 	default:
@@ -7763,7 +7763,7 @@ enum drm_mode_status intel_cpu_transcoder_mode_valid(struct drm_i915_private *de
 	 * Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
-	if ((DISPLAY_VER(dev_priv) > 4 || IS_G4X(dev_priv)) &&
+	if ((DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) &&
 	    mode->hsync_start == mode->hdisplay)
 		return MODE_H_ILLEGAL;
 
