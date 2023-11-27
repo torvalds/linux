@@ -47,7 +47,6 @@ enum bch_trans_commit_flags {
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
-int bch2_btree_delete_at_buffered(struct btree_trans *, enum btree_id, struct bpos);
 int bch2_btree_delete(struct btree_trans *, enum btree_id, struct bpos, unsigned);
 
 int bch2_btree_insert_nonextent(struct btree_trans *, enum btree_id,
@@ -64,6 +63,12 @@ int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, unsigned, u64 *);
 
 int bch2_btree_bit_mod(struct btree_trans *, enum btree_id, struct bpos, bool);
+
+static inline int bch2_btree_delete_at_buffered(struct btree_trans *trans,
+						enum btree_id btree, struct bpos pos)
+{
+	return bch2_btree_bit_mod(trans, btree, pos, false);
+}
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,
 				     struct bpos, struct bpos);
