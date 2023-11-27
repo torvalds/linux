@@ -55,7 +55,7 @@ const struct inode_operations afs_file_inode_operations = {
 const struct address_space_operations afs_file_aops = {
 	.read_folio	= netfs_read_folio,
 	.readahead	= netfs_readahead,
-	.dirty_folio	= afs_dirty_folio,
+	.dirty_folio	= netfs_dirty_folio,
 	.launder_folio	= afs_launder_folio,
 	.release_folio	= afs_release_folio,
 	.invalidate_folio = afs_invalidate_folio,
@@ -385,12 +385,6 @@ const struct netfs_request_ops afs_req_ops = {
 	.check_write_begin	= afs_check_write_begin,
 	.issue_read		= afs_issue_read,
 };
-
-int afs_write_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	fscache_unpin_writeback(wbc, afs_vnode_cache(AFS_FS_I(inode)));
-	return 0;
-}
 
 /*
  * Adjust the dirty region of the page on truncation or full invalidation,

@@ -43,19 +43,13 @@ static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
 	}
 }
 
-static inline void ceph_fscache_unpin_writeback(struct inode *inode,
+static inline int ceph_fscache_unpin_writeback(struct inode *inode,
 						struct writeback_control *wbc)
 {
-	fscache_unpin_writeback(wbc, ceph_fscache_cookie(ceph_inode(inode)));
+	return netfs_unpin_writeback(inode, wbc);
 }
 
-static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
-		struct folio *folio)
-{
-	struct ceph_inode_info *ci = ceph_inode(mapping->host);
-
-	return fscache_dirty_folio(mapping, folio, ceph_fscache_cookie(ci));
-}
+#define ceph_fscache_dirty_folio netfs_dirty_folio
 
 static inline bool ceph_is_cache_enabled(struct inode *inode)
 {
@@ -112,16 +106,13 @@ static inline void ceph_fscache_resize(struct inode *inode, loff_t to)
 {
 }
 
-static inline void ceph_fscache_unpin_writeback(struct inode *inode,
-						struct writeback_control *wbc)
+static inline int ceph_fscache_unpin_writeback(struct inode *inode,
+					       struct writeback_control *wbc)
 {
+	return 0;
 }
 
-static inline int ceph_fscache_dirty_folio(struct address_space *mapping,
-		struct folio *folio)
-{
-	return filemap_dirty_folio(mapping, folio);
-}
+#define ceph_fscache_dirty_folio filemap_dirty_folio
 
 static inline bool ceph_is_cache_enabled(struct inode *inode)
 {

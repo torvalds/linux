@@ -317,30 +317,15 @@ out:
 	return copied;
 }
 
-#ifdef CONFIG_9P_FSCACHE
-/*
- * Mark a page as having been made dirty and thus needing writeback.  We also
- * need to pin the cache object to write back to.
- */
-static bool v9fs_dirty_folio(struct address_space *mapping, struct folio *folio)
-{
-	struct v9fs_inode *v9inode = V9FS_I(mapping->host);
-
-	return fscache_dirty_folio(mapping, folio, v9fs_inode_cookie(v9inode));
-}
-#else
-#define v9fs_dirty_folio filemap_dirty_folio
-#endif
-
 const struct address_space_operations v9fs_addr_operations = {
-	.read_folio = netfs_read_folio,
-	.readahead = netfs_readahead,
-	.dirty_folio = v9fs_dirty_folio,
-	.writepage = v9fs_vfs_writepage,
-	.write_begin = v9fs_write_begin,
-	.write_end = v9fs_write_end,
-	.release_folio = v9fs_release_folio,
+	.read_folio	= netfs_read_folio,
+	.readahead	= netfs_readahead,
+	.dirty_folio	= netfs_dirty_folio,
+	.writepage	= v9fs_vfs_writepage,
+	.write_begin	= v9fs_write_begin,
+	.write_end	= v9fs_write_end,
+	.release_folio	= v9fs_release_folio,
 	.invalidate_folio = v9fs_invalidate_folio,
-	.launder_folio = v9fs_launder_folio,
-	.direct_IO = v9fs_direct_IO,
+	.launder_folio	= v9fs_launder_folio,
+	.direct_IO	= v9fs_direct_IO,
 };

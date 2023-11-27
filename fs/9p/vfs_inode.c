@@ -376,8 +376,7 @@ void v9fs_evict_inode(struct inode *inode)
 
 #ifdef CONFIG_9P_FSCACHE
 	version = cpu_to_le32(v9inode->qid.version);
-	fscache_clear_inode_writeback(v9fs_inode_cookie(v9inode), inode,
-				      &version);
+	netfs_clear_inode_writeback(inode, &version);
 #endif
 
 	clear_inode(inode);
