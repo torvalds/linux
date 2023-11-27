@@ -1805,33 +1805,37 @@ DEFINE_SVC_DMA_EVENT(dma_unmap_page);
 TRACE_EVENT(svcrdma_dma_map_rw_err,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
+		u64 offset,
+		u32 handle,
 		unsigned int nents,
 		int status
 	),
 
-	TP_ARGS(rdma, nents, status),
+	TP_ARGS(rdma, offset, handle, nents, status),
 
 	TP_STRUCT__entry(
-		__field(int, status)
+		__field(u32, cq_id)
+		__field(u32, handle)
+		__field(u64, offset)
 		__field(unsigned int, nents)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
+		__field(int, status)
 	),
 
 	TP_fast_assign(
-		__entry->status = status;
+		__entry->cq_id = rdma->sc_sq_cq->res.id;
+		__entry->handle = handle;
+		__entry->offset = offset;
 		__entry->nents = nents;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
+		__entry->status = status;
 	),
 
-	TP_printk("addr=%s device=%s nents=%u status=%d",
-		__get_str(addr), __get_str(device), __entry->nents,
-		__entry->status
+	TP_printk("cq.id=%u 0x%016llx:0x%08x nents=%u status=%d",
+		__entry->cq_id, (unsigned long long)__entry->offset,
+		__entry->handle, __entry->nents, __entry->status
 	)
 );
 
-TRACE_EVENT(svcrdma_no_rwctx_err,
+TRACE_EVENT(svcrdma_rwctx_empty,
 	TP_PROTO(
 		const struct svcxprt_rdma *rdma,
 		unsigned int num_sges
@@ -1840,79 +1844,75 @@ TRACE_EVENT(svcrdma_no_rwctx_err,
 	TP_ARGS(rdma, num_sges),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
 		__field(unsigned int, num_sges)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = rdma->sc_sq_cq->res.id;
 		__entry->num_sges = num_sges;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s num_sges=%d",
-		__get_str(addr), __get_str(device), __entry->num_sges
+	TP_printk("cq.id=%u num_sges=%d",
+		__entry->cq_id, __entry->num_sges
 	)
 );
 
 TRACE_EVENT(svcrdma_page_overrun_err,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
-		const struct svc_rqst *rqst,
+		const struct rpc_rdma_cid *cid,
 		unsigned int pageno
 	),
 
-	TP_ARGS(rdma, rqst, pageno),
+	TP_ARGS(cid, pageno),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, pageno)
-		__field(u32, xid)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->pageno = pageno;
-		__entry->xid = __be32_to_cpu(rqst->rq_xid);
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s xid=0x%08x pageno=%u", __get_str(addr),
-		__get_str(device), __entry->xid, __entry->pageno
+	TP_printk("cq.id=%u cid=%d pageno=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->pageno
 	)
 );
 
 TRACE_EVENT(svcrdma_small_wrch_err,
 	TP_PROTO(
-		const struct svcxprt_rdma *rdma,
+		const struct rpc_rdma_cid *cid,
 		unsigned int remaining,
 		unsigned int seg_no,
 		unsigned int num_segs
 	),
 
-	TP_ARGS(rdma, remaining, seg_no, num_segs),
+	TP_ARGS(cid, remaining, seg_no, num_segs),
 
 	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, remaining)
 		__field(unsigned int, seg_no)
 		__field(unsigned int, num_segs)
-		__string(device, rdma->sc_cm_id->device->name)
-		__string(addr, rdma->sc_xprt.xpt_remotebuf)
 	),
 
 	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
 		__entry->remaining = remaining;
 		__entry->seg_no = seg_no;
 		__entry->num_segs = num_segs;
-		__assign_str(device, rdma->sc_cm_id->device->name);
-		__assign_str(addr, rdma->sc_xprt.xpt_remotebuf);
 	),
 
-	TP_printk("addr=%s device=%s remaining=%u seg_no=%u num_segs=%u",
-		__get_str(addr), __get_str(device), __entry->remaining,
-		__entry->seg_no, __entry->num_segs
+	TP_printk("cq.id=%u cid=%d remaining=%u seg_no=%u num_segs=%u",
+		__entry->cq_id, __entry->completion_id,
+		__entry->remaining, __entry->seg_no, __entry->num_segs
 	)
 );
 

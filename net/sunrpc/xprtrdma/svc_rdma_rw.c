@@ -80,7 +80,7 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 out_free:
 	kfree(ctxt);
 out_noctx:
-	trace_svcrdma_no_rwctx_err(rdma, sges);
+	trace_svcrdma_rwctx_empty(rdma, sges);
 	return NULL;
 }
 
@@ -135,8 +135,9 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 			       ctxt->rw_sg_table.sgl, ctxt->rw_nents,
 			       0, offset, handle, direction);
 	if (unlikely(ret < 0)) {
+		trace_svcrdma_dma_map_rw_err(rdma, offset, handle,
+					     ctxt->rw_nents, ret);
 		svc_rdma_put_rw_ctxt(rdma, ctxt);
-		trace_svcrdma_dma_map_rw_err(rdma, ctxt->rw_nents, ret);
 	}
 	return ret;
 }
@@ -526,7 +527,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 	return 0;
 
 out_overflow:
-	trace_svcrdma_small_wrch_err(rdma, remaining, info->wi_seg_no,
+	trace_svcrdma_small_wrch_err(&cc->cc_cid, remaining, info->wi_seg_no,
 				     info->wi_chunk->ch_segcount);
 	return -E2BIG;
 }
@@ -766,7 +767,7 @@ static int svc_rdma_build_read_segment(struct svc_rdma_read_info *info,
 	return 0;
 
 out_overrun:
-	trace_svcrdma_page_overrun_err(cc->cc_rdma, rqstp, info->ri_pageno);
+	trace_svcrdma_page_overrun_err(&cc->cc_cid, info->ri_pageno);
 	return -EINVAL;
 }
 
