@@ -48,7 +48,7 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 		buf_info.host_addr = ring->rbase + (start * sizeof(struct mhi_ring_element));
 		buf_info.dev_addr = &ring->ring_cache[start];
 
-		ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
+		ret = mhi_cntrl->read_sync(mhi_cntrl, &buf_info);
 		if (ret < 0)
 			return ret;
 	} else {
@@ -56,7 +56,7 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 		buf_info.host_addr = ring->rbase + (start * sizeof(struct mhi_ring_element));
 		buf_info.dev_addr = &ring->ring_cache[start];
 
-		ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
+		ret = mhi_cntrl->read_sync(mhi_cntrl, &buf_info);
 		if (ret < 0)
 			return ret;
 
@@ -65,7 +65,7 @@ static int __mhi_ep_cache_ring(struct mhi_ep_ring *ring, size_t end)
 			buf_info.dev_addr = &ring->ring_cache[0];
 			buf_info.size = end * sizeof(struct mhi_ring_element);
 
-			ret = mhi_cntrl->read_from_host(mhi_cntrl, &buf_info);
+			ret = mhi_cntrl->read_sync(mhi_cntrl, &buf_info);
 			if (ret < 0)
 				return ret;
 		}
@@ -143,7 +143,7 @@ int mhi_ep_ring_add_element(struct mhi_ep_ring *ring, struct mhi_ring_element *e
 	buf_info.dev_addr = el;
 	buf_info.size = sizeof(*el);
 
-	return mhi_cntrl->write_to_host(mhi_cntrl, &buf_info);
+	return mhi_cntrl->write_sync(mhi_cntrl, &buf_info);
 }
 
 void mhi_ep_ring_init(struct mhi_ep_ring *ring, enum mhi_ep_ring_type type, u32 id)
