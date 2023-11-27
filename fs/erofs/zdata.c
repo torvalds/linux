@@ -998,6 +998,8 @@ hitted:
 	cur = end - min_t(erofs_off_t, offset + end - map->m_la, end);
 	if (!(map->m_flags & EROFS_MAP_MAPPED)) {
 		zero_user_segment(page, cur, end);
+		++spiltted;
+		tight = false;
 		goto next_part;
 	}
 	if (map->m_flags & EROFS_MAP_FRAGMENT) {
@@ -1123,7 +1125,6 @@ static void z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,
 	if (!((bvec->offset + be->pcl->pageofs_out) & ~PAGE_MASK) &&
 	    (bvec->end == PAGE_SIZE ||
 	     bvec->offset + bvec->end == be->pcl->length)) {
-
 		pgnr = (bvec->offset + be->pcl->pageofs_out) >> PAGE_SHIFT;
 		DBG_BUGON(pgnr >= be->nr_pages);
 		if (!be->decompressed_pages[pgnr]) {

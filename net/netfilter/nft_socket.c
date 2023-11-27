@@ -107,7 +107,7 @@ static void nft_socket_eval(const struct nft_expr *expr,
 		break;
 	case NFT_SOCKET_MARK:
 		if (sk_fullsock(sk)) {
-			*dest = sk->sk_mark;
+			*dest = READ_ONCE(sk->sk_mark);
 		} else {
 			regs->verdict.code = NFT_BREAK;
 			return;
