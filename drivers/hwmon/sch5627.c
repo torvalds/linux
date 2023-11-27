@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/init.h>
@@ -31,6 +32,10 @@
 #define SCH5627_REG_COMPANY_ID		0x3e
 #define SCH5627_REG_PRIMARY_ID		0x3f
 #define SCH5627_REG_CTRL		0x40
+
+#define SCH5627_CTRL_START		BIT(0)
+#define SCH5627_CTRL_LOCK		BIT(1)
+#define SCH5627_CTRL_VBAT		BIT(4)
 
 #define SCH5627_NO_TEMPS		8
 #define SCH5627_NO_FANS			4
@@ -147,7 +152,8 @@ static int sch5627_update_in(struct sch5627_data *data)
 
 	/* Trigger a Vbat voltage measurement every 5 minutes */
 	if (time_after(jiffies, data->last_battery + 300 * HZ)) {
-		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | 0x10);
+		sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
+					  data->control | SCH5627_CTRL_VBAT);
 		data->last_battery = jiffies;
 	}
 
@@ -226,6 +232,14 @@ static int reg_to_rpm(u16 reg)
 static umode_t sch5627_is_visible(const void *drvdata, enum hwmon_sensor_types type, u32 attr,
 				  int channel)
 {
+	const struct sch5627_data *data = drvdata;
+
+	/* Once the lock bit is set, the virtual registers become read-only
+	 * until the next power cycle.
+	 */
+	if (data->control & SCH5627_CTRL_LOCK)
+		return 0444;
+
 	if (type == hwmon_pwm && attr == hwmon_pwm_auto_channels_temp)
 		return 0644;
 
@@ -483,14 +497,13 @@ static int sch5627_probe(struct platform_device *pdev)
 		return val;
 
 	data->control = val;
-	if (!(data->control & 0x01)) {
+	if (!(data->control & SCH5627_CTRL_START)) {
 		pr_err("hardware monitoring not enabled\n");
 		return -ENODEV;
 	}
 	/* Trigger a Vbat voltage measurement, so that we get a valid reading
 	   the first time we read Vbat */
-	sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL,
-				  data->control | 0x10);
+	sch56xx_write_virtual_reg(data->addr, SCH5627_REG_CTRL, data->control | SCH5627_CTRL_VBAT);
 	data->last_battery = jiffies;
 
 	/*
