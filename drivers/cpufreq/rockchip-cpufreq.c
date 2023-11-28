@@ -606,6 +606,7 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	if (opp_info->data && opp_info->data->get_soc_info)
 		opp_info->data->get_soc_info(dev, np, &bin, &process);
 	rockchip_get_soc_info(dev, np, &bin, &process);
+	rockchip_init_pvtpll_table(&cluster->opp_info, bin);
 	rockchip_get_scale_volt_sel(dev, "cpu_leakage", reg_name, bin, process,
 				    &cluster->scale, &volt_sel);
 	if (opp_info->data && opp_info->data->set_soc_info)
