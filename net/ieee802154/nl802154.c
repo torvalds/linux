@@ -1087,6 +1087,15 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 
 	pan_id = nla_get_le16(info->attrs[NL802154_ATTR_PAN_ID]);
 
+	/* Only allow changing the PAN ID when the device has no more
+	 * associations ongoing to avoid confusing peers.
+	 */
+	if (cfg802154_device_is_associated(wpan_dev)) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Existing associations, changing PAN ID forbidden");
+		return -EINVAL;
+	}
+
 	return rdev_set_pan_id(rdev, wpan_dev, pan_id);
 }
 
@@ -1113,20 +1122,17 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 
 	short_addr = nla_get_le16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
 
-	/* TODO
-	 * I am not sure about to check here on broadcast short_addr.
-	 * Broadcast is a valid setting, comment from 802.15.4:
-	 * A value of 0xfffe indicates that the device has
-	 * associated but has not been allocated an address. A
-	 * value of 0xffff indicates that the device does not
-	 * have a short address.
-	 *
-	 * I think we should allow to set these settings but
-	 * don't allow to allow socket communication with it.
+	/* The short address only has a meaning when part of a PAN, after a
+	 * proper association procedure. However, we want to still offer the
+	 * possibility to create static networks so changing the short address
+	 * is only allowed when not already associated to other devices with
+	 * the official handshake.
 	 */
-	if (short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC) ||
-	    short_addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST))
+	if (cfg802154_device_is_associated(wpan_dev)) {
+		NL_SET_ERR_MSG(info->extack,
+			       "Existing associations, changing short address forbidden");
 		return -EINVAL;
+	}
 
 	return rdev_set_short_addr(rdev, wpan_dev, short_addr);
 }
