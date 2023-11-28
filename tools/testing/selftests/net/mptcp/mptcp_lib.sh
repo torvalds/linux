@@ -247,3 +247,12 @@ mptcp_lib_get_counter() {
 
 	echo "${count}"
 }
+
+mptcp_lib_make_file() {
+	local name="${1}"
+	local bs="${2}"
+	local size="${3}"
+
+	dd if=/dev/urandom of="${name}" bs="${bs}" count="${size}" 2> /dev/null
+	echo -e "\nMPTCP_TEST_FILE_END_MARKER" >> "${name}"
+}
