@@ -11,6 +11,8 @@
 
 #include <drm/drm_managed.h>
 
+#include "abi/guc_actions_abi.h"
+#include "abi/guc_klvs_abi.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"

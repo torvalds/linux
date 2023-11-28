@@ -8,13 +8,7 @@
 
 #include <linux/bits.h>
 
-#include "abi/guc_actions_abi.h"
-#include "abi/guc_actions_slpc_abi.h"
-#include "abi/guc_communication_ctb_abi.h"
-#include "abi/guc_communication_mmio_abi.h"
-#include "abi/guc_errors_abi.h"
 #include "abi/guc_klvs_abi.h"
-#include "abi/guc_messages_abi.h"
 
 #define G2H_LEN_DW_SCHED_CONTEXT_MODE_SET	4
 #define G2H_LEN_DW_DEREGISTER_CONTEXT		3

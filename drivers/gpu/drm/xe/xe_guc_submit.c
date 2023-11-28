@@ -13,6 +13,8 @@
 
 #include <drm/drm_managed.h>
 
+#include "abi/guc_actions_abi.h"
+#include "abi/guc_klvs_abi.h"
 #include "regs/xe_lrc_layout.h"
 #include "xe_assert.h"
 #include "xe_devcoredump.h"

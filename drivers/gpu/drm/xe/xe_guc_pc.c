@@ -9,6 +9,8 @@
 
 #include <drm/drm_managed.h>
 
+#include "abi/guc_actions_abi.h"
+#include "abi/guc_actions_slpc_abi.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"

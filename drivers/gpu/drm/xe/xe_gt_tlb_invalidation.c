@@ -5,6 +5,7 @@
 
 #include "xe_gt_tlb_invalidation.h"
 
+#include "abi/guc_actions_abi.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
