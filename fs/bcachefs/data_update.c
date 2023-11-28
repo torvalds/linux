@@ -321,7 +321,7 @@ nowork:
 				     &m->stats->sectors_raced);
 		}
 
-		this_cpu_inc(c->counters[BCH_COUNTER_move_extent_fail]);
+		count_event(c, move_extent_fail);
 
 		bch2_btree_iter_advance(&iter);
 		goto next;

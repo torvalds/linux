@@ -223,9 +223,11 @@
 
 #define race_fault(...)			dynamic_fault("bcachefs:race")
 
+#define count_event(_c, _name)	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name])
+
 #define trace_and_count(_c, _name, ...)					\
 do {									\
-	this_cpu_inc((_c)->counters[BCH_COUNTER_##_name]);		\
+	count_event(_c, _name);						\
 	trace_##_name(__VA_ARGS__);					\
 } while (0)
 

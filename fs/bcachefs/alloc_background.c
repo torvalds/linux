@@ -1674,7 +1674,7 @@ write:
 	if (ret)
 		goto out;
 
-	this_cpu_inc(c->counters[BCH_COUNTER_bucket_discard]);
+	count_event(c, bucket_discard);
 	(*discarded)++;
 out:
 	(*seen)++;
