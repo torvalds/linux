@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_QCOM_SPMI_VADC_PM8550VX_H
@@ -24,6 +24,10 @@
 
 #ifndef PM8550VE_SID
 #define PM8550VE_SID		5
+#endif
+
+#ifndef PM8550VE_D_SID
+#define PM8550VE_D_SID		3
 #endif
 
 /* ADC channels for PM8550VX_ADC for PMIC5 Gen3 */
@@ -51,5 +55,10 @@
 #define PM8550VE_ADC5_GEN3_1P25VREF			(PM8550VE_SID << 8 | 0x01)
 #define PM8550VE_ADC5_GEN3_VREF_VADC			(PM8550VE_SID << 8 | 0X02)
 #define PM8550VE_ADC5_GEN3_DIE_TEMP			(PM8550VE_SID << 8 | 0x03)
+
+#define PM8550VE_D_ADC5_GEN3_OFFSET_REF			(PM8550VE_D_SID << 8 | 0x00)
+#define PM8550VE_D_ADC5_GEN3_1P25VREF			(PM8550VE_D_SID << 8 | 0x01)
+#define PM8550VE_D_ADC5_GEN3_VREF_VADC			(PM8550VE_D_SID << 8 | 0X02)
+#define PM8550VE_D_ADC5_GEN3_DIE_TEMP			(PM8550VE_D_SID << 8 | 0x03)
 
 #endif /* _DT_BINDINGS_QCOM_SPMI_VADC_PM8550VX_H */
