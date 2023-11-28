@@ -1486,7 +1486,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_rfid_family = {
 	.smpe_index_valid       = false,
 };
 
-const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[] = {
+static const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[] = {
 	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp1_fid_8021q_family,
 	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp1_fid_8021d_family,
 	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp1_fid_dummy_family,
@@ -1529,7 +1529,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_dummy_family = {
 	.smpe_index_valid       = false,
 };
 
-const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[] = {
+static const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[] = {
 	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp2_fid_8021q_family,
 	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp2_fid_8021d_family,
 	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp2_fid_dummy_family,
@@ -1799,7 +1799,9 @@ void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 	mlxsw_sp->fid_core->port_fid_mappings[mlxsw_sp_port->local_port] = 0;
 }
 
-int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp)
+static int
+mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp,
+		   const struct mlxsw_sp_fid_family *fid_family_arr[])
 {
 	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	struct mlxsw_sp_fid_core *fid_core;
@@ -1826,8 +1828,7 @@ int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp)
 	}
 
 	for (i = 0; i < MLXSW_SP_FID_TYPE_MAX; i++) {
-		err = mlxsw_sp_fid_family_register(mlxsw_sp,
-						   mlxsw_sp->fid_family_arr[i]);
+		err = mlxsw_sp_fid_family_register(mlxsw_sp, fid_family_arr[i]);
 
 		if (err)
 			goto err_fid_ops_register;
@@ -1852,7 +1853,7 @@ err_rhashtable_fid_init:
 	return err;
 }
 
-void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp)
+static void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_fid_core *fid_core = mlxsw_sp->fid_core;
 	int i;
@@ -1865,3 +1866,23 @@ void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&fid_core->fid_ht);
 	kfree(fid_core);
 }
+
+static int mlxsw_sp1_fids_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_sp_fids_init(mlxsw_sp, mlxsw_sp1_fid_family_arr);
+}
+
+const struct mlxsw_sp_fid_core_ops mlxsw_sp1_fid_core_ops = {
+	.init = mlxsw_sp1_fids_init,
+	.fini = mlxsw_sp_fids_fini,
+};
+
+static int mlxsw_sp2_fids_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return mlxsw_sp_fids_init(mlxsw_sp, mlxsw_sp2_fid_family_arr);
+}
+
+const struct mlxsw_sp_fid_core_ops mlxsw_sp2_fid_core_ops = {
+	.init = mlxsw_sp2_fids_init,
+	.fini = mlxsw_sp_fids_fini,
+};

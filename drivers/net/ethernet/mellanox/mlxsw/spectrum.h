@@ -205,7 +205,7 @@ struct mlxsw_sp {
 	const struct mlxsw_sp_mall_ops *mall_ops;
 	const struct mlxsw_sp_router_ops *router_ops;
 	const struct mlxsw_listener *listeners;
-	const struct mlxsw_sp_fid_family **fid_family_arr;
+	const struct mlxsw_sp_fid_core_ops *fid_core_ops;
 	size_t listeners_count;
 	u32 lowest_shaper_bs;
 	struct rhashtable ipv6_addr_ht;
@@ -250,6 +250,11 @@ struct mlxsw_sp_ptp_ops {
 			       struct mlxsw_sp_port *mlxsw_sp_port,
 			       struct sk_buff *skb,
 			       const struct mlxsw_tx_info *tx_info);
+};
+
+struct mlxsw_sp_fid_core_ops {
+	int (*init)(struct mlxsw_sp *mlxsw_sp);
+	void (*fini)(struct mlxsw_sp *mlxsw_sp);
 };
 
 static inline struct mlxsw_sp_upper *
@@ -1321,11 +1326,9 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_dummy_get(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid);
 int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port);
 void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port);
-int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp);
-void mlxsw_sp_fids_fini(struct mlxsw_sp *mlxsw_sp);
 
-extern const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[];
-extern const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[];
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp1_fid_core_ops;
+extern const struct mlxsw_sp_fid_core_ops mlxsw_sp2_fid_core_ops;
 
 /* spectrum_mr.c */
 enum mlxsw_sp_mr_route_prio {
