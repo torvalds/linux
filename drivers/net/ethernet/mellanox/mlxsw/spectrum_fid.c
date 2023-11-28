@@ -103,6 +103,14 @@ struct mlxsw_sp_fid_ops {
 		       const struct mlxsw_sp_flood_table *flood_table);
 	void (*fid_pack)(char *sfmr_pl, const struct mlxsw_sp_fid *fid,
 			 enum mlxsw_reg_sfmr_op op);
+
+	/* These are specific to RFID families and we assume are only
+	 * implemented by RFID families, if at all.
+	 */
+	int (*fid_port_init)(const struct mlxsw_sp_fid_family *fid_family,
+			     const struct mlxsw_sp_port *mlxsw_sp_port);
+	void (*fid_port_fini)(const struct mlxsw_sp_fid_family *fid_family,
+			      const struct mlxsw_sp_port *mlxsw_sp_port);
 };
 
 struct mlxsw_sp_fid_family {
@@ -1836,9 +1844,34 @@ mlxsw_sp_fid_family_unregister(struct mlxsw_sp *mlxsw_sp,
 	kfree(fid_family);
 }
 
+static int mlxsw_sp_fid_port_init(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	const enum mlxsw_sp_fid_type type_rfid = MLXSW_SP_FID_TYPE_RFID;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_fid_family *rfid_family;
+
+	rfid_family = mlxsw_sp->fid_core->fid_family_arr[type_rfid];
+	if (rfid_family->ops->fid_port_init)
+		return rfid_family->ops->fid_port_init(rfid_family,
+						       mlxsw_sp_port);
+	return 0;
+}
+
+static void mlxsw_sp_fid_port_fini(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	const enum mlxsw_sp_fid_type type_rfid = MLXSW_SP_FID_TYPE_RFID;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_fid_family *rfid_family;
+
+	rfid_family = mlxsw_sp->fid_core->fid_family_arr[type_rfid];
+	if (rfid_family->ops->fid_port_fini)
+		rfid_family->ops->fid_port_fini(rfid_family, mlxsw_sp_port);
+}
+
 int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	int err;
 
 	/* Track number of FIDs configured on the port with mapping type
 	 * PORT_VID_TO_FID, so that we know when to transition the port
@@ -1846,14 +1879,37 @@ int mlxsw_sp_port_fids_init(struct mlxsw_sp_port *mlxsw_sp_port)
 	 */
 	mlxsw_sp->fid_core->port_fid_mappings[mlxsw_sp_port->local_port] = 0;
 
-	return mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
+	err = mlxsw_sp_fid_port_init(mlxsw_sp_port);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
+	if (err)
+		goto err_vp_mode_set;
+
+	return 0;
+
+err_vp_mode_set:
+	mlxsw_sp_fid_port_fini(mlxsw_sp_port);
+	return err;
 }
 
 void mlxsw_sp_port_fids_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
+	mlxsw_sp_fid_port_fini(mlxsw_sp_port);
 	mlxsw_sp->fid_core->port_fid_mappings[mlxsw_sp_port->local_port] = 0;
+}
+
+int mlxsw_sp_fid_port_join_lag(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	return mlxsw_sp_fid_port_init(mlxsw_sp_port);
+}
+
+void mlxsw_sp_fid_port_leave_lag(const struct mlxsw_sp_port *mlxsw_sp_port)
+{
+	mlxsw_sp_fid_port_fini(mlxsw_sp_port);
 }
 
 static int
