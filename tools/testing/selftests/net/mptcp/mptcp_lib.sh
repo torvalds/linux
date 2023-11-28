@@ -217,3 +217,12 @@ mptcp_lib_get_info_value() {
 mptcp_lib_evts_get_info() {
 	mptcp_lib_get_info_value "${1}" "^type:${3:-1}," < "${2}"
 }
+
+# $1: PID
+mptcp_lib_kill_wait() {
+	[ "${1}" -eq 0 ] && return 0
+
+	kill -SIGUSR1 "${1}" > /dev/null 2>&1
+	kill "${1}" > /dev/null 2>&1
+	wait "${1}" 2>/dev/null
+}
