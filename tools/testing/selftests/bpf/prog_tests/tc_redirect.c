@@ -24,6 +24,7 @@
 
 #include "test_progs.h"
 #include "network_helpers.h"
+#include "netlink_helpers.h"
 #include "test_tc_neigh_fib.skel.h"
 #include "test_tc_neigh.skel.h"
 #include "test_tc_peer.skel.h"
@@ -110,11 +111,17 @@ static void netns_setup_namespaces_nofail(const char *verb)
 	}
 }
 
+enum dev_mode {
+	MODE_VETH,
+	MODE_NETKIT,
+};
+
 struct netns_setup_result {
-	int ifindex_veth_src;
-	int ifindex_veth_src_fwd;
-	int ifindex_veth_dst;
-	int ifindex_veth_dst_fwd;
+	enum dev_mode dev_mode;
+	int ifindex_src;
+	int ifindex_src_fwd;
+	int ifindex_dst;
+	int ifindex_dst_fwd;
 };
 
 static int get_ifaddr(const char *name, char *ifaddr)
@@ -137,58 +144,110 @@ static int get_ifaddr(const char *name, char *ifaddr)
 	return 0;
 }
 
+static int create_netkit(int mode, char *prim, char *peer)
+{
+	struct rtattr *linkinfo, *data, *peer_info;
+	struct rtnl_handle rth = { .fd = -1 };
+	const char *type = "netkit";
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg i;
+		char buf[1024];
+	} req = {};
+	int err;
+
+	err = rtnl_open(&rth, 0);
+	if (!ASSERT_OK(err, "open_rtnetlink"))
+		return err;
+
+	memset(&req, 0, sizeof(req));
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.i.ifi_family = AF_UNSPEC;
+
+	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, prim, strlen(prim));
+	linkinfo = addattr_nest(&req.n, sizeof(req), IFLA_LINKINFO);
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, type, strlen(type));
+	data = addattr_nest(&req.n, sizeof(req), IFLA_INFO_DATA);
+	addattr32(&req.n, sizeof(req), IFLA_NETKIT_MODE, mode);
+	peer_info = addattr_nest(&req.n, sizeof(req), IFLA_NETKIT_PEER_INFO);
+	req.n.nlmsg_len += sizeof(struct ifinfomsg);
+	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, peer, strlen(peer));
+	addattr_nest_end(&req.n, peer_info);
+	addattr_nest_end(&req.n, data);
+	addattr_nest_end(&req.n, linkinfo);
+
+	err = rtnl_talk(&rth, &req.n, NULL);
+	ASSERT_OK(err, "talk_rtnetlink");
+	rtnl_close(&rth);
+	return err;
+}
+
 static int netns_setup_links_and_routes(struct netns_setup_result *result)
 {
 	struct nstoken *nstoken = NULL;
-	char veth_src_fwd_addr[IFADDR_STR_LEN+1] = {};
+	char src_fwd_addr[IFADDR_STR_LEN+1] = {};
+	int err;
 
-	SYS(fail, "ip link add veth_src type veth peer name veth_src_fwd");
-	SYS(fail, "ip link add veth_dst type veth peer name veth_dst_fwd");
+	if (result->dev_mode == MODE_VETH) {
+		SYS(fail, "ip link add src type veth peer name src_fwd");
+		SYS(fail, "ip link add dst type veth peer name dst_fwd");
 
-	SYS(fail, "ip link set veth_dst_fwd address " MAC_DST_FWD);
-	SYS(fail, "ip link set veth_dst address " MAC_DST);
+		SYS(fail, "ip link set dst_fwd address " MAC_DST_FWD);
+		SYS(fail, "ip link set dst address " MAC_DST);
+	} else if (result->dev_mode == MODE_NETKIT) {
+		err = create_netkit(NETKIT_L3, "src", "src_fwd");
+		if (!ASSERT_OK(err, "create_ifindex_src"))
+			goto fail;
+		err = create_netkit(NETKIT_L3, "dst", "dst_fwd");
+		if (!ASSERT_OK(err, "create_ifindex_dst"))
+			goto fail;
+	}
 
-	if (get_ifaddr("veth_src_fwd", veth_src_fwd_addr))
+	if (get_ifaddr("src_fwd", src_fwd_addr))
 		goto fail;
 
-	result->ifindex_veth_src = if_nametoindex("veth_src");
-	if (!ASSERT_GT(result->ifindex_veth_src, 0, "ifindex_veth_src"))
+	result->ifindex_src = if_nametoindex("src");
+	if (!ASSERT_GT(result->ifindex_src, 0, "ifindex_src"))
 		goto fail;
 
-	result->ifindex_veth_src_fwd = if_nametoindex("veth_src_fwd");
-	if (!ASSERT_GT(result->ifindex_veth_src_fwd, 0, "ifindex_veth_src_fwd"))
+	result->ifindex_src_fwd = if_nametoindex("src_fwd");
+	if (!ASSERT_GT(result->ifindex_src_fwd, 0, "ifindex_src_fwd"))
 		goto fail;
 
-	result->ifindex_veth_dst = if_nametoindex("veth_dst");
-	if (!ASSERT_GT(result->ifindex_veth_dst, 0, "ifindex_veth_dst"))
+	result->ifindex_dst = if_nametoindex("dst");
+	if (!ASSERT_GT(result->ifindex_dst, 0, "ifindex_dst"))
 		goto fail;
 
-	result->ifindex_veth_dst_fwd = if_nametoindex("veth_dst_fwd");
-	if (!ASSERT_GT(result->ifindex_veth_dst_fwd, 0, "ifindex_veth_dst_fwd"))
+	result->ifindex_dst_fwd = if_nametoindex("dst_fwd");
+	if (!ASSERT_GT(result->ifindex_dst_fwd, 0, "ifindex_dst_fwd"))
 		goto fail;
 
-	SYS(fail, "ip link set veth_src netns " NS_SRC);
-	SYS(fail, "ip link set veth_src_fwd netns " NS_FWD);
-	SYS(fail, "ip link set veth_dst_fwd netns " NS_FWD);
-	SYS(fail, "ip link set veth_dst netns " NS_DST);
+	SYS(fail, "ip link set src netns " NS_SRC);
+	SYS(fail, "ip link set src_fwd netns " NS_FWD);
+	SYS(fail, "ip link set dst_fwd netns " NS_FWD);
+	SYS(fail, "ip link set dst netns " NS_DST);
 
 	/** setup in 'src' namespace */
 	nstoken = open_netns(NS_SRC);
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto fail;
 
-	SYS(fail, "ip addr add " IP4_SRC "/32 dev veth_src");
-	SYS(fail, "ip addr add " IP6_SRC "/128 dev veth_src nodad");
-	SYS(fail, "ip link set dev veth_src up");
+	SYS(fail, "ip addr add " IP4_SRC "/32 dev src");
+	SYS(fail, "ip addr add " IP6_SRC "/128 dev src nodad");
+	SYS(fail, "ip link set dev src up");
 
-	SYS(fail, "ip route add " IP4_DST "/32 dev veth_src scope global");
-	SYS(fail, "ip route add " IP4_NET "/16 dev veth_src scope global");
-	SYS(fail, "ip route add " IP6_DST "/128 dev veth_src scope global");
+	SYS(fail, "ip route add " IP4_DST "/32 dev src scope global");
+	SYS(fail, "ip route add " IP4_NET "/16 dev src scope global");
+	SYS(fail, "ip route add " IP6_DST "/128 dev src scope global");
 
-	SYS(fail, "ip neigh add " IP4_DST " dev veth_src lladdr %s",
-	    veth_src_fwd_addr);
-	SYS(fail, "ip neigh add " IP6_DST " dev veth_src lladdr %s",
-	    veth_src_fwd_addr);
+	if (result->dev_mode == MODE_VETH) {
+		SYS(fail, "ip neigh add " IP4_DST " dev src lladdr %s",
+		    src_fwd_addr);
+		SYS(fail, "ip neigh add " IP6_DST " dev src lladdr %s",
+		    src_fwd_addr);
+	}
 
 	close_netns(nstoken);
 
@@ -201,15 +260,15 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	 * needs v4 one in order to start ARP probing. IP4_NET route is added
 	 * to the endpoints so that the ARP processing will reply.
 	 */
-	SYS(fail, "ip addr add " IP4_SLL "/32 dev veth_src_fwd");
-	SYS(fail, "ip addr add " IP4_DLL "/32 dev veth_dst_fwd");
-	SYS(fail, "ip link set dev veth_src_fwd up");
-	SYS(fail, "ip link set dev veth_dst_fwd up");
+	SYS(fail, "ip addr add " IP4_SLL "/32 dev src_fwd");
+	SYS(fail, "ip addr add " IP4_DLL "/32 dev dst_fwd");
+	SYS(fail, "ip link set dev src_fwd up");
+	SYS(fail, "ip link set dev dst_fwd up");
 
-	SYS(fail, "ip route add " IP4_SRC "/32 dev veth_src_fwd scope global");
-	SYS(fail, "ip route add " IP6_SRC "/128 dev veth_src_fwd scope global");
-	SYS(fail, "ip route add " IP4_DST "/32 dev veth_dst_fwd scope global");
-	SYS(fail, "ip route add " IP6_DST "/128 dev veth_dst_fwd scope global");
+	SYS(fail, "ip route add " IP4_SRC "/32 dev src_fwd scope global");
+	SYS(fail, "ip route add " IP6_SRC "/128 dev src_fwd scope global");
+	SYS(fail, "ip route add " IP4_DST "/32 dev dst_fwd scope global");
+	SYS(fail, "ip route add " IP6_DST "/128 dev dst_fwd scope global");
 
 	close_netns(nstoken);
 
@@ -218,16 +277,18 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	if (!ASSERT_OK_PTR(nstoken, "setns dst"))
 		goto fail;
 
-	SYS(fail, "ip addr add " IP4_DST "/32 dev veth_dst");
-	SYS(fail, "ip addr add " IP6_DST "/128 dev veth_dst nodad");
-	SYS(fail, "ip link set dev veth_dst up");
+	SYS(fail, "ip addr add " IP4_DST "/32 dev dst");
+	SYS(fail, "ip addr add " IP6_DST "/128 dev dst nodad");
+	SYS(fail, "ip link set dev dst up");
 
-	SYS(fail, "ip route add " IP4_SRC "/32 dev veth_dst scope global");
-	SYS(fail, "ip route add " IP4_NET "/16 dev veth_dst scope global");
-	SYS(fail, "ip route add " IP6_SRC "/128 dev veth_dst scope global");
+	SYS(fail, "ip route add " IP4_SRC "/32 dev dst scope global");
+	SYS(fail, "ip route add " IP4_NET "/16 dev dst scope global");
+	SYS(fail, "ip route add " IP6_SRC "/128 dev dst scope global");
 
-	SYS(fail, "ip neigh add " IP4_SRC " dev veth_dst lladdr " MAC_DST_FWD);
-	SYS(fail, "ip neigh add " IP6_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	if (result->dev_mode == MODE_VETH) {
+		SYS(fail, "ip neigh add " IP4_SRC " dev dst lladdr " MAC_DST_FWD);
+		SYS(fail, "ip neigh add " IP6_SRC " dev dst lladdr " MAC_DST_FWD);
+	}
 
 	close_netns(nstoken);
 
@@ -293,23 +354,23 @@ static int netns_load_bpf(const struct bpf_program *src_prog,
 			  const struct bpf_program *chk_prog,
 			  const struct netns_setup_result *setup_result)
 {
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src_fwd);
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_src_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_dst_fwd);
 	int err;
 
-	/* tc qdisc add dev veth_src_fwd clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_src_fwd, setup_result->ifindex_veth_src_fwd);
-	/* tc filter add dev veth_src_fwd ingress bpf da src_prog */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS, src_prog, 0);
-	/* tc filter add dev veth_src_fwd egress bpf da chk_prog */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS, chk_prog, 0);
+	/* tc qdisc add dev src_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_src_fwd, setup_result->ifindex_src_fwd);
+	/* tc filter add dev src_fwd ingress bpf da src_prog */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_INGRESS, src_prog, 0);
+	/* tc filter add dev src_fwd egress bpf da chk_prog */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_EGRESS, chk_prog, 0);
 
-	/* tc qdisc add dev veth_dst_fwd clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
-	/* tc filter add dev veth_dst_fwd ingress bpf da dst_prog */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS, dst_prog, 0);
-	/* tc filter add dev veth_dst_fwd egress bpf da chk_prog */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS, chk_prog, 0);
+	/* tc qdisc add dev dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_dst_fwd, setup_result->ifindex_dst_fwd);
+	/* tc filter add dev dst_fwd ingress bpf da dst_prog */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_INGRESS, dst_prog, 0);
+	/* tc filter add dev dst_fwd egress bpf da chk_prog */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_EGRESS, chk_prog, 0);
 
 	return 0;
 fail:
@@ -539,10 +600,10 @@ done:
 static int netns_load_dtime_bpf(struct test_tc_dtime *skel,
 				const struct netns_setup_result *setup_result)
 {
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src_fwd);
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_src);
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_src_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_dst_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_src);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_dst);
 	struct nstoken *nstoken;
 	int err;
 
@@ -550,58 +611,58 @@ static int netns_load_dtime_bpf(struct test_tc_dtime *skel,
 	nstoken = open_netns(NS_SRC);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_SRC))
 		return -1;
-	/* tc qdisc add dev veth_src clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_src, setup_result->ifindex_veth_src);
-	/* tc filter add dev veth_src ingress bpf da ingress_host */
-	XGRESS_FILTER_ADD(&qdisc_veth_src, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
-	/* tc filter add dev veth_src egress bpf da egress_host */
-	XGRESS_FILTER_ADD(&qdisc_veth_src, BPF_TC_EGRESS, skel->progs.egress_host, 0);
+	/* tc qdisc add dev src clsact */
+	QDISC_CLSACT_CREATE(&qdisc_src, setup_result->ifindex_src);
+	/* tc filter add dev src ingress bpf da ingress_host */
+	XGRESS_FILTER_ADD(&qdisc_src, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
+	/* tc filter add dev src egress bpf da egress_host */
+	XGRESS_FILTER_ADD(&qdisc_src, BPF_TC_EGRESS, skel->progs.egress_host, 0);
 	close_netns(nstoken);
 
 	/* setup ns_dst tc progs */
 	nstoken = open_netns(NS_DST);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_DST))
 		return -1;
-	/* tc qdisc add dev veth_dst clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_dst, setup_result->ifindex_veth_dst);
-	/* tc filter add dev veth_dst ingress bpf da ingress_host */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
-	/* tc filter add dev veth_dst egress bpf da egress_host */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst, BPF_TC_EGRESS, skel->progs.egress_host, 0);
+	/* tc qdisc add dev dst clsact */
+	QDISC_CLSACT_CREATE(&qdisc_dst, setup_result->ifindex_dst);
+	/* tc filter add dev dst ingress bpf da ingress_host */
+	XGRESS_FILTER_ADD(&qdisc_dst, BPF_TC_INGRESS, skel->progs.ingress_host, 0);
+	/* tc filter add dev dst egress bpf da egress_host */
+	XGRESS_FILTER_ADD(&qdisc_dst, BPF_TC_EGRESS, skel->progs.egress_host, 0);
 	close_netns(nstoken);
 
 	/* setup ns_fwd tc progs */
 	nstoken = open_netns(NS_FWD);
 	if (!ASSERT_OK_PTR(nstoken, "setns " NS_FWD))
 		return -1;
-	/* tc qdisc add dev veth_dst_fwd clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
-	/* tc filter add dev veth_dst_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS,
+	/* tc qdisc add dev dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_dst_fwd, setup_result->ifindex_dst_fwd);
+	/* tc filter add dev dst_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_INGRESS,
 			  skel->progs.ingress_fwdns_prio100, 100);
-	/* tc filter add dev veth_dst_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS,
+	/* tc filter add dev dst_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_INGRESS,
 			  skel->progs.ingress_fwdns_prio101, 101);
-	/* tc filter add dev veth_dst_fwd egress prio 100 bpf da egress_fwdns_prio100 */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS,
+	/* tc filter add dev dst_fwd egress prio 100 bpf da egress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_EGRESS,
 			  skel->progs.egress_fwdns_prio100, 100);
-	/* tc filter add dev veth_dst_fwd egress prio 101 bpf da egress_fwdns_prio101 */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS,
+	/* tc filter add dev dst_fwd egress prio 101 bpf da egress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_EGRESS,
 			  skel->progs.egress_fwdns_prio101, 101);
 
-	/* tc qdisc add dev veth_src_fwd clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_src_fwd, setup_result->ifindex_veth_src_fwd);
-	/* tc filter add dev veth_src_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS,
+	/* tc qdisc add dev src_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_src_fwd, setup_result->ifindex_src_fwd);
+	/* tc filter add dev src_fwd ingress prio 100 bpf da ingress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_INGRESS,
 			  skel->progs.ingress_fwdns_prio100, 100);
-	/* tc filter add dev veth_src_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_INGRESS,
+	/* tc filter add dev src_fwd ingress prio 101 bpf da ingress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_INGRESS,
 			  skel->progs.ingress_fwdns_prio101, 101);
-	/* tc filter add dev veth_src_fwd egress prio 100 bpf da egress_fwdns_prio100 */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS,
+	/* tc filter add dev src_fwd egress prio 100 bpf da egress_fwdns_prio100 */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_EGRESS,
 			  skel->progs.egress_fwdns_prio100, 100);
-	/* tc filter add dev veth_src_fwd egress prio 101 bpf da egress_fwdns_prio101 */
-	XGRESS_FILTER_ADD(&qdisc_veth_src_fwd, BPF_TC_EGRESS,
+	/* tc filter add dev src_fwd egress prio 101 bpf da egress_fwdns_prio101 */
+	XGRESS_FILTER_ADD(&qdisc_src_fwd, BPF_TC_EGRESS,
 			  skel->progs.egress_fwdns_prio101, 101);
 	close_netns(nstoken);
 	return 0;
@@ -777,8 +838,8 @@ static void test_tc_redirect_dtime(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK_PTR(skel, "test_tc_dtime__open"))
 		return;
 
-	skel->rodata->IFINDEX_SRC = setup_result->ifindex_veth_src_fwd;
-	skel->rodata->IFINDEX_DST = setup_result->ifindex_veth_dst_fwd;
+	skel->rodata->IFINDEX_SRC = setup_result->ifindex_src_fwd;
+	skel->rodata->IFINDEX_DST = setup_result->ifindex_dst_fwd;
 
 	err = test_tc_dtime__load(skel);
 	if (!ASSERT_OK(err, "test_tc_dtime__load"))
@@ -868,8 +929,8 @@ static void test_tc_redirect_neigh(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK_PTR(skel, "test_tc_neigh__open"))
 		goto done;
 
-	skel->rodata->IFINDEX_SRC = setup_result->ifindex_veth_src_fwd;
-	skel->rodata->IFINDEX_DST = setup_result->ifindex_veth_dst_fwd;
+	skel->rodata->IFINDEX_SRC = setup_result->ifindex_src_fwd;
+	skel->rodata->IFINDEX_DST = setup_result->ifindex_dst_fwd;
 
 	err = test_tc_neigh__load(skel);
 	if (!ASSERT_OK(err, "test_tc_neigh__load"))
@@ -904,8 +965,8 @@ static void test_tc_redirect_peer(struct netns_setup_result *setup_result)
 	if (!ASSERT_OK_PTR(skel, "test_tc_peer__open"))
 		goto done;
 
-	skel->rodata->IFINDEX_SRC = setup_result->ifindex_veth_src_fwd;
-	skel->rodata->IFINDEX_DST = setup_result->ifindex_veth_dst_fwd;
+	skel->rodata->IFINDEX_SRC = setup_result->ifindex_src_fwd;
+	skel->rodata->IFINDEX_DST = setup_result->ifindex_dst_fwd;
 
 	err = test_tc_peer__load(skel);
 	if (!ASSERT_OK(err, "test_tc_peer__load"))
@@ -996,7 +1057,7 @@ static int tun_relay_loop(int src_fd, int target_fd)
 static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 {
 	LIBBPF_OPTS(bpf_tc_hook, qdisc_tun_fwd);
-	LIBBPF_OPTS(bpf_tc_hook, qdisc_veth_dst_fwd);
+	LIBBPF_OPTS(bpf_tc_hook, qdisc_dst_fwd);
 	struct test_tc_peer *skel = NULL;
 	struct nstoken *nstoken = NULL;
 	int err;
@@ -1045,7 +1106,7 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 		goto fail;
 
 	skel->rodata->IFINDEX_SRC = ifindex;
-	skel->rodata->IFINDEX_DST = setup_result->ifindex_veth_dst_fwd;
+	skel->rodata->IFINDEX_DST = setup_result->ifindex_dst_fwd;
 
 	err = test_tc_peer__load(skel);
 	if (!ASSERT_OK(err, "test_tc_peer__load"))
@@ -1053,19 +1114,19 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 
 	/* Load "tc_src_l3" to the tun_fwd interface to redirect packets
 	 * towards dst, and "tc_dst" to redirect packets
-	 * and "tc_chk" on veth_dst_fwd to drop non-redirected packets.
+	 * and "tc_chk" on dst_fwd to drop non-redirected packets.
 	 */
 	/* tc qdisc add dev tun_fwd clsact */
 	QDISC_CLSACT_CREATE(&qdisc_tun_fwd, ifindex);
 	/* tc filter add dev tun_fwd ingress bpf da tc_src_l3 */
 	XGRESS_FILTER_ADD(&qdisc_tun_fwd, BPF_TC_INGRESS, skel->progs.tc_src_l3, 0);
 
-	/* tc qdisc add dev veth_dst_fwd clsact */
-	QDISC_CLSACT_CREATE(&qdisc_veth_dst_fwd, setup_result->ifindex_veth_dst_fwd);
-	/* tc filter add dev veth_dst_fwd ingress bpf da tc_dst_l3 */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_INGRESS, skel->progs.tc_dst_l3, 0);
-	/* tc filter add dev veth_dst_fwd egress bpf da tc_chk */
-	XGRESS_FILTER_ADD(&qdisc_veth_dst_fwd, BPF_TC_EGRESS, skel->progs.tc_chk, 0);
+	/* tc qdisc add dev dst_fwd clsact */
+	QDISC_CLSACT_CREATE(&qdisc_dst_fwd, setup_result->ifindex_dst_fwd);
+	/* tc filter add dev dst_fwd ingress bpf da tc_dst_l3 */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_INGRESS, skel->progs.tc_dst_l3, 0);
+	/* tc filter add dev dst_fwd egress bpf da tc_chk */
+	XGRESS_FILTER_ADD(&qdisc_dst_fwd, BPF_TC_EGRESS, skel->progs.tc_chk, 0);
 
 	/* Setup route and neigh tables */
 	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP4_TUN_SRC "/24");
@@ -1074,17 +1135,17 @@ static void test_tc_redirect_peer_l3(struct netns_setup_result *setup_result)
 	SYS(fail, "ip -netns " NS_SRC " addr add dev tun_src " IP6_TUN_SRC "/64 nodad");
 	SYS(fail, "ip -netns " NS_FWD " addr add dev tun_fwd " IP6_TUN_FWD "/64 nodad");
 
-	SYS(fail, "ip -netns " NS_SRC " route del " IP4_DST "/32 dev veth_src scope global");
+	SYS(fail, "ip -netns " NS_SRC " route del " IP4_DST "/32 dev src scope global");
 	SYS(fail, "ip -netns " NS_SRC " route add " IP4_DST "/32 via " IP4_TUN_FWD
 	    " dev tun_src scope global");
-	SYS(fail, "ip -netns " NS_DST " route add " IP4_TUN_SRC "/32 dev veth_dst scope global");
-	SYS(fail, "ip -netns " NS_SRC " route del " IP6_DST "/128 dev veth_src scope global");
+	SYS(fail, "ip -netns " NS_DST " route add " IP4_TUN_SRC "/32 dev dst scope global");
+	SYS(fail, "ip -netns " NS_SRC " route del " IP6_DST "/128 dev src scope global");
 	SYS(fail, "ip -netns " NS_SRC " route add " IP6_DST "/128 via " IP6_TUN_FWD
 	    " dev tun_src scope global");
-	SYS(fail, "ip -netns " NS_DST " route add " IP6_TUN_SRC "/128 dev veth_dst scope global");
+	SYS(fail, "ip -netns " NS_DST " route add " IP6_TUN_SRC "/128 dev dst scope global");
 
-	SYS(fail, "ip -netns " NS_DST " neigh add " IP4_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
-	SYS(fail, "ip -netns " NS_DST " neigh add " IP6_TUN_SRC " dev veth_dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip -netns " NS_DST " neigh add " IP4_TUN_SRC " dev dst lladdr " MAC_DST_FWD);
+	SYS(fail, "ip -netns " NS_DST " neigh add " IP6_TUN_SRC " dev dst lladdr " MAC_DST_FWD);
 
 	if (!ASSERT_OK(set_forwarding(false), "disable forwarding"))
 		goto fail;
@@ -1106,9 +1167,9 @@ fail:
 		close_netns(nstoken);
 }
 
-#define RUN_TEST(name)                                                                      \
+#define RUN_TEST(name, mode)                                                                \
 	({                                                                                  \
-		struct netns_setup_result setup_result;                                     \
+		struct netns_setup_result setup_result = { .dev_mode = mode, };             \
 		if (test__start_subtest(#name))                                             \
 			if (ASSERT_OK(netns_setup_namespaces("add"), "setup namespaces")) { \
 				if (ASSERT_OK(netns_setup_links_and_routes(&setup_result),  \
@@ -1122,11 +1183,13 @@ static void *test_tc_redirect_run_tests(void *arg)
 {
 	netns_setup_namespaces_nofail("delete");
 
-	RUN_TEST(tc_redirect_peer);
-	RUN_TEST(tc_redirect_peer_l3);
-	RUN_TEST(tc_redirect_neigh);
-	RUN_TEST(tc_redirect_neigh_fib);
-	RUN_TEST(tc_redirect_dtime);
+	RUN_TEST(tc_redirect_peer, MODE_VETH);
+	RUN_TEST(tc_redirect_peer, MODE_NETKIT);
+	RUN_TEST(tc_redirect_peer_l3, MODE_VETH);
+	RUN_TEST(tc_redirect_peer_l3, MODE_NETKIT);
+	RUN_TEST(tc_redirect_neigh, MODE_VETH);
+	RUN_TEST(tc_redirect_neigh_fib, MODE_VETH);
+	RUN_TEST(tc_redirect_dtime, MODE_VETH);
 	return NULL;
 }
 
