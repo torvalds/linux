@@ -3516,7 +3516,7 @@ static const struct intel_cdclk_funcs mtl_cdclk_funcs = {
 	.get_cdclk = bxt_get_cdclk,
 	.set_cdclk = bxt_set_cdclk,
 	.modeset_calc_cdclk = bxt_modeset_calc_cdclk,
-	.calc_voltage_level = tgl_calc_voltage_level,
+	.calc_voltage_level = rplu_calc_voltage_level,
 };
 
 static const struct intel_cdclk_funcs rplu_cdclk_funcs = {
