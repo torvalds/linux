@@ -589,8 +589,10 @@ cfg802154_device_is_child(struct wpan_dev *wpan_dev,
  * cfg802154_set_max_associations - Limit the number of future associations
  * @wpan_dev: the wpan device
  * @max: the maximum number of devices we accept to associate
+ * @return: the old maximum value
  */
-void cfg802154_set_max_associations(struct wpan_dev *wpan_dev, unsigned int max);
+unsigned int cfg802154_set_max_associations(struct wpan_dev *wpan_dev,
+					    unsigned int max);
 
 /**
  * cfg802154_get_free_short_addr - Get a free address among the known devices

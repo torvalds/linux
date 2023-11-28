@@ -94,10 +94,16 @@ __le16 cfg802154_get_free_short_addr(struct wpan_dev *wpan_dev)
 }
 EXPORT_SYMBOL_GPL(cfg802154_get_free_short_addr);
 
-void cfg802154_set_max_associations(struct wpan_dev *wpan_dev, unsigned int max)
+unsigned int cfg802154_set_max_associations(struct wpan_dev *wpan_dev,
+					    unsigned int max)
 {
+	unsigned int old_max;
+
 	lockdep_assert_held(&wpan_dev->association_lock);
 
+	old_max = wpan_dev->max_associations;
 	wpan_dev->max_associations = max;
+
+	return old_max;
 }
 EXPORT_SYMBOL_GPL(cfg802154_set_max_associations);

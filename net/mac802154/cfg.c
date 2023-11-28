@@ -389,6 +389,7 @@ static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
 	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
 	struct ieee802154_pan_device *child, *tmp;
 	struct ieee802154_sub_if_data *sdata;
+	unsigned int max_assoc;
 	u64 eaddr;
 	int ret;
 
@@ -397,6 +398,7 @@ static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
 	/* Start by disassociating all the children and preventing new ones to
 	 * attempt associations.
 	 */
+	max_assoc = cfg802154_set_max_associations(wpan_dev, 0);
 	list_for_each_entry_safe(child, tmp, &wpan_dev->children, node) {
 		ret = mac802154_send_disassociation_notif(sdata, child,
 							  IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE);
@@ -429,14 +431,17 @@ static int mac802154_disassociate_from_parent(struct wpan_phy *wpan_phy,
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
 		ret = drv_set_pan_id(local, wpan_dev->pan_id);
 		if (ret < 0)
-			return ret;
+			goto reset_mac_assoc;
 
 		ret = drv_set_short_addr(local, wpan_dev->short_addr);
 		if (ret < 0)
-			return ret;
+			goto reset_mac_assoc;
 	}
 
-	return 0;
+reset_mac_assoc:
+	cfg802154_set_max_associations(wpan_dev, max_assoc);
+
+	return ret;
 }
 
 static int mac802154_disassociate_child(struct wpan_phy *wpan_phy,
