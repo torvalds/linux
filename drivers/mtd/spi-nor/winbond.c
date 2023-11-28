@@ -219,6 +219,11 @@ static const struct flash_info winbond_nor_parts[] = {
 	{ "w25q02jvm", INFO(0xef7022, 0, 64 * 1024, 4096)
 		PARSE_SFDP
 		.fixups = &w25q02gjv_fixups },
+	{ "w25q01nwiq", INFO(0xef6021, 0, 64 * 1024, 2048)
+		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_QUAD_READ |
+			      SPI_NOR_DUAL_READ) },
+	{ "w25q01jvq", INFO(0xef4021, 0, 64 * 1024, 2048)
+		PARSE_SFDP },
 };
 
 /**
