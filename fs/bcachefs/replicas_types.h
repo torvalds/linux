@@ -21,7 +21,7 @@ struct replicas_delta_list {
 	u64			nr_inodes;
 	u64			persistent_reserved[BCH_REPLICAS_MAX];
 	struct			{} memset_end;
-	struct replicas_delta	d[0];
+	struct replicas_delta	d[];
 };
 
 #endif /* _BCACHEFS_REPLICAS_TYPES_H */

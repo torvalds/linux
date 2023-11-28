@@ -80,7 +80,7 @@ struct promote_op {
 	struct bpos		pos;
 
 	struct data_update	write;
-	struct bio_vec		bi_inline_vecs[0]; /* must be last */
+	struct bio_vec		bi_inline_vecs[]; /* must be last */
 };
 
 static const struct rhashtable_params bch_promote_params = {

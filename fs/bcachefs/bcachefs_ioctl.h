@@ -276,7 +276,7 @@ struct bch_ioctl_fs_usage {
 	__u32			replica_entries_bytes;
 	__u32			pad;
 
-	struct bch_replicas_usage replicas[0];
+	struct bch_replicas_usage replicas[];
 };
 
 /*
@@ -313,7 +313,7 @@ struct bch_ioctl_dev_usage_v2 {
 	__u32			bucket_size;
 	__u64			nr_buckets;
 
-	struct bch_ioctl_dev_usage_type  d[0];
+	struct bch_ioctl_dev_usage_type d[];
 };
 
 /*

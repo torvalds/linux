@@ -70,7 +70,7 @@ struct moving_io {
 
 	struct data_update		write;
 	/* Must be last since it is variable size */
-	struct bio_vec			bi_inline_vecs[0];
+	struct bio_vec			bi_inline_vecs[];
 };
 
 static void move_free(struct moving_io *io)
