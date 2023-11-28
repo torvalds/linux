@@ -281,6 +281,8 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x30, 0x30, 4, &stimer_base, 0)},
 };
 
+static int is_rv1103, is_rv1106;
+
 #define PLL_LOCKED_TIMEOUT		600000U
 
 static void pm_pll_wait_lock(u32 pll_id)
@@ -777,14 +779,6 @@ static void pmu_sleep_config(void)
 		BIT(RV1106_PMU_GPLL_PD_ENA) |
 		0;
 
-	/* pmic_sleep */
-	/* gpio0_a3 activelow, gpio0_a4 active high */
-	writel_relaxed(BITS_WITH_WMASK(0x4, 0x7, 0), pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
-	/* select sleep func */
-	writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 0), pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
-	/* gpio0_a3 iomux */
-	writel_relaxed(BITS_WITH_WMASK(0x1, 0xf, 12), ioc_base[0] + 0);
-
 	/* pmu_debug */
 	writel_relaxed(0xffffff01, pmu_base + RV1106_PMU_INFO_TX_CON);
 	writel_relaxed(BITS_WITH_WMASK(0x1, 0xf, 4), ioc_base[1] + 0);
@@ -945,13 +939,27 @@ static void gpio_config(void)
 	gpio0_set_pull(2, RV1106_GPIO_PULL_DOWN);
 	gpio0_set_direct(2, 0);
 
-	/* gpio0_a3, pullnone */
-	gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
+	if (is_rv1106) {
+		/* gpio0_a3, pullnone */
+		gpio0_set_iomux(3, 1);
+		gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
+	} else {
+		/* gpio0_a3, input, pullup */
+		gpio0_set_iomux(3, 0);
+		gpio0_set_pull(3, RV1106_GPIO_PULL_UP);
+		gpio0_set_direct(3, 0);
+	}
 
-	/* gpio0_a4, input, pullup */
-	gpio0_set_iomux(4, 0);
-	gpio0_set_pull(4, RV1106_GPIO_PULL_UP);
-	gpio0_set_direct(4, 0);
+	if (is_rv1103) {
+		/* gpio0_a4, pullnone */
+		gpio0_set_iomux(4, 1);
+		gpio0_set_pull(4, RV1106_GPIO_PULL_NONE);
+	} else {
+		/* gpio0_a4, input, pullup */
+		gpio0_set_iomux(4, 0);
+		gpio0_set_pull(4, RV1106_GPIO_PULL_UP);
+		gpio0_set_direct(4, 0);
+	}
 
 	/* gpio0_a5, input, pullnone */
 	gpio0_set_iomux(5, 0);
@@ -1128,6 +1136,11 @@ static int __init rv1106_suspend_init(struct device_node *np)
 {
 	void __iomem *dev_reg_base;
 
+	if (of_machine_is_compatible("rockchip,rv1103"))
+		is_rv1103 = 1;
+	else if (of_machine_is_compatible("rockchip,rv1106"))
+		is_rv1106 = 1;
+
 	dev_reg_base = ioremap(RV1106_DEV_REG_BASE, RV1106_DEV_REG_SIZE);
 	if (dev_reg_base)
 		pr_info("%s map dev_reg 0x%x -> 0x%x\n",
@@ -1206,6 +1219,10 @@ static int __init rv1106_suspend_init(struct device_node *np)
 #endif
 	/* biu auto con */
 	writel_relaxed(0x07ff07ff, pmu_base + RV1106_PMU_BIU_AUTO_CON);
+
+	/* gpio0_a3 activelow, gpio0_a4 active high, select sleep func */
+	writel_relaxed(BITS_WITH_WMASK(0x5, 0x7, 0),
+		       pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
 
 	rkpm_region_mem_init(RV1106_PM_REG_REGION_MEM_SIZE);
 	rkpm_reg_rgns_init();
