@@ -226,3 +226,8 @@ mptcp_lib_kill_wait() {
 	kill "${1}" > /dev/null 2>&1
 	wait "${1}" 2>/dev/null
 }
+
+# $1: IP address
+mptcp_lib_is_v6() {
+	[ -z "${1##*:*}" ]
+}
