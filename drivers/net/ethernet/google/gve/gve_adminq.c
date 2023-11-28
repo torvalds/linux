@@ -727,18 +727,7 @@ static int gve_set_desc_cnt(struct gve_priv *priv,
 			    struct gve_device_descriptor *descriptor)
 {
 	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
-	if (priv->tx_desc_cnt * sizeof(priv->tx->desc[0]) < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Tx desc count %d too low\n",
-			priv->tx_desc_cnt);
-		return -EINVAL;
-	}
 	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
-	if (priv->rx_desc_cnt * sizeof(priv->rx->desc.desc_ring[0])
-	    < PAGE_SIZE) {
-		dev_err(&priv->pdev->dev, "Rx desc count %d too low\n",
-			priv->rx_desc_cnt);
-		return -EINVAL;
-	}
 	return 0;
 }
 
