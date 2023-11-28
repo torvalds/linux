@@ -1328,7 +1328,7 @@ static int gve_open(struct net_device *dev)
 		/* Hard code this for now. This may be tuned in the future for
 		 * performance.
 		 */
-		priv->data_buffer_size_dqo = GVE_RX_BUFFER_SIZE_DQO;
+		priv->data_buffer_size_dqo = GVE_DEFAULT_RX_BUFFER_SIZE;
 	}
 	err = gve_create_rings(priv);
 	if (err)
@@ -1664,7 +1664,7 @@ static int verify_xdp_configuration(struct net_device *dev)
 		return -EOPNOTSUPP;
 	}
 
-	if (dev->mtu > (PAGE_SIZE / 2) - sizeof(struct ethhdr) - GVE_RX_PAD) {
+	if (dev->mtu > GVE_DEFAULT_RX_BUFFER_SIZE - sizeof(struct ethhdr) - GVE_RX_PAD) {
 		netdev_warn(dev, "XDP is not supported for mtu %d.\n",
 			    dev->mtu);
 		return -EOPNOTSUPP;
