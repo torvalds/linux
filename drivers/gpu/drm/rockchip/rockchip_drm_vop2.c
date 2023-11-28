@@ -7768,11 +7768,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vop2_set_system_status(vop2);
 
 	vop2_lock(vop2);
-	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x, flag:0x%x) for vp%d dclk: %d\n",
+	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x, flag:0x%x) for vp%d dclk: %llu\n",
 		     hdisplay, adjusted_mode->vdisplay, interlaced ? "i" : "p",
 		     drm_mode_vrefresh(adjusted_mode),
 		     vcstate->output_type, vcstate->output_if, vcstate->output_flags,
-		     vp->id, adjusted_mode->crtc_clock * 1000);
+		     vp->id, (unsigned long long)adjusted_mode->crtc_clock * 1000);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 		vcstate->splice_mode = true;
