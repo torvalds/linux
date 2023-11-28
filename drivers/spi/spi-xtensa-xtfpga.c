@@ -53,7 +53,7 @@ static inline void xtfpga_spi_wait_busy(struct xtfpga_spi *xspi)
 static u32 xtfpga_spi_txrx_word(struct spi_device *spi, unsigned nsecs,
 				u32 v, u8 bits, unsigned flags)
 {
-	struct xtfpga_spi *xspi = spi_master_get_devdata(spi->master);
+	struct xtfpga_spi *xspi = spi_controller_get_devdata(spi->controller);
 
 	xspi->data = (xspi->data << bits) | (v & GENMASK(bits - 1, 0));
 	xspi->data_sz += bits;
@@ -71,7 +71,7 @@ static u32 xtfpga_spi_txrx_word(struct spi_device *spi, unsigned nsecs,
 
 static void xtfpga_spi_chipselect(struct spi_device *spi, int is_on)
 {
-	struct xtfpga_spi *xspi = spi_master_get_devdata(spi->master);
+	struct xtfpga_spi *xspi = spi_controller_get_devdata(spi->controller);
 
 	WARN_ON(xspi->data_sz != 0);
 	xspi->data_sz = 0;
@@ -81,19 +81,19 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 {
 	struct xtfpga_spi *xspi;
 	int ret;
-	struct spi_master *master;
+	struct spi_controller *host;
 
-	master = devm_spi_alloc_master(&pdev->dev, sizeof(struct xtfpga_spi));
-	if (!master)
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct xtfpga_spi));
+	if (!host)
 		return -ENOMEM;
 
-	master->flags = SPI_CONTROLLER_NO_RX;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
-	master->bus_num = pdev->dev.id;
-	master->dev.of_node = pdev->dev.of_node;
+	host->flags = SPI_CONTROLLER_NO_RX;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	host->bus_num = pdev->dev.id;
+	host->dev.of_node = pdev->dev.of_node;
 
-	xspi = spi_master_get_devdata(master);
-	xspi->bitbang.master = master;
+	xspi = spi_controller_get_devdata(host);
+	xspi->bitbang.master = host;
 	xspi->bitbang.chipselect = xtfpga_spi_chipselect;
 	xspi->bitbang.txrx_word[SPI_MODE_0] = xtfpga_spi_txrx_word;
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);
@@ -113,17 +113,17 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	platform_set_drvdata(pdev, master);
+	platform_set_drvdata(pdev, host);
 	return 0;
 }
 
 static void xtfpga_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
-	struct xtfpga_spi *xspi = spi_master_get_devdata(master);
+	struct spi_controller *host = platform_get_drvdata(pdev);
+	struct xtfpga_spi *xspi = spi_controller_get_devdata(host);
 
 	spi_bitbang_stop(&xspi->bitbang);
-	spi_master_put(master);
+	spi_controller_put(host);
 }
 
 MODULE_ALIAS("platform:" XTFPGA_SPI_NAME);
