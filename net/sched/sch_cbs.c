@@ -57,6 +57,8 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/units.h>
+
 #include <net/netevent.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
@@ -64,8 +66,6 @@
 
 static LIST_HEAD(cbs_list);
 static DEFINE_SPINLOCK(cbs_list_lock);
-
-#define BYTES_PER_KBIT (1000LL / 8)
 
 struct cbs_sched_data {
 	bool offload;
