@@ -339,6 +339,8 @@ struct hw_sequencer_funcs {
 
 	/* HW State Logging Related */
 	void (*log_hw_state)(struct dc *dc, struct dc_log_buffer_ctx *log_ctx);
+	void (*log_color_state)(struct dc *dc,
+				struct dc_log_buffer_ctx *log_ctx);
 	void (*get_hw_state)(struct dc *dc, char *pBuf,
 			unsigned int bufSize, unsigned int mask);
 	void (*clear_status_bits)(struct dc *dc, unsigned int mask);

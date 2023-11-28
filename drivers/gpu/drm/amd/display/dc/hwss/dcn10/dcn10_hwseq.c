@@ -375,7 +375,10 @@ void dcn10_log_hw_state(struct dc *dc,
 
 	dcn10_log_hubp_states(dc, log_ctx);
 
-	dcn10_log_color_state(dc, log_ctx);
+	if (dc->hwss.log_color_state)
+		dc->hwss.log_color_state(dc, log_ctx);
+	else
+		dcn10_log_color_state(dc, log_ctx);
 
 	DTN_INFO("OTG:  v_bs  v_be  v_ss  v_se  vpol  vmax  vmin  vmax_sel  vmin_sel  h_bs  h_be  h_ss  h_se  hpol  htot  vtot  underflow blank_en\n");
 
