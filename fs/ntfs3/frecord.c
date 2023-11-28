@@ -3291,7 +3291,7 @@ int ni_write_inode(struct inode *inode, int sync, const char *hint)
 			modified = true;
 		}
 
-		ts = inode_get_mtime(inode);
+		ts = inode_get_ctime(inode);
 		dup.c_time = kernel2nt(&ts);
 		if (std->c_time != dup.c_time) {
 			std->c_time = dup.c_time;
