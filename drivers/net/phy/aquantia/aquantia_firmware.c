@@ -93,9 +93,6 @@ static int aqr_fw_load_memory(struct phy_device *phydev, u32 addr,
 	u16 crc = 0, up_crc;
 	size_t pos;
 
-	/* PHY expect addr in LE */
-	addr = (__force u32)cpu_to_le32(addr);
-
 	phy_write_mmd(phydev, MDIO_MMD_VEND1,
 		      VEND1_GLOBAL_MAILBOX_INTERFACE1,
 		      VEND1_GLOBAL_MAILBOX_INTERFACE1_CRC_RESET);
@@ -110,10 +107,11 @@ static int aqr_fw_load_memory(struct phy_device *phydev, u32 addr,
 	 * If a firmware that is not word aligned is found, please report upstream.
 	 */
 	for (pos = 0; pos < len; pos += sizeof(u32)) {
+		u8 crc_data[4];
 		u32 word;
 
 		/* FW data is always stored in little-endian */
-		word = get_unaligned((const u32 *)(data + pos));
+		word = get_unaligned_le32((const u32 *)(data + pos));
 
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_MAILBOX_INTERFACE5,
 			      VEND1_GLOBAL_MAILBOX_INTERFACE5_MSW_DATA(word));
@@ -124,15 +122,21 @@ static int aqr_fw_load_memory(struct phy_device *phydev, u32 addr,
 			      VEND1_GLOBAL_MAILBOX_INTERFACE1_EXECUTE |
 			      VEND1_GLOBAL_MAILBOX_INTERFACE1_WRITE);
 
-		/* calculate CRC as we load data to the mailbox.
-		 * We convert word to big-endian as PHY is BE and mailbox will
-		 * return a BE CRC.
+		/* Word is swapped internally and MAILBOX CRC is calculated
+		 * using big-endian order. Mimic what the PHY does to have a
+		 * matching CRC...
 		 */
-		word = (__force u32)cpu_to_be32(word);
-		crc = crc_ccitt_false(crc, (u8 *)&word, sizeof(word));
-	}
+		crc_data[0] = word >> 24;
+		crc_data[1] = word >> 16;
+		crc_data[2] = word >> 8;
+		crc_data[3] = word;
 
+		/* ...calculate CRC as we load data... */
+		crc = crc_ccitt_false(crc, crc_data, sizeof(crc_data));
+	}
+	/* ...gets CRC from MAILBOX after we have loaded the entire section... */
 	up_crc = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_GLOBAL_MAILBOX_INTERFACE2);
+	/* ...and make sure it does match our calculated CRC */
 	if (crc != up_crc) {
 		phydev_err(phydev, "CRC mismatch: calculated 0x%04x PHY 0x%04x\n",
 			   crc, up_crc);
