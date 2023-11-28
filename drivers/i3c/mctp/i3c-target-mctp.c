@@ -343,14 +343,17 @@ static int i3c_target_mctp_probe(struct i3c_device *i3cdev)
 
 	cdev_init(&priv->cdev, &i3c_target_mctp_fops);
 	priv->cdev.owner = THIS_MODULE;
-	ret = cdev_add(&priv->cdev, i3c_target_mctp_devt, 1);
+
+	ret = cdev_add(&priv->cdev,
+		       MKDEV(MAJOR(i3c_target_mctp_devt), priv->id), 1);
 	if (ret) {
 		ida_free(&i3c_target_mctp_ida, priv->id);
 		return ret;
 	}
 
-	dev = device_create(i3c_target_mctp_class, parent, i3c_target_mctp_devt,
-			    NULL, "i3c-mctp-target-%d", priv->id);
+	dev = device_create(i3c_target_mctp_class, parent,
+			    MKDEV(MAJOR(i3c_target_mctp_devt), priv->id), NULL,
+			    "i3c-mctp-target-%d", priv->id);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto err;
