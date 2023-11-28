@@ -97,6 +97,8 @@ struct mlxsw_sp_fid_ops {
 				     const struct mlxsw_sp_rif *rif);
 	int (*flood_table_init)(struct mlxsw_sp_fid_family *fid_family,
 				const struct mlxsw_sp_flood_table *flood_table);
+	int (*pgt_size)(const struct mlxsw_sp_fid_family *fid_family,
+			u16 *p_pgt_size);
 };
 
 struct mlxsw_sp_fid_family {
@@ -322,12 +324,14 @@ mlxsw_sp_fid_family_num_fids(const struct mlxsw_sp_fid_family *fid_family)
 	return fid_family->end_index - fid_family->start_index + 1;
 }
 
-static u16
-mlxsw_sp_fid_family_pgt_size(const struct mlxsw_sp_fid_family *fid_family)
+static int
+mlxsw_sp_fid_8021d_pgt_size(const struct mlxsw_sp_fid_family *fid_family,
+			    u16 *p_pgt_size)
 {
 	u16 num_fids = mlxsw_sp_fid_family_num_fids(fid_family);
 
-	return num_fids * fid_family->nr_flood_tables;
+	*p_pgt_size = num_fids * fid_family->nr_flood_tables;
+	return 0;
 }
 
 static u16
@@ -1124,6 +1128,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops_ctl = {
 	.fdb_clear_offload	= mlxsw_sp_fid_8021d_fdb_clear_offload,
 	.vid_to_fid_rif_update  = mlxsw_sp_fid_8021d_vid_to_fid_rif_update,
 	.flood_table_init	= mlxsw_sp_fid_flood_table_init_ctl,
+	.pgt_size		= mlxsw_sp_fid_8021d_pgt_size,
 };
 
 #define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
@@ -1466,6 +1471,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_ops_ctl = {
 	.fdb_clear_offload	= mlxsw_sp_fid_8021q_fdb_clear_offload,
 	.vid_to_fid_rif_update  = mlxsw_sp_fid_8021q_vid_to_fid_rif_update,
 	.flood_table_init	= mlxsw_sp_fid_flood_table_init_ctl,
+	.pgt_size		= mlxsw_sp_fid_8021d_pgt_size,
 };
 
 /* There are 4K-2 802.1Q FIDs */
@@ -1717,7 +1723,10 @@ mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 	int err;
 	int i;
 
-	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
+	err = fid_family->ops->pgt_size(fid_family, &pgt_size);
+	if (err)
+		return err;
+
 	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &fid_family->pgt_base,
 					   pgt_size);
 	if (err)
@@ -1747,8 +1756,12 @@ mlxsw_sp_fid_flood_tables_fini(struct mlxsw_sp_fid_family *fid_family)
 {
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 	u16 pgt_size;
+	int err;
 
-	pgt_size = mlxsw_sp_fid_family_pgt_size(fid_family);
+	err = fid_family->ops->pgt_size(fid_family, &pgt_size);
+	if (WARN_ON_ONCE(err))
+		return;
+
 	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, fid_family->pgt_base, pgt_size);
 }
 
