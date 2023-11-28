@@ -1133,7 +1133,7 @@
 				assigned-clock-parents = <&clk IMX8MM_VIDEO_PLL1_OUT>,
 							 <&clk IMX8MM_SYS_PLL2_1000M>,
 							 <&clk IMX8MM_SYS_PLL1_800M>;
-				assigned-clock-rates = <594000000>, <500000000>, <200000000>;
+				assigned-clock-rates = <24000000>, <500000000>, <200000000>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&disp_blk_ctrl IMX8MM_DISPBLK_PD_LCDIF>;
 				status = "disabled";
