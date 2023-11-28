@@ -56,6 +56,7 @@ def define_niobe():
         "drivers/soc/qcom/llcc-qcom.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
+        "drivers/soc/qcom/qcom_aoss.ko",
         "drivers/soc/qcom/qcom_cpucp.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/smem.ko",
