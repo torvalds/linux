@@ -290,6 +290,9 @@ struct dpp_funcs {
 	void (*dpp_cnv_set_alpha_keyer)(
 			struct dpp *dpp_base,
 			struct cnv_color_keyer_params *color_keyer);
+
+	void (*dpp_get_gamut_remap)(struct dpp *dpp_base,
+				    struct dpp_grph_csc_adjustment *adjust);
 };
 
 

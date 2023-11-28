@@ -62,6 +62,26 @@ void cm_helper_program_color_matrices(
 
 }
 
+void cm_helper_read_color_matrices(struct dc_context *ctx,
+				   uint16_t *regval,
+				   const struct color_matrices_reg *reg)
+{
+	uint32_t cur_csc_reg, regval0, regval1;
+	unsigned int i = 0;
+
+	for (cur_csc_reg = reg->csc_c11_c12;
+	     cur_csc_reg <= reg->csc_c33_c34; cur_csc_reg++) {
+		REG_GET_2(cur_csc_reg,
+				csc_c11, &regval0,
+				csc_c12, &regval1);
+
+		regval[2 * i] = regval0;
+		regval[(2 * i) + 1] = regval1;
+
+		i++;
+	}
+}
+
 void cm_helper_program_xfer_func(
 		struct dc_context *ctx,
 		const struct pwl_params *params,
