@@ -37,8 +37,6 @@ static int check_subvol(struct btree_trans *trans,
 		return ret;
 
 	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
-		bch2_fs_lazy_rw(c);
-
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
 		if (ret)
 			bch_err_msg(c, ret, "deleting subvolume %llu", iter->pos.offset);
@@ -89,7 +87,7 @@ int bch2_check_subvols(struct bch_fs *c)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_subvol(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);

@@ -590,7 +590,7 @@ int bch2_check_snapshot_trees(struct bch_fs *c)
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_snapshot_tree(trans, &iter, k)));
 
 	if (ret)
@@ -868,7 +868,7 @@ int bch2_check_snapshots(struct bch_fs *c)
 		for_each_btree_key_reverse_commit(trans, iter,
 			BTREE_ID_snapshots, POS_MAX,
 			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_lazy_rw|BCH_TRANS_COMMIT_no_enospc,
+			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_snapshot(trans, &iter, k)));
 	if (ret)
 		bch_err_fn(c, ret);
