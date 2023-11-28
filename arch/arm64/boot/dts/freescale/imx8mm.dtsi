@@ -1153,12 +1153,8 @@
 				clocks = <&clk IMX8MM_CLK_DSI_CORE>,
 					 <&clk IMX8MM_CLK_DSI_PHY_REF>;
 				clock-names = "bus_clk", "sclk_mipi";
-				assigned-clocks = <&clk IMX8MM_CLK_DSI_CORE>,
-						  <&clk IMX8MM_CLK_DSI_PHY_REF>;
-				assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_266M>,
-							 <&clk IMX8MM_CLK_24M>;
-				assigned-clock-rates = <266000000>, <24000000>;
-				samsung,pll-clock-frequency = <24000000>;
+				assigned-clocks = <&clk IMX8MM_CLK_DSI_CORE>;
+				assigned-clock-parents = <&clk IMX8MM_SYS_PLL1_266M>;
 				interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 				power-domains = <&disp_blk_ctrl IMX8MM_DISPBLK_PD_MIPI_DSI>;
 				status = "disabled";
