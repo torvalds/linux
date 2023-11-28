@@ -1202,11 +1202,11 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		allow_state = dc->hwss.get_idle_state(dc);
 		dc->hwss.set_idle_state(dc, false);
 
-		if (allow_state & DMUB_IPS2_ALLOW_MASK) {
+		if (!(allow_state & DMUB_IPS2_ALLOW_MASK)) {
 			// Wait for evaluation time
 			udelay(dc->debug.ips2_eval_delay_us);
 			commit_state = dc->hwss.get_idle_state(dc);
-			if (commit_state & DMUB_IPS2_COMMIT_MASK) {
+			if (!(commit_state & DMUB_IPS2_COMMIT_MASK)) {
 				// Tell PMFW to exit low power state
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
@@ -1216,7 +1216,7 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 				for (i = 0; i < max_num_polls; ++i) {
 					commit_state = dc->hwss.get_idle_state(dc);
-					if (!(commit_state & DMUB_IPS2_COMMIT_MASK))
+					if (commit_state & DMUB_IPS2_COMMIT_MASK)
 						break;
 
 					udelay(1);
@@ -1235,10 +1235,10 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		}
 
 		dc_dmub_srv_notify_idle(dc, false);
-		if (allow_state & DMUB_IPS1_ALLOW_MASK) {
+		if (!(allow_state & DMUB_IPS1_ALLOW_MASK)) {
 			for (i = 0; i < max_num_polls; ++i) {
 				commit_state = dc->hwss.get_idle_state(dc);
-				if (!(commit_state & DMUB_IPS1_COMMIT_MASK))
+				if (commit_state & DMUB_IPS1_COMMIT_MASK)
 					break;
 
 				udelay(1);

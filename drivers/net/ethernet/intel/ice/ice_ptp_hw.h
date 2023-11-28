@@ -282,6 +282,8 @@ int ice_get_cgu_state(struct ice_hw *hw, u8 dpll_idx,
 int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num);
 
 void ice_ptp_init_phy_model(struct ice_hw *hw);
+int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
+				      unsigned long *caps);
 
 #define PFTSYN_SEM_BYTES	4
 

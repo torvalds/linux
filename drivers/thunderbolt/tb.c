@@ -213,7 +213,17 @@ static void tb_add_dp_resources(struct tb_switch *sw)
 		if (!tb_switch_query_dp_resource(sw, port))
 			continue;
 
-		list_add(&port->list, &tcm->dp_resources);
+		/*
+		 * If DP IN on device router exist, position it at the
+		 * beginning of the DP resources list, so that it is used
+		 * before DP IN of the host router. This way external GPU(s)
+		 * will be prioritized when pairing DP IN to a DP OUT.
+		 */
+		if (tb_route(sw))
+			list_add(&port->list, &tcm->dp_resources);
+		else
+			list_add_tail(&port->list, &tcm->dp_resources);
+
 		tb_port_dbg(port, "DP IN resource available\n");
 	}
 }

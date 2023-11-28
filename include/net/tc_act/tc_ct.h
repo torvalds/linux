@@ -58,10 +58,19 @@ static inline struct nf_flowtable *tcf_ct_ft(const struct tc_action *a)
 	return to_ct_params(a)->nf_ft;
 }
 
+static inline struct nf_conntrack_helper *tcf_ct_helper(const struct tc_action *a)
+{
+	return to_ct_params(a)->helper;
+}
+
 #else
 static inline uint16_t tcf_ct_zone(const struct tc_action *a) { return 0; }
 static inline int tcf_ct_action(const struct tc_action *a) { return 0; }
 static inline struct nf_flowtable *tcf_ct_ft(const struct tc_action *a)
+{
+	return NULL;
+}
+static inline struct nf_conntrack_helper *tcf_ct_helper(const struct tc_action *a)
 {
 	return NULL;
 }

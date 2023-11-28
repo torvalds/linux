@@ -5,7 +5,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 
-//#include "bkey_methods.h"
+#include "btree_key_cache_types.h"
 #include "buckets_types.h"
 #include "darray.h"
 #include "errcode.h"
@@ -312,31 +312,6 @@ struct btree_iter {
 #endif
 };
 
-struct btree_key_cache_freelist {
-	struct bkey_cached	*objs[16];
-	unsigned		nr;
-};
-
-struct btree_key_cache {
-	struct mutex		lock;
-	struct rhashtable	table;
-	bool			table_init_done;
-	struct list_head	freed_pcpu;
-	struct list_head	freed_nonpcpu;
-	struct shrinker		*shrink;
-	unsigned		shrink_iter;
-	struct btree_key_cache_freelist __percpu *pcpu_freed;
-
-	atomic_long_t		nr_freed;
-	atomic_long_t		nr_keys;
-	atomic_long_t		nr_dirty;
-};
-
-struct bkey_cached_key {
-	u32			btree_id;
-	struct bpos		pos;
-} __packed __aligned(4);
-
 #define BKEY_CACHED_ACCESSED		0
 #define BKEY_CACHED_DIRTY		1
 
@@ -352,7 +327,6 @@ struct bkey_cached {
 	struct rhash_head	hash;
 	struct list_head	list;
 
-	struct journal_preres	res;
 	struct journal_entry_pin journal;
 	u64			seq;
 
@@ -389,11 +363,7 @@ struct btree_insert_entry {
 	unsigned long		ip_allocated;
 };
 
-#ifndef CONFIG_LOCKDEP
 #define BTREE_ITER_MAX		64
-#else
-#define BTREE_ITER_MAX		32
-#endif
 
 struct btree_trans_commit_hook;
 typedef int (btree_trans_commit_hook_fn)(struct btree_trans *, struct btree_trans_commit_hook *);
@@ -434,6 +404,7 @@ struct btree_trans {
 	bool			journal_transaction_names:1;
 	bool			journal_replay_not_finished:1;
 	bool			notrace_relock_fail:1;
+	bool			write_locked:1;
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
 	unsigned long		last_begin_ip;
@@ -465,11 +436,9 @@ struct btree_trans {
 	struct journal_entry_pin *journal_pin;
 
 	struct journal_res	journal_res;
-	struct journal_preres	journal_preres;
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
 	unsigned		journal_u64s;
-	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
 };
 

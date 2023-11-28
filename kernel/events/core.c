@@ -4828,6 +4828,11 @@ find_get_pmu_context(struct pmu *pmu, struct perf_event_context *ctx,
 	void *task_ctx_data = NULL;
 
 	if (!ctx->task) {
+		/*
+		 * perf_pmu_migrate_context() / __perf_pmu_install_event()
+		 * relies on the fact that find_get_pmu_context() cannot fail
+		 * for CPU contexts.
+		 */
 		struct perf_cpu_pmu_context *cpc;
 
 		cpc = per_cpu_ptr(pmu->cpu_pmu_context, event->cpu);
@@ -12889,6 +12894,9 @@ static void __perf_pmu_install_event(struct pmu *pmu,
 				     int cpu, struct perf_event *event)
 {
 	struct perf_event_pmu_context *epc;
+	struct perf_event_context *old_ctx = event->ctx;
+
+	get_ctx(ctx); /* normally find_get_context() */
 
 	event->cpu = cpu;
 	epc = find_get_pmu_context(pmu, ctx, event);
@@ -12897,6 +12905,11 @@ static void __perf_pmu_install_event(struct pmu *pmu,
 	if (event->state >= PERF_EVENT_STATE_OFF)
 		event->state = PERF_EVENT_STATE_INACTIVE;
 	perf_install_in_context(ctx, event, cpu);
+
+	/*
+	 * Now that event->ctx is updated and visible, put the old ctx.
+	 */
+	put_ctx(old_ctx);
 }
 
 static void __perf_pmu_install(struct perf_event_context *ctx,
@@ -12935,6 +12948,10 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	struct perf_event_context *src_ctx, *dst_ctx;
 	LIST_HEAD(events);
 
+	/*
+	 * Since per-cpu context is persistent, no need to grab an extra
+	 * reference.
+	 */
 	src_ctx = &per_cpu_ptr(&perf_cpu_context, src_cpu)->ctx;
 	dst_ctx = &per_cpu_ptr(&perf_cpu_context, dst_cpu)->ctx;
 

@@ -248,6 +248,7 @@ extern int amdgpu_umsch_mm;
 extern int amdgpu_seamless;
 
 extern int amdgpu_user_partt_mode;
+extern int amdgpu_agp;
 
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)

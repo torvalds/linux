@@ -262,11 +262,14 @@ static uint32_t  __init ms_hyperv_platform(void)
 static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
 {
 	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
+	unsigned int old_cpu, this_cpu;
 
 	if (!unknown_nmi_panic)
 		return NMI_DONE;
 
-	if (atomic_cmpxchg(&nmi_cpu, -1, raw_smp_processor_id()) != -1)
+	old_cpu = -1;
+	this_cpu = raw_smp_processor_id();
+	if (!atomic_try_cmpxchg(&nmi_cpu, &old_cpu, this_cpu))
 		return NMI_HANDLED;
 
 	return NMI_DONE;

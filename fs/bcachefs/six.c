@@ -163,8 +163,11 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		this_cpu_sub(*lock->readers, !ret);
 		preempt_enable();
 
-		if (!ret && (old & SIX_LOCK_WAITING_write))
-			ret = -1 - SIX_LOCK_write;
+		if (!ret) {
+			smp_mb();
+			if (atomic_read(&lock->state) & SIX_LOCK_WAITING_write)
+				ret = -1 - SIX_LOCK_write;
+		}
 	} else if (type == SIX_LOCK_write && lock->readers) {
 		if (try) {
 			atomic_add(SIX_LOCK_HELD_write, &lock->state);

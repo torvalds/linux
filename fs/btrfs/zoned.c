@@ -1661,13 +1661,6 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	}
 
 out:
-	if (cache->alloc_offset > fs_info->zone_size) {
-		btrfs_err(fs_info,
-			"zoned: invalid write pointer %llu in block group %llu",
-			cache->alloc_offset, cache->start);
-		ret = -EIO;
-	}
-
 	if (cache->alloc_offset > cache->zone_capacity) {
 		btrfs_err(fs_info,
 "zoned: invalid write pointer %llu (larger than zone capacity %llu) in block group %llu",
