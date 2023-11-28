@@ -743,4 +743,6 @@ static inline void spi_nor_debugfs_register(struct spi_nor *nor) {}
 static inline void spi_nor_debugfs_shutdown(void) {}
 #endif
 
+int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len);
+
 #endif /* __LINUX_MTD_SPI_NOR_INTERNAL_H */

@@ -44,6 +44,8 @@ int spi_nor_read_w25q02gjv(struct mtd_info *mtd, loff_t from, size_t len,
 			   size_t *retlen, u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
+	loff_t from_lock = from;
+	size_t len_lock = len;
 	ssize_t ret;
 	loff_t addr = from;
 	size_t read_len;
@@ -51,7 +53,7 @@ int spi_nor_read_w25q02gjv(struct mtd_info *mtd, loff_t from, size_t len,
 
 	dev_dbg(nor->dev, "from 0x%08x, len %zd\n", (u32)from, len);
 
-	ret = spi_nor_lock_and_prep(nor);
+	ret = spi_nor_prep_and_lock_rd(nor, from_lock, len_lock);
 	if (ret)
 		return ret;
 

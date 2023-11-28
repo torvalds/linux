@@ -573,8 +573,8 @@ int spi_nor_set_4byte_addr_mode_wren_en4b_ex4b(struct spi_nor *nor, bool enable)
  *		address mode.
  *
  * 8-bit volatile bank register used to define A[30:A24] bits. MSB (bit[7]) is
- * used to enable/disable 4-byte address mode. When MSB is set to ‘1’, 4-byte
- * address mode is active and A[30:24] bits are don’t care. Write instruction is
+ * used to enable/disable 4-byte address mode. When MSB is set to '1', 4-byte
+ * address mode is active and A[30:24] bits are don't care. Write instruction is
  * SPINOR_OP_BRWR(17h) with 1 byte of data.
  *
  * Return: 0 on success, -errno otherwise.
@@ -1426,7 +1426,7 @@ static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
 	mutex_unlock(&nor->lock);
 }
 
-static int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len)
+int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len)
 {
 	int ret;
 
