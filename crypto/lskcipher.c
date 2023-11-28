@@ -90,6 +90,7 @@ static int crypto_lskcipher_crypt_unaligned(
 	u8 *iv, int (*crypt)(struct crypto_lskcipher *tfm, const u8 *src,
 			     u8 *dst, unsigned len, u8 *iv, u32 flags))
 {
+	unsigned statesize = crypto_lskcipher_statesize(tfm);
 	unsigned ivsize = crypto_lskcipher_ivsize(tfm);
 	unsigned bs = crypto_lskcipher_blocksize(tfm);
 	unsigned cs = crypto_lskcipher_chunksize(tfm);
@@ -104,7 +105,7 @@ static int crypto_lskcipher_crypt_unaligned(
 	if (!tiv)
 		return -ENOMEM;
 
-	memcpy(tiv, iv, ivsize);
+	memcpy(tiv, iv, ivsize + statesize);
 
 	p = kmalloc(PAGE_SIZE, GFP_ATOMIC);
 	err = -ENOMEM;
@@ -132,7 +133,7 @@ static int crypto_lskcipher_crypt_unaligned(
 	err = len ? -EINVAL : 0;
 
 out:
-	memcpy(iv, tiv, ivsize);
+	memcpy(iv, tiv, ivsize + statesize);
 	kfree_sensitive(p);
 	kfree_sensitive(tiv);
 	return err;
@@ -197,24 +198,44 @@ EXPORT_SYMBOL_GPL(crypto_lskcipher_decrypt);
 static int crypto_lskcipher_crypt_sg(struct skcipher_request *req,
 				     int (*crypt)(struct crypto_lskcipher *tfm,
 						  const u8 *src, u8 *dst,
-						  unsigned len, u8 *iv,
+						  unsigned len, u8 *ivs,
 						  u32 flags))
 {
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct crypto_lskcipher **ctx = crypto_skcipher_ctx(skcipher);
+	u8 *ivs = skcipher_request_ctx(req);
 	struct crypto_lskcipher *tfm = *ctx;
 	struct skcipher_walk walk;
+	unsigned ivsize;
+	u32 flags;
 	int err;
+
+	ivsize = crypto_lskcipher_ivsize(tfm);
+	ivs = PTR_ALIGN(ivs, crypto_skcipher_alignmask(skcipher) + 1);
+
+	flags = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	if (req->base.flags & CRYPTO_SKCIPHER_REQ_CONT)
+		flags |= CRYPTO_LSKCIPHER_FLAG_CONT;
+	else
+		memcpy(ivs, req->iv, ivsize);
+
+	if (!(req->base.flags & CRYPTO_SKCIPHER_REQ_NOTFINAL))
+		flags |= CRYPTO_LSKCIPHER_FLAG_FINAL;
 
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while (walk.nbytes) {
 		err = crypt(tfm, walk.src.virt.addr, walk.dst.virt.addr,
-			    walk.nbytes, walk.iv,
-			    walk.nbytes == walk.total ?
-			    CRYPTO_LSKCIPHER_FLAG_FINAL : 0);
+			    walk.nbytes, ivs,
+			    flags & ~(walk.nbytes == walk.total ?
+			    0 : CRYPTO_LSKCIPHER_FLAG_FINAL));
 		err = skcipher_walk_done(&walk, err);
+		flags |= CRYPTO_LSKCIPHER_FLAG_CONT;
 	}
+
+	if (flags & CRYPTO_LSKCIPHER_FLAG_FINAL)
+		memcpy(req->iv, ivs, ivsize);
 
 	return err;
 }
@@ -278,6 +299,7 @@ static void __maybe_unused crypto_lskcipher_show(
 	seq_printf(m, "max keysize  : %u\n", skcipher->co.max_keysize);
 	seq_printf(m, "ivsize       : %u\n", skcipher->co.ivsize);
 	seq_printf(m, "chunksize    : %u\n", skcipher->co.chunksize);
+	seq_printf(m, "statesize    : %u\n", skcipher->co.statesize);
 }
 
 static int __maybe_unused crypto_lskcipher_report(

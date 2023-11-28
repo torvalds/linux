@@ -747,6 +747,39 @@ int crypto_skcipher_encrypt(struct skcipher_request *req);
 int crypto_skcipher_decrypt(struct skcipher_request *req);
 
 /**
+ * crypto_skcipher_export() - export partial state
+ * @req: reference to the skcipher_request handle that holds all information
+ *	 needed to perform the operation
+ * @out: output buffer of sufficient size that can hold the state
+ *
+ * Export partial state of the transformation. This function dumps the
+ * entire state of the ongoing transformation into a provided block of
+ * data so it can be @import 'ed back later on. This is useful in case
+ * you want to save partial result of the transformation after
+ * processing certain amount of data and reload this partial result
+ * multiple times later on for multiple re-use. No data processing
+ * happens at this point.
+ *
+ * Return: 0 if the cipher operation was successful; < 0 if an error occurred
+ */
+int crypto_skcipher_export(struct skcipher_request *req, void *out);
+
+/**
+ * crypto_skcipher_import() - import partial state
+ * @req: reference to the skcipher_request handle that holds all information
+ *	 needed to perform the operation
+ * @in: buffer holding the state
+ *
+ * Import partial state of the transformation. This function loads the
+ * entire state of the ongoing transformation from a provided block of
+ * data so the transformation can continue from this point onward. No
+ * data processing happens at this point.
+ *
+ * Return: 0 if the cipher operation was successful; < 0 if an error occurred
+ */
+int crypto_skcipher_import(struct skcipher_request *req, const void *in);
+
+/**
  * crypto_lskcipher_encrypt() - encrypt plaintext
  * @tfm: lskcipher handle
  * @src: source buffer
