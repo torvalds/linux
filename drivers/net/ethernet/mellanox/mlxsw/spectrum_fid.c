@@ -493,6 +493,32 @@ static void mlxsw_sp_fid_pack_ctl(char *sfmr_pl,
 					     fid->fid_family->bridge_type);
 }
 
+static u16
+mlxsw_sp_fid_off_pgt_base_cff(const struct mlxsw_sp_fid_family *fid_family,
+			      u16 fid_offset)
+{
+	return fid_family->pgt_base +
+		fid_offset * fid_family->flood_profile->nr_flood_tables;
+}
+
+static u16 mlxsw_sp_fid_pgt_base_cff(const struct mlxsw_sp_fid *fid)
+{
+	return mlxsw_sp_fid_off_pgt_base_cff(fid->fid_family, fid->fid_offset);
+}
+
+static void mlxsw_sp_fid_fid_pack_cff(char *sfmr_pl,
+				      const struct mlxsw_sp_fid *fid,
+				      enum mlxsw_reg_sfmr_op op)
+{
+	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
+	u16 pgt_base = mlxsw_sp_fid_pgt_base_cff(fid);
+
+	mlxsw_sp_fid_pack(sfmr_pl, fid, op);
+	mlxsw_reg_sfmr_cff_mid_base_set(sfmr_pl, pgt_base);
+	mlxsw_reg_sfmr_cff_prf_id_set(sfmr_pl,
+				      fid_family->flood_profile->profile_id);
+}
+
 static int mlxsw_sp_fid_op(const struct mlxsw_sp_fid *fid, bool valid)
 {
 	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
@@ -1168,6 +1194,32 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops_ctl = {
 	.fid_pack		= mlxsw_sp_fid_pack_ctl,
 };
 
+static u16
+mlxsw_sp_fid_fid_mid_cff(const struct mlxsw_sp_fid *fid,
+			 const struct mlxsw_sp_flood_table *flood_table)
+{
+	return mlxsw_sp_fid_pgt_base_cff(fid) + flood_table->table_index;
+}
+
+static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops_cff = {
+	.setup			= mlxsw_sp_fid_8021d_setup,
+	.configure		= mlxsw_sp_fid_8021d_configure,
+	.deconfigure		= mlxsw_sp_fid_8021d_deconfigure,
+	.index_alloc		= mlxsw_sp_fid_8021d_index_alloc,
+	.compare		= mlxsw_sp_fid_8021d_compare,
+	.port_vid_map		= mlxsw_sp_fid_8021d_port_vid_map,
+	.port_vid_unmap		= mlxsw_sp_fid_8021d_port_vid_unmap,
+	.vni_set		= mlxsw_sp_fid_8021d_vni_set,
+	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+	.fdb_clear_offload	= mlxsw_sp_fid_8021d_fdb_clear_offload,
+	.vid_to_fid_rif_update	= mlxsw_sp_fid_8021d_vid_to_fid_rif_update,
+	.pgt_size		= mlxsw_sp_fid_8021d_pgt_size,
+	.fid_mid		= mlxsw_sp_fid_fid_mid_cff,
+	.fid_pack		= mlxsw_sp_fid_fid_pack_cff,
+};
+
 #define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
 #define MLXSW_SP_FID_RFID_MAX (11 * 1024)
 
@@ -1522,6 +1574,25 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_ops_ctl = {
 	.fid_pack		= mlxsw_sp_fid_pack_ctl,
 };
 
+static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_ops_cff = {
+	.setup			= mlxsw_sp_fid_8021q_setup,
+	.configure		= mlxsw_sp_fid_8021q_configure,
+	.deconfigure		= mlxsw_sp_fid_8021q_deconfigure,
+	.index_alloc		= mlxsw_sp_fid_8021d_index_alloc,
+	.compare		= mlxsw_sp_fid_8021q_compare,
+	.port_vid_map		= mlxsw_sp_fid_8021q_port_vid_map,
+	.port_vid_unmap		= mlxsw_sp_fid_8021q_port_vid_unmap,
+	.vni_set		= mlxsw_sp_fid_8021d_vni_set,
+	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+	.fdb_clear_offload	= mlxsw_sp_fid_8021q_fdb_clear_offload,
+	.vid_to_fid_rif_update	= mlxsw_sp_fid_8021q_vid_to_fid_rif_update,
+	.pgt_size		= mlxsw_sp_fid_8021d_pgt_size,
+	.fid_mid		= mlxsw_sp_fid_fid_mid_cff,
+	.fid_pack		= mlxsw_sp_fid_fid_pack_cff,
+};
+
 /* There are 4K-2 802.1Q FIDs */
 #define MLXSW_SP_FID_8021Q_START	1 /* FID 0 is reserved. */
 #define MLXSW_SP_FID_8021Q_END		(MLXSW_SP_FID_8021Q_START + \
@@ -1633,7 +1704,32 @@ static const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr_ctl[] = {
 	[MLXSW_SP_FID_TYPE_RFID]	= &mlxsw_sp_fid_rfid_family_ctl,
 };
 
+static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021q_family_cff = {
+	.type			= MLXSW_SP_FID_TYPE_8021Q,
+	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
+	.start_index		= MLXSW_SP_FID_8021Q_START,
+	.end_index		= MLXSW_SP_FID_8021Q_END,
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
+	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
+	.ops			= &mlxsw_sp_fid_8021q_ops_cff,
+	.smpe_index_valid	= true,
+};
+
+static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021d_family_cff = {
+	.type			= MLXSW_SP_FID_TYPE_8021D,
+	.fid_size		= sizeof(struct mlxsw_sp_fid_8021d),
+	.start_index		= MLXSW_SP_FID_8021D_START,
+	.end_index		= MLXSW_SP_FID_8021D_END,
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
+	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
+	.ops			= &mlxsw_sp_fid_8021d_ops_cff,
+	.smpe_index_valid	= true,
+};
+
 static const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr_cff[] = {
+	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp2_fid_8021q_family_cff,
+	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp2_fid_8021d_family_cff,
+	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp2_fid_dummy_family,
 };
 
 static struct mlxsw_sp_fid *mlxsw_sp_fid_lookup(struct mlxsw_sp *mlxsw_sp,
