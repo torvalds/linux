@@ -368,7 +368,7 @@ struct mana_ethtool_stats {
 	u64 hc_tx_err_vlan_enforcement;
 	u64 hc_tx_err_eth_type_enforcement;
 	u64 hc_tx_err_sa_enforcement;
-	u64 hc_tx_err_sqpdid_enforecement;
+	u64 hc_tx_err_sqpdid_enforcement;
 	u64 hc_tx_err_cqpdid_enforcement;
 	u64 hc_tx_err_mtu_violation;
 	u64 hc_tx_err_inval_oob;
