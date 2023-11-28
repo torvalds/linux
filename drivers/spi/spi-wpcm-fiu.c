@@ -441,7 +441,7 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	struct wpcm_fiu_spi *fiu;
 	struct resource *res;
 
-	ctrl = devm_spi_alloc_master(dev, sizeof(*fiu));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
 		return -ENOMEM;
 
