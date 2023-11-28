@@ -330,7 +330,7 @@ static void xe_mmio_probe_tiles(struct xe_device *xe)
 	if (tile_count == 1)
 		goto add_mmio_ext;
 
-	if (!xe->info.bypass_mtcfg) {
+	if (!xe->info.skip_mtcfg) {
 		mtcfg = xe_mmio_read64_2x32(gt, XEHP_MTCFG_ADDR);
 		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
 		if (tile_count < xe->info.tile_count) {
