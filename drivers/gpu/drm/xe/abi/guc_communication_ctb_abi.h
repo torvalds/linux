@@ -120,49 +120,8 @@ static_assert(sizeof(struct guc_ct_buffer_desc) == 64);
  * is based on u32 data stream written to the shared buffer. One buffer can
  * be used to transmit data only in one direction (one-directional channel).
  *
- * Current status of the each buffer is stored in the buffer descriptor.
- * Buffer descriptor holds tail and head fields that represents active data
- * stream. The tail field is updated by the data producer (sender), and head
- * field is updated by the data consumer (receiver)::
- *
- *      +------------+
- *      | DESCRIPTOR |          +=================+============+========+
- *      +============+          |                 | MESSAGE(s) |        |
- *      | address    |--------->+=================+============+========+
- *      +------------+
- *      | head       |          ^-----head--------^
- *      +------------+
- *      | tail       |          ^---------tail-----------------^
- *      +------------+
- *      | size       |          ^---------------size--------------------^
- *      +------------+
- *
- * Each message in data stream starts with the single u32 treated as a header,
- * followed by optional set of u32 data that makes message specific payload::
- *
- *      +------------+---------+---------+---------+
- *      |         MESSAGE                          |
- *      +------------+---------+---------+---------+
- *      |   msg[0]   |   [1]   |   ...   |  [n-1]  |
- *      +------------+---------+---------+---------+
- *      |   MESSAGE  |       MESSAGE PAYLOAD       |
- *      +   HEADER   +---------+---------+---------+
- *      |            |    0    |   ...   |    n    |
- *      +======+=====+=========+=========+=========+
- *      | 31:16| code|         |         |         |
- *      +------+-----+         |         |         |
- *      |  15:5|flags|         |         |         |
- *      +------+-----+         |         |         |
- *      |   4:0|  len|         |         |         |
- *      +------+-----+---------+---------+---------+
- *
- *                   ^-------------len-------------^
- *
- * The message header consists of:
- *
- * - **len**, indicates length of the message payload (in u32)
- * - **code**, indicates message code
- * - **flags**, holds various bits to control message handling
+ * Current status of the each buffer is maintained in the `CTB Descriptor`_.
+ * Each message in data stream is encoded as `CTB HXG Message`_.
  */
 
 #endif
