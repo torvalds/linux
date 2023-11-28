@@ -290,20 +290,26 @@ static void dcn10_log_color_state(struct dc *dc,
 	struct resource_pool *pool = dc->res_pool;
 	int i;
 
-	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
-			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
-			"C31 C32   C33 C34\n");
+	DTN_INFO("DPP:    IGAM format    IGAM mode    DGAM mode    RGAM mode"
+		 "  GAMUT adjust  "
+		 "C11        C12        C13        C14        "
+		 "C21        C22        C23        C24        "
+		 "C31        C32        C33        C34        \n");
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct dpp *dpp = pool->dpps[i];
 		struct dcn_dpp_state s = {0};
 
 		dpp->funcs->dpp_read_state(dpp, &s);
+		dpp->funcs->dpp_get_gamut_remap(dpp, &s.gamut_remap);
 
 		if (!s.is_enabled)
 			continue;
 
-		DTN_INFO("[%2d]:  %11xh  %-11s  %-11s  %-11s"
-				"%8x    %08xh %08xh %08xh %08xh %08xh %08xh",
+		DTN_INFO("[%2d]:  %11xh  %11s    %9s    %9s"
+			 "  %12s  "
+			 "%010lld %010lld %010lld %010lld "
+			 "%010lld %010lld %010lld %010lld "
+			 "%010lld %010lld %010lld %010lld",
 				dpp->inst,
 				s.igam_input_format,
 				(s.igam_lut_mode == 0) ? "BypassFixed" :
@@ -323,13 +329,21 @@ static void dcn10_log_color_state(struct dc *dc,
 					((s.rgam_lut_mode == 3) ? "RAM" :
 					((s.rgam_lut_mode == 4) ? "RAM" :
 								 "Unknown")))),
-				s.gamut_remap_mode,
-				s.gamut_remap_c11_c12,
-				s.gamut_remap_c13_c14,
-				s.gamut_remap_c21_c22,
-				s.gamut_remap_c23_c24,
-				s.gamut_remap_c31_c32,
-				s.gamut_remap_c33_c34);
+				(s.gamut_remap.gamut_adjust_type == 0) ? "Bypass" :
+					((s.gamut_remap.gamut_adjust_type == 1) ? "HW" :
+										  "SW"),
+				s.gamut_remap.temperature_matrix[0].value,
+				s.gamut_remap.temperature_matrix[1].value,
+				s.gamut_remap.temperature_matrix[2].value,
+				s.gamut_remap.temperature_matrix[3].value,
+				s.gamut_remap.temperature_matrix[4].value,
+				s.gamut_remap.temperature_matrix[5].value,
+				s.gamut_remap.temperature_matrix[6].value,
+				s.gamut_remap.temperature_matrix[7].value,
+				s.gamut_remap.temperature_matrix[8].value,
+				s.gamut_remap.temperature_matrix[9].value,
+				s.gamut_remap.temperature_matrix[10].value,
+				s.gamut_remap.temperature_matrix[11].value);
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
