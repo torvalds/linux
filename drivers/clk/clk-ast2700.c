@@ -36,7 +36,7 @@
 #define AST2700_SOC1_APLL_PARAM 0xD0
 #define AST2700_SOC1_DPLL_PARAM 0xE0
 #define AST2700_SOC1_UXCLK_CTRL 0xF0
-#define AST2700_SOC1_HUXCLK_CTRL 0x100
+#define AST2700_SOC1_HUXCLK_CTRL 0xF4
 
 /* Globally visible clocks */
 static DEFINE_SPINLOCK(ast2700_clk_lock);
@@ -139,7 +139,7 @@ static struct clk_hw *ast2700_calc_uclk(const char *name, u32 val)
 	unsigned int mult, div;
 
 	/* UARTCLK = UXCLK * R / (N * 2) */
-	u32 r = val & 0x3f;
+	u32 r = val & 0xff;
 	u32 n = (val >> 8) & 0x3ff;
 
 	mult = r;
@@ -153,7 +153,7 @@ static struct clk_hw *ast2700_calc_huclk(const char *name, u32 val)
 	unsigned int mult, div;
 
 	/* UARTCLK = UXCLK * R / (N * 2) */
-	u32 r = val & 0x3f;
+	u32 r = val & 0xff;
 	u32 n = (val >> 8) & 0x3ff;
 
 	mult = r;
@@ -433,7 +433,7 @@ static int ast2700_soc1_clk_init(struct platform_device *pdev)
 	of_property_read_u32(dev->of_node, "uart-clk-source", &uart_clk_source);
 
 	if (uart_clk_source) {
-		val = readl(clk_base + AST2700_SOC1_CLK_SEL1) & GENMASK(12, 0);
+		val = readl(clk_base + AST2700_SOC1_CLK_SEL1) & ~GENMASK(12, 0);
 		uart_clk_source &= GENMASK(12, 0);
 		writel(val | uart_clk_source, clk_base + AST2700_SOC1_CLK_SEL1);
 	}
