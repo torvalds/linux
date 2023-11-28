@@ -866,6 +866,75 @@ TRACE_EVENT(f2fs_lookup_end,
 		__entry->err)
 );
 
+TRACE_EVENT(f2fs_rename_start,
+
+	TP_PROTO(struct inode *old_dir, struct dentry *old_dentry,
+			struct inode *new_dir, struct dentry *new_dentry,
+			unsigned int flags),
+
+	TP_ARGS(old_dir, old_dentry, new_dir, new_dentry, flags),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(ino_t,		ino)
+		__string(old_name,	old_dentry->d_name.name)
+		__field(ino_t,		new_pino)
+		__string(new_name,	new_dentry->d_name.name)
+		__field(unsigned int,	flags)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= old_dir->i_sb->s_dev;
+		__entry->ino		= old_dir->i_ino;
+		__assign_str(old_name, old_dentry->d_name.name);
+		__entry->new_pino	= new_dir->i_ino;
+		__assign_str(new_name, new_dentry->d_name.name);
+		__entry->flags		= flags;
+	),
+
+	TP_printk("dev = (%d,%d), old_dir = %lu, old_name: %s, "
+		"new_dir = %lu, new_name: %s, flags = %u",
+		show_dev_ino(__entry),
+		__get_str(old_name),
+		__entry->new_pino,
+		__get_str(new_name),
+		__entry->flags)
+);
+
+TRACE_EVENT(f2fs_rename_end,
+
+	TP_PROTO(struct dentry *old_dentry, struct dentry *new_dentry,
+			unsigned int flags, int ret),
+
+	TP_ARGS(old_dentry, new_dentry, flags, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev)
+		__field(ino_t,		ino)
+		__string(old_name,	old_dentry->d_name.name)
+		__string(new_name,	new_dentry->d_name.name)
+		__field(unsigned int,	flags)
+		__field(int,		ret)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= old_dentry->d_sb->s_dev;
+		__entry->ino		= old_dentry->d_inode->i_ino;
+		__assign_str(old_name, old_dentry->d_name.name);
+		__assign_str(new_name, new_dentry->d_name.name);
+		__entry->flags		= flags;
+		__entry->ret		= ret;
+	),
+
+	TP_printk("dev = (%d,%d), ino = %lu, old_name: %s, "
+		"new_name: %s, flags = %u, ret = %d",
+		show_dev_ino(__entry),
+		__get_str(old_name),
+		__get_str(new_name),
+		__entry->flags,
+		__entry->ret)
+);
+
 TRACE_EVENT(f2fs_readdir,
 
 	TP_PROTO(struct inode *dir, loff_t start_pos, loff_t end_pos, int err),
