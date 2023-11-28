@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2023 Aspeed Technology Inc.
+
+/dts-v1/;
+
+#include "aspeed-ast2600-evb.dts"
+
+/ {
+	firmware {
+		optee: optee@b0000000 {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	reserved-memory {
+		optee_core: optee_core@b0000000 {
+			reg = <0xb0000000 0x1000000>;
+			no-map;
+		};
+	};
+};

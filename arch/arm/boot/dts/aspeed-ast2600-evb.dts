@@ -1,0 +1,773 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright 2019 IBM Corp.
+
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+
+/ {
+	model = "AST2600 EVB";
+	compatible = "aspeed,ast2600-evb", "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp0_reserved: mctp0_reserved@b1000000 {
+			reg = <0xb1000000 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp1_reserved: mctp1_reserved@b1010000 {
+			reg = <0xb1010000 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+	};
+
+	vcc_sdhci0: regulator-vcc-sdhci0 {
+		compatible = "regulator-fixed";
+		regulator-name = "SDHCI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhci0: regulator-vccq-sdhci0 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHCI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1>,
+			 <1800000 0>;
+	};
+
+	vcc_sdhci1: regulator-vcc-sdhci1 {
+		compatible = "regulator-fixed";
+		regulator-name = "SDHCI1 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhci1: regulator-vccq-sdhci1 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHCI1 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1>,
+			 <1800000 0>;
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+				<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};
+};
+
+&mdio0 {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&adc0 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
+};
+
+&emmc_controller {
+	status = "okay";
+	aspeed-max-tap-delay = <736>;
+	mmc-hs200-1_8v;
+};
+
+&emmc {
+	status = "okay";
+#if 1
+	bus-width = <4>;
+#else
+	bus-width = <8>;
+	pinctrl-0 = <&pinctrl_emmc_default
+			&pinctrl_emmcg8_default>;
+#endif
+	non-removable;
+	max-frequency = <100000000>;
+	/* <0 (MHz * 0.26496)>, <1 (MHz * 0.04968 + 180)> */
+	clk-phase-mmc-hs200 = <0 27>, <1 185>;
+	/*
+	 * max-frequency = <200000000>;
+	 * clk-phase-mmc-hs200 = <0 53>, <1 190>;
+	 */
+};
+
+&rtc {
+	status = "okay";
+};
+
+&fmc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fwqspi_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+#include "aspeed-evb-flash-layout-64.dtsi"
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "fmc0:1";
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "fmc0:2";
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+};
+
+&peci0 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default &pinctrl_spi1cs1_default
+				 &pinctrl_qspi1_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1:0";
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi1:1";
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default &pinctrl_spi2cs1_default
+				&pinctrl_spi2cs2_default &pinctrl_qspi2_default>;
+	status = "okay";
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi2:0";
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+
+	flash@1 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:1";
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+
+	flash@2 {
+		status = "disabled";
+		m25p,fast-read;
+		label = "spi2:2";
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		spi-max-frequency = <50000000>;
+	};
+};
+
+#if 0
+&pcie_vuart0 {
+	port = <0x3f8>;
+	sirq = <4>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_vuart1 {
+	port = <0x2f8>;
+	sirq = <3>;
+	sirq-polarity = <0>;
+
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <5>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <6>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <7>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <8>;
+	status = "okay";
+};
+
+&pcie_ibt {
+	status = "okay";
+};
+
+&bmc_dev {
+	status = "okay";
+	memory-region = <&bmc_dev_memory>;
+};
+#endif
+
+
+&i2c4 {
+	status = "okay";
+
+	ssif-bmc@10 {
+		compatible = "ssif-bmc";
+		reg = <0x10>;
+	};
+};
+
+&i2c5 {
+	status = "okay";
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <0x10>;
+		i2c-protocol;
+	};
+};
+
+&i2c6 {
+	status = "okay";
+
+	ipmb@12 {
+		compatible = "ipmb-dev";
+		reg = <0x12>;
+		i2c-protocol;
+	};
+};
+
+&i2c7 {
+	status = "okay";
+
+	temp@2e {
+		compatible = "adi,adt7490";
+		reg = <0x2e>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+
+};
+
+&i2c8 {
+	status = "okay";
+
+	lm75@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
+
+};
+
+&i2c9 {
+	status = "okay";
+};
+
+&jtag1 {
+	status = "okay";
+};
+
+#if 0
+&ehci0 {
+	status = "okay";
+};
+#endif
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+	pinctrl-names = "default";
+#if 0
+	pinctrl-0 = <&pinctrl_usb2adp_default>;
+#endif
+};
+
+#if 0
+&udc {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usb2bd_default>;
+};
+#endif
+
+&uphyb {
+	status = "okay";
+};
+
+&sdc {
+	status = "okay";
+};
+
+/*
+ * The signal voltage of sdhci0 and sdhci1 on AST2600-A2 EVB is able to be
+ * toggled by GPIO pins.
+ * In the reference design, GPIOV0 of AST2600-A2 EVB is connected to the
+ * power load switch that provides 3.3v to sdhci0 vdd, GPIOV1 is connected to
+ * a 1.8v and a 3.3v power load switch that provides signal voltage to
+ * sdhci0 bus.
+ * If GPIOV0 is active high, sdhci0 is enabled, otherwise, sdhci0 is disabled.
+ * If GPIOV1 is active high, 3.3v power load switch is enabled, sdhci0 signal
+ * voltage is 3.3v, otherwise, 1.8v power load switch will be enabled,
+ * sdhci0 signal voltage becomes 1.8v.
+ * AST2600-A2 EVB also supports toggling signal voltage for sdhci1.
+ * The design is the same as sdhci0, it uses GPIOV2 as power-gpio and GPIOV3
+ * as power-switch-gpio.
+ */
+&sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	sdhci-caps-mask = <0x6 0x0>;
+	sdhci,wp-inverted;
+	vmmc-supply = <&vcc_sdhci0>;
+	vqmmc-supply = <&vccq_sdhci0>;
+	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
+};
+
+&sdhci1 {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <100000000>;
+	sdhci-drive-type = /bits/ 8 <3>;
+	sdhci-caps-mask = <0x6 0x0>;
+	sdhci,wp-inverted;
+	vmmc-supply = <&vcc_sdhci1>;
+	vqmmc-supply = <&vccq_sdhci1>;
+	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+
+&pciecfg {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&espi {
+	status = "okay";
+	perif-dma-mode;
+	oob-dma-mode;
+	flash-dma-mode;
+};
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
+&ibt {
+	status = "okay";
+};
+
+&kcs1 {
+	kcs-io-addr = <0xca0>;
+	kcs-channel = <1>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs-io-addr = <0xca8>;
+	kcs-channel = <2>;
+	status = "okay";
+};
+
+&kcs3 {
+	status = "okay";
+	kcs-io-addr = <0xca2>;
+	kcs-channel = <3>;
+};
+
+&kcs4 {
+	status = "okay";
+	kcs-io-addr = <0xca4>;
+	kcs-channel = <4>;
+};
+
+&mbox {
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <5>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <6>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <7>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <8>;
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart10 {
+	status = "okay";
+};
+
+&uart11 {
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
+/*
+ * Aspeed I3C daughter card configuration
+ *
+ * IMX3102: 2-to-1 multiplexier
+ * SPD5118: SPD Hub device
+ *
+ * +---------------------+
+ * | SoC		 |
+ * |			 |
+ * | I3C controller #0 - | --+
+ * |			 |    \			SPD5118@50 (I3C mode)
+ * |			 |     +-----------+	|
+ * |			 |     | IMX3102@f | ---+--+---- i3c bus
+ * |			 |     | (I3C mode)|	   |
+ * |			 |     +-----------+	   |
+ * |			 |    /			   SPD5118@51 (I3C mode)
+ * | I3C controller #1 - | --+
+ * |			 |
+ * |			 |
+ * | I3C controller #2 - | --+
+ * |			 |    \			SPD5118@52 (I2C mode)
+ * |			 |     +-----------+	|
+ * |			 |     | IMX3102@f | ---+--+---- i2c bus
+ * |			 |     | (I2C mode)|	   |
+ * |			 |     +-----------+	   |
+ * |			 |    /			   SPD5118@53 (I2C mode)
+ * | I3C controller #3 - | --+
+ * |			 |
+ * +---------------------+
+ */
+#define JESD300_SPD_I2C_MODE(bus, index, addr) \
+spd_ ## bus ## _ ## index: spd@addr { \
+	compatible = "eeprom"; \
+	reg = <0x ## addr 0x0 0x0>;	\
+}
+
+#define JESD300_SPD_I3C_MODE(bus, index, addr) \
+spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
+	reg = <0x ## addr 0x4cc 0x5118 ## index ## 000>; \
+	assigned-address = <0x ## addr>; \
+	dcr = /bits/ 8 <0xda>; \
+	bcr = /bits/ 8 <0x6>; \
+}
+
+#include <dt-bindings/i3c/i3c.h>
+
+&i3c0 {
+	status = "okay";
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_0: i3cmux@f,4cc31020000 {
+		reg = <0xf 0x4cc 0x31020000>;
+		assigned-address = <0xf>;
+		dcr = /bits/ 8 <0xd1>;
+		bcr = /bits/ 8 <0x6>;
+	};
+
+	JESD300_SPD_I3C_MODE(0, 0, 50);
+	JESD300_SPD_I3C_MODE(0, 1, 51);
+};
+
+&i3c1 {
+	status = "okay";
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	 /* Renesas IMX3102 multiplexer w/ thermal sensor */
+	imx3102_1: i3cmux@f,4cc31020000 {
+		reg = <0xf 0x4cc 0x31020000>;
+		assigned-address = <0xf>;
+		dcr = /bits/ 8 <0xd1>;
+		bcr = /bits/ 8 <0x6>;
+	};
+
+	JESD300_SPD_I3C_MODE(1, 0, 50);
+	JESD300_SPD_I3C_MODE(1, 1, 51);
+};
+
+&i3c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c3_default>;
+
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	i3cmux@f {
+		compatible = "eeprom";
+		reg = <0xf 0x0 0x00000000>;
+	};
+
+	JESD300_SPD_I2C_MODE(2, 0, 52);
+	JESD300_SPD_I2C_MODE(2, 1, 53);
+};
+
+&i3c3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c4_default>;
+
+	bus-context = /bits/ 8 <I3C_BUS_CONTEXT_JESD403>;
+	/* Renesas IMX3102 multiplexer w/ thermal sensor */
+	i3cmux@f {
+		compatible = "eeprom";
+		reg = <0xf 0x0 0x00000000>;
+	};
+
+	JESD300_SPD_I2C_MODE(3, 0, 52);
+	JESD300_SPD_I2C_MODE(3, 1, 53);
+};
+
+/*
+ * I3C loopback: connect I3C4 (target) to I3C5 (primary master)
+ * Four devices will be created under /sys/bus/i3c/devices
+ *   i3c-4: represent i3c4 controller, play the role as the target device
+ *   i3c-5: represent i3c5 controller, play the role as the master device
+ *   5-7ec05034000: the device descriptor represents the target device attached
+ *		    to the bus hosted by i3c-5 controller. In this case,
+ *		    5-7ec05034000 maps to the physical device i3c4.
+ *   4-target: the device descriptor represents i3c-4 itself.
+ */
+&i3c4 {
+	initial-role = "target";
+	pid = <0x000007ec 0x05034000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&i3c5 {
+	initial-role = "primary";
+	status = "okay";
+};
