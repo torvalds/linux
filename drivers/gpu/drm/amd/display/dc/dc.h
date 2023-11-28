@@ -1462,6 +1462,8 @@ bool dc_acquire_release_mpc_3dlut(
 		struct dc_transfer_func **shaper);
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
+void get_audio_check(struct audio_info *aud_modes,
+	struct audio_check *aud_chk);
 
 enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
