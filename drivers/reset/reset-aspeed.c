@@ -119,4 +119,9 @@ static struct platform_driver aspeed_reset_driver = {
 	},
 };
 
-builtin_platform_driver(aspeed_reset_driver);
+static int __init aspeed_reset_init(void)
+{
+	return platform_driver_register(&aspeed_reset_driver);
+}
+
+postcore_initcall(aspeed_reset_init);
