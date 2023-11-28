@@ -404,24 +404,25 @@ static __always_inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC;
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_permission_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_TYPE;
+	return esr_fsc_is_permission_fault(kvm_vcpu_get_esr(vcpu));
 }
 
-static __always_inline s8 kvm_vcpu_trap_get_fault_level(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_translation_fault(const struct kvm_vcpu *vcpu)
 {
-	/*
-	 * Note: With the introduction of FEAT_LPA2 an extra level of
-	 * translation (level -1) is added. This level (obviously) doesn't
-	 * follow the previous convention of encoding the 4 levels in the 2 LSBs
-	 * of the FSC so this function breaks if the fault is for level -1.
-	 *
-	 * However, stage2 tables always use concatenated tables for first level
-	 * lookup and therefore it is guaranteed that the level will be between
-	 * 0 and 3, and this function continues to work.
-	 */
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_LEVEL;
+	return esr_fsc_is_translation_fault(kvm_vcpu_get_esr(vcpu));
+}
+
+static inline
+u64 kvm_vcpu_trap_get_perm_fault_granule(const struct kvm_vcpu *vcpu)
+{
+	unsigned long esr = kvm_vcpu_get_esr(vcpu);
+
+	BUG_ON(!esr_fsc_is_permission_fault(esr));
+	return BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(esr & ESR_ELx_FSC_LEVEL));
 }
 
 static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
@@ -464,12 +465,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 		 * first), then a permission fault to allow the flags
 		 * to be set.
 		 */
-		switch (kvm_vcpu_trap_get_fault_type(vcpu)) {
-		case ESR_ELx_FSC_PERM:
-			return true;
-		default:
-			return false;
-		}
+		return kvm_vcpu_trap_is_permission_fault(vcpu);
 	}
 
 	if (kvm_vcpu_trap_is_iabt(vcpu))
