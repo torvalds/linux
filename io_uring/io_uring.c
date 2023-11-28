@@ -3452,9 +3452,9 @@ static void *io_uring_validate_mmap_request(struct file *file,
 		unsigned int bgid;
 
 		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		mutex_lock(&ctx->uring_lock);
+		rcu_read_lock();
 		ptr = io_pbuf_get_address(ctx, bgid);
-		mutex_unlock(&ctx->uring_lock);
+		rcu_read_unlock();
 		if (!ptr)
 			return ERR_PTR(-EINVAL);
 		break;
