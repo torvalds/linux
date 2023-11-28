@@ -294,7 +294,6 @@ struct annotated_branch {
 
 struct LOCKABLE annotation {
 	u64			start;
-	struct annotation_options *options;
 	int			nr_events;
 	int			max_jump_sources;
 	struct {

@@ -3333,8 +3333,6 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	if (err)
 		goto out_free_offsets;
 
-	notes->options = &annotate_opts;
-
 	symbol__calc_percent(sym, evsel);
 
 	annotation__set_offsets(notes, size);
