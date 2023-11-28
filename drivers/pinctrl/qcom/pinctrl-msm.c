@@ -358,6 +358,10 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 	int ret;
 	u32 val;
 
+	/* Pin information can only be requested from valid pin groups */
+	if (!gpiochip_line_is_valid(&pctrl->chip, group))
+		return -EINVAL;
+
 	g = &pctrl->soc->groups[group];
 
 	ret = msm_config_reg(pctrl, g, param, &mask, &bit);
