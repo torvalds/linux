@@ -474,6 +474,12 @@
 		groups = "RGMII1";
         };
 
+
+	pinctrl_fwspi_quad_default: fwspi_quad_default {
+		function = "FWQSPI";
+		groups = "FWQSPI";
+	};
+
 	pinctrl_spi0_default: spi0_default {
 		function = "SPI0";
 		groups = "SPI0";
@@ -502,6 +508,21 @@
 	pinctrl_spi1_cs1_default: spi1_cs1_default {
 		function = "SPI1CS1";
 		groups = "SPI1CS1";
+	};
+
+	pinctrl_spi2_default: spi2_default {
+		function = "SPI2";
+		groups = "SPI2";
+	};
+
+	pinctrl_spi2_quad_default: spi2_quad_default {
+		function = "QSPI2";
+		groups = "QSPI2";
+	};
+
+	pinctrl_spi2_cs1_default: spi2_cs1_default {
+		function = "SPI2CS1";
+		groups = "SPI2CS1";
 	};
 
 	pinctrl_espi0_default: espi0_default {

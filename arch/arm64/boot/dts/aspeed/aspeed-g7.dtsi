@@ -931,7 +931,7 @@
 			compatible = "aspeed,ast2700-spi";
 			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			status = "disabled";
-			num-cs = <3>;
+			num-cs = <2>;
 
 			flash@0 {
 				reg = < 0 >;
@@ -954,18 +954,10 @@
 			reg = <0x0 0x14030000 0x0 0x1f0>, <0x2 0x80000000 0x0 0x80000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			compatible = "aspeed,ast2700-spi-txrx";
 			clocks = <&soc1_clk AST2700_SOC1_CLK_AHB>;
 			resets = <&soc1_rst ASPEED_RESET_SPI2>;
+			num-cs = <2>;
 			status = "disabled";
-
-			spi-aspeed-full-duplex;
-
-			tpm0: tpmdev@0 {
-				compatible = "tcg,tpm_tis-spi";
-				spi-max-frequency = <33000000>;
-				reg = <0>;
-			};
 		};
 
 		can0: can@14c3e000 {
@@ -1758,6 +1750,11 @@
 			interrupts-extended = <&intc4 18>;
 			no-loopback-test;
 			pinctrl-names = "default";
+		};
+
+		wdt1: watchdog@14c37000 {
+			compatible = "aspeed,ast2700-wdt";
+			reg = <0x0 0x14c37000 0x0 0x40>;
 		};
 	};
 };
