@@ -14,7 +14,7 @@
 	speaker_amp: audio-amplifier {
 		compatible = "awinic,aw8738";
 		mode-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
-		awinic,mode = <3>;
+		awinic,mode = <5>;
 		sound-name-prefix = "Speaker Amp";
 	};
 
@@ -185,7 +185,11 @@
 	audio-routing =
 		"AMIC1", "MIC BIAS External1",
 		"AMIC2", "MIC BIAS Internal2",
-		"AMIC3", "MIC BIAS External1";
+		"AMIC3", "MIC BIAS External1",
+		"MM_DL1", "MultiMedia1 Playback",
+		"MM_DL3", "MultiMedia3 Playback",
+		"MM_DL4", "MultiMedia4 Playback",
+		"MultiMedia2 Capture", "MM_UL2";
 
 	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
 	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus>;
@@ -200,4 +204,6 @@
 
 &wcd_codec {
 	/delete-property/ qcom,gnd-jack-type-normally-open;
+	qcom,mbhc-vthreshold-high = <75 225 450 510 540>;
+	qcom,mbhc-vthreshold-low = <25 200 325 500 530>;
 };
