@@ -141,7 +141,11 @@
 	audio-routing =
 		"AMIC1", "MIC BIAS External1",
 		"AMIC2", "MIC BIAS Internal2",
-		"AMIC3", "MIC BIAS External1";
+		"AMIC3", "MIC BIAS External1",
+		"MM_DL1", "MultiMedia1 Playback",
+		"MM_DL3", "MultiMedia3 Playback",
+		"MM_DL4", "MultiMedia4 Playback",
+		"MultiMedia2 Capture", "MM_UL2";
 
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
@@ -157,4 +161,6 @@
 &wcd_codec {
 	/delete-property/ qcom,gnd-jack-type-normally-open;
 	/delete-property/ qcom,hphl-jack-type-normally-open;
+	qcom,mbhc-vthreshold-high = <73 233 438 438 438>;
+	qcom,mbhc-vthreshold-low = <73 233 438 438 438>;
 };
