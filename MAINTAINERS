@@ -15068,6 +15068,7 @@ F:	lib/random32.c
 F:	net/
 F:	tools/net/
 F:	tools/testing/selftests/net/
+X:	net/9p/
 X:	net/bluetooth/
 
 NETWORKING [IPSEC]
