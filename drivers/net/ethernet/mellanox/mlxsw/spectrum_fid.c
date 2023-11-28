@@ -95,6 +95,8 @@ struct mlxsw_sp_fid_ops {
 				  const struct net_device *nve_dev);
 	int (*vid_to_fid_rif_update)(const struct mlxsw_sp_fid *fid,
 				     const struct mlxsw_sp_rif *rif);
+	int (*flood_table_init)(struct mlxsw_sp_fid_family *fid_family,
+				const struct mlxsw_sp_flood_table *flood_table);
 };
 
 struct mlxsw_sp_fid_family {
@@ -1078,8 +1080,8 @@ mlxsw_sp_fid_8021d_vid_to_fid_rif_update(const struct mlxsw_sp_fid *fid,
 }
 
 static int
-mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
-			      const struct mlxsw_sp_flood_table *flood_table)
+mlxsw_sp_fid_flood_table_init_ctl(struct mlxsw_sp_fid_family *fid_family,
+				  const struct mlxsw_sp_flood_table *flood_table)
 {
 	enum mlxsw_sp_flood_type packet_type = flood_table->packet_type;
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
@@ -1121,6 +1123,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops_ctl = {
 	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
 	.fdb_clear_offload	= mlxsw_sp_fid_8021d_fdb_clear_offload,
 	.vid_to_fid_rif_update  = mlxsw_sp_fid_8021d_vid_to_fid_rif_update,
+	.flood_table_init	= mlxsw_sp_fid_flood_table_init_ctl,
 };
 
 #define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
@@ -1462,6 +1465,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_ops_ctl = {
 	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
 	.fdb_clear_offload	= mlxsw_sp_fid_8021q_fdb_clear_offload,
 	.vid_to_fid_rif_update  = mlxsw_sp_fid_8021q_vid_to_fid_rif_update,
+	.flood_table_init	= mlxsw_sp_fid_flood_table_init_ctl,
 };
 
 /* There are 4K-2 802.1Q FIDs */
@@ -1723,9 +1727,12 @@ mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 		const struct mlxsw_sp_flood_table *flood_table;
 
 		flood_table = &fid_family->flood_tables[i];
-		err = mlxsw_sp_fid_flood_table_init(fid_family, flood_table);
-		if (err)
-			goto err_flood_table_init;
+		if (fid_family->ops->flood_table_init) {
+			err = fid_family->ops->flood_table_init(fid_family,
+								flood_table);
+			if (err)
+				goto err_flood_table_init;
+		}
 	}
 
 	return 0;
