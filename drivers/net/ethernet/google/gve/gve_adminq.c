@@ -194,12 +194,19 @@ gve_process_device_options(struct gve_priv *priv,
 
 int gve_adminq_alloc(struct device *dev, struct gve_priv *priv)
 {
-	priv->adminq = dma_alloc_coherent(dev, PAGE_SIZE,
-					  &priv->adminq_bus_addr, GFP_KERNEL);
-	if (unlikely(!priv->adminq))
+	priv->adminq_pool = dma_pool_create("adminq_pool", dev,
+					    GVE_ADMINQ_BUFFER_SIZE, 0, 0);
+	if (unlikely(!priv->adminq_pool))
 		return -ENOMEM;
+	priv->adminq = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				      &priv->adminq_bus_addr);
+	if (unlikely(!priv->adminq)) {
+		dma_pool_destroy(priv->adminq_pool);
+		return -ENOMEM;
+	}
 
-	priv->adminq_mask = (PAGE_SIZE / sizeof(union gve_adminq_command)) - 1;
+	priv->adminq_mask =
+		(GVE_ADMINQ_BUFFER_SIZE / sizeof(union gve_adminq_command)) - 1;
 	priv->adminq_prod_cnt = 0;
 	priv->adminq_cmd_fail = 0;
 	priv->adminq_timeouts = 0;
@@ -251,7 +258,8 @@ void gve_adminq_free(struct device *dev, struct gve_priv *priv)
 	if (!gve_get_admin_queue_ok(priv))
 		return;
 	gve_adminq_release(priv);
-	dma_free_coherent(dev, PAGE_SIZE, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_free(priv->adminq_pool, priv->adminq, priv->adminq_bus_addr);
+	dma_pool_destroy(priv->adminq_pool);
 	gve_clear_admin_queue_ok(priv);
 }
 
@@ -778,8 +786,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	u16 mtu;
 
 	memset(&cmd, 0, sizeof(cmd));
-	descriptor = dma_alloc_coherent(&priv->pdev->dev, PAGE_SIZE,
-					&descriptor_bus, GFP_KERNEL);
+	descriptor = dma_pool_alloc(priv->adminq_pool, GFP_KERNEL,
+				    &descriptor_bus);
 	if (!descriptor)
 		return -ENOMEM;
 	cmd.opcode = cpu_to_be32(GVE_ADMINQ_DESCRIBE_DEVICE);
@@ -787,7 +795,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 						cpu_to_be64(descriptor_bus);
 	cmd.describe_device.device_descriptor_version =
 			cpu_to_be32(GVE_ADMINQ_DEVICE_DESCRIPTOR_VERSION);
-	cmd.describe_device.available_length = cpu_to_be32(PAGE_SIZE);
+	cmd.describe_device.available_length =
+		cpu_to_be32(GVE_ADMINQ_BUFFER_SIZE);
 
 	err = gve_adminq_execute_cmd(priv, &cmd);
 	if (err)
@@ -868,8 +877,7 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 				      dev_op_jumbo_frames, dev_op_dqo_qpl);
 
 free_device_descriptor:
-	dma_free_coherent(&priv->pdev->dev, PAGE_SIZE, descriptor,
-			  descriptor_bus);
+	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);
 	return err;
 }
 

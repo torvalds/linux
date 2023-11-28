@@ -8,6 +8,7 @@
 #define _GVE_H_
 
 #include <linux/dma-mapping.h>
+#include <linux/dmapool.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
@@ -40,6 +41,8 @@
 /* Numbers of NIC tx/rx stats in stats report. */
 #define NIC_TX_STATS_REPORT_NUM	0
 #define NIC_RX_STATS_REPORT_NUM	4
+
+#define GVE_ADMINQ_BUFFER_SIZE 4096
 
 #define GVE_DATA_SLOT_ADDR_PAGE_MASK (~(PAGE_SIZE - 1))
 
@@ -672,6 +675,7 @@ struct gve_priv {
 	/* Admin queue - see gve_adminq.h*/
 	union gve_adminq_command *adminq;
 	dma_addr_t adminq_bus_addr;
+	struct dma_pool *adminq_pool;
 	u32 adminq_mask; /* masks prod_cnt to adminq size */
 	u32 adminq_prod_cnt; /* free-running count of AQ cmds executed */
 	u32 adminq_cmd_fail; /* free-running count of AQ cmds failed */
