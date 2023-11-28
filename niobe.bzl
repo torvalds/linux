@@ -66,6 +66,7 @@ def define_niobe():
         "drivers/usb/dwc3/dwc3-msm.ko",
         "drivers/usb/phy/phy-generic.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
+        "kernel/trace/qcom_ipc_logging.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
     ]

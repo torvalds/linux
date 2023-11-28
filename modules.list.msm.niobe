@@ -41,3 +41,4 @@ gcc-niobe.ko
 dispcc0-niobe.ko
 dispcc1-niobe.ko
 tmecom-intf.ko
+qcom_ipc_logging.ko
