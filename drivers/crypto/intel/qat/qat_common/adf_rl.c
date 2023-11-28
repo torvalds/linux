@@ -812,8 +812,7 @@ static int add_update_sla(struct adf_accel_dev *accel_dev,
 	if (!sla_in) {
 		dev_warn(&GET_DEV(accel_dev),
 			 "SLA input data pointer is missing\n");
-		ret = -EFAULT;
-		goto ret_err;
+		return -EFAULT;
 	}
 
 	/* Input validation */
