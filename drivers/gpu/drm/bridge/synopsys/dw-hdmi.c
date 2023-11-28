@@ -422,14 +422,18 @@ static void repo_hpd_event(struct work_struct *p_work)
 
 	if (hdmi->bridge.dev) {
 		bool change;
+		void *data = hdmi->plat_data->phy_data;
 
 		change = drm_helper_hpd_irq_event(hdmi->bridge.dev);
 
-		if (change && hdmi->cec_adap &&
-		    hdmi->cec_adap->devnode.registered)
-			cec_queue_pin_hpd_event(hdmi->cec_adap,
-						hdmi->hpd_state,
-						ktime_get());
+		if (change) {
+			if (hdmi->plat_data->set_ddc_io)
+				hdmi->plat_data->set_ddc_io(data, hdmi->hpd_state);
+			if (hdmi->cec_adap->devnode.registered)
+				cec_queue_pin_hpd_event(hdmi->cec_adap,
+							hdmi->hpd_state,
+							ktime_get());
+		}
 		drm_bridge_hpd_notify(&hdmi->bridge, status);
 	}
 }
@@ -643,11 +647,7 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 
 		while (retry > 0) {
 			if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD)) {
-				void *data = hdmi->plat_data->phy_data;
-
 				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc read\n");
-				if (hdmi->plat_data->set_ddc_io)
-					hdmi->plat_data->set_ddc_io(data, false);
 				return -EPERM;
 			}
 
@@ -726,11 +726,7 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 
 		while (retry > 0) {
 			if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD)) {
-				void *data = hdmi->plat_data->phy_data;
-
 				dev_dbg(hdmi->dev, "hdmi disconnect, stop ddc write\n");
-				if (hdmi->plat_data->set_ddc_io)
-					hdmi->plat_data->set_ddc_io(data, false);
 				return -EPERM;
 			}
 
@@ -775,7 +771,6 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	struct dw_hdmi *hdmi = i2c_get_adapdata(adap);
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
 	u8 addr = msgs[0].addr;
-	void *data = hdmi->plat_data->phy_data;
 	int i, ret = 0;
 
 	if (addr == DDC_CI_ADDR)
@@ -799,9 +794,6 @@ static int dw_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	}
 
 	mutex_lock(&i2c->lock);
-
-	if (hdmi->plat_data->set_ddc_io)
-		hdmi->plat_data->set_ddc_io(data, true);
 
 	hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
 	udelay(100);
@@ -3990,7 +3982,6 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 					  struct drm_bridge_state *old_state)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
-	void *data = hdmi->plat_data->phy_data;
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
@@ -4001,11 +3992,6 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (hdmi->plat_data->dclk_set)
 		hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, false, 0);
 	mutex_unlock(&hdmi->mutex);
-
-	mutex_lock(&hdmi->i2c->lock);
-	if (hdmi->plat_data->set_ddc_io)
-		hdmi->plat_data->set_ddc_io(data, false);
-	mutex_unlock(&hdmi->i2c->lock);
 }
 
 static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
