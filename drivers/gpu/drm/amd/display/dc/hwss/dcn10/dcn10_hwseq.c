@@ -283,18 +283,12 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 	DTN_INFO("\n");
 }
 
-void dcn10_log_hw_state(struct dc *dc,
-	struct dc_log_buffer_ctx *log_ctx)
+static void dcn10_log_color_state(struct dc *dc,
+				  struct dc_log_buffer_ctx *log_ctx)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
 	int i;
-
-	DTN_INFO_BEGIN();
-
-	dcn10_log_hubbub_state(dc, log_ctx);
-
-	dcn10_log_hubp_states(dc, log_ctx);
 
 	DTN_INFO("DPP:    IGAM format  IGAM mode    DGAM mode    RGAM mode"
 			"  GAMUT mode  C11 C12   C13 C14   C21 C22   C23 C24   "
@@ -352,6 +346,22 @@ void dcn10_log_hw_state(struct dc *dc,
 				s.idle);
 	}
 	DTN_INFO("\n");
+}
+
+void dcn10_log_hw_state(struct dc *dc,
+			struct dc_log_buffer_ctx *log_ctx)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	DTN_INFO_BEGIN();
+
+	dcn10_log_hubbub_state(dc, log_ctx);
+
+	dcn10_log_hubp_states(dc, log_ctx);
+
+	dcn10_log_color_state(dc, log_ctx);
 
 	DTN_INFO("OTG:  v_bs  v_be  v_ss  v_se  vpol  vmax  vmin  vmax_sel  vmin_sel  h_bs  h_be  h_ss  h_se  hpol  htot  vtot  underflow blank_en\n");
 
