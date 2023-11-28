@@ -7,10 +7,15 @@
  */
 
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 
@@ -22,6 +27,11 @@
 
 /* CE Control Register */
 #define CE_CTRL_REG			0x4
+
+#define INTR_CTRL_STATUS_REG		0x08
+#define   SPI_DMA_STATUS		BIT(11)
+
+#define CMD_CTRL_REG			0xc
 
 /* CEx Control Register */
 #define CE0_CTRL_REG			0x10
@@ -42,13 +52,32 @@
 #define   CTRL_IO_MODE_WRITE		0x2
 #define   CTRL_IO_MODE_USER		0x3
 
-#define   CTRL_IO_CMD_MASK		0xf0ff40c3
+#define   CTRL_IO_CMD_MASK		0xf0ff40c7
 
 /* CEx Address Decoding Range Register */
 #define CE0_SEGMENT_ADDR_REG		0x30
 
+#define HOST_DIRECT_ACCESS_CMD_CTRL4	0x6c
+#define HOST_DIRECT_ACCESS_CMD_CTRL2	0x74
+
+#define DMA_CTRL_REG			0x80
+#define   SPI_DMA_ENABLE		BIT(0)
+#define   SPI_DMA_IRQ_EN		BIT(3)
+#define   SPI_DAM_GRANT			BIT(30)
+#define   SPI_DAM_REQUEST		BIT(31)
+#define   DMA_GET_REQ_MAGIC		0xaeed0000
+#define   DMA_DISCARD_REQ_MAGIC		0xdeea0000
+
+#define DMA_FLASH_ADDR_REG		0x84
+#define DMA_RAM_ADDR_REG		0x88
+#define DMA_LEN_REG			0x8c
+
 /* CEx Read timing compensation register */
 #define CE0_TIMING_COMPENSATION_REG	0x94
+
+#define ASPEED_SPI_OP_BUF_LEN		0x4000
+
+static spinlock_t g_lock;
 
 enum aspeed_spi_ctl_reg_value {
 	ASPEED_SPI_BASE,
@@ -64,6 +93,7 @@ struct aspeed_spi_chip {
 	u32			 cs;
 	void __iomem		*ctl;
 	void __iomem		*ahb_base;
+	phys_addr_t		 ahb_base_phy;
 	size_t			 ahb_window_sz;
 	u32			 ctl_val[ASPEED_SPI_MAX];
 	u32			 clk_freq;
@@ -87,16 +117,28 @@ struct aspeed_spi_data {
 	u32 (*get_clk_div)(struct aspeed_spi_chip *chip, u32 hz);
 	int (*calibrate)(struct aspeed_spi_chip *chip, u32 hdiv,
 			 const u8 *golden_buf, u8 *test_buf);
+	void (*safs_support)(struct aspeed_spi *aspi,
+			     enum spi_mem_data_dir dir,
+			     u8 cmd, u8 addr_len, u8 bus_width);
 };
 
 #define ASPEED_SPI_MAX_NUM_CS	5
+
+#define ASPEED_SPI_NORMAL_MODE		0x00000001
+#define ASPEED_SPI_DMA_WRITE_MODE	0x00000002
+#define ASPEED_SPI_FIXED_LOW_W_CLK	0x00000004
+#define ASPEED_SPI_MIN_WINDOW		0x00000008
+#define ASPEED_SPI_DMA_MODE		0x00000010
+#define ASPEED_SPI_PURE_USER_MODE	0x00000020
+#define ASPEED_SPI_TIMING_CLB_DISABLED	0x00000040
+#define ASPEED_SPI_LTPI_SUPPORT		0x00000080
 
 struct aspeed_spi {
 	const struct aspeed_spi_data	*data;
 
 	void __iomem		*regs;
-	void __iomem		*ahb_base;
 	phys_addr_t		 ahb_base_phy;
+	u64			 ltpi_base_phy;
 	size_t			 ahb_window_sz;
 	u32			 num_cs;
 	struct device		*dev;
@@ -105,6 +147,12 @@ struct aspeed_spi {
 	u32			 clk_freq;
 
 	struct aspeed_spi_chip	 chips[ASPEED_SPI_MAX_NUM_CS];
+
+	int			 irq;
+	struct completion	 dma_done;
+	dma_addr_t		 dma_addr_phy;
+	void			*op_buf;
+	u32			 flag;
 };
 
 static u32 aspeed_spi_get_io_mode(u8 buswidth)
@@ -322,8 +370,6 @@ static int do_aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 {
 	struct aspeed_spi *aspi = spi_controller_get_devdata(mem->spi->controller);
 	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(mem->spi, 0)];
-	u32 addr_mode, addr_mode_backup;
-	u32 ctl_val;
 	int ret = 0;
 
 	dev_dbg(aspi->dev,
@@ -332,40 +378,6 @@ static int do_aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
 		op->dummy.buswidth, op->data.buswidth,
 		op->addr.nbytes, op->dummy.nbytes, op->data.nbytes);
-
-	addr_mode = readl(aspi->regs + CE_CTRL_REG);
-	addr_mode_backup = addr_mode;
-
-	ctl_val = chip->ctl_val[ASPEED_SPI_BASE];
-	ctl_val &= ~CTRL_IO_CMD_MASK;
-
-	ctl_val |= op->cmd.opcode << CTRL_COMMAND_SHIFT;
-
-	/* 4BYTE address mode */
-	if (op->addr.nbytes) {
-		if (op->addr.nbytes == 4)
-			addr_mode |= (0x11 << chip->cs);
-		else
-			addr_mode &= ~(0x11 << chip->cs);
-
-		if (op->addr.nbytes == 4 && chip->aspi->data == &ast2400_spi_data)
-			ctl_val |= CTRL_IO_ADDRESS_4B;
-	}
-
-	if (op->dummy.nbytes)
-		ctl_val |= CTRL_IO_DUMMY_SET(op->dummy.nbytes / op->dummy.buswidth);
-
-	if (op->data.nbytes)
-		ctl_val |= aspeed_spi_get_io_mode(op);
-
-	if (op->data.dir == SPI_MEM_DATA_OUT)
-		ctl_val |= CTRL_IO_MODE_WRITE;
-	else
-		ctl_val |= CTRL_IO_MODE_READ;
-
-	if (addr_mode != addr_mode_backup)
-		writel(addr_mode, aspi->regs + CE_CTRL_REG);
-	writel(ctl_val, chip->ctl);
 
 	if (op->data.dir == SPI_MEM_DATA_IN) {
 		if (!op->addr.nbytes)
@@ -381,10 +393,319 @@ static int do_aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *o
 	}
 
 	/* Restore defaults */
-	if (addr_mode != addr_mode_backup)
-		writel(addr_mode_backup, aspi->regs + CE_CTRL_REG);
 	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
 	return ret;
+}
+
+/*
+ * If the slave device is SPI NOR flash, there are two types
+ * of command mode for ASPEED SPI memory controller used to
+ * transfer data. The first one is user mode and the other is
+ * normal read/write mode. With user mode, SPI NOR flash
+ * command, address and data processes are all handled by CPU.
+ * With normal read/write mode, we can easily read/write data
+ * to flash by reading or writing related remapped address,
+ * then, SPI NOR flash command and address will be transferred
+ * to flash by controller automatically. Besides, ASPEED SPI
+ * memory controller can also block address or data bytes by
+ * configure FMC0C/SPIR0C address and data mask register in
+ * order to satisfy the following SPI flash operation sequences:
+ * (command) only, (command and address) only or
+ * (coommand and data) only.
+ */
+static int aspeed_spi_exec_op_normal_mode(struct spi_mem *mem,
+					  const struct spi_mem_op *op)
+{
+	struct aspeed_spi *aspi = spi_controller_get_devdata(mem->spi->controller);
+	struct device *dev = aspi->dev;
+	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(mem->spi, 0)];
+	u32 cs = spi_get_chipselect(mem->spi, 0);
+	u32 ctrl_val;
+	u32 addr_mode_reg, addr_mode_reg_backup;
+	u32 addr_data_mask = 0;
+	void __iomem *op_addr;
+	const void *data_buf;
+	u32 data_byte = 0;
+	u32 dummy_data = 0;
+	unsigned long flags;
+
+	dev_dbg(dev, "cs:%d, cmd:%x(%d),addr:%llx(%d),dummy:%d(%d),data_len:%x(%d)\n",
+		cs, op->cmd.opcode, op->cmd.buswidth, op->addr.val,
+		op->addr.buswidth, op->dummy.nbytes, op->dummy.buswidth,
+		op->data.nbytes, op->data.buswidth);
+
+	addr_mode_reg = readl(aspi->regs + CE_CTRL_REG);
+	addr_mode_reg_backup = addr_mode_reg;
+	addr_data_mask = readl(aspi->regs + CMD_CTRL_REG);
+
+	ctrl_val = chip->ctl_val[ASPEED_SPI_BASE];
+	ctrl_val &= ~CTRL_IO_CMD_MASK;
+
+	/* configure opcode */
+	ctrl_val |= op->cmd.opcode << 16;
+
+	/* configure operation address, address length and address mask */
+	if (op->addr.nbytes != 0) {
+		if (op->addr.nbytes == 3)
+			addr_mode_reg &= ~(0x11 << cs);
+		else
+			addr_mode_reg |= (0x11 << cs);
+
+		addr_data_mask &= 0x0f;
+		op_addr = chip->ahb_base + op->addr.val;
+	} else {
+		addr_data_mask |= 0xf0;
+		op_addr = chip->ahb_base;
+	}
+
+	if (op->dummy.nbytes != 0) {
+		ctrl_val |= ((op->dummy.nbytes & 0x3) << 6 |
+			     ((op->dummy.nbytes & 0x4) >> 2) << 14);
+	}
+
+	/* configure data io mode and data mask */
+	if (op->data.nbytes != 0) {
+		addr_data_mask &= 0xF0;
+		data_byte = op->data.nbytes;
+		if (op->data.dir == SPI_MEM_DATA_OUT) {
+			if (data_byte % 4 != 0) {
+				memset(aspi->op_buf, 0xff,
+				       (((data_byte + 3) / 4) * 4));
+				memcpy(aspi->op_buf, op->data.buf.out, data_byte);
+				data_buf = aspi->op_buf;
+				data_byte = (((data_byte + 3) / 4) * 4);
+			} else {
+				data_buf = op->data.buf.out;
+			}
+		} else {
+			data_buf = op->data.buf.in;
+		}
+
+		if (op->data.buswidth)
+			ctrl_val |= aspeed_spi_get_io_mode(op->data.buswidth);
+
+	} else {
+		addr_data_mask |= 0x0f;
+		data_byte = 1;
+		data_buf = &dummy_data;
+	}
+
+	/* configure command mode */
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		ctrl_val |= CTRL_IO_MODE_WRITE;
+	else
+		ctrl_val |= CTRL_IO_MODE_READ;
+
+	/* set controller registers */
+	writel(ctrl_val, chip->ctl);
+	writel(addr_mode_reg, aspi->regs + CE_CTRL_REG);
+	writel(addr_data_mask, aspi->regs + CMD_CTRL_REG);
+
+	dev_dbg(dev, "ctrl: 0x%08x, addr_mode: 0x%x, mask: 0x%x, addr:0x%p\n",
+		ctrl_val, addr_mode_reg, addr_data_mask, op_addr);
+
+	/* trigger spi transmission or reception sequence */
+	spin_lock_irqsave(&g_lock, flags);
+
+	if (op->data.dir == SPI_MEM_DATA_OUT)
+		memcpy_toio(op_addr, data_buf, data_byte);
+	else
+		memcpy_fromio((void *)data_buf, op_addr, data_byte);
+
+	spin_unlock_irqrestore(&g_lock, flags);
+
+	/* restore controller setting */
+	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+	writel(addr_mode_reg_backup, aspi->regs + CE_CTRL_REG);
+	writel(0x0, aspi->regs + CMD_CTRL_REG);
+
+	return 0;
+}
+
+#define MAX_READ_SZ_ONCE	0x3000 /* 12KB */
+
+/*
+ * When DMA memory mode is enabled, there is a limitation for AST2600,
+ * both DMA source and destination address should be 4-byte aligned.
+ * Thus, a 4-byte aligned buffer should be allocated previously and
+ * CPU needs to copy data from it after DMA done.
+ */
+static ssize_t aspeed_spi_dirmap_dma_read(struct spi_mem_dirmap_desc *desc,
+					  u64 offs, size_t len, void *buf)
+{
+	int ret = 0;
+	u32 timeout = 0;
+	struct aspeed_spi *aspi = spi_controller_get_devdata(desc->mem->spi->controller);
+	struct device *dev = aspi->dev;
+	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(desc->mem->spi, 0)];
+	struct spi_mem_op op_tmpl = desc->info.op_tmpl;
+	u32 reg_val;
+	u32 extra;
+	u32 tb_read_len = len;
+	u32 read_len;
+	u32 buf_offs = 0;
+	u32 flash_offs = (u32)offs;
+
+	if (chip->ahb_window_sz < offs + len) {
+		dev_err(dev, "read range exceeds flash remapping size\n");
+		return 0;
+	}
+
+	dev_dbg(dev, "read op:0x%x, addr:0x%llx, len:0x%zx\n",
+		op_tmpl.cmd.opcode, offs, len);
+
+	while (tb_read_len > 0) {
+		/* read max 10KB bytes once */
+		read_len = MAX_READ_SZ_ONCE - (flash_offs % MAX_READ_SZ_ONCE);
+		if (tb_read_len < read_len)
+			read_len = tb_read_len;
+
+		/* For AST2600 SPI DMA, flash offset should be 4 byte aligned */
+		extra = flash_offs % 4;
+		if (extra != 0) {
+			flash_offs = (flash_offs / 4) * 4;
+			read_len += extra;
+		}
+
+		writel(DMA_GET_REQ_MAGIC, aspi->regs + DMA_CTRL_REG);
+		if (readl(aspi->regs + DMA_CTRL_REG) & SPI_DAM_REQUEST) {
+			while (!(readl(aspi->regs + DMA_CTRL_REG) &
+				 SPI_DAM_GRANT))
+				;
+		}
+
+		writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+
+		/*
+		 * don't use dma_map_single here, since we cannot make sure the buf's
+		 * start address is 4-byte-aligned.
+		 */
+		writel(0x0, aspi->regs + DMA_CTRL_REG);
+		writel(aspi->dma_addr_phy, aspi->regs + DMA_RAM_ADDR_REG);
+		writel(chip->ahb_base_phy + flash_offs, aspi->regs + DMA_FLASH_ADDR_REG);
+		writel(read_len - 1, aspi->regs + DMA_LEN_REG);
+
+		/* enable DMA irq */
+		reg_val = readl(aspi->regs + INTR_CTRL_STATUS_REG);
+		reg_val |= SPI_DMA_IRQ_EN;
+		writel(reg_val, aspi->regs + INTR_CTRL_STATUS_REG);
+
+		reinit_completion(&aspi->dma_done);
+
+		/* enable read DMA */
+		writel(0x1, aspi->regs + DMA_CTRL_REG);
+		timeout = wait_for_completion_timeout(&aspi->dma_done,
+						      msecs_to_jiffies(2000));
+		if (timeout == 0) {
+			writel(0x0, aspi->regs + DMA_CTRL_REG);
+			writel(DMA_DISCARD_REQ_MAGIC, aspi->regs + DMA_CTRL_REG);
+			dev_err(dev, "read data timeout %d\n", ret);
+			ret = -1;
+			goto end;
+		} else {
+			memcpy(buf + buf_offs, aspi->op_buf + extra, read_len - extra);
+		}
+
+		read_len -= extra;
+
+		buf_offs += read_len;
+		flash_offs += read_len;
+		tb_read_len -= read_len;
+	}
+
+end:
+	return ret ? 0 : len;
+}
+
+static ssize_t aspeed_spi_dirmap_dma_write(struct spi_mem_dirmap_desc *desc,
+					   u64 offs, size_t len, const void *buf)
+{
+	int ret = 0;
+	struct aspeed_spi *aspi = spi_controller_get_devdata(desc->mem->spi->controller);
+	struct device *dev = aspi->dev;
+	struct aspeed_spi_chip *chip = &aspi->chips[spi_get_chipselect(desc->mem->spi, 0)];
+	u32 timeout = 0;
+	u32 reg_val;
+	struct spi_mem_op op_tmpl = desc->info.op_tmpl;
+
+	if (chip->ahb_window_sz < offs + len) {
+		dev_info(dev, "write range exceeds flash remapping size\n");
+		return 0;
+	}
+
+	if (len < 1)
+		return 0;
+
+	if (len > ASPEED_SPI_OP_BUF_LEN) {
+		dev_info(dev,
+			 "written length exceeds expected value (0x%zx)\n",
+			 len);
+		return 0;
+	}
+
+	dev_dbg(dev, "write op:0x%x, addr:0x%llx, len:0x%zx\n",
+		op_tmpl.cmd.opcode, offs, len);
+
+	writel(DMA_GET_REQ_MAGIC, aspi->regs + DMA_CTRL_REG);
+	if (readl(aspi->regs + DMA_CTRL_REG) & SPI_DAM_REQUEST) {
+		while (!(readl(aspi->regs + DMA_CTRL_REG) &
+			 SPI_DAM_GRANT))
+			;
+	}
+
+	writel(chip->ctl_val[ASPEED_SPI_WRITE], chip->ctl);
+
+	/*
+	 * don't use dma_map_single here, since we cannot make sure the buf's
+	 * start address is 4-byte-aligned.
+	 */
+	memcpy(aspi->op_buf, buf, len);
+
+	writel(0x0, aspi->regs + DMA_CTRL_REG);
+	writel(aspi->dma_addr_phy, aspi->regs + DMA_RAM_ADDR_REG);
+	writel(chip->ahb_base_phy + offs, aspi->regs + DMA_FLASH_ADDR_REG);
+	writel(len - 1, aspi->regs + DMA_LEN_REG);
+
+	/* enable DMA irq */
+	reg_val = readl(aspi->regs + INTR_CTRL_STATUS_REG);
+	reg_val |= SPI_DMA_IRQ_EN;
+	writel(reg_val, aspi->regs + INTR_CTRL_STATUS_REG);
+
+	reinit_completion(&aspi->dma_done);
+
+	/* enable write DMA */
+	writel(0x3, aspi->regs + DMA_CTRL_REG);
+	timeout = wait_for_completion_timeout(&aspi->dma_done, msecs_to_jiffies(2000));
+	if (timeout == 0) {
+		writel(0x0, aspi->regs + DMA_CTRL_REG);
+		writel(DMA_DISCARD_REQ_MAGIC, aspi->regs + DMA_CTRL_REG);
+		dev_err(dev, "write data timeout %d\n", ret);
+		ret = -1;
+	}
+
+	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+
+	return ret ? 0 : len;
+}
+
+static irqreturn_t aspeed_spi_dma_isr(int irq, void *dev_id)
+{
+	struct aspeed_spi *aspi = (struct aspeed_spi *)dev_id;
+	u32 reg_val;
+
+	if (!(readl(aspi->regs + INTR_CTRL_STATUS_REG) & SPI_DMA_STATUS))
+		return IRQ_NONE;
+
+	reg_val = readl(aspi->regs + INTR_CTRL_STATUS_REG);
+	reg_val &= ~SPI_DMA_IRQ_EN;
+	writel(reg_val, aspi->regs + INTR_CTRL_STATUS_REG);
+
+	writel(0x0, aspi->regs + DMA_CTRL_REG);
+	writel(DMA_DISCARD_REQ_MAGIC, aspi->regs + DMA_CTRL_REG);
+
+	complete(&aspi->dma_done);
+
+	return IRQ_HANDLED;
 }
 
 static int aspeed_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
@@ -406,44 +727,47 @@ static const char *aspeed_spi_get_name(struct spi_mem *mem)
 			      spi_get_chipselect(mem->spi, 0));
 }
 
+static const struct aspeed_spi_data ast2500_fmc_data;
+static const struct aspeed_spi_data ast2500_spi_data;
+static const struct aspeed_spi_data ast2600_spi_data;
+static const struct aspeed_spi_data ast2600_fmc_data;
+
 static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 {
 	off_t offset = 0;
 	phys_addr_t start;
+	phys_addr_t ltpi_start;
 	phys_addr_t end;
 	void __iomem *seg_reg_base = aspi->regs + CE0_SEGMENT_ADDR_REG;
 	void __iomem *seg_reg;
-	u32 seg_val_backup;
 	u32 seg_val;
 	u32 cs;
 	size_t win_sz;
 
 	for (cs = 0; cs < aspi->data->max_cs; cs++) {
-		seg_reg = seg_reg_base + cs * 4;
-		seg_val_backup = readl(seg_reg);
+		if (aspi->chips[cs].ahb_base)
+			devm_iounmap(aspi->dev, aspi->chips[cs].ahb_base);
+	}
 
+	for (cs = 0; cs < aspi->data->max_cs; cs++) {
+		seg_reg = seg_reg_base + cs * 4;
 		start = aspi->ahb_base_phy + offset;
+		ltpi_start = aspi->ltpi_base_phy + offset;
 		win_sz = aspi->chips[cs].ahb_window_sz;
 		end = start + win_sz;
 
 		seg_val = aspi->data->segment_reg(aspi, start, end);
-
-		if (seg_val == seg_val_backup) {
-			aspi->chips[cs].ahb_base = aspi->ahb_base + offset;
-			offset += win_sz;
-			continue;
-		}
+		if (win_sz == 0)
+			seg_val = 0;
 
 		writel(seg_val, seg_reg);
 
-		/*
-		 * Restore initial value if something goes wrong else we could
-		 * loose access to the chip.
-		 */
 		if (seg_val != readl(seg_reg)) {
-			dev_err(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
-				cs, (u64)start, (u64)end - 1, win_sz >> 20);
-			writel(seg_val_backup, seg_reg);
+			dev_warn(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+				 cs, (u64)start, (u64)end - 1, win_sz >> 20);
+			dev_warn(aspi->dev, "seg_val = 0x%x, readl(seg_reg) = 0x%x\n",
+				 seg_val, readl(seg_reg));
+
 			return -EIO;
 		}
 
@@ -453,57 +777,63 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 		else
 			dev_dbg(aspi->dev, "CE%d window closed", cs);
 
-		aspi->chips[cs].ahb_base = aspi->ahb_base + offset;
+		aspi->chips[cs].ahb_base_phy = start;
 		offset += win_sz;
+
+		if (win_sz == 0)
+			continue;
+
+		if ((aspi->flag & ASPEED_SPI_MIN_WINDOW) != 0) {
+			aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+								start,
+								aspi->data->min_window_sz);
+		} else {
+			if ((aspi->flag & ASPEED_SPI_LTPI_SUPPORT) != 0)
+				aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+									ltpi_start,
+									win_sz);
+			else
+				aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+									start,
+									win_sz);
+		}
+
+		if (!aspi->chips[cs].ahb_base) {
+			dev_err(aspi->dev, "fail to remap window [0x%.9llx - 0x%.9llx]\n",
+				(u64)start, (u64)end - 1);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
 }
-
-static const struct aspeed_spi_data ast2500_spi_data;
-static const struct aspeed_spi_data ast2600_spi_data;
-static const struct aspeed_spi_data ast2600_fmc_data;
 
 /*
  * Usually, the decoding address is not configured at the u-boot stage.
  * Or, the existing decoding address configuration is wrong.
  * Thus, force to assign a default decoding address during driver probe.
  */
-static void aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
+static int aspeed_spi_chip_set_default_window(struct aspeed_spi *aspi)
 {
 	u32 cs;
 
 	/* No segment registers for the AST2400 SPI controller */
 	if (aspi->data == &ast2400_spi_data) {
-		aspi->chips[0].ahb_base = aspi->ahb_base;
 		aspi->chips[0].ahb_window_sz = aspi->ahb_window_sz;
-		return;
+		return aspeed_spi_set_window(aspi);
 	}
 
-	for (cs = 0; cs < aspi->num_cs; cs++) {
-		if (cs == 0)
-			aspi->chips[cs].ahb_base = aspi->ahb_base;
-		else
-			aspi->chips[cs].ahb_base =
-				aspi->chips[cs - 1].ahb_base +
-				aspi->chips[cs - 1].ahb_window_sz;
-
+	for (cs = 0; cs < aspi->num_cs; cs++)
 		aspi->chips[cs].ahb_window_sz = aspi->data->min_window_sz;
 
-		dev_dbg(aspi->dev, "CE%d default window [ 0x%.9llx - 0x%.9llx ]",
-			cs, (u64)(aspi->ahb_base_phy +
-				  aspi->data->min_window_sz * cs),
-			(u64)(aspi->ahb_base_phy +
-			      aspi->data->min_window_sz * (cs + 1) - 1));
-	}
-
 	/* Close unused CS */
-	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++) {
-		aspi->chips[cs].ahb_base = aspi->ahb_base;
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++)
 		aspi->chips[cs].ahb_window_sz = 0;
-	}
 
-	aspeed_spi_set_window(aspi);
+	if (aspi->data->adjust_window)
+		aspi->data->adjust_window(aspi);
+
+	return aspeed_spi_set_window(aspi);
 }
 
 /*
@@ -587,8 +917,10 @@ static int aspeed_adjust_window_ast2500(struct aspeed_spi *aspi)
 	struct aspeed_spi_chip *chips = aspi->chips;
 
 	/* Assign min_window_sz to unused CS. */
-	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++)
-		chips[cs].ahb_window_sz = aspi->data->min_window_sz;
+	for (cs = aspi->num_cs; cs < aspi->data->max_cs; cs++) {
+		if (chips[cs].ahb_window_sz < aspi->data->min_window_sz)
+			chips[cs].ahb_window_sz = aspi->data->min_window_sz;
+	}
 
 	/*
 	 * If commnad mode or normal mode is used, the start address of a
@@ -612,6 +944,9 @@ static int aspeed_adjust_window_ast2500(struct aspeed_spi *aspi)
 	ret = aspeed_spi_trim_window_size(aspi);
 	if (ret != 0)
 		return ret;
+
+	if (aspi->data == &ast2500_spi_data)
+		chips[1].ahb_window_sz = 0x08000000 - chips[0].ahb_window_sz;
 
 	return 0;
 }
@@ -706,63 +1041,103 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 
 	chip->clk_freq = desc->mem->spi->max_speed_hz;
 
+	if (aspi->data->safs_support) {
+		aspi->data->safs_support(aspi, op->data.dir,
+					 op->cmd.opcode,
+					 op->addr.nbytes,
+					 op->data.buswidth);
+	}
+
 	/* Only for reads */
-	if (op->data.dir != SPI_MEM_DATA_IN)
-		return -EOPNOTSUPP;
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		ret = aspeed_spi_chip_adjust_window(chip, desc->info.length);
+		if (ret)
+			return ret;
 
-	aspeed_spi_chip_adjust_window(chip, desc->info.length);
+		if (desc->info.length > chip->ahb_window_sz)
+			dev_warn(aspi->dev, "CE%d window (%zdMB) too small for mapping",
+				 chip->cs, chip->ahb_window_sz >> 20);
 
-	if (desc->info.length > chip->ahb_window_sz)
-		dev_warn(aspi->dev, "CE%d window (%zdMB) too small for mapping",
-			 chip->cs, chip->ahb_window_sz >> 20);
+		/* Define the default IO read settings */
+		ctl_val = chip->ctl_val[ASPEED_SPI_BASE] & ~CTRL_IO_CMD_MASK;
+		ctl_val |= aspeed_spi_get_io_mode(op->data.buswidth) |
+			op->cmd.opcode << CTRL_COMMAND_SHIFT |
+			CTRL_IO_MODE_READ;
 
-	/* Define the default IO read settings */
-	ctl_val = readl(chip->ctl) & ~CTRL_IO_CMD_MASK;
-	ctl_val |= aspeed_spi_get_io_mode(op->data.buswidth) |
-		op->cmd.opcode << CTRL_COMMAND_SHIFT |
-		CTRL_IO_MODE_READ;
+		if (op->dummy.nbytes)
+			ctl_val |= CTRL_IO_DUMMY_SET(op->dummy.nbytes / op->dummy.buswidth);
 
-	if (op->dummy.nbytes)
-		ctl_val |= CTRL_IO_DUMMY_SET(op->dummy.nbytes / op->dummy.buswidth);
+		/* Tune 4BYTE address mode */
+		if (op->addr.nbytes) {
+			u32 addr_mode = readl(aspi->regs + CE_CTRL_REG);
 
-	/* Tune 4BYTE address mode */
-	if (op->addr.nbytes) {
-		u32 addr_mode = readl(aspi->regs + CE_CTRL_REG);
+			if (op->addr.nbytes == 4)
+				addr_mode |= (0x11 << chip->cs);
+			else
+				addr_mode &= ~(0x11 << chip->cs);
+			writel(addr_mode, aspi->regs + CE_CTRL_REG);
 
-		if (op->addr.nbytes == 4)
-			addr_mode |= (0x11 << chip->cs);
-		else
-			addr_mode &= ~(0x11 << chip->cs);
-		writel(addr_mode, aspi->regs + CE_CTRL_REG);
+			/* AST2400 SPI controller sets 4BYTE address mode in
+			 * CE0 Control Register
+			 */
+			if (op->addr.nbytes == 4 && chip->aspi->data == &ast2400_spi_data)
+				ctl_val |= CTRL_IO_ADDRESS_4B;
+		}
 
-		/* AST2400 SPI controller sets 4BYTE address mode in
-		 * CE0 Control Register
+		/* READ mode is the controller default setting */
+		chip->ctl_val[ASPEED_SPI_READ] = ctl_val;
+		writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+
+		/* assign SPI clock frequency division */
+		if (chip->clk_freq < aspi->clk_freq / 5) {
+			if (aspi->data->get_clk_div)
+				div = aspi->data->get_clk_div(chip, chip->clk_freq);
+
+			for (i = 0; i < ASPEED_SPI_MAX; i++)
+				chip->ctl_val[i] = (chip->ctl_val[i] &
+						    aspi->data->hclk_mask) |
+						   div;
+		} else {
+			ret = aspeed_spi_do_calibration(chip);
+		}
+
+		dev_info(aspi->dev, "CE%d read buswidth: %d [0x%08x]\n",
+			 chip->cs, op->data.buswidth, chip->ctl_val[ASPEED_SPI_READ]);
+		dev_dbg(aspi->dev, "spi clock frequency: %dMHz\n",
+			chip->clk_freq / 1000000);
+
+		/*
+		 * aspeed_spi_dirmap_read is not created in
+		 * current spi_controller_mem_ops.
 		 */
-		if (op->addr.nbytes == 4 && chip->aspi->data == &ast2400_spi_data)
-			ctl_val |= CTRL_IO_ADDRESS_4B;
-	}
+		if (!desc->mem->spi->controller->mem_ops->dirmap_read)
+			return -EOPNOTSUPP;
 
-	/* READ mode is the controller default setting */
-	chip->ctl_val[ASPEED_SPI_READ] = ctl_val;
-	writel(chip->ctl_val[ASPEED_SPI_READ], chip->ctl);
+	} else if (op->data.dir == SPI_MEM_DATA_OUT) {
+		/* record some information for normal mode. */
+		ctl_val = chip->ctl_val[ASPEED_SPI_BASE] & (~CTRL_IO_CMD_MASK);
+		ctl_val |= aspeed_spi_get_io_mode(op->data.buswidth) |
+			   op->cmd.opcode << 16 | CTRL_IO_MODE_WRITE;
 
-	/* assign SPI clock frequency division */
-	if (chip->clk_freq < aspi->clk_freq / 5) {
-		if (aspi->data->get_clk_div)
-			div = aspi->data->get_clk_div(chip, chip->clk_freq);
+		if ((aspi->flag & ASPEED_SPI_FIXED_LOW_W_CLK) != 0) {
+			/* adjust spi clk for write */
+			ctl_val = (ctl_val & (~0x0f000f00)) | 0x03000000;
+		}
 
-		for (i = 0; i < ASPEED_SPI_MAX; i++)
-			chip->ctl_val[i] = (chip->ctl_val[i] &
-					    aspi->data->hclk_mask) |
-					   div;
+		chip->ctl_val[ASPEED_SPI_WRITE] = ctl_val;
+
+		dev_info(aspi->dev, "CE%d write buswidth: %d [0x%08x]\n",
+			 chip->cs, op->data.buswidth, chip->ctl_val[ASPEED_SPI_WRITE]);
+
+		/*
+		 * aspeed_spi_dirmap_write is not created in
+		 * current spi_controller_mem_ops.
+		 */
+		if (!desc->mem->spi->controller->mem_ops->dirmap_write)
+			return -EOPNOTSUPP;
 	} else {
-		ret = aspeed_spi_do_calibration(chip);
+		return -EOPNOTSUPP;
 	}
-
-	dev_info(aspi->dev, "CE%d read buswidth:%d [0x%08x]\n",
-		 chip->cs, op->data.buswidth, chip->ctl_val[ASPEED_SPI_READ]);
-	dev_dbg(aspi->dev, "spi clock frequency: %dMHz\n",
-		chip->clk_freq / 1000000);
 
 	return ret;
 }
@@ -795,6 +1170,39 @@ static const struct spi_controller_mem_ops aspeed_spi_mem_ops = {
 	.dirmap_read = aspeed_spi_dirmap_read,
 };
 
+static const struct spi_controller_mem_ops aspeed_spi_mem_ops_pure_user = {
+	.supports_op = aspeed_spi_supports_op,
+	.exec_op = aspeed_spi_exec_op,
+	.get_name = aspeed_spi_get_name,
+	.dirmap_create = aspeed_spi_dirmap_create,
+};
+
+static const struct spi_controller_mem_ops aspeed_spi_mem_ops_normal_mode = {
+	.supports_op = aspeed_spi_supports_op,
+	.exec_op = aspeed_spi_exec_op_normal_mode,
+	.get_name = aspeed_spi_get_name,
+	.dirmap_create = aspeed_spi_dirmap_create,
+	.dirmap_read = aspeed_spi_dirmap_read,
+};
+
+static const struct spi_controller_mem_ops aspeed_spi_ops_normal_read_dma_write = {
+	.get_name = aspeed_spi_get_name,
+	.exec_op = aspeed_spi_exec_op_normal_mode,
+	.supports_op = aspeed_spi_supports_op,
+	.dirmap_create = aspeed_spi_dirmap_create,
+	.dirmap_read = aspeed_spi_dirmap_read,
+	.dirmap_write = aspeed_spi_dirmap_dma_write,
+};
+
+static const struct spi_controller_mem_ops aspeed_spi_ops_dma_mode = {
+	.get_name = aspeed_spi_get_name,
+	.exec_op = aspeed_spi_exec_op,
+	.supports_op = aspeed_spi_supports_op,
+	.dirmap_create = aspeed_spi_dirmap_create,
+	.dirmap_read = aspeed_spi_dirmap_dma_read,
+	.dirmap_write = aspeed_spi_dirmap_dma_write,
+};
+
 static void aspeed_spi_chip_set_type(struct aspeed_spi *aspi, unsigned int cs, int type)
 {
 	u32 reg;
@@ -823,6 +1231,8 @@ static int aspeed_spi_setup(struct spi_device *spi)
 	const struct aspeed_spi_data *data = aspi->data;
 	unsigned int cs = spi_get_chipselect(spi, 0);
 	struct aspeed_spi_chip *chip = &aspi->chips[cs];
+	u32 clk_div = 0;
+	u32 i;
 
 	chip->aspi = aspi;
 	chip->cs = cs;
@@ -835,6 +1245,16 @@ static int aspeed_spi_setup(struct spi_device *spi)
 	aspeed_spi_chip_enable(aspi, cs, true);
 
 	chip->ctl_val[ASPEED_SPI_BASE] = CTRL_CE_STOP_ACTIVE | CTRL_IO_MODE_USER;
+
+	if ((aspi->flag & ASPEED_SPI_TIMING_CLB_DISABLED) != 0) {
+		if (aspi->data->get_clk_div)
+			clk_div = aspi->data->get_clk_div(chip, spi->max_speed_hz);
+
+		for (i = 0; i < ASPEED_SPI_MAX; i++) {
+			chip->ctl_val[i] = (chip->ctl_val[i] & aspi->data->hclk_mask) |
+					   clk_div;
+		}
+	}
 
 	dev_dbg(aspi->dev, "CE%d setup done\n", cs);
 	return 0;
@@ -865,7 +1285,8 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct aspeed_spi *aspi;
 	struct resource *res;
-	int ret;
+	struct reset_control *reset;
+	int ret = 0;
 
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
@@ -880,20 +1301,16 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 	aspi->data = data;
 	aspi->dev = dev;
 
-	aspi->regs = devm_platform_ioremap_resource(pdev, 0);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	aspi->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(aspi->regs))
 		return PTR_ERR(aspi->regs);
 
-	aspi->ahb_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
-	if (IS_ERR(aspi->ahb_base)) {
-		dev_err(dev, "missing AHB mapping window\n");
-		return PTR_ERR(aspi->ahb_base);
-	}
-
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	aspi->ahb_window_sz = resource_size(res);
 	aspi->ahb_base_phy = res->start;
 
-	aspi->clk = devm_clk_get(&pdev->dev, NULL);
+	aspi->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(aspi->clk)) {
 		dev_err(dev, "missing clock\n");
 		return PTR_ERR(aspi->clk);
@@ -905,35 +1322,116 @@ static int aspeed_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = clk_prepare_enable(aspi->clk);
-	if (ret) {
-		dev_err(dev, "can not enable the clock\n");
-		return ret;
+	reset = devm_reset_control_get_exclusive(dev, NULL);
+	if (!IS_ERR(reset))
+		reset_control_deassert(reset);
+
+	aspi->flag = 0;
+	if (of_property_read_bool(dev->of_node, "fmc-spi-normal-mode"))
+		aspi->flag |= ASPEED_SPI_NORMAL_MODE;
+	else if (of_property_read_bool(dev->of_node, "fmc-spi-dma-write"))
+		aspi->flag |= ASPEED_SPI_DMA_WRITE_MODE;
+	else if (of_property_read_bool(dev->of_node, "fmc-spi-dma-mode"))
+		aspi->flag |= ASPEED_SPI_DMA_MODE;
+	else if (of_property_read_bool(dev->of_node, "pure-spi-mode-only"))
+		aspi->flag |= ASPEED_SPI_PURE_USER_MODE;
+
+	if (of_property_read_bool(dev->of_node, "timing-calibration-disabled"))
+		aspi->flag |= ASPEED_SPI_TIMING_CLB_DISABLED;
+
+	/* Should be set on AST2600-A1/A2 for errata 65 */
+	if (of_property_read_bool(dev->of_node, "low-spi-clk-write")) {
+		dev_info(dev, "adopt low spi clk for write\n");
+		aspi->flag |= ASPEED_SPI_FIXED_LOW_W_CLK;
 	}
+
+	if (!of_property_read_u64(dev->of_node, "ltpi-base", &aspi->ltpi_base_phy)) {
+		dev_info(dev, "ltpi support\n");
+		aspi->flag |= ASPEED_SPI_LTPI_SUPPORT;
+	}
+
+	if ((aspi->flag & ASPEED_SPI_NORMAL_MODE) != 0 ||
+	    (aspi->flag & ASPEED_SPI_DMA_WRITE_MODE) != 0 ||
+	    (aspi->flag & ASPEED_SPI_DMA_MODE) != 0) {
+		aspi->op_buf = dma_alloc_coherent(dev,
+						  ASPEED_SPI_OP_BUF_LEN,
+						  &aspi->dma_addr_phy,
+						  GFP_DMA | GFP_KERNEL);
+		if (!aspi->op_buf) {
+			ret = -ENOMEM;
+			goto end;
+		}
+	}
+
+	if ((aspi->flag & ASPEED_SPI_DMA_WRITE_MODE) != 0 ||
+	    (aspi->flag & ASPEED_SPI_DMA_MODE) != 0) {
+		aspi->irq = platform_get_irq(pdev, 0);
+		if (aspi->irq < 0) {
+			dev_err(dev, "fail to get irq (%d)\n", aspi->irq);
+			return aspi->irq;
+		}
+
+		ret = devm_request_irq(dev, aspi->irq, aspeed_spi_dma_isr,
+				       IRQF_SHARED, dev_name(dev), aspi);
+
+		if (ret < 0) {
+			dev_err(dev, "fail to request irq (%d)\n", ret);
+			goto end;
+		}
+
+		init_completion(&aspi->dma_done);
+	}
+
+	if ((aspi->flag & ASPEED_SPI_DMA_MODE) != 0 &&
+	    (aspi->flag & ASPEED_SPI_PURE_USER_MODE) != 0)
+		aspi->flag |= ASPEED_SPI_MIN_WINDOW;
 
 	/* IRQ is for DMA, which the driver doesn't support yet */
 
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_TX_DUAL | data->mode_bits;
 	ctlr->bus_num = pdev->id;
-	ctlr->mem_ops = &aspeed_spi_mem_ops;
 	ctlr->setup = aspeed_spi_setup;
 	ctlr->cleanup = aspeed_spi_cleanup;
 	ctlr->num_chipselect = of_get_available_child_count(dev->of_node);
 	ctlr->dev.of_node = dev->of_node;
 
+	if ((aspi->flag & ASPEED_SPI_NORMAL_MODE) != 0) {
+		dev_info(&pdev->dev, "normal mode is used\n");
+		ctlr->mem_ops = &aspeed_spi_mem_ops_normal_mode;
+	} else if ((aspi->flag & ASPEED_SPI_DMA_WRITE_MODE) != 0) {
+		dev_info(&pdev->dev, "normal read and dma write mode are used\n");
+		ctlr->mem_ops = &aspeed_spi_ops_normal_read_dma_write;
+	} else if ((aspi->flag & ASPEED_SPI_DMA_MODE) != 0) {
+		dev_info(&pdev->dev, "dma mode is used\n");
+		ctlr->mem_ops = &aspeed_spi_ops_dma_mode;
+	} else if ((aspi->flag & ASPEED_SPI_PURE_USER_MODE) != 0) {
+		dev_info(&pdev->dev, "user mode is used\n");
+		ctlr->mem_ops = &aspeed_spi_mem_ops_pure_user;
+	} else {
+		dev_info(&pdev->dev, "user mode and normal read are used\n");
+		ctlr->mem_ops = &aspeed_spi_mem_ops;
+	}
+
+	if (ctlr->num_chipselect == 0) {
+		dev_warn(&pdev->dev, "Force num_chipselect to 1\n");
+		ctlr->num_chipselect = 1;
+	}
+
 	aspi->num_cs = ctlr->num_chipselect;
 
-	aspeed_spi_chip_set_default_window(aspi);
+	ret = aspeed_spi_chip_set_default_window(aspi);
+	if (ret) {
+		dev_err(&pdev->dev, "fail to set default window\n");
+		goto end;
+	}
 
 	ret = devm_spi_register_controller(dev, ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi_register_controller failed\n");
-		goto disable_clk;
+		goto end;
 	}
-	return 0;
 
-disable_clk:
-	clk_disable_unprepare(aspi->clk);
+end:
 	return ret;
 }
 
@@ -941,8 +1439,14 @@ static void aspeed_spi_remove(struct platform_device *pdev)
 {
 	struct aspeed_spi *aspi = platform_get_drvdata(pdev);
 
+	if (aspi->op_buf) {
+		dma_free_coherent(aspi->dev,
+				  ASPEED_SPI_OP_BUF_LEN,
+				  aspi->op_buf,
+				  aspi->dma_addr_phy);
+	}
+
 	aspeed_spi_enable(aspi, false);
-	clk_disable_unprepare(aspi->clk);
 }
 
 /*
@@ -1292,6 +1796,11 @@ static int aspeed_spi_do_calibration(struct aspeed_spi_chip *chip)
 	dev_dbg(aspi->dev, "calculate timing compensation - AHB freq: %d MHz",
 		ahb_freq / 1000000);
 
+	if ((aspi->flag & ASPEED_SPI_TIMING_CLB_DISABLED) != 0) {
+		dev_info(aspi->dev, "timing calibration is disabled\n");
+		return 0;
+	}
+
 	/*
 	 * use the related low frequency to get check calibration data
 	 * and get golden data.
@@ -1458,6 +1967,40 @@ static int aspeed_spi_ast2600_calibrate(struct aspeed_spi_chip *chip, u32 hdiv,
 	return 0;
 }
 
+void aspeed_spi_ast2600_fill_safs_cmd(struct aspeed_spi *aspi,
+				      enum spi_mem_data_dir dir,
+				      u8 cmd, u8 addr_len, u8 bus_width)
+{
+	u32 tmp_val;
+
+	if (dir == SPI_MEM_DATA_IN) {
+		tmp_val = readl(aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL4);
+		if (addr_len == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		tmp_val = (tmp_val & 0x0fffffff) | aspeed_spi_get_io_mode(bus_width);
+
+		writel(tmp_val, aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+	} else if (dir == SPI_MEM_DATA_OUT) {
+		tmp_val = readl(aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL4);
+		tmp_val = (tmp_val & 0xf0ffffff) |
+			  (aspeed_spi_get_io_mode(bus_width) >> 4);
+
+		writel(tmp_val, aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL4);
+
+		tmp_val = readl(aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL2);
+		if (addr_len == 4)
+			tmp_val = (tmp_val & 0xffff00ff) | (cmd << 8);
+		else
+			tmp_val = (tmp_val & 0xffffff00) | cmd;
+
+		writel(tmp_val, aspi->regs + HOST_DIRECT_ACCESS_CMD_CTRL2);
+	}
+}
+
 /*
  * Platform definitions
  */
@@ -1559,6 +2102,7 @@ static const struct aspeed_spi_data ast2600_spi_data = {
 	.segment_end   = aspeed_spi_segment_ast2600_end,
 	.segment_reg   = aspeed_spi_segment_ast2600_reg,
 	.adjust_window = aspeed_adjust_window_ast2600,
+	.safs_support  = aspeed_spi_ast2600_fill_safs_cmd,
 };
 
 static const struct aspeed_spi_data ast2700_fmc_data = {
