@@ -283,6 +283,33 @@ struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id, u32 arg1)
 }
 EXPORT_SYMBOL_GPL(sip_smc_get_amp_info);
 
+struct arm_smccc_res sip_smc_get_pvtpll_info(u32 sub_func_id, u32 arg1)
+{
+	struct arm_smccc_res res;
+
+	/*
+	 * res.a0: error code(0: success, !0: error).
+	 * res.a1: low temp config flag(0: support, !0: don't support).
+	 */
+	arm_smccc_smc(SIP_PVTPLL_CFG, sub_func_id, arg1, 0, 0, 0, 0, 0, &res);
+	return res;
+}
+EXPORT_SYMBOL_GPL(sip_smc_get_pvtpll_info);
+
+struct arm_smccc_res sip_smc_pvtpll_config(u32 sub_func_id, u32 arg1, u32 arg2,
+					   u32 arg3, u32 arg4, u32 arg5, u32 arg6)
+{
+	struct arm_smccc_res res;
+
+	/*
+	 * res.a0: error code(0: success, !0: error).
+	 */
+	arm_smccc_smc(SIP_PVTPLL_CFG, sub_func_id, arg1, arg2, arg3, arg4, arg5,
+		      arg6, &res);
+	return res;
+}
+EXPORT_SYMBOL_GPL(sip_smc_pvtpll_config);
+
 void __iomem *sip_hdcp_request_share_memory(int id)
 {
 	static void __iomem *base;

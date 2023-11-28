@@ -57,6 +57,7 @@
 #define SIP_WDT_CFG			0x82000026
 #define SIP_HDMIRX_CFG			0x82000027
 #define SIP_MCU_CFG			0x82000028
+#define SIP_PVTPLL_CFG			0x82000029
 
 #define TRUSTED_OS_HDCPKEY_INIT		0xB7000003
 
@@ -226,6 +227,13 @@ enum {
 	HDMIRX_INFO_NOTIFY = 2,
 };
 
+/* SIP_PVTPLL_CFG child configs */
+enum {
+	PVTPLL_GET_INFO = 0,
+	PVTPLL_ADJUST_TABLE = 1,
+	PVTPLL_LOW_TEMP = 2,
+};
+
 struct pt_regs;
 typedef void (*sip_fiq_debugger_uart_irq_tf_cb_t)(struct pt_regs *_pt_regs, unsigned long cpu);
 
@@ -256,6 +264,9 @@ struct arm_smccc_res sip_smc_bus_config(u32 arg0, u32 arg1, u32 arg2);
 struct dram_addrmap_info *sip_smc_get_dram_map(void);
 int sip_smc_amp_config(u32 sub_func_id, u32 arg1, u32 arg2, u32 arg3);
 struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id, u32 arg1);
+struct arm_smccc_res sip_smc_get_pvtpll_info(u32 sub_func_id, u32 arg1);
+struct arm_smccc_res sip_smc_pvtpll_config(u32 sub_func_id, u32 arg1, u32 arg2,
+					   u32 arg3, u32 arg4, u32 arg5, u32 arg6);
 
 void __iomem *sip_hdcp_request_share_memory(int id);
 struct arm_smccc_res sip_hdcp_config(u32 arg0, u32 arg1, u32 arg2);
@@ -359,6 +370,24 @@ static inline int sip_smc_amp_config(u32 sub_func_id,
 
 static inline struct arm_smccc_res sip_smc_get_amp_info(u32 sub_func_id,
 							u32 arg1)
+{
+	struct arm_smccc_res tmp = { .a0 = SIP_RET_NOT_SUPPORTED, };
+
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_get_pvtpll_info(u32 sub_func_id,
+							   u32 arg1)
+{
+	struct arm_smccc_res tmp = { .a0 = SIP_RET_NOT_SUPPORTED, };
+
+	return tmp;
+}
+
+static inline struct arm_smccc_res sip_smc_pvtpll_config(u32 sub_func_id,
+							 u32 arg1, u32 arg2,
+							 u32 arg3, u32 arg4,
+							 u32 arg5, u32 arg6)
 {
 	struct arm_smccc_res tmp = { .a0 = SIP_RET_NOT_SUPPORTED, };
 
