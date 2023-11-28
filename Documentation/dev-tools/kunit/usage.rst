@@ -651,12 +651,16 @@ For example:
 	}
 
 Note that, for functions like device_unregister which only accept a single
-pointer-sized argument, it's possible to directly cast that function to
-a ``kunit_action_t`` rather than writing a wrapper function, for example:
+pointer-sized argument, it's possible to automatically generate a wrapper
+with the ``KUNIT_DEFINE_ACTION_WRAPPER()`` macro, for example:
 
 .. code-block:: C
 
-	kunit_add_action(test, (kunit_action_t *)&device_unregister, &dev);
+	KUNIT_DEFINE_ACTION_WRAPPER(device_unregister, device_unregister_wrapper, struct device *);
+	kunit_add_action(test, &device_unregister_wrapper, &dev);
+
+You should do this in preference to manually casting to the ``kunit_action_t`` type,
+as casting function pointers will break Control Flow Integrity (CFI).
 
 ``kunit_add_action`` can fail if, for example, the system is out of memory.
 You can use ``kunit_add_action_or_reset`` instead which runs the action
