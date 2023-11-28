@@ -539,10 +539,12 @@ static void dw_hdmi_i2c_init(struct dw_hdmi *hdmi)
 	hdmi_writeb(hdmi, HDMI_IH_I2CM_STAT0_ERROR | HDMI_IH_I2CM_STAT0_DONE,
 		    HDMI_IH_MUTE_I2CM_STAT0);
 
-	/* set SDA high level holding time */
-	hdmi_writeb(hdmi, 0x48, HDMI_I2CM_SDA_HOLD);
-
-	dw_hdmi_i2c_set_divs(hdmi);
+	/* Only configure when we use the internal I2C controller */
+	if (hdmi->i2c) {
+		/* set SDA high level holding time */
+		hdmi_writeb(hdmi, 0x48, HDMI_I2CM_SDA_HOLD);
+		dw_hdmi_i2c_set_divs(hdmi);
+	}
 }
 
 static bool dw_hdmi_i2c_unwedge(struct dw_hdmi *hdmi)
@@ -4321,8 +4323,7 @@ static void dw_hdmi_init_hw(struct dw_hdmi *hdmi)
 	 * Even if we are using a separate i2c adapter doing this doesn't
 	 * hurt.
 	 */
-	if (hdmi->i2c)
-		dw_hdmi_i2c_init(hdmi);
+	dw_hdmi_i2c_init(hdmi);
 
 	if (hdmi->phy.ops->setup_hpd)
 		hdmi->phy.ops->setup_hpd(hdmi, hdmi->phy.data);
@@ -5211,8 +5212,7 @@ void dw_hdmi_resume(struct dw_hdmi *hdmi)
 	pinctrl_pm_select_default_state(hdmi->dev);
 	mutex_lock(&hdmi->mutex);
 	dw_hdmi_reg_initial(hdmi);
-	if (hdmi->i2c)
-		dw_hdmi_i2c_init(hdmi);
+	dw_hdmi_i2c_init(hdmi);
 	if (hdmi->irq)
 		enable_irq(hdmi->irq);
 	/*
