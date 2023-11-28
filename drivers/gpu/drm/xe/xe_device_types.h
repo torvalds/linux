@@ -15,6 +15,7 @@
 #include "xe_devcoredump_types.h"
 #include "xe_heci_gsc.h"
 #include "xe_gt_types.h"
+#include "xe_lmtt_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_pmu.h"
@@ -185,6 +186,14 @@ struct xe_tile {
 		 */
 		struct xe_sa_manager *kernel_bb_pool;
 	} mem;
+
+	/** @sriov: tile level virtualization data */
+	union {
+		struct {
+			/** @sriov.pf.lmtt: Local Memory Translation Table. */
+			struct xe_lmtt lmtt;
+		} pf;
+	} sriov;
 
 	/** @migrate: Migration helper for vram blits and clearing */
 	struct xe_migrate *migrate;

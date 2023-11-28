@@ -36,6 +36,7 @@
 #include "xe_hw_fence.h"
 #include "xe_hw_engine_class_sysfs.h"
 #include "xe_irq.h"
+#include "xe_lmtt.h"
 #include "xe_lrc.h"
 #include "xe_map.h"
 #include "xe_migrate.h"
@@ -46,6 +47,7 @@
 #include "xe_ring_ops.h"
 #include "xe_sa.h"
 #include "xe_sched_job.h"
+#include "xe_sriov.h"
 #include "xe_tuning.h"
 #include "xe_uc.h"
 #include "xe_vm.h"
@@ -344,6 +346,8 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
 			goto err_force_wake;
+		if (IS_SRIOV_PF(gt_to_xe(gt)))
+			xe_lmtt_init(&gt_to_tile(gt)->sriov.pf.lmtt);
 	}
 
 	err = xe_uc_init(&gt->uc);
@@ -460,6 +464,9 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		xe_gt_apply_ccs_mode(gt);
 	}
 
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
+
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	XE_WARN_ON(err);
 	xe_device_mem_access_put(gt_to_xe(gt));
@@ -559,6 +566,9 @@ static int do_gt_restart(struct xe_gt *gt)
 	err = xe_uc_init_hw(&gt->uc);
 	if (err)
 		return err;
+
+	if (IS_SRIOV_PF(gt_to_xe(gt)) && !xe_gt_is_media_type(gt))
+		xe_lmtt_init_hw(&gt_to_tile(gt)->sriov.pf.lmtt);
 
 	xe_mocs_init(gt);
 	err = xe_uc_start(&gt->uc);

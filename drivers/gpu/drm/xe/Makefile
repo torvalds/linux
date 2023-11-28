@@ -137,6 +137,11 @@ xe-$(CONFIG_HWMON) += xe_hwmon.o
 # graphics virtualization (SR-IOV) support
 xe-y += xe_sriov.o
 
+xe-$(CONFIG_PCI_IOV) += \
+	xe_lmtt.o \
+	xe_lmtt_2l.o \
+	xe_lmtt_ml.o
+
 # i915 Display compat #defines and #includes
 subdir-ccflags-$(CONFIG_DRM_XE_DISPLAY) += \
 	-I$(srctree)/$(src)/display/ext \
