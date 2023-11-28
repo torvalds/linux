@@ -199,6 +199,13 @@ struct mpcc_state {
 	uint32_t overlap_only;
 	uint32_t idle;
 	uint32_t busy;
+	uint32_t shaper_lut_mode;
+	uint32_t lut3d_mode;
+	uint32_t lut3d_bit_depth;
+	uint32_t lut3d_size;
+	uint32_t rgam_mode;
+	uint32_t rgam_lut;
+	struct mpc_grph_gamut_adjustment gamut_remap;
 };
 
 /**
