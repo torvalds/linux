@@ -114,6 +114,45 @@ Description:
 		speed of 1000Mbps of the named network device.
 		Setting this value also immediately changes the LED state.
 
+What:		/sys/class/leds/<led>/link_2500
+Date:		Nov 2023
+KernelVersion:	6.8
+Contact:	linux-leds@vger.kernel.org
+Description:
+		Signal the link speed state of 2500Mbps of the named network device.
+
+		If set to 0 (default), the LED's normal state is off.
+
+		If set to 1, the LED's normal state reflects the link state
+		speed of 2500Mbps of the named network device.
+		Setting this value also immediately changes the LED state.
+
+What:		/sys/class/leds/<led>/link_5000
+Date:		Nov 2023
+KernelVersion:	6.8
+Contact:	linux-leds@vger.kernel.org
+Description:
+		Signal the link speed state of 5000Mbps of the named network device.
+
+		If set to 0 (default), the LED's normal state is off.
+
+		If set to 1, the LED's normal state reflects the link state
+		speed of 5000Mbps of the named network device.
+		Setting this value also immediately changes the LED state.
+
+What:		/sys/class/leds/<led>/link_10000
+Date:		Nov 2023
+KernelVersion:	6.8
+Contact:	linux-leds@vger.kernel.org
+Description:
+		Signal the link speed state of 10000Mbps of the named network device.
+
+		If set to 0 (default), the LED's normal state is off.
+
+		If set to 1, the LED's normal state reflects the link state
+		speed of 10000Mbps of the named network device.
+		Setting this value also immediately changes the LED state.
+
 What:		/sys/class/leds/<led>/half_duplex
 Date:		Jun 2023
 KernelVersion:	6.5
