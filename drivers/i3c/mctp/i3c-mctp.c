@@ -538,7 +538,7 @@ static int i3c_mctp_probe(struct i3c_device *i3cdev)
 
 	ret = i3c_device_control_pec(i3cdev, true);
 	if (ret)
-		goto error;
+		dev_warn(priv->dev, "Hardware not support pec");
 
 	priv->default_client = i3c_mctp_client_alloc(priv);
 	if (IS_ERR(priv->default_client))
