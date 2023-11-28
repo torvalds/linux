@@ -36,6 +36,8 @@ struct io_provide_buf {
 struct io_buf_free {
 	struct hlist_node		list;
 	void				*mem;
+	size_t				size;
+	int				inuse;
 };
 
 static inline struct io_buffer_list *io_buffer_get_list(struct io_ring_ctx *ctx,
@@ -216,6 +218,24 @@ static __cold int io_init_bl_list(struct io_ring_ctx *ctx)
 	return 0;
 }
 
+/*
+ * Mark the given mapped range as free for reuse
+ */
+static void io_kbuf_mark_free(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
+{
+	struct io_buf_free *ibf;
+
+	hlist_for_each_entry(ibf, &ctx->io_buf_list, list) {
+		if (bl->buf_ring == ibf->mem) {
+			ibf->inuse = 0;
+			return;
+		}
+	}
+
+	/* can't happen... */
+	WARN_ON_ONCE(1);
+}
+
 static int __io_remove_buffers(struct io_ring_ctx *ctx,
 			       struct io_buffer_list *bl, unsigned nbufs)
 {
@@ -232,6 +252,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 			 * io_kbuf_list_free() will free the page(s) at
 			 * ->release() time.
 			 */
+			io_kbuf_mark_free(ctx, bl);
 			bl->buf_ring = NULL;
 			bl->is_mmap = 0;
 		} else if (bl->buf_nr_pages) {
@@ -539,6 +560,34 @@ error_unpin:
 	return -EINVAL;
 }
 
+/*
+ * See if we have a suitable region that we can reuse, rather than allocate
+ * both a new io_buf_free and mem region again. We leave it on the list as
+ * even a reused entry will need freeing at ring release.
+ */
+static struct io_buf_free *io_lookup_buf_free_entry(struct io_ring_ctx *ctx,
+						    size_t ring_size)
+{
+	struct io_buf_free *ibf, *best = NULL;
+	size_t best_dist;
+
+	hlist_for_each_entry(ibf, &ctx->io_buf_list, list) {
+		size_t dist;
+
+		if (ibf->inuse || ibf->size < ring_size)
+			continue;
+		dist = ibf->size - ring_size;
+		if (!best || dist < best_dist) {
+			best = ibf;
+			if (!dist)
+				break;
+			best_dist = dist;
+		}
+	}
+
+	return best;
+}
+
 static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
 			      struct io_uring_buf_reg *reg,
 			      struct io_buffer_list *bl)
@@ -548,20 +597,26 @@ static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
 	void *ptr;
 
 	ring_size = reg->ring_entries * sizeof(struct io_uring_buf_ring);
-	ptr = io_mem_alloc(ring_size);
-	if (!ptr)
-		return -ENOMEM;
 
-	/* Allocate and store deferred free entry */
-	ibf = kmalloc(sizeof(*ibf), GFP_KERNEL_ACCOUNT);
+	/* Reuse existing entry, if we can */
+	ibf = io_lookup_buf_free_entry(ctx, ring_size);
 	if (!ibf) {
-		io_mem_free(ptr);
-		return -ENOMEM;
-	}
-	ibf->mem = ptr;
-	hlist_add_head(&ibf->list, &ctx->io_buf_list);
+		ptr = io_mem_alloc(ring_size);
+		if (!ptr)
+			return -ENOMEM;
 
-	bl->buf_ring = ptr;
+		/* Allocate and store deferred free entry */
+		ibf = kmalloc(sizeof(*ibf), GFP_KERNEL_ACCOUNT);
+		if (!ibf) {
+			io_mem_free(ptr);
+			return -ENOMEM;
+		}
+		ibf->mem = ptr;
+		ibf->size = ring_size;
+		hlist_add_head(&ibf->list, &ctx->io_buf_list);
+	}
+	ibf->inuse = 1;
+	bl->buf_ring = ibf->mem;
 	bl->is_mapped = 1;
 	bl->is_mmap = 1;
 	return 0;
