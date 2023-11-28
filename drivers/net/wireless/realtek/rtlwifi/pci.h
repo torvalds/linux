@@ -195,7 +195,6 @@ struct rtl_pci {
 	u32 reg_bcn_ctrl_val;
 
 	 /*ASPM*/ u8 const_pci_aspm;
-	u8 const_amdpci_aspm;
 	u8 const_hwsw_rfoff_d3;
 	u8 const_support_pciaspm;
 	/*pci-e bridge */

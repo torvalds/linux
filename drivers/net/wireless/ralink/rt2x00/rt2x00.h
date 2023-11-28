@@ -926,6 +926,9 @@ struct rt2x00_dev {
 	 */
 	u16 beacon_int;
 
+	/* Rx/Tx DMA busy watchdog counter */
+	u16 rxdma_busy, txdma_busy;
+
 	/**
 	 * Timestamp of last received beacon
 	 */

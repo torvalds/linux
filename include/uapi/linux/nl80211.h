@@ -1135,11 +1135,15 @@
  * @NL80211_CMD_DEL_PMK: For offloaded 4-Way handshake, delete the previously
  *	configured PMK for the authenticator address identified by
  *	%NL80211_ATTR_MAC.
- * @NL80211_CMD_PORT_AUTHORIZED: An event that indicates an 802.1X FT roam was
- *	completed successfully. Drivers that support 4 way handshake offload
- *	should send this event after indicating 802.1X FT assocation with
- *	%NL80211_CMD_ROAM. If the 4 way handshake failed %NL80211_CMD_DISCONNECT
- *	should be indicated instead.
+ * @NL80211_CMD_PORT_AUTHORIZED: An event that indicates port is authorized and
+ *	open for regular data traffic. For STA/P2P-client, this event is sent
+ *	with AP MAC address and for AP/P2P-GO, the event carries the STA/P2P-
+ *	client MAC address.
+ *	Drivers that support 4 way handshake offload should send this event for
+ *	STA/P2P-client after successful 4-way HS or after 802.1X FT following
+ *	NL80211_CMD_CONNECT or NL80211_CMD_ROAM. Drivers using AP/P2P-GO 4-way
+ *	handshake offload should send this event on successful completion of
+ *	4-way handshake with the peer (STA/P2P-client).
  * @NL80211_CMD_CONTROL_PORT_FRAME: Control Port (e.g. PAE) frame TX request
  *	and RX notification.  This command is used both as a request to transmit
  *	a control port frame and as a notification that a control port frame
@@ -6241,9 +6245,11 @@ enum nl80211_feature_flags {
  *	the BSS that the interface that requested the scan is connected to
  *	(if available).
  * @NL80211_EXT_FEATURE_BSS_PARENT_TSF: Per BSS, this driver reports the
- *	time the last beacon/probe was received. The time is the TSF of the
- *	BSS that the interface that requested the scan is connected to
- *	(if available).
+ *	time the last beacon/probe was received. For a non MLO connection, the
+ *	time is the TSF of the BSS that the interface that requested the scan is
+ *	connected to (if available). For an MLO connection, the time is the TSF
+ *	of the BSS corresponding with link ID specified in the scan request (if
+ *	specified).
  * @NL80211_EXT_FEATURE_SET_SCAN_DWELL: This driver supports configuration of
  *	channel dwell time.
  * @NL80211_EXT_FEATURE_BEACON_RATE_LEGACY: Driver supports beacon rate

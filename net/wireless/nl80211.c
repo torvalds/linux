@@ -9337,6 +9337,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	else
 		eth_broadcast_addr(request->bssid);
 
+	request->tsf_report_link_id = nl80211_link_id_or_invalid(info->attrs);
 	request->wdev = wdev;
 	request->wiphy = &rdev->wiphy;
 	request->scan_start = jiffies;

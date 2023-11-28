@@ -426,11 +426,36 @@ static void rtw8852c_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
 	valid |= _decode_efuse_gain(map->rx_gain_5g_high,
 				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_HIGH],
 				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_5G_HIGH]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_l0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_l1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_m0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_m1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_h0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_h1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_uh0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_uh1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH1]);
 
 	gain->offset_valid = valid;
 }
 
-static int rtw8852c_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+static int rtw8852c_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
 {
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw8852c_efuse *map;
@@ -2877,12 +2902,14 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.bacam_num		= 8,
 	.bacam_dynamic_num	= 8,
 	.bacam_ver		= RTW89_BACAM_V0_EXT,
+	.ppdu_max_usr		= 8,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
 	.limit_efuse_size	= 1280,
 	.dav_phy_efuse_size	= 96,
 	.dav_log_efuse_size	= 16,
+	.efuse_blocks		= NULL,
 	.phycap_addr		= 0x590,
 	.phycap_size		= 0x60,
 	.para_ver		= 0x1,

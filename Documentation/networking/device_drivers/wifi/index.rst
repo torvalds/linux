@@ -10,7 +10,6 @@ Contents:
 
    intel/ipw2100
    intel/ipw2200
-   ray_cs
 
 .. only::  subproject and html
 

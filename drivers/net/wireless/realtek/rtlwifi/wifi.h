@@ -1316,7 +1316,6 @@ struct rtl_phy {
 	u8 sw_chnl_stage;
 	u8 sw_chnl_step;
 	u8 current_channel;
-	u8 h2c_box_num;
 	u8 set_io_inprogress;
 	u8 lck_inprogress;
 
@@ -1329,9 +1328,6 @@ struct rtl_phy {
 	s32 reg_ebc;
 	s32 reg_ec4;
 	s32 reg_ecc;
-	u8 rfpienable;
-	u8 reserve_0;
-	u16 reserve_1;
 	u32 reg_c04, reg_c08, reg_874;
 	u32 adda_backup[16];
 	u32 iqk_mac_backup[IQK_MAC_REG_NUM];
@@ -1345,7 +1341,6 @@ struct rtl_phy {
 	struct iqk_matrix_regs iqk_matrix[IQK_MATRIX_SETTINGS_NUM];
 
 	bool rfpi_enable;
-	bool iqk_in_progress;
 
 	u8 pwrgroup_cnt;
 	u8 cck_high_power;
@@ -1383,7 +1378,6 @@ struct rtl_phy {
 			 [MAX_RF_PATH_NUM];
 
 	u32 rfreg_chnlval[2];
-	bool apk_done;
 	u32 reg_rf3c[2];	/* pathA / pathB  */
 
 	u32 backup_rf_0x1a;/*92ee*/
@@ -1395,7 +1389,6 @@ struct rtl_phy {
 	struct phy_parameters hwparam_tables[MAX_TAB];
 	u16 rf_pathmap;
 
-	u8 hw_rof_enable; /*Enable GPIO[9] as WL RF HW PDn source*/
 	enum rt_polarity_ctl polarity_ctl;
 };
 
@@ -1610,7 +1603,6 @@ struct rtl_hal {
 	bool up_first_time;
 	bool first_init;
 	bool being_init_adapter;
-	bool bbrf_ready;
 	bool mac_func_enable;
 	bool pre_edcca_enable;
 	struct bt_coexist_8723 hal_coex_8723;
@@ -1623,9 +1615,7 @@ struct rtl_hal {
 	u8 state;		/*stop 0, start 1 */
 	u8 board_type;
 	u8 package_type;
-	u8 external_pa;
 
-	u8 pa_mode;
 	u8 pa_type_2g;
 	u8 pa_type_5g;
 	u8 lna_type_2g;
@@ -1691,14 +1681,9 @@ struct rtl_hal {
 	bool master_of_dmsp;
 	bool slave_of_dmsp;
 
-	u16 rx_tag;/*for 92ee*/
-	u8 rts_en;
-
 	/*for wowlan*/
-	bool wow_enable;
 	bool enter_pnp_sleep;
 	bool wake_from_pnp_sleep;
-	bool wow_enabled;
 	time64_t last_suspend_sec;
 	u32 wowlan_fwsize;
 	u8 *wowlan_firmware;
@@ -2023,8 +2008,6 @@ struct rtl_ps_ctl {
 	u32 cur_ps_level;
 	u32 reg_rfps_level;
 
-	/*just for PCIE ASPM */
-	u8 const_amdpci_aspm;
 	bool pwrdown_mode;
 
 	enum rf_pwrstate inactive_pwrstate;

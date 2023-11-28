@@ -361,6 +361,9 @@ static int hal_enable_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_2);
 	if (!ret)
 		clear_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to start dma: %d\n", ret);
 
 	return ret;
 }
@@ -376,6 +379,9 @@ static int hal_stop_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_1);
 	if (!ret)
 		set_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to stop dma: %d\n", ret);
 
 	return ret;
 }

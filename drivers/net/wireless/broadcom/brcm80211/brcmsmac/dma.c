@@ -584,8 +584,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 		      rxextheadroom, nrxpost, rxoffset, txregbase, rxregbase);
 
 	/* make a private copy of our callers name */
-	strncpy(di->name, name, MAXNAMEL);
-	di->name[MAXNAMEL - 1] = '\0';
+	strscpy(di->name, name, sizeof(di->name));
 
 	di->dmadev = core->dma_dev;
 

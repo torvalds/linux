@@ -500,7 +500,8 @@ static void rtw8851b_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
 	gain->offset_valid = valid;
 }
 
-static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+static int rtw8851b_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
 {
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw8851b_efuse *map;
@@ -2393,12 +2394,14 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.bacam_num		= 2,
 	.bacam_dynamic_num	= 4,
 	.bacam_ver		= RTW89_BACAM_V0,
+	.ppdu_max_usr		= 4,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
 	.limit_efuse_size	= 1280,
 	.dav_phy_efuse_size	= 0,
 	.dav_log_efuse_size	= 0,
+	.efuse_blocks		= NULL,
 	.phycap_addr		= 0x580,
 	.phycap_size		= 128,
 	.para_ver		= 0,
