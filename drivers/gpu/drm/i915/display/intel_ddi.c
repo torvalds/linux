@@ -3696,9 +3696,10 @@ static int icl_ddi_min_voltage_level(const struct intel_crtc_state *crtc_state)
 		return 0;
 }
 
-void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
-					 struct intel_crtc_state *crtc_state)
+void intel_ddi_compute_min_voltage_level(struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
 	if (DISPLAY_VER(dev_priv) >= 14)
 		crtc_state->min_voltage_level = icl_ddi_min_voltage_level(crtc_state);
 	else if (DISPLAY_VER(dev_priv) >= 12)
@@ -3920,7 +3921,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	intel_hdmi_read_gcp_infoframe(encoder, pipe_config);
 
@@ -4200,7 +4201,7 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	return 0;
 }
