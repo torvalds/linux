@@ -3673,6 +3673,10 @@ static int geni_i3c_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	geni_write_reg(0x7f, gi3c->se.base, GENI_OUTPUT_CTRL);
+	/* Added 10 us delay to settle the write of the register as per HW team recommendation */
+	udelay(10);
+
 	if (gi3c->se_mode != GENI_GPI_DMA) {
 		enable_irq(gi3c->irq);
 	} else {
