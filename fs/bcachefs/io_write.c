@@ -403,8 +403,7 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		BUG_ON(ptr->dev >= BCH_SB_MEMBERS_MAX ||
-		       !c->devs[ptr->dev]);
+		BUG_ON(!bch2_dev_exists2(c, ptr->dev));
 
 		ca = bch_dev_bkey_exists(c, ptr->dev);
 
