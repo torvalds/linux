@@ -1800,6 +1800,8 @@ static bool cdclk_pll_is_unknown(unsigned int vco)
 	return vco == ~0;
 }
 
+static const int cdclk_squash_len = 16;
+
 static int cdclk_squash_divider(u16 waveform)
 {
 	return hweight16(waveform ?: 0xffff);
@@ -1811,7 +1813,6 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 						    struct intel_cdclk_config *mid_cdclk_config)
 {
 	u16 old_waveform, new_waveform, mid_waveform;
-	int size = 16;
 	int div = 2;
 
 	/* Return if PLL is in an unknown state, force a complete disable and re-enable. */
@@ -1850,7 +1851,8 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 	}
 
 	mid_cdclk_config->cdclk = DIV_ROUND_CLOSEST(cdclk_squash_divider(mid_waveform) *
-						    mid_cdclk_config->vco, size * div);
+						    mid_cdclk_config->vco,
+						    cdclk_squash_len * div);
 
 	/* make sure the mid clock came out sane */
 
