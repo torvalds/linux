@@ -183,6 +183,9 @@
 #define RKMODULE_SET_CAPTURE_MODE  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct rkmodule_capture_info)
 
+#define RKMODULE_GET_SKIP_FRAME  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 41, __u32)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));

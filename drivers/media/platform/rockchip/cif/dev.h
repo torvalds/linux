@@ -99,6 +99,8 @@
  */
 #define RKCIF_STOP_MAX_WAIT_TIME_MS	(500)
 
+#define RKCIF_SKIP_FRAME_MAX		(16)
+
 enum rkcif_workmode {
 	RKCIF_WORKMODE_ONEFRAME = 0x00,
 	RKCIF_WORKMODE_PINGPONG = 0x01,
@@ -560,6 +562,8 @@ struct rkcif_stream {
 	atomic_t			buf_cnt;
 	struct completion		stop_complete;
 	struct rkcif_toisp_buf_state	toisp_buf_state;
+	u32				skip_frame;
+	u32				cur_skip_frame;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
