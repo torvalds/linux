@@ -22,4 +22,21 @@ if FRAMER
 config GENERIC_FRAMER
 	bool
 
+config FRAMER_PEF2256
+	tristate "Lantiq PEF2256"
+	depends on OF
+	depends on HAS_IOMEM
+	select GENERIC_FRAMER
+	select MFD_CORE
+	select REGMAP_MMIO
+	help
+	  Enable support for the Lantiq PEF2256 (FALC56) framer.
+	  The PEF2256 is a framer and line interface between analog E1/T1/J1
+	  line and a digital PCM bus.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called framer-pef2256.
+
 endif # FRAMER
