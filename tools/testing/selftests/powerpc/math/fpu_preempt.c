@@ -22,7 +22,7 @@
 #include "fpu.h"
 
 /* Time to wait for workers to get preempted (seconds) */
-#define PREEMPT_TIME 20
+#define PREEMPT_TIME 60
 /*
  * Factor by which to multiply number of online CPUs for total number of
  * worker threads
