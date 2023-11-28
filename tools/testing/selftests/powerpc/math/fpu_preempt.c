@@ -19,6 +19,7 @@
 #include <pthread.h>
 
 #include "utils.h"
+#include "fpu.h"
 
 /* Time to wait for workers to get preempted (seconds) */
 #define PREEMPT_TIME 20
@@ -39,12 +40,9 @@ extern int preempt_fpu(double *darray, int *threads_starting, int *running);
 void *preempt_fpu_c(void *p)
 {
 	long rc;
-	int i;
 
 	srand(pthread_self());
-	for (i = 0; i < ARRAY_SIZE(darray); i++)
-		darray[i] = rand();
-
+	randomise_darray(darray, ARRAY_SIZE(darray));
 	rc = preempt_fpu(darray, &threads_starting, &running);
 
 	return (void *)rc;
