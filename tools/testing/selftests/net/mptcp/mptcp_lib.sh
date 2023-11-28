@@ -256,3 +256,27 @@ mptcp_lib_make_file() {
 	dd if=/dev/urandom of="${name}" bs="${bs}" count="${size}" 2> /dev/null
 	echo -e "\nMPTCP_TEST_FILE_END_MARKER" >> "${name}"
 }
+
+# $1: file
+mptcp_lib_print_file_err() {
+	ls -l "${1}" 1>&2
+	echo "Trailing bytes are: "
+	tail -c 27 "${1}"
+}
+
+# $1: input file ; $2: output file ; $3: what kind of file
+mptcp_lib_check_transfer() {
+	local in="${1}"
+	local out="${2}"
+	local what="${3}"
+
+	if ! cmp "$in" "$out" > /dev/null 2>&1; then
+		echo "[ FAIL ] $what does not match (in, out):"
+		mptcp_lib_print_file_err "$in"
+		mptcp_lib_print_file_err "$out"
+
+		return 1
+	fi
+
+	return 0
+}
