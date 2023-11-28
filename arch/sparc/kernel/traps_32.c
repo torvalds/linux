@@ -10,6 +10,7 @@
  * I hate traps on the sparc, grrr...
  */
 
+#include <linux/cpu.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/debug.h>
 #include <linux/mm_types.h>
