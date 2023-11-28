@@ -337,7 +337,8 @@ static int bch2_copygc_thread(void *arg)
 
 		if (!c->copy_gc_enabled) {
 			move_buckets_wait(&ctxt, buckets, true);
-			kthread_wait_freezable(c->copy_gc_enabled);
+			kthread_wait_freezable(c->copy_gc_enabled ||
+					       kthread_should_stop());
 		}
 
 		if (unlikely(freezing(current))) {
