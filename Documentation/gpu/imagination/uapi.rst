@@ -46,9 +46,6 @@ DEV_QUERY
                  drm_pvr_dev_query_heap_info
 
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
-   :doc: Flags for DRM_PVR_DEV_QUERY_HEAP_INFO_GET.
-
-.. kernel-doc:: include/uapi/drm/pvr_drm.h
    :identifiers: drm_pvr_static_data_area_usage
                  drm_pvr_static_data_area
                  drm_pvr_dev_query_static_data_areas
@@ -121,7 +118,7 @@ CREATE_FREE_LIST and DESTROY_FREE_LIST
    :identifiers: drm_pvr_ioctl_destroy_free_list_args
 
 CREATE_HWRT_DATASET and DESTROY_HWRT_DATASET
---------------------------------------
+--------------------------------------------
 .. kernel-doc:: include/uapi/drm/pvr_drm.h
    :doc: PowerVR IOCTL CREATE_HWRT_DATASET and DESTROY_HWRT_DATASET interfaces
 

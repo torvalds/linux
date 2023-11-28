@@ -203,17 +203,29 @@ struct pvr_device {
 		struct mutex lock;
 	} queues;
 
+	/**
+	 * @watchdog: Watchdog for communications with firmware.
+	 */
 	struct {
 		/** @work: Work item for watchdog callback. */
 		struct delayed_work work;
 
-		/** @old_kccb_cmds_executed: KCCB command execution count at last watchdog poll. */
+		/**
+		 * @old_kccb_cmds_executed: KCCB command execution count at last
+		 * watchdog poll.
+		 */
 		u32 old_kccb_cmds_executed;
 
-		/** @kccb_stall_count: Number of watchdog polls KCCB has been stalled for. */
+		/**
+		 * @kccb_stall_count: Number of watchdog polls KCCB has been
+		 * stalled for.
+		 */
 		u32 kccb_stall_count;
 	} watchdog;
 
+	/**
+	 * @kccb: Circular buffer for communications with firmware.
+	 */
 	struct {
 		/** @ccb: Kernel CCB. */
 		struct pvr_ccb ccb;
@@ -225,8 +237,8 @@ struct pvr_device {
 		struct pvr_fw_object *rtn_obj;
 
 		/**
-		 * @rtn: Pointer to CPU mapping of KCCB return slots. Must be accessed by
-		 *       READ_ONCE()/WRITE_ONCE().
+		 * @rtn: Pointer to CPU mapping of KCCB return slots. Must be
+		 * accessed by READ_ONCE()/WRITE_ONCE().
 		 */
 		u32 *rtn;
 
@@ -293,14 +305,13 @@ struct pvr_file {
 
 	/**
 	 * @pvr_dev: A reference to the powervr-specific wrapper for the
-	 *           associated device. Saves on repeated calls to
-	 *           to_pvr_device().
+	 * associated device. Saves on repeated calls to to_pvr_device().
 	 */
 	struct pvr_device *pvr_dev;
 
 	/**
 	 * @ctx_handles: Array of contexts belonging to this file. Array members
-	 *               are of type "struct pvr_context *".
+	 * are of type "struct pvr_context *".
 	 *
 	 * This array is used to allocate handles returned to userspace.
 	 */

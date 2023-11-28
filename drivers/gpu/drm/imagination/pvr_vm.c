@@ -42,7 +42,7 @@ struct pvr_vm_context {
 	/** @mmu_ctx: The context for binding to physical memory. */
 	struct pvr_mmu_context *mmu_ctx;
 
-	/** @gpuva_mgr: GPUVA manager object associated with this context. */
+	/** @gpuvm_mgr: GPUVM object associated with this context. */
 	struct drm_gpuvm gpuvm_mgr;
 
 	/** @lock: Global lock on this VM. */

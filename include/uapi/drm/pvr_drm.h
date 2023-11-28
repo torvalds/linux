@@ -741,20 +741,18 @@ enum drm_pvr_ctx_priority {
  */
 enum drm_pvr_ctx_type {
 	/**
-	 * @DRM_PVR_CTX_TYPE_RENDER: Render context. Use &struct
-	 * drm_pvr_ioctl_create_render_context_args for context creation arguments.
+	 * @DRM_PVR_CTX_TYPE_RENDER: Render context.
 	 */
 	DRM_PVR_CTX_TYPE_RENDER = 0,
 
 	/**
-	 * @DRM_PVR_CTX_TYPE_COMPUTE: Compute context. Use &struct
-	 * drm_pvr_ioctl_create_compute_context_args for context creation arguments.
+	 * @DRM_PVR_CTX_TYPE_COMPUTE: Compute context.
 	 */
 	DRM_PVR_CTX_TYPE_COMPUTE,
 
 	/**
-	 * @DRM_PVR_CTX_TYPE_TRANSFER_FRAG: Transfer context for fragment data masters. Use
-	 * &struct drm_pvr_ioctl_create_transfer_context_args for context creation arguments.
+	 * @DRM_PVR_CTX_TYPE_TRANSFER_FRAG: Transfer context for fragment data
+	 * master.
 	 */
 	DRM_PVR_CTX_TYPE_TRANSFER_FRAG,
 };

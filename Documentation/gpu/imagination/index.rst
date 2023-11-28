@@ -3,7 +3,7 @@ drm/imagination PowerVR Graphics Driver
 =======================================
 
 .. kernel-doc:: drivers/gpu/drm/imagination/pvr_drv.c
-   :doc: PowerVR Graphics Driver
+   :doc: PowerVR (Series 6 and later) and IMG Graphics Driver
 
 Contents
 ========

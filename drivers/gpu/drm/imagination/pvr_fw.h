@@ -481,7 +481,8 @@ pvr_fw_object_unmap_and_destroy(struct pvr_fw_object *fw_obj)
 }
 
 /**
- * pvr_fw_get_dma_addr() - Get DMA address for given offset in firmware object
+ * pvr_fw_object_get_dma_addr() - Get DMA address for given offset in firmware
+ * object.
  * @fw_obj: Pointer to object to lookup address in.
  * @offset: Offset within object to lookup address at.
  * @dma_addr_out: Pointer to location to store DMA address.
