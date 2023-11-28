@@ -35,6 +35,7 @@ enum rkisp_vicap_link {
 	RKISP_VICAP_ONLINE,
 	RKISP_VICAP_RDBK_AIQ,
 	RKISP_VICAP_RDBK_AUTO,
+	RKISP_VICAP_RDBK_AUTO_ONE_FRAME,
 };
 
 struct rkisp_vicap_mode {

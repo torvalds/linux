@@ -1060,11 +1060,6 @@ static int rkisp_pm_prepare(struct device *dev)
 		if (!hw->is_idle && hw->cur_dev_id == isp_dev->dev_id)
 			isp_dev->suspend_sync = true;
 		spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
-	} else {
-		/* wait one frame for online */
-		isp_dev->suspend_sync = true;
-		if (hw->isp_size[isp_dev->dev_id].fps)
-			time = 1000 / hw->isp_size[isp_dev->dev_id].fps;
 	}
 
 	if (isp_dev->suspend_sync) {
@@ -1086,6 +1081,7 @@ static void rkisp_pm_complete(struct device *dev)
 	struct rkisp_pipeline *p = &isp_dev->pipe;
 	struct rkisp_stream *stream;
 	int i, on = 1, rd_mode = isp_dev->rd_mode;
+	u32 val;
 
 	if (isp_dev->isp_state & ISP_STOP) {
 		if (pm_runtime_active(dev) &&
@@ -1158,10 +1154,20 @@ static void rkisp_pm_complete(struct device *dev)
 
 	isp_dev->is_suspend = false;
 	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
+	if (isp_dev->is_suspend_one_frame)
+		isp_dev->is_first_double = true;
+	if (hw->isp_ver > ISP_V20) {
+		val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME |
+		      ISP3X_DHAZ_FST_FRAME | ISP3X_ADRC_FST_FRAME;
+		if (hw->isp_ver == ISP_V32)
+			val |= ISP32_SHP_FST_FRAME;
+		rkisp_unite_set_bits(isp_dev, ISP3X_ISP_CTRL1, 0, val, false);
+	}
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		stream = &isp_dev->cap_dev.stream[i];
 		if (i == RKISP_STREAM_VIR || !stream->streaming || !stream->curr_buf)
 			continue;
+		/* skip first frame due to hw no reference frame information */
 		stream->skip_frame = 1;
 	}
 	if (hw->cur_dev_id == isp_dev->dev_id)

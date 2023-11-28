@@ -278,6 +278,7 @@ struct rkisp_device {
 	bool is_frame_double;
 	bool is_suspend;
 	bool suspend_sync;
+	bool is_suspend_one_frame;
 
 	struct rkisp_vicap_input vicap_in;
 

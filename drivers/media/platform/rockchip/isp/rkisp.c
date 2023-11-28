@@ -3422,6 +3422,7 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
 	int rd_mode = isp_dev->rd_mode;
 
+	isp_dev->is_suspend_one_frame = false;
 	if (vicap_mode->rdbk_mode == RKISP_VICAP_ONLINE) {
 		if (!hw->is_single)
 			return -EINVAL;
@@ -3436,7 +3437,8 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 		default:
 			isp_dev->rd_mode = HDR_NORMAL;
 		}
-	} else if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+	} else if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO ||
+		   vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME) {
 		/* switch to readback mode */
 		switch (rd_mode) {
 		case HDR_LINEX3_DDR:
@@ -3448,6 +3450,8 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 		default:
 			isp_dev->rd_mode = HDR_RDBK_FRAME1;
 		}
+		if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME)
+			isp_dev->is_suspend_one_frame = true;
 	} else {
 		return -EINVAL;
 	}
