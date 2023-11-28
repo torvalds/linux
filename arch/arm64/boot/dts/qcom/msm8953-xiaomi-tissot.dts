@@ -205,7 +205,11 @@
 	audio-routing =
 		"AMIC1", "MIC BIAS External1",
 		"AMIC2", "MIC BIAS Internal2",
-		"AMIC3", "MIC BIAS External1";
+		"AMIC3", "MIC BIAS External1",
+		"MM_DL1", "MultiMedia1 Playback",
+		"MM_DL3", "MultiMedia3 Playback",
+		"MM_DL4", "MultiMedia4 Playback",
+		"MultiMedia2 Capture", "MM_UL2";
 
 	quinary-mi2s-dai-link {
 		link-name = "Quinary MI2S";
@@ -269,4 +273,9 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3680";
+};
+
+&wcd_codec {
+	qcom,mbhc-vthreshold-high = <91 259 488 488 488>;
+	qcom,mbhc-vthreshold-low = <91 259 488 488 488>;
 };
