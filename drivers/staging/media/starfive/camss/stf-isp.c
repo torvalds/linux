@@ -120,7 +120,7 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	const struct stf_isp_format_table *formats;
 
 	if (code->pad == STF_ISP_PAD_SINK) {
-		if (code->index > ARRAY_SIZE(isp_formats_sink))
+		if (code->index >= ARRAY_SIZE(isp_formats_sink))
 			return -EINVAL;
 
 		formats = &isp_dev->formats[SINK_FORMATS_INDEX];
@@ -128,7 +128,7 @@ static int isp_enum_mbus_code(struct v4l2_subdev *sd,
 	} else {
 		struct v4l2_mbus_framefmt *sink_fmt;
 
-		if (code->index > ARRAY_SIZE(isp_formats_source))
+		if (code->index >= ARRAY_SIZE(isp_formats_source))
 			return -EINVAL;
 
 		sink_fmt = v4l2_subdev_state_get_format(state,
