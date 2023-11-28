@@ -88,14 +88,14 @@
 		};
 
 		video_engine_memory0: video0 {
-			size = <0x0 0x03000000>;
+			size = <0x0 0x04000000>;
 			alignment = <0x0 0x00010000>;
 			compatible = "shared-dma-pool";
 			reusable;
 		};
 
 		video_engine_memory1: video1{
-			size = <0x0 0x03000000>;
+			size = <0x0 0x04000000>;
 			alignment = <0x0 0x00010000>;
 			compatible = "shared-dma-pool";
 			reusable;
