@@ -113,9 +113,14 @@ struct mlxsw_sp_fid_ops {
 			      const struct mlxsw_sp_port *mlxsw_sp_port);
 };
 
+enum mlxsw_sp_fid_flood_profile_id {
+	MLXSW_SP_FID_FLOOD_PROFILE_ID_BRIDGE = 1,
+};
+
 struct mlxsw_sp_fid_flood_profile {
 	const struct mlxsw_sp_flood_table *flood_tables;
 	int nr_flood_tables;
+	const enum mlxsw_sp_fid_flood_profile_id profile_id; /* For CFF mode. */
 };
 
 struct mlxsw_sp_fid_family {
@@ -1188,6 +1193,7 @@ static const
 struct mlxsw_sp_fid_flood_profile mlxsw_sp_fid_8021d_flood_profile = {
 	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.profile_id		= MLXSW_SP_FID_FLOOD_PROFILE_ID_BRIDGE,
 };
 
 static bool
