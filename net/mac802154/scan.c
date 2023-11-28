@@ -781,6 +781,12 @@ int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
 		 unlikely(dest->short_addr != wpan_dev->short_addr))
 		return -ENODEV;
 
+	if (wpan_dev->parent) {
+		dev_dbg(&sdata->dev->dev,
+			"Ignoring ASSOC REQ, not the PAN coordinator\n");
+		return -ENODEV;
+	}
+
 	mutex_lock(&wpan_dev->association_lock);
 
 	memcpy(&assoc_req_pl, skb->data, sizeof(assoc_req_pl));
