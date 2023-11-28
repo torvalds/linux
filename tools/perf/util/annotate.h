@@ -428,14 +428,14 @@ static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 }
 #endif
 
-void annotation_options__init(struct annotation_options *opt);
-void annotation_options__exit(struct annotation_options *opt);
+void annotation_options__init(void);
+void annotation_options__exit(void);
 
-void annotation_config__init(struct annotation_options *opt);
+void annotation_config__init(void);
 
 int annotate_parse_percent_type(const struct option *opt, const char *_str,
 				int unset);
 
-int annotate_check_args(struct annotation_options *args);
+int annotate_check_args(void);
 
 #endif	/* __PERF_ANNOTATE_H */

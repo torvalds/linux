@@ -1608,7 +1608,7 @@ int cmd_top(int argc, const char **argv)
 	if (status < 0)
 		return status;
 
-	annotation_options__init(&annotate_opts);
+	annotation_options__init();
 
 	annotate_opts.min_pcnt = 5;
 	annotate_opts.context  = 4;
@@ -1660,7 +1660,7 @@ int cmd_top(int argc, const char **argv)
 	if (status)
 		goto out_delete_evlist;
 
-	if (annotate_check_args(&annotate_opts) < 0)
+	if (annotate_check_args() < 0)
 		goto out_delete_evlist;
 
 	if (!top.evlist->core.nr_entries) {
@@ -1786,7 +1786,7 @@ int cmd_top(int argc, const char **argv)
 	if (status < 0)
 		goto out_delete_evlist;
 
-	annotation_config__init(&annotate_opts);
+	annotation_config__init();
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	status = symbol__init(NULL);
@@ -1839,7 +1839,7 @@ int cmd_top(int argc, const char **argv)
 out_delete_evlist:
 	evlist__delete(top.evlist);
 	perf_session__delete(top.session);
-	annotation_options__exit(&annotate_opts);
+	annotation_options__exit();
 
 	return status;
 }

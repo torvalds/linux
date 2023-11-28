@@ -1430,7 +1430,7 @@ int cmd_report(int argc, const char **argv)
 	 */
 	symbol_conf.keep_exited_threads = true;
 
-	annotation_options__init(&annotate_opts);
+	annotation_options__init();
 
 	ret = perf_config(report__config, &report);
 	if (ret)
@@ -1464,7 +1464,7 @@ int cmd_report(int argc, const char **argv)
 			return -ENOMEM;
 	}
 
-	if (annotate_check_args(&annotate_opts) < 0) {
+	if (annotate_check_args() < 0) {
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -1696,7 +1696,7 @@ repeat:
 			 */
 			symbol_conf.priv_size += sizeof(u32);
 		}
-		annotation_config__init(&annotate_opts);
+		annotation_config__init();
 	}
 
 	if (symbol__init(&session->header.env) < 0)
@@ -1750,7 +1750,7 @@ error:
 	zstd_fini(&(session->zstd_data));
 	perf_session__delete(session);
 exit:
-	annotation_options__exit(&annotate_opts);
+	annotation_options__exit();
 	free(sort_order_help);
 	free(field_order_help);
 	return ret;

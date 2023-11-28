@@ -615,13 +615,13 @@ int cmd_annotate(int argc, const char **argv)
 	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
 
-	annotation_options__init(&annotate_opts);
+	annotation_options__init();
 
 	ret = hists__init();
 	if (ret < 0)
 		return ret;
 
-	annotation_config__init(&annotate_opts);
+	annotation_config__init();
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 	if (argc) {
@@ -651,7 +651,7 @@ int cmd_annotate(int argc, const char **argv)
 			return -ENOMEM;
 	}
 
-	if (annotate_check_args(&annotate_opts) < 0)
+	if (annotate_check_args() < 0)
 		return -EINVAL;
 
 #ifdef HAVE_GTK2_SUPPORT
@@ -732,7 +732,7 @@ out_delete:
 #ifndef NDEBUG
 	perf_session__delete(annotate.session);
 #endif
-	annotation_options__exit(&annotate_opts);
+	annotation_options__exit();
 
 	return ret;
 }

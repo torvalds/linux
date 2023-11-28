@@ -3416,8 +3416,10 @@ static int annotation__config(const char *var, const char *value, void *data)
 	return 0;
 }
 
-void annotation_options__init(struct annotation_options *opt)
+void annotation_options__init(void)
 {
+	struct annotation_options *opt = &annotate_opts;
+
 	memset(opt, 0, sizeof(*opt));
 
 	/* Default values. */
@@ -3428,16 +3430,15 @@ void annotation_options__init(struct annotation_options *opt)
 	opt->percent_type = PERCENT_PERIOD_LOCAL;
 }
 
-
-void annotation_options__exit(struct annotation_options *opt)
+void annotation_options__exit(void)
 {
-	zfree(&opt->disassembler_style);
-	zfree(&opt->objdump_path);
+	zfree(&annotate_opts.disassembler_style);
+	zfree(&annotate_opts.objdump_path);
 }
 
-void annotation_config__init(struct annotation_options *opt)
+void annotation_config__init(void)
 {
-	perf_config(annotation__config, opt);
+	perf_config(annotation__config, &annotate_opts);
 }
 
 static unsigned int parse_percent_type(char *str1, char *str2)
@@ -3491,8 +3492,10 @@ out:
 	return err;
 }
 
-int annotate_check_args(struct annotation_options *args)
+int annotate_check_args(void)
 {
+	struct annotation_options *args = &annotate_opts;
+
 	if (args->prefix_strip && !args->prefix) {
 		pr_err("--prefix-strip requires --prefix\n");
 		return -1;
