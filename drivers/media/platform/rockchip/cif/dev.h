@@ -94,6 +94,11 @@
 #define CROP_SRC_SENSOR_MASK		(0x1 << 0)
 #define CROP_SRC_USR_MASK		(0x1 << 1)
 
+/*
+ * max wait time for stream stop
+ */
+#define RKCIF_STOP_MAX_WAIT_TIME_MS	(500)
+
 enum rkcif_workmode {
 	RKCIF_WORKMODE_ONEFRAME = 0x00,
 	RKCIF_WORKMODE_PINGPONG = 0x01,
@@ -541,6 +546,7 @@ struct rkcif_stream {
 	int				last_frame_idx;
 	int				new_fource_idx;
 	atomic_t			buf_cnt;
+	struct completion		stop_complete;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -559,6 +565,7 @@ struct rkcif_stream {
 	bool				is_stop_capture;
 	bool				is_wait_dma_stop;
 	bool				is_single_cap;
+	bool				is_wait_stop_complete;
 };
 
 struct rkcif_lvds_subdev {
