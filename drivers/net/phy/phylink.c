@@ -121,6 +121,19 @@ do {									\
 })
 #endif
 
+static const phy_interface_t phylink_sfp_interface_preference[] = {
+	PHY_INTERFACE_MODE_25GBASER,
+	PHY_INTERFACE_MODE_USXGMII,
+	PHY_INTERFACE_MODE_10GBASER,
+	PHY_INTERFACE_MODE_5GBASER,
+	PHY_INTERFACE_MODE_2500BASEX,
+	PHY_INTERFACE_MODE_SGMII,
+	PHY_INTERFACE_MODE_1000BASEX,
+	PHY_INTERFACE_MODE_100BASEX,
+};
+
+static DECLARE_PHY_INTERFACE_MASK(phylink_sfp_interfaces);
+
 /**
  * phylink_set_port_modes() - set the port type modes in the ethtool mask
  * @mask: ethtool link mode mask
@@ -689,26 +702,48 @@ static int phylink_validate_mac_and_pcs(struct phylink *pl,
 	return phylink_is_empty_linkmode(supported) ? -EINVAL : 0;
 }
 
-static int phylink_validate_mask(struct phylink *pl, unsigned long *supported,
+static void phylink_validate_one(struct phylink *pl, struct phy_device *phy,
+				 const unsigned long *supported,
+				 const struct phylink_link_state *state,
+				 phy_interface_t interface,
+				 unsigned long *accum_supported,
+				 unsigned long *accum_advertising)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp_supported);
+	struct phylink_link_state tmp_state;
+
+	linkmode_copy(tmp_supported, supported);
+
+	tmp_state = *state;
+	tmp_state.interface = interface;
+
+	if (phy)
+		tmp_state.rate_matching = phy_get_rate_matching(phy, interface);
+
+	if (!phylink_validate_mac_and_pcs(pl, tmp_supported, &tmp_state)) {
+		phylink_dbg(pl, " interface %u (%s) rate match %s supports %*pbl\n",
+			    interface, phy_modes(interface),
+			    phy_rate_matching_to_str(tmp_state.rate_matching),
+			    __ETHTOOL_LINK_MODE_MASK_NBITS, tmp_supported);
+
+		linkmode_or(accum_supported, accum_supported, tmp_supported);
+		linkmode_or(accum_advertising, accum_advertising,
+			    tmp_state.advertising);
+	}
+}
+
+static int phylink_validate_mask(struct phylink *pl, struct phy_device *phy,
+				 unsigned long *supported,
 				 struct phylink_link_state *state,
 				 const unsigned long *interfaces)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_adv) = { 0, };
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(all_s) = { 0, };
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(s);
-	struct phylink_link_state t;
 	int interface;
 
-	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX) {
-		linkmode_copy(s, supported);
-
-		t = *state;
-		t.interface = interface;
-		if (!phylink_validate_mac_and_pcs(pl, s, &t)) {
-			linkmode_or(all_s, all_s, s);
-			linkmode_or(all_adv, all_adv, t.advertising);
-		}
-	}
+	for_each_set_bit(interface, interfaces, PHY_INTERFACE_MODE_MAX)
+		phylink_validate_one(pl, phy, supported, state, interface,
+				     all_s, all_adv);
 
 	linkmode_copy(supported, all_s);
 	linkmode_copy(state->advertising, all_adv);
@@ -722,7 +757,8 @@ static int phylink_validate(struct phylink *pl, unsigned long *supported,
 	const unsigned long *interfaces = pl->config->supported_interfaces;
 
 	if (state->interface == PHY_INTERFACE_MODE_NA)
-		return phylink_validate_mask(pl, supported, state, interfaces);
+		return phylink_validate_mask(pl, NULL, supported, state,
+					     interfaces);
 
 	if (!test_bit(state->interface, interfaces))
 		return -EINVAL;
@@ -1737,6 +1773,76 @@ static void phylink_phy_change(struct phy_device *phydev, bool up)
 		    phylink_pause_to_str(pl->phy_state.pause));
 }
 
+static int phylink_validate_phy(struct phylink *pl, struct phy_device *phy,
+				unsigned long *supported,
+				struct phylink_link_state *state)
+{
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
+
+	/* If the PHY provides a bitmap of the interfaces it will be using
+	 * depending on the negotiated media speeds, use this to validate
+	 * which ethtool link modes can be used.
+	 */
+	if (!phy_interface_empty(phy->possible_interfaces)) {
+		/* We only care about the union of the PHY's interfaces and
+		 * those which the host supports.
+		 */
+		phy_interface_and(interfaces, phy->possible_interfaces,
+				  pl->config->supported_interfaces);
+
+		if (phy_interface_empty(interfaces)) {
+			phylink_err(pl, "PHY has no common interfaces\n");
+			return -EINVAL;
+		}
+
+		if (phy_on_sfp(phy)) {
+			/* If the PHY is on a SFP, limit the interfaces to
+			 * those that can be used with a SFP module.
+			 */
+			phy_interface_and(interfaces, interfaces,
+					  phylink_sfp_interfaces);
+
+			if (phy_interface_empty(interfaces)) {
+				phylink_err(pl, "SFP PHY's possible interfaces becomes empty\n");
+				return -EINVAL;
+			}
+		}
+
+		phylink_dbg(pl, "PHY %s uses interfaces %*pbl, validating %*pbl\n",
+			    phydev_name(phy),
+			    (int)PHY_INTERFACE_MODE_MAX,
+			    phy->possible_interfaces,
+			    (int)PHY_INTERFACE_MODE_MAX, interfaces);
+
+		return phylink_validate_mask(pl, phy, supported, state,
+					     interfaces);
+	}
+
+	/* Check whether we would use rate matching for the proposed interface
+	 * mode.
+	 */
+	state->rate_matching = phy_get_rate_matching(phy, state->interface);
+
+	/* Clause 45 PHYs may switch their Serdes lane between, e.g. 10GBASE-R,
+	 * 5GBASE-R, 2500BASE-X and SGMII if they are not using rate matching.
+	 * For some interface modes (e.g. RXAUI, XAUI and USXGMII) switching
+	 * their Serdes is either unnecessary or not reasonable.
+	 *
+	 * For these which switch interface modes, we really need to know which
+	 * interface modes the PHY supports to properly work out which ethtool
+	 * linkmodes can be supported. For now, as a work-around, we validate
+	 * against all interface modes, which may lead to more ethtool link
+	 * modes being advertised than are actually supported.
+	 */
+	if (phy->is_c45 && state->rate_matching == RATE_MATCH_NONE &&
+	    state->interface != PHY_INTERFACE_MODE_RXAUI &&
+	    state->interface != PHY_INTERFACE_MODE_XAUI &&
+	    state->interface != PHY_INTERFACE_MODE_USXGMII)
+		state->interface = PHY_INTERFACE_MODE_NA;
+
+	return phylink_validate(pl, supported, state);
+}
+
 static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 			       phy_interface_t interface)
 {
@@ -1757,32 +1863,9 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	memset(&config, 0, sizeof(config));
 	linkmode_copy(supported, phy->supported);
 	linkmode_copy(config.advertising, phy->advertising);
+	config.interface = interface;
 
-	/* Check whether we would use rate matching for the proposed interface
-	 * mode.
-	 */
-	config.rate_matching = phy_get_rate_matching(phy, interface);
-
-	/* Clause 45 PHYs may switch their Serdes lane between, e.g. 10GBASE-R,
-	 * 5GBASE-R, 2500BASE-X and SGMII if they are not using rate matching.
-	 * For some interface modes (e.g. RXAUI, XAUI and USXGMII) switching
-	 * their Serdes is either unnecessary or not reasonable.
-	 *
-	 * For these which switch interface modes, we really need to know which
-	 * interface modes the PHY supports to properly work out which ethtool
-	 * linkmodes can be supported. For now, as a work-around, we validate
-	 * against all interface modes, which may lead to more ethtool link
-	 * modes being advertised than are actually supported.
-	 */
-	if (phy->is_c45 && config.rate_matching == RATE_MATCH_NONE &&
-	    interface != PHY_INTERFACE_MODE_RXAUI &&
-	    interface != PHY_INTERFACE_MODE_XAUI &&
-	    interface != PHY_INTERFACE_MODE_USXGMII)
-		config.interface = PHY_INTERFACE_MODE_NA;
-	else
-		config.interface = interface;
-
-	ret = phylink_validate(pl, supported, &config);
+	ret = phylink_validate_phy(pl, phy, supported, &config);
 	if (ret) {
 		phylink_warn(pl, "validation of %s with support %*pb and advertisement %*pb failed: %pe\n",
 			     phy_modes(config.interface),
@@ -3003,19 +3086,6 @@ static void phylink_sfp_detach(void *upstream, struct sfp_bus *bus)
 	pl->netdev->sfp_bus = NULL;
 }
 
-static const phy_interface_t phylink_sfp_interface_preference[] = {
-	PHY_INTERFACE_MODE_25GBASER,
-	PHY_INTERFACE_MODE_USXGMII,
-	PHY_INTERFACE_MODE_10GBASER,
-	PHY_INTERFACE_MODE_5GBASER,
-	PHY_INTERFACE_MODE_2500BASEX,
-	PHY_INTERFACE_MODE_SGMII,
-	PHY_INTERFACE_MODE_1000BASEX,
-	PHY_INTERFACE_MODE_100BASEX,
-};
-
-static DECLARE_PHY_INTERFACE_MASK(phylink_sfp_interfaces);
-
 static phy_interface_t phylink_choose_sfp_interface(struct phylink *pl,
 						    const unsigned long *intf)
 {
@@ -3158,7 +3228,8 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 	/* For all the interfaces that are supported, reduce the sfp_support
 	 * mask to only those link modes that can be supported.
 	 */
-	ret = phylink_validate_mask(pl, pl->sfp_support, &config, interfaces);
+	ret = phylink_validate_mask(pl, NULL, pl->sfp_support, &config,
+				    interfaces);
 	if (ret) {
 		phylink_err(pl, "unsupported SFP module: validation with support %*pb failed\n",
 			    __ETHTOOL_LINK_MODE_MASK_NBITS, support);
