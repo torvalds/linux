@@ -100,7 +100,6 @@ struct led_classdev {
 	const char		*name;
 	unsigned int brightness;
 	unsigned int max_brightness;
-	unsigned int color;
 	int			 flags;
 
 	/* Lower 16 bits reflect status */

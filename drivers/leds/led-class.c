@@ -491,10 +491,6 @@ int led_classdev_register_ext(struct device *parent,
 			fwnode_property_read_u32(init_data->fwnode,
 				"max-brightness",
 				&led_cdev->max_brightness);
-
-			if (fwnode_property_present(init_data->fwnode, "color"))
-				fwnode_property_read_u32(init_data->fwnode, "color",
-							 &led_cdev->color);
 		}
 	} else {
 		proposed_name = led_cdev->name;
@@ -503,9 +499,6 @@ int led_classdev_register_ext(struct device *parent,
 	ret = led_classdev_next_name(proposed_name, final_name, sizeof(final_name));
 	if (ret < 0)
 		return ret;
-
-	if (led_cdev->color >= LED_COLOR_ID_MAX)
-		dev_warn(parent, "LED %s color identifier out of range\n", final_name);
 
 	mutex_init(&led_cdev->led_access);
 	mutex_lock(&led_cdev->led_access);
