@@ -1077,6 +1077,36 @@ mlxsw_sp_fid_8021d_vid_to_fid_rif_update(const struct mlxsw_sp_fid *fid,
 	return 0;
 }
 
+static int
+mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
+			      const struct mlxsw_sp_flood_table *flood_table)
+{
+	enum mlxsw_sp_flood_type packet_type = flood_table->packet_type;
+	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
+	const int *sfgc_packet_types;
+	u16 mid_base;
+	int err, i;
+
+	mid_base = mlxsw_sp_fid_pgt_base_ctl(fid_family, flood_table);
+
+	sfgc_packet_types = mlxsw_sp_packet_type_sfgc_types[packet_type];
+	for (i = 0; i < MLXSW_REG_SFGC_TYPE_MAX; i++) {
+		char sfgc_pl[MLXSW_REG_SFGC_LEN];
+
+		if (!sfgc_packet_types[i])
+			continue;
+
+		mlxsw_reg_sfgc_pack(sfgc_pl, i, fid_family->bridge_type,
+				    flood_table->table_type, 0, mid_base);
+
+		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfgc), sfgc_pl);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops_ctl = {
 	.setup			= mlxsw_sp_fid_8021d_setup,
 	.configure		= mlxsw_sp_fid_8021d_configure,
@@ -1673,36 +1703,6 @@ struct mlxsw_sp_fid *mlxsw_sp_fid_rfid_get(struct mlxsw_sp *mlxsw_sp,
 struct mlxsw_sp_fid *mlxsw_sp_fid_dummy_get(struct mlxsw_sp *mlxsw_sp)
 {
 	return mlxsw_sp_fid_get(mlxsw_sp, MLXSW_SP_FID_TYPE_DUMMY, NULL);
-}
-
-static int
-mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
-			      const struct mlxsw_sp_flood_table *flood_table)
-{
-	enum mlxsw_sp_flood_type packet_type = flood_table->packet_type;
-	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
-	const int *sfgc_packet_types;
-	u16 mid_base;
-	int err, i;
-
-	mid_base = mlxsw_sp_fid_pgt_base_ctl(fid_family, flood_table);
-
-	sfgc_packet_types = mlxsw_sp_packet_type_sfgc_types[packet_type];
-	for (i = 0; i < MLXSW_REG_SFGC_TYPE_MAX; i++) {
-		char sfgc_pl[MLXSW_REG_SFGC_LEN];
-
-		if (!sfgc_packet_types[i])
-			continue;
-
-		mlxsw_reg_sfgc_pack(sfgc_pl, i, fid_family->bridge_type,
-				    flood_table->table_type, 0, mid_base);
-
-		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfgc), sfgc_pl);
-		if (err)
-			return err;
-	}
-
-	return 0;
 }
 
 static int
