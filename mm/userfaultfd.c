@@ -312,7 +312,7 @@ static int mfill_atomic_pte_poison(pmd_t *dst_pmd,
 
 	ret = -EEXIST;
 	/* Refuse to overwrite any PTE, even a PTE marker (e.g. UFFD WP). */
-	if (!pte_none(*dst_pte))
+	if (!pte_none(ptep_get(dst_pte)))
 		goto out_unlock;
 
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);

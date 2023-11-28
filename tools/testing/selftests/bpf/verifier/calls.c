@@ -442,7 +442,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "back-edge from insn 0 to 0",
+	.errstr = "the call stack of 9 frames is too deep",
 	.result = REJECT,
 },
 {
@@ -799,7 +799,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "back-edge",
+	.errstr = "the call stack of 9 frames is too deep",
 	.result = REJECT,
 },
 {
@@ -811,7 +811,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
-	.errstr = "back-edge",
+	.errstr = "the call stack of 9 frames is too deep",
 	.result = REJECT,
 },
 {

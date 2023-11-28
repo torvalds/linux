@@ -1888,7 +1888,7 @@ int btrfs_qgroup_trace_extent_nolock(struct btrfs_fs_info *fs_info,
 	u64 bytenr = record->bytenr;
 
 	if (!btrfs_qgroup_full_accounting(fs_info))
-		return 0;
+		return 1;
 
 	lockdep_assert_held(&delayed_refs->lock);
 	trace_btrfs_qgroup_trace_extent(fs_info, record);
@@ -2875,12 +2875,18 @@ int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 			       num_bytes, seq);
 
 	/*
+	 * We're done using the iterator, release all its qgroups while holding
+	 * fs_info->qgroup_lock so that we don't race with btrfs_remove_qgroup()
+	 * and trigger use-after-free accesses to qgroups.
+	 */
+	qgroup_iterator_nested_clean(&qgroups);
+
+	/*
 	 * Bump qgroup_seq to avoid seq overlap
 	 */
 	fs_info->qgroup_seq += max(nr_old_roots, nr_new_roots) + 1;
 	spin_unlock(&fs_info->qgroup_lock);
 out_free:
-	qgroup_iterator_nested_clean(&qgroups);
 	ulist_free(old_roots);
 	ulist_free(new_roots);
 	return ret;

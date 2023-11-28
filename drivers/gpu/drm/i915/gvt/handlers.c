@@ -538,7 +538,7 @@ static u32 bxt_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 	int refclk = vgpu->gvt->gt->i915->display.dpll.ref_clks.nssc;
 	enum dpio_phy phy = DPIO_PHY0;
 	enum dpio_channel ch = DPIO_CH0;
-	struct dpll clock = {0};
+	struct dpll clock = {};
 	u32 temp;
 
 	/* Port to PHY mapping is fixed, see bxt_ddi_phy_info{} */
@@ -2576,7 +2576,6 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 
 static int init_skl_mmio_info(struct intel_gvt *gvt)
 {
-	struct drm_i915_private *dev_priv = gvt->gt->i915;
 	int ret;
 
 	MMIO_DH(FORCEWAKE_RENDER_GEN9, D_SKL_PLUS, NULL, mul_force_wake_write);

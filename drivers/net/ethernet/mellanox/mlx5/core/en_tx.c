@@ -399,9 +399,9 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		u8 metadata_index = be32_to_cpu(eseg->flow_table_metadata);
 
 		mlx5e_skb_cb_hwtstamp_init(skb);
-		mlx5e_ptpsq_track_metadata(sq->ptpsq, metadata_index);
 		mlx5e_ptp_metadata_map_put(&sq->ptpsq->metadata_map, skb,
 					   metadata_index);
+		mlx5e_ptpsq_track_metadata(sq->ptpsq, metadata_index);
 		if (!netif_tx_queue_stopped(sq->txq) &&
 		    mlx5e_ptpsq_metadata_freelist_empty(sq->ptpsq)) {
 			netif_tx_stop_queue(sq->txq);
@@ -494,10 +494,10 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 err_drop:
 	stats->dropped++;
-	dev_kfree_skb_any(skb);
 	if (unlikely(sq->ptpsq && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)))
 		mlx5e_ptp_metadata_fifo_push(&sq->ptpsq->metadata_freelist,
 					     be32_to_cpu(eseg->flow_table_metadata));
+	dev_kfree_skb_any(skb);
 	mlx5e_tx_flush(sq);
 }
 

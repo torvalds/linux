@@ -89,10 +89,13 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	ck->btree_trans_barrier_seq =
 		start_poll_synchronize_srcu(&c->btree_trans_barrier);
 
-	if (ck->c.lock.readers)
+	if (ck->c.lock.readers) {
 		list_move_tail(&ck->list, &bc->freed_pcpu);
-	else
+		bc->nr_freed_pcpu++;
+	} else {
 		list_move_tail(&ck->list, &bc->freed_nonpcpu);
+		bc->nr_freed_nonpcpu++;
+	}
 	atomic_long_inc(&bc->nr_freed);
 
 	kfree(ck->k);
@@ -108,6 +111,8 @@ static void __bkey_cached_move_to_freelist_ordered(struct btree_key_cache *bc,
 						   struct bkey_cached *ck)
 {
 	struct bkey_cached *pos;
+
+	bc->nr_freed_nonpcpu++;
 
 	list_for_each_entry_reverse(pos, &bc->freed_nonpcpu, list) {
 		if (ULONG_CMP_GE(ck->btree_trans_barrier_seq,
@@ -158,6 +163,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 #else
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_nonpcpu);
+		bc->nr_freed_nonpcpu++;
 		mutex_unlock(&bc->lock);
 #endif
 	} else {
@@ -217,6 +223,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 			       f->nr < ARRAY_SIZE(f->objs) / 2) {
 				ck = list_last_entry(&bc->freed_nonpcpu, struct bkey_cached, list);
 				list_del_init(&ck->list);
+				bc->nr_freed_nonpcpu--;
 				f->objs[f->nr++] = ck;
 			}
 
@@ -229,6 +236,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		if (!list_empty(&bc->freed_nonpcpu)) {
 			ck = list_last_entry(&bc->freed_nonpcpu, struct bkey_cached, list);
 			list_del_init(&ck->list);
+			bc->nr_freed_nonpcpu--;
 		}
 		mutex_unlock(&bc->lock);
 #endif
@@ -664,7 +672,6 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		goto out;
 
 	bch2_journal_pin_drop(j, &ck->journal);
-	bch2_journal_preres_put(j, &ck->res);
 
 	BUG_ON(!btree_node_locked(c_iter.path, 0));
 
@@ -762,18 +769,6 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 
 	BUG_ON(insert->k.u64s > ck->u64s);
 
-	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
-		int difference;
-
-		BUG_ON(jset_u64s(insert->k.u64s) > trans->journal_preres.u64s);
-
-		difference = jset_u64s(insert->k.u64s) - ck->res.u64s;
-		if (difference > 0) {
-			trans->journal_preres.u64s	-= difference;
-			ck->res.u64s			+= difference;
-		}
-	}
-
 	bkey_copy(ck->k, insert);
 	ck->valid = true;
 
@@ -850,6 +845,8 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	 * Newest freed entries are at the end of the list - once we hit one
 	 * that's too new to be freed, we can bail out:
 	 */
+	scanned += bc->nr_freed_nonpcpu;
+
 	list_for_each_entry_safe(ck, t, &bc->freed_nonpcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
 						 ck->btree_trans_barrier_seq))
@@ -859,12 +856,14 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		scanned++;
 		freed++;
+		bc->nr_freed_nonpcpu--;
 	}
 
 	if (scanned >= nr)
 		goto out;
+
+	scanned += bc->nr_freed_pcpu;
 
 	list_for_each_entry_safe(ck, t, &bc->freed_pcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
@@ -875,8 +874,8 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		scanned++;
 		freed++;
+		bc->nr_freed_pcpu--;
 	}
 
 	if (scanned >= nr)
@@ -982,6 +981,9 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	}
 #endif
 
+	BUG_ON(list_count_nodes(&bc->freed_pcpu) != bc->nr_freed_pcpu);
+	BUG_ON(list_count_nodes(&bc->freed_nonpcpu) != bc->nr_freed_nonpcpu);
+
 	list_splice(&bc->freed_pcpu,	&items);
 	list_splice(&bc->freed_nonpcpu,	&items);
 
@@ -991,7 +993,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 		cond_resched();
 
 		bch2_journal_pin_drop(&c->journal, &ck->journal);
-		bch2_journal_preres_put(&c->journal, &ck->res);
 
 		list_del(&ck->list);
 		kfree(ck->k);

@@ -1373,6 +1373,15 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 			h->nr_active_devs++;
 
 	rcu_read_unlock();
+
+	/*
+	 * If we only have redundancy + 1 devices, we're better off with just
+	 * replication:
+	 */
+	if (h->nr_active_devs < h->redundancy + 2)
+		bch_err(c, "insufficient devices available to create stripe (have %u, need %u) - mismatched bucket sizes?",
+			h->nr_active_devs, h->redundancy + 2);
+
 	list_add(&h->list, &c->ec_stripe_head_list);
 	return h;
 }
@@ -1424,6 +1433,11 @@ __bch2_ec_stripe_head_get(struct btree_trans *trans,
 
 	h = ec_new_stripe_head_alloc(c, target, algo, redundancy, watermark);
 found:
+	if (!IS_ERR_OR_NULL(h) &&
+	    h->nr_active_devs < h->redundancy + 2) {
+		mutex_unlock(&h->lock);
+		h = NULL;
+	}
 	mutex_unlock(&c->ec_stripe_head_lock);
 	return h;
 }
@@ -1681,8 +1695,6 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *trans,
 	int ret;
 
 	h = __bch2_ec_stripe_head_get(trans, target, algo, redundancy, watermark);
-	if (!h)
-		bch_err(c, "no stripe head");
 	if (IS_ERR_OR_NULL(h))
 		return h;
 

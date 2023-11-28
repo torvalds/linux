@@ -81,17 +81,17 @@ nvkm_event_ntfy_state(struct nvkm_event_ntfy *ntfy)
 static void
 nvkm_event_ntfy_remove(struct nvkm_event_ntfy *ntfy)
 {
-	spin_lock_irq(&ntfy->event->list_lock);
+	write_lock_irq(&ntfy->event->list_lock);
 	list_del_init(&ntfy->head);
-	spin_unlock_irq(&ntfy->event->list_lock);
+	write_unlock_irq(&ntfy->event->list_lock);
 }
 
 static void
 nvkm_event_ntfy_insert(struct nvkm_event_ntfy *ntfy)
 {
-	spin_lock_irq(&ntfy->event->list_lock);
+	write_lock_irq(&ntfy->event->list_lock);
 	list_add_tail(&ntfy->head, &ntfy->event->ntfy);
-	spin_unlock_irq(&ntfy->event->list_lock);
+	write_unlock_irq(&ntfy->event->list_lock);
 }
 
 static void
@@ -176,7 +176,7 @@ nvkm_event_ntfy(struct nvkm_event *event, int id, u32 bits)
 		return;
 
 	nvkm_trace(event->subdev, "event: ntfy %08x on %d\n", bits, id);
-	spin_lock_irqsave(&event->list_lock, flags);
+	read_lock_irqsave(&event->list_lock, flags);
 
 	list_for_each_entry_safe(ntfy, ntmp, &event->ntfy, head) {
 		if (ntfy->id == id && ntfy->bits & bits) {
@@ -185,7 +185,7 @@ nvkm_event_ntfy(struct nvkm_event *event, int id, u32 bits)
 		}
 	}
 
-	spin_unlock_irqrestore(&event->list_lock, flags);
+	read_unlock_irqrestore(&event->list_lock, flags);
 }
 
 void

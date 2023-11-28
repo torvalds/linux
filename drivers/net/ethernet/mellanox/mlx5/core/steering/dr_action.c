@@ -57,7 +57,8 @@ static const char *dr_action_id_to_str(enum mlx5dr_action_type action_id)
 
 static bool mlx5dr_action_supp_fwd_fdb_multi_ft(struct mlx5_core_dev *dev)
 {
-	return (MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
+	return (MLX5_CAP_GEN(dev, steering_format_version) < MLX5_STEERING_FORMAT_CONNECTX_6DX ||
+		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
 		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table));
 }
 
