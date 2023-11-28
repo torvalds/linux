@@ -239,7 +239,7 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 #ifndef MNL_HAS_AUTO_SCALARS
 static inline uint64_t mnl_attr_get_uint(const struct nlattr *attr)
 {
-	if (mnl_attr_get_len(attr) == 4)
+	if (mnl_attr_get_payload_len(attr) == 4)
 		return mnl_attr_get_u32(attr);
 	return mnl_attr_get_u64(attr);
 }
