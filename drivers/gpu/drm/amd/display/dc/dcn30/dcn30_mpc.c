@@ -1129,6 +1129,64 @@ void mpc3_set_gamut_remap(
 	}
 }
 
+static void read_gamut_remap(struct dcn30_mpc *mpc30,
+			     int mpcc_id,
+			     uint16_t *regval,
+			     uint32_t *select)
+{
+	struct color_matrices_reg gam_regs;
+
+	//current coefficient set in use
+	REG_GET(MPCC_GAMUT_REMAP_MODE[mpcc_id], MPCC_GAMUT_REMAP_MODE_CURRENT, select);
+
+	gam_regs.shifts.csc_c11 = mpc30->mpc_shift->MPCC_GAMUT_REMAP_C11_A;
+	gam_regs.masks.csc_c11  = mpc30->mpc_mask->MPCC_GAMUT_REMAP_C11_A;
+	gam_regs.shifts.csc_c12 = mpc30->mpc_shift->MPCC_GAMUT_REMAP_C12_A;
+	gam_regs.masks.csc_c12 = mpc30->mpc_mask->MPCC_GAMUT_REMAP_C12_A;
+
+	if (*select == GAMUT_REMAP_COEFF) {
+		gam_regs.csc_c11_c12 = REG(MPC_GAMUT_REMAP_C11_C12_A[mpcc_id]);
+		gam_regs.csc_c33_c34 = REG(MPC_GAMUT_REMAP_C33_C34_A[mpcc_id]);
+
+		cm_helper_read_color_matrices(
+				mpc30->base.ctx,
+				regval,
+				&gam_regs);
+
+	} else  if (*select == GAMUT_REMAP_COMA_COEFF) {
+
+		gam_regs.csc_c11_c12 = REG(MPC_GAMUT_REMAP_C11_C12_B[mpcc_id]);
+		gam_regs.csc_c33_c34 = REG(MPC_GAMUT_REMAP_C33_C34_B[mpcc_id]);
+
+		cm_helper_read_color_matrices(
+				mpc30->base.ctx,
+				regval,
+				&gam_regs);
+
+	}
+
+}
+
+void mpc3_get_gamut_remap(struct mpc *mpc,
+			  int mpcc_id,
+			  struct mpc_grph_gamut_adjustment *adjust)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	uint16_t arr_reg_val[12];
+	int select;
+
+	read_gamut_remap(mpc30, mpcc_id, arr_reg_val, &select);
+
+	if (select == GAMUT_REMAP_BYPASS) {
+		adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+		return;
+	}
+
+	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+	convert_hw_matrix(adjust->temperature_matrix,
+			  arr_reg_val, ARRAY_SIZE(arr_reg_val));
+}
+
 bool mpc3_program_3dlut(
 		struct mpc *mpc,
 		const struct tetrahedral_params *params,

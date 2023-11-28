@@ -1056,6 +1056,10 @@ void mpc3_set_gamut_remap(
 	int mpcc_id,
 	const struct mpc_grph_gamut_adjustment *adjust);
 
+void mpc3_get_gamut_remap(struct mpc *mpc,
+			  int mpcc_id,
+			  struct mpc_grph_gamut_adjustment *adjust);
+
 void mpc3_set_rmu_mux(
 	struct mpc *mpc,
 	int rmu_idx,
