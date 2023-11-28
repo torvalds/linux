@@ -63,6 +63,7 @@ struct xe_device_desc {
 	u8 has_llc:1;
 	u8 has_sriov:1;
 	u8 bypass_mtcfg:1;
+	u8 skip_pcode:1;
 	u8 supports_mmio_ext:1;
 	u8 skip_guc_pc:1;
 };
@@ -581,6 +582,7 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_llc = desc->has_llc;
 	xe->info.has_sriov = desc->has_sriov;
 	xe->info.bypass_mtcfg = desc->bypass_mtcfg;
+	xe->info.skip_pcode = desc->skip_pcode;
 	xe->info.supports_mmio_ext = desc->supports_mmio_ext;
 	xe->info.tile_mmio_ext_size = graphics_desc->tile_mmio_ext_size;
 

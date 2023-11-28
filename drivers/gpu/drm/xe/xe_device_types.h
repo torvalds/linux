@@ -260,6 +260,8 @@ struct xe_device {
 		u8 enable_display:1;
 		/** @bypass_mtcfg: Bypass Multi-Tile configuration from MTCFG register */
 		u8 bypass_mtcfg:1;
+		/** @skip_pcode: skip access to PCODE uC */
+		u8 skip_pcode:1;
 		/** @supports_mmio_ext: supports MMIO extension/s */
 		u8 supports_mmio_ext:1;
 		/** @has_heci_gscfi: device has heci gscfi */

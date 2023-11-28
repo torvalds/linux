@@ -61,6 +61,9 @@ static int pcode_mailbox_rw(struct xe_gt *gt, u32 mbox, u32 *data0, u32 *data1,
 {
 	int err;
 
+	if (gt_to_xe(gt)->info.skip_pcode)
+		return 0;
+
 	lockdep_assert_held(&gt->pcode.lock);
 
 	if ((xe_mmio_read32(gt, PCODE_MAILBOX) & PCODE_READY) != 0)
@@ -249,6 +252,9 @@ int xe_pcode_init(struct xe_gt *gt)
 	int timeout_us = 180000000; /* 3 min */
 	int ret;
 
+	if (gt_to_xe(gt)->info.skip_pcode)
+		return 0;
+
 	if (!IS_DGFX(gt_to_xe(gt)))
 		return 0;
 
@@ -279,6 +285,9 @@ int xe_pcode_init(struct xe_gt *gt)
 int xe_pcode_probe(struct xe_gt *gt)
 {
 	drmm_mutex_init(&gt_to_xe(gt)->drm, &gt->pcode.lock);
+
+	if (gt_to_xe(gt)->info.skip_pcode)
+		return 0;
 
 	if (!IS_DGFX(gt_to_xe(gt)))
 		return 0;
