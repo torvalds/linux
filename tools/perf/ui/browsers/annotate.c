@@ -114,7 +114,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	if (!browser->navkeypressed)
 		ops.width += 1;
 
-	annotation_line__write(al, notes, &ops, ab->opts);
+	annotation_line__write(al, notes, &ops);
 
 	if (ops.current_entry)
 		ab->selection = al;
@@ -884,7 +884,7 @@ show_sup_ins:
 			continue;
 		}
 		case 'P':
-			map_symbol__annotation_dump(ms, evsel, browser->opts);
+			map_symbol__annotation_dump(ms, evsel);
 			continue;
 		case 't':
 			if (symbol_conf.show_total_period) {
@@ -979,7 +979,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 		return -1;
 
 	if (not_annotated) {
-		err = symbol__annotate2(ms, evsel, opts, &browser.arch);
+		err = symbol__annotate2(ms, evsel, &browser.arch);
 		if (err) {
 			char msg[BUFSIZ];
 			dso->annotate_warned = true;

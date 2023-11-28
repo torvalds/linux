@@ -317,9 +317,9 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 				    struct perf_annotate *ann)
 {
 	if (!ann->use_stdio2)
-		return symbol__tty_annotate(&he->ms, evsel, &annotate_opts);
+		return symbol__tty_annotate(&he->ms, evsel);
 
-	return symbol__tty_annotate2(&he->ms, evsel, &annotate_opts);
+	return symbol__tty_annotate2(&he->ms, evsel);
 }
 
 static void hists__find_annotations(struct hists *hists,
@@ -365,7 +365,6 @@ find_next:
 			int ret;
 			int (*annotate)(struct hist_entry *he,
 					struct evsel *evsel,
-					struct annotation_options *options,
 					struct hist_browser_timer *hbt);
 
 			annotate = dlsym(perf_gtk_handle,
@@ -375,7 +374,7 @@ find_next:
 				return;
 			}
 
-			ret = annotate(he, evsel, &annotate_opts, NULL);
+			ret = annotate(he, evsel, NULL);
 			if (!ret || !ann->skip_missing)
 				return;
 
