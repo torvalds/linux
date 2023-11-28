@@ -779,6 +779,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 			order_size = 1U << order;
 			if (order_mask > order_size)
 				alloc_flags |= __GFP_NORETRY;
+			trace_android_vh_adjust_alloc_flags(order, &alloc_flags);
 			page = alloc_pages_node(nid, alloc_flags, order);
 			if (!page)
 				continue;

@@ -44,6 +44,9 @@ DECLARE_RESTRICTED_HOOK(android_rvh_iommu_limit_align_shift,
 DECLARE_HOOK(android_vh_bus_iommu_probe,
 	TP_PROTO(struct iommu_device *iommu, struct bus_type *bus, bool *skip),
 	TP_ARGS(iommu, bus, skip));
+DECLARE_HOOK(android_vh_adjust_alloc_flags,
+	TP_PROTO(unsigned int order, gfp_t *alloc_flags),
+	TP_ARGS(order, alloc_flags));
 
 #endif /* _TRACE_HOOK_IOMMU_H */
 
