@@ -815,12 +815,12 @@ static int add_update_sla(struct adf_accel_dev *accel_dev,
 		return -EFAULT;
 	}
 
+	mutex_lock(&rl_data->rl_lock);
+
 	/* Input validation */
 	ret = validate_user_input(accel_dev, sla_in, is_update);
 	if (ret)
 		goto ret_err;
-
-	mutex_lock(&rl_data->rl_lock);
 
 	if (is_update) {
 		ret = validate_sla_id(accel_dev, sla_in->sla_id);
