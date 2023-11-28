@@ -156,12 +156,15 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
-		if (hdr->source.mode != IEEE802154_ADDR_NONE)
-			/* FIXME: check if we are PAN coordinator */
-			skb->pkt_type = PACKET_OTHERHOST;
-		else
+		if (hdr->source.mode == IEEE802154_ADDR_NONE)
 			/* ACK comes with both addresses empty */
 			skb->pkt_type = PACKET_HOST;
+		else if (!wpan_dev->parent)
+			/* No dest means PAN coordinator is the recipient */
+			skb->pkt_type = PACKET_HOST;
+		else
+			/* We are not the PAN coordinator, just relaying */
+			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	case IEEE802154_ADDR_LONG:
 		if (mac_cb(skb)->dest.pan_id != span &&
