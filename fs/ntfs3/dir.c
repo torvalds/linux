@@ -536,8 +536,10 @@ static int ntfs_dir_count(struct inode *dir, bool *is_empty, size_t *dirs,
 			e = Add2Ptr(hdr, off);
 			e_size = le16_to_cpu(e->size);
 			if (e_size < sizeof(struct NTFS_DE) ||
-			    off + e_size > end)
+			    off + e_size > end) {
+				/* Looks like corruption. */
 				break;
+			}
 
 			if (de_is_last(e))
 				break;

@@ -2129,8 +2129,8 @@ int ntfs_insert_security(struct ntfs_sb_info *sbi,
 			if (le32_to_cpu(d_security->size) == new_sec_size &&
 			    d_security->key.hash == hash_key.hash &&
 			    !memcmp(d_security + 1, sd, size_sd)) {
-				*security_id = d_security->key.sec_id;
 				/* Such security already exists. */
+				*security_id = d_security->key.sec_id;
 				err = 0;
 				goto out;
 			}
