@@ -691,29 +691,36 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 		fattr->cf_mtime.tv_sec += tcon->ses->server->timeAdj;
 	}
 
+	/*
+	 * The srv fs device id is overridden on network mount so setting
+	 * @fattr->cf_rdev isn't needed here.
+	 */
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
-
 	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
 	fattr->cf_mode = (umode_t) le32_to_cpu(info->Mode);
-	/* The srv fs device id is overridden on network mount so setting rdev isn't needed here */
-	/* fattr->cf_rdev = le32_to_cpu(info->DeviceId); */
 
-	if (data->symlink) {
-		fattr->cf_mode |= S_IFLNK;
-		fattr->cf_dtype = DT_LNK;
-		fattr->cf_symlink_target = data->symlink_target;
-		data->symlink_target = NULL;
-	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+	if (cifs_open_data_reparse(data) &&
+	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))
+		goto out_reparse;
+
+	fattr->cf_mode &= ~S_IFMT;
+	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode |= S_IFDIR;
 		fattr->cf_dtype = DT_DIR;
 	} else { /* file */
 		fattr->cf_mode |= S_IFREG;
 		fattr->cf_dtype = DT_REG;
 	}
-	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
 
+out_reparse:
+	if (S_ISLNK(fattr->cf_mode)) {
+		if (likely(data->symlink_target))
+			fattr->cf_eof = strnlen(data->symlink_target, PATH_MAX);
+		fattr->cf_symlink_target = data->symlink_target;
+		data->symlink_target = NULL;
+	}
 	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
 	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
 
@@ -738,25 +745,25 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	if (tag == IO_REPARSE_TAG_NFS && buf) {
 		switch (le64_to_cpu(buf->InodeType)) {
 		case NFS_SPECFILE_CHR:
-			fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFCHR;
 			fattr->cf_dtype = DT_CHR;
 			fattr->cf_rdev = nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_BLK:
-			fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFBLK;
 			fattr->cf_dtype = DT_BLK;
 			fattr->cf_rdev = nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_FIFO:
-			fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFIFO;
 			fattr->cf_dtype = DT_FIFO;
 			break;
 		case NFS_SPECFILE_SOCK:
-			fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFSOCK;
 			fattr->cf_dtype = DT_SOCK;
 			break;
 		case NFS_SPECFILE_LNK:
-			fattr->cf_mode = S_IFLNK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFLNK;
 			fattr->cf_dtype = DT_LNK;
 			break;
 		default:
@@ -768,29 +775,29 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 
 	switch (tag) {
 	case IO_REPARSE_TAG_LX_SYMLINK:
-		fattr->cf_mode |= S_IFLNK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 		break;
 	case IO_REPARSE_TAG_LX_FIFO:
-		fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFIFO;
 		fattr->cf_dtype = DT_FIFO;
 		break;
 	case IO_REPARSE_TAG_AF_UNIX:
-		fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFSOCK;
 		fattr->cf_dtype = DT_SOCK;
 		break;
 	case IO_REPARSE_TAG_LX_CHR:
-		fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFCHR;
 		fattr->cf_dtype = DT_CHR;
 		break;
 	case IO_REPARSE_TAG_LX_BLK:
-		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFBLK;
 		fattr->cf_dtype = DT_BLK;
 		break;
 	case 0: /* SMB1 symlink */
 	case IO_REPARSE_TAG_SYMLINK:
 	case IO_REPARSE_TAG_NFS:
-		fattr->cf_mode = S_IFLNK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 		break;
 	default:
@@ -830,6 +837,7 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 
+	fattr->cf_mode = cifs_sb->ctx->file_mode;
 	if (cifs_open_data_reparse(data) &&
 	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))
 		goto out_reparse;
