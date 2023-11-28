@@ -2435,6 +2435,8 @@ static int __maybe_unused st_asm330lhhx_suspend(struct device *dev)
 
 	dev_info(dev, "Suspending device\n");
 
+	disable_hardirq(hw->irq);
+
 	for (i = 0; i < ST_ASM330LHHX_ID_MAX; i++) {
 		if (!hw->iio_devs[i])
 			continue;
@@ -2497,6 +2499,8 @@ static int __maybe_unused st_asm330lhhx_resume(struct device *dev)
 
 	if (st_asm330lhhx_is_fifo_enabled(hw))
 		err = st_asm330lhhx_set_fifo_mode(hw, ST_ASM330LHHX_FIFO_CONT);
+
+	enable_irq(hw->irq);
 
 	return err < 0 ? err : 0;
 }
