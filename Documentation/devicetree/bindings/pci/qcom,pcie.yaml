@@ -42,6 +42,10 @@ properties:
           - qcom,pcie-sm8450-pcie1
           - qcom,pcie-sm8550
       - items:
+          - enum:
+              - qcom,pcie-sm8650
+          - const: qcom,pcie-sm8550
+      - items:
           - const: qcom,pcie-msm8998
           - const: qcom,pcie-msm8996
 
