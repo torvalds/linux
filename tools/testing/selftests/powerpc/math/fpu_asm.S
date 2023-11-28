@@ -109,8 +109,9 @@ FUNC_START(test_fpu)
 	std	r3,STACK_FRAME_PARAM(0)(sp) # Address of darray
 	std r4,STACK_FRAME_PARAM(1)(sp) # Address of pid
 
-	bl load_fpu
-	nop
+	// Load FPRs with expected values
+	OP_REGS lfd, 8, 0, 31, r3
+
 	li	r0,__NR_fork
 	sc
 
@@ -119,7 +120,7 @@ FUNC_START(test_fpu)
 	std	r3,0(r9)
 
 	ld r3,STACK_FRAME_PARAM(0)(sp)
-	bl check_fpu
+	bl check_all_fprs
 	nop
 
 	POP_FPU(256)
