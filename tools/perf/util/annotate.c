@@ -57,6 +57,9 @@
 
 #include <linux/ctype.h>
 
+/* global annotation options */
+struct annotation_options annotate_opts;
+
 static regex_t	 file_lineno;
 
 static struct ins_ops *ins__find(struct arch *arch, const char *name);

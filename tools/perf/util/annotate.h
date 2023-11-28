@@ -105,6 +105,8 @@ struct annotation_options {
 	unsigned int percent_type;
 };
 
+extern struct annotation_options annotate_opts;
+
 enum {
 	ANNOTATION__OFFSET_JUMP_TARGETS = 1,
 	ANNOTATION__OFFSET_CALL,
