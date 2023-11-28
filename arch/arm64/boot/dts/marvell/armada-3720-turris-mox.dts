@@ -130,7 +130,7 @@
 		compatible = "microchip,mcp7940x";
 		reg = <0x6f>;
 		interrupt-parent = <&gpiosb>;
-		interrupts = <5 0>; /* GPIO2_5 */
+		interrupts = <5 IRQ_TYPE_EDGE_FALLING>; /* GPIO2_5 */
 	};
 };
 
