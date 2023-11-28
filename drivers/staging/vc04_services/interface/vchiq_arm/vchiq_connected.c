@@ -27,7 +27,7 @@ static void connected_init(void)
  * be made immediately, otherwise it will be deferred until
  * vchiq_call_connected_callbacks is called.
  */
-void vchiq_add_connected_callback(void (*callback)(void))
+void vchiq_add_connected_callback(struct vchiq_device *device, void (*callback)(void))
 {
 	connected_init();
 
@@ -39,7 +39,7 @@ void vchiq_add_connected_callback(void (*callback)(void))
 		callback();
 	} else {
 		if (g_num_deferred_callbacks >= MAX_CALLBACKS) {
-			vchiq_log_error(NULL, VCHIQ_CORE,
+			vchiq_log_error(&device->dev, VCHIQ_CORE,
 					"There already %d callback registered - please increase MAX_CALLBACKS",
 					g_num_deferred_callbacks);
 		} else {
