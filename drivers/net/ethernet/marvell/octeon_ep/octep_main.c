@@ -1387,6 +1387,7 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (max_rx_pktlen < 0) {
 		dev_err(&octep_dev->pdev->dev,
 			"Failed to get max receive packet size; err = %d\n", max_rx_pktlen);
+		err = max_rx_pktlen;
 		goto register_dev_err;
 	}
 	netdev->min_mtu = OCTEP_MIN_MTU;
