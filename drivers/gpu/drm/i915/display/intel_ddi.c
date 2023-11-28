@@ -3699,7 +3699,9 @@ static int icl_ddi_min_voltage_level(const struct intel_crtc_state *crtc_state)
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 					 struct intel_crtc_state *crtc_state)
 {
-	if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(dev_priv) >= 14)
+		crtc_state->min_voltage_level = icl_ddi_min_voltage_level(crtc_state);
+	else if (DISPLAY_VER(dev_priv) >= 12)
 		crtc_state->min_voltage_level = tgl_ddi_min_voltage_level(crtc_state);
 	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
 		crtc_state->min_voltage_level = jsl_ddi_min_voltage_level(crtc_state);
