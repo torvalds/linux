@@ -113,6 +113,11 @@ struct mlxsw_sp_fid_ops {
 			      const struct mlxsw_sp_port *mlxsw_sp_port);
 };
 
+struct mlxsw_sp_fid_flood_profile {
+	const struct mlxsw_sp_flood_table *flood_tables;
+	int nr_flood_tables;
+};
+
 struct mlxsw_sp_fid_family {
 	enum mlxsw_sp_fid_type type;
 	size_t fid_size;
@@ -120,8 +125,7 @@ struct mlxsw_sp_fid_family {
 	u16 end_index;
 	struct list_head fids_list;
 	unsigned long *fids_bitmap;
-	const struct mlxsw_sp_flood_table *flood_tables;
-	int nr_flood_tables;
+	const struct mlxsw_sp_fid_flood_profile *flood_profile;
 	enum mlxsw_sp_rif_type rif_type;
 	const struct mlxsw_sp_fid_ops *ops;
 	struct mlxsw_sp *mlxsw_sp;
@@ -331,10 +335,13 @@ mlxsw_sp_fid_flood_table_lookup(const struct mlxsw_sp_fid *fid,
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	int i;
 
-	for (i = 0; i < fid_family->nr_flood_tables; i++) {
-		if (fid_family->flood_tables[i].packet_type != packet_type)
+	for (i = 0; i < fid_family->flood_profile->nr_flood_tables; i++) {
+		const struct mlxsw_sp_flood_table *flood_table;
+
+		flood_table = &fid_family->flood_profile->flood_tables[i];
+		if (flood_table->packet_type != packet_type)
 			continue;
-		return &fid_family->flood_tables[i];
+		return flood_table;
 	}
 
 	return NULL;
@@ -352,7 +359,7 @@ mlxsw_sp_fid_8021d_pgt_size(const struct mlxsw_sp_fid_family *fid_family,
 {
 	u16 num_fids = mlxsw_sp_fid_family_num_fids(fid_family);
 
-	*p_pgt_size = num_fids * fid_family->nr_flood_tables;
+	*p_pgt_size = num_fids * fid_family->flood_profile->nr_flood_tables;
 	return 0;
 }
 
@@ -382,7 +389,7 @@ int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 	const struct mlxsw_sp_flood_table *flood_table;
 	u16 mid_index;
 
-	if (WARN_ON(!fid_family->flood_tables))
+	if (WARN_ON(!fid_family->flood_profile))
 		return -EINVAL;
 
 	flood_table = mlxsw_sp_fid_flood_table_lookup(fid, packet_type);
@@ -1177,6 +1184,12 @@ static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
 	},
 };
 
+static const
+struct mlxsw_sp_fid_flood_profile mlxsw_sp_fid_8021d_flood_profile = {
+	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
+	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+};
+
 static bool
 mlxsw_sp_fid_8021q_compare(const struct mlxsw_sp_fid *fid, const void *arg)
 {
@@ -1526,8 +1539,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021q_family = {
 	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
 	.start_index		= MLXSW_SP_FID_8021Q_START,
 	.end_index		= MLXSW_SP_FID_8021Q_END,
-	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
-	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
 	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
 	.ops			= &mlxsw_sp_fid_8021q_ops_ctl,
 	.flood_rsp              = false,
@@ -1540,8 +1552,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp1_fid_8021d_family = {
 	.fid_size		= sizeof(struct mlxsw_sp_fid_8021d),
 	.start_index		= MLXSW_SP_FID_8021D_START,
 	.end_index		= MLXSW_SP_FID_8021D_END,
-	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
-	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops_ctl,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
@@ -1580,8 +1591,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021q_family_ctl = {
 	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
 	.start_index		= MLXSW_SP_FID_8021Q_START,
 	.end_index		= MLXSW_SP_FID_8021Q_END,
-	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
-	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
 	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
 	.ops			= &mlxsw_sp_fid_8021q_ops_ctl,
 	.flood_rsp              = false,
@@ -1594,8 +1604,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp2_fid_8021d_family_ctl = {
 	.fid_size		= sizeof(struct mlxsw_sp_fid_8021d),
 	.start_index		= MLXSW_SP_FID_8021D_START,
 	.end_index		= MLXSW_SP_FID_8021D_END,
-	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
-	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.flood_profile		= &mlxsw_sp_fid_8021d_flood_profile,
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops_ctl,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
@@ -1761,10 +1770,13 @@ mlxsw_sp_fid_flood_tables_init(struct mlxsw_sp_fid_family *fid_family)
 	if (err)
 		return err;
 
-	for (i = 0; i < fid_family->nr_flood_tables; i++) {
+	if (!fid_family->flood_profile)
+		return 0;
+
+	for (i = 0; i < fid_family->flood_profile->nr_flood_tables; i++) {
 		const struct mlxsw_sp_flood_table *flood_table;
 
-		flood_table = &fid_family->flood_tables[i];
+		flood_table = &fid_family->flood_profile->flood_tables[i];
 		if (fid_family->ops->flood_table_init) {
 			err = fid_family->ops->flood_table_init(fid_family,
 								flood_table);
@@ -1813,7 +1825,7 @@ static int mlxsw_sp_fid_family_register(struct mlxsw_sp *mlxsw_sp,
 		goto err_alloc_fids_bitmap;
 	}
 
-	if (fid_family->flood_tables) {
+	if (fid_family->flood_profile) {
 		err = mlxsw_sp_fid_flood_tables_init(fid_family);
 		if (err)
 			goto err_fid_flood_tables_init;
@@ -1836,7 +1848,7 @@ mlxsw_sp_fid_family_unregister(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp->fid_core->fid_family_arr[fid_family->type] = NULL;
 
-	if (fid_family->flood_tables)
+	if (fid_family->flood_profile)
 		mlxsw_sp_fid_flood_tables_fini(fid_family);
 
 	bitmap_free(fid_family->fids_bitmap);
