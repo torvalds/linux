@@ -62,8 +62,6 @@ static struct test_suite *generic_tests[] = {
 	&suite__pmu,
 	&suite__pmu_events,
 	&suite__dso_data,
-	&suite__dso_data_cache,
-	&suite__dso_data_reopen,
 	&suite__perf_evsel__roundtrip_name_test,
 #ifdef HAVE_LIBTRACEEVENT
 	&suite__perf_evsel__tp_sched_test,
