@@ -76,7 +76,7 @@ struct mlxsw_sp_flood_table {
 };
 
 struct mlxsw_sp_fid_ops {
-	void (*setup)(struct mlxsw_sp_fid *fid, const void *arg);
+	int (*setup)(struct mlxsw_sp_fid *fid, const void *arg);
 	int (*configure)(struct mlxsw_sp_fid *fid);
 	void (*deconfigure)(struct mlxsw_sp_fid *fid);
 	int (*index_alloc)(struct mlxsw_sp_fid *fid, const void *arg,
@@ -417,12 +417,13 @@ u16 mlxsw_sp_fid_8021q_vid(const struct mlxsw_sp_fid *fid)
 	return mlxsw_sp_fid_8021q_fid(fid)->vid;
 }
 
-static void mlxsw_sp_fid_8021q_setup(struct mlxsw_sp_fid *fid, const void *arg)
+static int mlxsw_sp_fid_8021q_setup(struct mlxsw_sp_fid *fid, const void *arg)
 {
 	u16 vid = *(u16 *) arg;
 
 	mlxsw_sp_fid_8021q_fid(fid)->vid = vid;
 	fid->fid_offset = fid->fid_index - fid->fid_family->start_index;
+	return 0;
 }
 
 static enum mlxsw_reg_sfmr_op mlxsw_sp_sfmr_op(bool valid)
@@ -785,12 +786,13 @@ mlxsw_sp_fid_8021d_fid(const struct mlxsw_sp_fid *fid)
 	return container_of(fid, struct mlxsw_sp_fid_8021d, common);
 }
 
-static void mlxsw_sp_fid_8021d_setup(struct mlxsw_sp_fid *fid, const void *arg)
+static int mlxsw_sp_fid_8021d_setup(struct mlxsw_sp_fid *fid, const void *arg)
 {
 	int br_ifindex = *(int *) arg;
 
 	mlxsw_sp_fid_8021d_fid(fid)->br_ifindex = br_ifindex;
 	fid->fid_offset = fid->fid_index - fid->fid_family->start_index;
+	return 0;
 }
 
 static int mlxsw_sp_fid_8021d_configure(struct mlxsw_sp_fid *fid)
@@ -1127,11 +1129,12 @@ mlxsw_sp_fid_8021q_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
 	br_fdb_clear_offload(nve_dev, mlxsw_sp_fid_8021q_vid(fid));
 }
 
-static void mlxsw_sp_fid_rfid_setup_ctl(struct mlxsw_sp_fid *fid,
-					const void *arg)
+static int mlxsw_sp_fid_rfid_setup_ctl(struct mlxsw_sp_fid *fid,
+				       const void *arg)
 {
 	/* In controlled mode, the FW takes care of FID placement. */
 	fid->fid_offset = 0;
+	return 0;
 }
 
 static int mlxsw_sp_fid_rfid_configure(struct mlxsw_sp_fid *fid)
@@ -1272,9 +1275,10 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_rfid_ops_ctl = {
 	.vid_to_fid_rif_update  = mlxsw_sp_fid_rfid_vid_to_fid_rif_update,
 };
 
-static void mlxsw_sp_fid_dummy_setup(struct mlxsw_sp_fid *fid, const void *arg)
+static int mlxsw_sp_fid_dummy_setup(struct mlxsw_sp_fid *fid, const void *arg)
 {
 	fid->fid_offset = 0;
+	return 0;
 }
 
 static int mlxsw_sp_fid_dummy_configure(struct mlxsw_sp_fid *fid)
@@ -1590,7 +1594,9 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	fid->fid_index = fid_index;
 	__set_bit(fid_index - fid_family->start_index, fid_family->fids_bitmap);
 
-	fid->fid_family->ops->setup(fid, arg);
+	err = fid->fid_family->ops->setup(fid, arg);
+	if (err)
+		goto err_setup;
 
 	err = fid->fid_family->ops->configure(fid);
 	if (err)
@@ -1608,6 +1614,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 err_rhashtable_insert:
 	fid->fid_family->ops->deconfigure(fid);
 err_configure:
+err_setup:
 	__clear_bit(fid_index - fid_family->start_index,
 		    fid_family->fids_bitmap);
 err_index_alloc:
