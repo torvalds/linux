@@ -435,4 +435,9 @@ config BT_VIRTIO
 	  Say Y here to compile support for HCI over Virtio into the
 	  kernel or say M to compile as a module.
 
+config BT_AICUSB
+	tristate "AIC8800 btusb driver"
+	help
+	  AIC8800 usb dongle bluetooth support driver
+
 endmenu
