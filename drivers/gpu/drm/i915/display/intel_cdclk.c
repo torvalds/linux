@@ -1180,7 +1180,7 @@ sanitize:
 	/* force cdclk programming */
 	dev_priv->display.cdclk.hw.cdclk = 0;
 	/* force full PLL disable + enable */
-	dev_priv->display.cdclk.hw.vco = -1;
+	dev_priv->display.cdclk.hw.vco = ~0;
 }
 
 static void skl_cdclk_init_hw(struct drm_i915_private *dev_priv)
@@ -2075,7 +2075,7 @@ sanitize:
 	dev_priv->display.cdclk.hw.cdclk = 0;
 
 	/* force full PLL disable + enable */
-	dev_priv->display.cdclk.hw.vco = -1;
+	dev_priv->display.cdclk.hw.vco = ~0;
 }
 
 static void bxt_cdclk_init_hw(struct drm_i915_private *dev_priv)
