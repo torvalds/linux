@@ -578,9 +578,6 @@ int wave5_vpu_dec_init_seq(struct vpu_instance *inst)
 	dev_dbg(inst->dev->dev, "%s: init seq sent (queue %u : %u)\n", __func__,
 		p_dec_info->instance_queue_count, p_dec_info->report_queue_count);
 
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
