@@ -10,9 +10,6 @@ title: TI J721E PCI EP (PCIe Wrapper)
 maintainers:
   - Kishon Vijay Abraham I <kishon@ti.com>
 
-allOf:
-  - $ref: cdns-pcie-ep.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -64,6 +61,30 @@ properties:
   interrupt-names:
     items:
       - const: link_state
+
+allOf:
+  - $ref: cdns-pcie-ep.yaml#
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,am64-pcie-ep
+    then:
+      properties:
+        num-lanes:
+          const: 1
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - ti,j7200-pcie-ep
+            - ti,j721e-pcie-ep
+    then:
+      properties:
+        num-lanes:
+          minimum: 1
+          maximum: 2
 
 required:
   - compatible
