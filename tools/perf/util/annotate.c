@@ -2727,7 +2727,7 @@ static int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
 	struct annotation_line *al;
 
 	list_for_each_entry(al, &notes->src->source, node) {
-		if (annotation_line__filter(al, notes))
+		if (annotation_line__filter(al))
 			continue;
 		annotation_line__write(al, notes, &wops);
 		fputc('\n', fp);

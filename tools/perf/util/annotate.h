@@ -320,7 +320,7 @@ bool annotation__trylock(struct annotation *notes) EXCLUSIVE_TRYLOCK_FUNCTION(tr
 
 static inline int annotation__cycles_width(struct annotation *notes)
 {
-	if (notes->branch && notes->options->show_minmax_cycle)
+	if (notes->branch && annotate_opts.show_minmax_cycle)
 		return ANNOTATION__IPC_WIDTH + ANNOTATION__MINMAX_CYCLES_WIDTH;
 
 	return notes->branch ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
@@ -331,9 +331,9 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 	return (symbol_conf.show_total_period ? 12 : 7) * notes->nr_events;
 }
 
-static inline bool annotation_line__filter(struct annotation_line *al, struct annotation *notes)
+static inline bool annotation_line__filter(struct annotation_line *al)
 {
-	return notes->options->hide_src_code && al->offset == -1;
+	return annotate_opts.hide_src_code && al->offset == -1;
 }
 
 void annotation__set_offsets(struct annotation *notes, s64 size);
