@@ -29,18 +29,38 @@ struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 					    struct ttm_test_devices *devs,
 					    size_t size)
 {
-	struct drm_gem_object gem_obj = { .size = size };
+	struct drm_gem_object gem_obj = { };
 	struct ttm_buffer_object *bo;
+	int err;
 
 	bo = kunit_kzalloc(test, sizeof(*bo), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, bo);
 
 	bo->base = gem_obj;
+	err = drm_gem_object_init(devs->drm, &bo->base, size);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
 	bo->bdev = devs->ttm_dev;
+	kref_init(&bo->kref);
 
 	return bo;
 }
 EXPORT_SYMBOL_GPL(ttm_bo_kunit_init);
+
+struct ttm_place *ttm_place_kunit_init(struct kunit *test,
+				       uint32_t mem_type, uint32_t flags)
+{
+	struct ttm_place *place;
+
+	place = kunit_kzalloc(test, sizeof(*place), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, place);
+
+	place->mem_type = mem_type;
+	place->flags = flags;
+
+	return place;
+}
+EXPORT_SYMBOL_GPL(ttm_place_kunit_init);
 
 struct ttm_test_devices *ttm_test_devices_basic(struct kunit *test)
 {
