@@ -40,7 +40,7 @@ config RAVB
 config RENESAS_ETHER_SWITCH
 	tristate "Renesas Ethernet Switch support"
 	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on PTP_1588_CLOCK
 	select CRC32
 	select MII
 	select PHYLINK
@@ -50,6 +50,7 @@ config RENESAS_ETHER_SWITCH
 
 config RENESAS_GEN4_PTP
 	tristate "Renesas R-Car Gen4 gPTP support" if COMPILE_TEST
+	depends on PTP_1588_CLOCK
 	select CRC32
 	select MII
 	select PHYLIB
