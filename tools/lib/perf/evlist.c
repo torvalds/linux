@@ -39,7 +39,7 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 	if (evsel->system_wide) {
 		/* System wide: set the cpu map of the evsel to all online CPUs. */
 		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__new(NULL);
+		evsel->cpus = perf_cpu_map__new_online_cpus();
 	} else if (evlist->has_user_cpus && evsel->is_pmu_core) {
 		/*
 		 * User requested CPUs on a core PMU, ensure the requested CPUs

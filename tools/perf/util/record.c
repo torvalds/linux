@@ -238,7 +238,7 @@ bool evlist__can_select_event(struct evlist *evlist, const char *str)
 	evsel = evlist__last(temp_evlist);
 
 	if (!evlist || perf_cpu_map__has_any_cpu_or_is_empty(evlist->core.user_requested_cpus)) {
-		struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
+		struct perf_cpu_map *cpus = perf_cpu_map__new_online_cpus();
 
 		if (cpus)
 			cpu =  perf_cpu_map__cpu(cpus, 0);

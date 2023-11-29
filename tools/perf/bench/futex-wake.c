@@ -149,7 +149,7 @@ int bench_futex_wake(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	cpu = perf_cpu_map__new(NULL);
+	cpu = perf_cpu_map__new_online_cpus();
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

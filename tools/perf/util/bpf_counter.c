@@ -455,7 +455,7 @@ static int bperf__load(struct evsel *evsel, struct target *target)
 		return -1;
 
 	if (!all_cpu_map) {
-		all_cpu_map = perf_cpu_map__new(NULL);
+		all_cpu_map = perf_cpu_map__new_online_cpus();
 		if (!all_cpu_map)
 			return -1;
 	}
