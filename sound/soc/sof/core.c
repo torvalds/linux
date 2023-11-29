@@ -212,14 +212,6 @@ static int sof_select_ipc_and_paths(struct snd_sof_dev *sdev)
 	struct device *dev = sdev->dev;
 	int ret;
 
-	/* check IPC support */
-	if (!(BIT(base_profile->ipc_type) & plat_data->desc->ipc_supported_mask)) {
-		dev_err(dev,
-			"ipc_type %d is not supported on this platform, mask is %#x\n",
-			base_profile->ipc_type, plat_data->desc->ipc_supported_mask);
-		return -EINVAL;
-	}
-
 	if (base_profile->ipc_type != plat_data->desc->ipc_default)
 		dev_info(dev,
 			 "Module parameter used, overriding default IPC %d to %d\n",
@@ -260,18 +252,13 @@ static int sof_select_ipc_and_paths(struct snd_sof_dev *sdev)
 	plat_data->fw_filename_prefix = out_profile.fw_path;
 	plat_data->fw_lib_prefix = out_profile.fw_lib_path;
 	plat_data->tplg_filename_prefix = out_profile.tplg_path;
-	plat_data->tplg_filename = out_profile.tplg_name;
 
 	return 0;
 }
 
-static int sof_init_environment(struct snd_sof_dev *sdev)
+static int validate_sof_ops(struct snd_sof_dev *sdev)
 {
 	int ret;
-
-	ret = sof_select_ipc_and_paths(sdev);
-	if (ret)
-		return ret;
 
 	/* init ops, if necessary */
 	ret = sof_ops_init(sdev);
@@ -295,6 +282,71 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 	}
 
 	return 0;
+}
+
+static int sof_init_sof_ops(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+
+	/* check IPC support */
+	if (!(BIT(base_profile->ipc_type) & plat_data->desc->ipc_supported_mask)) {
+		dev_err(sdev->dev,
+			"ipc_type %d is not supported on this platform, mask is %#x\n",
+			base_profile->ipc_type, plat_data->desc->ipc_supported_mask);
+		return -EINVAL;
+	}
+
+	/*
+	 * Save the selected IPC type and a topology name override before
+	 * selecting ops since platform code might need this information
+	 */
+	plat_data->ipc_type = base_profile->ipc_type;
+	plat_data->tplg_filename = base_profile->tplg_name;
+
+	return validate_sof_ops(sdev);
+}
+
+static int sof_init_environment(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+	int ret;
+
+	/* probe the DSP hardware */
+	ret = snd_sof_probe(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to probe DSP %d\n", ret);
+		sof_ops_free(sdev);
+		return ret;
+	}
+
+	/* check machine info */
+	ret = sof_machine_check(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to get machine info %d\n", ret);
+		goto err_machine_check;
+	}
+
+	ret = sof_select_ipc_and_paths(sdev);
+	if (!ret && plat_data->ipc_type != base_profile->ipc_type) {
+		/* IPC type changed, re-initialize the ops */
+		sof_ops_free(sdev);
+
+		ret = validate_sof_ops(sdev);
+		if (ret < 0) {
+			snd_sof_remove(sdev);
+			return ret;
+		}
+	}
+
+err_machine_check:
+	if (ret) {
+		snd_sof_remove(sdev);
+		sof_ops_free(sdev);
+	}
+
+	return ret;
 }
 
 /*
@@ -342,22 +394,12 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	int ret;
 
-	/* probe the DSP hardware */
-	ret = snd_sof_probe(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
-		goto probe_err;
-	}
+	/* Initialize loadable file paths and check the environment validity */
+	ret = sof_init_environment(sdev);
+	if (ret)
+		return ret;
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
-
-	/* check machine info */
-	ret = sof_machine_check(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to get machine info %d\n",
-			ret);
-		goto dsp_err;
-	}
 
 	/* set up platform component driver */
 	snd_sof_new_platform_drv(sdev);
@@ -478,9 +520,7 @@ fw_load_err:
 ipc_err:
 dbg_err:
 	snd_sof_free_debug(sdev);
-dsp_err:
 	snd_sof_remove(sdev);
-probe_err:
 	snd_sof_remove_late(sdev);
 	sof_ops_free(sdev);
 
@@ -535,8 +575,8 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
-	/* Initialize loadable file paths and check the environment validity */
-	ret = sof_init_environment(sdev);
+	/* Initialize sof_ops based on the initial selected IPC version */
+	ret = sof_init_sof_ops(sdev);
 	if (ret)
 		return ret;
 
