@@ -468,9 +468,7 @@ struct i40e_pf {
 	struct i40e_hw hw;
 	DECLARE_BITMAP(state, __I40E_STATE_SIZE__);
 	struct msix_entry *msix_entries;
-	bool fc_autoneg_status;
 
-	u16 eeprom_version;
 	u16 num_vmdq_vsis;         /* num vmdq vsis this PF has set up */
 	u16 num_vmdq_qps;          /* num queue pairs per vmdq pool */
 	u16 num_vmdq_msix;         /* num queue vectors per vmdq pool */
@@ -486,7 +484,6 @@ struct i40e_pf {
 	u16 rss_size_max;          /* HW defined max RSS queues */
 	u16 fdir_pf_filter_count;  /* num of guaranteed filters for this PF */
 	u16 num_alloc_vsi;         /* num VSIs this driver supports */
-	u8 atr_sample_rate;
 	bool wol_en;
 
 	struct hlist_head fdir_filter_list;
@@ -524,12 +521,10 @@ struct i40e_pf {
 	struct hlist_head cloud_filter_list;
 	u16 num_cloud_filters;
 
-	enum i40e_interrupt_policy int_policy;
 	u16 rx_itr_default;
 	u16 tx_itr_default;
 	u32 msg_enable;
 	char int_name[I40E_INT_NAME_STR_LEN];
-	u16 adminq_work_limit; /* num of admin receive queue desc to process */
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
 	struct timer_list service_timer;
@@ -543,7 +538,6 @@ struct i40e_pf {
 	u32 tx_timeout_count;
 	u32 tx_timeout_recovery_level;
 	unsigned long tx_timeout_last_recovery;
-	u32 tx_sluggish_count;
 	u32 hw_csum_rx_error;
 	u32 led_status;
 	u16 corer_count; /* Core reset count */
@@ -565,16 +559,12 @@ struct i40e_pf {
 	struct i40e_lump_tracking *irq_pile;
 
 	/* switch config info */
-	u16 pf_seid;
 	u16 main_vsi_seid;
 	u16 mac_seid;
-	struct kobject *switch_kobj;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *i40e_dbg_pf;
 #endif /* CONFIG_DEBUG_FS */
 	bool cur_promisc;
-
-	u16 instance; /* A unique number per i40e_pf instance in the system */
 
 	/* sr-iov config info */
 	struct i40e_vf *vf;
@@ -669,9 +659,7 @@ struct i40e_pf {
 	unsigned long ptp_tx_start;
 	struct hwtstamp_config tstamp_config;
 	struct timespec64 ptp_prev_hw_time;
-	struct work_struct ptp_pps_work;
 	struct work_struct ptp_extts0_work;
-	struct work_struct ptp_extts1_work;
 	ktime_t ptp_reset_start;
 	struct mutex tmreg_lock; /* Used to protect the SYSTIME registers. */
 	u32 ptp_adj_mult;
@@ -679,10 +667,7 @@ struct i40e_pf {
 	u32 tx_hwtstamp_skipped;
 	u32 rx_hwtstamp_cleared;
 	u32 latch_event_flags;
-	u64 ptp_pps_start;
-	u32 pps_delay;
 	spinlock_t ptp_rx_lock; /* Used to protect Rx timestamp registers. */
-	struct ptp_pin_desc ptp_pin[3];
 	unsigned long latch_events[4];
 	bool ptp_tx;
 	bool ptp_rx;
@@ -695,7 +680,6 @@ struct i40e_pf {
 	u32 fd_inv;
 	u16 phy_led_val;
 
-	u16 override_q_count;
 	u16 last_sw_conf_flags;
 	u16 last_sw_conf_valid_flags;
 	/* List to keep previous DDP profiles to be rolled back in the future */

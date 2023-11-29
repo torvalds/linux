@@ -3465,7 +3465,7 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 
 	/* some ATR related tx ring init */
 	if (test_bit(I40E_FLAG_FD_ATR_ENA, vsi->back->flags)) {
-		ring->atr_sample_rate = vsi->back->atr_sample_rate;
+		ring->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
 		ring->atr_count = 0;
 	} else {
 		ring->atr_sample_rate = 0;
@@ -10127,7 +10127,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		return;
 
 	/* check for error indications */
-	val = rd32(&pf->hw, pf->hw.aq.arq.len);
+	val = rd32(&pf->hw, I40E_PF_ARQLEN);
 	oldval = val;
 	if (val & I40E_PF_ARQLEN_ARQVFE_MASK) {
 		if (hw->debug_mask & I40E_DEBUG_AQ)
@@ -10146,9 +10146,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		val &= ~I40E_PF_ARQLEN_ARQCRIT_MASK;
 	}
 	if (oldval != val)
-		wr32(&pf->hw, pf->hw.aq.arq.len, val);
+		wr32(&pf->hw, I40E_PF_ARQLEN, val);
 
-	val = rd32(&pf->hw, pf->hw.aq.asq.len);
+	val = rd32(&pf->hw, I40E_PF_ATQLEN);
 	oldval = val;
 	if (val & I40E_PF_ATQLEN_ATQVFE_MASK) {
 		if (pf->hw.debug_mask & I40E_DEBUG_AQ)
@@ -10166,7 +10166,7 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 		val &= ~I40E_PF_ATQLEN_ATQCRIT_MASK;
 	}
 	if (oldval != val)
-		wr32(&pf->hw, pf->hw.aq.asq.len, val);
+		wr32(&pf->hw, I40E_PF_ATQLEN, val);
 
 	event.buf_len = I40E_MAX_AQ_BUF_SIZE;
 	event.msg_buf = kzalloc(event.buf_len, GFP_KERNEL);
@@ -10226,9 +10226,9 @@ static void i40e_clean_adminq_subtask(struct i40e_pf *pf)
 				 opcode);
 			break;
 		}
-	} while (i++ < pf->adminq_work_limit);
+	} while (i++ < I40E_AQ_WORK_LIMIT);
 
-	if (i < pf->adminq_work_limit)
+	if (i < I40E_AQ_WORK_LIMIT)
 		clear_bit(__I40E_ADMINQ_EVENT_PENDING, pf->state);
 
 	/* re-enable Admin queue interrupt cause */
@@ -12769,7 +12769,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 	if ((pf->hw.func_caps.fd_filters_guaranteed > 0) ||
 	    (pf->hw.func_caps.fd_filters_best_effort > 0)) {
 		set_bit(I40E_FLAG_FD_ATR_ENA, pf->flags);
-		pf->atr_sample_rate = I40E_DEFAULT_ATR_SAMPLE_RATE;
 		if (test_bit(I40E_FLAG_MFP_ENA, pf->flags) &&
 		    pf->hw.num_partitions > 1)
 			dev_info(&pf->pdev->dev,
@@ -12815,7 +12814,6 @@ static int i40e_sw_init(struct i40e_pf *pf)
 					I40E_MAX_VF_COUNT);
 	}
 #endif /* CONFIG_PCI_IOV */
-	pf->eeprom_version = 0xDEAD;
 	pf->lan_veb = I40E_NO_VEB;
 	pf->lan_vsi = I40E_NO_VSI;
 
@@ -14976,12 +14974,11 @@ static void i40e_setup_pf_switch_element(struct i40e_pf *pf,
 		 * the PF's VSI
 		 */
 		pf->mac_seid = uplink_seid;
-		pf->pf_seid = downlink_seid;
 		pf->main_vsi_seid = seid;
 		if (printconfig)
 			dev_info(&pf->pdev->dev,
 				 "pf_seid=%d main_vsi_seid=%d\n",
-				 pf->pf_seid, pf->main_vsi_seid);
+				 downlink_seid, pf->main_vsi_seid);
 		break;
 	case I40E_SWITCH_ELEMENT_TYPE_PF:
 	case I40E_SWITCH_ELEMENT_TYPE_VF:
@@ -15159,10 +15156,6 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit, bool lock_acqui
 
 	/* fill in link information and enable LSE reporting */
 	i40e_link_event(pf);
-
-	/* Initialize user-specific link properties */
-	pf->fc_autoneg_status = ((pf->hw.phy.link_info.an_info &
-				  I40E_AQ_AN_COMPLETED) ? true : false);
 
 	i40e_ptp_init(pf);
 
@@ -15637,7 +15630,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif /* CONFIG_I40E_DCB */
 	struct i40e_pf *pf;
 	struct i40e_hw *hw;
-	static u16 pfs_found;
 	u16 wol_nvm_bits;
 	char nvm_ver[32];
 	u16 link_status;
@@ -15715,7 +15707,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	hw->bus.bus_id = pdev->bus->number;
-	pf->instance = pfs_found;
 
 	/* Select something other than the 802.1ad ethertype for the
 	 * switch to use internally and drop on ingress.
@@ -15777,7 +15768,6 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	hw->aq.arq_buf_size = I40E_MAX_AQ_BUF_SIZE;
 	hw->aq.asq_buf_size = I40E_MAX_AQ_BUF_SIZE;
-	pf->adminq_work_limit = I40E_AQ_WORK_LIMIT;
 
 	snprintf(pf->int_name, sizeof(pf->int_name) - 1,
 		 "%s-%s:misc",
