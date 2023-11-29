@@ -57,8 +57,6 @@ static int vimc_capture_querycap(struct file *file, void *priv,
 {
 	strscpy(cap->driver, VIMC_PDEV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", VIMC_PDEV_NAME);
 
 	return 0;
 }
