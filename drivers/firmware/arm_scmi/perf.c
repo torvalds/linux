@@ -24,7 +24,7 @@
 #include "protocols.h"
 #include "notify.h"
 
-#define MAX_OPPS		16
+#define MAX_OPPS		32
 
 enum scmi_performance_protocol_cmd {
 	PERF_DOMAIN_ATTRIBUTES = 0x3,
