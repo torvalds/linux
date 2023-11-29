@@ -127,17 +127,17 @@ EXPORT_SYMBOL_GPL(__cookie_v6_check);
 
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_options_received tcp_opt;
-	struct inet_request_sock *ireq;
-	struct tcp_request_sock *treq;
-	struct ipv6_pinfo *np = inet6_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
 	const struct tcphdr *th = tcp_hdr(skb);
 	__u32 cookie = ntohl(th->ack_seq) - 1;
-	struct sock *ret = sk;
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct tcp_options_received tcp_opt;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_request_sock *ireq;
+	struct tcp_request_sock *treq;
 	struct request_sock *req;
-	int full_space, mss;
 	struct dst_entry *dst;
+	struct sock *ret = sk;
+	int full_space, mss;
 	__u8 rcv_wscale;
 	u32 tsoff = 0;
 	int l3index;
