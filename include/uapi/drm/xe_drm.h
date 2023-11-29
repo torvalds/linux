@@ -643,7 +643,6 @@ struct drm_xe_ext_set_property {
 };
 
 struct drm_xe_vm_create {
-#define DRM_XE_VM_EXTENSION_SET_PROPERTY	0
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
