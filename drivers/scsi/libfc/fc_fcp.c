@@ -2062,9 +2062,9 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		sc_cmd->result = (DID_PARITY << 16);
 		break;
 	case FC_TIMED_OUT:
-		FC_FCP_DBG(fsp, "Returning DID_BUS_BUSY to scsi-ml "
+		FC_FCP_DBG(fsp, "Returning DID_TIME_OUT to scsi-ml "
 			   "due to FC_TIMED_OUT\n");
-		sc_cmd->result = (DID_BUS_BUSY << 16) | fsp->io_status;
+		sc_cmd->result = (DID_TIME_OUT << 16);
 		break;
 	default:
 		FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
