@@ -16,7 +16,11 @@ description:
 
 properties:
   compatible:
-    const: qcom,sm8550-lpass-lpi-pinctrl
+    oneOf:
+      - const: qcom,sm8550-lpass-lpi-pinctrl
+      - items:
+          - const: qcom,x1e80100-lpass-lpi-pinctrl
+          - const: qcom,sm8550-lpass-lpi-pinctrl
 
   reg:
     items:
