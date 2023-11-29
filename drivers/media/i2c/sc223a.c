@@ -612,7 +612,7 @@ static const struct sc223a_mode supported_modes[] = {
 		.exp_def = 0x0080,
 		.hts_def = 0x0960,
 		.vts_def = 0x0465,
-		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR8_1X8,
 		.reg_list = sc223a_linear_10_1920x1080_dvp_30fps_regs,
 		.hdr_mode = NO_HDR,
 		.mode_id = SC223A_DVP_MODE,
@@ -960,7 +960,7 @@ static int sc223a_g_mbus_config(struct v4l2_subdev *sd,
 		config->type = V4L2_MBUS_PARALLEL;
 		config->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 				V4L2_MBUS_VSYNC_ACTIVE_LOW |
-				V4L2_MBUS_PCLK_SAMPLE_FALLING;
+				V4L2_MBUS_PCLK_SAMPLE_RISING;
 	}
 
 	return 0;
