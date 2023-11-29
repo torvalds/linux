@@ -23483,7 +23483,7 @@ M:	Nas Chung <nas.chung@chipsnmedia.com>
 M:	Jackson Lee <jackson.lee@chipsnmedia.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/media/cnm,wave5.yaml
+F:	Documentation/devicetree/bindings/media/cnm,wave521c.yaml
 F:	drivers/media/platform/chips-media/wave5/
 
 WHISKEYCOVE PMIC GPIO DRIVER
