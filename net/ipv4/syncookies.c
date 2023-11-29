@@ -189,12 +189,14 @@ __u32 cookie_v4_init_sequence(const struct sk_buff *skb, __u16 *mssp)
  * Check if a ack sequence number is a valid syncookie.
  * Return the decoded mss if it is, or 0 if not.
  */
-int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
-		      u32 cookie)
+int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th)
 {
+	__u32 cookie = ntohl(th->ack_seq) - 1;
 	__u32 seq = ntohl(th->seq) - 1;
-	__u32 mssind = check_tcp_syn_cookie(cookie, iph->saddr, iph->daddr,
-					    th->source, th->dest, seq);
+	__u32 mssind;
+
+	mssind = check_tcp_syn_cookie(cookie, iph->saddr, iph->daddr,
+				      th->source, th->dest, seq);
 
 	return mssind < ARRAY_SIZE(msstab) ? msstab[mssind] : 0;
 }
@@ -332,7 +334,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 {
 	struct ip_options *opt = &TCP_SKB_CB(skb)->header.h4.opt;
 	const struct tcphdr *th = tcp_hdr(skb);
-	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct tcp_options_received tcp_opt;
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_request_sock *ireq;
@@ -354,7 +355,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	if (tcp_synq_no_recent_overflow(sk))
 		goto out;
 
-	mss = __cookie_v4_check(ip_hdr(skb), th, cookie);
+	mss = __cookie_v4_check(ip_hdr(skb), th);
 	if (mss == 0) {
 		__NET_INC_STATS(net, LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
@@ -384,7 +385,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	ireq = inet_rsk(req);
 	treq = tcp_rsk(req);
 	treq->rcv_isn		= ntohl(th->seq) - 1;
-	treq->snt_isn		= cookie;
+	treq->snt_isn		= ntohl(th->ack_seq) - 1;
 	treq->ts_off		= 0;
 	treq->txhash		= net_tx_rndhash();
 	req->mss		= mss;

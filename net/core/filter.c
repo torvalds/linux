@@ -7238,7 +7238,6 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 	   struct tcphdr *, th, u32, th_len)
 {
 #ifdef CONFIG_SYN_COOKIES
-	u32 cookie;
 	int ret;
 
 	if (unlikely(!sk || th_len < sizeof(*th)))
@@ -7260,8 +7259,6 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 	if (tcp_synq_no_recent_overflow(sk))
 		return -ENOENT;
 
-	cookie = ntohl(th->ack_seq) - 1;
-
 	/* Both struct iphdr and struct ipv6hdr have the version field at the
 	 * same offset so we can cast to the shorter header (struct iphdr).
 	 */
@@ -7270,7 +7267,7 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 		if (sk->sk_family == AF_INET6 && ipv6_only_sock(sk))
 			return -EINVAL;
 
-		ret = __cookie_v4_check((struct iphdr *)iph, th, cookie);
+		ret = __cookie_v4_check((struct iphdr *)iph, th);
 		break;
 
 #if IS_BUILTIN(CONFIG_IPV6)
@@ -7281,7 +7278,7 @@ BPF_CALL_5(bpf_tcp_check_syncookie, struct sock *, sk, void *, iph, u32, iph_len
 		if (sk->sk_family != AF_INET6)
 			return -EINVAL;
 
-		ret = __cookie_v6_check((struct ipv6hdr *)iph, th, cookie);
+		ret = __cookie_v6_check((struct ipv6hdr *)iph, th);
 		break;
 #endif /* CONFIG_IPV6 */
 
@@ -7734,9 +7731,7 @@ static const struct bpf_func_proto bpf_tcp_raw_gen_syncookie_ipv6_proto = {
 BPF_CALL_2(bpf_tcp_raw_check_syncookie_ipv4, struct iphdr *, iph,
 	   struct tcphdr *, th)
 {
-	u32 cookie = ntohl(th->ack_seq) - 1;
-
-	if (__cookie_v4_check(iph, th, cookie) > 0)
+	if (__cookie_v4_check(iph, th) > 0)
 		return 0;
 
 	return -EACCES;
@@ -7757,9 +7752,7 @@ BPF_CALL_2(bpf_tcp_raw_check_syncookie_ipv6, struct ipv6hdr *, iph,
 	   struct tcphdr *, th)
 {
 #if IS_BUILTIN(CONFIG_IPV6)
-	u32 cookie = ntohl(th->ack_seq) - 1;
-
-	if (__cookie_v6_check(iph, th, cookie) > 0)
+	if (__cookie_v6_check(iph, th) > 0)
 		return 0;
 
 	return -EACCES;

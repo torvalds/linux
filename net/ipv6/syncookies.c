@@ -114,12 +114,14 @@ __u32 cookie_v6_init_sequence(const struct sk_buff *skb, __u16 *mssp)
 	return __cookie_v6_init_sequence(iph, th, mssp);
 }
 
-int __cookie_v6_check(const struct ipv6hdr *iph, const struct tcphdr *th,
-		      __u32 cookie)
+int __cookie_v6_check(const struct ipv6hdr *iph, const struct tcphdr *th)
 {
+	__u32 cookie = ntohl(th->ack_seq) - 1;
 	__u32 seq = ntohl(th->seq) - 1;
-	__u32 mssind = check_tcp_syn_cookie(cookie, &iph->saddr, &iph->daddr,
-					    th->source, th->dest, seq);
+	__u32 mssind;
+
+	mssind = check_tcp_syn_cookie(cookie, &iph->saddr, &iph->daddr,
+				      th->source, th->dest, seq);
 
 	return mssind < ARRAY_SIZE(msstab) ? msstab[mssind] : 0;
 }
@@ -128,7 +130,6 @@ EXPORT_SYMBOL_GPL(__cookie_v6_check);
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
-	__u32 cookie = ntohl(th->ack_seq) - 1;
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_options_received tcp_opt;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -150,7 +151,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	if (tcp_synq_no_recent_overflow(sk))
 		goto out;
 
-	mss = __cookie_v6_check(ipv6_hdr(skb), th, cookie);
+	mss = __cookie_v6_check(ipv6_hdr(skb), th);
 	if (mss == 0) {
 		__NET_INC_STATS(net, LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
@@ -213,7 +214,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 	treq->snt_synack	= 0;
 	treq->rcv_isn = ntohl(th->seq) - 1;
-	treq->snt_isn = cookie;
+	treq->snt_isn = ntohl(th->ack_seq) - 1;
 	treq->ts_off = 0;
 	treq->txhash = net_tx_rndhash();
 
