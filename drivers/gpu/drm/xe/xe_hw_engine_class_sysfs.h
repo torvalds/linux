@@ -4,7 +4,7 @@
  */
 
 #ifndef _XE_ENGINE_CLASS_SYSFS_H_
-#define _XE_ENGINE_CLASS_SYSFS_H__
+#define _XE_ENGINE_CLASS_SYSFS_H_
 
 #include <linux/kobject.h>
 
