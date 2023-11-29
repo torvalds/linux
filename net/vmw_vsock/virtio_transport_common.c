@@ -245,18 +245,21 @@ static int virtio_transport_send_pkt_info(struct vsock_sock *vsk,
 }
 
 static bool virtio_transport_inc_rx_pkt(struct virtio_vsock_sock *vvs,
-					u32 len)
+					struct sk_buff *skb)
 {
-	if (vvs->rx_bytes + len > vvs->buf_alloc)
+	if (vvs->rx_bytes + skb->len > vvs->buf_alloc)
 		return false;
 
-	vvs->rx_bytes += len;
+	vvs->rx_bytes += skb->len;
 	return true;
 }
 
 static void virtio_transport_dec_rx_pkt(struct virtio_vsock_sock *vvs,
-					u32 len)
+					struct sk_buff *skb)
 {
+	int len;
+
+	len = skb_headroom(skb) - sizeof(struct virtio_vsock_hdr) - skb->len;
 	vvs->rx_bytes -= len;
 	vvs->fwd_cnt += len;
 }
@@ -389,9 +392,7 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 		skb_pull(skb, bytes);
 
 		if (skb->len == 0) {
-			u32 pkt_len = le32_to_cpu(virtio_vsock_hdr(skb)->len);
-
-			virtio_transport_dec_rx_pkt(vvs, pkt_len);
+			virtio_transport_dec_rx_pkt(vvs, skb);
 			consume_skb(skb);
 		} else {
 			__skb_queue_head(&vvs->rx_queue, skb);
@@ -440,17 +441,17 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 
 	while (!msg_ready) {
 		struct virtio_vsock_hdr *hdr;
-		size_t pkt_len;
 
 		skb = __skb_dequeue(&vvs->rx_queue);
 		if (!skb)
 			break;
 		hdr = virtio_vsock_hdr(skb);
-		pkt_len = (size_t)le32_to_cpu(hdr->len);
 
 		if (dequeued_len >= 0) {
+			size_t pkt_len;
 			size_t bytes_to_copy;
 
+			pkt_len = (size_t)le32_to_cpu(hdr->len);
 			bytes_to_copy = min(user_buf_len, pkt_len);
 
 			if (bytes_to_copy) {
@@ -487,7 +488,7 @@ static int virtio_transport_seqpacket_do_dequeue(struct vsock_sock *vsk,
 				msg->msg_flags |= MSG_EOR;
 		}
 
-		virtio_transport_dec_rx_pkt(vvs, pkt_len);
+		virtio_transport_dec_rx_pkt(vvs, skb);
 		kfree_skb(skb);
 	}
 
@@ -1043,7 +1044,7 @@ virtio_transport_recv_enqueue(struct vsock_sock *vsk,
 
 	spin_lock_bh(&vvs->rx_lock);
 
-	can_enqueue = virtio_transport_inc_rx_pkt(vvs, len);
+	can_enqueue = virtio_transport_inc_rx_pkt(vvs, skb);
 	if (!can_enqueue) {
 		free_pkt = true;
 		goto out;
