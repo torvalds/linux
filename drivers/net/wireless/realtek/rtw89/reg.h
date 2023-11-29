@@ -2376,6 +2376,14 @@
 #define R_AX_TSFTR_HIGH_P4 0xC53C
 #define B_AX_TSFTR_HIGH_MASK GENMASK(31, 0)
 
+#define R_AX_BCN_DROP_ALL0 0xC560
+#define R_AX_BCN_DROP_ALL0_C1 0xE560
+#define B_AX_BCN_DROP_ALL_P4 BIT(4)
+#define B_AX_BCN_DROP_ALL_P3 BIT(3)
+#define B_AX_BCN_DROP_ALL_P2 BIT(2)
+#define B_AX_BCN_DROP_ALL_P1 BIT(1)
+#define B_AX_BCN_DROP_ALL_P0 BIT(0)
+
 #define R_AX_MBSSID_CTRL 0xC568
 #define R_AX_MBSSID_CTRL_C1 0xE568
 #define B_AX_P0MB_ALL_MASK GENMASK(23, 1)
@@ -2555,11 +2563,20 @@
 
 #define R_AX_PTCL_DBG_INFO 0xC6F0
 #define R_AX_PTCL_DBG_INFO_C1 0xE6F0
+#define B_AX_PTCL_DBG_INFO_MASK_BY_PORT(port) \
+({\
+	typeof(port) _port = (port); \
+	GENMASK((_port) * 2 + 1, (_port) * 2); \
+})
+
 #define B_AX_PTCL_DBG_INFO_MASK GENMASK(31, 0)
 #define R_AX_PTCL_DBG 0xC6F4
 #define R_AX_PTCL_DBG_C1 0xE6F4
 #define B_AX_PTCL_DBG_EN BIT(8)
 #define B_AX_PTCL_DBG_SEL_MASK GENMASK(7, 0)
+#define AX_PTCL_DBG_BCNQ_NUM0 8
+#define AX_PTCL_DBG_BCNQ_NUM1 9
+
 
 #define R_AX_DLE_CTRL 0xC800
 #define R_AX_DLE_CTRL_C1 0xE800
