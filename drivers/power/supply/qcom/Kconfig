@@ -62,5 +62,15 @@ config SMB1355_SLAVE_CHARGER
 	  The driver reports the charger status via the power supply framework.
 	  A charger status change triggers an IRQ via the device STAT pin.
 
+config SMB358_CHARGER
+        tristate "SMB358 Battery Charger"
+        depends on I2C
+        help
+          Say Y to include support for SMB358 Battery Charger.
+          SMB358 is a single path switching mode charger capable of charging
+          the battery with 2Amps of current.
+          The driver supports charger enable/disable.
+          The driver reports the charger status via the power supply framework.
+          A charger status change triggers an IRQ via the device STAT pin.
 endif
 
