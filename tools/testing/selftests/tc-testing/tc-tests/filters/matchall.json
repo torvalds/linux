@@ -480,5 +480,28 @@
             "$TC qdisc del dev $DUMMY ingress",
             "$TC actions del action police index 199"
         ]
+    },
+    {
+        "id": "2638",
+        "name": "Add matchall and try to get it",
+        "category": [
+            "filter",
+            "matchall"
+        ],
+        "plugins": {
+                "requires": "nsPlugin"
+        },
+        "setup": [
+            "$TC qdisc add dev $DEV1 clsact",
+            "$TC filter add dev $DEV1 protocol all pref 1 ingress handle 0x1234 matchall action ok"
+        ],
+        "cmdUnderTest": "$TC filter get dev $DEV1 protocol all pref 1 ingress handle 0x1234 matchall",
+        "expExitCode": "0",
+        "verifyCmd": "$TC filter show dev $DEV1 ingress",
+        "matchPattern": "filter protocol all pref 1 matchall chain 0 handle 0x1234",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
     }
 ]
