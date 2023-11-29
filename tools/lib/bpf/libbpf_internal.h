@@ -594,7 +594,8 @@ int elf_open(const char *binary_path, struct elf_fd *elf_fd);
 void elf_close(struct elf_fd *elf_fd);
 
 int elf_resolve_syms_offsets(const char *binary_path, int cnt,
-			     const char **syms, unsigned long **poffsets);
+			     const char **syms, unsigned long **poffsets,
+			     int st_type);
 int elf_resolve_pattern_offsets(const char *binary_path, const char *pattern,
 				 unsigned long **poffsets, size_t *pcnt);
 

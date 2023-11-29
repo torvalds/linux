@@ -249,7 +249,7 @@ static void __test_link_api(struct child *child)
 	int link_extra_fd = -1;
 	int err;
 
-	err = elf_resolve_syms_offsets(path, 3, syms, (unsigned long **) &offsets);
+	err = elf_resolve_syms_offsets(path, 3, syms, (unsigned long **) &offsets, STT_FUNC);
 	if (!ASSERT_OK(err, "elf_resolve_syms_offsets"))
 		return;
 
