@@ -19,9 +19,9 @@ struct perf_cache {
 struct perf_cpu_map;
 
 /**
- * perf_cpu_map__dummy_new - a map with a singular "any CPU"/dummy -1 value.
+ * perf_cpu_map__new_any_cpu - a map with a singular "any CPU"/dummy -1 value.
  */
-LIBPERF_API struct perf_cpu_map *perf_cpu_map__dummy_new(void);
+LIBPERF_API struct perf_cpu_map *perf_cpu_map__new_any_cpu(void);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__default_new(void);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__read(FILE *file);

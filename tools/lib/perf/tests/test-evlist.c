@@ -261,7 +261,7 @@ static int test_mmap_thread(void)
 	threads = perf_thread_map__new_dummy();
 	__T("failed to create threads", threads);
 
-	cpus = perf_cpu_map__dummy_new();
+	cpus = perf_cpu_map__new_any_cpu();
 	__T("failed to create cpus", cpus);
 
 	perf_thread_map__set_pid(threads, 0, pid);

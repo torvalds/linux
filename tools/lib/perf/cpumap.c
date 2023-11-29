@@ -27,7 +27,7 @@ struct perf_cpu_map *perf_cpu_map__alloc(int nr_cpus)
 	return result;
 }
 
-struct perf_cpu_map *perf_cpu_map__dummy_new(void)
+struct perf_cpu_map *perf_cpu_map__new_any_cpu(void)
 {
 	struct perf_cpu_map *cpus = perf_cpu_map__alloc(1);
 
@@ -271,7 +271,7 @@ struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list)
 	else if (*cpu_list != '\0')
 		cpus = cpu_map__default_new();
 	else
-		cpus = perf_cpu_map__dummy_new();
+		cpus = perf_cpu_map__new_any_cpu();
 invalid:
 	free(tmp_cpus);
 out:
