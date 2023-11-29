@@ -6226,6 +6226,13 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	inode->i_generation = BTRFS_I(inode)->generation;
 
 	/*
+	 * We don't have any capability xattrs set here yet, shortcut any
+	 * queries for the xattrs here.  If we add them later via the inode
+	 * security init path or any other path this flag will be cleared.
+	 */
+	set_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags);
+
+	/*
 	 * Subvolumes don't inherit flags from their parent directory.
 	 * Originally this was probably by accident, but we probably can't
 	 * change it now without compatibility issues.
