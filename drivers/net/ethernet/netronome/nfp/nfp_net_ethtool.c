@@ -2502,6 +2502,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.set_pauseparam		= nfp_port_set_pauseparam,
 	.get_pauseparam		= nfp_port_get_pauseparam,
 	.set_phys_id		= nfp_net_set_phys_id,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 const struct ethtool_ops nfp_port_ethtool_ops = {
