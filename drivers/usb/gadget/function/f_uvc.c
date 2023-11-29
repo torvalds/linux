@@ -492,6 +492,7 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	void *mem;
 
 	switch (speed) {
+	case USB_SPEED_SUPER_PLUS:
 	case USB_SPEED_SUPER:
 		uvc_control_desc = uvc->desc.ss_control;
 		uvc_streaming_cls = uvc->desc.ss_streaming;
@@ -536,7 +537,8 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	      + uvc_control_ep.bLength + uvc_control_cs_ep.bLength
 	      + uvc_streaming_intf_alt0.bLength;
 
-	if (speed == USB_SPEED_SUPER) {
+	if (speed == USB_SPEED_SUPER ||
+	    speed == USB_SPEED_SUPER_PLUS) {
 		bytes += uvc_ss_control_comp.bLength;
 		n_desc = 6;
 	} else {
@@ -580,7 +582,8 @@ uvc_copy_descriptors(struct uvc_device *uvc, enum usb_device_speed speed)
 	uvc_control_header->baInterfaceNr[0] = uvc->streaming_intf;
 
 	UVC_COPY_DESCRIPTOR(mem, dst, &uvc_control_ep);
-	if (speed == USB_SPEED_SUPER)
+	if (speed == USB_SPEED_SUPER
+	    || speed == USB_SPEED_SUPER_PLUS)
 		UVC_COPY_DESCRIPTOR(mem, dst, &uvc_ss_control_comp);
 
 	UVC_COPY_DESCRIPTOR(mem, dst, &uvc_control_cs_ep);
@@ -673,21 +676,13 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	}
 	uvc->control_ep = ep;
 
-	if (gadget_is_superspeed(c->cdev->gadget))
-		ep = usb_ep_autoconfig_ss(cdev->gadget, &uvc_ss_streaming_ep,
-					  &uvc_ss_streaming_comp);
-	else if (gadget_is_dualspeed(cdev->gadget))
-		ep = usb_ep_autoconfig(cdev->gadget, &uvc_hs_streaming_ep);
-	else
-		ep = usb_ep_autoconfig(cdev->gadget, &uvc_fs_streaming_ep);
-
+	ep = usb_ep_autoconfig(cdev->gadget, &uvc_fs_streaming_ep);
 	if (!ep) {
 		uvcg_info(f, "Unable to allocate streaming EP\n");
 		goto error;
 	}
 	uvc->video.ep = ep;
 
-	uvc_fs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_hs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_ss_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 
@@ -726,21 +721,26 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 		f->fs_descriptors = NULL;
 		goto error;
 	}
-	if (gadget_is_dualspeed(cdev->gadget)) {
-		f->hs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_HIGH);
-		if (IS_ERR(f->hs_descriptors)) {
-			ret = PTR_ERR(f->hs_descriptors);
-			f->hs_descriptors = NULL;
-			goto error;
-		}
+
+	f->hs_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_HIGH);
+	if (IS_ERR(f->hs_descriptors)) {
+		ret = PTR_ERR(f->hs_descriptors);
+		f->hs_descriptors = NULL;
+		goto error;
 	}
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		f->ss_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER);
-		if (IS_ERR(f->ss_descriptors)) {
-			ret = PTR_ERR(f->ss_descriptors);
-			f->ss_descriptors = NULL;
-			goto error;
-		}
+
+	f->ss_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER);
+	if (IS_ERR(f->ss_descriptors)) {
+		ret = PTR_ERR(f->ss_descriptors);
+		f->ss_descriptors = NULL;
+		goto error;
+	}
+
+	f->ssp_descriptors = uvc_copy_descriptors(uvc, USB_SPEED_SUPER_PLUS);
+	if (IS_ERR(f->ssp_descriptors)) {
+		ret = PTR_ERR(f->ssp_descriptors);
+		f->ssp_descriptors = NULL;
+		goto error;
 	}
 
 	/* Preallocate control endpoint request. */
