@@ -950,13 +950,13 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 
 	amd_manager->reg_mask = &sdw_manager_reg_mask_array[amd_manager->instance];
 	params = &amd_manager->bus.params;
-	params->max_dr_freq = AMD_SDW_DEFAULT_CLK_FREQ * 2;
-	params->curr_dr_freq = AMD_SDW_DEFAULT_CLK_FREQ * 2;
+
 	params->col = AMD_SDW_DEFAULT_COLUMNS;
 	params->row = AMD_SDW_DEFAULT_ROWS;
 	prop = &amd_manager->bus.prop;
 	prop->clk_freq = &amd_sdw_freq_tbl[0];
 	prop->mclk_freq = AMD_SDW_BUS_BASE_FREQ;
+	prop->max_clk_freq = AMD_SDW_DEFAULT_CLK_FREQ;
 
 	ret = sdw_bus_master_add(&amd_manager->bus, dev, dev->fwnode);
 	if (ret) {
