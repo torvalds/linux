@@ -66,7 +66,7 @@ static void guest_msr(struct msr_data *msr)
 
 	if (msr->write)
 		__GUEST_ASSERT(!vector,
-			       "WRMSR(0x%x) to '0x%llx', RDMSR read '0x%llx'",
+			       "WRMSR(0x%x) to '0x%lx', RDMSR read '0x%lx'",
 			       msr->idx, msr->write_val, msr_val);
 
 	/* Invariant TSC bit appears when TSC invariant control MSR is written to */
