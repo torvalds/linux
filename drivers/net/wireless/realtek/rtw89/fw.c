@@ -3867,6 +3867,8 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 			if (info->channel_6ghz &&
 			    ch_info->pri_ch != info->channel_6ghz)
 				continue;
+			else if (info->channel_6ghz && probe_count != 0)
+				ch_info->period += RTW89_CHANNEL_TIME_6G;
 			ch_info->pkt_id[probe_count++] = info->id;
 			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
 				break;
