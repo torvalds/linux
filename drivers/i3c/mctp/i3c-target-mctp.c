@@ -401,7 +401,7 @@ static int i3c_target_mctp_init(struct i3c_driver *drv)
 	if (ret)
 		return ret;
 
-	i3c_target_mctp_class = class_create(THIS_MODULE, "i3c-target-mctp");
+	i3c_target_mctp_class = class_create("i3c-target-mctp");
 	if (IS_ERR(i3c_target_mctp_class)) {
 		unregister_chrdev_region(i3c_target_mctp_devt, I3C_TARGET_MCTP_MINORS);
 		return PTR_ERR(i3c_target_mctp_class);

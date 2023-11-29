@@ -389,7 +389,7 @@ static int __init i3cdev_init(void)
 		goto out;
 
 	/* Create a classe to populate sysfs entries*/
-	i3cdev_class = class_create(THIS_MODULE, "i3cdev");
+	i3cdev_class = class_create("i3cdev");
 	if (IS_ERR(i3cdev_class)) {
 		res = PTR_ERR(i3cdev_class);
 		goto out_unreg_chrdev;

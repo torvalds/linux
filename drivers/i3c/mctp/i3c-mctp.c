@@ -394,7 +394,7 @@ static int i3c_mctp_init(struct i3c_driver *drv)
 		goto out;
 
 	/* Create a class to populate sysfs entries*/
-	i3c_mctp_class = class_create(THIS_MODULE, "i3c-mctp");
+	i3c_mctp_class = class_create("i3c-mctp");
 	if (IS_ERR(i3c_mctp_class)) {
 		ret = PTR_ERR(i3c_mctp_class);
 		goto out_unreg_chrdev;
