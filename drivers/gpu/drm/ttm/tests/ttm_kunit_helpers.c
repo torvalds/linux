@@ -22,6 +22,10 @@ static void ttm_tt_simple_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 	kfree(ttm);
 }
 
+static void dummy_ttm_bo_destroy(struct ttm_buffer_object *bo)
+{
+}
+
 struct ttm_device_funcs ttm_dev_funcs = {
 	.ttm_tt_create = ttm_tt_simple_create,
 	.ttm_tt_destroy = ttm_tt_simple_destroy,
@@ -61,6 +65,8 @@ struct ttm_buffer_object *ttm_bo_kunit_init(struct kunit *test,
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	bo->bdev = devs->ttm_dev;
+	bo->destroy = dummy_ttm_bo_destroy;
+
 	kref_init(&bo->kref);
 
 	return bo;
