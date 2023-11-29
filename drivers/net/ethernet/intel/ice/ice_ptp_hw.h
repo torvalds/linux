@@ -509,6 +509,7 @@ int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 #define TS_LL_READ_RETRIES		200
 #define TS_LL_READ_TS_HIGH		GENMASK(23, 16)
 #define TS_LL_READ_TS_IDX		GENMASK(29, 24)
+#define TS_LL_READ_TS_INTR		BIT(30)
 #define TS_LL_READ_TS			BIT(31)
 
 /* Internal PHY timestamp address */
