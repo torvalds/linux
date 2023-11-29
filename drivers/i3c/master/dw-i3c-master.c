@@ -1506,13 +1506,6 @@ static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		dw_i3c_master_exit_halt(master);
 	}
 
-	for (i = 0; i < i3c_nxfers; i++) {
-		struct dw_i3c_cmd *cmd = &xfer->cmds[i];
-
-		if (i3c_xfers[i].rnw)
-			i3c_xfers[i].len = cmd->rx_len;
-	}
-
 	ret = xfer->ret;
 	dw_i3c_master_free_xfer(xfer);
 
