@@ -2,9 +2,29 @@
 /*
  * Copyright © 2023 Intel Corporation
  */
+#include <drm/ttm/ttm_tt.h>
+
 #include "ttm_kunit_helpers.h"
 
+static struct ttm_tt *ttm_tt_simple_create(struct ttm_buffer_object *bo,
+					   uint32_t page_flags)
+{
+	struct ttm_tt *tt;
+
+	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
+	ttm_tt_init(tt, bo, page_flags, ttm_cached, 0);
+
+	return tt;
+}
+
+static void ttm_tt_simple_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
+{
+	kfree(ttm);
+}
+
 struct ttm_device_funcs ttm_dev_funcs = {
+	.ttm_tt_create = ttm_tt_simple_create,
+	.ttm_tt_destroy = ttm_tt_simple_destroy,
 };
 EXPORT_SYMBOL_GPL(ttm_dev_funcs);
 

@@ -36,6 +36,7 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <drm/drm_cache.h>
+#include <drm/drm_util.h>
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_tt.h>
 
@@ -91,6 +92,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 
 	return 0;
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_tt_create);
 
 /*
  * Allocates storage for pointers to the pages that back the ttm.
@@ -129,6 +131,7 @@ void ttm_tt_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 {
 	bdev->funcs->ttm_tt_destroy(bdev, ttm);
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_tt_destroy);
 
 static void ttm_tt_init_fields(struct ttm_tt *ttm,
 			       struct ttm_buffer_object *bo,
