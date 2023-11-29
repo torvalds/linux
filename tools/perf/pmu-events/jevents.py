@@ -286,6 +286,7 @@ class JsonEvent:
           'imx8_ddr': 'imx8_ddr',
           'L3PMC': 'amd_l3',
           'DFPMC': 'amd_df',
+          'UMCPMC': 'amd_umc',
           'cpu_core': 'cpu_core',
           'cpu_atom': 'cpu_atom',
           'ali_drw': 'ali_drw',
@@ -354,6 +355,7 @@ class JsonEvent:
         ('SampleAfterValue', 'period='),
         ('UMask', 'umask='),
         ('NodeType', 'type='),
+        ('RdWrMask', 'rdwrmask='),
     ]
     for key, value in event_fields:
       if key in jd and jd[key] != '0':
