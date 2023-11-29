@@ -2935,6 +2935,11 @@ static int irdma_reg_user_mr_type_qp(struct irdma_mem_reg_req req,
 	int err;
 	u8 lvl;
 
+	/* iWarp: Catch page not starting on OS page boundary */
+	if (!rdma_protocol_roce(&iwdev->ibdev, 1) &&
+	    ib_umem_offset(iwmr->region))
+		return -EINVAL;
+
 	total = req.sq_pages + req.rq_pages + 1;
 	if (total > iwmr->page_cnt)
 		return -EINVAL;
