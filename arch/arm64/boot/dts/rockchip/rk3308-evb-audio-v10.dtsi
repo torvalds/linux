@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
+ */
+
+#include <dt-bindings/input/input.h>
+#include "rk3308-evb-v11.dtsi"
+
+/ {
+	/delete-node/ wireless-wlan;
+	/delete-node/ wireless-bluetooth;
+	/delete-node/ gpio-keys;
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>, <&rtc_32k>;
+		wifi_chip_type = "ap6256";
+		WIFI,host_wake_irq = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		uart_rts_gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart4_rts>;
+		pinctrl-1 = <&uart4_rts_pin>;
+		BT,power_gpio    = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&acodec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hp_det>;
+};
+
+&emmc {
+	status = "okay";
+};
+
+&pinctrl {
+	acodec {
+		hp_det: hp-det {
+			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_input_high>;
+		};
+	};
+};
+
+&sfc {
+	status = "okay";
+};
+
+&vccio_sd {
+	gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
+};
