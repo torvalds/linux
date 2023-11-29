@@ -121,6 +121,7 @@ struct af_alg_async_req {
  *
  * @tsgl_list:		Link to TX SGL
  * @iv:			IV for cipher operation
+ * @state:		Existing state for continuing operation
  * @aead_assoclen:	Length of AAD for AEAD cipher operations
  * @completion:		Work queue for synchronous operation
  * @used:		TX bytes sent to kernel. This variable is used to
@@ -142,6 +143,7 @@ struct af_alg_ctx {
 	struct list_head tsgl_list;
 
 	void *iv;
+	void *state;
 	size_t aead_assoclen;
 
 	struct crypto_wait wait;
