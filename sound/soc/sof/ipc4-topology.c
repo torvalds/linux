@@ -2383,6 +2383,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	}
 
 	if (swidget->id != snd_soc_dapm_scheduler) {
+		int module_id = msg->primary & SOF_IPC4_MOD_ID_MASK;
+
 		ret = sof_ipc4_widget_assign_instance_id(sdev, swidget);
 		if (ret < 0) {
 			dev_err(sdev->dev, "failed to assign instance id for %s\n",
@@ -2398,9 +2400,15 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 		msg->extension &= ~SOF_IPC4_MOD_EXT_PPL_ID_MASK;
 		msg->extension |= SOF_IPC4_MOD_EXT_PPL_ID(pipe_widget->instance_id);
+
+		dev_dbg(sdev->dev, "Create widget %s (pipe %d) - ID %d, instance %d, core %d\n",
+			swidget->widget->name, swidget->pipeline_id, module_id,
+			swidget->instance_id, swidget->core);
+	} else {
+		dev_dbg(sdev->dev, "Create pipeline %s (pipe %d) - instance %d, core %d\n",
+			swidget->widget->name, swidget->pipeline_id,
+			swidget->instance_id, swidget->core);
 	}
-	dev_dbg(sdev->dev, "Create widget %s instance %d - pipe %d - core %d\n",
-		swidget->widget->name, swidget->instance_id, swidget->pipeline_id, swidget->core);
 
 	msg->data_size = ipc_size;
 	msg->data_ptr = ipc_data;
