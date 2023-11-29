@@ -4527,6 +4527,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	if (r)
 		return r;
 
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
+
 	amdgpu_fence_driver_hw_fini(adev);
 
 	amdgpu_device_ip_suspend_phase2(adev);
