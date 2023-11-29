@@ -42,6 +42,7 @@ enum octep_ctrl_net_h2f_cmd {
 	OCTEP_CTRL_NET_H2F_CMD_RX_STATE,
 	OCTEP_CTRL_NET_H2F_CMD_LINK_INFO,
 	OCTEP_CTRL_NET_H2F_CMD_GET_INFO,
+	OCTEP_CTRL_NET_H2F_CMD_DEV_REMOVE,
 	OCTEP_CTRL_NET_H2F_CMD_MAX
 };
 
@@ -369,6 +370,16 @@ void octep_ctrl_net_recv_fw_messages(struct octep_device *oct);
  */
 int octep_ctrl_net_get_info(struct octep_device *oct, int vfid,
 			    struct octep_fw_info *info);
+
+/**
+ * octep_ctrl_net_dev_remove() - Indicate to firmware that a device unload has happened.
+ *
+ * @oct: non-null pointer to struct octep_device.
+ * @vfid: Index of virtual function.
+ *
+ * return value: 0 on success, -errno on failure.
+ */
+int octep_ctrl_net_dev_remove(struct octep_device *oct, int vfid);
 
 /**
  * octep_ctrl_net_uninit() - Uninitialize data for ctrl net.
