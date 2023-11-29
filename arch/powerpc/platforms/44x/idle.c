@@ -27,7 +27,7 @@ static void ppc44x_idle(void)
 	isync();
 }
 
-int __init ppc44x_idle_init(void)
+static int __init ppc44x_idle_init(void)
 {
 	if (!mode_spin) {
 		/* If we are not setting spin mode 
