@@ -13,6 +13,7 @@
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
+#include "sof-of-dev.h"
 #include "ops.h"
 
 #define CREATE_TRACE_POINTS
@@ -142,6 +143,66 @@ void sof_set_fw_state(struct snd_sof_dev *sdev, enum sof_fw_state new_state)
 	}
 }
 EXPORT_SYMBOL(sof_set_fw_state);
+
+/* SOF Driver enumeration */
+static int sof_machine_check(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
+		const struct snd_sof_of_mach *of_mach;
+
+		if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
+		    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
+			goto nocodec;
+
+		/* find machine */
+		mach = snd_sof_machine_select(sdev);
+		if (mach) {
+			sof_pdata->machine = mach;
+
+			if (sof_pdata->subsystem_id_set) {
+				mach->mach_params.subsystem_vendor = sof_pdata->subsystem_vendor;
+				mach->mach_params.subsystem_device = sof_pdata->subsystem_device;
+				mach->mach_params.subsystem_id_set = true;
+			}
+
+			snd_sof_set_mach_params(mach, sdev);
+			return 0;
+		}
+
+		of_mach = sof_of_machine_select(sdev);
+		if (of_mach) {
+			sof_pdata->of_machine = of_mach;
+			return 0;
+		}
+
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+			dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+			return -ENODEV;
+		}
+	} else {
+		dev_warn(sdev->dev, "Force to use nocodec mode\n");
+	}
+
+nocodec:
+	/* select nocodec mode */
+	dev_warn(sdev->dev, "Using nocodec machine driver\n");
+	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
+	if (!mach)
+		return -ENOMEM;
+
+	mach->drv_name = "sof-nocodec";
+	if (!sof_pdata->tplg_filename)
+		sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+
+	sof_pdata->machine = mach;
+	snd_sof_set_mach_params(mach, sdev);
+
+	return 0;
+}
 
 /*
  *			FW Boot State Transition Diagram
@@ -526,6 +587,40 @@ int snd_sof_device_shutdown(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_device_shutdown);
+
+/* Machine driver registering and unregistering */
+int sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = pdata;
+	const char *drv_name;
+	const void *mach;
+	int size;
+
+	drv_name = plat_data->machine->drv_name;
+	mach = plat_data->machine;
+	size = sizeof(*plat_data->machine);
+
+	/* register machine driver, pass machine info as pdata */
+	plat_data->pdev_mach =
+		platform_device_register_data(sdev->dev, drv_name,
+					      PLATFORM_DEVID_NONE, mach, size);
+	if (IS_ERR(plat_data->pdev_mach))
+		return PTR_ERR(plat_data->pdev_mach);
+
+	dev_dbg(sdev->dev, "created machine %s\n",
+		dev_name(&plat_data->pdev_mach->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL(sof_machine_register);
+
+void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = pdata;
+
+	platform_device_unregister(plat_data->pdev_mach);
+}
+EXPORT_SYMBOL(sof_machine_unregister);
 
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");

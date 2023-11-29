@@ -814,8 +814,6 @@ int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
 
-int sof_machine_check(struct snd_sof_dev *sdev);
-
 /* SOF client support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)
 int sof_client_dev_register(struct snd_sof_dev *sdev, const char *name, u32 id,
