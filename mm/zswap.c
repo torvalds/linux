@@ -641,7 +641,7 @@ static unsigned long zswap_shrinker_count(struct shrinker *shrinker,
 		return 0;
 
 #ifdef CONFIG_MEMCG_KMEM
-	mem_cgroup_flush_stats();
+	mem_cgroup_flush_stats(memcg);
 	nr_backing = memcg_page_state(memcg, MEMCG_ZSWAP_B) >> PAGE_SHIFT;
 	nr_stored = memcg_page_state(memcg, MEMCG_ZSWAPPED);
 #else
