@@ -31,6 +31,8 @@ def _define_build_config(
         target,
         variant,
         defconfig,
+        target_arch,
+        target_variants,
         boot_image_opts = boot_image_opts(),
         build_config_fragments = []):
     """Creates a kernel_build_config for an MSM target
@@ -52,7 +54,7 @@ def _define_build_config(
         out = "build.config.msm.{}.generated".format(target),
         content = [
             'KERNEL_DIR="msm-kernel"',
-            "VARIANTS=({})".format(" ".join([v.replace("-", "_") for v in le_variants])),
+            "VARIANTS=({})".format(" ".join([v.replace("-", "_") for v in target_variants])),
             "MSM_ARCH={}".format(msm_target.replace("-", "_")),
             "VARIANT={}".format(variant.replace("-", "_")),
             "ABL_SRC=bootable/bootloader/edk2",
@@ -73,6 +75,9 @@ def _define_build_config(
     top_level_config = define_top_level_config(target)
     common_config = gen_config_without_source_lines("build.config.common", target)
 
+    if target_arch == "arm64":
+        target_arch = "aarch64"
+
     # Concatenate build config fragments to form the final config
     kernel_build_config(
         name = "{}_build_config".format(target),
@@ -81,7 +86,7 @@ def _define_build_config(
             top_level_config,
             "build.config.constants",
             common_config,
-            "build.config.aarch64",
+            ":build.config.{}".format(target_arch),
             ":{}_build_config_bazel".format(target),
         ] + [fragment for fragment in build_config_fragments] + [
             "build.config.msm.common",
@@ -94,7 +99,8 @@ def _define_kernel_build(
         in_tree_module_list,
         dtb_list,
         dtbo_list,
-        dtstree):
+        dtstree,
+        target_arch):
     """Creates a `kernel_build` and other associated definitions
 
     This is where the main kernel build target is created (e.g. `//msm-kernel:kalama_gki`).
@@ -116,12 +122,16 @@ def _define_kernel_build(
     # Add basic kernel outputs
     out_list += aarch64_outs
 
+    if target_arch == "arm":
+        out_list += ["zImage"]
+
     # LE builds don't build compressed, so remove from list
     out_list.remove("Image.lz4")
     out_list.remove("Image.gz")
 
     kernel_build(
         name = target,
+        arch = target_arch,
         module_outs = in_tree_module_list,
         outs = out_list,
         build_config = ":{}_build_config".format(target),
@@ -167,10 +177,19 @@ def _define_kernel_dist(target, msm_target, variant):
         ":{}_images".format(target),
         ":{}_merged_kernel_uapi_headers".format(target),
         ":{}_build_config".format(target),
-        ":{}_dummy_files".format(le_target),
-        ":{}_avb_sign_boot_image".format(target),
-        "//msm-kernel:{}_super_image".format(le_target + "_gki"),
     ]
+
+    if msm_target == "mdm9607":
+        msm_dist_targets += [
+            ":signing_key",
+            ":verity_key",
+        ]
+    else:
+        msm_dist_targets += [
+            ":{}_dummy_files".format(le_target),
+            ":{}_avb_sign_boot_image".format(target),
+            "//msm-kernel:{}_super_image".format(le_target + "_gki"),
+        ]
 
     copy_to_dist_dir(
         name = "{}_dist".format(target),
@@ -196,6 +215,8 @@ def define_msm_le(
         variant,
         defconfig,
         in_tree_module_list,
+        target_arch = "arm64",
+        target_variants = le_variants,
         boot_image_opts = boot_image_opts()):
     """Top-level kernel build definition macro for an MSM platform
 
@@ -210,7 +231,7 @@ def define_msm_le(
       lz4_ramdisk: whether to use an lz4-compressed ramdisk
     """
 
-    if not variant in le_variants:
+    if not variant in target_variants:
         fail("{} not defined in target_variants.bzl le_variants!".format(variant))
 
     # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
@@ -220,7 +241,8 @@ def define_msm_le(
 
     dtb_list = get_dtb_list(le_target)
     dtbo_list = get_dtbo_list(le_target)
-    dtstree = get_dtstree(le_target)
+    dtstree = get_dtstree(le_target, target_arch)
+
     vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(target, flavor = "le")
     build_config_fragments = get_build_config_fragments(le_target)
 
@@ -229,6 +251,8 @@ def define_msm_le(
         target,
         variant,
         defconfig,
+        target_arch,
+        target_variants,
         boot_image_opts = boot_image_opts,
         build_config_fragments = build_config_fragments,
     )
@@ -239,6 +263,7 @@ def define_msm_le(
         dtb_list,
         dtbo_list,
         dtstree,
+        target_arch,
     )
 
     kernel_images(

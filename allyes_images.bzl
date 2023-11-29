@@ -2,6 +2,8 @@ load(":avb_boot_img.bzl", "avb_sign_boot_image")
 
 def gen_allyes_files(le_target, target):
     """"Build empty vendor_boot/init_boot/super images fr allyes config."""
+    if le_target == "mdm9607":
+        return
     rule_name = "{}_dummy_files".format(le_target)
     native.genrule(
         name = rule_name,
