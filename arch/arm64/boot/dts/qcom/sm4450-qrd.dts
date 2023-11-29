@@ -23,6 +23,10 @@
 	status = "okay";
 };
 
+&tlmm {
+	gpio-reserved-ranges = <0 4>; /* NFC eSE SPI */
+};
+
 &uart7 {
 	status = "okay";
 };
