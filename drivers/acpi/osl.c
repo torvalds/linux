@@ -1060,7 +1060,6 @@ int __init acpi_debugger_init(void)
 acpi_status acpi_os_execute(acpi_execute_type type,
 			    acpi_osd_exec_callback function, void *context)
 {
-	acpi_status status = AE_OK;
 	struct acpi_os_dpc *dpc;
 	struct workqueue_struct *queue;
 	int ret;
@@ -1073,9 +1072,9 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 		ret = acpi_debugger_create_thread(function, context);
 		if (ret) {
 			pr_err("Kernel thread creation failed\n");
-			status = AE_ERROR;
+			return AE_ERROR;
 		}
-		goto out_thread;
+		return AE_OK;
 	}
 
 	/*
@@ -1107,11 +1106,8 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 	} else {
 		pr_err("Unsupported os_execute type %d.\n", type);
-		status = AE_ERROR;
+		goto err;
 	}
-
-	if (ACPI_FAILURE(status))
-		goto err_workqueue;
 
 	/*
 	 * On some machines, a software-initiated SMI causes corruption unless
@@ -1123,13 +1119,14 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	ret = queue_work_on(0, queue, &dpc->work);
 	if (!ret) {
 		pr_err("Unable to queue work\n");
-		status = AE_ERROR;
+		goto err;
 	}
-err_workqueue:
-	if (ACPI_FAILURE(status))
-		kfree(dpc);
-out_thread:
-	return status;
+
+	return AE_OK;
+
+err:
+	kfree(dpc);
+	return AE_ERROR;
 }
 EXPORT_SYMBOL(acpi_os_execute);
 
