@@ -706,7 +706,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, xe);
 	err = pci_enable_device(pdev);
 	if (err)
-		goto err_drm_put;
+		return err;
 
 	pci_set_master(pdev);
 
@@ -753,9 +753,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_pci_disable:
 	pci_disable_device(pdev);
-
-err_drm_put:
-	drm_dev_put(&xe->drm);
 
 	return err;
 }
