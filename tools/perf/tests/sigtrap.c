@@ -57,36 +57,51 @@ static struct perf_event_attr make_event_attr(void)
 #ifdef HAVE_BPF_SKEL
 #include <bpf/btf.h>
 
+static struct btf *btf;
+
+static bool btf__available(void)
+{
+	if (btf == NULL)
+		btf = btf__load_vmlinux_btf();
+
+	return btf != NULL;
+}
+
+static void btf__exit(void)
+{
+	btf__free(btf);
+	btf = NULL;
+}
+
+static const struct btf_member *__btf_type__find_member_by_name(int type_id, const char *member_name)
+{
+	const struct btf_type *t = btf__type_by_id(btf, type_id);
+	const struct btf_member *m;
+	int i;
+
+	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
+		const char *current_member_name = btf__name_by_offset(btf, m->name_off);
+		if (!strcmp(current_member_name, member_name))
+			return m;
+	}
+
+	return NULL;
+}
+
 static bool attr_has_sigtrap(void)
 {
-	bool ret = false;
-	struct btf *btf;
-	const struct btf_type *t;
-	const struct btf_member *m;
-	const char *name;
-	int i, id;
+	int id;
 
-	btf = btf__load_vmlinux_btf();
-	if (btf == NULL) {
+	if (!btf__available()) {
 		/* should be an old kernel */
 		return false;
 	}
 
 	id = btf__find_by_name_kind(btf, "perf_event_attr", BTF_KIND_STRUCT);
 	if (id < 0)
-		goto out;
+		return false;
 
-	t = btf__type_by_id(btf, id);
-	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
-		name = btf__name_by_offset(btf, m->name_off);
-		if (!strcmp(name, "sigtrap")) {
-			ret = true;
-			break;
-		}
-	}
-out:
-	btf__free(btf);
-	return ret;
+	return __btf_type__find_member_by_name(id, "sigtrap") != NULL;
 }
 #else  /* !HAVE_BPF_SKEL */
 static bool attr_has_sigtrap(void)
@@ -108,6 +123,10 @@ static bool attr_has_sigtrap(void)
 	}
 
 	return ret;
+}
+
+static void btf__exit(void)
+{
 }
 #endif  /* HAVE_BPF_SKEL */
 
@@ -221,6 +240,7 @@ out_restore_sigaction:
 	sigaction(SIGTRAP, &oldact, NULL);
 out:
 	pthread_barrier_destroy(&barrier);
+	btf__exit();
 	return ret;
 }
 
