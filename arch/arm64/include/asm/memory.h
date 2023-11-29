@@ -182,6 +182,7 @@
 #include <linux/types.h>
 #include <asm/boot.h>
 #include <asm/bug.h>
+#include <asm/sections.h>
 
 #if VA_BITS > 48
 extern u64			vabits_actual;
@@ -193,15 +194,12 @@ extern s64			memstart_addr;
 /* PHYS_OFFSET - the physical address of the start of memory. */
 #define PHYS_OFFSET		({ VM_BUG_ON(memstart_addr & 1); memstart_addr; })
 
-/* the virtual base of the kernel image */
-extern u64			kimage_vaddr;
-
 /* the offset between the kernel virtual and physical mappings */
 extern u64			kimage_voffset;
 
 static inline unsigned long kaslr_offset(void)
 {
-	return kimage_vaddr - KIMAGE_VADDR;
+	return (u64)&_text - KIMAGE_VADDR;
 }
 
 #ifdef CONFIG_RANDOMIZE_BASE

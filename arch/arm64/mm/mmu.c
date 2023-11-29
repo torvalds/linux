@@ -52,9 +52,6 @@ u64 vabits_actual __ro_after_init = VA_BITS_MIN;
 EXPORT_SYMBOL(vabits_actual);
 #endif
 
-u64 kimage_vaddr __ro_after_init = (u64)&_text;
-EXPORT_SYMBOL(kimage_vaddr);
-
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
 
