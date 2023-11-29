@@ -216,9 +216,6 @@ static void __init match_options(const char *cmdline)
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		int f;
 
-		if (!regs[i]->override)
-			continue;
-
 		for (f = 0; strlen(regs[i]->fields[f].name); f++) {
 			u64 shift = regs[i]->fields[f].shift;
 			u64 width = regs[i]->fields[f].width ?: 4;
@@ -319,10 +316,8 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		if (regs[i]->override) {
-			regs[i]->override->val  = 0;
-			regs[i]->override->mask = 0;
-		}
+		regs[i]->override->val  = 0;
+		regs[i]->override->mask = 0;
 	}
 
 	__boot_status = boot_status;
@@ -330,9 +325,8 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 	parse_cmdline();
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		if (regs[i]->override)
-			dcache_clean_inval_poc((unsigned long)regs[i]->override,
-					    (unsigned long)regs[i]->override +
-					    sizeof(*regs[i]->override));
+		dcache_clean_inval_poc((unsigned long)regs[i]->override,
+				       (unsigned long)regs[i]->override +
+				       sizeof(*regs[i]->override));
 	}
 }
