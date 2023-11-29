@@ -180,23 +180,6 @@ allOf:
           minItems: 3
           maxItems: 3
 
-  # Interconnects
-  - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              enum:
-                - qcom,scm-qdu1000
-                - qcom,scm-sc8280xp
-                - qcom,scm-sm8450
-                - qcom,scm-sm8550
-                - qcom,scm-sm8650
-                - qcom,scm-x1e80100
-    then:
-      properties:
-        interconnects: false
-
   # Interrupts
   - if:
       not:
