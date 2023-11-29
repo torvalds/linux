@@ -265,6 +265,38 @@ static int sof_select_ipc_and_paths(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int sof_init_environment(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = sof_select_ipc_and_paths(sdev);
+	if (ret)
+		return ret;
+
+	/* init ops, if necessary */
+	ret = sof_ops_init(sdev);
+	if (ret < 0)
+		return ret;
+
+	/* check all mandatory ops */
+	if (!sof_ops(sdev) || !sof_ops(sdev)->probe) {
+		dev_err(sdev->dev, "missing mandatory ops\n");
+		sof_ops_free(sdev);
+		return -EINVAL;
+	}
+
+	if (!sdev->dspless_mode_selected &&
+	    (!sof_ops(sdev)->run || !sof_ops(sdev)->block_read ||
+	     !sof_ops(sdev)->block_write || !sof_ops(sdev)->send_msg ||
+	     !sof_ops(sdev)->load_firmware || !sof_ops(sdev)->ipc_msg_data)) {
+		dev_err(sdev->dev, "missing mandatory DSP ops\n");
+		sof_ops_free(sdev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  *			FW Boot State Transition Diagram
  *
@@ -503,30 +535,10 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
-	ret = sof_select_ipc_and_paths(sdev);
+	/* Initialize loadable file paths and check the environment validity */
+	ret = sof_init_environment(sdev);
 	if (ret)
 		return ret;
-
-	/* init ops, if necessary */
-	ret = sof_ops_init(sdev);
-	if (ret < 0)
-		return ret;
-
-	/* check all mandatory ops */
-	if (!sof_ops(sdev) || !sof_ops(sdev)->probe) {
-		sof_ops_free(sdev);
-		dev_err(dev, "missing mandatory ops\n");
-		return -EINVAL;
-	}
-
-	if (!sdev->dspless_mode_selected &&
-	    (!sof_ops(sdev)->run || !sof_ops(sdev)->block_read ||
-	     !sof_ops(sdev)->block_write || !sof_ops(sdev)->send_msg ||
-	     !sof_ops(sdev)->load_firmware || !sof_ops(sdev)->ipc_msg_data)) {
-		sof_ops_free(sdev);
-		dev_err(dev, "missing mandatory DSP ops\n");
-		return -EINVAL;
-	}
 
 	INIT_LIST_HEAD(&sdev->pcm_list);
 	INIT_LIST_HEAD(&sdev->kcontrol_list);
