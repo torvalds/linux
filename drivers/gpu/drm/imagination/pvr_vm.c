@@ -327,48 +327,6 @@ err_bind_op_fini:
 	return err;
 }
 
-static int
-pvr_vm_bind_op_lock_resvs(struct drm_exec *exec, struct pvr_vm_bind_op *bind_op)
-{
-	drm_exec_until_all_locked(exec) {
-		struct drm_gem_object *r_obj = &bind_op->vm_ctx->dummy_gem;
-		struct drm_gpuvm *gpuvm = &bind_op->vm_ctx->gpuvm_mgr;
-		struct pvr_gem_object *pvr_obj = bind_op->pvr_obj;
-		struct drm_gpuvm_bo *gpuvm_bo;
-
-		/* Acquire lock on the vm_context's reserve object. */
-		int err = drm_exec_lock_obj(exec, r_obj);
-
-		drm_exec_retry_on_contention(exec);
-		if (err)
-			return err;
-
-		/* Acquire lock on all BOs in the context. */
-		list_for_each_entry(gpuvm_bo, &gpuvm->extobj.list,
-				    list.entry.extobj) {
-			err = drm_exec_lock_obj(exec, gpuvm_bo->obj);
-
-			drm_exec_retry_on_contention(exec);
-			if (err)
-				return err;
-		}
-
-		/* Unmap operations don't have an object to lock. */
-		if (!pvr_obj)
-			break;
-
-		/* Acquire lock on the GEM being mapped. */
-		err = drm_exec_lock_obj(exec,
-					gem_from_pvr_gem(bind_op->pvr_obj));
-
-		drm_exec_retry_on_contention(exec);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 /**
  * pvr_vm_gpuva_map() - Insert a mapping into a memory context.
  * @op: gpuva op containing the remap details.
@@ -725,6 +683,20 @@ void pvr_destroy_vm_contexts_for_file(struct pvr_file *pvr_file)
 	}
 }
 
+static int
+pvr_vm_lock_extra(struct drm_gpuvm_exec *vm_exec)
+{
+	struct pvr_vm_bind_op *bind_op = vm_exec->extra.priv;
+	struct pvr_gem_object *pvr_obj = bind_op->pvr_obj;
+
+	/* Unmap operations don't have an object to lock. */
+	if (!pvr_obj)
+		return 0;
+
+	/* Acquire lock on the GEM being mapped. */
+	return drm_exec_lock_obj(&vm_exec->exec, gem_from_pvr_gem(pvr_obj));
+}
+
 /**
  * pvr_vm_map() - Map a section of physical memory into a section of
  * device-virtual memory.
@@ -752,7 +724,15 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx, struct pvr_gem_object *pvr_obj,
 	   u64 pvr_obj_offset, u64 device_addr, u64 size)
 {
 	struct pvr_vm_bind_op bind_op = {0};
-	struct drm_exec exec;
+	struct drm_gpuvm_exec vm_exec = {
+		.vm = &vm_ctx->gpuvm_mgr,
+		.flags = DRM_EXEC_INTERRUPTIBLE_WAIT |
+			 DRM_EXEC_IGNORE_DUPLICATES,
+		.extra = {
+			.fn = pvr_vm_lock_extra,
+			.priv = &bind_op,
+		},
+	};
 
 	int err = pvr_vm_bind_op_map_init(&bind_op, vm_ctx, pvr_obj,
 					  pvr_obj_offset, device_addr,
@@ -761,18 +741,15 @@ pvr_vm_map(struct pvr_vm_context *vm_ctx, struct pvr_gem_object *pvr_obj,
 	if (err)
 		return err;
 
-	drm_exec_init(&exec,
-		      DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES);
-
 	pvr_gem_object_get(pvr_obj);
 
-	err = pvr_vm_bind_op_lock_resvs(&exec, &bind_op);
+	err = drm_gpuvm_exec_lock(&vm_exec);
 	if (err)
 		goto err_cleanup;
 
 	err = pvr_vm_bind_op_exec(&bind_op);
 
-	drm_exec_fini(&exec);
+	drm_gpuvm_exec_unlock(&vm_exec);
 
 err_cleanup:
 	pvr_vm_bind_op_fini(&bind_op);
@@ -798,24 +775,28 @@ int
 pvr_vm_unmap(struct pvr_vm_context *vm_ctx, u64 device_addr, u64 size)
 {
 	struct pvr_vm_bind_op bind_op = {0};
-	struct drm_exec exec;
+	struct drm_gpuvm_exec vm_exec = {
+		.vm = &vm_ctx->gpuvm_mgr,
+		.flags = DRM_EXEC_INTERRUPTIBLE_WAIT |
+			 DRM_EXEC_IGNORE_DUPLICATES,
+		.extra = {
+			.fn = pvr_vm_lock_extra,
+			.priv = &bind_op,
+		},
+	};
 
 	int err = pvr_vm_bind_op_unmap_init(&bind_op, vm_ctx, device_addr,
 					    size);
-
 	if (err)
 		return err;
 
-	drm_exec_init(&exec,
-		      DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES);
-
-	err = pvr_vm_bind_op_lock_resvs(&exec, &bind_op);
+	err = drm_gpuvm_exec_lock(&vm_exec);
 	if (err)
 		goto err_cleanup;
 
 	err = pvr_vm_bind_op_exec(&bind_op);
 
-	drm_exec_fini(&exec);
+	drm_gpuvm_exec_unlock(&vm_exec);
 
 err_cleanup:
 	pvr_vm_bind_op_fini(&bind_op);
