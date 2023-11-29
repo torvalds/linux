@@ -1079,7 +1079,7 @@ virtio_transport_recv_enqueue(struct vsock_sock *vsk,
 			memcpy(skb_put(last_skb, skb->len), skb->data, skb->len);
 			free_pkt = true;
 			last_hdr->flags |= hdr->flags;
-			le32_add_cpu(&last_hdr->len, len);
+			last_hdr->len = cpu_to_le32(last_skb->len);
 			goto out;
 		}
 	}
