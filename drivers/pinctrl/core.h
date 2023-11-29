@@ -111,8 +111,8 @@ struct pinctrl_state {
  * @func: the function selector to program
  */
 struct pinctrl_setting_mux {
-	unsigned group;
-	unsigned func;
+	unsigned int group;
+	unsigned int func;
 };
 
 /**
@@ -124,9 +124,9 @@ struct pinctrl_setting_mux {
  * @num_configs: the number of entries in array @configs
  */
 struct pinctrl_setting_configs {
-	unsigned group_or_pin;
+	unsigned int group_or_pin;
 	unsigned long *configs;
-	unsigned num_configs;
+	unsigned int num_configs;
 };
 
 /**
@@ -173,7 +173,7 @@ struct pin_desc {
 	void *drv_data;
 	/* These fields only added when supporting pinmux drivers */
 #ifdef CONFIG_PINMUX
-	unsigned mux_usecount;
+	unsigned int mux_usecount;
 	const char *mux_owner;
 	const struct pinctrl_setting_mux *mux_setting;
 	const char *gpio_owner;
@@ -189,7 +189,7 @@ struct pin_desc {
 struct pinctrl_maps {
 	struct list_head node;
 	const struct pinctrl_map *maps;
-	unsigned num_maps;
+	unsigned int num_maps;
 };
 
 #ifdef CONFIG_GENERIC_PINCTRL_GROUPS
@@ -232,7 +232,7 @@ int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
 struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np);
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name);
-const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin);
+const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned int pin);
 int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 			       const char *pin_group);
 

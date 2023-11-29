@@ -24,11 +24,11 @@ struct pinctrl_dt_map {
 	struct list_head node;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_map *map;
-	unsigned num_maps;
+	unsigned int num_maps;
 };
 
 static void dt_free_map(struct pinctrl_dev *pctldev,
-		     struct pinctrl_map *map, unsigned num_maps)
+			struct pinctrl_map *map, unsigned int num_maps)
 {
 	int i;
 
@@ -64,7 +64,7 @@ void pinctrl_dt_free_maps(struct pinctrl *p)
 
 static int dt_remember_or_free_map(struct pinctrl *p, const char *statename,
 				   struct pinctrl_dev *pctldev,
-				   struct pinctrl_map *map, unsigned num_maps)
+				   struct pinctrl_map *map, unsigned int num_maps)
 {
 	int i;
 	struct pinctrl_dt_map *dt_map;
@@ -116,7 +116,7 @@ static int dt_to_map_one_config(struct pinctrl *p,
 	const struct pinctrl_ops *ops;
 	int ret;
 	struct pinctrl_map *map;
-	unsigned num_maps;
+	unsigned int num_maps;
 	bool allow_default = false;
 
 	/* Find the pin controller containing np_config */

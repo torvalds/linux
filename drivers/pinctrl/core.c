@@ -143,7 +143,7 @@ struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np)
  */
 int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 {
-	unsigned i, pin;
+	unsigned int i, pin;
 
 	/* The pin number can be retrived from the pin controller descriptor */
 	for (i = 0; i < pctldev->desc->npins; i++) {
@@ -164,7 +164,7 @@ int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
  * @pctldev: the pin control device to lookup the pin on
  * @pin: pin number/id to look up
  */
-const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
+const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned int pin)
 {
 	const struct pin_desc *desc;
 
@@ -182,7 +182,7 @@ EXPORT_SYMBOL_GPL(pin_get_name);
 /* Deletes a range of pin descriptors */
 static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 				  const struct pinctrl_pin_desc *pins,
-				  unsigned num_pins)
+				  unsigned int num_pins)
 {
 	int i;
 
@@ -250,9 +250,9 @@ failed:
 
 static int pinctrl_register_pins(struct pinctrl_dev *pctldev,
 				 const struct pinctrl_pin_desc *pins,
-				 unsigned num_descs)
+				 unsigned int num_descs)
 {
-	unsigned i;
+	unsigned int i;
 	int ret = 0;
 
 	for (i = 0; i < num_descs; i++) {
@@ -426,7 +426,7 @@ EXPORT_SYMBOL_GPL(pinctrl_add_gpio_range);
 
 void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
 			     struct pinctrl_gpio_range *ranges,
-			     unsigned nranges)
+			     unsigned int nranges)
 {
 	int i;
 
@@ -457,7 +457,7 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 EXPORT_SYMBOL_GPL(pinctrl_find_and_add_gpio_range);
 
 int pinctrl_get_group_pins(struct pinctrl_dev *pctldev, const char *pin_group,
-				const unsigned **pins, unsigned *num_pins)
+			   const unsigned int **pins, unsigned int *num_pins)
 {
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	int gs;
@@ -732,8 +732,8 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 			       const char *pin_group)
 {
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
-	unsigned ngroups = pctlops->get_groups_count(pctldev);
-	unsigned group_selector = 0;
+	unsigned int ngroups = pctlops->get_groups_count(pctldev);
+	unsigned int group_selector = 0;
 
 	while (group_selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev,
@@ -1430,7 +1430,7 @@ EXPORT_SYMBOL_GPL(devm_pinctrl_put);
  * @num_maps: the number of maps in the mapping table
  */
 int pinctrl_register_mappings(const struct pinctrl_map *maps,
-			      unsigned num_maps)
+			      unsigned int num_maps)
 {
 	int i, ret;
 	struct pinctrl_maps *maps_node;
@@ -1645,7 +1645,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-	unsigned i, pin;
+	unsigned int i, pin;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_device *gdev __free(gpio_device_put) = NULL;
 	struct pinctrl_gpio_range *range;
@@ -1709,7 +1709,7 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-	unsigned ngroups, selector = 0;
+	unsigned int ngroups, selector = 0;
 
 	mutex_lock(&pctldev->mutex);
 
@@ -1717,8 +1717,8 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 
 	seq_puts(s, "registered pin groups:\n");
 	while (selector < ngroups) {
-		const unsigned *pins = NULL;
-		unsigned num_pins = 0;
+		const unsigned int *pins = NULL;
+		unsigned int num_pins = 0;
 		const char *gname = ops->get_group_name(pctldev, selector);
 		const char *pname;
 		int ret = 0;
