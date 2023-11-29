@@ -415,9 +415,15 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
-	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
+	u8 owned_lane_mask;
 	intel_wakeref_t wakeref;
 	int n_entries, ln;
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		return;
+
+	owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
@@ -3135,6 +3141,9 @@ void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	phy = intel_port_to_phy(i915, encoder->port);
+
+	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
+		return;
 
 	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
 
