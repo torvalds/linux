@@ -277,6 +277,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.mirror_add = ksz8_port_mirror_add,
 	.mirror_del = ksz8_port_mirror_del,
 	.get_caps = ksz8_get_caps,
+	.phylink_mac_link_up = ksz8_phylink_mac_link_up,
 	.config_cpu_port = ksz8_config_cpu_port,
 	.enable_stp_addr = ksz8_enable_stp_addr,
 	.reset = ksz8_reset_switch,
@@ -2966,8 +2967,10 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (ksz_is_ksz88x3(dev))
+	if (ksz_is_ksz88x3(dev)) {
+		dev->ports[port].manual_flow = !(state->pause & MLO_PAUSE_AN);
 		return;
+	}
 
 	/* Internal PHYs */
 	if (dev->info->internal_phy[port])
@@ -3110,10 +3113,8 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 {
 	struct ksz_device *dev = ds->priv;
 
-	if (dev->dev_ops->phylink_mac_link_up)
-		dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface,
-						  phydev, speed, duplex,
-						  tx_pause, rx_pause);
+	dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface, phydev,
+					  speed, duplex, tx_pause, rx_pause);
 }
 
 static int ksz_switch_detect(struct ksz_device *dev)

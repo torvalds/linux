@@ -134,6 +134,7 @@ struct ksz_port {
 	ktime_t tstamp_msg;
 	struct completion tstamp_msg_comp;
 #endif
+	bool manual_flow;
 };
 
 struct ksz_device {
