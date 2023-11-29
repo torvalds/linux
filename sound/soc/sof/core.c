@@ -204,6 +204,67 @@ nocodec:
 	return 0;
 }
 
+static int sof_select_ipc_and_paths(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+	struct sof_loadable_file_profile out_profile;
+	struct device *dev = sdev->dev;
+	int ret;
+
+	/* check IPC support */
+	if (!(BIT(base_profile->ipc_type) & plat_data->desc->ipc_supported_mask)) {
+		dev_err(dev,
+			"ipc_type %d is not supported on this platform, mask is %#x\n",
+			base_profile->ipc_type, plat_data->desc->ipc_supported_mask);
+		return -EINVAL;
+	}
+
+	if (base_profile->ipc_type != plat_data->desc->ipc_default)
+		dev_info(dev,
+			 "Module parameter used, overriding default IPC %d to %d\n",
+			 plat_data->desc->ipc_default, base_profile->ipc_type);
+
+	if (base_profile->fw_path)
+		dev_dbg(dev, "Module parameter used, changed fw path to %s\n",
+			base_profile->fw_path);
+	else if (base_profile->fw_path_postfix)
+		dev_dbg(dev, "Path postfix appended to default fw path: %s\n",
+			base_profile->fw_path_postfix);
+
+	if (base_profile->fw_lib_path)
+		dev_dbg(dev, "Module parameter used, changed fw_lib path to %s\n",
+			base_profile->fw_lib_path);
+	else if (base_profile->fw_lib_path_postfix)
+		dev_dbg(dev, "Path postfix appended to default fw_lib path: %s\n",
+			base_profile->fw_lib_path_postfix);
+
+	if (base_profile->fw_name)
+		dev_dbg(dev, "Module parameter used, changed fw filename to %s\n",
+			base_profile->fw_name);
+
+	if (base_profile->tplg_path)
+		dev_dbg(dev, "Module parameter used, changed tplg path to %s\n",
+			base_profile->tplg_path);
+
+	if (base_profile->tplg_name)
+		dev_dbg(dev, "Module parameter used, changed tplg name to %s\n",
+			base_profile->tplg_name);
+
+	ret = sof_create_ipc_file_profile(sdev, base_profile, &out_profile);
+	if (ret)
+		return ret;
+
+	plat_data->ipc_type = out_profile.ipc_type;
+	plat_data->fw_filename = out_profile.fw_name;
+	plat_data->fw_filename_prefix = out_profile.fw_path;
+	plat_data->fw_lib_prefix = out_profile.fw_lib_path;
+	plat_data->tplg_filename_prefix = out_profile.tplg_path;
+	plat_data->tplg_filename = out_profile.tplg_name;
+
+	return 0;
+}
+
 /*
  *			FW Boot State Transition Diagram
  *
@@ -442,12 +503,9 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
-	/* check IPC support */
-	if (!(BIT(plat_data->ipc_type) & plat_data->desc->ipc_supported_mask)) {
-		dev_err(dev, "ipc_type %d is not supported on this platform, mask is %#x\n",
-			plat_data->ipc_type, plat_data->desc->ipc_supported_mask);
-		return -EINVAL;
-	}
+	ret = sof_select_ipc_and_paths(sdev);
+	if (ret)
+		return ret;
 
 	/* init ops, if necessary */
 	ret = sof_ops_init(sdev);

@@ -696,6 +696,13 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
 extern struct snd_compress_ops sof_compressed_ops;
 
 /*
+ * Firmware (firmware, libraries, topologies) file location
+ */
+int sof_create_ipc_file_profile(struct snd_sof_dev *sdev,
+				struct sof_loadable_file_profile *base_profile,
+				struct sof_loadable_file_profile *out_profile);
+
+/*
  * Firmware loading.
  */
 int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev);
