@@ -416,5 +416,5 @@
 };
 
 &usbdrd_dwc3 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 };
