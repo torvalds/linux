@@ -441,7 +441,7 @@ static int aspeed_rsa_init_tfm(struct crypto_akcipher *tfm)
 	const char *name = crypto_tfm_alg_name(&tfm->base);
 	struct aspeed_rsss_alg *rsa_alg;
 
-	rsa_alg = container_of(alg, struct aspeed_rsss_alg, alg.akcipher);
+	rsa_alg = container_of(alg, struct aspeed_rsss_alg, alg.akcipher.base);
 
 	ctx->rsss_dev = rsa_alg->rsss_dev;
 
@@ -452,10 +452,6 @@ static int aspeed_rsa_init_tfm(struct crypto_akcipher *tfm)
 			name, PTR_ERR(ctx->fallback_tfm));
 		return PTR_ERR(ctx->fallback_tfm);
 	}
-
-	ctx->enginectx.op.do_one_request = aspeed_rsa_do_request;
-	ctx->enginectx.op.prepare_request = NULL;
-	ctx->enginectx.op.unprepare_request = NULL;
 
 	return 0;
 }
@@ -469,7 +465,7 @@ static void aspeed_rsa_exit_tfm(struct crypto_akcipher *tfm)
 
 struct aspeed_rsss_alg aspeed_rsss_algs_rsa = {
 	.type = ASPEED_ALGO_TYPE_AKCIPHER,
-	.alg.akcipher = {
+	.alg.akcipher.base = {
 		.encrypt = aspeed_rsa_enc,
 		.decrypt = aspeed_rsa_dec,
 		.sign = aspeed_rsa_dec,
@@ -490,6 +486,9 @@ struct aspeed_rsss_alg aspeed_rsss_algs_rsa = {
 			.cra_module = THIS_MODULE,
 			.cra_ctxsize = sizeof(struct aspeed_rsa_ctx),
 		},
+	},
+	.alg.akcipher.op = {
+		.do_one_request = aspeed_rsa_do_request,
 	},
 };
 

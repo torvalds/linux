@@ -25,12 +25,12 @@ static void aspeed_rsss_register(struct aspeed_rsss_dev *rsss_dev)
 	for (int i = 0; i < ARRAY_SIZE(aspeed_rsss_algs); i++) {
 		aspeed_rsss_algs[i]->rsss_dev = rsss_dev;
 		if (aspeed_rsss_algs[i]->type == ASPEED_ALGO_TYPE_AKCIPHER) {
-			rc = crypto_register_akcipher(&aspeed_rsss_algs[i]->alg.akcipher);
-			cra_name = aspeed_rsss_algs[i]->alg.akcipher.base.cra_name;
+			rc = crypto_engine_register_akcipher(&aspeed_rsss_algs[i]->alg.akcipher);
+			cra_name = aspeed_rsss_algs[i]->alg.akcipher.base.base.cra_name;
 
 		} else if (aspeed_rsss_algs[i]->type == ASPEED_ALGO_TYPE_AHASH) {
-			rc = crypto_register_ahash(&aspeed_rsss_algs[i]->alg.ahash);
-			cra_name = aspeed_rsss_algs[i]->alg.ahash.halg.base.cra_name;
+			rc = crypto_engine_register_ahash(&aspeed_rsss_algs[i]->alg.ahash);
+			cra_name = aspeed_rsss_algs[i]->alg.ahash.base.halg.base.cra_name;
 		}
 
 		if (rc)
@@ -42,10 +42,10 @@ static void aspeed_rsss_unregister(struct aspeed_rsss_dev *rsss_dev)
 {
 	for (int i = 0; i < ARRAY_SIZE(aspeed_rsss_algs); i++) {
 		if (aspeed_rsss_algs[i]->type == ASPEED_ALGO_TYPE_AKCIPHER)
-			crypto_unregister_akcipher(&aspeed_rsss_algs[i]->alg.akcipher);
+			crypto_engine_unregister_akcipher(&aspeed_rsss_algs[i]->alg.akcipher);
 
 		else if (aspeed_rsss_algs[i]->type == ASPEED_ALGO_TYPE_AHASH)
-			crypto_unregister_ahash(&aspeed_rsss_algs[i]->alg.ahash);
+			crypto_engine_unregister_ahash(&aspeed_rsss_algs[i]->alg.ahash);
 	}
 }
 

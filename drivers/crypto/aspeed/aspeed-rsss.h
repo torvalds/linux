@@ -189,17 +189,16 @@ enum aspeed_algo_type {
 };
 
 struct aspeed_rsss_alg {
-	struct aspeed_rsss_dev		*rsss_dev;
-	enum aspeed_algo_type		type;
+	struct aspeed_rsss_dev			*rsss_dev;
+	enum aspeed_algo_type			type;
 	union {
-		struct akcipher_alg	akcipher;
-		struct ahash_alg	ahash;
+		struct akcipher_engine_alg	akcipher;
+		struct ahash_engine_alg		ahash;
 	} alg;
 };
 
 /* RSA related */
 struct aspeed_rsa_ctx {
-	struct crypto_engine_ctx	enginectx;
 	struct aspeed_rsss_dev		*rsss_dev;
 
 	struct rsa_key			key;
@@ -224,7 +223,6 @@ enum aspeed_rsa_key_mode {
 
 /* Hash related */
 struct aspeed_sha3_ctx {
-	struct crypto_engine_ctx	enginectx;
 	struct aspeed_rsss_dev		*rsss_dev;
 };
 

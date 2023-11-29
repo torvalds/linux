@@ -423,6 +423,11 @@ static int aspeed_sha3_do_request(struct crypto_engine *engine, void *areq)
 	sha3_engine = &rsss_dev->sha3_engine;
 	sha3_engine->flags |= CRYPTO_FLAGS_BUSY;
 
+	if (sha3_engine->sg_mode)
+		sha3_engine->dma_prepare = aspeed_sha3_dma_prepare_sg;
+	else
+		sha3_engine->dma_prepare = aspeed_sha3_dma_prepare;
+
 	if (rctx->op == SHA_OP_UPDATE)
 		ret = aspeed_sha3_req_update(rsss_dev);
 	else if (rctx->op == SHA_OP_FINAL)
@@ -430,26 +435,6 @@ static int aspeed_sha3_do_request(struct crypto_engine *engine, void *areq)
 
 	if (ret != -EINPROGRESS)
 		return ret;
-
-	return 0;
-}
-
-static int aspeed_sha3_prepare_request(struct crypto_engine *engine,
-				       void *areq)
-{
-	struct ahash_request *req = ahash_request_cast(areq);
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct aspeed_sha3_ctx *tctx = crypto_ahash_ctx(tfm);
-	struct aspeed_rsss_dev *rsss_dev = tctx->rsss_dev;
-	struct aspeed_engine_sha3 *sha3_engine;
-
-	sha3_engine = &rsss_dev->sha3_engine;
-	sha3_engine->req = req;
-
-	if (sha3_engine->sg_mode)
-		sha3_engine->dma_prepare = aspeed_sha3_dma_prepare_sg;
-	else
-		sha3_engine->dma_prepare = aspeed_sha3_dma_prepare;
 
 	return 0;
 }
@@ -620,15 +605,13 @@ static int aspeed_sha3_cra_init(struct crypto_tfm *tfm)
 	struct aspeed_sha3_ctx *tctx = crypto_tfm_ctx(tfm);
 	struct aspeed_rsss_alg *ast_alg;
 
-	ast_alg = container_of(alg, struct aspeed_rsss_alg, alg.ahash);
+	ast_alg = container_of(alg, struct aspeed_rsss_alg, alg.ahash.base);
 	tctx->rsss_dev = ast_alg->rsss_dev;
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct aspeed_sha3_reqctx));
 
-	tctx->enginectx.op.do_one_request = aspeed_sha3_do_request;
-	tctx->enginectx.op.prepare_request = aspeed_sha3_prepare_request;
-	tctx->enginectx.op.unprepare_request = NULL;
+	ast_alg->alg.ahash.op.do_one_request = aspeed_sha3_do_request;
 
 	return 0;
 }
@@ -643,7 +626,7 @@ static void aspeed_sha3_cra_exit(struct crypto_tfm *tfm)
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_224 = {
 	.type = ASPEED_ALGO_TYPE_AHASH,
-	.alg.ahash = {
+	.alg.ahash.base = {
 		.init	= aspeed_sha3_init,
 		.update	= aspeed_sha3_update,
 		.final	= aspeed_sha3_final,
@@ -673,7 +656,7 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_224 = {
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_256 = {
 	.type = ASPEED_ALGO_TYPE_AHASH,
-	.alg.ahash = {
+	.alg.ahash.base = {
 		.init	= aspeed_sha3_init,
 		.update	= aspeed_sha3_update,
 		.final	= aspeed_sha3_final,
@@ -703,7 +686,7 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_256 = {
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_384 = {
 	.type = ASPEED_ALGO_TYPE_AHASH,
-	.alg.ahash = {
+	.alg.ahash.base = {
 		.init	= aspeed_sha3_init,
 		.update	= aspeed_sha3_update,
 		.final	= aspeed_sha3_final,
@@ -733,7 +716,7 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_384 = {
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_512 = {
 	.type = ASPEED_ALGO_TYPE_AHASH,
-	.alg.ahash = {
+	.alg.ahash.base = {
 		.init	= aspeed_sha3_init,
 		.update	= aspeed_sha3_update,
 		.final	= aspeed_sha3_final,
