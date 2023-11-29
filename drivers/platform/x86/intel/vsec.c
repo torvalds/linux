@@ -103,6 +103,9 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 	struct auxiliary_device *auxdev = &intel_vsec_dev->auxdev;
 	int ret, id;
 
+	if (!parent)
+		return -EINVAL;
+
 	ret = xa_alloc(&auxdev_array, &intel_vsec_dev->id, intel_vsec_dev,
 		       PMT_XA_LIMIT, GFP_KERNEL);
 	if (ret < 0) {
@@ -120,9 +123,6 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 		kfree(intel_vsec_dev);
 		return id;
 	}
-
-	if (!parent)
-		parent = &pdev->dev;
 
 	auxdev->id = id;
 	auxdev->name = name;
@@ -205,7 +205,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	 * Pass the ownership of intel_vsec_dev and resource within it to
 	 * intel_vsec_add_aux()
 	 */
-	return intel_vsec_add_aux(pdev, NULL, no_free_ptr(intel_vsec_dev),
+	return intel_vsec_add_aux(pdev, &pdev->dev, no_free_ptr(intel_vsec_dev),
 				  intel_vsec_name(header->id));
 }
 
