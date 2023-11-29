@@ -22,7 +22,20 @@ struct perf_cpu_map;
  * perf_cpu_map__new_any_cpu - a map with a singular "any CPU"/dummy -1 value.
  */
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__new_any_cpu(void);
-LIBPERF_API struct perf_cpu_map *perf_cpu_map__default_new(void);
+/**
+ * perf_cpu_map__new_online_cpus - a map read from
+ *                                 /sys/devices/system/cpu/online if
+ *                                 available. If reading wasn't possible a map
+ *                                 is created using the online processors
+ *                                 assuming the first 'n' processors are all
+ *                                 online.
+ */
+LIBPERF_API struct perf_cpu_map *perf_cpu_map__new_online_cpus(void);
+/**
+ * perf_cpu_map__new - create a map from the given cpu_list such as "0-7". If no
+ *                     cpu_list argument is provided then
+ *                     perf_cpu_map__new_online_cpus is returned.
+ */
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__read(FILE *file);
 LIBPERF_API struct perf_cpu_map *perf_cpu_map__get(struct perf_cpu_map *map);
