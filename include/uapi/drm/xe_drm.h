@@ -105,10 +105,9 @@ struct xe_user_extension {
 #define DRM_XE_VM_BIND			0x05
 #define DRM_XE_EXEC_QUEUE_CREATE	0x06
 #define DRM_XE_EXEC_QUEUE_DESTROY	0x07
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY	0x08
-#define DRM_XE_EXEC_QUEUE_GET_PROPERTY	0x09
-#define DRM_XE_EXEC			0x0a
-#define DRM_XE_WAIT_USER_FENCE		0x0b
+#define DRM_XE_EXEC_QUEUE_GET_PROPERTY	0x08
+#define DRM_XE_EXEC			0x09
+#define DRM_XE_WAIT_USER_FENCE		0x0a
 /* Must be kept compact -- no holes */
 
 #define DRM_IOCTL_XE_DEVICE_QUERY		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_DEVICE_QUERY, struct drm_xe_device_query)
@@ -867,38 +866,17 @@ struct drm_xe_vm_bind {
 /* Monitor 64MB contiguous region with 2M sub-granularity */
 #define DRM_XE_ACC_GRANULARITY_64M 3
 
-/**
- * struct drm_xe_exec_queue_set_property - exec queue set property
- *
- * Same namespace for extensions as drm_xe_exec_queue_create
- */
-struct drm_xe_exec_queue_set_property {
-	/** @extensions: Pointer to the first extension struct, if any */
-	__u64 extensions;
-
-	/** @exec_queue_id: Exec queue ID */
-	__u32 exec_queue_id;
-
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY			0
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE		1
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT	2
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE		3
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT		4
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER		5
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY		6
-#define DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY		7
-	/** @property: property to set */
-	__u32 property;
-
-	/** @value: property value */
-	__u64 value;
-
-	/** @reserved: Reserved */
-	__u64 reserved[2];
-};
-
 struct drm_xe_exec_queue_create {
-#define DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY               0
+#define DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY		0
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY		0
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE		1
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT	2
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE		3
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT		4
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER		5
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY		6
+#define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY	7
+
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 

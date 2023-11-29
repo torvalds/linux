@@ -883,44 +883,6 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int xe_exec_queue_set_property_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file)
-{
-	struct xe_device *xe = to_xe_device(dev);
-	struct xe_file *xef = to_xe_file(file);
-	struct drm_xe_exec_queue_set_property *args = data;
-	struct xe_exec_queue *q;
-	int ret;
-	u32 idx;
-
-	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
-		return -EINVAL;
-
-	q = xe_exec_queue_lookup(xef, args->exec_queue_id);
-	if (XE_IOCTL_DBG(xe, !q))
-		return -ENOENT;
-
-	if (XE_IOCTL_DBG(xe, args->property >=
-			 ARRAY_SIZE(exec_queue_set_property_funcs))) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	idx = array_index_nospec(args->property,
-				 ARRAY_SIZE(exec_queue_set_property_funcs));
-	ret = exec_queue_set_property_funcs[idx](xe, q, args->value, false);
-	if (XE_IOCTL_DBG(xe, ret))
-		goto out;
-
-	if (args->extensions)
-		ret = exec_queue_user_extensions(xe, q, args->extensions, 0,
-						 false);
-out:
-	xe_exec_queue_put(q);
-
-	return ret;
-}
-
 static void xe_exec_queue_last_fence_lockdep_assert(struct xe_exec_queue *q,
 						    struct xe_vm *vm)
 {
