@@ -179,6 +179,11 @@ extern void orderly_poweroff(bool force);
 extern void orderly_reboot(void);
 void __hw_protection_shutdown(const char *reason, int ms_until_forced, bool shutdown);
 
+static inline void hw_protection_reboot(const char *reason, int ms_until_forced)
+{
+	__hw_protection_shutdown(reason, ms_until_forced, false);
+}
+
 static inline void hw_protection_shutdown(const char *reason, int ms_until_forced)
 {
 	__hw_protection_shutdown(reason, ms_until_forced, true);
