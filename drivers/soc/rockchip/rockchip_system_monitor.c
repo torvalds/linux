@@ -23,6 +23,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/reboot.h>
+#include <linux/rockchip/rockchip_sip.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/thermal.h>
@@ -919,6 +920,7 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 				     bool is_low)
 {
 	struct monitor_dev_profile *devp = info->devp;
+	struct arm_smccc_res res;
 	int ret = 0;
 
 	dev_dbg(info->dev, "low_temp %d\n", is_low);
@@ -933,6 +935,17 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 
 	if (devp->update_volt)
 		devp->update_volt(info);
+
+	if (devp->opp_info->pvtpll_low_temp) {
+		res = sip_smc_pvtpll_config(PVTPLL_LOW_TEMP,
+					    devp->opp_info->pvtpll_clk_id,
+					    is_low, 0, 0, 0, 0);
+		if (res.a0)
+			dev_err(info->dev,
+				"%s: error cfg id=%u low temp %d (%d)\n",
+				__func__, devp->opp_info->pvtpll_clk_id,
+				is_low, (int)res.a0);
+	}
 }
 
 static void rockchip_high_temp_adjust(struct monitor_dev_info *info,
