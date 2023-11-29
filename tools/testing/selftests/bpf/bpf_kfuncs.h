@@ -55,4 +55,7 @@ void *bpf_cast_to_kern_ctx(void *) __ksym;
 
 void *bpf_rdonly_cast(void *obj, __u32 btf_id) __ksym;
 
+extern int bpf_get_file_xattr(struct file *file, const char *name,
+			      struct bpf_dynptr *value_ptr) __ksym;
+extern int bpf_get_fsverity_digest(struct file *file, struct bpf_dynptr *digest_ptr) __ksym;
 #endif
