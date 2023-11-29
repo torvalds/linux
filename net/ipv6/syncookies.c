@@ -127,31 +127,18 @@ int __cookie_v6_check(const struct ipv6hdr *iph, const struct tcphdr *th)
 }
 EXPORT_SYMBOL_GPL(__cookie_v6_check);
 
-struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
+static struct request_sock *cookie_tcp_check(struct net *net, struct sock *sk,
+					     struct sk_buff *skb)
 {
-	const struct tcphdr *th = tcp_hdr(skb);
-	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_options_received tcp_opt;
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct inet_request_sock *ireq;
-	struct net *net = sock_net(sk);
-	struct tcp_request_sock *treq;
-	struct request_sock *req;
-	struct dst_entry *dst;
-	struct sock *ret = sk;
-	int full_space, mss;
-	__u8 rcv_wscale;
 	u32 tsoff = 0;
-
-	if (!READ_ONCE(net->ipv4.sysctl_tcp_syncookies) ||
-	    !th->ack || th->rst)
-		goto out;
+	int mss;
 
 	if (tcp_synq_no_recent_overflow(sk))
 		goto out;
 
-	mss = __cookie_v6_check(ipv6_hdr(skb), th);
-	if (mss == 0) {
+	mss = __cookie_v6_check(ipv6_hdr(skb), tcp_hdr(skb));
+	if (!mss) {
 		__NET_INC_STATS(net, LINUX_MIB_SYNCOOKIESFAILED);
 		goto out;
 	}
@@ -172,14 +159,37 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	if (!cookie_timestamp_decode(net, &tcp_opt))
 		goto out;
 
-	req = cookie_tcp_reqsk_alloc(&tcp6_request_sock_ops, sk, skb);
+	return cookie_tcp_reqsk_alloc(&tcp6_request_sock_ops, sk, skb,
+				      &tcp_opt, mss, tsoff);
+out:
+	return ERR_PTR(-EINVAL);
+}
+
+struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
+{
+	const struct tcphdr *th = tcp_hdr(skb);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_request_sock *ireq;
+	struct net *net = sock_net(sk);
+	struct request_sock *req;
+	struct dst_entry *dst;
+	struct sock *ret = sk;
+	__u8 rcv_wscale;
+	int full_space;
+
+	if (!READ_ONCE(net->ipv4.sysctl_tcp_syncookies) ||
+	    !th->ack || th->rst)
+		goto out;
+
+	req = cookie_tcp_check(net, sk, skb);
+	if (IS_ERR(req))
+		goto out;
 	if (!req)
 		goto out_drop;
 
 	ireq = inet_rsk(req);
-	treq = tcp_rsk(req);
 
-	req->mss = mss;
 	ireq->ir_v6_rmt_addr = ipv6_hdr(skb)->saddr;
 	ireq->ir_v6_loc_addr = ipv6_hdr(skb)->daddr;
 
@@ -197,13 +207,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	if (!sk->sk_bound_dev_if &&
 	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
 		ireq->ir_iif = tcp_v6_iif(skb);
-
-	ireq->snd_wscale	= tcp_opt.snd_wscale;
-	ireq->sack_ok		= tcp_opt.sack_ok;
-	ireq->wscale_ok		= tcp_opt.wscale_ok;
-	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
-	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
-	treq->ts_off = tsoff;
 
 	tcp_ao_syncookie(sk, skb, req, AF_INET6);
 
@@ -245,7 +248,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 				  dst_metric(dst, RTAX_INITRWND));
 
 	ireq->rcv_wscale = rcv_wscale;
-	ireq->ecn_ok = cookie_ecn_ok(&tcp_opt, net, dst);
+	ireq->ecn_ok &= cookie_ecn_ok(net, dst);
 
 	ret = tcp_get_cookie_sock(sk, skb, req, dst);
 out:
