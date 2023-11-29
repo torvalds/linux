@@ -697,11 +697,9 @@ static int add_new_bucket(struct bch_fs *c,
 		bch_dev_bkey_exists(c, ob->dev)->mi.durability;
 
 	BUG_ON(*nr_effective >= nr_replicas);
-	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
 
 	__clear_bit(ob->dev, devs_may_alloc->d);
-	*nr_effective	+= (flags & BCH_WRITE_ONLY_SPECIFIED_DEVS)
-		? durability : 1;
+	*nr_effective	+= durability;
 	*have_cache	|= !durability;
 
 	ob_push(c, ptrs, ob);
