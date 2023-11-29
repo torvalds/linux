@@ -10,7 +10,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/reset.h>
 #include <linux/bitfield.h>
 
 #include "dw-i3c-master.h"
