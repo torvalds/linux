@@ -110,8 +110,8 @@ int spi_read_slt(int id, void *rxbuf, size_t n)
 	return ret;
 }
 
-int spi_write_then_read_slt(int id, const void *txbuf, unsigned n_tx,
-		void *rxbuf, unsigned n_rx)
+int spi_write_then_read_slt(int id, const void *txbuf, unsigned int n_tx,
+		void *rxbuf, unsigned int n_rx)
 {
 	int ret = -1;
 	struct spi_device *spi = NULL;
@@ -301,14 +301,21 @@ static ssize_t spi_test_write(struct file *file,
 		kfree(txbuf);
 		kfree(rxbuf);
 	} else if (!strcmp(cmd, "config")) {
-		int width;
+		int width, mode;
 
-		sscanf(argv[0], "%d", &width);
+		sscanf(argv[0], "%d", &id);
+		sscanf(argv[1], "%d", &width);
+		sscanf(argv[2], "mode=0x%x", &mode);
 
 		if (width == 16)
 			bit_per_word = 16;
 		else
 			bit_per_word = 8;
+
+		if (mode) {
+			g_spi_test_data[id]->spi->mode = mode;
+			spi_setup(g_spi_test_data[id]->spi);
+		}
 	} else {
 		printk("echo id number size > /dev/spi_misc_test\n");
 		printk("echo write 0 10 255 > /dev/spi_misc_test\n");
@@ -316,7 +323,7 @@ static ssize_t spi_test_write(struct file *file,
 		printk("echo read 0 10 255 > /dev/spi_misc_test\n");
 		printk("echo loop 0 10 255 > /dev/spi_misc_test\n");
 		printk("echo setspeed 0 1000000 > /dev/spi_misc_test\n");
-		printk("echo config 8 > /dev/spi_misc_test\n");
+		printk("echo config 0 8 mode=0xb > /dev/spi_misc_test\n");
 	}
 
 	return n;
