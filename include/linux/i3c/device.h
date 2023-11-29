@@ -142,6 +142,7 @@ struct i3c_device_info {
 	u32 max_read_turnaround;
 	u16 max_read_len;
 	u16 max_write_len;
+	u8 pec;
 	__be16 status;
 };
 
