@@ -797,6 +797,7 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 		goto destroy_afpf_mbox;
 
 	cptpf->max_vfs = pci_sriov_get_totalvfs(pdev);
+	cptpf->kvf_limits = 1;
 
 	err = cn10k_cptpf_lmtst_init(cptpf);
 	if (err)
