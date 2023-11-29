@@ -175,12 +175,8 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(parent, intel_vsec_remove_aux,
+	return devm_add_action_or_reset(parent, intel_vsec_remove_aux,
 				       auxdev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, INTEL_VSEC);
 
