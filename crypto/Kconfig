@@ -1386,15 +1386,6 @@ config CRYPTO_USER_API_AEAD
 	  See Documentation/crypto/userspace-if.rst and
 	  https://www.chronox.de/libkcapi/html/index.html
 
-config CRYPTO_USER_API_AKCIPHER
-	tristate "User-space interface for asymmetric key cipher algorithms"
-	depends on NET
-	select CRYPTO_AKCIPHER2
-	select CRYPTO_USER_API
-	help
-	  This option enables the user-spaces interface for asymmetric
-	  key cipher algorithms.
-
 config CRYPTO_USER_API_ENABLE_OBSOLETE
 	bool "Obsolete cryptographic algorithms"
 	depends on CRYPTO_USER_API
