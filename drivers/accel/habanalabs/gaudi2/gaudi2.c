@@ -7858,10 +7858,11 @@ static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 	return !!ecc_data->is_critical;
 }
 
-static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base, u64 event_mask)
+static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base, u32 engine_id)
 {
-	u32 lo, hi, cq_ptr_size, cp_sts;
+	struct undefined_opcode_info *undef_opcode = &hdev->captured_err_info.undef_opcode;
 	u64 cq_ptr, cp_current_inst;
+	u32 lo, hi, cq_size, cp_sts;
 	bool is_arc_cq;
 
 	cp_sts = RREG32(qman_base + QM_CP_STS_4_OFFSET);
@@ -7871,12 +7872,12 @@ static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base,
 		lo = RREG32(qman_base + QM_ARC_CQ_PTR_LO_STS_OFFSET);
 		hi = RREG32(qman_base + QM_ARC_CQ_PTR_HI_STS_OFFSET);
 		cq_ptr = ((u64) hi) << 32 | lo;
-		cq_ptr_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_STS_OFFSET);
+		cq_size = RREG32(qman_base + QM_ARC_CQ_TSIZE_STS_OFFSET);
 	} else {
 		lo = RREG32(qman_base + QM_CQ_PTR_LO_STS_4_OFFSET);
 		hi = RREG32(qman_base + QM_CQ_PTR_HI_STS_4_OFFSET);
 		cq_ptr = ((u64) hi) << 32 | lo;
-		cq_ptr_size = RREG32(qman_base + QM_CQ_TSIZE_STS_4_OFFSET);
+		cq_size = RREG32(qman_base + QM_CQ_TSIZE_STS_4_OFFSET);
 	}
 
 	lo = RREG32(qman_base + QM_CP_CURRENT_INST_LO_4_OFFSET);
@@ -7885,12 +7886,16 @@ static void handle_lower_qman_data_on_err(struct hl_device *hdev, u64 qman_base,
 
 	dev_info(hdev->dev,
 		"LowerQM. %sCQ: {ptr %#llx, size %u}, CP: {instruction %#018llx}\n",
-		is_arc_cq ? "ARC_" : "", cq_ptr, cq_ptr_size, cp_current_inst);
+		is_arc_cq ? "ARC_" : "", cq_ptr, cq_size, cp_current_inst);
 
-	if (event_mask & HL_NOTIFIER_EVENT_UNDEFINED_OPCODE) {
-		hdev->captured_err_info.undef_opcode.cq_addr = cq_ptr;
-		hdev->captured_err_info.undef_opcode.cq_size = cq_ptr_size;
-		hdev->captured_err_info.undef_opcode.stream_id = QMAN_STREAMS;
+	if (undef_opcode->write_enable) {
+		memset(undef_opcode, 0, sizeof(*undef_opcode));
+		undef_opcode->timestamp = ktime_get();
+		undef_opcode->cq_addr = cq_ptr;
+		undef_opcode->cq_size = cq_size;
+		undef_opcode->engine_id = engine_id;
+		undef_opcode->stream_id = QMAN_STREAMS;
+		undef_opcode->write_enable = 0;
 	}
 }
 
@@ -7929,19 +7934,12 @@ static int gaudi2_handle_qman_err_generic(struct hl_device *hdev, u16 event_type
 				error_count++;
 			}
 
-		/* check for undefined opcode */
-		if (glbl_sts_val & PDMA0_QM_GLBL_ERR_STS_CP_UNDEF_CMD_ERR_MASK) {
+		/* Check for undefined opcode error in lower QM */
+		if ((i == QMAN_STREAMS) &&
+				(glbl_sts_val & PDMA0_QM_GLBL_ERR_STS_CP_UNDEF_CMD_ERR_MASK)) {
+			handle_lower_qman_data_on_err(hdev, qman_base,
+							gaudi2_queue_id_to_engine_id[qid_base]);
 			*event_mask |= HL_NOTIFIER_EVENT_UNDEFINED_OPCODE;
-			if (hdev->captured_err_info.undef_opcode.write_enable) {
-				memset(&hdev->captured_err_info.undef_opcode, 0,
-						sizeof(hdev->captured_err_info.undef_opcode));
-				hdev->captured_err_info.undef_opcode.timestamp = ktime_get();
-				hdev->captured_err_info.undef_opcode.engine_id =
-							gaudi2_queue_id_to_engine_id[qid_base];
-			}
-
-			if (i == QMAN_STREAMS)
-				handle_lower_qman_data_on_err(hdev, qman_base, *event_mask);
 		}
 	}
 
