@@ -11,6 +11,7 @@ def define_pitti():
         "drivers/char/rdbg.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/dispcc-pitti.ko",
         "drivers/clk/qcom/gcc-pitti.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
         "drivers/clk/qcom/gpucc-pitti.ko",
