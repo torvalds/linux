@@ -576,39 +576,11 @@ EXPORT_SYMBOL(sof_ipc4_find_debug_slot_offset_by_type);
 
 static int ipc4_fw_ready(struct snd_sof_dev *sdev, struct sof_ipc4_msg *ipc4_msg)
 {
-	int inbox_offset, inbox_size, outbox_offset, outbox_size;
-
 	/* no need to re-check version/ABI for subsequent boots */
 	if (!sdev->first_boot)
 		return 0;
 
-	/* Set up the windows for IPC communication */
-	inbox_offset = snd_sof_dsp_get_mailbox_offset(sdev);
-	if (inbox_offset < 0) {
-		dev_err(sdev->dev, "%s: No mailbox offset\n", __func__);
-		return inbox_offset;
-	}
-	inbox_size = SOF_IPC4_MSG_MAX_SIZE;
-	outbox_offset = snd_sof_dsp_get_window_offset(sdev, SOF_IPC4_OUTBOX_WINDOW_IDX);
-	outbox_size = SOF_IPC4_MSG_MAX_SIZE;
-
-	sdev->fw_info_box.offset = snd_sof_dsp_get_window_offset(sdev, SOF_IPC4_INBOX_WINDOW_IDX);
-	sdev->fw_info_box.size = sizeof(struct sof_ipc4_fw_registers);
-	sdev->dsp_box.offset = inbox_offset;
-	sdev->dsp_box.size = inbox_size;
-	sdev->host_box.offset = outbox_offset;
-	sdev->host_box.size = outbox_size;
-
-	sdev->debug_box.offset = snd_sof_dsp_get_window_offset(sdev,
-							SOF_IPC4_DEBUG_WINDOW_IDX);
-
 	sof_ipc4_create_exception_debugfs_node(sdev);
-
-	dev_dbg(sdev->dev, "mailbox upstream 0x%x - size 0x%x\n",
-		inbox_offset, inbox_size);
-	dev_dbg(sdev->dev, "mailbox downstream 0x%x - size 0x%x\n",
-		outbox_offset, outbox_size);
-	dev_dbg(sdev->dev, "debug box 0x%x\n", sdev->debug_box.offset);
 
 	return sof_ipc4_init_msg_memory(sdev);
 }
@@ -796,10 +768,37 @@ static const struct sof_ipc_pm_ops ipc4_pm_ops = {
 static int sof_ipc4_init(struct snd_sof_dev *sdev)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	int inbox_offset;
 
 	mutex_init(&ipc4_data->pipeline_state_mutex);
 
 	xa_init_flags(&ipc4_data->fw_lib_xa, XA_FLAGS_ALLOC);
+
+	/* Set up the windows for IPC communication */
+	inbox_offset = snd_sof_dsp_get_mailbox_offset(sdev);
+	if (inbox_offset < 0) {
+		dev_err(sdev->dev, "%s: No mailbox offset\n", __func__);
+		return inbox_offset;
+	}
+
+	sdev->dsp_box.offset = inbox_offset;
+	sdev->dsp_box.size = SOF_IPC4_MSG_MAX_SIZE;
+	sdev->host_box.offset = snd_sof_dsp_get_window_offset(sdev,
+							SOF_IPC4_OUTBOX_WINDOW_IDX);
+	sdev->host_box.size = SOF_IPC4_MSG_MAX_SIZE;
+
+	sdev->debug_box.offset = snd_sof_dsp_get_window_offset(sdev,
+							SOF_IPC4_DEBUG_WINDOW_IDX);
+
+	sdev->fw_info_box.offset = snd_sof_dsp_get_window_offset(sdev,
+							SOF_IPC4_INBOX_WINDOW_IDX);
+	sdev->fw_info_box.size = sizeof(struct sof_ipc4_fw_registers);
+
+	dev_dbg(sdev->dev, "mailbox upstream %#x - size %#x\n",
+		sdev->dsp_box.offset, SOF_IPC4_MSG_MAX_SIZE);
+	dev_dbg(sdev->dev, "mailbox downstream %#x - size %#x\n",
+		sdev->host_box.offset, SOF_IPC4_MSG_MAX_SIZE);
+	dev_dbg(sdev->dev, "debug box %#x\n", sdev->debug_box.offset);
 
 	return 0;
 }
