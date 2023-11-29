@@ -1059,7 +1059,7 @@ static int snd_soc_compensate_channel_connection_map(struct snd_soc_card *card,
 	/* it should have ch_maps if connection was N:M */
 	if (dai_link->num_cpus > 1 && dai_link->num_codecs > 1 &&
 	    dai_link->num_cpus != dai_link->num_codecs && !dai_link->ch_maps) {
-		dev_err(card->dev, "need to have ch_maps when N:M connction (%s)",
+		dev_err(card->dev, "need to have ch_maps when N:M connection (%s)",
 			dai_link->name);
 		return -EINVAL;
 	}
@@ -1299,7 +1299,7 @@ found:
 	 *
 	 * To avoid such issue, loop from 63 to 0 here.
 	 * Small number of SND_SOC_POSSIBLE_xxx will be Hi priority.
-	 * Basic/Default settings of each part and aboves are defined
+	 * Basic/Default settings of each part and above are defined
 	 * as Hi priority (= small number) of SND_SOC_POSSIBLE_xxx.
 	 */
 	for (i = 63; i >= 0; i--) {
@@ -1845,7 +1845,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  * @flavour: The flavour "differentiator" for the card amongst its peers.
  *
  * An Intel machine driver may be used by many different devices but are
- * difficult for userspace to differentiate, since machine drivers ususally
+ * difficult for userspace to differentiate, since machine drivers usually
  * use their own name as the card short name and leave the card long name
  * blank. To differentiate such devices and fix bugs due to lack of
  * device-specific configurations, this function allows DMI info to be used
@@ -1866,7 +1866,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  * We only keep number and alphabet characters and a few separator characters
  * in the card long name since UCM in the user space uses the card long names
  * as card configuration directory names and AudoConf cannot support special
- * charactors like SPACE.
+ * characters like SPACE.
  *
  * Returns 0 on success, otherwise a negative error code.
  */
@@ -2461,7 +2461,7 @@ EXPORT_SYMBOL_GPL(snd_soc_add_card_controls);
 
 /**
  * snd_soc_add_dai_controls - add an array of controls to a DAI.
- * Convienience function to add a list of controls.
+ * Convenience function to add a list of controls.
  *
  * @dai: DAI to add controls to
  * @controls: array of controls to add
