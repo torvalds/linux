@@ -566,6 +566,15 @@ struct ubuf_info_msgzc {
 int mm_account_pinned_pages(struct mmpin *mmp, size_t size);
 void mm_unaccount_pinned_pages(struct mmpin *mmp);
 
+/* Preserve some data across TX submission and completion.
+ *
+ * Note, this state is stored in the driver. Extending the layout
+ * might need some special care.
+ */
+struct xsk_tx_metadata_compl {
+	__u64 *tx_timestamp;
+};
+
 /* This data is invariant across clones and lives at
  * the end of the header data, ie. at skb->end.
  */
@@ -578,7 +587,10 @@ struct skb_shared_info {
 	/* Warning: this field is not always filled in (UFO)! */
 	unsigned short	gso_segs;
 	struct sk_buff	*frag_list;
-	struct skb_shared_hwtstamps hwtstamps;
+	union {
+		struct skb_shared_hwtstamps hwtstamps;
+		struct xsk_tx_metadata_compl xsk_meta;
+	};
 	unsigned int	gso_type;
 	u32		tskey;
 

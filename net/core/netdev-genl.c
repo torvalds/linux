@@ -6,6 +6,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/xdp.h>
+#include <net/xdp_sock.h>
 
 #include "netdev-genl-gen.h"
 
@@ -13,6 +14,7 @@ static int
 netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 		   const struct genl_info *info)
 {
+	u64 xsk_features = 0;
 	u64 xdp_rx_meta = 0;
 	void *hdr;
 
@@ -26,11 +28,20 @@ netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 XDP_METADATA_KFUNC_xxx
 #undef XDP_METADATA_KFUNC
 
+	if (netdev->xsk_tx_metadata_ops) {
+		if (netdev->xsk_tx_metadata_ops->tmo_fill_timestamp)
+			xsk_features |= NETDEV_XSK_FLAGS_TX_TIMESTAMP;
+		if (netdev->xsk_tx_metadata_ops->tmo_request_checksum)
+			xsk_features |= NETDEV_XSK_FLAGS_TX_CHECKSUM;
+	}
+
 	if (nla_put_u32(rsp, NETDEV_A_DEV_IFINDEX, netdev->ifindex) ||
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_FEATURES,
 			      netdev->xdp_features, NETDEV_A_DEV_PAD) ||
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_RX_METADATA_FEATURES,
-			      xdp_rx_meta, NETDEV_A_DEV_PAD)) {
+			      xdp_rx_meta, NETDEV_A_DEV_PAD) ||
+	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XSK_FEATURES,
+			      xsk_features, NETDEV_A_DEV_PAD)) {
 		genlmsg_cancel(rsp, hdr);
 		return -EINVAL;
 	}
