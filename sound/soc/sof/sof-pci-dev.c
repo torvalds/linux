@@ -190,6 +190,7 @@ static void sof_pci_probe_complete(struct device *dev)
 
 int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
+	struct sof_loadable_file_profile *path_override;
 	struct device *dev = &pci->dev;
 	const struct sof_dev_desc *desc =
 		(const struct sof_dev_desc *)pci_id->driver_data;
@@ -332,6 +333,20 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		dmi_check_system(sof_tplg_table);
 		if (sof_dmi_override_tplg_name)
 			sof_pdata->tplg_filename = sof_dmi_override_tplg_name;
+	}
+
+	path_override = &sof_pdata->ipc_file_profile_base;
+	path_override->ipc_type = sof_pdata->ipc_type;
+	path_override->fw_path = fw_path;
+	path_override->fw_name = fw_filename;
+	path_override->fw_lib_path = lib_path;
+	path_override->tplg_path = tplg_path;
+	path_override->tplg_name = sof_pdata->tplg_filename;
+
+	if (dmi_check_system(community_key_platforms) &&
+	    sof_dmi_use_community_key) {
+		path_override->fw_path_postfix = "community";
+		path_override->fw_lib_path_postfix = "community";
 	}
 
 	/* set callback to be called on successful device probe to enable runtime_pm */
