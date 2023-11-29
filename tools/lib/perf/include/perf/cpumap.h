@@ -64,6 +64,12 @@ LIBPERF_API bool perf_cpu_map__has_any_cpu(const struct perf_cpu_map *map);
 	     (idx) < perf_cpu_map__nr(cpus);			\
 	     (idx)++, (cpu) = perf_cpu_map__cpu(cpus, idx))
 
+#define perf_cpu_map__for_each_cpu_skip_any(_cpu, idx, cpus)	\
+	for ((idx) = 0, (_cpu) = perf_cpu_map__cpu(cpus, idx);	\
+	     (idx) < perf_cpu_map__nr(cpus);			\
+	     (idx)++, (_cpu) = perf_cpu_map__cpu(cpus, idx))	\
+		if ((_cpu).cpu != -1)
+
 #define perf_cpu_map__for_each_idx(idx, cpus)				\
 	for ((idx) = 0; (idx) < perf_cpu_map__nr(cpus); (idx)++)
 
