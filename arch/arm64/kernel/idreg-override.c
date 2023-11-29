@@ -185,8 +185,8 @@ static const struct {
 	char	alias[FTR_ALIAS_NAME_LEN];
 	char	feature[FTR_ALIAS_OPTION_LEN];
 } aliases[] __initconst = {
-	{ "kvm-arm.mode=nvhe",		"id_aa64mmfr1.vh=0" },
-	{ "kvm-arm.mode=protected",	"id_aa64mmfr1.vh=0" },
+	{ "kvm_arm.mode=nvhe",		"id_aa64mmfr1.vh=0" },
+	{ "kvm_arm.mode=protected",	"id_aa64mmfr1.vh=0" },
 	{ "arm64.nosve",		"id_aa64pfr0.sve=0" },
 	{ "arm64.nosme",		"id_aa64pfr1.sme=0" },
 	{ "arm64.nobti",		"id_aa64pfr1.bt=0" },
@@ -215,7 +215,7 @@ static int __init find_field(const char *cmdline,
 	len = snprintf(opt, ARRAY_SIZE(opt), "%s.%s=",
 		       reg->name, reg->fields[f].name);
 
-	if (!parameqn(cmdline, opt, len))
+	if (memcmp(cmdline, opt, len))
 		return -1;
 
 	return kstrtou64(cmdline + len, 0, v);
@@ -272,23 +272,29 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 
 		cmdline = skip_spaces(cmdline);
 
-		for (len = 0; cmdline[len] && !isspace(cmdline[len]); len++);
+		/* terminate on "--" appearing on the command line by itself */
+		if (cmdline[0] == '-' && cmdline[1] == '-' && isspace(cmdline[2]))
+			return;
+
+		for (len = 0; cmdline[len] && !isspace(cmdline[len]); len++) {
+			if (len >= sizeof(buf) - 1)
+				break;
+			if (cmdline[len] == '-')
+				buf[len] = '_';
+			else
+				buf[len] = cmdline[len];
+		}
 		if (!len)
 			return;
 
-		len = min(len, ARRAY_SIZE(buf) - 1);
-		memcpy(buf, cmdline, len);
-		buf[len] = '\0';
-
-		if (strcmp(buf, "--") == 0)
-			return;
+		buf[len] = 0;
 
 		cmdline += len;
 
 		match_options(buf);
 
 		for (i = 0; parse_aliases && i < ARRAY_SIZE(aliases); i++)
-			if (parameq(buf, aliases[i].alias))
+			if (!memcmp(buf, aliases[i].alias, len + 1))
 				__parse_cmdline(aliases[i].feature, false);
 	} while (1);
 }
