@@ -280,16 +280,19 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 	if (prepare) {
 		ret = __isp_pipeline_prepare(p, me);
 		if (ret < 0)
-			return ret;
+			goto err;
 	}
 
 	ret = __isp_pipeline_s_isp_clk(p);
 	if (ret < 0)
-		return ret;
+		goto err;
 
 	if (dev->isp_inp & (INP_CSI | INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF))
 		rkisp_csi_config_patch(dev);
 	return 0;
+err:
+	atomic_dec(&p->power_cnt);
+	return ret;
 }
 
 static int rkisp_pipeline_close(struct rkisp_pipeline *p)
