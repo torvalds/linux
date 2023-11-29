@@ -1092,19 +1092,21 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 
 	dpc->function = function;
 	dpc->context = context;
+	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
 
 	/*
 	 * To prevent lockdep from complaining unnecessarily, make sure that
 	 * there is a different static lockdep key for each workqueue by using
 	 * INIT_WORK() for each of them separately.
 	 */
-	if (type == OSL_NOTIFY_HANDLER) {
+	switch (type) {
+	case OSL_NOTIFY_HANDLER:
 		queue = kacpi_notify_wq;
-		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	} else if (type == OSL_GPE_HANDLER) {
+		break;
+	case OSL_GPE_HANDLER:
 		queue = kacpid_wq;
-		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
-	} else {
+		break;
+	default:
 		pr_err("Unsupported os_execute type %d.\n", type);
 		goto err;
 	}
