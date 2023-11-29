@@ -122,6 +122,11 @@ def rst_toctree(maxdepth: int = 2) -> str:
     return "\n".join(lines)
 
 
+def rst_label(title: str) -> str:
+    """Return a formatted label"""
+    return f".. _{title}:\n\n"
+
+
 # Parsers
 # =======
 
@@ -349,7 +354,8 @@ def generate_main_index_rst(output: str) -> None:
     lines = []
 
     lines.append(rst_header())
-    lines.append(rst_title("Netlink Specification"))
+    lines.append(rst_label("specs"))
+    lines.append(rst_title("Netlink Family Specifications"))
     lines.append(rst_toctree(1))
 
     index_dir = os.path.dirname(output)
