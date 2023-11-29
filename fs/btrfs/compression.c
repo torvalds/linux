@@ -608,7 +608,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		goto out_free_bio;
 	}
 
-	ret2 = btrfs_alloc_page_array(cb->nr_pages, cb->compressed_pages);
+	ret2 = btrfs_alloc_page_array(cb->nr_pages, cb->compressed_pages, 0);
 	if (ret2) {
 		ret = BLK_STS_RESOURCE;
 		goto out_free_compressed_pages;

@@ -674,19 +674,22 @@ static void end_bio_extent_readpage(struct btrfs_bio *bbio)
  * @nr_pages:   number of pages to allocate
  * @page_array: the array to fill with pages; any existing non-null entries in
  * 		the array will be skipped
+ * @extra_gfp:	the extra GFP flags for the allocation.
  *
  * Return: 0        if all pages were able to be allocated;
  *         -ENOMEM  otherwise, the partially allocated pages would be freed and
  *                  the array slots zeroed
  */
-int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array)
+int btrfs_alloc_page_array(unsigned int nr_pages, struct page **page_array,
+			   gfp_t extra_gfp)
 {
 	unsigned int allocated;
 
 	for (allocated = 0; allocated < nr_pages;) {
 		unsigned int last = allocated;
 
-		allocated = alloc_pages_bulk_array(GFP_NOFS, nr_pages, page_array);
+		allocated = alloc_pages_bulk_array(GFP_NOFS | extra_gfp,
+						   nr_pages, page_array);
 
 		if (allocated == nr_pages)
 			return 0;
@@ -3219,7 +3222,7 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 	 */
 	set_bit(EXTENT_BUFFER_UNMAPPED, &new->bflags);
 
-	ret = btrfs_alloc_page_array(num_pages, new->pages);
+	ret = btrfs_alloc_page_array(num_pages, new->pages, 0);
 	if (ret) {
 		btrfs_release_extent_buffer(new);
 		return NULL;
@@ -3255,7 +3258,7 @@ struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 		return NULL;
 
 	num_pages = num_extent_pages(eb);
-	ret = btrfs_alloc_page_array(num_pages, eb->pages);
+	ret = btrfs_alloc_page_array(num_pages, eb->pages, 0);
 	if (ret)
 		goto err;
 
@@ -3475,16 +3478,75 @@ static int check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
 	return 0;
 }
 
+
+/*
+ * Return 0 if eb->pages[i] is attached to btree inode successfully.
+ * Return >0 if there is already annother extent buffer for the range,
+ * and @found_eb_ret would be updated.
+ */
+static int attach_eb_page_to_filemap(struct extent_buffer *eb, int i,
+				     struct extent_buffer **found_eb_ret)
+{
+
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+	struct address_space *mapping = fs_info->btree_inode->i_mapping;
+	const unsigned long index = eb->start >> PAGE_SHIFT;
+	struct folio *existing_folio;
+	int ret;
+
+	ASSERT(found_eb_ret);
+
+	/* Caller should ensure the page exists. */
+	ASSERT(eb->pages[i]);
+
+retry:
+	ret = filemap_add_folio(mapping, page_folio(eb->pages[i]), index + i,
+				GFP_NOFS | __GFP_NOFAIL);
+	if (!ret)
+		return 0;
+
+	existing_folio = filemap_lock_folio(mapping, index + i);
+	/* The page cache only exists for a very short time, just retry. */
+	if (IS_ERR(existing_folio))
+		goto retry;
+
+	/* For now, we should only have single-page folios for btree inode. */
+	ASSERT(folio_nr_pages(existing_folio) == 1);
+
+	if (fs_info->nodesize < PAGE_SIZE) {
+		/*
+		 * We're going to reuse the existing page, can drop our page
+		 * and subpage structure now.
+		 */
+		__free_page(eb->pages[i]);
+		eb->pages[i] = folio_page(existing_folio, 0);
+	} else {
+		struct extent_buffer *existing_eb;
+
+		existing_eb = grab_extent_buffer(fs_info,
+						 folio_page(existing_folio, 0));
+		if (existing_eb) {
+			/* The extent buffer still exists, we can use it directly. */
+			*found_eb_ret = existing_eb;
+			folio_unlock(existing_folio);
+			folio_put(existing_folio);
+			return 1;
+		}
+		/* The extent buffer no longer exists, we can reuse the folio. */
+		__free_page(eb->pages[i]);
+		eb->pages[i] = folio_page(existing_folio, 0);
+	}
+	return 0;
+}
+
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, u64 owner_root, int level)
 {
 	unsigned long len = fs_info->nodesize;
 	int num_pages;
-	int i;
-	unsigned long index = start >> PAGE_SHIFT;
+	int attached = 0;
 	struct extent_buffer *eb;
-	struct extent_buffer *exists = NULL;
-	struct page *p;
+	struct extent_buffer *existing_eb = NULL;
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
 	struct btrfs_subpage *prealloc = NULL;
 	u64 lockdep_owner = owner_root;
@@ -3535,29 +3597,36 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (fs_info->nodesize < PAGE_SIZE) {
 		prealloc = btrfs_alloc_subpage(fs_info, BTRFS_SUBPAGE_METADATA);
 		if (IS_ERR(prealloc)) {
-			exists = ERR_CAST(prealloc);
-			goto free_eb;
+			ret = PTR_ERR(prealloc);
+			goto out;
 		}
 	}
 
-	for (i = 0; i < num_pages; i++, index++) {
-		p = find_or_create_page(mapping, index, GFP_NOFS|__GFP_NOFAIL);
-		if (!p) {
-			exists = ERR_PTR(-ENOMEM);
-			btrfs_free_subpage(prealloc);
-			goto free_eb;
-		}
+	/* Allocate all pages first. */
+	ret = btrfs_alloc_page_array(num_pages, eb->pages, __GFP_NOFAIL);
+	if (ret < 0) {
+		btrfs_free_subpage(prealloc);
+		goto out;
+	}
 
-		spin_lock(&mapping->private_lock);
-		exists = grab_extent_buffer(fs_info, p);
-		if (exists) {
-			spin_unlock(&mapping->private_lock);
-			unlock_page(p);
-			put_page(p);
-			mark_extent_buffer_accessed(exists, p);
-			btrfs_free_subpage(prealloc);
-			goto free_eb;
+	/* Attach all pages to the filemap. */
+	for (int i = 0; i < num_pages; i++) {
+		struct page *p;
+
+		ret = attach_eb_page_to_filemap(eb, i, &existing_eb);
+		if (ret > 0) {
+			ASSERT(existing_eb);
+			goto out;
 		}
+		attached++;
+
+		/*
+		 * Only after attach_eb_page_to_filemap(), eb->pages[] is
+		 * reliable, as we may choose to reuse the existing page cache
+		 * and free the allocated page.
+		 */
+		p = eb->pages[i];
+		spin_lock(&mapping->private_lock);
 		/* Should not fail, as we have preallocated the memory */
 		ret = attach_extent_buffer_page(eb, p, prealloc);
 		ASSERT(!ret);
@@ -3574,7 +3643,6 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		spin_unlock(&mapping->private_lock);
 
 		WARN_ON(btrfs_page_test_dirty(fs_info, p, eb->start, eb->len));
-		eb->pages[i] = p;
 
 		/*
 		 * Check if the current page is physically contiguous with previous eb
@@ -3601,10 +3669,8 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		eb->addr = page_address(eb->pages[0]) + offset_in_page(eb->start);
 again:
 	ret = radix_tree_preload(GFP_NOFS);
-	if (ret) {
-		exists = ERR_PTR(ret);
-		goto free_eb;
-	}
+	if (ret)
+		goto out;
 
 	spin_lock(&fs_info->buffer_lock);
 	ret = radix_tree_insert(&fs_info->buffer_radix,
@@ -3612,9 +3678,10 @@ again:
 	spin_unlock(&fs_info->buffer_lock);
 	radix_tree_preload_end();
 	if (ret == -EEXIST) {
-		exists = find_extent_buffer(fs_info, start);
-		if (exists)
-			goto free_eb;
+		ret = 0;
+		existing_eb = find_extent_buffer(fs_info, start);
+		if (existing_eb)
+			goto out;
 		else
 			goto again;
 	}
@@ -3627,19 +3694,28 @@ again:
 	 * btree_release_folio will correctly detect that a page belongs to a
 	 * live buffer and won't free them prematurely.
 	 */
-	for (i = 0; i < num_pages; i++)
+	for (int i = 0; i < num_pages; i++)
 		unlock_page(eb->pages[i]);
 	return eb;
 
-free_eb:
+out:
 	WARN_ON(!atomic_dec_and_test(&eb->refs));
-	for (i = 0; i < num_pages; i++) {
-		if (eb->pages[i])
-			unlock_page(eb->pages[i]);
+	for (int i = 0; i < attached; i++) {
+		ASSERT(eb->pages[i]);
+		detach_extent_buffer_page(eb, eb->pages[i]);
+		unlock_page(eb->pages[i]);
 	}
+	/*
+	 * Now all pages of that extent buffer is unmapped, set UNMAPPED flag,
+	 * so it can be cleaned up without utlizing page->mapping.
+	 */
+	set_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
 	btrfs_release_extent_buffer(eb);
-	return exists;
+	if (ret < 0)
+		return ERR_PTR(ret);
+	ASSERT(existing_eb);
+	return existing_eb;
 }
 
 static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)

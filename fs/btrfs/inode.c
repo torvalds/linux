@@ -10028,7 +10028,7 @@ static ssize_t btrfs_encoded_read_regular(struct kiocb *iocb,
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 	if (!pages)
 		return -ENOMEM;
-	ret = btrfs_alloc_page_array(nr_pages, pages);
+	ret = btrfs_alloc_page_array(nr_pages, pages, 0);
 	if (ret) {
 		ret = -ENOMEM;
 		goto out;
