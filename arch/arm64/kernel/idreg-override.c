@@ -206,6 +206,20 @@ static int __init parse_nokaslr(char *unused)
 }
 early_param("nokaslr", parse_nokaslr);
 
+static int __init parse_hexdigit(const char *p, u64 *v)
+{
+	// skip "0x" if it comes next
+	if (p[0] == '0' && tolower(p[1]) == 'x')
+		p += 2;
+
+	// check whether the RHS is a single hex digit
+	if (!isxdigit(p[0]) || (p[1] && !isspace(p[1])))
+		return -EINVAL;
+
+	*v = tolower(*p) - (isdigit(*p) ? '0' : 'a' - 10);
+	return 0;
+}
+
 static int __init find_field(const char *cmdline, char *opt, int len,
 			     const struct ftr_set_desc *reg, int f, u64 *v)
 {
@@ -219,7 +233,7 @@ static int __init find_field(const char *cmdline, char *opt, int len,
 	if (memcmp(cmdline, opt, len))
 		return -1;
 
-	return kstrtou64(cmdline + len, 0, v);
+	return parse_hexdigit(cmdline + len, v);
 }
 
 static void __init match_options(const char *cmdline)
