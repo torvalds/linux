@@ -16,6 +16,15 @@ struct snd_sof_of_mach {
 	const char *sof_tplg_filename;
 };
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_OF_DEV)
+struct snd_sof_of_mach *sof_of_machine_select(struct snd_sof_dev *sdev);
+#else
+static inline struct snd_sof_of_mach *sof_of_machine_select(struct snd_sof_dev *sdev)
+{
+	return NULL;
+}
+#endif
+
 extern const struct dev_pm_ops sof_of_pm;
 
 int sof_of_probe(struct platform_device *pdev);
