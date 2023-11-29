@@ -962,7 +962,7 @@ disk, but these buffer verifiers cannot provide any consistency checking
 between metadata structures.
 
 For more information, please see the documentation for
-Documentation/filesystems/xfs-self-describing-metadata.rst
+Documentation/filesystems/xfs/xfs-self-describing-metadata.rst
 
 Reverse Mapping
 ---------------
