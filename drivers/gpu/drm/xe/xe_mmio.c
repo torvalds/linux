@@ -295,7 +295,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 	return 0;
 }
 
-static void xe_mmio_probe_tiles(struct xe_device *xe)
+void xe_mmio_probe_tiles(struct xe_device *xe)
 {
 	size_t tile_mmio_size = SZ_16M, tile_mmio_ext_size = xe->info.tile_mmio_ext_size;
 	u8 id, tile_count = xe->info.tile_count;
@@ -408,8 +408,6 @@ int xe_mmio_init(struct xe_device *xe)
 	err = xe_verify_lmem_ready(xe);
 	if (err)
 		return err;
-
-	xe_mmio_probe_tiles(xe);
 
 	return 0;
 }
