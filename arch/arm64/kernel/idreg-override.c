@@ -21,14 +21,25 @@
 
 static u64 __boot_status __initdata;
 
+// temporary __prel64 related definitions
+// to be removed when this code is moved under pi/
+
+#define __prel64_initconst	__initconst
+
+#define PREL64(type, name)	union { type *name; }
+
+#define prel64_pointer(__d)	(__d)
+
+typedef bool filter_t(u64 val);
+
 struct ftr_set_desc {
 	char 				name[FTR_DESC_NAME_LEN];
-	struct arm64_ftr_override	*override;
+	PREL64(struct arm64_ftr_override, override);
 	struct {
 		char			name[FTR_DESC_FIELD_LEN];
 		u8			shift;
 		u8			width;
-		bool			(*filter)(u64 val);
+		PREL64(filter_t,	filter);
 	} 				fields[];
 };
 
@@ -46,7 +57,7 @@ static bool __init mmfr1_vh_filter(u64 val)
 		 val == 0);
 }
 
-static const struct ftr_set_desc mmfr1 __initconst = {
+static const struct ftr_set_desc mmfr1 __prel64_initconst = {
 	.name		= "id_aa64mmfr1",
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
@@ -70,7 +81,7 @@ static bool __init pfr0_sve_filter(u64 val)
 	return true;
 }
 
-static const struct ftr_set_desc pfr0 __initconst = {
+static const struct ftr_set_desc pfr0 __prel64_initconst = {
 	.name		= "id_aa64pfr0",
 	.override	= &id_aa64pfr0_override,
 	.fields		= {
@@ -94,7 +105,7 @@ static bool __init pfr1_sme_filter(u64 val)
 	return true;
 }
 
-static const struct ftr_set_desc pfr1 __initconst = {
+static const struct ftr_set_desc pfr1 __prel64_initconst = {
 	.name		= "id_aa64pfr1",
 	.override	= &id_aa64pfr1_override,
 	.fields		= {
@@ -105,7 +116,7 @@ static const struct ftr_set_desc pfr1 __initconst = {
 	},
 };
 
-static const struct ftr_set_desc isar1 __initconst = {
+static const struct ftr_set_desc isar1 __prel64_initconst = {
 	.name		= "id_aa64isar1",
 	.override	= &id_aa64isar1_override,
 	.fields		= {
@@ -117,7 +128,7 @@ static const struct ftr_set_desc isar1 __initconst = {
 	},
 };
 
-static const struct ftr_set_desc isar2 __initconst = {
+static const struct ftr_set_desc isar2 __prel64_initconst = {
 	.name		= "id_aa64isar2",
 	.override	= &id_aa64isar2_override,
 	.fields		= {
@@ -128,7 +139,7 @@ static const struct ftr_set_desc isar2 __initconst = {
 	},
 };
 
-static const struct ftr_set_desc smfr0 __initconst = {
+static const struct ftr_set_desc smfr0 __prel64_initconst = {
 	.name		= "id_aa64smfr0",
 	.override	= &id_aa64smfr0_override,
 	.fields		= {
@@ -149,7 +160,7 @@ static bool __init hvhe_filter(u64 val)
 						     ID_AA64MMFR1_EL1_VH_SHIFT));
 }
 
-static const struct ftr_set_desc sw_features __initconst = {
+static const struct ftr_set_desc sw_features __prel64_initconst = {
 	.name		= "arm64_sw",
 	.override	= &arm64_sw_feature_override,
 	.fields		= {
@@ -159,14 +170,15 @@ static const struct ftr_set_desc sw_features __initconst = {
 	},
 };
 
-static const struct ftr_set_desc * const regs[] __initconst = {
-	&mmfr1,
-	&pfr0,
-	&pfr1,
-	&isar1,
-	&isar2,
-	&smfr0,
-	&sw_features,
+static const
+PREL64(const struct ftr_set_desc, reg) regs[] __prel64_initconst = {
+	{ &mmfr1	},
+	{ &pfr0 	},
+	{ &pfr1 	},
+	{ &isar1	},
+	{ &isar2	},
+	{ &smfr0	},
+	{ &sw_features	},
 };
 
 static const struct {
@@ -214,15 +226,20 @@ static void __init match_options(const char *cmdline)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		const struct ftr_set_desc *reg = prel64_pointer(regs[i].reg);
+		struct arm64_ftr_override *override;
 		int f;
 
-		for (f = 0; strlen(regs[i]->fields[f].name); f++) {
-			u64 shift = regs[i]->fields[f].shift;
-			u64 width = regs[i]->fields[f].width ?: 4;
+		override = prel64_pointer(reg->override);
+
+		for (f = 0; strlen(reg->fields[f].name); f++) {
+			u64 shift = reg->fields[f].shift;
+			u64 width = reg->fields[f].width ?: 4;
 			u64 mask = GENMASK_ULL(shift + width - 1, shift);
+			bool (*filter)(u64 val);
 			u64 v;
 
-			if (find_field(cmdline, regs[i], f, &v))
+			if (find_field(cmdline, reg, f, &v))
 				continue;
 
 			/*
@@ -230,16 +247,16 @@ static void __init match_options(const char *cmdline)
 			 * it by setting the value to the all-ones while
 			 * clearing the mask... Yes, this is fragile.
 			 */
-			if (regs[i]->fields[f].filter &&
-			    !regs[i]->fields[f].filter(v)) {
-				regs[i]->override->val  |= mask;
-				regs[i]->override->mask &= ~mask;
+			filter = prel64_pointer(reg->fields[f].filter);
+			if (filter && !filter(v)) {
+				override->val  |= mask;
+				override->mask &= ~mask;
 				continue;
 			}
 
-			regs[i]->override->val  &= ~mask;
-			regs[i]->override->val  |= (v << shift) & mask;
-			regs[i]->override->mask |= mask;
+			override->val  &= ~mask;
+			override->val  |= (v << shift) & mask;
+			override->mask |= mask;
 
 			return;
 		}
@@ -313,11 +330,16 @@ void init_feature_override(u64 boot_status);
 
 asmlinkage void __init init_feature_override(u64 boot_status)
 {
+	struct arm64_ftr_override *override;
+	const struct ftr_set_desc *reg;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		regs[i]->override->val  = 0;
-		regs[i]->override->mask = 0;
+		reg = prel64_pointer(regs[i].reg);
+		override = prel64_pointer(reg->override);
+
+		override->val  = 0;
+		override->mask = 0;
 	}
 
 	__boot_status = boot_status;
@@ -325,8 +347,9 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 	parse_cmdline();
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		dcache_clean_inval_poc((unsigned long)regs[i]->override,
-				       (unsigned long)regs[i]->override +
-				       sizeof(*regs[i]->override));
+		reg = prel64_pointer(regs[i].reg);
+		override = prel64_pointer(reg->override);
+		dcache_clean_inval_poc((unsigned long)override,
+				       (unsigned long)(override + 1));
 	}
 }
