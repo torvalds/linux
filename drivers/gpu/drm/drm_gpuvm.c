@@ -1086,6 +1086,37 @@ drm_gpuvm_put(struct drm_gpuvm *gpuvm)
 EXPORT_SYMBOL_GPL(drm_gpuvm_put);
 
 static int
+exec_prepare_obj(struct drm_exec *exec, struct drm_gem_object *obj,
+		 unsigned int num_fences)
+{
+	return num_fences ? drm_exec_prepare_obj(exec, obj, num_fences) :
+			    drm_exec_lock_obj(exec, obj);
+}
+
+/**
+ * drm_gpuvm_prepare_vm() - prepare the GPUVMs common dma-resv
+ * @gpuvm: the &drm_gpuvm
+ * @exec: the &drm_exec context
+ * @num_fences: the amount of &dma_fences to reserve
+ *
+ * Calls drm_exec_prepare_obj() for the GPUVMs dummy &drm_gem_object; if
+ * @num_fences is zero drm_exec_lock_obj() is called instead.
+ *
+ * Using this function directly, it is the drivers responsibility to call
+ * drm_exec_init() and drm_exec_fini() accordingly.
+ *
+ * Returns: 0 on success, negative error code on failure.
+ */
+int
+drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
+		     struct drm_exec *exec,
+		     unsigned int num_fences)
+{
+	return exec_prepare_obj(exec, gpuvm->r_obj, num_fences);
+}
+EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_vm);
+
+static int
 __drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
 			    struct drm_exec *exec,
 			    unsigned int num_fences)
@@ -1095,7 +1126,7 @@ __drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
 	int ret = 0;
 
 	for_each_vm_bo_in_list(gpuvm, extobj, &extobjs, vm_bo) {
-		ret = drm_exec_prepare_obj(exec, vm_bo->obj, num_fences);
+		ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
 		if (ret)
 			break;
 	}
@@ -1116,7 +1147,7 @@ drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
 
 	drm_gpuvm_resv_assert_held(gpuvm);
 	list_for_each_entry(vm_bo, &gpuvm->extobj.list, list.entry.extobj) {
-		ret = drm_exec_prepare_obj(exec, vm_bo->obj, num_fences);
+		ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
 		if (ret)
 			break;
 
@@ -1134,7 +1165,8 @@ drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
  * @num_fences: the amount of &dma_fences to reserve
  *
  * Calls drm_exec_prepare_obj() for all &drm_gem_objects the given
- * &drm_gpuvm contains mappings of.
+ * &drm_gpuvm contains mappings of; if @num_fences is zero drm_exec_lock_obj()
+ * is called instead.
  *
  * Using this function directly, it is the drivers responsibility to call
  * drm_exec_init() and drm_exec_fini() accordingly.
@@ -1171,7 +1203,8 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_objects);
  * @num_fences: the amount of &dma_fences to reserve
  *
  * Calls drm_exec_prepare_obj() for all &drm_gem_objects mapped between @addr
- * and @addr + @range.
+ * and @addr + @range; if @num_fences is zero drm_exec_lock_obj() is called
+ * instead.
  *
  * Returns: 0 on success, negative error code on failure.
  */
@@ -1186,7 +1219,7 @@ drm_gpuvm_prepare_range(struct drm_gpuvm *gpuvm, struct drm_exec *exec,
 	drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
 		struct drm_gem_object *obj = va->gem.obj;
 
-		ret = drm_exec_prepare_obj(exec, obj, num_fences);
+		ret = exec_prepare_obj(exec, obj, num_fences);
 		if (ret)
 			return ret;
 	}

@@ -544,26 +544,9 @@ struct drm_gpuvm_exec {
 	} extra;
 };
 
-/**
- * drm_gpuvm_prepare_vm() - prepare the GPUVMs common dma-resv
- * @gpuvm: the &drm_gpuvm
- * @exec: the &drm_exec context
- * @num_fences: the amount of &dma_fences to reserve
- *
- * Calls drm_exec_prepare_obj() for the GPUVMs dummy &drm_gem_object.
- *
- * Using this function directly, it is the drivers responsibility to call
- * drm_exec_init() and drm_exec_fini() accordingly.
- *
- * Returns: 0 on success, negative error code on failure.
- */
-static inline int
-drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
-		     struct drm_exec *exec,
-		     unsigned int num_fences)
-{
-	return drm_exec_prepare_obj(exec, gpuvm->r_obj, num_fences);
-}
+int drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
+			 struct drm_exec *exec,
+			 unsigned int num_fences);
 
 int drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
 			      struct drm_exec *exec,
