@@ -4554,7 +4554,7 @@ void dc_resource_state_copy_construct(
 	struct dml2_context *dml2 = NULL;
 
 	// Need to preserve allocated dml2 context
-	if (src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
+	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
 		dml2 = dst_ctx->bw_ctx.dml2;
 #endif
 
@@ -4562,7 +4562,7 @@ void dc_resource_state_copy_construct(
 
 #ifdef CONFIG_DRM_AMD_DC_FP
 	// Preserve allocated dml2 context
-	if (src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
+	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
 		dst_ctx->bw_ctx.dml2 = dml2;
 #endif
 
