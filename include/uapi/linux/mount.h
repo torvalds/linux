@@ -184,9 +184,14 @@ struct statmount {
  * For listmount(2) @param represents the last listed mount id (or zero).
  */
 struct mnt_id_req {
+	__u32 size;
+	__u32 spare;
 	__u64 mnt_id;
 	__u64 param;
 };
+
+/* List of all mnt_id_req versions. */
+#define MNT_ID_REQ_SIZE_VER0	24 /* sizeof first published struct */
 
 /*
  * @mask bits for statmount(2)

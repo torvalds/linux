@@ -4956,6 +4956,30 @@ static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 	return 0;
 }
 
+static int copy_mnt_id_req(const struct mnt_id_req __user *req,
+			   struct mnt_id_req *kreq)
+{
+	int ret;
+	size_t usize;
+
+	BUILD_BUG_ON(sizeof(struct mnt_id_req) != MNT_ID_REQ_SIZE_VER0);
+
+	ret = get_user(usize, &req->size);
+	if (ret)
+		return -EFAULT;
+	if (unlikely(usize > PAGE_SIZE))
+		return -E2BIG;
+	if (unlikely(usize < MNT_ID_REQ_SIZE_VER0))
+		return -EINVAL;
+	memset(kreq, 0, sizeof(*kreq));
+	ret = copy_struct_from_user(kreq, sizeof(*kreq), req, usize);
+	if (ret)
+		return ret;
+	if (kreq->spare != 0)
+		return -EINVAL;
+	return 0;
+}
+
 SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 		struct statmount __user *, buf, size_t, bufsize,
 		unsigned int, flags)
@@ -4970,8 +4994,9 @@ SYSCALL_DEFINE4(statmount, const struct mnt_id_req __user *, req,
 	if (flags)
 		return -EINVAL;
 
-	if (copy_from_user(&kreq, req, sizeof(kreq)))
-		return -EFAULT;
+	ret = copy_mnt_id_req(req, &kreq);
+	if (ret)
+		return ret;
 
 retry:
 	ret = prepare_kstatmount(&ks, &kreq, buf, bufsize, seq_size);
@@ -5052,8 +5077,9 @@ SYSCALL_DEFINE4(listmount, const struct mnt_id_req __user *, req,
 	if (flags)
 		return -EINVAL;
 
-	if (copy_from_user(&kreq, req, sizeof(kreq)))
-		return -EFAULT;
+	ret = copy_mnt_id_req(req, &kreq);
+	if (ret)
+		return ret;
 	mnt_id = kreq.mnt_id;
 	last_mnt_id = kreq.param;
 
