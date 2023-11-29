@@ -153,9 +153,6 @@ int thermal_zone_set_trip(struct thermal_zone_device *tz, int trip_id,
 	struct thermal_trip t;
 	int ret;
 
-	if (!tz->ops->set_trip_temp && !tz->ops->set_trip_hyst && !tz->trips)
-		return -EINVAL;
-
 	ret = __thermal_zone_get_trip(tz, trip_id, &t);
 	if (ret)
 		return ret;
