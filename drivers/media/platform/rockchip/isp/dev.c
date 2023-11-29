@@ -224,12 +224,14 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 
 	if (i == p->num_subdevs) {
 		v4l2_warn(&dev->v4l2_dev, "No active sensor\n");
+		hw_dev->isp_size[dev->dev_id].is_on = false;
 		return -EPIPE;
 	}
 
 	ctrl = v4l2_ctrl_find(sd->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
 		v4l2_warn(&dev->v4l2_dev, "No pixel rate control in subdev\n");
+		hw_dev->isp_size[dev->dev_id].is_on = false;
 		return -EPIPE;
 	}
 
@@ -287,6 +289,9 @@ static int rkisp_pipeline_open(struct rkisp_pipeline *p,
 	if (ret < 0)
 		goto err;
 
+	if (!dev->hw_dev->monitor.is_en)
+		dev->hw_dev->monitor.is_en = rkisp_monitor;
+
 	if (dev->isp_inp & (INP_CSI | INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2 | INP_CIF))
 		rkisp_csi_config_patch(dev);
 	return 0;
@@ -316,7 +321,7 @@ static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 {
 	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
-	int i, ret;
+	int i, ret, open_num = 0;
 
 	if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
 	    (!on && atomic_dec_return(&p->stream_cnt) > 0))
@@ -339,7 +344,11 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 				goto err_stream_off;
 		}
 	} else {
-		if (dev->hw_dev->monitor.is_en) {
+		for (i = 0; i < dev->hw_dev->dev_num; i++) {
+			if (dev->hw_dev->isp_size[i].is_on)
+				open_num++;
+		}
+		if (dev->hw_dev->monitor.is_en && open_num == 1) {
 			dev->hw_dev->monitor.is_en = 0;
 			dev->hw_dev->monitor.state = ISP_STOP;
 			if (!completion_done(&dev->hw_dev->monitor.cmpl))
