@@ -5,6 +5,7 @@
 
 #include "xe_huc.h"
 
+#include "regs/xe_gsc_regs.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
@@ -71,7 +72,25 @@ int xe_huc_upload(struct xe_huc *huc)
 	return xe_uc_fw_upload(&huc->fw, 0, HUC_UKERNEL);
 }
 
-int xe_huc_auth(struct xe_huc *huc)
+static const struct {
+	const char *name;
+	struct xe_reg reg;
+	u32 val;
+} huc_auth_modes[XE_HUC_AUTH_TYPES_COUNT] = {
+	[XE_HUC_AUTH_VIA_GUC] = { "GuC",
+				  HUC_KERNEL_LOAD_INFO,
+				  HUC_LOAD_SUCCESSFUL },
+	[XE_HUC_AUTH_VIA_GSC] = { "GSC",
+				  HECI_FWSTS5(MTL_GSC_HECI1_BASE),
+				  HECI1_FWSTS5_HUC_AUTH_DONE },
+};
+
+static bool huc_is_authenticated(struct xe_gt *gt, enum xe_huc_auth_types type)
+{
+	return xe_mmio_read32(gt, huc_auth_modes[type].reg) & huc_auth_modes[type].val;
+}
+
+int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 {
 	struct xe_device *xe = huc_to_xe(huc);
 	struct xe_gt *gt = huc_to_gt(huc);
@@ -84,7 +103,7 @@ int xe_huc_auth(struct xe_huc *huc)
 	xe_assert(xe, !xe_uc_fw_is_running(&huc->fw));
 
 	/* On newer platforms the HuC survives reset, so no need to re-auth */
-	if (xe_mmio_read32(gt, HUC_KERNEL_LOAD_INFO) & HUC_LOAD_SUCCESSFUL) {
+	if (huc_is_authenticated(gt, type)) {
 		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
 		return 0;
 	}
@@ -92,28 +111,36 @@ int xe_huc_auth(struct xe_huc *huc)
 	if (!xe_uc_fw_is_loaded(&huc->fw))
 		return -ENOEXEC;
 
-	ret = xe_guc_auth_huc(guc, xe_bo_ggtt_addr(huc->fw.bo) +
-			      xe_uc_fw_rsa_offset(&huc->fw));
+	switch (type) {
+	case XE_HUC_AUTH_VIA_GUC:
+		ret = xe_guc_auth_huc(guc, xe_bo_ggtt_addr(huc->fw.bo) +
+				      xe_uc_fw_rsa_offset(&huc->fw));
+		break;
+	default:
+		XE_WARN_ON(type);
+		return -EINVAL;
+	}
 	if (ret) {
-		drm_err(&xe->drm, "HuC: GuC did not ack Auth request %d\n",
-			ret);
+		drm_err(&xe->drm, "Failed to trigger HuC auth via %s: %d\n",
+			huc_auth_modes[type].name, ret);
 		goto fail;
 	}
 
-	ret = xe_mmio_wait32(gt, HUC_KERNEL_LOAD_INFO, HUC_LOAD_SUCCESSFUL,
-			     HUC_LOAD_SUCCESSFUL, 100000, NULL, false);
+	ret = xe_mmio_wait32(gt, huc_auth_modes[type].reg, huc_auth_modes[type].val,
+			     huc_auth_modes[type].val, 100000, NULL, false);
 	if (ret) {
 		drm_err(&xe->drm, "HuC: Firmware not verified %d\n", ret);
 		goto fail;
 	}
 
 	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
-	drm_dbg(&xe->drm, "HuC authenticated\n");
+	drm_dbg(&xe->drm, "HuC authenticated via %s\n", huc_auth_modes[type].name);
 
 	return 0;
 
 fail:
-	drm_err(&xe->drm, "HuC authentication failed %d\n", ret);
+	drm_err(&xe->drm, "HuC: Auth via %s failed: %d\n",
+		huc_auth_modes[type].name, ret);
 	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_LOAD_FAIL);
 
 	return ret;

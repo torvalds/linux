@@ -176,7 +176,7 @@ int xe_uc_init_hw(struct xe_uc *uc)
 		return ret;
 
 	/* We don't fail the driver load if HuC fails to auth, but let's warn */
-	ret = xe_huc_auth(&uc->huc);
+	ret = xe_huc_auth(&uc->huc, XE_HUC_AUTH_VIA_GUC);
 	xe_gt_assert(uc_to_gt(uc), !ret);
 
 	/* GSC load is async */
