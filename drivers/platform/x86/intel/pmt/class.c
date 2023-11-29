@@ -17,7 +17,7 @@
 #include "../vsec.h"
 #include "class.h"
 
-#define PMT_XA_START		0
+#define PMT_XA_START		1
 #define PMT_XA_MAX		INT_MAX
 #define PMT_XA_LIMIT		XA_LIMIT(PMT_XA_START, PMT_XA_MAX)
 #define GUID_SPR_PUNIT		0x9956f43f
@@ -247,6 +247,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 				  struct intel_pmt_namespace *ns,
 				  struct device *parent)
 {
+	struct intel_vsec_device *ivdev = dev_to_ivdev(parent);
 	struct resource res = {0};
 	struct device *dev;
 	int ret;
@@ -270,7 +271,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 	if (ns->attr_grp) {
 		ret = sysfs_create_group(entry->kobj, ns->attr_grp);
 		if (ret)
-			goto fail_sysfs;
+			goto fail_sysfs_create_group;
 	}
 
 	/* if size is 0 assume no data buffer, so no file needed */
@@ -295,13 +296,23 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 	entry->pmt_bin_attr.size = entry->size;
 
 	ret = sysfs_create_bin_file(&dev->kobj, &entry->pmt_bin_attr);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto fail_ioremap;
 
+	if (ns->pmt_add_endpoint) {
+		ret = ns->pmt_add_endpoint(entry, ivdev->pcidev);
+		if (ret)
+			goto fail_add_endpoint;
+	}
+
+	return 0;
+
+fail_add_endpoint:
+	sysfs_remove_bin_file(entry->kobj, &entry->pmt_bin_attr);
 fail_ioremap:
 	if (ns->attr_grp)
 		sysfs_remove_group(entry->kobj, ns->attr_grp);
-fail_sysfs:
+fail_sysfs_create_group:
 	device_unregister(dev);
 fail_dev_create:
 	xa_erase(ns->xa, entry->devid);
