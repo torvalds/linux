@@ -249,7 +249,6 @@ static const struct dev_pm_ops aspeed_ufshc_dev_pm_ops = {
 static struct platform_driver aspeed_ufshc_driver = {
 	.probe	= aspeed_ufshc_probe,
 	.remove	= aspeed_ufshc_remove,
-	.shutdown = ufshcd_pltfrm_shutdown,
 	.driver	= {
 		.name	= "aspeed-ufshcd",
 		.pm	= &aspeed_ufshc_dev_pm_ops,
