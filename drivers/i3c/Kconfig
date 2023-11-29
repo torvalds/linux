@@ -20,11 +20,6 @@ menuconfig I3C
 	  will be called i3c.
 
 if I3C
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> 4560f4f7ee99 (i3c: Add an example device driver for Renesas IMX3102)
 
 config I3CDEV
 	tristate "I3C device interface"
@@ -40,9 +35,6 @@ config I3CDEV
 	  Note that this application programming interface is EXPERIMENTAL
 	  and hence SUBJECT TO CHANGE WITHOUT NOTICE while it stabilizes.
 
-<<<<<<< HEAD
-source "drivers/i3c/mctp/Kconfig"
-=======
 config I3C_MUX_IMX3102
 	bool "IMX/IML3102 I3C multiplexer driver"
 	default y
@@ -51,7 +43,5 @@ config I3C_MUX_IMX3102
 	  Say y to enable Renesas IMX3102 I3C 2:1 multiplexer.
 
 source "drivers/i3c/mctp/Kconfig"
->>>>>>> i3c: Add an example device driver for Renesas IMX3102
->>>>>>> 4560f4f7ee99 (i3c: Add an example device driver for Renesas IMX3102)
 source "drivers/i3c/master/Kconfig"
 endif # I3C
