@@ -278,7 +278,7 @@ static u16 ice_calc_txq_handle(struct ice_vsi *vsi, struct ice_tx_ring *ring, u8
  */
 static u16 ice_eswitch_calc_txq_handle(struct ice_tx_ring *ring)
 {
-	struct ice_vsi *vsi = ring->vsi;
+	const struct ice_vsi *vsi = ring->vsi;
 	int i;
 
 	ice_for_each_txq(vsi, i) {
@@ -975,7 +975,7 @@ ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
  * @hw: pointer to the HW structure
  * @q_vector: interrupt vector to trigger the software interrupt for
  */
-void ice_trigger_sw_intr(struct ice_hw *hw, struct ice_q_vector *q_vector)
+void ice_trigger_sw_intr(struct ice_hw *hw, const struct ice_q_vector *q_vector)
 {
 	wr32(hw, GLINT_DYN_CTL(q_vector->reg_idx),
 	     (ICE_ITR_NONE << GLINT_DYN_CTL_ITR_INDX_S) |
@@ -1050,7 +1050,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
  * are needed for stopping Tx queue
  */
 void
-ice_fill_txq_meta(struct ice_vsi *vsi, struct ice_tx_ring *ring,
+ice_fill_txq_meta(const struct ice_vsi *vsi, struct ice_tx_ring *ring,
 		  struct ice_txq_meta *txq_meta)
 {
 	struct ice_channel *ch = ring->ch;
