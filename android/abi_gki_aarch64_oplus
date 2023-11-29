@@ -175,6 +175,7 @@
   __traceiter_block_rq_issue
   __traceiter_block_rq_merge
   __traceiter_block_rq_requeue
+  __traceiter_mm_vmscan_kswapd_wake
   __traceiter_net_dev_queue
   __traceiter_net_dev_xmit
   __traceiter_netif_receive_skb
@@ -284,6 +285,7 @@
   __tracepoint_block_rq_issue
   __tracepoint_block_rq_merge
   __tracepoint_block_rq_requeue
+  __tracepoint_mm_vmscan_kswapd_wake
   __tracepoint_net_dev_queue
   __tracepoint_net_dev_xmit
   __tracepoint_netif_receive_skb
