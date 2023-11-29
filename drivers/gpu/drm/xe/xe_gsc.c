@@ -16,6 +16,7 @@
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
+#include "xe_huc.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_sched_job.h"
@@ -257,11 +258,18 @@ static void gsc_work(struct work_struct *work)
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC);
 
 	ret = gsc_upload(gsc);
-	if (ret && ret != -EEXIST)
+	if (ret && ret != -EEXIST) {
 		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_LOAD_FAIL);
-	else
-		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
+		goto out;
+	}
 
+	xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
+
+	/* HuC auth failure is not fatal */
+	if (xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GUC))
+		xe_huc_auth(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC);
+
+out:
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
 	xe_device_mem_access_put(xe);
 }

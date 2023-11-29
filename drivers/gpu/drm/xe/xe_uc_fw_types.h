@@ -112,6 +112,9 @@ struct xe_uc_fw {
 	/** @bo: XE BO for uC firmware */
 	struct xe_bo *bo;
 
+	/** @has_gsc_headers: whether the FW image starts with GSC headers */
+	bool has_gsc_headers;
+
 	/*
 	 * The firmware build process will generate a version header file with
 	 * major and minor version defined. The versions are built into CSS

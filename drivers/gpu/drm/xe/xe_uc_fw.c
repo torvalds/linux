@@ -528,6 +528,8 @@ static int parse_cpd_header(struct xe_uc_fw *uc_fw, const void *data, size_t siz
 		uc_fw->css_offset = offset;
 	}
 
+	uc_fw->has_gsc_headers = true;
+
 	return 0;
 }
 

@@ -5,14 +5,19 @@
 
 #include "xe_huc.h"
 
+#include <drm/drm_managed.h>
+
+#include "abi/gsc_pxp_commands_abi.h"
 #include "regs/xe_gsc_regs.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_force_wake.h"
+#include "xe_gsc_submit.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
+#include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_uc_fw.h"
 
@@ -32,6 +37,42 @@ static struct xe_guc *
 huc_to_guc(struct xe_huc *huc)
 {
 	return &container_of(huc, struct xe_uc, huc)->guc;
+}
+
+static void free_gsc_pkt(struct drm_device *drm, void *arg)
+{
+	struct xe_huc *huc = arg;
+
+	xe_bo_unpin_map_no_vm(huc->gsc_pkt);
+	huc->gsc_pkt = NULL;
+}
+
+#define PXP43_HUC_AUTH_INOUT_SIZE SZ_4K
+static int huc_alloc_gsc_pkt(struct xe_huc *huc)
+{
+	struct xe_gt *gt = huc_to_gt(huc);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_bo *bo;
+	int err;
+
+	/* we use a single object for both input and output */
+	bo = xe_bo_create_pin_map(xe, gt_to_tile(gt), NULL,
+				  PXP43_HUC_AUTH_INOUT_SIZE * 2,
+				  ttm_bo_type_kernel,
+				  XE_BO_CREATE_SYSTEM_BIT |
+				  XE_BO_CREATE_GGTT_BIT);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	huc->gsc_pkt = bo;
+
+	err = drmm_add_action_or_reset(&xe->drm, free_gsc_pkt, huc);
+	if (err) {
+		free_gsc_pkt(&xe->drm, huc);
+		return err;
+	}
+
+	return 0;
 }
 
 int xe_huc_init(struct xe_huc *huc)
@@ -56,6 +97,12 @@ int xe_huc_init(struct xe_huc *huc)
 	if (!xe_uc_fw_is_enabled(&huc->fw))
 		return 0;
 
+	if (huc->fw.has_gsc_headers) {
+		ret = huc_alloc_gsc_pkt(huc);
+		if (ret)
+			goto out;
+	}
+
 	xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_LOADABLE);
 
 	return 0;
@@ -72,6 +119,89 @@ int xe_huc_upload(struct xe_huc *huc)
 	return xe_uc_fw_upload(&huc->fw, 0, HUC_UKERNEL);
 }
 
+#define huc_auth_msg_wr(xe_, map_, offset_, field_, val_) \
+	xe_map_wr_field(xe_, map_, offset_, struct pxp43_new_huc_auth_in, field_, val_)
+#define huc_auth_msg_rd(xe_, map_, offset_, field_) \
+	xe_map_rd_field(xe_, map_, offset_, struct pxp43_huc_auth_out, field_)
+
+static u32 huc_emit_pxp_auth_msg(struct xe_device *xe, struct iosys_map *map,
+				 u32 wr_offset, u32 huc_offset, u32 huc_size)
+{
+	xe_map_memset(xe, map, wr_offset, 0, sizeof(struct pxp43_new_huc_auth_in));
+
+	huc_auth_msg_wr(xe, map, wr_offset, header.api_version, PXP_APIVER(4, 3));
+	huc_auth_msg_wr(xe, map, wr_offset, header.command_id, PXP43_CMDID_NEW_HUC_AUTH);
+	huc_auth_msg_wr(xe, map, wr_offset, header.status, 0);
+	huc_auth_msg_wr(xe, map, wr_offset, header.buffer_len,
+			sizeof(struct pxp43_new_huc_auth_in) - sizeof(struct pxp_cmd_header));
+	huc_auth_msg_wr(xe, map, wr_offset, huc_base_address, huc_offset);
+	huc_auth_msg_wr(xe, map, wr_offset, huc_size, huc_size);
+
+	return wr_offset + sizeof(struct pxp43_new_huc_auth_in);
+}
+
+static int huc_auth_via_gsccs(struct xe_huc *huc)
+{
+	struct xe_gt *gt = huc_to_gt(huc);
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_bo *pkt = huc->gsc_pkt;
+	u32 wr_offset;
+	u32 rd_offset;
+	u64 ggtt_offset;
+	u32 out_status;
+	int retry = 5;
+	int err = 0;
+
+	if (!pkt)
+		return -ENODEV;
+
+	ggtt_offset = xe_bo_ggtt_addr(pkt);
+
+	wr_offset = xe_gsc_emit_header(xe, &pkt->vmap, 0, HECI_MEADDRESS_PXP, 0,
+				       sizeof(struct pxp43_new_huc_auth_in));
+	wr_offset = huc_emit_pxp_auth_msg(xe, &pkt->vmap, wr_offset,
+					  xe_bo_ggtt_addr(huc->fw.bo),
+					  huc->fw.bo->size);
+	do {
+		err = xe_gsc_pkt_submit_kernel(&gt->uc.gsc, ggtt_offset, wr_offset,
+					       ggtt_offset + PXP43_HUC_AUTH_INOUT_SIZE,
+					       PXP43_HUC_AUTH_INOUT_SIZE);
+		if (err)
+			break;
+
+		if (xe_gsc_check_and_update_pending(xe, &pkt->vmap, 0, &pkt->vmap,
+						    PXP43_HUC_AUTH_INOUT_SIZE)) {
+			err = -EBUSY;
+			msleep(50);
+		}
+	} while (--retry && err == -EBUSY);
+
+	if (err) {
+		drm_err(&xe->drm, "failed to submit GSC request to auth: %d\n", err);
+		return err;
+	}
+
+	err = xe_gsc_read_out_header(xe, &pkt->vmap, PXP43_HUC_AUTH_INOUT_SIZE,
+				     sizeof(struct pxp43_huc_auth_out), &rd_offset);
+	if (err) {
+		drm_err(&xe->drm, "HuC: invalid GSC reply for auth (err=%d)\n", err);
+		return err;
+	}
+
+	/*
+	 * The GSC will return PXP_STATUS_OP_NOT_PERMITTED if the HuC is already
+	 * authenticated. If the same error is ever returned with HuC not loaded
+	 * we'll still catch it when we check the authentication bit later.
+	 */
+	out_status = huc_auth_msg_rd(xe, &pkt->vmap, rd_offset, header.status);
+	if (out_status != PXP_STATUS_SUCCESS && out_status != PXP_STATUS_OP_NOT_PERMITTED) {
+		drm_err(&xe->drm, "auth failed with GSC error = 0x%x\n", out_status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static const struct {
 	const char *name;
 	struct xe_reg reg;
@@ -85,8 +215,10 @@ static const struct {
 				  HECI1_FWSTS5_HUC_AUTH_DONE },
 };
 
-static bool huc_is_authenticated(struct xe_gt *gt, enum xe_huc_auth_types type)
+bool xe_huc_is_authenticated(struct xe_huc *huc, enum xe_huc_auth_types type)
 {
+	struct xe_gt *gt = huc_to_gt(huc);
+
 	return xe_mmio_read32(gt, huc_auth_modes[type].reg) & huc_auth_modes[type].val;
 }
 
@@ -100,10 +232,8 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 	if (!xe_uc_fw_is_loadable(&huc->fw))
 		return 0;
 
-	xe_assert(xe, !xe_uc_fw_is_running(&huc->fw));
-
 	/* On newer platforms the HuC survives reset, so no need to re-auth */
-	if (huc_is_authenticated(gt, type)) {
+	if (xe_huc_is_authenticated(huc, type)) {
 		xe_uc_fw_change_status(&huc->fw, XE_UC_FIRMWARE_RUNNING);
 		return 0;
 	}
@@ -115,6 +245,9 @@ int xe_huc_auth(struct xe_huc *huc, enum xe_huc_auth_types type)
 	case XE_HUC_AUTH_VIA_GUC:
 		ret = xe_guc_auth_huc(guc, xe_bo_ggtt_addr(huc->fw.bo) +
 				      xe_uc_fw_rsa_offset(&huc->fw));
+		break;
+	case XE_HUC_AUTH_VIA_GSC:
+		ret = huc_auth_via_gsccs(huc);
 		break;
 	default:
 		XE_WARN_ON(type);
