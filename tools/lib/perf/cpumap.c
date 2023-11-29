@@ -311,7 +311,7 @@ int perf_cpu_map__nr(const struct perf_cpu_map *cpus)
 	return cpus ? __perf_cpu_map__nr(cpus) : 1;
 }
 
-bool perf_cpu_map__empty(const struct perf_cpu_map *map)
+bool perf_cpu_map__has_any_cpu_or_is_empty(const struct perf_cpu_map *map)
 {
 	return map ? __perf_cpu_map__cpu(map, 0).cpu == -1 : true;
 }

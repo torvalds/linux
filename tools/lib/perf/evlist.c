@@ -619,7 +619,7 @@ static int perf_evlist__nr_mmaps(struct perf_evlist *evlist)
 
 	/* One for each CPU */
 	nr_mmaps = perf_cpu_map__nr(evlist->all_cpus);
-	if (perf_cpu_map__empty(evlist->all_cpus)) {
+	if (perf_cpu_map__has_any_cpu_or_is_empty(evlist->all_cpus)) {
 		/* Plus one for each thread */
 		nr_mmaps += perf_thread_map__nr(evlist->threads);
 		/* Minus the per-thread CPU (-1) */
@@ -653,7 +653,7 @@ int perf_evlist__mmap_ops(struct perf_evlist *evlist,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	if (perf_cpu_map__empty(cpus))
+	if (perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 		return mmap_per_thread(evlist, ops, mp);
 
 	return mmap_per_cpu(evlist, ops, mp);
