@@ -48,9 +48,6 @@
             "filter",
             "flower"
         ],
-        "plugins": {
-                "requires": "nsPlugin"
-        },
         "setup": [
             "$TC qdisc add dev $DEV2 ingress",
             "./tdc_batch.py $DEV2 $BATCH_FILE --share_action -n 1000000"
@@ -72,9 +69,6 @@
             "filter",
             "flower"
         ],
-        "plugins": {
-                "requires": "nsPlugin"
-        },
         "setup": [
             "$TC qdisc add dev $DEV2 ingress",
             "$TC filter add dev $DEV2 protocol ip prio 1 ingress flower dst_mac e4:11:22:11:4a:51 src_mac e4:11:22:11:4a:50 ip_proto tcp src_ip 1.1.1.1 dst_ip 2.2.2.2 action drop"
