@@ -1061,7 +1061,6 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 			    acpi_osd_exec_callback function, void *context)
 {
 	struct acpi_os_dpc *dpc;
-	struct workqueue_struct *queue;
 	int ret;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -1101,24 +1100,22 @@ acpi_status acpi_os_execute(acpi_execute_type type,
 	 */
 	switch (type) {
 	case OSL_NOTIFY_HANDLER:
-		queue = kacpi_notify_wq;
+		ret = queue_work(kacpi_notify_wq, &dpc->work);
 		break;
 	case OSL_GPE_HANDLER:
-		queue = kacpid_wq;
+		/*
+		 * On some machines, a software-initiated SMI causes corruption
+		 * unless the SMI runs on CPU 0.  An SMI can be initiated by
+		 * any AML, but typically it's done in GPE-related methods that
+		 * are run via workqueues, so we can avoid the known corruption
+		 * cases by always queueing on CPU 0.
+		 */
+		ret = queue_work_on(0, kacpid_wq, &dpc->work);
 		break;
 	default:
 		pr_err("Unsupported os_execute type %d.\n", type);
 		goto err;
 	}
-
-	/*
-	 * On some machines, a software-initiated SMI causes corruption unless
-	 * the SMI runs on CPU 0.  An SMI can be initiated by any AML, but
-	 * typically it's done in GPE-related methods that are run via
-	 * workqueues, so we can avoid the known corruption cases by always
-	 * queueing on CPU 0.
-	 */
-	ret = queue_work_on(0, queue, &dpc->work);
 	if (!ret) {
 		pr_err("Unable to queue work\n");
 		goto err;
@@ -1668,7 +1665,7 @@ acpi_status __init acpi_os_initialize(void)
 acpi_status __init acpi_os_initialize1(void)
 {
 	kacpid_wq = alloc_workqueue("kacpid", 0, 1);
-	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 1);
+	kacpi_notify_wq = alloc_workqueue("kacpi_notify", 0, 0);
 	kacpi_hotplug_wq = alloc_ordered_workqueue("kacpi_hotplug", 0);
 	BUG_ON(!kacpid_wq);
 	BUG_ON(!kacpi_notify_wq);
