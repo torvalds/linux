@@ -437,6 +437,7 @@
   memmove
   memremap
   memset
+  memset32
   __memset_io
   memstart_addr
   memunmap

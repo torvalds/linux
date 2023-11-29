@@ -91,14 +91,12 @@ struct amdgpu_mes {
 	struct amdgpu_bo		*ucode_fw_obj[AMDGPU_MAX_MES_PIPES];
 	uint64_t			ucode_fw_gpu_addr[AMDGPU_MAX_MES_PIPES];
 	uint32_t			*ucode_fw_ptr[AMDGPU_MAX_MES_PIPES];
-	uint32_t                        ucode_fw_version[AMDGPU_MAX_MES_PIPES];
 	uint64_t                        uc_start_addr[AMDGPU_MAX_MES_PIPES];
 
 	/* mes ucode data */
 	struct amdgpu_bo		*data_fw_obj[AMDGPU_MAX_MES_PIPES];
 	uint64_t			data_fw_gpu_addr[AMDGPU_MAX_MES_PIPES];
 	uint32_t			*data_fw_ptr[AMDGPU_MAX_MES_PIPES];
-	uint32_t                        data_fw_version[AMDGPU_MAX_MES_PIPES];
 	uint64_t                        data_start_addr[AMDGPU_MAX_MES_PIPES];
 
 	/* eop gpu obj */
@@ -308,6 +306,7 @@ struct amdgpu_mes_funcs {
 
 int amdgpu_mes_ctx_get_offs(struct amdgpu_ring *ring, unsigned int id_offs);
 
+int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe);
 int amdgpu_mes_init(struct amdgpu_device *adev);
 void amdgpu_mes_fini(struct amdgpu_device *adev);
 

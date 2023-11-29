@@ -365,6 +365,7 @@
   devm_nvmem_device_get
   devm_nvmem_register
   devm_of_clk_add_hw_provider
+  devm_of_iomap
   devm_of_phy_get
   __devm_of_phy_provider_register
   devm_of_platform_populate
@@ -391,6 +392,7 @@
   __devm_regmap_init_spi
   devm_regulator_bulk_get
   devm_regulator_get
+  devm_regulator_get_enable_optional
   devm_regulator_get_exclusive
   devm_regulator_get_optional
   devm_regulator_register
@@ -1410,6 +1412,7 @@
   of_iomap
   of_irq_find_parent
   of_irq_get
+  of_irq_get_byname
   of_machine_is_compatible
   of_match_device
   of_match_node
@@ -1719,6 +1722,7 @@
   regmap_get_device
   __regmap_init_mmio_clk
   regmap_irq_get_virq
+  regmap_raw_read
   regmap_raw_write
   regmap_read
   regmap_register_patch

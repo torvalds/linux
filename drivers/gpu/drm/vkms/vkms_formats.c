@@ -42,100 +42,75 @@ static void *get_packed_src_addr(const struct vkms_frame_info *frame_info, int y
 	return packed_pixels_addr(frame_info, x_src, y_src);
 }
 
-static void ARGB8888_to_argb_u16(struct line_buffer *stage_buffer,
-				 const struct vkms_frame_info *frame_info, int y)
+static void ARGB8888_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 {
-	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
-	u8 *src_pixels = get_packed_src_addr(frame_info, y);
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    stage_buffer->n_pixels);
-
-	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
-		/*
-		 * The 257 is the "conversion ratio". This number is obtained by the
-		 * (2^16 - 1) / (2^8 - 1) division. Which, in this case, tries to get
-		 * the best color value in a pixel format with more possibilities.
-		 * A similar idea applies to others RGB color conversions.
-		 */
-		out_pixels[x].a = (u16)src_pixels[3] * 257;
-		out_pixels[x].r = (u16)src_pixels[2] * 257;
-		out_pixels[x].g = (u16)src_pixels[1] * 257;
-		out_pixels[x].b = (u16)src_pixels[0] * 257;
-	}
+	/*
+	 * The 257 is the "conversion ratio". This number is obtained by the
+	 * (2^16 - 1) / (2^8 - 1) division. Which, in this case, tries to get
+	 * the best color value in a pixel format with more possibilities.
+	 * A similar idea applies to others RGB color conversions.
+	 */
+	out_pixel->a = (u16)src_pixels[3] * 257;
+	out_pixel->r = (u16)src_pixels[2] * 257;
+	out_pixel->g = (u16)src_pixels[1] * 257;
+	out_pixel->b = (u16)src_pixels[0] * 257;
 }
 
-static void XRGB8888_to_argb_u16(struct line_buffer *stage_buffer,
-				 const struct vkms_frame_info *frame_info, int y)
+static void XRGB8888_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 {
-	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
-	u8 *src_pixels = get_packed_src_addr(frame_info, y);
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    stage_buffer->n_pixels);
-
-	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
-		out_pixels[x].a = (u16)0xffff;
-		out_pixels[x].r = (u16)src_pixels[2] * 257;
-		out_pixels[x].g = (u16)src_pixels[1] * 257;
-		out_pixels[x].b = (u16)src_pixels[0] * 257;
-	}
+	out_pixel->a = (u16)0xffff;
+	out_pixel->r = (u16)src_pixels[2] * 257;
+	out_pixel->g = (u16)src_pixels[1] * 257;
+	out_pixel->b = (u16)src_pixels[0] * 257;
 }
 
-static void ARGB16161616_to_argb_u16(struct line_buffer *stage_buffer,
-				     const struct vkms_frame_info *frame_info,
-				     int y)
+static void ARGB16161616_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 {
-	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
-	u16 *src_pixels = get_packed_src_addr(frame_info, y);
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    stage_buffer->n_pixels);
+	u16 *pixels = (u16 *)src_pixels;
 
-	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
-		out_pixels[x].a = le16_to_cpu(src_pixels[3]);
-		out_pixels[x].r = le16_to_cpu(src_pixels[2]);
-		out_pixels[x].g = le16_to_cpu(src_pixels[1]);
-		out_pixels[x].b = le16_to_cpu(src_pixels[0]);
-	}
+	out_pixel->a = le16_to_cpu(pixels[3]);
+	out_pixel->r = le16_to_cpu(pixels[2]);
+	out_pixel->g = le16_to_cpu(pixels[1]);
+	out_pixel->b = le16_to_cpu(pixels[0]);
 }
 
-static void XRGB16161616_to_argb_u16(struct line_buffer *stage_buffer,
-				     const struct vkms_frame_info *frame_info,
-				     int y)
+static void XRGB16161616_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 {
-	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
-	u16 *src_pixels = get_packed_src_addr(frame_info, y);
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			    stage_buffer->n_pixels);
+	u16 *pixels = (u16 *)src_pixels;
 
-	for (size_t x = 0; x < x_limit; x++, src_pixels += 4) {
-		out_pixels[x].a = (u16)0xffff;
-		out_pixels[x].r = le16_to_cpu(src_pixels[2]);
-		out_pixels[x].g = le16_to_cpu(src_pixels[1]);
-		out_pixels[x].b = le16_to_cpu(src_pixels[0]);
-	}
+	out_pixel->a = (u16)0xffff;
+	out_pixel->r = le16_to_cpu(pixels[2]);
+	out_pixel->g = le16_to_cpu(pixels[1]);
+	out_pixel->b = le16_to_cpu(pixels[0]);
 }
 
-static void RGB565_to_argb_u16(struct line_buffer *stage_buffer,
-			       const struct vkms_frame_info *frame_info, int y)
+static void RGB565_to_argb_u16(u8 *src_pixels, struct pixel_argb_u16 *out_pixel)
 {
-	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
-	u16 *src_pixels = get_packed_src_addr(frame_info, y);
-	int x_limit = min_t(size_t, drm_rect_width(&frame_info->dst),
-			       stage_buffer->n_pixels);
+	u16 *pixels = (u16 *)src_pixels;
 
 	s64 fp_rb_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(31));
 	s64 fp_g_ratio = drm_fixp_div(drm_int2fixp(65535), drm_int2fixp(63));
 
-	for (size_t x = 0; x < x_limit; x++, src_pixels++) {
-		u16 rgb_565 = le16_to_cpu(*src_pixels);
-		s64 fp_r = drm_int2fixp((rgb_565 >> 11) & 0x1f);
-		s64 fp_g = drm_int2fixp((rgb_565 >> 5) & 0x3f);
-		s64 fp_b = drm_int2fixp(rgb_565 & 0x1f);
+	u16 rgb_565 = le16_to_cpu(*pixels);
+	s64 fp_r = drm_int2fixp((rgb_565 >> 11) & 0x1f);
+	s64 fp_g = drm_int2fixp((rgb_565 >> 5) & 0x3f);
+	s64 fp_b = drm_int2fixp(rgb_565 & 0x1f);
 
-		out_pixels[x].a = (u16)0xffff;
-		out_pixels[x].r = drm_fixp2int(drm_fixp_mul(fp_r, fp_rb_ratio));
-		out_pixels[x].g = drm_fixp2int(drm_fixp_mul(fp_g, fp_g_ratio));
-		out_pixels[x].b = drm_fixp2int(drm_fixp_mul(fp_b, fp_rb_ratio));
-	}
+	out_pixel->a = (u16)0xffff;
+	out_pixel->r = drm_fixp2int_round(drm_fixp_mul(fp_r, fp_rb_ratio));
+	out_pixel->g = drm_fixp2int_round(drm_fixp_mul(fp_g, fp_g_ratio));
+	out_pixel->b = drm_fixp2int_round(drm_fixp_mul(fp_b, fp_rb_ratio));
+}
+
+void vkms_compose_row(struct line_buffer *stage_buffer, struct vkms_plane_state *plane, int y)
+{
+	struct pixel_argb_u16 *out_pixels = stage_buffer->pixels;
+	struct vkms_frame_info *frame_info = plane->frame_info;
+	u8 *src_pixels = get_packed_src_addr(frame_info, y);
+	int limit = min_t(size_t, drm_rect_width(&frame_info->dst), stage_buffer->n_pixels);
+
+	for (size_t x = 0; x < limit; x++, src_pixels += frame_info->cpp)
+		plane->pixel_read(src_pixels, &out_pixels[x]);
 }
 
 /*
@@ -241,15 +216,15 @@ static void argb_u16_to_RGB565(struct vkms_frame_info *frame_info,
 		s64 fp_g = drm_int2fixp(in_pixels[x].g);
 		s64 fp_b = drm_int2fixp(in_pixels[x].b);
 
-		u16 r = drm_fixp2int(drm_fixp_div(fp_r, fp_rb_ratio));
-		u16 g = drm_fixp2int(drm_fixp_div(fp_g, fp_g_ratio));
-		u16 b = drm_fixp2int(drm_fixp_div(fp_b, fp_rb_ratio));
+		u16 r = drm_fixp2int_round(drm_fixp_div(fp_r, fp_rb_ratio));
+		u16 g = drm_fixp2int_round(drm_fixp_div(fp_g, fp_g_ratio));
+		u16 b = drm_fixp2int_round(drm_fixp_div(fp_b, fp_rb_ratio));
 
 		*dst_pixels = cpu_to_le16(r << 11 | g << 5 | b);
 	}
 }
 
-void *get_frame_to_line_function(u32 format)
+void *get_pixel_conversion_function(u32 format)
 {
 	switch (format) {
 	case DRM_FORMAT_ARGB8888:

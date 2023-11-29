@@ -1719,40 +1719,40 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 			void *stream, int direction)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
-	struct sdw_cdns_dma_data *dma;
+	struct sdw_cdns_dai_runtime *dai_runtime;
 
 	if (stream) {
 		/* first paranoia check */
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-			dma = dai->playback_dma_data;
+			dai_runtime = dai->playback_dma_data;
 		else
-			dma = dai->capture_dma_data;
+			dai_runtime = dai->capture_dma_data;
 
-		if (dma) {
+		if (dai_runtime) {
 			dev_err(dai->dev,
-				"dma_data already allocated for dai %s\n",
+				"dai_runtime already allocated for dai %s\n",
 				dai->name);
 			return -EINVAL;
 		}
 
-		/* allocate and set dma info */
-		dma = kzalloc(sizeof(*dma), GFP_KERNEL);
-		if (!dma)
+		/* allocate and set dai_runtime info */
+		dai_runtime = kzalloc(sizeof(*dai_runtime), GFP_KERNEL);
+		if (!dai_runtime)
 			return -ENOMEM;
 
-		dma->stream_type = SDW_STREAM_PCM;
+		dai_runtime->stream_type = SDW_STREAM_PCM;
 
-		dma->bus = &cdns->bus;
-		dma->link_id = cdns->instance;
+		dai_runtime->bus = &cdns->bus;
+		dai_runtime->link_id = cdns->instance;
 
-		dma->stream = stream;
+		dai_runtime->stream = stream;
 
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-			dai->playback_dma_data = dma;
+			dai->playback_dma_data = dai_runtime;
 		else
-			dai->capture_dma_data = dma;
+			dai->capture_dma_data = dai_runtime;
 	} else {
-		/* for NULL stream we release allocated dma_data */
+		/* for NULL stream we release allocated dai_runtime */
 		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
 			kfree(dai->playback_dma_data);
 			dai->playback_dma_data = NULL;

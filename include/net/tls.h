@@ -127,6 +127,7 @@ struct tls_strparser {
 	u32 mark : 8;
 	u32 stopped : 1;
 	u32 copy_mode : 1;
+	u32 mixed_decrypted : 1;
 	u32 msg_ready : 1;
 
 	struct strp_msg stm;

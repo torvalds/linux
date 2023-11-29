@@ -389,3 +389,67 @@ int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev)
 
 	return 0;
 }
+
+int adf_dev_down(struct adf_accel_dev *accel_dev, bool reconfig)
+{
+	int ret = 0;
+
+	if (!accel_dev)
+		return -EINVAL;
+
+	mutex_lock(&accel_dev->state_lock);
+
+	if (!adf_dev_started(accel_dev)) {
+		dev_info(&GET_DEV(accel_dev), "Device qat_dev%d already down\n",
+			 accel_dev->accel_id);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (reconfig) {
+		ret = adf_dev_shutdown_cache_cfg(accel_dev);
+		goto out;
+	}
+
+	adf_dev_stop(accel_dev);
+	adf_dev_shutdown(accel_dev);
+
+out:
+	mutex_unlock(&accel_dev->state_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_dev_down);
+
+int adf_dev_up(struct adf_accel_dev *accel_dev, bool config)
+{
+	int ret = 0;
+
+	if (!accel_dev)
+		return -EINVAL;
+
+	mutex_lock(&accel_dev->state_lock);
+
+	if (adf_dev_started(accel_dev)) {
+		dev_info(&GET_DEV(accel_dev), "Device qat_dev%d already up\n",
+			 accel_dev->accel_id);
+		ret = -EALREADY;
+		goto out;
+	}
+
+	if (config && GET_HW_DATA(accel_dev)->dev_config) {
+		ret = GET_HW_DATA(accel_dev)->dev_config(accel_dev);
+		if (unlikely(ret))
+			goto out;
+	}
+
+	ret = adf_dev_init(accel_dev);
+	if (unlikely(ret))
+		goto out;
+
+	ret = adf_dev_start(accel_dev);
+
+out:
+	mutex_unlock(&accel_dev->state_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_dev_up);

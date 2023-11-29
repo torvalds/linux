@@ -77,7 +77,7 @@ static int ehset_probe(struct usb_interface *intf,
 	switch (test_pid) {
 	case TEST_SE0_NAK_PID:
 		ret = ehset_prepare_port_for_testing(hub_udev, portnum);
-		if (!ret)
+		if (ret < 0)
 			break;
 		ret = usb_control_msg_send(hub_udev, 0, USB_REQ_SET_FEATURE,
 					   USB_RT_PORT, USB_PORT_FEAT_TEST,
@@ -86,7 +86,7 @@ static int ehset_probe(struct usb_interface *intf,
 		break;
 	case TEST_J_PID:
 		ret = ehset_prepare_port_for_testing(hub_udev, portnum);
-		if (!ret)
+		if (ret < 0)
 			break;
 		ret = usb_control_msg_send(hub_udev, 0, USB_REQ_SET_FEATURE,
 					   USB_RT_PORT, USB_PORT_FEAT_TEST,
@@ -95,7 +95,7 @@ static int ehset_probe(struct usb_interface *intf,
 		break;
 	case TEST_K_PID:
 		ret = ehset_prepare_port_for_testing(hub_udev, portnum);
-		if (!ret)
+		if (ret < 0)
 			break;
 		ret = usb_control_msg_send(hub_udev, 0, USB_REQ_SET_FEATURE,
 					   USB_RT_PORT, USB_PORT_FEAT_TEST,
@@ -104,7 +104,7 @@ static int ehset_probe(struct usb_interface *intf,
 		break;
 	case TEST_PACKET_PID:
 		ret = ehset_prepare_port_for_testing(hub_udev, portnum);
-		if (!ret)
+		if (ret < 0)
 			break;
 		ret = usb_control_msg_send(hub_udev, 0, USB_REQ_SET_FEATURE,
 					   USB_RT_PORT, USB_PORT_FEAT_TEST,

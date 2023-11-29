@@ -34,4 +34,3 @@ mandatory-y += termbits.h
 mandatory-y += termios.h
 mandatory-y += types.h
 mandatory-y += unistd.h
-mandatory-y += gzvm_arch.h

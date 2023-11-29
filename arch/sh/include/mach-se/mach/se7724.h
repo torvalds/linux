@@ -37,7 +37,7 @@
 #define IRQ2_IRQ        evt2irq(0x640)
 
 /* Bits in IRQ012 registers */
-#define SE7724_FPGA_IRQ_BASE	220
+#define SE7724_FPGA_IRQ_BASE	(220 + 16)
 
 /* IRQ0 */
 #define IRQ0_BASE	SE7724_FPGA_IRQ_BASE
