@@ -232,7 +232,7 @@ static void __init match_options(const char *cmdline)
 
 		override = prel64_pointer(reg->override);
 
-		for (f = 0; strlen(reg->fields[f].name); f++) {
+		for (f = 0; reg->fields[f].name[0] != '\0'; f++) {
 			u64 shift = reg->fields[f].shift;
 			u64 width = reg->fields[f].width ?: 4;
 			u64 mask = GENMASK_ULL(shift + width - 1, shift);
