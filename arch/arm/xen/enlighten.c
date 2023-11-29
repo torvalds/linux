@@ -164,6 +164,9 @@ static int xen_starting_cpu(unsigned int cpu)
 	BUG_ON(err);
 	per_cpu(xen_vcpu, cpu) = vcpup;
 
+	if (!xen_kernel_unmapped_at_usr())
+		xen_setup_runstate_info(cpu);
+
 after_register_vcpu_info:
 	enable_percpu_irq(xen_events_irq, 0);
 	return 0;
@@ -520,6 +523,9 @@ static int __init xen_guest_init(void)
 		return -EINVAL;
 	}
 
+	if (!xen_kernel_unmapped_at_usr())
+		xen_time_setup_guest();
+
 	if (xen_initial_domain())
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 
@@ -529,13 +535,7 @@ static int __init xen_guest_init(void)
 }
 early_initcall(xen_guest_init);
 
-static int xen_starting_runstate_cpu(unsigned int cpu)
-{
-	xen_setup_runstate_info(cpu);
-	return 0;
-}
-
-static int __init xen_late_init(void)
+static int __init xen_pm_init(void)
 {
 	if (!xen_domain())
 		return -ENODEV;
@@ -548,16 +548,9 @@ static int __init xen_late_init(void)
 		do_settimeofday64(&ts);
 	}
 
-	if (xen_kernel_unmapped_at_usr())
-		return 0;
-
-	xen_time_setup_guest();
-
-	return cpuhp_setup_state(CPUHP_AP_ARM_XEN_RUNSTATE_STARTING,
-				 "arm/xen_runstate:starting",
-				 xen_starting_runstate_cpu, NULL);
+	return 0;
 }
-late_initcall(xen_late_init);
+late_initcall(xen_pm_init);
 
 
 /* empty stubs */
