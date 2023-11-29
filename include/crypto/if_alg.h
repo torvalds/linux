@@ -18,7 +18,6 @@
 
 #include <crypto/aead.h>
 #include <crypto/skcipher.h>
-#include <crypto/akcipher.h>
 
 #define ALG_MAX_PAGES			16
 
@@ -109,7 +108,6 @@ struct af_alg_async_req {
 	union {
 		struct aead_request aead_req;
 		struct skcipher_request skcipher_req;
-		struct akcipher_request akcipher_req;
 	} cra_u;
 
 	/* req ctx trails this struct */
