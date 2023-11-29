@@ -334,8 +334,6 @@ CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 0
 
 CATEGORY="ksm" run_test ./ksm_functional_tests
 
-run_test ./ksm_functional_tests
-
 # protection_keys tests
 if [ -x ./protection_keys_32 ]
 then
