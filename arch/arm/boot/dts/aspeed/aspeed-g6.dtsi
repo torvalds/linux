@@ -581,6 +581,7 @@
 				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_RSACLK>;
 				aspeed,ahbc = <&ahbc>;
+				status = "disabled";
 			};
 
 			video: video@1e700000 {
