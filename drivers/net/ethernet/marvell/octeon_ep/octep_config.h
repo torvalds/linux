@@ -20,6 +20,9 @@
 /* Packet threshold for Tx queue interrupt */
 #define OCTEP_IQ_INTR_THRESHOLD     0x0
 
+/* Minimum watermark for backpressure */
+#define OCTEP_OQ_WMARK_MIN 256
+
 /* Rx Queue: maximum descriptors per ring */
 #define OCTEP_OQ_MAX_DESCRIPTORS   1024
 
@@ -67,6 +70,7 @@
 #define CFG_GET_OQ_REFILL_THRESHOLD(cfg)  ((cfg)->oq.refill_threshold)
 #define CFG_GET_OQ_INTR_PKT(cfg)          ((cfg)->oq.oq_intr_pkt)
 #define CFG_GET_OQ_INTR_TIME(cfg)         ((cfg)->oq.oq_intr_time)
+#define CFG_GET_OQ_WMARK(cfg)             ((cfg)->oq.wmark)
 
 #define CFG_GET_PORTS_MAX_IO_RINGS(cfg)    ((cfg)->pf_ring_cfg.max_io_rings)
 #define CFG_GET_PORTS_ACTIVE_IO_RINGS(cfg) ((cfg)->pf_ring_cfg.active_io_rings)
@@ -136,6 +140,12 @@ struct octep_oq_config {
 	 * default. The time is specified in microseconds.
 	 */
 	u32 oq_intr_time;
+
+	/* Water mark for backpressure.
+	 * Output queue sends backpressure signal to source when
+	 * free buffer count falls below wmark.
+	 */
+	u32 wmark;
 };
 
 /* Tx/Rx configuration */

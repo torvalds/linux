@@ -143,6 +143,9 @@
 #define    CNXK_SDP_R_OUT_SLIST_DBELL(ring)          \
 	(CNXK_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CNXK_RING_OFFSET))
 
+#define    CNXK_SDP_R_OUT_WMARK(ring)         \
+	(CNXK_SDP_R_OUT_WMARK_START + ((ring) * CNXK_RING_OFFSET))
+
 #define    CNXK_SDP_R_OUT_CNTS(ring)          \
 	(CNXK_SDP_R_OUT_CNTS_START + ((ring) * CNXK_RING_OFFSET))
 

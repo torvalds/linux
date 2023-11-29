@@ -258,6 +258,7 @@ static void octep_init_config_cnxk_pf(struct octep_device *oct)
 	conf->oq.refill_threshold = OCTEP_OQ_REFILL_THRESHOLD;
 	conf->oq.oq_intr_pkt = OCTEP_OQ_INTR_PKT_THRESHOLD;
 	conf->oq.oq_intr_time = OCTEP_OQ_INTR_TIME_THRESHOLD;
+	conf->oq.wmark = OCTEP_OQ_WMARK_MIN;
 
 	conf->msix_cfg.non_ioq_msix = CNXK_NUM_NON_IOQ_INTR;
 	conf->msix_cfg.ioq_msix = conf->pf_ring_cfg.active_io_rings;
@@ -378,6 +379,12 @@ static void octep_setup_oq_regs_cnxk_pf(struct octep_device *oct, int oq_no)
 	reg_val = ((u64)time_threshold << 32) |
 		  CFG_GET_OQ_INTR_PKT(oct->conf);
 	octep_write_csr64(oct, CNXK_SDP_R_OUT_INT_LEVELS(oq_no), reg_val);
+
+	/* set watermark for backpressure */
+	reg_val = octep_read_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_no));
+	reg_val &= ~0xFFFFFFFFULL;
+	reg_val |= CFG_GET_OQ_WMARK(oct->conf);
+	octep_write_csr64(oct, CNXK_SDP_R_OUT_WMARK(oq_no), reg_val);
 }
 
 /* Setup registers for a PF mailbox */
