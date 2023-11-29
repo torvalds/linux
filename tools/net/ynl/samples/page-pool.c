@@ -81,7 +81,7 @@ int main(int argc, char **argv)
 		struct stat *s = find_ifc(&a, pp->ifindex);
 
 		count(s, 1, pp);
-		if (pp->_present.destroyed)
+		if (pp->_present.detach_time)
 			count(s, 0, pp);
 	}
 	netdev_page_pool_get_list_free(pools);
