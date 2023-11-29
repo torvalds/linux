@@ -508,8 +508,8 @@ int wave5_vpu_dec_get_output_info(struct vpu_instance *inst, struct dec_output_i
 	info->rc_decoded = rect_info;
 
 	disp_idx = info->index_frame_display;
-	disp_info = &p_dec_info->dec_out_info[disp_idx];
 	if (info->index_frame_display >= 0 && info->index_frame_display < WAVE5_MAX_FBS) {
+		disp_info = &p_dec_info->dec_out_info[disp_idx];
 		if (info->index_frame_display != info->index_frame_decoded) {
 			/*
 			 * when index_frame_decoded < 0, and index_frame_display >= 0
