@@ -4,8 +4,13 @@
 
 #include "ast2700-evb.dts"
 #include "aspeed-ltpi0.dtsi"
+#include "aspeed-ltpi1.dtsi"
 
 &ltpi0 {
+	status = "okay";
+};
+
+&ltpi1 {
 	status = "okay";
 };
 
