@@ -8,25 +8,32 @@
 
 #include <linux/eventfd.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
-#include <linux/miscdevice.h>
 #include <linux/gzvm.h>
 #include <linux/srcu.h>
+#include <linux/rbtree.h>
+
+/*
+ * For the normal physical address, the highest 12 bits should be zero, so we
+ * can mask bit 62 ~ bit 52 to indicate the error physical address
+ */
+#define GZVM_PA_ERR_BAD (0x7ffULL << 52)
 
 #define GZVM_VCPU_MMAP_SIZE  PAGE_SIZE
 #define INVALID_VM_ID   0xffff
 
 /*
- * These are the efinitions of APIs between GenieZone hypervisor and driver,
- * there's no need to be visible to uapi. Furthermore, We need GenieZone
+ * These are the definitions of APIs between GenieZone hypervisor and driver,
+ * there's no need to be visible to uapi. Furthermore, we need GenieZone
  * specific error code in order to map to Linux errno
  */
 #define NO_ERROR                (0)
 #define ERR_NO_MEMORY           (-5)
+#define ERR_INVALID_ARGS        (-8)
 #define ERR_NOT_SUPPORTED       (-24)
 #define ERR_NOT_IMPLEMENTED     (-27)
 #define ERR_FAULT               (-40)
-#define GZVM_USERSPACE_IRQ_SOURCE_ID            0
 #define GZVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID       1
 
 /*
@@ -37,6 +44,8 @@
 #define GZVM_MAX_MEM_REGION	10
 
 #define GZVM_VCPU_RUN_MAP_SIZE		(PAGE_SIZE * 2)
+
+#define GZVM_BLOCK_BASED_DEMAND_PAGE_SIZE	(2 * 1024 * 1024) /* 2MB */
 
 /* struct mem_region_addr_range - Identical to ffa memory constituent */
 struct mem_region_addr_range {
@@ -74,6 +83,12 @@ struct gzvm_vcpu {
 	struct gzvm_vcpu_hwstate *hwstate;
 };
 
+struct gzvm_pinned_page {
+	struct rb_node node;
+	struct page *page;
+	u64 ipa;
+};
+
 struct gzvm {
 	struct gzvm_vcpu *vcpus[GZVM_MAX_VCPUS];
 	/* userspace tied to this vm */
@@ -100,6 +115,22 @@ struct gzvm {
 	struct srcu_struct irq_srcu;
 	/* lock for irq injection */
 	struct mutex irq_lock;
+
+	/*
+	 * demand page granularity: how much memory we allocate for VM in a
+	 * single page fault
+	 */
+	u32 demand_page_gran;
+	/* the mailbox for transferring large portion pages */
+	u64 *demand_page_buffer;
+	/*
+	 * lock for preventing multiple cpu using the same demand page mailbox
+	 * at the same time
+	 */
+	struct mutex  demand_paging_lock;
+
+	/* Use rb-tree to record pin/unpin page */
+	struct rb_root pinned_pages;
 };
 
 long gzvm_dev_ioctl_check_extension(struct gzvm *gzvm, unsigned long args);
@@ -118,6 +149,9 @@ int gzvm_arch_set_memregion(u16 vm_id, size_t buf_size,
 int gzvm_arch_check_extension(struct gzvm *gzvm, __u64 cap, void __user *argp);
 int gzvm_arch_create_vm(unsigned long vm_type);
 int gzvm_arch_destroy_vm(u16 vm_id);
+int gzvm_arch_map_guest(u16 vm_id, int memslot_id, u64 pfn, u64 gfn,
+			u64 nr_pages);
+int gzvm_arch_map_guest_block(u16 vm_id, int memslot_id, u64 gfn, u64 nr_pages);
 int gzvm_vm_ioctl_arch_enable_cap(struct gzvm *gzvm,
 				  struct gzvm_enable_cap *cap,
 				  void __user *argp);
@@ -131,9 +165,17 @@ int gzvm_arch_vcpu_run(struct gzvm_vcpu *vcpu, __u64 *exit_reason);
 int gzvm_arch_destroy_vcpu(u16 vm_id, int vcpuid);
 int gzvm_arch_inform_exit(u16 vm_id);
 
+u64 gzvm_gfn_to_hva_memslot(struct gzvm_memslot *memslot, u64 gfn);
+u64 hva_to_pa_fast(u64 hva);
+u64 hva_to_pa_slow(u64 hva);
+int gzvm_gfn_to_pfn_memslot(struct gzvm_memslot *memslot, u64 gfn, u64 *pfn);
+int gzvm_find_memslot(struct gzvm *vm, u64 gpa);
+int gzvm_handle_page_fault(struct gzvm_vcpu *vcpu);
+bool gzvm_handle_guest_exception(struct gzvm_vcpu *vcpu);
+
 int gzvm_arch_create_device(u16 vm_id, struct gzvm_create_device *gzvm_dev);
 int gzvm_arch_inject_irq(struct gzvm *gzvm, unsigned int vcpu_idx,
-			 u32 irq_type, u32 irq, bool level);
+			 u32 irq, bool level);
 
 void gzvm_notify_acked_irq(struct gzvm *gzvm, unsigned int gsi);
 int gzvm_irqfd(struct gzvm *gzvm, struct gzvm_irqfd *args);

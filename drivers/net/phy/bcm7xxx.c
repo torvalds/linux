@@ -487,7 +487,7 @@ static int bcm7xxx_16nm_ephy_afe_config(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, 0x0038, 0x0002, 0xede0);
 
 	/* Read CORE_EXPA9 */
-	tmp = bcm_phy_read_exp(phydev, 0x00a9);
+	tmp = bcm_phy_read_exp_sel(phydev, 0x00a9);
 	/* CORE_EXPA9[6:1] is rcalcode[5:0] */
 	rcalcode = (tmp & 0x7e) / 2;
 	/* Correct RCAL code + 1 is -1% rprogr, LP: +16 */

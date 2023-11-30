@@ -468,7 +468,7 @@ static int venc_encoder_cmd(struct file *file, void *fh, struct v4l2_encoder_cmd
 	vpu_inst_lock(inst);
 	if (cmd->cmd == V4L2_ENC_CMD_STOP) {
 		if (inst->state == VPU_CODEC_STATE_DEINIT)
-			vpu_set_last_buffer_dequeued(inst);
+			vpu_set_last_buffer_dequeued(inst, true);
 		else
 			venc_request_eos(inst);
 	}
@@ -888,7 +888,7 @@ static void venc_set_last_buffer_dequeued(struct vpu_inst *inst)
 	struct venc_t *venc = inst->priv;
 
 	if (venc->stopped && list_empty(&venc->frames))
-		vpu_set_last_buffer_dequeued(inst);
+		vpu_set_last_buffer_dequeued(inst, true);
 }
 
 static void venc_stop_done(struct vpu_inst *inst)

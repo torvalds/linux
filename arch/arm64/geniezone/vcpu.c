@@ -18,14 +18,6 @@ int gzvm_arch_vcpu_update_one_reg(struct gzvm_vcpu *vcpu, __u64 reg_id,
 	unsigned long a1;
 	int ret;
 
-	/* reg id follows KVM's encoding */
-	switch (reg_id & GZVM_REG_ARM_COPROC_MASK) {
-	case GZVM_REG_ARM_CORE:
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
 	a1 = assemble_vm_vcpu_tuple(vcpu->gzvm->vm_id, vcpu->vcpuid);
 	if (!is_write) {
 		ret = gzvm_hypcall_wrapper(MT_HVC_GZVM_GET_ONE_REG,

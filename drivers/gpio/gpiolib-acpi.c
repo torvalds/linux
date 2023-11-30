@@ -1607,6 +1607,19 @@ static const struct dmi_system_id gpiolib_acpi_quirks[] __initconst = {
 		 * https://gitlab.freedesktop.org/drm/amd/-/issues/1722#note_1720627
 		 */
 		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "NL5xNU"),
+		},
+		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {
+			.ignore_wake = "ELAN0415:00@9",
+		},
+	},
+	{
+		/*
+		 * Spurious wakeups from TP_ATTN# pin
+		 * Found in BIOS 1.7.8
+		 * https://gitlab.freedesktop.org/drm/amd/-/issues/1722#note_1720627
+		 */
+		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "NL5xRU"),
 		},
 		.driver_data = &(struct acpi_gpiolib_dmi_quirk) {

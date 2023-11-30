@@ -58,7 +58,7 @@ static void *cgroup_iter_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct cgroup_iter_priv *p = seq->private;
 
-	mutex_lock(&cgroup_mutex);
+	cgroup_lock();
 
 	/* cgroup_iter doesn't support read across multiple sessions. */
 	if (*pos > 0) {
@@ -89,7 +89,7 @@ static void cgroup_iter_seq_stop(struct seq_file *seq, void *v)
 {
 	struct cgroup_iter_priv *p = seq->private;
 
-	mutex_unlock(&cgroup_mutex);
+	cgroup_unlock();
 
 	/* pass NULL to the prog for post-processing */
 	if (!v) {

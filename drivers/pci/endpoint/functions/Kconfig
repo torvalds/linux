@@ -27,13 +27,13 @@ config PCI_EPF_NTB
 	  If in doubt, say "N" to disable Endpoint NTB driver.
 
 config PCI_EPF_VNTB
-        tristate "PCI Endpoint NTB driver"
-        depends on PCI_ENDPOINT
-        depends on NTB
-        select CONFIGFS_FS
-        help
-          Select this configuration option to enable the Non-Transparent
-          Bridge (NTB) driver for PCIe Endpoint. NTB driver implements NTB
-          between PCI Root Port and PCIe Endpoint.
+	tristate "PCI Endpoint Virtual NTB driver"
+	depends on PCI_ENDPOINT
+	depends on NTB
+	select CONFIGFS_FS
+	help
+	  Select this configuration option to enable the Non-Transparent
+	  Bridge (NTB) driver for PCIe Endpoint. NTB driver implements NTB
+	  between PCI Root Port and PCIe Endpoint.
 
-          If in doubt, say "N" to disable Endpoint NTB driver.
+	  If in doubt, say "N" to disable Endpoint NTB driver.

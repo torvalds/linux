@@ -7,6 +7,6 @@
 #define __GZ_COMMON_H__
 
 int gzvm_irqchip_inject_irq(struct gzvm *gzvm, unsigned int vcpu_idx,
-			    u32 irq_type, u32 irq, bool level);
+			    u32 irq, bool level);
 
 #endif /* __GZVM_COMMON_H__ */

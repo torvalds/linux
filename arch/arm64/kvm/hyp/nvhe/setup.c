@@ -150,7 +150,7 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 		 * and guard page. The allocation is also aligned based on
 		 * the order of its size.
 		 */
-		ret = pkvm_alloc_private_va_range(PAGE_SIZE * 2, &hyp_addr);
+		ret = pkvm_alloc_private_va_range(NVHE_STACK_SIZE * 2, &hyp_addr);
 		if (ret)
 			return ret;
 
@@ -159,19 +159,19 @@ static int recreate_hyp_mappings(phys_addr_t phys, unsigned long size,
 		 * at the higher address and leave the lower guard page
 		 * unbacked.
 		 *
-		 * Any valid stack address now has the PAGE_SHIFT bit as 1
+		 * Any valid stack address now has the NVHE_STACK_SHIFT bit as 1
 		 * and addresses corresponding to the guard page have the
-		 * PAGE_SHIFT bit as 0 - this is used for overflow detection.
+		 * NVHE_STACK_SHIFT bit as 0 - this is used for overflow detection.
 		 */
 		hyp_spin_lock(&pkvm_pgd_lock);
-		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, hyp_addr + PAGE_SIZE,
-					PAGE_SIZE, params->stack_pa, PAGE_HYP);
+		ret = kvm_pgtable_hyp_map(&pkvm_pgtable, hyp_addr + NVHE_STACK_SIZE,
+					NVHE_STACK_SIZE, params->stack_pa, PAGE_HYP);
 		hyp_spin_unlock(&pkvm_pgd_lock);
 		if (ret)
 			return ret;
 
 		/* Update stack_hyp_va to end of the stack's private VA range */
-		params->stack_hyp_va = hyp_addr + (2 * PAGE_SIZE);
+		params->stack_hyp_va = hyp_addr + (2 * NVHE_STACK_SIZE);
 	}
 
 	create_hyp_host_fp_mappings();

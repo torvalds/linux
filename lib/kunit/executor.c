@@ -166,7 +166,7 @@ static void kunit_exec_run_tests(struct suite_set *suite_set)
 {
 	size_t num_suites = suite_set->end - suite_set->start;
 
-	pr_info("TAP version 14\n");
+	pr_info("KTAP version 1\n");
 	pr_info("1..%zu\n", num_suites);
 
 	__kunit_test_suites_init(suite_set->start, num_suites);
@@ -177,8 +177,8 @@ static void kunit_exec_list_tests(struct suite_set *suite_set)
 	struct kunit_suite * const *suites;
 	struct kunit_case *test_case;
 
-	/* Hack: print a tap header so kunit.py can find the start of KUnit output. */
-	pr_info("TAP version 14\n");
+	/* Hack: print a ktap header so kunit.py can find the start of KUnit output. */
+	pr_info("KTAP version 1\n");
 
 	for (suites = suite_set->start; suites < suite_set->end; suites++)
 		kunit_suite_for_each_test_case((*suites), test_case) {

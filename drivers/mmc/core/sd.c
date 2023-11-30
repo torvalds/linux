@@ -21,6 +21,8 @@
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
 
+#include <trace/hooks/mmc.h>
+
 #include "core.h"
 #include "card.h"
 #include "host.h"
@@ -481,6 +483,8 @@ static void sd_update_bus_speed_mode(struct mmc_card *card)
 		    SD_MODE_UHS_SDR12)) {
 			card->sd_bus_speed = UHS_SDR12_BUS_SPEED;
 	}
+
+	trace_android_vh_sd_update_bus_speed_mode(card);
 }
 
 static int sd_set_bus_speed_mode(struct mmc_card *card, u8 *status)
@@ -1170,7 +1174,7 @@ static int sd_parse_ext_reg_perf(struct mmc_card *card, u8 fno, u8 page,
 		card->ext_perf.feature_support |= SD_EXT_PERF_HOST_MAINT;
 
 	/* Cache support at bit 0. */
-	if (reg_buf[4] & BIT(0))
+	if ((reg_buf[4] & BIT(0)) && !mmc_card_broken_sd_cache(card))
 		card->ext_perf.feature_support |= SD_EXT_PERF_CACHE;
 
 	/* Command queue support indicated via queue depth bits (0 to 4). */

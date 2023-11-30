@@ -3115,7 +3115,7 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 	return max_link_cap;
 }
 
-static enum dc_status read_hpd_rx_irq_data(
+enum dc_status read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data)
 {
@@ -4264,124 +4264,6 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 		test_pattern_size);
 }
 
-static void dp_test_send_link_test_pattern(struct dc_link *link)
-{
-	union link_test_pattern dpcd_test_pattern;
-	union test_misc dpcd_test_params;
-	enum dp_test_pattern test_pattern;
-	enum dp_test_pattern_color_space test_pattern_color_space =
-			DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED;
-	enum dc_color_depth requestColorDepth = COLOR_DEPTH_UNDEFINED;
-	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
-	struct pipe_ctx *pipe_ctx = NULL;
-	int i;
-
-	memset(&dpcd_test_pattern, 0, sizeof(dpcd_test_pattern));
-	memset(&dpcd_test_params, 0, sizeof(dpcd_test_params));
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream == NULL)
-			continue;
-
-		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
-			pipe_ctx = &pipes[i];
-			break;
-		}
-	}
-
-	if (pipe_ctx == NULL)
-		return;
-
-	/* get link test pattern and pattern parameters */
-	core_link_read_dpcd(
-			link,
-			DP_TEST_PATTERN,
-			&dpcd_test_pattern.raw,
-			sizeof(dpcd_test_pattern));
-	core_link_read_dpcd(
-			link,
-			DP_TEST_MISC0,
-			&dpcd_test_params.raw,
-			sizeof(dpcd_test_params));
-
-	switch (dpcd_test_pattern.bits.PATTERN) {
-	case LINK_TEST_PATTERN_COLOR_RAMP:
-		test_pattern = DP_TEST_PATTERN_COLOR_RAMP;
-	break;
-	case LINK_TEST_PATTERN_VERTICAL_BARS:
-		test_pattern = DP_TEST_PATTERN_VERTICAL_BARS;
-	break; /* black and white */
-	case LINK_TEST_PATTERN_COLOR_SQUARES:
-		test_pattern = (dpcd_test_params.bits.DYN_RANGE ==
-				TEST_DYN_RANGE_VESA ?
-				DP_TEST_PATTERN_COLOR_SQUARES :
-				DP_TEST_PATTERN_COLOR_SQUARES_CEA);
-	break;
-	default:
-		test_pattern = DP_TEST_PATTERN_VIDEO_MODE;
-	break;
-	}
-
-	if (dpcd_test_params.bits.CLR_FORMAT == 0)
-		test_pattern_color_space = DP_TEST_PATTERN_COLOR_SPACE_RGB;
-	else
-		test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
-				DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
-				DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
-
-	switch (dpcd_test_params.bits.BPC) {
-	case 0: // 6 bits
-		requestColorDepth = COLOR_DEPTH_666;
-		break;
-	case 1: // 8 bits
-		requestColorDepth = COLOR_DEPTH_888;
-		break;
-	case 2: // 10 bits
-		requestColorDepth = COLOR_DEPTH_101010;
-		break;
-	case 3: // 12 bits
-		requestColorDepth = COLOR_DEPTH_121212;
-		break;
-	default:
-		break;
-	}
-
-	switch (dpcd_test_params.bits.CLR_FORMAT) {
-	case 0:
-		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
-		break;
-	case 1:
-		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR422;
-		break;
-	case 2:
-		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_YCBCR444;
-		break;
-	default:
-		pipe_ctx->stream->timing.pixel_encoding = PIXEL_ENCODING_RGB;
-		break;
-	}
-
-
-	if (requestColorDepth != COLOR_DEPTH_UNDEFINED
-			&& pipe_ctx->stream->timing.display_color_depth != requestColorDepth) {
-		DC_LOG_DEBUG("%s: original bpc %d, changing to %d\n",
-				__func__,
-				pipe_ctx->stream->timing.display_color_depth,
-				requestColorDepth);
-		pipe_ctx->stream->timing.display_color_depth = requestColorDepth;
-	}
-
-	dp_update_dsc_config(pipe_ctx);
-
-	dc_link_dp_set_test_pattern(
-			link,
-			test_pattern,
-			test_pattern_color_space,
-			NULL,
-			NULL,
-			0);
-}
-
 static void dp_test_get_audio_test_data(struct dc_link *link, bool disable_video)
 {
 	union audio_test_mode            dpcd_test_mode = {0};
@@ -4494,8 +4376,25 @@ void dc_link_dp_handle_automated_test(struct dc_link *link)
 		test_response.bits.ACK = 0;
 	}
 	if (test_request.bits.LINK_TEST_PATTRN) {
-		dp_test_send_link_test_pattern(link);
-		test_response.bits.ACK = 1;
+		union test_misc dpcd_test_params;
+		union link_test_pattern dpcd_test_pattern;
+
+		memset(&dpcd_test_pattern, 0, sizeof(dpcd_test_pattern));
+		memset(&dpcd_test_params, 0, sizeof(dpcd_test_params));
+
+		/* get link test pattern and pattern parameters */
+		core_link_read_dpcd(
+				link,
+				DP_TEST_PATTERN,
+				&dpcd_test_pattern.raw,
+				sizeof(dpcd_test_pattern));
+		core_link_read_dpcd(
+				link,
+				DP_TEST_MISC0,
+				&dpcd_test_params.raw,
+				sizeof(dpcd_test_params));
+		test_response.bits.ACK = dm_helpers_dp_handle_test_pattern_request(link->ctx, link,
+				dpcd_test_pattern, dpcd_test_params) ? 1 : 0;
 	}
 
 	if (test_request.bits.AUDIO_TEST_PATTERN) {

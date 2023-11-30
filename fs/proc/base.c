@@ -98,6 +98,7 @@
 #include <linux/cn_proc.h>
 #include <linux/cpufreq_times.h>
 #include <trace/events/oom.h>
+#include <trace/hooks/sched.h>
 #include "internal.h"
 #include "fd.h"
 
@@ -344,13 +345,24 @@ static ssize_t get_task_cmdline(struct task_struct *tsk, char __user *buf,
 				size_t count, loff_t *pos)
 {
 	struct mm_struct *mm;
+	bool prio_inherited = false;
+	int saved_prio;
 	ssize_t ret;
 
 	mm = get_task_mm(tsk);
 	if (!mm)
 		return 0;
 
+	/*
+	 * access_remote_vm() holds the hot mmap_sem lock which can cause the
+	 * task for which we read cmdline etc for by some debug deamon to slow
+	 * down and suffer a performance hit. Especially if the reader task has
+	 * a low nice value.
+	 */
+	trace_android_vh_prio_inheritance(tsk, &saved_prio, &prio_inherited);
 	ret = get_mm_cmdline(mm, buf, count, pos);
+	if (prio_inherited)
+		trace_android_vh_prio_restore(saved_prio);
 	mmput(mm);
 	return ret;
 }
@@ -2010,21 +2022,19 @@ static int pid_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct inode *inode;
 	struct task_struct *task;
-	int ret = 0;
 
-	rcu_read_lock();
-	inode = d_inode_rcu(dentry);
-	if (!inode)
-		goto out;
-	task = pid_task(proc_pid(inode), PIDTYPE_PID);
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	inode = d_inode(dentry);
+	task = get_proc_task(inode);
 
 	if (task) {
 		pid_update_inode(task, inode);
-		ret = 1;
+		put_task_struct(task);
+		return 1;
 	}
-out:
-	rcu_read_unlock();
-	return ret;
+	return 0;
 }
 
 static inline bool proc_inode_is_dead(struct inode *inode)

@@ -16,7 +16,44 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-#include <asm/gzvm_arch.h>
+#define GZVM_CAP_VM_GPA_SIZE	0xa5
+#define GZVM_CAP_PROTECTED_VM	0xffbadab1
+/* query hypervisor supported block-based demand page */
+#define GZVM_CAP_BLOCK_BASED_DEMAND_PAGING	0x9201
+
+/* sub-commands put in args[0] for GZVM_CAP_PROTECTED_VM */
+#define GZVM_CAP_PVM_SET_PVMFW_GPA		0
+#define GZVM_CAP_PVM_GET_PVMFW_SIZE		1
+/* GZVM_CAP_PVM_SET_PROTECTED_VM only sets protected but not load pvmfw */
+#define GZVM_CAP_PVM_SET_PROTECTED_VM		2
+
+/*
+ * Architecture specific registers are to be defined and ORed with
+ * the arch identifier.
+ */
+#define GZVM_REG_ARCH_ARM64	0x6000000000000000ULL
+#define GZVM_REG_ARCH_MASK	0xff00000000000000ULL
+
+/*
+ * Reg size = BIT((reg.id & GZVM_REG_SIZE_MASK) >> GZVM_REG_SIZE_SHIFT) bytes
+ */
+#define GZVM_REG_SIZE_SHIFT	52
+#define GZVM_REG_SIZE_MASK	0x00f0000000000000ULL
+
+#define GZVM_REG_SIZE_U8	0x0000000000000000ULL
+#define GZVM_REG_SIZE_U16	0x0010000000000000ULL
+#define GZVM_REG_SIZE_U32	0x0020000000000000ULL
+#define GZVM_REG_SIZE_U64	0x0030000000000000ULL
+#define GZVM_REG_SIZE_U128	0x0040000000000000ULL
+#define GZVM_REG_SIZE_U256	0x0050000000000000ULL
+#define GZVM_REG_SIZE_U512	0x0060000000000000ULL
+#define GZVM_REG_SIZE_U1024	0x0070000000000000ULL
+#define GZVM_REG_SIZE_U2048	0x0080000000000000ULL
+
+/* Register type definitions */
+#define GZVM_REG_TYPE_SHIFT	16
+/* Register type: general purpose */
+#define GZVM_REG_TYPE_GENERAL	(0x10 << GZVM_REG_TYPE_SHIFT)
 
 /* GZVM ioctls */
 #define GZVM_IOC_MAGIC			0x92	/* gz */
@@ -26,7 +63,7 @@
 
 /*
  * Check if the given capability is supported or not.
- * The argument is capability. Ex. GZVM_CAP_ARM_PROTECTED_VM or GZVM_CAP_ARM_VM_IPA_SIZE
+ * The argument is capability. Ex. GZVM_CAP_PROTECTED_VM or GZVM_CAP_VM_GPA_SIZE
  * return is 0 (supported, no error)
  * return is -EOPNOTSUPP (unsupported)
  * return is -EFAULT (failed to get the argument from userspace)
@@ -150,6 +187,12 @@ enum {
 	GZVM_EXIT_GZ = 0x9292000a,
 };
 
+/* exception definitions of GZVM_EXIT_EXCEPTION */
+enum {
+	GZVM_EXCEPTION_UNKNOWN = 0x0,
+	GZVM_EXCEPTION_PAGE_FAULT = 0x1,
+};
+
 /**
  * struct gzvm_vcpu_run: Same purpose as kvm_run, this struct is
  *			shared between userspace, kernel and
@@ -174,6 +217,9 @@ enum {
  *             Handle exception occurred in VM
  * @exception: Which exception vector
  * @error_code: Exception error codes
+ * @fault_gpa: Fault GPA (guest physical address or IPA in ARM)
+ * @reserved: Future-proof reservation and reset to zero in hypervisor.
+ *            Fill up to the union size, 256 bytes.
  * @hypercall: The nested struct in anonymous union.
  *             Some hypercalls issued from VM must be handled
  * @args: The hypercall's arguments
@@ -220,6 +266,8 @@ struct gzvm_vcpu_run {
 		struct {
 			__u32 exception;
 			__u32 error_code;
+			__u64 fault_gpa;
+			__u64 reserved[30];
 		} exception;
 		/* GZVM_EXIT_HYPERCALL */
 		struct {
@@ -248,14 +296,13 @@ struct gzvm_vcpu_run {
 	};
 };
 
-/* for GZVM_ENABLE_CAP */
+/**
+ * struct gzvm_enable_cap: The `capability support` on GenieZone hypervisor
+ * @cap: `GZVM_CAP_ARM_PROTECTED_VM` or `GZVM_CAP_ARM_VM_IPA_SIZE`
+ * @args: x3-x7 registers can be used for additional args
+ */
 struct gzvm_enable_cap {
-	/* in */
 	__u64 cap;
-	/**
-	 * we have total 5 (8 - 3) registers can be used for
-	 * additional args
-	 */
 	__u64 args[5];
 };
 
