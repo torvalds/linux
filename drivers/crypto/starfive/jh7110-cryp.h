@@ -50,8 +50,6 @@ union starfive_aes_csr {
 		u32 ccm_start			:1;
 #define STARFIVE_AES_MODE_ECB			0x0
 #define STARFIVE_AES_MODE_CBC			0x1
-#define STARFIVE_AES_MODE_CFB			0x2
-#define STARFIVE_AES_MODE_OFB			0x3
 #define STARFIVE_AES_MODE_CTR			0x4
 #define STARFIVE_AES_MODE_CCM			0x5
 #define STARFIVE_AES_MODE_GCM			0x6
