@@ -17815,7 +17815,7 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
-			   struct cfg80211_rx_assoc_resp_data *data)
+			   const struct cfg80211_rx_assoc_resp_data *data)
 {
 	struct nl80211_mlme_event event = {
 		.cmd = NL80211_CMD_ASSOCIATE,
