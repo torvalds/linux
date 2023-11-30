@@ -331,13 +331,6 @@ void do_genex(struct pt_regs *regs)
 	}
 }
 
-/* Indirect system call dispatch */
-long sys_syscall(void)
-{
-	printk(KERN_ERR "sys_syscall invoked!\n");
-	return -ENOSYS;
-}
-
 void do_trap0(struct pt_regs *regs)
 {
 	syscall_fn syscall;
