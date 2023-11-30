@@ -149,10 +149,6 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
 		return -EINVAL;
 
-	/* Test the floating-point-control word. */
-	if (test_fp_ctl(user_sregs.fpregs.fpc))
-		return -EINVAL;
-
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~(PSW_MASK_USER | PSW_MASK_RI)) |
 		(user_sregs.regs.psw.mask & (PSW_MASK_USER | PSW_MASK_RI));

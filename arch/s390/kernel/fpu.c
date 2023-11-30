@@ -177,10 +177,10 @@ EXPORT_SYMBOL(__kernel_fpu_end);
 
 void __load_fpu_regs(void)
 {
-	struct fpu *state = &current->thread.fpu;
 	unsigned long *regs = current->thread.fpu.regs;
+	struct fpu *state = &current->thread.fpu;
 
-	asm volatile("lfpc %0" : : "Q" (state->fpc));
+	sfpc_safe(state->fpc);
 	if (likely(MACHINE_HAS_VX)) {
 		asm volatile("lgr	1,%0\n"
 			     "VLM	0,15,0,1\n"
