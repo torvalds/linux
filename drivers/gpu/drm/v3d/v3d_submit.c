@@ -329,6 +329,11 @@ v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 	struct v3d_submit_ext *se = data;
 	int ret;
 
+	if (se->in_sync_count || se->out_sync_count) {
+		DRM_DEBUG("Two multisync extensions were added to the same job.");
+		return -EINVAL;
+	}
+
 	if (copy_from_user(&multisync, ext, sizeof(multisync)))
 		return -EFAULT;
 
