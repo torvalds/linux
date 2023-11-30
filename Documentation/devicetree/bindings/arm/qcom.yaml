@@ -87,6 +87,7 @@ description: |
         sm8350
         sm8450
         sm8550
+        sm8650
 
   The 'board' element must be one of the following strings:
 
@@ -1038,6 +1039,12 @@ properties:
               - qcom,sm8550-mtp
               - qcom,sm8550-qrd
           - const: qcom,sm8550
+
+      - items:
+          - enum:
+              - qcom,sm8650-mtp
+              - qcom,sm8650-qrd
+          - const: qcom,sm8650
 
   # Board compatibles go above
 
