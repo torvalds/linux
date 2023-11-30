@@ -76,7 +76,9 @@ EoHEADER
 
 # Create list of architectures that have a specific errno.h.
 archlist=""
-for arch in $(find $toolsdir/arch -maxdepth 1 -mindepth 1 -type d -printf "%f\n" | sort -r); do
+for f in $toolsdir/arch/*/include/uapi/asm/errno.h; do
+	d=${f%/include/uapi/asm/errno.h}
+	arch="${d##*/}"
 	test -f $toolsdir/arch/$arch/include/uapi/asm/errno.h && archlist="$archlist $arch"
 done
 
