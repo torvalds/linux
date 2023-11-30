@@ -214,7 +214,7 @@ static inline int scm_recv_one_fd(struct file *f, int __user *ufd,
 {
 	if (!ufd)
 		return -EFAULT;
-	return __receive_fd(f, ufd, flags);
+	return receive_fd(f, ufd, flags);
 }
 
 #endif /* __LINUX_NET_SCM_H */
