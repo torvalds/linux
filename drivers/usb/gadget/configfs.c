@@ -812,7 +812,7 @@ static ssize_t gadget_string_s_show(struct config_item *item, char *page)
 	struct gadget_string *string = to_gadget_string(item);
 	int ret;
 
-	ret = snprintf(page, sizeof(string->string), "%s\n", string->string);
+	ret = sysfs_emit(page, "%s\n", string->string);
 	return ret;
 }
 
