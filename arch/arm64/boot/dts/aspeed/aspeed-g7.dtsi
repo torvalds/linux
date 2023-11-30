@@ -248,8 +248,8 @@
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			resets = <&soc0_rst ASPEED_RESET_P0_XHCI>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&pinctrl_usb3axh_default &pinctrl_usb2axh_default>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb3axh_default &pinctrl_usb2axh_default>;
 			dr_mode = "host";
 			status = "disabled";
 		};
@@ -280,8 +280,8 @@
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
 			resets = <&soc0_rst ASPEED_RESET_P1_XHCI>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&pinctrl_usb3bxh_default &pinctrl_usb2bxh_default>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb3bxh_default &pinctrl_usb2bxh_default>;
 			dr_mode = "host";
 			status = "disabled";
 		};
@@ -304,6 +304,8 @@
 			resets = <&soc0_rst ASPEED_RESET_P0_USB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ad0_default>;
 			status = "disabled";
 		};
 
@@ -313,8 +315,8 @@
 			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB0CLK>;
 			resets = <&soc0_rst ASPEED_RESET_P0_USB2>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&pinctrl_usb2ah_default>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2ah_default>;
 			status = "disabled";
 		};
 
@@ -326,6 +328,8 @@
 			resets = <&soc0_rst ASPEED_RESET_P1_USB2>;
 			aspeed,vhub-downstream-ports = <7>;
 			aspeed,vhub-generic-endpoints = <21>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bd0_default>;
 			status = "disabled";
 		};
 
@@ -335,8 +339,8 @@
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&soc0_clk AST2700_SOC0_CLK_GATE_USB2CLK>;
 			resets = <&soc0_rst ASPEED_RESET_P1_USB2>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&pinctrl_usb2bh_default>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_usb2bh_default>;
 			status = "disabled";
 		};
 

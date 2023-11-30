@@ -543,10 +543,24 @@
 	status = "okay";
 };
 
+&ehci1 {
+	status = "okay";
+};
+
 &uhci {
 	status = "okay";
 };
 
+#endif
+
+#if 1
+&phy3a {
+	status = "okay";
+};
+
+&phy3b {
+	status = "okay";
+};
 #endif
 
 #if 0
@@ -570,15 +584,17 @@
 
 #endif
 
+#if 0
+&vhuba0 {
+	status = "okay";
+};
+
+&vhubb0 {
+	status = "okay";
+};
+#endif
+
 #if 1
-&phy3a {
-	status = "okay";
-};
-
-&phy3b {
-	status = "okay";
-};
-
 &usb3ahp {
 	status = "okay";
 };
