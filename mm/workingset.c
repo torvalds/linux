@@ -615,12 +615,12 @@ void workingset_update_node(struct xa_node *node)
 
 	if (node->count && node->count == node->nr_values) {
 		if (list_empty(&node->private_list)) {
-			list_lru_add(&shadow_nodes, &node->private_list);
+			list_lru_add_obj(&shadow_nodes, &node->private_list);
 			__inc_lruvec_kmem_state(node, WORKINGSET_NODES);
 		}
 	} else {
 		if (!list_empty(&node->private_list)) {
-			list_lru_del(&shadow_nodes, &node->private_list);
+			list_lru_del_obj(&shadow_nodes, &node->private_list);
 			__dec_lruvec_kmem_state(node, WORKINGSET_NODES);
 		}
 	}

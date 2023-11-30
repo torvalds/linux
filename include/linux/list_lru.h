@@ -75,6 +75,8 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
  * list_lru_add: add an element to the lru list's tail
  * @lru: the lru pointer
  * @item: the item to be added.
+ * @nid: the node id of the sublist to add the item to.
+ * @memcg: the cgroup of the sublist to add the item to.
  *
  * If the element is already part of a list, this function returns doing
  * nothing. Therefore the caller does not need to keep state about whether or
@@ -87,12 +89,28 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
  *
  * Return: true if the list was updated, false otherwise
  */
-bool list_lru_add(struct list_lru *lru, struct list_head *item);
+bool list_lru_add(struct list_lru *lru, struct list_head *item, int nid,
+		    struct mem_cgroup *memcg);
 
 /**
- * list_lru_del: delete an element to the lru list
+ * list_lru_add_obj: add an element to the lru list's tail
+ * @lru: the lru pointer
+ * @item: the item to be added.
+ *
+ * This function is similar to list_lru_add(), but the NUMA node and the
+ * memcg of the sublist is determined by @item list_head. This assumption is
+ * valid for slab objects LRU such as dentries, inodes, etc.
+ *
+ * Return value: true if the list was updated, false otherwise
+ */
+bool list_lru_add_obj(struct list_lru *lru, struct list_head *item);
+
+/**
+ * list_lru_del: delete an element from the lru list
  * @lru: the lru pointer
  * @item: the item to be deleted.
+ * @nid: the node id of the sublist to delete the item from.
+ * @memcg: the cgroup of the sublist to delete the item from.
  *
  * This function works analogously as list_lru_add() in terms of list
  * manipulation. The comments about an element already pertaining to
@@ -100,7 +118,21 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item);
  *
  * Return: true if the list was updated, false otherwise
  */
-bool list_lru_del(struct list_lru *lru, struct list_head *item);
+bool list_lru_del(struct list_lru *lru, struct list_head *item, int nid,
+		    struct mem_cgroup *memcg);
+
+/**
+ * list_lru_del_obj: delete an element from the lru list
+ * @lru: the lru pointer
+ * @item: the item to be deleted.
+ *
+ * This function is similar to list_lru_del(), but the NUMA node and the
+ * memcg of the sublist is determined by @item list_head. This assumption is
+ * valid for slab objects LRU such as dentries, inodes, etc.
+ *
+ * Return value: true if the list was updated, false otherwise.
+ */
+bool list_lru_del_obj(struct list_lru *lru, struct list_head *item);
 
 /**
  * list_lru_count_one: return the number of objects currently held by @lru
@@ -138,6 +170,22 @@ static inline unsigned long list_lru_count(struct list_lru *lru)
 void list_lru_isolate(struct list_lru_one *list, struct list_head *item);
 void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
 			   struct list_head *head);
+/**
+ * list_lru_putback: undo list_lru_isolate
+ * @lru: the lru pointer.
+ * @item: the item to put back.
+ * @nid: the node id of the sublist to put the item back to.
+ * @memcg: the cgroup of the sublist to put the item back to.
+ *
+ * Put back an isolated item into its original LRU. Note that unlike
+ * list_lru_add, this does not increment the node LRU count (as
+ * list_lru_isolate does not originally decrement this count).
+ *
+ * Since we might have dropped the LRU lock in between, recompute list_lru_one
+ * from the node's id and memcg.
+ */
+void list_lru_putback(struct list_lru *lru, struct list_head *item, int nid,
+		      struct mem_cgroup *memcg);
 
 typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
 		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
