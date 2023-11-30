@@ -371,6 +371,31 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
 		return ret;
 
 	xchan->busy = true;
+
+	return 0;
+}
+
+/**
+ * xdma_xfer_stop - Stop DMA transfer
+ * @xchan: DMA channel pointer
+ */
+static int xdma_xfer_stop(struct xdma_chan *xchan)
+{
+	struct virt_dma_desc *vd = vchan_next_desc(&xchan->vchan);
+	struct xdma_device *xdev = xchan->xdev_hdl;
+	int ret;
+
+	if (!vd || !xchan->busy)
+		return -EINVAL;
+
+	/* clear run stop bit to prevent any further auto-triggering */
+	ret = regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_CONTROL_W1C,
+			   CHAN_CTRL_RUN_STOP);
+	if (ret)
+		return ret;
+
+	xchan->busy = false;
+
 	return 0;
 }
 
@@ -473,6 +498,47 @@ static void xdma_issue_pending(struct dma_chan *chan)
 	if (vchan_issue_pending(&xdma_chan->vchan))
 		xdma_xfer_start(xdma_chan);
 	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
+}
+
+/**
+ * xdma_terminate_all - Terminate all transactions
+ * @chan: DMA channel pointer
+ */
+static int xdma_terminate_all(struct dma_chan *chan)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct xdma_desc *desc = NULL;
+	struct virt_dma_desc *vd;
+	unsigned long flags;
+	LIST_HEAD(head);
+
+	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
+	xdma_xfer_stop(xdma_chan);
+
+	vd = vchan_next_desc(&xdma_chan->vchan);
+	if (vd)
+		desc = to_xdma_desc(vd);
+	if (desc) {
+		dma_cookie_complete(&desc->vdesc.tx);
+		vchan_terminate_vdesc(&desc->vdesc);
+	}
+
+	vchan_get_all_descriptors(&xdma_chan->vchan, &head);
+	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
+	vchan_dma_desc_free_list(&xdma_chan->vchan, &head);
+
+	return 0;
+}
+
+/**
+ * xdma_synchronize - Synchronize terminated transactions
+ * @chan: DMA channel pointer
+ */
+static void xdma_synchronize(struct dma_chan *chan)
+{
+	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+
+	vchan_synchronize(&xdma_chan->vchan);
 }
 
 /**
@@ -1088,6 +1154,8 @@ static int xdma_probe(struct platform_device *pdev)
 	xdev->dma_dev.device_prep_slave_sg = xdma_prep_device_sg;
 	xdev->dma_dev.device_config = xdma_device_config;
 	xdev->dma_dev.device_issue_pending = xdma_issue_pending;
+	xdev->dma_dev.device_terminate_all = xdma_terminate_all;
+	xdev->dma_dev.device_synchronize = xdma_synchronize;
 	xdev->dma_dev.filter.map = pdata->device_map;
 	xdev->dma_dev.filter.mapcnt = pdata->device_map_cnt;
 	xdev->dma_dev.filter.fn = xdma_filter_fn;
