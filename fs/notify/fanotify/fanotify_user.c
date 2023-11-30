@@ -1199,6 +1199,7 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 						   __kernel_fsid_t *fsid)
 {
 	struct ucounts *ucounts = group->fanotify_data.ucounts;
+	struct fanotify_mark *fan_mark;
 	struct fsnotify_mark *mark;
 	int ret;
 
@@ -1211,17 +1212,26 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 	    !inc_ucount(ucounts->ns, ucounts->uid, UCOUNT_FANOTIFY_MARKS))
 		return ERR_PTR(-ENOSPC);
 
-	mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
-	if (!mark) {
+	fan_mark = kmem_cache_alloc(fanotify_mark_cache, GFP_KERNEL);
+	if (!fan_mark) {
 		ret = -ENOMEM;
 		goto out_dec_ucounts;
 	}
 
+	mark = &fan_mark->fsn_mark;
 	fsnotify_init_mark(mark, group);
 	if (fan_flags & FAN_MARK_EVICTABLE)
 		mark->flags |= FSNOTIFY_MARK_FLAG_NO_IREF;
 
-	ret = fsnotify_add_mark_locked(mark, connp, obj_type, 0, fsid);
+	/* Cache fsid of filesystem containing the marked object */
+	if (fsid) {
+		fan_mark->fsid = *fsid;
+		mark->flags |= FSNOTIFY_MARK_FLAG_HAS_FSID;
+	} else {
+		fan_mark->fsid.val[0] = fan_mark->fsid.val[1] = 0;
+	}
+
+	ret = fsnotify_add_mark_locked(mark, connp, obj_type, 0);
 	if (ret) {
 		fsnotify_put_mark(mark);
 		goto out_dec_ucounts;
@@ -1935,7 +1945,7 @@ static int __init fanotify_user_setup(void)
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_INIT_FLAGS) != 12);
 	BUILD_BUG_ON(HWEIGHT32(FANOTIFY_MARK_FLAGS) != 11);
 
-	fanotify_mark_cache = KMEM_CACHE(fsnotify_mark,
+	fanotify_mark_cache = KMEM_CACHE(fanotify_mark,
 					 SLAB_PANIC|SLAB_ACCOUNT);
 	fanotify_fid_event_cachep = KMEM_CACHE(fanotify_fid_event,
 					       SLAB_PANIC);
