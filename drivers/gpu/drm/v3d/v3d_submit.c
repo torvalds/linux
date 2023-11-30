@@ -323,10 +323,9 @@ fail:
 static int
 v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 			      struct drm_v3d_extension __user *ext,
-			      void *data)
+			      struct v3d_submit_ext *se)
 {
 	struct drm_v3d_multi_sync multisync;
-	struct v3d_submit_ext *se = data;
 	int ret;
 
 	if (se->in_sync_count || se->out_sync_count) {
@@ -340,7 +339,7 @@ v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 	if (multisync.pad)
 		return -EINVAL;
 
-	ret = v3d_get_multisync_post_deps(file_priv, data, multisync.out_sync_count,
+	ret = v3d_get_multisync_post_deps(file_priv, se, multisync.out_sync_count,
 					  multisync.out_syncs);
 	if (ret)
 		return ret;
@@ -359,7 +358,8 @@ v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 static int
 v3d_get_extensions(struct drm_file *file_priv,
 		   u64 ext_handles,
-		   void *data)
+		   struct v3d_submit_ext *se,
+		   struct v3d_cpu_job *job)
 {
 	struct drm_v3d_extension __user *user_ext;
 	int ret;
@@ -375,14 +375,15 @@ v3d_get_extensions(struct drm_file *file_priv,
 
 		switch (ext.id) {
 		case DRM_V3D_EXT_ID_MULTI_SYNC:
-			ret = v3d_get_multisync_submit_deps(file_priv, user_ext, data);
-			if (ret)
-				return ret;
+			ret = v3d_get_multisync_submit_deps(file_priv, user_ext, se);
 			break;
 		default:
 			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
 			return -EINVAL;
 		}
+
+		if (ret)
+			return ret;
 
 		user_ext = u64_to_user_ptr(ext.next);
 	}
@@ -430,7 +431,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions, &se);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se, NULL);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -585,7 +586,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions, &se);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se, NULL);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -692,7 +693,7 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions, &se);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se, NULL);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			return ret;
@@ -805,7 +806,7 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 		return ret;
 
 	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
-		ret = v3d_get_extensions(file_priv, args->extensions, &se);
+		ret = v3d_get_extensions(file_priv, args->extensions, &se, cpu_job);
 		if (ret) {
 			DRM_DEBUG("Failed to get extensions.\n");
 			goto fail;
