@@ -18,6 +18,7 @@
 #include <linux/module.h>
 
 #include <asm/hexagon_vm.h>
+#include <asm/time.h>
 
 #define TIMER_ENABLE		BIT(0)
 
