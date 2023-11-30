@@ -7,6 +7,7 @@
 
 #include "generated/xe_wa_oob.h"
 #include "instructions/xe_mi_commands.h"
+#include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
@@ -184,6 +185,23 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 	return i;
 }
 
+static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int i)
+{
+	if (hwe->class != XE_ENGINE_CLASS_RENDER)
+		return i;
+
+	if (XE_WA(hwe->gt, 16020292621)) {
+		dw[i++] = GFX_OP_PIPE_CONTROL(6);
+		dw[i++] = PIPE_CONTROL_LRI_POST_SYNC;
+		dw[i++] = RING_NOPID(hwe->mmio_base).addr;
+		dw[i++] = 0;
+		dw[i++] = 0;
+		dw[i++] = 0;
+	}
+
+	return i;
+}
+
 static int emit_pipe_imm_ggtt(u32 addr, u32 value, bool stall_only, u32 *dw,
 			      int i)
 {
@@ -341,6 +359,8 @@ static void __emit_job_gen12_render_compute(struct xe_sched_job *job,
 	i = emit_pipe_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, lacks_render, dw, i);
 
 	i = emit_user_interrupt(dw, i);
+
+	i = emit_pipe_control_to_ring_end(job->q->hwe, dw, i);
 
 	xe_gt_assert(gt, i <= MAX_JOB_SIZE_DW);
 
