@@ -167,7 +167,8 @@ examples:
   - |
     #include <dt-bindings/iio/qcom,spmi-vadc.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    spmi_bus {
+
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         pm8150b_adc: adc@3100 {
@@ -207,7 +208,8 @@ examples:
     #include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
     #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    spmi_bus {
+
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         pmk8350_vadc: adc@3100 {

@@ -114,7 +114,8 @@ examples:
   - |
     #include <dt-bindings/iio/qcom,spmi-vadc.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    spmi_bus {
+
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         pm8998_adc: adc@3100 {
