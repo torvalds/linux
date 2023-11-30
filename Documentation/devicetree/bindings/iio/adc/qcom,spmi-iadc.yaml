@@ -25,7 +25,7 @@ properties:
       - const: qcom,spmi-iadc
 
   reg:
-    description: IADC base address and length in the SPMI PMIC register map
+    description: IADC base address in the SPMI PMIC register map
     maxItems: 1
 
   qcom,external-resistor-micro-ohms:
