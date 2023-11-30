@@ -441,6 +441,11 @@ static int check_bp_exists(struct btree_trans *trans,
 	    memcmp(bkey_s_c_to_backpointer(bp_k).v, &bp, sizeof(bp))) {
 		if (last_flushed->level != bp.level ||
 		    !bpos_eq(last_flushed->pos, orig_k.k->p)) {
+			if (bp.level) {
+				bch2_trans_unlock(trans);
+				bch2_btree_interior_updates_flush(c);
+			}
+
 			ret = bch2_btree_write_buffer_flush_sync(trans);
 			if (ret)
 				goto err;
