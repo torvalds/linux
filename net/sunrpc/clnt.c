@@ -797,15 +797,24 @@ out_revert:
 }
 EXPORT_SYMBOL_GPL(rpc_switch_client_transport);
 
-static
-int _rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi,
-			     void func(struct rpc_xprt_iter *xpi, struct rpc_xprt_switch *xps))
+static struct rpc_xprt_switch *rpc_clnt_xprt_switch_get(struct rpc_clnt *clnt)
 {
 	struct rpc_xprt_switch *xps;
 
 	rcu_read_lock();
 	xps = xprt_switch_get(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
 	rcu_read_unlock();
+
+	return xps;
+}
+
+static
+int _rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi,
+			     void func(struct rpc_xprt_iter *xpi, struct rpc_xprt_switch *xps))
+{
+	struct rpc_xprt_switch *xps;
+
+	xps = rpc_clnt_xprt_switch_get(clnt);
 	if (xps == NULL)
 		return -EAGAIN;
 	func(xpi, xps);
@@ -2206,9 +2215,7 @@ call_connect_status(struct rpc_task *task)
 			struct rpc_xprt *saved = task->tk_xprt;
 			struct rpc_xprt_switch *xps;
 
-			rcu_read_lock();
-			xps = xprt_switch_get(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
-			rcu_read_unlock();
+			xps = rpc_clnt_xprt_switch_get(clnt);
 			if (xps->xps_nxprts > 1) {
 				long value;
 
@@ -3251,22 +3258,23 @@ void rpc_clnt_xprt_set_online(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 {
 	struct rpc_xprt_switch *xps;
 
-	rcu_read_lock();
-	xps = rcu_dereference(clnt->cl_xpi.xpi_xpswitch);
-	rcu_read_unlock();
+	xps = rpc_clnt_xprt_switch_get(clnt);
 	xprt_set_online_locked(xprt, xps);
+	xprt_switch_put(xps);
 }
 
 void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 {
+	struct rpc_xprt_switch *xps;
+
 	if (rpc_clnt_xprt_switch_has_addr(clnt,
 		(const struct sockaddr *)&xprt->addr)) {
 		return rpc_clnt_xprt_set_online(clnt, xprt);
 	}
-	rcu_read_lock();
-	rpc_xprt_switch_add_xprt(rcu_dereference(clnt->cl_xpi.xpi_xpswitch),
-				 xprt);
-	rcu_read_unlock();
+
+	xps = rpc_clnt_xprt_switch_get(clnt);
+	rpc_xprt_switch_add_xprt(xps, xprt);
+	xprt_switch_put(xps);
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_add_xprt);
 
