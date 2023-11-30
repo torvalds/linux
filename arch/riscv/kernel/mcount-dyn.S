@@ -229,6 +229,7 @@ SYM_FUNC_END(ftrace_caller)
 
 #else /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
 SYM_FUNC_START(ftrace_regs_caller)
+	mv	t1, zero
 	SAVE_ABI_REGS 1
 	PREPARE_ARGS
 
@@ -236,7 +237,10 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	call	ftrace_stub
 
 	RESTORE_ABI_REGS 1
+	bnez	t1, .Ldirect
 	jr	t0
+.Ldirect:
+	jr	t1
 SYM_FUNC_END(ftrace_regs_caller)
 
 SYM_FUNC_START(ftrace_caller)
@@ -250,3 +254,9 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
 	jr	t0
 SYM_FUNC_END(ftrace_caller)
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+SYM_CODE_START(ftrace_stub_direct_tramp)
+	jr	t0
+SYM_CODE_END(ftrace_stub_direct_tramp)
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
