@@ -320,6 +320,7 @@ enum v3d_cpu_job_type {
 	V3D_CPU_JOB_TYPE_INDIRECT_CSD = 1,
 	V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY,
 	V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY,
+	V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY,
 };
 
 struct v3d_timestamp_query {
@@ -361,6 +362,23 @@ struct v3d_timestamp_query_info {
 	u32 count;
 };
 
+struct v3d_copy_query_results_info {
+	/* Define if should write to buffer using 64 or 32 bits */
+	bool do_64bit;
+
+	/* Define if it can write to buffer even if the query is not available */
+	bool do_partial;
+
+	/* Define if it should write availability bit to buffer */
+	bool availability_bit;
+
+	/* Offset of the copy buffer in the BO */
+	u32 offset;
+
+	/* Stride of the copy buffer in the BO */
+	u32 stride;
+};
+
 struct v3d_cpu_job {
 	struct v3d_job base;
 
@@ -369,6 +387,8 @@ struct v3d_cpu_job {
 	struct v3d_indirect_csd_info indirect_csd;
 
 	struct v3d_timestamp_query_info timestamp_query;
+
+	struct v3d_copy_query_results_info copy;
 };
 
 typedef void (*v3d_cpu_job_fn)(struct v3d_cpu_job *);

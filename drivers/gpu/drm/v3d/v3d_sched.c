@@ -362,10 +362,66 @@ v3d_reset_timestamp_queries(struct v3d_cpu_job *job)
 	v3d_put_bo_vaddr(bo);
 }
 
+static void
+write_to_buffer(void *dst, u32 idx, bool do_64bit, u64 value)
+{
+	if (do_64bit) {
+		u64 *dst64 = (u64 *)dst;
+
+		dst64[idx] = value;
+	} else {
+		u32 *dst32 = (u32 *)dst;
+
+		dst32[idx] = (u32)value;
+	}
+}
+
+static void
+v3d_copy_query_results(struct v3d_cpu_job *job)
+{
+	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_timestamp_query *queries = timestamp_query->queries;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct v3d_bo *timestamp = to_v3d_bo(job->base.bo[1]);
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct dma_fence *fence;
+	u8 *query_addr;
+	bool available, write_result;
+	u8 *data;
+	int i;
+
+	v3d_get_bo_vaddr(bo);
+	v3d_get_bo_vaddr(timestamp);
+
+	data = ((u8 *)bo->vaddr) + copy->offset;
+
+	for (i = 0; i < timestamp_query->count; i++) {
+		fence = drm_syncobj_fence_get(queries[i].syncobj);
+		available = fence ? dma_fence_is_signaled(fence) : false;
+
+		write_result = available || copy->do_partial;
+		if (write_result) {
+			query_addr = ((u8 *)timestamp->vaddr) + queries[i].offset;
+			write_to_buffer(data, 0, copy->do_64bit, *((u64 *)query_addr));
+		}
+
+		if (copy->availability_bit)
+			write_to_buffer(data, 1, copy->do_64bit, available ? 1u : 0u);
+
+		data += copy->stride;
+
+		dma_fence_put(fence);
+	}
+
+	v3d_put_bo_vaddr(timestamp);
+	v3d_put_bo_vaddr(bo);
+}
+
 static const v3d_cpu_job_fn cpu_job_function[] = {
 	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = v3d_rewrite_csd_job_wg_counts_from_indirect,
 	[V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY] = v3d_timestamp_query,
 	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = v3d_reset_timestamp_queries,
+	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = v3d_copy_query_results,
 };
 
 static struct dma_fence *

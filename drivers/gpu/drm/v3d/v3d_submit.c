@@ -539,6 +539,71 @@ v3d_get_cpu_reset_timestamp_params(struct drm_file *file_priv,
 	return 0;
 }
 
+/* Get data for the copy timestamp query results job submission. */
+static int
+v3d_get_cpu_copy_query_results_params(struct drm_file *file_priv,
+				      struct drm_v3d_extension __user *ext,
+				      struct v3d_cpu_job *job)
+{
+	u32 __user *offsets, *syncs;
+	struct drm_v3d_copy_timestamp_query copy;
+	int i;
+
+	if (!job) {
+		DRM_DEBUG("CPU job extension was attached to a GPU job.\n");
+		return -EINVAL;
+	}
+
+	if (job->job_type) {
+		DRM_DEBUG("Two CPU job extensions were added to the same CPU job.\n");
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&copy, ext, sizeof(copy)))
+		return -EFAULT;
+
+	if (copy.pad)
+		return -EINVAL;
+
+	job->job_type = V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY;
+
+	job->timestamp_query.queries = kvmalloc_array(copy.count,
+						      sizeof(struct v3d_timestamp_query),
+						      GFP_KERNEL);
+	if (!job->timestamp_query.queries)
+		return -ENOMEM;
+
+	offsets = u64_to_user_ptr(copy.offsets);
+	syncs = u64_to_user_ptr(copy.syncs);
+
+	for (i = 0; i < copy.count; i++) {
+		u32 offset, sync;
+
+		if (copy_from_user(&offset, offsets++, sizeof(offset))) {
+			kvfree(job->timestamp_query.queries);
+			return -EFAULT;
+		}
+
+		job->timestamp_query.queries[i].offset = offset;
+
+		if (copy_from_user(&sync, syncs++, sizeof(sync))) {
+			kvfree(job->timestamp_query.queries);
+			return -EFAULT;
+		}
+
+		job->timestamp_query.queries[i].syncobj = drm_syncobj_find(file_priv, sync);
+	}
+	job->timestamp_query.count = copy.count;
+
+	job->copy.do_64bit = copy.do_64bit;
+	job->copy.do_partial = copy.do_partial;
+	job->copy.availability_bit = copy.availability_bit;
+	job->copy.offset = copy.offset;
+	job->copy.stride = copy.stride;
+
+	return 0;
+}
+
 /* Whenever userspace sets ioctl extensions, v3d_get_extensions parses data
  * according to the extension id (name).
  */
@@ -572,6 +637,9 @@ v3d_get_extensions(struct drm_file *file_priv,
 			break;
 		case DRM_V3D_EXT_ID_CPU_RESET_TIMESTAMP_QUERY:
 			ret = v3d_get_cpu_reset_timestamp_params(file_priv, user_ext, job);
+			break;
+		case DRM_V3D_EXT_ID_CPU_COPY_TIMESTAMP_QUERY:
+			ret = v3d_get_cpu_copy_query_results_params(file_priv, user_ext, job);
 			break;
 		default:
 			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
@@ -951,6 +1019,7 @@ static const unsigned int cpu_job_bo_handle_count[] = {
 	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = 1,
 	[V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY] = 1,
 	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = 1,
+	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = 2,
 };
 
 /**
