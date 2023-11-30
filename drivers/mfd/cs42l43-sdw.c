@@ -6,11 +6,11 @@
  *                         Cirrus Logic International Semiconductor Ltd.
  */
 
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/mfd/cs42l43-regs.h>
 #include <linux/module.h>
-#include <linux/device.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw_type.h>
