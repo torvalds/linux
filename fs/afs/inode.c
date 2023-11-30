@@ -629,10 +629,10 @@ bool afs_check_validity(struct afs_vnode *vnode)
 	enum afs_cb_break_reason need_clear = afs_cb_break_no_break;
 	time64_t now = ktime_get_real_seconds();
 	unsigned int cb_break;
-	int seq = 0;
+	int seq;
 
 	do {
-		read_seqbegin_or_lock(&vnode->cb_lock, &seq);
+		seq = read_seqbegin(&vnode->cb_lock);
 		cb_break = vnode->cb_break;
 
 		if (test_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
@@ -650,9 +650,7 @@ bool afs_check_validity(struct afs_vnode *vnode)
 			need_clear = afs_cb_break_no_promise;
 		}
 
-	} while (need_seqretry(&vnode->cb_lock, seq));
-
-	done_seqretry(&vnode->cb_lock, seq);
+	} while (read_seqretry(&vnode->cb_lock, seq));
 
 	if (need_clear == afs_cb_break_no_break)
 		return true;
@@ -755,7 +753,7 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	struct inode *inode = d_inode(path->dentry);
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	struct key *key;
-	int ret, seq = 0;
+	int ret, seq;
 
 	_enter("{ ino=%lu v=%u }", inode->i_ino, inode->i_generation);
 
@@ -772,7 +770,7 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	}
 
 	do {
-		read_seqbegin_or_lock(&vnode->cb_lock, &seq);
+		seq = read_seqbegin(&vnode->cb_lock);
 		generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
 		if (test_bit(AFS_VNODE_SILLY_DELETED, &vnode->flags) &&
 		    stat->nlink > 0)
@@ -784,9 +782,8 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 */
 		if (S_ISDIR(inode->i_mode))
 			stat->size = vnode->netfs.remote_i_size;
-	} while (need_seqretry(&vnode->cb_lock, seq));
+	} while (read_seqretry(&vnode->cb_lock, seq));
 
-	done_seqretry(&vnode->cb_lock, seq);
 	return 0;
 }
 
