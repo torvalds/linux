@@ -7,6 +7,7 @@
 #include <linux/idr.h>
 #include <linux/namei.h>
 #include <linux/user_namespace.h>
+#include <linux/security.h>
 
 bool bpf_token_capable(const struct bpf_token *token, int cap)
 {
@@ -14,10 +15,9 @@ bool bpf_token_capable(const struct bpf_token *token, int cap)
 	 * token's userns is *exactly* the same as current user's userns
 	 */
 	if (token && current_user_ns() == token->userns) {
-		if (ns_capable(token->userns, cap))
-			return true;
-		if (cap != CAP_SYS_ADMIN && ns_capable(token->userns, CAP_SYS_ADMIN))
-			return true;
+		if (ns_capable(token->userns, cap) ||
+		    (cap != CAP_SYS_ADMIN && ns_capable(token->userns, CAP_SYS_ADMIN)))
+			return security_bpf_token_capable(token, cap) == 0;
 	}
 	/* otherwise fallback to capable() checks */
 	return capable(cap) || (cap != CAP_SYS_ADMIN && capable(CAP_SYS_ADMIN));
@@ -30,6 +30,7 @@ void bpf_token_inc(struct bpf_token *token)
 
 static void bpf_token_free(struct bpf_token *token)
 {
+	security_bpf_token_free(token);
 	put_user_ns(token->userns);
 	kvfree(token);
 }
@@ -186,6 +187,10 @@ int bpf_token_create(union bpf_attr *attr)
 	token->allowed_progs = mnt_opts->delegate_progs;
 	token->allowed_attachs = mnt_opts->delegate_attachs;
 
+	err = security_bpf_token_create(token, attr, &path);
+	if (err)
+		goto out_token;
+
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0) {
 		err = fd;
@@ -233,8 +238,9 @@ bool bpf_token_allow_cmd(const struct bpf_token *token, enum bpf_cmd cmd)
 	 */
 	if (!token || current_user_ns() != token->userns)
 		return false;
-
-	return token->allowed_cmds & (1ULL << cmd);
+	if (!(token->allowed_cmds & (1ULL << cmd)))
+		return false;
+	return security_bpf_token_cmd(token, cmd) == 0;
 }
 
 bool bpf_token_allow_map_type(const struct bpf_token *token, enum bpf_map_type type)
