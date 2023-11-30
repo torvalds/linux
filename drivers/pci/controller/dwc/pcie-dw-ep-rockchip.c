@@ -94,11 +94,13 @@
 #define PCIE_ELBI_LOCAL_BASE		0x200e00
 
 #define PCIE_ELBI_APP_ELBI_INT_GEN0		0x0
-#define PCIE_ELBI_APP_ELBI_INT_GEN0_SIGIO	BIT(0)
+#define PCIE_ELBI_APP_ELBI_INT_GEN0_IRQ_USER	BIT(0)
 
 #define PCIE_ELBI_APP_ELBI_INT_GEN1		0x4
 
 #define PCIE_ELBI_LOCAL_ENABLE_OFF	0x8
+
+#define PCIE_ELBI_USER_DATA_OFF	0x10
 
 #define PCIE_DIRECT_SPEED_CHANGE	BIT(17)
 
@@ -131,12 +133,14 @@ struct rockchip_pcie {
 	u32				ib_target_size[PCIE_BAR_MAX_NUM];
 	void				*ib_target_base[PCIE_BAR_MAX_NUM];
 	struct dma_trx_obj		*dma_obj;
-	struct fasync_struct		*async;
 	phys_addr_t			dbi_base_physical;
 	struct pcie_ep_obj_info		*obj_info;
 	enum pcie_ep_mmap_resource	cur_mmap_res;
 	struct workqueue_struct		*hot_rst_wq;
 	struct work_struct		hot_rst_work;
+	struct mutex			file_mutex;
+	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
+	wait_queue_head_t wq_head;
 };
 
 struct rockchip_pcie_misc_dev {
@@ -642,6 +646,49 @@ static void rockchip_pcie_raise_msi_irq(struct rockchip_pcie *rockchip, u8 inter
 	rockchip_pcie_writel_apb(rockchip, BIT(interrupt_num), PCIE_CLIENT_MSI_GEN_CON);
 }
 
+static int rockchip_pcie_raise_irq_user(struct rockchip_pcie *rockchip, u32 index)
+{
+	if (index >= RKEP_EP_VIRTUAL_ID_MAX) {
+		dev_err(rockchip->pci.dev, "raise irq_user, virtual id %d out of range\n", index);
+
+		return -EINVAL;
+	}
+
+	mutex_lock(&rockchip->file_mutex);
+	rockchip->obj_info->irq_type_rc = OBJ_IRQ_USER;
+	rockchip->obj_info->irq_user_data_rc = index;
+	rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
+	mutex_unlock(&rockchip->file_mutex);
+
+	return 0;
+}
+
+static int rockchip_pcie_poll_irq_user(struct rockchip_pcie *rockchip, struct pcie_ep_obj_poll_virtual_id_cfg *cfg)
+{
+	u32 index = cfg->virtual_id;
+
+	if (index >= RKEP_EP_VIRTUAL_ID_MAX) {
+		dev_err(rockchip->pci.dev, "poll irq_user, virtual id %d out of range\n", index);
+
+		return -EINVAL;
+	}
+
+	cfg->poll_status = NSIGPOLL;
+	if (cfg->sync)
+		wait_event_interruptible(rockchip->wq_head,
+					 test_bit(index, rockchip->virtual_id_irq_bitmap));
+	else
+		wait_event_interruptible_timeout(rockchip->wq_head,
+						 test_bit(index, rockchip->virtual_id_irq_bitmap),
+						 cfg->timeout_ms);
+	if (test_and_clear_bit(index, rockchip->virtual_id_irq_bitmap))
+		cfg->poll_status = POLL_IN;
+
+	dev_dbg(rockchip->pci.dev, "poll virtual id %d, ret=%d\n", index, cfg->poll_status);
+
+	return 0;
+}
+
 static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 {
 	struct rockchip_pcie *rockchip = arg;
@@ -651,14 +698,19 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 	union int_status wr_status, rd_status;
 	union int_clear clears;
 	u32 reg, mask;
-	bool sigio = false;
 
 	/* ELBI helper, only check the valid bits, and discard the rest interrupts */
 	elbi_reg = dw_pcie_readl_dbi(pci, PCIE_ELBI_LOCAL_BASE + PCIE_ELBI_APP_ELBI_INT_GEN0);
-	if (elbi_reg & PCIE_ELBI_APP_ELBI_INT_GEN0_SIGIO) {
-		sigio = true;
-		rockchip->obj_info->irq_type_ep = OBJ_IRQ_ELBI;
+	if (elbi_reg & PCIE_ELBI_APP_ELBI_INT_GEN0_IRQ_USER) {
 		rockchip_pcie_elbi_clear(rockchip);
+
+		if (rockchip->obj_info->irq_type_ep == OBJ_IRQ_USER) {
+			reg = rockchip->obj_info->irq_user_data_ep;
+			if (reg < RKEP_EP_VIRTUAL_ID_MAX) {
+				set_bit(reg, rockchip->virtual_id_irq_bitmap);
+				wake_up_interruptible(&rockchip->wq_head);
+			}
+		}
 		goto out;
 	}
 
@@ -711,15 +763,9 @@ static irqreturn_t rockchip_pcie_sys_irq_handler(int irq, void *arg)
 		rockchip->obj_info->irq_type_ep = OBJ_IRQ_DMA;
 		rockchip->obj_info->dma_status_ep.wr |= wr_status.asdword;
 		rockchip->obj_info->dma_status_ep.rd |= rd_status.asdword;
-		sigio = true;
 	}
 
 out:
-	if (sigio) {
-		dev_dbg(rockchip->pci.dev, "SIGIO\n");
-		kill_fasync(&rockchip->async, SIGIO, POLL_IN);
-	}
-
 	reg = rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_INTR_STATUS_MISC);
 	if (reg & BIT(2))
 		queue_work(rockchip->hot_rst_wq, &rockchip->hot_rst_work);
@@ -944,13 +990,6 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = rockchip_pcie_link_up,
 };
 
-static int pcie_ep_fasync(int fd, struct file *file, int mode)
-{
-	struct rockchip_pcie *rockchip = (struct rockchip_pcie *)file->private_data;
-
-	return fasync_helper(fd, file, mode, &rockchip->async);
-}
-
 static int pcie_ep_open(struct inode *inode, struct file *file)
 {
 	struct miscdevice *miscdev = file->private_data;
@@ -962,18 +1001,14 @@ static int pcie_ep_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int pcie_ep_release(struct inode *inode, struct file *file)
-{
-	return pcie_ep_fasync(-1, file, 0);
-}
-
 static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rockchip_pcie *rockchip = (struct rockchip_pcie *)file->private_data;
 	struct pcie_ep_dma_cache_cfg cfg;
 	void __user *uarg = (void __user *)arg;
-	int i, ret;
+	struct pcie_ep_obj_poll_virtual_id_cfg poll_cfg;
 	enum pcie_ep_mmap_resource mmap_res;
+	int ret, index;
 
 	switch (cmd) {
 	case PCIE_DMA_CACHE_INVALIDE:
@@ -998,8 +1033,7 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		dw_pcie_writel_dbi(&rockchip->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK,
 				   0xffffffff);
 		break;
-	case PCIE_DMA_RAISE_MSI_OBJ_IRQ_USER:
-		rockchip->obj_info->irq_type_rc = OBJ_IRQ_USER;
+	case PCIE_EP_RAISE_MSI:
 		rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
 		break;
 	case PCIE_EP_SET_MMAP_RESOURCE:
@@ -1015,6 +1049,34 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		}
 
 		rockchip->cur_mmap_res = mmap_res;
+		break;
+	case PCIE_EP_RAISE_IRQ_USER:
+		ret = copy_from_user(&index, uarg, sizeof(index));
+		if (ret) {
+			dev_err(rockchip->pci.dev,
+				"failed to get raise irq data copy from userspace\n");
+			return -EFAULT;
+		}
+
+		ret = rockchip_pcie_raise_irq_user(rockchip, index);
+		if (ret < 0)
+			return -EFAULT;
+		break;
+	case PCIE_EP_POLL_IRQ_USER:
+		ret = copy_from_user(&poll_cfg, uarg, sizeof(poll_cfg));
+		if (ret) {
+			dev_err(rockchip->pci.dev,
+				"failed to get poll irq data copy from userspace\n");
+
+			return -EFAULT;
+		}
+
+		ret = rockchip_pcie_poll_irq_user(rockchip, &poll_cfg);
+		if (ret < 0)
+			return -EFAULT;
+
+		if (copy_to_user(uarg, &poll_cfg, sizeof(poll_cfg)))
+			return -EFAULT;
 		break;
 	default:
 		break;
@@ -1076,9 +1138,7 @@ static int pcie_ep_mmap(struct file *file, struct vm_area_struct *vma)
 static const struct file_operations pcie_ep_ops = {
 	.owner = THIS_MODULE,
 	.open = pcie_ep_open,
-	.release = pcie_ep_release,
 	.unlocked_ioctl = pcie_ep_ioctl,
-	.fasync = pcie_ep_fasync,
 	.mmap = pcie_ep_mmap,
 };
 
@@ -1241,12 +1301,14 @@ already_linkup:
 		rockchip->dma_obj->config_dma_func = rockchip_pcie_config_dma_dwc;
 		rockchip->dma_obj->get_dma_status = rockchip_pcie_get_dma_status;
 	}
+	mutex_init(&rockchip->file_mutex);
 
 	/* Enable client ELBI interrupt */
 	rockchip_pcie_writel_apb(rockchip, 0x80000000, PCIE_CLIENT_INTR_MASK);
 	/* Enable ELBI interrupt */
 	rockchip_pcie_local_elbi_enable(rockchip);
 
+	init_waitqueue_head(&rockchip->wq_head);
 	ret = rockchip_pcie_request_sys_irq(rockchip, pdev);
 	if (ret)
 		goto deinit_phy;
