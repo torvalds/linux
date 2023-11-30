@@ -468,7 +468,7 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev, void *pbuf)
 	struct rkisp_isp_params_val_v32 *priv_val;
 	struct rkisp_dummy_buffer *buf;
 	int idx, buf_fd = -1;
-	u32 reg = 0, ctrl;
+	u32 reg = 0, ctrl, mask;
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)dev->params_vdev.priv_val;
 	if (!priv_val->buf_info_owner && priv_val->buf_info_idx >= 0) {
@@ -481,9 +481,11 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev, void *pbuf)
 	if (priv_val->buf_info_owner == RKISP_INFO2DRR_OWNER_GAIN) {
 		reg = ISP3X_GAIN_CTRL;
 		ctrl = ISP3X_GAIN_2DDR_EN;
+		mask = ISP3X_GAIN_2DDR_EN;
 	} else {
 		reg = ISP3X_RAWAWB_CTRL;
 		ctrl = ISP32_RAWAWB_2DDR_PATH_EN;
+		mask = ISP32_RAWAWB_2DDR_PATH_EN | ISP32_RAWAWB_2DDR_PATH_DS;
 	}
 
 	idx = priv_val->buf_info_idx;
@@ -510,6 +512,12 @@ rkisp_stats_info2ddr(struct rkisp_isp_stats_vdev *stats_vdev, void *pbuf)
 		} else if (reg == ISP3X_RAWAWB_CTRL &&
 			   rkisp_read(dev, reg, true) & ISP32_RAWAWB_2DDR_PATH_ERR) {
 			v4l2_warn(&dev->v4l2_dev, "rawawb2ddr path error idx:%d\n", idx);
+		} else {
+			u32 v0 = rkisp_read(dev, reg, false);
+			u32 v1 = rkisp_read_reg_cache(dev, reg);
+
+			if ((v0 & mask) != (v1 & mask))
+				rkisp_write(dev, reg, v0 | (v1 & mask), false);
 		}
 
 		if (buf_fd == -1)

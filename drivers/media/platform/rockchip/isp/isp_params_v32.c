@@ -4284,8 +4284,6 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct rkisp_isp_params_ops_v32 *ops =
 		(struct rkisp_isp_params_ops_v32 *)params_vdev->priv_ops;
-	struct rkisp_isp_params_val_v32 *priv_val =
-		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 	u64 module_cfg_update = new_params->module_cfg_update;
 
 	params_vdev->cur_frame_id = new_params->frame_id;
@@ -4329,9 +4327,7 @@ void __isp_isr_meas_config(struct rkisp_isp_params_vdev *params_vdev,
 	if ((module_cfg_update & ISP32_MODULE_RAWHIST3))
 		ops->rawhst3_config(params_vdev, &new_params->meas.rawhist3, id);
 
-	if ((module_cfg_update & ISP32_MODULE_RAWAWB) ||
-	    ((priv_val->buf_info_owner == RKISP_INFO2DRR_OWNER_AWB) &&
-	     !(isp3_param_read(params_vdev, ISP3X_RAWAWB_CTRL, id) & ISP32_RAWAWB_2DDR_PATH_EN)))
+	if ((module_cfg_update & ISP32_MODULE_RAWAWB))
 		ops->rawawb_config(params_vdev, &new_params->meas.rawawb, id);
 }
 
@@ -5414,18 +5410,18 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 			else if (new_params->module_en_update ||
 				 (new_params->module_cfg_update & ISP32_MODULE_FORCE)) {
 				/* update en immediately */
-				__isp_isr_meas_config(params_vdev, new_params, type, 0);
-				__isp_isr_other_config(params_vdev, new_params, type, 0);
-				__isp_isr_other_en(params_vdev, new_params, type, 0);
-				__isp_isr_meas_en(params_vdev, new_params, type, 0);
+				__isp_isr_meas_config(params_vdev, new_params, RKISP_PARAMS_ALL, 0);
+				__isp_isr_other_config(params_vdev, new_params, RKISP_PARAMS_ALL, 0);
+				__isp_isr_other_en(params_vdev, new_params, RKISP_PARAMS_ALL, 0);
+				__isp_isr_meas_en(params_vdev, new_params, RKISP_PARAMS_ALL, 0);
 				new_params->module_cfg_update = 0;
 				if (hw->unite) {
 					struct isp32_isp_params_cfg *params = new_params + 1;
 
-					__isp_isr_meas_config(params_vdev, params, type, 1);
-					__isp_isr_other_config(params_vdev, params, type, 1);
-					__isp_isr_other_en(params_vdev, params, type, 1);
-					__isp_isr_meas_en(params_vdev, params, type, 1);
+					__isp_isr_meas_config(params_vdev, params, RKISP_PARAMS_ALL, 1);
+					__isp_isr_other_config(params_vdev, params, RKISP_PARAMS_ALL, 1);
+					__isp_isr_other_en(params_vdev, params, RKISP_PARAMS_ALL, 1);
+					__isp_isr_meas_en(params_vdev, params, RKISP_PARAMS_ALL, 1);
 					params->module_cfg_update = 0;
 				}
 			}
