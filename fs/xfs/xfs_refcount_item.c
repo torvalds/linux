@@ -289,9 +289,6 @@ xfs_refcount_update_log_item(
 	uint				next_extent;
 	struct xfs_phys_extent		*pmap;
 
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &cuip->cui_item.li_flags);
-
 	/*
 	 * atomic_inc_return gives us the value after the increment;
 	 * we want to use it as an array index so we need to subtract 1 from

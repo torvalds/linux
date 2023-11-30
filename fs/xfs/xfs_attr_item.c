@@ -319,9 +319,6 @@ xfs_attr_log_item(
 {
 	struct xfs_attri_log_format	*attrp;
 
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &attrip->attri_item.li_flags);
-
 	/*
 	 * At this point the xfs_attr_intent has been constructed, and we've
 	 * created the log intent. Fill in the attri log item and log format
