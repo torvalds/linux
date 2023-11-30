@@ -745,7 +745,6 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	if (!vd)
 		goto out;
 
-	xchan->busy = false;
 	desc = to_xdma_desc(vd);
 	xdev = xchan->xdev_hdl;
 
@@ -766,6 +765,7 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 
 		vchan_cyclic_callback(vd);
 	} else {
+		xchan->busy = false;
 		desc->completed_desc_num += complete_desc_num;
 
 		/* if all data blocks are transferred, remove and complete the request */
