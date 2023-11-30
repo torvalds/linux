@@ -29,12 +29,6 @@ static unsigned int fanotify_hash_path(const struct path *path)
 		hash_ptr(path->mnt, FANOTIFY_EVENT_HASH_BITS);
 }
 
-static inline bool fanotify_fsid_equal(__kernel_fsid_t *fsid1,
-				       __kernel_fsid_t *fsid2)
-{
-	return fsid1->val[0] == fsid2->val[0] && fsid1->val[1] == fsid2->val[1];
-}
-
 static unsigned int fanotify_hash_fsid(__kernel_fsid_t *fsid)
 {
 	return hash_32(fsid->val[0], FANOTIFY_EVENT_HASH_BITS) ^
@@ -851,7 +845,8 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 		if (!(mark->flags & FSNOTIFY_MARK_FLAG_HAS_FSID))
 			continue;
 		fsid = FANOTIFY_MARK(mark)->fsid;
-		if (WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
+		if (!(mark->flags & FSNOTIFY_MARK_FLAG_WEAK_FSID) &&
+		    WARN_ON_ONCE(!fsid.val[0] && !fsid.val[1]))
 			continue;
 		return fsid;
 	}
@@ -933,12 +928,8 @@ static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
 			return 0;
 	}
 
-	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS)) {
+	if (FAN_GROUP_FLAG(group, FANOTIFY_FID_BITS))
 		fsid = fanotify_get_fsid(iter_info);
-		/* Racing with mark destruction or creation? */
-		if (!fsid.val[0] && !fsid.val[1])
-			return 0;
-	}
 
 	event = fanotify_alloc_event(group, mask, data, data_type, dir,
 				     file_name, &fsid, match_mask);

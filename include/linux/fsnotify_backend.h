@@ -529,6 +529,7 @@ struct fsnotify_mark {
 #define FSNOTIFY_MARK_FLAG_NO_IREF		0x0200
 #define FSNOTIFY_MARK_FLAG_HAS_IGNORE_FLAGS	0x0400
 #define FSNOTIFY_MARK_FLAG_HAS_FSID		0x0800
+#define FSNOTIFY_MARK_FLAG_WEAK_FSID		0x1000
 	unsigned int flags;		/* flags [mark->lock] */
 };
 
