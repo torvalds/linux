@@ -55,6 +55,12 @@ to_csd_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct v3d_csd_job, base.base);
 }
 
+static struct v3d_cpu_job *
+to_cpu_job(struct drm_sched_job *sched_job)
+{
+	return container_of(sched_job, struct v3d_cpu_job, base.base);
+}
+
 static void
 v3d_sched_job_free(struct drm_sched_job *sched_job)
 {
@@ -262,6 +268,42 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
+static const v3d_cpu_job_fn cpu_job_function[] = { };
+
+static struct dma_fence *
+v3d_cpu_job_run(struct drm_sched_job *sched_job)
+{
+	struct v3d_cpu_job *job = to_cpu_job(sched_job);
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_file_priv *file = job->base.file->driver_priv;
+	u64 runtime;
+
+	v3d->cpu_job = job;
+
+	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
+		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
+		return NULL;
+	}
+
+	file->start_ns[V3D_CPU] = local_clock();
+	v3d->queue[V3D_CPU].start_ns = file->start_ns[V3D_CPU];
+
+	cpu_job_function[job->job_type](job);
+
+	runtime = local_clock() - file->start_ns[V3D_CPU];
+
+	file->enabled_ns[V3D_CPU] += runtime;
+	v3d->queue[V3D_CPU].enabled_ns += runtime;
+
+	file->jobs_sent[V3D_CPU]++;
+	v3d->queue[V3D_CPU].jobs_sent++;
+
+	file->start_ns[V3D_CPU] = 0;
+	v3d->queue[V3D_CPU].start_ns = 0;
+
+	return NULL;
+}
+
 static struct dma_fence *
 v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 {
@@ -416,6 +458,12 @@ static const struct drm_sched_backend_ops v3d_cache_clean_sched_ops = {
 	.free_job = v3d_sched_job_free
 };
 
+static const struct drm_sched_backend_ops v3d_cpu_sched_ops = {
+	.run_job = v3d_cpu_job_run,
+	.timedout_job = v3d_generic_job_timedout,
+	.free_job = v3d_sched_job_free
+};
+
 int
 v3d_sched_init(struct v3d_dev *v3d)
 {
@@ -470,6 +518,15 @@ v3d_sched_init(struct v3d_dev *v3d)
 		if (ret)
 			goto fail;
 	}
+
+	ret = drm_sched_init(&v3d->queue[V3D_CPU].sched,
+			     &v3d_cpu_sched_ops, NULL,
+			     DRM_SCHED_PRIORITY_COUNT,
+			     1, job_hang_limit,
+			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     NULL, "v3d_cpu", v3d->drm.dev);
+	if (ret)
+		goto fail;
 
 	return 0;
 

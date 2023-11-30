@@ -41,6 +41,7 @@ extern "C" {
 #define DRM_V3D_PERFMON_CREATE                    0x08
 #define DRM_V3D_PERFMON_DESTROY                   0x09
 #define DRM_V3D_PERFMON_GET_VALUES                0x0a
+#define DRM_V3D_SUBMIT_CPU                        0x0b
 
 #define DRM_IOCTL_V3D_SUBMIT_CL           DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CL, struct drm_v3d_submit_cl)
 #define DRM_IOCTL_V3D_WAIT_BO             DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_WAIT_BO, struct drm_v3d_wait_bo)
@@ -56,6 +57,7 @@ extern "C" {
 						   struct drm_v3d_perfmon_destroy)
 #define DRM_IOCTL_V3D_PERFMON_GET_VALUES  DRM_IOWR(DRM_COMMAND_BASE + DRM_V3D_PERFMON_GET_VALUES, \
 						   struct drm_v3d_perfmon_get_values)
+#define DRM_IOCTL_V3D_SUBMIT_CPU          DRM_IOW(DRM_COMMAND_BASE + DRM_V3D_SUBMIT_CPU, struct drm_v3d_submit_cpu)
 
 #define DRM_V3D_SUBMIT_CL_FLUSH_CACHE             0x01
 #define DRM_V3D_SUBMIT_EXTENSION		  0x02
@@ -93,6 +95,7 @@ enum v3d_queue {
 	V3D_TFU,
 	V3D_CSD,
 	V3D_CACHE_CLEAN,
+	V3D_CPU,
 };
 
 /**
@@ -276,6 +279,7 @@ enum drm_v3d_param {
 	DRM_V3D_PARAM_SUPPORTS_CACHE_FLUSH,
 	DRM_V3D_PARAM_SUPPORTS_PERFMON,
 	DRM_V3D_PARAM_SUPPORTS_MULTISYNC_EXT,
+	DRM_V3D_PARAM_SUPPORTS_CPU_QUEUE,
 };
 
 struct drm_v3d_get_param {
@@ -359,6 +363,19 @@ struct drm_v3d_submit_csd {
 	__u32 flags;
 
 	__u32 pad;
+};
+
+struct drm_v3d_submit_cpu {
+	/* Pointer to a u32 array of the BOs that are referenced by the job. */
+	__u64 bo_handles;
+
+	/* Number of BO handles passed in (size is that times 4). */
+	__u32 bo_handle_count;
+
+	__u32 flags;
+
+	/* Pointer to an array of ioctl extensions*/
+	__u64 extensions;
 };
 
 enum {

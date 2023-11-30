@@ -772,3 +772,89 @@ fail:
 
 	return ret;
 }
+
+static const unsigned int cpu_job_bo_handle_count[] = { };
+
+/**
+ * v3d_submit_cpu_ioctl() - Submits a CPU job to the V3D.
+ * @dev: DRM device
+ * @data: ioctl argument
+ * @file_priv: DRM file for this fd
+ *
+ * Userspace specifies the CPU job type and data required to perform its
+ * operations through the drm_v3d_extension struct.
+ */
+int
+v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+	struct drm_v3d_submit_cpu *args = data;
+	struct v3d_submit_ext se = {0};
+	struct v3d_cpu_job *cpu_job = NULL;
+	struct ww_acquire_ctx acquire_ctx;
+	int ret;
+
+	if (args->flags && !(args->flags & DRM_V3D_SUBMIT_EXTENSION)) {
+		DRM_INFO("Invalid flags: %d\n", args->flags);
+		return -EINVAL;
+	}
+
+	ret = v3d_job_allocate((void *)&cpu_job, sizeof(*cpu_job));
+	if (ret)
+		return ret;
+
+	if (args->flags & DRM_V3D_SUBMIT_EXTENSION) {
+		ret = v3d_get_extensions(file_priv, args->extensions, &se);
+		if (ret) {
+			DRM_DEBUG("Failed to get extensions.\n");
+			goto fail;
+		}
+	}
+
+	/* Every CPU job must have a CPU job user extension */
+	if (!cpu_job->job_type) {
+		DRM_DEBUG("CPU job must have a CPU job user extension.\n");
+		goto fail;
+	}
+
+	if (args->bo_handle_count != cpu_job_bo_handle_count[cpu_job->job_type]) {
+		DRM_DEBUG("This CPU job was not submitted with the proper number of BOs.\n");
+		goto fail;
+	}
+
+	ret = v3d_job_init(v3d, file_priv, &cpu_job->base,
+			   v3d_job_free, 0, &se, V3D_CPU);
+	if (ret)
+		goto fail;
+
+	if (args->bo_handle_count) {
+		ret = v3d_lookup_bos(dev, file_priv, &cpu_job->base,
+				     args->bo_handles, args->bo_handle_count);
+		if (ret)
+			goto fail;
+
+		ret = v3d_lock_bo_reservations(&cpu_job->base, &acquire_ctx);
+		if (ret)
+			goto fail;
+	}
+
+	mutex_lock(&v3d->sched_lock);
+	v3d_push_job(&cpu_job->base);
+	mutex_unlock(&v3d->sched_lock);
+
+	v3d_attach_fences_and_unlock_reservation(file_priv,
+						 &cpu_job->base,
+						 &acquire_ctx, 0,
+						 NULL, cpu_job->base.done_fence);
+
+	v3d_job_put(&cpu_job->base);
+
+	return 0;
+
+fail:
+	v3d_job_cleanup((void *)cpu_job);
+	v3d_put_multisync_post_deps(&se);
+
+	return ret;
+}
