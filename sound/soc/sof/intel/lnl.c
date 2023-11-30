@@ -120,7 +120,7 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 
 	sof_lnl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
 
-	sdev->private = devm_kzalloc(sdev->dev, sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
+	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
 	if (!sdev->private)
 		return -ENOMEM;
 
