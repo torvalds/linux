@@ -18,14 +18,14 @@
 		keyup-threshold-microvolt = <1800000>;
 
 		esc-key {
-			linux,code = <KEY_ESC>;
-			label = "esc";
+			linux,code = <KEY_BACK>;
+			label = "back";
 			press-threshold-microvolt = <1310000>;
 		};
 
 		home-key {
-			linux,code = <KEY_HOME>;
-			label = "home";
+			linux,code = <KEY_HOMEPAGE>;
+			label = "homepage";
 			press-threshold-microvolt = <624000>;
 		};
 
