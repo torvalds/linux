@@ -114,12 +114,6 @@ struct pvr_vm_gpuva {
 	struct drm_gpuva base;
 };
 
-static __always_inline
-struct pvr_vm_gpuva *to_pvr_vm_gpuva(struct drm_gpuva *gpuva)
-{
-	return container_of(gpuva, struct pvr_vm_gpuva, base);
-}
-
 enum pvr_vm_bind_type {
 	PVR_VM_BIND_TYPE_MAP,
 	PVR_VM_BIND_TYPE_UNMAP,
