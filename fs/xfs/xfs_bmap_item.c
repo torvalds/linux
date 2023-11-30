@@ -249,21 +249,7 @@ xfs_trans_log_finish_bmap_update(
 	struct xfs_bud_log_item		*budp,
 	struct xfs_bmap_intent		*bi)
 {
-	int				error;
-
-	error = xfs_bmap_finish_one(tp, bi);
-
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the BUI and frees the BUD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-	set_bit(XFS_LI_DIRTY, &budp->bud_item.li_flags);
-
-	return error;
+	return xfs_bmap_finish_one(tp, bi);
 }
 
 /* Sort bmap intents by inode. */

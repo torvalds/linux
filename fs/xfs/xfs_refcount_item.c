@@ -256,21 +256,7 @@ xfs_trans_log_finish_refcount_update(
 	struct xfs_refcount_intent	*ri,
 	struct xfs_btree_cur		**pcur)
 {
-	int				error;
-
-	error = xfs_refcount_finish_one(tp, ri, pcur);
-
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the CUI and frees the CUD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-	set_bit(XFS_LI_DIRTY, &cudp->cud_item.li_flags);
-
-	return error;
+	return xfs_refcount_finish_one(tp, ri, pcur);
 }
 
 /* Sort refcount intents by AG. */

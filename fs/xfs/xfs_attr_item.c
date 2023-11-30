@@ -324,39 +324,17 @@ xfs_xattri_finish_update(
 	struct xfs_da_args		*args = attr->xattri_da_args;
 	int				error;
 
-	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
-		error = -EIO;
-		goto out;
-	}
+	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP))
+		return -EIO;
 
 	/* If an attr removal is trivially complete, we're done. */
 	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
-	    !xfs_inode_hasattr(args->dp)) {
-		error = 0;
-		goto out;
-	}
+	    !xfs_inode_hasattr(args->dp))
+		return 0;
 
 	error = xfs_attr_set_iter(attr);
 	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
 		error = -EAGAIN;
-out:
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the ATTRI and frees the ATTRD
-	 * 2.) shuts down the filesystem
-	 */
-	args->trans->t_flags |= XFS_TRANS_DIRTY;
-
-	/*
-	 * attr intent/done items are null when logged attributes are disabled
-	 */
-	if (attrdp) {
-		args->trans->t_flags |= XFS_TRANS_HAS_INTENT_DONE;
-		set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
-	}
-
 	return error;
 }
 

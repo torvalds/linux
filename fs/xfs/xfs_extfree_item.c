@@ -397,16 +397,6 @@ xfs_trans_free_extent(
 			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
 
 	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the EFI and frees the EFD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
-
-	/*
 	 * If we need a new transaction to make progress, the caller will log a
 	 * new EFI with the current contents. It will also log an EFD to cancel
 	 * the existing EFI, and so we need to copy all the unprocessed extents
@@ -600,16 +590,6 @@ xfs_agfl_free_finish_item(
 	if (!error)
 		error = xfs_free_agfl_block(tp, xefi->xefi_pag->pag_agno,
 				agbno, agbp, &oinfo);
-
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the EFI and frees the EFD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	next_extent = efdp->efd_next_extent;
 	ASSERT(next_extent < efdp->efd_format.efd_nextents);
