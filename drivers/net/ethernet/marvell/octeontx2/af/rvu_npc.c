@@ -589,14 +589,24 @@ static void npc_copy_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 		    NPC_AF_MCAMEX_BANKX_CFG(dest, dbank), cfg);
 }
 
-static u64 npc_get_mcam_action(struct rvu *rvu, struct npc_mcam *mcam,
-			       int blkaddr, int index)
+u64 npc_get_mcam_action(struct rvu *rvu, struct npc_mcam *mcam,
+			int blkaddr, int index)
 {
 	int bank = npc_get_bank(mcam, index);
 
 	index &= (mcam->banksize - 1);
 	return rvu_read64(rvu, blkaddr,
 			  NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
+}
+
+void npc_set_mcam_action(struct rvu *rvu, struct npc_mcam *mcam,
+			 int blkaddr, int index, u64 cfg)
+{
+	int bank = npc_get_bank(mcam, index);
+
+	index &= (mcam->banksize - 1);
+	return rvu_write64(rvu, blkaddr,
+			   NPC_AF_MCAMEX_BANKX_ACTION(index, bank), cfg);
 }
 
 void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
