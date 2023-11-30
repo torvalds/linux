@@ -1170,6 +1170,34 @@ static void direct_file_splice_eof(struct splice_desc *sd)
 		file->f_op->splice_eof(file);
 }
 
+static long do_splice_direct_actor(struct file *in, loff_t *ppos,
+				   struct file *out, loff_t *opos,
+				   size_t len, unsigned int flags,
+				   splice_direct_actor *actor)
+{
+	struct splice_desc sd = {
+		.len		= len,
+		.total_len	= len,
+		.flags		= flags,
+		.pos		= *ppos,
+		.u.file		= out,
+		.splice_eof	= direct_file_splice_eof,
+		.opos		= opos,
+	};
+	long ret;
+
+	if (unlikely(!(out->f_mode & FMODE_WRITE)))
+		return -EBADF;
+
+	if (unlikely(out->f_flags & O_APPEND))
+		return -EINVAL;
+
+	ret = splice_direct_to_actor(in, &sd, actor);
+	if (ret > 0)
+		*ppos = sd.pos;
+
+	return ret;
+}
 /**
  * do_splice_direct - splices data directly between two files
  * @in:		file to splice from
@@ -1190,30 +1218,33 @@ static void direct_file_splice_eof(struct splice_desc *sd)
 long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 		      loff_t *opos, size_t len, unsigned int flags)
 {
-	struct splice_desc sd = {
-		.len		= len,
-		.total_len	= len,
-		.flags		= flags,
-		.pos		= *ppos,
-		.u.file		= out,
-		.splice_eof	= direct_file_splice_eof,
-		.opos		= opos,
-	};
-	long ret;
-
-	if (unlikely(!(out->f_mode & FMODE_WRITE)))
-		return -EBADF;
-
-	if (unlikely(out->f_flags & O_APPEND))
-		return -EINVAL;
-
-	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
-	if (ret > 0)
-		*ppos = sd.pos;
-
-	return ret;
+	return do_splice_direct_actor(in, ppos, out, opos, len, flags,
+				      direct_splice_actor);
 }
 EXPORT_SYMBOL(do_splice_direct);
+
+/**
+ * splice_file_range - splices data between two files for copy_file_range()
+ * @in:		file to splice from
+ * @ppos:	input file offset
+ * @out:	file to splice to
+ * @opos:	output file offset
+ * @len:	number of bytes to splice
+ *
+ * Description:
+ *    For use by generic_copy_file_range() and ->copy_file_range() methods.
+ *
+ * Callers already called rw_verify_area() on the entire range.
+ */
+long splice_file_range(struct file *in, loff_t *ppos, struct file *out,
+		       loff_t *opos, size_t len)
+{
+	lockdep_assert(file_write_started(out));
+
+	return do_splice_direct_actor(in, ppos, out, opos, len, 0,
+				      direct_splice_actor);
+}
+EXPORT_SYMBOL(splice_file_range);
 
 static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 {
