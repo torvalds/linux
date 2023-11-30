@@ -497,6 +497,13 @@ struct cgroup {
 	struct list_head rstat_css_list;
 
 	/*
+	 * Add padding to separate the read mostly rstat_cpu and
+	 * rstat_css_list into a different cacheline from the following
+	 * rstat_flush_next and *bstat fields which can have frequent updates.
+	 */
+	CACHELINE_PADDING(_pad_);
+
+	/*
 	 * A singly-linked list of cgroup structures to be rstat flushed.
 	 * This is a scratch field to be used exclusively by
 	 * cgroup_rstat_flush_locked() and protected by cgroup_rstat_lock.
