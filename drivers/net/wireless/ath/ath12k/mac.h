@@ -43,6 +43,7 @@ enum ath12k_supported_bw {
 	ATH12K_BW_40    = 1,
 	ATH12K_BW_80    = 2,
 	ATH12K_BW_160   = 3,
+	ATH12K_BW_320   = 4,
 };
 
 extern const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default;

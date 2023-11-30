@@ -343,6 +343,9 @@ ath12k_mac_bw_to_mac80211_bw(enum ath12k_supported_bw bw)
 	case ATH12K_BW_160:
 		ret = RATE_INFO_BW_160;
 		break;
+	case ATH12K_BW_320:
+		ret = RATE_INFO_BW_320;
+		break;
 	}
 
 	return ret;
@@ -359,6 +362,8 @@ enum ath12k_supported_bw ath12k_mac_mac80211_bw_to_ath12k_bw(enum rate_info_bw b
 		return ATH12K_BW_80;
 	case RATE_INFO_BW_160:
 		return ATH12K_BW_160;
+	case RATE_INFO_BW_320:
+		return ATH12K_BW_320;
 	default:
 		return ATH12K_BW_20;
 	}
@@ -3725,6 +3730,9 @@ static u32 ath12k_mac_ieee80211_sta_bw_to_wmi(struct ath12k *ar,
 		break;
 	case IEEE80211_STA_RX_BW_160:
 		bw = WMI_PEER_CHWIDTH_160MHZ;
+		break;
+	case IEEE80211_STA_RX_BW_320:
+		bw = WMI_PEER_CHWIDTH_320MHZ;
 		break;
 	default:
 		ath12k_warn(ar->ab, "Invalid bandwidth %d in rc update for %pM\n",
