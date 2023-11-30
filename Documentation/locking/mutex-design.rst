@@ -101,6 +101,12 @@ features that make lock debugging easier and faster:
     - Detects multi-task circular deadlocks and prints out all affected
       locks and tasks (and only those tasks).
 
+Releasing a mutex is not an atomic operation: Once a mutex release operation
+has begun, another context may be able to acquire the mutex before the release
+operation has fully completed. The mutex user must ensure that the mutex is not
+destroyed while a release operation is still in progress - in other words,
+callers of mutex_unlock() must ensure that the mutex stays alive until
+mutex_unlock() has returned.
 
 Interfaces
 ----------
