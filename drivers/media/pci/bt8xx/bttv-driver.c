@@ -1536,13 +1536,11 @@ static void buf_cleanup(struct vb2_buffer *vb)
 
 static int start_streaming(struct vb2_queue *q, unsigned int count)
 {
-	int ret = 1;
 	int seqnr = 0;
 	struct bttv_buffer *buf;
 	struct bttv *btv = vb2_get_drv_priv(q);
 
-	ret = check_alloc_btres_lock(btv, RESOURCE_VIDEO_STREAM);
-	if (ret == 0) {
+	if (!check_alloc_btres_lock(btv, RESOURCE_VIDEO_STREAM)) {
 		if (btv->field_count)
 			seqnr++;
 		while (!list_empty(&btv->capture)) {
@@ -1553,7 +1551,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 			vb2_buffer_done(&buf->vbuf.vb2_buf,
 					VB2_BUF_STATE_QUEUED);
 		}
-		return !ret;
+		return -EBUSY;
 	}
 	if (!vb2_is_streaming(&btv->vbiq)) {
 		init_irqreg(btv);
