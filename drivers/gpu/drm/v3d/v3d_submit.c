@@ -136,22 +136,26 @@ void v3d_job_put(struct v3d_job *job)
 }
 
 static int
-v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
-	     void **container, size_t size, void (*free)(struct kref *ref),
-	     u32 in_sync, struct v3d_submit_ext *se, enum v3d_queue queue)
+v3d_job_allocate(void **container, size_t size)
 {
-	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
-	struct v3d_job *job;
-	bool has_multisync = se && (se->flags & DRM_V3D_EXT_ID_MULTI_SYNC);
-	int ret, i;
-
 	*container = kcalloc(1, size, GFP_KERNEL);
 	if (!*container) {
-		DRM_ERROR("Cannot allocate memory for v3d job.");
+		DRM_ERROR("Cannot allocate memory for V3D job.\n");
 		return -ENOMEM;
 	}
 
-	job = *container;
+	return 0;
+}
+
+static int
+v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
+	     struct v3d_job *job, void (*free)(struct kref *ref),
+	     u32 in_sync, struct v3d_submit_ext *se, enum v3d_queue queue)
+{
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+	bool has_multisync = se && (se->flags & DRM_V3D_EXT_ID_MULTI_SYNC);
+	int ret, i;
+
 	job->v3d = v3d;
 	job->free = free;
 	job->file = file_priv;
@@ -159,7 +163,7 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
 				 1, v3d_priv);
 	if (ret)
-		goto fail;
+		return ret;
 
 	if (has_multisync) {
 		if (se->in_sync_count && se->wait_stage == queue) {
@@ -194,10 +198,6 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 
 fail_deps:
 	drm_sched_job_cleanup(&job->base);
-fail:
-	kfree(*container);
-	*container = NULL;
-
 	return ret;
 }
 
@@ -437,7 +437,11 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = v3d_job_init(v3d, file_priv, (void *)&render, sizeof(*render),
+	ret = v3d_job_allocate((void *)&render, sizeof(*render));
+	if (ret)
+		return ret;
+
+	ret = v3d_job_init(v3d, file_priv, &render->base,
 			   v3d_render_job_free, args->in_sync_rcl, &se, V3D_RENDER);
 	if (ret)
 		goto fail;
@@ -447,7 +451,11 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	INIT_LIST_HEAD(&render->unref_list);
 
 	if (args->bcl_start != args->bcl_end) {
-		ret = v3d_job_init(v3d, file_priv, (void *)&bin, sizeof(*bin),
+		ret = v3d_job_allocate((void *)&bin, sizeof(*bin));
+		if (ret)
+			goto fail;
+
+		ret = v3d_job_init(v3d, file_priv, &bin->base,
 				   v3d_job_free, args->in_sync_bcl, &se, V3D_BIN);
 		if (ret)
 			goto fail;
@@ -461,7 +469,11 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
-		ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
+		ret = v3d_job_allocate((void *)&clean_job, sizeof(*clean_job));
+		if (ret)
+			goto fail;
+
+		ret = v3d_job_init(v3d, file_priv, clean_job,
 				   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
 		if (ret)
 			goto fail;
@@ -580,7 +592,11 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
+	ret = v3d_job_allocate((void *)&job, sizeof(*job));
+	if (ret)
+		return ret;
+
+	ret = v3d_job_init(v3d, file_priv, &job->base,
 			   v3d_job_free, args->in_sync, &se, V3D_TFU);
 	if (ret)
 		goto fail;
@@ -683,12 +699,20 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = v3d_job_init(v3d, file_priv, (void *)&job, sizeof(*job),
+	ret = v3d_job_allocate((void *)&job, sizeof(*job));
+	if (ret)
+		return ret;
+
+	ret = v3d_job_init(v3d, file_priv, &job->base,
 			   v3d_job_free, args->in_sync, &se, V3D_CSD);
 	if (ret)
 		goto fail;
 
-	ret = v3d_job_init(v3d, file_priv, (void *)&clean_job, sizeof(*clean_job),
+	ret = v3d_job_allocate((void *)&clean_job, sizeof(*clean_job));
+	if (ret)
+		goto fail;
+
+	ret = v3d_job_init(v3d, file_priv, clean_job,
 			   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
 	if (ret)
 		goto fail;
