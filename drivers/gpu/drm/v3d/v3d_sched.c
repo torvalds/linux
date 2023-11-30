@@ -288,7 +288,11 @@ v3d_cpu_job_run(struct drm_sched_job *sched_job)
 	file->start_ns[V3D_CPU] = local_clock();
 	v3d->queue[V3D_CPU].start_ns = file->start_ns[V3D_CPU];
 
+	trace_v3d_cpu_job_begin(&v3d->drm, job->job_type);
+
 	cpu_job_function[job->job_type](job);
+
+	trace_v3d_cpu_job_end(&v3d->drm, job->job_type);
 
 	runtime = local_clock() - file->start_ns[V3D_CPU];
 

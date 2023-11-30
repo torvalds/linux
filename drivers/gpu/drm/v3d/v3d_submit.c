@@ -824,6 +824,8 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 		goto fail;
 	}
 
+	trace_v3d_submit_cpu_ioctl(&v3d->drm, cpu_job->job_type);
+
 	ret = v3d_job_init(v3d, file_priv, &cpu_job->base,
 			   v3d_job_free, 0, &se, V3D_CPU);
 	if (ret)
