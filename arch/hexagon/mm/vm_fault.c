@@ -12,6 +12,7 @@
  */
 
 #include <asm/traps.h>
+#include <asm/vm_fault.h>
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/sched/signal.h>
