@@ -1301,6 +1301,38 @@ TEST_F(mini, rule_with_unknown_access)
 	EXPECT_EQ(0, close(ruleset_fd));
 }
 
+TEST_F(mini, rule_with_unhandled_access)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
+	};
+	struct landlock_net_port_attr net_port = {
+		.port = sock_port_start,
+	};
+	int ruleset_fd;
+	__u64 access;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	for (access = 1; access > 0; access <<= 1) {
+		int err;
+
+		net_port.allowed_access = access;
+		err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+					&net_port, 0);
+		if (access == ruleset_attr.handled_access_net) {
+			EXPECT_EQ(0, err);
+		} else {
+			EXPECT_EQ(-1, err);
+			EXPECT_EQ(EINVAL, errno);
+		}
+	}
+
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
 TEST_F(mini, inval)
 {
 	const struct landlock_ruleset_attr ruleset_attr = {
