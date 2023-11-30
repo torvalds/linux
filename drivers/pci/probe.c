@@ -996,6 +996,7 @@ static int pci_register_host_bridge(struct pci_host_bridge *bridge)
 		res = window->res;
 		if (!res->flags && !res->start && !res->end) {
 			release_resource(res);
+			resource_list_destroy_entry(window);
 			continue;
 		}
 

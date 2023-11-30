@@ -603,10 +603,10 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_tc_configure_rep_mport(efx);
 	if (rc)
 		return rc;
-	efx->tc->up = true;
 	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
 	if (rc)
 		return rc;
+	efx->tc->up = true;
 	return 0;
 }
 

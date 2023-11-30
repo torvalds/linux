@@ -160,7 +160,6 @@ void amdgpu_irq_disable_all(struct amdgpu_device *adev)
 				continue;
 
 			for (k = 0; k < src->num_types; ++k) {
-				atomic_set(&src->enabled_types[k], 0);
 				r = src->funcs->set(adev, src, k,
 						    AMDGPU_IRQ_STATE_DISABLE);
 				if (r)

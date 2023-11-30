@@ -12,11 +12,11 @@
   {
     "EventCode": "0x45052",
     "EventName": "PM_4FLOP_CMPL",
-    "BriefDescription": "Four floating point instructions completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+    "BriefDescription": "Four floating point instruction completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
   },
   {
     "EventCode": "0x4D054",
     "EventName": "PM_8FLOP_CMPL",
-    "BriefDescription": "Four Double Precision vector instructions completed."
+    "BriefDescription": "Four Double Precision vector instruction completed."
   }
 ]

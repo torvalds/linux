@@ -133,7 +133,7 @@
 		dais = <&mcbsp2_port>, <&mcbsp3_port>;
 	};
 
-	pwm8: dmtimer-pwm-8 {
+	pwm8: pwm-8 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&vibrator_direction_pin>;
 
@@ -143,7 +143,7 @@
 		ti,clock-source = <0x01>;
 	};
 
-	pwm9: dmtimer-pwm-9 {
+	pwm9: pwm-9 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&vibrator_enable_pin>;
 
@@ -352,13 +352,13 @@
 &omap4_pmx_core {
 
 	/* hdmi_hpd.gpio_63 */
-	hdmi_hpd_gpio: pinmux_hdmi_hpd_pins {
+	hdmi_hpd_gpio: hdmi-hpd-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x098, PIN_INPUT | MUX_MODE3)
 		>;
 	};
 
-	hdq_pins: pinmux_hdq_pins {
+	hdq_pins: hdq-pins {
 		pinctrl-single,pins = <
 		/* 0x4a100120 hdq_sio.hdq_sio aa27 */
 		OMAP4_IOPAD(0x120, PIN_INPUT | MUX_MODE0)
@@ -366,7 +366,7 @@
 	};
 
 	/* hdmi_cec.hdmi_cec, hdmi_scl.hdmi_scl, hdmi_sda.hdmi_sda */
-	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+	dss_hdmi_pins: dss-hdmi-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)
 		OMAP4_IOPAD(0x09c, PIN_INPUT | MUX_MODE0)
@@ -380,7 +380,7 @@
 	 * devices. Off mode value should be tested if we have off mode working
 	 * later on.
 	 */
-	mmc3_pins: pinmux_mmc3_pins {
+	mmc3_pins: mmc3-pins {
 		pinctrl-single,pins = <
 		/* 0x4a10008e gpmc_wait2.gpio_100 d23 */
 		OMAP4_IOPAD(0x08e, PIN_INPUT | MUX_MODE3)
@@ -406,40 +406,40 @@
 	};
 
 	/* gpmc_ncs0.gpio_50 */
-	poweroff_gpio: pinmux_poweroff_pins {
+	poweroff_gpio: poweroff-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x074, PIN_OUTPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
 	/* kpd_row0.gpio_178 */
-	tmp105_irq: pinmux_tmp105_irq {
+	tmp105_irq: tmp105-irq-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x18e, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
-	usb_gpio_mux_sel1: pinmux_usb_gpio_mux_sel1_pins {
+	usb_gpio_mux_sel1: usb-gpio-mux-sel1-pins {
 		/* gpio_60 */
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x088, PIN_OUTPUT | MUX_MODE3)
 		>;
 	};
 
-	touchscreen_pins: pinmux_touchscreen_pins {
+	touchscreen_pins: touchscreen-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x180, PIN_OUTPUT | MUX_MODE3)
 		OMAP4_IOPAD(0x1a0, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
-	als_proximity_pins: pinmux_als_proximity_pins {
+	als_proximity_pins: als-proximity-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x18c, PIN_INPUT_PULLUP | MUX_MODE3)
 		>;
 	};
 
-	usb_mdm6600_pins: pinmux_usb_mdm6600_pins {
+	usb_mdm6600_pins: usb-mdm6600-pins {
 		pinctrl-single,pins = <
 		/* enable 0x4a1000d8 usbb1_ulpitll_dat7.gpio_95 ag16 */
 		OMAP4_IOPAD(0x0d8, PIN_INPUT | MUX_MODE3)
@@ -476,7 +476,7 @@
 		>;
 	};
 
-	usb_ulpi_pins: pinmux_usb_ulpi_pins {
+	usb_ulpi_pins: usb-ulpi-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x196, MUX_MODE7)
 		OMAP4_IOPAD(0x198, MUX_MODE7)
@@ -496,7 +496,7 @@
 	};
 
 	/* usb0_otg_dp and usb0_otg_dm */
-	usb_utmi_pins: pinmux_usb_utmi_pins {
+	usb_utmi_pins: usb-utmi-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x196, PIN_INPUT | MUX_MODE0)
 		OMAP4_IOPAD(0x198, PIN_INPUT | MUX_MODE0)
@@ -521,7 +521,7 @@
 	 * when not used. If needed, we can add rts pin remux later based
 	 * on power measurements.
 	 */
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 		/* 0x4a10013c mcspi1_cs2.uart1_cts ag23 */
 		OMAP4_IOPAD(0x13c, PIN_INPUT_PULLUP | MUX_MODE1)
@@ -538,7 +538,7 @@
 	};
 
 	/* uart3_tx_irtx and uart3_rx_irrx */
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x196, MUX_MODE7)
 		OMAP4_IOPAD(0x198, MUX_MODE7)
@@ -557,7 +557,7 @@
 		>;
 	};
 
-	uart4_pins: pinmux_uart4_pins {
+	uart4_pins: uart4-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x15c, PIN_INPUT | MUX_MODE0)		/* uart4_rx */
 		OMAP4_IOPAD(0x15e, PIN_OUTPUT | MUX_MODE0)		/* uart4_tx */
@@ -566,7 +566,7 @@
 		>;
 	};
 
-	mcbsp2_pins: pinmux_mcbsp2_pins {
+	mcbsp2_pins: mcbsp2-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x0f6, PIN_INPUT | MUX_MODE0)	/* abe_mcbsp2_clkx */
 		OMAP4_IOPAD(0x0f8, PIN_INPUT | MUX_MODE0)	/* abe_mcbsp2_dr */
@@ -575,7 +575,7 @@
 		>;
 	};
 
-	mcbsp3_pins: pinmux_mcbsp3_pins {
+	mcbsp3_pins: mcbsp3-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x106, PIN_INPUT | MUX_MODE1)	/* abe_mcbsp3_dr */
 		OMAP4_IOPAD(0x108, PIN_OUTPUT | MUX_MODE1)	/* abe_mcbsp3_dx */
@@ -584,13 +584,13 @@
 		>;
 	};
 
-	vibrator_direction_pin: pinmux_vibrator_direction_pin {
+	vibrator_direction_pin: vibrator-direction-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x1ce, PIN_OUTPUT | MUX_MODE1)	/* dmtimer8_pwm_evt (gpio_27) */
 		>;
 	};
 
-	vibrator_enable_pin: pinmux_vibrator_enable_pin {
+	vibrator_enable_pin: vibrator-enable-pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0X1d0, PIN_OUTPUT | MUX_MODE1)	/* dmtimer9_pwm_evt (gpio_28) */
 		>;
@@ -598,7 +598,7 @@
 };
 
 &omap4_pmx_wkup {
-	usb_gpio_mux_sel2: pinmux_usb_gpio_mux_sel2_pins {
+	usb_gpio_mux_sel2: usb-gpio-mux-sel2-pins {
 		/* gpio_wk0 */
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x040, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
@@ -614,12 +614,12 @@
 /* Configure pwm clock source for timers 8 & 9 */
 &timer8 {
 	assigned-clocks = <&abe_clkctrl OMAP4_TIMER8_CLKCTRL 24>;
-	assigned-clock-parents = <&sys_clkin_ck>;
+	assigned-clock-parents = <&sys_32k_ck>;
 };
 
 &timer9 {
 	assigned-clocks = <&l4_per_clkctrl OMAP4_TIMER9_CLKCTRL 24>;
-	assigned-clock-parents = <&sys_clkin_ck>;
+	assigned-clock-parents = <&sys_32k_ck>;
 };
 
 /*

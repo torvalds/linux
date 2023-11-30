@@ -87,11 +87,22 @@ static int mss_sc7180_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = qcom_cc_probe(pdev, &mss_sc7180_desc);
-	if (ret < 0)
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret)
 		return ret;
 
+	ret = qcom_cc_probe(pdev, &mss_sc7180_desc);
+	if (ret < 0)
+		goto err_put_rpm;
+
+	pm_runtime_put(&pdev->dev);
+
 	return 0;
+
+err_put_rpm:
+	pm_runtime_put_sync(&pdev->dev);
+
+	return ret;
 }
 
 static const struct dev_pm_ops mss_sc7180_pm_ops = {

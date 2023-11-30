@@ -2093,15 +2093,6 @@ static inline int f2fs_down_read_trylock(struct f2fs_rwsem *sem)
 	return down_read_trylock(&sem->internal_rwsem);
 }
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-static inline void f2fs_down_read_nested(struct f2fs_rwsem *sem, int subclass)
-{
-	down_read_nested(&sem->internal_rwsem, subclass);
-}
-#else
-#define f2fs_down_read_nested(sem, subclass) f2fs_down_read(sem)
-#endif
-
 static inline void f2fs_up_read(struct f2fs_rwsem *sem)
 {
 	up_read(&sem->internal_rwsem);
@@ -2111,6 +2102,21 @@ static inline void f2fs_down_write(struct f2fs_rwsem *sem)
 {
 	down_write(&sem->internal_rwsem);
 }
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static inline void f2fs_down_read_nested(struct f2fs_rwsem *sem, int subclass)
+{
+	down_read_nested(&sem->internal_rwsem, subclass);
+}
+
+static inline void f2fs_down_write_nested(struct f2fs_rwsem *sem, int subclass)
+{
+	down_write_nested(&sem->internal_rwsem, subclass);
+}
+#else
+#define f2fs_down_read_nested(sem, subclass) f2fs_down_read(sem)
+#define f2fs_down_write_nested(sem, subclass) f2fs_down_write(sem)
+#endif
 
 static inline int f2fs_down_write_trylock(struct f2fs_rwsem *sem)
 {
@@ -4455,7 +4461,8 @@ static inline bool f2fs_low_mem_mode(struct f2fs_sb_info *sbi)
 static inline bool f2fs_may_compress(struct inode *inode)
 {
 	if (IS_SWAPFILE(inode) || f2fs_is_pinned_file(inode) ||
-		f2fs_is_atomic_file(inode) || f2fs_has_inline_data(inode))
+		f2fs_is_atomic_file(inode) || f2fs_has_inline_data(inode) ||
+		f2fs_is_mmap_file(inode))
 		return false;
 	return S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode);
 }

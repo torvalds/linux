@@ -1161,7 +1161,7 @@ static void mptcp_subflow_fail(struct mptcp_sock *msk, struct sock *ssk)
 	WRITE_ONCE(subflow->fail_tout, fail_tout);
 	tcp_send_ack(ssk);
 
-	mptcp_reset_timeout(msk, subflow->fail_tout);
+	mptcp_reset_tout_timer(msk, subflow->fail_tout);
 }
 
 static bool subflow_check_data_avail(struct sock *ssk)
@@ -1248,7 +1248,7 @@ fallback:
 			subflow->reset_reason = MPTCP_RST_EMPTCP;
 
 reset:
-			ssk->sk_err = EBADMSG;
+			WRITE_ONCE(ssk->sk_err, EBADMSG);
 			tcp_set_state(ssk, TCP_CLOSE);
 			while ((skb = skb_peek(&ssk->sk_receive_queue)))
 				sk_eat_skb(ssk, skb);
@@ -1303,42 +1303,6 @@ void mptcp_space(const struct sock *ssk, int *space, int *full_space)
 
 	*space = __mptcp_space(sk);
 	*full_space = tcp_full_space(sk);
-}
-
-void __mptcp_error_report(struct sock *sk)
-{
-	struct mptcp_subflow_context *subflow;
-	struct mptcp_sock *msk = mptcp_sk(sk);
-
-	mptcp_for_each_subflow(msk, subflow) {
-		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
-		int err = sock_error(ssk);
-		int ssk_state;
-
-		if (!err)
-			continue;
-
-		/* only propagate errors on fallen-back sockets or
-		 * on MPC connect
-		 */
-		if (sk->sk_state != TCP_SYN_SENT && !__mptcp_check_fallback(msk))
-			continue;
-
-		/* We need to propagate only transition to CLOSE state.
-		 * Orphaned socket will see such state change via
-		 * subflow_sched_work_if_closed() and that path will properly
-		 * destroy the msk as needed.
-		 */
-		ssk_state = inet_sk_state_load(ssk);
-		if (ssk_state == TCP_CLOSE && !sock_flag(sk, SOCK_DEAD))
-			inet_sk_state_store(sk, ssk_state);
-		sk->sk_err = -err;
-
-		/* This barrier is coupled with smp_rmb() in mptcp_poll() */
-		smp_wmb();
-		sk_error_report(sk);
-		break;
-	}
 }
 
 static void subflow_error_report(struct sock *ssk)
@@ -1527,6 +1491,7 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	mptcp_sock_graft(ssk, sk->sk_socket);
 	iput(SOCK_INODE(sf));
 	WRITE_ONCE(msk->allow_infinite_fallback, false);
+	mptcp_stop_tout_timer(sk);
 	return 0;
 
 failed_unlink:
@@ -1724,34 +1689,21 @@ static void subflow_state_change(struct sock *sk)
 void mptcp_subflow_queue_clean(struct sock *listener_sk, struct sock *listener_ssk)
 {
 	struct request_sock_queue *queue = &inet_csk(listener_ssk)->icsk_accept_queue;
-	struct mptcp_sock *msk, *next, *head = NULL;
-	struct request_sock *req;
-	struct sock *sk;
+	struct request_sock *req, *head, *tail;
+	struct mptcp_subflow_context *subflow;
+	struct sock *sk, *ssk;
 
-	/* build a list of all unaccepted mptcp sockets */
+	/* Due to lock dependencies no relevant lock can be acquired under rskq_lock.
+	 * Splice the req list, so that accept() can not reach the pending ssk after
+	 * the listener socket is released below.
+	 */
 	spin_lock_bh(&queue->rskq_lock);
-	for (req = queue->rskq_accept_head; req; req = req->dl_next) {
-		struct mptcp_subflow_context *subflow;
-		struct sock *ssk = req->sk;
-
-		if (!sk_is_mptcp(ssk))
-			continue;
-
-		subflow = mptcp_subflow_ctx(ssk);
-		if (!subflow || !subflow->conn)
-			continue;
-
-		/* skip if already in list */
-		sk = subflow->conn;
-		msk = mptcp_sk(sk);
-		if (msk->dl_next || msk == head)
-			continue;
-
-		sock_hold(sk);
-		msk->dl_next = head;
-		head = msk;
-	}
+	head = queue->rskq_accept_head;
+	tail = queue->rskq_accept_tail;
+	queue->rskq_accept_head = NULL;
+	queue->rskq_accept_tail = NULL;
 	spin_unlock_bh(&queue->rskq_lock);
+
 	if (!head)
 		return;
 
@@ -1760,13 +1712,19 @@ void mptcp_subflow_queue_clean(struct sock *listener_sk, struct sock *listener_s
 	 */
 	release_sock(listener_ssk);
 
-	for (msk = head; msk; msk = next) {
-		sk = (struct sock *)msk;
+	for (req = head; req; req = req->dl_next) {
+		ssk = req->sk;
+		if (!sk_is_mptcp(ssk))
+			continue;
+
+		subflow = mptcp_subflow_ctx(ssk);
+		if (!subflow || !subflow->conn)
+			continue;
+
+		sk = subflow->conn;
+		sock_hold(sk);
 
 		lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
-		next = msk->dl_next;
-		msk->dl_next = NULL;
-
 		__mptcp_unaccepted_force_close(sk);
 		release_sock(sk);
 
@@ -1790,6 +1748,13 @@ void mptcp_subflow_queue_clean(struct sock *listener_sk, struct sock *listener_s
 
 	/* we are still under the listener msk socket lock */
 	lock_sock_nested(listener_ssk, SINGLE_DEPTH_NESTING);
+
+	/* restore the listener queue, to let the TCP code clean it up */
+	spin_lock_bh(&queue->rskq_lock);
+	WARN_ON_ONCE(queue->rskq_accept_head);
+	queue->rskq_accept_head = head;
+	queue->rskq_accept_tail = tail;
+	spin_unlock_bh(&queue->rskq_lock);
 }
 
 static int subflow_ulp_init(struct sock *sk)
