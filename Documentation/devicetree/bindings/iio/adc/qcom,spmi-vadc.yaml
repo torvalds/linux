@@ -236,7 +236,7 @@ additionalProperties: false
 
 examples:
   - |
-    spmi {
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         /* VADC node */
@@ -281,7 +281,7 @@ examples:
     #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    spmi {
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         adc@3100 {
