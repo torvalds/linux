@@ -661,15 +661,6 @@ config CRYPTO_CBC
 
 	  This block cipher mode is required for IPSec ESP (XFRM_ESP).
 
-config CRYPTO_CFB
-	tristate "CFB (Cipher Feedback)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CFB (Cipher Feedback) mode (NIST SP800-38A)
-
-	  This block cipher mode is required for TPM2 Cryptography.
-
 config CRYPTO_CTR
 	tristate "CTR (Counter)"
 	select CRYPTO_SKCIPHER
@@ -734,20 +725,6 @@ config CRYPTO_LRW
 	  rest is used to tie each cipher block to its logical position.
 
 	  See https://people.csail.mit.edu/rivest/pubs/LRW02.pdf
-
-config CRYPTO_OFB
-	tristate "OFB (Output Feedback)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  OFB (Output Feedback) mode (NIST SP800-38A)
-
-	  This mode makes a block cipher into a synchronous
-	  stream cipher. It generates keystream blocks, which are then XORed
-	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
-	  ciphertext produces a flipped bit in the plaintext at the same
-	  location. This property allows many error correcting codes to function
-	  normally even when applied before encryption.
 
 config CRYPTO_PCBC
 	tristate "PCBC (Propagating Cipher Block Chaining)"
