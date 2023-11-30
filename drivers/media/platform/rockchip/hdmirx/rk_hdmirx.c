@@ -245,6 +245,7 @@ struct rk_hdmirx_dev {
 	u32 color_depth;
 	u32 cpu_freq_khz;
 	u32 bound_cpu;
+	u32 phy_cpuid;
 	u32 fps;
 	u32 wdt_cfg_bound_cpu;
 	u8 edid[EDID_BLOCK_SIZE * 2];
@@ -2072,7 +2073,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	mutex_lock(&hdmirx_dev->stream_lock);
-	touch_flag = (hdmirx_dev->bound_cpu << 1) | 0x1;
+	touch_flag = (hdmirx_dev->phy_cpuid << 1) | 0x1;
 	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, touch_flag, 100);
 	stream->frame_idx = 0;
 	stream->line_flag_int_cnt = 0;
@@ -4266,18 +4267,27 @@ static int hdmirx_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmirx_dev->regs);
 	}
 
-	if (sip_cpu_logical_map_mpidr(0) == 0)
-		cpu_aff = sip_cpu_logical_map_mpidr(4); // big cpu0
-	else
-		cpu_aff = sip_cpu_logical_map_mpidr(1); // big cpu1
+	/*
+	 * Bind HDMIRX's FIQ and driver interrupt processing to big cpu1
+	 * in order to quickly respond to FIQ and prevent them from affecting
+	 * each other.
+	 */
+	if (sip_cpu_logical_map_mpidr(0) == 0) {
+		cpu_aff = sip_cpu_logical_map_mpidr(5);
+		hdmirx_dev->bound_cpu = 5;
+	} else {
+		cpu_aff = sip_cpu_logical_map_mpidr(1);
+		hdmirx_dev->bound_cpu = 1;
+	}
 
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
-	hdmirx_dev->bound_cpu = (cpu_aff >> 8) & 0xf;
+	hdmirx_dev->phy_cpuid = (cpu_aff >> 8) & 0xf;
 	hdmirx_dev->wdt_cfg_bound_cpu = hdmirx_dev->bound_cpu + 1;
-	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d\n",
+	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d, phy_cpuid:%d\n",
 			__func__, cpu_aff,
 			hdmirx_dev->bound_cpu,
-			hdmirx_dev->wdt_cfg_bound_cpu);
+			hdmirx_dev->wdt_cfg_bound_cpu,
+			hdmirx_dev->phy_cpuid);
 	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
