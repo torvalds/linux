@@ -2735,9 +2735,14 @@ static int __vb2_init_fileio(struct vb2_queue *q, int read)
 		return -EBUSY;
 
 	/*
-	 * Start with count 1, driver can increase it in queue_setup()
+	 * Start with q->min_buffers_needed + 1, driver can increase it in
+	 * queue_setup()
+	 *
+	 * 'min_buffers_needed' buffers need to be queued up before you
+	 * can start streaming, plus 1 for userspace (or in this case,
+	 * kernelspace) processing.
 	 */
-	count = 1;
+	count = max(2, q->min_buffers_needed + 1);
 
 	dprintk(q, 3, "setting up file io: mode %s, count %d, read_once %d, write_immediately %d\n",
 		(read) ? "read" : "write", count, q->fileio_read_once,
