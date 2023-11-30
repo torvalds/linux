@@ -4962,7 +4962,7 @@ static void sync_regs(struct kvm_vcpu *vcpu)
 		current->thread.fpu.regs = vcpu->run->s.regs.vrs;
 	else
 		current->thread.fpu.regs = vcpu->run->s.regs.fprs;
-	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
+	current->thread.fpu.fpc = READ_ONCE(vcpu->run->s.regs.fpc);
 	if (test_fp_ctl(current->thread.fpu.fpc))
 		/* User space provided an invalid FPC, let's clear it */
 		current->thread.fpu.fpc = 0;
