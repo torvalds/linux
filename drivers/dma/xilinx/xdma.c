@@ -765,26 +765,23 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 		regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_STATUS, st);
 
 		vchan_cyclic_callback(vd);
-		goto out;
+	} else {
+		desc->completed_desc_num += complete_desc_num;
+
+		/* if all data blocks are transferred, remove and complete the request */
+		if (desc->completed_desc_num == desc->desc_num) {
+			list_del(&vd->node);
+			vchan_cookie_complete(vd);
+			goto out;
+		}
+
+		if (desc->completed_desc_num > desc->desc_num ||
+		    complete_desc_num != XDMA_DESC_BLOCK_NUM * XDMA_DESC_ADJACENT)
+			goto out;
+
+		/* transfer the rest of data */
+		xdma_xfer_start(xchan);
 	}
-
-	desc->completed_desc_num += complete_desc_num;
-
-	/*
-	 * if all data blocks are transferred, remove and complete the request
-	 */
-	if (desc->completed_desc_num == desc->desc_num) {
-		list_del(&vd->node);
-		vchan_cookie_complete(vd);
-		goto out;
-	}
-
-	if (desc->completed_desc_num > desc->desc_num ||
-	    complete_desc_num != XDMA_DESC_BLOCK_NUM * XDMA_DESC_ADJACENT)
-		goto out;
-
-	/* transfer the rest of data (SG only) */
-	xdma_xfer_start(xchan);
 
 out:
 	spin_unlock(&xchan->vchan.lock);
