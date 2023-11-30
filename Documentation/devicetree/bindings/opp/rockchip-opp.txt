@@ -1,0 +1,173 @@
+Rockchip OPP bindings to describe OPP nodes
+
+The bindings are based on top of the operating-points-v2 bindings
+described in Documentation/devicetree/bindings/opp/opp.txt
+Additional properties are described below.
+
+Optional properties:
+In 'operating-points-v2' table:
+- rockchip,supported-hw: The property allows to set supported hardware version.
+
+- rockchip,opp-shared-dsu: Indicates the dsu also uses the opp table.
+
+- rockchip,leakage-voltage-sel: The property is an array of 3-tuples items, and
+                       each item consists of leakage and voltage selector like
+                       <min-leakage max-leakage volt-selector>.
+                       min-leakage: minimum leakage in mA, ranges from 1 to 254.
+                       max-leakage: maximum leakage in mA, ranges from 1 to 254.
+                       voltage-selector: a sequence number which is used to math
+                       opp-microvolt-L<number> property in OPP node.
+- rockchip,leakage-scaling-sel: Similar to 'rockchip,leakage-voltage-sel', this
+                       allows to change max frequency according to leakage.
+
+- rockchip,pvtm-hw: Similar to 'opp-supported-hw', but only one hierarchical
+                       level, if hardware version is set in the property, the
+                       'rockchip,pvtm-voltage-sel-hw' will be used, otherwise
+                       'rockchip,pvtm-voltage-sel' will be used.
+- rockchip,pvtm-voltage-sel-hw: Similar to 'rockchip,pvtm-voltage-sel', this
+                       depends on 'rockchip,pvtm-hw' property.
+- rockchip,pvtm-voltage-sel: The property is an array of 3-tuples items, and
+                       each item consists of pvtm and voltage selector like
+                       <min-pvtm max-pvtm volt-selector>.
+                       min-pvtm: minimum frequency count in KHz.
+                       max-pvtm: maximum frequency count in KHz.
+                       voltage-selector: a sequence number which is used to math
+                       opp-microvolt-L<number> property in OPP node.
+- rockchip,pvtm-scaling-sel: Similar to 'rockchip,pvtm-voltage-sel', this allows
+                       to change maximum frequency according to pvtm.
+
+- rockchip,bin-voltage-sel: The property is an array of 2-tuples items, and
+                       each item consists of bin and voltage selector like
+                       <min-bin volt-selector>.
+                       min-bin: chip version.
+                       voltage-selector: a sequence number which is used to math
+                       opp-microvolt-L<number> property in OPP node.
+- rockchip,bin-scaling-sel: Similar to 'rockchip,bin-voltage-sel', this allows
+                       to change maximum frequency according to chip version.
+
+- rockchip,grf: The phandle of the syscon node for GRF register.
+- rockchip,dsu-grf: the phandle of the syscon node for DSU GRF register.
+- rockchip,opp-clocks: List of clocks for accessing pvtpll and read margin.
+- volt-mem-read-margin: The property is an array of 2-tuples items, and
+                       each item consists voltage an memory read margin like
+                       <voltage_uV rm>, this allows to change read margin
+                       according to voltage.
+- low-volt-mem-read-margin: The memory read margin value of low voltage.
+- intermediate-threshold-freq: Clock frequency in KHz, if current frequency or
+                       target frequency less than the threshold frequency,
+                       there may be no need to set intermediate rate.
+
+- rockchip,pvtpll-avg-offset: The offset of average value register.
+- rockchip,pvtpll-min-rate: Clock frequency in KHz, if opp frequency is higher
+                       than the minimum frequency, the opp voltage will be
+                       changed.
+- rockchip,pvtpll-volt-step: Voltage step in uV.
+
+- rockchip,pvtm-pvtpll: Indicates pvtm value is from pvtpll.
+- rockchip,pvtm-offset: The offset of pvtm value register.
+- rockchip,pvtm-freq: Clock frequency in KHz, which is used to set the cpu clock
+                       frequency before get frequency count of pvtm.
+- rockchip,pvtm-volt: Voltage in uV, which is used to set the cpu voltage before
+                       get frequency count of pvtm.
+- rockchip,pvtm-ch: An array of two integers containing pvtm channel and clock
+                       oscillation ring.
+- rockchip,pvtm-sample-time: The number of milliseconds to wait for pvtm to
+                       finish counting.
+- rockchip,pvtm-number: An integer indicating the number of sampling points.
+- rockchip,pvtm-error: An integer indicating the error between the sample
+                       results.
+- rockchip,pvtm-ref-temp: The SoC internal temperature in degree centigrade, the
+                       min-pvtm and max-pvtm in 'leakage-voltage-sel' are
+                       measured at reference temperature.
+- rockchip,pvtm-temp-prop: An array of two integers containing proportional
+                       constants which is used to convert the value at current
+                       temperature to reference temperature. The first one is
+                       used when current temperature is below reference
+                       temperature. Conversely, The second one is used when
+                       current temperature is above reference temperature.
+- rockchip,pvtm-thermal-zone: A thermal zone node containing thermal sensor,
+                       it's used to get the current temperature.
+- rockchip,thermal-zone: A thermal zone node containing thermal sensor,
+                       it's used to get the current temperature.
+
+- nvmem-cells: A phandle to soc info provided by a nvmem device.
+- nvmem-cell-names: Should be "leakage", "pvtm", "mbist-vmin", "opp-info",
+                      "specification_serial_number", "performance", or
+                      "remark_spec_serial_number".
+
+- rockchip,threshold-freq: Clock frequency in KHz, it's used to reduce power
+                       for SoCs with two clusters.
+- rockchip,freq-limit: Only one cluster can contain the property, and the
+                       cluster's maximum frequency will be limited to its
+                       threshold frequency, if the other cluster's frequency
+                       is geater than or equal to its threshold frequency.
+
+- rockchip,init-freq: The initial clock frequency in KHz.
+
+- rockchip,max-volt: The maximum voltage of opp.
+- rockchip,evb-irdrop: The evb irdrop in uV.
+- rockchip,board-irdrop: The property is an array of 3-tuples items, and
+                       each item consists of frequency and voltage like
+                       <min-freq max-freq volt>. This allows to change voltage
+                       for different frequencice.
+
+- rockchip,temp-hysteresis: Temperature hysteresis in millicelsius.
+- rockchip,low-temp: Threshold temperature in millicelsius.
+- rockchip,low-temp-adjust-volt: The property is an array of 3-tuples items, and
+                       each item consists of frequency and voltage like
+                       <min-freq max-freq volt>. This allows to change voltage
+                       according to different frequencice at low temperature.
+- rockchip,low-temp-min-volt: The minimum voltage of regulator at low temperature.
+- rockchip,high-temp: Threshold temperature in millicelsius.
+- rockchip,high-temp-max-volt: The maximum voltage of regulator at high temperature.
+- rockchip,high-temp-max-freq: The maximum frequency of clock at high temperature.
+- rockchip,temp-freq-table: The property is an array of 2-tuples items, and each
+                       item consists of temperature and frequency like
+                       <min-temp max-freq>. This allows to change the max
+                       frequency according to temperature.
+- rockchip,high-temp-limit-table: Similar to 'rockchip,temp-freq-table', but
+                       it's discarded.
+
+- rockchip,early-min-microvolt: Voltage in uV, this allows to limit the minimum
+                       voltage of regulator when start up.
+
+- rockchip,video-4k-freq: Clock frequency in KHz, change to the frequency when
+                       enter SYS_STATUS_VIDEO_4K status.
+- rockchip,reboot-freq: Clock frequency in KHz, change to the frequency when
+                       reboot.
+
+- rockchip,avs-enable: Similar to 'rockchip,avs', but it's discarded.
+- rockchip,avs: Indicates avs is enabled.
+- rockchip,avs-scale: The minimum scale of avs.
+- clocks: PLL clock, it's used to get avs frequency and avs scale.
+
+- mbist-vmin: The minimum voltage of memory, this allows to adjust opp voltage
+                       according to mbist in otp.
+
+Examples:
+
+cpus {
+	cpu@0 {
+		operating-points-v2 = <&cluster0_opp>;
+	};
+}
+
+cluster0_opp: opp_table0 {
+	compatible = "operating-points-v2";
+	opp-shared;
+
+	rockchip,leakage-voltage-sel = <
+		1   24   0
+		25  254  1
+	>;
+	nvmem-cells = <&cpu_leakage>;
+	nvmem-cell-names = "cpu_leakage";
+
+	opp@216000000 {
+		opp-hz = /bits/ 64 <216000000>;
+		opp-microvolt = <950000 950000 1350000>;
+		opp-microvolt-L0 = <1050000 1050000 1350000>;
+		opp-microvolt-L1 = <950000 950000 1350000>;
+		opp-suspend;
+	}
+};
