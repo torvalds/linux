@@ -50,7 +50,8 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    spmi {
+
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
         pmic_iadc: adc@3600 {
