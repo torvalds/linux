@@ -270,10 +270,10 @@ EXPORT_SYMBOL_GPL(audioreach_alloc_apm_cmd_pkt);
 static void audioreach_set_channel_mapping(u8 *ch_map, int num_channels)
 {
 	if (num_channels == 1) {
-		ch_map[0] =  PCM_CHANNEL_L;
+		ch_map[0] =  PCM_CHANNEL_FL;
 	} else if (num_channels == 2) {
-		ch_map[0] =  PCM_CHANNEL_L;
-		ch_map[1] =  PCM_CHANNEL_R;
+		ch_map[0] =  PCM_CHANNEL_FL;
+		ch_map[1] =  PCM_CHANNEL_FR;
 	}
 }
 
@@ -839,10 +839,10 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 	media_format->num_channels = cfg->num_channels;
 
 	if (num_channels == 1) {
-		media_format->channel_mapping[0] = PCM_CHANNEL_L;
+		media_format->channel_mapping[0] = PCM_CHANNEL_FL;
 	} else if (num_channels == 2) {
-		media_format->channel_mapping[0] = PCM_CHANNEL_L;
-		media_format->channel_mapping[1] = PCM_CHANNEL_R;
+		media_format->channel_mapping[0] = PCM_CHANNEL_FL;
+		media_format->channel_mapping[1] = PCM_CHANNEL_FR;
 	}
 
 	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
