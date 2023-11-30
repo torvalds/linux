@@ -685,8 +685,8 @@ static int mes_v12_0_load_microcode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, regCP_MES_MDBASE_HI,
 		     upper_32_bits(adev->mes.data_fw_gpu_addr[pipe]));
 
-	/* Set 0x3FFFF (256K-1) to CP_MES_MDBOUND_LO */
-	WREG32_SOC15(GC, 0, regCP_MES_MDBOUND_LO, 0x3FFFF);
+	/* Set data cache boundary CP_MES_MDBOUND_LO */
+	WREG32_SOC15(GC, 0, regCP_MES_MDBOUND_LO, 0x7FFFF);
 
 	if (prime_icache) {
 		/* invalidate ICACHE */
