@@ -310,6 +310,7 @@ int page_pool_list(struct page_pool *pool)
 	if (err < 0)
 		goto err_unlock;
 
+	INIT_HLIST_NODE(&pool->user.list);
 	if (pool->slow.netdev) {
 		hlist_add_head(&pool->user.list,
 			       &pool->slow.netdev->page_pools);
@@ -339,7 +340,8 @@ void page_pool_unlist(struct page_pool *pool)
 	mutex_lock(&page_pools_lock);
 	netdev_nl_page_pool_event(pool, NETDEV_CMD_PAGE_POOL_DEL_NTF);
 	xa_erase(&page_pools, pool->user.id);
-	hlist_del(&pool->user.list);
+	if (!hlist_unhashed(&pool->user.list))
+		hlist_del(&pool->user.list);
 	mutex_unlock(&page_pools_lock);
 }
 
