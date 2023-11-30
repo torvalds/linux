@@ -3,6 +3,7 @@
 #include "bbpos.h"
 #include "alloc_background.h"
 #include "backpointers.h"
+#include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
@@ -404,24 +405,22 @@ int bch2_check_btree_backpointers(struct bch_fs *c)
 	return ret;
 }
 
-struct bpos_level {
-	unsigned	level;
-	struct bpos	pos;
-};
-
 static int check_bp_exists(struct btree_trans *trans,
 			   struct bpos bucket,
 			   struct bch_backpointer bp,
 			   struct bkey_s_c orig_k,
 			   struct bpos bucket_start,
 			   struct bpos bucket_end,
-			   struct bpos_level *last_flushed)
+			   struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter bp_iter = { NULL };
 	struct printbuf buf = PRINTBUF;
 	struct bkey_s_c bp_k;
+	struct bkey_buf tmp;
 	int ret;
+
+	bch2_bkey_buf_init(&tmp);
 
 	if (bpos_lt(bucket, bucket_start) ||
 	    bpos_gt(bucket, bucket_end))
@@ -439,8 +438,11 @@ static int check_bp_exists(struct btree_trans *trans,
 
 	if (bp_k.k->type != KEY_TYPE_backpointer ||
 	    memcmp(bkey_s_c_to_backpointer(bp_k).v, &bp, sizeof(bp))) {
-		if (last_flushed->level != bp.level ||
-		    !bpos_eq(last_flushed->pos, orig_k.k->p)) {
+		if (!bpos_eq(orig_k.k->p, last_flushed->k->k.p) ||
+		    bkey_bytes(orig_k.k) != bkey_bytes(&last_flushed->k->k) ||
+		    memcmp(orig_k.v, &last_flushed->k->v, bkey_val_bytes(orig_k.k))) {
+			bch2_bkey_buf_reassemble(&tmp, c, orig_k);
+
 			if (bp.level) {
 				bch2_trans_unlock(trans);
 				bch2_btree_interior_updates_flush(c);
@@ -450,8 +452,7 @@ static int check_bp_exists(struct btree_trans *trans,
 			if (ret)
 				goto err;
 
-			last_flushed->level = bp.level;
-			last_flushed->pos = orig_k.k->p;
+			bch2_bkey_buf_copy(last_flushed, c, tmp.k);
 			ret = -BCH_ERR_transaction_restart_write_buffer_flush;
 			goto out;
 		}
@@ -461,6 +462,7 @@ out:
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &bp_iter);
+	bch2_bkey_buf_exit(&tmp, c);
 	printbuf_exit(&buf);
 	return ret;
 missing:
@@ -482,7 +484,7 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 					enum btree_id btree, unsigned level,
 					struct bpos bucket_start,
 					struct bpos bucket_end,
-					struct bpos_level *last_flushed,
+					struct bkey_buf *last_flushed,
 					struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
@@ -516,7 +518,7 @@ static int check_btree_root_to_backpointers(struct btree_trans *trans,
 					    enum btree_id btree_id,
 					    struct bpos bucket_start,
 					    struct bpos bucket_end,
-					    struct bpos_level *last_flushed,
+					    struct bkey_buf *last_flushed,
 					    int *level)
 {
 	struct bch_fs *c = trans->c;
@@ -621,10 +623,13 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 	struct btree_iter iter;
 	enum btree_id btree_id;
 	struct bkey_s_c k;
+	struct bkey_buf last_flushed;
 	int ret = 0;
 
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
 	for (btree_id = 0; btree_id < btree_id_nr_alive(c); btree_id++) {
-		struct bpos_level last_flushed = { UINT_MAX, POS_MIN };
 		int level, depth = btree_type_has_ptrs(btree_id) ? 0 : 1;
 
 		ret = commit_do(trans, NULL, NULL,
@@ -669,6 +674,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 		}
 	}
 
+	bch2_bkey_buf_exit(&last_flushed, c);
 	return 0;
 }
 
