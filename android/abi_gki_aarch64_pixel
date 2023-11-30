@@ -539,6 +539,7 @@
   dma_buf_vunmap
   dmaengine_unmap_put
   dma_fence_add_callback
+  dma_fence_array_create
   dma_fence_context_alloc
   dma_fence_default_wait
   dma_fence_get_status
@@ -2187,6 +2188,7 @@
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
+  __traceiter_android_rvh_update_load_sum
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
   __traceiter_android_rvh_util_fits_cpu
@@ -2292,6 +2294,7 @@
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
+  __tracepoint_android_rvh_update_load_sum
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
   __tracepoint_android_rvh_util_fits_cpu

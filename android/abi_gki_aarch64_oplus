@@ -92,6 +92,8 @@
   snd_soc_find_dai
   spi_bus_type
   stack_trace_save_tsk
+  static_key_enable
+  static_key_disable
   stpcpy
   task_rq_lock
   tcf_action_exec
@@ -162,6 +164,7 @@
   __traceiter_android_vh_rwsem_wake_finish
   __traceiter_android_vh_adjust_alloc_flags
   __traceiter_android_vh_adjust_kvmalloc_flags
+  __traceiter_android_vh_alloc_pages_slowpath
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_shrink_node_memcgs
   __traceiter_android_vh_sync_txn_recvd
@@ -260,6 +263,7 @@
   __tracepoint_android_vh_rwsem_wake_finish
   __tracepoint_android_vh_adjust_alloc_flags
   __tracepoint_android_vh_adjust_kvmalloc_flags
+  __tracepoint_android_vh_alloc_pages_slowpath
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_android_vh_sync_txn_recvd
