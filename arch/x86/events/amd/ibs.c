@@ -287,6 +287,9 @@ static int perf_ibs_init(struct perf_event *event)
 	if (config & ~perf_ibs->config_mask)
 		return -EINVAL;
 
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
+
 	ret = validate_group(event);
 	if (ret)
 		return ret;
