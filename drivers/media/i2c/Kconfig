@@ -1212,6 +1212,21 @@ config VIDEO_TW2804
 	  To compile this driver as a module, choose M here: the
 	  module will be called tw2804.
 
+config VIDEO_TW9900
+	tristate "Techwell TW9900 video decoder"
+	depends on GPIOLIB
+	depends on VIDEO_DEV && I2C
+	depends on PM
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_ASYNC
+	help
+	  Support for the Techwell TW9900 multi-standard video decoder.
+	  It supports NTSC, PAL standards with auto-detection features.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tw9900.
+
 config VIDEO_TW9903
 	tristate "Techwell TW9903 video decoder"
 	depends on VIDEO_DEV && I2C

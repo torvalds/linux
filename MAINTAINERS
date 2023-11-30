@@ -21360,6 +21360,12 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/ttusbir.c
 
+TECHWELL TW9900 VIDEO DECODER
+M:	Mehdi Djait <mehdi.djait@bootlin.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/tw9900.c
+
 TECHWELL TW9910 VIDEO DECODER
 L:	linux-media@vger.kernel.org
 S:	Orphan
