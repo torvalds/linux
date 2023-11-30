@@ -629,18 +629,22 @@ void fd_install(unsigned int fd, struct file *file)
 EXPORT_SYMBOL(fd_install);
 
 /**
- * pick_file - return file associatd with fd
+ * file_close_fd_locked - return file associated with fd
  * @files: file struct to retrieve file from
  * @fd: file descriptor to retrieve file for
+ *
+ * Doesn't take a separate reference count.
  *
  * Context: files_lock must be held.
  *
  * Returns: The file associated with @fd (NULL if @fd is not open)
  */
-static struct file *pick_file(struct files_struct *files, unsigned fd)
+struct file *file_close_fd_locked(struct files_struct *files, unsigned fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	struct file *file;
+
+	lockdep_assert_held(&files->file_lock);
 
 	if (fd >= fdt->max_fds)
 		return NULL;
@@ -660,7 +664,7 @@ int close_fd(unsigned fd)
 	struct file *file;
 
 	spin_lock(&files->file_lock);
-	file = pick_file(files, fd);
+	file = file_close_fd_locked(files, fd);
 	spin_unlock(&files->file_lock);
 	if (!file)
 		return -EBADF;
@@ -707,7 +711,7 @@ static inline void __range_close(struct files_struct *files, unsigned int fd,
 	max_fd = min(max_fd, n);
 
 	for (; fd <= max_fd; fd++) {
-		file = pick_file(files, fd);
+		file = file_close_fd_locked(files, fd);
 		if (file) {
 			spin_unlock(&files->file_lock);
 			filp_close(file, files);
@@ -795,15 +799,6 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 	return 0;
 }
 
-/*
- * See file_close_fd() below, this variant assumes current->files->file_lock
- * is held.
- */
-struct file *__close_fd_get_file(unsigned int fd)
-{
-	return pick_file(current->files, fd);
-}
-
 /**
  * file_close_fd - return file associated with fd
  * @fd: file descriptor to retrieve file for
@@ -818,7 +813,7 @@ struct file *file_close_fd(unsigned int fd)
 	struct file *file;
 
 	spin_lock(&files->file_lock);
-	file = pick_file(files, fd);
+	file = file_close_fd_locked(files, fd);
 	spin_unlock(&files->file_lock);
 
 	return file;

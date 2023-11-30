@@ -241,7 +241,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	}
 
-	file = __close_fd_get_file(close->fd);
+	file = file_close_fd_locked(files, close->fd);
 	spin_unlock(&files->file_lock);
 	if (!file)
 		goto err;
