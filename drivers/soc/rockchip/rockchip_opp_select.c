@@ -1842,13 +1842,77 @@ int rockchip_set_intermediate_rate(struct device *dev,
 }
 EXPORT_SYMBOL(rockchip_set_intermediate_rate);
 
+static int rockchip_get_opp_clk(struct device *dev, struct device_node *np,
+				struct rockchip_opp_info *info)
+{
+	struct clk_bulk_data *clks;
+	struct of_phandle_args clkspec;
+	int ret = 0, num_clks = 0, i;
+
+	if (of_find_property(np, "rockchip,opp-clocks", NULL)) {
+		num_clks = of_count_phandle_with_args(np, "rockchip,opp-clocks",
+						      "#clock-cells");
+		if (num_clks <= 0)
+			return 0;
+		clks = devm_kcalloc(dev, num_clks, sizeof(*clks), GFP_KERNEL);
+		if (!clks)
+			return -ENOMEM;
+		for (i = 0; i < num_clks; i++) {
+			ret = of_parse_phandle_with_args(np,
+							 "rockchip,opp-clocks",
+							 "#clock-cells", i,
+							 &clkspec);
+			if (ret < 0) {
+				dev_err(dev, "%s: failed to parse opp clk %d\n",
+					np->name, i);
+				goto error;
+			}
+			clks[i].clk = of_clk_get_from_provider(&clkspec);
+			if (IS_ERR(clks[i].clk)) {
+				ret = PTR_ERR(clks[i].clk);
+				clks[i].clk = NULL;
+				dev_err(dev, "%s: failed to get opp clk %d\n",
+					np->name, i);
+				goto error;
+			}
+		}
+	} else {
+		num_clks = of_clk_get_parent_count(np);
+		if (num_clks <= 0)
+			return 0;
+		clks = devm_kcalloc(dev, num_clks, sizeof(*clks), GFP_KERNEL);
+		if (!clks)
+			return -ENOMEM;
+		for (i = 0; i < num_clks; i++) {
+			clks[i].clk = of_clk_get(np, i);
+			if (IS_ERR(clks[i].clk)) {
+				ret = PTR_ERR(clks[i].clk);
+				clks[i].clk = NULL;
+				dev_err(dev, "%s: failed to get clk %d\n",
+					np->name, i);
+				goto error;
+			}
+		}
+	}
+	info->clks = clks;
+	info->num_clks = num_clks;
+
+	return 0;
+error:
+	while (--i >= 0)
+		clk_put(clks[i].clk);
+	devm_kfree(dev, clks);
+
+	return ret;
+}
+
 int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 			    char *lkg_name, char *reg_name)
 {
 	struct device_node *np;
 	int bin = -EINVAL, process = -EINVAL;
 	int scale = 0, volt_sel = -EINVAL;
-	int ret = 0, num_clks = 0, i;
+	int ret = 0;
 	u32 freq;
 
 	/* Get OPP descriptor node */
@@ -1861,24 +1925,10 @@ int rockchip_init_opp_table(struct device *dev, struct rockchip_opp_info *info,
 		goto next;
 	info->dev = dev;
 
-	num_clks = of_clk_get_parent_count(np);
-	if (num_clks > 0) {
-		info->clks = devm_kcalloc(dev, num_clks, sizeof(*info->clks),
-					  GFP_KERNEL);
-		if (!info->clks) {
-			ret = -ENOMEM;
-			goto out;
-		}
-		for (i = 0; i < num_clks; i++) {
-			info->clks[i].clk = of_clk_get(np, i);
-			if (IS_ERR(info->clks[i].clk)) {
-				ret = PTR_ERR(info->clks[i].clk);
-				dev_err(dev, "%s: failed to get clk %d\n",
-					np->name, i);
-				goto out;
-			}
-		}
-		info->num_clks = num_clks;
+	ret = rockchip_get_opp_clk(dev, np, info);
+	if (ret)
+		goto out;
+	if (info->clks) {
 		ret = clk_bulk_prepare_enable(info->num_clks, info->clks);
 		if (ret) {
 			dev_err(dev, "failed to enable opp clks\n");
