@@ -286,8 +286,8 @@ pvr_request_firmware(struct pvr_device *pvr_dev)
 
 	filename = pvr_build_firmware_filename(pvr_dev, "powervr/rogue",
 					       PVR_FW_VERSION_MAJOR);
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
+	if (!filename)
+		return -ENOMEM;
 
 	/*
 	 * This function takes a copy of &filename, meaning we can free our
