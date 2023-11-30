@@ -452,12 +452,77 @@ v3d_reset_performance_queries(struct v3d_cpu_job *job)
 	}
 }
 
+static void
+v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 query)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_perfmon *perfmon;
+	u64 counter_values[V3D_PERFCNT_NUM];
+
+	for (int i = 0; i < performance_query->nperfmons; i++) {
+		perfmon = v3d_perfmon_find(v3d_priv,
+					   performance_query->queries[query].kperfmon_ids[i]);
+		if (!perfmon) {
+			DRM_DEBUG("Failed to find perfmon.");
+			continue;
+		}
+
+		v3d_perfmon_stop(v3d, perfmon, true);
+
+		memcpy(&counter_values[i * DRM_V3D_MAX_PERF_COUNTERS], perfmon->values,
+		       perfmon->ncounters * sizeof(u64));
+
+		v3d_perfmon_put(perfmon);
+	}
+
+	for (int i = 0; i < performance_query->ncounters; i++)
+		write_to_buffer(data, i, copy->do_64bit, counter_values[i]);
+}
+
+static void
+v3d_copy_performance_query(struct v3d_cpu_job *job)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct dma_fence *fence;
+	bool available, write_result;
+	u8 *data;
+
+	v3d_get_bo_vaddr(bo);
+
+	data = ((u8 *)bo->vaddr) + copy->offset;
+
+	for (int i = 0; i < performance_query->count; i++) {
+		fence = drm_syncobj_fence_get(performance_query->queries[i].syncobj);
+		available = fence ? dma_fence_is_signaled(fence) : false;
+
+		write_result = available || copy->do_partial;
+		if (write_result)
+			v3d_write_performance_query_result(job, data, i);
+
+		if (copy->availability_bit)
+			write_to_buffer(data, performance_query->ncounters,
+					copy->do_64bit, available ? 1u : 0u);
+
+		data += copy->stride;
+
+		dma_fence_put(fence);
+	}
+
+	v3d_put_bo_vaddr(bo);
+}
+
 static const v3d_cpu_job_fn cpu_job_function[] = {
 	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = v3d_rewrite_csd_job_wg_counts_from_indirect,
 	[V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY] = v3d_timestamp_query,
 	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = v3d_reset_timestamp_queries,
 	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = v3d_copy_query_results,
 	[V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY] = v3d_reset_performance_queries,
+	[V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY] = v3d_copy_performance_query,
 };
 
 static struct dma_fence *

@@ -672,6 +672,84 @@ v3d_get_cpu_reset_performance_params(struct drm_file *file_priv,
 	return 0;
 }
 
+static int
+v3d_get_cpu_copy_performance_query_params(struct drm_file *file_priv,
+					  struct drm_v3d_extension __user *ext,
+					  struct v3d_cpu_job *job)
+{
+	u32 __user *syncs;
+	u64 __user *kperfmon_ids;
+	struct drm_v3d_copy_performance_query copy;
+
+	if (!job) {
+		DRM_DEBUG("CPU job extension was attached to a GPU job.\n");
+		return -EINVAL;
+	}
+
+	if (job->job_type) {
+		DRM_DEBUG("Two CPU job extensions were added to the same CPU job.\n");
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&copy, ext, sizeof(copy)))
+		return -EFAULT;
+
+	if (copy.pad)
+		return -EINVAL;
+
+	job->job_type = V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY;
+
+	job->performance_query.queries = kvmalloc_array(copy.count,
+							sizeof(struct v3d_performance_query),
+							GFP_KERNEL);
+	if (!job->performance_query.queries)
+		return -ENOMEM;
+
+	syncs = u64_to_user_ptr(copy.syncs);
+	kperfmon_ids = u64_to_user_ptr(copy.kperfmon_ids);
+
+	for (int i = 0; i < copy.count; i++) {
+		u32 sync;
+		u64 ids;
+		u32 __user *ids_pointer;
+		u32 id;
+
+		if (copy_from_user(&sync, syncs++, sizeof(sync))) {
+			kvfree(job->performance_query.queries);
+			return -EFAULT;
+		}
+
+		job->performance_query.queries[i].syncobj = drm_syncobj_find(file_priv, sync);
+
+		if (copy_from_user(&ids, kperfmon_ids++, sizeof(ids))) {
+			kvfree(job->performance_query.queries);
+			return -EFAULT;
+		}
+
+		ids_pointer = u64_to_user_ptr(ids);
+
+		for (int j = 0; j < copy.nperfmons; j++) {
+			if (copy_from_user(&id, ids_pointer++, sizeof(id))) {
+				kvfree(job->performance_query.queries);
+				return -EFAULT;
+			}
+
+			job->performance_query.queries[i].kperfmon_ids[j] = id;
+		}
+	}
+	job->performance_query.count = copy.count;
+	job->performance_query.nperfmons = copy.nperfmons;
+	job->performance_query.ncounters = copy.ncounters;
+
+	job->copy.do_64bit = copy.do_64bit;
+	job->copy.do_partial = copy.do_partial;
+	job->copy.availability_bit = copy.availability_bit;
+	job->copy.offset = copy.offset;
+	job->copy.stride = copy.stride;
+
+	return 0;
+}
+
 /* Whenever userspace sets ioctl extensions, v3d_get_extensions parses data
  * according to the extension id (name).
  */
@@ -711,6 +789,9 @@ v3d_get_extensions(struct drm_file *file_priv,
 			break;
 		case DRM_V3D_EXT_ID_CPU_RESET_PERFORMANCE_QUERY:
 			ret = v3d_get_cpu_reset_performance_params(file_priv, user_ext, job);
+			break;
+		case DRM_V3D_EXT_ID_CPU_COPY_PERFORMANCE_QUERY:
+			ret = v3d_get_cpu_copy_performance_query_params(file_priv, user_ext, job);
 			break;
 		default:
 			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
@@ -1092,6 +1173,7 @@ static const unsigned int cpu_job_bo_handle_count[] = {
 	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = 1,
 	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = 2,
 	[V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY] = 0,
+	[V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY] = 1,
 };
 
 /**
