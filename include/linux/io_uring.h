@@ -28,7 +28,6 @@ enum io_uring_cmd_flags {
 
 /* only top 8 bits of sqe->uring_cmd_flags for kernel internal use */
 #define IORING_URING_CMD_CANCELABLE	(1U << 30)
-#define IORING_URING_CMD_POLLED		(1U << 31)
 
 struct io_uring_cmd {
 	struct file	*file;
