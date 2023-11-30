@@ -508,7 +508,31 @@
 	lanes-per-direction = <2>;
 };
 
+#endif
+
+#if 1
+
 &i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2c11 {
 	status = "okay";
 };
 
