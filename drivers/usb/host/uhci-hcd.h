@@ -445,7 +445,9 @@ struct uhci_hcd {
 	short load[MAX_PHASE];			/* Periodic allocations */
 
 	struct clk *clk;			/* (optional) clock source */
-
+#ifdef CONFIG_MACH_ASPEED_G7
+	struct reset_control *rsts;		/* (optional) clock reset */
+#endif
 	/* Reset host controller */
 	void	(*reset_hc) (struct uhci_hcd *uhci);
 	int	(*check_and_reset_hc) (struct uhci_hcd *uhci);
