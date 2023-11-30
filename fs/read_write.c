@@ -1421,6 +1421,10 @@ ssize_t generic_copy_file_range(struct file *file_in, loff_t pos_in,
 				struct file *file_out, loff_t pos_out,
 				size_t len, unsigned int flags)
 {
+	/* May only be called from within ->copy_file_range() methods */
+	if (WARN_ON_ONCE(flags))
+		return -EINVAL;
+
 	return splice_file_range(file_in, &pos_in, file_out, &pos_out,
 				 min_t(size_t, len, MAX_RW_COUNT));
 }
@@ -1510,6 +1514,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 {
 	ssize_t ret;
 	bool splice = flags & COPY_FILE_SPLICE;
+	bool samesb = file_inode(file_in)->i_sb == file_inode(file_out)->i_sb;
 
 	if (flags & ~COPY_FILE_SPLICE)
 		return -EINVAL;
@@ -1541,18 +1546,23 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 		ret = file_out->f_op->copy_file_range(file_in, pos_in,
 						      file_out, pos_out,
 						      len, flags);
-		goto done;
-	}
-
-	if (!splice && file_in->f_op->remap_file_range &&
-	    file_inode(file_in)->i_sb == file_inode(file_out)->i_sb) {
+	} else if (!splice && file_in->f_op->remap_file_range && samesb) {
 		ret = file_in->f_op->remap_file_range(file_in, pos_in,
 				file_out, pos_out,
 				min_t(loff_t, MAX_RW_COUNT, len),
 				REMAP_FILE_CAN_SHORTEN);
-		if (ret > 0)
-			goto done;
+		/* fallback to splice */
+		if (ret <= 0)
+			splice = true;
+	} else if (samesb) {
+		/* Fallback to splice for same sb copy for backward compat */
+		splice = true;
 	}
+
+	file_end_write(file_out);
+
+	if (!splice)
+		goto done;
 
 	/*
 	 * We can get here for same sb copy of filesystems that do not implement
@@ -1565,11 +1575,16 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	 * and which filesystems do not, that will allow userspace tools to
 	 * make consistent desicions w.r.t using copy_file_range().
 	 *
-	 * We also get here if caller (e.g. nfsd) requested COPY_FILE_SPLICE.
+	 * We also get here if caller (e.g. nfsd) requested COPY_FILE_SPLICE
+	 * for server-side-copy between any two sb.
+	 *
+	 * In any case, we call do_splice_direct() and not splice_file_range(),
+	 * without file_start_write() held, to avoid possible deadlocks related
+	 * to splicing from input file, while file_start_write() is held on
+	 * the output file on a different sb.
 	 */
-	ret = generic_copy_file_range(file_in, pos_in, file_out, pos_out, len,
-				      flags);
-
+	ret = do_splice_direct(file_in, &pos_in, file_out, &pos_out,
+			       min_t(size_t, len, MAX_RW_COUNT), 0);
 done:
 	if (ret > 0) {
 		fsnotify_access(file_in);
@@ -1580,8 +1595,6 @@ done:
 
 	inc_syscr(current);
 	inc_syscw(current);
-
-	file_end_write(file_out);
 
 	return ret;
 }
