@@ -346,6 +346,17 @@ the weight will be respected are up to the underlying prioritization mechanism
 implementation.
 
 
+Aim-oriented Feedback-driven Auto-tuning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Automatic feedback-driven quota tuning.  Instead of setting the absolute quota
+value, users can repeatedly provide numbers representing how much of their goal
+for the scheme is achieved as feedback.  DAMOS then automatically tunes the
+aggressiveness (the quota) of the corresponding scheme.  For example, if DAMOS
+is under achieving the goal, DAMOS automatically increases the quota.  If DAMOS
+is over achieving the goal, it decreases the quota.
+
+
 .. _damon_design_damos_watermarks:
 
 Watermarks
