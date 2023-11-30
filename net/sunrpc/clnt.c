@@ -3247,14 +3247,6 @@ rpc_set_connect_timeout(struct rpc_clnt *clnt,
 }
 EXPORT_SYMBOL_GPL(rpc_set_connect_timeout);
 
-void rpc_clnt_xprt_switch_put(struct rpc_clnt *clnt)
-{
-	rcu_read_lock();
-	xprt_switch_put(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_put);
-
 void rpc_clnt_xprt_set_online(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 {
 	struct rpc_xprt_switch *xps;
