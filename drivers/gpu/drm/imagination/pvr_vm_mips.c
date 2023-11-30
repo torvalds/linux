@@ -57,6 +57,7 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 							       PAGE_SIZE, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, mips_data->pt_dma_addr[page_nr])) {
 			err = -ENOMEM;
+			__free_page(mips_data->pt_pages[page_nr]);
 			goto err_free_pages;
 		}
 	}
@@ -79,13 +80,11 @@ pvr_vm_mips_init(struct pvr_device *pvr_dev)
 	return 0;
 
 err_free_pages:
-	for (; page_nr >= 0; page_nr--) {
-		if (mips_data->pt_dma_addr[page_nr])
-			dma_unmap_page(from_pvr_device(pvr_dev)->dev,
-				       mips_data->pt_dma_addr[page_nr], PAGE_SIZE, DMA_TO_DEVICE);
+	while (--page_nr >= 0) {
+		dma_unmap_page(from_pvr_device(pvr_dev)->dev,
+			       mips_data->pt_dma_addr[page_nr], PAGE_SIZE, DMA_TO_DEVICE);
 
-		if (mips_data->pt_pages[page_nr])
-			__free_page(mips_data->pt_pages[page_nr]);
+		__free_page(mips_data->pt_pages[page_nr]);
 	}
 
 	return err;
