@@ -256,6 +256,45 @@ v3d_attach_fences_and_unlock_reservation(struct drm_file *file_priv,
 	}
 }
 
+static int
+v3d_setup_csd_jobs_and_bos(struct drm_file *file_priv,
+			   struct v3d_dev *v3d,
+			   struct drm_v3d_submit_csd *args,
+			   struct v3d_csd_job **job,
+			   struct v3d_job **clean_job,
+			   struct v3d_submit_ext *se,
+			   struct ww_acquire_ctx *acquire_ctx)
+{
+	int ret;
+
+	ret = v3d_job_allocate((void *)job, sizeof(**job));
+	if (ret)
+		return ret;
+
+	ret = v3d_job_init(v3d, file_priv, &(*job)->base,
+			   v3d_job_free, args->in_sync, se, V3D_CSD);
+	if (ret)
+		return ret;
+
+	ret = v3d_job_allocate((void *)clean_job, sizeof(**clean_job));
+	if (ret)
+		return ret;
+
+	ret = v3d_job_init(v3d, file_priv, *clean_job,
+			   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
+	if (ret)
+		return ret;
+
+	(*job)->args = *args;
+
+	ret = v3d_lookup_bos(&v3d->drm, file_priv, *clean_job,
+			     args->bo_handles, args->bo_handle_count);
+	if (ret)
+		return ret;
+
+	return v3d_lock_bo_reservations(*clean_job, acquire_ctx);
+}
+
 static void
 v3d_put_multisync_post_deps(struct v3d_submit_ext *se)
 {
@@ -700,32 +739,9 @@ v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = v3d_job_allocate((void *)&job, sizeof(*job));
-	if (ret)
-		return ret;
-
-	ret = v3d_job_init(v3d, file_priv, &job->base,
-			   v3d_job_free, args->in_sync, &se, V3D_CSD);
-	if (ret)
-		goto fail;
-
-	ret = v3d_job_allocate((void *)&clean_job, sizeof(*clean_job));
-	if (ret)
-		goto fail;
-
-	ret = v3d_job_init(v3d, file_priv, clean_job,
-			   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
-	if (ret)
-		goto fail;
-
-	job->args = *args;
-
-	ret = v3d_lookup_bos(dev, file_priv, clean_job,
-			     args->bo_handles, args->bo_handle_count);
-	if (ret)
-		goto fail;
-
-	ret = v3d_lock_bo_reservations(clean_job, &acquire_ctx);
+	ret = v3d_setup_csd_jobs_and_bos(file_priv, v3d, args,
+					 &job, &clean_job, &se,
+					 &acquire_ctx);
 	if (ret)
 		goto fail;
 
