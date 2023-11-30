@@ -2360,8 +2360,7 @@
 		rockchip,pvtm-temp-prop = <(-135) (-135)>;
 		rockchip,pvtm-thermal-zone = "gpu-thermal";
 
-		clocks = <&cru CLK_GPU>;
-		clock-names = "clk";
+		rockchip,opp-clocks = <&cru CLK_GPU>;
 		rockchip,grf = <&gpu_grf>;
 		volt-mem-read-margin = <
 			855000	1
@@ -3453,8 +3452,7 @@
 		rockchip,pvtm-temp-prop = <(-113) (-113)>;
 		rockchip,pvtm-thermal-zone = "npu-thermal";
 
-		clocks = <&cru PCLK_NPU_GRF>, <&cru HCLK_NPU_ROOT>;
-		clock-names = "pclk", "hclk";
+		rockchip,opp-clocks = <&cru PCLK_NPU_GRF>, <&cru HCLK_NPU_ROOT>;
 		rockchip,grf = <&npu_grf>;
 		volt-mem-read-margin = <
 			855000	1
