@@ -129,6 +129,9 @@ void v3d_job_cleanup(struct v3d_job *job)
 
 void v3d_job_put(struct v3d_job *job)
 {
+	if (!job)
+		return;
+
 	kref_put(&job->refcount, job->free);
 }
 
@@ -517,11 +520,9 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 						 &se,
 						 last_job->done_fence);
 
-	if (bin)
-		v3d_job_put(&bin->base);
+	v3d_job_put(&bin->base);
 	v3d_job_put(&render->base);
-	if (clean_job)
-		v3d_job_put(clean_job);
+	v3d_job_put(clean_job);
 
 	return 0;
 
