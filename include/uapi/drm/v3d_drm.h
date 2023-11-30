@@ -71,7 +71,8 @@ extern "C" {
 struct drm_v3d_extension {
 	__u64 next;
 	__u32 id;
-#define DRM_V3D_EXT_ID_MULTI_SYNC		0x01
+#define DRM_V3D_EXT_ID_MULTI_SYNC			0x01
+#define DRM_V3D_EXT_ID_CPU_INDIRECT_CSD		0x02
 	__u32 flags; /* mbz */
 };
 
@@ -365,8 +366,46 @@ struct drm_v3d_submit_csd {
 	__u32 pad;
 };
 
+/**
+ * struct drm_v3d_indirect_csd - ioctl extension for the CPU job to create an
+ * indirect CSD
+ *
+ * When an extension of DRM_V3D_EXT_ID_CPU_INDIRECT_CSD id is defined, it
+ * points to this extension to define a indirect CSD submission. It creates a
+ * CPU job linked to a CSD job. The CPU job waits for the indirect CSD
+ * dependencies and, once they are signaled, it updates the CSD job config
+ * before allowing the CSD job execution.
+ */
+struct drm_v3d_indirect_csd {
+	struct drm_v3d_extension base;
+
+	/* Indirect CSD */
+	struct drm_v3d_submit_csd submit;
+
+	/* Handle of the indirect BO, that should be also attached to the
+	 * indirect CSD.
+	 */
+	__u32 indirect;
+
+	/* Offset within the BO where the workgroup counts are stored */
+	__u32 offset;
+
+	/* Workgroups size */
+	__u32 wg_size;
+
+	/* Indices of the uniforms with the workgroup dispatch counts
+	 * in the uniform stream. If the uniform rewrite is not needed,
+	 * the offset must be 0xffffffff.
+	 */
+	__u32 wg_uniform_offsets[3];
+};
+
 struct drm_v3d_submit_cpu {
-	/* Pointer to a u32 array of the BOs that are referenced by the job. */
+	/* Pointer to a u32 array of the BOs that are referenced by the job.
+	 *
+	 * For DRM_V3D_EXT_ID_CPU_INDIRECT_CSD, it must contain only one BO,
+	 * that contains the workgroup counts.
+	 */
 	__u64 bo_handles;
 
 	/* Number of BO handles passed in (size is that times 4). */

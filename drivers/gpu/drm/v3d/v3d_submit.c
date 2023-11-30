@@ -391,6 +391,48 @@ v3d_get_multisync_submit_deps(struct drm_file *file_priv,
 	return 0;
 }
 
+/* Get data for the indirect CSD job submission. */
+static int
+v3d_get_cpu_indirect_csd_params(struct drm_file *file_priv,
+				struct drm_v3d_extension __user *ext,
+				struct v3d_cpu_job *job)
+{
+	struct v3d_file_priv *v3d_priv = file_priv->driver_priv;
+	struct v3d_dev *v3d = v3d_priv->v3d;
+	struct drm_v3d_indirect_csd indirect_csd;
+	struct v3d_indirect_csd_info *info = &job->indirect_csd;
+
+	if (!job) {
+		DRM_DEBUG("CPU job extension was attached to a GPU job.\n");
+		return -EINVAL;
+	}
+
+	if (job->job_type) {
+		DRM_DEBUG("Two CPU job extensions were added to the same CPU job.\n");
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&indirect_csd, ext, sizeof(indirect_csd)))
+		return -EFAULT;
+
+	if (!v3d_has_csd(v3d)) {
+		DRM_DEBUG("Attempting CSD submit on non-CSD hardware.\n");
+		return -EINVAL;
+	}
+
+	job->job_type = V3D_CPU_JOB_TYPE_INDIRECT_CSD;
+	info->offset = indirect_csd.offset;
+	info->wg_size = indirect_csd.wg_size;
+	memcpy(&info->wg_uniform_offsets, &indirect_csd.wg_uniform_offsets,
+	       sizeof(indirect_csd.wg_uniform_offsets));
+
+	info->indirect = drm_gem_object_lookup(file_priv, indirect_csd.indirect);
+
+	return v3d_setup_csd_jobs_and_bos(file_priv, v3d, &indirect_csd.submit,
+					  &info->job, &info->clean_job,
+					  NULL, &info->acquire_ctx);
+}
+
 /* Whenever userspace sets ioctl extensions, v3d_get_extensions parses data
  * according to the extension id (name).
  */
@@ -415,6 +457,9 @@ v3d_get_extensions(struct drm_file *file_priv,
 		switch (ext.id) {
 		case DRM_V3D_EXT_ID_MULTI_SYNC:
 			ret = v3d_get_multisync_submit_deps(file_priv, user_ext, se);
+			break;
+		case DRM_V3D_EXT_ID_CPU_INDIRECT_CSD:
+			ret = v3d_get_cpu_indirect_csd_params(file_priv, user_ext, job);
 			break;
 		default:
 			DRM_DEBUG_DRIVER("Unknown extension id: %d\n", ext.id);
@@ -790,7 +835,9 @@ fail:
 	return ret;
 }
 
-static const unsigned int cpu_job_bo_handle_count[] = { };
+static const unsigned int cpu_job_bo_handle_count[] = {
+	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = 1,
+};
 
 /**
  * v3d_submit_cpu_ioctl() - Submits a CPU job to the V3D.
@@ -808,7 +855,10 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	struct drm_v3d_submit_cpu *args = data;
 	struct v3d_submit_ext se = {0};
+	struct v3d_submit_ext *out_se = NULL;
 	struct v3d_cpu_job *cpu_job = NULL;
+	struct v3d_csd_job *csd_job = NULL;
+	struct v3d_job *clean_job = NULL;
 	struct ww_acquire_ctx acquire_ctx;
 	int ret;
 
@@ -847,6 +897,9 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
+	clean_job = cpu_job->indirect_csd.clean_job;
+	csd_job = cpu_job->indirect_csd.job;
+
 	if (args->bo_handle_count) {
 		ret = v3d_lookup_bos(dev, file_priv, &cpu_job->base,
 				     args->bo_handles, args->bo_handle_count);
@@ -860,19 +913,66 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&v3d->sched_lock);
 	v3d_push_job(&cpu_job->base);
+
+	switch (cpu_job->job_type) {
+	case V3D_CPU_JOB_TYPE_INDIRECT_CSD:
+		ret = drm_sched_job_add_dependency(&csd_job->base.base,
+						   dma_fence_get(cpu_job->base.done_fence));
+		if (ret)
+			goto fail_unreserve;
+
+		v3d_push_job(&csd_job->base);
+
+		ret = drm_sched_job_add_dependency(&clean_job->base,
+						   dma_fence_get(csd_job->base.done_fence));
+		if (ret)
+			goto fail_unreserve;
+
+		v3d_push_job(clean_job);
+
+		break;
+	default:
+		break;
+	}
 	mutex_unlock(&v3d->sched_lock);
+
+	out_se = (cpu_job->job_type == V3D_CPU_JOB_TYPE_INDIRECT_CSD) ? NULL : &se;
 
 	v3d_attach_fences_and_unlock_reservation(file_priv,
 						 &cpu_job->base,
 						 &acquire_ctx, 0,
-						 NULL, cpu_job->base.done_fence);
+						 out_se, cpu_job->base.done_fence);
+
+	switch (cpu_job->job_type) {
+	case V3D_CPU_JOB_TYPE_INDIRECT_CSD:
+		v3d_attach_fences_and_unlock_reservation(file_priv,
+							 clean_job,
+							 &cpu_job->indirect_csd.acquire_ctx,
+							 0, &se, clean_job->done_fence);
+		break;
+	default:
+		break;
+	}
 
 	v3d_job_put(&cpu_job->base);
+	v3d_job_put(&csd_job->base);
+	v3d_job_put(clean_job);
 
 	return 0;
 
+fail_unreserve:
+	mutex_unlock(&v3d->sched_lock);
+
+	drm_gem_unlock_reservations(cpu_job->base.bo, cpu_job->base.bo_count,
+				    &acquire_ctx);
+
+	drm_gem_unlock_reservations(clean_job->bo, clean_job->bo_count,
+				    &cpu_job->indirect_csd.acquire_ctx);
+
 fail:
 	v3d_job_cleanup((void *)cpu_job);
+	v3d_job_cleanup((void *)csd_job);
+	v3d_job_cleanup(clean_job);
 	v3d_put_multisync_post_deps(&se);
 
 	return ret;

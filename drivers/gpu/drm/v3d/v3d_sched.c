@@ -25,6 +25,8 @@
 #include "v3d_regs.h"
 #include "v3d_trace.h"
 
+#define V3D_CSD_CFG012_WG_COUNT_SHIFT 16
+
 static struct v3d_job *
 to_v3d_job(struct drm_sched_job *sched_job)
 {
@@ -268,7 +270,44 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
-static const v3d_cpu_job_fn cpu_job_function[] = { };
+static void
+v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
+{
+	struct v3d_indirect_csd_info *indirect_csd = &job->indirect_csd;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct v3d_bo *indirect = to_v3d_bo(indirect_csd->indirect);
+	struct drm_v3d_submit_csd *args = &indirect_csd->job->args;
+	u32 *wg_counts;
+
+	v3d_get_bo_vaddr(bo);
+	v3d_get_bo_vaddr(indirect);
+
+	wg_counts = (uint32_t *)(bo->vaddr + indirect_csd->offset);
+
+	if (wg_counts[0] == 0 || wg_counts[1] == 0 || wg_counts[2] == 0)
+		return;
+
+	args->cfg[0] = wg_counts[0] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[1] = wg_counts[1] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[2] = wg_counts[2] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[4] = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
+		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
+
+	for (int i = 0; i < 3; i++) {
+		/* 0xffffffff indicates that the uniform rewrite is not needed */
+		if (indirect_csd->wg_uniform_offsets[i] != 0xffffffff) {
+			u32 uniform_idx = indirect_csd->wg_uniform_offsets[i];
+			((uint32_t *)indirect->vaddr)[uniform_idx] = wg_counts[i];
+		}
+	}
+
+	v3d_put_bo_vaddr(indirect);
+	v3d_put_bo_vaddr(bo);
+}
+
+static const v3d_cpu_job_fn cpu_job_function[] = {
+	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = v3d_rewrite_csd_job_wg_counts_from_indirect,
+};
 
 static struct dma_fence *
 v3d_cpu_job_run(struct drm_sched_job *sched_job)

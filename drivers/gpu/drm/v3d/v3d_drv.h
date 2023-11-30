@@ -316,12 +316,41 @@ struct v3d_csd_job {
 	struct drm_v3d_submit_csd args;
 };
 
-enum v3d_cpu_job_type {};
+enum v3d_cpu_job_type {
+	V3D_CPU_JOB_TYPE_INDIRECT_CSD = 1,
+};
+
+struct v3d_indirect_csd_info {
+	/* Indirect CSD */
+	struct v3d_csd_job *job;
+
+	/* Clean cache job associated to the Indirect CSD job */
+	struct v3d_job *clean_job;
+
+	/* Offset within the BO where the workgroup counts are stored */
+	u32 offset;
+
+	/* Workgroups size */
+	u32 wg_size;
+
+	/* Indices of the uniforms with the workgroup dispatch counts
+	 * in the uniform stream.
+	 */
+	u32 wg_uniform_offsets[3];
+
+	/* Indirect BO */
+	struct drm_gem_object *indirect;
+
+	/* Context of the Indirect CSD job */
+	struct ww_acquire_ctx acquire_ctx;
+};
 
 struct v3d_cpu_job {
 	struct v3d_job base;
 
 	enum v3d_cpu_job_type job_type;
+
+	struct v3d_indirect_csd_info indirect_csd;
 };
 
 typedef void (*v3d_cpu_job_fn)(struct v3d_cpu_job *);
