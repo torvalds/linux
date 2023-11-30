@@ -17736,21 +17736,29 @@ nla_put_failure:
 	nlmsg_free(msg);
 }
 
+struct nl80211_mlme_event {
+	enum nl80211_commands cmd;
+	const u8 *buf;
+	size_t buf_len;
+	int uapsd_queues;
+	const u8 *req_ies;
+	size_t req_ies_len;
+	bool reconnect;
+};
+
 static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
 				    struct net_device *netdev,
-				    const u8 *buf, size_t len,
-				    enum nl80211_commands cmd, gfp_t gfp,
-				    int uapsd_queues, const u8 *req_ies,
-				    size_t req_ies_len, bool reconnect)
+				    const struct nl80211_mlme_event *event,
+				    gfp_t gfp)
 {
 	struct sk_buff *msg;
 	void *hdr;
 
-	msg = nlmsg_new(100 + len + req_ies_len, gfp);
+	msg = nlmsg_new(100 + event->buf_len + event->req_ies_len, gfp);
 	if (!msg)
 		return;
 
-	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd);
+	hdr = nl80211hdr_put(msg, 0, 0, 0, event->cmd);
 	if (!hdr) {
 		nlmsg_free(msg);
 		return;
@@ -17758,22 +17766,24 @@ static void nl80211_send_mlme_event(struct cfg80211_registered_device *rdev,
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
-	    nla_put(msg, NL80211_ATTR_FRAME, len, buf) ||
-	    (req_ies &&
-	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ies_len, req_ies)))
+	    nla_put(msg, NL80211_ATTR_FRAME, event->buf_len, event->buf) ||
+	    (event->req_ies &&
+	     nla_put(msg, NL80211_ATTR_REQ_IE, event->req_ies_len,
+		     event->req_ies)))
 		goto nla_put_failure;
 
-	if (reconnect && nla_put_flag(msg, NL80211_ATTR_RECONNECT_REQUESTED))
+	if (event->reconnect &&
+	    nla_put_flag(msg, NL80211_ATTR_RECONNECT_REQUESTED))
 		goto nla_put_failure;
 
-	if (uapsd_queues >= 0) {
+	if (event->uapsd_queues >= 0) {
 		struct nlattr *nla_wmm =
 			nla_nest_start_noflag(msg, NL80211_ATTR_STA_WME);
 		if (!nla_wmm)
 			goto nla_put_failure;
 
 		if (nla_put_u8(msg, NL80211_STA_WME_UAPSD_QUEUES,
-			       uapsd_queues))
+			       event->uapsd_queues))
 			goto nla_put_failure;
 
 		nla_nest_end(msg, nla_wmm);
@@ -17793,37 +17803,60 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 			  struct net_device *netdev, const u8 *buf,
 			  size_t len, gfp_t gfp)
 {
-	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_AUTHENTICATE, gfp, -1, NULL, 0,
-				false);
+	struct nl80211_mlme_event event = {
+		.cmd = NL80211_CMD_AUTHENTICATE,
+		.buf = buf,
+		.buf_len = len,
+		.uapsd_queues = -1,
+	};
+
+	nl80211_send_mlme_event(rdev, netdev, &event, gfp);
 }
 
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev,
 			   struct cfg80211_rx_assoc_resp_data *data)
 {
-	nl80211_send_mlme_event(rdev, netdev, data->buf, data->len,
-				NL80211_CMD_ASSOCIATE, GFP_KERNEL,
-				data->uapsd_queues,
-				data->req_ies, data->req_ies_len, false);
+	struct nl80211_mlme_event event = {
+		.cmd = NL80211_CMD_ASSOCIATE,
+		.buf = data->buf,
+		.buf_len = data->len,
+		.uapsd_queues = data->uapsd_queues,
+		.req_ies = data->req_ies,
+		.req_ies_len = data->req_ies_len,
+	};
+
+	nl80211_send_mlme_event(rdev, netdev, &event, GFP_KERNEL);
 }
 
 void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *netdev, const u8 *buf,
 			 size_t len, bool reconnect, gfp_t gfp)
 {
-	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_DEAUTHENTICATE, gfp, -1, NULL, 0,
-				reconnect);
+	struct nl80211_mlme_event event = {
+		.cmd = NL80211_CMD_DEAUTHENTICATE,
+		.buf = buf,
+		.buf_len = len,
+		.reconnect = reconnect,
+		.uapsd_queues = -1,
+	};
+
+	nl80211_send_mlme_event(rdev, netdev, &event, gfp);
 }
 
 void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *netdev, const u8 *buf,
 			   size_t len, bool reconnect, gfp_t gfp)
 {
-	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_DISASSOCIATE, gfp, -1, NULL, 0,
-				reconnect);
+	struct nl80211_mlme_event event = {
+		.cmd = NL80211_CMD_DISASSOCIATE,
+		.buf = buf,
+		.buf_len = len,
+		.reconnect = reconnect,
+		.uapsd_queues = -1,
+	};
+
+	nl80211_send_mlme_event(rdev, netdev, &event, gfp);
 }
 
 void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
@@ -17833,28 +17866,31 @@ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	const struct ieee80211_mgmt *mgmt = (void *)buf;
-	u32 cmd;
+	struct nl80211_mlme_event event = {
+		.buf = buf,
+		.buf_len = len,
+		.uapsd_queues = -1,
+	};
 
 	if (WARN_ON(len < 2))
 		return;
 
 	if (ieee80211_is_deauth(mgmt->frame_control)) {
-		cmd = NL80211_CMD_UNPROT_DEAUTHENTICATE;
+		event.cmd = NL80211_CMD_UNPROT_DEAUTHENTICATE;
 	} else if (ieee80211_is_disassoc(mgmt->frame_control)) {
-		cmd = NL80211_CMD_UNPROT_DISASSOCIATE;
+		event.cmd = NL80211_CMD_UNPROT_DISASSOCIATE;
 	} else if (ieee80211_is_beacon(mgmt->frame_control)) {
 		if (wdev->unprot_beacon_reported &&
 		    elapsed_jiffies_msecs(wdev->unprot_beacon_reported) < 10000)
 			return;
-		cmd = NL80211_CMD_UNPROT_BEACON;
+		event.cmd = NL80211_CMD_UNPROT_BEACON;
 		wdev->unprot_beacon_reported = jiffies;
 	} else {
 		return;
 	}
 
 	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
-	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC, -1,
-				NULL, 0, false);
+	nl80211_send_mlme_event(rdev, dev, &event, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(cfg80211_rx_unprot_mlme_mgmt);
 
