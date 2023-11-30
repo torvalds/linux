@@ -227,22 +227,6 @@ static const struct xfs_item_ops xfs_cud_item_ops = {
 	.iop_intent	= xfs_cud_item_intent,
 };
 
-static struct xfs_cud_log_item *
-xfs_trans_get_cud(
-	struct xfs_trans		*tp,
-	struct xfs_cui_log_item		*cuip)
-{
-	struct xfs_cud_log_item		*cudp;
-
-	cudp = kmem_cache_zalloc(xfs_cud_cache, GFP_KERNEL | __GFP_NOFAIL);
-	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
-			  &xfs_cud_item_ops);
-	cudp->cud_cuip = cuip;
-	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
-
-	return cudp;
-}
-
 /* Sort refcount intents by AG. */
 static int
 xfs_refcount_update_diff_items(
@@ -328,7 +312,16 @@ xfs_refcount_update_create_done(
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_cud(tp, CUI_ITEM(intent))->cud_item;
+	struct xfs_cui_log_item		*cuip = CUI_ITEM(intent);
+	struct xfs_cud_log_item		*cudp;
+
+	cudp = kmem_cache_zalloc(xfs_cud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
+			  &xfs_cud_item_ops);
+	cudp->cud_cuip = cuip;
+	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
+
+	return &cudp->cud_item;
 }
 
 /* Take a passive ref to the AG containing the space we're refcounting. */

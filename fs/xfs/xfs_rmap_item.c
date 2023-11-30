@@ -225,22 +225,6 @@ static const struct xfs_item_ops xfs_rud_item_ops = {
 	.iop_intent	= xfs_rud_item_intent,
 };
 
-static struct xfs_rud_log_item *
-xfs_trans_get_rud(
-	struct xfs_trans		*tp,
-	struct xfs_rui_log_item		*ruip)
-{
-	struct xfs_rud_log_item		*rudp;
-
-	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
-	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
-			  &xfs_rud_item_ops);
-	rudp->rud_ruip = ruip;
-	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
-
-	return rudp;
-}
-
 /* Set the map extent flags for this reverse mapping. */
 static void
 xfs_trans_set_rmap_flags(
@@ -353,7 +337,16 @@ xfs_rmap_update_create_done(
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_rud(tp, RUI_ITEM(intent))->rud_item;
+	struct xfs_rui_log_item		*ruip = RUI_ITEM(intent);
+	struct xfs_rud_log_item		*rudp;
+
+	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
+			  &xfs_rud_item_ops);
+	rudp->rud_ruip = ruip;
+	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
+
+	return &rudp->rud_item;
 }
 
 /* Take a passive ref to the AG containing the space we're rmapping. */

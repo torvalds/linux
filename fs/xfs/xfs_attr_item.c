@@ -33,8 +33,6 @@ struct kmem_cache		*xfs_attrd_cache;
 
 static const struct xfs_item_ops xfs_attri_item_ops;
 static const struct xfs_item_ops xfs_attrd_item_ops;
-static struct xfs_attrd_log_item *xfs_trans_get_attrd(struct xfs_trans *tp,
-					struct xfs_attri_log_item *attrip);
 
 static inline struct xfs_attri_log_item *ATTRI_ITEM(struct xfs_log_item *lip)
 {
@@ -732,16 +730,20 @@ xlog_recover_attri_commit_pass2(
 	return 0;
 }
 
-/*
- * This routine is called to allocate an "attr free done" log item.
- */
-static struct xfs_attrd_log_item *
-xfs_trans_get_attrd(struct xfs_trans		*tp,
-		  struct xfs_attri_log_item	*attrip)
+/* Get an ATTRD so we can process all the attrs. */
+static struct xfs_log_item *
+xfs_attr_create_done(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*intent,
+	unsigned int			count)
 {
-	struct xfs_attrd_log_item		*attrdp;
+	struct xfs_attri_log_item	*attrip;
+	struct xfs_attrd_log_item	*attrdp;
 
-	ASSERT(tp != NULL);
+	if (!intent)
+		return NULL;
+
+	attrip = ATTRI_ITEM(intent);
 
 	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
 
@@ -750,20 +752,7 @@ xfs_trans_get_attrd(struct xfs_trans		*tp,
 	attrdp->attrd_attrip = attrip;
 	attrdp->attrd_format.alfd_alf_id = attrip->attri_format.alfi_id;
 
-	return attrdp;
-}
-
-/* Get an ATTRD so we can process all the attrs. */
-static struct xfs_log_item *
-xfs_attr_create_done(
-	struct xfs_trans		*tp,
-	struct xfs_log_item		*intent,
-	unsigned int			count)
-{
-	if (!intent)
-		return NULL;
-
-	return &xfs_trans_get_attrd(tp, ATTRI_ITEM(intent))->attrd_item;
+	return &attrdp->attrd_item;
 }
 
 const struct xfs_defer_op_type xfs_attr_defer_type = {

@@ -304,38 +304,6 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
 };
 
 /*
- * Allocate an "extent free done" log item that will hold nextents worth of
- * extents.  The caller must use all nextents extents, because we are not
- * flexible about this at all.
- */
-static struct xfs_efd_log_item *
-xfs_trans_get_efd(
-	struct xfs_trans		*tp,
-	struct xfs_efi_log_item		*efip,
-	unsigned int			nextents)
-{
-	struct xfs_efd_log_item		*efdp;
-
-	ASSERT(nextents > 0);
-
-	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
-		efdp = kzalloc(xfs_efd_log_item_sizeof(nextents),
-				GFP_KERNEL | __GFP_NOFAIL);
-	} else {
-		efdp = kmem_cache_zalloc(xfs_efd_cache,
-					GFP_KERNEL | __GFP_NOFAIL);
-	}
-
-	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
-			  &xfs_efd_item_ops);
-	efdp->efd_efip = efip;
-	efdp->efd_format.efd_nextents = nextents;
-	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
-
-	return efdp;
-}
-
-/*
  * Fill the EFD with all extents from the EFI when we need to roll the
  * transaction and continue with a new EFI.
  *
@@ -428,7 +396,26 @@ xfs_extent_free_create_done(
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_efd(tp, EFI_ITEM(intent), count)->efd_item;
+	struct xfs_efi_log_item		*efip = EFI_ITEM(intent);
+	struct xfs_efd_log_item		*efdp;
+
+	ASSERT(count > 0);
+
+	if (count > XFS_EFD_MAX_FAST_EXTENTS) {
+		efdp = kzalloc(xfs_efd_log_item_sizeof(count),
+				GFP_KERNEL | __GFP_NOFAIL);
+	} else {
+		efdp = kmem_cache_zalloc(xfs_efd_cache,
+					GFP_KERNEL | __GFP_NOFAIL);
+	}
+
+	xfs_log_item_init(tp->t_mountp, &efdp->efd_item, XFS_LI_EFD,
+			  &xfs_efd_item_ops);
+	efdp->efd_efip = efip;
+	efdp->efd_format.efd_nextents = count;
+	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
+
+	return &efdp->efd_item;
 }
 
 /* Take a passive ref to the AG containing the space we're freeing. */

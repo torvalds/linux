@@ -221,22 +221,6 @@ static const struct xfs_item_ops xfs_bud_item_ops = {
 	.iop_intent	= xfs_bud_item_intent,
 };
 
-static struct xfs_bud_log_item *
-xfs_trans_get_bud(
-	struct xfs_trans		*tp,
-	struct xfs_bui_log_item		*buip)
-{
-	struct xfs_bud_log_item		*budp;
-
-	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_NOFAIL);
-	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
-			  &xfs_bud_item_ops);
-	budp->bud_buip = buip;
-	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
-
-	return budp;
-}
-
 /* Sort bmap intents by inode. */
 static int
 xfs_bmap_update_diff_items(
@@ -321,14 +305,23 @@ xfs_bmap_update_create_intent(
 	return &buip->bui_item;
 }
 
-/* Get an BUD so we can process all the deferred rmap updates. */
+/* Get an BUD so we can process all the deferred bmap updates. */
 static struct xfs_log_item *
 xfs_bmap_update_create_done(
 	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_bud(tp, BUI_ITEM(intent))->bud_item;
+	struct xfs_bui_log_item		*buip = BUI_ITEM(intent);
+	struct xfs_bud_log_item		*budp;
+
+	budp = kmem_cache_zalloc(xfs_bud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	xfs_log_item_init(tp->t_mountp, &budp->bud_item, XFS_LI_BUD,
+			  &xfs_bud_item_ops);
+	budp->bud_buip = buip;
+	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
+
+	return &budp->bud_item;
 }
 
 /* Take a passive ref to the AG containing the space we're mapping. */
