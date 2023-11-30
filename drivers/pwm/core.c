@@ -59,22 +59,24 @@ static struct pwm_chip *pwmchip_find_by_name(const char *name)
 static int pwm_device_request(struct pwm_device *pwm, const char *label)
 {
 	int err;
+	struct pwm_chip *chip = pwm->chip;
+	const struct pwm_ops *ops = chip->ops;
 
 	if (test_bit(PWMF_REQUESTED, &pwm->flags))
 		return -EBUSY;
 
-	if (!try_module_get(pwm->chip->owner))
+	if (!try_module_get(chip->owner))
 		return -ENODEV;
 
-	if (pwm->chip->ops->request) {
-		err = pwm->chip->ops->request(pwm->chip, pwm);
+	if (ops->request) {
+		err = ops->request(chip, pwm);
 		if (err) {
-			module_put(pwm->chip->owner);
+			module_put(chip->owner);
 			return err;
 		}
 	}
 
-	if (pwm->chip->ops->get_state) {
+	if (ops->get_state) {
 		/*
 		 * Zero-initialize state because most drivers are unaware of
 		 * .usage_power. The other members of state are supposed to be
@@ -84,7 +86,7 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 		 */
 		struct pwm_state state = { 0, };
 
-		err = pwm->chip->ops->get_state(pwm->chip, pwm, &state);
+		err = ops->get_state(chip, pwm, &state);
 		trace_pwm_get(pwm, &state, err);
 
 		if (!err)
