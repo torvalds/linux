@@ -333,11 +333,9 @@ static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 		if (error)
 			break;
 
-		ovl_start_write(dentry);
 		bytes = do_splice_direct(old_file, &old_pos,
 					 new_file, &new_pos,
 					 this_len, SPLICE_F_MOVE);
-		ovl_end_write(dentry);
 		if (bytes <= 0) {
 			error = bytes;
 			break;

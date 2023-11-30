@@ -1157,9 +1157,20 @@ static int direct_splice_actor(struct pipe_inode_info *pipe,
 			       struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
+	long ret;
 
-	return do_splice_from(pipe, file, sd->opos, sd->total_len,
-			      sd->flags);
+	file_start_write(file);
+	ret = do_splice_from(pipe, file, sd->opos, sd->total_len, sd->flags);
+	file_end_write(file);
+	return ret;
+}
+
+static int splice_file_range_actor(struct pipe_inode_info *pipe,
+					struct splice_desc *sd)
+{
+	struct file *file = sd->u.file;
+
+	return do_splice_from(pipe, file, sd->opos, sd->total_len, sd->flags);
 }
 
 static void direct_file_splice_eof(struct splice_desc *sd)
@@ -1233,6 +1244,8 @@ EXPORT_SYMBOL(do_splice_direct);
  *
  * Description:
  *    For use by generic_copy_file_range() and ->copy_file_range() methods.
+ *    Like do_splice_direct(), but vfs_copy_file_range() already holds
+ *    start_file_write() on @out file.
  *
  * Callers already called rw_verify_area() on the entire range.
  */
@@ -1242,7 +1255,7 @@ long splice_file_range(struct file *in, loff_t *ppos, struct file *out,
 	lockdep_assert(file_write_started(out));
 
 	return do_splice_direct_actor(in, ppos, out, opos, len, 0,
-				      direct_splice_actor);
+				      splice_file_range_actor);
 }
 EXPORT_SYMBOL(splice_file_range);
 
