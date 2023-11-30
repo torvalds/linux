@@ -285,34 +285,26 @@ static int bch2_ioc_goingdown(struct bch_fs *c, u32 __user *arg)
 
 	bch_notice(c, "shutdown by ioctl type %u", flags);
 
-	down_write(&c->vfs_sb->s_umount);
-
 	switch (flags) {
 	case FSOP_GOING_FLAGS_DEFAULT:
 		ret = freeze_bdev(c->vfs_sb->s_bdev);
 		if (ret)
-			goto err;
-
+			break;
 		bch2_journal_flush(&c->journal);
-		c->vfs_sb->s_flags |= SB_RDONLY;
 		bch2_fs_emergency_read_only(c);
 		thaw_bdev(c->vfs_sb->s_bdev);
 		break;
-
 	case FSOP_GOING_FLAGS_LOGFLUSH:
 		bch2_journal_flush(&c->journal);
 		fallthrough;
-
 	case FSOP_GOING_FLAGS_NOLOGFLUSH:
-		c->vfs_sb->s_flags |= SB_RDONLY;
 		bch2_fs_emergency_read_only(c);
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
-err:
-	up_write(&c->vfs_sb->s_umount);
+
 	return ret;
 }
 
