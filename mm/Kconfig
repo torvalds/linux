@@ -61,6 +61,20 @@ config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
 	  The cost is that if the page was never dirtied and needs to be
 	  swapped out again, it will be re-compressed.
 
+config ZSWAP_SHRINKER_DEFAULT_ON
+	bool "Shrink the zswap pool on memory pressure"
+	depends on ZSWAP
+	default n
+	help
+	  If selected, the zswap shrinker will be enabled, and the pages
+	  stored in the zswap pool will become available for reclaim (i.e
+	  written back to the backing swap device) on memory pressure.
+
+	  This means that zswap writeback could happen even if the pool is
+	  not yet full, or the cgroup zswap limit has not been reached,
+	  reducing the chance that cold pages will reside in the zswap pool
+	  and consume memory indefinitely.
+
 choice
 	prompt "Default compressor"
 	depends on ZSWAP
