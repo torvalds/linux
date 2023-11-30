@@ -539,7 +539,7 @@ pvr_device_addr_and_size_are_valid(struct pvr_vm_context *vm_ctx,
 	       (device_addr + size <= PVR_PAGE_TABLE_ADDR_SPACE_SIZE);
 }
 
-void pvr_gpuvm_free(struct drm_gpuvm *gpuvm)
+static void pvr_gpuvm_free(struct drm_gpuvm *gpuvm)
 {
 	kfree(to_pvr_vm_context(gpuvm));
 }
