@@ -691,9 +691,10 @@ xfs_efi_item_match(
 static struct xfs_log_item *
 xfs_efi_item_relog(
 	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item,
 	struct xfs_trans		*tp)
 {
-	struct xfs_efd_log_item		*efdp;
+	struct xfs_efd_log_item		*efdp = EFD_ITEM(done_item);
 	struct xfs_efi_log_item		*efip;
 	struct xfs_extent		*extp;
 	unsigned int			count;
@@ -701,11 +702,8 @@ xfs_efi_item_relog(
 	count = EFI_ITEM(intent)->efi_format.efi_nextents;
 	extp = EFI_ITEM(intent)->efi_format.efi_extents;
 
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	efdp = xfs_trans_get_efd(tp, EFI_ITEM(intent), count);
 	efdp->efd_next_extent = count;
 	memcpy(efdp->efd_format.efd_extents, extp, count * sizeof(*extp));
-	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	efip = xfs_efi_init(tp->t_mountp, count);
 	memcpy(efip->efi_format.efi_extents, extp, count * sizeof(*extp));

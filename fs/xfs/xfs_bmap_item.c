@@ -572,19 +572,15 @@ xfs_bui_item_match(
 static struct xfs_log_item *
 xfs_bui_item_relog(
 	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item,
 	struct xfs_trans		*tp)
 {
-	struct xfs_bud_log_item		*budp;
 	struct xfs_bui_log_item		*buip;
 	struct xfs_map_extent		*map;
 	unsigned int			count;
 
 	count = BUI_ITEM(intent)->bui_format.bui_nextents;
 	map = BUI_ITEM(intent)->bui_format.bui_extents;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	budp = xfs_trans_get_bud(tp, BUI_ITEM(intent));
-	set_bit(XFS_LI_DIRTY, &budp->bud_item.li_flags);
 
 	buip = xfs_bui_init(tp->t_mountp);
 	memcpy(buip->bui_format.bui_extents, map, count * sizeof(*map));

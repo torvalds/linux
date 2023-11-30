@@ -586,19 +586,15 @@ xfs_rui_item_match(
 static struct xfs_log_item *
 xfs_rui_item_relog(
 	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item,
 	struct xfs_trans		*tp)
 {
-	struct xfs_rud_log_item		*rudp;
 	struct xfs_rui_log_item		*ruip;
 	struct xfs_map_extent		*map;
 	unsigned int			count;
 
 	count = RUI_ITEM(intent)->rui_format.rui_nextents;
 	map = RUI_ITEM(intent)->rui_format.rui_extents;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	rudp = xfs_trans_get_rud(tp, RUI_ITEM(intent));
-	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
 
 	ruip = xfs_rui_init(tp->t_mountp, count);
 	memcpy(ruip->rui_format.rui_extents, map, count * sizeof(*map));

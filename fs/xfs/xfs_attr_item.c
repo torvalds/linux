@@ -630,9 +630,9 @@ out_unlock:
 static struct xfs_log_item *
 xfs_attri_item_relog(
 	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item,
 	struct xfs_trans		*tp)
 {
-	struct xfs_attrd_log_item	*attrdp;
 	struct xfs_attri_log_item	*old_attrip;
 	struct xfs_attri_log_item	*new_attrip;
 	struct xfs_attri_log_format	*new_attrp;
@@ -640,10 +640,6 @@ xfs_attri_item_relog(
 
 	old_attrip = ATTRI_ITEM(intent);
 	old_attrp = &old_attrip->attri_format;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	attrdp = xfs_trans_get_attrd(tp, old_attrip);
-	set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
 
 	/*
 	 * Create a new log item that shares the same name/value buffer as the
