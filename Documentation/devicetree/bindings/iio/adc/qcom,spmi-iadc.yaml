@@ -54,12 +54,13 @@ examples:
     pmic {
         #address-cells = <1>;
         #size-cells = <0>;
-        pmic_iadc: adc@3600 {
+
+        adc@3600 {
             compatible = "qcom,pm8941-iadc", "qcom,spmi-iadc";
             reg = <0x3600>;
             interrupts = <0x0 0x36 0x0 IRQ_TYPE_EDGE_RISING>;
             qcom,external-resistor-micro-ohms = <10000>;
-            #io-channel-cells  = <1>;
+            #io-channel-cells = <1>;
         };
     };
 ...
