@@ -44,7 +44,7 @@ static int intel_lpss_pci_probe(struct pci_dev *pdev,
 		return ret;
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_LEGACY);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	info = devm_kmemdup(&pdev->dev, data, sizeof(*info), GFP_KERNEL);
