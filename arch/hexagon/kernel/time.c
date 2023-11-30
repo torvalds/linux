@@ -17,6 +17,7 @@
 #include <linux/of_irq.h>
 #include <linux/module.h>
 
+#include <asm/delay.h>
 #include <asm/hexagon_vm.h>
 #include <asm/time.h>
 
