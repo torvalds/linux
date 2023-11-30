@@ -78,11 +78,18 @@ v3d_cpu_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_cpu_job *job = to_cpu_job(sched_job);
 	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
 
 	if (timestamp_query->queries) {
 		for (int i = 0; i < timestamp_query->count; i++)
 			drm_syncobj_put(timestamp_query->queries[i].syncobj);
 		kvfree(timestamp_query->queries);
+	}
+
+	if (performance_query->queries) {
+		for (int i = 0; i < performance_query->count; i++)
+			drm_syncobj_put(performance_query->queries[i].syncobj);
+		kvfree(performance_query->queries);
 	}
 
 	v3d_job_cleanup(&job->base);
@@ -417,11 +424,40 @@ v3d_copy_query_results(struct v3d_cpu_job *job)
 	v3d_put_bo_vaddr(bo);
 }
 
+static void
+v3d_reset_performance_queries(struct v3d_cpu_job *job)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_perfmon *perfmon;
+
+	for (int i = 0; i < performance_query->count; i++) {
+		for (int j = 0; j < performance_query->nperfmons; j++) {
+			perfmon = v3d_perfmon_find(v3d_priv,
+						   performance_query->queries[i].kperfmon_ids[j]);
+			if (!perfmon) {
+				DRM_DEBUG("Failed to find perfmon.");
+				continue;
+			}
+
+			v3d_perfmon_stop(v3d, perfmon, false);
+
+			memset(perfmon->values, 0, perfmon->ncounters * sizeof(u64));
+
+			v3d_perfmon_put(perfmon);
+		}
+
+		drm_syncobj_replace_fence(performance_query->queries[i].syncobj, NULL);
+	}
+}
+
 static const v3d_cpu_job_fn cpu_job_function[] = {
 	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = v3d_rewrite_csd_job_wg_counts_from_indirect,
 	[V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY] = v3d_timestamp_query,
 	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = v3d_reset_timestamp_queries,
 	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = v3d_copy_query_results,
+	[V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY] = v3d_reset_performance_queries,
 };
 
 static struct dma_fence *

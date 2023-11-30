@@ -321,6 +321,7 @@ enum v3d_cpu_job_type {
 	V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY,
 	V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY,
 	V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY,
+	V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY,
 };
 
 struct v3d_timestamp_query {
@@ -328,6 +329,18 @@ struct v3d_timestamp_query {
 	u32 offset;
 
 	/* Syncobj that indicates the timestamp availability */
+	struct drm_syncobj *syncobj;
+};
+
+/* Number of perfmons required to handle all supported performance counters */
+#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_PERFCNT_NUM, \
+				      DRM_V3D_MAX_PERF_COUNTERS)
+
+struct v3d_performance_query {
+	/* Performance monitor IDs for this query */
+	u32 kperfmon_ids[V3D_MAX_PERFMONS];
+
+	/* Syncobj that indicates the query availability */
 	struct drm_syncobj *syncobj;
 };
 
@@ -362,6 +375,19 @@ struct v3d_timestamp_query_info {
 	u32 count;
 };
 
+struct v3d_performance_query_info {
+	struct v3d_performance_query *queries;
+
+	/* Number of performance queries */
+	u32 count;
+
+	/* Number of performance monitors related to that query pool */
+	u32 nperfmons;
+
+	/* Number of performance counters related to that query pool */
+	u32 ncounters;
+};
+
 struct v3d_copy_query_results_info {
 	/* Define if should write to buffer using 64 or 32 bits */
 	bool do_64bit;
@@ -389,6 +415,8 @@ struct v3d_cpu_job {
 	struct v3d_timestamp_query_info timestamp_query;
 
 	struct v3d_copy_query_results_info copy;
+
+	struct v3d_performance_query_info performance_query;
 };
 
 typedef void (*v3d_cpu_job_fn)(struct v3d_cpu_job *);
