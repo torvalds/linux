@@ -73,6 +73,7 @@ struct drm_v3d_extension {
 	__u32 id;
 #define DRM_V3D_EXT_ID_MULTI_SYNC			0x01
 #define DRM_V3D_EXT_ID_CPU_INDIRECT_CSD		0x02
+#define DRM_V3D_EXT_ID_CPU_TIMESTAMP_QUERY		0x03
 	__u32 flags; /* mbz */
 };
 
@@ -400,11 +401,40 @@ struct drm_v3d_indirect_csd {
 	__u32 wg_uniform_offsets[3];
 };
 
+/**
+ * struct drm_v3d_timestamp_query - ioctl extension for the CPU job to calculate
+ * a timestamp query
+ *
+ * When an extension DRM_V3D_EXT_ID_TIMESTAMP_QUERY is defined, it points to
+ * this extension to define a timestamp query submission. This CPU job will
+ * calculate the timestamp query and update the query value within the
+ * timestamp BO. Moreover, it will signal the timestamp syncobj to indicate
+ * query availability.
+ */
+struct drm_v3d_timestamp_query {
+	struct drm_v3d_extension base;
+
+	/* Array of queries' offsets within the timestamp BO for their value */
+	__u64 offsets;
+
+	/* Array of timestamp's syncobjs to indicate its availability */
+	__u64 syncs;
+
+	/* Number of queries */
+	__u32 count;
+
+	/* mbz */
+	__u32 pad;
+};
+
 struct drm_v3d_submit_cpu {
 	/* Pointer to a u32 array of the BOs that are referenced by the job.
 	 *
 	 * For DRM_V3D_EXT_ID_CPU_INDIRECT_CSD, it must contain only one BO,
 	 * that contains the workgroup counts.
+	 *
+	 * For DRM_V3D_EXT_ID_TIMESTAMP_QUERY, it must contain only one BO,
+	 * that will contain the timestamp.
 	 */
 	__u64 bo_handles;
 

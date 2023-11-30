@@ -318,6 +318,15 @@ struct v3d_csd_job {
 
 enum v3d_cpu_job_type {
 	V3D_CPU_JOB_TYPE_INDIRECT_CSD = 1,
+	V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY,
+};
+
+struct v3d_timestamp_query {
+	/* Offset of this query in the timestamp BO for its value. */
+	u32 offset;
+
+	/* Syncobj that indicates the timestamp availability */
+	struct drm_syncobj *syncobj;
 };
 
 struct v3d_indirect_csd_info {
@@ -345,12 +354,20 @@ struct v3d_indirect_csd_info {
 	struct ww_acquire_ctx acquire_ctx;
 };
 
+struct v3d_timestamp_query_info {
+	struct v3d_timestamp_query *queries;
+
+	u32 count;
+};
+
 struct v3d_cpu_job {
 	struct v3d_job base;
 
 	enum v3d_cpu_job_type job_type;
 
 	struct v3d_indirect_csd_info indirect_csd;
+
+	struct v3d_timestamp_query_info timestamp_query;
 };
 
 typedef void (*v3d_cpu_job_fn)(struct v3d_cpu_job *);
