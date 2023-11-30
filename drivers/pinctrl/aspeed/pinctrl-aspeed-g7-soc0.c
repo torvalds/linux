@@ -137,7 +137,7 @@ struct aspeed_g7_group_funcfg usb2axh_cfg[] = {
 /* 10: PCI xhci to PHY, ,[9] : 0 PCIe XHCI */
 struct aspeed_g7_group_funcfg usb2axhp_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 1, .val = BIT(3) },
 	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
 };
 
@@ -223,13 +223,13 @@ struct aspeed_g7_group_funcfg usb3b2axhp_cfg[] = {
 };
 
 //USB2B
-/* 00: xhci to vHub1, [9] : 1: BMC XHCI */
+/* 00: xhci to vHub1, [10] : 1: BMC XHCI */
 struct aspeed_g7_group_funcfg usb2bxhd1_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
 };
 
-/* 00: pci xhci to vHub1, [9] : 0 PCIe XHCI */
+/* 00: pci xhci to vHub1, [10] : 0 PCIe XHCI */
 struct aspeed_g7_group_funcfg usb2bxhpd1_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 },
@@ -237,21 +237,21 @@ struct aspeed_g7_group_funcfg usb2bxhpd1_cfg[] = {
 
 /* 01: vHub1 to PHY */
 struct aspeed_g7_group_funcfg usb2bd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(6) },
 };
 
-/* 10: BMC xhci to PHY, [9] 1: BMC XHCI */
+/* 10: BMC xhci to PHY, [10] 1: BMC XHCI */
 struct aspeed_g7_group_funcfg usb2bxh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(7) },
 	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
 };
 
-/* 10: PCI xhci to PHY, ,[9] : 0 PCIe XHCI */
+/* 10: PCI xhci to PHY, ,[10] : 0 PCIe XHCI */
 struct aspeed_g7_group_funcfg usb2bxhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(7) },
 	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 },
 };
 
@@ -264,34 +264,34 @@ struct aspeed_g7_group_funcfg usb2b2axh_cfg[] = {
 
 /* 11: XHCI Ext (port B), [10] 0: PCI XHCI */
 struct aspeed_g7_group_funcfg usb2b2axhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 }
 };
 
-//USB2A
+//USB2B
 /* 00: PCIE EHCI to vHub0 */
 struct aspeed_g7_group_funcfg usb2bhpd0_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 0, .val = 0 },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
 };
 
 /* 01: vHub0 to PHY */
 struct aspeed_g7_group_funcfg usb2bd0_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 1, .val = BIT(26) },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = BIT(28) },
 };
 
 /* 10: BMC EHCI to PHY */
 struct aspeed_g7_group_funcfg usb2bh_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 1, .val = BIT(27) },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = BIT(29) },
 };
 
 /* 11: PCI EHCI to PHY */
 struct aspeed_g7_group_funcfg usb2bhp_cfg[] = {
 	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(27, 26), .enable = 1, .val = GENMASK(27, 26) },
+	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = GENMASK(29, 28) },
 };
 
 #define PINGROUP(pingrp_name, grp_fn_name, n) \
