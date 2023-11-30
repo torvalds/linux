@@ -3132,7 +3132,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	amdgpu_ras_set_mca_debug_mode(adev, false);
+	/* enable MCA debug on APU device */
+	amdgpu_ras_set_mca_debug_mode(adev, !!(adev->flags & AMD_IS_APU));
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {
