@@ -12,7 +12,8 @@ v3d-y := \
 	v3d_perfmon.o \
 	v3d_trace_points.o \
 	v3d_sched.o \
-	v3d_sysfs.o
+	v3d_sysfs.o \
+	v3d_submit.o
 
 v3d-$(CONFIG_DEBUG_FS) += v3d_debugfs.o
 

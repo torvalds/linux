@@ -401,17 +401,19 @@ struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue);
 /* v3d_gem.c */
 int v3d_gem_init(struct drm_device *dev);
 void v3d_gem_destroy(struct drm_device *dev);
+void v3d_reset(struct v3d_dev *v3d);
+void v3d_invalidate_caches(struct v3d_dev *v3d);
+void v3d_clean_caches(struct v3d_dev *v3d);
+
+/* v3d_submit.c */
+void v3d_job_cleanup(struct v3d_job *job);
+void v3d_job_put(struct v3d_job *job);
 int v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-void v3d_job_cleanup(struct v3d_job *job);
-void v3d_job_put(struct v3d_job *job);
-void v3d_reset(struct v3d_dev *v3d);
-void v3d_invalidate_caches(struct v3d_dev *v3d);
-void v3d_clean_caches(struct v3d_dev *v3d);
 
 /* v3d_irq.c */
 int v3d_irq_init(struct v3d_dev *v3d);
