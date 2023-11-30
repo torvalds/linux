@@ -83,7 +83,7 @@ static int _akcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 
 	/* ensure output buffer is sufficiently large */
 	if (len < maxsize) {
-		pr_err("%s: output buffer is not large enough. len:0x%x, maxsize:0x%x\n",
+		pr_err("%s: output buffer is not large enough. len:%zu, maxsize:0x%x\n",
 		       __func__, len, maxsize);
 		err = -EMSGSIZE;
 		goto free;
