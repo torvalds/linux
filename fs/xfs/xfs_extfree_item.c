@@ -332,7 +332,6 @@ xfs_trans_get_efd(
 	efdp->efd_format.efd_nextents = nextents;
 	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;
 
-	xfs_trans_add_item(tp, &efdp->efd_item);
 	return efdp;
 }
 
@@ -415,7 +414,6 @@ xfs_extent_free_create_intent(
 
 	ASSERT(count > 0);
 
-	xfs_trans_add_item(tp, &efip->efi_item);
 	if (sort)
 		list_sort(mp, items, xfs_extent_free_diff_items);
 	list_for_each_entry(xefi, items, xefi_list)
@@ -708,7 +706,6 @@ xfs_efi_item_relog(
 	efip = xfs_efi_init(tp->t_mountp, count);
 	memcpy(efip->efi_format.efi_extents, extp, count * sizeof(*extp));
 	atomic_set(&efip->efi_next_extent, count);
-	xfs_trans_add_item(tp, &efip->efi_item);
 
 	return &efip->efi_item;
 }

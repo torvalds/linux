@@ -234,7 +234,6 @@ xfs_trans_get_bud(
 	budp->bud_buip = buip;
 	budp->bud_format.bud_bui_id = buip->bui_format.bui_id;
 
-	xfs_trans_add_item(tp, &budp->bud_item);
 	return budp;
 }
 
@@ -315,7 +314,6 @@ xfs_bmap_update_create_intent(
 
 	ASSERT(count == XFS_BUI_MAX_FAST_EXTENTS);
 
-	xfs_trans_add_item(tp, &buip->bui_item);
 	if (sort)
 		list_sort(mp, items, xfs_bmap_update_diff_items);
 	list_for_each_entry(bi, items, bi_list)
@@ -585,7 +583,6 @@ xfs_bui_item_relog(
 	buip = xfs_bui_init(tp->t_mountp);
 	memcpy(buip->bui_format.bui_extents, map, count * sizeof(*map));
 	atomic_set(&buip->bui_next_extent, count);
-	xfs_trans_add_item(tp, &buip->bui_item);
 
 	return &buip->bui_item;
 }

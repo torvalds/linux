@@ -240,7 +240,6 @@ xfs_trans_get_cud(
 	cudp->cud_cuip = cuip;
 	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
 
-	xfs_trans_add_item(tp, &cudp->cud_item);
 	return cudp;
 }
 
@@ -315,7 +314,6 @@ xfs_refcount_update_create_intent(
 
 	ASSERT(count > 0);
 
-	xfs_trans_add_item(tp, &cuip->cui_item);
 	if (sort)
 		list_sort(mp, items, xfs_refcount_update_diff_items);
 	list_for_each_entry(ri, items, ri_list)
@@ -546,7 +544,6 @@ xfs_cui_item_relog(
 	cuip = xfs_cui_init(tp->t_mountp, count);
 	memcpy(cuip->cui_format.cui_extents, pmap, count * sizeof(*pmap));
 	atomic_set(&cuip->cui_next_extent, count);
-	xfs_trans_add_item(tp, &cuip->cui_item);
 
 	return &cuip->cui_item;
 }

@@ -375,7 +375,6 @@ xfs_attr_create_intent(
 	}
 
 	attrip = xfs_attri_init(mp, attr->xattri_nameval);
-	xfs_trans_add_item(tp, &attrip->attri_item);
 	xfs_attr_log_item(tp, attrip, attr);
 
 	return &attrip->attri_item;
@@ -654,8 +653,6 @@ xfs_attri_item_relog(
 	new_attrp->alfi_name_len = old_attrp->alfi_name_len;
 	new_attrp->alfi_attr_filter = old_attrp->alfi_attr_filter;
 
-	xfs_trans_add_item(tp, &new_attrip->attri_item);
-
 	return &new_attrip->attri_item;
 }
 
@@ -753,7 +750,6 @@ xfs_trans_get_attrd(struct xfs_trans		*tp,
 	attrdp->attrd_attrip = attrip;
 	attrdp->attrd_format.alfd_alf_id = attrip->attri_format.alfi_id;
 
-	xfs_trans_add_item(tp, &attrdp->attrd_item);
 	return attrdp;
 }
 

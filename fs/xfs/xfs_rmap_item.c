@@ -238,7 +238,6 @@ xfs_trans_get_rud(
 	rudp->rud_ruip = ruip;
 	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
 
-	xfs_trans_add_item(tp, &rudp->rud_item);
 	return rudp;
 }
 
@@ -340,7 +339,6 @@ xfs_rmap_update_create_intent(
 
 	ASSERT(count > 0);
 
-	xfs_trans_add_item(tp, &ruip->rui_item);
 	if (sort)
 		list_sort(mp, items, xfs_rmap_update_diff_items);
 	list_for_each_entry(ri, items, ri_list)
@@ -599,7 +597,6 @@ xfs_rui_item_relog(
 	ruip = xfs_rui_init(tp->t_mountp, count);
 	memcpy(ruip->rui_format.rui_extents, map, count * sizeof(*map));
 	atomic_set(&ruip->rui_next_extent, count);
-	xfs_trans_add_item(tp, &ruip->rui_item);
 
 	return &ruip->rui_item;
 }
