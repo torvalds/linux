@@ -709,7 +709,7 @@ xfs_efi_item_relog(
 	memcpy(efip->efi_format.efi_extents, extp, count * sizeof(*extp));
 	atomic_set(&efip->efi_next_extent, count);
 	xfs_trans_add_item(tp, &efip->efi_item);
-	set_bit(XFS_LI_DIRTY, &efip->efi_item.li_flags);
+
 	return &efip->efi_item;
 }
 

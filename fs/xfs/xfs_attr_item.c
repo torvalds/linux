@@ -655,7 +655,6 @@ xfs_attri_item_relog(
 	new_attrp->alfi_attr_filter = old_attrp->alfi_attr_filter;
 
 	xfs_trans_add_item(tp, &new_attrip->attri_item);
-	set_bit(XFS_LI_DIRTY, &new_attrip->attri_item.li_flags);
 
 	return &new_attrip->attri_item;
 }

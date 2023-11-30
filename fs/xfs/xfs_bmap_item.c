@@ -586,7 +586,7 @@ xfs_bui_item_relog(
 	memcpy(buip->bui_format.bui_extents, map, count * sizeof(*map));
 	atomic_set(&buip->bui_next_extent, count);
 	xfs_trans_add_item(tp, &buip->bui_item);
-	set_bit(XFS_LI_DIRTY, &buip->bui_item.li_flags);
+
 	return &buip->bui_item;
 }
 

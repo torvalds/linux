@@ -600,7 +600,7 @@ xfs_rui_item_relog(
 	memcpy(ruip->rui_format.rui_extents, map, count * sizeof(*map));
 	atomic_set(&ruip->rui_next_extent, count);
 	xfs_trans_add_item(tp, &ruip->rui_item);
-	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
+
 	return &ruip->rui_item;
 }
 
