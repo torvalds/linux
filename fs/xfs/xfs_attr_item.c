@@ -625,10 +625,10 @@ out_unlock:
 
 /* Re-log an intent item to push the log tail forward. */
 static struct xfs_log_item *
-xfs_attri_item_relog(
+xfs_attr_relog_intent(
+	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
-	struct xfs_log_item		*done_item,
-	struct xfs_trans		*tp)
+	struct xfs_log_item		*done_item)
 {
 	struct xfs_attri_log_item	*old_attrip;
 	struct xfs_attri_log_item	*new_attrip;
@@ -763,6 +763,7 @@ const struct xfs_defer_op_type xfs_attr_defer_type = {
 	.finish_item	= xfs_attr_finish_item,
 	.cancel_item	= xfs_attr_cancel_item,
 	.recover_work	= xfs_attr_recover_work,
+	.relog_intent	= xfs_attr_relog_intent,
 };
 
 /*
@@ -800,7 +801,6 @@ static const struct xfs_item_ops xfs_attri_item_ops = {
 	.iop_unpin	= xfs_attri_item_unpin,
 	.iop_release    = xfs_attri_item_release,
 	.iop_match	= xfs_attri_item_match,
-	.iop_relog	= xfs_attri_item_relog,
 };
 
 const struct xlog_recover_item_ops xlog_attri_item_ops = {

@@ -643,41 +643,12 @@ abort_error:
 	return error;
 }
 
-const struct xfs_defer_op_type xfs_extent_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_extent_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-	.recover_work	= xfs_extent_free_recover_work,
-};
-
-/* sub-type with special handling for AGFL deferred frees */
-const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_agfl_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-	.recover_work	= xfs_extent_free_recover_work,
-};
-
-STATIC bool
-xfs_efi_item_match(
-	struct xfs_log_item	*lip,
-	uint64_t		intent_id)
-{
-	return EFI_ITEM(lip)->efi_format.efi_id == intent_id;
-}
-
 /* Relog an intent item to push the log tail forward. */
 static struct xfs_log_item *
-xfs_efi_item_relog(
+xfs_extent_free_relog_intent(
+	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
-	struct xfs_log_item		*done_item,
-	struct xfs_trans		*tp)
+	struct xfs_log_item		*done_item)
 {
 	struct xfs_efd_log_item		*efdp = EFD_ITEM(done_item);
 	struct xfs_efi_log_item		*efip;
@@ -697,6 +668,37 @@ xfs_efi_item_relog(
 	return &efip->efi_item;
 }
 
+const struct xfs_defer_op_type xfs_extent_free_defer_type = {
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_extent_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+	.relog_intent	= xfs_extent_free_relog_intent,
+};
+
+/* sub-type with special handling for AGFL deferred frees */
+const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_agfl_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+	.relog_intent	= xfs_extent_free_relog_intent,
+};
+
+STATIC bool
+xfs_efi_item_match(
+	struct xfs_log_item	*lip,
+	uint64_t		intent_id)
+{
+	return EFI_ITEM(lip)->efi_format.efi_id == intent_id;
+}
+
 static const struct xfs_item_ops xfs_efi_item_ops = {
 	.flags		= XFS_ITEM_INTENT,
 	.iop_size	= xfs_efi_item_size,
@@ -704,7 +706,6 @@ static const struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_unpin	= xfs_efi_item_unpin,
 	.iop_release	= xfs_efi_item_release,
 	.iop_match	= xfs_efi_item_match,
-	.iop_relog	= xfs_efi_item_relog,
 };
 
 /*

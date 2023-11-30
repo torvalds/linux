@@ -79,9 +79,6 @@ struct xfs_item_ops {
 	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
 	void (*iop_release)(struct xfs_log_item *);
 	bool (*iop_match)(struct xfs_log_item *item, uint64_t id);
-	struct xfs_log_item *(*iop_relog)(struct xfs_log_item *intent,
-			struct xfs_log_item *done_item,
-			struct xfs_trans *tp);
 	struct xfs_log_item *(*iop_intent)(struct xfs_log_item *intent_done);
 };
 
@@ -245,15 +242,6 @@ void		xfs_trans_buf_copy_type(struct xfs_buf *dst_bp,
 					struct xfs_buf *src_bp);
 
 extern struct kmem_cache	*xfs_trans_cache;
-
-static inline struct xfs_log_item *
-xfs_trans_item_relog(
-	struct xfs_log_item	*lip,
-	struct xfs_log_item	*done_lip,
-	struct xfs_trans	*tp)
-{
-	return lip->li_ops->iop_relog(lip, done_lip, tp);
-}
 
 struct xfs_dquot;
 

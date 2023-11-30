@@ -554,31 +554,12 @@ abort_error:
 	return error;
 }
 
-const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
-	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_rmap_update_create_intent,
-	.abort_intent	= xfs_rmap_update_abort_intent,
-	.create_done	= xfs_rmap_update_create_done,
-	.finish_item	= xfs_rmap_update_finish_item,
-	.finish_cleanup = xfs_rmap_finish_one_cleanup,
-	.cancel_item	= xfs_rmap_update_cancel_item,
-	.recover_work	= xfs_rmap_recover_work,
-};
-
-STATIC bool
-xfs_rui_item_match(
-	struct xfs_log_item	*lip,
-	uint64_t		intent_id)
-{
-	return RUI_ITEM(lip)->rui_format.rui_id == intent_id;
-}
-
 /* Relog an intent item to push the log tail forward. */
 static struct xfs_log_item *
-xfs_rui_item_relog(
+xfs_rmap_relog_intent(
+	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
-	struct xfs_log_item		*done_item,
-	struct xfs_trans		*tp)
+	struct xfs_log_item		*done_item)
 {
 	struct xfs_rui_log_item		*ruip;
 	struct xfs_map_extent		*map;
@@ -594,6 +575,26 @@ xfs_rui_item_relog(
 	return &ruip->rui_item;
 }
 
+const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
+	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_rmap_update_create_intent,
+	.abort_intent	= xfs_rmap_update_abort_intent,
+	.create_done	= xfs_rmap_update_create_done,
+	.finish_item	= xfs_rmap_update_finish_item,
+	.finish_cleanup = xfs_rmap_finish_one_cleanup,
+	.cancel_item	= xfs_rmap_update_cancel_item,
+	.recover_work	= xfs_rmap_recover_work,
+	.relog_intent	= xfs_rmap_relog_intent,
+};
+
+STATIC bool
+xfs_rui_item_match(
+	struct xfs_log_item	*lip,
+	uint64_t		intent_id)
+{
+	return RUI_ITEM(lip)->rui_format.rui_id == intent_id;
+}
+
 static const struct xfs_item_ops xfs_rui_item_ops = {
 	.flags		= XFS_ITEM_INTENT,
 	.iop_size	= xfs_rui_item_size,
@@ -601,7 +602,6 @@ static const struct xfs_item_ops xfs_rui_item_ops = {
 	.iop_unpin	= xfs_rui_item_unpin,
 	.iop_release	= xfs_rui_item_release,
 	.iop_match	= xfs_rui_item_match,
-	.iop_relog	= xfs_rui_item_relog,
 };
 
 static inline void
