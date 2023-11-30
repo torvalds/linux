@@ -1280,6 +1280,9 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
+		// Must re/init fw_shared at beginning
+		vcn_v4_0_fw_shared_init(adev, i);
+
 		table_size = 0;
 
 		MMSCH_V4_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCN, i,
