@@ -347,13 +347,15 @@ out:
 	 * 1.) releases the ATTRI and frees the ATTRD
 	 * 2.) shuts down the filesystem
 	 */
-	args->trans->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
+	args->trans->t_flags |= XFS_TRANS_DIRTY;
 
 	/*
 	 * attr intent/done items are null when logged attributes are disabled
 	 */
-	if (attrdp)
+	if (attrdp) {
+		args->trans->t_flags |= XFS_TRANS_HAS_INTENT_DONE;
 		set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
+	}
 
 	return error;
 }
