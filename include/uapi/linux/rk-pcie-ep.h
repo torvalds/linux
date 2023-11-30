@@ -25,14 +25,6 @@
 #define RKEP_SMODE_APPRDY       0x20
 
 /*
- * rockchip pcie driver elbi ioctrl output data
- */
-struct pcie_ep_user_data {
-	__u64 bar0_phys_addr;
-	__u32 elbi_app_user[11];
-};
-
-/*
  * rockchip driver cache ioctrl input param
  */
 struct pcie_ep_dma_cache_cfg {
@@ -101,12 +93,10 @@ struct pcie_ep_obj_info {
 };
 
 #define PCIE_BASE	'P'
-#define PCIE_DMA_GET_ELBI_DATA		_IOR(PCIE_BASE, 0, struct pcie_ep_user_data)
 #define PCIE_DMA_CACHE_INVALIDE		_IOW(PCIE_BASE, 1, struct pcie_ep_dma_cache_cfg)
 #define PCIE_DMA_CACHE_FLUSH		_IOW(PCIE_BASE, 2, struct pcie_ep_dma_cache_cfg)
 #define PCIE_DMA_IRQ_MASK_ALL		_IOW(PCIE_BASE, 3, int)
 #define PCIE_DMA_RAISE_MSI_OBJ_IRQ_USER	_IOW(PCIE_BASE, 4, int)
-#define PCIE_EP_GET_USER_INFO		_IOR(PCIE_BASE, 5, struct pcie_ep_user_data)
 #define PCIE_EP_SET_MMAP_RESOURCE	_IOW(PCIE_BASE, 6, int)
 #define PCIE_EP_RAISE_ELBI		_IOW(PCIE_BASE, 7, int)
 #define PCIE_EP_REQUEST_VIRTUAL_ID	_IOR(PCIE_BASE, 16, int)

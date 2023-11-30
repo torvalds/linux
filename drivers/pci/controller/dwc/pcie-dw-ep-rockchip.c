@@ -970,27 +970,12 @@ static int pcie_ep_release(struct inode *inode, struct file *file)
 static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct rockchip_pcie *rockchip = (struct rockchip_pcie *)file->private_data;
-	struct pcie_ep_user_data msg;
 	struct pcie_ep_dma_cache_cfg cfg;
 	void __user *uarg = (void __user *)arg;
 	int i, ret;
 	enum pcie_ep_mmap_resource mmap_res;
 
 	switch (cmd) {
-	case PCIE_DMA_GET_ELBI_DATA:
-		for (i = 4; i <= 6; i++)
-			msg.elbi_app_user[i - 4] = dw_pcie_readl_dbi(&rockchip->pci,
-								     PCIE_ELBI_LOCAL_BASE + i * 4);
-		for (i = 8; i <= 15; i++)
-			msg.elbi_app_user[i - 5] = dw_pcie_readl_dbi(&rockchip->pci,
-								     PCIE_ELBI_LOCAL_BASE + i * 4);
-
-		ret = copy_to_user(uarg, &msg, sizeof(msg));
-		if (ret) {
-			dev_err(rockchip->pci.dev, "failed to get elbi data\n");
-			return -EFAULT;
-		}
-		break;
 	case PCIE_DMA_CACHE_INVALIDE:
 		ret = copy_from_user(&cfg, uarg, sizeof(cfg));
 		if (ret) {
@@ -1016,15 +1001,6 @@ static long pcie_ep_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case PCIE_DMA_RAISE_MSI_OBJ_IRQ_USER:
 		rockchip->obj_info->irq_type_rc = OBJ_IRQ_USER;
 		rockchip_pcie_raise_msi_irq(rockchip, PCIe_CLIENT_MSI_OBJ_IRQ);
-		break;
-	case PCIE_EP_GET_USER_INFO:
-		msg.bar0_phys_addr = rockchip->ib_target_address[0];
-
-		ret = copy_to_user(uarg, &msg, sizeof(msg));
-		if (ret) {
-			dev_err(rockchip->pci.dev, "failed to get elbi data\n");
-			return -EFAULT;
-		}
 		break;
 	case PCIE_EP_SET_MMAP_RESOURCE:
 		ret = copy_from_user(&mmap_res, uarg, sizeof(mmap_res));
