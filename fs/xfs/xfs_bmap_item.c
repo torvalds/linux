@@ -238,20 +238,6 @@ xfs_trans_get_bud(
 	return budp;
 }
 
-/*
- * Finish an bmap update and log it to the BUD. Note that the
- * transaction is marked dirty regardless of whether the bmap update
- * succeeds or fails to support the BUI/BUD lifecycle rules.
- */
-static int
-xfs_trans_log_finish_bmap_update(
-	struct xfs_trans		*tp,
-	struct xfs_bud_log_item		*budp,
-	struct xfs_bmap_intent		*bi)
-{
-	return xfs_bmap_finish_one(tp, bi);
-}
-
 /* Sort bmap intents by inode. */
 static int
 xfs_bmap_update_diff_items(
@@ -378,7 +364,7 @@ xfs_bmap_update_put_group(
 	xfs_perag_intent_put(bi->bi_pag);
 }
 
-/* Process a deferred rmap update. */
+/* Process a deferred bmap update. */
 STATIC int
 xfs_bmap_update_finish_item(
 	struct xfs_trans		*tp,
@@ -391,7 +377,7 @@ xfs_bmap_update_finish_item(
 
 	bi = container_of(item, struct xfs_bmap_intent, bi_list);
 
-	error = xfs_trans_log_finish_bmap_update(tp, BUD_ITEM(done), bi);
+	error = xfs_bmap_finish_one(tp, bi);
 	if (!error && bi->bi_bmap.br_blockcount > 0) {
 		ASSERT(bi->bi_type == XFS_BMAP_UNMAP);
 		return -EAGAIN;

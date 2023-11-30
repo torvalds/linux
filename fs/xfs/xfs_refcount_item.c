@@ -244,21 +244,6 @@ xfs_trans_get_cud(
 	return cudp;
 }
 
-/*
- * Finish an refcount update and log it to the CUD. Note that the
- * transaction is marked dirty regardless of whether the refcount
- * update succeeds or fails to support the CUI/CUD lifecycle rules.
- */
-static int
-xfs_trans_log_finish_refcount_update(
-	struct xfs_trans		*tp,
-	struct xfs_cud_log_item		*cudp,
-	struct xfs_refcount_intent	*ri,
-	struct xfs_btree_cur		**pcur)
-{
-	return xfs_refcount_finish_one(tp, ri, pcur);
-}
-
 /* Sort refcount intents by AG. */
 static int
 xfs_refcount_update_diff_items(
@@ -383,10 +368,9 @@ xfs_refcount_update_finish_item(
 	int				error;
 
 	ri = container_of(item, struct xfs_refcount_intent, ri_list);
-	error = xfs_trans_log_finish_refcount_update(tp, CUD_ITEM(done), ri,
-			state);
 
 	/* Did we run out of reservation?  Requeue what we didn't finish. */
+	error = xfs_refcount_finish_one(tp, ri, state);
 	if (!error && ri->ri_blockcount > 0) {
 		ASSERT(ri->ri_type == XFS_REFCOUNT_INCREASE ||
 		       ri->ri_type == XFS_REFCOUNT_DECREASE);

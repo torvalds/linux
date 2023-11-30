@@ -285,21 +285,6 @@ xfs_trans_set_rmap_flags(
 	}
 }
 
-/*
- * Finish an rmap update and log it to the RUD. Note that the transaction is
- * marked dirty regardless of whether the rmap update succeeds or fails to
- * support the RUI/RUD lifecycle rules.
- */
-static int
-xfs_trans_log_finish_rmap_update(
-	struct xfs_trans		*tp,
-	struct xfs_rud_log_item		*rudp,
-	struct xfs_rmap_intent		*ri,
-	struct xfs_btree_cur		**pcur)
-{
-	return xfs_rmap_finish_one(tp, ri, pcur);
-}
-
 /* Sort rmap intents by AG. */
 static int
 xfs_rmap_update_diff_items(
@@ -409,8 +394,7 @@ xfs_rmap_update_finish_item(
 
 	ri = container_of(item, struct xfs_rmap_intent, ri_list);
 
-	error = xfs_trans_log_finish_rmap_update(tp, RUD_ITEM(done), ri,
-			state);
+	error = xfs_rmap_finish_one(tp, ri, state);
 
 	xfs_rmap_update_put_group(ri);
 	kmem_cache_free(xfs_rmap_intent_cache, ri);

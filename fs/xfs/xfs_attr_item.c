@@ -310,34 +310,6 @@ xfs_attrd_item_intent(
 	return &ATTRD_ITEM(lip)->attrd_attrip->attri_item;
 }
 
-/*
- * Performs one step of an attribute update intent and marks the attrd item
- * dirty..  An attr operation may be a set or a remove.  Note that the
- * transaction is marked dirty regardless of whether the operation succeeds or
- * fails to support the ATTRI/ATTRD lifecycle rules.
- */
-STATIC int
-xfs_xattri_finish_update(
-	struct xfs_attr_intent		*attr,
-	struct xfs_attrd_log_item	*attrdp)
-{
-	struct xfs_da_args		*args = attr->xattri_da_args;
-	int				error;
-
-	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP))
-		return -EIO;
-
-	/* If an attr removal is trivially complete, we're done. */
-	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
-	    !xfs_inode_hasattr(args->dp))
-		return 0;
-
-	error = xfs_attr_set_iter(attr);
-	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
-		error = -EAGAIN;
-	return error;
-}
-
 /* Log an attr to the intent item. */
 STATIC void
 xfs_attr_log_item(
@@ -434,23 +406,33 @@ xfs_attr_finish_item(
 	struct xfs_btree_cur		**state)
 {
 	struct xfs_attr_intent		*attr;
-	struct xfs_attrd_log_item	*done_item = NULL;
+	struct xfs_da_args		*args;
 	int				error;
 
 	attr = container_of(item, struct xfs_attr_intent, xattri_list);
-	if (done)
-		done_item = ATTRD_ITEM(done);
+	args = attr->xattri_da_args;
 
-	/*
-	 * Always reset trans after EAGAIN cycle
-	 * since the transaction is new
-	 */
-	attr->xattri_da_args->trans = tp;
+	/* Reset trans after EAGAIN cycle since the transaction is new */
+	args->trans = tp;
 
-	error = xfs_xattri_finish_update(attr, done_item);
-	if (error != -EAGAIN)
-		xfs_attr_free_item(attr);
+	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
+		error = -EIO;
+		goto out;
+	}
 
+	/* If an attr removal is trivially complete, we're done. */
+	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
+	    !xfs_inode_hasattr(args->dp)) {
+		error = 0;
+		goto out;
+	}
+
+	error = xfs_attr_set_iter(attr);
+	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
+		return -EAGAIN;
+
+out:
+	xfs_attr_free_item(attr);
 	return error;
 }
 

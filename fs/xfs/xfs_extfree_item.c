@@ -364,59 +364,6 @@ xfs_efd_from_efi(
 	efdp->efd_next_extent = efip->efi_format.efi_nextents;
 }
 
-/*
- * Free an extent and log it to the EFD. Note that the transaction is marked
- * dirty regardless of whether the extent free succeeds or fails to support the
- * EFI/EFD lifecycle rules.
- */
-static int
-xfs_trans_free_extent(
-	struct xfs_trans		*tp,
-	struct xfs_efd_log_item		*efdp,
-	struct xfs_extent_free_item	*xefi)
-{
-	struct xfs_owner_info		oinfo = { };
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_extent		*extp;
-	uint				next_extent;
-	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
-							xefi->xefi_startblock);
-	int				error;
-
-	oinfo.oi_owner = xefi->xefi_owner;
-	if (xefi->xefi_flags & XFS_EFI_ATTR_FORK)
-		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
-	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
-		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
-
-	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
-			agbno, xefi->xefi_blockcount);
-
-	error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
-			xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
-			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
-
-	/*
-	 * If we need a new transaction to make progress, the caller will log a
-	 * new EFI with the current contents. It will also log an EFD to cancel
-	 * the existing EFI, and so we need to copy all the unprocessed extents
-	 * in this EFI to the EFD so this works correctly.
-	 */
-	if (error == -EAGAIN) {
-		xfs_efd_from_efi(efdp);
-		return error;
-	}
-
-	next_extent = efdp->efd_next_extent;
-	ASSERT(next_extent < efdp->efd_format.efd_nextents);
-	extp = &(efdp->efd_format.efd_extents[next_extent]);
-	extp->ext_start = xefi->xefi_startblock;
-	extp->ext_len = xefi->xefi_blockcount;
-	efdp->efd_next_extent++;
-
-	return error;
-}
-
 /* Sort bmap items by AG. */
 static int
 xfs_extent_free_diff_items(
@@ -517,19 +464,48 @@ xfs_extent_free_finish_item(
 	struct list_head		*item,
 	struct xfs_btree_cur		**state)
 {
+	struct xfs_owner_info		oinfo = { };
 	struct xfs_extent_free_item	*xefi;
+	struct xfs_efd_log_item		*efdp = EFD_ITEM(done);
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_extent		*extp;
+	uint				next_extent;
+	xfs_agblock_t			agbno;
 	int				error;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
+	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
 
-	error = xfs_trans_free_extent(tp, EFD_ITEM(done), xefi);
+	oinfo.oi_owner = xefi->xefi_owner;
+	if (xefi->xefi_flags & XFS_EFI_ATTR_FORK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
+	if (xefi->xefi_flags & XFS_EFI_BMBT_BLOCK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+
+	trace_xfs_bmap_free_deferred(tp->t_mountp, xefi->xefi_pag->pag_agno, 0,
+			agbno, xefi->xefi_blockcount);
 
 	/*
-	 * Don't free the XEFI if we need a new transaction to complete
-	 * processing of it.
+	 * If we need a new transaction to make progress, the caller will log a
+	 * new EFI with the current contents. It will also log an EFD to cancel
+	 * the existing EFI, and so we need to copy all the unprocessed extents
+	 * in this EFI to the EFD so this works correctly.
 	 */
-	if (error == -EAGAIN)
+	error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
+			xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
+			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
+	if (error == -EAGAIN) {
+		xfs_efd_from_efi(efdp);
 		return error;
+	}
+
+	/* Add the work we finished to the EFD, even though nobody uses that */
+	next_extent = efdp->efd_next_extent;
+	ASSERT(next_extent < efdp->efd_format.efd_nextents);
+	extp = &(efdp->efd_format.efd_extents[next_extent]);
+	extp->ext_start = xefi->xefi_startblock;
+	extp->ext_len = xefi->xefi_blockcount;
+	efdp->efd_next_extent++;
 
 	xfs_extent_free_put_group(xefi);
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
