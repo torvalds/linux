@@ -386,7 +386,6 @@ int __init msm_dp_register(void);
 void __exit msm_dp_unregister(void);
 int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 			 struct drm_encoder *encoder);
-void msm_dp_irq_postinstall(struct msm_dp *dp_display);
 void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display);
 
 bool msm_dp_wide_bus_available(const struct msm_dp *dp_display);
@@ -404,10 +403,6 @@ static inline int msm_dp_modeset_init(struct msm_dp *dp_display,
 				       struct drm_encoder *encoder)
 {
 	return -EINVAL;
-}
-
-static inline void msm_dp_irq_postinstall(struct msm_dp *dp_display)
-{
 }
 
 static inline void msm_dp_snapshot(struct msm_disp_state *disp_state, struct msm_dp *dp_display)
