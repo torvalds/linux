@@ -4124,8 +4124,9 @@ static void qgroup_convert_meta(struct btrfs_fs_info *fs_info, u64 ref_root,
 
 		qgroup_rsv_release(fs_info, qgroup, num_bytes,
 				BTRFS_QGROUP_RSV_META_PREALLOC);
-		qgroup_rsv_add(fs_info, qgroup, num_bytes,
-				BTRFS_QGROUP_RSV_META_PERTRANS);
+		if (!sb_rdonly(fs_info->sb))
+			qgroup_rsv_add(fs_info, qgroup, num_bytes,
+				       BTRFS_QGROUP_RSV_META_PERTRANS);
 
 		list_for_each_entry(glist, &qgroup->groups, next_group)
 			qgroup_iterator_add(&qgroup_list, glist->group);
