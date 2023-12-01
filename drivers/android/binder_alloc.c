@@ -483,24 +483,12 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		goto out;
 	}
 
-	if (n == NULL) {
+	if (buffer_size != size) {
+		/* Found an oversized buffer and needs to be split */
 		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
 		buffer_size = binder_alloc_buffer_size(alloc, buffer);
-	}
 
-	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-		     "%d: binder_alloc_buf size %zd got buffer %pK size %zd\n",
-		      alloc->pid, size, buffer, buffer_size);
-
-	WARN_ON(n && buffer_size != size);
-
-	has_page_addr = (buffer->user_data + buffer_size) & PAGE_MASK;
-	end_page_addr = PAGE_ALIGN(buffer->user_data + size);
-	if (end_page_addr > has_page_addr)
-		end_page_addr = has_page_addr;
-	binder_allocate_page_range(alloc, PAGE_ALIGN(buffer->user_data),
-				   end_page_addr);
-	if (buffer_size != size) {
+		WARN_ON(n || buffer_size == size);
 		new_buffer->user_data = buffer->user_data + size;
 		list_add(&new_buffer->entry, &buffer->entry);
 		new_buffer->free = 1;
@@ -508,7 +496,18 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		new_buffer = NULL;
 	}
 
-	rb_erase(best_fit, &alloc->free_buffers);
+	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
+		     "%d: binder_alloc_buf size %zd got buffer %pK size %zd\n",
+		      alloc->pid, size, buffer, buffer_size);
+
+	has_page_addr = (buffer->user_data + buffer_size) & PAGE_MASK;
+	end_page_addr = PAGE_ALIGN(buffer->user_data + size);
+	if (end_page_addr > has_page_addr)
+		end_page_addr = has_page_addr;
+	binder_allocate_page_range(alloc, PAGE_ALIGN(buffer->user_data),
+				   end_page_addr);
+
+	rb_erase(&buffer->rb_node, &alloc->free_buffers);
 	buffer->free = 0;
 	buffer->allow_user_free = 0;
 	binder_insert_allocated_buffer_locked(alloc, buffer);
