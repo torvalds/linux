@@ -265,7 +265,8 @@ enum {
 /**
  * struct dpu_scaler_blk: Scaler information
  * @info:   HW register and features supported by this sub-blk
- * @version: qseed block revision
+ * @version: qseed block revision, on QSEED3+ platforms this is the value of
+ *           scaler_blk.base + QSEED3_HW_VERSION registers.
  */
 struct dpu_scaler_blk {
 	DPU_HW_SUBBLK_INFO;
