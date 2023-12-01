@@ -1783,6 +1783,34 @@ static void bnxt_deliver_skb(struct bnxt *bp, struct bnxt_napi *bnapi,
 	napi_gro_receive(&bnapi->napi, skb);
 }
 
+static struct sk_buff *bnxt_rx_vlan(struct sk_buff *skb, u8 cmp_type,
+				    struct rx_cmp *rxcmp,
+				    struct rx_cmp_ext *rxcmp1)
+{
+	__be16 vlan_proto;
+	u16 vtag;
+
+	if (cmp_type == CMP_TYPE_RX_L2_CMP) {
+		__le32 flags2 = rxcmp1->rx_cmp_flags2;
+		u32 meta_data;
+
+		if (!(flags2 & cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)))
+			return skb;
+
+		meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
+		vtag = meta_data & RX_CMP_FLAGS2_METADATA_TCI_MASK;
+		vlan_proto = htons(meta_data >> RX_CMP_FLAGS2_METADATA_TPID_SFT);
+		if (eth_type_vlan(vlan_proto))
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		else
+			goto vlan_err;
+	}
+	return skb;
+vlan_err:
+	dev_kfree_skb(skb);
+	return NULL;
+}
+
 /* returns the following:
  * 1       - 1 packet successfully received
  * 0       - successful TPA_START, packet not completed yet
@@ -2001,20 +2029,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	cfa_code = RX_CMP_CFA_CODE(rxcmp1);
 	skb->protocol = eth_type_trans(skb, bnxt_get_pkt_dev(bp, cfa_code));
 
-	if ((rxcmp1->rx_cmp_flags2 &
-	     cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)) &&
-	    (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
-		u32 meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
-		u16 vtag = meta_data & RX_CMP_FLAGS2_METADATA_TCI_MASK;
-		__be16 vlan_proto = htons(meta_data >>
-					  RX_CMP_FLAGS2_METADATA_TPID_SFT);
-
-		if (eth_type_vlan(vlan_proto)) {
-			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
-		} else {
-			dev_kfree_skb(skb);
+	if (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX) {
+		skb = bnxt_rx_vlan(skb, cmp_type, rxcmp, rxcmp1);
+		if (!skb)
 			goto next_rx;
-		}
 	}
 
 	skb_checksum_none_assert(skb);
