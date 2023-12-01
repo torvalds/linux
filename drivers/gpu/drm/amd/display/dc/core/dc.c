@@ -4770,6 +4770,38 @@ bool dc_set_psr_allow_active(struct dc *dc, bool enable)
 	return true;
 }
 
+/* enable/disable eDP Replay without specify stream for eDP */
+bool dc_set_replay_allow_active(struct dc *dc, bool active)
+{
+	int i;
+	bool allow_active;
+
+	for (i = 0; i < dc->current_state->stream_count; i++) {
+		struct dc_link *link;
+		struct dc_stream_state *stream = dc->current_state->streams[i];
+
+		link = stream->link;
+		if (!link)
+			continue;
+
+		if (link->replay_settings.replay_feature_enabled) {
+			if (active && !link->replay_settings.replay_allow_active) {
+				allow_active = true;
+				if (!dc_link_set_replay_allow_active(link, &allow_active,
+					false, false, NULL))
+					return false;
+			} else if (!active && link->replay_settings.replay_allow_active) {
+				allow_active = false;
+				if (!dc_link_set_replay_allow_active(link, &allow_active,
+					true, false, NULL))
+					return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 {
 	if (dc->debug.disable_idle_power_optimizations)
@@ -5315,6 +5347,8 @@ bool dc_abm_save_restore(
 	struct dc_link *link = stream->sink->link;
 	struct dc_link *edp_links[MAX_NUM_EDP];
 
+	if (link->replay_settings.replay_feature_enabled)
+		return false;
 
 	/*find primary pipe associated with stream*/
 	for (i = 0; i < MAX_PIPES; i++) {

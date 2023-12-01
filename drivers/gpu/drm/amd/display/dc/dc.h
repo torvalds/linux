@@ -463,6 +463,12 @@ enum dml_hostvm_override_opts {
 	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
 };
 
+enum dc_replay_power_opts {
+	replay_power_opt_invalid		= 0x0,
+	replay_power_opt_smu_opt_static_screen	= 0x1,
+	replay_power_opt_z10_static_screen	= 0x10,
+};
+
 enum dcc_option {
 	DCC_ENABLE = 0,
 	DCC_DISABLE = 1,
@@ -2077,6 +2083,20 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
+/*
+ * Communicate with DMUB to allow or disallow Panel Replay on the specified link:
+ *
+ * @link: pointer to the dc_link struct instance
+ * @enable: enable(active) or disable(inactive) replay
+ * @wait: state transition need to wait the active set completed.
+ * @force_static: force disable(inactive) the replay
+ * @power_opts: set power optimazation parameters to DMUB.
+ *
+ * return: allow Replay active will return true, else will return false.
+ */
+bool dc_link_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
+		bool wait, bool force_static, const unsigned int *power_opts);
+
 bool dc_link_get_replay_state(const struct dc_link *dc_link, uint64_t *state);
 
 /* On eDP links this function call will stall until T12 has elapsed.
@@ -2321,6 +2341,9 @@ void dc_hardware_release(struct dc *dc);
 void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
+
+bool dc_set_replay_allow_active(struct dc *dc, bool active);
+
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
 

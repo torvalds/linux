@@ -257,6 +257,7 @@ enum DC_DEBUG_MASK {
 	DC_ENABLE_DPIA_TRACE = 0x80,
 	DC_ENABLE_DML2 = 0x100,
 	DC_DISABLE_PSR_SU = 0x200,
+	DC_DISABLE_REPLAY = 0x400,
 };
 
 enum amd_dpm_forced_level;

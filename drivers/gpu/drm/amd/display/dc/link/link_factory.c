@@ -216,6 +216,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_send_replay_cmd = edp_send_replay_cmd;
 	link_srv->edp_set_coasting_vtotal = edp_set_coasting_vtotal;
 	link_srv->edp_replay_residency = edp_replay_residency;
+	link_srv->edp_set_replay_power_opt_and_coasting_vtotal = edp_set_replay_power_opt_and_coasting_vtotal;
 
 	link_srv->edp_wait_for_t12 = edp_wait_for_t12;
 	link_srv->edp_is_ilr_optimization_required =
