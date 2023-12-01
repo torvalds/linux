@@ -2020,11 +2020,20 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 	case BNXT_LINK_SPEED_40GB:
 		return SPEED_40000;
 	case BNXT_LINK_SPEED_50GB:
+	case BNXT_LINK_SPEED_50GB_PAM4:
 		return SPEED_50000;
 	case BNXT_LINK_SPEED_100GB:
+	case BNXT_LINK_SPEED_100GB_PAM4:
+	case BNXT_LINK_SPEED_100GB_PAM4_112:
 		return SPEED_100000;
 	case BNXT_LINK_SPEED_200GB:
+	case BNXT_LINK_SPEED_200GB_PAM4:
+	case BNXT_LINK_SPEED_200GB_PAM4_112:
 		return SPEED_200000;
+	case BNXT_LINK_SPEED_400GB:
+	case BNXT_LINK_SPEED_400GB_PAM4:
+	case BNXT_LINK_SPEED_400GB_PAM4_112:
+		return SPEED_400000;
 	default:
 		return SPEED_UNKNOWN;
 	}
@@ -2040,6 +2049,7 @@ static void bnxt_get_default_speeds(struct ethtool_link_ksettings *lk_ksettings,
 		base->duplex = DUPLEX_HALF;
 		if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
 			base->duplex = DUPLEX_FULL;
+		lk_ksettings->lanes = link_info->active_lanes;
 	} else if (!link_info->autoneg) {
 		base->speed = bnxt_fw_to_ethtool_speed(link_info->req_link_speed);
 		base->duplex = DUPLEX_HALF;
