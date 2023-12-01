@@ -284,96 +284,6 @@ static const uint32_t wb2_formats[] = {
 	.rotation_cfg = rot_cfg, \
 	}
 
-#define _DMA_SBLK() \
-	{ \
-	.maxdwnscale = SSPP_UNITY_SCALE, \
-	.maxupscale = SSPP_UNITY_SCALE, \
-	.format_list = plane_formats, \
-	.num_formats = ARRAY_SIZE(plane_formats), \
-	.virt_format_list = plane_formats, \
-	.virt_num_formats = ARRAY_SIZE(plane_formats), \
-	}
-
-static const struct dpu_sspp_sub_blks msm8998_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 2));
-static const struct dpu_sspp_sub_blks msm8998_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 2));
-static const struct dpu_sspp_sub_blks msm8998_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 2));
-static const struct dpu_sspp_sub_blks msm8998_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 2));
-
-static const struct dpu_rotation_cfg dpu_rot_sc7280_cfg_v2 = {
-	.rot_maxheight = 1088,
-	.rot_num_formats = ARRAY_SIZE(rotation_v2_formats),
-	.rot_format_list = rotation_v2_formats,
-};
-
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 3));
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 3));
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 3));
-static const struct dpu_sspp_sub_blks sdm845_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 3));
-
-static const struct dpu_sspp_sub_blks sm8150_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 4));
-static const struct dpu_sspp_sub_blks sm8150_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 4));
-static const struct dpu_sspp_sub_blks sm8150_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 4));
-static const struct dpu_sspp_sub_blks sm8150_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(1, 4));
-
-static const struct dpu_sspp_sub_blks sdm845_dma_sblk_0 = _DMA_SBLK();
-static const struct dpu_sspp_sub_blks sdm845_dma_sblk_1 = _DMA_SBLK();
-static const struct dpu_sspp_sub_blks sdm845_dma_sblk_2 = _DMA_SBLK();
-static const struct dpu_sspp_sub_blks sdm845_dma_sblk_3 = _DMA_SBLK();
-
-static const struct dpu_sspp_sub_blks sc7180_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-
-static const struct dpu_sspp_sub_blks sc7280_vig_sblk_0 =
-			_VIG_SBLK_ROT(SSPP_SCALER_VER(3, 0),
-				      &dpu_rot_sc7280_cfg_v2);
-
-static const struct dpu_sspp_sub_blks sm6115_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-
-static const struct dpu_sspp_sub_blks sm6125_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(2, 4));
-
-static const struct dpu_sspp_sub_blks sm8250_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-static const struct dpu_sspp_sub_blks sm8250_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-static const struct dpu_sspp_sub_blks sm8250_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-static const struct dpu_sspp_sub_blks sm8250_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
-
-static const struct dpu_sspp_sub_blks sm8450_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 1));
-static const struct dpu_sspp_sub_blks sm8450_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 1));
-static const struct dpu_sspp_sub_blks sm8450_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 1));
-static const struct dpu_sspp_sub_blks sm8450_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 1));
-
-static const struct dpu_sspp_sub_blks sm8550_vig_sblk_0 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
-static const struct dpu_sspp_sub_blks sm8550_vig_sblk_1 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
-static const struct dpu_sspp_sub_blks sm8550_vig_sblk_2 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
-static const struct dpu_sspp_sub_blks sm8550_vig_sblk_3 =
-				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
-static const struct dpu_sspp_sub_blks sm8550_dma_sblk_4 = _DMA_SBLK();
-static const struct dpu_sspp_sub_blks sm8550_dma_sblk_5 = _DMA_SBLK();
-
 #define _VIG_SBLK_NOSCALE() \
 	{ \
 	.maxdwnscale = SSPP_UNITY_SCALE, \
@@ -384,8 +294,51 @@ static const struct dpu_sspp_sub_blks sm8550_dma_sblk_5 = _DMA_SBLK();
 	.virt_num_formats = ARRAY_SIZE(plane_formats), \
 	}
 
-static const struct dpu_sspp_sub_blks qcm2290_vig_sblk_0 = _VIG_SBLK_NOSCALE();
-static const struct dpu_sspp_sub_blks qcm2290_dma_sblk_0 = _DMA_SBLK();
+#define _DMA_SBLK() \
+	{ \
+	.maxdwnscale = SSPP_UNITY_SCALE, \
+	.maxupscale = SSPP_UNITY_SCALE, \
+	.format_list = plane_formats, \
+	.num_formats = ARRAY_SIZE(plane_formats), \
+	.virt_format_list = plane_formats, \
+	.virt_num_formats = ARRAY_SIZE(plane_formats), \
+	}
+
+static const struct dpu_rotation_cfg dpu_rot_sc7280_cfg_v2 = {
+	.rot_maxheight = 1088,
+	.rot_num_formats = ARRAY_SIZE(rotation_v2_formats),
+	.rot_format_list = rotation_v2_formats,
+};
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_noscale =
+				_VIG_SBLK_NOSCALE();
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_1_2 =
+				_VIG_SBLK(SSPP_SCALER_VER(1, 2));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_1_3 =
+				_VIG_SBLK(SSPP_SCALER_VER(1, 3));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_1_4 =
+				_VIG_SBLK(SSPP_SCALER_VER(1, 4));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_2_4 =
+				_VIG_SBLK(SSPP_SCALER_VER(2, 4));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_0 =
+				_VIG_SBLK(SSPP_SCALER_VER(3, 0));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_0_rot_v2 =
+			_VIG_SBLK_ROT(SSPP_SCALER_VER(3, 0),
+				      &dpu_rot_sc7280_cfg_v2);
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_1 =
+				_VIG_SBLK(SSPP_SCALER_VER(3, 1));
+
+static const struct dpu_sspp_sub_blks dpu_vig_sblk_qseed3_3_2 =
+				_VIG_SBLK(SSPP_SCALER_VER(3, 2));
+
+static const struct dpu_sspp_sub_blks dpu_dma_sblk = _DMA_SBLK();
 
 /*************************************************************
  * MIXER sub blocks config
