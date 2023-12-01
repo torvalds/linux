@@ -992,8 +992,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	list_for_each_entry_safe(ck, n, &items, list) {
 		cond_resched();
 
-		bch2_journal_pin_drop(&c->journal, &ck->journal);
-
 		list_del(&ck->list);
 		kfree(ck->k);
 		six_lock_exit(&ck->c.lock);

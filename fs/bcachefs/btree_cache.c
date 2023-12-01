@@ -9,6 +9,7 @@
 #include "debug.h"
 #include "errcode.h"
 #include "error.h"
+#include "journal.h"
 #include "trace.h"
 
 #include <linux/prefetch.h>
@@ -424,14 +425,11 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 		BUG_ON(btree_node_read_in_flight(b) ||
 		       btree_node_write_in_flight(b));
 
-		if (btree_node_dirty(b))
-			bch2_btree_complete_write(c, b, btree_current_write(b));
-		clear_btree_node_dirty_acct(c, b);
-
 		btree_node_data_free(c, b);
 	}
 
-	BUG_ON(atomic_read(&c->btree_cache.dirty));
+	BUG_ON(!bch2_journal_error(&c->journal) &&
+	       atomic_read(&c->btree_cache.dirty));
 
 	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
 
