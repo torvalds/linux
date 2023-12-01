@@ -388,7 +388,7 @@ static void exynos4412_tmu_set_trip_temp(struct exynos_tmu_data *data,
 
 	if (trip == 3) {
 		con = readl(data->base + EXYNOS_TMU_REG_CONTROL);
-		con |= (1 << EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
+		con |= BIT(EXYNOS_TMU_THERM_TRIP_EN_SHIFT);
 		writel(con, data->base + EXYNOS_TMU_REG_CONTROL);
 	}
 }
@@ -559,16 +559,16 @@ static void exynos4210_tmu_control(struct platform_device *pdev, bool on)
 				continue;
 
 			interrupt_en |=
-				(1 << (EXYNOS_TMU_INTEN_RISE0_SHIFT + i * 4));
+				BIT(EXYNOS_TMU_INTEN_RISE0_SHIFT + i * 4);
 		}
 
 		if (data->soc != SOC_ARCH_EXYNOS4210)
 			interrupt_en |=
 				interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 
-		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= BIT(EXYNOS_TMU_CORE_EN_SHIFT);
 	} else {
-		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~BIT(EXYNOS_TMU_CORE_EN_SHIFT);
 	}
 
 	writel(interrupt_en, data->base + EXYNOS_TMU_REG_INTEN);
@@ -590,15 +590,15 @@ static void exynos5433_tmu_control(struct platform_device *pdev, bool on)
 				continue;
 
 			interrupt_en |=
-				(1 << (EXYNOS7_TMU_INTEN_RISE0_SHIFT + i));
+				BIT(EXYNOS7_TMU_INTEN_RISE0_SHIFT + i);
 		}
 
 		interrupt_en |=
 			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 
-		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= BIT(EXYNOS_TMU_CORE_EN_SHIFT);
 	} else
-		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~BIT(EXYNOS_TMU_CORE_EN_SHIFT);
 
 	pd_det_en = on ? EXYNOS5433_PD_DET_EN : 0;
 
@@ -622,17 +622,17 @@ static void exynos7_tmu_control(struct platform_device *pdev, bool on)
 				continue;
 
 			interrupt_en |=
-				(1 << (EXYNOS7_TMU_INTEN_RISE0_SHIFT + i));
+				BIT(EXYNOS7_TMU_INTEN_RISE0_SHIFT + i);
 		}
 
 		interrupt_en |=
 			interrupt_en << EXYNOS_TMU_INTEN_FALL0_SHIFT;
 
-		con |= (1 << EXYNOS_TMU_CORE_EN_SHIFT);
-		con |= (1 << EXYNOS7_PD_DET_EN_SHIFT);
+		con |= BIT(EXYNOS_TMU_CORE_EN_SHIFT);
+		con |= BIT(EXYNOS7_PD_DET_EN_SHIFT);
 	} else {
-		con &= ~(1 << EXYNOS_TMU_CORE_EN_SHIFT);
-		con &= ~(1 << EXYNOS7_PD_DET_EN_SHIFT);
+		con &= ~BIT(EXYNOS_TMU_CORE_EN_SHIFT);
+		con &= ~BIT(EXYNOS7_PD_DET_EN_SHIFT);
 	}
 
 	writel(interrupt_en, data->base + EXYNOS7_TMU_REG_INTEN);
