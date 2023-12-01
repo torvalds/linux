@@ -1950,7 +1950,10 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 
 	if (time_before_eq(nextevt, basej)) {
 		expires = basem;
-		base->is_idle = false;
+		if (base->is_idle) {
+			base->is_idle = false;
+			trace_timer_base_idle(false, base->cpu);
+		}
 	} else {
 		if (base->timers_pending)
 			expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
@@ -1961,8 +1964,10 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		 * logic is only maintained for the BASE_STD base, deferrable
 		 * timers may still see large granularity skew (by design).
 		 */
-		if ((expires - basem) > TICK_NSEC)
+		if ((expires - basem) > TICK_NSEC && !base->is_idle) {
 			base->is_idle = true;
+			trace_timer_base_idle(true, base->cpu);
+		}
 	}
 	raw_spin_unlock(&base->lock);
 
@@ -1984,7 +1989,10 @@ void timer_clear_idle(void)
 	 * sending the IPI a few instructions smaller for the cost of taking
 	 * the lock in the exit from idle path.
 	 */
-	base->is_idle = false;
+	if (base->is_idle) {
+		base->is_idle = false;
+		trace_timer_base_idle(false, smp_processor_id());
+	}
 }
 #endif
 
