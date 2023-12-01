@@ -1924,6 +1924,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
 	u64 expires = KTIME_MAX;
 	unsigned long nextevt;
+	bool was_idle;
 
 	/*
 	 * Pretend that there is no timer pending if the cpu is offline.
@@ -1943,27 +1944,26 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	 */
 	__forward_timer_base(base, basej);
 
-	if (time_before_eq(nextevt, basej)) {
-		expires = basem;
-		if (base->is_idle) {
-			base->is_idle = false;
-			trace_timer_base_idle(false, base->cpu);
-		}
-	} else {
-		if (base->timers_pending)
-			expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
-		/*
-		 * If we expect to sleep more than a tick, mark the base idle.
-		 * Also the tick is stopped so any added timer must forward
-		 * the base clk itself to keep granularity small. This idle
-		 * logic is only maintained for the BASE_STD base, deferrable
-		 * timers may still see large granularity skew (by design).
-		 */
-		if ((expires - basem) > TICK_NSEC && !base->is_idle) {
-			base->is_idle = true;
-			trace_timer_base_idle(true, base->cpu);
-		}
+	if (base->timers_pending) {
+		/* If we missed a tick already, force 0 delta */
+		if (time_before(nextevt, basej))
+			nextevt = basej;
+		expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
 	}
+
+	/*
+	 * Base is idle if the next event is more than a tick away.
+	 *
+	 * If the base is marked idle then any timer add operation must forward
+	 * the base clk itself to keep granularity small. This idle logic is
+	 * only maintained for the BASE_STD base, deferrable timers may still
+	 * see large granularity skew (by design).
+	 */
+	was_idle = base->is_idle;
+	base->is_idle = time_after(nextevt, basej + 1);
+	if (was_idle != base->is_idle)
+		trace_timer_base_idle(base->is_idle, base->cpu);
+
 	raw_spin_unlock(&base->lock);
 
 	return cmp_next_hrtimer_event(basem, expires);
