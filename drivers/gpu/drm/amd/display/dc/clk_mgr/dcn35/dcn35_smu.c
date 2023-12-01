@@ -475,14 +475,14 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 			VBIOSSMC_MSG_QueryIPS2Support,
 			0);
 
-	smu_print("%s: VBIOSSMC_MSG_QueryIPS2Support return = %x\n", __func__, retv);
+	//smu_print("%s: VBIOSSMC_MSG_QueryIPS2Support return = %x\n", __func__, retv);
 	return retv;
 }
 
 void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param)
 {
 	REG_WRITE(MP1_SMN_C2PMSG_71, param);
-	smu_print("%s: write_ips_scratch = %x\n", __func__, param);
+	//smu_print("%s: write_ips_scratch = %x\n", __func__, param);
 }
 
 uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
@@ -490,6 +490,6 @@ uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
 	uint32_t retv;
 
 	retv = REG_READ(MP1_SMN_C2PMSG_71);
-	smu_print("%s: dcn35_smu_read_ips_scratch = %x\n",  __func__, retv);
+	//smu_print("%s: dcn35_smu_read_ips_scratch = %x\n",  __func__, retv);
 	return retv;
 }
