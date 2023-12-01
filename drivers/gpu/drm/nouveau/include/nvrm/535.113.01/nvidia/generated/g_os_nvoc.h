@@ -38,7 +38,7 @@ typedef struct PACKED_REGISTRY_TABLE
 {
     NvU32                   size;
     NvU32                   numEntries;
-    PACKED_REGISTRY_ENTRY   entries[0];
+    PACKED_REGISTRY_ENTRY   entries[] __counted_by(numEntries);
 } PACKED_REGISTRY_TABLE;
 
 #endif

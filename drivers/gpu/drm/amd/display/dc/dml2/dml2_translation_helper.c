@@ -341,25 +341,42 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		break;
 	}
 
-	/* Override from passed values, mainly for debugging purposes, if available */
-	if (dml2->config.bbox_overrides.sr_exit_latency_us) {
-		p->in_states->state_array[0].sr_exit_time_us = dml2->config.bbox_overrides.sr_exit_latency_us;
-	}
+	/* Override from passed values, if available */
+	for (i = 0; i < p->in_states->num_states; i++) {
+		if (dml2->config.bbox_overrides.sr_exit_latency_us) {
+			p->in_states->state_array[i].sr_exit_time_us =
+				dml2->config.bbox_overrides.sr_exit_latency_us;
+		}
 
-	if (dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us) {
-		p->in_states->state_array[0].sr_enter_plus_exit_time_us = dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us) {
+			p->in_states->state_array[i].sr_enter_plus_exit_time_us =
+				dml2->config.bbox_overrides.sr_enter_plus_exit_latency_us;
+		}
 
-	if (dml2->config.bbox_overrides.urgent_latency_us) {
-		p->in_states->state_array[0].urgent_latency_pixel_data_only_us = dml2->config.bbox_overrides.urgent_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_exit_z8_time_us) {
+			p->in_states->state_array[i].sr_exit_z8_time_us =
+				dml2->config.bbox_overrides.sr_exit_z8_time_us;
+		}
 
-	if (dml2->config.bbox_overrides.dram_clock_change_latency_us) {
-		p->in_states->state_array[0].dram_clock_change_latency_us = dml2->config.bbox_overrides.dram_clock_change_latency_us;
-	}
+		if (dml2->config.bbox_overrides.sr_enter_plus_exit_z8_time_us) {
+			p->in_states->state_array[i].sr_enter_plus_exit_z8_time_us =
+				dml2->config.bbox_overrides.sr_enter_plus_exit_z8_time_us;
+		}
 
-	if (dml2->config.bbox_overrides.fclk_change_latency_us) {
-		p->in_states->state_array[0].fclk_change_latency_us = dml2->config.bbox_overrides.fclk_change_latency_us;
+		if (dml2->config.bbox_overrides.urgent_latency_us) {
+			p->in_states->state_array[i].urgent_latency_pixel_data_only_us =
+				dml2->config.bbox_overrides.urgent_latency_us;
+		}
+
+		if (dml2->config.bbox_overrides.dram_clock_change_latency_us) {
+			p->in_states->state_array[i].dram_clock_change_latency_us =
+				dml2->config.bbox_overrides.dram_clock_change_latency_us;
+		}
+
+		if (dml2->config.bbox_overrides.fclk_change_latency_us) {
+			p->in_states->state_array[i].fclk_change_latency_us =
+				dml2->config.bbox_overrides.fclk_change_latency_us;
+		}
 	}
 
 	/* DCFCLK stas values are project specific */
@@ -498,8 +515,8 @@ void dml2_translate_socbb_params(const struct dc *in, struct soc_bounding_box_st
 	out->do_urgent_latency_adjustment = in_soc_params->do_urgent_latency_adjustment;
 	out->dram_channel_width_bytes = (dml_uint_t)in_soc_params->dram_channel_width_bytes;
 	out->fabric_datapath_to_dcn_data_return_bytes = (dml_uint_t)in_soc_params->fabric_datapath_to_dcn_data_return_bytes;
-	out->gpuvm_min_page_size_kbytes = in_soc_params->gpuvm_min_page_size_bytes * 1024;
-	out->hostvm_min_page_size_kbytes = in_soc_params->hostvm_min_page_size_bytes * 1024;
+	out->gpuvm_min_page_size_kbytes = in_soc_params->gpuvm_min_page_size_bytes / 1024;
+	out->hostvm_min_page_size_kbytes = in_soc_params->hostvm_min_page_size_bytes / 1024;
 	out->mall_allocated_for_dcn_mbytes = (dml_uint_t)in_soc_params->mall_allocated_for_dcn_mbytes;
 	out->max_avg_dram_bw_use_normal_percent = in_soc_params->max_avg_dram_bw_use_normal_percent;
 	out->max_avg_fabric_bw_use_normal_percent = in_soc_params->max_avg_fabric_bw_use_normal_percent;
@@ -1040,9 +1057,12 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 	}
 
 	//Generally these are set by referencing our latest BB/IP params in dcn32_resource.c file
-	dml_dispcfg->plane.GPUVMEnable = true;
-	dml_dispcfg->plane.GPUVMMaxPageTableLevels = 4;
-	dml_dispcfg->plane.HostVMEnable = false;
+	dml_dispcfg->plane.GPUVMEnable = dml2->v20.dml_core_ctx.ip.gpuvm_enable;
+	dml_dispcfg->plane.GPUVMMaxPageTableLevels = dml2->v20.dml_core_ctx.ip.gpuvm_max_page_table_levels;
+	dml_dispcfg->plane.HostVMEnable = dml2->v20.dml_core_ctx.ip.hostvm_enable;
+	dml_dispcfg->plane.HostVMMaxPageTableLevels = dml2->v20.dml_core_ctx.ip.hostvm_max_page_table_levels;
+	if (dml2->v20.dml_core_ctx.ip.hostvm_enable)
+		dml2->v20.dml_core_ctx.policy.AllowForPStateChangeOrStutterInVBlankFinal = dml_prefetch_support_uclk_fclk_and_stutter;
 
 	dml2_populate_pipe_to_plane_index_mapping(dml2, context);
 
