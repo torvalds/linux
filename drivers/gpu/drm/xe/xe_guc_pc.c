@@ -794,8 +794,12 @@ static int pc_adjust_requested_freq(struct xe_guc_pc *pc)
  */
 int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 {
+	struct xe_device *xe = pc_to_xe(pc);
 	struct xe_gt *gt = pc_to_gt(pc);
 	int ret = 0;
+
+	if (xe->info.skip_guc_pc)
+		return 0;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 
@@ -807,9 +811,7 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (ret)
 		goto out;
 
-	xe_mmio_write32(gt, PG_ENABLE, 0);
-	xe_mmio_write32(gt, RC_CONTROL, 0);
-	xe_mmio_write32(gt, RC_STATE, 0);
+	xe_gt_idle_disable_c6(gt);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 
