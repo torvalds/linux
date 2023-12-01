@@ -839,6 +839,10 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 		ts->next_timer = next_tick;
 	}
 
+	/* Make sure next_tick is never before basemono! */
+	if (WARN_ON_ONCE(basemono > next_tick))
+		next_tick = basemono;
+
 	/*
 	 * If the tick is due in the next period, keep it ticking or
 	 * force prod the timer.
