@@ -297,12 +297,6 @@ struct dpu_hw_sspp_ops {
 		const struct dpu_format *format);
 
 	/**
-	 * get_scaler_ver - get scaler h/w version
-	 * @ctx: Pointer to pipe context
-	 */
-	u32 (*get_scaler_ver)(struct dpu_hw_sspp *ctx);
-
-	/**
 	 * setup_cdp - setup client driven prefetch
 	 * @pipe: Pointer to software pipe context
 	 * @fmt: format used by the sw pipe
