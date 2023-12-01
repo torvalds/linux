@@ -388,11 +388,13 @@ struct netdev_napi_get_rsp {
 		__u32 id:1;
 		__u32 ifindex:1;
 		__u32 irq:1;
+		__u32 pid:1;
 	} _present;
 
 	__u32 id;
 	__u32 ifindex;
 	__u32 irq;
+	__u32 pid;
 };
 
 void netdev_napi_get_rsp_free(struct netdev_napi_get_rsp *rsp);
