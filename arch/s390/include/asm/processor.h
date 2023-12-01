@@ -184,11 +184,7 @@ struct thread_struct {
 	struct gs_cb *gs_cb;			/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
 	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
-	/*
-	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
-	 * the end.
-	 */
-	struct fpu fpu;			/* FP and VX register save area */
+	struct fpu fpu;				/* FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
