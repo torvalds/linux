@@ -14,6 +14,39 @@ at the data link layer (Layer 2) of the OSI (Open Systems Interconnection)
 model. The purpose of a bridge is to filter and forward frames between
 different segments based on the destination MAC (Media Access Control) address.
 
+Bridge kAPI
+===========
+
+Here are some core structures of bridge code. Note that the kAPI is *unstable*,
+and can be changed at any time.
+
+.. kernel-doc:: net/bridge/br_private.h
+   :identifiers: net_bridge_vlan
+
+Bridge uAPI
+===========
+
+Modern Linux bridge uAPI is accessed via Netlink interface. You can find
+below files where the bridge and bridge port netlink attributes are defined.
+
+Bridge netlink attributes
+-------------------------
+
+.. kernel-doc:: include/uapi/linux/if_link.h
+   :doc: Bridge enum definition
+
+Bridge port netlink attributes
+------------------------------
+
+.. kernel-doc:: include/uapi/linux/if_link.h
+   :doc: Bridge port enum definition
+
+Bridge sysfs
+------------
+
+The sysfs interface is deprecated and should not be extended if new
+options are added.
+
 FAQ
 ===
 
