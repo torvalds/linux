@@ -14,6 +14,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x30000
+
 #define SCMI_MAX_NUM_SENSOR_AXIS	63
 #define	SCMIv2_SENSOR_PROTOCOL		0x10000
 
@@ -1138,7 +1141,7 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, sinfo);
+	return ph->set_priv(ph, sinfo, version);
 }
 
 static const struct scmi_protocol scmi_sensors = {
@@ -1147,6 +1150,7 @@ static const struct scmi_protocol scmi_sensors = {
 	.instance_init = &scmi_sensors_protocol_init,
 	.ops = &sensor_proto_ops,
 	.events = &sensor_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(sensors, scmi_sensors)

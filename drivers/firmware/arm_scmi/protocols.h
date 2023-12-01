@@ -174,7 +174,8 @@ struct scmi_protocol_handle {
 	struct device *dev;
 	const struct scmi_xfer_ops *xops;
 	const struct scmi_proto_helpers_ops *hops;
-	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv);
+	int (*set_priv)(const struct scmi_protocol_handle *ph, void *priv,
+			u32 version);
 	void *(*get_priv)(const struct scmi_protocol_handle *ph);
 };
 
@@ -311,6 +312,10 @@ typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
  * @ops: Optional reference to the operations provided by the protocol and
  *	 exposed in scmi_protocol.h.
  * @events: An optional reference to the events supported by this protocol.
+ * @supported_version: The highest version currently supported for this
+ *		       protocol by the agent. Each protocol implementation
+ *		       in the agent is supposed to downgrade to match the
+ *		       protocol version supported by the platform.
  */
 struct scmi_protocol {
 	const u8				id;
@@ -319,6 +324,7 @@ struct scmi_protocol {
 	const scmi_prot_init_ph_fn_t		instance_deinit;
 	const void				*ops;
 	const struct scmi_protocol_events	*events;
+	unsigned int				supported_version;
 };
 
 #define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(name, proto)	\
