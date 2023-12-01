@@ -138,6 +138,7 @@ struct serial_icounter_struct {
  * * %SER_RS485_ADDRB		- Enable RS485 addressing mode.
  * * %SER_RS485_ADDR_RECV - Receive address filter (enables @addr_recv). Requires %SER_RS485_ADDRB.
  * * %SER_RS485_ADDR_DEST - Destination address (enables @addr_dest). Requires %SER_RS485_ADDRB.
+ * * %SER_RS485_MODE_RS422	- Enable RS422. Requires %SER_RS485_ENABLED.
  */
 struct serial_rs485 {
 	__u32	flags;
@@ -149,6 +150,7 @@ struct serial_rs485 {
 #define SER_RS485_ADDRB			_BITUL(5)
 #define SER_RS485_ADDR_RECV		_BITUL(6)
 #define SER_RS485_ADDR_DEST		_BITUL(7)
+#define SER_RS485_MODE_RS422		_BITUL(8)
 
 	__u32	delay_rts_before_send;
 	__u32	delay_rts_after_send;
