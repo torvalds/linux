@@ -2978,6 +2978,8 @@ void ice_q_vector_set_napi_queues(struct ice_q_vector *q_vector, bool locked)
 		ice_queue_set_napi(q_vector->vsi->netdev, tx_ring->q_index,
 				   NETDEV_QUEUE_TYPE_TX, &q_vector->napi,
 				   locked);
+	/* Also set the interrupt number for the NAPI */
+	netif_napi_set_irq(&q_vector->napi, q_vector->irq.virq);
 }
 
 /**
