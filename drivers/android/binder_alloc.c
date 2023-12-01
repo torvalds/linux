@@ -199,14 +199,51 @@ static void binder_free_page_range(struct binder_alloc *alloc,
 	}
 }
 
+static int binder_install_single_page(struct binder_alloc *alloc,
+				      struct binder_lru_page *lru_page,
+				      unsigned long addr)
+{
+	struct page *page;
+	int ret = 0;
+
+	if (!mmget_not_zero(alloc->mm))
+		return -ESRCH;
+
+	mmap_write_lock(alloc->mm);
+	if (!alloc->vma) {
+		pr_err("%d: %s failed, no vma\n", alloc->pid, __func__);
+		ret = -ESRCH;
+		goto out;
+	}
+
+	page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+	if (!page) {
+		pr_err("%d: failed to allocate page\n", alloc->pid);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = vm_insert_page(alloc->vma, addr, page);
+	if (ret) {
+		pr_err("%d: %s failed to insert page at %lx with %d\n",
+		       alloc->pid, __func__, addr, ret);
+		__free_page(page);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	lru_page->page_ptr = page;
+out:
+	mmap_write_unlock(alloc->mm);
+	mmput_async(alloc->mm);
+	return ret;
+}
+
 static int binder_allocate_page_range(struct binder_alloc *alloc,
 				      unsigned long start, unsigned long end)
 {
-	struct vm_area_struct *vma = NULL;
 	struct binder_lru_page *page;
-	struct mm_struct *mm = NULL;
 	unsigned long page_addr;
-	bool need_mm = false;
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 			   "%d: allocate pages %lx-%lx\n",
@@ -218,32 +255,9 @@ static int binder_allocate_page_range(struct binder_alloc *alloc,
 	trace_binder_update_page_range(alloc, true, start, end);
 
 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
-		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
-		if (!page->page_ptr) {
-			need_mm = true;
-			break;
-		}
-	}
-
-	if (need_mm && mmget_not_zero(alloc->mm))
-		mm = alloc->mm;
-
-	if (mm) {
-		mmap_write_lock(mm);
-		vma = alloc->vma;
-	}
-
-	if (!vma && need_mm) {
-		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
-				   alloc->pid);
-		goto err_no_vma;
-	}
-
-	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
-		int ret;
+		unsigned long index;
 		bool on_lru;
-		size_t index;
+		int ret;
 
 		index = (page_addr - alloc->buffer) / PAGE_SIZE;
 		page = &alloc->pages[index];
@@ -258,26 +272,15 @@ static int binder_allocate_page_range(struct binder_alloc *alloc,
 			continue;
 		}
 
-		if (WARN_ON(!vma))
-			goto err_page_ptr_cleared;
-
 		trace_binder_alloc_page_start(alloc, index);
-		page->page_ptr = alloc_page(GFP_KERNEL |
-					    __GFP_HIGHMEM |
-					    __GFP_ZERO);
-		if (!page->page_ptr) {
-			pr_err("%d: binder_alloc_buf failed for page at %lx\n",
-			       alloc->pid, page_addr);
-			goto err_alloc_page_failed;
-		}
+
 		page->alloc = alloc;
 		INIT_LIST_HEAD(&page->lru);
 
-		ret = vm_insert_page(vma, page_addr, page->page_ptr);
+		ret = binder_install_single_page(alloc, page, page_addr);
 		if (ret) {
-			pr_err("%d: binder_alloc_buf failed to map page at %lx in userspace\n",
-			       alloc->pid, page_addr);
-			goto err_vm_insert_page_failed;
+			binder_free_page_range(alloc, start, page_addr);
+			return ret;
 		}
 
 		if (index + 1 > alloc->pages_high)
@@ -285,24 +288,8 @@ static int binder_allocate_page_range(struct binder_alloc *alloc,
 
 		trace_binder_alloc_page_end(alloc, index);
 	}
-	if (mm) {
-		mmap_write_unlock(mm);
-		mmput_async(mm);
-	}
-	return 0;
 
-err_vm_insert_page_failed:
-	__free_page(page->page_ptr);
-	page->page_ptr = NULL;
-err_alloc_page_failed:
-err_page_ptr_cleared:
-	binder_free_page_range(alloc, start, page_addr);
-err_no_vma:
-	if (mm) {
-		mmap_write_unlock(mm);
-		mmput_async(mm);
-	}
-	return vma ? -ENOMEM : -ESRCH;
+	return 0;
 }
 
 static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
