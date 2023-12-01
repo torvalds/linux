@@ -271,14 +271,6 @@ static inline void setup_access_registers(void)
 	restore_access_regs(acrs);
 }
 
-static int __init disable_vector_extension(char *str)
-{
-	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
-	system_ctl_clear_bit(0, CR0_VECTOR_BIT);
-	return 0;
-}
-early_param("novx", disable_vector_extension);
-
 char __bootdata(early_command_line)[COMMAND_LINE_SIZE];
 static void __init setup_boot_command_line(void)
 {
