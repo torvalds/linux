@@ -250,8 +250,8 @@ static int binder_install_single_page(struct binder_alloc *alloc,
 
 	ret = vm_insert_page(alloc->vma, addr, page);
 	if (ret) {
-		pr_err("%d: %s failed to insert page at %lx with %d\n",
-		       alloc->pid, __func__, addr, ret);
+		pr_err("%d: %s failed to insert page at offset %lx with %d\n",
+		       alloc->pid, __func__, addr - alloc->buffer, ret);
 		__free_page(page);
 		ret = -ENOMEM;
 		goto out;
@@ -304,10 +304,6 @@ static void binder_lru_freelist_del(struct binder_alloc *alloc,
 {
 	struct binder_lru_page *page;
 	unsigned long page_addr;
-
-	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-			   "%d: pages %lx-%lx\n",
-			   alloc->pid, start, end);
 
 	trace_binder_update_page_range(alloc, true, start, end);
 
@@ -939,8 +935,8 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 					      &alloc->pages[i].lru);
 			page_addr = alloc->buffer + i * PAGE_SIZE;
 			binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				     "%s: %d: page %d at %lx %s\n",
-				     __func__, alloc->pid, i, page_addr,
+				     "%s: %d: page %d %s\n",
+				     __func__, alloc->pid, i,
 				     on_lru ? "on lru" : "active");
 			__free_page(alloc->pages[i].page_ptr);
 			page_count++;
@@ -974,7 +970,8 @@ void binder_alloc_print_allocated(struct seq_file *m,
 	for (n = rb_first(&alloc->allocated_buffers); n; n = rb_next(n)) {
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
 		seq_printf(m, "  buffer %d: %lx size %zd:%zd:%zd %s\n",
-			   buffer->debug_id, buffer->user_data,
+			   buffer->debug_id,
+			   buffer->user_data - alloc->buffer,
 			   buffer->data_size, buffer->offsets_size,
 			   buffer->extra_buffers_size,
 			   buffer->transaction ? "active" : "delivered");
