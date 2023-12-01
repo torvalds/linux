@@ -228,12 +228,12 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		return 0;
 	}
 
+legacy_irq:
 	if (!pdev->irq) {
 		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
 		return -EINVAL;
 	}
 
- legacy_irq:
 	if (!strlen(hcd->irq_descr))
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 			 hcd->driver->description, hcd->self.busnum);
