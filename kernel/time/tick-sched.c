@@ -887,7 +887,6 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	u64 basemono = ts->timer_expires_base;
 	u64 expires = ts->timer_expires;
-	ktime_t tick = expires;
 
 	/* Make sure we won't be trying to stop it twice in a row. */
 	ts->timer_expires_base = 0;
@@ -910,7 +909,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	/* Skip reprogram of event if it's not changed */
 	if (ts->tick_stopped && (expires == ts->next_tick)) {
 		/* Sanity check: make sure clockevent is actually programmed */
-		if (tick == KTIME_MAX || ts->next_tick == hrtimer_get_expires(&ts->sched_timer))
+		if (expires == KTIME_MAX || ts->next_tick == hrtimer_get_expires(&ts->sched_timer))
 			return;
 
 		WARN_ON_ONCE(1);
@@ -935,7 +934,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 		trace_tick_stop(1, TICK_DEP_MASK_NONE);
 	}
 
-	ts->next_tick = tick;
+	ts->next_tick = expires;
 
 	/*
 	 * If the expiration time == KTIME_MAX, then we simply stop
@@ -950,11 +949,11 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	}
 
 	if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
-		hrtimer_start(&ts->sched_timer, tick,
+		hrtimer_start(&ts->sched_timer, expires,
 			      HRTIMER_MODE_ABS_PINNED_HARD);
 	} else {
-		hrtimer_set_expires(&ts->sched_timer, tick);
-		tick_program_event(tick, 1);
+		hrtimer_set_expires(&ts->sched_timer, expires);
+		tick_program_event(expires, 1);
 	}
 }
 
