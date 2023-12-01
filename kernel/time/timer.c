@@ -606,7 +606,7 @@ static void enqueue_timer(struct timer_base *base, struct timer_list *timer,
 	__set_bit(idx, base->pending_map);
 	timer_set_idx(timer, idx);
 
-	trace_timer_start(timer, timer->expires, timer->flags);
+	trace_timer_start(timer, bucket_expiry);
 
 	/*
 	 * Check whether this is the new first expiring timer. The
