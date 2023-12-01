@@ -11447,7 +11447,7 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 			return libbpf_err_ptr(err);
 		offsets = resolved_offsets;
 	} else if (syms) {
-		err = elf_resolve_syms_offsets(path, cnt, syms, &resolved_offsets);
+		err = elf_resolve_syms_offsets(path, cnt, syms, &resolved_offsets, STT_FUNC);
 		if (err < 0)
 			return libbpf_err_ptr(err);
 		offsets = resolved_offsets;

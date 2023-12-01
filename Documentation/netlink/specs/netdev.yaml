@@ -45,7 +45,6 @@ definitions:
   -
     type: flags
     name: xdp-rx-metadata
-    render-max: true
     entries:
       -
         name: timestamp
@@ -55,6 +54,18 @@ definitions:
         name: hash
         doc:
           Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
+  -
+    type: flags
+    name: xsk-flags
+    entries:
+      -
+        name: tx-timestamp
+        doc:
+          HW timestamping egress packets is supported by the driver.
+      -
+        name: tx-checksum
+        doc:
+          L3 checksum HW offload is supported by the driver.
 
 attribute-sets:
   -
@@ -86,6 +97,11 @@ attribute-sets:
              See Documentation/networking/xdp-rx-metadata.rst for more details.
         type: u64
         enum: xdp-rx-metadata
+      -
+        name: xsk-features
+        doc: Bitmask of enabled AF_XDP features.
+        type: u64
+        enum: xsk-flags
   -
     name: page-pool
     attributes:
@@ -209,6 +225,7 @@ operations:
             - xdp-features
             - xdp-zc-max-segs
             - xdp-rx-metadata-features
+            - xsk-features
       dump:
         reply: *dev-all
     -

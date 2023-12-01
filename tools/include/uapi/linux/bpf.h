@@ -6563,6 +6563,16 @@ struct bpf_link_info {
 			__u64 missed;
 		} kprobe_multi;
 		struct {
+			__aligned_u64 path;
+			__aligned_u64 offsets;
+			__aligned_u64 ref_ctr_offsets;
+			__aligned_u64 cookies;
+			__u32 path_size; /* in/out: real path size on success, including zero byte */
+			__u32 count; /* in/out: uprobe_multi offsets/ref_ctr_offsets/cookies count */
+			__u32 flags;
+			__u32 pid;
+		} uprobe_multi;
+		struct {
 			__u32 type; /* enum bpf_perf_event_type */
 			__u32 :32;
 			union {

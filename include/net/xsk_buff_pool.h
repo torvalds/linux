@@ -33,6 +33,7 @@ struct xdp_buff_xsk {
 };
 
 #define XSK_CHECK_PRIV_TYPE(t) BUILD_BUG_ON(sizeof(t) > offsetofend(struct xdp_buff_xsk, cb))
+#define XSK_TX_COMPL_FITS(t) BUILD_BUG_ON(sizeof(struct xsk_tx_metadata_compl) > sizeof(t))
 
 struct xsk_dma_map {
 	dma_addr_t *dma_pages;
@@ -77,10 +78,12 @@ struct xsk_buff_pool {
 	u32 chunk_size;
 	u32 chunk_shift;
 	u32 frame_len;
+	u8 tx_metadata_len; /* inherited from umem */
 	u8 cached_need_wakeup;
 	bool uses_need_wakeup;
 	bool dma_need_sync;
 	bool unaligned;
+	bool tx_sw_csum;
 	void *addrs;
 	/* Mutual exclusion of the completion ring in the SKB mode. Two cases to protect:
 	 * NAPI TX thread and sendmsg error paths in the SKB destructor callback and when
@@ -231,6 +234,11 @@ static inline u64 xp_get_handle(struct xdp_buff_xsk *xskb)
 	if (!xskb->pool->unaligned)
 		return xskb->orig_addr + offset;
 	return xskb->orig_addr + (offset << XSK_UNALIGNED_BUF_OFFSET_SHIFT);
+}
+
+static inline bool xp_tx_metadata_enabled(const struct xsk_buff_pool *pool)
+{
+	return pool->tx_metadata_len > 0;
 }
 
 #endif /* XSK_BUFF_POOL_H_ */
