@@ -325,6 +325,7 @@ static int stm32_rng_init(struct hwrng *rng)
 							(!(reg & RNG_CR_CONDRST)),
 							10, 50000);
 		if (err) {
+			clk_disable_unprepare(priv->clk);
 			dev_err((struct device *)priv->rng.priv,
 				"%s: timeout %x!\n", __func__, reg);
 			return -EINVAL;
