@@ -73,7 +73,7 @@
 
 /* mode value */
 #define RVE_LLP_MODE                      0x8000
-#define RVE_LLP_DONE                      0x11
+#define RVE_LLP_DONE                      0x10
 #define RVE_CLEAR_UP_REG6_WROK_STA        0xff0000
 
 void rve_soft_reset(struct rve_scheduler_t *scheduler);
