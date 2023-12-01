@@ -1633,6 +1633,10 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 	rockchip_adjust_opp_by_irdrop(dev, np, &safe_rate, &max_rate);
 
 	dev_info(dev, "avs=%d\n", avs);
+
+	if (!safe_rate && !scale)
+		goto out_np;
+
 	clk = of_clk_get_by_name(np, NULL);
 	if (IS_ERR(clk)) {
 		if (!safe_rate)
@@ -1646,14 +1650,14 @@ int rockchip_adjust_power_scale(struct device *dev, int scale)
 
 	if (safe_rate)
 		irdrop_scale = rockchip_pll_clk_rate_to_scale(clk, safe_rate);
-	if (max_rate)
-		opp_scale = rockchip_pll_clk_rate_to_scale(clk, max_rate);
 	target_scale = max(irdrop_scale, scale);
 	if (target_scale <= 0)
 		goto out_clk;
 	dev_dbg(dev, "target_scale=%d, irdrop_scale=%d, scale=%d\n",
 		target_scale, irdrop_scale, scale);
 
+	if (max_rate)
+		opp_scale = rockchip_pll_clk_rate_to_scale(clk, max_rate);
 	if (avs == AVS_SCALING_RATE) {
 		ret = rockchip_pll_clk_adaptive_scaling(clk, target_scale);
 		if (ret)
