@@ -913,8 +913,8 @@ static int pci_epf_mhi_probe(struct pci_epf *epf,
 }
 
 static const struct pci_epf_device_id pci_epf_mhi_ids[] = {
-	{ .name = "sdx55", .driver_data = (kernel_ulong_t)&sdx55_info },
-	{ .name = "sm8450", .driver_data = (kernel_ulong_t)&sm8450_info },
+	{ .name = "pci_epf_mhi_sdx55", .driver_data = (kernel_ulong_t)&sdx55_info },
+	{ .name = "pci_epf_mhi_sm8450", .driver_data = (kernel_ulong_t)&sm8450_info },
 	{},
 };
 
