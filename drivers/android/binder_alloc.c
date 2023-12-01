@@ -363,9 +363,7 @@ static bool debug_low_async_space_locked(struct binder_alloc *alloc, int pid)
 
 static struct binder_buffer *binder_alloc_new_buf_locked(
 				struct binder_alloc *alloc,
-				size_t data_size,
-				size_t offsets_size,
-				size_t extra_buffers_size,
+				size_t size,
 				int is_async,
 				int pid)
 {
@@ -373,38 +371,9 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	struct binder_buffer *buffer;
 	size_t buffer_size;
 	struct rb_node *best_fit = NULL;
-	size_t size, data_offsets_size;
 	unsigned long has_page_addr;
 	unsigned long end_page_addr;
 	int ret;
-
-	/* Check binder_alloc is fully initialized */
-	if (!binder_alloc_get_vma(alloc)) {
-		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "%d: binder_alloc_buf, no vma\n",
-				   alloc->pid);
-		return ERR_PTR(-ESRCH);
-	}
-
-	data_offsets_size = ALIGN(data_size, sizeof(void *)) +
-		ALIGN(offsets_size, sizeof(void *));
-
-	if (data_offsets_size < data_size || data_offsets_size < offsets_size) {
-		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				"%d: got transaction with invalid size %zd-%zd\n",
-				alloc->pid, data_size, offsets_size);
-		return ERR_PTR(-EINVAL);
-	}
-	size = data_offsets_size + ALIGN(extra_buffers_size, sizeof(void *));
-	if (size < data_offsets_size || size < extra_buffers_size) {
-		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				"%d: got transaction with invalid extra_buffers_size %zd\n",
-				alloc->pid, extra_buffers_size);
-		return ERR_PTR(-EINVAL);
-	}
-
-	/* Pad 0-size buffers so they get assigned unique addresses */
-	size = max(size, sizeof(void *));
 
 	if (is_async && alloc->free_async_space < size) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
@@ -421,13 +390,14 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		if (size < buffer_size) {
 			best_fit = n;
 			n = n->rb_left;
-		} else if (size > buffer_size)
+		} else if (size > buffer_size) {
 			n = n->rb_right;
-		else {
+		} else {
 			best_fit = n;
 			break;
 		}
 	}
+
 	if (best_fit == NULL) {
 		size_t allocated_buffers = 0;
 		size_t largest_alloc_size = 0;
@@ -505,10 +475,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 		     "%d: binder_alloc_buf size %zd got %pK\n",
 		      alloc->pid, size, buffer);
-	buffer->data_size = data_size;
-	buffer->offsets_size = offsets_size;
 	buffer->async_transaction = is_async;
-	buffer->extra_buffers_size = extra_buffers_size;
 	buffer->pid = pid;
 	buffer->oneway_spam_suspect = false;
 	if (is_async) {
@@ -527,12 +494,35 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 			alloc->oneway_spam_detected = false;
 		}
 	}
+
 	return buffer;
 
 err_alloc_buf_struct_failed:
 	binder_free_page_range(alloc, PAGE_ALIGN(buffer->user_data),
 			       end_page_addr);
 	return ERR_PTR(-ENOMEM);
+}
+
+/* Calculate the sanitized total size, returns 0 for invalid request */
+static inline size_t sanitized_size(size_t data_size,
+				    size_t offsets_size,
+				    size_t extra_buffers_size)
+{
+	size_t total, tmp;
+
+	/* Align to pointer size and check for overflows */
+	tmp = ALIGN(data_size, sizeof(void *)) +
+		ALIGN(offsets_size, sizeof(void *));
+	if (tmp < data_size || tmp < offsets_size)
+		return 0;
+	total = tmp + ALIGN(extra_buffers_size, sizeof(void *));
+	if (total < tmp || total < extra_buffers_size)
+		return 0;
+
+	/* Pad 0-sized buffers so they get a unique address */
+	total = max(total, sizeof(void *));
+
+	return total;
 }
 
 /**
@@ -559,11 +549,38 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 					   int pid)
 {
 	struct binder_buffer *buffer;
+	size_t size;
+
+	/* Check binder_alloc is fully initialized */
+	if (!binder_alloc_get_vma(alloc)) {
+		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
+				   "%d: binder_alloc_buf, no vma\n",
+				   alloc->pid);
+		return ERR_PTR(-ESRCH);
+	}
+
+	size = sanitized_size(data_size, offsets_size, extra_buffers_size);
+	if (unlikely(!size)) {
+		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
+				   "%d: got transaction with invalid size %zd-%zd-%zd\n",
+				   alloc->pid, data_size, offsets_size,
+				   extra_buffers_size);
+		return ERR_PTR(-EINVAL);
+	}
 
 	mutex_lock(&alloc->mutex);
-	buffer = binder_alloc_new_buf_locked(alloc, data_size, offsets_size,
-					     extra_buffers_size, is_async, pid);
+	buffer = binder_alloc_new_buf_locked(alloc, size, is_async, pid);
+	if (IS_ERR(buffer)) {
+		mutex_unlock(&alloc->mutex);
+		goto out;
+	}
+
+	buffer->data_size = data_size;
+	buffer->offsets_size = offsets_size;
+	buffer->extra_buffers_size = extra_buffers_size;
 	mutex_unlock(&alloc->mutex);
+
+out:
 	return buffer;
 }
 
