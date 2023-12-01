@@ -142,12 +142,12 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	 * - num_online_cpus: maximum MSI-X vectors per CPUs core.
 	 *   Add additional 1 vector to ensure always available interrupt.
 	 */
-	xhci->msix_count = min(num_online_cpus() + 1,
-			       HCS_MAX_INTRS(xhci->hcs_params1));
+	xhci->nvecs = min(num_online_cpus() + 1,
+			  HCS_MAX_INTRS(xhci->hcs_params1));
 
-	ret = pci_alloc_irq_vectors(pdev, xhci->msix_count, xhci->msix_count,
-				    PCI_IRQ_MSIX);
-	if (ret < 0) {
+	xhci->nvecs = pci_alloc_irq_vectors(pdev, xhci->nvecs, xhci->nvecs,
+					    PCI_IRQ_MSIX);
+	if (xhci->nvecs < 0) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Failed to enable MSI-X");
 		goto setup_msi;
 	}
@@ -166,8 +166,8 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 
 setup_msi:
 	/* TODO: Check with MSI Soc for sysdev */
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
-	if (ret < 0) {
+	xhci->nvecs = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
+	if (xhci->nvecs < 0) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "failed to allocate MSI entry");
 		goto legacy_irq;
 	}
