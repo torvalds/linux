@@ -85,6 +85,14 @@ from the first pull request of Xe towards drm-next. The expectation is that when
 both drivers are part of the drm-tip, the introduction of cleaner patches will be
 easier and speed up.
 
+Xe – uAPI high level overview
+=============================
+
+...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
+
+Xe – Pre-Merge Goals - Completed
+================================
+
 Drm_exec
 --------
 Helper to make dma_resv locking for a big number of buffers is getting removed in
@@ -98,14 +106,6 @@ This item ties into the GPUVA, VM_BIND, and even long-running compute support.
 
 As a key measurable result, we need to have a community consensus documented in
 this document and the Xe driver prepared for the changes, if necessary.
-
-Xe – uAPI high level overview
-=============================
-
-...Warning: To be done in follow up patches after/when/where the main consensus in various items are individually reached.
-
-Xe – Pre-Merge Goals - Completed
-================================
 
 Userptr integration and vm_bind
 -------------------------------
