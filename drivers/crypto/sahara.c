@@ -221,8 +221,6 @@ struct sahara_dev {
 	int		nb_in_sg;
 	struct scatterlist	*out_sg;
 	int		nb_out_sg;
-
-	u32			error;
 };
 
 static struct sahara_dev *dev_ptr;
@@ -1302,14 +1300,11 @@ static irqreturn_t sahara_irq_handler(int irq, void *data)
 
 	sahara_decode_status(dev, stat);
 
-	if (SAHARA_STATUS_GET_STATE(stat) == SAHARA_STATE_BUSY) {
+	if (SAHARA_STATUS_GET_STATE(stat) == SAHARA_STATE_BUSY)
 		return IRQ_NONE;
-	} else if (SAHARA_STATUS_GET_STATE(stat) == SAHARA_STATE_COMPLETE) {
-		dev->error = 0;
-	} else {
+
+	if (SAHARA_STATUS_GET_STATE(stat) != SAHARA_STATE_COMPLETE)
 		sahara_decode_error(dev, err);
-		dev->error = -EINVAL;
-	}
 
 	complete(&dev->dma_completion);
 
