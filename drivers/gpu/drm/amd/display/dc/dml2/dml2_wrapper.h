@@ -191,6 +191,10 @@ bool dml2_create(const struct dc *in_dc,
 				 struct dml2_context **dml2);
 
 void dml2_destroy(struct dml2_context *dml2);
+void dml2_copy(struct dml2_context *dst_dml2,
+	struct dml2_context *src_dml2);
+bool dml2_create_copy(struct dml2_context **dst_dml2,
+	struct dml2_context *src_dml2);
 
 /*
  * dml2_validate - Determines if a display configuration is supported or not.
