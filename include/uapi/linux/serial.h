@@ -11,6 +11,7 @@
 #ifndef _UAPI_LINUX_SERIAL_H
 #define _UAPI_LINUX_SERIAL_H
 
+#include <linux/const.h>
 #include <linux/types.h>
 
 #include <linux/tty_flags.h>
@@ -140,14 +141,14 @@ struct serial_icounter_struct {
  */
 struct serial_rs485 {
 	__u32	flags;
-#define SER_RS485_ENABLED		(1 << 0)
-#define SER_RS485_RTS_ON_SEND		(1 << 1)
-#define SER_RS485_RTS_AFTER_SEND	(1 << 2)
-#define SER_RS485_RX_DURING_TX		(1 << 4)
-#define SER_RS485_TERMINATE_BUS		(1 << 5)
-#define SER_RS485_ADDRB			(1 << 6)
-#define SER_RS485_ADDR_RECV		(1 << 7)
-#define SER_RS485_ADDR_DEST		(1 << 8)
+#define SER_RS485_ENABLED		_BITUL(0)
+#define SER_RS485_RTS_ON_SEND		_BITUL(1)
+#define SER_RS485_RTS_AFTER_SEND	_BITUL(2)
+#define SER_RS485_RX_DURING_TX		_BITUL(3)
+#define SER_RS485_TERMINATE_BUS		_BITUL(4)
+#define SER_RS485_ADDRB			_BITUL(5)
+#define SER_RS485_ADDR_RECV		_BITUL(6)
+#define SER_RS485_ADDR_DEST		_BITUL(7)
 
 	__u32	delay_rts_before_send;
 	__u32	delay_rts_after_send;
