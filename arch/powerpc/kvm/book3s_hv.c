@@ -5691,10 +5691,12 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 			kvmhv_set_ptbl_entry(kvm->arch.lpid, 0, 0);
 	}
 
-	if (kvmhv_is_nestedv2())
+	if (kvmhv_is_nestedv2()) {
+		kvmhv_flush_lpid(kvm->arch.lpid);
 		plpar_guest_delete(0, kvm->arch.lpid);
-	else
+	} else {
 		kvmppc_free_lpid(kvm->arch.lpid);
+	}
 
 	kvmppc_free_pimap(kvm);
 }
