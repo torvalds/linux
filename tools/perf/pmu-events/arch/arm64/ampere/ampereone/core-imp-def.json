@@ -110,7 +110,7 @@
     {
         "PublicDescription": "Flushes due to memory hazards",
         "EventCode": "0x121",
-        "EventName": "BPU_FLUSH_MEM_FAULT",
+        "EventName": "GPC_FLUSH_MEM_FAULT",
         "BriefDescription": "Flushes due to memory hazards"
     },
     {
