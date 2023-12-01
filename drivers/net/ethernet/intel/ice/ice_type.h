@@ -834,7 +834,7 @@ struct ice_mbx_data {
 enum ice_phy_model {
 	ICE_PHY_UNSUP = -1,
 	ICE_PHY_E810  = 1,
-	ICE_PHY_E822,
+	ICE_PHY_E82X,
 };
 
 /* Port hardware description */
@@ -917,10 +917,9 @@ struct ice_hw {
 	/* INTRL granularity in 1 us */
 	u8 intrl_gran;
 
-#define ICE_PHY_PER_NAC_E822		1
 #define ICE_MAX_QUAD			2
-#define ICE_QUADS_PER_PHY_E822		2
-#define ICE_PORTS_PER_PHY_E822		8
+#define ICE_QUADS_PER_PHY_E82X		2
+#define ICE_PORTS_PER_PHY_E82X		8
 #define ICE_PORTS_PER_QUAD		4
 #define ICE_PORTS_PER_PHY_E810		4
 #define ICE_NUM_EXTERNAL_PORTS		(ICE_MAX_QUAD * ICE_PORTS_PER_QUAD)

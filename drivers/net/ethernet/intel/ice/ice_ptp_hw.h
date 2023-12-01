@@ -42,7 +42,7 @@ enum ice_ptp_fec_mode {
 };
 
 /**
- * struct ice_time_ref_info_e822
+ * struct ice_time_ref_info_e82x
  * @pll_freq: Frequency of PLL that drives timer ticks in Hz
  * @nominal_incval: increment to generate nanoseconds in GLTSYN_TIME_L
  * @pps_delay: propagation delay of the PPS output signal
@@ -50,14 +50,14 @@ enum ice_ptp_fec_mode {
  * Characteristic information for the various TIME_REF sources possible in the
  * E822 devices
  */
-struct ice_time_ref_info_e822 {
+struct ice_time_ref_info_e82x {
 	u64 pll_freq;
 	u64 nominal_incval;
 	u8 pps_delay;
 };
 
 /**
- * struct ice_vernier_info_e822
+ * struct ice_vernier_info_e82x
  * @tx_par_clk: Frequency used to calculate P_REG_PAR_TX_TUS
  * @rx_par_clk: Frequency used to calculate P_REG_PAR_RX_TUS
  * @tx_pcs_clk: Frequency used to calculate P_REG_PCS_TX_TUS
@@ -80,7 +80,7 @@ struct ice_time_ref_info_e822 {
  * different link speeds, either the deskew marker for multi-lane link speeds
  * or the Reed Solomon gearbox marker for RS-FEC.
  */
-struct ice_vernier_info_e822 {
+struct ice_vernier_info_e82x {
 	u32 tx_par_clk;
 	u32 rx_par_clk;
 	u32 tx_pcs_clk;
@@ -95,7 +95,7 @@ struct ice_vernier_info_e822 {
 };
 
 /**
- * struct ice_cgu_pll_params_e822
+ * struct ice_cgu_pll_params_e82x
  * @refclk_pre_div: Reference clock pre-divisor
  * @feedback_div: Feedback divisor
  * @frac_n_div: Fractional divisor
@@ -104,7 +104,7 @@ struct ice_vernier_info_e822 {
  * Clock Generation Unit parameters used to program the PLL based on the
  * selected TIME_REF frequency.
  */
-struct ice_cgu_pll_params_e822 {
+struct ice_cgu_pll_params_e82x {
 	u32 refclk_pre_div;
 	u32 feedback_div;
 	u32 frac_n_div;
@@ -124,7 +124,7 @@ enum ice_phy_rclk_pins {
 };
 
 #define ICE_E810_RCLK_PINS_NUM		(ICE_RCLKB_PIN + 1)
-#define ICE_E822_RCLK_PINS_NUM		(ICE_RCLKA_PIN + 1)
+#define ICE_E82X_RCLK_PINS_NUM		(ICE_RCLKA_PIN + 1)
 #define E810T_CGU_INPUT_C827(_phy, _pin) ((_phy) * ICE_E810_RCLK_PINS_NUM + \
 					  (_pin) + ZL_REF1P)
 
@@ -183,16 +183,16 @@ struct ice_cgu_pin_desc {
 };
 
 extern const struct
-ice_cgu_pll_params_e822 e822_cgu_params[NUM_ICE_TIME_REF_FREQ];
+ice_cgu_pll_params_e82x e822_cgu_params[NUM_ICE_TIME_REF_FREQ];
 
 #define E810C_QSFP_C827_0_HANDLE 2
 #define E810C_QSFP_C827_1_HANDLE 3
 
 /* Table of constants related to possible TIME_REF sources */
-extern const struct ice_time_ref_info_e822 e822_time_ref[NUM_ICE_TIME_REF_FREQ];
+extern const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ];
 
 /* Table of constants for Vernier calibration on E822 */
-extern const struct ice_vernier_info_e822 e822_vernier[NUM_ICE_PTP_LNK_SPD];
+extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
 
 /* Increment value to generate nanoseconds in the GLTSYN_TIME_L register for
  * the E810 devices. Based off of a PLL with an 812.5 MHz frequency.
@@ -215,23 +215,23 @@ int ice_ptp_init_phc(struct ice_hw *hw);
 int ice_get_phy_tx_tstamp_ready(struct ice_hw *hw, u8 block, u64 *tstamp_ready);
 
 /* E822 family functions */
-int ice_read_quad_reg_e822(struct ice_hw *hw, u8 quad, u16 offset, u32 *val);
-int ice_write_quad_reg_e822(struct ice_hw *hw, u8 quad, u16 offset, u32 val);
-void ice_ptp_reset_ts_memory_quad_e822(struct ice_hw *hw, u8 quad);
+int ice_read_quad_reg_e82x(struct ice_hw *hw, u8 quad, u16 offset, u32 *val);
+int ice_write_quad_reg_e82x(struct ice_hw *hw, u8 quad, u16 offset, u32 val);
+void ice_ptp_reset_ts_memory_quad_e82x(struct ice_hw *hw, u8 quad);
 
 /**
- * ice_e822_time_ref - Get the current TIME_REF from capabilities
+ * ice_e82x_time_ref - Get the current TIME_REF from capabilities
  * @hw: pointer to the HW structure
  *
  * Returns the current TIME_REF from the capabilities structure.
  */
-static inline enum ice_time_ref_freq ice_e822_time_ref(struct ice_hw *hw)
+static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw)
 {
 	return hw->func_caps.ts_func_info.time_ref;
 }
 
 /**
- * ice_set_e822_time_ref - Set new TIME_REF
+ * ice_set_e82x_time_ref - Set new TIME_REF
  * @hw: pointer to the HW structure
  * @time_ref: new TIME_REF to set
  *
@@ -239,31 +239,31 @@ static inline enum ice_time_ref_freq ice_e822_time_ref(struct ice_hw *hw)
  * change, such as an update to the CGU registers.
  */
 static inline void
-ice_set_e822_time_ref(struct ice_hw *hw, enum ice_time_ref_freq time_ref)
+ice_set_e82x_time_ref(struct ice_hw *hw, enum ice_time_ref_freq time_ref)
 {
 	hw->func_caps.ts_func_info.time_ref = time_ref;
 }
 
-static inline u64 ice_e822_pll_freq(enum ice_time_ref_freq time_ref)
+static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref)
 {
 	return e822_time_ref[time_ref].pll_freq;
 }
 
-static inline u64 ice_e822_nominal_incval(enum ice_time_ref_freq time_ref)
+static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref)
 {
 	return e822_time_ref[time_ref].nominal_incval;
 }
 
-static inline u64 ice_e822_pps_delay(enum ice_time_ref_freq time_ref)
+static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref)
 {
 	return e822_time_ref[time_ref].pps_delay;
 }
 
 /* E822 Vernier calibration functions */
-int ice_stop_phy_timer_e822(struct ice_hw *hw, u8 port, bool soft_reset);
-int ice_start_phy_timer_e822(struct ice_hw *hw, u8 port);
-int ice_phy_cfg_tx_offset_e822(struct ice_hw *hw, u8 port);
-int ice_phy_cfg_rx_offset_e822(struct ice_hw *hw, u8 port);
+int ice_stop_phy_timer_e82x(struct ice_hw *hw, u8 port, bool soft_reset);
+int ice_start_phy_timer_e82x(struct ice_hw *hw, u8 port);
+int ice_phy_cfg_tx_offset_e82x(struct ice_hw *hw, u8 port);
+int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port);
 
 /* E810 family functions */
 int ice_ptp_init_phy_e810(struct ice_hw *hw);
