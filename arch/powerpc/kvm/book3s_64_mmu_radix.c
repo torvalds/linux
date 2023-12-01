@@ -97,7 +97,7 @@ static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  void *to, void *from, unsigned long n)
 {
 	int lpid = vcpu->kvm->arch.lpid;
-	int pid = kvmppc_get_pid(vcpu);
+	int pid;
 
 	/* This would cause a data segment intr so don't allow the access */
 	if (eaddr & (0x3FFUL << 52))
@@ -110,6 +110,8 @@ static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
 	/* If accessing quadrant 3 then pid is expected to be 0 */
 	if (((eaddr >> 62) & 0x3) == 0x3)
 		pid = 0;
+	else
+		pid = kvmppc_get_pid(vcpu);
 
 	eaddr &= ~(0xFFFUL << 52);
 
