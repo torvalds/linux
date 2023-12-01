@@ -26,6 +26,8 @@
 
 #define DEVICE_NAME	"aspeed-kcs-bmc"
 
+static DEFINE_IDA(aspeed_kcs_bmc_ida);
+
 /*
  * Field class descriptions
  *
@@ -409,7 +411,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 	struct kcs_bmc_device *kcs_bmc;
 	struct device *dev;
 	const __be32 *reg;
-	int i, rc;
+	int i, rc, chan;
 
 	dev = &pdev->dev;
 
@@ -477,11 +479,16 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	rc = of_property_read_u32(dev->of_node, "kcs-channel", &kcs_bmc->channel);
+	rc = of_property_read_u32(dev->of_node, "kcs-channel", &chan);
 	if (rc) {
-		dev_err(dev, "invalid channel\n");
-		return -ENODEV;
+		chan = ida_alloc(&aspeed_kcs_bmc_ida, GFP_KERNEL);
+		if (chan < 0) {
+			dev_err(dev, "cannot allocate ID for KCS channel\n");
+			return chan;
+		}
 	}
+
+	kcs_bmc->channel = chan;
 
 	rc = of_property_read_u32_array(dev->of_node, "kcs-upstream-serirq", (u32 *)&kcs_aspeed->sirq, 2);
 	if (rc) {
