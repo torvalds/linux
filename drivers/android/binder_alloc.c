@@ -371,6 +371,15 @@ static bool debug_low_async_space_locked(struct binder_alloc *alloc)
 	size_t num_buffers = 0;
 	struct rb_node *n;
 
+	/*
+	 * Only start detecting spammers once we have less than 20% of async
+	 * space left (which is less than 10% of total buffer size).
+	 */
+	if (alloc->free_async_space >= alloc->buffer_size / 10) {
+		alloc->oneway_spam_detected = false;
+		return false;
+	}
+
 	for (n = rb_first(&alloc->allocated_buffers); n != NULL;
 		 n = rb_next(n)) {
 		buffer = rb_entry(n, struct binder_buffer, rb_node);
@@ -491,16 +500,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
 			     "%d: binder_alloc_buf size %zd async free %zd\n",
 			      alloc->pid, size, alloc->free_async_space);
-		if (alloc->free_async_space < alloc->buffer_size / 10) {
-			/*
-			 * Start detecting spammers once we have less than 20%
-			 * of async space left (which is less than 10% of total
-			 * buffer size).
-			 */
-			buffer->oneway_spam_suspect = debug_low_async_space_locked(alloc);
-		} else {
-			alloc->oneway_spam_detected = false;
-		}
+		if (debug_low_async_space_locked(alloc))
+			buffer->oneway_spam_suspect = true;
 	}
 
 	return buffer;
