@@ -70,38 +70,6 @@ When the time comes for Xe, the protection will be lifted on Xe and kept in i915
 Xe – Pre-Merge Goals - Work-in-Progress
 =======================================
 
-Userptr integration and vm_bind
--------------------------------
-Different drivers implement different ways of dealing with execution of userptr.
-With multiple drivers currently introducing support to VM_BIND, the goal is to
-aim for a DRM consensus on what’s the best way to have that support. To some
-extent this is already getting addressed itself with the GPUVA where likely the
-userptr will be a GPUVA with a NULL GEM call VM bind directly on the userptr.
-However, there are more aspects around the rules for that and the usage of
-mmu_notifiers, locking and other aspects.
-
-This task here has the goal of introducing a documentation of the basic rules.
-
-The documentation *needs* to first live in this document (API session below) and
-then moved to another more specific document or at Xe level or at DRM level.
-
-Documentation should include:
-
- * The userptr part of the VM_BIND api.
-
- * Locking, including the page-faulting case.
-
- * O(1) complexity under VM_BIND.
-
-The document is now included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
-
-Some parts of userptr like mmu_notifiers should become GPUVA or DRM helpers when
-the second driver supporting VM_BIND+userptr appears. Details to be defined when
-the time comes.
-
-The DRM GPUVM helpers do not yet include the userptr parts, but discussions
-about implementing them are ongoing.
-
 Display integration with i915
 -----------------------------
 In order to share the display code with the i915 driver so that there is maximum
@@ -138,6 +106,38 @@ Xe – uAPI high level overview
 
 Xe – Pre-Merge Goals - Completed
 ================================
+
+Userptr integration and vm_bind
+-------------------------------
+Different drivers implement different ways of dealing with execution of userptr.
+With multiple drivers currently introducing support to VM_BIND, the goal is to
+aim for a DRM consensus on what’s the best way to have that support. To some
+extent this is already getting addressed itself with the GPUVA where likely the
+userptr will be a GPUVA with a NULL GEM call VM bind directly on the userptr.
+However, there are more aspects around the rules for that and the usage of
+mmu_notifiers, locking and other aspects.
+
+This task here has the goal of introducing a documentation of the basic rules.
+
+The documentation *needs* to first live in this document (API session below) and
+then moved to another more specific document or at Xe level or at DRM level.
+
+Documentation should include:
+
+ * The userptr part of the VM_BIND api.
+
+ * Locking, including the page-faulting case.
+
+ * O(1) complexity under VM_BIND.
+
+The document is now included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
+
+Some parts of userptr like mmu_notifiers should become GPUVA or DRM helpers when
+the second driver supporting VM_BIND+userptr appears. Details to be defined when
+the time comes.
+
+The DRM GPUVM helpers do not yet include the userptr parts, but discussions
+about implementing them are ongoing.
 
 ASYNC VM_BIND
 -------------
