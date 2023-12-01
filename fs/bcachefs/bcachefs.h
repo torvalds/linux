@@ -638,6 +638,8 @@ struct journal_keys {
 	size_t			gap;
 	size_t			nr;
 	size_t			size;
+	atomic_t		ref;
+	bool			initial_ref_held;
 };
 
 struct btree_trans_buf {
@@ -929,7 +931,7 @@ struct bch_fs {
 	mempool_t		compression_bounce[2];
 	mempool_t		compress_workspace[BCH_COMPRESSION_TYPE_NR];
 	mempool_t		decompress_workspace;
-	ZSTD_parameters		zstd_params;
+	size_t			zstd_workspace_size;
 
 	struct crypto_shash	*sha256;
 	struct crypto_sync_skcipher *chacha20;

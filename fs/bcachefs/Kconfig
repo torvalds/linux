@@ -33,6 +33,18 @@ config BCACHEFS_QUOTA
 	depends on BCACHEFS_FS
 	select QUOTACTL
 
+config BCACHEFS_ERASURE_CODING
+	bool "bcachefs erasure coding (RAID5/6) support (EXPERIMENTAL)"
+	depends on BCACHEFS_FS
+	select QUOTACTL
+	help
+	This enables the "erasure_code" filesysystem and inode option, which
+	organizes data into reed-solomon stripes instead of ordinary
+	replication.
+
+	WARNING: this feature is still undergoing on disk format changes, and
+	should only be enabled for testing purposes.
+
 config BCACHEFS_POSIX_ACL
 	bool "bcachefs POSIX ACL support"
 	depends on BCACHEFS_FS
