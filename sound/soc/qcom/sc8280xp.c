@@ -151,6 +151,8 @@ static int sc8280xp_platform_probe(struct platform_device *pdev)
 
 static const struct of_device_id snd_sc8280xp_dt_match[] = {
 	{.compatible = "qcom,sc8280xp-sndcard", "sc8280xp"},
+	{.compatible = "qcom,sm8450-sndcard", "sm8450"},
+	{.compatible = "qcom,sm8550-sndcard", "sm8550"},
 	{}
 };
 
