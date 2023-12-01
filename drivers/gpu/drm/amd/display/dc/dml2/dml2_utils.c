@@ -157,6 +157,15 @@ bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 {
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
+
+	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
+	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
+			return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
+				pipe_ctx->link_res.hpo_dp_link_enc &&
+				dc_is_dp_signal(pipe_ctx->stream->signal) &&
+				(pipe_ctx->stream->link->remote_sinks[0] == pipe_ctx->stream->sink));
+	}
+
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
 		pipe_ctx->link_res.hpo_dp_link_enc &&
 		dc_is_dp_signal(pipe_ctx->stream->signal));
