@@ -460,18 +460,24 @@ static int dcn32_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 
 static void dcn32_auto_dpm_test_log(struct dc_clocks *new_clocks, struct clk_mgr_internal *clk_mgr)
 {
-    unsigned int dispclk_khz_reg    = REG_READ(CLK1_CLK0_CURRENT_CNT); // DISPCLK
-    unsigned int dppclk_khz_reg     = REG_READ(CLK1_CLK1_CURRENT_CNT); // DPPCLK
-    unsigned int dprefclk_khz_reg   = REG_READ(CLK1_CLK2_CURRENT_CNT); // DPREFCLK
-    unsigned int dcfclk_khz_reg     = REG_READ(CLK1_CLK3_CURRENT_CNT); // DCFCLK
-    unsigned int dtbclk_khz_reg     = REG_READ(CLK1_CLK4_CURRENT_CNT); // DTBCLK
-    unsigned int fclk_khz_reg       = REG_READ(CLK4_CLK0_CURRENT_CNT); // FCLK
+	unsigned int dispclk_khz_reg, dppclk_khz_reg, dprefclk_khz_reg, dcfclk_khz_reg, dtbclk_khz_reg,
+				 fclk_khz_reg;
+	int dramclk_khz_override, fclk_khz_override, num_fclk_levels;
+
+	msleep(5);
+
+    dispclk_khz_reg    = REG_READ(CLK1_CLK0_CURRENT_CNT); // DISPCLK
+    dppclk_khz_reg     = REG_READ(CLK1_CLK1_CURRENT_CNT); // DPPCLK
+    dprefclk_khz_reg   = REG_READ(CLK1_CLK2_CURRENT_CNT); // DPREFCLK
+    dcfclk_khz_reg     = REG_READ(CLK1_CLK3_CURRENT_CNT); // DCFCLK
+    dtbclk_khz_reg     = REG_READ(CLK1_CLK4_CURRENT_CNT); // DTBCLK
+    fclk_khz_reg       = REG_READ(CLK4_CLK0_CURRENT_CNT); // FCLK
 
     // Overrides for these clocks in case there is no p_state change support
-    int dramclk_khz_override = new_clocks->dramclk_khz;
-    int fclk_khz_override = new_clocks->fclk_khz;
+    dramclk_khz_override = new_clocks->dramclk_khz;
+    fclk_khz_override = new_clocks->fclk_khz;
 
-    int num_fclk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1;
+    num_fclk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1;
 
     if (!new_clocks->p_state_change_support) {
 	    dramclk_khz_override = clk_mgr->base.bw_params->max_memclk_mhz * 1000;
@@ -707,7 +713,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		dmcu->funcs->set_psr_wait_loop(dmcu,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 
-	if (dc->config.enable_auto_dpm_test_logs) {
+	if (dc->config.enable_auto_dpm_test_logs && safe_to_lower) {
 	    dcn32_auto_dpm_test_log(new_clocks, clk_mgr);
 	}
 }
