@@ -132,21 +132,6 @@ the time comes.
 The DRM GPUVM helpers do not yet include the userptr parts, but discussions
 about implementing them are ongoing.
 
-Long running compute: minimal data structure/scaffolding
---------------------------------------------------------
-The generic scheduler code needs to include the handling of endless compute
-contexts, with the minimal scaffolding for preempt-ctx fences (probably on the
-drm_sched_entity) and making sure drm_scheduler can cope with the lack of job
-completion fence.
-
-The goal is to achieve a consensus ahead of Xe initial pull-request, ideally with
-this minimal drm/scheduler work, if needed, merged to drm-misc in a way that any
-drm driver, including Xe, could re-use and add their own individual needs on top
-in a next stage. However, this should not block the initial merge.
-
-This is a non-blocker item since the driver without the support for the long
-running compute enabled is not a showstopper.
-
 Display integration with i915
 -----------------------------
 In order to share the display code with the i915 driver so that there is maximum
@@ -183,6 +168,18 @@ Xe – uAPI high level overview
 
 Xe – Pre-Merge Goals - Completed
 ================================
+
+Long running compute: minimal data structure/scaffolding
+--------------------------------------------------------
+The generic scheduler code needs to include the handling of endless compute
+contexts, with the minimal scaffolding for preempt-ctx fences (probably on the
+drm_sched_entity) and making sure drm_scheduler can cope with the lack of job
+completion fence.
+
+The goal is to achieve a consensus ahead of Xe initial pull-request, ideally with
+this minimal drm/scheduler work, if needed, merged to drm-misc in a way that any
+drm driver, including Xe, could re-use and add their own individual needs on top
+in a next stage. However, this should not block the initial merge.
 
 Dev_coredump
 ------------
