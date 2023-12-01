@@ -91,7 +91,7 @@
 #include <uapi/linux/mount.h>
 #include <linux/fsnotify.h>
 #include <linux/fanotify.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 
 #include "avc.h"
 #include "objsec.h"

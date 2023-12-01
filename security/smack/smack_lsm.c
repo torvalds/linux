@@ -42,7 +42,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/watch_queue.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include "smack.h"
 
 #define TRANS_TRUE	"TRUE"
