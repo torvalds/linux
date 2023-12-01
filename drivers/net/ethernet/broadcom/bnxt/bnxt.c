@@ -260,6 +260,10 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | DB_RING_IDX(db, idx),\
 		    (db)->doorbell)
 
+#define BNXT_DB_NQ_P7(db, idx)						\
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_MASK |		\
+		    DB_RING_IDX(db, idx), (db)->doorbell)
+
 #define BNXT_DB_CQ_ARM(db, idx)						\
 	writel(DB_CP_REARM_FLAGS | DB_RING_IDX(db, idx), (db)->doorbell)
 
@@ -269,7 +273,9 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 
 static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+	if (bp->flags & BNXT_FLAG_CHIP_P7)
+		BNXT_DB_NQ_P7(db, idx);
+	else if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		BNXT_DB_NQ_P5(db, idx);
 	else
 		BNXT_DB_CQ(db, idx);
@@ -5784,7 +5790,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 			if (BNXT_CHIP_P5(bp))
 				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5;
 			else
-				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5_SR2;
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P7;
 		}
 	}
 	hwrm_req_drop(bp, req);
@@ -6015,6 +6021,10 @@ static void bnxt_set_db_mask(struct bnxt *bp, struct bnxt_db_info *db,
 		db->db_ring_mask = bp->cp_ring_mask;
 		break;
 	}
+	if (bp->flags & BNXT_FLAG_CHIP_P7) {
+		db->db_epoch_mask = db->db_ring_mask + 1;
+		db->db_epoch_shift = DBR_EPOCH_SFT - ilog2(db->db_epoch_mask);
+	}
 }
 
 static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
@@ -6041,6 +6051,9 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			break;
 		}
 		db->db_key64 |= (u64)xid << DBR_XID_SFT;
+
+		if (bp->flags & BNXT_FLAG_CHIP_P7)
+			db->db_key64 |= DBR_VALID;
 	} else {
 		db->doorbell = bp->bar1 + map_idx * 0x80;
 		switch (ring_type) {
@@ -14014,8 +14027,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (BNXT_CHIP_P5_PLUS(bp)) {
 		bp->flags |= BNXT_FLAG_CHIP_P5_PLUS;
-		if (BNXT_CHIP_SR2(bp))
-			bp->flags |= BNXT_FLAG_CHIP_SR2;
+		if (BNXT_CHIP_P7(bp))
+			bp->flags |= BNXT_FLAG_CHIP_P7;
 	}
 
 	rc = bnxt_alloc_rss_indir_tbl(bp);

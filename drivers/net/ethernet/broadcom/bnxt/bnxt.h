@@ -541,6 +541,8 @@ struct nqe_cn {
 	#define NQ_CN_TYPE_SFT            0
 	#define NQ_CN_TYPE_CQ_NOTIFICATION  0x30UL
 	#define NQ_CN_TYPE_LAST            NQ_CN_TYPE_CQ_NOTIFICATION
+	#define NQ_CN_TOGGLE_MASK         0xc0UL
+	#define NQ_CN_TOGGLE_SFT          6
 	__le16	reserved16;
 	__le32	cq_handle_low;
 	__le32	v;
@@ -561,6 +563,10 @@ struct nqe_cn {
 #define BNXT_SET_NQ_HDL(cpr)						\
 	(((cpr)->cp_ring_type << BNXT_NQ_HDL_TYPE_SHIFT) | (cpr)->cp_idx)
 
+#define NQE_CN_TYPE(type)	((type) & NQ_CN_TYPE_MASK)
+#define NQE_CN_TOGGLE(type)	(((type) & NQ_CN_TOGGLE_MASK) >>	\
+				 NQ_CN_TOGGLE_SFT)
+
 #define DB_IDX_MASK						0xffffff
 #define DB_IDX_VALID						(0x1 << 26)
 #define DB_IRQ_DIS						(0x1 << 27)
@@ -576,9 +582,14 @@ struct nqe_cn {
 
 /* 64-bit doorbell */
 #define DBR_INDEX_MASK					0x0000000000ffffffULL
+#define DBR_EPOCH_MASK					0x01000000UL
+#define DBR_EPOCH_SFT					24
+#define DBR_TOGGLE_MASK					0x06000000UL
+#define DBR_TOGGLE_SFT					25
 #define DBR_XID_MASK					0x000fffff00000000ULL
 #define DBR_XID_SFT					32
 #define DBR_PATH_L2					(0x1ULL << 56)
+#define DBR_VALID					(0x1ULL << 58)
 #define DBR_TYPE_SQ					(0x0ULL << 60)
 #define DBR_TYPE_RQ					(0x1ULL << 60)
 #define DBR_TYPE_SRQ					(0x2ULL << 60)
@@ -591,6 +602,7 @@ struct nqe_cn {
 #define DBR_TYPE_CQ_CUTOFF_ACK				(0x9ULL << 60)
 #define DBR_TYPE_NQ					(0xaULL << 60)
 #define DBR_TYPE_NQ_ARM					(0xbULL << 60)
+#define DBR_TYPE_NQ_MASK				(0xeULL << 60)
 #define DBR_TYPE_NULL					(0xfULL << 60)
 
 #define DB_PF_OFFSET_P5					0x10000
@@ -819,9 +831,17 @@ struct bnxt_db_info {
 		u32		db_key32;
 	};
 	u32			db_ring_mask;
+	u32			db_epoch_mask;
+	u8			db_epoch_shift;
 };
 
-#define DB_RING_IDX(db, idx)	((idx) & (db)->db_ring_mask)
+#define DB_EPOCH(db, idx)	(((idx) & (db)->db_epoch_mask) <<	\
+				 ((db)->db_epoch_shift))
+
+#define DB_TOGGLE(tgl)		((tgl) << DBR_TOGGLE_SFT)
+
+#define DB_RING_IDX(db, idx)	(((idx) & (db)->db_ring_mask) |		\
+				 DB_EPOCH(db, idx))
 
 struct bnxt_tx_ring_info {
 	struct bnxt_napi	*bnapi;
@@ -1803,13 +1823,13 @@ struct bnxt {
 #define CHIP_NUM_57504		0x1751
 #define CHIP_NUM_57502		0x1752
 
+#define CHIP_NUM_57608		0x1760
+
 #define CHIP_NUM_58802		0xd802
 #define CHIP_NUM_58804		0xd804
 #define CHIP_NUM_58808		0xd808
 
 	u8			chip_rev;
-
-#define CHIP_NUM_58818		0xd818
 
 #define BNXT_CHIP_NUM_5730X(chip_num)		\
 	((chip_num) >= CHIP_NUM_57301 &&	\
@@ -1888,7 +1908,7 @@ struct bnxt {
 					 BNXT_FLAG_ROCEV2_CAP)
 	#define BNXT_FLAG_NO_AGG_RINGS	0x20000
 	#define BNXT_FLAG_RX_PAGE_MODE	0x40000
-	#define BNXT_FLAG_CHIP_SR2	0x80000
+	#define BNXT_FLAG_CHIP_P7	0x80000
 	#define BNXT_FLAG_MULTI_HOST	0x100000
 	#define BNXT_FLAG_DSN_VALID	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
@@ -1918,8 +1938,8 @@ struct bnxt {
 				  (bp)->max_tpa_v2) && !is_kdump_kernel())
 #define BNXT_RX_JUMBO_MODE(bp)	((bp)->flags & BNXT_FLAG_JUMBO)
 
-#define BNXT_CHIP_SR2(bp)			\
-	((bp)->chip_num == CHIP_NUM_58818)
+#define BNXT_CHIP_P7(bp)			\
+	((bp)->chip_num == CHIP_NUM_57608)
 
 #define BNXT_CHIP_P5(bp)			\
 	((bp)->chip_num == CHIP_NUM_57508 ||	\
@@ -1928,7 +1948,7 @@ struct bnxt {
 
 /* Chip class phase 5 */
 #define BNXT_CHIP_P5_PLUS(bp)			\
-	(BNXT_CHIP_P5(bp) || BNXT_CHIP_SR2(bp))
+	(BNXT_CHIP_P5(bp) || BNXT_CHIP_P7(bp))
 
 /* Chip class phase 4.x */
 #define BNXT_CHIP_P4(bp)			\
@@ -2272,15 +2292,15 @@ struct bnxt {
 #define BNXT_NUM_TX_RING_STATS			8
 #define BNXT_NUM_TPA_RING_STATS			4
 #define BNXT_NUM_TPA_RING_STATS_P5		5
-#define BNXT_NUM_TPA_RING_STATS_P5_SR2		6
+#define BNXT_NUM_TPA_RING_STATS_P7		6
 
 #define BNXT_RING_STATS_SIZE_P5					\
 	((BNXT_NUM_RX_RING_STATS + BNXT_NUM_TX_RING_STATS +	\
 	  BNXT_NUM_TPA_RING_STATS_P5) * 8)
 
-#define BNXT_RING_STATS_SIZE_P5_SR2				\
+#define BNXT_RING_STATS_SIZE_P7					\
 	((BNXT_NUM_RX_RING_STATS + BNXT_NUM_TX_RING_STATS +	\
-	  BNXT_NUM_TPA_RING_STATS_P5_SR2) * 8)
+	  BNXT_NUM_TPA_RING_STATS_P7) * 8)
 
 #define BNXT_GET_RING_STATS64(sw, counter)		\
 	(*((sw) + offsetof(struct ctx_hw_stats, counter) / 8))

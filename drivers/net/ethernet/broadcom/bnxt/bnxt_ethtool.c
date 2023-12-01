@@ -513,7 +513,7 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 		if (bp->max_tpa_v2) {
 			if (BNXT_CHIP_P5(bp))
 				return BNXT_NUM_TPA_RING_STATS_P5;
-			return BNXT_NUM_TPA_RING_STATS_P5_SR2;
+			return BNXT_NUM_TPA_RING_STATS_P7;
 		}
 		return BNXT_NUM_TPA_RING_STATS;
 	}
