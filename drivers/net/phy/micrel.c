@@ -2021,6 +2021,11 @@ static int kszphy_probe(struct phy_device *phydev)
 				   rate);
 			return -EINVAL;
 		}
+	} else if (!clk) {
+		/* unnamed clock from the generic ethernet-phy binding */
+		clk = devm_clk_get_optional_enabled(&phydev->mdio.dev, NULL);
+		if (IS_ERR(clk))
+			return PTR_ERR(clk);
 	}
 
 	if (ksz8041_fiber_mode(phydev))
