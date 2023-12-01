@@ -1611,6 +1611,7 @@ struct bnxt_ctx_mem_type {
 #define BNXT_CTX_XPAR	FUNC_BACKING_STORE_QCAPS_V2_REQ_TYPE_XID_PARTITION
 
 #define BNXT_CTX_MAX	(BNXT_CTX_TIM + 1)
+#define BNXT_CTX_L2_MAX	(BNXT_CTX_FTQM + 1)
 #define BNXT_CTX_V2_MAX	(BNXT_CTX_XPAR + 1)
 #define BNXT_CTX_INV	((u16)-1)
 

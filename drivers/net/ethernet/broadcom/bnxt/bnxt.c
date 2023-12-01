@@ -7249,7 +7249,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 {
 	struct hwrm_func_backing_store_qcaps_v2_output *resp;
 	struct hwrm_func_backing_store_qcaps_v2_input *req;
-	u16 last_valid_type = BNXT_CTX_INV;
 	struct bnxt_ctx_mem_info *ctx;
 	u16 type;
 	int rc;
@@ -7281,7 +7280,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 			continue;
 
 		ctxm->type = le16_to_cpu(resp->type);
-		last_valid_type = ctxm->type;
 		ctxm->entry_size = le16_to_cpu(resp->entry_size);
 		ctxm->flags = flags;
 		ctxm->instance_bmap = le32_to_cpu(resp->instance_bit_map);
@@ -7298,8 +7296,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 		     i++, p++)
 			ctxm->split[i] = le32_to_cpu(*p);
 	}
-	if (last_valid_type < BNXT_CTX_V2_MAX)
-		ctx->ctx_arr[last_valid_type].last = true;
 	rc = bnxt_alloc_all_ctx_pg_info(bp, BNXT_CTX_V2_MAX);
 
 ctx_done:
@@ -7751,12 +7747,21 @@ static int bnxt_hwrm_func_backing_store_cfg_v2(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_backing_store_cfg_v2(struct bnxt *bp)
+static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 {
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
 	struct bnxt_ctx_mem_type *ctxm;
+	u16 last_type;
 	int rc = 0;
 	u16 type;
+
+	if (!ena)
+		return 0;
+	else if (ena & FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM)
+		last_type = BNXT_CTX_MAX - 1;
+	else
+		last_type = BNXT_CTX_L2_MAX - 1;
+	ctx->ctx_arr[last_type].last = 1;
 
 	for (type = 0 ; type < BNXT_CTX_V2_MAX; type++) {
 		ctxm = &ctx->ctx_arr[type];
@@ -7904,7 +7909,7 @@ skip_rdma:
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
 
 	if (bp->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-		rc = bnxt_backing_store_cfg_v2(bp);
+		rc = bnxt_backing_store_cfg_v2(bp, ena);
 	else
 		rc = bnxt_hwrm_func_backing_store_cfg(bp, ena);
 	if (rc) {
