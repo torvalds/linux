@@ -53,6 +53,10 @@ struct pmu_caps {
 	char            *pmu_name;
 };
 
+typedef const char *(arch_syscalls__strerrno_t)(int err);
+
+arch_syscalls__strerrno_t *arch_syscalls__strerrno_function(const char *arch);
+
 struct perf_env {
 	char			*hostname;
 	char			*os_release;
@@ -135,6 +139,7 @@ struct perf_env {
 		 */
 		bool	enabled;
 	} clock;
+	arch_syscalls__strerrno_t *arch_strerrno;
 };
 
 enum perf_compress_type {

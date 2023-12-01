@@ -458,8 +458,10 @@ const char *perf_env__arch(struct perf_env *env)
 const char *perf_env__arch_strerrno(struct perf_env *env __maybe_unused, int err __maybe_unused)
 {
 #if defined(HAVE_SYSCALL_TABLE_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
-	const char *arch_name = perf_env__arch(env);
-	return arch_syscalls__strerrno(arch_name, err);
+	if (env->arch_strerrno == NULL)
+		env->arch_strerrno = arch_syscalls__strerrno_function(perf_env__arch(env));
+
+	return env->arch_strerrno ? env->arch_strerrno(err) : "no arch specific strerrno function";
 #else
 	return "!(HAVE_SYSCALL_TABLE_SUPPORT && HAVE_LIBTRACEEVENT)";
 #endif
