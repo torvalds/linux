@@ -319,6 +319,43 @@ static inline struct vm_area_struct *binder_alloc_get_vma(
 	return smp_load_acquire(&alloc->vma);
 }
 
+static void debug_no_space_locked(struct binder_alloc *alloc)
+{
+	size_t largest_alloc_size = 0;
+	struct binder_buffer *buffer;
+	size_t allocated_buffers = 0;
+	size_t largest_free_size = 0;
+	size_t total_alloc_size = 0;
+	size_t total_free_size = 0;
+	size_t free_buffers = 0;
+	size_t buffer_size;
+	struct rb_node *n;
+
+	for (n = rb_first(&alloc->allocated_buffers); n; n = rb_next(n)) {
+		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		buffer_size = binder_alloc_buffer_size(alloc, buffer);
+		allocated_buffers++;
+		total_alloc_size += buffer_size;
+		if (buffer_size > largest_alloc_size)
+			largest_alloc_size = buffer_size;
+	}
+
+	for (n = rb_first(&alloc->free_buffers); n; n = rb_next(n)) {
+		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		buffer_size = binder_alloc_buffer_size(alloc, buffer);
+		free_buffers++;
+		total_free_size += buffer_size;
+		if (buffer_size > largest_free_size)
+			largest_free_size = buffer_size;
+	}
+
+	binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
+			   "allocated: %zd (num: %zd largest: %zd), free: %zd (num: %zd largest: %zd)\n",
+			   total_alloc_size, allocated_buffers,
+			   largest_alloc_size, total_free_size,
+			   free_buffers, largest_free_size);
+}
+
 static bool debug_low_async_space_locked(struct binder_alloc *alloc)
 {
 	/*
@@ -398,42 +435,14 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		}
 	}
 
-	if (best_fit == NULL) {
-		size_t allocated_buffers = 0;
-		size_t largest_alloc_size = 0;
-		size_t total_alloc_size = 0;
-		size_t free_buffers = 0;
-		size_t largest_free_size = 0;
-		size_t total_free_size = 0;
-
-		for (n = rb_first(&alloc->allocated_buffers); n != NULL;
-		     n = rb_next(n)) {
-			buffer = rb_entry(n, struct binder_buffer, rb_node);
-			buffer_size = binder_alloc_buffer_size(alloc, buffer);
-			allocated_buffers++;
-			total_alloc_size += buffer_size;
-			if (buffer_size > largest_alloc_size)
-				largest_alloc_size = buffer_size;
-		}
-		for (n = rb_first(&alloc->free_buffers); n != NULL;
-		     n = rb_next(n)) {
-			buffer = rb_entry(n, struct binder_buffer, rb_node);
-			buffer_size = binder_alloc_buffer_size(alloc, buffer);
-			free_buffers++;
-			total_free_size += buffer_size;
-			if (buffer_size > largest_free_size)
-				largest_free_size = buffer_size;
-		}
+	if (unlikely(!best_fit)) {
 		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
 				   "%d: binder_alloc_buf size %zd failed, no address space\n",
 				   alloc->pid, size);
-		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "allocated: %zd (num: %zd largest: %zd), free: %zd (num: %zd largest: %zd)\n",
-				   total_alloc_size, allocated_buffers,
-				   largest_alloc_size, total_free_size,
-				   free_buffers, largest_free_size);
+		debug_no_space_locked(alloc);
 		return ERR_PTR(-ENOSPC);
 	}
+
 	if (n == NULL) {
 		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
 		buffer_size = binder_alloc_buffer_size(alloc, buffer);
