@@ -650,7 +650,8 @@ static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
 	return err;
 }
 
-static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
+static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap,
+			       struct kvmppc_vpa *old_vpap)
 {
 	struct kvm *kvm = vcpu->kvm;
 	void *va;
@@ -690,9 +691,8 @@ static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 		kvmppc_unpin_guest_page(kvm, va, gpa, false);
 		va = NULL;
 	}
-	if (vpap->pinned_addr)
-		kvmppc_unpin_guest_page(kvm, vpap->pinned_addr, vpap->gpa,
-					vpap->dirty);
+	*old_vpap = *vpap;
+
 	vpap->gpa = gpa;
 	vpap->pinned_addr = va;
 	vpap->dirty = false;
@@ -702,6 +702,9 @@ static void kvmppc_update_vpa(struct kvm_vcpu *vcpu, struct kvmppc_vpa *vpap)
 
 static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
+	struct kvmppc_vpa old_vpa = { 0 };
+
 	if (!(vcpu->arch.vpa.update_pending ||
 	      vcpu->arch.slb_shadow.update_pending ||
 	      vcpu->arch.dtl.update_pending))
@@ -709,17 +712,34 @@ static void kvmppc_update_vpas(struct kvm_vcpu *vcpu)
 
 	spin_lock(&vcpu->arch.vpa_update_lock);
 	if (vcpu->arch.vpa.update_pending) {
-		kvmppc_update_vpa(vcpu, &vcpu->arch.vpa);
-		if (vcpu->arch.vpa.pinned_addr)
+		kvmppc_update_vpa(vcpu, &vcpu->arch.vpa, &old_vpa);
+		if (old_vpa.pinned_addr) {
+			if (kvmhv_is_nestedv2())
+				kvmhv_nestedv2_set_vpa(vcpu, ~0ull);
+			kvmppc_unpin_guest_page(kvm, old_vpa.pinned_addr, old_vpa.gpa,
+						old_vpa.dirty);
+		}
+		if (vcpu->arch.vpa.pinned_addr) {
 			init_vpa(vcpu, vcpu->arch.vpa.pinned_addr);
+			if (kvmhv_is_nestedv2())
+				kvmhv_nestedv2_set_vpa(vcpu, __pa(vcpu->arch.vpa.pinned_addr));
+		}
 	}
 	if (vcpu->arch.dtl.update_pending) {
-		kvmppc_update_vpa(vcpu, &vcpu->arch.dtl);
+		kvmppc_update_vpa(vcpu, &vcpu->arch.dtl, &old_vpa);
+		if (old_vpa.pinned_addr)
+			kvmppc_unpin_guest_page(kvm, old_vpa.pinned_addr, old_vpa.gpa,
+						old_vpa.dirty);
 		vcpu->arch.dtl_ptr = vcpu->arch.dtl.pinned_addr;
 		vcpu->arch.dtl_index = 0;
 	}
-	if (vcpu->arch.slb_shadow.update_pending)
-		kvmppc_update_vpa(vcpu, &vcpu->arch.slb_shadow);
+	if (vcpu->arch.slb_shadow.update_pending) {
+		kvmppc_update_vpa(vcpu, &vcpu->arch.slb_shadow, &old_vpa);
+		if (old_vpa.pinned_addr)
+			kvmppc_unpin_guest_page(kvm, old_vpa.pinned_addr, old_vpa.gpa,
+						old_vpa.dirty);
+	}
+
 	spin_unlock(&vcpu->arch.vpa_update_lock);
 }
 
