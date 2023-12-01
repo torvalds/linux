@@ -26,7 +26,7 @@
 #include "binder_alloc.h"
 #include "binder_trace.h"
 
-struct list_lru binder_alloc_lru;
+struct list_lru binder_freelist;
 
 static DEFINE_MUTEX(binder_alloc_mmap_lock);
 
@@ -190,8 +190,8 @@ binder_get_installed_page(struct binder_lru_page *lru_page)
 	return smp_load_acquire(&lru_page->page_ptr);
 }
 
-static void binder_free_page_range(struct binder_alloc *alloc,
-				   unsigned long start, unsigned long end)
+static void binder_lru_freelist_add(struct binder_alloc *alloc,
+				    unsigned long start, unsigned long end)
 {
 	struct binder_lru_page *page;
 	unsigned long page_addr;
@@ -210,7 +210,7 @@ static void binder_free_page_range(struct binder_alloc *alloc,
 
 		trace_binder_free_lru_start(alloc, index);
 
-		ret = list_lru_add(&binder_alloc_lru, &page->lru);
+		ret = list_lru_add(&binder_freelist, &page->lru);
 		WARN_ON(!ret);
 
 		trace_binder_free_lru_end(alloc, index);
@@ -299,14 +299,14 @@ static int binder_install_buffer_pages(struct binder_alloc *alloc,
 }
 
 /* The range of pages should exclude those shared with other buffers */
-static void binder_allocate_page_range(struct binder_alloc *alloc,
-				       unsigned long start, unsigned long end)
+static void binder_lru_freelist_del(struct binder_alloc *alloc,
+				    unsigned long start, unsigned long end)
 {
 	struct binder_lru_page *page;
 	unsigned long page_addr;
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-			   "%d: allocate pages %lx-%lx\n",
+			   "%d: pages %lx-%lx\n",
 			   alloc->pid, start, end);
 
 	trace_binder_update_page_range(alloc, true, start, end);
@@ -321,7 +321,7 @@ static void binder_allocate_page_range(struct binder_alloc *alloc,
 		if (page->page_ptr) {
 			trace_binder_alloc_lru_start(alloc, index);
 
-			on_lru = list_lru_del(&binder_alloc_lru, &page->lru);
+			on_lru = list_lru_del(&binder_freelist, &page->lru);
 			WARN_ON(!on_lru);
 
 			trace_binder_alloc_lru_end(alloc, index);
@@ -504,8 +504,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	end_page_addr = PAGE_ALIGN(buffer->user_data + size);
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
-	binder_allocate_page_range(alloc, PAGE_ALIGN(buffer->user_data),
-				   end_page_addr);
+	binder_lru_freelist_del(alloc, PAGE_ALIGN(buffer->user_data),
+				end_page_addr);
 
 	rb_erase(&buffer->rb_node, &alloc->free_buffers);
 	buffer->free = 0;
@@ -671,8 +671,8 @@ static void binder_delete_free_buffer(struct binder_alloc *alloc,
 				   alloc->pid, buffer->user_data,
 				   prev->user_data,
 				   next ? next->user_data : 0);
-		binder_free_page_range(alloc, buffer_start_page(buffer),
-				       buffer_start_page(buffer) + PAGE_SIZE);
+		binder_lru_freelist_add(alloc, buffer_start_page(buffer),
+					buffer_start_page(buffer) + PAGE_SIZE);
 	}
 	list_del(&buffer->entry);
 	kfree(buffer);
@@ -706,8 +706,8 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 			      alloc->pid, size, alloc->free_async_space);
 	}
 
-	binder_free_page_range(alloc, PAGE_ALIGN(buffer->user_data),
-			       (buffer->user_data + buffer_size) & PAGE_MASK);
+	binder_lru_freelist_add(alloc, PAGE_ALIGN(buffer->user_data),
+				(buffer->user_data + buffer_size) & PAGE_MASK);
 
 	rb_erase(&buffer->rb_node, &alloc->allocated_buffers);
 	buffer->free = 1;
@@ -953,7 +953,7 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 			if (!alloc->pages[i].page_ptr)
 				continue;
 
-			on_lru = list_lru_del(&binder_alloc_lru,
+			on_lru = list_lru_del(&binder_freelist,
 					      &alloc->pages[i].lru);
 			page_addr = alloc->buffer + i * PAGE_SIZE;
 			binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
@@ -1152,13 +1152,13 @@ err_get_alloc_mutex_failed:
 static unsigned long
 binder_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	return list_lru_count(&binder_alloc_lru);
+	return list_lru_count(&binder_freelist);
 }
 
 static unsigned long
 binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	return list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+	return list_lru_walk(&binder_freelist, binder_alloc_free_page,
 			    NULL, sc->nr_to_scan);
 }
 
@@ -1186,12 +1186,12 @@ void binder_alloc_init(struct binder_alloc *alloc)
 
 int binder_alloc_shrinker_init(void)
 {
-	int ret = list_lru_init(&binder_alloc_lru);
+	int ret = list_lru_init(&binder_freelist);
 
 	if (ret == 0) {
 		ret = register_shrinker(&binder_shrinker, "android-binder");
 		if (ret)
-			list_lru_destroy(&binder_alloc_lru);
+			list_lru_destroy(&binder_freelist);
 	}
 	return ret;
 }
@@ -1199,7 +1199,7 @@ int binder_alloc_shrinker_init(void)
 void binder_alloc_shrinker_exit(void)
 {
 	unregister_shrinker(&binder_shrinker);
-	list_lru_destroy(&binder_alloc_lru);
+	list_lru_destroy(&binder_freelist);
 }
 
 /**

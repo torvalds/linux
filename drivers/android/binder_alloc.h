@@ -15,7 +15,7 @@
 #include <linux/list_lru.h>
 #include <uapi/linux/android/binder.h>
 
-extern struct list_lru binder_alloc_lru;
+extern struct list_lru binder_freelist;
 struct binder_transaction;
 
 /**
@@ -61,7 +61,7 @@ struct binder_buffer {
 /**
  * struct binder_lru_page - page object used for binder shrinker
  * @page_ptr: pointer to physical page in mmap'd space
- * @lru:      entry in binder_alloc_lru
+ * @lru:      entry in binder_freelist
  * @alloc:    binder_alloc for a proc
  */
 struct binder_lru_page {
