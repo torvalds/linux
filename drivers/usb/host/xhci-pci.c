@@ -116,13 +116,13 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	hcd->msix_enabled = 0;
 }
 
+/* Try enabling MSI-X with MSI and legacy IRQ as fallback */
 static int xhci_try_enable_msi(struct usb_hcd *hcd)
 {
+	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	struct pci_dev  *pdev;
 	int ret;
 
-	pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 	/*
 	 * Some Fresco Logic host controllers advertise MSI, but fail to
 	 * generate interrupts.  Don't even try to enable MSI.
@@ -145,42 +145,28 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	xhci->nvecs = min(num_online_cpus() + 1,
 			  HCS_MAX_INTRS(xhci->hcs_params1));
 
-	xhci->nvecs = pci_alloc_irq_vectors(pdev, xhci->nvecs, xhci->nvecs,
-					    PCI_IRQ_MSIX);
+	/* TODO: Check with MSI Soc for sysdev */
+	xhci->nvecs = pci_alloc_irq_vectors(pdev, 1, xhci->nvecs,
+					    PCI_IRQ_MSIX | PCI_IRQ_MSI);
 	if (xhci->nvecs < 0) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Failed to enable MSI-X");
-		goto setup_msi;
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
+			       "failed to allocate IRQ vectors");
+		goto legacy_irq;
 	}
 
 	ret = request_irq(pci_irq_vector(pdev, 0), xhci_msi_irq, 0, "xhci_hcd",
 			  xhci_to_hcd(xhci));
-	if (ret) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI-X interrupt");
-		pci_free_irq_vectors(pdev);
-		goto setup_msi;
-	}
+	if (ret)
+		goto free_irq_vectors;
 
 	hcd->msi_enabled = 1;
-	hcd->msix_enabled = 1;
+	hcd->msix_enabled = pdev->msix_enabled;
 	return 0;
 
-setup_msi:
-	/* TODO: Check with MSI Soc for sysdev */
-	xhci->nvecs = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
-	if (xhci->nvecs < 0) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "failed to allocate MSI entry");
-		goto legacy_irq;
-	}
-
-	ret = request_irq(pdev->irq, xhci_msi_irq, 0, "xhci_hcd", xhci_to_hcd(xhci));
-	if (ret) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI interrupt");
-		pci_free_irq_vectors(pdev);
-		goto legacy_irq;
-	}
-
-	hcd->msi_enabled = 1;
-	return 0;
+free_irq_vectors:
+	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable %s interrupt",
+		       pdev->msix_enabled ? "MSI-X" : "MSI");
+	pci_free_irq_vectors(pdev);
 
 legacy_irq:
 	if (!pdev->irq) {
