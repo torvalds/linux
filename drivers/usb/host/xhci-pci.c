@@ -178,12 +178,10 @@ legacy_irq:
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 			 hcd->driver->description, hcd->self.busnum);
 
-	/* fall back to legacy interrupt*/
-	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
-			hcd->irq_descr, hcd);
+	/* fall back to legacy interrupt */
+	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED, hcd->irq_descr, hcd);
 	if (ret) {
-		xhci_err(xhci, "request interrupt %d failed\n",
-				pdev->irq);
+		xhci_err(xhci, "request interrupt %d failed\n", pdev->irq);
 		return ret;
 	}
 	hcd->irq = pdev->irq;
