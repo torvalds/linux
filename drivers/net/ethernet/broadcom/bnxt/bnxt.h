@@ -1900,8 +1900,6 @@ struct bnxt {
 	#define BNXT_FLAG_RFS		0x100
 	#define BNXT_FLAG_SHARED_RINGS	0x200
 	#define BNXT_FLAG_PORT_STATS	0x400
-	#define BNXT_FLAG_UDP_RSS_CAP	0x800
-	#define BNXT_FLAG_NEW_RSS_CAP	0x2000
 	#define BNXT_FLAG_WOL_CAP	0x4000
 	#define BNXT_FLAG_ROCEV1_CAP	0x8000
 	#define BNXT_FLAG_ROCEV2_CAP	0x10000
@@ -2021,6 +2019,10 @@ struct bnxt {
 	u16			rss_indir_tbl_entries;
 	u32			rss_hash_cfg;
 	u32			rss_hash_delta;
+	u32			rss_cap;
+#define BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA	BIT(0)
+#define BNXT_RSS_CAP_UDP_RSS_CAP		BIT(1)
+#define BNXT_RSS_CAP_NEW_RSS_CAP		BIT(2)
 
 	u16			max_mtu;
 	u8			max_tc;
@@ -2086,7 +2088,6 @@ struct bnxt {
 	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2	BIT_ULL(16)
 	#define BNXT_FW_CAP_PCIE_STATS_SUPPORTED	BIT_ULL(17)
 	#define BNXT_FW_CAP_EXT_STATS_SUPPORTED		BIT_ULL(18)
-	#define BNXT_FW_CAP_RSS_HASH_TYPE_DELTA		BIT_ULL(19)
 	#define BNXT_FW_CAP_ERR_RECOVER_RELOAD		BIT_ULL(20)
 	#define BNXT_FW_CAP_HOT_RESET			BIT_ULL(21)
 	#define BNXT_FW_CAP_PTP_RTC			BIT_ULL(22)

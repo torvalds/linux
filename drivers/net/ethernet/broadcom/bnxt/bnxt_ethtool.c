@@ -1203,7 +1203,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4;
 	} else if (cmd->flow_type == UDP_V4_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4;
 		if (tuple == 4)
@@ -1213,7 +1213,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
 	} else if (cmd->flow_type == UDP_V6_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 		if (tuple == 4)
@@ -1253,7 +1253,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	if (bp->rss_hash_cfg == rss_hash_cfg)
 		return 0;
 
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bp->rss_hash_delta = bp->rss_hash_cfg ^ rss_hash_cfg;
 	bp->rss_hash_cfg = rss_hash_cfg;
 	if (netif_running(bp->dev)) {

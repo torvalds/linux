@@ -4268,7 +4268,7 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			goto out;
 		}
 vnic_skip_grps:
-		if ((bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+		if ((bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) &&
 		    !(vnic->flags & BNXT_VNIC_RSS_FLAG))
 			continue;
 
@@ -5765,7 +5765,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 	int rc;
 
 	bp->hw_ring_stats_size = sizeof(struct ctx_hw_stats);
-	bp->flags &= ~(BNXT_FLAG_NEW_RSS_CAP | BNXT_FLAG_ROCE_MIRROR_CAP);
+	bp->flags &= ~BNXT_FLAG_ROCE_MIRROR_CAP;
+	bp->rss_cap &= ~BNXT_RSS_CAP_NEW_RSS_CAP;
 	if (bp->hwrm_spec_code < 0x10600)
 		return 0;
 
@@ -5780,7 +5781,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
 		    (flags & VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
-			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
+			bp->rss_cap |= BNXT_RSS_CAP_NEW_RSS_CAP;
 		if (flags &
 		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
 			bp->flags |= BNXT_FLAG_ROCE_MIRROR_CAP;
@@ -5793,7 +5794,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		     !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED)))
 			bp->fw_cap |= BNXT_FW_CAP_VLAN_RX_STRIP;
 		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_HASH_TYPE_DELTA_CAP)
-			bp->fw_cap |= BNXT_FW_CAP_RSS_HASH_TYPE_DELTA;
+			bp->rss_cap |= BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
 		if (bp->max_tpa_v2) {
 			if (BNXT_CHIP_P5(bp))
@@ -6456,7 +6457,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 			req->num_cmpl_rings = cpu_to_le16(cp_rings);
 			req->num_hw_ring_grps = cpu_to_le16(ring_grps);
 			req->num_rsscos_ctxs = cpu_to_le16(1);
-			if (!(bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+			if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) &&
 			    bnxt_rfs_supported(bp))
 				req->num_rsscos_ctxs =
 					cpu_to_le16(ring_grps + 1);
@@ -9133,7 +9134,7 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 
 		vnic = &bp->vnic_info[vnic_id];
 		vnic->flags |= BNXT_VNIC_RFS_FLAG;
-		if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
 		rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, ring_id, 1);
 		if (rc) {
@@ -9227,7 +9228,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	rc = bnxt_setup_vnic(bp, 0);
 	if (rc)
 		goto err_out;
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bnxt_hwrm_update_rss_hash_cfg(bp);
 
 	if (bp->flags & BNXT_FLAG_RFS) {
@@ -11555,7 +11556,7 @@ static bool bnxt_rfs_supported(struct bnxt *bp)
 		return false;
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return true;
-	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+	if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 		return true;
 	return false;
 }
@@ -11576,7 +11577,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
 
 	/* RSS contexts not a limiting factor */
-	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+	if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 		max_rss_ctxs = max_vnics;
 	if (vnics > max_vnics || vnics > max_rss_ctxs) {
 		if (bp->rx_nr_rings > 1)
@@ -12697,15 +12698,15 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 
 static void bnxt_set_dflt_rss_hash_type(struct bnxt *bp)
 {
-	bp->flags &= ~BNXT_FLAG_UDP_RSS_CAP;
+	bp->rss_cap &= ~BNXT_RSS_CAP_UDP_RSS_CAP;
 	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bp->rss_hash_delta = bp->rss_hash_cfg;
 	if (BNXT_CHIP_P4_PLUS(bp) && bp->hwrm_spec_code >= 0x10501) {
-		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
+		bp->rss_cap |= BNXT_RSS_CAP_UDP_RSS_CAP;
 		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 	}
