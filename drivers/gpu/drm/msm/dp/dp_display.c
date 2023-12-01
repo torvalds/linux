@@ -49,7 +49,6 @@ enum {
 	ST_CONNECTED,
 	ST_DISCONNECT_PENDING,
 	ST_DISPLAY_OFF,
-	ST_SUSPENDED,
 };
 
 enum {
@@ -309,10 +308,6 @@ static void dp_display_unbind(struct device *dev, struct device *master,
 	struct dp_display_private *dp = dev_get_dp_display_private(dev);
 	struct msm_drm_private *priv = dev_get_drvdata(master);
 
-	/* disable all HPD interrupts */
-	if (dp->core_initialized)
-		dp_catalog_hpd_config_intr(dp->catalog, DP_DP_HPD_INT_MASK, false);
-
 	kthread_stop(dp->ev_tsk);
 
 	of_dp_aux_depopulate_bus(dp->aux);
@@ -542,6 +537,7 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 {
 	u32 state;
 	int ret;
+	struct platform_device *pdev = dp->dp_display.pdev;
 
 	mutex_lock(&dp->event_mutex);
 
@@ -549,7 +545,7 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 	drm_dbg_dp(dp->drm_dev, "Before, type=%d hpd_state=%d\n",
 			dp->dp_display.connector_type, state);
 
-	if (state == ST_DISPLAY_OFF || state == ST_SUSPENDED) {
+	if (state == ST_DISPLAY_OFF) {
 		mutex_unlock(&dp->event_mutex);
 		return 0;
 	}
@@ -566,7 +562,13 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 		return 0;
 	}
 
-	ret = dp_display_usbpd_configure_cb(&dp->dp_display.pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret) {
+		DRM_ERROR("failed to pm_runtime_resume\n");
+		return ret;
+	}
+
+	ret = dp_display_usbpd_configure_cb(&pdev->dev);
 	if (ret) {	/* link train failed */
 		dp->hpd_state = ST_DISCONNECTED;
 	} else {
@@ -598,6 +600,7 @@ static void dp_display_handle_plugged_change(struct msm_dp *dp_display,
 static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 {
 	u32 state;
+	struct platform_device *pdev = dp->dp_display.pdev;
 
 	mutex_lock(&dp->event_mutex);
 
@@ -648,6 +651,7 @@ static int dp_hpd_unplug_handle(struct dp_display_private *dp, u32 data)
 			dp->dp_display.connector_type, state);
 
 	/* uevent will complete disconnection part */
+	pm_runtime_put_sync(&pdev->dev);
 	mutex_unlock(&dp->event_mutex);
 	return 0;
 }
@@ -663,7 +667,7 @@ static int dp_irq_hpd_handle(struct dp_display_private *dp, u32 data)
 	drm_dbg_dp(dp->drm_dev, "Before, type=%d hpd_state=%d\n",
 			dp->dp_display.connector_type, state);
 
-	if (state == ST_DISPLAY_OFF || state == ST_SUSPENDED) {
+	if (state == ST_DISPLAY_OFF) {
 		mutex_unlock(&dp->event_mutex);
 		return 0;
 	}
@@ -1075,7 +1079,6 @@ static int hpd_event_thread(void *data)
 
 		switch (todo->event_id) {
 		case EV_HPD_INIT_SETUP:
-			dp_display_host_init(dp_priv);
 			break;
 		case EV_HPD_PLUG_INT:
 			dp_hpd_plug_handle(dp_priv, todo->data);
@@ -1167,7 +1170,9 @@ static int dp_display_request_irq(struct dp_display_private *dp)
 	}
 
 	rc = devm_request_irq(&pdev->dev, dp->irq, dp_display_irq_handler,
-			IRQF_TRIGGER_HIGH, "dp_display_isr", dp);
+			      IRQF_TRIGGER_HIGH|IRQF_NO_AUTOEN,
+			      "dp_display_isr", dp);
+
 	if (rc < 0) {
 		DRM_ERROR("failed to request IRQ%u: %d\n",
 				dp->irq, rc);
@@ -1253,6 +1258,10 @@ static int dp_display_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &dp->dp_display);
 
+	rc = devm_pm_runtime_enable(&pdev->dev);
+	if (rc)
+		goto err;
+
 	rc = dp_display_request_irq(dp);
 	if (rc)
 		goto err;
@@ -1275,115 +1284,52 @@ static void dp_display_remove(struct platform_device *pdev)
 	struct dp_display_private *dp = dev_get_dp_display_private(&pdev->dev);
 
 	component_del(&pdev->dev, &dp_display_comp_ops);
-	dp_power_client_deinit(dp->power);
 	dp_display_deinit_sub_modules(dp);
 
 	platform_set_drvdata(pdev, NULL);
 }
 
-static int dp_pm_resume(struct device *dev)
+static int dp_pm_runtime_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_dp *dp_display = platform_get_drvdata(pdev);
-	struct dp_display_private *dp;
-	int sink_count = 0;
+	struct dp_display_private *dp = dev_get_dp_display_private(dev);
 
-	dp = container_of(dp_display, struct dp_display_private, dp_display);
+	disable_irq(dp->irq);
 
-	mutex_lock(&dp->event_mutex);
-
-	drm_dbg_dp(dp->drm_dev,
-		"Before, type=%d core_inited=%d phy_inited=%d power_on=%d\n",
-		dp->dp_display.connector_type, dp->core_initialized,
-		dp->phy_initialized, dp_display->power_on);
-
-	/* start from disconnected state */
-	dp->hpd_state = ST_DISCONNECTED;
-
-	/* turn on dp ctrl/phy */
-	dp_display_host_init(dp);
-
-	if (dp_display->is_edp)
-		dp_catalog_ctrl_hpd_enable(dp->catalog);
-
-	if (dp_catalog_link_is_connected(dp->catalog)) {
-		/*
-		 * set sink to normal operation mode -- D0
-		 * before dpcd read
-		 */
-		dp_display_host_phy_init(dp);
-		dp_link_psm_config(dp->link, &dp->panel->link_info, false);
-		sink_count = drm_dp_read_sink_count(dp->aux);
-		if (sink_count < 0)
-			sink_count = 0;
-
+	if (dp->dp_display.is_edp) {
 		dp_display_host_phy_exit(dp);
+		dp_catalog_ctrl_hpd_disable(dp->catalog);
 	}
-
-	dp->link->sink_count = sink_count;
-	/*
-	 * can not declared display is connected unless
-	 * HDMI cable is plugged in and sink_count of
-	 * dongle become 1
-	 * also only signal audio when disconnected
-	 */
-	if (dp->link->sink_count) {
-		dp->dp_display.link_ready = true;
-	} else {
-		dp->dp_display.link_ready = false;
-		dp_display_handle_plugged_change(dp_display, false);
-	}
-
-	drm_dbg_dp(dp->drm_dev,
-		"After, type=%d sink=%d conn=%d core_init=%d phy_init=%d power=%d\n",
-		dp->dp_display.connector_type, dp->link->sink_count,
-		dp->dp_display.link_ready, dp->core_initialized,
-		dp->phy_initialized, dp_display->power_on);
-
-	mutex_unlock(&dp->event_mutex);
+	dp_display_host_deinit(dp);
 
 	return 0;
 }
 
-static int dp_pm_suspend(struct device *dev)
+static int dp_pm_runtime_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct msm_dp *dp_display = platform_get_drvdata(pdev);
-	struct dp_display_private *dp;
+	struct dp_display_private *dp = dev_get_dp_display_private(dev);
 
-	dp = container_of(dp_display, struct dp_display_private, dp_display);
+	/*
+	 * for eDP, host cotroller, HPD block and PHY are enabled here
+	 * but with HPD irq disabled
+	 *
+	 * for DP, only host controller is enabled here.
+	 * HPD block is enabled at dp_bridge_hpd_enable()
+	 * PHY will be enabled at plugin handler later
+	 */
+	dp_display_host_init(dp);
+	if (dp->dp_display.is_edp) {
+		dp_catalog_ctrl_hpd_enable(dp->catalog);
+		dp_display_host_phy_init(dp);
+	}
 
-	mutex_lock(&dp->event_mutex);
-
-	drm_dbg_dp(dp->drm_dev,
-		"Before, type=%d core_inited=%d  phy_inited=%d power_on=%d\n",
-		dp->dp_display.connector_type, dp->core_initialized,
-		dp->phy_initialized, dp_display->power_on);
-
-	/* mainlink enabled */
-	if (dp_power_clk_status(dp->power, DP_CTRL_PM))
-		dp_ctrl_off_link_stream(dp->ctrl);
-
-	dp_display_host_phy_exit(dp);
-
-	/* host_init will be called at pm_resume */
-	dp_display_host_deinit(dp);
-
-	dp->hpd_state = ST_SUSPENDED;
-
-	drm_dbg_dp(dp->drm_dev,
-		"After, type=%d core_inited=%d phy_inited=%d power_on=%d\n",
-		dp->dp_display.connector_type, dp->core_initialized,
-		dp->phy_initialized, dp_display->power_on);
-
-	mutex_unlock(&dp->event_mutex);
-
+	enable_irq(dp->irq);
 	return 0;
 }
 
 static const struct dev_pm_ops dp_pm_ops = {
-	.suspend = dp_pm_suspend,
-	.resume =  dp_pm_resume,
+	SET_RUNTIME_PM_OPS(dp_pm_runtime_suspend, dp_pm_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static struct platform_driver dp_display_driver = {
@@ -1466,10 +1412,6 @@ static int dp_display_get_next_bridge(struct msm_dp *dp)
 	aux_bus = of_get_child_by_name(dev->of_node, "aux-bus");
 
 	if (aux_bus && dp->is_edp) {
-		dp_display_host_init(dp_priv);
-		dp_catalog_ctrl_hpd_enable(dp_priv->catalog);
-		dp_display_host_phy_init(dp_priv);
-
 		/*
 		 * The code below assumes that the panel will finish probing
 		 * by the time devm_of_dp_aux_populate_ep_devices() returns.
@@ -1566,6 +1508,11 @@ void dp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 		dp_hpd_plug_handle(dp_display, 0);
 
 	mutex_lock(&dp_display->event_mutex);
+	if (pm_runtime_resume_and_get(&dp->pdev->dev)) {
+		DRM_ERROR("failed to pm_runtime_resume\n");
+		mutex_unlock(&dp_display->event_mutex);
+		return;
+	}
 
 	state = dp_display->hpd_state;
 	if (state != ST_DISPLAY_OFF && state != ST_MAINLINK_READY) {
@@ -1630,10 +1577,9 @@ void dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
 	mutex_lock(&dp_display->event_mutex);
 
 	state = dp_display->hpd_state;
-	if (state != ST_DISCONNECT_PENDING && state != ST_CONNECTED) {
-		mutex_unlock(&dp_display->event_mutex);
-		return;
-	}
+	if (state != ST_DISCONNECT_PENDING && state != ST_CONNECTED)
+		drm_dbg_dp(dp->drm_dev, "type=%d wrong hpd_state=%d\n",
+			   dp->connector_type, state);
 
 	dp_display_disable(dp_display);
 
@@ -1646,6 +1592,8 @@ void dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
 	}
 
 	drm_dbg_dp(dp->drm_dev, "type=%d Done\n", dp->connector_type);
+
+	pm_runtime_put_sync(&dp->pdev->dev);
 	mutex_unlock(&dp_display->event_mutex);
 }
 
@@ -1684,7 +1632,21 @@ void dp_bridge_hpd_enable(struct drm_bridge *bridge)
 	struct msm_dp *dp_display = dp_bridge->dp_display;
 	struct dp_display_private *dp = container_of(dp_display, struct dp_display_private, dp_display);
 
+	/*
+	 * this is for external DP with hpd irq enabled case,
+	 * step-1: dp_pm_runtime_resume() enable dp host only
+	 * step-2: enable hdp block and have hpd irq enabled here
+	 * step-3: waiting for plugin irq while phy is not initialized
+	 * step-4: DP PHY is initialized at plugin handler before link training
+	 *
+	 */
 	mutex_lock(&dp->event_mutex);
+	if (pm_runtime_resume_and_get(&dp_display->pdev->dev)) {
+		DRM_ERROR("failed to resume power\n");
+		mutex_unlock(&dp->event_mutex);
+		return;
+	}
+
 	dp_catalog_ctrl_hpd_enable(dp->catalog);
 
 	/* enable HDP interrupts */
@@ -1706,6 +1668,8 @@ void dp_bridge_hpd_disable(struct drm_bridge *bridge)
 	dp_catalog_ctrl_hpd_disable(dp->catalog);
 
 	dp_display->internal_hpd = false;
+
+	pm_runtime_put_sync(&dp_display->pdev->dev);
 	mutex_unlock(&dp->event_mutex);
 }
 
@@ -1719,11 +1683,6 @@ void dp_bridge_hpd_notify(struct drm_bridge *bridge,
 	/* Without next_bridge interrupts are handled by the DP core directly */
 	if (dp_display->internal_hpd)
 		return;
-
-	if (!dp->core_initialized) {
-		drm_dbg_dp(dp->drm_dev, "not initialized\n");
-		return;
-	}
 
 	if (!dp_display->link_ready && status == connector_status_connected)
 		dp_add_event(dp, EV_HPD_PLUG_INT, 0, 0);

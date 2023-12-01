@@ -152,45 +152,17 @@ int dp_power_client_init(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	pm_runtime_enable(power->dev);
-
 	return dp_power_clk_init(power);
-}
-
-void dp_power_client_deinit(struct dp_power *dp_power)
-{
-	struct dp_power_private *power;
-
-	power = container_of(dp_power, struct dp_power_private, dp_power);
-
-	pm_runtime_disable(power->dev);
 }
 
 int dp_power_init(struct dp_power *dp_power)
 {
-	int rc = 0;
-	struct dp_power_private *power = NULL;
-
-	power = container_of(dp_power, struct dp_power_private, dp_power);
-
-	pm_runtime_get_sync(power->dev);
-
-	rc = dp_power_clk_enable(dp_power, DP_CORE_PM, true);
-	if (rc)
-		pm_runtime_put_sync(power->dev);
-
-	return rc;
+	return dp_power_clk_enable(dp_power, DP_CORE_PM, true);
 }
 
 int dp_power_deinit(struct dp_power *dp_power)
 {
-	struct dp_power_private *power;
-
-	power = container_of(dp_power, struct dp_power_private, dp_power);
-
-	dp_power_clk_enable(dp_power, DP_CORE_PM, false);
-	pm_runtime_put_sync(power->dev);
-	return 0;
+	return dp_power_clk_enable(dp_power, DP_CORE_PM, false);
 }
 
 struct dp_power *dp_power_get(struct device *dev, struct dp_parser *parser)
