@@ -920,11 +920,11 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	}
 
 	/*
-	 * nohz_stop_sched_tick() can be called several times before
-	 * nohz_restart_sched_tick() is called. This happens when
-	 * interrupts arrive which do not cause a reschedule. In the
-	 * first call we save the current tick time, so we can restart
-	 * the scheduler tick in nohz_restart_sched_tick().
+	 * tick_nohz_stop_tick() can be called several times before
+	 * tick_nohz_restart_sched_tick() is called. This happens when
+	 * interrupts arrive which do not cause a reschedule. In the first
+	 * call we save the current tick time, so we can restart the
+	 * scheduler tick in tick_nohz_restart_sched_tick().
 	 */
 	if (!ts->tick_stopped) {
 		calc_load_nohz_start();
