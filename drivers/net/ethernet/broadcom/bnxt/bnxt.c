@@ -6031,10 +6031,6 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			u32 map_idx, u32 xid)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		if (BNXT_PF(bp))
-			db->doorbell = bp->bar1 + DB_PF_OFFSET_P5;
-		else
-			db->doorbell = bp->bar1 + DB_VF_OFFSET_P5;
 		switch (ring_type) {
 		case HWRM_RING_ALLOC_TX:
 			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SQ;
@@ -6054,6 +6050,8 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 
 		if (bp->flags & BNXT_FLAG_CHIP_P7)
 			db->db_key64 |= DBR_VALID;
+
+		db->doorbell = bp->bar1 + bp->db_offset;
 	} else {
 		db->doorbell = bp->bar1 + map_idx * 0x80;
 		switch (ring_type) {
@@ -7146,7 +7144,6 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_output *resp;
 	struct hwrm_func_qcfg_input *req;
-	u32 min_db_offset = 0;
 	u16 flags;
 	int rc;
 
@@ -7204,16 +7201,17 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	if (bp->db_size)
 		goto func_qcfg_exit;
 
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+	bp->db_offset = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	if (BNXT_CHIP_P5(bp)) {
 		if (BNXT_PF(bp))
-			min_db_offset = DB_PF_OFFSET_P5;
+			bp->db_offset = DB_PF_OFFSET_P5;
 		else
-			min_db_offset = DB_VF_OFFSET_P5;
+			bp->db_offset = DB_VF_OFFSET_P5;
 	}
 	bp->db_size = PAGE_ALIGN(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
 				 1024);
 	if (!bp->db_size || bp->db_size > pci_resource_len(bp->pdev, 2) ||
-	    bp->db_size <= min_db_offset)
+	    bp->db_size <= bp->db_offset)
 		bp->db_size = pci_resource_len(bp->pdev, 2);
 
 func_qcfg_exit:
