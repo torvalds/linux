@@ -529,7 +529,6 @@ out:
 
 static int hccs_query_all_port_info_on_platform(struct hccs_dev *hdev)
 {
-
 	struct device *dev = hdev->dev;
 	struct hccs_chip_info *chip;
 	struct hccs_die_info *die;
