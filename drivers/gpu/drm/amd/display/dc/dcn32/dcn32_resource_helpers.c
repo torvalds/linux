@@ -806,3 +806,29 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 
 	return result;
 }
+
+void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes)
+{
+	int i, pipe_cnt;
+	struct resource_context *res_ctx = &context->res_ctx;
+	struct pipe_ctx *pipe = NULL;
+
+	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+		int odm_slice_count = 0;
+
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+		pipe = &res_ctx->pipe_ctx[i];
+		odm_slice_count = resource_get_odm_slice_count(pipe);
+
+		if (odm_slice_count == 1)
+			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		else if (odm_slice_count == 2)
+			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+		else if (odm_slice_count == 4)
+			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_4to1;
+
+		pipe_cnt++;
+	}
+}
