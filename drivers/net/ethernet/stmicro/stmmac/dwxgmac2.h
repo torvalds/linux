@@ -284,49 +284,6 @@
 #define XGMAC_TC_PRTY_MAP1		0x00001044
 #define XGMAC_PSTC(x)			GENMASK((x) * 8 + 7, (x) * 8)
 #define XGMAC_PSTC_SHIFT(x)		((x) * 8)
-#define XGMAC_MTL_EST_CONTROL		0x00001050
-#define XGMAC_PTOV			GENMASK(31, 23)
-#define XGMAC_PTOV_SHIFT		23
-#define XGMAC_SSWL			BIT(1)
-#define XGMAC_EEST			BIT(0)
-#define XGMAC_MTL_EST_STATUS		0x00001058
-#define XGMAC_BTRL			GENMASK(15, 8)
-#define XGMAC_BTRL_SHIFT		8
-#define XGMAC_BTRL_MAX			GENMASK(15, 8)
-#define XGMAC_CGCE			BIT(4)
-#define XGMAC_HLBS			BIT(3)
-#define XGMAC_HLBF			BIT(2)
-#define XGMAC_BTRE			BIT(1)
-#define XGMAC_SWLC			BIT(0)
-#define XGMAC_MTL_EST_SCH_ERR		0x00001060
-#define XGMAC_MTL_EST_FRM_SZ_ERR	0x00001064
-#define XGMAC_MTL_EST_FRM_SZ_CAP	0x00001068
-#define XGMAC_SZ_CAP_HBFS_MASK		GENMASK(14, 0)
-#define XGMAC_SZ_CAP_HBFQ_SHIFT		16
-#define XGMAC_SZ_CAP_HBFQ_MASK(val)	\
-	({					\
-		typeof(val) _val = (val);	\
-		(_val > 4 ? GENMASK(18, 16) :	\
-		 _val > 2 ? GENMASK(17, 16) :	\
-		 BIT(16));			\
-	})
-#define XGMAC_MTL_EST_INT_EN		0x00001070
-#define XGMAC_IECGCE			BIT(4)
-#define XGMAC_IEHS			BIT(3)
-#define XGMAC_IEHF			BIT(2)
-#define XGMAC_IEBE			BIT(1)
-#define XGMAC_IECC			BIT(0)
-#define XGMAC_MTL_EST_GCL_CONTROL	0x00001080
-#define XGMAC_BTR_LOW			0x0
-#define XGMAC_BTR_HIGH			0x1
-#define XGMAC_CTR_LOW			0x2
-#define XGMAC_CTR_HIGH			0x3
-#define XGMAC_TER			0x4
-#define XGMAC_LLR			0x5
-#define XGMAC_ADDR_SHIFT		8
-#define XGMAC_GCRR			BIT(2)
-#define XGMAC_SRWO			BIT(0)
-#define XGMAC_MTL_EST_GCL_DATA		0x00001084
 #define XGMAC_MTL_RXP_CONTROL_STATUS	0x000010a0
 #define XGMAC_RXPI			BIT(31)
 #define XGMAC_NPE			GENMASK(23, 16)
