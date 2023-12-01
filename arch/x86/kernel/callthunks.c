@@ -312,7 +312,7 @@ static bool is_callthunk(void *addr)
 	if (!thunks_initialized || skip_addr((void *)dest))
 		return false;
 
-	*pad = dest - tmpl_size;
+	pad = (void *)(dest - tmpl_size);
 
 	memcpy(insn_buff, skl_call_thunk_template, tmpl_size);
 	apply_relocation(insn_buff, tmpl_size, pad,
