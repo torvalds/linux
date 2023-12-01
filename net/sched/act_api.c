@@ -1118,8 +1118,7 @@ int tcf_action_destroy(struct tc_action *actions[], int bind)
 	struct tc_action *a;
 	int ret = 0, i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		actions[i] = NULL;
 		ops = a->ops;
 		ret = __tcf_idr_release(a, bind, true);
@@ -1211,8 +1210,7 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 	int err = -EINVAL, i;
 	struct nlattr *nest;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		nest = nla_nest_start_noflag(skb, i + 1);
 		if (nest == NULL)
 			goto nla_put_failure;
@@ -1753,10 +1751,10 @@ err_out:
 
 static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 {
+	struct tc_action *a;
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		struct tc_action *a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		const struct tc_action_ops *ops = a->ops;
 		/* Actions can be deleted concurrently so we must save their
 		 * type and id to search again after reference is released.
@@ -1768,7 +1766,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
-		} else  {
+		} else {
 			int ret;
 
 			/* now do the delete */
