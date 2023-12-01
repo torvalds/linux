@@ -15,16 +15,6 @@
 #include <trace/events/io_uring.h>
 #endif
 
-enum {
-	/*
-	 * A hint to not wake right away but delay until there are enough of
-	 * tw's queued to match the number of CQEs the task is waiting for.
-	 *
-	 * Must not be used wirh requests generating more than one CQE.
-	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
-	 */
-	IOU_F_TWQ_LAZY_WAKE			= 1,
-};
 
 enum {
 	IOU_OK			= 0,
