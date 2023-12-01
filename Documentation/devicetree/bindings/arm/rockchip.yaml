@@ -874,6 +874,11 @@ properties:
           - const: tsd,rk3399-puma-haikou
           - const: rockchip,rk3399
 
+      - description: Theobroma Systems RK3588-SBC Jaguar
+        items:
+          - const: tsd,rk3588-jaguar
+          - const: rockchip,rk3588
+
       - description: Tronsmart Orion R68 Meta
         items:
           - const: tronsmart,orion-r68-meta
