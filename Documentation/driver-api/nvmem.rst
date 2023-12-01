@@ -41,7 +41,7 @@ A NVMEM provider can register with NVMEM core by supplying relevant
 nvmem configuration to nvmem_register(), on success core would return a valid
 nvmem_device pointer.
 
-nvmem_unregister(nvmem) is used to unregister a previously registered provider.
+nvmem_unregister() is used to unregister a previously registered provider.
 
 For example, a simple nvram case::
 
