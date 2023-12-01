@@ -139,11 +139,15 @@ struct tx_cmp {
 	__le32 tx_cmp_flags_type;
 	#define CMP_TYPE					(0x3f << 0)
 	 #define CMP_TYPE_TX_L2_CMP				 0
+	 #define CMP_TYPE_TX_L2_COAL_CMP			 2
+	 #define CMP_TYPE_TX_L2_PKT_TS_CMP			 4
 	 #define CMP_TYPE_RX_L2_CMP				 17
 	 #define CMP_TYPE_RX_AGG_CMP				 18
 	 #define CMP_TYPE_RX_L2_TPA_START_CMP			 19
 	 #define CMP_TYPE_RX_L2_TPA_END_CMP			 21
 	 #define CMP_TYPE_RX_TPA_AGG_CMP			 22
+	 #define CMP_TYPE_RX_L2_V3_CMP				 23
+	 #define CMP_TYPE_RX_L2_TPA_START_V3_CMP		 25
 	 #define CMP_TYPE_STATUS_CMP				 32
 	 #define CMP_TYPE_REMOTE_DRIVER_REQ			 34
 	 #define CMP_TYPE_REMOTE_DRIVER_RESP			 36
@@ -170,8 +174,12 @@ struct tx_cmp {
 	 #define TX_CMP_ERRORS_DMA_ERROR			 (1 << 6)
 	 #define TX_CMP_ERRORS_HINT_TOO_SHORT			 (1 << 7)
 
-	__le32 tx_cmp_unsed_3;
+	__le32 sq_cons_idx;
+	#define TX_CMP_SQ_CONS_IDX_MASK				0x00ffffff
 };
+
+#define TX_CMP_SQ_CONS_IDX(txcmp)					\
+	(le32_to_cpu((txcmp)->sq_cons_idx) & TX_CMP_SQ_CONS_IDX_MASK)
 
 struct rx_cmp {
 	__le32 rx_cmp_len_flags_type;
@@ -200,8 +208,20 @@ struct rx_cmp {
 	 #define RX_CMP_AGG_BUFS_SHIFT				 1
 	#define RX_CMP_RSS_HASH_TYPE				(0x7f << 9)
 	 #define RX_CMP_RSS_HASH_TYPE_SHIFT			 9
+	#define RX_CMP_V3_RSS_EXT_OP_LEGACY			(0xf << 12)
+	 #define RX_CMP_V3_RSS_EXT_OP_LEGACY_SHIFT		 12
+	#define RX_CMP_V3_RSS_EXT_OP_NEW			(0xf << 8)
+	 #define RX_CMP_V3_RSS_EXT_OP_NEW_SHIFT			 8
 	#define RX_CMP_PAYLOAD_OFFSET				(0xff << 16)
 	 #define RX_CMP_PAYLOAD_OFFSET_SHIFT			 16
+	#define RX_CMP_SUB_NS_TS				(0xf << 16)
+	 #define RX_CMP_SUB_NS_TS_SHIFT				 16
+	#define RX_CMP_METADATA1				(0xf << 28)
+	 #define RX_CMP_METADATA1_SHIFT				 28
+	#define RX_CMP_METADATA1_TPID_SEL			(0x7 << 28)
+	#define RX_CMP_METADATA1_TPID_8021Q			(0x1 << 28)
+	#define RX_CMP_METADATA1_TPID_8021AD			(0x0 << 28)
+	#define RX_CMP_METADATA1_VALID				(0x8 << 28)
 
 	__le32 rx_cmp_rss_hash;
 };
@@ -214,6 +234,30 @@ struct rx_cmp {
 #define RX_CMP_HASH_TYPE(rxcmp)					\
 	(((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_RSS_HASH_TYPE) >>\
 	  RX_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
+
+#define RX_CMP_V3_HASH_TYPE_LEGACY(rxcmp)				\
+	((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_V3_RSS_EXT_OP_LEGACY) >>\
+	 RX_CMP_V3_RSS_EXT_OP_LEGACY_SHIFT)
+
+#define RX_CMP_V3_HASH_TYPE_NEW(rxcmp)				\
+	((le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_V3_RSS_EXT_OP_NEW) >>\
+	 RX_CMP_V3_RSS_EXT_OP_NEW_SHIFT)
+
+#define RX_CMP_V3_HASH_TYPE(bp, rxcmp)				\
+	(((bp)->rss_cap & BNXT_RSS_CAP_RSS_TCAM) ?		\
+	  RX_CMP_V3_HASH_TYPE_NEW(rxcmp) :			\
+	  RX_CMP_V3_HASH_TYPE_LEGACY(rxcmp))
+
+#define EXT_OP_INNER_4		0x0
+#define EXT_OP_OUTER_4		0x2
+#define EXT_OP_INNFL_3		0x8
+#define EXT_OP_OUTFL_3		0xa
+
+#define RX_CMP_VLAN_VALID(rxcmp)				\
+	((rxcmp)->rx_cmp_misc_v1 & cpu_to_le32(RX_CMP_METADATA1_VALID))
+
+#define RX_CMP_VLAN_TPID_SEL(rxcmp)				\
+	(le32_to_cpu((rxcmp)->rx_cmp_misc_v1) & RX_CMP_METADATA1_TPID_SEL)
 
 struct rx_cmp_ext {
 	__le32 rx_cmp_flags2;
@@ -262,6 +306,9 @@ struct rx_cmp_ext {
 
 	#define RX_CMPL_CFA_CODE_MASK				(0xffff << 16)
 	 #define RX_CMPL_CFA_CODE_SFT				 16
+	#define RX_CMPL_METADATA0_TCI_MASK			(0xffff << 16)
+	#define RX_CMPL_METADATA0_VID_MASK			(0x0fff << 16)
+	 #define RX_CMPL_METADATA0_SFT				 16
 
 	__le32 rx_cmp_timestamp;
 };
@@ -286,6 +333,10 @@ struct rx_cmp_ext {
 #define RX_CMP_CFA_CODE(rxcmpl1)					\
 	((le32_to_cpu((rxcmpl1)->rx_cmp_cfa_code_errors_v2) &		\
 	  RX_CMPL_CFA_CODE_MASK) >> RX_CMPL_CFA_CODE_SFT)
+
+#define RX_CMP_METADATA0_TCI(rxcmp1)					\
+	((le32_to_cpu((rxcmp1)->rx_cmp_cfa_code_errors_v2) &		\
+	  RX_CMPL_METADATA0_TCI_MASK) >> RX_CMPL_METADATA0_SFT)
 
 struct rx_agg_cmp {
 	__le32 rx_agg_cmp_len_flags_type;
@@ -329,10 +380,18 @@ struct rx_tpa_start_cmp {
 	#define RX_TPA_START_CMP_V1				(0x1 << 0)
 	#define RX_TPA_START_CMP_RSS_HASH_TYPE			(0x7f << 9)
 	 #define RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT		 9
+	#define RX_TPA_START_CMP_V3_RSS_HASH_TYPE		(0x1ff << 7)
+	 #define RX_TPA_START_CMP_V3_RSS_HASH_TYPE_SHIFT	 7
 	#define RX_TPA_START_CMP_AGG_ID				(0x7f << 25)
 	 #define RX_TPA_START_CMP_AGG_ID_SHIFT			 25
 	#define RX_TPA_START_CMP_AGG_ID_P5			(0xffff << 16)
 	 #define RX_TPA_START_CMP_AGG_ID_SHIFT_P5		 16
+	#define RX_TPA_START_CMP_METADATA1			(0xf << 28)
+	 #define RX_TPA_START_CMP_METADATA1_SHIFT		 28
+	#define RX_TPA_START_METADATA1_TPID_SEL			(0x7 << 28)
+	#define RX_TPA_START_METADATA1_TPID_8021Q		(0x1 << 28)
+	#define RX_TPA_START_METADATA1_TPID_8021AD		(0x0 << 28)
+	#define RX_TPA_START_METADATA1_VALID			(0x8 << 28)
 
 	__le32 rx_tpa_start_cmp_rss_hash;
 };
@@ -346,6 +405,11 @@ struct rx_tpa_start_cmp {
 	   RX_TPA_START_CMP_RSS_HASH_TYPE) >>				\
 	  RX_TPA_START_CMP_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
 
+#define TPA_START_V3_HASH_TYPE(rx_tpa_start)				\
+	(((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	   RX_TPA_START_CMP_V3_RSS_HASH_TYPE) >>			\
+	  RX_TPA_START_CMP_V3_RSS_HASH_TYPE_SHIFT) & RSS_PROFILE_ID_MASK)
+
 #define TPA_START_AGG_ID(rx_tpa_start)					\
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
 	 RX_TPA_START_CMP_AGG_ID) >> RX_TPA_START_CMP_AGG_ID_SHIFT)
@@ -358,6 +422,14 @@ struct rx_tpa_start_cmp {
 	((rx_tpa_start)->rx_tpa_start_cmp_len_flags_type &		\
 	 cpu_to_le32(RX_TPA_START_CMP_FLAGS_ERROR))
 
+#define TPA_START_VLAN_VALID(rx_tpa_start)				\
+	((rx_tpa_start)->rx_tpa_start_cmp_misc_v1 &			\
+	 cpu_to_le32(RX_TPA_START_METADATA1_VALID))
+
+#define TPA_START_VLAN_TPID_SEL(rx_tpa_start)				\
+	(le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_misc_v1) &	\
+	 RX_TPA_START_METADATA1_TPID_SEL)
+
 struct rx_tpa_start_cmp_ext {
 	__le32 rx_tpa_start_cmp_flags2;
 	#define RX_TPA_START_CMP_FLAGS2_IP_CS_CALC		(0x1 << 0)
@@ -368,6 +440,8 @@ struct rx_tpa_start_cmp_ext {
 	#define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL_VALID		(0x1 << 9)
 	#define RX_TPA_START_CMP_FLAGS2_EXT_META_FORMAT		(0x3 << 10)
 	 #define RX_TPA_START_CMP_FLAGS2_EXT_META_FORMAT_SHIFT	 10
+	#define RX_TPA_START_CMP_V3_FLAGS2_T_IP_TYPE		(0x1 << 10)
+	#define RX_TPA_START_CMP_V3_FLAGS2_AGG_GRO		(0x1 << 11)
 	#define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL		(0xffff << 16)
 	 #define RX_TPA_START_CMP_FLAGS2_CSUM_CMPL_SHIFT	 16
 
@@ -381,6 +455,9 @@ struct rx_tpa_start_cmp_ext {
 	 #define RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_FLUSH	 (0x5 << 1)
 	#define RX_TPA_START_CMP_CFA_CODE			(0xffff << 16)
 	 #define RX_TPA_START_CMPL_CFA_CODE_SHIFT		 16
+	#define RX_TPA_START_CMP_METADATA0_TCI_MASK		(0xffff << 16)
+	#define RX_TPA_START_CMP_METADATA0_VID_MASK		(0x0fff << 16)
+	 #define RX_TPA_START_CMP_METADATA0_SFT			 16
 	__le32 rx_tpa_start_cmp_hdr_info;
 };
 
@@ -396,6 +473,11 @@ struct rx_tpa_start_cmp_ext {
 	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
 	  RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_MASK) >>			\
 	 RX_TPA_START_CMP_ERRORS_BUFFER_ERROR_SHIFT)
+
+#define TPA_START_METADATA0_TCI(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	  RX_TPA_START_CMP_METADATA0_TCI_MASK) >>			\
+	 RX_TPA_START_CMP_METADATA0_SFT)
 
 struct rx_tpa_end_cmp {
 	__le32 rx_tpa_end_cmp_len_flags_type;
@@ -2023,6 +2105,7 @@ struct bnxt {
 #define BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA	BIT(0)
 #define BNXT_RSS_CAP_UDP_RSS_CAP		BIT(1)
 #define BNXT_RSS_CAP_NEW_RSS_CAP		BIT(2)
+#define BNXT_RSS_CAP_RSS_TCAM			BIT(3)
 
 	u16			max_mtu;
 	u8			max_tc;
