@@ -7255,6 +7255,7 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_hw *hw = ar->hw;
+	struct wiphy *wiphy = hw->wiphy;
 	struct ieee80211_iface_combination *combinations;
 	struct ieee80211_iface_limit *limits;
 	int n_limits, max_interfaces;
@@ -7305,8 +7306,8 @@ static int ath12k_mac_setup_iface_combinations(struct ath12k *ar)
 						BIT(NL80211_CHAN_WIDTH_40) |
 						BIT(NL80211_CHAN_WIDTH_80);
 
-	hw->wiphy->iface_combinations = combinations;
-	hw->wiphy->n_iface_combinations = 1;
+	wiphy->iface_combinations = combinations;
+	wiphy->n_iface_combinations = 1;
 
 	return 0;
 }
@@ -7351,6 +7352,7 @@ static const struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
 static void __ath12k_mac_unregister(struct ath12k *ar)
 {
 	struct ieee80211_hw *hw = ar->hw;
+	struct wiphy *wiphy = hw->wiphy;
 
 	cancel_work_sync(&ar->regd_update_work);
 
@@ -7363,8 +7365,8 @@ static void __ath12k_mac_unregister(struct ath12k *ar)
 	kfree(ar->mac.sbands[NL80211_BAND_5GHZ].channels);
 	kfree(ar->mac.sbands[NL80211_BAND_6GHZ].channels);
 
-	kfree(hw->wiphy->iface_combinations[0].limits);
-	kfree(hw->wiphy->iface_combinations);
+	kfree(wiphy->iface_combinations[0].limits);
+	kfree(wiphy->iface_combinations);
 
 	SET_IEEE80211_DEV(hw, NULL);
 }
@@ -7389,6 +7391,7 @@ static int __ath12k_mac_register(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ieee80211_hw *hw = ar->hw;
+	struct wiphy *wiphy = hw->wiphy;
 	struct ath12k_pdev_cap *cap = &ar->pdev->cap;
 	static const u32 cipher_suites[] = {
 		WLAN_CIPHER_SUITE_TKIP,
@@ -7424,14 +7427,14 @@ static int __ath12k_mac_register(struct ath12k *ar)
 		goto err_free_channels;
 	}
 
-	hw->wiphy->available_antennas_rx = cap->rx_chain_mask;
-	hw->wiphy->available_antennas_tx = cap->tx_chain_mask;
+	wiphy->available_antennas_rx = cap->rx_chain_mask;
+	wiphy->available_antennas_tx = cap->tx_chain_mask;
 
-	hw->wiphy->interface_modes = ab->hw_params->interface_modes;
+	wiphy->interface_modes = ab->hw_params->interface_modes;
 
-	if (hw->wiphy->bands[NL80211_BAND_2GHZ] &&
-	    hw->wiphy->bands[NL80211_BAND_5GHZ] &&
-	    hw->wiphy->bands[NL80211_BAND_6GHZ])
+	if (wiphy->bands[NL80211_BAND_2GHZ] &&
+	    wiphy->bands[NL80211_BAND_5GHZ] &&
+	    wiphy->bands[NL80211_BAND_6GHZ])
 		ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 
 	ieee80211_hw_set(hw, SIGNAL_DBM);
@@ -7457,60 +7460,59 @@ static int __ath12k_mac_register(struct ath12k *ar)
 		ieee80211_hw_set(hw, USES_RSS);
 	}
 
-	hw->wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
-	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+	wiphy->features |= NL80211_FEATURE_STATIC_SMPS;
+	wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
 	/* TODO: Check if HT capability advertised from firmware is different
 	 * for each band for a dual band capable radio. It will be tricky to
 	 * handle it when the ht capability different for each band.
 	 */
 	if (ht_cap & WMI_HT_CAP_DYNAMIC_SMPS)
-		hw->wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
+		wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
 
-	hw->wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
-	hw->wiphy->max_scan_ie_len = WLAN_SCAN_PARAMS_MAX_IE_LEN;
+	wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
+	wiphy->max_scan_ie_len = WLAN_SCAN_PARAMS_MAX_IE_LEN;
 
 	hw->max_listen_interval = ATH12K_MAX_HW_LISTEN_INTERVAL;
 
-	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
-	hw->wiphy->max_remain_on_channel_duration = 5000;
+	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->max_remain_on_channel_duration = 5000;
 
-	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
-	hw->wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
+	wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	wiphy->features |= NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE |
 				   NL80211_FEATURE_AP_SCAN;
 
 	ar->max_num_stations = TARGET_NUM_STATIONS;
 	ar->max_num_peers = TARGET_NUM_PEERS_PDEV;
 
-	hw->wiphy->max_ap_assoc_sta = ar->max_num_stations;
+	wiphy->max_ap_assoc_sta = ar->max_num_stations;
 
 	hw->queues = ATH12K_HW_MAX_QUEUES;
-	hw->wiphy->tx_queue_len = ATH12K_QUEUE_LEN;
+	wiphy->tx_queue_len = ATH12K_QUEUE_LEN;
 	hw->offchannel_tx_hw_queue = ATH12K_HW_MAX_QUEUES - 1;
 	hw->max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF_HE;
 
 	hw->vif_data_size = sizeof(struct ath12k_vif);
 	hw->sta_data_size = sizeof(struct ath12k_sta);
 
-	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
-	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_STA_TX_PWR);
 
-	hw->wiphy->cipher_suites = cipher_suites;
-	hw->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+	wiphy->cipher_suites = cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
 
-	hw->wiphy->iftype_ext_capab = ath12k_iftypes_ext_capa;
-	hw->wiphy->num_iftype_ext_capab =
-		ARRAY_SIZE(ath12k_iftypes_ext_capa);
+	wiphy->iftype_ext_capab = ath12k_iftypes_ext_capa;
+	wiphy->num_iftype_ext_capab = ARRAY_SIZE(ath12k_iftypes_ext_capa);
 
 	if (ar->supports_6ghz) {
-		wiphy_ext_feature_set(hw->wiphy,
+		wiphy_ext_feature_set(wiphy,
 				      NL80211_EXT_FEATURE_FILS_DISCOVERY);
-		wiphy_ext_feature_set(hw->wiphy,
+		wiphy_ext_feature_set(wiphy,
 				      NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP);
 	}
 
-	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_PUNCT);
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_PUNCT);
 
 	ath12k_reg_init(hw);
 
@@ -7532,7 +7534,7 @@ static int __ath12k_mac_register(struct ath12k *ar)
 		 * while. But that time is so short and in practise it make
 		 * a difference in real life.
 		 */
-		hw->wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
+		wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
 
 	/* Apply the regd received during initialization */
 	ret = ath12k_regd_update(ar, true);
@@ -7547,8 +7549,8 @@ err_unregister_hw:
 	ieee80211_unregister_hw(hw);
 
 err_free_if_combs:
-	kfree(hw->wiphy->iface_combinations[0].limits);
-	kfree(hw->wiphy->iface_combinations);
+	kfree(wiphy->iface_combinations[0].limits);
+	kfree(wiphy->iface_combinations);
 
 err_free_channels:
 	kfree(ar->mac.sbands[NL80211_BAND_2GHZ].channels);
