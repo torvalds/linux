@@ -265,7 +265,7 @@ void dp_handle_link_loss(struct dc_link *link)
 
 	for (i = count - 1; i >= 0; i--) {
 		// Always use max settings here for DP 1.4a LL Compliance CTS
-		if (link->is_automated) {
+		if (link->skip_fallback_on_link_loss) {
 			pipes[i]->link_config.dp_link_settings.lane_count =
 					link->verified_link_cap.lane_count;
 			pipes[i]->link_config.dp_link_settings.link_rate =
@@ -404,7 +404,9 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
 		// Workaround for DP 1.4a LL Compliance CTS as USB4 has to share encoders unlike DP and USBC
-		link->is_automated = true;
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+			link->skip_fallback_on_link_loss = true;
+
 		device_service_clear.bits.AUTOMATED_TEST = 1;
 		core_link_write_dpcd(
 			link,
