@@ -617,6 +617,15 @@ static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 	return 0;
 }
 
+static int ath12k_pci_set_irq_affinity_hint(struct ath12k_pci *ab_pci,
+					    const struct cpumask *m)
+{
+	if (test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return 0;
+
+	return irq_set_affinity_hint(ab_pci->pdev->irq, m);
+}
+
 static int ath12k_pci_config_irq(struct ath12k_base *ab)
 {
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
@@ -1359,10 +1368,16 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_pci_msi_free;
 
+	ret = ath12k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath12k_err(ab, "failed to set irq affinity %d\n", ret);
+		goto err_pci_msi_free;
+	}
+
 	ret = ath12k_mhi_register(ab_pci);
 	if (ret) {
 		ath12k_err(ab, "failed to register mhi: %d\n", ret);
-		goto err_pci_msi_free;
+		goto err_irq_affinity_cleanup;
 	}
 
 	ret = ath12k_hal_srng_init(ab);
@@ -1416,6 +1431,9 @@ err_mhi_unregister:
 err_pci_msi_free:
 	ath12k_pci_msi_free(ab_pci);
 
+err_irq_affinity_cleanup:
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
+
 err_pci_free_region:
 	ath12k_pci_free_region(ab_pci);
 
@@ -1429,6 +1447,8 @@ static void ath12k_pci_remove(struct pci_dev *pdev)
 {
 	struct ath12k_base *ab = pci_get_drvdata(pdev);
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
+
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 	if (test_bit(ATH12K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath12k_pci_power_down(ab);
@@ -1456,7 +1476,9 @@ qmi_fail:
 static void ath12k_pci_shutdown(struct pci_dev *pdev)
 {
 	struct ath12k_base *ab = pci_get_drvdata(pdev);
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
 	ath12k_pci_power_down(ab);
 }
 
