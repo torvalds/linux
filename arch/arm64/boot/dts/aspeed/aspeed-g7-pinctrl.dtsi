@@ -6,7 +6,7 @@
 		groups = "EMMCG1";
 	};
 
-	pinctrl_emmc_default: emmc_default {
+	pinctrl_emmcg4_default: emmc_default {
 		function = "EMMC";
 		groups = "EMMCG4";
 	};
