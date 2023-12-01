@@ -4774,7 +4774,8 @@ static void capture_error_state(struct intel_guc *guc,
 			if (match) {
 				intel_engine_set_hung_context(e, ce);
 				engine_mask |= e->mask;
-				atomic_inc(&i915->gpu_error.reset_engine_count[e->uabi_class]);
+				i915_increase_reset_engine_count(&i915->gpu_error,
+								 e);
 			}
 		}
 
@@ -4786,7 +4787,7 @@ static void capture_error_state(struct intel_guc *guc,
 	} else {
 		intel_engine_set_hung_context(ce->engine, ce);
 		engine_mask = ce->engine->mask;
-		atomic_inc(&i915->gpu_error.reset_engine_count[ce->engine->uabi_class]);
+		i915_increase_reset_engine_count(&i915->gpu_error, ce->engine);
 	}
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
