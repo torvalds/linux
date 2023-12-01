@@ -1801,7 +1801,7 @@ static const u16 bnxt_pam4_speed_masks[] = {
 };
 
 static enum bnxt_link_speed_indices
-bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
+bnxt_encoding_speed_idx(u8 sig_mode, u16 phy_flags, u16 speed_msk)
 {
 	const u16 *speeds;
 	int idx, len;
@@ -1831,14 +1831,14 @@ bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
 
 static void
 __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			  u8 sig_mode, unsigned long *et_mask)
+			  u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	enum ethtool_link_mode_bit_indices link_mode;
 	enum bnxt_link_speed_indices speed;
 	u8 bit;
 
 	for_each_set_bit(bit, &fw_mask, BNXT_FW_SPEED_MSK_BITS) {
-		speed = bnxt_encoding_speed_idx(sig_mode, 1 << bit);
+		speed = bnxt_encoding_speed_idx(sig_mode, phy_flags, 1 << bit);
 		if (!speed)
 			continue;
 
@@ -1852,16 +1852,66 @@ __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
 
 static void
 bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			u8 sig_mode, unsigned long *et_mask)
+			u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	if (media) {
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
 		return;
 	}
 
 	/* list speeds for all media if unknown */
 	for (media = 1; media < __BNXT_MEDIA_END; media++)
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
+}
+
+static void
+bnxt_get_all_ethtool_support_speeds(struct bnxt_link_info *link_info,
+				    enum bnxt_media_type media,
+				    struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 phy_flags = bp->phy_flags;
+
+	bnxt_get_ethtool_speeds(link_info->support_speeds, media,
+				BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(link_info->support_pam4_speeds, media,
+				BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.supported);
+}
+
+static void
+bnxt_get_all_ethtool_adv_speeds(struct bnxt_link_info *link_info,
+				enum bnxt_media_type media,
+				struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 phy_flags = bp->phy_flags;
+
+	bnxt_get_ethtool_speeds(link_info->advertising, media,
+				BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.advertising);
+	bnxt_get_ethtool_speeds(link_info->advertising_pam4, media,
+				BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.advertising);
+}
+
+static void
+bnxt_get_all_ethtool_lp_speeds(struct bnxt_link_info *link_info,
+			       enum bnxt_media_type media,
+			       struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 phy_flags = bp->phy_flags;
+
+	bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds, media,
+				BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
+	bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds, media,
+				BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
 }
 
 static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
@@ -2017,12 +2067,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	mutex_lock(&bp->link_lock);
 	bnxt_get_ethtool_modes(link_info, lk_ksettings);
 	media = bnxt_get_media(link_info);
-	bnxt_get_ethtool_speeds(link_info->support_speeds,
-				media, BNXT_SIG_MODE_NRZ,
-				lk_ksettings->link_modes.supported);
-	bnxt_get_ethtool_speeds(link_info->support_pam4_speeds,
-				media, BNXT_SIG_MODE_PAM4,
-				lk_ksettings->link_modes.supported);
+	bnxt_get_all_ethtool_support_speeds(link_info, media, lk_ksettings);
 	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 	link_mode = bnxt_get_link_mode(link_info);
 	if (link_mode != BNXT_LINK_MODE_UNKNOWN)
@@ -2035,20 +2080,10 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.advertising);
 		base->autoneg = AUTONEG_ENABLE;
-		bnxt_get_ethtool_speeds(link_info->advertising,
-					media, BNXT_SIG_MODE_NRZ,
-					lk_ksettings->link_modes.advertising);
-		bnxt_get_ethtool_speeds(link_info->advertising_pam4,
-					media, BNXT_SIG_MODE_PAM4,
-					lk_ksettings->link_modes.advertising);
-		if (link_info->phy_link_status == BNXT_LINK_LINK) {
-			bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds,
-						media, BNXT_SIG_MODE_NRZ,
-						lk_ksettings->link_modes.lp_advertising);
-			bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds,
-						media, BNXT_SIG_MODE_PAM4,
-						lk_ksettings->link_modes.lp_advertising);
-		}
+		bnxt_get_all_ethtool_adv_speeds(link_info, media, lk_ksettings);
+		if (link_info->phy_link_status == BNXT_LINK_LINK)
+			bnxt_get_all_ethtool_lp_speeds(link_info, media,
+						       lk_ksettings);
 	} else {
 		base->autoneg = AUTONEG_DISABLE;
 	}
