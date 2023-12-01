@@ -704,8 +704,68 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 	binder_insert_free_buffer(alloc, buffer);
 }
 
+/**
+ * binder_alloc_get_page() - get kernel pointer for given buffer offset
+ * @alloc: binder_alloc for this proc
+ * @buffer: binder buffer to be accessed
+ * @buffer_offset: offset into @buffer data
+ * @pgoffp: address to copy final page offset to
+ *
+ * Lookup the struct page corresponding to the address
+ * at @buffer_offset into @buffer->user_data. If @pgoffp is not
+ * NULL, the byte-offset into the page is written there.
+ *
+ * The caller is responsible to ensure that the offset points
+ * to a valid address within the @buffer and that @buffer is
+ * not freeable by the user. Since it can't be freed, we are
+ * guaranteed that the corresponding elements of @alloc->pages[]
+ * cannot change.
+ *
+ * Return: struct page
+ */
+static struct page *binder_alloc_get_page(struct binder_alloc *alloc,
+					  struct binder_buffer *buffer,
+					  binder_size_t buffer_offset,
+					  pgoff_t *pgoffp)
+{
+	binder_size_t buffer_space_offset = buffer_offset +
+		(buffer->user_data - alloc->buffer);
+	pgoff_t pgoff = buffer_space_offset & ~PAGE_MASK;
+	size_t index = buffer_space_offset >> PAGE_SHIFT;
+	struct binder_lru_page *lru_page;
+
+	lru_page = &alloc->pages[index];
+	*pgoffp = pgoff;
+	return lru_page->page_ptr;
+}
+
+/**
+ * binder_alloc_clear_buf() - zero out buffer
+ * @alloc: binder_alloc for this proc
+ * @buffer: binder buffer to be cleared
+ *
+ * memset the given buffer to 0
+ */
 static void binder_alloc_clear_buf(struct binder_alloc *alloc,
-				   struct binder_buffer *buffer);
+				   struct binder_buffer *buffer)
+{
+	size_t bytes = binder_alloc_buffer_size(alloc, buffer);
+	binder_size_t buffer_offset = 0;
+
+	while (bytes) {
+		unsigned long size;
+		struct page *page;
+		pgoff_t pgoff;
+
+		page = binder_alloc_get_page(alloc, buffer,
+					     buffer_offset, &pgoff);
+		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
+		memset_page(page, pgoff, 0, size);
+		bytes -= size;
+		buffer_offset += size;
+	}
+}
+
 /**
  * binder_alloc_free_buf() - free a binder buffer
  * @alloc:	binder_alloc for this proc
@@ -1140,68 +1200,6 @@ static inline bool check_buffer(struct binder_alloc *alloc,
 		IS_ALIGNED(offset, sizeof(u32)) &&
 		!buffer->free &&
 		(!buffer->allow_user_free || !buffer->transaction);
-}
-
-/**
- * binder_alloc_get_page() - get kernel pointer for given buffer offset
- * @alloc: binder_alloc for this proc
- * @buffer: binder buffer to be accessed
- * @buffer_offset: offset into @buffer data
- * @pgoffp: address to copy final page offset to
- *
- * Lookup the struct page corresponding to the address
- * at @buffer_offset into @buffer->user_data. If @pgoffp is not
- * NULL, the byte-offset into the page is written there.
- *
- * The caller is responsible to ensure that the offset points
- * to a valid address within the @buffer and that @buffer is
- * not freeable by the user. Since it can't be freed, we are
- * guaranteed that the corresponding elements of @alloc->pages[]
- * cannot change.
- *
- * Return: struct page
- */
-static struct page *binder_alloc_get_page(struct binder_alloc *alloc,
-					  struct binder_buffer *buffer,
-					  binder_size_t buffer_offset,
-					  pgoff_t *pgoffp)
-{
-	binder_size_t buffer_space_offset = buffer_offset +
-		(buffer->user_data - alloc->buffer);
-	pgoff_t pgoff = buffer_space_offset & ~PAGE_MASK;
-	size_t index = buffer_space_offset >> PAGE_SHIFT;
-	struct binder_lru_page *lru_page;
-
-	lru_page = &alloc->pages[index];
-	*pgoffp = pgoff;
-	return lru_page->page_ptr;
-}
-
-/**
- * binder_alloc_clear_buf() - zero out buffer
- * @alloc: binder_alloc for this proc
- * @buffer: binder buffer to be cleared
- *
- * memset the given buffer to 0
- */
-static void binder_alloc_clear_buf(struct binder_alloc *alloc,
-				   struct binder_buffer *buffer)
-{
-	size_t bytes = binder_alloc_buffer_size(alloc, buffer);
-	binder_size_t buffer_offset = 0;
-
-	while (bytes) {
-		unsigned long size;
-		struct page *page;
-		pgoff_t pgoff;
-
-		page = binder_alloc_get_page(alloc, buffer,
-					     buffer_offset, &pgoff);
-		size = min_t(size_t, bytes, PAGE_SIZE - pgoff);
-		memset_page(page, pgoff, 0, size);
-		bytes -= size;
-		buffer_offset += size;
-	}
 }
 
 /**
