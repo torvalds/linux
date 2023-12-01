@@ -2470,9 +2470,8 @@ static int trace__fprintf_callchain(struct trace *trace, struct perf_sample *sam
 static const char *errno_to_name(struct evsel *evsel, int err)
 {
 	struct perf_env *env = evsel__env(evsel);
-	const char *arch_name = perf_env__arch(env);
 
-	return arch_syscalls__strerrno(arch_name, err);
+	return perf_env__arch_strerrno(env, err);
 }
 
 static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
@@ -4264,12 +4263,11 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 
 			if (trace->errno_summary && stats->nr_failures) {
-				const char *arch_name = perf_env__arch(trace->host->env);
 				int e;
 
 				for (e = 0; e < stats->max_errno; ++e) {
 					if (stats->errnos[e] != 0)
-						fprintf(fp, "\t\t\t\t%s: %d\n", arch_syscalls__strerrno(arch_name, e + 1), stats->errnos[e]);
+						fprintf(fp, "\t\t\t\t%s: %d\n", perf_env__arch_strerrno(trace->host->env, e + 1), stats->errnos[e]);
 				}
 			}
 		}

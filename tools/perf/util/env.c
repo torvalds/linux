@@ -3,6 +3,7 @@
 #include "debug.h"
 #include "env.h"
 #include "util/header.h"
+#include "linux/compiler.h"
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 #include "cgroup.h"
@@ -12,6 +13,7 @@
 #include <string.h>
 #include "pmus.h"
 #include "strbuf.h"
+#include "trace/beauty/beauty.h"
 
 struct perf_env perf_env;
 
@@ -451,6 +453,16 @@ const char *perf_env__arch(struct perf_env *env)
 		arch_name = env->arch;
 
 	return normalize_arch(arch_name);
+}
+
+const char *perf_env__arch_strerrno(struct perf_env *env __maybe_unused, int err __maybe_unused)
+{
+#if defined(HAVE_SYSCALL_TABLE_SUPPORT) && defined(HAVE_LIBTRACEEVENT)
+	const char *arch_name = perf_env__arch(env);
+	return arch_syscalls__strerrno(arch_name, err);
+#else
+	return "!(HAVE_SYSCALL_TABLE_SUPPORT && HAVE_LIBTRACEEVENT)";
+#endif
 }
 
 const char *perf_env__cpuid(struct perf_env *env)
