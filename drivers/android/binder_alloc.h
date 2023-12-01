@@ -49,15 +49,13 @@ struct binder_buffer {
 	unsigned async_transaction:1;
 	unsigned oneway_spam_suspect:1;
 	unsigned debug_id:27;
-
 	struct binder_transaction *transaction;
-
 	struct binder_node *target_node;
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
 	unsigned long user_data;
-	int    pid;
+	int pid;
 };
 
 /**
@@ -125,8 +123,7 @@ struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 					   size_t data_size,
 					   size_t offsets_size,
 					   size_t extra_buffers_size,
-					   int is_async,
-					   int pid);
+					   int is_async);
 void binder_alloc_init(struct binder_alloc *alloc);
 int binder_alloc_shrinker_init(void);
 void binder_alloc_shrinker_exit(void);
