@@ -1061,35 +1061,39 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 				       void *cb_arg)
 	__must_hold(lock)
 {
-	struct mm_struct *mm = NULL;
-	struct binder_lru_page *page = container_of(item,
-						    struct binder_lru_page,
-						    lru);
-	struct binder_alloc *alloc;
+	struct binder_lru_page *page = container_of(item, typeof(*page), lru);
+	struct binder_alloc *alloc = page->alloc;
+	struct mm_struct *mm = alloc->mm;
+	struct vm_area_struct *vma;
+	struct page *page_to_free;
 	unsigned long page_addr;
 	size_t index;
-	struct vm_area_struct *vma;
 
-	alloc = page->alloc;
+	if (!mmget_not_zero(mm))
+		goto err_mmget;
+	if (!mmap_read_trylock(mm))
+		goto err_mmap_read_lock_failed;
 	if (!mutex_trylock(&alloc->mutex))
 		goto err_get_alloc_mutex_failed;
-
 	if (!page->page_ptr)
 		goto err_page_already_freed;
 
 	index = page - alloc->pages;
 	page_addr = alloc->buffer + index * PAGE_SIZE;
 
-	mm = alloc->mm;
-	if (!mmget_not_zero(mm))
-		goto err_mmget;
-	if (!mmap_read_trylock(mm))
-		goto err_mmap_read_lock_failed;
 	vma = vma_lookup(mm, page_addr);
 	if (vma && vma != binder_alloc_get_vma(alloc))
 		goto err_invalid_vma;
 
+	trace_binder_unmap_kernel_start(alloc, index);
+
+	page_to_free = page->page_ptr;
+	page->page_ptr = NULL;
+
+	trace_binder_unmap_kernel_end(alloc, index);
+
 	list_lru_isolate(lru, item);
+	mutex_unlock(&alloc->mutex);
 	spin_unlock(lock);
 
 	if (vma) {
@@ -1099,28 +1103,22 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 		trace_binder_unmap_user_end(alloc, index);
 	}
+
 	mmap_read_unlock(mm);
 	mmput_async(mm);
-
-	trace_binder_unmap_kernel_start(alloc, index);
-
-	__free_page(page->page_ptr);
-	page->page_ptr = NULL;
-
-	trace_binder_unmap_kernel_end(alloc, index);
+	__free_page(page_to_free);
 
 	spin_lock(lock);
-	mutex_unlock(&alloc->mutex);
 	return LRU_REMOVED_RETRY;
 
 err_invalid_vma:
+err_page_already_freed:
+	mutex_unlock(&alloc->mutex);
+err_get_alloc_mutex_failed:
 	mmap_read_unlock(mm);
 err_mmap_read_lock_failed:
 	mmput_async(mm);
 err_mmget:
-err_page_already_freed:
-	mutex_unlock(&alloc->mutex);
-err_get_alloc_mutex_failed:
 	return LRU_SKIP;
 }
 
