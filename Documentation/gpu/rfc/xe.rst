@@ -70,24 +70,6 @@ When the time comes for Xe, the protection will be lifted on Xe and kept in i915
 Xe – Pre-Merge Goals - Work-in-Progress
 =======================================
 
-Drm_scheduler
--------------
-Xe primarily uses Firmware based scheduling (GuC FW). However, it will use
-drm_scheduler as the scheduler ‘frontend’ for userspace submission in order to
-resolve syncobj and dma-buf implicit sync dependencies. However, drm_scheduler is
-not yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
-drm_sched_entity.
-
-Deeper changes to drm_scheduler should *not* be required to get Xe accepted, but
-some consensus needs to be reached between Xe and other community drivers that
-could also benefit from this work, for coupling FW based/assisted submission such
-as the ARM’s new Mali GPU driver, and others.
-
-As a key measurable result, the patch series introducing Xe itself shall not
-depend on any other patch touching drm_scheduler itself that was not yet merged
-through drm-misc. This, by itself, already includes the reach of an agreement for
-uniform 1 to 1 relationship implementation / usage across drivers.
-
 ASYNC VM_BIND
 -------------
 Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
@@ -168,6 +150,24 @@ Xe – uAPI high level overview
 
 Xe – Pre-Merge Goals - Completed
 ================================
+
+Drm_scheduler
+-------------
+Xe primarily uses Firmware based scheduling (GuC FW). However, it will use
+drm_scheduler as the scheduler ‘frontend’ for userspace submission in order to
+resolve syncobj and dma-buf implicit sync dependencies. However, drm_scheduler is
+not yet prepared to handle the 1-to-1 relationship between drm_gpu_scheduler and
+drm_sched_entity.
+
+Deeper changes to drm_scheduler should *not* be required to get Xe accepted, but
+some consensus needs to be reached between Xe and other community drivers that
+could also benefit from this work, for coupling FW based/assisted submission such
+as the ARM’s new Mali GPU driver, and others.
+
+As a key measurable result, the patch series introducing Xe itself shall not
+depend on any other patch touching drm_scheduler itself that was not yet merged
+through drm-misc. This, by itself, already includes the reach of an agreement for
+uniform 1 to 1 relationship implementation / usage across drivers.
 
 Long running compute: minimal data structure/scaffolding
 --------------------------------------------------------
