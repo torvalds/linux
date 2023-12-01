@@ -123,7 +123,7 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
-	struct jz4740_pwm_chip *jz = to_jz4740(pwm->chip);
+	struct jz4740_pwm_chip *jz = to_jz4740(chip);
 	unsigned long long tmp = 0xffffull * NSEC_PER_SEC;
 	struct clk *clk = jz->clk[pwm->hwpwm];
 	unsigned long period, duty;
