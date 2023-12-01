@@ -4661,6 +4661,17 @@ void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans)
 	*root = RB_ROOT;
 }
 
+void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_bytes)
+{
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
+		return;
+
+	if (!is_fstree(root))
+		return;
+
+	btrfs_qgroup_free_refroot(fs_info, root, rsv_bytes, BTRFS_QGROUP_RSV_DATA);
+}
+
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 			      struct btrfs_squota_delta *delta)
 {
@@ -4705,8 +4716,5 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 
 out:
 	spin_unlock(&fs_info->qgroup_lock);
-	if (!ret && delta->rsv_bytes)
-		btrfs_qgroup_free_refroot(fs_info, root, delta->rsv_bytes,
-					  BTRFS_QGROUP_RSV_DATA);
 	return ret;
 }
