@@ -3919,7 +3919,8 @@ static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
+		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP ||
+		    TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_V3_CMP) {
 			rc = bnxt_rx_loopback(bp, cpr, raw_cons, pkt_size);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			raw_cons = NEXT_RAW_CMP(raw_cons);

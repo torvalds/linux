@@ -1329,6 +1329,23 @@ static void bnxt_tpa_metadata(struct bnxt_tpa_info *tpa_info,
 	}
 }
 
+static void bnxt_tpa_metadata_v2(struct bnxt_tpa_info *tpa_info,
+				 struct rx_tpa_start_cmp *tpa_start,
+				 struct rx_tpa_start_cmp_ext *tpa_start1)
+{
+	tpa_info->vlan_valid = 0;
+	if (TPA_START_VLAN_VALID(tpa_start)) {
+		u32 tpid_sel = TPA_START_VLAN_TPID_SEL(tpa_start);
+		u32 vlan_proto = ETH_P_8021Q;
+
+		tpa_info->vlan_valid = 1;
+		if (tpid_sel == RX_TPA_START_METADATA1_TPID_8021AD)
+			vlan_proto = ETH_P_8021AD;
+		tpa_info->metadata = vlan_proto << 16 |
+				     TPA_START_METADATA0_TCI(tpa_start1);
+	}
+}
+
 static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 			   u8 cmp_type, struct rx_tpa_start_cmp *tpa_start,
 			   struct rx_tpa_start_cmp_ext *tpa_start1)
@@ -1378,12 +1395,13 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		le32_to_cpu(tpa_start->rx_tpa_start_cmp_len_flags_type) >>
 				RX_TPA_START_CMP_LEN_SHIFT;
 	if (likely(TPA_START_HASH_VALID(tpa_start))) {
-		u32 hash_type = TPA_START_HASH_TYPE(tpa_start);
-
 		tpa_info->hash_type = PKT_HASH_TYPE_L4;
 		tpa_info->gso_type = SKB_GSO_TCPV4;
+		if (TPA_START_IS_IPV6(tpa_start1))
+			tpa_info->gso_type = SKB_GSO_TCPV6;
 		/* RSS profiles 1 and 3 with extract code 0 for inner 4-tuple */
-		if (hash_type == 3 || TPA_START_IS_IPV6(tpa_start1))
+		else if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP &&
+			 TPA_START_HASH_TYPE(tpa_start) == 3)
 			tpa_info->gso_type = SKB_GSO_TCPV6;
 		tpa_info->rss_hash =
 			le32_to_cpu(tpa_start->rx_tpa_start_cmp_rss_hash);
@@ -1394,7 +1412,10 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 	}
 	tpa_info->flags2 = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_flags2);
 	tpa_info->hdr_info = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_hdr_info);
-	bnxt_tpa_metadata(tpa_info, tpa_start, tpa_start1);
+	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP)
+		bnxt_tpa_metadata(tpa_info, tpa_start, tpa_start1);
+	else
+		bnxt_tpa_metadata_v2(tpa_info, tpa_start, tpa_start1);
 	tpa_info->agg_count = 0;
 
 	rxr->rx_prod = NEXT_RX(prod);
@@ -1816,11 +1837,41 @@ static struct sk_buff *bnxt_rx_vlan(struct sk_buff *skb, u8 cmp_type,
 			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
 		else
 			goto vlan_err;
+	} else if (cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
+		if (RX_CMP_VLAN_VALID(rxcmp)) {
+			u32 tpid_sel = RX_CMP_VLAN_TPID_SEL(rxcmp);
+
+			if (tpid_sel == RX_CMP_METADATA1_TPID_8021Q)
+				vlan_proto = htons(ETH_P_8021Q);
+			else if (tpid_sel == RX_CMP_METADATA1_TPID_8021AD)
+				vlan_proto = htons(ETH_P_8021AD);
+			else
+				goto vlan_err;
+			vtag = RX_CMP_METADATA0_TCI(rxcmp1);
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		}
 	}
 	return skb;
 vlan_err:
 	dev_kfree_skb(skb);
 	return NULL;
+}
+
+static enum pkt_hash_types bnxt_rss_ext_op(struct bnxt *bp,
+					   struct rx_cmp *rxcmp)
+{
+	u8 ext_op;
+
+	ext_op = RX_CMP_V3_HASH_TYPE(bp, rxcmp);
+	switch (ext_op) {
+	case EXT_OP_INNER_4:
+	case EXT_OP_OUTER_4:
+	case EXT_OP_INNFL_3:
+	case EXT_OP_OUTFL_3:
+		return PKT_HASH_TYPE_L4;
+	default:
+		return PKT_HASH_TYPE_L3;
+	}
 }
 
 /* returns the following:
@@ -1839,7 +1890,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	struct rx_cmp *rxcmp;
 	struct rx_cmp_ext *rxcmp1;
 	u32 tmp_raw_cons = *raw_cons;
-	u16 cfa_code, cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
+	u16 cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
 	struct bnxt_sw_rx_bd *rx_buf;
 	unsigned int len;
 	u8 *data_ptr, agg_bufs, cmp_type;
@@ -1875,7 +1926,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	dma_rmb();
 	prod = rxr->rx_prod;
 
-	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP) {
+	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP ||
+	    cmp_type == CMP_TYPE_RX_L2_TPA_START_V3_CMP) {
 		bnxt_tpa_start(bp, rxr, cmp_type,
 			       (struct rx_tpa_start_cmp *)rxcmp,
 			       (struct rx_tpa_start_cmp_ext *)rxcmp1);
@@ -2030,17 +2082,27 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	}
 
 	if (RX_CMP_HASH_VALID(rxcmp)) {
-		u32 hash_type = RX_CMP_HASH_TYPE(rxcmp);
-		enum pkt_hash_types type = PKT_HASH_TYPE_L4;
+		enum pkt_hash_types type;
 
-		/* RSS profiles 1 and 3 with extract code 0 for inner 4-tuple */
-		if (hash_type != 1 && hash_type != 3)
-			type = PKT_HASH_TYPE_L3;
+		if (cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
+			type = bnxt_rss_ext_op(bp, rxcmp);
+		} else {
+			u32 hash_type = RX_CMP_HASH_TYPE(rxcmp);
+
+			/* RSS profiles 1 and 3 with extract code 0 for inner
+			 * 4-tuple
+			 */
+			if (hash_type != 1 && hash_type != 3)
+				type = PKT_HASH_TYPE_L3;
+			else
+				type = PKT_HASH_TYPE_L4;
+		}
 		skb_set_hash(skb, le32_to_cpu(rxcmp->rx_cmp_rss_hash), type);
 	}
 
-	cfa_code = RX_CMP_CFA_CODE(rxcmp1);
-	skb->protocol = eth_type_trans(skb, bnxt_get_pkt_dev(bp, cfa_code));
+	if (cmp_type == CMP_TYPE_RX_L2_CMP)
+		dev = bnxt_get_pkt_dev(bp, RX_CMP_CFA_CODE(rxcmp1));
+	skb->protocol = eth_type_trans(skb, dev);
 
 	if (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX) {
 		skb = bnxt_rx_vlan(skb, cmp_type, rxcmp, rxcmp1);
@@ -2127,7 +2189,8 @@ static int bnxt_force_rx_discard(struct bnxt *bp,
 	 */
 	dma_rmb();
 	cmp_type = RX_CMP_TYPE(rxcmp);
-	if (cmp_type == CMP_TYPE_RX_L2_CMP) {
+	if (cmp_type == CMP_TYPE_RX_L2_CMP ||
+	    cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
 		rxcmp1->rx_cmp_cfa_code_errors_v2 |=
 			cpu_to_le32(RX_CMPL_ERRORS_CRC_ERROR);
 	} else if (cmp_type == CMP_TYPE_RX_L2_TPA_END_CMP) {
@@ -2651,6 +2714,7 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	cpr->has_more_work = 0;
 	cpr->had_work_done = 1;
 	while (1) {
+		u8 cmp_type;
 		int rc;
 
 		cons = RING_CMP(raw_cons);
@@ -2663,7 +2727,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
+		cmp_type = TX_CMP_TYPE(txcmp);
+		if (cmp_type == CMP_TYPE_TX_L2_CMP) {
 			u32 opaque = txcmp->tx_cmp_opaque;
 			struct bnxt_tx_ring_info *txr;
 			u16 tx_freed;
@@ -2681,7 +2746,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 					cpr->has_more_work = 1;
 				break;
 			}
-		} else if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
+		} else if (cmp_type >= CMP_TYPE_RX_L2_CMP &&
+			   cmp_type <= CMP_TYPE_RX_L2_TPA_START_V3_CMP) {
 			if (likely(budget))
 				rc = bnxt_rx_pkt(bp, cpr, &raw_cons, &event);
 			else
@@ -2698,12 +2764,9 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
-		} else if (unlikely((TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_DONE) ||
-				    (TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_FWD_REQ) ||
-				    (TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_ASYNC_EVENT))) {
+		} else if (unlikely(cmp_type == CMPL_BASE_TYPE_HWRM_DONE ||
+				    cmp_type == CMPL_BASE_TYPE_HWRM_FWD_REQ ||
+				    cmp_type == CMPL_BASE_TYPE_HWRM_ASYNC_EVENT)) {
 			bnxt_hwrm_handler(bp, txcmp);
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
@@ -5826,6 +5889,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 			bp->fw_cap |= BNXT_FW_CAP_VLAN_RX_STRIP;
 		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_HASH_TYPE_DELTA_CAP)
 			bp->rss_cap |= BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_PROF_TCAM_MODE_ENABLED)
+			bp->rss_cap |= BNXT_RSS_CAP_RSS_TCAM;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
 		if (bp->max_tpa_v2) {
 			if (BNXT_CHIP_P5(bp))
