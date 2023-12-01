@@ -9,6 +9,7 @@ pinctrl-pitti.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
+qrtr.ko
 qcom-ipcc.ko
 clk-dummy.ko
 clk-qcom.ko
