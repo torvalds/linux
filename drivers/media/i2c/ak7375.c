@@ -16,6 +16,7 @@ struct ak73xx_chipdef {
 	u8 shift_pos;
 	u8 mode_active;
 	u8 mode_standby;
+	bool has_standby;	/* Some chips may not have standby mode */
 	u16 focus_pos_max;
 	/*
 	 * This sets the minimum granularity for the focus positions.
@@ -37,12 +38,26 @@ struct ak73xx_chipdef {
 	u16 power_delay_us;
 };
 
+static const struct ak73xx_chipdef ak7345_cdef = {
+	.reg_position	= 0x0,
+	.reg_cont	= 0x2,
+	.shift_pos	= 7,	/* 9 bits position values, need to << 7 */
+	.mode_active	= 0x0,
+	.has_standby	= false,
+	.focus_pos_max	= 511,
+	.focus_steps	= 1,
+	.ctrl_steps	= 16,
+	.ctrl_delay_us	= 1000,
+	.power_delay_us	= 20000,
+};
+
 static const struct ak73xx_chipdef ak7375_cdef = {
 	.reg_position	= 0x0,
 	.reg_cont	= 0x2,
 	.shift_pos	= 4,	/* 12 bits position values, need to << 4 */
 	.mode_active	= 0x0,
 	.mode_standby	= 0x40,
+	.has_standby	= true,
 	.focus_pos_max	= 4095,
 	.focus_steps	= 1,
 	.ctrl_steps	= 64,
@@ -249,10 +264,12 @@ static int __maybe_unused ak7375_vcm_suspend(struct device *dev)
 		usleep_range(cdef->ctrl_delay_us, cdef->ctrl_delay_us + 10);
 	}
 
-	ret = ak7375_i2c_write(ak7375_dev, cdef->reg_cont,
-			       cdef->mode_standby, 1);
-	if (ret)
-		dev_err(dev, "%s I2C failure: %d\n", __func__, ret);
+	if (cdef->has_standby) {
+		ret = ak7375_i2c_write(ak7375_dev, cdef->reg_cont,
+				       cdef->mode_standby, 1);
+		if (ret)
+			dev_err(dev, "%s I2C failure: %d\n", __func__, ret);
+	}
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(ak7375_supply_names),
 				     ak7375_dev->supplies);
@@ -312,6 +329,7 @@ static int __maybe_unused ak7375_vcm_resume(struct device *dev)
 }
 
 static const struct of_device_id ak7375_of_table[] = {
+	{ .compatible = "asahi-kasei,ak7345", .data = &ak7345_cdef, },
 	{ .compatible = "asahi-kasei,ak7375", .data = &ak7375_cdef, },
 	{ /* sentinel */ }
 };
