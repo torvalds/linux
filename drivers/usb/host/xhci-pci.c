@@ -145,45 +145,6 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 	return ret;
 }
 
-/*
- * Set up MSI-X
- */
-static int xhci_setup_msix(struct xhci_hcd *xhci)
-{
-	struct usb_hcd *hcd = xhci_to_hcd(xhci);
-	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
-	int ret;
-
-	/*
-	 * calculate number of msi-x vectors supported.
-	 * - HCS_MAX_INTRS: the max number of interrupts the host can handle,
-	 *   with max number of interrupters based on the xhci HCSPARAMS1.
-	 * - num_online_cpus: maximum msi-x vectors per CPUs core.
-	 *   Add additional 1 vector to ensure always available interrupt.
-	 */
-	xhci->msix_count = min(num_online_cpus() + 1,
-				HCS_MAX_INTRS(xhci->hcs_params1));
-
-	ret = pci_alloc_irq_vectors(pdev, xhci->msix_count, xhci->msix_count,
-			PCI_IRQ_MSIX);
-	if (ret < 0) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-				"Failed to enable MSI-X");
-		return ret;
-	}
-
-	ret = request_irq(pci_irq_vector(pdev, 0), xhci_msi_irq, 0, "xhci_hcd",
-			  xhci_to_hcd(xhci));
-	if (ret) {
-		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI-X interrupt");
-		pci_free_irq_vectors(pdev);
-		return ret;
-	}
-
-	hcd->msix_enabled = 1;
-	return ret;
-}
-
 static int xhci_try_enable_msi(struct usb_hcd *hcd)
 {
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
@@ -203,11 +164,38 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		free_irq(hcd->irq, hcd);
 	hcd->irq = 0;
 
-	ret = xhci_setup_msix(xhci);
-	if (ret)
-		/* fall back to msi*/
-		ret = xhci_setup_msi(xhci);
+	/*
+	 * calculate number of MSI-X vectors supported.
+	 * - HCS_MAX_INTRS: the max number of interrupts the host can handle,
+	 *   with max number of interrupters based on the xhci HCSPARAMS1.
+	 * - num_online_cpus: maximum MSI-X vectors per CPUs core.
+	 *   Add additional 1 vector to ensure always available interrupt.
+	 */
+	xhci->msix_count = min(num_online_cpus() + 1,
+			       HCS_MAX_INTRS(xhci->hcs_params1));
 
+	ret = pci_alloc_irq_vectors(pdev, xhci->msix_count, xhci->msix_count,
+				    PCI_IRQ_MSIX);
+	if (ret < 0) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Failed to enable MSI-X");
+		goto setup_msi;
+	}
+
+	ret = request_irq(pci_irq_vector(pdev, 0), xhci_msi_irq, 0, "xhci_hcd",
+			  xhci_to_hcd(xhci));
+	if (ret) {
+		xhci_dbg_trace(xhci, trace_xhci_dbg_init, "disable MSI-X interrupt");
+		pci_free_irq_vectors(pdev);
+		goto setup_msi;
+	}
+
+	hcd->msi_enabled = 1;
+	hcd->msix_enabled = 1;
+	return 0;
+
+setup_msi:
+	/* fall back to MSI */
+	ret = xhci_setup_msi(xhci);
 	if (!ret) {
 		hcd->msi_enabled = 1;
 		return 0;
