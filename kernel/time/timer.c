@@ -939,30 +939,34 @@ get_target_base(struct timer_base *base, unsigned tflags)
 	return get_timer_this_cpu_base(tflags);
 }
 
-static inline void forward_timer_base(struct timer_base *base)
+static inline void __forward_timer_base(struct timer_base *base,
+					unsigned long basej)
 {
-	unsigned long jnow = READ_ONCE(jiffies);
-
 	/*
 	 * Check whether we can forward the base. We can only do that when
 	 * @basej is past base->clk otherwise we might rewind base->clk.
 	 */
-	if (time_before_eq(jnow, base->clk))
+	if (time_before_eq(basej, base->clk))
 		return;
 
 	/*
 	 * If the next expiry value is > jiffies, then we fast forward to
 	 * jiffies otherwise we forward to the next expiry value.
 	 */
-	if (time_after(base->next_expiry, jnow)) {
-		base->clk = jnow;
+	if (time_after(base->next_expiry, basej)) {
+		base->clk = basej;
 	} else {
 		if (WARN_ON_ONCE(time_before(base->next_expiry, base->clk)))
 			return;
 		base->clk = base->next_expiry;
 	}
+
 }
 
+static inline void forward_timer_base(struct timer_base *base)
+{
+	__forward_timer_base(base, READ_ONCE(jiffies));
+}
 
 /*
  * We are using hashed locking: Holding per_cpu(timer_bases[x]).lock means
