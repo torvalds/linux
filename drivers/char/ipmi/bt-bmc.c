@@ -21,36 +21,36 @@
  */
 #define DEVICE_NAME	"ipmi-bt-host"
 
-#define BT_IO_BASE	0xe4
-#define BT_IRQ		10
+static DEFINE_IDA(aspeed_bt_bmc_ida);
 
-#define BT_CR0		0x0
-#define   BT_CR0_IO_BASE		16
-#define   BT_CR0_IRQ			12
-#define   BT_CR0_EN_CLR_SLV_RDP		0x8
-#define   BT_CR0_EN_CLR_SLV_WRP		0x4
-#define   BT_CR0_ENABLE_IBT		0x1
-#define BT_CR1		0x4
-#define   BT_CR1_IRQ_H2B	0x01
-#define   BT_CR1_IRQ_HBUSY	0x40
-#define BT_CR2		0x8
-#define   BT_CR2_IRQ_H2B	0x01
-#define   BT_CR2_IRQ_HBUSY	0x40
-#define BT_CR3		0xc
-#define BT_CTRL		0x10
-#define   BT_CTRL_B_BUSY		0x80
-#define   BT_CTRL_H_BUSY		0x40
-#define   BT_CTRL_OEM0			0x20
-#define   BT_CTRL_SMS_ATN		0x10
-#define   BT_CTRL_B2H_ATN		0x08
-#define   BT_CTRL_H2B_ATN		0x04
-#define   BT_CTRL_CLR_RD_PTR		0x02
-#define   BT_CTRL_CLR_WR_PTR		0x01
-#define BT_BMC2HOST	0x14
-#define BT_INTMASK	0x18
-#define   BT_INTMASK_B2H_IRQEN		0x01
-#define   BT_INTMASK_B2H_IRQ		0x02
-#define   BT_INTMASK_BMC_HWRST		0x80
+#define BTCR0			0x0
+#define   BTCR0_IO_BASE		GENMASK(31, 16)
+#define   BTCR0_SIRQ		GENMASK(15, 12)
+#define   BTCR0_SIRQ_TYPE	GENMASK(11, 10)
+#define   BTCR0_EN_CLR_SLV_RDP	BIT(3)
+#define   BTCR0_EN_CLR_SLV_WRP	BIT(2)
+#define   BTCR0_ENABLE_IBT	BIT(0)
+#define BTCR1			0x4
+#define   BTCR1_IRQ_EN_HBUSY	BIT(6)
+#define   BTCR1_IRQ_EN_H2B	BIT(0)
+#define BTCR2			0x8
+#define   BTCR2_IRQ_STS_HBUSY	BIT(6)
+#define   BTCR2_IRQ_STS_H2B	BIT(0)
+#define BTCR3			0xc
+#define BT_CTRL			0x10
+#define   BT_CTRL_B_BUSY	BIT(7)
+#define   BT_CTRL_H_BUSY	BIT(6)
+#define   BT_CTRL_OEM0		BIT(5)
+#define   BT_CTRL_SMS_ATN	BIT(4)
+#define   BT_CTRL_B2H_ATN	BIT(3)
+#define   BT_CTRL_H2B_ATN	BIT(2)
+#define   BT_CTRL_CLR_RD_PTR	BIT(1)
+#define   BT_CTRL_CLR_WR_PTR	BIT(0)
+#define BT_BMC2HOST		0x14
+#define BT_INTMASK		0x18
+#define   BT_INTMASK_BMC_HWRST	BIT(7)
+#define   BT_INTMASK_B2H_IRQ	BIT(1)
+#define   BT_INTMASK_B2H_IRQEN	BIT(0)
 
 #define BT_BMC_BUFFER_SIZE 256
 
@@ -62,6 +62,12 @@ struct bt_bmc {
 	wait_queue_head_t	queue;
 	struct timer_list	poll_timer;
 	struct mutex		mutex;
+	u32			io_addr;
+
+	struct {
+		u32 id;
+		u32 type;
+	} sirq;
 };
 
 static atomic_t open_count = ATOMIC_INIT(0);
@@ -359,14 +365,14 @@ static irqreturn_t bt_bmc_irq(int irq, void *arg)
 	struct bt_bmc *bt_bmc = arg;
 	u32 reg;
 
-	reg = readl(bt_bmc->base + BT_CR2);
+	reg = readl(bt_bmc->base + BTCR2);
 
-	reg &= BT_CR2_IRQ_H2B | BT_CR2_IRQ_HBUSY;
+	reg &= BTCR2_IRQ_STS_H2B | BTCR2_IRQ_STS_HBUSY;
 	if (!reg)
 		return IRQ_NONE;
 
 	/* ack pending IRQs */
-	writel(reg, bt_bmc->base + BT_CR2);
+	writel(reg, bt_bmc->base + BTCR2);
 
 	wake_up(&bt_bmc->queue);
 	return IRQ_HANDLED;
@@ -397,9 +403,9 @@ static int bt_bmc_config_irq(struct bt_bmc *bt_bmc,
 	 * will be cleared (along with B2H) when we can write the next
 	 * message to the BT buffer
 	 */
-	reg = readl(bt_bmc->base + BT_CR1);
-	reg |= BT_CR1_IRQ_H2B | BT_CR1_IRQ_HBUSY;
-	writel(reg, bt_bmc->base + BT_CR1);
+	reg = readl(bt_bmc->base + BTCR1);
+	reg |= BTCR1_IRQ_EN_H2B | BTCR1_IRQ_EN_HBUSY;
+	writel(reg, bt_bmc->base + BTCR1);
 
 	return 0;
 }
@@ -411,7 +417,6 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	int rc, chan;
 
 	dev = &pdev->dev;
-	dev_info(dev, "Found bt bmc device\n");
 
 	bt_bmc = devm_kzalloc(dev, sizeof(*bt_bmc), GFP_KERNEL);
 	if (!bt_bmc)
@@ -426,12 +431,55 @@ static int bt_bmc_probe(struct platform_device *pdev)
 	mutex_init(&bt_bmc->mutex);
 	init_waitqueue_head(&bt_bmc->queue);
 
-	if (of_property_read_u32(dev->of_node, "bt-channel", &chan))
-		bt_bmc->miscdev.name = DEVICE_NAME;
-	else
-		bt_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
-						      DEVICE_NAME,
-						      chan);
+	rc = of_property_read_u32(dev->of_node, "bt-io-addr", &bt_bmc->io_addr);
+	if (rc) {
+		bt_bmc->io_addr = 0xe4;
+	} else if (bt_bmc->io_addr > (USHRT_MAX - 1)) {
+		dev_err(dev, "invalid IO address\n");
+		return -ENODEV;
+	}
+
+	rc = of_property_read_u32(dev->of_node, "bt-channel", &chan);
+	if (rc) {
+		chan = ida_alloc(&aspeed_bt_bmc_ida, GFP_KERNEL);
+		if (chan < 0) {
+			dev_err(dev, "cannot allocate ID for BT channel\n");
+			return chan;
+		}
+	}
+
+	rc = of_property_read_u32_array(dev->of_node, "bt-upstream-serirq", (u32 *)&bt_bmc->sirq, 2);
+	if (rc) {
+		bt_bmc->sirq.id = 0xa;
+		bt_bmc->sirq.type = IRQ_TYPE_LEVEL_LOW;
+	} else {
+		if (bt_bmc->sirq.id > 15) {
+			dev_err(dev, "invalid SerIRQ number, expected sirq <= 15\n");
+			return -EINVAL;
+		}
+	}
+
+	bt_bmc_config_irq(bt_bmc, pdev);
+
+	if (bt_bmc->irq < 0) {
+		dev_info(dev, "No IRQ; using timer\n");
+		timer_setup(&bt_bmc->poll_timer, poll_timer, 0);
+		bt_bmc->poll_timer.expires = jiffies + msecs_to_jiffies(10);
+		add_timer(&bt_bmc->poll_timer);
+	}
+
+	writel(FIELD_PREP(BTCR0_IO_BASE, bt_bmc->io_addr) |
+	       FIELD_PREP(BTCR0_SIRQ, bt_bmc->sirq.id) |
+	       FIELD_PREP(BTCR0_SIRQ_TYPE, bt_bmc->sirq.type) |
+	       BTCR0_EN_CLR_SLV_RDP |
+	       BTCR0_EN_CLR_SLV_WRP |
+	       BTCR0_ENABLE_IBT,
+	       bt_bmc->base + BTCR0);
+
+	clr_b_busy(bt_bmc);
+
+	bt_bmc->miscdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%u",
+					      DEVICE_NAME, chan);
 
 	bt_bmc->miscdev.minor = MISC_DYNAMIC_MINOR;
 	bt_bmc->miscdev.fops = &bt_bmc_fops;
@@ -442,25 +490,8 @@ static int bt_bmc_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	bt_bmc_config_irq(bt_bmc, pdev);
-
-	if (bt_bmc->irq >= 0) {
-		dev_info(dev, "Using IRQ %d\n", bt_bmc->irq);
-	} else {
-		dev_info(dev, "No IRQ; using timer\n");
-		timer_setup(&bt_bmc->poll_timer, poll_timer, 0);
-		bt_bmc->poll_timer.expires = jiffies + msecs_to_jiffies(10);
-		add_timer(&bt_bmc->poll_timer);
-	}
-
-	writel((BT_IO_BASE << BT_CR0_IO_BASE) |
-		     (BT_IRQ << BT_CR0_IRQ) |
-		     BT_CR0_EN_CLR_SLV_RDP |
-		     BT_CR0_EN_CLR_SLV_WRP |
-		     BT_CR0_ENABLE_IBT,
-		bt_bmc->base + BT_CR0);
-
-	clr_b_busy(bt_bmc);
+	dev_info(dev, "initialised channel %d at IO address 0x%x\n",
+		 chan, bt_bmc->io_addr);
 
 	return 0;
 }
