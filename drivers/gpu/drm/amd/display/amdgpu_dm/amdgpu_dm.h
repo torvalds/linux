@@ -32,6 +32,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_plane.h>
 #include "link_service_types.h"
+#include <drm/drm_writeback.h>
 
 /*
  * This file contains the definition for amdgpu_display_manager
@@ -713,6 +714,13 @@ static inline void amdgpu_dm_set_mst_status(uint8_t *status,
 }
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
+
+struct amdgpu_dm_wb_connector {
+	struct drm_writeback_connector base;
+	struct dc_link *link;
+};
+
+#define to_amdgpu_dm_wb_connector(x) container_of(x, struct amdgpu_dm_wb_connector, base)
 
 extern const struct amdgpu_ip_block_version dm_ip_block;
 
