@@ -2880,13 +2880,18 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 		struct bnxt_db_info *db;
 
 		if (cpr2->had_work_done) {
+			u32 tgl = 0;
+
+			if (dbr_type == DBR_TYPE_CQ_ARMALL) {
+				cpr2->had_nqe_notify = 0;
+				tgl = cpr2->toggle;
+			}
 			db = &cpr2->cp_db;
-			bnxt_writeq(bp, db->db_key64 | dbr_type |
+			bnxt_writeq(bp,
+				    db->db_key64 | dbr_type | DB_TOGGLE(tgl) |
 				    DB_RING_IDX(db, cpr2->cp_raw_cons),
 				    db->doorbell);
 			cpr2->had_work_done = 0;
-			if (dbr_type == DBR_TYPE_CQ_ARMALL)
-				cpr2->had_nqe_notify = 0;
 		}
 	}
 	__bnxt_poll_work_done(bp, bnapi, budget);
@@ -2912,6 +2917,8 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
 	}
 	while (1) {
+		u16 type;
+
 		cons = RING_CMP(raw_cons);
 		nqcmp = &cpr->nq_desc_ring[CP_RING(cons)][CP_IDX(cons)];
 
@@ -2933,7 +2940,8 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		 */
 		dma_rmb();
 
-		if (nqcmp->type == cpu_to_le16(NQ_CN_TYPE_CQ_NOTIFICATION)) {
+		type = le16_to_cpu(nqcmp->type);
+		if (NQE_CN_TYPE(type) == NQ_CN_TYPE_CQ_NOTIFICATION) {
 			u32 idx = le32_to_cpu(nqcmp->cq_handle_low);
 			u32 cq_type = BNXT_NQ_HDL_TYPE(idx);
 			struct bnxt_cp_ring_info *cpr2;
@@ -2946,6 +2954,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 			idx = BNXT_NQ_HDL_IDX(idx);
 			cpr2 = &cpr->cp_ring_arr[idx];
 			cpr2->had_nqe_notify = 1;
+			cpr2->toggle = NQE_CN_TOGGLE(type);
 			work_done += __bnxt_poll_work(bp, cpr2,
 						      budget - work_done);
 			cpr->has_more_work |= cpr2->has_more_work;
