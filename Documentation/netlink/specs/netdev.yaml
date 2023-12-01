@@ -226,6 +226,10 @@ attribute-sets:
         name: id
         doc: ID of the NAPI instance.
         type: u32
+      -
+        name: irq
+        doc: The associated interrupt vector number for the napi
+        type: u32
   -
     name: queue
     attributes:
@@ -384,6 +388,7 @@ operations:
           attributes:
             - id
             - ifindex
+            - irq
       dump:
         request:
           attributes:
