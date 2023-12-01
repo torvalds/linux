@@ -636,6 +636,7 @@ static bool hidinput_set_battery_charge_status(struct hid_device *dev,
 		dev->battery_charge_status = value ?
 					     POWER_SUPPLY_STATUS_CHARGING :
 					     POWER_SUPPLY_STATUS_DISCHARGING;
+		power_supply_changed(dev->battery);
 		return true;
 	}
 
