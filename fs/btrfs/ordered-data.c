@@ -153,11 +153,12 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 {
 	struct btrfs_ordered_extent *entry;
 	int ret;
+	u64 qgroup_rsv = 0;
 
 	if (flags &
 	    ((1 << BTRFS_ORDERED_NOCOW) | (1 << BTRFS_ORDERED_PREALLOC))) {
 		/* For nocow write, we can release the qgroup rsv right now */
-		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes);
+		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes, &qgroup_rsv);
 		if (ret < 0)
 			return ERR_PTR(ret);
 	} else {
@@ -165,7 +166,7 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 		 * The ordered extent has reserved qgroup space, release now
 		 * and pass the reserved number for qgroup_record to free.
 		 */
-		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
+		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes, &qgroup_rsv);
 		if (ret < 0)
 			return ERR_PTR(ret);
 	}
@@ -183,7 +184,7 @@ static struct btrfs_ordered_extent *alloc_ordered_extent(
 	entry->inode = igrab(&inode->vfs_inode);
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
-	entry->qgroup_rsv = ret;
+	entry->qgroup_rsv = qgroup_rsv;
 	entry->flags = flags;
 	refcount_set(&entry->refs, 1);
 	init_waitqueue_head(&entry->wait);

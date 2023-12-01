@@ -3187,7 +3187,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 			qgroup_reserved -= range->len;
 		} else if (qgroup_reserved > 0) {
 			btrfs_qgroup_free_data(BTRFS_I(inode), data_reserved,
-					       range->start, range->len);
+					       range->start, range->len, NULL);
 			qgroup_reserved -= range->len;
 		}
 		list_del(&range->list);
