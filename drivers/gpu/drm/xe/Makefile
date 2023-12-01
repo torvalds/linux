@@ -166,6 +166,7 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	display/xe_plane_initial.o \
 	display/xe_display_rps.o \
 	display/xe_display_misc.o \
+	display/xe_dsb_buffer.o \
 	display/intel_fbdev_fb.o \
 	display/intel_fb_bo.o \
 	display/ext/i915_irq.o \
