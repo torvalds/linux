@@ -944,11 +944,10 @@ static inline void forward_timer_base(struct timer_base *base)
 	unsigned long jnow = READ_ONCE(jiffies);
 
 	/*
-	 * No need to forward if we are close enough below jiffies.
-	 * Also while executing timers, base->clk is 1 offset ahead
-	 * of jiffies to avoid endless requeuing to current jiffies.
+	 * Check whether we can forward the base. We can only do that when
+	 * @basej is past base->clk otherwise we might rewind base->clk.
 	 */
-	if ((long)(jnow - base->clk) < 1)
+	if (time_before_eq(jnow, base->clk))
 		return;
 
 	/*
@@ -2021,6 +2020,10 @@ static inline void __run_timers(struct timer_base *base)
 		 */
 		WARN_ON_ONCE(!levels && !base->next_expiry_recalc
 			     && base->timers_pending);
+		/*
+		 * While executing timers, base->clk is set 1 offset ahead of
+		 * jiffies to avoid endless requeuing to current jiffies.
+		 */
 		base->clk++;
 		next_expiry_recalc(base);
 
