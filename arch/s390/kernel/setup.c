@@ -408,15 +408,15 @@ static void __init setup_lowcore(void)
 
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
