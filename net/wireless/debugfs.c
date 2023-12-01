@@ -4,6 +4,7 @@
  *
  * Copyright 2009	Luis R. Rodriguez <lrodriguez@atheros.com>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (C) 2023 Intel Corporation
  */
 
 #include <linux/slab.h>
@@ -109,3 +110,162 @@ void cfg80211_debugfs_rdev_add(struct cfg80211_registered_device *rdev)
 	DEBUGFS_ADD(long_retry_limit);
 	DEBUGFS_ADD(ht40allow_map);
 }
+
+struct debugfs_read_work {
+	struct wiphy_work work;
+	ssize_t (*handler)(struct wiphy *wiphy,
+			   struct file *file,
+			   char *buf,
+			   size_t count,
+			   void *data);
+	struct wiphy *wiphy;
+	struct file *file;
+	char *buf;
+	size_t bufsize;
+	void *data;
+	ssize_t ret;
+	struct completion completion;
+};
+
+static void wiphy_locked_debugfs_read_work(struct wiphy *wiphy,
+					   struct wiphy_work *work)
+{
+	struct debugfs_read_work *w = container_of(work, typeof(*w), work);
+
+	w->ret = w->handler(w->wiphy, w->file, w->buf, w->bufsize, w->data);
+	complete(&w->completion);
+}
+
+static void wiphy_locked_debugfs_read_cancel(struct dentry *dentry,
+					     void *data)
+{
+	struct debugfs_read_work *w = data;
+
+	wiphy_work_cancel(w->wiphy, &w->work);
+	complete(&w->completion);
+}
+
+ssize_t wiphy_locked_debugfs_read(struct wiphy *wiphy, struct file *file,
+				  char *buf, size_t bufsize,
+				  char __user *userbuf, size_t count,
+				  loff_t *ppos,
+				  ssize_t (*handler)(struct wiphy *wiphy,
+						     struct file *file,
+						     char *buf,
+						     size_t bufsize,
+						     void *data),
+				  void *data)
+{
+	struct debugfs_read_work work = {
+		.handler = handler,
+		.wiphy = wiphy,
+		.file = file,
+		.buf = buf,
+		.bufsize = bufsize,
+		.data = data,
+		.ret = -ENODEV,
+		.completion = COMPLETION_INITIALIZER_ONSTACK(work.completion),
+	};
+	struct debugfs_cancellation cancellation = {
+		.cancel = wiphy_locked_debugfs_read_cancel,
+		.cancel_data = &work,
+	};
+
+	/* don't leak stack data or whatever */
+	memset(buf, 0, bufsize);
+
+	wiphy_work_init(&work.work, wiphy_locked_debugfs_read_work);
+	wiphy_work_queue(wiphy, &work.work);
+
+	debugfs_enter_cancellation(file, &cancellation);
+	wait_for_completion(&work.completion);
+	debugfs_leave_cancellation(file, &cancellation);
+
+	if (work.ret < 0)
+		return work.ret;
+
+	if (WARN_ON(work.ret > bufsize))
+		return -EINVAL;
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, work.ret);
+}
+EXPORT_SYMBOL_GPL(wiphy_locked_debugfs_read);
+
+struct debugfs_write_work {
+	struct wiphy_work work;
+	ssize_t (*handler)(struct wiphy *wiphy,
+			   struct file *file,
+			   char *buf,
+			   size_t count,
+			   void *data);
+	struct wiphy *wiphy;
+	struct file *file;
+	char *buf;
+	size_t count;
+	void *data;
+	ssize_t ret;
+	struct completion completion;
+};
+
+static void wiphy_locked_debugfs_write_work(struct wiphy *wiphy,
+					    struct wiphy_work *work)
+{
+	struct debugfs_write_work *w = container_of(work, typeof(*w), work);
+
+	w->ret = w->handler(w->wiphy, w->file, w->buf, w->count, w->data);
+	complete(&w->completion);
+}
+
+static void wiphy_locked_debugfs_write_cancel(struct dentry *dentry,
+					      void *data)
+{
+	struct debugfs_write_work *w = data;
+
+	wiphy_work_cancel(w->wiphy, &w->work);
+	complete(&w->completion);
+}
+
+ssize_t wiphy_locked_debugfs_write(struct wiphy *wiphy,
+				   struct file *file, char *buf, size_t bufsize,
+				   const char __user *userbuf, size_t count,
+				   ssize_t (*handler)(struct wiphy *wiphy,
+						      struct file *file,
+						      char *buf,
+						      size_t count,
+						      void *data),
+				   void *data)
+{
+	struct debugfs_write_work work = {
+		.handler = handler,
+		.wiphy = wiphy,
+		.file = file,
+		.buf = buf,
+		.count = count,
+		.data = data,
+		.ret = -ENODEV,
+		.completion = COMPLETION_INITIALIZER_ONSTACK(work.completion),
+	};
+	struct debugfs_cancellation cancellation = {
+		.cancel = wiphy_locked_debugfs_write_cancel,
+		.cancel_data = &work,
+	};
+
+	/* mostly used for strings so enforce NUL-termination for safety */
+	if (count >= bufsize)
+		return -EINVAL;
+
+	memset(buf, 0, bufsize);
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	wiphy_work_init(&work.work, wiphy_locked_debugfs_write_work);
+	wiphy_work_queue(wiphy, &work.work);
+
+	debugfs_enter_cancellation(file, &cancellation);
+	wait_for_completion(&work.completion);
+	debugfs_leave_cancellation(file, &cancellation);
+
+	return work.ret;
+}
+EXPORT_SYMBOL_GPL(wiphy_locked_debugfs_write);

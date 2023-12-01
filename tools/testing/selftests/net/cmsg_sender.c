@@ -428,9 +428,9 @@ int main(int argc, char *argv[])
 {
 	struct addrinfo hints, *ai;
 	struct iovec iov[1];
+	unsigned char *buf;
 	struct msghdr msg;
 	char cbuf[1024];
-	char *buf;
 	int err;
 	int fd;
 	int i;
