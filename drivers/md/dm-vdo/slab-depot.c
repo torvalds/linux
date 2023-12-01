@@ -7,6 +7,7 @@
 
 #include <linux/atomic.h>
 #include <linux/bio.h>
+#include <linux/err.h>
 #include <linux/log2.h>
 #include <linux/min_heap.h>
 #include <linux/minmax.h>
@@ -3445,8 +3446,10 @@ static void initiate_load(struct admin_state *state)
 						   handle_operation_error,
 						   allocator->thread_id, NULL);
 		allocator->eraser = dm_kcopyd_client_create(NULL);
-		if (allocator->eraser == NULL) {
-			vdo_fail_completion(&allocator->completion, -ENOMEM);
+		if (IS_ERR(allocator->eraser)) {
+			vdo_fail_completion(&allocator->completion,
+					    PTR_ERR(allocator->eraser));
+			allocator->eraser = NULL;
 			return;
 		}
 		allocator->slabs_to_erase = get_slab_iterator(allocator);

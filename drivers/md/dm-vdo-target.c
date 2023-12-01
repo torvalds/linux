@@ -8,6 +8,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device-mapper.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -1683,8 +1684,11 @@ static int grow_layout(struct vdo *vdo, block_count_t old_size, block_count_t ne
 	/* Make a copy completion if there isn't one */
 	if (vdo->partition_copier == NULL) {
 		vdo->partition_copier = dm_kcopyd_client_create(NULL);
-		if (vdo->partition_copier == NULL)
-			return -ENOMEM;
+		if (IS_ERR(vdo->partition_copier)) {
+			result = PTR_ERR(vdo->partition_copier);
+			vdo->partition_copier = NULL;
+			return result;
+		}
 	}
 
 	/* Free any unused preparation. */
