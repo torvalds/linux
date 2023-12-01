@@ -56,7 +56,7 @@ struct binder_buffer {
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
-	void __user *user_data;
+	unsigned long user_data;
 	int    pid;
 };
 
@@ -101,7 +101,7 @@ struct binder_alloc {
 	struct mutex mutex;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
-	void __user *buffer;
+	unsigned long buffer;
 	struct list_head buffers;
 	struct rb_root free_buffers;
 	struct rb_root allocated_buffers;
@@ -133,7 +133,7 @@ void binder_alloc_shrinker_exit(void);
 void binder_alloc_vma_close(struct binder_alloc *alloc);
 struct binder_buffer *
 binder_alloc_prepare_to_free(struct binder_alloc *alloc,
-			     uintptr_t user_ptr);
+			     unsigned long user_ptr);
 void binder_alloc_free_buf(struct binder_alloc *alloc,
 			   struct binder_buffer *buffer);
 int binder_alloc_mmap_handler(struct binder_alloc *alloc,
