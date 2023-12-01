@@ -46,6 +46,7 @@
 
 #include <linux/preempt.h>
 #include <asm/asm-extable.h>
+#include <asm/fpu/internal.h>
 
 void save_fpu_regs(void);
 void load_fpu_regs(void);

@@ -32,6 +32,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
 #include <asm/vx-insn.h>
+#include <asm/fpu/api.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -45,7 +46,7 @@ static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
 static inline int nmi_needs_mcesa(void)
 {
-	return MACHINE_HAS_VX || MACHINE_HAS_GS;
+	return cpu_has_vx() || MACHINE_HAS_GS;
 }
 
 /*
@@ -235,7 +236,7 @@ static int notrace s390_validate_registers(union mci mci)
 	}
 
 	mcesa = __va(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
-	if (!MACHINE_HAS_VX) {
+	if (!cpu_has_vx()) {
 		/* Validate floating point registers */
 		asm volatile(
 			"	ld	0,0(%0)\n"

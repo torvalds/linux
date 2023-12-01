@@ -193,7 +193,7 @@ static void vector_exception(struct pt_regs *regs)
 {
 	int si_code, vic;
 
-	if (!MACHINE_HAS_VX) {
+	if (!cpu_has_vx()) {
 		do_trap(regs, SIGILL, ILL_ILLOPN, "illegal operation");
 		return;
 	}

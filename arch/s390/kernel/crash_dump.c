@@ -22,6 +22,7 @@
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/maccess.h>
+#include <asm/fpu/api.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
@@ -319,7 +320,7 @@ static void *fill_cpu_elf_notes(void *ptr, int cpu, struct save_area *sa)
 	ptr = nt_init(ptr, NT_S390_TODPREG, &sa->todpreg, sizeof(sa->todpreg));
 	ptr = nt_init(ptr, NT_S390_CTRS, &sa->ctrs, sizeof(sa->ctrs));
 	ptr = nt_init(ptr, NT_S390_PREFIX, &sa->prefix, sizeof(sa->prefix));
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		ptr = nt_init(ptr, NT_S390_VXRS_HIGH,
 			      &sa->vxrs_high, sizeof(sa->vxrs_high));
 		ptr = nt_init(ptr, NT_S390_VXRS_LOW,
@@ -343,7 +344,7 @@ static size_t get_cpu_elf_notes_size(void)
 	size +=  nt_size(NT_S390_TODPREG, sizeof(sa->todpreg));
 	size +=  nt_size(NT_S390_CTRS, sizeof(sa->ctrs));
 	size +=  nt_size(NT_S390_PREFIX, sizeof(sa->prefix));
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		size += nt_size(NT_S390_VXRS_HIGH, sizeof(sa->vxrs_high));
 		size += nt_size(NT_S390_VXRS_LOW, sizeof(sa->vxrs_low));
 	}
