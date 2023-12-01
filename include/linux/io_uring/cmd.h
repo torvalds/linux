@@ -39,7 +39,6 @@ void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
 
 void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 		unsigned int issue_flags);
-struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd);
 
 #else
 static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
@@ -60,10 +59,6 @@ static inline void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 		unsigned int issue_flags)
 {
 }
-static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
-{
-	return NULL;
-}
 #endif
 
 /* users must follow the IOU_F_TWQ_LAZY_WAKE semantics */
@@ -77,6 +72,11 @@ static inline void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
 			void (*task_work_cb)(struct io_uring_cmd *, unsigned))
 {
 	__io_uring_cmd_do_in_task(ioucmd, task_work_cb, 0);
+}
+
+static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
+{
+	return cmd_to_io_kiocb(cmd)->task;
 }
 
 #endif /* _LINUX_IO_URING_CMD_H */

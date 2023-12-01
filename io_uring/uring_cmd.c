@@ -52,12 +52,6 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_mark_cancelable);
 
-struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
-{
-	return cmd_to_io_kiocb(cmd)->task;
-}
-EXPORT_SYMBOL_GPL(io_uring_cmd_get_task);
-
 static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
