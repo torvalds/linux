@@ -1682,6 +1682,7 @@ noinline bool dcn30_internal_validate_bw(
 		 * We don't actually support prefetch mode 2, so require that we
 		 * at least support prefetch mode 1.
 		 */
+		context->bw_ctx.dml.validate_max_state = fast_validate;
 		context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank =
 			dm_allow_self_refresh;
 
@@ -1691,6 +1692,7 @@ noinline bool dcn30_internal_validate_bw(
 			memset(merge, 0, sizeof(merge));
 			vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
 		}
+		context->bw_ctx.dml.validate_max_state = false;
 	}
 
 	dml_log_mode_support_params(&context->bw_ctx.dml);
