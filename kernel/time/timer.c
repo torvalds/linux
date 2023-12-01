@@ -1922,8 +1922,8 @@ static u64 cmp_next_hrtimer_event(u64 basem, u64 expires)
 u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 {
 	struct timer_base *base = this_cpu_ptr(&timer_bases[BASE_STD]);
+	unsigned long nextevt = basej + NEXT_TIMER_MAX_DELTA;
 	u64 expires = KTIME_MAX;
-	unsigned long nextevt;
 	bool was_idle;
 
 	/*
@@ -1936,7 +1936,6 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	raw_spin_lock(&base->lock);
 	if (base->next_expiry_recalc)
 		next_expiry_recalc(base);
-	nextevt = base->next_expiry;
 
 	/*
 	 * We have a fresh next event. Check whether we can forward the
@@ -1945,10 +1944,20 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	__forward_timer_base(base, basej);
 
 	if (base->timers_pending) {
+		nextevt = base->next_expiry;
+
 		/* If we missed a tick already, force 0 delta */
 		if (time_before(nextevt, basej))
 			nextevt = basej;
 		expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
+	} else {
+		/*
+		 * Move next_expiry for the empty base into the future to
+		 * prevent a unnecessary raise of the timer softirq when the
+		 * next_expiry value will be reached even if there is no timer
+		 * pending.
+		 */
+		base->next_expiry = nextevt;
 	}
 
 	/*
