@@ -1268,9 +1268,12 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 {
 	struct inode *src_inode = file_inode(src_file);
 	struct inode *target_inode = file_inode(dst_file);
+	struct cifsInodeInfo *src_cifsi = CIFS_I(src_inode);
+	struct cifsInodeInfo *target_cifsi = CIFS_I(target_inode);
 	struct cifsFileInfo *smb_file_src = src_file->private_data;
-	struct cifsFileInfo *smb_file_target;
-	struct cifs_tcon *target_tcon;
+	struct cifsFileInfo *smb_file_target = dst_file->private_data;
+	struct cifs_tcon *target_tcon, *src_tcon;
+	unsigned long long destend, fstart, fend, new_size;
 	unsigned int xid;
 	int rc;
 
@@ -1283,13 +1286,13 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 
 	xid = get_xid();
 
-	if (!src_file->private_data || !dst_file->private_data) {
+	if (!smb_file_src || !smb_file_target) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
 		goto out;
 	}
 
-	smb_file_target = dst_file->private_data;
+	src_tcon = tlink_tcon(smb_file_src->tlink);
 	target_tcon = tlink_tcon(smb_file_target->tlink);
 
 	/*
@@ -1302,20 +1305,63 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	if (len == 0)
 		len = src_inode->i_size - off;
 
-	cifs_dbg(FYI, "about to flush pages\n");
-	/* should we flush first and last page first */
-	truncate_inode_pages_range(&target_inode->i_data, destoff,
-				   PAGE_ALIGN(destoff + len)-1);
+	cifs_dbg(FYI, "clone range\n");
 
-	if (target_tcon->ses->server->ops->duplicate_extents)
+	/* Flush the source buffer */
+	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
+					  off + len - 1);
+	if (rc)
+		goto unlock;
+
+	/* The server-side copy will fail if the source crosses the EOF marker.
+	 * Advance the EOF marker after the flush above to the end of the range
+	 * if it's short of that.
+	 */
+	if (src_cifsi->netfs.remote_i_size < off + len) {
+		rc = cifs_precopy_set_eof(src_inode, src_cifsi, src_tcon, xid, off + len);
+		if (rc < 0)
+			goto unlock;
+	}
+
+	new_size = destoff + len;
+	destend = destoff + len - 1;
+
+	/* Flush the folios at either end of the destination range to prevent
+	 * accidental loss of dirty data outside of the range.
+	 */
+	fstart = destoff;
+	fend = destend;
+
+	rc = cifs_flush_folio(target_inode, destoff, &fstart, &fend, true);
+	if (rc)
+		goto unlock;
+	rc = cifs_flush_folio(target_inode, destend, &fstart, &fend, false);
+	if (rc)
+		goto unlock;
+
+	/* Discard all the folios that overlap the destination region. */
+	cifs_dbg(FYI, "about to discard pages %llx-%llx\n", fstart, fend);
+	truncate_inode_pages_range(&target_inode->i_data, fstart, fend);
+
+	fscache_invalidate(cifs_inode_cookie(target_inode), NULL,
+			   i_size_read(target_inode), 0);
+
+	rc = -EOPNOTSUPP;
+	if (target_tcon->ses->server->ops->duplicate_extents) {
 		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-	else
-		rc = -EOPNOTSUPP;
+		if (rc == 0 && new_size > i_size_read(target_inode)) {
+			truncate_setsize(target_inode, new_size);
+			netfs_resize_file(&target_cifsi->netfs, new_size);
+			fscache_resize_cookie(cifs_inode_cookie(target_inode),
+					      new_size);
+		}
+	}
 
 	/* force revalidate of size and timestamps of target file now
 	   that target is updated on the server */
 	CIFS_I(target_inode)->time = 0;
+unlock:
 	/* although unlocking in the reverse order from locking is not
 	   strictly necessary here it is a little cleaner to be consistent */
 	unlock_two_nondirectories(src_inode, target_inode);
