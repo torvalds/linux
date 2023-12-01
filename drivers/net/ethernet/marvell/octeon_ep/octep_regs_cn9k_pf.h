@@ -362,6 +362,10 @@
 #define    CN93_SDP_MAC_PF_RING_CTL_SRN(val)   (((val) >> 8) & 0xFF)
 #define    CN93_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 16) & 0x3F)
 
+#define    CN98_SDP_MAC_PF_RING_CTL_NPFS(val)  (((val) >> 48) & 0xF)
+#define    CN98_SDP_MAC_PF_RING_CTL_SRN(val)   ((val) & 0xFF)
+#define    CN98_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 32) & 0x3F)
+
 /* Number of non-queue interrupts in CN93xx */
 #define    CN93_NUM_NON_IOQ_INTR    16
 

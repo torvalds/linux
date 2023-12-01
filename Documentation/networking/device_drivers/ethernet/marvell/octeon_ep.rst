@@ -22,6 +22,7 @@ EndPoint NIC.
 Supported Devices
 =================
 Currently, this driver support following devices:
+ * Network controller: Cavium, Inc. Device b100
  * Network controller: Cavium, Inc. Device b200
  * Network controller: Cavium, Inc. Device b400
  * Network controller: Cavium, Inc. Device b900
