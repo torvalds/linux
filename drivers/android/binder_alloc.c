@@ -175,8 +175,32 @@ struct binder_buffer *binder_alloc_prepare_to_free(struct binder_alloc *alloc,
 	return buffer;
 }
 
-static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
-				    unsigned long start, unsigned long end)
+static void binder_free_page_range(struct binder_alloc *alloc,
+				   unsigned long start, unsigned long end)
+{
+	struct binder_lru_page *page;
+	unsigned long page_addr;
+
+	trace_binder_update_page_range(alloc, false, start, end);
+
+	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
+		size_t index;
+		int ret;
+
+		index = (page_addr - alloc->buffer) / PAGE_SIZE;
+		page = &alloc->pages[index];
+
+		trace_binder_free_lru_start(alloc, index);
+
+		ret = list_lru_add(&binder_alloc_lru, &page->lru);
+		WARN_ON(!ret);
+
+		trace_binder_free_lru_end(alloc, index);
+	}
+}
+
+static int binder_allocate_page_range(struct binder_alloc *alloc,
+				      unsigned long start, unsigned long end)
 {
 	struct vm_area_struct *vma = NULL;
 	struct binder_lru_page *page;
@@ -185,16 +209,13 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 	bool need_mm = false;
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-			   "%d: %s allocate pages %lx-%lx\n", alloc->pid,
-			   allocate ? "allocate" : "free", start, end);
+			   "%d: allocate pages %lx-%lx\n",
+			   alloc->pid, start, end);
 
 	if (end <= start)
 		return 0;
 
-	trace_binder_update_page_range(alloc, allocate, start, end);
-
-	if (allocate == 0)
-		goto free_range;
+	trace_binder_update_page_range(alloc, true, start, end);
 
 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
 		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
@@ -270,32 +291,12 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 	}
 	return 0;
 
-free_range:
-	for (page_addr = end - PAGE_SIZE; 1; page_addr -= PAGE_SIZE) {
-		bool ret;
-		size_t index;
-
-		index = (page_addr - alloc->buffer) / PAGE_SIZE;
-		page = &alloc->pages[index];
-
-		trace_binder_free_lru_start(alloc, index);
-
-		ret = list_lru_add(&binder_alloc_lru, &page->lru);
-		WARN_ON(!ret);
-
-		trace_binder_free_lru_end(alloc, index);
-		if (page_addr == start)
-			break;
-		continue;
-
 err_vm_insert_page_failed:
-		__free_page(page->page_ptr);
-		page->page_ptr = NULL;
+	__free_page(page->page_ptr);
+	page->page_ptr = NULL;
 err_alloc_page_failed:
 err_page_ptr_cleared:
-		if (page_addr == start)
-			break;
-	}
+	binder_free_page_range(alloc, start, page_addr);
 err_no_vma:
 	if (mm) {
 		mmap_write_unlock(mm);
@@ -477,8 +478,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	end_page_addr = PAGE_ALIGN(buffer->user_data + size);
 	if (end_page_addr > has_page_addr)
 		end_page_addr = has_page_addr;
-	ret = binder_update_page_range(alloc, 1, PAGE_ALIGN(buffer->user_data),
-				       end_page_addr);
+	ret = binder_allocate_page_range(alloc, PAGE_ALIGN(buffer->user_data),
+					 end_page_addr);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -529,8 +530,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	return buffer;
 
 err_alloc_buf_struct_failed:
-	binder_update_page_range(alloc, 0, PAGE_ALIGN(buffer->user_data),
-				 end_page_addr);
+	binder_free_page_range(alloc, PAGE_ALIGN(buffer->user_data),
+			       end_page_addr);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -618,8 +619,8 @@ static void binder_delete_free_buffer(struct binder_alloc *alloc,
 				   alloc->pid, buffer->user_data,
 				   prev->user_data,
 				   next ? next->user_data : 0);
-		binder_update_page_range(alloc, 0, buffer_start_page(buffer),
-					 buffer_start_page(buffer) + PAGE_SIZE);
+		binder_free_page_range(alloc, buffer_start_page(buffer),
+				       buffer_start_page(buffer) + PAGE_SIZE);
 	}
 	list_del(&buffer->entry);
 	kfree(buffer);
@@ -653,8 +654,8 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 			      alloc->pid, size, alloc->free_async_space);
 	}
 
-	binder_update_page_range(alloc, 0, PAGE_ALIGN(buffer->user_data),
-				 (buffer->user_data + buffer_size) & PAGE_MASK);
+	binder_free_page_range(alloc, PAGE_ALIGN(buffer->user_data),
+			       (buffer->user_data + buffer_size) & PAGE_MASK);
 
 	rb_erase(&buffer->rb_node, &alloc->allocated_buffers);
 	buffer->free = 1;
