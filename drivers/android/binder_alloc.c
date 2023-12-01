@@ -636,48 +636,26 @@ static unsigned long prev_buffer_end_page(struct binder_buffer *buffer)
 static void binder_delete_free_buffer(struct binder_alloc *alloc,
 				      struct binder_buffer *buffer)
 {
-	struct binder_buffer *prev, *next = NULL;
-	bool to_free = true;
+	struct binder_buffer *prev, *next;
+
+	if (PAGE_ALIGNED(buffer->user_data))
+		goto skip_freelist;
 
 	BUG_ON(alloc->buffers.next == &buffer->entry);
 	prev = binder_buffer_prev(buffer);
 	BUG_ON(!prev->free);
-	if (prev_buffer_end_page(prev) == buffer_start_page(buffer)) {
-		to_free = false;
-		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				   "%d: merge free, buffer %lx share page with %lx\n",
-				   alloc->pid, buffer->user_data,
-				   prev->user_data);
-	}
+	if (prev_buffer_end_page(prev) == buffer_start_page(buffer))
+		goto skip_freelist;
 
 	if (!list_is_last(&buffer->entry, &alloc->buffers)) {
 		next = binder_buffer_next(buffer);
-		if (buffer_start_page(next) == buffer_start_page(buffer)) {
-			to_free = false;
-			binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-					   "%d: merge free, buffer %lx share page with %lx\n",
-					   alloc->pid,
-					   buffer->user_data,
-					   next->user_data);
-		}
+		if (buffer_start_page(next) == buffer_start_page(buffer))
+			goto skip_freelist;
 	}
 
-	if (PAGE_ALIGNED(buffer->user_data)) {
-		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				   "%d: merge free, buffer start %lx is page aligned\n",
-				   alloc->pid, buffer->user_data);
-		to_free = false;
-	}
-
-	if (to_free) {
-		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				   "%d: merge free, buffer %lx do not share page with %lx or %lx\n",
-				   alloc->pid, buffer->user_data,
-				   prev->user_data,
-				   next ? next->user_data : 0);
-		binder_lru_freelist_add(alloc, buffer_start_page(buffer),
-					buffer_start_page(buffer) + PAGE_SIZE);
-	}
+	binder_lru_freelist_add(alloc, buffer_start_page(buffer),
+				buffer_start_page(buffer) + PAGE_SIZE);
+skip_freelist:
 	list_del(&buffer->entry);
 	kfree(buffer);
 }
