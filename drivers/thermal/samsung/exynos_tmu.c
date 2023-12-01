@@ -1002,9 +1002,17 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 			return ret;
 		}
 	} else {
-		if (PTR_ERR(data->regulator) == -EPROBE_DEFER)
+		ret = PTR_ERR(data->regulator);
+		switch (ret) {
+		case -ENODEV:
+			break;
+		case -EPROBE_DEFER:
 			return -EPROBE_DEFER;
-		dev_info(&pdev->dev, "Regulator node (vtmu) not found\n");
+		default:
+			dev_err(&pdev->dev, "Failed to get regulator: %d\n",
+				ret);
+			return ret;
+		}
 	}
 
 	ret = exynos_map_dt_data(pdev);
