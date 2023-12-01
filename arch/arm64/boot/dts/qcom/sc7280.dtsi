@@ -4099,9 +4099,10 @@
 					<&mmss_noc MASTER_VIDEO_P0 0 &mc_virt SLAVE_EBI1 0>;
 			interconnect-names = "cpu-cfg", "video-mem";
 
-			iommus = <&apps_smmu 0x2180 0x20>,
-				 <&apps_smmu 0x2184 0x20>;
+			iommus = <&apps_smmu 0x2180 0x20>;
 			memory-region = <&video_mem>;
+
+			status = "disabled";
 
 			video-decoder {
 				compatible = "venus-decoder";
@@ -4109,10 +4110,6 @@
 
 			video-encoder {
 				compatible = "venus-encoder";
-			};
-
-			video-firmware {
-				iommus = <&apps_smmu 0x21a2 0x0>;
 			};
 
 			venus_opp_table: opp-table {
