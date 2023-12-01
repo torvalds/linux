@@ -200,3 +200,9 @@ and let you add cells dynamically.
 Another use case for layouts is the post processing of cells. With layouts,
 it is possible to associate a custom post processing hook to a cell. It
 even possible to add this hook to cells not created by the layout itself.
+
+9. Internal kernel API
+======================
+
+.. kernel-doc:: drivers/nvmem/core.c
+   :export:
