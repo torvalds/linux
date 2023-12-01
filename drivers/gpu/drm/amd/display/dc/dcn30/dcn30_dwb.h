@@ -877,6 +877,8 @@ bool dwb3_update(struct dwbc *dwbc, struct dc_dwb_params *params);
 
 bool dwb3_is_enabled(struct dwbc *dwbc);
 
+void dwb3_set_fc_enable(struct dwbc *dwbc, enum dwb_frame_capture_enable enable);
+
 void dwb3_set_stereo(struct dwbc *dwbc,
 	struct dwb_stereo_params *stereo_params);
 
