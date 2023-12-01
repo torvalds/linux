@@ -332,14 +332,36 @@ static inline unsigned long __extract_psw(void)
 	return (((unsigned long) reg1) << 32) | ((unsigned long) reg2);
 }
 
-static inline void local_mcck_enable(void)
+static inline unsigned long __local_mcck_save(void)
 {
-	__load_psw_mask(__extract_psw() | PSW_MASK_MCHECK);
+	unsigned long mask = __extract_psw();
+
+	__load_psw_mask(mask & ~PSW_MASK_MCHECK);
+	return mask & PSW_MASK_MCHECK;
+}
+
+#define local_mcck_save(mflags)			\
+do {						\
+	typecheck(unsigned long, mflags);	\
+	mflags = __local_mcck_save();		\
+} while (0)
+
+static inline void local_mcck_restore(unsigned long mflags)
+{
+	unsigned long mask = __extract_psw();
+
+	mask &= ~PSW_MASK_MCHECK;
+	__load_psw_mask(mask | mflags);
 }
 
 static inline void local_mcck_disable(void)
 {
-	__load_psw_mask(__extract_psw() & ~PSW_MASK_MCHECK);
+	__local_mcck_save();
+}
+
+static inline void local_mcck_enable(void)
+{
+	__load_psw_mask(__extract_psw() | PSW_MASK_MCHECK);
 }
 
 /*
