@@ -1285,14 +1285,12 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 
 void tcf_idr_insert_many(struct tc_action *actions[])
 {
+	struct tc_action *a;
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
-		struct tc_action *a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		struct tcf_idrinfo *idrinfo;
 
-		if (!a)
-			continue;
 		idrinfo = a->idrinfo;
 		mutex_lock(&idrinfo->lock);
 		/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc if
