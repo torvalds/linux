@@ -6678,6 +6678,9 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			break;
 		}
 
+		if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+			return stream;
+
 		dc_result = dc_validate_stream(adev->dm.dc, stream);
 		if (dc_result == DC_OK && stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
@@ -9426,7 +9429,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 	dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 	acrtc = to_amdgpu_crtc(crtc);
 	connector = amdgpu_dm_find_first_crtc_matching_connector(state, crtc);
-	if (connector && connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+	if (connector)
 		aconnector = to_amdgpu_dm_connector(connector);
 
 	/* TODO This hack should go away */
