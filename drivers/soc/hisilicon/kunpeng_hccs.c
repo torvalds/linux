@@ -155,7 +155,7 @@ static int hccs_register_pcc_channel(struct hccs_dev *hdev)
 		cl_info->pcc_comm_addr = ioremap(pcc_chan->shmem_base_addr,
 						 pcc_chan->shmem_size);
 		if (!cl_info->pcc_comm_addr) {
-			dev_err(dev, "Failed to ioremap PCC communication region for channel-%d.\n",
+			dev_err(dev, "Failed to ioremap PCC communication region for channel-%u.\n",
 				hdev->chan_id);
 			rc = -ENOMEM;
 			goto err_mbx_channel_free;
@@ -1097,7 +1097,7 @@ static int hccs_create_hccs_dir(struct hccs_dev *hdev,
 	int ret;
 
 	ret = kobject_init_and_add(&port->kobj, &hccs_port_type,
-				   &die->kobj, "hccs%d", port->port_id);
+				   &die->kobj, "hccs%u", port->port_id);
 	if (ret) {
 		kobject_put(&port->kobj);
 		return ret;
@@ -1115,7 +1115,7 @@ static int hccs_create_die_dir(struct hccs_dev *hdev,
 	u16 i;
 
 	ret = kobject_init_and_add(&die->kobj, &hccs_die_type,
-				   &chip->kobj, "die%d", die->die_id);
+				   &chip->kobj, "die%u", die->die_id);
 	if (ret) {
 		kobject_put(&die->kobj);
 		return ret;
@@ -1125,7 +1125,7 @@ static int hccs_create_die_dir(struct hccs_dev *hdev,
 		port = &die->ports[i];
 		ret = hccs_create_hccs_dir(hdev, die, port);
 		if (ret) {
-			dev_err(hdev->dev, "create hccs%d dir failed.\n",
+			dev_err(hdev->dev, "create hccs%u dir failed.\n",
 				port->port_id);
 			goto err;
 		}
@@ -1147,7 +1147,7 @@ static int hccs_create_chip_dir(struct hccs_dev *hdev,
 	u16 id;
 
 	ret = kobject_init_and_add(&chip->kobj, &hccs_chip_type,
-				   &hdev->dev->kobj, "chip%d", chip->chip_id);
+				   &hdev->dev->kobj, "chip%u", chip->chip_id);
 	if (ret) {
 		kobject_put(&chip->kobj);
 		return ret;
@@ -1178,7 +1178,7 @@ static int hccs_create_topo_dirs(struct hccs_dev *hdev)
 		chip = &hdev->chips[id];
 		ret = hccs_create_chip_dir(hdev, chip);
 		if (ret) {
-			dev_err(hdev->dev, "init chip%d dir failed!\n", id);
+			dev_err(hdev->dev, "init chip%u dir failed!\n", id);
 			goto err;
 		}
 	}
