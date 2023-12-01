@@ -70,18 +70,6 @@ When the time comes for Xe, the protection will be lifted on Xe and kept in i915
 Xe – Pre-Merge Goals - Work-in-Progress
 =======================================
 
-ASYNC VM_BIND
--------------
-Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
-Xe merged, it is mandatory to have a consensus with other drivers and Mesa.
-It needs to be clear how to handle async VM_BIND and interactions with userspace
-memory fences. Ideally with helper support so people don't get it wrong in all
-possible ways.
-
-As a key measurable result, the benefits of ASYNC VM_BIND and a discussion of
-various flavors, error handling and sample API suggestions are documented in
-:doc:`The ASYNC VM_BIND document </gpu/drm-vm-bind-async>`.
-
 Userptr integration and vm_bind
 -------------------------------
 Different drivers implement different ways of dealing with execution of userptr.
@@ -150,6 +138,18 @@ Xe – uAPI high level overview
 
 Xe – Pre-Merge Goals - Completed
 ================================
+
+ASYNC VM_BIND
+-------------
+Although having a common DRM level IOCTL for VM_BIND is not a requirement to get
+Xe merged, it is mandatory to have a consensus with other drivers and Mesa.
+It needs to be clear how to handle async VM_BIND and interactions with userspace
+memory fences. Ideally with helper support so people don't get it wrong in all
+possible ways.
+
+As a key measurable result, the benefits of ASYNC VM_BIND and a discussion of
+various flavors, error handling and sample API suggestions are documented in
+:doc:`The ASYNC VM_BIND document </gpu/drm-vm-bind-async>`.
 
 Drm_scheduler
 -------------
