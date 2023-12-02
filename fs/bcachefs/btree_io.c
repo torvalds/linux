@@ -1575,16 +1575,17 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 	return 0;
 }
 
-void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
+void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 			  bool sync)
 {
+	struct bch_fs *c = trans->c;
 	struct extent_ptr_decoded pick;
 	struct btree_read_bio *rb;
 	struct bch_dev *ca;
 	struct bio *bio;
 	int ret;
 
-	trace_and_count(c, btree_node_read, c, b);
+	trace_and_count(c, btree_node_read, trans, b);
 
 	if (bch2_verify_all_btree_replicas &&
 	    !btree_node_read_all_replicas(c, b, sync))
@@ -1663,12 +1664,12 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 	closure_init_stack(&cl);
 
 	do {
-		ret = bch2_btree_cache_cannibalize_lock(c, &cl);
+		ret = bch2_btree_cache_cannibalize_lock(trans, &cl);
 		closure_sync(&cl);
 	} while (ret);
 
 	b = bch2_btree_node_mem_alloc(trans, level != 0);
-	bch2_btree_cache_cannibalize_unlock(c);
+	bch2_btree_cache_cannibalize_unlock(trans);
 
 	BUG_ON(IS_ERR(b));
 
@@ -1677,7 +1678,7 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 
 	set_btree_node_read_in_flight(b);
 
-	bch2_btree_node_read(c, b, true);
+	bch2_btree_node_read(trans, b, true);
 
 	if (btree_node_read_error(b)) {
 		bch2_btree_node_hash_remove(&c->btree_cache, b);

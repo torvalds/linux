@@ -500,19 +500,21 @@ void bch2_fs_btree_cache_init_early(struct btree_cache *bc)
  * cannibalize_bucket() will take. This means every time we unlock the root of
  * the btree, we need to release this lock if we have it held.
  */
-void bch2_btree_cache_cannibalize_unlock(struct bch_fs *c)
+void bch2_btree_cache_cannibalize_unlock(struct btree_trans *trans)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
 
 	if (bc->alloc_lock == current) {
-		trace_and_count(c, btree_cache_cannibalize_unlock, c);
+		trace_and_count(c, btree_cache_cannibalize_unlock, trans);
 		bc->alloc_lock = NULL;
 		closure_wake_up(&bc->alloc_wait);
 	}
 }
 
-int bch2_btree_cache_cannibalize_lock(struct bch_fs *c, struct closure *cl)
+int bch2_btree_cache_cannibalize_lock(struct btree_trans *trans, struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_cache *bc = &c->btree_cache;
 	struct task_struct *old;
 
@@ -521,7 +523,7 @@ int bch2_btree_cache_cannibalize_lock(struct bch_fs *c, struct closure *cl)
 		goto success;
 
 	if (!cl) {
-		trace_and_count(c, btree_cache_cannibalize_lock_fail, c);
+		trace_and_count(c, btree_cache_cannibalize_lock_fail, trans);
 		return -BCH_ERR_ENOMEM_btree_cache_cannibalize_lock;
 	}
 
@@ -535,11 +537,11 @@ int bch2_btree_cache_cannibalize_lock(struct bch_fs *c, struct closure *cl)
 		goto success;
 	}
 
-	trace_and_count(c, btree_cache_cannibalize_lock_fail, c);
+	trace_and_count(c, btree_cache_cannibalize_lock_fail, trans);
 	return -BCH_ERR_btree_cache_cannibalize_lock_blocked;
 
 success:
-	trace_and_count(c, btree_cache_cannibalize_lock, c);
+	trace_and_count(c, btree_cache_cannibalize_lock, trans);
 	return 0;
 }
 
@@ -673,7 +675,7 @@ err:
 
 		mutex_unlock(&bc->lock);
 
-		trace_and_count(c, btree_cache_cannibalize, c);
+		trace_and_count(c, btree_cache_cannibalize, trans);
 		goto out;
 	}
 
@@ -749,7 +751,7 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	if (path && sync)
 		bch2_trans_unlock_noassert(trans);
 
-	bch2_btree_node_read(c, b, sync);
+	bch2_btree_node_read(trans, b, sync);
 
 	if (!sync)
 		return NULL;
@@ -1039,7 +1041,7 @@ retry:
 			goto retry;
 
 		if (IS_ERR(b) &&
-		    !bch2_btree_cache_cannibalize_lock(c, NULL))
+		    !bch2_btree_cache_cannibalize_lock(trans, NULL))
 			goto retry;
 
 		if (IS_ERR(b))
@@ -1087,7 +1089,7 @@ lock_node:
 	EBUG_ON(BTREE_NODE_LEVEL(b->data) != level);
 	btree_check_header(c, b);
 out:
-	bch2_btree_cache_cannibalize_unlock(c);
+	bch2_btree_cache_cannibalize_unlock(trans);
 	return b;
 }
 

@@ -977,7 +977,7 @@ retry_all:
 		closure_init_stack(&cl);
 
 		do {
-			ret = bch2_btree_cache_cannibalize_lock(c, &cl);
+			ret = bch2_btree_cache_cannibalize_lock(trans, &cl);
 			closure_sync(&cl);
 		} while (ret);
 	}
@@ -1013,7 +1013,7 @@ retry_all:
 	 * then failed to relock a path - that's fine.
 	 */
 err:
-	bch2_btree_cache_cannibalize_unlock(c);
+	bch2_btree_cache_cannibalize_unlock(trans);
 
 	trans->in_traverse_all = false;
 

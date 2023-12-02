@@ -72,7 +72,7 @@ DECLARE_EVENT_CLASS(trans_str,
 		  __entry->trans_fn, (void *) __entry->caller_ip, __get_str(str))
 );
 
-DECLARE_EVENT_CLASS(btree_node,
+DECLARE_EVENT_CLASS(btree_node_nofs,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b),
 
@@ -97,6 +97,33 @@ DECLARE_EVENT_CLASS(btree_node,
 		  __entry->pos_inode, __entry->pos_offset, __entry->pos_snapshot)
 );
 
+DECLARE_EVENT_CLASS(btree_node,
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__field(u8,		level			)
+		__field(u8,		btree_id		)
+		TRACE_BPOS_entries(pos)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__entry->level		= b->c.level;
+		__entry->btree_id	= b->c.btree_id;
+		TRACE_BPOS_assign(pos, b->key.k.p);
+	),
+
+	TP_printk("%d,%d %s %u %s %llu:%llu:%u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->trans_fn,
+		  __entry->level,
+		  bch2_btree_id_str(__entry->btree_id),
+		  __entry->pos_inode, __entry->pos_offset, __entry->pos_snapshot)
+);
+
 DECLARE_EVENT_CLASS(bch_fs,
 	TP_PROTO(struct bch_fs *c),
 	TP_ARGS(c),
@@ -110,6 +137,23 @@ DECLARE_EVENT_CLASS(bch_fs,
 	),
 
 	TP_printk("%d,%d", MAJOR(__entry->dev), MINOR(__entry->dev))
+);
+
+DECLARE_EVENT_CLASS(btree_trans,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+	),
+
+	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __entry->trans_fn)
 );
 
 DECLARE_EVENT_CLASS(bio,
@@ -330,36 +374,36 @@ TRACE_EVENT(btree_cache_scan,
 		  __entry->nr_to_scan, __entry->can_free, __entry->ret)
 );
 
-DEFINE_EVENT(btree_node, btree_cache_reap,
+DEFINE_EVENT(btree_node_nofs, btree_cache_reap,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_lock_fail,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_lock_fail,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_lock,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_lock,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
-DEFINE_EVENT(bch_fs, btree_cache_cannibalize_unlock,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(btree_trans, btree_cache_cannibalize_unlock,
+	TP_PROTO(struct btree_trans *trans),
+	TP_ARGS(trans)
 );
 
 /* Btree */
 
 DEFINE_EVENT(btree_node, btree_node_read,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_node_write,
@@ -383,13 +427,13 @@ TRACE_EVENT(btree_node_write,
 );
 
 DEFINE_EVENT(btree_node, btree_node_alloc,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_free,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_reserve_get_fail,
@@ -421,28 +465,28 @@ TRACE_EVENT(btree_reserve_get_fail,
 );
 
 DEFINE_EVENT(btree_node, btree_node_compact,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_merge,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_split,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_rewrite,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 DEFINE_EVENT(btree_node, btree_node_set_root,
-	TP_PROTO(struct bch_fs *c, struct btree *b),
-	TP_ARGS(c, b)
+	TP_PROTO(struct btree_trans *trans, struct btree *b),
+	TP_ARGS(trans, b)
 );
 
 TRACE_EVENT(btree_path_relock_fail,
