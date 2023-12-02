@@ -479,9 +479,9 @@ static int i2c_hid_finish_hwreset(struct i2c_hid *ihid)
 		clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
 	} else if (!wait_event_timeout(ihid->wait,
 				       !test_bit(I2C_HID_RESET_PENDING, &ihid->flags),
-				       msecs_to_jiffies(5000))) {
-		ret = -ENODATA;
-		goto err_clear_reset;
+				       msecs_to_jiffies(1000))) {
+		dev_warn(&ihid->client->dev, "device did not ack reset within 1000 ms\n");
+		clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
 	}
 	i2c_hid_dbg(ihid, "%s: finished.\n", __func__);
 
@@ -489,11 +489,6 @@ static int i2c_hid_finish_hwreset(struct i2c_hid *ihid)
 	if (!(ihid->quirks & I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET))
 		ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
 
-	return ret;
-
-err_clear_reset:
-	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
-	i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
 	return ret;
 }
 
