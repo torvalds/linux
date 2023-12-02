@@ -367,7 +367,7 @@ static void verbose_invalid_scalar(struct bpf_verifier_env *env,
 {
 	bool unknown = true;
 
-	verbose(env, "At %s the register %s has", ctx, reg_name);
+	verbose(env, "%s the register %s has", ctx, reg_name);
 	if (reg->smin_value > S64_MIN) {
 		verbose(env, " smin=%lld", reg->smin_value);
 		unknown = false;
@@ -9610,7 +9610,7 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 		/* enforce R0 return value range */
 		if (!retval_range_within(callee->callback_ret_range, r0)) {
 			verbose_invalid_scalar(env, r0, callee->callback_ret_range,
-					       "callback return", "R0");
+					       "At callback return", "R0");
 			return -EINVAL;
 		}
 		if (!calls_callback(env, callee->callsite)) {
@@ -14993,11 +14993,11 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 
 static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name)
 {
+	const char *exit_ctx = "At program exit";
 	struct tnum enforce_attach_type_range = tnum_unknown;
 	const struct bpf_prog *prog = env->prog;
 	struct bpf_reg_state *reg;
 	struct bpf_retval_range range = retval_range(0, 1);
-	struct bpf_retval_range const_0 = retval_range(0, 0);
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
 	int err;
 	struct bpf_func_state *frame = env->cur_state->frame[0];
@@ -15039,17 +15039,9 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 
 	if (frame->in_async_callback_fn) {
 		/* enforce return zero from async callbacks like timer */
-		if (reg->type != SCALAR_VALUE) {
-			verbose(env, "In async callback the register R%d is not a known value (%s)\n",
-				regno, reg_type_str(env, reg->type));
-			return -EINVAL;
-		}
-
-		if (!retval_range_within(const_0, reg)) {
-			verbose_invalid_scalar(env, reg, const_0, "async callback", reg_name);
-			return -EINVAL;
-		}
-		return 0;
+		exit_ctx = "At async callback return";
+		range = retval_range(0, 0);
+		goto enforce_retval;
 	}
 
 	if (is_subprog && !frame->in_exception_callback_fn) {
@@ -15139,15 +15131,17 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 		return 0;
 	}
 
+enforce_retval:
 	if (reg->type != SCALAR_VALUE) {
-		verbose(env, "At program exit the register R%d is not a known value (%s)\n",
-			regno, reg_type_str(env, reg->type));
+		verbose(env, "%s the register R%d is not a known value (%s)\n",
+			exit_ctx, regno, reg_type_str(env, reg->type));
 		return -EINVAL;
 	}
 
 	if (!retval_range_within(range, reg)) {
-		verbose_invalid_scalar(env, reg, range, "program exit", reg_name);
-		if (prog->expected_attach_type == BPF_LSM_CGROUP &&
+		verbose_invalid_scalar(env, reg, range, exit_ctx, reg_name);
+		if (!is_subprog &&
+		    prog->expected_attach_type == BPF_LSM_CGROUP &&
 		    prog_type == BPF_PROG_TYPE_LSM &&
 		    !prog->aux->attach_func_proto->type)
 			verbose(env, "Note, BPF_LSM_CGROUP that attach to void LSM hooks can't modify return value!\n");
