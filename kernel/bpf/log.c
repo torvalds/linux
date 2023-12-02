@@ -539,6 +539,19 @@ static void verbose_snum(struct bpf_verifier_env *env, s64 num)
 		verbose(env, "%#llx", num);
 }
 
+int tnum_strn(char *str, size_t size, struct tnum a)
+{
+	/* print as a constant, if tnum is fully known */
+	if (a.mask == 0) {
+		if (is_unum_decimal(a.value))
+			return snprintf(str, size, "%llu", a.value);
+		else
+			return snprintf(str, size, "%#llx", a.value);
+	}
+	return snprintf(str, size, "(%#llx; %#llx)", a.value, a.mask);
+}
+EXPORT_SYMBOL_GPL(tnum_strn);
+
 static void print_scalar_ranges(struct bpf_verifier_env *env,
 				const struct bpf_reg_state *reg,
 				const char **sep)
