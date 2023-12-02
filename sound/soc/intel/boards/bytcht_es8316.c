@@ -471,10 +471,10 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	struct byt_cht_es8316_private *priv;
 	const struct dmi_system_id *dmi_id;
 	struct fwnode_handle *fwnode;
+	bool sof_parent, is_bytcr;
 	const char *platform_name;
 	struct acpi_device *adev;
 	struct device *codec_dev;
-	bool sof_parent;
 	unsigned int cnt = 0;
 	int dai_index = 0;
 	int i;
@@ -524,11 +524,11 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	es83xx_dsm_dump(priv->codec_dev);
 
 	/* Check for BYTCR or other platform and setup quirks */
+	is_bytcr = soc_intel_is_byt() && mach->mach_params.acpi_ipc_irq_index == 0;
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
 	if (dmi_id) {
 		quirk = (unsigned long)dmi_id->driver_data;
-	} else if (soc_intel_is_byt() &&
-		   mach->mach_params.acpi_ipc_irq_index == 0) {
+	} else if (is_bytcr) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;
