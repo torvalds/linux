@@ -1592,6 +1592,11 @@ sub push_parameter($$$$$) {
 		$parameterdescs{$param} = "anonymous\n";
 		$anon_struct_union = 1;
 	}
+	elsif ($param =~ "__cacheline_group" )
+	# handle cache group enforcing variables: they do not need be described in header files
+	{
+		return; # ignore __cacheline_group_begin and __cacheline_group_end
+	}
 
 	# warn if parameter has no description
 	# (but ignore ones starting with # as these are not parameters
