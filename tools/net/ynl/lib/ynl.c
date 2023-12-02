@@ -145,8 +145,10 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 	const struct nlattr *attr;
 	const char *str = NULL;
 
-	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS))
+	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS)) {
+		yerr_msg(ys, "%s", strerror(ys->err.code));
 		return MNL_CB_OK;
+	}
 
 	mnl_attr_for_each(attr, nlh, hlen) {
 		unsigned int len, type;
@@ -249,6 +251,8 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		yerr_msg(ys, "Kernel %s: %s%s",
 			 ys->err.code ? "error" : "warning",
 			 bad_attr, miss_attr);
+	else
+		yerr_msg(ys, "%s", strerror(ys->err.code));
 
 	return MNL_CB_OK;
 }
