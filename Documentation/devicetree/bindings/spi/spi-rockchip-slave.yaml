@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clauseyy
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/spi-rockchip-slave.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip SPI Slave Controller
+
+description:
+  The Rockchip SPI Slave controller is used to interface with SPI Master Controller.
+
+allOf:
+  - $ref: "spi-controller.yaml#"
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+# Everything else is described in the common file
+properties:
+  compatible:
+    oneOf:
+      - const: rockchip,spi-slave
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: transfer-clock
+      - description: peripheral clock
+
+  clock-names:
+    items:
+      - const: spiclk
+      - const: apb_pclk
+      - const: sclk_in
+
+  dmas:
+    items:
+      - description: TX DMA Channel
+      - description: RX DMA Channel
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  rockchip,cs-inactive-disable:
+    description: Add this property to disable the cs inactive interrupt for spi
+      slave.
+    type: boolean
+
+  ready-gpios:
+    description: GPIO spec for the spi slave ready signal.
+    maxItems: 1
+
+  rockchip,autosuspend-delay-ms:
+    default: 0
+    description: Set pm runtime autosuspend value in milliseconds.
+
+  rockchip,sram:
+    description: Specify sram buffer as SPI Slave DMA buffer.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3188-cru-common.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi0: spi@ff110000 {
+      compatible = "rockchip,spi-slave";
+      reg = <0xff110000 0x1000>;
+      interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>, <&cru SCLK_IN_SPI0>;
+      clock-names = "spiclk", "apb_pclk", "sclk_in";
+      dmas = <&pdma1 11>, <&pdma1 12>;
+      dma-names = "tx", "rx";
+      #address-cells = <1>;
+      #size-cells = <0>;
+      ready-gpios = <&gpio1 RK_PD3 GPIO_ACTIVE_LOW>;
+    };
