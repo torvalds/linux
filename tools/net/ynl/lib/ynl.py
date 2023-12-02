@@ -705,7 +705,7 @@ class YnlFamily(SpecFamily):
 
       return op['do']['request']['attributes'].copy()
 
-    def _op(self, method, vals, flags, dump=False):
+    def _op(self, method, vals, flags=None, dump=False):
         op = self.ops[method]
 
         nl_flags = Netlink.NLM_F_REQUEST | Netlink.NLM_F_ACK
@@ -769,7 +769,7 @@ class YnlFamily(SpecFamily):
             return rsp[0]
         return rsp
 
-    def do(self, method, vals, flags):
+    def do(self, method, vals, flags=None):
         return self._op(method, vals, flags)
 
     def dump(self, method, vals):
