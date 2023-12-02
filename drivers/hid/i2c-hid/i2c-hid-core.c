@@ -426,7 +426,7 @@ set_pwr_exit:
 	return ret;
 }
 
-static int i2c_hid_hwreset(struct i2c_hid *ihid)
+static int i2c_hid_start_hwreset(struct i2c_hid *ihid)
 {
 	size_t length = 0;
 	int ret;
@@ -438,11 +438,11 @@ static int i2c_hid_hwreset(struct i2c_hid *ihid)
 	 * being reset. Otherwise we may lose the reset complete
 	 * interrupt.
 	 */
-	mutex_lock(&ihid->reset_lock);
+	lockdep_assert_held(&ihid->reset_lock);
 
 	ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
 	if (ret)
-		goto err_unlock;
+		return ret;
 
 	/* Prepare reset command. Command register goes first. */
 	*(__le16 *)ihid->cmdbuf = ihid->hdesc.wCommandRegister;
@@ -459,6 +459,18 @@ static int i2c_hid_hwreset(struct i2c_hid *ihid)
 			"failed to reset device: %d\n", ret);
 		goto err_clear_reset;
 	}
+
+	return 0;
+
+err_clear_reset:
+	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
+	i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
+	return ret;
+}
+
+static int i2c_hid_finish_hwreset(struct i2c_hid *ihid)
+{
+	int ret = 0;
 
 	i2c_hid_dbg(ihid, "%s: waiting...\n", __func__);
 
@@ -477,14 +489,11 @@ static int i2c_hid_hwreset(struct i2c_hid *ihid)
 	if (!(ihid->quirks & I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET))
 		ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
 
-	mutex_unlock(&ihid->reset_lock);
 	return ret;
 
 err_clear_reset:
 	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
 	i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
-err_unlock:
-	mutex_unlock(&ihid->reset_lock);
 	return ret;
 }
 
@@ -731,7 +740,11 @@ static int i2c_hid_parse(struct hid_device *hid)
 	}
 
 	do {
-		ret = i2c_hid_hwreset(ihid);
+		mutex_lock(&ihid->reset_lock);
+		ret = i2c_hid_start_hwreset(ihid);
+		if (ret == 0)
+			ret = i2c_hid_finish_hwreset(ihid);
+		mutex_unlock(&ihid->reset_lock);
 		if (ret)
 			msleep(1000);
 	} while (tries-- > 0 && ret);
@@ -974,10 +987,15 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 	 * However some ALPS touchpads generate IRQ storm without reset, so
 	 * let's still reset them here.
 	 */
-	if (ihid->quirks & I2C_HID_QUIRK_RESET_ON_RESUME)
-		ret = i2c_hid_hwreset(ihid);
-	else
+	if (ihid->quirks & I2C_HID_QUIRK_RESET_ON_RESUME) {
+		mutex_lock(&ihid->reset_lock);
+		ret = i2c_hid_start_hwreset(ihid);
+		if (ret == 0)
+			ret = i2c_hid_finish_hwreset(ihid);
+		mutex_unlock(&ihid->reset_lock);
+	} else {
 		ret = i2c_hid_set_power(ihid, I2C_HID_PWR_ON);
+	}
 
 	if (ret)
 		return ret;
