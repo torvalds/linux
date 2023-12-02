@@ -12,10 +12,6 @@
 
 	aliases {
 		ethernet0 = &gmac;
-		gpio0 = &gpio0;
-		gpio1 = &gpio1;
-		gpio2 = &gpio2;
-		gpio3 = &gpio3;
 		mmc0 = &emmc;
 		mmc1 = &sdmmc;
 		serial0 = &uart1;
