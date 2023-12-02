@@ -4949,20 +4949,18 @@ static int check_zone_write_pointer(struct f2fs_sb_info *sbi,
 		return ret;
 	}
 
-	if (is_set_ckpt_flags(sbi, CP_UMOUNT_FLAG)) {
-		/*
-		 * If there are valid blocks and the write pointer doesn't match
-		 * with them, we need to report the inconsistency and fill
-		 * the zone till the end to close the zone. This inconsistency
-		 * does not cause write error because the zone will not be
-		 * selected for write operation until it get discarded.
-		 */
-		f2fs_notice(sbi, "Valid blocks are not aligned with write "
+	/*
+	 * If there are valid blocks and the write pointer doesn't match
+	 * with them, we need to report the inconsistency and fill
+	 * the zone till the end to close the zone. This inconsistency
+	 * does not cause write error because the zone will not be
+	 * selected for write operation until it get discarded.
+	 */
+	f2fs_notice(sbi, "Valid blocks are not aligned with write "
 			    "pointer: valid block[0x%x,0x%x] wp[0x%x,0x%x]",
 			    GET_SEGNO(sbi, last_valid_block),
 			    GET_BLKOFF_FROM_SEG0(sbi, last_valid_block),
 			    wp_segno, wp_blkoff);
-	}
 
 	ret = blkdev_zone_mgmt(fdev->bdev, REQ_OP_ZONE_FINISH,
 				zone->start, zone->len, GFP_NOFS);
@@ -5053,15 +5051,18 @@ static int fix_curseg_write_pointer(struct f2fs_sb_info *sbi, int type)
 		f2fs_notice(sbi, "Unaligned curseg[%d] with write pointer: "
 			    "curseg[0x%x,0x%x] wp[0x%x,0x%x]", type, cs->segno,
 			    cs->next_blkoff, wp_segno, wp_blkoff);
-	} else {
-		f2fs_notice(sbi, "Not successfully unmounted in the previous "
-			    "mount");
 	}
 
-	f2fs_notice(sbi, "Assign new section to curseg[%d]: "
-		    "curseg[0x%x,0x%x]", type, cs->segno, cs->next_blkoff);
+	/* Allocate a new section if it's not new. */
+	if (cs->next_blkoff) {
+		unsigned int old_segno = cs->segno, old_blkoff = cs->next_blkoff;
 
-	f2fs_allocate_new_section(sbi, type, true);
+		f2fs_allocate_new_section(sbi, type, true);
+		f2fs_notice(sbi, "Assign new section to curseg[%d]: "
+				"[0x%x,0x%x] -> [0x%x,0x%x]",
+				type, old_segno, old_blkoff,
+				cs->segno, cs->next_blkoff);
+	}
 
 	/* check consistency of the zone curseg pointed to */
 	if (check_zone_write_pointer(sbi, zbd, &zone))
