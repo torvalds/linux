@@ -118,8 +118,6 @@
 #define HPRE_DFX_COMMON2_LEN		0xE
 #define HPRE_DFX_CORE_LEN		0x43
 
-#define HPRE_DEV_ALG_MAX_LEN	256
-
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -135,12 +133,7 @@ struct hpre_hw_error {
 	const char *msg;
 };
 
-struct hpre_dev_alg {
-	u32 alg_msk;
-	const char *alg;
-};
-
-static const struct hpre_dev_alg hpre_dev_algs[] = {
+static const struct qm_dev_alg hpre_dev_algs[] = {
 	{
 		.alg_msk = BIT(0),
 		.alg = "rsa\n"
@@ -357,35 +350,6 @@ bool hpre_check_alg_support(struct hisi_qm *qm, u32 alg)
 		return true;
 
 	return false;
-}
-
-static int hpre_set_qm_algs(struct hisi_qm *qm)
-{
-	struct device *dev = &qm->pdev->dev;
-	char *algs, *ptr;
-	u32 alg_msk;
-	int i;
-
-	if (!qm->use_sva)
-		return 0;
-
-	algs = devm_kzalloc(dev, HPRE_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
-	if (!algs)
-		return -ENOMEM;
-
-	alg_msk = hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_DEV_ALG_BITMAP_CAP, qm->cap_ver);
-
-	for (i = 0; i < ARRAY_SIZE(hpre_dev_algs); i++)
-		if (alg_msk & hpre_dev_algs[i].alg_msk)
-			strcat(algs, hpre_dev_algs[i].alg);
-
-	ptr = strrchr(algs, '\n');
-	if (ptr)
-		*ptr = '\0';
-
-	qm->uacce->algs = algs;
-
-	return 0;
 }
 
 static int hpre_diff_regs_show(struct seq_file *s, void *unused)
@@ -1138,6 +1102,7 @@ static void hpre_debugfs_exit(struct hisi_qm *qm)
 
 static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	u64 alg_msk;
 	int ret;
 
 	if (pdev->revision == QM_HW_V1) {
@@ -1168,7 +1133,8 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return ret;
 	}
 
-	ret = hpre_set_qm_algs(qm);
+	alg_msk = hisi_qm_get_hw_info(qm, hpre_basic_info, HPRE_DEV_ALG_BITMAP_CAP, qm->cap_ver);
+	ret = hisi_qm_set_algs(qm, alg_msk, hpre_dev_algs, ARRAY_SIZE(hpre_dev_algs));
 	if (ret) {
 		pci_err(pdev, "Failed to set hpre algs!\n");
 		hisi_qm_uninit(qm);

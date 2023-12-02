@@ -74,7 +74,6 @@
 #define HZIP_AXI_SHUTDOWN_ENABLE	BIT(14)
 #define HZIP_WR_PORT			BIT(11)
 
-#define HZIP_DEV_ALG_MAX_LEN		256
 #define HZIP_ALG_ZLIB_BIT		GENMASK(1, 0)
 #define HZIP_ALG_GZIP_BIT		GENMASK(3, 2)
 #define HZIP_ALG_DEFLATE_BIT		GENMASK(5, 4)
@@ -128,23 +127,18 @@ struct zip_dfx_item {
 	u32 offset;
 };
 
-struct zip_dev_alg {
-	u32 alg_msk;
-	const char *algs;
-};
-
-static const struct zip_dev_alg zip_dev_algs[] = { {
+static const struct qm_dev_alg zip_dev_algs[] = { {
 		.alg_msk = HZIP_ALG_ZLIB_BIT,
-		.algs = "zlib\n",
+		.alg = "zlib\n",
 	}, {
 		.alg_msk = HZIP_ALG_GZIP_BIT,
-		.algs = "gzip\n",
+		.alg = "gzip\n",
 	}, {
 		.alg_msk = HZIP_ALG_DEFLATE_BIT,
-		.algs = "deflate\n",
+		.alg = "deflate\n",
 	}, {
 		.alg_msk = HZIP_ALG_LZ77_BIT,
-		.algs = "lz77_zstd\n",
+		.alg = "lz77_zstd\n",
 	},
 };
 
@@ -476,35 +470,6 @@ static int hisi_zip_set_high_perf(struct hisi_qm *qm)
 		pci_err(qm->pdev, "failed to set perf mode\n");
 
 	return ret;
-}
-
-static int hisi_zip_set_qm_algs(struct hisi_qm *qm)
-{
-	struct device *dev = &qm->pdev->dev;
-	char *algs, *ptr;
-	u32 alg_mask;
-	int i;
-
-	if (!qm->use_sva)
-		return 0;
-
-	algs = devm_kzalloc(dev, HZIP_DEV_ALG_MAX_LEN * sizeof(char), GFP_KERNEL);
-	if (!algs)
-		return -ENOMEM;
-
-	alg_mask = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_DEV_ALG_BITMAP, qm->cap_ver);
-
-	for (i = 0; i < ARRAY_SIZE(zip_dev_algs); i++)
-		if (alg_mask & zip_dev_algs[i].alg_msk)
-			strcat(algs, zip_dev_algs[i].algs);
-
-	ptr = strrchr(algs, '\n');
-	if (ptr)
-		*ptr = '\0';
-
-	qm->uacce->algs = algs;
-
-	return 0;
 }
 
 static void hisi_zip_open_sva_prefetch(struct hisi_qm *qm)
@@ -1193,6 +1158,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
+	u64 alg_msk;
 	int ret;
 
 	qm->pdev = pdev;
@@ -1228,7 +1194,8 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		return ret;
 	}
 
-	ret = hisi_zip_set_qm_algs(qm);
+	alg_msk = hisi_qm_get_hw_info(qm, zip_basic_cap_info, ZIP_DEV_ALG_BITMAP, qm->cap_ver);
+	ret = hisi_qm_set_algs(qm, alg_msk, zip_dev_algs, ARRAY_SIZE(zip_dev_algs));
 	if (ret) {
 		pci_err(qm->pdev, "Failed to set zip algs!\n");
 		hisi_qm_uninit(qm);
