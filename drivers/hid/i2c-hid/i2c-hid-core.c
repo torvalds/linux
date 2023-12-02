@@ -725,11 +725,10 @@ static int i2c_hid_parse(struct hid_device *hid)
 	struct i2c_client *client = hid->driver_data;
 	struct i2c_hid *ihid = i2c_get_clientdata(client);
 	struct i2c_hid_desc *hdesc = &ihid->hdesc;
+	char *rdesc = NULL, *use_override = NULL;
 	unsigned int rsize;
-	char *rdesc;
 	int ret;
 	int tries = 3;
-	char *use_override;
 
 	i2c_hid_dbg(ihid, "entering %s\n", __func__);
 
@@ -739,18 +738,15 @@ static int i2c_hid_parse(struct hid_device *hid)
 		return -EINVAL;
 	}
 
+	mutex_lock(&ihid->reset_lock);
 	do {
-		mutex_lock(&ihid->reset_lock);
 		ret = i2c_hid_start_hwreset(ihid);
-		if (ret == 0)
-			ret = i2c_hid_finish_hwreset(ihid);
-		mutex_unlock(&ihid->reset_lock);
 		if (ret)
 			msleep(1000);
 	} while (tries-- > 0 && ret);
 
 	if (ret)
-		return ret;
+		goto abort_reset;
 
 	use_override = i2c_hid_get_dmi_hid_report_desc_override(client->name,
 								&rsize);
@@ -762,8 +758,8 @@ static int i2c_hid_parse(struct hid_device *hid)
 		rdesc = kzalloc(rsize, GFP_KERNEL);
 
 		if (!rdesc) {
-			dbg_hid("couldn't allocate rdesc memory\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto abort_reset;
 		}
 
 		i2c_hid_dbg(ihid, "asking HID report descriptor\n");
@@ -773,9 +769,22 @@ static int i2c_hid_parse(struct hid_device *hid)
 					    rdesc, rsize);
 		if (ret) {
 			hid_err(hid, "reading report descriptor failed\n");
-			goto out;
+			goto abort_reset;
 		}
 	}
+
+	/*
+	 * Windows directly reads the report-descriptor after sending reset
+	 * and then waits for resets completion afterwards. Some touchpads
+	 * actually wait for the report-descriptor to be read before signalling
+	 * reset completion.
+	 */
+	ret = i2c_hid_finish_hwreset(ihid);
+abort_reset:
+	clear_bit(I2C_HID_RESET_PENDING, &ihid->flags);
+	mutex_unlock(&ihid->reset_lock);
+	if (ret)
+		goto out;
 
 	i2c_hid_dbg(ihid, "Report Descriptor: %*ph\n", rsize, rdesc);
 
