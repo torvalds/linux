@@ -15138,6 +15138,10 @@ enforce_retval:
 		return -EINVAL;
 	}
 
+	err = mark_chain_precision(env, regno);
+	if (err)
+		return err;
+
 	if (!retval_range_within(range, reg)) {
 		verbose_invalid_scalar(env, reg, range, exit_ctx, reg_name);
 		if (!is_subprog &&
