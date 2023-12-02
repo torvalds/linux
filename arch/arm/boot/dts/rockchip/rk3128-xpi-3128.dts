@@ -14,7 +14,6 @@
 		ethernet0 = &gmac;
 		mmc0 = &emmc;
 		mmc1 = &sdmmc;
-		serial0 = &uart1;
 	};
 
 	memory@60000000 {
@@ -23,7 +22,7 @@
 	};
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		stdout-path = &uart1;
 	};
 
 	adc-keys {
