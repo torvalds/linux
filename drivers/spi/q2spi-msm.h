@@ -54,6 +54,7 @@
 #define ADDR_LESS_WR_ACCESS		3
 #define ADDR_LESS_RD_ACCESS		4
 #define BULK_ACCESS_STATUS		8
+#define CR_ADDR_LESS_RD			0xF4
 
 #define Q2SPI_HEADER_LEN		7 /* 7 bytes header excluding checksum we use in SW */
 #define DMA_Q2SPI_SIZE			2048
@@ -208,6 +209,7 @@ enum q2spi_pkt_in_use_state {
 	IN_USE_FALSE = 0,
 	IN_USE_TRUE = 1,
 	IN_DELETION = 2,
+	DELETED = 3,
 };
 
 struct q2spi_mc_hrf_entry {
@@ -404,6 +406,8 @@ struct q2spi_dma_transfer {
  * @readq: waitqueue for rx data
  * @hw_state_is_bad: used when HW is in un-recoverable state
  * @max_dump_data_size: max size of data to be dumped as part of dump_ipc function
+ * @doorbell_pending: Set when independent doorbell CR received
+ * @retry: used when independent doorbell processing is pending to retry the request from host
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -479,6 +483,8 @@ struct q2spi_geni {
 	wait_queue_head_t read_wq;
 	bool hw_state_is_bad;
 	int max_data_dump_size;
+	atomic_t doorbell_pending;
+	atomic_t retry;
 };
 
 /**
