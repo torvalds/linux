@@ -11805,7 +11805,7 @@ static int fetch_kfunc_meta(struct bpf_verifier_env *env,
 	return 0;
 }
 
-static int check_return_code(struct bpf_verifier_env *env, int regno);
+static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name);
 
 static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			    int *insn_idx_p)
@@ -11942,7 +11942,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		 * to bpf_throw becomes the return value of the program.
 		 */
 		if (!env->exception_callback_subprog) {
-			err = check_return_code(env, BPF_REG_1);
+			err = check_return_code(env, BPF_REG_1, "R1");
 			if (err < 0)
 				return err;
 		}
@@ -14972,7 +14972,7 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	return 0;
 }
 
-static int check_return_code(struct bpf_verifier_env *env, int regno)
+static int check_return_code(struct bpf_verifier_env *env, int regno, const char *reg_name)
 {
 	struct tnum enforce_attach_type_range = tnum_unknown;
 	const struct bpf_prog *prog = env->prog;
@@ -15026,7 +15026,7 @@ static int check_return_code(struct bpf_verifier_env *env, int regno)
 		}
 
 		if (!tnum_in(const_0, reg->var_off)) {
-			verbose_invalid_scalar(env, reg, &const_0, "async callback", "R0");
+			verbose_invalid_scalar(env, reg, &const_0, "async callback", reg_name);
 			return -EINVAL;
 		}
 		return 0;
@@ -15126,7 +15126,7 @@ static int check_return_code(struct bpf_verifier_env *env, int regno)
 	}
 
 	if (!tnum_in(range, reg->var_off)) {
-		verbose_invalid_scalar(env, reg, &range, "program exit", "R0");
+		verbose_invalid_scalar(env, reg, &range, "program exit", reg_name);
 		if (prog->expected_attach_type == BPF_LSM_CGROUP &&
 		    prog_type == BPF_PROG_TYPE_LSM &&
 		    !prog->aux->attach_func_proto->type)
@@ -17410,7 +17410,7 @@ process_bpf_exit_full:
 					continue;
 				}
 
-				err = check_return_code(env, BPF_REG_0);
+				err = check_return_code(env, BPF_REG_0, "R0");
 				if (err)
 					return err;
 process_bpf_exit:
