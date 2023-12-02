@@ -1257,7 +1257,6 @@ void rkisp_hw_enum_isp_size(struct rkisp_hw_dev *hw_dev)
 	struct rkisp_device *isp;
 	u32 w, h, i;
 
-	memset(hw_dev->isp_size, 0, sizeof(hw_dev->isp_size));
 	if (!hw_dev->max_in.is_fix) {
 		hw_dev->max_in.w = 0;
 		hw_dev->max_in.h = 0;
