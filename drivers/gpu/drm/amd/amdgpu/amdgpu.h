@@ -791,6 +791,7 @@ struct amdgpu_mqd_prop {
 	uint64_t eop_gpu_addr;
 	uint32_t hqd_pipe_priority;
 	uint32_t hqd_queue_priority;
+	bool allow_tunneling;
 	bool hqd_active;
 };
 
