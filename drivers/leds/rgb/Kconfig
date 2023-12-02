@@ -4,7 +4,7 @@ if LEDS_CLASS_MULTICOLOR
 
 config LEDS_GROUP_MULTICOLOR
 	tristate "LEDs group multi-color support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  This option enables support for monochrome LEDs that are grouped
 	  into multicolor LEDs which is useful in the case where LEDs of
