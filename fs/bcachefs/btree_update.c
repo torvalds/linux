@@ -554,6 +554,19 @@ int __must_check bch2_trans_update_seq(struct btree_trans *trans, u64 seq,
 						 BTREE_UPDATE_PREJOURNAL);
 }
 
+static noinline int bch2_btree_insert_clone_trans(struct btree_trans *trans,
+						  enum btree_id btree,
+						  struct bkey_i *k)
+{
+	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(&k->k));
+	int ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_copy(n, k);
+	return bch2_btree_insert_trans(trans, btree, n, 0);
+}
+
 int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 					    enum btree_id btree,
 					    struct bkey_i *k)
@@ -563,6 +576,9 @@ int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 
 	EBUG_ON(trans->nr_wb_updates > trans->wb_updates_size);
 	EBUG_ON(k->k.u64s > BTREE_WRITE_BUFERED_U64s_MAX);
+
+	if (unlikely(trans->journal_replay_not_finished))
+		return bch2_btree_insert_clone_trans(trans, btree, k);
 
 	trans_for_each_wb_update(trans, i) {
 		if (i->btree == btree && bpos_eq(i->k.k.p, k->k.p)) {
