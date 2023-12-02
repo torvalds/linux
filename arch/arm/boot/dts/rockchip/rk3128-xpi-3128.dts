@@ -11,6 +11,7 @@
 	compatible = "geniatech,xpi-3128", "rockchip,rk3128";
 
 	aliases {
+		ethernet0 = &gmac;
 		gpio0 = &gpio0;
 		gpio1 = &gpio1;
 		gpio2 = &gpio2;
@@ -255,6 +256,18 @@
 	status = "okay";
 };
 
+&gmac {
+	clock_in_out = "output";
+	phy-supply = <&vcc_lan>;
+	phy-mode = "rmii";
+	phy-handle = <&phy0>;
+	assigned-clocks = <&cru SCLK_MAC_SRC>;
+	assigned-clock-rates= <50000000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins>;
+	status = "okay";
+};
+
 &gpio0 {
 	gpio-line-names = /* GPIO0 A0-A7 */
 			  "", "", "HEADER_5", "HEADER_3",
@@ -313,6 +326,21 @@
 			  /* GPIO3 D0-D7 */
 			  "", "", "", "HEADER_15",
 			  "", "", "", "";
+};
+
+&mdio {
+	phy0: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+		max-speed = <100>;
+		/* T2.2.4 min. 1 us */
+		reset-assert-us = <10>;
+		/* T2.2.1 + T2.2.2 + T2.2.3 min. 6.05 us */
+		reset-deassert-us = <20>;
+		reset-gpios = <&gpio2 RK_PD0 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dp83848c_rst>;
+	};
 };
 
 &pinctrl {
