@@ -19,7 +19,7 @@
 #include "boot.h"
 #include "uv.h"
 
-unsigned long __bootdata_preserved(__kaslr_offset);
+struct vm_layout __bootdata_preserved(vm_layout);
 unsigned long __bootdata_preserved(__abs_lowcore);
 unsigned long __bootdata_preserved(__memcpy_real_area);
 pte_t *__bootdata_preserved(memcpy_real_ptep);
@@ -30,7 +30,6 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata_preserved(max_mappable);
-unsigned long __bootdata(ident_map_size);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 u64 __bootdata_preserved(alt_stfle_fac_list[16]);

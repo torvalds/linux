@@ -178,7 +178,16 @@ int arch_make_page_accessible(struct page *page);
 #define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
 #endif
 
-extern unsigned long __kaslr_offset;
+struct vm_layout {
+	unsigned long kaslr_offset;
+	unsigned long identity_size;
+};
+
+extern struct vm_layout vm_layout;
+
+#define __kaslr_offset		vm_layout.kaslr_offset
+#define ident_map_size		vm_layout.identity_size
+
 static inline unsigned long kaslr_offset(void)
 {
 	return __kaslr_offset;

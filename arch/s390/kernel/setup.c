@@ -146,10 +146,9 @@ static u32 __amode31_ref *__ctl_linkage_stack = __ctl_linkage_stack_amode31;
 static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
 unsigned long __bootdata_preserved(max_mappable);
-unsigned long __bootdata(ident_map_size);
 struct physmem_info __bootdata(physmem_info);
 
-unsigned long __bootdata_preserved(__kaslr_offset);
+struct vm_layout __bootdata_preserved(vm_layout);
 int __bootdata_preserved(__kaslr_enabled);
 unsigned int __bootdata_preserved(zlib_dfltcc_support);
 EXPORT_SYMBOL(zlib_dfltcc_support);
