@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include "../../codecs/es83xx-dsm-common.h"
 #include "../atom/sst-atom-controls.h"
 #include "../common/soc-intel-quirks.h"
 
@@ -519,6 +520,8 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		put_device(codec_dev);
 		return ret;
 	}
+
+	es83xx_dsm_dump(priv->codec_dev);
 
 	/* Check for BYTCR or other platform and setup quirks */
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
