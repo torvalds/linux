@@ -12,7 +12,6 @@
 	compatible = "rockchip,rk3128-evb", "rockchip,rk3128";
 
 	aliases {
-		i2c1 = &i2c1;
 		mmc0 = &emmc;
 	};
 
