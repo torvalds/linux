@@ -67,7 +67,7 @@ __naked void ptr_to_long_half_uninitialized(void)
 
 SEC("cgroup/sysctl")
 __description("ARG_PTR_TO_LONG misaligned")
-__failure __msg("misaligned stack access off (0x0; 0x0)+-20+0 size 8")
+__failure __msg("misaligned stack access off 0+-20+0 size 8")
 __naked void arg_ptr_to_long_misaligned(void)
 {
 	asm volatile ("					\
