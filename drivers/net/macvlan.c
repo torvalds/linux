@@ -609,6 +609,7 @@ static const struct header_ops macvlan_hard_header_ops = {
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
+	.parse_protocol	= eth_header_parse_protocol,
 };
 
 static int macvlan_open(struct net_device *dev)
