@@ -1505,7 +1505,8 @@ void gfs2_quota_cleanup(struct gfs2_sbd *sdp)
 	LIST_HEAD(dispose);
 	int count;
 
-	BUG_ON(test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
+	BUG_ON(!test_bit(SDF_NORECOVERY, &sdp->sd_flags) &&
+		test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
 
 	spin_lock(&qd_lock);
 	list_for_each_entry(qd, &sdp->sd_quota_list, qd_list) {
