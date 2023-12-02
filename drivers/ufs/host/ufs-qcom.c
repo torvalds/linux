@@ -1065,17 +1065,38 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 {
 	struct ufs_host_params *host_params = &host->host_params;
+	u32 val, dev_major;
 
 	host->phy_gear = host_params->hs_tx_gear;
 
-	/*
-	 * For controllers whose major HW version is < 4, power up the PHY using
-	 * minimum supported gear (UFS_HS_G2). Switching to max gear will be
-	 * performed during reinit if supported. For newer controllers, whose
-	 * major HW version is >= 4, power up the PHY using max supported gear.
-	 */
-	if (host->hw_ver.major < 0x4)
+	if (host->hw_ver.major < 0x4) {
+		/*
+		 * For controllers whose major HW version is < 4, power up the
+		 * PHY using minimum supported gear (UFS_HS_G2). Switching to
+		 * max gear will be performed during reinit if supported.
+		 * For newer controllers, whose major HW version is >= 4, power
+		 * up the PHY using max supported gear.
+		 */
 		host->phy_gear = UFS_HS_G2;
+	} else if (host->hw_ver.major >= 0x5) {
+		val = ufshcd_readl(host->hba, REG_UFS_DEBUG_SPARE_CFG);
+		dev_major = FIELD_GET(UFS_DEV_VER_MAJOR_MASK, val);
+
+		/*
+		 * Since the UFS device version is populated, let's remove the
+		 * REINIT quirk as the negotiated gear won't change during boot.
+		 * So there is no need to do reinit.
+		 */
+		if (dev_major != 0x0)
+			host->hba->quirks &= ~UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
+
+		/*
+		 * For UFS 3.1 device and older, power up the PHY using HS-G4
+		 * PHY gear to save power.
+		 */
+		if (dev_major > 0x0 && dev_major < 0x4)
+			host->phy_gear = UFS_HS_G4;
+	}
 }
 
 static void ufs_qcom_set_host_params(struct ufs_hba *hba)

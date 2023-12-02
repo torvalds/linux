@@ -23,6 +23,8 @@
 #define UFS_HW_VER_MINOR_MASK	GENMASK(27, 16)
 #define UFS_HW_VER_STEP_MASK	GENMASK(15, 0)
 
+#define UFS_DEV_VER_MAJOR_MASK	GENMASK(7, 4)
+
 /* vendor specific pre-defined parameters */
 #define SLOW 1
 #define FAST 2
@@ -54,6 +56,8 @@ enum {
 	UFS_AH8_CFG				= 0xFC,
 
 	REG_UFS_CFG3				= 0x271C,
+
+	REG_UFS_DEBUG_SPARE_CFG			= 0x284C,
 };
 
 /* QCOM UFS host controller vendor specific debug registers */
