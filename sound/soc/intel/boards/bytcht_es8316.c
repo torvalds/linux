@@ -462,6 +462,66 @@ static const struct dmi_system_id byt_cht_es8316_quirk_table[] = {
 	{}
 };
 
+static int byt_cht_es8316_get_quirks_from_dsm(struct byt_cht_es8316_private *priv,
+					      bool is_bytcr)
+{
+	int ret, val1, val2, dsm_quirk = 0;
+
+	if (is_bytcr)
+		dsm_quirk |= BYT_CHT_ES8316_SSP0;
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_MAINMIC_TYPE_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_HPMIC_TYPE_ARG, &val2);
+	if (ret < 0)
+		return ret;
+
+	if (val1 == PLATFORM_MIC_AMIC_LIN1RIN1 && val2 == PLATFORM_MIC_AMIC_LIN2RIN2) {
+		dsm_quirk |= BYT_CHT_ES8316_INTMIC_IN1_MAP;
+	} else if (val1 == PLATFORM_MIC_AMIC_LIN2RIN2 && val2 == PLATFORM_MIC_AMIC_LIN1RIN1) {
+		dsm_quirk |= BYT_CHT_ES8316_INTMIC_IN2_MAP;
+	} else {
+		dev_warn(priv->codec_dev, "Unknown mic settings mainmic 0x%02x hpmic 0x%02x\n",
+			 val1, val2);
+		return -EINVAL;
+	}
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_SPK_TYPE_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	switch (val1) {
+	case PLATFORM_SPK_MONO:
+		dsm_quirk |= BYT_CHT_ES8316_MONO_SPEAKER;
+		break;
+	case PLATFORM_SPK_STEREO:
+		break;
+	default:
+		dev_warn(priv->codec_dev, "Unknown speaker setting 0x%02x\n", val1);
+		return -EINVAL;
+	}
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_HPDET_INV_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	switch (val1) {
+	case PLATFORM_HPDET_NORMAL:
+		break;
+	case PLATFORM_HPDET_INVERTED:
+		dsm_quirk |= BYT_CHT_ES8316_JD_INVERTED;
+		break;
+	default:
+		dev_warn(priv->codec_dev, "Unknown hpdet-inv setting 0x%02x\n", val1);
+		return -EINVAL;
+	}
+
+	quirk = dsm_quirk;
+	return 0;
+}
+
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -528,6 +588,8 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
 	if (dmi_id) {
 		quirk = (unsigned long)dmi_id->driver_data;
+	} else if (!byt_cht_es8316_get_quirks_from_dsm(priv, is_bytcr)) {
+		dev_info(dev, "Using ACPI DSM info for quirks\n");
 	} else if (is_bytcr) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
