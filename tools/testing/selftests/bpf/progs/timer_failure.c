@@ -30,7 +30,7 @@ static int timer_cb_ret1(void *map, int *key, struct bpf_timer *timer)
 }
 
 SEC("fentry/bpf_fentry_test1")
-__failure __msg("should have been in (0x0; 0x0)")
+__failure __msg("should have been in [0, 0]")
 int BPF_PROG2(test_ret_1, int, a)
 {
 	int key = 0;

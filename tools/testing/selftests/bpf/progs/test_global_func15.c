@@ -13,7 +13,7 @@ __noinline int foo(unsigned int *v)
 }
 
 SEC("cgroup_skb/ingress")
-__failure __msg("At program exit the register R0 has value")
+__failure __msg("At program exit the register R0 has ")
 int global_func15(struct __sk_buff *skb)
 {
 	unsigned int v = 1;

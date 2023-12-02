@@ -148,7 +148,7 @@ __msg("mark_precise: frame1: regs=r0 stack= before 11: (b7) r0 = 0")
 __msg("from 10 to 12: frame1: R0=scalar(smin=umin=1001")
 /* check that branch code path marks r0 as precise, before failing */
 __msg("mark_precise: frame1: regs=r0 stack= before 9: (85) call bpf_get_prandom_u32#7")
-__msg("At callback return the register R0 has value (0x0; 0x7fffffffffffffff) should have been in (0x0; 0x1)")
+__msg("At callback return the register R0 has smin=1001 should have been in [0, 1]")
 __naked int callback_precise_return_fail(void)
 {
 	asm volatile (
