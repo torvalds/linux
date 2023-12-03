@@ -432,8 +432,7 @@ load:
 		case S_INT:
 		case S_HEX:
 		case S_STRING:
-			if (sym->def[def].val)
-				free(sym->def[def].val);
+			free(sym->def[def].val);
 			/* fall through */
 		default:
 			sym->def[def].val = NULL;
