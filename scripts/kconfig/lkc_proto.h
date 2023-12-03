@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef LKC_PROTO_H
+#define LKC_PROTO_H
+
 #include <stdarg.h>
 
 /* confdata.c */
@@ -50,3 +53,5 @@ char *expand_one_token(const char **str);
 
 /* expr.c */
 void expr_print(struct expr *e, void (*fn)(void *, struct symbol *, const char *), void *data, int prevtoken);
+
+#endif /* LKC_PROTO_H */
