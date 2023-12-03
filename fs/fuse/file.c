@@ -1574,6 +1574,7 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t res;
 	bool exclusive_lock =
 		!(ff->open_flags & FOPEN_PARALLEL_DIRECT_WRITES) ||
+		get_fuse_conn(inode)->direct_io_allow_mmap ||
 		iocb->ki_flags & IOCB_APPEND ||
 		fuse_direct_write_extending_i_size(iocb, from);
 
@@ -1581,6 +1582,7 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	 * Take exclusive lock if
 	 * - Parallel direct writes are disabled - a user space decision
 	 * - Parallel direct writes are enabled and i_size is being extended.
+	 * - Shared mmap on direct_io file is supported (FUSE_DIRECT_IO_ALLOW_MMAP).
 	 *   This might not be needed at all, but needs further investigation.
 	 */
 	if (exclusive_lock)
