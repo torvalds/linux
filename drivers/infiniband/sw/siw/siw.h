@@ -417,10 +417,10 @@ struct siw_iwarp_tx {
 struct siw_qp {
 	struct ib_qp base_qp;
 	struct siw_device *sdev;
+	int tx_cpu;
 	struct kref ref;
 	struct completion qp_free;
 	struct list_head devq;
-	int tx_cpu;
 	struct siw_qp_attrs attrs;
 
 	struct siw_cep *cep;
