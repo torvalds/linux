@@ -754,9 +754,9 @@ TRACE_EVENT(move_extent_fail,
 	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
 );
 
-DEFINE_EVENT(bkey, move_extent_alloc_mem_fail,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(bkey, move_extent_start_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 TRACE_EVENT(move_data,

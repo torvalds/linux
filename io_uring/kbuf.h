@@ -15,6 +15,7 @@ struct io_buffer_list {
 			struct page **buf_pages;
 			struct io_uring_buf_ring *buf_ring;
 		};
+		struct rcu_head rcu;
 	};
 	__u16 bgid;
 
@@ -28,6 +29,8 @@ struct io_buffer_list {
 	__u8 is_mapped;
 	/* ring mapped provided buffers, but mmap'ed by application */
 	__u8 is_mmap;
+	/* bl is visible from an RCU point of view for lookup */
+	__u8 is_ready;
 };
 
 struct io_buffer {
@@ -50,6 +53,8 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags);
 
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
+
+void io_kbuf_mmap_list_free(struct io_ring_ctx *ctx);
 
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 

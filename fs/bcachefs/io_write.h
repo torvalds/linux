@@ -90,8 +90,7 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 	op->devs_need_flush	= NULL;
 }
 
-void bch2_write(struct closure *);
-
+CLOSURE_CALLBACK(bch2_write);
 void bch2_write_point_do_index_updates(struct work_struct *);
 
 static inline struct bch_write_bio *wbio_init(struct bio *bio)

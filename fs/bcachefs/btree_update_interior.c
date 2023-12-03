@@ -778,9 +778,9 @@ static void btree_interior_update_work(struct work_struct *work)
 	}
 }
 
-static void btree_update_set_nodes_written(struct closure *cl)
+static CLOSURE_CALLBACK(btree_update_set_nodes_written)
 {
-	struct btree_update *as = container_of(cl, struct btree_update, cl);
+	closure_type(as, struct btree_update, cl);
 	struct bch_fs *c = as->c;
 
 	mutex_lock(&c->btree_interior_update_lock);
@@ -1071,8 +1071,12 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			break;
 		}
 
+		/*
+		 * Always check for space for two keys, even if we won't have to
+		 * split at prior level - it might have been a merge instead:
+		 */
 		if (bch2_btree_node_insert_fits(c, path->l[update_level].b,
-					BKEY_BTREE_PTR_U64s_MAX * (1 + split)))
+						BKEY_BTREE_PTR_U64s_MAX * 2))
 			break;
 
 		split = path->l[update_level].b->nr.live_u64s > BTREE_SPLIT_THRESHOLD(c);
@@ -2265,6 +2269,10 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *trans,
 	}
 
 	BUG_ON(!btree_node_hashed(b));
+
+	struct bch_extent_ptr *ptr;
+	bch2_bkey_drop_ptrs(bkey_i_to_s(new_key), ptr,
+			    !bch2_bkey_has_device(bkey_i_to_s(&b->key), ptr->dev));
 
 	ret = bch2_btree_node_update_key(trans, &iter, b, new_key,
 					 commit_flags, skip_triggers);
