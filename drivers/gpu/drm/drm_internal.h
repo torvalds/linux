@@ -194,6 +194,8 @@ void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
 void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
+void drm_debugfs_encoder_add(struct drm_encoder *encoder);
+void drm_debugfs_encoder_remove(struct drm_encoder *encoder);
 #else
 static inline void drm_debugfs_dev_fini(struct drm_device *dev)
 {
@@ -228,6 +230,14 @@ static inline void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
 }
 
 static inline void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+{
+}
+
+static inline void drm_debugfs_encoder_add(struct drm_encoder *encoder)
+{
+}
+
+static inline void drm_debugfs_encoder_remove(struct drm_encoder *encoder)
 {
 }
 
