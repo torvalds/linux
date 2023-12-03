@@ -335,14 +335,10 @@ int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
 		     struct bkey_s_c, struct bkey_s_c, unsigned);
 int bch2_mark_reservation(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_s_c, unsigned);
-int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s_c, unsigned);
 
 int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
 int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_i *, unsigned);
-
 #define mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
 ({												\
 	int ret = 0;										\
