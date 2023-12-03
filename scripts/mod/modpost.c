@@ -90,6 +90,9 @@ void modpost_log(enum loglevel loglevel, const char *fmt, ...)
 		error_occurred = true;
 }
 
+void __attribute__((alias("modpost_log")))
+modpost_log_noret(enum loglevel loglevel, const char *fmt, ...);
+
 static inline bool strends(const char *str, const char *postfix)
 {
 	if (strlen(str) < strlen(postfix))
