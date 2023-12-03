@@ -95,7 +95,7 @@ static int __init amiga_a4000t_scsi_probe(struct platform_device *pdev)
 	return -ENODEV;
 }
 
-static int __exit amiga_a4000t_scsi_remove(struct platform_device *pdev)
+static void __exit amiga_a4000t_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *host = platform_get_drvdata(pdev);
 	struct NCR_700_Host_Parameters *hostdata = shost_priv(host);
@@ -106,11 +106,10 @@ static int __exit amiga_a4000t_scsi_remove(struct platform_device *pdev)
 	kfree(hostdata);
 	free_irq(host->irq, host);
 	release_mem_region(res->start, resource_size(res));
-	return 0;
 }
 
 static struct platform_driver amiga_a4000t_scsi_driver = {
-	.remove = __exit_p(amiga_a4000t_scsi_remove),
+	.remove_new = __exit_p(amiga_a4000t_scsi_remove),
 	.driver   = {
 		.name	= "amiga-a4000t-scsi",
 	},
