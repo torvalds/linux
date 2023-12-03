@@ -197,7 +197,8 @@ enum loglevel {
 	LOG_FATAL
 };
 
-void modpost_log(enum loglevel loglevel, const char *fmt, ...);
+void __attribute__((format(printf, 2, 3)))
+modpost_log(enum loglevel loglevel, const char *fmt, ...);
 
 /*
  * warn - show the given message, then let modpost continue running, still
