@@ -82,6 +82,8 @@
 					  "usb-valid",
 					  "dc-valid";
 
+			status = "disabled";
+
 			chg_otg: otg-vbus { };
 		};
 

@@ -430,6 +430,10 @@
 	pinctrl-1 = <&sdc2_off>;
 };
 
+&smbb {
+	status = "okay";
+};
+
 &tlmm {
 	sdc1_on: sdc1-on-state {
 		clk-pins {

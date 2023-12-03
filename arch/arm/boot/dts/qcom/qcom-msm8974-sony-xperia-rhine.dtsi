@@ -452,6 +452,8 @@
 	qcom,fast-charge-low-threshold-voltage = <3400000>;
 	qcom,auto-recharge-threshold-voltage = <4200000>;
 	qcom,minimum-input-voltage = <4300000>;
+
+	status = "okay";
 };
 
 &tlmm {

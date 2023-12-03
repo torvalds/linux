@@ -460,6 +460,10 @@
 	status = "okay";
 };
 
+&smbb {
+	status = "okay";
+};
+
 &tlmm {
 	gpio_hall_sensor_default: gpio-hall-sensor-default-state {
 		pins = "gpio68";
