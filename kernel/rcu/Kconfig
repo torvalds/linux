@@ -318,6 +318,18 @@ config RCU_LAZY
 	help
 	  To save power, batch RCU callbacks and flush after delay, memory
 	  pressure, or callback list growing too big.
+	  Requires rcu_nocbs=all to be set.
+
+	  Use rcutree.enable_rcu_lazy=0 to turn it off at boot time.
+
+config RCU_LAZY_DEFAULT_OFF
+	bool "Turn RCU lazy invocation off by default"
+	depends on RCU_LAZY
+	default n
+	help
+	  Allows building the kernel with CONFIG_RCU_LAZY=y yet keep it default
+	  off. Boot time param rcutree.enable_rcu_lazy=1 can be used to switch
+	  it back on.
 
 config RCU_BOOT_END_DELAY
 	int "Minimum time before RCU may consider in-kernel boot as completed"
