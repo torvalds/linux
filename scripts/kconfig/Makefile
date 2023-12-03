@@ -174,7 +174,7 @@ conf-objs	:= conf.o $(common-objs)
 
 # nconf: Used for the nconfig target based on ncurses
 hostprogs	+= nconf
-nconf-objs	:= nconf.o nconf.gui.o $(common-objs)
+nconf-objs	:= nconf.o nconf.gui.o mnconf-common.o $(common-objs)
 
 HOSTLDLIBS_nconf       = $(call read-file, $(obj)/nconf-libs)
 HOSTCFLAGS_nconf.o     = $(call read-file, $(obj)/nconf-cflags)
@@ -187,7 +187,7 @@ $(obj)/nconf.o $(obj)/nconf.gui.o: | $(obj)/nconf-cflags
 hostprogs	+= mconf
 lxdialog	:= $(addprefix lxdialog/, \
 		     checklist.o inputbox.o menubox.o textbox.o util.o yesno.o)
-mconf-objs	:= mconf.o $(lxdialog) $(common-objs)
+mconf-objs	:= mconf.o $(lxdialog) mnconf-common.o $(common-objs)
 
 HOSTLDLIBS_mconf = $(call read-file, $(obj)/mconf-libs)
 $(foreach f, mconf.o $(lxdialog), \
