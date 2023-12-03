@@ -13,7 +13,7 @@ obj-y				+= vma.o
 obj-$(CONFIG_SPARC64)		+= vdso-image-64.o
 obj-$(CONFIG_COMPAT)		+= vdso-image-32.o
 
-vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
+vobjs := $(addprefix $(obj)/, $(vobjs-y))
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
