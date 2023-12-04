@@ -168,17 +168,16 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 }
 
 static void spi_engine_gen_sleep(struct spi_engine_program *p, bool dry,
-	struct spi_transfer *xfer)
+				 int delay_ns, u32 sclk_hz)
 {
 	unsigned int t;
-	int delay_ns;
 
-	delay_ns = spi_delay_to_ns(&xfer->delay, xfer);
+	/* negative delay indicates error, e.g. from spi_delay_to_ns() */
 	if (delay_ns <= 0)
 		return;
 
 	/* rounding down since executing the instruction adds a couple of ticks delay */
-	t = DIV_ROUND_DOWN_ULL((u64)delay_ns * xfer->effective_speed_hz, NSEC_PER_SEC);
+	t = DIV_ROUND_DOWN_ULL((u64)delay_ns * sclk_hz, NSEC_PER_SEC);
 	while (t) {
 		unsigned int n = min(t, 256U);
 
@@ -256,7 +255,8 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 		}
 
 		spi_engine_gen_xfer(p, dry, xfer);
-		spi_engine_gen_sleep(p, dry, xfer);
+		spi_engine_gen_sleep(p, dry, spi_delay_to_ns(&xfer->delay, xfer),
+				     xfer->effective_speed_hz);
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
