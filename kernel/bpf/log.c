@@ -682,6 +682,10 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		verbose_a("r=");
 		verbose_unum(env, reg->range);
 	}
+	if (base_type(t) == PTR_TO_MEM) {
+		verbose_a("sz=");
+		verbose_unum(env, reg->mem_size);
+	}
 	if (tnum_is_const(reg->var_off)) {
 		/* a pointer register with fixed offset */
 		if (reg->var_off.value) {
