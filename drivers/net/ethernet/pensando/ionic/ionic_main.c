@@ -188,28 +188,6 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 	}
 }
 
-const char *ionic_vf_attr_to_str(enum ionic_vf_attr attr)
-{
-	switch (attr) {
-	case IONIC_VF_ATTR_SPOOFCHK:
-		return "IONIC_VF_ATTR_SPOOFCHK";
-	case IONIC_VF_ATTR_TRUST:
-		return "IONIC_VF_ATTR_TRUST";
-	case IONIC_VF_ATTR_LINKSTATE:
-		return "IONIC_VF_ATTR_LINKSTATE";
-	case IONIC_VF_ATTR_MAC:
-		return "IONIC_VF_ATTR_MAC";
-	case IONIC_VF_ATTR_VLAN:
-		return "IONIC_VF_ATTR_VLAN";
-	case IONIC_VF_ATTR_RATE:
-		return "IONIC_VF_ATTR_RATE";
-	case IONIC_VF_ATTR_STATSADDR:
-		return "IONIC_VF_ATTR_STATSADDR";
-	default:
-		return "IONIC_VF_ATTR_UNKNOWN";
-	}
-}
-
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
 	struct ionic_desc_info *desc_info;

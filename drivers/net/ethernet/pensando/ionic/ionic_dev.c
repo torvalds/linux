@@ -469,46 +469,6 @@ int ionic_set_vf_config(struct ionic *ionic, int vf,
 	return err;
 }
 
-int ionic_dev_cmd_vf_getattr(struct ionic *ionic, int vf, u8 attr,
-			     struct ionic_vf_getattr_comp *comp)
-{
-	union ionic_dev_cmd cmd = {
-		.vf_getattr.opcode = IONIC_CMD_VF_GETATTR,
-		.vf_getattr.attr = attr,
-		.vf_getattr.vf_index = cpu_to_le16(vf),
-	};
-	int err;
-
-	if (vf >= ionic->num_vfs)
-		return -EINVAL;
-
-	switch (attr) {
-	case IONIC_VF_ATTR_SPOOFCHK:
-	case IONIC_VF_ATTR_TRUST:
-	case IONIC_VF_ATTR_LINKSTATE:
-	case IONIC_VF_ATTR_MAC:
-	case IONIC_VF_ATTR_VLAN:
-	case IONIC_VF_ATTR_RATE:
-		break;
-	case IONIC_VF_ATTR_STATSADDR:
-	default:
-		return -EINVAL;
-	}
-
-	mutex_lock(&ionic->dev_cmd_lock);
-	ionic_dev_cmd_go(&ionic->idev, &cmd);
-	err = ionic_dev_cmd_wait_nomsg(ionic, DEVCMD_TIMEOUT);
-	memcpy_fromio(comp, &ionic->idev.dev_cmd_regs->comp.vf_getattr,
-		      sizeof(*comp));
-	mutex_unlock(&ionic->dev_cmd_lock);
-
-	if (err && comp->status != IONIC_RC_ENOSUPP)
-		ionic_dev_cmd_dev_err_print(ionic, cmd.vf_getattr.opcode,
-					    comp->status, err);
-
-	return err;
-}
-
 void ionic_vf_start(struct ionic *ionic)
 {
 	union ionic_dev_cmd cmd = {

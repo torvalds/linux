@@ -91,6 +91,4 @@ int ionic_port_identify(struct ionic *ionic);
 int ionic_port_init(struct ionic *ionic);
 int ionic_port_reset(struct ionic *ionic);
 
-const char *ionic_vf_attr_to_str(enum ionic_vf_attr attr);
-
 #endif /* _IONIC_H_ */
