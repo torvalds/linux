@@ -140,21 +140,6 @@ static unsigned int spi_engine_get_config(struct spi_device *spi)
 	return config;
 }
 
-static unsigned int spi_engine_get_clk_div(struct spi_engine *spi_engine,
-	struct spi_device *spi, struct spi_transfer *xfer)
-{
-	unsigned int clk_div;
-
-	clk_div = DIV_ROUND_UP(clk_get_rate(spi_engine->ref_clk),
-		xfer->speed_hz * 2);
-	if (clk_div > 255)
-		clk_div = 255;
-	else if (clk_div > 0)
-		clk_div -= 1;
-
-	return clk_div;
-}
-
 static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 	struct spi_transfer *xfer)
 {
@@ -243,6 +228,7 @@ static void spi_engine_compile_message(struct spi_engine *spi_engine,
 	struct spi_message *msg, bool dry, struct spi_engine_program *p)
 {
 	struct spi_device *spi = msg->spi;
+	struct spi_controller *host = spi->controller;
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div;
 	bool keep_cs = false;
@@ -258,12 +244,13 @@ static void spi_engine_compile_message(struct spi_engine *spi_engine,
 	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		new_clk_div = spi_engine_get_clk_div(spi_engine, spi, xfer);
+		new_clk_div = host->max_speed_hz / xfer->effective_speed_hz;
 		if (new_clk_div != clk_div) {
 			clk_div = new_clk_div;
+			/* actual divider used is register value + 1 */
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CLK_DIV,
-					clk_div));
+					clk_div - 1));
 		}
 
 		if (bits_per_word != xfer->bits_per_word) {
@@ -274,7 +261,7 @@ static void spi_engine_compile_message(struct spi_engine *spi_engine,
 		}
 
 		spi_engine_gen_xfer(p, dry, xfer);
-		spi_engine_gen_sleep(p, dry, spi_engine, clk_div, xfer);
+		spi_engine_gen_sleep(p, dry, spi_engine, clk_div - 1, xfer);
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
