@@ -345,8 +345,10 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
+	ASSERT(list_empty(&em->list));
+
 	if (modified)
-		list_move(&em->list, &tree->modified_extents);
+		list_add(&em->list, &tree->modified_extents);
 	else
 		try_merge_map(tree, em);
 }
