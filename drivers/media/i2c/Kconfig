@@ -5,6 +5,12 @@
 
 if VIDEO_V4L2
 
+config VIDEO_CAM_SLEEP_WAKEUP
+	tristate "Enable sensor sleep wake up function"
+	depends on ARCH_ROCKCHIP
+	help
+	  Support for sensor sleep and wake up.
+
 comment "IR I2C driver auto-selected by 'Autoselect ancillary drivers'"
 	depends on MEDIA_SUBDRV_AUTOSELECT && I2C && RC_CORE
 
