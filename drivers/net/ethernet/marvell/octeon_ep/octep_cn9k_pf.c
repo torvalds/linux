@@ -231,7 +231,6 @@ static void octep_init_config_cn93_pf(struct octep_device *oct)
 
 	conf->iq.num_descs = OCTEP_IQ_MAX_DESCRIPTORS;
 	conf->iq.instr_type = OCTEP_64BYTE_INSTR;
-	conf->iq.pkind = 0;
 	conf->iq.db_min = OCTEP_DB_MIN;
 	conf->iq.intr_threshold = OCTEP_IQ_INTR_THRESHOLD;
 

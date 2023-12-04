@@ -60,7 +60,6 @@
 #define CFG_GET_IQ_CFG(cfg)             ((cfg)->iq)
 #define CFG_GET_IQ_NUM_DESC(cfg)        ((cfg)->iq.num_descs)
 #define CFG_GET_IQ_INSTR_TYPE(cfg)      ((cfg)->iq.instr_type)
-#define CFG_GET_IQ_PKIND(cfg)           ((cfg)->iq.pkind)
 #define CFG_GET_IQ_INSTR_SIZE(cfg)      (64)
 #define CFG_GET_IQ_DB_MIN(cfg)          ((cfg)->iq.db_min)
 #define CFG_GET_IQ_INTR_THRESHOLD(cfg)  ((cfg)->iq.intr_threshold)
@@ -76,7 +75,6 @@
 #define CFG_GET_PORTS_ACTIVE_IO_RINGS(cfg) ((cfg)->pf_ring_cfg.active_io_rings)
 #define CFG_GET_PORTS_PF_SRN(cfg)          ((cfg)->pf_ring_cfg.srn)
 
-#define CFG_GET_DPI_PKIND(cfg)            ((cfg)->core_cfg.dpi_pkind)
 #define CFG_GET_CORE_TICS_PER_US(cfg)     ((cfg)->core_cfg.core_tics_per_us)
 #define CFG_GET_COPROC_TICS_PER_US(cfg)   ((cfg)->core_cfg.coproc_tics_per_us)
 
@@ -99,9 +97,6 @@ struct octep_iq_config {
 
 	/* Command size - 32 or 64 bytes */
 	u16 instr_type;
-
-	/* pkind for packets sent to Octeon */
-	u16 pkind;
 
 	/* Minimum number of commands pending to be posted to Octeon before driver
 	 * hits the Input queue doorbell.
@@ -198,11 +193,37 @@ struct octep_ctrl_mbox_config {
 /* Info from firmware */
 struct octep_fw_info {
 	/* interface pkind */
-	u16 pkind;
+	u8 pkind;
+
+	/* front size data */
+	u8 fsz;
+
 	/* heartbeat interval in milliseconds */
 	u16 hb_interval;
+
 	/* heartbeat miss count */
 	u16 hb_miss_count;
+
+	/* reserved */
+	u16 reserved1;
+
+	/* supported rx offloads OCTEP_ETH_RX_OFFLOAD_* */
+	u16 rx_ol_flags;
+
+	/* supported tx offloads OCTEP_ETH_TX_OFFLOAD_* */
+	u16 tx_ol_flags;
+
+	/* reserved */
+	u32 reserved_offloads;
+
+	/* extra offload flags */
+	u64 ext_ol_flags;
+
+	/* supported features */
+	u64 features[2];
+
+	/* reserved */
+	u64 reserved2[3];
 };
 
 /* Data Structure to hold configuration limits and active config */

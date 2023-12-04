@@ -247,8 +247,7 @@ struct octep_device {
 
 	/* Tx queues (IQ: Instruction Queue) */
 	u16 num_iqs;
-	/* pkind value to be used in every Tx hardware descriptor */
-	u8 pkind;
+
 	/* Pointers to Octeon Tx queues */
 	struct octep_iq *iq[OCTEP_MAX_IQ];
 
