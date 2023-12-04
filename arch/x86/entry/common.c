@@ -25,6 +25,7 @@
 #include <xen/events.h>
 #endif
 
+#include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
@@ -120,6 +121,25 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
 }
 
 #ifdef CONFIG_IA32_EMULATION
+static __always_inline bool int80_is_external(void)
+{
+	const unsigned int offs = (0x80 / 32) * 0x10;
+	const u32 bit = BIT(0x80 % 32);
+
+	/* The local APIC on XENPV guests is fake */
+	if (cpu_feature_enabled(X86_FEATURE_XENPV))
+		return false;
+
+	/*
+	 * If vector 0x80 is set in the APIC ISR then this is an external
+	 * interrupt. Either from broken hardware or injected by a VMM.
+	 *
+	 * Note: In guest mode this is only valid for secure guests where
+	 * the secure module fully controls the vAPIC exposed to the guest.
+	 */
+	return apic_read(APIC_ISR + offs) & bit;
+}
+
 /**
  * int80_emulation - 32-bit legacy syscall entry
  *
@@ -143,11 +163,26 @@ DEFINE_IDTENTRY_RAW(int80_emulation)
 {
 	int nr;
 
-	/* Establish kernel context. */
+	/* Kernel does not use INT $0x80! */
+	if (unlikely(!user_mode(regs))) {
+		irqentry_enter(regs);
+		instrumentation_begin();
+		panic("Unexpected external interrupt 0x80\n");
+	}
+
+	/*
+	 * Establish kernel context for instrumentation, including for
+	 * int80_is_external() below which calls into the APIC driver.
+	 * Identical for soft and external interrupts.
+	 */
 	enter_from_user_mode(regs);
 
 	instrumentation_begin();
 	add_random_kstack_offset();
+
+	/* Validate that this is a soft interrupt to the extent possible */
+	if (unlikely(int80_is_external()))
+		panic("Unexpected external interrupt 0x80\n");
 
 	/*
 	 * The low level idtentry code pushed -1 into regs::orig_ax
