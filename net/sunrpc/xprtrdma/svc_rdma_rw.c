@@ -187,10 +187,10 @@ static void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
  * that only one atomic llist operation is needed to put them all
  * back on the free list.
  */
-static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
+static void svc_rdma_cc_release(struct svcxprt_rdma *rdma,
+				struct svc_rdma_chunk_ctxt *cc,
 				enum dma_data_direction dir)
 {
-	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct llist_node *first, *last;
 	struct svc_rdma_rw_ctxt *ctxt;
 	LLIST_HEAD(free);
@@ -262,7 +262,7 @@ static void svc_rdma_write_info_free_async(struct work_struct *work)
 	struct svc_rdma_write_info *info;
 
 	info = container_of(work, struct svc_rdma_write_info, wi_work);
-	svc_rdma_cc_release(&info->wi_cc, DMA_TO_DEVICE);
+	svc_rdma_cc_release(info->wi_rdma, &info->wi_cc, DMA_TO_DEVICE);
 	kfree(info);
 }
 
@@ -334,9 +334,10 @@ svc_rdma_read_info_alloc(struct svcxprt_rdma *rdma)
 	return info;
 }
 
-static void svc_rdma_read_info_free(struct svc_rdma_read_info *info)
+static void svc_rdma_read_info_free(struct svcxprt_rdma *rdma,
+				    struct svc_rdma_read_info *info)
 {
-	svc_rdma_cc_release(&info->ri_cc, DMA_FROM_DEVICE);
+	svc_rdma_cc_release(rdma, &info->ri_cc, DMA_FROM_DEVICE);
 	kfree(info);
 }
 
@@ -1197,6 +1198,6 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 	head->rc_page_count = 0;
 
 out_err:
-	svc_rdma_read_info_free(info);
+	svc_rdma_read_info_free(rdma, info);
 	return ret;
 }
