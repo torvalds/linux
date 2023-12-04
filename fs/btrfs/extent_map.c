@@ -280,7 +280,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 /*
  * Unpin an extent from the cache.
  *
- * @tree:	tree to unpin the extent in
+ * @inode:	the inode from which we are unpinning an extent range
  * @start:	logical offset in the file
  * @len:	length of the extent
  * @gen:	generation that this extent has been modified in
@@ -289,9 +289,10 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
  * to the generation that actually added the file item to the inode so we know
  * we need to sync this extent when we call fsync().
  */
-int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
-		       u64 gen)
+int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 {
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct extent_map_tree *tree = &inode->extent_tree;
 	int ret = 0;
 	struct extent_map *em;
 	bool prealloc = false;
@@ -299,10 +300,19 @@ int unpin_extent_cache(struct extent_map_tree *tree, u64 start, u64 len,
 	write_lock(&tree->lock);
 	em = lookup_extent_mapping(tree, start, len);
 
-	WARN_ON(!em || em->start != start);
-
-	if (!em)
+	if (WARN_ON(!em)) {
+		btrfs_warn(fs_info,
+"no extent map found for inode %llu (root %lld) when unpinning extent range [%llu, %llu), generation %llu",
+			   btrfs_ino(inode), btrfs_root_id(inode->root),
+			   start, len, gen);
 		goto out;
+	}
+
+	if (WARN_ON(em->start != start))
+		btrfs_warn(fs_info,
+"found extent map for inode %llu (root %lld) with unexpected start offset %llu when unpinning extent range [%llu, %llu), generation %llu",
+			   btrfs_ino(inode), btrfs_root_id(inode->root),
+			   em->start, start, len, gen);
 
 	em->generation = gen;
 	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
