@@ -40,12 +40,6 @@ enum drm_scaling_filter {
 	DRM_SCALING_FILTER_NEAREST_NEIGHBOR,
 };
 
-enum drm_plane_pixel_source {
-	DRM_PLANE_PIXEL_SOURCE_NONE,
-	DRM_PLANE_PIXEL_SOURCE_FB,
-	DRM_PLANE_PIXEL_SOURCE_MAX
-};
-
 /**
  * struct drm_plane_state - mutable plane state
  *
@@ -125,14 +119,6 @@ struct drm_plane_state {
 	/** @hotspot_x: x offset to mouse cursor hotspot */
 	/** @hotspot_y: y offset to mouse cursor hotspot */
 	int32_t hotspot_x, hotspot_y;
-
-	/**
-	 * @pixel_source:
-	 *
-	 * Source of pixel information for the plane. See
-	 * drm_plane_create_pixel_source_property() for more details.
-	 */
-	enum drm_plane_pixel_source pixel_source;
 
 	/**
 	 * @alpha:
@@ -726,13 +712,6 @@ struct drm_plane {
 	 * &struct drm_crtc_commit.
 	 */
 	struct drm_plane_state *state;
-
-	/*
-	 * @pixel_source_property:
-	 * Optional pixel_source property for this plane. See
-	 * drm_plane_create_pixel_source_property().
-	 */
-	struct drm_property *pixel_source_property;
 
 	/**
 	 * @alpha_property:

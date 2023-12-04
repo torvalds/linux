@@ -953,14 +953,6 @@ bool drm_any_plane_has_format(struct drm_device *dev,
 }
 EXPORT_SYMBOL(drm_any_plane_has_format);
 
-static bool drm_plane_needs_disable(struct drm_plane_state *state, struct drm_framebuffer *fb)
-{
-	if (state->pixel_source == DRM_PLANE_PIXEL_SOURCE_NONE)
-		return true;
-
-	return state->pixel_source == DRM_PLANE_PIXEL_SOURCE_FB && fb == NULL;
-}
-
 /*
  * __setplane_internal - setplane handler for internal callers
  *
@@ -983,8 +975,8 @@ static int __setplane_internal(struct drm_plane *plane,
 
 	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
 
-	/* No visible data means shut it down */
-	if (drm_plane_needs_disable(plane->state, fb)) {
+	/* No fb means shut it down */
+	if (!fb) {
 		plane->old_fb = plane->fb;
 		ret = plane->funcs->disable_plane(plane, ctx);
 		if (!ret) {
@@ -1035,8 +1027,8 @@ static int __setplane_atomic(struct drm_plane *plane,
 
 	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
 
-	/* No visible data means shut it down */
-	if (drm_plane_needs_disable(plane->state, fb))
+	/* No fb means shut it down */
+	if (!fb)
 		return plane->funcs->disable_plane(plane, ctx);
 
 	/*
@@ -1108,9 +1100,6 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 			      plane_req->plane_id);
 		return -ENOENT;
 	}
-
-	if (plane->state)
-		plane->state->pixel_source = DRM_PLANE_PIXEL_SOURCE_FB;
 
 	if (plane_req->fb_id) {
 		fb = drm_framebuffer_lookup(dev, file_priv, plane_req->fb_id);
