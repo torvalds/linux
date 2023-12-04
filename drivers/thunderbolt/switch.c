@@ -2773,6 +2773,19 @@ static void tb_switch_link_init(struct tb_switch *sw)
 	if (down->dual_link_port)
 		down->dual_link_port->bonded = bonded;
 	tb_port_update_credits(down);
+
+	if (tb_port_get_link_generation(up) < 4)
+		return;
+
+	/*
+	 * Set the Gen 4 preferred link width. This is what the router
+	 * prefers when the link is brought up. If the router does not
+	 * support asymmetric link configuration, this also will be set
+	 * to TB_LINK_WIDTH_DUAL.
+	 */
+	sw->preferred_link_width = sw->link_width;
+	tb_sw_dbg(sw, "preferred link width %s\n",
+		  tb_width_name(sw->preferred_link_width));
 }
 
 /**
