@@ -1054,8 +1054,8 @@ static int svc_rdma_read_call_chunk(struct svc_rqst *rqstp,
 
 /**
  * svc_rdma_read_special - Build RDMA Read WQEs to pull a Long Message
- * @rdma: controlling transport
- * @info: context for RDMA Reads
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  *
  * The start of the data lands in the first page just after the
  * Transport header, and the rest lands in rqstp->rq_arg.pages.
@@ -1071,23 +1071,22 @@ static int svc_rdma_read_call_chunk(struct svc_rqst *rqstp,
  *   %-ENOTCONN: posting failed (connection is lost),
  *   %-EIO: rdma_rw initialization failed (DMA mapping, etc).
  */
-static noinline int svc_rdma_read_special(struct svcxprt_rdma *rdma,
-					  struct svc_rdma_read_info *info)
+static noinline int svc_rdma_read_special(struct svc_rqst *rqstp,
+					  struct svc_rdma_recv_ctxt *head)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
-	struct xdr_buf *buf = &info->ri_rqst->rq_arg;
+	struct xdr_buf *buf = &rqstp->rq_arg;
 	int ret;
 
-	ret = svc_rdma_read_call_chunk(info->ri_rqst, info->ri_readctxt);
+	ret = svc_rdma_read_call_chunk(rqstp, head);
 	if (ret < 0)
 		goto out;
 
 	buf->len += head->rc_readbytes;
 	buf->buflen += head->rc_readbytes;
 
-	buf->head[0].iov_base = page_address(info->ri_rqst->rq_pages[0]);
+	buf->head[0].iov_base = page_address(rqstp->rq_pages[0]);
 	buf->head[0].iov_len = min_t(size_t, PAGE_SIZE, head->rc_readbytes);
-	buf->pages = &info->ri_rqst->rq_pages[1];
+	buf->pages = &rqstp->rq_pages[1];
 	buf->page_len = head->rc_readbytes - buf->head[0].iov_len;
 
 out:
@@ -1142,7 +1141,7 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 		else
 			ret = svc_rdma_read_multiple_chunks(rqstp, head);
 	} else
-		ret = svc_rdma_read_special(rdma, info);
+		ret = svc_rdma_read_special(rqstp, head);
 	if (ret < 0)
 		goto out_err;
 
