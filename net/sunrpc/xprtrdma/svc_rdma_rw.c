@@ -39,6 +39,7 @@ struct svc_rdma_rw_ctxt {
 	struct list_head	rw_list;
 	struct rdma_rw_ctx	rw_ctx;
 	unsigned int		rw_nents;
+	unsigned int		rw_first_sgl_nents;
 	struct sg_table		rw_sg_table;
 	struct scatterlist	rw_first_sgl[];
 };
@@ -53,6 +54,8 @@ svc_rdma_next_ctxt(struct list_head *list)
 static struct svc_rdma_rw_ctxt *
 svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 {
+	struct ib_device *dev = rdma->sc_cm_id->device;
+	unsigned int first_sgl_nents = dev->attrs.max_send_sge;
 	struct svc_rdma_rw_ctxt *ctxt;
 	struct llist_node *node;
 
@@ -62,18 +65,19 @@ svc_rdma_get_rw_ctxt(struct svcxprt_rdma *rdma, unsigned int sges)
 	if (node) {
 		ctxt = llist_entry(node, struct svc_rdma_rw_ctxt, rw_node);
 	} else {
-		ctxt = kmalloc_node(struct_size(ctxt, rw_first_sgl, SG_CHUNK_SIZE),
-				    GFP_KERNEL, ibdev_to_node(rdma->sc_cm_id->device));
+		ctxt = kmalloc_node(struct_size(ctxt, rw_first_sgl, first_sgl_nents),
+				    GFP_KERNEL, ibdev_to_node(dev));
 		if (!ctxt)
 			goto out_noctx;
 
 		INIT_LIST_HEAD(&ctxt->rw_list);
+		ctxt->rw_first_sgl_nents = first_sgl_nents;
 	}
 
 	ctxt->rw_sg_table.sgl = ctxt->rw_first_sgl;
 	if (sg_alloc_table_chained(&ctxt->rw_sg_table, sges,
 				   ctxt->rw_sg_table.sgl,
-				   SG_CHUNK_SIZE))
+				   first_sgl_nents))
 		goto out_free;
 	return ctxt;
 
@@ -87,7 +91,7 @@ out_noctx:
 static void __svc_rdma_put_rw_ctxt(struct svc_rdma_rw_ctxt *ctxt,
 				   struct llist_head *list)
 {
-	sg_free_table_chained(&ctxt->rw_sg_table, SG_CHUNK_SIZE);
+	sg_free_table_chained(&ctxt->rw_sg_table, ctxt->rw_first_sgl_nents);
 	llist_add(&ctxt->rw_node, list);
 }
 
