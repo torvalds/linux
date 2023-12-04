@@ -41,6 +41,16 @@ config VIDEO_APTINA_PLL
 config VIDEO_CCS_PLL
 	tristate
 
+config VIDEO_ALVIUM_CSI2
+	tristate "Allied Vision ALVIUM MIPI CSI-2 camera support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor-level driver for the Allied Vision
+	  ALVIUM camera connected via MIPI CSI-2 interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called alvium-csi2.
+
 config VIDEO_AR0521
 	tristate "ON Semiconductor AR0521 sensor support"
 	help

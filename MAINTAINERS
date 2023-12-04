@@ -711,6 +711,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/allegro,al5e.yaml
 F:	drivers/media/platform/allegro-dvt/
 
+ALLIED VISION ALVIUM CAMERA DRIVER
+M:	Tommaso Merciai <tomm.merciai@gmail.com>
+M:	Martin Hecht <martin.hecht@avnet.eu>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/alliedvision,alvium-csi2.yaml
+F:	drivers/media/i2c/alvium-csi2.c
+F:	drivers/media/i2c/alvium-csi2.h
+
 ALLWINNER A10 CSI DRIVER
 M:	Maxime Ripard <mripard@kernel.org>
 L:	linux-media@vger.kernel.org
