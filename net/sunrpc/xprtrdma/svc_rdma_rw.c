@@ -749,8 +749,8 @@ out_overrun:
 
 /**
  * svc_rdma_build_read_chunk - Build RDMA Read WQEs to pull one RDMA chunk
- * @rdma: controlling transport
- * @info: context for ongoing I/O
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  * @chunk: Read chunk to pull
  *
  * Return values:
@@ -759,18 +759,16 @@ out_overrun:
  *   %-ENOMEM: allocating a local resources failed
  *   %-EIO: a DMA mapping error occurred
  */
-static int svc_rdma_build_read_chunk(struct svcxprt_rdma *rdma,
-				     struct svc_rdma_read_info *info,
+static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
+				     struct svc_rdma_recv_ctxt *head,
 				     const struct svc_rdma_chunk *chunk)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	const struct svc_rdma_segment *segment;
 	int ret;
 
 	ret = -EINVAL;
 	pcl_for_each_segment(segment, chunk) {
-		ret = svc_rdma_build_read_segment(info->ri_rqst,
-						  info->ri_readctxt, segment);
+		ret = svc_rdma_build_read_segment(rqstp, head, segment);
 		if (ret < 0)
 			break;
 		head->rc_readbytes += segment->rs_length;
@@ -861,7 +859,7 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 		return ret;
 
 	pcl_for_each_chunk(chunk, pcl) {
-		ret = svc_rdma_build_read_chunk(rdma, info, chunk);
+		ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
 		if (ret < 0)
 			return ret;
 
@@ -920,7 +918,7 @@ static int svc_rdma_read_data_item(struct svcxprt_rdma *rdma,
 	int ret;
 
 	chunk = pcl_first_chunk(&head->rc_read_pcl);
-	ret = svc_rdma_build_read_chunk(rdma, info, chunk);
+	ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
 	if (ret < 0)
 		goto out;
 
@@ -1025,7 +1023,8 @@ static int svc_rdma_read_call_chunk(struct svcxprt_rdma *rdma,
 	int ret;
 
 	if (pcl_is_empty(pcl))
-		return svc_rdma_build_read_chunk(rdma, info, call_chunk);
+		return svc_rdma_build_read_chunk(info->ri_rqst, head,
+						 call_chunk);
 
 	start = 0;
 	chunk = pcl_first_chunk(pcl);
@@ -1035,7 +1034,7 @@ static int svc_rdma_read_call_chunk(struct svcxprt_rdma *rdma,
 		return ret;
 
 	pcl_for_each_chunk(chunk, pcl) {
-		ret = svc_rdma_build_read_chunk(rdma, info, chunk);
+		ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
 		if (ret < 0)
 			return ret;
 
