@@ -828,8 +828,8 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
 
 /**
  * svc_rdma_read_multiple_chunks - Construct RDMA Reads to pull data item Read chunks
- * @rdma: controlling transport
- * @info: context for RDMA Reads
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  *
  * The chunk data lands in rqstp->rq_arg as a series of contiguous pages,
  * like an incoming TCP call.
@@ -841,12 +841,11 @@ static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
  *   %-ENOTCONN: posting failed (connection is lost),
  *   %-EIO: rdma_rw initialization failed (DMA mapping, etc).
  */
-static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
-						  struct svc_rdma_read_info *info)
+static noinline int
+svc_rdma_read_multiple_chunks(struct svc_rqst *rqstp,
+			      struct svc_rdma_recv_ctxt *head)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	const struct svc_rdma_pcl *pcl = &head->rc_read_pcl;
-	struct svc_rqst *rqstp = info->ri_rqst;
 	struct xdr_buf *buf = &rqstp->rq_arg;
 	struct svc_rdma_chunk *chunk, *next;
 	unsigned int start, length;
@@ -860,7 +859,7 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 		return ret;
 
 	pcl_for_each_chunk(chunk, pcl) {
-		ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
+		ret = svc_rdma_build_read_chunk(rqstp, head, chunk);
 		if (ret < 0)
 			return ret;
 
@@ -884,9 +883,9 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 	buf->len += head->rc_readbytes;
 	buf->buflen += head->rc_readbytes;
 
-	buf->head[0].iov_base = page_address(info->ri_rqst->rq_pages[0]);
+	buf->head[0].iov_base = page_address(rqstp->rq_pages[0]);
 	buf->head[0].iov_len = min_t(size_t, PAGE_SIZE, head->rc_readbytes);
-	buf->pages = &info->ri_rqst->rq_pages[1];
+	buf->pages = &rqstp->rq_pages[1];
 	buf->page_len = head->rc_readbytes - buf->head[0].iov_len;
 	return 0;
 }
@@ -1143,7 +1142,7 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 		if (head->rc_read_pcl.cl_count == 1)
 			ret = svc_rdma_read_data_item(rqstp, head);
 		else
-			ret = svc_rdma_read_multiple_chunks(rdma, info);
+			ret = svc_rdma_read_multiple_chunks(rqstp, head);
 	} else
 		ret = svc_rdma_read_special(rdma, info);
 	if (ret < 0)
