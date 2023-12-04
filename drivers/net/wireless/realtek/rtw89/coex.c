@@ -5352,6 +5352,10 @@ void rtw89_btc_ntfy_scan_start(struct rtw89_dev *rtwdev, u8 phy_idx, u8 band)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): phy_idx=%d, band=%d\n",
 		    __func__, phy_idx, band);
+
+	if (phy_idx >= RTW89_PHY_MAX)
+		return;
+
 	btc->dm.cnt_notify[BTC_NCNT_SCAN_START]++;
 	wl->status.map.scan = true;
 	wl->scan_info.band[phy_idx] = band;
@@ -5396,6 +5400,10 @@ void rtw89_btc_ntfy_switch_band(struct rtw89_dev *rtwdev, u8 phy_idx, u8 band)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): phy_idx=%d, band=%d\n",
 		    __func__, phy_idx, band);
+
+	if (phy_idx >= RTW89_PHY_MAX)
+		return;
+
 	btc->dm.cnt_notify[BTC_NCNT_SWITCH_BAND]++;
 
 	wl->scan_info.band[phy_idx] = band;
