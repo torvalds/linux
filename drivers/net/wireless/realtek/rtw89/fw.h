@@ -3651,8 +3651,6 @@ struct rtw89_fw_h2c_rf_get_mccch {
 
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
-#define RTW89_WCPU_BASE_MASK GENMASK(27, 0)
-
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8
 #define RTW89_VALID_FW_BACKTRACE_SIZE(_size) \
 	((_size) % RTW89_FW_BACKTRACE_INFO_SIZE == 0)

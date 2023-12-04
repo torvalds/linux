@@ -590,6 +590,14 @@ struct __fw_backtrace_info {
 static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
 	      sizeof(struct __fw_backtrace_info));
 
+static u32 convert_addr_from_wcpu(u32 wcpu_addr)
+{
+	if (wcpu_addr < 0x30000000)
+		return wcpu_addr;
+
+	return wcpu_addr & GENMASK(28, 0);
+}
+
 static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
@@ -597,7 +605,7 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 filter_model_addr = mac->filter_model_addr;
 	u32 indir_access_addr = mac->indir_access_addr;
-	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
+	u32 fwbt_addr = convert_addr_from_wcpu(ent->wcpu_addr);
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
 	u32 i;
