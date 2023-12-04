@@ -821,14 +821,5 @@ void __init tdx_early_init(void)
 	 */
 	x86_cpuinit.parallel_bringup = false;
 
-	/*
-	 * The VMM is capable of injecting interrupt 0x80 and triggering the
-	 * compatibility syscall path.
-	 *
-	 * By default, the 32-bit emulation is disabled in order to ensure
-	 * the safety of the VM.
-	 */
-	ia32_disable();
-
 	pr_info("Guest detected\n");
 }
