@@ -22,9 +22,13 @@
 static irqreturn_t panfrost_gpu_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
-	u32 state = gpu_read(pfdev, GPU_INT_STAT);
-	u32 fault_status = gpu_read(pfdev, GPU_FAULT_STATUS);
+	u32 fault_status, state;
 
+	if (test_bit(PANFROST_COMP_BIT_GPU, pfdev->is_suspended))
+		return IRQ_NONE;
+
+	fault_status = gpu_read(pfdev, GPU_FAULT_STATUS);
+	state = gpu_read(pfdev, GPU_INT_STAT);
 	if (!state)
 		return IRQ_NONE;
 
@@ -60,6 +64,8 @@ int panfrost_gpu_soft_reset(struct panfrost_device *pfdev)
 
 	gpu_write(pfdev, GPU_INT_MASK, 0);
 	gpu_write(pfdev, GPU_INT_CLEAR, GPU_IRQ_RESET_COMPLETED);
+
+	clear_bit(PANFROST_COMP_BIT_GPU, pfdev->is_suspended);
 
 	gpu_write(pfdev, GPU_CMD, GPU_CMD_SOFT_RESET);
 	ret = readl_relaxed_poll_timeout(pfdev->iomem + GPU_INT_RAWSTAT,
@@ -450,6 +456,14 @@ void panfrost_gpu_power_off(struct panfrost_device *pfdev)
 				 val, !val, 0, 1000);
 	if (ret)
 		dev_err(pfdev->dev, "l2 power transition timeout");
+}
+
+void panfrost_gpu_suspend_irq(struct panfrost_device *pfdev)
+{
+	set_bit(PANFROST_COMP_BIT_GPU, pfdev->is_suspended);
+
+	gpu_write(pfdev, GPU_INT_MASK, 0);
+	synchronize_irq(pfdev->gpu_irq);
 }
 
 int panfrost_gpu_init(struct panfrost_device *pfdev)
