@@ -278,10 +278,10 @@ static void svc_rdma_write_info_free(struct svc_rdma_write_info *info)
  */
 static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 {
+	struct svcxprt_rdma *rdma = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_chunk_ctxt *cc =
 			container_of(cqe, struct svc_rdma_chunk_ctxt, cc_cqe);
-	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct svc_rdma_write_info *info =
 			container_of(cc, struct svc_rdma_write_info, wi_cc);
 
@@ -345,6 +345,7 @@ static void svc_rdma_read_info_free(struct svc_rdma_read_info *info)
  */
 static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 {
+	struct svcxprt_rdma *rdma = cq->cq_context;
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct svc_rdma_chunk_ctxt *cc =
 			container_of(cqe, struct svc_rdma_chunk_ctxt, cc_cqe);
@@ -363,7 +364,7 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
 		trace_svcrdma_wc_read_err(wc, &cc->cc_cid);
 	}
 
-	svc_rdma_wake_send_waiters(cc->cc_rdma, cc->cc_sqecount);
+	svc_rdma_wake_send_waiters(rdma, cc->cc_sqecount);
 	cc->cc_status = wc->status;
 	complete(&cc->cc_done);
 	return;
