@@ -7,16 +7,16 @@
 #define __XFS_ONDISK_H
 
 #define XFS_CHECK_STRUCT_SIZE(structname, size) \
-	BUILD_BUG_ON_MSG(sizeof(structname) != (size), "XFS: sizeof(" \
-		#structname ") is wrong, expected " #size)
+	static_assert(sizeof(structname) == (size), \
+		"XFS: sizeof(" #structname ") is wrong, expected " #size)
 
 #define XFS_CHECK_OFFSET(structname, member, off) \
-	BUILD_BUG_ON_MSG(offsetof(structname, member) != (off), \
+	static_assert(offsetof(structname, member) == (off), \
 		"XFS: offsetof(" #structname ", " #member ") is wrong, " \
 		"expected " #off)
 
 #define XFS_CHECK_VALUE(value, expected) \
-	BUILD_BUG_ON_MSG((value) != (expected), \
+	static_assert((value) == (expected), \
 		"XFS: value of " #value " is wrong, expected " #expected)
 
 static inline void __init
