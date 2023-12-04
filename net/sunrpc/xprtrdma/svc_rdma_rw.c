@@ -778,7 +778,8 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 
 /**
  * svc_rdma_copy_inline_range - Copy part of the inline content into pages
- * @info: context for RDMA Reads
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  * @offset: offset into the Receive buffer of region to copy
  * @remaining: length of region to copy
  *
@@ -791,13 +792,12 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
  *   %0: Inline content was successfully copied
  *   %-EINVAL: offset or length was incorrect
  */
-static int svc_rdma_copy_inline_range(struct svc_rdma_read_info *info,
+static int svc_rdma_copy_inline_range(struct svc_rqst *rqstp,
+				      struct svc_rdma_recv_ctxt *head,
 				      unsigned int offset,
 				      unsigned int remaining)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	unsigned char *dst, *src = head->rc_recv_buf;
-	struct svc_rqst *rqstp = info->ri_rqst;
 	unsigned int page_no, numpages;
 
 	numpages = PAGE_ALIGN(head->rc_pageoff + remaining) >> PAGE_SHIFT;
@@ -846,7 +846,8 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 {
 	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	const struct svc_rdma_pcl *pcl = &head->rc_read_pcl;
-	struct xdr_buf *buf = &info->ri_rqst->rq_arg;
+	struct svc_rqst *rqstp = info->ri_rqst;
+	struct xdr_buf *buf = &rqstp->rq_arg;
 	struct svc_rdma_chunk *chunk, *next;
 	unsigned int start, length;
 	int ret;
@@ -854,7 +855,7 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 	start = 0;
 	chunk = pcl_first_chunk(pcl);
 	length = chunk->ch_position;
-	ret = svc_rdma_copy_inline_range(info, start, length);
+	ret = svc_rdma_copy_inline_range(rqstp, head, start, length);
 	if (ret < 0)
 		return ret;
 
@@ -869,14 +870,14 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 
 		start += length;
 		length = next->ch_position - head->rc_readbytes;
-		ret = svc_rdma_copy_inline_range(info, start, length);
+		ret = svc_rdma_copy_inline_range(rqstp, head, start, length);
 		if (ret < 0)
 			return ret;
 	}
 
 	start += length;
 	length = head->rc_byte_len - start;
-	ret = svc_rdma_copy_inline_range(info, start, length);
+	ret = svc_rdma_copy_inline_range(rqstp, head, start, length);
 	if (ret < 0)
 		return ret;
 
