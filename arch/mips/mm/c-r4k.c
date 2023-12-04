@@ -1828,7 +1828,7 @@ static struct notifier_block r4k_cache_pm_notifier_block = {
 	.notifier_call = r4k_cache_pm_notifier,
 };
 
-int __init r4k_cache_init_pm(void)
+static int __init r4k_cache_init_pm(void)
 {
 	return cpu_pm_register_notifier(&r4k_cache_pm_notifier_block);
 }
