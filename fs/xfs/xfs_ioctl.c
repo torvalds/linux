@@ -1872,6 +1872,46 @@ xfs_fs_eofblocks_from_user(
 	return 0;
 }
 
+static int
+xfs_ioctl_getset_resblocks(
+	struct file		*filp,
+	unsigned int		cmd,
+	void __user		*arg)
+{
+	struct xfs_mount	*mp = XFS_I(file_inode(filp))->i_mount;
+	struct xfs_fsop_resblks	fsop = { };
+	int			error;
+	uint64_t		in;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (cmd == XFS_IOC_SET_RESBLKS) {
+		if (xfs_is_readonly(mp))
+			return -EROFS;
+
+		if (copy_from_user(&fsop, arg, sizeof(fsop)))
+			return -EFAULT;
+
+		error = mnt_want_write_file(filp);
+		if (error)
+			return error;
+		in = fsop.resblks;
+		error = xfs_reserve_blocks(mp, &in, &fsop);
+		mnt_drop_write_file(filp);
+		if (error)
+			return error;
+	} else {
+		error = xfs_reserve_blocks(mp, NULL, &fsop);
+		if (error)
+			return error;
+	}
+
+	if (copy_to_user(arg, &fsop, sizeof(fsop)))
+		return -EFAULT;
+	return 0;
+}
+
 /*
  * These long-unused ioctls were removed from the official ioctl API in 5.17,
  * but retain these definitions so that we can log warnings about them.
@@ -2018,50 +2058,9 @@ xfs_file_ioctl(
 		return 0;
 	}
 
-	case XFS_IOC_SET_RESBLKS: {
-		xfs_fsop_resblks_t inout;
-		uint64_t	   in;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (xfs_is_readonly(mp))
-			return -EROFS;
-
-		if (copy_from_user(&inout, arg, sizeof(inout)))
-			return -EFAULT;
-
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-
-		/* input parameter is passed in resblks field of structure */
-		in = inout.resblks;
-		error = xfs_reserve_blocks(mp, &in, &inout);
-		mnt_drop_write_file(filp);
-		if (error)
-			return error;
-
-		if (copy_to_user(arg, &inout, sizeof(inout)))
-			return -EFAULT;
-		return 0;
-	}
-
-	case XFS_IOC_GET_RESBLKS: {
-		xfs_fsop_resblks_t out;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		error = xfs_reserve_blocks(mp, NULL, &out);
-		if (error)
-			return error;
-
-		if (copy_to_user(arg, &out, sizeof(out)))
-			return -EFAULT;
-
-		return 0;
-	}
+	case XFS_IOC_SET_RESBLKS:
+	case XFS_IOC_GET_RESBLKS:
+		return xfs_ioctl_getset_resblocks(filp, cmd, arg);
 
 	case XFS_IOC_FSGROWFSDATA: {
 		struct xfs_growfs_data in;
