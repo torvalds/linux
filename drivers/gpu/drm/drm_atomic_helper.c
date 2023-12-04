@@ -861,6 +861,7 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 					bool can_position,
 					bool can_update_disabled)
 {
+	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_rect *src = &plane_state->src;
 	struct drm_rect *dst = &plane_state->dst;
 	unsigned int rotation = plane_state->rotation;
@@ -872,7 +873,7 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 	*src = drm_plane_state_src(plane_state);
 	*dst = drm_plane_state_dest(plane_state);
 
-	if (!drm_plane_has_visible_data(plane_state)) {
+	if (!fb) {
 		plane_state->visible = false;
 		return 0;
 	}
@@ -889,31 +890,25 @@ int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 		return -EINVAL;
 	}
 
-	/* Check that selected pixel source is valid */
-	if (plane_state->pixel_source == DRM_PLANE_PIXEL_SOURCE_FB && plane_state->fb) {
-		struct drm_framebuffer *fb = plane_state->fb;
-		drm_rect_rotate(src, fb->width << 16, fb->height << 16, rotation);
+	drm_rect_rotate(src, fb->width << 16, fb->height << 16, rotation);
 
-		/* Check scaling */
-		hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
-		vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
-
-		if (hscale < 0 || vscale < 0) {
-			drm_dbg_kms(plane_state->plane->dev,
-					"Invalid scaling of plane\n");
-			drm_rect_debug_print("src: ", &plane_state->src, true);
-			drm_rect_debug_print("dst: ", &plane_state->dst, false);
-			return -ERANGE;
-		}
-
-		if (crtc_state->enable)
-			drm_mode_get_hv_timing(&crtc_state->mode, &clip.x2, &clip.y2);
-
-		plane_state->visible = drm_rect_clip_scaled(src, dst, &clip);
-		drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16, rotation);
-	} else if (drm_plane_solid_fill_enabled(plane_state)) {
-		plane_state->visible = true;
+	/* Check scaling */
+	hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
+	vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
+	if (hscale < 0 || vscale < 0) {
+		drm_dbg_kms(plane_state->plane->dev,
+			    "Invalid scaling of plane\n");
+		drm_rect_debug_print("src: ", &plane_state->src, true);
+		drm_rect_debug_print("dst: ", &plane_state->dst, false);
+		return -ERANGE;
 	}
+
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode, &clip.x2, &clip.y2);
+
+	plane_state->visible = drm_rect_clip_scaled(src, dst, &clip);
+
+	drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16, rotation);
 
 	if (!plane_state->visible)
 		/*

@@ -674,16 +674,17 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 {
 	struct drm_plane *plane = new_plane_state->plane;
 	struct drm_crtc *crtc = new_plane_state->crtc;
+	const struct drm_framebuffer *fb = new_plane_state->fb;
 	int ret;
 
-	/* either *both* CRTC and pixel source must be set, or neither */
-	if (crtc && !drm_plane_has_visible_data(new_plane_state)) {
-		drm_dbg_atomic(plane->dev, "[PLANE:%d:%s] CRTC set but no visible data\n",
+	/* either *both* CRTC and FB must be set, or neither */
+	if (crtc && !fb) {
+		drm_dbg_atomic(plane->dev, "[PLANE:%d:%s] CRTC set but no FB\n",
 			       plane->base.id, plane->name);
 		return -EINVAL;
-	} else if (drm_plane_has_visible_data(new_plane_state) && !crtc) {
-		drm_dbg_atomic(plane->dev, "[PLANE:%d:%s] Source %d has visible data but no CRTC\n",
-			       plane->base.id, plane->name, new_plane_state->pixel_source);
+	} else if (fb && !crtc) {
+		drm_dbg_atomic(plane->dev, "[PLANE:%d:%s] FB set but no CRTC\n",
+			       plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
@@ -714,11 +715,9 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 	}
 
 
-	if (new_plane_state->pixel_source == DRM_PLANE_PIXEL_SOURCE_FB && new_plane_state->fb) {
-		ret = drm_atomic_plane_check_fb(new_plane_state);
-		if (ret)
-			return ret;
-	}
+	ret = drm_atomic_plane_check_fb(new_plane_state);
+	if (ret)
+		return ret;
 
 	if (plane_switching_crtc(old_plane_state, new_plane_state)) {
 		drm_dbg_atomic(plane->dev,
