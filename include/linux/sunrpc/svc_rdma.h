@@ -157,6 +157,7 @@ struct svc_rdma_recv_ctxt {
 	__be32			rc_msgtype;
 
 	/* State for pulling a Read chunk */
+	unsigned int		rc_curpage;
 	unsigned int		rc_readbytes;
 	struct svc_rdma_chunk_ctxt	rc_cc;
 
