@@ -66,17 +66,10 @@ static inline void btree_trans_sort_paths(struct btree_trans *trans)
 static inline struct btree_path *
 __trans_next_path(struct btree_trans *trans, unsigned idx)
 {
-	u64 l;
-
+	idx = find_next_bit(trans->paths_allocated, BTREE_ITER_MAX, idx);
 	if (idx == BTREE_ITER_MAX)
 		return NULL;
-
-	l = trans->paths_allocated >> idx;
-	if (!l)
-		return NULL;
-
-	idx += __ffs64(l);
-	EBUG_ON(idx >= BTREE_ITER_MAX);
+	EBUG_ON(idx > BTREE_ITER_MAX);
 	EBUG_ON(trans->paths[idx].idx != idx);
 	return &trans->paths[idx];
 }
@@ -92,17 +85,11 @@ __trans_next_path(struct btree_trans *trans, unsigned idx)
 static inline struct btree_path *
 __trans_next_path_safe(struct btree_trans *trans, unsigned *idx)
 {
-	u64 l;
-
+	*idx = find_next_bit(trans->paths_allocated, BTREE_ITER_MAX, *idx);
 	if (*idx == BTREE_ITER_MAX)
 		return NULL;
 
-	l = trans->paths_allocated >> *idx;
-	if (!l)
-		return NULL;
-
-	*idx += __ffs64(l);
-	EBUG_ON(*idx >= BTREE_ITER_MAX);
+	EBUG_ON(*idx > BTREE_ITER_MAX);
 	return &trans->paths[*idx];
 }
 
@@ -631,7 +618,7 @@ int __bch2_btree_trans_too_many_iters(struct btree_trans *);
 
 static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 {
-	if (hweight64(trans->paths_allocated) > BTREE_ITER_MAX - 8)
+	if (bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX) > BTREE_ITER_MAX - 8)
 		return __bch2_btree_trans_too_many_iters(trans);
 
 	return 0;

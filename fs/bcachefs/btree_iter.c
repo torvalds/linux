@@ -1298,7 +1298,7 @@ static inline void __bch2_path_free(struct btree_trans *trans, struct btree_path
 {
 	__bch2_btree_path_unlock(trans, path);
 	btree_path_list_remove(trans, path);
-	trans->paths_allocated &= ~(1ULL << path->idx);
+	__clear_bit(path->idx, trans->paths_allocated);
 }
 
 void bch2_path_put(struct btree_trans *trans, struct btree_path *path, bool intent)
@@ -1471,6 +1471,7 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 {
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
 	struct printbuf buf = PRINTBUF;
+	size_t nr = bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX);
 
 	if (!s)
 		return;
@@ -1479,9 +1480,8 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 
 	if (!buf.allocation_failure) {
 		mutex_lock(&s->lock);
-		if (s->nr_max_paths < hweight64(trans->paths_allocated)) {
-			s->nr_max_paths = trans->nr_max_paths =
-				hweight64(trans->paths_allocated);
+		if (nr > s->nr_max_paths) {
+			s->nr_max_paths = nr;
 			swap(s->max_paths_text, buf.buf);
 		}
 		mutex_unlock(&s->lock);
@@ -1489,7 +1489,7 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 
 	printbuf_exit(&buf);
 
-	trans->nr_max_paths = hweight64(trans->paths_allocated);
+	trans->nr_max_paths = nr;
 }
 
 noinline __cold
@@ -1518,13 +1518,12 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 						  struct btree_path *pos)
 {
 	struct btree_path *path;
-	unsigned idx;
+	size_t idx = find_first_zero_bit(trans->paths_allocated, BTREE_ITER_MAX);
 
-	if (unlikely(trans->paths_allocated ==
-		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1))))
+	if (unlikely(idx == BTREE_ITER_MAX))
 		btree_path_overflow(trans);
 
-	idx = __ffs64(~trans->paths_allocated);
+	BUG_ON(idx > BTREE_ITER_MAX);
 
 	/*
 	 * Do this before marking the new path as allocated, since it won't be
@@ -1533,7 +1532,7 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	if (unlikely(idx > trans->nr_max_paths))
 		bch2_trans_update_max_paths(trans);
 
-	trans->paths_allocated |= 1ULL << idx;
+	__set_bit(idx, trans->paths_allocated);
 
 	path = &trans->paths[idx];
 	path->idx		= idx;
@@ -2516,7 +2515,7 @@ static void btree_trans_verify_sorted_refs(struct btree_trans *trans)
 	struct btree_path *path;
 	unsigned i;
 
-	BUG_ON(trans->nr_sorted != hweight64(trans->paths_allocated));
+	BUG_ON(trans->nr_sorted != bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX));
 
 	trans_for_each_path(trans, path) {
 		BUG_ON(path->sorted_idx >= trans->nr_sorted);
@@ -2526,7 +2525,7 @@ static void btree_trans_verify_sorted_refs(struct btree_trans *trans)
 	for (i = 0; i < trans->nr_sorted; i++) {
 		unsigned idx = trans->sorted[i];
 
-		EBUG_ON(!(trans->paths_allocated & (1ULL << idx)));
+		BUG_ON(!test_bit(idx, trans->paths_allocated));
 		BUG_ON(trans->paths[idx].sorted_idx != i);
 	}
 }

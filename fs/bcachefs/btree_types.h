@@ -414,7 +414,7 @@ struct btree_trans {
 	unsigned		extra_journal_res;
 	unsigned		nr_max_paths;
 
-	u64			paths_allocated;
+	unsigned long		paths_allocated[BITS_TO_LONGS(BTREE_ITER_MAX)];
 
 	unsigned		mem_top;
 	unsigned		mem_max;
