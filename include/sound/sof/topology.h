@@ -39,6 +39,7 @@ enum sof_comp_type {
 	SOF_COMP_ASRC,		/**< Asynchronous sample rate converter */
 	SOF_COMP_DCBLOCK,
 	SOF_COMP_SMART_AMP,             /**< smart amplifier component */
+	SOF_COMP_MODULE_ADAPTER,		/**< module adapter */
 	/* keep FILEREAD/FILEWRITE as the last ones */
 	SOF_COMP_FILEREAD = 10000,	/**< host test based file IO */
 	SOF_COMP_FILEWRITE = 10001,	/**< host test based file IO */
@@ -68,14 +69,15 @@ struct sof_ipc_comp {
 /*
  * SOF memory capabilities, add new ones at the end
  */
-#define SOF_MEM_CAPS_RAM			(1 << 0)
-#define SOF_MEM_CAPS_ROM			(1 << 1)
-#define SOF_MEM_CAPS_EXT			(1 << 2) /**< external */
-#define SOF_MEM_CAPS_LP			(1 << 3) /**< low power */
-#define SOF_MEM_CAPS_HP			(1 << 4) /**< high performance */
-#define SOF_MEM_CAPS_DMA			(1 << 5) /**< DMA'able */
-#define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
-#define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
+#define SOF_MEM_CAPS_RAM		BIT(0)
+#define SOF_MEM_CAPS_ROM		BIT(1)
+#define SOF_MEM_CAPS_EXT		BIT(2) /**< external */
+#define SOF_MEM_CAPS_LP			BIT(3) /**< low power */
+#define SOF_MEM_CAPS_HP			BIT(4) /**< high performance */
+#define SOF_MEM_CAPS_DMA		BIT(5) /**< DMA'able */
+#define SOF_MEM_CAPS_CACHE		BIT(6) /**< cacheable */
+#define SOF_MEM_CAPS_EXEC		BIT(7) /**< executable */
+#define SOF_MEM_CAPS_L3			BIT(8) /**< L3 memory */
 
 /*
  * overrun will cause ring buffer overwrite, instead of XRUN.
@@ -86,6 +88,9 @@ struct sof_ipc_comp {
  * underrun will cause readback of 0s, instead of XRUN.
  */
 #define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
+
+/* the UUID size in bytes, shared between FW and host */
+#define SOF_UUID_SIZE	16
 
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
@@ -140,6 +145,8 @@ enum sof_volume_ramp {
 	SOF_VOLUME_LOG,
 	SOF_VOLUME_LINEAR_ZC,
 	SOF_VOLUME_LOG_ZC,
+	SOF_VOLUME_WINDOWS_FADE,
+	SOF_VOLUME_WINDOWS_NO_FADE,
 };
 
 /* generic volume component */
@@ -234,7 +241,7 @@ struct sof_ipc_comp_process {
 	/* reserved for future use */
 	uint32_t reserved[7];
 
-	uint8_t data[];
+	unsigned char data[];
 } __packed;
 
 /* frees components, buffers and pipelines
