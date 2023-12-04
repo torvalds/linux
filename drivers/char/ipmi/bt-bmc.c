@@ -457,6 +457,12 @@ static int bt_bmc_probe(struct platform_device *pdev)
 			dev_err(dev, "invalid SerIRQ number, expected sirq <= 15\n");
 			return -EINVAL;
 		}
+
+		if (bt_bmc->sirq.type != IRQ_TYPE_LEVEL_HIGH &&
+		    bt_bmc->sirq.type != IRQ_TYPE_LEVEL_LOW) {
+			dev_err(dev, "invalid SerIRQ type, expected IRQ_TYPE_LEVEL_HIGH/LOW only\n");
+			return -EINVAL;
+		}
 	}
 
 	bt_bmc_config_irq(bt_bmc, pdev);
@@ -470,7 +476,7 @@ static int bt_bmc_probe(struct platform_device *pdev)
 
 	writel(FIELD_PREP(BTCR0_IO_BASE, bt_bmc->io_addr) |
 	       FIELD_PREP(BTCR0_SIRQ, bt_bmc->sirq.id) |
-	       FIELD_PREP(BTCR0_SIRQ_TYPE, bt_bmc->sirq.type) |
+	       FIELD_PREP(BTCR0_SIRQ_TYPE, ((bt_bmc->sirq.type == IRQ_TYPE_LEVEL_LOW) ? 0 : 1)) |
 	       BTCR0_EN_CLR_SLV_RDP |
 	       BTCR0_EN_CLR_SLV_WRP |
 	       BTCR0_ENABLE_IBT,
