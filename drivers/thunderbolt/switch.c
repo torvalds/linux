@@ -1143,7 +1143,7 @@ int tb_port_lane_bonding_enable(struct tb_port *port)
 	 * Only set bonding if the link was not already bonded. This
 	 * avoids the lane adapter to re-enter bonding state.
 	 */
-	if (width == TB_LINK_WIDTH_SINGLE) {
+	if (width == TB_LINK_WIDTH_SINGLE && !tb_is_upstream_port(port)) {
 		ret = tb_port_set_lane_bonding(port, true);
 		if (ret)
 			goto err_lane1;
@@ -2880,6 +2880,7 @@ static int tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	return tb_port_wait_for_link_width(down, TB_LINK_WIDTH_SINGLE, 100);
 }
 
+/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
 static int tb_switch_asym_enable(struct tb_switch *sw, enum tb_link_width width)
 {
 	struct tb_port *up, *down, *port;
@@ -2919,10 +2920,10 @@ static int tb_switch_asym_enable(struct tb_switch *sw, enum tb_link_width width)
 			return ret;
 	}
 
-	sw->link_width = width;
 	return 0;
 }
 
+/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
 static int tb_switch_asym_disable(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
@@ -2957,7 +2958,6 @@ static int tb_switch_asym_disable(struct tb_switch *sw)
 			return ret;
 	}
 
-	sw->link_width = TB_LINK_WIDTH_DUAL;
 	return 0;
 }
 

@@ -461,10 +461,13 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  *                  - return 1 if the transfer is still in progress. When
  *                    the driver is finished with this transfer it must
  *                    call spi_finalize_current_transfer() so the subsystem
- *                    can issue the next transfer. Note: transfer_one and
- *                    transfer_one_message are mutually exclusive; when both
- *                    are set, the generic subsystem does not call your
- *                    transfer_one callback.
+ *                    can issue the next transfer. If the transfer fails, the
+ *                    driver must set the flag SPI_TRANS_FAIL_IO to
+ *                    spi_transfer->error first, before calling
+ *                    spi_finalize_current_transfer().
+ *                    Note: transfer_one and transfer_one_message are mutually
+ *                    exclusive; when both are set, the generic subsystem does
+ *                    not call your transfer_one callback.
  * @handle_err: the subsystem calls the driver to handle an error that occurs
  *		in the generic implementation of transfer_one_message().
  * @mem_ops: optimized/dedicated operations for interactions with SPI memory.
@@ -1040,6 +1043,7 @@ struct spi_transfer {
 	unsigned	len;
 
 #define SPI_TRANS_FAIL_NO_START	BIT(0)
+#define SPI_TRANS_FAIL_IO	BIT(1)
 	u16		error;
 
 	dma_addr_t	tx_dma;
