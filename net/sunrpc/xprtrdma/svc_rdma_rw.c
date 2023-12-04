@@ -681,8 +681,8 @@ out_err:
 
 /**
  * svc_rdma_build_read_segment - Build RDMA Read WQEs to pull one RDMA segment
- * @rdma: controlling transport
- * @info: context for ongoing I/O
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  * @segment: co-ordinates of remote memory to be read
  *
  * Returns:
@@ -691,13 +691,12 @@ out_err:
  *   %-ENOMEM: allocating a local resources failed
  *   %-EIO: a DMA mapping error occurred
  */
-static int svc_rdma_build_read_segment(struct svcxprt_rdma *rdma,
-				       struct svc_rdma_read_info *info,
+static int svc_rdma_build_read_segment(struct svc_rqst *rqstp,
+				       struct svc_rdma_recv_ctxt *head,
 				       const struct svc_rdma_segment *segment)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
+	struct svcxprt_rdma *rdma = svc_rdma_rqst_rdma(rqstp);
 	struct svc_rdma_chunk_ctxt *cc = &head->rc_cc;
-	struct svc_rqst *rqstp = info->ri_rqst;
 	unsigned int sge_no, seg_len, len;
 	struct svc_rdma_rw_ctxt *ctxt;
 	struct scatterlist *sg;
@@ -770,7 +769,8 @@ static int svc_rdma_build_read_chunk(struct svcxprt_rdma *rdma,
 
 	ret = -EINVAL;
 	pcl_for_each_segment(segment, chunk) {
-		ret = svc_rdma_build_read_segment(rdma, info, segment);
+		ret = svc_rdma_build_read_segment(info->ri_rqst,
+						  info->ri_readctxt, segment);
 		if (ret < 0)
 			break;
 		head->rc_readbytes += segment->rs_length;
@@ -989,7 +989,8 @@ static int svc_rdma_read_chunk_range(struct svcxprt_rdma *rdma,
 		dummy.rs_length = min_t(u32, length, segment->rs_length) - offset;
 		dummy.rs_offset = segment->rs_offset + offset;
 
-		ret = svc_rdma_build_read_segment(rdma, info, &dummy);
+		ret = svc_rdma_build_read_segment(info->ri_rqst,
+						  info->ri_readctxt, &dummy);
 		if (ret < 0)
 			break;
 

@@ -116,6 +116,13 @@ struct svcxprt_rdma {
 /* sc_flags */
 #define RDMAXPRT_CONN_PENDING	3
 
+static inline struct svcxprt_rdma *svc_rdma_rqst_rdma(struct svc_rqst *rqstp)
+{
+	struct svc_xprt *xprt = rqstp->rq_xprt;
+
+	return container_of(xprt, struct svcxprt_rdma, sc_xprt);
+}
+
 /*
  * Default connection parameters
  */
