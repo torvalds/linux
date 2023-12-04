@@ -20,7 +20,6 @@
 struct w1_gpio_ddata {
 	struct gpio_desc *gpiod;
 	struct gpio_desc *pullup_gpiod;
-	void (*enable_external_pullup)(int enable);
 	unsigned int pullup_duration;
 };
 
@@ -134,9 +133,6 @@ static int w1_gpio_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	if (pdata->enable_external_pullup)
-		pdata->enable_external_pullup(1);
-
 	if (pdata->pullup_gpiod)
 		gpiod_set_value(pdata->pullup_gpiod, 1);
 
@@ -150,9 +146,6 @@ static int w1_gpio_remove(struct platform_device *pdev)
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
 	struct w1_gpio_ddata *pdata = master->data;
 
-	if (pdata->enable_external_pullup)
-		pdata->enable_external_pullup(0);
-
 	if (pdata->pullup_gpiod)
 		gpiod_set_value(pdata->pullup_gpiod, 0);
 
@@ -161,34 +154,9 @@ static int w1_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused w1_gpio_suspend(struct device *dev)
-{
-	struct w1_bus_master *master = dev_get_drvdata(dev);
-	struct w1_gpio_ddata *pdata = master->data;
-
-	if (pdata->enable_external_pullup)
-		pdata->enable_external_pullup(0);
-
-	return 0;
-}
-
-static int __maybe_unused w1_gpio_resume(struct device *dev)
-{
-	struct w1_bus_master *master = dev_get_drvdata(dev);
-	struct w1_gpio_ddata *pdata = master->data;
-
-	if (pdata->enable_external_pullup)
-		pdata->enable_external_pullup(1);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(w1_gpio_pm_ops, w1_gpio_suspend, w1_gpio_resume);
-
 static struct platform_driver w1_gpio_driver = {
 	.driver = {
 		.name	= "w1-gpio",
-		.pm	= &w1_gpio_pm_ops,
 		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
 	},
 	.probe = w1_gpio_probe,
