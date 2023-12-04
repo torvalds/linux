@@ -218,6 +218,27 @@ static void spi_engine_gen_cs(struct spi_engine_program *p, bool dry,
 	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(1, mask));
 }
 
+/*
+ * Performs precompile steps on the message.
+ *
+ * The SPI core does most of the message/transfer validation and filling in
+ * fields for us via __spi_validate(). This fixes up anything remaining not
+ * done there.
+ *
+ * NB: This is separate from spi_engine_compile_message() because the latter
+ * is called twice and would otherwise result in double-evaluation.
+ */
+static void spi_engine_precompile_message(struct spi_message *msg)
+{
+	unsigned int clk_div, max_hz = msg->spi->controller->max_speed_hz;
+	struct spi_transfer *xfer;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		clk_div = DIV_ROUND_UP(max_hz, xfer->speed_hz);
+		xfer->effective_speed_hz = max_hz / min(clk_div, 256U);
+	}
+}
+
 static void spi_engine_compile_message(struct spi_engine *spi_engine,
 	struct spi_message *msg, bool dry, struct spi_engine_program *p)
 {
@@ -503,6 +524,8 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
 		return -ENOMEM;
+
+	spi_engine_precompile_message(msg);
 
 	p_dry.length = 0;
 	spi_engine_compile_message(spi_engine, msg, true, &p_dry);
