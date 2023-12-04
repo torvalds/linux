@@ -778,6 +778,9 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	xe_pm_init(xe);
 
+	drm_dbg(&xe->drm, "d3cold: capable=%s\n",
+		str_yes_no(xe->d3cold.capable));
+
 	return 0;
 }
 
