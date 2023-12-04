@@ -194,7 +194,7 @@ static void spi_engine_gen_cs(struct spi_engine_program *p, bool dry,
 	if (assert)
 		mask ^= BIT(spi_get_chipselect(spi, 0));
 
-	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(1, mask));
+	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(0, mask));
 }
 
 /*
