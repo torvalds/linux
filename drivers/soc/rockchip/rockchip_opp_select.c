@@ -1276,10 +1276,15 @@ void rockchip_of_get_pvtm_sel(struct device *dev, struct device_node *np,
 		snprintf(name, sizeof(name),
 			 "rockchip,p%d-pvtm-voltage-sel", process);
 		prop = of_find_property(np, name, NULL);
-	} else if (bin >= 0) {
+	} else if (bin > 0) {
 		of_property_read_u32(np, "rockchip,pvtm-hw", &hw);
 		if (hw && (hw & BIT(bin))) {
 			sprintf(name, "rockchip,pvtm-voltage-sel-hw");
+			prop = of_find_property(np, name, NULL);
+		}
+		if (!prop) {
+			snprintf(name, sizeof(name),
+				 "rockchip,pvtm-voltage-sel-B%d", bin);
 			prop = of_find_property(np, name, NULL);
 		}
 	}
