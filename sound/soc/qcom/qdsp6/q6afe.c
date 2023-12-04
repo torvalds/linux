@@ -553,13 +553,13 @@ struct q6afe_port {
 };
 
 struct afe_cmd_remote_lpass_core_hw_vote_request {
-        uint32_t  hw_block_id;
-        char client_name[8];
+	uint32_t  hw_block_id;
+	char client_name[8];
 } __packed;
 
 struct afe_cmd_remote_lpass_core_hw_devote_request {
-        uint32_t  hw_block_id;
-        uint32_t client_handle;
+	uint32_t  hw_block_id;
+	uint32_t client_handle;
 } __packed;
 
 

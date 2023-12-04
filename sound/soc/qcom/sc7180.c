@@ -578,4 +578,4 @@ static struct platform_driver sc7180_snd_driver = {
 module_platform_driver(sc7180_snd_driver);
 
 MODULE_DESCRIPTION("sc7180 ASoC Machine Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -160,4 +160,4 @@ int qcom_snd_sdw_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_snd_sdw_hw_free);
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
