@@ -1025,9 +1025,6 @@ drm_plane_get_damage_clips_count(const struct drm_plane_state *state);
 struct drm_mode_rect *
 drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
-void drm_plane_solid_fill_print_info(struct drm_printer *p, unsigned int indent,
-				     const struct drm_plane_state *state);
-
 int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
 					     unsigned int supported_filters);
 
