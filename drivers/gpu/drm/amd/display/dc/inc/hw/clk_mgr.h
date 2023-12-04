@@ -62,6 +62,25 @@ struct dcn3_clk_internal {
 	uint32_t CLK4_CLK0_CURRENT_CNT; //fclk
 };
 
+struct dcn35_clk_internal {
+	int dummy;
+	uint32_t CLK1_CLK0_CURRENT_CNT; //dispclk
+	uint32_t CLK1_CLK1_CURRENT_CNT; //dppclk
+	uint32_t CLK1_CLK2_CURRENT_CNT; //dprefclk
+	uint32_t CLK1_CLK3_CURRENT_CNT; //dcfclk
+	uint32_t CLK1_CLK4_CURRENT_CNT; //dtbclk
+	//uint32_t CLK1_CLK5_CURRENT_CNT; //dpiaclk
+	//uint32_t CLK1_CLK6_CURRENT_CNT; //srdbgclk
+	uint32_t CLK1_CLK3_DS_CNTL;	    //dcf_deep_sleep_divider
+	uint32_t CLK1_CLK3_ALLOW_DS;	//dcf_deep_sleep_allow
+
+	uint32_t CLK1_CLK0_BYPASS_CNTL; //dispclk bypass
+	uint32_t CLK1_CLK1_BYPASS_CNTL; //dppclk bypass
+	uint32_t CLK1_CLK2_BYPASS_CNTL; //dprefclk bypass
+	uint32_t CLK1_CLK3_BYPASS_CNTL; //dcfclk bypass
+	uint32_t CLK1_CLK4_BYPASS_CNTL; //dtbclk bypass
+};
+
 struct dcn301_clk_internal {
 	int dummy;
 	uint32_t CLK1_CLK0_CURRENT_CNT; //dispclk
