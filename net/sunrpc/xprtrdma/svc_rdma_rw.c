@@ -157,7 +157,6 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 struct svc_rdma_chunk_ctxt {
 	struct rpc_rdma_cid	cc_cid;
 	struct ib_cqe		cc_cqe;
-	struct svcxprt_rdma	*cc_rdma;
 	struct list_head	cc_rwctxts;
 	ktime_t			cc_posttime;
 	int			cc_sqecount;
@@ -176,7 +175,6 @@ static void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 			     struct svc_rdma_chunk_ctxt *cc)
 {
 	svc_rdma_cc_cid_init(rdma, &cc->cc_cid);
-	cc->cc_rdma = rdma;
 
 	INIT_LIST_HEAD(&cc->cc_rwctxts);
 	cc->cc_sqecount = 0;
