@@ -119,7 +119,62 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs, int nr)
 	}
 }
 
-/* Handles int $0x80 */
+#ifdef CONFIG_IA32_EMULATION
+/**
+ * int80_emulation - 32-bit legacy syscall entry
+ *
+ * This entry point can be used by 32-bit and 64-bit programs to perform
+ * 32-bit system calls.  Instances of INT $0x80 can be found inline in
+ * various programs and libraries.  It is also used by the vDSO's
+ * __kernel_vsyscall fallback for hardware that doesn't support a faster
+ * entry method.  Restarted 32-bit system calls also fall back to INT
+ * $0x80 regardless of what instruction was originally used to do the
+ * system call.
+ *
+ * This is considered a slow path.  It is not used by most libc
+ * implementations on modern hardware except during process startup.
+ *
+ * The arguments for the INT $0x80 based syscall are on stack in the
+ * pt_regs structure:
+ *   eax:				system call number
+ *   ebx, ecx, edx, esi, edi, ebp:	arg1 - arg 6
+ */
+DEFINE_IDTENTRY_RAW(int80_emulation)
+{
+	int nr;
+
+	/* Establish kernel context. */
+	enter_from_user_mode(regs);
+
+	instrumentation_begin();
+	add_random_kstack_offset();
+
+	/*
+	 * The low level idtentry code pushed -1 into regs::orig_ax
+	 * and regs::ax contains the syscall number.
+	 *
+	 * User tracing code (ptrace or signal handlers) might assume
+	 * that the regs::orig_ax contains a 32-bit number on invoking
+	 * a 32-bit syscall.
+	 *
+	 * Establish the syscall convention by saving the 32bit truncated
+	 * syscall number in regs::orig_ax and by invalidating regs::ax.
+	 */
+	regs->orig_ax = regs->ax & GENMASK(31, 0);
+	regs->ax = -ENOSYS;
+
+	nr = syscall_32_enter(regs);
+
+	local_irq_enable();
+	nr = syscall_enter_from_user_mode_work(regs, nr);
+	do_syscall_32_irqs_on(regs, nr);
+
+	instrumentation_end();
+	syscall_exit_to_user_mode(regs);
+}
+#else /* CONFIG_IA32_EMULATION */
+
+/* Handles int $0x80 on a 32bit kernel */
 __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 {
 	int nr = syscall_32_enter(regs);
@@ -138,6 +193,7 @@ __visible noinstr void do_int80_syscall_32(struct pt_regs *regs)
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
 }
+#endif /* !CONFIG_IA32_EMULATION */
 
 static noinstr bool __do_fast_syscall_32(struct pt_regs *regs)
 {
