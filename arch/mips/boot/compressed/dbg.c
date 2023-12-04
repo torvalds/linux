@@ -9,6 +9,8 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 
+#include "decompress.h"
+
 void __weak putc(char c)
 {
 }
