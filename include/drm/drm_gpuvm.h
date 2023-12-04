@@ -721,7 +721,7 @@ drm_gpuvm_bo_get(struct drm_gpuvm_bo *vm_bo)
 	return vm_bo;
 }
 
-void drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo);
+bool drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo);
 
 struct drm_gpuvm_bo *
 drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,

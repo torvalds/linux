@@ -1535,14 +1535,18 @@ drm_gpuvm_bo_destroy(struct kref *kref)
  * hold the dma-resv or driver specific GEM gpuva lock.
  *
  * This function may only be called from non-atomic context.
+ *
+ * Returns: true if vm_bo was destroyed, false otherwise.
  */
-void
+bool
 drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo)
 {
 	might_sleep();
 
 	if (vm_bo)
-		kref_put(&vm_bo->kref, drm_gpuvm_bo_destroy);
+		return !!kref_put(&vm_bo->kref, drm_gpuvm_bo_destroy);
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_put);
 
