@@ -204,9 +204,6 @@
  *	"FB":
  *		Framebuffer source set by the "FB_ID" property.
  *
- *	"SOLID_FILL":
- *		Solid fill color source set by the "solid_fill" property.
- *
  * solid_fill:
  *	solid_fill is set up with drm_plane_create_solid_fill_property(). It
  *	contains pixel data that drivers can use to fill a plane.
@@ -645,7 +642,6 @@ EXPORT_SYMBOL(drm_plane_create_blend_mode_property);
 static const struct drm_prop_enum_list drm_pixel_source_enum_list[] = {
 	{ DRM_PLANE_PIXEL_SOURCE_NONE, "NONE" },
 	{ DRM_PLANE_PIXEL_SOURCE_FB, "FB" },
-	{ DRM_PLANE_PIXEL_SOURCE_SOLID_FILL, "SOLID_FILL" },
 };
 
 /**
@@ -670,9 +666,6 @@ static const struct drm_prop_enum_list drm_pixel_source_enum_list[] = {
  * "FB":
  *	Framebuffer pixel source
  *
- * "SOLID_FILL":
- * 	Solid fill color pixel source
- *
  * Returns:
  * Zero on success, negative errno on failure.
  */
@@ -682,8 +675,7 @@ int drm_plane_create_pixel_source_property(struct drm_plane *plane,
 	struct drm_device *dev = plane->dev;
 	struct drm_property *prop;
 	static const unsigned int valid_source_mask = BIT(DRM_PLANE_PIXEL_SOURCE_FB) |
-						      BIT(DRM_PLANE_PIXEL_SOURCE_NONE) |
-						      BIT(DRM_PLANE_PIXEL_SOURCE_SOLID_FILL);
+						      BIT(DRM_PLANE_PIXEL_SOURCE_NONE);
 	int i;
 
 	/* FB is supported by default */
