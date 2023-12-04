@@ -3054,6 +3054,7 @@ int ionic_lif_alloc(struct ionic *ionic)
 	lif = netdev_priv(netdev);
 	lif->netdev = netdev;
 	ionic->lif = lif;
+	lif->ionic = ionic;
 	netdev->netdev_ops = &ionic_netdev_ops;
 	ionic_ethtool_set_ops(netdev);
 
@@ -3076,7 +3077,6 @@ int ionic_lif_alloc(struct ionic *ionic)
 	lif->neqs = ionic->neqs_per_lif;
 	lif->nxqs = ionic->ntxqs_per_lif;
 
-	lif->ionic = ionic;
 	lif->index = 0;
 
 	if (is_kdump_kernel()) {
