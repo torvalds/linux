@@ -638,7 +638,7 @@ u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
 	return ((u64)llp_u << 32) | llp_l;
 }
 
-static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
+int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
@@ -651,7 +651,7 @@ static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 	return 0;
 }
 
-static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
+int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	int ret;
