@@ -131,12 +131,16 @@ void bpf_map_fd_put_ptr(struct bpf_map *map, void *ptr, bool need_defer)
 {
 	struct bpf_map *inner_map = ptr;
 
-	/* The inner map may still be used by both non-sleepable and sleepable
-	 * bpf program, so free it after one RCU grace period and one tasks
-	 * trace RCU grace period.
+	/* Defer the freeing of inner map according to the sleepable attribute
+	 * of bpf program which owns the outer map, so unnecessary waiting for
+	 * RCU tasks trace grace period can be avoided.
 	 */
-	if (need_defer)
-		WRITE_ONCE(inner_map->free_after_mult_rcu_gp, true);
+	if (need_defer) {
+		if (atomic64_read(&map->sleepable_refcnt))
+			WRITE_ONCE(inner_map->free_after_mult_rcu_gp, true);
+		else
+			WRITE_ONCE(inner_map->free_after_rcu_gp, true);
+	}
 	bpf_map_put(inner_map);
 }
 
