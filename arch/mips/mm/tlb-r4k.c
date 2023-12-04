@@ -22,9 +22,8 @@
 #include <asm/hazards.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
+#include <asm/tlbex.h>
 #include <asm/tlbmisc.h>
-
-extern void build_tlb_refill_handler(void);
 
 /*
  * LOONGSON-2 has a 4 entry itlb which is a subset of jtlb, LOONGSON-3 has
