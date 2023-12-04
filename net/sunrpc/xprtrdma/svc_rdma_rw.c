@@ -146,24 +146,6 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 	return ret;
 }
 
-/* A chunk context tracks all I/O for moving one Read or Write
- * chunk. This is a set of rdma_rw's that handle data movement
- * for all segments of one chunk.
- *
- * These are small, acquired with a single allocator call, and
- * no more than one is needed per chunk. They are allocated on
- * demand, and not cached.
- */
-struct svc_rdma_chunk_ctxt {
-	struct rpc_rdma_cid	cc_cid;
-	struct ib_cqe		cc_cqe;
-	struct list_head	cc_rwctxts;
-	ktime_t			cc_posttime;
-	int			cc_sqecount;
-	enum ib_wc_status	cc_status;
-	struct completion	cc_done;
-};
-
 static void svc_rdma_cc_cid_init(struct svcxprt_rdma *rdma,
 				 struct rpc_rdma_cid *cid)
 {
