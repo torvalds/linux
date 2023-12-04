@@ -142,6 +142,7 @@
 		#size-cells = <0>;
 
 		vcc-supply = <&pm8916_l16>;
+		vio-supply = <&pm8916_l5>;
 
 		led@0 {
 			reg = <0>;
