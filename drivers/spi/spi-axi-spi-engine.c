@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/timer.h>
 
 #define SPI_ENGINE_VERSION_MAJOR(x)	((x >> 16) & 0xff)
 #define SPI_ENGINE_VERSION_MINOR(x)	((x >> 8) & 0xff)
@@ -114,6 +115,8 @@ struct spi_engine {
 
 	void __iomem *base;
 	struct ida sync_ida;
+	struct timer_list watchdog_timer;
+	struct spi_controller *controller;
 
 	unsigned int int_enable;
 };
@@ -488,9 +491,11 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 		struct spi_engine_message_state *st = msg->state;
 
 		if (completed_id == st->sync_id) {
-			msg->status = 0;
-			msg->actual_length = msg->frame_length;
-			spi_finalize_current_message(host);
+			if (timer_delete_sync(&spi_engine->watchdog_timer)) {
+				msg->status = 0;
+				msg->actual_length = msg->frame_length;
+				spi_finalize_current_message(host);
+			}
 			disable_int |= SPI_ENGINE_INT_SYNC;
 		}
 	}
@@ -573,6 +578,8 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 	unsigned int int_enable = 0;
 	unsigned long flags;
 
+	mod_timer(&spi_engine->watchdog_timer, jiffies + msecs_to_jiffies(5000));
+
 	spin_lock_irqsave(&spi_engine->lock, flags);
 
 	if (spi_engine_write_cmd_fifo(spi_engine, msg))
@@ -594,6 +601,20 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 	spin_unlock_irqrestore(&spi_engine->lock, flags);
 
 	return 0;
+}
+
+static void spi_engine_timeout(struct timer_list *timer)
+{
+	struct spi_engine *spi_engine = from_timer(spi_engine, timer, watchdog_timer);
+	struct spi_controller *host = spi_engine->controller;
+
+	if (WARN_ON(!host->cur_msg))
+		return;
+
+	dev_err(&host->dev,
+		"Timeout occurred while waiting for transfer to complete. Hardware is probably broken.\n");
+	host->cur_msg->status = -ETIMEDOUT;
+	spi_finalize_current_message(host);
 }
 
 static void spi_engine_release_hw(void *p)
@@ -625,6 +646,8 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spi_engine->lock);
 	ida_init(&spi_engine->sync_ida);
+	timer_setup(&spi_engine->watchdog_timer, spi_engine_timeout, TIMER_IRQSAFE);
+	spi_engine->controller = host;
 
 	spi_engine->clk = devm_clk_get_enabled(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(spi_engine->clk))
