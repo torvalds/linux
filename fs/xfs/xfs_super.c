@@ -906,10 +906,8 @@ xfs_fs_statfs(
 STATIC void
 xfs_save_resvblks(struct xfs_mount *mp)
 {
-	uint64_t resblks = 0;
-
 	mp->m_resblks_save = mp->m_resblks;
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	xfs_reserve_blocks(mp, 0);
 }
 
 STATIC void
@@ -923,7 +921,7 @@ xfs_restore_resvblks(struct xfs_mount *mp)
 	} else
 		resblks = xfs_default_resblks(mp);
 
-	xfs_reserve_blocks(mp, &resblks, NULL);
+	xfs_reserve_blocks(mp, resblks);
 }
 
 /*

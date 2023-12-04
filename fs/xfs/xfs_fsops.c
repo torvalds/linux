@@ -344,42 +344,19 @@ xfs_growfs_log(
 }
 
 /*
- * exported through ioctl XFS_IOC_SET_RESBLKS & XFS_IOC_GET_RESBLKS
- *
- * xfs_reserve_blocks is called to set m_resblks
- * in the in-core mount table. The number of unused reserved blocks
- * is kept in m_resblks_avail.
- *
  * Reserve the requested number of blocks if available. Otherwise return
  * as many as possible to satisfy the request. The actual number
- * reserved are returned in outval
- *
- * A null inval pointer indicates that only the current reserved blocks
- * available  should  be returned no settings are changed.
+ * reserved are returned in outval.
  */
-
 int
 xfs_reserve_blocks(
-	xfs_mount_t             *mp,
-	uint64_t              *inval,
-	xfs_fsop_resblks_t      *outval)
+	struct xfs_mount	*mp,
+	uint64_t		request)
 {
 	int64_t			lcounter, delta;
 	int64_t			fdblks_delta = 0;
-	uint64_t		request;
 	int64_t			free;
 	int			error = 0;
-
-	/* If inval is null, report current values and return */
-	if (inval == (uint64_t *)NULL) {
-		if (!outval)
-			return -EINVAL;
-		outval->resblks = mp->m_resblks;
-		outval->resblks_avail = mp->m_resblks_avail;
-		return 0;
-	}
-
-	request = *inval;
 
 	/*
 	 * With per-cpu counters, this becomes an interesting problem. we need
@@ -450,11 +427,6 @@ xfs_reserve_blocks(
 		spin_lock(&mp->m_sb_lock);
 	}
 out:
-	if (outval) {
-		outval->resblks = mp->m_resblks;
-		outval->resblks_avail = mp->m_resblks_avail;
-	}
-
 	spin_unlock(&mp->m_sb_lock);
 	return error;
 }

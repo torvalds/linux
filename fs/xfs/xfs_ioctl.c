@@ -1881,7 +1881,6 @@ xfs_ioctl_getset_resblocks(
 	struct xfs_mount	*mp = XFS_I(file_inode(filp))->i_mount;
 	struct xfs_fsop_resblks	fsop = { };
 	int			error;
-	uint64_t		in;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1896,16 +1895,16 @@ xfs_ioctl_getset_resblocks(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		in = fsop.resblks;
-		error = xfs_reserve_blocks(mp, &in, &fsop);
+		error = xfs_reserve_blocks(mp, fsop.resblks);
 		mnt_drop_write_file(filp);
 		if (error)
 			return error;
-	} else {
-		error = xfs_reserve_blocks(mp, NULL, &fsop);
-		if (error)
-			return error;
 	}
+
+	spin_lock(&mp->m_sb_lock);
+	fsop.resblks = mp->m_resblks;
+	fsop.resblks_avail = mp->m_resblks_avail;
+	spin_unlock(&mp->m_sb_lock);
 
 	if (copy_to_user(arg, &fsop, sizeof(fsop)))
 		return -EFAULT;
