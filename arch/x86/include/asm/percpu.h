@@ -28,6 +28,7 @@
 
 #else /* ...!ASSEMBLY */
 
+#include <linux/build_bug.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 
@@ -462,6 +463,7 @@ do {									\
 #define this_cpu_write_8(pcp, val)	__raw_cpu_write(volatile, pcp, val)
 #endif
 
+#define this_cpu_read_const(pcp)	__raw_cpu_read(, pcp)
 #else /* CONFIG_USE_X86_SEG_SUPPORT */
 
 #define raw_cpu_read_1(pcp)		percpu_from_op(1, , "mov", pcp)
@@ -486,6 +488,11 @@ do {									\
 #define this_cpu_write_8(pcp, val)	percpu_to_op(8, volatile, "mov", (pcp), val)
 #endif
 
+/*
+ * The generic per-cpu infrastrucutre is not suitable for
+ * reading const-qualified variables.
+ */
+#define this_cpu_read_const(pcp)	({ BUILD_BUG(); (typeof(pcp))0; })
 #endif /* CONFIG_USE_X86_SEG_SUPPORT */
 
 #define raw_cpu_add_1(pcp, val)		percpu_add_op(1, , (pcp), val)
