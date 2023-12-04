@@ -1498,7 +1498,7 @@ static ssize_t aio_setup_rw(int rw, const struct iocb *iocb,
 	size_t len = iocb->aio_nbytes;
 
 	if (!vectored) {
-		ssize_t ret = import_single_range(rw, buf, len, iter);
+		ssize_t ret = import_ubuf(rw, buf, len, iter);
 		*iovec = NULL;
 		return ret;
 	}

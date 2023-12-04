@@ -1255,8 +1255,8 @@ long keyctl_instantiate_key(key_serial_t id,
 		struct iov_iter from;
 		int ret;
 
-		ret = import_single_range(ITER_SOURCE, (void __user *)_payload, plen,
-					  &from);
+		ret = import_ubuf(ITER_SOURCE, (void __user *)_payload, plen,
+				  &from);
 		if (unlikely(ret))
 			return ret;
 
