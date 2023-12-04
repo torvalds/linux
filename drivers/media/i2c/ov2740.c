@@ -128,7 +128,6 @@ struct ov2740_mode {
 };
 
 static const struct ov2740_reg mipi_data_rate_720mbps[] = {
-	{0x0103, 0x01},
 	{0x0302, 0x4b},
 	{0x030d, 0x4b},
 	{0x030e, 0x02},
@@ -137,7 +136,6 @@ static const struct ov2740_reg mipi_data_rate_720mbps[] = {
 };
 
 static const struct ov2740_reg mipi_data_rate_360mbps[] = {
-	{0x0103, 0x01},
 	{0x0302, 0x4b},
 	{0x0303, 0x01},
 	{0x030d, 0x4b},
@@ -934,6 +932,15 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 
 	if (ov2740->nvm)
 		ov2740_load_otp_data(ov2740->nvm);
+
+	/* Reset the sensor */
+	ret = ov2740_write_reg(ov2740, 0x0103, 1, 0x01);
+	if (ret) {
+		dev_err(&client->dev, "failed to reset\n");
+		return ret;
+	}
+
+	usleep_range(10000, 15000);
 
 	link_freq_index = ov2740->cur_mode->link_freq_index;
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
