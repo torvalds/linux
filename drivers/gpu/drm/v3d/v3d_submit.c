@@ -1219,11 +1219,13 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 	/* Every CPU job must have a CPU job user extension */
 	if (!cpu_job->job_type) {
 		DRM_DEBUG("CPU job must have a CPU job user extension.\n");
+		ret = -EINVAL;
 		goto fail;
 	}
 
 	if (args->bo_handle_count != cpu_job_bo_handle_count[cpu_job->job_type]) {
 		DRM_DEBUG("This CPU job was not submitted with the proper number of BOs.\n");
+		ret = -EINVAL;
 		goto fail;
 	}
 
