@@ -50,6 +50,7 @@ static bool get_bw_alloc_proceed_flag(struct dc_link *tmp)
 			&& tmp->hpd_status
 			&& tmp->dpia_bw_alloc_config.bw_alloc_enabled);
 }
+
 static void reset_bw_alloc_struct(struct dc_link *link)
 {
 	link->dpia_bw_alloc_config.bw_alloc_enabled = false;
@@ -59,6 +60,11 @@ static void reset_bw_alloc_struct(struct dc_link *link)
 	link->dpia_bw_alloc_config.bw_granularity = 0;
 	link->dpia_bw_alloc_config.response_ready = false;
 }
+
+#define BW_GRANULARITY_0 4 // 0.25 Gbps
+#define BW_GRANULARITY_1 2 // 0.5 Gbps
+#define BW_GRANULARITY_2 1 // 1 Gbps
+
 static uint8_t get_bw_granularity(struct dc_link *link)
 {
 	uint8_t bw_granularity = 0;
@@ -71,16 +77,20 @@ static uint8_t get_bw_granularity(struct dc_link *link)
 
 	switch (bw_granularity & 0x3) {
 	case 0:
-		bw_granularity = 4;
+		bw_granularity = BW_GRANULARITY_0;
 		break;
 	case 1:
+		bw_granularity = BW_GRANULARITY_1;
+		break;
+	case 2:
 	default:
-		bw_granularity = 2;
+		bw_granularity = BW_GRANULARITY_2;
 		break;
 	}
 
 	return bw_granularity;
 }
+
 static int get_estimated_bw(struct dc_link *link)
 {
 	uint8_t bw_estimated_bw = 0;
@@ -93,31 +103,7 @@ static int get_estimated_bw(struct dc_link *link)
 
 	return bw_estimated_bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
 }
-static bool allocate_usb4_bw(int *stream_allocated_bw, int bw_needed, struct dc_link *link)
-{
-	if (bw_needed > 0)
-		*stream_allocated_bw += bw_needed;
 
-	return true;
-}
-static bool deallocate_usb4_bw(int *stream_allocated_bw, int bw_to_dealloc, struct dc_link *link)
-{
-	bool ret = false;
-
-	if (*stream_allocated_bw > 0) {
-		*stream_allocated_bw -= bw_to_dealloc;
-		ret = true;
-	} else {
-		//Do nothing for now
-		ret = true;
-	}
-
-	// Unplug so reset values
-	if (!link->hpd_status)
-		reset_bw_alloc_struct(link);
-
-	return ret;
-}
 /*
  * Read all New BW alloc configuration ex: estimated_bw, allocated_bw,
  * granuality, Driver_ID, CM_Group, & populate the BW allocation structs
@@ -128,7 +114,12 @@ static void init_usb4_bw_struct(struct dc_link *link)
 	// Init the known values
 	link->dpia_bw_alloc_config.bw_granularity = get_bw_granularity(link);
 	link->dpia_bw_alloc_config.estimated_bw = get_estimated_bw(link);
+
+	DC_LOG_DEBUG("%s: bw_granularity(%d), estimated_bw(%d)\n",
+		__func__, link->dpia_bw_alloc_config.bw_granularity,
+		link->dpia_bw_alloc_config.estimated_bw);
 }
+
 static uint8_t get_lowest_dpia_index(struct dc_link *link)
 {
 	const struct dc *dc_struct = link->dc;
@@ -141,12 +132,15 @@ static uint8_t get_lowest_dpia_index(struct dc_link *link)
 				dc_struct->links[i]->ep_type != DISPLAY_ENDPOINT_USB4_DPIA)
 			continue;
 
-		if (idx > dc_struct->links[i]->link_index)
+		if (idx > dc_struct->links[i]->link_index) {
 			idx = dc_struct->links[i]->link_index;
+			break;
+		}
 	}
 
 	return idx;
 }
+
 /*
  * Get the Max Available BW or Max Estimated BW for each Host Router
  *
@@ -186,6 +180,7 @@ static int get_host_router_total_bw(struct dc_link *link, uint8_t type)
 
 	return total_bw;
 }
+
 /*
  * Cleanup function for when the dpia is unplugged to reset struct
  * and perform any required clean up
@@ -194,42 +189,50 @@ static int get_host_router_total_bw(struct dc_link *link, uint8_t type)
  *
  * return: none
  */
-static bool dpia_bw_alloc_unplug(struct dc_link *link)
+static void dpia_bw_alloc_unplug(struct dc_link *link)
 {
-	if (!link)
-		return true;
-
-	return deallocate_usb4_bw(&link->dpia_bw_alloc_config.sink_allocated_bw,
-			link->dpia_bw_alloc_config.sink_allocated_bw, link);
+	if (link) {
+		DC_LOG_DEBUG("%s: resetting bw alloc config for link(%d)\n",
+			__func__, link->link_index);
+		link->dpia_bw_alloc_config.sink_allocated_bw = 0;
+		reset_bw_alloc_struct(link);
+	}
 }
+
 static void set_usb4_req_bw_req(struct dc_link *link, int req_bw)
 {
 	uint8_t requested_bw;
 	uint32_t temp;
 
-	// 1. Add check for this corner case #1
-	if (req_bw > link->dpia_bw_alloc_config.estimated_bw)
+	/* Error check whether request bw greater than allocated */
+	if (req_bw > link->dpia_bw_alloc_config.estimated_bw) {
+		DC_LOG_ERROR("%s: Request bw greater than estimated bw for link(%d)\n",
+			__func__, link->link_index);
 		req_bw = link->dpia_bw_alloc_config.estimated_bw;
+	}
 
 	temp = req_bw * link->dpia_bw_alloc_config.bw_granularity;
 	requested_bw = temp / Kbps_TO_Gbps;
 
-	// Always make sure to add more to account for floating points
+	/* Always make sure to add more to account for floating points */
 	if (temp % Kbps_TO_Gbps)
 		++requested_bw;
 
-	// 2. Add check for this corner case #2
+	/* Error check whether requested and allocated are equal */
 	req_bw = requested_bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
-	if (req_bw == link->dpia_bw_alloc_config.sink_allocated_bw)
-		return;
+	if (req_bw == link->dpia_bw_alloc_config.sink_allocated_bw) {
+		DC_LOG_ERROR("%s: Request bw equals to allocated bw for link(%d)\n",
+			__func__, link->link_index);
+	}
 
-	if (core_link_write_dpcd(
+	link->dpia_bw_alloc_config.response_ready = false; // Reset flag
+	core_link_write_dpcd(
 		link,
 		REQUESTED_BW,
 		&requested_bw,
-		sizeof(uint8_t)) == DC_OK)
-		link->dpia_bw_alloc_config.response_ready = false; // Reset flag
+		sizeof(uint8_t));
 }
+
 /*
  * Return the response_ready flag from dc_link struct
  *
@@ -241,6 +244,7 @@ static bool get_cm_response_ready_flag(struct dc_link *link)
 {
 	return link->dpia_bw_alloc_config.response_ready;
 }
+
 // ------------------------------------------------------------------
 //					PUBLIC FUNCTIONS
 // ------------------------------------------------------------------
@@ -277,27 +281,27 @@ bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link)
 				DPTX_BW_ALLOCATION_MODE_CONTROL,
 				&response,
 				sizeof(uint8_t)) != DC_OK) {
-			DC_LOG_DEBUG("%s: **** FAILURE Enabling DPtx BW Allocation Mode Support ***\n",
-					__func__);
+			DC_LOG_DEBUG("%s: FAILURE Enabling DPtx BW Allocation Mode Support for link(%d)\n",
+				__func__, link->link_index);
 		} else {
 			// SUCCESS Enabled DPtx BW Allocation Mode Support
-			link->dpia_bw_alloc_config.bw_alloc_enabled = true;
-			DC_LOG_DEBUG("%s: **** SUCCESS Enabling DPtx BW Allocation Mode Support ***\n",
-					__func__);
+			DC_LOG_DEBUG("%s: SUCCESS Enabling DPtx BW Allocation Mode Support for link(%d)\n",
+				__func__, link->link_index);
 
 			ret = true;
 			init_usb4_bw_struct(link);
+			link->dpia_bw_alloc_config.bw_alloc_enabled = true;
 		}
 	}
 
 out:
 	return ret;
 }
+
 void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result)
 {
 	int bw_needed = 0;
 	int estimated = 0;
-	int host_router_total_estimated_bw = 0;
 
 	if (!get_bw_alloc_proceed_flag((link)))
 		return;
@@ -306,14 +310,22 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
 
 	case DPIA_BW_REQ_FAILED:
 
-		DC_LOG_DEBUG("%s: *** *** BW REQ FAILURE for DP-TX Request *** ***\n", __func__);
+		/*
+		 * Ideally, we shouldn't run into this case as we always validate available
+		 * bandwidth and request within that limit
+		 */
+		estimated = bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
 
-		// Update the new Estimated BW value updated by CM
-		link->dpia_bw_alloc_config.estimated_bw =
-				bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
+		DC_LOG_ERROR("%s: BW REQ FAILURE for DP-TX Request for link(%d)\n",
+			__func__, link->link_index);
+		DC_LOG_ERROR("%s: current estimated_bw(%d), new estimated_bw(%d)\n",
+			__func__, link->dpia_bw_alloc_config.estimated_bw, estimated);
 
+		/* Update the new Estimated BW value updated by CM */
+		link->dpia_bw_alloc_config.estimated_bw = estimated;
+
+		/* Allocate the previously requested bandwidth */
 		set_usb4_req_bw_req(link, link->dpia_bw_alloc_config.estimated_bw);
-		link->dpia_bw_alloc_config.response_ready = false;
 
 		/*
 		 * If FAIL then it is either:
@@ -326,68 +338,34 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
 
 	case DPIA_BW_REQ_SUCCESS:
 
-		DC_LOG_DEBUG("%s: *** BW REQ SUCCESS for DP-TX Request ***\n", __func__);
-
-		// 1. SUCCESS 1st time before any Pruning is done
-		// 2. SUCCESS after prev. FAIL before any Pruning is done
-		// 3. SUCCESS after Pruning is done but before enabling link
-
 		bw_needed = bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
 
-		// 1.
-		if (!link->dpia_bw_alloc_config.sink_allocated_bw) {
+		DC_LOG_DEBUG("%s: BW REQ SUCCESS for DP-TX Request for link(%d)\n",
+			__func__, link->link_index);
+		DC_LOG_DEBUG("%s: current allocated_bw(%d), new allocated_bw(%d)\n",
+			__func__, link->dpia_bw_alloc_config.sink_allocated_bw, bw_needed);
 
-			allocate_usb4_bw(&link->dpia_bw_alloc_config.sink_allocated_bw, bw_needed, link);
-			link->dpia_bw_alloc_config.sink_verified_bw =
-					link->dpia_bw_alloc_config.sink_allocated_bw;
-
-			// SUCCESS from first attempt
-			if (link->dpia_bw_alloc_config.sink_allocated_bw >
-			link->dpia_bw_alloc_config.sink_max_bw)
-				link->dpia_bw_alloc_config.sink_verified_bw =
-						link->dpia_bw_alloc_config.sink_max_bw;
-		}
-		// 3.
-		else if (link->dpia_bw_alloc_config.sink_allocated_bw) {
-
-			// Find out how much do we need to de-alloc
-			if (link->dpia_bw_alloc_config.sink_allocated_bw > bw_needed)
-				deallocate_usb4_bw(&link->dpia_bw_alloc_config.sink_allocated_bw,
-						link->dpia_bw_alloc_config.sink_allocated_bw - bw_needed, link);
-			else
-				allocate_usb4_bw(&link->dpia_bw_alloc_config.sink_allocated_bw,
-						bw_needed - link->dpia_bw_alloc_config.sink_allocated_bw, link);
-		}
-
-		// 4. If this is the 2nd sink then any unused bw will be reallocated to master DPIA
-		// => check if estimated_bw changed
+		link->dpia_bw_alloc_config.sink_allocated_bw = bw_needed;
 
 		link->dpia_bw_alloc_config.response_ready = true;
 		break;
 
 	case DPIA_EST_BW_CHANGED:
 
-		DC_LOG_DEBUG("%s: *** ESTIMATED BW CHANGED for DP-TX Request ***\n", __func__);
-
 		estimated = bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
-		host_router_total_estimated_bw = get_host_router_total_bw(link, HOST_ROUTER_BW_ESTIMATED);
 
-		// 1. If due to unplug of other sink
-		if (estimated == host_router_total_estimated_bw) {
-			// First update the estimated & max_bw fields
-			if (link->dpia_bw_alloc_config.estimated_bw < estimated)
-				link->dpia_bw_alloc_config.estimated_bw = estimated;
-		}
-		// 2. If due to realloc bw btw 2 dpia due to plug OR realloc unused Bw
-		else {
-			// We lost estimated bw usually due to plug event of other dpia
-			link->dpia_bw_alloc_config.estimated_bw = estimated;
-		}
+		DC_LOG_DEBUG("%s: ESTIMATED BW CHANGED for link(%d)\n",
+			__func__, link->link_index);
+		DC_LOG_DEBUG("%s: current estimated_bw(%d), new estimated_bw(%d)\n",
+			__func__, link->dpia_bw_alloc_config.estimated_bw, estimated);
+
+		link->dpia_bw_alloc_config.estimated_bw = estimated;
 		break;
 
 	case DPIA_BW_ALLOC_CAPS_CHANGED:
 
-		DC_LOG_DEBUG("%s: *** BW ALLOC CAPABILITY CHANGED for DP-TX Request ***\n", __func__);
+		DC_LOG_ERROR("%s: BW ALLOC CAPABILITY CHANGED to Disabled for link(%d)\n",
+			__func__, link->link_index);
 		link->dpia_bw_alloc_config.bw_alloc_enabled = false;
 		break;
 	}
@@ -409,11 +387,11 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
 		set_usb4_req_bw_req(link, link->dpia_bw_alloc_config.sink_max_bw);
 
 		do {
-			if (!(timeout > 0))
+			if (timeout > 0)
 				timeout--;
 			else
 				break;
-			fsleep(10 * 1000);
+			msleep(10);
 		} while (!get_cm_response_ready_flag(link));
 
 		if (!timeout)
@@ -428,37 +406,36 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
 out:
 	return ret;
 }
-int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw)
+
+bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw)
 {
-	int ret = 0;
+	bool ret = false;
 	uint8_t timeout = 10;
+
+	DC_LOG_DEBUG("%s: ENTER: link(%d), hpd_status(%d), current allocated_bw(%d), req_bw(%d)\n",
+		__func__, link->link_index, link->hpd_status,
+		link->dpia_bw_alloc_config.sink_allocated_bw, req_bw);
 
 	if (!get_bw_alloc_proceed_flag(link))
 		goto out;
 
-	/*
-	 * Sometimes stream uses same timing parameters as the already
-	 * allocated max sink bw so no need to re-alloc
-	 */
-	if (req_bw != link->dpia_bw_alloc_config.sink_allocated_bw) {
-		set_usb4_req_bw_req(link, req_bw);
-		do {
-			if (!(timeout > 0))
-				timeout--;
-			else
-				break;
-			udelay(10 * 1000);
-		} while (!get_cm_response_ready_flag(link));
+	set_usb4_req_bw_req(link, req_bw);
+	do {
+		if (timeout > 0)
+			timeout--;
+		else
+			break;
+		msleep(10);
+	} while (!get_cm_response_ready_flag(link));
 
-		if (!timeout)
-			ret = 0;// ERROR TIMEOUT waiting for response for allocating bw
-		else if (link->dpia_bw_alloc_config.sink_allocated_bw > 0)
-			ret = get_host_router_total_bw(link, HOST_ROUTER_BW_ALLOCATED);
-	}
+	if (timeout)
+		ret = true;
 
 out:
+	DC_LOG_DEBUG("%s: EXIT: timeout(%d), ret(%d)\n", __func__, timeout, ret);
 	return ret;
 }
+
 bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, const unsigned int num_dpias)
 {
 	bool ret = true;
