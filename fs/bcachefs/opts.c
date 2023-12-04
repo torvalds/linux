@@ -279,14 +279,14 @@ int bch2_opt_validate(const struct bch_option *opt, u64 v, struct printbuf *err)
 		if (err)
 			prt_printf(err, "%s: not a multiple of 512",
 			       opt->attr.name);
-		return -EINVAL;
+		return -BCH_ERR_opt_parse_error;
 	}
 
 	if ((opt->flags & OPT_MUST_BE_POW_2) && !is_power_of_2(v)) {
 		if (err)
 			prt_printf(err, "%s: must be a power of two",
 			       opt->attr.name);
-		return -EINVAL;
+		return -BCH_ERR_opt_parse_error;
 	}
 
 	if (opt->fn.validate)
