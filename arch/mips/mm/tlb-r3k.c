@@ -23,6 +23,7 @@
 #include <asm/io.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/setup.h>
 #include <asm/tlbex.h>
 
 #undef DEBUG_TLB

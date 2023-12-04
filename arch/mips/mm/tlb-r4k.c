@@ -24,6 +24,7 @@
 #include <asm/tlb.h>
 #include <asm/tlbex.h>
 #include <asm/tlbmisc.h>
+#include <asm/setup.h>
 
 /*
  * LOONGSON-2 has a 4 entry itlb which is a subset of jtlb, LOONGSON-3 has
