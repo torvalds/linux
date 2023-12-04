@@ -826,6 +826,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		pte = set_pte_bit(pte, __pgprot(PTE_DIRTY));
 
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
+	/*
+	 * If we end up clearing hw dirtiness for a sw-dirty PTE, set hardware
+	 * dirtiness again.
+	 */
+	if (pte_sw_dirty(pte))
+		pte = pte_mkdirty(pte);
 	return pte;
 }
 
