@@ -628,6 +628,12 @@ static bool type_is_map_ptr(enum bpf_reg_type t) {
 	}
 }
 
+/*
+ * _a stands for append, was shortened to avoid multiline statements below.
+ * This macro is used to output a comma separated list of attributes.
+ */
+#define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, ##__VA_ARGS__); sep = ","; })
+
 static void print_reg_state(struct bpf_verifier_env *env,
 			    const struct bpf_func_state *state,
 			    const struct bpf_reg_state *reg)
@@ -643,11 +649,6 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		verbose_snum(env, reg->var_off.value + reg->off);
 		return;
 	}
-/*
- * _a stands for append, was shortened to avoid multiline statements below.
- * This macro is used to output a comma separated list of attributes.
- */
-#define verbose_a(fmt, ...) ({ verbose(env, "%s" fmt, sep, ##__VA_ARGS__); sep = ","; })
 
 	verbose(env, "%s", reg_type_str(env, t));
 	if (t == PTR_TO_STACK) {
@@ -686,6 +687,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		verbose_a("sz=");
 		verbose_unum(env, reg->mem_size);
 	}
+	if (t == CONST_PTR_TO_DYNPTR)
+		verbose_a("type=%s",  dynptr_type_str(reg->dynptr.type));
 	if (tnum_is_const(reg->var_off)) {
 		/* a pointer register with fixed offset */
 		if (reg->var_off.value) {
@@ -702,8 +705,6 @@ static void print_reg_state(struct bpf_verifier_env *env,
 		}
 	}
 	verbose(env, ")");
-
-#undef verbose_a
 }
 
 void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_state *state,
@@ -727,6 +728,7 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 	}
 	for (i = 0; i < state->allocated_stack / BPF_REG_SIZE; i++) {
 		char types_buf[BPF_REG_SIZE + 1];
+		const char *sep = "";
 		bool valid = false;
 		u8 slot_type;
 		int j;
@@ -765,9 +767,14 @@ void print_verifier_state(struct bpf_verifier_env *env, const struct bpf_func_st
 
 			verbose(env, " fp%d", (-i - 1) * BPF_REG_SIZE);
 			print_liveness(env, reg->live);
-			verbose(env, "=dynptr_%s", dynptr_type_str(reg->dynptr.type));
+			verbose(env, "=dynptr_%s(", dynptr_type_str(reg->dynptr.type));
+			if (reg->id)
+				verbose_a("id=%d", reg->id);
 			if (reg->ref_obj_id)
-				verbose(env, "(ref_id=%d)", reg->ref_obj_id);
+				verbose_a("ref_id=%d", reg->ref_obj_id);
+			if (reg->dynptr_id)
+				verbose_a("dynptr_id=%d", reg->dynptr_id);
+			verbose(env, ")");
 			break;
 		case STACK_ITER:
 			/* only main slot has ref_obj_id set; skip others */
