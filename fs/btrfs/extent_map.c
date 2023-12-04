@@ -366,8 +366,8 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
  * into the tree directly, with an additional reference taken, or a
  * reference dropped if the merge attempt was successful.
  */
-int add_extent_mapping(struct extent_map_tree *tree,
-		       struct extent_map *em, int modified)
+static int add_extent_mapping(struct extent_map_tree *tree,
+			      struct extent_map *em, int modified)
 {
 	int ret = 0;
 
