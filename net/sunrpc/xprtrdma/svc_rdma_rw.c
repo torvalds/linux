@@ -379,9 +379,9 @@ static void svc_rdma_wc_read_done(struct ib_cq *cq, struct ib_wc *wc)
  *   even if one or more WRs are flushed. This is true when posting
  *   an rdma_rw_ctx or when posting a single signaled WR.
  */
-static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
+static int svc_rdma_post_chunk_ctxt(struct svcxprt_rdma *rdma,
+				    struct svc_rdma_chunk_ctxt *cc)
 {
-	struct svcxprt_rdma *rdma = cc->cc_rdma;
 	struct ib_send_wr *first_wr;
 	const struct ib_send_wr *bad_wr;
 	struct list_head *tmp;
@@ -652,7 +652,7 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
 		goto out_err;
 
 	trace_svcrdma_post_write_chunk(&cc->cc_cid, cc->cc_sqecount);
-	ret = svc_rdma_post_chunk_ctxt(cc);
+	ret = svc_rdma_post_chunk_ctxt(rdma, cc);
 	if (ret < 0)
 		goto out_err;
 	return xdr->len;
@@ -699,7 +699,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 		goto out_err;
 
 	trace_svcrdma_post_reply_chunk(&cc->cc_cid, cc->cc_sqecount);
-	ret = svc_rdma_post_chunk_ctxt(cc);
+	ret = svc_rdma_post_chunk_ctxt(rdma, cc);
 	if (ret < 0)
 		goto out_err;
 
@@ -1180,7 +1180,7 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 
 	trace_svcrdma_post_read_chunk(&cc->cc_cid, cc->cc_sqecount);
 	init_completion(&cc->cc_done);
-	ret = svc_rdma_post_chunk_ctxt(cc);
+	ret = svc_rdma_post_chunk_ctxt(rdma, cc);
 	if (ret < 0)
 		goto out_err;
 
