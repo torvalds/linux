@@ -192,10 +192,10 @@ int sof_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 	int ret;
 
 	/*
-	 * headset should be initialized once.
-	 * Do it with dai link for playback.
+	 * Jack detection should be only initialized once for headsets since
+	 * the playback/capture is sharing the same jack
 	 */
-	if (!playback)
+	if (ctx->headset_codec_dev)
 		return 0;
 
 	sdw_dev = bus_find_device_by_name(&sdw_bus_type, NULL, dai_links->codecs[0].name);
