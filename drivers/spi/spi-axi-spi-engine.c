@@ -218,7 +218,7 @@ static void spi_engine_gen_cs(struct spi_engine_program *p, bool dry,
 	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(1, mask));
 }
 
-static int spi_engine_compile_message(struct spi_engine *spi_engine,
+static void spi_engine_compile_message(struct spi_engine *spi_engine,
 	struct spi_message *msg, bool dry, struct spi_engine_program *p)
 {
 	struct spi_device *spi = msg->spi;
@@ -273,8 +273,6 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 
 	if (!keep_cs)
 		spi_engine_gen_cs(p, dry, spi, false);
-
-	return 0;
 }
 
 static void spi_engine_xfer_next(struct spi_message *msg,
