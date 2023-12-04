@@ -4230,6 +4230,15 @@ static inline void netdev_ref_replace(struct net_device *odev,
 void linkwatch_fire_event(struct net_device *dev);
 
 /**
+ * linkwatch_sync_dev - sync linkwatch for the given device
+ * @dev: network device to sync linkwatch for
+ *
+ * Sync linkwatch for the given device, removing it from the
+ * pending work list (if queued).
+ */
+void linkwatch_sync_dev(struct net_device *dev);
+
+/**
  *	netif_carrier_ok - test if carrier present
  *	@dev: network device
  *

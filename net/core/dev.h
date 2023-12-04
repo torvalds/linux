@@ -30,7 +30,6 @@ int __init dev_proc_init(void);
 #endif
 
 void linkwatch_init_dev(struct net_device *dev);
-void linkwatch_forget_dev(struct net_device *dev);
 void linkwatch_run_queue(void);
 
 void dev_addr_flush(struct net_device *dev);

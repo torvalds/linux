@@ -245,7 +245,7 @@ static void __linkwatch_run_queue(int urgent_only)
 	spin_unlock_irq(&lweventlist_lock);
 }
 
-void linkwatch_forget_dev(struct net_device *dev)
+void linkwatch_sync_dev(struct net_device *dev)
 {
 	unsigned long flags;
 	int clean = 0;
