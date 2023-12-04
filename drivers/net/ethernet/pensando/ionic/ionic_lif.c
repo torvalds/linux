@@ -424,14 +424,10 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 
 	ionic_qcq_intr_free(lif, qcq);
 
-	if (qcq->cq.info) {
-		vfree(qcq->cq.info);
-		qcq->cq.info = NULL;
-	}
-	if (qcq->q.info) {
-		vfree(qcq->q.info);
-		qcq->q.info = NULL;
-	}
+	vfree(qcq->cq.info);
+	qcq->cq.info = NULL;
+	vfree(qcq->q.info);
+	qcq->q.info = NULL;
 }
 
 void ionic_qcqs_free(struct ionic_lif *lif)
