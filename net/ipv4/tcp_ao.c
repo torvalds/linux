@@ -1608,6 +1608,15 @@ static int tcp_ao_add_cmd(struct sock *sk, unsigned short int family,
 		if (!dev || !l3index)
 			return -EINVAL;
 
+		if (!bound_dev_if || bound_dev_if != cmd.ifindex) {
+			/* tcp_ao_established_key() doesn't expect having
+			 * non peer-matching key on an established TCP-AO
+			 * connection.
+			 */
+			if (!((1 << sk->sk_state) & (TCPF_LISTEN | TCPF_CLOSE)))
+				return -EINVAL;
+		}
+
 		/* It's still possible to bind after adding keys or even
 		 * re-bind to a different dev (with CAP_NET_RAW).
 		 * So, no reason to return error here, rather try to be
