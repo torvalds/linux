@@ -203,7 +203,7 @@ static inline int __must_check bch2_btree_path_traverse(struct btree_trans *tran
 }
 
 btree_path_idx_t bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
-			       unsigned, unsigned, unsigned, unsigned long);
+				 unsigned, unsigned, unsigned, unsigned long);
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
 /*
@@ -359,10 +359,12 @@ static inline void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpo
 
 static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
+	struct btree_trans *trans = iter->trans;
+
 	if (unlikely(iter->update_path))
-		bch2_path_put(iter->trans, iter->update_path->idx,
+		bch2_path_put(trans, iter->update_path,
 			      iter->flags & BTREE_ITER_INTENT);
-	iter->update_path = NULL;
+	iter->update_path = 0;
 
 	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
 		new_pos.snapshot = iter->snapshot;
@@ -431,8 +433,8 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 					  unsigned long ip)
 {
 	iter->trans		= trans;
-	iter->update_path	= NULL;
-	iter->key_cache_path	= NULL;
+	iter->update_path	= 0;
+	iter->key_cache_path	= 0;
 	iter->btree_id		= btree_id;
 	iter->min_depth		= 0;
 	iter->flags		= flags;
@@ -443,7 +445,7 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 #ifdef CONFIG_BCACHEFS_DEBUG
 	iter->ip_allocated = ip;
 #endif
-	iter->path = trans->paths + bch2_path_get(trans, btree_id, iter->pos,
+	iter->path = bch2_path_get(trans, btree_id, iter->pos,
 				   locks_want, depth, flags, ip);
 }
 
@@ -471,8 +473,10 @@ void bch2_trans_copy_iter(struct btree_iter *, struct btree_iter *);
 
 static inline void set_btree_iter_dontneed(struct btree_iter *iter)
 {
-	if (!iter->trans->restarted)
-		iter->path->preserve = false;
+	struct btree_trans *trans = iter->trans;
+
+	if (!trans->restarted)
+		btree_iter_path(trans, iter)->preserve = false;
 }
 
 void *__bch2_trans_kmalloc(struct btree_trans *, size_t);

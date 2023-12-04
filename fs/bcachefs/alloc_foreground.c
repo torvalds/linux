@@ -367,7 +367,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	if (!ob)
 		set_btree_iter_dontneed(&iter);
 err:
-	if (iter.trans && iter.path)
+	if (iter.path)
 		set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);

@@ -106,7 +106,9 @@ static noinline int wb_flush_one_slowpath(struct btree_trans *trans,
 					  struct btree_iter *iter,
 					  struct btree_write_buffered_key *wb)
 {
-	bch2_btree_node_unlock_write(trans, iter->path, iter->path->l[0].b);
+	struct btree_path *path = btree_iter_path(trans, iter);
+
+	bch2_btree_node_unlock_write(trans, path, path->l[0].b);
 
 	trans->journal_res.seq = wb->journal_seq;
 
@@ -139,10 +141,10 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 	 * We can't clone a path that has write locks: unshare it now, before
 	 * set_pos and traverse():
 	 */
-	if (iter->path->ref > 1)
-		iter->path = trans->paths + __bch2_btree_path_make_mut(trans, iter->path->idx, true, _THIS_IP_);
+	if (btree_iter_path(trans, iter)->ref > 1)
+		iter->path = __bch2_btree_path_make_mut(trans, iter->path, true, _THIS_IP_);
 
-	path = iter->path;
+	path = btree_iter_path(trans, iter);
 
 	if (!*write_locked) {
 		ret = bch2_btree_node_lock_write(trans, path, &path->l[0].b->c);
@@ -300,7 +302,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		}
 
 		if (write_locked) {
-			struct btree_path *path = iter.path;
+			struct btree_path *path = btree_iter_path(trans, &iter);
 
 			if (path->btree_id != i->btree ||
 			    bpos_gt(k->k.k.p, path->l[0].b->key.k.p)) {
@@ -316,7 +318,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		}
 
 		bch2_btree_iter_set_pos(&iter, k->k.k.p);
-		iter.path->preserve = false;
+		btree_iter_path(trans, &iter)->preserve = false;
 
 		do {
 			if (race_fault()) {
@@ -338,8 +340,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 			break;
 	}
 
-	if (write_locked)
-		bch2_btree_node_unlock_write(trans, iter.path, iter.path->l[0].b);
+	if (write_locked) {
+		struct btree_path *path = btree_iter_path(trans, &iter);
+		bch2_btree_node_unlock_write(trans, path, path->l[0].b);
+	}
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (ret)

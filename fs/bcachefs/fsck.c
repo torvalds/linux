@@ -1668,7 +1668,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			goto err;
 	}
 
-	BUG_ON(!iter->path->should_be_locked);
+	BUG_ON(!btree_iter_path(trans, iter)->should_be_locked);
 
 	i = walk_inode(trans, dir, equiv, k.k->type == KEY_TYPE_whiteout);
 	ret = PTR_ERR_OR_ZERO(i);

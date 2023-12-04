@@ -630,7 +630,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	ck = (void *) c_iter.path->l[0].b;
+	ck = (void *) btree_iter_path(trans, &c_iter)->l[0].b;
 	if (!ck)
 		goto out;
 
@@ -680,7 +680,8 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 
 	bch2_journal_pin_drop(j, &ck->journal);
 
-	BUG_ON(!btree_node_locked(c_iter.path, 0));
+	struct btree_path *path = btree_iter_path(trans, &c_iter);
+	BUG_ON(!btree_node_locked(path, 0));
 
 	if (!evict) {
 		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
@@ -691,17 +692,17 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		struct btree_path *path2;
 evict:
 		trans_for_each_path(trans, path2)
-			if (path2 != c_iter.path)
+			if (path2 != path)
 				__bch2_btree_path_unlock(trans, path2);
 
-		bch2_btree_node_lock_write_nofail(trans, c_iter.path, &ck->c);
+		bch2_btree_node_lock_write_nofail(trans, path, &ck->c);
 
 		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 			clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
 			atomic_long_dec(&c->btree_key_cache.nr_dirty);
 		}
 
-		mark_btree_node_locked_noreset(c_iter.path, 0, BTREE_NODE_UNLOCKED);
+		mark_btree_node_locked_noreset(path, 0, BTREE_NODE_UNLOCKED);
 		bkey_cached_evict(&c->btree_key_cache, ck);
 		bkey_cached_free_fast(&c->btree_key_cache, ck);
 	}

@@ -225,8 +225,8 @@ enum btree_path_uptodate {
 typedef u16 btree_path_idx_t;
 
 struct btree_path {
-	u8			idx;
-	u8			sorted_idx;
+	btree_path_idx_t	idx;
+	btree_path_idx_t	sorted_idx;
 	u8			ref;
 	u8			intent_ref;
 
@@ -282,9 +282,9 @@ static inline unsigned long btree_path_ip_allocated(struct btree_path *path)
  */
 struct btree_iter {
 	struct btree_trans	*trans;
-	struct btree_path	*path;
-	struct btree_path	*update_path;
-	struct btree_path	*key_cache_path;
+	btree_path_idx_t	path;
+	btree_path_idx_t	update_path;
+	btree_path_idx_t	key_cache_path;
 
 	enum btree_id		btree_id:8;
 	u8			min_depth;
@@ -410,7 +410,7 @@ struct btree_trans {
 	 * extent:
 	 */
 	unsigned		extra_journal_res;
-	u8			nr_max_paths;
+	btree_path_idx_t	nr_max_paths;
 	u16			journal_entries_u64s;
 	u16			journal_entries_size;
 
@@ -436,6 +436,18 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
 };
+
+static inline struct btree_path *btree_iter_path(struct btree_trans *trans, struct btree_iter *iter)
+{
+	return trans->paths + iter->path;
+}
+
+static inline struct btree_path *btree_iter_key_cache_path(struct btree_trans *trans, struct btree_iter *iter)
+{
+	return iter->key_cache_path
+		? trans->paths + iter->key_cache_path
+		: NULL;
+}
 
 #define BCH_BTREE_WRITE_TYPES()						\
 	x(initial,		0)					\

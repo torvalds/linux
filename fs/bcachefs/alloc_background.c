@@ -862,8 +862,9 @@ static struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos
 
 		bch2_trans_copy_iter(&iter2, iter);
 
-		if (!bpos_eq(iter->path->l[0].b->key.k.p, SPOS_MAX))
-			end = bkey_min(end, bpos_nosnap_successor(iter->path->l[0].b->key.k.p));
+		struct btree_path *path = btree_iter_path(iter->trans, iter);
+		if (!bpos_eq(path->l[0].b->key.k.p, SPOS_MAX))
+			end = bkey_min(end, bpos_nosnap_successor(path->l[0].b->key.k.p));
 
 		end = bkey_min(end, POS(iter->pos.inode, iter->pos.offset + U32_MAX - 1));
 
