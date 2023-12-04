@@ -360,7 +360,7 @@ void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal
 	cmd.drr_update.header.payload_bytes = sizeof(cmd.drr_update) - sizeof(cmd.drr_update.header);
 
 	// Send the command to the DMCUB.
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst)
@@ -374,7 +374,7 @@ void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst)
 	cmd.drr_update.header.payload_bytes = sizeof(cmd.drr_update) - sizeof(cmd.drr_update.header);
 
 	// Send the command to the DMCUB.
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
@@ -467,7 +467,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 		sizeof(cmd.fw_assisted_mclk_switch) - sizeof(cmd.fw_assisted_mclk_switch.header);
 
 	// Send the command to the DMCUB.
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }
@@ -488,7 +488,7 @@ void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 	cmd.query_feature_caps.header.payload_bytes = sizeof(struct dmub_cmd_query_feature_caps_data);
 
 	/* If command was processed, copy feature caps to dmub srv */
-	if (dm_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
+	if (dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
 	    cmd.query_feature_caps.header.ret_status == 0) {
 		memcpy(&dc_dmub_srv->dmub->feature_caps,
 		       &cmd.query_feature_caps.query_feature_caps_data,
@@ -513,7 +513,7 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
 
 	// If command was processed, copy feature caps to dmub srv
-	if (dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
+	if (dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
 		cmd.visual_confirm_color.header.ret_status == 0) {
 		memcpy(&dc->ctx->dmub_srv->dmub->visual_confirm_color,
 			&cmd.visual_confirm_color.visual_confirm_color_data,
@@ -875,7 +875,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
 	}
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
@@ -1112,7 +1112,7 @@ void dc_send_update_cursor_info_to_dmu(
 				pipe_idx, pCtx->plane_res.hubp, pCtx->plane_res.dpp);
 
 		/* Combine 2nd cmds update_curosr_info to DMU */
-		dm_execute_dmub_cmd_list(pCtx->stream->ctx, 2, cmd, DM_DMUB_WAIT_TYPE_WAIT);
+		dc_wake_and_execute_dmub_cmd_list(pCtx->stream->ctx, 2, cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	}
 }
 
@@ -1207,6 +1207,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			dc->hwss.set_idle_state(dc, true);
 	}
 
+	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
 	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
@@ -1328,4 +1329,42 @@ void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_
 		dc_dmub_srv_exit_low_power_state(dc);
 	else
 		dc_dmub_srv_notify_idle(dc, allow_idle);
+}
+
+bool dc_wake_and_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd,
+				  enum dm_dmub_wait_type wait_type)
+{
+	return dc_wake_and_execute_dmub_cmd_list(ctx, 1, cmd, wait_type);
+}
+
+bool dc_wake_and_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count,
+				       union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
+{
+	struct dc_dmub_srv *dc_dmub_srv = ctx->dmub_srv;
+	bool result = false, reallow_idle = false;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	if (count == 0)
+		return true;
+
+	if (dc_dmub_srv->idle_allowed) {
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, false);
+		reallow_idle = true;
+	}
+
+	/*
+	 * These may have different implementations in DM, so ensure
+	 * that we guide it to the expected helper.
+	 */
+	if (count > 1)
+		result = dm_execute_dmub_cmd_list(ctx, count, cmd, wait_type);
+	else
+		result = dm_execute_dmub_cmd(ctx, cmd, wait_type);
+
+	if (result && reallow_idle)
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, true);
+
+	return result;
 }

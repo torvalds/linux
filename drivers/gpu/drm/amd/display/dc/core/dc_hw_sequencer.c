@@ -724,7 +724,7 @@ void hwss_send_dmcub_cmd(union block_sequence_params *params)
 	union dmub_rb_cmd *cmd = params->send_dmcub_cmd_params.cmd;
 	enum dm_dmub_wait_type wait_type = params->send_dmcub_cmd_params.wait_type;
 
-	dm_execute_dmub_cmd(ctx, cmd, wait_type);
+	dc_wake_and_execute_dmub_cmd(ctx, cmd, wait_type);
 }
 
 void hwss_program_manual_trigger(union block_sequence_params *params)

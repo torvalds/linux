@@ -416,7 +416,7 @@ void dcn31_z10_save_init(struct dc *dc)
 	cmd.dcn_restore.header.type = DMUB_CMD__IDLE_OPT;
 	cmd.dcn_restore.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dcn31_z10_restore(const struct dc *dc)
@@ -434,7 +434,7 @@ void dcn31_z10_restore(const struct dc *dc)
 	cmd.dcn_restore.header.type = DMUB_CMD__IDLE_OPT;
 	cmd.dcn_restore.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_RESTORE;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
