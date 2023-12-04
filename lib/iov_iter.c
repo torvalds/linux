@@ -1370,7 +1370,7 @@ ssize_t import_iovec(int type, const struct iovec __user *uvec,
 EXPORT_SYMBOL(import_iovec);
 
 int import_single_range(int rw, void __user *buf, size_t len,
-		 struct iovec *iov, struct iov_iter *i)
+			struct iov_iter *i)
 {
 	if (len > MAX_RW_COUNT)
 		len = MAX_RW_COUNT;
