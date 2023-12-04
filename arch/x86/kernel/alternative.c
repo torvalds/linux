@@ -44,7 +44,7 @@ EXPORT_SYMBOL_GPL(alternatives_patched);
 #define DA_ENDBR	0x08
 #define DA_SMP		0x10
 
-static unsigned int __initdata_or_module debug_alternative;
+static unsigned int debug_alternative;
 
 static int __init debug_alt(char *str)
 {
@@ -132,7 +132,7 @@ const unsigned char * const x86_nops[ASM_NOP_MAX+1] =
  * each single-byte NOPs). If @len to fill out is > ASM_NOP_MAX, pad with INT3 and
  * *jump* over instead of executing long and daft NOPs.
  */
-static void __init_or_module add_nop(u8 *instr, unsigned int len)
+static void add_nop(u8 *instr, unsigned int len)
 {
 	u8 *target = instr + len;
 
@@ -206,7 +206,7 @@ static int skip_nops(u8 *instr, int offset, int len)
  * Optimize a sequence of NOPs, possibly preceded by an unconditional jump
  * to the end of the NOP sequence into a single NOP.
  */
-static bool __init_or_module
+static bool
 __optimize_nops(u8 *instr, size_t len, struct insn *insn, int *next, int *prev, int *target)
 {
 	int i = *next - insn->length;
@@ -325,7 +325,7 @@ bool need_reloc(unsigned long offset, u8 *src, size_t src_len)
 	return (target < src || target > src + src_len);
 }
 
-void __init_or_module apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
+void apply_relocation(u8 *buf, size_t len, u8 *dest, u8 *src, size_t src_len)
 {
 	int prev, target = 0;
 
