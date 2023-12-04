@@ -2164,6 +2164,11 @@
 		status = "disabled";
 	};
 
+	rkvtunnel: rkvtunnel {
+		compatible = "rockchip,video-tunnel";
+		status = "disabled";
+	};
+
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk3588";
 		status = "disabled";
