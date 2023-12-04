@@ -121,9 +121,14 @@ static int test_case_1(struct btrfs_fs_info *fs_info,
 		test_err("case1 [%llu %llu]: ret %d", start, start + len, ret);
 		goto out;
 	}
-	if (em &&
-	    (em->start != 0 || extent_map_end(em) != SZ_16K ||
-	     em->block_start != 0 || em->block_len != SZ_16K)) {
+	if (!em) {
+		test_err("case1 [%llu %llu]: no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
+		goto out;
+	}
+	if (em->start != 0 || extent_map_end(em) != SZ_16K ||
+	    em->block_start != 0 || em->block_len != SZ_16K) {
 		test_err(
 "case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 start, start + len, ret, em->start, em->len,
@@ -209,9 +214,13 @@ static int test_case_2(struct btrfs_fs_info *fs_info,
 		test_err("case2 [0 1K]: ret %d", ret);
 		goto out;
 	}
-	if (em &&
-	    (em->start != 0 || extent_map_end(em) != SZ_1K ||
-	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1)) {
+	if (!em) {
+		test_err("case2 [0 1K]: no extent map returned");
+		ret = -ENOENT;
+		goto out;
+	}
+	if (em->start != 0 || extent_map_end(em) != SZ_1K ||
+	    em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1) {
 		test_err(
 "case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 ret, em->start, em->len, em->block_start,
@@ -272,13 +281,18 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 			 start, start + len, ret);
 		goto out;
 	}
+	if (!em) {
+		test_err("case3 [0x%llx 0x%llx): no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
+		goto out;
+	}
 	/*
 	 * Since bytes within em are contiguous, em->block_start is identical to
 	 * em->start.
 	 */
-	if (em &&
-	    (start < em->start || start + len > extent_map_end(em) ||
-	     em->start != em->block_start || em->len != em->block_len)) {
+	if (start < em->start || start + len > extent_map_end(em) ||
+	    em->start != em->block_start || em->len != em->block_len) {
 		test_err(
 "case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
 			 start, start + len, ret, em->start, em->len,
@@ -391,7 +405,13 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 			 start, start + len, ret);
 		goto out;
 	}
-	if (em && (start < em->start || start + len > extent_map_end(em))) {
+	if (!em) {
+		test_err("case4 [0x%llx 0x%llx): no extent map returned",
+			 start, start + len);
+		ret = -ENOENT;
+		goto out;
+	}
+	if (start < em->start || start + len > extent_map_end(em)) {
 		test_err(
 "case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
 			 start, start + len, ret, em->start, em->len, em->block_start,
