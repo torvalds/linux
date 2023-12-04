@@ -353,33 +353,7 @@ static const struct platform_device_id board_ids[] = {
 					SOF_NAU8825_NUM_HDMIDEV(4)),
 	},
 	{
-		.name = "adl_max98373_8825",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(1) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
-	},
-	{
-		/* The limitation of length of char array, shorten the name */
-		.name = "adl_mx98360a_8825",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(1) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
-
-	},
-	{
-		.name = "adl_rt1015p_8825",
-		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
-					SOF_NAU8825_SSP_AMP(1) |
-					SOF_NAU8825_NUM_HDMIDEV(4) |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
-	},
-	{
-		.name = "adl_nau8318_8825",
+		.name = "adl_nau8825_def",
 		.driver_data = (kernel_ulong_t)(SOF_NAU8825_SSP_CODEC(0) |
 					SOF_NAU8825_SSP_AMP(1) |
 					SOF_NAU8825_NUM_HDMIDEV(4) |
