@@ -78,7 +78,7 @@ static void dmub_replay_enable(struct dmub_replay *dmub, bool enable, bool wait,
 
 	cmd.replay_enable.header.payload_bytes = sizeof(struct dmub_rb_cmd_replay_enable_data);
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	/* Below loops 1000 x 500us = 500 ms.
 	 *  Exit REPLAY may need to wait 1-2 frames to power up. Timeout after at
@@ -121,7 +121,7 @@ static void dmub_replay_set_power_opt(struct dmub_replay *dmub, unsigned int pow
 	cmd.replay_set_power_opt.replay_set_power_opt_data.power_opt = power_opt;
 	cmd.replay_set_power_opt.replay_set_power_opt_data.panel_inst = panel_inst;
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 /*
@@ -225,7 +225,7 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
 	cmd.replay_set_coasting_vtotal.header.payload_bytes = sizeof(struct dmub_cmd_replay_set_coasting_vtotal_data);
 	cmd.replay_set_coasting_vtotal.replay_set_coasting_vtotal_data.coasting_vtotal = coasting_vtotal;
 
-	dm_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 /*
