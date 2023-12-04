@@ -25,7 +25,7 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
 			test_err(
-"em leak: em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx) refs %d",
+"em leak: em (start %llu len %llu block_start %llu block_len %llu) refs %d",
 				 em->start, em->len, em->block_start,
 				 em->block_len, refcount_read(&em->refs));
 
@@ -277,12 +277,12 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 	if (ret) {
-		test_err("case3 [0x%llx 0x%llx): ret %d",
+		test_err("case3 [%llu %llu): ret %d",
 			 start, start + len, ret);
 		goto out;
 	}
 	if (!em) {
-		test_err("case3 [0x%llx 0x%llx): no extent map returned",
+		test_err("case3 [%llu %llu): no extent map returned",
 			 start, start + len);
 		ret = -ENOENT;
 		goto out;
@@ -294,7 +294,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	if (start < em->start || start + len > extent_map_end(em) ||
 	    em->start != em->block_start || em->len != em->block_len) {
 		test_err(
-"case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
+"case3 [%llu %llu): ret %d em (start %llu len %llu block_start %llu block_len %llu)",
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
 		ret = -EINVAL;
@@ -401,19 +401,19 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
 	write_unlock(&em_tree->lock);
 	if (ret) {
-		test_err("case4 [0x%llx 0x%llx): ret %d",
+		test_err("case4 [%llu %llu): ret %d",
 			 start, start + len, ret);
 		goto out;
 	}
 	if (!em) {
-		test_err("case4 [0x%llx 0x%llx): no extent map returned",
+		test_err("case4 [%llu %llu): no extent map returned",
 			 start, start + len);
 		ret = -ENOENT;
 		goto out;
 	}
 	if (start < em->start || start + len > extent_map_end(em)) {
 		test_err(
-"case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
+"case4 [%llu %llu): ret %d, added wrong em (start %llu len %llu block_start %llu block_len %llu)",
 			 start, start + len, ret, em->start, em->len, em->block_start,
 			 em->block_len);
 		ret = -EINVAL;
