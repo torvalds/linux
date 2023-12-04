@@ -892,8 +892,8 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
 
 /**
  * svc_rdma_read_data_item - Construct RDMA Reads to pull data item Read chunks
- * @rdma: controlling transport
- * @info: context for RDMA Reads
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  *
  * The chunk data lands in the page list of rqstp->rq_arg.pages.
  *
@@ -908,17 +908,16 @@ static noinline int svc_rdma_read_multiple_chunks(struct svcxprt_rdma *rdma,
  *   %-ENOTCONN: posting failed (connection is lost),
  *   %-EIO: rdma_rw initialization failed (DMA mapping, etc).
  */
-static int svc_rdma_read_data_item(struct svcxprt_rdma *rdma,
-				   struct svc_rdma_read_info *info)
+static int svc_rdma_read_data_item(struct svc_rqst *rqstp,
+				   struct svc_rdma_recv_ctxt *head)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
-	struct xdr_buf *buf = &info->ri_rqst->rq_arg;
+	struct xdr_buf *buf = &rqstp->rq_arg;
 	struct svc_rdma_chunk *chunk;
 	unsigned int length;
 	int ret;
 
 	chunk = pcl_first_chunk(&head->rc_read_pcl);
-	ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
+	ret = svc_rdma_build_read_chunk(rqstp, head, chunk);
 	if (ret < 0)
 		goto out;
 
@@ -940,7 +939,7 @@ static int svc_rdma_read_data_item(struct svcxprt_rdma *rdma,
 	 * Currently these chunks always start at page offset 0,
 	 * thus the rounded-up length never crosses a page boundary.
 	 */
-	buf->pages = &info->ri_rqst->rq_pages[0];
+	buf->pages = &rqstp->rq_pages[0];
 	length = xdr_align_size(chunk->ch_length);
 	buf->page_len = length;
 	buf->len += length;
@@ -1141,7 +1140,7 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 
 	if (pcl_is_empty(&head->rc_call_pcl)) {
 		if (head->rc_read_pcl.cl_count == 1)
-			ret = svc_rdma_read_data_item(rdma, info);
+			ret = svc_rdma_read_data_item(rqstp, head);
 		else
 			ret = svc_rdma_read_multiple_chunks(rdma, info);
 	} else
