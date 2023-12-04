@@ -316,20 +316,6 @@ drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 }
 EXPORT_SYMBOL(drm_atomic_set_crtc_for_connector);
 
-static void drm_atomic_set_solid_fill_prop(struct drm_plane_state *state)
-{
-	struct drm_mode_solid_fill *user_info;
-
-	if (!state->solid_fill_blob)
-		return;
-
-	user_info = (struct drm_mode_solid_fill *)state->solid_fill_blob->data;
-
-	state->solid_fill.r = user_info->r;
-	state->solid_fill.g = user_info->g;
-	state->solid_fill.b = user_info->b;
-}
-
 static void set_out_fence_for_crtc(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc, s32 __user *fence_ptr)
 {
@@ -578,15 +564,6 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->src_h = val;
 	} else if (property == plane->pixel_source_property) {
 		state->pixel_source = val;
-	} else if (property == plane->solid_fill_property) {
-		ret = drm_atomic_replace_property_blob_from_id(dev,
-				&state->solid_fill_blob,
-				val, sizeof(struct drm_mode_solid_fill),
-				-1, &replaced);
-		if (ret)
-			return ret;
-
-		drm_atomic_set_solid_fill_prop(state);
 	} else if (property == plane->alpha_property) {
 		state->alpha = val;
 	} else if (property == plane->blend_mode_property) {
@@ -677,9 +654,6 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->src_h;
 	} else if (property == plane->pixel_source_property) {
 		*val = state->pixel_source;
-	} else if (property == plane->solid_fill_property) {
-		*val = state->solid_fill_blob ?
-			state->solid_fill_blob->base.id : 0;
 	} else if (property == plane->alpha_property) {
 		*val = state->alpha;
 	} else if (property == plane->blend_mode_property) {

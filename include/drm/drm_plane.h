@@ -47,18 +47,6 @@ enum drm_plane_pixel_source {
 };
 
 /**
- * struct solid_fill_property - RGB values for solid fill plane
- *
- * TODO: Add solid fill source and corresponding pixel source
- *       that supports RGBA color
- */
-struct drm_solid_fill {
-	uint32_t r;
-	uint32_t g;
-	uint32_t b;
-};
-
-/**
  * struct drm_plane_state - mutable plane state
  *
  * Please note that the destination coordinates @crtc_x, @crtc_y, @crtc_h and
@@ -145,23 +133,6 @@ struct drm_plane_state {
 	 * drm_plane_create_pixel_source_property() for more details.
 	 */
 	enum drm_plane_pixel_source pixel_source;
-
-	/**
-	 * @solid_fill_blob:
-	 *
-	 * Blob containing relevant information for a solid fill plane
-	 * including RGB color values. See
-	 * drm_plane_create_solid_fill_property() for more details.
-	 */
-	struct drm_property_blob *solid_fill_blob;
-
-	/**
-	 * @solid_fill:
-	 *
-	 * Pixel data for solid fill planes. See
-	 * drm_plane_create_solid_fill_property() for more details.
-	 */
-	struct drm_solid_fill solid_fill;
 
 	/**
 	 * @alpha:
@@ -762,13 +733,6 @@ struct drm_plane {
 	 * drm_plane_create_pixel_source_property().
 	 */
 	struct drm_property *pixel_source_property;
-
-	/**
-	 * @solid_fill_property:
-	 * Optional solid_fill property for this plane. See
-	 * drm_plane_create_solid_fill_property().
-	 */
-	struct drm_property *solid_fill_property;
 
 	/**
 	 * @alpha_property:

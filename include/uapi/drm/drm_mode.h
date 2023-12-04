@@ -259,30 +259,6 @@ struct drm_mode_modeinfo {
 	char name[DRM_DISPLAY_MODE_LEN];
 };
 
-/**
- * struct drm_mode_solid_fill - User info for solid fill planes
- *
- * This is the userspace API solid fill information structure.
- *
- * Userspace can enable solid fill planes by assigning the plane "solid_fill"
- * property to a blob containing a single drm_mode_solid_fill struct populated with an RGB323232
- * color and setting the pixel source to "SOLID_FILL".
- *
- * For information on the plane property, see drm_plane_create_solid_fill_property()
- *
- * @r: Red color value of single pixel
- * @g: Green color value of single pixel
- * @b: Blue color value of single pixel
- * @pad: padding, must be zero
- */
-struct drm_mode_solid_fill {
-	__u32 r;
-	__u32 g;
-	__u32 b;
-	__u32 pad;
-};
-
-
 struct drm_mode_card_res {
 	__u64 fb_id_ptr;
 	__u64 crtc_id_ptr;
