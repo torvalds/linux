@@ -564,6 +564,7 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret) {
 		DRM_ERROR("failed to pm_runtime_resume\n");
+		mutex_unlock(&dp->event_mutex);
 		return ret;
 	}
 
