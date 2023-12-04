@@ -229,6 +229,15 @@ pwork_threads_show(
 }
 XFS_SYSFS_ATTR_RW(pwork_threads);
 
+/*
+ * The "LARP" (Logged extended Attribute Recovery Persistence) debugging knob
+ * sets the XFS_DA_OP_LOGGED flag on all xfs_attr_set operations performed on
+ * V5 filesystems.  As a result, the intermediate progress of all setxattr and
+ * removexattr operations are tracked via the log and can be restarted during
+ * recovery.  This is useful for testing xattr recovery prior to merging of the
+ * parent pointer feature which requires it to maintain consistency, and may be
+ * enabled for userspace xattrs in the future.
+ */
 static ssize_t
 larp_store(
 	struct kobject	*kobject,
