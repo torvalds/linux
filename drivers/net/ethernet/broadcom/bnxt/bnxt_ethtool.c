@@ -513,7 +513,7 @@ static int bnxt_get_num_tpa_ring_stats(struct bnxt *bp)
 		if (bp->max_tpa_v2) {
 			if (BNXT_CHIP_P5(bp))
 				return BNXT_NUM_TPA_RING_STATS_P5;
-			return BNXT_NUM_TPA_RING_STATS_P5_SR2;
+			return BNXT_NUM_TPA_RING_STATS_P7;
 		}
 		return BNXT_NUM_TPA_RING_STATS;
 	}
@@ -1203,7 +1203,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4;
 	} else if (cmd->flow_type == UDP_V4_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4;
 		if (tuple == 4)
@@ -1213,7 +1213,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
 	} else if (cmd->flow_type == UDP_V6_FLOW) {
-		if (tuple == 4 && !(bp->flags & BNXT_FLAG_UDP_RSS_CAP))
+		if (tuple == 4 && !(bp->rss_cap & BNXT_RSS_CAP_UDP_RSS_CAP))
 			return -EINVAL;
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 		if (tuple == 4)
@@ -1253,7 +1253,7 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	if (bp->rss_hash_cfg == rss_hash_cfg)
 		return 0;
 
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bp->rss_hash_delta = bp->rss_hash_cfg ^ rss_hash_cfg;
 	bp->rss_hash_cfg = rss_hash_cfg;
 	if (netif_running(bp->dev)) {
@@ -1577,6 +1577,22 @@ static const enum bnxt_media_type bnxt_phy_types[] = {
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASESR2] = BNXT_MEDIA_SR,
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASELR2] = BNXT_MEDIA_LR_ER_FR,
 	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASEER2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASECR] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASESR] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASELR] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_100G_BASEER] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASECR2] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASESR2] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASELR2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_200G_BASEER2] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASECR8] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASESR8] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASELR8] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASEER8] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASECR4] = BNXT_MEDIA_CR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASESR4] = BNXT_MEDIA_SR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASELR4] = BNXT_MEDIA_LR_ER_FR,
+	[PORT_PHY_QCFG_RESP_PHY_TYPE_400G_BASEER4] = BNXT_MEDIA_LR_ER_FR,
 };
 
 static enum bnxt_media_type
@@ -1604,6 +1620,7 @@ enum bnxt_link_speed_indices {
 	BNXT_LINK_SPEED_50GB_IDX,
 	BNXT_LINK_SPEED_100GB_IDX,
 	BNXT_LINK_SPEED_200GB_IDX,
+	BNXT_LINK_SPEED_400GB_IDX,
 	__BNXT_LINK_SPEED_END
 };
 
@@ -1615,9 +1632,21 @@ static enum bnxt_link_speed_indices bnxt_fw_speed_idx(u16 speed)
 	case BNXT_LINK_SPEED_10GB: return BNXT_LINK_SPEED_10GB_IDX;
 	case BNXT_LINK_SPEED_25GB: return BNXT_LINK_SPEED_25GB_IDX;
 	case BNXT_LINK_SPEED_40GB: return BNXT_LINK_SPEED_40GB_IDX;
-	case BNXT_LINK_SPEED_50GB: return BNXT_LINK_SPEED_50GB_IDX;
-	case BNXT_LINK_SPEED_100GB: return BNXT_LINK_SPEED_100GB_IDX;
-	case BNXT_LINK_SPEED_200GB: return BNXT_LINK_SPEED_200GB_IDX;
+	case BNXT_LINK_SPEED_50GB:
+	case BNXT_LINK_SPEED_50GB_PAM4:
+		return BNXT_LINK_SPEED_50GB_IDX;
+	case BNXT_LINK_SPEED_100GB:
+	case BNXT_LINK_SPEED_100GB_PAM4:
+	case BNXT_LINK_SPEED_100GB_PAM4_112:
+		return BNXT_LINK_SPEED_100GB_IDX;
+	case BNXT_LINK_SPEED_200GB:
+	case BNXT_LINK_SPEED_200GB_PAM4:
+	case BNXT_LINK_SPEED_200GB_PAM4_112:
+		return BNXT_LINK_SPEED_200GB_IDX;
+	case BNXT_LINK_SPEED_400GB:
+	case BNXT_LINK_SPEED_400GB_PAM4:
+	case BNXT_LINK_SPEED_400GB_PAM4_112:
+		return BNXT_LINK_SPEED_400GB_IDX;
 	default: return BNXT_LINK_SPEED_UNKNOWN;
 	}
 }
@@ -1690,6 +1719,12 @@ bnxt_link_modes[__BNXT_LINK_SPEED_END][BNXT_SIG_MODE_MAX][__BNXT_MEDIA_END] = {
 			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT,
 			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT,
 		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_100000baseCR_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_100000baseSR_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_100000baseKR_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_100000baseLR_ER_FR_Full_BIT,
+		},
 	},
 	[BNXT_LINK_SPEED_200GB_IDX] = {
 		[BNXT_SIG_MODE_PAM4] = {
@@ -1697,6 +1732,26 @@ bnxt_link_modes[__BNXT_LINK_SPEED_END][BNXT_SIG_MODE_MAX][__BNXT_MEDIA_END] = {
 			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT,
 			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT,
 			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT,
+		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_200000baseCR2_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_200000baseKR2_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_200000baseSR2_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_200000baseLR2_ER2_FR2_Full_BIT,
+		},
+	},
+	[BNXT_LINK_SPEED_400GB_IDX] = {
+		[BNXT_SIG_MODE_PAM4] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_400000baseCR8_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_400000baseKR8_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_400000baseSR8_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_400000baseLR8_ER8_FR8_Full_BIT,
+		},
+		[BNXT_SIG_MODE_PAM4_112] = {
+			[BNXT_MEDIA_CR] = ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT,
+			[BNXT_MEDIA_KR] = ETHTOOL_LINK_MODE_400000baseKR4_Full_BIT,
+			[BNXT_MEDIA_SR] = ETHTOOL_LINK_MODE_400000baseSR4_Full_BIT,
+			[BNXT_MEDIA_LR_ER_FR] = ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
 		},
 	},
 };
@@ -1762,7 +1817,8 @@ static void bnxt_get_ethtool_modes(struct bnxt_link_info *link_info,
 				 lk_ksettings->link_modes.supported);
 	}
 
-	if (link_info->support_auto_speeds || link_info->support_pam4_auto_speeds)
+	if (link_info->support_auto_speeds || link_info->support_auto_speeds2 ||
+	    link_info->support_pam4_auto_speeds)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.supported);
 
@@ -1798,22 +1854,60 @@ static const u16 bnxt_pam4_speed_masks[] = {
 	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_50GB,
 	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_100GB,
 	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_PAM4_SPEED_MSK_200GB,
+	[__BNXT_LINK_SPEED_END - 1] = 0 /* make any legal speed a valid index */
+};
+
+static const u16 bnxt_nrz_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_1GB_IDX] = BNXT_LINK_SPEEDS2_MSK_1GB,
+	[BNXT_LINK_SPEED_10GB_IDX] = BNXT_LINK_SPEEDS2_MSK_10GB,
+	[BNXT_LINK_SPEED_25GB_IDX] = BNXT_LINK_SPEEDS2_MSK_25GB,
+	[BNXT_LINK_SPEED_40GB_IDX] = BNXT_LINK_SPEEDS2_MSK_40GB,
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_SPEEDS2_MSK_50GB,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB,
+	[__BNXT_LINK_SPEED_END - 1] = 0 /* make any legal speed a valid index */
+};
+
+static const u16 bnxt_pam4_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_50GB_IDX] = BNXT_LINK_SPEEDS2_MSK_50GB_PAM4,
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB_PAM4,
+	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_SPEEDS2_MSK_200GB_PAM4,
+	[BNXT_LINK_SPEED_400GB_IDX] = BNXT_LINK_SPEEDS2_MSK_400GB_PAM4,
+};
+
+static const u16 bnxt_pam4_112_speeds2_masks[] = {
+	[BNXT_LINK_SPEED_100GB_IDX] = BNXT_LINK_SPEEDS2_MSK_100GB_PAM4_112,
+	[BNXT_LINK_SPEED_200GB_IDX] = BNXT_LINK_SPEEDS2_MSK_200GB_PAM4_112,
+	[BNXT_LINK_SPEED_400GB_IDX] = BNXT_LINK_SPEEDS2_MSK_400GB_PAM4_112,
 };
 
 static enum bnxt_link_speed_indices
-bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
+bnxt_encoding_speed_idx(u8 sig_mode, u16 phy_flags, u16 speed_msk)
 {
 	const u16 *speeds;
 	int idx, len;
 
 	switch (sig_mode) {
 	case BNXT_SIG_MODE_NRZ:
-		speeds = bnxt_nrz_speed_masks;
-		len = ARRAY_SIZE(bnxt_nrz_speed_masks);
+		if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			speeds = bnxt_nrz_speeds2_masks;
+			len = ARRAY_SIZE(bnxt_nrz_speeds2_masks);
+		} else {
+			speeds = bnxt_nrz_speed_masks;
+			len = ARRAY_SIZE(bnxt_nrz_speed_masks);
+		}
 		break;
 	case BNXT_SIG_MODE_PAM4:
-		speeds = bnxt_pam4_speed_masks;
-		len = ARRAY_SIZE(bnxt_pam4_speed_masks);
+		if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			speeds = bnxt_pam4_speeds2_masks;
+			len = ARRAY_SIZE(bnxt_pam4_speeds2_masks);
+		} else {
+			speeds = bnxt_pam4_speed_masks;
+			len = ARRAY_SIZE(bnxt_pam4_speed_masks);
+		}
+		break;
+	case BNXT_SIG_MODE_PAM4_112:
+		speeds = bnxt_pam4_112_speeds2_masks;
+		len = ARRAY_SIZE(bnxt_pam4_112_speeds2_masks);
 		break;
 	default:
 		return BNXT_LINK_SPEED_UNKNOWN;
@@ -1831,14 +1925,14 @@ bnxt_encoding_speed_idx(u8 sig_mode, u16 speed_msk)
 
 static void
 __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			  u8 sig_mode, unsigned long *et_mask)
+			  u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	enum ethtool_link_mode_bit_indices link_mode;
 	enum bnxt_link_speed_indices speed;
 	u8 bit;
 
 	for_each_set_bit(bit, &fw_mask, BNXT_FW_SPEED_MSK_BITS) {
-		speed = bnxt_encoding_speed_idx(sig_mode, 1 << bit);
+		speed = bnxt_encoding_speed_idx(sig_mode, phy_flags, 1 << bit);
 		if (!speed)
 			continue;
 
@@ -1852,16 +1946,83 @@ __bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
 
 static void
 bnxt_get_ethtool_speeds(unsigned long fw_mask, enum bnxt_media_type media,
-			u8 sig_mode, unsigned long *et_mask)
+			u8 sig_mode, u16 phy_flags, unsigned long *et_mask)
 {
 	if (media) {
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
 		return;
 	}
 
 	/* list speeds for all media if unknown */
 	for (media = 1; media < __BNXT_MEDIA_END; media++)
-		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, et_mask);
+		__bnxt_get_ethtool_speeds(fw_mask, media, sig_mode, phy_flags,
+					  et_mask);
+}
+
+static void
+bnxt_get_all_ethtool_support_speeds(struct bnxt_link_info *link_info,
+				    enum bnxt_media_type media,
+				    struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 sp_nrz, sp_pam4, sp_pam4_112 = 0;
+	u16 phy_flags = bp->phy_flags;
+
+	if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		sp_nrz = link_info->support_speeds2;
+		sp_pam4 = link_info->support_speeds2;
+		sp_pam4_112 = link_info->support_speeds2;
+	} else {
+		sp_nrz = link_info->support_speeds;
+		sp_pam4 = link_info->support_pam4_speeds;
+	}
+	bnxt_get_ethtool_speeds(sp_nrz, media, BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(sp_pam4, media, BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.supported);
+	bnxt_get_ethtool_speeds(sp_pam4_112, media, BNXT_SIG_MODE_PAM4_112,
+				phy_flags, lk_ksettings->link_modes.supported);
+}
+
+static void
+bnxt_get_all_ethtool_adv_speeds(struct bnxt_link_info *link_info,
+				enum bnxt_media_type media,
+				struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 sp_nrz, sp_pam4, sp_pam4_112 = 0;
+	u16 phy_flags = bp->phy_flags;
+
+	sp_nrz = link_info->advertising;
+	if (phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		sp_pam4 = link_info->advertising;
+		sp_pam4_112 = link_info->advertising;
+	} else {
+		sp_pam4 = link_info->advertising_pam4;
+	}
+	bnxt_get_ethtool_speeds(sp_nrz, media, BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.advertising);
+	bnxt_get_ethtool_speeds(sp_pam4, media, BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.advertising);
+	bnxt_get_ethtool_speeds(sp_pam4_112, media, BNXT_SIG_MODE_PAM4_112,
+				phy_flags, lk_ksettings->link_modes.advertising);
+}
+
+static void
+bnxt_get_all_ethtool_lp_speeds(struct bnxt_link_info *link_info,
+			       enum bnxt_media_type media,
+			       struct ethtool_link_ksettings *lk_ksettings)
+{
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 phy_flags = bp->phy_flags;
+
+	bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds, media,
+				BNXT_SIG_MODE_NRZ, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
+	bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds, media,
+				BNXT_SIG_MODE_PAM4, phy_flags,
+				lk_ksettings->link_modes.lp_advertising);
 }
 
 static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
@@ -1890,22 +2051,42 @@ static void bnxt_update_speed(u32 *delta, bool installed_media, u16 *speeds,
 static void bnxt_set_ethtool_speeds(struct bnxt_link_info *link_info,
 				    const unsigned long *et_mask)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+	u16 const *sp_msks, *sp_pam4_msks, *sp_pam4_112_msks;
 	enum bnxt_media_type media = bnxt_get_media(link_info);
+	u16 *adv, *adv_pam4, *adv_pam4_112 = NULL;
+	u32 delta_pam4_112 = 0;
 	u32 delta_pam4 = 0;
 	u32 delta_nrz = 0;
 	int i, m;
 
+	adv = &link_info->advertising;
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		adv_pam4 = &link_info->advertising;
+		adv_pam4_112 = &link_info->advertising;
+		sp_msks = bnxt_nrz_speeds2_masks;
+		sp_pam4_msks = bnxt_pam4_speeds2_masks;
+		sp_pam4_112_msks = bnxt_pam4_112_speeds2_masks;
+	} else {
+		adv_pam4 = &link_info->advertising_pam4;
+		sp_msks = bnxt_nrz_speed_masks;
+		sp_pam4_msks = bnxt_pam4_speed_masks;
+	}
 	for (i = 1; i < __BNXT_LINK_SPEED_END; i++) {
 		/* accept any legal media from user */
 		for (m = 1; m < __BNXT_MEDIA_END; m++) {
 			bnxt_update_speed(&delta_nrz, m == media,
-					  &link_info->advertising,
-					  bnxt_nrz_speed_masks[i], et_mask,
+					  adv, sp_msks[i], et_mask,
 					  bnxt_link_modes[i][BNXT_SIG_MODE_NRZ][m]);
 			bnxt_update_speed(&delta_pam4, m == media,
-					  &link_info->advertising_pam4,
-					  bnxt_pam4_speed_masks[i], et_mask,
+					  adv_pam4, sp_pam4_msks[i], et_mask,
 					  bnxt_link_modes[i][BNXT_SIG_MODE_PAM4][m]);
+			if (!adv_pam4_112)
+				continue;
+
+			bnxt_update_speed(&delta_pam4_112, m == media,
+					  adv_pam4_112, sp_pam4_112_msks[i], et_mask,
+					  bnxt_link_modes[i][BNXT_SIG_MODE_PAM4_112][m]);
 		}
 	}
 }
@@ -1970,11 +2151,20 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 	case BNXT_LINK_SPEED_40GB:
 		return SPEED_40000;
 	case BNXT_LINK_SPEED_50GB:
+	case BNXT_LINK_SPEED_50GB_PAM4:
 		return SPEED_50000;
 	case BNXT_LINK_SPEED_100GB:
+	case BNXT_LINK_SPEED_100GB_PAM4:
+	case BNXT_LINK_SPEED_100GB_PAM4_112:
 		return SPEED_100000;
 	case BNXT_LINK_SPEED_200GB:
+	case BNXT_LINK_SPEED_200GB_PAM4:
+	case BNXT_LINK_SPEED_200GB_PAM4_112:
 		return SPEED_200000;
+	case BNXT_LINK_SPEED_400GB:
+	case BNXT_LINK_SPEED_400GB_PAM4:
+	case BNXT_LINK_SPEED_400GB_PAM4_112:
+		return SPEED_400000;
 	default:
 		return SPEED_UNKNOWN;
 	}
@@ -1990,6 +2180,7 @@ static void bnxt_get_default_speeds(struct ethtool_link_ksettings *lk_ksettings,
 		base->duplex = DUPLEX_HALF;
 		if (link_info->duplex & BNXT_LINK_DUPLEX_FULL)
 			base->duplex = DUPLEX_FULL;
+		lk_ksettings->lanes = link_info->active_lanes;
 	} else if (!link_info->autoneg) {
 		base->speed = bnxt_fw_to_ethtool_speed(link_info->req_link_speed);
 		base->duplex = DUPLEX_HALF;
@@ -2017,12 +2208,7 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 	mutex_lock(&bp->link_lock);
 	bnxt_get_ethtool_modes(link_info, lk_ksettings);
 	media = bnxt_get_media(link_info);
-	bnxt_get_ethtool_speeds(link_info->support_speeds,
-				media, BNXT_SIG_MODE_NRZ,
-				lk_ksettings->link_modes.supported);
-	bnxt_get_ethtool_speeds(link_info->support_pam4_speeds,
-				media, BNXT_SIG_MODE_PAM4,
-				lk_ksettings->link_modes.supported);
+	bnxt_get_all_ethtool_support_speeds(link_info, media, lk_ksettings);
 	bnxt_fw_to_ethtool_support_fec(link_info, lk_ksettings);
 	link_mode = bnxt_get_link_mode(link_info);
 	if (link_mode != BNXT_LINK_MODE_UNKNOWN)
@@ -2035,20 +2221,10 @@ static int bnxt_get_link_ksettings(struct net_device *dev,
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lk_ksettings->link_modes.advertising);
 		base->autoneg = AUTONEG_ENABLE;
-		bnxt_get_ethtool_speeds(link_info->advertising,
-					media, BNXT_SIG_MODE_NRZ,
-					lk_ksettings->link_modes.advertising);
-		bnxt_get_ethtool_speeds(link_info->advertising_pam4,
-					media, BNXT_SIG_MODE_PAM4,
-					lk_ksettings->link_modes.advertising);
-		if (link_info->phy_link_status == BNXT_LINK_LINK) {
-			bnxt_get_ethtool_speeds(link_info->lp_auto_link_speeds,
-						media, BNXT_SIG_MODE_NRZ,
-						lk_ksettings->link_modes.lp_advertising);
-			bnxt_get_ethtool_speeds(link_info->lp_auto_pam4_link_speeds,
-						media, BNXT_SIG_MODE_PAM4,
-						lk_ksettings->link_modes.lp_advertising);
-		}
+		bnxt_get_all_ethtool_adv_speeds(link_info, media, lk_ksettings);
+		if (link_info->phy_link_status == BNXT_LINK_LINK)
+			bnxt_get_all_ethtool_lp_speeds(link_info, media,
+						       lk_ksettings);
 	} else {
 		base->autoneg = AUTONEG_DISABLE;
 	}
@@ -2083,6 +2259,7 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	u16 support_pam4_spds = link_info->support_pam4_speeds;
+	u16 support_spds2 = link_info->support_speeds2;
 	u16 support_spds = link_info->support_speeds;
 	u8 sig_mode = BNXT_SIG_MODE_NRZ;
 	u32 lanes_needed = 1;
@@ -2094,7 +2271,8 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100MB;
 		break;
 	case SPEED_1000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_1GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_1GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_1GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_1GB;
 		break;
 	case SPEED_2500:
@@ -2102,7 +2280,8 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_2_5GB;
 		break;
 	case SPEED_10000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_10GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_10GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_10GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_10GB;
 		break;
 	case SPEED_20000:
@@ -2112,26 +2291,34 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 		}
 		break;
 	case SPEED_25000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_25GB)
+		if ((support_spds & BNXT_LINK_SPEED_MSK_25GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_25GB))
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_25GB;
 		break;
 	case SPEED_40000:
-		if (support_spds & BNXT_LINK_SPEED_MSK_40GB) {
+		if ((support_spds & BNXT_LINK_SPEED_MSK_40GB) ||
+		    (support_spds2 & BNXT_LINK_SPEEDS2_MSK_40GB)) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_40GB;
 			lanes_needed = 4;
 		}
 		break;
 	case SPEED_50000:
-		if ((support_spds & BNXT_LINK_SPEED_MSK_50GB) && lanes != 1) {
+		if (((support_spds & BNXT_LINK_SPEED_MSK_50GB) ||
+		     (support_spds2 & BNXT_LINK_SPEEDS2_MSK_50GB)) &&
+		    lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_50GB;
 			lanes_needed = 2;
 		} else if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_50GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_50GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_50GB_PAM4) {
+			fw_speed = BNXT_LINK_SPEED_50GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
 		}
 		break;
 	case SPEED_100000:
-		if ((support_spds & BNXT_LINK_SPEED_MSK_100GB) &&
+		if (((support_spds & BNXT_LINK_SPEED_MSK_100GB) ||
+		     (support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB)) &&
 		    lanes != 2 && lanes != 1) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_LINK_SPEED_100GB;
 			lanes_needed = 4;
@@ -2139,12 +2326,41 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_100GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
 			lanes_needed = 2;
+		} else if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB_PAM4) &&
+			   lanes != 1) {
+			fw_speed = BNXT_LINK_SPEED_100GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 2;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_100GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_100GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
 		}
 		break;
 	case SPEED_200000:
 		if (support_pam4_spds & BNXT_LINK_PAM4_SPEED_MSK_200GB) {
 			fw_speed = PORT_PHY_CFG_REQ_FORCE_PAM4_LINK_SPEED_200GB;
 			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 4;
+		} else if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_200GB_PAM4) &&
+			   lanes != 2) {
+			fw_speed = BNXT_LINK_SPEED_200GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 4;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_200GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_200GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
+			lanes_needed = 2;
+		}
+		break;
+	case SPEED_400000:
+		if ((support_spds2 & BNXT_LINK_SPEEDS2_MSK_400GB_PAM4) &&
+		    lanes != 4) {
+			fw_speed = BNXT_LINK_SPEED_400GB_PAM4;
+			sig_mode = BNXT_SIG_MODE_PAM4;
+			lanes_needed = 8;
+		} else if (support_spds2 & BNXT_LINK_SPEEDS2_MSK_400GB_PAM4_112) {
+			fw_speed = BNXT_LINK_SPEED_400GB_PAM4_112;
+			sig_mode = BNXT_SIG_MODE_PAM4_112;
 			lanes_needed = 4;
 		}
 		break;
@@ -3919,7 +4135,8 @@ static int bnxt_poll_loopback(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP) {
+		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_CMP ||
+		    TX_CMP_TYPE(txcmp) == CMP_TYPE_RX_L2_V3_CMP) {
 			rc = bnxt_rx_loopback(bp, cpr, raw_cons, pkt_size);
 			raw_cons = NEXT_RAW_CMP(raw_cons);
 			raw_cons = NEXT_RAW_CMP(raw_cons);

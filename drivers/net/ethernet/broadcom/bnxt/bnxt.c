@@ -120,6 +120,10 @@ static const struct {
 	[BCM57508] = { "Broadcom BCM57508 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet" },
 	[BCM57504] = { "Broadcom BCM57504 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet" },
 	[BCM57502] = { "Broadcom BCM57502 NetXtreme-E 10Gb/25Gb/50Gb Ethernet" },
+	[BCM57608] = { "Broadcom BCM57608 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb/400Gb Ethernet" },
+	[BCM57604] = { "Broadcom BCM57604 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb Ethernet" },
+	[BCM57602] = { "Broadcom BCM57602 NetXtreme-E 10Gb/25Gb/50Gb/100Gb Ethernet" },
+	[BCM57601] = { "Broadcom BCM57601 NetXtreme-E 10Gb/25Gb/50Gb/100Gb/200Gb/400Gb Ethernet" },
 	[BCM57508_NPAR] = { "Broadcom BCM57508 NetXtreme-E Ethernet Partition" },
 	[BCM57504_NPAR] = { "Broadcom BCM57504 NetXtreme-E Ethernet Partition" },
 	[BCM57502_NPAR] = { "Broadcom BCM57502 NetXtreme-E Ethernet Partition" },
@@ -174,6 +178,10 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x1750), .driver_data = BCM57508 },
 	{ PCI_VDEVICE(BROADCOM, 0x1751), .driver_data = BCM57504 },
 	{ PCI_VDEVICE(BROADCOM, 0x1752), .driver_data = BCM57502 },
+	{ PCI_VDEVICE(BROADCOM, 0x1760), .driver_data = BCM57608 },
+	{ PCI_VDEVICE(BROADCOM, 0x1761), .driver_data = BCM57604 },
+	{ PCI_VDEVICE(BROADCOM, 0x1762), .driver_data = BCM57602 },
+	{ PCI_VDEVICE(BROADCOM, 0x1763), .driver_data = BCM57601 },
 	{ PCI_VDEVICE(BROADCOM, 0x1800), .driver_data = BCM57502_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x1801), .driver_data = BCM57504_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x1802), .driver_data = BCM57508_NPAR },
@@ -260,6 +268,10 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ | DB_RING_IDX(db, idx),\
 		    (db)->doorbell)
 
+#define BNXT_DB_NQ_P7(db, idx)						\
+	bnxt_writeq(bp, (db)->db_key64 | DBR_TYPE_NQ_MASK |		\
+		    DB_RING_IDX(db, idx), (db)->doorbell)
+
 #define BNXT_DB_CQ_ARM(db, idx)						\
 	writel(DB_CP_REARM_FLAGS | DB_RING_IDX(db, idx), (db)->doorbell)
 
@@ -269,7 +281,9 @@ static bool bnxt_vf_pciid(enum board_idx idx)
 
 static void bnxt_db_nq(struct bnxt *bp, struct bnxt_db_info *db, u32 idx)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+	if (bp->flags & BNXT_FLAG_CHIP_P7)
+		BNXT_DB_NQ_P7(db, idx);
+	else if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		BNXT_DB_NQ_P5(db, idx);
 	else
 		BNXT_DB_CQ(db, idx);
@@ -1309,8 +1323,39 @@ static u16 bnxt_lookup_agg_idx(struct bnxt_rx_ring_info *rxr, u16 agg_id)
 	return map->agg_id_tbl[agg_id];
 }
 
+static void bnxt_tpa_metadata(struct bnxt_tpa_info *tpa_info,
+			      struct rx_tpa_start_cmp *tpa_start,
+			      struct rx_tpa_start_cmp_ext *tpa_start1)
+{
+	tpa_info->cfa_code_valid = 1;
+	tpa_info->cfa_code = TPA_START_CFA_CODE(tpa_start1);
+	tpa_info->vlan_valid = 0;
+	if (tpa_info->flags2 & RX_CMP_FLAGS2_META_FORMAT_VLAN) {
+		tpa_info->vlan_valid = 1;
+		tpa_info->metadata =
+			le32_to_cpu(tpa_start1->rx_tpa_start_cmp_metadata);
+	}
+}
+
+static void bnxt_tpa_metadata_v2(struct bnxt_tpa_info *tpa_info,
+				 struct rx_tpa_start_cmp *tpa_start,
+				 struct rx_tpa_start_cmp_ext *tpa_start1)
+{
+	tpa_info->vlan_valid = 0;
+	if (TPA_START_VLAN_VALID(tpa_start)) {
+		u32 tpid_sel = TPA_START_VLAN_TPID_SEL(tpa_start);
+		u32 vlan_proto = ETH_P_8021Q;
+
+		tpa_info->vlan_valid = 1;
+		if (tpid_sel == RX_TPA_START_METADATA1_TPID_8021AD)
+			vlan_proto = ETH_P_8021AD;
+		tpa_info->metadata = vlan_proto << 16 |
+				     TPA_START_METADATA0_TCI(tpa_start1);
+	}
+}
+
 static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
-			   struct rx_tpa_start_cmp *tpa_start,
+			   u8 cmp_type, struct rx_tpa_start_cmp *tpa_start,
 			   struct rx_tpa_start_cmp_ext *tpa_start1)
 {
 	struct bnxt_sw_rx_bd *cons_rx_buf, *prod_rx_buf;
@@ -1339,10 +1384,6 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		bnxt_sched_reset_rxr(bp, rxr);
 		return;
 	}
-	/* Store cfa_code in tpa_info to use in tpa_end
-	 * completion processing.
-	 */
-	tpa_info->cfa_code = TPA_START_CFA_CODE(tpa_start1);
 	prod_rx_buf->data = tpa_info->data;
 	prod_rx_buf->data_ptr = tpa_info->data_ptr;
 
@@ -1362,12 +1403,13 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		le32_to_cpu(tpa_start->rx_tpa_start_cmp_len_flags_type) >>
 				RX_TPA_START_CMP_LEN_SHIFT;
 	if (likely(TPA_START_HASH_VALID(tpa_start))) {
-		u32 hash_type = TPA_START_HASH_TYPE(tpa_start);
-
 		tpa_info->hash_type = PKT_HASH_TYPE_L4;
 		tpa_info->gso_type = SKB_GSO_TCPV4;
+		if (TPA_START_IS_IPV6(tpa_start1))
+			tpa_info->gso_type = SKB_GSO_TCPV6;
 		/* RSS profiles 1 and 3 with extract code 0 for inner 4-tuple */
-		if (hash_type == 3 || TPA_START_IS_IPV6(tpa_start1))
+		else if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP &&
+			 TPA_START_HASH_TYPE(tpa_start) == 3)
 			tpa_info->gso_type = SKB_GSO_TCPV6;
 		tpa_info->rss_hash =
 			le32_to_cpu(tpa_start->rx_tpa_start_cmp_rss_hash);
@@ -1377,8 +1419,11 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		netif_warn(bp, rx_err, bp->dev, "TPA packet without valid hash\n");
 	}
 	tpa_info->flags2 = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_flags2);
-	tpa_info->metadata = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_metadata);
 	tpa_info->hdr_info = le32_to_cpu(tpa_start1->rx_tpa_start_cmp_hdr_info);
+	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP)
+		bnxt_tpa_metadata(tpa_info, tpa_start, tpa_start1);
+	else
+		bnxt_tpa_metadata_v2(tpa_info, tpa_start, tpa_start1);
 	tpa_info->agg_count = 0;
 
 	rxr->rx_prod = NEXT_RX(prod);
@@ -1613,6 +1658,7 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 {
 	struct bnxt_napi *bnapi = cpr->bnapi;
 	struct bnxt_rx_ring_info *rxr = bnapi->rx_ring;
+	struct net_device *dev = bp->dev;
 	u8 *data_ptr, agg_bufs;
 	unsigned int len;
 	struct bnxt_tpa_info *tpa_info;
@@ -1719,14 +1765,15 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		}
 	}
 
-	skb->protocol =
-		eth_type_trans(skb, bnxt_get_pkt_dev(bp, tpa_info->cfa_code));
+	if (tpa_info->cfa_code_valid)
+		dev = bnxt_get_pkt_dev(bp, tpa_info->cfa_code);
+	skb->protocol = eth_type_trans(skb, dev);
 
 	if (tpa_info->hash_type != PKT_HASH_TYPE_NONE)
 		skb_set_hash(skb, tpa_info->rss_hash, tpa_info->hash_type);
 
-	if ((tpa_info->flags2 & RX_CMP_FLAGS2_META_FORMAT_VLAN) &&
-	    (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
+	if (tpa_info->vlan_valid &&
+	    (dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
 		__be16 vlan_proto = htons(tpa_info->metadata >>
 					  RX_CMP_FLAGS2_METADATA_TPID_SFT);
 		u16 vtag = tpa_info->metadata & RX_CMP_FLAGS2_METADATA_TCI_MASK;
@@ -1777,6 +1824,64 @@ static void bnxt_deliver_skb(struct bnxt *bp, struct bnxt_napi *bnapi,
 	napi_gro_receive(&bnapi->napi, skb);
 }
 
+static struct sk_buff *bnxt_rx_vlan(struct sk_buff *skb, u8 cmp_type,
+				    struct rx_cmp *rxcmp,
+				    struct rx_cmp_ext *rxcmp1)
+{
+	__be16 vlan_proto;
+	u16 vtag;
+
+	if (cmp_type == CMP_TYPE_RX_L2_CMP) {
+		__le32 flags2 = rxcmp1->rx_cmp_flags2;
+		u32 meta_data;
+
+		if (!(flags2 & cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)))
+			return skb;
+
+		meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
+		vtag = meta_data & RX_CMP_FLAGS2_METADATA_TCI_MASK;
+		vlan_proto = htons(meta_data >> RX_CMP_FLAGS2_METADATA_TPID_SFT);
+		if (eth_type_vlan(vlan_proto))
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		else
+			goto vlan_err;
+	} else if (cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
+		if (RX_CMP_VLAN_VALID(rxcmp)) {
+			u32 tpid_sel = RX_CMP_VLAN_TPID_SEL(rxcmp);
+
+			if (tpid_sel == RX_CMP_METADATA1_TPID_8021Q)
+				vlan_proto = htons(ETH_P_8021Q);
+			else if (tpid_sel == RX_CMP_METADATA1_TPID_8021AD)
+				vlan_proto = htons(ETH_P_8021AD);
+			else
+				goto vlan_err;
+			vtag = RX_CMP_METADATA0_TCI(rxcmp1);
+			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
+		}
+	}
+	return skb;
+vlan_err:
+	dev_kfree_skb(skb);
+	return NULL;
+}
+
+static enum pkt_hash_types bnxt_rss_ext_op(struct bnxt *bp,
+					   struct rx_cmp *rxcmp)
+{
+	u8 ext_op;
+
+	ext_op = RX_CMP_V3_HASH_TYPE(bp, rxcmp);
+	switch (ext_op) {
+	case EXT_OP_INNER_4:
+	case EXT_OP_OUTER_4:
+	case EXT_OP_INNFL_3:
+	case EXT_OP_OUTFL_3:
+		return PKT_HASH_TYPE_L4;
+	default:
+		return PKT_HASH_TYPE_L3;
+	}
+}
+
 /* returns the following:
  * 1       - 1 packet successfully received
  * 0       - successful TPA_START, packet not completed yet
@@ -1793,7 +1898,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	struct rx_cmp *rxcmp;
 	struct rx_cmp_ext *rxcmp1;
 	u32 tmp_raw_cons = *raw_cons;
-	u16 cfa_code, cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
+	u16 cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
 	struct bnxt_sw_rx_bd *rx_buf;
 	unsigned int len;
 	u8 *data_ptr, agg_bufs, cmp_type;
@@ -1829,8 +1934,10 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	dma_rmb();
 	prod = rxr->rx_prod;
 
-	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP) {
-		bnxt_tpa_start(bp, rxr, (struct rx_tpa_start_cmp *)rxcmp,
+	if (cmp_type == CMP_TYPE_RX_L2_TPA_START_CMP ||
+	    cmp_type == CMP_TYPE_RX_L2_TPA_START_V3_CMP) {
+		bnxt_tpa_start(bp, rxr, cmp_type,
+			       (struct rx_tpa_start_cmp *)rxcmp,
 			       (struct rx_tpa_start_cmp_ext *)rxcmp1);
 
 		*event |= BNXT_RX_EVENT;
@@ -1983,32 +2090,32 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	}
 
 	if (RX_CMP_HASH_VALID(rxcmp)) {
-		u32 hash_type = RX_CMP_HASH_TYPE(rxcmp);
-		enum pkt_hash_types type = PKT_HASH_TYPE_L4;
+		enum pkt_hash_types type;
 
-		/* RSS profiles 1 and 3 with extract code 0 for inner 4-tuple */
-		if (hash_type != 1 && hash_type != 3)
-			type = PKT_HASH_TYPE_L3;
+		if (cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
+			type = bnxt_rss_ext_op(bp, rxcmp);
+		} else {
+			u32 hash_type = RX_CMP_HASH_TYPE(rxcmp);
+
+			/* RSS profiles 1 and 3 with extract code 0 for inner
+			 * 4-tuple
+			 */
+			if (hash_type != 1 && hash_type != 3)
+				type = PKT_HASH_TYPE_L3;
+			else
+				type = PKT_HASH_TYPE_L4;
+		}
 		skb_set_hash(skb, le32_to_cpu(rxcmp->rx_cmp_rss_hash), type);
 	}
 
-	cfa_code = RX_CMP_CFA_CODE(rxcmp1);
-	skb->protocol = eth_type_trans(skb, bnxt_get_pkt_dev(bp, cfa_code));
+	if (cmp_type == CMP_TYPE_RX_L2_CMP)
+		dev = bnxt_get_pkt_dev(bp, RX_CMP_CFA_CODE(rxcmp1));
+	skb->protocol = eth_type_trans(skb, dev);
 
-	if ((rxcmp1->rx_cmp_flags2 &
-	     cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)) &&
-	    (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX)) {
-		u32 meta_data = le32_to_cpu(rxcmp1->rx_cmp_meta_data);
-		u16 vtag = meta_data & RX_CMP_FLAGS2_METADATA_TCI_MASK;
-		__be16 vlan_proto = htons(meta_data >>
-					  RX_CMP_FLAGS2_METADATA_TPID_SFT);
-
-		if (eth_type_vlan(vlan_proto)) {
-			__vlan_hwaccel_put_tag(skb, vlan_proto, vtag);
-		} else {
-			dev_kfree_skb(skb);
+	if (skb->dev->features & BNXT_HW_FEATURE_VLAN_ALL_RX) {
+		skb = bnxt_rx_vlan(skb, cmp_type, rxcmp, rxcmp1);
+		if (!skb)
 			goto next_rx;
-		}
 	}
 
 	skb_checksum_none_assert(skb);
@@ -2090,7 +2197,8 @@ static int bnxt_force_rx_discard(struct bnxt *bp,
 	 */
 	dma_rmb();
 	cmp_type = RX_CMP_TYPE(rxcmp);
-	if (cmp_type == CMP_TYPE_RX_L2_CMP) {
+	if (cmp_type == CMP_TYPE_RX_L2_CMP ||
+	    cmp_type == CMP_TYPE_RX_L2_V3_CMP) {
 		rxcmp1->rx_cmp_cfa_code_errors_v2 |=
 			cpu_to_le32(RX_CMPL_ERRORS_CRC_ERROR);
 	} else if (cmp_type == CMP_TYPE_RX_L2_TPA_END_CMP) {
@@ -2150,6 +2258,10 @@ static u16 bnxt_agg_ring_id_to_grp_idx(struct bnxt *bp, u16 ring_id)
 
 static u16 bnxt_get_force_speed(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2)
+		return link_info->force_link_speed2;
 	if (link_info->req_signal_mode == BNXT_SIG_MODE_PAM4)
 		return link_info->force_pam4_link_speed;
 	return link_info->force_link_speed;
@@ -2157,6 +2269,28 @@ static u16 bnxt_get_force_speed(struct bnxt_link_info *link_info)
 
 static void bnxt_set_force_speed(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		link_info->req_link_speed = link_info->force_link_speed2;
+		link_info->req_signal_mode = BNXT_SIG_MODE_NRZ;
+		switch (link_info->req_link_speed) {
+		case BNXT_LINK_SPEED_50GB_PAM4:
+		case BNXT_LINK_SPEED_100GB_PAM4:
+		case BNXT_LINK_SPEED_200GB_PAM4:
+		case BNXT_LINK_SPEED_400GB_PAM4:
+			link_info->req_signal_mode = BNXT_SIG_MODE_PAM4;
+			break;
+		case BNXT_LINK_SPEED_100GB_PAM4_112:
+		case BNXT_LINK_SPEED_200GB_PAM4_112:
+		case BNXT_LINK_SPEED_400GB_PAM4_112:
+			link_info->req_signal_mode = BNXT_SIG_MODE_PAM4_112;
+			break;
+		default:
+			link_info->req_signal_mode = BNXT_SIG_MODE_NRZ;
+		}
+		return;
+	}
 	link_info->req_link_speed = link_info->force_link_speed;
 	link_info->req_signal_mode = BNXT_SIG_MODE_NRZ;
 	if (link_info->force_pam4_link_speed) {
@@ -2167,12 +2301,25 @@ static void bnxt_set_force_speed(struct bnxt_link_info *link_info)
 
 static void bnxt_set_auto_speed(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		link_info->advertising = link_info->auto_link_speeds2;
+		return;
+	}
 	link_info->advertising = link_info->auto_link_speeds;
 	link_info->advertising_pam4 = link_info->auto_pam4_link_speeds;
 }
 
 static bool bnxt_force_speed_updated(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		if (link_info->req_link_speed != link_info->force_link_speed2)
+			return true;
+		return false;
+	}
 	if (link_info->req_signal_mode == BNXT_SIG_MODE_NRZ &&
 	    link_info->req_link_speed != link_info->force_link_speed)
 		return true;
@@ -2184,6 +2331,13 @@ static bool bnxt_force_speed_updated(struct bnxt_link_info *link_info)
 
 static bool bnxt_auto_speed_updated(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		if (link_info->advertising != link_info->auto_link_speeds2)
+			return true;
+		return false;
+	}
 	if (link_info->advertising != link_info->auto_link_speeds ||
 	    link_info->advertising_pam4 != link_info->auto_pam4_link_speeds)
 		return true;
@@ -2614,6 +2768,7 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	cpr->has_more_work = 0;
 	cpr->had_work_done = 1;
 	while (1) {
+		u8 cmp_type;
 		int rc;
 
 		cons = RING_CMP(raw_cons);
@@ -2626,7 +2781,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 * reading any further.
 		 */
 		dma_rmb();
-		if (TX_CMP_TYPE(txcmp) == CMP_TYPE_TX_L2_CMP) {
+		cmp_type = TX_CMP_TYPE(txcmp);
+		if (cmp_type == CMP_TYPE_TX_L2_CMP) {
 			u32 opaque = txcmp->tx_cmp_opaque;
 			struct bnxt_tx_ring_info *txr;
 			u16 tx_freed;
@@ -2644,7 +2800,8 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 					cpr->has_more_work = 1;
 				break;
 			}
-		} else if ((TX_CMP_TYPE(txcmp) & 0x30) == 0x10) {
+		} else if (cmp_type >= CMP_TYPE_RX_L2_CMP &&
+			   cmp_type <= CMP_TYPE_RX_L2_TPA_START_V3_CMP) {
 			if (likely(budget))
 				rc = bnxt_rx_pkt(bp, cpr, &raw_cons, &event);
 			else
@@ -2661,12 +2818,9 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 				rx_pkts++;
 			else if (rc == -EBUSY)	/* partial completion */
 				break;
-		} else if (unlikely((TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_DONE) ||
-				    (TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_FWD_REQ) ||
-				    (TX_CMP_TYPE(txcmp) ==
-				     CMPL_BASE_TYPE_HWRM_ASYNC_EVENT))) {
+		} else if (unlikely(cmp_type == CMPL_BASE_TYPE_HWRM_DONE ||
+				    cmp_type == CMPL_BASE_TYPE_HWRM_FWD_REQ ||
+				    cmp_type == CMPL_BASE_TYPE_HWRM_ASYNC_EVENT)) {
 			bnxt_hwrm_handler(bp, txcmp);
 		}
 		raw_cons = NEXT_RAW_CMP(raw_cons);
@@ -2874,13 +3028,18 @@ static void __bnxt_poll_cqs_done(struct bnxt *bp, struct bnxt_napi *bnapi,
 		struct bnxt_db_info *db;
 
 		if (cpr2->had_work_done) {
+			u32 tgl = 0;
+
+			if (dbr_type == DBR_TYPE_CQ_ARMALL) {
+				cpr2->had_nqe_notify = 0;
+				tgl = cpr2->toggle;
+			}
 			db = &cpr2->cp_db;
-			bnxt_writeq(bp, db->db_key64 | dbr_type |
+			bnxt_writeq(bp,
+				    db->db_key64 | dbr_type | DB_TOGGLE(tgl) |
 				    DB_RING_IDX(db, cpr2->cp_raw_cons),
 				    db->doorbell);
 			cpr2->had_work_done = 0;
-			if (dbr_type == DBR_TYPE_CQ_ARMALL)
-				cpr2->had_nqe_notify = 0;
 		}
 	}
 	__bnxt_poll_work_done(bp, bnapi, budget);
@@ -2906,6 +3065,8 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		work_done = __bnxt_poll_cqs(bp, bnapi, budget);
 	}
 	while (1) {
+		u16 type;
+
 		cons = RING_CMP(raw_cons);
 		nqcmp = &cpr->nq_desc_ring[CP_RING(cons)][CP_IDX(cons)];
 
@@ -2927,7 +3088,8 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 		 */
 		dma_rmb();
 
-		if (nqcmp->type == cpu_to_le16(NQ_CN_TYPE_CQ_NOTIFICATION)) {
+		type = le16_to_cpu(nqcmp->type);
+		if (NQE_CN_TYPE(type) == NQ_CN_TYPE_CQ_NOTIFICATION) {
 			u32 idx = le32_to_cpu(nqcmp->cq_handle_low);
 			u32 cq_type = BNXT_NQ_HDL_TYPE(idx);
 			struct bnxt_cp_ring_info *cpr2;
@@ -2940,6 +3102,7 @@ static int bnxt_poll_p5(struct napi_struct *napi, int budget)
 			idx = BNXT_NQ_HDL_IDX(idx);
 			cpr2 = &cpr->cp_ring_arr[idx];
 			cpr2->had_nqe_notify = 1;
+			cpr2->toggle = NQE_CN_TOGGLE(type);
 			work_done += __bnxt_poll_work(bp, cpr2,
 						      budget - work_done);
 			cpr->has_more_work |= cpr2->has_more_work;
@@ -4253,7 +4416,7 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			goto out;
 		}
 vnic_skip_grps:
-		if ((bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+		if ((bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) &&
 		    !(vnic->flags & BNXT_VNIC_RSS_FLAG))
 			continue;
 
@@ -5750,7 +5913,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 	int rc;
 
 	bp->hw_ring_stats_size = sizeof(struct ctx_hw_stats);
-	bp->flags &= ~(BNXT_FLAG_NEW_RSS_CAP | BNXT_FLAG_ROCE_MIRROR_CAP);
+	bp->flags &= ~BNXT_FLAG_ROCE_MIRROR_CAP;
+	bp->rss_cap &= ~BNXT_RSS_CAP_NEW_RSS_CAP;
 	if (bp->hwrm_spec_code < 0x10600)
 		return 0;
 
@@ -5765,7 +5929,7 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
 		    (flags & VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
-			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
+			bp->rss_cap |= BNXT_RSS_CAP_NEW_RSS_CAP;
 		if (flags &
 		    VNIC_QCAPS_RESP_FLAGS_ROCE_MIRRORING_CAPABLE_VNIC_CAP)
 			bp->flags |= BNXT_FLAG_ROCE_MIRROR_CAP;
@@ -5778,13 +5942,15 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		     !(bp->fw_cap & BNXT_FW_CAP_EXT_HW_STATS_SUPPORTED)))
 			bp->fw_cap |= BNXT_FW_CAP_VLAN_RX_STRIP;
 		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_HASH_TYPE_DELTA_CAP)
-			bp->fw_cap |= BNXT_FW_CAP_RSS_HASH_TYPE_DELTA;
+			bp->rss_cap |= BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_PROF_TCAM_MODE_ENABLED)
+			bp->rss_cap |= BNXT_RSS_CAP_RSS_TCAM;
 		bp->max_tpa_v2 = le16_to_cpu(resp->max_aggs_supported);
 		if (bp->max_tpa_v2) {
 			if (BNXT_CHIP_P5(bp))
 				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5;
 			else
-				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P5_SR2;
+				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P7;
 		}
 	}
 	hwrm_req_drop(bp, req);
@@ -6015,16 +6181,16 @@ static void bnxt_set_db_mask(struct bnxt *bp, struct bnxt_db_info *db,
 		db->db_ring_mask = bp->cp_ring_mask;
 		break;
 	}
+	if (bp->flags & BNXT_FLAG_CHIP_P7) {
+		db->db_epoch_mask = db->db_ring_mask + 1;
+		db->db_epoch_shift = DBR_EPOCH_SFT - ilog2(db->db_epoch_mask);
+	}
 }
 
 static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			u32 map_idx, u32 xid)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		if (BNXT_PF(bp))
-			db->doorbell = bp->bar1 + DB_PF_OFFSET_P5;
-		else
-			db->doorbell = bp->bar1 + DB_VF_OFFSET_P5;
 		switch (ring_type) {
 		case HWRM_RING_ALLOC_TX:
 			db->db_key64 = DBR_PATH_L2 | DBR_TYPE_SQ;
@@ -6041,6 +6207,11 @@ static void bnxt_set_db(struct bnxt *bp, struct bnxt_db_info *db, u32 ring_type,
 			break;
 		}
 		db->db_key64 |= (u64)xid << DBR_XID_SFT;
+
+		if (bp->flags & BNXT_FLAG_CHIP_P7)
+			db->db_key64 |= DBR_VALID;
+
+		db->doorbell = bp->bar1 + bp->db_offset;
 	} else {
 		db->doorbell = bp->bar1 + map_idx * 0x80;
 		switch (ring_type) {
@@ -6436,7 +6607,7 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 			req->num_cmpl_rings = cpu_to_le16(cp_rings);
 			req->num_hw_ring_grps = cpu_to_le16(ring_grps);
 			req->num_rsscos_ctxs = cpu_to_le16(1);
-			if (!(bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+			if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) &&
 			    bnxt_rfs_supported(bp))
 				req->num_rsscos_ctxs =
 					cpu_to_le16(ring_grps + 1);
@@ -7133,7 +7304,6 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 {
 	struct hwrm_func_qcfg_output *resp;
 	struct hwrm_func_qcfg_input *req;
-	u32 min_db_offset = 0;
 	u16 flags;
 	int rc;
 
@@ -7191,16 +7361,17 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 	if (bp->db_size)
 		goto func_qcfg_exit;
 
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+	bp->db_offset = le16_to_cpu(resp->legacy_l2_db_size_kb) * 1024;
+	if (BNXT_CHIP_P5(bp)) {
 		if (BNXT_PF(bp))
-			min_db_offset = DB_PF_OFFSET_P5;
+			bp->db_offset = DB_PF_OFFSET_P5;
 		else
-			min_db_offset = DB_VF_OFFSET_P5;
+			bp->db_offset = DB_VF_OFFSET_P5;
 	}
 	bp->db_size = PAGE_ALIGN(le16_to_cpu(resp->l2_doorbell_bar_size_kb) *
 				 1024);
 	if (!bp->db_size || bp->db_size > pci_resource_len(bp->pdev, 2) ||
-	    bp->db_size <= min_db_offset)
+	    bp->db_size <= bp->db_offset)
 		bp->db_size = pci_resource_len(bp->pdev, 2);
 
 func_qcfg_exit:
@@ -7249,7 +7420,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 {
 	struct hwrm_func_backing_store_qcaps_v2_output *resp;
 	struct hwrm_func_backing_store_qcaps_v2_input *req;
-	u16 last_valid_type = BNXT_CTX_INV;
 	struct bnxt_ctx_mem_info *ctx;
 	u16 type;
 	int rc;
@@ -7281,7 +7451,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 			continue;
 
 		ctxm->type = le16_to_cpu(resp->type);
-		last_valid_type = ctxm->type;
 		ctxm->entry_size = le16_to_cpu(resp->entry_size);
 		ctxm->flags = flags;
 		ctxm->instance_bmap = le32_to_cpu(resp->instance_bit_map);
@@ -7298,8 +7467,6 @@ static int bnxt_hwrm_func_backing_store_qcaps_v2(struct bnxt *bp)
 		     i++, p++)
 			ctxm->split[i] = le32_to_cpu(*p);
 	}
-	if (last_valid_type < BNXT_CTX_V2_MAX)
-		ctx->ctx_arr[last_valid_type].last = true;
 	rc = bnxt_alloc_all_ctx_pg_info(bp, BNXT_CTX_V2_MAX);
 
 ctx_done:
@@ -7751,12 +7918,21 @@ static int bnxt_hwrm_func_backing_store_cfg_v2(struct bnxt *bp,
 	return rc;
 }
 
-static int bnxt_backing_store_cfg_v2(struct bnxt *bp)
+static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 {
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
 	struct bnxt_ctx_mem_type *ctxm;
+	u16 last_type;
 	int rc = 0;
 	u16 type;
+
+	if (!ena)
+		return 0;
+	else if (ena & FUNC_BACKING_STORE_CFG_REQ_ENABLES_TIM)
+		last_type = BNXT_CTX_MAX - 1;
+	else
+		last_type = BNXT_CTX_L2_MAX - 1;
+	ctx->ctx_arr[last_type].last = 1;
 
 	for (type = 0 ; type < BNXT_CTX_V2_MAX; type++) {
 		ctxm = &ctx->ctx_arr[type];
@@ -7904,7 +8080,7 @@ skip_rdma:
 	ena |= FUNC_BACKING_STORE_CFG_REQ_DFLT_ENABLES;
 
 	if (bp->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-		rc = bnxt_backing_store_cfg_v2(bp);
+		rc = bnxt_backing_store_cfg_v2(bp, ena);
 	else
 		rc = bnxt_hwrm_func_backing_store_cfg(bp, ena);
 	if (rc) {
@@ -9108,7 +9284,7 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 
 		vnic = &bp->vnic_info[vnic_id];
 		vnic->flags |= BNXT_VNIC_RFS_FLAG;
-		if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
 		rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, ring_id, 1);
 		if (rc) {
@@ -9202,7 +9378,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	rc = bnxt_setup_vnic(bp, 0);
 	if (rc)
 		goto err_out;
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bnxt_hwrm_update_rss_hash_cfg(bp);
 
 	if (bp->flags & BNXT_FLAG_RFS) {
@@ -9960,7 +10136,10 @@ void bnxt_report_link(struct bnxt *bp)
 				signal = "(NRZ) ";
 				break;
 			case PORT_PHY_QCFG_RESP_SIGNAL_MODE_PAM4:
-				signal = "(PAM4) ";
+				signal = "(PAM4 56Gbps) ";
+				break;
+			case PORT_PHY_QCFG_RESP_SIGNAL_MODE_PAM4_112:
+				signal = "(PAM4 112Gbps) ";
 				break;
 			default:
 				break;
@@ -9988,7 +10167,9 @@ static bool bnxt_phy_qcaps_no_speed(struct hwrm_port_phy_qcaps_output *resp)
 	if (!resp->supported_speeds_auto_mode &&
 	    !resp->supported_speeds_force_mode &&
 	    !resp->supported_pam4_speeds_auto_mode &&
-	    !resp->supported_pam4_speeds_force_mode)
+	    !resp->supported_pam4_speeds_force_mode &&
+	    !resp->supported_speeds2_auto_mode &&
+	    !resp->supported_speeds2_force_mode)
 		return true;
 	return false;
 }
@@ -10034,6 +10215,7 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 			/* Phy re-enabled, reprobe the speeds */
 			link_info->support_auto_speeds = 0;
 			link_info->support_pam4_auto_speeds = 0;
+			link_info->support_auto_speeds2 = 0;
 		}
 	}
 	if (resp->supported_speeds_auto_mode)
@@ -10042,6 +10224,9 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 	if (resp->supported_pam4_speeds_auto_mode)
 		link_info->support_pam4_auto_speeds =
 			le16_to_cpu(resp->supported_pam4_speeds_auto_mode);
+	if (resp->supported_speeds2_auto_mode)
+		link_info->support_auto_speeds2 =
+			le16_to_cpu(resp->supported_speeds2_auto_mode);
 
 	bp->port_count = resp->port_cnt;
 
@@ -10059,9 +10244,19 @@ static bool bnxt_support_dropped(u16 advertising, u16 supported)
 
 static bool bnxt_support_speed_dropped(struct bnxt_link_info *link_info)
 {
+	struct bnxt *bp = container_of(link_info, struct bnxt, link_info);
+
 	/* Check if any advertised speeds are no longer supported. The caller
 	 * holds the link_lock mutex, so we can modify link_info settings.
 	 */
+	if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+		if (bnxt_support_dropped(link_info->advertising,
+					 link_info->support_auto_speeds2)) {
+			link_info->advertising = link_info->support_auto_speeds2;
+			return true;
+		}
+		return false;
+	}
 	if (bnxt_support_dropped(link_info->advertising,
 				 link_info->support_auto_speeds)) {
 		link_info->advertising = link_info->support_auto_speeds;
@@ -10110,18 +10305,25 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->lp_pause = resp->link_partner_adv_pause;
 	link_info->force_pause_setting = resp->force_pause;
 	link_info->duplex_setting = resp->duplex_cfg;
-	if (link_info->phy_link_status == BNXT_LINK_LINK)
+	if (link_info->phy_link_status == BNXT_LINK_LINK) {
 		link_info->link_speed = le16_to_cpu(resp->link_speed);
-	else
+		if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2)
+			link_info->active_lanes = resp->active_lanes;
+	} else {
 		link_info->link_speed = 0;
+		link_info->active_lanes = 0;
+	}
 	link_info->force_link_speed = le16_to_cpu(resp->force_link_speed);
 	link_info->force_pam4_link_speed =
 		le16_to_cpu(resp->force_pam4_link_speed);
+	link_info->force_link_speed2 = le16_to_cpu(resp->force_link_speeds2);
 	link_info->support_speeds = le16_to_cpu(resp->support_speeds);
 	link_info->support_pam4_speeds = le16_to_cpu(resp->support_pam4_speeds);
+	link_info->support_speeds2 = le16_to_cpu(resp->support_speeds2);
 	link_info->auto_link_speeds = le16_to_cpu(resp->auto_link_speed_mask);
 	link_info->auto_pam4_link_speeds =
 		le16_to_cpu(resp->auto_pam4_link_speed_mask);
+	link_info->auto_link_speeds2 = le16_to_cpu(resp->auto_link_speeds2);
 	link_info->lp_auto_link_speeds =
 		le16_to_cpu(resp->link_partner_adv_speeds);
 	link_info->lp_auto_pam4_link_speeds =
@@ -10260,7 +10462,11 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp, struct hwrm_port_phy_cfg_
 {
 	if (bp->link_info.autoneg & BNXT_AUTONEG_SPEED) {
 		req->auto_mode |= PORT_PHY_CFG_REQ_AUTO_MODE_SPEED_MASK;
-		if (bp->link_info.advertising) {
+		if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			req->enables |=
+				cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEEDS2_MASK);
+			req->auto_link_speeds2_mask = cpu_to_le16(bp->link_info.advertising);
+		} else if (bp->link_info.advertising) {
 			req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_AUTO_LINK_SPEED_MASK);
 			req->auto_link_speed_mask = cpu_to_le16(bp->link_info.advertising);
 		}
@@ -10274,7 +10480,12 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp, struct hwrm_port_phy_cfg_
 		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_RESTART_AUTONEG);
 	} else {
 		req->flags |= cpu_to_le32(PORT_PHY_CFG_REQ_FLAGS_FORCE);
-		if (bp->link_info.req_signal_mode == BNXT_SIG_MODE_PAM4) {
+		if (bp->phy_flags & BNXT_PHY_FL_SPEEDS2) {
+			req->force_link_speeds2 = cpu_to_le16(bp->link_info.req_link_speed);
+			req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_FORCE_LINK_SPEEDS2);
+			netif_info(bp, link, bp->dev, "Forcing FW speed2: %d\n",
+				   (u32)bp->link_info.req_link_speed);
+		} else if (bp->link_info.req_signal_mode == BNXT_SIG_MODE_PAM4) {
 			req->force_pam4_link_speed = cpu_to_le16(bp->link_info.req_link_speed);
 			req->enables |= cpu_to_le32(PORT_PHY_CFG_REQ_ENABLES_FORCE_PAM4_LINK_SPEED);
 		} else {
@@ -11530,7 +11741,7 @@ static bool bnxt_rfs_supported(struct bnxt *bp)
 		return false;
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return true;
-	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+	if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 		return true;
 	return false;
 }
@@ -11551,7 +11762,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
 
 	/* RSS contexts not a limiting factor */
-	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+	if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 		max_rss_ctxs = max_vnics;
 	if (vnics > max_vnics || vnics > max_rss_ctxs) {
 		if (bp->rx_nr_rings > 1)
@@ -12672,15 +12883,15 @@ static int bnxt_fw_init_one_p2(struct bnxt *bp)
 
 static void bnxt_set_dflt_rss_hash_type(struct bnxt *bp)
 {
-	bp->flags &= ~BNXT_FLAG_UDP_RSS_CAP;
+	bp->rss_cap &= ~BNXT_RSS_CAP_UDP_RSS_CAP;
 	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
 			   VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
-	if (bp->fw_cap & BNXT_FW_CAP_RSS_HASH_TYPE_DELTA)
+	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
 		bp->rss_hash_delta = bp->rss_hash_cfg;
 	if (BNXT_CHIP_P4_PLUS(bp) && bp->hwrm_spec_code >= 0x10501) {
-		bp->flags |= BNXT_FLAG_UDP_RSS_CAP;
+		bp->rss_cap |= BNXT_RSS_CAP_UDP_RSS_CAP;
 		bp->rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4 |
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 	}
@@ -14009,8 +14220,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (BNXT_CHIP_P5_PLUS(bp)) {
 		bp->flags |= BNXT_FLAG_CHIP_P5_PLUS;
-		if (BNXT_CHIP_SR2(bp))
-			bp->flags |= BNXT_FLAG_CHIP_SR2;
+		if (BNXT_CHIP_P7(bp))
+			bp->flags |= BNXT_FLAG_CHIP_P7;
 	}
 
 	rc = bnxt_alloc_rss_indir_tbl(bp);
