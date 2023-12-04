@@ -200,14 +200,14 @@
 		default-brightness-level = <200>;
 	};
 
-	dsi2lvds_panel0 {
+	dsi2lvds_panel0: dsi2lvds-panel0 {
 		compatible = "simple-panel";
 		backlight = <&backlight>;
 
 		display-timings {
 			native-mode = <&dsi2lvds0>;
 			dsi2lvds0: timing0 {
-				clock-frequency = <88208000>;
+				clock-frequency = <87381333>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <32>;
@@ -236,14 +236,14 @@
 		};
 	};
 
-	dsi2lvds_panel1 {
+	dsi2lvds_panel1: dsi2lvds-panel1 {
 		compatible = "simple-panel";
 		backlight = <&dsi2lvds_backlight1>;
 
 		display-timings {
 			native-mode = <&dsi2lvds1>;
 			dsi2lvds1: timing0 {
-				clock-frequency = <88208000>;
+				clock-frequency = <87381333>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <32>;
@@ -272,12 +272,12 @@
 		};
 	};
 
-	dp2lvds_panel0 {
+	dp2lvds_panel0: dp2lvds-panel0 {
 		compatible = "simple-panel";
 		backlight = <&dp2lvds_backlight0>;
 		status = "okay";
 
-		panel-timing {
+		dp2lvds0_panel_timing: panel-timing {
 			clock-frequency = <148500000>;
 			hactive = <1920>;
 			vactive = <1080>;
@@ -300,12 +300,12 @@
 		};
 	};
 
-	dp2lvds_panel1 {
+	dp2lvds_panel1: dp2lvds-panel1 {
 		compatible = "simple-panel";
 		backlight = <&dp2lvds_backlight1>;
 		status = "okay";
 
-		panel-timing {
+		dp2lvds1_panel_timing: panel-timing {
 			clock-frequency = <148500000>;
 			hactive = <1920>;
 			vactive = <1080>;
@@ -328,12 +328,12 @@
 		};
 	};
 
-	edp2lvds_panel0 {
+	edp2lvds_panel0: edp2lvds-panel0 {
 		compatible = "simple-panel";
 		backlight = <&edp2lvds_backlight0>;
 		status = "okay";
 
-		panel-timing {
+		edp2lvds0_panel_timing: panel-timing {
 			clock-frequency = <148500000>;
 			hactive = <1920>;
 			vactive = <1080>;
@@ -356,12 +356,12 @@
 		};
 	};
 
-	edp2lvds_panel1 {
+	edp2lvds_panel1: edp2lvds-panel1 {
 		compatible = "simple-panel";
 		backlight = <&edp2lvds_backlight1>;
 		status = "okay";
 
-		panel-timing {
+		edp2lvds1_panel_timing: panel-timing {
 			clock-frequency = <148500000>;
 			hactive = <1920>;
 			vactive = <1080>;
@@ -631,12 +631,9 @@
 	pinctrl-0 = <&i2c2m4_xfer>;
 	clock-frequency = <400000>;
 
-	bu18tl82: bu18tl82@10 {
+	i2c2_bu18tl82: i2c2-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ser0_rst_pin>;
-		reset-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_LOW>;
 		sel-mipi;
 		status = "okay";
 
@@ -723,6 +720,50 @@
 			0446 001f
 		];
 
+		i2c2_bu18tl82_pinctrl: i2c2-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_bu18tl82_panel_pins>;
+			pinctrl-1 = <&i2c2_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c2_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO4_TO_SER";
+				};
+			};
+
+			i2c2_bu18tl82_gpio: i2c2-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_bu18tl82_pinctrl 0 160 8>;
+			};
+		};
+
+		i2c2_bu18tl82_bridge: i2c2-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -745,7 +786,7 @@
 		};
 	};
 
-	bu18rl82: bu18rl82@30 {
+	i2c2_bu18rl82: i2c2-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -810,6 +851,83 @@
 			0646 001f
 		];
 
+		i2c2_bu18rl82_pinctrl: i2c2-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c2_bu18rl82_panel_pins>;
+			pinctrl-1 = <&i2c2_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c2_bu18rl82_panel_sleep_pins>;
+			status = "okay";
+
+			i2c2_bu18rl82_panel_pins: panel-pins {
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+			};
+
+			i2c2_bu18rl82_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-sleep {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				tp-rst-sleep {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				lcd-otp-pin-sleep {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+			};
+
+			i2c2_bu18rl82_gpio: i2c2-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_bu18rl82_pinctrl 0 169 8>;
+			};
+		};
+
+		i2c2_bu18rl82_bridge: i2c2-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -839,7 +957,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	bu18tl82@10 {
+	i2c4_bu18tl82: i2c4-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
 		status = "okay";
@@ -904,6 +1022,51 @@
 			0446 001f
 		];
 
+		i2c4_bu18tl82_pinctrl: i2c4-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c4_bu18tl82_panel_pins>;
+			pinctrl-1 = <&i2c4_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c4_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO4_TO_SER";
+				};
+
+			};
+
+			i2c4_bu18tl82_gpio: i2c4-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_bu18tl82_pinctrl 0 178 8>;
+			};
+		};
+
+		i2c4_bu18tl82_bridge: i2c4-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -926,7 +1089,7 @@
 		};
 	};
 
-	bu18rl82@30 {
+	i2c4_bu18rl82: i2c4-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -986,6 +1149,83 @@
 			0646 001f
 		];
 
+		i2c4_bu18rl82_pinctrl: i2c4-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c4_bu18rl82_panel_pins>;
+			pinctrl-1 = <&i2c4_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c4_bu18rl82_panel_sleep_pins>;
+			status = "okay";
+
+			i2c4_bu18rl82_panel_pins: panel-pins {
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+			};
+
+			i2c4_bu18rl82_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-sleep {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				tp-rst-sleep {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				lcd-otp-pin-sleep {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+			};
+
+			i2c4_bu18rl82_gpio: i2c4-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_bu18rl82_pinctrl 0 187 8>;
+			};
+		};
+
+		i2c4_bu18rl82_bridge: i2c4-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1020,7 +1260,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	bu18tl82@10 {
+	i2c5_bu18tl82: i2c5-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
 		status = "okay";
@@ -1088,6 +1328,51 @@
 			0446 001f
 		];
 
+		i2c5_bu18tl82_pinctrl: i2c5-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c5_bu18tl82_panel_pins>;
+			pinctrl-1 = <&i2c5_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c5_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO3_TO_SER";
+				};
+			};
+
+
+			i2c5_bu18tl82_gpio: i2c5-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_bu18tl82_pinctrl 0 196 8>;
+			};
+		};
+
+		i2c5_bu18tl82_bridge: i2c5-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1110,7 +1395,7 @@
 		};
 	};
 
-	bu18rl82@30 {
+	i2c5_bu18rl82: i2c5-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -1173,6 +1458,83 @@
 			0646 001f
 		];
 
+		i2c5_bu18rl82_pinctrl: i2c5-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c5_bu18rl82_panel_pins>;
+			pinctrl-1 = <&i2c5_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c5_bu18rl82_panel_sleep_pins>;
+			status = "okay";
+
+			i2c5_bu18rl82_panel_pins: panel-pins {
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+			};
+
+			i2c5_bu18rl82_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-sleep {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				tp-rst-sleep {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				lcd-otp-pin-sleep {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+			};
+
+			i2c5_bu18rl82_gpio: i2c5-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_bu18rl82_pinctrl 0 205 8>;
+			};
+		};
+
+		i2c5_bu18rl82_bridge: i2c5-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1195,16 +1557,7 @@
 		};
 	};
 
-	ilitek@41 {
-		compatible = "ilitek,ili251x";
-		reg = <0x41>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PD1 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&touch_pin>;
-		reset-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_LOW>;
-		ilitek,name = "ilitek_i2c";
-	};
+
 
 	lt7911d@2b {
 		compatible = "lontium,lt7911d-fb-notifier";
@@ -1220,12 +1573,9 @@
 	pinctrl-0 = <&i2c6m3_xfer>;
 	clock-frequency = <400000>;
 
-	bu18tl82@10 {
+	i2c6_bu18tl82: i2c6-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ser1_rst_pin>;
-		reset-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
 		sel-mipi;
 		status = "okay";
 		serdes-init-sequence = [
@@ -1313,6 +1663,51 @@
 			0446 001f
 		];
 
+		i2c6_bu18tl82_pinctrl: i2c6-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c6_bu18tl82_panel_pins>;
+			pinctrl-1 = <&i2c6_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c6_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO4_TO_SER";
+				};
+			};
+
+
+			i2c6_bu18tl82_gpio: i2c6-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c6_bu18tl82_pinctrl 0 214 8>;
+			};
+		};
+
+		i2c6_bu18tl82_bridge: i2c6-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1335,7 +1730,7 @@
 		};
 	};
 
-	bu18rl82@30 {
+	i2c6_bu18rl82: i2c6-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -1402,6 +1797,83 @@
 			0646 001f
 		];
 
+		i2c6_bu18rl82_pinctrl: i2c6-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c6_bu18rl82_panel_pins>;
+			pinctrl-1 = <&i2c6_bu18rl82_panel_pins>;
+			pinctrl-2 = <&i2c6_bu18rl82_panel_sleep_pins>;
+			status = "okay";
+
+			i2c6_bu18rl82_panel_pins: panel-pins {
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				100ms-delay {
+					pins = "BU18RL82_GPIO1";
+					function = "DELAY_100MS";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+			};
+
+			i2c6_bu18rl82_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-sleep {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				tp-rst-sleep {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+
+				lcd-otp-pin-sleep {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_LOW";
+				};
+			};
+
+			i2c6_bu18rl82_gpio: i2c6-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c6_bu18rl82_pinctrl 0 223 8>;
+			};
+		};
+
+		i2c6_bu18rl82_bridge: i2c6-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1431,7 +1903,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	bu18tl82@10 {
+	i2c7_bu18tl82: i2c7-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
 		status = "okay";
@@ -1496,6 +1968,49 @@
 			0446 001f
 		];
 
+		i2c7_bu18tl82_pinctrl: i2c7-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c7_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO4_TO_SER";
+				};
+			};
+
+
+			i2c7_bu18tl82_gpio: i2c7-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c7_bu18tl82_pinctrl 0 232 8>;
+			};
+		};
+
+		i2c7_bu18tl82_bridge: i2c7-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1518,7 +2033,7 @@
 		};
 	};
 
-	bu18rl82@30 {
+	i2c7_bu18rl82: i2c7-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -1577,6 +2092,59 @@
 			0645 0020
 			0646 001f
 		];
+
+		i2c7_bu18rl82_pinctrl: i2c7-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c7_bu18rl82_panel_pins>;
+			status = "okay";
+
+			i2c7_bu18rl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "SER_GPIO1_TO_DES";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+			};
+
+			i2c7_bu18rl82_gpio: i2c7-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c7_bu18rl82_pinctrl 0 241 8>;
+			};
+		};
+
+		i2c7_bu18rl82_bridge: i2c7-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
 
 		ports {
 			#address-cells = <1>;
@@ -1614,7 +2182,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	bu18tl82@10 {
+	i2c8_bu18tl82: i2c8-bu18tl82@10 {
 		compatible = "rohm,bu18tl82";
 		reg = <0x10>;
 		status = "okay";
@@ -1679,6 +2247,50 @@
 			0446 001f
 		];
 
+		i2c8_bu18tl82_pinctrl: i2c8-bu18tl82-pinctrl {
+			compatible = "rohm,bu18tl82-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8_bu18tl82_panel_pins>;
+			status = "okay";
+
+			i2c8_bu18tl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18TL82_GPIO0";
+					function = "SER_TO_DES_GPIO0";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18TL82_GPIO1";
+					function = "SER_TO_DES_GPIO1";
+				};
+
+				ser-irq {
+					pins = "BU18TL82_GPIO2";
+					function = "DES_GPIO2_TO_SER";
+				};
+
+				tp-int {
+					pins = "BU18TL82_GPIO3";
+					function = "DES_GPIO4_TO_SER";
+				};
+			};
+
+
+			i2c8_bu18tl82_gpio: i2c8-bu18tl82-gpio {
+				compatible = "rohm,bu18tl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c8_bu18tl82_pinctrl 0 250 8>;
+			};
+		};
+
+		i2c8_bu18tl82_bridge: i2c8-bu18tl82-bridge {
+			compatible = "rohm,bu18tl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1701,7 +2313,7 @@
 		};
 	};
 
-	bu18rl82@30 {
+	i2c8_bu18rl82: i2c8-bu18rl82@30 {
 		compatible = "rohm,bu18rl82";
 		reg = <0x30>;
 		status = "okay";
@@ -1761,6 +2373,59 @@
 			0646 001f
 		];
 
+		i2c8_bu18rl82_pinctrl: i2c8-bu18rl82-pinctrl {
+			compatible = "rohm,bu18rl82-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c8_bu18rl82_panel_pins>;
+			status = "okay";
+
+			i2c8_bu18rl82_panel_pins: panel-pins {
+				lcd-bl-pwm {
+					pins = "BU18RL82_GPIO0";
+					function = "SER_GPIO0_TO_DES";
+				};
+
+				lcd-pwr-en {
+					pins = "BU18RL82_GPIO1";
+					function = "SER_GPIO1_TO_DES";
+				};
+
+				lcd-rst {
+					pins = "BU18RL82_GPIO2";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-rst {
+					pins = "BU18RL82_GPIO3";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+
+				tp-int {
+					pins = "BU18RL82_GPIO4";
+					function = "DES_TO_SER_GPIO3";
+				};
+
+				lcd-otp-pin {
+					pins = "BU18RL82_GPIO5";
+					function = "DES_GPIO_OUTPUT_HIGH";
+				};
+			};
+
+			i2c8_bu18rl82_gpio: i2c8-bu18rl82-gpio {
+				compatible = "rohm,bu18rl82-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c8_bu18rl82_pinctrl 0 259 8>;
+			};
+		};
+
+		i2c8_bu18rl82_bridge: i2c8-bu18rl82-bridge {
+			compatible = "rohm,bu18rl82-bridge";
+			status = "okay";
+		};
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1797,56 +2462,6 @@
 
 &mipi_dcphy1 {
 	status = "okay";
-};
-
-
-&pinctrl {
-
-	bl {
-		bl0_enable_pin: bl0-enable-pin {
-			rockchip,pins = <1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		bl1_enable_pin: bl1-enable-pin {
-			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		bl2_enable_pin: bl2-enable-pin {
-			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		bl3_enable_pin: bl3-enable-pin {
-			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		bl4_enable_pin: bl4-enable-pin {
-			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		bl5_enable_pin: bl5-enable-pin {
-			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	serdes {
-		//dsi0
-		ser0_rst_pin: ser0-rst-pin {
-			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		//dsi1
-		ser1_rst_pin: ser1-rst-pin {
-			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	touch {
-		touch_pin: touch-pin {
-			rockchip,pins =
-				<0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>,  //INT
-				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;  //RST
-			};
-	};
 };
 
 /* dsi0->serdes->lvds_panel */

@@ -86,6 +86,77 @@
 	status = "okay";
 };
 
+&pinctrl {
+
+	bl {
+		bl0_enable_pin: bl0-enable-pin {
+			rockchip,pins =
+				<1 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+
+		};
+
+		bl1_enable_pin: bl1-enable-pin {
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl2_enable_pin: bl2-enable-pin {
+			rockchip,pins = <3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl3_enable_pin: bl3-enable-pin {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl4_enable_pin: bl4-enable-pin {
+			rockchip,pins = <0 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		bl5_enable_pin: bl5-enable-pin {
+			rockchip,pins = <1 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	serdes {
+		//dsi0
+		ser0_rst_pin: ser0-rst-pin {
+			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		//dsi1
+		ser1_rst_pin: ser1-rst-pin {
+			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	touch {
+		//dsi0-i2c2
+		touch_gpio_dsi0: touch-gpio-dsi0 {
+			rockchip,pins =
+				<1 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;  //rst
+		};
+		//dsi1-i2c6
+		touch_gpio_dsi1: touch-gpio-dsi1 {
+			rockchip,pins =
+				<1 RK_PB7 RK_FUNC_GPIO &pcfg_pull_up>,  //rst
+				<1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;  //int
+		};
+		//dp0-i2c4
+		touch_gpio_dp0: touch-gpio-dp0 {
+			rockchip,pins =
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>,	//rst
+				<0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_up>;	//int
+		};
+		//edp0-i2c5
+		touch_gpio_edp0: touch-gpio-edp0 {
+			rockchip,pins =
+				<0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>,  //rst
+				<0 RK_PD1 RK_FUNC_GPIO &pcfg_pull_up>;  //int
+		};
+	};
+};
+
 &rockchip_suspend {
 	rockchip,sleep-mode-config = <
 		(0
