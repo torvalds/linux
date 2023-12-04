@@ -7,6 +7,7 @@
 #include "chardev.h"
 #include "journal.h"
 #include "move.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
@@ -201,6 +202,7 @@ static long bch2_ioctl_incremental(struct bch_ioctl_incremental __user *user_arg
 struct fsck_thread {
 	struct thread_with_file	thr;
 	struct printbuf		buf;
+	struct bch_fs		*c;
 	char			**devs;
 	size_t			nr_devs;
 	struct bch_opts		opts;
@@ -350,6 +352,7 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 		goto err;
 	}
 
+	thr->opts = bch2_opts_empty();
 	thr->nr_devs = arg.nr_devs;
 	thr->output.buf	= PRINTBUF;
 	thr->output.buf.atomic++;
@@ -929,6 +932,95 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 	return ret;
 }
 
+static int bch2_fsck_online_thread_fn(void *arg)
+{
+	struct fsck_thread *thr = container_of(arg, struct fsck_thread, thr);
+	struct bch_fs *c = thr->c;
+
+	c->output_filter = current;
+	c->output = &thr->output;
+
+	/*
+	 * XXX: can we figure out a way to do this without mucking with c->opts?
+	 */
+	if (opt_defined(thr->opts, fix_errors))
+		c->opts.fix_errors = thr->opts.fix_errors;
+	c->opts.fsck = true;
+
+	c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
+	bch2_run_online_recovery_passes(c);
+
+	c->output = NULL;
+	c->output_filter = NULL;
+
+	thr->thr.done = true;
+	wake_up(&thr->output.wait);
+
+	up(&c->online_fsck_mutex);
+	bch2_ro_ref_put(c);
+	return 0;
+}
+
+static long bch2_ioctl_fsck_online(struct bch_fs *c,
+				   struct bch_ioctl_fsck_online arg)
+{
+	struct fsck_thread *thr = NULL;
+	long ret = 0;
+
+	if (arg.flags)
+		return -EINVAL;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (!bch2_ro_ref_tryget(c))
+		return -EROFS;
+
+	if (down_trylock(&c->online_fsck_mutex)) {
+		bch2_ro_ref_put(c);
+		return -EAGAIN;
+	}
+
+	thr = kzalloc(sizeof(*thr), GFP_KERNEL);
+	if (!thr) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	thr->c = c;
+	thr->opts = bch2_opts_empty();
+	thr->output.buf	= PRINTBUF;
+	thr->output.buf.atomic++;
+	spin_lock_init(&thr->output.lock);
+	init_waitqueue_head(&thr->output.wait);
+	darray_init(&thr->output2);
+
+	if (arg.opts) {
+		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
+
+		ret =   PTR_ERR_OR_ZERO(optstr) ?:
+			bch2_parse_mount_opts(c, &thr->opts, optstr);
+		kfree(optstr);
+
+		if (ret)
+			goto err;
+	}
+
+	ret = run_thread_with_file(&thr->thr,
+				   &fsck_thread_ops,
+				   bch2_fsck_online_thread_fn,
+				   "bch-fsck");
+err:
+	if (ret < 0) {
+		bch_err_fn(c, ret);
+		if (thr)
+			bch2_fsck_thread_free(thr);
+		up(&c->online_fsck_mutex);
+		bch2_ro_ref_put(c);
+	}
+	return ret;
+}
+
 #define BCH_IOCTL(_name, _argtype)					\
 do {									\
 	_argtype i;							\
@@ -984,7 +1076,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(disk_resize, struct bch_ioctl_disk_resize);
 	case BCH_IOCTL_DISK_RESIZE_JOURNAL:
 		BCH_IOCTL(disk_resize_journal, struct bch_ioctl_disk_resize_journal);
-
+	case BCH_IOCTL_FSCK_ONLINE:
+		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
 	default:
 		return -ENOTTY;
 	}

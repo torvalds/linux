@@ -83,7 +83,8 @@ struct bch_ioctl_incremental {
 
 #define BCH_IOCTL_DEV_USAGE_V2	_IOWR(0xbc,	18, struct bch_ioctl_dev_usage_v2)
 
-#define BCH_IOCTL_FSCK_OFFLINE		_IOW(0xbc,	19,  struct bch_ioctl_fsck_offline)
+#define BCH_IOCTL_FSCK_OFFLINE	_IOW(0xbc,	19,  struct bch_ioctl_fsck_offline)
+#define BCH_IOCTL_FSCK_ONLINE	_IOW(0xbc,	20,  struct bch_ioctl_fsck_online)
 
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
@@ -397,6 +398,15 @@ struct bch_ioctl_fsck_offline {
 	__u64			opts;		/* string */
 	__u64			nr_devs;
 	__u64			devs[0];
+};
+
+/*
+ * BCH_IOCTL_FSCK_ONLINE: run fsck from the 'bcachefs fsck' userspace command,
+ * but with the kernel's implementation of fsck:
+ */
+struct bch_ioctl_fsck_online {
+	__u64			flags;
+	__u64			opts;		/* string */
 };
 
 #endif /* _BCACHEFS_IOCTL_H */
