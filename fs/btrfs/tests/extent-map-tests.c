@@ -388,13 +388,13 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	write_unlock(&em_tree->lock);
 	if (ret) {
 		test_err("case4 [0x%llx 0x%llx): ret %d",
-			 start, len, ret);
+			 start, start + len, ret);
 		goto out;
 	}
 	if (em && (start < em->start || start + len > extent_map_end(em))) {
 		test_err(
 "case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
-			 start, len, ret, em->start, em->len, em->block_start,
+			 start, start + len, ret, em->start, em->len, em->block_start,
 			 em->block_len);
 		ret = -EINVAL;
 	}
