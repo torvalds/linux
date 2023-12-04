@@ -498,7 +498,7 @@ static void test_pkcs7_sig_fsverity(void)
 	if (!ASSERT_OK_PTR(skel, "test_sig_in_xattr__open"))
 		goto out;
 	ret = get_signature_size(sig_path);
-	if (!ASSERT_GT(ret, 0, "get_signaure_size"))
+	if (!ASSERT_GT(ret, 0, "get_signature_size"))
 		goto out;
 	skel->bss->sig_size = ret;
 	skel->bss->user_keyring_serial = syscall(__NR_request_key, "keyring",
