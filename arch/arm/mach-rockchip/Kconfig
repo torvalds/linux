@@ -28,3 +28,9 @@ config RV1106_HPMCU_FAST_WAKEUP
 	depends on PM_SLEEP && CPU_RV1106
 	help
 	  This config aims to support HPMCU fast wakeup.
+
+config RV1106_PMU_WAKEUP_TIMEOUT
+	bool "Rockchip RV1106 pmu timeout wakeup support"
+	depends on PM_SLEEP && CPU_RV1106
+	help
+	  This config aims to support pmu timeout wakeup.
