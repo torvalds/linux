@@ -344,22 +344,6 @@ xfs_growfs_log(
 }
 
 /*
- * exported through ioctl XFS_IOC_FSCOUNTS
- */
-
-void
-xfs_fs_counts(
-	xfs_mount_t		*mp,
-	xfs_fsop_counts_t	*cnt)
-{
-	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
-	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
-	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
-						xfs_fdblocks_unavailable(mp);
-	cnt->freertx = percpu_counter_read_positive(&mp->m_frextents);
-}
-
-/*
  * exported through ioctl XFS_IOC_SET_RESBLKS & XFS_IOC_GET_RESBLKS
  *
  * xfs_reserve_blocks is called to set m_resblks

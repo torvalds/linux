@@ -1912,6 +1912,24 @@ xfs_ioctl_getset_resblocks(
 	return 0;
 }
 
+static int
+xfs_ioctl_fs_counts(
+	struct xfs_mount	*mp,
+	struct xfs_fsop_counts __user	*uarg)
+{
+	struct xfs_fsop_counts	out = {
+		.allocino = percpu_counter_read_positive(&mp->m_icount),
+		.freeino  = percpu_counter_read_positive(&mp->m_ifree),
+		.freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
+				xfs_fdblocks_unavailable(mp),
+		.freertx  = percpu_counter_read_positive(&mp->m_frextents),
+	};
+
+	if (copy_to_user(uarg, &out, sizeof(out)))
+		return -EFAULT;
+	return 0;
+}
+
 /*
  * These long-unused ioctls were removed from the official ioctl API in 5.17,
  * but retain these definitions so that we can log warnings about them.
@@ -2048,15 +2066,8 @@ xfs_file_ioctl(
 		return error;
 	}
 
-	case XFS_IOC_FSCOUNTS: {
-		xfs_fsop_counts_t out;
-
-		xfs_fs_counts(mp, &out);
-
-		if (copy_to_user(arg, &out, sizeof(out)))
-			return -EFAULT;
-		return 0;
-	}
+	case XFS_IOC_FSCOUNTS:
+		return xfs_ioctl_fs_counts(mp, arg);
 
 	case XFS_IOC_SET_RESBLKS:
 	case XFS_IOC_GET_RESBLKS:

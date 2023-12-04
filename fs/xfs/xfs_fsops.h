@@ -8,7 +8,6 @@
 
 extern int xfs_growfs_data(struct xfs_mount *mp, struct xfs_growfs_data *in);
 extern int xfs_growfs_log(struct xfs_mount *mp, struct xfs_growfs_log *in);
-extern void xfs_fs_counts(xfs_mount_t *mp, xfs_fsop_counts_t *cnt);
 extern int xfs_reserve_blocks(xfs_mount_t *mp, uint64_t *inval,
 				xfs_fsop_resblks_t *outval);
 extern int xfs_fs_goingdown(xfs_mount_t *mp, uint32_t inflags);
