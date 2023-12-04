@@ -292,7 +292,6 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 struct svc_rdma_read_info {
 	struct svc_rqst			*ri_rqst;
 	struct svc_rdma_recv_ctxt	*ri_readctxt;
-	unsigned int			ri_pageoff;
 };
 
 static struct svc_rdma_read_info *
@@ -705,7 +704,7 @@ static int svc_rdma_build_read_segment(struct svcxprt_rdma *rdma,
 	int ret;
 
 	len = segment->rs_length;
-	sge_no = PAGE_ALIGN(info->ri_pageoff + len) >> PAGE_SHIFT;
+	sge_no = PAGE_ALIGN(head->rc_pageoff + len) >> PAGE_SHIFT;
 	ctxt = svc_rdma_get_rw_ctxt(rdma, sge_no);
 	if (!ctxt)
 		return -ENOMEM;
@@ -714,19 +713,19 @@ static int svc_rdma_build_read_segment(struct svcxprt_rdma *rdma,
 	sg = ctxt->rw_sg_table.sgl;
 	for (sge_no = 0; sge_no < ctxt->rw_nents; sge_no++) {
 		seg_len = min_t(unsigned int, len,
-				PAGE_SIZE - info->ri_pageoff);
+				PAGE_SIZE - head->rc_pageoff);
 
-		if (!info->ri_pageoff)
+		if (!head->rc_pageoff)
 			head->rc_page_count++;
 
 		sg_set_page(sg, rqstp->rq_pages[head->rc_curpage],
-			    seg_len, info->ri_pageoff);
+			    seg_len, head->rc_pageoff);
 		sg = sg_next(sg);
 
-		info->ri_pageoff += seg_len;
-		if (info->ri_pageoff == PAGE_SIZE) {
+		head->rc_pageoff += seg_len;
+		if (head->rc_pageoff == PAGE_SIZE) {
 			head->rc_curpage++;
-			info->ri_pageoff = 0;
+			head->rc_pageoff = 0;
 		}
 		len -= seg_len;
 
@@ -787,7 +786,7 @@ static int svc_rdma_build_read_chunk(struct svcxprt_rdma *rdma,
  *
  * Take a page at a time from rqstp->rq_pages and copy the inline
  * content from the Receive buffer into that page. Update
- * head->rc_curpage and info->ri_pageoff so that the next RDMA Read
+ * head->rc_curpage and head->rc_pageoff so that the next RDMA Read
  * result will land contiguously with the copied content.
  *
  * Return values:
@@ -803,24 +802,24 @@ static int svc_rdma_copy_inline_range(struct svc_rdma_read_info *info,
 	struct svc_rqst *rqstp = info->ri_rqst;
 	unsigned int page_no, numpages;
 
-	numpages = PAGE_ALIGN(info->ri_pageoff + remaining) >> PAGE_SHIFT;
+	numpages = PAGE_ALIGN(head->rc_pageoff + remaining) >> PAGE_SHIFT;
 	for (page_no = 0; page_no < numpages; page_no++) {
 		unsigned int page_len;
 
 		page_len = min_t(unsigned int, remaining,
-				 PAGE_SIZE - info->ri_pageoff);
+				 PAGE_SIZE - head->rc_pageoff);
 
-		if (!info->ri_pageoff)
+		if (!head->rc_pageoff)
 			head->rc_page_count++;
 
 		dst = page_address(rqstp->rq_pages[head->rc_curpage]);
 		memcpy(dst + head->rc_curpage, src + offset, page_len);
 
 		head->rc_readbytes += page_len;
-		info->ri_pageoff += page_len;
-		if (info->ri_pageoff == PAGE_SIZE) {
+		head->rc_pageoff += page_len;
+		if (head->rc_pageoff == PAGE_SIZE) {
 			head->rc_curpage++;
-			info->ri_pageoff = 0;
+			head->rc_pageoff = 0;
 		}
 		remaining -= page_len;
 		offset += page_len;
@@ -1134,9 +1133,9 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 		return -ENOMEM;
 	info->ri_rqst = rqstp;
 	info->ri_readctxt = head;
-	info->ri_pageoff = 0;
 	svc_rdma_cc_init(rdma, cc);
 	cc->cc_cqe.done = svc_rdma_wc_read_done;
+	head->rc_pageoff = 0;
 	head->rc_curpage = 0;
 	head->rc_readbytes = 0;
 
