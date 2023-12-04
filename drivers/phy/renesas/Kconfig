@@ -13,7 +13,7 @@ config PHY_R8A779F0_ETHERNET_SERDES
 config PHY_RCAR_GEN2
 	tristate "Renesas R-Car generation 2 USB PHY driver"
 	depends on ARCH_RENESAS
-	depends on GENERIC_PHY
+	select GENERIC_PHY
 	help
 	  Support for USB PHY found on Renesas R-Car generation 2 SoCs.
 
