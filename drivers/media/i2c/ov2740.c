@@ -940,7 +940,8 @@ static int ov2740_check_hwcfg(struct device *dev)
 	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
 	if (ret) {
 		fwnode_handle_put(ep);
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "reading clock-frequency property\n");
 	}
 
 	if (mclk != OV2740_MCLK) {
@@ -953,7 +954,7 @@ static int ov2740_check_hwcfg(struct device *dev)
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
 	fwnode_handle_put(ep);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "parsing endpoint failed\n");
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV2740_DATA_LANES) {
 		ret = dev_err_probe(dev, -EINVAL,
