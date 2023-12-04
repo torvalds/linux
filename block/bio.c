@@ -966,10 +966,13 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
 		unsigned int max_sectors, bool *same_page)
 {
+	unsigned int max_size = max_sectors << SECTOR_SHIFT;
+
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 
-	if (((bio->bi_iter.bi_size + len) >> SECTOR_SHIFT) > max_sectors)
+	len = min3(len, max_size, queue_max_segment_size(q));
+	if (len > max_size - bio->bi_iter.bi_size)
 		return 0;
 
 	if (bio->bi_vcnt > 0) {
