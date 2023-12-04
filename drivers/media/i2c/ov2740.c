@@ -1098,13 +1098,16 @@ static int ov2740_probe(struct i2c_client *client)
 	bool full_power;
 	int ret;
 
-	ret = ov2740_check_hwcfg(&client->dev);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to check HW configuration\n");
-
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
 		return -ENOMEM;
+
+	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
+	ov2740->sd.internal_ops = &ov2740_internal_ops;
+
+	ret = ov2740_check_hwcfg(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to check HW configuration\n");
 
 	ov2740->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ov2740->reset_gpio))
@@ -1116,8 +1119,6 @@ static int ov2740_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(ov2740->clk),
 				     "failed to get clock\n");
 
-	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
-	ov2740->sd.internal_ops = &ov2740_internal_ops;
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
 		/* ACPI does not always clear the reset GPIO / enable the clock */
