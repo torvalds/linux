@@ -16,7 +16,7 @@ jobs:
       - name: Install native dependencies
         run: sudo apt-get update -y && sudo apt-get install -y ditaa graphviz
       - name: Install pip dependencies
-        run: sudo pip install Sphinx==1.6.7 sphinx_rtd_theme hieroglyph==1.0
+        run: sudo pip install Sphinx==1.6.7 sphinx_rtd_theme==1.3.0 hieroglyph==1.0
       - name: Build documentation
         run: cd tools/labs && make docs
       - uses: actions/upload-artifact@v1
