@@ -344,7 +344,8 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 	}
 }
 
-static void pci_read_bridge_io(struct pci_dev *dev, struct resource *res)
+static void pci_read_bridge_io(struct pci_dev *dev, struct resource *res,
+			       bool log)
 {
 	u8 io_base_lo, io_limit_lo;
 	unsigned long io_mask, io_granularity, base, limit;
@@ -377,11 +378,13 @@ static void pci_read_bridge_io(struct pci_dev *dev, struct resource *res)
 		region.start = base;
 		region.end = limit + io_granularity - 1;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_info(dev, "  bridge window %pR\n", res);
+		if (log)
+			pci_info(dev, "  bridge window %pR\n", res);
 	}
 }
 
-static void pci_read_bridge_mmio(struct pci_dev *dev, struct resource *res)
+static void pci_read_bridge_mmio(struct pci_dev *dev, struct resource *res,
+				 bool log)
 {
 	u16 mem_base_lo, mem_limit_lo;
 	unsigned long base, limit;
@@ -396,11 +399,13 @@ static void pci_read_bridge_mmio(struct pci_dev *dev, struct resource *res)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_info(dev, "  bridge window %pR\n", res);
+		if (log)
+			pci_info(dev, "  bridge window %pR\n", res);
 	}
 }
 
-static void pci_read_bridge_mmio_pref(struct pci_dev *dev, struct resource *res)
+static void pci_read_bridge_mmio_pref(struct pci_dev *dev, struct resource *res,
+				      bool log)
 {
 	u16 mem_base_lo, mem_limit_lo;
 	u64 base64, limit64;
@@ -446,7 +451,8 @@ static void pci_read_bridge_mmio_pref(struct pci_dev *dev, struct resource *res)
 		region.start = base;
 		region.end = limit + 0xfffff;
 		pcibios_bus_to_resource(dev->bus, res, &region);
-		pci_info(dev, "  bridge window %pR\n", res);
+		if (log)
+			pci_info(dev, "  bridge window %pR\n", res);
 	}
 }
 
@@ -518,9 +524,9 @@ void pci_read_bridge_bases(struct pci_bus *child)
 	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
 		child->resource[i] = &dev->resource[PCI_BRIDGE_RESOURCES+i];
 
-	pci_read_bridge_io(child->self, child->resource[0]);
-	pci_read_bridge_mmio(child->self, child->resource[1]);
-	pci_read_bridge_mmio_pref(child->self, child->resource[2]);
+	pci_read_bridge_io(child->self, child->resource[0], true);
+	pci_read_bridge_mmio(child->self, child->resource[1], true);
+	pci_read_bridge_mmio_pref(child->self, child->resource[2], true);
 
 	if (dev->transparent) {
 		pci_bus_for_each_resource(child->parent, res) {
