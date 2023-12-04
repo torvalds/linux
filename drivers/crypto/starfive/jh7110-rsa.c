@@ -45,12 +45,9 @@ static inline int starfive_pka_wait_done(struct starfive_cryp_ctx *ctx)
 
 static void starfive_rsa_free_key(struct starfive_rsa_key *key)
 {
-	if (key->d)
-		kfree_sensitive(key->d);
-	if (key->e)
-		kfree_sensitive(key->e);
-	if (key->n)
-		kfree_sensitive(key->n);
+	kfree_sensitive(key->d);
+	kfree_sensitive(key->e);
+	kfree_sensitive(key->n);
 	memset(key, 0, sizeof(*key));
 }
 
