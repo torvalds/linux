@@ -36,6 +36,11 @@
 
 #ifdef CONFIG_CC_HAS_NAMED_AS
 
+#ifdef __CHECKER__
+#define __seg_gs		__attribute__((address_space(__seg_gs)))
+#define __seg_fs		__attribute__((address_space(__seg_fs)))
+#endif
+
 #ifdef CONFIG_X86_64
 #define __percpu_seg_override	__seg_gs
 #else
