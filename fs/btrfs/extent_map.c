@@ -586,8 +586,6 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 	if (ret == -EEXIST) {
 		struct extent_map *existing;
 
-		ret = 0;
-
 		existing = search_extent_mapping(em_tree, start, len);
 
 		trace_btrfs_handle_em_exist(fs_info, existing, em, start, len);
