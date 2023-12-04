@@ -156,6 +156,10 @@ struct svc_rdma_recv_ctxt {
 	u32			rc_inv_rkey;
 	__be32			rc_msgtype;
 
+	/* State for pulling a Read chunk */
+	unsigned int		rc_readbytes;
+	struct svc_rdma_chunk_ctxt	rc_cc;
+
 	struct svc_rdma_pcl	rc_call_pcl;
 
 	struct svc_rdma_pcl	rc_read_pcl;
