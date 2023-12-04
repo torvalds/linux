@@ -3097,7 +3097,7 @@ static int sfp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sfp_remove(struct platform_device *pdev)
+static void sfp_remove(struct platform_device *pdev)
 {
 	struct sfp *sfp = platform_get_drvdata(pdev);
 
@@ -3107,8 +3107,6 @@ static int sfp_remove(struct platform_device *pdev)
 	rtnl_lock();
 	sfp_sm_event(sfp, SFP_E_REMOVE);
 	rtnl_unlock();
-
-	return 0;
 }
 
 static void sfp_shutdown(struct platform_device *pdev)
@@ -3129,7 +3127,7 @@ static void sfp_shutdown(struct platform_device *pdev)
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
-	.remove = sfp_remove,
+	.remove_new = sfp_remove,
 	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",
