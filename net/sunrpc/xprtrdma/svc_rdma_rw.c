@@ -153,8 +153,13 @@ static void svc_rdma_cc_cid_init(struct svcxprt_rdma *rdma,
 	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
 }
 
-static void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
-			     struct svc_rdma_chunk_ctxt *cc)
+/**
+ * svc_rdma_cc_init - Initialize an svc_rdma_chunk_ctxt
+ * @rdma: controlling transport instance
+ * @cc: svc_rdma_chunk_ctxt to be initialized
+ */
+void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
+		      struct svc_rdma_chunk_ctxt *cc)
 {
 	svc_rdma_cc_cid_init(rdma, &cc->cc_cid);
 
@@ -1101,8 +1106,8 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 	struct svc_rdma_chunk_ctxt *cc = &head->rc_cc;
 	int ret;
 
-	svc_rdma_cc_init(rdma, cc);
 	cc->cc_cqe.done = svc_rdma_wc_read_done;
+	cc->cc_sqecount = 0;
 	head->rc_pageoff = 0;
 	head->rc_curpage = 0;
 	head->rc_readbytes = 0;
