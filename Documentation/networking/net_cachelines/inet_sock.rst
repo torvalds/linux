@@ -1,5 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. Copyright (C) 2023 Google LLC
+
 =====================================================
 inet_connection_sock struct fast path usage breakdown
 =====================================================
