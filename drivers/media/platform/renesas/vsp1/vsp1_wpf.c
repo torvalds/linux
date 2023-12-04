@@ -186,16 +186,12 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Core Operations
+ * VSP1 Entity Operations
  */
 
-static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
+void vsp1_wpf_stop(struct vsp1_rwpf *wpf)
 {
-	struct vsp1_rwpf *wpf = to_rwpf(subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
-
-	if (enable)
-		return 0;
 
 	/*
 	 * Write to registers directly when stopping the stream as there will be
@@ -204,26 +200,7 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
 	vsp1_write(vsp1, wpf->entity.index * VI6_WPF_OFFSET +
 		   VI6_WPF_SRCRPF, 0);
-
-	return 0;
 }
-
-/* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static const struct v4l2_subdev_video_ops wpf_video_ops = {
-	.s_stream = wpf_s_stream,
-};
-
-static const struct v4l2_subdev_ops wpf_ops = {
-	.video	= &wpf_video_ops,
-	.pad    = &vsp1_rwpf_pad_ops,
-};
-
-/* -----------------------------------------------------------------------------
- * VSP1 Entity Operations
- */
 
 static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 {
@@ -583,7 +560,7 @@ struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index)
 	wpf->entity.index = index;
 
 	sprintf(name, "wpf.%u", index);
-	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &wpf_ops,
+	ret = vsp1_entity_init(vsp1, &wpf->entity, name, 2, &vsp1_rwpf_subdev_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);

@@ -35,7 +35,7 @@ scmi_pd_set_perf_state(struct generic_pm_domain *genpd, unsigned int state)
 	if (!state)
 		return -EINVAL;
 
-	ret = pd->perf_ops->level_set(pd->ph, pd->domain_id, state, true);
+	ret = pd->perf_ops->level_set(pd->ph, pd->domain_id, state, false);
 	if (ret)
 		dev_warn(&genpd->dev, "Failed with %d when trying to set %d perf level",
 			 ret, state);

@@ -162,7 +162,7 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(0,				restart_recovery)			\
-	x(0,				unwritten_extent_update)		\
+	x(0,				data_update_done)			\
 	x(EINVAL,			device_state_not_allowed)		\
 	x(EINVAL,			member_info_missing)			\
 	x(EINVAL,			mismatched_block_size)			\
@@ -210,6 +210,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_replicas)			\
+	x(BCH_ERR_invalid_sb,		invalid_replicas_entry)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal_seq_blacklist)	\
 	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
