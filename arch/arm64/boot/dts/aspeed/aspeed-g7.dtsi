@@ -560,7 +560,7 @@
 		};
 
 		mctp0: mctp0@12c06000 {
-			compatible = "aspeed,ast2700-mctp";
+			compatible = "aspeed,ast2700-mctp0";
 			reg = <0x0 0x12c06000 0x0 0x40>;
 			interrupts-extended = <&gic GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic0 ASPEED_AST2700_SCU_IC0_PCIE_PERST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";
@@ -571,7 +571,7 @@
 		};
 
 		mctp1: mctp1@12c07000 {
-			compatible = "aspeed,ast2700-mctp";
+			compatible = "aspeed,ast2700-mctp1";
 			reg = <0x0 0x12c07000 0x0 0x40>;
 			interrupts-extended = <&gic GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>, <&scu_ic1 ASPEED_AST2700_SCU_IC1_PCIE_RCRST_LO_TO_HI>;
 			interrupt-names = "mctp", "pcie";

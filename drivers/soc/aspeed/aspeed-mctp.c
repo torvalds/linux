@@ -224,7 +224,8 @@ static DEFINE_IDA(mctp_ida);
 #define ID0_AST2625A3			0x05030403
 #define ID1_AST2625A3			0x05030403
 
-#define ASPEED_G7_SCU_PCIE_CTRL_OFFSET	0xa60
+#define ASPEED_G7_SCU_PCIE0_CTRL_OFFSET	0xa60
+#define ASPEED_G7_SCU_PCIE1_CTRL_OFFSET	0xae0
 #define ASPEED_G7_SCU_PCIE_CTRL_VDM_EN	BIT(1)
 
 struct aspeed_mctp_match_data {
@@ -235,6 +236,7 @@ struct aspeed_mctp_match_data {
 	bool vdm_hdr_direct_xfer;
 	bool fifo_auto_surround;
 	bool dma_need_64bits_width;
+	u32 scu_pcie_ctrl_offset;
 };
 
 struct aspeed_mctp_rx_cmd {
@@ -446,13 +448,15 @@ static int pcie_vdm_enable(struct device *dev)
 {
 	int ret = 0;
 	struct regmap *scu;
+	const struct aspeed_mctp_match_data *match_data =
+		of_device_get_match_data(dev);
 
 	scu = syscon_regmap_lookup_by_phandle(dev->of_node, "aspeed,scu");
 	if (IS_ERR(scu)) {
 		dev_err(dev, "failed to find SCU regmap\n");
 		return PTR_ERR(scu);
 	}
-	ret = regmap_update_bits(scu, ASPEED_G7_SCU_PCIE_CTRL_OFFSET,
+	ret = regmap_update_bits(scu, match_data->scu_pcie_ctrl_offset,
 				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN,
 				 ASPEED_G7_SCU_PCIE_CTRL_VDM_EN);
 	return ret;
@@ -2407,7 +2411,7 @@ static const struct aspeed_mctp_match_data ast2600_mctp_match_data = {
 	.fifo_auto_surround = true,
 };
 
-static const struct aspeed_mctp_match_data ast2700_mctp_match_data = {
+static const struct aspeed_mctp_match_data ast2700_mctp0_match_data = {
 	.rx_cmd_size = sizeof(struct aspeed_mctp_rx_cmd),
 	.tx_cmd_size = sizeof(struct aspeed_g7_mctp_tx_cmd),
 	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
@@ -2415,12 +2419,25 @@ static const struct aspeed_mctp_match_data ast2700_mctp_match_data = {
 	.vdm_hdr_direct_xfer = true,
 	.fifo_auto_surround = true,
 	.dma_need_64bits_width = true,
+	.scu_pcie_ctrl_offset = ASPEED_G7_SCU_PCIE0_CTRL_OFFSET,
+};
+
+static const struct aspeed_mctp_match_data ast2700_mctp1_match_data = {
+	.rx_cmd_size = sizeof(struct aspeed_mctp_rx_cmd),
+	.tx_cmd_size = sizeof(struct aspeed_g7_mctp_tx_cmd),
+	.packet_unit_size = sizeof(struct mctp_pcie_packet_data),
+	.need_address_mapping = false,
+	.vdm_hdr_direct_xfer = true,
+	.fifo_auto_surround = true,
+	.dma_need_64bits_width = true,
+	.scu_pcie_ctrl_offset = ASPEED_G7_SCU_PCIE1_CTRL_OFFSET,
 };
 
 static const struct of_device_id aspeed_mctp_match_table[] = {
 	{ .compatible = "aspeed,ast2500-mctp", .data = &ast2500_mctp_match_data},
 	{ .compatible = "aspeed,ast2600-mctp", .data = &ast2600_mctp_match_data},
-	{ .compatible = "aspeed,ast2700-mctp", .data = &ast2700_mctp_match_data},
+	{ .compatible = "aspeed,ast2700-mctp0", .data = &ast2700_mctp0_match_data},
+	{ .compatible = "aspeed,ast2700-mctp1", .data = &ast2700_mctp1_match_data},
 	{ }
 };
 
