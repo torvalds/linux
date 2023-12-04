@@ -211,19 +211,19 @@ static bool can_merge_extent_map(const struct extent_map *em)
 }
 
 /* Check to see if two extent_map structs are adjacent and safe to merge. */
-static int mergable_maps(struct extent_map *prev, struct extent_map *next)
+static bool mergeable_maps(const struct extent_map *prev, const struct extent_map *next)
 {
-	if (extent_map_end(prev) == next->start &&
-	    prev->flags == next->flags &&
-	    ((next->block_start == EXTENT_MAP_HOLE &&
-	      prev->block_start == EXTENT_MAP_HOLE) ||
-	     (next->block_start == EXTENT_MAP_INLINE &&
-	      prev->block_start == EXTENT_MAP_INLINE) ||
-	     (next->block_start < EXTENT_MAP_LAST_BYTE - 1 &&
-	      next->block_start == extent_map_block_end(prev)))) {
-		return 1;
-	}
-	return 0;
+	if (extent_map_end(prev) != next->start)
+		return false;
+
+	if (prev->flags != next->flags)
+		return false;
+
+	if (next->block_start < EXTENT_MAP_LAST_BYTE - 1)
+		return next->block_start == extent_map_block_end(prev);
+
+	/* HOLES and INLINE extents. */
+	return next->block_start == prev->block_start;
 }
 
 static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
@@ -249,7 +249,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		rb = rb_prev(&em->rb_node);
 		if (rb)
 			merge = rb_entry(rb, struct extent_map, rb_node);
-		if (rb && can_merge_extent_map(merge) && mergable_maps(merge, em)) {
+		if (rb && can_merge_extent_map(merge) && mergeable_maps(merge, em)) {
 			em->start = merge->start;
 			em->orig_start = merge->orig_start;
 			em->len += merge->len;
@@ -269,7 +269,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 	rb = rb_next(&em->rb_node);
 	if (rb)
 		merge = rb_entry(rb, struct extent_map, rb_node);
-	if (rb && can_merge_extent_map(merge) && mergable_maps(em, merge)) {
+	if (rb && can_merge_extent_map(merge) && mergeable_maps(em, merge)) {
 		em->len += merge->len;
 		em->block_len += merge->block_len;
 		rb_erase_cached(&merge->rb_node, &tree->map);
