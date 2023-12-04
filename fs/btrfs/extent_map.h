@@ -5,6 +5,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
+#include "compression.h"
 
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)
 #define EXTENT_MAP_HOLE ((u64)-3)
@@ -13,18 +14,24 @@
 /* bits for the extent_map::flags field */
 enum {
 	/* this entry not yet on disk, don't free it */
-	EXTENT_FLAG_PINNED,
-	EXTENT_FLAG_COMPRESSED,
+	ENUM_BIT(EXTENT_FLAG_PINNED),
+	ENUM_BIT(EXTENT_FLAG_COMPRESS_ZLIB),
+	ENUM_BIT(EXTENT_FLAG_COMPRESS_LZO),
+	ENUM_BIT(EXTENT_FLAG_COMPRESS_ZSTD),
 	/* pre-allocated extent */
-	EXTENT_FLAG_PREALLOC,
+	ENUM_BIT(EXTENT_FLAG_PREALLOC),
 	/* Logging this extent */
-	EXTENT_FLAG_LOGGING,
+	ENUM_BIT(EXTENT_FLAG_LOGGING),
 	/* Filling in a preallocated extent */
-	EXTENT_FLAG_FILLING,
+	ENUM_BIT(EXTENT_FLAG_FILLING),
 	/* This em is merged from two or more physically adjacent ems */
-	EXTENT_FLAG_MERGED,
+	ENUM_BIT(EXTENT_FLAG_MERGED),
 };
 
+/*
+ * Keep this structure as compact as possible, as we can have really large
+ * amounts of allocated extent maps at any time.
+ */
 struct extent_map {
 	struct rb_node rb_node;
 
@@ -45,9 +52,8 @@ struct extent_map {
 	 * For non-merged extents, it's from btrfs_file_extent_item::generation.
 	 */
 	u64 generation;
-	unsigned long flags;
+	u32 flags;
 	refcount_t refs;
-	unsigned int compress_type;
 	struct list_head list;
 };
 
@@ -58,6 +64,42 @@ struct extent_map_tree {
 };
 
 struct btrfs_inode;
+
+static inline void extent_map_set_compression(struct extent_map *em,
+					      enum btrfs_compression_type type)
+{
+	if (type == BTRFS_COMPRESS_ZLIB)
+		em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
+	else if (type == BTRFS_COMPRESS_LZO)
+		em->flags |= EXTENT_FLAG_COMPRESS_LZO;
+	else if (type == BTRFS_COMPRESS_ZSTD)
+		em->flags |= EXTENT_FLAG_COMPRESS_ZSTD;
+}
+
+static inline enum btrfs_compression_type extent_map_compression(const struct extent_map *em)
+{
+	if (em->flags & EXTENT_FLAG_COMPRESS_ZLIB)
+		return BTRFS_COMPRESS_ZLIB;
+
+	if (em->flags & EXTENT_FLAG_COMPRESS_LZO)
+		return BTRFS_COMPRESS_LZO;
+
+	if (em->flags & EXTENT_FLAG_COMPRESS_ZSTD)
+		return BTRFS_COMPRESS_ZSTD;
+
+	return BTRFS_COMPRESS_NONE;
+}
+
+/*
+ * More efficient way to determine if extent is compressed, instead of using
+ * 'extent_map_compression() != BTRFS_COMPRESS_NONE'.
+ */
+static inline bool extent_map_is_compressed(const struct extent_map *em)
+{
+	return (em->flags & (EXTENT_FLAG_COMPRESS_ZLIB |
+			     EXTENT_FLAG_COMPRESS_LZO |
+			     EXTENT_FLAG_COMPRESS_ZSTD)) != 0;
+}
 
 static inline int extent_map_in_tree(const struct extent_map *em)
 {

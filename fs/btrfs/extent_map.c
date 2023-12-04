@@ -50,7 +50,6 @@ struct extent_map *alloc_extent_map(void)
 	if (!em)
 		return NULL;
 	RB_CLEAR_NODE(&em->rb_node);
-	em->compress_type = BTRFS_COMPRESS_NONE;
 	refcount_set(&em->refs, 1);
 	INIT_LIST_HEAD(&em->list);
 	return em;
@@ -189,14 +188,14 @@ static inline u64 extent_map_block_end(const struct extent_map *em)
 
 static bool can_merge_extent_map(const struct extent_map *em)
 {
-	if (test_bit(EXTENT_FLAG_PINNED, &em->flags))
+	if (em->flags & EXTENT_FLAG_PINNED)
 		return false;
 
 	/* Don't merge compressed extents, we need to know their actual size. */
-	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+	if (extent_map_is_compressed(em))
 		return false;
 
-	if (test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+	if (em->flags & EXTENT_FLAG_LOGGING)
 		return false;
 
 	/*
@@ -258,7 +257,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
 			em->mod_start = merge->mod_start;
 			em->generation = max(em->generation, merge->generation);
-			set_bit(EXTENT_FLAG_MERGED, &em->flags);
+			em->flags |= EXTENT_FLAG_MERGED;
 
 			rb_erase_cached(&merge->rb_node, &tree->map);
 			RB_CLEAR_NODE(&merge->rb_node);
@@ -276,7 +275,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		RB_CLEAR_NODE(&merge->rb_node);
 		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
 		em->generation = max(em->generation, merge->generation);
-		set_bit(EXTENT_FLAG_MERGED, &em->flags);
+		em->flags |= EXTENT_FLAG_MERGED;
 		free_extent_map(merge);
 	}
 }
@@ -319,13 +318,13 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 			   em->start, start, len, gen);
 
 	em->generation = gen;
-	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+	em->flags &= ~EXTENT_FLAG_PINNED;
 	em->mod_start = em->start;
 	em->mod_len = em->len;
 
-	if (test_bit(EXTENT_FLAG_FILLING, &em->flags)) {
+	if (em->flags & EXTENT_FLAG_FILLING) {
 		prealloc = true;
-		clear_bit(EXTENT_FLAG_FILLING, &em->flags);
+		em->flags &= ~EXTENT_FLAG_FILLING;
 	}
 
 	try_merge_map(tree, em);
@@ -346,7 +345,7 @@ void clear_em_logging(struct extent_map_tree *tree, struct extent_map *em)
 {
 	lockdep_assert_held_write(&tree->lock);
 
-	clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
+	em->flags &= ~EXTENT_FLAG_LOGGING;
 	if (extent_map_in_tree(em))
 		try_merge_map(tree, em);
 }
@@ -471,9 +470,9 @@ void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
 	lockdep_assert_held_write(&tree->lock);
 
-	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
+	WARN_ON(em->flags & EXTENT_FLAG_PINNED);
 	rb_erase_cached(&em->rb_node, &tree->map);
-	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+	if (!(em->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
 }
@@ -485,9 +484,9 @@ static void replace_extent_mapping(struct extent_map_tree *tree,
 {
 	lockdep_assert_held_write(&tree->lock);
 
-	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &cur->flags));
+	WARN_ON(cur->flags & EXTENT_FLAG_PINNED);
 	ASSERT(extent_map_in_tree(cur));
-	if (!test_bit(EXTENT_FLAG_LOGGING, &cur->flags))
+	if (!(cur->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&cur->list);
 	rb_replace_node_cached(&cur->rb_node, &new->rb_node, &tree->map);
 	RB_CLEAR_NODE(&cur->rb_node);
@@ -550,7 +549,7 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 	em->start = start;
 	em->len = end - start;
 	if (em->block_start < EXTENT_MAP_LAST_BYTE &&
-	    !test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
+	    !extent_map_is_compressed(em)) {
 		em->block_start += start_diff;
 		em->block_len = em->len;
 	}
@@ -653,8 +652,7 @@ static void drop_all_extent_maps_fast(struct extent_map_tree *tree)
 
 		node = rb_first_cached(&tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
-		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
-		clear_bit(EXTENT_FLAG_LOGGING, &em->flags);
+		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
 		remove_extent_mapping(tree, em);
 		free_extent_map(em);
 		cond_resched_rwlock_write(&tree->lock);
@@ -730,19 +728,18 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			}
 		}
 
-		if (skip_pinned && test_bit(EXTENT_FLAG_PINNED, &em->flags)) {
+		if (skip_pinned && (em->flags & EXTENT_FLAG_PINNED)) {
 			start = em_end;
 			goto next;
 		}
 
 		flags = em->flags;
-		clear_bit(EXTENT_FLAG_PINNED, &em->flags);
 		/*
 		 * In case we split the extent map, we want to preserve the
 		 * EXTENT_FLAG_LOGGING flag on our extent map, but we don't want
 		 * it on the new extent maps.
 		 */
-		clear_bit(EXTENT_FLAG_LOGGING, &flags);
+		em->flags &= ~(EXTENT_FLAG_PINNED | EXTENT_FLAG_LOGGING);
 		modified = !list_empty(&em->list);
 
 		/*
@@ -753,7 +750,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			goto remove_em;
 
 		gen = em->generation;
-		compressed = test_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+		compressed = extent_map_is_compressed(em);
 
 		if (em->start < start) {
 			if (!split) {
@@ -786,7 +783,6 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 			split->generation = gen;
 			split->flags = flags;
-			split->compress_type = em->compress_type;
 			replace_extent_mapping(em_tree, em, split, modified);
 			free_extent_map(split);
 			split = split2;
@@ -803,7 +799,6 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			split->len = em_end - end;
 			split->block_start = em->block_start;
 			split->flags = flags;
-			split->compress_type = em->compress_type;
 			split->generation = gen;
 
 			if (em->block_start < EXTENT_MAP_LAST_BYTE) {
@@ -969,14 +964,14 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	}
 
 	ASSERT(em->len == len);
-	ASSERT(!test_bit(EXTENT_FLAG_COMPRESSED, &em->flags));
+	ASSERT(!extent_map_is_compressed(em));
 	ASSERT(em->block_start < EXTENT_MAP_LAST_BYTE);
-	ASSERT(test_bit(EXTENT_FLAG_PINNED, &em->flags));
-	ASSERT(!test_bit(EXTENT_FLAG_LOGGING, &em->flags));
+	ASSERT(em->flags & EXTENT_FLAG_PINNED);
+	ASSERT(!(em->flags & EXTENT_FLAG_LOGGING));
 	ASSERT(!list_empty(&em->list));
 
 	flags = em->flags;
-	clear_bit(EXTENT_FLAG_PINNED, &em->flags);
+	em->flags &= ~EXTENT_FLAG_PINNED;
 
 	/* First, replace the em with a new extent_map starting from * em->start */
 	split_pre->start = em->start;
@@ -987,7 +982,6 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_pre->orig_block_len = split_pre->block_len;
 	split_pre->ram_bytes = split_pre->len;
 	split_pre->flags = flags;
-	split_pre->compress_type = em->compress_type;
 	split_pre->generation = em->generation;
 
 	replace_extent_mapping(em_tree, em, split_pre, 1);
@@ -1006,7 +1000,6 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_mid->orig_block_len = split_mid->block_len;
 	split_mid->ram_bytes = split_mid->len;
 	split_mid->flags = flags;
-	split_mid->compress_type = em->compress_type;
 	split_mid->generation = em->generation;
 	add_extent_mapping(em_tree, split_mid, 1);
 

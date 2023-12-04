@@ -272,11 +272,13 @@ DEFINE_EVENT(btrfs__inode, btrfs_inode_evict,
 
 #define show_map_flags(flag)						\
 	__print_flags(flag, "|",					\
-		{ (1 << EXTENT_FLAG_PINNED), 		"PINNED" 	},\
-		{ (1 << EXTENT_FLAG_COMPRESSED), 	"COMPRESSED" 	},\
-		{ (1 << EXTENT_FLAG_PREALLOC), 		"PREALLOC" 	},\
-		{ (1 << EXTENT_FLAG_LOGGING),	 	"LOGGING" 	},\
-		{ (1 << EXTENT_FLAG_FILLING),		"FILLING"	})
+		{ EXTENT_FLAG_PINNED,		"PINNED"	},\
+		{ EXTENT_FLAG_COMPRESS_ZLIB,	"COMPRESS_ZLIB"	},\
+		{ EXTENT_FLAG_COMPRESS_LZO,	"COMPRESS_LZO"	},\
+		{ EXTENT_FLAG_COMPRESS_ZSTD,	"COMPRESS_ZSTD"	},\
+		{ EXTENT_FLAG_PREALLOC,		"PREALLOC"	},\
+		{ EXTENT_FLAG_LOGGING,		"LOGGING"	},\
+		{ EXTENT_FLAG_FILLING,		"FILLING"	})
 
 TRACE_EVENT_CONDITION(btrfs_get_extent,
 
@@ -295,9 +297,8 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__field(	u64,  orig_start	)
 		__field(	u64,  block_start	)
 		__field(	u64,  block_len		)
-		__field(	unsigned long,  flags	)
+		__field(	u32,  flags		)
 		__field(	int,  refs		)
-		__field(	unsigned int,  compress_type	)
 	),
 
 	TP_fast_assign_btrfs(root->fs_info,
@@ -310,13 +311,11 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		__entry->block_len	= map->block_len;
 		__entry->flags		= map->flags;
 		__entry->refs		= refcount_read(&map->refs);
-		__entry->compress_type	= map->compress_type;
 	),
 
 	TP_printk_btrfs("root=%llu(%s) ino=%llu start=%llu len=%llu "
 		  "orig_start=%llu block_start=%llu(%s) "
-		  "block_len=%llu flags=%s refs=%u "
-		  "compress_type=%u",
+		  "block_len=%llu flags=%s refs=%u",
 		  show_root_type(__entry->root_objectid),
 		  __entry->ino,
 		  __entry->start,
@@ -325,7 +324,7 @@ TRACE_EVENT_CONDITION(btrfs_get_extent,
 		  show_map_type(__entry->block_start),
 		  __entry->block_len,
 		  show_map_flags(__entry->flags),
-		  __entry->refs, __entry->compress_type)
+		  __entry->refs)
 );
 
 TRACE_EVENT(btrfs_handle_em_exist,

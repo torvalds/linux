@@ -480,7 +480,7 @@ static int add_compressed_extent(struct btrfs_fs_info *fs_info,
 	em->len = len;
 	em->block_start = block_start;
 	em->block_len = SZ_4K;
-	set_bit(EXTENT_FLAG_COMPRESSED, &em->flags);
+	em->flags |= EXTENT_FLAG_COMPRESS_ZLIB;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);
@@ -763,7 +763,7 @@ static int test_case_7(struct btrfs_fs_info *fs_info)
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_4K;
-	set_bit(EXTENT_FLAG_PINNED, &em->flags);
+	em->flags |= EXTENT_FLAG_PINNED;
 	write_lock(&em_tree->lock);
 	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
 	write_unlock(&em_tree->lock);

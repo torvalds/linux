@@ -775,7 +775,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 	 * this em, as either we don't care about the generation, or the
 	 * merged extent map will be rejected anyway.
 	 */
-	if (em && test_bit(EXTENT_FLAG_MERGED, &em->flags) &&
+	if (em && (em->flags & EXTENT_FLAG_MERGED) &&
 	    newer_than && em->generation >= newer_than) {
 		free_extent_map(em);
 		em = NULL;
@@ -802,7 +802,7 @@ static struct extent_map *defrag_lookup_extent(struct inode *inode, u64 start,
 static u32 get_extent_max_capacity(const struct btrfs_fs_info *fs_info,
 				   const struct extent_map *em)
 {
-	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+	if (extent_map_is_compressed(em))
 		return BTRFS_MAX_COMPRESSED;
 	return fs_info->max_extent_size;
 }
@@ -828,7 +828,7 @@ static bool defrag_check_next_extent(struct inode *inode, struct extent_map *em,
 	/* No more em or hole */
 	if (!next || next->block_start >= EXTENT_MAP_LAST_BYTE)
 		goto out;
-	if (test_bit(EXTENT_FLAG_PREALLOC, &next->flags))
+	if (next->flags & EXTENT_FLAG_PREALLOC)
 		goto out;
 	/*
 	 * If the next extent is at its max capacity, defragging current extent
@@ -998,7 +998,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 
 		/* Skip holes and preallocated extents. */
 		if (em->block_start == EXTENT_MAP_HOLE ||
-		    test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		    (em->flags & EXTENT_FLAG_PREALLOC))
 			goto next;
 
 		/* Skip older extent */

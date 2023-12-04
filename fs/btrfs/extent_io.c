@@ -1032,8 +1032,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		BUG_ON(extent_map_end(em) <= cur);
 		BUG_ON(end < cur);
 
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
-			compress_type = em->compress_type;
+		compress_type = extent_map_compression(em);
 
 		iosize = min(extent_map_end(em) - cur, end - cur + 1);
 		iosize = ALIGN(iosize, blocksize);
@@ -1042,7 +1041,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		else
 			disk_bytenr = em->block_start + extent_offset;
 		block_start = em->block_start;
-		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+		if (em->flags & EXTENT_FLAG_PREALLOC)
 			block_start = EXTENT_MAP_HOLE;
 
 		/*
@@ -1079,7 +1078,7 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		 * is a corner case so we prioritize correctness over
 		 * non-optimal behavior (submitting 2 bios for the same extent).
 		 */
-		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags) &&
+		if (compress_type != BTRFS_COMPRESS_NONE &&
 		    prev_em_start && *prev_em_start != (u64)-1 &&
 		    *prev_em_start != em->start)
 			force_bio_submit = true;
@@ -1358,7 +1357,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		block_start = em->block_start;
 		disk_bytenr = em->block_start + extent_offset;
 
-		ASSERT(!test_bit(EXTENT_FLAG_COMPRESSED, &em->flags));
+		ASSERT(!extent_map_is_compressed(em));
 		ASSERT(block_start != EXTENT_MAP_HOLE);
 		ASSERT(block_start != EXTENT_MAP_INLINE);
 
@@ -2360,7 +2359,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 				write_unlock(&map->lock);
 				break;
 			}
-			if (test_bit(EXTENT_FLAG_PINNED, &em->flags) ||
+			if ((em->flags & EXTENT_FLAG_PINNED) ||
 			    em->start != start) {
 				write_unlock(&map->lock);
 				free_extent_map(em);
@@ -2377,7 +2376,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			 * extra reference on the em.
 			 */
 			if (list_empty(&em->list) ||
-			    test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+			    (em->flags & EXTENT_FLAG_LOGGING))
 				goto remove_em;
 			/*
 			 * If it's in the list of modified extents, remove it

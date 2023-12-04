@@ -2951,7 +2951,7 @@ static noinline_for_stack int setup_relocation_extent_mapping(struct inode *inod
 	em->len = end + 1 - start;
 	em->block_len = em->len;
 	em->block_start = block_start;
-	set_bit(EXTENT_FLAG_PINNED, &em->flags);
+	em->flags |= EXTENT_FLAG_PINNED;
 
 	lock_extent(&BTRFS_I(inode)->io_tree, start, end, &cached_state);
 	ret = btrfs_replace_extent_map_range(BTRFS_I(inode), em, false);
