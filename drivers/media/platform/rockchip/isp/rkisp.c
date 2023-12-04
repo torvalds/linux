@@ -2855,6 +2855,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
 	struct rkisp_hw_dev *hw_dev = isp_dev->hw_dev;
+	int ret;
 
 	if (!on) {
 		if (IS_HDR_RDBK(isp_dev->rd_mode)) {
@@ -2867,10 +2868,13 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 					wake_up(&s->done);
 			}
 		}
-		wait_event_timeout(isp_dev->sync_onoff,
-				   isp_dev->isp_state & ISP_STOP ||
-				   !IS_HDR_RDBK(isp_dev->rd_mode),
-				   msecs_to_jiffies(50));
+		ret = wait_event_timeout(isp_dev->sync_onoff,
+					 isp_dev->isp_state & ISP_STOP ||
+					 !IS_HDR_RDBK(isp_dev->rd_mode),
+					 msecs_to_jiffies(500));
+		if (!ret)
+			v4l2_warn(&isp_dev->v4l2_dev, "%s wait timeout, mode:%d state:0x%x\n",
+				  __func__, isp_dev->rd_mode, isp_dev->isp_state);
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
