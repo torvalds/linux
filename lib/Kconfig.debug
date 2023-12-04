@@ -2103,10 +2103,6 @@ config KCOV
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
 
-	  If RANDOMIZE_BASE is enabled, PC values will not be stable across
-	  different machines and across reboots. If you need stable PC values,
-	  disable RANDOMIZE_BASE.
-
 	  For more details, see Documentation/dev-tools/kcov.rst.
 
 config KCOV_ENABLE_COMPARISONS
