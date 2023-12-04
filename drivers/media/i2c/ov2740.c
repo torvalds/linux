@@ -3,6 +3,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -336,6 +337,7 @@ struct ov2740 {
 
 	/* GPIOs, clocks */
 	struct gpio_desc *reset_gpio;
+	struct clk *clk;
 
 	/* Current mode */
 	const struct ov2740_mode *cur_mode;
@@ -1071,6 +1073,7 @@ static int ov2740_suspend(struct device *dev)
 	struct ov2740 *ov2740 = to_ov2740(sd);
 
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 1);
+	clk_disable_unprepare(ov2740->clk);
 	return 0;
 }
 
@@ -1078,6 +1081,11 @@ static int ov2740_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
+	int ret;
+
+	ret = clk_prepare_enable(ov2740->clk);
+	if (ret)
+		return ret;
 
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 0);
 	msleep(20);
@@ -1104,6 +1112,11 @@ static int ov2740_probe(struct i2c_client *client)
 	if (IS_ERR(ov2740->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ov2740->reset_gpio),
 				     "failed to get reset GPIO\n");
+
+	ov2740->clk = devm_clk_get_optional(dev, "clk");
+	if (IS_ERR(ov2740->clk))
+		return dev_err_probe(dev, PTR_ERR(ov2740->clk),
+				     "failed to get clock\n");
 
 	v4l2_i2c_subdev_init(&ov2740->sd, client, &ov2740_subdev_ops);
 	ov2740->sd.internal_ops = &ov2740_internal_ops;
