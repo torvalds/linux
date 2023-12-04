@@ -60,6 +60,17 @@ config INTEL_MEI_GSC
 	  tasks such as graphics card firmware update and security
 	  tasks.
 
+config INTEL_MEI_VSC_HW
+	tristate "Intel visual sensing controller device transport driver"
+	depends on ACPI && SPI
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Intel SPI transport driver between host and Intel visual sensing
+	  controller (IVSC) device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mei-vsc-hw.
+
 source "drivers/misc/mei/hdcp/Kconfig"
 source "drivers/misc/mei/pxp/Kconfig"
 source "drivers/misc/mei/gsc_proxy/Kconfig"

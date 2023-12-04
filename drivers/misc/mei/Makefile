@@ -31,3 +31,7 @@ CFLAGS_mei-trace.o = -I$(src)
 obj-$(CONFIG_INTEL_MEI_HDCP) += hdcp/
 obj-$(CONFIG_INTEL_MEI_PXP) += pxp/
 obj-$(CONFIG_INTEL_MEI_GSC_PROXY) += gsc_proxy/
+
+obj-$(CONFIG_INTEL_MEI_VSC_HW) += mei-vsc-hw.o
+mei-vsc-hw-y := vsc-tp.o
+mei-vsc-hw-y += vsc-fw-loader.o
