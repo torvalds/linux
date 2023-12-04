@@ -3826,12 +3826,22 @@ static int rtw89_pci_ops_mac_lv1_recovery(struct rtw89_dev *rtwdev,
 
 static void rtw89_pci_ops_dump_err_status(struct rtw89_dev *rtwdev)
 {
-	rtw89_info(rtwdev, "R_AX_RPQ_RXBD_IDX =0x%08x\n",
-		   rtw89_read32(rtwdev, R_AX_RPQ_RXBD_IDX));
-	rtw89_info(rtwdev, "R_AX_DBG_ERR_FLAG=0x%08x\n",
-		   rtw89_read32(rtwdev, R_AX_DBG_ERR_FLAG));
-	rtw89_info(rtwdev, "R_AX_LBC_WATCHDOG=0x%08x\n",
-		   rtw89_read32(rtwdev, R_AX_LBC_WATCHDOG));
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		return;
+
+	if (rtwdev->chip->chip_id == RTL8852C) {
+		rtw89_info(rtwdev, "R_AX_DBG_ERR_FLAG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_DBG_ERR_FLAG_V1));
+		rtw89_info(rtwdev, "R_AX_LBC_WATCHDOG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_LBC_WATCHDOG_V1));
+	} else {
+		rtw89_info(rtwdev, "R_AX_RPQ_RXBD_IDX =0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_RPQ_RXBD_IDX));
+		rtw89_info(rtwdev, "R_AX_DBG_ERR_FLAG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_DBG_ERR_FLAG));
+		rtw89_info(rtwdev, "R_AX_LBC_WATCHDOG=0x%08x\n",
+			   rtw89_read32(rtwdev, R_AX_LBC_WATCHDOG));
+	}
 }
 
 static int rtw89_pci_napi_poll(struct napi_struct *napi, int budget)

@@ -935,6 +935,10 @@ struct rtw89_mac_gen_def {
 			     enum rtw89_phy_idx phy_idx,
 			     u32 reg_base, u32 *cr);
 
+	void (*dump_qta_lost)(struct rtw89_dev *rtwdev);
+	void (*dump_err_status)(struct rtw89_dev *rtwdev,
+				enum mac_ax_err_info err);
+
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
 };
 
@@ -1041,8 +1045,14 @@ int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 band,
 			   enum rtw89_mac_hwmod_sel sel);
 int rtw89_mac_write_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 val);
 int rtw89_mac_read_lte(struct rtw89_dev *rtwdev, const u32 offset, u32 *val);
+int rtw89_mac_dle_dfi_cfg(struct rtw89_dev *rtwdev, struct rtw89_mac_dle_dfi_ctrl *ctrl);
+int rtw89_mac_dle_dfi_quota_cfg(struct rtw89_dev *rtwdev,
+				struct rtw89_mac_dle_dfi_quota *quota);
+void rtw89_mac_dump_dmac_err_status(struct rtw89_dev *rtwdev);
 int rtw89_mac_dle_dfi_qempty_cfg(struct rtw89_dev *rtwdev,
 				 struct rtw89_mac_dle_dfi_qempty *qempty);
+void rtw89_mac_dump_l0_to_l1(struct rtw89_dev *rtwdev,
+			     enum mac_ax_err_info err);
 int rtw89_mac_add_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
