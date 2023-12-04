@@ -244,13 +244,6 @@ static inline size_t __invalidate_icache_max_range(void)
 static inline void __invalidate_icache_guest_page(void *va, size_t size)
 {
 	/*
-	 * VPIPT I-cache maintenance must be done from EL2. See comment in the
-	 * nVHE flavor of __kvm_tlb_flush_vmid_ipa().
-	 */
-	if (icache_is_vpipt() && read_sysreg(CurrentEL) != CurrentEL_EL2)
-		return;
-
-	/*
 	 * Blow the whole I-cache if it is aliasing (i.e. VIPT) or the
 	 * invalidation range exceeds our arbitrary limit on invadations by
 	 * cache line.
