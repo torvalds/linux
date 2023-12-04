@@ -10,6 +10,7 @@
 #include <asm/coco.h>
 #include <asm/tdx.h>
 #include <asm/vmx.h>
+#include <asm/ia32.h>
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
 #include <asm/pgtable.h>
@@ -819,6 +820,15 @@ void __init tdx_early_init(void)
 	 * Until that is in place, disable parallel bringup for TDX.
 	 */
 	x86_cpuinit.parallel_bringup = false;
+
+	/*
+	 * The VMM is capable of injecting interrupt 0x80 and triggering the
+	 * compatibility syscall path.
+	 *
+	 * By default, the 32-bit emulation is disabled in order to ensure
+	 * the safety of the VM.
+	 */
+	ia32_disable();
 
 	pr_info("Guest detected\n");
 }
