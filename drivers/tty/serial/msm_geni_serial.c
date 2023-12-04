@@ -682,6 +682,13 @@ int msm_geni_serial_resources_on(struct msm_geni_serial_port *port)
 	geni_capture_stop_time(&port->se, port->ipc_log_kpi, __func__,
 			       port->uart_kpi, start_time, 0, 0);
 
+	/*
+	 * Reprogram GENI output control register, to ensure QUP to Pad output path
+	 * is retained post suspend. Added 10us delay to settle the write of the
+	 * register as per HW team recommendation.
+	 */
+	geni_write_reg(0x7F,  port->uport.membase, GENI_OUTPUT_CTRL);
+	udelay(10);
 	return ret;
 }
 
