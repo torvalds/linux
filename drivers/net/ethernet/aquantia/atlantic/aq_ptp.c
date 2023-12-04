@@ -553,17 +553,17 @@ void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp)
 
 /* aq_ptp_rx_hwtstamp - utility function which checks for RX time stamp
  * @adapter: pointer to adapter struct
- * @skb: particular skb to send timestamp with
+ * @shhwtstamps: particular skb_shared_hwtstamps to save timestamp
  *
  * if the timestamp is valid, we convert it into the timecounter ns
  * value, then store that result into the hwtstamps structure which
  * is passed up the network stack
  */
-static void aq_ptp_rx_hwtstamp(struct aq_ptp_s *aq_ptp, struct sk_buff *skb,
+static void aq_ptp_rx_hwtstamp(struct aq_ptp_s *aq_ptp, struct skb_shared_hwtstamps *shhwtstamps,
 			       u64 timestamp)
 {
 	timestamp -= atomic_read(&aq_ptp->offset_ingress);
-	aq_ptp_convert_to_hwtstamp(aq_ptp, skb_hwtstamps(skb), timestamp);
+	aq_ptp_convert_to_hwtstamp(aq_ptp, shhwtstamps, timestamp);
 }
 
 void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
@@ -639,7 +639,7 @@ bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring)
 	       &aq_ptp->ptp_rx == ring || &aq_ptp->hwts_rx == ring;
 }
 
-u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,
+u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct skb_shared_hwtstamps *shhwtstamps, u8 *p,
 		      unsigned int len)
 {
 	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
@@ -648,7 +648,7 @@ u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,
 						   p, len, &timestamp);
 
 	if (ret > 0)
-		aq_ptp_rx_hwtstamp(aq_ptp, skb, timestamp);
+		aq_ptp_rx_hwtstamp(aq_ptp, shhwtstamps, timestamp);
 
 	return ret;
 }
