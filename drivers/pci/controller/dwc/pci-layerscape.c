@@ -35,11 +35,19 @@
 #define PF_MCR_PTOMR		BIT(0)
 #define PF_MCR_EXL2S		BIT(1)
 
+/* LS1021A PEXn PM Write Control Register */
+#define SCFG_PEXPMWRCR(idx)	(0x5c + (idx) * 0x64)
+#define PMXMTTURNOFF		BIT(31)
+#define SCFG_PEXSFTRSTCR	0x190
+#define PEXSR(idx)		BIT(idx)
+
 #define PCIE_IATU_NUM		6
 
 struct ls_pcie_drvdata {
 	const u32 pf_off;
+	const struct dw_pcie_host_ops *ops;
 	int (*exit_from_l2)(struct dw_pcie_rp *pp);
+	bool scfg_support;
 	bool pm_support;
 };
 
@@ -47,6 +55,8 @@ struct ls_pcie {
 	struct dw_pcie *pci;
 	const struct ls_pcie_drvdata *drvdata;
 	void __iomem *pf_base;
+	struct regmap *scfg;
+	int index;
 	bool big_endian;
 };
 
@@ -171,18 +181,70 @@ static int ls_pcie_host_init(struct dw_pcie_rp *pp)
 	return 0;
 }
 
+static void scfg_pcie_send_turnoff_msg(struct regmap *scfg, u32 reg, u32 mask)
+{
+	/* Send PME_Turn_Off message */
+	regmap_write_bits(scfg, reg, mask, mask);
+
+	/*
+	 * There is no specific register to check for PME_To_Ack from endpoint.
+	 * So on the safe side, wait for PCIE_PME_TO_L2_TIMEOUT_US.
+	 */
+	mdelay(PCIE_PME_TO_L2_TIMEOUT_US/1000);
+
+	/*
+	 * Layerscape hardware reference manual recommends clearing the PMXMTTURNOFF bit
+	 * to complete the PME_Turn_Off handshake.
+	 */
+	regmap_write_bits(scfg, reg, mask, 0);
+}
+
+static void ls1021a_pcie_send_turnoff_msg(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct ls_pcie *pcie = to_ls_pcie(pci);
+
+	scfg_pcie_send_turnoff_msg(pcie->scfg, SCFG_PEXPMWRCR(pcie->index), PMXMTTURNOFF);
+}
+
+static int scfg_pcie_exit_from_l2(struct regmap *scfg, u32 reg, u32 mask)
+{
+	/* Reset the PEX wrapper to bring the link out of L2 */
+	regmap_write_bits(scfg, reg, mask, mask);
+	regmap_write_bits(scfg, reg, mask, 0);
+
+	return 0;
+}
+
+static int ls1021a_pcie_exit_from_l2(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct ls_pcie *pcie = to_ls_pcie(pci);
+
+	return scfg_pcie_exit_from_l2(pcie->scfg, SCFG_PEXSFTRSTCR, PEXSR(pcie->index));
+}
+
 static const struct dw_pcie_host_ops ls_pcie_host_ops = {
 	.host_init = ls_pcie_host_init,
 	.pme_turn_off = ls_pcie_send_turnoff_msg,
 };
 
+static const struct dw_pcie_host_ops ls1021a_pcie_host_ops = {
+	.host_init = ls_pcie_host_init,
+	.pme_turn_off = ls1021a_pcie_send_turnoff_msg,
+};
+
 static const struct ls_pcie_drvdata ls1021a_drvdata = {
-	.pm_support = false,
+	.pm_support = true,
+	.scfg_support = true,
+	.ops = &ls1021a_pcie_host_ops,
+	.exit_from_l2 = ls1021a_pcie_exit_from_l2,
 };
 
 static const struct ls_pcie_drvdata layerscape_drvdata = {
 	.pf_off = 0xc0000,
 	.pm_support = true,
+	.ops = &ls_pcie_host_ops,
 	.exit_from_l2 = ls_pcie_exit_from_l2,
 };
 
@@ -205,6 +267,8 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct ls_pcie *pcie;
 	struct resource *dbi_base;
+	u32 index[2];
+	int ret;
 
 	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -217,9 +281,8 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	pcie->drvdata = of_device_get_match_data(dev);
 
 	pci->dev = dev;
-	pci->pp.ops = &ls_pcie_host_ops;
-
 	pcie->pci = pci;
+	pci->pp.ops = pcie->drvdata->ops;
 
 	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_base);
@@ -229,6 +292,20 @@ static int ls_pcie_probe(struct platform_device *pdev)
 	pcie->big_endian = of_property_read_bool(dev->of_node, "big-endian");
 
 	pcie->pf_base = pci->dbi_base + pcie->drvdata->pf_off;
+
+	if (pcie->drvdata->scfg_support) {
+		pcie->scfg = syscon_regmap_lookup_by_phandle(dev->of_node, "fsl,pcie-scfg");
+		if (IS_ERR(pcie->scfg)) {
+			dev_err(dev, "No syscfg phandle specified\n");
+			return PTR_ERR(pcie->scfg);
+		}
+
+		ret = of_property_read_u32_array(dev->of_node, "fsl,pcie-scfg", index, 2);
+		if (ret)
+			return ret;
+
+		pcie->index = index[1];
+	}
 
 	if (!ls_pcie_is_bridge(pcie))
 		return -ENODEV;
