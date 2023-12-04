@@ -998,8 +998,8 @@ static int svc_rdma_read_chunk_range(struct svc_rqst *rqstp,
 
 /**
  * svc_rdma_read_call_chunk - Build RDMA Read WQEs to pull a Long Message
- * @rdma: controlling transport
- * @info: context for RDMA Reads
+ * @rqstp: RPC transaction context
+ * @head: context for ongoing I/O
  *
  * Return values:
  *   %0: RDMA Read WQEs were successfully built
@@ -1008,10 +1008,9 @@ static int svc_rdma_read_chunk_range(struct svc_rqst *rqstp,
  *   %-ENOTCONN: posting failed (connection is lost),
  *   %-EIO: rdma_rw initialization failed (DMA mapping, etc).
  */
-static int svc_rdma_read_call_chunk(struct svcxprt_rdma *rdma,
-				    struct svc_rdma_read_info *info)
+static int svc_rdma_read_call_chunk(struct svc_rqst *rqstp,
+				    struct svc_rdma_recv_ctxt *head)
 {
-	struct svc_rdma_recv_ctxt *head = info->ri_readctxt;
 	const struct svc_rdma_chunk *call_chunk =
 			pcl_first_chunk(&head->rc_call_pcl);
 	const struct svc_rdma_pcl *pcl = &head->rc_read_pcl;
@@ -1020,19 +1019,18 @@ static int svc_rdma_read_call_chunk(struct svcxprt_rdma *rdma,
 	int ret;
 
 	if (pcl_is_empty(pcl))
-		return svc_rdma_build_read_chunk(info->ri_rqst, head,
-						 call_chunk);
+		return svc_rdma_build_read_chunk(rqstp, head, call_chunk);
 
 	start = 0;
 	chunk = pcl_first_chunk(pcl);
 	length = chunk->ch_position;
-	ret = svc_rdma_read_chunk_range(info->ri_rqst, head, call_chunk,
+	ret = svc_rdma_read_chunk_range(rqstp, head, call_chunk,
 					start, length);
 	if (ret < 0)
 		return ret;
 
 	pcl_for_each_chunk(chunk, pcl) {
-		ret = svc_rdma_build_read_chunk(info->ri_rqst, head, chunk);
+		ret = svc_rdma_build_read_chunk(rqstp, head, chunk);
 		if (ret < 0)
 			return ret;
 
@@ -1042,15 +1040,15 @@ static int svc_rdma_read_call_chunk(struct svcxprt_rdma *rdma,
 
 		start += length;
 		length = next->ch_position - head->rc_readbytes;
-		ret = svc_rdma_read_chunk_range(info->ri_rqst, head,
-						call_chunk, start, length);
+		ret = svc_rdma_read_chunk_range(rqstp, head, call_chunk,
+						start, length);
 		if (ret < 0)
 			return ret;
 	}
 
 	start += length;
 	length = call_chunk->ch_length - start;
-	return svc_rdma_read_chunk_range(info->ri_rqst, head, call_chunk,
+	return svc_rdma_read_chunk_range(rqstp, head, call_chunk,
 					 start, length);
 }
 
@@ -1080,7 +1078,7 @@ static noinline int svc_rdma_read_special(struct svcxprt_rdma *rdma,
 	struct xdr_buf *buf = &info->ri_rqst->rq_arg;
 	int ret;
 
-	ret = svc_rdma_read_call_chunk(rdma, info);
+	ret = svc_rdma_read_call_chunk(info->ri_rqst, info->ri_readctxt);
 	if (ret < 0)
 		goto out;
 
