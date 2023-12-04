@@ -121,6 +121,8 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 	pvr_fw_object_unmap_and_destroy(fw_trace->tracebuf_ctrl_obj);
 }
 
+#if defined(CONFIG_DEBUG_FS)
+
 /**
  * update_logtype() - Send KCCB command to trigger FW to update logtype
  * @pvr_dev: Target PowerVR device
@@ -164,8 +166,6 @@ err_up_read:
 
 	return err;
 }
-
-#if defined(CONFIG_DEBUG_FS)
 
 struct pvr_fw_trace_seq_data {
 	/** @buffer: Pointer to copy of trace data. */
