@@ -220,6 +220,8 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
  *  - Stores arguments for the SGL constructor functions
  */
 struct svc_rdma_write_info {
+	struct svcxprt_rdma	*wi_rdma;
+
 	const struct svc_rdma_chunk	*wi_chunk;
 
 	/* write state of this chunk */
@@ -246,6 +248,7 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma,
 	if (!info)
 		return info;
 
+	info->wi_rdma = rdma;
 	info->wi_chunk = chunk;
 	info->wi_seg_off = 0;
 	info->wi_seg_no = 0;
@@ -489,7 +492,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 		      unsigned int remaining)
 {
 	struct svc_rdma_chunk_ctxt *cc = &info->wi_cc;
-	struct svcxprt_rdma *rdma = cc->cc_rdma;
+	struct svcxprt_rdma *rdma = info->wi_rdma;
 	const struct svc_rdma_segment *seg;
 	struct svc_rdma_rw_ctxt *ctxt;
 	int ret;
