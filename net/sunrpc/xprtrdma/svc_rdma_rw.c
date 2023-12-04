@@ -287,28 +287,6 @@ static void svc_rdma_write_done(struct ib_cq *cq, struct ib_wc *wc)
 	svc_rdma_write_info_free(info);
 }
 
-/* State for pulling a Read chunk.
- */
-struct svc_rdma_read_info {
-	struct svc_rqst			*ri_rqst;
-	struct svc_rdma_recv_ctxt	*ri_readctxt;
-};
-
-static struct svc_rdma_read_info *
-svc_rdma_read_info_alloc(struct svcxprt_rdma *rdma)
-{
-	struct svc_rdma_read_info *info;
-
-	return kmalloc_node(sizeof(*info), GFP_KERNEL,
-			    ibdev_to_node(rdma->sc_cm_id->device));
-}
-
-static void svc_rdma_read_info_free(struct svcxprt_rdma *rdma,
-				    struct svc_rdma_read_info *info)
-{
-	kfree(info);
-}
-
 /**
  * svc_rdma_wc_read_done - Handle completion of an RDMA Read ctx
  * @cq: controlling Completion Queue
@@ -1121,14 +1099,8 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 			       struct svc_rdma_recv_ctxt *head)
 {
 	struct svc_rdma_chunk_ctxt *cc = &head->rc_cc;
-	struct svc_rdma_read_info *info;
 	int ret;
 
-	info = svc_rdma_read_info_alloc(rdma);
-	if (!info)
-		return -ENOMEM;
-	info->ri_rqst = rqstp;
-	info->ri_readctxt = head;
 	svc_rdma_cc_init(rdma, cc);
 	cc->cc_cqe.done = svc_rdma_wc_read_done;
 	head->rc_pageoff = 0;
@@ -1165,6 +1137,5 @@ int svc_rdma_process_read_list(struct svcxprt_rdma *rdma,
 
 out_err:
 	svc_rdma_cc_release(rdma, cc, DMA_FROM_DEVICE);
-	svc_rdma_read_info_free(rdma, info);
 	return ret;
 }
