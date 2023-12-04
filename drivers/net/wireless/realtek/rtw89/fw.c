@@ -957,16 +957,24 @@ static int rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 
 static void rtw89_fw_prog_cnt_dump(struct rtw89_dev *rtwdev)
 {
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	u32 addr = R_AX_DBG_PORT_SEL;
 	u32 val32;
 	u16 index;
+
+	if (chip_gen == RTW89_CHIP_BE) {
+		addr = R_BE_WLCPU_PORT_PC;
+		goto dump;
+	}
 
 	rtw89_write32(rtwdev, R_AX_DBG_CTRL,
 		      FIELD_PREP(B_AX_DBG_SEL0, FW_PROG_CNTR_DBG_SEL) |
 		      FIELD_PREP(B_AX_DBG_SEL1, FW_PROG_CNTR_DBG_SEL));
 	rtw89_write32_mask(rtwdev, R_AX_SYS_STATUS1, B_AX_SEL_0XC0_MASK, MAC_DBG_SEL);
 
+dump:
 	for (index = 0; index < 15; index++) {
-		val32 = rtw89_read32(rtwdev, R_AX_DBG_PORT_SEL);
+		val32 = rtw89_read32(rtwdev, addr);
 		rtw89_err(rtwdev, "[ERR]fw PC = 0x%x\n", val32);
 		fsleep(10);
 	}
