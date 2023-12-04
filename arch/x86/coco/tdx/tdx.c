@@ -830,14 +830,5 @@ void __init tdx_early_init(void)
 	x86_platform.guest.enc_cache_flush_required  = tdx_cache_flush_required;
 	x86_platform.guest.enc_tlb_flush_required    = tdx_tlb_flush_required;
 
-	/*
-	 * The VMM is capable of injecting interrupt 0x80 and triggering the
-	 * compatibility syscall path.
-	 *
-	 * By default, the 32-bit emulation is disabled in order to ensure
-	 * the safety of the VM.
-	 */
-	ia32_disable();
-
 	pr_info("Guest detected\n");
 }
