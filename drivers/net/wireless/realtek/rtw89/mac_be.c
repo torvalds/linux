@@ -384,8 +384,6 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	u32 val32;
 	int ret;
 
-	rtw89_write32_set(rtwdev, R_BE_UDM0, B_BE_UDM0_DBG_MODE_CTRL);
-
 	val32 = rtw89_read32(rtwdev, R_BE_HALT_C2H);
 	if (val32) {
 		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
@@ -408,6 +406,10 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	rtw89_write32(rtwdev, R_BE_HALT_C2H, 0);
 	rtw89_write32(rtwdev, R_BE_HALT_H2C_CTRL, 0);
 	rtw89_write32(rtwdev, R_BE_HALT_C2H_CTRL, 0);
+
+	val32 = rtw89_read32(rtwdev, R_BE_HISR0);
+	rtw89_write32(rtwdev, R_BE_HISR0, B_BE_HALT_C2H_INT);
+	rtw89_debug(rtwdev, RTW89_DBG_SER, "HISR0=0x%x\n", val32);
 
 	rtw89_write32_set(rtwdev, R_BE_SYS_CLK_CTRL, B_BE_CPU_CLK_EN);
 	rtw89_write32_clr(rtwdev, R_BE_SYS_CFG5,
