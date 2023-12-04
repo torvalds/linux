@@ -228,7 +228,7 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 	bool keep_cs = false;
 	u8 bits_per_word = 0;
 
-	clk_div = -1;
+	clk_div = 1;
 
 	spi_engine_program_add_cmd(p, dry,
 		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
@@ -280,6 +280,14 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 
 	if (!keep_cs)
 		spi_engine_gen_cs(p, dry, spi, false);
+
+	/*
+	 * Restore clockdiv to default so that future gen_sleep commands don't
+	 * have to be aware of the current register state.
+	 */
+	if (clk_div != 1)
+		spi_engine_program_add_cmd(p, dry,
+			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CLK_DIV, 0));
 }
 
 static void spi_engine_xfer_next(struct spi_message *msg,
