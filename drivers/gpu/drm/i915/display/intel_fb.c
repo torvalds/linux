@@ -1370,7 +1370,8 @@ plane_view_scanout_stride(const struct intel_framebuffer *fb, int color_plane,
 	struct drm_i915_private *i915 = to_i915(fb->base.dev);
 	unsigned int stride_tiles;
 
-	if (IS_ALDERLAKE_P(i915) || DISPLAY_VER(i915) >= 14)
+	if ((IS_ALDERLAKE_P(i915) || DISPLAY_VER(i915) >= 14) &&
+	    src_stride_tiles < dst_stride_tiles)
 		stride_tiles = src_stride_tiles;
 	else
 		stride_tiles = dst_stride_tiles;
