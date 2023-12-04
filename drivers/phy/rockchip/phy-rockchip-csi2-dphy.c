@@ -160,6 +160,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 		if (csi_idx < 2) {
 			dcphy_hw = dphy->samsung_phy_group[csi_idx];
 			mutex_lock(&dcphy_hw->mutex);
+			dcphy_hw->dphy_dev[dcphy_hw->dphy_dev_num] = dphy;
 			dcphy_hw->dphy_dev_num++;
 			mutex_unlock(&dcphy_hw->mutex);
 			dphy->samsung_phy = dcphy_hw;
@@ -199,6 +200,7 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				else
 					dphy->phy_index = 5;
 			}
+			dphy_hw->dphy_dev[dphy_hw->dphy_dev_num] = dphy;
 			dphy_hw->dphy_dev_num++;
 			dphy->dphy_hw = dphy_hw;
 			dphy->phy_hw[index] = (void *)dphy_hw;
@@ -253,12 +255,56 @@ static int rockchip_csi2_dphy_attach_hw(struct csi2_dphy *dphy, int csi_idx, int
 	return 0;
 }
 
+static void rockchip_csi2_samsung_phy_remove_dphy_dev(struct csi2_dphy *dphy,
+						   struct samsung_mipi_dcphy *dcphy_hw)
+{
+	int i = 0;
+	bool is_find_dev = false;
+	struct csi2_dphy *csi2_dphy = NULL;
+
+	for (i = 0; i < dcphy_hw->dphy_dev_num; i++) {
+		csi2_dphy = dcphy_hw->dphy_dev[i];
+		if (csi2_dphy &&
+		    csi2_dphy->phy_index == dphy->phy_index)
+			is_find_dev = true;
+		if (is_find_dev) {
+			if (i < dcphy_hw->dphy_dev_num - 1)
+				dcphy_hw->dphy_dev[i] = dcphy_hw->dphy_dev[i + 1];
+			else
+				dcphy_hw->dphy_dev[i] = NULL;
+		}
+	}
+	if (is_find_dev)
+		dcphy_hw->dphy_dev_num--;
+}
+
+static void rockchip_csi2_inno_phy_remove_dphy_dev(struct csi2_dphy *dphy,
+						   struct csi2_dphy_hw *dphy_hw)
+{
+	int i = 0;
+	bool is_find_dev = false;
+	struct csi2_dphy *csi2_dphy = NULL;
+
+	for (i = 0; i < dphy_hw->dphy_dev_num; i++) {
+		csi2_dphy = dphy_hw->dphy_dev[i];
+		if (csi2_dphy &&
+		    csi2_dphy->phy_index == dphy->phy_index)
+			is_find_dev = true;
+		if (is_find_dev) {
+			if (i < dphy_hw->dphy_dev_num - 1)
+				dphy_hw->dphy_dev[i] = dphy_hw->dphy_dev[i + 1];
+			else
+				dphy_hw->dphy_dev[i] = NULL;
+		}
+	}
+	if (is_find_dev)
+		dphy_hw->dphy_dev_num--;
+}
+
 static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int index)
 {
 	struct csi2_dphy_hw *dphy_hw = NULL;
 	struct samsung_mipi_dcphy *dcphy_hw = NULL;
-	struct csi2_dphy *csi2_dphy = NULL;
-	int i = 0;
 
 	if (dphy->drv_data->chip_id == CHIP_ID_RK3568 ||
 	    dphy->drv_data->chip_id == CHIP_ID_RV1106) {
@@ -269,15 +315,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			return -EINVAL;
 		}
 		mutex_lock(&dphy_hw->mutex);
-		for (i = 0; i < dphy_hw->dphy_dev_num; i++) {
-			csi2_dphy = dphy_hw->dphy_dev[i];
-			if (csi2_dphy &&
-			    csi2_dphy->phy_index == dphy->phy_index) {
-				dphy_hw->dphy_dev[i] = NULL;
-				dphy_hw->dphy_dev_num--;
-				break;
-			}
-		}
+		rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 		mutex_unlock(&dphy_hw->mutex);
 	} else if (dphy->drv_data->chip_id == CHIP_ID_RK3588) {
 		if (csi_idx < 2) {
@@ -288,7 +326,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				return -EINVAL;
 			}
 			mutex_lock(&dcphy_hw->mutex);
-			dcphy_hw->dphy_dev_num--;
+			rockchip_csi2_samsung_phy_remove_dphy_dev(dphy, dcphy_hw);
 			mutex_unlock(&dcphy_hw->mutex);
 		} else {
 			dphy_hw = (struct csi2_dphy_hw *)dphy->phy_hw[index];
@@ -298,7 +336,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 				return -EINVAL;
 			}
 			mutex_lock(&dphy_hw->mutex);
-			dphy_hw->dphy_dev_num--;
+			rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 			mutex_unlock(&dphy_hw->mutex);
 		}
 	} else {
@@ -309,7 +347,7 @@ static int rockchip_csi2_dphy_detach_hw(struct csi2_dphy *dphy, int csi_idx, int
 			return -EINVAL;
 		}
 		mutex_lock(&dphy_hw->mutex);
-		dphy_hw->dphy_dev_num--;
+		rockchip_csi2_inno_phy_remove_dphy_dev(dphy, dphy_hw);
 		mutex_unlock(&dphy_hw->mutex);
 	}
 
