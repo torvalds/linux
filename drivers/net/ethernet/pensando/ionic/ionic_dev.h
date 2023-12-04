@@ -269,12 +269,12 @@ struct ionic_queue {
 
 struct ionic_intr_info {
 	char name[IONIC_INTR_NAME_MAX_SZ];
+	u64 rearm_count;
 	unsigned int index;
 	unsigned int vector;
-	u64 rearm_count;
 	unsigned int cpu;
-	cpumask_t affinity_mask;
 	u32 dim_coal_hw;
+	cpumask_t affinity_mask;
 };
 
 struct ionic_cq {
