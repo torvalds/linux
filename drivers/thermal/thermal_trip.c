@@ -63,25 +63,21 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_num_trips);
  */
 void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
-	struct thermal_trip trip;
+	const struct thermal_trip *trip;
 	int low = -INT_MAX, high = INT_MAX;
 	bool same_trip = false;
-	int i, ret;
+	int ret;
 
 	lockdep_assert_held(&tz->lock);
 
 	if (!tz->ops->set_trips)
 		return;
 
-	for (i = 0; i < tz->num_trips; i++) {
+	for_each_trip(tz, trip) {
 		bool low_set = false;
 		int trip_low;
 
-		ret = __thermal_zone_get_trip(tz, i , &trip);
-		if (ret)
-			return;
-
-		trip_low = trip.temperature - trip.hysteresis;
+		trip_low = trip->temperature - trip->hysteresis;
 
 		if (trip_low < tz->temperature && trip_low > low) {
 			low = trip_low;
@@ -89,9 +85,9 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 			same_trip = false;
 		}
 
-		if (trip.temperature > tz->temperature &&
-		    trip.temperature < high) {
-			high = trip.temperature;
+		if (trip->temperature > tz->temperature &&
+		    trip->temperature < high) {
+			high = trip->temperature;
 			same_trip = low_set;
 		}
 	}
