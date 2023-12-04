@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/w1-gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/err.h>
@@ -18,9 +17,16 @@
 
 #include <linux/w1.h>
 
+struct w1_gpio_ddata {
+	struct gpio_desc *gpiod;
+	struct gpio_desc *pullup_gpiod;
+	void (*enable_external_pullup)(int enable);
+	unsigned int pullup_duration;
+};
+
 static u8 w1_gpio_set_pullup(void *data, int delay)
 {
-	struct w1_gpio_platform_data *pdata = data;
+	struct w1_gpio_ddata *pdata = data;
 
 	if (delay) {
 		pdata->pullup_duration = delay;
@@ -46,14 +52,14 @@ static u8 w1_gpio_set_pullup(void *data, int delay)
 
 static void w1_gpio_write_bit(void *data, u8 bit)
 {
-	struct w1_gpio_platform_data *pdata = data;
+	struct w1_gpio_ddata *pdata = data;
 
 	gpiod_set_value(pdata->gpiod, bit);
 }
 
 static u8 w1_gpio_read_bit(void *data)
 {
-	struct w1_gpio_platform_data *pdata = data;
+	struct w1_gpio_ddata *pdata = data;
 
 	return gpiod_get_value(pdata->gpiod) ? 1 : 0;
 }
@@ -69,35 +75,25 @@ MODULE_DEVICE_TABLE(of, w1_gpio_dt_ids);
 static int w1_gpio_probe(struct platform_device *pdev)
 {
 	struct w1_bus_master *master;
-	struct w1_gpio_platform_data *pdata;
+	struct w1_gpio_ddata *pdata;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	/* Enforce open drain mode by default */
 	enum gpiod_flags gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
 	int err;
 
-	if (of_have_populated_dt()) {
-		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-		if (!pdata)
-			return -ENOMEM;
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 
-		/*
-		 * This parameter means that something else than the gpiolib has
-		 * already set the line into open drain mode, so we should just
-		 * driver it high/low like we are in full control of the line and
-		 * open drain will happen transparently.
-		 */
-		if (of_property_present(np, "linux,open-drain"))
-			gflags = GPIOD_OUT_LOW;
-
-		pdev->dev.platform_data = pdata;
-	}
-	pdata = dev_get_platdata(dev);
-
-	if (!pdata) {
-		dev_err(dev, "No configuration data\n");
-		return -ENXIO;
-	}
+	/*
+	 * This parameter means that something else than the gpiolib has
+	 * already set the line into open drain mode, so we should just
+	 * driver it high/low like we are in full control of the line and
+	 * open drain will happen transparently.
+	 */
+	if (of_property_present(np, "linux,open-drain"))
+		gflags = GPIOD_OUT_LOW;
 
 	master = devm_kzalloc(dev, sizeof(struct w1_bus_master),
 			GFP_KERNEL);
@@ -152,7 +148,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 static int w1_gpio_remove(struct platform_device *pdev)
 {
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
-	struct w1_gpio_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct w1_gpio_ddata *pdata = master->data;
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
@@ -167,7 +163,8 @@ static int w1_gpio_remove(struct platform_device *pdev)
 
 static int __maybe_unused w1_gpio_suspend(struct device *dev)
 {
-	struct w1_gpio_platform_data *pdata = dev_get_platdata(dev);
+	struct w1_bus_master *master = dev_get_drvdata(dev);
+	struct w1_gpio_ddata *pdata = master->data;
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(0);
@@ -177,7 +174,8 @@ static int __maybe_unused w1_gpio_suspend(struct device *dev)
 
 static int __maybe_unused w1_gpio_resume(struct device *dev)
 {
-	struct w1_gpio_platform_data *pdata = dev_get_platdata(dev);
+	struct w1_bus_master *master = dev_get_drvdata(dev);
+	struct w1_gpio_ddata *pdata = master->data;
 
 	if (pdata->enable_external_pullup)
 		pdata->enable_external_pullup(1);
