@@ -3376,6 +3376,12 @@ struct rtw89_reg5_def {
 	u32 data;
 };
 
+struct rtw89_reg_imr {
+	u32 addr;
+	u32 clr;
+	u32 set;
+};
+
 struct rtw89_phy_table {
 	const struct rtw89_reg2_def *regs;
 	u32 n_regs;
@@ -3585,6 +3591,11 @@ struct rtw89_imr_info {
 	u32 tmac_imr_set;
 };
 
+struct rtw89_imr_table {
+	const struct rtw89_reg_imr *regs;
+	u32 n_regs;
+};
+
 struct rtw89_xtal_info {
 	u32 xcap_reg;
 	u32 sc_xo_mask;
@@ -3779,6 +3790,8 @@ struct rtw89_chip_info {
 	const struct rtw89_reg_def *dcfo_comp;
 	u8 dcfo_comp_sft;
 	const struct rtw89_imr_info *imr_info;
+	const struct rtw89_imr_table *imr_dmac_table;
+	const struct rtw89_imr_table *imr_cmac_table;
 	const struct rtw89_rrsr_cfgs *rrsr_cfgs;
 	struct rtw89_reg_def bss_clr_vld;
 	u32 bss_clr_map_reg;
