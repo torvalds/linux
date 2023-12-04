@@ -220,8 +220,8 @@ static __init int x86_instantiate_spi_dev(const struct x86_dev_info *dev_info, i
 
 	spi_devs[idx] = spi_new_device(controller, &board_info);
 	put_device(&controller->dev);
-	if (IS_ERR(spi_devs[idx]))
-		return dev_err_probe(&controller->dev, PTR_ERR(spi_devs[idx]),
+	if (!spi_devs[idx])
+		return dev_err_probe(&controller->dev, -ENOMEM,
 				     "creating SPI-device %d\n", idx);
 
 	return 0;
