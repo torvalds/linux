@@ -168,22 +168,17 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 }
 
 static void spi_engine_gen_sleep(struct spi_engine_program *p, bool dry,
-	struct spi_engine *spi_engine, unsigned int clk_div,
 	struct spi_transfer *xfer)
 {
-	unsigned int spi_clk = clk_get_rate(spi_engine->ref_clk);
 	unsigned int t;
-	int delay;
+	int delay_ns;
 
-	delay = spi_delay_to_ns(&xfer->delay, xfer);
-	if (delay < 0)
-		return;
-	delay /= 1000;
-
-	if (delay == 0)
+	delay_ns = spi_delay_to_ns(&xfer->delay, xfer);
+	if (delay_ns <= 0)
 		return;
 
-	t = DIV_ROUND_UP(delay * spi_clk, (clk_div + 1) * 2);
+	/* rounding down since executing the instruction adds a couple of ticks delay */
+	t = DIV_ROUND_DOWN_ULL((u64)delay_ns * xfer->effective_speed_hz, NSEC_PER_SEC);
 	while (t) {
 		unsigned int n = min(t, 256U);
 
@@ -224,8 +219,8 @@ static void spi_engine_precompile_message(struct spi_message *msg)
 	}
 }
 
-static void spi_engine_compile_message(struct spi_engine *spi_engine,
-	struct spi_message *msg, bool dry, struct spi_engine_program *p)
+static void spi_engine_compile_message(struct spi_message *msg, bool dry,
+				       struct spi_engine_program *p)
 {
 	struct spi_device *spi = msg->spi;
 	struct spi_controller *host = spi->controller;
@@ -261,7 +256,7 @@ static void spi_engine_compile_message(struct spi_engine *spi_engine,
 		}
 
 		spi_engine_gen_xfer(p, dry, xfer);
-		spi_engine_gen_sleep(p, dry, spi_engine, clk_div - 1, xfer);
+		spi_engine_gen_sleep(p, dry, xfer);
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
@@ -515,7 +510,7 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 	spi_engine_precompile_message(msg);
 
 	p_dry.length = 0;
-	spi_engine_compile_message(spi_engine, msg, true, &p_dry);
+	spi_engine_compile_message(msg, true, &p_dry);
 
 	size = sizeof(*p->instructions) * (p_dry.length + 1);
 	p = kzalloc(sizeof(*p) + size, GFP_KERNEL);
@@ -533,7 +528,7 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 
 	st->sync_id = ret;
 
-	spi_engine_compile_message(spi_engine, msg, false, p);
+	spi_engine_compile_message(msg, false, p);
 
 	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(st->sync_id));
 
