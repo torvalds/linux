@@ -187,31 +187,32 @@ static inline u64 extent_map_block_end(const struct extent_map *em)
 	return em->block_start + em->block_len;
 }
 
-/* Check to see if two extent_map structs are adjacent and safe to merge. */
-static int mergable_maps(struct extent_map *prev, struct extent_map *next)
+static bool can_merge_extent_map(const struct extent_map *em)
 {
-	if (test_bit(EXTENT_FLAG_PINNED, &prev->flags))
-		return 0;
+	if (test_bit(EXTENT_FLAG_PINNED, &em->flags))
+		return false;
 
-	/*
-	 * don't merge compressed extents, we need to know their
-	 * actual size
-	 */
-	if (test_bit(EXTENT_FLAG_COMPRESSED, &prev->flags))
-		return 0;
+	/* Don't merge compressed extents, we need to know their actual size. */
+	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+		return false;
 
-	if (test_bit(EXTENT_FLAG_LOGGING, &prev->flags) ||
-	    test_bit(EXTENT_FLAG_LOGGING, &next->flags))
-		return 0;
+	if (test_bit(EXTENT_FLAG_LOGGING, &em->flags))
+		return false;
 
 	/*
 	 * We don't want to merge stuff that hasn't been written to the log yet
 	 * since it may not reflect exactly what is on disk, and that would be
 	 * bad.
 	 */
-	if (!list_empty(&prev->list) || !list_empty(&next->list))
-		return 0;
+	if (!list_empty(&em->list))
+		return false;
 
+	return true;
+}
+
+/* Check to see if two extent_map structs are adjacent and safe to merge. */
+static int mergable_maps(struct extent_map *prev, struct extent_map *next)
+{
 	if (extent_map_end(prev) == next->start &&
 	    prev->flags == next->flags &&
 	    ((next->block_start == EXTENT_MAP_HOLE &&
@@ -241,11 +242,14 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 	if (refcount_read(&em->refs) > 2)
 		return;
 
+	if (!can_merge_extent_map(em))
+		return;
+
 	if (em->start != 0) {
 		rb = rb_prev(&em->rb_node);
 		if (rb)
 			merge = rb_entry(rb, struct extent_map, rb_node);
-		if (rb && mergable_maps(merge, em)) {
+		if (rb && can_merge_extent_map(merge) && mergable_maps(merge, em)) {
 			em->start = merge->start;
 			em->orig_start = merge->orig_start;
 			em->len += merge->len;
@@ -265,7 +269,7 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 	rb = rb_next(&em->rb_node);
 	if (rb)
 		merge = rb_entry(rb, struct extent_map, rb_node);
-	if (rb && mergable_maps(em, merge)) {
+	if (rb && can_merge_extent_map(merge) && mergable_maps(em, merge)) {
 		em->len += merge->len;
 		em->block_len += merge->block_len;
 		rb_erase_cached(&merge->rb_node, &tree->map);
