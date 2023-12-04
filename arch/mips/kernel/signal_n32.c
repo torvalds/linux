@@ -24,6 +24,7 @@
 #include <asm/ucontext.h>
 #include <asm/fpu.h>
 #include <asm/cpu-features.h>
+#include <asm/syscalls.h>
 
 #include "signal-common.h"
 
