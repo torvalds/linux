@@ -265,6 +265,10 @@ static void spi_engine_compile_message(struct spi_message *msg, bool dry,
 				if (!xfer->cs_off)
 					spi_engine_gen_cs(p, dry, spi, false);
 
+				spi_engine_gen_sleep(p, dry, spi_delay_to_ns(
+					&xfer->cs_change_delay, xfer),
+					xfer->effective_speed_hz);
+
 				if (!list_next_entry(xfer, transfer_list)->cs_off)
 					spi_engine_gen_cs(p, dry, spi, true);
 			}
