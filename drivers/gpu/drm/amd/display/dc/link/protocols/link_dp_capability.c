@@ -158,6 +158,14 @@ uint8_t dp_parse_lttpr_repeater_count(uint8_t lttpr_repeater_count)
 	return 0; // invalid value
 }
 
+uint32_t dp_get_closest_lttpr_offset(uint8_t lttpr_count)
+{
+	/* Calculate offset for LTTPR closest to DPTX which is highest in the chain
+	 * Offset is 0 for single LTTPR cases as base LTTPR DPCD addresses target LTTPR 1
+	 */
+	return DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE * (lttpr_count - 1);
+}
+
 uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
 {
 	switch (bw) {
