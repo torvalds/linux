@@ -206,19 +206,13 @@ static inline void setup_protection_map(void)
 void cpu_cache_init(void)
 {
 	if (cpu_has_3k_cache) {
-		extern void __weak r3k_cache_init(void);
-
 		r3k_cache_init();
 	}
 	if (cpu_has_4k_cache) {
-		extern void __weak r4k_cache_init(void);
-
 		r4k_cache_init();
 	}
 
 	if (cpu_has_octeon_cache) {
-		extern void __weak octeon_cache_init(void);
-
 		octeon_cache_init();
 	}
 
