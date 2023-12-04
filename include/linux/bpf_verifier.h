@@ -611,12 +611,12 @@ struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
 	u32 linfo_idx; /* The idx to the main_prog->aux->linfo */
 	u16 stack_depth; /* max. stack depth used by this function */
-	bool has_tail_call;
-	bool tail_call_reachable;
-	bool has_ld_abs;
-	bool is_cb;
-	bool is_async_cb;
-	bool is_exception_cb;
+	bool has_tail_call: 1;
+	bool tail_call_reachable: 1;
+	bool has_ld_abs: 1;
+	bool is_cb: 1;
+	bool is_async_cb: 1;
+	bool is_exception_cb: 1;
 };
 
 struct bpf_verifier_env;
