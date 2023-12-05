@@ -1546,6 +1546,6 @@ static void __exit gpio_sim_exit(void)
 }
 module_exit(gpio_sim_exit);
 
-MODULE_AUTHOR("Bartosz Golaszewski <brgl@bgdev.pl");
+MODULE_AUTHOR("Bartosz Golaszewski <brgl@bgdev.pl>");
 MODULE_DESCRIPTION("GPIO Simulator Module");
 MODULE_LICENSE("GPL");
