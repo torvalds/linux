@@ -37,6 +37,11 @@ static inline bool nested_vmx_is_evmptr12_set(struct vcpu_vmx *vmx)
 	return evmptr_is_set(vmx->nested.hv_evmcs_vmptr);
 }
 
+static inline struct hv_enlightened_vmcs *nested_vmx_evmcs(struct vcpu_vmx *vmx)
+{
+	return vmx->nested.hv_evmcs;
+}
+
 static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
 {
 	/*
@@ -74,6 +79,11 @@ static inline bool evmptr_is_set(u64 evmptr)
 static inline bool nested_vmx_is_evmptr12_set(struct vcpu_vmx *vmx)
 {
 	return false;
+}
+
+static inline struct hv_enlightened_vmcs *nested_vmx_evmcs(struct vcpu_vmx *vmx)
+{
+	return NULL;
 }
 #endif
 
