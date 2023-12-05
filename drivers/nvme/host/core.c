@@ -3003,6 +3003,28 @@ static int nvme_init_effects(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	return 0;
 }
 
+static int nvme_check_ctrl_fabric_info(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
+{
+	/*
+	 * In fabrics we need to verify the cntlid matches the
+	 * admin connect
+	 */
+	if (ctrl->cntlid != le16_to_cpu(id->cntlid)) {
+		dev_err(ctrl->device,
+			"Mismatching cntlid: Connect %u vs Identify %u, rejecting\n",
+			ctrl->cntlid, le16_to_cpu(id->cntlid));
+		return -EINVAL;
+	}
+
+	if (!nvme_discovery_ctrl(ctrl) && !ctrl->kas) {
+		dev_err(ctrl->device,
+			"keep-alive support is mandatory for fabrics\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nvme_init_identify(struct nvme_ctrl *ctrl)
 {
 	struct nvme_id_ctrl *id;
@@ -3115,25 +3137,9 @@ static int nvme_init_identify(struct nvme_ctrl *ctrl)
 		ctrl->iorcsz = le32_to_cpu(id->iorcsz);
 		ctrl->maxcmd = le16_to_cpu(id->maxcmd);
 
-		/*
-		 * In fabrics we need to verify the cntlid matches the
-		 * admin connect
-		 */
-		if (ctrl->cntlid != le16_to_cpu(id->cntlid)) {
-			dev_err(ctrl->device,
-				"Mismatching cntlid: Connect %u vs Identify "
-				"%u, rejecting\n",
-				ctrl->cntlid, le16_to_cpu(id->cntlid));
-			ret = -EINVAL;
+		ret = nvme_check_ctrl_fabric_info(ctrl, id);
+		if (ret)
 			goto out_free;
-		}
-
-		if (!nvme_discovery_ctrl(ctrl) && !ctrl->kas) {
-			dev_err(ctrl->device,
-				"keep-alive support is mandatory for fabrics\n");
-			ret = -EINVAL;
-			goto out_free;
-		}
 	} else {
 		ctrl->hmpre = le32_to_cpu(id->hmpre);
 		ctrl->hmmin = le32_to_cpu(id->hmmin);
