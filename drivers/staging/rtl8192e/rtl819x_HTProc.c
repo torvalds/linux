@@ -72,7 +72,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
 	ht_info->reg_short_gi_20mhz = 1;
-	ht_info->bRegShortGI40MHz = 1;
+	ht_info->reg_short_gi_40mhz = 1;
 
 	ht_info->bRegBW40MHz = 1;
 
@@ -481,7 +481,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	ht_info->bCurShortGI20MHz = ((ht_info->reg_short_gi_20mhz) ?
 				    ((pPeerHTCap->ShortGI20Mhz == 1) ?
 				    true : false) : false);
-	ht_info->bCurShortGI40MHz = ((ht_info->bRegShortGI40MHz) ?
+	ht_info->bCurShortGI40MHz = ((ht_info->reg_short_gi_40mhz) ?
 				     ((pPeerHTCap->ShortGI40Mhz == 1) ?
 				     true : false) : false);
 
