@@ -5960,7 +5960,7 @@ static void stmmac_common_interrupt(struct stmmac_priv *priv)
 		pm_wakeup_event(priv->device, 0);
 
 	if (priv->dma_cap.estsel)
-		stmmac_est_irq_status(priv, priv->ioaddr, priv->dev,
+		stmmac_est_irq_status(priv, priv, priv->dev,
 				      &priv->xstats, tx_cnt);
 
 	if (priv->dma_cap.fpesel) {

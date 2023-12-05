@@ -419,10 +419,6 @@ struct stmmac_ops {
 				bool en, bool udp, bool sa, bool inv,
 				u32 match);
 	void (*set_arp_offload)(struct mac_device_info *hw, bool en, u32 addr);
-	int (*est_configure)(void __iomem *ioaddr, struct stmmac_est *cfg,
-			     unsigned int ptp_rate);
-	void (*est_irq_status)(void __iomem *ioaddr, struct net_device *dev,
-			       struct stmmac_extra_stats *x, u32 txqcnt);
 	void (*fpe_configure)(void __iomem *ioaddr, u32 num_txq, u32 num_rxq,
 			      bool enable);
 	void (*fpe_send_mpacket)(void __iomem *ioaddr,
@@ -528,10 +524,6 @@ struct stmmac_ops {
 	stmmac_do_callback(__priv, mac, config_l4_filter, __args)
 #define stmmac_set_arp_offload(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, set_arp_offload, __args)
-#define stmmac_est_configure(__priv, __args...) \
-	stmmac_do_callback(__priv, mac, est_configure, __args)
-#define stmmac_est_irq_status(__priv, __args...) \
-	stmmac_do_void_callback(__priv, mac, est_irq_status, __args)
 #define stmmac_fpe_configure(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mac, fpe_configure, __args)
 #define stmmac_fpe_send_mpacket(__priv, __args...) \
@@ -657,9 +649,22 @@ struct stmmac_mmc_ops {
 #define stmmac_mmc_read(__priv, __args...) \
 	stmmac_do_void_callback(__priv, mmc, read, __args)
 
+struct stmmac_est_ops {
+	int (*configure)(struct stmmac_priv *priv, struct stmmac_est *cfg,
+			 unsigned int ptp_rate);
+	void (*irq_status)(struct stmmac_priv *priv, struct net_device *dev,
+			   struct stmmac_extra_stats *x, u32 txqcnt);
+};
+
+#define stmmac_est_configure(__priv, __args...) \
+	stmmac_do_callback(__priv, est, configure, __args)
+#define stmmac_est_irq_status(__priv, __args...) \
+	stmmac_do_void_callback(__priv, est, irq_status, __args)
+
 struct stmmac_regs_off {
 	u32 ptp_off;
 	u32 mmc_off;
+	u32 est_off;
 };
 
 extern const struct stmmac_ops dwmac100_ops;
@@ -678,6 +683,7 @@ extern const struct stmmac_dma_ops dwxgmac210_dma_ops;
 extern const struct stmmac_desc_ops dwxgmac210_desc_ops;
 extern const struct stmmac_mmc_ops dwmac_mmc_ops;
 extern const struct stmmac_mmc_ops dwxgmac_mmc_ops;
+extern const struct stmmac_est_ops dwmac510_est_ops;
 
 #define GMAC_VERSION		0x00000020	/* GMAC CORE Version */
 #define GMAC4_VERSION		0x00000110	/* GMAC4+ CORE Version */
