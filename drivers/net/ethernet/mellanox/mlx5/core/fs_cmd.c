@@ -1158,3 +1158,23 @@ int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mo
 
 	return mlx5_cmd_exec_in(dev, set_l2_table_entry, in);
 }
+
+int mlx5_fs_cmd_set_tx_flow_table_root(struct mlx5_core_dev *dev, u32 ft_id, bool disconnect)
+{
+	u32 out[MLX5_ST_SZ_DW(set_flow_table_root_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(set_flow_table_root_in)] = {};
+
+	if (disconnect && MLX5_CAP_FLOWTABLE_NIC_TX(dev, reset_root_to_default))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(set_flow_table_root_in, in, opcode,
+		 MLX5_CMD_OP_SET_FLOW_TABLE_ROOT);
+	MLX5_SET(set_flow_table_root_in, in, table_type,
+		 FS_FT_NIC_TX);
+	if (disconnect)
+		MLX5_SET(set_flow_table_root_in, in, op_mod, 1);
+	else
+		MLX5_SET(set_flow_table_root_in, in, table_id, ft_id);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
