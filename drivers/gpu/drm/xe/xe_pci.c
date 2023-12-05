@@ -60,15 +60,15 @@ struct xe_device_desc {
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
+
 	u8 has_display:1;
 	u8 has_heci_gscfi:1;
-
 	u8 has_llc:1;
+	u8 has_mmio_ext:1;
 	u8 has_sriov:1;
+	u8 skip_guc_pc:1;
 	u8 skip_mtcfg:1;
 	u8 skip_pcode:1;
-	u8 supports_mmio_ext:1;
-	u8 skip_guc_pc:1;
 };
 
 __diag_push();
@@ -148,7 +148,7 @@ static const struct xe_graphics_desc graphics_xehpc = {
 
 	.has_asid = 1,
 	.has_flat_ccs = 0,
-	.supports_usm = 1,
+	.has_usm = 1,
 };
 
 static const struct xe_graphics_desc graphics_xelpg = {
@@ -166,7 +166,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_asid = 1, \
 	.has_flat_ccs = 0 /* FIXME: implementation missing */, \
 	.has_range_tlb_invalidation = 1, \
-	.supports_usm = 0 /* FIXME: implementation missing */, \
+	.has_usm = 0 /* FIXME: implementation missing */, \
 	.va_bits = 48, \
 	.vm_max_level = 4, \
 	.hw_engine_mask = \
@@ -279,8 +279,8 @@ static const struct xe_device_desc dg1_desc = {
 	DGFX_FEATURES,
 	PLATFORM(XE_DG1),
 	.has_display = true,
-	.require_force_probe = true,
 	.has_heci_gscfi = 1,
+	.require_force_probe = true,
 };
 
 static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
@@ -321,8 +321,8 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	DGFX_FEATURES,
 	PLATFORM(XE_PVC),
 	.has_display = false,
-	.require_force_probe = true,
 	.has_heci_gscfi = 1,
+	.require_force_probe = true,
 };
 
 static const struct xe_device_desc mtl_desc = {
@@ -550,11 +550,11 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.has_llc = desc->has_llc;
+	xe->info.has_mmio_ext = desc->has_mmio_ext;
 	xe->info.has_sriov = desc->has_sriov;
+	xe->info.skip_guc_pc = desc->skip_guc_pc;
 	xe->info.skip_mtcfg = desc->skip_mtcfg;
 	xe->info.skip_pcode = desc->skip_pcode;
-	xe->info.supports_mmio_ext = desc->supports_mmio_ext;
-	xe->info.skip_guc_pc = desc->skip_guc_pc;
 
 	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				  xe_modparam.enable_display &&
@@ -616,10 +616,10 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.vram_flags = graphics_desc->vram_flags;
 	xe->info.va_bits = graphics_desc->va_bits;
 	xe->info.vm_max_level = graphics_desc->vm_max_level;
-	xe->info.supports_usm = graphics_desc->supports_usm;
 	xe->info.has_asid = graphics_desc->has_asid;
 	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
+	xe->info.has_usm = graphics_desc->has_usm;
 
 	/*
 	 * All platforms have at least one primary GT.  Any platform with media

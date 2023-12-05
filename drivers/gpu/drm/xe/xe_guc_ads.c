@@ -141,7 +141,7 @@ static size_t guc_ads_um_queues_size(struct xe_guc_ads *ads)
 {
 	struct xe_device *xe = ads_to_xe(ads);
 
-	if (!xe->info.supports_usm)
+	if (!xe->info.has_usm)
 		return 0;
 
 	return GUC_UM_QUEUE_SIZE * GUC_UM_HW_QUEUE_MAX;
@@ -598,7 +598,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 	guc_capture_list_init(ads);
 	guc_doorbell_init(ads);
 
-	if (xe->info.supports_usm) {
+	if (xe->info.has_usm) {
 		guc_um_init_params(ads);
 		ads_blob_write(ads, ads.um_init_data, base +
 			       offsetof(struct __guc_ads_blob, um_init_params));

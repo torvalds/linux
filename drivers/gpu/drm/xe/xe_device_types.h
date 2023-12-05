@@ -251,8 +251,6 @@ struct xe_device {
 
 		/** @is_dgfx: is discrete device */
 		u8 is_dgfx:1;
-		/** @supports_usm: Supports unified shared memory */
-		u8 supports_usm:1;
 		/** @has_asid: Has address space ID */
 		u8 has_asid:1;
 		/** @force_execlist: Forced execlist submission */
@@ -261,18 +259,20 @@ struct xe_device {
 		u8 has_flat_ccs:1;
 		/** @has_llc: Device has a shared CPU+GPU last level cache */
 		u8 has_llc:1;
+		/** @has_mmio_ext: Device has extra MMIO address range */
+		u8 has_mmio_ext:1;
 		/** @has_range_tlb_invalidation: Has range based TLB invalidations */
 		u8 has_range_tlb_invalidation:1;
 		/** @has_sriov: Supports SR-IOV */
 		u8 has_sriov:1;
+		/** @has_usm: Device has unified shared memory support */
+		u8 has_usm:1;
 		/** @enable_display: display enabled */
 		u8 enable_display:1;
 		/** @skip_mtcfg: skip Multi-Tile configuration from MTCFG register */
 		u8 skip_mtcfg:1;
 		/** @skip_pcode: skip access to PCODE uC */
 		u8 skip_pcode:1;
-		/** @supports_mmio_ext: supports MMIO extension/s */
-		u8 supports_mmio_ext:1;
 		/** @has_heci_gscfi: device has heci gscfi */
 		u8 has_heci_gscfi:1;
 		/** @skip_guc_pc: Skip GuC based PM feature init */

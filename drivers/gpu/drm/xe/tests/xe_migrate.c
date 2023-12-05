@@ -37,7 +37,7 @@ static int run_sanity_job(struct xe_migrate *m, struct xe_device *xe,
 			  struct xe_bb *bb, u32 second_idx, const char *str,
 			  struct kunit *test)
 {
-	u64 batch_base = xe_migrate_batch_base(m, xe->info.supports_usm);
+	u64 batch_base = xe_migrate_batch_base(m, xe->info.has_usm);
 	struct xe_sched_job *job = xe_bb_create_migration_job(m->q, bb,
 							      batch_base,
 							      second_idx);
@@ -308,7 +308,7 @@ static void xe_migrate_sanity_test(struct xe_migrate *m, struct kunit *test)
 		goto free_pt;
 	}
 
-	bb = xe_bb_new(tile->primary_gt, 32, xe->info.supports_usm);
+	bb = xe_bb_new(tile->primary_gt, 32, xe->info.has_usm);
 	if (IS_ERR(bb)) {
 		KUNIT_FAIL(test, "Failed to create batchbuffer: %li\n",
 			   PTR_ERR(bb));

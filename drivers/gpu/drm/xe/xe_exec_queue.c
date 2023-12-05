@@ -362,7 +362,7 @@ static int exec_queue_set_acc_trigger(struct xe_device *xe, struct xe_exec_queue
 	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
 		return -EINVAL;
 
 	q->usm.acc_trigger = value;
@@ -376,7 +376,7 @@ static int exec_queue_set_acc_notify(struct xe_device *xe, struct xe_exec_queue 
 	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
 		return -EINVAL;
 
 	q->usm.acc_notify = value;
@@ -390,7 +390,7 @@ static int exec_queue_set_acc_granularity(struct xe_device *xe, struct xe_exec_q
 	if (XE_IOCTL_DBG(xe, !create))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, !xe->info.supports_usm))
+	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
 		return -EINVAL;
 
 	if (value > DRM_XE_ACC_GRANULARITY_64M)

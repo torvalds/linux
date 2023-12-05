@@ -1944,7 +1944,7 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		args->flags |= DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE;
 
 	if (XE_IOCTL_DBG(xe, args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE &&
-			 !xe->info.supports_usm))
+			 !xe->info.has_usm))
 		return -EINVAL;
 
 	if (XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))

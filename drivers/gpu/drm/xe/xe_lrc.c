@@ -759,7 +759,7 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID,
 				     (q->usm.acc_granularity <<
 				      ACC_GRANULARITY_S) | vm->usm.asid);
-	if (xe->info.supports_usm && vm)
+	if (xe->info.has_usm && vm)
 		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ACC_CTR_THOLD,
 				     (q->usm.acc_notify << ACC_NOTIFY_S) |
 				     q->usm.acc_trigger);

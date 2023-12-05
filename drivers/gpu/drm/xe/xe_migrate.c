@@ -217,7 +217,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	if (!IS_DGFX(xe)) {
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
-		if (xe->info.supports_usm) {
+		if (xe->info.has_usm) {
 			batch = tile->primary_gt->usm.bb_pool->bo;
 			m->usm_batch_base_ofs = m->batch_base_ofs;
 		}
@@ -237,7 +237,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 
 		m->batch_base_ofs = xe_migrate_vram_ofs(xe, batch_addr);
 
-		if (xe->info.supports_usm) {
+		if (xe->info.has_usm) {
 			batch = tile->primary_gt->usm.bb_pool->bo;
 			batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
 			m->usm_batch_base_ofs = xe_migrate_vram_ofs(xe, batch_addr);
@@ -374,7 +374,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 		return ERR_PTR(err);
 	}
 
-	if (xe->info.supports_usm) {
+	if (xe->info.has_usm) {
 		struct xe_hw_engine *hwe = xe_gt_hw_engine(primary_gt,
 							   XE_ENGINE_CLASS_COPY,
 							   primary_gt->usm.reserved_bcs_instance,
@@ -397,7 +397,7 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 		xe_vm_close_and_put(vm);
 		return ERR_CAST(m->q);
 	}
-	if (xe->info.supports_usm)
+	if (xe->info.has_usm)
 		m->q->priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 
 	mutex_init(&m->job_mutex);
@@ -706,7 +706,7 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		u32 update_idx;
 		u64 ccs_ofs, ccs_size;
 		u32 ccs_pt;
-		bool usm = xe->info.supports_usm;
+		bool usm = xe->info.has_usm;
 
 		src_L0 = xe_migrate_res_sizes(&src_it);
 		dst_L0 = xe_migrate_res_sizes(&dst_it);
@@ -956,7 +956,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		struct xe_sched_job *job;
 		struct xe_bb *bb;
 		u32 batch_size, update_idx;
-		bool usm = xe->info.supports_usm;
+		bool usm = xe->info.has_usm;
 
 		clear_L0 = xe_migrate_res_sizes(&src_it);
 		drm_dbg(&xe->drm, "Pass %u, size: %llu\n", pass++, clear_L0);
@@ -1227,7 +1227,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	u32 i, batch_size, ppgtt_ofs, update_idx, page_ofs = 0;
 	u64 addr;
 	int err = 0;
-	bool usm = !q && xe->info.supports_usm;
+	bool usm = !q && xe->info.has_usm;
 	bool first_munmap_rebind = vma &&
 		vma->gpuva.flags & XE_VMA_FIRST_REBIND;
 	struct xe_exec_queue *q_override = !q ? m->q : q;
@@ -1264,7 +1264,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	 */
 	xe_tile_assert(tile, batch_size < SZ_128K);
 
-	bb = xe_bb_new(gt, batch_size, !q && xe->info.supports_usm);
+	bb = xe_bb_new(gt, batch_size, !q && xe->info.has_usm);
 	if (IS_ERR(bb))
 		return ERR_CAST(bb);
 

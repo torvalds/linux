@@ -398,7 +398,7 @@ int xe_gt_pagefault_init(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i;
 
-	if (!xe->info.supports_usm)
+	if (!xe->info.has_usm)
 		return 0;
 
 	for (i = 0; i < NUM_PF_QUEUE; ++i) {
@@ -431,7 +431,7 @@ void xe_gt_pagefault_reset(struct xe_gt *gt)
 	struct xe_device *xe = gt_to_xe(gt);
 	int i;
 
-	if (!xe->info.supports_usm)
+	if (!xe->info.has_usm)
 		return;
 
 	for (i = 0; i < NUM_PF_QUEUE; ++i) {

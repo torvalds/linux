@@ -333,11 +333,12 @@ void xe_mmio_probe_tiles(struct xe_device *xe)
 	}
 
 add_mmio_ext:
-	/* By design, there's a contiguous multi-tile MMIO space (16MB hard coded per tile).
+	/*
+	 * By design, there's a contiguous multi-tile MMIO space (16MB hard coded per tile).
 	 * When supported, there could be an additional contiguous multi-tile MMIO extension
 	 * space ON TOP of it, and hence the necessity for distinguished MMIO spaces.
 	 */
-	if (xe->info.supports_mmio_ext) {
+	if (xe->info.has_mmio_ext) {
 		regs = xe->mmio.regs + tile_mmio_size * tile_count;
 
 		for_each_tile(tile, xe, id) {

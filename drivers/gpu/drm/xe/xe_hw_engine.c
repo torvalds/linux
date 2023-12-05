@@ -464,7 +464,7 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		xe_hw_engine_enable_ring(hwe);
 
 	/* We reserve the highest BCS instance for USM */
-	if (xe->info.supports_usm && hwe->class == XE_ENGINE_CLASS_COPY)
+	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
 		gt->usm.reserved_bcs_instance = hwe->instance;
 
 	err = drmm_add_action_or_reset(&xe->drm, hw_engine_fini, hwe);
@@ -879,6 +879,6 @@ bool xe_hw_engine_is_reserved(struct xe_hw_engine *hwe)
 	    hwe->logical_instance >= gt->ccs_mode)
 		return true;
 
-	return xe->info.supports_usm && hwe->class == XE_ENGINE_CLASS_COPY &&
+	return xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY &&
 		hwe->instance == gt->usm.reserved_bcs_instance;
 }
