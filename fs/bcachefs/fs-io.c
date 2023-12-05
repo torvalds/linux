@@ -192,13 +192,17 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret, ret2, ret3;
+	int ret;
 
 	ret = file_write_and_wait_range(file, start, end);
-	ret2 = sync_inode_metadata(&inode->v, 1);
-	ret3 = bch2_flush_inode(c, inode);
-
-	return bch2_err_class(ret ?: ret2 ?: ret3);
+	if (ret)
+		goto out;
+	ret = sync_inode_metadata(&inode->v, 1);
+	if (ret)
+		goto out;
+	ret = bch2_flush_inode(c, inode);
+out:
+	return bch2_err_class(ret);
 }
 
 /* truncate: */
