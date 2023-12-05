@@ -88,6 +88,7 @@ description: |
         sm8450
         sm8550
         sm8650
+        x1e80100
 
   The 'board' element must be one of the following strings:
 
@@ -97,6 +98,7 @@ description: |
         idp
         liquid
         mtp
+        qcp
         qrd
         rb2
         ride
@@ -1045,6 +1047,12 @@ properties:
               - qcom,sm8650-mtp
               - qcom,sm8650-qrd
           - const: qcom,sm8650
+
+      - items:
+          - enum:
+              - qcom,x1e80100-crd
+              - qcom,x1e80100-qcp
+          - const: qcom,x1e80100
 
   # Board compatibles go above
 
