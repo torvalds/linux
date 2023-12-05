@@ -11,6 +11,7 @@
 
 /dts-v1/;
 
+#include "k3-am654.dtsi"
 #include "k3-am65-iot2050-common.dtsi"
 
 / {
