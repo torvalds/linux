@@ -18,6 +18,8 @@ struct platform_test_case {
 	const char *name;
 	enum xe_platform platform;
 	enum xe_subplatform subplatform;
+	u32 graphics_verx100;
+	u32 media_verx100;
 	struct xe_step_info step;
 };
 
@@ -36,6 +38,18 @@ struct platform_test_case {
 		.platform = XE_ ## platform__,						\
 		.subplatform = XE_SUBPLATFORM_ ## platform__ ## _ ## subplatform__,	\
 		.step = { .graphics = STEP_ ## graphics_step__ }			\
+	}
+
+#define GMDID_CASE(platform__, graphics_verx100__, graphics_step__,		\
+		   media_verx100__, media_step__)				\
+	{									\
+		.name = #platform__ " (g:" #graphics_step__ ", m:" #media_step__ ")",\
+		.platform = XE_ ## platform__,					\
+		.subplatform = XE_SUBPLATFORM_NONE,				\
+		.graphics_verx100 = graphics_verx100__,				\
+		.media_verx100 = media_verx100__,				\
+		.step = { .graphics = STEP_ ## graphics_step__,			\
+			   .media = STEP_ ## media_step__ }			\
 	}
 
 static const struct platform_test_case cases[] = {
@@ -63,6 +77,10 @@ static const struct platform_test_case cases[] = {
 	PLATFORM_CASE(PVC, B0),
 	PLATFORM_CASE(PVC, B1),
 	PLATFORM_CASE(PVC, C0),
+	GMDID_CASE(METEORLAKE, 1270, A0, 1300, A0),
+	GMDID_CASE(METEORLAKE, 1271, A0, 1300, A0),
+	GMDID_CASE(LUNARLAKE, 2004, A0, 2000, A0),
+	GMDID_CASE(LUNARLAKE, 2004, B0, 2000, A0),
 };
 
 static void platform_desc(const struct platform_test_case *t, char *desc)
@@ -78,6 +96,10 @@ static int xe_wa_test_init(struct kunit *test)
 	struct xe_pci_fake_data data = {
 		.platform = param->platform,
 		.subplatform = param->subplatform,
+		.graphics_verx100 = param->graphics_verx100,
+		.media_verx100 = param->media_verx100,
+		.graphics_step = param->step.graphics,
+		.media_step = param->step.media,
 	};
 	struct xe_device *xe;
 	struct device *dev;
@@ -95,7 +117,8 @@ static int xe_wa_test_init(struct kunit *test)
 	ret = xe_pci_fake_device_init(xe);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	xe->info.step = param->step;
+	if (!param->graphics_verx100)
+		xe->info.step = param->step;
 
 	/* TODO: init hw engines for engine/LRC WAs */
 	xe->drm.dev = dev;
