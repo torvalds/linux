@@ -3,13 +3,13 @@
  * Copyright (c) 2023, Linaro Ltd
  */
 
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM pmic_pdcharger_ulog
+
 #if !defined(_TRACE_PMIC_PDCHARGER_ULOG_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_PMIC_PDCHARGER_ULOG_H
 
 #include <linux/tracepoint.h>
-
-#undef TRACE_SYSTEM
-#define TRACE_SYSTEM pmic_pdcharger_ulog
 
 TRACE_EVENT(pmic_pdcharger_ulog_msg,
 	TP_PROTO(char *msg),
