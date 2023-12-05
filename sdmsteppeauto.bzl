@@ -162,7 +162,6 @@ def define_sdmsteppeauto():
         "drivers/usb/phy/phy-qcom-emu.ko",
         "drivers/virt/gunyah/gh_msgq.ko",
         "drivers/virt/gunyah/gh_rm_drv.ko",
-        "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
