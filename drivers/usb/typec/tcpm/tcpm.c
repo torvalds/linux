@@ -4402,7 +4402,8 @@ static void run_state_machine(struct tcpm_port *port)
 			tcpm_set_current_limit(port, tcpm_get_current_limit(port), 5000);
 		tcpm_swap_complete(port, 0);
 		tcpm_typec_connect(port);
-		mod_enable_frs_delayed_work(port, 0);
+		if (port->pd_capable && port->source_caps[0] & PDO_FIXED_DUAL_ROLE)
+			mod_enable_frs_delayed_work(port, 0);
 		tcpm_pps_complete(port, port->pps_status);
 
 		if (port->ams != NONE_AMS)
