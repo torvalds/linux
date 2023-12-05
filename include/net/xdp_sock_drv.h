@@ -14,6 +14,12 @@
 
 #ifdef CONFIG_XDP_SOCKETS
 
+struct xsk_cb_desc {
+	void *src;
+	u8 off;
+	u8 bytes;
+};
+
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries);
 bool xsk_tx_peek_desc(struct xsk_buff_pool *pool, struct xdp_desc *desc);
 u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, u32 max);
@@ -45,6 +51,12 @@ static inline void xsk_pool_set_rxq_info(struct xsk_buff_pool *pool,
 					 struct xdp_rxq_info *rxq)
 {
 	xp_set_rxq_info(pool, rxq);
+}
+
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
+{
+	xp_fill_cb(pool, desc);
 }
 
 static inline unsigned int xsk_pool_get_napi_id(struct xsk_buff_pool *pool)
@@ -271,6 +283,11 @@ static inline u32 xsk_pool_get_rx_frame_size(struct xsk_buff_pool *pool)
 
 static inline void xsk_pool_set_rxq_info(struct xsk_buff_pool *pool,
 					 struct xdp_rxq_info *rxq)
+{
+}
+
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
 {
 }
 
