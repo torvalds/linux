@@ -119,7 +119,7 @@ static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
 	 *   +--+ |                        |
 	 *        +------------------------+
 	 */
-	if (unlikely(!vmemmap_walk->nr_walked)) {
+	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG) && unlikely(!vmemmap_walk->nr_walked)) {
 		struct page *page = head ? head + pte_index(addr) :
 				    pte_page(ptep_get(pte_offset_kernel(pmd, addr)));
 
