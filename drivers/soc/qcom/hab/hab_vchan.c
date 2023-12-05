@@ -169,7 +169,10 @@ void hab_vchan_stop(struct virtual_channel *vchan)
 		vchan->otherend_closed = 1;
 		wake_up(&vchan->rx_queue);
 		if (vchan->ctx)
-			wake_up_interruptible(&vchan->ctx->exp_wq);
+			if (vchan->pchan->mem_proto == 1)
+				wake_up_interruptible(&vchan->ctx->imp_wq);
+			else
+				wake_up_interruptible(&vchan->ctx->exp_wq);
 		else
 			pr_err("NULL ctx for vchan %x\n", vchan->id);
 	}

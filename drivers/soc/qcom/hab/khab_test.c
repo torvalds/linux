@@ -345,6 +345,18 @@ static ssize_t expimp_store(struct kobject *kobj, struct kobj_attribute *attr,
 	return -EEXIST;
 }
 
+static ssize_t reclaim_show(struct kobject *kobj, struct kobj_attribute *attr,
+						char *buf)
+{
+	return hab_stat_show_reclaim(&hab_driver, buf, PAGE_SIZE);
+}
+
+static ssize_t reclaim_store(struct kobject *kobj, struct kobj_attribute *attr,
+						const char *buf, size_t count)
+{
+	return 0;
+}
+
 static struct kobj_attribute vchan_attribute = __ATTR(vchan_stat, 0660,
 								vchan_show,
 								vchan_store);
@@ -356,6 +368,10 @@ static struct kobj_attribute ctx_attribute = __ATTR(context_stat, 0660,
 static struct kobj_attribute expimp_attribute = __ATTR(pid_stat, 0660,
 								expimp_show,
 								expimp_store);
+
+static struct kobj_attribute reclaim_attribute = __ATTR(reclaim_stat, 0660,
+								reclaim_show,
+								reclaim_store);
 
 int hab_stat_init_sub(struct hab_driver *driver)
 {
@@ -376,6 +392,10 @@ int hab_stat_init_sub(struct hab_driver *driver)
 	result = sysfs_create_file(hab_kobject, &expimp_attribute.attr);
 	if (result)
 		pr_debug("cannot add expimp in /sys/kernel/hab %d\n", result);
+
+	result = sysfs_create_file(hab_kobject, &reclaim_attribute.attr);
+	if (result)
+		pr_debug("cannot add reclaim in /sys/kernel/hab %d\n", result);
 
 	return result;
 }
