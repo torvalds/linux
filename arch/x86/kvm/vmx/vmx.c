@@ -66,6 +66,7 @@
 #include "vmx.h"
 #include "x86.h"
 #include "smm.h"
+#include "vmx_onhyperv.h"
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
