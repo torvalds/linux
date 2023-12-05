@@ -141,6 +141,7 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 
 static int tegra186_mc_resume(struct tegra_mc *mc)
 {
+#if IS_ENABLED(CONFIG_IOMMU_API)
 	unsigned int i;
 
 	for (i = 0; i < mc->soc->num_clients; i++) {
@@ -148,6 +149,7 @@ static int tegra186_mc_resume(struct tegra_mc *mc)
 
 		tegra186_mc_client_sid_override(mc, client, client->sid);
 	}
+#endif
 
 	return 0;
 }
