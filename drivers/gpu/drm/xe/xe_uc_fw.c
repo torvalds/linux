@@ -635,15 +635,12 @@ do { \
 			  ver_->major, ver_->minor, ver_->patch); \
 } while (0)
 
-int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
+static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmware_p)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
-	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
-	struct xe_tile *tile = gt_to_tile(gt);
 	struct device *dev = xe->drm.dev;
 	struct drm_printer p = drm_info_printer(dev);
 	const struct firmware *fw = NULL;
-	struct xe_bo *obj;
 	int err;
 
 	/*
@@ -691,25 +688,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 			goto fail;
 	}
 
-	obj = xe_managed_bo_create_from_data(xe, tile, fw->data, fw->size,
-					     XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-					     XE_BO_CREATE_GGTT_BIT);
-	if (IS_ERR(obj)) {
-		drm_notice(&xe->drm, "%s firmware %s: failed to create / populate bo",
-			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
-		err = PTR_ERR(obj);
-		goto fail;
-	}
-
-	uc_fw->bo = obj;
-	uc_fw->size = fw->size;
-	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_AVAILABLE);
-
-	release_firmware(fw);
-
-	err = drmm_add_action_or_reset(&xe->drm, uc_fw_fini, uc_fw);
-	if (err)
-		return err;
+	*firmware_p = fw;
 
 	return 0;
 
@@ -724,6 +703,69 @@ fail:
 		 xe_uc_fw_type_repr(uc_fw->type), XE_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
+
+	return err;
+}
+
+static void uc_fw_release(const struct firmware *fw)
+{
+	release_firmware(fw);
+}
+
+static int uc_fw_copy(struct xe_uc_fw *uc_fw, const void *data, size_t size, u32 flags)
+{
+	struct xe_device *xe = uc_fw_to_xe(uc_fw);
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_bo *obj;
+	int err;
+
+	obj = xe_managed_bo_create_from_data(xe, tile, data, size, flags);
+	if (IS_ERR(obj)) {
+		drm_notice(&xe->drm, "%s firmware %s: failed to create / populate bo",
+			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
+		err = PTR_ERR(obj);
+		goto fail;
+	}
+
+	uc_fw->bo = obj;
+	uc_fw->size = size;
+
+	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_AVAILABLE);
+
+	err = drmm_add_action_or_reset(&xe->drm, uc_fw_fini, uc_fw);
+	if (err)
+		goto fail;
+
+	return 0;
+
+fail:
+	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_ERROR);
+	drm_notice(&xe->drm, "%s firmware %s: copy failed with error %d\n",
+		   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path, err);
+
+	return err;
+}
+
+int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
+{
+	const struct firmware *fw = NULL;
+	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_tile *tile = gt_to_tile(gt);
+	int err;
+
+	err = uc_fw_request(uc_fw, &fw);
+	if (err)
+		return err;
+
+	/* no error and no firmware means nothing to copy */
+	if (!fw)
+		return 0;
+
+	err = uc_fw_copy(uc_fw, fw->data, fw->size,
+			 XE_BO_CREATE_VRAM_IF_DGFX(tile) | XE_BO_CREATE_GGTT_BIT);
+
+	uc_fw_release(fw);
 
 	return err;
 }
