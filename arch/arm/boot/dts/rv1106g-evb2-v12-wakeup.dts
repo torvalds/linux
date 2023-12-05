@@ -21,31 +21,6 @@
 			reg = <0x40000 0x3c000>;
 		};
 
-		meta: meta@800000 {
-			/* reg's offset MUST match with RTOS */
-			reg = <0x00800000 0x60000>;
-		};
-
-		rkisp_thunderboot: rkisp@860000 {
-			/* reg's offset MUST match with RTOS */
-			/*
-			 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
-			 * e.g. 1920x1080: 0xa8c000
-			 */
-			reg = <0x00860000 0xa8c000>;
-		};
-	};
-
-	thunder_boot_service: thunder-boot-service {
-		compatible = "rockchip,thunder-boot-service";
-		mbox-names = "amp-rx";
-		mboxes = <&mailbox 1>;
-		resets = <&cru SRST_CORE_MCU>, <&cru SRST_CORE_MCU_PWRUP>,
-			 <&cru SRST_CORE_MCU_CPU>, <&cru SRST_T_CORE_MCU_CPU>;
-		reset-names = "core_mcu", "core_mcu_pwrup",
-			      "core_mcu_cpu", "t_core_mcu_cpu";
-		memory-region = <&rtos>;
-		status = "disabled";
 	};
 
 	vcc_1v8: vcc-1v8 {
@@ -247,8 +222,6 @@
 
 &rkcif_mipi_lvds {
 	status = "okay";
-	memory-region-thunderboot = <&rkisp_thunderboot>;
-	rtt-suspend;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&mipi_pins>;
@@ -277,9 +250,6 @@
 
 &rkisp_vir0 {
 	status = "okay";
-
-	memory-region-thunderboot = <&rkisp_thunderboot>;
-	rtt-suspend;
 
 	port@0 {
 		isp_in: endpoint {
