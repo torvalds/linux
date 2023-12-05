@@ -5,10 +5,21 @@
 
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/bitmap.h>
 #include <linux/buffer_head.h>
 
 #include "exfat_raw.h"
 #include "exfat_fs.h"
+
+#if BITS_PER_LONG == 32
+#define __le_long __le32
+#define lel_to_cpu(A) le32_to_cpu(A)
+#elif BITS_PER_LONG == 64
+#define __le_long __le64
+#define lel_to_cpu(A) le64_to_cpu(A)
+#else
+#error "BITS_PER_LONG not 32 or 64"
+#endif
 
 static const unsigned char free_bit[] = {
 	0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2,/*  0 ~  19*/
@@ -24,22 +35,6 @@ static const unsigned char free_bit[] = {
 	0, 1, 0, 2, 0, 1, 0, 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2,/*200 ~ 219*/
 	0, 1, 0, 5, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0, 4,/*220 ~ 239*/
 	0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0                /*240 ~ 254*/
-};
-
-static const unsigned char used_bit[] = {
-	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3,/*  0 ~  19*/
-	2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 1, 2, 2, 3, 2, 3, 3, 4,/* 20 ~  39*/
-	2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5,/* 40 ~  59*/
-	4, 5, 5, 6, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,/* 60 ~  79*/
-	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 2, 3, 3, 4,/* 80 ~  99*/
-	3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6,/*100 ~ 119*/
-	4, 5, 5, 6, 5, 6, 6, 7, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4,/*120 ~ 139*/
-	3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,/*140 ~ 159*/
-	2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5,/*160 ~ 179*/
-	4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 2, 3, 3, 4, 3, 4, 4, 5,/*180 ~ 199*/
-	3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6,/*200 ~ 219*/
-	5, 6, 6, 7, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,/*220 ~ 239*/
-	4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8             /*240 ~ 255*/
 };
 
 /*
@@ -244,25 +239,24 @@ int exfat_count_used_clusters(struct super_block *sb, unsigned int *ret_count)
 	unsigned int count = 0;
 	unsigned int i, map_i = 0, map_b = 0;
 	unsigned int total_clus = EXFAT_DATA_CLUSTER_COUNT(sbi);
-	unsigned int last_mask = total_clus & BITS_PER_BYTE_MASK;
-	unsigned char clu_bits;
-	const unsigned char last_bit_mask[] = {0, 0b00000001, 0b00000011,
-		0b00000111, 0b00001111, 0b00011111, 0b00111111, 0b01111111};
+	unsigned int last_mask = total_clus & (BITS_PER_LONG - 1);
+	unsigned long *bitmap, clu_bits;
 
 	total_clus &= ~last_mask;
-	for (i = 0; i < total_clus; i += BITS_PER_BYTE) {
-		clu_bits = *(sbi->vol_amap[map_i]->b_data + map_b);
-		count += used_bit[clu_bits];
-		if (++map_b >= (unsigned int)sb->s_blocksize) {
+	for (i = 0; i < total_clus; i += BITS_PER_LONG) {
+		bitmap = (void *)(sbi->vol_amap[map_i]->b_data + map_b);
+		count += hweight_long(*bitmap);
+		map_b += sizeof(long);
+		if (map_b >= (unsigned int)sb->s_blocksize) {
 			map_i++;
 			map_b = 0;
 		}
 	}
 
 	if (last_mask) {
-		clu_bits = *(sbi->vol_amap[map_i]->b_data + map_b);
-		clu_bits &= last_bit_mask[last_mask];
-		count += used_bit[clu_bits];
+		bitmap = (void *)(sbi->vol_amap[map_i]->b_data + map_b);
+		clu_bits = lel_to_cpu(*(__le_long *)bitmap);
+		count += hweight_long(clu_bits & BITMAP_LAST_WORD_MASK(last_mask));
 	}
 
 	*ret_count = count;
