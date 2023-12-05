@@ -86,6 +86,32 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
+void __bch2_print(struct bch_fs *c, const char *fmt, ...)
+{
+	struct log_output *output = c->output;
+	va_list args;
+
+	if (c->output_filter && c->output_filter != current)
+		output = NULL;
+
+	va_start(args, fmt);
+	if (likely(!output)) {
+		vprintk(fmt, args);
+	} else {
+		unsigned long flags;
+
+		if (fmt[0] == KERN_SOH[0])
+			fmt += 2;
+
+		spin_lock_irqsave(&output->lock, flags);
+		prt_vprintf(&output->buf, fmt, args);
+		spin_unlock_irqrestore(&output->lock, flags);
+
+		wake_up(&output->wait);
+	}
+	va_end(args);
+}
+
 #define KTYPE(type)							\
 static const struct attribute_group type ## _group = {			\
 	.attrs = type ## _files						\
@@ -711,6 +737,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		c = ERR_PTR(-BCH_ERR_ENOMEM_fs_alloc);
 		goto out;
 	}
+
+	c->output = (void *)(unsigned long) opts.log_output;
 
 	__module_get(THIS_MODULE);
 

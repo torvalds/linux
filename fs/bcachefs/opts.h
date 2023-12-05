@@ -419,6 +419,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Allocate the buckets_nouse bitmap")		\
+	x(log_output,			u64,				\
+	  0,								\
+	  OPT_UINT(0, S64_MAX),						\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Pointer to a struct log_output")		\
 	x(project,			u8,				\
 	  OPT_INODE,							\
 	  OPT_BOOL(),							\
