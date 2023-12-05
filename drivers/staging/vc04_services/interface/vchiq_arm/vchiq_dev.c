@@ -271,9 +271,9 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 			ret = -EFAULT;
 		}
 	} else {
-		vchiq_log_error(service->state->dev, VCHIQ_ARM,
-				"header %pK: bufsize %x < size %x",
-				header, args->bufsize, header->size);
+		dev_err(service->state->dev,
+			"arm: header %pK: bufsize %x < size %x\n",
+			header, args->bufsize, header->size);
 		WARN(1, "invalid size\n");
 		ret = -EMSGSIZE;
 	}
@@ -318,8 +318,8 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		}
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
 		if (!waiter) {
-			vchiq_log_error(service->state->dev, VCHIQ_ARM,
-					"no bulk_waiter found for pid %d", current->pid);
+			dev_err(service->state->dev,
+				"arm: no bulk_waiter found for pid %d\n", current->pid);
 			ret = -ESRCH;
 			goto out;
 		}
@@ -501,10 +501,10 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 			msglen = header->size + sizeof(struct vchiq_header);
 			/* This must be a VCHIQ-style service */
 			if (args->msgbufsize < msglen) {
-				vchiq_log_error(service->state->dev, VCHIQ_ARM,
-						"header %pK: msgbufsize %x < msglen %x",
-						header, args->msgbufsize, msglen);
-						WARN(1, "invalid message size\n");
+				dev_err(service->state->dev,
+					"arm: header %pK: msgbufsize %x < msglen %x\n",
+					header, args->msgbufsize, msglen);
+				WARN(1, "invalid message size\n");
 				if (ret == 0)
 					ret = -EMSGSIZE;
 				break;
@@ -618,9 +618,9 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
-			vchiq_log_error(instance->state->dev, VCHIQ_ARM,
-					"vchiq: connect: could not lock mutex for state %d: %d",
-					instance->state->id, rc);
+			dev_err(instance->state->dev,
+				"arm: vchiq: connect: could not lock mutex for state %d: %d\n",
+				instance->state->id, rc);
 			ret = -EINTR;
 			break;
 		}
@@ -630,8 +630,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!status)
 			instance->connected = 1;
 		else
-			vchiq_log_error(instance->state->dev, VCHIQ_ARM,
-					"vchiq: could not connect: %d", status);
+			dev_err(instance->state->dev,
+				"arm: vchiq: could not connect: %d\n", status);
 		break;
 
 	case VCHIQ_IOC_CREATE_SERVICE: {
@@ -700,13 +700,13 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				vchiq_use_service_internal(service) :
 				vchiq_release_service_internal(service);
 			if (ret) {
-				vchiq_log_error(instance->state->dev, VCHIQ_SUSPEND,
-						"%s: cmd %s returned error %ld for service %p4cc:%03d",
-						__func__, (cmd == VCHIQ_IOC_USE_SERVICE) ?
-						"VCHIQ_IOC_USE_SERVICE" :
-						"VCHIQ_IOC_RELEASE_SERVICE",
-						ret, &service->base.fourcc,
-						service->client_id);
+				dev_err(instance->state->dev,
+					"suspend: cmd %s returned error %ld for service %p4cc:%03d\n",
+					(cmd == VCHIQ_IOC_USE_SERVICE) ?
+					"VCHIQ_IOC_USE_SERVICE" :
+					"VCHIQ_IOC_RELEASE_SERVICE",
+					ret, &service->base.fourcc,
+					service->client_id);
 			}
 		} else {
 			ret = -EINVAL;
@@ -1173,8 +1173,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 	vchiq_log_debug(state->dev, VCHIQ_ARM, "vchiq_open");
 
 	if (!state) {
-		vchiq_log_error(state->dev, VCHIQ_ARM,
-				"vchiq has no connection to VideoCore");
+		dev_err(state->dev, "arm: vchiq has no connection to VideoCore\n");
 		return -ENOTCONN;
 	}
 
