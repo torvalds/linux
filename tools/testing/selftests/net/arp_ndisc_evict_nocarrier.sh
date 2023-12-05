@@ -12,7 +12,8 @@
 # {arp,ndisc}_evict_nocarrer=0 should still contain the single ARP/ND entry
 #
 
-readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
+source lib.sh
+
 readonly V4_ADDR0=10.0.10.1
 readonly V4_ADDR1=10.0.10.2
 readonly V6_ADDR0=2001:db8:91::1
@@ -22,43 +23,29 @@ ret=0
 
 cleanup_v6()
 {
-    ip netns del me
-    ip netns del peer
+    cleanup_ns ${me} ${peer}
 
     sysctl -w net.ipv6.conf.veth1.ndisc_evict_nocarrier=1 >/dev/null 2>&1
     sysctl -w net.ipv6.conf.all.ndisc_evict_nocarrier=1 >/dev/null 2>&1
 }
 
-create_ns()
-{
-    local n=${1}
-
-    ip netns del ${n} 2>/dev/null
-
-    ip netns add ${n}
-    ip netns set ${n} $((nsid++))
-    ip -netns ${n} link set lo up
-}
-
-
 setup_v6() {
-    create_ns me
-    create_ns peer
+    setup_ns me peer
 
-    IP="ip -netns me"
+    IP="ip -netns ${me}"
 
     $IP li add veth1 type veth peer name veth2
     $IP li set veth1 up
     $IP -6 addr add $V6_ADDR0/64 dev veth1 nodad
-    $IP li set veth2 netns peer up
-    ip -netns peer -6 addr add $V6_ADDR1/64 dev veth2 nodad
+    $IP li set veth2 netns ${peer} up
+    ip -netns ${peer} -6 addr add $V6_ADDR1/64 dev veth2 nodad
 
-    ip netns exec me sysctl -w $1 >/dev/null 2>&1
+    ip netns exec ${me} sysctl -w $1 >/dev/null 2>&1
 
     # Establish an ND cache entry
-    ip netns exec me ping -6 -c1 -Iveth1 $V6_ADDR1 >/dev/null 2>&1
+    ip netns exec ${me} ping -6 -c1 -Iveth1 $V6_ADDR1 >/dev/null 2>&1
     # Should have the veth1 entry in ND table
-    ip netns exec me ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
+    ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
     if [ $? -ne 0 ]; then
         cleanup_v6
         echo "failed"
@@ -66,11 +53,11 @@ setup_v6() {
     fi
 
     # Set veth2 down, which will put veth1 in NOCARRIER state
-    ip netns exec peer ip link set veth2 down
+    ip netns exec ${peer} ip link set veth2 down
 }
 
 setup_v4() {
-    ip netns add "${PEER_NS}"
+    setup_ns PEER_NS
     ip link add name veth0 type veth peer name veth1
     ip link set dev veth0 up
     ip link set dev veth1 netns "${PEER_NS}"
@@ -99,8 +86,7 @@ setup_v4() {
 cleanup_v4() {
     ip neigh flush dev veth0
     ip link del veth0
-    local -r ns="$(ip netns list|grep $PEER_NS)"
-    [ -n "$ns" ] && ip netns del $ns 2>/dev/null
+    cleanup_ns $PEER_NS
 
     sysctl -w net.ipv4.conf.veth0.arp_evict_nocarrier=1 >/dev/null 2>&1
     sysctl -w net.ipv4.conf.all.arp_evict_nocarrier=1 >/dev/null 2>&1
@@ -163,7 +149,7 @@ run_ndisc_evict_nocarrier_enabled() {
 
     setup_v6 "net.ipv6.conf.veth1.ndisc_evict_nocarrier=1"
 
-    ip netns exec me ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
+    ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
     if [ $? -eq 0 ];then
         echo "failed"
@@ -180,7 +166,7 @@ run_ndisc_evict_nocarrier_disabled() {
 
     setup_v6 "net.ipv6.conf.veth1.ndisc_evict_nocarrier=0"
 
-    ip netns exec me ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
+    ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
     if [ $? -eq 0 ];then
         echo "ok"
@@ -197,7 +183,7 @@ run_ndisc_evict_nocarrier_disabled_all() {
 
     setup_v6 "net.ipv6.conf.all.ndisc_evict_nocarrier=0"
 
-    ip netns exec me ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
+    ip netns exec ${me} ip -6 neigh get $V6_ADDR1 dev veth1 >/dev/null 2>&1
 
     if [ $? -eq 0 ];then
         echo "ok"
