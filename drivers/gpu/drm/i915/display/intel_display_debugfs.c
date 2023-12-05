@@ -1566,59 +1566,58 @@ DEFINE_SHOW_ATTRIBUTE(intel_crtc_pipe);
 
 /**
  * intel_connector_debugfs_add - add i915 specific connector debugfs files
- * @intel_connector: pointer to a registered drm_connector
+ * @connector: pointer to a registered intel_connector
  *
  * Cleanup will be done by drm_connector_unregister() through a call to
  * drm_debugfs_connector_remove().
  */
-void intel_connector_debugfs_add(struct intel_connector *intel_connector)
+void intel_connector_debugfs_add(struct intel_connector *connector)
 {
-	struct drm_connector *connector = &intel_connector->base;
-	struct dentry *root = connector->debugfs_entry;
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct dentry *root = connector->base.debugfs_entry;
+	int connector_type = connector->base.connector_type;
 
 	/* The connector must have been registered beforehands. */
 	if (!root)
 		return;
 
-	intel_drrs_connector_debugfs_add(intel_connector);
-	intel_psr_connector_debugfs_add(intel_connector);
+	intel_drrs_connector_debugfs_add(connector);
+	intel_psr_connector_debugfs_add(connector);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+	if (connector_type == DRM_MODE_CONNECTOR_eDP)
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
-				    connector, &i915_panel_fops);
+				    &connector->base, &i915_panel_fops);
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
 		debugfs_create_file("i915_hdcp_sink_capability", S_IRUGO, root,
-				    connector, &i915_hdcp_sink_capability_fops);
+				    &connector->base, &i915_hdcp_sink_capability_fops);
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 11 &&
-	    ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
-	    !to_intel_connector(connector)->mst_port) ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)) {
+	if (DISPLAY_VER(i915) >= 11 &&
+	    ((connector_type == DRM_MODE_CONNECTOR_DisplayPort && !connector->mst_port) ||
+	     connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		debugfs_create_file("i915_dsc_fec_support", 0644, root,
-				    connector, &i915_dsc_fec_support_fops);
+				    &connector->base, &i915_dsc_fec_support_fops);
 
 		debugfs_create_file("i915_dsc_bpc", 0644, root,
-				    connector, &i915_dsc_bpc_fops);
+				    &connector->base, &i915_dsc_bpc_fops);
 
 		debugfs_create_file("i915_dsc_output_format", 0644, root,
-				    connector, &i915_dsc_output_format_fops);
+				    &connector->base, &i915_dsc_output_format_fops);
 
 		debugfs_create_file("i915_dsc_fractional_bpp", 0644, root,
-				    connector, &i915_dsc_fractional_bpp_fops);
+				    &connector->base, &i915_dsc_fractional_bpp_fops);
 	}
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
+	if (connector_type == DRM_MODE_CONNECTOR_DSI ||
+	    connector_type == DRM_MODE_CONNECTOR_eDP ||
+	    connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIB)
 		debugfs_create_file("i915_lpsp_capability", 0444, root,
-				    connector, &i915_lpsp_capability_fops);
+				    &connector->base, &i915_lpsp_capability_fops);
 }
 
 /**
