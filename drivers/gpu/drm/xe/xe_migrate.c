@@ -1163,15 +1163,22 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 	return fence;
 }
 
-static bool no_in_syncs(struct xe_sync_entry *syncs, u32 num_syncs)
+static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
+			struct xe_sync_entry *syncs, u32 num_syncs)
 {
+	struct dma_fence *fence;
 	int i;
 
 	for (i = 0; i < num_syncs; i++) {
-		struct dma_fence *fence = syncs[i].fence;
+		fence = syncs[i].fence;
 
 		if (fence && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				       &fence->flags))
+			return false;
+	}
+	if (q) {
+		fence = xe_exec_queue_last_fence_get(q, vm);
+		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 			return false;
 	}
 
@@ -1234,7 +1241,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
 
 	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
+	if (no_in_syncs(vm, q, syncs, num_syncs) && xe_exec_queue_is_idle(q_override)) {
 		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
 							num_updates,
 							first_munmap_rebind,
@@ -1351,6 +1358,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 			goto err_job;
 	}
 
+	err = xe_sched_job_last_fence_add_dep(job, vm);
 	for (i = 0; !err && i < num_syncs; i++)
 		err = xe_sync_entry_add_deps(&syncs[i], job);
 

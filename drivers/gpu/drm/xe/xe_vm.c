@@ -2722,7 +2722,6 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		return -EINVAL;
 
 	if (XE_IOCTL_DBG(xe, args->extensions) ||
-	    XE_IOCTL_DBG(xe, !args->num_binds) ||
 	    XE_IOCTL_DBG(xe, args->num_binds > MAX_BINDS))
 		return -EINVAL;
 
@@ -2837,6 +2836,37 @@ free_bind_ops:
 	return err;
 }
 
+static int vm_bind_ioctl_signal_fences(struct xe_vm *vm,
+				       struct xe_exec_queue *q,
+				       struct xe_sync_entry *syncs,
+				       int num_syncs)
+{
+	struct dma_fence *fence;
+	int i, err = 0;
+
+	fence = xe_sync_in_fence_get(syncs, num_syncs,
+				     to_wait_exec_queue(vm, q), vm);
+	if (IS_ERR(fence))
+		return PTR_ERR(fence);
+
+	for (i = 0; i < num_syncs; i++)
+		xe_sync_entry_signal(&syncs[i], NULL, fence);
+
+	xe_exec_queue_last_fence_set(to_wait_exec_queue(vm, q), vm,
+				     fence);
+
+	if (xe_vm_sync_mode(vm, q)) {
+		long timeout = dma_fence_wait(fence, true);
+
+		if (timeout < 0)
+			err = -EINTR;
+	}
+
+	dma_fence_put(fence);
+
+	return err;
+}
+
 int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
@@ -2875,7 +2905,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			goto put_exec_queue;
 		}
 
-		if (XE_IOCTL_DBG(xe, async !=
+		if (XE_IOCTL_DBG(xe, args->num_binds && async !=
 				 !!(q->flags & EXEC_QUEUE_FLAG_VM_ASYNC))) {
 			err = -EINVAL;
 			goto put_exec_queue;
@@ -2889,7 +2919,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (!args->exec_queue_id) {
-		if (XE_IOCTL_DBG(xe, async !=
+		if (XE_IOCTL_DBG(xe, args->num_binds && async !=
 				 !!(vm->flags & XE_VM_FLAG_ASYNC_DEFAULT))) {
 			err = -EINVAL;
 			goto put_vm;
@@ -2916,16 +2946,18 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		}
 	}
 
-	bos = kzalloc(sizeof(*bos) * args->num_binds, GFP_KERNEL);
-	if (!bos) {
-		err = -ENOMEM;
-		goto release_vm_lock;
-	}
+	if (args->num_binds) {
+		bos = kcalloc(args->num_binds, sizeof(*bos), GFP_KERNEL);
+		if (!bos) {
+			err = -ENOMEM;
+			goto release_vm_lock;
+		}
 
-	ops = kzalloc(sizeof(*ops) * args->num_binds, GFP_KERNEL);
-	if (!ops) {
-		err = -ENOMEM;
-		goto release_vm_lock;
+		ops = kcalloc(args->num_binds, sizeof(*ops), GFP_KERNEL);
+		if (!ops) {
+			err = -ENOMEM;
+			goto release_vm_lock;
+		}
 	}
 
 	for (i = 0; i < args->num_binds; ++i) {
@@ -2995,10 +3027,17 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	for (num_syncs = 0; num_syncs < args->num_syncs; num_syncs++) {
 		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs],
 					  &syncs_user[num_syncs],
-					  xe_vm_in_lr_mode(vm) ?
-					  SYNC_PARSE_FLAG_LR_MODE : 0);
+					  (xe_vm_in_lr_mode(vm) ?
+					   SYNC_PARSE_FLAG_LR_MODE : 0) |
+					  (!args->num_binds ?
+					   SYNC_PARSE_FLAG_DISALLOW_USER_FENCE : 0));
 		if (err)
 			goto free_syncs;
+	}
+
+	if (!args->num_binds) {
+		err = -ENODATA;
+		goto free_syncs;
 	}
 
 	for (i = 0; i < args->num_binds; ++i) {
@@ -3058,12 +3097,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 unwind_ops:
 	vm_bind_ioctl_ops_unwind(vm, ops, args->num_binds);
 free_syncs:
-	for (i = 0; err == -ENODATA && i < num_syncs; i++) {
-		struct dma_fence *fence =
-			xe_exec_queue_last_fence_get(to_wait_exec_queue(vm, q), vm);
-
-		xe_sync_entry_signal(&syncs[i], NULL, fence);
-	}
+	if (err == -ENODATA)
+		err = vm_bind_ioctl_signal_fences(vm, q, syncs, num_syncs);
 	while (num_syncs--)
 		xe_sync_entry_cleanup(&syncs[num_syncs]);
 
@@ -3083,7 +3118,7 @@ free_objs:
 	kfree(ops);
 	if (args->num_binds > 1)
 		kfree(bind_ops);
-	return err == -ENODATA ? 0 : err;
+	return err;
 }
 
 /**

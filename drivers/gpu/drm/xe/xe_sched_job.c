@@ -260,3 +260,21 @@ void xe_sched_job_push(struct xe_sched_job *job)
 	drm_sched_entity_push_job(&job->drm);
 	xe_sched_job_put(job);
 }
+
+/**
+ * xe_sched_job_last_fence_add_dep - Add last fence dependency to job
+ * @job:job to add the last fence dependency to
+ * @vm: virtual memory job belongs to
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm)
+{
+	struct dma_fence *fence;
+
+	fence = xe_exec_queue_last_fence_get(job->q, vm);
+	dma_fence_get(fence);
+
+	return drm_sched_job_add_dependency(&job->drm, fence);
+}
