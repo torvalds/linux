@@ -163,8 +163,10 @@ static int vmemmap_remap_range(unsigned long start, unsigned long end,
 
 	VM_BUG_ON(!PAGE_ALIGNED(start | end));
 
+	mmap_read_lock(&init_mm);
 	ret = walk_page_range_novma(&init_mm, start, end, &vmemmap_remap_ops,
 				    NULL, walk);
+	mmap_read_unlock(&init_mm);
 	if (ret)
 		return ret;
 
@@ -282,7 +284,6 @@ static void vmemmap_restore_pte(pte_t *pte, unsigned long addr,
 static int vmemmap_remap_split(unsigned long start, unsigned long end,
 			       unsigned long reuse)
 {
-	int ret;
 	struct vmemmap_remap_walk walk = {
 		.remap_pte	= NULL,
 		.flags		= VMEMMAP_SPLIT_NO_TLB_FLUSH,
@@ -291,11 +292,7 @@ static int vmemmap_remap_split(unsigned long start, unsigned long end,
 	/* See the comment in the vmemmap_remap_free(). */
 	BUG_ON(start - reuse != PAGE_SIZE);
 
-	mmap_read_lock(&init_mm);
-	ret = vmemmap_remap_range(reuse, end, &walk);
-	mmap_read_unlock(&init_mm);
-
-	return ret;
+	return vmemmap_remap_range(reuse, end, &walk);
 }
 
 /**
@@ -358,7 +355,6 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 	 */
 	BUG_ON(start - reuse != PAGE_SIZE);
 
-	mmap_read_lock(&init_mm);
 	ret = vmemmap_remap_range(reuse, end, &walk);
 	if (ret && walk.nr_walked) {
 		end = reuse + walk.nr_walked * PAGE_SIZE;
@@ -377,7 +373,6 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 
 		vmemmap_remap_range(reuse, end, &walk);
 	}
-	mmap_read_unlock(&init_mm);
 
 	return ret;
 }
@@ -434,11 +429,7 @@ static int vmemmap_remap_alloc(unsigned long start, unsigned long end,
 	if (alloc_vmemmap_page_list(start, end, &vmemmap_pages))
 		return -ENOMEM;
 
-	mmap_read_lock(&init_mm);
-	vmemmap_remap_range(reuse, end, &walk);
-	mmap_read_unlock(&init_mm);
-
-	return 0;
+	return vmemmap_remap_range(reuse, end, &walk);
 }
 
 DEFINE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
