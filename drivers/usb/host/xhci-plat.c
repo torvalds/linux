@@ -131,6 +131,9 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "brcm,xhci-brcm-v2",
 		.data = &xhci_plat_brcm,
 	}, {
+		.compatible = "brcm,bcm2711-xhci",
+		.data = &xhci_plat_brcm,
+	}, {
 		.compatible = "brcm,bcm7445-xhci",
 		.data = &xhci_plat_brcm,
 	},
