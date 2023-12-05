@@ -375,6 +375,24 @@ mask_err:
 	return err;
 }
 
+/*
+ * Initialize MMIO resources that don't require any knowledge about tile count.
+ */
+int xe_device_probe_early(struct xe_device *xe)
+{
+	int err;
+
+	err = xe_mmio_init(xe);
+	if (err)
+		return err;
+
+	err = xe_mmio_root_tile_init(xe);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 int xe_device_probe(struct xe_device *xe)
 {
 	struct xe_tile *tile;
@@ -390,10 +408,6 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	err = xe_set_dma_info(xe);
-	if (err)
-		return err;
-
-	err = xe_mmio_init(xe);
 	if (err)
 		return err;
 
