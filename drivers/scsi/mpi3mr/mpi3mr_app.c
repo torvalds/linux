@@ -783,14 +783,20 @@ static int mpi3mr_build_nvme_sgl(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_buf_map *drv_bufs, u8 bufcnt)
 {
 	struct mpi3mr_nvme_pt_sge *nvme_sgl;
-	u64 sgl_ptr;
+	__le64 sgl_dma;
 	u8 count;
 	size_t length = 0;
+	u16 available_sges = 0, i;
+	u32 sge_element_size = sizeof(struct mpi3mr_nvme_pt_sge);
 	struct mpi3mr_buf_map *drv_buf_iter = drv_bufs;
 	u64 sgemod_mask = ((u64)((mrioc->facts.sge_mod_mask) <<
 			    mrioc->facts.sge_mod_shift) << 32);
 	u64 sgemod_val = ((u64)(mrioc->facts.sge_mod_value) <<
 			  mrioc->facts.sge_mod_shift) << 32;
+	u32 size;
+
+	nvme_sgl = (struct mpi3mr_nvme_pt_sge *)
+	    ((u8 *)(nvme_encap_request->command) + MPI3MR_NVME_CMD_SGL_OFFSET);
 
 	/*
 	 * Not all commands require a data transfer. If no data, just return
@@ -799,27 +805,59 @@ static int mpi3mr_build_nvme_sgl(struct mpi3mr_ioc *mrioc,
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
 		if (drv_buf_iter->data_dir == DMA_NONE)
 			continue;
-		sgl_ptr = (u64)drv_buf_iter->kern_buf_dma;
 		length = drv_buf_iter->kern_buf_len;
 		break;
 	}
-	if (!length)
+	if (!length || !drv_buf_iter->num_dma_desc)
 		return 0;
 
-	if (sgl_ptr & sgemod_mask) {
+	if (drv_buf_iter->num_dma_desc == 1) {
+		available_sges = 1;
+		goto build_sges;
+	}
+
+	sgl_dma = cpu_to_le64(mrioc->ioctl_chain_sge.dma_addr);
+	if (sgl_dma & sgemod_mask) {
 		dprint_bsg_err(mrioc,
-		    "%s: SGL address collides with SGE modifier\n",
+		    "%s: SGL chain address collides with SGE modifier\n",
 		    __func__);
 		return -1;
 	}
 
-	sgl_ptr &= ~sgemod_mask;
-	sgl_ptr |= sgemod_val;
-	nvme_sgl = (struct mpi3mr_nvme_pt_sge *)
-	    ((u8 *)(nvme_encap_request->command) + MPI3MR_NVME_CMD_SGL_OFFSET);
+	sgl_dma &= ~sgemod_mask;
+	sgl_dma |= sgemod_val;
+
+	memset(mrioc->ioctl_chain_sge.addr, 0, mrioc->ioctl_chain_sge.size);
+	available_sges = mrioc->ioctl_chain_sge.size / sge_element_size;
+	if (available_sges < drv_buf_iter->num_dma_desc)
+		return -1;
 	memset(nvme_sgl, 0, sizeof(struct mpi3mr_nvme_pt_sge));
-	nvme_sgl->base_addr = sgl_ptr;
-	nvme_sgl->length = length;
+	nvme_sgl->base_addr = sgl_dma;
+	size = drv_buf_iter->num_dma_desc * sizeof(struct mpi3mr_nvme_pt_sge);
+	nvme_sgl->length = cpu_to_le32(size);
+	nvme_sgl->type = MPI3MR_NVMESGL_LAST_SEGMENT;
+	nvme_sgl = (struct mpi3mr_nvme_pt_sge *)mrioc->ioctl_chain_sge.addr;
+
+build_sges:
+	for (i = 0; i < drv_buf_iter->num_dma_desc; i++) {
+		sgl_dma = cpu_to_le64(drv_buf_iter->dma_desc[i].dma_addr);
+		if (sgl_dma & sgemod_mask) {
+			dprint_bsg_err(mrioc,
+				       "%s: SGL address collides with SGE modifier\n",
+				       __func__);
+		return -1;
+		}
+
+		sgl_dma &= ~sgemod_mask;
+		sgl_dma |= sgemod_val;
+
+		nvme_sgl->base_addr = sgl_dma;
+		nvme_sgl->length = cpu_to_le32(drv_buf_iter->dma_desc[i].size);
+		nvme_sgl->type = MPI3MR_NVMESGL_DATA_SEGMENT;
+		nvme_sgl++;
+		available_sges--;
+	}
+
 	return 0;
 }
 
@@ -847,7 +885,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 	dma_addr_t prp_entry_dma, prp_page_dma, dma_addr;
 	u32 offset, entry_len, dev_pgsz;
 	u32 page_mask_result, page_mask;
-	size_t length = 0;
+	size_t length = 0, desc_len;
 	u8 count;
 	struct mpi3mr_buf_map *drv_buf_iter = drv_bufs;
 	u64 sgemod_mask = ((u64)((mrioc->facts.sge_mod_mask) <<
@@ -856,6 +894,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			  mrioc->facts.sge_mod_shift) << 32;
 	u16 dev_handle = nvme_encap_request->dev_handle;
 	struct mpi3mr_tgt_dev *tgtdev;
+	u16 desc_count = 0;
 
 	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
 	if (!tgtdev) {
@@ -874,6 +913,21 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 
 	dev_pgsz = 1 << (tgtdev->dev_spec.pcie_inf.pgsz);
 	mpi3mr_tgtdev_put(tgtdev);
+	page_mask = dev_pgsz - 1;
+
+	if (dev_pgsz > MPI3MR_IOCTL_SGE_SIZE) {
+		dprint_bsg_err(mrioc,
+			       "%s: NVMe device page size(%d) is greater than ioctl data sge size(%d) for handle 0x%04x\n",
+			       __func__, dev_pgsz,  MPI3MR_IOCTL_SGE_SIZE, dev_handle);
+		return -1;
+	}
+
+	if (MPI3MR_IOCTL_SGE_SIZE % dev_pgsz) {
+		dprint_bsg_err(mrioc,
+			       "%s: ioctl data sge size(%d) is not a multiple of NVMe device page size(%d) for handle 0x%04x\n",
+			       __func__, MPI3MR_IOCTL_SGE_SIZE, dev_pgsz, dev_handle);
+		return -1;
+	}
 
 	/*
 	 * Not all commands require a data transfer. If no data, just return
@@ -882,13 +936,25 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
 		if (drv_buf_iter->data_dir == DMA_NONE)
 			continue;
-		dma_addr = drv_buf_iter->kern_buf_dma;
 		length = drv_buf_iter->kern_buf_len;
 		break;
 	}
 
-	if (!length)
+	if (!length || !drv_buf_iter->num_dma_desc)
 		return 0;
+
+	for (count = 0; count < drv_buf_iter->num_dma_desc; count++) {
+		dma_addr = drv_buf_iter->dma_desc[count].dma_addr;
+		if (dma_addr & page_mask) {
+			dprint_bsg_err(mrioc,
+				       "%s:dma_addr 0x%llx is not aligned with page size 0x%x\n",
+				       __func__,  dma_addr, dev_pgsz);
+			return -1;
+		}
+	}
+
+	dma_addr = drv_buf_iter->dma_desc[0].dma_addr;
+	desc_len = drv_buf_iter->dma_desc[0].size;
 
 	mrioc->prp_sz = 0;
 	mrioc->prp_list_virt = dma_alloc_coherent(&mrioc->pdev->dev,
@@ -919,7 +985,6 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 	 * Check if we are within 1 entry of a page boundary we don't
 	 * want our first entry to be a PRP List entry.
 	 */
-	page_mask = dev_pgsz - 1;
 	page_mask_result = (uintptr_t)((u8 *)prp_page + prp_size) & page_mask;
 	if (!page_mask_result) {
 		dprint_bsg_err(mrioc, "%s: PRP page is not page aligned\n",
@@ -1033,18 +1098,31 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 			prp_entry_dma += prp_size;
 		}
 
-		/*
-		 * Bump the phys address of the command's data buffer by the
-		 * entry_len.
-		 */
-		dma_addr += entry_len;
-
 		/* decrement length accounting for last partial page. */
-		if (entry_len > length)
+		if (entry_len >= length) {
 			length = 0;
-		else
+		} else {
+			if (entry_len <= desc_len) {
+				dma_addr += entry_len;
+				desc_len -= entry_len;
+			}
+			if (!desc_len) {
+				if ((++desc_count) >=
+				   drv_buf_iter->num_dma_desc) {
+					dprint_bsg_err(mrioc,
+						       "%s: Invalid len %ld while building PRP\n",
+						       __func__, length);
+					goto err_out;
+				}
+				dma_addr =
+				    drv_buf_iter->dma_desc[desc_count].dma_addr;
+				desc_len =
+				    drv_buf_iter->dma_desc[desc_count].size;
+			}
 			length -= entry_len;
+		}
 	}
+
 	return 0;
 err_out:
 	if (mrioc->prp_list_virt) {

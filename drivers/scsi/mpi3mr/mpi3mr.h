@@ -218,14 +218,16 @@ extern atomic64_t event_counter;
  * @length: SGE length
  * @rsvd: Reserved
  * @rsvd1: Reserved
- * @sgl_type: sgl type
+ * @sub_type: sgl sub type
+ * @type: sgl type
  */
 struct mpi3mr_nvme_pt_sge {
-	u64 base_addr;
-	u32 length;
+	__le64 base_addr;
+	__le32 length;
 	u16 rsvd;
 	u8 rsvd1;
-	u8 sgl_type;
+	u8 sub_type:4;
+	u8 type:4;
 };
 
 /**
