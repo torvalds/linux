@@ -277,6 +277,8 @@ struct idxd_dma_dev {
 	struct dma_device dma;
 };
 
+typedef int (*load_device_defaults_fn_t) (struct idxd_device *idxd);
+
 struct idxd_driver_data {
 	const char *name_prefix;
 	enum idxd_type type;
@@ -286,6 +288,7 @@ struct idxd_driver_data {
 	int evl_cr_off;
 	int cr_status_off;
 	int cr_result_off;
+	load_device_defaults_fn_t load_device_defaults;
 };
 
 struct idxd_evl {
@@ -730,6 +733,7 @@ void idxd_unregister_devices(struct idxd_device *idxd);
 void idxd_wqs_quiesce(struct idxd_device *idxd);
 bool idxd_queue_int_handle_resubmit(struct idxd_desc *desc);
 void multi_u64_to_bmap(unsigned long *bmap, u64 *val, int count);
+int idxd_load_iaa_device_defaults(struct idxd_device *idxd);
 
 /* device interrupt control */
 irqreturn_t idxd_misc_thread(int vec, void *data);
