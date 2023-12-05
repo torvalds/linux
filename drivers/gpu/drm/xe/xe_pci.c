@@ -473,16 +473,13 @@ static void peek_gmdid(struct xe_device *xe, u32 gmdid_offset, u32 *ver, u32 *re
  * media is optional.
  */
 static void handle_pre_gmdid(struct xe_device *xe,
-			     const struct xe_device_desc *desc,
-			     const struct xe_graphics_desc **graphics,
-			     const struct xe_media_desc **media)
+			     const struct xe_graphics_desc *graphics,
+			     const struct xe_media_desc *media)
 {
-	*graphics = desc->graphics;
-	xe->info.graphics_verx100 = (*graphics)->ver * 100 + (*graphics)->rel;
+	xe->info.graphics_verx100 = graphics->ver * 100 + graphics->rel;
 
-	*media = desc->media;
-	if (*media)
-		xe->info.media_verx100 = (*media)->ver * 100 + (*media)->rel;
+	if (media)
+		xe->info.media_verx100 = media->ver * 100 + media->rel;
 
 }
 
@@ -491,7 +488,6 @@ static void handle_pre_gmdid(struct xe_device *xe,
  * based on the result.
  */
 static void handle_gmdid(struct xe_device *xe,
-			 const struct xe_device_desc *desc,
 			 const struct xe_graphics_desc **graphics,
 			 const struct xe_media_desc **media,
 			 u32 *graphics_revid,
@@ -535,20 +531,46 @@ static void handle_gmdid(struct xe_device *xe,
 	}
 }
 
-static int xe_info_init(struct xe_device *xe,
-			const struct xe_device_desc *desc,
-			const struct xe_subplatform_desc *subplatform_desc)
+/*
+ * Initialize device info content that only depends on static driver_data
+ * passed to the driver at probe time from PCI ID table.
+ */
+static void xe_info_init_early(struct xe_device *xe,
+			       const struct xe_device_desc *desc,
+			       const struct xe_subplatform_desc *subplatform_desc)
 {
-	const struct xe_graphics_desc *graphics_desc = NULL;
-	const struct xe_media_desc *media_desc = NULL;
+	xe->info.platform = desc->platform;
+	xe->info.subplatform = subplatform_desc ?
+		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
+
+	xe->info.is_dgfx = desc->is_dgfx;
+	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
+	xe->info.has_llc = desc->has_llc;
+	xe->info.has_sriov = desc->has_sriov;
+	xe->info.skip_mtcfg = desc->skip_mtcfg;
+	xe->info.skip_pcode = desc->skip_pcode;
+	xe->info.supports_mmio_ext = desc->supports_mmio_ext;
+	xe->info.skip_guc_pc = desc->skip_guc_pc;
+
+	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
+				  xe_modparam.enable_display &&
+				  desc->has_display;
+}
+
+/*
+ * Initialize device info content that does require knowledge about
+ * graphics / media IP version.
+ * Make sure that GT / tile structures allocated by the driver match the data
+ * present in device info.
+ */
+static int xe_info_init(struct xe_device *xe,
+			const struct xe_graphics_desc *graphics_desc,
+			const struct xe_media_desc *media_desc)
+{
 	u32 graphics_gmdid_revid = 0, media_gmdid_revid = 0;
 	struct xe_tile *tile;
 	struct xe_gt *gt;
 	u8 id;
-
-	xe->info.platform = desc->platform;
-	xe->info.subplatform = subplatform_desc ?
-		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
 
 	/*
 	 * If this platform supports GMD_ID, we'll detect the proper IP
@@ -556,11 +578,12 @@ static int xe_info_init(struct xe_device *xe,
 	 * ever be set at this point for platforms before GMD_ID. In that case
 	 * the IP descriptions and versions are simply derived from that.
 	 */
-	if (desc->graphics) {
-		handle_pre_gmdid(xe, desc, &graphics_desc, &media_desc);
+	if (graphics_desc) {
+		handle_pre_gmdid(xe, graphics_desc, media_desc);
 		xe->info.step = xe_step_pre_gmdid_get(xe);
 	} else {
-		handle_gmdid(xe, desc, &graphics_desc, &media_desc,
+		xe_assert(xe, !media_desc);
+		handle_gmdid(xe, &graphics_desc, &media_desc,
 			     &graphics_gmdid_revid, &media_gmdid_revid);
 		xe->info.step = xe_step_gmdid_get(xe,
 						  graphics_gmdid_revid,
@@ -575,15 +598,8 @@ static int xe_info_init(struct xe_device *xe,
 	if (!graphics_desc)
 		return -ENODEV;
 
-	xe->info.is_dgfx = desc->is_dgfx;
-	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.graphics_name = graphics_desc->name;
 	xe->info.media_name = media_desc ? media_desc->name : "none";
-	xe->info.has_llc = desc->has_llc;
-	xe->info.has_sriov = desc->has_sriov;
-	xe->info.skip_mtcfg = desc->skip_mtcfg;
-	xe->info.skip_pcode = desc->skip_pcode;
-	xe->info.supports_mmio_ext = desc->supports_mmio_ext;
 	xe->info.tile_mmio_ext_size = graphics_desc->tile_mmio_ext_size;
 
 	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
@@ -594,11 +610,7 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_asid = graphics_desc->has_asid;
 	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
-	xe->info.skip_guc_pc = desc->skip_guc_pc;
 
-	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
-				  xe_modparam.enable_display &&
-				  desc->has_display;
 	/*
 	 * All platforms have at least one primary GT.  Any platform with media
 	 * version 13 or higher has an additional dedicated media GT.  And
@@ -711,9 +723,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
+	xe_info_init_early(xe, desc, subplatform_desc);
+
 	xe_sriov_probe_early(xe, desc->has_sriov);
 
-	err = xe_info_init(xe, desc, subplatform_desc);
+	err = xe_info_init(xe, desc->graphics, desc->media);
 	if (err)
 		return err;
 

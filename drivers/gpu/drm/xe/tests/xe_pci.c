@@ -143,7 +143,8 @@ int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
 		return -ENODEV;
 
 done:
-	xe_info_init(xe, desc, subplatform_desc);
+	xe_info_init_early(xe, desc, subplatform_desc);
+	xe_info_init(xe, desc->graphics, desc->media);
 
 	return 0;
 }
