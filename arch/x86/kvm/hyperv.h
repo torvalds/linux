@@ -247,6 +247,19 @@ static inline int kvm_hv_verify_vp_assist(struct kvm_vcpu *vcpu)
 	return kvm_hv_get_assist_page(vcpu);
 }
 
+static inline void kvm_hv_nested_transtion_tlb_flush(struct kvm_vcpu *vcpu,
+						     bool tdp_enabled)
+{
+	/*
+	 * KVM_REQ_HV_TLB_FLUSH flushes entries from either L1's VP_ID or
+	 * L2's VP_ID upon request from the guest. Make sure we check for
+	 * pending entries in the right FIFO upon L1/L2 transition as these
+	 * requests are put by other vCPUs asynchronously.
+	 */
+	if (to_hv_vcpu(vcpu) && tdp_enabled)
+		kvm_make_request(KVM_REQ_HV_TLB_FLUSH, vcpu);
+}
+
 int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu);
 
 #endif

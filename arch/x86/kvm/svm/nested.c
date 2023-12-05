@@ -487,14 +487,8 @@ static void nested_save_pending_event_to_vmcb12(struct vcpu_svm *svm,
 
 static void nested_svm_transition_tlb_flush(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * KVM_REQ_HV_TLB_FLUSH flushes entries from either L1's VP_ID or
-	 * L2's VP_ID upon request from the guest. Make sure we check for
-	 * pending entries in the right FIFO upon L1/L2 transition as these
-	 * requests are put by other vCPUs asynchronously.
-	 */
-	if (to_hv_vcpu(vcpu) && npt_enabled)
-		kvm_make_request(KVM_REQ_HV_TLB_FLUSH, vcpu);
+	/* Handle pending Hyper-V TLB flush requests */
+	kvm_hv_nested_transtion_tlb_flush(vcpu, npt_enabled);
 
 	/*
 	 * TODO: optimize unconditional TLB flush/MMU sync.  A partial list of
