@@ -110,7 +110,7 @@
 				reg = <0x80018000 0x2000>;
 
 				gpio0: gpio@0 {
-					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx23-gpio";
 					reg = <0>;
 					interrupts = <16>;
 					gpio-controller;
@@ -120,7 +120,7 @@
 				};
 
 				gpio1: gpio@1 {
-					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx23-gpio";
 					reg = <1>;
 					interrupts = <17>;
 					gpio-controller;
@@ -130,7 +130,7 @@
 				};
 
 				gpio2: gpio@2 {
-					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx23-gpio";
 					reg = <2>;
 					interrupts = <18>;
 					gpio-controller;
