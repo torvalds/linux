@@ -53,10 +53,6 @@ static inline const char *log_category_str(enum vchiq_log_category c)
 	return strings[c];
 };
 
-#ifndef vchiq_log_warning
-#define vchiq_log_warning(dev, cat, fmt, ...) \
-	do { dev_dbg(dev, "%s warning: " fmt, log_category_str(cat), ##__VA_ARGS__); } while (0)
-#endif
 #ifndef vchiq_log_debug
 #define vchiq_log_debug(dev, cat, fmt, ...) \
 	do { dev_dbg(dev, "%s debug: " fmt, log_category_str(cat), ##__VA_ARGS__); } while (0)
