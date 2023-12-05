@@ -351,6 +351,9 @@ bl_parse_scsi(struct nfs_server *server, struct pnfs_block_dev *d,
 	d->map = bl_map_simple;
 	d->pr_key = v->scsi.pr_key;
 
+	if (d->len == 0)
+		return -ENODEV;
+
 	pr_info("pNFS: using block device %s (reservation key 0x%llx)\n",
 		d->bdev_handle->bdev->bd_disk->disk_name, d->pr_key);
 
