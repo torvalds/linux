@@ -743,14 +743,14 @@ void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid)
 
 	bl = __io_buffer_get_list(ctx, smp_load_acquire(&ctx->io_bl), bgid);
 
+	if (!bl || !bl->is_mmap)
+		return NULL;
 	/*
 	 * Ensure the list is fully setup. Only strictly needed for RCU lookup
 	 * via mmap, and in that case only for the array indexed groups. For
 	 * the xarray lookups, it's either visible and ready, or not at all.
 	 */
 	if (!smp_load_acquire(&bl->is_ready))
-		return NULL;
-	if (!bl || !bl->is_mmap)
 		return NULL;
 
 	return bl->buf_ring;
