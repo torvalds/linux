@@ -9,7 +9,14 @@ perfdata1=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 perfdata2=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 perfdata3=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 testprog="perf test -w thloop"
+
+shelldir=$(dirname "$0")
+# shellcheck source=lib/perf_has_symbol.sh
+. "${shelldir}"/lib/perf_has_symbol.sh
+
 testsym="test_loop"
+
+skip_test_missing_symbol ${testsym}
 
 cleanup() {
   rm -rf "${perfdata1}"
