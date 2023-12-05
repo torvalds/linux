@@ -256,6 +256,21 @@ static void dccg35_set_dtbclk_dto(
 	if (params->ref_dtbclk_khz && req_dtbclk_khz) {
 		uint32_t modulo, phase;
 
+		switch (params->otg_inst) {
+		case 0:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P0_GATE_DISABLE, 1);
+			break;
+		case 1:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P1_GATE_DISABLE, 1);
+			break;
+		case 2:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P2_GATE_DISABLE, 1);
+			break;
+		case 3:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P3_GATE_DISABLE, 1);
+			break;
+		}
+
 		// phase / modulo = dtbclk / dtbclk ref
 		modulo = params->ref_dtbclk_khz * 1000;
 		phase = req_dtbclk_khz * 1000;
@@ -280,6 +295,21 @@ static void dccg35_set_dtbclk_dto(
 		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
 				PIPE_DTO_SRC_SEL[params->otg_inst], 2);
 	} else {
+		switch (params->otg_inst) {
+		case 0:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P0_GATE_DISABLE, 0);
+			break;
+		case 1:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P1_GATE_DISABLE, 0);
+			break;
+		case 2:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P2_GATE_DISABLE, 0);
+			break;
+		case 3:
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL5, DTBCLK_P3_GATE_DISABLE, 0);
+			break;
+		}
+
 		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[params->otg_inst],
 				DTBCLK_DTO_ENABLE[params->otg_inst], 0,
 				PIPE_DTO_SRC_SEL[params->otg_inst], params->is_hdmi ? 0 : 1);

@@ -1710,6 +1710,16 @@ static int smu_disable_dpms(struct smu_context *smu)
 		}
 	}
 
+	/* Notify SMU RLC is going to be off, stop RLC and SMU interaction.
+	 * otherwise SMU will hang while interacting with RLC if RLC is halted
+	 * this is a WA for Vangogh asic which fix the SMU hang issue.
+	 */
+	ret = smu_notify_rlc_state(smu, false);
+	if (ret) {
+		dev_err(adev->dev, "Fail to notify rlc status!\n");
+		return ret;
+	}
+
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 4, 2) &&
 	    !((adev->flags & AMD_IS_APU) && adev->gfx.imu.funcs) &&
 	    !amdgpu_sriov_vf(adev) && adev->gfx.rlc.funcs->stop)
@@ -3005,19 +3015,17 @@ static int smu_set_xgmi_pstate(void *handle,
 	return ret;
 }
 
-static int smu_get_baco_capability(void *handle, bool *cap)
+static bool smu_get_baco_capability(void *handle)
 {
 	struct smu_context *smu = handle;
 
-	*cap = false;
-
 	if (!smu->pm_enabled)
-		return 0;
+		return false;
 
-	if (smu->ppt_funcs && smu->ppt_funcs->baco_is_support)
-		*cap = smu->ppt_funcs->baco_is_support(smu);
+	if (!smu->ppt_funcs || !smu->ppt_funcs->baco_is_support)
+		return false;
 
-	return 0;
+	return smu->ppt_funcs->baco_is_support(smu);
 }
 
 static int smu_baco_set_state(void *handle, int state)
@@ -3191,6 +3199,20 @@ static ssize_t smu_sys_get_gpu_metrics(void *handle, void **table)
 	return smu->ppt_funcs->get_gpu_metrics(smu, table);
 }
 
+static ssize_t smu_sys_get_pm_metrics(void *handle, void *pm_metrics,
+				      size_t size)
+{
+	struct smu_context *smu = handle;
+
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
+
+	if (!smu->ppt_funcs->get_pm_metrics)
+		return -EOPNOTSUPP;
+
+	return smu->ppt_funcs->get_pm_metrics(smu, pm_metrics, size);
+}
+
 static int smu_enable_mgpu_fan_boost(void *handle)
 {
 	struct smu_context *smu = handle;
@@ -3332,6 +3354,7 @@ static const struct amd_pm_funcs swsmu_pm_funcs = {
 	.set_df_cstate                    = smu_set_df_cstate,
 	.set_xgmi_pstate                  = smu_set_xgmi_pstate,
 	.get_gpu_metrics                  = smu_sys_get_gpu_metrics,
+	.get_pm_metrics                   = smu_sys_get_pm_metrics,
 	.set_watermarks_for_clock_ranges     = smu_set_watermarks_for_clock_ranges,
 	.display_disable_memory_clock_switch = smu_display_disable_memory_clock_switch,
 	.get_max_sustainable_clocks_by_dc    = smu_get_max_sustainable_clocks_by_dc,

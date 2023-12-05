@@ -991,10 +991,6 @@ struct link_mst_stream_allocation_table {
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
-struct backlight_settings {
-	uint32_t backlight_millinits;
-};
-
 /* PSR feature flags */
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
@@ -1022,6 +1018,24 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_NUM,
 };
 
+enum replay_link_off_frame_count_level {
+	PR_LINK_OFF_FRAME_COUNT_FAIL = 0x0,
+	PR_LINK_OFF_FRAME_COUNT_GOOD = 0x2,
+	PR_LINK_OFF_FRAME_COUNT_BEST = 0x6,
+};
+
+/*
+ * This is general Interface for Replay to
+ * set an 32 bit variable to dmub
+ * The Message_type indicates which variable
+ * passed to DMUB.
+ */
+enum replay_FW_Message_type {
+	Replay_Msg_Not_Support = -1,
+	Replay_Set_Timing_Sync_Supported,
+	Replay_Set_Residency_Frameupdate_Timer,
+};
+
 union replay_error_status {
 	struct {
 		unsigned char STATE_TRANSITION_ERROR    :1;
@@ -1033,26 +1047,48 @@ union replay_error_status {
 };
 
 struct replay_config {
-	bool replay_supported;                          // Replay feature is supported
-	unsigned int replay_power_opt_supported;        // Power opt flags that are supported
-	bool replay_smu_opt_supported;                  // SMU optimization is supported
-	unsigned int replay_enable_option;              // Replay enablement option
-	uint32_t debug_flags;                           // Replay debug flags
-	bool replay_timing_sync_supported; // Replay desync is supported
-	bool force_disable_desync_error_check;             // Replay desync is supported
-	bool received_desync_error_hpd; //Replay Received Desync Error HPD.
-	union replay_error_status replay_error_status; // Replay error status
+	/* Replay feature is supported */
+	bool replay_supported;
+	/* Power opt flags that are supported */
+	unsigned int replay_power_opt_supported;
+	/* SMU optimization is supported */
+	bool replay_smu_opt_supported;
+	/* Replay enablement option */
+	unsigned int replay_enable_option;
+	/* Replay debug flags */
+	uint32_t debug_flags;
+	/* Replay sync is supported */
+	bool replay_timing_sync_supported;
+	/* Replay Disable desync error check. */
+	bool force_disable_desync_error_check;
+	/* Replay Received Desync Error HPD. */
+	bool received_desync_error_hpd;
+	/* Replay feature is supported long vblank */
+	bool replay_support_fast_resync_in_ultra_sleep_mode;
+	/* Replay error status */
+	union replay_error_status replay_error_status;
 };
 
-/* Replay feature flags */
+/* Replay feature flags*/
 struct replay_settings {
-	struct replay_config config;            // Replay configuration
-	bool replay_feature_enabled;            // Replay feature is ready for activating
-	bool replay_allow_active;               // Replay is currently active
-	unsigned int replay_power_opt_active;   // Power opt flags that are activated currently
-	bool replay_smu_opt_enable;             // SMU optimization is enabled
-	uint16_t coasting_vtotal;               // Current Coasting vtotal
-	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM]; // Coasting vtotal table
+	/* Replay configuration */
+	struct replay_config config;
+	/* Replay feature is ready for activating */
+	bool replay_feature_enabled;
+	/* Replay is currently active */
+	bool replay_allow_active;
+	/* Replay is currently active */
+	bool replay_allow_long_vblank;
+	/* Power opt flags that are activated currently */
+	unsigned int replay_power_opt_active;
+	/* SMU optimization is enabled */
+	bool replay_smu_opt_enable;
+	/* Current Coasting vtotal */
+	uint16_t coasting_vtotal;
+	/* Coasting vtotal table */
+	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Maximum link off frame count */
+	enum replay_link_off_frame_count_level link_off_frame_count_level;
 };
 
 /* To split out "global" and "per-panel" config settings.

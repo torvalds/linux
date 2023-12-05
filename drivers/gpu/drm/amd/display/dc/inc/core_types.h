@@ -205,6 +205,7 @@ struct resource_funcs {
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
 	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
 	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
+	void (*build_pipe_pix_clk_params)(struct pipe_ctx *pipe_ctx);
 };
 
 struct audio_support{

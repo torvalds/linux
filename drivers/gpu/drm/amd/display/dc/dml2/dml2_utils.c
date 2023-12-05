@@ -468,7 +468,7 @@ bool dml2_verify_det_buffer_configuration(struct dml2_context *in_ctx, struct dc
 	return need_recalculation;
 }
 
-bool dml2_is_stereo_timing(struct dc_stream_state *stream)
+bool dml2_is_stereo_timing(const struct dc_stream_state *stream)
 {
 	bool is_stereo = false;
 

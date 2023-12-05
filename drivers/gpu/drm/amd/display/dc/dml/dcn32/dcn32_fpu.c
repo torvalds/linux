@@ -45,6 +45,14 @@ static const struct subvp_high_refresh_list subvp_high_refresh_list = {
 				{.width = 1920, .height = 1080, }},
 };
 
+static const struct subvp_active_margin_list subvp_active_margin_list = {
+			.min_refresh = 55,
+			.max_refresh = 65,
+			.res = {
+				{.width = 2560, .height = 1440, },
+				{.width = 1920, .height = 1080, }},
+};
+
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {
 	.gpuvm_enable = 0,
 	.gpuvm_max_page_table_levels = 4,
@@ -1192,13 +1200,16 @@ static bool update_pipe_slice_table_with_split_flags(
 	 */
 	struct pipe_ctx *pipe;
 	bool odm;
-	int i;
+	int dc_pipe_idx, dml_pipe_idx = 0;
 	bool updated = false;
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &context->res_ctx.pipe_ctx[i];
+	for (dc_pipe_idx = 0;
+			dc_pipe_idx < dc->res_pool->pipe_count; dc_pipe_idx++) {
+		pipe = &context->res_ctx.pipe_ctx[dc_pipe_idx];
+		if (resource_is_pipe_type(pipe, FREE_PIPE))
+			continue;
 
-		if (merge[i]) {
+		if (merge[dc_pipe_idx]) {
 			if (resource_is_pipe_type(pipe, OPP_HEAD))
 				/* merging OPP head means reducing ODM slice
 				 * count by 1
@@ -1213,17 +1224,18 @@ static bool update_pipe_slice_table_with_split_flags(
 			updated = true;
 		}
 
-		if (split[i]) {
-			odm = vba->ODMCombineEnabled[vba->pipe_plane[i]] !=
+		if (split[dc_pipe_idx]) {
+			odm = vba->ODMCombineEnabled[vba->pipe_plane[dml_pipe_idx]] !=
 					dm_odm_combine_mode_disabled;
 			if (odm && resource_is_pipe_type(pipe, OPP_HEAD))
 				update_slice_table_for_stream(
-						table, pipe->stream, split[i] - 1);
+						table, pipe->stream, split[dc_pipe_idx] - 1);
 			else if (!odm && resource_is_pipe_type(pipe, DPP_PIPE))
 				update_slice_table_for_plane(table, pipe,
-						pipe->plane_state, split[i] - 1);
+						pipe->plane_state, split[dc_pipe_idx] - 1);
 			updated = true;
 		}
+		dml_pipe_idx++;
 	}
 	return updated;
 }
@@ -1233,15 +1245,11 @@ static void update_pipes_with_slice_table(struct dc *dc, struct dc_state *contex
 {
 	int i;
 
-	for (i = 0; i < table->odm_combine_count; i++) {
+	for (i = 0; i < table->odm_combine_count; i++)
 		resource_update_pipes_for_stream_with_slice_count(context,
 				dc->current_state, dc->res_pool,
 				table->odm_combines[i].stream,
 				table->odm_combines[i].slice_count);
-		/* TODO: move this into the function above */
-		dcn20_build_mapped_resource(dc, context,
-				table->odm_combines[i].stream);
-	}
 
 	for (i = 0; i < table->mpc_combine_count; i++)
 		resource_update_pipes_for_plane_with_slice_count(context,
@@ -1408,6 +1416,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	unsigned int dc_pipe_idx = 0;
 	int i = 0;
 	bool found_supported_config = false;
+	int vlevel_temp = 0;
 
 	dc_assert_fp_enabled();
 
@@ -1440,13 +1449,15 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	 */
 	if (!dc->debug.force_disable_subvp && !dc->caps.dmub_caps.gecc_enable && dcn32_all_pipes_have_stream_and_plane(dc, context) &&
 	    !dcn32_mpo_in_use(context) && !dcn32_any_surfaces_rotated(dc, context) && !is_test_pattern_enabled(context) &&
-		(*vlevel == context->bw_ctx.dml.soc.num_states ||
+		(*vlevel == context->bw_ctx.dml.soc.num_states || (vba->DRAMSpeedPerState[*vlevel] != vba->DRAMSpeedPerState[0] &&
+				vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] != dm_dram_clock_change_unsupported) ||
 	    vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported ||
 	    dc->debug.force_subvp_mclk_switch)) {
 
 		dcn32_merge_pipes_for_subvp(dc, context);
 		memset(merge, 0, MAX_PIPES * sizeof(bool));
 
+		vlevel_temp = *vlevel;
 		/* to re-initialize viewport after the pipe merge */
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
@@ -1514,6 +1525,9 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 				}
 			}
 		}
+
+		if (vba->DRAMSpeedPerState[*vlevel] >= vba->DRAMSpeedPerState[vlevel_temp])
+			found_supported_config = false;
 
 		// If SubVP pipe config is unsupported (or cannot be used for UCLK switching)
 		// remove phantom pipes and repopulate dml pipes
@@ -2231,6 +2245,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	int i, pipe_idx, vlevel_temp = 0;
 	double dcfclk = dcn3_2_soc.clock_limits[0].dcfclk_mhz;
 	double dcfclk_from_validation = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
+	double dram_speed_from_validation = context->bw_ctx.dml.vba.DRAMSpeed;
 	double dcfclk_from_fw_based_mclk_switching = dcfclk_from_validation;
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] !=
 			dm_dram_clock_change_unsupported;
@@ -2418,7 +2433,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 	}
 
 	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].valid) {
-		min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
+		min_dram_speed_mts = dram_speed_from_validation;
 		min_dram_speed_mts_margin = 160;
 
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
@@ -3294,25 +3309,24 @@ bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe)
 {
 	bool allow = false;
 	uint32_t refresh_rate = 0;
+	uint32_t min_refresh = subvp_active_margin_list.min_refresh;
+	uint32_t max_refresh = subvp_active_margin_list.max_refresh;
+	uint32_t i;
 
-	/* Allow subvp on displays that have active margin for 2560x1440@60hz displays
-	 * only for now. There must be no scaling as well.
-	 *
-	 * For now we only enable on 2560x1440@60hz displays to enable 4K60 + 1440p60 configs
-	 * for p-state switching.
-	 */
-	if (pipe->stream && pipe->plane_state) {
-		refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
-						pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
-						/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
-		if (pipe->stream->timing.v_addressable == 1440 &&
-				pipe->stream->timing.h_addressable == 2560 &&
-				refresh_rate >= 55 && refresh_rate <= 65 &&
-				pipe->plane_state->src_rect.height == 1440 &&
-				pipe->plane_state->src_rect.width == 2560 &&
-				pipe->plane_state->dst_rect.height == 1440 &&
-				pipe->plane_state->dst_rect.width == 2560)
+	for (i = 0; i < SUBVP_ACTIVE_MARGIN_LIST_LEN; i++) {
+		uint32_t width = subvp_active_margin_list.res[i].width;
+		uint32_t height = subvp_active_margin_list.res[i].height;
+
+		refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+			pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+		refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+
+		if (refresh_rate >= min_refresh && refresh_rate <= max_refresh &&
+				dcn32_check_native_scaling_for_res(pipe, width, height)) {
 			allow = true;
+			break;
+		}
 	}
 	return allow;
 }

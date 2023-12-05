@@ -30,7 +30,6 @@
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool set_default_brightness_aux(struct dc_link *link);
-bool set_cached_brightness_aux(struct dc_link *link);
 void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd);
 int edp_get_backlight_level(const struct dc_link *link);
 bool edp_get_backlight_level_nits(struct dc_link *link,
@@ -57,6 +56,9 @@ bool edp_set_replay_allow_active(struct dc_link *dc_link, const bool *enable,
 	bool wait, bool force_static, const unsigned int *power_opts);
 bool edp_setup_replay(struct dc_link *link,
 		const struct dc_stream_state *stream);
+bool edp_send_replay_cmd(struct dc_link *link,
+			enum replay_FW_Message_type msg,
+			union dmub_replay_cmd_set *cmd_data);
 bool edp_set_coasting_vtotal(struct dc_link *link, uint16_t coasting_vtotal);
 bool edp_replay_residency(const struct dc_link *link,
 	unsigned int *residency, const bool is_start, const bool is_alpm);

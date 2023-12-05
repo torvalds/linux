@@ -241,7 +241,12 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 
 	// Wait for DMUB to process command
 	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
-		status = dmub_srv_wait_for_idle(dmub, 100000);
+		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
+			do {
+				status = dmub_srv_wait_for_idle(dmub, 100000);
+			} while (status != DMUB_STATUS_OK);
+		} else
+			status = dmub_srv_wait_for_idle(dmub, 100000);
 
 		if (status != DMUB_STATUS_OK) {
 			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
@@ -1147,10 +1152,16 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 		return true;
 
 	if (wait) {
-		status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
-		if (status != DMUB_STATUS_OK) {
-			DC_ERROR("Error querying DMUB hw power up status: error=%d\n", status);
-			return false;
+		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
+			do {
+				status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
+			} while (status != DMUB_STATUS_OK);
+		} else {
+			status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
+			if (status != DMUB_STATUS_OK) {
+				DC_ERROR("Error querying DMUB hw power up status: error=%d\n", status);
+				return false;
+			}
 		}
 	} else
 		return dmub_srv_is_hw_pwr_up(dc_dmub_srv->dmub);
@@ -1187,7 +1198,7 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	const uint32_t max_num_polls = 10000;
 	uint32_t allow_state = 0;
 	uint32_t commit_state = 0;
-	uint32_t i;
+	int i;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1220,6 +1231,9 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 						break;
 
 					udelay(1);
+
+					if (dc->debug.disable_timeout)
+						i--;
 				}
 				ASSERT(i < max_num_polls);
 
@@ -1242,6 +1256,9 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 					break;
 
 				udelay(1);
+
+				if (dc->debug.disable_timeout)
+					i--;
 			}
 			ASSERT(i < max_num_polls);
 		}

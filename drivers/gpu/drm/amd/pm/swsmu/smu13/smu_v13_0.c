@@ -2199,7 +2199,7 @@ int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v13_0_baco_set_armd3_sequence(struct smu_context *smu,
+static int smu_v13_0_baco_set_armd3_sequence(struct smu_context *smu,
 				      enum smu_baco_seq baco_seq)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
@@ -2283,22 +2283,40 @@ int smu_v13_0_baco_set_state(struct smu_context *smu,
 
 int smu_v13_0_baco_enter(struct smu_context *smu)
 {
-	int ret = 0;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
 
-	ret = smu_v13_0_baco_set_state(smu,
-				       SMU_BACO_STATE_ENTER);
-	if (ret)
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
+		return smu_v13_0_baco_set_armd3_sequence(smu,
+				(smu_baco->maco_support && amdgpu_runtime_pm != 1) ?
+					BACO_SEQ_BAMACO : BACO_SEQ_BACO);
+	} else {
+		ret = smu_v13_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
+		if (!ret)
+			usleep_range(10000, 11000);
+
 		return ret;
-
-	msleep(10);
-
-	return ret;
+	}
 }
 
 int smu_v13_0_baco_exit(struct smu_context *smu)
 {
-	return smu_v13_0_baco_set_state(smu,
-					SMU_BACO_STATE_EXIT);
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+
+	if (adev->in_runpm && smu_cmn_is_audio_func_enabled(adev)) {
+		/* Wait for PMFW handling for the Dstate change */
+		usleep_range(10000, 11000);
+		ret = smu_v13_0_baco_set_armd3_sequence(smu, BACO_SEQ_ULPS);
+	} else {
+		ret = smu_v13_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
+	}
+
+	if (!ret)
+		adev->gfx.is_poweron = false;
+
+	return ret;
 }
 
 int smu_v13_0_set_gfx_power_up_by_imu(struct smu_context *smu)

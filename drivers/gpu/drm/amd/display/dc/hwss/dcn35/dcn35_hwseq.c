@@ -145,17 +145,36 @@ void dcn35_init_hw(struct dc *dc)
 		hws->funcs.bios_golden_init(dc);
 	}
 
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL2,  0);
+	if (!dc->debug.disable_clock_gate) {
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL2,  0);
 
-	/* Disable gating for PHYASYMCLK. This will be enabled in dccg if needed */
-	REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, PHYASYMCLK_ROOT_GATE_DISABLE, 1,
-			PHYBSYMCLK_ROOT_GATE_DISABLE, 1,
-			PHYCSYMCLK_ROOT_GATE_DISABLE, 1,
-			PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
-			PHYESYMCLK_ROOT_GATE_DISABLE, 1);
+		/* Disable gating for PHYASYMCLK. This will be enabled in dccg if needed */
+		REG_UPDATE_5(DCCG_GATE_DISABLE_CNTL2, PHYASYMCLK_ROOT_GATE_DISABLE, 1,
+				PHYBSYMCLK_ROOT_GATE_DISABLE, 1,
+				PHYCSYMCLK_ROOT_GATE_DISABLE, 1,
+				PHYDSYMCLK_ROOT_GATE_DISABLE, 1,
+				PHYESYMCLK_ROOT_GATE_DISABLE, 1);
 
-	REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0x1f7c3fcf);
+		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL4,
+				DPIASYMCLK0_GATE_DISABLE, 0,
+				DPIASYMCLK1_GATE_DISABLE, 0,
+				DPIASYMCLK2_GATE_DISABLE, 0,
+				DPIASYMCLK3_GATE_DISABLE, 0);
+
+		REG_WRITE(DCCG_GATE_DISABLE_CNTL5, 0xFFFFFFFF);
+		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL5,
+				DTBCLK_P0_GATE_DISABLE, 0,
+				DTBCLK_P1_GATE_DISABLE, 0,
+				DTBCLK_P2_GATE_DISABLE, 0,
+				DTBCLK_P3_GATE_DISABLE, 0);
+		REG_UPDATE_4(DCCG_GATE_DISABLE_CNTL5,
+				DPSTREAMCLK0_GATE_DISABLE, 0,
+				DPSTREAMCLK1_GATE_DISABLE, 0,
+				DPSTREAMCLK2_GATE_DISABLE, 0,
+				DPSTREAMCLK3_GATE_DISABLE, 0);
+
+	}
 
 	// Initialize the dccg
 	if (res_pool->dccg->funcs->dccg_init)
@@ -332,9 +351,6 @@ void dcn35_init_hw(struct dc *dc)
 	if (dc->res_pool->pg_cntl) {
 		if (dc->res_pool->pg_cntl->funcs->init_pg_status)
 			dc->res_pool->pg_cntl->funcs->init_pg_status(dc->res_pool->pg_cntl);
-
-		if (dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22)
-			dc->res_pool->pg_cntl->funcs->set_force_poweron_domain22(dc->res_pool->pg_cntl, false);
 	}
 }
 
