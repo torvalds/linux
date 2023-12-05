@@ -286,9 +286,31 @@ static bool tcf_ct_flow_is_outdated(const struct flow_offload *flow)
 	       !test_bit(NF_FLOW_HW_ESTABLISHED, &flow->flags);
 }
 
+static void tcf_ct_flow_table_get_ref(struct tcf_ct_flow_table *ct_ft);
+
+static void tcf_ct_nf_get(struct nf_flowtable *ft)
+{
+	struct tcf_ct_flow_table *ct_ft =
+		container_of(ft, struct tcf_ct_flow_table, nf_ft);
+
+	tcf_ct_flow_table_get_ref(ct_ft);
+}
+
+static void tcf_ct_flow_table_put(struct tcf_ct_flow_table *ct_ft);
+
+static void tcf_ct_nf_put(struct nf_flowtable *ft)
+{
+	struct tcf_ct_flow_table *ct_ft =
+		container_of(ft, struct tcf_ct_flow_table, nf_ft);
+
+	tcf_ct_flow_table_put(ct_ft);
+}
+
 static struct nf_flowtable_type flowtable_ct = {
 	.gc		= tcf_ct_flow_is_outdated,
 	.action		= tcf_ct_flow_table_fill_actions,
+	.get		= tcf_ct_nf_get,
+	.put		= tcf_ct_nf_put,
 	.owner		= THIS_MODULE,
 };
 
@@ -337,9 +359,13 @@ err_alloc:
 	return err;
 }
 
+static void tcf_ct_flow_table_get_ref(struct tcf_ct_flow_table *ct_ft)
+{
+	refcount_inc(&ct_ft->ref);
+}
+
 static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 {
-	struct flow_block_cb *block_cb, *tmp_cb;
 	struct tcf_ct_flow_table *ct_ft;
 	struct flow_block *block;
 
@@ -347,13 +373,9 @@ static void tcf_ct_flow_table_cleanup_work(struct work_struct *work)
 			     rwork);
 	nf_flow_table_free(&ct_ft->nf_ft);
 
-	/* Remove any remaining callbacks before cleanup */
 	block = &ct_ft->nf_ft.flow_block;
 	down_write(&ct_ft->nf_ft.flow_block_lock);
-	list_for_each_entry_safe(block_cb, tmp_cb, &block->cb_list, list) {
-		list_del(&block_cb->list);
-		flow_block_cb_free(block_cb);
-	}
+	WARN_ON(!list_empty(&block->cb_list));
 	up_write(&ct_ft->nf_ft.flow_block_lock);
 	kfree(ct_ft);
 
