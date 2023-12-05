@@ -47,6 +47,14 @@ static void dcc_early_write(struct console *con, const char *s, unsigned n)
 static int __init dcc_early_console_setup(struct earlycon_device *device,
 					  const char *opt)
 {
+	unsigned int count = 0x4000000;
+
+	while (--count && (__dcc_getstatus() & DCC_STATUS_TX))
+		cpu_relax();
+
+	if (__dcc_getstatus() & DCC_STATUS_TX)
+		return -ENODEV;
+
 	device->con->write = dcc_early_write;
 
 	return 0;
