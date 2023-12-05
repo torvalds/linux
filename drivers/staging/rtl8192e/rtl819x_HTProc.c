@@ -77,9 +77,9 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	ht_info->reg_bw_40mhz = 1;
 
 	if (ht_info->reg_bw_40mhz)
-		ht_info->bRegSuppCCK = 1;
+		ht_info->reg_supp_cck = 1;
 	else
-		ht_info->bRegSuppCCK = true;
+		ht_info->reg_supp_cck = true;
 
 	ht_info->nAMSDU_MaxSize = 7935UL;
 	ht_info->bAMSDU_Support = 0;
@@ -286,7 +286,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->RxSTBC			= 0;
 	pCapELE->DelayBA		= 0;
 	pCapELE->MaxAMSDUSize = (MAX_RECEIVE_BUFFER_SIZE >= 7935) ? 1 : 0;
-	pCapELE->DssCCk = ((pHT->reg_bw_40mhz) ? (pHT->bRegSuppCCK ? 1 : 0) : 0);
+	pCapELE->DssCCk = ((pHT->reg_bw_40mhz) ? (pHT->reg_supp_cck ? 1 : 0) : 0);
 	pCapELE->PSMP = 0;
 	pCapELE->LSigTxopProtect = 0;
 
@@ -485,7 +485,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 				     ((pPeerHTCap->ShortGI40Mhz == 1) ?
 				     true : false) : false);
 
-	ht_info->bCurSuppCCK = ((ht_info->bRegSuppCCK) ?
+	ht_info->bCurSuppCCK = ((ht_info->reg_supp_cck) ?
 			       ((pPeerHTCap->DssCCk == 1) ? true :
 			       false) : false);
 
