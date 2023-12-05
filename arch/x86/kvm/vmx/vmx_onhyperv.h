@@ -4,11 +4,12 @@
 #define __ARCH_X86_KVM_VMX_ONHYPERV_H__
 
 #include <asm/hyperv-tlfs.h>
+#include <asm/mshyperv.h>
 
 #include <linux/jump_label.h>
 
 #include "capabilities.h"
-#include "hyperv.h"
+#include "hyperv_evmcs.h"
 #include "vmcs12.h"
 
 #define current_evmcs ((struct hv_enlightened_vmcs *)this_cpu_read(current_vmcs))
