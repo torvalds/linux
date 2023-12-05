@@ -1117,11 +1117,10 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 
 static int i915_panel_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct intel_dp *intel_dp =
-		intel_attached_dp(to_intel_connector(connector));
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 
-	if (connector->status != connector_status_connected)
+	if (connector->base.status != connector_status_connected)
 		return -ENODEV;
 
 	seq_printf(m, "Panel power up delay: %d\n",
@@ -1139,23 +1138,23 @@ DEFINE_SHOW_ATTRIBUTE(i915_panel);
 
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int ret;
 
 	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
 	if (ret)
 		return ret;
 
-	if (!connector->encoder || connector->status != connector_status_connected) {
+	if (!connector->base.encoder ||
+	    connector->base.status != connector_status_connected) {
 		ret = -ENODEV;
 		goto out;
 	}
 
-	seq_printf(m, "%s:%d HDCP version: ", connector->name,
-		   connector->base.id);
-	intel_hdcp_info(m, intel_connector);
+	seq_printf(m, "%s:%d HDCP version: ", connector->base.name,
+		   connector->base.base.id);
+	intel_hdcp_info(m, connector);
 
 out:
 	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
@@ -1166,16 +1165,16 @@ DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
 
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
-	struct intel_encoder *encoder;
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	int connector_type = connector->base.connector_type;
 	bool lpsp_capable = false;
 
-	encoder = intel_attached_encoder(to_intel_connector(connector));
 	if (!encoder)
 		return -ENODEV;
 
-	if (connector->status != connector_status_connected)
+	if (connector->base.status != connector_status_connected)
 		return -ENODEV;
 
 	if (DISPLAY_VER(i915) >= 13)
@@ -1188,15 +1187,15 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 		 */
 		lpsp_capable = encoder->port <= PORT_B;
 	else if (DISPLAY_VER(i915) == 11)
-		lpsp_capable = (connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-				connector->connector_type == DRM_MODE_CONNECTOR_eDP);
+		lpsp_capable = (connector_type == DRM_MODE_CONNECTOR_DSI ||
+				connector_type == DRM_MODE_CONNECTOR_eDP);
 	else if (IS_DISPLAY_VER(i915, 9, 10))
 		lpsp_capable = (encoder->port == PORT_A &&
-				(connector->connector_type == DRM_MODE_CONNECTOR_DSI ||
-				 connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
-				 connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort));
+				(connector_type == DRM_MODE_CONNECTOR_DSI ||
+				 connector_type == DRM_MODE_CONNECTOR_eDP ||
+				 connector_type == DRM_MODE_CONNECTOR_DisplayPort));
 	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
-		lpsp_capable = connector->connector_type == DRM_MODE_CONNECTOR_eDP;
+		lpsp_capable = connector_type == DRM_MODE_CONNECTOR_eDP;
 
 	seq_printf(m, "LPSP: %s\n", lpsp_capable ? "capable" : "incapable");
 
@@ -1206,7 +1205,7 @@ DEFINE_SHOW_ATTRIBUTE(i915_lpsp_capability);
 
 static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 {
-	struct intel_connector *connector = to_intel_connector(m->private);
+	struct intel_connector *connector = m->private;
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct drm_crtc *crtc;
 	struct intel_dp *intel_dp;
@@ -1276,13 +1275,13 @@ static ssize_t i915_dsc_fec_support_write(struct file *file,
 					  const char __user *ubuf,
 					  size_t len, loff_t *offp)
 {
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	bool dsc_enable = false;
 	int ret;
-	struct drm_connector *connector =
-		((struct seq_file *)file->private_data)->private;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
-	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	if (len == 0)
 		return 0;
@@ -1320,22 +1319,22 @@ static const struct file_operations i915_dsc_fec_support_fops = {
 
 static int i915_dsc_bpc_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_device *dev = connector->dev;
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
 	int ret;
 
 	if (!encoder)
 		return -ENODEV;
 
-	ret = drm_modeset_lock_single_interruptible(&dev->mode_config.connection_mutex);
+	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
 	if (ret)
 		return ret;
 
-	crtc = connector->state->crtc;
-	if (connector->status != connector_status_connected || !crtc) {
+	crtc = connector->base.state->crtc;
+	if (connector->base.status != connector_status_connected || !crtc) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1343,7 +1342,7 @@ static int i915_dsc_bpc_show(struct seq_file *m, void *data)
 	crtc_state = to_intel_crtc_state(crtc->state);
 	seq_printf(m, "Input_BPC: %d\n", crtc_state->dsc.config.bits_per_component);
 
-out:	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+out:	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
 
 	return ret;
 }
@@ -1352,9 +1351,9 @@ static ssize_t i915_dsc_bpc_write(struct file *file,
 				  const char __user *ubuf,
 				  size_t len, loff_t *offp)
 {
-	struct drm_connector *connector =
-		((struct seq_file *)file->private_data)->private;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = m->private;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	int dsc_bpc = 0;
 	int ret;
@@ -1386,22 +1385,22 @@ static const struct file_operations i915_dsc_bpc_fops = {
 
 static int i915_dsc_output_format_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_device *dev = connector->dev;
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct drm_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
 	int ret;
 
 	if (!encoder)
 		return -ENODEV;
 
-	ret = drm_modeset_lock_single_interruptible(&dev->mode_config.connection_mutex);
+	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
 	if (ret)
 		return ret;
 
-	crtc = connector->state->crtc;
-	if (connector->status != connector_status_connected || !crtc) {
+	crtc = connector->base.state->crtc;
+	if (connector->base.status != connector_status_connected || !crtc) {
 		ret = -ENODEV;
 		goto out;
 	}
@@ -1410,7 +1409,7 @@ static int i915_dsc_output_format_show(struct seq_file *m, void *data)
 	seq_printf(m, "DSC_Output_Format: %s\n",
 		   intel_output_format_name(crtc_state->output_format));
 
-out:	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+out:	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
 
 	return ret;
 }
@@ -1419,9 +1418,9 @@ static ssize_t i915_dsc_output_format_write(struct file *file,
 					    const char __user *ubuf,
 					    size_t len, loff_t *offp)
 {
-	struct drm_connector *connector =
-		((struct seq_file *)file->private_data)->private;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = m->private;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	int dsc_output_format = 0;
 	int ret;
@@ -1453,33 +1452,32 @@ static const struct file_operations i915_dsc_output_format_fops = {
 
 static int i915_dsc_fractional_bpp_show(struct seq_file *m, void *data)
 {
-	struct drm_connector *connector = m->private;
-	struct drm_device *dev = connector->dev;
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
 	struct drm_crtc *crtc;
 	struct intel_dp *intel_dp;
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_encoder *encoder = intel_attached_encoder(intel_connector);
 	int ret;
 
 	if (!encoder)
 		return -ENODEV;
 
-	ret = drm_modeset_lock_single_interruptible(&dev->mode_config.connection_mutex);
+	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
 	if (ret)
 		return ret;
 
-	crtc = connector->state->crtc;
-	if (connector->status != connector_status_connected || !crtc) {
+	crtc = connector->base.state->crtc;
+	if (connector->base.status != connector_status_connected || !crtc) {
 		ret = -ENODEV;
 		goto out;
 	}
 
-	intel_dp = intel_attached_dp(intel_connector);
+	intel_dp = intel_attached_dp(connector);
 	seq_printf(m, "Force_DSC_Fractional_BPP_Enable: %s\n",
 		   str_yes_no(intel_dp->force_dsc_fractional_bpp_en));
 
 out:
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
 
 	return ret;
 }
@@ -1488,10 +1486,10 @@ static ssize_t i915_dsc_fractional_bpp_write(struct file *file,
 					     const char __user *ubuf,
 					     size_t len, loff_t *offp)
 {
-	struct drm_connector *connector =
-		((struct seq_file *)file->private_data)->private;
-	struct intel_encoder *encoder = intel_attached_encoder(to_intel_connector(connector));
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = m->private;
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	bool dsc_fractional_bpp_enable = false;
 	int ret;
@@ -1586,29 +1584,29 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 
 	if (connector_type == DRM_MODE_CONNECTOR_eDP)
 		debugfs_create_file("i915_panel_timings", S_IRUGO, root,
-				    &connector->base, &i915_panel_fops);
+				    connector, &i915_panel_fops);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
 		debugfs_create_file("i915_hdcp_sink_capability", S_IRUGO, root,
-				    &connector->base, &i915_hdcp_sink_capability_fops);
+				    connector, &i915_hdcp_sink_capability_fops);
 	}
 
 	if (DISPLAY_VER(i915) >= 11 &&
 	    ((connector_type == DRM_MODE_CONNECTOR_DisplayPort && !connector->mst_port) ||
 	     connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		debugfs_create_file("i915_dsc_fec_support", 0644, root,
-				    &connector->base, &i915_dsc_fec_support_fops);
+				    connector, &i915_dsc_fec_support_fops);
 
 		debugfs_create_file("i915_dsc_bpc", 0644, root,
-				    &connector->base, &i915_dsc_bpc_fops);
+				    connector, &i915_dsc_bpc_fops);
 
 		debugfs_create_file("i915_dsc_output_format", 0644, root,
-				    &connector->base, &i915_dsc_output_format_fops);
+				    connector, &i915_dsc_output_format_fops);
 
 		debugfs_create_file("i915_dsc_fractional_bpp", 0644, root,
-				    &connector->base, &i915_dsc_fractional_bpp_fops);
+				    connector, &i915_dsc_fractional_bpp_fops);
 	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_DSI ||
@@ -1617,7 +1615,7 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIB)
 		debugfs_create_file("i915_lpsp_capability", 0444, root,
-				    &connector->base, &i915_lpsp_capability_fops);
+				    connector, &i915_lpsp_capability_fops);
 }
 
 /**
