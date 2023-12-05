@@ -66,6 +66,299 @@ static void wq_table_clear_entry(int cpu)
 static LIST_HEAD(iaa_devices);
 static DEFINE_MUTEX(iaa_devices_lock);
 
+static struct iaa_compression_mode *iaa_compression_modes[IAA_COMP_MODES_MAX];
+
+static int find_empty_iaa_compression_mode(void)
+{
+	int i = -EINVAL;
+
+	for (i = 0; i < IAA_COMP_MODES_MAX; i++) {
+		if (iaa_compression_modes[i])
+			continue;
+		break;
+	}
+
+	return i;
+}
+
+static struct iaa_compression_mode *find_iaa_compression_mode(const char *name, int *idx)
+{
+	struct iaa_compression_mode *mode;
+	int i;
+
+	for (i = 0; i < IAA_COMP_MODES_MAX; i++) {
+		mode = iaa_compression_modes[i];
+		if (!mode)
+			continue;
+
+		if (!strcmp(mode->name, name)) {
+			*idx = i;
+			return iaa_compression_modes[i];
+		}
+	}
+
+	return NULL;
+}
+
+static void free_iaa_compression_mode(struct iaa_compression_mode *mode)
+{
+	kfree(mode->name);
+	kfree(mode->ll_table);
+	kfree(mode->d_table);
+	kfree(mode->header_table);
+
+	kfree(mode);
+}
+
+/*
+ * IAA Compression modes are defined by an ll_table, a d_table, and an
+ * optional header_table.  These tables are typically generated and
+ * captured using statistics collected from running actual
+ * compress/decompress workloads.
+ *
+ * A module or other kernel code can add and remove compression modes
+ * with a given name using the exported @add_iaa_compression_mode()
+ * and @remove_iaa_compression_mode functions.
+ *
+ * When a new compression mode is added, the tables are saved in a
+ * global compression mode list.  When IAA devices are added, a
+ * per-IAA device dma mapping is created for each IAA device, for each
+ * compression mode.  These are the tables used to do the actual
+ * compression/deccompression and are unmapped if/when the devices are
+ * removed.  Currently, compression modes must be added before any
+ * device is added, and removed after all devices have been removed.
+ */
+
+/**
+ * remove_iaa_compression_mode - Remove an IAA compression mode
+ * @name: The name the compression mode will be known as
+ *
+ * Remove the IAA compression mode named @name.
+ */
+void remove_iaa_compression_mode(const char *name)
+{
+	struct iaa_compression_mode *mode;
+	int idx;
+
+	mutex_lock(&iaa_devices_lock);
+
+	if (!list_empty(&iaa_devices))
+		goto out;
+
+	mode = find_iaa_compression_mode(name, &idx);
+	if (mode) {
+		free_iaa_compression_mode(mode);
+		iaa_compression_modes[idx] = NULL;
+	}
+out:
+	mutex_unlock(&iaa_devices_lock);
+}
+EXPORT_SYMBOL_GPL(remove_iaa_compression_mode);
+
+/**
+ * add_iaa_compression_mode - Add an IAA compression mode
+ * @name: The name the compression mode will be known as
+ * @ll_table: The ll table
+ * @ll_table_size: The ll table size in bytes
+ * @d_table: The d table
+ * @d_table_size: The d table size in bytes
+ * @header_table: Optional header table
+ * @header_table_size: Optional header table size in bytes
+ * @gen_decomp_table_flags: Otional flags used to generate the decomp table
+ * @init: Optional callback function to init the compression mode data
+ * @free: Optional callback function to free the compression mode data
+ *
+ * Add a new IAA compression mode named @name.
+ *
+ * Returns 0 if successful, errcode otherwise.
+ */
+int add_iaa_compression_mode(const char *name,
+			     const u32 *ll_table,
+			     int ll_table_size,
+			     const u32 *d_table,
+			     int d_table_size,
+			     const u8 *header_table,
+			     int header_table_size,
+			     u16 gen_decomp_table_flags,
+			     iaa_dev_comp_init_fn_t init,
+			     iaa_dev_comp_free_fn_t free)
+{
+	struct iaa_compression_mode *mode;
+	int idx, ret = -ENOMEM;
+
+	mutex_lock(&iaa_devices_lock);
+
+	if (!list_empty(&iaa_devices)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	mode = kzalloc(sizeof(*mode), GFP_KERNEL);
+	if (!mode)
+		goto out;
+
+	mode->name = kstrdup(name, GFP_KERNEL);
+	if (!mode->name)
+		goto free;
+
+	if (ll_table) {
+		mode->ll_table = kzalloc(ll_table_size, GFP_KERNEL);
+		if (!mode->ll_table)
+			goto free;
+		memcpy(mode->ll_table, ll_table, ll_table_size);
+		mode->ll_table_size = ll_table_size;
+	}
+
+	if (d_table) {
+		mode->d_table = kzalloc(d_table_size, GFP_KERNEL);
+		if (!mode->d_table)
+			goto free;
+		memcpy(mode->d_table, d_table, d_table_size);
+		mode->d_table_size = d_table_size;
+	}
+
+	if (header_table) {
+		mode->header_table = kzalloc(header_table_size, GFP_KERNEL);
+		if (!mode->header_table)
+			goto free;
+		memcpy(mode->header_table, header_table, header_table_size);
+		mode->header_table_size = header_table_size;
+	}
+
+	mode->gen_decomp_table_flags = gen_decomp_table_flags;
+
+	mode->init = init;
+	mode->free = free;
+
+	idx = find_empty_iaa_compression_mode();
+	if (idx < 0)
+		goto free;
+
+	pr_debug("IAA compression mode %s added at idx %d\n",
+		 mode->name, idx);
+
+	iaa_compression_modes[idx] = mode;
+
+	ret = 0;
+out:
+	mutex_unlock(&iaa_devices_lock);
+
+	return ret;
+free:
+	free_iaa_compression_mode(mode);
+	goto out;
+}
+EXPORT_SYMBOL_GPL(add_iaa_compression_mode);
+
+static void free_device_compression_mode(struct iaa_device *iaa_device,
+					 struct iaa_device_compression_mode *device_mode)
+{
+	size_t size = sizeof(struct aecs_comp_table_record) + IAA_AECS_ALIGN;
+	struct device *dev = &iaa_device->idxd->pdev->dev;
+
+	kfree(device_mode->name);
+
+	if (device_mode->aecs_comp_table)
+		dma_free_coherent(dev, size, device_mode->aecs_comp_table,
+				  device_mode->aecs_comp_table_dma_addr);
+	if (device_mode->aecs_decomp_table)
+		dma_free_coherent(dev, size, device_mode->aecs_decomp_table,
+				  device_mode->aecs_decomp_table_dma_addr);
+
+	kfree(device_mode);
+}
+
+static int init_device_compression_mode(struct iaa_device *iaa_device,
+					struct iaa_compression_mode *mode,
+					int idx, struct idxd_wq *wq)
+{
+	size_t size = sizeof(struct aecs_comp_table_record) + IAA_AECS_ALIGN;
+	struct device *dev = &iaa_device->idxd->pdev->dev;
+	struct iaa_device_compression_mode *device_mode;
+	int ret = -ENOMEM;
+
+	device_mode = kzalloc(sizeof(*device_mode), GFP_KERNEL);
+	if (!device_mode)
+		return -ENOMEM;
+
+	device_mode->name = kstrdup(mode->name, GFP_KERNEL);
+	if (!device_mode->name)
+		goto free;
+
+	device_mode->aecs_comp_table = dma_alloc_coherent(dev, size,
+							  &device_mode->aecs_comp_table_dma_addr, GFP_KERNEL);
+	if (!device_mode->aecs_comp_table)
+		goto free;
+
+	device_mode->aecs_decomp_table = dma_alloc_coherent(dev, size,
+							    &device_mode->aecs_decomp_table_dma_addr, GFP_KERNEL);
+	if (!device_mode->aecs_decomp_table)
+		goto free;
+
+	/* Add Huffman table to aecs */
+	memset(device_mode->aecs_comp_table, 0, sizeof(*device_mode->aecs_comp_table));
+	memcpy(device_mode->aecs_comp_table->ll_sym, mode->ll_table, mode->ll_table_size);
+	memcpy(device_mode->aecs_comp_table->d_sym, mode->d_table, mode->d_table_size);
+
+	if (mode->init) {
+		ret = mode->init(device_mode);
+		if (ret)
+			goto free;
+	}
+
+	/* mode index should match iaa_compression_modes idx */
+	iaa_device->compression_modes[idx] = device_mode;
+
+	pr_debug("IAA %s compression mode initialized for iaa device %d\n",
+		 mode->name, iaa_device->idxd->id);
+
+	ret = 0;
+out:
+	return ret;
+free:
+	pr_debug("IAA %s compression mode initialization failed for iaa device %d\n",
+		 mode->name, iaa_device->idxd->id);
+
+	free_device_compression_mode(iaa_device, device_mode);
+	goto out;
+}
+
+static int init_device_compression_modes(struct iaa_device *iaa_device,
+					 struct idxd_wq *wq)
+{
+	struct iaa_compression_mode *mode;
+	int i, ret = 0;
+
+	for (i = 0; i < IAA_COMP_MODES_MAX; i++) {
+		mode = iaa_compression_modes[i];
+		if (!mode)
+			continue;
+
+		ret = init_device_compression_mode(iaa_device, mode, i, wq);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static void remove_device_compression_modes(struct iaa_device *iaa_device)
+{
+	struct iaa_device_compression_mode *device_mode;
+	int i;
+
+	for (i = 0; i < IAA_COMP_MODES_MAX; i++) {
+		device_mode = iaa_device->compression_modes[i];
+		if (!device_mode)
+			continue;
+
+		free_device_compression_mode(iaa_device, device_mode);
+		iaa_device->compression_modes[i] = NULL;
+		if (iaa_compression_modes[i]->free)
+			iaa_compression_modes[i]->free(device_mode);
+	}
+}
+
 static struct iaa_device *iaa_device_alloc(void)
 {
 	struct iaa_device *iaa_device;
@@ -120,8 +413,21 @@ static struct iaa_device *add_iaa_device(struct idxd_device *idxd)
 	return iaa_device;
 }
 
+static int init_iaa_device(struct iaa_device *iaa_device, struct iaa_wq *iaa_wq)
+{
+	int ret = 0;
+
+	ret = init_device_compression_modes(iaa_device, iaa_wq->wq);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static void del_iaa_device(struct iaa_device *iaa_device)
 {
+	remove_device_compression_modes(iaa_device);
+
 	list_del(&iaa_device->list);
 
 	iaa_device_free(iaa_device);
@@ -273,6 +579,13 @@ static int save_iaa_wq(struct idxd_wq *wq)
 
 		ret = add_iaa_wq(new_device, wq, &new_wq);
 		if (ret) {
+			del_iaa_device(new_device);
+			goto out;
+		}
+
+		ret = init_iaa_device(new_device, new_wq);
+		if (ret) {
+			del_iaa_wq(new_device, new_wq->wq);
 			del_iaa_device(new_device);
 			goto out;
 		}
@@ -517,20 +830,32 @@ static int __init iaa_crypto_init_module(void)
 	nr_nodes = num_online_nodes();
 	nr_cpus_per_node = nr_cpus / nr_nodes;
 
+	ret = iaa_aecs_init_fixed();
+	if (ret < 0) {
+		pr_debug("IAA fixed compression mode init failed\n");
+		goto out;
+	}
+
 	ret = idxd_driver_register(&iaa_crypto_driver);
 	if (ret) {
 		pr_debug("IAA wq sub-driver registration failed\n");
-		goto out;
+		goto err_driver_reg;
 	}
 
 	pr_debug("initialized\n");
 out:
 	return ret;
+
+err_driver_reg:
+	iaa_aecs_cleanup_fixed();
+
+	goto out;
 }
 
 static void __exit iaa_crypto_cleanup_module(void)
 {
 	idxd_driver_unregister(&iaa_crypto_driver);
+	iaa_aecs_cleanup_fixed();
 
 	pr_debug("cleaned up\n");
 }
