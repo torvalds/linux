@@ -65,9 +65,10 @@ struct xe_migrate {
 };
 
 #define MAX_PREEMPTDISABLE_TRANSFER SZ_8M /* Around 1ms. */
+#define MAX_CCS_LIMITED_TRANSFER SZ_4M /* XE_PAGE_SIZE * (FIELD_MAX(XE2_CCS_SIZE_MASK) + 1) */
 #define NUM_KERNEL_PDE 17
 #define NUM_PT_SLOTS 32
-#define NUM_PT_PER_BLIT (MAX_PREEMPTDISABLE_TRANSFER / SZ_2M)
+#define LEVEL0_PAGE_TABLE_ENCODE_SIZE SZ_2M
 
 /**
  * xe_tile_migrate_engine() - Get this tile's migrate engine.
@@ -366,14 +367,22 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 	return m;
 }
 
-static u64 xe_migrate_res_sizes(struct xe_res_cursor *cur)
+static u64 max_mem_transfer_per_pass(struct xe_device *xe)
+{
+	if (!IS_DGFX(xe) && xe_device_has_flat_ccs(xe))
+		return MAX_CCS_LIMITED_TRANSFER;
+
+	return MAX_PREEMPTDISABLE_TRANSFER;
+}
+
+static u64 xe_migrate_res_sizes(struct xe_device *xe, struct xe_res_cursor *cur)
 {
 	/*
 	 * For VRAM we use identity mapped pages so we are limited to current
 	 * cursor size. For system we program the pages ourselves so we have no
 	 * such limitation.
 	 */
-	return min_t(u64, MAX_PREEMPTDISABLE_TRANSFER,
+	return min_t(u64, max_mem_transfer_per_pass(xe),
 		     mem_type_is_vram(cur->mem_type) ? cur->size :
 		     cur->remaining);
 }
@@ -672,10 +681,12 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		u32 update_idx;
 		u64 ccs_ofs, ccs_size;
 		u32 ccs_pt;
-		bool usm = xe->info.has_usm;
 
-		src_L0 = xe_migrate_res_sizes(&src_it);
-		dst_L0 = xe_migrate_res_sizes(&dst_it);
+		bool usm = xe->info.has_usm;
+		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+
+		src_L0 = xe_migrate_res_sizes(xe, &src_it);
+		dst_L0 = xe_migrate_res_sizes(xe, &dst_it);
 
 		drm_dbg(&xe->drm, "Pass %u, sizes: %llu & %llu\n",
 			pass++, src_L0, dst_L0);
@@ -684,18 +695,18 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 
 		batch_size += pte_update_size(m, src_is_vram, src, &src_it, &src_L0,
 					      &src_L0_ofs, &src_L0_pt, 0, 0,
-					      NUM_PT_PER_BLIT);
+					      avail_pts);
 
 		batch_size += pte_update_size(m, dst_is_vram, dst, &dst_it, &src_L0,
 					      &dst_L0_ofs, &dst_L0_pt, 0,
-					      NUM_PT_PER_BLIT, NUM_PT_PER_BLIT);
+					      avail_pts, avail_pts);
 
 		if (copy_system_ccs) {
 			ccs_size = xe_device_ccs_bytes(xe, src_L0);
 			batch_size += pte_update_size(m, false, NULL, &ccs_it, &ccs_size,
 						      &ccs_ofs, &ccs_pt, 0,
-						      2 * NUM_PT_PER_BLIT,
-						      NUM_PT_PER_BLIT);
+						      2 * avail_pts,
+						      avail_pts);
 		}
 
 		/* Add copy commands size here */
@@ -922,9 +933,12 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		struct xe_sched_job *job;
 		struct xe_bb *bb;
 		u32 batch_size, update_idx;
-		bool usm = xe->info.has_usm;
 
-		clear_L0 = xe_migrate_res_sizes(&src_it);
+		bool usm = xe->info.has_usm;
+		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
+
+		clear_L0 = xe_migrate_res_sizes(xe, &src_it);
+
 		drm_dbg(&xe->drm, "Pass %u, size: %llu\n", pass++, clear_L0);
 
 		/* Calculate final sizes and batch size.. */
@@ -932,7 +946,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 			pte_update_size(m, clear_vram, src, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
 					emit_clear_cmd_len(gt), 0,
-					NUM_PT_PER_BLIT);
+					avail_pts);
 		if (xe_device_has_flat_ccs(xe) && clear_vram)
 			batch_size += EMIT_COPY_CCS_DW;
 
