@@ -10,15 +10,42 @@
 
 #define IDXD_SUBDRIVER_NAME		"crypto"
 
+#define IAA_DECOMP_ENABLE		BIT(0)
+#define IAA_DECOMP_FLUSH_OUTPUT		BIT(1)
+#define IAA_DECOMP_CHECK_FOR_EOB	BIT(2)
+#define IAA_DECOMP_STOP_ON_EOB		BIT(3)
+#define IAA_DECOMP_SUPPRESS_OUTPUT	BIT(9)
+
+#define IAA_COMP_FLUSH_OUTPUT		BIT(1)
+#define IAA_COMP_APPEND_EOB		BIT(2)
+
+#define IAA_COMPLETION_TIMEOUT		1000000
+
+#define IAA_ANALYTICS_ERROR		0x0a
+#define IAA_ERROR_DECOMP_BUF_OVERFLOW	0x0b
+#define IAA_ERROR_COMP_BUF_OVERFLOW	0x19
+#define IAA_ERROR_WATCHDOG_EXPIRED	0x24
+
 #define IAA_COMP_MODES_MAX		2
 
 #define FIXED_HDR			0x2
 #define FIXED_HDR_SIZE			3
 
+#define IAA_COMP_FLAGS			(IAA_COMP_FLUSH_OUTPUT | \
+					 IAA_COMP_APPEND_EOB)
+
+#define IAA_DECOMP_FLAGS		(IAA_DECOMP_ENABLE |	   \
+					 IAA_DECOMP_FLUSH_OUTPUT | \
+					 IAA_DECOMP_CHECK_FOR_EOB | \
+					 IAA_DECOMP_STOP_ON_EOB)
+
 /* Representation of IAA workqueue */
 struct iaa_wq {
 	struct list_head	list;
+
 	struct idxd_wq		*wq;
+	int			ref;
+	bool			remove;
 
 	struct iaa_device	*iaa_device;
 };
@@ -118,5 +145,14 @@ int add_iaa_compression_mode(const char *name,
 			     iaa_dev_comp_free_fn_t free);
 
 void remove_iaa_compression_mode(const char *name);
+
+enum iaa_mode {
+	IAA_MODE_FIXED,
+};
+
+struct iaa_compression_ctx {
+	enum iaa_mode	mode;
+	bool		verify_compress;
+};
 
 #endif
