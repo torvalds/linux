@@ -343,6 +343,7 @@ struct aspeed_video {
 
 	struct regmap *scu;
 	struct regmap *gfx;
+	struct regmap *video0;
 
 	u32 version;
 	u32 jpeg_mode;
@@ -1694,6 +1695,16 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 				   FIELD_PREP(VE_MODE_DT_VER_STABLE, 6) |
 				   FIELD_PREP(VE_MODE_DT_EDG_THROD, 0x65));
 
+	// 2700-A0 VE1 need VE0's registers, 04 and 08, setup to work
+	if (video->version == 7 && video->id == 1) {
+		regmap_read(video->video0, VE_PROTECTION_KEY, &val);
+		if (val == 0) {
+			regmap_write(video->video0, VE_PROTECTION_KEY, VE_PROTECTION_KEY_UNLOCK);
+			regmap_write(video->video0, VE_SEQ_CTRL, 0x2020);
+			regmap_write(video->video0, VE_CTRL, 0x1e0040);
+		}
+	}
+
 	aspeed_video_write(video, VE_BCD_CTRL, 0);
 }
 
@@ -2596,6 +2607,12 @@ static int aspeed_video_init(struct aspeed_video *video)
 							     "aspeed,scu");
 		video->gfx = syscon_regmap_lookup_by_phandle(dev->of_node,
 							     "aspeed,gfx");
+		if (video->version == 7 && video->id == 1) {
+			video->video0 = syscon_regmap_lookup_by_phandle(dev->of_node,
+									"aspeed,video0");
+			if (IS_ERR(video->video0))
+				dev_err(dev, "can't find regmap for video0");
+		}
 		if (IS_ERR(video->scu))
 			dev_err(dev, "can't find regmap for scu");
 		if (IS_ERR(video->gfx))

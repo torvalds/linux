@@ -810,7 +810,7 @@
 		};
 
 		video0: video@120a0000 {
-			compatible = "aspeed,ast2700-video-engine";
+			compatible = "aspeed,ast2700-video-engine", "syscon";
 			reg = <0x0 0x120a0000 0x0 0x400>;
 			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
 				 <&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
@@ -831,6 +831,7 @@
 			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon0 ASPEED_RESET_VIDEO>;
 			aspeed,scu = <&syscon0>;
+			aspeed,video0 = <&video0>;
 			status = "disabled";
 		};
 
