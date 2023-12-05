@@ -589,11 +589,24 @@ static __u64 subprog_spill_reg_precise(void)
 
 SEC("?raw_tp")
 __success __log_level(2)
-/* precision backtracking can't currently handle stack access not through r10,
- * so we won't be able to mark stack slot fp-8 as precise, and so will
- * fallback to forcing all as precise
- */
-__msg("mark_precise: frame0: falling back to forcing all scalars precise")
+__msg("10: (0f) r1 += r7")
+__msg("mark_precise: frame0: last_idx 10 first_idx 7 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r7 stack= before 9: (bf) r1 = r8")
+__msg("mark_precise: frame0: regs=r7 stack= before 8: (27) r7 *= 4")
+__msg("mark_precise: frame0: regs=r7 stack= before 7: (79) r7 = *(u64 *)(r10 -8)")
+__msg("mark_precise: frame0: parent state regs= stack=-8:  R0_w=2 R6_w=1 R8_rw=map_value(map=.data.vals,ks=4,vs=16) R10=fp0 fp-8_rw=P1")
+__msg("mark_precise: frame0: last_idx 18 first_idx 0 subseq_idx 7")
+__msg("mark_precise: frame0: regs= stack=-8 before 18: (95) exit")
+__msg("mark_precise: frame1: regs= stack= before 17: (0f) r0 += r2")
+__msg("mark_precise: frame1: regs= stack= before 16: (79) r2 = *(u64 *)(r1 +0)")
+__msg("mark_precise: frame1: regs= stack= before 15: (79) r0 = *(u64 *)(r10 -16)")
+__msg("mark_precise: frame1: regs= stack= before 14: (7b) *(u64 *)(r10 -16) = r2")
+__msg("mark_precise: frame1: regs= stack= before 13: (7b) *(u64 *)(r1 +0) = r2")
+__msg("mark_precise: frame1: regs=r2 stack= before 6: (85) call pc+6")
+__msg("mark_precise: frame0: regs=r2 stack= before 5: (bf) r2 = r6")
+__msg("mark_precise: frame0: regs=r6 stack= before 4: (07) r1 += -8")
+__msg("mark_precise: frame0: regs=r6 stack= before 3: (bf) r1 = r10")
+__msg("mark_precise: frame0: regs=r6 stack= before 2: (b7) r6 = 1")
 __naked int subprog_spill_into_parent_stack_slot_precise(void)
 {
 	asm volatile (
