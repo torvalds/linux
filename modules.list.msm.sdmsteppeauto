@@ -89,3 +89,4 @@ videocc-sm6150.ko
 debugcc-sm6150.ko
 scc-sm6150.ko
 dispcc-sm6150.ko
+sdhci-msm-scaling.ko
