@@ -355,7 +355,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (zdev) {
-			/* The event may have been queued before we confirgured
+			/* The event may have been queued before we configured
 			 * the device.
 			 */
 			if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
@@ -366,7 +366,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0304: /* Configured -> Standby|Reserved */
 		if (zdev) {
-			/* The event may have been queued before we confirgured
+			/* The event may have been queued before we configured
 			 * the device.:
 			 */
 			if (zdev->state == ZPCI_FN_STATE_CONFIGURED)

@@ -896,7 +896,7 @@ int zpci_deconfigure_device(struct zpci_dev *zdev)
 }
 
 /**
- * zpci_device_reserved() - Mark device as resverved
+ * zpci_device_reserved() - Mark device as reserved
  * @zdev: the zpci_dev that was reserved
  *
  * Handle the case that a given zPCI function was reserved by another system.
