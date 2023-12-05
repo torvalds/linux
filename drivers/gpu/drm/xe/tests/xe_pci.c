@@ -7,6 +7,7 @@
 
 #include "tests/xe_test.h"
 
+#include <kunit/test-bug.h>
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
@@ -106,14 +107,15 @@ void xe_call_for_each_media_ip(xe_media_fn xe_fn)
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_media_ip);
 
-int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
-			    enum xe_subplatform subplatform)
+int xe_pci_fake_device_init(struct xe_device *xe)
 {
+	struct kunit *test = kunit_get_current_test();
+	struct xe_pci_fake_data *data = test->priv;
 	const struct pci_device_id *ent = pciidlist;
 	const struct xe_device_desc *desc;
 	const struct xe_subplatform_desc *subplatform_desc;
 
-	if (platform == XE_TEST_PLATFORM_ANY) {
+	if (!data) {
 		desc = (const void *)ent->driver_data;
 		subplatform_desc = NULL;
 		goto done;
@@ -121,7 +123,7 @@ int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
 
 	for (ent = pciidlist; ent->device; ent++) {
 		desc = (const void *)ent->driver_data;
-		if (desc->platform == platform)
+		if (desc->platform == data->platform)
 			break;
 	}
 
@@ -131,10 +133,10 @@ int xe_pci_fake_device_init(struct xe_device *xe, enum xe_platform platform,
 	for (subplatform_desc = desc->subplatforms;
 	     subplatform_desc && subplatform_desc->subplatform;
 	     subplatform_desc++)
-		if (subplatform_desc->subplatform == subplatform)
+		if (subplatform_desc->subplatform == data->subplatform)
 			break;
 
-	if (subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
+	if (data->subplatform != XE_SUBPLATFORM_NONE && !subplatform_desc)
 		return -ENODEV;
 
 done:

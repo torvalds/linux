@@ -281,7 +281,9 @@ static int xe_rtp_test_init(struct kunit *test)
 					       drm, DRIVER_GEM);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
 
-	ret = xe_pci_fake_device_init_any(xe);
+	/* Initialize an empty device */
+	test->priv = NULL;
+	ret = xe_pci_fake_device_init(xe);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	xe->drm.dev = dev;

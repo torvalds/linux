@@ -75,6 +75,10 @@ KUNIT_ARRAY_PARAM(platform, cases, platform_desc);
 static int xe_wa_test_init(struct kunit *test)
 {
 	const struct platform_test_case *param = test->param_value;
+	struct xe_pci_fake_data data = {
+		.platform = param->platform,
+		.subplatform = param->subplatform,
+	};
 	struct xe_device *xe;
 	struct device *dev;
 	int ret;
@@ -87,7 +91,8 @@ static int xe_wa_test_init(struct kunit *test)
 					       drm, DRIVER_GEM);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
 
-	ret = xe_pci_fake_device_init(xe, param->platform, param->subplatform);
+	test->priv = &data;
+	ret = xe_pci_fake_device_init(xe);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
 	xe->info.step = param->step;
