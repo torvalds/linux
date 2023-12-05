@@ -54,9 +54,9 @@ static int pmic_pdcharger_ulog_request(struct pmic_pdcharger_ulog *pg)
 {
 	struct get_ulog_req_msg req_msg = {
 		.hdr = {
-			.owner = MSG_OWNER_CHG_ULOG,
-			.type = MSG_TYPE_REQ_RESP,
-			.opcode = GET_CHG_ULOG_REQ
+			.owner = cpu_to_le32(MSG_OWNER_CHG_ULOG),
+			.type = cpu_to_le32(MSG_TYPE_REQ_RESP),
+			.opcode = cpu_to_le32(GET_CHG_ULOG_REQ)
 		},
 		.log_size = MAX_ULOG_SIZE
 	};
