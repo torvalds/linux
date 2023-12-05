@@ -54,7 +54,7 @@ struct binder_buffer {
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
-	unsigned long user_data;
+	void __user *user_data;
 	int pid;
 };
 
@@ -99,7 +99,7 @@ struct binder_alloc {
 	spinlock_t lock;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
-	unsigned long buffer;
+	void __user *buffer;
 	struct list_head buffers;
 	struct rb_root free_buffers;
 	struct rb_root allocated_buffers;
