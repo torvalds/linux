@@ -22,6 +22,21 @@ static inline bool evmptr_is_valid(u64 evmptr)
 	return evmptr != EVMPTR_INVALID && evmptr != EVMPTR_MAP_PENDING;
 }
 
+static inline bool nested_vmx_is_evmptr12_valid(struct vcpu_vmx *vmx)
+{
+	return evmptr_is_valid(vmx->nested.hv_evmcs_vmptr);
+}
+
+static inline bool evmptr_is_set(u64 evmptr)
+{
+	return evmptr != EVMPTR_INVALID;
+}
+
+static inline bool nested_vmx_is_evmptr12_set(struct vcpu_vmx *vmx)
+{
+	return evmptr_is_set(vmx->nested.hv_evmcs_vmptr);
+}
+
 static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
 {
 	/*
@@ -42,6 +57,21 @@ bool nested_evmcs_l2_tlb_flush_enabled(struct kvm_vcpu *vcpu);
 void vmx_hv_inject_synthetic_vmexit_post_tlb_flush(struct kvm_vcpu *vcpu);
 #else
 static inline bool evmptr_is_valid(u64 evmptr)
+{
+	return false;
+}
+
+static inline bool nested_vmx_is_evmptr12_valid(struct vcpu_vmx *vmx)
+{
+	return false;
+}
+
+static inline bool evmptr_is_set(u64 evmptr)
+{
+	return false;
+}
+
+static inline bool nested_vmx_is_evmptr12_set(struct vcpu_vmx *vmx)
 {
 	return false;
 }
