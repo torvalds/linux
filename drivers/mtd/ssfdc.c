@@ -18,7 +18,6 @@
 
 struct ssfdcr_record {
 	struct mtd_blktrans_dev mbd;
-	int usecount;
 	unsigned char heads;
 	unsigned char sectors;
 	unsigned short cylinders;
