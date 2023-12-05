@@ -92,6 +92,19 @@
  * @write_scid_en: Bit enables write cache support for a given scid.
  * @write_scid_cacheable_en: Enables write cache cacheable support for a
  *			     given scid (not supported on v2 or older hardware).
+ * @stale_en: Bit enables stale.
+ * @stale_cap_en: Bit enables stale only if current scid is over-cap.
+ * @mru_uncap_en: Roll-over on reserved cache ways if current scid is
+ *                under-cap.
+ * @mru_rollover: Roll-over on reserved cache ways.
+ * @alloc_oneway_en: Allways allocate one way on over-cap even if there's no
+ *                   same-scid lines for replacement.
+ * @ovcap_en: Once current scid is over-capacity, allocate other over-cap SCID.
+ * @ovcap_prio: Once current scid is over-capacity, allocate other low priority
+ *              over-cap scid. Depends on corresponding bit being set in
+ *              ovcap_en.
+ * @vict_prio: When current scid is under-capacity, allocate over other
+ *             lower-than victim priority-line threshold scid.
  */
 struct llcc_slice_config {
 	u32 usecase_id;
