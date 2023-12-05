@@ -98,7 +98,7 @@ struct rt_hi_throughput {
 	u8 cur_bw_40mhz;
 	u8 bRegShortGI40MHz;
 	u8 bCurShortGI40MHz;
-	u8 bRegShortGI20MHz;
+	u8 reg_short_gi_20mhz;
 	u8 bCurShortGI20MHz;
 	u8 bRegSuppCCK;
 	u8 bCurSuppCCK;
