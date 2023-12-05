@@ -5,6 +5,7 @@
 
 #include "xe_pci.h"
 
+#include <kunit/static_stub.h>
 #include <linux/device/driver.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -455,6 +456,8 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	struct xe_reg gmdid_reg = GMD_ID;
 	u32 val;
+
+	KUNIT_STATIC_STUB_REDIRECT(read_gmdid, xe, type, ver, revid);
 
 	if (type == GMDID_MEDIA)
 		gmdid_reg.addr += MEDIA_GT_GSI_OFFSET;

@@ -9,6 +9,7 @@
 
 #include <kunit/test-bug.h>
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 #include <kunit/visibility.h>
 
 struct kunit_test_data {
@@ -107,6 +108,21 @@ void xe_call_for_each_media_ip(xe_media_fn xe_fn)
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_call_for_each_media_ip);
 
+static void fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
+			    u32 *ver, u32 *revid)
+{
+	struct kunit *test = kunit_get_current_test();
+	struct xe_pci_fake_data *data = test->priv;
+
+	if (type == GMDID_MEDIA) {
+		*ver = data->media_verx100;
+		*revid = xe_step_to_gmdid(data->media_step);
+	} else {
+		*ver = data->graphics_verx100;
+		*revid = xe_step_to_gmdid(data->graphics_step);
+	}
+}
+
 int xe_pci_fake_device_init(struct xe_device *xe)
 {
 	struct kunit *test = kunit_get_current_test();
@@ -140,6 +156,8 @@ int xe_pci_fake_device_init(struct xe_device *xe)
 		return -ENODEV;
 
 done:
+	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);
+
 	xe_info_init_early(xe, desc, subplatform_desc);
 	xe_info_init(xe, desc->graphics, desc->media);
 
