@@ -98,10 +98,12 @@ static void user_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 			struct xe_sync_entry *sync,
 			struct drm_xe_sync __user *sync_user,
-			bool exec, bool in_lr_mode)
+			unsigned int flags)
 {
 	struct drm_xe_sync sync_in;
 	int err;
+	bool exec = flags & SYNC_PARSE_FLAG_EXEC;
+	bool in_lr_mode = flags & SYNC_PARSE_FLAG_LR_MODE;
 	bool signal;
 
 	if (copy_from_user(&sync_in, sync_user, sizeof(*sync_user)))

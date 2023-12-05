@@ -2994,8 +2994,9 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	syncs_user = u64_to_user_ptr(args->syncs);
 	for (num_syncs = 0; num_syncs < args->num_syncs; num_syncs++) {
 		err = xe_sync_entry_parse(xe, xef, &syncs[num_syncs],
-					  &syncs_user[num_syncs], false,
-					  xe_vm_in_lr_mode(vm));
+					  &syncs_user[num_syncs],
+					  xe_vm_in_lr_mode(vm) ?
+					  SYNC_PARSE_FLAG_LR_MODE : 0);
 		if (err)
 			goto free_syncs;
 	}
