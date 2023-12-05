@@ -655,22 +655,9 @@ static netdev_tx_t canfd_driver_start_xmit(struct sk_buff *skb, struct net_devic
 		break;
 	}
 
-	if (!(ndev->flags & IFF_ECHO) ||
-		    (skb->protocol != htons(ETH_P_CAN) &&
-		     skb->protocol != htons(ETH_P_CANFD))) {
-			kfree_skb(skb);
-			return 0;
-	}
-
-	skb = can_create_echo_skb(skb);
-	if (!skb)
-		return -ENOMEM;
-
-	/* make settings for echo to reduce code in irq context */
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	skb->dev = ndev;
-
-	skb_tx_timestamp(skb);
+	/*Due to cache blocking, we need call dev_kfree_skb() here to free the socket
+	buffer and return NETDEV_TX_OK */
+	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }
