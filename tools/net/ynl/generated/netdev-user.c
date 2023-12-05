@@ -53,6 +53,7 @@ const char *netdev_xdp_act_str(enum netdev_xdp_act value)
 static const char * const netdev_xdp_rx_metadata_strmap[] = {
 	[0] = "timestamp",
 	[1] = "hash",
+	[2] = "vlan-tag",
 };
 
 const char *netdev_xdp_rx_metadata_str(enum netdev_xdp_rx_metadata value)
