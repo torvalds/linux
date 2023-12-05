@@ -1118,8 +1118,7 @@ int tcf_action_destroy(struct tc_action *actions[], int bind)
 	struct tc_action *a;
 	int ret = 0, i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		actions[i] = NULL;
 		ops = a->ops;
 		ret = __tcf_idr_release(a, bind, true);
@@ -1136,18 +1135,29 @@ static int tcf_action_put(struct tc_action *p)
 	return __tcf_action_put(p, false);
 }
 
-/* Put all actions in this array, skip those NULL's. */
 static void tcf_action_put_many(struct tc_action *actions[])
 {
+	struct tc_action *a;
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
-		struct tc_action *a = actions[i];
-		const struct tc_action_ops *ops;
+	tcf_act_for_each_action(i, a, actions) {
+		const struct tc_action_ops *ops = a->ops;
+		if (tcf_action_put(a))
+			module_put(ops->owner);
+	}
+}
 
-		if (!a)
+static void tca_put_bound_many(struct tc_action *actions[], int init_res[])
+{
+	struct tc_action *a;
+	int i;
+
+	tcf_act_for_each_action(i, a, actions) {
+		const struct tc_action_ops *ops = a->ops;
+
+		if (init_res[i] == ACT_P_CREATED)
 			continue;
-		ops = a->ops;
+
 		if (tcf_action_put(a))
 			module_put(ops->owner);
 	}
@@ -1211,8 +1221,7 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 	int err = -EINVAL, i;
 	struct nlattr *nest;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		nest = nla_nest_start_noflag(skb, i + 1);
 		if (nest == NULL)
 			goto nla_put_failure;
@@ -1276,14 +1285,12 @@ static const struct nla_policy tcf_action_policy[TCA_ACT_MAX + 1] = {
 
 void tcf_idr_insert_many(struct tc_action *actions[])
 {
+	struct tc_action *a;
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
-		struct tc_action *a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		struct tcf_idrinfo *idrinfo;
 
-		if (!a)
-			continue;
 		idrinfo = a->idrinfo;
 		mutex_lock(&idrinfo->lock);
 		/* Replace ERR_PTR(-EBUSY) allocated by tcf_idr_check_alloc if
@@ -1497,10 +1504,8 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 err:
 	tcf_action_destroy(actions, flags & TCA_ACT_FLAGS_BIND);
 err_mod:
-	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
-		if (ops[i])
-			module_put(ops[i]->owner);
-	}
+	for (i = 0; i < TCA_ACT_MAX_PRIO && ops[i]; i++)
+		module_put(ops[i]->owner);
 	return err;
 }
 
@@ -1753,10 +1758,10 @@ err_out:
 
 static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 {
+	struct tc_action *a;
 	int i;
 
-	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
-		struct tc_action *a = actions[i];
+	tcf_act_for_each_action(i, a, actions) {
 		const struct tc_action_ops *ops = a->ops;
 		/* Actions can be deleted concurrently so we must save their
 		 * type and id to search again after reference is released.
@@ -1768,7 +1773,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
-		} else  {
+		} else {
 			int ret;
 
 			/* now do the delete */
@@ -1977,7 +1982,7 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 			  struct netlink_ext_ack *extack)
 {
 	size_t attr_size = 0;
-	int loop, ret, i;
+	int loop, ret;
 	struct tc_action *actions[TCA_ACT_MAX_PRIO] = {};
 	int init_res[TCA_ACT_MAX_PRIO] = {};
 
@@ -1990,13 +1995,11 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 
 	if (ret < 0)
 		return ret;
+
 	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
 
-	/* only put existing actions */
-	for (i = 0; i < TCA_ACT_MAX_PRIO; i++)
-		if (init_res[i] == ACT_P_CREATED)
-			actions[i] = NULL;
-	tcf_action_put_many(actions);
+	/* only put bound actions */
+	tca_put_bound_many(actions, init_res);
 
 	return ret;
 }
