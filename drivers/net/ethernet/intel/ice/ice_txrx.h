@@ -259,6 +259,7 @@ enum ice_rx_dtype {
 
 struct ice_pkt_ctx {
 	u64 cached_phctime;
+	__be16 vlan_proto;
 };
 
 struct ice_xdp_buff {
@@ -335,7 +336,10 @@ struct ice_rx_ring {
 	/* CL3 - 3rd cacheline starts here */
 	union {
 		struct ice_pkt_ctx pkt_ctx;
-		u64 cached_phctime;
+		struct {
+			u64 cached_phctime;
+			__be16 vlan_proto;
+		};
 	};
 	struct bpf_prog *xdp_prog;
 	u16 rx_offset;
