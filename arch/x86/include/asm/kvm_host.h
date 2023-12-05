@@ -937,8 +937,10 @@ struct kvm_vcpu_arch {
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
 
+#ifdef CONFIG_KVM_HYPERV
 	bool hyperv_enabled;
 	struct kvm_vcpu_hv *hyperv;
+#endif
 #ifdef CONFIG_KVM_XEN
 	struct kvm_vcpu_xen xen;
 #endif
@@ -1095,6 +1097,7 @@ enum hv_tsc_page_status {
 	HV_TSC_PAGE_BROKEN,
 };
 
+#ifdef CONFIG_KVM_HYPERV
 /* Hyper-V emulation context */
 struct kvm_hv {
 	struct mutex hv_lock;
@@ -1127,6 +1130,7 @@ struct kvm_hv {
 
 	struct kvm_hv_syndbg hv_syndbg;
 };
+#endif
 
 struct msr_bitmap_range {
 	u32 flags;
@@ -1349,7 +1353,9 @@ struct kvm_arch {
 	/* reads protected by irq_srcu, writes by irq_lock */
 	struct hlist_head mask_notifier_list;
 
+#ifdef CONFIG_KVM_HYPERV
 	struct kvm_hv hyperv;
+#endif
 
 #ifdef CONFIG_KVM_XEN
 	struct kvm_xen xen;

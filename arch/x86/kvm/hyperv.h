@@ -24,6 +24,8 @@
 #include <linux/kvm_host.h>
 #include "x86.h"
 
+#ifdef CONFIG_KVM_HYPERV
+
 /* "Hv#1" signature */
 #define HYPERV_CPUID_SIGNATURE_EAX 0x31237648
 
@@ -261,5 +263,62 @@ static inline void kvm_hv_nested_transtion_tlb_flush(struct kvm_vcpu *vcpu,
 }
 
 int kvm_hv_vcpu_flush_tlb(struct kvm_vcpu *vcpu);
+#else /* CONFIG_KVM_HYPERV */
+static inline void kvm_hv_setup_tsc_page(struct kvm *kvm,
+					 struct pvclock_vcpu_time_info *hv_clock) {}
+static inline void kvm_hv_request_tsc_page_update(struct kvm *kvm) {}
+static inline void kvm_hv_init_vm(struct kvm *kvm) {}
+static inline void kvm_hv_destroy_vm(struct kvm *kvm) {}
+static inline int kvm_hv_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+static inline void kvm_hv_vcpu_uninit(struct kvm_vcpu *vcpu) {}
+static inline bool kvm_hv_hypercall_enabled(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static inline int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
+{
+	return HV_STATUS_ACCESS_DENIED;
+}
+static inline void kvm_hv_vcpu_purge_flush_tlb(struct kvm_vcpu *vcpu) {}
+static inline void kvm_hv_free_pa_page(struct kvm *kvm) {}
+static inline bool kvm_hv_synic_has_vector(struct kvm_vcpu *vcpu, int vector)
+{
+	return false;
+}
+static inline bool kvm_hv_synic_auto_eoi_set(struct kvm_vcpu *vcpu, int vector)
+{
+	return false;
+}
+static inline void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector) {}
+static inline bool kvm_hv_invtsc_suppressed(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static inline void kvm_hv_set_cpuid(struct kvm_vcpu *vcpu, bool hyperv_enabled) {}
+static inline bool kvm_hv_has_stimer_pending(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static inline bool kvm_hv_is_tlb_flush_hcall(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static inline bool guest_hv_cpuid_has_l2_tlb_flush(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+static inline int kvm_hv_verify_vp_assist(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+static inline u32 kvm_hv_get_vpindex(struct kvm_vcpu *vcpu)
+{
+	return vcpu->vcpu_idx;
+}
+static inline void kvm_hv_nested_transtion_tlb_flush(struct kvm_vcpu *vcpu, bool tdp_enabled) {}
+#endif /* CONFIG_KVM_HYPERV */
 
-#endif
+#endif /* __ARCH_X86_KVM_HYPERV_H__ */

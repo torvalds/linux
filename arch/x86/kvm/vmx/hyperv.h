@@ -9,17 +9,18 @@
 #define EVMPTR_INVALID (-1ULL)
 #define EVMPTR_MAP_PENDING (-2ULL)
 
-static inline bool evmptr_is_valid(u64 evmptr)
-{
-	return evmptr != EVMPTR_INVALID && evmptr != EVMPTR_MAP_PENDING;
-}
-
 enum nested_evmptrld_status {
 	EVMPTRLD_DISABLED,
 	EVMPTRLD_SUCCEEDED,
 	EVMPTRLD_VMFAIL,
 	EVMPTRLD_ERROR,
 };
+
+#ifdef CONFIG_KVM_HYPERV
+static inline bool evmptr_is_valid(u64 evmptr)
+{
+	return evmptr != EVMPTR_INVALID && evmptr != EVMPTR_MAP_PENDING;
+}
 
 static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
 {
@@ -39,5 +40,11 @@ void nested_evmcs_filter_control_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *
 int nested_evmcs_check_controls(struct vmcs12 *vmcs12);
 bool nested_evmcs_l2_tlb_flush_enabled(struct kvm_vcpu *vcpu);
 void vmx_hv_inject_synthetic_vmexit_post_tlb_flush(struct kvm_vcpu *vcpu);
+#else
+static inline bool evmptr_is_valid(u64 evmptr)
+{
+	return false;
+}
+#endif
 
 #endif /* __KVM_X86_VMX_HYPERV_H */
