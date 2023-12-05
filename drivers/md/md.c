@@ -4840,25 +4840,29 @@ action_show(struct mddev *mddev, char *page)
 	return sprintf(page, "%s\n", type);
 }
 
-static void stop_sync_thread(struct mddev *mddev)
+/**
+ * stop_sync_thread() - wait for sync_thread to stop if it's running.
+ * @mddev:	the array.
+ * @locked:	if set, reconfig_mutex will still be held after this function
+ *		return; if not set, reconfig_mutex will be released after this
+ *		function return.
+ * @check_seq:	if set, only wait for curent running sync_thread to stop, noted
+ *		that new sync_thread can still start.
+ */
+static void stop_sync_thread(struct mddev *mddev, bool locked, bool check_seq)
 {
-	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		return;
+	int sync_seq;
 
-	if (mddev_lock(mddev))
-		return;
+	if (check_seq)
+		sync_seq = atomic_read(&mddev->sync_seq);
 
-	/*
-	 * Check again in case MD_RECOVERY_RUNNING is cleared before lock is
-	 * held.
-	 */
 	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery)) {
-		mddev_unlock(mddev);
+		if (!locked)
+			mddev_unlock(mddev);
 		return;
 	}
 
-	if (work_pending(&mddev->sync_work))
-		flush_workqueue(md_misc_wq);
+	mddev_unlock(mddev);
 
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	/*
@@ -4866,21 +4870,28 @@ static void stop_sync_thread(struct mddev *mddev)
 	 * never happen
 	 */
 	md_wakeup_thread_directly(mddev->sync_thread);
+	if (work_pending(&mddev->sync_work))
+		flush_work(&mddev->sync_work);
 
-	mddev_unlock(mddev);
+	wait_event(resync_wait,
+		   !test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+		   (check_seq && sync_seq != atomic_read(&mddev->sync_seq)));
+
+	if (locked)
+		mddev_lock_nointr(mddev);
 }
 
 static void idle_sync_thread(struct mddev *mddev)
 {
-	int sync_seq = atomic_read(&mddev->sync_seq);
-
 	mutex_lock(&mddev->sync_mutex);
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	stop_sync_thread(mddev);
 
-	wait_event(resync_wait, sync_seq != atomic_read(&mddev->sync_seq) ||
-			!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
+	if (mddev_lock(mddev)) {
+		mutex_unlock(&mddev->sync_mutex);
+		return;
+	}
 
+	stop_sync_thread(mddev, false, true);
 	mutex_unlock(&mddev->sync_mutex);
 }
 
@@ -4888,11 +4899,13 @@ static void frozen_sync_thread(struct mddev *mddev)
 {
 	mutex_lock(&mddev->sync_mutex);
 	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	stop_sync_thread(mddev);
 
-	wait_event(resync_wait, mddev->sync_thread == NULL &&
-			!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
+	if (mddev_lock(mddev)) {
+		mutex_unlock(&mddev->sync_mutex);
+		return;
+	}
 
+	stop_sync_thread(mddev, false, false);
 	mutex_unlock(&mddev->sync_mutex);
 }
 
@@ -6264,14 +6277,7 @@ static void md_clean(struct mddev *mddev)
 
 static void __md_stop_writes(struct mddev *mddev)
 {
-	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	if (work_pending(&mddev->sync_work))
-		flush_workqueue(md_misc_wq);
-	if (mddev->sync_thread) {
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-		md_reap_sync_thread(mddev);
-	}
-
+	stop_sync_thread(mddev, true, false);
 	del_timer_sync(&mddev->safemode_timer);
 
 	if (mddev->pers && mddev->pers->quiesce) {
@@ -6363,18 +6369,8 @@ static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
 		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 	}
-	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
-	/*
-	 * Thread might be blocked waiting for metadata update which will now
-	 * never happen
-	 */
-	md_wakeup_thread_directly(mddev->sync_thread);
-
-	mddev_unlock(mddev);
-	wait_event(resync_wait, !test_bit(MD_RECOVERY_RUNNING,
-					  &mddev->recovery));
+	stop_sync_thread(mddev, false, false);
 	wait_event(mddev->sb_wait,
 		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
 	mddev_lock_nointr(mddev);
@@ -6428,20 +6424,8 @@ static int do_md_stop(struct mddev *mddev, int mode,
 		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 	}
-	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
-	/*
-	 * Thread might be blocked waiting for metadata update which will now
-	 * never happen
-	 */
-	md_wakeup_thread_directly(mddev->sync_thread);
-
-	mddev_unlock(mddev);
-	wait_event(resync_wait, (mddev->sync_thread == NULL &&
-				 !test_bit(MD_RECOVERY_RUNNING,
-					   &mddev->recovery)));
-	mddev_lock_nointr(mddev);
+	stop_sync_thread(mddev, true, false);
 
 	mutex_lock(&mddev->open_mutex);
 	if ((mddev->pers && atomic_read(&mddev->openers) > !!bdev) ||
