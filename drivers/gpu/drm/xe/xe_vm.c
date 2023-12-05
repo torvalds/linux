@@ -1634,7 +1634,7 @@ static void vm_destroy_work_func(struct work_struct *w)
 	if (!(vm->flags & XE_VM_FLAG_MIGRATION)) {
 		xe_device_mem_access_put(xe);
 
-		if (xe->info.has_asid) {
+		if (xe->info.has_asid && vm->usm.asid) {
 			mutex_lock(&xe->usm.lock);
 			lookup = xa_erase(&xe->usm.asid_to_vm, vm->usm.asid);
 			xe_assert(xe, lookup == vm);
