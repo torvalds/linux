@@ -1673,15 +1673,23 @@ static const struct ksz_chip_data *ksz_lookup_info(unsigned int prod_num)
 
 static int ksz_check_device_id(struct ksz_device *dev)
 {
-	const struct ksz_chip_data *dt_chip_data;
+	const struct ksz_chip_data *expected_chip_data;
+	u32 expected_chip_id;
 
-	dt_chip_data = of_device_get_match_data(dev->dev);
+	if (dev->pdata) {
+		expected_chip_id = dev->pdata->chip_id;
+		expected_chip_data = ksz_lookup_info(expected_chip_id);
+		if (WARN_ON(!expected_chip_data))
+			return -ENODEV;
+	} else {
+		expected_chip_data = of_device_get_match_data(dev->dev);
+		expected_chip_id = expected_chip_data->chip_id;
+	}
 
-	/* Check for Device Tree and Chip ID */
-	if (dt_chip_data->chip_id != dev->chip_id) {
+	if (expected_chip_id != dev->chip_id) {
 		dev_err(dev->dev,
 			"Device tree specifies chip %s but found %s, please fix it!\n",
-			dt_chip_data->dev_name, dev->info->dev_name);
+			expected_chip_data->dev_name, dev->info->dev_name);
 		return -ENODEV;
 	}
 
@@ -4155,9 +4163,6 @@ int ksz_switch_register(struct ksz_device *dev)
 	unsigned int port_num;
 	int ret;
 	int i;
-
-	if (dev->pdata)
-		dev->chip_id = dev->pdata->chip_id;
 
 	dev->reset_gpio = devm_gpiod_get_optional(dev->dev, "reset",
 						  GPIOD_OUT_LOW);

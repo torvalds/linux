@@ -20,10 +20,12 @@
 #define __MICROCHIP_KSZ_H
 
 #include <linux/types.h>
+#include <linux/platform_data/dsa.h>
 
 struct ksz_platform_data {
+	/* Must be first such that dsa_register_switch() can access it */
+	struct dsa_chip_data cd;
 	u32 chip_id;
-	u16 enabled_ports;
 };
 
 #endif
