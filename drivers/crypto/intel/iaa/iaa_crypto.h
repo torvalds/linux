@@ -48,6 +48,11 @@ struct iaa_wq {
 	bool			remove;
 
 	struct iaa_device	*iaa_device;
+
+	u64			comp_calls;
+	u64			comp_bytes;
+	u64			decomp_calls;
+	u64			decomp_bytes;
 };
 
 struct iaa_device_compression_mode {
@@ -69,6 +74,11 @@ struct iaa_device {
 
 	int				n_wq;
 	struct list_head		wqs;
+
+	u64				comp_calls;
+	u64				comp_bytes;
+	u64				decomp_calls;
+	u64				decomp_bytes;
 };
 
 struct wq_table_entry {
@@ -156,5 +166,8 @@ struct iaa_compression_ctx {
 	bool		async_mode;
 	bool		use_irq;
 };
+
+extern struct list_head iaa_devices;
+extern struct mutex iaa_devices_lock;
 
 #endif
