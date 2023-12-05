@@ -239,8 +239,6 @@ static void hw_engine_fini(struct drm_device *drm, void *arg)
 		xe_execlist_port_destroy(hwe->exl_port);
 	xe_lrc_finish(&hwe->kernel_lrc);
 
-	xe_bo_unpin_map_no_vm(hwe->hwsp);
-
 	hwe->gt = NULL;
 }
 
@@ -428,9 +426,9 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	xe_reg_sr_apply_mmio(&hwe->reg_sr, gt);
 	xe_reg_sr_apply_whitelist(hwe);
 
-	hwe->hwsp = xe_bo_create_pin_map(xe, tile, NULL, SZ_4K, ttm_bo_type_kernel,
-					 XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-					 XE_BO_CREATE_GGTT_BIT);
+	hwe->hwsp = xe_managed_bo_create_pin_map(xe, tile, SZ_4K,
+						 XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+						 XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(hwe->hwsp)) {
 		err = PTR_ERR(hwe->hwsp);
 		goto err_name;

@@ -292,7 +292,6 @@ static void uc_fw_fini(struct drm_device *drm, void *arg)
 	if (!xe_uc_fw_is_available(uc_fw))
 		return;
 
-	xe_bo_unpin_map_no_vm(uc_fw->bo);
 	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_SELECTED);
 }
 
@@ -692,10 +691,9 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 			goto fail;
 	}
 
-	obj = xe_bo_create_from_data(xe, tile, fw->data, fw->size,
-				     ttm_bo_type_kernel,
-				     XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				     XE_BO_CREATE_GGTT_BIT);
+	obj = xe_managed_bo_create_from_data(xe, tile, fw->data, fw->size,
+					     XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					     XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(obj)) {
 		drm_notice(&xe->drm, "%s firmware %s: failed to create / populate bo",
 			   xe_uc_fw_type_repr(uc_fw->type), uc_fw->path);
@@ -726,6 +724,7 @@ fail:
 		 xe_uc_fw_type_repr(uc_fw->type), XE_UC_FIRMWARE_URL);
 
 	release_firmware(fw);		/* OK even if fw is NULL */
+
 	return err;
 }
 

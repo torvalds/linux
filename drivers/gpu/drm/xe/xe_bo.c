@@ -9,6 +9,7 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_ttm_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/ttm/ttm_device.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_tt.h>
@@ -1532,6 +1533,41 @@ struct xe_bo *xe_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
 	struct xe_bo *bo = xe_bo_create_pin_map(xe, tile, NULL,
 						ALIGN(size, PAGE_SIZE),
 						type, flags);
+	if (IS_ERR(bo))
+		return bo;
+
+	xe_map_memcpy_to(xe, &bo->vmap, 0, data, size);
+
+	return bo;
+}
+
+static void __xe_bo_unpin_map_no_vm(struct drm_device *drm, void *arg)
+{
+	xe_bo_unpin_map_no_vm(arg);
+}
+
+struct xe_bo *xe_managed_bo_create_pin_map(struct xe_device *xe, struct xe_tile *tile,
+					   size_t size, u32 flags)
+{
+	struct xe_bo *bo;
+	int ret;
+
+	bo = xe_bo_create_pin_map(xe, tile, NULL, size, ttm_bo_type_kernel, flags);
+	if (IS_ERR(bo))
+		return bo;
+
+	ret = drmm_add_action_or_reset(&xe->drm, __xe_bo_unpin_map_no_vm, bo);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return bo;
+}
+
+struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_tile *tile,
+					     const void *data, size_t size, u32 flags)
+{
+	struct xe_bo *bo = xe_managed_bo_create_pin_map(xe, tile, size, flags);
+
 	if (IS_ERR(bo))
 		return bo;
 

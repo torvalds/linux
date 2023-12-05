@@ -964,7 +964,6 @@ void xe_guc_pc_fini(struct xe_guc_pc *pc)
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
 	sysfs_remove_files(pc_to_gt(pc)->sysfs, pc_attrs);
-	xe_bo_unpin_map_no_vm(pc->bo);
 	mutex_destroy(&pc->freq_lock);
 }
 
@@ -986,11 +985,9 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 
 	mutex_init(&pc->freq_lock);
 
-	bo = xe_bo_create_pin_map(xe, tile, NULL, size,
-				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_GGTT_BIT);
-
+	bo = xe_managed_bo_create_pin_map(xe, tile, size,
+					  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 

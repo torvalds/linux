@@ -114,7 +114,6 @@ static void guc_ct_fini(struct drm_device *drm, void *arg)
 	struct xe_guc_ct *ct = arg;
 
 	xa_destroy(&ct->fence_lookup);
-	xe_bo_unpin_map_no_vm(ct->bo);
 }
 
 static void g2h_worker_func(struct work_struct *w);
@@ -148,10 +147,9 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 
 	primelockdep(ct);
 
-	bo = xe_bo_create_pin_map(xe, tile, NULL, guc_ct_size(),
-				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_GGTT_BIT);
+	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ct_size(),
+					  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 

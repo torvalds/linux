@@ -108,7 +108,6 @@ static void ggtt_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_ggtt *ggtt = arg;
 
-	xe_bo_unpin_map_no_vm(ggtt->scratch);
 	ggtt->scratch = NULL;
 }
 
@@ -227,10 +226,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 	else
 		flags |= XE_BO_CREATE_VRAM_IF_DGFX(ggtt->tile);
 
-	ggtt->scratch = xe_bo_create_pin_map(xe, ggtt->tile, NULL, XE_PAGE_SIZE,
-					     ttm_bo_type_kernel,
-					     flags);
-
+	ggtt->scratch = xe_managed_bo_create_pin_map(xe, ggtt->tile, XE_PAGE_SIZE, flags);
 	if (IS_ERR(ggtt->scratch)) {
 		err = PTR_ERR(ggtt->scratch);
 		goto err;

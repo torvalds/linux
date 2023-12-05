@@ -77,34 +77,21 @@ void xe_guc_log_print(struct xe_guc_log *log, struct drm_printer *p)
 	}
 }
 
-static void guc_log_fini(struct drm_device *drm, void *arg)
-{
-	struct xe_guc_log *log = arg;
-
-	xe_bo_unpin_map_no_vm(log->bo);
-}
-
 int xe_guc_log_init(struct xe_guc_log *log)
 {
 	struct xe_device *xe = log_to_xe(log);
 	struct xe_tile *tile = gt_to_tile(log_to_gt(log));
 	struct xe_bo *bo;
-	int err;
 
-	bo = xe_bo_create_pin_map(xe, tile, NULL, guc_log_size(),
-				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_GGTT_BIT);
+	bo = xe_managed_bo_create_pin_map(xe, tile, guc_log_size(),
+					  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
 	xe_map_memset(xe, &bo->vmap, 0, 0, guc_log_size());
 	log->bo = bo;
 	log->level = xe_modparam.guc_log_level;
-
-	err = drmm_add_action_or_reset(&xe->drm, guc_log_fini, log);
-	if (err)
-		return err;
 
 	return 0;
 }

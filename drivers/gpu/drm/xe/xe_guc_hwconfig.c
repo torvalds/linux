@@ -48,13 +48,6 @@ static int guc_hwconfig_copy(struct xe_guc *guc)
 	return 0;
 }
 
-static void guc_hwconfig_fini(struct drm_device *drm, void *arg)
-{
-	struct xe_guc *guc = arg;
-
-	xe_bo_unpin_map_no_vm(guc->hwconfig.bo);
-}
-
 int xe_guc_hwconfig_init(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -84,18 +77,13 @@ int xe_guc_hwconfig_init(struct xe_guc *guc)
 	if (!size)
 		return -EINVAL;
 
-	bo = xe_bo_create_pin_map(xe, tile, NULL, PAGE_ALIGN(size),
-				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
-				  XE_BO_CREATE_GGTT_BIT);
+	bo = xe_managed_bo_create_pin_map(xe, tile, PAGE_ALIGN(size),
+					  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 	guc->hwconfig.bo = bo;
 	guc->hwconfig.size = size;
-
-	err = drmm_add_action_or_reset(&xe->drm, guc_hwconfig_fini, guc);
-	if (err)
-		return err;
 
 	return guc_hwconfig_copy(guc);
 }
