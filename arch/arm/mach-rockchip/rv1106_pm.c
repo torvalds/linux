@@ -389,7 +389,7 @@ static void rv1106_dbg_pmu_wkup_src(void)
 	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_USBDEV_EN))
 		rkpm_printstr("USBDEV detect wakeup\n");
 
-	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_TIMEROUT_EN))
+	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_TIMEOUT_EN))
 		rkpm_printstr("TIMEOUT interrupt wakeup\n");
 
 	rkpm_printch('\n');
