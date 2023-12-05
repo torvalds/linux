@@ -613,7 +613,7 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 }
 
 /*
- * Do the type safe converstion from stripe_nr to offset inside the chunk.
+ * Do the type safe conversion from stripe_nr to offset inside the chunk.
  *
  * @stripe_nr is u32, with left shift it can overflow u32 for chunks larger
  * than 4G.  This does the proper type cast to avoid overflow.

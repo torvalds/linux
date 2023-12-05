@@ -43,7 +43,7 @@ struct scrub_ctx;
 /*
  * The following value only influences the performance.
  *
- * This detemines how many stripes would be submitted in one go,
+ * This determines how many stripes would be submitted in one go,
  * which is 512KiB (BTRFS_STRIPE_LEN * SCRUB_STRIPES_PER_GROUP).
  */
 #define SCRUB_STRIPES_PER_GROUP		8
@@ -709,7 +709,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 	/* Metadata, verify the full tree block. */
 	if (sector->is_metadata) {
 		/*
-		 * Check if the tree block crosses the stripe boudary.  If
+		 * Check if the tree block crosses the stripe boundary.  If
 		 * crossed the boundary, we cannot verify it but only give a
 		 * warning.
 		 *
@@ -883,7 +883,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 	/*
 	 * Init needed infos for error reporting.
 	 *
-	 * Although our scrub_stripe infrastucture is mostly based on btrfs_submit_bio()
+	 * Although our scrub_stripe infrastructure is mostly based on btrfs_submit_bio()
 	 * thus no need for dev/physical, error reporting still needs dev and physical.
 	 */
 	if (!bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors)) {
@@ -1812,7 +1812,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 	if (sctx->is_dev_replace) {
 		/*
 		 * For dev-replace, if we know there is something wrong with
-		 * metadata, we should immedately abort.
+		 * metadata, we should immediately abort.
 		 */
 		for (int i = 0; i < nr_stripes; i++) {
 			if (stripe_has_metadata_error(&sctx->stripes[i])) {

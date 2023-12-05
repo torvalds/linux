@@ -319,7 +319,7 @@ static inline bool btrfs_check_device_zone_type(const struct btrfs_fs_info *fs_i
 			(bdev_zone_sectors(bdev) << SECTOR_SHIFT);
 	}
 
-	/* Do not allow Host Manged zoned device */
+	/* Do not allow Host Managed zoned device. */
 	return bdev_zoned_model(bdev) != BLK_ZONED_HM;
 }
 

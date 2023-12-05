@@ -194,7 +194,7 @@ static struct btrfs_qgroup *find_qgroup_rb(struct btrfs_fs_info *fs_info,
  *
  * Must be called with qgroup_lock held and @prealloc preallocated.
  *
- * The control on the lifespan of @prealloc would be transfered to this
+ * The control on the lifespan of @prealloc would be transferred to this
  * function, thus caller should no longer touch @prealloc.
  */
 static struct btrfs_qgroup *add_qgroup_rb(struct btrfs_fs_info *fs_info,

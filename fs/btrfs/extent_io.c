@@ -4041,7 +4041,7 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 	if (check_eb_range(eb, start, len)) {
 		/*
 		 * Invalid range hit, reset the memory, so callers won't get
-		 * some random garbage for their uninitialzed memory.
+		 * some random garbage for their uninitialized memory.
 		 */
 		memset(dstv, 0, len);
 		return;

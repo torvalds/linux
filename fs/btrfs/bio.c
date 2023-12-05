@@ -626,7 +626,7 @@ static bool should_async_write(struct btrfs_bio *bbio)
 /*
  * Submit bio to an async queue.
  *
- * Return true if the work has been succesfuly submitted, else false.
+ * Return true if the work has been successfully submitted, else false.
  */
 static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 				struct btrfs_io_context *bioc,
