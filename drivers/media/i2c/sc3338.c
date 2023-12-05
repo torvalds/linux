@@ -27,6 +27,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
+#include "cam-sleep-wakeup.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -158,6 +159,7 @@ struct sc3338 {
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct cam_sw_info *cam_sw_inf;
 };
 
 #define to_sc3338(sd) container_of(sd, struct sc3338, subdev)
@@ -722,6 +724,9 @@ static long sc3338_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
+		if (sc3338->cam_sw_inf)
+			memcpy(&sc3338->cam_sw_inf->hdr_ae, (struct preisp_hdrae_exp_s *)(arg),
+				sizeof(struct preisp_hdrae_exp_s));
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 
@@ -970,6 +975,8 @@ static int __sc3338_power_on(struct sc3338 *sc3338)
 		return ret;
 	}
 
+	cam_sw_regulator_bulk_init(sc3338->cam_sw_inf, SC3338_NUM_SUPPLIES, sc3338->supplies);
+
 	if (sc3338->is_thunderboot)
 		return 0;
 
@@ -1036,6 +1043,47 @@ static void __sc3338_power_off(struct sc3338 *sc3338)
 	regulator_bulk_disable(SC3338_NUM_SUPPLIES, sc3338->supplies);
 }
 
+#if IS_REACHABLE(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)
+static int sc3338_resume(struct device *dev)
+{
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc3338 *sc3338 = to_sc3338(sd);
+
+	cam_sw_prepare_wakeup(sc3338->cam_sw_inf, dev);
+
+	usleep_range(6000, 8000);
+	cam_sw_write_array(sc3338->cam_sw_inf);
+
+	if (__v4l2_ctrl_handler_setup(&sc3338->ctrl_handler))
+		dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+
+	if (sc3338->has_init_exp && sc3338->cur_mode != NO_HDR) {	// hdr mode
+		ret = sc3338_ioctl(&sc3338->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				&sc3338->cam_sw_inf->hdr_ae);
+		if (ret) {
+			dev_err(&sc3338->client->dev, "set exp fail in hdr mode\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int sc3338_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc3338 *sc3338 = to_sc3338(sd);
+
+	cam_sw_write_array_cb_init(sc3338->cam_sw_inf, client,
+		(void *)sc3338->cur_mode->reg_list, (sensor_write_array)sc3338_write_array);
+	cam_sw_prepare_sleep(sc3338->cam_sw_inf);
+
+	return 0;
+}
+#endif
+
 static int sc3338_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1094,8 +1142,10 @@ static int sc3338_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static const struct dev_pm_ops sc3338_pm_ops = {
-	SET_RUNTIME_PM_OPS(sc3338_runtime_suspend,
-			   sc3338_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(sc3338_runtime_suspend, sc3338_runtime_resume, NULL)
+#if IS_REACHABLE(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(sc3338_suspend, sc3338_resume)
+#endif
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -1454,6 +1504,13 @@ static int sc3338_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif
 
+	if (!sc3338->cam_sw_inf) {
+		sc3338->cam_sw_inf = cam_sw_init();
+		cam_sw_clk_init(sc3338->cam_sw_inf, sc3338->xvclk, SC3338_XVCLK_FREQ);
+		cam_sw_reset_pin_init(sc3338->cam_sw_inf, sc3338->reset_gpio, 0);
+		cam_sw_pwdn_pin_init(sc3338->cam_sw_inf, sc3338->pwdn_gpio, 1);
+	}
+
 	memset(facing, 0, sizeof(facing));
 	if (strcmp(sc3338->module_facing, "back") == 0)
 		facing[0] = 'b';
@@ -1503,6 +1560,8 @@ static int sc3338_remove(struct i2c_client *client)
 #endif
 	v4l2_ctrl_handler_free(&sc3338->ctrl_handler);
 	mutex_destroy(&sc3338->mutex);
+
+	cam_sw_deinit(sc3338->cam_sw_inf);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
