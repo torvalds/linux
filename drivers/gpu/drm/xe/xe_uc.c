@@ -80,6 +80,10 @@ int xe_uc_init_post_hwconfig(struct xe_uc *uc)
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
+	err = xe_uc_sanitize_reset(uc);
+	if (err)
+		return err;
+
 	err = xe_guc_init_post_hwconfig(&uc->guc);
 	if (err)
 		return err;
@@ -101,13 +105,13 @@ static int uc_reset(struct xe_uc *uc)
 	return 0;
 }
 
-void xe_uc_sanitize(struct xe_uc *uc)
+static void xe_uc_sanitize(struct xe_uc *uc)
 {
 	xe_huc_sanitize(&uc->huc);
 	xe_guc_sanitize(&uc->guc);
 }
 
-static int xe_uc_sanitize_reset(struct xe_uc *uc)
+int xe_uc_sanitize_reset(struct xe_uc *uc)
 {
 	xe_uc_sanitize(uc);
 
@@ -146,10 +150,6 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	/* GuC submission not enabled, nothing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
-
-	ret = xe_uc_sanitize_reset(uc);
-	if (ret)
-		return ret;
 
 	ret = xe_huc_upload(&uc->huc);
 	if (ret)
