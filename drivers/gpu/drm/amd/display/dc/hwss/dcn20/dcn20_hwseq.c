@@ -1400,6 +1400,10 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 		new_pipe->update_flags.bits.scaler = 1;
 		new_pipe->update_flags.bits.viewport = 1;
 		new_pipe->update_flags.bits.det_size = 1;
+		if (new_pipe->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE &&
+				new_pipe->stream_res.test_pattern_params.width != 0 &&
+				new_pipe->stream_res.test_pattern_params.height != 0)
+			new_pipe->update_flags.bits.test_pattern_changed = 1;
 		if (!new_pipe->top_pipe && !new_pipe->prev_odm_pipe) {
 			new_pipe->update_flags.bits.odm = 1;
 			new_pipe->update_flags.bits.global_sync = 1;
