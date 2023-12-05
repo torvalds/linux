@@ -306,13 +306,13 @@ static const struct snd_soc_acpi_adr_device cs35l56_1_adr[] = {
 		.adr = 0x00013701FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_r_endpoint,
-		.name_prefix = "cs35l56-8"
+		.name_prefix = "AMP8"
 	},
 	{
 		.adr = 0x00013601FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_3_endpoint,
-		.name_prefix = "cs35l56-7"
+		.name_prefix = "AMP7"
 	}
 };
 
@@ -321,13 +321,13 @@ static const struct snd_soc_acpi_adr_device cs35l56_2_adr[] = {
 		.adr = 0x00023301FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
-		.name_prefix = "cs35l56-1"
+		.name_prefix = "AMP1"
 	},
 	{
 		.adr = 0x00023201FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_2_endpoint,
-		.name_prefix = "cs35l56-2"
+		.name_prefix = "AMP2"
 	}
 };
 
