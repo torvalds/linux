@@ -4,6 +4,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include <../../../tools/include/linux/filter.h>
 
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -447,6 +448,45 @@ l0_%=:	r1 >>= 16;					\
 	exit;						\
 "	:
 	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("raw_tp")
+__log_level(2)
+__success
+__msg("fp-8=0m??mmmm")
+__msg("fp-16=00mm??mm")
+__msg("fp-24=00mm???m")
+__naked void spill_subregs_preserve_stack_zero(void)
+{
+	asm volatile (
+		"call %[bpf_get_prandom_u32];"
+
+		/* 32-bit subreg spill with ZERO, MISC, and INVALID */
+		".8byte %[fp1_u8_st_zero];"   /* ZERO, LLVM-18+: *(u8 *)(r10 -1) = 0; */
+		"*(u8 *)(r10 -2) = r0;"       /* MISC */
+		/* fp-3 and fp-4 stay INVALID */
+		"*(u32 *)(r10 -8) = r0;"
+
+		/* 16-bit subreg spill with ZERO, MISC, and INVALID */
+		".8byte %[fp10_u16_st_zero];" /* ZERO, LLVM-18+: *(u16 *)(r10 -10) = 0; */
+		"*(u16 *)(r10 -12) = r0;"     /* MISC */
+		/* fp-13 and fp-14 stay INVALID */
+		"*(u16 *)(r10 -16) = r0;"
+
+		/* 8-bit subreg spill with ZERO, MISC, and INVALID */
+		".8byte %[fp18_u16_st_zero];" /* ZERO, LLVM-18+: *(u16 *)(r18 -10) = 0; */
+		"*(u16 *)(r10 -20) = r0;"     /* MISC */
+		/* fp-21, fp-22, and fp-23 stay INVALID */
+		"*(u8 *)(r10 -24) = r0;"
+
+		"r0 = 0;"
+		"exit;"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm_insn(fp1_u8_st_zero, BPF_ST_MEM(BPF_B, BPF_REG_FP, -1, 0)),
+	  __imm_insn(fp10_u16_st_zero, BPF_ST_MEM(BPF_H, BPF_REG_FP, -10, 0)),
+	  __imm_insn(fp18_u16_st_zero, BPF_ST_MEM(BPF_H, BPF_REG_FP, -18, 0))
 	: __clobber_all);
 }
 
