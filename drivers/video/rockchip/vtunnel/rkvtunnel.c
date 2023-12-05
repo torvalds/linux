@@ -1139,6 +1139,9 @@ rkvt_acquire_buf(struct rkvt_buf_data *data, struct rkvt_session *session)
 			goto no_memory;
 		fd_install(fd, buffer->ready_render_fence);
 		buffer->base.fence_fd = fd;
+		buffer->ready_render_fence = NULL;
+	} else {
+		buffer->base.fence_fd = -1;
 	}
 	buffer->base.vt_id = inst->id;
 	data->base = buffer->base;
