@@ -643,7 +643,7 @@ static int cs4271_common_probe(struct device *dev,
 	cs4271->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(cs4271->reset))
 		return dev_err_probe(dev, PTR_ERR(cs4271->reset),
-				     "error retrieveing RESET GPIO\n");
+				     "error retrieving RESET GPIO\n");
 	gpiod_set_consumer_name(cs4271->reset, "CS4271 Reset");
 
 	for (i = 0; i < ARRAY_SIZE(supply_names); i++)
