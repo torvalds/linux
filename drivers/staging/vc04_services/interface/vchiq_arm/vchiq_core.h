@@ -32,32 +32,6 @@
 #define VCHIQ_SLOT_SIZE     4096
 #define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(struct vchiq_header))
 
-enum vchiq_log_category {
-	VCHIQ_ARM,
-	VCHIQ_CORE,
-	VCHIQ_CORE_MSG,
-	VCHIQ_SYNC,
-	VCHIQ_SUSPEND,
-};
-
-static inline const char *log_category_str(enum vchiq_log_category c)
-{
-	static const char * const strings[] = {
-		"vchiq_arm",
-		"vchiq_core",
-		"vchiq_core_msg",
-		"vchiq_sync",
-		"vchiq_suspend",
-	};
-
-	return strings[c];
-};
-
-#ifndef vchiq_log_debug
-#define vchiq_log_debug(dev, cat, fmt, ...) \
-	do { dev_dbg(dev, "%s debug: " fmt, log_category_str(cat), ##__VA_ARGS__); } while (0)
-#endif
-
 #define VCHIQ_SLOT_MASK        (VCHIQ_SLOT_SIZE - 1)
 #define VCHIQ_SLOT_QUEUE_MASK  (VCHIQ_MAX_SLOTS_PER_SIDE - 1)
 #define VCHIQ_SLOT_ZERO_SLOTS  DIV_ROUND_UP(sizeof(struct vchiq_slot_zero), \
