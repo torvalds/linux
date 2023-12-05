@@ -11,7 +11,7 @@ BEGIN {
 	prev_addr = ""
 	prev_hex = ""
 	prev_mnemonic = ""
-	bad_expr = "(\\(bad\\)|^rex|^.byte|^rep(z|nz)$|^lock$|^es$|^cs$|^ss$|^ds$|^fs$|^gs$|^data(16|32)$|^addr(16|32|64))"
+	bad_expr = "(\\(bad\\)|<unknown>|^rex|^.byte|^rep(z|nz)$|^lock$|^es$|^cs$|^ss$|^ds$|^fs$|^gs$|^data(16|32)$|^addr(16|32|64))"
 	fwait_expr = "^9b[ \t]*fwait"
 	fwait_str="9b\tfwait"
 }
