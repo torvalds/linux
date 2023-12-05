@@ -81,7 +81,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	else
 		ht_info->reg_supp_cck = true;
 
-	ht_info->nAMSDU_MaxSize = 7935UL;
+	ht_info->amsdu_max_size = 7935UL;
 	ht_info->bAMSDU_Support = 0;
 
 	ht_info->bAMPDUEnable = 1;
@@ -493,10 +493,10 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	nMaxAMSDUSize = (pPeerHTCap->MaxAMSDUSize == 0) ? 3839 : 7935;
 
-	if (ht_info->nAMSDU_MaxSize > nMaxAMSDUSize)
+	if (ht_info->amsdu_max_size > nMaxAMSDUSize)
 		ht_info->nCurrent_AMSDU_MaxSize = nMaxAMSDUSize;
 	else
-		ht_info->nCurrent_AMSDU_MaxSize = ht_info->nAMSDU_MaxSize;
+		ht_info->nCurrent_AMSDU_MaxSize = ht_info->amsdu_max_size;
 
 	ht_info->current_ampdu_enable = ht_info->bAMPDUEnable;
 	if (ieee->rtllib_ap_sec_type &&
@@ -569,7 +569,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	ht_info->bCurSuppCCK = true;
 
 	ht_info->bCurrent_AMSDU_Support = false;
-	ht_info->nCurrent_AMSDU_MaxSize = ht_info->nAMSDU_MaxSize;
+	ht_info->nCurrent_AMSDU_MaxSize = ht_info->amsdu_max_size;
 	ht_info->current_mpdu_density = ht_info->MPDU_Density;
 	ht_info->CurrentAMPDUFactor = ht_info->AMPDU_Factor;
 
