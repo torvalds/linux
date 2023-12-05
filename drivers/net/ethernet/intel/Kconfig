@@ -299,6 +299,17 @@ config ICE
 	  To compile this driver as a module, choose M here. The module
 	  will be called ice.
 
+config ICE_HWMON
+	bool "Intel(R) Ethernet Connection E800 Series Support HWMON support"
+	default y
+	depends on ICE && HWMON && !(ICE=y && HWMON=m)
+	help
+	  Say Y if you want to expose thermal sensor data on Intel devices.
+
+	  Some of our devices contain internal thermal sensors.
+	  This data is available via the hwmon sysfs interface and exposes
+	  the onboard sensors.
+
 config ICE_SWITCHDEV
 	bool "Switchdev Support"
 	default y

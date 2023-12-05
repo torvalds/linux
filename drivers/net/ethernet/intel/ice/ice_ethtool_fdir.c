@@ -668,7 +668,7 @@ ice_fdir_set_hw_fltr_rule(struct ice_pf *pf, struct ice_flow_seg_info *seg,
 		 * then return error.
 		 */
 		if (hw->fdir_fltr_cnt[flow]) {
-			dev_err(dev, "Failed to add filter.  Flow director filters on each port must have the same input set.\n");
+			dev_err(dev, "Failed to add filter. Flow director filters on each port must have the same input set.\n");
 			return -EINVAL;
 		}
 
@@ -770,7 +770,7 @@ err_entry:
 	ice_flow_rem_entry(hw, ICE_BLK_FD, entry1_h);
 err_prof:
 	ice_flow_rem_prof(hw, ICE_BLK_FD, prof_id);
-	dev_err(dev, "Failed to add filter.  Flow director filters on each port must have the same input set.\n");
+	dev_err(dev, "Failed to add filter. Flow director filters on each port must have the same input set.\n");
 
 	return err;
 }
@@ -1853,6 +1853,7 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 	struct ice_pf *pf;
 	struct ice_hw *hw;
 	int fltrs_needed;
+	u32 max_location;
 	u16 tunnel_port;
 	int ret;
 
@@ -1884,8 +1885,10 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 	if (ret)
 		return ret;
 
-	if (fsp->location >= ice_get_fdir_cnt_all(hw)) {
-		dev_err(dev, "Failed to add filter.  The maximum number of flow director filters has been reached.\n");
+	max_location = ice_get_fdir_cnt_all(hw);
+	if (fsp->location >= max_location) {
+		dev_err(dev, "Failed to add filter. The number of ntuple filters or provided location exceed max %d.\n",
+			max_location);
 		return -ENOSPC;
 	}
 
@@ -1893,7 +1896,7 @@ int ice_add_fdir_ethtool(struct ice_vsi *vsi, struct ethtool_rxnfc *cmd)
 	fltrs_needed = ice_get_open_tunnel_port(hw, &tunnel_port, TNL_ALL) ? 2 : 1;
 	if (!ice_fdir_find_fltr_by_idx(hw, fsp->location) &&
 	    ice_fdir_num_avail_fltr(hw, pf->vsi[vsi->idx]) < fltrs_needed) {
-		dev_err(dev, "Failed to add filter.  The maximum number of flow director filters has been reached.\n");
+		dev_err(dev, "Failed to add filter. The maximum number of flow director filters has been reached.\n");
 		return -ENOSPC;
 	}
 

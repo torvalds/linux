@@ -377,6 +377,8 @@ struct ice_hw_func_caps {
 	struct ice_ts_func_info ts_func_info;
 };
 
+#define ICE_SENSOR_SUPPORT_E810_INT_TEMP_BIT	0
+
 /* Device wide capabilities */
 struct ice_hw_dev_caps {
 	struct ice_hw_common_caps common_cap;
@@ -385,6 +387,11 @@ struct ice_hw_dev_caps {
 	u32 num_flow_director_fltr;	/* Number of FD filters available */
 	struct ice_ts_dev_info ts_dev_info;
 	u32 num_funcs;
+	/* bitmap of supported sensors
+	 * bit 0 - internal temperature sensor
+	 * bit 31:1 - Reserved
+	 */
+	u32 supported_sensors;
 };
 
 /* MAC info */
@@ -827,7 +834,7 @@ struct ice_mbx_data {
 enum ice_phy_model {
 	ICE_PHY_UNSUP = -1,
 	ICE_PHY_E810  = 1,
-	ICE_PHY_E822,
+	ICE_PHY_E82X,
 };
 
 /* Port hardware description */
@@ -910,10 +917,9 @@ struct ice_hw {
 	/* INTRL granularity in 1 us */
 	u8 intrl_gran;
 
-#define ICE_PHY_PER_NAC_E822		1
 #define ICE_MAX_QUAD			2
-#define ICE_QUADS_PER_PHY_E822		2
-#define ICE_PORTS_PER_PHY_E822		8
+#define ICE_QUADS_PER_PHY_E82X		2
+#define ICE_PORTS_PER_PHY_E82X		8
 #define ICE_PORTS_PER_QUAD		4
 #define ICE_PORTS_PER_PHY_E810		4
 #define ICE_NUM_EXTERNAL_PORTS		(ICE_MAX_QUAD * ICE_PORTS_PER_QUAD)
