@@ -12,7 +12,6 @@
 
 	aliases {
 		mmc0 = &sdhci;
-		serial2 = &uart2;
 	};
 
 	chosen {
