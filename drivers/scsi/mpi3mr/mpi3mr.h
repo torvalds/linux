@@ -477,6 +477,10 @@ struct mpi3mr_throttle_group_info {
 /* HBA port flags */
 #define MPI3MR_HBA_PORT_FLAG_DIRTY	0x01
 
+/* IOCTL data transfer sge*/
+#define MPI3MR_NUM_IOCTL_SGE		256
+#define MPI3MR_IOCTL_SGE_SIZE		(8 * 1024)
+
 /**
  * struct mpi3mr_hba_port - HBA's port information
  * @port_id: Port number
@@ -1042,6 +1046,11 @@ struct scmd_priv {
  * @sas_node_lock: Lock to protect SAS node list
  * @hba_port_table_list: List of HBA Ports
  * @enclosure_list: List of Enclosure objects
+ * @ioctl_dma_pool: DMA pool for IOCTL data buffers
+ * @ioctl_sge: DMA buffer descriptors for IOCTL data
+ * @ioctl_chain_sge: DMA buffer descriptor for IOCTL chain
+ * @ioctl_resp_sge: DMA buffer descriptor for Mgmt cmd response
+ * @ioctl_sges_allocated: Flag for IOCTL SGEs allocated or not
  */
 struct mpi3mr_ioc {
 	struct list_head list;
@@ -1227,6 +1236,12 @@ struct mpi3mr_ioc {
 	spinlock_t sas_node_lock;
 	struct list_head hba_port_table_list;
 	struct list_head enclosure_list;
+
+	struct dma_pool *ioctl_dma_pool;
+	struct dma_memory_desc ioctl_sge[MPI3MR_NUM_IOCTL_SGE];
+	struct dma_memory_desc ioctl_chain_sge;
+	struct dma_memory_desc ioctl_resp_sge;
+	bool ioctl_sges_allocated;
 };
 
 /**
