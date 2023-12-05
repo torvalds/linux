@@ -297,6 +297,7 @@ static int acpi_thermal_adjust_trip(struct thermal_trip *trip, void *data)
 	struct acpi_thermal_trip *acpi_trip = trip->priv;
 	struct adjust_trip_data *atd = data;
 	struct acpi_thermal *tz = atd->tz;
+	int temp;
 
 	if (!acpi_trip || !acpi_thermal_trip_valid(acpi_trip))
 		return 0;
@@ -307,9 +308,11 @@ static int acpi_thermal_adjust_trip(struct thermal_trip *trip, void *data)
 		acpi_thermal_update_trip_devices(tz, trip);
 
 	if (acpi_thermal_trip_valid(acpi_trip))
-		trip->temperature = acpi_thermal_temp(tz, acpi_trip->temp_dk);
+		temp = acpi_thermal_temp(tz, acpi_trip->temp_dk);
 	else
-		trip->temperature = THERMAL_TEMP_INVALID;
+		temp = THERMAL_TEMP_INVALID;
+
+	thermal_zone_set_trip_temp(tz->thermal_zone, trip, temp);
 
 	return 0;
 }

@@ -129,9 +129,9 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 				goto unlock;
 		}
 
-		trip->temperature = temp;
+		thermal_zone_set_trip_temp(tz, trip, temp);
 
-		thermal_zone_trip_updated(tz, trip);
+		__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 	}
 
 unlock:

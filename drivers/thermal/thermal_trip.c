@@ -152,7 +152,6 @@ int thermal_zone_trip_id(struct thermal_zone_device *tz,
 	 */
 	return trip - tz->trips;
 }
-
 void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 			       const struct thermal_trip *trip)
 {
@@ -161,3 +160,16 @@ void thermal_zone_trip_updated(struct thermal_zone_device *tz,
 				      trip->hysteresis);
 	__thermal_zone_device_update(tz, THERMAL_TRIP_CHANGED);
 }
+
+void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
+				struct thermal_trip *trip, int temp)
+{
+	if (trip->temperature == temp)
+		return;
+
+	trip->temperature = temp;
+	thermal_notify_tz_trip_change(tz->id, thermal_zone_trip_id(tz, trip),
+				      trip->type, trip->temperature,
+				      trip->hysteresis);
+}
+EXPORT_SYMBOL_GPL(thermal_zone_set_trip_temp);
