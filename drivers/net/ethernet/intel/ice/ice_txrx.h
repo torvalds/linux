@@ -257,9 +257,14 @@ enum ice_rx_dtype {
 	ICE_RX_DTYPE_SPLIT_ALWAYS	= 2,
 };
 
+struct ice_pkt_ctx {
+	u64 cached_phctime;
+};
+
 struct ice_xdp_buff {
 	struct xdp_buff xdp_buff;
 	const union ice_32b_rx_flex_desc *eop_desc;
+	const struct ice_pkt_ctx *pkt_ctx;
 };
 
 /* Required for compatibility with xdp_buffs from xsk_pool */
@@ -328,6 +333,10 @@ struct ice_rx_ring {
 		struct xdp_buff xdp;
 	};
 	/* CL3 - 3rd cacheline starts here */
+	union {
+		struct ice_pkt_ctx pkt_ctx;
+		u64 cached_phctime;
+	};
 	struct bpf_prog *xdp_prog;
 	u16 rx_offset;
 
@@ -346,7 +355,6 @@ struct ice_rx_ring {
 	struct ice_rx_ring *next;	/* pointer to next ring in q_vector */
 	struct xsk_buff_pool *xsk_pool;
 	dma_addr_t dma;			/* physical address of ring */
-	u64 cached_phctime;
 	u16 rx_buf_len;
 	u8 dcb_tc;			/* Traffic class of ring */
 	u8 ptp_rx;

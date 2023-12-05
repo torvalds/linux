@@ -299,7 +299,7 @@ s8 ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb);
 enum ice_tx_tstamp_work ice_ptp_process_ts(struct ice_pf *pf);
 
 u64 ice_ptp_get_rx_hwts(const union ice_32b_rx_flex_desc *rx_desc,
-			struct ice_rx_ring *rx_ring);
+			const struct ice_pkt_ctx *pkt_ctx);
 void ice_ptp_reset(struct ice_pf *pf);
 void ice_ptp_prepare_for_reset(struct ice_pf *pf);
 void ice_ptp_init(struct ice_pf *pf);
@@ -331,7 +331,7 @@ static inline bool ice_ptp_process_ts(struct ice_pf *pf)
 
 static inline u64
 ice_ptp_get_rx_hwts(const union ice_32b_rx_flex_desc *rx_desc,
-		    struct ice_rx_ring *rx_ring)
+		    const struct ice_pkt_ctx *pkt_ctx)
 {
 	return 0;
 }
