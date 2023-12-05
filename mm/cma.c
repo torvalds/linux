@@ -244,7 +244,7 @@ int __init cma_declare_contiguous_nid(phys_addr_t base,
 {
 	phys_addr_t memblock_end = memblock_end_of_DRAM();
 	phys_addr_t highmem_start;
-	int ret = 0;
+	int ret;
 
 	/*
 	 * We can't use __pa(high_memory) directly, since high_memory
