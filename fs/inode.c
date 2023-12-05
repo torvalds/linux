@@ -1834,37 +1834,37 @@ EXPORT_SYMBOL(bmap);
  * earlier than or equal to either the ctime or mtime,
  * or if at least a day has passed since the last atime update.
  */
-static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
+static bool relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 			     struct timespec64 now)
 {
 	struct timespec64 atime, mtime, ctime;
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
-		return 1;
+		return true;
 	/*
 	 * Is mtime younger than or equal to atime? If yes, update atime:
 	 */
 	atime = inode_get_atime(inode);
 	mtime = inode_get_mtime(inode);
 	if (timespec64_compare(&mtime, &atime) >= 0)
-		return 1;
+		return true;
 	/*
 	 * Is ctime younger than or equal to atime? If yes, update atime:
 	 */
 	ctime = inode_get_ctime(inode);
 	if (timespec64_compare(&ctime, &atime) >= 0)
-		return 1;
+		return true;
 
 	/*
 	 * Is the previous atime value older than a day? If yes,
 	 * update atime:
 	 */
 	if ((long)(now.tv_sec - atime.tv_sec) >= 24*60*60)
-		return 1;
+		return true;
 	/*
 	 * Good, we can skip the atime update:
 	 */
-	return 0;
+	return false;
 }
 
 /**
