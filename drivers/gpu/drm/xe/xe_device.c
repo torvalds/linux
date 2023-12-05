@@ -413,6 +413,8 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_mmio_probe_tiles(xe);
 
+	xe_ttm_sys_mgr_init(xe);
+
 	err = drmm_add_action_or_reset(&xe->drm, xe_driver_flr_fini, xe);
 	if (err)
 		return err;
@@ -440,8 +442,6 @@ int xe_device_probe(struct xe_device *xe)
 	err = xe_mmio_probe_vram(xe);
 	if (err)
 		goto err_irq_shutdown;
-
-	xe_ttm_sys_mgr_init(xe);
 
 	for_each_tile(tile, xe, id) {
 		err = xe_tile_init_noalloc(tile);
