@@ -247,6 +247,8 @@ struct mpi3mr_buf_map {
 	u32 kern_buf_len;
 	dma_addr_t kern_buf_dma;
 	u8 data_dir;
+	u16 num_dma_desc;
+	struct dma_memory_desc *dma_desc;
 };
 
 /* IOC State definitions */

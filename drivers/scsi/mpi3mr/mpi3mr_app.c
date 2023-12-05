@@ -564,7 +564,36 @@ static long mpi3mr_bsg_process_drv_cmds(struct bsg_job *job)
 }
 
 /**
+ * mpi3mr_total_num_ioctl_sges - Count number of SGEs required
+ * @drv_bufs: DMA address of the buffers to be placed in sgl
+ * @bufcnt: Number of DMA buffers
+ *
+ * This function returns total number of data SGEs required
+ * including zero length SGEs and excluding management request
+ * and response buffer for the given list of data buffer
+ * descriptors
+ *
+ * Return: Number of SGE elements needed
+ */
+static inline u16 mpi3mr_total_num_ioctl_sges(struct mpi3mr_buf_map *drv_bufs,
+					      u8 bufcnt)
+{
+	u16 i, sge_count = 0;
+
+	for (i = 0; i < bufcnt; i++, drv_bufs++) {
+		if (drv_bufs->data_dir == DMA_NONE ||
+		    drv_bufs->kern_buf)
+			continue;
+		sge_count += drv_bufs->num_dma_desc;
+		if (!drv_bufs->num_dma_desc)
+			sge_count++;
+	}
+	return sge_count;
+}
+
+/**
  * mpi3mr_bsg_build_sgl - SGL construction for MPI commands
+ * @mrioc: Adapter instance reference
  * @mpi_req: MPI request
  * @sgl_offset: offset to start sgl in the MPI request
  * @drv_bufs: DMA address of the buffers to be placed in sgl
@@ -576,27 +605,45 @@ static long mpi3mr_bsg_process_drv_cmds(struct bsg_job *job)
  * This function places the DMA address of the given buffers in
  * proper format as SGEs in the given MPI request.
  *
- * Return: Nothing
+ * Return: 0 on success,-1 on failure
  */
-static void mpi3mr_bsg_build_sgl(u8 *mpi_req, uint32_t sgl_offset,
-	struct mpi3mr_buf_map *drv_bufs, u8 bufcnt, u8 is_rmc,
-	u8 is_rmr, u8 num_datasges)
+static int mpi3mr_bsg_build_sgl(struct mpi3mr_ioc *mrioc, u8 *mpi_req,
+				u32 sgl_offset, struct mpi3mr_buf_map *drv_bufs,
+				u8 bufcnt, u8 is_rmc, u8 is_rmr, u8 num_datasges)
 {
+	struct mpi3_request_header *mpi_header =
+		(struct mpi3_request_header *)mpi_req;
 	u8 *sgl = (mpi_req + sgl_offset), count = 0;
 	struct mpi3_mgmt_passthrough_request *rmgmt_req =
 	    (struct mpi3_mgmt_passthrough_request *)mpi_req;
 	struct mpi3mr_buf_map *drv_buf_iter = drv_bufs;
-	u8 sgl_flags, sgl_flags_last;
+	u8 flag, sgl_flags, sgl_flag_eob, sgl_flags_last, last_chain_sgl_flag;
+	u16 available_sges, i, sges_needed;
+	u32 sge_element_size = sizeof(struct mpi3_sge_common);
+	bool chain_used = false;
 
 	sgl_flags = MPI3_SGE_FLAGS_ELEMENT_TYPE_SIMPLE |
-		MPI3_SGE_FLAGS_DLAS_SYSTEM | MPI3_SGE_FLAGS_END_OF_BUFFER;
-	sgl_flags_last = sgl_flags | MPI3_SGE_FLAGS_END_OF_LIST;
+		MPI3_SGE_FLAGS_DLAS_SYSTEM;
+	sgl_flag_eob = sgl_flags | MPI3_SGE_FLAGS_END_OF_BUFFER;
+	sgl_flags_last = sgl_flag_eob | MPI3_SGE_FLAGS_END_OF_LIST;
+	last_chain_sgl_flag = MPI3_SGE_FLAGS_ELEMENT_TYPE_LAST_CHAIN |
+	    MPI3_SGE_FLAGS_DLAS_SYSTEM;
+
+	sges_needed = mpi3mr_total_num_ioctl_sges(drv_bufs, bufcnt);
 
 	if (is_rmc) {
 		mpi3mr_add_sg_single(&rmgmt_req->command_sgl,
 		    sgl_flags_last, drv_buf_iter->kern_buf_len,
 		    drv_buf_iter->kern_buf_dma);
-		sgl = (u8 *)drv_buf_iter->kern_buf + drv_buf_iter->bsg_buf_len;
+		sgl = (u8 *)drv_buf_iter->kern_buf +
+			drv_buf_iter->bsg_buf_len;
+		available_sges = (drv_buf_iter->kern_buf_len -
+		    drv_buf_iter->bsg_buf_len) / sge_element_size;
+
+		if (sges_needed > available_sges)
+			return -1;
+
+		chain_used = true;
 		drv_buf_iter++;
 		count++;
 		if (is_rmr) {
@@ -608,23 +655,95 @@ static void mpi3mr_bsg_build_sgl(u8 *mpi_req, uint32_t sgl_offset,
 		} else
 			mpi3mr_build_zero_len_sge(
 			    &rmgmt_req->response_sgl);
+		if (num_datasges) {
+			i = 0;
+			goto build_sges;
+		}
+	} else {
+		if (sgl_offset >= MPI3MR_ADMIN_REQ_FRAME_SZ)
+			return -1;
+		available_sges = (MPI3MR_ADMIN_REQ_FRAME_SZ - sgl_offset) /
+		sge_element_size;
+		if (!available_sges)
+			return -1;
 	}
 	if (!num_datasges) {
 		mpi3mr_build_zero_len_sge(sgl);
-		return;
+		return 0;
 	}
+	if (mpi_header->function == MPI3_BSG_FUNCTION_SMP_PASSTHROUGH) {
+		if ((sges_needed > 2) || (sges_needed > available_sges))
+			return -1;
+		for (; count < bufcnt; count++, drv_buf_iter++) {
+			if (drv_buf_iter->data_dir == DMA_NONE ||
+			    !drv_buf_iter->num_dma_desc)
+				continue;
+			mpi3mr_add_sg_single(sgl, sgl_flags_last,
+					     drv_buf_iter->dma_desc[0].size,
+					     drv_buf_iter->dma_desc[0].dma_addr);
+			sgl += sge_element_size;
+		}
+		return 0;
+	}
+	i = 0;
+
+build_sges:
 	for (; count < bufcnt; count++, drv_buf_iter++) {
 		if (drv_buf_iter->data_dir == DMA_NONE)
 			continue;
-		if (num_datasges == 1 || !is_rmc)
-			mpi3mr_add_sg_single(sgl, sgl_flags_last,
-			    drv_buf_iter->kern_buf_len, drv_buf_iter->kern_buf_dma);
-		else
-			mpi3mr_add_sg_single(sgl, sgl_flags,
-			    drv_buf_iter->kern_buf_len, drv_buf_iter->kern_buf_dma);
-		sgl += sizeof(struct mpi3_sge_common);
+		if (!drv_buf_iter->num_dma_desc) {
+			if (chain_used && !available_sges)
+				return -1;
+			if (!chain_used && (available_sges == 1) &&
+			    (sges_needed > 1))
+				goto setup_chain;
+			flag = sgl_flag_eob;
+			if (num_datasges == 1)
+				flag = sgl_flags_last;
+			mpi3mr_add_sg_single(sgl, flag, 0, 0);
+			sgl += sge_element_size;
+			sges_needed--;
+			available_sges--;
+			num_datasges--;
+			continue;
+		}
+		for (; i < drv_buf_iter->num_dma_desc; i++) {
+			if (chain_used && !available_sges)
+				return -1;
+			if (!chain_used && (available_sges == 1) &&
+			    (sges_needed > 1))
+				goto setup_chain;
+			flag = sgl_flags;
+			if (i == (drv_buf_iter->num_dma_desc - 1)) {
+				if (num_datasges == 1)
+					flag = sgl_flags_last;
+				else
+					flag = sgl_flag_eob;
+			}
+
+			mpi3mr_add_sg_single(sgl, flag,
+					     drv_buf_iter->dma_desc[i].size,
+					     drv_buf_iter->dma_desc[i].dma_addr);
+			sgl += sge_element_size;
+			available_sges--;
+			sges_needed--;
+		}
 		num_datasges--;
+		i = 0;
 	}
+	return 0;
+
+setup_chain:
+	available_sges = mrioc->ioctl_chain_sge.size / sge_element_size;
+	if (sges_needed > available_sges)
+		return -1;
+	mpi3mr_add_sg_single(sgl, last_chain_sgl_flag,
+			     (sges_needed * sge_element_size),
+			     mrioc->ioctl_chain_sge.dma_addr);
+	memset(mrioc->ioctl_chain_sge.addr, 0, mrioc->ioctl_chain_sge.size);
+	sgl = (u8 *)mrioc->ioctl_chain_sge.addr;
+	chain_used = true;
+	goto build_sges;
 }
 
 /**
@@ -935,10 +1054,66 @@ err_out:
 	}
 	return -1;
 }
+
+/**
+ * mpi3mr_map_data_buffer_dma - build dma descriptors for data
+ *                              buffers
+ * @mrioc: Adapter instance reference
+ * @drv_buf: buffer map descriptor
+ * @desc_count: Number of already consumed dma descriptors
+ *
+ * This function computes how many pre-allocated DMA descriptors
+ * are required for the given data buffer and if those number of
+ * descriptors are free, then setup the mapping of the scattered
+ * DMA address to the given data buffer, if the data direction
+ * of the buffer is DMA_TO_DEVICE then the actual data is copied to
+ * the DMA buffers
+ *
+ * Return: 0 on success, -1 on failure
+ */
+static int mpi3mr_map_data_buffer_dma(struct mpi3mr_ioc *mrioc,
+				      struct mpi3mr_buf_map *drv_buf,
+				      u16 desc_count)
+{
+	u16 i, needed_desc = drv_buf->kern_buf_len / MPI3MR_IOCTL_SGE_SIZE;
+	u32 buf_len = drv_buf->kern_buf_len, copied_len = 0;
+
+	if (drv_buf->kern_buf_len % MPI3MR_IOCTL_SGE_SIZE)
+		needed_desc++;
+	if ((needed_desc + desc_count) > MPI3MR_NUM_IOCTL_SGE) {
+		dprint_bsg_err(mrioc, "%s: DMA descriptor mapping error %d:%d:%d\n",
+			       __func__, needed_desc, desc_count, MPI3MR_NUM_IOCTL_SGE);
+		return -1;
+	}
+	drv_buf->dma_desc = kzalloc(sizeof(*drv_buf->dma_desc) * needed_desc,
+				    GFP_KERNEL);
+	if (!drv_buf->dma_desc)
+		return -1;
+	for (i = 0; i < needed_desc; i++, desc_count++) {
+		drv_buf->dma_desc[i].addr = mrioc->ioctl_sge[desc_count].addr;
+		drv_buf->dma_desc[i].dma_addr =
+		    mrioc->ioctl_sge[desc_count].dma_addr;
+		if (buf_len < mrioc->ioctl_sge[desc_count].size)
+			drv_buf->dma_desc[i].size = buf_len;
+		else
+			drv_buf->dma_desc[i].size =
+			    mrioc->ioctl_sge[desc_count].size;
+		buf_len -= drv_buf->dma_desc[i].size;
+		memset(drv_buf->dma_desc[i].addr, 0,
+		       mrioc->ioctl_sge[desc_count].size);
+		if (drv_buf->data_dir == DMA_TO_DEVICE) {
+			memcpy(drv_buf->dma_desc[i].addr,
+			       drv_buf->bsg_buf + copied_len,
+			       drv_buf->dma_desc[i].size);
+			copied_len += drv_buf->dma_desc[i].size;
+		}
+	}
+	drv_buf->num_dma_desc = needed_desc;
+	return 0;
+}
 /**
  * mpi3mr_bsg_process_mpt_cmds - MPI Pass through BSG handler
  * @job: BSG job reference
- * @reply_payload_rcv_len: length of payload recvd
  *
  * This function is the top level handler for MPI Pass through
  * command, this does basic validation of the input data buffers,
@@ -954,10 +1129,9 @@ err_out:
  * Return: 0 on success and proper error codes on failure
  */
 
-static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply_payload_rcv_len)
+static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job)
 {
 	long rval = -EINVAL;
-
 	struct mpi3mr_ioc *mrioc = NULL;
 	u8 *mpi_req = NULL, *sense_buff_k = NULL;
 	u8 mpi_msg_size = 0;
@@ -965,9 +1139,10 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 	struct mpi3mr_bsg_mptcmd *karg;
 	struct mpi3mr_buf_entry *buf_entries = NULL;
 	struct mpi3mr_buf_map *drv_bufs = NULL, *drv_buf_iter = NULL;
-	u8 count, bufcnt = 0, is_rmcb = 0, is_rmrb = 0, din_cnt = 0, dout_cnt = 0;
-	u8 invalid_be = 0, erb_offset = 0xFF, mpirep_offset = 0xFF, sg_entries = 0;
-	u8 block_io = 0, resp_code = 0, nvme_fmt = 0;
+	u8 count, bufcnt = 0, is_rmcb = 0, is_rmrb = 0;
+	u8 din_cnt = 0, dout_cnt = 0;
+	u8 invalid_be = 0, erb_offset = 0xFF, mpirep_offset = 0xFF;
+	u8 block_io = 0, nvme_fmt = 0, resp_code = 0;
 	struct mpi3_request_header *mpi_header = NULL;
 	struct mpi3_status_reply_descriptor *status_desc;
 	struct mpi3_scsi_task_mgmt_request *tm_req;
@@ -979,6 +1154,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 	u32 din_size = 0, dout_size = 0;
 	u8 *din_buf = NULL, *dout_buf = NULL;
 	u8 *sgl_iter = NULL, *sgl_din_iter = NULL, *sgl_dout_iter = NULL;
+	u16 rmc_size  = 0, desc_count = 0;
 
 	bsg_req = job->request;
 	karg = (struct mpi3mr_bsg_mptcmd *)&bsg_req->cmd.mptcmd;
@@ -986,6 +1162,12 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 	mrioc = mpi3mr_bsg_verify_adapter(karg->mrioc_id);
 	if (!mrioc)
 		return -ENODEV;
+
+	if (!mrioc->ioctl_sges_allocated) {
+		dprint_bsg_err(mrioc, "%s: DMA memory was not allocated\n",
+			       __func__);
+		return -ENOMEM;
+	}
 
 	if (karg->timeout < MPI3MR_APP_DEFAULT_TIMEOUT)
 		karg->timeout = MPI3MR_APP_DEFAULT_TIMEOUT;
@@ -1027,26 +1209,13 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 
 	for (count = 0; count < bufcnt; count++, buf_entries++, drv_buf_iter++) {
 
-		if (sgl_dout_iter > (dout_buf + job->request_payload.payload_len)) {
-			dprint_bsg_err(mrioc, "%s: data_out buffer length mismatch\n",
-				__func__);
-			rval = -EINVAL;
-			goto out;
-		}
-		if (sgl_din_iter > (din_buf + job->reply_payload.payload_len)) {
-			dprint_bsg_err(mrioc, "%s: data_in buffer length mismatch\n",
-				__func__);
-			rval = -EINVAL;
-			goto out;
-		}
-
 		switch (buf_entries->buf_type) {
 		case MPI3MR_BSG_BUFTYPE_RAIDMGMT_CMD:
 			sgl_iter = sgl_dout_iter;
 			sgl_dout_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_TO_DEVICE;
 			is_rmcb = 1;
-			if (count != 0)
+			if ((count != 0) || !buf_entries->buf_len)
 				invalid_be = 1;
 			break;
 		case MPI3MR_BSG_BUFTYPE_RAIDMGMT_RESP:
@@ -1054,7 +1223,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			sgl_din_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_FROM_DEVICE;
 			is_rmrb = 1;
-			if (count != 1 || !is_rmcb)
+			if (count != 1 || !is_rmcb || !buf_entries->buf_len)
 				invalid_be = 1;
 			break;
 		case MPI3MR_BSG_BUFTYPE_DATA_IN:
@@ -1062,7 +1231,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			sgl_din_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_FROM_DEVICE;
 			din_cnt++;
-			din_size += drv_buf_iter->bsg_buf_len;
+			din_size += buf_entries->buf_len;
 			if ((din_cnt > 1) && !is_rmcb)
 				invalid_be = 1;
 			break;
@@ -1071,7 +1240,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			sgl_dout_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_TO_DEVICE;
 			dout_cnt++;
-			dout_size += drv_buf_iter->bsg_buf_len;
+			dout_size += buf_entries->buf_len;
 			if ((dout_cnt > 1) && !is_rmcb)
 				invalid_be = 1;
 			break;
@@ -1080,12 +1249,16 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			sgl_din_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_NONE;
 			mpirep_offset = count;
+			if (!buf_entries->buf_len)
+				invalid_be = 1;
 			break;
 		case MPI3MR_BSG_BUFTYPE_ERR_RESPONSE:
 			sgl_iter = sgl_din_iter;
 			sgl_din_iter += buf_entries->buf_len;
 			drv_buf_iter->data_dir = DMA_NONE;
 			erb_offset = count;
+			if (!buf_entries->buf_len)
+				invalid_be = 1;
 			break;
 		case MPI3MR_BSG_BUFTYPE_MPI_REQUEST:
 			sgl_iter = sgl_dout_iter;
@@ -1112,21 +1285,31 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			goto out;
 		}
 
-		drv_buf_iter->bsg_buf = sgl_iter;
-		drv_buf_iter->bsg_buf_len = buf_entries->buf_len;
-
-	}
-	if (!is_rmcb && (dout_cnt || din_cnt)) {
-		sg_entries = dout_cnt + din_cnt;
-		if (((mpi_msg_size) + (sg_entries *
-		      sizeof(struct mpi3_sge_common))) > MPI3MR_ADMIN_REQ_FRAME_SZ) {
-			dprint_bsg_err(mrioc,
-			    "%s:%d: invalid message size passed\n",
-			    __func__, __LINE__);
+		if (sgl_dout_iter > (dout_buf + job->request_payload.payload_len)) {
+			dprint_bsg_err(mrioc, "%s: data_out buffer length mismatch\n",
+				       __func__);
 			rval = -EINVAL;
 			goto out;
 		}
+		if (sgl_din_iter > (din_buf + job->reply_payload.payload_len)) {
+			dprint_bsg_err(mrioc, "%s: data_in buffer length mismatch\n",
+				       __func__);
+			rval = -EINVAL;
+			goto out;
+		}
+
+		drv_buf_iter->bsg_buf = sgl_iter;
+		drv_buf_iter->bsg_buf_len = buf_entries->buf_len;
 	}
+
+	if (is_rmcb && ((din_size + dout_size) > MPI3MR_MAX_APP_XFER_SIZE)) {
+		dprint_bsg_err(mrioc, "%s:%d: invalid data transfer size passed for function 0x%x din_size = %d, dout_size = %d\n",
+			       __func__, __LINE__, mpi_header->function, din_size,
+			       dout_size);
+		rval = -EINVAL;
+		goto out;
+	}
+
 	if (din_size > MPI3MR_MAX_APP_XFER_SIZE) {
 		dprint_bsg_err(mrioc,
 		    "%s:%d: invalid data transfer size passed for function 0x%x din_size=%d\n",
@@ -1142,30 +1325,64 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 		goto out;
 	}
 
+	if (mpi_header->function == MPI3_BSG_FUNCTION_SMP_PASSTHROUGH) {
+		if (din_size > MPI3MR_IOCTL_SGE_SIZE ||
+		    dout_size > MPI3MR_IOCTL_SGE_SIZE) {
+			dprint_bsg_err(mrioc, "%s:%d: invalid message size passed:%d:%d:%d:%d\n",
+				       __func__, __LINE__, din_cnt, dout_cnt, din_size,
+			    dout_size);
+			rval = -EINVAL;
+			goto out;
+		}
+	}
+
 	drv_buf_iter = drv_bufs;
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
 		if (drv_buf_iter->data_dir == DMA_NONE)
 			continue;
 
 		drv_buf_iter->kern_buf_len = drv_buf_iter->bsg_buf_len;
-		if (is_rmcb && !count)
-			drv_buf_iter->kern_buf_len += ((dout_cnt + din_cnt) *
-			    sizeof(struct mpi3_sge_common));
-
-		if (!drv_buf_iter->kern_buf_len)
-			continue;
-
-		drv_buf_iter->kern_buf = dma_alloc_coherent(&mrioc->pdev->dev,
-		    drv_buf_iter->kern_buf_len, &drv_buf_iter->kern_buf_dma,
-		    GFP_KERNEL);
-		if (!drv_buf_iter->kern_buf) {
-			rval = -ENOMEM;
+		if (is_rmcb && !count) {
+			drv_buf_iter->kern_buf_len =
+			    mrioc->ioctl_chain_sge.size;
+			drv_buf_iter->kern_buf =
+			    mrioc->ioctl_chain_sge.addr;
+			drv_buf_iter->kern_buf_dma =
+			    mrioc->ioctl_chain_sge.dma_addr;
+			drv_buf_iter->dma_desc = NULL;
+			drv_buf_iter->num_dma_desc = 0;
+			memset(drv_buf_iter->kern_buf, 0,
+			       drv_buf_iter->kern_buf_len);
+			tmplen = min(drv_buf_iter->kern_buf_len,
+				     drv_buf_iter->bsg_buf_len);
+			rmc_size = tmplen;
+			memcpy(drv_buf_iter->kern_buf, drv_buf_iter->bsg_buf, tmplen);
+		} else if (is_rmrb && (count == 1)) {
+			drv_buf_iter->kern_buf_len =
+			    mrioc->ioctl_resp_sge.size;
+			drv_buf_iter->kern_buf =
+			    mrioc->ioctl_resp_sge.addr;
+			drv_buf_iter->kern_buf_dma =
+			    mrioc->ioctl_resp_sge.dma_addr;
+			drv_buf_iter->dma_desc = NULL;
+			drv_buf_iter->num_dma_desc = 0;
+			memset(drv_buf_iter->kern_buf, 0,
+			       drv_buf_iter->kern_buf_len);
+			tmplen = min(drv_buf_iter->kern_buf_len,
+				     drv_buf_iter->bsg_buf_len);
+			drv_buf_iter->kern_buf_len = tmplen;
+			memset(drv_buf_iter->bsg_buf, 0,
+			       drv_buf_iter->bsg_buf_len);
+		} else {
+			if (!drv_buf_iter->kern_buf_len)
+				continue;
+			if (mpi3mr_map_data_buffer_dma(mrioc, drv_buf_iter, desc_count)) {
+				rval = -ENOMEM;
+				dprint_bsg_err(mrioc, "%s:%d: mapping data buffers failed\n",
+					       __func__, __LINE__);
 			goto out;
 		}
-		if (drv_buf_iter->data_dir == DMA_TO_DEVICE) {
-			tmplen = min(drv_buf_iter->kern_buf_len,
-			    drv_buf_iter->bsg_buf_len);
-			memcpy(drv_buf_iter->kern_buf, drv_buf_iter->bsg_buf, tmplen);
+			desc_count += drv_buf_iter->num_dma_desc;
 		}
 	}
 
@@ -1235,9 +1452,14 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			goto out;
 		}
 	} else {
-		mpi3mr_bsg_build_sgl(mpi_req, (mpi_msg_size),
-		    drv_bufs, bufcnt, is_rmcb, is_rmrb,
-		    (dout_cnt + din_cnt));
+		if (mpi3mr_bsg_build_sgl(mrioc, mpi_req, mpi_msg_size,
+					 drv_bufs, bufcnt, is_rmcb, is_rmrb,
+					 (dout_cnt + din_cnt))) {
+			dprint_bsg_err(mrioc, "%s: sgl build failed\n", __func__);
+			rval = -EAGAIN;
+			mutex_unlock(&mrioc->bsg_cmds.mutex);
+			goto out;
+		}
 	}
 
 	if (mpi_header->function == MPI3_BSG_FUNCTION_SCSI_TASK_MGMT) {
@@ -1273,7 +1495,7 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 		if (mpi_header->function == MPI3_BSG_FUNCTION_MGMT_PASSTHROUGH) {
 			drv_buf_iter = &drv_bufs[0];
 			dprint_dump(drv_buf_iter->kern_buf,
-			    drv_buf_iter->kern_buf_len, "mpi3_mgmt_req");
+			    rmc_size, "mpi3_mgmt_req");
 		}
 	}
 
@@ -1308,10 +1530,9 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 			    MPI3_BSG_FUNCTION_MGMT_PASSTHROUGH) {
 				drv_buf_iter = &drv_bufs[0];
 				dprint_dump(drv_buf_iter->kern_buf,
-				    drv_buf_iter->kern_buf_len, "mpi3_mgmt_req");
+				    rmc_size, "mpi3_mgmt_req");
 			}
 		}
-
 		if ((mpi_header->function == MPI3_BSG_FUNCTION_NVME_ENCAPSULATED) ||
 		    (mpi_header->function == MPI3_BSG_FUNCTION_SCSI_IO))
 			mpi3mr_issue_tm(mrioc,
@@ -1382,17 +1603,27 @@ static long mpi3mr_bsg_process_mpt_cmds(struct bsg_job *job, unsigned int *reply
 	for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
 		if (drv_buf_iter->data_dir == DMA_NONE)
 			continue;
-		if (drv_buf_iter->data_dir == DMA_FROM_DEVICE) {
-			tmplen = min(drv_buf_iter->kern_buf_len,
-				     drv_buf_iter->bsg_buf_len);
+		if ((count == 1) && is_rmrb) {
 			memcpy(drv_buf_iter->bsg_buf,
-			       drv_buf_iter->kern_buf, tmplen);
+			    drv_buf_iter->kern_buf,
+			    drv_buf_iter->kern_buf_len);
+		} else if (drv_buf_iter->data_dir == DMA_FROM_DEVICE) {
+			tmplen = 0;
+			for (desc_count = 0;
+			    desc_count < drv_buf_iter->num_dma_desc;
+			    desc_count++) {
+				memcpy(((u8 *)drv_buf_iter->bsg_buf + tmplen),
+				       drv_buf_iter->dma_desc[desc_count].addr,
+				       drv_buf_iter->dma_desc[desc_count].size);
+				tmplen +=
+				    drv_buf_iter->dma_desc[desc_count].size;
 		}
+	}
 	}
 
 out_unlock:
 	if (din_buf) {
-		*reply_payload_rcv_len =
+		job->reply_payload_rcv_len =
 			sg_copy_from_buffer(job->reply_payload.sg_list,
 					    job->reply_payload.sg_cnt,
 					    din_buf, job->reply_payload.payload_len);
@@ -1408,13 +1639,8 @@ out:
 	kfree(mpi_req);
 	if (drv_bufs) {
 		drv_buf_iter = drv_bufs;
-		for (count = 0; count < bufcnt; count++, drv_buf_iter++) {
-			if (drv_buf_iter->kern_buf && drv_buf_iter->kern_buf_dma)
-				dma_free_coherent(&mrioc->pdev->dev,
-				    drv_buf_iter->kern_buf_len,
-				    drv_buf_iter->kern_buf,
-				    drv_buf_iter->kern_buf_dma);
-		}
+		for (count = 0; count < bufcnt; count++, drv_buf_iter++)
+			kfree(drv_buf_iter->dma_desc);
 		kfree(drv_bufs);
 	}
 	kfree(bsg_reply_buf);
@@ -1473,7 +1699,7 @@ static int mpi3mr_bsg_request(struct bsg_job *job)
 		rval = mpi3mr_bsg_process_drv_cmds(job);
 		break;
 	case MPI3MR_MPT_CMD:
-		rval = mpi3mr_bsg_process_mpt_cmds(job, &reply_payload_rcv_len);
+		rval = mpi3mr_bsg_process_mpt_cmds(job);
 		break;
 	default:
 		pr_err("%s: unsupported BSG command(0x%08x)\n",
