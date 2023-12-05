@@ -60,7 +60,16 @@ struct xe_reg_mcr {
 
 /**
  * XE_REG_OPTION_MASKED - Register is "masked", with upper 16 bits marking the
- * read/written bits on the lower 16 bits.
+ * written bits on the lower 16 bits.
+ *
+ * It only applies to registers explicitly marked in bspec with
+ * "Access: Masked". Registers with this option can have write operations to
+ * specific lower bits by setting the corresponding upper bits. Other bits will
+ * not be affected. This allows register writes without needing a RMW cycle and
+ * without caching in software the register value.
+ *
+ * Example: a write with value 0x00010001 will set bit 0 and all other bits
+ * retain their previous values.
  *
  * To be used with XE_REG(). XE_REG_MCR() and XE_REG_INITIALIZER()
  */
