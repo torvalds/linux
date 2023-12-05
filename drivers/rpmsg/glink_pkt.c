@@ -185,6 +185,7 @@ static void glink_pkt_clear_queues(struct glink_pkt_device *gpdev)
 	struct sk_buff *skb;
 	unsigned long flags;
 
+	mutex_lock(&gpdev->rskb_read_lock);
 	spin_lock_irqsave(&gpdev->queue_lock, flags);
 	if (gpdev->rskb) {
 		glink_pkt_kfree_skb(gpdev, gpdev->rskb);
@@ -199,6 +200,7 @@ static void glink_pkt_clear_queues(struct glink_pkt_device *gpdev)
 		glink_pkt_kfree_skb(gpdev, skb);
 
 	spin_unlock_irqrestore(&gpdev->queue_lock, flags);
+	mutex_unlock(&gpdev->rskb_read_lock);
 }
 
 static int glink_pkt_rpdev_no_copy_cb(struct rpmsg_device *rpdev, void *buf,
