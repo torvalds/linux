@@ -1108,8 +1108,10 @@ enum bpf_link_type {
 	BPF_LINK_TYPE_TCX = 11,
 	BPF_LINK_TYPE_UPROBE_MULTI = 12,
 	BPF_LINK_TYPE_NETKIT = 13,
-	MAX_BPF_LINK_TYPE,
+	__MAX_BPF_LINK_TYPE,
 };
+
+#define MAX_BPF_LINK_TYPE __MAX_BPF_LINK_TYPE
 
 enum bpf_perf_event_type {
 	BPF_PERF_EVENT_UNSPEC = 0,
