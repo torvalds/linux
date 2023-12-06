@@ -53,6 +53,32 @@ dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-ls1028a-qds-85bb.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-ls1028a-qds-899b.dtb
 dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-ls1028a-qds-9999.dtb
 
+fsl-lx2160a-tqmlx2160a-mblx2160a-12-11-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_12_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_11_x.dtbo
+fsl-lx2160a-tqmlx2160a-mblx2160a-12-7-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_12_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_7_x.dtbo
+fsl-lx2160a-tqmlx2160a-mblx2160a-12-8-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_12_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_8_x.dtbo
+fsl-lx2160a-tqmlx2160a-mblx2160a-14-7-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_14_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_7_x.dtbo
+fsl-lx2160a-tqmlx2160a-mblx2160a-14-8-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_14_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_8_x.dtbo
+fsl-lx2160a-tqmlx2160a-mblx2160a-14-11-x-dtbs := fsl-lx2160a-tqmlx2160a-mblx2160a.dtb \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_14_x_x.dtbo \
+	fsl-lx2160a-tqmlx2160a-mblx2160a_x_11_x.dtbo
+
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-12-11-x.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-12-8-x.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-12-7-x.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-14-11-x.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-14-8-x.dtb
+dtb-$(CONFIG_ARCH_LAYERSCAPE) += fsl-lx2160a-tqmlx2160a-mblx2160a-14-7-x.dtb
+
 dtb-$(CONFIG_ARCH_MXC) += imx8dxl-evk.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-beacon-kit.dtb
 dtb-$(CONFIG_ARCH_MXC) += imx8mm-data-modul-edm-sbc.dtb
