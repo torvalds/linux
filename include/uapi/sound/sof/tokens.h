@@ -35,6 +35,7 @@
 /* buffers */
 #define SOF_TKN_BUF_SIZE			100
 #define SOF_TKN_BUF_CAPS			101
+#define SOF_TKN_BUF_FLAGS			102
 
 /* DAI */
 /* Token retired with ABI 3.2, do not use for new capabilities
