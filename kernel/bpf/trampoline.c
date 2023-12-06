@@ -1072,6 +1072,12 @@ void __weak arch_unprotect_bpf_trampoline(void *image, unsigned int size)
 	set_memory_rw((long)image, 1);
 }
 
+int __weak arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
+				    struct bpf_tramp_links *tlinks, void *func_addr)
+{
+	return -ENOTSUPP;
+}
+
 static int __init init_trampolines(void)
 {
 	int i;
