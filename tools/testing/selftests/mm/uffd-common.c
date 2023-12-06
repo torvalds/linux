@@ -262,7 +262,7 @@ static inline void munmap_area(void **area)
 	*area = NULL;
 }
 
-static void uffd_test_ctx_clear(void)
+void uffd_test_ctx_clear(void)
 {
 	size_t i;
 
@@ -297,8 +297,6 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 {
 	unsigned long nr, cpu;
 	int ret;
-
-	uffd_test_ctx_clear();
 
 	ret = uffd_test_ops->allocate_area((void **)&area_src, true);
 	ret |= uffd_test_ops->allocate_area((void **)&area_dst, false);
