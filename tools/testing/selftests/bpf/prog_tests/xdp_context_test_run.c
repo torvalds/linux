@@ -77,8 +77,8 @@ void test_xdp_context_test_run(void)
 	test_xdp_context_error(prog_fd, opts, 4, sizeof(__u32), sizeof(data),
 			       0, 0, 0);
 
-	/* Meta data must be 32 bytes or smaller */
-	test_xdp_context_error(prog_fd, opts, 0, 36, sizeof(data), 0, 0, 0);
+	/* Meta data must be 255 bytes or smaller */
+	test_xdp_context_error(prog_fd, opts, 0, 256, sizeof(data), 0, 0, 0);
 
 	/* Total size of data must match data_end - data_meta */
 	test_xdp_context_error(prog_fd, opts, 0, sizeof(__u32),
