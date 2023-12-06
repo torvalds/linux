@@ -243,6 +243,20 @@ static inline int num_extent_pages(const struct extent_buffer *eb)
 	return (eb->len >> PAGE_SHIFT) ?: 1;
 }
 
+/*
+ * This can only be determined at runtime by checking eb::folios[0].
+ *
+ * As we can have either one large folio covering the whole eb
+ * (either nodesize <= PAGE_SIZE, or high order folio), or multiple
+ * single-paged folios.
+ */
+static inline int num_extent_folios(const struct extent_buffer *eb)
+{
+	if (folio_order(eb->folios[0]))
+		return 1;
+	return num_extent_pages(eb);
+}
+
 static inline int extent_buffer_uptodate(const struct extent_buffer *eb)
 {
 	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);

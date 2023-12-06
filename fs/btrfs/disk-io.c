@@ -97,6 +97,12 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
 	crypto_shash_update(shash, kaddr + BTRFS_CSUM_SIZE,
 			    first_page_part - BTRFS_CSUM_SIZE);
 
+	/*
+	 * Multiple single-page folios case would reach here.
+	 *
+	 * nodesize <= PAGE_SIZE and large folio all handled by above
+	 * crypto_shash_update() already.
+	 */
 	for (i = 1; i < num_pages && INLINE_EXTENT_BUFFER_PAGES > 1; i++) {
 		kaddr = folio_address(buf->folios[i]);
 		crypto_shash_update(shash, kaddr, PAGE_SIZE);

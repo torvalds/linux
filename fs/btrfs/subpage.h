@@ -73,7 +73,7 @@ enum btrfs_subpage_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
-bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct page *page);
+bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping);
 
 void btrfs_init_subpage_info(struct btrfs_subpage_info *subpage_info, u32 sectorsize);
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
@@ -86,10 +86,8 @@ struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
 					  enum btrfs_subpage_type type);
 void btrfs_free_subpage(struct btrfs_subpage *subpage);
 
-void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
-			    struct page *page);
-void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
-			    struct page *page);
+void btrfs_folio_inc_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio);
+void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio);
 
 void btrfs_subpage_start_reader(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len);

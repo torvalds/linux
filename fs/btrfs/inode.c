@@ -7867,7 +7867,7 @@ static void wait_subpage_spinlock(struct page *page)
 	struct folio *folio = page_folio(page);
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, page))
+	if (!btrfs_is_subpage(fs_info, page->mapping))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));

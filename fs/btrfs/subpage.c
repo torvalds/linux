@@ -64,7 +64,7 @@
  *   This means a slightly higher tree locking latency.
  */
 
-bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct page *page)
+bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping)
 {
 	if (fs_info->sectorsize >= PAGE_SIZE)
 		return false;
@@ -74,8 +74,7 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct page *page)
 	 * mapping. And if page->mapping->host is data inode, it's subpage.
 	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
 	 */
-	if (!page->mapping || !page->mapping->host ||
-	    is_data_inode(page->mapping->host))
+	if (!mapping || !mapping->host || is_data_inode(mapping->host))
 		return true;
 
 	/*
@@ -129,7 +128,7 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 		ASSERT(PageLocked(page));
 
 	/* Either not subpage, or the folio already has private attached. */
-	if (!btrfs_is_subpage(fs_info, page) || folio_test_private(folio))
+	if (!btrfs_is_subpage(fs_info, page->mapping) || folio_test_private(folio))
 		return 0;
 
 	subpage = btrfs_alloc_subpage(fs_info, type);
@@ -147,7 +146,7 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info,
 	struct btrfs_subpage *subpage;
 
 	/* Either not subpage, or the folio already has private attached. */
-	if (!btrfs_is_subpage(fs_info, page) || !folio_test_private(folio))
+	if (!btrfs_is_subpage(fs_info, page->mapping) || !folio_test_private(folio))
 		return;
 
 	subpage = folio_detach_private(folio);
@@ -193,33 +192,29 @@ void btrfs_free_subpage(struct btrfs_subpage *subpage)
  * detach_extent_buffer_page() won't detach the folio private while we're still
  * allocating the extent buffer.
  */
-void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
-			    struct page *page)
+void btrfs_folio_inc_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, page))
+	if (!btrfs_is_subpage(fs_info, folio->mapping))
 		return;
 
-	ASSERT(folio_test_private(folio) && page->mapping);
-	lockdep_assert_held(&page->mapping->private_lock);
+	ASSERT(folio_test_private(folio) && folio->mapping);
+	lockdep_assert_held(&folio->mapping->private_lock);
 
 	subpage = folio_get_private(folio);
 	atomic_inc(&subpage->eb_refs);
 }
 
-void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
-			    struct page *page)
+void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, page))
+	if (!btrfs_is_subpage(fs_info, folio->mapping))
 		return;
 
-	ASSERT(folio_test_private(folio) && page->mapping);
-	lockdep_assert_held(&page->mapping->private_lock);
+	ASSERT(folio_test_private(folio) && folio->mapping);
+	lockdep_assert_held(&folio->mapping->private_lock);
 
 	subpage = folio_get_private(folio);
 	ASSERT(atomic_read(&subpage->eb_refs));
@@ -352,7 +347,7 @@ int btrfs_page_start_writer_lock(const struct btrfs_fs_info *fs_info,
 {
 	struct folio *folio = page_folio(page);
 
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page)) {
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page->mapping)) {
 		lock_page(page);
 		return 0;
 	}
@@ -369,7 +364,7 @@ int btrfs_page_start_writer_lock(const struct btrfs_fs_info *fs_info,
 void btrfs_page_end_writer_lock(const struct btrfs_fs_info *fs_info,
 		struct page *page, u64 start, u32 len)
 {
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page))
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page->mapping))
 		return unlock_page(page);
 	btrfs_subpage_clamp_range(page, &start, &len);
 	if (btrfs_subpage_end_and_test_writer(fs_info, page, start, len))
@@ -612,7 +607,8 @@ IMPLEMENT_BTRFS_SUBPAGE_TEST_OP(checked);
 void btrfs_page_set_##name(const struct btrfs_fs_info *fs_info,		\
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page)) {	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping)) {		\
 		set_page_func(page);					\
 		return;							\
 	}								\
@@ -621,7 +617,8 @@ void btrfs_page_set_##name(const struct btrfs_fs_info *fs_info,		\
 void btrfs_page_clear_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page)) {	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping)) {		\
 		clear_page_func(page);					\
 		return;							\
 	}								\
@@ -630,14 +627,16 @@ void btrfs_page_clear_##name(const struct btrfs_fs_info *fs_info,	\
 bool btrfs_page_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page))	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping))			\
 		return test_page_func(page);				\
 	return btrfs_subpage_test_##name(fs_info, page, start, len);	\
 }									\
 void btrfs_page_clamp_set_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page)) {	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping)) {	\
 		set_page_func(page);					\
 		return;							\
 	}								\
@@ -647,7 +646,8 @@ void btrfs_page_clamp_set_##name(const struct btrfs_fs_info *fs_info,	\
 void btrfs_page_clamp_clear_##name(const struct btrfs_fs_info *fs_info, \
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page)) {	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping)) {		\
 		clear_page_func(page);					\
 		return;							\
 	}								\
@@ -657,7 +657,8 @@ void btrfs_page_clamp_clear_##name(const struct btrfs_fs_info *fs_info, \
 bool btrfs_page_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct page *page, u64 start, u32 len)			\
 {									\
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, page))	\
+	if (unlikely(!fs_info) ||					\
+	    !btrfs_is_subpage(fs_info, page->mapping)) \
 		return test_page_func(page);				\
 	btrfs_subpage_clamp_range(page, &start, &len);			\
 	return btrfs_subpage_test_##name(fs_info, page, start, len);	\
@@ -686,7 +687,7 @@ void btrfs_page_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 		return;
 
 	ASSERT(!PageDirty(page));
-	if (!btrfs_is_subpage(fs_info, page))
+	if (!btrfs_is_subpage(fs_info, page->mapping))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
@@ -716,7 +717,7 @@ void btrfs_page_unlock_writer(struct btrfs_fs_info *fs_info, struct page *page,
 
 	ASSERT(PageLocked(page));
 	/* For non-subpage case, we just unlock the page */
-	if (!btrfs_is_subpage(fs_info, page))
+	if (!btrfs_is_subpage(fs_info, page->mapping))
 		return unlock_page(page);
 
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));
