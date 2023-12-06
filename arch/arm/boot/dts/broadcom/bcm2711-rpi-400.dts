@@ -36,9 +36,7 @@
 	gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
 };
 
-&leds {
-	/delete-node/ led_act;
-};
+/delete-node/ &led_act;
 
 &pm {
 	/delete-property/ system-power-controller;
