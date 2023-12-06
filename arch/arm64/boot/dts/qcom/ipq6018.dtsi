@@ -802,7 +802,7 @@
 			};
 		};
 
-		pcie0: pci@20000000 {
+		pcie0: pcie@20000000 {
 			compatible = "qcom,pcie-ipq6018";
 			reg = <0x0 0x20000000 0x0 0xf1d>,
 			      <0x0 0x20000f20 0x0 0xa8>,

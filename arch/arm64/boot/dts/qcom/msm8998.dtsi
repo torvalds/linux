@@ -933,7 +933,7 @@
 				<GIC_SPI 465 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		pcie0: pci@1c00000 {
+		pcie0: pcie@1c00000 {
 			compatible = "qcom,pcie-msm8998", "qcom,pcie-msm8996";
 			reg = <0x01c00000 0x2000>,
 			      <0x1b000000 0xf1d>,
