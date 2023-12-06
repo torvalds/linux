@@ -49,12 +49,12 @@
 	status = "okay";
 
 	/* SSI0 <=> PINS_4 (MC13783 Audio) */
-	ssi0 {
+	mux-ssi0 {
 		fsl,audmux-port = <0>;
 		fsl,port-config = <0xcb205000>;
 	};
 
-	pins4 {
+	mux-pins4 {
 		fsl,audmux-port = <2>;
 		fsl,port-config = <0x00001000>;
 	};
