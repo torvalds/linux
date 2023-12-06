@@ -68,6 +68,16 @@
 		};
 	};
 
+	usbphy0: usb-phy0 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
+
+	usbphy1: usb-phy1 {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -615,24 +625,6 @@
 				interrupts = <33>;
 				status = "disabled";
 			};
-		};
-	};
-
-	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		usbphy0: usb-phy@0 {
-			reg = <0>;
-			compatible = "usb-nop-xceiv";
-			#phy-cells = <0>;
-		};
-
-		usbphy1: usb-phy@1 {
-			reg = <1>;
-			compatible = "usb-nop-xceiv";
-			#phy-cells = <0>;
 		};
 	};
 };
