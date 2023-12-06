@@ -42,13 +42,6 @@ properties:
 
     additionalProperties: false
 
-    properties:
-      '#address-cells':
-        const: 1
-
-      '#size-cells':
-        const: 0
-
     patternProperties:
       '^ldo[0-9]+$':
         type: object
@@ -77,9 +70,6 @@ examples:
       interrupts = <0 0>;
 
       regulators {
-        #address-cells = <1>;
-        #size-cells = <0>;
-
         ldo3: ldo3 {
           regulator-name = "ldo3";
           regulator-min-microvolt = <1500000>;
