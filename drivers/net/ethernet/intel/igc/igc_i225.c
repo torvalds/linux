@@ -579,9 +579,8 @@ s32 igc_set_ltr_i225(struct igc_hw *hw, bool link)
 
 			/* Calculate tw_system (nsec). */
 			if (speed == SPEED_100) {
-				tw_system = ((rd32(IGC_EEE_SU) &
-					     IGC_TW_SYSTEM_100_MASK) >>
-					     IGC_TW_SYSTEM_100_SHIFT) * 500;
+				tw_system = FIELD_GET(IGC_TW_SYSTEM_100_MASK,
+						      rd32(IGC_EEE_SU)) * 500;
 			} else {
 				tw_system = (rd32(IGC_EEE_SU) &
 					     IGC_TW_SYSTEM_1000_MASK) * 500;

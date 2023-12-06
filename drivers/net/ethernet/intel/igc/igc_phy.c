@@ -727,7 +727,7 @@ static s32 igc_write_xmdio_reg(struct igc_hw *hw, u16 addr,
  */
 s32 igc_write_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 data)
 {
-	u8 dev_addr = (offset & GPY_MMD_MASK) >> GPY_MMD_SHIFT;
+	u8 dev_addr = FIELD_GET(GPY_MMD_MASK, offset);
 	s32 ret_val;
 
 	offset = offset & GPY_REG_MASK;
@@ -758,7 +758,7 @@ s32 igc_write_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 data)
  */
 s32 igc_read_phy_reg_gpy(struct igc_hw *hw, u32 offset, u16 *data)
 {
-	u8 dev_addr = (offset & GPY_MMD_MASK) >> GPY_MMD_SHIFT;
+	u8 dev_addr = FIELD_GET(GPY_MMD_MASK, offset);
 	s32 ret_val;
 
 	offset = offset & GPY_REG_MASK;
