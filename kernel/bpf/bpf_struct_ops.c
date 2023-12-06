@@ -355,6 +355,7 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 				      void *image, void *image_end)
 {
 	u32 flags;
+	int size;
 
 	tlinks[BPF_TRAMP_FENTRY].links[0] = link;
 	tlinks[BPF_TRAMP_FENTRY].nr_links = 1;
@@ -362,6 +363,12 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 	 * and it must be used alone.
 	 */
 	flags = model->ret_size > 0 ? BPF_TRAMP_F_RET_FENTRY_RET : 0;
+
+	size = arch_bpf_trampoline_size(model, flags, tlinks, NULL);
+	if (size < 0)
+		return size;
+	if (size > (unsigned long)image_end - (unsigned long)image)
+		return -E2BIG;
 	return arch_prepare_bpf_trampoline(NULL, image, image_end,
 					   model, flags, tlinks, NULL);
 }

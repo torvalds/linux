@@ -1052,13 +1052,6 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	int ret;
 	struct rv_jit_context ctx;
 
-	ret = arch_bpf_trampoline_size(im, m, flags, tlinks, func_addr);
-	if (ret < 0)
-		return ret;
-
-	if (ret > (long)image_end - (long)image)
-		return -EFBIG;
-
 	ctx.ninsns = 0;
 	/*
 	 * The bpf_int_jit_compile() uses a RW buffer (ctx.insns) to write the

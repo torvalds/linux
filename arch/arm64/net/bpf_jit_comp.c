@@ -2079,13 +2079,6 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	if (nregs > 8)
 		return -ENOTSUPP;
 
-	ret = arch_bpf_trampoline_size(m, flags, tlinks, func_addr);
-	if (ret < 0)
-		return ret;
-
-	if (ret > ((long)image_end - (long)image))
-		return -EFBIG;
-
 	jit_fill_hole(image, (unsigned int)(image_end - image));
 	ret = prepare_trampoline(&ctx, im, tlinks, func_addr, nregs, flags);
 
