@@ -1102,6 +1102,11 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 				const struct btf_func_model *m, u32 flags,
 				struct bpf_tramp_links *tlinks,
 				void *func_addr);
+void *arch_alloc_bpf_trampoline(unsigned int size);
+void arch_free_bpf_trampoline(void *image, unsigned int size);
+void arch_protect_bpf_trampoline(void *image, unsigned int size);
+void arch_unprotect_bpf_trampoline(void *image, unsigned int size);
+
 u64 notrace __bpf_prog_enter_sleepable_recur(struct bpf_prog *prog,
 					     struct bpf_tramp_run_ctx *run_ctx);
 void notrace __bpf_prog_exit_sleepable_recur(struct bpf_prog *prog, u64 start,

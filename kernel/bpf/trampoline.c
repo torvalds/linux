@@ -254,7 +254,7 @@ bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_a
 static void bpf_tramp_image_free(struct bpf_tramp_image *im)
 {
 	bpf_image_ksym_del(&im->ksym);
-	bpf_jit_free_exec(im->image);
+	arch_free_bpf_trampoline(im->image, PAGE_SIZE);
 	bpf_jit_uncharge_modmem(PAGE_SIZE);
 	percpu_ref_exit(&im->pcref);
 	kfree_rcu(im, rcu);
@@ -365,10 +365,9 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key)
 		goto out_free_im;
 
 	err = -ENOMEM;
-	im->image = image = bpf_jit_alloc_exec(PAGE_SIZE);
+	im->image = image = arch_alloc_bpf_trampoline(PAGE_SIZE);
 	if (!image)
 		goto out_uncharge;
-	set_vm_flush_reset_perms(image);
 
 	err = percpu_ref_init(&im->pcref, __bpf_tramp_image_release, 0, GFP_KERNEL);
 	if (err)
@@ -381,7 +380,7 @@ static struct bpf_tramp_image *bpf_tramp_image_alloc(u64 key)
 	return im;
 
 out_free_image:
-	bpf_jit_free_exec(im->image);
+	arch_free_bpf_trampoline(im->image, PAGE_SIZE);
 out_uncharge:
 	bpf_jit_uncharge_modmem(PAGE_SIZE);
 out_free_im:
@@ -444,7 +443,7 @@ again:
 	if (err < 0)
 		goto out_free;
 
-	set_memory_rox((long)im->image, 1);
+	arch_protect_bpf_trampoline(im->image, PAGE_SIZE);
 
 	WARN_ON(tr->cur_image && total == 0);
 	if (tr->cur_image)
@@ -465,8 +464,7 @@ again:
 		tr->fops->trampoline = 0;
 
 		/* reset im->image memory attr for arch_prepare_bpf_trampoline */
-		set_memory_nx((long)im->image, 1);
-		set_memory_rw((long)im->image, 1);
+		arch_unprotect_bpf_trampoline(im->image, PAGE_SIZE);
 		goto again;
 	}
 #endif
@@ -1038,6 +1036,40 @@ arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image
 			    void *func_addr)
 {
 	return -ENOTSUPP;
+}
+
+void * __weak arch_alloc_bpf_trampoline(unsigned int size)
+{
+	void *image;
+
+	if (WARN_ON_ONCE(size > PAGE_SIZE))
+		return NULL;
+	image = bpf_jit_alloc_exec(PAGE_SIZE);
+	if (image)
+		set_vm_flush_reset_perms(image);
+	return image;
+}
+
+void __weak arch_free_bpf_trampoline(void *image, unsigned int size)
+{
+	WARN_ON_ONCE(size > PAGE_SIZE);
+	/* bpf_jit_free_exec doesn't need "size", but
+	 * bpf_prog_pack_free() needs it.
+	 */
+	bpf_jit_free_exec(image);
+}
+
+void __weak arch_protect_bpf_trampoline(void *image, unsigned int size)
+{
+	WARN_ON_ONCE(size > PAGE_SIZE);
+	set_memory_rox((long)image, 1);
+}
+
+void __weak arch_unprotect_bpf_trampoline(void *image, unsigned int size)
+{
+	WARN_ON_ONCE(size > PAGE_SIZE);
+	set_memory_nx((long)image, 1);
+	set_memory_rw((long)image, 1);
 }
 
 static int __init init_trampolines(void)

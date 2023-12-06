@@ -101,12 +101,11 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 		goto out;
 	}
 
-	image = bpf_jit_alloc_exec(PAGE_SIZE);
+	image = arch_alloc_bpf_trampoline(PAGE_SIZE);
 	if (!image) {
 		err = -ENOMEM;
 		goto out;
 	}
-	set_vm_flush_reset_perms(image);
 
 	link = kzalloc(sizeof(*link), GFP_USER);
 	if (!link) {
@@ -124,7 +123,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (err < 0)
 		goto out;
 
-	set_memory_rox((long)image, 1);
+	arch_protect_bpf_trampoline(image, PAGE_SIZE);
 	prog_ret = dummy_ops_call_op(image, args);
 
 	err = dummy_ops_copy_args(args);
@@ -134,7 +133,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 		err = -EFAULT;
 out:
 	kfree(args);
-	bpf_jit_free_exec(image);
+	arch_free_bpf_trampoline(image, PAGE_SIZE);
 	if (link)
 		bpf_link_put(&link->link);
 	kfree(tlinks);
