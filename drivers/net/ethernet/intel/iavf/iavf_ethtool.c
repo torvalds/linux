@@ -1017,8 +1017,7 @@ iavf_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
 #define IAVF_USERDEF_FLEX_MAX_OFFS_VAL 504
 		flex = &fltr->flex_words[cnt++];
 		flex->word = value & IAVF_USERDEF_FLEX_WORD_M;
-		flex->offset = (value & IAVF_USERDEF_FLEX_OFFS_M) >>
-			     IAVF_USERDEF_FLEX_OFFS_S;
+		flex->offset = FIELD_GET(IAVF_USERDEF_FLEX_OFFS_M, value);
 		if (flex->offset > IAVF_USERDEF_FLEX_MAX_OFFS_VAL)
 			return -EINVAL;
 	}
