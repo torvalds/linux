@@ -2,7 +2,7 @@
 //
 // AMD Vangogh ACP PCI Driver
 //
-// Copyright (C) 2021 Advanced Micro Devices, Inc. All rights reserved.
+// Copyright (C) 2021, 2023 Advanced Micro Devices, Inc. All rights reserved.
 
 #include <linux/pci.h>
 #include <linux/module.h>
@@ -13,6 +13,7 @@
 #include <linux/pm_runtime.h>
 
 #include "acp5x.h"
+#include "../mach-config.h"
 
 struct acp5x_dev_data {
 	void __iomem *acp5x_base;
@@ -131,7 +132,7 @@ static int snd_acp5x_probe(struct pci_dev *pci,
 
 	/* Return if acp config flag is defined */
 	flag = snd_amd_acp_find_config(pci);
-	if (flag)
+	if (flag != FLAG_AMD_LEGACY)
 		return -ENODEV;
 
 	irqflags = IRQF_SHARED;
