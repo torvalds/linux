@@ -248,7 +248,7 @@ static void *test_vcpu_run(void *arg)
 		REPORT_GUEST_ASSERT(uc);
 		break;
 	default:
-		TEST_FAIL("Unexpected guest exit\n");
+		TEST_FAIL("Unexpected guest exit");
 	}
 
 	return NULL;
@@ -287,7 +287,7 @@ static int test_migrate_vcpu(unsigned int vcpu_idx)
 
 	/* Allow the error where the vCPU thread is already finished */
 	TEST_ASSERT(ret == 0 || ret == ESRCH,
-		    "Failed to migrate the vCPU:%u to pCPU: %u; ret: %d\n",
+		    "Failed to migrate the vCPU:%u to pCPU: %u; ret: %d",
 		    vcpu_idx, new_pcpu, ret);
 
 	return ret;
@@ -326,12 +326,12 @@ static void test_run(struct kvm_vm *vm)
 
 	pthread_mutex_init(&vcpu_done_map_lock, NULL);
 	vcpu_done_map = bitmap_zalloc(test_args.nr_vcpus);
-	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap\n");
+	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap");
 
 	for (i = 0; i < (unsigned long)test_args.nr_vcpus; i++) {
 		ret = pthread_create(&pt_vcpu_run[i], NULL, test_vcpu_run,
 				     (void *)(unsigned long)i);
-		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread\n", i);
+		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread", i);
 	}
 
 	/* Spawn a thread to control the vCPU migrations */
@@ -340,7 +340,7 @@ static void test_run(struct kvm_vm *vm)
 
 		ret = pthread_create(&pt_vcpu_migration, NULL,
 					test_vcpu_migration, NULL);
-		TEST_ASSERT(!ret, "Failed to create the migration pthread\n");
+		TEST_ASSERT(!ret, "Failed to create the migration pthread");
 	}
 
 
@@ -384,7 +384,7 @@ static struct kvm_vm *test_vm_create(void)
 		if (kvm_has_cap(KVM_CAP_COUNTER_OFFSET))
 			vm_ioctl(vm, KVM_ARM_SET_COUNTER_OFFSET, &test_args.offset);
 		else
-			TEST_FAIL("no support for global offset\n");
+			TEST_FAIL("no support for global offset");
 	}
 
 	for (i = 0; i < nr_vcpus; i++)
