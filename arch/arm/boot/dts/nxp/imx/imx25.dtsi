@@ -93,7 +93,7 @@
 				compatible = "fsl,imx25-i2c", "fsl,imx21-i2c";
 				reg = <0x43f80000 0x4000>;
 				clocks = <&clks 48>;
-				clock-names = "";
+				clock-names = "ipg";
 				interrupts = <3>;
 				status = "disabled";
 			};
@@ -104,7 +104,7 @@
 				compatible = "fsl,imx25-i2c", "fsl,imx21-i2c";
 				reg = <0x43f84000 0x4000>;
 				clocks = <&clks 48>;
-				clock-names = "";
+				clock-names = "ipg";
 				interrupts = <10>;
 				status = "disabled";
 			};
@@ -151,7 +151,7 @@
 				compatible = "fsl,imx25-i2c", "fsl,imx21-i2c";
 				reg = <0x43f98000 0x4000>;
 				clocks = <&clks 48>;
-				clock-names = "";
+				clock-names = "ipg";
 				interrupts = <4>;
 				status = "disabled";
 			};
