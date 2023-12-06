@@ -430,7 +430,7 @@ acpi_parse_gi_affinity(union acpi_subtable_headers *header,
 		return -EINVAL;
 
 	node = acpi_map_pxm_to_node(gi_affinity->proximity_domain);
-	if (node == NUMA_NO_NODE || node >= MAX_NUMNODES) {
+	if (node == NUMA_NO_NODE) {
 		pr_err("SRAT: Too many proximity domains.\n");
 		return -EINVAL;
 	}
