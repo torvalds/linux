@@ -1047,6 +1047,13 @@ struct bch_fs {
 	/* RECOVERY */
 	u64			journal_replay_seq_start;
 	u64			journal_replay_seq_end;
+	/*
+	 * Two different uses:
+	 * "Has this fsck pass?" - i.e. should this type of error be an
+	 * emergency read-only
+	 * And, in certain situations fsck will rewind to an earlier pass: used
+	 * for signaling to the toplevel code which pass we want to run now.
+	 */
 	enum bch_recovery_pass	curr_recovery_pass;
 	/* bitmap of explicitly enabled recovery passes: */
 	u64			recovery_passes_explicit;

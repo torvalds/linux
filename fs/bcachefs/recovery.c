@@ -665,7 +665,7 @@ u64 bch2_fsck_recovery_passes(void)
 
 static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
-	struct recovery_pass_fn *p = recovery_pass_fns + c->curr_recovery_pass;
+	struct recovery_pass_fn *p = recovery_pass_fns + pass;
 
 	if (c->opts.norecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
 		return false;
@@ -682,24 +682,17 @@ static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pa
 
 static int bch2_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
+	struct recovery_pass_fn *p = recovery_pass_fns + pass;
 	int ret;
 
-	c->curr_recovery_pass = pass;
-
-	if (should_run_recovery_pass(c, pass)) {
-		struct recovery_pass_fn *p = recovery_pass_fns + pass;
-
-		if (!(p->when & PASS_SILENT))
-			bch2_print(c, KERN_INFO bch2_log_msg(c, "%s..."),
-				   bch2_recovery_passes[pass]);
-		ret = p->fn(c);
-		if (ret)
-			return ret;
-		if (!(p->when & PASS_SILENT))
-			bch2_print(c, KERN_CONT " done\n");
-
-		c->recovery_passes_complete |= BIT_ULL(pass);
-	}
+	if (!(p->when & PASS_SILENT))
+		bch2_print(c, KERN_INFO bch2_log_msg(c, "%s..."),
+			   bch2_recovery_passes[pass]);
+	ret = p->fn(c);
+	if (ret)
+		return ret;
+	if (!(p->when & PASS_SILENT))
+		bch2_print(c, KERN_CONT " done\n");
 
 	return 0;
 }
@@ -709,12 +702,38 @@ static int bch2_run_recovery_passes(struct bch_fs *c)
 	int ret = 0;
 
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
-		ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
-		if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
+		if (should_run_recovery_pass(c, c->curr_recovery_pass)) {
+			ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
+			if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
+				continue;
+			if (ret)
+				break;
+
+			c->recovery_passes_complete |= BIT_ULL(c->curr_recovery_pass);
+		}
+		c->curr_recovery_pass++;
+	}
+
+	return ret;
+}
+
+int bch2_run_online_recovery_passes(struct bch_fs *c)
+{
+	int ret = 0;
+
+	for (unsigned i = 0; i < ARRAY_SIZE(recovery_pass_fns); i++) {
+		struct recovery_pass_fn *p = recovery_pass_fns + i;
+
+		if (!(p->when & PASS_ONLINE))
 			continue;
+
+		ret = bch2_run_recovery_pass(c, i);
+		if (bch2_err_matches(ret, BCH_ERR_restart_recovery)) {
+			i = c->curr_recovery_pass;
+			continue;
+		}
 		if (ret)
 			break;
-		c->curr_recovery_pass++;
 	}
 
 	return ret;
