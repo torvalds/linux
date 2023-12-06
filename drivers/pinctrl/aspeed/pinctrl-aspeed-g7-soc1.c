@@ -2861,11 +2861,9 @@ static int aspeed_g7_soc1_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	if (cfg) {
 		funcfg = &cfg->funcfg[0];
-		while (funcfg->name) {
+		if (funcfg->name)
 			regmap_update_bits(pinctrl->scu, funcfg->reg,
 					   funcfg->mask, 0);
-			funcfg++;
-		}
 	}
 	return 0;
 }
