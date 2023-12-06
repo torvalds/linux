@@ -1394,6 +1394,9 @@ static int enable_audio_stream(struct snd_usb_substream *subs,
 	_snd_pcm_hw_param_set(&params, SNDRV_PCM_HW_PARAM_RATE,
 			cur_rate, 0);
 
+	if (!chip->intf[0])
+		return -ENODEV;
+
 	pm_runtime_barrier(&chip->intf[0]->dev);
 	snd_usb_autoresume(chip);
 
