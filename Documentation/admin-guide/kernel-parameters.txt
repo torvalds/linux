@@ -3264,6 +3264,9 @@
 			deep    - Suspend-To-RAM or equivalent (if supported)
 			See Documentation/admin-guide/pm/sleep-states.rst.
 
+	mem.devmem=	Activate the /dev/mem device
+			Format: <bool>  (1/Y/y=enable, 0/N/n=disable)
+
 	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
 			Multi-Function General Purpose Timers on AMD Geode
 			platforms.

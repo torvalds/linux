@@ -43,6 +43,7 @@
 
 	chosen {
 		stdout-path = &serial3;
+		bootargs = "console=ttyS0,115200";
 	};
 
 	memory {

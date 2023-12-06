@@ -10,6 +10,7 @@
  */
 
 #include <linux/mm.h>
+#include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -746,6 +747,12 @@ static char *mem_devnode(const struct device *dev, umode_t *mode)
 	return NULL;
 }
 
+#ifdef CONFIG_DEVMEM_BOOTPARAM
+static bool devmem;
+module_param(devmem, bool, 0444);
+MODULE_PARM_DESC(devmem, "kernel parameter to activate /dev/mem");
+#endif
+
 static const struct class mem_class = {
 	.name		= "mem",
 	.devnode	= mem_devnode,
@@ -767,6 +774,10 @@ static int __init chr_dev_init(void)
 		if (!devlist[minor].name)
 			continue;
 
+#ifdef CONFIG_DEVMEM_BOOTPARAM
+		if (minor == DEVMEM_MINOR && !devmem)
+			continue;
+#endif
 		/*
 		 * Create /dev/port?
 		 */
