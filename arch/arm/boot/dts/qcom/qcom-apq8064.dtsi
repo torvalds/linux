@@ -1284,7 +1284,7 @@
 			qcom,ncb = <3>;
 		};
 
-		pcie: pci@1b500000 {
+		pcie: pcie@1b500000 {
 			compatible = "qcom,pcie-apq8064";
 			reg = <0x1b500000 0x1000>,
 			      <0x1b502000 0x80>,
