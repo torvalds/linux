@@ -321,43 +321,59 @@ dstmap_out:
 static int z_erofs_transform_plain(struct z_erofs_decompress_req *rq,
 				   struct page **pagepool)
 {
-	const unsigned int inpages = PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT;
-	const unsigned int outpages =
+	const unsigned int nrpages_in =
+		PAGE_ALIGN(rq->pageofs_in + rq->inputsize) >> PAGE_SHIFT;
+	const unsigned int nrpages_out =
 		PAGE_ALIGN(rq->pageofs_out + rq->outputsize) >> PAGE_SHIFT;
-	const unsigned int righthalf = min_t(unsigned int, rq->outputsize,
-					     PAGE_SIZE - rq->pageofs_out);
-	const unsigned int lefthalf = rq->outputsize - righthalf;
-	const unsigned int interlaced_offset =
-		rq->alg == Z_EROFS_COMPRESSION_SHIFTED ? 0 : rq->pageofs_out;
-	u8 *src;
+	const unsigned int bs = rq->sb->s_blocksize;
+	unsigned int cur = 0, ni = 0, no, pi, po, insz, cnt;
+	u8 *kin;
 
-	if (outpages > 2 && rq->alg == Z_EROFS_COMPRESSION_SHIFTED) {
-		DBG_BUGON(1);
-		return -EFSCORRUPTED;
-	}
-
-	if (rq->out[0] == *rq->in) {
-		DBG_BUGON(rq->pageofs_out);
-		return 0;
-	}
-
-	src = kmap_local_page(rq->in[inpages - 1]) + rq->pageofs_in;
-	if (rq->out[0])
-		memcpy_to_page(rq->out[0], rq->pageofs_out,
-			       src + interlaced_offset, righthalf);
-
-	if (outpages > inpages) {
-		DBG_BUGON(!rq->out[outpages - 1]);
-		if (rq->out[outpages - 1] != rq->in[inpages - 1]) {
-			memcpy_to_page(rq->out[outpages - 1], 0, src +
-					(interlaced_offset ? 0 : righthalf),
-				       lefthalf);
-		} else if (!interlaced_offset) {
-			memmove(src, src + righthalf, lefthalf);
-			flush_dcache_page(rq->in[inpages - 1]);
+	DBG_BUGON(rq->outputsize > rq->inputsize);
+	if (rq->alg == Z_EROFS_COMPRESSION_INTERLACED) {
+		cur = bs - (rq->pageofs_out & (bs - 1));
+		pi = (rq->pageofs_in + rq->inputsize - cur) & ~PAGE_MASK;
+		cur = min(cur, rq->outputsize);
+		if (cur && rq->out[0]) {
+			kin = kmap_local_page(rq->in[nrpages_in - 1]);
+			if (rq->out[0] == rq->in[nrpages_in - 1]) {
+				memmove(kin + rq->pageofs_out, kin + pi, cur);
+				flush_dcache_page(rq->out[0]);
+			} else {
+				memcpy_to_page(rq->out[0], rq->pageofs_out,
+					       kin + pi, cur);
+			}
+			kunmap_local(kin);
 		}
+		rq->outputsize -= cur;
 	}
-	kunmap_local(src);
+
+	for (; rq->outputsize; rq->pageofs_in = 0, cur += PAGE_SIZE, ni++) {
+		insz = min_t(unsigned int, PAGE_SIZE - rq->pageofs_in,
+			     rq->outputsize);
+		rq->outputsize -= insz;
+		if (!rq->in[ni])
+			continue;
+		kin = kmap_local_page(rq->in[ni]);
+		pi = 0;
+		do {
+			no = (rq->pageofs_out + cur + pi) >> PAGE_SHIFT;
+			po = (rq->pageofs_out + cur + pi) & ~PAGE_MASK;
+			DBG_BUGON(no >= nrpages_out);
+			cnt = min_t(unsigned int, insz - pi, PAGE_SIZE - po);
+			if (rq->out[no] == rq->in[ni]) {
+				memmove(kin + po,
+					kin + rq->pageofs_in + pi, cnt);
+				flush_dcache_page(rq->out[no]);
+			} else if (rq->out[no]) {
+				memcpy_to_page(rq->out[no], po,
+					       kin + rq->pageofs_in + pi, cnt);
+			}
+			pi += cnt;
+		} while (pi < insz);
+		kunmap_local(kin);
+	}
+	DBG_BUGON(ni > nrpages_in);
 	return 0;
 }
 
