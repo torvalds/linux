@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/timer.h>
 
 #define SPI_ENGINE_VERSION_MAJOR(x)	((x >> 16) & 0xff)
 #define SPI_ENGINE_VERSION_MINOR(x)	((x >> 8) & 0xff)
@@ -114,6 +115,8 @@ struct spi_engine {
 
 	void __iomem *base;
 	struct ida sync_ida;
+	struct timer_list watchdog_timer;
+	struct spi_controller *controller;
 
 	unsigned int int_enable;
 };
@@ -138,21 +141,6 @@ static unsigned int spi_engine_get_config(struct spi_device *spi)
 		config |= SPI_ENGINE_CONFIG_3WIRE;
 
 	return config;
-}
-
-static unsigned int spi_engine_get_clk_div(struct spi_engine *spi_engine,
-	struct spi_device *spi, struct spi_transfer *xfer)
-{
-	unsigned int clk_div;
-
-	clk_div = DIV_ROUND_UP(clk_get_rate(spi_engine->ref_clk),
-		xfer->speed_hz * 2);
-	if (clk_div > 255)
-		clk_div = 255;
-	else if (clk_div > 0)
-		clk_div -= 1;
-
-	return clk_div;
 }
 
 static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
@@ -183,22 +171,16 @@ static void spi_engine_gen_xfer(struct spi_engine_program *p, bool dry,
 }
 
 static void spi_engine_gen_sleep(struct spi_engine_program *p, bool dry,
-	struct spi_engine *spi_engine, unsigned int clk_div,
-	struct spi_transfer *xfer)
+				 int delay_ns, u32 sclk_hz)
 {
-	unsigned int spi_clk = clk_get_rate(spi_engine->ref_clk);
 	unsigned int t;
-	int delay;
 
-	delay = spi_delay_to_ns(&xfer->delay, xfer);
-	if (delay < 0)
-		return;
-	delay /= 1000;
-
-	if (delay == 0)
+	/* negative delay indicates error, e.g. from spi_delay_to_ns() */
+	if (delay_ns <= 0)
 		return;
 
-	t = DIV_ROUND_UP(delay * spi_clk, (clk_div + 1) * 2);
+	/* rounding down since executing the instruction adds a couple of ticks delay */
+	t = DIV_ROUND_DOWN_ULL((u64)delay_ns * sclk_hz, NSEC_PER_SEC);
 	while (t) {
 		unsigned int n = min(t, 256U);
 
@@ -215,19 +197,41 @@ static void spi_engine_gen_cs(struct spi_engine_program *p, bool dry,
 	if (assert)
 		mask ^= BIT(spi_get_chipselect(spi, 0));
 
-	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(1, mask));
+	spi_engine_program_add_cmd(p, dry, SPI_ENGINE_CMD_ASSERT(0, mask));
 }
 
-static int spi_engine_compile_message(struct spi_engine *spi_engine,
-	struct spi_message *msg, bool dry, struct spi_engine_program *p)
+/*
+ * Performs precompile steps on the message.
+ *
+ * The SPI core does most of the message/transfer validation and filling in
+ * fields for us via __spi_validate(). This fixes up anything remaining not
+ * done there.
+ *
+ * NB: This is separate from spi_engine_compile_message() because the latter
+ * is called twice and would otherwise result in double-evaluation.
+ */
+static void spi_engine_precompile_message(struct spi_message *msg)
+{
+	unsigned int clk_div, max_hz = msg->spi->controller->max_speed_hz;
+	struct spi_transfer *xfer;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		clk_div = DIV_ROUND_UP(max_hz, xfer->speed_hz);
+		xfer->effective_speed_hz = max_hz / min(clk_div, 256U);
+	}
+}
+
+static void spi_engine_compile_message(struct spi_message *msg, bool dry,
+				       struct spi_engine_program *p)
 {
 	struct spi_device *spi = msg->spi;
+	struct spi_controller *host = spi->controller;
 	struct spi_transfer *xfer;
 	int clk_div, new_clk_div;
 	bool keep_cs = false;
 	u8 bits_per_word = 0;
 
-	clk_div = -1;
+	clk_div = 1;
 
 	spi_engine_program_add_cmd(p, dry,
 		SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CONFIG,
@@ -237,12 +241,13 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 	spi_engine_gen_cs(p, dry, spi, !xfer->cs_off);
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		new_clk_div = spi_engine_get_clk_div(spi_engine, spi, xfer);
+		new_clk_div = host->max_speed_hz / xfer->effective_speed_hz;
 		if (new_clk_div != clk_div) {
 			clk_div = new_clk_div;
+			/* actual divider used is register value + 1 */
 			spi_engine_program_add_cmd(p, dry,
 				SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CLK_DIV,
-					clk_div));
+					clk_div - 1));
 		}
 
 		if (bits_per_word != xfer->bits_per_word) {
@@ -253,7 +258,8 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 		}
 
 		spi_engine_gen_xfer(p, dry, xfer);
-		spi_engine_gen_sleep(p, dry, spi_engine, clk_div, xfer);
+		spi_engine_gen_sleep(p, dry, spi_delay_to_ns(&xfer->delay, xfer),
+				     xfer->effective_speed_hz);
 
 		if (xfer->cs_change) {
 			if (list_is_last(&xfer->transfer_list, &msg->transfers)) {
@@ -261,6 +267,10 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 			} else {
 				if (!xfer->cs_off)
 					spi_engine_gen_cs(p, dry, spi, false);
+
+				spi_engine_gen_sleep(p, dry, spi_delay_to_ns(
+					&xfer->cs_change_delay, xfer),
+					xfer->effective_speed_hz);
 
 				if (!list_next_entry(xfer, transfer_list)->cs_off)
 					spi_engine_gen_cs(p, dry, spi, true);
@@ -274,7 +284,13 @@ static int spi_engine_compile_message(struct spi_engine *spi_engine,
 	if (!keep_cs)
 		spi_engine_gen_cs(p, dry, spi, false);
 
-	return 0;
+	/*
+	 * Restore clockdiv to default so that future gen_sleep commands don't
+	 * have to be aware of the current register state.
+	 */
+	if (clk_div != 1)
+		spi_engine_program_add_cmd(p, dry,
+			SPI_ENGINE_CMD_WRITE(SPI_ENGINE_CMD_REG_CLK_DIV, 0));
 }
 
 static void spi_engine_xfer_next(struct spi_message *msg,
@@ -475,9 +491,11 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 		struct spi_engine_message_state *st = msg->state;
 
 		if (completed_id == st->sync_id) {
-			msg->status = 0;
-			msg->actual_length = msg->frame_length;
-			spi_finalize_current_message(host);
+			if (timer_delete_sync(&spi_engine->watchdog_timer)) {
+				msg->status = 0;
+				msg->actual_length = msg->frame_length;
+				spi_finalize_current_message(host);
+			}
 			disable_int |= SPI_ENGINE_INT_SYNC;
 		}
 	}
@@ -506,8 +524,10 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 	if (!st)
 		return -ENOMEM;
 
+	spi_engine_precompile_message(msg);
+
 	p_dry.length = 0;
-	spi_engine_compile_message(spi_engine, msg, true, &p_dry);
+	spi_engine_compile_message(msg, true, &p_dry);
 
 	size = sizeof(*p->instructions) * (p_dry.length + 1);
 	p = kzalloc(sizeof(*p) + size, GFP_KERNEL);
@@ -525,7 +545,7 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 
 	st->sync_id = ret;
 
-	spi_engine_compile_message(spi_engine, msg, false, p);
+	spi_engine_compile_message(msg, false, p);
 
 	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(st->sync_id));
 
@@ -558,6 +578,8 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 	unsigned int int_enable = 0;
 	unsigned long flags;
 
+	mod_timer(&spi_engine->watchdog_timer, jiffies + msecs_to_jiffies(5000));
+
 	spin_lock_irqsave(&spi_engine->lock, flags);
 
 	if (spi_engine_write_cmd_fifo(spi_engine, msg))
@@ -579,6 +601,20 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 	spin_unlock_irqrestore(&spi_engine->lock, flags);
 
 	return 0;
+}
+
+static void spi_engine_timeout(struct timer_list *timer)
+{
+	struct spi_engine *spi_engine = from_timer(spi_engine, timer, watchdog_timer);
+	struct spi_controller *host = spi_engine->controller;
+
+	if (WARN_ON(!host->cur_msg))
+		return;
+
+	dev_err(&host->dev,
+		"Timeout occurred while waiting for transfer to complete. Hardware is probably broken.\n");
+	host->cur_msg->status = -ETIMEDOUT;
+	spi_finalize_current_message(host);
 }
 
 static void spi_engine_release_hw(void *p)
@@ -610,6 +646,8 @@ static int spi_engine_probe(struct platform_device *pdev)
 
 	spin_lock_init(&spi_engine->lock);
 	ida_init(&spi_engine->sync_ida);
+	timer_setup(&spi_engine->watchdog_timer, spi_engine_timeout, TIMER_IRQSAFE);
+	spi_engine->controller = host;
 
 	spi_engine->clk = devm_clk_get_enabled(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(spi_engine->clk))
