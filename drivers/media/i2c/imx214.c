@@ -704,11 +704,16 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 		.width = 1120,
 		.height = 1120,
 	};
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	int ret;
 
+	ret = v4l2_fwnode_device_parse(imx214->dev, &props);
+	if (ret < 0)
+		return ret;
+
 	ctrl_hdlr = &imx214->ctrls;
-	ret = v4l2_ctrl_handler_init(&imx214->ctrls, 3);
+	ret = v4l2_ctrl_handler_init(&imx214->ctrls, 6);
 	if (ret)
 		return ret;
 
@@ -745,6 +750,8 @@ static int imx214_ctrls_init(struct imx214 *imx214)
 				NULL,
 				V4L2_CID_UNIT_CELL_SIZE,
 				v4l2_ctrl_ptr_create((void *)&unit_size));
+
+	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx214_ctrl_ops, &props);
 
 	ret = ctrl_hdlr->error;
 	if (ret) {
