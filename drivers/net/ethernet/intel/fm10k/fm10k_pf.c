@@ -1575,8 +1575,7 @@ static s32 fm10k_get_fault_pf(struct fm10k_hw *hw, int type,
 	if (func & FM10K_FAULT_FUNC_PF)
 		fault->func = 0;
 	else
-		fault->func = 1 + ((func & FM10K_FAULT_FUNC_VF_MASK) >>
-				   FM10K_FAULT_FUNC_VF_SHIFT);
+		fault->func = 1 + FIELD_GET(FM10K_FAULT_FUNC_VF_MASK, func);
 
 	/* record fault type */
 	fault->type = func & FM10K_FAULT_FUNC_TYPE_MASK;

@@ -276,9 +276,8 @@ s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw)
 		return 0;
 
 	if (hw->phy.nw_mng_if_sel) {
-		phy_addr = (hw->phy.nw_mng_if_sel &
-			    IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
-			   IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
+		phy_addr = FIELD_GET(IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD,
+				     hw->phy.nw_mng_if_sel);
 		if (ixgbe_probe_phy(hw, phy_addr))
 			return 0;
 		else
@@ -1448,8 +1447,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 		ret_val = hw->eeprom.ops.read(hw, data_offset, &eword);
 		if (ret_val)
 			goto err_eeprom;
-		control = (eword & IXGBE_CONTROL_MASK_NL) >>
-			   IXGBE_CONTROL_SHIFT_NL;
+		control = FIELD_GET(IXGBE_CONTROL_MASK_NL, eword);
 		edata = eword & IXGBE_DATA_MASK_NL;
 		switch (control) {
 		case IXGBE_DELAY_NL:

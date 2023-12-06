@@ -187,16 +187,16 @@ s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw)
 {
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
-	u32 eec;
-	u16 eeprom_size;
 
 	if (eeprom->type == ixgbe_eeprom_uninitialized) {
+		u16 eeprom_size;
+		u32 eec;
+
 		eeprom->semaphore_delay = 10;
 		eeprom->type = ixgbe_flash;
 
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
-		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-				    IXGBE_EEC_SIZE_SHIFT);
+		eeprom_size = FIELD_GET(IXGBE_EEC_SIZE, eec);
 		eeprom->word_size = BIT(eeprom_size +
 					IXGBE_EEPROM_WORD_SIZE_SHIFT);
 

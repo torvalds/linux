@@ -1682,8 +1682,7 @@ s32 igb_get_cable_length_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-		M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+	index = FIELD_GET(M88E1000_PSSR_CABLE_LENGTH, phy_data);
 	if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 		ret_val = -E1000_ERR_PHY;
 		goto out;
@@ -1796,8 +1795,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-			M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+		index = FIELD_GET(M88E1000_PSSR_CABLE_LENGTH, phy_data);
 		if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;
@@ -2578,8 +2576,7 @@ s32 igb_get_cable_length_82580(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	length = (phy_data & I82580_DSTATUS_CABLE_LENGTH) >>
-		 I82580_DSTATUS_CABLE_LENGTH_SHIFT;
+	length = FIELD_GET(I82580_DSTATUS_CABLE_LENGTH, phy_data);
 
 	if (length == E1000_CABLE_LENGTH_UNDEFINED)
 		ret_val = -E1000_ERR_PHY;
