@@ -92,7 +92,7 @@ static void setup_clock(struct kvm_vm *vm, struct test_case *test_case)
 				break;
 		} while (errno == EINTR);
 
-		TEST_ASSERT(!r, "clock_gettime() failed: %d\n", r);
+		TEST_ASSERT(!r, "clock_gettime() failed: %d", r);
 
 		data.realtime = ts.tv_sec * NSEC_PER_SEC;
 		data.realtime += ts.tv_nsec;
@@ -127,7 +127,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			handle_abort(&uc);
 			return;
 		default:
-			TEST_ASSERT(0, "unhandled ucall: %ld\n", uc.cmd);
+			TEST_ASSERT(0, "unhandled ucall: %ld", uc.cmd);
 		}
 	}
 }
@@ -154,7 +154,7 @@ static void check_clocksource(void)
 	}
 
 	clk_name = malloc(st.st_size);
-	TEST_ASSERT(clk_name, "failed to allocate buffer to read file\n");
+	TEST_ASSERT(clk_name, "failed to allocate buffer to read file");
 
 	if (!fgets(clk_name, st.st_size, fp)) {
 		pr_info("failed to read clocksource file: %d; assuming TSC.\n",

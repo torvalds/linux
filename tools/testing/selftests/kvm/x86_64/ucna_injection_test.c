@@ -143,7 +143,7 @@ static void run_vcpu_expect_gp(struct kvm_vcpu *vcpu)
 
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 	TEST_ASSERT(get_ucall(vcpu, &uc) == UCALL_SYNC,
-		    "Expect UCALL_SYNC\n");
+		    "Expect UCALL_SYNC");
 	TEST_ASSERT(uc.args[1] == SYNC_GP, "#GP is expected.");
 	printf("vCPU received GP in guest.\n");
 }
@@ -188,7 +188,7 @@ static void *run_ucna_injection(void *arg)
 
 	TEST_ASSERT_KVM_EXIT_REASON(params->vcpu, KVM_EXIT_IO);
 	TEST_ASSERT(get_ucall(params->vcpu, &uc) == UCALL_SYNC,
-		    "Expect UCALL_SYNC\n");
+		    "Expect UCALL_SYNC");
 	TEST_ASSERT(uc.args[1] == SYNC_FIRST_UCNA, "Injecting first UCNA.");
 
 	printf("Injecting first UCNA at %#x.\n", FIRST_UCNA_ADDR);
@@ -198,7 +198,7 @@ static void *run_ucna_injection(void *arg)
 
 	TEST_ASSERT_KVM_EXIT_REASON(params->vcpu, KVM_EXIT_IO);
 	TEST_ASSERT(get_ucall(params->vcpu, &uc) == UCALL_SYNC,
-		    "Expect UCALL_SYNC\n");
+		    "Expect UCALL_SYNC");
 	TEST_ASSERT(uc.args[1] == SYNC_SECOND_UCNA, "Injecting second UCNA.");
 
 	printf("Injecting second UCNA at %#x.\n", SECOND_UCNA_ADDR);
@@ -208,7 +208,7 @@ static void *run_ucna_injection(void *arg)
 
 	TEST_ASSERT_KVM_EXIT_REASON(params->vcpu, KVM_EXIT_IO);
 	if (get_ucall(params->vcpu, &uc) == UCALL_ABORT) {
-		TEST_ASSERT(false, "vCPU assertion failure: %s.\n",
+		TEST_ASSERT(false, "vCPU assertion failure: %s.",
 			    (const char *)uc.args[0]);
 	}
 

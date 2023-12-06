@@ -128,17 +128,17 @@ int main(int argc, char *argv[])
 			 */
 			kvm_vm_get_dirty_log(vm, TEST_MEM_SLOT_INDEX, bmap);
 			if (uc.args[1]) {
-				TEST_ASSERT(test_bit(0, bmap), "Page 0 incorrectly reported clean\n");
-				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 not written by guest\n");
+				TEST_ASSERT(test_bit(0, bmap), "Page 0 incorrectly reported clean");
+				TEST_ASSERT(host_test_mem[0] == 1, "Page 0 not written by guest");
 			} else {
-				TEST_ASSERT(!test_bit(0, bmap), "Page 0 incorrectly reported dirty\n");
-				TEST_ASSERT(host_test_mem[0] == 0xaaaaaaaaaaaaaaaaULL, "Page 0 written by guest\n");
+				TEST_ASSERT(!test_bit(0, bmap), "Page 0 incorrectly reported dirty");
+				TEST_ASSERT(host_test_mem[0] == 0xaaaaaaaaaaaaaaaaULL, "Page 0 written by guest");
 			}
 
-			TEST_ASSERT(!test_bit(1, bmap), "Page 1 incorrectly reported dirty\n");
-			TEST_ASSERT(host_test_mem[4096 / 8] == 0xaaaaaaaaaaaaaaaaULL, "Page 1 written by guest\n");
-			TEST_ASSERT(!test_bit(2, bmap), "Page 2 incorrectly reported dirty\n");
-			TEST_ASSERT(host_test_mem[8192 / 8] == 0xaaaaaaaaaaaaaaaaULL, "Page 2 written by guest\n");
+			TEST_ASSERT(!test_bit(1, bmap), "Page 1 incorrectly reported dirty");
+			TEST_ASSERT(host_test_mem[4096 / 8] == 0xaaaaaaaaaaaaaaaaULL, "Page 1 written by guest");
+			TEST_ASSERT(!test_bit(2, bmap), "Page 2 incorrectly reported dirty");
+			TEST_ASSERT(host_test_mem[8192 / 8] == 0xaaaaaaaaaaaaaaaaULL, "Page 2 written by guest");
 			break;
 		case UCALL_DONE:
 			done = true;
