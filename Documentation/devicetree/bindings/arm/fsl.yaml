@@ -1485,6 +1485,16 @@ properties:
           - const: solidrun,lx2162a-som
           - const: fsl,lx2160a
 
+      - description:
+          TQ-Systems TQMLX2160A is a series of socketable SOM featuring
+          LX2160A system-on-chip variants. MBLX2160A mainboard can be used a
+          starterkit.
+        items:
+          - enum:
+              - tq,lx2160a-tqmlx2160a-mblx2160a
+          - const: tq,lx2160a-tqmlx2160a
+          - const: fsl,lx2160a
+
       - description: S32G2 based Boards
         items:
           - enum:
