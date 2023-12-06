@@ -1,0 +1,69 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+/*
+ * Device Tree binding constants for AST2700 reset controller.
+ *
+ * Copyright (c) 2023 Aspeed Technology Inc.
+ */
+
+#ifndef _MACH_ASPEED_AST1700_RESET_H_
+#define _MACH_ASPEED_AST1700_RESET_H_
+
+#define AST1700_RESET_LPC0		(0)
+#define AST1700_RESET_LPC1		(1)
+#define AST1700_RESET_MII		(2)
+#define AST1700_RESET_PECI		(3)
+#define AST1700_RESET_PWM		(4)
+#define AST1700_RESET_MAC0		(5)
+#define AST1700_RESET_MAC1		(6)
+#define AST1700_RESET_MAC2		(7)
+#define AST1700_RESET_ADC		(8)
+#define AST1700_RESET_SD			(9)
+#define AST1700_RESET_ESPI0		(10)
+#define AST1700_RESET_ESPI1		(11)
+#define AST1700_RESET_JTAG1		(12)
+#define AST1700_RESET_SPI0		(13)
+#define AST1700_RESET_SPI1		(14)
+#define AST1700_RESET_SPI2		(15)
+#define AST1700_RESET_I3C0		(16)
+#define AST1700_RESET_I3C1		(17)
+#define AST1700_RESET_I3C2		(18)
+#define AST1700_RESET_I3C3		(19)
+#define AST1700_RESET_I3C4		(20)
+#define AST1700_RESET_I3C5		(21)
+#define AST1700_RESET_I3C6		(22)
+#define AST1700_RESET_I3C7		(23)
+#define AST1700_RESET_I3C8		(24)
+#define AST1700_RESET_I3C9		(25)
+#define AST1700_RESET_I3C10		(26)
+#define AST1700_RESET_I3C11		(27)
+#define AST1700_RESET_I3C12		(28)
+#define AST1700_RESET_I3C13		(29)
+#define AST1700_RESET_I3C14		(30)
+#define AST1700_RESET_I3C15		(31)
+/* reserved 32 */
+#define AST1700_RESET_IOMCU		(33)
+#define AST1700_RESET_H2A_SPI1		(34)
+#define AST1700_RESET_H2A_SPI2		(35)
+#define AST1700_RESET_UART0		(36)
+#define AST1700_RESET_UART1		(37)
+#define AST1700_RESET_UART2		(38)
+#define AST1700_RESET_UART3		(39)
+#define AST1700_RESET_I2C_FILTER		(40)
+#define AST1700_RESET_CALIPTRA		(41)
+/* reserved 42:43 */
+#define AST1700_RESET_FSI		(44)
+#define AST1700_RESET_CAN		(45)
+#define AST1700_RESET_MCTP		(46)
+#define AST1700_RESET_I2C		(47)
+#define AST1700_RESET_UART6		(48)
+#define AST1700_RESET_UART7		(49)
+#define AST1700_RESET_UART8		(50)
+#define AST1700_RESET_UART9		(51)
+#define AST1700_RESET_LTPI		(52)
+#define AST1700_RESET_VGAL		(53)
+/* reserved 54:62 */
+#define AST1700_RESET_I3CDMA             (63)
+
+#define AST1700_RESET_NUMS		(AST1700_RESET_I3CDMA + 1)
+
+#endif  /* _MACH_ASPEED_AST1700_RESET_H_ */
