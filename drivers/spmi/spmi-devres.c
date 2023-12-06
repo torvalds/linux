@@ -20,9 +20,9 @@ struct spmi_controller *devm_spmi_controller_alloc(struct device *parent, size_t
 		return ERR_PTR(-ENOMEM);
 
 	ctrl = spmi_controller_alloc(parent, size);
-	if (!ctrl) {
+	if (IS_ERR(ctrl)) {
 		devres_free(ptr);
-		return ERR_PTR(-ENOMEM);
+		return ctrl;
 	}
 
 	*ptr = ctrl;
