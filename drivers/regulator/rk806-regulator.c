@@ -759,7 +759,7 @@ static int rk806_regulator_is_enabled_regmap(struct regulator_dev *rdev)
 	struct rk806 *rk806 = pdata->rk806;
 	int rid = rdev_get_id(rdev);
 	int gpio_level, pid;
-	unsigned int val;
+	int ret, val;
 	int mode;
 
 	mode = get_dvs_mode(rdev);
@@ -770,7 +770,12 @@ static int rk806_regulator_is_enabled_regmap(struct regulator_dev *rdev)
 			return rk806_field_read(rk806, pdata->dvs_field[rid].sleep_en);
 	}
 
-	val = rk806_field_read(rk806, pdata->dvs_field[rid].en_reg);
+	ret = rk806_field_read(rk806, pdata->dvs_field[rid].en_reg);
+	if (ret < 0)
+		return ret;
+
+	val = ret;
+
 	return (val & rdev->desc->enable_val) != 0;
 }
 
