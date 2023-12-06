@@ -596,6 +596,20 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_RULES(GRAPHICS_VERSION(2004), FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(ROW_CHICKEN, EARLY_EOT_DIS))
 	},
+	/*
+	 * These two workarounds are the same, just applying to different
+	 * engines.  Although Wa_18032095049 (for the RCS) isn't required on
+	 * all steppings, disabling these reports has no impact for our
+	 * driver or the GuC, so we go ahead and treat it the same as
+	 * Wa_16021639441 which does apply to all steppings.
+	 */
+	{ XE_RTP_NAME("18032095049, 16021639441"),
+	  XE_RTP_RULES(GRAPHICS_VERSION(2004)),
+	  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1_REG(0),
+			     GHWSP_CSB_REPORT_DIS |
+			     PPHWSP_CSB_AND_TIMESTAMP_REPORT_DIS,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
 
 	{}
 };
