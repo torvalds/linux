@@ -464,6 +464,22 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode) {
+		ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL1, RT5682S_PLL_S_BCLK1,
+					  6144000, 49152000);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL1,
+					     49152000, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
+			return ret;
+		}
+	}
+
 	/* Set tdm/i2s1 master bclk ratio */
 	ret = snd_soc_dai_set_bclk_ratio(codec_dai, ch * format);
 	if (ret < 0) {
