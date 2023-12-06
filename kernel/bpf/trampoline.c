@@ -1032,10 +1032,10 @@ bpf_trampoline_exit_t bpf_trampoline_exit(const struct bpf_prog *prog)
 }
 
 int __weak
-arch_prepare_bpf_trampoline(struct bpf_tramp_image *tr, void *image, void *image_end,
+arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,
 			    const struct btf_func_model *m, u32 flags,
 			    struct bpf_tramp_links *tlinks,
-			    void *orig_call)
+			    void *func_addr)
 {
 	return -ENOTSUPP;
 }
