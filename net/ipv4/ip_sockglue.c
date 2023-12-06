@@ -1055,6 +1055,19 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 	case IP_TOS:	/* This sets both TOS and Precedence */
 		ip_sock_set_tos(sk, val);
 		return 0;
+	case IP_LOCAL_PORT_RANGE:
+	{
+		u16 lo = val;
+		u16 hi = val >> 16;
+
+		if (optlen != sizeof(u32))
+			return -EINVAL;
+		if (lo != 0 && hi != 0 && lo > hi)
+			return -EINVAL;
+
+		WRITE_ONCE(inet->local_port_range, val);
+		return 0;
+	}
 	}
 
 	err = 0;
@@ -1332,20 +1345,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		err = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
-	case IP_LOCAL_PORT_RANGE:
-	{
-		const __u16 lo = val;
-		const __u16 hi = val >> 16;
-
-		if (optlen != sizeof(__u32))
-			goto e_inval;
-		if (lo != 0 && hi != 0 && lo > hi)
-			goto e_inval;
-
-		inet->local_port_range.lo = lo;
-		inet->local_port_range.hi = hi;
-		break;
-	}
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -1692,6 +1691,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
+	case IP_LOCAL_PORT_RANGE:
+		val = READ_ONCE(inet->local_port_range);
+		goto copyval;
 	}
 
 	if (needs_rtnl)
@@ -1721,9 +1723,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_get_mcast_msfilter(sk, optval, optlen, len);
 		goto out;
-	case IP_LOCAL_PORT_RANGE:
-		val = inet->local_port_range.hi << 16 | inet->local_port_range.lo;
-		break;
 	case IP_PROTOCOL:
 		val = inet_sk(sk)->inet_num;
 		break;

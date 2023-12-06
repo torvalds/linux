@@ -19,8 +19,7 @@ struct hlist_head;
 struct fib_table;
 struct sock;
 struct local_ports {
-	seqlock_t	lock;
-	int		range[2];
+	u32		range;	/* high << 16 | low */
 	bool		warned;
 };
 

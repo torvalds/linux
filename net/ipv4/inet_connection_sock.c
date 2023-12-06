@@ -117,34 +117,25 @@ bool inet_rcv_saddr_any(const struct sock *sk)
 	return !sk->sk_rcv_saddr;
 }
 
-void inet_get_local_port_range(const struct net *net, int *low, int *high)
-{
-	unsigned int seq;
-
-	do {
-		seq = read_seqbegin(&net->ipv4.ip_local_ports.lock);
-
-		*low = net->ipv4.ip_local_ports.range[0];
-		*high = net->ipv4.ip_local_ports.range[1];
-	} while (read_seqretry(&net->ipv4.ip_local_ports.lock, seq));
-}
-EXPORT_SYMBOL(inet_get_local_port_range);
-
 void inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct net *net = sock_net(sk);
 	int lo, hi, sk_lo, sk_hi;
+	u32 sk_range;
 
 	inet_get_local_port_range(net, &lo, &hi);
 
-	sk_lo = inet->local_port_range.lo;
-	sk_hi = inet->local_port_range.hi;
+	sk_range = READ_ONCE(inet->local_port_range);
+	if (unlikely(sk_range)) {
+		sk_lo = sk_range & 0xffff;
+		sk_hi = sk_range >> 16;
 
-	if (unlikely(lo <= sk_lo && sk_lo <= hi))
-		lo = sk_lo;
-	if (unlikely(lo <= sk_hi && sk_hi <= hi))
-		hi = sk_hi;
+		if (lo <= sk_lo && sk_lo <= hi)
+			lo = sk_lo;
+		if (lo <= sk_hi && sk_hi <= hi)
+			hi = sk_hi;
+	}
 
 	*low = lo;
 	*high = hi;

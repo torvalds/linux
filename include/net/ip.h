@@ -349,7 +349,13 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 	} \
 }
 
-void inet_get_local_port_range(const struct net *net, int *low, int *high);
+static inline void inet_get_local_port_range(const struct net *net, int *low, int *high)
+{
+	u32 range = READ_ONCE(net->ipv4.ip_local_ports.range);
+
+	*low = range & 0xffff;
+	*high = range >> 16;
+}
 void inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
