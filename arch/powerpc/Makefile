@@ -10,6 +10,17 @@
 # Rewritten by Cort Dougan and Paul Mackerras
 #
 
+ifdef cross_compiling
+  ifeq ($(CROSS_COMPILE),)
+    # Auto detect cross compiler prefix.
+    # Look for: (powerpc(64(le)?)?)(-unknown)?-linux(-gnu)?-
+    CC_ARCHES := powerpc powerpc64 powerpc64le
+    CC_SUFFIXES := linux linux-gnu unknown-linux-gnu
+    CROSS_COMPILE := $(call cc-cross-prefix, $(foreach a,$(CC_ARCHES), \
+                       $(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
+  endif
+endif
+
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
 # Set default 32 bits cross compilers for vdso and boot wrapper
