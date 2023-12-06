@@ -1747,7 +1747,6 @@ static enum bp_result bios_parser_get_firmware_info(
 				result = get_firmware_info_v3_2(bp, info);
 				break;
 			case 4:
-			case 5:
 				result = get_firmware_info_v3_4(bp, info);
 				break;
 			default:
@@ -2397,7 +2396,6 @@ static enum bp_result get_vram_info_v30(
 
 	return result;
 }
-
 
 /*
  * get_integrated_info_v11
