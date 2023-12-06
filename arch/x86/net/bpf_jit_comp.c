@@ -2198,7 +2198,8 @@ static void restore_regs(const struct btf_func_model *m, u8 **prog,
 
 static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 			   struct bpf_tramp_link *l, int stack_size,
-			   int run_ctx_off, bool save_ret)
+			   int run_ctx_off, bool save_ret,
+			   void *image, void *rw_image)
 {
 	u8 *prog = *pprog;
 	u8 *jmp_insn;
@@ -2226,7 +2227,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	else
 		EMIT4(0x48, 0x8D, 0x75, -run_ctx_off);
 
-	if (emit_rsb_call(&prog, bpf_trampoline_enter(p), prog))
+	if (emit_rsb_call(&prog, bpf_trampoline_enter(p), image + (prog - (u8 *)rw_image)))
 		return -EINVAL;
 	/* remember prog start time returned by __bpf_prog_enter */
 	emit_mov_reg(&prog, true, BPF_REG_6, BPF_REG_0);
@@ -2250,7 +2251,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 			       (long) p->insnsi >> 32,
 			       (u32) (long) p->insnsi);
 	/* call JITed bpf program or interpreter */
-	if (emit_rsb_call(&prog, p->bpf_func, prog))
+	if (emit_rsb_call(&prog, p->bpf_func, image + (prog - (u8 *)rw_image)))
 		return -EINVAL;
 
 	/*
@@ -2277,7 +2278,7 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 		EMIT3_off32(0x48, 0x8D, 0x95, -run_ctx_off);
 	else
 		EMIT4(0x48, 0x8D, 0x55, -run_ctx_off);
-	if (emit_rsb_call(&prog, bpf_trampoline_exit(p), prog))
+	if (emit_rsb_call(&prog, bpf_trampoline_exit(p), image + (prog - (u8 *)rw_image)))
 		return -EINVAL;
 
 	*pprog = prog;
@@ -2312,14 +2313,15 @@ static int emit_cond_near_jump(u8 **pprog, void *func, void *ip, u8 jmp_cond)
 
 static int invoke_bpf(const struct btf_func_model *m, u8 **pprog,
 		      struct bpf_tramp_links *tl, int stack_size,
-		      int run_ctx_off, bool save_ret)
+		      int run_ctx_off, bool save_ret,
+		      void *image, void *rw_image)
 {
 	int i;
 	u8 *prog = *pprog;
 
 	for (i = 0; i < tl->nr_links; i++) {
 		if (invoke_bpf_prog(m, &prog, tl->links[i], stack_size,
-				    run_ctx_off, save_ret))
+				    run_ctx_off, save_ret, image, rw_image))
 			return -EINVAL;
 	}
 	*pprog = prog;
@@ -2328,7 +2330,8 @@ static int invoke_bpf(const struct btf_func_model *m, u8 **pprog,
 
 static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
 			      struct bpf_tramp_links *tl, int stack_size,
-			      int run_ctx_off, u8 **branches)
+			      int run_ctx_off, u8 **branches,
+			      void *image, void *rw_image)
 {
 	u8 *prog = *pprog;
 	int i;
@@ -2339,7 +2342,8 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
 	emit_mov_imm32(&prog, false, BPF_REG_0, 0);
 	emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -8);
 	for (i = 0; i < tl->nr_links; i++) {
-		if (invoke_bpf_prog(m, &prog, tl->links[i], stack_size, run_ctx_off, true))
+		if (invoke_bpf_prog(m, &prog, tl->links[i], stack_size, run_ctx_off, true,
+				    image, rw_image))
 			return -EINVAL;
 
 		/* mod_ret prog stored return value into [rbp - 8]. Emit:
@@ -2422,7 +2426,8 @@ static int invoke_bpf_mod_ret(const struct btf_func_model *m, u8 **pprog,
  * add rsp, 8                      // skip eth_type_trans's frame
  * ret                             // return to its caller
  */
-static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,
+static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *rw_image,
+					 void *rw_image_end, void *image,
 					 const struct btf_func_model *m, u32 flags,
 					 struct bpf_tramp_links *tlinks,
 					 void *func_addr)
@@ -2521,7 +2526,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 		orig_call += X86_PATCH_SIZE;
 	}
 
-	prog = image;
+	prog = rw_image;
 
 	EMIT_ENDBR();
 	/*
@@ -2563,7 +2568,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
 		/* arg1: mov rdi, im */
 		emit_mov_imm64(&prog, BPF_REG_1, (long) im >> 32, (u32) (long) im);
-		if (emit_rsb_call(&prog, __bpf_tramp_enter, prog)) {
+		if (emit_rsb_call(&prog, __bpf_tramp_enter,
+				  image + (prog - (u8 *)rw_image))) {
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2571,7 +2577,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 
 	if (fentry->nr_links)
 		if (invoke_bpf(m, &prog, fentry, regs_off, run_ctx_off,
-			       flags & BPF_TRAMP_F_RET_FENTRY_RET))
+			       flags & BPF_TRAMP_F_RET_FENTRY_RET, image, rw_image))
 			return -EINVAL;
 
 	if (fmod_ret->nr_links) {
@@ -2581,7 +2587,7 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 			return -ENOMEM;
 
 		if (invoke_bpf_mod_ret(m, &prog, fmod_ret, regs_off,
-				       run_ctx_off, branches)) {
+				       run_ctx_off, branches, image, rw_image)) {
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2602,14 +2608,14 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 			EMIT2(0xff, 0xd3); /* call *rbx */
 		} else {
 			/* call original function */
-			if (emit_rsb_call(&prog, orig_call, prog)) {
+			if (emit_rsb_call(&prog, orig_call, image + (prog - (u8 *)rw_image))) {
 				ret = -EINVAL;
 				goto cleanup;
 			}
 		}
 		/* remember return value in a stack for bpf prog to access */
 		emit_stx(&prog, BPF_DW, BPF_REG_FP, BPF_REG_0, -8);
-		im->ip_after_call = prog;
+		im->ip_after_call = image + (prog - (u8 *)rw_image);
 		memcpy(prog, x86_nops[5], X86_PATCH_SIZE);
 		prog += X86_PATCH_SIZE;
 	}
@@ -2625,12 +2631,13 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 		 * aligned address of do_fexit.
 		 */
 		for (i = 0; i < fmod_ret->nr_links; i++)
-			emit_cond_near_jump(&branches[i], prog, branches[i],
-					    X86_JNE);
+			emit_cond_near_jump(&branches[i], image + (prog - (u8 *)rw_image),
+					    image + (branches[i] - (u8 *)rw_image), X86_JNE);
 	}
 
 	if (fexit->nr_links)
-		if (invoke_bpf(m, &prog, fexit, regs_off, run_ctx_off, false)) {
+		if (invoke_bpf(m, &prog, fexit, regs_off, run_ctx_off,
+			       false, image, rw_image)) {
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2643,10 +2650,10 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 	 * restored to R0.
 	 */
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		im->ip_epilogue = prog;
+		im->ip_epilogue = image + (prog - (u8 *)rw_image);
 		/* arg1: mov rdi, im */
 		emit_mov_imm64(&prog, BPF_REG_1, (long) im >> 32, (u32) (long) im);
-		if (emit_rsb_call(&prog, __bpf_tramp_exit, prog)) {
+		if (emit_rsb_call(&prog, __bpf_tramp_exit, image + (prog - (u8 *)rw_image))) {
 			ret = -EINVAL;
 			goto cleanup;
 		}
@@ -2665,17 +2672,35 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image
 	if (flags & BPF_TRAMP_F_SKIP_FRAME)
 		/* skip our return address and return to parent */
 		EMIT4(0x48, 0x83, 0xC4, 8); /* add rsp, 8 */
-	emit_return(&prog, prog);
+	emit_return(&prog, image + (prog - (u8 *)rw_image));
 	/* Make sure the trampoline generation logic doesn't overflow */
-	if (WARN_ON_ONCE(prog > (u8 *)image_end - BPF_INSN_SAFETY)) {
+	if (WARN_ON_ONCE(prog > (u8 *)rw_image_end - BPF_INSN_SAFETY)) {
 		ret = -EFAULT;
 		goto cleanup;
 	}
-	ret = prog - (u8 *)image + BPF_INSN_SAFETY;
+	ret = prog - (u8 *)rw_image + BPF_INSN_SAFETY;
 
 cleanup:
 	kfree(branches);
 	return ret;
+}
+
+void *arch_alloc_bpf_trampoline(unsigned int size)
+{
+	return bpf_prog_pack_alloc(size, jit_fill_hole);
+}
+
+void arch_free_bpf_trampoline(void *image, unsigned int size)
+{
+	bpf_prog_pack_free(image, size);
+}
+
+void arch_protect_bpf_trampoline(void *image, unsigned int size)
+{
+}
+
+void arch_unprotect_bpf_trampoline(void *image, unsigned int size)
+{
 }
 
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,
@@ -2683,7 +2708,28 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *i
 				struct bpf_tramp_links *tlinks,
 				void *func_addr)
 {
-	return __arch_prepare_bpf_trampoline(im, image, image_end, m, flags, tlinks, func_addr);
+	void *rw_image, *tmp;
+	int ret;
+	u32 size = image_end - image;
+
+	/* rw_image doesn't need to be in module memory range, so we can
+	 * use kvmalloc.
+	 */
+	rw_image = kvmalloc(size, GFP_KERNEL);
+	if (!rw_image)
+		return -ENOMEM;
+
+	ret = __arch_prepare_bpf_trampoline(im, rw_image, rw_image + size, image, m,
+					    flags, tlinks, func_addr);
+	if (ret < 0)
+		goto out;
+
+	tmp = bpf_arch_text_copy(image, rw_image, size);
+	if (IS_ERR(tmp))
+		ret = PTR_ERR(tmp);
+out:
+	kvfree(rw_image);
+	return ret;
 }
 
 int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
@@ -2704,8 +2750,8 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	if (!image)
 		return -ENOMEM;
 
-	ret = __arch_prepare_bpf_trampoline(&im, image, image + PAGE_SIZE, m, flags,
-					    tlinks, func_addr);
+	ret = __arch_prepare_bpf_trampoline(&im, image, image + PAGE_SIZE, image,
+					    m, flags, tlinks, func_addr);
 	bpf_jit_free_exec(image);
 	return ret;
 }
