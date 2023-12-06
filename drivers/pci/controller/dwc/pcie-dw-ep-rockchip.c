@@ -528,18 +528,18 @@ static void rockchip_pcie_resize_bar(struct rockchip_pcie *rockchip)
 
 	/* Resize BAR0 4M 32bits, BAR2 64M 64bits-pref, BAR4 1MB 32bits */
 	bar = BAR_0;
-	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0xfffff0);
+	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x40);
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0x2c0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
 
 	bar = BAR_2;
-	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0xfffff0);
+	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x400);
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0x6c0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar,
 				      PCI_BASE_ADDRESS_MEM_PREFETCH | PCI_BASE_ADDRESS_MEM_TYPE_64);
 
 	bar = BAR_4;
-	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0xfffff0);
+	dw_pcie_writel_dbi(pci, resbar_base + 0x4 + bar * 0x8, 0x10);
 	dw_pcie_writel_dbi(pci, resbar_base + 0x8 + bar * 0x8, 0xc0);
 	rockchip_pcie_ep_set_bar_flag(rockchip, bar, PCI_BASE_ADDRESS_MEM_TYPE_32);
 
