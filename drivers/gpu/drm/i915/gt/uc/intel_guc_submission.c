@@ -4626,12 +4626,12 @@ static bool __guc_submission_supported(struct intel_guc *guc)
 {
 	/* GuC submission is unavailable for pre-Gen11 */
 	return intel_guc_is_supported(guc) &&
-	       GRAPHICS_VER(guc_to_gt(guc)->i915) >= 11;
+	       GRAPHICS_VER(guc_to_i915(guc)) >= 11;
 }
 
 static bool __guc_submission_selected(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	if (!intel_guc_submission_is_supported(guc))
 		return false;

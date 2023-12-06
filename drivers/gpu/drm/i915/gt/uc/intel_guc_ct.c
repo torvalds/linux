@@ -265,7 +265,7 @@ int intel_guc_ct_init(struct intel_guc_ct *ct)
 	u32 *cmds;
 	int err;
 
-	err = i915_inject_probe_error(guc_to_gt(guc)->i915, -ENXIO);
+	err = i915_inject_probe_error(guc_to_i915(guc), -ENXIO);
 	if (err)
 		return err;
 
