@@ -1825,6 +1825,7 @@ static u32 ice_get_pkg_segment_id(enum ice_mac_type mac_type)
 		seg_id = SEGMENT_TYPE_ICE_E830;
 		break;
 	case ICE_MAC_GENERIC:
+	case ICE_MAC_GENERIC_3K_E825:
 	default:
 		seg_id = SEGMENT_TYPE_ICE_E810;
 		break;
@@ -1844,6 +1845,9 @@ static u32 ice_get_pkg_sign_type(enum ice_mac_type mac_type)
 	switch (mac_type) {
 	case ICE_MAC_E830:
 		sign_type = SEGMENT_SIGN_TYPE_RSA3K_SBB;
+		break;
+	case ICE_MAC_GENERIC_3K_E825:
+		sign_type = SEGMENT_SIGN_TYPE_RSA3K_E825;
 		break;
 	case ICE_MAC_GENERIC:
 	default:
