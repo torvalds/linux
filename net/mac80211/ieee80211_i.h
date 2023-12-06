@@ -92,11 +92,14 @@ enum ieee80211_status_data {
 	IEEE80211_STATUS_SUBDATA_MASK	= 0xff0,
 };
 
-/*
- * Keep a station's queues on the active list for deficit accounting purposes
- * if it was active or queued during the last 100ms
- */
-#define AIRTIME_ACTIVE_DURATION (HZ / 10)
+static inline bool
+ieee80211_sta_keep_active(struct sta_info *sta, u8 ac)
+{
+	/* Keep a station's queues on the active list for deficit accounting
+	 * purposes if it was active or queued during the last 100ms.
+	 */
+	return time_before_eq(jiffies, sta->airtime[ac].last_active + HZ / 10);
+}
 
 struct ieee80211_bss {
 	u32 device_ts_beacon, device_ts_presp;

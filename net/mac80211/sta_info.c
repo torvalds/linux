@@ -2268,7 +2268,6 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 	struct ieee80211_local *local = sta->sdata->local;
 	u8 ac = ieee80211_ac_from_tid(tid);
 	u32 airtime = 0;
-	u32 diff;
 
 	if (sta->local->airtime_flags & AIRTIME_USE_TX)
 		airtime += tx_airtime;
@@ -2279,8 +2278,7 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 	sta->airtime[ac].tx_airtime += tx_airtime;
 	sta->airtime[ac].rx_airtime += rx_airtime;
 
-	diff = (u32)jiffies - sta->airtime[ac].last_active;
-	if (diff <= AIRTIME_ACTIVE_DURATION)
+	if (ieee80211_sta_keep_active(sta, ac))
 		sta->airtime[ac].deficit -= airtime;
 
 	spin_unlock_bh(&local->active_txq_lock[ac]);
