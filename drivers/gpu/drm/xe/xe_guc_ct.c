@@ -17,6 +17,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_gt_pagefault.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_submit.h"
@@ -448,7 +449,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 	} else {
 		cmd[1] =
-			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_EVENT) |
+			FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_FAST_REQUEST) |
 			FIELD_PREP(GUC_HXG_EVENT_MSG_0_ACTION |
 				   GUC_HXG_EVENT_MSG_0_DATA0, action[0]);
 	}
@@ -475,11 +476,31 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	return 0;
 }
 
+/*
+ * The CT protocol accepts a 16 bits fence. This field is fully owned by the
+ * driver, the GuC will just copy it to the reply message. Since we need to
+ * be able to distinguish between replies to REQUEST and FAST_REQUEST messages,
+ * we use one bit of the seqno as an indicator for that and a rolling counter
+ * for the remaining 15 bits.
+ */
+#define CT_SEQNO_MASK GENMASK(14, 0)
+#define CT_SEQNO_UNTRACKED BIT(15)
+static u16 next_ct_seqno(struct xe_guc_ct *ct, bool is_g2h_fence)
+{
+	u32 seqno = ct->fence_seqno++ & CT_SEQNO_MASK;
+
+	if (!is_g2h_fence)
+		seqno |= CT_SEQNO_UNTRACKED;
+
+	return seqno;
+}
+
 static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 g2h_len, u32 num_g2h,
 				struct g2h_fence *g2h_fence)
 {
 	struct xe_device *xe = ct_to_xe(ct);
+	u16 seqno;
 	int ret;
 
 	xe_assert(xe, !g2h_len || !g2h_fence);
@@ -505,7 +526,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		if (g2h_fence_needs_alloc(g2h_fence)) {
 			void *ptr;
 
-			g2h_fence->seqno = (ct->fence_seqno++ & 0xffff);
+			g2h_fence->seqno = next_ct_seqno(ct, true);
 			ptr = xa_store(&ct->fence_lookup,
 				       g2h_fence->seqno,
 				       g2h_fence, GFP_ATOMIC);
@@ -514,6 +535,10 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 				goto out;
 			}
 		}
+
+		seqno = g2h_fence->seqno;
+	} else {
+		seqno = next_ct_seqno(ct, false);
 	}
 
 	if (g2h_len)
@@ -523,8 +548,7 @@ retry:
 	if (unlikely(ret))
 		goto out_unlock;
 
-	ret = h2g_write(ct, action, len, g2h_fence ? g2h_fence->seqno : 0,
-			!!g2h_fence);
+	ret = h2g_write(ct, action, len, seqno, !!g2h_fence);
 	if (unlikely(ret)) {
 		if (ret == -EAGAIN)
 			goto retry;
@@ -786,7 +810,8 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 
 static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
-	struct xe_device *xe = ct_to_xe(ct);
+	struct xe_gt *gt =  ct_to_gt(ct);
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 response_len = len - GUC_CTB_MSG_MIN_LEN;
 	u32 fence = FIELD_GET(GUC_CTB_MSG_0_FENCE, msg[0]);
 	u32 type = FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[1]);
@@ -794,10 +819,31 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 
 	lockdep_assert_held(&ct->lock);
 
+	/*
+	 * Fences for FAST_REQUEST messages are not tracked in ct->fence_lookup.
+	 * Those messages should never fail, so if we do get an error back it
+	 * means we're likely doing an illegal operation and the GuC is
+	 * rejecting it. We have no way to inform the code that submitted the
+	 * H2G that the message was rejected, so we need to escalate the
+	 * failure to trigger a reset.
+	 */
+	if (fence & CT_SEQNO_UNTRACKED) {
+		if (type == GUC_HXG_TYPE_RESPONSE_FAILURE)
+			xe_gt_err(gt, "FAST_REQ H2G fence 0x%x failed! e=0x%x, h=%u\n",
+				  fence,
+				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, msg[1]),
+				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, msg[1]));
+		else
+			xe_gt_err(gt, "unexpected response %u for FAST_REQ H2G fence 0x%x!\n",
+				  type, fence);
+
+		return -EPROTO;
+	}
+
 	g2h_fence = xa_erase(&ct->fence_lookup, fence);
 	if (unlikely(!g2h_fence)) {
 		/* Don't tear down channel, as send could've timed out */
-		drm_warn(&xe->drm, "G2H fence (%u) not found!\n", fence);
+		xe_gt_warn(gt, "G2H fence (%u) not found!\n", fence);
 		g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
 		return 0;
 	}
