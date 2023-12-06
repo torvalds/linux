@@ -382,7 +382,7 @@ class PenDigitizer(base.UHIDTestDevice):
         elif state == PenState.PEN_IS_ERASING:
             pen.tipswitch = False
             pen.inrange = True
-            pen.invert = True
+            pen.invert = False
             pen.eraser = True
 
         pen.current_state = state
