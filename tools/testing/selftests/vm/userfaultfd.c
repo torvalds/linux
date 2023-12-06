@@ -365,6 +365,11 @@ static void shmem_check_pmd_mapping(void *p, int expect_nr_hpages)
 		    expect_nr_hpages);
 }
 
+struct uffd_test_case_ops {
+	void (*pre_alloc)();
+	void (*post_alloc)();
+};
+
 struct uffd_test_ops {
 	void (*allocate_area)(void **alloc_area, bool is_src);
 	void (*release_pages)(char *rel_area);
@@ -513,12 +518,19 @@ static void uffd_test_ctx_clear(void)
 	munmap_area((void **)&area_remap);
 }
 
-static void uffd_test_ctx_init(uint64_t features)
+static void uffd_test_ctx_init(uint64_t features,
+			       struct uffd_test_case_ops *uffd_test_case_ops)
 {
 	unsigned long nr, cpu;
 
+	if (uffd_test_case_ops && uffd_test_case_ops->pre_alloc)
+		uffd_test_case_ops->pre_alloc();
+
 	uffd_test_ops->allocate_area((void **)&area_src, true);
 	uffd_test_ops->allocate_area((void **)&area_dst, false);
+
+	if (uffd_test_case_ops && uffd_test_case_ops->post_alloc)
+		uffd_test_case_ops->post_alloc();
 
 	userfaultfd_open(&features);
 
@@ -1176,7 +1188,7 @@ static int userfaultfd_zeropage_test(void)
 	printf("testing UFFDIO_ZEROPAGE: ");
 	fflush(stdout);
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	uffdio_register.range.start = (unsigned long) area_dst;
 	uffdio_register.range.len = nr_pages * page_size;
@@ -1213,7 +1225,7 @@ static int userfaultfd_events_test(void)
 
 	features = UFFD_FEATURE_EVENT_FORK | UFFD_FEATURE_EVENT_REMAP |
 		UFFD_FEATURE_EVENT_REMOVE;
-	uffd_test_ctx_init(features);
+	uffd_test_ctx_init(features, NULL);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1270,7 +1282,7 @@ static int userfaultfd_sig_test(void)
 	fflush(stdout);
 
 	features = UFFD_FEATURE_EVENT_FORK|UFFD_FEATURE_SIGBUS;
-	uffd_test_ctx_init(features);
+	uffd_test_ctx_init(features, NULL);
 
 	fcntl(uffd, F_SETFL, uffd_flags | O_NONBLOCK);
 
@@ -1353,7 +1365,7 @@ static int userfaultfd_minor_test(void)
 	printf("testing minor faults: ");
 	fflush(stdout);
 
-	uffd_test_ctx_init(uffd_minor_feature());
+	uffd_test_ctx_init(uffd_minor_feature(), NULL);
 
 	uffdio_register.range.start = (unsigned long)area_dst_alias;
 	uffdio_register.range.len = nr_pages * page_size;
@@ -1492,7 +1504,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 	/* Flush so it doesn't flush twice in parent/child later */
 	fflush(stdout);
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	if (test_pgsize > page_size) {
 		/* This is a thp test */
@@ -1557,7 +1569,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_register uffdio_register;
 	struct uffd_stats uffd_stats[nr_cpus];
 
-	uffd_test_ctx_init(0);
+	uffd_test_ctx_init(0, NULL);
 
 	if (posix_memalign(&area, page_size, page_size))
 		err("out of memory");
