@@ -318,6 +318,55 @@ class PenState(Enum):
         }
 
     @staticmethod
+    def legal_transitions_with_primary_button() -> Dict[str, Tuple["PenState", ...]]:
+        """We revisit the Windows Pen Implementation state machine:
+        we now have a primary button.
+        """
+        return {
+            "hover-button": (PenState.PEN_IS_IN_RANGE_WITH_BUTTON,),
+            "hover-button -> out-of-range": (
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_OUT_OF_RANGE,
+            ),
+            "in-range -> button-press": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+            ),
+            "in-range -> button-press -> button-release": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_IN_RANGE,
+            ),
+            "in-range -> touch -> button-press -> button-release": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_CONTACT,
+                PenState.PEN_IS_IN_CONTACT_WITH_BUTTON,
+                PenState.PEN_IS_IN_CONTACT,
+            ),
+            "in-range -> touch -> button-press -> release -> button-release": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_CONTACT,
+                PenState.PEN_IS_IN_CONTACT_WITH_BUTTON,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_IN_RANGE,
+            ),
+            "in-range -> button-press -> touch -> release -> button-release": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_IN_CONTACT_WITH_BUTTON,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_IN_RANGE,
+            ),
+            "in-range -> button-press -> touch -> button-release -> release": (
+                PenState.PEN_IS_IN_RANGE,
+                PenState.PEN_IS_IN_RANGE_WITH_BUTTON,
+                PenState.PEN_IS_IN_CONTACT_WITH_BUTTON,
+                PenState.PEN_IS_IN_CONTACT,
+                PenState.PEN_IS_IN_RANGE,
+            ),
+        }
+
+    @staticmethod
     def tolerated_transitions() -> Dict[str, Tuple["PenState", ...]]:
         """This is not adhering to the Windows Pen Implementation state machine
         but we should expect the kernel to behave properly, mostly for historical
@@ -672,6 +721,22 @@ class BaseTest:
             self._test_states(state_list, scribble)
 
         @pytest.mark.skip_if_uhdev(
+            lambda uhdev: "Barrel Switch" not in uhdev.fields,
+            "Device not compatible, missing Barrel Switch usage",
+        )
+        @pytest.mark.parametrize("scribble", [True, False], ids=["scribble", "static"])
+        @pytest.mark.parametrize(
+            "state_list",
+            [
+                pytest.param(v, id=k)
+                for k, v in PenState.legal_transitions_with_primary_button().items()
+            ],
+        )
+        def test_valid_primary_button_pen_states(self, state_list, scribble):
+            """Rework the transition state machine by adding the primary button."""
+            self._test_states(state_list, scribble)
+
+        @pytest.mark.skip_if_uhdev(
             lambda uhdev: "Invert" not in uhdev.fields,
             "Device not compatible, missing Invert usage",
         )
@@ -727,101 +792,6 @@ class BaseTest:
             touching and erasing if the tablet doesn't enforce the Windows
             state machine."""
             self._test_states(state_list, scribble)
-
-        @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Barrel Switch" not in uhdev.fields,
-            "Device not compatible, missing Barrel Switch usage",
-        )
-        def test_primary_button(self):
-            """Primary button (stylus) pressed, reports as pressed even while hovering.
-            Actual reporting from the device: hid=TIPSWITCH,BARRELSWITCH,INRANGE (code=TOUCH,STYLUS,PEN):
-              { 0, 0, 1 } <- hover
-              { 0, 1, 1 } <- primary button pressed
-              { 0, 1, 1 } <- liftoff
-              { 0, 0, 0 } <- leaves
-            """
-
-            uhdev = self.uhdev
-            evdev = uhdev.get_evdev()
-
-            p = Pen(50, 60)
-            p.inrange = True
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_PEN, 1) in events
-            assert evdev.value[libevdev.EV_ABS.ABS_X] == 50
-            assert evdev.value[libevdev.EV_ABS.ABS_Y] == 60
-            assert not evdev.value[libevdev.EV_KEY.BTN_STYLUS]
-
-            p.barrelswitch = True
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS, 1) in events
-
-            p.x += 1
-            p.y -= 1
-            events = self.post(uhdev, p)
-            assert len(events) == 3  # X, Y, SYN
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_X, 51) in events
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_Y, 59) in events
-
-            p.barrelswitch = False
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS, 0) in events
-
-            p.inrange = False
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_PEN, 0) in events
-
-        @pytest.mark.skip_if_uhdev(
-            lambda uhdev: "Barrel Switch" not in uhdev.fields,
-            "Device not compatible, missing Barrel Switch usage",
-        )
-        def test_contact_primary_button(self):
-            """Primary button (stylus) pressed, reports as pressed even while hovering.
-            Actual reporting from the device: hid=TIPSWITCH,BARRELSWITCH,INRANGE (code=TOUCH,STYLUS,PEN):
-              { 0, 0, 1 } <- hover
-              { 0, 1, 1 } <- primary button pressed
-              { 1, 1, 1 } <- touch-down
-              { 1, 1, 1 } <- still touch, scribble on the screen
-              { 0, 1, 1 } <- liftoff
-              { 0, 0, 0 } <- leaves
-            """
-
-            uhdev = self.uhdev
-            evdev = uhdev.get_evdev()
-
-            p = Pen(50, 60)
-            p.inrange = True
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_PEN, 1) in events
-            assert evdev.value[libevdev.EV_ABS.ABS_X] == 50
-            assert evdev.value[libevdev.EV_ABS.ABS_Y] == 60
-            assert not evdev.value[libevdev.EV_KEY.BTN_STYLUS]
-
-            p.barrelswitch = True
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS, 1) in events
-
-            p.tipswitch = True
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 1) in events
-            assert evdev.value[libevdev.EV_KEY.BTN_STYLUS]
-
-            p.x += 1
-            p.y -= 1
-            events = self.post(uhdev, p)
-            assert len(events) == 3  # X, Y, SYN
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_X, 51) in events
-            assert libevdev.InputEvent(libevdev.EV_ABS.ABS_Y, 59) in events
-
-            p.tipswitch = False
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 0) in events
-
-            p.barrelswitch = False
-            p.inrange = False
-            events = self.post(uhdev, p)
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_PEN, 0) in events
-            assert libevdev.InputEvent(libevdev.EV_KEY.BTN_STYLUS, 0) in events
 
 
 class GXTP_pen(PenDigitizer):
