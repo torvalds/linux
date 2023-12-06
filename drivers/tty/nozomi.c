@@ -783,11 +783,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 			tty_insert_flip_char(&port->port, buf[0], TTY_NORMAL);
 			size = 0;
 		} else if (size < RECEIVE_BUF_MAX) {
-			size -= tty_insert_flip_string(&port->port,
-					(char *)buf, size);
+			size -= tty_insert_flip_string(&port->port, buf, size);
 		} else {
-			i = tty_insert_flip_string(&port->port,
-					(char *)buf, RECEIVE_BUF_MAX);
+			i = tty_insert_flip_string(&port->port, buf,
+						   RECEIVE_BUF_MAX);
 			size -= i;
 			offset += i;
 		}
@@ -1584,10 +1583,10 @@ static void ntty_hangup(struct tty_struct *tty)
 static ssize_t ntty_write(struct tty_struct *tty, const u8 *buffer,
 			  size_t count)
 {
-	int rval = -EINVAL;
 	struct nozomi *dc = get_dc_by_tty(tty);
 	struct port *port = tty->driver_data;
 	unsigned long flags;
+	size_t rval;
 
 	if (!dc || !port)
 		return -ENODEV;
