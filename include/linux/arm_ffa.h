@@ -209,6 +209,8 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev) { return false; }
 #define module_ffa_driver(__ffa_driver)	\
 	module_driver(__ffa_driver, ffa_register, ffa_unregister)
 
+extern struct bus_type ffa_bus_type;
+
 /* FFA transport related */
 struct ffa_partition_info {
 	u16 id;

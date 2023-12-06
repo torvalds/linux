@@ -99,6 +99,7 @@ struct ffa_drv_info {
 	void *tx_buffer;
 	bool mem_ops_native;
 	bool bitmap_created;
+	bool notif_enabled;
 	unsigned int sched_recv_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
@@ -782,7 +783,7 @@ static void ffa_notification_info_get(void)
 			if (ids_processed >= max_ids - 1)
 				break;
 
-			part_id = packed_id_list[++ids_processed];
+			part_id = packed_id_list[ids_processed++];
 
 			if (!ids_count[list]) { /* Global Notification */
 				__do_sched_recv_cb(part_id, 0, false);
@@ -794,7 +795,7 @@ static void ffa_notification_info_get(void)
 				if (ids_processed >= max_ids - 1)
 					break;
 
-				vcpu_id = packed_id_list[++ids_processed];
+				vcpu_id = packed_id_list[ids_processed++];
 
 				__do_sched_recv_cb(part_id, vcpu_id, true);
 			}
@@ -889,6 +890,8 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 
 #define FFA_SECURE_PARTITION_ID_FLAG	BIT(15)
 
+#define ffa_notifications_disabled()	(!drv_info->notif_enabled)
+
 enum notify_type {
 	NON_SECURE_VM,
 	SECURE_PARTITION,
@@ -907,6 +910,9 @@ static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 {
 	struct ffa_dev_part_info *partition;
 	bool cb_valid;
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	partition = xa_load(&drv_info->partition_info, part_id);
 	write_lock(&partition->rw_lock);
@@ -1001,6 +1007,9 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
 	int rc;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
 
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
+
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
 
@@ -1026,6 +1035,9 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 	int rc;
 	u32 flags = 0;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
@@ -1056,6 +1068,9 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 			   bool is_per_vcpu, u16 vcpu)
 {
 	u32 flags = 0;
+
+	if (ffa_notifications_disabled())
+		return -EOPNOTSUPP;
 
 	if (is_per_vcpu)
 		flags |= (PER_VCPU_NOTIFICATION_FLAG | vcpu << 16);
@@ -1233,7 +1248,7 @@ static void ffa_partitions_cleanup(void)
 	if (!count)
 		return;
 
-	info = kcalloc(count, sizeof(**info), GFP_KERNEL);
+	info = kcalloc(count, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return;
 
@@ -1311,8 +1326,10 @@ static int ffa_sched_recv_irq_map(void)
 
 static void ffa_sched_recv_irq_unmap(void)
 {
-	if (drv_info->sched_recv_irq)
+	if (drv_info->sched_recv_irq) {
 		irq_dispose_mapping(drv_info->sched_recv_irq);
+		drv_info->sched_recv_irq = 0;
+	}
 }
 
 static int ffa_cpuhp_pcpu_irq_enable(unsigned int cpu)
@@ -1329,17 +1346,23 @@ static int ffa_cpuhp_pcpu_irq_disable(unsigned int cpu)
 
 static void ffa_uninit_pcpu_irq(void)
 {
-	if (drv_info->cpuhp_state)
+	if (drv_info->cpuhp_state) {
 		cpuhp_remove_state(drv_info->cpuhp_state);
+		drv_info->cpuhp_state = 0;
+	}
 
-	if (drv_info->notif_pcpu_wq)
+	if (drv_info->notif_pcpu_wq) {
 		destroy_workqueue(drv_info->notif_pcpu_wq);
+		drv_info->notif_pcpu_wq = NULL;
+	}
 
 	if (drv_info->sched_recv_irq)
 		free_percpu_irq(drv_info->sched_recv_irq, drv_info->irq_pcpu);
 
-	if (drv_info->irq_pcpu)
+	if (drv_info->irq_pcpu) {
 		free_percpu(drv_info->irq_pcpu);
+		drv_info->irq_pcpu = NULL;
+	}
 }
 
 static int ffa_init_pcpu_irq(unsigned int irq)
@@ -1388,22 +1411,23 @@ static void ffa_notifications_cleanup(void)
 		ffa_notification_bitmap_destroy();
 		drv_info->bitmap_created = false;
 	}
+	drv_info->notif_enabled = false;
 }
 
-static int ffa_notifications_setup(void)
+static void ffa_notifications_setup(void)
 {
 	int ret, irq;
 
 	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
 	if (ret) {
-		pr_err("Notifications not supported, continuing with it ..\n");
-		return 0;
+		pr_info("Notifications not supported, continuing with it ..\n");
+		return;
 	}
 
 	ret = ffa_notification_bitmap_create();
 	if (ret) {
-		pr_err("notification_bitmap_create error %d\n", ret);
-		return ret;
+		pr_info("Notification bitmap create error %d\n", ret);
+		return;
 	}
 	drv_info->bitmap_created = true;
 
@@ -1422,14 +1446,11 @@ static int ffa_notifications_setup(void)
 	hash_init(drv_info->notifier_hash);
 	mutex_init(&drv_info->notify_lock);
 
-	/* Register internal scheduling callback */
-	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
-				       drv_info, true);
-	if (!ret)
-		return ret;
+	drv_info->notif_enabled = true;
+	return;
 cleanup:
+	pr_info("Notification setup failed %d, not enabled\n", ret);
 	ffa_notifications_cleanup();
-	return ret;
 }
 
 static int __init ffa_init(void)
@@ -1483,17 +1504,18 @@ static int __init ffa_init(void)
 	mutex_init(&drv_info->rx_lock);
 	mutex_init(&drv_info->tx_lock);
 
-	ffa_setup_partitions();
-
 	ffa_set_up_mem_ops_native_flag();
 
-	ret = ffa_notifications_setup();
+	ffa_notifications_setup();
+
+	ffa_setup_partitions();
+
+	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
+				       drv_info, true);
 	if (ret)
-		goto partitions_cleanup;
+		pr_info("Failed to register driver sched callback %d\n", ret);
 
 	return 0;
-partitions_cleanup:
-	ffa_partitions_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
