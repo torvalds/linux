@@ -358,7 +358,7 @@ iavf_fill_fdir_ip6_hdr(struct iavf_fdir_fltr *fltr,
 
 	if (fltr->ip_mask.tclass == U8_MAX) {
 		iph->priority = (fltr->ip_data.tclass >> 4) & 0xF;
-		iph->flow_lbl[0] = (fltr->ip_data.tclass << 4) & 0xF0;
+		iph->flow_lbl[0] = FIELD_PREP(0xF0, fltr->ip_data.tclass);
 		VIRTCHNL_ADD_PROTO_HDR_FIELD_BIT(hdr, IPV6, TC);
 	}
 
