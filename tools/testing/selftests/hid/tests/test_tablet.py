@@ -13,9 +13,21 @@ from hidtools.util import BusType
 import libevdev
 import logging
 import pytest
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 logger = logging.getLogger("hidtools.test.tablet")
+
+
+class BtnTouch(Enum):
+    """Represents whether the BTN_TOUCH event is set to True or False"""
+
+    DOWN = True
+    UP = False
+
+
+class ToolType(Enum):
+    PEN = libevdev.EV_KEY.BTN_TOOL_PEN
+    RUBBER = libevdev.EV_KEY.BTN_TOOL_RUBBER
 
 
 class PenState(Enum):
@@ -23,30 +35,30 @@ class PenState(Enum):
     https://docs.microsoft.com/en-us/windows-hardware/design/component-guidelines/windows-pen-states
     """
 
-    PEN_IS_OUT_OF_RANGE = (False, None)
-    PEN_IS_IN_RANGE = (False, libevdev.EV_KEY.BTN_TOOL_PEN)
-    PEN_IS_IN_CONTACT = (True, libevdev.EV_KEY.BTN_TOOL_PEN)
-    PEN_IS_IN_RANGE_WITH_ERASING_INTENT = (False, libevdev.EV_KEY.BTN_TOOL_RUBBER)
-    PEN_IS_ERASING = (True, libevdev.EV_KEY.BTN_TOOL_RUBBER)
+    PEN_IS_OUT_OF_RANGE = BtnTouch.UP, None
+    PEN_IS_IN_RANGE = BtnTouch.UP, ToolType.PEN
+    PEN_IS_IN_CONTACT = BtnTouch.DOWN, ToolType.PEN
+    PEN_IS_IN_RANGE_WITH_ERASING_INTENT = BtnTouch.UP, ToolType.RUBBER
+    PEN_IS_ERASING = BtnTouch.DOWN, ToolType.RUBBER
 
-    def __init__(self, touch, tool):
+    def __init__(self, touch: BtnTouch, tool: Optional[ToolType]):
         self.touch = touch
         self.tool = tool
 
     @classmethod
     def from_evdev(cls, evdev) -> "PenState":
-        touch = bool(evdev.value[libevdev.EV_KEY.BTN_TOUCH])
+        touch = BtnTouch(evdev.value[libevdev.EV_KEY.BTN_TOUCH])
         tool = None
         if (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
             and not evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
         ):
-            tool = libevdev.EV_KEY.BTN_TOOL_RUBBER
+            tool = ToolType(libevdev.EV_KEY.BTN_TOOL_RUBBER)
         elif (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
             and not evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
         ):
-            tool = libevdev.EV_KEY.BTN_TOOL_PEN
+            tool = ToolType(libevdev.EV_KEY.BTN_TOOL_PEN)
         elif (
             evdev.value[libevdev.EV_KEY.BTN_TOOL_PEN]
             or evdev.value[libevdev.EV_KEY.BTN_TOOL_RUBBER]
@@ -68,7 +80,7 @@ class PenState(Enum):
                 if touch_found:
                     raise ValueError(f"duplicated BTN_TOUCH in {events}")
                 touch_found = True
-                touch = bool(ev.value)
+                touch = BtnTouch(ev.value)
             elif ev in (
                 libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_PEN),
                 libevdev.InputEvent(libevdev.EV_KEY.BTN_TOOL_RUBBER),
@@ -77,7 +89,7 @@ class PenState(Enum):
                     raise ValueError(f"duplicated BTN_TOOL_* in {events}")
                 tool_found = True
                 if ev.value:
-                    tool = ev.code
+                    tool = ToolType(ev.code)
                 else:
                     tool = None
 
