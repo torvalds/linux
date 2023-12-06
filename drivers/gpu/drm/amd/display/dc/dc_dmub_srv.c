@@ -140,7 +140,10 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 
 		if (status == DMUB_STATUS_QUEUE_FULL) {
 			/* Execute and wait for queue to become empty again. */
-			dmub_srv_cmd_execute(dmub);
+			status = dmub_srv_cmd_execute(dmub);
+			if (status == DMUB_STATUS_POWER_STATE_D3)
+				return false;
+
 			dmub_srv_wait_for_idle(dmub, 100000);
 
 			/* Requeue the command. */
@@ -148,16 +151,20 @@ bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
 		}
 
 		if (status != DMUB_STATUS_OK) {
-			DC_ERROR("Error queueing DMUB command: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			if (status != DMUB_STATUS_POWER_STATE_D3) {
+				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
+				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			}
 			return false;
 		}
 	}
 
 	status = dmub_srv_cmd_execute(dmub);
 	if (status != DMUB_STATUS_OK) {
-		DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		if (status != DMUB_STATUS_POWER_STATE_D3) {
+			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		}
 		return false;
 	}
 
@@ -218,7 +225,10 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 
 		if (status == DMUB_STATUS_QUEUE_FULL) {
 			/* Execute and wait for queue to become empty again. */
-			dmub_srv_cmd_execute(dmub);
+			status = dmub_srv_cmd_execute(dmub);
+			if (status == DMUB_STATUS_POWER_STATE_D3)
+				return false;
+
 			dmub_srv_wait_for_idle(dmub, 100000);
 
 			/* Requeue the command. */
@@ -226,16 +236,20 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 		}
 
 		if (status != DMUB_STATUS_OK) {
-			DC_ERROR("Error queueing DMUB command: status=%d\n", status);
-			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			if (status != DMUB_STATUS_POWER_STATE_D3) {
+				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
+				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			}
 			return false;
 		}
 	}
 
 	status = dmub_srv_cmd_execute(dmub);
 	if (status != DMUB_STATUS_OK) {
-		DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		if (status != DMUB_STATUS_POWER_STATE_D3) {
+			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		}
 		return false;
 	}
 
