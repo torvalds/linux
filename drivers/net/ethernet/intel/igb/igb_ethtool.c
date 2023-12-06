@@ -2711,8 +2711,7 @@ static int igb_rxnfc_write_etype_filter(struct igb_adapter *adapter,
 	etqf |= (etype & E1000_ETQF_ETYPE_MASK);
 
 	etqf &= ~E1000_ETQF_QUEUE_MASK;
-	etqf |= ((input->action << E1000_ETQF_QUEUE_SHIFT)
-		& E1000_ETQF_QUEUE_MASK);
+	etqf |= FIELD_PREP(E1000_ETQF_QUEUE_MASK, input->action);
 	etqf |= E1000_ETQF_QUEUE_ENABLE;
 
 	wr32(E1000_ETQF(i), etqf);

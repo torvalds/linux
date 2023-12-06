@@ -255,7 +255,7 @@ s32 igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data)
 	}
 
 	/* Need to byte-swap the 16-bit value. */
-	*data = ((i2ccmd >> 8) & 0x00FF) | ((i2ccmd << 8) & 0xFF00);
+	*data = ((i2ccmd >> 8) & 0x00FF) | FIELD_PREP(0xFF00, i2ccmd);
 
 	return 0;
 }
@@ -282,7 +282,7 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 	}
 
 	/* Swap the data bytes for the I2C interface */
-	phy_data_swapped = ((data >> 8) & 0x00FF) | ((data << 8) & 0xFF00);
+	phy_data_swapped = ((data >> 8) & 0x00FF) | FIELD_PREP(0xFF00, data);
 
 	/* Set up Op-code, Phy Address, and register address in the I2CCMD
 	 * register.  The MAC will take care of interfacing with the

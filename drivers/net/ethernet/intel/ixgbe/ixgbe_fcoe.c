@@ -670,8 +670,8 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 			int fcoe_i_h = fcoe->offset + ((i + fcreta_size) %
 							fcoe->indices);
 			fcoe_q_h = adapter->rx_ring[fcoe_i_h]->reg_idx;
-			fcoe_q_h = (fcoe_q_h << IXGBE_FCRETA_ENTRY_HIGH_SHIFT) &
-				   IXGBE_FCRETA_ENTRY_HIGH_MASK;
+			fcoe_q_h = FIELD_PREP(IXGBE_FCRETA_ENTRY_HIGH_MASK,
+					      fcoe_q_h);
 		}
 
 		fcoe_i = fcoe->offset + (i % fcoe->indices);
