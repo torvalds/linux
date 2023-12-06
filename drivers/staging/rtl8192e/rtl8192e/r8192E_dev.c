@@ -883,7 +883,7 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	pTxFwInfo->Short = _rtl92e_query_is_short(pTxFwInfo->TxHT,
 						  pTxFwInfo->TxRate, cb_desc);
 
-	if (cb_desc->bAMPDUEnable) {
+	if (cb_desc->ampdu_enable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
 		pTxFwInfo->RxAMD = cb_desc->ampdu_density;

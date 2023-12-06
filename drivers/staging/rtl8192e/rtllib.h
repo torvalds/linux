@@ -118,7 +118,7 @@ struct cb_desc {
 	u8 bUseShortGI:1;
 	u8 bUseShortPreamble:1;
 	u8 bTxEnableFwCalcDur:1;
-	u8 bAMPDUEnable:1;
+	u8 ampdu_enable:1;
 	u8 bRTSSTBC:1;
 	u8 RTSSC:1;
 

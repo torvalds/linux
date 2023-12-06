@@ -312,7 +312,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 				goto FORCED_AGG_SETTING;
 		}
 		if (ieee->iw_mode == IW_MODE_INFRA) {
-			tcb_desc->bAMPDUEnable = true;
+			tcb_desc->ampdu_enable = true;
 			tcb_desc->ampdu_factor = ht_info->CurrentAMPDUFactor;
 			tcb_desc->ampdu_density = ht_info->current_mpdu_density;
 		}
@@ -323,13 +323,13 @@ FORCED_AGG_SETTING:
 		break;
 
 	case HT_AGG_FORCE_ENABLE:
-		tcb_desc->bAMPDUEnable = true;
+		tcb_desc->ampdu_enable = true;
 		tcb_desc->ampdu_density = ht_info->forced_mpdu_density;
 		tcb_desc->ampdu_factor = ht_info->forced_ampdu_factor;
 		break;
 
 	case HT_AGG_FORCE_DISABLE:
-		tcb_desc->bAMPDUEnable = false;
+		tcb_desc->ampdu_enable = false;
 		tcb_desc->ampdu_density = 0;
 		tcb_desc->ampdu_factor = 0;
 		break;
@@ -454,7 +454,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			tcb_desc->bRTSEnable = true;
 			break;
 		}
-		if (tcb_desc->bAMPDUEnable) {
+		if (tcb_desc->ampdu_enable) {
 			tcb_desc->rts_rate = MGN_24M;
 			tcb_desc->bRTSEnable = false;
 			break;
