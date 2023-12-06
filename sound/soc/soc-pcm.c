@@ -704,11 +704,6 @@ static int soc_pcm_clean(struct snd_soc_pcm_runtime *rtd,
 			if (snd_soc_dai_active(dai) == 0 &&
 			    (dai->rate || dai->channels || dai->sample_bits))
 				soc_pcm_set_dai_params(dai, NULL);
-
-			if (snd_soc_dai_stream_active(dai, substream->stream) ==  0) {
-				if (dai->driver->ops && !dai->driver->ops->mute_unmute_on_trigger)
-					snd_soc_dai_digital_mute(dai, 1, substream->stream);
-			}
 		}
 	}
 
@@ -947,8 +942,10 @@ static int soc_pcm_hw_clean(struct snd_soc_pcm_runtime *rtd,
 		if (snd_soc_dai_active(dai) == 1)
 			soc_pcm_set_dai_params(dai, NULL);
 
-		if (snd_soc_dai_stream_active(dai, substream->stream) == 1)
-			snd_soc_dai_digital_mute(dai, 1, substream->stream);
+		if (snd_soc_dai_stream_active(dai, substream->stream) == 1) {
+			if (dai->driver->ops && !dai->driver->ops->mute_unmute_on_trigger)
+				snd_soc_dai_digital_mute(dai, 1, substream->stream);
+		}
 	}
 
 	/* run the stream event */
