@@ -547,6 +547,7 @@ static unsigned int aspeed_xdma_ast2700_set_cmd(struct aspeed_xdma *ctx,
 
 	return rc;
 }
+
 static int aspeed_xdma_start(struct aspeed_xdma *ctx, unsigned int num_cmds,
 			     struct aspeed_xdma_cmd cmds[2], bool upstream,
 			     struct aspeed_xdma_client *client)
