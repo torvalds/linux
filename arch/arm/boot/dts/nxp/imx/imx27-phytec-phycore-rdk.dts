@@ -48,15 +48,12 @@
 		regulator-always-on;
 	};
 
-	usbphy {
-		usbphy2: usbphy@2 {
-			compatible = "usb-nop-xceiv";
-			reg = <2>;
-			vcc-supply = <&reg_5v0>;
-			clocks = <&clks IMX27_CLK_DUMMY>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy2: usbphy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_5v0>;
+		clocks = <&clks IMX27_CLK_DUMMY>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 };
 
