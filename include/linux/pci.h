@@ -715,6 +715,7 @@ static inline bool pci_is_bridge(struct pci_dev *dev)
 
 /**
  * pci_is_vga - check if the PCI device is a VGA device
+ * @pdev: PCI device
  *
  * The PCI Code and ID Assignment spec, r1.15, secs 1.4 and 1.1, define
  * VGA Base Class and Sub-Classes:
