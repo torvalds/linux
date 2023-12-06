@@ -350,7 +350,7 @@ static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_ssc_block_bus_remove(struct platform_device *pdev)
+static void qcom_ssc_block_bus_remove(struct platform_device *pdev)
 {
 	struct qcom_ssc_block_bus_data *data = platform_get_drvdata(pdev);
 
@@ -363,8 +363,6 @@ static int qcom_ssc_block_bus_remove(struct platform_device *pdev)
 	qcom_ssc_block_bus_pds_detach(&pdev->dev, data->pds, data->num_pds);
 	pm_runtime_disable(&pdev->dev);
 	pm_clk_destroy(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_ssc_block_bus_of_match[] = {
@@ -375,7 +373,7 @@ MODULE_DEVICE_TABLE(of, qcom_ssc_block_bus_of_match);
 
 static struct platform_driver qcom_ssc_block_bus_driver = {
 	.probe = qcom_ssc_block_bus_probe,
-	.remove = qcom_ssc_block_bus_remove,
+	.remove_new = qcom_ssc_block_bus_remove,
 	.driver = {
 		.name = "qcom-ssc-block-bus",
 		.of_match_table = qcom_ssc_block_bus_of_match,
