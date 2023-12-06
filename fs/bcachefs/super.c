@@ -599,6 +599,9 @@ void __bch2_fs_stop(struct bch_fs *c)
 	bch2_fs_debug_exit(c);
 	bch2_fs_chardev_exit(c);
 
+	bch2_ro_ref_put(c);
+	wait_event(c->ro_ref_wait, !refcount_read(&c->ro_ref));
+
 	kobject_put(&c->counters_kobj);
 	kobject_put(&c->time_stats);
 	kobject_put(&c->opts_dir);
@@ -728,6 +731,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	mutex_init(&c->replicas_gc_lock);
 	mutex_init(&c->btree_root_lock);
 	INIT_WORK(&c->read_only_work, bch2_fs_read_only_work);
+
+	refcount_set(&c->ro_ref, 1);
+	init_waitqueue_head(&c->ro_ref_wait);
 
 	init_rwsem(&c->gc_lock);
 	mutex_init(&c->gc_gens_lock);

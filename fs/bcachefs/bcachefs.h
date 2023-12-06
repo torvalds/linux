@@ -710,6 +710,13 @@ struct bch_fs {
 #else
 	struct percpu_ref	writes;
 #endif
+	/*
+	 * Analagous to c->writes, for asynchronous ops that don't necessarily
+	 * need fs to be read-write
+	 */
+	refcount_t		ro_ref;
+	wait_queue_head_t	ro_ref_wait;
+
 	struct work_struct	read_only_work;
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
@@ -1103,6 +1110,20 @@ static inline void bch2_write_ref_put(struct bch_fs *c, enum bch_write_ref ref)
 #else
 	percpu_ref_put(&c->writes);
 #endif
+}
+
+static inline bool bch2_ro_ref_tryget(struct bch_fs *c)
+{
+	if (test_bit(BCH_FS_stopping, &c->flags))
+		return false;
+
+	return refcount_inc_not_zero(&c->ro_ref);
+}
+
+static inline void bch2_ro_ref_put(struct bch_fs *c)
+{
+	if (refcount_dec_and_test(&c->ro_ref))
+		wake_up(&c->ro_ref_wait);
 }
 
 static inline void bch2_set_ra_pages(struct bch_fs *c, unsigned ra_pages)
