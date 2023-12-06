@@ -276,9 +276,9 @@ class Pen(object):
         self.barrelswitch = False
         self.invert = False
         self.eraser = False
-        self.x_tilt = 0
-        self.y_tilt = 0
-        self.twist = 0
+        self.xtilt = 1
+        self.ytilt = 1
+        self.twist = 1
         self._old_values = None
         self.current_state = None
 
@@ -292,8 +292,8 @@ class Pen(object):
                 "width",
                 "height",
                 "twist",
-                "x_tilt",
-                "y_tilt",
+                "xtilt",
+                "ytilt",
             ]:
                 setattr(self, i, getattr(self._old_values, i))
 
@@ -361,8 +361,8 @@ class PenDigitizer(base.UHIDTestDevice):
             pen.height = 0
             pen.invert = False
             pen.eraser = False
-            pen.x_tilt = 0
-            pen.y_tilt = 0
+            pen.xtilt = 0
+            pen.ytilt = 0
             pen.twist = 0
         elif state == PenState.PEN_IS_IN_RANGE:
             pen.tipswitch = False
