@@ -170,6 +170,18 @@ static int ice_set_mac_type(struct ice_hw *hw)
 }
 
 /**
+ * ice_is_generic_mac - check if device's mac_type is generic
+ * @hw: pointer to the hardware structure
+ *
+ * Return: true if mac_type is generic (with SBQ support), false if not
+ */
+bool ice_is_generic_mac(struct ice_hw *hw)
+{
+	return (hw->mac_type == ICE_MAC_GENERIC ||
+		hw->mac_type == ICE_MAC_GENERIC_3K_E825);
+}
+
+/**
  * ice_is_e810
  * @hw: pointer to the hardware structure
  *
