@@ -81,7 +81,7 @@
 #define START_RW_WRITE		0
 #define START_RW_READ		1
 
-/**
+/*
  * START_BYTE(id, rs, rw)
  *
  * Set the start byte according to the required operation.
@@ -100,7 +100,7 @@
 #define START_BYTE(id, rs, rw)	\
 	(0x70 | (((id) & 0x01) << 2) | (((rs) & 0x01) << 1) | ((rw) & 0x01))
 
-/**
+/*
  * CHECK_FREQ_REG(spi_device s, spi_transfer x) - Check the frequency
  *	for the SPI transfer. According to the datasheet, the controller
  *	accept higher frequency for the GRAM transfer, but it requires
