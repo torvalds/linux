@@ -1318,8 +1318,7 @@ ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event)
 	dev_dbg(ice_pf_to_dev(pf), "GLDCB_RTCTQ: 0x%08x\n", gldcb_rtctq);
 
 	/* event returns device global Rx queue number */
-	queue = (gldcb_rtctq & GLDCB_RTCTQ_RXQNUM_M) >>
-		GLDCB_RTCTQ_RXQNUM_S;
+	queue = FIELD_GET(GLDCB_RTCTQ_RXQNUM_M, gldcb_rtctq);
 
 	vf = ice_get_vf_from_pfq(pf, ice_globalq_to_pfq(pf, queue));
 	if (!vf)

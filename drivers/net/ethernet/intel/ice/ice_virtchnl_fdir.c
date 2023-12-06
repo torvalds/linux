@@ -1463,16 +1463,15 @@ ice_vf_verify_rx_desc(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
 	int ret;
 
 	stat_err = le16_to_cpu(ctx->rx_desc.wb.status_error0);
-	if (((stat_err & ICE_FXD_FLTR_WB_QW1_DD_M) >>
-	    ICE_FXD_FLTR_WB_QW1_DD_S) != ICE_FXD_FLTR_WB_QW1_DD_YES) {
+	if (FIELD_GET(ICE_FXD_FLTR_WB_QW1_DD_M, stat_err) !=
+	    ICE_FXD_FLTR_WB_QW1_DD_YES) {
 		*status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;
 		dev_err(dev, "VF %d: Desc Done not set\n", vf->vf_id);
 		ret = -EINVAL;
 		goto err_exit;
 	}
 
-	prog_id = (stat_err & ICE_FXD_FLTR_WB_QW1_PROG_ID_M) >>
-		ICE_FXD_FLTR_WB_QW1_PROG_ID_S;
+	prog_id = FIELD_GET(ICE_FXD_FLTR_WB_QW1_PROG_ID_M, stat_err);
 	if (prog_id == ICE_FXD_FLTR_WB_QW1_PROG_ADD &&
 	    ctx->v_opcode != VIRTCHNL_OP_ADD_FDIR_FILTER) {
 		dev_err(dev, "VF %d: Desc show add, but ctx not",
@@ -1491,8 +1490,7 @@ ice_vf_verify_rx_desc(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
 		goto err_exit;
 	}
 
-	error = (stat_err & ICE_FXD_FLTR_WB_QW1_FAIL_M) >>
-		ICE_FXD_FLTR_WB_QW1_FAIL_S;
+	error = FIELD_GET(ICE_FXD_FLTR_WB_QW1_FAIL_M, stat_err);
 	if (error == ICE_FXD_FLTR_WB_QW1_FAIL_YES) {
 		if (prog_id == ICE_FXD_FLTR_WB_QW1_PROG_ADD) {
 			dev_err(dev, "VF %d, Failed to add FDIR rule due to no space in the table",
@@ -1507,8 +1505,7 @@ ice_vf_verify_rx_desc(struct ice_vf *vf, struct ice_vf_fdir_ctx *ctx,
 		goto err_exit;
 	}
 
-	error = (stat_err & ICE_FXD_FLTR_WB_QW1_FAIL_PROF_M) >>
-		ICE_FXD_FLTR_WB_QW1_FAIL_PROF_S;
+	error = FIELD_GET(ICE_FXD_FLTR_WB_QW1_FAIL_PROF_M, stat_err);
 	if (error == ICE_FXD_FLTR_WB_QW1_FAIL_PROF_YES) {
 		dev_err(dev, "VF %d: Profile matching error", vf->vf_id);
 		*status = VIRTCHNL_FDIR_FAILURE_RULE_NORESOURCE;

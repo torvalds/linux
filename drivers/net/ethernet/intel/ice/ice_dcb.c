@@ -146,8 +146,7 @@ static u8 ice_get_dcbx_status(struct ice_hw *hw)
 	u32 reg;
 
 	reg = rd32(hw, PRTDCB_GENS);
-	return (u8)((reg & PRTDCB_GENS_DCBX_STATUS_M) >>
-		    PRTDCB_GENS_DCBX_STATUS_S);
+	return FIELD_GET(PRTDCB_GENS_DCBX_STATUS_M, reg);
 }
 
 /**
@@ -173,11 +172,9 @@ ice_parse_ieee_ets_common_tlv(u8 *buf, struct ice_dcb_ets_cfg *ets_cfg)
 	 */
 	for (i = 0; i < 4; i++) {
 		ets_cfg->prio_table[i * 2] =
-			((buf[offset] & ICE_IEEE_ETS_PRIO_1_M) >>
-			 ICE_IEEE_ETS_PRIO_1_S);
+			FIELD_GET(ICE_IEEE_ETS_PRIO_1_M, buf[offset]);
 		ets_cfg->prio_table[i * 2 + 1] =
-			((buf[offset] & ICE_IEEE_ETS_PRIO_0_M) >>
-			 ICE_IEEE_ETS_PRIO_0_S);
+			FIELD_GET(ICE_IEEE_ETS_PRIO_0_M, buf[offset]);
 		offset++;
 	}
 
@@ -221,11 +218,9 @@ ice_parse_ieee_etscfg_tlv(struct ice_lldp_org_tlv *tlv,
 	 * |1bit | 1bit|3 bits|3bits|
 	 */
 	etscfg = &dcbcfg->etscfg;
-	etscfg->willing = ((buf[0] & ICE_IEEE_ETS_WILLING_M) >>
-			   ICE_IEEE_ETS_WILLING_S);
-	etscfg->cbs = ((buf[0] & ICE_IEEE_ETS_CBS_M) >> ICE_IEEE_ETS_CBS_S);
-	etscfg->maxtcs = ((buf[0] & ICE_IEEE_ETS_MAXTC_M) >>
-			  ICE_IEEE_ETS_MAXTC_S);
+	etscfg->willing = FIELD_GET(ICE_IEEE_ETS_WILLING_M, buf[0]);
+	etscfg->cbs = FIELD_GET(ICE_IEEE_ETS_CBS_M, buf[0]);
+	etscfg->maxtcs = FIELD_GET(ICE_IEEE_ETS_MAXTC_M, buf[0]);
 
 	/* Begin parsing at Priority Assignment Table (offset 1 in buf) */
 	ice_parse_ieee_ets_common_tlv(&buf[1], etscfg);
@@ -267,11 +262,9 @@ ice_parse_ieee_pfccfg_tlv(struct ice_lldp_org_tlv *tlv,
 	 * -----------------------------------------
 	 * |1bit | 1bit|2 bits|4bits| 1 octet      |
 	 */
-	dcbcfg->pfc.willing = ((buf[0] & ICE_IEEE_PFC_WILLING_M) >>
-			       ICE_IEEE_PFC_WILLING_S);
-	dcbcfg->pfc.mbc = ((buf[0] & ICE_IEEE_PFC_MBC_M) >> ICE_IEEE_PFC_MBC_S);
-	dcbcfg->pfc.pfccap = ((buf[0] & ICE_IEEE_PFC_CAP_M) >>
-			      ICE_IEEE_PFC_CAP_S);
+	dcbcfg->pfc.willing = FIELD_GET(ICE_IEEE_PFC_WILLING_M, buf[0]);
+	dcbcfg->pfc.mbc = FIELD_GET(ICE_IEEE_PFC_MBC_M, buf[0]);
+	dcbcfg->pfc.pfccap = FIELD_GET(ICE_IEEE_PFC_CAP_M, buf[0]);
 	dcbcfg->pfc.pfcena = buf[1];
 }
 
@@ -293,7 +286,7 @@ ice_parse_ieee_app_tlv(struct ice_lldp_org_tlv *tlv,
 	u8 *buf;
 
 	typelen = ntohs(tlv->typelen);
-	len = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
+	len = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 	buf = tlv->tlvinfo;
 
 	/* Removing sizeof(ouisubtype) and reserved byte from len.
@@ -313,12 +306,10 @@ ice_parse_ieee_app_tlv(struct ice_lldp_org_tlv *tlv,
 	 *        -----------------------------------------
 	 */
 	while (offset < len) {
-		dcbcfg->app[i].priority = ((buf[offset] &
-					    ICE_IEEE_APP_PRIO_M) >>
-					   ICE_IEEE_APP_PRIO_S);
-		dcbcfg->app[i].selector = ((buf[offset] &
-					    ICE_IEEE_APP_SEL_M) >>
-					   ICE_IEEE_APP_SEL_S);
+		dcbcfg->app[i].priority = FIELD_GET(ICE_IEEE_APP_PRIO_M,
+						    buf[offset]);
+		dcbcfg->app[i].selector = FIELD_GET(ICE_IEEE_APP_SEL_M,
+						    buf[offset]);
 		dcbcfg->app[i].prot_id = (buf[offset + 1] << 0x8) |
 			buf[offset + 2];
 		/* Move to next app */
@@ -346,8 +337,7 @@ ice_parse_ieee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	u8 subtype;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	subtype = (u8)((ouisubtype & ICE_LLDP_TLV_SUBTYPE_M) >>
-		       ICE_LLDP_TLV_SUBTYPE_S);
+	subtype = FIELD_GET(ICE_LLDP_TLV_SUBTYPE_M, ouisubtype);
 	switch (subtype) {
 	case ICE_IEEE_SUBTYPE_ETS_CFG:
 		ice_parse_ieee_etscfg_tlv(tlv, dcbcfg);
@@ -398,11 +388,9 @@ ice_parse_cee_pgcfg_tlv(struct ice_cee_feat_tlv *tlv,
 	 */
 	for (i = 0; i < 4; i++) {
 		etscfg->prio_table[i * 2] =
-			((buf[offset] & ICE_CEE_PGID_PRIO_1_M) >>
-			 ICE_CEE_PGID_PRIO_1_S);
+			FIELD_GET(ICE_CEE_PGID_PRIO_1_M, buf[offset]);
 		etscfg->prio_table[i * 2 + 1] =
-			((buf[offset] & ICE_CEE_PGID_PRIO_0_M) >>
-			 ICE_CEE_PGID_PRIO_0_S);
+			FIELD_GET(ICE_CEE_PGID_PRIO_0_M, buf[offset]);
 		offset++;
 	}
 
@@ -465,7 +453,7 @@ ice_parse_cee_app_tlv(struct ice_cee_feat_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	u8 i;
 
 	typelen = ntohs(tlv->hdr.typelen);
-	len = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
+	len = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 
 	dcbcfg->numapps = len / sizeof(*app);
 	if (!dcbcfg->numapps)
@@ -520,14 +508,13 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	u32 ouisubtype;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	subtype = (u8)((ouisubtype & ICE_LLDP_TLV_SUBTYPE_M) >>
-		       ICE_LLDP_TLV_SUBTYPE_S);
+	subtype = FIELD_GET(ICE_LLDP_TLV_SUBTYPE_M, ouisubtype);
 	/* Return if not CEE DCBX */
 	if (subtype != ICE_CEE_DCBX_TYPE)
 		return;
 
 	typelen = ntohs(tlv->typelen);
-	tlvlen = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
+	tlvlen = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 	len = sizeof(tlv->typelen) + sizeof(ouisubtype) +
 		sizeof(struct ice_cee_ctrl_tlv);
 	/* Return if no CEE DCBX Feature TLVs */
@@ -539,9 +526,8 @@ ice_parse_cee_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 		u16 sublen;
 
 		typelen = ntohs(sub_tlv->hdr.typelen);
-		sublen = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
-		subtype = (u8)((typelen & ICE_LLDP_TLV_TYPE_M) >>
-			       ICE_LLDP_TLV_TYPE_S);
+		sublen = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
+		subtype = FIELD_GET(ICE_LLDP_TLV_TYPE_M, typelen);
 		switch (subtype) {
 		case ICE_CEE_SUBTYPE_PG_CFG:
 			ice_parse_cee_pgcfg_tlv(sub_tlv, dcbcfg);
@@ -578,7 +564,7 @@ ice_parse_org_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
 	u32 oui;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	oui = ((ouisubtype & ICE_LLDP_TLV_OUI_M) >> ICE_LLDP_TLV_OUI_S);
+	oui = FIELD_GET(ICE_LLDP_TLV_OUI_M, ouisubtype);
 	switch (oui) {
 	case ICE_IEEE_8021QAZ_OUI:
 		ice_parse_ieee_tlv(tlv, dcbcfg);
@@ -615,8 +601,8 @@ static int ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 	tlv = (struct ice_lldp_org_tlv *)lldpmib;
 	while (1) {
 		typelen = ntohs(tlv->typelen);
-		type = ((typelen & ICE_LLDP_TLV_TYPE_M) >> ICE_LLDP_TLV_TYPE_S);
-		len = ((typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S);
+		type = FIELD_GET(ICE_LLDP_TLV_TYPE_M, typelen);
+		len = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 		offset += sizeof(typelen) + len;
 
 		/* END TLV or beyond LLDPDU size */
@@ -805,11 +791,11 @@ ice_cee_to_dcb_cfg(struct ice_aqc_get_cee_dcb_cfg_resp *cee_cfg,
 	 */
 	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS / 2; i++) {
 		dcbcfg->etscfg.prio_table[i * 2] =
-			((cee_cfg->oper_prio_tc[i] & ICE_CEE_PGID_PRIO_0_M) >>
-			 ICE_CEE_PGID_PRIO_0_S);
+			FIELD_GET(ICE_CEE_PGID_PRIO_0_M,
+				  cee_cfg->oper_prio_tc[i]);
 		dcbcfg->etscfg.prio_table[i * 2 + 1] =
-			((cee_cfg->oper_prio_tc[i] & ICE_CEE_PGID_PRIO_1_M) >>
-			 ICE_CEE_PGID_PRIO_1_S);
+			FIELD_GET(ICE_CEE_PGID_PRIO_1_M,
+				  cee_cfg->oper_prio_tc[i]);
 	}
 
 	ice_for_each_traffic_class(i) {
@@ -1482,7 +1468,7 @@ ice_dcb_cfg_to_lldp(u8 *lldpmib, u16 *miblen, struct ice_dcbx_cfg *dcbcfg)
 	while (1) {
 		ice_add_dcb_tlv(tlv, dcbcfg, tlvid++);
 		typelen = ntohs(tlv->typelen);
-		len = (typelen & ICE_LLDP_TLV_LEN_M) >> ICE_LLDP_TLV_LEN_S;
+		len = FIELD_GET(ICE_LLDP_TLV_LEN_M, typelen);
 		if (len)
 			offset += len + 2;
 		/* END TLV or beyond LLDPDU size */

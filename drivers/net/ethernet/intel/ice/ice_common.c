@@ -942,9 +942,8 @@ static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
  */
 static void ice_get_itr_intrl_gran(struct ice_hw *hw)
 {
-	u8 max_agg_bw = (rd32(hw, GL_PWR_MODE_CTL) &
-			 GL_PWR_MODE_CTL_CAR_MAX_BW_M) >>
-			GL_PWR_MODE_CTL_CAR_MAX_BW_S;
+	u8 max_agg_bw = FIELD_GET(GL_PWR_MODE_CTL_CAR_MAX_BW_M,
+				  rd32(hw, GL_PWR_MODE_CTL));
 
 	switch (max_agg_bw) {
 	case ICE_MAX_AGG_BW_200G:
@@ -976,9 +975,7 @@ int ice_init_hw(struct ice_hw *hw)
 	if (status)
 		return status;
 
-	hw->pf_id = (u8)(rd32(hw, PF_FUNC_RID) &
-			 PF_FUNC_RID_FUNC_NUM_M) >>
-		PF_FUNC_RID_FUNC_NUM_S;
+	hw->pf_id = FIELD_GET(PF_FUNC_RID_FUNC_NUM_M, rd32(hw, PF_FUNC_RID));
 
 	status = ice_reset(hw, ICE_RESET_PFR);
 	if (status)
@@ -1163,8 +1160,8 @@ int ice_check_reset(struct ice_hw *hw)
 	 * or EMPR has occurred. The grst delay value is in 100ms units.
 	 * Add 1sec for outstanding AQ commands that can take a long time.
 	 */
-	grst_timeout = ((rd32(hw, GLGEN_RSTCTL) & GLGEN_RSTCTL_GRSTDEL_M) >>
-			GLGEN_RSTCTL_GRSTDEL_S) + 10;
+	grst_timeout = FIELD_GET(GLGEN_RSTCTL_GRSTDEL_M,
+				 rd32(hw, GLGEN_RSTCTL)) + 10;
 
 	for (cnt = 0; cnt < grst_timeout; cnt++) {
 		mdelay(100);
@@ -2248,7 +2245,7 @@ ice_parse_1588_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 	info->tmr_index_owned = ((number & ICE_TS_TMR_IDX_OWND_M) != 0);
 	info->tmr_index_assoc = ((number & ICE_TS_TMR_IDX_ASSOC_M) != 0);
 
-	info->clk_freq = (number & ICE_TS_CLK_FREQ_M) >> ICE_TS_CLK_FREQ_S;
+	info->clk_freq = FIELD_GET(ICE_TS_CLK_FREQ_M, number);
 	info->clk_src = ((number & ICE_TS_CLK_SRC_M) != 0);
 
 	if (info->clk_freq < NUM_ICE_TIME_REF_FREQ) {
@@ -2449,7 +2446,7 @@ ice_parse_1588_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 	info->tmr0_owned = ((number & ICE_TS_TMR0_OWND_M) != 0);
 	info->tmr0_ena = ((number & ICE_TS_TMR0_ENA_M) != 0);
 
-	info->tmr1_owner = (number & ICE_TS_TMR1_OWNR_M) >> ICE_TS_TMR1_OWNR_S;
+	info->tmr1_owner = FIELD_GET(ICE_TS_TMR1_OWNR_M, number);
 	info->tmr1_owned = ((number & ICE_TS_TMR1_OWND_M) != 0);
 	info->tmr1_ena = ((number & ICE_TS_TMR1_ENA_M) != 0);
 
@@ -5773,7 +5770,7 @@ ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
 		ice_debug(hw, ICE_DBG_INIT, "Failed to read override link options.\n");
 		return status;
 	}
-	ldo->options = buf & ICE_LINK_OVERRIDE_OPT_M;
+	ldo->options = FIELD_GET(ICE_LINK_OVERRIDE_OPT_M, buf);
 	ldo->phy_config = (buf & ICE_LINK_OVERRIDE_PHY_CFG_M) >>
 		ICE_LINK_OVERRIDE_PHY_CFG_S;
 
