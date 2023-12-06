@@ -145,9 +145,10 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 	struct xe_gt *gt = fw_to_gt(fw);
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, woken = 0;
+	unsigned long flags;
 	int ret, ret2 = 0;
 
-	spin_lock(&fw->lock);
+	spin_lock_irqsave(&fw->lock, flags);
 	for_each_fw_domain_masked(domain, domains, fw, tmp) {
 		if (!domain->ref++) {
 			woken |= BIT(domain->id);
@@ -162,7 +163,7 @@ int xe_force_wake_get(struct xe_force_wake *fw,
 				   domain->id, ret);
 	}
 	fw->awake_domains |= woken;
-	spin_unlock(&fw->lock);
+	spin_unlock_irqrestore(&fw->lock, flags);
 
 	return ret2;
 }
@@ -174,9 +175,10 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 	struct xe_gt *gt = fw_to_gt(fw);
 	struct xe_force_wake_domain *domain;
 	enum xe_force_wake_domains tmp, sleep = 0;
+	unsigned long flags;
 	int ret, ret2 = 0;
 
-	spin_lock(&fw->lock);
+	spin_lock_irqsave(&fw->lock, flags);
 	for_each_fw_domain_masked(domain, domains, fw, tmp) {
 		if (!--domain->ref) {
 			sleep |= BIT(domain->id);
@@ -191,7 +193,7 @@ int xe_force_wake_put(struct xe_force_wake *fw,
 				   domain->id, ret);
 	}
 	fw->awake_domains &= ~sleep;
-	spin_unlock(&fw->lock);
+	spin_unlock_irqrestore(&fw->lock, flags);
 
 	return ret2;
 }
