@@ -29,6 +29,7 @@ enum sbi_ext_id {
 	SBI_EXT_RFENCE = 0x52464E43,
 	SBI_EXT_HSM = 0x48534D,
 	SBI_EXT_SRST = 0x53525354,
+	SBI_EXT_SUSP = 0x53555350,
 	SBI_EXT_PMU = 0x504D55,
 	SBI_EXT_DBCN = 0x4442434E,
 
@@ -112,6 +113,14 @@ enum sbi_srst_reset_type {
 enum sbi_srst_reset_reason {
 	SBI_SRST_RESET_REASON_NONE = 0,
 	SBI_SRST_RESET_REASON_SYS_FAILURE,
+};
+
+enum sbi_ext_susp_fid {
+	SBI_EXT_SUSP_SYSTEM_SUSPEND = 0,
+};
+
+enum sbi_ext_susp_sleep_type {
+	SBI_SUSP_SLEEP_TYPE_SUSPEND_TO_RAM = 0,
 };
 
 enum sbi_ext_pmu_fid {
