@@ -114,8 +114,8 @@ struct tty_port {
 	unsigned char		console:1;
 	struct mutex		mutex;
 	struct mutex		buf_mutex;
-	unsigned char		*xmit_buf;
-	DECLARE_KFIFO_PTR(xmit_fifo, unsigned char);
+	u8			*xmit_buf;
+	DECLARE_KFIFO_PTR(xmit_fifo, u8);
 	unsigned int		close_delay;
 	unsigned int		closing_wait;
 	int			drain_delay;
