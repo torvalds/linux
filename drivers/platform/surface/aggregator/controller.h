@@ -238,8 +238,8 @@ struct ssam_controller {
  * layer of the controller has been shut down, %-ESHUTDOWN.
  */
 static inline
-int ssam_controller_receive_buf(struct ssam_controller *ctrl,
-				const unsigned char *buf, size_t n)
+ssize_t ssam_controller_receive_buf(struct ssam_controller *ctrl, const u8 *buf,
+				    size_t n)
 {
 	return ssh_ptl_rx_rcvbuf(&ctrl->rtl.ptl, buf, n);
 }

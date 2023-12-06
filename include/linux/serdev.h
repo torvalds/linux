@@ -27,7 +27,7 @@ struct serdev_device;
  *			not sleep.
  */
 struct serdev_device_ops {
-	int (*receive_buf)(struct serdev_device *, const unsigned char *, size_t);
+	ssize_t (*receive_buf)(struct serdev_device *, const u8 *, size_t);
 	void (*write_wakeup)(struct serdev_device *);
 };
 
@@ -204,13 +204,13 @@ void serdev_device_close(struct serdev_device *);
 int devm_serdev_device_open(struct device *, struct serdev_device *);
 unsigned int serdev_device_set_baudrate(struct serdev_device *, unsigned int);
 void serdev_device_set_flow_control(struct serdev_device *, bool);
-int serdev_device_write_buf(struct serdev_device *, const unsigned char *, size_t);
+int serdev_device_write_buf(struct serdev_device *, const u8 *, size_t);
 void serdev_device_wait_until_sent(struct serdev_device *, long);
 int serdev_device_get_tiocm(struct serdev_device *);
 int serdev_device_set_tiocm(struct serdev_device *, int, int);
 int serdev_device_break_ctl(struct serdev_device *serdev, int break_state);
 void serdev_device_write_wakeup(struct serdev_device *);
-int serdev_device_write(struct serdev_device *, const unsigned char *, size_t, long);
+ssize_t serdev_device_write(struct serdev_device *, const u8 *, size_t, long);
 void serdev_device_write_flush(struct serdev_device *);
 int serdev_device_write_room(struct serdev_device *);
 
@@ -248,7 +248,7 @@ static inline unsigned int serdev_device_set_baudrate(struct serdev_device *sdev
 }
 static inline void serdev_device_set_flow_control(struct serdev_device *sdev, bool enable) {}
 static inline int serdev_device_write_buf(struct serdev_device *serdev,
-					  const unsigned char *buf,
+					  const u8 *buf,
 					  size_t count)
 {
 	return -ENODEV;
@@ -266,8 +266,9 @@ static inline int serdev_device_break_ctl(struct serdev_device *serdev, int brea
 {
 	return -EOPNOTSUPP;
 }
-static inline int serdev_device_write(struct serdev_device *sdev, const unsigned char *buf,
-				      size_t count, unsigned long timeout)
+static inline ssize_t serdev_device_write(struct serdev_device *sdev,
+					  const u8 *buf, size_t count,
+					  unsigned long timeout)
 {
 	return -ENODEV;
 }

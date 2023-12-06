@@ -225,8 +225,7 @@ EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
  * Return: The number of bytes written (less than count if not enough room in
  * the write buffer), or a negative errno on errors.
  */
-int serdev_device_write_buf(struct serdev_device *serdev,
-			    const unsigned char *buf, size_t count)
+int serdev_device_write_buf(struct serdev_device *serdev, const u8 *buf, size_t count)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
 
@@ -259,13 +258,12 @@ EXPORT_SYMBOL_GPL(serdev_device_write_buf);
  * -ETIMEDOUT or -ERESTARTSYS if interrupted before any bytes were written, or
  * a negative errno on errors.
  */
-int serdev_device_write(struct serdev_device *serdev,
-			const unsigned char *buf, size_t count,
-			long timeout)
+ssize_t serdev_device_write(struct serdev_device *serdev, const u8 *buf,
+			    size_t count, long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
-	int written = 0;
-	int ret;
+	size_t written = 0;
+	ssize_t ret;
 
 	if (!ctrl || !ctrl->ops->write_buf || !serdev->ops->write_wakeup)
 		return -EINVAL;
