@@ -53,7 +53,7 @@ static struct goldfish_tty *goldfish_ttys;
 static void do_rw_io(struct goldfish_tty *qtty,
 		     unsigned long address,
 		     unsigned int count,
-		     int is_write)
+		     bool is_write)
 {
 	unsigned long irq_flags;
 	void __iomem *base = qtty->base;
@@ -76,7 +76,7 @@ static void do_rw_io(struct goldfish_tty *qtty,
 static void goldfish_tty_rw(struct goldfish_tty *qtty,
 			    unsigned long addr,
 			    unsigned int count,
-			    int is_write)
+			    bool is_write)
 {
 	dma_addr_t dma_handle;
 	enum dma_data_direction dma_dir;
@@ -129,7 +129,7 @@ static void goldfish_tty_do_write(int line, const u8 *buf, unsigned int count)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
 
-	goldfish_tty_rw(qtty, (unsigned long)buf, count, 1);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, true);
 }
 
 static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
@@ -145,7 +145,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 
-	goldfish_tty_rw(qtty, (unsigned long)buf, count, 0);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, false);
 
 	tty_flip_buffer_push(&qtty->port);
 	return IRQ_HANDLED;
