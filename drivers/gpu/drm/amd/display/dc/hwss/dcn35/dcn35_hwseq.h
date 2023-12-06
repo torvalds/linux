@@ -63,8 +63,10 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state);
 void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state);
-void dcn35_block_power_control(struct dc *dc,
-	struct pg_block_update *update_state, bool power_on);
+void dcn35_hw_block_power_up(struct dc *dc,
+	struct pg_block_update *update_state);
+void dcn35_hw_block_power_down(struct dc *dc,
+	struct pg_block_update *update_state);
 void dcn35_root_clock_control(struct dc *dc,
 	struct pg_block_update *update_state, bool power_on);
 
