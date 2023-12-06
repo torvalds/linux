@@ -20,6 +20,7 @@
 #include <asm/setup.h>
 #include <asm/unaligned.h>
 #include <asm/kprobes.h>
+#include "unaligned.h"
 
 void die(const char *str, struct pt_regs *regs, unsigned long address)
 {
