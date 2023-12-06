@@ -86,7 +86,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 
 	ht_info->ampdu_enable = 1;
 	ht_info->ampdu_factor = 2;
-	ht_info->MPDU_Density = 0;
+	ht_info->mpdu_density = 0;
 
 	ht_info->self_mimo_ps = 3;
 	if (ht_info->self_mimo_ps == 2)
@@ -525,7 +525,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 							    HT_AGG_SIZE_32K);
 		}
 	}
-	ht_info->current_mpdu_density = max_t(u8, ht_info->MPDU_Density,
+	ht_info->current_mpdu_density = max_t(u8, ht_info->mpdu_density,
 					      pPeerHTCap->MPDUDensity);
 	if (ht_info->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		ht_info->current_ampdu_enable = false;
@@ -570,7 +570,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	ht_info->bCurrent_AMSDU_Support = false;
 	ht_info->nCurrent_AMSDU_MaxSize = ht_info->amsdu_max_size;
-	ht_info->current_mpdu_density = ht_info->MPDU_Density;
+	ht_info->current_mpdu_density = ht_info->mpdu_density;
 	ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
 
 	memset((void *)(&ht_info->SelfHTCap), 0,
