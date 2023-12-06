@@ -852,9 +852,9 @@ static ssize_t iterate_tty_read(struct tty_ldisc *ld, struct tty_struct *tty,
 {
 	void *cookie = NULL;
 	unsigned long offset = 0;
-	char kernel_buf[64];
 	ssize_t retval = 0;
 	size_t copied, count = iov_iter_count(to);
+	u8 kernel_buf[64];
 
 	do {
 		ssize_t size = min(count, sizeof(kernel_buf));
@@ -995,7 +995,7 @@ static ssize_t iterate_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
 
 	/* write_buf/write_cnt is protected by the atomic_write_lock mutex */
 	if (tty->write_cnt < chunk) {
-		unsigned char *buf_chunk;
+		u8 *buf_chunk;
 
 		if (chunk < 1024)
 			chunk = 1024;
@@ -2278,10 +2278,10 @@ static bool tty_legacy_tiocsti __read_mostly = IS_ENABLED(CONFIG_LEGACY_TIOCSTI)
  *  * Called functions take tty_ldiscs_lock
  *  * current->signal->tty check is safe without locks
  */
-static int tiocsti(struct tty_struct *tty, char __user *p)
+static int tiocsti(struct tty_struct *tty, u8 __user *p)
 {
-	char ch;
 	struct tty_ldisc *ld;
+	u8 ch;
 
 	if (!tty_legacy_tiocsti && !capable(CAP_SYS_ADMIN))
 		return -EIO;
@@ -3142,7 +3142,7 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
  *
  * Return: the number of characters successfully output.
  */
-int tty_put_char(struct tty_struct *tty, unsigned char ch)
+int tty_put_char(struct tty_struct *tty, u8 ch)
 {
 	if (tty->ops->put_char)
 		return tty->ops->put_char(tty, ch);
