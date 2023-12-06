@@ -133,10 +133,6 @@ class PenState(Enum):
         return tuple()
 
 
-class Data(object):
-    pass
-
-
 class Pen(object):
     def __init__(self, x, y):
         self.x = x
