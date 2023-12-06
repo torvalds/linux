@@ -238,8 +238,7 @@ class BaseTestCase:
             try:
                 with HIDTestUdevRule.instance():
                     with new_uhdev as self.uhdev:
-                        skip_cond = request.node.get_closest_marker("skip_if_uhdev")
-                        if skip_cond:
+                        for skip_cond in request.node.iter_markers("skip_if_uhdev"):
                             test, message, *rest = skip_cond.args
 
                             if test(self.uhdev):
