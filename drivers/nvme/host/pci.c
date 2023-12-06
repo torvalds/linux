@@ -1284,6 +1284,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	struct request *abort_req;
 	struct nvme_command cmd = { };
 	u32 csts = readl(dev->bar + NVME_REG_CSTS);
+	u8 opcode;
 
 	/* If PCI error recovery process is happening, we cannot reset or
 	 * the recovery mechanism will surely fail.
@@ -1310,8 +1311,8 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 
 	if (blk_mq_rq_state(req) != MQ_RQ_IN_FLIGHT) {
 		dev_warn(dev->ctrl.device,
-			 "I/O %d QID %d timeout, completion polled\n",
-			 req->tag, nvmeq->qid);
+			 "I/O tag %d (%04x) QID %d timeout, completion polled\n",
+			 req->tag, nvme_cid(req), nvmeq->qid);
 		return BLK_EH_DONE;
 	}
 
@@ -1327,8 +1328,8 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 		fallthrough;
 	case NVME_CTRL_DELETING:
 		dev_warn_ratelimited(dev->ctrl.device,
-			 "I/O %d QID %d timeout, disable controller\n",
-			 req->tag, nvmeq->qid);
+			 "I/O tag %d (%04x) QID %d timeout, disable controller\n",
+			 req->tag, nvme_cid(req), nvmeq->qid);
 		nvme_req(req)->flags |= NVME_REQ_CANCELLED;
 		nvme_dev_disable(dev, true);
 		return BLK_EH_DONE;
@@ -1343,10 +1344,12 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 * command was already aborted once before and still hasn't been
 	 * returned to the driver, or if this is the admin queue.
 	 */
+	opcode = nvme_req(req)->cmd->common.opcode;
 	if (!nvmeq->qid || iod->aborted) {
 		dev_warn(dev->ctrl.device,
-			 "I/O %d QID %d timeout, reset controller\n",
-			 req->tag, nvmeq->qid);
+			 "I/O tag %d (%04x) opcode %#x (%s) QID %d timeout, reset controller\n",
+			 req->tag, nvme_cid(req), opcode,
+			 nvme_opcode_str(nvmeq->qid, opcode, 0), nvmeq->qid);
 		nvme_req(req)->flags |= NVME_REQ_CANCELLED;
 		goto disable;
 	}
@@ -1362,10 +1365,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
 
 	dev_warn(nvmeq->dev->ctrl.device,
-		"I/O %d (%s) QID %d timeout, aborting\n",
-		 req->tag,
-		 nvme_get_opcode_str(nvme_req(req)->cmd->common.opcode),
-		 nvmeq->qid);
+		 "I/O tag %d (%04x) opcode %#x (%s) QID %d timeout, aborting req_op:%s(%u) size:%u\n",
+		 req->tag, nvme_cid(req), opcode, nvme_get_opcode_str(opcode),
+		 nvmeq->qid, blk_op_str(req_op(req)), req_op(req),
+		 blk_rq_bytes(req));
 
 	abort_req = blk_mq_alloc_request(dev->ctrl.admin_q, nvme_req_op(&cmd),
 					 BLK_MQ_REQ_NOWAIT);
