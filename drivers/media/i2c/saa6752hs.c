@@ -594,10 +594,8 @@ static int saa6752hs_set_fmt(struct v4l2_subdev *sd,
 	f->field = V4L2_FIELD_INTERLACED;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_state_get_format(sd_state, 0) = *f;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
-	}
 
 	/*
 	  FIXME: translate and round width/height into EMPRESS
