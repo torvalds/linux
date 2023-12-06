@@ -68,7 +68,6 @@ static const struct config_entry config_table[] = {
 				.matches = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
 					DMI_MATCH(DMI_PRODUCT_NAME, "Galileo"),
-					DMI_MATCH(DMI_PRODUCT_FAMILY, "Sephiroth"),
 				},
 			},
 			{}
