@@ -1359,8 +1359,8 @@ static int ice_ptp_tx_ena_intr(struct ice_pf *pf, bool ena, u32 threshold)
 		if (ena) {
 			val |= Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M;
 			val &= ~Q_REG_TX_MEM_GBL_CFG_INTR_THR_M;
-			val |= ((threshold << Q_REG_TX_MEM_GBL_CFG_INTR_THR_S) &
-				Q_REG_TX_MEM_GBL_CFG_INTR_THR_M);
+			val |= FIELD_PREP(Q_REG_TX_MEM_GBL_CFG_INTR_THR_M,
+					  threshold);
 		} else {
 			val &= ~Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M;
 		}
@@ -1505,8 +1505,7 @@ ice_ptp_cfg_extts(struct ice_pf *pf, bool ena, unsigned int chan, u32 gpio_pin,
 		 * + num_in_channels * tmr_idx
 		 */
 		func = 1 + chan + (tmr_idx * 3);
-		gpio_reg = ((func << GLGEN_GPIO_CTL_PIN_FUNC_S) &
-			    GLGEN_GPIO_CTL_PIN_FUNC_M);
+		gpio_reg = FIELD_PREP(GLGEN_GPIO_CTL_PIN_FUNC_M, func);
 		pf->ptp.ext_ts_chan |= (1 << chan);
 	} else {
 		/* clear the values we set to reset defaults */
@@ -1616,7 +1615,7 @@ static int ice_ptp_cfg_clkout(struct ice_pf *pf, unsigned int chan,
 	/* 4. write GPIO CTL reg */
 	func = 8 + chan + (tmr_idx * 4);
 	val = GLGEN_GPIO_CTL_PIN_DIR_M |
-	      ((func << GLGEN_GPIO_CTL_PIN_FUNC_S) & GLGEN_GPIO_CTL_PIN_FUNC_M);
+	      FIELD_PREP(GLGEN_GPIO_CTL_PIN_FUNC_M, func);
 	wr32(hw, GLGEN_GPIO_CTL(gpio_pin), val);
 
 	/* Store the value if requested */

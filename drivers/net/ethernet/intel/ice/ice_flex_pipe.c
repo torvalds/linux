@@ -1414,13 +1414,13 @@ ice_write_prof_mask_reg(struct ice_hw *hw, enum ice_block blk, u16 mask_idx,
 	switch (blk) {
 	case ICE_BLK_RSS:
 		offset = GLQF_HMASK(mask_idx);
-		val = (idx << GLQF_HMASK_MSK_INDEX_S) & GLQF_HMASK_MSK_INDEX_M;
-		val |= (mask << GLQF_HMASK_MASK_S) & GLQF_HMASK_MASK_M;
+		val = FIELD_PREP(GLQF_HMASK_MSK_INDEX_M, idx);
+		val |= FIELD_PREP(GLQF_HMASK_MASK_M, mask);
 		break;
 	case ICE_BLK_FD:
 		offset = GLQF_FDMASK(mask_idx);
-		val = (idx << GLQF_FDMASK_MSK_INDEX_S) & GLQF_FDMASK_MSK_INDEX_M;
-		val |= (mask << GLQF_FDMASK_MASK_S) & GLQF_FDMASK_MASK_M;
+		val = FIELD_PREP(GLQF_FDMASK_MSK_INDEX_M, idx);
+		val |= FIELD_PREP(GLQF_FDMASK_MASK_M, mask);
 		break;
 	default:
 		ice_debug(hw, ICE_DBG_PKG, "No profile masks for block %d\n",

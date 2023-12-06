@@ -35,8 +35,7 @@ ice_aq_get_lldp_mib(struct ice_hw *hw, u8 bridge_type, u8 mib_type, void *buf,
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_get_mib);
 
 	cmd->type = mib_type & ICE_AQ_LLDP_MIB_TYPE_M;
-	cmd->type |= (bridge_type << ICE_AQ_LLDP_BRID_TYPE_S) &
-		ICE_AQ_LLDP_BRID_TYPE_M;
+	cmd->type |= FIELD_PREP(ICE_AQ_LLDP_BRID_TYPE_M, bridge_type);
 
 	desc.datalen = cpu_to_le16(buf_size);
 

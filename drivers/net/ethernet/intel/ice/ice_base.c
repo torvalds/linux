@@ -242,14 +242,10 @@ static void ice_cfg_itr_gran(struct ice_hw *hw)
 	      GLINT_CTL_ITR_GRAN_25_S) == ICE_ITR_GRAN_US))
 		return;
 
-	regval = ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_200_S) &
-		  GLINT_CTL_ITR_GRAN_200_M) |
-		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_100_S) &
-		  GLINT_CTL_ITR_GRAN_100_M) |
-		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_50_S) &
-		  GLINT_CTL_ITR_GRAN_50_M) |
-		 ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_25_S) &
-		  GLINT_CTL_ITR_GRAN_25_M);
+	regval = FIELD_PREP(GLINT_CTL_ITR_GRAN_200_M, ICE_ITR_GRAN_US) |
+		 FIELD_PREP(GLINT_CTL_ITR_GRAN_100_M, ICE_ITR_GRAN_US) |
+		 FIELD_PREP(GLINT_CTL_ITR_GRAN_50_M, ICE_ITR_GRAN_US) |
+		 FIELD_PREP(GLINT_CTL_ITR_GRAN_25_M, ICE_ITR_GRAN_US);
 	wr32(hw, GLINT_CTL, regval);
 }
 
@@ -921,10 +917,10 @@ ice_cfg_txq_interrupt(struct ice_vsi *vsi, u16 txq, u16 msix_idx, u16 itr_idx)
 	struct ice_hw *hw = &pf->hw;
 	u32 val;
 
-	itr_idx = (itr_idx << QINT_TQCTL_ITR_INDX_S) & QINT_TQCTL_ITR_INDX_M;
+	itr_idx = FIELD_PREP(QINT_TQCTL_ITR_INDX_M, itr_idx);
 
 	val = QINT_TQCTL_CAUSE_ENA_M | itr_idx |
-	      ((msix_idx << QINT_TQCTL_MSIX_INDX_S) & QINT_TQCTL_MSIX_INDX_M);
+	      FIELD_PREP(QINT_TQCTL_MSIX_INDX_M, msix_idx);
 
 	wr32(hw, QINT_TQCTL(vsi->txq_map[txq]), val);
 	if (ice_is_xdp_ena_vsi(vsi)) {
@@ -953,10 +949,10 @@ ice_cfg_rxq_interrupt(struct ice_vsi *vsi, u16 rxq, u16 msix_idx, u16 itr_idx)
 	struct ice_hw *hw = &pf->hw;
 	u32 val;
 
-	itr_idx = (itr_idx << QINT_RQCTL_ITR_INDX_S) & QINT_RQCTL_ITR_INDX_M;
+	itr_idx = FIELD_PREP(QINT_RQCTL_ITR_INDX_M, itr_idx);
 
 	val = QINT_RQCTL_CAUSE_ENA_M | itr_idx |
-	      ((msix_idx << QINT_RQCTL_MSIX_INDX_S) & QINT_RQCTL_MSIX_INDX_M);
+	      FIELD_PREP(QINT_RQCTL_MSIX_INDX_M, msix_idx);
 
 	wr32(hw, QINT_RQCTL(vsi->rxq_map[rxq]), val);
 

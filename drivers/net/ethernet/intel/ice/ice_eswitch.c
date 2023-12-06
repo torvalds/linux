@@ -358,8 +358,8 @@ ice_eswitch_set_target_vsi(struct sk_buff *skb,
 		off->cd_qw1 |= (cd_cmd | ICE_TX_DESC_DTYPE_CTX);
 	} else {
 		cd_cmd = ICE_TX_CTX_DESC_SWTCH_VSI << ICE_TXD_CTX_QW1_CMD_S;
-		dst_vsi = ((u64)dst->u.port_info.port_id <<
-			   ICE_TXD_CTX_QW1_VSI_S) & ICE_TXD_CTX_QW1_VSI_M;
+		dst_vsi = FIELD_PREP(ICE_TXD_CTX_QW1_VSI_M,
+				     dst->u.port_info.port_id);
 		off->cd_qw1 = cd_cmd | dst_vsi | ICE_TX_DESC_DTYPE_CTX;
 	}
 }
