@@ -23,9 +23,9 @@ static int stderr_id;
 static struct tty_port nfcon_tty_port;
 static struct tty_driver *nfcon_tty_driver;
 
-static void nfputs(const char *str, unsigned int count)
+static void nfputs(const u8 *str, size_t count)
 {
-	char buf[68];
+	u8 buf[68];
 	unsigned long phys = virt_to_phys(buf);
 
 	buf[64] = 0;
