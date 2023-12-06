@@ -3952,6 +3952,12 @@ void smb2_reconnect_server(struct work_struct *work)
 		}
 		spin_unlock(&ses->chan_lock);
 	}
+	/*
+	 * Get the reference to server struct to be sure that the last call of
+	 * cifs_put_tcon() in the loop below won't release the server pointer.
+	 */
+	if (tcon_exist || ses_exist)
+		server->srv_count++;
 
 	spin_unlock(&cifs_tcp_ses_lock);
 
@@ -3999,17 +4005,13 @@ void smb2_reconnect_server(struct work_struct *work)
 
 done:
 	cifs_dbg(FYI, "Reconnecting tcons and channels finished\n");
-	if (resched) {
+	if (resched)
 		queue_delayed_work(cifsiod_wq, &server->reconnect, 2 * HZ);
-		mutex_unlock(&pserver->reconnect_mutex);
-
-		/* no need to put tcp session as we're retrying */
-		return;
-	}
 	mutex_unlock(&pserver->reconnect_mutex);
 
 	/* now we can safely release srv struct */
-	cifs_put_tcp_session(server, true);
+	if (tcon_exist || ses_exist)
+		cifs_put_tcp_session(server, 1);
 }
 
 int
@@ -4029,12 +4031,7 @@ SMB2_echo(struct TCP_Server_Info *server)
 	    server->ops->need_neg(server)) {
 		spin_unlock(&server->srv_lock);
 		/* No need to send echo on newly established connections */
-		spin_lock(&cifs_tcp_ses_lock);
-		server->srv_count++;
-		spin_unlock(&cifs_tcp_ses_lock);
-		if (mod_delayed_work(cifsiod_wq, &server->reconnect, 0))
-			cifs_put_tcp_session(server, false);
-
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		return rc;
 	}
 	spin_unlock(&server->srv_lock);
