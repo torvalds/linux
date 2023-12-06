@@ -82,7 +82,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 		ht_info->reg_supp_cck = true;
 
 	ht_info->amsdu_max_size = 7935UL;
-	ht_info->bAMSDU_Support = 0;
+	ht_info->amsdu_support = 0;
 
 	ht_info->bAMPDUEnable = 1;
 	ht_info->AMPDU_Factor = 2;
@@ -489,7 +489,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			       ((pPeerHTCap->DssCCk == 1) ? true :
 			       false) : false);
 
-	ht_info->bCurrent_AMSDU_Support = ht_info->bAMSDU_Support;
+	ht_info->bCurrent_AMSDU_Support = ht_info->amsdu_support;
 
 	nMaxAMSDUSize = (pPeerHTCap->MaxAMSDUSize == 0) ? 3839 : 7935;
 

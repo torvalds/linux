@@ -107,7 +107,7 @@ struct rt_hi_throughput {
 	struct ht_info_ele SelfHTInfo;
 	u8 PeerHTCapBuf[32];
 	u8 PeerHTInfoBuf[32];
-	u8 bAMSDU_Support;
+	u8 amsdu_support;
 	u16 amsdu_max_size;
 	u8 bCurrent_AMSDU_Support;
 	u16 nCurrent_AMSDU_MaxSize;
