@@ -976,9 +976,14 @@ static int lpg_pattern_mc_clear(struct led_classdev *cdev)
 	return lpg_pattern_clear(led);
 }
 
+static inline struct lpg *lpg_pwm_from_chip(struct pwm_chip *chip)
+{
+	return container_of(chip, struct lpg, pwm);
+}
+
 static int lpg_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct lpg *lpg = container_of(chip, struct lpg, pwm);
+	struct lpg *lpg = lpg_pwm_from_chip(chip);
 	struct lpg_channel *chan = &lpg->channels[pwm->hwpwm];
 
 	return chan->in_use ? -EBUSY : 0;
@@ -994,7 +999,7 @@ static int lpg_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 static int lpg_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			 const struct pwm_state *state)
 {
-	struct lpg *lpg = container_of(chip, struct lpg, pwm);
+	struct lpg *lpg = lpg_pwm_from_chip(chip);
 	struct lpg_channel *chan = &lpg->channels[pwm->hwpwm];
 	int ret = 0;
 
@@ -1025,7 +1030,7 @@ out_unlock:
 static int lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			     struct pwm_state *state)
 {
-	struct lpg *lpg = container_of(chip, struct lpg, pwm);
+	struct lpg *lpg = lpg_pwm_from_chip(chip);
 	struct lpg_channel *chan = &lpg->channels[pwm->hwpwm];
 	unsigned int resolution;
 	unsigned int pre_div;
