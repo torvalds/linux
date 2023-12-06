@@ -967,7 +967,7 @@ void ice_get_dcb_cfg_from_mib_change(struct ice_port_info *pi,
 
 	mib = (struct ice_aqc_lldp_get_mib *)&event->desc.params.raw;
 
-	change_type = FIELD_GET(ICE_AQ_LLDP_MIB_TYPE_M,  mib->type);
+	change_type = FIELD_GET(ICE_AQ_LLDP_MIB_TYPE_M, mib->type);
 	if (change_type == ICE_AQ_LLDP_MIB_REMOTE)
 		dcbx_cfg = &pi->qos_cfg.remote_dcbx_cfg;
 
