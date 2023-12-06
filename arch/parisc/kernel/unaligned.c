@@ -15,6 +15,7 @@
 #include <asm/unaligned.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
+#include "unaligned.h"
 
 /* #define DEBUG_UNALIGNED 1 */
 

@@ -47,6 +47,8 @@
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
 
+#include "unaligned.h"
+
 #if defined(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK)
 #include <asm/spinlock.h>
 #endif
