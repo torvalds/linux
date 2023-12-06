@@ -52,8 +52,8 @@ struct hvc_struct {
 
 /* implemented by a low level driver */
 struct hv_ops {
-	int (*get_chars)(uint32_t vtermno, char *buf, int count);
-	int (*put_chars)(uint32_t vtermno, const char *buf, int count);
+	ssize_t (*get_chars)(uint32_t vtermno, u8 *buf, size_t count);
+	ssize_t (*put_chars)(uint32_t vtermno, const u8 *buf, size_t count);
 	int (*flush)(uint32_t vtermno, bool wait);
 
 	/* Callbacks for notification. Called in open, close and hangup */

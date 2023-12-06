@@ -58,7 +58,7 @@ static const struct hv_ops hvc_opal_raw_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static int hvc_opal_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
+static ssize_t hvc_opal_hvsi_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	struct hvc_opal_priv *pv = hvc_opal_privs[vtermno];
 
@@ -68,7 +68,8 @@ static int hvc_opal_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
 	return hvsilib_get_chars(&pv->hvsi, buf, count);
 }
 
-static int hvc_opal_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
+static ssize_t hvc_opal_hvsi_put_chars(uint32_t vtermno, const u8 *buf,
+				       size_t count)
 {
 	struct hvc_opal_priv *pv = hvc_opal_privs[vtermno];
 

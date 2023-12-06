@@ -313,9 +313,11 @@ extern int early_init_dt_scan_recoverable_ranges(unsigned long node,
 				 const char *uname, int depth, void *data);
 void __init opal_configure_cores(void);
 
-extern int opal_get_chars(uint32_t vtermno, char *buf, int count);
-extern int opal_put_chars(uint32_t vtermno, const char *buf, int total_len);
-extern int opal_put_chars_atomic(uint32_t vtermno, const char *buf, int total_len);
+extern ssize_t opal_get_chars(uint32_t vtermno, u8 *buf, size_t count);
+extern ssize_t opal_put_chars(uint32_t vtermno, const u8 *buf,
+			      size_t total_len);
+extern ssize_t opal_put_chars_atomic(uint32_t vtermno, const u8 *buf,
+				     size_t total_len);
 extern int opal_flush_chars(uint32_t vtermno, bool wait);
 extern int opal_flush_console(uint32_t vtermno);
 
