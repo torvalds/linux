@@ -87,9 +87,9 @@ class PenState(Enum):
     )
 
     def __init__(self, touch: BtnTouch, tool: Optional[ToolType], button: Optional[BtnPressed]):
-        self.touch = touch
-        self.tool = tool
-        self.button = button
+        self.touch = touch  # type: ignore
+        self.tool = tool  # type: ignore
+        self.button = button  # type: ignore
 
     @classmethod
     def from_evdev(cls, evdev) -> "PenState":
@@ -122,7 +122,7 @@ class PenState(Enum):
         if tool is None:
             button = None
 
-        return cls((touch, tool, button))
+        return cls((touch, tool, button))  # type: ignore
 
     def apply(self, events: List[libevdev.InputEvent], strict: bool) -> "PenState":
         if libevdev.EV_SYN.SYN_REPORT in events:
@@ -162,7 +162,7 @@ class PenState(Enum):
         if tool is None:
             button = None
 
-        new_state = PenState((touch, tool, button))
+        new_state = PenState((touch, tool, button))  # type: ignore
         if strict:
             assert (
                 new_state in self.valid_transitions()

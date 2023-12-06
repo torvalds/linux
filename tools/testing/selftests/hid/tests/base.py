@@ -14,7 +14,7 @@ import logging
 
 from hidtools.device.base_device import BaseDevice, EvdevMatch, SysfsFile
 from pathlib import Path
-from typing import Final
+from typing import Final, List, Tuple
 
 logger = logging.getLogger("hidtools.test.base")
 
@@ -155,7 +155,7 @@ class BaseTestCase:
         # if any module is not available (not compiled), the test will skip.
         # Each element is a tuple '(kernel driver name, kernel module)',
         # for example ("playstation", "hid-playstation")
-        kernel_modules = []
+        kernel_modules: List[Tuple[str, str]] = []
 
         def assertInputEventsIn(self, expected_events, effective_events):
             effective_events = effective_events.copy()
