@@ -85,7 +85,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	ht_info->amsdu_support = 0;
 
 	ht_info->ampdu_enable = 1;
-	ht_info->AMPDU_Factor = 2;
+	ht_info->ampdu_factor = 2;
 	ht_info->MPDU_Density = 0;
 
 	ht_info->self_mimo_ps = 3;
@@ -507,11 +507,11 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	}
 
 	if (!ht_info->reg_rt2rt_aggregation) {
-		if (ht_info->AMPDU_Factor > pPeerHTCap->MaxRxAMPDUFactor)
+		if (ht_info->ampdu_factor > pPeerHTCap->MaxRxAMPDUFactor)
 			ht_info->CurrentAMPDUFactor =
 						 pPeerHTCap->MaxRxAMPDUFactor;
 		else
-			ht_info->CurrentAMPDUFactor = ht_info->AMPDU_Factor;
+			ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
 
 	} else {
 		if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
@@ -571,7 +571,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	ht_info->bCurrent_AMSDU_Support = false;
 	ht_info->nCurrent_AMSDU_MaxSize = ht_info->amsdu_max_size;
 	ht_info->current_mpdu_density = ht_info->MPDU_Density;
-	ht_info->CurrentAMPDUFactor = ht_info->AMPDU_Factor;
+	ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
 
 	memset((void *)(&ht_info->SelfHTCap), 0,
 	       sizeof(ht_info->SelfHTCap));

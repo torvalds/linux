@@ -113,7 +113,7 @@ struct rt_hi_throughput {
 	u16 nCurrent_AMSDU_MaxSize;
 	u8 ampdu_enable;
 	u8 current_ampdu_enable;
-	u8 AMPDU_Factor;
+	u8 ampdu_factor;
 	u8 CurrentAMPDUFactor;
 	u8 MPDU_Density;
 	u8 current_mpdu_density;
