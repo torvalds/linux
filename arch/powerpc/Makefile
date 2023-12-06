@@ -16,9 +16,9 @@ HAS_BIARCH	:= $(call cc-option-yn, -m32)
 CROSS32_COMPILE ?=
 
 # If we're on a ppc/ppc64/ppc64le machine use that defconfig, otherwise just use
-# ppc64_defconfig because we have nothing better to go on.
+# ppc64le_defconfig because we have nothing better to go on.
 uname := $(shell uname -m)
-KBUILD_DEFCONFIG := $(if $(filter ppc%,$(uname)),$(uname),ppc64)_defconfig
+KBUILD_DEFCONFIG := $(if $(filter ppc%,$(uname)),$(uname),ppc64le)_defconfig
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
