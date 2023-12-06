@@ -59,8 +59,8 @@ enum dentist_dispclk_change_mode {
 struct dp_dto_params {
 	int otg_inst;
 	enum signal_type signal;
-	long long pixclk_hz;
-	long long refclk_hz;
+	uint64_t pixclk_hz;
+	uint64_t refclk_hz;
 };
 
 enum pixel_rate_div {
