@@ -1611,6 +1611,9 @@ static void fast_isolate_freepages(struct compact_control *cc)
 						min(pageblock_end_pfn(min_pfn),
 						    zone_end_pfn(cc->zone)),
 						cc->zone);
+					if (page && !suitable_migration_target(cc, page))
+						page = NULL;
+
 					cc->free_pfn = min_pfn;
 				}
 			}
