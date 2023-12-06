@@ -78,7 +78,7 @@ static void assert_noirq(struct kvm_vcpu *vcpu)
 	 * (notably, the emergency call interrupt we have injected) should
 	 * be cleared by the resets, so this should be 0.
 	 */
-	TEST_ASSERT(irqs >= 0, "Could not fetch IRQs: errno %d\n", errno);
+	TEST_ASSERT(irqs >= 0, "Could not fetch IRQs: errno %d", errno);
 	TEST_ASSERT(!irqs, "IRQ pending");
 }
 
@@ -199,7 +199,7 @@ static void inject_irq(struct kvm_vcpu *vcpu)
 	irq->type = KVM_S390_INT_EMERGENCY;
 	irq->u.emerg.code = vcpu->id;
 	irqs = __vcpu_ioctl(vcpu, KVM_S390_SET_IRQ_STATE, &irq_state);
-	TEST_ASSERT(irqs >= 0, "Error injecting EMERGENCY IRQ errno %d\n", errno);
+	TEST_ASSERT(irqs >= 0, "Error injecting EMERGENCY IRQ errno %d", errno);
 }
 
 static struct kvm_vm *create_vm(struct kvm_vcpu **vcpu)
