@@ -81,7 +81,7 @@ struct serial_state {
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	int			x_char;	/* xon/xoff character */
+	u8			x_char;	/* xon/xoff character */
 };
 
 static struct tty_driver *serial_driver;
@@ -178,7 +178,7 @@ static void receive_chars(struct serial_state *info)
 {
         int status;
 	int serdatr;
-	unsigned char ch, flag;
+	u8 ch, flag;
 	struct	async_icount *icount;
 	bool overrun = false;
 
