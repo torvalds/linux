@@ -1140,6 +1140,9 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	 * Prevent all access to pagetables with the exception of
 	 * gup_fast later handled by the ptep_clear_flush and the VM
 	 * handled by the anon_vma lock + PG_lock.
+	 *
+	 * UFFDIO_MOVE is prevented to race as well thanks to the
+	 * mmap_lock.
 	 */
 	mmap_write_lock(mm);
 	result = hugepage_vma_revalidate(mm, address, true, &vma, cc);

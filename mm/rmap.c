@@ -490,6 +490,12 @@ void __init anon_vma_init(void)
  * page_remove_rmap() that the anon_vma pointer from page->mapping is valid
  * if there is a mapcount, we can dereference the anon_vma after observing
  * those.
+ *
+ * NOTE: the caller should normally hold folio lock when calling this.  If
+ * not, the caller needs to double check the anon_vma didn't change after
+ * taking the anon_vma lock for either read or write (UFFDIO_MOVE can modify it
+ * concurrently without folio lock protection). See folio_lock_anon_vma_read()
+ * which has already covered that, and comment above remap_pages().
  */
 struct anon_vma *folio_get_anon_vma(struct folio *folio)
 {
