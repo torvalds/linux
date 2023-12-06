@@ -966,9 +966,9 @@ static inline bool nfp_netdev_is_nfp_net(struct net_device *netdev)
 	       netdev->netdev_ops == &nfp_nfdk_netdev_ops;
 }
 
-static inline int nfp_net_coalesce_para_check(u32 usecs, u32 pkts)
+static inline int nfp_net_coalesce_para_check(u32 param)
 {
-	if ((usecs >= ((1 << 16) - 1)) || (pkts >= ((1 << 16) - 1)))
+	if (param >= ((1 << 16) - 1))
 		return -EINVAL;
 
 	return 0;

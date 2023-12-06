@@ -633,7 +633,8 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = nn->dp.txd_cnt;
 }
 
-static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
+static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt,
+				 struct netlink_ext_ack *extack)
 {
 	struct nfp_net_dp *dp;
 
@@ -644,7 +645,7 @@ static int nfp_net_set_ring_size(struct nfp_net *nn, u32 rxd_cnt, u32 txd_cnt)
 	dp->rxd_cnt = rxd_cnt;
 	dp->txd_cnt = txd_cnt;
 
-	return nfp_net_ring_reconfig(nn, dp, NULL);
+	return nfp_net_ring_reconfig(nn, dp, extack);
 }
 
 static int nfp_net_set_ringparam(struct net_device *netdev,
@@ -657,7 +658,7 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 
 	/* We don't have separate queues/rings for small/large frames. */
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	qc_min = nn->dev_info->min_qc_size;
 	qc_max = nn->dev_info->max_qc_size;
@@ -666,9 +667,15 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	rxd_cnt = roundup_pow_of_two(ring->rx_pending);
 	txd_cnt = roundup_pow_of_two(ring->tx_pending);
 
-	if (rxd_cnt < qc_min || rxd_cnt > qc_max ||
-	    txd_cnt < qc_min / tx_dpp || txd_cnt > qc_max / tx_dpp)
+	if (rxd_cnt < qc_min || rxd_cnt > qc_max) {
+		NL_SET_ERR_MSG_MOD(extack, "rx parameter out of bounds");
 		return -EINVAL;
+	}
+
+	if (txd_cnt < qc_min / tx_dpp || txd_cnt > qc_max / tx_dpp) {
+		NL_SET_ERR_MSG_MOD(extack, "tx parameter out of bounds");
+		return -EINVAL;
+	}
 
 	if (nn->dp.rxd_cnt == rxd_cnt && nn->dp.txd_cnt == txd_cnt)
 		return 0;
@@ -676,7 +683,7 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	nn_dbg(nn, "Change ring size: RxQ %u->%u, TxQ %u->%u\n",
 	       nn->dp.rxd_cnt, rxd_cnt, nn->dp.txd_cnt, txd_cnt);
 
-	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
+	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt, extack);
 }
 
 static int nfp_test_link(struct net_device *netdev)
@@ -1866,7 +1873,7 @@ static int nfp_net_get_coalesce(struct net_device *netdev,
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_IRQMOD))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	ec->use_adaptive_rx_coalesce = nn->rx_coalesce_adapt_on;
 	ec->use_adaptive_tx_coalesce = nn->tx_coalesce_adapt_on;
@@ -2145,22 +2152,40 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	 */
 
 	if (!(nn->cap & NFP_NET_CFG_CTRL_IRQMOD))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	/* ensure valid configuration */
-	if (!ec->rx_coalesce_usecs && !ec->rx_max_coalesced_frames)
+	if (!ec->rx_coalesce_usecs && !ec->rx_max_coalesced_frames) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "rx-usecs and rx-frames cannot both be zero");
 		return -EINVAL;
+	}
 
-	if (!ec->tx_coalesce_usecs && !ec->tx_max_coalesced_frames)
+	if (!ec->tx_coalesce_usecs && !ec->tx_max_coalesced_frames) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "tx-usecs and tx-frames cannot both be zero");
 		return -EINVAL;
+	}
 
-	if (nfp_net_coalesce_para_check(ec->rx_coalesce_usecs * factor,
-					ec->rx_max_coalesced_frames))
+	if (nfp_net_coalesce_para_check(ec->rx_coalesce_usecs * factor)) {
+		NL_SET_ERR_MSG_MOD(extack, "rx-usecs too large");
 		return -EINVAL;
+	}
 
-	if (nfp_net_coalesce_para_check(ec->tx_coalesce_usecs * factor,
-					ec->tx_max_coalesced_frames))
+	if (nfp_net_coalesce_para_check(ec->rx_max_coalesced_frames)) {
+		NL_SET_ERR_MSG_MOD(extack, "rx-frames too large");
 		return -EINVAL;
+	}
+
+	if (nfp_net_coalesce_para_check(ec->tx_coalesce_usecs * factor)) {
+		NL_SET_ERR_MSG_MOD(extack, "tx-usecs too large");
+		return -EINVAL;
+	}
+
+	if (nfp_net_coalesce_para_check(ec->tx_max_coalesced_frames)) {
+		NL_SET_ERR_MSG_MOD(extack, "tx-frames too large");
+		return -EINVAL;
+	}
 
 	/* configuration is valid */
 	nn->rx_coalesce_adapt_on = !!ec->use_adaptive_rx_coalesce;
