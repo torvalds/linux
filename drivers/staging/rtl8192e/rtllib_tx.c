@@ -847,7 +847,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	if (txb) {
 		tcb_desc = (struct cb_desc *)
 				(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
-		tcb_desc->bTxEnableFwCalcDur = 1;
+		tcb_desc->tx_enable_fw_calc_dur = 1;
 		tcb_desc->priority = skb->priority;
 
 		if (ether_type == ETH_P_PAE) {

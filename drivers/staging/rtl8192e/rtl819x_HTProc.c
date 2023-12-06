@@ -94,7 +94,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	ieee->tx_dis_rate_fallback = 0;
 	ieee->tx_use_drv_assinged_rate = 0;
 
-	ieee->bTxEnableFwCalcDur = 1;
+	ieee->tx_enable_fw_calc_dur = 1;
 
 	ht_info->reg_rt2rt_aggregation = 1;
 
