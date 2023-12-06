@@ -597,7 +597,7 @@
 			#size-cells = <1>;
 		};
 
-		emi@80000000 {
+		bus@80000000 {
 			compatible = "fsl,emi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
