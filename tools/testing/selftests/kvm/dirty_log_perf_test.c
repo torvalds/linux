@@ -88,9 +88,9 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 		ret = _vcpu_run(vcpu);
 		ts_diff = timespec_elapsed(start);
 
-		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
+		TEST_ASSERT(ret == 0, "vcpu_run failed: %d", ret);
 		TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
-			    "Invalid guest sync status: exit_reason=%s\n",
+			    "Invalid guest sync status: exit_reason=%s",
 			    exit_reason_str(run->exit_reason));
 
 		pr_debug("Got sync event from vCPU %d\n", vcpu_idx);

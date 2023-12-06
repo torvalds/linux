@@ -152,7 +152,7 @@ static void check_supported(struct vcpu_reg_list *c)
 			continue;
 
 		__TEST_REQUIRE(kvm_has_cap(s->capability),
-			       "%s: %s not available, skipping tests\n",
+			       "%s: %s not available, skipping tests",
 			       config_name(c), s->name);
 	}
 }

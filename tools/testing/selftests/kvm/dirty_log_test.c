@@ -262,7 +262,7 @@ static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		    "vcpu run failed: errno=%d", err);
 
 	TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
-		    "Invalid guest sync status: exit_reason=%s\n",
+		    "Invalid guest sync status: exit_reason=%s",
 		    exit_reason_str(run->exit_reason));
 
 	vcpu_handle_sync_stop();
@@ -410,7 +410,7 @@ static void dirty_ring_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 		pr_info("vcpu continues now.\n");
 	} else {
 		TEST_ASSERT(false, "Invalid guest sync status: "
-			    "exit_reason=%s\n",
+			    "exit_reason=%s",
 			    exit_reason_str(run->exit_reason));
 	}
 }

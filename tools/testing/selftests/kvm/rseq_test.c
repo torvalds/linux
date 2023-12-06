@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 		} while (snapshot != atomic_read(&seq_cnt));
 
 		TEST_ASSERT(rseq_cpu == cpu,
-			    "rseq CPU = %d, sched CPU = %d\n", rseq_cpu, cpu);
+			    "rseq CPU = %d, sched CPU = %d", rseq_cpu, cpu);
 	}
 
 	/*
@@ -256,7 +256,7 @@ int main(int argc, char *argv[])
 	 * migrations given the 1us+ delay in the migration task.
 	 */
 	TEST_ASSERT(i > (NR_TASK_MIGRATIONS / 2),
-		    "Only performed %d KVM_RUNs, task stalled too much?\n", i);
+		    "Only performed %d KVM_RUNs, task stalled too much?", i);
 
 	pthread_join(migration_thread, NULL);
 
