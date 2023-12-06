@@ -32,7 +32,7 @@ DEFAULT_COMMAND="pip3 install hid-tools; make -C tools/testing/selftests TARGETS
 usage()
 {
 	cat <<EOF
-Usage: $0 [-i] [-s] [-d <output_dir>] -- [<command>]
+Usage: $0 [-j N] [-s] [-b] [-d <output_dir>] -- [<command>]
 
 <command> is the command you would normally run when you are in
 the source kernel direcory. e.g:
@@ -55,6 +55,7 @@ Options:
 
 	-u)		Update the boot2container script to a newer version.
 	-d)		Update the output directory (default: ${OUTPUT_DIR})
+	-b)		Run only the build steps for the kernel and the selftests
 	-j)		Number of jobs for compilation, similar to -j in make
 			(default: ${NUM_COMPILE_JOBS})
 	-s)		Instead of powering off the VM, start an interactive
@@ -191,8 +192,9 @@ main()
 	local command="${DEFAULT_COMMAND}"
 	local update_b2c="no"
 	local debug_shell="no"
+	local build_only="no"
 
-	while getopts ':hsud:j:' opt; do
+	while getopts ':hsud:j:b' opt; do
 		case ${opt} in
 		u)
 			update_b2c="yes"
@@ -206,6 +208,9 @@ main()
 		s)
 			command="/bin/sh"
 			debug_shell="yes"
+			;;
+		b)
+			build_only="yes"
 			;;
 		h)
 			usage
@@ -226,8 +231,7 @@ main()
 	shift $((OPTIND -1))
 
 	# trap 'catch "$?"' EXIT
-
-	if [[ "${debug_shell}" == "no" ]]; then
+	if [[ "${build_only}" == "no" && "${debug_shell}" == "no" ]]; then
 		if [[ $# -eq 0 ]]; then
 			echo "No command specified, will run ${DEFAULT_COMMAND} in the vm"
 		else
@@ -267,24 +271,26 @@ main()
 	update_kconfig "${kernel_checkout}" "${kconfig_file}"
 
 	recompile_kernel "${kernel_checkout}" "${make_command}"
-
-	if [[ "${update_b2c}" == "no" && ! -f "${b2c}" ]]; then
-		echo "vm2c script not found in ${b2c}"
-		update_b2c="yes"
-	fi
-
-	if [[ "${update_b2c}" == "yes" ]]; then
-		download $B2C_URL $b2c
-		chmod +x $b2c
-	fi
-
 	update_selftests "${kernel_checkout}" "${make_command}"
-	run_vm "${kernel_checkout}" $b2c "${kernel_bzimage}" "${command}"
-	if [[ "${debug_shell}" != "yes" ]]; then
-		echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
-	fi
 
-	exit $(cat ${OUTPUT_DIR}/${EXIT_STATUS_FILE})
+	if [[ "${build_only}" == "no" ]]; then
+		if [[ "${update_b2c}" == "no" && ! -f "${b2c}" ]]; then
+			echo "vm2c script not found in ${b2c}"
+			update_b2c="yes"
+		fi
+
+		if [[ "${update_b2c}" == "yes" ]]; then
+			download $B2C_URL $b2c
+			chmod +x $b2c
+		fi
+
+		run_vm "${kernel_checkout}" $b2c "${kernel_bzimage}" "${command}"
+		if [[ "${debug_shell}" != "yes" ]]; then
+			echo "Logs saved in ${OUTPUT_DIR}/${LOG_FILE}"
+		fi
+
+		exit $(cat ${OUTPUT_DIR}/${EXIT_STATUS_FILE})
+	fi
 }
 
 main "$@"
