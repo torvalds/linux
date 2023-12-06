@@ -1452,86 +1452,85 @@ static void z_erofs_decompress_kickoff(struct z_erofs_decompressqueue *io,
 	z_erofs_decompressqueue_work(&io->u.work);
 }
 
-static struct page *pickup_page_for_submission(struct z_erofs_pcluster *pcl,
-					       unsigned int nr,
-					       struct page **pagepool,
-					       struct address_space *mc)
+static void z_erofs_fill_bio_vec(struct bio_vec *bvec,
+				 struct z_erofs_decompress_frontend *f,
+				 struct z_erofs_pcluster *pcl,
+				 unsigned int nr,
+				 struct address_space *mc)
 {
-	const pgoff_t index = pcl->obj.index;
 	gfp_t gfp = mapping_gfp_mask(mc);
 	bool tocache = false;
-
+	struct z_erofs_bvec *zbv = pcl->compressed_bvecs + nr;
 	struct address_space *mapping;
-	struct page *oldpage, *page;
-	int justfound;
+	struct page *page, *oldpage;
+	int justfound, bs = i_blocksize(f->inode);
 
+	/* Except for inplace pages, the entire page can be used for I/Os */
+	bvec->bv_offset = 0;
+	bvec->bv_len = PAGE_SIZE;
 repeat:
-	page = READ_ONCE(pcl->compressed_bvecs[nr].page);
-	oldpage = page;
-
-	if (!page)
+	oldpage = READ_ONCE(zbv->page);
+	if (!oldpage)
 		goto out_allocpage;
 
-	justfound = (unsigned long)page & 1UL;
-	page = (struct page *)((unsigned long)page & ~1UL);
+	justfound = (unsigned long)oldpage & 1UL;
+	page = (struct page *)((unsigned long)oldpage & ~1UL);
+	bvec->bv_page = page;
 
+	DBG_BUGON(z_erofs_is_shortlived_page(page));
 	/*
-	 * preallocated cached pages, which is used to avoid direct reclaim
-	 * otherwise, it will go inplace I/O path instead.
+	 * Handle preallocated cached pages.  We tried to allocate such pages
+	 * without triggering direct reclaim.  If allocation failed, inplace
+	 * file-backed pages will be used instead.
 	 */
 	if (page->private == Z_EROFS_PREALLOCATED_PAGE) {
-		WRITE_ONCE(pcl->compressed_bvecs[nr].page, page);
 		set_page_private(page, 0);
+		WRITE_ONCE(zbv->page, page);
 		tocache = true;
 		goto out_tocache;
 	}
+
 	mapping = READ_ONCE(page->mapping);
-
 	/*
-	 * file-backed online pages in plcuster are all locked steady,
-	 * therefore it is impossible for `mapping' to be NULL.
+	 * File-backed pages for inplace I/Os are all locked steady,
+	 * therefore it is impossible for `mapping` to be NULL.
 	 */
-	if (mapping && mapping != mc)
-		/* ought to be unmanaged pages */
-		goto out;
-
-	/* directly return for shortlived page as well */
-	if (z_erofs_is_shortlived_page(page))
-		goto out;
+	if (mapping && mapping != mc) {
+		if (zbv->offset < 0)
+			bvec->bv_offset = round_up(-zbv->offset, bs);
+		bvec->bv_len = round_up(zbv->end, bs) - bvec->bv_offset;
+		return;
+	}
 
 	lock_page(page);
-
 	/* only true if page reclaim goes wrong, should never happen */
 	DBG_BUGON(justfound && PagePrivate(page));
 
-	/* the page is still in manage cache */
+	/* the cached page is still in managed cache */
 	if (page->mapping == mc) {
-		WRITE_ONCE(pcl->compressed_bvecs[nr].page, page);
-
+		WRITE_ONCE(zbv->page, page);
+		/*
+		 * The cached page is still available but without a valid
+		 * `->private` pcluster hint.  Let's reconnect them.
+		 */
 		if (!PagePrivate(page)) {
-			/*
-			 * impossible to be !PagePrivate(page) for
-			 * the current restriction as well if
-			 * the page is already in compressed_bvecs[].
-			 */
 			DBG_BUGON(!justfound);
-
-			justfound = 0;
-			set_page_private(page, (unsigned long)pcl);
-			SetPagePrivate(page);
+			/* compressed_bvecs[] already takes a ref */
+			attach_page_private(page, pcl);
+			put_page(page);
 		}
 
-		/* no need to submit io if it is already up-to-date */
+		/* no need to submit if it is already up-to-date */
 		if (PageUptodate(page)) {
 			unlock_page(page);
-			page = NULL;
+			bvec->bv_page = NULL;
 		}
-		goto out;
+		return;
 	}
 
 	/*
-	 * the managed page has been truncated, it's unsafe to
-	 * reuse this one, let's allocate a new cache-managed page.
+	 * It has been truncated, so it's unsafe to reuse this one. Let's
+	 * allocate a new page for compressed data.
 	 */
 	DBG_BUGON(page->mapping);
 	DBG_BUGON(!justfound);
@@ -1540,25 +1539,23 @@ repeat:
 	unlock_page(page);
 	put_page(page);
 out_allocpage:
-	page = erofs_allocpage(pagepool, gfp | __GFP_NOFAIL);
-	if (oldpage != cmpxchg(&pcl->compressed_bvecs[nr].page,
-			       oldpage, page)) {
-		erofs_pagepool_add(pagepool, page);
+	page = erofs_allocpage(&f->pagepool, gfp | __GFP_NOFAIL);
+	if (oldpage != cmpxchg(&zbv->page, oldpage, page)) {
+		erofs_pagepool_add(&f->pagepool, page);
 		cond_resched();
 		goto repeat;
 	}
+	bvec->bv_page = page;
 out_tocache:
-	if (!tocache || add_to_page_cache_lru(page, mc, index + nr, gfp)) {
-		/* turn into temporary page if fails (1 ref) */
+	if (!tocache || bs != PAGE_SIZE ||
+	    add_to_page_cache_lru(page, mc, pcl->obj.index + nr, gfp)) {
+		/* turn into a temporary shortlived page (1 ref) */
 		set_page_private(page, Z_EROFS_SHORTLIVED_PAGE);
-		goto out;
+		return;
 	}
 	attach_page_private(page, pcl);
-	/* drop a refcount added by allocpage (then we have 2 refs here) */
+	/* drop a refcount added by allocpage (then 2 refs in total here) */
 	put_page(page);
-
-out:	/* the only exit (for tracing and debugging) */
-	return page;
 }
 
 static struct z_erofs_decompressqueue *jobqueue_init(struct super_block *sb,
@@ -1613,7 +1610,7 @@ static void move_to_bypass_jobqueue(struct z_erofs_pcluster *pcl,
 	qtail[JQ_BYPASS] = &pcl->next;
 }
 
-static void z_erofs_decompressqueue_endio(struct bio *bio)
+static void z_erofs_submissionqueue_endio(struct bio *bio)
 {
 	struct z_erofs_decompressqueue *q = bio->bi_private;
 	blk_status_t err = bio->bi_status;
@@ -1625,7 +1622,6 @@ static void z_erofs_decompressqueue_endio(struct bio *bio)
 
 		DBG_BUGON(PageUptodate(page));
 		DBG_BUGON(z_erofs_page_is_invalidated(page));
-
 		if (erofs_page_is_managed(EROFS_SB(q->sb), page)) {
 			if (!err)
 				SetPageUptodate(page);
@@ -1648,17 +1644,14 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	struct z_erofs_decompressqueue *q[NR_JOBQUEUES];
 	z_erofs_next_pcluster_t owned_head = f->owned_head;
 	/* bio is NULL initially, so no need to initialize last_{index,bdev} */
-	pgoff_t last_index;
+	erofs_off_t last_pa;
 	struct block_device *last_bdev;
 	unsigned int nr_bios = 0;
 	struct bio *bio = NULL;
 	unsigned long pflags;
 	int memstall = 0;
 
-	/*
-	 * if managed cache is enabled, bypass jobqueue is needed,
-	 * no need to read from device for all pclusters in this queue.
-	 */
+	/* No need to read from device for pclusters in the bypass queue. */
 	q[JQ_BYPASS] = jobqueue_init(sb, fgq + JQ_BYPASS, NULL);
 	q[JQ_SUBMIT] = jobqueue_init(sb, fgq + JQ_SUBMIT, force_fg);
 
@@ -1671,7 +1664,8 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 	do {
 		struct erofs_map_dev mdev;
 		struct z_erofs_pcluster *pcl;
-		pgoff_t cur, end;
+		erofs_off_t cur, end;
+		struct bio_vec bvec;
 		unsigned int i = 0;
 		bool bypass = true;
 
@@ -1690,18 +1684,14 @@ static void z_erofs_submit_queue(struct z_erofs_decompress_frontend *f,
 		};
 		(void)erofs_map_dev(sb, &mdev);
 
-		cur = erofs_blknr(sb, mdev.m_pa);
-		end = cur + pcl->pclusterpages;
-
+		cur = mdev.m_pa;
+		end = cur + (pcl->pclusterpages << PAGE_SHIFT);
 		do {
-			struct page *page;
-
-			page = pickup_page_for_submission(pcl, i++,
-					&f->pagepool, mc);
-			if (!page)
+			z_erofs_fill_bio_vec(&bvec, f, pcl, i++, mc);
+			if (!bvec.bv_page)
 				continue;
 
-			if (bio && (cur != last_index + 1 ||
+			if (bio && (cur != last_pa ||
 				    last_bdev != mdev.m_bdev)) {
 submit_bio_retry:
 				submit_bio(bio);
@@ -1712,7 +1702,8 @@ submit_bio_retry:
 				bio = NULL;
 			}
 
-			if (unlikely(PageWorkingset(page)) && !memstall) {
+			if (unlikely(PageWorkingset(bvec.bv_page)) &&
+			    !memstall) {
 				psi_memstall_enter(&pflags);
 				memstall = 1;
 			}
@@ -1720,23 +1711,24 @@ submit_bio_retry:
 			if (!bio) {
 				bio = bio_alloc(mdev.m_bdev, BIO_MAX_VECS,
 						REQ_OP_READ, GFP_NOIO);
-				bio->bi_end_io = z_erofs_decompressqueue_endio;
-
-				last_bdev = mdev.m_bdev;
-				bio->bi_iter.bi_sector = (sector_t)cur <<
-					(sb->s_blocksize_bits - 9);
+				bio->bi_end_io = z_erofs_submissionqueue_endio;
+				bio->bi_iter.bi_sector = cur >> 9;
 				bio->bi_private = q[JQ_SUBMIT];
 				if (readahead)
 					bio->bi_opf |= REQ_RAHEAD;
 				++nr_bios;
+				last_bdev = mdev.m_bdev;
 			}
 
-			if (bio_add_page(bio, page, PAGE_SIZE, 0) < PAGE_SIZE)
+			if (cur + bvec.bv_len > end)
+				bvec.bv_len = end - cur;
+			if (!bio_add_page(bio, bvec.bv_page, bvec.bv_len,
+					  bvec.bv_offset))
 				goto submit_bio_retry;
 
-			last_index = cur;
+			last_pa = cur + bvec.bv_len;
 			bypass = false;
-		} while (++cur < end);
+		} while ((cur += bvec.bv_len) < end);
 
 		if (!bypass)
 			qtail[JQ_SUBMIT] = &pcl->next;
