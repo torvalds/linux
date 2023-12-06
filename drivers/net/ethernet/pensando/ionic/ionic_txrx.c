@@ -803,7 +803,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 	qi = skb_get_queue_mapping(skb);
 
-	if (unlikely(q->features & IONIC_TXQ_F_HWSTAMP)) {
+	if (ionic_txq_hwstamp_enabled(q)) {
 		if (cq_info) {
 			struct skb_shared_hwtstamps hwts = {};
 			__le64 *cq_desc_hwstamp;
@@ -870,7 +870,7 @@ bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 		desc_info->cb_arg = NULL;
 	} while (index != le16_to_cpu(comp->comp_index));
 
-	if (pkts && bytes && !unlikely(q->features & IONIC_TXQ_F_HWSTAMP))
+	if (pkts && bytes && !ionic_txq_hwstamp_enabled(q))
 		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
 
 	return true;
@@ -908,7 +908,7 @@ void ionic_tx_empty(struct ionic_queue *q)
 		desc_info->cb_arg = NULL;
 	}
 
-	if (pkts && bytes && !unlikely(q->features & IONIC_TXQ_F_HWSTAMP))
+	if (pkts && bytes && !ionic_txq_hwstamp_enabled(q))
 		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
 }
 
@@ -986,7 +986,7 @@ static void ionic_tx_tso_post(struct ionic_queue *q,
 
 	if (start) {
 		skb_tx_timestamp(skb);
-		if (!unlikely(q->features & IONIC_TXQ_F_HWSTAMP))
+		if (!ionic_txq_hwstamp_enabled(q))
 			netdev_tx_sent_queue(q_to_ndq(q), skb->len);
 		ionic_txq_post(q, false, ionic_tx_clean, skb);
 	} else {
@@ -1233,7 +1233,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	stats->pkts++;
 	stats->bytes += skb->len;
 
-	if (!unlikely(q->features & IONIC_TXQ_F_HWSTAMP))
+	if (!ionic_txq_hwstamp_enabled(q))
 		netdev_tx_sent_queue(q_to_ndq(q), skb->len);
 	ionic_txq_post(q, !netdev_xmit_more(), ionic_tx_clean, skb);
 
