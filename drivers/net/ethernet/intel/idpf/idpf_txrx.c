@@ -505,9 +505,9 @@ static void idpf_rx_post_buf_refill(struct idpf_sw_queue *refillq, u16 buf_id)
 
 	/* store the buffer ID and the SW maintained GEN bit to the refillq */
 	refillq->ring[nta] =
-		((buf_id << IDPF_RX_BI_BUFID_S) & IDPF_RX_BI_BUFID_M) |
-		(!!(test_bit(__IDPF_Q_GEN_CHK, refillq->flags)) <<
-		 IDPF_RX_BI_GEN_S);
+		FIELD_PREP(IDPF_RX_BI_BUFID_M, buf_id) |
+		FIELD_PREP(IDPF_RX_BI_GEN_M,
+			   test_bit(__IDPF_Q_GEN_CHK, refillq->flags));
 
 	if (unlikely(++nta == refillq->desc_count)) {
 		nta = 0;
@@ -1825,14 +1825,14 @@ static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
 		u16 gen;
 
 		/* if the descriptor isn't done, no work yet to do */
-		gen = (le16_to_cpu(tx_desc->qid_comptype_gen) &
-		      IDPF_TXD_COMPLQ_GEN_M) >> IDPF_TXD_COMPLQ_GEN_S;
+		gen = le16_get_bits(tx_desc->qid_comptype_gen,
+				    IDPF_TXD_COMPLQ_GEN_M);
 		if (test_bit(__IDPF_Q_GEN_CHK, complq->flags) != gen)
 			break;
 
 		/* Find necessary info of TX queue to clean buffers */
-		rel_tx_qid = (le16_to_cpu(tx_desc->qid_comptype_gen) &
-			 IDPF_TXD_COMPLQ_QID_M) >> IDPF_TXD_COMPLQ_QID_S;
+		rel_tx_qid = le16_get_bits(tx_desc->qid_comptype_gen,
+					   IDPF_TXD_COMPLQ_QID_M);
 		if (rel_tx_qid >= complq->txq_grp->num_txq ||
 		    !complq->txq_grp->txqs[rel_tx_qid]) {
 			dev_err(&complq->vport->adapter->pdev->dev,
@@ -1842,9 +1842,8 @@ static bool idpf_tx_clean_complq(struct idpf_queue *complq, int budget,
 		tx_q = complq->txq_grp->txqs[rel_tx_qid];
 
 		/* Determine completion type */
-		ctype = (le16_to_cpu(tx_desc->qid_comptype_gen) &
-			IDPF_TXD_COMPLQ_COMPL_TYPE_M) >>
-			IDPF_TXD_COMPLQ_COMPL_TYPE_S;
+		ctype = le16_get_bits(tx_desc->qid_comptype_gen,
+				      IDPF_TXD_COMPLQ_COMPL_TYPE_M);
 		switch (ctype) {
 		case IDPF_TXD_COMPLT_RE:
 			hw_head = le16_to_cpu(tx_desc->q_head_compl_tag.q_head);
@@ -1945,11 +1944,10 @@ void idpf_tx_splitq_build_ctb(union idpf_tx_flex_desc *desc,
 			      u16 td_cmd, u16 size)
 {
 	desc->q.qw1.cmd_dtype =
-		cpu_to_le16(params->dtype & IDPF_FLEX_TXD_QW1_DTYPE_M);
+		le16_encode_bits(params->dtype, IDPF_FLEX_TXD_QW1_DTYPE_M);
 	desc->q.qw1.cmd_dtype |=
-		cpu_to_le16((td_cmd << IDPF_FLEX_TXD_QW1_CMD_S) &
-			    IDPF_FLEX_TXD_QW1_CMD_M);
-	desc->q.qw1.buf_size = cpu_to_le16((u16)size);
+		le16_encode_bits(td_cmd, IDPF_FLEX_TXD_QW1_CMD_M);
+	desc->q.qw1.buf_size = cpu_to_le16(size);
 	desc->q.qw1.l2tags.l2tag1 = cpu_to_le16(params->td_tag);
 }
 
@@ -2843,8 +2841,9 @@ static void idpf_rx_splitq_extract_csum_bits(struct virtchnl2_rx_flex_desc_adv_n
 				qword1);
 	csum->ipv6exadd = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_STATUS0_IPV6EXADD_M,
 				    qword0);
-	csum->raw_csum_inv = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_RAW_CSUM_INV_M,
-				       le16_to_cpu(rx_desc->ptype_err_fflags0));
+	csum->raw_csum_inv =
+		le16_get_bits(rx_desc->ptype_err_fflags0,
+			      VIRTCHNL2_RX_FLEX_DESC_ADV_RAW_CSUM_INV_M);
 	csum->raw_csum = le16_to_cpu(rx_desc->misc.raw_cs);
 }
 
@@ -2938,8 +2937,8 @@ static int idpf_rx_process_skb_fields(struct idpf_queue *rxq,
 	struct idpf_rx_ptype_decoded decoded;
 	u16 rx_ptype;
 
-	rx_ptype = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_PTYPE_M,
-			     le16_to_cpu(rx_desc->ptype_err_fflags0));
+	rx_ptype = le16_get_bits(rx_desc->ptype_err_fflags0,
+				 VIRTCHNL2_RX_FLEX_DESC_ADV_PTYPE_M);
 
 	decoded = rxq->vport->rx_ptype_lkup[rx_ptype];
 	/* If we don't know the ptype we can't do anything else with it. Just
@@ -2953,8 +2952,8 @@ static int idpf_rx_process_skb_fields(struct idpf_queue *rxq,
 
 	skb->protocol = eth_type_trans(skb, rxq->vport->netdev);
 
-	if (FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_RSC_M,
-		      le16_to_cpu(rx_desc->hdrlen_flags)))
+	if (le16_get_bits(rx_desc->hdrlen_flags,
+			  VIRTCHNL2_RX_FLEX_DESC_ADV_RSC_M))
 		return idpf_rx_rsc(rxq, skb, rx_desc, &decoded);
 
 	idpf_rx_splitq_extract_csum_bits(rx_desc, &csum_bits);
@@ -3148,8 +3147,8 @@ static int idpf_rx_splitq_clean(struct idpf_queue *rxq, int budget)
 		dma_rmb();
 
 		/* if the descriptor isn't done, no work yet to do */
-		gen_id = le16_to_cpu(rx_desc->pktlen_gen_bufq_id);
-		gen_id = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_GEN_M, gen_id);
+		gen_id = le16_get_bits(rx_desc->pktlen_gen_bufq_id,
+				       VIRTCHNL2_RX_FLEX_DESC_ADV_GEN_M);
 
 		if (test_bit(__IDPF_Q_GEN_CHK, rxq->flags) != gen_id)
 			break;
@@ -3164,9 +3163,8 @@ static int idpf_rx_splitq_clean(struct idpf_queue *rxq, int budget)
 			continue;
 		}
 
-		pkt_len = le16_to_cpu(rx_desc->pktlen_gen_bufq_id);
-		pkt_len = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_LEN_PBUF_M,
-				    pkt_len);
+		pkt_len = le16_get_bits(rx_desc->pktlen_gen_bufq_id,
+					VIRTCHNL2_RX_FLEX_DESC_ADV_LEN_PBUF_M);
 
 		hbo = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_STATUS0_HBO_M,
 				rx_desc->status_err0_qw1);
@@ -3183,14 +3181,12 @@ static int idpf_rx_splitq_clean(struct idpf_queue *rxq, int budget)
 			goto bypass_hsplit;
 		}
 
-		hdr_len = le16_to_cpu(rx_desc->hdrlen_flags);
-		hdr_len = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_LEN_HDR_M,
-				    hdr_len);
+		hdr_len = le16_get_bits(rx_desc->hdrlen_flags,
+					VIRTCHNL2_RX_FLEX_DESC_ADV_LEN_HDR_M);
 
 bypass_hsplit:
-		bufq_id = le16_to_cpu(rx_desc->pktlen_gen_bufq_id);
-		bufq_id = FIELD_GET(VIRTCHNL2_RX_FLEX_DESC_ADV_BUFQ_ID_M,
-				    bufq_id);
+		bufq_id = le16_get_bits(rx_desc->pktlen_gen_bufq_id,
+					VIRTCHNL2_RX_FLEX_DESC_ADV_BUFQ_ID_M);
 
 		rxq_set = container_of(rxq, struct idpf_rxq_set, rxq);
 		if (!bufq_id)
