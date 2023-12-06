@@ -27,7 +27,7 @@ static bool check_setget_bounds(const struct extent_buffer *eb,
 void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *eb)
 {
 	token->eb = eb;
-	token->kaddr = page_address(eb->pages[0]);
+	token->kaddr = folio_address(eb->folios[0]);
 	token->offset = 0;
 }
 
@@ -50,7 +50,7 @@ void btrfs_init_map_token(struct btrfs_map_token *token, struct extent_buffer *e
  * an offset into the extent buffer page array, cast to a specific type.  This
  * gives us all the type checking.
  *
- * The extent buffer pages stored in the array pages do not form a contiguous
+ * The extent buffer pages stored in the array folios may not form a contiguous
  * phyusical range, but the API functions assume the linear offset to the range
  * from 0 to metadata node size.
  */
@@ -74,13 +74,13 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 	    member_offset + size <= token->offset + PAGE_SIZE) {	\
 		return get_unaligned_le##bits(token->kaddr + oip);	\
 	}								\
-	token->kaddr = page_address(token->eb->pages[idx]);		\
+	token->kaddr = folio_address(token->eb->folios[idx]);		\
 	token->offset = idx << PAGE_SHIFT;				\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || oip + size <= PAGE_SIZE ) \
 		return get_unaligned_le##bits(token->kaddr + oip);	\
 									\
 	memcpy(lebytes, token->kaddr + oip, part);			\
-	token->kaddr = page_address(token->eb->pages[idx + 1]);		\
+	token->kaddr = folio_address(token->eb->folios[idx + 1]);	\
 	token->offset = (idx + 1) << PAGE_SHIFT;			\
 	memcpy(lebytes + part, token->kaddr, size - part);		\
 	return get_unaligned_le##bits(lebytes);				\
@@ -91,7 +91,7 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long oip = get_eb_offset_in_page(eb, member_offset); \
 	const unsigned long idx = get_eb_page_index(member_offset);	\
-	char *kaddr = page_address(eb->pages[idx]);			\
+	char *kaddr = folio_address(eb->folios[idx]);			\
 	const int size = sizeof(u##bits);				\
 	const int part = PAGE_SIZE - oip;				\
 	u8 lebytes[sizeof(u##bits)];					\
@@ -101,7 +101,7 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 		return get_unaligned_le##bits(kaddr + oip);		\
 									\
 	memcpy(lebytes, kaddr + oip, part);				\
-	kaddr = page_address(eb->pages[idx + 1]);			\
+	kaddr = folio_address(eb->folios[idx + 1]);			\
 	memcpy(lebytes + part, kaddr, size - part);			\
 	return get_unaligned_le##bits(lebytes);				\
 }									\
@@ -125,7 +125,7 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 		put_unaligned_le##bits(val, token->kaddr + oip);	\
 		return;							\
 	}								\
-	token->kaddr = page_address(token->eb->pages[idx]);		\
+	token->kaddr = folio_address(token->eb->folios[idx]);		\
 	token->offset = idx << PAGE_SHIFT;				\
 	if (INLINE_EXTENT_BUFFER_PAGES == 1 || oip + size <= PAGE_SIZE) { \
 		put_unaligned_le##bits(val, token->kaddr + oip);	\
@@ -133,7 +133,7 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 	}								\
 	put_unaligned_le##bits(val, lebytes);				\
 	memcpy(token->kaddr + oip, lebytes, part);			\
-	token->kaddr = page_address(token->eb->pages[idx + 1]);		\
+	token->kaddr = folio_address(token->eb->folios[idx + 1]);	\
 	token->offset = (idx + 1) << PAGE_SHIFT;			\
 	memcpy(token->kaddr, lebytes + part, size - part);		\
 }									\
@@ -143,7 +143,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	const unsigned long member_offset = (unsigned long)ptr + off;	\
 	const unsigned long oip = get_eb_offset_in_page(eb, member_offset); \
 	const unsigned long idx = get_eb_page_index(member_offset);	\
-	char *kaddr = page_address(eb->pages[idx]);			\
+	char *kaddr = folio_address(eb->folios[idx]);			\
 	const int size = sizeof(u##bits);				\
 	const int part = PAGE_SIZE - oip;				\
 	u8 lebytes[sizeof(u##bits)];					\
@@ -156,7 +156,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 									\
 	put_unaligned_le##bits(val, lebytes);				\
 	memcpy(kaddr + oip, lebytes, part);				\
-	kaddr = page_address(eb->pages[idx + 1]);			\
+	kaddr = folio_address(eb->folios[idx + 1]);			\
 	memcpy(kaddr, lebytes + part, size - part);			\
 }
 

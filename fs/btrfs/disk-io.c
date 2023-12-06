@@ -89,7 +89,7 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
 		first_page_part = fs_info->nodesize;
 		num_pages = 1;
 	} else {
-		kaddr = page_address(buf->pages[0]);
+		kaddr = folio_address(buf->folios[0]);
 		first_page_part = min_t(u32, PAGE_SIZE, fs_info->nodesize);
 		num_pages = num_extent_pages(buf);
 	}
@@ -98,7 +98,7 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
 			    first_page_part - BTRFS_CSUM_SIZE);
 
 	for (i = 1; i < num_pages && INLINE_EXTENT_BUFFER_PAGES > 1; i++) {
-		kaddr = page_address(buf->pages[i]);
+		kaddr = folio_address(buf->folios[i]);
 		crypto_shash_update(shash, kaddr, PAGE_SIZE);
 	}
 	memset(result, 0, BTRFS_CSUM_SIZE);
@@ -184,13 +184,14 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 		return -EROFS;
 
 	for (i = 0; i < num_pages; i++) {
-		struct page *p = eb->pages[i];
-		u64 start = max_t(u64, eb->start, page_offset(p));
-		u64 end = min_t(u64, eb->start + eb->len, page_offset(p) + PAGE_SIZE);
+		u64 start = max_t(u64, eb->start, folio_pos(eb->folios[i]));
+		u64 end = min_t(u64, eb->start + eb->len,
+				folio_pos(eb->folios[i]) + PAGE_SIZE);
 		u32 len = end - start;
 
 		ret = btrfs_repair_io_failure(fs_info, 0, start, len,
-				start, p, offset_in_page(start), mirror_num);
+					      start, folio_page(eb->folios[i], 0),
+					      offset_in_page(start), mirror_num);
 		if (ret)
 			break;
 	}
@@ -277,8 +278,8 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 
 	if (WARN_ON_ONCE(found_start != eb->start))
 		return BLK_STS_IOERR;
-	if (WARN_ON(!btrfs_page_test_uptodate(fs_info, eb->pages[0], eb->start,
-					      eb->len)))
+	if (WARN_ON(!btrfs_page_test_uptodate(fs_info, folio_page(eb->folios[0], 0),
+					      eb->start, eb->len)))
 		return BLK_STS_IOERR;
 
 	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
@@ -387,7 +388,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 	}
 
 	csum_tree_block(eb, result);
-	header_csum = page_address(eb->pages[0]) +
+	header_csum = folio_address(eb->folios[0]) +
 		get_eb_offset_in_page(eb, offsetof(struct btrfs_header, csum));
 
 	if (memcmp(result, header_csum, csum_size) != 0) {

@@ -94,7 +94,12 @@ struct extent_buffer {
 
 	struct rw_semaphore lock;
 
-	struct page *pages[INLINE_EXTENT_BUFFER_PAGES];
+	/*
+	 * Pointers to all the folios of the extent buffer.
+	 *
+	 * For now the folio is always order 0 (aka, a single page).
+	 */
+	struct folio *folios[INLINE_EXTENT_BUFFER_PAGES];
 #ifdef CONFIG_BTRFS_DEBUG
 	struct list_head leak_list;
 	pid_t lock_owner;

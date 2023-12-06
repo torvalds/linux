@@ -832,7 +832,7 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 
 		if (oip + key_size <= PAGE_SIZE) {
 			const unsigned long idx = get_eb_page_index(offset);
-			char *kaddr = page_address(eb->pages[idx]);
+			char *kaddr = folio_address(eb->folios[idx]);
 
 			oip = get_eb_offset_in_page(eb, offset);
 			tmp = (struct btrfs_disk_key *)(kaddr + oip);
