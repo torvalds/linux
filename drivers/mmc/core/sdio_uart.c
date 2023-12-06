@@ -354,12 +354,11 @@ static void sdio_uart_stop_rx(struct sdio_uart_port *port)
 
 static void sdio_uart_receive_chars(struct sdio_uart_port *port, u8 *status)
 {
-	unsigned int flag;
 	int max_count = 256;
 
 	do {
 		u8 ch = sdio_in(port, UART_RX);
-		flag = TTY_NORMAL;
+		u8 flag = TTY_NORMAL;
 		port->icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
