@@ -410,7 +410,7 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 void stop_tty(struct tty_struct *tty);
 void start_tty(struct tty_struct *tty);
 void tty_write_message(struct tty_struct *tty, char *msg);
-int tty_send_xchar(struct tty_struct *tty, char ch);
+int tty_send_xchar(struct tty_struct *tty, u8 ch);
 int tty_put_char(struct tty_struct *tty, unsigned char c);
 unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 unsigned int tty_write_room(struct tty_struct *tty);

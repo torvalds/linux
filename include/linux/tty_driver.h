@@ -242,7 +242,7 @@ struct serial_struct;
  *	Optional: If not provided, the device is assumed to have no FIFO.
  *	Usually correct to invoke via tty_wait_until_sent(). May sleep.
  *
- * @send_xchar: ``void ()(struct tty_struct *tty, char ch)``
+ * @send_xchar: ``void ()(struct tty_struct *tty, u8 ch)``
  *
  *	This routine is used to send a high-priority XON/XOFF character (@ch)
  *	to the @tty device.
@@ -374,7 +374,7 @@ struct tty_operations {
 	void (*flush_buffer)(struct tty_struct *tty);
 	void (*set_ldisc)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, int timeout);
-	void (*send_xchar)(struct tty_struct *tty, char ch);
+	void (*send_xchar)(struct tty_struct *tty, u8 ch);
 	int (*tiocmget)(struct tty_struct *tty);
 	int (*tiocmset)(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);

@@ -1149,7 +1149,7 @@ ssize_t redirected_tty_write(struct kiocb *iocb, struct iov_iter *iter)
  *
  * Locking: none for xchar method, write ordering for write method.
  */
-int tty_send_xchar(struct tty_struct *tty, char ch)
+int tty_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	bool was_stopped = tty->flow.stopped;
 

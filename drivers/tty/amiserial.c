@@ -811,7 +811,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
  * This function is used to send a high-priority XON/XOFF character to
  * the device
  */
-static void rs_send_xchar(struct tty_struct *tty, char ch)
+static void rs_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;

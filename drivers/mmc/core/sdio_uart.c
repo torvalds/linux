@@ -792,7 +792,7 @@ static unsigned int sdio_uart_chars_in_buffer(struct tty_struct *tty)
 	return kfifo_len(&port->xmit_fifo);
 }
 
-static void sdio_uart_send_xchar(struct tty_struct *tty, char ch)
+static void sdio_uart_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 

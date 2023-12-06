@@ -687,7 +687,7 @@ EXPORT_SYMBOL_GPL(uart_xchar_out);
  * This function is used to send a high-priority XON/XOFF character to
  * the device
  */
-static void uart_send_xchar(struct tty_struct *tty, char ch)
+static void uart_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
