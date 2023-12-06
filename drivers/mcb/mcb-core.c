@@ -263,6 +263,7 @@ static void mcb_free_bus(struct device *dev)
 
 /**
  * mcb_alloc_bus() - Allocate a new @mcb_bus
+ * @carrier: generic &struct device for the carrier device
  *
  * Allocate a new @mcb_bus.
  */
@@ -327,7 +328,7 @@ void mcb_release_bus(struct mcb_bus *bus)
 EXPORT_SYMBOL_NS_GPL(mcb_release_bus, MCB);
 
 /**
- * mcb_bus_put() - Increment refcnt
+ * mcb_bus_get() - Increment refcnt
  * @bus: The @mcb_bus
  *
  * Get a @mcb_bus' ref
@@ -455,7 +456,7 @@ EXPORT_SYMBOL_NS_GPL(mcb_request_mem, MCB);
 
 /**
  * mcb_release_mem() - Release memory requested by device
- * @dev: The @mcb_device that requested the memory
+ * @mem: The memory resource to be released
  *
  * Release memory that was prior requested via @mcb_request_mem().
  */
