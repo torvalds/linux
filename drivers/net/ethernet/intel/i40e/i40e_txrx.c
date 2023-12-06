@@ -33,19 +33,16 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = I40E_TXD_FLTR_QW0_QINDEX_MASK &
-		     (fdata->q_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT);
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK, fdata->q_index);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_FLEXOFF_MASK &
-		      (fdata->flex_off << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_FLEXOFF_MASK,
+				 fdata->flex_off);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_PCTYPE_MASK &
-		      (fdata->pctype << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_PCTYPE_MASK, fdata->pctype);
 
 	/* Use LAN VSI Id if not programmed by user */
-	flex_ptype |= I40E_TXD_FLTR_QW0_DEST_VSI_MASK &
-		      ((u32)(fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id) <<
-		       I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_DEST_VSI_MASK,
+				 fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id);
 
 	dtype_cmd = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
@@ -55,17 +52,15 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 		     I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
 		     I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_DEST_MASK &
-		     (fdata->dest_ctl << I40E_TXD_FLTR_QW1_DEST_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_DEST_MASK, fdata->dest_ctl);
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_FD_STATUS_MASK &
-		     (fdata->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_FD_STATUS_MASK,
+				fdata->fd_status);
 
 	if (fdata->cnt_index) {
 		dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
-		dtype_cmd |= I40E_TXD_FLTR_QW1_CNTINDEX_MASK &
-			     ((u32)fdata->cnt_index <<
-			      I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT);
+		dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+					fdata->cnt_index);
 	}
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -2959,8 +2954,8 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = (tx_ring->queue_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
-		      I40E_TXD_FLTR_QW0_QINDEX_MASK;
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK,
+				tx_ring->queue_index);
 	flex_ptype |= (tx_flags & I40E_TX_FLAGS_IPV4) ?
 		      (I40E_FILTER_PCTYPE_NONF_IPV4_TCP <<
 		       I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) :
@@ -2986,14 +2981,12 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
 	if (!(tx_flags & I40E_TX_FLAGS_UDP_TUNNEL))
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_STAT_IDX(pf->hw.pf_id));
 	else
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id));
 
 	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;

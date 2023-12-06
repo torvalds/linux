@@ -3536,21 +3536,19 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		else
 			return -EINVAL;
 
-		qtx_ctl |= (ring->ch->vsi_number <<
-			    I40E_QTX_CTL_VFVM_INDX_SHIFT) &
-			    I40E_QTX_CTL_VFVM_INDX_MASK;
+		qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_VFVM_INDX_MASK,
+				      ring->ch->vsi_number);
 	} else {
 		if (vsi->type == I40E_VSI_VMDQ2) {
 			qtx_ctl = I40E_QTX_CTL_VM_QUEUE;
-			qtx_ctl |= ((vsi->id) << I40E_QTX_CTL_VFVM_INDX_SHIFT) &
-				    I40E_QTX_CTL_VFVM_INDX_MASK;
+			qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_VFVM_INDX_MASK,
+					      vsi->id);
 		} else {
 			qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
 		}
 	}
 
-	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT) &
-		    I40E_QTX_CTL_PF_INDX_MASK);
+	qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_PF_INDX_MASK, hw->pf_id);
 	wr32(hw, I40E_QTX_CTL(pf_q), qtx_ctl);
 	i40e_flush(hw);
 

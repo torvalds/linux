@@ -1320,20 +1320,16 @@ void i40e_dcb_hw_rx_fifo_config(struct i40e_hw *hw,
 	u32 reg = rd32(hw, I40E_PRTDCB_RETSC);
 
 	reg &= ~I40E_PRTDCB_RETSC_ETS_MODE_MASK;
-	reg |= ((u32)ets_mode << I40E_PRTDCB_RETSC_ETS_MODE_SHIFT) &
-		I40E_PRTDCB_RETSC_ETS_MODE_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_ETS_MODE_MASK, ets_mode);
 
 	reg &= ~I40E_PRTDCB_RETSC_NON_ETS_MODE_MASK;
-	reg |= ((u32)non_ets_mode << I40E_PRTDCB_RETSC_NON_ETS_MODE_SHIFT) &
-		I40E_PRTDCB_RETSC_NON_ETS_MODE_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_NON_ETS_MODE_MASK, non_ets_mode);
 
 	reg &= ~I40E_PRTDCB_RETSC_ETS_MAX_EXP_MASK;
-	reg |= (max_exponent << I40E_PRTDCB_RETSC_ETS_MAX_EXP_SHIFT) &
-		I40E_PRTDCB_RETSC_ETS_MAX_EXP_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_ETS_MAX_EXP_MASK, max_exponent);
 
 	reg &= ~I40E_PRTDCB_RETSC_LLTC_MASK;
-	reg |= (lltc_map << I40E_PRTDCB_RETSC_LLTC_SHIFT) &
-		I40E_PRTDCB_RETSC_LLTC_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RETSC_LLTC_MASK, lltc_map);
 	wr32(hw, I40E_PRTDCB_RETSC, reg);
 }
 
@@ -1388,14 +1384,12 @@ void i40e_dcb_hw_rx_cmd_monitor_config(struct i40e_hw *hw,
 	 */
 	reg = rd32(hw, I40E_PRT_SWR_PM_THR);
 	reg &= ~I40E_PRT_SWR_PM_THR_THRESHOLD_MASK;
-	reg |= (threshold << I40E_PRT_SWR_PM_THR_THRESHOLD_SHIFT) &
-		I40E_PRT_SWR_PM_THR_THRESHOLD_MASK;
+	reg |= FIELD_PREP(I40E_PRT_SWR_PM_THR_THRESHOLD_MASK, threshold);
 	wr32(hw, I40E_PRT_SWR_PM_THR, reg);
 
 	reg = rd32(hw, I40E_PRTDCB_RPPMC);
 	reg &= ~I40E_PRTDCB_RPPMC_RX_FIFO_SIZE_MASK;
-	reg |= (fifo_size << I40E_PRTDCB_RPPMC_RX_FIFO_SIZE_SHIFT) &
-		I40E_PRTDCB_RPPMC_RX_FIFO_SIZE_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RPPMC_RX_FIFO_SIZE_MASK, fifo_size);
 	wr32(hw, I40E_PRTDCB_RPPMC, reg);
 }
 
@@ -1437,19 +1431,17 @@ void i40e_dcb_hw_pfc_config(struct i40e_hw *hw,
 		reg &= ~I40E_PRTDCB_MFLCN_RFCE_MASK;
 		reg &= ~I40E_PRTDCB_MFLCN_RPFCE_MASK;
 		if (pfc_en) {
-			reg |= BIT(I40E_PRTDCB_MFLCN_RPFCM_SHIFT) &
-				I40E_PRTDCB_MFLCN_RPFCM_MASK;
-			reg |= ((u32)pfc_en << I40E_PRTDCB_MFLCN_RPFCE_SHIFT) &
-				I40E_PRTDCB_MFLCN_RPFCE_MASK;
+			reg |= FIELD_PREP(I40E_PRTDCB_MFLCN_RPFCM_MASK, 1);
+			reg |= FIELD_PREP(I40E_PRTDCB_MFLCN_RPFCE_MASK,
+					  pfc_en);
 		}
 		wr32(hw, I40E_PRTDCB_MFLCN, reg);
 
 		reg = rd32(hw, I40E_PRTDCB_FCCFG);
 		reg &= ~I40E_PRTDCB_FCCFG_TFCE_MASK;
 		if (pfc_en)
-			reg |= (I40E_DCB_PFC_ENABLED <<
-				I40E_PRTDCB_FCCFG_TFCE_SHIFT) &
-				I40E_PRTDCB_FCCFG_TFCE_MASK;
+			reg |= FIELD_PREP(I40E_PRTDCB_FCCFG_TFCE_MASK,
+					  I40E_DCB_PFC_ENABLED);
 		wr32(hw, I40E_PRTDCB_FCCFG, reg);
 
 		/* FCTTV and FCRTV to be set by default */
@@ -1467,25 +1459,22 @@ void i40e_dcb_hw_pfc_config(struct i40e_hw *hw,
 
 		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE);
 		reg &= ~I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_MASK;
-		reg |= ((u32)pfc_en <<
-			   I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_SHIFT) &
-			I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_MASK;
+		reg |= FIELD_PREP(I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE_MASK,
+				  pfc_en);
 		wr32(hw, I40E_PRTMAC_HSEC_CTL_RX_PAUSE_ENABLE, reg);
 
 		reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE);
 		reg &= ~I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_MASK;
-		reg |= ((u32)pfc_en <<
-			   I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_SHIFT) &
-			I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_MASK;
+		reg |= FIELD_PREP(I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE_MASK,
+				  pfc_en);
 		wr32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_ENABLE, reg);
 
 		for (i = 0; i < I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_MAX_INDEX; i++) {
 			reg = rd32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER(i));
 			reg &= ~I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_MASK;
 			if (pfc_en) {
-				reg |= ((u32)refresh_time <<
-					I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_SHIFT) &
-					I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_MASK;
+				reg |= FIELD_PREP(I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER_MASK,
+						  refresh_time);
 			}
 			wr32(hw, I40E_PRTMAC_HSEC_CTL_TX_PAUSE_REFRESH_TIMER(i), reg);
 		}
@@ -1497,14 +1486,12 @@ void i40e_dcb_hw_pfc_config(struct i40e_hw *hw,
 
 	reg = rd32(hw, I40E_PRTDCB_TC2PFC);
 	reg &= ~I40E_PRTDCB_TC2PFC_TC2PFC_MASK;
-	reg |= ((u32)tc2pfc << I40E_PRTDCB_TC2PFC_TC2PFC_SHIFT) &
-		I40E_PRTDCB_TC2PFC_TC2PFC_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_TC2PFC_TC2PFC_MASK, tc2pfc);
 	wr32(hw, I40E_PRTDCB_TC2PFC, reg);
 
 	reg = rd32(hw, I40E_PRTDCB_RUP);
 	reg &= ~I40E_PRTDCB_RUP_NOVLANUP_MASK;
-	reg |= ((u32)first_pfc_prio << I40E_PRTDCB_RUP_NOVLANUP_SHIFT) &
-		 I40E_PRTDCB_RUP_NOVLANUP_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_RUP_NOVLANUP_MASK, first_pfc_prio);
 	wr32(hw, I40E_PRTDCB_RUP, reg);
 
 	reg = rd32(hw, I40E_PRTDCB_TDPMC);
@@ -1536,8 +1523,7 @@ void i40e_dcb_hw_set_num_tc(struct i40e_hw *hw, u8 num_tc)
 	u32 reg = rd32(hw, I40E_PRTDCB_GENC);
 
 	reg &= ~I40E_PRTDCB_GENC_NUMTC_MASK;
-	reg |= ((u32)num_tc << I40E_PRTDCB_GENC_NUMTC_SHIFT) &
-		I40E_PRTDCB_GENC_NUMTC_MASK;
+	reg |= FIELD_PREP(I40E_PRTDCB_GENC_NUMTC_MASK, num_tc);
 	wr32(hw, I40E_PRTDCB_GENC, reg);
 }
 
@@ -1576,12 +1562,12 @@ void i40e_dcb_hw_rx_ets_bw_config(struct i40e_hw *hw, u8 *bw_share,
 		reg &= ~(I40E_PRTDCB_RETSTCC_BWSHARE_MASK     |
 			 I40E_PRTDCB_RETSTCC_UPINTC_MODE_MASK |
 			 I40E_PRTDCB_RETSTCC_ETSTC_SHIFT);
-		reg |= ((u32)bw_share[i] << I40E_PRTDCB_RETSTCC_BWSHARE_SHIFT) &
-			 I40E_PRTDCB_RETSTCC_BWSHARE_MASK;
-		reg |= ((u32)mode[i] << I40E_PRTDCB_RETSTCC_UPINTC_MODE_SHIFT) &
-			 I40E_PRTDCB_RETSTCC_UPINTC_MODE_MASK;
-		reg |= ((u32)prio_type[i] << I40E_PRTDCB_RETSTCC_ETSTC_SHIFT) &
-			 I40E_PRTDCB_RETSTCC_ETSTC_MASK;
+		reg |= FIELD_PREP(I40E_PRTDCB_RETSTCC_BWSHARE_MASK,
+				  bw_share[i]);
+		reg |= FIELD_PREP(I40E_PRTDCB_RETSTCC_UPINTC_MODE_MASK,
+				  mode[i]);
+		reg |= FIELD_PREP(I40E_PRTDCB_RETSTCC_ETSTC_MASK,
+				  prio_type[i]);
 		wr32(hw, I40E_PRTDCB_RETSTCC(i), reg);
 	}
 }
@@ -1721,8 +1707,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 	if (new_val < old_val) {
 		reg = rd32(hw, I40E_PRTRPB_SLW);
 		reg &= ~I40E_PRTRPB_SLW_SLW_MASK;
-		reg |= (new_val << I40E_PRTRPB_SLW_SLW_SHIFT) &
-			I40E_PRTRPB_SLW_SLW_MASK;
+		reg |= FIELD_PREP(I40E_PRTRPB_SLW_SLW_MASK, new_val);
 		wr32(hw, I40E_PRTRPB_SLW, reg);
 	}
 
@@ -1735,8 +1720,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val < old_val) {
 			reg = rd32(hw, I40E_PRTRPB_SLT(i));
 			reg &= ~I40E_PRTRPB_SLT_SLT_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_SLT_SLT_TCN_SHIFT) &
-				I40E_PRTRPB_SLT_SLT_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_SLT_SLT_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_SLT(i), reg);
 		}
 
@@ -1745,8 +1730,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val < old_val) {
 			reg = rd32(hw, I40E_PRTRPB_DLW(i));
 			reg &= ~I40E_PRTRPB_DLW_DLW_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_DLW_DLW_TCN_SHIFT) &
-				I40E_PRTRPB_DLW_DLW_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_DLW_DLW_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_DLW(i), reg);
 		}
 	}
@@ -1757,8 +1742,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 	if (new_val < old_val) {
 		reg = rd32(hw, I40E_PRTRPB_SHW);
 		reg &= ~I40E_PRTRPB_SHW_SHW_MASK;
-		reg |= (new_val << I40E_PRTRPB_SHW_SHW_SHIFT) &
-			I40E_PRTRPB_SHW_SHW_MASK;
+		reg |= FIELD_PREP(I40E_PRTRPB_SHW_SHW_MASK, new_val);
 		wr32(hw, I40E_PRTRPB_SHW, reg);
 	}
 
@@ -1771,8 +1755,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val < old_val) {
 			reg = rd32(hw, I40E_PRTRPB_SHT(i));
 			reg &= ~I40E_PRTRPB_SHT_SHT_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_SHT_SHT_TCN_SHIFT) &
-				I40E_PRTRPB_SHT_SHT_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_SHT_SHT_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_SHT(i), reg);
 		}
 
@@ -1781,8 +1765,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val < old_val) {
 			reg = rd32(hw, I40E_PRTRPB_DHW(i));
 			reg &= ~I40E_PRTRPB_DHW_DHW_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_DHW_DHW_TCN_SHIFT) &
-				I40E_PRTRPB_DHW_DHW_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_DHW_DHW_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_DHW(i), reg);
 		}
 	}
@@ -1792,8 +1776,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		new_val = new_pb_cfg->tc_pool_size[i];
 		reg = rd32(hw, I40E_PRTRPB_DPS(i));
 		reg &= ~I40E_PRTRPB_DPS_DPS_TCN_MASK;
-		reg |= (new_val << I40E_PRTRPB_DPS_DPS_TCN_SHIFT) &
-			I40E_PRTRPB_DPS_DPS_TCN_MASK;
+		reg |= FIELD_PREP(I40E_PRTRPB_DPS_DPS_TCN_MASK, new_val);
 		wr32(hw, I40E_PRTRPB_DPS(i), reg);
 	}
 
@@ -1801,8 +1784,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 	new_val = new_pb_cfg->shared_pool_size;
 	reg = rd32(hw, I40E_PRTRPB_SPS);
 	reg &= ~I40E_PRTRPB_SPS_SPS_MASK;
-	reg |= (new_val << I40E_PRTRPB_SPS_SPS_SHIFT) &
-		I40E_PRTRPB_SPS_SPS_MASK;
+	reg |= FIELD_PREP(I40E_PRTRPB_SPS_SPS_MASK, new_val);
 	wr32(hw, I40E_PRTRPB_SPS, reg);
 
 	/* Program the shared pool low water mark per port if increasing */
@@ -1811,8 +1793,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 	if (new_val > old_val) {
 		reg = rd32(hw, I40E_PRTRPB_SLW);
 		reg &= ~I40E_PRTRPB_SLW_SLW_MASK;
-		reg |= (new_val << I40E_PRTRPB_SLW_SLW_SHIFT) &
-			I40E_PRTRPB_SLW_SLW_MASK;
+		reg |= FIELD_PREP(I40E_PRTRPB_SLW_SLW_MASK, new_val);
 		wr32(hw, I40E_PRTRPB_SLW, reg);
 	}
 
@@ -1825,8 +1806,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val > old_val) {
 			reg = rd32(hw, I40E_PRTRPB_SLT(i));
 			reg &= ~I40E_PRTRPB_SLT_SLT_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_SLT_SLT_TCN_SHIFT) &
-				I40E_PRTRPB_SLT_SLT_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_SLT_SLT_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_SLT(i), reg);
 		}
 
@@ -1835,8 +1816,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val > old_val) {
 			reg = rd32(hw, I40E_PRTRPB_DLW(i));
 			reg &= ~I40E_PRTRPB_DLW_DLW_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_DLW_DLW_TCN_SHIFT) &
-				I40E_PRTRPB_DLW_DLW_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_DLW_DLW_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_DLW(i), reg);
 		}
 	}
@@ -1847,8 +1828,7 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 	if (new_val > old_val) {
 		reg = rd32(hw, I40E_PRTRPB_SHW);
 		reg &= ~I40E_PRTRPB_SHW_SHW_MASK;
-		reg |= (new_val << I40E_PRTRPB_SHW_SHW_SHIFT) &
-			I40E_PRTRPB_SHW_SHW_MASK;
+		reg |= FIELD_PREP(I40E_PRTRPB_SHW_SHW_MASK, new_val);
 		wr32(hw, I40E_PRTRPB_SHW, reg);
 	}
 
@@ -1861,8 +1841,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val > old_val) {
 			reg = rd32(hw, I40E_PRTRPB_SHT(i));
 			reg &= ~I40E_PRTRPB_SHT_SHT_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_SHT_SHT_TCN_SHIFT) &
-				I40E_PRTRPB_SHT_SHT_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_SHT_SHT_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_SHT(i), reg);
 		}
 
@@ -1871,8 +1851,8 @@ void i40e_dcb_hw_rx_pb_config(struct i40e_hw *hw,
 		if (new_val > old_val) {
 			reg = rd32(hw, I40E_PRTRPB_DHW(i));
 			reg &= ~I40E_PRTRPB_DHW_DHW_TCN_MASK;
-			reg |= (new_val << I40E_PRTRPB_DHW_DHW_TCN_SHIFT) &
-				I40E_PRTRPB_DHW_DHW_TCN_MASK;
+			reg |= FIELD_PREP(I40E_PRTRPB_DHW_DHW_TCN_MASK,
+					  new_val);
 			wr32(hw, I40E_PRTRPB_DHW(i), reg);
 		}
 	}
