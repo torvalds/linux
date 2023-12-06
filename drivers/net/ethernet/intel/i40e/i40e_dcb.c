@@ -22,8 +22,7 @@ int i40e_get_dcbx_status(struct i40e_hw *hw, u16 *status)
 		return -EINVAL;
 
 	reg = rd32(hw, I40E_PRTDCB_GENS);
-	*status = (u16)((reg & I40E_PRTDCB_GENS_DCBX_STATUS_MASK) >>
-			I40E_PRTDCB_GENS_DCBX_STATUS_SHIFT);
+	*status = FIELD_GET(I40E_PRTDCB_GENS_DCBX_STATUS_MASK, reg);
 
 	return 0;
 }
@@ -52,12 +51,9 @@ static void i40e_parse_ieee_etscfg_tlv(struct i40e_lldp_org_tlv *tlv,
 	 * |1bit | 1bit|3 bits|3bits|
 	 */
 	etscfg = &dcbcfg->etscfg;
-	etscfg->willing = (u8)((buf[offset] & I40E_IEEE_ETS_WILLING_MASK) >>
-			       I40E_IEEE_ETS_WILLING_SHIFT);
-	etscfg->cbs = (u8)((buf[offset] & I40E_IEEE_ETS_CBS_MASK) >>
-			   I40E_IEEE_ETS_CBS_SHIFT);
-	etscfg->maxtcs = (u8)((buf[offset] & I40E_IEEE_ETS_MAXTC_MASK) >>
-			      I40E_IEEE_ETS_MAXTC_SHIFT);
+	etscfg->willing = FIELD_GET(I40E_IEEE_ETS_WILLING_MASK, buf[offset]);
+	etscfg->cbs = FIELD_GET(I40E_IEEE_ETS_CBS_MASK, buf[offset]);
+	etscfg->maxtcs = FIELD_GET(I40E_IEEE_ETS_MAXTC_MASK, buf[offset]);
 
 	/* Move offset to Priority Assignment Table */
 	offset++;
@@ -71,11 +67,9 @@ static void i40e_parse_ieee_etscfg_tlv(struct i40e_lldp_org_tlv *tlv,
 	 *        -----------------------------------------
 	 */
 	for (i = 0; i < 4; i++) {
-		priority = (u8)((buf[offset] & I40E_IEEE_ETS_PRIO_1_MASK) >>
-				I40E_IEEE_ETS_PRIO_1_SHIFT);
-		etscfg->prioritytable[i * 2] =  priority;
-		priority = (u8)((buf[offset] & I40E_IEEE_ETS_PRIO_0_MASK) >>
-				I40E_IEEE_ETS_PRIO_0_SHIFT);
+		priority = FIELD_GET(I40E_IEEE_ETS_PRIO_1_MASK, buf[offset]);
+		etscfg->prioritytable[i * 2] = priority;
+		priority = FIELD_GET(I40E_IEEE_ETS_PRIO_0_MASK, buf[offset]);
 		etscfg->prioritytable[i * 2 + 1] = priority;
 		offset++;
 	}
@@ -126,12 +120,10 @@ static void i40e_parse_ieee_etsrec_tlv(struct i40e_lldp_org_tlv *tlv,
 	 *        -----------------------------------------
 	 */
 	for (i = 0; i < 4; i++) {
-		priority = (u8)((buf[offset] & I40E_IEEE_ETS_PRIO_1_MASK) >>
-				I40E_IEEE_ETS_PRIO_1_SHIFT);
-		dcbcfg->etsrec.prioritytable[i*2] =  priority;
-		priority = (u8)((buf[offset] & I40E_IEEE_ETS_PRIO_0_MASK) >>
-				I40E_IEEE_ETS_PRIO_0_SHIFT);
-		dcbcfg->etsrec.prioritytable[i*2 + 1] = priority;
+		priority = FIELD_GET(I40E_IEEE_ETS_PRIO_1_MASK, buf[offset]);
+		dcbcfg->etsrec.prioritytable[i * 2] = priority;
+		priority = FIELD_GET(I40E_IEEE_ETS_PRIO_0_MASK, buf[offset]);
+		dcbcfg->etsrec.prioritytable[(i * 2) + 1] = priority;
 		offset++;
 	}
 
@@ -172,12 +164,9 @@ static void i40e_parse_ieee_pfccfg_tlv(struct i40e_lldp_org_tlv *tlv,
 	 * -----------------------------------------
 	 * |1bit | 1bit|2 bits|4bits| 1 octet      |
 	 */
-	dcbcfg->pfc.willing = (u8)((buf[0] & I40E_IEEE_PFC_WILLING_MASK) >>
-				   I40E_IEEE_PFC_WILLING_SHIFT);
-	dcbcfg->pfc.mbc = (u8)((buf[0] & I40E_IEEE_PFC_MBC_MASK) >>
-			       I40E_IEEE_PFC_MBC_SHIFT);
-	dcbcfg->pfc.pfccap = (u8)((buf[0] & I40E_IEEE_PFC_CAP_MASK) >>
-				  I40E_IEEE_PFC_CAP_SHIFT);
+	dcbcfg->pfc.willing = FIELD_GET(I40E_IEEE_PFC_WILLING_MASK, buf[0]);
+	dcbcfg->pfc.mbc = FIELD_GET(I40E_IEEE_PFC_MBC_MASK, buf[0]);
+	dcbcfg->pfc.pfccap = FIELD_GET(I40E_IEEE_PFC_CAP_MASK, buf[0]);
 	dcbcfg->pfc.pfcenable = buf[1];
 }
 
@@ -198,8 +187,7 @@ static void i40e_parse_ieee_app_tlv(struct i40e_lldp_org_tlv *tlv,
 	u8 *buf;
 
 	typelength = ntohs(tlv->typelength);
-	length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
-		       I40E_LLDP_TLV_LEN_SHIFT);
+	length = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 	buf = tlv->tlvinfo;
 
 	/* The App priority table starts 5 octets after TLV header */
@@ -217,12 +205,10 @@ static void i40e_parse_ieee_app_tlv(struct i40e_lldp_org_tlv *tlv,
 	 *        -----------------------------------------
 	 */
 	while (offset < length) {
-		dcbcfg->app[i].priority = (u8)((buf[offset] &
-						I40E_IEEE_APP_PRIO_MASK) >>
-					       I40E_IEEE_APP_PRIO_SHIFT);
-		dcbcfg->app[i].selector = (u8)((buf[offset] &
-						I40E_IEEE_APP_SEL_MASK) >>
-					       I40E_IEEE_APP_SEL_SHIFT);
+		dcbcfg->app[i].priority = FIELD_GET(I40E_IEEE_APP_PRIO_MASK,
+						    buf[offset]);
+		dcbcfg->app[i].selector = FIELD_GET(I40E_IEEE_APP_SEL_MASK,
+						    buf[offset]);
 		dcbcfg->app[i].protocolid = (buf[offset + 1] << 0x8) |
 					     buf[offset + 2];
 		/* Move to next app */
@@ -250,8 +236,7 @@ static void i40e_parse_ieee_tlv(struct i40e_lldp_org_tlv *tlv,
 	u8 subtype;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	subtype = (u8)((ouisubtype & I40E_LLDP_TLV_SUBTYPE_MASK) >>
-		       I40E_LLDP_TLV_SUBTYPE_SHIFT);
+	subtype = FIELD_GET(I40E_LLDP_TLV_SUBTYPE_MASK, ouisubtype);
 	switch (subtype) {
 	case I40E_IEEE_SUBTYPE_ETS_CFG:
 		i40e_parse_ieee_etscfg_tlv(tlv, dcbcfg);
@@ -301,11 +286,9 @@ static void i40e_parse_cee_pgcfg_tlv(struct i40e_cee_feat_tlv *tlv,
 	 *        -----------------------------------------
 	 */
 	for (i = 0; i < 4; i++) {
-		priority = (u8)((buf[offset] & I40E_CEE_PGID_PRIO_1_MASK) >>
-				 I40E_CEE_PGID_PRIO_1_SHIFT);
-		etscfg->prioritytable[i * 2] =  priority;
-		priority = (u8)((buf[offset] & I40E_CEE_PGID_PRIO_0_MASK) >>
-				 I40E_CEE_PGID_PRIO_0_SHIFT);
+		priority = FIELD_GET(I40E_CEE_PGID_PRIO_1_MASK, buf[offset]);
+		etscfg->prioritytable[i * 2] = priority;
+		priority = FIELD_GET(I40E_CEE_PGID_PRIO_0_MASK, buf[offset]);
 		etscfg->prioritytable[i * 2 + 1] = priority;
 		offset++;
 	}
@@ -362,8 +345,7 @@ static void i40e_parse_cee_app_tlv(struct i40e_cee_feat_tlv *tlv,
 	u8 i;
 
 	typelength = ntohs(tlv->hdr.typelen);
-	length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
-		       I40E_LLDP_TLV_LEN_SHIFT);
+	length = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 
 	dcbcfg->numapps = length / sizeof(*app);
 
@@ -419,15 +401,13 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 	u32 ouisubtype;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	subtype = (u8)((ouisubtype & I40E_LLDP_TLV_SUBTYPE_MASK) >>
-		       I40E_LLDP_TLV_SUBTYPE_SHIFT);
+	subtype = FIELD_GET(I40E_LLDP_TLV_SUBTYPE_MASK, ouisubtype);
 	/* Return if not CEE DCBX */
 	if (subtype != I40E_CEE_DCBX_TYPE)
 		return;
 
 	typelength = ntohs(tlv->typelength);
-	tlvlen = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
-			I40E_LLDP_TLV_LEN_SHIFT);
+	tlvlen = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 	len = sizeof(tlv->typelength) + sizeof(ouisubtype) +
 	      sizeof(struct i40e_cee_ctrl_tlv);
 	/* Return if no CEE DCBX Feature TLVs */
@@ -437,11 +417,8 @@ static void i40e_parse_cee_tlv(struct i40e_lldp_org_tlv *tlv,
 	sub_tlv = (struct i40e_cee_feat_tlv *)((char *)tlv + len);
 	while (feat_tlv_count < I40E_CEE_MAX_FEAT_TYPE) {
 		typelength = ntohs(sub_tlv->hdr.typelen);
-		sublen = (u16)((typelength &
-				I40E_LLDP_TLV_LEN_MASK) >>
-				I40E_LLDP_TLV_LEN_SHIFT);
-		subtype = (u8)((typelength & I40E_LLDP_TLV_TYPE_MASK) >>
-				I40E_LLDP_TLV_TYPE_SHIFT);
+		sublen = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
+		subtype = FIELD_GET(I40E_LLDP_TLV_TYPE_MASK, typelength);
 		switch (subtype) {
 		case I40E_CEE_SUBTYPE_PG_CFG:
 			i40e_parse_cee_pgcfg_tlv(sub_tlv, dcbcfg);
@@ -478,8 +455,7 @@ static void i40e_parse_org_tlv(struct i40e_lldp_org_tlv *tlv,
 	u32 oui;
 
 	ouisubtype = ntohl(tlv->ouisubtype);
-	oui = (u32)((ouisubtype & I40E_LLDP_TLV_OUI_MASK) >>
-		    I40E_LLDP_TLV_OUI_SHIFT);
+	oui = FIELD_GET(I40E_LLDP_TLV_OUI_MASK, ouisubtype);
 	switch (oui) {
 	case I40E_IEEE_8021QAZ_OUI:
 		i40e_parse_ieee_tlv(tlv, dcbcfg);
@@ -517,10 +493,8 @@ int i40e_lldp_to_dcb_config(u8 *lldpmib,
 	tlv = (struct i40e_lldp_org_tlv *)lldpmib;
 	while (1) {
 		typelength = ntohs(tlv->typelength);
-		type = (u16)((typelength & I40E_LLDP_TLV_TYPE_MASK) >>
-			     I40E_LLDP_TLV_TYPE_SHIFT);
-		length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
-			       I40E_LLDP_TLV_LEN_SHIFT);
+		type = FIELD_GET(I40E_LLDP_TLV_TYPE_MASK, typelength);
+		length = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 		offset += sizeof(typelength) + length;
 
 		/* END TLV or beyond LLDPDU size */
@@ -594,7 +568,7 @@ static void i40e_cee_to_dcb_v1_config(
 {
 	u16 status, tlv_status = le16_to_cpu(cee_cfg->tlv_status);
 	u16 app_prio = le16_to_cpu(cee_cfg->oper_app_prio);
-	u8 i, tc, err;
+	u8 i, err;
 
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
@@ -603,13 +577,13 @@ static void i40e_cee_to_dcb_v1_config(
 	 * from those in the CEE Priority Group sub-TLV.
 	 */
 	for (i = 0; i < 4; i++) {
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_0_MASK) >>
-			 I40E_CEE_PGID_PRIO_0_SHIFT);
-		dcbcfg->etscfg.prioritytable[i * 2] =  tc;
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_1_MASK) >>
-			 I40E_CEE_PGID_PRIO_1_SHIFT);
+		u8 tc;
+
+		tc = FIELD_GET(I40E_CEE_PGID_PRIO_0_MASK,
+			       cee_cfg->oper_prio_tc[i]);
+		dcbcfg->etscfg.prioritytable[i * 2] = tc;
+		tc = FIELD_GET(I40E_CEE_PGID_PRIO_1_MASK,
+			       cee_cfg->oper_prio_tc[i]);
 		dcbcfg->etscfg.prioritytable[i*2 + 1] = tc;
 	}
 
@@ -631,8 +605,7 @@ static void i40e_cee_to_dcb_v1_config(
 	dcbcfg->pfc.pfcenable = cee_cfg->oper_pfc_en;
 	dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
 
-	status = (tlv_status & I40E_AQC_CEE_APP_STATUS_MASK) >>
-		  I40E_AQC_CEE_APP_STATUS_SHIFT;
+	status = FIELD_GET(I40E_AQC_CEE_APP_STATUS_MASK, tlv_status);
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
 	/* Add APPs if Error is False */
 	if (!err) {
@@ -641,22 +614,19 @@ static void i40e_cee_to_dcb_v1_config(
 
 		/* FCoE APP */
 		dcbcfg->app[0].priority =
-			(app_prio & I40E_AQC_CEE_APP_FCOE_MASK) >>
-			 I40E_AQC_CEE_APP_FCOE_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_FCOE_MASK, app_prio);
 		dcbcfg->app[0].selector = I40E_APP_SEL_ETHTYPE;
 		dcbcfg->app[0].protocolid = I40E_APP_PROTOID_FCOE;
 
 		/* iSCSI APP */
 		dcbcfg->app[1].priority =
-			(app_prio & I40E_AQC_CEE_APP_ISCSI_MASK) >>
-			 I40E_AQC_CEE_APP_ISCSI_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_ISCSI_MASK, app_prio);
 		dcbcfg->app[1].selector = I40E_APP_SEL_TCPIP;
 		dcbcfg->app[1].protocolid = I40E_APP_PROTOID_ISCSI;
 
 		/* FIP APP */
 		dcbcfg->app[2].priority =
-			(app_prio & I40E_AQC_CEE_APP_FIP_MASK) >>
-			 I40E_AQC_CEE_APP_FIP_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_FIP_MASK, app_prio);
 		dcbcfg->app[2].selector = I40E_APP_SEL_ETHTYPE;
 		dcbcfg->app[2].protocolid = I40E_APP_PROTOID_FIP;
 	}
@@ -675,7 +645,7 @@ static void i40e_cee_to_dcb_config(
 {
 	u32 status, tlv_status = le32_to_cpu(cee_cfg->tlv_status);
 	u16 app_prio = le16_to_cpu(cee_cfg->oper_app_prio);
-	u8 i, tc, err, sync, oper;
+	u8 i, err, sync, oper;
 
 	/* CEE PG data to ETS config */
 	dcbcfg->etscfg.maxtcs = cee_cfg->oper_num_tc;
@@ -684,13 +654,13 @@ static void i40e_cee_to_dcb_config(
 	 * from those in the CEE Priority Group sub-TLV.
 	 */
 	for (i = 0; i < 4; i++) {
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_0_MASK) >>
-			 I40E_CEE_PGID_PRIO_0_SHIFT);
-		dcbcfg->etscfg.prioritytable[i * 2] =  tc;
-		tc = (u8)((cee_cfg->oper_prio_tc[i] &
-			 I40E_CEE_PGID_PRIO_1_MASK) >>
-			 I40E_CEE_PGID_PRIO_1_SHIFT);
+		u8 tc;
+
+		tc = FIELD_GET(I40E_CEE_PGID_PRIO_0_MASK,
+			       cee_cfg->oper_prio_tc[i]);
+		dcbcfg->etscfg.prioritytable[i * 2] = tc;
+		tc = FIELD_GET(I40E_CEE_PGID_PRIO_1_MASK,
+			       cee_cfg->oper_prio_tc[i]);
 		dcbcfg->etscfg.prioritytable[i * 2 + 1] = tc;
 	}
 
@@ -713,8 +683,7 @@ static void i40e_cee_to_dcb_config(
 	dcbcfg->pfc.pfccap = I40E_MAX_TRAFFIC_CLASS;
 
 	i = 0;
-	status = (tlv_status & I40E_AQC_CEE_FCOE_STATUS_MASK) >>
-		  I40E_AQC_CEE_FCOE_STATUS_SHIFT;
+	status = FIELD_GET(I40E_AQC_CEE_FCOE_STATUS_MASK, tlv_status);
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
 	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
 	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
@@ -722,15 +691,13 @@ static void i40e_cee_to_dcb_config(
 	if (!err && sync && oper) {
 		/* FCoE APP */
 		dcbcfg->app[i].priority =
-			(app_prio & I40E_AQC_CEE_APP_FCOE_MASK) >>
-			 I40E_AQC_CEE_APP_FCOE_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_FCOE_MASK, app_prio);
 		dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
 		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_FCOE;
 		i++;
 	}
 
-	status = (tlv_status & I40E_AQC_CEE_ISCSI_STATUS_MASK) >>
-		  I40E_AQC_CEE_ISCSI_STATUS_SHIFT;
+	status = FIELD_GET(I40E_AQC_CEE_ISCSI_STATUS_MASK, tlv_status);
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
 	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
 	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
@@ -738,15 +705,13 @@ static void i40e_cee_to_dcb_config(
 	if (!err && sync && oper) {
 		/* iSCSI APP */
 		dcbcfg->app[i].priority =
-			(app_prio & I40E_AQC_CEE_APP_ISCSI_MASK) >>
-			 I40E_AQC_CEE_APP_ISCSI_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_ISCSI_MASK, app_prio);
 		dcbcfg->app[i].selector = I40E_APP_SEL_TCPIP;
 		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_ISCSI;
 		i++;
 	}
 
-	status = (tlv_status & I40E_AQC_CEE_FIP_STATUS_MASK) >>
-		  I40E_AQC_CEE_FIP_STATUS_SHIFT;
+	status = FIELD_GET(I40E_AQC_CEE_FIP_STATUS_MASK, tlv_status);
 	err = (status & I40E_TLV_STATUS_ERR) ? 1 : 0;
 	sync = (status & I40E_TLV_STATUS_SYNC) ? 1 : 0;
 	oper = (status & I40E_TLV_STATUS_OPER) ? 1 : 0;
@@ -754,8 +719,7 @@ static void i40e_cee_to_dcb_config(
 	if (!err && sync && oper) {
 		/* FIP APP */
 		dcbcfg->app[i].priority =
-			(app_prio & I40E_AQC_CEE_APP_FIP_MASK) >>
-			 I40E_AQC_CEE_APP_FIP_SHIFT;
+			FIELD_GET(I40E_AQC_CEE_APP_FIP_MASK, app_prio);
 		dcbcfg->app[i].selector = I40E_APP_SEL_ETHTYPE;
 		dcbcfg->app[i].protocolid = I40E_APP_PROTOID_FIP;
 		i++;
@@ -1188,7 +1152,7 @@ static void i40e_add_ieee_app_pri_tlv(struct i40e_lldp_org_tlv *tlv,
 		selector = dcbcfg->app[i].selector & 0x7;
 		buf[offset] = (priority << I40E_IEEE_APP_PRIO_SHIFT) | selector;
 		buf[offset + 1] = (dcbcfg->app[i].protocolid >> 0x8) & 0xFF;
-		buf[offset + 2] =  dcbcfg->app[i].protocolid & 0xFF;
+		buf[offset + 2] = dcbcfg->app[i].protocolid & 0xFF;
 		/* Move to next app */
 		offset += 3;
 		i++;
@@ -1284,8 +1248,7 @@ int i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
 	do {
 		i40e_add_dcb_tlv(tlv, dcbcfg, tlvid++);
 		typelength = ntohs(tlv->typelength);
-		length = (u16)((typelength & I40E_LLDP_TLV_LEN_MASK) >>
-				I40E_LLDP_TLV_LEN_SHIFT);
+		length = FIELD_GET(I40E_LLDP_TLV_LEN_MASK, typelength);
 		if (length)
 			offset += length + I40E_IEEE_TLV_HEADER_LENGTH;
 		/* END TLV or beyond LLDPDU size */
@@ -1537,8 +1500,7 @@ u8 i40e_dcb_hw_get_num_tc(struct i40e_hw *hw)
 {
 	u32 reg = rd32(hw, I40E_PRTDCB_GENC);
 
-	return (u8)((reg & I40E_PRTDCB_GENC_NUMTC_MASK) >>
-		I40E_PRTDCB_GENC_NUMTC_SHIFT);
+	return FIELD_GET(I40E_PRTDCB_GENC_NUMTC_MASK, reg);
 }
 
 /**

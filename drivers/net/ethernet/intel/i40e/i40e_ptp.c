@@ -1480,8 +1480,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 	/* Only one PF is assigned to control 1588 logic per port. Do not
 	 * enable any support for PFs not assigned via PRTTSYN_CTL0.PF_ID
 	 */
-	pf_id = (rd32(hw, I40E_PRTTSYN_CTL0) & I40E_PRTTSYN_CTL0_PF_ID_MASK) >>
-		I40E_PRTTSYN_CTL0_PF_ID_SHIFT;
+	pf_id = FIELD_GET(I40E_PRTTSYN_CTL0_PF_ID_MASK,
+			  rd32(hw, I40E_PRTTSYN_CTL0));
 	if (hw->pf_id != pf_id) {
 		clear_bit(I40E_FLAG_PTP_ENA, pf->flags);
 		dev_info(&pf->pdev->dev, "%s: PTP not supported on %s\n",

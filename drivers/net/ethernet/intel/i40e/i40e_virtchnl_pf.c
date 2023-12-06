@@ -474,10 +474,10 @@ static void i40e_release_rdma_qvlist(struct i40e_vf *vf)
 			 */
 			reg_idx = (msix_vf - 1) * vf->vf_id + qv_info->ceq_idx;
 			reg = rd32(hw, I40E_VPINT_CEQCTL(reg_idx));
-			next_q_index = (reg & I40E_VPINT_CEQCTL_NEXTQ_INDX_MASK)
-					>> I40E_VPINT_CEQCTL_NEXTQ_INDX_SHIFT;
-			next_q_type = (reg & I40E_VPINT_CEQCTL_NEXTQ_TYPE_MASK)
-					>> I40E_VPINT_CEQCTL_NEXTQ_TYPE_SHIFT;
+			next_q_index = FIELD_GET(I40E_VPINT_CEQCTL_NEXTQ_INDX_MASK,
+						 reg);
+			next_q_type = FIELD_GET(I40E_VPINT_CEQCTL_NEXTQ_TYPE_MASK,
+						reg);
 
 			reg_idx = ((msix_vf - 1) * vf->vf_id) + (v_idx - 1);
 			reg = (next_q_index &
@@ -555,10 +555,10 @@ i40e_config_rdma_qvlist(struct i40e_vf *vf,
 		 * queue on top. Also link it with the new queue in CEQCTL.
 		 */
 		reg = rd32(hw, I40E_VPINT_LNKLSTN(reg_idx));
-		next_q_idx = ((reg & I40E_VPINT_LNKLSTN_FIRSTQ_INDX_MASK) >>
-				I40E_VPINT_LNKLSTN_FIRSTQ_INDX_SHIFT);
-		next_q_type = ((reg & I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_MASK) >>
-				I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_SHIFT);
+		next_q_idx = FIELD_GET(I40E_VPINT_LNKLSTN_FIRSTQ_INDX_MASK,
+				       reg);
+		next_q_type = FIELD_GET(I40E_VPINT_LNKLSTN_FIRSTQ_TYPE_MASK,
+					reg);
 
 		if (qv_info->ceq_idx != I40E_QUEUE_INVALID_IDX) {
 			reg_idx = (msix_vf - 1) * vf->vf_id + qv_info->ceq_idx;
@@ -4673,9 +4673,8 @@ int i40e_ndo_get_vf_config(struct net_device *netdev,
 
 	ivi->max_tx_rate = vf->tx_rate;
 	ivi->min_tx_rate = 0;
-	ivi->vlan = le16_to_cpu(vsi->info.pvid) & I40E_VLAN_MASK;
-	ivi->qos = (le16_to_cpu(vsi->info.pvid) & I40E_PRIORITY_MASK) >>
-		   I40E_VLAN_PRIORITY_SHIFT;
+	ivi->vlan = le16_get_bits(vsi->info.pvid, I40E_VLAN_MASK);
+	ivi->qos = le16_get_bits(vsi->info.pvid, I40E_PRIORITY_MASK);
 	if (vf->link_forced == false)
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->link_up == true)

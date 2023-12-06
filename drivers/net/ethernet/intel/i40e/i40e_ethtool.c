@@ -1952,9 +1952,8 @@ static int i40e_get_eeprom_len(struct net_device *netdev)
 		val = X722_EEPROM_SCOPE_LIMIT + 1;
 		return val;
 	}
-	val = (rd32(hw, I40E_GLPCI_LBARCTRL)
-		& I40E_GLPCI_LBARCTRL_FL_SIZE_MASK)
-		>> I40E_GLPCI_LBARCTRL_FL_SIZE_SHIFT;
+	val = FIELD_GET(I40E_GLPCI_LBARCTRL_FL_SIZE_MASK,
+			rd32(hw, I40E_GLPCI_LBARCTRL));
 	/* register returns value in power of 2, 64Kbyte chunks. */
 	val = (64 * 1024) * BIT(val);
 	return val;
@@ -3284,7 +3283,7 @@ static int i40e_parse_rx_flow_user_data(struct ethtool_rx_flow_spec *fsp,
 	} else if (valid) {
 		data->flex_word = value & I40E_USERDEF_FLEX_WORD;
 		data->flex_offset =
-			(value & I40E_USERDEF_FLEX_OFFSET) >> 16;
+			FIELD_GET(I40E_USERDEF_FLEX_OFFSET, value);
 		data->flex_filter = true;
 	}
 

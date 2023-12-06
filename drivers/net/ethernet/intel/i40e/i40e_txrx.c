@@ -686,8 +686,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 	u32 error;
 
 	qw0 = (struct i40e_16b_rx_wb_qw0 *)&qword0_raw;
-	error = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
-		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
+	error = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK, qword1);
 
 	if (error == BIT(I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
 		pf->fd_inv = le32_to_cpu(qw0->hi_dword.fd_id);
@@ -1398,8 +1397,7 @@ void i40e_clean_programming_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 {
 	u8 id;
 
-	id = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
-		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
+	id = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK, qword1);
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
 		i40e_fd_handle_status(rx_ring, qword0_raw, qword1, id);
@@ -1759,11 +1757,9 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	u64 qword;
 
 	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >> I40E_RXD_QW1_PTYPE_SHIFT;
-	rx_error = (qword & I40E_RXD_QW1_ERROR_MASK) >>
-		   I40E_RXD_QW1_ERROR_SHIFT;
-	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-		    I40E_RXD_QW1_STATUS_SHIFT;
+	ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
+	rx_error = FIELD_GET(I40E_RXD_QW1_ERROR_MASK, qword);
+	rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 	decoded = decode_rx_desc_ptype(ptype);
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -1896,13 +1892,10 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb)
 {
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-			I40E_RXD_QW1_STATUS_SHIFT;
+	u32 rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 	u32 tsynvalid = rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK;
-	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
-		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
-	u8 rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-		      I40E_RXD_QW1_PTYPE_SHIFT;
+	u32 tsyn = FIELD_GET(I40E_RXD_QW1_STATUS_TSYNINDX_MASK, rx_status);
+	u8 rx_ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
 
 	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
@@ -2549,8 +2542,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget,
 			continue;
 		}
 
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		size = FIELD_GET(I40E_RXD_QW1_LENGTH_PBUF_MASK, qword);
 		if (!size)
 			break;
 
@@ -3594,8 +3586,7 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
-		td_tag = (tx_flags & I40E_TX_FLAGS_VLAN_MASK) >>
-			 I40E_TX_FLAGS_VLAN_SHIFT;
+		td_tag = FIELD_GET(I40E_TX_FLAGS_VLAN_MASK, tx_flags);
 	}
 
 	first->tx_flags = tx_flags;
