@@ -4,24 +4,26 @@
 #include <linux/clk-provider.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
-#include <linux/platform_device.h>
+#include <linux/reset-controller.h>
+
 #include <dt-bindings/clock/aspeed,ast1700-clk.h>
+#include <dt-bindings/reset/aspeed,ast1700-reset.h>
 
 #define AST1700_CLK_25MHZ 25000000
 #define AST1700_CLK_24MHZ 24000000
 #define AST1700_CLK_192MHZ 192000000
 /* IO Die */
-#define AST1700_CLK_STOP 0x00
-#define AST1700_CLK_STOP2 0x20
-#define AST1700_CLK_SEL1 0x40
-#define AST1700_CLK_SEL2 0x44
+#define AST1700_CLK_STOP 0x240
+#define AST1700_CLK_STOP2 0x260
+#define AST1700_CLK_SEL1 0x280
+#define AST1700_CLK_SEL2 0x284
 #define UXCLK_MASK GENMASK(1, 0)
 #define HUXCLK_MASK GENMASK(4, 3)
-#define AST1700_HPLL_PARAM 0xC0
-#define AST1700_APLL_PARAM 0xD0
-#define AST1700_DPLL_PARAM 0xE0
-#define AST1700_UXCLK_CTRL 0xF0
-#define AST1700_HUXCLK_CTRL 0x100
+#define AST1700_HPLL_PARAM 0x300
+#define AST1700_APLL_PARAM 0x310
+#define AST1700_DPLL_PARAM 0x320
+#define AST1700_UXCLK_CTRL 0x330
+#define AST1700_HUXCLK_CTRL 0x334
 
 static DEFINE_IDA(ast1700_clk_ida);
 
@@ -201,6 +203,49 @@ static struct clk_hw *AST1700_clk_hw_register_gate(struct device *dev, const cha
 	return hw;
 }
 
+struct ast1700_reset {
+	void __iomem *base;
+	struct reset_controller_dev rcdev;
+};
+
+#define to_rc_data(p) container_of(p, struct ast1700_reset, rcdev)
+
+static int ast1700_reset_assert(struct reset_controller_dev *rcdev, unsigned long id)
+{
+	struct ast1700_reset *rc = to_rc_data(rcdev);
+	u32 rst = BIT(id % 32);
+	u32 reg = id >= 32 ? 0x220 : 0x200;
+
+	writel(rst, rc->base + reg);
+	return 0;
+}
+
+static int ast1700_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
+{
+	struct ast1700_reset *rc = to_rc_data(rcdev);
+	u32 rst = BIT(id % 32);
+	u32 reg = id >= 32 ? 0x220 : 0x200;
+
+	/* Use set to clear register */
+	writel(rst, rc->base + reg + 0x04);
+	return 0;
+}
+
+static int ast1700_reset_status(struct reset_controller_dev *rcdev, unsigned long id)
+{
+	struct ast1700_reset *rc = to_rc_data(rcdev);
+	u32 rst = BIT(id % 32);
+	u32 reg = id >= 32 ? 0x220 : 0x200;
+
+	return (readl(rc->base + reg) & rst);
+}
+
+static const struct reset_control_ops ast1700_reset_ops = {
+	.assert = ast1700_reset_assert,
+	.deassert = ast1700_reset_deassert,
+	.status = ast1700_reset_status,
+};
+
 static const char *const sdclk_sel0[] = {
 	"ast1700_0-hpll_divn",
 	"ast1700_0-apll_divn",
@@ -237,10 +282,10 @@ static const char *const uxclk_sel1[] = {
 
 #define CREATE_CLK_NAME(id, suffix) kasprintf(GFP_KERNEL, "ast1700_%d-%s", id, suffix)
 
-static int AST1700_clk_init(struct platform_device *pdev)
+static int AST1700_clk_init(struct device_node *ast1700_node)
 {
 	struct clk_hw_onecell_data *clk_data;
-	struct device *dev = &pdev->dev;
+	struct ast1700_reset *reset;
 	u32 uart_clk_source = 0;
 	void __iomem *clk_base;
 	struct clk_hw **clks;
@@ -250,18 +295,34 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	int id = ida_simple_get(&ast1700_clk_ida, 0, 0, GFP_KERNEL);
 
-	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, AST1700_NUM_CLKS), GFP_KERNEL);
+	clk_base = of_iomap(ast1700_node, 0);
+	WARN_ON(!clk_base);
+
+	clk_data = kzalloc(struct_size(clk_data, hws, AST1700_NUM_CLKS), GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
 
 	clk_data->num = AST1700_NUM_CLKS;
 	clks = clk_data->hws;
 
-	clk_base = devm_platform_ioremap_resource(pdev, 0);
-	if (WARN_ON(IS_ERR(clk_base)))
-		return PTR_ERR(clk_base);
+	reset = kzalloc(sizeof(*reset), GFP_KERNEL);
+	if (!reset)
+		return -ENOMEM;
 
-	hw = clk_hw_register_fixed_rate(dev, CREATE_CLK_NAME(id, "clkin"), NULL, 0, AST1700_CLK_25MHZ);
+	reset->base = clk_base;
+
+	reset->rcdev.owner = THIS_MODULE;
+	reset->rcdev.nr_resets = AST1700_RESET_NUMS;
+	reset->rcdev.ops = &ast1700_reset_ops;
+	reset->rcdev.of_node = ast1700_node;
+
+	ret = reset_controller_register(&reset->rcdev);
+	if (ret) {
+		pr_err("soc1 failed to register reset controller\n");
+		return ret;
+	}
+
+	hw = clk_hw_register_fixed_rate(NULL, CREATE_CLK_NAME(id, "clkin"), NULL, 0, AST1700_CLK_25MHZ);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 	clks[AST1700_CLKIN] = hw;
@@ -275,17 +336,17 @@ static int AST1700_clk_init(struct platform_device *pdev)
 	clks[AST1700_CLK_APLL] = AST1700_calc_pll(CREATE_CLK_NAME(id, "apll"), CREATE_CLK_NAME(id, "clkin"), val);
 
 	clks[AST1700_CLK_APLL_DIV2] =
-		clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "apll_div2"), CREATE_CLK_NAME(id, "apll"), 0, 1, 2);
+		clk_hw_register_fixed_factor(NULL, CREATE_CLK_NAME(id, "apll_div2"), CREATE_CLK_NAME(id, "apll"), 0, 1, 2);
 
 	clks[AST1700_CLK_APLL_DIV4] =
-		clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "apll_div4"), CREATE_CLK_NAME(id, "apll"), 0, 1, 4);
+		clk_hw_register_fixed_factor(NULL, CREATE_CLK_NAME(id, "apll_div4"), CREATE_CLK_NAME(id, "apll"), 0, 1, 4);
 
 	val = readl(clk_base + AST1700_DPLL_PARAM);
 	clks[AST1700_CLK_DPLL] = AST1700_calc_pll(CREATE_CLK_NAME(id, "dpll"), CREATE_CLK_NAME(id, "clkin"), val);
 
 	/* uxclk mux selection */
 	clks[AST1700_CLK_UXCLK] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uxclk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uxclk"),
 				    (id == 0) ? uxclk_sel0 : uxclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uxclk_sel0) : ARRAY_SIZE(uxclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL2,
@@ -296,7 +357,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	/* huxclk mux selection */
 	clks[AST1700_CLK_HUXCLK] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "huxclk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "huxclk"),
 				    (id == 0) ? uxclk_sel0 : uxclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uxclk_sel0) : ARRAY_SIZE(uxclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL2,
@@ -307,35 +368,35 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	/* AHB CLK = 200Mhz */
 	clks[AST1700_CLK_AHB] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "ahb"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "ahb"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      20, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	/* APB CLK = 100Mhz */
 	clks[AST1700_CLK_APB] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "apb"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "apb"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL1,
 					      18, 3, 0, ast1700_clk_div_table2, &ast1700_clk_lock);
 
 	//rmii
 	clks[AST1700_CLK_RMII] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "rmii"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "rmii"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      21, 3, 0, ast1700_rmii_div_table, &ast1700_clk_lock);
 
 	//rgmii
 	clks[AST1700_CLK_RGMII] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "rgmii"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "rgmii"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      25, 3, 0, ast1700_rgmii_div_table, &ast1700_clk_lock);
 
 	//mac hclk
 	clks[AST1700_CLK_MACHCLK] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "machclk"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "machclk"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      29, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
@@ -362,20 +423,20 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//sd pll divn
 	clks[AST1700_CLK_HPLL_DIVN] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "hpll_divn"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "hpll_divn"),
 					      CREATE_CLK_NAME(id, "hpll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      20, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	clks[AST1700_CLK_APLL_DIVN] =
-		clk_hw_register_divider_table(dev, CREATE_CLK_NAME(id, "apll_divn"),
+		clk_hw_register_divider_table(NULL, CREATE_CLK_NAME(id, "apll_divn"),
 					      CREATE_CLK_NAME(id, "apll"),
 					      0, clk_base + AST1700_CLK_SEL2,
 					      8, 3, 0, ast1700_clk_div_table, &ast1700_clk_lock);
 
 	//sd clk
 	clks[AST1700_CLK_SDCLK] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "sdclk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "sdclk"),
 				    (id == 0) ? sdclk_sel0 : sdclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(sdclk_sel0) : ARRAY_SIZE(sdclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -412,7 +473,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST1700_CLK_STOP,
 					     10, 0, &ast1700_clk_lock);
 
-	of_property_read_u32(dev->of_node, "uart-clk-source", &uart_clk_source);
+	of_property_read_u32(ast1700_node, "uart-clk-source", &uart_clk_source);
 
 	if (uart_clk_source) {
 		val = readl(clk_base + AST1700_CLK_SEL1) & GENMASK(12, 0);
@@ -422,7 +483,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART0
 	clks[AST1700_CLK_UART0] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart0clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart0clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -436,7 +497,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART1
 	clks[AST1700_CLK_UART1] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart1clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart1clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -450,7 +511,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART2
 	clks[AST1700_CLK_UART2] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart2clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart2clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -464,7 +525,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART3
 	clks[AST1700_CLK_UART3] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart3clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart3clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -575,7 +636,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 	/*clk stop 2 */
 	//UART5
 	clks[AST1700_CLK_UART5] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart5clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart5clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -589,7 +650,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART6
 	clks[AST1700_CLK_UART6] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart6clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart6clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -603,7 +664,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART7
 	clks[AST1700_CLK_UART7] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart7clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart7clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -617,7 +678,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART8
 	clks[AST1700_CLK_UART8] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart8clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart8clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -631,7 +692,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART9
 	clks[AST1700_CLK_UART9] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart9clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart9clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -645,7 +706,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART10
 	clks[AST1700_CLK_UART10] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart10clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart10clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -659,7 +720,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//UART11
 	clks[AST1700_CLK_UART11] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart11clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart11clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -673,7 +734,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 
 	//uart12: call bmc uart
 	clks[AST1700_CLK_UART12] =
-		clk_hw_register_mux(dev, CREATE_CLK_NAME(id, "uart12clk"),
+		clk_hw_register_mux(NULL, CREATE_CLK_NAME(id, "uart12clk"),
 				    (id == 0) ? uartclk_sel0 : uartclk_sel1,
 				    (id == 0) ? ARRAY_SIZE(uartclk_sel0) : ARRAY_SIZE(uartclk_sel1),
 				    0, clk_base + AST1700_CLK_SEL1,
@@ -710,7 +771,7 @@ static int AST1700_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST1700_CLK_STOP2,
 					     12, 0, &ast1700_clk_lock);
 
-	clk_hw_register_fixed_factor(dev, CREATE_CLK_NAME(id, "canclk"), CREATE_CLK_NAME(id, "apll"), 0, 1, 10);
+	clk_hw_register_fixed_factor(NULL, CREATE_CLK_NAME(id, "canclk"), CREATE_CLK_NAME(id, "apll"), 0, 1, 10);
 
 	clks[AST1700_CLK_GATE_CANCLK] =
 		AST1700_clk_hw_register_gate(NULL, CREATE_CLK_NAME(id, "canclk-gate"),
@@ -728,37 +789,10 @@ static int AST1700_clk_init(struct platform_device *pdev)
 					     0, clk_base + AST1700_CLK_STOP2,
 					     15, 0, &ast1700_clk_lock);
 
-	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
-	if (ret)
-		return ret;
+	of_clk_add_hw_provider(ast1700_node, of_clk_hw_onecell_get, clk_data);
 
 	return 0;
 };
 
-static int AST1700_clk_probe(struct platform_device *pdev)
-{
-	int (*probe)(struct platform_device *pdev);
+CLK_OF_DECLARE(ast1700, "aspeed,ast2700-scu", AST1700_clk_init);
 
-	probe = of_device_get_match_data(&pdev->dev);
-
-	if (probe)
-		return probe(pdev);
-
-	return 0;
-}
-
-static const struct of_device_id AST1700_clk_dt_ids[] = {
-	{ .compatible = "aspeed,ast1700-clk", .data = AST1700_clk_init },
-	{}
-};
-
-static struct platform_driver AST1700_clk_driver = {
-	.probe	= AST1700_clk_probe,
-	.driver = {
-		.name = "ast1700_clk",
-		.of_match_table = AST1700_clk_dt_ids,
-		.suppress_bind_attrs = true,
-	},
-};
-
-module_platform_driver(AST1700_clk_driver);
