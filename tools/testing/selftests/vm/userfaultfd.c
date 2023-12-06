@@ -517,8 +517,6 @@ static void uffd_test_ctx_init(uint64_t features)
 {
 	unsigned long nr, cpu;
 
-	uffd_test_ctx_clear();
-
 	uffd_test_ops->allocate_area((void **)&area_src, true);
 	uffd_test_ops->allocate_area((void **)&area_dst, false);
 
@@ -1195,6 +1193,7 @@ static int userfaultfd_zeropage_test(void)
 		if (my_bcmp(area_dst, zeropage, page_size))
 			err("zeropage is not zero");
 
+	uffd_test_ctx_clear();
 	printf("done.\n");
 	return 0;
 }
@@ -1207,6 +1206,7 @@ static int userfaultfd_events_test(void)
 	pid_t pid;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	printf("testing events (fork, remap, remove): ");
 	fflush(stdout);
@@ -1243,12 +1243,16 @@ static int userfaultfd_events_test(void)
 		err("faulting process failed");
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, NULL))
-		return 1;
+		goto out;
 
 	uffd_stats_report(&stats, 1);
 
-	return stats.missing_faults != nr_pages;
+	ret = stats.missing_faults != nr_pages;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 static int userfaultfd_sig_test(void)
@@ -1260,6 +1264,7 @@ static int userfaultfd_sig_test(void)
 	pid_t pid;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	printf("testing signal delivery: ");
 	fflush(stdout);
@@ -1300,14 +1305,18 @@ static int userfaultfd_sig_test(void)
 		err("faulting process failed");
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, (void **)&userfaults))
-		return 1;
+		goto out;
 
 	printf("done.\n");
 	if (userfaults)
 		err("Signal test failed, userfaults: %ld", userfaults);
 
-	return userfaults != 0;
+	ret = userfaults != 0;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 void check_memory_contents(char *p)
@@ -1336,6 +1345,7 @@ static int userfaultfd_minor_test(void)
 	pthread_t uffd_mon;
 	char c;
 	struct uffd_stats stats = { 0 };
+	int ret;
 
 	if (!test_uffdio_minor)
 		return 0;
@@ -1376,8 +1386,9 @@ static int userfaultfd_minor_test(void)
 
 	if (write(pipefd[1], &c, sizeof(c)) != sizeof(c))
 		err("pipe write");
+	ret = 1;
 	if (pthread_join(uffd_mon, NULL))
-		return 1;
+		goto out;
 
 	uffd_stats_report(&stats, 1);
 
@@ -1398,7 +1409,10 @@ static int userfaultfd_minor_test(void)
 		printf(" done.\n");
 	}
 
-	return stats.missing_faults != 0 || stats.minor_faults != nr_pages;
+	ret = stats.missing_faults != 0 || stats.minor_faults != nr_pages;
+out:
+	uffd_test_ctx_clear();
+	return ret;
 }
 
 #define BIT_ULL(nr)                   (1ULL << (nr))
@@ -1532,6 +1546,7 @@ static void userfaultfd_pagemap_test(unsigned int test_pgsize)
 	pagemap_check_wp(value, false);
 
 	close(pagemap_fd);
+	uffd_test_ctx_clear();
 	printf("done\n");
 }
 
@@ -1621,8 +1636,10 @@ static int userfaultfd_stress(void)
 		uffd_stats_reset(uffd_stats, nr_cpus);
 
 		/* bounce pass */
-		if (stress(uffd_stats))
+		if (stress(uffd_stats)) {
+			uffd_test_ctx_clear();
 			return 1;
+		}
 
 		/* Clear all the write protections if there is any */
 		if (test_uffdio_wp)
@@ -1654,6 +1671,7 @@ static int userfaultfd_stress(void)
 
 		uffd_stats_report(uffd_stats, nr_cpus);
 	}
+	uffd_test_ctx_clear();
 
 	if (test_type == TEST_ANON) {
 		/*
