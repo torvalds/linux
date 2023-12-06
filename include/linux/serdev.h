@@ -82,7 +82,7 @@ enum serdev_parity {
  * serdev controller structures
  */
 struct serdev_controller_ops {
-	int (*write_buf)(struct serdev_controller *, const unsigned char *, size_t);
+	ssize_t (*write_buf)(struct serdev_controller *, const u8 *, size_t);
 	void (*write_flush)(struct serdev_controller *);
 	int (*write_room)(struct serdev_controller *);
 	int (*open)(struct serdev_controller *);
@@ -185,9 +185,9 @@ static inline void serdev_controller_write_wakeup(struct serdev_controller *ctrl
 	serdev->ops->write_wakeup(serdev);
 }
 
-static inline int serdev_controller_receive_buf(struct serdev_controller *ctrl,
-					      const unsigned char *data,
-					      size_t count)
+static inline ssize_t serdev_controller_receive_buf(struct serdev_controller *ctrl,
+						    const u8 *data,
+						    size_t count)
 {
 	struct serdev_device *serdev = ctrl->serdev;
 
