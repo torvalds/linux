@@ -68,7 +68,7 @@
 		interrupt-parent = <&aitc>;
 		ranges;
 
-		aipi@200000 {
+		bus@200000 {
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -155,7 +155,7 @@
 			};
 		};
 
-		aipi@210000 {
+		bus@210000 {
 			compatible = "fsl,aipi-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
