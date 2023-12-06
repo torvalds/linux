@@ -98,6 +98,7 @@ enum fetch_op {
 	FETCH_OP_ST_UMEM,	/* Mem: .offset, .size */
 	FETCH_OP_ST_STRING,	/* String: .offset, .size */
 	FETCH_OP_ST_USTRING,	/* User String: .offset, .size */
+	FETCH_OP_ST_SYMSTR,	/* Kernel Symbol String: .offset, .size */
 	// Stage 4 (modify) op
 	FETCH_OP_MOD_BF,	/* Bitfield: .basesize, .lshift, .rshift */
 	// Stage 5 (loop) op
@@ -133,7 +134,8 @@ struct fetch_insn {
 struct fetch_type {
 	const char		*name;		/* Name of type */
 	size_t			size;		/* Byte size of type */
-	int			is_signed;	/* Signed flag */
+	bool			is_signed;	/* Signed flag */
+	bool			is_string;	/* String flag */
 	print_type_func_t	print;		/* Print functions */
 	const char		*fmt;		/* Format string */
 	const char		*fmttype;	/* Name in format file */
@@ -177,16 +179,19 @@ DECLARE_BASIC_PRINT_TYPE_FUNC(symbol);
 #define _ADDR_FETCH_TYPE(t) __ADDR_FETCH_TYPE(t)
 #define ADDR_FETCH_TYPE _ADDR_FETCH_TYPE(BITS_PER_LONG)
 
-#define __ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, _fmttype)	\
-	{.name = _name,				\
+#define __ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, str, _fmttype)	\
+	{.name = _name,					\
 	 .size = _size,					\
-	 .is_signed = sign,				\
+	 .is_signed = (bool)sign,			\
+	 .is_string = (bool)str,			\
 	 .print = PRINT_TYPE_FUNC_NAME(ptype),		\
 	 .fmt = PRINT_TYPE_FMT_NAME(ptype),		\
 	 .fmttype = _fmttype,				\
 	}
+
+/* Non string types can use these macros */
 #define _ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, _fmttype)	\
-	__ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, #_fmttype)
+	__ASSIGN_FETCH_TYPE(_name, ptype, ftype, _size, sign, 0, #_fmttype)
 #define ASSIGN_FETCH_TYPE(ptype, ftype, sign)			\
 	_ASSIGN_FETCH_TYPE(#ptype, ptype, ftype, sizeof(ftype), sign, ptype)
 
@@ -302,7 +307,7 @@ trace_probe_primary_from_call(struct trace_event_call *call)
 {
 	struct trace_probe_event *tpe = trace_probe_event_from_call(call);
 
-	return list_first_entry(&tpe->probes, struct trace_probe, list);
+	return list_first_entry_or_null(&tpe->probes, struct trace_probe, list);
 }
 
 static inline struct list_head *trace_probe_probe_list(struct trace_probe *tp)
@@ -431,6 +436,7 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
 	C(BAD_TYPE,		"Unknown type is specified"),		\
 	C(BAD_STRING,		"String accepts only memory argument"),	\
+	C(BAD_SYMSTRING,	"Symbol String doesn't accept data/userdata"),	\
 	C(BAD_BITFIELD,		"Invalid bitfield"),			\
 	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
 	C(NO_ARG_NAME,		"Argument name is not specified"),	\

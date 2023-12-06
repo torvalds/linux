@@ -82,6 +82,10 @@ bool perform_link_training_with_retries(
 	enum signal_type signal,
 	bool do_fallback);
 
+enum dc_status read_hpd_rx_irq_data(
+	struct dc_link *link,
+	union hpd_irq_data *irq_data);
+
 bool hpd_rx_irq_check_link_loss_status(
 	struct dc_link *link,
 	union hpd_irq_data *hpd_irq_dpcd_data);

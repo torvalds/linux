@@ -307,18 +307,15 @@ int unregister_fprobe(struct fprobe *fp)
 		    fp->ops.saved_func != fprobe_kprobe_handler))
 		return -EINVAL;
 
-	/*
-	 * rethook_free() starts disabling the rethook, but the rethook handlers
-	 * may be running on other processors at this point. To make sure that all
-	 * current running handlers are finished, call unregister_ftrace_function()
-	 * after this.
-	 */
 	if (fp->rethook)
-		rethook_free(fp->rethook);
+		rethook_stop(fp->rethook);
 
 	ret = unregister_ftrace_function(&fp->ops);
 	if (ret < 0)
 		return ret;
+
+	if (fp->rethook)
+		rethook_free(fp->rethook);
 
 	ftrace_free_filter(&fp->ops);
 

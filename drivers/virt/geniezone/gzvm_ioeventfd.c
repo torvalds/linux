@@ -35,13 +35,16 @@ static bool ioeventfd_check_collision(struct gzvm *gzvm, struct gzvm_ioevent *p)
 {
 	struct gzvm_ioevent *_p;
 
-	list_for_each_entry(_p, &gzvm->ioevents, list)
+	list_for_each_entry(_p, &gzvm->ioevents, list) {
 		if (_p->addr == p->addr &&
 		    (!_p->len || !p->len ||
 		     (_p->len == p->len &&
 		      (_p->wildcard || p->wildcard ||
 		       _p->datamatch == p->datamatch))))
 			return true;
+		if (p->addr >= _p->addr && p->addr < _p->addr + _p->len)
+			return true;
+	}
 
 	return false;
 }

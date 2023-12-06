@@ -22,12 +22,8 @@ static const struct mtk_gate_regs sgmii0_cg_regs = {
 	.sta_ofs = 0xe4,
 };
 
-#define GATE_SGMII0(_id, _name, _parent, _shift)                               \
-	{                                                                      \
-		.id = _id, .name = _name, .parent_name = _parent,              \
-		.regs = &sgmii0_cg_regs, .shift = _shift,                      \
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,                        \
-	}
+#define GATE_SGMII0(_id, _name, _parent, _shift)		\
+	GATE_MTK(_id, _name, _parent, &sgmii0_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate sgmii0_clks[] __initconst = {
 	GATE_SGMII0(CLK_SGMII0_TX250M_EN, "sgmii0_tx250m_en", "top_xtal", 2),
@@ -42,12 +38,8 @@ static const struct mtk_gate_regs sgmii1_cg_regs = {
 	.sta_ofs = 0xe4,
 };
 
-#define GATE_SGMII1(_id, _name, _parent, _shift)                               \
-	{                                                                      \
-		.id = _id, .name = _name, .parent_name = _parent,              \
-		.regs = &sgmii1_cg_regs, .shift = _shift,                      \
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,                        \
-	}
+#define GATE_SGMII1(_id, _name, _parent, _shift)		\
+	GATE_MTK(_id, _name, _parent, &sgmii1_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate sgmii1_clks[] __initconst = {
 	GATE_SGMII1(CLK_SGMII1_TX250M_EN, "sgmii1_tx250m_en", "top_xtal", 2),
@@ -62,12 +54,8 @@ static const struct mtk_gate_regs eth_cg_regs = {
 	.sta_ofs = 0x30,
 };
 
-#define GATE_ETH(_id, _name, _parent, _shift)                                  \
-	{                                                                      \
-		.id = _id, .name = _name, .parent_name = _parent,              \
-		.regs = &eth_cg_regs, .shift = _shift,                         \
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,                        \
-	}
+#define GATE_ETH(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate eth_clks[] __initconst = {
 	GATE_ETH(CLK_ETH_FE_EN, "eth_fe_en", "netsys_2x_sel", 6),

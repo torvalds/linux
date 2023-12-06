@@ -929,6 +929,7 @@ int bnxt_ptp_init(struct bnxt *bp, bool phc_cfg)
 	} else {
 		bnxt_ptp_timecounter_init(bp, true);
 	}
+	bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, true);
 
 	ptp->ptp_info = bnxt_ptp_caps;
 	if ((bp->fw_cap & BNXT_FW_CAP_PTP_PPS)) {

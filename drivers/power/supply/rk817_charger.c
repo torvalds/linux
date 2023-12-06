@@ -335,6 +335,20 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 			charger->fcc_mah * 1000);
 	}
 
+	/*
+	 * Set the SOC to 0 if we are below the minimum system voltage.
+	 */
+	if (volt_avg <= charger->bat_voltage_min_design_uv) {
+		charger->soc = 0;
+		charge_now_adc = CHARGE_TO_ADC(0, charger->res_div);
+		put_unaligned_be32(charge_now_adc, bulk_reg);
+		regmap_bulk_write(rk808->regmap,
+				  RK817_GAS_GAUGE_Q_INIT_H3, bulk_reg, 4);
+		dev_warn(charger->dev,
+			 "Battery voltage %d below minimum voltage %d\n",
+			 volt_avg, charger->bat_voltage_min_design_uv);
+		}
+
 	rk817_record_battery_nvram_values(charger);
 
 	return 0;
@@ -710,9 +724,10 @@ static int rk817_read_battery_nvram_values(struct rk817_charger *charger)
 
 	/*
 	 * Read the nvram for state of charge. Sanity check for values greater
-	 * than 100 (10000). If the value is off it should get corrected
-	 * automatically when the voltage drops to the min (soc is 0) or when
-	 * the battery is full (soc is 100).
+	 * than 100 (10000) or less than 0, because other things (BSP kernels,
+	 * U-Boot, or even i2cset) can write to this register. If the value is
+	 * off it should get corrected automatically when the voltage drops to
+	 * the min (soc is 0) or when the battery is full (soc is 100).
 	 */
 	ret = regmap_bulk_read(charger->rk808->regmap,
 			       RK817_GAS_GAUGE_BAT_R1, bulk_reg, 3);
@@ -721,6 +736,8 @@ static int rk817_read_battery_nvram_values(struct rk817_charger *charger)
 	charger->soc = get_unaligned_le24(bulk_reg);
 	if (charger->soc > 10000)
 		charger->soc = 10000;
+	if (charger->soc < 0)
+		charger->soc = 0;
 
 	return 0;
 }
@@ -731,8 +748,8 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 {
 	struct rk808 *rk808 = charger->rk808;
 	u8 bulk_reg[4];
-	u32 boot_voltage, boot_charge_mah, tmp;
-	int ret, reg, off_time;
+	u32 boot_voltage, boot_charge_mah;
+	int ret, reg, off_time, tmp;
 	bool first_boot;
 
 	/*
@@ -785,10 +802,12 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 		regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
 				 bulk_reg, 4);
 		tmp = get_unaligned_be32(bulk_reg);
+		if (tmp < 0)
+			tmp = 0;
 		boot_charge_mah = ADC_TO_CHARGE_UAH(tmp,
 						    charger->res_div) / 1000;
 		/*
-		 * Check if the columb counter has been off for more than 300
+		 * Check if the columb counter has been off for more than 30
 		 * minutes as it tends to drift downward. If so, re-init soc
 		 * with the boot voltage instead. Note the unit values for the
 		 * OFF_CNT register appear to be in decaminutes and stops
@@ -799,7 +818,7 @@ rk817_read_or_set_full_charge_on_boot(struct rk817_charger *charger,
 		 * than 0 on a reboot anyway.
 		 */
 		regmap_read(rk808->regmap, RK817_GAS_GAUGE_OFF_CNT, &off_time);
-		if (off_time >= 30) {
+		if (off_time >= 3) {
 			regmap_bulk_read(rk808->regmap,
 					 RK817_GAS_GAUGE_PWRON_VOL_H,
 					 bulk_reg, 2);

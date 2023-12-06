@@ -57,13 +57,11 @@
 #define CMN_INFO_REQ_VC_NUM		GENMASK_ULL(1, 0)
 
 /* XPs also have some local topology info which has uses too */
-#define CMN_MXP__CONNECT_INFO_P0	0x0008
-#define CMN_MXP__CONNECT_INFO_P1	0x0010
-#define CMN_MXP__CONNECT_INFO_P2	0x0028
-#define CMN_MXP__CONNECT_INFO_P3	0x0030
-#define CMN_MXP__CONNECT_INFO_P4	0x0038
-#define CMN_MXP__CONNECT_INFO_P5	0x0040
+#define CMN_MXP__CONNECT_INFO(p)	(0x0008 + 8 * (p))
 #define CMN__CONNECT_INFO_DEVICE_TYPE	GENMASK_ULL(4, 0)
+
+#define CMN_MAX_PORTS			6
+#define CI700_CONNECT_INFO_P2_5_OFFSET	0x10
 
 /* PMU registers occupy the 3rd 4KB page of each node's region */
 #define CMN_PMU_OFFSET			0x2000
@@ -166,7 +164,7 @@
 #define CMN_EVENT_BYNODEID(event)	FIELD_GET(CMN_CONFIG_BYNODEID, (event)->attr.config)
 #define CMN_EVENT_NODEID(event)		FIELD_GET(CMN_CONFIG_NODEID, (event)->attr.config)
 
-#define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(27, 24)
+#define CMN_CONFIG_WP_COMBINE		GENMASK_ULL(30, 27)
 #define CMN_CONFIG_WP_DEV_SEL		GENMASK_ULL(50, 48)
 #define CMN_CONFIG_WP_CHN_SEL		GENMASK_ULL(55, 51)
 /* Note that we don't yet support the tertiary match group on newer IPs */
@@ -396,6 +394,25 @@ static struct arm_cmn_node *arm_cmn_node(const struct arm_cmn *cmn,
 	return NULL;
 }
 
+static u32 arm_cmn_device_connect_info(const struct arm_cmn *cmn,
+				       const struct arm_cmn_node *xp, int port)
+{
+	int offset = CMN_MXP__CONNECT_INFO(port);
+
+	if (port >= 2) {
+		if (cmn->model & (CMN600 | CMN650))
+			return 0;
+		/*
+		 * CI-700 may have extra ports, but still has the
+		 * mesh_port_connect_info registers in the way.
+		 */
+		if (cmn->model == CI700)
+			offset += CI700_CONNECT_INFO_P2_5_OFFSET;
+	}
+
+	return readl_relaxed(xp->pmu_base - CMN_PMU_OFFSET + offset);
+}
+
 static struct dentry *arm_cmn_debugfs;
 
 #ifdef CONFIG_DEBUG_FS
@@ -469,7 +486,7 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 	y = cmn->mesh_y;
 	while (y--) {
 		int xp_base = cmn->mesh_x * y;
-		u8 port[6][CMN_MAX_DIMENSION];
+		u8 port[CMN_MAX_PORTS][CMN_MAX_DIMENSION];
 
 		for (x = 0; x < cmn->mesh_x; x++)
 			seq_puts(s, "--------+");
@@ -477,14 +494,9 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 		seq_printf(s, "\n%d    |", y);
 		for (x = 0; x < cmn->mesh_x; x++) {
 			struct arm_cmn_node *xp = cmn->xps + xp_base + x;
-			void __iomem *base = xp->pmu_base - CMN_PMU_OFFSET;
 
-			port[0][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P0);
-			port[1][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P1);
-			port[2][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P2);
-			port[3][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P3);
-			port[4][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P4);
-			port[5][x] = readl_relaxed(base + CMN_MXP__CONNECT_INFO_P5);
+			for (p = 0; p < CMN_MAX_PORTS; p++)
+				port[p][x] = arm_cmn_device_connect_info(cmn, xp, p);
 			seq_printf(s, " XP #%-2d |", xp_base + x);
 		}
 
@@ -1886,9 +1898,10 @@ static int arm_cmn_init_dtc(struct arm_cmn *cmn, struct arm_cmn_node *dn, int id
 	if (dtc->irq < 0)
 		return dtc->irq;
 
-	writel_relaxed(0, dtc->base + CMN_DT_PMCR);
+	writel_relaxed(CMN_DT_DTC_CTL_DT_EN, dtc->base + CMN_DT_DTC_CTL);
+	writel_relaxed(CMN_DT_PMCR_PMU_EN | CMN_DT_PMCR_OVFL_INTR_EN, dtc->base + CMN_DT_PMCR);
+	writeq_relaxed(0, dtc->base + CMN_DT_PMCCNTR);
 	writel_relaxed(0x1ff, dtc->base + CMN_DT_PMOVSR_CLR);
-	writel_relaxed(CMN_DT_PMCR_OVFL_INTR_EN, dtc->base + CMN_DT_PMCR);
 
 	return 0;
 }
@@ -1948,7 +1961,7 @@ static int arm_cmn_init_dtcs(struct arm_cmn *cmn)
 			dn->type = CMN_TYPE_CCLA;
 	}
 
-	writel_relaxed(CMN_DT_DTC_CTL_DT_EN, cmn->dtc[0].base + CMN_DT_DTC_CTL);
+	arm_cmn_set_state(cmn, CMN_STATE_DISABLED);
 
 	return 0;
 }
@@ -2082,18 +2095,9 @@ static int arm_cmn_discover(struct arm_cmn *cmn, unsigned int rgn_offset)
 		 * from this, since in that case we will see at least one XP
 		 * with port 2 connected, for the HN-D.
 		 */
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P0))
-			xp_ports |= BIT(0);
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P1))
-			xp_ports |= BIT(1);
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P2))
-			xp_ports |= BIT(2);
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P3))
-			xp_ports |= BIT(3);
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P4))
-			xp_ports |= BIT(4);
-		if (readq_relaxed(xp_region + CMN_MXP__CONNECT_INFO_P5))
-			xp_ports |= BIT(5);
+		for (int p = 0; p < CMN_MAX_PORTS; p++)
+			if (arm_cmn_device_connect_info(cmn, xp, p))
+				xp_ports |= BIT(p);
 
 		if (cmn->multi_dtm && (xp_ports & 0xc))
 			arm_cmn_init_dtm(dtm++, xp, 1);
