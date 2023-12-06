@@ -6834,13 +6834,11 @@ void ice_update_vsi_stats(struct ice_vsi *vsi)
 		cur_ns->rx_crc_errors = pf->stats.crc_errors;
 		cur_ns->rx_errors = pf->stats.crc_errors +
 				    pf->stats.illegal_bytes +
-				    pf->stats.rx_len_errors +
 				    pf->stats.rx_undersize +
 				    pf->hw_csum_rx_error +
 				    pf->stats.rx_jabber +
 				    pf->stats.rx_fragments +
 				    pf->stats.rx_oversize;
-		cur_ns->rx_length_errors = pf->stats.rx_len_errors;
 		/* record drops from the port level */
 		cur_ns->rx_missed_errors = pf->stats.eth.rx_discards;
 	}
@@ -6979,9 +6977,6 @@ void ice_update_pf_stats(struct ice_pf *pf)
 	ice_stat_update32(hw, GLPRT_MRFC(port), pf->stat_prev_loaded,
 			  &prev_ps->mac_remote_faults,
 			  &cur_ps->mac_remote_faults);
-
-	ice_stat_update32(hw, GLPRT_RLEC(port), pf->stat_prev_loaded,
-			  &prev_ps->rx_len_errors, &cur_ps->rx_len_errors);
 
 	ice_stat_update32(hw, GLPRT_RUC(port), pf->stat_prev_loaded,
 			  &prev_ps->rx_undersize, &cur_ps->rx_undersize);
