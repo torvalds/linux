@@ -81,6 +81,9 @@ static inline void __maps__zput(struct maps **map)
 
 #define maps__zput(map) __maps__zput(&map)
 
+/* Iterate over map calling cb for each entry. */
+int maps__for_each_map(struct maps *maps, int (*cb)(struct map *map, void *data), void *data);
+
 static inline struct rb_root *maps__entries(struct maps *maps)
 {
 	return &RC_CHK_ACCESS(maps)->entries;

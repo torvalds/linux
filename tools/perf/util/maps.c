@@ -196,6 +196,21 @@ void maps__put(struct maps *maps)
 		RC_CHK_PUT(maps);
 }
 
+int maps__for_each_map(struct maps *maps, int (*cb)(struct map *map, void *data), void *data)
+{
+	struct map_rb_node *pos;
+	int ret = 0;
+
+	down_read(maps__lock(maps));
+	maps__for_each_entry(maps, pos)	{
+		ret = cb(pos->map, data);
+		if (ret)
+			break;
+	}
+	up_read(maps__lock(maps));
+	return ret;
+}
+
 struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
 {
 	struct map *map = maps__find(maps, addr);
@@ -210,31 +225,40 @@ struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
 	return NULL;
 }
 
-struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp)
-{
+struct maps__find_symbol_by_name_args {
+	struct map **mapp;
+	const char *name;
 	struct symbol *sym;
-	struct map_rb_node *pos;
+};
 
-	down_read(maps__lock(maps));
+static int maps__find_symbol_by_name_cb(struct map *map, void *data)
+{
+	struct maps__find_symbol_by_name_args *args = data;
 
-	maps__for_each_entry(maps, pos) {
-		sym = map__find_symbol_by_name(pos->map, name);
+	args->sym = map__find_symbol_by_name(map, args->name);
+	if (!args->sym)
+		return 0;
 
-		if (sym == NULL)
-			continue;
-		if (!map__contains_symbol(pos->map, sym)) {
-			sym = NULL;
-			continue;
-		}
-		if (mapp != NULL)
-			*mapp = pos->map;
-		goto out;
+	if (!map__contains_symbol(map, args->sym)) {
+		args->sym = NULL;
+		return 0;
 	}
 
-	sym = NULL;
-out:
-	up_read(maps__lock(maps));
-	return sym;
+	if (args->mapp != NULL)
+		*args->mapp = map__get(map);
+	return 1;
+}
+
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp)
+{
+	struct maps__find_symbol_by_name_args args = {
+		.mapp = mapp,
+		.name = name,
+		.sym = NULL,
+	};
+
+	maps__for_each_map(maps, maps__find_symbol_by_name_cb, &args);
+	return args.sym;
 }
 
 int maps__find_ams(struct maps *maps, struct addr_map_symbol *ams)
@@ -253,25 +277,34 @@ int maps__find_ams(struct maps *maps, struct addr_map_symbol *ams)
 	return ams->ms.sym ? 0 : -1;
 }
 
+struct maps__fprintf_args {
+	FILE *fp;
+	size_t printed;
+};
+
+static int maps__fprintf_cb(struct map *map, void *data)
+{
+	struct maps__fprintf_args *args = data;
+
+	args->printed += fprintf(args->fp, "Map:");
+	args->printed += map__fprintf(map, args->fp);
+	if (verbose > 2) {
+		args->printed += dso__fprintf(map__dso(map), args->fp);
+		args->printed += fprintf(args->fp, "--\n");
+	}
+	return 0;
+}
+
 size_t maps__fprintf(struct maps *maps, FILE *fp)
 {
-	size_t printed = 0;
-	struct map_rb_node *pos;
+	struct maps__fprintf_args args = {
+		.fp = fp,
+		.printed = 0,
+	};
 
-	down_read(maps__lock(maps));
+	maps__for_each_map(maps, maps__fprintf_cb, &args);
 
-	maps__for_each_entry(maps, pos) {
-		printed += fprintf(fp, "Map:");
-		printed += map__fprintf(pos->map, fp);
-		if (verbose > 2) {
-			printed += dso__fprintf(map__dso(pos->map), fp);
-			printed += fprintf(fp, "--\n");
-		}
-	}
-
-	up_read(maps__lock(maps));
-
-	return printed;
+	return args.printed;
 }
 
 int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp)
