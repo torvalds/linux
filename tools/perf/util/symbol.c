@@ -1114,33 +1114,35 @@ out_delete_from:
 	return ret;
 }
 
+static int do_validate_kcore_modules_cb(struct map *old_map, void *data)
+{
+	struct rb_root *modules = data;
+	struct module_info *mi;
+	struct dso *dso;
+
+	if (!__map__is_kmodule(old_map))
+		return 0;
+
+	dso = map__dso(old_map);
+	/* Module must be in memory at the same address */
+	mi = find_module(dso->short_name, modules);
+	if (!mi || mi->start != map__start(old_map))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int do_validate_kcore_modules(const char *filename, struct maps *kmaps)
 {
 	struct rb_root modules = RB_ROOT;
-	struct map_rb_node *old_node;
 	int err;
 
 	err = read_proc_modules(filename, &modules);
 	if (err)
 		return err;
 
-	maps__for_each_entry(kmaps, old_node) {
-		struct map *old_map = old_node->map;
-		struct module_info *mi;
-		struct dso *dso;
+	err = maps__for_each_map(kmaps, do_validate_kcore_modules_cb, &modules);
 
-		if (!__map__is_kmodule(old_map)) {
-			continue;
-		}
-		dso = map__dso(old_map);
-		/* Module must be in memory at the same address */
-		mi = find_module(dso->short_name, &modules);
-		if (!mi || mi->start != map__start(old_map)) {
-			err = -EINVAL;
-			goto out;
-		}
-	}
-out:
 	delete_modules(&modules);
 	return err;
 }
