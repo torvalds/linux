@@ -484,6 +484,11 @@
 		groups = "RMII1";
 	};
 
+	pinctrl_sgmii_default: sgmii_default {
+		function = "SGMII";
+		groups = "SGMII";
+	};
+
 	pinctrl_fwspi_quad_default: fwspi_quad_default {
 		function = "FWQSPI";
 		groups = "FWQSPI";
