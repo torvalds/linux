@@ -2595,6 +2595,22 @@ err_ctrl_init:
 	return rc;
 }
 
+// To avoid reset acquire conflict in syscon_regmap_lookup_xxx
+static struct regmap *aspeed_regmap_lookup(struct device_node *np, const char *property)
+{
+	struct device_node *syscon_np;
+	struct regmap *regmap;
+
+	syscon_np = of_parse_phandle(np, property, 0);
+	if (!syscon_np)
+		return ERR_PTR(-ENODEV);
+
+	regmap = device_node_to_regmap(syscon_np);
+	of_node_put(syscon_np);
+
+	return regmap;
+}
+
 static int aspeed_video_init(struct aspeed_video *video)
 {
 	int irq;
@@ -2605,11 +2621,10 @@ static int aspeed_video_init(struct aspeed_video *video)
 	if (video->version >= 6) {
 		video->scu = syscon_regmap_lookup_by_phandle(dev->of_node,
 							     "aspeed,scu");
-		video->gfx = syscon_regmap_lookup_by_phandle(dev->of_node,
-							     "aspeed,gfx");
+		video->gfx = aspeed_regmap_lookup(dev->of_node, "aspeed,gfx");
 		if (video->version == 7 && video->id == 1) {
-			video->video0 = syscon_regmap_lookup_by_phandle(dev->of_node,
-									"aspeed,video0");
+			video->video0 = aspeed_regmap_lookup(dev->of_node,
+							     "aspeed,video0");
 			if (IS_ERR(video->video0))
 				dev_err(dev, "can't find regmap for video0");
 		}
