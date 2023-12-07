@@ -2144,6 +2144,7 @@ void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan)
 		return;
 
 	IWL_ERR(trans, "Device gone - scheduling removal!\n");
+	iwl_pcie_dump_csr(trans);
 
 	/*
 	 * get a module reference to avoid doing this
