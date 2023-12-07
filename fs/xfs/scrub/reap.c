@@ -31,6 +31,7 @@
 #include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_attr_remote.h"
+#include "xfs_defer.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -409,13 +410,17 @@ xreap_agextent_iter(
 	/*
 	 * Use deferred frees to get rid of the old btree blocks to try to
 	 * minimize the window in which we could crash and lose the old blocks.
+	 * Add a defer ops barrier every other extent to avoid stressing the
+	 * system with large EFIs.
 	 */
-	error = __xfs_free_extent_later(sc->tp, fsbno, *aglenp, rs->oinfo,
+	error = xfs_free_extent_later(sc->tp, fsbno, *aglenp, rs->oinfo,
 			rs->resv, true);
 	if (error)
 		return error;
 
 	rs->deferred++;
+	if (rs->deferred % 2 == 0)
+		xfs_defer_add_barrier(sc->tp);
 	return 0;
 }
 
