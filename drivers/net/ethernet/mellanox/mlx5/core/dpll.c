@@ -128,18 +128,9 @@ static int mlx5_dpll_device_mode_get(const struct dpll_device *dpll,
 	return 0;
 }
 
-static bool mlx5_dpll_device_mode_supported(const struct dpll_device *dpll,
-					    void *priv,
-					    enum dpll_mode mode,
-					    struct netlink_ext_ack *extack)
-{
-	return mode == DPLL_MODE_MANUAL;
-}
-
 static const struct dpll_device_ops mlx5_dpll_device_ops = {
 	.lock_status_get = mlx5_dpll_device_lock_status_get,
 	.mode_get = mlx5_dpll_device_mode_get,
-	.mode_supported = mlx5_dpll_device_mode_supported,
 };
 
 static int mlx5_dpll_pin_direction_get(const struct dpll_pin *pin,

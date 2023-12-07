@@ -4260,13 +4260,6 @@ static int ptp_ocp_dpll_mode_get(const struct dpll_device *dpll, void *priv,
 	return 0;
 }
 
-static bool ptp_ocp_dpll_mode_supported(const struct dpll_device *dpll,
-					void *priv, const enum dpll_mode mode,
-					struct netlink_ext_ack *extack)
-{
-	return mode == DPLL_MODE_AUTOMATIC;
-}
-
 static int ptp_ocp_dpll_direction_get(const struct dpll_pin *pin,
 				      void *pin_priv,
 				      const struct dpll_device *dpll,
@@ -4350,7 +4343,6 @@ static int ptp_ocp_dpll_frequency_get(const struct dpll_pin *pin,
 static const struct dpll_device_ops dpll_ops = {
 	.lock_status_get = ptp_ocp_dpll_lock_status_get,
 	.mode_get = ptp_ocp_dpll_mode_get,
-	.mode_supported = ptp_ocp_dpll_mode_supported,
 };
 
 static const struct dpll_pin_ops dpll_pins_ops = {

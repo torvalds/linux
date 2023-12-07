@@ -101,13 +101,17 @@ dpll_msg_add_mode_supported(struct sk_buff *msg, struct dpll_device *dpll,
 {
 	const struct dpll_device_ops *ops = dpll_device_ops(dpll);
 	enum dpll_mode mode;
+	int ret;
 
-	if (!ops->mode_supported)
-		return 0;
-	for (mode = DPLL_MODE_MANUAL; mode <= DPLL_MODE_MAX; mode++)
-		if (ops->mode_supported(dpll, dpll_priv(dpll), mode, extack))
-			if (nla_put_u32(msg, DPLL_A_MODE_SUPPORTED, mode))
-				return -EMSGSIZE;
+	/* No mode change is supported now, so the only supported mode is the
+	 * one obtained by mode_get().
+	 */
+
+	ret = ops->mode_get(dpll, dpll_priv(dpll), &mode, extack);
+	if (ret)
+		return ret;
+	if (nla_put_u32(msg, DPLL_A_MODE_SUPPORTED, mode))
+		return -EMSGSIZE;
 
 	return 0;
 }
