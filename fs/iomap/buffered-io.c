@@ -1454,14 +1454,9 @@ out_unlock:
 EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
 
 static void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
-		size_t len, int error)
+		size_t len)
 {
 	struct iomap_folio_state *ifs = folio->private;
-
-	if (error) {
-		folio_set_error(folio);
-		mapping_set_error(inode->i_mapping, error);
-	}
 
 	WARN_ON_ONCE(i_blocks_per_folio(inode, folio) > 1 && !ifs);
 	WARN_ON_ONCE(ifs && atomic_read(&ifs->write_bytes_pending) <= 0);
@@ -1483,18 +1478,24 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 	struct folio_iter fi;
 	u32 folio_count = 0;
 
+	if (error) {
+		mapping_set_error(inode->i_mapping, error);
+		if (!bio_flagged(bio, BIO_QUIET)) {
+			pr_err_ratelimited(
+"%s: writeback error on inode %lu, offset %lld, sector %llu",
+				inode->i_sb->s_id, inode->i_ino,
+				ioend->io_offset, ioend->io_sector);
+		}
+	}
+
 	/* walk all folios in bio, ending page IO on them */
 	bio_for_each_folio_all(fi, bio) {
-		iomap_finish_folio_write(inode, fi.folio, fi.length, error);
+		if (error)
+			folio_set_error(fi.folio);
+		iomap_finish_folio_write(inode, fi.folio, fi.length);
 		folio_count++;
 	}
 
-	if (unlikely(error && !bio_flagged(bio, BIO_QUIET))) {
-		printk_ratelimited(KERN_ERR
-"%s: writeback error on inode %lu, offset %lld, sector %llu",
-			inode->i_sb->s_id, inode->i_ino,
-			ioend->io_offset, ioend->io_sector);
-	}
 	bio_put(bio);	/* frees the ioend */
 	return folio_count;
 }
