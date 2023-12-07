@@ -318,7 +318,7 @@ struct iomap_writeback_ops {
 	 * by the file system if it is still valid.
 	 */
 	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct inode *inode,
-				loff_t offset);
+			  loff_t offset, unsigned len);
 
 	/*
 	 * Optional, allows the file systems to perform actions just before

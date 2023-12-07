@@ -2465,7 +2465,7 @@ out:
 }
 
 static int gfs2_map_blocks(struct iomap_writepage_ctx *wpc, struct inode *inode,
-		loff_t offset)
+		loff_t offset, unsigned int len)
 {
 	int ret;
 

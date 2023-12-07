@@ -482,7 +482,7 @@ static void blkdev_readahead(struct readahead_control *rac)
 }
 
 static int blkdev_map_blocks(struct iomap_writepage_ctx *wpc,
-		struct inode *inode, loff_t offset)
+		struct inode *inode, loff_t offset, unsigned int len)
 {
 	loff_t isize = i_size_read(inode);
 

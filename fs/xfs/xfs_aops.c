@@ -276,7 +276,8 @@ static int
 xfs_map_blocks(
 	struct iomap_writepage_ctx *wpc,
 	struct inode		*inode,
-	loff_t			offset)
+	loff_t			offset,
+	unsigned int		len)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
