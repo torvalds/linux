@@ -1903,20 +1903,6 @@ static int iomap_do_writepage(struct folio *folio,
 	trace_iomap_writepage(inode, folio_pos(folio), folio_size(folio));
 
 	/*
-	 * Refuse to write the folio out if we're called from reclaim context.
-	 *
-	 * This avoids stack overflows when called from deeply used stacks in
-	 * random callers for direct reclaim or memcg reclaim.  We explicitly
-	 * allow reclaim from kswapd as the stack usage there is relatively low.
-	 *
-	 * This should never happen except in the case of a VM regression so
-	 * warn about it.
-	 */
-	if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
-			PF_MEMALLOC))
-		goto redirty;
-
-	/*
 	 * Is this folio beyond the end of the file?
 	 *
 	 * The folio index is less than the end_index, adjust the end_pos
@@ -1981,8 +1967,6 @@ static int iomap_do_writepage(struct folio *folio,
 
 	return iomap_writepage_map(wpc, wbc, inode, folio, end_pos);
 
-redirty:
-	folio_redirty_for_writepage(wbc, folio);
 unlock:
 	folio_unlock(folio);
 	return 0;
@@ -1994,6 +1978,14 @@ iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 		const struct iomap_writeback_ops *ops)
 {
 	int			ret;
+
+	/*
+	 * Writeback from reclaim context should never happen except in the case
+	 * of a VM regression so warn about it and refuse to write the data.
+	 */
+	if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC | PF_KSWAPD)) ==
+			PF_MEMALLOC))
+		return -EIO;
 
 	wpc->ops = ops;
 	ret = write_cache_pages(mapping, wbc, iomap_do_writepage, wpc);
