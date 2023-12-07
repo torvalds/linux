@@ -1521,7 +1521,8 @@ void v4l2_subdev_cleanup(struct v4l2_subdev *sd)
 	__v4l2_subdev_state_free(sd->active_state);
 	sd->active_state = NULL;
 
-	if (list_empty(&sd->async_subdev_endpoint_list))
+	/* Uninitialised sub-device, bail out here. */
+	if (!sd->async_subdev_endpoint_list.next)
 		return;
 
 	list_for_each_entry_safe(ase, ase_tmp, &sd->async_subdev_endpoint_list,
