@@ -567,15 +567,6 @@ xfs_extent_free_cancel_item(
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
-const struct xfs_defer_op_type xfs_extent_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_extent_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-};
-
 /*
  * AGFL blocks are accounted differently in the reserve pools and are not
  * inserted into the busy extent list.
@@ -632,16 +623,6 @@ xfs_agfl_free_finish_item(
 	return error;
 }
 
-/* sub-type with special handling for AGFL deferred frees */
-const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
-	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
-	.create_intent	= xfs_extent_free_create_intent,
-	.abort_intent	= xfs_extent_free_abort_intent,
-	.create_done	= xfs_extent_free_create_done,
-	.finish_item	= xfs_agfl_free_finish_item,
-	.cancel_item	= xfs_extent_free_cancel_item,
-};
-
 /* Is this recovered EFI ok? */
 static inline bool
 xfs_efi_validate_ext(
@@ -651,23 +632,41 @@ xfs_efi_validate_ext(
 	return xfs_verify_fsbext(mp, extp->ext_start, extp->ext_len);
 }
 
+static inline void
+xfs_efi_recover_work(
+	struct xfs_mount		*mp,
+	struct xfs_defer_pending	*dfp,
+	struct xfs_extent		*extp)
+{
+	struct xfs_extent_free_item	*xefi;
+
+	xefi = kmem_cache_zalloc(xfs_extfree_item_cache,
+			       GFP_KERNEL | __GFP_NOFAIL);
+	xefi->xefi_startblock = extp->ext_start;
+	xefi->xefi_blockcount = extp->ext_len;
+	xefi->xefi_agresv = XFS_AG_RESV_NONE;
+	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
+	xfs_extent_free_get_group(mp, xefi);
+
+	xfs_defer_add_item(dfp, &xefi->xefi_list);
+}
+
 /*
  * Process an extent free intent item that was recovered from
  * the log.  We need to free the extents that it describes.
  */
 STATIC int
-xfs_efi_item_recover(
-	struct xfs_log_item		*lip,
+xfs_extent_free_recover_work(
+	struct xfs_defer_pending	*dfp,
 	struct list_head		*capture_list)
 {
 	struct xfs_trans_res		resv;
+	struct xfs_log_item		*lip = dfp->dfp_intent;
 	struct xfs_efi_log_item		*efip = EFI_ITEM(lip);
 	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_efd_log_item		*efdp;
 	struct xfs_trans		*tp;
 	int				i;
 	int				error = 0;
-	bool				requeue_only = false;
 
 	/*
 	 * First check the validity of the extents described by the
@@ -682,55 +681,22 @@ xfs_efi_item_recover(
 					sizeof(efip->efi_format));
 			return -EFSCORRUPTED;
 		}
+
+		xfs_efi_recover_work(mp, dfp, &efip->efi_format.efi_extents[i]);
 	}
 
 	resv = xlog_recover_resv(&M_RES(mp)->tr_itruncate);
 	error = xfs_trans_alloc(mp, &resv, 0, 0, 0, &tp);
 	if (error)
 		return error;
-	efdp = xfs_trans_get_efd(tp, efip, efip->efi_format.efi_nextents);
 
-	for (i = 0; i < efip->efi_format.efi_nextents; i++) {
-		struct xfs_extent_free_item	fake = {
-			.xefi_owner		= XFS_RMAP_OWN_UNKNOWN,
-			.xefi_agresv		= XFS_AG_RESV_NONE,
-		};
-		struct xfs_extent		*extp;
-
-		extp = &efip->efi_format.efi_extents[i];
-
-		fake.xefi_startblock = extp->ext_start;
-		fake.xefi_blockcount = extp->ext_len;
-
-		if (!requeue_only) {
-			xfs_extent_free_get_group(mp, &fake);
-			error = xfs_trans_free_extent(tp, efdp, &fake);
-			xfs_extent_free_put_group(&fake);
-		}
-
-		/*
-		 * If we can't free the extent without potentially deadlocking,
-		 * requeue the rest of the extents to a new so that they get
-		 * run again later with a new transaction context.
-		 */
-		if (error == -EAGAIN || requeue_only) {
-			error = xfs_free_extent_later(tp, fake.xefi_startblock,
-					fake.xefi_blockcount,
-					&XFS_RMAP_OINFO_ANY_OWNER,
-					fake.xefi_agresv);
-			if (!error) {
-				requeue_only = true;
-				continue;
-			}
-		}
-
-		if (error == -EFSCORRUPTED)
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					extp, sizeof(*extp));
-		if (error)
-			goto abort_error;
-
-	}
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&efip->efi_format,
+				sizeof(efip->efi_format));
+	if (error)
+		goto abort_error;
 
 	return xfs_defer_ops_capture_and_commit(tp, capture_list);
 
@@ -738,6 +704,27 @@ abort_error:
 	xfs_trans_cancel(tp);
 	return error;
 }
+
+const struct xfs_defer_op_type xfs_extent_free_defer_type = {
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_extent_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+};
+
+/* sub-type with special handling for AGFL deferred frees */
+const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
+	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_extent_free_create_intent,
+	.abort_intent	= xfs_extent_free_abort_intent,
+	.create_done	= xfs_extent_free_create_done,
+	.finish_item	= xfs_agfl_free_finish_item,
+	.cancel_item	= xfs_extent_free_cancel_item,
+	.recover_work	= xfs_extent_free_recover_work,
+};
 
 STATIC bool
 xfs_efi_item_match(
@@ -781,7 +768,6 @@ static const struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_format	= xfs_efi_item_format,
 	.iop_unpin	= xfs_efi_item_unpin,
 	.iop_release	= xfs_efi_item_release,
-	.iop_recover	= xfs_efi_item_recover,
 	.iop_match	= xfs_efi_item_match,
 	.iop_relog	= xfs_efi_item_relog,
 };
@@ -820,12 +806,9 @@ xlog_recover_efi_commit_pass2(
 		return error;
 	}
 	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
-	/*
-	 * Insert the intent into the AIL directly and drop one reference so
-	 * that finishing or canceling the work will drop the other.
-	 */
-	xfs_trans_ail_insert(log->l_ailp, &efip->efi_item, lsn);
-	xfs_efi_release(efip);
+
+	xlog_recover_intent_item(log, &efip->efi_item, lsn,
+			XFS_DEFER_OPS_TYPE_FREE);
 	return 0;
 }
 

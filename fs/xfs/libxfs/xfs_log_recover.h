@@ -153,4 +153,11 @@ xlog_recover_resv(const struct xfs_trans_res *r)
 	return ret;
 }
 
+struct xfs_defer_pending;
+
+void xlog_recover_intent_item(struct xlog *log, struct xfs_log_item *lip,
+		xfs_lsn_t lsn, unsigned int dfp_type);
+int xlog_recover_finish_intent(struct xfs_trans *tp,
+		struct xfs_defer_pending *dfp);
+
 #endif	/* __XFS_LOG_RECOVER_H__ */
