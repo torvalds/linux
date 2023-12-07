@@ -338,6 +338,9 @@ struct bnxt_qplib_qp {
 	dma_addr_t			rq_hdr_buf_map;
 	struct list_head		sq_flush;
 	struct list_head		rq_flush;
+	u32				msn;
+	u32				msn_tbl_sz;
+	u16				dev_cap_flags;
 };
 
 #define BNXT_QPLIB_MAX_CQE_ENTRY_SIZE	sizeof(struct cq_base)
@@ -626,5 +629,16 @@ static inline u16 bnxt_qplib_calc_ilsize(struct bnxt_qplib_swqe *wqe, u16 max)
 		size = max;
 
 	return size;
+}
+
+/* MSN table update inlin */
+static inline uint64_t bnxt_re_update_msn_tbl(u32 st_idx, u32 npsn, u32 start_psn)
+{
+	return cpu_to_le64((((u64)(st_idx) << SQ_MSN_SEARCH_START_IDX_SFT) &
+		SQ_MSN_SEARCH_START_IDX_MASK) |
+		(((u64)(npsn) << SQ_MSN_SEARCH_NEXT_PSN_SFT) &
+		SQ_MSN_SEARCH_NEXT_PSN_MASK) |
+		(((start_psn) << SQ_MSN_SEARCH_START_PSN_SFT) &
+		SQ_MSN_SEARCH_START_PSN_MASK));
 }
 #endif /* __BNXT_QPLIB_FP_H__ */

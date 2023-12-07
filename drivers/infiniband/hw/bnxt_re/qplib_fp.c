@@ -982,6 +982,9 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	u32 tbl_indx;
 	u16 nsge;
 
+	if (res->dattr)
+		qp->dev_cap_flags = res->dattr->dev_cap_flags;
+
 	sq->dbinfo.flags = 0;
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
 				 CMDQ_BASE_OPCODE_CREATE_QP,
@@ -997,6 +1000,11 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		psn_sz = bnxt_qplib_is_chip_gen_p5_p7(res->cctx) ?
 			 sizeof(struct sq_psn_search_ext) :
 			 sizeof(struct sq_psn_search);
+
+		if (BNXT_RE_HW_RETX(qp->dev_cap_flags)) {
+			psn_sz = sizeof(struct sq_msn_search);
+			qp->msn = 0;
+		}
 	}
 
 	hwq_attr.res = res;
@@ -1005,6 +1013,13 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	hwq_attr.depth = bnxt_qplib_get_depth(sq);
 	hwq_attr.aux_stride = psn_sz;
 	hwq_attr.aux_depth = bnxt_qplib_set_sq_size(sq, qp->wqe_mode);
+	/* Update msn tbl size */
+	if (BNXT_RE_HW_RETX(qp->dev_cap_flags) && psn_sz) {
+		hwq_attr.aux_depth = roundup_pow_of_two(bnxt_qplib_set_sq_size(sq, qp->wqe_mode));
+		qp->msn_tbl_sz = hwq_attr.aux_depth;
+		qp->msn = 0;
+	}
+
 	hwq_attr.type = HWQ_TYPE_QUEUE;
 	rc = bnxt_qplib_alloc_init_hwq(&sq->hwq, &hwq_attr);
 	if (rc)
@@ -1587,6 +1602,27 @@ void *bnxt_qplib_get_qp1_rq_buf(struct bnxt_qplib_qp *qp,
 	return NULL;
 }
 
+/* Fil the MSN table into the next psn row */
+static void bnxt_qplib_fill_msn_search(struct bnxt_qplib_qp *qp,
+				       struct bnxt_qplib_swqe *wqe,
+				       struct bnxt_qplib_swq *swq)
+{
+	struct sq_msn_search *msns;
+	u32 start_psn, next_psn;
+	u16 start_idx;
+
+	msns = (struct sq_msn_search *)swq->psn_search;
+	msns->start_idx_next_psn_start_psn = 0;
+
+	start_psn = swq->start_psn;
+	next_psn = swq->next_psn;
+	start_idx = swq->slot_idx;
+	msns->start_idx_next_psn_start_psn |=
+		bnxt_re_update_msn_tbl(start_idx, next_psn, start_psn);
+	qp->msn++;
+	qp->msn %= qp->msn_tbl_sz;
+}
+
 static void bnxt_qplib_fill_psn_search(struct bnxt_qplib_qp *qp,
 				       struct bnxt_qplib_swqe *wqe,
 				       struct bnxt_qplib_swq *swq)
@@ -1598,6 +1634,12 @@ static void bnxt_qplib_fill_psn_search(struct bnxt_qplib_qp *qp,
 
 	if (!swq->psn_search)
 		return;
+	/* Handle MSN differently on cap flags  */
+	if (BNXT_RE_HW_RETX(qp->dev_cap_flags)) {
+		bnxt_qplib_fill_msn_search(qp, wqe, swq);
+		return;
+	}
+	psns = (struct sq_psn_search *)swq->psn_search;
 	psns = swq->psn_search;
 	psns_ext = swq->psn_ext;
 
@@ -1706,8 +1748,8 @@ static u16 bnxt_qplib_required_slots(struct bnxt_qplib_qp *qp,
 	return slot;
 }
 
-static void bnxt_qplib_pull_psn_buff(struct bnxt_qplib_q *sq,
-				     struct bnxt_qplib_swq *swq)
+static void bnxt_qplib_pull_psn_buff(struct bnxt_qplib_qp *qp, struct bnxt_qplib_q *sq,
+				     struct bnxt_qplib_swq *swq, bool hw_retx)
 {
 	struct bnxt_qplib_hwq *hwq;
 	u32 pg_num, pg_indx;
@@ -1718,6 +1760,11 @@ static void bnxt_qplib_pull_psn_buff(struct bnxt_qplib_q *sq,
 	if (!hwq->pad_pg)
 		return;
 	tail = swq->slot_idx / sq->dbinfo.max_slot;
+	if (hw_retx) {
+		/* For HW retx use qp msn index */
+		tail = qp->msn;
+		tail %= qp->msn_tbl_sz;
+	}
 	pg_num = (tail + hwq->pad_pgofft) / (PAGE_SIZE / hwq->pad_stride);
 	pg_indx = (tail + hwq->pad_pgofft) % (PAGE_SIZE / hwq->pad_stride);
 	buff = (void *)(hwq->pad_pg[pg_num] + pg_indx * hwq->pad_stride);
@@ -1742,6 +1789,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	struct bnxt_qplib_swq *swq;
 	bool sch_handler = false;
 	u16 wqe_sz, qdf = 0;
+	bool msn_update;
 	void *base_hdr;
 	void *ext_hdr;
 	__le32 temp32;
@@ -1769,7 +1817,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 	}
 
 	swq = bnxt_qplib_get_swqe(sq, &wqe_idx);
-	bnxt_qplib_pull_psn_buff(sq, swq);
+	bnxt_qplib_pull_psn_buff(qp, sq, swq, BNXT_RE_HW_RETX(qp->dev_cap_flags));
 
 	idx = 0;
 	swq->slot_idx = hwq->prod;
@@ -1801,6 +1849,8 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 					       &idx);
 	if (data_len < 0)
 		goto queue_err;
+	/* Make sure we update MSN table only for wired wqes */
+	msn_update = true;
 	/* Specifics */
 	switch (wqe->type) {
 	case BNXT_QPLIB_SWQE_TYPE_SEND:
@@ -1841,6 +1891,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 						      SQ_SEND_DST_QP_MASK);
 			ext_sqe->avid = cpu_to_le32(wqe->send.avid &
 						    SQ_SEND_AVID_MASK);
+			msn_update = false;
 		} else {
 			sqe->length = cpu_to_le32(data_len);
 			if (qp->mtu)
@@ -1898,7 +1949,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		sqe->wqe_type = wqe->type;
 		sqe->flags = wqe->flags;
 		sqe->inv_l_key = cpu_to_le32(wqe->local_inv.inv_l_key);
-
+		msn_update = false;
 		break;
 	}
 	case BNXT_QPLIB_SWQE_TYPE_FAST_REG_MR:
@@ -1930,6 +1981,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 						PTU_PTE_VALID);
 		ext_sqe->pblptr = cpu_to_le64(wqe->frmr.pbl_dma_ptr);
 		ext_sqe->va = cpu_to_le64(wqe->frmr.va);
+		msn_update = false;
 
 		break;
 	}
@@ -1947,6 +1999,7 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		sqe->l_key = cpu_to_le32(wqe->bind.r_key);
 		ext_sqe->va = cpu_to_le64(wqe->bind.va);
 		ext_sqe->length_lo = cpu_to_le32(wqe->bind.length);
+		msn_update = false;
 		break;
 	}
 	default:
@@ -1954,8 +2007,10 @@ int bnxt_qplib_post_send(struct bnxt_qplib_qp *qp,
 		rc = -EINVAL;
 		goto done;
 	}
-	swq->next_psn = sq->psn & BTH_PSN_MASK;
-	bnxt_qplib_fill_psn_search(qp, wqe, swq);
+	if (!BNXT_RE_HW_RETX(qp->dev_cap_flags) || msn_update) {
+		swq->next_psn = sq->psn & BTH_PSN_MASK;
+		bnxt_qplib_fill_psn_search(qp, wqe, swq);
+	}
 queue_err:
 	bnxt_qplib_swq_mod_start(sq, wqe_idx);
 	bnxt_qplib_hwq_incr_prod(&sq->dbinfo, hwq, swq->slots);
