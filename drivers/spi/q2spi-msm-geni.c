@@ -1147,24 +1147,23 @@ static int q2spi_soft_reset(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 		return -ENOMEM;
 	}
 
-	*q2spi_pkt_ptr = q2spi_pkt;
-
 	q2spi_softreset_req = q2spi_alloc_host_variant(q2spi,
 						       sizeof(struct q2spi_host_soft_reset_pkt));
 	if (!q2spi_softreset_req) {
 		Q2SPI_ERROR(q2spi, "%s Err alloc and map failed\n", __func__);
+		q2spi_kfree(q2spi, q2spi_pkt, __LINE__);
 		return -EINVAL;
 	}
+	*q2spi_pkt_ptr = q2spi_pkt;
 	q2spi_softreset_req->cmd = HC_SOFT_RESET;
 	q2spi_softreset_req->flags = HC_SOFT_RESET_FLAGS;
 	q2spi_softreset_req->code = HC_SOFT_RESET_CODE;
-	q2spi_softreset_req->flow_id = q2spi_alloc_xfer_tid(q2spi);
-	q2spi->xfer->tid = q2spi_softreset_req->flow_id;
 	q2spi_pkt->soft_reset_pkt = q2spi_softreset_req;
+	q2spi_pkt->soft_reset_tx_dma = q2spi->dma_buf;
 	q2spi_pkt->vtype = VAR_SOFT_RESET;
 	q2spi_pkt->m_cmd_param = Q2SPI_TX_ONLY;
 
-	return q2spi_softreset_req->flow_id;
+	return 0;
 }
 
 void q2spi_notify_data_avail_for_client(struct q2spi_geni *q2spi)
@@ -1230,6 +1229,8 @@ void q2spi_print_req_cmd(struct q2spi_geni *q2spi, struct q2spi_request q2spi_re
 		Q2SPI_DEBUG(q2spi, "%s cmd:DATA_READ\n", __func__);
 	else if (q2spi_req.cmd == DATA_WRITE)
 		Q2SPI_DEBUG(q2spi, "%s cmd:DATA_WRITE\n", __func__);
+	else if (q2spi_req.cmd == SOFT_RESET)
+		Q2SPI_DEBUG(q2spi, "%s cmd:SOFT_RESET\n", __func__);
 	else
 		Q2SPI_DEBUG(q2spi, "%s Invalid cmd:%d\n", __func__, q2spi_req.cmd);
 }
@@ -1382,8 +1383,8 @@ bool q2spi_cmd_type_valid(struct q2spi_geni *q2spi, struct q2spi_request *q2spi_
 		return false;
 	}
 
-	if (!q2spi_req->data_len) {
-		Q2SPI_DEBUG(q2spi, "%s Invalid data len %d bytes\n", __func__, q2spi_req->data_len);
+	if (q2spi_req->cmd != SOFT_RESET && !q2spi_req->data_len) {
+		pr_err("%s Invalid data len %d bytes\n", __func__, q2spi_req->data_len);
 		return false;
 	}
 	return true;
@@ -1456,6 +1457,35 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 	}
 	Q2SPI_DEBUG(q2spi, "%s ret len:%zu\n", __func__, len);
 	return len;
+}
+
+/*
+ * q2spi_transfer_soft_reset - Add soft-reset request in tx_queue list and submit q2spi transfer
+ *
+ * @q2spi: Pointer to main q2spi_geni structure
+ *
+ * Return: 0 on success. Error code on failure.
+ */
+static void q2spi_transfer_soft_reset(struct q2spi_geni *q2spi)
+{
+	struct q2spi_packet *cur_q2spi_sr_pkt;
+	struct q2spi_request soft_reset_request;
+	int ret = 0;
+
+	soft_reset_request.cmd = SOFT_RESET;
+	soft_reset_request.sync = 1;
+	mutex_lock(&q2spi->queue_lock);
+	ret = q2spi_add_req_to_tx_queue(q2spi, soft_reset_request,
+					&cur_q2spi_sr_pkt);
+	mutex_unlock(&q2spi->queue_lock);
+	if (ret < 0) {
+		Q2SPI_ERROR(q2spi, "%s Err q2spi_add_req_to_tx_queue ret:%d\n", __func__, ret);
+		return;
+	}
+	__q2spi_transfer(q2spi, soft_reset_request, 0);
+	cur_q2spi_sr_pkt->in_use = IN_DELETION;
+	q2spi_del_pkt_from_tx_queue(q2spi, cur_q2spi_sr_pkt);
+	q2spi_kfree(q2spi, cur_q2spi_sr_pkt->xfer, __LINE__);
 }
 
 /*
@@ -1606,6 +1636,9 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 			/* Upon transfer failure's retry here */
 			Q2SPI_DEBUG(q2spi, "%s ret:%d retry_count:%d retrying cur_q2spi_pkt:%p\n",
 				    __func__, ret, i + 1, cur_q2spi_pkt);
+			/* Should not perform SOFT RESET when UWB sets reserved[0] bit 0 set */
+			if (!(q2spi_req.reserved[0] & BIT(0)) && i == 0)
+				q2spi_transfer_soft_reset(q2spi);
 			q2spi_pkt = cur_q2spi_pkt;
 			flow_id = q2spi_alloc_xfer_tid(q2spi);
 			if (flow_id < 0) {
@@ -2002,6 +2035,54 @@ unmap_buf:
 	return ret;
 }
 
+/*
+ * q2spi_prep_soft_reset_request - Prepare soft reset packet transfer
+ * @q2spi: pointer to q2spi_geni
+ * @q2spi_pkt: pointer to q2spi packet
+ *
+ * This function prepare the transfer for soft reset packet to submit to gsi.
+ *
+ * Return: 0 on success. Error code on failure.
+ */
+static int q2spi_prep_soft_reset_request(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
+{
+	struct q2spi_host_soft_reset_pkt *reset_pkt;
+	struct q2spi_dma_transfer *reset_xfer = NULL;
+
+	Q2SPI_DEBUG(q2spi, "%s q2pi_pkt->soft_reset_pkt:%p &q2spi_pkt->soft_reset_pkt:%p\n",
+		    __func__, q2spi_pkt->soft_reset_pkt, &q2spi_pkt->soft_reset_pkt);
+	reset_xfer = q2spi_kzalloc(q2spi, sizeof(struct q2spi_dma_transfer), __LINE__);
+	if (!reset_xfer) {
+		Q2SPI_ERROR(q2spi, "%s Err reset_xfer alloc failed\n", __func__);
+		return -ENOMEM;
+	}
+	reset_xfer->cmd = q2spi_pkt->m_cmd_param;
+	reset_pkt = q2spi_pkt->soft_reset_pkt;
+	reset_xfer->tx_buf = q2spi_pkt->soft_reset_pkt;
+	reset_xfer->tx_dma = q2spi_pkt->soft_reset_tx_dma;
+	reset_xfer->tx_data_len = 0;
+	reset_xfer->tx_len = Q2SPI_HEADER_LEN;
+	Q2SPI_DEBUG(q2spi, "%s var1_xfer->tx_len:%d var1_xfer->tx_data_len:%d\n",
+		    __func__, reset_xfer->tx_len, reset_xfer->tx_data_len);
+
+	Q2SPI_DEBUG(q2spi, "%s tx_buf:%p tx_dma:%p\n", __func__,
+		    reset_xfer->tx_buf, reset_xfer->tx_dma);
+	q2spi_dump_ipc(q2spi, q2spi->ipc, "Preparing reset tx_buf DMA TX",
+		       (char *)reset_xfer->tx_buf, reset_xfer->tx_len);
+	q2spi->xfer = reset_xfer;
+	Q2SPI_DEBUG(q2spi, "%s xfer:%p\n", __func__, q2spi->xfer);
+	return 0;
+}
+
+/*
+ * q2spi_prep_var1_request - Prepare q2spi variant1 type packet transfer
+ * @q2spi: pointer to q2spi_geni
+ * @q2spi_pkt: pointer to q2spi packet
+ *
+ * This function prepares variant1 type transfer request to submit to gsi.
+ *
+ * Return: 0 on success. Error code on failure.
+ */
 static int q2spi_prep_var1_request(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
 {
 	struct q2spi_host_variant1_pkt *q2spi_hc_var1;
@@ -2045,6 +2126,15 @@ static int q2spi_prep_var1_request(struct q2spi_geni *q2spi, struct q2spi_packet
 	return 0;
 }
 
+/*
+ * q2spi_prep_var5_request - Prepare q2spi variant5 type packet transfer
+ * @q2spi: pointer to q2spi_geni
+ * @q2spi_pkt: pointer to q2spi packet
+ *
+ * This function prepares variant5 type transfer request to submit to gsi.
+ *
+ * Return: 0 on success. Error code on failure.
+ */
 static int q2spi_prep_var5_request(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
 {
 	struct q2spi_host_variant4_5_pkt *q2spi_hc_var5;
@@ -2095,6 +2185,15 @@ static int q2spi_prep_var5_request(struct q2spi_geni *q2spi, struct q2spi_packet
 	return 0;
 }
 
+/*
+ * q2spi_prep_hrf_request - Prepare q2spi HRF type packet transfer
+ * @q2spi: pointer to q2spi_geni
+ * @q2spi_pkt: pointer to q2spi packet
+ *
+ * This function prepares HRF type transfer request to submit to gsi.
+ *
+ * Return: 0 on success. Error code on failure.
+ */
 static int q2spi_prep_hrf_request(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
 {
 	struct q2spi_host_variant1_pkt *q2spi_hc_var1;
@@ -2180,12 +2279,13 @@ q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *
 
 /**
  * __q2spi_send_messages - function which processes q2spi message queue
- * @q2spi_geni: controller to process queue
+ * @q2spi: pointer to q2spi_geni
  *
  * This function checks if there is any message in the queue that
  * needs processing and if so call out to the driver to initialize hardware
  * and transfer each message.
  *
+ * Return: 0 on success, else error code
  */
 static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 {
@@ -2227,6 +2327,8 @@ static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 		ret = q2spi_prep_var5_request(q2spi, q2spi_pkt);
 	else if (q2spi_pkt->vtype == VARIANT_5_HRF)
 		ret = q2spi_prep_hrf_request(q2spi, q2spi_pkt);
+	else if (q2spi_pkt->vtype == VAR_SOFT_RESET)
+		ret = q2spi_prep_soft_reset_request(q2spi, q2spi_pkt);
 
 	if (ret)
 		return ret;

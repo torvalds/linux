@@ -307,8 +307,8 @@ struct q2spi_host_soft_reset_pkt {
 	u8 cmd:4;
 	u8 flags:4;
 	u8 code:4;
-	u8 flow_id:4;
-	u8 reserved[5];
+	u8 rsvd:4;
+	u8 rsvd_1[5];
 };
 
 enum cr_var_type {
@@ -534,6 +534,7 @@ struct q2spi_cr_packet {
  * @status: success of failure xfer status
  * @var1_tx_dma: variant_1 tx_dma buffer pointer
  * @var5_tx_dma: variant_5 tx_dma buffer pointer
+ * @soft_reset_tx_dma: soft_reset tx_dma buffer pointer
  * @sync: sync or async mode of transfer
  * @q2spi: pointer for q2spi_geni structure
  * @list: list for hc packets.
@@ -554,6 +555,7 @@ struct q2spi_packet {
 	enum xfer_status status;
 	dma_addr_t var1_tx_dma;
 	dma_addr_t var5_tx_dma;
+	dma_addr_t soft_reset_tx_dma;
 	bool sync;
 	struct q2spi_geni *q2spi;
 	struct list_head list;
