@@ -356,6 +356,7 @@ struct clk_mgr_internal {
 	long long wm_range_table_addr;
 
 	bool dpm_present;
+	bool pme_trigger_pending;
 };
 
 struct clk_mgr_internal_funcs {

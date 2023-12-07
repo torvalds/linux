@@ -1069,6 +1069,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
+	enum dc_acpi_cm_power_state power_state;
 };
 
 enum frame_buffer_mode {
