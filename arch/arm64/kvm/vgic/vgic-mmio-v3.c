@@ -833,6 +833,8 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 	unsigned long c;
 	int ret = 0;
 
+	lockdep_assert_held(&kvm->slots_lock);
+
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		ret = vgic_register_redist_iodev(vcpu);
 		if (ret)
