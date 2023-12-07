@@ -373,6 +373,9 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 			return -EINVAL;
 		*value = ctx->aspace->va_size;
 		return 0;
+	case MSM_PARAM_HIGHEST_BANK_BIT:
+		*value = adreno_gpu->ubwc_config.highest_bank_bit;
+		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
 		return -EINVAL;
