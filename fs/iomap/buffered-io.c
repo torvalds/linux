@@ -1759,6 +1759,64 @@ iomap_add_to_ioend(struct inode *inode, loff_t pos, struct folio *folio,
 }
 
 /*
+ * Check interaction of the folio with the file end.
+ *
+ * If the folio is entirely beyond i_size, return false.  If it straddles
+ * i_size, adjust end_pos and zero all data beyond i_size.
+ */
+static bool iomap_writepage_handle_eof(struct folio *folio, struct inode *inode,
+		u64 *end_pos)
+{
+	u64 isize = i_size_read(inode);
+
+	if (*end_pos > isize) {
+		size_t poff = offset_in_folio(folio, isize);
+		pgoff_t end_index = isize >> PAGE_SHIFT;
+
+		/*
+		 * If the folio is entirely ouside of i_size, skip it.
+		 *
+		 * This can happen due to a truncate operation that is in
+		 * progress and in that case truncate will finish it off once
+		 * we've dropped the folio lock.
+		 *
+		 * Note that the pgoff_t used for end_index is an unsigned long.
+		 * If the given offset is greater than 16TB on a 32-bit system,
+		 * then if we checked if the folio is fully outside i_size with
+		 * "if (folio->index >= end_index + 1)", "end_index + 1" would
+		 * overflow and evaluate to 0.  Hence this folio would be
+		 * redirtied and written out repeatedly, which would result in
+		 * an infinite loop; the user program performing this operation
+		 * would hang.  Instead, we can detect this situation by
+		 * checking if the folio is totally beyond i_size or if its
+		 * offset is just equal to the EOF.
+		 */
+		if (folio->index > end_index ||
+		    (folio->index == end_index && poff == 0))
+			return false;
+
+		/*
+		 * The folio straddles i_size.
+		 *
+		 * It must be zeroed out on each and every writepage invocation
+		 * because it may be mmapped:
+		 *
+		 *    A file is mapped in multiples of the page size.  For a
+		 *    file that is not a multiple of the page size, the
+		 *    remaining memory is zeroed when mapped, and writes to that
+		 *    region are not written out to the file.
+		 *
+		 * Also adjust the writeback range to skip all blocks entirely
+		 * beyond i_size.
+		 */
+		folio_zero_segment(folio, poff, folio_size(folio));
+		*end_pos = isize;
+	}
+
+	return true;
+}
+
+/*
  * We implement an immediate ioend submission policy here to avoid needing to
  * chain multiple ioends and hence nest mempool allocations which can violate
  * the forward progress guarantees we need to provide. The current ioend we're
@@ -1898,78 +1956,16 @@ static int iomap_do_writepage(struct folio *folio,
 {
 	struct iomap_writepage_ctx *wpc = data;
 	struct inode *inode = folio->mapping->host;
-	u64 end_pos, isize;
+	u64 end_pos = folio_pos(folio) + folio_size(folio);
 
 	trace_iomap_writepage(inode, folio_pos(folio), folio_size(folio));
 
-	/*
-	 * Is this folio beyond the end of the file?
-	 *
-	 * The folio index is less than the end_index, adjust the end_pos
-	 * to the highest offset that this folio should represent.
-	 * -----------------------------------------------------
-	 * |			file mapping	       | <EOF> |
-	 * -----------------------------------------------------
-	 * | Page ... | Page N-2 | Page N-1 |  Page N  |       |
-	 * ^--------------------------------^----------|--------
-	 * |     desired writeback range    |      see else    |
-	 * ---------------------------------^------------------|
-	 */
-	isize = i_size_read(inode);
-	end_pos = folio_pos(folio) + folio_size(folio);
-	if (end_pos > isize) {
-		/*
-		 * Check whether the page to write out is beyond or straddles
-		 * i_size or not.
-		 * -------------------------------------------------------
-		 * |		file mapping		        | <EOF>  |
-		 * -------------------------------------------------------
-		 * | Page ... | Page N-2 | Page N-1 |  Page N   | Beyond |
-		 * ^--------------------------------^-----------|---------
-		 * |				    |      Straddles     |
-		 * ---------------------------------^-----------|--------|
-		 */
-		size_t poff = offset_in_folio(folio, isize);
-		pgoff_t end_index = isize >> PAGE_SHIFT;
-
-		/*
-		 * Skip the page if it's fully outside i_size, e.g.
-		 * due to a truncate operation that's in progress.  We've
-		 * cleaned this page and truncate will finish things off for
-		 * us.
-		 *
-		 * Note that the end_index is unsigned long.  If the given
-		 * offset is greater than 16TB on a 32-bit system then if we
-		 * checked if the page is fully outside i_size with
-		 * "if (page->index >= end_index + 1)", "end_index + 1" would
-		 * overflow and evaluate to 0.  Hence this page would be
-		 * redirtied and written out repeatedly, which would result in
-		 * an infinite loop; the user program performing this operation
-		 * would hang.  Instead, we can detect this situation by
-		 * checking if the page is totally beyond i_size or if its
-		 * offset is just equal to the EOF.
-		 */
-		if (folio->index > end_index ||
-		    (folio->index == end_index && poff == 0))
-			goto unlock;
-
-		/*
-		 * The page straddles i_size.  It must be zeroed out on each
-		 * and every writepage invocation because it may be mmapped.
-		 * "A file is mapped in multiples of the page size.  For a file
-		 * that is not a multiple of the page size, the remaining
-		 * memory is zeroed when mapped, and writes to that region are
-		 * not written out to the file."
-		 */
-		folio_zero_segment(folio, poff, folio_size(folio));
-		end_pos = isize;
+	if (!iomap_writepage_handle_eof(folio, inode, &end_pos)) {
+		folio_unlock(folio);
+		return 0;
 	}
 
 	return iomap_writepage_map(wpc, wbc, inode, folio, end_pos);
-
-unlock:
-	folio_unlock(folio);
-	return 0;
 }
 
 int
