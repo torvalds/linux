@@ -411,6 +411,8 @@ struct q2spi_dma_transfer {
  * @doorbell_pending: Set when independent doorbell CR received
  * @retry: used when independent doorbell processing is pending to retry the request from host
  * @alloc_count: reflects count of memory allocations done by q2spi_kzalloc
+ * @resources_on: flag which reflects geni resources are turned on/off
+ * @port_release: reflects if q2spi port is being closed
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -489,6 +491,8 @@ struct q2spi_geni {
 	atomic_t doorbell_pending;
 	atomic_t retry;
 	atomic_t alloc_count;
+	bool resources_on;
+	bool port_release;
 };
 
 /**
@@ -578,5 +582,7 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi);
 int check_gsi_transfer_completion_rx(struct q2spi_geni *q2spi);
 int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset);
 void q2spi_dump_client_error_regs(struct q2spi_geni *q2spi);
+int q2spi_geni_resources_on(struct q2spi_geni *q2spi);
+void q2spi_geni_resources_off(struct q2spi_geni *q2spi);
 
 #endif /* _SPI_Q2SPI_MSM_H_ */
