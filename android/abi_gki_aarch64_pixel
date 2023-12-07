@@ -410,6 +410,7 @@
   devm_device_add_groups
   devm_device_remove_group
   __devm_drm_dev_alloc
+  devm_drm_of_get_bridge
   devm_drm_panel_bridge_add_typed
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -727,6 +728,7 @@
   drm_helper_mode_fill_fb_struct
   drm_helper_probe_single_connector_modes
   drm_ioctl
+  drm_kms_helper_connector_hotplug_event
   drm_kms_helper_hotplug_event
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
@@ -1407,6 +1409,7 @@
   of_find_i2c_adapter_by_node
   of_find_i2c_device_by_node
   of_find_matching_node_and_match
+  of_find_mipi_dsi_host_by_node
   of_find_node_by_name
   of_find_node_by_phandle
   of_find_node_by_type
@@ -1421,11 +1424,13 @@
   of_get_next_available_child
   of_get_next_child
   of_get_next_parent
+  of_get_parent
   of_get_property
   of_get_regulator_init_data
   of_graph_get_next_endpoint
   of_graph_get_port_parent
   of_graph_get_remote_endpoint
+  of_graph_get_remote_node
   of_graph_is_present
   of_graph_parse_endpoint
   of_iomap
