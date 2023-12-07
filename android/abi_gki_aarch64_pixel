@@ -188,6 +188,7 @@
   clockevents_config_and_register
   clocks_calc_mult_shift
   __clocksource_register_scale
+  __cma_alloc
   cma_alloc
   cma_for_each_area
   cma_get_name
