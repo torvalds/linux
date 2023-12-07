@@ -1712,6 +1712,45 @@ new_ioend:
 	wbc_account_cgroup_owner(wbc, &folio->page, len);
 }
 
+static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
+		struct writeback_control *wbc, struct folio *folio,
+		struct inode *inode, u64 pos, unsigned *count,
+		struct list_head *submit_list)
+{
+	int error;
+
+	error = wpc->ops->map_blocks(wpc, inode, pos);
+	if (error)
+		goto fail;
+	trace_iomap_writepage_map(inode, &wpc->iomap);
+
+	switch (wpc->iomap.type) {
+	case IOMAP_INLINE:
+		WARN_ON_ONCE(1);
+		error = -EIO;
+		break;
+	case IOMAP_HOLE:
+		break;
+	default:
+		iomap_add_to_ioend(wpc, wbc, folio, inode, pos, submit_list);
+		(*count)++;
+	}
+
+fail:
+	/*
+	 * We cannot cancel the ioend directly here on error.  We may have
+	 * already set other pages under writeback and hence we have to run I/O
+	 * completion to mark the error state of the pages under writeback
+	 * appropriately.
+	 *
+	 * Just let the file system know what portion of the folio failed to
+	 * map.
+	 */
+	if (error && wpc->ops->discard_folio)
+		wpc->ops->discard_folio(folio, pos);
+	return error;
+}
+
 /*
  * Check interaction of the folio with the file end.
  *
@@ -1796,7 +1835,8 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	unsigned nblocks = i_blocks_per_folio(inode, folio);
 	u64 pos = folio_pos(folio);
 	u64 end_pos = pos + folio_size(folio);
-	int error = 0, count = 0, i;
+	unsigned count = 0;
+	int error = 0, i;
 	LIST_HEAD(submit_list);
 
 	trace_iomap_writepage(inode, pos, folio_size(folio));
@@ -1822,19 +1862,10 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	for (i = 0; i < nblocks && pos < end_pos; i++, pos += len) {
 		if (ifs && !ifs_block_is_dirty(folio, ifs, i))
 			continue;
-
-		error = wpc->ops->map_blocks(wpc, inode, pos);
+		error = iomap_writepage_map_blocks(wpc, wbc, folio, inode, pos,
+				&count, &submit_list);
 		if (error)
 			break;
-		trace_iomap_writepage_map(inode, &wpc->iomap);
-		if (WARN_ON_ONCE(wpc->iomap.type == IOMAP_INLINE)) {
-			error = -EIO;
-			break;
-		}
-		if (wpc->iomap.type == IOMAP_HOLE)
-			continue;
-		iomap_add_to_ioend(wpc, wbc, folio, inode, pos, &submit_list);
-		count++;
 	}
 	if (count)
 		wpc->nr_folios++;
@@ -1843,21 +1874,6 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	WARN_ON_ONCE(!folio_test_locked(folio));
 	WARN_ON_ONCE(folio_test_writeback(folio));
 	WARN_ON_ONCE(folio_test_dirty(folio));
-
-	/*
-	 * We cannot cancel the ioend directly here on error.  We may have
-	 * already set other pages under writeback and hence we have to run I/O
-	 * completion to mark the error state of the pages under writeback
-	 * appropriately.
-	 */
-	if (unlikely(error)) {
-		/*
-		 * Let the filesystem know what portion of the current page
-		 * failed to map.
-		 */
-		if (wpc->ops->discard_folio)
-			wpc->ops->discard_folio(folio, pos);
-	}
 
 	/*
 	 * We can have dirty bits set past end of file in page_mkwrite path
