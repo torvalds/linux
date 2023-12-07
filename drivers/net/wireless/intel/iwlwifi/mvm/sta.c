@@ -4150,7 +4150,8 @@ void iwl_mvm_sta_modify_disable_tx(struct iwl_mvm *mvm,
 	int ret;
 
 	if (mvm->mld_api_is_used) {
-		iwl_mvm_mld_sta_modify_disable_tx(mvm, mvmsta, disable);
+		if (!iwl_mvm_has_no_host_disable_tx(mvm))
+			iwl_mvm_mld_sta_modify_disable_tx(mvm, mvmsta, disable);
 		return;
 	}
 
@@ -4167,7 +4168,8 @@ void iwl_mvm_sta_modify_disable_tx_ap(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (mvm->mld_api_is_used) {
-		iwl_mvm_mld_sta_modify_disable_tx_ap(mvm, sta, disable);
+		if (!iwl_mvm_has_no_host_disable_tx(mvm))
+			iwl_mvm_mld_sta_modify_disable_tx_ap(mvm, sta, disable);
 		return;
 	}
 
@@ -4222,7 +4224,9 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 	int i;
 
 	if (mvm->mld_api_is_used) {
-		iwl_mvm_mld_modify_all_sta_disable_tx(mvm, mvmvif, disable);
+		if (!iwl_mvm_has_no_host_disable_tx(mvm))
+			iwl_mvm_mld_modify_all_sta_disable_tx(mvm, mvmvif,
+							      disable);
 		return;
 	}
 
