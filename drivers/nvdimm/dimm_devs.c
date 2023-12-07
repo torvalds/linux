@@ -53,7 +53,9 @@ static int validate_dimm(struct nvdimm_drvdata *ndd)
 
 /**
  * nvdimm_init_nsarea - determine the geometry of a dimm's namespace area
- * @nvdimm: dimm to initialize
+ * @ndd: dimm to initialize
+ *
+ * Returns: %0 if the area is already valid, -errno on error
  */
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd)
 {
@@ -722,6 +724,9 @@ static unsigned long dpa_align(struct nd_region *nd_region)
  *			   contiguous unallocated dpa range.
  * @nd_region: constrain available space check to this reference region
  * @nd_mapping: container of dpa-resource-root + labels
+ *
+ * Returns: %0 if there is an alignment error, otherwise the max
+ *		unallocated dpa range
  */
 resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
 					   struct nd_mapping *nd_mapping)
@@ -767,6 +772,8 @@ resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
  *
  * Validate that a PMEM label, if present, aligns with the start of an
  * interleave set.
+ *
+ * Returns: %0 if there is an alignment error, otherwise the unallocated dpa
  */
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 				      struct nd_mapping *nd_mapping)
@@ -836,8 +843,10 @@ struct resource *nvdimm_allocate_dpa(struct nvdimm_drvdata *ndd,
 
 /**
  * nvdimm_allocated_dpa - sum up the dpa currently allocated to this label_id
- * @nvdimm: container of dpa-resource-root + labels
+ * @ndd: container of dpa-resource-root + labels
  * @label_id: dpa resource name of the form pmem-<human readable uuid>
+ *
+ * Returns: sum of the dpa allocated to the label_id
  */
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id)
