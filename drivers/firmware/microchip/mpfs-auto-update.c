@@ -14,7 +14,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/sizes.h>
 
 #include <soc/microchip/mpfs.h>
