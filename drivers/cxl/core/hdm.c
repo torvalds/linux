@@ -373,10 +373,9 @@ resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled)
 {
 	resource_size_t base = -1;
 
-	down_read(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_dpa_rwsem);
 	if (cxled->dpa_res)
 		base = cxled->dpa_res->start;
-	up_read(&cxl_dpa_rwsem);
 
 	return base;
 }
