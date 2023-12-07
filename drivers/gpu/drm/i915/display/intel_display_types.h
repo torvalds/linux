@@ -1022,8 +1022,7 @@ struct intel_c10pll_state {
 };
 
 struct intel_c20pll_state {
-	u32 link_bit_rate;
-	u32 clock; /* in kHz */
+	u32 link_bit_rate; /* in kHz */
 	u16 tx[3];
 	u16 cmn[4];
 	union {
