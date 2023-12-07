@@ -525,40 +525,7 @@ static int armv6_1176_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-/*
- * ARMv6mpcore is almost identical to single core ARMv6 with the exception
- * that some of the events have different enumerations and that there is no
- * *hack* to stop the programmable counters. To stop the counters we simply
- * disable the interrupt reporting and update the event. When unthrottling we
- * reset the period and enable the interrupt reporting.
- */
-
-static int armv6mpcore_map_event(struct perf_event *event)
-{
-	return armpmu_map_event(event, &armv6mpcore_perf_map,
-				&armv6mpcore_perf_cache_map, 0xFF);
-}
-
-static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
-{
-	cpu_pmu->name		= "armv6_11mpcore";
-	cpu_pmu->handle_irq	= armv6pmu_handle_irq;
-	cpu_pmu->enable		= armv6pmu_enable_event;
-	cpu_pmu->disable	= armv6mpcore_pmu_disable_event;
-	cpu_pmu->read_counter	= armv6pmu_read_counter;
-	cpu_pmu->write_counter	= armv6pmu_write_counter;
-	cpu_pmu->get_event_idx	= armv6pmu_get_event_idx;
-	cpu_pmu->clear_event_idx = armv6pmu_clear_event_idx;
-	cpu_pmu->start		= armv6pmu_start;
-	cpu_pmu->stop		= armv6pmu_stop;
-	cpu_pmu->map_event	= armv6mpcore_map_event;
-	cpu_pmu->num_events	= 3;
-
-	return 0;
-}
-
 static const struct of_device_id armv6_pmu_of_device_ids[] = {
-	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
 	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
 	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},
 	{ /* sentinel value */ }
@@ -568,7 +535,6 @@ static const struct pmu_probe_info armv6_pmu_probe_table[] = {
 	ARM_PMU_PROBE(ARM_CPU_PART_ARM1136, armv6_1136_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_ARM1156, armv6_1156_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_ARM1176, armv6_1176_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
 	{ /* sentinel value */ }
 };
 
