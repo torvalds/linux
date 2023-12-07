@@ -405,6 +405,17 @@ __bpf_kfunc u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1,
 	return cpumask_any_and_distribute(src1, src2);
 }
 
+/**
+ * bpf_cpumask_weight() - Return the number of bits in @cpumask.
+ * @cpumask: The cpumask being queried.
+ *
+ * Count the number of set bits in the given cpumask.
+ */
+__bpf_kfunc u32 bpf_cpumask_weight(const struct cpumask *cpumask)
+{
+	return cpumask_weight(cpumask);
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_SET8_START(cpumask_kfunc_btf_ids)
@@ -432,6 +443,7 @@ BTF_ID_FLAGS(func, bpf_cpumask_full, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_copy, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_any_distribute, KF_RCU)
 BTF_ID_FLAGS(func, bpf_cpumask_any_and_distribute, KF_RCU)
+BTF_ID_FLAGS(func, bpf_cpumask_weight, KF_RCU)
 BTF_SET8_END(cpumask_kfunc_btf_ids)
 
 static const struct btf_kfunc_id_set cpumask_kfunc_set = {
