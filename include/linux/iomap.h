@@ -309,6 +309,13 @@ struct iomap_writeback_ops {
 	/*
 	 * Required, maps the blocks so that writeback can be performed on
 	 * the range starting at offset.
+	 *
+	 * Can return arbitrarily large regions, but we need to call into it at
+	 * least once per folio to allow the file systems to synchronize with
+	 * the write path that could be invalidating mappings.
+	 *
+	 * An existing mapping from a previous call to this method can be reused
+	 * by the file system if it is still valid.
 	 */
 	int (*map_blocks)(struct iomap_writepage_ctx *wpc, struct inode *inode,
 				loff_t offset);

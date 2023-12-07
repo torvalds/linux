@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2010 Red Hat, Inc.
- * Copyright (C) 2016-2019 Christoph Hellwig.
+ * Copyright (C) 2016-2023 Christoph Hellwig.
  */
 #include <linux/module.h>
 #include <linux/compiler.h>
@@ -93,6 +93,44 @@ static inline bool ifs_block_is_dirty(struct folio *folio,
 	unsigned int blks_per_folio = i_blocks_per_folio(inode, folio);
 
 	return test_bit(block + blks_per_folio, ifs->state);
+}
+
+static unsigned ifs_find_dirty_range(struct folio *folio,
+		struct iomap_folio_state *ifs, u64 *range_start, u64 range_end)
+{
+	struct inode *inode = folio->mapping->host;
+	unsigned start_blk =
+		offset_in_folio(folio, *range_start) >> inode->i_blkbits;
+	unsigned end_blk = min_not_zero(
+		offset_in_folio(folio, range_end) >> inode->i_blkbits,
+		i_blocks_per_folio(inode, folio));
+	unsigned nblks = 1;
+
+	while (!ifs_block_is_dirty(folio, ifs, start_blk))
+		if (++start_blk == end_blk)
+			return 0;
+
+	while (start_blk + nblks < end_blk) {
+		if (!ifs_block_is_dirty(folio, ifs, start_blk + nblks))
+			break;
+		nblks++;
+	}
+
+	*range_start = folio_pos(folio) + (start_blk << inode->i_blkbits);
+	return nblks << inode->i_blkbits;
+}
+
+static unsigned iomap_find_dirty_range(struct folio *folio, u64 *range_start,
+		u64 range_end)
+{
+	struct iomap_folio_state *ifs = folio->private;
+
+	if (*range_start >= range_end)
+		return 0;
+
+	if (ifs)
+		return ifs_find_dirty_range(folio, ifs, range_start, range_end);
+	return range_end - *range_start;
 }
 
 static void ifs_clear_range_dirty(struct folio *folio,
@@ -1701,10 +1739,9 @@ static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos)
  */
 static int iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct folio *folio,
-		struct inode *inode, loff_t pos)
+		struct inode *inode, loff_t pos, unsigned len)
 {
 	struct iomap_folio_state *ifs = folio->private;
-	unsigned len = i_blocksize(inode);
 	size_t poff = offset_in_folio(folio, pos);
 	int error;
 
@@ -1728,29 +1765,41 @@ new_ioend:
 
 static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct folio *folio,
-		struct inode *inode, u64 pos, unsigned *count)
+		struct inode *inode, u64 pos, unsigned dirty_len,
+		unsigned *count)
 {
 	int error;
 
-	error = wpc->ops->map_blocks(wpc, inode, pos);
-	if (error)
-		goto fail;
-	trace_iomap_writepage_map(inode, &wpc->iomap);
+	do {
+		unsigned map_len;
 
-	switch (wpc->iomap.type) {
-	case IOMAP_INLINE:
-		WARN_ON_ONCE(1);
-		error = -EIO;
-		break;
-	case IOMAP_HOLE:
-		break;
-	default:
-		error = iomap_add_to_ioend(wpc, wbc, folio, inode, pos);
-		if (!error)
-			(*count)++;
-	}
+		error = wpc->ops->map_blocks(wpc, inode, pos);
+		if (error)
+			break;
+		trace_iomap_writepage_map(inode, &wpc->iomap);
 
-fail:
+		map_len = min_t(u64, dirty_len,
+			wpc->iomap.offset + wpc->iomap.length - pos);
+		WARN_ON_ONCE(!folio->private && map_len < dirty_len);
+
+		switch (wpc->iomap.type) {
+		case IOMAP_INLINE:
+			WARN_ON_ONCE(1);
+			error = -EIO;
+			break;
+		case IOMAP_HOLE:
+			break;
+		default:
+			error = iomap_add_to_ioend(wpc, wbc, folio, inode, pos,
+					map_len);
+			if (!error)
+				(*count)++;
+			break;
+		}
+		dirty_len -= map_len;
+		pos += map_len;
+	} while (dirty_len && !error);
+
 	/*
 	 * We cannot cancel the ioend directly here on error.  We may have
 	 * already set other pages under writeback and hence we have to run I/O
@@ -1817,7 +1866,7 @@ static bool iomap_writepage_handle_eof(struct folio *folio, struct inode *inode,
 		 * beyond i_size.
 		 */
 		folio_zero_segment(folio, poff, folio_size(folio));
-		*end_pos = isize;
+		*end_pos = round_up(isize, i_blocksize(inode));
 	}
 
 	return true;
@@ -1828,12 +1877,11 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 {
 	struct iomap_folio_state *ifs = folio->private;
 	struct inode *inode = folio->mapping->host;
-	unsigned len = i_blocksize(inode);
-	unsigned nblocks = i_blocks_per_folio(inode, folio);
 	u64 pos = folio_pos(folio);
 	u64 end_pos = pos + folio_size(folio);
 	unsigned count = 0;
-	int error = 0, i;
+	int error = 0;
+	u32 rlen;
 
 	WARN_ON_ONCE(!folio_test_locked(folio));
 	WARN_ON_ONCE(folio_test_dirty(folio));
@@ -1847,7 +1895,7 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	}
 	WARN_ON_ONCE(end_pos <= pos);
 
-	if (nblocks > 1) {
+	if (i_blocks_per_folio(inode, folio) > 1) {
 		if (!ifs) {
 			ifs = ifs_alloc(inode, folio, 0);
 			iomap_set_range_dirty(folio, 0, end_pos - pos);
@@ -1870,18 +1918,16 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	folio_start_writeback(folio);
 
 	/*
-	 * Walk through the folio to find areas to write back. If we
-	 * run off the end of the current map or find the current map
-	 * invalid, grab a new one.
+	 * Walk through the folio to find dirty areas to write back.
 	 */
-	for (i = 0; i < nblocks && pos < end_pos; i++, pos += len) {
-		if (ifs && !ifs_block_is_dirty(folio, ifs, i))
-			continue;
-		error = iomap_writepage_map_blocks(wpc, wbc, folio, inode, pos,
-				&count);
+	while ((rlen = iomap_find_dirty_range(folio, &pos, end_pos))) {
+		error = iomap_writepage_map_blocks(wpc, wbc, folio, inode,
+				pos, rlen, &count);
 		if (error)
 			break;
+		pos += rlen;
 	}
+
 	if (count)
 		wpc->nr_folios++;
 
