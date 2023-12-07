@@ -864,50 +864,33 @@ static struct platform_driver smsc47m1_driver __refdata = {
 static int __init smsc47m1_device_add(unsigned short address,
 				      const struct smsc47m1_sio_data *sio_data)
 {
-	struct resource res = {
+	const struct resource res = {
 		.start	= address,
 		.end	= address + SMSC_EXTENT - 1,
 		.name	= DRVNAME,
 		.flags	= IORESOURCE_IO,
 	};
+	const struct platform_device_info pdevinfo = {
+		.name = DRVNAME,
+		.id = address,
+		.res = &res,
+		.num_res = 1,
+		.data = sio_data,
+		.size_data = sizeof(struct smsc47m1_sio_data),
+	};
 	int err;
 
 	err = smsc47m1_handle_resources(address, sio_data->type, CHECK, NULL);
 	if (err)
-		goto exit;
+		return err;
 
-	pdev = platform_device_alloc(DRVNAME, address);
-	if (!pdev) {
-		err = -ENOMEM;
+	pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(pdev)) {
 		pr_err("Device allocation failed\n");
-		goto exit;
-	}
-
-	err = platform_device_add_resources(pdev, &res, 1);
-	if (err) {
-		pr_err("Device resource addition failed (%d)\n", err);
-		goto exit_device_put;
-	}
-
-	err = platform_device_add_data(pdev, sio_data,
-				       sizeof(struct smsc47m1_sio_data));
-	if (err) {
-		pr_err("Platform data allocation failed\n");
-		goto exit_device_put;
-	}
-
-	err = platform_device_add(pdev);
-	if (err) {
-		pr_err("Device addition failed (%d)\n", err);
-		goto exit_device_put;
+		return PTR_ERR(pdev);
 	}
 
 	return 0;
-
-exit_device_put:
-	platform_device_put(pdev);
-exit:
-	return err;
 }
 
 static int __init sm_smsc47m1_init(void)
