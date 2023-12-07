@@ -32,6 +32,11 @@ enum {
 	MT_LMAC_PSMP0,
 };
 
+enum {
+	MT_TXS_MPDU_FMT = 0,
+	MT_TXS_PPDU_FMT = 2,
+};
+
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
 #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
 #define MT_TX_FREE_COUNT		GENMASK(12, 0)
