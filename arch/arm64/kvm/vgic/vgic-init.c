@@ -368,7 +368,7 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 		vgic_v4_teardown(kvm);
 }
 
-void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
+static void __kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
@@ -382,6 +382,15 @@ void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
 	vgic_cpu->rd_iodev.base_addr = VGIC_ADDR_UNDEF;
 }
 
+void kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+
+	mutex_lock(&kvm->slots_lock);
+	__kvm_vgic_vcpu_destroy(vcpu);
+	mutex_unlock(&kvm->slots_lock);
+}
+
 void kvm_vgic_destroy(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
@@ -392,7 +401,7 @@ void kvm_vgic_destroy(struct kvm *kvm)
 	vgic_debug_destroy(kvm);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
-		kvm_vgic_vcpu_destroy(vcpu);
+		__kvm_vgic_vcpu_destroy(vcpu);
 
 	mutex_lock(&kvm->arch.config_lock);
 
