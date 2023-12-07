@@ -2515,7 +2515,7 @@ static void btree_trans_verify_sorted_refs(struct btree_trans *trans)
 	struct btree_path *path;
 	unsigned i;
 
-	BUG_ON(trans->nr_sorted != bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX));
+	BUG_ON(trans->nr_sorted != bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX) - 1);
 
 	trans_for_each_path(trans, path) {
 		BUG_ON(path->sorted_idx >= trans->nr_sorted);
@@ -2895,6 +2895,8 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 		unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) &&
 		atomic_inc_not_zero(&c->journal_keys.ref);
 	closure_init_stack(&trans->ref);
+
+	trans->paths_allocated[0] = 1;
 
 	s = btree_trans_stats(trans);
 	if (s && s->max_mem) {

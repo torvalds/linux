@@ -80,7 +80,7 @@ __trans_next_path(struct btree_trans *trans, unsigned idx)
 	     _path = __trans_next_path((_trans), (_path)->idx + 1))
 
 #define trans_for_each_path(_trans, _path)				\
-	trans_for_each_path_from(_trans, _path, 0)
+	trans_for_each_path_from(_trans, _path, 1)
 
 static inline struct btree_path *
 __trans_next_path_safe(struct btree_trans *trans, unsigned *idx)
@@ -103,7 +103,7 @@ __trans_next_path_safe(struct btree_trans *trans, unsigned *idx)
 	     _idx++)
 
 #define trans_for_each_path_safe(_trans, _path, _idx)			\
-	trans_for_each_path_safe_from(_trans, _path, _idx, 0)
+	trans_for_each_path_safe_from(_trans, _path, _idx, 1)
 
 static inline struct btree_path *next_btree_path(struct btree_trans *trans, struct btree_path *path)
 {
@@ -155,7 +155,7 @@ __trans_next_path_with_node(struct btree_trans *trans, struct btree *b,
 }
 
 #define trans_for_each_path_with_node(_trans, _b, _path)		\
-	for (_path = __trans_next_path_with_node((_trans), (_b), 0);	\
+	for (_path = __trans_next_path_with_node((_trans), (_b), 1);	\
 	     (_path);							\
 	     _path = __trans_next_path_with_node((_trans), (_b),	\
 						 (_path)->idx + 1))
