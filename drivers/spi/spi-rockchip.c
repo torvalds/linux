@@ -478,8 +478,8 @@ static u32 rockchip_spi_calc_burst_size(u32 data_len)
 {
 	u32 i;
 
-	/* burst size: 1, 2, 4, 8 */
-	for (i = 1; i < 8; i <<= 1) {
+	/* burst size: 1, 2, 4, 8, 16 */
+	for (i = 1; i < 16; i <<= 1) {
 		if (data_len & i)
 			break;
 	}
