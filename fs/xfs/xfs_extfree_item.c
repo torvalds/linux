@@ -453,7 +453,7 @@ xfs_extent_free_finish_item(
 	struct xfs_extent		*extp;
 	uint				next_extent;
 	xfs_agblock_t			agbno;
-	int				error;
+	int				error = 0;
 
 	xefi = container_of(item, struct xfs_extent_free_item, xefi_list);
 	agbno = XFS_FSB_TO_AGBNO(mp, xefi->xefi_startblock);
@@ -473,9 +473,10 @@ xfs_extent_free_finish_item(
 	 * the existing EFI, and so we need to copy all the unprocessed extents
 	 * in this EFI to the EFD so this works correctly.
 	 */
-	error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
-			xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
-			xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
+	if (!(xefi->xefi_flags & XFS_EFI_CANCELLED))
+		error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
+				xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
+				xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
 	if (error == -EAGAIN) {
 		xfs_efd_from_efi(efdp);
 		return error;
