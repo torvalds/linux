@@ -1088,10 +1088,9 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 	rcu_read_unlock();
 
 	dev_dbg(service->state->dev,
-		"arm: service %lx(%d,%p), reason %d, header %lx, instance %lx, bulk_userdata %lx\n",
-		(unsigned long)user_service, service->localport,
-		user_service->userdata, reason, (unsigned long)header,
-		(unsigned long)instance, (unsigned long)bulk_userdata);
+		"arm: service %p(%d,%p), reason %d, header %p, instance %p, bulk_userdata %p\n",
+		user_service, service->localport, user_service->userdata,
+		reason, header, instance, bulk_userdata);
 
 	if (header && user_service->is_vchi) {
 		spin_lock(&msg_queue_spinlock);
