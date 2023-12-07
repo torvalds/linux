@@ -1579,7 +1579,7 @@ static int __maybe_unused rkcif_sleep_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rkcif_sleep_suspend,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(rkcif_sleep_suspend,
 				rkcif_sleep_resume)
 	SET_RUNTIME_PM_OPS(rkcif_runtime_suspend, rkcif_runtime_resume, NULL)
 };
