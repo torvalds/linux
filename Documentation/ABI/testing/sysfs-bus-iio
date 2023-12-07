@@ -618,7 +618,9 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		If a discrete set of scale values is available, they
-		are listed in this attribute.
+		are listed in this attribute. Unlike illumination,
+		multiplying intensity by intensity_scale does not
+		yield value with any standardized unit.
 
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_hardwaregain
