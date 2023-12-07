@@ -19,6 +19,8 @@
 #include "../sof/amd/acp.h"
 #include "mach-config.h"
 
+#define ACP_7_0_REV	0x70
+
 static int acp_quirk_data;
 
 static const struct config_entry config_table[] = {
@@ -145,15 +147,33 @@ static const struct config_entry config_table[] = {
 	},
 };
 
+static int snd_amd_acp_acpi_find_config(struct pci_dev *pci)
+{
+	const union acpi_object *obj;
+	int acp_flag = FLAG_AMD_LEGACY_ONLY_DMIC;
+
+	if (!acpi_dev_get_property(ACPI_COMPANION(&pci->dev), "acp-audio-config-flag",
+				   ACPI_TYPE_INTEGER, &obj))
+		acp_flag = obj->integer.value;
+
+	return acp_flag;
+}
+
 int snd_amd_acp_find_config(struct pci_dev *pci)
 {
 	const struct config_entry *table = config_table;
 	u16 device = pci->device;
 	int i;
 
-	/* Do not enable FLAGS on older platforms with Rev id zero */
+	/* Do not enable FLAGS on older platforms with Rev Id zero
+	 * For platforms which has ACP 7.0 or higher, read the acp
+	 * config flag from BIOS ACPI table and for older platforms
+	 * read it from DMI tables.
+	 */
 	if (!pci->revision)
 		return 0;
+	else if (pci->revision >= ACP_7_0_REV)
+		return snd_amd_acp_acpi_find_config(pci);
 
 	for (i = 0; i < ARRAY_SIZE(config_table); i++, table++) {
 		if (table->device != device)
