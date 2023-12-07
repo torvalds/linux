@@ -1832,19 +1832,25 @@ static bool iomap_writepage_handle_eof(struct folio *folio, struct inode *inode,
  * At the end of a writeback pass, there will be a cached ioend remaining on the
  * writepage context that the caller will need to submit.
  */
-static int
-iomap_writepage_map(struct iomap_writepage_ctx *wpc,
-		struct writeback_control *wbc, struct inode *inode,
-		struct folio *folio, u64 end_pos)
+static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
+		struct writeback_control *wbc, struct folio *folio)
 {
 	struct iomap_folio_state *ifs = folio->private;
+	struct inode *inode = folio->mapping->host;
 	struct iomap_ioend *ioend, *next;
 	unsigned len = i_blocksize(inode);
 	unsigned nblocks = i_blocks_per_folio(inode, folio);
 	u64 pos = folio_pos(folio);
+	u64 end_pos = pos + folio_size(folio);
 	int error = 0, count = 0, i;
 	LIST_HEAD(submit_list);
 
+	trace_iomap_writepage(inode, pos, folio_size(folio));
+
+	if (!iomap_writepage_handle_eof(folio, inode, &end_pos)) {
+		folio_unlock(folio);
+		return 0;
+	}
 	WARN_ON_ONCE(end_pos <= pos);
 
 	if (!ifs && nblocks > 1) {
@@ -1944,28 +1950,10 @@ done:
 	return error;
 }
 
-/*
- * Write out a dirty page.
- *
- * For delalloc space on the page, we need to allocate space and flush it.
- * For unwritten space on the page, we need to start the conversion to
- * regular allocated space.
- */
 static int iomap_do_writepage(struct folio *folio,
 		struct writeback_control *wbc, void *data)
 {
-	struct iomap_writepage_ctx *wpc = data;
-	struct inode *inode = folio->mapping->host;
-	u64 end_pos = folio_pos(folio) + folio_size(folio);
-
-	trace_iomap_writepage(inode, folio_pos(folio), folio_size(folio));
-
-	if (!iomap_writepage_handle_eof(folio, inode, &end_pos)) {
-		folio_unlock(folio);
-		return 0;
-	}
-
-	return iomap_writepage_map(wpc, wbc, inode, folio, end_pos);
+	return iomap_writepage_map(data, wbc, folio);
 }
 
 int
