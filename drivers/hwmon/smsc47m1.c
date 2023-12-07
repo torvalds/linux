@@ -850,7 +850,13 @@ static int __exit smsc47m1_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver smsc47m1_driver = {
+/*
+ * smsc47m1_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this ok because they cannot get unbound at
+ * runtime. The driver needs to be marked with __refdata, otherwise modpost
+ * triggers a section mismatch warning.
+ */
+static struct platform_driver smsc47m1_driver __refdata = {
 	.driver = {
 		.name	= DRVNAME,
 	},
