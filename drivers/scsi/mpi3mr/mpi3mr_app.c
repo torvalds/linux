@@ -947,8 +947,8 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 		dma_addr = drv_buf_iter->dma_desc[count].dma_addr;
 		if (dma_addr & page_mask) {
 			dprint_bsg_err(mrioc,
-				       "%s:dma_addr 0x%llx is not aligned with page size 0x%x\n",
-				       __func__,  dma_addr, dev_pgsz);
+				       "%s:dma_addr %pad is not aligned with page size 0x%x\n",
+				       __func__,  &dma_addr, dev_pgsz);
 			return -1;
 		}
 	}
@@ -1110,7 +1110,7 @@ static int mpi3mr_build_nvme_prp(struct mpi3mr_ioc *mrioc,
 				if ((++desc_count) >=
 				   drv_buf_iter->num_dma_desc) {
 					dprint_bsg_err(mrioc,
-						       "%s: Invalid len %ld while building PRP\n",
+						       "%s: Invalid len %zd while building PRP\n",
 						       __func__, length);
 					goto err_out;
 				}
