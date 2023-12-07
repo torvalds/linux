@@ -86,6 +86,8 @@ static irqreturn_t zynqmp_pm_isr(int irq, void *data)
 			pr_err("%s Unsupported InitSuspendCb reason code %d\n",
 			       __func__, payload[1]);
 		}
+	} else {
+		pr_err("%s() Unsupported Callback %d\n", __func__, payload[0]);
 	}
 
 	return IRQ_HANDLED;
