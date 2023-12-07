@@ -7,6 +7,7 @@ obj-m += nfit_test_iomap.o
 
 ifeq  ($(CONFIG_ACPI_NFIT),m)
 	nfit_test-y := nfit.o
+	obj-m += ndtest.o
 else
 	nfit_test-y := ndtest.o
 endif
