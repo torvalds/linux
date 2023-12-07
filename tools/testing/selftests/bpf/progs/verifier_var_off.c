@@ -224,6 +224,35 @@ __naked void access_max_out_of_bound(void)
 	: __clobber_all);
 }
 
+/* Similar to the test above, but this time check the special case of a
+ * zero-sized stack access. We used to have a bug causing crashes for zero-sized
+ * out-of-bounds accesses.
+ */
+SEC("socket")
+__description("indirect variable-offset stack access, zero-sized, max out of bound")
+__failure __msg("invalid variable-offset indirect access to stack R1")
+__naked void zero_sized_access_max_out_of_bound(void)
+{
+	asm volatile ("                      \
+	r0 = 0;                              \
+	/* Fill some stack */                \
+	*(u64*)(r10 - 16) = r0;              \
+	*(u64*)(r10 - 8) = r0;               \
+	/* Get an unknown value */           \
+	r1 = *(u32*)(r1 + 0);                \
+	r1 &= 63;                            \
+	r1 += -16;                           \
+	/* r1 is now anywhere in [-16,48) */ \
+	r1 += r10;                           \
+	r2 = 0;                              \
+	r3 = 0;                              \
+	call %[bpf_probe_read_kernel];       \
+	exit;                                \
+"	:
+	: __imm(bpf_probe_read_kernel)
+	: __clobber_all);
+}
+
 SEC("lwt_in")
 __description("indirect variable-offset stack access, min out of bound")
 __failure __msg("invalid variable-offset indirect access to stack R2")
