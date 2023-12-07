@@ -3070,8 +3070,9 @@ static int arm_smmu_handoff_cbs(struct arm_smmu_device *smmu)
 			if (!handoff_smrs[index].valid)
 				continue;
 
-			if ((handoff_smrs[index].mask & smrs.mask) == handoff_smrs[index].mask &&
-			    !((handoff_smrs[index].id ^ smrs.id) & ~smrs.mask)) {
+			/* smrs is subset of handoff_smrs */
+			if ((handoff_smrs[index].mask & smrs.mask) == smrs.mask &&
+			    !((handoff_smrs[index].id ^ smrs.id) & ~handoff_smrs[index].mask)) {
 
 				dev_dbg(smmu->dev,
 					"handoff-smrs match idx %d, id, 0x%x, mask 0x%x\n",
