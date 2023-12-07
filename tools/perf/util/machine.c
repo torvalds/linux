@@ -1285,33 +1285,46 @@ static u64 find_entry_trampoline(struct dso *dso)
 #define X86_64_CPU_ENTRY_AREA_SIZE	0x2c000
 #define X86_64_ENTRY_TRAMPOLINE		0x6000
 
+struct machine__map_x86_64_entry_trampolines_args {
+	struct maps *kmaps;
+	bool found;
+};
+
+static int machine__map_x86_64_entry_trampolines_cb(struct map *map, void *data)
+{
+	struct machine__map_x86_64_entry_trampolines_args *args = data;
+	struct map *dest_map;
+	struct kmap *kmap = __map__kmap(map);
+
+	if (!kmap || !is_entry_trampoline(kmap->name))
+		return 0;
+
+	dest_map = maps__find(args->kmaps, map__pgoff(map));
+	if (dest_map != map)
+		map__set_pgoff(map, map__map_ip(dest_map, map__pgoff(map)));
+
+	args->found = true;
+	return 0;
+}
+
 /* Map x86_64 PTI entry trampolines */
 int machine__map_x86_64_entry_trampolines(struct machine *machine,
 					  struct dso *kernel)
 {
-	struct maps *kmaps = machine__kernel_maps(machine);
+	struct machine__map_x86_64_entry_trampolines_args args = {
+		.kmaps = machine__kernel_maps(machine),
+		.found = false,
+	};
 	int nr_cpus_avail, cpu;
-	bool found = false;
-	struct map_rb_node *rb_node;
 	u64 pgoff;
 
 	/*
 	 * In the vmlinux case, pgoff is a virtual address which must now be
 	 * mapped to a vmlinux offset.
 	 */
-	maps__for_each_entry(kmaps, rb_node) {
-		struct map *dest_map, *map = rb_node->map;
-		struct kmap *kmap = __map__kmap(map);
+	maps__for_each_map(args.kmaps, machine__map_x86_64_entry_trampolines_cb, &args);
 
-		if (!kmap || !is_entry_trampoline(kmap->name))
-			continue;
-
-		dest_map = maps__find(kmaps, map__pgoff(map));
-		if (dest_map != map)
-			map__set_pgoff(map, map__map_ip(dest_map, map__pgoff(map)));
-		found = true;
-	}
-	if (found || machine->trampolines_mapped)
+	if (args.found || machine->trampolines_mapped)
 		return 0;
 
 	pgoff = find_entry_trampoline(kernel);
@@ -3398,16 +3411,8 @@ int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv
 int machine__for_each_kernel_map(struct machine *machine, machine__map_t fn, void *priv)
 {
 	struct maps *maps = machine__kernel_maps(machine);
-	struct map_rb_node *pos;
-	int err = 0;
 
-	maps__for_each_entry(maps, pos) {
-		err = fn(pos->map, priv);
-		if (err != 0) {
-			break;
-		}
-	}
-	return err;
+	return maps__for_each_map(maps, fn, priv);
 }
 
 bool machine__is_lock_function(struct machine *machine, u64 addr)
