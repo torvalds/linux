@@ -497,10 +497,8 @@
 					     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_PDM_IPG>,
 					 <&clk IMX93_CLK_PDM_GATE>,
-					 <&clk IMX93_CLK_AUDIO_PLL>,
-					 <&clk IMX93_CLK_DUMMY>;
-				clock-names = "ipg_clk", "ipg_clk_app",
-					      "pll8k", "clkext3";
+					 <&clk IMX93_CLK_AUDIO_PLL>;
+				clock-names = "ipg_clk", "ipg_clk_app", "pll8k";
 				dmas = <&edma1 29 0 5>;
 				dma-names = "rx";
 				status = "disabled";
