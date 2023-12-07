@@ -1656,9 +1656,8 @@ iomap_submit_ioend(struct iomap_writepage_ctx *wpc, struct iomap_ioend *ioend,
 	return 0;
 }
 
-static struct iomap_ioend *
-iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
-		loff_t offset, sector_t sector, struct writeback_control *wbc)
+static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
+		struct writeback_control *wbc, struct inode *inode, loff_t pos)
 {
 	struct iomap_ioend *ioend;
 	struct bio *bio;
@@ -1666,7 +1665,7 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
 	bio = bio_alloc_bioset(wpc->iomap.bdev, BIO_MAX_VECS,
 			       REQ_OP_WRITE | wbc_to_write_flags(wbc),
 			       GFP_NOFS, &iomap_ioend_bioset);
-	bio->bi_iter.bi_sector = sector;
+	bio->bi_iter.bi_sector = iomap_sector(&wpc->iomap, pos);
 	wbc_init_bio(wbc, bio);
 
 	ioend = container_of(bio, struct iomap_ioend, io_inline_bio);
@@ -1675,9 +1674,9 @@ iomap_alloc_ioend(struct inode *inode, struct iomap_writepage_ctx *wpc,
 	ioend->io_flags = wpc->iomap.flags;
 	ioend->io_inode = inode;
 	ioend->io_size = 0;
-	ioend->io_offset = offset;
+	ioend->io_offset = pos;
 	ioend->io_bio = bio;
-	ioend->io_sector = sector;
+	ioend->io_sector = bio->bi_iter.bi_sector;
 
 	wpc->nr_folios = 0;
 	return ioend;
@@ -1705,18 +1704,17 @@ iomap_chain_bio(struct bio *prev)
 	return new;
 }
 
-static bool
-iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t offset,
-		sector_t sector)
+static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos)
 {
 	if ((wpc->iomap.flags & IOMAP_F_SHARED) !=
 	    (wpc->ioend->io_flags & IOMAP_F_SHARED))
 		return false;
 	if (wpc->iomap.type != wpc->ioend->io_type)
 		return false;
-	if (offset != wpc->ioend->io_offset + wpc->ioend->io_size)
+	if (pos != wpc->ioend->io_offset + wpc->ioend->io_size)
 		return false;
-	if (sector != bio_end_sector(wpc->ioend->io_bio))
+	if (iomap_sector(&wpc->iomap, pos) !=
+	    bio_end_sector(wpc->ioend->io_bio))
 		return false;
 	/*
 	 * Limit ioend bio chain lengths to minimise IO completion latency. This
@@ -1737,14 +1735,13 @@ static void iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
 		struct inode *inode, loff_t pos, struct list_head *iolist)
 {
 	struct iomap_folio_state *ifs = folio->private;
-	sector_t sector = iomap_sector(&wpc->iomap, pos);
 	unsigned len = i_blocksize(inode);
 	size_t poff = offset_in_folio(folio, pos);
 
-	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, pos, sector)) {
+	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, pos)) {
 		if (wpc->ioend)
 			list_add(&wpc->ioend->io_list, iolist);
-		wpc->ioend = iomap_alloc_ioend(inode, wpc, pos, sector, wbc);
+		wpc->ioend = iomap_alloc_ioend(wpc, wbc, inode, pos);
 	}
 
 	if (!bio_add_folio(wpc->ioend->io_bio, folio, len, poff)) {
