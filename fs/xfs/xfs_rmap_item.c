@@ -225,23 +225,6 @@ static const struct xfs_item_ops xfs_rud_item_ops = {
 	.iop_intent	= xfs_rud_item_intent,
 };
 
-static struct xfs_rud_log_item *
-xfs_trans_get_rud(
-	struct xfs_trans		*tp,
-	struct xfs_rui_log_item		*ruip)
-{
-	struct xfs_rud_log_item		*rudp;
-
-	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
-	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
-			  &xfs_rud_item_ops);
-	rudp->rud_ruip = ruip;
-	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
-
-	xfs_trans_add_item(tp, &rudp->rud_item);
-	return rudp;
-}
-
 /* Set the map extent flags for this reverse mapping. */
 static void
 xfs_trans_set_rmap_flags(
@@ -285,35 +268,6 @@ xfs_trans_set_rmap_flags(
 	}
 }
 
-/*
- * Finish an rmap update and log it to the RUD. Note that the transaction is
- * marked dirty regardless of whether the rmap update succeeds or fails to
- * support the RUI/RUD lifecycle rules.
- */
-static int
-xfs_trans_log_finish_rmap_update(
-	struct xfs_trans		*tp,
-	struct xfs_rud_log_item		*rudp,
-	struct xfs_rmap_intent		*ri,
-	struct xfs_btree_cur		**pcur)
-{
-	int				error;
-
-	error = xfs_rmap_finish_one(tp, ri, pcur);
-
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the RUI and frees the RUD
-	 * 2.) shuts down the filesystem
-	 */
-	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
-
-	return error;
-}
-
 /* Sort rmap intents by AG. */
 static int
 xfs_rmap_update_diff_items(
@@ -339,9 +293,6 @@ xfs_rmap_update_log_item(
 {
 	uint				next_extent;
 	struct xfs_map_extent		*map;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
 
 	/*
 	 * atomic_inc_return gives us the value after the increment;
@@ -372,7 +323,6 @@ xfs_rmap_update_create_intent(
 
 	ASSERT(count > 0);
 
-	xfs_trans_add_item(tp, &ruip->rui_item);
 	if (sort)
 		list_sort(mp, items, xfs_rmap_update_diff_items);
 	list_for_each_entry(ri, items, ri_list)
@@ -387,7 +337,16 @@ xfs_rmap_update_create_done(
 	struct xfs_log_item		*intent,
 	unsigned int			count)
 {
-	return &xfs_trans_get_rud(tp, RUI_ITEM(intent))->rud_item;
+	struct xfs_rui_log_item		*ruip = RUI_ITEM(intent);
+	struct xfs_rud_log_item		*rudp;
+
+	rudp = kmem_cache_zalloc(xfs_rud_cache, GFP_KERNEL | __GFP_NOFAIL);
+	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
+			  &xfs_rud_item_ops);
+	rudp->rud_ruip = ruip;
+	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
+
+	return &rudp->rud_item;
 }
 
 /* Take a passive ref to the AG containing the space we're rmapping. */
@@ -423,8 +382,7 @@ xfs_rmap_update_finish_item(
 
 	ri = container_of(item, struct xfs_rmap_intent, ri_list);
 
-	error = xfs_trans_log_finish_rmap_update(tp, RUD_ITEM(done), ri,
-			state);
+	error = xfs_rmap_finish_one(tp, ri, state);
 
 	xfs_rmap_update_put_group(ri);
 	kmem_cache_free(xfs_rmap_intent_cache, ri);
@@ -596,6 +554,27 @@ abort_error:
 	return error;
 }
 
+/* Relog an intent item to push the log tail forward. */
+static struct xfs_log_item *
+xfs_rmap_relog_intent(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*intent,
+	struct xfs_log_item		*done_item)
+{
+	struct xfs_rui_log_item		*ruip;
+	struct xfs_map_extent		*map;
+	unsigned int			count;
+
+	count = RUI_ITEM(intent)->rui_format.rui_nextents;
+	map = RUI_ITEM(intent)->rui_format.rui_extents;
+
+	ruip = xfs_rui_init(tp->t_mountp, count);
+	memcpy(ruip->rui_format.rui_extents, map, count * sizeof(*map));
+	atomic_set(&ruip->rui_next_extent, count);
+
+	return &ruip->rui_item;
+}
+
 const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
 	.create_intent	= xfs_rmap_update_create_intent,
@@ -605,6 +584,7 @@ const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.finish_cleanup = xfs_rmap_finish_one_cleanup,
 	.cancel_item	= xfs_rmap_update_cancel_item,
 	.recover_work	= xfs_rmap_recover_work,
+	.relog_intent	= xfs_rmap_relog_intent,
 };
 
 STATIC bool
@@ -615,32 +595,6 @@ xfs_rui_item_match(
 	return RUI_ITEM(lip)->rui_format.rui_id == intent_id;
 }
 
-/* Relog an intent item to push the log tail forward. */
-static struct xfs_log_item *
-xfs_rui_item_relog(
-	struct xfs_log_item		*intent,
-	struct xfs_trans		*tp)
-{
-	struct xfs_rud_log_item		*rudp;
-	struct xfs_rui_log_item		*ruip;
-	struct xfs_map_extent		*map;
-	unsigned int			count;
-
-	count = RUI_ITEM(intent)->rui_format.rui_nextents;
-	map = RUI_ITEM(intent)->rui_format.rui_extents;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	rudp = xfs_trans_get_rud(tp, RUI_ITEM(intent));
-	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
-
-	ruip = xfs_rui_init(tp->t_mountp, count);
-	memcpy(ruip->rui_format.rui_extents, map, count * sizeof(*map));
-	atomic_set(&ruip->rui_next_extent, count);
-	xfs_trans_add_item(tp, &ruip->rui_item);
-	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
-	return &ruip->rui_item;
-}
-
 static const struct xfs_item_ops xfs_rui_item_ops = {
 	.flags		= XFS_ITEM_INTENT,
 	.iop_size	= xfs_rui_item_size,
@@ -648,7 +602,6 @@ static const struct xfs_item_ops xfs_rui_item_ops = {
 	.iop_unpin	= xfs_rui_item_unpin,
 	.iop_release	= xfs_rui_item_release,
 	.iop_match	= xfs_rui_item_match,
-	.iop_relog	= xfs_rui_item_relog,
 };
 
 static inline void

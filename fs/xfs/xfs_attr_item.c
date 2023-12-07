@@ -33,8 +33,6 @@ struct kmem_cache		*xfs_attrd_cache;
 
 static const struct xfs_item_ops xfs_attri_item_ops;
 static const struct xfs_item_ops xfs_attrd_item_ops;
-static struct xfs_attrd_log_item *xfs_trans_get_attrd(struct xfs_trans *tp,
-					struct xfs_attri_log_item *attrip);
 
 static inline struct xfs_attri_log_item *ATTRI_ITEM(struct xfs_log_item *lip)
 {
@@ -310,54 +308,6 @@ xfs_attrd_item_intent(
 	return &ATTRD_ITEM(lip)->attrd_attrip->attri_item;
 }
 
-/*
- * Performs one step of an attribute update intent and marks the attrd item
- * dirty..  An attr operation may be a set or a remove.  Note that the
- * transaction is marked dirty regardless of whether the operation succeeds or
- * fails to support the ATTRI/ATTRD lifecycle rules.
- */
-STATIC int
-xfs_xattri_finish_update(
-	struct xfs_attr_intent		*attr,
-	struct xfs_attrd_log_item	*attrdp)
-{
-	struct xfs_da_args		*args = attr->xattri_da_args;
-	int				error;
-
-	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
-		error = -EIO;
-		goto out;
-	}
-
-	/* If an attr removal is trivially complete, we're done. */
-	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
-	    !xfs_inode_hasattr(args->dp)) {
-		error = 0;
-		goto out;
-	}
-
-	error = xfs_attr_set_iter(attr);
-	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
-		error = -EAGAIN;
-out:
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the ATTRI and frees the ATTRD
-	 * 2.) shuts down the filesystem
-	 */
-	args->trans->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-
-	/*
-	 * attr intent/done items are null when logged attributes are disabled
-	 */
-	if (attrdp)
-		set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
-
-	return error;
-}
-
 /* Log an attr to the intent item. */
 STATIC void
 xfs_attr_log_item(
@@ -366,9 +316,6 @@ xfs_attr_log_item(
 	const struct xfs_attr_intent	*attr)
 {
 	struct xfs_attri_log_format	*attrp;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &attrip->attri_item.li_flags);
 
 	/*
 	 * At this point the xfs_attr_intent has been constructed, and we've
@@ -426,7 +373,6 @@ xfs_attr_create_intent(
 	}
 
 	attrip = xfs_attri_init(mp, attr->xattri_nameval);
-	xfs_trans_add_item(tp, &attrip->attri_item);
 	xfs_attr_log_item(tp, attrip, attr);
 
 	return &attrip->attri_item;
@@ -454,23 +400,33 @@ xfs_attr_finish_item(
 	struct xfs_btree_cur		**state)
 {
 	struct xfs_attr_intent		*attr;
-	struct xfs_attrd_log_item	*done_item = NULL;
+	struct xfs_da_args		*args;
 	int				error;
 
 	attr = container_of(item, struct xfs_attr_intent, xattri_list);
-	if (done)
-		done_item = ATTRD_ITEM(done);
+	args = attr->xattri_da_args;
 
-	/*
-	 * Always reset trans after EAGAIN cycle
-	 * since the transaction is new
-	 */
-	attr->xattri_da_args->trans = tp;
+	/* Reset trans after EAGAIN cycle since the transaction is new */
+	args->trans = tp;
 
-	error = xfs_xattri_finish_update(attr, done_item);
-	if (error != -EAGAIN)
-		xfs_attr_free_item(attr);
+	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
+		error = -EIO;
+		goto out;
+	}
 
+	/* If an attr removal is trivially complete, we're done. */
+	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
+	    !xfs_inode_hasattr(args->dp)) {
+		error = 0;
+		goto out;
+	}
+
+	error = xfs_attr_set_iter(attr);
+	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
+		return -EAGAIN;
+
+out:
+	xfs_attr_free_item(attr);
 	return error;
 }
 
@@ -669,11 +625,11 @@ out_unlock:
 
 /* Re-log an intent item to push the log tail forward. */
 static struct xfs_log_item *
-xfs_attri_item_relog(
+xfs_attr_relog_intent(
+	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
-	struct xfs_trans		*tp)
+	struct xfs_log_item		*done_item)
 {
-	struct xfs_attrd_log_item	*attrdp;
 	struct xfs_attri_log_item	*old_attrip;
 	struct xfs_attri_log_item	*new_attrip;
 	struct xfs_attri_log_format	*new_attrp;
@@ -681,10 +637,6 @@ xfs_attri_item_relog(
 
 	old_attrip = ATTRI_ITEM(intent);
 	old_attrp = &old_attrip->attri_format;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	attrdp = xfs_trans_get_attrd(tp, old_attrip);
-	set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
 
 	/*
 	 * Create a new log item that shares the same name/value buffer as the
@@ -698,9 +650,6 @@ xfs_attri_item_relog(
 	new_attrp->alfi_value_len = old_attrp->alfi_value_len;
 	new_attrp->alfi_name_len = old_attrp->alfi_name_len;
 	new_attrp->alfi_attr_filter = old_attrp->alfi_attr_filter;
-
-	xfs_trans_add_item(tp, &new_attrip->attri_item);
-	set_bit(XFS_LI_DIRTY, &new_attrip->attri_item.li_flags);
 
 	return &new_attrip->attri_item;
 }
@@ -781,16 +730,20 @@ xlog_recover_attri_commit_pass2(
 	return 0;
 }
 
-/*
- * This routine is called to allocate an "attr free done" log item.
- */
-static struct xfs_attrd_log_item *
-xfs_trans_get_attrd(struct xfs_trans		*tp,
-		  struct xfs_attri_log_item	*attrip)
+/* Get an ATTRD so we can process all the attrs. */
+static struct xfs_log_item *
+xfs_attr_create_done(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*intent,
+	unsigned int			count)
 {
-	struct xfs_attrd_log_item		*attrdp;
+	struct xfs_attri_log_item	*attrip;
+	struct xfs_attrd_log_item	*attrdp;
 
-	ASSERT(tp != NULL);
+	if (!intent)
+		return NULL;
+
+	attrip = ATTRI_ITEM(intent);
 
 	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
 
@@ -799,21 +752,7 @@ xfs_trans_get_attrd(struct xfs_trans		*tp,
 	attrdp->attrd_attrip = attrip;
 	attrdp->attrd_format.alfd_alf_id = attrip->attri_format.alfi_id;
 
-	xfs_trans_add_item(tp, &attrdp->attrd_item);
-	return attrdp;
-}
-
-/* Get an ATTRD so we can process all the attrs. */
-static struct xfs_log_item *
-xfs_attr_create_done(
-	struct xfs_trans		*tp,
-	struct xfs_log_item		*intent,
-	unsigned int			count)
-{
-	if (!intent)
-		return NULL;
-
-	return &xfs_trans_get_attrd(tp, ATTRI_ITEM(intent))->attrd_item;
+	return &attrdp->attrd_item;
 }
 
 const struct xfs_defer_op_type xfs_attr_defer_type = {
@@ -824,6 +763,7 @@ const struct xfs_defer_op_type xfs_attr_defer_type = {
 	.finish_item	= xfs_attr_finish_item,
 	.cancel_item	= xfs_attr_cancel_item,
 	.recover_work	= xfs_attr_recover_work,
+	.relog_intent	= xfs_attr_relog_intent,
 };
 
 /*
@@ -861,7 +801,6 @@ static const struct xfs_item_ops xfs_attri_item_ops = {
 	.iop_unpin	= xfs_attri_item_unpin,
 	.iop_release    = xfs_attri_item_release,
 	.iop_match	= xfs_attri_item_match,
-	.iop_relog	= xfs_attri_item_relog,
 };
 
 const struct xlog_recover_item_ops xlog_attri_item_ops = {
