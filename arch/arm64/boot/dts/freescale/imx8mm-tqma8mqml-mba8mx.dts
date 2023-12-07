@@ -11,6 +11,7 @@
 / {
 	model = "TQ-Systems GmbH i.MX8MM TQMa8MxML on MBa8Mx";
 	compatible = "tq,imx8mm-tqma8mqml-mba8mx", "tq,imx8mm-tqma8mqml", "fsl,imx8mm";
+	chassis-type = "embedded";
 
 	aliases {
 		eeprom0 = &eeprom3;
