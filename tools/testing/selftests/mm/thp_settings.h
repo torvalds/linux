@@ -7,9 +7,10 @@
 #include <stdint.h>
 
 enum thp_enabled {
-	THP_ALWAYS,
-	THP_MADVISE,
 	THP_NEVER,
+	THP_ALWAYS,
+	THP_INHERIT,
+	THP_MADVISE,
 };
 
 enum thp_defrag {
@@ -29,6 +30,12 @@ enum shmem_enabled {
 	SHMEM_FORCE,
 };
 
+#define NR_ORDERS 20
+
+struct hugepages_settings {
+	enum thp_enabled enabled;
+};
+
 struct khugepaged_settings {
 	bool defrag;
 	unsigned int alloc_sleep_millisecs;
@@ -46,6 +53,7 @@ struct thp_settings {
 	bool use_zero_page;
 	struct khugepaged_settings khugepaged;
 	unsigned long read_ahead_kb;
+	struct hugepages_settings hugepages[NR_ORDERS];
 };
 
 int read_file(const char *path, char *buf, size_t buflen);
@@ -67,5 +75,6 @@ void thp_restore_settings(void);
 void thp_save_settings(void);
 
 void thp_set_read_ahead_path(char *path);
+unsigned long thp_supported_orders(void);
 
 #endif /* __THP_SETTINGS_H__ */

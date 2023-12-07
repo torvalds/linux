@@ -16,9 +16,10 @@ static struct thp_settings saved_settings;
 static char dev_queue_read_ahead_path[PATH_MAX];
 
 static const char * const thp_enabled_strings[] = {
-	"always",
-	"madvise",
 	"never",
+	"always",
+	"inherit",
+	"madvise",
 	NULL
 };
 
@@ -198,6 +199,10 @@ void thp_write_num(const char *name, unsigned long num)
 
 void thp_read_settings(struct thp_settings *settings)
 {
+	unsigned long orders = thp_supported_orders();
+	char path[PATH_MAX];
+	int i;
+
 	*settings = (struct thp_settings) {
 		.thp_enabled = thp_read_string("enabled", thp_enabled_strings),
 		.thp_defrag = thp_read_string("defrag", thp_defrag_strings),
@@ -218,11 +223,26 @@ void thp_read_settings(struct thp_settings *settings)
 	};
 	if (dev_queue_read_ahead_path[0])
 		settings->read_ahead_kb = read_num(dev_queue_read_ahead_path);
+
+	for (i = 0; i < NR_ORDERS; i++) {
+		if (!((1 << i) & orders)) {
+			settings->hugepages[i].enabled = THP_NEVER;
+			continue;
+		}
+		snprintf(path, PATH_MAX, "hugepages-%ukB/enabled",
+			(getpagesize() >> 10) << i);
+		settings->hugepages[i].enabled =
+			thp_read_string(path, thp_enabled_strings);
+	}
 }
 
 void thp_write_settings(struct thp_settings *settings)
 {
 	struct khugepaged_settings *khugepaged = &settings->khugepaged;
+	unsigned long orders = thp_supported_orders();
+	char path[PATH_MAX];
+	int enabled;
+	int i;
 
 	thp_write_string("enabled", thp_enabled_strings[settings->thp_enabled]);
 	thp_write_string("defrag", thp_defrag_strings[settings->thp_defrag]);
@@ -242,6 +262,15 @@ void thp_write_settings(struct thp_settings *settings)
 
 	if (dev_queue_read_ahead_path[0])
 		write_num(dev_queue_read_ahead_path, settings->read_ahead_kb);
+
+	for (i = 0; i < NR_ORDERS; i++) {
+		if (!((1 << i) & orders))
+			continue;
+		snprintf(path, PATH_MAX, "hugepages-%ukB/enabled",
+			(getpagesize() >> 10) << i);
+		enabled = settings->hugepages[i].enabled;
+		thp_write_string(path, thp_enabled_strings[enabled]);
+	}
 }
 
 struct thp_settings *thp_current_settings(void)
@@ -293,4 +322,28 @@ void thp_set_read_ahead_path(char *path)
 	strncpy(dev_queue_read_ahead_path, path,
 		sizeof(dev_queue_read_ahead_path));
 	dev_queue_read_ahead_path[sizeof(dev_queue_read_ahead_path) - 1] = '\0';
+}
+
+unsigned long thp_supported_orders(void)
+{
+	unsigned long orders = 0;
+	char path[PATH_MAX];
+	char buf[256];
+	int ret;
+	int i;
+
+	for (i = 0; i < NR_ORDERS; i++) {
+		ret = snprintf(path, PATH_MAX, THP_SYSFS "hugepages-%ukB/enabled",
+			(getpagesize() >> 10) << i);
+		if (ret >= PATH_MAX) {
+			printf("%s: Pathname is too long\n", __func__);
+			exit(EXIT_FAILURE);
+		}
+
+		ret = read_file(path, buf, sizeof(buf));
+		if (ret)
+			orders |= 1UL << i;
+	}
+
+	return orders;
 }
