@@ -89,6 +89,7 @@ properties:
           - const: mediatek,mt7981b
       - items:
           - enum:
+              - acelink,ew-7886cax
               - bananapi,bpi-r3
               - mediatek,mt7986a-rfb
           - const: mediatek,mt7986a
