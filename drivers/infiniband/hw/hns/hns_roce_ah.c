@@ -57,6 +57,7 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibah->device);
+	struct hns_roce_ib_create_ah_resp resp = {};
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
 	int ret = 0;
 	u32 max_sl;
@@ -95,6 +96,12 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 			goto err_out;
 
 		ah->av.vlan_en = ah->av.vlan_id < VLAN_N_VID;
+	}
+
+	if (udata) {
+		memcpy(resp.dmac, ah_attr->roce.dmac, ETH_ALEN);
+		ret = ib_copy_to_udata(udata, &resp,
+				       min(udata->outlen, sizeof(resp)));
 	}
 
 err_out:
