@@ -697,8 +697,19 @@ void maps__fixup_end(struct maps *maps)
 int maps__merge_in(struct maps *kmaps, struct map *new_map)
 {
 	struct map_rb_node *rb_node;
+	struct rb_node *first;
+	bool overlaps;
 	LIST_HEAD(merged);
 	int err = 0;
+
+	down_read(maps__lock(kmaps));
+	first = first_ending_after(kmaps, new_map);
+	rb_node = first ? rb_entry(first, struct map_rb_node, rb_node) : NULL;
+	overlaps = rb_node && map__start(rb_node->map) < map__end(new_map);
+	up_read(maps__lock(kmaps));
+
+	if (!overlaps)
+		return maps__insert(kmaps, new_map);
 
 	maps__for_each_entry(kmaps, rb_node) {
 		struct map *old_map = rb_node->map;
