@@ -98,7 +98,7 @@ static int tps6594_spi_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, tps);
 
 	tps->dev = dev;
-	tps->reg = spi->chip_select;
+	tps->reg = spi_get_chipselect(spi, 0);
 	tps->irq = spi->irq;
 
 	tps->regmap = devm_regmap_init(dev, NULL, spi, &tps6594_spi_regmap_config);
