@@ -740,9 +740,6 @@ xfs_attr_create_done(
 	struct xfs_attri_log_item	*attrip;
 	struct xfs_attrd_log_item	*attrdp;
 
-	if (!intent)
-		return NULL;
-
 	attrip = ATTRI_ITEM(intent);
 
 	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
