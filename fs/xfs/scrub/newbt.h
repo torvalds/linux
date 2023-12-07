@@ -12,6 +12,9 @@ struct xrep_newbt_resv {
 
 	struct xfs_perag	*pag;
 
+	/* Auto-freeing this reservation if we don't commit. */
+	struct xfs_alloc_autoreap autoreap;
+
 	/* AG block of the extent we reserved. */
 	xfs_agblock_t		agbno;
 

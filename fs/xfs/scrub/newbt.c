@@ -139,6 +139,7 @@ xrep_newbt_add_blocks(
 {
 	struct xfs_mount		*mp = xnr->sc->mp;
 	struct xrep_newbt_resv		*resv;
+	int				error;
 
 	resv = kmalloc(sizeof(struct xrep_newbt_resv), XCHK_GFP_FLAGS);
 	if (!resv)
@@ -150,8 +151,18 @@ xrep_newbt_add_blocks(
 	resv->used = 0;
 	resv->pag = xfs_perag_hold(pag);
 
+	ASSERT(xnr->oinfo.oi_offset == 0);
+
+	error = xfs_alloc_schedule_autoreap(args, true, &resv->autoreap);
+	if (error)
+		goto out_pag;
+
 	list_add_tail(&resv->list, &xnr->resv_list);
 	return 0;
+out_pag:
+	xfs_perag_put(resv->pag);
+	kfree(resv);
+	return error;
 }
 
 /* Don't let our allocation hint take us beyond this AG */
@@ -330,16 +341,21 @@ xrep_newbt_free_extent(
 	if (!btree_committed || resv->used == 0) {
 		/*
 		 * If we're not committing a new btree or we didn't use the
-		 * space reservation, free the entire space extent.
+		 * space reservation, let the existing EFI free the entire
+		 * space extent.
 		 */
-		goto free;
+		trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno,
+				free_agbno, free_aglen, xnr->oinfo.oi_owner);
+		xfs_alloc_commit_autoreap(sc->tp, &resv->autoreap);
+		return 1;
 	}
 
 	/*
-	 * We used space and committed the btree.  Remove the written blocks
-	 * from the reservation and possibly log a new EFI to free any unused
-	 * reservation space.
+	 * We used space and committed the btree.  Cancel the autoreap, remove
+	 * the written blocks from the reservation, and possibly log a new EFI
+	 * to free any unused reservation space.
 	 */
+	xfs_alloc_cancel_autoreap(sc->tp, &resv->autoreap);
 	free_agbno += resv->used;
 	free_aglen -= resv->used;
 
@@ -351,7 +367,6 @@ xrep_newbt_free_extent(
 
 	ASSERT(xnr->resv != XFS_AG_RESV_AGFL);
 
-free:
 	/*
 	 * Use EFIs to free the reservations.  This reduces the chance
 	 * that we leak blocks if the system goes down.
@@ -411,9 +426,10 @@ junkit:
 	/*
 	 * If we still have reservations attached to @newbt, cleanup must have
 	 * failed and the filesystem is about to go down.  Clean up the incore
-	 * reservations.
+	 * reservations and try to commit to freeing the space we used.
 	 */
 	list_for_each_entry_safe(resv, n, &xnr->resv_list, list) {
+		xfs_alloc_commit_autoreap(sc->tp, &resv->autoreap);
 		list_del(&resv->list);
 		xfs_perag_put(resv->pag);
 		kfree(resv);
@@ -491,5 +507,7 @@ xrep_newbt_claim_block(
 								agbno));
 	else
 		ptr->s = cpu_to_be32(agbno);
-	return 0;
+
+	/* Relog all the EFIs. */
+	return xrep_defer_finish(xnr->sc);
 }
