@@ -48,6 +48,7 @@
 #define SCU470 0x470 /* Multi-function Pin Control #29 */
 #define SCU474 0x474 /* Multi-function Pin Control #30 */
 #define SCU478 0x478 /* Multi-function Pin Control #31 */
+#define SCU47C 0x47C
 #define SCU4C0 0x4C0 /* Driving Strength #0 A-I */
 #define SCU4C4 0x4C4 /* Driving Strength #1 J-K */
 #define SCU4C8 0x4C8 /* Driving Strength #2 L-M */
@@ -270,6 +271,7 @@ enum {
 	W25,
 	V24,
 	U24,
+	SGMII0,
 };
 
 GROUP_DECL(ESPI0, B16, D14, B15, B14, C17, B13, E14, C15);
@@ -520,6 +522,7 @@ GROUP_DECL(NDTR2, W25);
 GROUP_DECL(NRTS2, V24);
 GROUP_DECL(SMON0, U26, U25, W26, Y26);
 GROUP_DECL(SMON1, U23, T24, W25, V24);
+GROUP_DECL(SGMII, SGMII0);
 
 static struct aspeed_pin_group aspeed_g7_soc1_pingroups[] = {
 	ASPEED_PINCTRL_GROUP(ESPI0),
@@ -780,7 +783,8 @@ static struct aspeed_pin_group aspeed_g7_soc1_pingroups[] = {
 	ASPEED_PINCTRL_GROUP(NDTR2),
 	ASPEED_PINCTRL_GROUP(NRTS2),
 	ASPEED_PINCTRL_GROUP(SMON0),
-	ASPEED_PINCTRL_GROUP(SMON1)
+	ASPEED_PINCTRL_GROUP(SMON1),
+	ASPEED_PINCTRL_GROUP(SGMII)
 };
 
 FUNC_DECL_(ESPI0, "ESPI0");
@@ -980,6 +984,7 @@ FUNC_DECL_(MACLINK1, "MACLINK1");
 FUNC_DECL_(MACLINK2, "MACLINK2");
 FUNC_DECL_(SMON0, "SMON0");
 FUNC_DECL_(SMON1, "SMON1");
+FUNC_DECL_(SGMII, "SGMII");
 
 static struct aspeed_pin_function aspeed_g7_soc1_funcs[] = {
 	ASPEED_PINCTRL_FUNC(ESPI0),
@@ -1182,6 +1187,7 @@ static struct aspeed_pin_function aspeed_g7_soc1_funcs[] = {
 	ASPEED_PINCTRL_FUNC(MACLINK2),
 	ASPEED_PINCTRL_FUNC(SMON0),
 	ASPEED_PINCTRL_FUNC(SMON1),
+	ASPEED_PINCTRL_FUNC(SGMII),
 };
 
 /* number, name, drv_data */
@@ -1398,6 +1404,7 @@ static const struct pinctrl_pin_desc aspeed_g7_soc1_pins[] = {
 	PINCTRL_PIN(W25, "W25"),
 	PINCTRL_PIN(V24, "V24"),
 	PINCTRL_PIN(U24, "U24"),
+	PINCTRL_PIN(SGMII0, "SGMII0"),
 };
 
 struct aspeed_g7_soc1_funcfg {
@@ -2793,6 +2800,12 @@ static const struct aspeed_g7_soc1_pincfg pin_cfg[] = {
 			PIN_CFG(SGPM1LD_R, SCU468, GENMASK(30, 28), (1 << 28)),
 			PIN_CFG(WDTRST6N, SCU468, GENMASK(30, 28), (2 << 28)),
 			PIN_CFG(MACLINK1, SCU468, GENMASK(30, 28), (3 << 28)),
+		},
+	},
+// SGMII
+	{
+		.funcfg = (struct aspeed_g7_soc1_funcfg[]) {
+			PIN_CFG(SGMII, SCU47C, BIT(0), 1 << 0),
 		},
 	},
 };
