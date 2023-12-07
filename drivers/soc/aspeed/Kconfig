@@ -143,6 +143,15 @@ config ASPEED_OTP
 	tristate "Aspeed OTP Driver"
 	depends on MACH_ASPEED_G6
 
+config AST2700_SGMII
+	tristate "ASPEED SGMII Controller driver"
+	select REGMAP
+	select MFD_SYSCON
+	default n
+	depends on MACH_ASPEED_G7
+	help
+	  Enable driver support for Aspeed AST2700 SGMII Controller.
+
 endmenu
 
 endif
