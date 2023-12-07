@@ -83,6 +83,9 @@
 #define RING_EMR(base)				XE_REG((base) + 0xb4)
 #define RING_ESR(base)				XE_REG((base) + 0xb8)
 
+#define INSTPM(base)				XE_REG((base) + 0xc0, XE_REG_OPTION_MASKED)
+#define   ENABLE_SEMAPHORE_POLL_BIT		REG_BIT(13)
+
 #define RING_CMD_CCTL(base)			XE_REG((base) + 0xc4, XE_REG_OPTION_MASKED)
 /*
  * CMD_CCTL read/write fields take a MOCS value and _not_ a table index.
@@ -138,6 +141,7 @@
 #define   TAIL_ADDR				0x001FFFF8
 
 #define RING_CTX_TIMESTAMP(base)		XE_REG((base) + 0x3a8)
+#define CSBE_DEBUG_STATUS(base)			XE_REG((base) + 0x3fc)
 
 #define RING_FORCE_TO_NONPRIV(base, i)		XE_REG(((base) + 0x4d0) + (i) * 4)
 #define   RING_FORCE_TO_NONPRIV_DENY		REG_BIT(30)
