@@ -3395,3 +3395,13 @@ void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt)
 	iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_disable_dbg_asserts);
+
+void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_fw_dbg_params params = {0};
+
+	iwl_fw_dbg_stop_sync(fwrt);
+	iwl_dbg_tlv_init_cfg(fwrt);
+	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_dbg_clear_monitor_buf);
