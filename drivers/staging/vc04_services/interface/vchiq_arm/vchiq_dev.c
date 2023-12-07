@@ -1201,7 +1201,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	int ret = 0;
 	int i;
 
-	dev_dbg(state->dev, "arm: instance=%lx\n", (unsigned long)instance);
+	dev_dbg(state->dev, "arm: instance=%p\n", instance);
 
 	if (!state) {
 		ret = -EPERM;
