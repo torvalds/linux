@@ -151,8 +151,9 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_srq_sges = sb->max_srq_sge;
 	attr->max_pkey = 1;
 	attr->max_inline_data = le32_to_cpu(sb->max_inline_data);
-	attr->l2_db_size = (sb->l2_db_space_size + 1) *
-			    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
+	if (!bnxt_qplib_is_chip_gen_p7(rcfw->res->cctx))
+		attr->l2_db_size = (sb->l2_db_space_size + 1) *
+				    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
 	attr->max_sgid = BNXT_QPLIB_NUM_GIDS_SUPPORTED;
 	attr->dev_cap_flags = le16_to_cpu(sb->dev_cap_flags);
 

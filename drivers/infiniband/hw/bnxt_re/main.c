@@ -107,8 +107,11 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 		dev_info(rdev_to_dev(rdev),
 			 "Couldn't get DB bar size, Low latency framework is disabled\n");
 	/* set register offsets for both UC and WC */
-	res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
-						 BNXT_QPLIB_DBR_PF_DB_OFFSET;
+	if (bnxt_qplib_is_chip_gen_p7(cctx))
+		res->dpi_tbl.ucreg.offset = offset;
+	else
+		res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
+							 BNXT_QPLIB_DBR_PF_DB_OFFSET;
 	res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
 
 	/* If WC mapping is disabled by L2 driver then en_dev->l2_db_size
@@ -1212,16 +1215,6 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 	return 0;
 }
 
-#define BNXT_RE_GEN_P5_PF_NQ_DB		0x10000
-#define BNXT_RE_GEN_P5_VF_NQ_DB		0x4000
-static u32 bnxt_re_get_nqdb_offset(struct bnxt_re_dev *rdev, u16 indx)
-{
-	return bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ?
-		(rdev->is_virtfn ? BNXT_RE_GEN_P5_VF_NQ_DB :
-				   BNXT_RE_GEN_P5_PF_NQ_DB) :
-				   rdev->en_dev->msix_entries[indx].db_offset;
-}
-
 static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
 	int i;
@@ -1242,7 +1235,7 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
 	for (i = 1; i < rdev->num_msix ; i++) {
-		db_offt = bnxt_re_get_nqdb_offset(rdev, i);
+		db_offt = rdev->en_dev->msix_entries[i].db_offset;
 		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
 					  i - 1, rdev->en_dev->msix_entries[i].vector,
 					  db_offt, &bnxt_re_cqn_handler,
@@ -1653,7 +1646,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 		ibdev_err(&rdev->ibdev, "Failed to allocate CREQ: %#x\n", rc);
 		goto free_rcfw;
 	}
-	db_offt = bnxt_re_get_nqdb_offset(rdev, BNXT_RE_AEQ_IDX);
+	db_offt = rdev->en_dev->msix_entries[BNXT_RE_AEQ_IDX].db_offset;
 	vid = rdev->en_dev->msix_entries[BNXT_RE_AEQ_IDX].vector;
 	rc = bnxt_qplib_enable_rcfw_channel(&rdev->rcfw,
 					    vid, db_offt,
