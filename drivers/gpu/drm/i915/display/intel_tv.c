@@ -1417,9 +1417,6 @@ set_tv_mode_timings(struct drm_i915_private *dev_priv,
 static void set_color_conversion(struct drm_i915_private *dev_priv,
 				 const struct color_conversion *color_conversion)
 {
-	if (!color_conversion)
-		return;
-
 	intel_de_write(dev_priv, TV_CSC_Y,
 		       (color_conversion->ry << 16) | color_conversion->gy);
 	intel_de_write(dev_priv, TV_CSC_Y2,
@@ -1453,9 +1450,6 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 	bool burst_ena;
 	int xpos, ypos;
 	unsigned int xsize, ysize;
-
-	if (!tv_mode)
-		return;	/* can't happen (mode_prepare prevents this) */
 
 	tv_ctl = intel_de_read(dev_priv, TV_CTL);
 	tv_ctl &= TV_CTL_SAVE;
