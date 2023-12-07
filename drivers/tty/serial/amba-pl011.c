@@ -973,8 +973,8 @@ static void pl011_dma_rx_irq(struct uart_amba_port *uap)
 	/* Switch buffer & re-trigger DMA job */
 	dmarx->use_buf_b = !dmarx->use_buf_b;
 	if (pl011_dma_rx_trigger_dma(uap)) {
-		dev_dbg(uap->port.dev, "could not retrigger RX DMA job "
-			"fall back to interrupt mode\n");
+		dev_dbg(uap->port.dev,
+			"could not retrigger RX DMA job fall back to interrupt mode\n");
 		uap->im |= UART011_RXIM;
 		pl011_write(uap->im, uap, REG_IMSC);
 	}
@@ -1021,8 +1021,8 @@ static void pl011_dma_rx_callback(void *data)
 	 * get some IRQ immediately from RX.
 	 */
 	if (ret) {
-		dev_dbg(uap->port.dev, "could not retrigger RX DMA job "
-			"fall back to interrupt mode\n");
+		dev_dbg(uap->port.dev,
+			"could not retrigger RX DMA job fall back to interrupt mode\n");
 		uap->im |= UART011_RXIM;
 		pl011_write(uap->im, uap, REG_IMSC);
 	}
@@ -1158,8 +1158,8 @@ skip_rx:
 
 	if (uap->using_rx_dma) {
 		if (pl011_dma_rx_trigger_dma(uap))
-			dev_dbg(uap->port.dev, "could not trigger initial "
-				"RX DMA job, fall back to interrupt mode\n");
+			dev_dbg(uap->port.dev,
+				"could not trigger initial RX DMA job, fall back to interrupt mode\n");
 		if (uap->dmarx.poll_rate) {
 			timer_setup(&uap->dmarx.timer, pl011_dma_rx_poll, 0);
 			mod_timer(&uap->dmarx.timer,
@@ -1391,8 +1391,8 @@ __acquires(&uap->port.lock)
 	 */
 	if (pl011_dma_rx_available(uap)) {
 		if (pl011_dma_rx_trigger_dma(uap)) {
-			dev_dbg(uap->port.dev, "could not trigger RX DMA job "
-				"fall back to interrupt mode again\n");
+			dev_dbg(uap->port.dev,
+				"could not trigger RX DMA job fall back to interrupt mode again\n");
 			uap->im |= UART011_RXIM;
 			pl011_write(uap->im, uap, REG_IMSC);
 		} else {
