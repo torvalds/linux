@@ -399,13 +399,13 @@ acpi_evaluate_reference(acpi_handle handle,
 		acpi_handle_debug(list->handles[i], "Found in reference list\n");
 	}
 
-end:
 	if (ACPI_FAILURE(status)) {
 		list->count = 0;
 		kfree(list->handles);
 		list->handles = NULL;
 	}
 
+end:
 	kfree(buffer.pointer);
 
 	return status;
