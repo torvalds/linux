@@ -1610,30 +1610,34 @@ static void iomap_writepage_end_bio(struct bio *bio)
  * Submit the final bio for an ioend.
  *
  * If @error is non-zero, it means that we have a situation where some part of
- * the submission process has failed after we've marked pages for writeback
- * and unlocked them.  In this situation, we need to fail the bio instead of
- * submitting it.  This typically only happens on a filesystem shutdown.
+ * the submission process has failed after we've marked pages for writeback.
+ * We cannot cancel ioend directly in that case, so call the bio end I/O handler
+ * with the error status here to run the normal I/O completion handler to clear
+ * the writeback bit and let the file system proess the errors.
  */
-static int
-iomap_submit_ioend(struct iomap_writepage_ctx *wpc, struct iomap_ioend *ioend,
-		int error)
+static int iomap_submit_ioend(struct iomap_writepage_ctx *wpc, int error)
 {
-	if (wpc->ops->prepare_ioend)
-		error = wpc->ops->prepare_ioend(ioend, error);
-	if (error) {
-		/*
-		 * If we're failing the IO now, just mark the ioend with an
-		 * error and finish it.  This will run IO completion immediately
-		 * as there is only one reference to the ioend at this point in
-		 * time.
-		 */
-		ioend->io_bio.bi_status = errno_to_blk_status(error);
-		bio_endio(&ioend->io_bio);
+	if (!wpc->ioend)
 		return error;
+
+	/*
+	 * Let the file systems prepare the I/O submission and hook in an I/O
+	 * comletion handler.  This also needs to happen in case after a
+	 * failure happened so that the file system end I/O handler gets called
+	 * to clean up.
+	 */
+	if (wpc->ops->prepare_ioend)
+		error = wpc->ops->prepare_ioend(wpc->ioend, error);
+
+	if (error) {
+		wpc->ioend->io_bio.bi_status = errno_to_blk_status(error);
+		bio_endio(&wpc->ioend->io_bio);
+	} else {
+		submit_bio(&wpc->ioend->io_bio);
 	}
 
-	submit_bio(&ioend->io_bio);
-	return 0;
+	wpc->ioend = NULL;
+	return error;
 }
 
 static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
@@ -1687,19 +1691,28 @@ static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos)
 /*
  * Test to see if we have an existing ioend structure that we could append to
  * first; otherwise finish off the current ioend and start another.
+ *
+ * If a new ioend is created and cached, the old ioend is submitted to the block
+ * layer instantly.  Batching optimisations are provided by higher level block
+ * plugging.
+ *
+ * At the end of a writeback pass, there will be a cached ioend remaining on the
+ * writepage context that the caller will need to submit.
  */
-static void iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
+static int iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct folio *folio,
-		struct inode *inode, loff_t pos, struct list_head *iolist)
+		struct inode *inode, loff_t pos)
 {
 	struct iomap_folio_state *ifs = folio->private;
 	unsigned len = i_blocksize(inode);
 	size_t poff = offset_in_folio(folio, pos);
+	int error;
 
 	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, pos)) {
 new_ioend:
-		if (wpc->ioend)
-			list_add(&wpc->ioend->io_list, iolist);
+		error = iomap_submit_ioend(wpc, 0);
+		if (error)
+			return error;
 		wpc->ioend = iomap_alloc_ioend(wpc, wbc, inode, pos);
 	}
 
@@ -1710,12 +1723,12 @@ new_ioend:
 		atomic_add(len, &ifs->write_bytes_pending);
 	wpc->ioend->io_size += len;
 	wbc_account_cgroup_owner(wbc, &folio->page, len);
+	return 0;
 }
 
 static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct folio *folio,
-		struct inode *inode, u64 pos, unsigned *count,
-		struct list_head *submit_list)
+		struct inode *inode, u64 pos, unsigned *count)
 {
 	int error;
 
@@ -1732,8 +1745,9 @@ static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
 	case IOMAP_HOLE:
 		break;
 	default:
-		iomap_add_to_ioend(wpc, wbc, folio, inode, pos, submit_list);
-		(*count)++;
+		error = iomap_add_to_ioend(wpc, wbc, folio, inode, pos);
+		if (!error)
+			(*count)++;
 	}
 
 fail:
@@ -1809,35 +1823,21 @@ static bool iomap_writepage_handle_eof(struct folio *folio, struct inode *inode,
 	return true;
 }
 
-/*
- * We implement an immediate ioend submission policy here to avoid needing to
- * chain multiple ioends and hence nest mempool allocations which can violate
- * the forward progress guarantees we need to provide. The current ioend we're
- * adding blocks to is cached in the writepage context, and if the new block
- * doesn't append to the cached ioend, it will create a new ioend and cache that
- * instead.
- *
- * If a new ioend is created and cached, the old ioend is returned and queued
- * locally for submission once the entire page is processed or an error has been
- * detected.  While ioends are submitted immediately after they are completed,
- * batching optimisations are provided by higher level block plugging.
- *
- * At the end of a writeback pass, there will be a cached ioend remaining on the
- * writepage context that the caller will need to submit.
- */
 static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct folio *folio)
 {
 	struct iomap_folio_state *ifs = folio->private;
 	struct inode *inode = folio->mapping->host;
-	struct iomap_ioend *ioend, *next;
 	unsigned len = i_blocksize(inode);
 	unsigned nblocks = i_blocks_per_folio(inode, folio);
 	u64 pos = folio_pos(folio);
 	u64 end_pos = pos + folio_size(folio);
 	unsigned count = 0;
 	int error = 0, i;
-	LIST_HEAD(submit_list);
+
+	WARN_ON_ONCE(!folio_test_locked(folio));
+	WARN_ON_ONCE(folio_test_dirty(folio));
+	WARN_ON_ONCE(folio_test_writeback(folio));
 
 	trace_iomap_writepage(inode, pos, folio_size(folio));
 
@@ -1847,12 +1847,27 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	}
 	WARN_ON_ONCE(end_pos <= pos);
 
-	if (!ifs && nblocks > 1) {
-		ifs = ifs_alloc(inode, folio, 0);
-		iomap_set_range_dirty(folio, 0, end_pos - pos);
+	if (nblocks > 1) {
+		if (!ifs) {
+			ifs = ifs_alloc(inode, folio, 0);
+			iomap_set_range_dirty(folio, 0, end_pos - pos);
+		}
+
+		/*
+		 * Keep the I/O completion handler from clearing the writeback
+		 * bit until we have submitted all blocks by adding a bias to
+		 * ifs->write_bytes_pending, which is dropped after submitting
+		 * all blocks.
+		 */
+		WARN_ON_ONCE(atomic_read(&ifs->write_bytes_pending) != 0);
+		atomic_inc(&ifs->write_bytes_pending);
 	}
 
-	WARN_ON_ONCE(ifs && atomic_read(&ifs->write_bytes_pending) != 0);
+	/*
+	 * Set the writeback bit ASAP, as the I/O completion for the single
+	 * block per folio case happen hit as soon as we're submitting the bio.
+	 */
+	folio_start_writeback(folio);
 
 	/*
 	 * Walk through the folio to find areas to write back. If we
@@ -1863,17 +1878,12 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 		if (ifs && !ifs_block_is_dirty(folio, ifs, i))
 			continue;
 		error = iomap_writepage_map_blocks(wpc, wbc, folio, inode, pos,
-				&count, &submit_list);
+				&count);
 		if (error)
 			break;
 	}
 	if (count)
 		wpc->nr_folios++;
-
-	WARN_ON_ONCE(!wpc->ioend && !list_empty(&submit_list));
-	WARN_ON_ONCE(!folio_test_locked(folio));
-	WARN_ON_ONCE(folio_test_writeback(folio));
-	WARN_ON_ONCE(folio_test_dirty(folio));
 
 	/*
 	 * We can have dirty bits set past end of file in page_mkwrite path
@@ -1883,38 +1893,20 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	iomap_clear_range_dirty(folio, 0, folio_size(folio));
 
 	/*
-	 * If the page hasn't been added to the ioend, it won't be affected by
-	 * I/O completion and we must unlock it now.
+	 * Usually the writeback bit is cleared by the I/O completion handler.
+	 * But we may end up either not actually writing any blocks, or (when
+	 * there are multiple blocks in a folio) all I/O might have finished
+	 * already at this point.  In that case we need to clear the writeback
+	 * bit ourselves right after unlocking the page.
 	 */
-	if (error && !count) {
-		folio_unlock(folio);
-		goto done;
-	}
-
-	folio_start_writeback(folio);
 	folio_unlock(folio);
-
-	/*
-	 * Preserve the original error if there was one; catch
-	 * submission errors here and propagate into subsequent ioend
-	 * submissions.
-	 */
-	list_for_each_entry_safe(ioend, next, &submit_list, io_list) {
-		int error2;
-
-		list_del_init(&ioend->io_list);
-		error2 = iomap_submit_ioend(wpc, ioend, error);
-		if (error2 && !error)
-			error = error2;
+	if (ifs) {
+		if (atomic_dec_and_test(&ifs->write_bytes_pending))
+			folio_end_writeback(folio);
+	} else {
+		if (!count)
+			folio_end_writeback(folio);
 	}
-
-	/*
-	 * We can end up here with no error and nothing to write only if we race
-	 * with a partial page truncate on a sub-page block sized filesystem.
-	 */
-	if (!count)
-		folio_end_writeback(folio);
-done:
 	mapping_set_error(inode->i_mapping, error);
 	return error;
 }
@@ -1942,9 +1934,7 @@ iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 
 	wpc->ops = ops;
 	ret = write_cache_pages(mapping, wbc, iomap_do_writepage, wpc);
-	if (!wpc->ioend)
-		return ret;
-	return iomap_submit_ioend(wpc, wpc->ioend, ret);
+	return iomap_submit_ioend(wpc, ret);
 }
 EXPORT_SYMBOL_GPL(iomap_writepages);
 
