@@ -19638,7 +19638,6 @@ S:	Maintained
 F:	drivers/misc/sgi-xp/
 
 SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
-M:	Karsten Graul <kgraul@linux.ibm.com>
 M:	Wenjia Zhang <wenjia@linux.ibm.com>
 M:	Jan Karcher <jaka@linux.ibm.com>
 R:	D. Wythe <alibuda@linux.alibaba.com>
