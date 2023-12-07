@@ -33,7 +33,7 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
-static struct platform_device *pdev;
+static struct platform_device *smsc47m1_pdev;
 
 #define DRVNAME "smsc47m1"
 enum chips { smsc47m1, smsc47m2 };
@@ -884,10 +884,10 @@ static int __init smsc47m1_device_add(unsigned short address,
 	if (err)
 		return err;
 
-	pdev = platform_device_register_full(&pdevinfo);
-	if (IS_ERR(pdev)) {
+	smsc47m1_pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(smsc47m1_pdev)) {
 		pr_err("Device allocation failed\n");
-		return PTR_ERR(pdev);
+		return PTR_ERR(smsc47m1_pdev);
 	}
 
 	return 0;
@@ -904,7 +904,7 @@ static int __init sm_smsc47m1_init(void)
 		return err;
 	address = err;
 
-	/* Sets global pdev as a side effect */
+	/* Sets global smsc47m1_pdev as a side effect */
 	err = smsc47m1_device_add(address, &sio_data);
 	if (err)
 		return err;
@@ -916,7 +916,7 @@ static int __init sm_smsc47m1_init(void)
 	return 0;
 
 exit_device:
-	platform_device_unregister(pdev);
+	platform_device_unregister(smsc47m1_pdev);
 	smsc47m1_restore(&sio_data);
 	return err;
 }
@@ -924,8 +924,8 @@ exit_device:
 static void __exit sm_smsc47m1_exit(void)
 {
 	platform_driver_unregister(&smsc47m1_driver);
-	smsc47m1_restore(dev_get_platdata(&pdev->dev));
-	platform_device_unregister(pdev);
+	smsc47m1_restore(dev_get_platdata(&smsc47m1_pdev->dev));
+	platform_device_unregister(smsc47m1_pdev);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
