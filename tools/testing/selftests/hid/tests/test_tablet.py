@@ -115,7 +115,7 @@ class PenState(Enum):
         # we take only the highest button in account
         for b in [libevdev.EV_KEY.BTN_STYLUS, libevdev.EV_KEY.BTN_STYLUS2]:
             if bool(evdev.value[b]):
-                button = b
+                button = BtnPressed(b)
 
         # the kernel tends to insert an EV_SYN once removing the tool, so
         # the button will be released after
@@ -155,7 +155,7 @@ class PenState(Enum):
                 if button_found:
                     raise ValueError(f"duplicated BTN_STYLUS* in {events}")
                 button_found = True
-                button = ev.code if ev.value else None
+                button = BtnPressed(ev.code) if ev.value else None
 
         # the kernel tends to insert an EV_SYN once removing the tool, so
         # the button will be released after
