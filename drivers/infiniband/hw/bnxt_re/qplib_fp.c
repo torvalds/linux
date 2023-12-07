@@ -330,6 +330,9 @@ static void bnxt_qplib_service_nq(struct tasklet_struct *t)
 			cq = (struct bnxt_qplib_cq *)(unsigned long)q_handle;
 			if (!cq)
 				break;
+			cq->toggle = (le16_to_cpu(nqe->info10_type) &
+					NQ_CN_TOGGLE_MASK) >> NQ_CN_TOGGLE_SFT;
+			cq->dbinfo.toggle = cq->toggle;
 			bnxt_qplib_armen_db(&cq->dbinfo,
 					    DBC_DBC_TYPE_CQ_ARMENA);
 			spin_lock_bh(&cq->compl_lock);
@@ -2124,6 +2127,8 @@ int bnxt_qplib_create_cq(struct bnxt_qplib_res *res, struct bnxt_qplib_cq *cq)
 	cq->dbinfo.xid = cq->id;
 	cq->dbinfo.db = cq->dpi->dbr;
 	cq->dbinfo.priv_db = res->dpi_tbl.priv_db;
+	cq->dbinfo.flags = 0;
+	cq->dbinfo.toggle = 0;
 
 	bnxt_qplib_armen_db(&cq->dbinfo, DBC_DBC_TYPE_CQ_ARMENA);
 
@@ -3018,6 +3023,7 @@ exit:
 
 void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type)
 {
+	cq->dbinfo.toggle = cq->toggle;
 	if (arm_type)
 		bnxt_qplib_ring_db(&cq->dbinfo, arm_type);
 	/* Using cq->arm_state variable to track whether to issue cq handler */

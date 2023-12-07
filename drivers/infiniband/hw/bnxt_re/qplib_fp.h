@@ -418,6 +418,7 @@ struct bnxt_qplib_cq {
 	bool				resize_in_progress;
 	struct bnxt_qplib_sg_info	sg_info;
 	u64				cq_handle;
+	u8				toggle;
 
 #define CQ_RESIZE_WAIT_TIME_MS		500
 	unsigned long			flags;

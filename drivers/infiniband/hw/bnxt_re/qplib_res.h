@@ -190,6 +190,7 @@ struct bnxt_qplib_db_info {
 	u32			xid;
 	u32			max_slot;
 	u32                     flags;
+	u8			toggle;
 };
 
 enum bnxt_qplib_db_info_flags_mask {
