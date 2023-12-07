@@ -1717,6 +1717,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.flags.disable_ips = DMUB_IPS_DISABLE_ALL;
 
+	init_data.flags.disable_ips_in_vpb = 1;
+
 	/* Enable DWB for tested platforms only */
 	if (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 0, 0))
 		init_data.num_virtual_links = 1;
