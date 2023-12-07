@@ -62,9 +62,11 @@ static int __qcom_mhi_qrtr_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	if (skb->sk)
 		sock_hold(skb->sk);
 
-	rc = wait_for_completion_interruptible(&qdev->prepared);
-	if (rc)
+	rc = wait_for_completion_interruptible_timeout(&qdev->prepared, msecs_to_jiffies(5000));
+	if (rc <= 0) {
+		pr_err("%s : timeout:%d\n", __func__, rc);
 		goto free_skb;
+	}
 
 	rc = skb_linearize(skb);
 	if (rc)
