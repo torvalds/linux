@@ -1545,7 +1545,7 @@ static void btt_blk_cleanup(struct btt *btt)
  * @rawsize:	raw size in bytes of the backing device
  * @lbasize:	lba size of the backing device
  * @uuid:	A uuid for the backing device - this is stored on media
- * @maxlane:	maximum number of parallel requests the device can handle
+ * @nd_region:	&struct nd_region for the REGION device
  *
  * Initialize a Block Translation Table on a backing device to provide
  * single sector power fail atomicity.
