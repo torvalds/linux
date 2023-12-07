@@ -10,6 +10,9 @@
 #include "ui/ui.h"
 #include "unwind.h"
 
+#define maps__for_each_entry(maps, map) \
+	for (map = maps__first(maps); map; map = map_rb_node__next(map))
+
 static void maps__init(struct maps *maps, struct machine *machine)
 {
 	refcount_set(maps__refcnt(maps), 1);
