@@ -128,7 +128,7 @@ static void bnxt_re_set_drv_mode(struct bnxt_re_dev *rdev, u8 mode)
 	struct bnxt_qplib_chip_ctx *cctx;
 
 	cctx = rdev->chip_ctx;
-	cctx->modes.wqe_mode = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+	cctx->modes.wqe_mode = bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ?
 			       mode : BNXT_QPLIB_WQE_MODE_STATIC;
 	if (bnxt_re_hwrm_qcaps(rdev))
 		dev_err(rdev_to_dev(rdev),
@@ -215,7 +215,7 @@ static void bnxt_re_limit_pf_res(struct bnxt_re_dev *rdev)
 	ctx->srqc_count = min_t(u32, BNXT_RE_MAX_SRQC_COUNT,
 				attr->max_srq);
 	ctx->cq_count = min_t(u32, BNXT_RE_MAX_CQ_COUNT, attr->max_cq);
-	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 		for (i = 0; i < MAX_TQM_ALLOC_REQ; i++)
 			rdev->qplib_ctx.tqm_ctx.qcount[i] =
 			rdev->dev_attr.tqm_alloc_reqs[i];
@@ -264,7 +264,7 @@ static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
 	memset(&rdev->qplib_ctx.vf_res, 0, sizeof(struct bnxt_qplib_vf_res));
 	bnxt_re_limit_pf_res(rdev);
 
-	num_vfs =  bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+	num_vfs =  bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ?
 			BNXT_RE_GEN_P5_MAX_VF : rdev->num_vfs;
 	if (num_vfs)
 		bnxt_re_limit_vf_res(&rdev->qplib_ctx, num_vfs);
@@ -276,7 +276,7 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 	if (test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags))
 		return;
 	rdev->num_vfs = pci_sriov_get_totalvfs(rdev->en_dev->pdev);
-	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx)) {
 		bnxt_re_set_resource_limits(rdev);
 		bnxt_qplib_set_func_resources(&rdev->qplib_res, &rdev->rcfw,
 					      &rdev->qplib_ctx);
@@ -1216,7 +1216,7 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 #define BNXT_RE_GEN_P5_VF_NQ_DB		0x4000
 static u32 bnxt_re_get_nqdb_offset(struct bnxt_re_dev *rdev, u16 indx)
 {
-	return bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+	return bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ?
 		(rdev->is_virtfn ? BNXT_RE_GEN_P5_VF_NQ_DB :
 				   BNXT_RE_GEN_P5_PF_NQ_DB) :
 				   rdev->en_dev->msix_entries[indx].db_offset;
@@ -1681,7 +1681,7 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 wqe_mode)
 	bnxt_re_set_resource_limits(rdev);
 
 	rc = bnxt_qplib_alloc_ctx(&rdev->qplib_res, &rdev->qplib_ctx, 0,
-				  bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx));
+				  bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx));
 	if (rc) {
 		ibdev_err(&rdev->ibdev,
 			  "Failed to allocate QPLIB context: %#x\n", rc);
@@ -1804,7 +1804,7 @@ static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 		return;
 
 	/* Currently enabling only for GenP5 adapters */
-	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 		return;
 
 	if (enable) {

@@ -44,6 +44,9 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 #define CHIP_NUM_57508		0x1750
 #define CHIP_NUM_57504		0x1751
 #define CHIP_NUM_57502		0x1752
+#define CHIP_NUM_58818          0xd818
+#define CHIP_NUM_57608          0x1760
+
 
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
@@ -296,6 +299,12 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_db_pacing_data *pacing_data;
 };
 
+static inline bool bnxt_qplib_is_chip_gen_p7(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return (cctx->chip_num == CHIP_NUM_58818 ||
+		cctx->chip_num == CHIP_NUM_57608);
+}
+
 static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
 {
 	return (cctx->chip_num == CHIP_NUM_57508 ||
@@ -303,15 +312,20 @@ static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
 		cctx->chip_num == CHIP_NUM_57502);
 }
 
+static inline bool bnxt_qplib_is_chip_gen_p5_p7(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return bnxt_qplib_is_chip_gen_p5(cctx) || bnxt_qplib_is_chip_gen_p7(cctx);
+}
+
 static inline u8 bnxt_qplib_get_hwq_type(struct bnxt_qplib_res *res)
 {
-	return bnxt_qplib_is_chip_gen_p5(res->cctx) ?
+	return bnxt_qplib_is_chip_gen_p5_p7(res->cctx) ?
 					HWQ_TYPE_QUEUE : HWQ_TYPE_L2_CMPL;
 }
 
 static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
 {
-	return bnxt_qplib_is_chip_gen_p5(cctx) ?
+	return bnxt_qplib_is_chip_gen_p5_p7(cctx) ?
 	       RING_ALLOC_REQ_RING_TYPE_NQ :
 	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
 }
@@ -488,7 +502,7 @@ static inline void bnxt_qplib_ring_nq_db(struct bnxt_qplib_db_info *info,
 	u32 type;
 
 	type = arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
-	if (bnxt_qplib_is_chip_gen_p5(cctx))
+	if (bnxt_qplib_is_chip_gen_p5_p7(cctx))
 		bnxt_qplib_ring_db(info, type);
 	else
 		bnxt_qplib_ring_db32(info, arm);

@@ -991,7 +991,7 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 
 	/* SQ */
 	if (qp->type == CMDQ_CREATE_QP_TYPE_RC) {
-		psn_sz = bnxt_qplib_is_chip_gen_p5(res->cctx) ?
+		psn_sz = bnxt_qplib_is_chip_gen_p5_p7(res->cctx) ?
 			 sizeof(struct sq_psn_search_ext) :
 			 sizeof(struct sq_psn_search);
 	}
@@ -1605,7 +1605,7 @@ static void bnxt_qplib_fill_psn_search(struct bnxt_qplib_qp *qp,
 	flg_npsn = ((swq->next_psn << SQ_PSN_SEARCH_NEXT_PSN_SFT) &
 		     SQ_PSN_SEARCH_NEXT_PSN_MASK);
 
-	if (bnxt_qplib_is_chip_gen_p5(qp->cctx)) {
+	if (bnxt_qplib_is_chip_gen_p5_p7(qp->cctx)) {
 		psns_ext->opcode_start_psn = cpu_to_le32(op_spsn);
 		psns_ext->flags_next_psn = cpu_to_le32(flg_npsn);
 		psns_ext->start_slot_idx = cpu_to_le16(swq->slot_idx);

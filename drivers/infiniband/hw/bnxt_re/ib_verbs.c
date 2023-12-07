@@ -1023,7 +1023,7 @@ static int bnxt_re_init_user_qp(struct bnxt_re_dev *rdev, struct bnxt_re_pd *pd,
 	bytes = (qplib_qp->sq.max_wqe * qplib_qp->sq.wqe_size);
 	/* Consider mapping PSN search memory only for RC QPs. */
 	if (qplib_qp->type == CMDQ_CREATE_QP_TYPE_RC) {
-		psn_sz = bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx) ?
+		psn_sz = bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ?
 						   sizeof(struct sq_psn_search_ext) :
 						   sizeof(struct sq_psn_search);
 		psn_nume = (qplib_qp->wqe_mode == BNXT_QPLIB_WQE_MODE_STATIC) ?
@@ -1234,7 +1234,7 @@ static void bnxt_re_adjust_gsi_rq_attr(struct bnxt_re_qp *qp)
 	qplqp = &qp->qplib_qp;
 	dev_attr = &rdev->dev_attr;
 
-	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx)) {
 		qplqp->rq.max_sge = dev_attr->max_qp_sges;
 		if (qplqp->rq.max_sge > dev_attr->max_qp_sges)
 			qplqp->rq.max_sge = dev_attr->max_qp_sges;
@@ -1301,7 +1301,7 @@ static void bnxt_re_adjust_gsi_sq_attr(struct bnxt_re_qp *qp,
 	qplqp = &qp->qplib_qp;
 	dev_attr = &rdev->dev_attr;
 
-	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx)) {
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx)) {
 		entries = bnxt_re_init_depth(init_attr->cap.max_send_wr + 1, uctx);
 		qplqp->sq.max_wqe = min_t(u32, entries,
 					  dev_attr->max_qp_wqes + 1);
@@ -1328,7 +1328,7 @@ static int bnxt_re_init_qp_type(struct bnxt_re_dev *rdev,
 		goto out;
 	}
 
-	if (bnxt_qplib_is_chip_gen_p5(chip_ctx) &&
+	if (bnxt_qplib_is_chip_gen_p5_p7(chip_ctx) &&
 	    init_attr->qp_type == IB_QPT_GSI)
 		qptype = CMDQ_CREATE_QP_TYPE_GSI;
 out:
@@ -1527,7 +1527,7 @@ int bnxt_re_create_qp(struct ib_qp *ib_qp, struct ib_qp_init_attr *qp_init_attr,
 		goto fail;
 
 	if (qp_init_attr->qp_type == IB_QPT_GSI &&
-	    !(bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))) {
+	    !(bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))) {
 		rc = bnxt_re_create_gsi_qp(qp, pd, qp_init_attr);
 		if (rc == -ENODEV)
 			goto qp_destroy;
