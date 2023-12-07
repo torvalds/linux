@@ -998,6 +998,6 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	return 0;
 };
 
-CLK_OF_DECLARE(ast2700_soc0, "aspeed,ast2700-scu0", ast2700_soc0_clk_init);
-CLK_OF_DECLARE(ast2700_soc1, "aspeed,ast2700-scu1", ast2700_soc1_clk_init);
+CLK_OF_DECLARE_DRIVER(ast2700_soc0, "aspeed,ast2700-scu0", ast2700_soc0_clk_init);
+CLK_OF_DECLARE_DRIVER(ast2700_soc1, "aspeed,ast2700-scu1", ast2700_soc1_clk_init);
 
