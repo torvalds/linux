@@ -893,7 +893,7 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder cpu_trans
 
 static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
 {
-	if (!cstate || !cstate->hw.active)
+	if (!cstate->hw.active)
 		return 0;
 
 	return DIV_ROUND_UP(1000 * 1000,
