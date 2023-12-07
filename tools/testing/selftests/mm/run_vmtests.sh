@@ -357,6 +357,8 @@ CATEGORY="cow" run_test ./cow
 
 CATEGORY="thp" run_test ./khugepaged
 
+CATEGORY="thp" run_test ./khugepaged -s 2
+
 CATEGORY="thp" run_test ./transhuge-stress -d 20
 
 CATEGORY="thp" run_test ./split_huge_page_test
