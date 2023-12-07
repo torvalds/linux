@@ -297,9 +297,13 @@ struct iomap_ioend {
 	size_t			io_size;	/* size of the extent */
 	loff_t			io_offset;	/* offset in the file */
 	sector_t		io_sector;	/* start sector of ioend */
-	struct bio		*io_bio;	/* bio being built */
-	struct bio		io_inline_bio;	/* MUST BE LAST! */
+	struct bio		io_bio;		/* MUST BE LAST! */
 };
+
+static inline struct iomap_ioend *iomap_ioend_from_bio(struct bio *bio)
+{
+	return container_of(bio, struct iomap_ioend, io_bio);
+}
 
 struct iomap_writeback_ops {
 	/*
