@@ -840,14 +840,12 @@ error_remove_files:
 	return err;
 }
 
-static int __exit smsc47m1_remove(struct platform_device *pdev)
+static void __exit smsc47m1_remove(struct platform_device *pdev)
 {
 	struct smsc47m1_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	smsc47m1_remove_files(&pdev->dev);
-
-	return 0;
 }
 
 /*
@@ -860,7 +858,7 @@ static struct platform_driver smsc47m1_driver __refdata = {
 	.driver = {
 		.name	= DRVNAME,
 	},
-	.remove		= __exit_p(smsc47m1_remove),
+	.remove_new	= __exit_p(smsc47m1_remove),
 };
 
 static int __init smsc47m1_device_add(unsigned short address,
