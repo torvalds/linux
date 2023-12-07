@@ -105,25 +105,25 @@ static inline u64 map__dso_map_ip(const struct map *map, u64 ip)
 }
 
 /* dso rip -> ip */
-static inline u64 map__dso_unmap_ip(const struct map *map, u64 ip)
+static inline u64 map__dso_unmap_ip(const struct map *map, u64 rip)
 {
-	return ip + map__start(map) - map__pgoff(map);
+	return rip + map__start(map) - map__pgoff(map);
 }
 
-static inline u64 map__map_ip(const struct map *map, u64 ip)
+static inline u64 map__map_ip(const struct map *map, u64 ip_or_rip)
 {
 	if ((RC_CHK_ACCESS(map)->mapping_type) == MAPPING_TYPE__DSO)
-		return map__dso_map_ip(map, ip);
+		return map__dso_map_ip(map, ip_or_rip);
 	else
-		return ip;
+		return ip_or_rip;
 }
 
-static inline u64 map__unmap_ip(const struct map *map, u64 ip)
+static inline u64 map__unmap_ip(const struct map *map, u64 ip_or_rip)
 {
 	if ((RC_CHK_ACCESS(map)->mapping_type) == MAPPING_TYPE__DSO)
-		return map__dso_unmap_ip(map, ip);
+		return map__dso_unmap_ip(map, ip_or_rip);
 	else
-		return ip;
+		return ip_or_rip;
 }
 
 /* rip/ip <-> addr suitable for passing to `objdump --start-address=` */
