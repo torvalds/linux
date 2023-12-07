@@ -293,16 +293,16 @@ static void btree_complete_write(struct btree *b, struct btree_write *w)
 	w->journal	= NULL;
 }
 
-static void btree_node_write_unlock(struct closure *cl)
+static CLOSURE_CALLBACK(btree_node_write_unlock)
 {
-	struct btree *b = container_of(cl, struct btree, io);
+	closure_type(b, struct btree, io);
 
 	up(&b->io_mutex);
 }
 
-static void __btree_node_write_done(struct closure *cl)
+static CLOSURE_CALLBACK(__btree_node_write_done)
 {
-	struct btree *b = container_of(cl, struct btree, io);
+	closure_type(b, struct btree, io);
 	struct btree_write *w = btree_prev_write(b);
 
 	bch_bbio_free(b->bio, b->c);
@@ -315,12 +315,12 @@ static void __btree_node_write_done(struct closure *cl)
 	closure_return_with_destructor(cl, btree_node_write_unlock);
 }
 
-static void btree_node_write_done(struct closure *cl)
+static CLOSURE_CALLBACK(btree_node_write_done)
 {
-	struct btree *b = container_of(cl, struct btree, io);
+	closure_type(b, struct btree, io);
 
 	bio_free_pages(b->bio);
-	__btree_node_write_done(cl);
+	__btree_node_write_done(&cl->work);
 }
 
 static void btree_node_write_endio(struct bio *bio)
@@ -1522,7 +1522,7 @@ out_nocoalesce:
 	bch_keylist_free(&keylist);
 
 	for (i = 0; i < nodes; i++)
-		if (!IS_ERR(new_nodes[i])) {
+		if (!IS_ERR_OR_NULL(new_nodes[i])) {
 			btree_node_free(new_nodes[i]);
 			rw_unlock(true, new_nodes[i]);
 		}

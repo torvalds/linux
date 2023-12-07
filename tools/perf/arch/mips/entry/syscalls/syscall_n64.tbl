@@ -367,3 +367,7 @@
 450	common	set_mempolicy_home_node		sys_set_mempolicy_home_node
 451	n64	cachestat			sys_cachestat
 452	n64	fchmodat2			sys_fchmodat2
+453	n64	map_shadow_stack		sys_map_shadow_stack
+454	n64	futex_wake			sys_futex_wake
+455	n64	futex_wait			sys_futex_wait
+456	n64	futex_requeue			sys_futex_requeue
