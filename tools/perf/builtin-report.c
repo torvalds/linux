@@ -856,27 +856,47 @@ static struct task *tasks_list(struct task *task, struct machine *machine)
 	return tasks_list(parent_task, machine);
 }
 
+struct maps__fprintf_task_args {
+	int indent;
+	FILE *fp;
+	size_t printed;
+};
+
+static int maps__fprintf_task_cb(struct map *map, void *data)
+{
+	struct maps__fprintf_task_args *args = data;
+	const struct dso *dso = map__dso(map);
+	u32 prot = map__prot(map);
+	int ret;
+
+	ret = fprintf(args->fp,
+		"%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
+		args->indent, "", map__start(map), map__end(map),
+		prot & PROT_READ ? 'r' : '-',
+		prot & PROT_WRITE ? 'w' : '-',
+		prot & PROT_EXEC ? 'x' : '-',
+		map__flags(map) ? 's' : 'p',
+		map__pgoff(map),
+		dso->id.ino, dso->name);
+
+	if (ret < 0)
+		return ret;
+
+	args->printed += ret;
+	return 0;
+}
+
 static size_t maps__fprintf_task(struct maps *maps, int indent, FILE *fp)
 {
-	size_t printed = 0;
-	struct map_rb_node *rb_node;
+	struct maps__fprintf_task_args args = {
+		.indent = indent,
+		.fp = fp,
+		.printed = 0,
+	};
 
-	maps__for_each_entry(maps, rb_node) {
-		struct map *map = rb_node->map;
-		const struct dso *dso = map__dso(map);
-		u32 prot = map__prot(map);
+	maps__for_each_map(maps, maps__fprintf_task_cb, &args);
 
-		printed += fprintf(fp, "%*s  %" PRIx64 "-%" PRIx64 " %c%c%c%c %08" PRIx64 " %" PRIu64 " %s\n",
-				   indent, "", map__start(map), map__end(map),
-				   prot & PROT_READ ? 'r' : '-',
-				   prot & PROT_WRITE ? 'w' : '-',
-				   prot & PROT_EXEC ? 'x' : '-',
-				   map__flags(map) ? 's' : 'p',
-				   map__pgoff(map),
-				   dso->id.ino, dso->name);
-	}
-
-	return printed;
+	return args.printed;
 }
 
 static void task__print_level(struct task *task, FILE *fp, int level)
