@@ -32,17 +32,15 @@ static int multipath_map (struct mpconf *conf)
 	 * now we use the first available disk.
 	 */
 
-	rcu_read_lock();
 	for (i = 0; i < disks; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		struct md_rdev *rdev = conf->multipaths[i].rdev;
+
 		if (rdev && test_bit(In_sync, &rdev->flags) &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
-			rcu_read_unlock();
 			return i;
 		}
 	}
-	rcu_read_unlock();
 
 	pr_crit_ratelimited("multipath_map(): no more operational IO paths?\n");
 	return (-1);
@@ -137,14 +135,16 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 	struct mpconf *conf = mddev->private;
 	int i;
 
+	lockdep_assert_held(&mddev->lock);
+
 	seq_printf (seq, " [%d/%d] [", conf->raid_disks,
 		    conf->raid_disks - mddev->degraded);
-	rcu_read_lock();
 	for (i = 0; i < conf->raid_disks; i++) {
-		struct md_rdev *rdev = rcu_dereference(conf->multipaths[i].rdev);
-		seq_printf (seq, "%s", rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
+		struct md_rdev *rdev = READ_ONCE(conf->multipaths[i].rdev);
+
+		seq_printf(seq, "%s",
+			   rdev && test_bit(In_sync, &rdev->flags) ? "U" : "_");
 	}
-	rcu_read_unlock();
 	seq_putc(seq, ']');
 }
 
@@ -182,7 +182,7 @@ static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 	       conf->raid_disks - mddev->degraded);
 }
 
-static void print_multipath_conf (struct mpconf *conf)
+static void print_multipath_conf(struct mpconf *conf)
 {
 	int i;
 	struct multipath_info *tmp;
@@ -195,6 +195,7 @@ static void print_multipath_conf (struct mpconf *conf)
 	pr_debug(" --- wd:%d rd:%d\n", conf->raid_disks - conf->mddev->degraded,
 		 conf->raid_disks);
 
+	lockdep_assert_held(&conf->mddev->reconfig_mutex);
 	for (i = 0; i < conf->raid_disks; i++) {
 		tmp = conf->multipaths + i;
 		if (tmp->rdev)
@@ -231,7 +232,7 @@ static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			rdev->raid_disk = path;
 			set_bit(In_sync, &rdev->flags);
 			spin_unlock_irq(&conf->device_lock);
-			rcu_assign_pointer(p->rdev, rdev);
+			WRITE_ONCE(p->rdev, rdev);
 			err = 0;
 			break;
 		}
@@ -257,16 +258,7 @@ static int multipath_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 			err = -EBUSY;
 			goto abort;
 		}
-		p->rdev = NULL;
-		if (!test_bit(RemoveSynchronized, &rdev->flags)) {
-			synchronize_rcu();
-			if (atomic_read(&rdev->nr_pending)) {
-				/* lost the race, try later */
-				err = -EBUSY;
-				p->rdev = rdev;
-				goto abort;
-			}
-		}
+		WRITE_ONCE(p->rdev, NULL);
 		err = md_integrity_register(mddev);
 	}
 abort:
