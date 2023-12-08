@@ -13,6 +13,7 @@
 #define AST2700_CLK_24MHZ 24000000
 #define AST2700_CLK_192MHZ 192000000
 /* SOC0 */
+#define AST2700_SOC0_HWSTRAP1 0x010
 #define AST2700_SOC0_CLK_STOP 0x240
 #define AST2700_SOC0_CLK_SEL1 0x280
 #define AST2700_SOC0_CLK_SEL2 0x284
@@ -301,11 +302,6 @@ static const struct reset_control_ops ast2700_reset_ops = {
 static const char *const sdclk_sel[] = {
 	"soc1-hpll",
 	"soc1-apll",
-};
-
-static const char *const soc0_uartclk_sel[] = {
-	"soc0-clk24Mhz",
-	"soc0-clk192Mhz",
 };
 
 static const char *const uartclk_sel[] = {
@@ -757,6 +753,21 @@ static int ast2700_soc1_clk_init(struct device_node *soc1_node)
 	return 0;
 };
 
+static const char *const pspclk_sel[] = {
+	"soc0-mpll",
+	"soc0-hpll",
+};
+
+static const char *const axiclk_sel[] = {
+	"soc0-mpll_div2",
+	"soc0-hpll_div2",
+};
+
+static const char *const soc0_uartclk_sel[] = {
+	"soc0-clk24Mhz",
+	"soc0-clk192Mhz",
+};
+
 static const char *const emmcclk_sel[] = {
 	"soc0-mpll_div4",
 	"soc0-hpll_div4",
@@ -768,7 +779,7 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	void __iomem *clk_base;
 	struct ast2700_reset *reset;
 	struct clk_hw **clks;
-	int div, axi_div, ahb_div, apb_div;
+	int div;
 	u32 val;
 	int ret;
 
@@ -813,6 +824,8 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	//hpll
 	val = readl(clk_base + AST2700_SOC0_HPLL_PARAM);
 	clks[AST2700_SOC0_CLK_HPLL] = ast2700_soc0_hw_pll("soc0-hpll", "soc0-clkin", val);
+	clks[AST2700_SOC0_CLK_HPLL_DIV2] = clk_hw_register_fixed_factor(NULL, "soc0-hpll_div2", "soc0-hpll", 0, 1, 2);
+	clks[AST2700_SOC0_CLK_HPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-hpll_div4", "soc0-hpll", 0, 1, 4);
 
 	//dpll
 	val = readl(clk_base + AST2700_SOC0_DPLL_PARAM);
@@ -821,12 +834,12 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	//mpll
 	val = readl(clk_base + AST2700_SOC0_MPLL_PARAM);
 	clks[AST2700_SOC0_CLK_MPLL] = ast2700_calc_mpll("soc0-mpll", "soc0-clkin", val);
+	clks[AST2700_SOC0_CLK_MPLL_DIV2] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div2", "soc0-mpll", 0, 1, 2);
+	clks[AST2700_SOC0_CLK_MPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div4", "soc0-mpll", 0, 1, 4);
 
-	//d1clk
 	val = readl(clk_base + AST2700_SOC0_D1CLK_PARAM);
 	clks[AST2700_SOC0_CLK_D1CLK] = ast2700_soc0_hw_pll("d1clk", "soc0-clkin", val);
 
-	//d2clk
 	val = readl(clk_base + AST2700_SOC0_D2CLK_PARAM);
 	clks[AST2700_SOC0_CLK_D2CLK] = ast2700_soc0_hw_pll("d2clk", "soc0-clkin", val);
 
@@ -839,21 +852,25 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	val = readl(clk_base + AST2700_SOC0_MPHYCLK_PARAM);
 	clks[AST2700_SOC0_CLK_MPHY] = ast2700_soc0_hw_pll("mphyclk", "soc0-clkin", val);
 
-	//fixed-factor
-	/* AXI CLK MPLL/2 = 800Mhz */
-	axi_div = 2;
+	clks[AST2700_SOC0_CLK_PSP] =
+		clk_hw_register_mux(NULL, "pspclk", pspclk_sel, ARRAY_SIZE(pspclk_sel),
+				    0, clk_base + AST2700_SOC0_HWSTRAP1,
+				    4, 1, 0, &ast2700_clk_lock);
+
 	clks[AST2700_SOC0_CLK_AXI] =
-		clk_hw_register_fixed_factor(NULL, "axi", "soc0-mpll", 0, 1, axi_div);
+		clk_hw_register_mux(NULL, "axiclk", axiclk_sel, ARRAY_SIZE(axiclk_sel),
+				    0, clk_base + AST2700_SOC0_HWSTRAP1,
+				    7, 1, 0, &ast2700_clk_lock);
 
-	/* AHB CLK MPLL/4 = 400Mhz */
-	ahb_div = 4;
 	clks[AST2700_SOC0_CLK_AHB] =
-		clk_hw_register_fixed_factor(NULL, "soc0-ahb", "soc0-mpll", 0, 1, ahb_div);
+		clk_hw_register_divider_table(NULL, "soc0-ahb", "axiclk",
+					      0, clk_base + AST2700_SOC0_HWSTRAP1,
+					      5, 2, 0, ast2700_clk_div_table, &ast2700_clk_lock);
 
-	/* APB CLK MPLL/16 = 100Mhz */
-	apb_div = 4;
 	clks[AST2700_SOC0_CLK_APB] =
-		clk_hw_register_fixed_factor(NULL, "soc0-apb", "soc0-mpll", 0, 1, apb_div);
+		clk_hw_register_divider_table(NULL, "soc0-apb", "axiclk",
+					      0, clk_base + AST2700_SOC0_CLK_SEL1,
+					      23, 3, 0, ast2700_clk_div_table2, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_GATE_MCLK] =
 		ast2700_clk_hw_register_gate(NULL, "mclk", "soc0-mpll",
@@ -967,10 +984,6 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 		ast2700_clk_hw_register_gate(NULL, "ufsclk", NULL,
 					     0, clk_base + AST2700_SOC0_CLK_STOP,
 					     26, 0, &ast2700_clk_lock);
-
-	clks[AST2700_SOC0_CLK_MPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div4", "soc0-mpll", 0, 1, 4);
-
-	clks[AST2700_SOC0_CLK_HPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-hpll_div4", "soc0-hpll", 0, 1, 4);
 
 	clks[AST2700_SOC0_CLK_EMMCMUX] =
 		clk_hw_register_mux(NULL, "emmcsrc-mux", emmcclk_sel, ARRAY_SIZE(emmcclk_sel),
