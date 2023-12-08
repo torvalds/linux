@@ -296,9 +296,6 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct dentry *root;
 	int err;
 
-	if (!efivar_is_available())
-		return -EOPNOTSUPP;
-
 	sb->s_maxbytes          = MAX_LFS_FILESIZE;
 	sb->s_blocksize         = PAGE_SIZE;
 	sb->s_blocksize_bits    = PAGE_SHIFT;
@@ -354,6 +351,9 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 {
 	struct efivarfs_fs_info *sfi;
 
+	if (!efivar_is_available())
+		return -EOPNOTSUPP;
+
 	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
 	if (!sfi)
 		return -ENOMEM;
@@ -369,9 +369,6 @@ static int efivarfs_init_fs_context(struct fs_context *fc)
 static void efivarfs_kill_sb(struct super_block *sb)
 {
 	kill_litter_super(sb);
-
-	if (!efivar_is_available())
-		return;
 
 	/* Remove all entries and destroy */
 	efivar_entry_iter(efivarfs_destroy, &efivarfs_list, NULL);
