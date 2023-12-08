@@ -20,6 +20,8 @@
 
 #define DEVICE_NAME "aspeed-lpc-pcc"
 
+static DEFINE_IDA(aspeed_pcc_ida);
+
 #define PCCR6	0x0c4
 #define   PCCR6_DMA_CUR_ADDR		GENMASK(27, 0)
 #define PCCR4	0x0d0
@@ -103,7 +105,8 @@ struct aspeed_pcc {
 	struct aspeed_pcc_dma dma;
 	struct kfifo fifo;
 	wait_queue_head_t wq;
-	struct miscdevice misc_dev;
+	struct miscdevice mdev;
+	int mdev_id;
 	bool a2600_15;
 };
 
@@ -122,19 +125,16 @@ static ssize_t aspeed_pcc_file_read(struct file *file, char __user *buffer,
 {
 	int rc;
 	unsigned int copied;
-
-	struct aspeed_pcc *pcc = container_of(
-			file->private_data,
-			struct aspeed_pcc,
-			misc_dev);
+	struct aspeed_pcc *pcc = container_of(file->private_data,
+					      struct aspeed_pcc,
+					      mdev);
 
 	if (kfifo_is_empty(&pcc->fifo)) {
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
 		rc = wait_event_interruptible(pcc->wq,
-				!kfifo_is_empty(&pcc->fifo));
-
+					      !kfifo_is_empty(&pcc->fifo));
 		if (rc == -ERESTARTSYS)
 			return -EINTR;
 	}
@@ -150,7 +150,7 @@ static __poll_t aspeed_pcc_file_poll(struct file *file,
 	struct aspeed_pcc *pcc = container_of(
 			file->private_data,
 			struct aspeed_pcc,
-			misc_dev);
+			mdev);
 
 	poll_wait(file, &pcc->wq, pt);
 
@@ -255,7 +255,8 @@ static int aspeed_a2600_15(struct aspeed_pcc *pcc, struct device *dev)
 	regmap_write(pcc->regmap, SNPWADR, pcc->port | ((pcc->port + 2) << 16));
 
 	/* set HICRB[15:14]=11b to enable ACCEPT response for SNPWADR */
-	regmap_update_bits(pcc->regmap, HICRB, BIT(14) | BIT(15), BIT(14) | BIT(15));
+	regmap_update_bits(pcc->regmap, HICRB, BIT(14) | BIT(15),
+			   BIT(14) | BIT(15));
 
 	/* set HICR6[19] to extend SNPWADR to 2x range */
 	regmap_update_bits(pcc->regmap, HICR6, BIT(19), BIT(19));
@@ -275,23 +276,23 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 
 	/* record mode */
 	regmap_update_bits(pcc->regmap, PCCR0,
-			PCCR0_MODE_SEL_MASK,
-			pcc->rec_mode << PCCR0_MODE_SEL_SHIFT);
+			   PCCR0_MODE_SEL_MASK,
+			   pcc->rec_mode << PCCR0_MODE_SEL_SHIFT);
 
 	/* port address */
 	regmap_update_bits(pcc->regmap, PCCR1,
-			PCCR1_BASE_ADDR_MASK,
-			pcc->port << PCCR1_BASE_ADDR_SHIFT);
+			   PCCR1_BASE_ADDR_MASK,
+			   pcc->port << PCCR1_BASE_ADDR_SHIFT);
 
 	/* port address high bits selection or parser control */
 	regmap_update_bits(pcc->regmap, PCCR0,
-			PCCR0_ADDR_SEL_MASK,
-			pcc->port_hbits_select << PCCR0_ADDR_SEL_SHIFT);
+			   PCCR0_ADDR_SEL_MASK,
+			   pcc->port_hbits_select << PCCR0_ADDR_SEL_SHIFT);
 
 	/* port address dont care bits */
 	regmap_update_bits(pcc->regmap, PCCR1,
-			PCCR1_DONT_CARE_BITS_MASK,
-			pcc->port_xbits << PCCR1_DONT_CARE_BITS_SHIFT);
+			   PCCR1_DONT_CARE_BITS_MASK,
+			   pcc->port_xbits << PCCR1_DONT_CARE_BITS_SHIFT);
 
 	/* set DMA ring buffer size and enable interrupts */
 	if (pcc->dma_mode) {
@@ -301,8 +302,8 @@ static int aspeed_pcc_enable(struct aspeed_pcc *pcc, struct device *dev)
 		regmap_update_bits(pcc->regmap, PCCR5, PCCR5_DMA_LEN_MASK,
 				   (pcc->dma.size / 4) << PCCR5_DMA_LEN_SHIFT);
 		regmap_update_bits(pcc->regmap, PCCR0,
-			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE,
-			PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE);
+				   PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE,
+				   PCCR0_EN_DMA_INT | PCCR0_EN_DMA_MODE);
 	} else {
 		regmap_update_bits(pcc->regmap, PCCR0, PCCR0_RX_TRIG_LVL_MASK,
 				   PCC_FIFO_THR_4_EIGHTH << PCCR0_RX_TRIG_LVL_SHIFT);
@@ -370,7 +371,8 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	 * value set to 0b11
 	 */
 	if (pcc->rec_mode) {
-		of_property_read_u32(dev->of_node, "port-addr-hbits-select", &pcc->port_hbits_select);
+		of_property_read_u32(dev->of_node, "port-addr-hbits-select",
+				     &pcc->port_hbits_select);
 		if (!is_valid_high_bits_select(pcc->port_hbits_select)) {
 			dev_err(dev, "invalid high address bits selection: %u\n",
 				pcc->port_hbits_select);
@@ -404,7 +406,7 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	/* AP note A2600-15 */
 	pcc->a2600_15 = of_property_read_bool(dev->of_node, "A2600-15");
 	if (pcc->a2600_15)
-		dev_warn(dev, "A2600-15 AP note patch is selected\n");
+		dev_info(dev, "A2600-15 AP note patch is selected\n");
 
 	pcc->irq = platform_get_irq(pdev, 0);
 	if (pcc->irq < 0) {
@@ -421,10 +423,17 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 
 	init_waitqueue_head(&pcc->wq);
 
-	pcc->misc_dev.parent = dev;
-	pcc->misc_dev.name = devm_kasprintf(dev, GFP_KERNEL, "%s", DEVICE_NAME);
-	pcc->misc_dev.fops = &pcc_fops;
-	rc = misc_register(&pcc->misc_dev);
+	pcc->mdev_id = ida_alloc(&aspeed_pcc_ida, GFP_KERNEL);
+	if (pcc->mdev_id < 0) {
+		dev_err(dev, "cannot allocate ID\n");
+		return pcc->mdev_id;
+	}
+
+	pcc->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s%d", DEVICE_NAME,
+					pcc->mdev_id);
+	pcc->mdev.parent = dev;
+	pcc->mdev.fops = &pcc_fops;
+	rc = misc_register(&pcc->mdev);
 	if (rc) {
 		dev_err(dev, "cannot register misc device\n");
 		goto err_free_kfifo;
@@ -443,7 +452,7 @@ static int aspeed_pcc_probe(struct platform_device *pdev)
 	return 0;
 
 err_dereg_mdev:
-	misc_deregister(&pcc->misc_dev);
+	misc_deregister(&pcc->mdev);
 
 err_free_kfifo:
 	kfifo_free(&pcc->fifo);
@@ -457,7 +466,7 @@ static int aspeed_pcc_remove(struct platform_device *pdev)
 	struct aspeed_pcc *pcc = dev_get_drvdata(dev);
 
 	kfifo_free(&pcc->fifo);
-	misc_deregister(&pcc->misc_dev);
+	misc_deregister(&pcc->mdev);
 
 	return 0;
 }
