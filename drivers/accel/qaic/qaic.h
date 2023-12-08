@@ -30,6 +30,7 @@
 #define to_qaic_drm_device(dev) container_of(dev, struct qaic_drm_device, drm)
 #define to_drm(qddev) (&(qddev)->drm)
 #define to_accel_kdev(qddev) (to_drm(qddev)->accel->kdev) /* Return Linux device of accel node */
+#define to_qaic_device(dev) (to_qaic_drm_device((dev))->qdev)
 
 enum __packed dev_states {
 	/* Device is offline or will be very soon */
