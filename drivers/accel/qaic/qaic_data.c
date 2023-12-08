@@ -830,9 +830,6 @@ static int qaic_prepare_import_bo(struct qaic_bo *bo, struct qaic_attach_slice_h
 	struct sg_table *sgt;
 	int ret;
 
-	if (obj->import_attach->dmabuf->size < hdr->size)
-		return -EINVAL;
-
 	sgt = dma_buf_map_attachment(obj->import_attach, hdr->dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
@@ -848,9 +845,6 @@ static int qaic_prepare_export_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 				  struct qaic_attach_slice_hdr *hdr)
 {
 	int ret;
-
-	if (bo->base.size < hdr->size)
-		return -EINVAL;
 
 	ret = dma_map_sgtable(&qdev->pdev->dev, bo->sgt, hdr->dir, 0);
 	if (ret)
@@ -952,9 +946,6 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	if (arg_size / args->hdr.count != sizeof(*slice_ent))
 		return -EINVAL;
 
-	if (args->hdr.size == 0)
-		return -EINVAL;
-
 	if (!(args->hdr.dir == DMA_TO_DEVICE || args->hdr.dir == DMA_FROM_DEVICE))
 		return -EINVAL;
 
@@ -994,15 +985,15 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto free_slice_ent;
 	}
 
-	ret = qaic_validate_req(qdev, slice_ent, args->hdr.count, args->hdr.size);
-	if (ret)
-		goto free_slice_ent;
-
 	obj = drm_gem_object_lookup(file_priv, args->hdr.handle);
 	if (!obj) {
 		ret = -ENOENT;
 		goto free_slice_ent;
 	}
+
+	ret = qaic_validate_req(qdev, slice_ent, args->hdr.count, obj->size);
+	if (ret)
+		goto put_bo;
 
 	bo = to_qaic_bo(obj);
 	ret = mutex_lock_interruptible(&bo->lock);
