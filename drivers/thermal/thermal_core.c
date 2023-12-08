@@ -505,11 +505,16 @@ int thermal_zone_device_is_enabled(struct thermal_zone_device *tz)
 	return tz->mode == THERMAL_DEVICE_ENABLED;
 }
 
+static bool thermal_zone_is_present(struct thermal_zone_device *tz)
+{
+	return !list_empty(&tz->node);
+}
+
 void thermal_zone_device_update(struct thermal_zone_device *tz,
 				enum thermal_notify_event event)
 {
 	mutex_lock(&tz->lock);
-	if (device_is_registered(&tz->device))
+	if (thermal_zone_is_present(tz))
 		__thermal_zone_device_update(tz, event);
 	mutex_unlock(&tz->lock);
 }
@@ -1304,6 +1309,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	}
 
 	INIT_LIST_HEAD(&tz->thermal_instances);
+	INIT_LIST_HEAD(&tz->node);
 	ida_init(&tz->ida);
 	mutex_init(&tz->lock);
 	init_completion(&tz->removal);
@@ -1369,7 +1375,9 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	}
 
 	mutex_lock(&thermal_list_lock);
+	mutex_lock(&tz->lock);
 	list_add_tail(&tz->node, &thermal_tz_list);
+	mutex_unlock(&tz->lock);
 	mutex_unlock(&thermal_list_lock);
 
 	/* Bind cooling devices for this zone */
@@ -1460,7 +1468,10 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 		mutex_unlock(&thermal_list_lock);
 		return;
 	}
+
+	mutex_lock(&tz->lock);
 	list_del(&tz->node);
+	mutex_unlock(&tz->lock);
 
 	/* Unbind all cdevs associated with 'this' thermal zone */
 	list_for_each_entry(cdev, &thermal_cdev_list, node)
@@ -1477,9 +1488,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	ida_free(&thermal_tz_ida, tz->id);
 	ida_destroy(&tz->ida);
 
-	mutex_lock(&tz->lock);
 	device_del(&tz->device);
-	mutex_unlock(&tz->lock);
 
 	kfree(tz->tzp);
 
