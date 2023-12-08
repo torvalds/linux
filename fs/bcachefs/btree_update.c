@@ -344,15 +344,17 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 					    enum btree_update_flags flags,
 					    unsigned long ip)
 {
-	struct btree_path *btree_path;
 	struct bkey k;
 	int ret;
 
-	btree_path = bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
-				   BTREE_ITER_INTENT, _THIS_IP_);
-	ret = bch2_btree_path_traverse(trans, btree_path, 0);
+	btree_path_idx_t path_idx =
+		bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
+			      BTREE_ITER_INTENT, _THIS_IP_);
+	ret = bch2_btree_path_traverse(trans, trans->paths + path_idx, 0);
 	if (ret)
 		goto out;
+
+	struct btree_path *btree_path = trans->paths + path_idx;
 
 	/*
 	 * The old key in the insert entry might actually refer to an existing
@@ -467,7 +469,7 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 		int ret;
 
 		if (!iter->key_cache_path)
-			iter->key_cache_path =
+			iter->key_cache_path = trans->paths +
 				bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
 					      BTREE_ITER_INTENT|
 					      BTREE_ITER_CACHED, _THIS_IP_);

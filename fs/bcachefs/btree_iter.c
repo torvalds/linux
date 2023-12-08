@@ -1547,10 +1547,10 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 	return path;
 }
 
-struct btree_path *bch2_path_get(struct btree_trans *trans,
-				 enum btree_id btree_id, struct bpos pos,
-				 unsigned locks_want, unsigned level,
-				 unsigned flags, unsigned long ip)
+btree_path_idx_t bch2_path_get(struct btree_trans *trans,
+			     enum btree_id btree_id, struct bpos pos,
+			     unsigned locks_want, unsigned level,
+			     unsigned flags, unsigned long ip)
 {
 	struct btree_path *path, *path_pos = NULL;
 	bool cached = flags & BTREE_ITER_CACHED;
@@ -1618,7 +1618,7 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 	if (locks_want > path->locks_want)
 		bch2_btree_path_upgrade_noupgrade_sibs(trans, path, locks_want, NULL);
 
-	return path;
+	return path->idx;
 }
 
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
@@ -1928,7 +1928,7 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 		return bkey_s_c_null;
 
 	if (!iter->key_cache_path)
-		iter->key_cache_path = bch2_path_get(trans, iter->btree_id, pos,
+		iter->key_cache_path = trans->paths + bch2_path_get(trans, iter->btree_id, pos,
 						     iter->flags & BTREE_ITER_INTENT, 0,
 						     iter->flags|BTREE_ITER_CACHED|
 						     BTREE_ITER_CACHED_NOFILL,

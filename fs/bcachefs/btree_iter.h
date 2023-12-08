@@ -202,8 +202,8 @@ static inline int __must_check bch2_btree_path_traverse(struct btree_trans *tran
 
 int __must_check bch2_btree_path_traverse(struct btree_trans *,
 					  struct btree_path *, unsigned);
-struct btree_path *bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
-				 unsigned, unsigned, unsigned, unsigned long);
+btree_path_idx_t bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
+			       unsigned, unsigned, unsigned, unsigned long);
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
 /*
@@ -443,7 +443,7 @@ static inline void bch2_trans_iter_init_common(struct btree_trans *trans,
 #ifdef CONFIG_BCACHEFS_DEBUG
 	iter->ip_allocated = ip;
 #endif
-	iter->path = bch2_path_get(trans, btree_id, iter->pos,
+	iter->path = trans->paths + bch2_path_get(trans, btree_id, iter->pos,
 				   locks_want, depth, flags, ip);
 }
 
