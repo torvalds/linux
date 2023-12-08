@@ -775,7 +775,6 @@ struct exfat_dentry *exfat_get_dentry(struct super_block *sb,
 }
 
 enum exfat_validate_dentry_mode {
-	ES_MODE_STARTED,
 	ES_MODE_GET_FILE_ENTRY,
 	ES_MODE_GET_STRM_ENTRY,
 	ES_MODE_GET_NAME_ENTRY,
@@ -790,11 +789,6 @@ static bool exfat_validate_entry(unsigned int type,
 		return false;
 
 	switch (*mode) {
-	case ES_MODE_STARTED:
-		if  (type != TYPE_FILE && type != TYPE_DIR)
-			return false;
-		*mode = ES_MODE_GET_FILE_ENTRY;
-		break;
 	case ES_MODE_GET_FILE_ENTRY:
 		if (type != TYPE_STREAM)
 			return false;
@@ -834,7 +828,7 @@ struct exfat_dentry *exfat_get_dentry_cached(
 }
 
 /*
- * Returns a set of dentries for a file or dir.
+ * Returns a set of dentries.
  *
  * Note It provides a direct pointer to bh->data via exfat_get_dentry_cached().
  * User should call exfat_get_dentry_set() after setting 'modified' to apply
@@ -842,22 +836,24 @@ struct exfat_dentry *exfat_get_dentry_cached(
  *
  * in:
  *   sb+p_dir+entry: indicates a file/dir
- *   type:  specifies how many dentries should be included.
+ *   num_entries: specifies how many dentries should be included.
+ *                It will be set to es->num_entries if it is not 0.
+ *                If num_entries is 0, es->num_entries will be obtained
+ *                from the first dentry.
+ * out:
+ *   es: pointer of entry set on success.
  * return:
- *   pointer of entry set on success,
- *   NULL on failure.
+ *   0 on success
+ *   -error code on failure
  */
-int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
+static int __exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
-		unsigned int type)
+		unsigned int num_entries)
 {
 	int ret, i, num_bh;
 	unsigned int off;
 	sector_t sec;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct exfat_dentry *ep;
-	int num_entries;
-	enum exfat_validate_dentry_mode mode = ES_MODE_STARTED;
 	struct buffer_head *bh;
 
 	if (p_dir->dir == DIR_DELETED) {
@@ -880,12 +876,18 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		return -EIO;
 	es->bh[es->num_bh++] = bh;
 
-	ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
-	if (!exfat_validate_entry(exfat_get_entry_type(ep), &mode))
-		goto put_es;
+	if (num_entries == ES_ALL_ENTRIES) {
+		struct exfat_dentry *ep;
 
-	num_entries = type == ES_ALL_ENTRIES ?
-		ep->dentry.file.num_ext + 1 : type;
+		ep = exfat_get_dentry_cached(es, ES_IDX_FILE);
+		if (ep->type != EXFAT_FILE) {
+			brelse(bh);
+			return -EIO;
+		}
+
+		num_entries = ep->dentry.file.num_ext + 1;
+	}
+
 	es->num_entries = num_entries;
 
 	num_bh = EXFAT_B_TO_BLK_ROUND_UP(off + num_entries * DENTRY_SIZE, sb);
@@ -918,8 +920,27 @@ int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		es->bh[es->num_bh++] = bh;
 	}
 
+	return 0;
+
+put_es:
+	exfat_put_dentry_set(es, false);
+	return -EIO;
+}
+
+int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
+		struct super_block *sb, struct exfat_chain *p_dir,
+		int entry, unsigned int num_entries)
+{
+	int ret, i;
+	struct exfat_dentry *ep;
+	enum exfat_validate_dentry_mode mode = ES_MODE_GET_FILE_ENTRY;
+
+	ret = __exfat_get_dentry_set(es, sb, p_dir, entry, num_entries);
+	if (ret < 0)
+		return ret;
+
 	/* validate cached dentries */
-	for (i = ES_IDX_STREAM; i < num_entries; i++) {
+	for (i = ES_IDX_STREAM; i < es->num_entries; i++) {
 		ep = exfat_get_dentry_cached(es, i);
 		if (!exfat_validate_entry(exfat_get_entry_type(ep), &mode))
 			goto put_es;
