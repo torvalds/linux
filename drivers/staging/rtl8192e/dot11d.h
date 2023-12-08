@@ -18,6 +18,4 @@
  *		2 - valid (passive scan)
  */
 
-void dot11d_channel_map(struct rtllib_device *ieee);
-
 #endif

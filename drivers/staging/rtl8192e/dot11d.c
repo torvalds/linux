@@ -6,9 +6,3 @@
  * wlanfae <wlanfae@realtek.com>
  ******************************************************************************/
 #include "dot11d.h"
-
-void dot11d_channel_map(struct rtllib_device *ieee)
-{
-
-}
-EXPORT_SYMBOL(dot11d_channel_map);
