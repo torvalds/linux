@@ -1168,29 +1168,29 @@ again:
 	 * but we can't retry because the btree write buffer won't have been
 	 * flushed and we'd spin:
 	 */
-	for_each_btree_key(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
-			   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		ret = commit_do(trans, NULL, NULL,
-				BCH_TRANS_COMMIT_no_enospc|
-				BCH_TRANS_COMMIT_lazy_rw,
-			may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass));
-		if (ret < 0)
-			break;
-
-		if (ret) {
-			if (!test_bit(BCH_FS_rw, &c->flags)) {
-				bch2_trans_unlock(trans);
-				bch2_fs_lazy_rw(c);
-			}
-
+	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
+					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+					NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+		ret = may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass);
+		if (ret > 0) {
 			bch_verbose(c, "deleting unlinked inode %llu:%u", k.k->p.offset, k.k->p.snapshot);
 
 			ret = bch2_inode_rm_snapshot(trans, k.k->p.offset, k.k->p.snapshot);
-			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				break;
+			/*
+			 * We don't want to loop here: a transaction restart
+			 * error here means we handled a transaction restart and
+			 * we're actually done, but if we loop we'll retry the
+			 * same key because the write buffer hasn't been flushed
+			 * yet
+			 */
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+				ret = 0;
+				continue;
+			}
 		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
+
+		ret;
+	}));
 
 	if (!ret && need_another_pass) {
 		ret = bch2_btree_write_buffer_flush_sync(trans);

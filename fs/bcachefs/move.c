@@ -377,8 +377,8 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 
 		io_opts->d.nr = 0;
 
-		for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
-				   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+		ret = for_each_btree_key2(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
+					  BTREE_ITER_ALL_SNAPSHOTS, k, ({
 			if (k.k->p.offset != extent_k.k->p.inode)
 				break;
 
@@ -391,11 +391,8 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 			struct snapshot_io_opts_entry e = { .snapshot = k.k->p.snapshot };
 			bch2_inode_opts_get(&e.io_opts, trans->c, &inode);
 
-			ret = darray_push(&io_opts->d, e);
-			if (ret)
-				break;
-		}
-		bch2_trans_iter_exit(trans, &iter);
+			darray_push(&io_opts->d, e);
+		}));
 		io_opts->cur_inum = extent_k.k->p.inode;
 	}
 

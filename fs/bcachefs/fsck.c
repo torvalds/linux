@@ -589,14 +589,13 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	u32 restart_count = trans->restart_count;
 	int ret;
 
 	w->recalculate_sums = false;
 	w->inodes.nr = 0;
 
-	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, inum),
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes, POS(0, inum),
+				     BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 		if (k.k->p.offset != inum)
 			break;
 
@@ -609,8 +608,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 		return ret;
 
 	w->first_this_inode = true;
-
-	return trans_was_restarted(trans, restart_count);
+	return 0;
 }
 
 static struct inode_walker_entry *
@@ -2146,19 +2144,14 @@ int bch2_check_directory_structure(struct bch_fs *c)
 	pathbuf path = { 0, };
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS_MIN,
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_PREFETCH|
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+	for_each_btree_key_old(trans, iter, BTREE_ID_inodes, POS_MIN,
+			       BTREE_ITER_INTENT|
+			       BTREE_ITER_PREFETCH|
+			       BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 		if (!bkey_is_inode(k.k))
 			continue;
 
-		ret = bch2_inode_unpack(k, &u);
-		if (ret) {
-			/* Should have been caught earlier in fsck: */
-			bch_err(c, "error unpacking inode %llu: %i", k.k->p.offset, ret);
-			break;
-		}
+		BUG_ON(bch2_inode_unpack(k, &u));
 
 		if (u.bi_flags & BCH_INODE_unlinked)
 			continue;
@@ -2170,6 +2163,7 @@ int bch2_check_directory_structure(struct bch_fs *c)
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
 	darray_exit(&path);
+
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -2255,47 +2249,42 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 				       struct nlink_table *t,
 				       u64 start, u64 *end)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bch_inode_unpacked u;
-	int ret = 0;
 
-	for_each_btree_key(trans, iter, BTREE_ID_inodes,
-			   POS(0, start),
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_PREFETCH|
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (!bkey_is_inode(k.k))
-			continue;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key2(trans, iter, BTREE_ID_inodes,
+					  POS(0, start),
+					  BTREE_ITER_INTENT|
+					  BTREE_ITER_PREFETCH|
+					  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+			if (!bkey_is_inode(k.k))
+				continue;
 
-		/* Should never fail, checked by bch2_inode_invalid: */
-		BUG_ON(bch2_inode_unpack(k, &u));
+			/* Should never fail, checked by bch2_inode_invalid: */
+			BUG_ON(bch2_inode_unpack(k, &u));
 
-		/*
-		 * Backpointer and directory structure checks are sufficient for
-		 * directories, since they can't have hardlinks:
-		 */
-		if (S_ISDIR(u.bi_mode))
-			continue;
+			/*
+			 * Backpointer and directory structure checks are sufficient for
+			 * directories, since they can't have hardlinks:
+			 */
+			if (S_ISDIR(u.bi_mode))
+				continue;
 
-		if (!u.bi_nlink)
-			continue;
+			if (!u.bi_nlink)
+				continue;
 
-		ret = add_nlink(c, t, k.k->p.offset, k.k->p.snapshot);
-		if (ret) {
-			*end = k.k->p.offset;
-			ret = 0;
-			break;
-		}
+			ret = add_nlink(c, t, k.k->p.offset, k.k->p.snapshot);
+			if (ret) {
+				*end = k.k->p.offset;
+				ret = 0;
+				break;
+			}
+			0;
+		})));
 
-	}
-	bch2_trans_iter_exit(trans, &iter);
-	bch2_trans_put(trans);
-
-	if (ret)
-		bch_err(c, "error in fsck: btree error %i while walking inodes", ret);
-
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2303,42 +2292,39 @@ noinline_for_stack
 static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links,
 				     u64 range_start, u64 range_end)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct snapshots_seen s;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_dirent d;
-	int ret;
 
 	snapshots_seen_init(&s);
 
-	for_each_btree_key(trans, iter, BTREE_ID_dirents, POS_MIN,
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_PREFETCH|
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		ret = snapshots_seen_update(c, &s, iter.btree_id, k.k->p);
-		if (ret)
-			break;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key2(trans, iter, BTREE_ID_dirents, POS_MIN,
+				    BTREE_ITER_INTENT|
+				    BTREE_ITER_PREFETCH|
+				    BTREE_ITER_ALL_SNAPSHOTS, k, ({
+			ret = snapshots_seen_update(c, &s, iter.btree_id, k.k->p);
+			if (ret)
+				break;
 
-		switch (k.k->type) {
-		case KEY_TYPE_dirent:
-			d = bkey_s_c_to_dirent(k);
+			switch (k.k->type) {
+			case KEY_TYPE_dirent:
+				d = bkey_s_c_to_dirent(k);
 
-			if (d.v->d_type != DT_DIR &&
-			    d.v->d_type != DT_SUBVOL)
-				inc_link(c, &s, links, range_start, range_end,
-					 le64_to_cpu(d.v->d_inum),
-					 bch2_snapshot_equiv(c, d.k->p.snapshot));
-			break;
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
+				if (d.v->d_type != DT_DIR &&
+				    d.v->d_type != DT_SUBVOL)
+					inc_link(c, &s, links, range_start, range_end,
+						 le64_to_cpu(d.v->d_inum),
+						 bch2_snapshot_equiv(c, d.k->p.snapshot));
+				break;
+			}
+			0;
+		})));
 
-	if (ret)
-		bch_err(c, "error in fsck: btree error %i while walking dirents", ret);
-
-	bch2_trans_put(trans);
 	snapshots_seen_exit(&s);
+
+	bch_err_fn(c, ret);
 	return ret;
 }
 

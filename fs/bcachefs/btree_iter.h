@@ -777,7 +777,7 @@ transaction_restart:							\
 			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_commit_flags)))
 
-#define for_each_btree_key(_trans, _iter, _btree_id,			\
+#define for_each_btree_key_old(_trans, _iter, _btree_id,			\
 			   _start, _flags, _k, _ret)			\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
 				  (_start), (_flags));			\

@@ -544,8 +544,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 	u8 gen;
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
+				  BTREE_ITER_PREFETCH, k, ({
 		/*
 		 * Not a fsck error because this is checked/repaired by
 		 * bch2_check_alloc_key() which runs later:
@@ -572,8 +572,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 		}
 
 		g.v.gens[offset] = gen;
-	}
-	bch2_trans_iter_exit(trans, &iter);
+		0;
+	}));
 
 	if (have_bucket_gens_key && !ret)
 		ret = commit_do(trans, NULL, NULL,
@@ -582,8 +582,7 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 
 	bch2_trans_put(trans);
 
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -601,8 +600,8 @@ int bch2_alloc_read(struct bch_fs *c)
 		const struct bch_bucket_gens *g;
 		u64 b;
 
-		for_each_btree_key(trans, iter, BTREE_ID_bucket_gens, POS_MIN,
-				   BTREE_ITER_PREFETCH, k, ret) {
+		ret = for_each_btree_key2(trans, iter, BTREE_ID_bucket_gens, POS_MIN,
+					  BTREE_ITER_PREFETCH, k, ({
 			u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
 			u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
 
@@ -624,13 +623,13 @@ int bch2_alloc_read(struct bch_fs *c)
 			     b < min_t(u64, ca->mi.nbuckets, end);
 			     b++)
 				*bucket_gen(ca, b) = g->gens[b & KEY_TYPE_BUCKET_GENS_MASK];
-		}
-		bch2_trans_iter_exit(trans, &iter);
+			0;
+		}));
 	} else {
 		struct bch_alloc_v4 a;
 
-		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-				   BTREE_ITER_PREFETCH, k, ret) {
+		ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
+					  BTREE_ITER_PREFETCH, k, ({
 			/*
 			 * Not a fsck error because this is checked/repaired by
 			 * bch2_check_alloc_key() which runs later:
@@ -641,16 +640,14 @@ int bch2_alloc_read(struct bch_fs *c)
 			ca = bch_dev_bkey_exists(c, k.k->p.inode);
 
 			*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
-		}
-		bch2_trans_iter_exit(trans, &iter);
+			0;
+		}));
 	}
 
 	bch2_trans_put(trans);
 	up_read(&c->gc_lock);
 
-	if (ret)
-		bch_err_fn(c, ret);
-
+	bch_err_fn(c, ret);
 	return ret;
 }
 

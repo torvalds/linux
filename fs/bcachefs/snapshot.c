@@ -1410,19 +1410,16 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		goto err;
 	}
 
-	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
-			   POS_MIN, 0, k, ret) {
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
+				  POS_MIN, 0, k, ({
 		if (k.k->type != KEY_TYPE_snapshot)
 			continue;
 
 		snap = bkey_s_c_to_snapshot(k);
-		if (BCH_SNAPSHOT_DELETED(snap.v)) {
-			ret = snapshot_list_add(c, &deleted, k.k->p.offset);
-			if (ret)
-				break;
-		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
+		BCH_SNAPSHOT_DELETED(snap.v)
+			? snapshot_list_add(c, &deleted, k.k->p.offset)
+			: 0;
+	}));
 
 	if (ret) {
 		bch_err_msg(c, ret, "walking snapshots");
@@ -1469,18 +1466,20 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	bch2_trans_unlock(trans);
 	down_write(&c->snapshot_create_lock);
 
-	for_each_btree_key(trans, iter, BTREE_ID_snapshots,
-			   POS_MIN, 0, k, ret) {
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
+				  POS_MIN, 0, k, ({
 		u32 snapshot = k.k->p.offset;
 		u32 equiv = bch2_snapshot_equiv(c, snapshot);
 
-		if (equiv != snapshot)
-			snapshot_list_add(c, &deleted_interior, snapshot);
-	}
-	bch2_trans_iter_exit(trans, &iter);
+		equiv != snapshot
+			? snapshot_list_add(c, &deleted_interior, snapshot)
+			: 0;
+	}));
 
-	if (ret)
+	if (ret) {
+		bch_err_msg(c, ret, "walking snapshots");
 		goto err_create_lock;
+	}
 
 	/*
 	 * Fixing children of deleted snapshots can't be done completely

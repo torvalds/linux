@@ -1833,7 +1833,6 @@ void bch2_fs_ec_flush(struct bch_fs *c)
 
 int bch2_stripes_read(struct bch_fs *c)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	const struct bch_stripe *s;
@@ -1841,36 +1840,33 @@ int bch2_stripes_read(struct bch_fs *c)
 	unsigned i;
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_stripes, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		if (k.k->type != KEY_TYPE_stripe)
-			continue;
+	ret = bch2_trans_run(c,
+		for_each_btree_key2(trans, iter, BTREE_ID_stripes, POS_MIN,
+				    BTREE_ITER_PREFETCH, k, ({
+			if (k.k->type != KEY_TYPE_stripe)
+				continue;
 
-		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL);
-		if (ret)
-			break;
+			ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL);
+			if (ret)
+				break;
 
-		s = bkey_s_c_to_stripe(k).v;
+			s = bkey_s_c_to_stripe(k).v;
 
-		m = genradix_ptr(&c->stripes, k.k->p.offset);
-		m->sectors	= le16_to_cpu(s->sectors);
-		m->algorithm	= s->algorithm;
-		m->nr_blocks	= s->nr_blocks;
-		m->nr_redundant	= s->nr_redundant;
-		m->blocks_nonempty = 0;
+			m = genradix_ptr(&c->stripes, k.k->p.offset);
+			m->sectors	= le16_to_cpu(s->sectors);
+			m->algorithm	= s->algorithm;
+			m->nr_blocks	= s->nr_blocks;
+			m->nr_redundant	= s->nr_redundant;
+			m->blocks_nonempty = 0;
 
-		for (i = 0; i < s->nr_blocks; i++)
-			m->blocks_nonempty += !!stripe_blockcount_get(s, i);
+			for (i = 0; i < s->nr_blocks; i++)
+				m->blocks_nonempty += !!stripe_blockcount_get(s, i);
 
-		bch2_stripes_heap_insert(c, m, k.k->p.offset);
-	}
-	bch2_trans_iter_exit(trans, &iter);
+			bch2_stripes_heap_insert(c, m, k.k->p.offset);
+			0;
+		})));
 
-	bch2_trans_put(trans);
-
-	if (ret)
-		bch_err_fn(c, ret);
-
+	bch_err_fn(c, ret);
 	return ret;
 }
 
