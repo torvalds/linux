@@ -142,7 +142,6 @@ static int isl76682_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-		return -EINVAL;
 	case IIO_CHAN_INFO_SCALE:
 		for (i = 0; i < ARRAY_SIZE(isl76682_range_table); i++) {
 			if (chip->range != isl76682_range_table[i].range)
