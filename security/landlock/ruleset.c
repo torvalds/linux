@@ -723,11 +723,12 @@ landlock_init_layer_masks(const struct landlock_ruleset *const domain,
 	/* Saves all handled accesses per layer. */
 	for (layer_level = 0; layer_level < domain->num_layers; layer_level++) {
 		const unsigned long access_req = access_request;
+		const access_mask_t access_mask =
+			get_access_mask(domain, layer_level);
 		unsigned long access_bit;
 
 		for_each_set_bit(access_bit, &access_req, num_access) {
-			if (BIT_ULL(access_bit) &
-			    get_access_mask(domain, layer_level)) {
+			if (BIT_ULL(access_bit) & access_mask) {
 				(*layer_masks)[access_bit] |=
 					BIT_ULL(layer_level);
 				handled_accesses |= BIT_ULL(access_bit);
