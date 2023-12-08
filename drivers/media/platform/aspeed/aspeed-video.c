@@ -356,6 +356,8 @@ struct aspeed_video {
 	struct list_head buffers;
 	unsigned long flags;
 	unsigned int sequence;
+	struct workqueue_struct *rst_wq;
+	struct work_struct rst_work;
 
 	unsigned int max_compressed_size;
 	struct aspeed_video_addr srcs[2];
@@ -556,6 +558,8 @@ static const char * const format_str[] = {"Standard JPEG",
 static const char * const input_str[] = {"GFX", "BMC GFX", "MEMORY"};
 
 static unsigned int debug;
+static unsigned int dual_flag;
+DECLARE_WAIT_QUEUE_HEAD(waitq);
 
 static bool aspeed_video_alloc_buf(struct aspeed_video *video,
 				   struct aspeed_video_addr *addr,
@@ -841,13 +845,64 @@ static void aspeed_video_on(struct aspeed_video *video)
 	reset_control_deassert(video->reset);
 
 	set_bit(VIDEO_CLOCKS_ON, &video->flags);
+
+	if (video->version >= 7)
+		queue_work(video->rst_wq, &video->rst_work);
 }
 
 static void aspeed_video_reset(struct aspeed_video *v)
 {
+	int rc;
+	u32 val;
+
 	reset_control_assert(v->reset);
-	mdelay(100);
+	rc = reset_control_status(v->reset);
+	if (rc == 0) {
+		/* 2700 has 2 VE, but only 1 reset. To have reset work, we need
+		 * to notify the other VE if reset is not asserted.
+		 */
+		val = 1 << (v->id ^ 1);
+		dual_flag |= val;
+		v4l2_dbg(2, debug, &v->v4l2_dev, "%s: reset not asserted, needs another VE(%x)\n", __func__, val);
+		wake_up_all(&waitq);
+		rc = wait_event_interruptible(waitq, (dual_flag & val) != val);
+		if (rc)
+			v4l2_dbg(2, debug, &v->v4l2_dev, "%s: another VE done, dual_flag(%d)\n", __func__, dual_flag);
+	}
+
+	usleep_range(100, 200);
 	reset_control_deassert(v->reset);
+	udelay(1);
+}
+
+/*
+ * aspeed_video_rst_worker: This is a work to wait event from the other VE to
+ * do full function reset because 2700's 2 VE share 1 reset line. When there
+ * is one VE wants reset, both VE needs to do it.
+ *
+ */
+static void aspeed_video_rst_worker(struct work_struct *work)
+{
+	struct aspeed_video *v =
+		container_of(work, struct aspeed_video, rst_work);
+	int rc;
+
+	rc = wait_event_timeout(waitq,
+				(dual_flag & (1 << v->id)),
+				INVALID_RESOLUTION_DELAY);
+	if (rc) {
+		v4l2_dbg(2, debug, &v->v4l2_dev, "%s: dual_flag(%x)\n", __func__, dual_flag);
+		dual_flag = 0;
+		set_bit(VIDEO_RES_CHANGE, &v->flags);
+		clear_bit(VIDEO_FRAME_INPRG, &v->flags);
+		schedule_delayed_work(&v->res_work, 0);
+		wait_event_interruptible(v->wait,
+					 !test_bit(VIDEO_RES_CHANGE, &v->flags));
+		v4l2_dbg(2, debug, &v->v4l2_dev, "%s: rst and clear, %d\n", __func__, rc);
+	}
+
+	if (test_bit(VIDEO_CLOCKS_ON, &v->flags))
+		queue_work(v->rst_wq, &v->rst_work);
 }
 
 static void aspeed_video_bufs_done(struct aspeed_video *video,
@@ -881,7 +936,6 @@ static void aspeed_video_irq_res_change(struct aspeed_video *video, ulong delay)
 
 	aspeed_video_write(video, VE_INTERRUPT_CTRL, 0);
 	aspeed_video_write(video, VE_INTERRUPT_STATUS, 0xffffffff);
-	aspeed_video_reset(video);
 	aspeed_video_bufs_done(video, VB2_BUF_STATE_ERROR);
 
 	schedule_delayed_work(&video->res_work, delay);
@@ -1501,7 +1555,7 @@ static void aspeed_video_set_resolution(struct aspeed_video *video)
 
 	/* Don't use direct mode below 1024 x 768 (irqs don't fire) */
 	if (video->input == VIDEO_INPUT_VGA && size < DIRECT_FETCH_THRESHOLD &&
-	    (video->version == 7 && video->id == 0)) {
+	    (video->version != 7)) {
 		v4l2_dbg(1, debug, &video->v4l2_dev, "Capture: Sync Mode\n");
 		aspeed_video_write(video, VE_TGS_0,
 				   FIELD_PREP(VE_TGS_FIRST,
@@ -1680,7 +1734,7 @@ static void aspeed_video_init_regs(struct aspeed_video *video)
 
 	/* Set mode detection defaults */
 	// 2700-A0 VE1 needs larger threshold to avoid constant res-chg
-	if (video->version == 7 && video->id == 1)
+	if (video->version == 7)
 		aspeed_video_write(video, VE_MODE_DETECT,
 				   FIELD_PREP(VE_MODE_DT_HOR_TOLER, 7) |
 				   FIELD_PREP(VE_MODE_DT_VER_TOLER, 7) |
@@ -2200,6 +2254,8 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 						  res_work);
 	bool is_res_chg = false;
 
+	aspeed_video_reset(video);
+
 	aspeed_video_on(video);
 
 	/* Exit early in case no clients remain */
@@ -2235,6 +2291,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 done:
 	clear_bit(VIDEO_RES_CHANGE, &video->flags);
 	wake_up_interruptible_all(&video->wait);
+	wake_up_all(&waitq);
 }
 
 /*
@@ -2758,6 +2815,13 @@ static int aspeed_video_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&video->buffers);
 	INIT_LIST_HEAD(&video->boxes);
 
+	video->rst_wq = create_singlethread_workqueue("video_rst_wq");
+	if (!video->rst_wq) {
+		dev_err(&pdev->dev, "unable to alloc rst workqueue\n");
+		return -ENOMEM;
+	}
+	INIT_WORK(&video->rst_work, aspeed_video_rst_worker);
+
 	rc = aspeed_video_init(video);
 	if (rc)
 		return rc;
@@ -2785,6 +2849,8 @@ static void aspeed_video_remove(struct platform_device *pdev)
 	struct aspeed_video *video = to_aspeed_video(v4l2_dev);
 
 	aspeed_video_off(video);
+
+	destroy_workqueue(video->rst_wq);
 
 	aspeed_video_debugfs_remove(video);
 
