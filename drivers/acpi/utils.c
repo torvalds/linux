@@ -408,7 +408,7 @@ bool acpi_handle_list_equal(struct acpi_handle_list *list1,
 {
 	return list1->count == list2->count &&
 		!memcmp(list1->handles, list2->handles,
-		        list1->count * sizeof(acpi_handle));
+		        list1->count * sizeof(*list1->handles));
 }
 EXPORT_SYMBOL_GPL(acpi_handle_list_equal);
 
