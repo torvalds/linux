@@ -909,7 +909,7 @@ struct rswitch_ext_ts_desc {
 } __packed;
 
 struct rswitch_etha {
-	int index;
+	unsigned int index;
 	void __iomem *addr;
 	void __iomem *coma_addr;
 	bool external_phy;
@@ -938,12 +938,12 @@ struct rswitch_gwca_queue {
 
 	/* Common */
 	dma_addr_t ring_dma;
-	int ring_size;
-	int cur;
-	int dirty;
+	unsigned int ring_size;
+	unsigned int cur;
+	unsigned int dirty;
 
-	/* For [rt]_ring */
-	int index;
+	/* For [rt]x_ring */
+	unsigned int index;
 	bool dir_tx;
 	struct sk_buff **skbs;
 	struct net_device *ndev;	/* queue to ndev for irq */
@@ -959,7 +959,7 @@ struct rswitch_gwca_ts_info {
 
 #define RSWITCH_NUM_IRQ_REGS	(RSWITCH_MAX_NUM_QUEUES / BITS_PER_TYPE(u32))
 struct rswitch_gwca {
-	int index;
+	unsigned int index;
 	struct rswitch_desc *linkfix_table;
 	dma_addr_t linkfix_table_dma;
 	u32 linkfix_table_size;
