@@ -26,6 +26,49 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+/**
+ * msgqTxHeader -- TX queue data structure
+ * @version: the version of this structure, must be 0
+ * @size: the size of the entire queue, including this header
+ * @msgSize: the padded size of queue element, 16 is minimum
+ * @msgCount: the number of elements in this queue
+ * @writePtr: head index of this queue
+ * @flags: 1 = swap the RX pointers
+ * @rxHdrOff: offset of readPtr in this structure
+ * @entryOff: offset of beginning of queue (msgqRxHeader), relative to
+ *          beginning of this structure
+ *
+ * The command queue is a queue of RPCs that are sent from the driver to the
+ * GSP.  The status queue is a queue of messages/responses from GSP-RM to the
+ * driver.  Although the driver allocates memory for both queues, the command
+ * queue is owned by the driver and the status queue is owned by GSP-RM.  In
+ * addition, the headers of the two queues must not share the same 4K page.
+ *
+ * Each queue is prefixed with this data structure.  The idea is that a queue
+ * and its header are written to only by their owner.  That is, only the
+ * driver writes to the command queue and command queue header, and only the
+ * GSP writes to the status (receive) queue and its header.
+ *
+ * This is enforced by the concept of "swapping" the RX pointers.  This is
+ * why the 'flags' field must be set to 1.  'rxHdrOff' is how the GSP knows
+ * where the where the tail pointer of its status queue.
+ *
+ * When the driver writes a new RPC to the command queue, it updates writePtr.
+ * When it reads a new message from the status queue, it updates readPtr.  In
+ * this way, the GSP knows when a new command is in the queue (it polls
+ * writePtr) and it knows how much free space is in the status queue (it
+ * checks readPtr).  The driver never cares about how much free space is in
+ * the status queue.
+ *
+ * As usual, producers write to the head pointer, and consumers read from the
+ * tail pointer.  When head == tail, the queue is empty.
+ *
+ * So to summarize:
+ * command.writePtr = head of command queue
+ * command.readPtr = tail of status queue
+ * status.writePtr = head of status queue
+ * status.readPtr = tail of command queue
+ */
 typedef struct
 {
     NvU32 version;   // queue version
@@ -38,6 +81,14 @@ typedef struct
     NvU32 entryOff;  // Offset of entries from start of backing store.
 } msgqTxHeader;
 
+/**
+ * msgqRxHeader - RX queue data structure
+ * @readPtr: tail index of the other queue
+ *
+ * Although this is a separate struct, it could easily be merged into
+ * msgqTxHeader.  msgqTxHeader.rxHdrOff is simply the offset of readPtr
+ * from the beginning of msgqTxHeader.
+ */
 typedef struct
 {
     NvU32 readPtr; // message id of last message read
