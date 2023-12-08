@@ -86,4 +86,8 @@ void dcn35_dsc_pg_control(
 
 void dcn35_set_idle_state(const struct dc *dc, bool allow_idle);
 uint32_t dcn35_get_idle_state(const struct dc *dc);
+
+void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
+		int num_pipes, struct dc_crtc_timing_adjust adjust);
+
 #endif /* __DC_HWSS_DCN35_H__ */
