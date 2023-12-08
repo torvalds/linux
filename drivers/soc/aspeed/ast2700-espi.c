@@ -23,6 +23,8 @@
 
 #define DEVICE_NAME		"aspeed-espi"
 
+static DEFINE_IDA(ast2700_espi_ida);
+
 #define PERIF_MCYC_ALIGN	SZ_64K
 #define PERIF_MMBI_ALIGN	SZ_64M
 #define PERIF_MMBI_MAX_INST	8
@@ -180,6 +182,7 @@ struct ast2700_espi {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *clk;
+	int dev_id;
 	int irq;
 
 	struct ast2700_espi_perif perif;
@@ -841,7 +844,8 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 			mmbi->b2h_addr = perif->mmbi.taddr + ((perif->mmbi.inst_size >> 1) * i);
 			mmbi->b2h_mdev.parent = dev;
 			mmbi->b2h_mdev.minor = MISC_DYNAMIC_MINOR;
-			mmbi->b2h_mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-mmbi-b2h%d", DEVICE_NAME, i);
+			mmbi->b2h_mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-mmbi%d-b2h%d",
+							     DEVICE_NAME, espi->dev_id, i);
 			mmbi->b2h_mdev.fops = &ast2700_espi_mmbi_b2h_fops;
 			rc = misc_register(&mmbi->b2h_mdev);
 			if (rc) {
@@ -853,7 +857,8 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 			mmbi->h2b_addr = perif->mmbi.taddr + ((perif->mmbi.inst_size >> 1) * (i + perif->mmbi.inst_num));
 			mmbi->h2b_mdev.parent = dev;
 			mmbi->h2b_mdev.minor = MISC_DYNAMIC_MINOR;
-			mmbi->h2b_mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-mmbi-h2b%d", DEVICE_NAME, i);
+			mmbi->h2b_mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-mmbi%d-h2b%d",
+							     DEVICE_NAME, espi->dev_id, i);
 			mmbi->h2b_mdev.fops = &ast2700_espi_mmbi_h2b_fops;
 			rc = misc_register(&mmbi->h2b_mdev);
 			if (rc) {
@@ -911,7 +916,7 @@ static int ast2700_espi_perif_probe(struct ast2700_espi *espi)
 
 	perif->mdev.parent = dev;
 	perif->mdev.minor = MISC_DYNAMIC_MINOR;
-	perif->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-peripheral", DEVICE_NAME);
+	perif->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-peripheral%d", DEVICE_NAME, espi->dev_id);
 	perif->mdev.fops = &ast2700_espi_perif_fops;
 	rc = misc_register(&perif->mdev);
 	if (rc) {
@@ -1089,7 +1094,7 @@ static int ast2700_espi_vw_probe(struct ast2700_espi *espi)
 
 	vw->mdev.parent = dev;
 	vw->mdev.minor = MISC_DYNAMIC_MINOR;
-	vw->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-vw", DEVICE_NAME);
+	vw->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-vw%d", DEVICE_NAME, espi->dev_id);
 	vw->mdev.fops = &ast2700_espi_vw_fops;
 	rc = misc_register(&vw->mdev);
 	if (rc) {
@@ -1569,7 +1574,7 @@ static int ast2700_espi_oob_probe(struct ast2700_espi *espi)
 
 	oob->mdev.parent = dev;
 	oob->mdev.minor = MISC_DYNAMIC_MINOR;
-	oob->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-oob", DEVICE_NAME);
+	oob->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-oob%d", DEVICE_NAME, espi->dev_id);
 	oob->mdev.fops = &ast2700_espi_oob_fops;
 	rc = misc_register(&oob->mdev);
 	if (rc) {
@@ -1961,7 +1966,7 @@ static int ast2700_espi_flash_probe(struct ast2700_espi *espi)
 
 	flash->mdev.parent = dev;
 	flash->mdev.minor = MISC_DYNAMIC_MINOR;
-	flash->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-flash", DEVICE_NAME);
+	flash->mdev.name = devm_kasprintf(dev, GFP_KERNEL, "%s-flash%d", DEVICE_NAME, espi->dev_id);
 	flash->mdev.fops = &ast2700_espi_flash_fops;
 	rc = misc_register(&flash->mdev);
 	if (rc) {
@@ -2088,6 +2093,12 @@ static int ast2700_espi_probe(struct platform_device *pdev)
 	if (rc) {
 		dev_err(dev, "cannot enable clocks\n");
 		return rc;
+	}
+
+	espi->dev_id = ida_alloc(&ast2700_espi_ida, GFP_KERNEL);
+	if (espi->dev_id < 0) {
+		dev_err(dev, "cannote allocate device ID\n");
+		return espi->dev_id;
 	}
 
 	reg = readl(espi->regs + ESPI_INT_EN);
