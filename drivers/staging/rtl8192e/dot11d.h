@@ -18,12 +18,6 @@
  *		2 - valid (passive scan)
  */
 
-struct rt_dot11d_info {
-};
-
-#define GET_DOT11D_INFO(__ieee_dev)			\
-	 ((struct rt_dot11d_info *)((__ieee_dev)->dot11d_info))
-
 void dot11d_channel_map(struct rtllib_device *ieee);
 
 #endif

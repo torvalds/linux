@@ -2077,9 +2077,6 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->link_state = MAC80211_NOLINK;
 	for (i = 0; i < 5; i++)
 		ieee->seq_ctrl[i] = 0;
-	ieee->dot11d_info = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
-	if (!ieee->dot11d_info)
-		return -ENOMEM;
 
 	ieee->link_detect_info.SlotIndex = 0;
 	ieee->link_detect_info.SlotNum = 2;
@@ -2153,9 +2150,6 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 	cancel_work_sync(&ieee->ips_leave_wq);
 	cancel_work_sync(&ieee->wx_sync_scan_wq);
 	cancel_work_sync(&ieee->ps_task);
-
-	kfree(ieee->dot11d_info);
-	ieee->dot11d_info = NULL;
 }
 
 static inline struct sk_buff *
