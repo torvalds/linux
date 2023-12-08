@@ -1402,16 +1402,16 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		goto err;
 	}
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
-				  POS_MIN, 0, k,
+	ret = for_each_btree_key(trans, iter, BTREE_ID_snapshots,
+				 POS_MIN, 0, k,
 		bch2_snapshot_set_equiv(trans, k));
 	if (ret) {
 		bch_err_msg(c, ret, "in bch2_snapshots_set_equiv");
 		goto err;
 	}
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
-				  POS_MIN, 0, k, ({
+	ret = for_each_btree_key(trans, iter, BTREE_ID_snapshots,
+				 POS_MIN, 0, k, ({
 		if (k.k->type != KEY_TYPE_snapshot)
 			continue;
 
@@ -1466,8 +1466,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	bch2_trans_unlock(trans);
 	down_write(&c->snapshot_create_lock);
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
-				  POS_MIN, 0, k, ({
+	ret = for_each_btree_key(trans, iter, BTREE_ID_snapshots,
+				 POS_MIN, 0, k, ({
 		u32 snapshot = k.k->p.offset;
 		u32 equiv = bch2_snapshot_equiv(c, snapshot);
 
@@ -1693,13 +1693,13 @@ int bch2_snapshots_read(struct bch_fs *c)
 	int ret = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
-			   POS_MIN, 0, k,
+		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
+				   POS_MIN, 0, k,
 			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
 			bch2_snapshot_set_equiv(trans, k) ?:
 			bch2_check_snapshot_needs_deletion(trans, k)) ?:
-		for_each_btree_key2(trans, iter, BTREE_ID_snapshots,
-			   POS_MIN, 0, k,
+		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
+				   POS_MIN, 0, k,
 			   (set_is_ancestor_bitmap(c, k.k->p.offset), 0)));
 	if (ret)
 		bch_err_fn(c, ret);

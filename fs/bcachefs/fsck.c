@@ -2254,11 +2254,11 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 	struct bch_inode_unpacked u;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter, BTREE_ID_inodes,
-					  POS(0, start),
-					  BTREE_ITER_INTENT|
-					  BTREE_ITER_PREFETCH|
-					  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+		for_each_btree_key(trans, iter, BTREE_ID_inodes,
+				   POS(0, start),
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_PREFETCH|
+				   BTREE_ITER_ALL_SNAPSHOTS, k, ({
 			if (!bkey_is_inode(k.k))
 				continue;
 
@@ -2300,10 +2300,10 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 	snapshots_seen_init(&s);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter, BTREE_ID_dirents, POS_MIN,
-				    BTREE_ITER_INTENT|
-				    BTREE_ITER_PREFETCH|
-				    BTREE_ITER_ALL_SNAPSHOTS, k, ({
+		for_each_btree_key(trans, iter, BTREE_ID_dirents, POS_MIN,
+				   BTREE_ITER_INTENT|
+				   BTREE_ITER_PREFETCH|
+				   BTREE_ITER_ALL_SNAPSHOTS, k, ({
 			ret = snapshots_seen_update(c, &s, iter.btree_id, k.k->p);
 			if (ret)
 				break;

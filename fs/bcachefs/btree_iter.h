@@ -725,8 +725,8 @@ transaction_restart:							\
 	_ret3;								\
 })
 
-#define for_each_btree_key2(_trans, _iter, _btree_id,			\
-			    _start, _flags, _k, _do)			\
+#define for_each_btree_key(_trans, _iter, _btree_id,			\
+			   _start, _flags, _k, _do)			\
 	for_each_btree_key2_upto(_trans, _iter, _btree_id, _start,	\
 				 SPOS_MAX, _flags, _k, _do)
 
@@ -757,7 +757,7 @@ transaction_restart:							\
 				  _start, _iter_flags, _k,		\
 				  _disk_res, _journal_seq, _commit_flags,\
 				  _do)					\
-	for_each_btree_key2(_trans, _iter, _btree_id, _start, _iter_flags, _k,\
+	for_each_btree_key(_trans, _iter, _btree_id, _start, _iter_flags, _k,\
 			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_commit_flags)))
 

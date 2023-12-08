@@ -544,8 +544,8 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 	u8 gen;
 	int ret;
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
-				  BTREE_ITER_PREFETCH, k, ({
+	ret = for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
+				 BTREE_ITER_PREFETCH, k, ({
 		/*
 		 * Not a fsck error because this is checked/repaired by
 		 * bch2_check_alloc_key() which runs later:
@@ -600,8 +600,8 @@ int bch2_alloc_read(struct bch_fs *c)
 		const struct bch_bucket_gens *g;
 		u64 b;
 
-		ret = for_each_btree_key2(trans, iter, BTREE_ID_bucket_gens, POS_MIN,
-					  BTREE_ITER_PREFETCH, k, ({
+		ret = for_each_btree_key(trans, iter, BTREE_ID_bucket_gens, POS_MIN,
+					 BTREE_ITER_PREFETCH, k, ({
 			u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
 			u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
 
@@ -628,8 +628,8 @@ int bch2_alloc_read(struct bch_fs *c)
 	} else {
 		struct bch_alloc_v4 a;
 
-		ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
-					  BTREE_ITER_PREFETCH, k, ({
+		ret = for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
+					 BTREE_ITER_PREFETCH, k, ({
 			/*
 			 * Not a fsck error because this is checked/repaired by
 			 * bch2_check_alloc_key() which runs later:
@@ -1427,7 +1427,7 @@ bkey_err:
 	if (ret < 0)
 		goto err;
 
-	ret = for_each_btree_key2(trans, iter,
+	ret = for_each_btree_key(trans, iter,
 			BTREE_ID_need_discard, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
 		bch2_check_discard_freespace_key(trans, &iter));
@@ -1693,8 +1693,8 @@ static void bch2_do_discards_work(struct work_struct *work)
 	 * successful commit:
 	 */
 	ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter,
-				BTREE_ID_need_discard, POS_MIN, 0, k,
+		for_each_btree_key(trans, iter,
+				   BTREE_ID_need_discard, POS_MIN, 0, k,
 			bch2_discard_one_bucket(trans, &iter, &discard_pos_done,
 						&seen,
 						&open,

@@ -1841,8 +1841,8 @@ int bch2_stripes_read(struct bch_fs *c)
 	int ret;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter, BTREE_ID_stripes, POS_MIN,
-				    BTREE_ITER_PREFETCH, k, ({
+		for_each_btree_key(trans, iter, BTREE_ID_stripes, POS_MIN,
+				   BTREE_ITER_PREFETCH, k, ({
 			if (k.k->type != KEY_TYPE_stripe)
 				continue;
 

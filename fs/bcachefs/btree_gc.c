@@ -1538,8 +1538,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
-				  BTREE_ITER_PREFETCH, k, ({
+	ret = for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
+				 BTREE_ITER_PREFETCH, k, ({
 		ca = bch_dev_bkey_exists(c, k.k->p.inode);
 		g = gc_bucket(ca, k.k->p.offset);
 
@@ -1676,8 +1676,8 @@ static int bch2_gc_reflink_start(struct bch_fs *c,
 	c->reflink_gc_nr = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter, BTREE_ID_reflink, POS_MIN,
-				  BTREE_ITER_PREFETCH, k, ({
+		for_each_btree_key(trans, iter, BTREE_ID_reflink, POS_MIN,
+				   BTREE_ITER_PREFETCH, k, ({
 			const __le64 *refcount = bkey_refcount_c(k);
 
 			if (!refcount)

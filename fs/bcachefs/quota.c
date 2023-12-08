@@ -617,11 +617,11 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	trans = bch2_trans_get(c);
 
-	ret = for_each_btree_key2(trans, iter, BTREE_ID_quotas,
-			POS_MIN, BTREE_ITER_PREFETCH, k,
+	ret = for_each_btree_key(trans, iter, BTREE_ID_quotas, POS_MIN,
+				 BTREE_ITER_PREFETCH, k,
 		__bch2_quota_set(c, k, NULL)) ?:
-	      for_each_btree_key2(trans, iter, BTREE_ID_inodes,
-			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+	      for_each_btree_key(trans, iter, BTREE_ID_inodes, POS_MIN,
+				 BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(trans, &iter, k));
 
 	bch2_trans_put(trans);

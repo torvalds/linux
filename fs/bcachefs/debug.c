@@ -380,9 +380,9 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 		return ret;
 
 	trans = bch2_trans_get(i->c);
-	ret = for_each_btree_key2(trans, iter, i->id, i->from,
-				  BTREE_ITER_PREFETCH|
-				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+	ret = for_each_btree_key(trans, iter, i->id, i->from,
+				 BTREE_ITER_PREFETCH|
+				 BTREE_ITER_ALL_SNAPSHOTS, k, ({
 		bch2_bkey_val_to_text(&i->buf, i->c, k);
 		prt_newline(&i->buf);
 		bch2_trans_unlock(trans);
@@ -478,9 +478,9 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 
 	trans = bch2_trans_get(i->c);
 
-	ret = for_each_btree_key2(trans, iter, i->id, i->from,
-				  BTREE_ITER_PREFETCH|
-				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+	ret = for_each_btree_key(trans, iter, i->id, i->from,
+				 BTREE_ITER_PREFETCH|
+				 BTREE_ITER_ALL_SNAPSHOTS, k, ({
 		struct btree_path_level *l = &iter.path->l[0];
 		struct bkey_packed *_k =
 			bch2_btree_node_iter_peek(&l->iter, l->b);

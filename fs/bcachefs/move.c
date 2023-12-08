@@ -377,8 +377,8 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 
 		io_opts->d.nr = 0;
 
-		ret = for_each_btree_key2(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
-					  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+		ret = for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
+					 BTREE_ITER_ALL_SNAPSHOTS, k, ({
 			if (k.k->p.offset != extent_k.k->p.inode)
 				break;
 
