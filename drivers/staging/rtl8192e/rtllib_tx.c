@@ -364,7 +364,7 @@ static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 
 	if (ht_info->cur_bw_40mhz && ht_info->cur_short_gi_40mhz)
 		tcb_desc->bUseShortGI = true;
-	else if (!ht_info->cur_bw_40mhz && ht_info->bCurShortGI20MHz)
+	else if (!ht_info->cur_bw_40mhz && ht_info->cur_short_gi_20mhz)
 		tcb_desc->bUseShortGI = true;
 }
 
