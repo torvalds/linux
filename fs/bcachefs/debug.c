@@ -385,7 +385,8 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
 		bch2_bkey_val_to_text(&i->buf, i->c, k);
 		prt_newline(&i->buf);
-		drop_locks_do(trans, flush_buf(i));
+		bch2_trans_unlock(trans);
+		flush_buf(i);
 	}));
 	i->from = iter.pos;
 
@@ -490,7 +491,8 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 		}
 
 		bch2_bfloat_to_text(&i->buf, l->b, _k);
-		drop_locks_do(trans, flush_buf(i));
+		bch2_trans_unlock(trans);
+		flush_buf(i);
 	}));
 	i->from = iter.pos;
 
