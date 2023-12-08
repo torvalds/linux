@@ -8879,12 +8879,14 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	acrtc = to_amdgpu_crtc(wb_conn->encoder.crtc);
 	if (!acrtc) {
 		DRM_ERROR("no amdgpu_crtc found\n");
+		kfree(wb_info);
 		return;
 	}
 
 	afb = to_amdgpu_framebuffer(new_con_state->writeback_job->fb);
 	if (!afb) {
 		DRM_ERROR("No amdgpu_framebuffer found\n");
+		kfree(wb_info);
 		return;
 	}
 
