@@ -589,6 +589,7 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
 	struct v4l2_subdev_state pad_state = {
+		.sd = isi->entity.subdev,
 		.pads = &pad_cfg,
 	};
 	struct v4l2_subdev_format format = {
