@@ -583,7 +583,7 @@ static int at803x_resume(struct phy_device *phydev)
 	return phy_modify(phydev, MII_BMCR, BMCR_PDOWN | BMCR_ISOLATE, 0);
 }
 
-static int at803x_rgmii_reg_set_voltage_sel(struct regulator_dev *rdev,
+static int at8031_rgmii_reg_set_voltage_sel(struct regulator_dev *rdev,
 					    unsigned int selector)
 {
 	struct phy_device *phydev = rdev_get_drvdata(rdev);
@@ -596,7 +596,7 @@ static int at803x_rgmii_reg_set_voltage_sel(struct regulator_dev *rdev,
 					     AT803X_DEBUG_RGMII_1V8, 0);
 }
 
-static int at803x_rgmii_reg_get_voltage_sel(struct regulator_dev *rdev)
+static int at8031_rgmii_reg_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct phy_device *phydev = rdev_get_drvdata(rdev);
 	int val;
@@ -610,8 +610,8 @@ static int at803x_rgmii_reg_get_voltage_sel(struct regulator_dev *rdev)
 
 static const struct regulator_ops vddio_regulator_ops = {
 	.list_voltage = regulator_list_voltage_table,
-	.set_voltage_sel = at803x_rgmii_reg_set_voltage_sel,
-	.get_voltage_sel = at803x_rgmii_reg_get_voltage_sel,
+	.set_voltage_sel = at8031_rgmii_reg_set_voltage_sel,
+	.get_voltage_sel = at8031_rgmii_reg_get_voltage_sel,
 };
 
 static const unsigned int vddio_voltage_table[] = {
@@ -666,7 +666,7 @@ static int at8031_register_regulators(struct phy_device *phydev)
 	return 0;
 }
 
-static int at803x_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
+static int at8031_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(phy_support);
@@ -710,10 +710,10 @@ static int at803x_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 	return 0;
 }
 
-static const struct sfp_upstream_ops at803x_sfp_ops = {
+static const struct sfp_upstream_ops at8031_sfp_ops = {
 	.attach = phy_sfp_attach,
 	.detach = phy_sfp_detach,
-	.module_insert = at803x_sfp_insert,
+	.module_insert = at8031_sfp_insert,
 };
 
 static int at803x_parse_dt(struct phy_device *phydev)
@@ -1519,7 +1519,7 @@ static int at8031_parse_dt(struct phy_device *phydev)
 	}
 
 	/* Only AR8031/8033 support 1000Base-X for SFP modules */
-	return phy_sfp_probe(phydev, &at803x_sfp_ops);
+	return phy_sfp_probe(phydev, &at8031_sfp_ops);
 }
 
 static int at8031_probe(struct phy_device *phydev)
