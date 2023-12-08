@@ -159,6 +159,47 @@ static void *qcom_tui_heap_add_pool(struct mem_buf_allocation_data *alloc_data)
 	return pool;
 }
 
+/*
+ * Transfer the requested amount of memory from primary VM to the given heap
+ * int the current VM.
+ * Returns a handle which can be released via qcom_tvm_heap_free_kernel_pool.
+ *
+ * The current VM allocates ~1/64 of the requested size for 'struct page'
+ * array and other metadata.
+ */
+void *qcom_tvm_heap_add_kernel_pool(struct dma_heap *heap, size_t size)
+{
+	struct mem_buf_allocation_data args = {};
+	int vmids[1];
+	int perms[1];
+
+	vmids[0] = mem_buf_current_vmid();
+	perms[0] = PERM_READ | PERM_WRITE;
+
+	args.size = size;
+	args.nr_acl_entries = ARRAY_SIZE(vmids);
+	args.vmids = vmids;
+	args.perms = perms;
+	args.trans_type = GH_RM_TRANS_TYPE_LEND;
+	args.sgl_desc = NULL;
+	args.src_mem_type = MEM_BUF_DMAHEAP_MEM_TYPE;
+	args.src_data = "qcom,system";
+	args.dst_mem_type = MEM_BUF_DMAHEAP_MEM_TYPE;
+	args.dst_data = (void *)dma_heap_get_name(heap);
+
+	return qcom_tui_heap_add_pool(&args);
+}
+EXPORT_SYMBOL_GPL(qcom_tvm_heap_add_kernel_pool);
+
+/*
+ * Releases a handle created by qcom_tvm_heap_add_kernel_pool.
+ */
+void qcom_tvm_heap_remove_kernel_pool(void *handle)
+{
+	qcom_tui_heap_remove_pool(handle);
+}
+EXPORT_SYMBOL_GPL(qcom_tvm_heap_remove_kernel_pool);
+
 static int tui_heap_file_release(struct inode *inode, struct file *filp)
 {
 	qcom_tui_heap_remove_pool(filp->private_data);

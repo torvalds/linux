@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QCOM_TUI_HEAP_H
@@ -13,6 +13,8 @@ struct platform_heap;
 #ifdef CONFIG_QCOM_DMABUF_HEAPS_TUI_CARVEOUT
 int qcom_tui_carveout_heap_create(struct platform_heap *heap_data);
 int qcom_tui_heap_add_pool_fd(struct mem_buf_allocation_data *alloc_data);
+void *qcom_tvm_heap_add_kernel_pool(struct dma_heap *heap, size_t size);
+void qcom_tvm_heap_remove_kernel_pool(void *handle);
 #else
 static inline int qcom_tui_carveout_heap_create(struct platform_heap *heap_data)
 {
@@ -22,6 +24,11 @@ static inline int qcom_tui_heap_add_pool_fd(struct mem_buf_allocation_data *allo
 {
 	return -EINVAL;
 }
+static inline void *qcom_tvm_heap_add_kernel_pool(struct dma_heap *heap, size_t size)
+{
+	return ERR_PTR(-EINVAL);
+}
+static inline void qcom_tvm_heap_remove_kernel_pool(void *handle) {}
 #endif
 
 
