@@ -558,7 +558,7 @@ static void ma35d1serial_console_write(struct console *co, const char *s, u32 co
 	u32 ier;
 
 	if ((co->index < 0) || (co->index >= MA35_UART_NR)) {
-		pr_warn("Failed to write on ononsole port %x, out of range\n",
+		pr_warn("Failed to write on console port %x, out of range\n",
 			co->index);
 		return;
 	}
