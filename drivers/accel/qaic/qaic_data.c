@@ -574,6 +574,9 @@ static void qaic_free_sgt(struct sg_table *sgt)
 {
 	struct scatterlist *sg;
 
+	if (!sgt)
+		return;
+
 	for (sg = sgt->sgl; sg; sg = sg_next(sg))
 		if (sg_page(sg))
 			__free_pages(sg_page(sg), get_order(sg->length));
@@ -717,7 +720,7 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 
 	ret = drm_gem_handle_create(file_priv, obj, &args->handle);
 	if (ret)
-		goto free_sgt;
+		goto free_bo;
 
 	bo->handle = args->handle;
 	drm_gem_object_put(obj);
@@ -726,10 +729,8 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 
 	return 0;
 
-free_sgt:
-	qaic_free_sgt(bo->sgt);
 free_bo:
-	kfree(bo);
+	drm_gem_object_put(obj);
 unlock_dev_srcu:
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 unlock_usr_srcu:
