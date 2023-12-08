@@ -193,17 +193,14 @@ mode supports both coherent and stream based DMA mappings.
 The following logic is used to determine the type of I/O to be used on
 a per "spi_transfer" basis::
 
-  if !enable_dma then
-	always use PIO transfers
+  if spi_message.len > 65536 then
+	if spi_message.is_dma_mapped or rx_dma_buf != 0 or tx_dma_buf != 0 then
+		reject premapped transfers
 
-  if spi_message.len > 8191 then
 	print "rate limited" warning
 	use PIO transfers
 
-  if spi_message.is_dma_mapped and rx_dma_buf != 0 and tx_dma_buf != 0 then
-	use coherent DMA mode
-
-  if rx_buf and tx_buf are aligned on 8 byte boundary then
+  if enable_dma and the size is in the range [DMA burst size..65536] then
 	use streaming DMA mode
 
   otherwise
