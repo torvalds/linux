@@ -550,8 +550,8 @@ static void qaic_pci_remove(struct pci_dev *pdev)
 		return;
 
 	qaic_dev_reset_clean_local_state(qdev);
-	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 	qaic_mhi_free_controller(qdev->mhi_cntrl, link_up);
+	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 }
 
 static void qaic_pci_shutdown(struct pci_dev *pdev)
