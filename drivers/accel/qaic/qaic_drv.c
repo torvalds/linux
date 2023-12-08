@@ -8,6 +8,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/kobject.h>
 #include <linux/kref.h>
 #include <linux/mhi.h>
 #include <linux/module.h>
@@ -43,9 +44,6 @@ MODULE_PARM_DESC(datapath_polling, "Operate the datapath in polling mode");
 static bool link_up;
 static DEFINE_IDA(qaic_usrs);
 
-static int qaic_create_drm_device(struct qaic_device *qdev, s32 partition_id);
-static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id);
-
 static void free_usr(struct kref *kref)
 {
 	struct qaic_user *usr = container_of(kref, struct qaic_user, ref_count);
@@ -64,7 +62,7 @@ static int qaic_open(struct drm_device *dev, struct drm_file *file)
 	int ret;
 
 	rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto dev_unlock;
 	}
@@ -121,7 +119,7 @@ static void qaic_postclose(struct drm_device *dev, struct drm_file *file)
 	if (qddev) {
 		qdev = qddev->qdev;
 		qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-		if (!qdev->in_reset) {
+		if (qdev->dev_state == QAIC_ONLINE) {
 			qaic_release_usr(qdev, usr);
 			for (i = 0; i < qdev->num_dbc; ++i)
 				if (qdev->dbc[i].usr && qdev->dbc[i].usr->handle == usr->handle)
@@ -183,13 +181,6 @@ static int qaic_create_drm_device(struct qaic_device *qdev, s32 partition_id)
 
 	qddev->partition_id = partition_id;
 
-	/*
-	 * drm_dev_unregister() sets the driver data to NULL and
-	 * drm_dev_register() does not update the driver data. During a SOC
-	 * reset drm dev is unregistered and registered again leaving the
-	 * driver data to NULL.
-	 */
-	dev_set_drvdata(to_accel_kdev(qddev), drm->accel);
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		pci_dbg(qdev->pdev, "drm_dev_register failed %d\n", ret);
@@ -203,7 +194,6 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 	struct drm_device *drm = to_drm(qddev);
 	struct qaic_user *usr;
 
-	drm_dev_get(drm);
 	drm_dev_unregister(drm);
 	qddev->partition_id = 0;
 	/*
@@ -232,7 +222,6 @@ static void qaic_destroy_drm_device(struct qaic_device *qdev, s32 partition_id)
 		mutex_lock(&qddev->users_mutex);
 	}
 	mutex_unlock(&qddev->users_mutex);
-	drm_dev_put(drm);
 }
 
 static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id *id)
@@ -254,8 +243,6 @@ static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 
 	qdev = pci_get_drvdata(to_pci_dev(mhi_dev->mhi_cntrl->cntrl_dev));
 
-	qdev->in_reset = false;
-
 	dev_set_drvdata(&mhi_dev->dev, qdev);
 	qdev->cntl_ch = mhi_dev;
 
@@ -265,6 +252,7 @@ static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 		return ret;
 	}
 
+	qdev->dev_state = QAIC_BOOT;
 	ret = get_cntl_version(qdev, NULL, &major, &minor);
 	if (ret || major != CNTL_MAJOR || minor > CNTL_MINOR) {
 		pci_err(qdev->pdev, "%s: Control protocol version (%d.%d) not supported. Supported version is (%d.%d). Ret: %d\n",
@@ -272,8 +260,8 @@ static int qaic_mhi_probe(struct mhi_device *mhi_dev, const struct mhi_device_id
 		ret = -EINVAL;
 		goto close_control;
 	}
-
-	ret = qaic_create_drm_device(qdev, QAIC_NO_PARTITION);
+	qdev->dev_state = QAIC_ONLINE;
+	kobject_uevent(&(to_accel_kdev(qdev->qddev))->kobj, KOBJ_ONLINE);
 
 	return ret;
 
@@ -291,7 +279,8 @@ static void qaic_notify_reset(struct qaic_device *qdev)
 {
 	int i;
 
-	qdev->in_reset = true;
+	kobject_uevent(&(to_accel_kdev(qdev->qddev))->kobj, KOBJ_OFFLINE);
+	qdev->dev_state = QAIC_OFFLINE;
 	/* wake up any waiters to avoid waiting for timeouts at sync */
 	wake_all_cntl(qdev);
 	for (i = 0; i < qdev->num_dbc; ++i)
@@ -299,21 +288,15 @@ static void qaic_notify_reset(struct qaic_device *qdev)
 	synchronize_srcu(&qdev->dev_lock);
 }
 
-void qaic_dev_reset_clean_local_state(struct qaic_device *qdev, bool exit_reset)
+void qaic_dev_reset_clean_local_state(struct qaic_device *qdev)
 {
 	int i;
 
 	qaic_notify_reset(qdev);
 
-	/* remove drmdevs to prevent new users from coming in */
-	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
-
 	/* start tearing things down */
 	for (i = 0; i < qdev->num_dbc; ++i)
 		release_dbc(qdev, i);
-
-	if (exit_reset)
-		qdev->in_reset = false;
 }
 
 static void cleanup_qdev(struct qaic_device *qdev)
@@ -338,6 +321,7 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_de
 	if (!qdev)
 		return NULL;
 
+	qdev->dev_state = QAIC_OFFLINE;
 	if (id->device == PCI_DEV_AIC100) {
 		qdev->num_dbc = 16;
 		qdev->dbc = devm_kcalloc(&pdev->dev, qdev->num_dbc, sizeof(*qdev->dbc), GFP_KERNEL);
@@ -499,15 +483,21 @@ static int qaic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto cleanup_qdev;
 	}
 
+	ret = qaic_create_drm_device(qdev, QAIC_NO_PARTITION);
+	if (ret)
+		goto cleanup_qdev;
+
 	qdev->mhi_cntrl = qaic_mhi_register_controller(pdev, qdev->bar_0, mhi_irq,
 						       qdev->single_msi);
 	if (IS_ERR(qdev->mhi_cntrl)) {
 		ret = PTR_ERR(qdev->mhi_cntrl);
-		goto cleanup_qdev;
+		goto cleanup_drm_dev;
 	}
 
 	return 0;
 
+cleanup_drm_dev:
+	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 cleanup_qdev:
 	cleanup_qdev(qdev);
 	return ret;
@@ -520,7 +510,8 @@ static void qaic_pci_remove(struct pci_dev *pdev)
 	if (!qdev)
 		return;
 
-	qaic_dev_reset_clean_local_state(qdev, false);
+	qaic_dev_reset_clean_local_state(qdev);
+	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 	qaic_mhi_free_controller(qdev->mhi_cntrl, link_up);
 	cleanup_qdev(qdev);
 }
@@ -543,14 +534,13 @@ static void qaic_pci_reset_prepare(struct pci_dev *pdev)
 
 	qaic_notify_reset(qdev);
 	qaic_mhi_start_reset(qdev->mhi_cntrl);
-	qaic_dev_reset_clean_local_state(qdev, false);
+	qaic_dev_reset_clean_local_state(qdev);
 }
 
 static void qaic_pci_reset_done(struct pci_dev *pdev)
 {
 	struct qaic_device *qdev = pci_get_drvdata(pdev);
 
-	qdev->in_reset = false;
 	qaic_mhi_reset_done(qdev->mhi_cntrl);
 }
 

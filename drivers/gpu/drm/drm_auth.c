@@ -37,13 +37,12 @@
 #include <drm/drm_print.h>
 
 #include "drm_internal.h"
-#include "drm_legacy.h"
 
 /**
  * DOC: master and authentication
  *
  * &struct drm_master is used to track groups of clients with open
- * primary/legacy device nodes. For every &struct drm_file which has had at
+ * primary device nodes. For every &struct drm_file which has had at
  * least once successfully became the device master (either through the
  * SET_MASTER IOCTL, or implicitly through opening the primary device node when
  * no one else is the current master that time) there exists one &drm_master.
@@ -139,7 +138,6 @@ struct drm_master *drm_master_create(struct drm_device *dev)
 		return NULL;
 
 	kref_init(&master->refcount);
-	drm_master_legacy_init(master);
 	idr_init_base(&master->magic_map, 1);
 	master->dev = dev;
 
@@ -365,8 +363,6 @@ void drm_master_release(struct drm_file *file_priv)
 	if (!drm_is_current_master_locked(file_priv))
 		goto out;
 
-	drm_legacy_lock_master_cleanup(dev, master);
-
 	if (dev->master == file_priv->master)
 		drm_drop_master(dev, file_priv);
 out:
@@ -428,8 +424,6 @@ static void drm_master_destroy(struct kref *kref)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_lease_destroy(master);
-
-	drm_legacy_master_rmmaps(dev, master);
 
 	idr_destroy(&master->magic_map);
 	idr_destroy(&master->leases);

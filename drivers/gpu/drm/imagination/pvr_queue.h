@@ -50,7 +50,7 @@ struct pvr_queue_cccb_fence_ctx {
 	 */
 	struct pvr_job *job;
 
-	/** @lock: Lock protecting access to the job object. */
+	/** @job_lock: Lock protecting access to the job object. */
 	struct mutex job_lock;
 };
 
@@ -114,7 +114,7 @@ struct pvr_queue {
 	} timeline_ufo;
 
 	/**
-	 * last_queued_job_scheduled_fence: The scheduled fence of the last
+	 * @last_queued_job_scheduled_fence: The scheduled fence of the last
 	 * job queued to this queue.
 	 *
 	 * We use it to insert frag -> geom dependencies when issuing combined

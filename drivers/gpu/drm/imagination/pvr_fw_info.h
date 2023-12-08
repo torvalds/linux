@@ -122,13 +122,13 @@ struct pvr_fw_layout_entry {
  * struct pvr_fw_device_info_header - Device information header.
  */
 struct pvr_fw_device_info_header {
-	/* BRN Mask size (in u64s). */
+	/** @brn_mask_size: BRN mask size (in u64s). */
 	u64 brn_mask_size;
-	/* ERN Mask size (in u64s). */
+	/** @ern_mask_size: ERN mask size (in u64s). */
 	u64 ern_mask_size;
-	/* Feature Mask size (in u64s). */
+	/** @feature_mask_size: Feature mask size (in u64s). */
 	u64 feature_mask_size;
-	/* Feature Parameter size (in u64s). */
+	/** @feature_param_size: Feature parameter size (in u64s). */
 	u64 feature_param_size;
 };
 

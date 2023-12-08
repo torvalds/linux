@@ -783,6 +783,8 @@ static int ufx_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	if (info->fbdefio)
 		return fb_deferred_io_mmap(info, vma);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	if (size > info->fix.smem_len)

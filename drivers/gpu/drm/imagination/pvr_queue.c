@@ -1292,7 +1292,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		goto err_release_ufo;
 
 	err = drm_sched_entity_init(&queue->entity,
-				    DRM_SCHED_PRIORITY_MIN,
+				    DRM_SCHED_PRIORITY_KERNEL,
 				    &sched, 1, &ctx->faulty);
 	if (err)
 		goto err_sched_fini;

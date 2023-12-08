@@ -342,21 +342,12 @@ static const struct drm_mode_config_helper_funcs imx_lcdc_mode_config_helpers = 
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
 };
 
-static void imx_lcdc_release(struct drm_device *drm)
-{
-	struct imx_lcdc *lcdc = imx_lcdc_from_drmdev(drm);
-
-	drm_kms_helper_poll_fini(drm);
-	kfree(lcdc);
-}
-
 DEFINE_DRM_GEM_DMA_FOPS(imx_lcdc_drm_fops);
 
 static struct drm_driver imx_lcdc_drm_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops = &imx_lcdc_drm_fops,
 	DRM_GEM_DMA_DRIVER_OPS_VMAP,
-	.release = imx_lcdc_release,
 	.name = "imx-lcdc",
 	.desc = "i.MX LCDC driver",
 	.date = "20200716",

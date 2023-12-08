@@ -86,6 +86,7 @@ pvr_cccb_get_size_of_cmd_with_hdr(u32 cmd_size)
 
 /**
  * pvr_cccb_cmdseq_can_fit() - Check if a command sequence can fit in the CCCB.
+ * @pvr_cccb: Target Client CCB.
  * @size: Command sequence size.
  *
  * Returns:

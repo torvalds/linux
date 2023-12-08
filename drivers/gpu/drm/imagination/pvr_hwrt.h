@@ -64,6 +64,7 @@ struct pvr_hwrt_dataset {
 	/** @common_fw_obj: FW object representing common FW-side structure. */
 	struct pvr_fw_object *common_fw_obj;
 
+	/** @common: Common HWRT data. */
 	struct rogue_fwif_hwrtdata_common common;
 
 	/** @data: HWRT data structures belonging to this set. */

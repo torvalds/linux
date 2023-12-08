@@ -227,7 +227,8 @@ int pvr_device_info_set_features(struct pvr_device *pvr_dev, const u64 *features
 	/* Verify no unsupported values in the bitmask. */
 	if (features_size > mapping_max_size) {
 		drm_warn(from_pvr_device(pvr_dev), "Unsupported features in firmware image");
-	} else if (features_size == mapping_max_size && (mapping_max & 63)) {
+	} else if (features_size == mapping_max_size &&
+		   ((mapping_max & 63) != 0)) {
 		u64 invalid_mask = ~0ull << (mapping_max & 63);
 
 		if (features[features_size - 1] & invalid_mask)

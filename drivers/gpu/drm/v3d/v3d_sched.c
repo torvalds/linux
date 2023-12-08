@@ -21,9 +21,13 @@
 #include <linux/sched/clock.h>
 #include <linux/kthread.h>
 
+#include <drm/drm_syncobj.h>
+
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 #include "v3d_trace.h"
+
+#define V3D_CSD_CFG012_WG_COUNT_SHIFT 16
 
 static struct v3d_job *
 to_v3d_job(struct drm_sched_job *sched_job)
@@ -55,12 +59,40 @@ to_csd_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct v3d_csd_job, base.base);
 }
 
+static struct v3d_cpu_job *
+to_cpu_job(struct drm_sched_job *sched_job)
+{
+	return container_of(sched_job, struct v3d_cpu_job, base.base);
+}
+
 static void
 v3d_sched_job_free(struct drm_sched_job *sched_job)
 {
 	struct v3d_job *job = to_v3d_job(sched_job);
 
 	v3d_job_cleanup(job);
+}
+
+static void
+v3d_cpu_job_free(struct drm_sched_job *sched_job)
+{
+	struct v3d_cpu_job *job = to_cpu_job(sched_job);
+	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+
+	if (timestamp_query->queries) {
+		for (int i = 0; i < timestamp_query->count; i++)
+			drm_syncobj_put(timestamp_query->queries[i].syncobj);
+		kvfree(timestamp_query->queries);
+	}
+
+	if (performance_query->queries) {
+		for (int i = 0; i < performance_query->count; i++)
+			drm_syncobj_put(performance_query->queries[i].syncobj);
+		kvfree(performance_query->queries);
+	}
+
+	v3d_job_cleanup(&job->base);
 }
 
 static void
@@ -262,6 +294,275 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	return fence;
 }
 
+static void
+v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
+{
+	struct v3d_indirect_csd_info *indirect_csd = &job->indirect_csd;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct v3d_bo *indirect = to_v3d_bo(indirect_csd->indirect);
+	struct drm_v3d_submit_csd *args = &indirect_csd->job->args;
+	u32 *wg_counts;
+
+	v3d_get_bo_vaddr(bo);
+	v3d_get_bo_vaddr(indirect);
+
+	wg_counts = (uint32_t *)(bo->vaddr + indirect_csd->offset);
+
+	if (wg_counts[0] == 0 || wg_counts[1] == 0 || wg_counts[2] == 0)
+		return;
+
+	args->cfg[0] = wg_counts[0] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[1] = wg_counts[1] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[2] = wg_counts[2] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
+	args->cfg[4] = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
+		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
+
+	for (int i = 0; i < 3; i++) {
+		/* 0xffffffff indicates that the uniform rewrite is not needed */
+		if (indirect_csd->wg_uniform_offsets[i] != 0xffffffff) {
+			u32 uniform_idx = indirect_csd->wg_uniform_offsets[i];
+			((uint32_t *)indirect->vaddr)[uniform_idx] = wg_counts[i];
+		}
+	}
+
+	v3d_put_bo_vaddr(indirect);
+	v3d_put_bo_vaddr(bo);
+}
+
+static void
+v3d_timestamp_query(struct v3d_cpu_job *job)
+{
+	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	u8 *value_addr;
+
+	v3d_get_bo_vaddr(bo);
+
+	for (int i = 0; i < timestamp_query->count; i++) {
+		value_addr = ((u8 *)bo->vaddr) + timestamp_query->queries[i].offset;
+		*((u64 *)value_addr) = i == 0 ? ktime_get_ns() : 0ull;
+
+		drm_syncobj_replace_fence(timestamp_query->queries[i].syncobj,
+					  job->base.done_fence);
+	}
+
+	v3d_put_bo_vaddr(bo);
+}
+
+static void
+v3d_reset_timestamp_queries(struct v3d_cpu_job *job)
+{
+	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_timestamp_query *queries = timestamp_query->queries;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	u8 *value_addr;
+
+	v3d_get_bo_vaddr(bo);
+
+	for (int i = 0; i < timestamp_query->count; i++) {
+		value_addr = ((u8 *)bo->vaddr) + queries[i].offset;
+		*((u64 *)value_addr) = 0;
+
+		drm_syncobj_replace_fence(queries[i].syncobj, NULL);
+	}
+
+	v3d_put_bo_vaddr(bo);
+}
+
+static void
+write_to_buffer(void *dst, u32 idx, bool do_64bit, u64 value)
+{
+	if (do_64bit) {
+		u64 *dst64 = (u64 *)dst;
+
+		dst64[idx] = value;
+	} else {
+		u32 *dst32 = (u32 *)dst;
+
+		dst32[idx] = (u32)value;
+	}
+}
+
+static void
+v3d_copy_query_results(struct v3d_cpu_job *job)
+{
+	struct v3d_timestamp_query_info *timestamp_query = &job->timestamp_query;
+	struct v3d_timestamp_query *queries = timestamp_query->queries;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct v3d_bo *timestamp = to_v3d_bo(job->base.bo[1]);
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct dma_fence *fence;
+	u8 *query_addr;
+	bool available, write_result;
+	u8 *data;
+	int i;
+
+	v3d_get_bo_vaddr(bo);
+	v3d_get_bo_vaddr(timestamp);
+
+	data = ((u8 *)bo->vaddr) + copy->offset;
+
+	for (i = 0; i < timestamp_query->count; i++) {
+		fence = drm_syncobj_fence_get(queries[i].syncobj);
+		available = fence ? dma_fence_is_signaled(fence) : false;
+
+		write_result = available || copy->do_partial;
+		if (write_result) {
+			query_addr = ((u8 *)timestamp->vaddr) + queries[i].offset;
+			write_to_buffer(data, 0, copy->do_64bit, *((u64 *)query_addr));
+		}
+
+		if (copy->availability_bit)
+			write_to_buffer(data, 1, copy->do_64bit, available ? 1u : 0u);
+
+		data += copy->stride;
+
+		dma_fence_put(fence);
+	}
+
+	v3d_put_bo_vaddr(timestamp);
+	v3d_put_bo_vaddr(bo);
+}
+
+static void
+v3d_reset_performance_queries(struct v3d_cpu_job *job)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_perfmon *perfmon;
+
+	for (int i = 0; i < performance_query->count; i++) {
+		for (int j = 0; j < performance_query->nperfmons; j++) {
+			perfmon = v3d_perfmon_find(v3d_priv,
+						   performance_query->queries[i].kperfmon_ids[j]);
+			if (!perfmon) {
+				DRM_DEBUG("Failed to find perfmon.");
+				continue;
+			}
+
+			v3d_perfmon_stop(v3d, perfmon, false);
+
+			memset(perfmon->values, 0, perfmon->ncounters * sizeof(u64));
+
+			v3d_perfmon_put(perfmon);
+		}
+
+		drm_syncobj_replace_fence(performance_query->queries[i].syncobj, NULL);
+	}
+}
+
+static void
+v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 query)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_perfmon *perfmon;
+	u64 counter_values[V3D_PERFCNT_NUM];
+
+	for (int i = 0; i < performance_query->nperfmons; i++) {
+		perfmon = v3d_perfmon_find(v3d_priv,
+					   performance_query->queries[query].kperfmon_ids[i]);
+		if (!perfmon) {
+			DRM_DEBUG("Failed to find perfmon.");
+			continue;
+		}
+
+		v3d_perfmon_stop(v3d, perfmon, true);
+
+		memcpy(&counter_values[i * DRM_V3D_MAX_PERF_COUNTERS], perfmon->values,
+		       perfmon->ncounters * sizeof(u64));
+
+		v3d_perfmon_put(perfmon);
+	}
+
+	for (int i = 0; i < performance_query->ncounters; i++)
+		write_to_buffer(data, i, copy->do_64bit, counter_values[i]);
+}
+
+static void
+v3d_copy_performance_query(struct v3d_cpu_job *job)
+{
+	struct v3d_performance_query_info *performance_query = &job->performance_query;
+	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
+	struct dma_fence *fence;
+	bool available, write_result;
+	u8 *data;
+
+	v3d_get_bo_vaddr(bo);
+
+	data = ((u8 *)bo->vaddr) + copy->offset;
+
+	for (int i = 0; i < performance_query->count; i++) {
+		fence = drm_syncobj_fence_get(performance_query->queries[i].syncobj);
+		available = fence ? dma_fence_is_signaled(fence) : false;
+
+		write_result = available || copy->do_partial;
+		if (write_result)
+			v3d_write_performance_query_result(job, data, i);
+
+		if (copy->availability_bit)
+			write_to_buffer(data, performance_query->ncounters,
+					copy->do_64bit, available ? 1u : 0u);
+
+		data += copy->stride;
+
+		dma_fence_put(fence);
+	}
+
+	v3d_put_bo_vaddr(bo);
+}
+
+static const v3d_cpu_job_fn cpu_job_function[] = {
+	[V3D_CPU_JOB_TYPE_INDIRECT_CSD] = v3d_rewrite_csd_job_wg_counts_from_indirect,
+	[V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY] = v3d_timestamp_query,
+	[V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY] = v3d_reset_timestamp_queries,
+	[V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY] = v3d_copy_query_results,
+	[V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY] = v3d_reset_performance_queries,
+	[V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY] = v3d_copy_performance_query,
+};
+
+static struct dma_fence *
+v3d_cpu_job_run(struct drm_sched_job *sched_job)
+{
+	struct v3d_cpu_job *job = to_cpu_job(sched_job);
+	struct v3d_dev *v3d = job->base.v3d;
+	struct v3d_file_priv *file = job->base.file->driver_priv;
+	u64 runtime;
+
+	v3d->cpu_job = job;
+
+	if (job->job_type >= ARRAY_SIZE(cpu_job_function)) {
+		DRM_DEBUG_DRIVER("Unknown CPU job: %d\n", job->job_type);
+		return NULL;
+	}
+
+	file->start_ns[V3D_CPU] = local_clock();
+	v3d->queue[V3D_CPU].start_ns = file->start_ns[V3D_CPU];
+
+	trace_v3d_cpu_job_begin(&v3d->drm, job->job_type);
+
+	cpu_job_function[job->job_type](job);
+
+	trace_v3d_cpu_job_end(&v3d->drm, job->job_type);
+
+	runtime = local_clock() - file->start_ns[V3D_CPU];
+
+	file->enabled_ns[V3D_CPU] += runtime;
+	v3d->queue[V3D_CPU].enabled_ns += runtime;
+
+	file->jobs_sent[V3D_CPU]++;
+	v3d->queue[V3D_CPU].jobs_sent++;
+
+	file->start_ns[V3D_CPU] = 0;
+	v3d->queue[V3D_CPU].start_ns = 0;
+
+	return NULL;
+}
+
 static struct dma_fence *
 v3d_cache_clean_job_run(struct drm_sched_job *sched_job)
 {
@@ -416,6 +717,12 @@ static const struct drm_sched_backend_ops v3d_cache_clean_sched_ops = {
 	.free_job = v3d_sched_job_free
 };
 
+static const struct drm_sched_backend_ops v3d_cpu_sched_ops = {
+	.run_job = v3d_cpu_job_run,
+	.timedout_job = v3d_generic_job_timedout,
+	.free_job = v3d_cpu_job_free
+};
+
 int
 v3d_sched_init(struct v3d_dev *v3d)
 {
@@ -470,6 +777,15 @@ v3d_sched_init(struct v3d_dev *v3d)
 		if (ret)
 			goto fail;
 	}
+
+	ret = drm_sched_init(&v3d->queue[V3D_CPU].sched,
+			     &v3d_cpu_sched_ops, NULL,
+			     DRM_SCHED_PRIORITY_COUNT,
+			     1, job_hang_limit,
+			     msecs_to_jiffies(hang_limit_ms), NULL,
+			     NULL, "v3d_cpu", v3d->drm.dev);
+	if (ret)
+		goto fail;
 
 	return 0;
 

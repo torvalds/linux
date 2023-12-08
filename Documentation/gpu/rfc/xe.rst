@@ -123,9 +123,14 @@ Documentation should include:
 
  * O(1) complexity under VM_BIND.
 
+The document is now included in the drm documentation :doc:`here </gpu/drm-vm-bind-async>`.
+
 Some parts of userptr like mmu_notifiers should become GPUVA or DRM helpers when
 the second driver supporting VM_BIND+userptr appears. Details to be defined when
 the time comes.
+
+The DRM GPUVM helpers do not yet include the userptr parts, but discussions
+about implementing them are ongoing.
 
 Long running compute: minimal data structure/scaffolding
 --------------------------------------------------------

@@ -1413,11 +1413,9 @@ static int ti_sn_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	int ret;
 
 	if (!pdata->pwm_enabled) {
-		ret = pm_runtime_get_sync(pdata->dev);
-		if (ret < 0) {
-			pm_runtime_put_sync(pdata->dev);
+		ret = pm_runtime_resume_and_get(pdata->dev);
+		if (ret < 0)
 			return ret;
-		}
 	}
 
 	if (state->enabled) {

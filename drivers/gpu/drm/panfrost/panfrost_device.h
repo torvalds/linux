@@ -25,6 +25,13 @@ struct panfrost_perfcnt;
 #define NUM_JOB_SLOTS 3
 #define MAX_PM_DOMAINS 5
 
+enum panfrost_drv_comp_bits {
+	PANFROST_COMP_BIT_GPU,
+	PANFROST_COMP_BIT_JOB,
+	PANFROST_COMP_BIT_MMU,
+	PANFROST_COMP_BIT_MAX
+};
+
 /**
  * enum panfrost_gpu_pm - Supported kernel power management features
  * @GPU_PM_CLK_DIS:  Allow disabling clocks during system suspend
@@ -94,6 +101,8 @@ struct panfrost_device {
 	struct device *dev;
 	struct drm_device *ddev;
 	struct platform_device *pdev;
+	int gpu_irq;
+	int mmu_irq;
 
 	void __iomem *iomem;
 	struct clk *clock;
@@ -107,6 +116,7 @@ struct panfrost_device {
 
 	struct panfrost_features features;
 	const struct panfrost_compatible *comp;
+	DECLARE_BITMAP(is_suspended, PANFROST_COMP_BIT_MAX);
 
 	spinlock_t as_lock;
 	unsigned long as_in_use_mask;

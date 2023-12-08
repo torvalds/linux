@@ -378,7 +378,7 @@ prepare_job_syncs(struct pvr_file *pvr_file,
 
 /**
  * prepare_job_syncs_for_each() - Prepare all sync objects for an array of jobs.
- * @file: PowerVR file.
+ * @pvr_file: PowerVR file.
  * @job_data: Array of precreated jobs and their sync_ops.
  * @job_count: Number of jobs.
  * @signal_array: xarray to receive signal sync objects.
@@ -696,8 +696,6 @@ pvr_jobs_link_geom_frag(struct pvr_job_data *job_data, u32 *job_count)
  * @pvr_dev: Target PowerVR device.
  * @pvr_file: Pointer to PowerVR file structure.
  * @args: Ioctl args.
- * @job_count: Number of jobs in @jobs_args. On error this will be updated
- * with the index into @jobs_args where the error occurred.
  *
  * This initial implementation is entirely synchronous; on return the GPU will
  * be idle. This will not be the case for future implementations.

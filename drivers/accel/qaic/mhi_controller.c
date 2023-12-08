@@ -469,7 +469,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl, enum mhi_callback re
 		pci_err(qdev->pdev, "Fatal error received from device. Attempting to recover\n");
 	/* this event occurs in non-atomic context */
 	if (reason == MHI_CB_SYS_ERROR)
-		qaic_dev_reset_clean_local_state(qdev, true);
+		qaic_dev_reset_clean_local_state(qdev);
 }
 
 static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)

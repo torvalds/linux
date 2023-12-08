@@ -29,7 +29,8 @@ struct drm_exec;
 /* Functions defined in pvr_vm.c */
 
 bool pvr_device_addr_is_valid(u64 device_addr);
-bool pvr_device_addr_and_size_are_valid(u64 device_addr, u64 size);
+bool pvr_device_addr_and_size_are_valid(struct pvr_vm_context *vm_ctx,
+					u64 device_addr, u64 size);
 
 struct pvr_vm_context *pvr_vm_create_context(struct pvr_device *pvr_dev,
 					     bool is_userspace_context);

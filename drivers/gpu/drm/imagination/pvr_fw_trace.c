@@ -121,6 +121,8 @@ void pvr_fw_trace_fini(struct pvr_device *pvr_dev)
 	pvr_fw_object_unmap_and_destroy(fw_trace->tracebuf_ctrl_obj);
 }
 
+#if defined(CONFIG_DEBUG_FS)
+
 /**
  * update_logtype() - Send KCCB command to trigger FW to update logtype
  * @pvr_dev: Target PowerVR device
@@ -164,52 +166,6 @@ err_up_read:
 
 	return err;
 }
-
-#if defined(CONFIG_DEBUG_FS)
-
-static int fw_trace_group_mask_show(struct seq_file *m, void *data)
-{
-	struct pvr_device *pvr_dev = m->private;
-
-	seq_printf(m, "%08x\n", pvr_dev->fw_dev.fw_trace.group_mask);
-
-	return 0;
-}
-
-static int fw_trace_group_mask_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fw_trace_group_mask_show, inode->i_private);
-}
-
-static ssize_t fw_trace_group_mask_write(struct file *file, const char __user *ubuf, size_t len,
-					 loff_t *offp)
-{
-	struct seq_file *m = file->private_data;
-	struct pvr_device *pvr_dev = m->private;
-	u32 new_group_mask;
-	int err;
-
-	err = kstrtouint_from_user(ubuf, len, 0, &new_group_mask);
-	if (err)
-		return err;
-
-	err = update_logtype(pvr_dev, new_group_mask);
-	if (err)
-		return err;
-
-	pvr_dev->fw_dev.fw_trace.group_mask = new_group_mask;
-
-	return (ssize_t)len;
-}
-
-static const struct file_operations pvr_fw_trace_group_mask_fops = {
-	.owner = THIS_MODULE,
-	.open = fw_trace_group_mask_open,
-	.read = seq_read,
-	.write = fw_trace_group_mask_write,
-	.llseek = default_llseek,
-	.release = single_release,
-};
 
 struct pvr_fw_trace_seq_data {
 	/** @buffer: Pointer to copy of trace data. */

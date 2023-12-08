@@ -93,8 +93,15 @@ commands (does not impact QAIC).
 uAPI
 ====
 
+QAIC creates an accel device per phsyical PCIe device. This accel device exists
+for as long as the PCIe device is known to Linux.
+
+The PCIe device may not be in the state to accept requests from userspace at
+all times. QAIC will trigger KOBJ_ONLINE/OFFLINE uevents to advertise when the
+device can accept requests (ONLINE) and when the device is no longer accepting
+requests (OFFLINE) because of a reset or other state transition.
+
 QAIC defines a number of driver specific IOCTLs as part of the userspace API.
-This section describes those APIs.
 
 DRM_IOCTL_QAIC_MANAGE
   This IOCTL allows userspace to send a NNC request to the QSM. The call will

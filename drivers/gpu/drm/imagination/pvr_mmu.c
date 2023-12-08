@@ -335,8 +335,9 @@ pvr_mmu_backing_page_fini(struct pvr_mmu_backing_page *page)
 
 /**
  * pvr_mmu_backing_page_sync() - Flush a MMU backing page from the CPU to the
- *                              device.
+ * device.
  * @page: Target backing page.
+ * @flags: MMU flush flags. Must be one of %PVR_MMU_SYNC_LEVEL_*_FLAGS.
  *
  * .. caution::
  *

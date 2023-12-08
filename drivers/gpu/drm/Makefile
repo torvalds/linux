@@ -47,18 +47,6 @@ drm-y := \
 	drm_vblank_work.o \
 	drm_vma_manager.o \
 	drm_writeback.o
-drm-$(CONFIG_DRM_LEGACY) += \
-	drm_agpsupport.o \
-	drm_bufs.o \
-	drm_context.o \
-	drm_dma.o \
-	drm_hashtab.o \
-	drm_irq.o \
-	drm_legacy_misc.o \
-	drm_lock.o \
-	drm_memory.o \
-	drm_scatter.o \
-	drm_vm.o
 drm-$(CONFIG_DRM_LIB_RANDOM) += lib/drm_random.o
 drm-$(CONFIG_COMPAT) += drm_ioc32.o
 drm-$(CONFIG_DRM_PANEL) += drm_panel.o
