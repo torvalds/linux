@@ -1982,14 +1982,30 @@ static int pagemap_scan_test_walk(unsigned long start, unsigned long end,
 	struct pagemap_scan_private *p = walk->private;
 	struct vm_area_struct *vma = walk->vma;
 	unsigned long vma_category = 0;
+	bool wp_allowed = userfaultfd_wp_async(vma) &&
+	    userfaultfd_wp_use_markers(vma);
 
-	if (userfaultfd_wp_async(vma) && userfaultfd_wp_use_markers(vma))
-		vma_category |= PAGE_IS_WPALLOWED;
-	else if (p->arg.flags & PM_SCAN_CHECK_WPASYNC)
-		return -EPERM;
+	if (!wp_allowed) {
+		/* User requested explicit failure over wp-async capability */
+		if (p->arg.flags & PM_SCAN_CHECK_WPASYNC)
+			return -EPERM;
+		/*
+		 * User requires wr-protect, and allows silently skipping
+		 * unsupported vmas.
+		 */
+		if (p->arg.flags & PM_SCAN_WP_MATCHING)
+			return 1;
+		/*
+		 * Then the request doesn't involve wr-protects at all,
+		 * fall through to the rest checks, and allow vma walk.
+		 */
+	}
 
 	if (vma->vm_flags & VM_PFNMAP)
 		return 1;
+
+	if (wp_allowed)
+		vma_category |= PAGE_IS_WPALLOWED;
 
 	if (!pagemap_scan_is_interesting_vma(vma_category, p))
 		return 1;
@@ -2140,7 +2156,7 @@ static int pagemap_scan_pmd_entry(pmd_t *pmd, unsigned long start,
 		return 0;
 	}
 
-	if (!p->vec_out) {
+	if ((p->arg.flags & PM_SCAN_WP_MATCHING) && !p->vec_out) {
 		/* Fast path for performing exclusive WP */
 		for (addr = start; addr != end; pte++, addr += PAGE_SIZE) {
 			if (pte_uffd_wp(ptep_get(pte)))
