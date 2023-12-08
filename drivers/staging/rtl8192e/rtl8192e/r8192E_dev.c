@@ -1763,7 +1763,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 	}
 	ratr_value &= 0x0FFFFFFF;
 	if (ieee->ht_info->cur_tx_bw40mhz &&
-	    ieee->ht_info->bCurShortGI40MHz)
+	    ieee->ht_info->cur_short_gi_40mhz)
 		ratr_value |= 0x80000000;
 	else if (!ieee->ht_info->cur_tx_bw40mhz &&
 		  ieee->ht_info->bCurShortGI20MHz)

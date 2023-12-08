@@ -287,7 +287,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 	if (priv->rtllib->link_state == MAC80211_LINKED) {
 		bshort_gi_enabled = (ht_info->cur_tx_bw40mhz &&
-				     ht_info->bCurShortGI40MHz) ||
+				     ht_info->cur_short_gi_40mhz) ||
 				    (!ht_info->cur_tx_bw40mhz &&
 				     ht_info->bCurShortGI20MHz);
 

@@ -109,7 +109,7 @@ static u16 ht_mcs_to_data_rate(struct rtllib_device *ieee, u8 mcs_rate)
 
 	u8	is40MHz = (ht_info->cur_bw_40mhz) ? 1 : 0;
 	u8	isShortGI = (ht_info->cur_bw_40mhz) ?
-			    ((ht_info->bCurShortGI40MHz) ? 1 : 0) :
+			    ((ht_info->cur_short_gi_40mhz) ? 1 : 0) :
 			    ((ht_info->bCurShortGI20MHz) ? 1 : 0);
 	return MCS_DATA_RATE[is40MHz][isShortGI][(mcs_rate & 0x7f)];
 }
@@ -481,7 +481,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	ht_info->bCurShortGI20MHz = ((ht_info->reg_short_gi_20mhz) ?
 				    ((pPeerHTCap->ShortGI20Mhz == 1) ?
 				    true : false) : false);
-	ht_info->bCurShortGI40MHz = ((ht_info->reg_short_gi_40mhz) ?
+	ht_info->cur_short_gi_40mhz = ((ht_info->reg_short_gi_40mhz) ?
 				     ((pPeerHTCap->ShortGI40Mhz == 1) ?
 				     true : false) : false);
 
@@ -563,7 +563,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	ht_info->cur_tx_bw40mhz = false;
 
 	ht_info->bCurShortGI20MHz = false;
-	ht_info->bCurShortGI40MHz = false;
+	ht_info->cur_short_gi_40mhz = false;
 	ht_info->forced_short_gi = false;
 
 	ht_info->bCurSuppCCK = true;
