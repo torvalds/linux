@@ -19,6 +19,7 @@
 /delete-node/ &ipa_fw_mem;
 /delete-node/ &remoteproc_mpss;
 /delete-node/ &rmtfs_mem;
+/delete-node/ &adsp_mem;
 /delete-node/ &video_mem;
 /delete-node/ &wlan_ce_mem;
 /delete-node/ &xbl_mem;
