@@ -1576,7 +1576,8 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 	}
 
 	err = bpf_map_update_value(map, f.file, key, value, attr->flags);
-	maybe_wait_bpf_programs(map);
+	if (!err)
+		maybe_wait_bpf_programs(map);
 
 	kvfree(value);
 free_key:
@@ -1632,7 +1633,8 @@ static int map_delete_elem(union bpf_attr *attr, bpfptr_t uattr)
 	err = map->ops->map_delete_elem(map, key);
 	rcu_read_unlock();
 	bpf_enable_instrumentation();
-	maybe_wait_bpf_programs(map);
+	if (!err)
+		maybe_wait_bpf_programs(map);
 out:
 	kvfree(key);
 err_put:
