@@ -358,8 +358,8 @@ static struct mhi_channel_config aic100_channels[] = {
 		.wake_capable = false,
 	},
 	{
-		.num = 21,
 		.name = "QAIC_TIMESYNC",
+		.num = 21,
 		.num_elements = 32,
 		.local_elements = 0,
 		.event_ring = 0,
@@ -390,8 +390,8 @@ static struct mhi_channel_config aic100_channels[] = {
 		.wake_capable = false,
 	},
 	{
-		.num = 23,
 		.name = "QAIC_TIMESYNC_PERIODIC",
+		.num = 23,
 		.num_elements = 32,
 		.local_elements = 0,
 		.event_ring = 0,
