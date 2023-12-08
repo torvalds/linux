@@ -1519,6 +1519,51 @@ static int rswitch_stop(struct net_device *ndev)
 	return 0;
 };
 
+static bool rswitch_ext_desc_set_info1(struct rswitch_device *rdev,
+				       struct sk_buff *skb,
+				       struct rswitch_ext_desc *desc)
+{
+	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) |
+				  INFO1_IPV(GWCA_IPV_NUM) | INFO1_FMT);
+	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		struct rswitch_gwca_ts_info *ts_info;
+
+		ts_info = kzalloc(sizeof(*ts_info), GFP_ATOMIC);
+		if (!ts_info)
+			return false;
+
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		rdev->ts_tag++;
+		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
+
+		ts_info->skb = skb_get(skb);
+		ts_info->port = rdev->port;
+		ts_info->tag = rdev->ts_tag;
+		list_add_tail(&ts_info->list, &rdev->priv->gwca.ts_info_list);
+
+		skb_tx_timestamp(skb);
+	}
+
+	return true;
+}
+
+static bool rswitch_ext_desc_set(struct rswitch_device *rdev,
+				 struct sk_buff *skb,
+				 struct rswitch_ext_desc *desc,
+				 dma_addr_t dma_addr, u16 len, u8 die_dt)
+{
+	rswitch_desc_set_dptr(&desc->desc, dma_addr);
+	desc->desc.info_ds = cpu_to_le16(len);
+	if (!rswitch_ext_desc_set_info1(rdev, skb, desc))
+		return false;
+
+	dma_wmb();
+
+	desc->desc.die_dt = die_dt;
+
+	return true;
+}
+
 static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct rswitch_device *rdev = netdev_priv(ndev);
@@ -1542,33 +1587,9 @@ static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *nd
 	gq->skbs[gq->cur] = skb;
 	gq->unmap_addrs[gq->cur] = dma_addr;
 	desc = &gq->tx_ring[gq->cur];
-	rswitch_desc_set_dptr(&desc->desc, dma_addr);
-	desc->desc.info_ds = cpu_to_le16(skb->len);
+	if (!rswitch_ext_desc_set(rdev, skb, desc, dma_addr, skb->len, DT_FSINGLE | DIE))
+		goto err_unmap;
 
-	desc->info1 = cpu_to_le64(INFO1_DV(BIT(rdev->etha->index)) |
-				  INFO1_IPV(GWCA_IPV_NUM) | INFO1_FMT);
-	if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
-		struct rswitch_gwca_ts_info *ts_info;
-
-		ts_info = kzalloc(sizeof(*ts_info), GFP_ATOMIC);
-		if (!ts_info)
-			goto err_unmap;
-
-		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-		rdev->ts_tag++;
-		desc->info1 |= cpu_to_le64(INFO1_TSUN(rdev->ts_tag) | INFO1_TXC);
-
-		ts_info->skb = skb_get(skb);
-		ts_info->port = rdev->port;
-		ts_info->tag = rdev->ts_tag;
-		list_add_tail(&ts_info->list, &rdev->priv->gwca.ts_info_list);
-
-		skb_tx_timestamp(skb);
-	}
-
-	dma_wmb();
-
-	desc->desc.die_dt = DT_FSINGLE | DIE;
 	wmb();	/* gq->cur must be incremented after die_dt was set */
 
 	gq->cur = rswitch_next_queue_index(gq, true, 1);
