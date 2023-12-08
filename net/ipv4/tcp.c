@@ -716,7 +716,7 @@ void tcp_push(struct sock *sk, int flags, int mss_now,
 
 	tcp_mark_urg(tp, flags);
 
-	if (tcp_should_autocork(sk, skb, size_goal)) {
+	if (!nonagle && tcp_should_autocork(sk, skb, size_goal)) {
 
 		/* avoid atomic op if TSQ_THROTTLED bit is already set */
 		if (!test_bit(TSQ_THROTTLED, &sk->sk_tsq_flags)) {
