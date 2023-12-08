@@ -718,6 +718,10 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	if (ret)
 		goto free_bo;
 
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto free_bo;
+
 	ret = drm_gem_handle_create(file_priv, obj, &args->handle);
 	if (ret)
 		goto free_bo;
@@ -745,7 +749,7 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	struct drm_gem_object *obj;
 	struct qaic_device *qdev;
 	struct qaic_user *usr;
-	int ret;
+	int ret = 0;
 
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
@@ -767,9 +771,7 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		goto unlock_dev_srcu;
 	}
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret == 0)
-		args->offset = drm_vma_node_offset_addr(&obj->vma_node);
+	args->offset = drm_vma_node_offset_addr(&obj->vma_node);
 
 	drm_gem_object_put(obj);
 
