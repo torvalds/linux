@@ -305,9 +305,17 @@ static const struct i2c_board_info wm6230_i2c_devs[] = {
 };
 
 static struct wm2200_pdata wm2200_pdata = {
-	.ldo_ena = S3C64XX_GPN(7),
 	.gpio_defaults = {
 		[2] = 0x0005,  /* GPIO3 24.576MHz output clock */
+	},
+};
+
+static struct gpiod_lookup_table wm2200_gpiod_table = {
+	.dev_id = "1-003a", /* Device 003a on I2C bus 1 */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -372,7 +380,8 @@ static const struct {
 	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs),
 	  .gpiod_table = &wm5102_gpiod_table },
 	{ .id = 0x3f, .rev = -1, .name = "WM2200-6271-CS90-M-REV1",
-	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c) },
+	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c),
+	  .gpiod_table = &wm2200_gpiod_table },
 };
 
 static int wlf_gf_module_probe(struct i2c_client *i2c)
