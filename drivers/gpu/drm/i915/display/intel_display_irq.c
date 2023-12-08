@@ -896,7 +896,7 @@ gen8_de_misc_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 	}
 
 	if (!found)
-		drm_err(&dev_priv->drm, "Unexpected DE Misc interrupt\n");
+		drm_err(&dev_priv->drm, "Unexpected DE Misc interrupt: 0x%08x\n", iir);
 }
 
 static void gen11_dsi_te_interrupt_handler(struct drm_i915_private *dev_priv,
@@ -1653,7 +1653,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	else if (HAS_PCH_SPLIT(dev_priv))
 		ibx_irq_postinstall(dev_priv);
 
-	if (DISPLAY_VER(dev_priv) <= 10)
+	if (DISPLAY_VER(dev_priv) < 11)
 		de_misc_masked |= GEN8_DE_MISC_GSE;
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))

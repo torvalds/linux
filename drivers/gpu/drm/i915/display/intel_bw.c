@@ -87,7 +87,8 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 		return ret;
 
 	dclk = val & 0xffff;
-	sp->dclk = DIV_ROUND_UP((16667 * dclk) + (DISPLAY_VER(dev_priv) > 11 ? 500 : 0), 1000);
+	sp->dclk = DIV_ROUND_UP((16667 * dclk) + (DISPLAY_VER(dev_priv) >= 12 ? 500 : 0),
+				1000);
 	sp->t_rp = (val & 0xff0000) >> 16;
 	sp->t_rcd = (val & 0xff000000) >> 24;
 
@@ -480,7 +481,7 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 	if (num_channels < qi.max_numchannels && DISPLAY_VER(dev_priv) >= 12)
 		qi.deinterleave = max(DIV_ROUND_UP(qi.deinterleave, 2), 1);
 
-	if (DISPLAY_VER(dev_priv) > 11 && num_channels > qi.max_numchannels)
+	if (DISPLAY_VER(dev_priv) >= 12 && num_channels > qi.max_numchannels)
 		drm_warn(&dev_priv->drm, "Number of channels exceeds max number of channels.");
 	if (qi.max_numchannels != 0)
 		num_channels = min_t(u8, num_channels, qi.max_numchannels);
@@ -897,7 +898,7 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 		unsigned int idx;
 		unsigned int max_data_rate;
 
-		if (DISPLAY_VER(i915) > 11)
+		if (DISPLAY_VER(i915) >= 12)
 			idx = tgl_max_bw_index(i915, num_active_planes, i);
 		else
 			idx = icl_max_bw_index(i915, num_active_planes, i);
