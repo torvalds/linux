@@ -85,13 +85,13 @@
  * softirq kicks in. Upon vcpu_put(), KVM will save the vcpu FP state and
  * flag the register state as invalid.
  *
- * In order to allow softirq handlers to use FPSIMD, kernel_neon_begin() may
- * save the task's FPSIMD context back to task_struct from softirq context.
- * To prevent this from racing with the manipulation of the task's FPSIMD state
- * from task context and thereby corrupting the state, it is necessary to
- * protect any manipulation of a task's fpsimd_state or TIF_FOREIGN_FPSTATE
- * flag with {, __}get_cpu_fpsimd_context(). This will still allow softirqs to
- * run but prevent them to use FPSIMD.
+ * In order to allow softirq handlers to use FPSIMD, kernel_neon_begin() may be
+ * called from softirq context, which will save the task's FPSIMD context back
+ * to task_struct. To prevent this from racing with the manipulation of the
+ * task's FPSIMD state from task context and thereby corrupting the state, it
+ * is necessary to protect any manipulation of a task's fpsimd_state or
+ * TIF_FOREIGN_FPSTATE flag with get_cpu_fpsimd_context(), which will suspend
+ * softirq servicing entirely until put_cpu_fpsimd_context() is called.
  *
  * For a certain task, the sequence may look something like this:
  * - the task gets scheduled in; if both the task's fpsimd_cpu field
@@ -209,26 +209,13 @@ static inline void sme_free(struct task_struct *t) { }
 
 #endif
 
-DEFINE_PER_CPU(bool, fpsimd_context_busy);
-EXPORT_PER_CPU_SYMBOL(fpsimd_context_busy);
-
 static void fpsimd_bind_task_to_cpu(void);
-
-static void __get_cpu_fpsimd_context(void)
-{
-	bool busy = __this_cpu_xchg(fpsimd_context_busy, true);
-
-	WARN_ON(busy);
-}
 
 /*
  * Claim ownership of the CPU FPSIMD context for use by the calling context.
  *
  * The caller may freely manipulate the FPSIMD context metadata until
  * put_cpu_fpsimd_context() is called.
- *
- * The double-underscore version must only be called if you know the task
- * can't be preempted.
  *
  * On RT kernels local_bh_disable() is not sufficient because it only
  * serializes soft interrupt related sections via a local lock, but stays
@@ -242,14 +229,6 @@ static void get_cpu_fpsimd_context(void)
 		local_bh_disable();
 	else
 		preempt_disable();
-	__get_cpu_fpsimd_context();
-}
-
-static void __put_cpu_fpsimd_context(void)
-{
-	bool busy = __this_cpu_xchg(fpsimd_context_busy, false);
-
-	WARN_ON(!busy); /* No matching get_cpu_fpsimd_context()? */
 }
 
 /*
@@ -261,16 +240,10 @@ static void __put_cpu_fpsimd_context(void)
  */
 static void put_cpu_fpsimd_context(void)
 {
-	__put_cpu_fpsimd_context();
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		local_bh_enable();
 	else
 		preempt_enable();
-}
-
-static bool have_cpu_fpsimd_context(void)
-{
-	return !preemptible() && __this_cpu_read(fpsimd_context_busy);
 }
 
 unsigned int task_get_vl(const struct task_struct *task, enum vec_type type)
@@ -383,7 +356,7 @@ static void task_fpsimd_load(void)
 	bool restore_ffr;
 
 	WARN_ON(!system_supports_fpsimd());
-	WARN_ON(!have_cpu_fpsimd_context());
+	WARN_ON(preemptible());
 
 	if (system_supports_sve() || system_supports_sme()) {
 		switch (current->thread.fp_type) {
@@ -467,7 +440,7 @@ static void fpsimd_save(void)
 	unsigned int vl;
 
 	WARN_ON(!system_supports_fpsimd());
-	WARN_ON(!have_cpu_fpsimd_context());
+	WARN_ON(preemptible());
 
 	if (test_thread_flag(TIF_FOREIGN_FPSTATE))
 		return;
@@ -1507,7 +1480,7 @@ void fpsimd_thread_switch(struct task_struct *next)
 	if (!system_supports_fpsimd())
 		return;
 
-	__get_cpu_fpsimd_context();
+	WARN_ON_ONCE(!irqs_disabled());
 
 	/* Save unsaved fpsimd state, if any: */
 	fpsimd_save();
@@ -1523,8 +1496,6 @@ void fpsimd_thread_switch(struct task_struct *next)
 
 	update_tsk_thread_flag(next, TIF_FOREIGN_FPSTATE,
 			       wrong_task || wrong_cpu);
-
-	__put_cpu_fpsimd_context();
 }
 
 static void fpsimd_flush_thread_vl(enum vec_type type)
@@ -1826,13 +1797,15 @@ static void fpsimd_flush_cpu_state(void)
  */
 void fpsimd_save_and_flush_cpu_state(void)
 {
+	unsigned long flags;
+
 	if (!system_supports_fpsimd())
 		return;
 	WARN_ON(preemptible());
-	__get_cpu_fpsimd_context();
+	local_irq_save(flags);
 	fpsimd_save();
 	fpsimd_flush_cpu_state();
-	__put_cpu_fpsimd_context();
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_KERNEL_MODE_NEON
