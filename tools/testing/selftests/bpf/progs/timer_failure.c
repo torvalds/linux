@@ -47,9 +47,10 @@ __log_level(2)
 __flag(BPF_F_TEST_STATE_FREQ)
 __failure
 /* check that fallthrough code path marks r0 as precise */
-__msg("mark_precise: frame0: regs=r0 stack= before 22: (b7) r0 = 0")
+__msg("mark_precise: frame0: regs=r0 stack= before")
+__msg(": (85) call bpf_get_prandom_u32#7") /* anchor message */
 /* check that branch code path marks r0 as precise */
-__msg("mark_precise: frame0: regs=r0 stack= before 24: (85) call bpf_get_prandom_u32#7")
+__msg("mark_precise: frame0: regs=r0 stack= before ") __msg(": (85) call bpf_get_prandom_u32#7")
 __msg("should have been in [0, 0]")
 long BPF_PROG2(test_bad_ret, int, a)
 {
