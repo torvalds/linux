@@ -1879,11 +1879,11 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 					to_vop_plane_state(plane->state);
 #endif
 
-	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d by %s\n",
-			 win->win_id, win->area_id, current->comm);
-
 	if (!old_state->crtc)
 		return;
+
+	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE, "disable win%d-area%d by %s\n",
+			 win->win_id, win->area_id, current->comm);
 
 	spin_lock(&vop->reg_lock);
 
