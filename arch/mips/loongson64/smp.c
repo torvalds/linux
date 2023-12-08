@@ -864,7 +864,7 @@ const struct plat_smp_ops loongson3_smp_ops = {
 	.cpu_disable = loongson3_cpu_disable,
 	.cpu_die = loongson3_cpu_die,
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.kexec_nonboot_cpu = kexec_nonboot_cpu_jump,
 #endif
 };
