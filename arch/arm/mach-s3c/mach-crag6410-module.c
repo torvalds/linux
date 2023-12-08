@@ -70,10 +70,19 @@ static struct spi_board_info balblair_devs[] = {
 	},
 };
 
+static struct gpiod_lookup_table wm5100_gpiod_table = {
+	.dev_id = "1-001a", /* Device 001a on I2C bus 1 */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("wm5100", 3,
+			    "hp-pol", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct wm5100_pdata wm5100_pdata = {
-	.ldo_ena = S3C64XX_GPN(7),
 	.irq_flags = IRQF_TRIGGER_HIGH,
-	.gpio_base = CODEC_GPIO_BASE,
 
 	.in_mode = {
 		WM5100_IN_DIFF,
@@ -82,7 +91,6 @@ static struct wm5100_pdata wm5100_pdata = {
 		WM5100_IN_SE,
 	},
 
-	.hp_pol = CODEC_GPIO_BASE + 3,
 	.jack_modes = {
 		{ WM5100_MICDET_MICBIAS3, 0, 0 },
 		{ WM5100_MICDET_MICBIAS2, 1, 1 },
@@ -366,7 +374,8 @@ static const struct {
 	{ .id = 0x3a, .rev = 0xff, .name = "1259-EV1 Tobermory",
 	  .i2c_devs = wm1259_devs, .num_i2c_devs = ARRAY_SIZE(wm1259_devs) },
 	{ .id = 0x3b, .rev = 0xff, .name = "1255-EV1 Kilchoman",
-	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs) },
+	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs),
+	  .gpiod_table = &wm5100_gpiod_table },
 	{ .id = 0x3c, .rev = 0xff, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .rev = 0xff, .name = "1277-EV1 Littlemill",
 	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs),
