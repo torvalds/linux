@@ -284,6 +284,8 @@ static void rswitch_gwca_queue_free(struct net_device *ndev,
 		gq->tx_ring = NULL;
 		kfree(gq->skbs);
 		gq->skbs = NULL;
+		kfree(gq->unmap_addrs);
+		gq->unmap_addrs = NULL;
 	}
 }
 
@@ -322,6 +324,9 @@ static int rswitch_gwca_queue_alloc(struct net_device *ndev,
 		gq->skbs = kcalloc(gq->ring_size, sizeof(*gq->skbs), GFP_KERNEL);
 		if (!gq->skbs)
 			return -ENOMEM;
+		gq->unmap_addrs = kcalloc(gq->ring_size, sizeof(*gq->unmap_addrs), GFP_KERNEL);
+		if (!gq->unmap_addrs)
+			goto out;
 		gq->tx_ring = dma_alloc_coherent(ndev->dev.parent,
 						 sizeof(struct rswitch_ext_desc) *
 						 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
@@ -787,9 +792,7 @@ static void rswitch_tx_free(struct net_device *ndev)
 	struct rswitch_device *rdev = netdev_priv(ndev);
 	struct rswitch_gwca_queue *gq = rdev->tx_queue;
 	struct rswitch_ext_desc *desc;
-	dma_addr_t dma_addr;
 	struct sk_buff *skb;
-	unsigned int size;
 
 	for (; rswitch_get_num_cur_queues(gq) > 0;
 	     gq->dirty = rswitch_next_queue_index(gq, false, 1)) {
@@ -798,18 +801,17 @@ static void rswitch_tx_free(struct net_device *ndev)
 			break;
 
 		dma_rmb();
-		size = le16_to_cpu(desc->desc.info_ds) & TX_DS;
 		skb = gq->skbs[gq->dirty];
 		if (skb) {
-			dma_addr = rswitch_desc_get_dptr(&desc->desc);
-			dma_unmap_single(ndev->dev.parent, dma_addr,
-					 size, DMA_TO_DEVICE);
+			dma_unmap_single(ndev->dev.parent,
+					 gq->unmap_addrs[gq->dirty],
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(gq->skbs[gq->dirty]);
 			gq->skbs[gq->dirty] = NULL;
+			rdev->ndev->stats.tx_packets++;
+			rdev->ndev->stats.tx_bytes += skb->len;
 		}
 		desc->desc.die_dt = DT_EEMPTY;
-		rdev->ndev->stats.tx_packets++;
-		rdev->ndev->stats.tx_bytes += size;
 	}
 }
 
@@ -1538,6 +1540,7 @@ static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *nd
 		goto err_kfree;
 
 	gq->skbs[gq->cur] = skb;
+	gq->unmap_addrs[gq->cur] = dma_addr;
 	desc = &gq->tx_ring[gq->cur];
 	rswitch_desc_set_dptr(&desc->desc, dma_addr);
 	desc->desc.info_ds = cpu_to_le16(skb->len);
