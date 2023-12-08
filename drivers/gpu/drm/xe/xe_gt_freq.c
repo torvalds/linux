@@ -13,6 +13,7 @@
 
 #include "xe_device_types.h"
 #include "xe_gt_sysfs.h"
+#include "xe_gt_throttle_sysfs.h"
 #include "xe_guc_pc.h"
 
 /**
@@ -213,4 +214,6 @@ void xe_gt_freq_init(struct xe_gt *gt)
 	if (err)
 		drm_warn(&xe->drm,  "failed to add freq attrs to %s, err: %d\n",
 			 kobject_name(gt->freq), err);
+
+	xe_gt_throttle_sysfs_init(gt);
 }
