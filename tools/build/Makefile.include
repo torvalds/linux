@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+build := -f $(srctree)/tools/build/Makefile.build dir=. obj
+
+fixdep:
+	$(Q)$(MAKE) -C $(srctree)/tools/build CFLAGS= LDFLAGS= $(OUTPUT)fixdep
+
+fixdep-clean:
+	$(Q)$(MAKE) -C $(srctree)/tools/build clean
+
+.PHONY: fixdep

@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+# Copyright (C) 2020 SiFive, Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interrupt-controller/sifive,plic-1.0.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SiFive Platform-Level Interrupt Controller (PLIC)
+
+description:
+  SiFive SoCs and other RISC-V SoCs include an implementation of the
+  Platform-Level Interrupt Controller (PLIC) high-level specification in
+  the RISC-V Privileged Architecture specification. The PLIC connects all
+  external interrupts in the system to all hart contexts in the system, via
+  the external interrupt source in each hart.
+
+  A hart context is a privilege mode in a hardware execution thread. For example,
+  in an 4 core system with 2-way SMT, you have 8 harts and probably at least two
+  privilege modes per hart; machine mode and supervisor mode.
+
+  Each interrupt can be enabled on per-context basis. Any context can claim
+  a pending enabled interrupt and then release it once it has been handled.
+
+  Each interrupt has a configurable priority. Higher priority interrupts are
+  serviced first.  Each context can specify a priority threshold. Interrupts
+  with priority below this threshold will not cause the PLIC to raise its
+  interrupt line leading to the context.
+
+  The PLIC supports both edge-triggered and level-triggered interrupts. For
+  edge-triggered interrupts, the RISC-V PLIC spec allows two responses to edges
+  seen while an interrupt handler is active; the PLIC may either queue them or
+  ignore them. In the first case, handlers are oblivious to the trigger type, so
+  it is not included in the interrupt specifier. In the second case, software
+  needs to know the trigger type, so it can reorder the interrupt flow to avoid
+  missing interrupts. This special handling is needed by at least the Renesas
+  RZ/Five SoC (AX45MP AndesCore with a NCEPLIC100) and the T-HEAD C900 PLIC.
+
+  While the RISC-V ISA doesn't specify a memory layout for the PLIC, the
+  "sifive,plic-1.0.0" device is a concrete implementation of the PLIC that
+  contains a specific memory layout, which is documented in chapter 8 of the
+  SiFive U5 Coreplex Series Manual <https://static.dev.sifive.com/U54-MC-RVCoreIP.pdf>.
+
+  The thead,c900-plic is different from sifive,plic-1.0.0 in opensbi, the
+  T-HEAD PLIC implementation requires setting a delegation bit to allow access
+  from S-mode. So add thead,c900-plic to distinguish them.
+
+maintainers:
+  - Sagar Kadam <sagar.kadam@sifive.com>
+  - Paul Walmsley  <paul.walmsley@sifive.com>
+  - Palmer Dabbelt <palmer@dabbelt.com>
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a07g043-plic
+          - const: andestech,nceplic100
+      - items:
+          - enum:
+              - sifive,fu540-c000-plic
+              - starfive,jh7100-plic
+              - canaan,k210-plic
+          - const: sifive,plic-1.0.0
+      - items:
+          - enum:
+              - allwinner,sun20i-d1-plic
+          - const: thead,c900-plic
+      - items:
+          - const: sifive,plic-1.0.0
+          - const: riscv,plic0
+        deprecated: true
+        description: For the QEMU virt machine only
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 0
+
+  '#interrupt-cells': true
+
+  interrupt-controller: true
+
+  interrupts-extended:
+    minItems: 1
+    maxItems: 15872
+    description:
+      Specifies which contexts are connected to the PLIC, with "-1" specifying
+      that a context is not present. Each node pointed to should be a
+      riscv,cpu-intc node, which has a riscv node as parent.
+
+  riscv,ndev:
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    description:
+      Specifies how many external interrupts are supported by this controller.
+
+  clocks: true
+
+  power-domains: true
+
+  resets: true
+
+required:
+  - compatible
+  - '#address-cells'
+  - '#interrupt-cells'
+  - interrupt-controller
+  - reg
+  - interrupts-extended
+  - riscv,ndev
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - andestech,nceplic100
+              - thead,c900-plic
+
+    then:
+      properties:
+        '#interrupt-cells':
+          const: 2
+
+    else:
+      properties:
+        '#interrupt-cells':
+          const: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a07g043-plic
+
+    then:
+      properties:
+        clocks:
+          maxItems: 1
+
+        power-domains:
+          maxItems: 1
+
+        resets:
+          maxItems: 1
+
+      required:
+        - clocks
+        - power-domains
+        - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    plic: interrupt-controller@c000000 {
+      #address-cells = <0>;
+      #interrupt-cells = <1>;
+      compatible = "sifive,fu540-c000-plic", "sifive,plic-1.0.0";
+      interrupt-controller;
+      interrupts-extended = <&cpu0_intc 11>,
+                            <&cpu1_intc 11>, <&cpu1_intc 9>,
+                            <&cpu2_intc 11>, <&cpu2_intc 9>,
+                            <&cpu3_intc 11>, <&cpu3_intc 9>,
+                            <&cpu4_intc 11>, <&cpu4_intc 9>;
+      reg = <0xc000000 0x4000000>;
+      riscv,ndev = <10>;
+    };

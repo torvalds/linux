@@ -1,0 +1,85 @@
+Qualcomm Atheros IPQ4019 TLMM block
+
+This is the Top Level Mode Multiplexor block found on the Qualcomm IPQ8019
+platform, it provides pinctrl, pinmux, pinconf, and gpiolib facilities.
+
+Required properties:
+- compatible: "qcom,ipq4019-pinctrl"
+- reg: Should be the base address and length of the TLMM block.
+- interrupts: Should be the parent IRQ of the TLMM block.
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Should be two.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells : Should be two.
+                The first cell is the gpio pin number and the
+                second cell is used for optional parameters.
+- gpio-ranges: see ../gpio/gpio.txt
+
+Optional properties:
+
+- gpio-reserved-ranges: see ../gpio/gpio.txt
+
+Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
+a general description of GPIO and interrupt bindings.
+
+Please refer to pinctrl-bindings.txt in this directory for details of the
+common pinctrl bindings used by client devices, including the meaning of the
+phrase "pin configuration node".
+
+The pin configuration nodes act as a container for an arbitrary number of
+subnodes. Each of these subnodes represents some desired configuration for a
+pin, a group, or a list of pins or groups. This configuration can include the
+mux function to select on those pin(s)/group(s), and various pin configuration
+parameters, such as pull-up, drive strength, etc.
+
+The name of each subnode is not important; all subnodes should be enumerated
+and processed purely based on their content.
+
+Each subnode only affects those parameters that are explicitly listed. In
+other words, a subnode that lists a mux function but no pin configuration
+parameters implies no information about any pin configuration parameters.
+Similarly, a pin subnode that describes a pullup parameter implies no
+information about e.g. the mux function.
+
+
+The following generic properties as defined in pinctrl-bindings.txt are valid
+to specify in a pin configuration subnode:
+ pins, function, bias-disable, bias-pull-down, bias-pull-up, drive-open-drain,
+ drive-strength.
+
+Non-empty subnodes must specify the 'pins' property.
+Note that not all properties are valid for all pins.
+
+
+Valid values for qcom,pins are:
+  gpio0-gpio99
+    Supports mux, bias and drive-strength
+
+Valid values for qcom,function are:
+aud_pin, audio_pwm, blsp_i2c0, blsp_i2c1, blsp_spi0, blsp_spi1, blsp_uart0,
+blsp_uart1, chip_rst, gpio, i2s_rx, i2s_spdif_in, i2s_spdif_out, i2s_td, i2s_tx,
+jtag, led0, led1, led2, led3, led4, led5, led6, led7, led8, led9, led10, led11,
+mdc, mdio, pcie, pmu, prng_rosc, qpic, rgmii, rmii, sdio, smart0, smart1,
+smart2, smart3, tm, wifi0, wifi1
+
+Example:
+
+	tlmm: pinctrl@1000000 {
+		compatible = "qcom,ipq4019-pinctrl";
+		reg = <0x1000000 0x300000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&tlmm 0 0 100>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupts = <0 208 0>;
+
+		serial_pins: serial_pinmux {
+			mux {
+				pins = "gpio60", "gpio61";
+				function = "blsp_uart0";
+				bias-disable;
+			};
+		};
+	};

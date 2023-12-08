@@ -1,0 +1,16 @@
+What:		/config/usb-gadget/gadget/functions/SourceSink.name
+Date:		Nov 2013
+KernelVersion:	3.13
+Description:
+		The attributes:
+
+		==============    ==================================
+		pattern		  0 (all zeros), 1 (mod63), 2 (none)
+		isoc_interval	  1..16
+		isoc_maxpacket	  0 - 1023 (fs), 0 - 1024 (hs/ss)
+		isoc_mult	  0..2 (hs/ss only)
+		isoc_maxburst	  0..15 (ss only)
+		buflen		  buffer length
+		bulk_qlen	  depth of queue for bulk
+		iso_qlen	  depth of queue for iso
+		==============    ==================================

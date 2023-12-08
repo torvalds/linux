@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 Joachim Eastwood <manabian@gmail.com>
+ */
+/dts-v1/;
+
+#include "omap4-var-som-om44.dtsi"
+#include "omap4-var-som-om44-wlan.dtsi"
+#include "omap4-var-om44customboard.dtsi"
+
+/ {
+	model = "Variscite VAR-DVK-OM44";
+	compatible = "variscite,var-dvk-om44", "variscite,var-som-om44", "ti,omap4460", "ti,omap4";
+
+	aliases {
+		display0 = &lcd0;
+		display1 = &hdmi0;
+	};
+
+	lcd0: display {
+		compatible = "innolux,at070tn83", "panel-dpi";
+		label = "lcd";
+		panel-timing {
+			clock-frequency = <33333333>;
+
+			hback-porch = <40>;
+			hactive = <800>;
+			hfront-porch = <40>;
+			hsync-len = <48>;
+
+			vback-porch = <29>;
+			vactive = <480>;
+			vfront-porch = <13>;
+			vsync-len = <3>;
+		};
+
+		port {
+			lcd_in: endpoint {
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+	};
+
+	backlight {
+		compatible = "gpio-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&backlight_pins>;
+
+		gpios = <&gpio4 26 GPIO_ACTIVE_HIGH>; /* gpio 122 */
+	};
+};
+
+&dss {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dss_dpi_pins>;
+
+	port {
+		dpi_out: endpoint {
+			remote-endpoint = <&lcd_in>;
+			data-lines = <24>;
+		};
+	};
+};
+
+&dsi2 {
+	status = "okay";
+	vdd-supply = <&vcxio>;
+};

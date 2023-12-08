@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * CM5200 board Device Tree Source
+ *
+ * Copyright (C) 2007 Semihalf
+ * Marian Balakowicz <m8@semihalf.com>
+ */
+
+/include/ "mpc5200b.dtsi"
+
+&gpt0 { fsl,has-wdt; };
+
+/ {
+	model = "schindler,cm5200";
+	compatible = "schindler,cm5200";
+
+	soc5200@f0000000 {
+		can@900 {
+			status = "disabled";
+		};
+
+		can@980 {
+			status = "disabled";
+		};
+
+		psc@2000 {		// PSC1
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2200 {		// PSC2
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2400 {		// PSC3
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		psc@2600 {		// PSC4
+			status = "disabled";
+		};
+
+		psc@2800 {		// PSC5
+			status = "disabled";
+		};
+
+		psc@2c00 {		// PSC6
+			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
+		};
+
+		ethernet@3000 {
+			phy-handle = <&phy0>;
+		};
+
+		mdio@3000 {
+			phy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+		};
+
+		ata@3a00 {
+			status = "disabled";
+		};
+
+		i2c@3d00 {
+			status = "disabled";
+		};
+
+	};
+
+	pci@f0000d00 {
+		status = "disabled";
+	};
+
+	localbus {
+		// 16-bit flash device at LocalPlus Bus CS0
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x2000000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#size-cells = <1>;
+			#address-cells = <1>;
+		};
+	};
+};

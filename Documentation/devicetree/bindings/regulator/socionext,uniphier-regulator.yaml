@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/socionext,uniphier-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier regulator controller
+
+description: |
+  This regulator controls VBUS and belongs to USB3 glue layer. Before using
+  the regulator, it is necessary to control the clocks and resets to enable
+  this layer. These clocks and resets should be described in each property.
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+# USB3 Controller
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-pro4-usb3-regulator
+      - socionext,uniphier-pro5-usb3-regulator
+      - socionext,uniphier-pxs2-usb3-regulator
+      - socionext,uniphier-ld20-usb3-regulator
+      - socionext,uniphier-pxs3-usb3-regulator
+      - socionext,uniphier-nx1-usb3-regulator
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names: true
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names: true
+
+allOf:
+  - $ref: "regulator.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - socionext,uniphier-pro4-usb3-regulator
+              - socionext,uniphier-pro5-usb3-regulator
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gio
+            - const: link
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: link
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: link
+        resets:
+          maxItems: 1
+        reset-names:
+          const: link
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+examples:
+  - |
+    usb-glue@65b00000 {
+        compatible = "simple-mfd";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x65b00000 0x400>;
+
+        usb_vbus0: regulators@100 {
+            compatible = "socionext,uniphier-ld20-usb3-regulator";
+            reg = <0x100 0x10>;
+            clock-names = "link";
+            clocks = <&sys_clk 14>;
+            reset-names = "link";
+            resets = <&sys_rst 14>;
+        };
+    };

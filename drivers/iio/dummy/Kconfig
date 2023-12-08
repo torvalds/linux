@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Industrial I/O subsystem Dummy Driver configuration
+#
+menu "IIO dummy driver"
+	depends on IIO
+
+config IIO_DUMMY_EVGEN
+	select IRQ_SIM
+	tristate
+
+config IIO_SIMPLE_DUMMY
+	tristate "An example driver with no hardware requirements"
+	depends on IIO_SW_DEVICE
+	help
+	  Driver intended mainly as documentation for how to write
+	  a driver. May also be useful for testing userspace code
+	  without hardware.
+
+if IIO_SIMPLE_DUMMY
+
+config IIO_SIMPLE_DUMMY_EVENTS
+	bool "Event generation support"
+	select IIO_DUMMY_EVGEN
+	help
+	  Add some dummy events to the simple dummy driver.
+
+	  The purpose of this is to generate 'fake' event interrupts thus
+	  allowing that driver's code to be as close as possible to that
+	  a normal driver talking to hardware.
+
+config IIO_SIMPLE_DUMMY_BUFFER
+	bool "Buffered capture support"
+	select IIO_BUFFER
+	select IIO_TRIGGER
+	select IIO_KFIFO_BUF
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Add buffered data capture to the simple dummy driver.
+
+	  Buffer handling elements of industrial I/O reference driver.
+	  Uses the kfifo buffer.
+
+endif # IIO_SIMPLE_DUMMY
+
+endmenu

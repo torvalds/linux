@@ -1,0 +1,33 @@
+Flash partitions in device tree
+===============================
+
+Flash devices can be partitioned into one or more functional ranges (e.g. "boot
+code", "nvram", "kernel").
+
+Different devices may be partitioned in a different ways. Some may use a fixed
+flash layout set at production time. Some may use on-flash table that describes
+the geometry and naming/purpose of each functional region. It is also possible
+to see these methods mixed.
+
+To assist system software in locating partitions, we allow describing which
+method is used for a given flash device. To describe the method there should be
+a subnode of the flash device that is named 'partitions'. It must have a
+'compatible' property, which is used to identify the method to use.
+
+When a single partition is represented with a DT node (it depends on a used
+format) it may also be described using above rules ('compatible' and optionally
+some extra properties / subnodes). It allows describing more complex,
+hierarchical (multi-level) layouts and should be used if there is some
+significant relation between partitions or some partition internally uses
+another partitioning method.
+
+Available bindings are listed in the "partitions" subdirectory.
+
+
+Deprecated: partitions defined in flash node
+============================================
+
+For backwards compatibility partitions as direct subnodes of the flash device are
+supported. This use is discouraged.
+NOTE: also for backwards compatibility, direct subnodes that have a compatible
+string are not considered partitions, as they may be used for other bindings.

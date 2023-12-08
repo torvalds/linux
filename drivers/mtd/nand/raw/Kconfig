@@ -1,0 +1,560 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig MTD_RAW_NAND
+	tristate "Raw/Parallel NAND Device Support"
+	select MTD_NAND_CORE
+	select MTD_NAND_ECC
+	help
+	  This enables support for accessing all type of raw/parallel
+	  NAND flash devices. For further information see
+	  <http://www.linux-mtd.infradead.org/doc/nand.html>.
+
+if MTD_RAW_NAND
+
+comment "Raw/parallel NAND flash controllers"
+
+config MTD_NAND_DENALI
+	tristate
+
+config MTD_NAND_DENALI_PCI
+	tristate "Denali NAND controller on Intel Moorestown"
+	select MTD_NAND_DENALI
+	depends on PCI
+	help
+	  Enable the driver for NAND flash on Intel Moorestown, using the
+	  Denali NAND controller core.
+
+config MTD_NAND_DENALI_DT
+	tristate "Denali NAND controller as a DT device"
+	select MTD_NAND_DENALI
+	depends on HAS_DMA && HAVE_CLK && OF && HAS_IOMEM
+	help
+	  Enable the driver for NAND flash on platforms using a Denali NAND
+	  controller as a DT device.
+
+config MTD_NAND_AMS_DELTA
+	tristate "Amstrad E3 NAND controller"
+	depends on MACH_AMS_DELTA || COMPILE_TEST
+	default y
+	help
+	  Support for NAND flash on Amstrad E3 (Delta).
+
+config MTD_NAND_OMAP2
+	tristate "OMAP2, OMAP3, OMAP4 and Keystone NAND controller"
+	depends on ARCH_OMAP2PLUS || ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OMAP_GPMC
+	help
+	  Support for NAND flash on Texas Instruments OMAP2, OMAP3, OMAP4
+	  and Keystone platforms.
+
+config MTD_NAND_OMAP_BCH
+	depends on MTD_NAND_OMAP2
+	bool "Support hardware based BCH error correction"
+	default n
+	select BCH
+	help
+	  This config enables the ELM hardware engine, which can be used to
+	  locate and correct errors when using BCH ECC scheme. This offloads
+	  the cpu from doing ECC error searching and correction. However some
+	  legacy OMAP families like OMAP2xxx, OMAP3xxx do not have ELM engine
+	  so this is optional for them.
+
+config MTD_NAND_OMAP_BCH_BUILD
+	def_tristate MTD_NAND_OMAP2 && MTD_NAND_OMAP_BCH
+
+config MTD_NAND_AU1550
+	tristate "Au1550/1200 NAND support"
+	depends on MIPS_ALCHEMY
+	help
+	  This enables the driver for the NAND flash controller on the
+	  AMD/Alchemy 1550 SOC.
+
+config MTD_NAND_NDFC
+	tristate "IBM/MCC 4xx NAND controller"
+	depends on 4xx
+	select MTD_NAND_ECC_SW_HAMMING
+	select MTD_NAND_ECC_SW_HAMMING_SMC
+	help
+	  NDFC Nand Flash Controllers are integrated in IBM/AMCC's 4xx SoCs
+
+config MTD_NAND_S3C2410
+	tristate "Samsung S3C NAND controller"
+	depends on ARCH_S3C24XX || ARCH_S3C64XX
+	help
+	  This enables the NAND flash controller on the S3C24xx and S3C64xx
+	  SoCs
+
+	  No board specific support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_S3C2410_DEBUG
+	bool "Samsung S3C NAND controller debug"
+	depends on MTD_NAND_S3C2410
+	help
+	  Enable debugging of the S3C NAND driver
+
+config MTD_NAND_S3C2410_CLKSTOP
+	bool "Samsung S3C NAND IDLE clock stop"
+	depends on MTD_NAND_S3C2410
+	default n
+	help
+	  Stop the clock to the NAND controller when there is no chip
+	  selected to save power. This will mean there is a small delay
+	  when the is NAND chip selected or released, but will save
+	  approximately 5mA of power when there is nothing happening.
+
+config MTD_NAND_SHARPSL
+	tristate "Sharp SL Series (C7xx + others) NAND controller"
+	depends on ARCH_PXA || COMPILE_TEST
+	depends on HAS_IOMEM
+
+config MTD_NAND_CAFE
+	tristate "OLPC CAFÉ NAND controller"
+	depends on PCI
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC16
+	help
+	  Use NAND flash attached to the CAFÉ chip designed for the OLPC
+	  laptop.
+
+config MTD_NAND_CS553X
+	tristate "CS5535/CS5536 (AMD Geode companion) NAND controller"
+	depends on X86_32
+	depends on !UML && HAS_IOMEM
+	help
+	  The CS553x companion chips for the AMD Geode processor
+	  include NAND flash controllers with built-in hardware ECC
+	  capabilities; enabling this option will allow you to use
+	  these. The driver will check the MSRs to verify that the
+	  controller is enabled for NAND, and currently requires that
+	  the controller be in MMIO mode.
+
+	  If you say "m", the module will be called cs553x_nand.
+
+config MTD_NAND_ATMEL
+	tristate "Atmel AT91 NAND Flash/SmartMedia NAND controller"
+	depends on ARCH_AT91 || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_ALLOCATOR
+	select MFD_ATMEL_SMC
+	help
+	  Enables support for NAND Flash / Smart Media Card interface
+	  on Atmel AT91 processors.
+
+config MTD_NAND_ORION
+	tristate "Marvell Orion NAND controller"
+	depends on PLAT_ORION
+	help
+	  This enables the NAND flash controller on Orion machines.
+
+	  No board specific support is done by this driver, each board
+	  must advertise a platform_device for the driver to attach.
+
+config MTD_NAND_MARVELL
+	tristate "Marvell EBU NAND controller"
+	depends on PXA3xx || ARCH_MMP || PLAT_ORION || ARCH_MVEBU || \
+		   COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables the NAND flash controller driver for Marvell boards,
+	  including:
+	  - PXA3xx processors (NFCv1)
+	  - 32-bit Armada platforms (XP, 37x, 38x, 39x) (NFCv2)
+	  - 64-bit Aramda platforms (7k, 8k) (NFCv2)
+
+config MTD_NAND_SLC_LPC32XX
+	tristate "NXP LPC32xx SLC NAND controller"
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NXP's LPC32XX SLC (i.e. for Single Level Cell
+	  chips) NAND controller. This is the default for the PHYTEC 3250
+	  reference board which contains a NAND256R3A2CZA6 chip.
+
+	  Please check the actual NAND chip connected and its support
+	  by the SLC NAND controller.
+
+config MTD_NAND_MLC_LPC32XX
+	tristate "NXP LPC32xx MLC NAND controller"
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Uses the LPC32XX MLC (i.e. for Multi Level Cell chips) NAND
+	  controller. This is the default for the WORK92105 controller
+	  board.
+
+	  Please check the actual NAND chip connected and its support
+	  by the MLC NAND controller.
+
+config MTD_NAND_PASEMI
+	tristate "PA Semi PWRficient NAND controller"
+	depends on PPC_PASEMI
+	help
+	  Enables support for NAND Flash interface on PA Semi PWRficient
+	  based boards
+
+config MTD_NAND_TMIO
+	tristate "Toshiba Mobile IO NAND controller"
+	depends on MFD_TMIO
+	help
+	  Support for NAND flash connected to a Toshiba Mobile IO
+	  Controller in some PDAs, including the Sharp SL6000x.
+
+source "drivers/mtd/nand/raw/brcmnand/Kconfig"
+
+config MTD_NAND_BCM47XXNFLASH
+	tristate "BCM4706 BCMA NAND controller"
+	depends on BCMA_NFLASH
+	depends on BCMA
+	help
+	  BCMA bus can have various flash memories attached, they are
+	  registered by bcma as platform devices. This enables driver for
+	  NAND flash memories. For now only BCM4706 is supported.
+
+config MTD_NAND_OXNAS
+	tristate "Oxford Semiconductor NAND controller"
+	depends on ARCH_OXNAS || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables the NAND flash controller on Oxford Semiconductor SoCs.
+
+config MTD_NAND_MPC5121_NFC
+	tristate "MPC5121 NAND controller"
+	depends on PPC_MPC512x
+	help
+	  This enables the driver for the NAND flash controller on the
+	  MPC5121 SoC.
+
+config MTD_NAND_GPMI_NAND
+	tristate "Freescale GPMI NAND controller"
+	depends on MXS_DMA
+	help
+	  Enables NAND Flash support for IMX23, IMX28 or IMX6.
+	  The GPMI controller is very powerful, with the help of BCH
+	  module, it can do the hardware ECC. The GPMI supports several
+	  NAND flashs at the same time.
+
+config MTD_NAND_FSL_ELBC
+	tristate "Freescale eLBC NAND controller"
+	depends on FSL_SOC
+	select FSL_LBC
+	help
+	  Various Freescale chips, including the 8313, include a NAND Flash
+	  Controller Module with built-in hardware ECC capabilities.
+	  Enabling this option will enable you to use this to control
+	  external NAND devices.
+
+config MTD_NAND_FSL_IFC
+	tristate "Freescale IFC NAND controller"
+	depends on FSL_SOC || ARCH_LAYERSCAPE || SOC_LS1021A || COMPILE_TEST
+	depends on HAS_IOMEM
+	select FSL_IFC
+	select MEMORY
+	help
+	  Various Freescale chips e.g P1010, include a NAND Flash machine
+	  with built-in hardware ECC capabilities.
+	  Enabling this option will enable you to use this to control
+	  external NAND devices.
+
+config MTD_NAND_FSL_UPM
+	tristate "Freescale UPM NAND controller"
+	depends on PPC_83xx || PPC_85xx
+	select FSL_LBC
+	help
+	  Enables support for NAND Flash chips wired onto Freescale PowerPC
+	  processor localbus with User-Programmable Machine support.
+
+config MTD_NAND_VF610_NFC
+	tristate "Freescale VF610/MPC5125 NAND controller"
+	depends on (SOC_VF610 || COMPILE_TEST)
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND Flash Controller on some Freescale
+	  processors like the VF610, MPC5125, MCF54418 or Kinetis K70.
+	  The driver supports a maximum 2k page size. With 2k pages and
+	  64 bytes or more of OOB, hardware ECC with up to 32-bit error
+	  correction is supported. Hardware ECC is only enabled through
+	  device tree.
+
+config MTD_NAND_MXC
+	tristate "Freescale MXC NAND controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	help
+	  This enables the driver for the NAND flash controller on the
+	  MXC processors.
+
+config MTD_NAND_SH_FLCTL
+	tristate "Renesas SuperH FLCTL NAND controller"
+	depends on SUPERH || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Several Renesas SuperH CPU has FLCTL. This option enables support
+	  for NAND Flash using FLCTL.
+
+config MTD_NAND_DAVINCI
+	tristate "DaVinci/Keystone NAND controller"
+	depends on ARCH_DAVINCI || (ARCH_KEYSTONE && TI_AEMIF) || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enable the driver for NAND flash chips on Texas Instruments
+	  DaVinci/Keystone processors.
+
+config MTD_NAND_TXX9NDFMC
+	tristate "TXx9 NAND controller"
+	depends on SOC_TX4938 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables the NAND flash controller on the TXx9 SoCs.
+
+config MTD_NAND_SOCRATES
+	tristate "Socrates NAND controller"
+	depends on SOCRATES
+	help
+	  Enables support for NAND Flash chips wired onto Socrates board.
+
+source "drivers/mtd/nand/raw/ingenic/Kconfig"
+
+config MTD_NAND_FSMC
+	tristate "ST Micros FSMC NAND controller"
+	depends on OF && HAS_IOMEM
+	depends on PLAT_SPEAR || ARCH_NOMADIK || ARCH_U8500 || COMPILE_TEST
+	help
+	  Enables support for NAND Flash chips on the ST Microelectronics
+	  Flexible Static Memory Controller (FSMC)
+
+config MTD_NAND_XWAY
+	bool "Lantiq XWAY NAND controller"
+	depends on LANTIQ && SOC_TYPE_XWAY
+	help
+	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
+	  to the External Bus Unit (EBU).
+
+config MTD_NAND_SUNXI
+	tristate "Allwinner NAND controller"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND Flash chips on Allwinner SoCs.
+
+config MTD_NAND_HISI504
+	tristate "Hisilicon Hip04 NAND controller"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND controller on Hisilicon SoC Hip04.
+
+config MTD_NAND_QCOM
+	tristate "QCOM NAND controller"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND flash chips on SoCs containing the EBI2 NAND
+	  controller. This controller is found on IPQ806x SoC.
+
+config MTD_NAND_MTK
+	tristate "MTK NAND controller"
+	depends on MTD_NAND_ECC_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND controller on MTK SoCs.
+	  This controller is found on mt27xx, mt81xx, mt65xx SoCs.
+
+config MTD_NAND_MXIC
+	tristate "Macronix raw NAND controller"
+	depends on HAS_IOMEM || COMPILE_TEST
+	help
+	  This selects the Macronix raw NAND controller driver.
+
+config MTD_NAND_TEGRA
+	tristate "NVIDIA Tegra NAND controller"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND flash controller on NVIDIA Tegra SoC.
+	  The driver has been developed and tested on a Tegra 2 SoC. DMA
+	  support, raw read/write page as well as HW ECC read/write page
+	  is supported. Extra OOB bytes when using HW ECC are currently
+	  not supported.
+
+config MTD_NAND_STM32_FMC2
+	tristate "Support for NAND controller on STM32MP SoCs"
+	depends on MACH_STM32MP157 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  Enables support for NAND Flash chips on SoCs containing the FMC2
+	  NAND controller. This controller is found on STM32MP SoCs.
+	  The controller supports a maximum 8k page size and supports
+	  a maximum 8-bit correction error per sector of 512 bytes.
+
+config MTD_NAND_MESON
+	tristate "Support for NAND controller on Amlogic's Meson SoCs"
+	depends on COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Enables support for NAND controller on Amlogic's Meson SoCs.
+	  This controller is found on Meson SoCs.
+
+config MTD_NAND_GPIO
+	tristate "GPIO assisted NAND controller"
+	depends on GPIOLIB || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This enables a NAND flash driver where control signals are
+	  connected to GPIO pins, and commands and data are communicated
+	  via a memory mapped interface.
+
+config MTD_NAND_PLATFORM
+	tristate "Generic NAND controller"
+	depends on HAS_IOMEM
+	help
+	  This implements a generic NAND driver for on-SOC platform
+	  devices. You will need to provide platform-specific functions
+	  via platform_data.
+
+config MTD_NAND_CADENCE
+	tristate "Support Cadence NAND (HPNFC) controller"
+	depends on (OF || COMPILE_TEST) && HAS_IOMEM
+	help
+	  Enable the driver for NAND flash on platforms using a Cadence NAND
+	  controller.
+
+config MTD_NAND_ARASAN
+	tristate "Support for Arasan NAND flash controller"
+	depends on HAS_IOMEM && HAS_DMA
+	select BCH
+	help
+	  Enables the driver for the Arasan NAND flash controller on
+	  Zynq Ultrascale+ MPSoC.
+
+config MTD_NAND_INTEL_LGM
+	tristate "Support for NAND controller on Intel LGM SoC"
+	depends on OF || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Enables support for NAND Flash chips on Intel's LGM SoC.
+	  NAND flash controller interfaced through the External Bus Unit.
+
+config MTD_NAND_ROCKCHIP
+	tristate "Rockchip NAND controller"
+	depends on ARCH_ROCKCHIP && HAS_IOMEM
+	help
+	  Enables support for NAND controller on Rockchip SoCs.
+	  There are four different versions of NAND FLASH Controllers,
+	  including:
+	    NFC v600: RK2928, RK3066, RK3188
+	    NFC v622: RK3036, RK3128
+	    NFC v800: RK3308, RV1108
+	    NFC v900: PX30, RK3326
+
+config MTD_NAND_PL35X
+	tristate "ARM PL35X NAND controller"
+	depends on OF || COMPILE_TEST
+	depends on PL353_SMC
+	help
+	  Enables support for PrimeCell SMC PL351 and PL353 NAND
+	  controller found on Zynq7000.
+
+config MTD_NAND_RENESAS
+	tristate "Renesas R-Car Gen3 & RZ/N1 NAND controller"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  Enables support for the NAND controller found on Renesas R-Car
+	  Gen3 and RZ/N1 SoC families.
+
+comment "Misc"
+
+config MTD_SM_COMMON
+	tristate
+	default n
+
+config MTD_NAND_NANDSIM
+	tristate "Support for NAND Flash Simulator"
+	help
+	  The simulator may simulate various NAND flash chips for the
+	  MTD nand layer.
+
+config MTD_NAND_RICOH
+	tristate "Ricoh xD card reader"
+	default n
+	depends on PCI
+	select MTD_SM_COMMON
+	help
+	  Enable support for Ricoh R5C852 xD card reader
+	  You also need to enable either
+	  NAND SSFDC (SmartMedia) read only translation layer' or new
+	  experimental, readwrite
+	  'SmartMedia/xD new translation layer'
+
+config MTD_NAND_DISKONCHIP
+	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation)"
+	depends on HAS_IOMEM
+	select REED_SOLOMON
+	select REED_SOLOMON_DEC16
+	help
+	  This is a reimplementation of M-Systems DiskOnChip 2000,
+	  Millennium and Millennium Plus as a standard NAND device driver,
+	  as opposed to the earlier self-contained MTD device drivers.
+	  This should enable, among other things, proper JFFS2 operation on
+	  these devices.
+
+config MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+	bool "Advanced detection options for DiskOnChip"
+	depends on MTD_NAND_DISKONCHIP
+	help
+	  This option allows you to specify nonstandard address at which to
+	  probe for a DiskOnChip, or to change the detection options.  You
+	  are unlikely to need any of this unless you are using LinuxBIOS.
+	  Say 'N'.
+
+config MTD_NAND_DISKONCHIP_PROBE_ADDRESS
+	hex "Physical address of DiskOnChip" if MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+	depends on MTD_NAND_DISKONCHIP
+	default "0"
+	help
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option allows you to specify a single address at which to probe
+	  for the device, which is useful if you have other devices in that
+	  range which get upset when they are probed.
+
+	  (Note that on PowerPC, the normal probe will only check at
+	  0xE4000000.)
+
+	  Normally, you should leave this set to zero, to allow the probe at
+	  the normal addresses.
+
+config MTD_NAND_DISKONCHIP_PROBE_HIGH
+	bool "Probe high addresses"
+	depends on MTD_NAND_DISKONCHIP_PROBE_ADVANCED
+	help
+	  By default, the probe for DiskOnChip devices will look for a
+	  DiskOnChip at every multiple of 0x2000 between 0xC8000 and 0xEE000.
+	  This option changes to make it probe between 0xFFFC8000 and
+	  0xFFFEE000.  Unless you are using LinuxBIOS, this is unlikely to be
+	  useful to you.  Say 'N'.
+
+config MTD_NAND_DISKONCHIP_BBTWRITE
+	bool "Allow BBT writes on DiskOnChip Millennium and 2000TSOP"
+	depends on MTD_NAND_DISKONCHIP
+	help
+	  On DiskOnChip devices shipped with the INFTL filesystem (Millennium
+	  and 2000 TSOP/Alon), Linux reserves some space at the end of the
+	  device for the Bad Block Table (BBT).  If you have existing INFTL
+	  data on your device (created by non-Linux tools such as M-Systems'
+	  DOS drivers), your data might overlap the area Linux wants to use for
+	  the BBT.  If this is a concern for you, leave this option disabled and
+	  Linux will not write BBT data into this area.
+	  The downside of leaving this option disabled is that if bad blocks
+	  are detected by Linux, they will not be recorded in the BBT, which
+	  could cause future problems.
+	  Once you enable this option, new filesystems (INFTL or others, created
+	  in Linux or other operating systems) will not use the reserved area.
+	  The only reason not to enable this option is to prevent damage to
+	  preexisting filesystems.
+	  Even if you leave this disabled, you can enable BBT writes at module
+	  load time (assuming you build diskonchip as a module) with the module
+	  parameter "inftl_bbt_write=1".
+
+endif # MTD_RAW_NAND

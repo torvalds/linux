@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * at91sam9xe.dtsi - Device Tree Include file for AT91SAM9XE family SoC
+ *
+ *  Copyright (C) 2015 Atmel,
+ *                2015 Alexandre Belloni <alexandre.Belloni@free-electrons.com>
+ */
+
+#include "at91sam9260.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9XE family SoC";
+	compatible = "atmel,at91sam9xe", "atmel,at91sam9260";
+
+	sram0: sram@2ff000 {
+		status = "disabled";
+	};
+
+	sram1: sram@300000 {
+		compatible = "mmio-sram";
+		reg = <0x00300000 0x4000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x00300000 0x4000>;
+	};
+};

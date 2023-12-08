@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Motorola devices
+#
+config PHY_CPCAP_USB
+	tristate "CPCAP PMIC USB PHY driver"
+	depends on USB_SUPPORT && IIO
+	depends on USB_MUSB_HDRC || USB_MUSB_HDRC=n
+	select GENERIC_PHY
+	select USB_PHY
+	help
+	  Enable this for USB to work on Motorola phones and tablets
+	  such as Droid 4.
+
+config PHY_MAPPHONE_MDM6600
+	tristate "Motorola Mapphone MDM6600 modem USB PHY driver"
+	depends on OF && USB_SUPPORT && GPIOLIB
+	select GENERIC_PHY
+	help
+	  Enable this for MDM6600 USB modem to work on Motorola phones
+	  and tablets such as Droid 4.

@@ -1,0 +1,34 @@
+Marvell PXA SSP CPU DAI bindings
+
+Required properties:
+
+	compatible	Must be "mrvl,pxa-ssp-dai"
+	port		A phandle reference to a PXA ssp upstream device
+
+Optional properties:
+
+	clock-names
+	clocks		Through "clock-names" and "clocks", external clocks
+			can be configured. If a clock names "extclk" exists,
+			it will be set to the mclk rate of the audio stream
+			and be used as clock provider of the DAI.
+
+Example:
+
+	/* upstream device */
+
+	ssp1: ssp@41000000 {
+		compatible = "mrvl,pxa3xx-ssp";
+		reg = <0x41000000 0x40>;
+		interrupts = <24>;
+		clock-names = "pxa27x-ssp.0";
+	};
+
+	/* DAI as user */
+
+	ssp_dai0: ssp_dai@0 {
+		compatible = "mrvl,pxa-ssp-dai";
+		port = <&ssp1>;
+		#sound-dai-cells = <0>;
+	};
+

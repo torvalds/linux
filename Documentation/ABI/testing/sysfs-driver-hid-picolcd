@@ -1,0 +1,43 @@
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/operation_mode
+Date:		March 2010
+Contact:	Bruno Prémont <bonbons@linux-vserver.org>
+Description:	Make it possible to switch the PicoLCD device between LCD
+		(firmware) and bootloader (flasher) operation modes.
+
+		Reading: returns list of available modes, the active mode being
+		enclosed in brackets ('[' and ']')
+
+		Writing: causes operation mode switch. Permitted values are
+		the non-active mode names listed when read.
+
+		Note: when switching mode the current PicoLCD HID device gets
+		disconnected and reconnects after above delay (see attribute
+		operation_mode_delay for its value).
+
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/operation_mode_delay
+Date:		April 2010
+Contact:	Bruno Prémont <bonbons@linux-vserver.org>
+Description:	Delay PicoLCD waits before restarting in new mode when
+		operation_mode has changed.
+
+		Reading/Writing: It is expressed in ms and permitted range is
+		0..30000ms.
+
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/fb_update_rate
+Date:		March 2010
+Contact:	Bruno Prémont <bonbons@linux-vserver.org>
+Description:	Make it possible to adjust defio refresh rate.
+
+		Reading: returns list of available refresh rates (expressed in Hz),
+		the active refresh rate being enclosed in brackets ('[' and ']')
+
+		Writing: accepts new refresh rate expressed in integer Hz
+		within permitted rates.
+
+		Note: As device can barely do 2 complete refreshes a second
+		it only makes sense to adjust this value if only one or two
+		tiles get changed and it's not appropriate to expect the application
+		to flush its tiny changes explicitly at higher than default rate.
+

@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwlock/ti,omap-hwspinlock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI HwSpinlock for OMAP and K3 based SoCs
+
+maintainers:
+  - Suman Anna <s-anna@ti.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,omap4-hwspinlock  # for OMAP44xx, OMAP54xx, AM33xx, AM43xx, DRA7xx SoCs
+      - ti,am64-hwspinlock   # for K3 AM64x SoCs
+      - ti,am654-hwspinlock  # for K3 AM65x, J721E and J7200 SoCs
+
+  reg:
+    maxItems: 1
+
+  "#hwlock-cells":
+    const: 1
+    description: |
+      The OMAP hwspinlock users will use a 0-indexed relative hwlock number as
+      the argument specifier value for requesting a specific hwspinlock within
+      a hwspinlock bank.
+
+      Please look at the generic hwlock binding for usage information for
+      consumers, "Documentation/devicetree/bindings/hwlock/hwlock.txt"
+
+required:
+  - compatible
+  - reg
+  - "#hwlock-cells"
+
+additionalProperties: false
+
+examples:
+
+  - |
+    spinlock@4a0f6000 {
+        compatible = "ti,omap4-hwspinlock";
+        reg = <0x4a0f6000 0x1000>;
+        #hwlock-cells = <1>;
+    };

@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/can/can-controller.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: CAN Controller Generic Binding
+
+maintainers:
+  - Marc Kleine-Budde <mkl@pengutronix.de>
+
+properties:
+  $nodename:
+    pattern: "^can(@.*)?$"
+
+  termination-gpios:
+    description: GPIO pin to enable CAN bus termination.
+    maxItems: 1
+
+  termination-ohms:
+    description: The resistance value of the CAN bus termination resistor.
+    minimum: 1
+    maximum: 65535
+
+additionalProperties: true
+
+...

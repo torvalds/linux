@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Freescale LS2088A QDS Board.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "fsl-ls2088a.dtsi"
+#include "fsl-ls208xa-qds.dtsi"
+
+/ {
+	model = "Freescale Layerscape 2088A QDS Board";
+	compatible = "fsl,ls2088a-qds", "fsl,ls2088a";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};

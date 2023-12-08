@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/phy/amlogic,meson8-hdmi-tx-phy.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Amlogic Meson8, Meson8b and Meson8m2 HDMI TX PHY
+
+maintainers:
+  - Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+
+description: |+
+  The HDMI TX PHY node should be the child of a syscon node with the
+  required property:
+
+  compatible = "amlogic,meson-hhi-sysctrl", "simple-mfd", "syscon"
+
+  Refer to the bindings described in
+  Documentation/devicetree/bindings/mfd/syscon.yaml
+
+properties:
+  $nodename:
+    pattern: "^hdmi-phy@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - amlogic,meson8b-hdmi-tx-phy
+              - amlogic,meson8m2-hdmi-tx-phy
+          - const: amlogic,meson8-hdmi-tx-phy
+      - const: amlogic,meson8-hdmi-tx-phy
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    description:
+      HDMI TMDS clock
+
+  "#phy-cells":
+    const: 0
+
+required:
+  - compatible
+  - "#phy-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    hdmi-phy@3a0 {
+      compatible = "amlogic,meson8-hdmi-tx-phy";
+      reg = <0x3a0 0xc>;
+      clocks = <&tmds_clock>;
+      #phy-cells = <0>;
+    };
+  - |
+    hdmi-phy@3a0 {
+      compatible = "amlogic,meson8b-hdmi-tx-phy", "amlogic,meson8-hdmi-tx-phy";
+      reg = <0x3a0 0xc>;
+      clocks = <&tmds_clock>;
+      #phy-cells = <0>;
+    };

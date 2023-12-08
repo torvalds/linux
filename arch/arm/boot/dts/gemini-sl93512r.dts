@@ -1,0 +1,294 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for the Storm Semiconductor SL93512R_BRD
+ * Gemini reference design, also initially called
+ * "Gemini324 EV-Board" before Storm acquired Storlink Semiconductor.
+ * The series were later acquired by Cortina Systems.
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Storlink Semiconductor Gemini324 EV-Board / Storm Semiconductor SL93512R_BRD";
+	compatible = "storlink,gemini324", "storm,sl93512r", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* 64 MB Samsung K4H511638B */
+		device_type = "memory";
+		reg = <0x00000000 0x4000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,19200n8 root=/dev/mtdblock3 rw rootfstype=squashfs,jffs2 rootwait";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-wps {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_WPS_BUTTON>;
+			label = "WPS";
+			/* Conflicts with TVC and extended flash */
+			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+		};
+
+		button-setup {
+			debounce-interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_SETUP>;
+			label = "factory reset";
+			/* Conflict with NAND flash */
+			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-green-harddisk {
+			label = "sq201:green:harddisk";
+			/* Conflict with LCD (no problem) */
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "disk-activity";
+		};
+		led-green-wireless {
+			label = "sq201:green:wireless";
+			/* Conflict with NAND flash CE0 (no problem) */
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	mdio0: mdio {
+		compatible = "virtual,mdio-gpio";
+		/* Uses MDC and MDIO */
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* This is a Marvell 88E1111 ethernet transciever */
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+		};
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		/* Check pin collisions */
+		sck-gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+
+		switch@0 {
+			compatible = "vitesse,vsc7385";
+			reg = <0>;
+			/* Specified for 2.5 MHz or below */
+			spi-max-frequency = <2500000>;
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					label = "lan1";
+				};
+				port@1 {
+					reg = <1>;
+					label = "lan2";
+				};
+				port@2 {
+					reg = <2>;
+					label = "lan3";
+				};
+				port@3 {
+					reg = <3>;
+					label = "lan4";
+				};
+				vsc: port@6 {
+					reg = <6>;
+					label = "cpu";
+					ethernet = <&gmac1>;
+					phy-mode = "rgmii";
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+						pause;
+					};
+				};
+			};
+		};
+	};
+
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 16MB of flash */
+			reg = <0x30000000 0x01000000>;
+
+			partitions {
+				compatible = "redboot-fis";
+				/* Eraseblock at 0xfe0000 */
+				fis-index-block = <0x1fc>;
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0agrp cover line 0, used by WPS button
+				 * gpio0fgrp cover line 16 used by HD LED
+				 * gpio0ggrp cover line 17, 18 used by wireless LAN LED and
+				 * reset button OR USB ID select on 17 and USB VBUS select
+				 * on 18. (Confusing.)
+				 * gpio0igrp cover line 21, 22 used by MDIO for Marvell PHY
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0agrp",
+						"gpio0fgrp",
+						"gpio0ggrp",
+						"gpio0igrp";
+					};
+				};
+				/*
+				 * gpio1dgrp cover lines used by SPI for
+				 * the Vitesse chip (28-31)
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1dgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp", "gmii_gmac1_grp";
+					};
+					/* Control pad skew comes from sl_switch.c in the vendor code */
+					conf0 {
+						pins = "P10 GMAC1 TXC";
+						skew-delay = <5>;
+					};
+					conf1 {
+						pins = "V11 GMAC1 TXEN";
+						skew-delay = <7>;
+					};
+					conf2 {
+						pins = "T11 GMAC1 RXC";
+						skew-delay = <8>;
+					};
+					conf3 {
+						pins = "U11 GMAC1 RXDV";
+						skew-delay = <7>;
+					};
+					conf4 {
+						pins = "V7 GMAC0 TXC";
+						skew-delay = <10>;
+					};
+					conf5 {
+						pins = "P8 GMAC0 TXEN";
+						skew-delay = <7>; /* 5 at another place? */
+					};
+					conf6 {
+						pins = "T8 GMAC0 RXC";
+						skew-delay = <15>;
+					};
+					conf7 {
+						pins = "R8 GMAC0 RXDV";
+						skew-delay = <0>;
+					};
+					conf8 {
+						/* The data lines all have default skew */
+						pins = "U8 GMAC0 RXD0", "V8 GMAC0 RXD1",
+						       "P9 GMAC0 RXD2", "R9 GMAC0 RXD3",
+						       "R11 GMAC1 RXD0", "P11 GMAC1 RXD1",
+						       "V12 GMAC1 RXD2", "U12 GMAC1 RXD3",
+						       "R10 GMAC1 TXD0", "T10 GMAC1 TXD1",
+						       "U10 GMAC1 TXD2", "V10 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Appears in sl351x_gmac.c in the vendor code */
+					conf9 {
+						pins = "U7 GMAC0 TXD0", "T7 GMAC0 TXD1",
+						       "R7 GMAC0 TXD2", "P7 GMAC0 TXD3";
+						skew-delay = <5>;
+					};
+				};
+			};
+		};
+
+		/* Both interfaces brought out on SATA connectors */
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		pci@50000000 {
+			status = "okay";
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+		};
+
+		ide@63000000 {
+			status = "okay";
+		};
+
+		ide@63400000 {
+			status = "okay";
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+		};
+	};
+};

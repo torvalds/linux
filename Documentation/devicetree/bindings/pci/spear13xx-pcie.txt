@@ -1,0 +1,14 @@
+SPEAr13XX PCIe DT detail:
+================================
+
+SPEAr13XX uses the Synopsys DesignWare PCIe controller and ST MiPHY as PHY
+controller.
+
+Required properties:
+- compatible	    : should be "st,spear1340-pcie", "snps,dw-pcie".
+- phys		    : phandle to PHY node associated with PCIe controller
+- phy-names	    : must be "pcie-phy"
+- All other definitions as per generic PCI bindings
+
+ Optional properties:
+- st,pcie-is-gen1 indicates that forced gen1 initialization is needed.

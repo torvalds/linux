@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
+/*
+ * Copyright (C) 2019-2020 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM STM32MP1 variant:
+ * DHCM-STM32MP157C-C065-R102-F0819-SPI-E2-CAN2-SDR104-RTC-WBT-T-DSI-I-01D2
+ * DHCOM PCB number: 587-200 or newer
+ * PDK2 PCB number: 516-400 or newer
+ */
+/dts-v1/;
+
+#include "stm32mp157.dtsi"
+#include "stm32mp15xc.dtsi"
+#include "stm32mp15xx-dhcom-som.dtsi"
+#include "stm32mp15xx-dhcom-pdk2.dtsi"
+
+/ {
+	model = "DH electronics STM32MP157C DHCOM Premium Developer Kit (2)";
+	compatible = "dh,stm32mp157c-dhcom-pdk2", "dh,stm32mp157c-dhcom-som",
+		     "st,stm32mp157";
+};
+
+&cryp1 {
+	status = "okay";
+};
+
+&m_can1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&m_can1_pins_a>;
+	pinctrl-1 = <&m_can1_sleep_pins_a>;
+	status = "okay";
+};

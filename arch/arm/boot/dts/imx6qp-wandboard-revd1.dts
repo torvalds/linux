@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * Author: Fabio Estevam <fabio.estevam@freescale.com>
+ */
+/dts-v1/;
+#include "imx6qp.dtsi"
+#include "imx6qdl-wandboard-revd1.dtsi"
+
+/ {
+	model = "Wandboard i.MX6 QuadPlus Board revD1";
+	compatible = "wand,imx6qp-wandboard", "fsl,imx6qp";
+
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0x80000000>;
+	};
+};
+
+&sata {
+	status = "okay";
+};

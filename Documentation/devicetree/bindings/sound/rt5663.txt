@@ -1,0 +1,60 @@
+RT5663 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5663".
+
+- reg : The I2C address of the device.
+
+- interrupts : The CODEC's interrupt output.
+
+- avdd-supply: Power supply for AVDD, providing 1.8V.
+
+- cpvdd-supply: Power supply for CPVDD, providing 3.5V.
+
+Optional properties:
+
+- "realtek,dc_offset_l_manual"
+- "realtek,dc_offset_r_manual"
+- "realtek,dc_offset_l_manual_mic"
+- "realtek,dc_offset_r_manual_mic"
+  Based on the different PCB layout, add the manual offset value to
+  compensate the DC offset for each L and R channel, and they are different
+  between headphone and headset.
+- "realtek,impedance_sensing_num"
+  The matrix row number of the impedance sensing table.
+  If the value is 0, it means the impedance sensing is not supported.
+- "realtek,impedance_sensing_table"
+  The matrix rows of the impedance sensing table are consisted by impedance
+  minimum, impedance maximun, volume, DC offset w/o and w/ mic of each L and
+  R channel accordingly. Example is shown as following.
+  <   0    300  7  0xffd160  0xffd1c0  0xff8a10  0xff8ab0
+    301  65535  4  0xffe470  0xffe470  0xffb8e0  0xffb8e0>
+  The first and second column are defined for the impedance range. If the
+  detected impedance value is in the range, then the volume value of the
+  third column will be set to codec. In our codec design, each volume value
+  should compensate different DC offset to avoid the pop sound, and it is
+  also different between headphone and headset. In the example, the
+  "realtek,impedance_sensing_num" is 2. It means that there are 2 ranges of
+  impedance in the impedance sensing function.
+
+Pins on the device (for linking into audio routes) for RT5663:
+
+  * IN1P
+  * IN1N
+  * IN2P
+  * IN2N
+  * HPOL
+  * HPOR
+
+Example:
+
+rt5663: codec@12 {
+	compatible = "realtek,rt5663";
+	reg = <0x12>;
+	interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+	avdd-supply = <&pp1800_a_alc5662>;
+	cpvdd-supply = <&pp3500_a_alc5662>;
+};

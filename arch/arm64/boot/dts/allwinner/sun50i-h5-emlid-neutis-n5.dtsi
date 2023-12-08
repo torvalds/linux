@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+// Copyright (C) 2018 Aleksandr Aleksandrov <aleksandr.aleksandrov@emlid.com>
+
+/*
+ * DTSI for Emlid Neutis N5 SoM.
+ */
+
+/dts-v1/;
+
+#include "sun50i-h5.dtsi"
+#include <arm/sunxi-h3-h5-emlid-neutis.dtsi>

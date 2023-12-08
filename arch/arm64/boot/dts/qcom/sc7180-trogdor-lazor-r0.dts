@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Lazor board device tree source
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+/dts-v1/;
+
+#include "sc7180-trogdor.dtsi"
+#include "sc7180-trogdor-ti-sn65dsi86.dtsi"
+#include "sc7180-trogdor-lazor.dtsi"
+
+/ {
+	model = "Google Lazor (rev0)";
+	compatible = "google,lazor-rev0", "qcom,sc7180";
+};
+
+&sn65dsi86_out {
+	/*
+	 * Lane 0 was incorrectly mapped on the cable, but we've now decided
+	 * that the cable is canon and in -rev1+ we'll make a board change
+	 * that means we no longer need the swizzle.
+	 */
+	lane-polarities = <1 0>;
+};
+
+&usb_hub_2_x {
+	 vdd-supply = <&pp3300_l7c>;
+};
+
+&usb_hub_3_x {
+	 vdd-supply = <&pp3300_l7c>;
+};

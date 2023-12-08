@@ -1,0 +1,15 @@
+OMAP Counter-32K bindings
+
+Required properties:
+- compatible:	Must be "ti,omap-counter32k" for OMAP controllers
+- reg:		Contains timer register address range (base address and length)
+- ti,hwmods:	Name of the hwmod associated to the counter, which is typically
+		"counter_32k"
+
+Example:
+
+counter32k: counter@4a304000 {
+	compatible = "ti,omap-counter32k";
+	reg = <0x4a304000 0x20>;
+	ti,hwmods = "counter_32k";
+};

@@ -1,0 +1,81 @@
+What:		/sys/class/c2port/
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/ directory will contain files and
+		directories that will provide a unified interface to
+		the C2 port interface.
+
+What:		/sys/class/c2port/c2portX
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/ directory is related to X-th
+		C2 port into the system. Each directory will contain files to
+		manage and control its C2 port.
+
+What:		/sys/class/c2port/c2portX/access
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/access file enable the access
+		to the C2 port from the system. No commands can be sent
+		till this entry is set to 0.
+
+What:		/sys/class/c2port/c2portX/dev_id
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/dev_id file show the device ID
+		of the connected micro.
+
+What:		/sys/class/c2port/c2portX/flash_access
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/flash_access file enable the
+		access to the on-board flash of the connected micro.
+		No commands can be sent till this entry is set to 0.
+
+What:		/sys/class/c2port/c2portX/flash_block_size
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/flash_block_size file show
+		the on-board flash block size of the connected micro.
+
+What:		/sys/class/c2port/c2portX/flash_blocks_num
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/flash_blocks_num file show
+		the on-board flash blocks number of the connected micro.
+
+What:		/sys/class/c2port/c2portX/flash_data
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/flash_data file export
+		the content of the on-board flash of the connected micro.
+
+What:		/sys/class/c2port/c2portX/flash_erase
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/flash_erase file execute
+		the "erase" command on the on-board flash of the connected
+		micro.
+
+What:		/sys/class/c2port/c2portX/reset
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/reset file execute a "reset"
+		command on the connected micro.
+
+What:		/sys/class/c2port/c2portX/rev_id
+Date:		October 2008
+Contact:	Rodolfo Giometti <giometti@linux.it>
+Description:
+		The /sys/class/c2port/c2portX/rev_id file show the revision ID
+		of the connected micro.

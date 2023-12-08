@@ -1,0 +1,86 @@
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_en
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Dither enable. Write 1 to enable dither or 0 to disable it. This is useful
+		for changing the dither parameters. They way it should be done is:
+
+		- disable dither operation;
+		- change dither parameters (eg: frequency, phase...);
+		- enabled dither operation
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_raw
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This raw, unscaled value refers to the dither signal amplitude.
+		The same scale as in out_voltageY_raw applies. However, the
+		offset might be different as it's always 0 for this attribute.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_raw_available
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Available range for dither raw amplitude values.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_offset
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Offset applied to out_voltageY_dither_raw. Read only attribute
+		always set to 0.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_frequency
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Sets the dither signal frequency. Units are in Hz.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_frequency_available
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Returns the available values for the dither frequency.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_phase
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Sets the dither signal phase. Units are in Radians.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_dither_phase_available
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Returns the available values for the dither phase.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_toggle_en
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Toggle enable. Write 1 to enable toggle or 0 to disable it. This is
+		useful when one wants to change the DAC output codes. The way it should
+		be done is:
+
+		- disable toggle operation;
+		- change out_voltageY_raw0 and out_voltageY_raw1;
+		- enable toggle operation.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_raw0
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_raw1
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		It has the same meaning as out_voltageY_raw. This attribute is
+		specific to toggle enabled channels and refers to the DAC output
+		code in INPUT_A (_raw0) and INPUT_B (_raw1). The same scale and offset
+		as in out_voltageY_raw applies.
+
+What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_symbol
+KernelVersion:	5.18
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Performs a SW toggle. This attribute is specific to toggle
+		enabled channels and allows to toggle between out_voltageY_raw0
+		and out_voltageY_raw1 through software. Writing 0 will select
+		out_voltageY_raw0 while 1 selects out_voltageY_raw1.

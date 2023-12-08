@@ -1,0 +1,14 @@
+What:		/sys/class/leds/<led>/device/brightness
+Date:		July 2020
+KernelVersion:	5.9
+Contact:	Marek Behún <kabel@kernel.org>
+Description:	(RW) On the front panel of the Turris Omnia router there is also
+		a button which can be used to control the intensity of all the
+		LEDs at once, so that if they are too bright, user can dim them.
+
+		The microcontroller cycles between 8 levels of this global
+		brightness (from 100% to 0%), but this setting can have any
+		integer value between 0 and 100. It is therefore convenient to be
+		able to change this setting from software.
+
+		Format: %i

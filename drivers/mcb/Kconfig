@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# MEN Chameleon Bus (MCB) support
+#
+
+menuconfig MCB
+	   tristate "MCB support"
+	   default n
+	   depends on HAS_IOMEM
+	   help
+
+	   The MCB (MEN Chameleon Bus) is a Bus specific to MEN Mikroelektronik
+	   FPGA based devices. It is used to identify MCB based IP-Cores within
+	   an FPGA and provide the necessary framework for instantiating drivers
+	   for these devices.
+
+	   If build as a module, the module is called mcb.ko
+
+if MCB
+config MCB_PCI
+	   tristate "PCI based MCB carrier"
+	   default n
+	   depends on PCI
+	   help
+
+	   This is a MCB carrier on a PCI device. Both PCI attached on-board
+	   FPGAs as well as CompactPCI attached MCB FPGAs are supported with
+	   this driver.
+
+	   If build as a module, the module is called mcb-pci.ko
+
+config MCB_LPC
+	   tristate "LPC (non PCI) based MCB carrier"
+	   default n
+	   help
+
+	   This is a MCB carrier on a LPC or non PCI device.
+
+	   If build as a module, the module is called mcb-lpc.ko
+
+endif # MCB

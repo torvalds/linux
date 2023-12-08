@@ -1,0 +1,18 @@
+Ralink Watchdog Timers
+
+Required properties:
+- compatible: must be "ralink,rt2880-wdt"
+- reg: physical base address of the controller and length of the register range
+
+Optional properties:
+- interrupts: Specify the INTC interrupt number
+
+Example:
+
+	watchdog@120 {
+		compatible = "ralink,rt2880-wdt";
+		reg = <0x120 0x10>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <1>;
+	};

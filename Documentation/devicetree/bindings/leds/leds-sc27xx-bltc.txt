@@ -1,0 +1,43 @@
+LEDs connected to Spreadtrum SC27XX PMIC breathing light controller
+
+The SC27xx breathing light controller supports to 3 outputs:
+red LED, green LED and blue LED. Each LED can work at normal
+PWM mode or breath light mode.
+
+Required properties:
+- compatible: Should be "sprd,sc2731-bltc".
+- #address-cells: Must be 1.
+- #size-cells: Must be 0.
+- reg: Specify the controller address.
+
+Required child properties:
+- reg: Port this LED is connected to.
+
+Optional child properties:
+- function: See Documentation/devicetree/bindings/leds/common.txt.
+- color: See Documentation/devicetree/bindings/leds/common.txt.
+- label: See Documentation/devicetree/bindings/leds/common.txt (deprecated).
+
+Examples:
+
+led-controller@200 {
+	compatible = "sprd,sc2731-bltc";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	reg = <0x200>;
+
+	led@0 {
+		color = <LED_COLOR_ID_RED>;
+		reg = <0x0>;
+	};
+
+	led@1 {
+		color = <LED_COLOR_ID_GREEN>;
+		reg = <0x1>;
+	};
+
+	led@2 {
+		color = <LED_COLOR_ID_BLUE>;
+		reg = <0x2>;
+	};
+};

@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/cdns,uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cadence UART Controller
+
+maintainers:
+  - Michal Simek <michal.simek@xilinx.com>
+
+allOf:
+  - $ref: /schemas/serial.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - description: UART controller for Zynq-7xxx SoC
+        items:
+          - const: xlnx,xuartps
+          - const: cdns,uart-r1p8
+      - description: UART controller for Zynq Ultrascale+ MPSoC
+        items:
+          - const: xlnx,zynqmp-uart
+          - const: cdns,uart-r1p12
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: uart_clk
+      - const: pclk
+
+  cts-override:
+    description: |
+      Override the CTS modem status signal. This signal will
+      always be reported as active instead of being obtained
+      from the modem status register. Define this if your serial
+      port does not use this pin.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    uart0: serial@e0000000 {
+      compatible = "xlnx,xuartps", "cdns,uart-r1p8";
+      clocks = <&clkc 23>, <&clkc 40>;
+      clock-names = "uart_clk", "pclk";
+      reg = <0xE0000000 0x1000>;
+      interrupts = <0 27 4>;
+    };

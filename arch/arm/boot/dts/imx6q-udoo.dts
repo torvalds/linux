@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright 2013 Freescale Semiconductor, Inc.
+ *
+ * Author: Fabio Estevam <fabio.estevam@freescale.com>
+ */
+/dts-v1/;
+#include "imx6q.dtsi"
+#include "imx6qdl-udoo.dtsi"
+
+/ {
+	model = "Udoo i.MX6 Quad Board";
+	compatible = "udoo,imx6q-udoo", "fsl,imx6q";
+};
+
+&sata {
+	status = "okay";
+};

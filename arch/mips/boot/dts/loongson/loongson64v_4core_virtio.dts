@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/dts-v1/;
+/ {
+	compatible = "loongson,loongson64v-4core-virtio";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpuintc: interrupt-controller {
+		#address-cells = <0>;
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		compatible = "mti,cpu-interrupt-controller";
+	};
+
+	package0: bus@1fe00000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0x1fe00000 0 0x1fe00000 0x100000
+			0 0x3ff00000 0 0x3ff00000 0x100000
+			0xefd 0xfb000000 0xefd 0xfb000000 0x10000000>;
+
+		liointc: interrupt-controller@3ff01400 {
+			compatible = "loongson,liointc-1.0";
+			reg = <0 0x3ff01400 0x64>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <2>, <3>;
+			interrupt-names = "int0", "int1";
+
+			loongson,parent_int_map = <0x00000001>, /* int0 */
+						<0xfffffffe>, /* int1 */
+						<0x00000000>, /* int2 */
+						<0x00000000>; /* int3 */
+
+		};
+
+		cpu_uart0: serial@1fe001e0 {
+			compatible = "ns16550a";
+			reg = <0 0x1fe001e0 0x8>;
+			clock-frequency = <33000000>;
+			interrupt-parent = <&liointc>;
+			interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+			no-loopback-test;
+		};
+	};
+
+	bus@10000000 {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0 0x10000000 0 0x10000000 0 0x10000000 /* PIO & CONF & APB */
+				0 0x40000000 0 0x40000000 0 0x40000000>; /* PCI MEM */
+
+		rtc0: rtc@10081000 {
+			compatible = "google,goldfish-rtc";
+			reg = <0 0x10081000 0 0x1000>;
+			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&liointc>;
+		};
+
+		pci@1a000000 {
+			compatible = "pci-host-ecam-generic";
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			bus-range = <0x0 0x1f>;
+			reg = <0 0x1a000000 0 0x02000000>;
+
+			ranges = <0x01000000 0x0 0x00004000 0x0 0x18004000 0x0 0x0000c000>,
+				 <0x02000000 0x0 0x40000000 0x0 0x40000000 0x0 0x40000000>;
+
+			interrupt-map = <
+				0x0000 0x0 0x0  0x1  &liointc  0x2 IRQ_TYPE_LEVEL_HIGH
+				0x0800 0x0 0x0  0x1  &liointc  0x3 IRQ_TYPE_LEVEL_HIGH
+				0x1000 0x0 0x0  0x1  &liointc  0x4 IRQ_TYPE_LEVEL_HIGH
+				0x1800 0x0 0x0  0x1  &liointc  0x5 IRQ_TYPE_LEVEL_HIGH
+				>;
+
+			interrupt-map-mask = <0x1800 0x0 0x0  0x7>;
+		};
+
+		isa@18000000 {
+			compatible = "isa";
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <1 0 0 0x18000000 0x4000>;
+		};
+	};
+
+	hypervisor {
+		compatible = "linux,kvm";
+	};
+};

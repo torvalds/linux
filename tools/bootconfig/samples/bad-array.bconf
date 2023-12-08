@@ -1,0 +1,2 @@
+# Array must be comma separated.
+key = "value1" "value2"

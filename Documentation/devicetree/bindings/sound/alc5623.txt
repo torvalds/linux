@@ -1,0 +1,25 @@
+ALC5621/ALC5622/ALC5623 audio Codec
+
+Required properties:
+
+ - compatible:	"realtek,alc5623"
+ - reg:		the I2C address of the device.
+
+Optional properties:
+
+ - add-ctrl:	  Default register value for Reg-40h, Additional Control
+		  Register. If absent or has the value of 0, the
+		  register is untouched.
+
+ - jack-det-ctrl: Default register value for Reg-5Ah, Jack Detect
+		  Control Register. If absent or has value 0, the
+		  register is untouched.
+
+Example:
+
+	alc5621: alc5621@1a {
+		compatible = "alc5621";
+		reg = <0x1a>;
+		add-ctrl = <0x3700>;
+		jack-det-ctrl = <0x4810>;
+	};

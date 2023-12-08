@@ -1,0 +1,50 @@
+* HiSilicon Clock and Reset Generator(CRG)
+
+The CRG module provides clock and reset signals to various
+modules within the SoC.
+
+This binding uses the following bindings:
+    Documentation/devicetree/bindings/clock/clock-bindings.txt
+    Documentation/devicetree/bindings/reset/reset.txt
+
+Required Properties:
+
+- compatible: should be one of the following.
+  - "hisilicon,hi3516cv300-crg"
+  - "hisilicon,hi3516cv300-sysctrl"
+  - "hisilicon,hi3519-crg"
+  - "hisilicon,hi3798cv200-crg"
+  - "hisilicon,hi3798cv200-sysctrl"
+
+- reg: physical base address of the controller and length of memory mapped
+  region.
+
+- #clock-cells: should be 1.
+
+Each clock is assigned an identifier and client nodes use this identifier
+to specify the clock which they consume.
+
+All these identifier could be found in <dt-bindings/clock/hi3519-clock.h>.
+
+- #reset-cells: should be 2.
+
+A reset signal can be controlled by writing a bit register in the CRG module.
+The reset specifier consists of two cells. The first cell represents the
+register offset relative to the base address. The second cell represents the
+bit index in the register.
+
+Example: CRG nodes
+CRG: clock-reset-controller@12010000 {
+	compatible = "hisilicon,hi3519-crg";
+	reg = <0x12010000 0x10000>;
+	#clock-cells = <1>;
+	#reset-cells = <2>;
+};
+
+Example: consumer nodes
+i2c0: i2c@12110000 {
+	compatible = "hisilicon,hi3519-i2c";
+	reg = <0x12110000 0x1000>;
+	clocks = <&CRG HI3519_I2C0_RST>;
+	resets = <&CRG 0xe4 0>;
+};

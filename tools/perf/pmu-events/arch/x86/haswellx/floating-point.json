@@ -1,0 +1,103 @@
+[
+    {
+        "BriefDescription": "Approximate counts of AVX & AVX2 256-bit instructions, including non-arithmetic instructions, loads, and stores.  May count non-AVX instructions that employ 256-bit operations, including (but not necessarily limited to) rep string instructions that use 256-bit loads and stores for optimized performance, XSAVE* and XRSTOR*, and operations that transition the x87 FPU data registers between x87 and MMX.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xC6",
+        "EventName": "AVX_INSTS.ALL",
+        "PublicDescription": "Note that a whole rep string only counts AVX_INST.ALL once.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x7"
+    },
+    {
+        "BriefDescription": "Cycles with any input/output SSE or FP assist",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.ANY",
+        "PublicDescription": "Cycles with any input/output SSE* or FP assists.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1e"
+    },
+    {
+        "BriefDescription": "Number of SIMD FP assists due to input values",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.SIMD_INPUT",
+        "PublicDescription": "Number of SIMD FP assists due to input values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Number of SIMD FP assists due to Output values",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.SIMD_OUTPUT",
+        "PublicDescription": "Number of SIMD FP assists due to output values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of X87 assists due to input value.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.X87_INPUT",
+        "PublicDescription": "Number of X87 FP assists due to input values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Number of X87 assists due to output value.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xCA",
+        "EventName": "FP_ASSIST.X87_OUTPUT",
+        "PublicDescription": "Number of X87 FP assists due to output values.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were eliminated.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x58",
+        "EventName": "MOVE_ELIMINATION.SIMD_ELIMINATED",
+        "PublicDescription": "Number of SIMD move elimination candidate uops that were eliminated.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Number of SIMD Move Elimination candidate uops that were not eliminated.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x58",
+        "EventName": "MOVE_ELIMINATION.SIMD_NOT_ELIMINATED",
+        "PublicDescription": "Number of SIMD move elimination candidate uops that were not eliminated.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of transitions from AVX-256 to legacy SSE when penalty applicable.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "Errata": "HSD56, HSM57",
+        "EventCode": "0xC1",
+        "EventName": "OTHER_ASSISTS.AVX_TO_SSE",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Number of transitions from SSE to AVX-256 when penalty applicable.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "Errata": "HSD56, HSM57",
+        "EventCode": "0xC1",
+        "EventName": "OTHER_ASSISTS.SSE_TO_AVX",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10"
+    }
+]

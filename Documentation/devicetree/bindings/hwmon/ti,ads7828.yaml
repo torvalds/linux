@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,ads7828.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments ADS7828/ADS7830 Analog to Digital Converter (ADC)
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  The ADS7828 is 12-Bit, 8-Channel Sampling Analog to Digital Converter (ADC)
+  with an I2C interface.
+
+  Datasheets:
+    https://www.ti.com/product/ADS7828
+
+properties:
+  compatible:
+    enum:
+      - ti,ads7828
+      - ti,ads7830
+
+  reg:
+    maxItems: 1
+
+  ti,differential-input:
+    description:
+      Set to use the device in differential mode.
+    type: boolean
+
+  vref-supply:
+    description:
+      The regulator to use as an external reference. If it does not exists the
+      internal reference will be used.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@48 {
+            compatible = "ti,ads7828";
+            reg = <0x48>;
+            vref-supply = <&vref>;
+            ti,differential-input;
+        };
+    };

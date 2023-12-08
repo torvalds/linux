@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+#include "armada-385-clearfog-gtr.dtsi"
+
+/ {
+	model = "SolidRun Clearfog GTR S4";
+};
+
+&sfp0 {
+	tx-fault-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+};
+
+&mdio {
+	switch0: switch0@4 {
+		compatible = "marvell,mv88e6085";
+		reg = <4>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cf_gtr_switch_reset_pins>;
+		reset-gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@1 {
+				reg = <1>;
+				label = "lan2";
+				phy-handle = <&switch0phy0>;
+			};
+
+			port@2 {
+				reg = <2>;
+				label = "lan1";
+				phy-handle = <&switch0phy1>;
+			};
+
+			port@3 {
+				reg = <3>;
+				label = "lan4";
+				phy-handle = <&switch0phy2>;
+			};
+
+			port@4 {
+				reg = <4>;
+				label = "lan3";
+				phy-handle = <&switch0phy3>;
+			};
+
+			port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&eth1>;
+			};
+
+		};
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0phy0: switch0phy0@11 {
+				reg = <0x11>;
+			};
+
+			switch0phy1: switch0phy1@12 {
+				reg = <0x12>;
+			};
+
+			switch0phy2: switch0phy2@13 {
+				reg = <0x13>;
+			};
+
+			switch0phy3: switch0phy3@14 {
+				reg = <0x14>;
+			};
+		};
+
+	};
+};

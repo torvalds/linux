@@ -1,0 +1,17 @@
+RT1016 Stereo Class D Audio Amplifier
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt1016".
+
+- reg : The I2C address of the device.
+
+
+Example:
+
+rt1016: codec@1a {
+	compatible = "realtek,rt1016";
+	reg = <0x1a>;
+};

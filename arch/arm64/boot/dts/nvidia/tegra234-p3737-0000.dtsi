@@ -1,0 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/ {
+	compatible = "nvidia,p3737-0000";
+};

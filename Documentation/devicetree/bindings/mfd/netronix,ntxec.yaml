@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/netronix,ntxec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Netronix Embedded Controller
+
+maintainers:
+  - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
+
+description: |
+  This EC is found in e-book readers of multiple brands (e.g. Kobo, Tolino), and
+  is typically implemented as a TI MSP430 microcontroller.
+
+properties:
+  compatible:
+    const: netronix,ntxec
+
+  reg:
+    items:
+      - description: The I2C address of the EC
+
+  system-power-controller:
+    type: boolean
+    description: See Documentation/devicetree/bindings/power/power-controller.txt
+
+  interrupts:
+    minItems: 1
+    description:
+      The EC can signal interrupts via a GPIO line
+
+  "#pwm-cells":
+    const: 2
+    description: |
+      Number of cells in a PWM specifier.
+
+      The following PWM channels are supported:
+        - 0: The PWM channel controlled by registers 0xa1-0xa7
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ec: embedded-controller@43 {
+                    pinctrl-names = "default";
+                    pinctrl-0 = <&pinctrl_ntxec>;
+
+                    compatible = "netronix,ntxec";
+                    reg = <0x43>;
+                    system-power-controller;
+                    interrupt-parent = <&gpio4>;
+                    interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+                    #pwm-cells = <2>;
+            };
+    };
+
+    backlight {
+            compatible = "pwm-backlight";
+            pwms = <&ec 0 50000>;
+            power-supply = <&backlight_regulator>;
+    };
+
+    backlight_regulator: regulator-dummy {
+            compatible = "regulator-fixed";
+            regulator-name = "backlight";
+    };

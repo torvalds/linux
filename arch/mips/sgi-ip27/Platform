@@ -1,0 +1,16 @@
+#
+# SGI-IP27 (Origin200/2000)
+#
+# Set the load address to >= 0xc000000000300000 if you want to leave space for
+# symmon, 0xc00000000001c000 for production kernels.  Note that the value must
+# be 16kb aligned or the handling of the current variable will break.
+#
+cflags-$(CONFIG_SGI_IP27)	+= -I$(srctree)/arch/mips/include/asm/mach-ip27
+ifdef CONFIG_MAPPED_KERNEL
+load-$(CONFIG_SGI_IP27)		+= 0xc00000004001c000
+OBJCOPYFLAGS			:= --change-addresses=0x3fffffff80000000
+dataoffset-$(CONFIG_SGI_IP27)	+= 0x01000000
+else
+load-$(CONFIG_SGI_IP27)		+= 0xa80000000001c000
+OBJCOPYFLAGS			:= --change-addresses=0x57ffffff80000000
+endif

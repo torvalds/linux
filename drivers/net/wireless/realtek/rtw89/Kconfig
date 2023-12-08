@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+menuconfig RTW89
+	tristate "Realtek 802.11ax wireless chips support"
+	depends on MAC80211
+	help
+	  This module adds support for mac80211-based wireless drivers that
+	  enables Realtek IEEE 802.11ax wireless chipsets.
+
+	  If you choose to build a module, it'll be called rtw89.
+
+if RTW89
+
+config RTW89_CORE
+	tristate
+
+config RTW89_PCI
+	tristate
+
+config RTW89_8852A
+	tristate
+
+config RTW89_8852C
+	tristate
+
+config RTW89_8852AE
+	tristate "Realtek 8852AE PCI wireless network (Wi-Fi 6) adapter"
+	depends on PCI
+	select RTW89_CORE
+	select RTW89_PCI
+	select RTW89_8852A
+	help
+	  Select this option will enable support for 8852AE chipset
+
+	  802.11ax PCIe wireless network (Wi-Fi 6) adapter
+
+config RTW89_8852CE
+	tristate "Realtek 8852CE PCI wireless network (Wi-Fi 6E) adapter"
+	depends on PCI
+	select RTW89_CORE
+	select RTW89_PCI
+	select RTW89_8852C
+	help
+	  Select this option will enable support for 8852CE chipset
+
+	  802.11ax PCIe wireless network (Wi-Fi 6E) adapter
+
+config RTW89_DEBUG
+	bool
+
+config RTW89_DEBUGMSG
+	bool "Realtek rtw89 debug message support"
+	depends on RTW89_CORE
+	select RTW89_DEBUG
+	help
+	  Enable debug message support
+
+	  If unsure, say Y to simplify debug problems
+
+config RTW89_DEBUGFS
+	bool "Realtek rtw89 debugfs support"
+	depends on RTW89_CORE
+	select RTW89_DEBUG
+	help
+	  Enable debugfs support
+
+	  If unsure, say Y to simplify debug problems
+
+endif

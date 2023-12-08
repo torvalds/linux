@@ -1,0 +1,202 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * DTS file for SPEAr310 Evaluation Baord
+ *
+ * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
+ */
+
+/dts-v1/;
+/include/ "spear310.dtsi"
+
+/ {
+	model = "ST SPEAr310 Evaluation Board";
+	compatible = "st,spear310-evb", "st,spear310";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		reg = <0 0x40000000>;
+	};
+
+	ahb {
+		pinmux@b4000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&state_default>;
+
+			state_default: pinmux {
+				gpio0 {
+					st,pins = "gpio0_pin0_grp",
+						"gpio0_pin1_grp",
+						"gpio0_pin2_grp",
+						"gpio0_pin3_grp",
+						"gpio0_pin4_grp",
+						"gpio0_pin5_grp";
+					st,function = "gpio0";
+				};
+				i2c0 {
+					st,pins = "i2c0_grp";
+					st,function = "i2c0";
+				};
+				mii0 {
+					st,pins = "mii0_grp";
+					st,function = "mii0";
+				};
+				ssp0 {
+					st,pins = "ssp0_grp";
+					st,function = "ssp0";
+				};
+				uart0 {
+					st,pins = "uart0_grp";
+					st,function = "uart0";
+				};
+				emi {
+					st,pins = "emi_cs_0_to_5_grp";
+					st,function = "emi";
+				};
+				fsmc {
+					st,pins = "fsmc_grp";
+					st,function = "fsmc";
+				};
+				uart1 {
+					st,pins = "uart1_grp";
+					st,function = "uart1";
+				};
+				uart2 {
+					st,pins = "uart2_grp";
+					st,function = "uart2";
+				};
+				uart3 {
+					st,pins = "uart3_grp";
+					st,function = "uart3";
+				};
+				uart4 {
+					st,pins = "uart4_grp";
+					st,function = "uart4";
+				};
+				uart5 {
+					st,pins = "uart5_grp";
+					st,function = "uart5";
+				};
+			};
+		};
+
+		dma@fc400000 {
+			status = "okay";
+		};
+
+		fsmc: flash@44000000 {
+			status = "okay";
+		};
+
+		gmac: eth@e0800000 {
+			status = "okay";
+		};
+
+		smi: flash@fc000000 {
+			status = "okay";
+			clock-rate = <50000000>;
+
+			flash@f8000000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xf8000000 0x800000>;
+				st,smi-fast-mode;
+
+				partition@0 {
+					label = "xloader";
+					reg = <0x0 0x10000>;
+				};
+				partition@10000 {
+					label = "u-boot";
+					reg = <0x10000 0x50000>;
+				};
+				partition@60000 {
+					label = "environment";
+					reg = <0x60000 0x10000>;
+				};
+				partition@70000 {
+					label = "dtb";
+					reg = <0x70000 0x10000>;
+				};
+				partition@80000 {
+					label = "linux";
+					reg = <0x80000 0x310000>;
+				};
+				partition@390000 {
+					label = "rootfs";
+					reg = <0x390000 0x0>;
+				};
+			};
+		};
+
+		spi0: spi@d0100000 {
+			status = "okay";
+		};
+
+		ehci@e1800000 {
+			status = "okay";
+		};
+
+		ohci@e1900000 {
+			status = "okay";
+		};
+
+		ohci@e2100000 {
+			status = "okay";
+		};
+
+		apb {
+			gpio0: gpio@fc980000 {
+			       status = "okay";
+			};
+
+			i2c0: i2c@d0180000 {
+			       status = "okay";
+			};
+
+			rtc@fc900000 {
+			       status = "okay";
+			};
+
+			serial@d0000000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@b2000000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@b2080000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@b2100000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@b2180000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			serial@b2200000 {
+			       status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <>;
+			};
+
+			wdt@fc880000 {
+			       status = "okay";
+			};
+		};
+	};
+};

@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-imx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Inter IC (I2C) and High Speed Inter IC (HS-I2C) for i.MX
+
+maintainers:
+  - Oleksij Rempel <o.rempel@pengutronix.de>
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx1-i2c
+      - const: fsl,imx21-i2c
+      - const: fsl,vf610-i2c
+      - items:
+          - enum:
+              - fsl,ls1012a-i2c
+              - fsl,ls1021a-i2c
+              - fsl,ls1028a-i2c
+              - fsl,ls1043a-i2c
+              - fsl,ls1046a-i2c
+              - fsl,ls1088a-i2c
+              - fsl,ls208xa-i2c
+              - fsl,lx2160a-i2c
+          - const: fsl,vf610-i2c
+      - items:
+          - const: fsl,imx35-i2c
+          - const: fsl,imx1-i2c
+      - items:
+          - const: fsl,imx7d-i2c
+          - const: fsl,imx21-i2c
+      - items:
+          - enum:
+              - fsl,imx25-i2c
+              - fsl,imx27-i2c
+              - fsl,imx31-i2c
+              - fsl,imx50-i2c
+              - fsl,imx51-i2c
+              - fsl,imx53-i2c
+              - fsl,imx6q-i2c
+              - fsl,imx6sl-i2c
+              - fsl,imx6sx-i2c
+              - fsl,imx6sll-i2c
+              - fsl,imx6ul-i2c
+              - fsl,imx7s-i2c
+              - fsl,imx8mq-i2c
+              - fsl,imx8mm-i2c
+              - fsl,imx8mn-i2c
+              - fsl,imx8mp-i2c
+          - const: fsl,imx21-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: ipg
+
+  clock-frequency:
+    minimum: 1
+    default: 100000
+    maximum: 400000
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for RX
+      - description: DMA controller phandle and request line for TX
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  sda-gpios:
+    maxItems: 1
+
+  scl-gpios:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx5-clock.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c@83fc4000 {
+        compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
+        reg = <0x83fc4000 0x4000>;
+        interrupts = <63>;
+        clocks = <&clks IMX5_CLK_I2C2_GATE>;
+    };
+
+  - |
+    #include <dt-bindings/clock/vf610-clock.h>
+
+    i2c@40066000 {
+        compatible = "fsl,vf610-i2c";
+        reg = <0x40066000 0x1000>;
+        interrupts = <71 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clks VF610_CLK_I2C0>;
+        clock-names = "ipg";
+        dmas = <&edma0 0 50>,
+               <&edma0 0 51>;
+        dma-names = "rx", "tx";
+    };

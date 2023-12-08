@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for Seagate Personal Cloud NAS (Armada 370 SoC).
+ *
+ * Copyright (C) 2015 Seagate
+ *
+ * Author: Simon Guinot <simon.guinot@sequanux.org>
+ */
+
+/*
+ * Here are some information allowing to identify the device:
+ *
+ * Product name                 : Seagate Personal Cloud
+ * Code name (board/PCB)        : Cumulus
+ * Model name (case sticker)    : SRN21C
+ * Material desc (product spec) : STCRxxxxxxx
+ */
+
+/dts-v1/;
+#include "armada-370-seagate-personal-cloud.dtsi"
+
+/ {
+	model = "Seagate Personal Cloud (Cumulus, SRN21C)";
+	compatible = "seagate,cumulus", "marvell,armada370", "marvell,armada-370-xp";
+
+	soc {
+		internal-regs {
+			sata@a0000 {
+				status = "okay";
+				nr-ports = <1>;
+			};
+		};
+	};
+};

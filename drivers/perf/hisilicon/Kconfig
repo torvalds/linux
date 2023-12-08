@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HISI_PMU
+	tristate "HiSilicon SoC PMU drivers"
+	depends on ARM64 && ACPI
+	  help
+	  Support for HiSilicon SoC L3 Cache performance monitor, Hydra Home
+	  Agent performance monitor and DDR Controller performance monitor.
+
+config HISI_PCIE_PMU
+	tristate "HiSilicon PCIE PERF PMU"
+	depends on PCI && ARM64
+	help
+	  Provide support for HiSilicon PCIe performance monitoring unit (PMU)
+	  RCiEP devices.
+	  Adds the PCIe PMU into perf events system for monitoring latency,
+	  bandwidth etc.
+
+config HNS3_PMU
+	tristate "HNS3 PERF PMU"
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI
+	help
+	  Provide support for HNS3 performance monitoring unit (PMU) RCiEP
+	  devices.
+	  Adds the HNS3 PMU into perf events system for monitoring latency,
+	  bandwidth etc.

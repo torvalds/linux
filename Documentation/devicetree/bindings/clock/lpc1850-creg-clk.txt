@@ -1,0 +1,52 @@
+* NXP LPC1850 CREG clocks
+
+The NXP LPC18xx/43xx CREG (Configuration Registers) block contains
+control registers for two low speed clocks. One of the clocks is a
+32 kHz oscillator driver with power up/down and clock gating. Next
+is a fixed divider that creates a 1 kHz clock from the 32 kHz osc.
+
+These clocks are used by the RTC and the Event Router peripherials.
+The 32 kHz can also be routed to other peripherials to enable low
+power modes.
+
+This binding uses the common clock binding:
+    Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible:
+	Should be "nxp,lpc1850-creg-clk"
+- #clock-cells:
+	Shall have value <1>.
+- clocks:
+	Shall contain a phandle to the fixed 32 kHz crystal.
+
+The creg-clk node must be a child of the creg syscon node.
+
+The following clocks are available from the clock node.
+
+Clock ID	Name
+   0		 1 kHz clock
+   1		32 kHz Oscillator
+
+Example:
+soc {
+	creg: syscon@40043000 {
+		compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
+		reg = <0x40043000 0x1000>;
+
+		creg_clk: clock-controller {
+			compatible = "nxp,lpc1850-creg-clk";
+			clocks = <&xtal32>;
+			#clock-cells = <1>;
+		};
+
+		...
+	};
+
+	rtc: rtc@40046000 {
+		...
+		clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+		clock-names = "rtc", "reg";
+		...
+	};
+};
