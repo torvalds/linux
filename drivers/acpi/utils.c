@@ -335,12 +335,10 @@ acpi_evaluate_reference(acpi_handle handle,
 			struct acpi_object_list *arguments,
 			struct acpi_handle_list *list)
 {
-	acpi_status status = AE_OK;
-	union acpi_object *package = NULL;
-	union acpi_object *element = NULL;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	u32 i = 0;
-
+	union acpi_object *package;
+	acpi_status status;
+	u32 i;
 
 	if (!list)
 		return AE_BAD_PARAMETER;
@@ -353,45 +351,32 @@ acpi_evaluate_reference(acpi_handle handle,
 
 	package = buffer.pointer;
 
-	if ((buffer.length == 0) || !package) {
+	if (buffer.length == 0 || !package ||
+	    package->type != ACPI_TYPE_PACKAGE || !package->package.count) {
 		status = AE_BAD_DATA;
-		acpi_util_eval_error(handle, pathname, status);
-		goto end;
-	}
-	if (package->type != ACPI_TYPE_PACKAGE) {
-		status = AE_BAD_DATA;
-		acpi_util_eval_error(handle, pathname, status);
-		goto end;
-	}
-	if (!package->package.count) {
-		status = AE_BAD_DATA;
-		acpi_util_eval_error(handle, pathname, status);
-		goto end;
+		goto err;
 	}
 
-	list->handles = kcalloc(package->package.count, sizeof(*list->handles), GFP_KERNEL);
-	if (!list->handles) {
-		kfree(package);
-		return AE_NO_MEMORY;
-	}
 	list->count = package->package.count;
+	list->handles = kcalloc(list->count, sizeof(*list->handles), GFP_KERNEL);
+	if (!list->handles) {
+		status = AE_NO_MEMORY;
+		goto err_clear;
+	}
 
 	/* Extract package data. */
 
 	for (i = 0; i < list->count; i++) {
-
-		element = &(package->package.elements[i]);
+		union acpi_object *element = &(package->package.elements[i]);
 
 		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
 			status = AE_BAD_DATA;
-			acpi_util_eval_error(handle, pathname, status);
-			break;
+			goto err_free;
 		}
 
 		if (!element->reference.handle) {
 			status = AE_NULL_ENTRY;
-			acpi_util_eval_error(handle, pathname, status);
-			break;
+			goto err_free;
 		}
 		/* Get the  acpi_handle. */
 
@@ -399,16 +384,21 @@ acpi_evaluate_reference(acpi_handle handle,
 		acpi_handle_debug(list->handles[i], "Found in reference list\n");
 	}
 
-	if (ACPI_FAILURE(status)) {
-		list->count = 0;
-		kfree(list->handles);
-		list->handles = NULL;
-	}
-
 end:
 	kfree(buffer.pointer);
 
 	return status;
+
+err_free:
+	kfree(list->handles);
+	list->handles = NULL;
+
+err_clear:
+	list->count = 0;
+
+err:
+	acpi_util_eval_error(handle, pathname, status);
+	goto end;
 }
 
 EXPORT_SYMBOL(acpi_evaluate_reference);
