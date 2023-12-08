@@ -34,7 +34,7 @@ static inline unsigned long btree_iter_ip_allocated(struct btree_iter *iter)
 #endif
 }
 
-static struct btree_path *btree_path_alloc(struct btree_trans *, struct btree_path *);
+static btree_path_idx_t btree_path_alloc(struct btree_trans *, btree_path_idx_t);
 static void bch2_trans_srcu_lock(struct btree_trans *);
 
 static inline int __btree_path_cmp(const struct btree_path *l,
@@ -1200,13 +1200,13 @@ static inline void btree_path_copy(struct btree_trans *trans, struct btree_path 
 	}
 }
 
-static struct btree_path *btree_path_clone(struct btree_trans *trans, struct btree_path *src,
-					   bool intent)
+static btree_path_idx_t btree_path_clone(struct btree_trans *trans, btree_path_idx_t src,
+					 bool intent)
 {
-	struct btree_path *new = btree_path_alloc(trans, src);
+	btree_path_idx_t new = btree_path_alloc(trans, src);
 
-	btree_path_copy(trans, new, src);
-	__btree_path_get(new, intent);
+	btree_path_copy(trans, trans->paths + new, trans->paths + src);
+	__btree_path_get(trans->paths + new, intent);
 	return new;
 }
 
@@ -1215,7 +1215,7 @@ btree_path_idx_t __bch2_btree_path_make_mut(struct btree_trans *trans,
 			btree_path_idx_t path, bool intent, unsigned long ip)
 {
 	__btree_path_put(trans->paths + path, intent);
-	path = btree_path_clone(trans, trans->paths + path, intent)->idx;
+	path = btree_path_clone(trans, path, intent);
 	trans->paths[path].preserve = false;
 	return path;
 }
@@ -1517,11 +1517,10 @@ static noinline void btree_path_overflow(struct btree_trans *trans)
 	panic("trans path overflow\n");
 }
 
-static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
-						  struct btree_path *pos)
+static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
+						btree_path_idx_t pos)
 {
-	struct btree_path *path;
-	size_t idx = find_first_zero_bit(trans->paths_allocated, BTREE_ITER_MAX);
+	btree_path_idx_t idx = find_first_zero_bit(trans->paths_allocated, BTREE_ITER_MAX);
 
 	if (unlikely(idx == BTREE_ITER_MAX))
 		btree_path_overflow(trans);
@@ -1537,15 +1536,15 @@ static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
 
 	__set_bit(idx, trans->paths_allocated);
 
-	path = &trans->paths[idx];
+	struct btree_path *path = &trans->paths[idx];
 	path->idx		= idx;
 	path->ref		= 0;
 	path->intent_ref	= 0;
 	path->nodes_locked	= 0;
 
-	btree_path_list_add(trans, pos, path);
+	btree_path_list_add(trans, pos ? trans->paths + pos : NULL, path);
 	trans->paths_sorted = false;
-	return path;
+	return idx;
 }
 
 btree_path_idx_t bch2_path_get(struct btree_trans *trans,
@@ -1553,10 +1552,10 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 			     unsigned locks_want, unsigned level,
 			     unsigned flags, unsigned long ip)
 {
-	struct btree_path *path, *path_pos = NULL;
+	struct btree_path *path;
 	bool cached = flags & BTREE_ITER_CACHED;
 	bool intent = flags & BTREE_ITER_INTENT;
-	int i;
+	btree_path_idx_t i, path_pos = 0;
 
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_trans_verify_locks(trans);
@@ -1571,18 +1570,18 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 				     level) > 0)
 			break;
 
-		path_pos = path;
+		path_pos = path->idx;
 	}
 
 	if (path_pos &&
-	    path_pos->cached	== cached &&
-	    path_pos->btree_id	== btree_id &&
-	    path_pos->level	== level) {
-		__btree_path_get(path_pos, intent);
-		path = trans->paths + bch2_btree_path_set_pos(trans, path_pos->idx, pos, intent, ip);
+	    trans->paths[path_pos].cached	== cached &&
+	    trans->paths[path_pos].btree_id	== btree_id &&
+	    trans->paths[path_pos].level	== level) {
+		__btree_path_get(trans->paths + path_pos, intent);
+		path = trans->paths + bch2_btree_path_set_pos(trans,
+						path_pos, pos, intent, ip);
 	} else {
-		path = btree_path_alloc(trans, path_pos);
-		path_pos = NULL;
+		path = trans->paths + btree_path_alloc(trans, path_pos);
 
 		__btree_path_get(path, intent);
 		path->pos			= pos;
@@ -2295,7 +2294,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 					if (saved_path)
 						bch2_path_put_nokeep(trans, saved_path->idx,
 						      iter->flags & BTREE_ITER_INTENT);
-					saved_path = btree_path_clone(trans, iter->path,
+					saved_path = trans->paths + btree_path_clone(trans, iter->path->idx,
 								iter->flags & BTREE_ITER_INTENT);
 					saved_k = *k.k;
 					saved_v = k.v;
