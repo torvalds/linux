@@ -12,14 +12,24 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/printk.h>
+#include <linux/cpu.h>
+#include <linux/spinlock.h>
+#include <linux/percpu-defs.h>
+#include <linux/mutex.h>
 #include <asm/msr-index.h>
 #include <asm/msr.h>
 #include <asm/cpufeature.h>
 #include <asm/tdx.h>
+#include "tdx.h"
 
 static u32 tdx_global_keyid __ro_after_init;
 static u32 tdx_guest_keyid_start __ro_after_init;
 static u32 tdx_nr_guest_keyids __ro_after_init;
+
+static DEFINE_PER_CPU(bool, tdx_lp_initialized);
+
+static enum tdx_module_status_t tdx_module_status;
+static DEFINE_MUTEX(tdx_module_lock);
 
 typedef void (*sc_err_func_t)(u64 fn, u64 err, struct tdx_module_args *args);
 
@@ -64,6 +74,163 @@ static inline int sc_retry_prerr(sc_func_t func, sc_err_func_t err_func,
 
 #define seamcall_prerr_ret(__fn, __args)					\
 	sc_retry_prerr(__seamcall_ret, seamcall_err_ret, (__fn), (__args))
+
+/*
+ * Do the module global initialization once and return its result.
+ * It can be done on any cpu.  It's always called with interrupts
+ * disabled.
+ */
+static int try_init_module_global(void)
+{
+	struct tdx_module_args args = {};
+	static DEFINE_RAW_SPINLOCK(sysinit_lock);
+	static bool sysinit_done;
+	static int sysinit_ret;
+
+	lockdep_assert_irqs_disabled();
+
+	raw_spin_lock(&sysinit_lock);
+
+	if (sysinit_done)
+		goto out;
+
+	/* RCX is module attributes and all bits are reserved */
+	args.rcx = 0;
+	sysinit_ret = seamcall_prerr(TDH_SYS_INIT, &args);
+
+	/*
+	 * The first SEAMCALL also detects the TDX module, thus
+	 * it can fail due to the TDX module is not loaded.
+	 * Dump message to let the user know.
+	 */
+	if (sysinit_ret == -ENODEV)
+		pr_err("module not loaded\n");
+
+	sysinit_done = true;
+out:
+	raw_spin_unlock(&sysinit_lock);
+	return sysinit_ret;
+}
+
+/**
+ * tdx_cpu_enable - Enable TDX on local cpu
+ *
+ * Do one-time TDX module per-cpu initialization SEAMCALL (and TDX module
+ * global initialization SEAMCALL if not done) on local cpu to make this
+ * cpu be ready to run any other SEAMCALLs.
+ *
+ * Always call this function via IPI function calls.
+ *
+ * Return 0 on success, otherwise errors.
+ */
+int tdx_cpu_enable(void)
+{
+	struct tdx_module_args args = {};
+	int ret;
+
+	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
+		return -ENODEV;
+
+	lockdep_assert_irqs_disabled();
+
+	if (__this_cpu_read(tdx_lp_initialized))
+		return 0;
+
+	/*
+	 * The TDX module global initialization is the very first step
+	 * to enable TDX.  Need to do it first (if hasn't been done)
+	 * before the per-cpu initialization.
+	 */
+	ret = try_init_module_global();
+	if (ret)
+		return ret;
+
+	ret = seamcall_prerr(TDH_SYS_LP_INIT, &args);
+	if (ret)
+		return ret;
+
+	__this_cpu_write(tdx_lp_initialized, true);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tdx_cpu_enable);
+
+static int init_tdx_module(void)
+{
+	/*
+	 * TODO:
+	 *
+	 *  - Build the list of TDX-usable memory regions.
+	 *  - Get TDX module "TD Memory Region" (TDMR) global metadata.
+	 *  - Construct a list of TDMRs to cover all TDX-usable memory
+	 *    regions.
+	 *  - Configure the TDMRs and the global KeyID to the TDX module.
+	 *  - Configure the global KeyID on all packages.
+	 *  - Initialize all TDMRs.
+	 *
+	 *  Return error before all steps are done.
+	 */
+	return -EINVAL;
+}
+
+static int __tdx_enable(void)
+{
+	int ret;
+
+	ret = init_tdx_module();
+	if (ret) {
+		pr_err("module initialization failed (%d)\n", ret);
+		tdx_module_status = TDX_MODULE_ERROR;
+		return ret;
+	}
+
+	pr_info("module initialized\n");
+	tdx_module_status = TDX_MODULE_INITIALIZED;
+
+	return 0;
+}
+
+/**
+ * tdx_enable - Enable TDX module to make it ready to run TDX guests
+ *
+ * This function assumes the caller has: 1) held read lock of CPU hotplug
+ * lock to prevent any new cpu from becoming online; 2) done both VMXON
+ * and tdx_cpu_enable() on all online cpus.
+ *
+ * This function can be called in parallel by multiple callers.
+ *
+ * Return 0 if TDX is enabled successfully, otherwise error.
+ */
+int tdx_enable(void)
+{
+	int ret;
+
+	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
+		return -ENODEV;
+
+	lockdep_assert_cpus_held();
+
+	mutex_lock(&tdx_module_lock);
+
+	switch (tdx_module_status) {
+	case TDX_MODULE_UNINITIALIZED:
+		ret = __tdx_enable();
+		break;
+	case TDX_MODULE_INITIALIZED:
+		/* Already initialized, great, tell the caller. */
+		ret = 0;
+		break;
+	default:
+		/* Failed to initialize in the previous attempts */
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&tdx_module_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(tdx_enable);
 
 static __init int record_keyid_partitioning(u32 *tdx_keyid_start,
 					    u32 *nr_tdx_keyids)
