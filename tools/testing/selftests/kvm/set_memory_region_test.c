@@ -157,17 +157,17 @@ static void guest_code_move_memory_region(void)
 	 */
 	val = guest_spin_on_val(0);
 	__GUEST_ASSERT(val == 1 || val == MMIO_VAL,
-		       "Expected '1' or MMIO ('%llx'), got '%llx'", MMIO_VAL, val);
+		       "Expected '1' or MMIO ('%lx'), got '%lx'", MMIO_VAL, val);
 
 	/* Spin until the misaligning memory region move completes. */
 	val = guest_spin_on_val(MMIO_VAL);
 	__GUEST_ASSERT(val == 1 || val == 0,
-		       "Expected '0' or '1' (no MMIO), got '%llx'", val);
+		       "Expected '0' or '1' (no MMIO), got '%lx'", val);
 
 	/* Spin until the memory region starts to get re-aligned. */
 	val = guest_spin_on_val(0);
 	__GUEST_ASSERT(val == 1 || val == MMIO_VAL,
-		       "Expected '1' or MMIO ('%llx'), got '%llx'", MMIO_VAL, val);
+		       "Expected '1' or MMIO ('%lx'), got '%lx'", MMIO_VAL, val);
 
 	/* Spin until the re-aligning memory region move completes. */
 	val = guest_spin_on_val(MMIO_VAL);

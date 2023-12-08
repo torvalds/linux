@@ -25,7 +25,7 @@ do {											\
 											\
 	__GUEST_ASSERT((__supported & (xfeatures)) != (xfeatures) ||			\
 		       __supported == ((xfeatures) | (dependencies)),			\
-		       "supported = 0x%llx, xfeatures = 0x%llx, dependencies = 0x%llx",	\
+		       "supported = 0x%lx, xfeatures = 0x%llx, dependencies = 0x%llx",	\
 		       __supported, (xfeatures), (dependencies));			\
 } while (0)
 
@@ -42,7 +42,7 @@ do {									\
 	uint64_t __supported = (supported_xcr0) & (xfeatures);		\
 									\
 	__GUEST_ASSERT(!__supported || __supported == (xfeatures),	\
-		       "supported = 0x%llx, xfeatures = 0x%llx",	\
+		       "supported = 0x%lx, xfeatures = 0x%llx",		\
 		       __supported, (xfeatures));			\
 } while (0)
 
@@ -81,7 +81,7 @@ static void guest_code(void)
 
 	vector = xsetbv_safe(0, supported_xcr0);
 	__GUEST_ASSERT(!vector,
-		       "Expected success on XSETBV(0x%llx), got vector '0x%x'",
+		       "Expected success on XSETBV(0x%lx), got vector '0x%x'",
 		       supported_xcr0, vector);
 
 	for (i = 0; i < 64; i++) {
@@ -90,7 +90,7 @@ static void guest_code(void)
 
 		vector = xsetbv_safe(0, supported_xcr0 | BIT_ULL(i));
 		__GUEST_ASSERT(vector == GP_VECTOR,
-			       "Expected #GP on XSETBV(0x%llx), supported XCR0 = %llx, got vector '0x%x'",
+			       "Expected #GP on XSETBV(0x%llx), supported XCR0 = %lx, got vector '0x%x'",
 			       BIT_ULL(i), supported_xcr0, vector);
 	}
 

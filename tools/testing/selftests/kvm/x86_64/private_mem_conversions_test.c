@@ -35,7 +35,7 @@ do {												\
 												\
 	for (i = 0; i < size; i++)								\
 		__GUEST_ASSERT(mem[i] == pattern,						\
-			       "Guest expected 0x%x at offset %lu (gpa 0x%llx), got 0x%x",	\
+			       "Guest expected 0x%x at offset %lu (gpa 0x%lx), got 0x%x",	\
 			       pattern, i, gpa + i, mem[i]);					\
 } while (0)
 
