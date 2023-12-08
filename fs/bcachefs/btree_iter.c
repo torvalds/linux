@@ -1208,13 +1208,12 @@ static struct btree_path *btree_path_clone(struct btree_trans *trans, struct btr
 }
 
 __flatten
-struct btree_path *__bch2_btree_path_make_mut(struct btree_trans *trans,
-			 struct btree_path *path, bool intent,
-			 unsigned long ip)
+btree_path_idx_t __bch2_btree_path_make_mut(struct btree_trans *trans,
+			btree_path_idx_t path, bool intent, unsigned long ip)
 {
-	__btree_path_put(path, intent);
-	path = btree_path_clone(trans, path, intent);
-	path->preserve = false;
+	__btree_path_put(trans->paths + path, intent);
+	path = btree_path_clone(trans, trans->paths + path, intent)->idx;
+	trans->paths[path].preserve = false;
 	return path;
 }
 
@@ -1228,7 +1227,7 @@ __bch2_btree_path_set_pos(struct btree_trans *trans,
 	bch2_trans_verify_not_in_restart(trans);
 	EBUG_ON(!trans->paths[path_idx].ref);
 
-	path_idx = bch2_btree_path_make_mut(trans, trans->paths + path_idx, intent, ip)->idx;
+	path_idx = bch2_btree_path_make_mut(trans, path_idx, intent, ip);
 
 	struct btree_path *path = trans->paths + path_idx;
 	path->pos		= new_pos;

@@ -34,12 +34,12 @@ static struct btree_path *get_unlocked_mut_path(struct btree_trans *trans,
 						unsigned level,
 						struct bpos pos)
 {
-	struct btree_path *path;
-
-	path = trans->paths + bch2_path_get(trans, btree_id, pos, level + 1, level,
+	btree_path_idx_t path_idx = bch2_path_get(trans, btree_id, pos, level + 1, level,
 			     BTREE_ITER_NOPRESERVE|
 			     BTREE_ITER_INTENT, _RET_IP_);
-	path = bch2_btree_path_make_mut(trans, path, true, _RET_IP_);
+	path_idx = bch2_btree_path_make_mut(trans, path_idx, true, _RET_IP_);
+
+	struct btree_path *path = trans->paths + path_idx;
 	bch2_btree_path_downgrade(trans, path);
 	__bch2_btree_path_unlock(trans, path);
 	return path;
@@ -2167,7 +2167,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	if (parent) {
 		bch2_trans_copy_iter(&iter2, iter);
 
-		iter2.path = bch2_btree_path_make_mut(trans, iter2.path,
+		iter2.path = trans->paths + bch2_btree_path_make_mut(trans, iter2.path->idx,
 				iter2.flags & BTREE_ITER_INTENT,
 				_THIS_IP_);
 

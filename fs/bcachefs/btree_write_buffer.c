@@ -140,7 +140,7 @@ static inline int wb_flush_one(struct btree_trans *trans, struct btree_iter *ite
 	 * set_pos and traverse():
 	 */
 	if (iter->path->ref > 1)
-		iter->path = __bch2_btree_path_make_mut(trans, iter->path, true, _THIS_IP_);
+		iter->path = trans->paths + __bch2_btree_path_make_mut(trans, iter->path->idx, true, _THIS_IP_);
 
 	path = iter->path;
 
