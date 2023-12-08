@@ -25,11 +25,9 @@ acpi_status
 acpi_evaluate_integer(acpi_handle handle,
 		      acpi_string pathname,
 		      struct acpi_object_list *arguments, unsigned long long *data);
-acpi_status
-acpi_evaluate_reference(acpi_handle handle,
-			acpi_string pathname,
-			struct acpi_object_list *arguments,
-			struct acpi_handle_list *list);
+bool acpi_evaluate_reference(acpi_handle handle, acpi_string pathname,
+			     struct acpi_object_list *arguments,
+			     struct acpi_handle_list *list);
 bool acpi_handle_list_equal(struct acpi_handle_list *list1,
 			    struct acpi_handle_list *list2);
 void acpi_handle_list_replace(struct acpi_handle_list *dst,

@@ -329,19 +329,18 @@ const char *acpi_get_subsystem_id(acpi_handle handle)
 }
 EXPORT_SYMBOL_GPL(acpi_get_subsystem_id);
 
-acpi_status
-acpi_evaluate_reference(acpi_handle handle,
-			acpi_string pathname,
-			struct acpi_object_list *arguments,
-			struct acpi_handle_list *list)
+bool acpi_evaluate_reference(acpi_handle handle, acpi_string pathname,
+			     struct acpi_object_list *arguments,
+			     struct acpi_handle_list *list)
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package;
 	acpi_status status;
+	bool ret = false;
 	u32 i;
 
 	if (!list)
-		return AE_BAD_PARAMETER;
+		return false;
 
 	/* Evaluate object. */
 
@@ -352,42 +351,35 @@ acpi_evaluate_reference(acpi_handle handle,
 	package = buffer.pointer;
 
 	if (buffer.length == 0 || !package ||
-	    package->type != ACPI_TYPE_PACKAGE || !package->package.count) {
-		status = AE_BAD_DATA;
+	    package->type != ACPI_TYPE_PACKAGE || !package->package.count)
 		goto err;
-	}
 
 	list->count = package->package.count;
 	list->handles = kcalloc(list->count, sizeof(*list->handles), GFP_KERNEL);
-	if (!list->handles) {
-		status = AE_NO_MEMORY;
+	if (!list->handles)
 		goto err_clear;
-	}
 
 	/* Extract package data. */
 
 	for (i = 0; i < list->count; i++) {
 		union acpi_object *element = &(package->package.elements[i]);
 
-		if (element->type != ACPI_TYPE_LOCAL_REFERENCE) {
-			status = AE_BAD_DATA;
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE ||
+		    !element->reference.handle)
 			goto err_free;
-		}
 
-		if (!element->reference.handle) {
-			status = AE_NULL_ENTRY;
-			goto err_free;
-		}
 		/* Get the  acpi_handle. */
 
 		list->handles[i] = element->reference.handle;
 		acpi_handle_debug(list->handles[i], "Found in reference list\n");
 	}
 
+	ret = true;
+
 end:
 	kfree(buffer.pointer);
 
-	return status;
+	return ret;
 
 err_free:
 	kfree(list->handles);
