@@ -19,7 +19,6 @@
  */
 
 struct rt_dot11d_info {
-	u8  channel_map[MAX_CHANNEL_NUMBER + 1];
 };
 
 #define GET_DOT11D_INFO(__ieee_dev)			\
