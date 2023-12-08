@@ -794,5 +794,5 @@ static int AST1700_clk_init(struct device_node *ast1700_node)
 	return 0;
 };
 
-CLK_OF_DECLARE(ast1700, "aspeed,ast2700-scu", AST1700_clk_init);
+CLK_OF_DECLARE_DRIVER(ast1700, "aspeed,ast1700-scu", AST1700_clk_init);
 
