@@ -9,6 +9,14 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff160000 console=ttyFIQ0 init=/init kpti=0";
 	};
 
+	debug: debug@ff690000 {
+		compatible = "rockchip,debug";
+		reg = <0x0 0xff690000 0x0 0x1000>,
+		      <0x0 0xff692000 0x0 0x1000>,
+		      <0x0 0xff694000 0x0 0x1000>,
+		      <0x0 0xff696000 0x0 0x1000>;
+	};
+
 	fiq-debugger {
 		compatible = "rockchip,fiq-debugger";
 		rockchip,serial-id = <2>;
