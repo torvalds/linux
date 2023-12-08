@@ -17,6 +17,7 @@
  * required by the setup for Chrome boards.
  */
 
+/delete-node/ &cdsp_mem;
 /delete-node/ &gpu_zap_mem;
 /delete-node/ &gpu_zap_shader;
 /delete-node/ &hyp_mem;
@@ -89,6 +90,11 @@
 		spi-tx-bus-width = <2>;
 		spi-rx-bus-width = <2>;
 	};
+};
+
+/* Currently not used */
+&remoteproc_cdsp {
+	/delete-property/ memory-region;
 };
 
 &remoteproc_wpss {
