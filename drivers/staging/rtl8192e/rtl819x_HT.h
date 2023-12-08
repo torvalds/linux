@@ -138,7 +138,7 @@ struct rt_hi_throughput {
 	u8 rx_reorder_win_size;
 	u8 rx_reorder_pending_time;
 	u16 rx_reorder_drop_counter;
-	u8 IOTPeer;
+	u8 iot_peer;
 	u32 iot_action;
 	u8 iot_ra_func;
 } __packed;

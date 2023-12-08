@@ -170,41 +170,41 @@ static void ht_iot_peer_determine(struct rtllib_device *ieee)
 	struct rtllib_network *net = &ieee->current_network;
 
 	if (net->bssht.bd_rt2rt_aggregation) {
-		ht_info->IOTPeer = HT_IOT_PEER_REALTEK;
+		ht_info->iot_peer = HT_IOT_PEER_REALTEK;
 		if (net->bssht.rt2rt_ht_mode & RT_HT_CAP_USE_92SE)
-			ht_info->IOTPeer = HT_IOT_PEER_REALTEK_92SE;
+			ht_info->iot_peer = HT_IOT_PEER_REALTEK_92SE;
 		if (net->bssht.rt2rt_ht_mode & RT_HT_CAP_USE_SOFTAP)
-			ht_info->IOTPeer = HT_IOT_PEER_92U_SOFTAP;
+			ht_info->iot_peer = HT_IOT_PEER_92U_SOFTAP;
 	} else if (net->broadcom_cap_exist) {
-		ht_info->IOTPeer = HT_IOT_PEER_BROADCOM;
+		ht_info->iot_peer = HT_IOT_PEER_BROADCOM;
 	} else if (!memcmp(net->bssid, UNKNOWN_BORADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3) ||
 		 !memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)) {
-		ht_info->IOTPeer = HT_IOT_PEER_BROADCOM;
+		ht_info->iot_peer = HT_IOT_PEER_BROADCOM;
 	} else if ((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, PCI_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, EDIMAX_RALINK, 3) == 0) ||
 		 (memcmp(net->bssid, AIRLINK_RALINK, 3) == 0) ||
 		  net->ralink_cap_exist) {
-		ht_info->IOTPeer = HT_IOT_PEER_RALINK;
+		ht_info->iot_peer = HT_IOT_PEER_RALINK;
 	} else if ((net->atheros_cap_exist) ||
 		(memcmp(net->bssid, DLINK_ATHEROS_1, 3) == 0) ||
 		(memcmp(net->bssid, DLINK_ATHEROS_2, 3) == 0)) {
-		ht_info->IOTPeer = HT_IOT_PEER_ATHEROS;
+		ht_info->iot_peer = HT_IOT_PEER_ATHEROS;
 	} else if ((memcmp(net->bssid, CISCO_BROADCOM, 3) == 0) ||
 		  net->cisco_cap_exist) {
-		ht_info->IOTPeer = HT_IOT_PEER_CISCO;
+		ht_info->iot_peer = HT_IOT_PEER_CISCO;
 	} else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
 		  net->marvell_cap_exist) {
-		ht_info->IOTPeer = HT_IOT_PEER_MARVELL;
+		ht_info->iot_peer = HT_IOT_PEER_MARVELL;
 	} else if (net->airgo_cap_exist) {
-		ht_info->IOTPeer = HT_IOT_PEER_AIRGO;
+		ht_info->iot_peer = HT_IOT_PEER_AIRGO;
 	} else {
-		ht_info->IOTPeer = HT_IOT_PEER_UNKNOWN;
+		ht_info->iot_peer = HT_IOT_PEER_UNKNOWN;
 	}
 
-	netdev_dbg(ieee->dev, "IOTPEER: %x\n", ht_info->IOTPeer);
+	netdev_dbg(ieee->dev, "IOTPEER: %x\n", ht_info->iot_peer);
 }
 
 static u8 ht_iot_act_is_mgnt_use_cck_6m(struct rtllib_device *ieee,
@@ -212,7 +212,7 @@ static u8 ht_iot_act_is_mgnt_use_cck_6m(struct rtllib_device *ieee,
 {
 	u8	retValue = 0;
 
-	if (ieee->ht_info->IOTPeer == HT_IOT_PEER_BROADCOM)
+	if (ieee->ht_info->iot_peer == HT_IOT_PEER_BROADCOM)
 		retValue = 1;
 
 	return retValue;
@@ -222,7 +222,7 @@ static u8 ht_iot_act_is_ccd_fsync(struct rtllib_device *ieee)
 {
 	u8	retValue = 0;
 
-	if (ieee->ht_info->IOTPeer == HT_IOT_PEER_BROADCOM)
+	if (ieee->ht_info->iot_peer == HT_IOT_PEER_BROADCOM)
 		retValue = 1;
 	return retValue;
 }
@@ -233,7 +233,7 @@ static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 
 	ht_info->iot_ra_func &= HT_IOT_RAFUNC_DISABLE_ALL;
 
-	if (ht_info->IOTPeer == HT_IOT_PEER_RALINK && !bPeerRx2ss)
+	if (ht_info->iot_peer == HT_IOT_PEER_RALINK && !bPeerRx2ss)
 		ht_info->iot_ra_func |= HT_IOT_RAFUNC_PEER_1R;
 
 	if (ht_info->iot_action & HT_IOT_ACT_AMSDU_ENABLE)
@@ -243,7 +243,7 @@ static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 void HTResetIOTSetting(struct rt_hi_throughput *ht_info)
 {
 	ht_info->iot_action = 0;
-	ht_info->IOTPeer = HT_IOT_PEER_UNKNOWN;
+	ht_info->iot_peer = HT_IOT_PEER_UNKNOWN;
 	ht_info->iot_ra_func = 0;
 }
 
@@ -501,8 +501,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	ht_info->current_ampdu_enable = ht_info->ampdu_enable;
 	if (ieee->rtllib_ap_sec_type &&
 	    (ieee->rtllib_ap_sec_type(ieee) & (SEC_ALG_WEP | SEC_ALG_TKIP))) {
-		if ((ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) ||
-		    (ht_info->IOTPeer == HT_IOT_PEER_UNKNOWN))
+		if ((ht_info->iot_peer == HT_IOT_PEER_ATHEROS) ||
+		    (ht_info->iot_peer == HT_IOT_PEER_UNKNOWN))
 			ht_info->current_ampdu_enable = false;
 	}
 
@@ -590,7 +590,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	ht_info->current_rt2rt_long_slot_time = false;
 	ht_info->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
-	ht_info->IOTPeer = 0;
+	ht_info->iot_peer = 0;
 	ht_info->iot_action = 0;
 	ht_info->iot_ra_func = 0;
 
