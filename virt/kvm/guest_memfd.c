@@ -300,9 +300,7 @@ static int kvm_gmem_error_page(struct address_space *mapping, struct page *page)
 
 static const struct address_space_operations kvm_gmem_aops = {
 	.dirty_folio = noop_dirty_folio,
-#ifdef CONFIG_MIGRATION
 	.migrate_folio	= kvm_gmem_migrate_folio,
-#endif
 	.error_remove_page = kvm_gmem_error_page,
 };
 
