@@ -1562,7 +1562,7 @@ static void complete_vfork_done(struct task_struct *tsk)
 static int wait_for_vfork_done(struct task_struct *child,
 				struct completion *vfork)
 {
-	unsigned int state = TASK_UNINTERRUPTIBLE|TASK_KILLABLE|TASK_FREEZABLE;
+	unsigned int state = TASK_KILLABLE|TASK_FREEZABLE;
 	int killed;
 
 	cgroup_enter_frozen();
