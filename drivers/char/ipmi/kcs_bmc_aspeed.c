@@ -543,7 +543,7 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	dev_info(dev, "initialised channel %d at IO address 0x%x\n",
+	dev_info(dev, "Initialised channel %d at IO address 0x%x\n",
 		 kcs_bmc->channel, kcs_aspeed->io_addr);
 
 	return 0;
