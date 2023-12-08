@@ -102,6 +102,9 @@ enum {
 #define TMRLUT_HW_CGC_EN	BIT(6)
 #define OCSC_HW_CGC_EN		BIT(7)
 
+/* bit definitions for REG_UFS_CFG3 register */
+#define ESI_VEC_MASK		GENMASK(22, 12)
+
 /* bit definitions for REG_UFS_PARAM0 */
 #define MAX_HS_GEAR_MASK	GENMASK(6, 4)
 #define UFS_QCOM_MAX_GEAR(x)	FIELD_GET(MAX_HS_GEAR_MASK, (x))
