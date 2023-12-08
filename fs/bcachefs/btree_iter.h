@@ -174,16 +174,16 @@ bch2_btree_path_make_mut(struct btree_trans *trans,
 	return path;
 }
 
-struct btree_path * __must_check
-__bch2_btree_path_set_pos(struct btree_trans *, struct btree_path *,
-			struct bpos, bool, unsigned long);
+btree_path_idx_t __must_check
+__bch2_btree_path_set_pos(struct btree_trans *, btree_path_idx_t,
+			  struct bpos, bool, unsigned long);
 
-static inline struct btree_path * __must_check
+static inline btree_path_idx_t __must_check
 bch2_btree_path_set_pos(struct btree_trans *trans,
-		   struct btree_path *path, struct bpos new_pos,
-		   bool intent, unsigned long ip)
+			btree_path_idx_t path, struct bpos new_pos,
+			bool intent, unsigned long ip)
 {
-	return !bpos_eq(new_pos, path->pos)
+	return !bpos_eq(new_pos, trans->paths[path].pos)
 		? __bch2_btree_path_set_pos(trans, path, new_pos, intent, ip)
 		: path;
 }

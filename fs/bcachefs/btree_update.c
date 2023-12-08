@@ -474,8 +474,9 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 					      BTREE_ITER_INTENT|
 					      BTREE_ITER_CACHED, _THIS_IP_);
 
-		iter->key_cache_path =
-			bch2_btree_path_set_pos(trans, iter->key_cache_path, path->pos,
+		iter->key_cache_path = trans->paths +
+			bch2_btree_path_set_pos(trans, iter->key_cache_path->idx, path->pos,
+
 						iter->flags & BTREE_ITER_INTENT,
 						_THIS_IP_);
 
