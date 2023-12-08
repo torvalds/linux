@@ -16,6 +16,7 @@ struct efivarfs_mount_opts {
 
 struct efivarfs_fs_info {
 	struct efivarfs_mount_opts mount_opts;
+	struct list_head efivarfs_list;
 };
 
 struct efi_variable {
@@ -33,7 +34,8 @@ struct efivar_entry {
 	struct kobject kobj;
 };
 
-int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
+int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
+			    struct list_head *),
 		void *data, bool duplicates, struct list_head *head);
 
 int efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
@@ -63,7 +65,5 @@ extern bool efivarfs_valid_name(const char *str, int len);
 extern struct inode *efivarfs_get_inode(struct super_block *sb,
 			const struct inode *dir, int mode, dev_t dev,
 			bool is_removable);
-
-extern struct list_head efivarfs_list;
 
 #endif /* EFIVAR_FS_INTERNAL_H */
