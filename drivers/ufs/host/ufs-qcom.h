@@ -10,21 +10,15 @@
 #include <soc/qcom/ice.h>
 #include <ufs/ufshcd.h>
 
-#define MAX_U32                 (~(u32)0)
 #define MPHY_TX_FSM_STATE       0x41
 #define TX_FSM_HIBERN8          0x1
 #define HBRN8_POLL_TOUT_MS      100
 #define DEFAULT_CLK_RATE_HZ     1000000
-#define BUS_VECTOR_NAME_LEN     32
 #define MAX_SUPP_MAC		64
 
 #define UFS_HW_VER_MAJOR_MASK	GENMASK(31, 28)
 #define UFS_HW_VER_MINOR_MASK	GENMASK(27, 16)
 #define UFS_HW_VER_STEP_MASK	GENMASK(15, 0)
-
-/* vendor specific pre-defined parameters */
-#define SLOW 1
-#define FAST 2
 
 #define UFS_QCOM_LIMIT_HS_RATE		PA_HS_MODE_B
 
