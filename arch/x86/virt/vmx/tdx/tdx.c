@@ -27,6 +27,7 @@
 #include <linux/log2.h>
 #include <linux/acpi.h>
 #include <linux/suspend.h>
+#include <linux/acpi.h>
 #include <asm/page.h>
 #include <asm/special_insns.h>
 #include <asm/msr-index.h>
@@ -35,6 +36,7 @@
 #include <asm/tdx.h>
 #include <asm/intel-family.h>
 #include <asm/processor.h>
+#include <asm/mce.h>
 #include "tdx.h"
 
 static u32 tdx_global_keyid __ro_after_init;
@@ -942,6 +944,13 @@ static int construct_tdmrs(struct list_head *tmb_list,
 	if (ret)
 		tdmrs_free_pamt_all(tdmr_list);
 
+	/*
+	 * The tdmr_info_list is read-only from here on out.
+	 * Ensure that these writes are seen by other CPUs.
+	 * Pairs with a smp_rmb() in is_pamt_page().
+	 */
+	smp_wmb();
+
 	return ret;
 }
 
@@ -1234,6 +1243,106 @@ int tdx_enable(void)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tdx_enable);
+
+static bool is_pamt_page(unsigned long phys)
+{
+	struct tdmr_info_list *tdmr_list = &tdx_tdmr_list;
+	int i;
+
+	/* Ensure that all remote 'tdmr_list' writes are visible: */
+	smp_rmb();
+
+	/*
+	 * The TDX module is no longer returning TDX_SYS_NOT_READY and
+	 * is initialized.  The 'tdmr_list' was initialized long ago
+	 * and is now read-only.
+	 */
+	for (i = 0; i < tdmr_list->nr_consumed_tdmrs; i++) {
+		unsigned long base, size;
+
+		tdmr_get_pamt(tdmr_entry(tdmr_list, i), &base, &size);
+
+		if (phys >= base && phys < (base + size))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * Return whether the memory page at the given physical address is TDX
+ * private memory or not.
+ *
+ * This can be imprecise for two known reasons:
+ * 1. PAMTs are private memory and exist before the TDX module is
+ *    ready and TDH_PHYMEM_PAGE_RDMD works.  This is a relatively
+ *    short window that occurs once per boot.
+ * 2. TDH_PHYMEM_PAGE_RDMD reflects the TDX module's knowledge of the
+ *    page.  However, the page can still cause #MC until it has been
+ *    fully converted to shared using 64-byte writes like MOVDIR64B.
+ *    Buggy hosts might still leave #MC-causing memory in place which
+ *    this function can not detect.
+ */
+static bool paddr_is_tdx_private(unsigned long phys)
+{
+	struct tdx_module_args args = {
+		.rcx = phys & PAGE_MASK,
+	};
+	u64 sret;
+
+	if (!boot_cpu_has(X86_FEATURE_TDX_HOST_PLATFORM))
+		return false;
+
+	/* Get page type from the TDX module */
+	sret = __seamcall_ret(TDH_PHYMEM_PAGE_RDMD, &args);
+
+	/*
+	 * The SEAMCALL will not return success unless there is a
+	 * working, "ready" TDX module.  Assume an absence of TDX
+	 * private pages until SEAMCALL is working.
+	 */
+	if (sret)
+		return false;
+
+	/*
+	 * SEAMCALL was successful -- read page type (via RCX):
+	 *
+	 *  - PT_NDA:	Page is not used by the TDX module
+	 *  - PT_RSVD:	Reserved for Non-TDX use
+	 *  - Others:	Page is used by the TDX module
+	 *
+	 * Note PAMT pages are marked as PT_RSVD but they are also TDX
+	 * private memory.
+	 */
+	switch (args.rcx) {
+	case PT_NDA:
+		return false;
+	case PT_RSVD:
+		return is_pamt_page(phys);
+	default:
+		return true;
+	}
+}
+
+/*
+ * Some TDX-capable CPUs have an erratum.  A write to TDX private
+ * memory poisons that memory, and a subsequent read of that memory
+ * triggers #MC.
+ *
+ * Help distinguish erratum-triggered #MCs from a normal hardware one.
+ * Just print additional message to show such #MC may be result of the
+ * erratum.
+ */
+const char *tdx_dump_mce_info(struct mce *m)
+{
+	if (!m || !mce_is_memory_error(m) || !mce_usable_address(m))
+		return NULL;
+
+	if (!paddr_is_tdx_private(m->addr))
+		return NULL;
+
+	return "TDX private memory error. Possible kernel bug.";
+}
 
 static __init int record_keyid_partitioning(u32 *tdx_keyid_start,
 					    u32 *nr_tdx_keyids)

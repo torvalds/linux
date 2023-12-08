@@ -14,12 +14,17 @@
 /*
  * TDX module SEAMCALL leaf functions
  */
+#define TDH_PHYMEM_PAGE_RDMD	24
 #define TDH_SYS_KEY_CONFIG	31
 #define TDH_SYS_INIT		33
 #define TDH_SYS_RD		34
 #define TDH_SYS_LP_INIT		35
 #define TDH_SYS_TDMR_INIT	36
 #define TDH_SYS_CONFIG		45
+
+/* TDX page types */
+#define	PT_NDA		0x0
+#define	PT_RSVD		0x1
 
 /*
  * Global scope metadata field ID.
