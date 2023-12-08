@@ -87,6 +87,7 @@ struct tdx_memblock {
 	struct list_head list;
 	unsigned long start_pfn;
 	unsigned long end_pfn;
+	int nid;
 };
 
 /* "TDMR info" part of "Global Scope Metadata" for constructing TDMRs */
