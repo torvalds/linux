@@ -109,7 +109,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (!oif && ipv6_addr_is_multicast(daddr))
 		oif = READ_ONCE(np->mcast_oif);
 	else if (!oif)
-		oif = np->ucast_oif;
+		oif = READ_ONCE(np->ucast_oif);
 
 	addr_type = ipv6_addr_type(daddr);
 	if ((__ipv6_addr_needs_scope_id(addr_type) && !oif) ||
@@ -159,7 +159,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
 		fl6.flowi6_oif = READ_ONCE(np->mcast_oif);
 	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->ucast_oif);
 
 	pfh.icmph.type = user_icmph.icmp6_type;
 	pfh.icmph.code = user_icmph.icmp6_code;

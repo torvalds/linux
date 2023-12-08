@@ -537,6 +537,31 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		}
 		WRITE_ONCE(np->mcast_oif, val);
 		return 0;
+	case IPV6_UNICAST_IF:
+	{
+		struct net_device *dev;
+		int ifindex;
+
+		if (optlen != sizeof(int))
+			return -EINVAL;
+
+		ifindex = (__force int)ntohl((__force __be32)val);
+		if (!ifindex) {
+			WRITE_ONCE(np->ucast_oif, 0);
+			return 0;
+		}
+
+		dev = dev_get_by_index(net, ifindex);
+		if (!dev)
+			return -EADDRNOTAVAIL;
+		dev_put(dev);
+
+		if (READ_ONCE(sk->sk_bound_dev_if))
+			return -EINVAL;
+
+		WRITE_ONCE(np->ucast_oif, ifindex);
+		return 0;
+	}
 	}
 	if (needs_rtnl)
 		rtnl_lock();
@@ -854,37 +879,6 @@ done:
 			atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
 			txopt_put(opt);
 		}
-		break;
-	}
-
-
-	case IPV6_UNICAST_IF:
-	{
-		struct net_device *dev = NULL;
-		int ifindex;
-
-		if (optlen != sizeof(int))
-			goto e_inval;
-
-		ifindex = (__force int)ntohl((__force __be32)val);
-		if (ifindex == 0) {
-			np->ucast_oif = 0;
-			retv = 0;
-			break;
-		}
-
-		dev = dev_get_by_index(net, ifindex);
-		retv = -EADDRNOTAVAIL;
-		if (!dev)
-			break;
-		dev_put(dev);
-
-		retv = -EINVAL;
-		if (sk->sk_bound_dev_if)
-			break;
-
-		np->ucast_oif = ifindex;
-		retv = 0;
 		break;
 	}
 
@@ -1369,7 +1363,7 @@ int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_UNICAST_IF:
-		val = (__force int)htonl((__u32) np->ucast_oif);
+		val = (__force int)htonl((__u32) READ_ONCE(np->ucast_oif));
 		break;
 
 	case IPV6_MTU_DISCOVER:

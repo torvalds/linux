@@ -62,7 +62,7 @@ static void ip6_datagram_flow_key_init(struct flowi6 *fl6,
 		if (ipv6_addr_is_multicast(&fl6->daddr))
 			oif = READ_ONCE(np->mcast_oif);
 		else
-			oif = np->ucast_oif;
+			oif = READ_ONCE(np->ucast_oif);
 	}
 
 	fl6->flowi6_oif = oif;
