@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's ExynosAutov920 SADK board device tree source
+ *
+ * Copyright (c) 2023 Samsung Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+#include "exynosautov920.dtsi"
+#include "exynos-pinctrl.h"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Samsung ExynosAutov920 SADK board";
+	compatible = "samsung,exynosautov920-sadk", "samsung,exynosautov920";
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &serial_0;
+	};
+
+	chosen {
+		stdout-path = &serial_0;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_wakeup &key_back>;
+
+		key-wakeup {
+			label = "KEY_WAKEUP";
+			linux,code = <KEY_WAKEUP>;
+			gpios = <&gpa0 0 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		key-back {
+			label = "KEY_BACK";
+			linux,code = <KEY_BACK>;
+			gpios = <&gpp6 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x70000000>,
+		      <0x8 0x80000000 0x1 0xfba00000>,
+		      <0xa 0x00000000 0x2 0x00000000>;
+	};
+};
+
+&pinctrl_alive {
+	key_wakeup: key-wakeup-pins {
+		samsung,pins = "gpa0-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+	};
+};
+
+&pinctrl_peric1 {
+	key_back: key-back-pins {
+		samsung,pins = "gpp6-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+	};
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_tout0>;
+	status = "okay";
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+&usi_0 {
+	samsung,clkreq-on; /* needed for UART mode */
+	status = "okay";
+};
+
+&xtcxo {
+	clock-frequency = <38400000>;
+};
