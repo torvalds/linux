@@ -847,21 +847,6 @@ config FB_I810_I2C
 
 	  If unsure, say Y.
 
-config FB_LE80578
-	tristate "Intel LE80578 (Vermilion) support"
-	depends on FB && PCI && X86
-	select FB_IOMEM_HELPERS
-	select FB_MODE_HELPERS
-	select VIDEO_NOMODESET
-	help
-	  This driver supports the LE80578 (Vermilion Range) chipset
-
-config FB_CARILLO_RANCH
-	tristate "Intel Carillo Ranch support"
-	depends on FB_LE80578 && FB && PCI && X86
-	help
-	  This driver supports the LE80578 (Carillo Ranch) board
-
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support"
 	depends on FB && PCI && X86 && AGP_INTEL && EXPERT
