@@ -1360,6 +1360,11 @@ struct pptable_funcs {
 	 *                       management.
 	 */
 	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @notify_rlc_state: Notify RLC power state to SMU.
+	 */
+	int (*notify_rlc_state)(struct smu_context *smu, bool en);
 };
 
 typedef enum {

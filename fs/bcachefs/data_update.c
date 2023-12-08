@@ -356,7 +356,7 @@ void bch2_data_update_exit(struct data_update *update)
 	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
 }
 
-void bch2_update_unwritten_extent(struct btree_trans *trans,
+static void bch2_update_unwritten_extent(struct btree_trans *trans,
 				  struct data_update *update)
 {
 	struct bch_fs *c = update->op.c;
@@ -436,7 +436,51 @@ void bch2_update_unwritten_extent(struct btree_trans *trans,
 	}
 }
 
+int bch2_extent_drop_ptrs(struct btree_trans *trans,
+			  struct btree_iter *iter,
+			  struct bkey_s_c k,
+			  struct data_update_opts data_opts)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_i *n;
+	int ret;
+
+	n = bch2_bkey_make_mut_noupdate(trans, k);
+	ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	while (data_opts.kill_ptrs) {
+		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);
+		struct bch_extent_ptr *ptr;
+
+		bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, i++ == drop);
+		data_opts.kill_ptrs ^= 1U << drop;
+	}
+
+	/*
+	 * If the new extent no longer has any pointers, bch2_extent_normalize()
+	 * will do the appropriate thing with it (turning it into a
+	 * KEY_TYPE_error key, or just a discard if it was a cached extent)
+	 */
+	bch2_extent_normalize(c, bkey_i_to_s(n));
+
+	/*
+	 * Since we're not inserting through an extent iterator
+	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
+	 * we aren't using the extent overwrite path to delete, we're
+	 * just using the normal key deletion path:
+	 */
+	if (bkey_deleted(&n->k))
+		n->k.size = 0;
+
+	return bch2_trans_relock(trans) ?:
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+		bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
+}
+
 int bch2_data_update_init(struct btree_trans *trans,
+			  struct btree_iter *iter,
 			  struct moving_context *ctxt,
 			  struct data_update *m,
 			  struct write_point_specifier wp,
@@ -452,7 +496,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	const struct bch_extent_ptr *ptr;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
 	unsigned ptrs_locked = 0;
-	int ret;
+	int ret = 0;
 
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
@@ -478,6 +522,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 	bkey_for_each_ptr(ptrs, ptr)
 		percpu_ref_get(&bch_dev_bkey_exists(c, ptr->dev)->ref);
 
+	unsigned durability_have = 0, durability_removing = 0;
+
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		bool locked;
@@ -489,8 +535,11 @@ int bch2_data_update_init(struct btree_trans *trans,
 				reserve_sectors += k.k->size;
 
 			m->op.nr_replicas += bch2_extent_ptr_desired_durability(c, &p);
-		} else if (!p.ptr.cached) {
+			durability_removing += bch2_extent_ptr_desired_durability(c, &p);
+		} else if (!p.ptr.cached &&
+			   !((1U << i) & m->data_opts.kill_ptrs)) {
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
+			durability_have += bch2_extent_ptr_durability(c, &p);
 		}
 
 		/*
@@ -529,6 +578,29 @@ int bch2_data_update_init(struct btree_trans *trans,
 		i++;
 	}
 
+	/*
+	 * If current extent durability is less than io_opts.data_replicas,
+	 * we're not trying to rereplicate the extent up to data_replicas here -
+	 * unless extra_replicas was specified
+	 *
+	 * Increasing replication is an explicit operation triggered by
+	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
+	 */
+	if (durability_have >= io_opts.data_replicas) {
+		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
+		m->data_opts.rewrite_ptrs = 0;
+		/* if iter == NULL, it's just a promote */
+		if (iter)
+			ret = bch2_extent_drop_ptrs(trans, iter, k, data_opts);
+		goto done;
+	}
+
+	m->op.nr_replicas = min(durability_removing, io_opts.data_replicas - durability_have) +
+		m->data_opts.extra_replicas;
+	m->op.nr_replicas_required = m->op.nr_replicas;
+
+	BUG_ON(!m->op.nr_replicas);
+
 	if (reserve_sectors) {
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
 				m->data_opts.extra_replicas
@@ -538,14 +610,11 @@ int bch2_data_update_init(struct btree_trans *trans,
 			goto err;
 	}
 
-	m->op.nr_replicas += m->data_opts.extra_replicas;
-	m->op.nr_replicas_required = m->op.nr_replicas;
+	if (bkey_extent_is_unwritten(k)) {
+		bch2_update_unwritten_extent(trans, m);
+		goto done;
+	}
 
-	BUG_ON(!m->op.nr_replicas);
-
-	/* Special handling required: */
-	if (bkey_extent_is_unwritten(k))
-		return -BCH_ERR_unwritten_extent_update;
 	return 0;
 err:
 	i = 0;
@@ -560,6 +629,9 @@ err:
 	bch2_bkey_buf_exit(&m->k, c);
 	bch2_bio_free_pages_pool(c, &m->op.wbio.bio);
 	return ret;
+done:
+	bch2_data_update_exit(m);
+	return ret ?: -BCH_ERR_data_update_done;
 }
 
 void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)

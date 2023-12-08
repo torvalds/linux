@@ -444,6 +444,7 @@ struct amd_pm_funcs {
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
 	void (*pm_compute_clocks)(void *handle);
+	int (*notify_rlc_state)(void *handle, bool en);
 };
 
 struct metrics_table_header {
