@@ -14,7 +14,6 @@
 #include <linux/etherdevice.h>
 
 #include "rtllib.h"
-#include "dot11d.h"
 
 int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)

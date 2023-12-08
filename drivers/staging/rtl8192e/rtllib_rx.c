@@ -34,7 +34,6 @@
 #include <linux/ctype.h>
 
 #include "rtllib.h"
-#include "dot11d.h"
 
 static void rtllib_rx_mgt(struct rtllib_device *ieee, struct sk_buff *skb,
 			  struct rtllib_rx_stats *stats);

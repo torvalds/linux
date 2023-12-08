@@ -34,8 +34,6 @@
 
 #include "../rtllib.h"
 
-#include "../dot11d.h"
-
 #include "r8192E_firmware.h"
 #include "r8192E_hw.h"
 
