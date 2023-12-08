@@ -532,7 +532,7 @@ static void idpf_add_stat_strings(u8 **p, const struct idpf_stats *stats,
 	unsigned int i;
 
 	for (i = 0; i < size; i++)
-		ethtool_sprintf(p, "%s", stats[i].stat_string);
+		ethtool_puts(p, stats[i].stat_string);
 }
 
 /**
