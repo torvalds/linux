@@ -218,7 +218,7 @@ static u8 ht_iot_act_is_mgnt_use_cck_6m(struct rtllib_device *ieee,
 	return retValue;
 }
 
-static u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
+static u8 ht_iot_act_is_ccd_fsync(struct rtllib_device *ieee)
 {
 	u8	retValue = 0;
 
@@ -662,7 +662,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		bIOTAction = ht_iot_act_is_mgnt_use_cck_6m(ieee, pNetwork);
 		if (bIOTAction)
 			ht_info->iot_action |= HT_IOT_ACT_MGNT_USE_CCK_6M;
-		bIOTAction = HTIOTActIsCCDFsync(ieee);
+		bIOTAction = ht_iot_act_is_ccd_fsync(ieee);
 		if (bIOTAction)
 			ht_info->iot_action |= HT_IOT_ACT_CDD_FSYNC;
 	} else {
