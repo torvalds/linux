@@ -1795,12 +1795,14 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		? bpos_predecessor(b->data->min_key)
 		: bpos_successor(b->data->max_key);
 
-	sib_path = trans->paths + bch2_path_get(trans, path->btree_id, sib_pos,
-				 U8_MAX, level, BTREE_ITER_INTENT, _THIS_IP_);
-	ret = bch2_btree_path_traverse(trans, sib_path, false);
+	btree_path_idx_t sib_path_idx =
+		bch2_path_get(trans, path->btree_id, sib_pos,
+			      U8_MAX, level, BTREE_ITER_INTENT, _THIS_IP_);
+	ret = bch2_btree_path_traverse(trans, sib_path_idx, false);
 	if (ret)
 		goto err;
 
+	sib_path = trans->paths + sib_path_idx;
 	btree_path_set_should_be_locked(sib_path);
 
 	m = sib_path->l[level].b;
@@ -1927,7 +1929,7 @@ out:
 err:
 	if (new_path)
 		bch2_path_put(trans, new_path->idx, true);
-	bch2_path_put(trans, sib_path->idx, true);
+	bch2_path_put(trans, sib_path_idx, true);
 	bch2_trans_verify_locks(trans);
 	return ret;
 err_free_update:

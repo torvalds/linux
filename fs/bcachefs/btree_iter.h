@@ -189,20 +189,19 @@ bch2_btree_path_set_pos(struct btree_trans *trans,
 		: path;
 }
 
-int __must_check bch2_btree_path_traverse_one(struct btree_trans *, struct btree_path *,
+int __must_check bch2_btree_path_traverse_one(struct btree_trans *,
+					      btree_path_idx_t,
 					      unsigned, unsigned long);
 
 static inline int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
-					  struct btree_path *path, unsigned flags)
+					  btree_path_idx_t path, unsigned flags)
 {
-	if (path->uptodate < BTREE_ITER_NEED_RELOCK)
+	if (trans->paths[path].uptodate < BTREE_ITER_NEED_RELOCK)
 		return 0;
 
 	return bch2_btree_path_traverse_one(trans, path, flags, _RET_IP_);
 }
 
-int __must_check bch2_btree_path_traverse(struct btree_trans *,
-					  struct btree_path *, unsigned);
 btree_path_idx_t bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
 			       unsigned, unsigned, unsigned, unsigned long);
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);

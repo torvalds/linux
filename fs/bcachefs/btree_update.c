@@ -350,7 +350,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	btree_path_idx_t path_idx =
 		bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
 			      BTREE_ITER_INTENT, _THIS_IP_);
-	ret = bch2_btree_path_traverse(trans, trans->paths + path_idx, 0);
+	ret = bch2_btree_path_traverse(trans, path_idx, 0);
 	if (ret)
 		goto out;
 
@@ -372,7 +372,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	btree_path_set_should_be_locked(btree_path);
 	ret = bch2_trans_update_by_path(trans, btree_path, i->k, flags, ip);
 out:
-	bch2_path_put(trans, btree_path->idx, true);
+	bch2_path_put(trans, path_idx, true);
 	return ret;
 }
 
@@ -480,7 +480,7 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 						iter->flags & BTREE_ITER_INTENT,
 						_THIS_IP_);
 
-		ret = bch2_btree_path_traverse(trans, iter->key_cache_path,
+		ret = bch2_btree_path_traverse(trans, iter->key_cache_path->idx,
 					       BTREE_ITER_CACHED);
 		if (unlikely(ret))
 			return ret;
