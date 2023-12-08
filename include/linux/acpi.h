@@ -756,6 +756,10 @@ const char *acpi_get_subsystem_id(acpi_handle handle);
 #define ACPI_HANDLE(dev)		(NULL)
 #define ACPI_HANDLE_FWNODE(fwnode)	(NULL)
 
+/* Get rid of the -Wunused-variable for adev */
+#define acpi_dev_uid_match(adev, uid2)			(adev && false)
+#define acpi_dev_hid_uid_match(adev, hid2, uid2)	(adev && false)
+
 #include <acpi/acpi_numa.h>
 
 struct fwnode_handle;
@@ -771,17 +775,6 @@ static inline bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
 }
 
 struct acpi_device;
-
-static inline bool acpi_dev_uid_match(struct acpi_device *adev, const char *uid2)
-{
-	return false;
-}
-
-static inline bool
-acpi_dev_hid_uid_match(struct acpi_device *adev, const char *hid2, const char *uid2)
-{
-	return false;
-}
 
 static inline int acpi_dev_uid_to_integer(struct acpi_device *adev, u64 *integer)
 {
