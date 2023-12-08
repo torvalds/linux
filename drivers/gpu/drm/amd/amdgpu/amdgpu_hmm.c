@@ -199,6 +199,7 @@ retry:
 		hmm_range->notifier_seq = mmu_interval_read_begin(notifier);
 		r = hmm_range_fault(hmm_range);
 		if (unlikely(r)) {
+			schedule();
 			/*
 			 * FIXME: This timeout should encompass the retry from
 			 * mmu_interval_read_retry() as well.
@@ -212,7 +213,6 @@ retry:
 			break;
 		hmm_range->hmm_pfns += MAX_WALK_BYTE >> PAGE_SHIFT;
 		hmm_range->start = hmm_range->end;
-		schedule();
 	} while (hmm_range->end < end);
 
 	hmm_range->start = start;
