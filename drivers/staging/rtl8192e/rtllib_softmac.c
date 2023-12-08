@@ -394,12 +394,6 @@ static void rtllib_send_probe_requests(struct rtllib_device *ieee)
 	}
 }
 
-static void rtllib_update_active_chan_map(struct rtllib_device *ieee)
-{
-	memcpy(ieee->active_channel_map, GET_DOT11D_INFO(ieee)->channel_map,
-	       MAX_CHANNEL_NUMBER + 1);
-}
-
 /* this performs syncro scan blocking the caller until all channels
  * in the allowed channel map has been checked.
  */
@@ -407,8 +401,6 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee)
 {
 	union iwreq_data wrqu;
 	short ch = 0;
-
-	rtllib_update_active_chan_map(ieee);
 
 	ieee->be_scan_inprogress = true;
 
@@ -474,8 +466,6 @@ static void rtllib_softmac_scan_wq(void *data)
 	struct rtllib_device *ieee = container_of_dwork_rsl(data,
 				     struct rtllib_device, softmac_scan_wq);
 	u8 last_channel = ieee->current_network.channel;
-
-	rtllib_update_active_chan_map(ieee);
 
 	if (!ieee->ieee_up)
 		return;
@@ -2041,8 +2031,6 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 {
 	short ch = 0;
 	int i = 0;
-
-	rtllib_update_active_chan_map(ieee);
 
 	if (ieee->proto_started)
 		return;
