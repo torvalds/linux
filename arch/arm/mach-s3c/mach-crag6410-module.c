@@ -32,9 +32,18 @@
 
 #include "crag6410.h"
 
+static struct gpiod_lookup_table wm0010_gpiod_table = {
+	.dev_id = "spi0.0", /* SPI device name */
+	.table = {
+		/* Active high for Glenfarclas Rev 2 */
+		GPIO_LOOKUP("GPION", 6,
+			    "reset", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct wm0010_pdata wm0010_pdata = {
-	.gpio_reset = S3C64XX_GPN(6),
-	.reset_active_high = 1, /* Active high for Glenfarclas Rev 2 */
+	/* Intentionally left blank */
 };
 
 static struct spi_board_info wm1253_devs[] = {
@@ -337,7 +346,8 @@ static const struct {
 	{ .id = 0x21, .rev = 0xff, .name = "1275-EV1 Mortlach" },
 	{ .id = 0x25, .rev = 0xff, .name = "1274-EV1 Glencadam" },
 	{ .id = 0x31, .rev = 0xff, .name = "1253-EV1 Tomatin",
-	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs) },
+	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs),
+	  .gpiod_table = &wm0010_gpiod_table },
 	{ .id = 0x32, .rev = 0xff, .name = "XXXX-EV1 Caol Illa" },
 	{ .id = 0x33, .rev = 0xff, .name = "XXXX-EV1 Oban" },
 	{ .id = 0x34, .rev = 0xff, .name = "WM0010-6320-CS42 Balblair",
