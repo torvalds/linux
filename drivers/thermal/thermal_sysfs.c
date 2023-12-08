@@ -83,24 +83,12 @@ trip_point_type_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	enum thermal_trip_type type;
 	int trip_id;
 
 	if (sscanf(attr->attr.name, "trip_point_%d_type", &trip_id) != 1)
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
-
-	if (!device_is_registered(dev)) {
-		mutex_unlock(&tz->lock);
-		return -ENODEV;
-	}
-
-	type = tz->trips[trip_id].type;
-
-	mutex_unlock(&tz->lock);
-
-	switch (type) {
+	switch (tz->trips[trip_id].type) {
 	case THERMAL_TRIP_CRITICAL:
 		return sprintf(buf, "critical\n");
 	case THERMAL_TRIP_HOT:
@@ -132,11 +120,6 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&tz->lock);
 
-	if (!device_is_registered(dev)) {
-		ret = -ENODEV;
-		goto unlock;
-	}
-
 	trip = &tz->trips[trip_id];
 
 	if (temp != trip->temperature) {
@@ -162,23 +145,12 @@ trip_point_temp_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int trip_id, temp;
+	int trip_id;
 
 	if (sscanf(attr->attr.name, "trip_point_%d_temp", &trip_id) != 1)
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
-
-	if (!device_is_registered(dev)) {
-		mutex_unlock(&tz->lock);
-		return -ENODEV;
-	}
-
-	temp = tz->trips[trip_id].temperature;
-
-	mutex_unlock(&tz->lock);
-
-	return sprintf(buf, "%d\n", temp);
+	return sprintf(buf, "%d\n", tz->trips[trip_id].temperature);
 }
 
 static ssize_t
@@ -198,11 +170,6 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	mutex_lock(&tz->lock);
-
-	if (!device_is_registered(dev)) {
-		ret = -ENODEV;
-		goto unlock;
-	}
 
 	trip = &tz->trips[trip_id];
 
@@ -229,23 +196,12 @@ trip_point_hyst_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
-	int trip_id, hyst;
+	int trip_id;
 
 	if (sscanf(attr->attr.name, "trip_point_%d_hyst", &trip_id) != 1)
 		return -EINVAL;
 
-	mutex_lock(&tz->lock);
-
-	if (!device_is_registered(dev)) {
-		mutex_unlock(&tz->lock);
-		return -ENODEV;
-	}
-
-	hyst = tz->trips[trip_id].hysteresis;
-
-	mutex_unlock(&tz->lock);
-
-	return sprintf(buf, "%d\n", hyst);
+	return sprintf(buf, "%d\n", tz->trips[trip_id].hysteresis);
 }
 
 static ssize_t
@@ -294,11 +250,6 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&tz->lock);
 
-	if (!device_is_registered(dev)) {
-		ret = -ENODEV;
-		goto unlock;
-	}
-
 	if (!tz->ops->set_emul_temp)
 		tz->emul_temperature = temperature;
 	else
@@ -307,7 +258,6 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 	if (!ret)
 		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
-unlock:
 	mutex_unlock(&tz->lock);
 
 	return ret ? ret : count;
