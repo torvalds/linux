@@ -656,19 +656,24 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	return k;
 }
 
+/*
+ * goto instead of loop, so that when used inside for_each_btree_key2()
+ * break/continue work correctly
+ */
 #define lockrestart_do(_trans, _do)					\
 ({									\
+	__label__ transaction_restart;					\
 	u32 _restart_count;						\
 	int _ret2;							\
+transaction_restart:							\
+	_restart_count = bch2_trans_begin(_trans);			\
+	_ret2 = (_do);							\
 									\
-	do {								\
-		_restart_count = bch2_trans_begin(_trans);		\
-		_ret2 = (_do);						\
-	} while (bch2_err_matches(_ret2, BCH_ERR_transaction_restart));	\
+	if (bch2_err_matches(_ret2, BCH_ERR_transaction_restart))	\
+		goto transaction_restart;				\
 									\
 	if (!_ret2)							\
 		bch2_trans_verify_not_restarted(_trans, _restart_count);\
-									\
 	_ret2;								\
 })
 
@@ -697,65 +702,33 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	_ret2 ?: trans_was_restarted(_trans, _restart_count);		\
 })
 
-#define for_each_btree_key2(_trans, _iter, _btree_id,			\
-			    _start, _flags, _k, _do)			\
+#define for_each_btree_key2_upto(_trans, _iter, _btree_id,		\
+				 _start, _end, _flags, _k, _do)		\
 ({									\
 	int _ret3 = 0;							\
 									\
 	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
 			     (_start), (_flags));			\
 									\
-	while (1) {							\
-		u32 _restart_count = bch2_trans_begin(_trans);		\
+	do {								\
+		_ret3 = lockrestart_do(_trans, ({			\
+			(_k) = bch2_btree_iter_peek_upto_type(&(_iter),	\
+						_end, (_flags));	\
+			if (!(_k).k)					\
+				break;					\
 									\
-		_ret3 = 0;						\
-		(_k) = bch2_btree_iter_peek_type(&(_iter), (_flags));	\
-		if (!(_k).k)						\
-			break;						\
-									\
-		_ret3 = bkey_err(_k) ?: (_do);				\
-		if (bch2_err_matches(_ret3, BCH_ERR_transaction_restart))\
-			continue;					\
-		if (_ret3)						\
-			break;						\
-		bch2_trans_verify_not_restarted(_trans, _restart_count);\
-		if (!bch2_btree_iter_advance(&(_iter)))			\
-			break;						\
-	}								\
+			bkey_err(_k) ?: (_do);				\
+		}));							\
+	} while (!_ret3 && bch2_btree_iter_advance(&(_iter)));		\
 									\
 	bch2_trans_iter_exit((_trans), &(_iter));			\
 	_ret3;								\
 })
 
-#define for_each_btree_key2_upto(_trans, _iter, _btree_id,		\
-			    _start, _end, _flags, _k, _do)		\
-({									\
-	int _ret3 = 0;							\
-									\
-	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
-			     (_start), (_flags));			\
-									\
-	while (1) {							\
-		u32 _restart_count = bch2_trans_begin(_trans);		\
-									\
-		_ret3 = 0;						\
-		(_k) = bch2_btree_iter_peek_upto_type(&(_iter), _end, (_flags));\
-		if (!(_k).k)						\
-			break;						\
-									\
-		_ret3 = bkey_err(_k) ?: (_do);				\
-		if (bch2_err_matches(_ret3, BCH_ERR_transaction_restart))\
-			continue;					\
-		if (_ret3)						\
-			break;						\
-		bch2_trans_verify_not_restarted(_trans, _restart_count);\
-		if (!bch2_btree_iter_advance(&(_iter)))			\
-			break;						\
-	}								\
-									\
-	bch2_trans_iter_exit((_trans), &(_iter));			\
-	_ret3;								\
-})
+#define for_each_btree_key2(_trans, _iter, _btree_id,			\
+			    _start, _flags, _k, _do)			\
+	for_each_btree_key2_upto(_trans, _iter, _btree_id, _start,	\
+				 SPOS_MAX, _flags, _k, _do)
 
 #define for_each_btree_key_reverse(_trans, _iter, _btree_id,		\
 				   _start, _flags, _k, _do)		\
@@ -765,23 +738,16 @@ __bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
 	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
 			     (_start), (_flags));			\
 									\
-	while (1) {							\
-		u32 _restart_count = bch2_trans_begin(_trans);		\
-		(_k) = bch2_btree_iter_peek_prev_type(&(_iter), (_flags));\
-		if (!(_k).k) {						\
-			_ret3 = 0;					\
-			break;						\
-		}							\
+	do {								\
+		_ret3 = lockrestart_do(_trans, ({			\
+			(_k) = bch2_btree_iter_peek_prev_type(&(_iter),	\
+							(_flags));	\
+			if (!(_k).k)					\
+				break;					\
 									\
-		_ret3 = bkey_err(_k) ?: (_do);				\
-		if (bch2_err_matches(_ret3, BCH_ERR_transaction_restart))\
-			continue;					\
-		if (_ret3)						\
-			break;						\
-		bch2_trans_verify_not_restarted(_trans, _restart_count);\
-		if (!bch2_btree_iter_rewind(&(_iter)))			\
-			break;						\
-	}								\
+			bkey_err(_k) ?: (_do);				\
+		}));							\
+	} while (!_ret3 && bch2_btree_iter_rewind(&(_iter)));		\
 									\
 	bch2_trans_iter_exit((_trans), &(_iter));			\
 	_ret3;								\
