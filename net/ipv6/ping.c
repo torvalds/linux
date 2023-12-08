@@ -107,7 +107,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		oif = np->sticky_pktinfo.ipi6_ifindex;
 
 	if (!oif && ipv6_addr_is_multicast(daddr))
-		oif = np->mcast_oif;
+		oif = READ_ONCE(np->mcast_oif);
 	else if (!oif)
 		oif = np->ucast_oif;
 
@@ -157,7 +157,7 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	rt = (struct rt6_info *) dst;
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->mcast_oif);
 	else if (!fl6.flowi6_oif)
 		fl6.flowi6_oif = np->ucast_oif;
 

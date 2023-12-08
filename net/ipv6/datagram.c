@@ -60,7 +60,7 @@ static void ip6_datagram_flow_key_init(struct flowi6 *fl6,
 
 	if (!oif) {
 		if (ipv6_addr_is_multicast(&fl6->daddr))
-			oif = np->mcast_oif;
+			oif = READ_ONCE(np->mcast_oif);
 		else
 			oif = np->ucast_oif;
 	}
@@ -229,7 +229,7 @@ ipv4_connected:
 		}
 
 		if (!sk->sk_bound_dev_if && (addr_type & IPV6_ADDR_MULTICAST))
-			WRITE_ONCE(sk->sk_bound_dev_if, np->mcast_oif);
+			WRITE_ONCE(sk->sk_bound_dev_if, READ_ONCE(np->mcast_oif));
 
 		/* Connect to link-local address requires an interface */
 		if (!sk->sk_bound_dev_if) {
