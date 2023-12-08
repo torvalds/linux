@@ -172,6 +172,13 @@ static bool optc32_disable_crtc(struct timing_generator *optc)
 	REG_UPDATE(OTG_CONTROL,
 			OTG_MASTER_EN, 0);
 
+	REG_UPDATE_5(OPTC_DATA_SOURCE_SELECT,
+			OPTC_SEG0_SRC_SEL, 0xf,
+			OPTC_SEG1_SRC_SEL, 0xf,
+			OPTC_SEG2_SRC_SEL, 0xf,
+			OPTC_SEG3_SRC_SEL, 0xf,
+			OPTC_NUM_OF_INPUT_SEGMENT, 0);
+
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 0);
 
