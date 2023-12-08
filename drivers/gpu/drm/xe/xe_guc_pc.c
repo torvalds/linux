@@ -57,19 +57,6 @@
  *
  * Xe driver enables SLPC with all of its defaults features and frequency
  * selection, which varies per platform.
- * Xe's GuC PC provides a sysfs API for frequency management:
- *
- * device/gt#/freq_* *read-only* files:
- * - act_freq: The actual resolved frequency decided by PCODE.
- * - cur_freq: The current one requested by GuC PC to the Hardware.
- * - rpn_freq: The Render Performance (RP) N level, which is the minimal one.
- * - rpe_freq: The Render Performance (RP) E level, which is the efficient one.
- * - rp0_freq: The Render Performance (RP) 0 level, which is the maximum one.
- *
- * device/gt#/freq_* *read-write* files:
- * - min_freq: GuC PC min request.
- * - max_freq: GuC PC max request.
- *             If max <= min, then freq_min becomes a fixed frequency request.
  *
  * Render-C States:
  * ================
@@ -98,12 +85,6 @@ static struct xe_gt *
 pc_to_gt(struct xe_guc_pc *pc)
 {
 	return container_of(pc, struct xe_gt, uc.guc.pc);
-}
-
-static struct xe_guc_pc *
-dev_to_pc(struct device *dev)
-{
-	return &kobj_to_gt(&dev->kobj)->uc.guc.pc;
 }
 
 static struct iosys_map *
@@ -388,14 +369,17 @@ static void pc_update_rp_values(struct xe_guc_pc *pc)
 	pc->rpn_freq = min(pc->rpn_freq, pc->rpe_freq);
 }
 
-static ssize_t act_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+/**
+ * xe_guc_pc_get_act_freq - Get Actual running frequency
+ * @pc: The GuC PC
+ *
+ * Returns: The Actual running frequency. Which might be 0 if GT is in Render-C sleep state (RC6).
+ */
+u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc)
 {
-	struct kobject *kobj = &dev->kobj;
-	struct xe_gt *gt = kobj_to_gt(kobj);
+	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 	u32 freq;
-	ssize_t ret;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
 
@@ -408,20 +392,25 @@ static ssize_t act_freq_show(struct device *dev,
 		freq = REG_FIELD_GET(CAGF_MASK, freq);
 	}
 
-	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
+	freq = decode_freq(freq);
 
 	xe_device_mem_access_put(gt_to_xe(gt));
-	return ret;
-}
-static DEVICE_ATTR_RO(act_freq);
 
-static ssize_t cur_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+	return freq;
+}
+
+/**
+ * xe_guc_pc_get_cur_freq - Get Current requested frequency
+ * @pc: The GuC PC
+ * @freq: A pointer to a u32 where the freq value will be returned
+ *
+ * Returns: 0 on success,
+ *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ */
+int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct kobject *kobj = &dev->kobj;
-	struct xe_gt *gt = kobj_to_gt(kobj);
-	u32 freq;
-	ssize_t ret;
+	struct xe_gt *gt = pc_to_gt(pc);
+	int ret;
 
 	xe_device_mem_access_get(gt_to_xe(gt));
 	/*
@@ -432,56 +421,69 @@ static ssize_t cur_freq_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	freq = xe_mmio_read32(gt, RPNSWREQ);
+	*freq = xe_mmio_read32(gt, RPNSWREQ);
 
-	freq = REG_FIELD_GET(REQ_RATIO_MASK, freq);
-	ret = sysfs_emit(buf, "%d\n", decode_freq(freq));
+	*freq = REG_FIELD_GET(REQ_RATIO_MASK, *freq);
+	*freq = decode_freq(*freq);
 
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 out:
 	xe_device_mem_access_put(gt_to_xe(gt));
 	return ret;
 }
-static DEVICE_ATTR_RO(cur_freq);
 
-static ssize_t rp0_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+/**
+ * xe_guc_pc_get_rp0_freq - Get the RP0 freq
+ * @pc: The GuC PC
+ *
+ * Returns: RP0 freq.
+ */
+u32 xe_guc_pc_get_rp0_freq(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
-
-	return sysfs_emit(buf, "%d\n", pc->rp0_freq);
+	return pc->rp0_freq;
 }
-static DEVICE_ATTR_RO(rp0_freq);
 
-static ssize_t rpe_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+/**
+ * xe_guc_pc_get_rpe_freq - Get the RPe freq
+ * @pc: The GuC PC
+ *
+ * Returns: RPe freq.
+ */
+u32 xe_guc_pc_get_rpe_freq(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
 	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 
 	xe_device_mem_access_get(xe);
 	pc_update_rp_values(pc);
 	xe_device_mem_access_put(xe);
-	return sysfs_emit(buf, "%d\n", pc->rpe_freq);
+
+	return pc->rpe_freq;
 }
-static DEVICE_ATTR_RO(rpe_freq);
 
-static ssize_t rpn_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+/**
+ * xe_guc_pc_get_rpn_freq - Get the RPn freq
+ * @pc: The GuC PC
+ *
+ * Returns: RPn freq.
+ */
+u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
-
-	return sysfs_emit(buf, "%d\n", pc->rpn_freq);
+	return pc->rpn_freq;
 }
-static DEVICE_ATTR_RO(rpn_freq);
 
-static ssize_t min_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+/**
+ * xe_guc_pc_get_min_freq - Get the min operational frequency
+ * @pc: The GuC PC
+ * @freq: A pointer to a u32 where the freq value will be returned
+ *
+ * Returns: 0 on success,
+ *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ */
+int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
 	struct xe_gt *gt = pc_to_gt(pc);
-	ssize_t ret;
+	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 	mutex_lock(&pc->freq_lock);
@@ -503,7 +505,7 @@ static ssize_t min_freq_show(struct device *dev,
 	if (ret)
 		goto fw;
 
-	ret = sysfs_emit(buf, "%d\n", pc_get_min_freq(pc));
+	*freq = pc_get_min_freq(pc);
 
 fw:
 	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
@@ -513,16 +515,18 @@ out:
 	return ret;
 }
 
-static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
-			      const char *buff, size_t count)
+/**
+ * xe_guc_pc_set_min_freq - Set the minimal operational frequency
+ * @pc: The GuC PC
+ * @freq: The selected minimal frequency
+ *
+ * Returns: 0 on success,
+ *         -EAGAIN if GuC PC not ready (likely in middle of a reset),
+ *         -EINVAL if value out of bounds.
+ */
+int xe_guc_pc_set_min_freq(struct xe_guc_pc *pc, u32 freq)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
-	u32 freq;
-	ssize_t ret;
-
-	ret = kstrtou32(buff, 0, &freq);
-	if (ret)
-		return ret;
+	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 	mutex_lock(&pc->freq_lock);
@@ -541,15 +545,21 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 out:
 	mutex_unlock(&pc->freq_lock);
 	xe_device_mem_access_put(pc_to_xe(pc));
-	return ret ?: count;
-}
-static DEVICE_ATTR_RW(min_freq);
 
-static ssize_t max_freq_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
+	return ret;
+}
+
+/**
+ * xe_guc_pc_get_max_freq - Get Maximum operational frequency
+ * @pc: The GuC PC
+ * @freq: A pointer to a u32 where the freq value will be returned
+ *
+ * Returns: 0 on success,
+ *         -EAGAIN if GuC PC not ready (likely in middle of a reset).
+ */
+int xe_guc_pc_get_max_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
-	ssize_t ret;
+	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 	mutex_lock(&pc->freq_lock);
@@ -563,7 +573,7 @@ static ssize_t max_freq_show(struct device *dev,
 	if (ret)
 		goto out;
 
-	ret = sysfs_emit(buf, "%d\n", pc_get_max_freq(pc));
+	*freq = pc_get_max_freq(pc);
 
 out:
 	mutex_unlock(&pc->freq_lock);
@@ -571,16 +581,18 @@ out:
 	return ret;
 }
 
-static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
-			      const char *buff, size_t count)
+/**
+ * xe_guc_pc_set_max_freq - Set the maximum operational frequency
+ * @pc: The GuC PC
+ * @freq: The selected maximum frequency value
+ *
+ * Returns: 0 on success,
+ *         -EAGAIN if GuC PC not ready (likely in middle of a reset),
+ *         -EINVAL if value out of bounds.
+ */
+int xe_guc_pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 {
-	struct xe_guc_pc *pc = dev_to_pc(dev);
-	u32 freq;
-	ssize_t ret;
-
-	ret = kstrtou32(buff, 0, &freq);
-	if (ret)
-		return ret;
+	int ret;
 
 	xe_device_mem_access_get(pc_to_xe(pc));
 	mutex_lock(&pc->freq_lock);
@@ -599,9 +611,8 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 out:
 	mutex_unlock(&pc->freq_lock);
 	xe_device_mem_access_put(pc_to_xe(pc));
-	return ret ?: count;
+	return ret;
 }
-static DEVICE_ATTR_RW(max_freq);
 
 /**
  * xe_guc_pc_c_status - get the current GT C state
@@ -665,17 +676,6 @@ u64 xe_guc_pc_mc6_residency(struct xe_guc_pc *pc)
 
 	return reg;
 }
-
-static const struct attribute *pc_attrs[] = {
-	&dev_attr_act_freq.attr,
-	&dev_attr_cur_freq.attr,
-	&dev_attr_rp0_freq.attr,
-	&dev_attr_rpe_freq.attr,
-	&dev_attr_rpn_freq.attr,
-	&dev_attr_min_freq.attr,
-	&dev_attr_max_freq.attr,
-	NULL
-};
 
 static void mtl_init_fused_rp_values(struct xe_guc_pc *pc)
 {
@@ -952,6 +952,10 @@ out:
 	return ret;
 }
 
+/**
+ * xe_guc_pc_fini - Finalize GuC's Power Conservation component
+ * @pc: Xe_GuC_PC instance
+ */
 void xe_guc_pc_fini(struct xe_guc_pc *pc)
 {
 	struct xe_device *xe = pc_to_xe(pc);
@@ -963,7 +967,6 @@ void xe_guc_pc_fini(struct xe_guc_pc *pc)
 
 	XE_WARN_ON(xe_guc_pc_gucrc_disable(pc));
 	XE_WARN_ON(xe_guc_pc_stop(pc));
-	sysfs_remove_files(pc_to_gt(pc)->sysfs, pc_attrs);
 	mutex_destroy(&pc->freq_lock);
 }
 
@@ -978,7 +981,6 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_bo *bo;
 	u32 size = PAGE_ALIGN(sizeof(struct slpc_shared_data));
-	int err;
 
 	if (xe->info.skip_guc_pc)
 		return 0;
@@ -992,10 +994,5 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 		return PTR_ERR(bo);
 
 	pc->bo = bo;
-
-	err = sysfs_create_files(gt->sysfs, pc_attrs);
-	if (err)
-		return err;
-
 	return 0;
 }

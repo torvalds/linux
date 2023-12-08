@@ -24,6 +24,7 @@
 #include "xe_gsc.h"
 #include "xe_gt_ccs_mode.h"
 #include "xe_gt_clock.h"
+#include "xe_gt_freq.h"
 #include "xe_gt_idle.h"
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
@@ -510,6 +511,8 @@ int xe_gt_init(struct xe_gt *gt)
 	err = gt_fw_domain_init(gt);
 	if (err)
 		return err;
+
+	xe_gt_freq_init(gt);
 
 	xe_force_wake_init_engines(gt, gt_to_fw(gt));
 

@@ -307,6 +307,9 @@ struct xe_gt {
 	/** @sysfs: sysfs' kobj used by xe_gt_sysfs */
 	struct kobject *sysfs;
 
+	/** @freq: Main GT freq sysfs control */
+	struct kobject *freq;
+
 	/** @mocs: info */
 	struct {
 		/** @uc_index: UC index */
