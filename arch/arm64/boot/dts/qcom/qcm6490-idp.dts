@@ -17,6 +17,7 @@
 /delete-node/ &cdsp_mem;
 /delete-node/ &video_mem;
 /delete-node/ &wlan_ce_mem;
+/delete-node/ &wpss_mem;
 /delete-node/ &xbl_mem;
 
 / {
