@@ -149,7 +149,7 @@
 		compatible = "usb-nop-xceiv";
 	};
 
-	soc {
+	soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
