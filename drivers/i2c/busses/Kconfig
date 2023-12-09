@@ -62,6 +62,17 @@ config I2C_AMD756
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-amd756.
 
+config I2C_MSM_V2
+        tristate "I2C_MSM_V2"
+        depends on ARCH_QCOM
+        help
+          If you say yes to this option, support will be included for the
+          built-in I2C interface and its DMA engine on the MSM family
+          processors.
+
+          This driver can also be built as a module.  If so, the module
+          will  be called i2c-msm-v2.
+
 config I2C_AMD756_S4882
 	tristate "SMBus multiplexing on the Tyan S4882"
 	depends on I2C_AMD756 && X86
