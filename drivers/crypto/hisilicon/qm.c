@@ -597,9 +597,6 @@ int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
 	struct qm_mailbox mailbox;
 	int ret;
 
-	dev_dbg(&qm->pdev->dev, "QM mailbox request to q%u: %u-%llx\n",
-		queue, cmd, (unsigned long long)dma_addr);
-
 	qm_mb_pre_init(&mailbox, cmd, dma_addr, queue, op);
 
 	mutex_lock(&qm->mailbox_lock);
