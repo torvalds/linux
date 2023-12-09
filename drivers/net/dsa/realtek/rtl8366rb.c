@@ -117,10 +117,11 @@
 	RTL8366RB_STP_STATE((port), RTL8366RB_STP_MASK)
 
 /* CPU port control reg */
-#define RTL8368RB_CPU_CTRL_REG		0x0061
-#define RTL8368RB_CPU_PORTS_MSK		0x00FF
+#define RTL8366RB_CPU_CTRL_REG		0x0061
+#define RTL8366RB_CPU_PORTS_MSK		0x00FF
 /* Disables inserting custom tag length/type 0x8899 */
-#define RTL8368RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_TAG_SIZE		4
 
 #define RTL8366RB_SMAR0			0x0070 /* bits 0..15 */
 #define RTL8366RB_SMAR1			0x0071 /* bits 16..31 */
@@ -912,10 +913,10 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Enable CPU port with custom DSA tag 8899.
 	 *
-	 * If you set RTL8368RB_CPU_NO_TAG (bit 15) in this registers
+	 * If you set RTL8366RB_CPU_NO_TAG (bit 15) in this register
 	 * the custom tag is turned off.
 	 */
-	ret = regmap_update_bits(priv->map, RTL8368RB_CPU_CTRL_REG,
+	ret = regmap_update_bits(priv->map, RTL8366RB_CPU_CTRL_REG,
 				 0xFFFF,
 				 BIT(priv->cpu_port));
 	if (ret)
