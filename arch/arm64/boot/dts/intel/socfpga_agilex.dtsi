@@ -60,6 +60,13 @@
 		};
 	};
 
+	fpga-region {
+		compatible = "fpga-region";
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		fpga-mgr = <&fpga_mgr>;
+	};
+
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
@@ -137,13 +144,6 @@
 		device_type = "soc";
 		interrupt-parent = <&intc>;
 		ranges = <0 0 0 0xffffffff>;
-
-		base_fpga_region {
-			#address-cells = <0x2>;
-			#size-cells = <0x2>;
-			compatible = "fpga-region";
-			fpga-mgr = <&fpga_mgr>;
-		};
 
 		clkmgr: clock-controller@ffd10000 {
 			compatible = "intel,agilex-clkmgr";
