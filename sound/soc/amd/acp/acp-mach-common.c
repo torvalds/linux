@@ -1773,4 +1773,5 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_NS_GPL(acp_legacy_dai_links_create, SND_SOC_AMD_MACH);
 
+MODULE_DESCRIPTION("AMD ACP Common Machine driver");
 MODULE_LICENSE("GPL v2");
