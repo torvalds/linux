@@ -1348,6 +1348,57 @@ static const struct xe_pt_ops xelp_pt_ops = {
 
 static void vm_destroy_work_func(struct work_struct *w);
 
+/**
+ * xe_vm_create_scratch() - Setup a scratch memory pagetable tree for the
+ * given tile and vm.
+ * @xe: xe device.
+ * @tile: tile to set up for.
+ * @vm: vm to set up for.
+ *
+ * Sets up a pagetable tree with one page-table per level and a single
+ * leaf PTE. All pagetable entries point to the single page-table or,
+ * for MAX_HUGEPTE_LEVEL, a NULL huge PTE returning 0 on read and
+ * writes become NOPs.
+ *
+ * Return: 0 on success, negative error code on error.
+ */
+static int xe_vm_create_scratch(struct xe_device *xe, struct xe_tile *tile,
+				struct xe_vm *vm)
+{
+	u8 id = tile->id;
+	int i;
+
+	for (i = MAX_HUGEPTE_LEVEL; i < vm->pt_root[id]->level; i++) {
+		vm->scratch_pt[id][i] = xe_pt_create(vm, tile, i);
+		if (IS_ERR(vm->scratch_pt[id][i]))
+			return PTR_ERR(vm->scratch_pt[id][i]);
+
+		xe_pt_populate_empty(tile, vm, vm->scratch_pt[id][i]);
+	}
+
+	return 0;
+}
+
+static void xe_vm_free_scratch(struct xe_vm *vm)
+{
+	struct xe_tile *tile;
+	u8 id;
+
+	if (!xe_vm_has_scratch(vm))
+		return;
+
+	for_each_tile(tile, vm->xe, id) {
+		u32 i;
+
+		if (!vm->pt_root[id])
+			continue;
+
+		for (i = MAX_HUGEPTE_LEVEL; i < vm->pt_root[id]->level; ++i)
+			if (vm->scratch_pt[id][i])
+				xe_pt_destroy(vm->scratch_pt[id][i], vm->flags, NULL);
+	}
+}
+
 struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 {
 	struct drm_gem_object *vm_resv_obj;
@@ -1424,12 +1475,12 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 		}
 	}
 
-	if (flags & XE_VM_FLAG_SCRATCH_PAGE) {
+	if (xe_vm_has_scratch(vm)) {
 		for_each_tile(tile, xe, id) {
 			if (!vm->pt_root[id])
 				continue;
 
-			err = xe_pt_create_scratch(xe, tile, vm);
+			err = xe_vm_create_scratch(xe, tile, vm);
 			if (err)
 				goto err_unlock_close;
 		}
@@ -1575,16 +1626,9 @@ void xe_vm_close_and_put(struct xe_vm *vm)
 	 * install a fence to resv. Hence it's safe to
 	 * destroy the pagetables immediately.
 	 */
-	for_each_tile(tile, xe, id) {
-		if (vm->scratch_bo[id]) {
-			u32 i;
+	xe_vm_free_scratch(vm);
 
-			xe_bo_unpin(vm->scratch_bo[id]);
-			xe_bo_put(vm->scratch_bo[id]);
-			for (i = 0; i < vm->pt_root[id]->level; i++)
-				xe_pt_destroy(vm->scratch_pt[id][i], vm->flags,
-					      NULL);
-		}
+	for_each_tile(tile, xe, id) {
 		if (vm->pt_root[id]) {
 			xe_pt_destroy(vm->pt_root[id], vm->flags, NULL);
 			vm->pt_root[id] = NULL;

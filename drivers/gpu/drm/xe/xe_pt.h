@@ -29,9 +29,6 @@ unsigned int xe_pt_shift(unsigned int level);
 struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 			   unsigned int level);
 
-int xe_pt_create_scratch(struct xe_device *xe, struct xe_tile *tile,
-			 struct xe_vm *vm);
-
 void xe_pt_populate_empty(struct xe_tile *tile, struct xe_vm *vm,
 			  struct xe_pt *pt);
 

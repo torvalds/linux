@@ -151,7 +151,6 @@ struct xe_vm {
 	u64 size;
 
 	struct xe_pt *pt_root[XE_MAX_TILES_PER_DEVICE];
-	struct xe_bo *scratch_bo[XE_MAX_TILES_PER_DEVICE];
 	struct xe_pt *scratch_pt[XE_MAX_TILES_PER_DEVICE][XE_VM_MAX_LEVEL];
 
 	/**

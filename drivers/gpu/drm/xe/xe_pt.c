@@ -50,17 +50,19 @@ static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 			     unsigned int level)
 {
-	u16 pat_index = tile_to_xe(tile)->pat.idx[XE_CACHE_WB];
+	struct xe_device *xe = tile_to_xe(tile);
+	u16 pat_index = xe->pat.idx[XE_CACHE_WB];
 	u8 id = tile->id;
 
-	if (!vm->scratch_bo[id])
+	if (!xe_vm_has_scratch(vm))
 		return 0;
 
-	if (level > 0)
+	if (level > MAX_HUGEPTE_LEVEL)
 		return vm->pt_ops->pde_encode_bo(vm->scratch_pt[id][level - 1]->bo,
 						 0, pat_index);
 
-	return vm->pt_ops->pte_encode_bo(vm->scratch_bo[id], 0, pat_index, 0);
+	return vm->pt_ops->pte_encode_addr(xe, 0, pat_index, level, IS_DGFX(xe), 0) |
+		XE_PTE_NULL;
 }
 
 /**
@@ -135,7 +137,7 @@ void xe_pt_populate_empty(struct xe_tile *tile, struct xe_vm *vm,
 	u64 empty;
 	int i;
 
-	if (!vm->scratch_bo[tile->id]) {
+	if (!xe_vm_has_scratch(vm)) {
 		/*
 		 * FIXME: Some memory is allocated already allocated to zero?
 		 * Find out which memory that is and avoid this memset...
@@ -192,57 +194,6 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 		}
 	}
 	kfree(pt);
-}
-
-/**
- * xe_pt_create_scratch() - Setup a scratch memory pagetable tree for the
- * given tile and vm.
- * @xe: xe device.
- * @tile: tile to set up for.
- * @vm: vm to set up for.
- *
- * Sets up a pagetable tree with one page-table per level and a single
- * leaf bo. All pagetable entries point to the single page-table or,
- * for L0, the single bo one level below.
- *
- * Return: 0 on success, negative error code on error.
- */
-int xe_pt_create_scratch(struct xe_device *xe, struct xe_tile *tile,
-			 struct xe_vm *vm)
-{
-	u8 id = tile->id;
-	unsigned int flags;
-	int i;
-
-	/*
-	 * So we don't need to worry about 64K TLB hints when dealing with
-	 * scratch entires, rather keep the scratch page in system memory on
-	 * platforms where 64K pages are needed for VRAM.
-	 */
-	flags = XE_BO_CREATE_PINNED_BIT;
-	if (vm->flags & XE_VM_FLAG_64K)
-		flags |= XE_BO_CREATE_SYSTEM_BIT;
-	else
-		flags |= XE_BO_CREATE_VRAM_IF_DGFX(tile);
-
-	vm->scratch_bo[id] = xe_bo_create_pin_map(xe, tile, vm, SZ_4K,
-						  ttm_bo_type_kernel,
-						  flags);
-	if (IS_ERR(vm->scratch_bo[id]))
-		return PTR_ERR(vm->scratch_bo[id]);
-
-	xe_map_memset(vm->xe, &vm->scratch_bo[id]->vmap, 0, 0,
-		      vm->scratch_bo[id]->size);
-
-	for (i = 0; i < vm->pt_root[id]->level; i++) {
-		vm->scratch_pt[id][i] = xe_pt_create(vm, tile, i);
-		if (IS_ERR(vm->scratch_pt[id][i]))
-			return PTR_ERR(vm->scratch_pt[id][i]);
-
-		xe_pt_populate_empty(tile, vm, vm->scratch_pt[id][i]);
-	}
-
-	return 0;
 }
 
 /**
@@ -1289,7 +1240,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	 * it needs to be done here.
 	 */
 	if ((rebind && !xe_vm_in_lr_mode(vm) && !vm->batch_invalidate_tlb) ||
-	    (!rebind && vm->scratch_bo[tile->id] && xe_vm_in_preempt_fence_mode(vm))) {
+	    (!rebind && xe_vm_has_scratch(vm) && xe_vm_in_preempt_fence_mode(vm))) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 		if (!ifence)
 			return ERR_PTR(-ENOMEM);

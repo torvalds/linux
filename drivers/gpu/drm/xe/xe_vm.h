@@ -63,6 +63,17 @@ static inline bool xe_vm_is_closed_or_banned(struct xe_vm *vm)
 struct xe_vma *
 xe_vm_find_overlapping_vma(struct xe_vm *vm, u64 start, u64 range);
 
+/**
+ * xe_vm_has_scratch() - Whether the vm is configured for scratch PTEs
+ * @vm: The vm
+ *
+ * Return: whether the vm populates unmapped areas with scratch PTEs
+ */
+static inline bool xe_vm_has_scratch(const struct xe_vm *vm)
+{
+	return vm->flags & XE_VM_FLAG_SCRATCH_PAGE;
+}
+
 static inline struct xe_vm *gpuva_to_vm(struct drm_gpuva *gpuva)
 {
 	return container_of(gpuva->vm, struct xe_vm, gpuvm);
