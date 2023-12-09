@@ -30,7 +30,6 @@
 			compatible = "snps,ddrc-3.80a";
 			reg = <0xf87f8000 0x400>;
 			interrupts = <0 175 4>;
-			status = "okay";
 		};
 	};
 };
