@@ -9,7 +9,7 @@
 
 #define MHI_FORCE_WAKE_DELAY_US (100)
 #define MHI_IPC_LOG_PAGES (100)
-#define MAX_RDDM_TABLE_SIZE (9)
+#define MAX_RDDM_TABLE_SIZE (12)
 #define MHI_REG_SIZE (SZ_4K)
 
 #define REG_WRITE_QUEUE_LEN 512
