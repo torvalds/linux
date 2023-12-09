@@ -60,6 +60,18 @@
 		};
 	};
 
+	firmware {
+		svc {
+			compatible = "intel,agilex-svc";
+			method = "smc";
+			memory-region = <&service_reserved>;
+
+			fpga_mgr: fpga-mgr {
+				compatible = "intel,agilex-soc-fpga-mgr";
+			};
+		};
+	};
+
 	fpga-region {
 		compatible = "fpga-region";
 		#address-cells = <0x2>;
@@ -658,18 +670,6 @@
 			clocks = <&qspi_clk>;
 
 			status = "disabled";
-		};
-
-		firmware {
-			svc {
-				compatible = "intel,agilex-svc";
-				method = "smc";
-				memory-region = <&service_reserved>;
-
-				fpga_mgr: fpga-mgr {
-					compatible = "intel,agilex-soc-fpga-mgr";
-				};
-			};
 		};
 	};
 };
