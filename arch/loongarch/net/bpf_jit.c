@@ -480,10 +480,12 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 		case 8:
 			move_reg(ctx, t1, src);
 			emit_insn(ctx, extwb, dst, t1);
+			emit_zext_32(ctx, dst, is32);
 			break;
 		case 16:
 			move_reg(ctx, t1, src);
 			emit_insn(ctx, extwh, dst, t1);
+			emit_zext_32(ctx, dst, is32);
 			break;
 		case 32:
 			emit_insn(ctx, addw, dst, src, LOONGARCH_GPR_ZERO);
