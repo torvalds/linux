@@ -51,7 +51,7 @@
 		regulator-max-microvolt = <330000>;
 	};
 
-	soc {
+	soc@0 {
 		eccmgr {
 			sdmmca-ecc@ff8c8c00 {
 				compatible = "altr,socfpga-s10-sdmmc-ecc",
