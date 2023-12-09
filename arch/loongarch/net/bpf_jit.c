@@ -907,14 +907,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 			}
 			break;
 		case BPF_DW:
-			if (is_signed_imm12(off)) {
-				emit_insn(ctx, ldd, dst, src, off);
-			} else if (is_signed_imm14(off)) {
-				emit_insn(ctx, ldptrd, dst, src, off);
-			} else {
-				move_imm(ctx, t1, off, is32);
-				emit_insn(ctx, ldxd, dst, src, t1);
-			}
+			move_imm(ctx, t1, off, is32);
+			emit_insn(ctx, ldxd, dst, src, t1);
 			break;
 		}
 
