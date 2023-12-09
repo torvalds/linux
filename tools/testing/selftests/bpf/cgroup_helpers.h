@@ -33,6 +33,7 @@ void cleanup_cgroup_environment(void);
 int set_classid(void);
 int join_classid(void);
 unsigned long long get_classid_cgroup_id(void);
+int open_classid(void);
 
 int setup_classid_environment(void);
 void cleanup_classid_environment(void);
