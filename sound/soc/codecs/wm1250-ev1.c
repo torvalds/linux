@@ -129,7 +129,6 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 {
 	struct wm1250_ev1_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm1250_priv *wm1250;
-	int ret;
 
 	if (!pdata)
 		return 0;
@@ -165,7 +164,7 @@ static int wm1250_ev1_pdata(struct i2c_client *i2c)
 
 	dev_set_drvdata(&i2c->dev, wm1250);
 
-	return ret;
+	return 0;
 }
 
 static int wm1250_ev1_probe(struct i2c_client *i2c)
