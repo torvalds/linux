@@ -129,7 +129,7 @@ void xe_debugfs_register(struct xe_device *xe)
 		if (man) {
 			char name[16];
 
-			sprintf(name, "vram%d_mm", mem_type - XE_PL_VRAM0);
+			snprintf(name, sizeof(name), "vram%d_mm", mem_type - XE_PL_VRAM0);
 			ttm_resource_manager_create_debugfs(man, root, name);
 		}
 	}

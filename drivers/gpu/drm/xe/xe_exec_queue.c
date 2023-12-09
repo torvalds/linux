@@ -225,22 +225,22 @@ void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
 {
 	switch (q->class) {
 	case XE_ENGINE_CLASS_RENDER:
-		sprintf(q->name, "rcs%d", instance);
+		snprintf(q->name, sizeof(q->name), "rcs%d", instance);
 		break;
 	case XE_ENGINE_CLASS_VIDEO_DECODE:
-		sprintf(q->name, "vcs%d", instance);
+		snprintf(q->name, sizeof(q->name), "vcs%d", instance);
 		break;
 	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
-		sprintf(q->name, "vecs%d", instance);
+		snprintf(q->name, sizeof(q->name), "vecs%d", instance);
 		break;
 	case XE_ENGINE_CLASS_COPY:
-		sprintf(q->name, "bcs%d", instance);
+		snprintf(q->name, sizeof(q->name), "bcs%d", instance);
 		break;
 	case XE_ENGINE_CLASS_COMPUTE:
-		sprintf(q->name, "ccs%d", instance);
+		snprintf(q->name, sizeof(q->name), "ccs%d", instance);
 		break;
 	case XE_ENGINE_CLASS_OTHER:
-		sprintf(q->name, "gsccs%d", instance);
+		snprintf(q->name, sizeof(q->name), "gsccs%d", instance);
 		break;
 	default:
 		XE_WARN_ON(q->class);
