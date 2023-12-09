@@ -2102,7 +2102,9 @@ Fields	HFGxTR_EL2
 EndSysreg
 
 Sysreg HFGITR_EL2	3	4	1	1	6
-Res0	63:61
+Res0	63
+Field	62	ATS1E1A
+Res0	61
 Field	60	COSPRCTX
 Field	59	nGCSEPP
 Field	58	nGCSSTR_EL1
