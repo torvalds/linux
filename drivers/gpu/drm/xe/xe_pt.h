@@ -18,6 +18,9 @@ struct xe_tile;
 struct xe_vm;
 struct xe_vma;
 
+/* Largest huge pte is currently 1GiB. May become device dependent. */
+#define MAX_HUGEPTE_LEVEL 2
+
 #define xe_pt_write(xe, map, idx, data) \
 	xe_map_wr(xe, map, (idx) * sizeof(u64), u64, data)
 

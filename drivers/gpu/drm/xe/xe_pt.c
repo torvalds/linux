@@ -430,6 +430,9 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 {
 	u64 size, dma;
 
+	if (level > MAX_HUGEPTE_LEVEL)
+		return false;
+
 	/* Does the virtual range requested cover a huge pte? */
 	if (!xe_pt_covers(addr, next, level, &xe_walk->base))
 		return false;

@@ -1258,7 +1258,7 @@ static u64 pte_encode_pat_index(struct xe_device *xe, u16 pat_index,
 
 static u64 pte_encode_ps(u32 pt_level)
 {
-	XE_WARN_ON(pt_level > 2);
+	XE_WARN_ON(pt_level > MAX_HUGEPTE_LEVEL);
 
 	if (pt_level == 1)
 		return XE_PDE_PS_2M;
