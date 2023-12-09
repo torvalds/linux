@@ -130,9 +130,13 @@ static int snd_acp5x_probe(struct pci_dev *pci,
 	int ret, i;
 	u32 addr, val;
 
-	/* Return if acp config flag is defined */
+	/*
+	 * Return if ACP config flag is defined, except when board
+	 * supports SOF while it is not being enabled in kernel config.
+	 */
 	flag = snd_amd_acp_find_config(pci);
-	if (flag != FLAG_AMD_LEGACY)
+	if (flag != FLAG_AMD_LEGACY &&
+	    (flag != FLAG_AMD_SOF || IS_ENABLED(CONFIG_SND_SOC_SOF_AMD_VANGOGH)))
 		return -ENODEV;
 
 	irqflags = IRQF_SHARED;
