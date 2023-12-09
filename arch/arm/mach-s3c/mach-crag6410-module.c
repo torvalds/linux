@@ -32,9 +32,18 @@
 
 #include "crag6410.h"
 
+static struct gpiod_lookup_table wm0010_gpiod_table = {
+	.dev_id = "spi0.0", /* SPI device name */
+	.table = {
+		/* Active high for Glenfarclas Rev 2 */
+		GPIO_LOOKUP("GPION", 6,
+			    "reset", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct wm0010_pdata wm0010_pdata = {
-	.gpio_reset = S3C64XX_GPN(6),
-	.reset_active_high = 1, /* Active high for Glenfarclas Rev 2 */
+	/* Intentionally left blank */
 };
 
 static struct spi_board_info wm1253_devs[] = {
@@ -61,10 +70,19 @@ static struct spi_board_info balblair_devs[] = {
 	},
 };
 
+static struct gpiod_lookup_table wm5100_gpiod_table = {
+	.dev_id = "1-001a", /* Device 001a on I2C bus 1 */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("wm5100", 3,
+			    "hp-pol", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct wm5100_pdata wm5100_pdata = {
-	.ldo_ena = S3C64XX_GPN(7),
 	.irq_flags = IRQF_TRIGGER_HIGH,
-	.gpio_base = CODEC_GPIO_BASE,
 
 	.in_mode = {
 		WM5100_IN_DIFF,
@@ -73,7 +91,6 @@ static struct wm5100_pdata wm5100_pdata = {
 		WM5100_IN_SE,
 	},
 
-	.hp_pol = CODEC_GPIO_BASE + 3,
 	.jack_modes = {
 		{ WM5100_MICDET_MICBIAS3, 0, 0 },
 		{ WM5100_MICDET_MICBIAS2, 1, 1 },
@@ -110,9 +127,16 @@ static struct wm8996_retune_mobile_config wm8996_retune[] = {
 	},
 };
 
+static struct gpiod_lookup_table wm8996_gpiod_table = {
+	.dev_id = "1-001a", /* Device 001a on I2C bus 1 */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct wm8996_pdata wm8996_pdata __initdata = {
-	.ldo_ena = S3C64XX_GPN(7),
-	.gpio_base = CODEC_GPIO_BASE,
 	.micdet_def = 1,
 	.inl_mode = WM8996_DIFFERRENTIAL_1,
 	.inr_mode = WM8996_DIFFERRENTIAL_1,
@@ -296,9 +320,17 @@ static const struct i2c_board_info wm6230_i2c_devs[] = {
 };
 
 static struct wm2200_pdata wm2200_pdata = {
-	.ldo_ena = S3C64XX_GPN(7),
 	.gpio_defaults = {
 		[2] = 0x0005,  /* GPIO3 24.576MHz output clock */
+	},
+};
+
+static struct gpiod_lookup_table wm2200_gpiod_table = {
+	.dev_id = "1-003a", /* Device 003a on I2C bus 1 */
+	.table = {
+		GPIO_LOOKUP("GPION", 7,
+			    "wlf,ldo1ena", GPIO_ACTIVE_HIGH),
+		{ },
 	},
 };
 
@@ -337,18 +369,21 @@ static const struct {
 	{ .id = 0x21, .rev = 0xff, .name = "1275-EV1 Mortlach" },
 	{ .id = 0x25, .rev = 0xff, .name = "1274-EV1 Glencadam" },
 	{ .id = 0x31, .rev = 0xff, .name = "1253-EV1 Tomatin",
-	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs) },
+	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs),
+	  .gpiod_table = &wm0010_gpiod_table },
 	{ .id = 0x32, .rev = 0xff, .name = "XXXX-EV1 Caol Illa" },
 	{ .id = 0x33, .rev = 0xff, .name = "XXXX-EV1 Oban" },
 	{ .id = 0x34, .rev = 0xff, .name = "WM0010-6320-CS42 Balblair",
 	  .spi_devs = balblair_devs,
 	  .num_spi_devs = ARRAY_SIZE(balblair_devs) },
 	{ .id = 0x39, .rev = 0xff, .name = "1254-EV1 Dallas Dhu",
-	  .i2c_devs = wm1254_devs, .num_i2c_devs = ARRAY_SIZE(wm1254_devs) },
+	  .i2c_devs = wm1254_devs, .num_i2c_devs = ARRAY_SIZE(wm1254_devs),
+	  .gpiod_table = &wm8996_gpiod_table },
 	{ .id = 0x3a, .rev = 0xff, .name = "1259-EV1 Tobermory",
 	  .i2c_devs = wm1259_devs, .num_i2c_devs = ARRAY_SIZE(wm1259_devs) },
 	{ .id = 0x3b, .rev = 0xff, .name = "1255-EV1 Kilchoman",
-	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs) },
+	  .i2c_devs = wm1255_devs, .num_i2c_devs = ARRAY_SIZE(wm1255_devs),
+	  .gpiod_table = &wm5100_gpiod_table },
 	{ .id = 0x3c, .rev = 0xff, .name = "1273-EV1 Longmorn" },
 	{ .id = 0x3d, .rev = 0xff, .name = "1277-EV1 Littlemill",
 	  .i2c_devs = wm1277_devs, .num_i2c_devs = ARRAY_SIZE(wm1277_devs),
@@ -362,7 +397,8 @@ static const struct {
 	  .num_spi_devs = ARRAY_SIZE(wm5102_spi_devs),
 	  .gpiod_table = &wm5102_gpiod_table },
 	{ .id = 0x3f, .rev = -1, .name = "WM2200-6271-CS90-M-REV1",
-	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c) },
+	  .i2c_devs = wm2200_i2c, .num_i2c_devs = ARRAY_SIZE(wm2200_i2c),
+	  .gpiod_table = &wm2200_gpiod_table },
 };
 
 static int wlf_gf_module_probe(struct i2c_client *i2c)
