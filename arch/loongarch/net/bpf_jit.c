@@ -855,8 +855,6 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx, bool ext
 
 	/* function return */
 	case BPF_JMP | BPF_EXIT:
-		emit_sext_32(ctx, regmap[BPF_REG_0], true);
-
 		if (i == ctx->prog->len - 1)
 			break;
 
