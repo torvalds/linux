@@ -10,6 +10,9 @@
 
 #define ALT_FLAG_NOT		(1 << 0)
 #define ALT_NOT(feature)	((ALT_FLAG_NOT << ALT_FLAGS_SHIFT) | (feature))
+#define ALT_FLAG_DIRECT_CALL	(1 << 1)
+#define ALT_DIRECT_CALL(feature) ((ALT_FLAG_DIRECT_CALL << ALT_FLAGS_SHIFT) | (feature))
+#define ALT_CALL_ALWAYS		ALT_DIRECT_CALL(X86_FEATURE_ALWAYS)
 
 #ifndef __ASSEMBLY__
 
@@ -149,6 +152,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	return 0;
 }
 #endif	/* CONFIG_SMP */
+
+#define ALT_CALL_INSTR		"call BUG_func"
 
 #define b_replacement(num)	"664"#num
 #define e_replacement(num)	"665"#num
@@ -384,6 +389,10 @@ void nop_func(void);
 	.4byte \ft_flags
 	.byte \orig_len
 	.byte \alt_len
+.endm
+
+.macro ALT_CALL_INSTR
+	call BUG_func
 .endm
 
 /*
