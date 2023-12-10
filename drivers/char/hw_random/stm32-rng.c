@@ -363,11 +363,9 @@ static int stm32_rng_init(struct hwrng *rng)
 	return 0;
 }
 
-static int stm32_rng_remove(struct platform_device *ofdev)
+static void stm32_rng_remove(struct platform_device *ofdev)
 {
 	pm_runtime_disable(&ofdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_rng_runtime_suspend(struct device *dev)
@@ -558,7 +556,7 @@ static struct platform_driver stm32_rng_driver = {
 		.of_match_table = stm32_rng_match,
 	},
 	.probe = stm32_rng_probe,
-	.remove = stm32_rng_remove,
+	.remove_new = stm32_rng_remove,
 };
 
 module_platform_driver(stm32_rng_driver);
