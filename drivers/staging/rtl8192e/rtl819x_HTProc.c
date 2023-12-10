@@ -471,7 +471,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->ShortGI20Mhz == 1) ? true : false);
 	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->ShortGI40Mhz == 1) ? true : false);
 
-	ht_info->bCurSuppCCK = ((pPeerHTCap->DssCCk == 1) ? true : false);
+	ht_info->bCurSuppCCK = true;
 
 	ht_info->bCurrent_AMSDU_Support = ht_info->amsdu_support;
 
