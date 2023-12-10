@@ -726,15 +726,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			goto fatal_err;
 	}
 
-	if (unlikely(trans->extra_journal_entries.nr)) {
-		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
-				  trans->extra_journal_entries.data,
-				  trans->extra_journal_entries.nr);
-
-		trans->journal_res.offset	+= trans->extra_journal_entries.nr;
-		trans->journal_res.u64s		-= trans->extra_journal_entries.nr;
-	}
-
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res))) {
 		struct journal *j = &c->journal;
 		struct jset_entry *entry;
@@ -771,6 +762,13 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 					       wb->k.k.u64s);
 			bkey_copy((struct bkey_i *) entry->start, &wb->k);
 		}
+
+		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
+				  trans->journal_entries,
+				  trans->journal_entries_u64s);
+
+		trans->journal_res.offset	+= trans->journal_entries_u64s;
+		trans->journal_res.u64s		-= trans->journal_entries_u64s;
 
 		if (trans->journal_seq)
 			*trans->journal_seq = trans->journal_res.seq;
@@ -1036,7 +1034,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 	if (!trans->nr_updates &&
 	    !trans->nr_wb_updates &&
-	    !trans->extra_journal_entries.nr)
+	    !trans->journal_entries_u64s)
 		goto out_reset;
 
 	ret = bch2_trans_commit_run_triggers(trans);
@@ -1088,7 +1086,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 
 	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));
 
-	trans->journal_u64s		= trans->extra_journal_entries.nr;
+	trans->journal_u64s		= trans->journal_entries_u64s;
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
 	if (trans->journal_transaction_names)
 		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);

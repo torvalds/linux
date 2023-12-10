@@ -557,16 +557,13 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 					    struct btree_update *as)
 {
 	struct bkey_i *k;
-	int ret;
 
-	ret = darray_make_room(&trans->extra_journal_entries, as->journal_u64s);
+	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, as->journal_u64s);
+	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
 		return ret;
 
-	memcpy(&darray_top(trans->extra_journal_entries),
-	       as->journal_entries,
-	       as->journal_u64s * sizeof(u64));
-	trans->extra_journal_entries.nr += as->journal_u64s;
+	memcpy(e, as->journal_entries, as->journal_u64s * sizeof(u64));
 
 	trans->journal_pin = &as->journal;
 
@@ -2188,16 +2185,16 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	} else {
 		BUG_ON(btree_node_root(c, b) != b);
 
-		ret = darray_make_room(&trans->extra_journal_entries,
+		struct jset_entry *e = bch2_trans_jset_entry_alloc(trans,
 				       jset_u64s(new_key->k.u64s));
+		ret = PTR_ERR_OR_ZERO(e);
 		if (ret)
 			return ret;
 
-		journal_entry_set((void *) &darray_top(trans->extra_journal_entries),
+		journal_entry_set(e,
 				  BCH_JSET_ENTRY_btree_root,
 				  b->c.btree_id, b->c.level,
 				  new_key, new_key->k.u64s);
-		trans->extra_journal_entries.nr += jset_u64s(new_key->k.u64s);
 	}
 
 	ret = bch2_trans_commit(trans, NULL, NULL, commit_flags);

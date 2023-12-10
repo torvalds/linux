@@ -410,7 +410,9 @@ struct btree_trans {
 	 * extent:
 	 */
 	unsigned		extra_journal_res;
-	unsigned		nr_max_paths;
+	u8			nr_max_paths;
+	u16			journal_entries_u64s;
+	u16			journal_entries_size;
 
 	unsigned long		paths_allocated[BITS_TO_LONGS(BTREE_ITER_MAX)];
 
@@ -426,7 +428,7 @@ struct btree_trans {
 
 	/* update path: */
 	struct btree_trans_commit_hook *hooks;
-	darray_u64		extra_journal_entries;
+	struct jset_entry	*journal_entries;
 	struct journal_entry_pin *journal_pin;
 
 	struct journal_res	journal_res;

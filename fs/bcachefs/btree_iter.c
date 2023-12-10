@@ -2794,6 +2794,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	trans->restart_count++;
 	trans->mem_top			= 0;
+	trans->journal_entries		= NULL;
 
 	trans_for_each_path(trans, path) {
 		path->should_be_locked = false;
@@ -2914,6 +2915,7 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	if (s) {
 		trans->nr_max_paths = s->nr_max_paths;
 		trans->wb_updates_size = s->wb_updates_size;
+		trans->journal_entries_size = s->journal_entries_size;
 	}
 
 	trans->srcu_idx		= srcu_read_lock(&c->btree_trans_barrier);
@@ -2999,8 +3001,6 @@ void bch2_trans_put(struct btree_trans *trans)
 		check_srcu_held_too_long(trans);
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 	}
-
-	kfree(trans->extra_journal_entries.data);
 
 	if (trans->fs_usage_deltas) {
 		if (trans->fs_usage_deltas->size + sizeof(trans->fs_usage_deltas) ==

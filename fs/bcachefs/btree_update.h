@@ -101,10 +101,27 @@ int bch2_bkey_get_empty_slot(struct btree_trans *, struct btree_iter *,
 
 int __must_check bch2_trans_update(struct btree_trans *, struct btree_iter *,
 				   struct bkey_i *, enum btree_update_flags);
-int __must_check bch2_trans_update_seq(struct btree_trans *, u64, struct btree_iter *,
-				       struct bkey_i *, enum btree_update_flags);
 int __must_check bch2_trans_update_buffered(struct btree_trans *,
 					    enum btree_id, struct bkey_i *);
+
+struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *, unsigned);
+
+static inline struct jset_entry *btree_trans_journal_entries_top(struct btree_trans *trans)
+{
+	return (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+}
+
+static inline struct jset_entry *
+bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
+{
+	if (!trans->journal_entries ||
+	    trans->journal_entries_u64s + u64s > trans->journal_entries_size)
+		return __bch2_trans_jset_entry_alloc(trans, u64s);
+
+	struct jset_entry *e = btree_trans_journal_entries_top(trans);
+	trans->journal_entries_u64s += u64s;
+	return e;
+}
 
 void bch2_trans_commit_hook(struct btree_trans *,
 			    struct btree_trans_commit_hook *);
@@ -171,10 +188,10 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 
 	trans->extra_journal_res	= 0;
 	trans->nr_updates		= 0;
+	trans->journal_entries_u64s	= 0;
 	trans->nr_wb_updates		= 0;
 	trans->wb_updates		= NULL;
 	trans->hooks			= NULL;
-	trans->extra_journal_entries.nr	= 0;
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;

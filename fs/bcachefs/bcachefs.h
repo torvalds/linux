@@ -638,6 +638,7 @@ struct btree_transaction_stats {
 	struct mutex		lock;
 	unsigned		nr_max_paths;
 	unsigned		wb_updates_size;
+	unsigned		journal_entries_size;
 	unsigned		max_mem;
 	char			*max_paths_text;
 };

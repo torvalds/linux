@@ -545,6 +545,34 @@ static noinline int bch2_btree_insert_clone_trans(struct btree_trans *trans,
 	return bch2_btree_insert_trans(trans, btree, n, 0);
 }
 
+struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsigned u64s)
+{
+	unsigned new_top = trans->journal_entries_u64s + u64s;
+	unsigned old_size = trans->journal_entries_size;
+
+	if (new_top > trans->journal_entries_size) {
+		trans->journal_entries_size = roundup_pow_of_two(new_top);
+
+		struct btree_transaction_stats *s = btree_trans_stats(trans);
+		if (s)
+			s->journal_entries_size = trans->journal_entries_size;
+	}
+
+	struct jset_entry *n =
+		bch2_trans_kmalloc_nomemzero(trans,
+				trans->journal_entries_size * sizeof(u64));
+	if (IS_ERR(n))
+		return ERR_CAST(n);
+
+	if (trans->journal_entries)
+		memcpy(n, trans->journal_entries, old_size * sizeof(u64));
+	trans->journal_entries = n;
+
+	struct jset_entry *e = btree_trans_journal_entries_top(trans);
+	trans->journal_entries_u64s = new_top;
+	return e;
+}
+
 int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 					    enum btree_id btree,
 					    struct bkey_i *k)
@@ -823,41 +851,17 @@ int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
 	return bch2_trans_update_buffered(trans, btree, &k);
 }
 
-__printf(2, 0)
-static int __bch2_trans_log_msg(darray_u64 *entries, const char *fmt, va_list args)
+static int __bch2_trans_log_msg(struct btree_trans *trans, struct printbuf *buf, unsigned u64s)
 {
-	struct printbuf buf = PRINTBUF;
-	struct jset_entry_log *l;
-	unsigned u64s;
-	int ret;
-
-	prt_vprintf(&buf, fmt, args);
-	ret = buf.allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
+	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(u64s));
+	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
-		goto err;
+		return ret;
 
-	u64s = DIV_ROUND_UP(buf.pos, sizeof(u64));
-
-	ret = darray_make_room(entries, jset_u64s(u64s));
-	if (ret)
-		goto err;
-
-	l = (void *) &darray_top(*entries);
-	l->entry.u64s		= cpu_to_le16(u64s);
-	l->entry.btree_id	= 0;
-	l->entry.level		= 1;
-	l->entry.type		= BCH_JSET_ENTRY_log;
-	l->entry.pad[0]		= 0;
-	l->entry.pad[1]		= 0;
-	l->entry.pad[2]		= 0;
-	memcpy(l->d, buf.buf, buf.pos);
-	while (buf.pos & 7)
-		l->d[buf.pos++] = '\0';
-
-	entries->nr += jset_u64s(u64s);
-err:
-	printbuf_exit(&buf);
-	return ret;
+	struct jset_entry_log *l = container_of(e, struct jset_entry_log, entry);
+	journal_entry_init(e, BCH_JSET_ENTRY_log, 0, 1, u64s);
+	memcpy(l->d, buf->buf, buf->pos);
+	return 0;
 }
 
 __printf(3, 0)
@@ -865,16 +869,32 @@ static int
 __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 		  va_list args)
 {
-	int ret;
+	struct printbuf buf = PRINTBUF;
+	prt_vprintf(&buf, fmt, args);
+
+	unsigned u64s = DIV_ROUND_UP(buf.pos, sizeof(u64));
+	prt_chars(&buf, '\0', u64s * sizeof(u64) - buf.pos);
+
+	int ret = buf.allocation_failure ? -BCH_ERR_ENOMEM_trans_log_msg : 0;
+	if (ret)
+		goto err;
 
 	if (!test_bit(JOURNAL_STARTED, &c->journal.flags)) {
-		ret = __bch2_trans_log_msg(&c->journal.early_journal_entries, fmt, args);
+		ret = darray_make_room(&c->journal.early_journal_entries, jset_u64s(u64s));
+		if (ret)
+			goto err;
+
+		struct jset_entry_log *l = (void *) &darray_top(c->journal.early_journal_entries);
+		journal_entry_init(&l->entry, BCH_JSET_ENTRY_log, 0, 1, u64s);
+		memcpy(l->d, buf.buf, buf.pos);
+		c->journal.early_journal_entries.nr += jset_u64s(u64s);
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL,
 			BCH_TRANS_COMMIT_lazy_rw|commit_flags,
-			__bch2_trans_log_msg(&trans->extra_journal_entries, fmt, args));
+			__bch2_trans_log_msg(trans, &buf, u64s));
 	}
-
+err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
