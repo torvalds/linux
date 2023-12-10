@@ -90,11 +90,6 @@ module_param(debug_event, bool, 0444);
 MODULE_PARM_DESC(debug_event,
 		 "Log WMI Events [0/1]");
 
-static bool debug_dump_wdg;
-module_param(debug_dump_wdg, bool, 0444);
-MODULE_PARM_DESC(debug_dump_wdg,
-		 "Dump available WMI interfaces [0/1]");
-
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
 	{"pnp0c14", 0},
@@ -596,29 +591,6 @@ acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct 
 	return acpi_evaluate_object(handle, method, &input, NULL);
 }
 EXPORT_SYMBOL_GPL(wmidev_block_set);
-
-static void wmi_dump_wdg(const struct guid_block *g)
-{
-	pr_info("%pUL:\n", &g->guid);
-	if (g->flags & ACPI_WMI_EVENT)
-		pr_info("\tnotify_id: 0x%02X\n", g->notify_id);
-	else
-		pr_info("\tobject_id: %2pE\n", g->object_id);
-	pr_info("\tinstance_count: %d\n", g->instance_count);
-	pr_info("\tflags: %#x", g->flags);
-	if (g->flags) {
-		if (g->flags & ACPI_WMI_EXPENSIVE)
-			pr_cont(" ACPI_WMI_EXPENSIVE");
-		if (g->flags & ACPI_WMI_METHOD)
-			pr_cont(" ACPI_WMI_METHOD");
-		if (g->flags & ACPI_WMI_STRING)
-			pr_cont(" ACPI_WMI_STRING");
-		if (g->flags & ACPI_WMI_EVENT)
-			pr_cont(" ACPI_WMI_EVENT");
-	}
-	pr_cont("\n");
-
-}
 
 static void wmi_notify_debug(u32 value, void *context)
 {
@@ -1343,9 +1315,6 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 	total = obj->buffer.length / sizeof(struct guid_block);
 
 	for (i = 0; i < total; i++) {
-		if (debug_dump_wdg)
-			wmi_dump_wdg(&gblock[i]);
-
 		if (!gblock[i].instance_count) {
 			dev_info(wmi_bus_dev, FW_INFO "%pUL has zero instances\n", &gblock[i].guid);
 			continue;
