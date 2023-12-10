@@ -674,14 +674,22 @@ static void bch2_trans_revalidate_updates_in_node(struct btree_trans *trans, str
  * A btree node is being replaced - update the iterator to point to the new
  * node:
  */
-void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
+void bch2_trans_node_add(struct btree_trans *trans,
+			 struct btree_path *path,
+			 struct btree *b)
 {
-	struct btree_path *path;
+	struct btree_path *prev;
 
-	trans_for_each_path(trans, path)
-		if (path->uptodate == BTREE_ITER_UPTODATE &&
-		    !path->cached &&
-		    btree_path_pos_in_node(path, b)) {
+	BUG_ON(!btree_path_pos_in_node(path, b));
+
+	while ((prev = prev_btree_path(trans, path)) &&
+	       btree_path_pos_in_node(prev, b))
+		path = prev;
+
+	for (;
+	     path && btree_path_pos_in_node(path, b);
+	     path = next_btree_path(trans, path))
+		if (path->uptodate == BTREE_ITER_UPTODATE && !path->cached) {
 			enum btree_node_locked_type t =
 				btree_lock_want(path, b->c.level);
 

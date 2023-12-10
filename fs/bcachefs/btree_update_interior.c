@@ -1601,10 +1601,10 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	bch2_btree_node_free_inmem(trans, path, b);
 
 	if (n3)
-		bch2_trans_node_add(trans, n3);
+		bch2_trans_node_add(trans, path, n3);
 	if (n2)
-		bch2_trans_node_add(trans, n2);
-	bch2_trans_node_add(trans, n1);
+		bch2_trans_node_add(trans, path2, n2);
+	bch2_trans_node_add(trans, path1, n1);
 
 	if (n3)
 		six_unlock_intent(&n3->c.lock);
@@ -1913,7 +1913,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	bch2_btree_node_free_inmem(trans, path, b);
 	bch2_btree_node_free_inmem(trans, sib_path, m);
 
-	bch2_trans_node_add(trans, n);
+	bch2_trans_node_add(trans, path, n);
 
 	bch2_trans_verify_paths(trans);
 
@@ -1985,7 +1985,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	bch2_btree_node_free_inmem(trans, iter->path, b);
 
-	bch2_trans_node_add(trans, n);
+	bch2_trans_node_add(trans, iter->path, n);
 	six_unlock_intent(&n->c.lock);
 
 	bch2_btree_update_done(as, trans);
