@@ -16,6 +16,7 @@ properties:
   compatible:
     items:
       - enum:
+          - ampire,am8001280g
           - bananapi,lhr050h41
           - feixin,k101-im2byl02
           - tdo,tl050hdv35

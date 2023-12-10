@@ -663,17 +663,54 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 	return ret;
 }
 
-static struct fb_ops lynxfb_ops = {
+static const struct fb_ops lynxfb_ops = {
 	.owner = THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var =  lynxfb_ops_check_var,
 	.fb_set_par = lynxfb_ops_set_par,
 	.fb_setcolreg = lynxfb_ops_setcolreg,
 	.fb_blank = lynxfb_ops_blank,
-	.fb_fillrect = cfb_fillrect,
-	.fb_imageblit = cfb_imageblit,
-	.fb_copyarea = cfb_copyarea,
-	/* cursor */
+	.fb_pan_display = lynxfb_ops_pan_display,
+};
+
+static const struct fb_ops lynxfb_ops_with_cursor = {
+	.owner = THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
+	.fb_check_var =  lynxfb_ops_check_var,
+	.fb_set_par = lynxfb_ops_set_par,
+	.fb_setcolreg = lynxfb_ops_setcolreg,
+	.fb_blank = lynxfb_ops_blank,
+	.fb_pan_display = lynxfb_ops_pan_display,
 	.fb_cursor = lynxfb_ops_cursor,
+};
+
+static const struct fb_ops lynxfb_ops_accel = {
+	.owner = THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
+	.fb_check_var =  lynxfb_ops_check_var,
+	.fb_set_par = lynxfb_ops_set_par,
+	.fb_setcolreg = lynxfb_ops_setcolreg,
+	.fb_blank = lynxfb_ops_blank,
+	.fb_pan_display = lynxfb_ops_pan_display,
+	.fb_fillrect = lynxfb_ops_fillrect,
+	.fb_copyarea = lynxfb_ops_copyarea,
+	.fb_imageblit = lynxfb_ops_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
+};
+
+static const struct fb_ops lynxfb_ops_accel_with_cursor = {
+	.owner = THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
+	.fb_check_var =  lynxfb_ops_check_var,
+	.fb_set_par = lynxfb_ops_set_par,
+	.fb_setcolreg = lynxfb_ops_setcolreg,
+	.fb_blank = lynxfb_ops_blank,
+	.fb_pan_display = lynxfb_ops_pan_display,
+	.fb_fillrect = lynxfb_ops_fillrect,
+	.fb_copyarea = lynxfb_ops_copyarea,
+	.fb_imageblit = lynxfb_ops_imageblit,
+	.fb_cursor = lynxfb_ops_cursor,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int lynxfb_set_fbinfo(struct fb_info *info, int index)
@@ -714,7 +751,6 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	par->index = index;
 	output->channel = &crtc->channel;
 	sm750fb_set_drv(par);
-	lynxfb_ops.fb_pan_display = lynxfb_ops_pan_display;
 
 	/*
 	 * set current cursor variable and proc pointer,
@@ -731,19 +767,22 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 	crtc->cursor.vstart = sm750_dev->pvMem + crtc->cursor.offset;
 
 	memset_io(crtc->cursor.vstart, 0, crtc->cursor.size);
-	if (!g_hwcursor) {
-		lynxfb_ops.fb_cursor = NULL;
+	if (!g_hwcursor)
 		sm750_hw_cursor_disable(&crtc->cursor);
-	}
 
 	/* set info->fbops, must be set before fb_find_mode */
 	if (!sm750_dev->accel_off) {
 		/* use 2d acceleration */
-		lynxfb_ops.fb_fillrect = lynxfb_ops_fillrect;
-		lynxfb_ops.fb_copyarea = lynxfb_ops_copyarea;
-		lynxfb_ops.fb_imageblit = lynxfb_ops_imageblit;
+		if (!g_hwcursor)
+			info->fbops = &lynxfb_ops_accel;
+		else
+			info->fbops = &lynxfb_ops_accel_with_cursor;
+	} else {
+		if (!g_hwcursor)
+			info->fbops = &lynxfb_ops;
+		else
+			info->fbops = &lynxfb_ops_with_cursor;
 	}
-	info->fbops = &lynxfb_ops;
 
 	if (!g_fbmode[index]) {
 		g_fbmode[index] = g_def_fbmode;

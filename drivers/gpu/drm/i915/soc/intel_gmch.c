@@ -33,18 +33,22 @@ int intel_gmch_bridge_setup(struct drm_i915_private *i915)
 					i915->gmch.pdev);
 }
 
+static int mchbar_reg(struct drm_i915_private *i915)
+{
+	return GRAPHICS_VER(i915) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
+}
+
 /* Allocate space for the MCH regs if needed, return nonzero on error */
 static int
 intel_alloc_mchbar_resource(struct drm_i915_private *i915)
 {
-	int reg = GRAPHICS_VER(i915) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp_lo, temp_hi = 0;
 	u64 mchbar_addr;
 	int ret;
 
 	if (GRAPHICS_VER(i915) >= 4)
-		pci_read_config_dword(i915->gmch.pdev, reg + 4, &temp_hi);
-	pci_read_config_dword(i915->gmch.pdev, reg, &temp_lo);
+		pci_read_config_dword(i915->gmch.pdev, mchbar_reg(i915) + 4, &temp_hi);
+	pci_read_config_dword(i915->gmch.pdev, mchbar_reg(i915), &temp_lo);
 	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
 
 	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
@@ -68,10 +72,10 @@ intel_alloc_mchbar_resource(struct drm_i915_private *i915)
 	}
 
 	if (GRAPHICS_VER(i915) >= 4)
-		pci_write_config_dword(i915->gmch.pdev, reg + 4,
+		pci_write_config_dword(i915->gmch.pdev, mchbar_reg(i915) + 4,
 				       upper_32_bits(i915->gmch.mch_res.start));
 
-	pci_write_config_dword(i915->gmch.pdev, reg,
+	pci_write_config_dword(i915->gmch.pdev, mchbar_reg(i915),
 			       lower_32_bits(i915->gmch.mch_res.start));
 	return 0;
 }
@@ -79,7 +83,6 @@ intel_alloc_mchbar_resource(struct drm_i915_private *i915)
 /* Setup MCHBAR if possible, return true if we should disable it again */
 void intel_gmch_bar_setup(struct drm_i915_private *i915)
 {
-	int mchbar_reg = GRAPHICS_VER(i915) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
 	u32 temp;
 	bool enabled;
 
@@ -92,7 +95,7 @@ void intel_gmch_bar_setup(struct drm_i915_private *i915)
 		pci_read_config_dword(i915->gmch.pdev, DEVEN, &temp);
 		enabled = !!(temp & DEVEN_MCHBAR_EN);
 	} else {
-		pci_read_config_dword(i915->gmch.pdev, mchbar_reg, &temp);
+		pci_read_config_dword(i915->gmch.pdev, mchbar_reg(i915), &temp);
 		enabled = temp & 1;
 	}
 
@@ -110,15 +113,13 @@ void intel_gmch_bar_setup(struct drm_i915_private *i915)
 		pci_write_config_dword(i915->gmch.pdev, DEVEN,
 				       temp | DEVEN_MCHBAR_EN);
 	} else {
-		pci_read_config_dword(i915->gmch.pdev, mchbar_reg, &temp);
-		pci_write_config_dword(i915->gmch.pdev, mchbar_reg, temp | 1);
+		pci_read_config_dword(i915->gmch.pdev, mchbar_reg(i915), &temp);
+		pci_write_config_dword(i915->gmch.pdev, mchbar_reg(i915), temp | 1);
 	}
 }
 
 void intel_gmch_bar_teardown(struct drm_i915_private *i915)
 {
-	int mchbar_reg = GRAPHICS_VER(i915) >= 4 ? MCHBAR_I965 : MCHBAR_I915;
-
 	if (i915->gmch.mchbar_need_disable) {
 		if (IS_I915G(i915) || IS_I915GM(i915)) {
 			u32 deven_val;
@@ -131,10 +132,10 @@ void intel_gmch_bar_teardown(struct drm_i915_private *i915)
 		} else {
 			u32 mchbar_val;
 
-			pci_read_config_dword(i915->gmch.pdev, mchbar_reg,
+			pci_read_config_dword(i915->gmch.pdev, mchbar_reg(i915),
 					      &mchbar_val);
 			mchbar_val &= ~1;
-			pci_write_config_dword(i915->gmch.pdev, mchbar_reg,
+			pci_write_config_dword(i915->gmch.pdev, mchbar_reg(i915),
 					       mchbar_val);
 		}
 	}

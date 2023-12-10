@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 
 #include <drm/drm_accel.h>
+#include <drm/drm_auth.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>

@@ -17,9 +17,10 @@
 #include <uapi/drm/ivpu_accel.h>
 
 #include "ivpu_mmu_context.h"
+#include "ivpu_ipc.h"
 
 #define DRIVER_NAME "intel_vpu"
-#define DRIVER_DESC "Driver for Intel Versatile Processing Unit (VPU)"
+#define DRIVER_DESC "Driver for Intel NPU (Neural Processing Unit)"
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
@@ -88,6 +89,7 @@ struct ivpu_wa_table {
 	bool d3hot_after_power_off;
 	bool interrupt_clear_with_0;
 	bool disable_clock_relinquish;
+	bool disable_d0i3_msg;
 };
 
 struct ivpu_hw_info;
@@ -115,8 +117,11 @@ struct ivpu_device {
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
+	struct mutex bo_list_lock; /* Protects bo_list */
+	struct list_head bo_list;
+
 	struct xarray submitted_jobs_xa;
-	struct task_struct *job_done_thread;
+	struct ivpu_ipc_consumer job_done_consumer;
 
 	atomic64_t unique_id_counter;
 
@@ -126,6 +131,7 @@ struct ivpu_device {
 		int tdr;
 		int reschedule_suspend;
 		int autosuspend;
+		int d0i3_entry_msg;
 	} timeout;
 };
 
@@ -148,9 +154,11 @@ extern u8 ivpu_pll_min_ratio;
 extern u8 ivpu_pll_max_ratio;
 extern bool ivpu_disable_mmu_cont_pages;
 
-#define IVPU_TEST_MODE_DISABLED  0
-#define IVPU_TEST_MODE_FW_TEST   1
-#define IVPU_TEST_MODE_NULL_HW   2
+#define IVPU_TEST_MODE_FW_TEST            BIT(0)
+#define IVPU_TEST_MODE_NULL_HW            BIT(1)
+#define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
+#define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
+#define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);

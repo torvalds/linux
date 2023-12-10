@@ -748,12 +748,12 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 	if (!fs_devices) {
 		fs_devices = alloc_fs_devices(disk_super->fsid);
+		if (IS_ERR(fs_devices))
+			return ERR_CAST(fs_devices);
+
 		if (has_metadata_uuid)
 			memcpy(fs_devices->metadata_uuid,
 			       disk_super->metadata_uuid, BTRFS_FSID_SIZE);
-
-		if (IS_ERR(fs_devices))
-			return ERR_CAST(fs_devices);
 
 		if (same_fsid_diff_dev) {
 			generate_random_uuid(fs_devices->fsid);

@@ -726,6 +726,11 @@ nouveau_display_create(struct drm_device *dev)
 
 	if (nouveau_modeset != 2) {
 		ret = nvif_disp_ctor(&drm->client.device, "kmsDisp", 0, &disp->disp);
+		/* no display hw */
+		if (ret == -ENODEV) {
+			ret = 0;
+			goto disp_create_err;
+		}
 
 		if (!ret && (disp->disp.outp_mask || drm->vbios.dcb.entries)) {
 			nouveau_display_create_properties(dev);

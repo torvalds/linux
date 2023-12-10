@@ -430,7 +430,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	struct ovl_fs_context *ctx = fc->fs_private;
 	struct ovl_fs_context_layer *l;
 	char *dup = NULL, *iter;
-	ssize_t nr_lower = 0, nr = 0, nr_data = 0;
+	ssize_t nr_lower, nr;
 	bool data_layer = false;
 
 	/*
@@ -482,6 +482,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 	iter = dup;
 	l = ctx->lower;
 	for (nr = 0; nr < nr_lower; nr++, l++) {
+		ctx->nr++;
 		memset(l, 0, sizeof(*l));
 
 		err = ovl_mount_dir(iter, &l->path);
@@ -498,10 +499,10 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 			goto out_put;
 
 		if (data_layer)
-			nr_data++;
+			ctx->nr_data++;
 
 		/* Calling strchr() again would overrun. */
-		if ((nr + 1) == nr_lower)
+		if (ctx->nr == nr_lower)
 			break;
 
 		err = -EINVAL;
@@ -511,7 +512,7 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 			 * This is a regular layer so we require that
 			 * there are no data layers.
 			 */
-			if ((ctx->nr_data + nr_data) > 0) {
+			if (ctx->nr_data > 0) {
 				pr_err("regular lower layers cannot follow data lower layers");
 				goto out_put;
 			}
@@ -524,8 +525,6 @@ static int ovl_parse_param_lowerdir(const char *name, struct fs_context *fc)
 		data_layer = true;
 		iter++;
 	}
-	ctx->nr = nr_lower;
-	ctx->nr_data += nr_data;
 	kfree(dup);
 	return 0;
 

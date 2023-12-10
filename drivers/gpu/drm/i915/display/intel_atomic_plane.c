@@ -31,7 +31,10 @@
  * prepare/check/commit/cleanup steps.
  */
 
+#include <linux/dma-fence-chain.h>
+
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 
@@ -1012,6 +1015,41 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	return 0;
 }
 
+static int add_dma_resv_fences(struct dma_resv *resv,
+			       struct drm_plane_state *new_plane_state)
+{
+	struct dma_fence *fence = dma_fence_get(new_plane_state->fence);
+	struct dma_fence *new;
+	int ret;
+
+	ret = dma_resv_get_singleton(resv, dma_resv_usage_rw(false), &new);
+	if (ret)
+		goto error;
+
+	if (new && fence) {
+		struct dma_fence_chain *chain = dma_fence_chain_alloc();
+
+		if (!chain) {
+			ret = -ENOMEM;
+			goto error;
+		}
+
+		dma_fence_chain_init(chain, fence, new, 1);
+		fence = &chain->base;
+
+	} else if (new) {
+		fence = new;
+	}
+
+	dma_fence_put(new_plane_state->fence);
+	new_plane_state->fence = fence;
+	return 0;
+
+error:
+	dma_fence_put(fence);
+	return ret;
+}
+
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @_plane: drm plane to prepare for
@@ -1035,7 +1073,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(new_plane_state->uapi.state);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	const struct intel_plane_state *old_plane_state =
+	struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	struct drm_i915_gem_object *obj = intel_fb_obj(new_plane_state->hw.fb);
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(old_plane_state->hw.fb);
@@ -1058,55 +1096,28 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		 * can safely continue.
 		 */
 		if (new_crtc_state && intel_crtc_needs_modeset(new_crtc_state)) {
-			ret = i915_sw_fence_await_reservation(&state->commit_ready,
-							      old_obj->base.resv,
-							      false, 0,
-							      GFP_KERNEL);
+			ret = add_dma_resv_fences(intel_bo_to_drm_bo(old_obj)->resv,
+						  &new_plane_state->uapi);
 			if (ret < 0)
 				return ret;
 		}
 	}
 
-	if (new_plane_state->uapi.fence) { /* explicit fencing */
-		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
-					     &attr);
-		ret = i915_sw_fence_await_dma_fence(&state->commit_ready,
-						    new_plane_state->uapi.fence,
-						    i915_fence_timeout(dev_priv),
-						    GFP_KERNEL);
-		if (ret < 0)
-			return ret;
-	}
-
 	if (!obj)
 		return 0;
-
 
 	ret = intel_plane_pin_fb(new_plane_state);
 	if (ret)
 		return ret;
 
-	i915_gem_object_wait_priority(obj, 0, &attr);
+	ret = drm_gem_plane_helper_prepare_fb(&plane->base, &new_plane_state->uapi);
+	if (ret < 0)
+		goto unpin_fb;
 
-	if (!new_plane_state->uapi.fence) { /* implicit fencing */
-		struct dma_resv_iter cursor;
-		struct dma_fence *fence;
+	if (new_plane_state->uapi.fence) {
+		i915_gem_fence_wait_priority(new_plane_state->uapi.fence,
+					     &attr);
 
-		ret = i915_sw_fence_await_reservation(&state->commit_ready,
-						      obj->base.resv, false,
-						      i915_fence_timeout(dev_priv),
-						      GFP_KERNEL);
-		if (ret < 0)
-			goto unpin_fb;
-
-		dma_resv_iter_begin(&cursor, obj->base.resv,
-				    DMA_RESV_USAGE_WRITE);
-		dma_resv_for_each_fence_unlocked(&cursor, fence) {
-			intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
-							     fence);
-		}
-		dma_resv_iter_end(&cursor);
-	} else {
 		intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
 						     new_plane_state->uapi.fence);
 	}

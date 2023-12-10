@@ -15,7 +15,7 @@
 /* Enums */
 static const char * const devlink_op_strmap[] = {
 	[3] = "get",
-	[7] = "port-get",
+	// skip "port-get", duplicate reply value
 	[DEVLINK_CMD_PORT_NEW] = "port-new",
 	[13] = "sb-get",
 	[17] = "sb-pool-get",

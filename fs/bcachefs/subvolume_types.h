@@ -20,7 +20,7 @@ struct snapshot_t {
 };
 
 struct snapshot_table {
-	struct snapshot_t	s[0];
+	DECLARE_FLEX_ARRAY(struct snapshot_t, s);
 };
 
 typedef struct {

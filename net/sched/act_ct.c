@@ -1549,6 +1549,9 @@ static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
 
+		if (tcf_ct_helper(act))
+			return -EOPNOTSUPP;
+
 		entry->id = FLOW_ACTION_CT;
 		entry->ct.action = tcf_ct_action(act);
 		entry->ct.zone = tcf_ct_zone(act);

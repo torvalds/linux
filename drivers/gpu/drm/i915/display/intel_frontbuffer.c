@@ -265,8 +265,6 @@ static void frontbuffer_release(struct kref *ref)
 	spin_unlock(&intel_bo_to_i915(obj)->display.fb_tracking.lock);
 
 	i915_active_fini(&front->write);
-
-	i915_gem_object_put(obj);
 	kfree_rcu(front, rcu);
 }
 

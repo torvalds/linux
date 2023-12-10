@@ -531,16 +531,15 @@ static int mtk_disp_ovl_adaptor_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mtk_disp_ovl_adaptor_remove(struct platform_device *pdev)
+static void mtk_disp_ovl_adaptor_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &mtk_disp_ovl_adaptor_master_ops);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 struct platform_driver mtk_disp_ovl_adaptor_driver = {
 	.probe		= mtk_disp_ovl_adaptor_probe,
-	.remove		= mtk_disp_ovl_adaptor_remove,
+	.remove_new	= mtk_disp_ovl_adaptor_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl-adaptor",
 		.owner	= THIS_MODULE,

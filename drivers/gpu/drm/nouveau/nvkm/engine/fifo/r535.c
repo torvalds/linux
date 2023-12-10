@@ -539,7 +539,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
 	u32 cgids = 2048;
-	u32 chids = 2048 / CHID_PER_USERD;
+	u32 chids = 2048;
 	int ret;
 	NV2080_CTRL_FIFO_GET_DEVICE_INFO_TABLE_PARAMS *ctrl;
 

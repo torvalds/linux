@@ -22,6 +22,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/types.h>
 
 #include <drm/drm_ioctl.h>
 #include <drm/drm_vblank.h>
@@ -31,6 +32,7 @@
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
+struct cea_sad;
 struct dentry;
 struct dma_buf;
 struct iosys_map;
@@ -115,17 +117,10 @@ void drm_handle_vblank_works(struct drm_vblank_crtc *vblank);
 /* IOCTLS */
 int drm_wait_vblank_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *filp);
-int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv);
 
 /* drm_irq.c */
 
 /* IOCTLS */
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
-int drm_legacy_irq_control(struct drm_device *dev, void *data,
-			   struct drm_file *file_priv);
-#endif
-
 int drm_crtc_get_sequence_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 
@@ -192,6 +187,8 @@ void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
 void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
+void drm_debugfs_encoder_add(struct drm_encoder *encoder);
+void drm_debugfs_encoder_remove(struct drm_encoder *encoder);
 #else
 static inline void drm_debugfs_dev_fini(struct drm_device *dev)
 {
@@ -226,6 +223,14 @@ static inline void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
 }
 
 static inline void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+{
+}
+
+static inline void drm_debugfs_encoder_add(struct drm_encoder *encoder)
+{
+}
+
+static inline void drm_debugfs_encoder_remove(struct drm_encoder *encoder)
 {
 }
 
@@ -267,3 +272,7 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
 void drm_framebuffer_debugfs_init(struct drm_device *dev);
+
+/* drm_edid.c */
+void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
+void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);

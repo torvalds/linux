@@ -27,6 +27,7 @@
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fixed.h>
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -941,10 +942,10 @@ static int increase_dsc_bpp(struct drm_atomic_state *state,
 		link_timeslots_used = 0;
 
 		for (i = 0; i < count; i++)
-			link_timeslots_used += DIV_ROUND_UP(vars[i + k].pbn, mst_state->pbn_div);
+			link_timeslots_used += DIV_ROUND_UP(vars[i + k].pbn, dfixed_trunc(mst_state->pbn_div));
 
 		fair_pbn_alloc =
-			(63 - link_timeslots_used) / remaining_to_increase * mst_state->pbn_div;
+			(63 - link_timeslots_used) / remaining_to_increase * dfixed_trunc(mst_state->pbn_div);
 
 		if (initial_slack[next_index] > fair_pbn_alloc) {
 			vars[next_index].pbn += fair_pbn_alloc;
@@ -1604,30 +1605,30 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
 	unsigned int max_compressed_bw_in_kbps = 0;
 	struct dc_dsc_bw_range bw_range = {0};
-	struct drm_dp_mst_topology_mgr *mst_mgr;
+	uint16_t full_pbn = aconnector->mst_output_port->full_pbn;
 
 	/*
-	 * check if the mode could be supported if DSC pass-through is supported
-	 * AND check if there enough bandwidth available to support the mode
-	 * with DSC enabled.
+	 * Consider the case with the depth of the mst topology tree is equal or less than 2
+	 * A. When dsc bitstream can be transmitted along the entire path
+	 *    1. dsc is possible between source and branch/leaf device (common dsc params is possible), AND
+	 *    2. dsc passthrough supported at MST branch, or
+	 *    3. dsc decoding supported at leaf MST device
+	 *    Use maximum dsc compression as bw constraint
+	 * B. When dsc bitstream cannot be transmitted along the entire path
+	 *    Use native bw as bw constraint
 	 */
 	if (is_dsc_common_config_possible(stream, &bw_range) &&
-	    aconnector->mst_output_port->passthrough_aux) {
-		mst_mgr = aconnector->mst_output_port->mgr;
-		mutex_lock(&mst_mgr->lock);
-
+	   (aconnector->mst_output_port->passthrough_aux ||
+	    aconnector->dsc_aux == &aconnector->mst_output_port->aux)) {
 		cur_link_settings = stream->link->verified_link_cap;
 
 		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
-							       &cur_link_settings
-							       );
-		down_link_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
+							       &cur_link_settings);
+		down_link_bw_in_kbps = kbps_from_pbn(full_pbn);
 
 		/* pick the bottleneck */
 		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps,
 					    down_link_bw_in_kbps);
-
-		mutex_unlock(&mst_mgr->lock);
 
 		/*
 		 * use the maximum dsc compression bandwidth as the required
@@ -1642,9 +1643,8 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	} else {
 		/* check if mode could be supported within full_pbn */
 		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
-		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
-
-		if (pbn > aconnector->mst_output_port->full_pbn)
+		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp << 4);
+		if (pbn > full_pbn)
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 	}
 

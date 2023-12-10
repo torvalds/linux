@@ -22,4 +22,5 @@ int ivpu_jsm_trace_get_capability(struct ivpu_device *vdev, u32 *trace_destinati
 int ivpu_jsm_trace_set_config(struct ivpu_device *vdev, u32 trace_level, u32 trace_destination_mask,
 			      u64 trace_hw_component_mask);
 int ivpu_jsm_context_release(struct ivpu_device *vdev, u32 host_ssid);
+int ivpu_jsm_pwr_d0i3_enter(struct ivpu_device *vdev);
 #endif

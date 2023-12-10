@@ -12,8 +12,10 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx6q-iomuxc-gpr.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/videodev2.h>
 
@@ -617,7 +619,6 @@ static int imx_ldb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	const struct of_device_id *of_id = of_match_device(imx_ldb_dt_ids, dev);
 	struct device_node *child;
 	struct imx_ldb *imx_ldb;
 	int dual;
@@ -638,9 +639,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	regmap_write(imx_ldb->regmap, IOMUXC_GPR2, 0);
 
 	imx_ldb->dev = dev;
-
-	if (of_id)
-		imx_ldb->lvds_mux = of_id->data;
+	imx_ldb->lvds_mux = device_get_match_data(dev);
 
 	dual = of_property_read_bool(np, "fsl,dual-channel");
 	if (dual)

@@ -15,7 +15,7 @@
 #define PDSC_DRV_DESCRIPTION	"AMD/Pensando Core Driver"
 
 #define PDSC_WATCHDOG_SECS	5
-#define PDSC_QUEUE_NAME_MAX_SZ  32
+#define PDSC_QUEUE_NAME_MAX_SZ  16
 #define PDSC_ADMINQ_MIN_LENGTH	16	/* must be a power of two */
 #define PDSC_NOTIFYQ_LENGTH	64	/* must be a power of two */
 #define PDSC_TEARDOWN_RECOVERY	false

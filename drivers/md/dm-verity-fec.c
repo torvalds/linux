@@ -185,7 +185,7 @@ static int fec_is_erasure(struct dm_verity *v, struct dm_verity_io *io,
 {
 	if (unlikely(verity_hash(v, verity_io_hash_req(v, io),
 				 data, 1 << v->data_dev_block_bits,
-				 verity_io_real_digest(v, io))))
+				 verity_io_real_digest(v, io), true)))
 		return 0;
 
 	return memcmp(verity_io_real_digest(v, io), want_digest,
@@ -386,7 +386,7 @@ static int fec_decode_rsb(struct dm_verity *v, struct dm_verity_io *io,
 	/* Always re-validate the corrected block against the expected hash */
 	r = verity_hash(v, verity_io_hash_req(v, io), fio->output,
 			1 << v->data_dev_block_bits,
-			verity_io_real_digest(v, io));
+			verity_io_real_digest(v, io), true);
 	if (unlikely(r < 0))
 		return r;
 

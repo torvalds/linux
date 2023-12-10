@@ -19,13 +19,30 @@ struct reset_control;
 
 #define GMP_GRANULARITY (128 * 1024)
 
-#define V3D_MAX_QUEUES (V3D_CACHE_CLEAN + 1)
+#define V3D_MAX_QUEUES (V3D_CPU + 1)
+
+static inline char *v3d_queue_to_string(enum v3d_queue queue)
+{
+	switch (queue) {
+	case V3D_BIN: return "bin";
+	case V3D_RENDER: return "render";
+	case V3D_TFU: return "tfu";
+	case V3D_CSD: return "csd";
+	case V3D_CACHE_CLEAN: return "cache_clean";
+	case V3D_CPU: return "cpu";
+	}
+	return "UNKNOWN";
+}
 
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
 	u64 emit_seqno;
+
+	u64 start_ns;
+	u64 enabled_ns;
+	u64 jobs_sent;
 };
 
 /* Performance monitor object. The perform lifetime is controlled by userspace
@@ -106,6 +123,7 @@ struct v3d_dev {
 	struct v3d_render_job *render_job;
 	struct v3d_tfu_job *tfu_job;
 	struct v3d_csd_job *csd_job;
+	struct v3d_cpu_job *cpu_job;
 
 	struct v3d_queue_state queue[V3D_MAX_QUEUES];
 
@@ -167,6 +185,12 @@ struct v3d_file_priv {
 	} perfmon;
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
+
+	u64 start_ns[V3D_MAX_QUEUES];
+
+	u64 enabled_ns[V3D_MAX_QUEUES];
+
+	u64 jobs_sent[V3D_MAX_QUEUES];
 };
 
 struct v3d_bo {
@@ -178,6 +202,8 @@ struct v3d_bo {
 	 * v3d_render_job->unref_list
 	 */
 	struct list_head unref_head;
+
+	void *vaddr;
 };
 
 static inline struct v3d_bo *
@@ -238,6 +264,11 @@ struct v3d_job {
 	 */
 	struct v3d_perfmon *perfmon;
 
+	/* File descriptor of the process that submitted the job that could be used
+	 * for collecting stats by process of GPU usage.
+	 */
+	struct drm_file *file;
+
 	/* Callback for the freeing of the job on refcount going to 0. */
 	void (*free)(struct kref *ref);
 };
@@ -284,6 +315,112 @@ struct v3d_csd_job {
 
 	struct drm_v3d_submit_csd args;
 };
+
+enum v3d_cpu_job_type {
+	V3D_CPU_JOB_TYPE_INDIRECT_CSD = 1,
+	V3D_CPU_JOB_TYPE_TIMESTAMP_QUERY,
+	V3D_CPU_JOB_TYPE_RESET_TIMESTAMP_QUERY,
+	V3D_CPU_JOB_TYPE_COPY_TIMESTAMP_QUERY,
+	V3D_CPU_JOB_TYPE_RESET_PERFORMANCE_QUERY,
+	V3D_CPU_JOB_TYPE_COPY_PERFORMANCE_QUERY,
+};
+
+struct v3d_timestamp_query {
+	/* Offset of this query in the timestamp BO for its value. */
+	u32 offset;
+
+	/* Syncobj that indicates the timestamp availability */
+	struct drm_syncobj *syncobj;
+};
+
+/* Number of perfmons required to handle all supported performance counters */
+#define V3D_MAX_PERFMONS DIV_ROUND_UP(V3D_PERFCNT_NUM, \
+				      DRM_V3D_MAX_PERF_COUNTERS)
+
+struct v3d_performance_query {
+	/* Performance monitor IDs for this query */
+	u32 kperfmon_ids[V3D_MAX_PERFMONS];
+
+	/* Syncobj that indicates the query availability */
+	struct drm_syncobj *syncobj;
+};
+
+struct v3d_indirect_csd_info {
+	/* Indirect CSD */
+	struct v3d_csd_job *job;
+
+	/* Clean cache job associated to the Indirect CSD job */
+	struct v3d_job *clean_job;
+
+	/* Offset within the BO where the workgroup counts are stored */
+	u32 offset;
+
+	/* Workgroups size */
+	u32 wg_size;
+
+	/* Indices of the uniforms with the workgroup dispatch counts
+	 * in the uniform stream.
+	 */
+	u32 wg_uniform_offsets[3];
+
+	/* Indirect BO */
+	struct drm_gem_object *indirect;
+
+	/* Context of the Indirect CSD job */
+	struct ww_acquire_ctx acquire_ctx;
+};
+
+struct v3d_timestamp_query_info {
+	struct v3d_timestamp_query *queries;
+
+	u32 count;
+};
+
+struct v3d_performance_query_info {
+	struct v3d_performance_query *queries;
+
+	/* Number of performance queries */
+	u32 count;
+
+	/* Number of performance monitors related to that query pool */
+	u32 nperfmons;
+
+	/* Number of performance counters related to that query pool */
+	u32 ncounters;
+};
+
+struct v3d_copy_query_results_info {
+	/* Define if should write to buffer using 64 or 32 bits */
+	bool do_64bit;
+
+	/* Define if it can write to buffer even if the query is not available */
+	bool do_partial;
+
+	/* Define if it should write availability bit to buffer */
+	bool availability_bit;
+
+	/* Offset of the copy buffer in the BO */
+	u32 offset;
+
+	/* Stride of the copy buffer in the BO */
+	u32 stride;
+};
+
+struct v3d_cpu_job {
+	struct v3d_job base;
+
+	enum v3d_cpu_job_type job_type;
+
+	struct v3d_indirect_csd_info indirect_csd;
+
+	struct v3d_timestamp_query_info timestamp_query;
+
+	struct v3d_copy_query_results_info copy;
+
+	struct v3d_performance_query_info performance_query;
+};
+
+typedef void (*v3d_cpu_job_fn)(struct v3d_cpu_job *);
 
 struct v3d_submit_outsync {
 	struct drm_syncobj *syncobj;
@@ -352,12 +489,16 @@ struct drm_gem_object *v3d_create_object(struct drm_device *dev, size_t size);
 void v3d_free_object(struct drm_gem_object *gem_obj);
 struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 			     size_t size);
+void v3d_get_bo_vaddr(struct v3d_bo *bo);
+void v3d_put_bo_vaddr(struct v3d_bo *bo);
 int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int v3d_mmap_bo_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv);
 int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
+int v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv);
 struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 						 struct dma_buf_attachment *attach,
 						 struct sg_table *sgt);
@@ -372,19 +513,21 @@ struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue);
 /* v3d_gem.c */
 int v3d_gem_init(struct drm_device *dev);
 void v3d_gem_destroy(struct drm_device *dev);
+void v3d_reset(struct v3d_dev *v3d);
+void v3d_invalidate_caches(struct v3d_dev *v3d);
+void v3d_clean_caches(struct v3d_dev *v3d);
+
+/* v3d_submit.c */
+void v3d_job_cleanup(struct v3d_job *job);
+void v3d_job_put(struct v3d_job *job);
 int v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int v3d_submit_csd_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-int v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
-		      struct drm_file *file_priv);
-void v3d_job_cleanup(struct v3d_job *job);
-void v3d_job_put(struct v3d_job *job);
-void v3d_reset(struct v3d_dev *v3d);
-void v3d_invalidate_caches(struct v3d_dev *v3d);
-void v3d_clean_caches(struct v3d_dev *v3d);
+int v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 
 /* v3d_irq.c */
 int v3d_irq_init(struct v3d_dev *v3d);
@@ -393,8 +536,6 @@ void v3d_irq_disable(struct v3d_dev *v3d);
 void v3d_irq_reset(struct v3d_dev *v3d);
 
 /* v3d_mmu.c */
-int v3d_mmu_get_offset(struct drm_file *file_priv, struct v3d_bo *bo,
-		       u32 *offset);
 int v3d_mmu_set_page_table(struct v3d_dev *v3d);
 void v3d_mmu_insert_ptes(struct v3d_bo *bo);
 void v3d_mmu_remove_ptes(struct v3d_bo *bo);
@@ -418,3 +559,7 @@ int v3d_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv);
+
+/* v3d_sysfs.c */
+int v3d_sysfs_init(struct device *dev);
+void v3d_sysfs_destroy(struct device *dev);

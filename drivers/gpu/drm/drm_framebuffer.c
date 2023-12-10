@@ -394,6 +394,31 @@ static void drm_mode_rmfb_work_fn(struct work_struct *w)
 	}
 }
 
+static int drm_mode_closefb(struct drm_framebuffer *fb,
+			    struct drm_file *file_priv)
+{
+	struct drm_framebuffer *fbl;
+	bool found = false;
+
+	mutex_lock(&file_priv->fbs_lock);
+	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
+		if (fb == fbl)
+			found = true;
+
+	if (!found) {
+		mutex_unlock(&file_priv->fbs_lock);
+		return -ENOENT;
+	}
+
+	list_del_init(&fb->filp_head);
+	mutex_unlock(&file_priv->fbs_lock);
+
+	/* Drop the reference that was stored in the fbs list */
+	drm_framebuffer_put(fb);
+
+	return 0;
+}
+
 /**
  * drm_mode_rmfb - remove an FB from the configuration
  * @dev: drm device
@@ -410,9 +435,8 @@ static void drm_mode_rmfb_work_fn(struct work_struct *w)
 int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 		  struct drm_file *file_priv)
 {
-	struct drm_framebuffer *fb = NULL;
-	struct drm_framebuffer *fbl = NULL;
-	int found = 0;
+	struct drm_framebuffer *fb;
+	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
@@ -421,24 +445,13 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 	if (!fb)
 		return -ENOENT;
 
-	mutex_lock(&file_priv->fbs_lock);
-	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
-		if (fb == fbl)
-			found = 1;
-	if (!found) {
-		mutex_unlock(&file_priv->fbs_lock);
-		goto fail_unref;
+	ret = drm_mode_closefb(fb, file_priv);
+	if (ret != 0) {
+		drm_framebuffer_put(fb);
+		return ret;
 	}
 
-	list_del_init(&fb->filp_head);
-	mutex_unlock(&file_priv->fbs_lock);
-
-	/* drop the reference we picked up in framebuffer lookup */
-	drm_framebuffer_put(fb);
-
 	/*
-	 * we now own the reference that was stored in the fbs list
-	 *
 	 * drm_framebuffer_remove may fail with -EINTR on pending signals,
 	 * so run this in a separate stack as there's no way to correctly
 	 * handle this after the fb is already removed from the lookup table.
@@ -457,10 +470,6 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 		drm_framebuffer_put(fb);
 
 	return 0;
-
-fail_unref:
-	drm_framebuffer_put(fb);
-	return -ENOENT;
 }
 
 int drm_mode_rmfb_ioctl(struct drm_device *dev,
@@ -469,6 +478,28 @@ int drm_mode_rmfb_ioctl(struct drm_device *dev,
 	uint32_t *fb_id = data;
 
 	return drm_mode_rmfb(dev, *fb_id, file_priv);
+}
+
+int drm_mode_closefb_ioctl(struct drm_device *dev,
+			   void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_closefb *r = data;
+	struct drm_framebuffer *fb;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
+	if (r->pad)
+		return -EINVAL;
+
+	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
+	if (!fb)
+		return -ENOENT;
+
+	ret = drm_mode_closefb(fb, file_priv);
+	drm_framebuffer_put(fb);
+	return ret;
 }
 
 /**
@@ -552,7 +583,7 @@ int drm_mode_getfb2_ioctl(struct drm_device *dev,
 	struct drm_mode_fb_cmd2 *r = data;
 	struct drm_framebuffer *fb;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;

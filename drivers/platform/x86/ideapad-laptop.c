@@ -1425,18 +1425,17 @@ static int ideapad_kbd_bl_init(struct ideapad_private *priv)
 	if (WARN_ON(priv->kbd_bl.initialized))
 		return -EEXIST;
 
-	brightness = ideapad_kbd_bl_brightness_get(priv);
-	if (brightness < 0)
-		return brightness;
-
-	priv->kbd_bl.last_brightness = brightness;
-
 	if (ideapad_kbd_bl_check_tristate(priv->kbd_bl.type)) {
 		priv->kbd_bl.led.max_brightness = 2;
 	} else {
 		priv->kbd_bl.led.max_brightness = 1;
 	}
 
+	brightness = ideapad_kbd_bl_brightness_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	priv->kbd_bl.last_brightness = brightness;
 	priv->kbd_bl.led.name                    = "platform::" LED_FUNCTION_KBD_BACKLIGHT;
 	priv->kbd_bl.led.brightness_get          = ideapad_kbd_bl_led_cdev_brightness_get;
 	priv->kbd_bl.led.brightness_set_blocking = ideapad_kbd_bl_led_cdev_brightness_set;
