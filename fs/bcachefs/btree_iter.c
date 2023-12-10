@@ -1475,7 +1475,7 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 {
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
 	struct printbuf buf = PRINTBUF;
-	size_t nr = bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX);
+	size_t nr = bitmap_weight(trans->paths_allocated, trans->nr_paths);
 
 	if (!s)
 		return;
@@ -1521,9 +1521,9 @@ static noinline void btree_path_overflow(struct btree_trans *trans)
 static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
 						btree_path_idx_t pos)
 {
-	btree_path_idx_t idx = find_first_zero_bit(trans->paths_allocated, BTREE_ITER_MAX);
+	btree_path_idx_t idx = find_first_zero_bit(trans->paths_allocated, trans->nr_paths);
 
-	if (unlikely(idx == BTREE_ITER_MAX))
+	if (unlikely(idx == trans->nr_paths))
 		btree_path_overflow(trans);
 
 	/*
@@ -2527,7 +2527,7 @@ static void btree_trans_verify_sorted_refs(struct btree_trans *trans)
 	struct btree_path *path;
 	unsigned i;
 
-	BUG_ON(trans->nr_sorted != bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX) - 1);
+	BUG_ON(trans->nr_sorted != bitmap_weight(trans->paths_allocated, trans->nr_paths) - 1);
 
 	trans_for_each_path(trans, path, i) {
 		BUG_ON(path->sorted_idx >= trans->nr_sorted);
@@ -2933,6 +2933,7 @@ got_trans:
 	trans->journal_replay_not_finished =
 		unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) &&
 		atomic_inc_not_zero(&c->journal_keys.ref);
+	trans->nr_paths		= ARRAY_SIZE(trans->_paths);
 	trans->paths_allocated	= trans->_paths_allocated;
 	trans->sorted		= trans->_sorted;
 	trans->paths		= trans->_paths;

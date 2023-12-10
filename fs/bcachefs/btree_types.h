@@ -390,6 +390,7 @@ struct btree_trans {
 	unsigned		mem_bytes;
 
 	btree_path_idx_t	nr_sorted;
+	btree_path_idx_t	nr_paths;
 	btree_path_idx_t	nr_paths_max;
 	u8			fn_idx;
 	u8			nr_updates;

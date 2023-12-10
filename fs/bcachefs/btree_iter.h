@@ -82,9 +82,25 @@ static inline unsigned long *trans_paths_allocated(struct btree_path *paths)
 static inline struct btree_path *
 __trans_next_path(struct btree_trans *trans, unsigned *idx)
 {
-	*idx = find_next_bit(trans->paths_allocated, BTREE_ITER_MAX, *idx);
+	unsigned long *w = trans->paths_allocated + *idx / BITS_PER_LONG;
+	/*
+	 * Open coded find_next_bit(), because
+	 *  - this is fast path, we can't afford the function call
+	 *  - and we know that nr_paths is a multiple of BITS_PER_LONG,
+	 */
+	while (*idx < trans->nr_paths) {
+		unsigned long v = *w >> (*idx & (BITS_PER_LONG - 1));
+		if (v) {
+			*idx += __ffs(v);
+			return trans->paths + *idx;
+		}
 
-	return *idx < BTREE_ITER_MAX ? &trans->paths[*idx] : NULL;
+		*idx += BITS_PER_LONG;
+		*idx &= ~(BITS_PER_LONG - 1);
+		w++;
+	}
+
+	return NULL;
 }
 
 /*
@@ -626,7 +642,7 @@ int __bch2_btree_trans_too_many_iters(struct btree_trans *);
 
 static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 {
-	if (bitmap_weight(trans->paths_allocated, BTREE_ITER_MAX) > BTREE_ITER_MAX - 8)
+	if (bitmap_weight(trans->paths_allocated, trans->nr_paths) > BTREE_ITER_MAX - 8)
 		return __bch2_btree_trans_too_many_iters(trans);
 
 	return 0;
