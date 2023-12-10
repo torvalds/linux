@@ -764,7 +764,6 @@ enum {
 	FI_UPDATE_WRITE,	/* inode has in-place-update data */
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
-	FI_DROP_CACHE,		/* drop dirty page cache */
 	FI_DATA_EXIST,		/* indicate data exists */
 	FI_INLINE_DOTS,		/* indicate inline dot dentries */
 	FI_SKIP_WRITES,		/* should skip data page writeback */
@@ -3245,11 +3244,6 @@ static inline bool f2fs_is_atomic_file(struct inode *inode)
 static inline bool f2fs_is_cow_file(struct inode *inode)
 {
 	return is_inode_flag_set(inode, FI_COW_FILE);
-}
-
-static inline bool f2fs_is_drop_cache(struct inode *inode)
-{
-	return is_inode_flag_set(inode, FI_DROP_CACHE);
 }
 
 static inline void *inline_data_addr(struct inode *inode, struct page *page)
