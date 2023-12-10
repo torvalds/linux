@@ -176,15 +176,13 @@ err_ioremap:
 	return err;
 }
 
-static int __exit mxc_rnga_remove(struct platform_device *pdev)
+static void __exit mxc_rnga_remove(struct platform_device *pdev)
 {
 	struct mxc_rng *mxc_rng = platform_get_drvdata(pdev);
 
 	hwrng_unregister(&mxc_rng->rng);
 
 	clk_disable_unprepare(mxc_rng->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mxc_rnga_of_match[] = {
@@ -199,7 +197,7 @@ static struct platform_driver mxc_rnga_driver = {
 		.name = "mxc_rnga",
 		.of_match_table = mxc_rnga_of_match,
 	},
-	.remove = __exit_p(mxc_rnga_remove),
+	.remove_new = __exit_p(mxc_rnga_remove),
 };
 
 module_platform_driver_probe(mxc_rnga_driver, mxc_rnga_probe);
