@@ -23,17 +23,14 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
-#include <linux/uaccess.h>
 #include <linux/uuid.h>
 #include <linux/wmi.h>
 #include <linux/fs.h>
-#include <uapi/linux/wmi.h>
 
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("ACPI-WMI Mapping Driver");
@@ -66,12 +63,9 @@ struct wmi_block {
 	struct wmi_device dev;
 	struct list_head list;
 	struct guid_block gblock;
-	struct miscdevice char_dev;
-	struct mutex char_mutex;
 	struct acpi_device *acpi_device;
 	wmi_notify_handler handler;
 	void *handler_data;
-	u64 req_buf_size;
 	unsigned long flags;
 };
 
@@ -255,26 +249,6 @@ static void wmi_device_put(struct wmi_device *wdev)
 /*
  * Exported WMI functions
  */
-
-/**
- * set_required_buffer_size - Sets the buffer size needed for performing IOCTL
- * @wdev: A wmi bus device from a driver
- * @length: Required buffer size
- *
- * Allocates memory needed for buffer, stores the buffer size in that memory.
- *
- * Return: 0 on success or a negative error code for failure.
- */
-int set_required_buffer_size(struct wmi_device *wdev, u64 length)
-{
-	struct wmi_block *wblock;
-
-	wblock = container_of(wdev, struct wmi_block, dev);
-	wblock->req_buf_size = length;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(set_required_buffer_size);
 
 /**
  * wmi_instance_count - Get number of WMI object instances
@@ -884,111 +858,12 @@ static int wmi_dev_match(struct device *dev, struct device_driver *driver)
 
 	return 0;
 }
-static int wmi_char_open(struct inode *inode, struct file *filp)
-{
-	/*
-	 * The miscdevice already stores a pointer to itself
-	 * inside filp->private_data
-	 */
-	struct wmi_block *wblock = container_of(filp->private_data, struct wmi_block, char_dev);
-
-	filp->private_data = wblock;
-
-	return nonseekable_open(inode, filp);
-}
-
-static ssize_t wmi_char_read(struct file *filp, char __user *buffer,
-			     size_t length, loff_t *offset)
-{
-	struct wmi_block *wblock = filp->private_data;
-
-	return simple_read_from_buffer(buffer, length, offset,
-				       &wblock->req_buf_size,
-				       sizeof(wblock->req_buf_size));
-}
-
-static long wmi_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
-{
-	struct wmi_ioctl_buffer __user *input =
-		(struct wmi_ioctl_buffer __user *) arg;
-	struct wmi_block *wblock = filp->private_data;
-	struct wmi_ioctl_buffer *buf;
-	struct wmi_driver *wdriver;
-	int ret;
-
-	if (_IOC_TYPE(cmd) != WMI_IOC)
-		return -ENOTTY;
-
-	/* make sure we're not calling a higher instance than exists*/
-	if (_IOC_NR(cmd) >= wblock->gblock.instance_count)
-		return -EINVAL;
-
-	mutex_lock(&wblock->char_mutex);
-	buf = wblock->handler_data;
-	if (get_user(buf->length, &input->length)) {
-		dev_dbg(&wblock->dev.dev, "Read length from user failed\n");
-		ret = -EFAULT;
-		goto out_ioctl;
-	}
-	/* if it's too small, abort */
-	if (buf->length < wblock->req_buf_size) {
-		dev_err(&wblock->dev.dev,
-			"Buffer %lld too small, need at least %lld\n",
-			buf->length, wblock->req_buf_size);
-		ret = -EINVAL;
-		goto out_ioctl;
-	}
-	/* if it's too big, warn, driver will only use what is needed */
-	if (buf->length > wblock->req_buf_size)
-		dev_warn(&wblock->dev.dev,
-			"Buffer %lld is bigger than required %lld\n",
-			buf->length, wblock->req_buf_size);
-
-	/* copy the structure from userspace */
-	if (copy_from_user(buf, input, wblock->req_buf_size)) {
-		dev_dbg(&wblock->dev.dev, "Copy %llu from user failed\n",
-			wblock->req_buf_size);
-		ret = -EFAULT;
-		goto out_ioctl;
-	}
-
-	/* let the driver do any filtering and do the call */
-	wdriver = drv_to_wdrv(wblock->dev.dev.driver);
-	if (!try_module_get(wdriver->driver.owner)) {
-		ret = -EBUSY;
-		goto out_ioctl;
-	}
-	ret = wdriver->filter_callback(&wblock->dev, cmd, buf);
-	module_put(wdriver->driver.owner);
-	if (ret)
-		goto out_ioctl;
-
-	/* return the result (only up to our internal buffer size) */
-	if (copy_to_user(input, buf, wblock->req_buf_size)) {
-		dev_dbg(&wblock->dev.dev, "Copy %llu to user failed\n",
-			wblock->req_buf_size);
-		ret = -EFAULT;
-	}
-
-out_ioctl:
-	mutex_unlock(&wblock->char_mutex);
-	return ret;
-}
-
-static const struct file_operations wmi_fops = {
-	.owner		= THIS_MODULE,
-	.read		= wmi_char_read,
-	.open		= wmi_char_open,
-	.unlocked_ioctl	= wmi_ioctl,
-	.compat_ioctl	= compat_ptr_ioctl,
-};
 
 static int wmi_dev_probe(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
 	int ret = 0;
-	char *buf;
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
@@ -996,55 +871,17 @@ static int wmi_dev_probe(struct device *dev)
 	if (wdriver->probe) {
 		ret = wdriver->probe(dev_to_wdev(dev),
 				find_guid_context(wblock, wdriver));
-		if (ret != 0)
-			goto probe_failure;
-	}
+		if (!ret) {
+			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+				dev_warn(dev, "Failed to disable device\n");
 
-	/* driver wants a character device made */
-	if (wdriver->filter_callback) {
-		/* check that required buffer size declared by driver or MOF */
-		if (!wblock->req_buf_size) {
-			dev_err(&wblock->dev.dev,
-				"Required buffer size not set\n");
-			ret = -EINVAL;
-			goto probe_failure;
-		}
-
-		wblock->handler_data = kmalloc(wblock->req_buf_size,
-					       GFP_KERNEL);
-		if (!wblock->handler_data) {
-			ret = -ENOMEM;
-			goto probe_failure;
-		}
-
-		buf = kasprintf(GFP_KERNEL, "wmi/%s", wdriver->driver.name);
-		if (!buf) {
-			ret = -ENOMEM;
-			goto probe_string_failure;
-		}
-		wblock->char_dev.minor = MISC_DYNAMIC_MINOR;
-		wblock->char_dev.name = buf;
-		wblock->char_dev.fops = &wmi_fops;
-		wblock->char_dev.mode = 0444;
-		ret = misc_register(&wblock->char_dev);
-		if (ret) {
-			dev_warn(dev, "failed to register char dev: %d\n", ret);
-			ret = -ENOMEM;
-			goto probe_misc_failure;
+			return ret;
 		}
 	}
 
 	set_bit(WMI_PROBED, &wblock->flags);
-	return 0;
 
-probe_misc_failure:
-	kfree(buf);
-probe_string_failure:
-	kfree(wblock->handler_data);
-probe_failure:
-	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
-		dev_warn(dev, "failed to disable device\n");
-	return ret;
+	return 0;
 }
 
 static void wmi_dev_remove(struct device *dev)
@@ -1053,12 +890,6 @@ static void wmi_dev_remove(struct device *dev)
 	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
 
 	clear_bit(WMI_PROBED, &wblock->flags);
-
-	if (wdriver->filter_callback) {
-		misc_deregister(&wblock->char_dev);
-		kfree(wblock->char_dev.name);
-		kfree(wblock->handler_data);
-	}
 
 	if (wdriver->remove)
 		wdriver->remove(dev_to_wdev(dev));
@@ -1131,7 +962,6 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 
 	if (wblock->gblock.flags & ACPI_WMI_METHOD) {
 		wblock->dev.dev.type = &wmi_type_method;
-		mutex_init(&wblock->char_mutex);
 		goto out_init;
 	}
 

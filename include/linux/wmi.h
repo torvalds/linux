@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/acpi.h>
 #include <linux/mod_devicetable.h>
-#include <uapi/linux/wmi.h>
 
 /**
  * struct wmi_device - WMI device structure
@@ -47,8 +46,6 @@ acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct 
 
 u8 wmidev_instance_count(struct wmi_device *wdev);
 
-extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
-
 /**
  * struct wmi_driver - WMI driver structure
  * @driver: Driver model structure
@@ -57,11 +54,8 @@ extern int set_required_buffer_size(struct wmi_device *wdev, u64 length);
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @notify: Callback for receiving WMI events
- * @filter_callback: Callback for filtering device IOCTLs
  *
  * This represents WMI drivers which handle WMI devices.
- * @filter_callback is only necessary for drivers which
- * want to set up a WMI IOCTL interface.
  */
 struct wmi_driver {
 	struct device_driver driver;
@@ -71,8 +65,6 @@ struct wmi_driver {
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
-	long (*filter_callback)(struct wmi_device *wdev, unsigned int cmd,
-				struct wmi_ioctl_buffer *arg);
 };
 
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,
