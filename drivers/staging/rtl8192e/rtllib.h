@@ -136,7 +136,6 @@ struct cb_desc {
 	u8 bAMSDU:1;
 	u8 bFromAggrQ:1;
 	u8 reserved6:6;
-	u8 macId;
 	u8 priority;
 
 	/* Tx firmware related element(20-27) */
