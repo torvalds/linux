@@ -554,8 +554,6 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	memset((void *)(&ht_info->SelfHTCap), 0,
 	       sizeof(ht_info->SelfHTCap));
-	memset((void *)(&ht_info->SelfHTInfo), 0,
-	       sizeof(ht_info->SelfHTInfo));
 	memset((void *)(&ht_info->PeerHTCapBuf), 0,
 	       sizeof(ht_info->PeerHTCapBuf));
 	memset((void *)(&ht_info->PeerHTInfoBuf), 0,
