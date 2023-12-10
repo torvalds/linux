@@ -656,7 +656,7 @@ static void bch2_trans_revalidate_updates_in_node(struct btree_trans *trans, str
 		    i->btree_id	== b->c.btree_id &&
 		    bpos_cmp(i->k->k.p, b->data->min_key) >= 0 &&
 		    bpos_cmp(i->k->k.p, b->data->max_key) <= 0) {
-			i->old_v = bch2_btree_path_peek_slot(i->path, &i->old_k).v;
+			i->old_v = bch2_btree_path_peek_slot(trans->paths + i->path, &i->old_k).v;
 
 			if (unlikely(trans->journal_replay_not_finished)) {
 				struct bkey_i *j_k =
@@ -3008,7 +3008,7 @@ void bch2_trans_put(struct btree_trans *trans)
 		s->max_mem = max(s->max_mem, trans->mem_max);
 
 	trans_for_each_update(trans, i)
-		__btree_path_put(i->path, true);
+		__btree_path_put(trans->paths + i->path, true);
 	trans->nr_updates		= 0;
 
 	check_btree_paths_leaked(trans);

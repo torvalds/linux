@@ -755,7 +755,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 				  struct btree_insert_entry *insert_entry)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_cached *ck = (void *) insert_entry->path->l[0].b;
+	struct bkey_cached *ck = (void *) (trans->paths + insert_entry->path)->l[0].b;
 	struct bkey_i *insert = insert_entry->k;
 	bool kick_reclaim = false;
 

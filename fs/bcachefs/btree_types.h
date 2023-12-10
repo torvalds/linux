@@ -351,8 +351,8 @@ struct btree_insert_entry {
 	 * to the size of the key being overwritten in the btree:
 	 */
 	u8			old_btree_u64s;
+	btree_path_idx_t	path;
 	struct bkey_i		*k;
-	struct btree_path	*path;
 	/* key being overwritten: */
 	struct bkey		old_k;
 	const struct bch_val	*old_v;
