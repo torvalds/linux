@@ -173,10 +173,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 		rate = ieee->basic_rate & 0x7f;
 
 	if (rate == 0) {
-		if (ieee->mode == WIRELESS_MODE_N_24G && !ht_info->bCurSuppCCK)
-			rate = 0x0c;
-		else
-			rate = 0x02;
+		rate = 0x02;
 	}
 
 	return rate;
