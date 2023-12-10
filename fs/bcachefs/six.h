@@ -15,7 +15,7 @@
  * will have to take write locks for the full duration of the operation.
  *
  * But by adding an intent state, which is exclusive with other intent locks but
- * not with readers, we can take intent locks at thte start of the operation,
+ * not with readers, we can take intent locks at the start of the operation,
  * and then take write locks only for the actual update to each individual
  * nodes, without deadlocking.
  *
@@ -65,8 +65,8 @@
  *
  * Reentrancy:
  *
- *   Six locks are not by themselves reentrent, but have counters for both the
- *   read and intent states that can be used to provide reentrency by an upper
+ *   Six locks are not by themselves reentrant, but have counters for both the
+ *   read and intent states that can be used to provide reentrancy by an upper
  *   layer that tracks held locks. If a lock is known to already be held in the
  *   read or intent state, six_lock_increment() can be used to bump the "lock
  *   held in this state" counter, increasing the number of unlock calls that
