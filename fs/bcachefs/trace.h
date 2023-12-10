@@ -1145,8 +1145,6 @@ TRACE_EVENT(trans_restart_upgrade,
 		__field(u8,			level		)
 		__field(u32,			path_seq	)
 		__field(u32,			node_seq	)
-		__field(u32,			path_alloc_seq	)
-		__field(u32,			downgrade_seq)
 		TRACE_BPOS_entries(pos)
 	),
 
@@ -1159,12 +1157,10 @@ TRACE_EVENT(trans_restart_upgrade,
 		__entry->level			= f->l;
 		__entry->path_seq		= path->l[f->l].lock_seq;
 		__entry->node_seq		= IS_ERR_OR_NULL(f->b) ? 0 : f->b->c.lock.seq;
-		__entry->path_alloc_seq		= path->alloc_seq;
-		__entry->downgrade_seq		= path->downgrade_seq;
 		TRACE_BPOS_assign(pos, path->pos)
 	),
 
-	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u level %u path seq %u node seq %u alloc_seq %u downgrade_seq %u",
+	TP_printk("%s %pS btree %s pos %llu:%llu:%u locks_want %u -> %u level %u path seq %u node seq %u",
 		  __entry->trans_fn,
 		  (void *) __entry->caller_ip,
 		  bch2_btree_id_str(__entry->btree_id),
@@ -1175,9 +1171,7 @@ TRACE_EVENT(trans_restart_upgrade,
 		  __entry->new_locks_want,
 		  __entry->level,
 		  __entry->path_seq,
-		  __entry->node_seq,
-		  __entry->path_alloc_seq,
-		  __entry->downgrade_seq)
+		  __entry->node_seq)
 );
 
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock,

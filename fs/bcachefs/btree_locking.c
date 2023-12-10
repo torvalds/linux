@@ -708,7 +708,6 @@ void __bch2_btree_path_downgrade(struct btree_trans *trans,
 
 	bch2_btree_path_verify_locks(path);
 
-	path->downgrade_seq++;
 	trace_path_downgrade(trans, _RET_IP_, path, old_locks_want);
 }
 
