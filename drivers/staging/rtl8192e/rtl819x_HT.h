@@ -115,7 +115,6 @@ struct rt_hi_throughput {
 	u8 current_mpdu_density;
 	u8 forced_ampdu_factor;
 	u8 forced_mpdu_density;
-	enum ht_aggre_mode ForcedAMSDUMode;
 	u8 forced_short_gi;
 	u8 current_op_mode;
 	u8 self_mimo_ps;
