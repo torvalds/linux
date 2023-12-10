@@ -37,4 +37,9 @@ config SAMPLE_RUST_HOSTPROGS
 
 	  If unsure, say N.
 
+config SAMPLE_RUST_SCULL
+	tristate "Scull module"
+	help
+	  This option builds the Rust scull module sample.
+
 endif # SAMPLES_RUST
