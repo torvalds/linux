@@ -20,6 +20,8 @@ properties:
               - samsung,exynos3-sysreg
               - samsung,exynos4-sysreg
               - samsung,exynos5-sysreg
+              - samsung,exynosautov920-peric0-sysreg
+              - samsung,exynosautov920-peric1-sysreg
               - tesla,fsd-cam-sysreg
               - tesla,fsd-fsys0-sysreg
               - tesla,fsd-fsys1-sysreg
@@ -52,11 +54,6 @@ properties:
               - samsung,exynosautov9-peric0-sysreg
               - samsung,exynosautov9-peric1-sysreg
           - const: samsung,exynosautov9-sysreg
-          - const: syscon
-      - items:
-          - enum:
-              - samsung,exynosautov920-peric0-sysreg
-              - samsung,exynosautov920-peric1-sysreg
           - const: syscon
 
   reg:
