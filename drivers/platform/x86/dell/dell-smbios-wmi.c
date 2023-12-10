@@ -6,6 +6,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -183,7 +184,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 		return ret;
 
 	count = get_order(priv->req_buf_size);
-	priv->buf = (void *)__get_free_pages(GFP_KERNEL, count);
+	priv->buf = (void *)devm_get_free_pages(&wdev->dev, GFP_KERNEL, count);
 	if (!priv->buf)
 		return -ENOMEM;
 
@@ -191,7 +192,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	wdev->dev.id = 1;
 	ret = dell_smbios_register_device(&wdev->dev, &dell_smbios_wmi_call);
 	if (ret)
-		goto fail_register;
+		return ret;
 
 	priv->wdev = wdev;
 	dev_set_drvdata(&wdev->dev, priv);
@@ -200,24 +201,17 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 	mutex_unlock(&list_mutex);
 
 	return 0;
-
-fail_register:
-	free_pages((unsigned long)priv->buf, count);
-	return ret;
 }
 
 static void dell_smbios_wmi_remove(struct wmi_device *wdev)
 {
 	struct wmi_smbios_priv *priv = dev_get_drvdata(&wdev->dev);
-	int count;
 
 	mutex_lock(&call_mutex);
 	mutex_lock(&list_mutex);
 	list_del(&priv->list);
 	mutex_unlock(&list_mutex);
 	dell_smbios_unregister_device(&wdev->dev);
-	count = get_order(priv->req_buf_size);
-	free_pages((unsigned long)priv->buf, count);
 	mutex_unlock(&call_mutex);
 }
 
