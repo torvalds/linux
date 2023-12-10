@@ -99,7 +99,6 @@ struct rt_hi_throughput {
 	u8 cur_short_gi_40mhz;
 	u8 reg_short_gi_20mhz;
 	u8 cur_short_gi_20mhz;
-	u8 reg_supp_cck;
 	u8 bCurSuppCCK;
 	enum ht_spec_ver ePeerHTSpecVer;
 	struct ht_capab_ele SelfHTCap;
