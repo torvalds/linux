@@ -85,11 +85,6 @@ struct wmi_block {
 #define ACPI_WMI_STRING      BIT(2)	/* GUID takes & returns a string */
 #define ACPI_WMI_EVENT       BIT(3)	/* GUID is an event */
 
-static bool debug_event;
-module_param(debug_event, bool, 0444);
-MODULE_PARM_DESC(debug_event,
-		 "Log WMI Events [0/1]");
-
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
 	{"pnp0c14", 0},
@@ -592,42 +587,6 @@ acpi_status wmidev_block_set(struct wmi_device *wdev, u8 instance, const struct 
 }
 EXPORT_SYMBOL_GPL(wmidev_block_set);
 
-static void wmi_notify_debug(u32 value, void *context)
-{
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
-
-	status = wmi_get_event_data(value, &response);
-	if (status != AE_OK) {
-		pr_info("bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = response.pointer;
-	if (!obj)
-		return;
-
-	pr_info("DEBUG: event 0x%02X ", value);
-	switch (obj->type) {
-	case ACPI_TYPE_BUFFER:
-		pr_cont("BUFFER_TYPE - length %u\n", obj->buffer.length);
-		break;
-	case ACPI_TYPE_STRING:
-		pr_cont("STRING_TYPE - %s\n", obj->string.pointer);
-		break;
-	case ACPI_TYPE_INTEGER:
-		pr_cont("INTEGER_TYPE - %llu\n", obj->integer.value);
-		break;
-	case ACPI_TYPE_PACKAGE:
-		pr_cont("PACKAGE_TYPE - %u elements\n", obj->package.count);
-		break;
-	default:
-		pr_cont("object type 0x%X\n", obj->type);
-	}
-	kfree(obj);
-}
-
 /**
  * wmi_install_notify_handler - Register handler for WMI events (deprecated)
  * @guid: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
@@ -656,8 +615,7 @@ acpi_status wmi_install_notify_handler(const char *guid,
 		acpi_status wmi_status;
 
 		if (guid_equal(&block->gblock.guid, &guid_input)) {
-			if (block->handler &&
-			    block->handler != wmi_notify_debug)
+			if (block->handler)
 				return AE_ALREADY_ACQUIRED;
 
 			block->handler = handler;
@@ -698,22 +656,14 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 		acpi_status wmi_status;
 
 		if (guid_equal(&block->gblock.guid, &guid_input)) {
-			if (!block->handler ||
-			    block->handler == wmi_notify_debug)
+			if (!block->handler)
 				return AE_NULL_ENTRY;
 
-			if (debug_event) {
-				block->handler = wmi_notify_debug;
-				status = AE_OK;
-			} else {
-				wmi_status = wmi_method_enable(block, false);
-				block->handler = NULL;
-				block->handler_data = NULL;
-				if ((wmi_status != AE_OK) ||
-				    ((wmi_status == AE_OK) &&
-				     (status == AE_NOT_EXIST)))
-					status = wmi_status;
-			}
+			wmi_status = wmi_method_enable(block, false);
+			block->handler = NULL;
+			block->handler_data = NULL;
+			if (wmi_status != AE_OK || (wmi_status == AE_OK && status == AE_NOT_EXIST))
+				status = wmi_status;
 		}
 	}
 
@@ -1340,17 +1290,10 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 
 		list_add_tail(&wblock->list, &wmi_block_list);
 
-		if (debug_event) {
-			wblock->handler = wmi_notify_debug;
-			wmi_method_enable(wblock, true);
-		}
-
 		retval = wmi_add_device(pdev, &wblock->dev);
 		if (retval) {
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				&wblock->gblock.guid);
-			if (debug_event)
-				wmi_method_enable(wblock, false);
 
 			list_del(&wblock->list);
 			put_device(&wblock->dev.dev);
@@ -1444,9 +1387,6 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		/* Legacy handler */
 		wblock->handler(event, wblock->handler_data);
 	}
-
-	if (debug_event)
-		pr_info("DEBUG: GUID %pUL event 0x%02X\n", &wblock->gblock.guid, event);
 
 	acpi_bus_generate_netlink_event(
 		wblock->acpi_device->pnp.device_class,
