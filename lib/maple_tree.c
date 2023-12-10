@@ -16,8 +16,8 @@
  * and are simply the slot index + the minimum of the node.
  *
  * In regular B-Tree terms, pivots are called keys.  The term pivot is used to
- * indicate that the tree is specifying ranges,  Pivots may appear in the
- * subtree with an entry attached to the value where as keys are unique to a
+ * indicate that the tree is specifying ranges.  Pivots may appear in the
+ * subtree with an entry attached to the value whereas keys are unique to a
  * specific position of a B-tree.  Pivot values are inclusive of the slot with
  * the same index.
  *
@@ -2500,7 +2500,7 @@ static inline void mast_set_split_parents(struct maple_subtree_state *mast,
 }
 
 /*
- * mas_topiary_node() - Dispose of a singe node
+ * mas_topiary_node() - Dispose of a single node
  * @mas: The maple state for pushing nodes
  * @enode: The encoded maple node
  * @in_rcu: If the tree is in rcu mode
@@ -5492,7 +5492,7 @@ int mas_preallocate(struct ma_state *mas, void *entry, gfp_t gfp)
 		goto ask_now;
 	}
 
-	/* New root needs a singe node */
+	/* New root needs a single node */
 	if (unlikely(mte_is_root(mas->node)))
 		goto ask_now;
 
