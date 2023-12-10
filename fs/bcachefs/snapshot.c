@@ -123,7 +123,7 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 	struct snapshot_table *t;
 	bool ret;
 
-	EBUG_ON(c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_snapshots);
+	EBUG_ON(c->recovery_pass_done <= BCH_RECOVERY_PASS_check_snapshots);
 
 	rcu_read_lock();
 	t = rcu_dereference(c->snapshots);

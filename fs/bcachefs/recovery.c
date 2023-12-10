@@ -713,6 +713,7 @@ static int bch2_run_recovery_passes(struct bch_fs *c)
 			c->recovery_passes_complete |= BIT_ULL(c->curr_recovery_pass);
 		}
 		c->curr_recovery_pass++;
+		c->recovery_pass_done = max(c->recovery_pass_done, c->curr_recovery_pass);
 	}
 
 	return ret;
@@ -1196,6 +1197,8 @@ int bch2_fs_initialize(struct bch_fs *c)
 		bch_err_msg(c, ret, "creating lost+found");
 		goto err;
 	}
+
+	c->recovery_pass_done = ARRAY_SIZE(recovery_pass_fns) - 1;
 
 	if (enabled_qtypes(c)) {
 		ret = bch2_fs_quota_read(c);

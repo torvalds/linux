@@ -1057,7 +1057,10 @@ struct bch_fs {
 	enum bch_recovery_pass	curr_recovery_pass;
 	/* bitmap of explicitly enabled recovery passes: */
 	u64			recovery_passes_explicit;
+	/* bitmask of recovery passes that we actually ran */
 	u64			recovery_passes_complete;
+	/* never rewinds version of curr_recovery_pass */
+	enum bch_recovery_pass	recovery_pass_done;
 	struct semaphore	online_fsck_mutex;
 
 	/* DEBUG JUNK */
