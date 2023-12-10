@@ -747,22 +747,6 @@ unlock:
 	return ret;
 }
 
-/*
- * Flush and evict a key from the key cache:
- */
-int bch2_btree_key_cache_flush(struct btree_trans *trans,
-			       enum btree_id id, struct bpos pos)
-{
-	struct bch_fs *c = trans->c;
-	struct bkey_cached_key key = { id, pos };
-
-	/* Fastpath - assume it won't be found: */
-	if (!bch2_btree_key_cache_find(c, id, pos))
-		return 0;
-
-	return btree_key_cache_flush_pos(trans, key, 0, 0, true);
-}
-
 bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 				  unsigned flags,
 				  struct btree_insert_entry *insert_entry)
