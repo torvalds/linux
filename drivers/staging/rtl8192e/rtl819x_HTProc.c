@@ -74,12 +74,7 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	ht_info->reg_short_gi_20mhz = 1;
 	ht_info->reg_short_gi_40mhz = 1;
 
-	ht_info->reg_bw_40mhz = 1;
-
-	if (ht_info->reg_bw_40mhz)
-		ht_info->reg_supp_cck = 1;
-	else
-		ht_info->reg_supp_cck = true;
+	ht_info->reg_supp_cck = 1;
 
 	ht_info->amsdu_max_size = 7935UL;
 	ht_info->amsdu_support = 0;
@@ -275,7 +270,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		pCapELE->ChlWidth = 0;
 	else
-		pCapELE->ChlWidth = (pHT->reg_bw_40mhz ? 1 : 0);
+		pCapELE->ChlWidth = 1;
 
 	pCapELE->MimoPwrSave		= pHT->self_mimo_ps;
 	pCapELE->GreenField		= 0;
@@ -286,7 +281,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->RxSTBC			= 0;
 	pCapELE->DelayBA		= 0;
 	pCapELE->MaxAMSDUSize = (MAX_RECEIVE_BUFFER_SIZE >= 7935) ? 1 : 0;
-	pCapELE->DssCCk = ((pHT->reg_bw_40mhz) ? (pHT->reg_supp_cck ? 1 : 0) : 0);
+	pCapELE->DssCCk = (pHT->reg_supp_cck ? 1 : 0);
 	pCapELE->PSMP = 0;
 	pCapELE->LSigTxopProtect = 0;
 
@@ -733,9 +728,6 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 			enum ht_extchnl_offset Offset)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
-
-	if (!ht_info->reg_bw_40mhz)
-		return;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		bandwidth = HT_CHANNEL_WIDTH_20;
