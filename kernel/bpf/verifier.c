@@ -7256,6 +7256,12 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, int regno,
 	}
 }
 
+/* verify arguments to helpers or kfuncs consisting of a pointer and an access
+ * size.
+ *
+ * @regno is the register containing the access size. regno-1 is the register
+ * containing the pointer.
+ */
 static int check_mem_size_reg(struct bpf_verifier_env *env,
 			      struct bpf_reg_state *reg, u32 regno,
 			      bool zero_size_allowed,
