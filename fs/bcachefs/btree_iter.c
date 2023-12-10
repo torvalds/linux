@@ -332,12 +332,12 @@ void bch2_assert_pos_locked(struct btree_trans *trans, enum btree_id id,
 			    struct bpos pos, bool key_cache)
 {
 	struct btree_path *path;
-	unsigned idx;
+	struct trans_for_each_path_inorder_iter iter;
 	struct printbuf buf = PRINTBUF;
 
 	btree_trans_sort_paths(trans);
 
-	trans_for_each_path_inorder(trans, path, idx) {
+	trans_for_each_path_inorder(trans, path, iter) {
 		int cmp = cmp_int(path->btree_id, id) ?:
 			cmp_int(path->cached, key_cache);
 
@@ -1435,13 +1435,13 @@ static noinline __cold
 void __bch2_trans_paths_to_text(struct printbuf *out, struct btree_trans *trans,
 				bool nosort)
 {
+	struct trans_for_each_path_inorder_iter iter;
 	struct btree_path *path;
-	unsigned idx;
 
 	if (!nosort)
 		btree_trans_sort_paths(trans);
 
-	trans_for_each_path_inorder(trans, path, idx)
+	trans_for_each_path_inorder(trans, path, iter)
 		bch2_btree_path_to_text(out, path);
 }
 
@@ -1555,14 +1555,15 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	struct btree_path *path;
 	bool cached = flags & BTREE_ITER_CACHED;
 	bool intent = flags & BTREE_ITER_INTENT;
-	btree_path_idx_t i, path_pos = 0;
+	struct trans_for_each_path_inorder_iter iter;
+	btree_path_idx_t path_pos = 0;
 
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_trans_verify_locks(trans);
 
 	btree_trans_sort_paths(trans);
 
-	trans_for_each_path_inorder(trans, path, i) {
+	trans_for_each_path_inorder(trans, path, iter) {
 		if (__btree_path_cmp(path,
 				     btree_id,
 				     cached,
@@ -1570,7 +1571,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 				     level) > 0)
 			break;
 
-		path_pos = path->idx;
+		path_pos = iter.path_idx;
 	}
 
 	if (path_pos &&
@@ -1592,7 +1593,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 		path->level			= level;
 		path->locks_want		= locks_want;
 		path->nodes_locked		= 0;
-		for (i = 0; i < ARRAY_SIZE(path->l); i++)
+		for (unsigned i = 0; i < ARRAY_SIZE(path->l); i++)
 			path->l[i].b		= ERR_PTR(-BCH_ERR_no_btree_node_init);
 #ifdef TRACK_PATH_ALLOCATED
 		path->ip_allocated		= ip;
@@ -2545,12 +2546,12 @@ static void btree_trans_verify_sorted_refs(struct btree_trans *trans)
 static void btree_trans_verify_sorted(struct btree_trans *trans)
 {
 	struct btree_path *path, *prev = NULL;
-	unsigned i;
+	struct trans_for_each_path_inorder_iter iter;
 
 	if (!bch2_debug_check_iterators)
 		return;
 
-	trans_for_each_path_inorder(trans, path, i) {
+	trans_for_each_path_inorder(trans, path, iter) {
 		if (prev && btree_path_cmp(prev, path) > 0) {
 			__bch2_dump_trans_paths_updates(trans, true);
 			panic("trans paths out of order!\n");
@@ -3085,7 +3086,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 			continue;
 
 		prt_printf(out, "  path %u %c l=%u %s:",
-		       path->idx,
+		       idx,
 		       path->cached ? 'c' : 'b',
 		       path->level,
 		       bch2_btree_id_str(path->btree_id));

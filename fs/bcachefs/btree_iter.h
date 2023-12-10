@@ -125,10 +125,17 @@ static inline struct btree_path *prev_btree_path(struct btree_trans *trans, stru
 		: NULL;
 }
 
-#define trans_for_each_path_inorder(_trans, _path, _i)			\
-	for (_i = 0;							\
-	     ((_path) = (_trans)->paths + trans->sorted[_i]), (_i) < (_trans)->nr_sorted;\
-	     _i++)
+struct trans_for_each_path_inorder_iter {
+	btree_path_idx_t	sorted_idx;
+	btree_path_idx_t	path_idx;
+};
+
+#define trans_for_each_path_inorder(_trans, _path, _iter)		\
+	for (_iter = (struct trans_for_each_path_inorder_iter) { 0 };	\
+	     (_iter.path_idx = trans->sorted[_iter.sorted_idx],		\
+	      _path = (_trans)->paths + _iter.path_idx,			\
+	      _iter.sorted_idx < (_trans)->nr_sorted);			\
+	     _iter.sorted_idx++)
 
 #define trans_for_each_path_inorder_reverse(_trans, _path, _i)		\
 	for (_i = trans->nr_sorted - 1;					\
