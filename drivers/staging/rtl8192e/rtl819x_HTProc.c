@@ -71,8 +71,6 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	ht_info->reg_short_gi_40mhz = 1;
-
 	ht_info->amsdu_max_size = 7935UL;
 	ht_info->amsdu_support = 0;
 
@@ -471,9 +469,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 				 true : false);
 
 	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->ShortGI20Mhz == 1) ? true : false);
-	ht_info->cur_short_gi_40mhz = ((ht_info->reg_short_gi_40mhz) ?
-				     ((pPeerHTCap->ShortGI40Mhz == 1) ?
-				     true : false) : false);
+	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->ShortGI40Mhz == 1) ? true : false);
 
 	ht_info->bCurSuppCCK = ((pPeerHTCap->DssCCk == 1) ? true : false);
 
