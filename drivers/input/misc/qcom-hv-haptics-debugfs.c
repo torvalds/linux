@@ -117,6 +117,11 @@ static ssize_t pattern_s_dbgfs_write(struct file *fp,
 			goto exit;
 		}
 
+		if (i >= ARRAY_SIZE(tmp)) {
+			pr_err("too many patterns in input string\n");
+			rc = -EINVAL;
+			goto exit;
+		}
 		tmp[i++] = val;
 	}
 
