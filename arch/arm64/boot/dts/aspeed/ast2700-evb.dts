@@ -647,28 +647,6 @@
 	};
 };
 
-&mdio1 {
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	ethphy1: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
-&mdio2 {
-	status = "okay";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	ethphy2: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
-	};
-};
-
 &mac0 {
 	status = "okay";
 
@@ -677,16 +655,6 @@
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii0_default>;
-};
-
-&mac1 {
-	status = "okay";
-
-	phy-mode = "rgmii";
-	phy-handle = <&ethphy1>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
 &espi0 {
