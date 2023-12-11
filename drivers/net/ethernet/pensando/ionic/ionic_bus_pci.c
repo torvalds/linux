@@ -416,6 +416,8 @@ static void ionic_reset_prepare(struct pci_dev *pdev)
 
 	dev_dbg(ionic->dev, "%s: device stopping\n", __func__);
 
+	set_bit(IONIC_LIF_F_FW_RESET, lif->state);
+
 	del_timer_sync(&ionic->watchdog_timer);
 	cancel_work_sync(&lif->deferred.work);
 
