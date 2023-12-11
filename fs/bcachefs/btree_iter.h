@@ -125,6 +125,12 @@ static inline struct btree_path *prev_btree_path(struct btree_trans *trans, stru
 		: NULL;
 }
 
+#define trans_for_each_path_idx_inorder(_trans, _iter)			\
+	for (_iter = (struct trans_for_each_path_inorder_iter) { 0 };	\
+	     (_iter.path_idx = trans->sorted[_iter.sorted_idx],		\
+	      _iter.sorted_idx < (_trans)->nr_sorted);			\
+	     _iter.sorted_idx++)
+
 struct trans_for_each_path_inorder_iter {
 	btree_path_idx_t	sorted_idx;
 	btree_path_idx_t	path_idx;
@@ -835,7 +841,6 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 })
 
 void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);
-void bch2_btree_path_to_text(struct printbuf *, struct btree_path *);
 void bch2_trans_paths_to_text(struct printbuf *, struct btree_trans *);
 void bch2_dump_trans_updates(struct btree_trans *);
 void bch2_dump_trans_paths_updates(struct btree_trans *);

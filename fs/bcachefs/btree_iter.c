@@ -1413,11 +1413,12 @@ void bch2_dump_trans_updates(struct btree_trans *trans)
 	printbuf_exit(&buf);
 }
 
-noinline __cold
-void bch2_btree_path_to_text(struct printbuf *out, struct btree_path *path)
+static void bch2_btree_path_to_text(struct printbuf *out, struct btree_trans *trans, btree_path_idx_t path_idx)
 {
+	struct btree_path *path = trans->paths + path_idx;
+
 	prt_printf(out, "path: idx %2u ref %u:%u %c %c btree=%s l=%u pos ",
-		   path->idx, path->ref, path->intent_ref,
+		   path_idx, path->ref, path->intent_ref,
 		   path->preserve ? 'P' : ' ',
 		   path->should_be_locked ? 'S' : ' ',
 		   bch2_btree_id_str(path->btree_id),
@@ -1436,13 +1437,12 @@ void __bch2_trans_paths_to_text(struct printbuf *out, struct btree_trans *trans,
 				bool nosort)
 {
 	struct trans_for_each_path_inorder_iter iter;
-	struct btree_path *path;
 
 	if (!nosort)
 		btree_trans_sort_paths(trans);
 
-	trans_for_each_path_inorder(trans, path, iter)
-		bch2_btree_path_to_text(out, path);
+	trans_for_each_path_idx_inorder(trans, iter)
+		bch2_btree_path_to_text(out, trans, iter.path_idx);
 }
 
 noinline __cold
