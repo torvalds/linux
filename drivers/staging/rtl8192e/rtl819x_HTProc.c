@@ -230,7 +230,7 @@ static void ht_iot_act_determine_ra_func(struct rtllib_device *ieee, bool bPeerR
 		ht_info->iot_ra_func |= HT_IOT_RAFUNC_TX_AMSDU;
 }
 
-void HTResetIOTSetting(struct rt_hi_throughput *ht_info)
+void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 {
 	ht_info->iot_action = 0;
 	ht_info->iot_peer = HT_IOT_PEER_UNKNOWN;
