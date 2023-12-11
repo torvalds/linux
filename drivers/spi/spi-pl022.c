@@ -361,7 +361,6 @@ struct vendor_data {
  * @dummypage: a dummy page used for driving data on the bus with DMA
  * @dma_running: indicates whether DMA is in operation
  * @cur_cs: current chip select index
- * @cur_gpiod: current chip select GPIO descriptor
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -393,7 +392,6 @@ struct pl022 {
 	bool				dma_running;
 #endif
 	int cur_cs;
-	struct gpio_desc *cur_gpiod;
 };
 
 /**
@@ -1344,8 +1342,6 @@ static int pl022_transfer_one(struct spi_controller *host, struct spi_device *sp
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(spi);
 	pl022->cur_cs = spi_get_chipselect(spi, 0);
-	/* This is always available but may be set to -ENOENT */
-	pl022->cur_gpiod = spi_get_csgpiod(spi, 0);
 
 	restore_state(pl022);
 	flush(pl022);
