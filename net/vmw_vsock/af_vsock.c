@@ -89,7 +89,9 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/cred.h>
+#ifndef __GENKSYMS__
 #include <linux/errqueue.h>
+#endif
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
