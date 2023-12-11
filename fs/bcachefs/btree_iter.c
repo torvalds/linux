@@ -1561,7 +1561,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	bool cached = flags & BTREE_ITER_CACHED;
 	bool intent = flags & BTREE_ITER_INTENT;
 	struct trans_for_each_path_inorder_iter iter;
-	btree_path_idx_t path_pos = 0;
+	btree_path_idx_t path_pos = 0, path_idx;
 
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_trans_verify_locks(trans);
@@ -1584,10 +1584,11 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	    trans->paths[path_pos].btree_id	== btree_id &&
 	    trans->paths[path_pos].level	== level) {
 		__btree_path_get(trans->paths + path_pos, intent);
-		path = trans->paths + bch2_btree_path_set_pos(trans,
-						path_pos, pos, intent, ip);
+		path_idx = bch2_btree_path_set_pos(trans, path_pos, pos, intent, ip);
+		path = trans->paths + path_idx;
 	} else {
-		path = trans->paths + btree_path_alloc(trans, path_pos);
+		path_idx = btree_path_alloc(trans, path_pos);
+		path = trans->paths + path_idx;
 
 		__btree_path_get(path, intent);
 		path->pos			= pos;
@@ -1624,7 +1625,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	if (locks_want > path->locks_want)
 		bch2_btree_path_upgrade_noupgrade_sibs(trans, path, locks_want, NULL);
 
-	return path->idx;
+	return path_idx;
 }
 
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
