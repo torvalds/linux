@@ -341,10 +341,6 @@ struct vendor_data {
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
  * @cur_chip: pointer to current clients chip(assigned from controller_state)
- * @next_msg_cs_active: the next message in the queue has been examined
- *  and it was found that it uses the same chip select as the previous
- *  message, so we left it active after the previous transfer, and it's
- *  active already.
  * @tx: current position in TX buffer to be read
  * @tx_end: end position in TX buffer to be read
  * @rx: current position in RX buffer to be written
@@ -372,7 +368,6 @@ struct pl022 {
 	struct pl022_ssp_controller	*host_info;
 	struct spi_transfer		*cur_transfer;
 	struct chip_data		*cur_chip;
-	bool				next_msg_cs_active;
 	void				*tx;
 	void				*tx_end;
 	void				*rx;
