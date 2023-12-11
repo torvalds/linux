@@ -2621,6 +2621,7 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 	const struct element *elem;
 	struct cfg80211_mle *mle;
 	u16 control;
+	u8 ml_common_len;
 	u8 *new_ie;
 	struct cfg80211_bss *bss;
 	int mld_id;
@@ -2650,6 +2651,8 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 	    !(control & IEEE80211_MLC_BASIC_PRES_LINK_ID) ||
 	    !(control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP))
 		return;
+
+	ml_common_len = ml_elem->variable[0];
 
 	/* length + MLD MAC address + link ID info + BSS Params Change Count */
 	pos = ml_elem->variable + 1 + 6 + 1 + 1;
@@ -2766,6 +2769,34 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 						 IEEE80211_MAX_DATA_LEN);
 		if (!data.ielen)
 			continue;
+
+		/* The generated elements do not contain:
+		 *  - Basic ML element
+		 *  - A TBTT entry in the RNR for the transmitting AP
+		 *
+		 * This information is needed both internally and in userspace
+		 * as such, we should append it here.
+		 */
+		if (data.ielen + 3 + sizeof(*ml_elem) + ml_common_len >
+		    IEEE80211_MAX_DATA_LEN)
+			continue;
+
+		/* Copy the Basic Multi-Link element including the common
+		 * information, and then fix up the link ID.
+		 * Note that the ML element length has been verified and we
+		 * also checked that it contains the link ID.
+		 */
+		new_ie[data.ielen++] = WLAN_EID_EXTENSION;
+		new_ie[data.ielen++] = 1 + sizeof(*ml_elem) + ml_common_len;
+		new_ie[data.ielen++] = WLAN_EID_EXT_EHT_MULTI_LINK;
+		memcpy(new_ie + data.ielen, ml_elem,
+		       sizeof(*ml_elem) + ml_common_len);
+
+		new_ie[data.ielen + sizeof(*ml_elem) + 1 + ETH_ALEN] = link_id;
+
+		data.ielen += sizeof(*ml_elem) + ml_common_len;
+
+		/* TODO: Add an RNR containing only the reporting AP */
 
 		bss = cfg80211_inform_single_bss_data(wiphy, &data, gfp);
 		if (!bss)
