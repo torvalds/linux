@@ -57,8 +57,8 @@ static u32 rtw89_mac_mem_read(struct rtw89_dev *rtwdev, u32 offset,
 	return rtw89_read32(rtwdev, mac->indir_access_addr);
 }
 
-int rtw89_mac_check_mac_en(struct rtw89_dev *rtwdev, u8 mac_idx,
-			   enum rtw89_mac_hwmod_sel sel)
+static int rtw89_mac_check_mac_en_ax(struct rtw89_dev *rtwdev, u8 mac_idx,
+				     enum rtw89_mac_hwmod_sel sel)
 {
 	u32 val, r_val;
 
@@ -1473,9 +1473,14 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 
 	if (on) {
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
+		set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
+		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 		rtw89_write8(rtwdev, R_AX_SCOREBOARD + 3, MAC_AX_NOTIFY_TP_MAJOR);
 	} else {
 		clear_bit(RTW89_FLAG_POWERON, rtwdev->flags);
+		clear_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
+		clear_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
+		clear_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
 		clear_bit(RTW89_FLAG_FW_RDY, rtwdev->flags);
 		rtw89_write8(rtwdev, R_AX_SCOREBOARD + 3, MAC_AX_NOTIFY_PWR_MAJOR);
 		rtw89_set_entity_state(rtwdev, false);
@@ -6100,6 +6105,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 			B_AX_BFMEE_HE_NDPA_EN,
 	},
 
+	.check_mac_en = rtw89_mac_check_mac_en_ax,
 	.hci_func_en = rtw89_mac_hci_func_en_ax,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_ax,
 	.dle_func_en = dle_func_en_ax,

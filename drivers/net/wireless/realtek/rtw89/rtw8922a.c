@@ -257,6 +257,8 @@ static int rtw8922a_pwr_on_func(struct rtw89_dev *rtwdev)
 			  B_BE_H_AXIDMA_EN | B_BE_DMAC_MLO_EN | B_BE_PLRLS_EN |
 			  B_BE_P_AXIDMA_EN | B_BE_DLE_DATACPUIO_EN | B_BE_LTR_CTL_EN);
 
+	set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
+
 	rtw89_write32_set(rtwdev, R_BE_CMAC_SHARE_FUNC_EN,
 			  B_BE_CMAC_SHARE_EN | B_BE_RESPBA_EN | B_BE_ADDRSRCH_EN |
 			  B_BE_BTCOEX_EN);
@@ -265,6 +267,8 @@ static int rtw8922a_pwr_on_func(struct rtw89_dev *rtwdev)
 			  B_BE_SIGB_EN | B_BE_PHYINTF_EN | B_BE_CMAC_DMA_EN |
 			  B_BE_PTCLTOP_EN | B_BE_SCHEDULER_EN | B_BE_TMAC_EN |
 			  B_BE_RMAC_EN | B_BE_TXTIME_EN | B_BE_RESP_PKTCTL_EN);
+
+	set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
 
 	rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_FEN_BB_IP_RSTN |
 						       B_BE_FEN_BBPLAT_RSTB);

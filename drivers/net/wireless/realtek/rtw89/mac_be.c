@@ -57,6 +57,22 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
 };
 
+static int rtw89_mac_check_mac_en_be(struct rtw89_dev *rtwdev, u8 mac_idx,
+				     enum rtw89_mac_hwmod_sel sel)
+{
+	if (sel == RTW89_DMAC_SEL &&
+	    test_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags))
+		return 0;
+	if (sel == RTW89_CMAC_SEL && mac_idx == RTW89_MAC_0 &&
+	    test_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags))
+		return 0;
+	if (sel == RTW89_CMAC_SEL && mac_idx == RTW89_MAC_1 &&
+	    test_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags))
+		return 0;
+
+	return -EFAULT;
+}
+
 static void hfc_get_mix_info_be(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hfc_param *param = &rtwdev->mac.hfc_param;
@@ -1145,6 +1161,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 			B_BE_BFMEE_HE_NDPA_EN | B_BE_BFMEE_EHT_NDPA_EN,
 	},
 
+	.check_mac_en = rtw89_mac_check_mac_en_be,
 	.hci_func_en = rtw89_mac_hci_func_en_be,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_be,
 	.dle_func_en = dle_func_en_be,
