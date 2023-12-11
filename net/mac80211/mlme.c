@@ -1385,7 +1385,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info, *ie_start;
 	size_t offset, noffset;
-	u16 capab = WLAN_CAPABILITY_ESS, link_capab;
+	u16 capab = 0, link_capab;
 	__le16 listen_int;
 	struct element *ext_capa = NULL;
 	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
@@ -1531,6 +1531,17 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = assoc_data->ssid_len;
 	memcpy(pos, assoc_data->ssid, assoc_data->ssid_len);
+
+	/*
+	 * This bit is technically reserved, so it shouldn't matter for either
+	 * the AP or us, but it also means we shouldn't set it. However, we've
+	 * always set it in the past, and apparently some EHT APs check that
+	 * we don't set it. To avoid interoperability issues with old APs that
+	 * for some reason check it and want it to be set, set the bit for all
+	 * pre-EHT connections as we used to do.
+	 */
+	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)
+		capab |= WLAN_CAPABILITY_ESS;
 
 	/* add the elements for the assoc (main) link */
 	link_capab = capab;
