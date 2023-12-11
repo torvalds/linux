@@ -381,6 +381,16 @@ union pipe_update_flags {
 	uint32_t raw;
 };
 
+enum p_state_switch_method {
+	P_STATE_UNKNOWN						= 0,
+	P_STATE_V_BLANK						= 1,
+	P_STATE_FPO,
+	P_STATE_V_ACTIVE,
+	P_STATE_SUB_VP,
+	P_STATE_DRR_SUB_VP,
+	P_STATE_V_BLANK_SUB_VP
+};
+
 struct pipe_ctx {
 	struct dc_plane_state *plane_state;
 	struct dc_stream_state *stream;
@@ -429,6 +439,7 @@ struct pipe_ctx {
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
 	union pipe_update_flags update_flags;
+	enum p_state_switch_method p_state_type;
 	struct tg_color visual_confirm_color;
 	bool has_vactive_margin;
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/

@@ -455,16 +455,17 @@ void get_mpctree_visual_confirm_color(
 		struct tg_color *color);
 
 void get_subvp_visual_confirm_color(
-	struct dc *dc,
-	struct dc_state *context,
 	struct pipe_ctx *pipe_ctx,
 	struct tg_color *color);
 
 void get_mclk_switch_visual_confirm_color(
-		struct dc *dc,
-		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color);
+
+void set_p_state_switch_method(
+		struct dc *dc,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx);
 
 void hwss_execute_sequence(struct dc *dc,
 		struct block_sequence block_sequence[],

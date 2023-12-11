@@ -1088,7 +1088,7 @@ static void apply_ctx_interdependent_lock(struct dc *dc,
 	}
 }
 
-static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
+static void dc_update_visual_confirm_color(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
 	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
 		memset(&pipe_ctx->visual_confirm_color, 0, sizeof(struct tg_color));
@@ -1108,9 +1108,9 @@ static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *conte
 			if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE)
 				get_mpctree_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP)
-				get_subvp_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+				get_subvp_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH)
-				get_mclk_switch_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+				get_mclk_switch_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 		}
 	}
 }
@@ -1190,8 +1190,10 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 				dc_state_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
 
-			if (pipe->stream && pipe->plane_state)
-				dc_update_viusal_confirm_color(dc, context, pipe);
+			if (pipe->stream && pipe->plane_state) {
+				set_p_state_switch_method(dc, context, pipe);
+				dc_update_visual_confirm_color(dc, context, pipe);
+			}
 
 			if (dc->hwss.apply_ctx_for_surface) {
 				apply_ctx_interdependent_lock(dc, dc->current_state, old_stream, true);
@@ -3377,12 +3379,14 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 			&context->res_ctx,
 			stream);
 
-	if (dc->debug.visual_confirm) {
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-			if (pipe->stream && pipe->plane_state)
-				dc_update_viusal_confirm_color(dc, context, pipe);
+		if (pipe->stream && pipe->plane_state) {
+			set_p_state_switch_method(dc, context, pipe);
+
+			if (dc->debug.visual_confirm)
+				dc_update_visual_confirm_color(dc, context, pipe);
 		}
 	}
 
@@ -3531,13 +3535,16 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (dc->debug.visual_confirm)
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-			if (pipe->stream && pipe->plane_state)
-				dc_update_viusal_confirm_color(dc, context, pipe);
+		if (pipe->stream && pipe->plane_state) {
+			set_p_state_switch_method(dc, context, pipe);
+
+			if (dc->debug.visual_confirm)
+				dc_update_visual_confirm_color(dc, context, pipe);
 		}
+	}
 
 	if (stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
 		struct pipe_ctx *mpcc_pipe;
