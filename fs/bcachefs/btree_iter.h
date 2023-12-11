@@ -64,40 +64,24 @@ static inline void btree_trans_sort_paths(struct btree_trans *trans)
 }
 
 static inline struct btree_path *
-__trans_next_path_safe(struct btree_trans *trans, unsigned *idx)
+__trans_next_path(struct btree_trans *trans, unsigned *idx)
 {
 	*idx = find_next_bit(trans->paths_allocated, BTREE_ITER_MAX, *idx);
-	if (*idx == BTREE_ITER_MAX)
-		return NULL;
 
-	EBUG_ON(*idx > BTREE_ITER_MAX);
-	return &trans->paths[*idx];
+	return *idx < BTREE_ITER_MAX ? &trans->paths[*idx] : NULL;
 }
 
 /*
  * This version is intended to be safe for use on a btree_trans that is owned by
  * another thread, for bch2_btree_trans_to_text();
  */
-#define trans_for_each_path_safe_from(_trans, _path, _idx, _start)	\
+#define trans_for_each_path_from(_trans, _path, _idx, _start)		\
 	for (_idx = _start;						\
-	     (_path = __trans_next_path_safe((_trans), &_idx));		\
+	     (_path = __trans_next_path((_trans), &_idx));		\
 	     _idx++)
 
-#define trans_for_each_path_safe(_trans, _path, _idx)			\
-	trans_for_each_path_safe_from(_trans, _path, _idx, 1)
-
-static inline struct btree_path *
-__trans_next_path(struct btree_trans *trans, unsigned *idx)
-{
-	struct btree_path *path = __trans_next_path_safe(trans, idx);
-	EBUG_ON(path && path->idx != *idx);
-	return path;
-}
-
-#define trans_for_each_path(_trans, _path, _iter)			\
-	for (_iter = 1;							\
-	     (_path = __trans_next_path((_trans), &_iter));		\
-	     _iter++)
+#define trans_for_each_path(_trans, _path, _idx)			\
+	trans_for_each_path_from(_trans, _path, _idx, 1)
 
 static inline struct btree_path *next_btree_path(struct btree_trans *trans, struct btree_path *path)
 {

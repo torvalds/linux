@@ -265,7 +265,6 @@ static inline int btree_node_lock(struct btree_trans *trans,
 	int ret = 0;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
-	EBUG_ON(!test_bit(path->idx, trans->paths_allocated));
 
 	if (likely(six_trylock_type(&b->lock, type)) ||
 	    btree_node_lock_increment(trans, b, level, (enum btree_node_locked_type) type) ||

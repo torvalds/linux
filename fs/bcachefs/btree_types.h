@@ -225,7 +225,6 @@ enum btree_path_uptodate {
 typedef u16 btree_path_idx_t;
 
 struct btree_path {
-	btree_path_idx_t	idx;
 	btree_path_idx_t	sorted_idx;
 	u8			ref;
 	u8			intent_ref;

@@ -1324,8 +1324,6 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 {
 	struct btree_path *path = trans->paths + path_idx, *dup;
 
-	EBUG_ON(path->idx != path_idx);
-
 	if (!__btree_path_put(path, intent))
 		return;
 
@@ -1352,8 +1350,6 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 static void bch2_path_put_nokeep(struct btree_trans *trans, btree_path_idx_t path,
 				 bool intent)
 {
-	EBUG_ON(trans->paths[path].idx != path);
-
 	if (!__btree_path_put(trans->paths + path, intent))
 		return;
 
@@ -1542,7 +1538,6 @@ static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
 	__set_bit(idx, trans->paths_allocated);
 
 	struct btree_path *path = &trans->paths[idx];
-	path->idx		= idx;
 	path->ref		= 0;
 	path->intent_ref	= 0;
 	path->nodes_locked	= 0;
@@ -3090,7 +3085,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	prt_printf(out, "%i %s\n", task ? task->pid : 0, trans->fn);
 
-	trans_for_each_path_safe(trans, path, idx) {
+	trans_for_each_path(trans, path, idx) {
 		if (!path->nodes_locked)
 			continue;
 

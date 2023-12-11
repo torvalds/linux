@@ -302,7 +302,7 @@ next:
 
 	top = &g.g[g.nr - 1];
 
-	trans_for_each_path_safe_from(top->trans, path, path_idx, top->path_idx) {
+	trans_for_each_path_from(top->trans, path, path_idx, top->path_idx) {
 		if (!path->nodes_locked)
 			continue;
 
