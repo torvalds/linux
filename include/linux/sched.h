@@ -33,7 +33,7 @@
 #include <linux/task_io_accounting.h>
 #include <linux/posix-timers_types.h>
 #include <linux/rseq.h>
-#include <linux/seqlock.h>
+#include <linux/seqlock_types.h>
 #include <linux/kcsan.h>
 #include <linux/rv.h>
 #include <linux/livepatch_sched.h>
