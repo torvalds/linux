@@ -2283,7 +2283,7 @@ static struct clk_regmap_div gcc_usb30_prim_mock_utmi_postdiv_clk_src = {
 
 static struct clk_branch gcc_ahb2phy_csi_clk = {
 	.halt_reg = 0x1d004,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1d004,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -2298,7 +2298,7 @@ static struct clk_branch gcc_ahb2phy_csi_clk = {
 
 static struct clk_branch gcc_ahb2phy_usb_clk = {
 	.halt_reg = 0x1d008,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1d008,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -2808,7 +2808,7 @@ static struct clk_branch gcc_camss_top_shift_clk = {
 
 static struct clk_branch gcc_cfg_noc_usb3_prim_axi_clk = {
 	.halt_reg = 0x1a004,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1a004,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3040,7 +3040,7 @@ static struct clk_branch gcc_pdm2_clk = {
 
 static struct clk_branch gcc_pdm_ahb_clk = {
 	.halt_reg = 0x20004,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x20004,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3481,7 +3481,7 @@ static struct clk_branch gcc_sdcc1_apps_clk = {
 
 static struct clk_branch gcc_sdcc1_ice_core_clk = {
 	.halt_reg = 0x38010,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x38010,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3550,7 +3550,7 @@ static struct clk_branch gcc_sys_noc_ufs_phy_axi_clk = {
 
 static struct clk_branch gcc_sys_noc_usb3_prim_axi_clk = {
 	.halt_reg = 0x1a000,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1a000,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3596,7 +3596,7 @@ static struct clk_branch gcc_ufs_pad_clkref_en = {
 
 static struct clk_branch gcc_ufs_phy_ahb_clk = {
 	.halt_reg = 0x45024,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x45024,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3611,7 +3611,7 @@ static struct clk_branch gcc_ufs_phy_ahb_clk = {
 
 static struct clk_branch gcc_ufs_phy_axi_clk = {
 	.halt_reg = 0x4501c,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x4501c,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3651,7 +3651,7 @@ static struct clk_branch gcc_ufs_phy_ice_core_clk = {
 
 static struct clk_branch gcc_ufs_phy_phy_aux_clk = {
 	.halt_reg = 0x45090,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x45090,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3725,7 +3725,7 @@ static struct clk_branch gcc_ufs_phy_tx_symbol_0_clk = {
 
 static struct clk_branch gcc_ufs_phy_unipro_core_clk = {
 	.halt_reg = 0x45050,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x45050,
 	.hwcg_bit = 1,
 	.clkr = {
@@ -3917,7 +3917,7 @@ static struct clk_branch gcc_venus_ctl_axi_clk = {
 
 static struct clk_branch gcc_video_axi0_clk = {
 	.halt_reg = 0x1701c,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.hwcg_reg = 0x1701c,
 	.hwcg_bit = 1,
 	.clkr = {
