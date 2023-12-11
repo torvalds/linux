@@ -48,6 +48,7 @@ struct rockchip_crtc_state {
 	int output_bpc;
 	int output_flags;
 	bool enable_afbc;
+	bool yuv_overlay;
 	u32 bus_format;
 	u32 bus_flags;
 	int color_space;
