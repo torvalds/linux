@@ -158,7 +158,6 @@ struct aspeed_g7_group_funcfg usb2a2bxhp_cfg[] = {
 //USB2A
 /* 00: PCIE EHCI to vHub0 */
 struct aspeed_g7_group_funcfg usb2ahpd0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
 };
 
@@ -272,7 +271,6 @@ struct aspeed_g7_group_funcfg usb2b2axhp_cfg[] = {
 //USB2B
 /* 00: PCIE EHCI to vHub0 */
 struct aspeed_g7_group_funcfg usb2bhpd0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
 	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
 };
 
