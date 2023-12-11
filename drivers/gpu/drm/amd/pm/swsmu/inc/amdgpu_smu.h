@@ -22,6 +22,8 @@
 #ifndef __AMDGPU_SMU_H__
 #define __AMDGPU_SMU_H__
 
+#include <linux/acpi_amd_wbrf.h>
+
 #include "amdgpu.h"
 #include "kgd_pp_interface.h"
 #include "dm_pp_interface.h"
@@ -570,6 +572,10 @@ struct smu_context {
 	struct delayed_work		swctf_delayed_work;
 
 	enum pp_xgmi_plpd_mode plpd_mode;
+
+	/* data structures for wbrf feature support */
+	bool				wbrf_supported;
+	struct notifier_block		wbrf_notifier;
 };
 
 struct i2c_adapter;
@@ -1375,6 +1381,22 @@ struct pptable_funcs {
 	 * @notify_rlc_state: Notify RLC power state to SMU.
 	 */
 	int (*notify_rlc_state)(struct smu_context *smu, bool en);
+
+	/**
+	 * @is_asic_wbrf_supported: check whether PMFW supports the wbrf feature
+	 */
+	bool (*is_asic_wbrf_supported)(struct smu_context *smu);
+
+	/**
+	 * @enable_uclk_shadow: Enable the uclk shadow feature on wbrf supported
+	 */
+	int (*enable_uclk_shadow)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @set_wbrf_exclusion_ranges: notify SMU the wifi bands occupied
+	 */
+	int (*set_wbrf_exclusion_ranges)(struct smu_context *smu,
+					struct freq_band_range *exclusion_ranges);
 };
 
 typedef enum {
