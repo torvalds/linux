@@ -239,9 +239,8 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
-		if (!c->blocked_allocate_open_bucket)
-			c->blocked_allocate_open_bucket = local_clock();
-
+		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
+				   &c->blocked_allocate_open_bucket, true);
 		spin_unlock(&c->freelist_lock);
 		return ERR_PTR(-BCH_ERR_open_buckets_empty);
 	}
@@ -267,19 +266,11 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	ca->nr_open_buckets++;
 	bch2_open_bucket_hash_add(c, ob);
 
-	if (c->blocked_allocate_open_bucket) {
-		bch2_time_stats_update(
-			&c->times[BCH_TIME_blocked_allocate_open_bucket],
-			c->blocked_allocate_open_bucket);
-		c->blocked_allocate_open_bucket = 0;
-	}
+	track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
+			   &c->blocked_allocate_open_bucket, false);
 
-	if (c->blocked_allocate) {
-		bch2_time_stats_update(
-			&c->times[BCH_TIME_blocked_allocate],
-			c->blocked_allocate);
-		c->blocked_allocate = 0;
-	}
+	track_event_change(&c->times[BCH_TIME_blocked_allocate],
+			   &c->blocked_allocate, false);
 
 	spin_unlock(&c->freelist_lock);
 	return ob;
@@ -567,8 +558,8 @@ again:
 			goto again;
 		}
 
-		if (!c->blocked_allocate)
-			c->blocked_allocate = local_clock();
+		track_event_change(&c->times[BCH_TIME_blocked_allocate],
+				   &c->blocked_allocate, true);
 
 		ob = ERR_PTR(-BCH_ERR_freelist_empty);
 		goto err;
