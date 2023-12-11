@@ -867,7 +867,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	int ret = 0;
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
@@ -1115,7 +1115,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 
 	curr_ctx = ieee80211_link_get_chanctx(link);
 	if (curr_ctx && local->use_chanctx && !local->ops->switch_vif_chanctx)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	new_ctx = ieee80211_find_reservation_chanctx(local, chandef, mode);
 	if (!new_ctx) {
