@@ -51,9 +51,7 @@
 
 #define PINCTRL_PIN_GROUP(_name_, id)							\
 	{										\
-		.name = _name_,								\
-		.pins = id##_pins,							\
-		.num_pins = ARRAY_SIZE(id##_pins),					\
+		.grp = PINCTRL_PINGROUP(_name_,id##_pins, ARRAY_SIZE(id##_pins)),	\
 		.data = id##_funcs,							\
 	}
 
