@@ -963,8 +963,8 @@ unfortunately any spinlock in a ``SLAB_TYPESAFE_BY_RCU`` object must be
 initialized after each and every call to kmem_cache_alloc(), which renders
 reference-free spinlock acquisition completely unsafe.  Therefore, when
 using ``SLAB_TYPESAFE_BY_RCU``, make proper use of a reference counter.
-(Those willing to use a kmem_cache constructor may also use locking,
-including cache-friendly sequence locking.)
+(Those willing to initialize their locks in a kmem_cache constructor
+may also use locking, including cache-friendly sequence locking.)
 
 With traditional reference counting -- such as that implemented by the
 kref library in Linux -- there is typically code that runs when the last
