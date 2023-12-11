@@ -1,0 +1,81 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#ifndef __DT_BINDINGS_RV1106_PM_H__
+#define __DT_BINDINGS_RV1106_PM_H__
+/******************************bits ops************************************/
+
+#ifndef BIT
+#define BIT(nr)				(1 << (nr))
+#endif
+
+/* all plls except ddr's pll*/
+#define RKPM_SLP_32K_EXT		BIT(24)
+#define RKPM_SLP_TIME_OUT_WKUP		BIT(25)
+#define RKPM_SLP_PMU_DBG		BIT(26)
+
+/* the wake up source */
+#define RKPM_CPU_WKUP_EN		BIT(0)
+#define RKPM_GPIO_WKUP_EN		BIT(1)
+#define RKPM_SDMMC_WKUP_EN		BIT(2)
+#define RKPM_SDIO_WKUP_EN		BIT(3)
+#define RKPM_USB_WKUP_EN		BIT(4)
+#define RKPM_TIMER_WKUP_EN		BIT(5)
+#define RKPM_TIME_OUT_WKUP_EN		BIT(6)
+#define RKPM_PMU_SFT_WKUP_EN		BIT(7)
+
+/* io config */
+#define RKPM_IO_CFG_IOMUX_SFT		0
+#define RKPM_IO_CFG_GPIO_DIR_SFT	8
+#define RKPM_IO_CFG_GPIO_LVL_SFT	9
+#define RKPM_IO_CFG_PULL_SFT		10
+#define RKPM_IO_CFG_ID_SFT		16
+
+#define RKPM_IO_CFG_IOMUX_MSK		0x3f
+#define RKPM_IO_CFG_GPIO_DIR_MSK	0x1
+#define RKPM_IO_CFG_GPIO_LVL_MSK	0x1
+#define RKPM_IO_CFG_PULL_MSK		0x3
+#define RKPM_IO_CFG_ID_MSK		0xffff
+
+#define RKPM_IO_CFG_IOMUX_GPIO_VAL	0
+#define RKPM_IO_CFG_GPIO_DIR_INPUT_VAL	0
+#define RKPM_IO_CFG_GPIO_DIR_OUTPUT_VAL	1
+#define RKPM_IO_CFG_GPIO_LVL_LOW_VAL	0
+#define RKPM_IO_CFG_GPIO_LVL_HIGH_VAL	1
+#define RKPM_IO_CFG_PULL_NONE_VAL	0
+#define RKPM_IO_CFG_PULL_UP_VAL		1
+#define RKPM_IO_CFG_PULL_DOWN_VAL	2
+
+#define RKPM_IO_CFG_IOMUX(func)		((func) << RKPM_IO_CFG_IOMUX_SFT)
+#define RKPM_IO_CFG_GPIO_DIR_INPUT	\
+	(RKPM_IO_CFG_GPIO_DIR_INPUT_VAL << RKPM_IO_CFG_GPIO_DIR_SFT)
+#define RKPM_IO_CFG_GPIO_DIR_OUTPUT	\
+	(RKPM_IO_CFG_GPIO_DIR_OUTPUT_VAL << RKPM_IO_CFG_GPIO_DIR_SFT)
+#define RKPM_IO_CFG_GPIO_LVL_LOW	\
+	(RKPM_IO_CFG_GPIO_LVL_LOW_VAL << RKPM_IO_CFG_GPIO_LVL_SFT)
+#define RKPM_IO_CFG_GPIO_LVL_HIGH	\
+	(RKPM_IO_CFG_GPIO_LVL_HIGH_VAL << RKPM_IO_CFG_GPIO_LVL_SFT)
+#define RKPM_IO_CFG_PULL_NONE		\
+	(RKPM_IO_CFG_PULL_NONE_VAL << RKPM_IO_CFG_PULL_SFT)
+#define RKPM_IO_CFG_PULL_UP		\
+	(RKPM_IO_CFG_PULL_UP_VAL << RKPM_IO_CFG_PULL_SFT)
+#define RKPM_IO_CFG_PULL_DOWN		\
+	(RKPM_IO_CFG_PULL_DOWN_VAL << RKPM_IO_CFG_PULL_SFT)
+#define RKPM_IO_CFG_ID(id)		((id) << RKPM_IO_CFG_ID_SFT)
+#define RKPM_IO_CFG_IOMUX_GPIO		\
+	RKPM_IO_CFG_IOMUX(RKPM_IO_CFG_IOMUX_GPIO_VAL)
+
+#define RKPM_IO_CFG_GET_IOMUX(cfg)	\
+	(((cfg) >> RKPM_IO_CFG_IOMUX_SFT) & RKPM_IO_CFG_IOMUX_MSK)
+#define RKPM_IO_CFG_GET_GPIO_DIR(cfg)	\
+	(((cfg) >> RKPM_IO_CFG_GPIO_DIR_SFT) & RKPM_IO_CFG_GPIO_DIR_MSK)
+#define RKPM_IO_CFG_GET_GPIO_LVL(cfg)	\
+	(((cfg) >> RKPM_IO_CFG_GPIO_LVL_SFT) & RKPM_IO_CFG_GPIO_LVL_MSK)
+#define RKPM_IO_CFG_GET_PULL(cfg)	\
+	(((cfg) >> RKPM_IO_CFG_PULL_SFT) & RKPM_IO_CFG_PULL_MSK)
+#define RKPM_IO_CFG_GET_ID(cfg)		\
+	(((cfg) >> RKPM_IO_CFG_ID_SFT) & RKPM_IO_CFG_ID_MSK)
+
+#endif
