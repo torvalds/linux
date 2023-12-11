@@ -98,7 +98,7 @@ enum nfc_type {
  * @high: ECC count high bit index at register.
  * @high_mask: mask bit
  */
-struct ecc_cnt_status {
+struct rk_ecc_cnt_status {
 	u8 err_flag_bit;
 	u8 low;
 	u8 low_mask;
@@ -144,8 +144,8 @@ struct nfc_cfg {
 	u32 int_st_off;
 	u32 oob0_off;
 	u32 oob1_off;
-	struct ecc_cnt_status ecc0;
-	struct ecc_cnt_status ecc1;
+	struct rk_ecc_cnt_status ecc0;
+	struct rk_ecc_cnt_status ecc1;
 };
 
 struct rk_nfc_nand_chip {
