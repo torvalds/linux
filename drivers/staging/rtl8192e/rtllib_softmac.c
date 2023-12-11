@@ -730,7 +730,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		ht_cap_buf = (u8 *)&(ieee->ht_info->SelfHTCap);
 		ht_cap_len = sizeof(ieee->ht_info->SelfHTCap);
-		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len,
+		ht_construct_capability_element(ieee, ht_cap_buf, &ht_cap_len,
 					     encrypt, true);
 		if (ieee->ht_info->current_rt2rt_aggregation) {
 			realtek_ie_buf = ieee->ht_info->sz_rt2rt_agg_buf;

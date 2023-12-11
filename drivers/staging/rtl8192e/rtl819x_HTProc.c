@@ -237,7 +237,7 @@ void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 	ht_info->iot_ra_func = 0;
 }
 
-void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
+void ht_construct_capability_element(struct rtllib_device *ieee, u8 *posHTCap,
 				  u8 *len, u8 IsEncrypt, bool bAssoc)
 {
 	struct rt_hi_throughput *pHT = ieee->ht_info;

@@ -1755,7 +1755,7 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset);
 void ht_update_default_setting(struct rtllib_device *ieee);
-void HTConstructCapabilityElement(struct rtllib_device *ieee,
+void ht_construct_capability_element(struct rtllib_device *ieee,
 				  u8 *posHTCap, u8 *len,
 				  u8 isEncrypt, bool bAssoc);
 void HTConstructRT2RTAggElement(struct rtllib_device *ieee,
