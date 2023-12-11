@@ -1328,6 +1328,11 @@
  *	Multi-Link reconfiguration. %NL80211_ATTR_MLO_LINKS is used to provide
  *	information about the removed STA MLD setup links.
  *
+ * @NL80211_CMD_SET_TID_TO_LINK_MAPPING: Set the TID to Link Mapping for a
+ *      non-AP MLD station. The %NL80211_ATTR_MLO_TTLM_DLINK and
+ *      %NL80211_ATTR_MLO_TTLM_ULINK attributes are used to specify the
+ *      TID to Link mapping for downlink/uplink traffic.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1582,6 +1587,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_HW_TIMESTAMP,
 
 	NL80211_CMD_LINKS_REMOVED,
+
+	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
 
 	/* add new commands above here */
 
@@ -2835,6 +2842,15 @@ enum nl80211_commands {
  *	include BSSes that can only be used in restricted scenarios and/or
  *	cannot be used at all.
  *
+ * @NL80211_ATTR_MLO_TTLM_DLINK: Binary attribute specifying the downlink TID to
+ *      link mapping. The length is 8 * sizeof(u16). For each TID the link
+ *      mapping is as defined in section 9.4.2.314 (TID-To-Link Mapping element)
+ *      in Draft P802.11be_D4.0.
+ * @NL80211_ATTR_MLO_TTLM_ULINK: Binary attribute specifying the uplink TID to
+ *      link mapping. The length is 8 * sizeof(u16). For each TID the link
+ *      mapping is as defined in section 9.4.2.314 (TID-To-Link Mapping element)
+ *      in Draft P802.11be_D4.0.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3374,6 +3390,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_MLO_LINK_DISABLED,
 
 	NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA,
+
+	NL80211_ATTR_MLO_TTLM_DLINK,
+	NL80211_ATTR_MLO_TTLM_ULINK,
 
 	/* add attributes here, update the policy in nl80211.c */
 

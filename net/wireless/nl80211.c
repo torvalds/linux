@@ -819,6 +819,8 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_EMA_RNR_ELEMS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_MLO_LINK_DISABLED] = { .type = NLA_FLAG },
 	[NL80211_ATTR_BSS_DUMP_INCLUDE_USE_DATA] = { .type = NLA_FLAG },
+	[NL80211_ATTR_MLO_TTLM_DLINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
+	[NL80211_ATTR_MLO_TTLM_ULINK] = NLA_POLICY_EXACT_LEN(sizeof(u16) * 8),
 };
 
 /* policy for the key attributes */
@@ -16298,6 +16300,35 @@ static int nl80211_set_hw_timestamp(struct sk_buff *skb,
 	return rdev_set_hw_timestamp(rdev, dev, &hwts);
 }
 
+static int
+nl80211_set_ttlm(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_ttlm_params params = {};
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION &&
+	    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT)
+		return -EOPNOTSUPP;
+
+	if (!wdev->connected)
+		return -ENOLINK;
+
+	if (!info->attrs[NL80211_ATTR_MLO_TTLM_DLINK] ||
+	    !info->attrs[NL80211_ATTR_MLO_TTLM_ULINK])
+		return -EINVAL;
+
+	nla_memcpy(params.dlink,
+		   info->attrs[NL80211_ATTR_MLO_TTLM_DLINK],
+		   sizeof(params.dlink));
+	nla_memcpy(params.ulink,
+		   info->attrs[NL80211_ATTR_MLO_TTLM_ULINK],
+		   sizeof(params.ulink));
+
+	return rdev_set_ttlm(rdev, dev, &params);
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -17476,6 +17507,12 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_HW_TIMESTAMP,
 		.doit = nl80211_set_hw_timestamp,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
+	},
+	{
+		.cmd = NL80211_CMD_SET_TID_TO_LINK_MAPPING,
+		.doit = nl80211_set_ttlm,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
 	},
