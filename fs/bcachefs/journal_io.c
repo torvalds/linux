@@ -1725,7 +1725,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct jset_entry *start, *end, *i, *next, *prev = NULL;
+	struct jset_entry *start, *end, *i;
 	struct jset *jset = w->data;
 	struct journal_keys_to_wb wb = { NULL };
 	unsigned sectors, bytes, u64s;
@@ -1742,7 +1742,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	 * If we wanted to be really fancy here, we could sort all the keys in
 	 * the jset and drop keys that were overwritten - probably not worth it:
 	 */
-	vstruct_for_each_safe(jset, i, next) {
+	vstruct_for_each(jset, i) {
 		unsigned u64s = le16_to_cpu(i->u64s);
 
 		/* Empty entry: */
@@ -1782,33 +1782,11 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 			i->type = BCH_JSET_ENTRY_btree_keys;
 			break;
 		}
-
-		/* Can we merge with previous entry? */
-		if (prev &&
-		    i->btree_id == prev->btree_id &&
-		    i->level	== prev->level &&
-		    i->type	== prev->type &&
-		    i->type	== BCH_JSET_ENTRY_btree_keys &&
-		    le16_to_cpu(prev->u64s) + u64s <= U16_MAX) {
-			memmove_u64s_down(vstruct_next(prev),
-					  i->_data,
-					  u64s);
-			le16_add_cpu(&prev->u64s, u64s);
-			continue;
-		}
-
-		/* Couldn't merge, move i into new position (after prev): */
-		prev = prev ? vstruct_next(prev) : jset->start;
-		if (i != prev)
-			memmove_u64s_down(prev, i, jset_u64s(u64s));
 	}
 
 	if (wb.wb)
 		bch2_journal_keys_to_write_buffer_end(c, &wb);
 	w->need_flush_to_write_buffer = false;
-
-	prev = prev ? vstruct_next(prev) : jset->start;
-	jset->u64s = cpu_to_le32((u64 *) prev - jset->_data);
 
 	start = end = vstruct_last(jset);
 
