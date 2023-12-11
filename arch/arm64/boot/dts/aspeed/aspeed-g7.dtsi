@@ -1014,16 +1014,15 @@
 			reg = <0x0 0x14c1c000 0x0 0x400>;
 		};
 
-		sgmii: sgmii@14C01000 {
+		sgmii: phy@14C01000 {
 			compatible = "aspeed,ast2700-sgmii";
 			reg = <0x0 0x14c01000 0x0 0x40>;
 
 			aspeed,plda = <&plda>;
 
-			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_MAC2CLK>;
-			resets = <&syscon1 ASPEED_RESET_MAC2>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sgmii_default>;
+			#phy-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1055,7 +1054,11 @@
 			interrupt-parent = <&intc4>;
 			interrupts-extended = <&intc4 2>;
 
+			phys = <&sgmii>;
+			phy-names = "sgmii";
+
 			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_MAC2CLK>;
+			resets = <&syscon1 ASPEED_RESET_MAC2>;
 			status = "disabled";
 		};
 
