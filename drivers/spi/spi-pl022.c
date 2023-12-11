@@ -341,10 +341,6 @@ struct vendor_data {
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
  * @cur_chip: pointer to current clients chip(assigned from controller_state)
- * @next_msg_cs_active: the next message in the queue has been examined
- *  and it was found that it uses the same chip select as the previous
- *  message, so we left it active after the previous transfer, and it's
- *  active already.
  * @tx: current position in TX buffer to be read
  * @tx_end: end position in TX buffer to be read
  * @rx: current position in RX buffer to be written
@@ -361,7 +357,6 @@ struct vendor_data {
  * @dummypage: a dummy page used for driving data on the bus with DMA
  * @dma_running: indicates whether DMA is in operation
  * @cur_cs: current chip select index
- * @cur_gpiod: current chip select GPIO descriptor
  */
 struct pl022 {
 	struct amba_device		*adev;
@@ -373,7 +368,6 @@ struct pl022 {
 	struct pl022_ssp_controller	*host_info;
 	struct spi_transfer		*cur_transfer;
 	struct chip_data		*cur_chip;
-	bool				next_msg_cs_active;
 	void				*tx;
 	void				*tx_end;
 	void				*rx;
@@ -393,7 +387,6 @@ struct pl022 {
 	bool				dma_running;
 #endif
 	int cur_cs;
-	struct gpio_desc *cur_gpiod;
 };
 
 /**
@@ -1344,8 +1337,6 @@ static int pl022_transfer_one(struct spi_controller *host, struct spi_device *sp
 	/* Setup the SPI using the per chip configuration */
 	pl022->cur_chip = spi_get_ctldata(spi);
 	pl022->cur_cs = spi_get_chipselect(spi, 0);
-	/* This is always available but may be set to -ENOENT */
-	pl022->cur_gpiod = spi_get_csgpiod(spi, 0);
 
 	restore_state(pl022);
 	flush(pl022);
