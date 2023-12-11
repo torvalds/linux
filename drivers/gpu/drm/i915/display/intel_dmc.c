@@ -389,7 +389,7 @@ disable_all_flip_queue_events(struct drm_i915_private *i915)
 	enum intel_dmc_id dmc_id;
 
 	/* TODO: check if the following applies to all D13+ platforms. */
-	if (!IS_DG2(i915) && !IS_TIGERLAKE(i915))
+	if (!IS_TIGERLAKE(i915))
 		return;
 
 	for_each_dmc_id(dmc_id) {
@@ -493,6 +493,45 @@ void intel_dmc_disable_pipe(struct drm_i915_private *i915, enum pipe pipe)
 		intel_de_rmw(i915, PIPEDMC_CONTROL(pipe), PIPEDMC_ENABLE, 0);
 }
 
+static bool is_dmc_evt_ctl_reg(struct drm_i915_private *i915,
+			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	u32 start = i915_mmio_reg_offset(DMC_EVT_CTL(i915, dmc_id, 0));
+	u32 end = i915_mmio_reg_offset(DMC_EVT_CTL(i915, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+
+	return offset >= start && offset < end;
+}
+
+static bool disable_dmc_evt(struct drm_i915_private *i915,
+			    enum intel_dmc_id dmc_id,
+			    i915_reg_t reg, u32 data)
+{
+	if (!is_dmc_evt_ctl_reg(i915, dmc_id, reg))
+		return false;
+
+	/* keep all pipe DMC events disabled by default */
+	if (dmc_id != DMC_FW_MAIN)
+		return true;
+
+	return false;
+}
+
+static u32 dmc_mmiodata(struct drm_i915_private *i915,
+			struct intel_dmc *dmc,
+			enum intel_dmc_id dmc_id, int i)
+{
+	if (disable_dmc_evt(i915, dmc_id,
+			    dmc->dmc_info[dmc_id].mmioaddr[i],
+			    dmc->dmc_info[dmc_id].mmiodata[i]))
+		return REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
+				      DMC_EVT_CTL_TYPE_EDGE_0_1) |
+			REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
+				       DMC_EVT_CTL_EVENT_ID_FALSE);
+	else
+		return dmc->dmc_info[dmc_id].mmiodata[i];
+}
+
 /**
  * intel_dmc_load_program() - write the firmware from memory to register.
  * @i915: i915 drm device.
@@ -532,7 +571,7 @@ void intel_dmc_load_program(struct drm_i915_private *i915)
 	for_each_dmc_id(dmc_id) {
 		for (i = 0; i < dmc->dmc_info[dmc_id].mmio_count; i++) {
 			intel_de_write(i915, dmc->dmc_info[dmc_id].mmioaddr[i],
-				       dmc->dmc_info[dmc_id].mmiodata[i]);
+				       dmc_mmiodata(i915, dmc, dmc_id, i));
 		}
 	}
 
