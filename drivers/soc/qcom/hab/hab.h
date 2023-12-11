@@ -22,6 +22,10 @@ enum hab_payload_type {
 	HAB_PAYLOAD_TYPE_SCHE_MSG_ACK,
 	HAB_PAYLOAD_TYPE_SCHE_RESULT_REQ,
 	HAB_PAYLOAD_TYPE_SCHE_RESULT_RSP,
+	HAB_PAYLOAD_TYPE_IMPORT,
+	HAB_PAYLOAD_TYPE_IMPORT_ACK,
+	HAB_PAYLOAD_TYPE_IMPORT_ACK_FAIL,
+	HAB_PAYLOAD_TYPE_UNIMPORT,
 	HAB_PAYLOAD_TYPE_MAX,
 };
 #define LOOPBACK_DOM 0xFF
@@ -118,6 +122,7 @@ struct hab_header {
 
 /* "Size" of the HAB_HEADER_ID and HAB_VCID_ID must match */
 #define HAB_HEADER_TYPE_SHIFT 16
+#define HAB_HEADER_EXT_TYPE_SHIFT 0
 #define HAB_HEADER_ID_SHIFT 20
 /*
  * On HQX platforms, the maximum payload size is
@@ -126,6 +131,9 @@ struct hab_header {
  */
 #define HAB_HEADER_SIZE_MAX  0x0007D000
 #define HAB_HEADER_TYPE_MASK 0x000F0000
+/* TYPE_LEN is the number of 1 bit in TYPE_MASK */
+#define HAB_HEADER_TYPE_LEN 4
+#define HAB_HEADER_EXT_TYPE_MASK 0x0000000F
 #define HAB_HEADER_ID_MASK   0xFFF00000
 #define HAB_HEADER_INITIALIZER {0}
 
@@ -150,9 +158,11 @@ struct hab_header {
 
 #define HAB_HEADER_SET_TYPE(header, type) \
 	((header).id_type = ((header).id_type & \
-			(~HAB_HEADER_TYPE_MASK)) | \
+			(~(HAB_HEADER_TYPE_MASK | HAB_HEADER_EXT_TYPE_MASK))) | \
 			(((type) << HAB_HEADER_TYPE_SHIFT) & \
-			HAB_HEADER_TYPE_MASK))
+			HAB_HEADER_TYPE_MASK) | \
+			((((type) >> HAB_HEADER_TYPE_LEN) << HAB_HEADER_EXT_TYPE_SHIFT) & \
+			HAB_HEADER_EXT_TYPE_MASK))
 
 #define HAB_HEADER_SET_ID(header, id) \
 	((header).id_type = ((header).id_type & \
@@ -164,8 +174,9 @@ struct hab_header {
 	((header).payload_size)
 
 #define HAB_HEADER_GET_TYPE(header) \
-	(((header).id_type & \
-		HAB_HEADER_TYPE_MASK) >> HAB_HEADER_TYPE_SHIFT)
+	((((header).id_type & \
+		HAB_HEADER_TYPE_MASK) >> HAB_HEADER_TYPE_SHIFT) | \
+		(((header).id_type & HAB_HEADER_EXT_TYPE_MASK) << HAB_HEADER_TYPE_LEN))
 
 #define HAB_HEADER_GET_ID(header) \
 	((((header).id_type & HAB_HEADER_ID_MASK) >> \
@@ -175,6 +186,13 @@ struct hab_header {
 
 #define HAB_HS_TIMEOUT (10*1000*1000)
 #define HAB_HEAD_SIGNATURE 0xBEE1BEE1
+
+/* only used when vchan is not existed */
+#define HAB_VCID_UNIMPORT 0x1
+#define HAB_SESSIONID_UNIMPORT 0x1
+
+/* 1 - enhanced memory sharing protocol with sync import and async unimport */
+#define HAB_VER_PROT 1
 
 struct physical_channel {
 	struct list_head node;
@@ -208,6 +226,7 @@ struct physical_channel {
 	int vcnt;
 	rwlock_t vchans_lock;
 	int kernel_only;
+	uint32_t mem_proto;
 };
 /* this payload has to be used together with type */
 struct hab_open_send_data {
@@ -216,7 +235,7 @@ struct hab_open_send_data {
 	int open_id;
 	int ver_fe;
 	int ver_be;
-	int reserved;
+	int ver_proto;
 };
 
 struct hab_open_request {
@@ -242,6 +261,25 @@ struct hab_export_ack_recvd {
 	struct list_head node;
 	int age;
 };
+
+struct hab_import_ack {
+	uint32_t export_id;
+	int32_t vcid_local;
+	int32_t vcid_remote;
+	uint32_t imp_whse_added; /* indicating exp node added into imp whse */
+};
+
+struct hab_import_ack_recvd {
+	struct hab_import_ack ack;
+	struct list_head node;
+	int age;
+};
+
+struct hab_import_data {
+	uint32_t exp_id;
+	uint32_t page_cnt;
+	uint32_t reserved;
+} __packed;
 
 struct hab_message {
 	struct list_head node;
@@ -272,16 +310,20 @@ struct uhab_context {
 	int vcnt;
 
 	struct list_head exp_whse;
+	rwlock_t exp_lock;
 	uint32_t export_total;
 
 	wait_queue_head_t exp_wq;
 	struct list_head exp_rxq;
-	rwlock_t exp_lock;
 	spinlock_t expq_lock;
 
 	struct list_head imp_whse;
 	spinlock_t imp_lock;
 	uint32_t import_total;
+
+	wait_queue_head_t imp_wq;
+	struct list_head imp_rxq;
+	spinlock_t impq_lock;
 
 	void *import_ctx;
 
@@ -328,6 +370,10 @@ struct hab_driver {
 	struct list_head imp_list;
 	int imp_cnt;
 	spinlock_t imp_lock;
+
+	struct list_head reclaim_list;
+	spinlock_t reclaim_lock;
+	struct work_struct reclaim_work;
 
 	struct local_vmid settings; /* parser results */
 
@@ -396,7 +442,7 @@ struct export_desc {
 
 	struct list_head    node;
 	void *kva;
-	int                 payload_count;
+	int                 payload_count; /* number of the pages */
 	unsigned char       payload[1];
 } __packed;
 
@@ -444,14 +490,16 @@ struct export_desc_super {
 	struct kref refcount;
 	void *platform_data;
 	unsigned long offset;
+	unsigned int payload_size; /* size of the compressed pfn structure */
 
 	enum exp_desc_state import_state;
+	uint32_t remote_imported;
 
 	/*
 	 * exp must be the last member
 	 * because it is a variable length struct with pfns as payload
 	 */
-	struct export_desc  exp;
+	struct export_desc exp;
 };
 
 int hab_vchan_open(struct uhab_context *ctx,
@@ -586,6 +634,7 @@ static inline void hab_ctx_put(struct uhab_context *ctx)
 }
 
 void hab_send_close_msg(struct virtual_channel *vchan);
+void hab_send_unimport_msg(struct virtual_channel *vchan, uint32_t exp_id);
 
 int hab_hypervisor_register(void);
 int hab_hypervisor_register_post(void);
@@ -646,6 +695,7 @@ int hab_stat_deinit(struct hab_driver *drv);
 int hab_stat_show_vchan(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_show_ctx(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_show_expimp(struct hab_driver *drv, int pid, char *buf, int sz);
+int hab_stat_show_reclaim(struct hab_driver *drv, char *buf, int sz);
 int hab_stat_init_sub(struct hab_driver *drv);
 int hab_stat_deinit_sub(struct hab_driver *drv);
 

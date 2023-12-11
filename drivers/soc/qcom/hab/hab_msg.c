@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -252,6 +252,97 @@ static int hab_export_enqueue(struct virtual_channel *vchan,
 	return 0;
 }
 
+/*
+ * Called when received an invalid import request from importer.
+ * If not doing this, importer will hang forever awaiting import ack msg.
+ */
+static int hab_send_import_ack_fail(struct virtual_channel *vchan,
+				uint32_t exp_id)
+{
+	uint32_t export_id = exp_id;
+	struct hab_header header = HAB_HEADER_INITIALIZER;
+
+	HAB_HEADER_SET_SIZE(header, sizeof(uint32_t));
+	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_IMPORT_ACK_FAIL);
+	HAB_HEADER_SET_ID(header, vchan->otherend_id);
+	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+
+	return physical_channel_send(vchan->pchan, &header, &export_id);
+}
+
+static int hab_send_import_ack(struct virtual_channel *vchan,
+				struct export_desc *exp)
+{
+	int ret = 0;
+	struct export_desc_super *exp_super = container_of(exp, struct export_desc_super, exp);
+	uint32_t sizebytes = sizeof(*exp) + exp_super->payload_size;
+	struct hab_header header = HAB_HEADER_INITIALIZER;
+
+	HAB_HEADER_SET_SIZE(header, sizebytes);
+	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_IMPORT_ACK);
+	HAB_HEADER_SET_ID(header, vchan->otherend_id);
+	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+
+	/*
+	 * Local pointers should not be leaked to remote from security perspective.
+	 * Relevant lock should be held like other places of modifying exp node
+	 * when cleaning local pointers. It is protected by exp_lock for now inside invoker.
+	 */
+	exp->pchan = NULL;
+	exp->vchan = NULL;
+	exp->ctx = NULL;
+	ret = physical_channel_send(vchan->pchan, &header, exp);
+	exp->pchan = vchan->pchan;
+	exp->vchan = vchan;
+	exp->ctx = vchan->ctx;
+
+	return ret;
+}
+
+/* Called when facing issue during handling import ack msg to wake up local importer */
+static void hab_create_invalid_ack(struct virtual_channel *vchan, uint32_t export_id)
+{
+	int irqs_disabled = irqs_disabled();
+	struct hab_import_ack_recvd *ack_recvd = kzalloc(sizeof(*ack_recvd), GFP_ATOMIC);
+
+	if (!ack_recvd)
+		return;
+
+	ack_recvd->ack.export_id = export_id;
+	ack_recvd->ack.vcid_local = vchan->id;
+	ack_recvd->ack.vcid_remote = vchan->otherend_id;
+	ack_recvd->ack.imp_whse_added = 0;
+
+	hab_spin_lock(&vchan->ctx->impq_lock, irqs_disabled);
+	list_add_tail(&ack_recvd->node, &vchan->ctx->imp_rxq);
+	hab_spin_unlock(&vchan->ctx->impq_lock, irqs_disabled);
+}
+
+static int hab_receive_import_ack_fail(struct physical_channel *pchan,
+					struct virtual_channel *vchan)
+{
+	struct hab_import_ack_recvd *ack_recvd = NULL;
+	int irqs_disabled = irqs_disabled();
+	uint32_t exp_id = 0;
+
+	physical_channel_read(pchan, &exp_id, sizeof(uint32_t));
+
+	ack_recvd = kzalloc(sizeof(*ack_recvd), GFP_ATOMIC);
+	if (!ack_recvd)
+		return -ENOMEM;
+
+	ack_recvd->ack.export_id = exp_id;
+	ack_recvd->ack.vcid_local = vchan->id;
+	ack_recvd->ack.vcid_remote = vchan->otherend_id;
+	ack_recvd->ack.imp_whse_added = 0;
+
+	hab_spin_lock(&vchan->ctx->impq_lock, irqs_disabled);
+	list_add_tail(&ack_recvd->node, &vchan->ctx->imp_rxq);
+	hab_spin_unlock(&vchan->ctx->impq_lock, irqs_disabled);
+
+	return 0;
+}
+
 static int hab_send_export_ack(struct virtual_channel *vchan,
 				struct physical_channel *pchan,
 				struct export_desc *exp)
@@ -267,6 +358,7 @@ static int hab_send_export_ack(struct virtual_channel *vchan,
 	HAB_HEADER_SET_TYPE(header, HAB_PAYLOAD_TYPE_EXPORT_ACK);
 	HAB_HEADER_SET_ID(header, exp->vcid_local);
 	HAB_HEADER_SET_SESSION_ID(header, vchan->session_id);
+
 	return physical_channel_send(pchan, &header, &exp_ack);
 }
 
@@ -321,6 +413,132 @@ static int hab_receive_create_export_ack(struct physical_channel *pchan,
 	return 0;
 }
 
+static int hab_receive_export_desc(struct physical_channel *pchan,
+					struct virtual_channel *vchan,
+					 size_t sizebytes)
+{
+	struct hab_import_ack_recvd *ack_recvd = NULL;
+	size_t exp_desc_size_expected = 0;
+	struct export_desc *exp_desc = NULL;
+	struct export_desc_super *exp_desc_super = NULL;
+	struct compressed_pfns *pfn_table = NULL;
+	int irqs_disabled = irqs_disabled();
+	int ret = 0;
+
+	exp_desc_size_expected = sizeof(struct export_desc)
+							+ sizeof(struct compressed_pfns);
+	if (sizebytes > (size_t)(HAB_HEADER_SIZE_MAX) ||
+			sizebytes < exp_desc_size_expected) {
+		pr_err("%s exp size too large/small %zu header %zu\n",
+				pchan->name, sizebytes, sizeof(*exp_desc));
+		return -EINVAL;
+	}
+
+	pr_debug("%s exp payload %zu bytes\n", pchan->name, sizebytes);
+
+	exp_desc_super = kzalloc(sizebytes + sizeof(struct export_desc_super)
+							- sizeof(struct export_desc), GFP_ATOMIC);
+	if (!exp_desc_super)
+		return -ENOMEM;
+
+	exp_desc = &exp_desc_super->exp;
+
+	if (physical_channel_read(pchan, exp_desc, sizebytes) != sizebytes) {
+		pr_err("%s corrupted exp expect %zd bytes vcid %X remote %X open %d!\n",
+			pchan->name, sizebytes, vchan->id,
+			vchan->otherend_id, vchan->session_id);
+		kfree(exp_desc_super);
+		return -EIO;
+	}
+
+	if (pchan->vmid_local != exp_desc->domid_remote ||
+	  pchan->vmid_remote != exp_desc->domid_local)
+		pr_err("corrupted vmid %d != %d %d != %d\n",
+			pchan->vmid_local, exp_desc->domid_remote,
+			pchan->vmid_remote, exp_desc->domid_local);
+	exp_desc->domid_remote = pchan->vmid_remote;
+	exp_desc->domid_local = pchan->vmid_local;
+	exp_desc->pchan = pchan;
+	if (pchan->mem_proto == 1) {
+		exp_desc->vcid_remote = exp_desc->vcid_local;
+		exp_desc->vcid_local = vchan->id;
+	}
+
+	/*
+	 * We should do all the checks here.
+	 * But in order to improve performance, we put the
+	 * checks related to exp->payload_count and pfn_table->region[i].size
+	 * into function pages_list_create. So any potential usage of such data
+	 * from the remote side after the checks here and before the checks in
+	 * pages_list_create needs to add some more checks if necessary.
+	 */
+	pfn_table = (struct compressed_pfns *)exp_desc->payload;
+	if (pfn_table->nregions <= 0 ||
+	   (pfn_table->nregions > SIZE_MAX / sizeof(struct region)) ||
+	   (SIZE_MAX - exp_desc_size_expected <
+	   pfn_table->nregions * sizeof(struct region))) {
+		pr_err("%s nregions is too large or negative, nregions:%d!\n",
+				pchan->name, pfn_table->nregions);
+		ret = -EINVAL;
+		goto err_imp;
+	}
+
+	if (pfn_table->nregions > exp_desc->payload_count) {
+		pr_err("%s nregions %d greater than payload_count %d\n",
+			pchan->name, pfn_table->nregions, exp_desc->payload_count);
+		ret = -EINVAL;
+		goto err_imp;
+	}
+
+	if (exp_desc->payload_count > MAX_EXP_PAYLOAD_COUNT) {
+		pr_err("payload_count out of range: %d size overflow\n",
+			exp_desc->payload_count);
+		ret = -EINVAL;
+		goto err_imp;
+	}
+
+	exp_desc_size_expected += pfn_table->nregions * sizeof(struct region);
+	if (sizebytes != exp_desc_size_expected) {
+		pr_err("%s exp size not equal %zu expect %zu\n",
+			pchan->name, sizebytes, exp_desc_size_expected);
+		ret = -EINVAL;
+		goto err_imp;
+	}
+
+	if (pchan->mem_proto == 1) {
+		ack_recvd = kzalloc(sizeof(*ack_recvd), GFP_ATOMIC);
+		if (!ack_recvd) {
+			ret = -ENOMEM;
+			goto err_imp;
+		}
+
+		ack_recvd->ack.export_id = exp_desc->export_id;
+		ack_recvd->ack.vcid_local = exp_desc->vcid_local;
+		ack_recvd->ack.vcid_remote = exp_desc->vcid_remote;
+		ack_recvd->ack.imp_whse_added = 1;
+	}
+
+	hab_export_enqueue(vchan, exp_desc);
+
+	if (pchan->mem_proto == 1) {
+		hab_spin_lock(&vchan->ctx->impq_lock, irqs_disabled);
+		list_add_tail(&ack_recvd->node, &vchan->ctx->imp_rxq);
+		hab_spin_unlock(&vchan->ctx->impq_lock, irqs_disabled);
+	} else
+		hab_send_export_ack(vchan, pchan, exp_desc);
+
+	return 0;
+
+err_imp:
+	if (pchan->mem_proto == 1) {
+		hab_create_invalid_ack(vchan, exp_desc->export_id);
+		hab_send_unimport_msg(vchan, exp_desc->export_id);
+	}
+	kfree(exp_desc_super);
+
+	return ret;
+}
+
 static void hab_msg_drop(struct physical_channel *pchan, size_t sizebytes)
 {
 	uint8_t *data = NULL;
@@ -337,23 +555,52 @@ static void hab_msg_drop(struct physical_channel *pchan, size_t sizebytes)
 	kfree(data);
 }
 
-int hab_msg_recv(struct physical_channel *pchan,
-		struct hab_header *header)
+static void hab_recv_unimport_msg(struct physical_channel *pchan, int vchan_exist)
 {
-	int ret = 0;
-	struct hab_message *message;
-	struct hab_device *dev = pchan->habdev;
+	uint32_t exp_id = 0;
+	struct export_desc *exp = NULL;
+	struct export_desc_super *exp_super = NULL;
+	int irqs_disabled = irqs_disabled();
+
+	physical_channel_read(pchan, &exp_id, sizeof(uint32_t));
+
+	if (!vchan_exist)
+		pr_debug("unimp msg recv after vchan closed on %s, exp id %u\n",
+			pchan->name, exp_id);
+
+	/*
+	 * expid_lock must be hold long enough to ensure the accessibility of exp_super
+	 * before it is freed in habmem_export_destroy where the expid_lock is hold during
+	 * idr_remove.
+	 */
+	hab_spin_lock(&pchan->expid_lock, irqs_disabled);
+	exp = idr_find(&pchan->expid_idr, exp_id);
+
+	if ((exp != NULL) && (exp_id == exp->export_id) && (exp->pchan == pchan)) {
+		exp_super = container_of(exp, struct export_desc_super, exp);
+		if (exp_super->remote_imported)
+			exp_super->remote_imported = 0;
+		else
+			pr_warn("invalid unimp msg recv on pchan %s, exp id %u\n",
+				pchan->name, exp_id);
+	} else
+		pr_err("invalid unimp msg recv on %s, exp id %u\n", pchan->name, exp_id);
+	hab_spin_unlock(&pchan->expid_lock, irqs_disabled);
+
+	if (!vchan_exist)
+		/* exp node is not in the reclaim list when vchan still exists */
+		schedule_work(&hab_driver.reclaim_work);
+}
+
+static int hab_try_get_vchan(struct physical_channel *pchan,
+				struct hab_header *header,
+				struct virtual_channel **vchan_out)
+{
+	struct virtual_channel *vchan = NULL;
 	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
 	uint32_t payload_type = HAB_HEADER_GET_TYPE(*header);
 	uint32_t vchan_id = HAB_HEADER_GET_ID(*header);
 	uint32_t session_id = HAB_HEADER_GET_SESSION_ID(*header);
-	struct virtual_channel *vchan = NULL;
-	struct export_desc *exp_desc;
-	struct export_desc_super *exp_desc_super = NULL;
-	struct timespec64 ts = {0};
-	unsigned long long rx_mpm_tv;
-	size_t exp_desc_size_expected = 0;
-	struct compressed_pfns *pfn_table = NULL;
 
 	/* get the local virtual channel if it isn't an open message */
 	if (payload_type != HAB_PAYLOAD_TYPE_INIT &&
@@ -380,6 +627,11 @@ int hab_msg_recv(struct physical_channel *pchan,
 			pr_debug("vchan not found type %d vcid %x sz %zx sesn %d\n",
 				payload_type, vchan_id, sizebytes, session_id);
 
+			if (payload_type == HAB_PAYLOAD_TYPE_UNIMPORT) {
+				hab_recv_unimport_msg(pchan, 0);
+				return 0;
+			}
+
 			if (sizebytes) {
 				hab_msg_drop(pchan, sizebytes);
 				pr_err("%s msg dropped type %d size %d vcid %X session id %d\n",
@@ -390,7 +642,7 @@ int hab_msg_recv(struct physical_channel *pchan,
 			return -EINVAL;
 		} else if (vchan->otherend_closed) {
 			hab_vchan_put(vchan);
-			pr_info("vchan remote is closed payload type %d, vchan id %x, sizebytes %zx, session %d\n",
+			pr_info("vchan remote closed type %d, vchan id %x, sizebytes %zx, session %d\n",
 				payload_type, vchan_id,
 				sizebytes, session_id);
 			if (sizebytes) {
@@ -417,6 +669,32 @@ int hab_msg_recv(struct physical_channel *pchan,
 			return -ENODEV;
 		}
 	}
+	*vchan_out = vchan;
+
+	return 0;
+}
+
+int hab_msg_recv(struct physical_channel *pchan,
+		struct hab_header *header)
+{
+	int ret = 0;
+	struct hab_message *message;
+	struct hab_device *dev = pchan->habdev;
+	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
+	uint32_t payload_type = HAB_HEADER_GET_TYPE(*header);
+	uint32_t vchan_id = HAB_HEADER_GET_ID(*header);
+	uint32_t session_id = HAB_HEADER_GET_SESSION_ID(*header);
+	struct virtual_channel *vchan = NULL;
+	struct export_desc *exp, *exp_tmp;
+	struct export_desc_super *exp_desc_super = NULL;
+	struct timespec64 ts = {0};
+	unsigned long long rx_mpm_tv;
+	int found = 0;
+	struct hab_import_data imp_data = {0};
+
+	ret = hab_try_get_vchan(pchan, header, &vchan);
+	if (ret != 0 || ((vchan == NULL) && (payload_type == HAB_PAYLOAD_TYPE_UNIMPORT)))
+		return ret;
 
 	switch (payload_type) {
 	case HAB_PAYLOAD_TYPE_MSG:
@@ -452,86 +730,10 @@ int hab_msg_recv(struct physical_channel *pchan,
 		break;
 
 	case HAB_PAYLOAD_TYPE_EXPORT:
-		exp_desc_size_expected = sizeof(struct export_desc)
-							+ sizeof(struct compressed_pfns);
-		if (sizebytes > (size_t)(HAB_HEADER_SIZE_MAX) ||
-			sizebytes < exp_desc_size_expected) {
-			pr_err("%s exp size too large/small %zu header %zu\n",
-				pchan->name, sizebytes, sizeof(*exp_desc));
-			break;
-		}
-
-		pr_debug("%s exp payload %zu bytes\n",
-				pchan->name, sizebytes);
-
-		exp_desc_super = kzalloc(sizebytes + sizeof(struct export_desc_super)
-							- sizeof(struct export_desc), GFP_ATOMIC);
-		if (!exp_desc_super)
-			break;
-
-		exp_desc = &exp_desc_super->exp;
-
-		if (physical_channel_read(pchan, exp_desc, sizebytes) !=
-			sizebytes) {
-			pr_err("%s corrupted exp expect %zd bytes vcid %X remote %X open %d!\n",
-				pchan->name, sizebytes, vchan->id,
-				vchan->otherend_id, vchan->session_id);
-			kfree(exp_desc_super);
-			break;
-		}
-
-		if (pchan->vmid_local != exp_desc->domid_remote ||
-			pchan->vmid_remote != exp_desc->domid_local)
-			pr_err("%s corrupted vmid %d != %d %d != %d\n",
-			pchan->name, pchan->vmid_local, exp_desc->domid_remote,
-			pchan->vmid_remote, exp_desc->domid_local);
-		exp_desc->domid_remote = pchan->vmid_remote;
-		exp_desc->domid_local = pchan->vmid_local;
-		exp_desc->pchan = pchan;
-
-		/*
-		 * We should do all the checks here.
-		 * But in order to improve performance, we put the
-		 * checks related to exp->payload_count and pfn_table->region[i].size
-		 * into function pages_list_create. So any potential usage of such data
-		 * from the remote side after the checks here and before the checks in
-		 * pages_list_create needs to add some more checks if necessary.
-		 */
-		pfn_table = (struct compressed_pfns *)exp_desc->payload;
-		if (pfn_table->nregions <= 0 ||
-			(pfn_table->nregions > SIZE_MAX / sizeof(struct region)) ||
-			(SIZE_MAX - exp_desc_size_expected <
-			pfn_table->nregions * sizeof(struct region))) {
-			pr_err("%s nregions is too large or negative, nregions:%d!\n",
-					pchan->name, pfn_table->nregions);
-			kfree(exp_desc_super);
-			break;
-		}
-
-		if (pfn_table->nregions > exp_desc->payload_count) {
-			pr_err("%s nregions %d greater than payload_count %d\n",
-				pchan->name, pfn_table->nregions, exp_desc->payload_count);
-			kfree(exp_desc_super);
-			break;
-		}
-
-		if (exp_desc->payload_count > MAX_EXP_PAYLOAD_COUNT) {
-			pr_err("payload_count out of range: %d size overflow\n",
-				exp_desc->payload_count);
-			kfree(exp_desc_super);
-			break;
-		}
-
-		exp_desc_size_expected += pfn_table->nregions * sizeof(struct region);
-		if (sizebytes != exp_desc_size_expected) {
-			pr_err("%s exp size not equal %zu expect %zu\n",
-				pchan->name, sizebytes, exp_desc_size_expected);
-			kfree(exp_desc_super);
-			break;
-		}
-
-		hab_export_enqueue(vchan, exp_desc);
-		hab_send_export_ack(vchan, pchan, exp_desc);
+		ret = hab_receive_export_desc(pchan, vchan, sizebytes);
+		if (ret)
+			pr_err("failed to handle exp msg on vcid %x, ret %d\n",
+				vchan->id, ret);
 		break;
 
 	case HAB_PAYLOAD_TYPE_EXPORT_ACK:
@@ -594,6 +796,64 @@ int hab_msg_recv(struct physical_channel *pchan,
 			((unsigned long long *)message->data)[0] = rx_mpm_tv;
 			hab_msg_queue(vchan, message);
 		}
+		break;
+
+	case HAB_PAYLOAD_TYPE_IMPORT:
+		if (physical_channel_read(pchan, &imp_data, sizeof(struct hab_import_data)) !=
+			sizeof(struct hab_import_data))
+			pr_err("corrupted import request, id %ld page %ld vcid %X on %s\n",
+			imp_data.exp_id, imp_data.page_cnt, vchan->id, pchan->name);
+
+		write_lock_bh(&vchan->ctx->exp_lock);
+		/* TODO: replace list walkthrough with idr_find() due to performance */
+		list_for_each_entry_safe(exp, exp_tmp, &vchan->ctx->exp_whse, node) {
+			if ((imp_data.exp_id == exp->export_id) && (exp->pchan == vchan->pchan)) {
+				found = 1;
+				break;
+			}
+		}
+		if (found == 1)
+			if (imp_data.page_cnt != exp->payload_count) {
+				pr_err("request size mismatch, request %ld, actual %ld\n",
+						imp_data.page_cnt << PAGE_SHIFT,
+						exp->payload_count << PAGE_SHIFT);
+				found = 0;
+			}
+
+		if (found == 1) {
+			exp_desc_super = container_of(exp, struct export_desc_super, exp);
+			exp_desc_super->remote_imported = 1;
+			hab_send_import_ack(vchan, exp);
+			pr_debug("remote imported exp id %d on vcid %x\n",
+				exp->export_id, vchan->id);
+		} else {
+			pr_err("cannot find requested exp id %ld on %s\n",
+				imp_data.exp_id, pchan->name);
+			hab_send_import_ack_fail(vchan, imp_data.exp_id);
+		}
+		write_unlock_bh(&vchan->ctx->exp_lock);
+		break;
+
+	case HAB_PAYLOAD_TYPE_IMPORT_ACK:
+		ret = hab_receive_export_desc(pchan, vchan, sizebytes);
+		if (ret)
+			pr_err("%s failed to handle import ack %d\n", pchan->name, ret);
+
+		/* always try to wake up importer when any failure happens */
+		wake_up_interruptible(&vchan->ctx->imp_wq);
+		break;
+
+	case HAB_PAYLOAD_TYPE_IMPORT_ACK_FAIL:
+		ret = hab_receive_import_ack_fail(pchan, vchan);
+		if (ret)
+			pr_err("%s failed to handle import ack fail msg %d\n", pchan->name, ret);
+
+		/* always try to wake up importer when any failure happens */
+		wake_up_interruptible(&vchan->ctx->imp_wq);
+		break;
+
+	case HAB_PAYLOAD_TYPE_UNIMPORT:
+		hab_recv_unimport_msg(pchan, 1);
 		break;
 
 	default:
