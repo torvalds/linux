@@ -1502,6 +1502,6 @@ const struct ieee80211_ops mt7996_ops = {
 	.set_radar_background = mt7996_set_radar_background,
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	.net_fill_forward_path = mt7996_net_fill_forward_path,
-	.net_setup_tc = mt76_net_setup_tc,
+	.net_setup_tc = mt76_wed_net_setup_tc,
 #endif
 };

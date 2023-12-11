@@ -695,7 +695,7 @@ void mt7996_dma_reset(struct mt7996_dev *dev, bool force)
 		mtk_wed_device_dma_reset(&dev->mt76.mmio.wed);
 
 	mt7996_dma_disable(dev, force);
-	mt76_dma_wed_reset(&dev->mt76);
+	mt76_wed_dma_reset(&dev->mt76);
 
 	/* reset hw queues */
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
