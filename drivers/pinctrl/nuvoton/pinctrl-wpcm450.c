@@ -474,7 +474,7 @@ enum {
 #undef WPCM450_GRP
 };
 
-static struct pingroup wpcm450_groups[] = {
+static const struct pingroup wpcm450_groups[] = {
 #define WPCM450_GRP(x) PINCTRL_PINGROUP(#x, x ## _pins, ARRAY_SIZE(x ## _pins))
 	WPCM450_GRPS
 #undef WPCM450_GRP
