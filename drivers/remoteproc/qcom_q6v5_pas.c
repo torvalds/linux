@@ -2353,6 +2353,18 @@ static const struct adsp_data cliffs_wpss_resource = {
 	.ssctl_id = 0x19,
 };
 
+static const struct adsp_data pitti_wpss_resource = {
+	.crash_reason_smem = 626,
+	.firmware_name = "wpss.mdt",
+	.pas_id = 6,
+	.minidump_id = 4,
+	.uses_elf64 = true,
+	.ssr_name = "wpss",
+	.sysmon_name = "wpss",
+	.qmp_name = "wpss",
+	.ssctl_id = 0x19,
+};
+
 static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8226-adsp-pil", .data = &adsp_resource_init},
 	{ .compatible = "qcom,msm8974-adsp-pil", .data = &adsp_resource_init},
@@ -2418,6 +2430,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,cliffs-modem-pas", .data = &cliffs_mpss_resource},
 	{ .compatible = "qcom,cliffs-cdsp-pas", .data = &cliffs_cdsp_resource},
 	{ .compatible = "qcom,cliffs-wpss-pas", .data = &cliffs_wpss_resource},
+	{ .compatible = "qcom,pitti-wpss-pas", .data = &pitti_wpss_resource},
 	{ .compatible = "qcom,pitti-adsp-pas", .data = &pitti_adsp_resource},
 	{ .compatible = "qcom,pitti-modem-pas", .data = &pitti_mpss_resource},
 	{ },
