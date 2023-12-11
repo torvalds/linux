@@ -11,6 +11,7 @@
 
 #include <asm/current.h>
 
+#include <linux/irqflags_types.h>
 #include <linux/pid_types.h>
 #include <linux/sem.h>
 #include <linux/shm.h>
@@ -18,7 +19,6 @@
 #include <linux/mutex_types.h>
 #include <linux/plist_types.h>
 #include <linux/hrtimer_types.h>
-#include <linux/irqflags.h>
 #include <linux/seccomp.h>
 #include <linux/nodemask_types.h>
 #include <linux/rcupdate.h>
