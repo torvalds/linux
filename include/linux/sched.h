@@ -22,7 +22,7 @@
 #include <linux/seccomp.h>
 #include <linux/nodemask_types.h>
 #include <linux/rcupdate.h>
-#include <linux/refcount.h>
+#include <linux/refcount_types.h>
 #include <linux/resource.h>
 #include <linux/latencytop.h>
 #include <linux/sched/prio.h>
