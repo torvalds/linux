@@ -402,7 +402,7 @@ struct vb2_buffer {
  *			by calling vb2_buffer_done() with %VB2_BUF_STATE_QUEUED.
  *			If you need a minimum number of buffers before you can
  *			start streaming, then set
- *			&vb2_queue->min_buffers_needed. If that is non-zero
+ *			&vb2_queue->min_queued_buffers. If that is non-zero
  *			then @start_streaming won't be called until at least
  *			that many buffers have been queued up by userspace.
  * @stop_streaming:	called when 'streaming' state must be disabled; driver
@@ -546,10 +546,13 @@ struct vb2_buf_ops {
  * @gfp_flags:	additional gfp flags used when allocating the buffers.
  *		Typically this is 0, but it may be e.g. %GFP_DMA or %__GFP_DMA32
  *		to force the buffer allocation to a specific memory zone.
- * @min_buffers_needed: the minimum number of buffers needed before
+ * @min_queued_buffers: the minimum number of queued buffers needed before
  *		@start_streaming can be called. Used when a DMA engine
  *		cannot be started unless at least this number of buffers
  *		have been queued into the driver.
+ *		VIDIOC_REQBUFS will ensure at least @min_queued_buffers
+ *		buffers will be allocated. Note that VIDIOC_CREATE_BUFS will not
+ *		modify the requested buffer count.
  */
 /*
  * Private elements (won't appear at the uAPI book):
@@ -614,7 +617,7 @@ struct vb2_queue {
 	unsigned int			buf_struct_size;
 	u32				timestamp_flags;
 	gfp_t				gfp_flags;
-	u32				min_buffers_needed;
+	u32				min_queued_buffers;
 
 	struct device			*alloc_devs[VB2_MAX_PLANES];
 

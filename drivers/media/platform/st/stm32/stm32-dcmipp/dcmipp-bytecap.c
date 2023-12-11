@@ -424,7 +424,7 @@ static int dcmipp_bytecap_start_streaming(struct vb2_queue *vq,
 	reg_set(vcap, DCMIPP_P0FSCR, DCMIPP_P0FSCR_PIPEN);
 
 	/*
-	 * vb2 framework guarantee that we have at least 'min_buffers_needed'
+	 * vb2 framework guarantee that we have at least 'min_queued_buffers'
 	 * buffers in the list at this moment
 	 */
 	vcap->next = list_first_entry(&vcap->buffers, typeof(*buf), list);
@@ -889,7 +889,7 @@ struct dcmipp_ent_device *dcmipp_bytecap_ent_init(struct device *dev,
 	q->ops = &dcmipp_bytecap_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 1;
+	q->min_queued_buffers = 1;
 	q->dev = dev;
 
 	/* DCMIPP requires 16 bytes aligned buffers */

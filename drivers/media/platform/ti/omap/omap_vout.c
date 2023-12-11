@@ -1404,7 +1404,7 @@ static int __init omap_vout_setup_video_data(struct omap_vout_device *vout)
 	vq->ops = &omap_vout_vb2_ops;
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->lock = &vout->lock;
-	vq->min_buffers_needed = 1;
+	vq->min_queued_buffers = 1;
 	vfd->queue = vq;
 
 	ret = vb2_queue_init(vq);

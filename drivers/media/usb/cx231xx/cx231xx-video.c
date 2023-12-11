@@ -1811,7 +1811,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	q->ops = &cx231xx_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 1;
+	q->min_queued_buffers = 1;
 	q->lock = &dev->lock;
 	ret = vb2_queue_init(q);
 	if (ret)
@@ -1871,7 +1871,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	q->ops = &cx231xx_vbi_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 1;
+	q->min_queued_buffers = 1;
 	q->lock = &dev->lock;
 	ret = vb2_queue_init(q);
 	if (ret)
