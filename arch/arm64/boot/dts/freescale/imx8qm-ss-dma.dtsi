@@ -96,6 +96,17 @@
 	status = "okay";
 };
 
+&edma3 {
+	power-domains = <&pd IMX_SC_R_DMA_1_CH0>,
+		     <&pd IMX_SC_R_DMA_1_CH1>,
+		     <&pd IMX_SC_R_DMA_1_CH2>,
+		     <&pd IMX_SC_R_DMA_1_CH3>,
+		     <&pd IMX_SC_R_DMA_1_CH4>,
+		     <&pd IMX_SC_R_DMA_1_CH5>,
+		     <&pd IMX_SC_R_DMA_1_CH6>,
+		     <&pd IMX_SC_R_DMA_1_CH7>;
+};
+
 &flexcan1 {
 	fsl,clk-source = /bits/ 8 <1>;
 };

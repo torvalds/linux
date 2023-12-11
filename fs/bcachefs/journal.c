@@ -321,6 +321,8 @@ static int journal_entry_open(struct journal *j)
 	atomic64_inc(&j->seq);
 	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
 
+	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
+
 	BUG_ON(j->buf + (journal_cur_seq(j) & JOURNAL_BUF_MASK) != buf);
 
 	bkey_extent_init(&buf->key);

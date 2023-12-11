@@ -444,6 +444,7 @@ struct amd_pm_funcs {
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
 	void (*pm_compute_clocks)(void *handle);
+	int (*notify_rlc_state)(void *handle, bool en);
 };
 
 struct metrics_table_header {
@@ -1084,6 +1085,10 @@ struct gpu_metrics_v3_0 {
 	uint16_t			average_dram_reads;
 	/* time filtered DRAM write bandwidth [MB/sec] */
 	uint16_t			average_dram_writes;
+	/* time filtered IPU read bandwidth [MB/sec] */
+	uint16_t			average_ipu_reads;
+	/* time filtered IPU write bandwidth [MB/sec] */
+	uint16_t			average_ipu_writes;
 
 	/* Driver attached timestamp (in ns) */
 	uint64_t			system_clock_counter;
@@ -1103,6 +1108,8 @@ struct gpu_metrics_v3_0 {
 	uint32_t			average_all_core_power;
 	/* calculated core power [mW] */
 	uint16_t			average_core_power[16];
+	/* time filtered total system power [mW] */
+	uint16_t			average_sys_power;
 	/* maximum IRM defined STAPM power limit [mW] */
 	uint16_t			stapm_power_limit;
 	/* time filtered STAPM power limit [mW] */
@@ -1115,6 +1122,8 @@ struct gpu_metrics_v3_0 {
 	uint16_t			average_ipuclk_frequency;
 	uint16_t			average_fclk_frequency;
 	uint16_t			average_vclk_frequency;
+	uint16_t			average_uclk_frequency;
+	uint16_t			average_mpipu_frequency;
 
 	/* Current clocks */
 	/* target core frequency [MHz] */
@@ -1123,6 +1132,15 @@ struct gpu_metrics_v3_0 {
 	uint16_t			current_core_maxfreq;
 	/* GFXCLK frequency limit enforced on GFX [MHz] */
 	uint16_t			current_gfx_maxfreq;
+
+	/* Throttle Residency (ASIC dependent) */
+	uint32_t			throttle_residency_prochot;
+	uint32_t			throttle_residency_spl;
+	uint32_t			throttle_residency_fppt;
+	uint32_t			throttle_residency_sppt;
+	uint32_t			throttle_residency_thm_core;
+	uint32_t			throttle_residency_thm_gfx;
+	uint32_t			throttle_residency_thm_soc;
 
 	/* Metrics table alpha filter time constant [us] */
 	uint32_t			time_filter_alphavalue;

@@ -373,7 +373,7 @@ int vsp1_pipeline_stop(struct vsp1_pipeline *pipe)
 			   (7 << VI6_DPR_SMPPT_TGW_SHIFT) |
 			   (VI6_DPR_NODE_UNUSED << VI6_DPR_SMPPT_PT_SHIFT));
 
-	v4l2_subdev_call(&pipe->output->entity.subdev, video, s_stream, 0);
+	vsp1_wpf_stop(pipe->output);
 
 	return ret;
 }

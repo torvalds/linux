@@ -25,9 +25,6 @@ struct acpi_subtable_proc {
 	int count;
 };
 
-#include <linux/acpi.h>
-#include <acpi/acpi.h>
-
 union acpi_subtable_headers {
 	struct acpi_subtable_header common;
 	struct acpi_hmat_structure hmat;
