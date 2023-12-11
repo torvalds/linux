@@ -217,7 +217,7 @@ static u8 ht_iot_act_is_ccd_fsync(struct rtllib_device *ieee)
 	return retValue;
 }
 
-static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
+static void ht_iot_act_determine_ra_func(struct rtllib_device *ieee, bool bPeerRx2ss)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
@@ -517,7 +517,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	if (pPeerHTCap->MCS[0] == 0)
 		pPeerHTCap->MCS[0] = 0xff;
 
-	HTIOTActDetermineRaFunc(ieee, ((pPeerHTCap->MCS[1]) != 0));
+	ht_iot_act_determine_ra_func(ieee, ((pPeerHTCap->MCS[1]) != 0));
 
 	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11ht_oper_rate_set);
 
