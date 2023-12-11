@@ -309,10 +309,22 @@ static const struct attribute_group armv8_pmuv3_events_attr_group = {
 #define ATTR_CFG_FLD_rdpmc_CFG		config1
 #define ATTR_CFG_FLD_rdpmc_LO		1
 #define ATTR_CFG_FLD_rdpmc_HI		1
+#define ATTR_CFG_FLD_threshold_count_CFG	config1 /* PMEVTYPER.TC[0] */
+#define ATTR_CFG_FLD_threshold_count_LO		2
+#define ATTR_CFG_FLD_threshold_count_HI		2
+#define ATTR_CFG_FLD_threshold_compare_CFG	config1 /* PMEVTYPER.TC[2:1] */
+#define ATTR_CFG_FLD_threshold_compare_LO	3
+#define ATTR_CFG_FLD_threshold_compare_HI	4
+#define ATTR_CFG_FLD_threshold_CFG		config1 /* PMEVTYPER.TH */
+#define ATTR_CFG_FLD_threshold_LO		5
+#define ATTR_CFG_FLD_threshold_HI		16
 
 GEN_PMU_FORMAT_ATTR(event);
 GEN_PMU_FORMAT_ATTR(long);
 GEN_PMU_FORMAT_ATTR(rdpmc);
+GEN_PMU_FORMAT_ATTR(threshold_count);
+GEN_PMU_FORMAT_ATTR(threshold_compare);
+GEN_PMU_FORMAT_ATTR(threshold);
 
 static int sysctl_perf_user_access __read_mostly;
 
@@ -326,10 +338,27 @@ static bool armv8pmu_event_want_user_access(struct perf_event *event)
 	return ATTR_CFG_GET_FLD(&event->attr, rdpmc);
 }
 
+static u8 armv8pmu_event_threshold_control(struct perf_event_attr *attr)
+{
+	u8 th_compare = ATTR_CFG_GET_FLD(attr, threshold_compare);
+	u8 th_count = ATTR_CFG_GET_FLD(attr, threshold_count);
+
+	/*
+	 * The count bit is always the bottom bit of the full control field, and
+	 * the comparison is the upper two bits, but it's not explicitly
+	 * labelled in the Arm ARM. For the Perf interface we split it into two
+	 * fields, so reconstruct it here.
+	 */
+	return (th_compare << 1) | th_count;
+}
+
 static struct attribute *armv8_pmuv3_format_attrs[] = {
 	&format_attr_event.attr,
 	&format_attr_long.attr,
 	&format_attr_rdpmc.attr,
+	&format_attr_threshold.attr,
+	&format_attr_threshold_compare.attr,
+	&format_attr_threshold_count.attr,
 	NULL,
 };
 
@@ -379,10 +408,38 @@ static ssize_t bus_width_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(bus_width);
 
+static u32 threshold_max(struct arm_pmu *cpu_pmu)
+{
+	/*
+	 * PMMIR.THWIDTH is readable and non-zero on aarch32, but it would be
+	 * impossible to write the threshold in the upper 32 bits of PMEVTYPER.
+	 */
+	if (IS_ENABLED(CONFIG_ARM))
+		return 0;
+
+	/*
+	 * The largest value that can be written to PMEVTYPER<n>_EL0.TH is
+	 * (2 ^ PMMIR.THWIDTH) - 1.
+	 */
+	return (1 << FIELD_GET(ARMV8_PMU_THWIDTH, cpu_pmu->reg_pmmir)) - 1;
+}
+
+static ssize_t threshold_max_show(struct device *dev,
+				  struct device_attribute *attr, char *page)
+{
+	struct pmu *pmu = dev_get_drvdata(dev);
+	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
+
+	return sysfs_emit(page, "0x%08x\n", threshold_max(cpu_pmu));
+}
+
+static DEVICE_ATTR_RO(threshold_max);
+
 static struct attribute *armv8_pmuv3_caps_attrs[] = {
 	&dev_attr_slots.attr,
 	&dev_attr_bus_slots.attr,
 	&dev_attr_bus_width.attr,
+	&dev_attr_threshold_max.attr,
 	NULL,
 };
 
@@ -566,7 +623,7 @@ static void armv8pmu_write_counter(struct perf_event *event, u64 value)
 		armv8pmu_write_hw_counter(event, value);
 }
 
-static void armv8pmu_write_evtype(int idx, u32 val)
+static void armv8pmu_write_evtype(int idx, unsigned long val)
 {
 	u32 counter = ARMV8_IDX_TO_COUNTER(idx);
 	unsigned long mask = ARMV8_PMU_EVTYPE_EVENT |
@@ -935,6 +992,10 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 				     struct perf_event_attr *attr)
 {
 	unsigned long config_base = 0;
+	struct perf_event *perf_event = container_of(attr, struct perf_event,
+						     attr);
+	struct arm_pmu *cpu_pmu = to_arm_pmu(perf_event->pmu);
+	u32 th;
 
 	if (attr->exclude_idle) {
 		pr_debug("ARM performance counters do not support mode exclusion\n");
@@ -967,6 +1028,22 @@ static int armv8pmu_set_event_filter(struct hw_perf_event *event,
 
 	if (attr->exclude_user)
 		config_base |= ARMV8_PMU_EXCLUDE_EL0;
+
+	/*
+	 * If FEAT_PMUv3_TH isn't implemented, then THWIDTH (threshold_max) will
+	 * be 0 and will also trigger this check, preventing it from being used.
+	 */
+	th = ATTR_CFG_GET_FLD(attr, threshold);
+	if (th > threshold_max(cpu_pmu)) {
+		pr_debug("PMU event threshold exceeds max value\n");
+		return -EINVAL;
+	}
+
+	if (IS_ENABLED(CONFIG_ARM64) && th) {
+		config_base |= FIELD_PREP(ARMV8_PMU_EVTYPE_TH, th);
+		config_base |= FIELD_PREP(ARMV8_PMU_EVTYPE_TC,
+					  armv8pmu_event_threshold_control(attr));
+	}
 
 	/*
 	 * Install the filter into config_base as this is used to

@@ -262,6 +262,7 @@
 #define ARMV8_PMU_SLOTS		GENMASK(7, 0)
 #define ARMV8_PMU_BUS_SLOTS	GENMASK(15, 8)
 #define ARMV8_PMU_BUS_WIDTH	GENMASK(19, 16)
+#define ARMV8_PMU_THWIDTH	GENMASK(23, 20)
 
 /*
  * This code is really good
