@@ -1186,7 +1186,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 			swap(k1, k2);
 		}
 
-		trans->extra_journal_res += bch2_bkey_sectors_compressed(k2);
+		trans->extra_disk_res += bch2_bkey_sectors_compressed(k2);
 
 		ret =   bch2_trans_update_extent_overwrite(trans, old_iter,
 				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,

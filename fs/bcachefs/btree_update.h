@@ -196,10 +196,10 @@ static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 	trans_for_each_update(trans, i)
 		bch2_path_put(trans, i->path, true);
 
-	trans->extra_journal_res	= 0;
 	trans->nr_updates		= 0;
 	trans->journal_entries_u64s	= 0;
 	trans->hooks			= NULL;
+	trans->extra_disk_res		= 0;
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;

@@ -1044,9 +1044,9 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			trans->journal_u64s += jset_u64s(i->old_k.u64s);
 	}
 
-	if (trans->extra_journal_res) {
+	if (trans->extra_disk_res) {
 		ret = bch2_disk_reservation_add(c, trans->disk_res,
-				trans->extra_journal_res,
+				trans->extra_disk_res,
 				(flags & BCH_TRANS_COMMIT_no_enospc)
 				? BCH_DISK_RESERVATION_NOFAIL : 0);
 		if (ret)

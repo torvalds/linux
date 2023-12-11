@@ -1493,7 +1493,7 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 
 	printbuf_exit(&buf);
 
-	trans->nr_max_paths = nr;
+	trans->nr_paths_max = nr;
 }
 
 noinline __cold
@@ -1526,13 +1526,11 @@ static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
 	if (unlikely(idx == BTREE_ITER_MAX))
 		btree_path_overflow(trans);
 
-	BUG_ON(idx > BTREE_ITER_MAX);
-
 	/*
 	 * Do this before marking the new path as allocated, since it won't be
 	 * initialized yet:
 	 */
-	if (unlikely(idx > trans->nr_max_paths))
+	if (unlikely(idx > trans->nr_paths_max))
 		bch2_trans_update_max_paths(trans);
 
 	__set_bit(idx, trans->paths_allocated);
@@ -2918,6 +2916,10 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 		atomic_inc_not_zero(&c->journal_keys.ref);
 	closure_init_stack(&trans->ref);
 
+	trans->paths_allocated	= trans->_paths_allocated;
+	trans->sorted		= trans->_sorted;
+	trans->paths		= trans->_paths;
+
 	trans->paths_allocated[0] = 1;
 
 	s = btree_trans_stats(trans);
@@ -2935,7 +2937,7 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	}
 
 	if (s) {
-		trans->nr_max_paths = s->nr_max_paths;
+		trans->nr_paths_max = s->nr_max_paths;
 		trans->journal_entries_size = s->journal_entries_size;
 	}
 
