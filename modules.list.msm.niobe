@@ -43,3 +43,7 @@ dispcc0-niobe.ko
 dispcc1-niobe.ko
 tmecom-intf.ko
 qcom_ipc_logging.ko
+mdt_loader.ko
+tmecom-intf.ko
+msm_qmp.ko
+qcom_aoss.ko
