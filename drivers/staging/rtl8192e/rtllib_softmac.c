@@ -736,7 +736,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 			realtek_ie_buf = ieee->ht_info->sz_rt2rt_agg_buf;
 			realtek_ie_len =
 				 sizeof(ieee->ht_info->sz_rt2rt_agg_buf);
-			HTConstructRT2RTAggElement(ieee, realtek_ie_buf,
+			ht_construct_rt2rt_agg_element(ieee, realtek_ie_buf,
 						   &realtek_ie_len);
 		}
 	}

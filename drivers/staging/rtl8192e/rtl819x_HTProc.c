@@ -318,7 +318,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *posHTCap,
 	}
 }
 
-void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
+void ht_construct_rt2rt_agg_element(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 				u8 *len)
 {
 	if (!posRT2RTAgg) {
