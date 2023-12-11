@@ -183,6 +183,7 @@ properties:
 
       - items:
           - enum:
+              - htc,memul
               - microsoft,superman-lte
               - microsoft,tesla
           - const: qcom,msm8926
@@ -258,11 +259,6 @@ properties:
           - const: longcheer,l8150
           - const: qcom,msm8916-v1-qrd/9-v1
           - const: qcom,msm8916
-
-      - items:
-          - enum:
-              - htc,memul
-          - const: qcom,msm8926
 
       - items:
           - enum:
