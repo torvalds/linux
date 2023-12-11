@@ -82,16 +82,21 @@
 #define PINS_PER_GPIO_CHIP			32
 #define JZ4730_PINS_PER_PAIRED_REG	16
 
-#define INGENIC_PIN_GROUP_FUNCS(name, id, funcs)		\
-	{						\
-		name,					\
-		id##_pins,				\
-		ARRAY_SIZE(id##_pins),			\
-		funcs,					\
+#define INGENIC_PIN_GROUP_FUNCS(_name_, id, funcs)					\
+	{										\
+		.name = _name_,								\
+		.pins = id##_pins,							\
+		.num_pins = ARRAY_SIZE(id##_pins),					\
+		.data = funcs,								\
 	}
 
-#define INGENIC_PIN_GROUP(name, id, func)		\
-	INGENIC_PIN_GROUP_FUNCS(name, id, (void *)(func))
+#define INGENIC_PIN_GROUP(_name_, id, func)						\
+	{										\
+		.name = _name_,								\
+		.pins = id##_pins,							\
+		.num_pins = ARRAY_SIZE(id##_pins),					\
+		.data = (void *)func,							\
+	}
 
 enum jz_version {
 	ID_JZ4730,
