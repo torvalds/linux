@@ -2245,10 +2245,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
 	struct bpos search_key = iter->pos;
-	struct btree_path *saved_path = NULL;
 	struct bkey_s_c k;
 	struct bkey saved_k;
 	const struct bch_val *saved_v;
+	btree_path_idx_t saved_path = 0;
 	int ret;
 
 	EBUG_ON(btree_iter_path(trans, iter)->cached ||
@@ -2299,8 +2299,8 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 				if (saved_path && !bkey_eq(k.k->p, saved_k.p)) {
 					bch2_path_put_nokeep(trans, iter->path,
 						      iter->flags & BTREE_ITER_INTENT);
-					iter->path = saved_path->idx;
-					saved_path = NULL;
+					iter->path = saved_path;
+					saved_path = 0;
 					iter->k	= saved_k;
 					k.v	= saved_v;
 					goto got_key;
@@ -2310,9 +2310,9 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 							      iter->snapshot,
 							      k.k->p.snapshot)) {
 					if (saved_path)
-						bch2_path_put_nokeep(trans, saved_path->idx,
+						bch2_path_put_nokeep(trans, saved_path,
 						      iter->flags & BTREE_ITER_INTENT);
-					saved_path = trans->paths + btree_path_clone(trans, iter->path,
+					saved_path = btree_path_clone(trans, iter->path,
 								iter->flags & BTREE_ITER_INTENT);
 					path = btree_iter_path(trans, iter);
 					saved_k = *k.k;
@@ -2354,7 +2354,7 @@ got_key:
 		iter->pos.snapshot = iter->snapshot;
 out_no_locked:
 	if (saved_path)
-		bch2_path_put_nokeep(trans, saved_path->idx, iter->flags & BTREE_ITER_INTENT);
+		bch2_path_put_nokeep(trans, saved_path, iter->flags & BTREE_ITER_INTENT);
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
