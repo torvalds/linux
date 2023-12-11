@@ -215,6 +215,11 @@ out:
 
 static void ionic_clear_pci(struct ionic *ionic)
 {
+	ionic->idev.dev_info_regs = NULL;
+	ionic->idev.dev_cmd_regs = NULL;
+	ionic->idev.intr_status = NULL;
+	ionic->idev.intr_ctrl = NULL;
+
 	ionic_unmap_bars(ionic);
 	pci_release_regions(ionic->pdev);
 
