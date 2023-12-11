@@ -17,7 +17,7 @@
 #include <linux/kmsan_types.h>
 #include <linux/mutex.h>
 #include <linux/plist.h>
-#include <linux/hrtimer.h>
+#include <linux/hrtimer_types.h>
 #include <linux/irqflags.h>
 #include <linux/seccomp.h>
 #include <linux/nodemask_types.h>
