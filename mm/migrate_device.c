@@ -564,6 +564,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 				    struct page *page,
 				    unsigned long *src)
 {
+	struct folio *folio = page_folio(page);
 	struct vm_area_struct *vma = migrate->vma;
 	struct mm_struct *mm = vma->vm_mm;
 	bool flush = false;
@@ -596,17 +597,17 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto abort;
 	if (unlikely(anon_vma_prepare(vma)))
 		goto abort;
-	if (mem_cgroup_charge(page_folio(page), vma->vm_mm, GFP_KERNEL))
+	if (mem_cgroup_charge(folio, vma->vm_mm, GFP_KERNEL))
 		goto abort;
 
 	/*
-	 * The memory barrier inside __SetPageUptodate makes sure that
-	 * preceding stores to the page contents become visible before
+	 * The memory barrier inside __folio_mark_uptodate makes sure that
+	 * preceding stores to the folio contents become visible before
 	 * the set_pte_at() write.
 	 */
-	__SetPageUptodate(page);
+	__folio_mark_uptodate(folio);
 
-	if (is_device_private_page(page)) {
+	if (folio_is_device_private(folio)) {
 		swp_entry_t swp_entry;
 
 		if (vma->vm_flags & VM_WRITE)
@@ -617,8 +618,8 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 						page_to_pfn(page));
 		entry = swp_entry_to_pte(swp_entry);
 	} else {
-		if (is_zone_device_page(page) &&
-		    !is_device_coherent_page(page)) {
+		if (folio_is_zone_device(folio) &&
+		    !folio_is_device_coherent(folio)) {
 			pr_warn_once("Unsupported ZONE_DEVICE page type.\n");
 			goto abort;
 		}
@@ -652,10 +653,10 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto unlock_abort;
 
 	inc_mm_counter(mm, MM_ANONPAGES);
-	page_add_new_anon_rmap(page, vma, addr);
-	if (!is_zone_device_page(page))
-		lru_cache_add_inactive_or_unevictable(page, vma);
-	get_page(page);
+	folio_add_new_anon_rmap(folio, vma, addr);
+	if (!folio_is_zone_device(folio))
+		folio_add_lru_vma(folio, vma);
+	folio_get(folio);
 
 	if (flush) {
 		flush_cache_page(vma, addr, pte_pfn(orig_pte));
