@@ -155,9 +155,11 @@ do {								\
 				"fnic<%d>: %s: %d: " fmt, fnic_num,\
 				__func__, __LINE__, ##args);)
 
-#define FNIC_SCSI_DBG(kern_level, host, fmt, args...)		\
+#define FNIC_SCSI_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_SCSI_LOGGING,			\
-			 shost_printk(kern_level, host, fmt, ##args);)
+			 shost_printk(kern_level, host,			\
+				"fnic<%d>: %s: %d: " fmt, fnic_num,\
+				__func__, __LINE__, ##args);)
 
 #define FNIC_ISR_DBG(kern_level, host, fnic_num, fmt, args...)		\
 	FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,			\
