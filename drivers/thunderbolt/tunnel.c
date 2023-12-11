@@ -926,12 +926,18 @@ static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
 	return 0;
 }
 
-/* max_bw is rounded up to next granularity */
+/**
+ * tb_dp_bandwidth_mode_maximum_bandwidth() - Maximum possible bandwidth
+ * @tunnel: DP tunnel to check
+ * @max_bw_rounded: Maximum bandwidth in Mb/s rounded up to the next granularity
+ *
+ * Returns maximum possible bandwidth for this tunnel in Mb/s.
+ */
 static int tb_dp_bandwidth_mode_maximum_bandwidth(struct tb_tunnel *tunnel,
-						  int *max_bw)
+						  int *max_bw_rounded)
 {
 	struct tb_port *in = tunnel->src_port;
-	int ret, rate, lanes, nrd_bw;
+	int ret, rate, lanes, max_bw;
 	u32 cap;
 
 	/*
@@ -947,32 +953,18 @@ static int tb_dp_bandwidth_mode_maximum_bandwidth(struct tb_tunnel *tunnel,
 		return ret;
 
 	rate = tb_dp_cap_get_rate_ext(cap);
-	if (tb_dp_is_uhbr_rate(rate)) {
-		/*
-		 * When UHBR is used there is no reduction in lanes so
-		 * we can use this directly.
-		 */
-		lanes = tb_dp_cap_get_lanes(cap);
-	} else {
-		/*
-		 * If there is no UHBR supported then check the
-		 * non-reduced rate and lanes.
-		 */
-		ret = usb4_dp_port_nrd(in, &rate, &lanes);
-		if (ret)
-			return ret;
-	}
+	lanes = tb_dp_cap_get_lanes(cap);
 
-	nrd_bw = tb_dp_bandwidth(rate, lanes);
+	max_bw = tb_dp_bandwidth(rate, lanes);
 
-	if (max_bw) {
+	if (max_bw_rounded) {
 		ret = usb4_dp_port_granularity(in);
 		if (ret < 0)
 			return ret;
-		*max_bw = roundup(nrd_bw, ret);
+		*max_bw_rounded = roundup(max_bw, ret);
 	}
 
-	return nrd_bw;
+	return max_bw;
 }
 
 static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
@@ -981,7 +973,7 @@ static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
 {
 	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
-	int ret, allocated_bw, max_bw;
+	int ret, allocated_bw, max_bw_rounded;
 
 	if (!usb4_dp_port_bandwidth_mode_enabled(in))
 		return -EOPNOTSUPP;
@@ -995,10 +987,10 @@ static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
 		return ret;
 	allocated_bw = ret;
 
-	ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, &max_bw);
+	ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, &max_bw_rounded);
 	if (ret < 0)
 		return ret;
-	if (allocated_bw == max_bw)
+	if (allocated_bw == max_bw_rounded)
 		allocated_bw = ret;
 
 	if (tb_port_path_direction_downstream(in, out)) {
@@ -1023,17 +1015,18 @@ static int tb_dp_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up
 	 * Otherwise we read it from the DPRX.
 	 */
 	if (usb4_dp_port_bandwidth_mode_enabled(in) && tunnel->bw_mode) {
-		int ret, allocated_bw, max_bw;
+		int ret, allocated_bw, max_bw_rounded;
 
 		ret = usb4_dp_port_allocated_bandwidth(in);
 		if (ret < 0)
 			return ret;
 		allocated_bw = ret;
 
-		ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, &max_bw);
+		ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel,
+							     &max_bw_rounded);
 		if (ret < 0)
 			return ret;
-		if (allocated_bw == max_bw)
+		if (allocated_bw == max_bw_rounded)
 			allocated_bw = ret;
 
 		if (tb_port_path_direction_downstream(in, out)) {
@@ -1055,24 +1048,24 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 {
 	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
-	int max_bw, ret, tmp;
+	int max_bw_rounded, ret, tmp;
 
 	if (!usb4_dp_port_bandwidth_mode_enabled(in))
 		return -EOPNOTSUPP;
 
-	ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, &max_bw);
+	ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, &max_bw_rounded);
 	if (ret < 0)
 		return ret;
 
 	if (tb_port_path_direction_downstream(in, out)) {
-		tmp = min(*alloc_down, max_bw);
+		tmp = min(*alloc_down, max_bw_rounded);
 		ret = usb4_dp_port_allocate_bandwidth(in, tmp);
 		if (ret)
 			return ret;
 		*alloc_down = tmp;
 		*alloc_up = 0;
 	} else {
-		tmp = min(*alloc_up, max_bw);
+		tmp = min(*alloc_up, max_bw_rounded);
 		ret = usb4_dp_port_allocate_bandwidth(in, tmp);
 		if (ret)
 			return ret;
