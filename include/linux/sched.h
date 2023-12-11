@@ -15,7 +15,7 @@
 #include <linux/sem.h>
 #include <linux/shm.h>
 #include <linux/kmsan_types.h>
-#include <linux/mutex.h>
+#include <linux/mutex_types.h>
 #include <linux/plist.h>
 #include <linux/hrtimer_types.h>
 #include <linux/irqflags.h>
