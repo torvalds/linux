@@ -642,7 +642,7 @@ int __bch2_btree_trans_too_many_iters(struct btree_trans *);
 
 static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 {
-	if (bitmap_weight(trans->paths_allocated, trans->nr_paths) > BTREE_ITER_MAX - 8)
+	if (bitmap_weight(trans->paths_allocated, trans->nr_paths) > BTREE_ITER_INITIAL - 8)
 		return __bch2_btree_trans_too_many_iters(trans);
 
 	return 0;

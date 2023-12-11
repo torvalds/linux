@@ -358,7 +358,8 @@ struct btree_insert_entry {
 	unsigned long		ip_allocated;
 };
 
-#define BTREE_ITER_MAX		64
+#define BTREE_ITER_INITIAL		64
+#define BTREE_ITER_MAX			(1U << 10)
 
 struct btree_trans_commit_hook;
 typedef int (btree_trans_commit_hook_fn)(struct btree_trans *, struct btree_trans_commit_hook *);
@@ -382,7 +383,7 @@ struct btree_trans {
 
 	unsigned long		*paths_allocated;
 	struct btree_path	*paths;
-	u8			*sorted;
+	btree_path_idx_t	*sorted;
 	struct btree_insert_entry *updates;
 
 	void			*mem;
@@ -438,11 +439,11 @@ struct btree_trans {
 	struct list_head	list;
 	struct closure		ref;
 
-	unsigned long		_paths_allocated[BITS_TO_LONGS(BTREE_ITER_MAX)];
+	unsigned long		_paths_allocated[BITS_TO_LONGS(BTREE_ITER_INITIAL)];
 	struct btree_trans_paths trans_paths;
-	struct btree_path	_paths[BTREE_ITER_MAX];
-	u8			_sorted[BTREE_ITER_MAX + 8];
-	struct btree_insert_entry _updates[BTREE_ITER_MAX];
+	struct btree_path	_paths[BTREE_ITER_INITIAL];
+	btree_path_idx_t	_sorted[BTREE_ITER_INITIAL + 4];
+	struct btree_insert_entry _updates[BTREE_ITER_INITIAL];
 };
 
 static inline struct btree_path *btree_iter_path(struct btree_trans *trans, struct btree_iter *iter)

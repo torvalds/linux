@@ -1209,7 +1209,6 @@ static btree_path_idx_t btree_path_clone(struct btree_trans *trans, btree_path_i
 					 bool intent)
 {
 	btree_path_idx_t new = btree_path_alloc(trans, src);
-
 	btree_path_copy(trans, trans->paths + new, trans->paths + src);
 	__btree_path_get(trans->paths + new, intent);
 	return new;
@@ -1515,7 +1514,47 @@ int __bch2_btree_trans_too_many_iters(struct btree_trans *trans)
 static noinline void btree_path_overflow(struct btree_trans *trans)
 {
 	bch2_dump_trans_paths_updates(trans);
-	panic("trans path overflow\n");
+	bch_err(trans->c, "trans path overflow");
+}
+
+static noinline void btree_paths_realloc(struct btree_trans *trans)
+{
+	unsigned nr = trans->nr_paths * 2;
+
+	void *p = kzalloc(BITS_TO_LONGS(nr) * sizeof(unsigned long) +
+			  sizeof(struct btree_trans_paths) +
+			  nr * sizeof(struct btree_path) +
+			  nr * sizeof(btree_path_idx_t) + 8 +
+			  nr * sizeof(struct btree_insert_entry), GFP_KERNEL|__GFP_NOFAIL);
+
+	unsigned long *paths_allocated = p;
+	memcpy(paths_allocated, trans->paths_allocated, BITS_TO_LONGS(trans->nr_paths) * sizeof(unsigned long));
+	p += BITS_TO_LONGS(nr) * sizeof(unsigned long);
+
+	p += sizeof(struct btree_trans_paths);
+	struct btree_path *paths = p;
+	*trans_paths_nr(paths) = nr;
+	memcpy(paths, trans->paths, trans->nr_paths * sizeof(struct btree_path));
+	p += nr * sizeof(struct btree_path);
+
+	btree_path_idx_t *sorted = p;
+	memcpy(sorted, trans->sorted, trans->nr_sorted * sizeof(btree_path_idx_t));
+	p += nr * sizeof(btree_path_idx_t) + 8;
+
+	struct btree_insert_entry *updates = p;
+	memcpy(updates, trans->updates, trans->nr_paths * sizeof(struct btree_insert_entry));
+
+	unsigned long *old = trans->paths_allocated;
+
+	rcu_assign_pointer(trans->paths_allocated,	paths_allocated);
+	rcu_assign_pointer(trans->paths,		paths);
+	rcu_assign_pointer(trans->sorted,		sorted);
+	rcu_assign_pointer(trans->updates,		updates);
+
+	trans->nr_paths		= nr;
+
+	if (old != trans->_paths_allocated)
+		kfree_rcu_mightsleep(old);
 }
 
 static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
@@ -1523,8 +1562,14 @@ static inline btree_path_idx_t btree_path_alloc(struct btree_trans *trans,
 {
 	btree_path_idx_t idx = find_first_zero_bit(trans->paths_allocated, trans->nr_paths);
 
-	if (unlikely(idx == trans->nr_paths))
-		btree_path_overflow(trans);
+	if (unlikely(idx == trans->nr_paths)) {
+		if (trans->nr_paths == BTREE_ITER_MAX) {
+			btree_path_overflow(trans);
+			return 0;
+		}
+
+		btree_paths_realloc(trans);
+	}
 
 	/*
 	 * Do this before marking the new path as allocated, since it won't be
@@ -2607,21 +2652,18 @@ out:
 static inline void btree_path_list_remove(struct btree_trans *trans,
 					  struct btree_path *path)
 {
-	unsigned i;
-
 	EBUG_ON(path->sorted_idx >= trans->nr_sorted);
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	trans->nr_sorted--;
 	memmove_u64s_down_small(trans->sorted + path->sorted_idx,
 				trans->sorted + path->sorted_idx + 1,
-				DIV_ROUND_UP(trans->nr_sorted - path->sorted_idx, 8));
+				DIV_ROUND_UP(trans->nr_sorted - path->sorted_idx,
+					     sizeof(u64) / sizeof(btree_path_idx_t)));
 #else
 	array_remove_item(trans->sorted, trans->nr_sorted, path->sorted_idx);
 #endif
-	for (i = path->sorted_idx; i < trans->nr_sorted; i++)
+	for (unsigned i = path->sorted_idx; i < trans->nr_sorted; i++)
 		trans->paths[trans->sorted[i]].sorted_idx = i;
-
-	path->sorted_idx = U8_MAX;
 }
 
 static inline void btree_path_list_add(struct btree_trans *trans,
@@ -2629,21 +2671,21 @@ static inline void btree_path_list_add(struct btree_trans *trans,
 				       btree_path_idx_t path_idx)
 {
 	struct btree_path *path = trans->paths + path_idx;
-	unsigned i;
 
 	path->sorted_idx = pos ? trans->paths[pos].sorted_idx + 1 : trans->nr_sorted;
 
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	memmove_u64s_up_small(trans->sorted + path->sorted_idx + 1,
 			      trans->sorted + path->sorted_idx,
-			      DIV_ROUND_UP(trans->nr_sorted - path->sorted_idx, 8));
+			      DIV_ROUND_UP(trans->nr_sorted - path->sorted_idx,
+					   sizeof(u64) / sizeof(btree_path_idx_t)));
 	trans->nr_sorted++;
 	trans->sorted[path->sorted_idx] = path_idx;
 #else
 	array_insert_item(trans->sorted, trans->nr_sorted, path->sorted_idx, path_idx);
 #endif
 
-	for (i = path->sorted_idx; i < trans->nr_sorted; i++)
+	for (unsigned i = path->sorted_idx; i < trans->nr_sorted; i++)
 		trans->paths[trans->sorted[i]].sorted_idx = i;
 
 	btree_trans_verify_sorted_refs(trans);
@@ -2939,7 +2981,7 @@ got_trans:
 	trans->paths		= trans->_paths;
 	trans->updates		= trans->_updates;
 
-	*trans_paths_nr(trans->paths) = BTREE_ITER_MAX;
+	*trans_paths_nr(trans->paths) = BTREE_ITER_INITIAL;
 
 	trans->paths_allocated[0] = 1;
 
@@ -3019,6 +3061,13 @@ void bch2_trans_put(struct btree_trans *trans)
 
 	if (unlikely(trans->journal_replay_not_finished))
 		bch2_journal_keys_put(c);
+
+	unsigned long *paths_allocated = trans->paths_allocated;
+	trans->paths_allocated	= NULL;
+	trans->paths		= NULL;
+
+	if (paths_allocated != trans->_paths_allocated)
+		kfree_rcu_mightsleep(paths_allocated);
 
 	if (trans->mem_bytes == BTREE_TRANS_MEM_MAX)
 		mempool_free(trans->mem, &c->btree_trans_mem_pool);
