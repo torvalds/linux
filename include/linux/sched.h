@@ -2227,37 +2227,6 @@ static inline bool preempt_model_preemptible(void)
 	return preempt_model_full() || preempt_model_rt();
 }
 
-/*
- * Does a critical section need to be broken due to another
- * task waiting?: (technically does not depend on CONFIG_PREEMPTION,
- * but a general need for low latency)
- */
-static inline int spin_needbreak(spinlock_t *lock)
-{
-#ifdef CONFIG_PREEMPTION
-	return spin_is_contended(lock);
-#else
-	return 0;
-#endif
-}
-
-/*
- * Check if a rwlock is contended.
- * Returns non-zero if there is another task waiting on the rwlock.
- * Returns zero if the lock is not contended or the system / underlying
- * rwlock implementation does not support contention detection.
- * Technically does not depend on CONFIG_PREEMPTION, but a general need
- * for low latency.
- */
-static inline int rwlock_needbreak(rwlock_t *lock)
-{
-#ifdef CONFIG_PREEMPTION
-	return rwlock_is_contended(lock);
-#else
-	return 0;
-#endif
-}
-
 static __always_inline bool need_resched(void)
 {
 	return unlikely(tif_need_resched());
