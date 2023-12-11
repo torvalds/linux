@@ -284,7 +284,7 @@ ax88796c_tx_fixup(struct net_device *ndev, struct sk_buff_head *q)
 	ax88796c_proc_tx_hdr(&info, skb->ip_summed);
 
 	/* SOP and SEG header */
-	memcpy(skb_push(skb, TX_OVERHEAD), &info.sop, TX_OVERHEAD);
+	memcpy(skb_push(skb, TX_OVERHEAD), &info.tx_overhead, TX_OVERHEAD);
 
 	/* Write SPI TXQ header */
 	memcpy(skb_push(skb, spi_len), ax88796c_tx_cmd_buf, spi_len);
