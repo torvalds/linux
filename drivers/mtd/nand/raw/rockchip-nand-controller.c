@@ -108,6 +108,7 @@ struct rk_ecc_cnt_status {
 };
 
 /**
+ * struct nfc_cfg: Rockchip NAND controller configuration
  * @type: NFC version
  * @ecc_strengths: ECC strengths
  * @ecc_cfgs: ECC config values
