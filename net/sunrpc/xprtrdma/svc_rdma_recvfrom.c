@@ -123,7 +123,7 @@ svc_rdma_recv_ctxt_alloc(struct svcxprt_rdma *rdma)
 	dma_addr_t addr;
 	void *buffer;
 
-	ctxt = kmalloc_node(sizeof(*ctxt), GFP_KERNEL, node);
+	ctxt = kzalloc_node(sizeof(*ctxt), GFP_KERNEL, node);
 	if (!ctxt)
 		goto fail0;
 	buffer = kmalloc_node(rdma->sc_max_req_size, GFP_KERNEL, node);

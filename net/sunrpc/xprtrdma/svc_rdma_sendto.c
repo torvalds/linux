@@ -122,7 +122,7 @@ svc_rdma_send_ctxt_alloc(struct svcxprt_rdma *rdma)
 	void *buffer;
 	int i;
 
-	ctxt = kmalloc_node(struct_size(ctxt, sc_sges, rdma->sc_max_send_sges),
+	ctxt = kzalloc_node(struct_size(ctxt, sc_sges, rdma->sc_max_send_sges),
 			    GFP_KERNEL, node);
 	if (!ctxt)
 		goto fail0;

@@ -154,7 +154,10 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 		      struct svc_rdma_chunk_ctxt *cc)
 {
-	svc_rdma_send_cid_init(rdma, &cc->cc_cid);
+	struct rpc_rdma_cid *cid = &cc->cc_cid;
+
+	if (unlikely(!cid->ci_completion_id))
+		svc_rdma_send_cid_init(rdma, cid);
 
 	INIT_LIST_HEAD(&cc->cc_rwctxts);
 	cc->cc_sqecount = 0;
@@ -221,15 +224,13 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma,
 {
 	struct svc_rdma_write_info *info;
 
-	info = kmalloc_node(sizeof(*info), GFP_KERNEL,
+	info = kzalloc_node(sizeof(*info), GFP_KERNEL,
 			    ibdev_to_node(rdma->sc_cm_id->device));
 	if (!info)
 		return info;
 
 	info->wi_rdma = rdma;
 	info->wi_chunk = chunk;
-	info->wi_seg_off = 0;
-	info->wi_seg_no = 0;
 	svc_rdma_cc_init(rdma, &info->wi_cc);
 	info->wi_cc.cc_cqe.done = svc_rdma_write_done;
 	return info;
