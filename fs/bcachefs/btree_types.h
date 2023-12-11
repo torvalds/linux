@@ -386,7 +386,6 @@ struct btree_trans {
 
 	void			*mem;
 	unsigned		mem_top;
-	unsigned		mem_max;
 	unsigned		mem_bytes;
 
 	btree_path_idx_t	nr_sorted;
@@ -413,8 +412,6 @@ struct btree_trans {
 	unsigned long		srcu_lock_time;
 
 	const char		*fn;
-	struct closure		ref;
-	struct list_head	list;
 	struct btree_bkey_cached_common *locking;
 	struct six_lock_waiter	locking_wait;
 	int			srcu_idx;
@@ -424,7 +421,6 @@ struct btree_trans {
 	u16			journal_entries_size;
 	struct jset_entry	*journal_entries;
 
-	struct btree_insert_entry updates[BTREE_ITER_MAX];
 	struct btree_trans_commit_hook *hooks;
 	struct journal_entry_pin *journal_pin;
 
@@ -434,6 +430,13 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
 	struct replicas_delta_list *fs_usage_deltas;
+
+	/* Entries before this are zeroed out on every bch2_trans_get() call */
+
+	struct btree_insert_entry updates[BTREE_ITER_MAX];
+
+	struct list_head	list;
+	struct closure		ref;
 
 	unsigned long		_paths_allocated[BITS_TO_LONGS(BTREE_ITER_MAX)];
 	struct btree_trans_paths trans_paths;

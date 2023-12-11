@@ -95,9 +95,10 @@ static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
 	struct trans_waiting_for_lock *i;
 
 	for (i = g->g; i != g->g + g->nr; i++) {
+		struct task_struct *task = i->trans->locking_wait.task;
 		if (i != g->g)
 			prt_str(out, "<- ");
-		prt_printf(out, "%u ", i->trans->locking_wait.task->pid);
+		prt_printf(out, "%u ", task ?task->pid : 0);
 	}
 	prt_newline(out);
 }

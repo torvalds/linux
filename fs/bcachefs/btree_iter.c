@@ -2714,6 +2714,7 @@ void bch2_trans_copy_iter(struct btree_iter *dst, struct btree_iter *src)
 
 void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
+	struct bch_fs *c = trans->c;
 	unsigned new_top = trans->mem_top + size;
 	unsigned old_bytes = trans->mem_bytes;
 	unsigned new_bytes = roundup_pow_of_two(new_top);
@@ -2721,9 +2722,11 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	void *new_mem;
 	void *p;
 
-	trans->mem_max = max(trans->mem_max, new_top);
-
 	WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX);
+
+	struct btree_transaction_stats *s = btree_trans_stats(trans);
+	if (s)
+		s->max_mem = max(s->max_mem, new_bytes);
 
 	new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
 	if (unlikely(!new_mem)) {
@@ -2731,7 +2734,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 
 		new_mem = krealloc(trans->mem, new_bytes, GFP_KERNEL);
 		if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
-			new_mem = mempool_alloc(&trans->c->btree_trans_mem_pool, GFP_KERNEL);
+			new_mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
 			new_bytes = BTREE_TRANS_MEM_MAX;
 			kfree(trans->mem);
 		}
@@ -2751,7 +2754,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	trans->mem_bytes = new_bytes;
 
 	if (old_bytes) {
-		trace_and_count(trans->c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
+		trace_and_count(c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
 		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_mem_realloced));
 	}
 
@@ -2860,25 +2863,6 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	return trans->restart_count;
 }
 
-static struct btree_trans *bch2_trans_alloc(struct bch_fs *c)
-{
-	struct btree_trans *trans;
-
-	if (IS_ENABLED(__KERNEL__)) {
-		trans = this_cpu_xchg(c->btree_trans_bufs->trans, NULL);
-		if (trans)
-			return trans;
-	}
-
-	trans = mempool_alloc(&c->btree_trans_pool, GFP_NOFS);
-	/*
-	 * paths need to be zeroed, bch2_check_for_deadlock looks at
-	 * paths in other threads
-	 */
-	memset(&trans->paths, 0, sizeof(trans->paths));
-	return trans;
-}
-
 const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR];
 
 unsigned bch2_trans_get_fn_idx(const char *fn)
@@ -2900,22 +2884,55 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	__acquires(&c->btree_trans_barrier)
 {
 	struct btree_trans *trans;
-	struct btree_transaction_stats *s;
 
-	trans = bch2_trans_alloc(c);
+	if (IS_ENABLED(__KERNEL__)) {
+		trans = this_cpu_xchg(c->btree_trans_bufs->trans, NULL);
+		if (trans) {
+			memset(trans, 0, offsetof(struct btree_trans, updates));
+			goto got_trans;
+		}
+	}
 
+	trans = mempool_alloc(&c->btree_trans_pool, GFP_NOFS);
 	memset(trans, 0, sizeof(*trans));
+	closure_init_stack(&trans->ref);
+
+	seqmutex_lock(&c->btree_trans_lock);
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+		struct btree_trans *pos;
+		pid_t pid = current->pid;
+
+		trans->locking_wait.task = current;
+
+		list_for_each_entry(pos, &c->btree_trans_list, list) {
+			struct task_struct *pos_task = READ_ONCE(pos->locking_wait.task);
+			/*
+			 * We'd much prefer to be stricter here and completely
+			 * disallow multiple btree_trans in the same thread -
+			 * but the data move path calls bch2_write when we
+			 * already have a btree_trans initialized.
+			 */
+			BUG_ON(pos_task &&
+			       pid == pos_task->pid &&
+			       bch2_trans_locked(pos));
+
+			if (pos_task && pid < pos_task->pid) {
+				list_add_tail(&trans->list, &pos->list);
+				goto list_add_done;
+			}
+		}
+	}
+	list_add_tail(&trans->list, &c->btree_trans_list);
+list_add_done:
+	seqmutex_unlock(&c->btree_trans_lock);
+got_trans:
 	trans->c		= c;
-	trans->fn		= fn_idx < ARRAY_SIZE(bch2_btree_transaction_fns)
-		? bch2_btree_transaction_fns[fn_idx] : NULL;
 	trans->last_begin_time	= local_clock();
 	trans->fn_idx		= fn_idx;
 	trans->locking_wait.task = current;
 	trans->journal_replay_not_finished =
 		unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) &&
 		atomic_inc_not_zero(&c->journal_keys.ref);
-	closure_init_stack(&trans->ref);
-
 	trans->paths_allocated	= trans->_paths_allocated;
 	trans->sorted		= trans->_sorted;
 	trans->paths		= trans->_paths;
@@ -2924,21 +2941,19 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 
 	trans->paths_allocated[0] = 1;
 
-	s = btree_trans_stats(trans);
-	if (s && s->max_mem) {
-		unsigned expected_mem_bytes = roundup_pow_of_two(s->max_mem);
+	if (fn_idx < BCH_TRANSACTIONS_NR) {
+		trans->fn = bch2_btree_transaction_fns[fn_idx];
 
-		trans->mem = kmalloc(expected_mem_bytes, GFP_KERNEL);
+		struct btree_transaction_stats *s = &c->btree_transaction_stats[fn_idx];
 
-		if (!unlikely(trans->mem)) {
-			trans->mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
-			trans->mem_bytes = BTREE_TRANS_MEM_MAX;
-		} else {
-			trans->mem_bytes = expected_mem_bytes;
+		if (s->max_mem) {
+			unsigned expected_mem_bytes = roundup_pow_of_two(s->max_mem);
+
+			trans->mem = kmalloc(expected_mem_bytes, GFP_KERNEL);
+			if (likely(trans->mem))
+				trans->mem_bytes = expected_mem_bytes;
 		}
-	}
 
-	if (s) {
 		trans->nr_paths_max = s->nr_max_paths;
 		trans->journal_entries_size = s->journal_entries_size;
 	}
@@ -2946,31 +2961,6 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	trans->srcu_idx		= srcu_read_lock(&c->btree_trans_barrier);
 	trans->srcu_lock_time	= jiffies;
 	trans->srcu_held	= true;
-
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
-		struct btree_trans *pos;
-
-		seqmutex_lock(&c->btree_trans_lock);
-		list_for_each_entry(pos, &c->btree_trans_list, list) {
-			/*
-			 * We'd much prefer to be stricter here and completely
-			 * disallow multiple btree_trans in the same thread -
-			 * but the data move path calls bch2_write when we
-			 * already have a btree_trans initialized.
-			 */
-			BUG_ON(trans->locking_wait.task->pid == pos->locking_wait.task->pid &&
-			       bch2_trans_locked(pos));
-
-			if (trans->locking_wait.task->pid < pos->locking_wait.task->pid) {
-				list_add_tail(&trans->list, &pos->list);
-				goto list_add_done;
-			}
-		}
-		list_add_tail(&trans->list, &c->btree_trans_list);
-list_add_done:
-		seqmutex_unlock(&c->btree_trans_lock);
-	}
-
 	return trans;
 }
 
@@ -3001,24 +2991,13 @@ void bch2_trans_put(struct btree_trans *trans)
 	__releases(&c->btree_trans_barrier)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_transaction_stats *s = btree_trans_stats(trans);
 
 	bch2_trans_unlock(trans);
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG_TRANSACTIONS)) {
-		seqmutex_lock(&c->btree_trans_lock);
-		list_del(&trans->list);
-		seqmutex_unlock(&c->btree_trans_lock);
-	}
-
-	closure_sync(&trans->ref);
-
-	if (s)
-		s->max_mem = max(s->max_mem, trans->mem_max);
-
 	trans_for_each_update(trans, i)
 		__btree_path_put(trans->paths + i->path, true);
-	trans->nr_updates		= 0;
+	trans->nr_updates	= 0;
+	trans->locking_wait.task = NULL;
 
 	check_btree_paths_leaked(trans);
 
@@ -3047,8 +3026,16 @@ void bch2_trans_put(struct btree_trans *trans)
 	/* Userspace doesn't have a real percpu implementation: */
 	if (IS_ENABLED(__KERNEL__))
 		trans = this_cpu_xchg(c->btree_trans_bufs->trans, trans);
-	if (trans)
+
+	if (trans) {
+		closure_sync(&trans->ref);
+
+		seqmutex_lock(&c->btree_trans_lock);
+		list_del(&trans->list);
+		seqmutex_unlock(&c->btree_trans_lock);
+
 		mempool_free(trans, &c->btree_trans_pool);
+	}
 }
 
 static void __maybe_unused
@@ -3146,14 +3133,25 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 	struct btree_trans *trans;
 	int cpu;
 
+	if (c->btree_trans_bufs)
+		for_each_possible_cpu(cpu) {
+			struct btree_trans *trans =
+				per_cpu_ptr(c->btree_trans_bufs, cpu)->trans;
+
+			if (trans) {
+				closure_sync(&trans->ref);
+
+				seqmutex_lock(&c->btree_trans_lock);
+				list_del(&trans->list);
+				seqmutex_unlock(&c->btree_trans_lock);
+			}
+			kfree(trans);
+		}
+	free_percpu(c->btree_trans_bufs);
+
 	trans = list_first_entry_or_null(&c->btree_trans_list, struct btree_trans, list);
 	if (trans)
 		panic("%s leaked btree_trans\n", trans->fn);
-
-	if (c->btree_trans_bufs)
-		for_each_possible_cpu(cpu)
-			kfree(per_cpu_ptr(c->btree_trans_bufs, cpu)->trans);
-	free_percpu(c->btree_trans_bufs);
 
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);

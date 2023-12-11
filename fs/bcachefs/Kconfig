@@ -50,14 +50,6 @@ config BCACHEFS_POSIX_ACL
 	depends on BCACHEFS_FS
 	select FS_POSIX_ACL
 
-config BCACHEFS_DEBUG_TRANSACTIONS
-	bool "bcachefs runtime info"
-	depends on BCACHEFS_FS
-	help
-	This makes the list of running btree transactions available in debugfs.
-
-	This is a highly useful debugging feature but does add a small amount of overhead.
-
 config BCACHEFS_DEBUG
 	bool "bcachefs debugging"
 	depends on BCACHEFS_FS
