@@ -5518,8 +5518,8 @@ static void kvm_vcpu_ioctl_x86_get_xsave2(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 					 struct kvm_xsave *guest_xsave)
 {
-	return kvm_vcpu_ioctl_x86_get_xsave2(vcpu, (void *)guest_xsave->region,
-					     sizeof(guest_xsave->region));
+	kvm_vcpu_ioctl_x86_get_xsave2(vcpu, (void *)guest_xsave->region,
+				      sizeof(guest_xsave->region));
 }
 
 static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
@@ -13031,7 +13031,10 @@ bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.guest_state_protected)
 		return true;
 
-	return vcpu->arch.preempted_in_kernel;
+	if (vcpu != kvm_get_running_vcpu())
+		return vcpu->arch.preempted_in_kernel;
+
+	return static_call(kvm_x86_get_cpl)(vcpu) == 0;
 }
 
 unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)

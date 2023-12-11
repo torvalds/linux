@@ -1541,8 +1541,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
+				  BTREE_ITER_PREFETCH, k, ({
 		ca = bch_dev_bkey_exists(c, k.k->p.inode);
 		g = gc_bucket(ca, k.k->p.offset);
 
@@ -1561,8 +1561,9 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 			g->stripe		= a->stripe;
 			g->stripe_redundancy	= a->stripe_redundancy;
 		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
+
+		0;
+	}));
 err:
 	bch2_trans_put(trans);
 	if (ret)

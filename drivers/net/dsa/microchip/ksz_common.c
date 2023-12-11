@@ -2713,10 +2713,18 @@ static int ksz_connect_tag_protocol(struct dsa_switch *ds,
 {
 	struct ksz_tagger_data *tagger_data;
 
-	tagger_data = ksz_tagger_data(ds);
-	tagger_data->xmit_work_fn = ksz_port_deferred_xmit;
-
-	return 0;
+	switch (proto) {
+	case DSA_TAG_PROTO_KSZ8795:
+		return 0;
+	case DSA_TAG_PROTO_KSZ9893:
+	case DSA_TAG_PROTO_KSZ9477:
+	case DSA_TAG_PROTO_LAN937X:
+		tagger_data = ksz_tagger_data(ds);
+		tagger_data->xmit_work_fn = ksz_port_deferred_xmit;
+		return 0;
+	default:
+		return -EPROTONOSUPPORT;
+	}
 }
 
 static int ksz_port_vlan_filtering(struct dsa_switch *ds, int port,
