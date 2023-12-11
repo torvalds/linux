@@ -128,7 +128,7 @@ struct pl35x_nand {
  * @conf_regs: SMC configuration registers for command phase
  * @io_regs: NAND data registers for data phase
  * @controller: Core NAND controller structure
- * @chip: NAND chip information structure
+ * @chips: List of connected NAND chips
  * @selected_chip: NAND chip currently selected by the controller
  * @assigned_cs: List of assigned CS
  * @ecc_buf: Temporary buffer to extract ECC bytes
