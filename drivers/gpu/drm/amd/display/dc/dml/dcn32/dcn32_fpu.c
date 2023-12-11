@@ -3465,7 +3465,15 @@ void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *co
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		const struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
+		/* In DCN32/321, FPO uses per-pipe P-State force.
+		 * If there's no planes, HUBP is power gated and
+		 * therefore programming UCLK_PSTATE_FORCE does
+		 * nothing (P-State will always be asserted naturally
+		 * on a pipe that has HUBP power gated. Therefore we
+		 * only want to enable FPO if the FPO pipe has both
+		 * a stream and a plane.
+		 */
+		if (!pipe->stream || !pipe->plane_state)
 			continue;
 
 		if (vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {

@@ -163,7 +163,7 @@ void dcn32_determine_det_override(struct dc *dc,
 void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes);
 
-struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, const struct dc_state *context);
+struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
 
 bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
 
