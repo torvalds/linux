@@ -1222,9 +1222,6 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	if (dc->debug.dmcub_emulation)
 		return;
 
-	if (!dc->idle_optimizations_allowed)
-		return;
-
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
 
