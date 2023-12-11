@@ -35,6 +35,7 @@ static inline unsigned long btree_iter_ip_allocated(struct btree_iter *iter)
 }
 
 static struct btree_path *btree_path_alloc(struct btree_trans *, struct btree_path *);
+static void bch2_trans_srcu_lock(struct btree_trans *);
 
 static inline int __btree_path_cmp(const struct btree_path *l,
 				   enum btree_id	r_btree_id,
@@ -2764,7 +2765,7 @@ void bch2_trans_srcu_unlock(struct btree_trans *trans)
 	}
 }
 
-void bch2_trans_srcu_lock(struct btree_trans *trans)
+static void bch2_trans_srcu_lock(struct btree_trans *trans)
 {
 	if (!trans->srcu_held) {
 		trans->srcu_idx = srcu_read_lock(&trans->c->btree_trans_barrier);

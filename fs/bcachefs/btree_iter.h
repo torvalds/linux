@@ -565,7 +565,6 @@ static inline int __bch2_bkey_get_val_typed(struct btree_trans *trans,
 				  KEY_TYPE_##_type, sizeof(*_val), _val)
 
 void bch2_trans_srcu_unlock(struct btree_trans *);
-void bch2_trans_srcu_lock(struct btree_trans *);
 
 u32 bch2_trans_begin(struct btree_trans *);
 
