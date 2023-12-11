@@ -469,10 +469,35 @@ err_out:
 		__func__, err ? "failed" : "done");
 }
 
+static pci_ers_result_t ionic_pci_error_detected(struct pci_dev *pdev,
+						 pci_channel_state_t error)
+{
+	if (error == pci_channel_io_frozen) {
+		ionic_reset_prepare(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	return PCI_ERS_RESULT_NONE;
+}
+
+static void ionic_pci_error_resume(struct pci_dev *pdev)
+{
+	struct ionic *ionic = pci_get_drvdata(pdev);
+	struct ionic_lif *lif = ionic->lif;
+
+	if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		pci_reset_function_locked(pdev);
+}
+
 static const struct pci_error_handlers ionic_err_handler = {
 	/* FLR handling */
 	.reset_prepare      = ionic_reset_prepare,
 	.reset_done         = ionic_reset_done,
+
+	/* PCI bus error detected on this device */
+	.error_detected     = ionic_pci_error_detected,
+	.resume		    = ionic_pci_error_resume,
+
 };
 
 static struct pci_driver ionic_driver = {
