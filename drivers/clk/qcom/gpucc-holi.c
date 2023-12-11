@@ -402,6 +402,10 @@ static struct clk_regmap *gpu_cc_holi_clocks[] = {
 	[GPU_CC_SLEEP_CLK] = &gpu_cc_sleep_clk.clkr,
 };
 
+static const struct qcom_reset_map gpu_cc_holi_resets[] = {
+	[GPUCC_GPU_CC_FREQUENCY_LIMITER_IRQ_CLEAR] = { 0x153C, 0 },
+};
+
 static const struct regmap_config gpu_cc_holi_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -414,6 +418,8 @@ static const struct qcom_cc_desc gpu_cc_holi_desc = {
 	.config = &gpu_cc_holi_regmap_config,
 	.clks = gpu_cc_holi_clocks,
 	.num_clks = ARRAY_SIZE(gpu_cc_holi_clocks),
+	.resets = gpu_cc_holi_resets,
+	.num_resets = ARRAY_SIZE(gpu_cc_holi_resets),
 	.clk_regulators = gpu_cc_holi_regulators,
 	.num_clk_regulators = ARRAY_SIZE(gpu_cc_holi_regulators),
 };
@@ -442,6 +448,8 @@ static int gpu_cc_holi_probe(struct platform_device *pdev)
 
 	clk_fabia_pll_configure(&gpu_cc_pll0, regmap, &gpu_cc_pll0_config);
 	clk_fabia_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
+
+	regmap_write(regmap, 0x1538, 0x0);
 
 	ret = qcom_cc_really_probe(pdev, &gpu_cc_holi_desc, regmap);
 	if (ret) {
