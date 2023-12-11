@@ -2330,6 +2330,41 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_notify_dbcc(struct rtw89_dev *rtwdev, bool en)
+{
+	struct rtw89_h2c_notify_dbcc *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c notify dbcc\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_notify_dbcc *)skb->data;
+
+	h2c->w0 = le32_encode_bits(en, RTW89_H2C_NOTIFY_DBCC_EN);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
+			      H2C_FUNC_NOTIFY_DBCC, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause)
 {

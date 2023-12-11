@@ -1685,6 +1685,12 @@ static inline void SET_JOININFO_SELF_ROLE(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 30));
 }
 
+struct rtw89_h2c_notify_dbcc {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_NOTIFY_DBCC_EN BIT(0)
+
 static inline void SET_GENERAL_PKT_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -3650,6 +3656,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_CL_MAC_MEDIA_RPT		0x8
 #define H2C_FUNC_MAC_JOININFO		0x0
 #define H2C_FUNC_MAC_FWROLE_MAINTAIN	0x4
+#define H2C_FUNC_NOTIFY_DBCC		0x5
 
 /* CLASS 9 - FW offload */
 #define H2C_CL_MAC_FW_OFLD		0x9
@@ -3846,6 +3853,7 @@ int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       enum rtw89_upd_mode upd_mode);
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   struct rtw89_sta *rtwsta, bool dis_conn);
+int rtw89_fw_h2c_notify_dbcc(struct rtw89_dev *rtwdev, bool en);
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause);
 int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
