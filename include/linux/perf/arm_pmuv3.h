@@ -250,12 +250,9 @@
 #define ARMV8_PMU_USERENR_ER	(1 << 3) /* Event counter can be read at EL0 */
 
 /* PMMIR_EL1.SLOTS mask */
-#define ARMV8_PMU_SLOTS_MASK	0xff
-
-#define ARMV8_PMU_BUS_SLOTS_SHIFT 8
-#define ARMV8_PMU_BUS_SLOTS_MASK 0xff
-#define ARMV8_PMU_BUS_WIDTH_SHIFT 16
-#define ARMV8_PMU_BUS_WIDTH_MASK 0xf
+#define ARMV8_PMU_SLOTS		GENMASK(7, 0)
+#define ARMV8_PMU_BUS_SLOTS	GENMASK(15, 8)
+#define ARMV8_PMU_BUS_WIDTH	GENMASK(19, 16)
 
 /*
  * This code is really good

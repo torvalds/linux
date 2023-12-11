@@ -332,7 +332,7 @@ static ssize_t slots_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pmu *pmu = dev_get_drvdata(dev);
 	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
-	u32 slots = cpu_pmu->reg_pmmir & ARMV8_PMU_SLOTS_MASK;
+	u32 slots = FIELD_GET(ARMV8_PMU_SLOTS, cpu_pmu->reg_pmmir);
 
 	return sysfs_emit(page, "0x%08x\n", slots);
 }
@@ -344,8 +344,7 @@ static ssize_t bus_slots_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pmu *pmu = dev_get_drvdata(dev);
 	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
-	u32 bus_slots = (cpu_pmu->reg_pmmir >> ARMV8_PMU_BUS_SLOTS_SHIFT)
-			& ARMV8_PMU_BUS_SLOTS_MASK;
+	u32 bus_slots = FIELD_GET(ARMV8_PMU_BUS_SLOTS, cpu_pmu->reg_pmmir);
 
 	return sysfs_emit(page, "0x%08x\n", bus_slots);
 }
@@ -357,8 +356,7 @@ static ssize_t bus_width_show(struct device *dev, struct device_attribute *attr,
 {
 	struct pmu *pmu = dev_get_drvdata(dev);
 	struct arm_pmu *cpu_pmu = container_of(pmu, struct arm_pmu, pmu);
-	u32 bus_width = (cpu_pmu->reg_pmmir >> ARMV8_PMU_BUS_WIDTH_SHIFT)
-			& ARMV8_PMU_BUS_WIDTH_MASK;
+	u32 bus_width = FIELD_GET(ARMV8_PMU_BUS_WIDTH, cpu_pmu->reg_pmmir);
 	u32 val = 0;
 
 	/* Encoded as Log2(number of bytes), plus one */
