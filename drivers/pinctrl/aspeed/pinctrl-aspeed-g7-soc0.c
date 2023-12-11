@@ -16,521 +16,412 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include "pinctrl-aspeed.h"
+#include "../pinctrl-utils.h"
 
-#define SCU00 0x00 /* Multi-function Pin Control #1  */
-#define SCU04 0x04 /* Multi-function Pin Control #2  */
-#define SCU08 0x08 /* Multi-function Pin Control #3  */
-#define SCU0C 0x0C /* Multi-function Pin Control #3  */
-#define SCU10 0x10 /* USB Multi-function Control Register  */
-#define SCU14 0x14 /* VGA Function Control Register  */
+#define SCU400 0x400 /* Multi-function Pin Control #1  */
+#define SCU404 0x404 /* Multi-function Pin Control #2  */
+#define SCU408 0x408 /* Multi-function Pin Control #3  */
+#define SCU40C 0x40C /* Multi-function Pin Control #3  */
+#define SCU410 0x410 /* USB Multi-function Control Register  */
+#define SCU414 0x414 /* VGA Function Control Register  */
 
-#define SCU80 0x80 /* GPIO18D0 IO Control Register */
-#define SCU84 0x84 /* GPIO18D1 IO Control Register */
-#define SCU88 0x88 /* GPIO18D2 IO Control Register */
-#define SCU8C 0x8c /* GPIO18D3 IO Control Register */
-#define SCU90 0x90 /* GPIO18D4 IO Control Register */
-#define SCU94 0x94 /* GPIO18D5 IO Control Register */
-#define SCU98 0x98 /* GPIO18D6 IO Control Register */
-#define SCU9C 0x9c /* GPIO18D7 IO Control Register */
+#define SCU480 0x480 /* GPIO18D0 IO Control Register */
+#define SCU484 0x484 /* GPIO18D1 IO Control Register */
+#define SCU488 0x488 /* GPIO18D2 IO Control Register */
+#define SCU48C 0x48c /* GPIO18D3 IO Control Register */
+#define SCU490 0x490 /* GPIO18D4 IO Control Register */
+#define SCU494 0x494 /* GPIO18D5 IO Control Register */
+#define SCU498 0x498 /* GPIO18D6 IO Control Register */
+#define SCU49C 0x49c /* GPIO18D7 IO Control Register */
 
-struct aspeed_g7_soc0_pinctrl {
-	struct pinctrl_dev *pctldev;
-	struct device *dev;
-	struct irq_domain *domain;
-	void __iomem *regs;
+enum {
+	AC14,
+	AE15,
+	AD14,
+	AE14,
+	AF14,
+	AB13,
+	AB14,
+	AF15,
+	AF13,
+	AC13,
+	AD13,
+	AE13,
+	PORTA_U3, // SCU410[1:0]
+	PORTA_U2, // SCU410[3:2]
+	PORTB_U3, // SCU410[5:4]
+	PORTB_U2, // SCU410[7:6]
+	PORTA_XHCI, // SCU410[9]
+	PORTB_XHCI, // SCU410[10]
+	PORTA_MODE, // SCU410[25:24]
+	PORTB_MODE, // SCU410[29:28]
 };
 
-static const int emmcg1_pins[] = { 0, 1, 2, 3, 6, 7 };
-static const int emmcg4_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5 };
-static const int emmcg8_pins[] = { 0, 1, 4, 3, 6, 7, 4, 5, 8, 9, 10, 11 };
-static const int vgdddc_pins[] = { 10, 11 };
-
-struct aspeed_g7_group_funcfg {
-	u32 reg;
-	u32 mask;
-	bool enable;
-	u32 val;
-};
-
-/*
- * pin:	     name, number
- * group:    name, npins,   pins
- * function: name, ngroups, groups
- */
-struct aspeed_g7_soc0_pingroup {
-	const char *name;
-	const char *fn_name;
-	const unsigned int *pins;
-	int npins;
-	struct aspeed_g7_group_funcfg *groupcfg;
-	int groupcfg_nums;
-};
-
-/* USB3A */
-/* 00: BMC XHCI to vHub2, [9] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3axhd_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 1, .val = BIT(9) },
-};
-
-/* 00: PCI XHCI to vHub2, [9] 0: PCIe XHCI */
-struct aspeed_g7_group_funcfg usb3axhpd_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
-};
-
-/* 01: vHub2 to PHY */
-struct aspeed_g7_group_funcfg usb3ad_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 1, .val = BIT(0) },
-};
-
-/* 10: BMC XHCI to PHY, [9] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3axh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 1, .val = BIT(1) },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 1, .val = BIT(9) },
-};
-
-/* 10: PCI XHCI to PHY, [9] 0: PCIe XHCI */
-struct aspeed_g7_group_funcfg usb3axhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 1, .val = BIT(1) },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
-};
-
-/* 11: XHCI Ext (port B), [10] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3a2bxh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 1, .val = GENMASK(1, 0) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) }
-};
-
-/* 11: XHCI Ext (port B), [10] 0: PCI XHCI */
-struct aspeed_g7_group_funcfg usb3a2bxhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(1, 0), .enable = 1, .val = GENMASK(1, 0) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 }
-};
+GROUP_DECL(EMMCG1, AC14, AE15, AD14);
+GROUP_DECL(EMMCG4, AC14, AE15, AD14, AE14, AF14, AB13);
+GROUP_DECL(EMMCG8, AC14, AE15, AD14, AE14, AF14, AB13, AF13, AC13, AD13, AE13);
+GROUP_DECL(EMMCWPN, AF15);
+GROUP_DECL(EMMCCDN, AB14);
+GROUP_DECL(VGADDC, AD13, AE13);
+GROUP_DECL(VB1, AC14, AE15, AD14, AE14);
+GROUP_DECL(VB0, AF15, AB14, AF13, AC13);
+//USB3A
+//xhci: BMC/PCIE, vHub/PHY/EXT port
+GROUP_DECL(USB3AXHD, PORTA_U3, PORTA_XHCI);
+GROUP_DECL(USB3AXHPD, PORTA_U3, PORTA_XHCI);
+GROUP_DECL(USB3AXH, PORTA_U3, PORTA_XHCI);
+GROUP_DECL(USB3AXHP, PORTA_U3, PORTA_XHCI);
+GROUP_DECL(USB3AXH2B, PORTA_U3, PORTA_XHCI);
+GROUP_DECL(USB3AXHP2B, PORTA_U3, PORTA_XHCI);
+// vhub to phy
+GROUP_DECL(USB3AD, PORTA_U3);
 
 //USB2A
-/* 00: xhci to vHub1, [9] : 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2axhd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 1, .val = BIT(9) },
-};
-
-/* 00: pci xhci to vHub1, [9] : 0 PCIe XHCI */
-struct aspeed_g7_group_funcfg usb2axhpd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
-};
-
-/* 01: vHub1 to PHY */
-struct aspeed_g7_group_funcfg usb2ad1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 1, .val = BIT(2) },
-};
-
-/* 10: BMC xhci to PHY, [9] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2axh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 1, .val = BIT(3) },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 1, .val = BIT(9) },
-};
-
-/* 10: PCI xhci to PHY, ,[9] : 0 PCIe XHCI */
-struct aspeed_g7_group_funcfg usb2axhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 1, .val = BIT(3) },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
-};
-
-/* 11: XHCI Ext (port B), [10] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2a2bxh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) }
-};
-
-/* 11: XHCI Ext (port B), [10] 0: PCI XHCI */
-struct aspeed_g7_group_funcfg usb2a2bxhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 }
-};
-
-//USB2A
-/* 00: PCIE EHCI to vHub0 */
-struct aspeed_g7_group_funcfg usb2ahpd0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 0, .val = 0 },
-};
-
-/* 01: vHub0 to PHY */
-struct aspeed_g7_group_funcfg usb2ad0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 1, .val = BIT(24) },
-};
-
-/* 10: BMC EHCI to PHY */
-struct aspeed_g7_group_funcfg usb2ah_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 1, .val = BIT(25) },
-};
-
-/* 11: PCI EHCI to PHY */
-struct aspeed_g7_group_funcfg usb2ahp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(3, 2), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(25, 24), .enable = 1, .val = GENMASK(25, 24) },
-};
-
-/* USB3B */
-/* 00: BMC XHCI to vHub2, [9] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3bxhd_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
-};
-
-/* 00: PCI XHCI to vHub2, [9] 0: PCIe XHCI */
-struct aspeed_g7_group_funcfg usb3bxhpd_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 },
-};
-
-/* 01: vHub2 to PHY */
-struct aspeed_g7_group_funcfg usb3bd_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 1, .val = BIT(4) },
-};
-
-/* 10: BMC XHCI to PHY, [9] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3bxh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 1, .val = BIT(5) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
-};
-
-/* 10: PCI XHCI to PHY, [9] 0: PCIe XHCI */
-struct aspeed_g7_group_funcfg usb3bxhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 1, .val = BIT(5) },
-	{ .reg = SCU10, .mask = BIT_MASK(9), .enable = 0, .val = 0 },
-};
-
-/* 11: XHCI Ext (port B), [10] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb3b2axh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 1, .val = GENMASK(5, 4) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) }
-};
-
-/* 11: XHCI Ext (port B), [10] 0: PCI XHCI */
-struct aspeed_g7_group_funcfg usb3b2axhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(5, 4), .enable = 1, .val = GENMASK(5, 4) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 }
-};
+//xhci: BMC/PCIE, vHub/PHY/EXT port
+GROUP_DECL(USB2AXHD1, PORTA_U2, PORTA_XHCI);
+GROUP_DECL(USB2AXHPD1, PORTA_U2, PORTA_XHCI);
+GROUP_DECL(USB2AXH, PORTA_U2, PORTA_XHCI, PORTA_MODE);
+GROUP_DECL(USB2AXHP, PORTA_U2, PORTA_XHCI, PORTA_MODE);
+GROUP_DECL(USB2AXH2B, PORTA_U2, PORTA_XHCI);
+GROUP_DECL(USB2AXHP2B, PORTA_U2, PORTA_XHCI);
+// vhub to phy
+GROUP_DECL(USB2AD1, PORTA_U2, PORTA_MODE);
+//ehci
+GROUP_DECL(USB2AHPD0, PORTA_U2, PORTA_MODE);
+GROUP_DECL(USB2AH, PORTA_U2, PORTA_MODE);
+GROUP_DECL(USB2AHP, PORTA_U2, PORTA_MODE);
+GROUP_DECL(USB2AD0, PORTA_U2, PORTA_MODE);
+//USB3B
+//xhci: BMC/PCIE, vHub/PHY/EXT port
+GROUP_DECL(USB3BXHD, PORTB_U3, PORTB_XHCI);
+GROUP_DECL(USB3BXHPD, PORTB_U3, PORTB_XHCI);
+GROUP_DECL(USB3BXH, PORTB_U3, PORTB_XHCI);
+GROUP_DECL(USB3BXHP, PORTB_U3, PORTB_XHCI);
+GROUP_DECL(USB3BXH2A, PORTB_U3, PORTB_XHCI);
+GROUP_DECL(USB3BXHP2A, PORTB_U3, PORTB_XHCI);
+// vhub to phy
+GROUP_DECL(USB3BD, PORTB_U3);
 
 //USB2B
-/* 00: xhci to vHub1, [10] : 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2bxhd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
+//xhci: BMC/PCIE, vHub/PHY/EXT port
+GROUP_DECL(USB2BXHD1, PORTB_U2, PORTB_XHCI);
+GROUP_DECL(USB2BXHPD1, PORTB_U2, PORTB_XHCI);
+GROUP_DECL(USB2BXH, PORTB_U2, PORTB_XHCI, PORTB_MODE);
+GROUP_DECL(USB2BXHP, PORTB_U2, PORTB_XHCI, PORTB_MODE);
+GROUP_DECL(USB2BXH2A, PORTB_U2, PORTB_XHCI);
+GROUP_DECL(USB2BXHP2A, PORTB_U2, PORTB_XHCI);
+// vhub to phy
+GROUP_DECL(USB2BD1, PORTB_U2, PORTB_MODE);
+//ehci
+GROUP_DECL(USB2BHPD0, PORTB_U2, PORTB_MODE);
+GROUP_DECL(USB2BH, PORTB_U2, PORTB_MODE);
+GROUP_DECL(USB2BHP, PORTB_U2, PORTB_MODE);
+// vhub to phy
+GROUP_DECL(USB2BD0, PORTB_U2, PORTB_MODE);
+
+static struct aspeed_pin_group aspeed_g7_soc0_pingroups[] = {
+	ASPEED_PINCTRL_GROUP(EMMCG1),
+	ASPEED_PINCTRL_GROUP(EMMCG4),
+	ASPEED_PINCTRL_GROUP(EMMCG8),
+	ASPEED_PINCTRL_GROUP(EMMCWPN),
+	ASPEED_PINCTRL_GROUP(EMMCCDN),
+	ASPEED_PINCTRL_GROUP(VGADDC),
+	ASPEED_PINCTRL_GROUP(VB1),
+	ASPEED_PINCTRL_GROUP(VB0),
+	ASPEED_PINCTRL_GROUP(USB3AXHD),
+	ASPEED_PINCTRL_GROUP(USB3AXHPD),
+	ASPEED_PINCTRL_GROUP(USB3AXH),
+	ASPEED_PINCTRL_GROUP(USB3AXHP),
+	ASPEED_PINCTRL_GROUP(USB3AXH2B),
+	ASPEED_PINCTRL_GROUP(USB3AXHP2B),
+	ASPEED_PINCTRL_GROUP(USB3AD),
+	ASPEED_PINCTRL_GROUP(USB2AXHD1),
+	ASPEED_PINCTRL_GROUP(USB2AXHPD1),
+	ASPEED_PINCTRL_GROUP(USB2AXH),
+	ASPEED_PINCTRL_GROUP(USB2AXHP),
+	ASPEED_PINCTRL_GROUP(USB2AXH2B),
+	ASPEED_PINCTRL_GROUP(USB2AXHP2B),
+	ASPEED_PINCTRL_GROUP(USB2AD1),
+	ASPEED_PINCTRL_GROUP(USB2AHPD0),
+	ASPEED_PINCTRL_GROUP(USB2AH),
+	ASPEED_PINCTRL_GROUP(USB2AHP),
+	ASPEED_PINCTRL_GROUP(USB2AD0),
+	ASPEED_PINCTRL_GROUP(USB3BXHD),
+	ASPEED_PINCTRL_GROUP(USB3BXHPD),
+	ASPEED_PINCTRL_GROUP(USB3BXH),
+	ASPEED_PINCTRL_GROUP(USB3BXHP),
+	ASPEED_PINCTRL_GROUP(USB3BXH2A),
+	ASPEED_PINCTRL_GROUP(USB3BXHP2A),
+	ASPEED_PINCTRL_GROUP(USB3BD),
+	ASPEED_PINCTRL_GROUP(USB2BXHD1),
+	ASPEED_PINCTRL_GROUP(USB2BXHPD1),
+	ASPEED_PINCTRL_GROUP(USB2BXH),
+	ASPEED_PINCTRL_GROUP(USB2BXHP),
+	ASPEED_PINCTRL_GROUP(USB2BXH2A),
+	ASPEED_PINCTRL_GROUP(USB2BXHP2A),
+	ASPEED_PINCTRL_GROUP(USB2BD1),
+	ASPEED_PINCTRL_GROUP(USB2BHPD0),
+	ASPEED_PINCTRL_GROUP(USB2BH),
+	ASPEED_PINCTRL_GROUP(USB2BHP),
+	ASPEED_PINCTRL_GROUP(USB2BD0),
 };
 
-/* 00: pci xhci to vHub1, [10] : 0 PCIe XHCI */
-struct aspeed_g7_group_funcfg usb2bxhpd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 },
+FUNC_DECL_(EMMC, "EMMCG1", "EMMCG4", "EMMCG8", "EMMCWPN", "EMMCCDN");
+FUNC_DECL_(VGADDC, "VGADDC");
+FUNC_DECL_(VB, "VB0", "VB1");
+FUNC_DECL_(USB3A, "USB3AXHD", "USB3AXHPD", "USB3AXH", "USB3AXHP", "USB3AXH2B",
+	   "USB3AXHP2B", "USB3AD");
+FUNC_DECL_(USB2A, "USB2AXHD1", "USB2AXHPD1", "USB2AXH", "USB2AXHP", "USB2AXH2B",
+	   "USB2AXHP2B", "USB2AD1", "USB2AHPD0", "USB2AH", "USB2AHP",
+	   "USB2AD0");
+FUNC_DECL_(USB3B, "USB3BXHD", "USB3BXHPD", "USB3BXH", "USB3BXHP", "USB3BXH2A",
+	   "USB3BXHP2A", "USB3BD");
+FUNC_DECL_(USB2B, "USB2BXHD1", "USB2BXHPD1", "USB2BXH", "USB2BXHP", "USB2BXH2A",
+	   "USB2BXHP2A", "USB2BD1", "USB2BHPD0", "USB2BH", "USB2BHP",
+	   "USB2BD0");
+
+static struct aspeed_pin_function aspeed_g7_soc0_funcs[] = {
+	ASPEED_PINCTRL_FUNC(EMMC),
+	ASPEED_PINCTRL_FUNC(VGADDC),
+	ASPEED_PINCTRL_FUNC(VB),
+	ASPEED_PINCTRL_FUNC(USB3A),
+	ASPEED_PINCTRL_FUNC(USB2A),
+	ASPEED_PINCTRL_FUNC(USB3B),
+	ASPEED_PINCTRL_FUNC(USB2B),
 };
 
-/* 01: vHub1 to PHY */
-struct aspeed_g7_group_funcfg usb2bd1_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(6) },
-};
-
-/* 10: BMC xhci to PHY, [10] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2bxh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(7) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) },
-};
-
-/* 10: PCI xhci to PHY, ,[10] : 0 PCIe XHCI */
-struct aspeed_g7_group_funcfg usb2bxhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 1, .val = BIT(7) },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 },
-};
-
-/* 11: XHCI Ext (port B), [10] 1: BMC XHCI */
-struct aspeed_g7_group_funcfg usb2b2axh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(26, 26), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 1, .val = BIT(10) }
-};
-
-/* 11: XHCI Ext (port B), [10] 0: PCI XHCI */
-struct aspeed_g7_group_funcfg usb2b2axhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = BIT_MASK(10), .enable = 0, .val = 0 }
-};
-
-//USB2B
-/* 00: PCIE EHCI to vHub0 */
-struct aspeed_g7_group_funcfg usb2bhpd0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 0, .val = 0 },
-};
-
-/* 01: vHub0 to PHY */
-struct aspeed_g7_group_funcfg usb2bd0_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = BIT(28) },
-};
-
-/* 10: BMC EHCI to PHY */
-struct aspeed_g7_group_funcfg usb2bh_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = BIT(29) },
-};
-
-/* 11: PCI EHCI to PHY */
-struct aspeed_g7_group_funcfg usb2bhp_cfg[] = {
-	{ .reg = SCU10, .mask = GENMASK(7, 6), .enable = 0, .val = 0 },
-	{ .reg = SCU10, .mask = GENMASK(29, 28), .enable = 1, .val = GENMASK(29, 28) },
-};
-
-#define PINGROUP(pingrp_name, grp_fn_name, n) \
-		{ .name = #pingrp_name, .fn_name = #grp_fn_name, \
-		  .pins = n##_pins, .npins = ARRAY_SIZE(n##_pins)}
-
-#define GROUPCFG(pingrp_name, grp_fn_name, n) \
-		{ .name = #pingrp_name, .fn_name = #grp_fn_name, \
-		  .groupcfg = n##_cfg, .groupcfg_nums = ARRAY_SIZE(n##_cfg)}
-
-static struct aspeed_g7_soc0_pingroup aspeed_g7_soc0_pingroups[] = {
-	PINGROUP(EMMCG1, EMMC, emmcg1),
-	PINGROUP(EMMCG4, EMMC, emmcg4),
-	PINGROUP(EMMCG8, EMMC, emmcg8),
-	PINGROUP(VGADDC, VGADDC, vgdddc),
-//USBA
-	GROUPCFG(USB3AXHD, USB3A, usb3axhd),
-	GROUPCFG(USB3AXHPD, USB3A, usb3axhpd),
-	GROUPCFG(USB3AD, USB3A, usb3ad),
-	GROUPCFG(USB3AXH, USB3A, usb3axh),
-	GROUPCFG(USB3AXHP, USB3A, usb3axhp),
-	GROUPCFG(USB3A2BH, USB3A, usb3a2bxh),
-	GROUPCFG(USB3A2BHP, USB3A, usb3a2bxhp),
-	GROUPCFG(USB2AXD1, USB3A, usb2axhd1),
-	GROUPCFG(USB2AXHPD1, USB3A, usb2axhpd1),
-	GROUPCFG(USB2AD1, USB3A, usb2ad1),
-	GROUPCFG(USB2AXH, USB3A, usb2axh),
-	GROUPCFG(USB2AXHP, USB3A, usb2axhp),
-	GROUPCFG(USB2A2BXH, USB3A, usb2a2bxh),
-	GROUPCFG(USB2A2BXHP, USB3A, usb2a2bxhp),
-	GROUPCFG(USB2AHPD0, USB3A, usb2ahpd0),
-	GROUPCFG(USB2AD0, USB3A, usb2ad0),
-	GROUPCFG(USB2AH, USB3A, usb2ah),
-	GROUPCFG(USB2AHP, USB3A, usb2ahp),
-//USBB
-	GROUPCFG(USB3BXHD, USB3A, usb3bxhd),
-	GROUPCFG(USB3BXHPD, USB3A, usb3bxhpd),
-	GROUPCFG(USB3BD, USB3A, usb3bd),
-	GROUPCFG(USB3BXH, USB3A, usb3bxh),
-	GROUPCFG(USB3BXHP, USB3A, usb3bxhp),
-	GROUPCFG(USB3B2AH, USB3A, usb3b2axh),
-	GROUPCFG(USB3B2AHP, USB3A, usb3b2axhp),
-	GROUPCFG(USB2BXD1, USB3A, usb2bxhd1),
-	GROUPCFG(USB2BXHPD1, USB3A, usb2bxhpd1),
-	GROUPCFG(USB2BD1, USB3A, usb2bd1),
-	GROUPCFG(USB2BXH, USB3A, usb2bxh),
-	GROUPCFG(USB2BXHP, USB3A, usb2bxhp),
-	GROUPCFG(USB2B2AXH, USB3A, usb2b2axh),
-	GROUPCFG(USB2B2AXHP, USB3A, usb2b2axhp),
-	GROUPCFG(USB2BHPD0, USB3A, usb2bhpd0),
-	GROUPCFG(USB2BD0, USB3A, usb2bd0),
-	GROUPCFG(USB2BH, USB3A, usb2bh),
-	GROUPCFG(USB2BHP, USB3A, usb2bhp),
-};
-
-static const char *const emmc_grp[] = { "EMMCG1", "EMMCG4", "EMMCG8" };
-static const char *const vgaddc_grp[] = { "VGADDC" };
-static const char *const usb3a_grp[] = { "USB3AXHD", "USB3AXHPD", "USB3AD", "USB3AXH",
-					 "USB3AXHP", "USB3A2BH", "USB3A2BHP" };
-static const char *const usb2a_grp[] = { "USB2AXHD1", "USB2AXHPD1", "USB2AD1", "USB2AXH",
-					 "USB2AXHP", "USB2A2BH", "USB2A2BHP",
-					 "USB2AHPD0", "USB2AD0", "USB2AH", "USB2AHP" };
-static const char *const usb3b_grp[] = { "USB3BXHD", "USB3BXHPD", "USB3BD", "USB3BXH",
-					 "USB3BXHP", "USB3B2AH", "USB3B2AHP" };
-static const char *const usb2b_grp[] = { "USB2BXHD1", "USB2BXHPD1", "USB2BD1", "USB2BXH",
-					 "USB2BXHP", "USB2B2AH", "USB2B2AHP",
-					 "USB2BHPD0", "USB2BD0", "USB2BH", "USB2BHP" };
-
-struct aspeed_g7_soc0_func {
-	const char *name;
-	const unsigned int ngroups;
-	const char *const *groups;
-};
-
-static struct aspeed_g7_soc0_func aspeed_g7_soc0_funcs[] = {
-	{ .name = "EMMC",	.ngroups = ARRAY_SIZE(emmc_grp),	.groups = emmc_grp	},
-	{ .name = "VGADDC",	.ngroups = ARRAY_SIZE(vgaddc_grp),	.groups = vgaddc_grp	},
-	{ .name = "USB3A",	.ngroups = ARRAY_SIZE(usb3a_grp),	.groups = usb3a_grp	},
-	{ .name = "USB2A",	.ngroups = ARRAY_SIZE(usb2a_grp),	.groups = usb2a_grp	},
-	{ .name = "USB3B",	.ngroups = ARRAY_SIZE(usb3b_grp),	.groups = usb3b_grp	},
-	{ .name = "USB2B",	.ngroups = ARRAY_SIZE(usb2b_grp),	.groups = usb2b_grp	},
-};
-
-/* number, name, drv_data */
 static const struct pinctrl_pin_desc aspeed_g7_soc0_pins[] = {
-	PINCTRL_PIN(0, "EMMCCLK_VB1CSN_GPIO18A0"),
-	PINCTRL_PIN(1, "EMMCCMD_VB1CK_GPIO18A1"),
-	PINCTRL_PIN(2, "EMMCDAT0_VB1MOSI_GPIO18A2"),
-	PINCTRL_PIN(3, "EMMCDAT1_VB1MISO_GPIO18A3"),
-	PINCTRL_PIN(4, "EMMCDAT2_GPIO18A4"),
-	PINCTRL_PIN(5, "EMMCDAT3_GPIO18A5"),
-	PINCTRL_PIN(6, "EMMCCDN_VB0CSN_GPIO18A6"),
-	PINCTRL_PIN(7, "EMMCWPN_VB0CK_GPIO18A7"),
-	PINCTRL_PIN(8, "EMMCDAT4_VB0MOSI_GPIO18B0"),
-	PINCTRL_PIN(9, "EMMCDAT5_VB0MISO_GPIO18B1"),
-	PINCTRL_PIN(10, "EMMCDAT6_DDCCLK_GPIO18B2"),
-	PINCTRL_PIN(11, "EMMCDAT7_DDCDAT_GPIO18B3"),
+	PINCTRL_PIN(AC14, "AC14"),
+	PINCTRL_PIN(AE15, "AE15"),
+	PINCTRL_PIN(AD14, "AD14"),
+	PINCTRL_PIN(AE14, "AE14"),
+	PINCTRL_PIN(AF14, "AF14"),
+	PINCTRL_PIN(AB13, "AB13"),
+	PINCTRL_PIN(AF15, "AF15"),
+	PINCTRL_PIN(AB14, "AB14"),
+	PINCTRL_PIN(AF13, "AF13"),
+	PINCTRL_PIN(AC13, "AC13"),
+	PINCTRL_PIN(AD13, "AD13"),
+	PINCTRL_PIN(AE13, "AE13"),
+	PINCTRL_PIN(PORTA_U3, "PORTA_U3"),
+	PINCTRL_PIN(PORTA_U2, "PORTA_U2"),
+	PINCTRL_PIN(PORTB_U3, "PORTB_U3"),
+	PINCTRL_PIN(PORTB_U2, "PORTB_U2"),
+	PINCTRL_PIN(PORTA_XHCI, "PORTA_XHCI"),
+	PINCTRL_PIN(PORTB_XHCI, "PORTB_XHCI"),
+	PINCTRL_PIN(PORTA_MODE, "PORTA_MODE"),
+	PINCTRL_PIN(PORTB_MODE, "PORTB_MODE"),
 };
 
 struct aspeed_g7_soc0_funcfg {
-	char *fn_name;
+	char *name;
 	u32 reg;
 	u32 mask;
-	int bit;
+	int val;
 };
 
 struct aspeed_g7_soc0_pincfg {
 	struct aspeed_g7_soc0_funcfg *funcfg;
 };
 
+#define PIN_CFG(cfg_name, cfg_reg, cfg_mask, cfg_val) \
+	{ .name = #cfg_name, .reg = cfg_reg, .mask = cfg_mask, .val = cfg_val }
+
 static const struct aspeed_g7_soc0_pincfg pin_cfg[] = {
+//GPIO18A0
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(0), .bit = 0, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(0), BIT(0)),
+				PIN_CFG(VB1, SCU404, BIT_MASK(0), BIT(0)),
+			},
+	},
+	{
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(1), BIT(1)),
+				PIN_CFG(VB1, SCU404, BIT_MASK(1), BIT(1)),
+			},
+	},
+	{
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(2), BIT(2)),
+				PIN_CFG(VB1, SCU404, BIT_MASK(2), BIT(2)),
+			},
+	},
+	{
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(3), BIT(3)),
+				PIN_CFG(VB1, SCU404, BIT_MASK(3), BIT(3)),
 			},
 	},
 	{
 		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(1), .bit = 1, },
+				PIN_CFG(EMMC, SCU400, BIT_MASK(4), BIT(4)),
+		},
+	},
+	{
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(5), BIT(5)),
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(2), .bit = 2, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(6), BIT(6)),
+				PIN_CFG(VB0, SCU404, BIT_MASK(6), BIT(6)),
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(3), .bit = 3, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(7), BIT(7)),
+				PIN_CFG(VB0, SCU404, BIT_MASK(7), BIT(7)),
+			},
+	},
+//GPIO18B0
+	{
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(8), BIT(8)),
+				PIN_CFG(VB0, SCU404, BIT_MASK(8), BIT(8)),
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(4), .bit = 4, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(9), BIT(9)),
+				PIN_CFG(VB0, SCU404, BIT_MASK(9), BIT(9)),
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(5), .bit = 5, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(10), BIT(10)),
+				PIN_CFG(VGADDC, SCU404, BIT_MASK(10), BIT(10)),
 			},
 	},
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(6), .bit = 6, },
+		.funcfg =
+			(struct aspeed_g7_soc0_funcfg[]){
+				PIN_CFG(EMMC, SCU400, BIT_MASK(11), BIT(11)),
+				PIN_CFG(VGADDC, SCU404, BIT_MASK(11), BIT(11)),
 			},
 	},
+//PORTA_U3
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(7), .bit = 7, },
-			},
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB3AXHD, SCU410, GENMASK(1, 0), 0),
+			PIN_CFG(USB3AXHPD, SCU410, GENMASK(1, 0), 0),
+			PIN_CFG(USB3AXH, SCU410, GENMASK(1, 0), 2),
+			PIN_CFG(USB3AXHP, SCU410, GENMASK(1, 0), 2),
+			PIN_CFG(USB3AXH2B, SCU410, GENMASK(1, 0), 3),
+			PIN_CFG(USB3AXHP2B, SCU410, GENMASK(1, 0), 3),
+			PIN_CFG(USB3AD, SCU410, GENMASK(1, 0), 1),
+		},
 	},
+//PORTA_U2
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(8), .bit = 8, },
-			},
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB2AXHD1, SCU410, GENMASK(3, 2), 0),
+			PIN_CFG(USB2AXHPD1, SCU410, GENMASK(3, 2), 0),
+			PIN_CFG(USB2AXH, SCU410, GENMASK(3, 2), 2 << 2),
+			PIN_CFG(USB2AXHP, SCU410, GENMASK(3, 2), 2 << 2),
+			PIN_CFG(USB2AXH2B, SCU410, GENMASK(3, 2), 3 << 2),
+			PIN_CFG(USB2AXHP2B, SCU410, GENMASK(3, 2), 3 << 2),
+			PIN_CFG(USB2AD1, SCU410, GENMASK(3, 2), 1 << 2),
+		},
 	},
+//PORTB_U3
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{	.fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(9), .bit = 9, },
-			},
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB3BXHD, SCU410, GENMASK(5, 4), 0),
+			PIN_CFG(USB3BXHPD, SCU410, GENMASK(5, 4), 0),
+			PIN_CFG(USB3BXH, SCU410, GENMASK(5, 4), 2 << 4),
+			PIN_CFG(USB3BXHP, SCU410, GENMASK(5, 4), 2 << 4),
+			PIN_CFG(USB3BXH2A, SCU410, GENMASK(5, 4), 3 << 4),
+			PIN_CFG(USB3BXHP2A, SCU410, GENMASK(5, 4), 3 << 4),
+			PIN_CFG(USB3BD, SCU410, GENMASK(5, 4), 1 << 4),
+		},
 	},
+//PORTB_U2
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{ .fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(10), .bit = 10,	},
-			{ .fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(10), .bit = 10,	},
-			},
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB2BXHD1, SCU410, GENMASK(7, 6), 0),
+			PIN_CFG(USB2BXHPD1, SCU410, GENMASK(7, 6), 0),
+			PIN_CFG(USB2BXH, SCU410, GENMASK(7, 6), 2 << 6),
+			PIN_CFG(USB2BXHP, SCU410, GENMASK(7, 6), 2 << 6),
+			PIN_CFG(USB2BXH2A, SCU410, GENMASK(7, 6), 3 << 6),
+			PIN_CFG(USB2BXHP2A, SCU410, GENMASK(7, 6), 3 << 6),
+			PIN_CFG(USB2BD1, SCU410, GENMASK(7, 6), 1 << 6),
+		},
 	},
+//PORTA_XHCI
 	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-			{ .fn_name = "EMMC", .reg = SCU00, .mask = BIT_MASK(11), .bit = 11,	},
-			{ .fn_name = "VGADDC", .reg = SCU04, .mask = BIT_MASK(11), .bit = 11,	},
-			},
-	}
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB3AXHD, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB3AXHPD, SCU410, BIT_MASK(9), 0),
+			PIN_CFG(USB3AXH, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB3AXHP, SCU410, BIT_MASK(9), 0),
+			PIN_CFG(USB3AXH2B, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB3AXHP2B, SCU410, BIT_MASK(9), 0),
+			PIN_CFG(USB2AXHD1, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB2AXHPD1, SCU410, BIT_MASK(9), 0),
+			PIN_CFG(USB2AXH, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB2AXHP, SCU410, BIT_MASK(9), 0),
+			PIN_CFG(USB2AXH2B, SCU410, BIT_MASK(9), 1 << 9),
+			PIN_CFG(USB2AXHP2B, SCU410, BIT_MASK(9), 0),
+		},
+	},
+//PORTB_XHCI
+	{
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB3BXHD, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB3BXHPD, SCU410, BIT_MASK(10), 0),
+			PIN_CFG(USB3BXH, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB3BXHP, SCU410, BIT_MASK(10), 0),
+			PIN_CFG(USB3BXH2A, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB3BXHP2A, SCU410, BIT_MASK(10), 0),
+			PIN_CFG(USB2BXHD1, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB2BXHPD1, SCU410, BIT_MASK(10), 0),
+			PIN_CFG(USB2BXH, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB2BXHP, SCU410, BIT_MASK(10), 0),
+			PIN_CFG(USB2BXH2A, SCU410, BIT_MASK(10), 1 << 10),
+			PIN_CFG(USB2BXHP2A, SCU410, BIT_MASK(10), 0),
+		},
+	},
+//PORTA_MODE
+	{
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB2AHPD0, SCU410, GENMASK(25, 24), 0),
+			PIN_CFG(USB2AH, SCU410, GENMASK(25, 24), 2 << 24),
+			PIN_CFG(USB2AHP, SCU410, GENMASK(25, 24), 3 << 24),
+			PIN_CFG(USB2AD0, SCU410, GENMASK(25, 24), 1 << 24),
+		},
+	},
+//PORTB_MODE
+	{
+		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
+			PIN_CFG(USB2BHPD0, SCU410, GENMASK(29, 28), 0),
+			PIN_CFG(USB2BH, SCU410, GENMASK(29, 28), 2 << 28),
+			PIN_CFG(USB2BHP, SCU410, GENMASK(29, 28), 3 << 28),
+			PIN_CFG(USB2BD0, SCU410, GENMASK(29, 28), 1 << 28),
+		},
+	},
 };
-
-/* pinctrl_ops */
-static int aspeed_g7_soc0_get_groups_count(struct pinctrl_dev *pctldev)
-{
-	return ARRAY_SIZE(aspeed_g7_soc0_pingroups);
-}
-
-static const char *aspeed_g7_soc0_get_group_name(struct pinctrl_dev *pctldev,
-						 unsigned int selector)
-{
-	return aspeed_g7_soc0_pingroups[selector].name;
-}
-
-static int aspeed_g7_soc0_get_group_pins(struct pinctrl_dev *pctldev,
-					 unsigned int selector,
-					 const unsigned int **pins,
-					 unsigned int *npins)
-{
-	*npins = aspeed_g7_soc0_pingroups[selector].npins;
-	*pins = aspeed_g7_soc0_pingroups[selector].pins;
-
-	return 0;
-}
-
-static int aspeed_g7_soc0_dt_node_to_map(struct pinctrl_dev *pctldev,
-					 struct device_node *np_config,
-					 struct pinctrl_map **map, u32 *num_maps)
-{
-	return pinconf_generic_dt_node_to_map(pctldev, np_config, map, num_maps,
-					      PIN_MAP_TYPE_INVALID);
-}
-
-static void aspeed_g7_soc0_dt_free_map(struct pinctrl_dev *pctldev,
-				       struct pinctrl_map *map, u32 num_maps)
-{
-	kfree(map);
-}
 
 static const struct pinctrl_ops aspeed_g7_soc0_pinctrl_ops = {
-	.get_groups_count = aspeed_g7_soc0_get_groups_count,
-	.get_group_name = aspeed_g7_soc0_get_group_name,
-	.get_group_pins = aspeed_g7_soc0_get_group_pins,
-	.dt_node_to_map = aspeed_g7_soc0_dt_node_to_map,
-	.dt_free_map = aspeed_g7_soc0_dt_free_map,
+	.get_groups_count = aspeed_pinctrl_get_groups_count,
+	.get_group_name = aspeed_pinctrl_get_group_name,
+	.get_group_pins = aspeed_pinctrl_get_group_pins,
+	.pin_dbg_show = aspeed_pinctrl_pin_dbg_show,
+	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_free_map = pinctrl_utils_free_map,
 };
-
-static int aspeed_g7_soc0_get_functions_count(struct pinctrl_dev *pctldev)
-{
-	return ARRAY_SIZE(aspeed_g7_soc0_funcs);
-}
-
-static const char *aspeed_g7_soc0_get_function_name(struct pinctrl_dev *pctldev,
-						    unsigned int function)
-{
-	return aspeed_g7_soc0_funcs[function].name;
-}
-
-static int aspeed_g7_soc0_get_function_groups(struct pinctrl_dev *pctldev,
-					      unsigned int function,
-					      const char *const **groups,
-					      unsigned int *const ngroups)
-{
-	*ngroups = aspeed_g7_soc0_funcs[function].ngroups;
-	*groups = aspeed_g7_soc0_funcs[function].groups;
-
-	return 0;
-}
 
 static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
 					 unsigned int function,
@@ -540,39 +431,25 @@ static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	int pin;
 	const struct aspeed_g7_soc0_pincfg *cfg;
 	const struct aspeed_g7_soc0_funcfg *funcfg;
-	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct aspeed_g7_soc0_pingroup *pingroup = &aspeed_g7_soc0_pingroups[group];
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pin_group *pingroup = &aspeed_g7_soc0_pingroups[group];
 
-	if (pingroup->groupcfg) {
-		for (i = 0; i < pingroup->groupcfg_nums; i++) {
-			struct aspeed_g7_group_funcfg *groupcfg = &pingroup->groupcfg[i];
-			u32 val = readl(pinctrl->regs + groupcfg->reg) & ~groupcfg->mask;
+	for (i = 0; i < pingroup->npins; i++) {
+		pin = pingroup->pins[i];
+		cfg = &pin_cfg[pin];
 
-			if (groupcfg->enable)
-				val |= groupcfg->val;
-			writel(val, pinctrl->regs + groupcfg->reg);
-			groupcfg++;
-		}
-	} else {
-		for (i = 0; i < pingroup->npins; i++) {
-			pin = pingroup->pins[i];
-			cfg = &pin_cfg[pin];
-
-			funcfg = &cfg->funcfg[0];
-			while (funcfg->fn_name) {
-				if (strcmp(funcfg->fn_name, pingroup->name) == 0) {
-					writel((readl(pinctrl->regs + funcfg->reg) &
-						funcfg->mask) |
-							   BIT(funcfg->bit),
-						   pinctrl->regs + funcfg->reg);
-					break;
-				}
-				funcfg++;
+		funcfg = &cfg->funcfg[0];
+		while (funcfg->name) {
+			if (strcmp(funcfg->name, pingroup->name) == 0) {
+				regmap_update_bits(pinctrl->scu, funcfg->reg,
+						   funcfg->mask, funcfg->val);
+				break;
 			}
-
-			if (!funcfg->fn_name)
-				return 0;
+			funcfg++;
 		}
+
+		if (!funcfg->name)
+			return 0;
 	}
 
 	return 0;
@@ -582,135 +459,35 @@ static int aspeed_g7_soc0_gpio_request_enable(struct pinctrl_dev *pctldev,
 					      struct pinctrl_gpio_range *range,
 					      unsigned int offset)
 {
-	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_g7_soc0_pincfg *cfg = &pin_cfg[offset];
 	const struct aspeed_g7_soc0_funcfg *funcfg;
 
-	if (!cfg) {
+	if (cfg) {
 		funcfg = &cfg->funcfg[0];
-		while (funcfg->fn_name) {
-			writel((readl(pinctrl->regs + funcfg->reg) & ~funcfg->mask),
-			       pinctrl->regs + funcfg->reg);
-			funcfg++;
-		}
+		if (funcfg->name)
+			regmap_update_bits(pinctrl->scu, funcfg->reg,
+					   funcfg->mask, 0);
 	}
 	return 0;
 }
 
-static void aspeed_g7_soc0_gpio_request_free(struct pinctrl_dev *pctldev,
-					     struct pinctrl_gpio_range *range,
-					     unsigned int offset)
-{
-	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	int virq;
-
-	virq = irq_find_mapping(pinctrl->domain, offset);
-	if (virq)
-		irq_dispose_mapping(virq);
-}
 
 static const struct pinmux_ops aspeed_g7_soc0_pinmux_ops = {
-	.get_functions_count = aspeed_g7_soc0_get_functions_count,
-	.get_function_name = aspeed_g7_soc0_get_function_name,
-	.get_function_groups = aspeed_g7_soc0_get_function_groups,
+	.get_functions_count = aspeed_pinmux_get_fn_count,
+	.get_function_name = aspeed_pinmux_get_fn_name,
+	.get_function_groups = aspeed_pinmux_get_fn_groups,
 	.set_mux = aspeed_g7_soc0_pinmux_set_mux,
 	.gpio_request_enable = aspeed_g7_soc0_gpio_request_enable,
-	.gpio_disable_free = aspeed_g7_soc0_gpio_request_free,
+	.strict = true,
 };
-
-static int aspeed_g7_soc0_config_get(struct pinctrl_dev *pctldev,
-				     unsigned int pin, unsigned long *config)
-{
-//	struct aspeed_g7_soc0_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(*config);
-	int rc = 0;
-
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		break;
-	case PIN_CONFIG_OUTPUT:
-	case PIN_CONFIG_INPUT_ENABLE:
-		break;
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-		break;
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		break;
-	case PIN_CONFIG_INPUT_DEBOUNCE:
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-		break;
-	case PIN_CONFIG_SLEW_RATE:
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	if (!rc)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int aspeed_g7_soc0_config_set_one(struct aspeed_g7_soc0_pinctrl *pinctrl,
-					 unsigned int pin, unsigned long config)
-{
-	enum pin_config_param param = pinconf_to_config_param(config);
-
-	switch (param) {
-	case PIN_CONFIG_BIAS_DISABLE:
-		break;
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		break;
-	case PIN_CONFIG_BIAS_PULL_UP:
-		break;
-	case PIN_CONFIG_INPUT_ENABLE:
-		break;
-	case PIN_CONFIG_OUTPUT:
-		break;
-	case PIN_CONFIG_DRIVE_PUSH_PULL:
-
-		break;
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-
-		break;
-	case PIN_CONFIG_INPUT_DEBOUNCE:
-		break;
-	case PIN_CONFIG_SLEW_RATE:
-
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	return 0;
-}
-
-static int aspeed_g7_soc0_config_set(struct pinctrl_dev *pctldev,
-				     unsigned int pin, unsigned long *configs,
-				     unsigned int num_configs)
-{
-	struct aspeed_g7_soc0_pinctrl *pinctrl =
-		pinctrl_dev_get_drvdata(pctldev);
-	int rc;
-
-	while (num_configs--) {
-		rc = aspeed_g7_soc0_config_set_one(pinctrl, pin, *configs++);
-		if (rc)
-			return rc;
-	}
-
-	return 0;
-}
 
 static const struct pinconf_ops aspeed_g7_soc0_pinconf_ops = {
 	.is_generic = true,
-	.pin_config_get = aspeed_g7_soc0_config_get,
-	.pin_config_set = aspeed_g7_soc0_config_set,
+	.pin_config_get = aspeed_pin_config_get,
+	.pin_config_set = aspeed_pin_config_set,
+	.pin_config_group_get = aspeed_pin_config_group_get,
+	.pin_config_group_set = aspeed_pin_config_group_set,
 };
 
 /* pinctrl_desc */
@@ -724,26 +501,21 @@ static struct pinctrl_desc aspeed_g7_soc0_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static struct aspeed_pinctrl_data aspeed_g7_pinctrl_data = {
+	.pins = aspeed_g7_soc0_pins,
+	.npins = ARRAY_SIZE(aspeed_g7_soc0_pins),
+	.pinmux = {
+		.groups = aspeed_g7_soc0_pingroups,
+		.ngroups = ARRAY_SIZE(aspeed_g7_soc0_pingroups),
+		.functions = aspeed_g7_soc0_funcs,
+		.nfunctions = ARRAY_SIZE(aspeed_g7_soc0_funcs),
+	},
+};
+
 static int aspeed_g7_soc0_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct aspeed_g7_soc0_pinctrl *pctrl;
-
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
-	if (!pctrl)
-		return -ENOMEM;
-
-	pctrl->dev = dev;
-	platform_set_drvdata(pdev, pctrl);
-
-	pctrl->regs = devm_platform_ioremap_resource(pdev, 0);
-	pctrl->pctldev =
-		devm_pinctrl_register(dev, &aspeed_g7_soc0_pinctrl_desc, pctrl);
-	if (IS_ERR(pctrl->pctldev))
-		return dev_err_probe(dev, PTR_ERR(pctrl->pctldev),
-				     "Failed to register pinctrl device\n");
-
-	return 0;
+	return aspeed_pinctrl_probe(pdev, &aspeed_g7_soc0_pinctrl_desc,
+				    &aspeed_g7_pinctrl_data);
 }
 
 static const struct of_device_id aspeed_g7_soc0_pinctrl_match[] = {

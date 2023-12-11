@@ -16,6 +16,16 @@
 		groups = "EMMCG8";
 	};
 
+	pinctrl_emmcwpn_default: emmcwpn_default {
+		function = "EMMC";
+		groups = "EMMCWPN";
+	};
+
+	pinctrl_emmccdn_default: emmccdn_default {
+		function = "EMMC";
+		groups = "EMMCCDN";
+	};
+
 	pinctrl_vgaddc_default: vgaddc_default {
 		function = "VGADDC";
 		groups = "VGADDC";
@@ -46,19 +56,19 @@
 		groups = "USB3AXHP";
 	};
 
-	pinctrl_usb3a2bh_default: usb3a2bh_default {
+	pinctrl_usb3axh2b_default: usb3axh2b_default {
 		function = "USB3A";
-		groups = "USB3A2BH";
+		groups = "USB3AXH2B";
 	};
 
-	pinctrl_usb3a2bhp_default: usb3a2bhp_default {
+	pinctrl_usb3axhp2b_default: usb3axhp2b_default {
 		function = "USB3A";
-		groups = "USB3A2BHP";
+		groups = "USB3AXHP2B";
 	};
 
-	pinctrl_usb2axd1_default: usb2axd1_default {
+	pinctrl_usb2axhd1_default: usb2axhd1_default {
 		function = "USB2A";
-		groups = "USB2AXD1";
+		groups = "USB2AXHD1";
 	};
 
 	pinctrl_usb2axhpd1_default: usb2axhpd1_default {
@@ -81,14 +91,14 @@
 		groups = "USB2AXHP";
 	};
 
-	pinctrl_usb2a2bxh_default: usb2a2bxh_default {
+	pinctrl_usb2axh2b_default: usb2axh2b_default {
 		function = "USB2A";
-		groups = "USB2A2BXH";
+		groups = "USB2AXH2B";
 	};
 
-	pinctrl_usb2a2bxhp_default: usb2a2bxhp_default {
+	pinctrl_usb2axhp2b_default: usb2axhp2b_default {
 		function = "USB2A";
-		groups = "USB2A2BXHP";
+		groups = "USB2AXHP2B";
 	};
 
 	pinctrl_usb2ahpd0_default: usb2ahpd0_default {
@@ -136,19 +146,19 @@
 		groups = "USB3BXHP";
 	};
 
-	pinctrl_usb3b2ah_default: usb3b2ah_default {
+	pinctrl_usb3bxh2a_default: usb3bxh2a_default {
 		function = "USB3B";
-		groups = "USB3B2AH";
+		groups = "USB3BXH2A";
 	};
 
-	pinctrl_usb3b2ahp_default: usb3b2ahp_default {
+	pinctrl_usb3bxhp2a_default: usb3bxhp2a_default {
 		function = "USB3B";
-		groups = "USB3B2AHP";
+		groups = "USB3BXHP2A";
 	};
 
-	pinctrl_usb2bxd1_default: usb2bxd1_default {
+	pinctrl_usb2bxhd1_default: usb2bxhd1_default {
 		function = "USB2B";
-		groups = "USB2BXD1";
+		groups = "USB2BXHD1";
 	};
 
 	pinctrl_usb2bxhpd1_default: usb2bxhpd1_default {
@@ -171,14 +181,14 @@
 		groups = "USB2BXHP";
 	};
 
-	pinctrl_usb2b2axh_default: usb2b2axh_default {
+	pinctrl_usb2bxh2a_default: usb2bxh2a_default {
 		function = "USB2B";
-		groups = "USB2B2AXH";
+		groups = "USB2BXH2A";
 	};
 
-	pinctrl_usb2b2axhp_default: usb2b2axhp_default {
+	pinctrl_usb2bxhp2a_default: usb2bxhp2a_default {
 		function = "USB2B";
-		groups = "USB2B2AXHP";
+		groups = "USB2BXHP2A";
 	};
 
 	pinctrl_usb2bhpd0_default: usb2bhpd0_default {
