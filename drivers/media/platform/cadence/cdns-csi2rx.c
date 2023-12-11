@@ -393,6 +393,18 @@ out:
 	return ret;
 }
 
+static int csi2rx_enum_mbus_code(struct v4l2_subdev *subdev,
+				 struct v4l2_subdev_state *state,
+				 struct v4l2_subdev_mbus_code_enum *code_enum)
+{
+	if (code_enum->index >= ARRAY_SIZE(formats))
+		return -EINVAL;
+
+	code_enum->code = formats[code_enum->index].code;
+
+	return 0;
+}
+
 static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_state *state,
 			  struct v4l2_subdev_format *format)
@@ -443,6 +455,7 @@ static int csi2rx_init_state(struct v4l2_subdev *subdev,
 }
 
 static const struct v4l2_subdev_pad_ops csi2rx_pad_ops = {
+	.enum_mbus_code	= csi2rx_enum_mbus_code,
 	.get_fmt	= v4l2_subdev_get_fmt,
 	.set_fmt	= csi2rx_set_fmt,
 };
