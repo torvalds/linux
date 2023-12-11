@@ -170,6 +170,7 @@
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
+#define RKMODULE_CAMERA_FASTBOOT_ENABLE "rockchip,camera_fastboot"
 
 #define IMX415_NAME			"imx415"
 
@@ -227,7 +228,7 @@ struct imx415 {
 	struct mutex		mutex;
 	bool			streaming;
 	bool			power_on;
-	bool			is_thunderboot;
+	u32			is_thunderboot;
 	bool			is_thunderboot_ng;
 	bool			is_first_streamoff;
 	const struct imx415_mode *supported_modes;
@@ -2426,10 +2427,6 @@ int __imx415_power_on(struct imx415 *imx415)
 {
 	int ret;
 	struct device *dev = &imx415->client->dev;
-
-	if (imx415->is_thunderboot)
-		return 0;
-
 	if (!IS_ERR_OR_NULL(imx415->pins_default)) {
 		ret = pinctrl_select_state(imx415->pinctrl,
 					   imx415->pins_default);
@@ -2437,22 +2434,24 @@ int __imx415_power_on(struct imx415 *imx415)
 			dev_err(dev, "could not set pins\n");
 	}
 
-	ret = regulator_bulk_enable(IMX415_NUM_SUPPLIES, imx415->supplies);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulators\n");
-		goto err_pinctrl;
-	}
-	if (!IS_ERR(imx415->power_gpio))
-		gpiod_direction_output(imx415->power_gpio, 1);
-	/* At least 500ns between power raising and XCLR */
-	/* fix power on timing if insmod this ko */
-	usleep_range(10 * 1000, 20 * 1000);
-	if (!IS_ERR(imx415->reset_gpio))
-		gpiod_direction_output(imx415->reset_gpio, 0);
+	if (!imx415->is_thunderboot) {
+		ret = regulator_bulk_enable(IMX415_NUM_SUPPLIES, imx415->supplies);
+		if (ret < 0) {
+			dev_err(dev, "Failed to enable regulators\n");
+			goto err_pinctrl;
+		}
+		if (!IS_ERR(imx415->power_gpio))
+			gpiod_direction_output(imx415->power_gpio, 1);
+		/* At least 500ns between power raising and XCLR */
+		/* fix power on timing if insmod this ko */
+		usleep_range(10 * 1000, 20 * 1000);
+		if (!IS_ERR(imx415->reset_gpio))
+			gpiod_direction_output(imx415->reset_gpio, 0);
 
-	/* At least 1us between XCLR and clk */
-	/* fix power on timing if insmod this ko */
-	usleep_range(10 * 1000, 20 * 1000);
+		/* At least 1us between XCLR and clk */
+		/* fix power on timing if insmod this ko */
+		usleep_range(10 * 1000, 20 * 1000);
+	}
 	ret = clk_set_rate(imx415->xvclk, imx415->cur_mode->xvclk);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate\n");
@@ -2465,7 +2464,8 @@ int __imx415_power_on(struct imx415 *imx415)
 	}
 
 	/* At least 20us between XCLR and I2C communication */
-	usleep_range(20*1000, 30*1000);
+	if (!imx415->is_thunderboot)
+		usleep_range(20*1000, 30*1000);
 
 	return 0;
 
@@ -2960,7 +2960,8 @@ static int imx415_probe(struct i2c_client *client,
 		}
 	}
 
-	imx415->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+	of_property_read_u32(node, RKMODULE_CAMERA_FASTBOOT_ENABLE,
+		&imx415->is_thunderboot);
 
 	imx415->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(imx415->xvclk)) {
