@@ -25,6 +25,14 @@ static void test_xattr(void)
 	fd = -1;
 
 	err = setxattr(testfile, "user.kfuncs", "hello", sizeof("hello"), 0);
+	if (err && errno == EOPNOTSUPP) {
+		printf("%s:SKIP:local fs doesn't support xattr (%d)\n"
+		       "To run this test, make sure /tmp filesystem supports xattr.\n",
+		       __func__, errno);
+		test__skip();
+		goto out;
+	}
+
 	if (!ASSERT_OK(err, "setxattr"))
 		goto out;
 
