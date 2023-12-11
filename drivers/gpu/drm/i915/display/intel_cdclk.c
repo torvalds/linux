@@ -1880,9 +1880,9 @@ static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 {
 	int cdclk = cdclk_config->cdclk;
 	int vco = cdclk_config->vco;
-	u32 val;
+	int unsquashed_cdclk;
 	u16 waveform;
-	int clock;
+	u32 val;
 
 	if (HAS_CDCLK_CRAWL(dev_priv) && dev_priv->display.cdclk.hw.vco > 0 && vco > 0 &&
 	    !cdclk_pll_is_unknown(dev_priv->display.cdclk.hw.vco)) {
@@ -1899,15 +1899,13 @@ static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	waveform = cdclk_squash_waveform(dev_priv, cdclk);
 
-	if (waveform)
-		clock = vco / 2;
-	else
-		clock = cdclk;
+	unsquashed_cdclk = DIV_ROUND_CLOSEST(cdclk * cdclk_squash_len,
+					     cdclk_squash_divider(waveform));
 
 	if (HAS_CDCLK_SQUASH(dev_priv))
 		dg2_cdclk_squash_program(dev_priv, waveform);
 
-	val = bxt_cdclk_cd2x_div_sel(dev_priv, clock, vco) |
+	val = bxt_cdclk_cd2x_div_sel(dev_priv, unsquashed_cdclk, vco) |
 		bxt_cdclk_cd2x_pipe(dev_priv, pipe);
 
 	/*
