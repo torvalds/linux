@@ -1646,13 +1646,14 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 				struct keylist *keys)
 {
 	struct btree_path *linked;
+	unsigned i;
 
 	__bch2_btree_insert_keys_interior(as, trans, path, b,
 					  path->l[b->c.level].iter, keys);
 
 	btree_update_updated_node(as, b);
 
-	trans_for_each_path_with_node(trans, b, linked)
+	trans_for_each_path_with_node(trans, b, linked, i)
 		bch2_btree_node_iter_peek(&linked->l[b->c.level].iter, b);
 
 	bch2_trans_verify_paths(trans);

@@ -151,22 +151,21 @@ static inline bool __path_has_node(const struct btree_path *path,
 
 static inline struct btree_path *
 __trans_next_path_with_node(struct btree_trans *trans, struct btree *b,
-			    unsigned idx)
+			    unsigned *idx)
 {
-	struct btree_path *path = __trans_next_path(trans, &idx);
+	struct btree_path *path;
 
-	while ((path = __trans_next_path(trans, &idx)) &&
+	while ((path = __trans_next_path(trans, idx)) &&
 		!__path_has_node(path, b))
-	       idx++;
+	       (*idx)++;
 
 	return path;
 }
 
-#define trans_for_each_path_with_node(_trans, _b, _path)		\
-	for (_path = __trans_next_path_with_node((_trans), (_b), 1);	\
-	     (_path);							\
-	     _path = __trans_next_path_with_node((_trans), (_b),	\
-						 (_path)->idx + 1))
+#define trans_for_each_path_with_node(_trans, _b, _path, _iter)		\
+	for (_iter = 1;							\
+	     (_path = __trans_next_path_with_node((_trans), (_b), &_iter));\
+	     _iter++)
 
 btree_path_idx_t __bch2_btree_path_make_mut(struct btree_trans *, btree_path_idx_t,
 					    bool, unsigned long);

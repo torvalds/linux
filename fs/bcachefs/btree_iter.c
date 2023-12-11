@@ -418,8 +418,9 @@ void bch2_btree_path_fix_key_modified(struct btree_trans *trans,
 				      struct bkey_packed *where)
 {
 	struct btree_path *path;
+	unsigned i;
 
-	trans_for_each_path_with_node(trans, b, path) {
+	trans_for_each_path_with_node(trans, b, path, i) {
 		__bch2_btree_path_fix_key_modified(path, b, where);
 		bch2_btree_path_verify_level(trans, path, b->c.level);
 	}
@@ -526,6 +527,7 @@ void bch2_btree_node_iter_fix(struct btree_trans *trans,
 {
 	struct bset_tree *t = bch2_bkey_to_bset_inlined(b, where);
 	struct btree_path *linked;
+	unsigned i;
 
 	if (node_iter != &path->l[b->c.level].iter) {
 		__bch2_btree_node_iter_fix(path, b, node_iter, t,
@@ -535,7 +537,7 @@ void bch2_btree_node_iter_fix(struct btree_trans *trans,
 			bch2_btree_node_iter_verify(node_iter, b);
 	}
 
-	trans_for_each_path_with_node(trans, b, linked) {
+	trans_for_each_path_with_node(trans, b, linked, i) {
 		__bch2_btree_node_iter_fix(linked, b,
 					   &linked->l[b->c.level].iter, t,
 					   where, clobber_u64s, new_u64s);
@@ -714,8 +716,9 @@ void bch2_trans_node_add(struct btree_trans *trans,
 void bch2_trans_node_reinit_iter(struct btree_trans *trans, struct btree *b)
 {
 	struct btree_path *path;
+	unsigned i;
 
-	trans_for_each_path_with_node(trans, b, path)
+	trans_for_each_path_with_node(trans, b, path, i)
 		__btree_path_level_init(path, b->c.level);
 
 	bch2_trans_revalidate_updates_in_node(trans, b);
