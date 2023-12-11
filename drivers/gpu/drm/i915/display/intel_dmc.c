@@ -432,6 +432,16 @@ static bool is_dmc_evt_ctl_reg(struct drm_i915_private *i915,
 	return offset >= start && offset < end;
 }
 
+static bool is_dmc_evt_htp_reg(struct drm_i915_private *i915,
+			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	u32 start = i915_mmio_reg_offset(DMC_EVT_HTP(i915, dmc_id, 0));
+	u32 end = i915_mmio_reg_offset(DMC_EVT_HTP(i915, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+
+	return offset >= start && offset < end;
+}
+
 static bool disable_dmc_evt(struct drm_i915_private *i915,
 			    enum intel_dmc_id dmc_id,
 			    i915_reg_t reg, u32 data)
@@ -713,9 +723,17 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 		return 0;
 	}
 
+	drm_dbg_kms(&i915->drm, "DMC %d:\n", dmc_id);
 	for (i = 0; i < mmio_count; i++) {
 		dmc_info->mmioaddr[i] = _MMIO(mmioaddr[i]);
 		dmc_info->mmiodata[i] = mmiodata[i];
+
+		drm_dbg_kms(&i915->drm, " mmio[%d]: 0x%x = 0x%x%s%s\n",
+			    i, mmioaddr[i], mmiodata[i],
+			    is_dmc_evt_ctl_reg(i915, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_CTL)" :
+			    is_dmc_evt_htp_reg(i915, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_HTP)" : "",
+			    disable_dmc_evt(i915, dmc_id, dmc_info->mmioaddr[i],
+					    dmc_info->mmiodata[i]) ? " (disabling)" : "");
 	}
 	dmc_info->mmio_count = mmio_count;
 	dmc_info->start_mmioaddr = start_mmioaddr;
