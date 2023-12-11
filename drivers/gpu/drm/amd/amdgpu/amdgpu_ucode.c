@@ -680,6 +680,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "UMSCH_MM_DATA";
 	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
 		return "UMSCH_MM_CMD_BUFFER";
+	case AMDGPU_UCODE_ID_JPEG_RAM:
+		return "JPEG";
 	default:
 		return "UNKNOWN UCODE";
 	}
