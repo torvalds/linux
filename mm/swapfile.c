@@ -1749,11 +1749,13 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
 	int ret = 1;
 
 	swapcache = page;
-	page = ksm_might_need_to_copy(page, vma, addr);
-	if (unlikely(!page))
+	folio = ksm_might_need_to_copy(folio, vma, addr);
+	if (unlikely(!folio))
 		return -ENOMEM;
-	else if (unlikely(PTR_ERR(page) == -EHWPOISON))
+	else if (unlikely(folio == ERR_PTR(-EHWPOISON)))
 		hwpoisoned = true;
+	else
+		page = folio_file_page(folio, swp_offset(entry));
 
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	if (unlikely(!pte || !pte_same_as_swp(ptep_get(pte),

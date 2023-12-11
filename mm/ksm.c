@@ -2873,30 +2873,30 @@ void __ksm_exit(struct mm_struct *mm)
 	trace_ksm_exit(mm);
 }
 
-struct page *ksm_might_need_to_copy(struct page *page,
+struct folio *ksm_might_need_to_copy(struct folio *folio,
 			struct vm_area_struct *vma, unsigned long addr)
 {
-	struct folio *folio = page_folio(page);
+	struct page *page = folio_page(folio, 0);
 	struct anon_vma *anon_vma = folio_anon_vma(folio);
 	struct folio *new_folio;
 
 	if (folio_test_large(folio))
-		return page;
+		return folio;
 
 	if (folio_test_ksm(folio)) {
 		if (folio_stable_node(folio) &&
 		    !(ksm_run & KSM_RUN_UNMERGE))
-			return page;	/* no need to copy it */
+			return folio;	/* no need to copy it */
 	} else if (!anon_vma) {
-		return page;		/* no need to copy it */
+		return folio;		/* no need to copy it */
 	} else if (folio->index == linear_page_index(vma, addr) &&
 			anon_vma->root == vma->anon_vma->root) {
-		return page;		/* still no need to copy it */
+		return folio;		/* still no need to copy it */
 	}
 	if (PageHWPoison(page))
 		return ERR_PTR(-EHWPOISON);
 	if (!folio_test_uptodate(folio))
-		return page;		/* let do_swap_page report the error */
+		return folio;		/* let do_swap_page report the error */
 
 	new_folio = vma_alloc_folio(GFP_HIGHUSER_MOVABLE, 0, vma, addr, false);
 	if (new_folio &&
@@ -2905,9 +2905,10 @@ struct page *ksm_might_need_to_copy(struct page *page,
 		new_folio = NULL;
 	}
 	if (new_folio) {
-		if (copy_mc_user_highpage(&new_folio->page, page, addr, vma)) {
+		if (copy_mc_user_highpage(folio_page(new_folio, 0), page,
+								addr, vma)) {
 			folio_put(new_folio);
-			memory_failure_queue(page_to_pfn(page), 0);
+			memory_failure_queue(folio_pfn(folio), 0);
 			return ERR_PTR(-EHWPOISON);
 		}
 		folio_set_dirty(new_folio);
@@ -2918,7 +2919,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
 #endif
 	}
 
-	return new_folio ? &new_folio->page : NULL;
+	return new_folio;
 }
 
 void rmap_walk_ksm(struct folio *folio, struct rmap_walk_control *rwc)
