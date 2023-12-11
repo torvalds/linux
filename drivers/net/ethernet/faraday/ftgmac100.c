@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/crc32.h>
@@ -112,6 +113,9 @@ struct ftgmac100 {
 	bool need_mac_restart;
 	bool is_aspeed;
 	bool is_ast2700_rmii;
+
+	/* AST2700 SGMII */
+	struct phy *sgmii;
 };
 
 static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
@@ -2000,6 +2004,17 @@ static int ftgmac100_probe(struct platform_device *pdev)
 				phy_intf = PHY_INTERFACE_MODE_RGMII;
 			priv->is_ast2700_rmii = (phy_intf == PHY_INTERFACE_MODE_RMII) ||
 						priv->use_ncsi;
+			if (phy_intf == PHY_INTERFACE_MODE_SGMII) {
+				priv->sgmii = devm_phy_optional_get(&pdev->dev, "sgmii");
+				if (IS_ERR(priv->sgmii)) {
+					dev_err(priv->dev, "Failed to get sgmii phy (%ld)\n",
+						PTR_ERR(priv->sgmii));
+					return PTR_ERR(priv->sgmii);
+				}
+				phy_init(priv->sgmii);
+				if (np && of_phy_is_fixed_link(np))
+					phy_set_speed(priv->sgmii, netdev->phydev->speed);
+			}
 		}
 	}
 
