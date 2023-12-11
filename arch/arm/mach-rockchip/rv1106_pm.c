@@ -15,12 +15,13 @@
 #include <asm/fiq_glue.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
+#include <dt-bindings/suspend/rockchip-rv1106.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/rockchip/rockchip_pm_config.h>
 
 #include "rkpm_gicv2.h"
 #include "rkpm_helpers.h"
 #include "rkpm_uart.h"
-
 #include "rv1106_pm.h"
 
 #define RV1106_PM_REG_REGION_MEM_SIZE		SZ_4K
@@ -56,6 +57,8 @@ struct rv1106_sleep_ddr_data {
 };
 
 static struct rv1106_sleep_ddr_data ddr_data;
+
+static const struct rk_sleep_config *slp_cfg;
 
 static void __iomem *pmucru_base;
 static void __iomem *cru_base;
@@ -916,64 +919,71 @@ static void gpio0_set_direct(u32 pin_id, int out)
 			       gpio_base[0] + RV1106_GPIO_SWPORT_DDR_H);
 }
 
+static void gpio0_set_lvl(u32 pin_id, int lvl)
+{
+	u32 sft = (pin_id % 16);
+
+	if (pin_id < 16)
+		writel_relaxed(BITS_WITH_WMASK(lvl, 0x1, sft),
+			       gpio_base[0] + RV1106_GPIO_SWPORT_DR_L);
+	else
+		writel_relaxed(BITS_WITH_WMASK(lvl, 0x1, sft),
+			       gpio_base[0] + RV1106_GPIO_SWPORT_DR_H);
+}
+
 static void gpio_config(void)
 {
+	u32 iomux, dir, lvl, pull, id;
+	u32 cfg, i;
+
+	if (slp_cfg == NULL)
+		return;
+
 	ddr_data.gpio0a_iomux_l = readl_relaxed(ioc_base[0] + 0);
 	ddr_data.gpio0a_iomux_h = readl_relaxed(ioc_base[0] + 0x4);
 	ddr_data.gpio0a0_pull = readl_relaxed(ioc_base[0] + 0x38);
 	ddr_data.gpio0_ddr_l = readl_relaxed(gpio_base[0] + RV1106_GPIO_SWPORT_DDR_L);
 	ddr_data.gpio0_ddr_h = readl_relaxed(gpio_base[0] + RV1106_GPIO_SWPORT_DDR_H);
 
-	/* gpio0_a0, input, pulldown */
-	gpio0_set_iomux(0, 0);
-	gpio0_set_pull(0, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(0, 0);
+	for (i = 0; i < slp_cfg->sleep_io_config_cnt; i++) {
+		cfg = slp_cfg->sleep_io_config[i];
+		iomux = RKPM_IO_CFG_GET_IOMUX(cfg);
+		dir = RKPM_IO_CFG_GET_GPIO_DIR(cfg);
+		lvl = RKPM_IO_CFG_GET_GPIO_LVL(cfg);
+		pull = RKPM_IO_CFG_GET_PULL(cfg);
+		id = RKPM_IO_CFG_GET_ID(cfg);
 
-	/* gpio0_a1, input, pulldown */
-	gpio0_set_iomux(1, 0);
-	gpio0_set_pull(1, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(1, 0);
+		if (is_rv1106 && id == 3) {
+			/* gpio0_a3, pullnone */
+			gpio0_set_iomux(3, 1);
+			gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
+			continue;
+		}
 
-	/* gpio0_a2, input, pulldown */
-	gpio0_set_iomux(2, 0);
-	gpio0_set_pull(2, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(2, 0);
+		if (is_rv1103 && id == 4) {
+			/* gpio0_a4, pullnone */
+			gpio0_set_iomux(4, 1);
+			gpio0_set_pull(4, RV1106_GPIO_PULL_NONE);
+			continue;
+		}
 
-	if (is_rv1106) {
-		/* gpio0_a3, pullnone */
-		gpio0_set_iomux(3, 1);
-		gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
-	} else {
-		/* gpio0_a3, input, pullup */
-		gpio0_set_iomux(3, 0);
-		gpio0_set_pull(3, RV1106_GPIO_PULL_UP);
-		gpio0_set_direct(3, 0);
+		if (iomux == RKPM_IO_CFG_IOMUX_GPIO_VAL) {
+			if (dir == RKPM_IO_CFG_GPIO_DIR_INPUT_VAL)
+				gpio0_set_lvl(id, lvl);
+
+			gpio0_set_direct(id, dir);
+		}
+
+		gpio0_set_iomux(id, iomux);
+		gpio0_set_pull(id, pull);
 	}
-
-	if (is_rv1103) {
-		/* gpio0_a4, pullnone */
-		gpio0_set_iomux(4, 1);
-		gpio0_set_pull(4, RV1106_GPIO_PULL_NONE);
-	} else {
-		/* gpio0_a4, input, pullup */
-		gpio0_set_iomux(4, 0);
-		gpio0_set_pull(4, RV1106_GPIO_PULL_UP);
-		gpio0_set_direct(4, 0);
-	}
-
-	/* gpio0_a5, input, pullnone */
-	gpio0_set_iomux(5, 0);
-	gpio0_set_pull(5, RV1106_GPIO_PULL_NONE);
-	gpio0_set_direct(5, 0);
-
-	/* gpio0_a6, input, pullnone */
-	gpio0_set_iomux(6, 0);
-	gpio0_set_pull(6, RV1106_GPIO_PULL_NONE);
-	gpio0_set_direct(6, 0);
 }
 
 static void gpio_restore(void)
 {
+	if (slp_cfg == NULL)
+		return;
+
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.gpio0a_iomux_l), ioc_base[0] + 0);
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.gpio0a_iomux_h), ioc_base[0] + 0x4);
 
@@ -1066,6 +1076,8 @@ static int rockchip_lpmode_enter(unsigned long arg)
 static int rv1106_suspend_enter(suspend_state_t state)
 {
 	rkpm_printstr("rv1106 enter sleep\n");
+
+	slp_cfg = rockchip_get_cur_sleep_config();
 
 	local_fiq_disable();
 
