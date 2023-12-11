@@ -109,7 +109,7 @@ static inline u64 fnic_flags_and_state(struct scsi_cmnd *cmd)
 #define FNIC_ABT_TERM_DELAY_TIMEOUT  500        /* mSec */
 
 #define FNIC_MAX_FCP_TARGET     256
-
+#define FNIC_PCI_OFFSET		2
 /**
  * state_flags to identify host state along along with fnic's state
  **/
@@ -386,7 +386,7 @@ void fnic_wq_copy_cleanup_handler(struct vnic_wq_copy *wq,
 int fnic_fw_reset_handler(struct fnic *fnic);
 void fnic_terminate_rport_io(struct fc_rport *);
 const char *fnic_state_to_str(unsigned int state);
-
+void fnic_mq_map_queues_cpus(struct Scsi_Host *host);
 void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
 
