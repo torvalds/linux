@@ -792,6 +792,35 @@ struct aspeed_pinmux_ops {
 		   const struct aspeed_sig_expr *expr, bool enabled);
 };
 
+struct aspeed_g7_funcfg {
+	char *name;
+	u32 reg;
+	u32 mask;
+	int val;
+};
+
+struct aspeed_g7_pincfg {
+	struct aspeed_g7_funcfg *funcfg;
+	unsigned int nfuncfg;
+};
+
+#define PIN_CFG(cfg_name, cfg_reg, cfg_mask, cfg_val)                \
+	{                                                            \
+		.name = #cfg_name, .reg = cfg_reg, .mask = cfg_mask, \
+		.val = cfg_val                                       \
+	}
+#define FUNCFG_SYM(pin) funcfg_ ## pin
+#define FUNCFG_PTR(pin) (&FUNCFG_SYM(pin))
+
+#define FUNCFG_DESCL(pin, ...)                                     \
+	static const struct aspeed_g7_funcfg FUNCFG_SYM(pin)[] = { \
+		__VA_ARGS__,                                       \
+	}
+
+#define PINCFG_PIN(pin)                                                 \
+	[pin] = { .funcfg = (struct aspeed_g7_funcfg *)FUNCFG_PTR(pin), \
+		  .nfuncfg = ARRAY_SIZE(FUNCFG_SYM(pin)) }
+
 struct aspeed_pinmux_data {
 	struct device *dev;
 	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
@@ -803,6 +832,10 @@ struct aspeed_pinmux_data {
 
 	const struct aspeed_pin_function *functions;
 	const unsigned int nfunctions;
+
+	const struct aspeed_g7_pincfg *configs_g7;
+	const unsigned int nconfigs_g7;
+
 };
 
 int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc, bool enabled,

@@ -98,9 +98,14 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 		unsigned int * const num_groups);
 int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		unsigned int group);
+int aspeed_g7_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+			     unsigned int group);
 int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 		struct pinctrl_gpio_range *range,
 		unsigned int offset);
+int aspeed_g7_gpio_request_enable(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned int offset);
 int aspeed_pinctrl_probe(struct platform_device *pdev,
 		struct pinctrl_desc *pdesc,
 		struct aspeed_pinctrl_data *pdata);

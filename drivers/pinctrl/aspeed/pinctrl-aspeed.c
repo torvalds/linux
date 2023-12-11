@@ -285,6 +285,32 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 	return 0;
 }
 
+int aspeed_g7_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+			     unsigned int group)
+{
+	int i, j;
+	int pin;
+	const struct aspeed_g7_funcfg *funcfg;
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct aspeed_pin_group *pingroup =
+		&pinctrl->pinmux.groups[group];
+	const struct aspeed_g7_pincfg *pin_cfg = pinctrl->pinmux.configs_g7;
+
+	for (i = 0; i < pingroup->npins; i++) {
+		pin = pingroup->pins[i];
+		funcfg = pin_cfg[pin].funcfg;
+
+		for (j = 0; j < pin_cfg[pin].nfuncfg; j++) {
+			if (strcmp(funcfg[j].name,  pingroup->name) == 0) {
+				regmap_update_bits(pinctrl->scu, funcfg[j].reg,
+						   funcfg[j].mask,
+						   funcfg[j].val);
+			}
+		}
+	}
+	return 0;
+}
+
 static bool aspeed_expr_is_gpio(const struct aspeed_sig_expr *expr)
 {
 	/*
@@ -437,6 +463,21 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	pr_debug("Muxed pin %s as %s\n", pdesc->name, expr->signal);
 
+	return 0;
+}
+
+int aspeed_g7_gpio_request_enable(struct pinctrl_dev *pctldev,
+				  struct pinctrl_gpio_range *range,
+				  unsigned int offset)
+{
+	int i;
+	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
+	const struct aspeed_g7_pincfg *pin_cfg = pinctrl->pinmux.configs_g7;
+	const struct aspeed_g7_funcfg *funcfg = pin_cfg[offset].funcfg;
+
+	for (i = 0; i < pin_cfg[offset].nfuncfg; i++)
+		regmap_update_bits(pinctrl->scu, funcfg[i].reg, funcfg[i].mask,
+				   0);
 	return 0;
 }
 

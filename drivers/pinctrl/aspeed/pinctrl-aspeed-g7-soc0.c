@@ -88,7 +88,7 @@ GROUP_DECL(USB2AXHP2B, PORTA_U2, PORTA_XHCI);
 // vhub to phy
 GROUP_DECL(USB2AD1, PORTA_U2, PORTA_MODE);
 //ehci
-GROUP_DECL(USB2AHPD0, PORTA_U2, PORTA_MODE);
+GROUP_DECL(USB2AHPD0, PORTA_MODE);
 GROUP_DECL(USB2AH, PORTA_U2, PORTA_MODE);
 GROUP_DECL(USB2AHP, PORTA_U2, PORTA_MODE);
 GROUP_DECL(USB2AD0, PORTA_U2, PORTA_MODE);
@@ -114,7 +114,7 @@ GROUP_DECL(USB2BXHP2A, PORTB_U2, PORTB_XHCI);
 // vhub to phy
 GROUP_DECL(USB2BD1, PORTB_U2, PORTB_MODE);
 //ehci
-GROUP_DECL(USB2BHPD0, PORTB_U2, PORTB_MODE);
+GROUP_DECL(USB2BHPD0, PORTB_MODE);
 GROUP_DECL(USB2BH, PORTB_U2, PORTB_MODE);
 GROUP_DECL(USB2BHP, PORTB_U2, PORTB_MODE);
 // vhub to phy
@@ -214,204 +214,97 @@ static const struct pinctrl_pin_desc aspeed_g7_soc0_pins[] = {
 	PINCTRL_PIN(PORTB_MODE, "PORTB_MODE"),
 };
 
-struct aspeed_g7_soc0_funcfg {
-	char *name;
-	u32 reg;
-	u32 mask;
-	int val;
-};
+FUNCFG_DESCL(AC14, PIN_CFG(EMMC, SCU400, BIT_MASK(0), BIT(0)),
+	     PIN_CFG(VB1, SCU404, BIT_MASK(0), BIT(0)));
+FUNCFG_DESCL(AE15, PIN_CFG(EMMC, SCU400, BIT_MASK(1), BIT(1)),
+	     PIN_CFG(VB1, SCU404, BIT_MASK(1), BIT(1)));
+FUNCFG_DESCL(AD14, PIN_CFG(EMMC, SCU400, BIT_MASK(2), BIT(2)),
+	     PIN_CFG(VB1, SCU404, BIT_MASK(2), BIT(2)));
+FUNCFG_DESCL(AE14, PIN_CFG(EMMC, SCU400, BIT_MASK(3), BIT(3)),
+	     PIN_CFG(VB1, SCU404, BIT_MASK(3), BIT(3)));
+FUNCFG_DESCL(AF14, PIN_CFG(EMMC, SCU400, BIT_MASK(4), BIT(4)));
+FUNCFG_DESCL(AB13, PIN_CFG(EMMC, SCU400, BIT_MASK(5), BIT(5)));
+FUNCFG_DESCL(AB14, PIN_CFG(EMMC, SCU400, BIT_MASK(6), BIT(6)),
+	     PIN_CFG(VB0, SCU404, BIT_MASK(6), BIT(6)));
+FUNCFG_DESCL(AF15, PIN_CFG(EMMC, SCU400, BIT_MASK(7), BIT(7)),
+	     PIN_CFG(VB0, SCU404, BIT_MASK(7), BIT(7)));
+FUNCFG_DESCL(AF13, PIN_CFG(EMMC, SCU400, BIT_MASK(8), BIT(8)),
+	     PIN_CFG(VB0, SCU404, BIT_MASK(8), BIT(8)));
+FUNCFG_DESCL(AC13, PIN_CFG(EMMC, SCU400, BIT_MASK(9), BIT(9)),
+	     PIN_CFG(VB0, SCU404, BIT_MASK(9), BIT(9)));
+FUNCFG_DESCL(AD13, PIN_CFG(EMMC, SCU400, BIT_MASK(10), BIT(10)),
+	     PIN_CFG(VGADDC, SCU404, BIT_MASK(10), BIT(10)));
+FUNCFG_DESCL(AE13, PIN_CFG(EMMC, SCU400, BIT_MASK(11), BIT(11)),
+	     PIN_CFG(VGADDC, SCU404, BIT_MASK(11), BIT(11)));
+FUNCFG_DESCL(PORTA_U3, PIN_CFG(USB3AXHD, SCU410, GENMASK(1, 0), 0),
+	     PIN_CFG(USB3AXHPD, SCU410, GENMASK(1, 0), 0),
+	     PIN_CFG(USB3AXH, SCU410, GENMASK(1, 0), 2),
+	     PIN_CFG(USB3AXHP, SCU410, GENMASK(1, 0), 2),
+	     PIN_CFG(USB3AXH2B, SCU410, GENMASK(1, 0), 3),
+	     PIN_CFG(USB3AXHP2B, SCU410, GENMASK(1, 0), 3),
+	     PIN_CFG(USB3AD, SCU410, GENMASK(1, 0), 1));
+FUNCFG_DESCL(PORTA_U2, PIN_CFG(USB2AXHD1, SCU410, GENMASK(3, 2), 0),
+	     PIN_CFG(USB2AXHPD1, SCU410, GENMASK(3, 2), 0),
+	     PIN_CFG(USB2AXH, SCU410, GENMASK(3, 2), 2 << 2),
+	     PIN_CFG(USB2AXHP, SCU410, GENMASK(3, 2), 2 << 2),
+	     PIN_CFG(USB2AXH2B, SCU410, GENMASK(3, 2), 3 << 2),
+	     PIN_CFG(USB2AXHP2B, SCU410, GENMASK(3, 2), 3 << 2),
+	     PIN_CFG(USB2AD1, SCU410, GENMASK(3, 2), 1 << 2));
+FUNCFG_DESCL(PORTB_U3, PIN_CFG(USB3BXHD, SCU410, GENMASK(5, 4), 0),
+	     PIN_CFG(USB3BXHPD, SCU410, GENMASK(5, 4), 0),
+	     PIN_CFG(USB3BXH, SCU410, GENMASK(5, 4), 2 << 4),
+	     PIN_CFG(USB3BXHP, SCU410, GENMASK(5, 4), 2 << 4),
+	     PIN_CFG(USB3BXH2A, SCU410, GENMASK(5, 4), 3 << 4),
+	     PIN_CFG(USB3BXHP2A, SCU410, GENMASK(5, 4), 3 << 4),
+	     PIN_CFG(USB3BD, SCU410, GENMASK(5, 4), 1 << 4));
+FUNCFG_DESCL(PORTB_U2, PIN_CFG(USB2BXHD1, SCU410, GENMASK(7, 6), 0),
+	     PIN_CFG(USB2BXHPD1, SCU410, GENMASK(7, 6), 0),
+	     PIN_CFG(USB2BXH, SCU410, GENMASK(7, 6), 2 << 6),
+	     PIN_CFG(USB2BXHP, SCU410, GENMASK(7, 6), 2 << 6),
+	     PIN_CFG(USB2BXH2A, SCU410, GENMASK(7, 6), 3 << 6),
+	     PIN_CFG(USB2BXHP2A, SCU410, GENMASK(7, 6), 3 << 6),
+	     PIN_CFG(USB2BD1, SCU410, GENMASK(7, 6), 1 << 6));
+FUNCFG_DESCL(PORTA_XHCI, PIN_CFG(USB3AXHD, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB3AXHPD, SCU410, BIT_MASK(9), 0),
+	     PIN_CFG(USB3AXH, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB3AXHP, SCU410, BIT_MASK(9), 0),
+	     PIN_CFG(USB3AXH2B, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB3AXHP2B, SCU410, BIT_MASK(9), 0),
+	     PIN_CFG(USB2AXHD1, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB2AXHPD1, SCU410, BIT_MASK(9), 0),
+	     PIN_CFG(USB2AXH, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB2AXHP, SCU410, BIT_MASK(9), 0),
+	     PIN_CFG(USB2AXH2B, SCU410, BIT_MASK(9), 1 << 9),
+	     PIN_CFG(USB2AXHP2B, SCU410, BIT_MASK(9), 0));
+FUNCFG_DESCL(PORTB_XHCI, PIN_CFG(USB3BXHD, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB3BXHPD, SCU410, BIT_MASK(10), 0),
+	     PIN_CFG(USB3BXH, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB3BXHP, SCU410, BIT_MASK(10), 0),
+	     PIN_CFG(USB3BXH2A, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB3BXHP2A, SCU410, BIT_MASK(10), 0),
+	     PIN_CFG(USB2BXHD1, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB2BXHPD1, SCU410, BIT_MASK(10), 0),
+	     PIN_CFG(USB2BXH, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB2BXHP, SCU410, BIT_MASK(10), 0),
+	     PIN_CFG(USB2BXH2A, SCU410, BIT_MASK(10), 1 << 10),
+	     PIN_CFG(USB2BXHP2A, SCU410, BIT_MASK(10), 0));
+FUNCFG_DESCL(PORTA_MODE, PIN_CFG(USB2AHPD0, SCU410, GENMASK(25, 24), 0),
+	     PIN_CFG(USB2AH, SCU410, GENMASK(25, 24), 2 << 24),
+	     PIN_CFG(USB2AHP, SCU410, GENMASK(25, 24), 3 << 24),
+	     PIN_CFG(USB2AD0, SCU410, GENMASK(25, 24), 1 << 24));
+FUNCFG_DESCL(PORTB_MODE, PIN_CFG(USB2BHPD0, SCU410, GENMASK(29, 28), 0),
+	     PIN_CFG(USB2BH, SCU410, GENMASK(29, 28), 2 << 28),
+	     PIN_CFG(USB2BHP, SCU410, GENMASK(29, 28), 3 << 28),
+	     PIN_CFG(USB2BD0, SCU410, GENMASK(29, 28), 1 << 28));
 
-struct aspeed_g7_soc0_pincfg {
-	struct aspeed_g7_soc0_funcfg *funcfg;
-};
-
-#define PIN_CFG(cfg_name, cfg_reg, cfg_mask, cfg_val) \
-	{ .name = #cfg_name, .reg = cfg_reg, .mask = cfg_mask, .val = cfg_val }
-
-static const struct aspeed_g7_soc0_pincfg pin_cfg[] = {
-//GPIO18A0
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(0), BIT(0)),
-				PIN_CFG(VB1, SCU404, BIT_MASK(0), BIT(0)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(1), BIT(1)),
-				PIN_CFG(VB1, SCU404, BIT_MASK(1), BIT(1)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(2), BIT(2)),
-				PIN_CFG(VB1, SCU404, BIT_MASK(2), BIT(2)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(3), BIT(3)),
-				PIN_CFG(VB1, SCU404, BIT_MASK(3), BIT(3)),
-			},
-	},
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]) {
-				PIN_CFG(EMMC, SCU400, BIT_MASK(4), BIT(4)),
-		},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(5), BIT(5)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(6), BIT(6)),
-				PIN_CFG(VB0, SCU404, BIT_MASK(6), BIT(6)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(7), BIT(7)),
-				PIN_CFG(VB0, SCU404, BIT_MASK(7), BIT(7)),
-			},
-	},
-//GPIO18B0
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(8), BIT(8)),
-				PIN_CFG(VB0, SCU404, BIT_MASK(8), BIT(8)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(9), BIT(9)),
-				PIN_CFG(VB0, SCU404, BIT_MASK(9), BIT(9)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(10), BIT(10)),
-				PIN_CFG(VGADDC, SCU404, BIT_MASK(10), BIT(10)),
-			},
-	},
-	{
-		.funcfg =
-			(struct aspeed_g7_soc0_funcfg[]){
-				PIN_CFG(EMMC, SCU400, BIT_MASK(11), BIT(11)),
-				PIN_CFG(VGADDC, SCU404, BIT_MASK(11), BIT(11)),
-			},
-	},
-//PORTA_U3
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB3AXHD, SCU410, GENMASK(1, 0), 0),
-			PIN_CFG(USB3AXHPD, SCU410, GENMASK(1, 0), 0),
-			PIN_CFG(USB3AXH, SCU410, GENMASK(1, 0), 2),
-			PIN_CFG(USB3AXHP, SCU410, GENMASK(1, 0), 2),
-			PIN_CFG(USB3AXH2B, SCU410, GENMASK(1, 0), 3),
-			PIN_CFG(USB3AXHP2B, SCU410, GENMASK(1, 0), 3),
-			PIN_CFG(USB3AD, SCU410, GENMASK(1, 0), 1),
-		},
-	},
-//PORTA_U2
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB2AXHD1, SCU410, GENMASK(3, 2), 0),
-			PIN_CFG(USB2AXHPD1, SCU410, GENMASK(3, 2), 0),
-			PIN_CFG(USB2AXH, SCU410, GENMASK(3, 2), 2 << 2),
-			PIN_CFG(USB2AXHP, SCU410, GENMASK(3, 2), 2 << 2),
-			PIN_CFG(USB2AXH2B, SCU410, GENMASK(3, 2), 3 << 2),
-			PIN_CFG(USB2AXHP2B, SCU410, GENMASK(3, 2), 3 << 2),
-			PIN_CFG(USB2AD1, SCU410, GENMASK(3, 2), 1 << 2),
-		},
-	},
-//PORTB_U3
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB3BXHD, SCU410, GENMASK(5, 4), 0),
-			PIN_CFG(USB3BXHPD, SCU410, GENMASK(5, 4), 0),
-			PIN_CFG(USB3BXH, SCU410, GENMASK(5, 4), 2 << 4),
-			PIN_CFG(USB3BXHP, SCU410, GENMASK(5, 4), 2 << 4),
-			PIN_CFG(USB3BXH2A, SCU410, GENMASK(5, 4), 3 << 4),
-			PIN_CFG(USB3BXHP2A, SCU410, GENMASK(5, 4), 3 << 4),
-			PIN_CFG(USB3BD, SCU410, GENMASK(5, 4), 1 << 4),
-		},
-	},
-//PORTB_U2
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB2BXHD1, SCU410, GENMASK(7, 6), 0),
-			PIN_CFG(USB2BXHPD1, SCU410, GENMASK(7, 6), 0),
-			PIN_CFG(USB2BXH, SCU410, GENMASK(7, 6), 2 << 6),
-			PIN_CFG(USB2BXHP, SCU410, GENMASK(7, 6), 2 << 6),
-			PIN_CFG(USB2BXH2A, SCU410, GENMASK(7, 6), 3 << 6),
-			PIN_CFG(USB2BXHP2A, SCU410, GENMASK(7, 6), 3 << 6),
-			PIN_CFG(USB2BD1, SCU410, GENMASK(7, 6), 1 << 6),
-		},
-	},
-//PORTA_XHCI
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB3AXHD, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB3AXHPD, SCU410, BIT_MASK(9), 0),
-			PIN_CFG(USB3AXH, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB3AXHP, SCU410, BIT_MASK(9), 0),
-			PIN_CFG(USB3AXH2B, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB3AXHP2B, SCU410, BIT_MASK(9), 0),
-			PIN_CFG(USB2AXHD1, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB2AXHPD1, SCU410, BIT_MASK(9), 0),
-			PIN_CFG(USB2AXH, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB2AXHP, SCU410, BIT_MASK(9), 0),
-			PIN_CFG(USB2AXH2B, SCU410, BIT_MASK(9), 1 << 9),
-			PIN_CFG(USB2AXHP2B, SCU410, BIT_MASK(9), 0),
-		},
-	},
-//PORTB_XHCI
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB3BXHD, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB3BXHPD, SCU410, BIT_MASK(10), 0),
-			PIN_CFG(USB3BXH, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB3BXHP, SCU410, BIT_MASK(10), 0),
-			PIN_CFG(USB3BXH2A, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB3BXHP2A, SCU410, BIT_MASK(10), 0),
-			PIN_CFG(USB2BXHD1, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB2BXHPD1, SCU410, BIT_MASK(10), 0),
-			PIN_CFG(USB2BXH, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB2BXHP, SCU410, BIT_MASK(10), 0),
-			PIN_CFG(USB2BXH2A, SCU410, BIT_MASK(10), 1 << 10),
-			PIN_CFG(USB2BXHP2A, SCU410, BIT_MASK(10), 0),
-		},
-	},
-//PORTA_MODE
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB2AHPD0, SCU410, GENMASK(25, 24), 0),
-			PIN_CFG(USB2AH, SCU410, GENMASK(25, 24), 2 << 24),
-			PIN_CFG(USB2AHP, SCU410, GENMASK(25, 24), 3 << 24),
-			PIN_CFG(USB2AD0, SCU410, GENMASK(25, 24), 1 << 24),
-		},
-	},
-//PORTB_MODE
-	{
-		.funcfg = (struct aspeed_g7_soc0_funcfg[]){
-			PIN_CFG(USB2BHPD0, SCU410, GENMASK(29, 28), 0),
-			PIN_CFG(USB2BH, SCU410, GENMASK(29, 28), 2 << 28),
-			PIN_CFG(USB2BHP, SCU410, GENMASK(29, 28), 3 << 28),
-			PIN_CFG(USB2BD0, SCU410, GENMASK(29, 28), 1 << 28),
-		},
-	},
+static const struct aspeed_g7_pincfg pin_cfg[] = {
+	PINCFG_PIN(AC14),	PINCFG_PIN(AE15),	PINCFG_PIN(AD14),
+	PINCFG_PIN(AE14),	PINCFG_PIN(AF14),	PINCFG_PIN(AB13),
+	PINCFG_PIN(AB14),	PINCFG_PIN(AF15),	PINCFG_PIN(AF13),
+	PINCFG_PIN(AC13),	PINCFG_PIN(AD13),	PINCFG_PIN(AE13),
+	PINCFG_PIN(PORTA_U3),	PINCFG_PIN(PORTA_U2),	PINCFG_PIN(PORTB_U3),
+	PINCFG_PIN(PORTB_U2),	PINCFG_PIN(PORTA_XHCI), PINCFG_PIN(PORTB_XHCI),
+	PINCFG_PIN(PORTA_MODE), PINCFG_PIN(PORTB_MODE),
 };
 
 static const struct pinctrl_ops aspeed_g7_soc0_pinctrl_ops = {
@@ -423,62 +316,12 @@ static const struct pinctrl_ops aspeed_g7_soc0_pinctrl_ops = {
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
-static int aspeed_g7_soc0_pinmux_set_mux(struct pinctrl_dev *pctldev,
-					 unsigned int function,
-					 unsigned int group)
-{
-	int i;
-	int pin;
-	const struct aspeed_g7_soc0_pincfg *cfg;
-	const struct aspeed_g7_soc0_funcfg *funcfg;
-	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	struct aspeed_pin_group *pingroup = &aspeed_g7_soc0_pingroups[group];
-
-	for (i = 0; i < pingroup->npins; i++) {
-		pin = pingroup->pins[i];
-		cfg = &pin_cfg[pin];
-
-		funcfg = &cfg->funcfg[0];
-		while (funcfg->name) {
-			if (strcmp(funcfg->name, pingroup->name) == 0) {
-				regmap_update_bits(pinctrl->scu, funcfg->reg,
-						   funcfg->mask, funcfg->val);
-				break;
-			}
-			funcfg++;
-		}
-
-		if (!funcfg->name)
-			return 0;
-	}
-
-	return 0;
-}
-
-static int aspeed_g7_soc0_gpio_request_enable(struct pinctrl_dev *pctldev,
-					      struct pinctrl_gpio_range *range,
-					      unsigned int offset)
-{
-	struct aspeed_pinctrl_data *pinctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct aspeed_g7_soc0_pincfg *cfg = &pin_cfg[offset];
-	const struct aspeed_g7_soc0_funcfg *funcfg;
-
-	if (cfg) {
-		funcfg = &cfg->funcfg[0];
-		if (funcfg->name)
-			regmap_update_bits(pinctrl->scu, funcfg->reg,
-					   funcfg->mask, 0);
-	}
-	return 0;
-}
-
-
 static const struct pinmux_ops aspeed_g7_soc0_pinmux_ops = {
 	.get_functions_count = aspeed_pinmux_get_fn_count,
 	.get_function_name = aspeed_pinmux_get_fn_name,
 	.get_function_groups = aspeed_pinmux_get_fn_groups,
-	.set_mux = aspeed_g7_soc0_pinmux_set_mux,
-	.gpio_request_enable = aspeed_g7_soc0_gpio_request_enable,
+	.set_mux = aspeed_g7_pinmux_set_mux,
+	.gpio_request_enable = aspeed_g7_gpio_request_enable,
 	.strict = true,
 };
 
@@ -509,6 +352,8 @@ static struct aspeed_pinctrl_data aspeed_g7_pinctrl_data = {
 		.ngroups = ARRAY_SIZE(aspeed_g7_soc0_pingroups),
 		.functions = aspeed_g7_soc0_funcs,
 		.nfunctions = ARRAY_SIZE(aspeed_g7_soc0_funcs),
+		.configs_g7 = pin_cfg,
+		.nconfigs_g7 = ARRAY_SIZE(pin_cfg),
 	},
 };
 
