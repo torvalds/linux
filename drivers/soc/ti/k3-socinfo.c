@@ -42,6 +42,7 @@
 #define JTAG_ID_PARTNO_J784S4		0xBB80
 #define JTAG_ID_PARTNO_AM62AX		0xBB8D
 #define JTAG_ID_PARTNO_AM62PX		0xBB9D
+#define JTAG_ID_PARTNO_J722S		0xBBA0
 
 static const struct k3_soc_id {
 	unsigned int id;
@@ -56,6 +57,7 @@ static const struct k3_soc_id {
 	{ JTAG_ID_PARTNO_J784S4, "J784S4" },
 	{ JTAG_ID_PARTNO_AM62AX, "AM62AX" },
 	{ JTAG_ID_PARTNO_AM62PX, "AM62PX" },
+	{ JTAG_ID_PARTNO_J722S, "J722S" },
 };
 
 static const char * const j721e_rev_string_map[] = {
