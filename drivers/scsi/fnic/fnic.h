@@ -36,7 +36,6 @@
 #define FNIC_MIN_IO_REQ			256 /* Min IO throttle count */
 #define FNIC_MAX_IO_REQ		1024 /* scsi_cmnd tag map entries */
 #define FNIC_DFLT_IO_REQ        256 /* Default scsi_cmnd tag map entries */
-#define	FNIC_IO_LOCKS		64 /* IO locks: power of 2 */
 #define FNIC_DFLT_QUEUE_DEPTH	256
 #define	FNIC_STATS_RATE_LIMIT	4 /* limit rate at which stats are pulled up */
 
@@ -300,7 +299,6 @@ struct fnic {
 	struct fnic_host_tag *tags;
 	mempool_t *io_req_pool;
 	mempool_t *io_sgl_pool[FNIC_SGL_NUM_CACHES];
-	spinlock_t io_req_lock[FNIC_IO_LOCKS];	/* locks for scsi cmnds */
 
 	unsigned int copy_wq_base;
 	struct work_struct link_work;
