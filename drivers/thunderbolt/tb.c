@@ -2413,10 +2413,19 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	ret = usb4_dp_port_requested_bandwidth(in);
 	if (ret < 0) {
-		if (ret == -ENODATA)
-			tb_port_dbg(in, "no bandwidth request active\n");
-		else
+		if (ret == -ENODATA) {
+			/*
+			 * There is no request active so this means the
+			 * BW allocation mode was enabled from graphics
+			 * side. At this point we know that the graphics
+			 * driver has read the DRPX capabilities so we
+			 * can offer an better bandwidth estimatation.
+			 */
+			tb_port_dbg(in, "DPTX enabled bandwidth allocation mode, updating estimated bandwidth\n");
+			tb_recalc_estimated_bandwidth(tb);
+		} else {
 			tb_port_warn(in, "failed to read requested bandwidth\n");
+		}
 		goto put_sw;
 	}
 	requested_bw = ret;
