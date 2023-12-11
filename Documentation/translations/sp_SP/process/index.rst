@@ -27,3 +27,4 @@
    handling-regressions
    management-style
    submit-checklist
+   howto
