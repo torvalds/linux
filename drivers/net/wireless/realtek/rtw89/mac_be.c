@@ -348,6 +348,57 @@ static void rtw89_mac_dmac_func_pre_en_be(struct rtw89_dev *rtwdev)
 	rtw89_write32_set(rtwdev, R_BE_DMAC_TABLE_CTRL, B_BE_DMAC_ADDR_MODE);
 }
 
+static
+int rtw89_mac_write_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask)
+{
+	u32 val32;
+	int ret;
+
+	val32 = u32_encode_bits(offset, B_BE_WL_XTAL_SI_ADDR_MASK) |
+		u32_encode_bits(val, B_BE_WL_XTAL_SI_DATA_MASK) |
+		u32_encode_bits(mask, B_BE_WL_XTAL_SI_BITMASK_MASK) |
+		u32_encode_bits(XTAL_SI_NORMAL_WRITE, B_BE_WL_XTAL_SI_MODE_MASK) |
+		u32_encode_bits(0, B_BE_WL_XTAL_SI_CHIPID_MASK) |
+		B_BE_WL_XTAL_SI_CMD_POLL;
+	rtw89_write32(rtwdev, R_BE_WLAN_XTAL_SI_CTRL, val32);
+
+	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_BE_WL_XTAL_SI_CMD_POLL),
+				50, 50000, false, rtwdev, R_BE_WLAN_XTAL_SI_CTRL);
+	if (ret) {
+		rtw89_warn(rtwdev, "xtal si not ready(W): offset=%x val=%x mask=%x\n",
+			   offset, val, mask);
+		return ret;
+	}
+
+	return 0;
+}
+
+static
+int rtw89_mac_read_xtal_si_be(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
+{
+	u32 val32;
+	int ret;
+
+	val32 = u32_encode_bits(offset, B_BE_WL_XTAL_SI_ADDR_MASK) |
+		u32_encode_bits(0x0, B_BE_WL_XTAL_SI_DATA_MASK) |
+		u32_encode_bits(0x0, B_BE_WL_XTAL_SI_BITMASK_MASK) |
+		u32_encode_bits(XTAL_SI_NORMAL_READ, B_BE_WL_XTAL_SI_MODE_MASK) |
+		u32_encode_bits(0, B_BE_WL_XTAL_SI_CHIPID_MASK) |
+		B_BE_WL_XTAL_SI_CMD_POLL;
+	rtw89_write32(rtwdev, R_BE_WLAN_XTAL_SI_CTRL, val32);
+
+	ret = read_poll_timeout(rtw89_read32, val32, !(val32 & B_BE_WL_XTAL_SI_CMD_POLL),
+				50, 50000, false, rtwdev, R_BE_WLAN_XTAL_SI_CTRL);
+	if (ret) {
+		rtw89_warn(rtwdev, "xtal si not ready(R): offset=%x\n", offset);
+		return ret;
+	}
+
+	*val = rtw89_read8(rtwdev, R_BE_WLAN_XTAL_SI_CTRL + 1);
+
+	return 0;
+}
+
 static void rtw89_mac_disable_cpu_be(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -1120,6 +1171,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_be,
+
+	.write_xtal_si = rtw89_mac_write_xtal_si_be,
+	.read_xtal_si = rtw89_mac_read_xtal_si_be,
 
 	.dump_qta_lost = rtw89_mac_dump_qta_lost_be,
 	.dump_err_status = rtw89_mac_dump_err_status_be,

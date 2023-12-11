@@ -935,6 +935,9 @@ struct rtw89_mac_gen_def {
 			     enum rtw89_phy_idx phy_idx,
 			     u32 reg_base, u32 *cr);
 
+	int (*write_xtal_si)(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
+	int (*read_xtal_si)(struct rtw89_dev *rtwdev, u8 offset, u8 *val);
+
 	void (*dump_qta_lost)(struct rtw89_dev *rtwdev);
 	void (*dump_err_status)(struct rtw89_dev *rtwdev,
 				enum mac_ax_err_info err);
@@ -1296,8 +1299,22 @@ enum rtw89_mac_xtal_si_offset {
 #define FULL_BIT_MASK		GENMASK(7, 0)
 };
 
-int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask);
-int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val);
+static inline
+int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return mac->write_xtal_si(rtwdev, offset, val, mask);
+}
+
+static inline
+int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return mac->read_xtal_si(rtwdev, offset, val);
+}
+
 void rtw89_mac_pkt_drop_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_mac_typ_fltr_opt(struct rtw89_dev *rtwdev,
 			   enum rtw89_machdr_frame_type type,

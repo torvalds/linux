@@ -5946,7 +5946,8 @@ int rtw89_mac_set_hw_muedca_ctrl(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask)
+static
+int rtw89_mac_write_xtal_si_ax(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask)
 {
 	u32 val32;
 	int ret;
@@ -5968,9 +5969,9 @@ int rtw89_mac_write_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 val, u8 mask
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_mac_write_xtal_si);
 
-int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
+static
+int rtw89_mac_read_xtal_si_ax(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 {
 	u32 val32;
 	int ret;
@@ -5993,7 +5994,6 @@ int rtw89_mac_read_xtal_si(struct rtw89_dev *rtwdev, u8 offset, u8 *val)
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_mac_read_xtal_si);
 
 static
 void rtw89_mac_pkt_drop_sta(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta)
@@ -6126,6 +6126,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
+
+	.write_xtal_si = rtw89_mac_write_xtal_si_ax,
+	.read_xtal_si = rtw89_mac_read_xtal_si_ax,
 
 	.dump_qta_lost = rtw89_mac_dump_qta_lost_ax,
 	.dump_err_status = rtw89_mac_dump_err_status_ax,
