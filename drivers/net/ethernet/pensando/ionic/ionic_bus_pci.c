@@ -437,6 +437,7 @@ static void ionic_reset_prepare(struct pci_dev *pdev)
 	ionic_txrx_free(lif);
 	ionic_lif_deinit(lif);
 	ionic_qcqs_free(lif);
+	ionic_debugfs_del_lif(lif);
 	mutex_unlock(&lif->queue_lock);
 
 	ionic_dev_teardown(ionic);
