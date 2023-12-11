@@ -925,7 +925,6 @@ dpll_pin_parent_pin_set(struct dpll_pin *pin, struct nlattr *parent_nest,
 			struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[DPLL_A_PIN_MAX + 1];
-	enum dpll_pin_state state;
 	u32 ppin_idx;
 	int ret;
 
@@ -936,10 +935,14 @@ dpll_pin_parent_pin_set(struct dpll_pin *pin, struct nlattr *parent_nest,
 		return -EINVAL;
 	}
 	ppin_idx = nla_get_u32(tb[DPLL_A_PIN_PARENT_ID]);
-	state = nla_get_u32(tb[DPLL_A_PIN_STATE]);
-	ret = dpll_pin_on_pin_state_set(pin, ppin_idx, state, extack);
-	if (ret)
-		return ret;
+
+	if (tb[DPLL_A_PIN_STATE]) {
+		enum dpll_pin_state state = nla_get_u32(tb[DPLL_A_PIN_STATE]);
+
+		ret = dpll_pin_on_pin_state_set(pin, ppin_idx, state, extack);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
