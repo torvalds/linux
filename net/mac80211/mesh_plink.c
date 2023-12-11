@@ -1243,6 +1243,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			return;
 	}
 	elems = ieee802_11_parse_elems(baseaddr, len - baselen, true, NULL);
-	mesh_process_plink_frame(sdata, mgmt, elems, rx_status);
-	kfree(elems);
+	if (elems) {
+		mesh_process_plink_frame(sdata, mgmt, elems, rx_status);
+		kfree(elems);
+	}
 }
