@@ -22,6 +22,10 @@
 #define UFS_MPHY_RST_N			BIT(0)
 #define UFS_MPHY_RST_N_PCS		BIT(4)
 
+#define UFS_MPHY_VCONTROL		0x98
+#define UFS_MPHY_CALI_IN_1		0x90
+#define UFS_MPHY_CALI_IN_0		0x8c
+
 #define ASPEED_UFS_REG_HCLKDIV		0xFC
 
 struct aspeed_ufscnr {
@@ -34,10 +38,6 @@ struct aspeed_ufscnr {
 };
 
 struct aspeed_ufshc {
-	/**
-	 * cdns_ufs_dme_attr_val - for storing L4 attributes
-	 */
-	//u32 cdns_ufs_dme_attr_val[CDNS_UFS_MAX_L4_ATTRS];
 	u32 temp;
 };
 
@@ -83,6 +83,12 @@ static int aspeed_ufscnr_probe(struct platform_device *pdev)
 		ret = PTR_ERR(cnr->regs);
 		goto err_clk;
 	}
+
+	/* reduce signal swing */
+	writel(0xe8, cnr->regs + UFS_MPHY_VCONTROL);
+	writel(0xd0000, cnr->regs + UFS_MPHY_CALI_IN_1);
+	writel(0xff00, cnr->regs + UFS_MPHY_CALI_IN_0);
+	writel(0, cnr->regs + UFS_MPHY_VCONTROL);
 
 	/* mphy reset deassert */
 	reg = readl(cnr->regs + UFS_MPHY_RST_REG);
@@ -151,6 +157,8 @@ static int aspeed_ufshc_init(struct ufs_hba *hba)
 
 	status = ufshcd_vops_phy_initialization(hba);
 
+	hba->quirks |= UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE;
+
 	return status;
 }
 
@@ -182,13 +190,86 @@ static int aspeed_ufshc_link_startup_notify(struct ufs_hba *hba,
 	 */
 	hba->ahit = 0;
 
+	ufshcd_writel(hba, 0x190, ASPEED_UFS_REG_HCLKDIV);
+
 	return 0;
+}
+
+static int aspeed_ufshc_pre_pwr_change(struct ufs_hba *hba,
+				       struct ufs_pa_layer_attr *dev_max_params,
+				       struct ufs_pa_layer_attr *dev_req_params)
+{
+	struct ufs_dev_params host_cap;
+	int ret;
+
+	ufshcd_init_pwr_dev_param(&host_cap);
+	host_cap.hs_rx_gear = UFS_HS_G2;
+	host_cap.hs_tx_gear = UFS_HS_G2;
+
+	ret = ufshcd_get_pwr_dev_param(&host_cap,
+				       dev_max_params,
+				       dev_req_params);
+	if (ret) {
+		pr_info("%s: failed to determine capabilities\n",
+			__func__);
+	}
+
+	ufshcd_dme_peer_set(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), host_cap.hs_rx_gear);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), true);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXGEAR), UFS_PWM_G1);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXTERMINATION), true);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXGEAR), UFS_PWM_G1);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVETXDATALANES),
+		       dev_req_params->lane_tx);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVERXDATALANES),
+		       dev_req_params->lane_rx);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HSSERIES),
+		       dev_req_params->hs_rate);
+
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXHSADAPTTYPE),
+		       PA_NO_ADAPT);
+
+	ret = ufshcd_uic_change_pwr_mode(hba,
+					 SLOWAUTO_MODE << 4 | SLOWAUTO_MODE);
+
+	if (ret) {
+		dev_err(hba->dev, "%s: HSG1B FASTAUTO failed ret=%d\n",
+			__func__, ret);
+	}
+
+	return ret;
+}
+
+static int aspeed_ufshc_pwr_change_notify(struct ufs_hba *hba,
+					  enum ufs_notify_change_status stage,
+					  struct ufs_pa_layer_attr *dev_max_params,
+					  struct ufs_pa_layer_attr *dev_req_params)
+{
+	int ret = 0;
+
+	switch (stage) {
+	case PRE_CHANGE:
+		ret = aspeed_ufshc_pre_pwr_change(hba, dev_max_params,
+						  dev_req_params);
+		break;
+	case POST_CHANGE:
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 static const struct ufs_hba_variant_ops aspeed_ufshc_hba_vops = {
 	.name = "aspeed-ufshc",
 	.init = aspeed_ufshc_init,
 	.link_startup_notify = aspeed_ufshc_link_startup_notify,
+	.pwr_change_notify   = aspeed_ufshc_pwr_change_notify,
 };
 
 static const struct of_device_id aspeed_ufshc_of_match[] = {
