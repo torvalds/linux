@@ -1446,50 +1446,77 @@ static u8 bxt_calc_voltage_level(int cdclk)
 	return DIV_ROUND_UP(cdclk, 25000);
 }
 
+static u8 calc_voltage_level(int cdclk, int num_voltage_levels,
+			     const int voltage_level_max_cdclk[])
+{
+	int voltage_level;
+
+	for (voltage_level = 0; voltage_level < num_voltage_levels; voltage_level++) {
+		if (cdclk <= voltage_level_max_cdclk[voltage_level])
+			return voltage_level;
+	}
+
+	MISSING_CASE(cdclk);
+	return num_voltage_levels - 1;
+}
+
 static u8 icl_calc_voltage_level(int cdclk)
 {
-	if (cdclk > 556800)
-		return 2;
-	else if (cdclk > 312000)
-		return 1;
-	else
-		return 0;
+	static const int icl_voltage_level_max_cdclk[] = {
+		[0] = 312000,
+		[1] = 556800,
+		[2] = 652800,
+	};
+
+	return calc_voltage_level(cdclk,
+				  ARRAY_SIZE(icl_voltage_level_max_cdclk),
+				  icl_voltage_level_max_cdclk);
 }
 
 static u8 ehl_calc_voltage_level(int cdclk)
 {
-	if (cdclk > 326400)
-		return 3;
-	else if (cdclk > 312000)
-		return 2;
-	else if (cdclk > 180000)
-		return 1;
-	else
-		return 0;
+	static const int ehl_voltage_level_max_cdclk[] = {
+		[0] = 180000,
+		[1] = 312000,
+		[2] = 326400,
+		/*
+		 * Bspec lists the limit as 556.8 MHz, but some JSL
+		 * development boards (at least) boot with 652.8 MHz
+		 */
+		[3] = 652800,
+	};
+
+	return calc_voltage_level(cdclk,
+				  ARRAY_SIZE(ehl_voltage_level_max_cdclk),
+				  ehl_voltage_level_max_cdclk);
 }
 
 static u8 tgl_calc_voltage_level(int cdclk)
 {
-	if (cdclk > 556800)
-		return 3;
-	else if (cdclk > 326400)
-		return 2;
-	else if (cdclk > 312000)
-		return 1;
-	else
-		return 0;
+	static const int tgl_voltage_level_max_cdclk[] = {
+		[0] = 312000,
+		[1] = 326400,
+		[2] = 556800,
+		[3] = 652800,
+	};
+
+	return calc_voltage_level(cdclk,
+				  ARRAY_SIZE(tgl_voltage_level_max_cdclk),
+				  tgl_voltage_level_max_cdclk);
 }
 
 static u8 rplu_calc_voltage_level(int cdclk)
 {
-	if (cdclk > 556800)
-		return 3;
-	else if (cdclk > 480000)
-		return 2;
-	else if (cdclk > 312000)
-		return 1;
-	else
-		return 0;
+	static const int rplu_voltage_level_max_cdclk[] = {
+		[0] = 312000,
+		[1] = 480000,
+		[2] = 556800,
+		[3] = 652800,
+	};
+
+	return calc_voltage_level(cdclk,
+				  ARRAY_SIZE(rplu_voltage_level_max_cdclk),
+				  rplu_voltage_level_max_cdclk);
 }
 
 static void icl_readout_refclk(struct drm_i915_private *dev_priv,
