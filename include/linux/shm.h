@@ -2,12 +2,12 @@
 #ifndef _LINUX_SHM_H_
 #define _LINUX_SHM_H_
 
-#include <linux/list.h>
+#include <linux/types.h>
 #include <asm/page.h>
-#include <uapi/linux/shm.h>
 #include <asm/shmparam.h>
 
 struct file;
+struct task_struct;
 
 #ifdef CONFIG_SYSVIPC
 struct sysv_shm {
