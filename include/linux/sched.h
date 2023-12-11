@@ -11,14 +11,16 @@
 
 #include <asm/current.h>
 
+#include <linux/cache.h>
 #include <linux/irqflags_types.h>
 #include <linux/pid_types.h>
-#include <linux/sem.h>
+#include <linux/sem_types.h>
 #include <linux/shm.h>
 #include <linux/kmsan_types.h>
 #include <linux/mutex_types.h>
 #include <linux/plist_types.h>
 #include <linux/hrtimer_types.h>
+#include <linux/timer_types.h>
 #include <linux/seccomp_types.h>
 #include <linux/nodemask_types.h>
 #include <linux/rcupdate.h>
