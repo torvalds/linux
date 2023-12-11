@@ -194,7 +194,7 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 {
 	trans_for_each_update(trans, i)
-		bch2_path_put(trans, i->path, true);
+		bch2_path_put(trans, i->path->idx, true);
 
 	trans->extra_journal_res	= 0;
 	trans->nr_updates		= 0;

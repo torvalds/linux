@@ -720,7 +720,7 @@ err:
 
 		btree_node_write_if_need(c, b, SIX_LOCK_intent);
 		btree_node_unlock(trans, path, b->c.level);
-		bch2_path_put(trans, path, true);
+		bch2_path_put(trans, path->idx, true);
 	}
 
 	bch2_journal_pin_drop(&c->journal, &as->journal);
@@ -1615,11 +1615,11 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 out:
 	if (path2) {
 		__bch2_btree_path_unlock(trans, path2);
-		bch2_path_put(trans, path2, true);
+		bch2_path_put(trans, path2->idx, true);
 	}
 	if (path1) {
 		__bch2_btree_path_unlock(trans, path1);
-		bch2_path_put(trans, path1, true);
+		bch2_path_put(trans, path1->idx, true);
 	}
 
 	bch2_trans_verify_locks(trans);
@@ -1926,8 +1926,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 out:
 err:
 	if (new_path)
-		bch2_path_put(trans, new_path, true);
-	bch2_path_put(trans, sib_path, true);
+		bch2_path_put(trans, new_path->idx, true);
+	bch2_path_put(trans, sib_path->idx, true);
 	bch2_trans_verify_locks(trans);
 	return ret;
 err_free_update:
@@ -1992,7 +1992,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	bch2_btree_update_done(as, trans);
 out:
 	if (new_path)
-		bch2_path_put(trans, new_path, true);
+		bch2_path_put(trans, new_path->idx, true);
 	bch2_trans_downgrade(trans);
 	return ret;
 err:

@@ -254,7 +254,7 @@ void bch2_btree_node_iter_fix(struct btree_trans *trans, struct btree_path *,
 
 int bch2_btree_path_relock_intent(struct btree_trans *, struct btree_path *);
 
-void bch2_path_put(struct btree_trans *, struct btree_path *, bool);
+void bch2_path_put(struct btree_trans *, btree_path_idx_t, bool);
 
 int bch2_trans_relock(struct btree_trans *);
 int bch2_trans_relock_notrace(struct btree_trans *);
@@ -360,7 +360,7 @@ static inline void __bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpo
 static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos new_pos)
 {
 	if (unlikely(iter->update_path))
-		bch2_path_put(iter->trans, iter->update_path,
+		bch2_path_put(iter->trans, iter->update_path->idx,
 			      iter->flags & BTREE_ITER_INTENT);
 	iter->update_path = NULL;
 

@@ -372,7 +372,7 @@ static noinline int flush_new_cached_update(struct btree_trans *trans,
 	btree_path_set_should_be_locked(btree_path);
 	ret = bch2_trans_update_by_path(trans, btree_path, i->k, flags, ip);
 out:
-	bch2_path_put(trans, btree_path, true);
+	bch2_path_put(trans, btree_path->idx, true);
 	return ret;
 }
 
@@ -419,7 +419,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 	if (!cmp && i < trans->updates + trans->nr_updates) {
 		EBUG_ON(i->insert_trigger_run || i->overwrite_trigger_run);
 
-		bch2_path_put(trans, i->path, true);
+		bch2_path_put(trans, i->path->idx, true);
 		i->flags	= n.flags;
 		i->cached	= n.cached;
 		i->k		= n.k;
