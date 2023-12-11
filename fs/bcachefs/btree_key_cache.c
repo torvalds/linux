@@ -690,8 +690,9 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		}
 	} else {
 		struct btree_path *path2;
+		unsigned i;
 evict:
-		trans_for_each_path(trans, path2)
+		trans_for_each_path(trans, path2, i)
 			if (path2 != path)
 				__bch2_btree_path_unlock(trans, path2);
 

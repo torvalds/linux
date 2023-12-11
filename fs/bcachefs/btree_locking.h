@@ -242,8 +242,9 @@ static inline bool btree_node_lock_increment(struct btree_trans *trans,
 					     enum btree_node_locked_type want)
 {
 	struct btree_path *path;
+	unsigned i;
 
-	trans_for_each_path(trans, path)
+	trans_for_each_path(trans, path, i)
 		if (&path->l[level].b->c == b &&
 		    btree_node_locked_type(path, level) >= want) {
 			six_lock_increment(&b->lock, (enum six_lock_type) want);
