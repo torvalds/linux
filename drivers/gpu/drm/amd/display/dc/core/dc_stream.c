@@ -447,7 +447,8 @@ bool dc_stream_add_writeback(struct dc *dc,
 	if (dc->hwss.enable_writeback) {
 		struct dc_stream_status *stream_status = dc_stream_get_status(stream);
 		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
-		dwb->otg_inst = stream_status->primary_otg_inst;
+		if (stream_status)
+			dwb->otg_inst = stream_status->primary_otg_inst;
 	}
 
 	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {

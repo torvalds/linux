@@ -3379,6 +3379,9 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 			&context->res_ctx,
 			stream);
 
+	if (!top_pipe_to_program)
+		return;
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
@@ -3978,6 +3981,8 @@ static struct dc_state *create_minimal_transition_state(struct dc *dc,
 	dc->debug.force_disable_subvp = true;
 
 	minimal_transition_context = dc_state_create_copy(base_context);
+	if (!minimal_transition_context)
+		return NULL;
 
 	/* commit minimal state */
 	if (dc->res_pool->funcs->validate_bandwidth(dc, minimal_transition_context, false)) {

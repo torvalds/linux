@@ -2460,6 +2460,9 @@ void resource_remove_otg_master_for_stream_output(struct dc_state *context,
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(
 			&context->res_ctx, stream);
 
+	if (!otg_master)
+		return;
+
 	ASSERT(resource_get_odm_slice_count(otg_master) == 1);
 	ASSERT(otg_master->plane_state == NULL);
 	ASSERT(otg_master->stream_res.stream_enc);
