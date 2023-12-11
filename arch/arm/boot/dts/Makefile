@@ -979,6 +979,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1103g-evb-v10.dtb \
 	rv1103g-evb-v11.dtb \
 	rv1103g-evb-v11-sii902x-bt6562hdmi.dtb \
+	rv1103g-evb2-v10.dtb \
 	rv1103g-rmsl311-dloc-sl-v10.dtb \
 	rv1103g-scaner-v10.dtb \
 	rv1106g-38x38-ipc-v10.dtb \
