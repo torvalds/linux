@@ -12,6 +12,7 @@ obj-$(CONFIG_PHY_PISTACHIO_USB)		+= phy-pistachio-usb.o
 obj-$(CONFIG_USB_LGM_PHY)		+= phy-lgm-usb.o
 obj-y					+= allwinner/	\
 					   amlogic/	\
+					   aspeed/	\
 					   broadcom/	\
 					   cadence/	\
 					   freescale/	\

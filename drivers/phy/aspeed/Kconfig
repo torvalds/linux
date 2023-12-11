@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+#
+# PHY drivers for ASPEED
+#
+
+config PHY_ASPEED_SGMII
+	tristate "ASPEED SGMII PHY driver"
+	select REGMAP
+	select MFD_SYSCON
+	select GENERIC_PHY
+	depends on ARCH_ASPEED
+	default n
+	help
+	  Enable driver support for Aspeed AST2700 PHY SGMII.
