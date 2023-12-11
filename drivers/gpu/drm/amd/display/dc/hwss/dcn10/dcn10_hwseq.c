@@ -2333,7 +2333,7 @@ void dcn10_enable_timing_synchronization(
 	}
 
 	for (i = 1; i < group_size; i++) {
-		if (dc_state_get_pipe_subvp_type(NULL, grouped_pipes[i]) == SUBVP_PHANTOM)
+		if (dc_state_get_pipe_subvp_type(state, grouped_pipes[i]) == SUBVP_PHANTOM)
 			continue;
 
 		opp = grouped_pipes[i]->stream_res.opp;
