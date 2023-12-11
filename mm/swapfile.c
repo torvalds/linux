@@ -42,6 +42,7 @@
 #include <linux/completion.h>
 #include <linux/suspend.h>
 #include <linux/zswap.h>
+#include <linux/plist.h>
 
 #include <asm/tlbflush.h>
 #include <linux/swapops.h>
