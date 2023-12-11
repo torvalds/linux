@@ -294,5 +294,9 @@ int smu_v13_0_update_pcie_parameters(struct smu_context *smu,
 
 int smu_v13_0_disable_pmfw_state(struct smu_context *smu);
 
+int smu_v13_0_enable_uclk_shadow(struct smu_context *smu, bool enable);
+
+int smu_v13_0_set_wbrf_exclusion_ranges(struct smu_context *smu,
+						 struct freq_band_range *exclusion_ranges);
 #endif
 #endif
