@@ -134,6 +134,30 @@ enum {
 
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 
+/**
+ * svc_rdma_send_cid_init - Initialize a Receive Queue completion ID
+ * @rdma: controlling transport
+ * @cid: completion ID to initialize
+ */
+static inline void svc_rdma_recv_cid_init(struct svcxprt_rdma *rdma,
+					  struct rpc_rdma_cid *cid)
+{
+	cid->ci_queue_id = rdma->sc_rq_cq->res.id;
+	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
+}
+
+/**
+ * svc_rdma_send_cid_init - Initialize a Send Queue completion ID
+ * @rdma: controlling transport
+ * @cid: completion ID to initialize
+ */
+static inline void svc_rdma_send_cid_init(struct svcxprt_rdma *rdma,
+					  struct rpc_rdma_cid *cid)
+{
+	cid->ci_queue_id = rdma->sc_sq_cq->res.id;
+	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
+}
+
 /*
  * A chunk context tracks all I/O for moving one Read or Write
  * chunk. This is a set of rdma_rw's that handle data movement

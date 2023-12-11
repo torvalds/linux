@@ -146,13 +146,6 @@ static int svc_rdma_rw_ctx_init(struct svcxprt_rdma *rdma,
 	return ret;
 }
 
-static void svc_rdma_cc_cid_init(struct svcxprt_rdma *rdma,
-				 struct rpc_rdma_cid *cid)
-{
-	cid->ci_queue_id = rdma->sc_sq_cq->res.id;
-	cid->ci_completion_id = atomic_inc_return(&rdma->sc_completion_ids);
-}
-
 /**
  * svc_rdma_cc_init - Initialize an svc_rdma_chunk_ctxt
  * @rdma: controlling transport instance
@@ -161,7 +154,7 @@ static void svc_rdma_cc_cid_init(struct svcxprt_rdma *rdma,
 void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 		      struct svc_rdma_chunk_ctxt *cc)
 {
-	svc_rdma_cc_cid_init(rdma, &cc->cc_cid);
+	svc_rdma_send_cid_init(rdma, &cc->cc_cid);
 
 	INIT_LIST_HEAD(&cc->cc_rwctxts);
 	cc->cc_sqecount = 0;
