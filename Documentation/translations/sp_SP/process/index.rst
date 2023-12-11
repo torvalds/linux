@@ -25,3 +25,4 @@
    security-bugs
    embargoed-hardware-issues
    handling-regressions
+   management-style
