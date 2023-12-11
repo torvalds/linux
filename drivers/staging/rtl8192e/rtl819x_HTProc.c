@@ -340,7 +340,7 @@ void ht_construct_rt2rt_agg_element(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 	*len = 6 + 2;
 }
 
-static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
+static u8 ht_pick_mcs_rate(struct rtllib_device *ieee, u8 *pOperateMCS)
 {
 	u8 i;
 
@@ -416,7 +416,7 @@ static u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
 		pOperateMCS[i] = ieee->reg_dot11tx_ht_oper_rate_set[i] &
 				 pSupportMCS[i];
 
-	HT_PickMCSRate(ieee, pOperateMCS);
+	ht_pick_mcs_rate(ieee, pOperateMCS);
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		pOperateMCS[1] = 0;
