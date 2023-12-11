@@ -1505,6 +1505,12 @@ def put_op_name(family, cw):
     cw.block_start(line=f"static const char * const {map_name}[] =")
     for op_name, op in family.msgs.items():
         if op.rsp_value:
+            # Make sure we don't add duplicated entries, if multiple commands
+            # produce the same response in legacy families.
+            if family.rsp_by_value[op.rsp_value] != op:
+                cw.p(f'// skip "{op_name}", duplicate reply value')
+                continue
+
             if op.req_value == op.rsp_value:
                 cw.p(f'[{op.enum_name}] = "{op_name}",')
             else:
@@ -1703,14 +1709,14 @@ def print_req(ri):
     ret_ok = '0'
     ret_err = '-1'
     direction = "request"
-    local_vars = ['struct nlmsghdr *nlh;',
+    local_vars = ['struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };',
+                  'struct nlmsghdr *nlh;',
                   'int err;']
 
     if 'reply' in ri.op[ri.op_mode]:
         ret_ok = 'rsp'
         ret_err = 'NULL'
-        local_vars += [f'{type_name(ri, rdir(direction))} *rsp;',
-                       'struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };']
+        local_vars += [f'{type_name(ri, rdir(direction))} *rsp;']
 
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
@@ -1726,7 +1732,6 @@ def print_req(ri):
         attr.attr_put(ri, "req")
     ri.cw.nl()
 
-    parse_arg = "NULL"
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p('rsp = calloc(1, sizeof(*rsp));')
         ri.cw.p('yrs.yarg.data = rsp;')
@@ -1736,8 +1741,7 @@ def print_req(ri):
         else:
             ri.cw.p(f'yrs.rsp_cmd = {ri.op.rsp_value};')
         ri.cw.nl()
-        parse_arg = '&yrs'
-    ri.cw.p(f"err = ynl_exec(ys, nlh, {parse_arg});")
+    ri.cw.p("err = ynl_exec(ys, nlh, &yrs);")
     ri.cw.p('if (err < 0)')
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p('goto err_free;')

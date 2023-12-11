@@ -1774,7 +1774,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	ret = btrfs_create_qgroup(trans, objectid);
-	if (ret) {
+	if (ret && ret != -EEXIST) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}

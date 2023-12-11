@@ -3166,6 +3166,7 @@ __always_inline struct obj_cgroup *current_obj_cgroup(void)
 	return NULL;
 
 from_memcg:
+	objcg = NULL;
 	for (; !mem_cgroup_is_root(memcg); memcg = parent_mem_cgroup(memcg)) {
 		/*
 		 * Memcg pointer is protected by scope (see set_active_memcg())
@@ -3176,7 +3177,6 @@ from_memcg:
 		objcg = rcu_dereference_check(memcg->objcg, 1);
 		if (likely(objcg))
 			break;
-		objcg = NULL;
 	}
 
 	return objcg;
