@@ -1261,6 +1261,7 @@ enum rtw89_mac_xtal_si_offset {
 #define XTAL_SC_XI_MASK		GENMASK(7, 0)
 	XTAL_SI_XTAL_SC_XO = 0x05,
 #define XTAL_SC_XO_MASK		GENMASK(7, 0)
+	XTAL_SI_XREF_MODE = 0x0B,
 	XTAL_SI_PWR_CUT = 0x10,
 #define XTAL_SI_SMALL_PWR_CUT	BIT(0)
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)
@@ -1270,6 +1271,8 @@ enum rtw89_mac_xtal_si_offset {
 #define XTAL_SI_LDO_LPS		GENMASK(6, 4)
 	XTAL_SI_XTAL_XMD_4 = 0x26,
 #define XTAL_SI_LPS_CAP		GENMASK(3, 0)
+	XTAL_SI_XREF_RF1 = 0x2D,
+	XTAL_SI_XREF_RF2 = 0x2E,
 	XTAL_SI_CV = 0x41,
 #define XTAL_SI_ACV_MASK	GENMASK(3, 0)
 	XTAL_SI_LOW_ADDR = 0x62,
@@ -1297,6 +1300,8 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_SRAM_CTRL = 0xA1,
 #define XTAL_SI_SRAM_DIS	BIT(1)
 #define FULL_BIT_MASK		GENMASK(7, 0)
+	XTAL_SI_PLL = 0xE0,
+	XTAL_SI_PLL_1 = 0xE1,
 };
 
 static inline
