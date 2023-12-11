@@ -396,7 +396,7 @@ static void ionic_remove(struct pci_dev *pdev)
 {
 	struct ionic *ionic = pci_get_drvdata(pdev);
 
-	del_timer_sync(&ionic->watchdog_timer);
+	timer_shutdown_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
 		/* prevent adminq cmds if already known as down */
