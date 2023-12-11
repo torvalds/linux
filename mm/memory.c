@@ -4071,7 +4071,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 
 	/* ksm created a completely new copy */
 	if (unlikely(folio != swapcache && swapcache)) {
-		page_add_new_anon_rmap(page, vma, vmf->address);
+		folio_add_new_anon_rmap(folio, vma, vmf->address);
 		folio_add_lru_vma(folio, vma);
 	} else {
 		page_add_anon_rmap(page, vma, vmf->address, rmap_flags);

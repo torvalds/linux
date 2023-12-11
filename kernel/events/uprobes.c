@@ -181,7 +181,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	if (new_page) {
 		folio_get(new_folio);
-		page_add_new_anon_rmap(new_page, vma, addr);
+		folio_add_new_anon_rmap(new_folio, vma, addr);
 		folio_add_lru_vma(new_folio, vma);
 	} else
 		/* no new page, just dec_mm_counter for old_page */
