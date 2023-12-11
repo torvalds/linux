@@ -3,7 +3,7 @@
 #define _linux_POSIX_TIMERS_TYPES_H
 
 #include <linux/mutex_types.h>
-#include <linux/timerqueue.h>
+#include <linux/timerqueue_types.h>
 #include <linux/types.h>
 
 /*

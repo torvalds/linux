@@ -3,7 +3,7 @@
 #define _LINUX_HRTIMER_TYPES_H
 
 #include <linux/types.h>
-#include <linux/timerqueue.h>
+#include <linux/timerqueue_types.h>
 
 struct hrtimer_clock_base;
 
