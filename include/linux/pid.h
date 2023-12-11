@@ -2,18 +2,10 @@
 #ifndef _LINUX_PID_H
 #define _LINUX_PID_H
 
+#include <linux/pid_types.h>
 #include <linux/rculist.h>
-#include <linux/wait.h>
 #include <linux/refcount.h>
-
-enum pid_type
-{
-	PIDTYPE_PID,
-	PIDTYPE_TGID,
-	PIDTYPE_PGID,
-	PIDTYPE_SID,
-	PIDTYPE_MAX,
-};
+#include <linux/wait.h>
 
 /*
  * What is struct pid?
@@ -109,9 +101,6 @@ extern void change_pid(struct task_struct *task, enum pid_type,
 extern void exchange_tids(struct task_struct *task, struct task_struct *old);
 extern void transfer_pid(struct task_struct *old, struct task_struct *new,
 			 enum pid_type);
-
-struct pid_namespace;
-extern struct pid_namespace init_pid_ns;
 
 extern int pid_max;
 extern int pid_max_min, pid_max_max;

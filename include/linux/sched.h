@@ -11,7 +11,7 @@
 
 #include <asm/current.h>
 
-#include <linux/pid.h>
+#include <linux/pid_types.h>
 #include <linux/sem.h>
 #include <linux/shm.h>
 #include <linux/kmsan_types.h>
