@@ -1108,6 +1108,23 @@ static inline int rtw89_chip_disable_bb_rf(struct rtw89_dev *rtwdev)
 	return chip->ops->disable_bb_rf(rtwdev);
 }
 
+static inline int rtw89_chip_reset_bb_rf(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+		return 0;
+
+	ret = rtw89_chip_disable_bb_rf(rtwdev);
+	if (ret)
+		return ret;
+	ret = rtw89_chip_enable_bb_rf(rtwdev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev);
 int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err);
 bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func);
