@@ -627,6 +627,15 @@
 	clk-phase-mmc-hs200 = <0 53>, <1 190>;
 };
 
+&ufs_controller {
+	status = "okay";
+};
+
+&ufs {
+	status = "okay";
+	lanes-per-direction = <2>;
+};
+
 &mdio0 {
 	status = "okay";
 	#address-cells = <1>;
@@ -864,15 +873,6 @@
 	//    vqmmc-supply = <&vccq_sdhci0>;
 	/* <0 (MHz * 1.296)>, <1 (MHz * 2.376)> */
 	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
-};
-
-&ufs_controller {
-	status = "okay";
-};
-
-&ufs {
-	status = "okay";
-	lanes-per-direction = <2>;
 };
 
 #endif
