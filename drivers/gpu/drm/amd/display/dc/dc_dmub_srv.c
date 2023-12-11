@@ -1214,10 +1214,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
-	const uint32_t max_num_polls = 10000;
 	uint32_t allow_state = 0;
 	uint32_t commit_state = 0;
-	int i;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1244,17 +1242,13 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 				udelay(dc->debug.ips2_entry_delay_us);
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
-				for (i = 0; i < max_num_polls; ++i) {
+				for (;;) {
 					commit_state = dc->hwss.get_idle_state(dc);
 					if (commit_state & DMUB_IPS2_COMMIT_MASK)
 						break;
 
 					udelay(1);
-
-					if (dc->debug.disable_timeout)
-						i--;
 				}
-				ASSERT(i < max_num_polls);
 
 				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 					ASSERT(0);
@@ -1269,17 +1263,13 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 		dc_dmub_srv_notify_idle(dc, false);
 		if (!(allow_state & DMUB_IPS1_ALLOW_MASK)) {
-			for (i = 0; i < max_num_polls; ++i) {
+			for (;;) {
 				commit_state = dc->hwss.get_idle_state(dc);
 				if (commit_state & DMUB_IPS1_COMMIT_MASK)
 					break;
 
 				udelay(1);
-
-				if (dc->debug.disable_timeout)
-					i--;
 			}
-			ASSERT(i < max_num_polls);
 		}
 	}
 
