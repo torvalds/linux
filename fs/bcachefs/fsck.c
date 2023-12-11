@@ -1950,14 +1950,10 @@ static int check_root_trans(struct btree_trans *trans)
 		root_subvol.v.flags	= 0;
 		root_subvol.v.snapshot	= cpu_to_le32(snapshot);
 		root_subvol.v.inode	= cpu_to_le64(inum);
-		ret = commit_do(trans, NULL, NULL,
-				      BCH_TRANS_COMMIT_no_enospc,
-			bch2_btree_insert_trans(trans, BTREE_ID_subvolumes,
-					    &root_subvol.k_i, 0));
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &root_subvol.k_i, 0);
 		bch_err_msg(c, ret, "writing root subvol");
 		if (ret)
 			goto err;
-
 	}
 
 	ret = __lookup_inode(trans, BCACHEFS_ROOT_INO, &root_inode, &snapshot);
@@ -1984,9 +1980,7 @@ fsck_err:
 /* Get root directory, create if it doesn't exist: */
 int bch2_check_root(struct bch_fs *c)
 {
-	int ret;
-
-	ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_root_trans(trans));
 	bch_err_fn(c, ret);
 	return ret;
