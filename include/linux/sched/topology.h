@@ -279,6 +279,14 @@ void arch_update_thermal_pressure(const struct cpumask *cpus,
 { }
 #endif
 
+#ifndef arch_scale_freq_ref
+static __always_inline
+unsigned int arch_scale_freq_ref(int cpu)
+{
+	return 0;
+}
+#endif
+
 static inline int task_node(const struct task_struct *p)
 {
 	return cpu_to_node(task_cpu(p));
