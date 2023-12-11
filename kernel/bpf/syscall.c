@@ -142,9 +142,13 @@ static u32 bpf_map_value_size(const struct bpf_map *map)
 
 static void maybe_wait_bpf_programs(struct bpf_map *map)
 {
-	/* Wait for any running BPF programs to complete so that
-	 * userspace, when we return to it, knows that all programs
-	 * that could be running use the new map value.
+	/* Wait for any running non-sleepable BPF programs to complete so that
+	 * userspace, when we return to it, knows that all non-sleepable
+	 * programs that could be running use the new map value. For sleepable
+	 * BPF programs, synchronize_rcu_tasks_trace() should be used to wait
+	 * for the completions of these programs, but considering the waiting
+	 * time can be very long and userspace may think it will hang forever,
+	 * so don't handle sleepable BPF programs now.
 	 */
 	if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS ||
 	    map->map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS)
