@@ -139,7 +139,7 @@ CS42L43_IRQ_ERROR(spkl_therm_warm)
 CS42L43_IRQ_ERROR(spkr_sc_detect)
 CS42L43_IRQ_ERROR(spkl_sc_detect)
 
-void cs42l43_hp_ilimit_clear_work(struct work_struct *work)
+static void cs42l43_hp_ilimit_clear_work(struct work_struct *work)
 {
 	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
 						  hp_ilimit_clear_work.work);
@@ -156,7 +156,7 @@ void cs42l43_hp_ilimit_clear_work(struct work_struct *work)
 	snd_soc_dapm_mutex_unlock(dapm);
 }
 
-void cs42l43_hp_ilimit_work(struct work_struct *work)
+static void cs42l43_hp_ilimit_work(struct work_struct *work)
 {
 	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
 						  hp_ilimit_work);
