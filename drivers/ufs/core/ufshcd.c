@@ -8233,9 +8233,9 @@ static void ufshcd_rtc_work(struct work_struct *work)
 	if (!ufshcd_is_ufs_dev_busy(hba) && hba->ufshcd_state == UFSHCD_STATE_OPERATIONAL)
 		ufshcd_update_rtc(hba);
 
-	if (ufshcd_is_ufs_dev_active(hba))
+	if (ufshcd_is_ufs_dev_active(hba) && hba->dev_info.rtc_update_period)
 		schedule_delayed_work(&hba->ufs_rtc_update_work,
-				      msecs_to_jiffies(UFS_RTC_UPDATE_INTERVAL_MS));
+				      msecs_to_jiffies(hba->dev_info.rtc_update_period));
 }
 
 static void ufs_init_rtc(struct ufs_hba *hba, u8 *desc_buf)
@@ -8257,6 +8257,13 @@ static void ufs_init_rtc(struct ufs_hba *hba, u8 *desc_buf)
 		dev_info->rtc_type = UFS_RTC_RELATIVE;
 		dev_info->rtc_time_baseline = 0;
 	}
+
+	/*
+	 * We ignore TIME_PERIOD defined in wPeriodicRTCUpdate because Spec does not clearly state
+	 * how to calculate the specific update period for each time unit. And we disable periodic
+	 * RTC update work, let user configure by sysfs node according to specific circumstance.
+	 */
+	dev_info->rtc_update_period = 0;
 }
 
 static int ufs_get_device_desc(struct ufs_hba *hba)
