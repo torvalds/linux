@@ -238,7 +238,7 @@ void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 }
 
 void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
-				  u8 *len, u8 is_encrypt, bool bAssoc)
+				  u8 *len, u8 is_encrypt, bool assoc)
 {
 	struct rt_hi_throughput *pHT = ieee->ht_info;
 	struct ht_capab_ele *pCapELE = NULL;
@@ -250,7 +250,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	}
 	memset(pos_ht_cap, 0, *len);
 
-	if ((bAssoc) && (pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)) {
+	if ((assoc) && (pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)) {
 		static const u8	EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
 
 		memcpy(pos_ht_cap, EWC11NHTCap, sizeof(EWC11NHTCap));
@@ -298,7 +298,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 
 	pCapELE->ASCap = 0;
 
-	if (bAssoc) {
+	if (assoc) {
 		if (pHT->iot_action & HT_IOT_ACT_DISABLE_MCS15)
 			pCapELE->MCS[1] &= 0x7f;
 
