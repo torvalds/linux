@@ -237,27 +237,27 @@ void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 	ht_info->iot_ra_func = 0;
 }
 
-void ht_construct_capability_element(struct rtllib_device *ieee, u8 *posHTCap,
+void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 				  u8 *len, u8 IsEncrypt, bool bAssoc)
 {
 	struct rt_hi_throughput *pHT = ieee->ht_info;
 	struct ht_capab_ele *pCapELE = NULL;
 
-	if (!posHTCap || !pHT) {
+	if (!pos_ht_cap || !pHT) {
 		netdev_warn(ieee->dev,
 			    "%s(): posHTCap and ht_info are null\n", __func__);
 		return;
 	}
-	memset(posHTCap, 0, *len);
+	memset(pos_ht_cap, 0, *len);
 
 	if ((bAssoc) && (pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)) {
 		static const u8	EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
 
-		memcpy(posHTCap, EWC11NHTCap, sizeof(EWC11NHTCap));
-		pCapELE = (struct ht_capab_ele *)&posHTCap[4];
+		memcpy(pos_ht_cap, EWC11NHTCap, sizeof(EWC11NHTCap));
+		pCapELE = (struct ht_capab_ele *)&pos_ht_cap[4];
 		*len = 30 + 2;
 	} else {
-		pCapELE = (struct ht_capab_ele *)posHTCap;
+		pCapELE = (struct ht_capab_ele *)pos_ht_cap;
 		*len = 26 + 2;
 	}
 
