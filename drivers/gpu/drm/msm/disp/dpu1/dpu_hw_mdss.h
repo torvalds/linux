@@ -466,6 +466,7 @@ struct dpu_mdss_color {
 #define DPU_DBG_MASK_ROT      (1 << 9)
 #define DPU_DBG_MASK_DSPP     (1 << 10)
 #define DPU_DBG_MASK_DSC      (1 << 11)
+#define DPU_DBG_MASK_CDM      (1 << 12)
 
 /**
  * struct dpu_hw_tear_check - Struct contains parameters to configure
