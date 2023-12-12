@@ -1081,25 +1081,6 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 
 	if (id_aa64pfr1_mte(info->reg_id_aa64pfr1))
 		init_cpu_ftr_reg(SYS_GMID_EL1, info->reg_gmid);
-
-	/*
-	 * Initialize the indirect array of CPU capabilities pointers before we
-	 * handle the boot CPU below.
-	 */
-	init_cpucap_indirect_list();
-
-	/*
-	 * Detect broken pseudo-NMI. Must be called _before_ the call to
-	 * setup_boot_cpu_capabilities() since it interacts with
-	 * can_use_gic_priorities().
-	 */
-	detect_system_supports_pseudo_nmi();
-
-	/*
-	 * Detect and enable early CPU capabilities based on the boot CPU,
-	 * after we have initialised the CPU feature infrastructure.
-	 */
-	setup_boot_cpu_capabilities();
 }
 
 static void update_cpu_ftr_reg(struct arm64_ftr_reg *reg, u64 new)
@@ -3255,14 +3236,6 @@ void check_local_cpu_capabilities(void)
 		verify_local_cpu_capabilities();
 }
 
-static void __init setup_boot_cpu_capabilities(void)
-{
-	/* Detect capabilities with either SCOPE_BOOT_CPU or SCOPE_LOCAL_CPU */
-	update_cpu_capabilities(SCOPE_BOOT_CPU | SCOPE_LOCAL_CPU);
-	/* Enable the SCOPE_BOOT_CPU capabilities alone right away */
-	enable_cpu_capabilities(SCOPE_BOOT_CPU);
-}
-
 bool this_cpu_has_cap(unsigned int n)
 {
 	if (!WARN_ON(preemptible()) && n < ARM64_NCAPS) {
@@ -3316,6 +3289,36 @@ unsigned long cpu_get_elf_hwcap(void)
 unsigned long cpu_get_elf_hwcap2(void)
 {
 	return elf_hwcap[1];
+}
+
+static void __init setup_boot_cpu_capabilities(void)
+{
+	/*
+	 * The boot CPU's feature register values have been recorded. Detect
+	 * boot cpucaps and local cpucaps for the boot CPU, then enable and
+	 * patch alternatives for the available boot cpucaps.
+	 */
+	update_cpu_capabilities(SCOPE_BOOT_CPU | SCOPE_LOCAL_CPU);
+	enable_cpu_capabilities(SCOPE_BOOT_CPU);
+	apply_boot_alternatives();
+}
+
+void __init setup_boot_cpu_features(void)
+{
+	/*
+	 * Initialize the indirect array of CPU capabilities pointers before we
+	 * handle the boot CPU.
+	 */
+	init_cpucap_indirect_list();
+
+	/*
+	 * Detect broken pseudo-NMI. Must be called _before_ the call to
+	 * setup_boot_cpu_capabilities() since it interacts with
+	 * can_use_gic_priorities().
+	 */
+	detect_system_supports_pseudo_nmi();
+
+	setup_boot_cpu_capabilities();
 }
 
 static void __init setup_system_capabilities(void)
