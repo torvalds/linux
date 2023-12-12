@@ -1882,6 +1882,42 @@ static void dcn20_program_pipe(
 	}
 }
 
+static void update_vmin_vmax_fams(struct dc *dc,
+		struct dc_state *context)
+{
+	uint32_t i;
+	struct drr_params params = {0};
+	bool subvp_in_use = resource_subvp_in_use(dc, context);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+				((subvp_in_use && dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM &&
+				pipe->stream->allow_freesync) || (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching && pipe->stream->fpo_in_use))) {
+			if (!pipe->stream->vrr_active_variable && !pipe->stream->vrr_active_fixed) {
+				struct timing_generator *tg = context->res_ctx.pipe_ctx[i].stream_res.tg;
+
+				/* DRR should be configured already if we're in active variable
+				 * or active fixed, so only program if we're not in this state
+				 */
+				params.vertical_total_min = pipe->stream->timing.v_total;
+				params.vertical_total_max = pipe->stream->timing.v_total;
+				tg->funcs->set_drr(tg, &params);
+			}
+		} else {
+			if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+					!pipe->stream->vrr_active_variable &&
+					!pipe->stream->vrr_active_fixed) {
+				struct timing_generator *tg = context->res_ctx.pipe_ctx[i].stream_res.tg;
+				params.vertical_total_min = 0;
+				params.vertical_total_max = 0;
+				tg->funcs->set_drr(tg, &params);
+			}
+		}
+	}
+}
+
 void dcn20_program_front_end_for_ctx(
 		struct dc *dc,
 		struct dc_state *context)
@@ -1958,6 +1994,7 @@ void dcn20_program_front_end_for_ctx(
 				&& context->res_ctx.pipe_ctx[i].stream)
 			hws->funcs.blank_pixel_data(dc, &context->res_ctx.pipe_ctx[i], true);
 
+	update_vmin_vmax_fams(dc, context);
 
 	/* Disconnect mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
