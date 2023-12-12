@@ -1085,6 +1085,25 @@ static int smu_v14_0_0_set_umsch_mm_enable(struct smu_context *smu,
 					       0, NULL);
 }
 
+static int smu_14_0_0_get_dpm_table(struct smu_context *smu, struct dpm_clocks *clock_table)
+{
+	DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+	uint8_t idx;
+
+	/* Only the Clock information of SOC and VPE is copied to provide VPE DPM settings for use. */
+	for (idx = 0; idx < NUM_SOCCLK_DPM_LEVELS; idx++) {
+		clock_table->SocClocks[idx].Freq = (idx < clk_table->NumSocClkLevelsEnabled) ? clk_table->SocClocks[idx]:0;
+		clock_table->SocClocks[idx].Vol = 0;
+	}
+
+	for (idx = 0; idx < NUM_VPE_DPM_LEVELS; idx++) {
+		clock_table->VPEClocks[idx].Freq = (idx < clk_table->VpeClkLevelsEnabled) ? clk_table->VPEClocks[idx]:0;
+		clock_table->VPEClocks[idx].Vol = 0;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.check_fw_version = smu_v14_0_check_fw_version,
@@ -1115,6 +1134,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.set_gfx_power_up_by_imu = smu_v14_0_set_gfx_power_up_by_imu,
 	.dpm_set_vpe_enable = smu_v14_0_0_set_vpe_enable,
 	.dpm_set_umsch_mm_enable = smu_v14_0_0_set_umsch_mm_enable,
+	.get_dpm_clock_table = smu_14_0_0_get_dpm_table,
 };
 
 static void smu_v14_0_0_set_smu_mailbox_registers(struct smu_context *smu)
