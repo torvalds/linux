@@ -86,6 +86,28 @@
 
 &i2c0 {
 	status = "okay";
+
+	power-monitor@40 {
+		compatible = "ti,ina230";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
+
+	power-monitor@41 {
+		compatible = "ti,ina230";
+		reg = <0x41>;
+		shunt-resistor = <1000>;
+	};
+
+	power-monitor@67 {
+		compatible = "adi,ltc2945";
+		reg = <0x67>;
+	};
+
+	power-monitor@68 {
+		compatible = "adi,ltc2945";
+		reg = <0x68>;
+	};
 };
 
 &i2c1 {
