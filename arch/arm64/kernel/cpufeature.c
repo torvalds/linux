@@ -3318,23 +3318,40 @@ unsigned long cpu_get_elf_hwcap2(void)
 	return elf_hwcap[1];
 }
 
-void __init setup_system_features(void)
+static void __init setup_system_capabilities(void)
 {
-	int i;
 	/*
-	 * The system-wide safe feature feature register values have been
-	 * finalized. Finalize and log the available system capabilities.
+	 * The system-wide safe feature register values have been finalized.
+	 * Detect, enable, and patch alternatives for the available system
+	 * cpucaps.
 	 */
 	update_cpu_capabilities(SCOPE_SYSTEM);
-	if (IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
-	    !cpus_have_cap(ARM64_HAS_PAN))
-		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
+	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+	apply_alternatives_all();
 
 	/*
-	 * Enable all the available capabilities which have not been enabled
-	 * already.
+	 * Log any cpucaps with a cpumask as these aren't logged by
+	 * update_cpu_capabilities().
 	 */
-	enable_cpu_capabilities(SCOPE_ALL & ~SCOPE_BOOT_CPU);
+	for (int i = 0; i < ARM64_NCAPS; i++) {
+		const struct arm64_cpu_capabilities *caps = cpucap_ptrs[i];
+
+		if (caps && caps->cpus && caps->desc &&
+			cpumask_any(caps->cpus) < nr_cpu_ids)
+			pr_info("detected: %s on CPU%*pbl\n",
+				caps->desc, cpumask_pr_args(caps->cpus));
+	}
+
+	/*
+	 * TTBR0 PAN doesn't have its own cpucap, so log it manually.
+	 */
+	if (system_uses_ttbr0_pan())
+		pr_info("emulated: Privileged Access Never (PAN) using TTBR0_EL1 switching\n");
+}
+
+void __init setup_system_features(void)
+{
+	setup_system_capabilities();
 
 	kpti_install_ng_mappings();
 
@@ -3347,15 +3364,6 @@ void __init setup_system_features(void)
 	if (!cache_type_cwg())
 		pr_warn("No Cache Writeback Granule information, assuming %d\n",
 			ARCH_DMA_MINALIGN);
-
-	for (i = 0; i < ARM64_NCAPS; i++) {
-		const struct arm64_cpu_capabilities *caps = cpucap_ptrs[i];
-
-		if (caps && caps->cpus && caps->desc &&
-			cpumask_any(caps->cpus) < nr_cpu_ids)
-			pr_info("detected: %s on CPU%*pbl\n",
-				caps->desc, cpumask_pr_args(caps->cpus));
-	}
 }
 
 void __init setup_user_features(void)
