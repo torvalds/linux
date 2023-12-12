@@ -12724,13 +12724,13 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (tcs)
 		tx_sets = tcs;
 
-	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		rx_rings <<= 1;
-
 	_bnxt_get_max_rings(bp, &max_rx, &max_tx, &max_cp);
 
 	if (max_rx < rx_rings)
 		return -ENOMEM;
+
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		rx_rings <<= 1;
 
 	tx_rings_needed = tx * tx_sets + tx_xdp;
 	if (max_tx < tx_rings_needed)
