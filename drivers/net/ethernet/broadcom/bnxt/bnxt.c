@@ -13673,9 +13673,9 @@ static int bnxt_udp_tunnel_set_port(struct net_device *netdev, unsigned int tabl
 	unsigned int cmd;
 
 	if (ti->type == UDP_TUNNEL_TYPE_VXLAN)
-		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN;
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN;
 	else
-		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE;
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE;
 
 	return bnxt_hwrm_tunnel_dst_port_alloc(bp, ti->port, cmd);
 }
