@@ -129,7 +129,7 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
 	}
 	resp = hwrm_req_hold(bp, req);
 
-	rc = hwrm_req_send(bp, req);
+	rc = hwrm_req_send_silent(bp, req);
 	if (!rc)
 		*ts = le64_to_cpu(resp->ptp_msg_ts);
 	hwrm_req_drop(bp, req);
@@ -684,8 +684,8 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 		timestamp.hwtstamp = ns_to_ktime(ns);
 		skb_tstamp_tx(ptp->tx_skb, &timestamp);
 	} else {
-		netdev_err(bp->dev, "TS query for TX timer failed rc = %x\n",
-			   rc);
+		netdev_WARN_ONCE(bp->dev,
+				 "TS query for TX timer failed rc = %x\n", rc);
 	}
 
 	dev_kfree_skb_any(ptp->tx_skb);
