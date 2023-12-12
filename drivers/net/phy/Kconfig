@@ -394,6 +394,19 @@ config DP83TD510_PHY
 	  Support for the DP83TD510 Ethernet 10Base-T1L PHY. This PHY supports
 	  a 10M single pair Ethernet connection for up to 1000 meter cable.
 
+config DP83TG720_PHY
+	tristate "Texas Instruments DP83TG720 Ethernet 1000Base-T1 PHY"
+	help
+	  The DP83TG720S-Q1 is an automotive Ethernet physical layer
+	  transceiver compliant with IEEE 802.3bp and Open Alliance
+	  standards. It supports key functions necessary for
+	  transmitting and receiving data over both unshielded and
+	  shielded single twisted-pair cables. This device offers
+	  flexible xMII interface options, including support for both
+	  RGMII and SGMII MAC interfaces. It's suitable for applications
+	  requiring high-speed data transmission in automotive
+	  networking environments.
+
 config VITESSE_PHY
 	tristate "Vitesse PHYs"
 	help
