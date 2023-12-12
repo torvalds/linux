@@ -395,7 +395,7 @@ int btrfs_validate_extent_buffer(struct extent_buffer *eb,
 
 	csum_tree_block(eb, result);
 	header_csum = folio_address(eb->folios[0]) +
-		get_eb_offset_in_page(eb, offsetof(struct btrfs_header, csum));
+		get_eb_offset_in_folio(eb, offsetof(struct btrfs_header, csum));
 
 	if (memcmp(result, header_csum, csum_size) != 0) {
 		btrfs_warn_rl(fs_info,

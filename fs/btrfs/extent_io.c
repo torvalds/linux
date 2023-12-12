@@ -4169,12 +4169,11 @@ static inline int check_eb_range(const struct extent_buffer *eb,
 void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 			unsigned long start, unsigned long len)
 {
+	const int unit_size = folio_size(eb->folios[0]);
 	size_t cur;
 	size_t offset;
-	struct page *page;
-	char *kaddr;
 	char *dst = (char *)dstv;
-	unsigned long i = get_eb_page_index(start);
+	unsigned long i = get_eb_folio_index(eb, start);
 
 	if (check_eb_range(eb, start, len)) {
 		/*
@@ -4190,13 +4189,13 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dstv,
 		return;
 	}
 
-	offset = get_eb_offset_in_page(eb, start);
+	offset = get_eb_offset_in_folio(eb, start);
 
 	while (len > 0) {
-		page = folio_page(eb->folios[i], 0);
+		char *kaddr;
 
-		cur = min(len, (PAGE_SIZE - offset));
-		kaddr = page_address(page);
+		cur = min(len, unit_size - offset);
+		kaddr = folio_address(eb->folios[i]);
 		memcpy(dst, kaddr + offset, cur);
 
 		dst += cur;
@@ -4210,12 +4209,11 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 				       void __user *dstv,
 				       unsigned long start, unsigned long len)
 {
+	const int unit_size = folio_size(eb->folios[0]);
 	size_t cur;
 	size_t offset;
-	struct page *page;
-	char *kaddr;
 	char __user *dst = (char __user *)dstv;
-	unsigned long i = get_eb_page_index(start);
+	unsigned long i = get_eb_folio_index(eb, start);
 	int ret = 0;
 
 	WARN_ON(start > eb->len);
@@ -4227,13 +4225,13 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 		return ret;
 	}
 
-	offset = get_eb_offset_in_page(eb, start);
+	offset = get_eb_offset_in_folio(eb, start);
 
 	while (len > 0) {
-		page = folio_page(eb->folios[i], 0);
+		char *kaddr;
 
-		cur = min(len, (PAGE_SIZE - offset));
-		kaddr = page_address(page);
+		cur = min(len, unit_size - offset);
+		kaddr = folio_address(eb->folios[i]);
 		if (copy_to_user_nofault(dst, kaddr + offset, cur)) {
 			ret = -EFAULT;
 			break;
@@ -4251,12 +4249,12 @@ int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 			 unsigned long start, unsigned long len)
 {
+	const int unit_size = folio_size(eb->folios[0]);
 	size_t cur;
 	size_t offset;
-	struct page *page;
 	char *kaddr;
 	char *ptr = (char *)ptrv;
-	unsigned long i = get_eb_page_index(start);
+	unsigned long i = get_eb_folio_index(eb, start);
 	int ret = 0;
 
 	if (check_eb_range(eb, start, len))
@@ -4265,14 +4263,11 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
 	if (eb->addr)
 		return memcmp(ptrv, eb->addr + start, len);
 
-	offset = get_eb_offset_in_page(eb, start);
+	offset = get_eb_offset_in_folio(eb, start);
 
 	while (len > 0) {
-		page = folio_page(eb->folios[i], 0);
-
-		cur = min(len, (PAGE_SIZE - offset));
-
-		kaddr = page_address(page);
+		cur = min(len, unit_size - offset);
+		kaddr = folio_address(eb->folios[i]);
 		ret = memcmp(ptr, kaddr + offset, cur);
 		if (ret)
 			break;
@@ -4291,10 +4286,12 @@ int memcmp_extent_buffer(const struct extent_buffer *eb, const void *ptrv,
  * For regular sector size == PAGE_SIZE case, check if @page is uptodate.
  * For subpage case, check if the range covered by the eb has EXTENT_UPTODATE.
  */
-static void assert_eb_page_uptodate(const struct extent_buffer *eb,
-				    struct page *page)
+static void assert_eb_folio_uptodate(const struct extent_buffer *eb, int i)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
+	struct folio *folio = eb->folios[i];
+
+	ASSERT(folio);
 
 	/*
 	 * If we are using the commit root we could potentially clear a page
@@ -4308,11 +4305,13 @@ static void assert_eb_page_uptodate(const struct extent_buffer *eb,
 		return;
 
 	if (fs_info->nodesize < PAGE_SIZE) {
+		struct page *page = folio_page(folio, 0);
+
 		if (WARN_ON(!btrfs_subpage_test_uptodate(fs_info, page,
 							 eb->start, eb->len)))
 			btrfs_subpage_dump_bitmap(fs_info, page, eb->start, eb->len);
 	} else {
-		WARN_ON(!PageUptodate(page));
+		WARN_ON(!folio_test_uptodate(folio));
 	}
 }
 
@@ -4320,12 +4319,12 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 				  const void *srcv, unsigned long start,
 				  unsigned long len, bool use_memmove)
 {
+	const int unit_size = folio_size(eb->folios[0]);
 	size_t cur;
 	size_t offset;
-	struct page *page;
 	char *kaddr;
 	char *src = (char *)srcv;
-	unsigned long i = get_eb_page_index(start);
+	unsigned long i = get_eb_folio_index(eb, start);
 	/* For unmapped (dummy) ebs, no need to check their uptodate status. */
 	const bool check_uptodate = !test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
@@ -4340,15 +4339,14 @@ static void __write_extent_buffer(const struct extent_buffer *eb,
 		return;
 	}
 
-	offset = get_eb_offset_in_page(eb, start);
+	offset = get_eb_offset_in_folio(eb, start);
 
 	while (len > 0) {
-		page = folio_page(eb->folios[i], 0);
 		if (check_uptodate)
-			assert_eb_page_uptodate(eb, page);
+			assert_eb_folio_uptodate(eb, i);
 
-		cur = min(len, PAGE_SIZE - offset);
-		kaddr = page_address(page);
+		cur = min(len, unit_size - offset);
+		kaddr = folio_address(eb->folios[i]);
 		if (use_memmove)
 			memmove(kaddr + offset, src, cur);
 		else
@@ -4370,6 +4368,7 @@ void write_extent_buffer(const struct extent_buffer *eb, const void *srcv,
 static void memset_extent_buffer(const struct extent_buffer *eb, int c,
 				 unsigned long start, unsigned long len)
 {
+	const int unit_size = folio_size(eb->folios[0]);
 	unsigned long cur = start;
 
 	if (eb->addr) {
@@ -4378,13 +4377,12 @@ static void memset_extent_buffer(const struct extent_buffer *eb, int c,
 	}
 
 	while (cur < start + len) {
-		unsigned long index = get_eb_page_index(cur);
-		unsigned int offset = get_eb_offset_in_page(eb, cur);
-		unsigned int cur_len = min(start + len - cur, PAGE_SIZE - offset);
-		struct page *page = folio_page(eb->folios[index], 0);
+		unsigned long index = get_eb_folio_index(eb, cur);
+		unsigned int offset = get_eb_offset_in_folio(eb, cur);
+		unsigned int cur_len = min(start + len - cur, unit_size - offset);
 
-		assert_eb_page_uptodate(eb, page);
-		memset_page(page, offset, c, cur_len);
+		assert_eb_folio_uptodate(eb, index);
+		memset(folio_address(eb->folios[index]) + offset, c, cur_len);
 
 		cur += cur_len;
 	}
@@ -4401,14 +4399,15 @@ void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 void copy_extent_buffer_full(const struct extent_buffer *dst,
 			     const struct extent_buffer *src)
 {
+	const int unit_size = folio_size(src->folios[0]);
 	unsigned long cur = 0;
 
 	ASSERT(dst->len == src->len);
 
 	while (cur < src->len) {
-		unsigned long index = get_eb_page_index(cur);
-		unsigned long offset = get_eb_offset_in_page(src, cur);
-		unsigned long cur_len = min(src->len, PAGE_SIZE - offset);
+		unsigned long index = get_eb_folio_index(src, cur);
+		unsigned long offset = get_eb_offset_in_folio(src, cur);
+		unsigned long cur_len = min(src->len, unit_size - offset);
 		void *addr = folio_address(src->folios[index]) + offset;
 
 		write_extent_buffer(dst, addr, cur, cur_len);
@@ -4422,12 +4421,12 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 			unsigned long dst_offset, unsigned long src_offset,
 			unsigned long len)
 {
+	const int unit_size = folio_size(dst->folios[0]);
 	u64 dst_len = dst->len;
 	size_t cur;
 	size_t offset;
-	struct page *page;
 	char *kaddr;
-	unsigned long i = get_eb_page_index(dst_offset);
+	unsigned long i = get_eb_folio_index(dst, dst_offset);
 
 	if (check_eb_range(dst, dst_offset, len) ||
 	    check_eb_range(src, src_offset, len))
@@ -4435,15 +4434,14 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 
 	WARN_ON(src->len != dst_len);
 
-	offset = get_eb_offset_in_page(dst, dst_offset);
+	offset = get_eb_offset_in_folio(dst, dst_offset);
 
 	while (len > 0) {
-		page = folio_page(dst->folios[i], 0);
-		assert_eb_page_uptodate(dst, page);
+		assert_eb_folio_uptodate(dst, i);
 
-		cur = min(len, (unsigned long)(PAGE_SIZE - offset));
+		cur = min(len, (unsigned long)(unit_size - offset));
 
-		kaddr = page_address(page);
+		kaddr = folio_address(dst->folios[i]);
 		read_extent_buffer(src, kaddr + offset, src_offset, cur);
 
 		src_offset += cur;
@@ -4502,18 +4500,18 @@ int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
 
 	eb_bitmap_offset(eb, start, nr, &i, &offset);
 	page = folio_page(eb->folios[i], 0);
-	assert_eb_page_uptodate(eb, page);
+	assert_eb_folio_uptodate(eb, i);
 	kaddr = page_address(page);
 	return 1U & (kaddr[offset] >> (nr & (BITS_PER_BYTE - 1)));
 }
 
 static u8 *extent_buffer_get_byte(const struct extent_buffer *eb, unsigned long bytenr)
 {
-	unsigned long index = get_eb_page_index(bytenr);
+	unsigned long index = get_eb_folio_index(eb, bytenr);
 
 	if (check_eb_range(eb, bytenr, 1))
 		return NULL;
-	return folio_address(eb->folios[index]) + get_eb_offset_in_page(eb, bytenr);
+	return folio_address(eb->folios[index]) + get_eb_offset_in_folio(eb, bytenr);
 }
 
 /*
@@ -4598,6 +4596,7 @@ void memcpy_extent_buffer(const struct extent_buffer *dst,
 			  unsigned long dst_offset, unsigned long src_offset,
 			  unsigned long len)
 {
+	const int unit_size = folio_size(dst->folios[0]);
 	unsigned long cur_off = 0;
 
 	if (check_eb_range(dst, dst_offset, len) ||
@@ -4616,11 +4615,11 @@ void memcpy_extent_buffer(const struct extent_buffer *dst,
 
 	while (cur_off < len) {
 		unsigned long cur_src = cur_off + src_offset;
-		unsigned long pg_index = get_eb_page_index(cur_src);
-		unsigned long pg_off = get_eb_offset_in_page(dst, cur_src);
+		unsigned long folio_index = get_eb_folio_index(dst, cur_src);
+		unsigned long folio_off = get_eb_offset_in_folio(dst, cur_src);
 		unsigned long cur_len = min(src_offset + len - cur_src,
-					    PAGE_SIZE - pg_off);
-		void *src_addr = folio_address(dst->folios[pg_index]) + pg_off;
+					    unit_size - folio_off);
+		void *src_addr = folio_address(dst->folios[folio_index]) + folio_off;
 		const bool use_memmove = areas_overlap(src_offset + cur_off,
 						       dst_offset + cur_off, cur_len);
 
@@ -4654,20 +4653,20 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 	while (len > 0) {
 		unsigned long src_i;
 		size_t cur;
-		size_t dst_off_in_page;
-		size_t src_off_in_page;
+		size_t dst_off_in_folio;
+		size_t src_off_in_folio;
 		void *src_addr;
 		bool use_memmove;
 
-		src_i = get_eb_page_index(src_end);
+		src_i = get_eb_folio_index(dst, src_end);
 
-		dst_off_in_page = get_eb_offset_in_page(dst, dst_end);
-		src_off_in_page = get_eb_offset_in_page(dst, src_end);
+		dst_off_in_folio = get_eb_offset_in_folio(dst, dst_end);
+		src_off_in_folio = get_eb_offset_in_folio(dst, src_end);
 
-		cur = min_t(unsigned long, len, src_off_in_page + 1);
-		cur = min(cur, dst_off_in_page + 1);
+		cur = min_t(unsigned long, len, src_off_in_folio + 1);
+		cur = min(cur, dst_off_in_folio + 1);
 
-		src_addr = folio_address(dst->folios[src_i]) + src_off_in_page -
+		src_addr = folio_address(dst->folios[src_i]) + src_off_in_folio -
 					 cur + 1;
 		use_memmove = areas_overlap(src_end - cur + 1, dst_end - cur + 1,
 					    cur);
