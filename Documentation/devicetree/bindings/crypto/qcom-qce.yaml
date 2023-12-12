@@ -97,6 +97,7 @@ allOf:
               - qcom,crypto-v5.4
               - qcom,ipq6018-qce
               - qcom,ipq8074-qce
+              - qcom,ipq9574-qce
               - qcom,msm8996-qce
               - qcom,sdm845-qce
     then:
