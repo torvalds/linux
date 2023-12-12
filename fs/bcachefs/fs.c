@@ -1667,8 +1667,7 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
-		seq_puts(seq, "/dev/");
-		seq_puts(seq, ca->name);
+		seq_puts(seq, ca->disk_sb.sb_name);
 	}
 
 	return 0;

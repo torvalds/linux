@@ -18,12 +18,13 @@ else
 endif
 
 ifeq ($(ARCH),arm64)
-arm64_tools_dir := $(top_srcdir)/tools/arch/arm64/tools/
+tools_dir := $(top_srcdir)/tools
+arm64_tools_dir := $(tools_dir)/arch/arm64/tools/
 GEN_HDRS := $(top_srcdir)/tools/arch/arm64/include/generated/
 CFLAGS += -I$(GEN_HDRS)
 
 $(GEN_HDRS): $(wildcard $(arm64_tools_dir)/*)
-	$(MAKE) -C $(arm64_tools_dir)
+	$(MAKE) -C $(arm64_tools_dir) O=$(tools_dir)
 endif
 
 LIBKVM += lib/assert.c
