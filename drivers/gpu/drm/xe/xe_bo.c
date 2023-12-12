@@ -2160,19 +2160,24 @@ int xe_bo_evict(struct xe_bo *bo, bool force_alloc)
  * placed in system memory.
  * @bo: The xe_bo
  *
- * If a bo has an allowable placement in XE_PL_TT memory, it can't use
- * flat CCS compression, because the GPU then has no way to access the
- * CCS metadata using relevant commands. For the opposite case, we need to
- * allocate storage for the CCS metadata when the BO is not resident in
- * VRAM memory.
- *
  * Return: true if extra pages need to be allocated, false otherwise.
  */
 bool xe_bo_needs_ccs_pages(struct xe_bo *bo)
 {
-	return bo->ttm.type == ttm_bo_type_device &&
-		!(bo->flags & XE_BO_CREATE_SYSTEM_BIT) &&
-		(bo->flags & XE_BO_CREATE_VRAM_MASK);
+	struct xe_device *xe = xe_bo_device(bo);
+
+	if (!xe_device_has_flat_ccs(xe) || bo->ttm.type != ttm_bo_type_device)
+		return false;
+
+	/* On discrete GPUs, if the GPU can access this buffer from
+	 * system memory (i.e., it allows XE_PL_TT placement), FlatCCS
+	 * can't be used since there's no CCS storage associated with
+	 * non-VRAM addresses.
+	 */
+	if (IS_DGFX(xe) && (bo->flags & XE_BO_CREATE_SYSTEM_BIT))
+		return false;
+
+	return true;
 }
 
 /**
