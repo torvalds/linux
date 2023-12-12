@@ -12,6 +12,16 @@
 
 	aliases {
 		serial5 = &uart5;
+		/*
+		 * PCA9548 (2-0077) provides 8 channels connecting to
+		 * 6 pcs of FCB (Fan Controller Board).
+		 */
+		i2c16 = &imux16;
+		i2c17 = &imux17;
+		i2c18 = &imux18;
+		i2c19 = &imux19;
+		i2c20 = &imux20;
+		i2c21 = &imux21;
 	};
 
 	chosen {
@@ -139,7 +149,7 @@
 		#size-cells = <0>;
 		i2c-mux-idle-disconnect;
 
-		i2c@0 {
+		imux16: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
@@ -150,7 +160,7 @@
 			};
 		};
 
-		i2c@1 {
+		imux17: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <1>;
@@ -161,7 +171,7 @@
 			};
 		};
 
-		i2c@2 {
+		imux18: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
@@ -172,7 +182,7 @@
 			};
 		};
 
-		i2c@3 {
+		imux19: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <3>;
@@ -183,7 +193,7 @@
 			};
 		};
 
-		i2c@4 {
+		imux20: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
@@ -194,7 +204,7 @@
 			};
 		};
 
-		i2c@5 {
+		imux21: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <5>;
