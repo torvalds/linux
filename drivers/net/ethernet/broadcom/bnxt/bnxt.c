@@ -6489,6 +6489,8 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+static int __bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
+			     bool shared);
 static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 			   bool shared);
 
@@ -6532,8 +6534,9 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 			if (bp->flags & BNXT_FLAG_AGG_RINGS)
 				rx >>= 1;
 			if (cp < (rx + tx)) {
-				rx = cp / 2;
-				tx = rx;
+				rc = __bnxt_trim_rings(bp, &rx, &tx, cp, false);
+				if (rc)
+					return rc;
 				if (bp->flags & BNXT_FLAG_AGG_RINGS)
 					rx <<= 1;
 				hw_resc->resv_rx_rings = rx;
@@ -13885,9 +13888,12 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		if (*max_cp < (*max_rx + *max_tx)) {
-			*max_rx = *max_cp / 2;
-			*max_tx = *max_rx;
+		int rc;
+
+		rc = __bnxt_trim_rings(bp, max_rx, max_tx, *max_cp, false);
+		if (rc) {
+			*max_rx = 0;
+			*max_tx = 0;
 		}
 		/* On P5 chips, max_cp output param should be available NQs */
 		*max_cp = max_irq;
