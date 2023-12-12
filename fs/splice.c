@@ -1244,7 +1244,7 @@ EXPORT_SYMBOL(do_splice_direct);
  * @len:	number of bytes to splice
  *
  * Description:
- *    For use by generic_copy_file_range() and ->copy_file_range() methods.
+ *    For use by ->copy_file_range() methods.
  *    Like do_splice_direct(), but vfs_copy_file_range() already holds
  *    start_file_write() on @out file.
  *
@@ -1255,8 +1255,9 @@ ssize_t splice_file_range(struct file *in, loff_t *ppos, struct file *out,
 {
 	lockdep_assert(file_write_started(out));
 
-	return do_splice_direct_actor(in, ppos, out, opos, len, 0,
-				      splice_file_range_actor);
+	return do_splice_direct_actor(in, ppos, out, opos,
+				      min_t(size_t, len, MAX_RW_COUNT),
+				      0, splice_file_range_actor);
 }
 EXPORT_SYMBOL(splice_file_range);
 

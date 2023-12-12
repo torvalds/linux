@@ -88,6 +88,13 @@ ssize_t do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 ssize_t splice_file_range(struct file *in, loff_t *ppos, struct file *out,
 			  loff_t *opos, size_t len);
 
+static inline long splice_copy_file_range(struct file *in, loff_t pos_in,
+					  struct file *out, loff_t pos_out,
+					  size_t len)
+{
+	return splice_file_range(in, &pos_in, out, &pos_out, len);
+}
+
 ssize_t do_tee(struct file *in, struct file *out, size_t len,
 	       unsigned int flags);
 ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
