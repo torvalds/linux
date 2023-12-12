@@ -1595,6 +1595,8 @@ struct bpf_link_primer {
 };
 
 struct bpf_mount_opts {
+	kuid_t uid;
+	kgid_t gid;
 	umode_t mode;
 
 	/* BPF token-related delegation options */
