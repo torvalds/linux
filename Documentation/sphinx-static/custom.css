@@ -7,6 +7,7 @@
 div.body h1 { font-size: 180%; }
 div.body h2 { font-size: 150%; }
 div.body h3 { font-size: 130%; }
+div.body h4 { font-size: 110%; }
 
 /* toctree captions are styled like h2 */
 div.toctree-wrapper p.caption[role=heading] { font-size: 150%; }
