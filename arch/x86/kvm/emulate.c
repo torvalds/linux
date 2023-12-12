@@ -4505,11 +4505,11 @@ static const struct instr_dual instr_dual_0f_38_f1 = {
 };
 
 static const struct gprefix three_byte_0f_38_f0 = {
-	ID(0, &instr_dual_0f_38_f0), N, N, N
+	ID(0, &instr_dual_0f_38_f0), ID(0, &instr_dual_0f_38_f0), N, N
 };
 
 static const struct gprefix three_byte_0f_38_f1 = {
-	ID(0, &instr_dual_0f_38_f1), N, N, N
+	ID(0, &instr_dual_0f_38_f1), ID(0, &instr_dual_0f_38_f1), N, N
 };
 
 /*
