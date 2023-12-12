@@ -778,17 +778,20 @@ struct dma_fence *xe_vm_rebind(struct xe_vm *vm, bool rebind_worker)
 	return fence;
 }
 
+#define VMA_CREATE_FLAG_READ_ONLY	BIT(0)
+#define VMA_CREATE_FLAG_IS_NULL		BIT(1)
+
 static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    struct xe_bo *bo,
 				    u64 bo_offset_or_userptr,
 				    u64 start, u64 end,
-				    bool read_only,
-				    bool is_null,
-				    u16 pat_index)
+				    u16 pat_index, unsigned int flags)
 {
 	struct xe_vma *vma;
 	struct xe_tile *tile;
 	u8 id;
+	bool read_only = (flags & VMA_CREATE_FLAG_READ_ONLY);
+	bool is_null = (flags & VMA_CREATE_FLAG_IS_NULL);
 
 	xe_assert(vm->xe, start < end);
 	xe_assert(vm->xe, end < vm->size);
@@ -2117,7 +2120,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 }
 
 static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
-			      bool read_only, bool is_null, u16 pat_index)
+			      u16 pat_index, unsigned int flags)
 {
 	struct xe_bo *bo = op->gem.obj ? gem_to_xe_bo(op->gem.obj) : NULL;
 	struct drm_exec exec;
@@ -2146,8 +2149,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	}
 	vma = xe_vma_create(vm, bo, op->gem.offset,
 			    op->va.addr, op->va.addr +
-			    op->va.range - 1, read_only, is_null,
-			    pat_index);
+			    op->va.range - 1, pat_index, flags);
 	if (bo)
 		drm_exec_fini(&exec);
 
@@ -2272,7 +2274,9 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 
 	drm_gpuva_for_each_op(__op, ops) {
 		struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
+		struct xe_vma *vma;
 		bool first = list_empty(ops_list);
+		unsigned int flags = 0;
 
 		INIT_LIST_HEAD(&op->link);
 		list_add_tail(&op->link, ops_list);
@@ -2288,10 +2292,13 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 		switch (op->base.op) {
 		case DRM_GPUVA_OP_MAP:
 		{
-			struct xe_vma *vma;
+			flags |= op->map.read_only ?
+				VMA_CREATE_FLAG_READ_ONLY : 0;
+			flags |= op->map.is_null ?
+				VMA_CREATE_FLAG_IS_NULL : 0;
 
-			vma = new_vma(vm, &op->base.map, op->map.read_only,
-				      op->map.is_null, op->map.pat_index);
+			vma = new_vma(vm, &op->base.map, op->map.pat_index,
+				      flags);
 			if (IS_ERR(vma))
 				return PTR_ERR(vma);
 
@@ -2307,16 +2314,15 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 			op->remap.range = xe_vma_size(old);
 
 			if (op->base.remap.prev) {
-				struct xe_vma *vma;
-				bool read_only =
-					op->base.remap.unmap->va->flags &
-					XE_VMA_READ_ONLY;
-				bool is_null =
-					op->base.remap.unmap->va->flags &
-					DRM_GPUVA_SPARSE;
+				flags |= op->base.remap.unmap->va->flags &
+					XE_VMA_READ_ONLY ?
+					VMA_CREATE_FLAG_READ_ONLY : 0;
+				flags |= op->base.remap.unmap->va->flags &
+					DRM_GPUVA_SPARSE ?
+					VMA_CREATE_FLAG_IS_NULL : 0;
 
-				vma = new_vma(vm, op->base.remap.prev, read_only,
-					      is_null, old->pat_index);
+				vma = new_vma(vm, op->base.remap.prev,
+					      old->pat_index, flags);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 
@@ -2339,17 +2345,15 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 			}
 
 			if (op->base.remap.next) {
-				struct xe_vma *vma;
-				bool read_only =
-					op->base.remap.unmap->va->flags &
-					XE_VMA_READ_ONLY;
+				flags |= op->base.remap.unmap->va->flags &
+					XE_VMA_READ_ONLY ?
+					VMA_CREATE_FLAG_READ_ONLY : 0;
+				flags |= op->base.remap.unmap->va->flags &
+					DRM_GPUVA_SPARSE ?
+					VMA_CREATE_FLAG_IS_NULL : 0;
 
-				bool is_null =
-					op->base.remap.unmap->va->flags &
-					DRM_GPUVA_SPARSE;
-
-				vma = new_vma(vm, op->base.remap.next, read_only,
-					      is_null, old->pat_index);
+				vma = new_vma(vm, op->base.remap.next,
+					      old->pat_index, flags);
 				if (IS_ERR(vma))
 					return PTR_ERR(vma);
 
