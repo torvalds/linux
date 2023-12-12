@@ -131,6 +131,17 @@ allOf:
         - clocks
         - clock-names
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8150-qce
+    then:
+      properties:
+        clocks: false
+        clock-names: false
+
 required:
   - compatible
   - reg
