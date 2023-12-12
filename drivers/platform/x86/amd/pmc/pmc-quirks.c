@@ -235,6 +235,9 @@ void amd_pmc_quirks_init(struct amd_pmc_dev *dev)
 {
 	const struct dmi_system_id *dmi_id;
 
+	if (dev->cpu_id == AMD_CPU_ID_CZN)
+		dev->disable_8042_wakeup = true;
+
 	dmi_id = dmi_first_match(fwbug_list);
 	if (!dmi_id)
 		return;
