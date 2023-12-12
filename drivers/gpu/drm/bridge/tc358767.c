@@ -2049,13 +2049,13 @@ static bool tc_readable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_range tc_volatile_ranges[] = {
+	regmap_reg_range(VFUEN0, VFUEN0),
+	regmap_reg_range(GPIOI, GPIOI),
+	regmap_reg_range(INTSTS_G, INTSTS_G),
 	regmap_reg_range(DP0_AUXWDATA(0), DP0_AUXSTATUS),
 	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
 	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
 	regmap_reg_range(DP0_PLLCTRL, PXL_PLLCTRL),
-	regmap_reg_range(VFUEN0, VFUEN0),
-	regmap_reg_range(INTSTS_G, INTSTS_G),
-	regmap_reg_range(GPIOI, GPIOI),
 };
 
 static const struct regmap_access_table tc_volatile_table = {
