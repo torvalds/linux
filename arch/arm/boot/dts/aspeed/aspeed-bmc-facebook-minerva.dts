@@ -158,6 +158,13 @@
 				compatible = "atmel,24c128";
 				reg = <0x50>;
 			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		imux17: i2c@1 {
@@ -168,6 +175,13 @@
 			eeprom@50 {
 				compatible = "atmel,24c128";
 				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 
@@ -180,6 +194,13 @@
 				compatible = "atmel,24c128";
 				reg = <0x50>;
 			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		imux19: i2c@3 {
@@ -190,6 +211,13 @@
 			eeprom@50 {
 				compatible = "atmel,24c128";
 				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 
@@ -202,6 +230,13 @@
 				compatible = "atmel,24c128";
 				reg = <0x50>;
 			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		imux21: i2c@5 {
@@ -212,6 +247,13 @@
 			eeprom@50 {
 				compatible = "atmel,24c128";
 				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 	};
