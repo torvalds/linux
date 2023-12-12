@@ -3017,14 +3017,15 @@ static int camcc_sc8280xp_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_really_probe(pdev, &camcc_sc8280xp_desc, regmap);
 	if (ret)
-		goto err_put_rpm;
+		goto err_disable;
 
 	pm_runtime_put(&pdev->dev);
 
 	return 0;
 
-err_put_rpm:
+err_disable:
 	regmap_update_bits(regmap, 0xc1e4, BIT(0), 0);
+err_put_rpm:
 	pm_runtime_put_sync(&pdev->dev);
 
 	return ret;
