@@ -454,6 +454,7 @@
   devlink_unregister
   dev_load
   devm_add_action
+  devm_alloc_etherdev_mqs
   __devm_alloc_percpu
   devm_backlight_device_register
   devm_bitmap_zalloc
@@ -503,6 +504,7 @@
   devm_led_classdev_register_ext
   devm_led_classdev_unregister
   devm_mbox_controller_register
+  devm_mdiobus_alloc_size
   devm_memremap
   devm_mfd_add_devices
   devm_nvmem_cell_get
@@ -877,6 +879,7 @@
   dst_cache_set_ip6
   dst_release
   dump_stack
+  efi
   em_cpu_get
   em_dev_register_perf_domain
   enable_irq
@@ -888,6 +891,7 @@
   eth_header_parse
   eth_mac_addr
   eth_platform_get_mac_address
+  eth_prepare_mac_addr_change
   ethtool_convert_legacy_u32_to_link_mode
   ethtool_convert_link_mode_to_legacy_u32
   __ethtool_get_link_ksettings
@@ -1689,6 +1693,7 @@
   __of_get_address
   of_get_child_by_name
   of_get_cpu_node
+  of_get_mac_address
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
@@ -1717,6 +1722,7 @@
   of_pci_get_max_link_speed
   of_phandle_iterator_init
   of_phandle_iterator_next
+  of_phy_get_and_connect
   of_phy_simple_xlate
   of_platform_depopulate
   of_platform_device_create
@@ -1784,9 +1790,14 @@
   pci_dev_put
   pci_disable_ats
   pci_disable_device
+  pci_disable_msi
+  pci_disable_msix
   pcie_capability_clear_and_set_word
   pcie_capability_read_word
   pci_enable_ats
+  pci_enable_device_mem
+  pci_enable_msi
+  pci_enable_msix_range
   pci_find_ext_capability
   pci_free_irq
   pci_free_irq_vectors
@@ -1806,14 +1817,19 @@
   pci_msi_mask_irq
   pci_msi_unmask_irq
   pci_pio_to_address
+  pci_prepare_to_sleep
   pci_read_config_dword
   pci_read_config_word
   __pci_register_driver
+  pci_release_selected_regions
   pci_remove_root_bus
   pci_request_irq
+  pci_request_selected_regions
   pci_restore_state
   pci_save_state
+  pci_select_bars
   pci_set_master
+  pci_set_power_state
   pci_stop_root_bus
   pci_store_saved_state
   pci_unlock_rescan_remove
@@ -1839,14 +1855,21 @@
   pfn_is_map_memory
   phy_attached_info
   phy_connect
+  phy_connect_direct
   phy_disconnect
   phy_do_ioctl_running
+  phy_ethtool_get_eee
   phy_ethtool_get_link_ksettings
+  phy_ethtool_get_wol
   phy_ethtool_nway_reset
+  phy_ethtool_set_eee
   phy_ethtool_set_link_ksettings
+  phy_ethtool_set_wol
   phy_exit
+  phy_find_first
   phy_get
   phy_init
+  phy_init_eee
   phylink_connect_phy
   phylink_create
   phylink_destroy
@@ -1858,13 +1881,17 @@
   phylink_start
   phylink_stop
   phylink_suspend
+  phy_mii_ioctl
   phy_power_off
   phy_power_on
   phy_print_status
   phy_put
+  phy_remove_link_mode
   phy_set_mode_ext
   phy_start
+  phy_start_aneg
   phy_stop
+  phy_support_asym_pause
   phy_suspend
   pick_migrate_task
   pid_task
@@ -1984,6 +2011,12 @@
   pstore_register
   pstore_type_to_name
   pstore_unregister
+  ptp_clock_event
+  ptp_clock_index
+  ptp_clock_register
+  ptp_clock_unregister
+  ptp_find_pin
+  ptp_schedule_worker
   put_cmsg
   __put_cred
   put_device
@@ -2694,10 +2727,10 @@
   __traceiter_android_vh_iommu_iovad_alloc_iova
   __traceiter_android_vh_iommu_iovad_free_iova
   __traceiter_android_vh_is_fpsimd_save
-  __traceiter_android_vh_mmc_update_mmc_queue
   __traceiter_android_vh_mm_alloc_pages_direct_reclaim_enter
   __traceiter_android_vh_mm_alloc_pages_direct_reclaim_exit
   __traceiter_android_vh_mm_alloc_pages_may_oom_exit
+  __traceiter_android_vh_mmc_update_mmc_queue
   __traceiter_android_vh_rwsem_init
   __traceiter_android_vh_rwsem_wake
   __traceiter_android_vh_rwsem_write_finished
@@ -2802,10 +2835,10 @@
   __tracepoint_android_vh_iommu_iovad_alloc_iova
   __tracepoint_android_vh_iommu_iovad_free_iova
   __tracepoint_android_vh_is_fpsimd_save
-  __tracepoint_android_vh_mmc_update_mmc_queue
   __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_enter
   __tracepoint_android_vh_mm_alloc_pages_direct_reclaim_exit
   __tracepoint_android_vh_mm_alloc_pages_may_oom_exit
+  __tracepoint_android_vh_mmc_update_mmc_queue
   __tracepoint_android_vh_rwsem_init
   __tracepoint_android_vh_rwsem_wake
   __tracepoint_android_vh_rwsem_write_finished
