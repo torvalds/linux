@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/idr.h>
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
@@ -344,7 +345,14 @@ static const struct attribute_group coresight_tmc_mgmt_group = {
 	.name = "mgmt",
 };
 
-static const struct attribute_group *coresight_tmc_groups[] = {
+static const struct attribute_group *coresight_etf_groups[] = {
+	&coresight_tmc_group,
+	&coresight_tmc_mgmt_group,
+	NULL,
+};
+
+static const struct attribute_group *coresight_etr_groups[] = {
+	&coresight_etr_group,
 	&coresight_tmc_group,
 	&coresight_tmc_mgmt_group,
 	NULL,
@@ -465,6 +473,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->memwidth = tmc_get_memwidth(devid);
 	/* This device is not associated with a session */
 	drvdata->pid = -1;
+	drvdata->etr_mode = ETR_MODE_AUTO;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		drvdata->size = tmc_etr_get_default_buffer_size(dev);
@@ -474,16 +483,17 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	desc.dev = dev;
-	desc.groups = coresight_tmc_groups;
 
 	switch (drvdata->config_type) {
 	case TMC_CONFIG_TYPE_ETB:
+		desc.groups = coresight_etf_groups;
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.ops = &tmc_etb_cs_ops;
 		dev_list = &etb_devs;
 		break;
 	case TMC_CONFIG_TYPE_ETR:
+		desc.groups = coresight_etr_groups;
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_SYSMEM;
 		desc.ops = &tmc_etr_cs_ops;
@@ -496,6 +506,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_list = &etr_devs;
 		break;
 	case TMC_CONFIG_TYPE_ETF:
+		desc.groups = coresight_etf_groups;
 		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
