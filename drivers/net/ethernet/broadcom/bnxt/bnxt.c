@@ -781,7 +781,7 @@ static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	int i;
 
 	bnxt_for_each_napi_tx(i, bnapi, txr) {
-		if (txr->tx_hw_cons != txr->tx_cons)
+		if (txr->tx_hw_cons != RING_TX(bp, txr->tx_cons))
 			__bnxt_tx_int(bp, txr, budget);
 	}
 	bnapi->events &= ~BNXT_TX_CMP_EVENT;
