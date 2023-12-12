@@ -79,7 +79,7 @@ static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 		.flags = XSK_UMEM__DEFAULT_FLAGS,
 		.tx_metadata_len = sizeof(struct xsk_tx_metadata),
 	};
-	__u32 idx;
+	__u32 idx = 0;
 	u64 addr;
 	int ret;
 	int i;
