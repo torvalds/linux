@@ -2785,14 +2785,18 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 */
 		dma_rmb();
 		cmp_type = TX_CMP_TYPE(txcmp);
-		if (cmp_type == CMP_TYPE_TX_L2_CMP) {
+		if (cmp_type == CMP_TYPE_TX_L2_CMP ||
+		    cmp_type == CMP_TYPE_TX_L2_COAL_CMP) {
 			u32 opaque = txcmp->tx_cmp_opaque;
 			struct bnxt_tx_ring_info *txr;
 			u16 tx_freed;
 
 			txr = bnapi->tx_ring[TX_OPAQUE_RING(opaque)];
 			event |= BNXT_TX_CMP_EVENT;
-			txr->tx_hw_cons = TX_OPAQUE_PROD(bp, opaque);
+			if (cmp_type == CMP_TYPE_TX_L2_COAL_CMP)
+				txr->tx_hw_cons = TX_CMP_SQ_CONS_IDX(txcmp);
+			else
+				txr->tx_hw_cons = TX_OPAQUE_PROD(bp, opaque);
 			tx_freed = (txr->tx_hw_cons - txr->tx_cons) &
 				   bp->tx_ring_mask;
 			/* return full budget so NAPI will complete. */
@@ -6068,6 +6072,9 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 		req->length = cpu_to_le32(bp->tx_ring_mask + 1);
 		req->stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
 		req->queue_id = cpu_to_le16(ring->queue_id);
+		if (bp->flags & BNXT_FLAG_TX_COAL_CMPL)
+			req->cmpl_coal_cnt =
+				RING_ALLOC_REQ_CMPL_COAL_CNT_COAL_64;
 		break;
 	}
 	case HWRM_RING_ALLOC_RX:
@@ -8279,6 +8286,8 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_LIVEPATCH;
 	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_BS_V2_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_BACKING_STORE_V2;
+	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_TX_COAL_CMPL_CAP)
+		bp->flags |= BNXT_FLAG_TX_COAL_CMPL;
 
 	flags_ext2 = le32_to_cpu(resp->flags_ext2);
 	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_RX_ALL_PKTS_TIMESTAMPS_SUPPORTED)
