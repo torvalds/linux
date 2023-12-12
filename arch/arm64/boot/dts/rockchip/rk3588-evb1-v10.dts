@@ -16,6 +16,7 @@
 	compatible = "rockchip,rk3588-evb1-v10", "rockchip,rk3588";
 
 	aliases {
+		ethernet0 = &gmac0;
 		mmc0 = &sdhci;
 	};
 

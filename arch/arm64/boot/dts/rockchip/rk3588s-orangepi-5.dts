@@ -13,6 +13,7 @@
 	compatible = "xunlong,orangepi-5", "rockchip,rk3588s";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc0 = &sdmmc;
 	};
 

@@ -12,6 +12,7 @@
 	compatible = "radxa,rock-5a", "rockchip,rk3588s";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
 	};
