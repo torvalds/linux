@@ -15,6 +15,7 @@
 #include <drm/drm_print.h>
 #include <drm/xe_drm.h>
 
+#include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_debugfs.h"
@@ -26,6 +27,7 @@
 #include "xe_exec.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_irq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
@@ -401,6 +403,30 @@ int xe_device_probe_early(struct xe_device *xe)
 	return 0;
 }
 
+static int xe_device_set_has_flat_ccs(struct  xe_device *xe)
+{
+	u32 reg;
+	int err;
+
+	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs)
+		return 0;
+
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
+
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (err)
+		return err;
+
+	reg = xe_gt_mcr_unicast_read_any(gt, XE2_FLAT_CCS_BASE_RANGE_LOWER);
+	xe->info.has_flat_ccs = (reg & XE2_FLAT_CCS_ENABLE);
+
+	if (!xe->info.has_flat_ccs)
+		drm_dbg(&xe->drm,
+			"Flat CCS has been disabled in bios, May lead to performance impact");
+
+	return xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+}
+
 int xe_device_probe(struct xe_device *xe)
 {
 	struct xe_tile *tile;
@@ -455,6 +481,10 @@ int xe_device_probe(struct xe_device *xe)
 		if (err)
 			goto err_irq_shutdown;
 	}
+
+	err = xe_device_set_has_flat_ccs(xe);
+	if (err)
+		return err;
 
 	err = xe_mmio_probe_vram(xe);
 	if (err)
