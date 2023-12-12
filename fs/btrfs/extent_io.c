@@ -4459,22 +4459,22 @@ void copy_extent_buffer(const struct extent_buffer *dst,
 }
 
 /*
- * Calculate the page and offset of the byte containing the given bit number.
+ * Calculate the folio and offset of the byte containing the given bit number.
  *
  * @eb:           the extent buffer
  * @start:        offset of the bitmap item in the extent buffer
  * @nr:           bit number
- * @page_index:   return index of the page in the extent buffer that contains
+ * @folio_index:  return index of the folio in the extent buffer that contains
  *                the given bit number
- * @page_offset:  return offset into the page given by page_index
+ * @folio_offset: return offset into the folio given by folio_index
  *
  * This helper hides the ugliness of finding the byte in an extent buffer which
  * contains a given bit.
  */
 static inline void eb_bitmap_offset(const struct extent_buffer *eb,
 				    unsigned long start, unsigned long nr,
-				    unsigned long *page_index,
-				    size_t *page_offset)
+				    unsigned long *folio_index,
+				    size_t *folio_offset)
 {
 	size_t byte_offset = BIT_BYTE(nr);
 	size_t offset;
@@ -4484,10 +4484,10 @@ static inline void eb_bitmap_offset(const struct extent_buffer *eb,
 	 * the bitmap item in the extent buffer + the offset of the byte in the
 	 * bitmap item.
 	 */
-	offset = start + offset_in_page(eb->start) + byte_offset;
+	offset = start + offset_in_folio(eb->folios[0], eb->start) + byte_offset;
 
-	*page_index = offset >> PAGE_SHIFT;
-	*page_offset = offset_in_page(offset);
+	*folio_index = offset >> folio_shift(eb->folios[0]);
+	*folio_offset = offset_in_folio(eb->folios[0], offset);
 }
 
 /*
@@ -4500,15 +4500,13 @@ static inline void eb_bitmap_offset(const struct extent_buffer *eb,
 int extent_buffer_test_bit(const struct extent_buffer *eb, unsigned long start,
 			   unsigned long nr)
 {
-	u8 *kaddr;
-	struct page *page;
 	unsigned long i;
 	size_t offset;
+	u8 *kaddr;
 
 	eb_bitmap_offset(eb, start, nr, &i, &offset);
-	page = folio_page(eb->folios[i], 0);
 	assert_eb_folio_uptodate(eb, i);
-	kaddr = page_address(page);
+	kaddr = folio_address(eb->folios[i]);
 	return 1U & (kaddr[offset] >> (nr & (BITS_PER_BYTE - 1)));
 }
 
