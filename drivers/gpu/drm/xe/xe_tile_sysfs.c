@@ -20,20 +20,6 @@ static const struct kobj_type xe_tile_sysfs_kobj_type = {
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static ssize_t
-physical_vram_size_bytes_show(struct device *kdev, struct device_attribute *attr,
-			      char *buf)
-{
-	struct xe_tile *tile = kobj_to_tile(&kdev->kobj);
-
-	return sysfs_emit(buf, "%llu\n", tile->mem.vram.actual_physical_size);
-}
-
-static DEVICE_ATTR_RO(physical_vram_size_bytes);
-
-static const struct attribute *physical_memsize_attr =
-	&dev_attr_physical_vram_size_bytes.attr;
-
 static void tile_sysfs_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_tile *tile = arg;
@@ -64,15 +50,8 @@ void xe_tile_sysfs_init(struct xe_tile *tile)
 
 	tile->sysfs = &kt->base;
 
-	if (IS_DGFX(xe) && xe->info.platform != XE_DG1 &&
-	    sysfs_create_file(tile->sysfs, physical_memsize_attr))
-		drm_warn(&xe->drm,
-			 "Sysfs creation to read addr_range per tile failed\n");
-
 	err = drmm_add_action_or_reset(&xe->drm, tile_sysfs_fini, tile);
-	if (err) {
+	if (err)
 		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
 			 __func__, err);
-		return;
-	}
 }
