@@ -1541,6 +1541,9 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 	int is_retrans = RPC_WAS_SENT(task);
 	int status;
 
+	if (test_bit(XPRT_CLOSE_WAIT, &xprt->state))
+		return -ENOTCONN;
+
 	if (!req->rq_bytes_sent) {
 		if (xprt_request_data_received(task)) {
 			status = 0;
