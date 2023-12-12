@@ -495,17 +495,36 @@ int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 }
 EXPORT_SYMBOL_GPL(walt_partial_resume_cpus);
 
-/* return true if the requested client has fully halted one of the cpus */
+/**
+ * cpus_halted_by_client: determine if client has halted a cpu
+ *   where all cpus in the mask are halted.
+ *
+ * If all cpus in the cluster are halted, and one of them is
+ * halted for this client, then and only then indicate pass.
+ *
+ * Otherwise, if not all cpus are halted, or none of the cpus
+ * are halted by this particular client, then reject.
+ *
+ * return true if conditions are met, false otherwise.
+ */
 bool cpus_halted_by_client(struct cpumask *cpus, enum pause_client client)
 {
 	struct halt_cpu_state *halt_cpu_state;
+	bool cpu_halted_for_client = false;
 	int cpu;
 
 	for_each_cpu(cpu, cpus) {
 		halt_cpu_state = per_cpu_ptr(&halt_state, cpu);
-		if ((bool)(halt_cpu_state->client_vote_mask[HALT] & client))
-			return true;
+
+		if (!halt_cpu_state->client_vote_mask[HALT])
+			return false;
+
+		if (halt_cpu_state->client_vote_mask[HALT] & client)
+			cpu_halted_for_client = true;
 	}
+
+	if (cpu_halted_for_client)
+		return true;
 
 	return false;
 }
