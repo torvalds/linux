@@ -102,7 +102,9 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 			     bool write)
 {
+	int mask = write ? MAY_WRITE : MAY_READ;
 	loff_t tmp;
+	int ret;
 
 	if (unlikely(pos < 0 || len < 0))
 		return -EINVAL;
@@ -110,7 +112,11 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 	if (unlikely(check_add_overflow(pos, len, &tmp)))
 		return -EINVAL;
 
-	return security_file_permission(file, write ? MAY_WRITE : MAY_READ);
+	ret = security_file_permission(file, mask);
+	if (ret)
+		return ret;
+
+	return fsnotify_file_area_perm(file, mask, &pos, len);
 }
 
 /*
