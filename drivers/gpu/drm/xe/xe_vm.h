@@ -74,9 +74,20 @@ static inline bool xe_vm_has_scratch(const struct xe_vm *vm)
 	return vm->flags & XE_VM_FLAG_SCRATCH_PAGE;
 }
 
+/**
+ * gpuvm_to_vm() - Return the embedding xe_vm from a struct drm_gpuvm pointer
+ * @gpuvm: The struct drm_gpuvm pointer
+ *
+ * Return: Pointer to the embedding struct xe_vm.
+ */
+static inline struct xe_vm *gpuvm_to_vm(struct drm_gpuvm *gpuvm)
+{
+	return container_of(gpuvm, struct xe_vm, gpuvm);
+}
+
 static inline struct xe_vm *gpuva_to_vm(struct drm_gpuva *gpuva)
 {
-	return container_of(gpuva->vm, struct xe_vm, gpuvm);
+	return gpuvm_to_vm(gpuva->vm);
 }
 
 static inline struct xe_vma *gpuva_to_vma(struct drm_gpuva *gpuva)
@@ -218,12 +229,6 @@ int xe_vma_userptr_pin_pages(struct xe_vma *vma);
 int xe_vma_userptr_check_repin(struct xe_vma *vma);
 
 bool xe_vm_validate_should_retry(struct drm_exec *exec, int err, ktime_t *end);
-
-int xe_vm_lock_dma_resv(struct xe_vm *vm, struct drm_exec *exec,
-			unsigned int num_shared, bool lock_vm);
-
-void xe_vm_fence_all_extobjs(struct xe_vm *vm, struct dma_fence *fence,
-			     enum dma_resv_usage usage);
 
 int xe_analyze_vm(struct drm_printer *p, struct xe_vm *vm, int gt_id);
 

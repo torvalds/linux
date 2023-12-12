@@ -468,9 +468,9 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 {
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
-	struct drm_gpuva *gpuva;
 	struct drm_gem_object *obj = &bo->ttm.base;
 	struct drm_gpuvm_bo *vm_bo;
+	bool idle = false;
 	int ret = 0;
 
 	dma_resv_assert_held(bo->ttm.base.resv);
@@ -484,14 +484,15 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 	}
 
 	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
-		drm_gpuvm_bo_for_each_va(gpuva, vm_bo) {
-			struct xe_vma *vma = gpuva_to_vma(gpuva);
-			struct xe_vm *vm = xe_vma_vm(vma);
+		struct xe_vm *vm = gpuvm_to_vm(vm_bo->vm);
+		struct drm_gpuva *gpuva;
 
-			trace_xe_vma_evict(vma);
+		if (!xe_vm_in_fault_mode(vm)) {
+			drm_gpuvm_bo_evict(vm_bo, true);
+			continue;
+		}
 
-		if (xe_vm_in_fault_mode(vm)) {
-			/* Wait for pending binds / unbinds. */
+		if (!idle) {
 			long timeout;
 
 			if (ctx->no_wait_gpu &&
@@ -503,45 +504,21 @@ static int xe_bo_trigger_rebind(struct xe_device *xe, struct xe_bo *bo,
 							DMA_RESV_USAGE_BOOKKEEP,
 							ctx->interruptible,
 							MAX_SCHEDULE_TIMEOUT);
-			if (timeout > 0) {
-				ret = xe_vm_invalidate_vma(vma);
-				XE_WARN_ON(ret);
-			} else if (!timeout) {
-				ret = -ETIME;
-			} else {
-				ret = timeout;
-			}
+			if (!timeout)
+				return -ETIME;
+			if (timeout < 0)
+				return timeout;
 
-		} else {
-			bool vm_resv_locked = false;
-
-			/*
-			 * We need to put the vma on the vm's rebind_list,
-			 * but need the vm resv to do so. If we can't verify
-			 * that we indeed have it locked, put the vma an the
-			 * vm's notifier.rebind_list instead and scoop later.
-			 */
-			if (dma_resv_trylock(xe_vm_resv(vm)))
-				vm_resv_locked = true;
-			else if (ctx->resv != xe_vm_resv(vm)) {
-				spin_lock(&vm->notifier.list_lock);
-				if (!(vma->gpuva.flags & XE_VMA_DESTROYED))
-					list_move_tail(&vma->notifier.rebind_link,
-						       &vm->notifier.rebind_list);
-				spin_unlock(&vm->notifier.list_lock);
-				continue;
-			}
-
-			xe_vm_assert_held(vm);
-			if (vma->tile_present &&
-			    !(vma->gpuva.flags & XE_VMA_DESTROYED) &&
-			    list_empty(&vma->combined_links.rebind))
-				list_add_tail(&vma->combined_links.rebind,
-					      &vm->rebind_list);
-
-			if (vm_resv_locked)
-				dma_resv_unlock(xe_vm_resv(vm));
+			idle = true;
 		}
+
+		drm_gpuvm_bo_for_each_va(gpuva, vm_bo) {
+			struct xe_vma *vma = gpuva_to_vma(gpuva);
+
+			trace_xe_vma_evict(vma);
+			ret = xe_vm_invalidate_vma(vma);
+			if (XE_WARN_ON(ret))
+				return ret;
 		}
 	}
 

@@ -94,40 +94,9 @@
  *	Unlock all
  */
 
-static int xe_exec_begin(struct drm_exec *exec, struct xe_vm *vm)
+static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 {
-	struct xe_vma *vma;
-	LIST_HEAD(dups);
-	int err = 0;
-
-	if (xe_vm_in_lr_mode(vm))
-		return 0;
-
-	/*
-	 * 1 fence for job from exec plus a fence for each tile from a possible
-	 * rebind
-	 */
-	err = xe_vm_lock_dma_resv(vm, exec, 1 + vm->xe->info.tile_count, true);
-	if (err)
-		return err;
-
-	/*
-	 * Validate BOs that have been evicted (i.e. make sure the
-	 * BOs have valid placements possibly moving an evicted BO back
-	 * to a location where the GPU can access it).
-	 */
-	list_for_each_entry(vma, &vm->rebind_list, combined_links.rebind) {
-		xe_assert(vm->xe, !xe_vma_is_null(vma));
-
-		if (xe_vma_is_userptr(vma))
-			continue;
-
-		err = xe_bo_validate(xe_vma_bo(vma), vm, false);
-		if (err)
-			break;
-	}
-
-	return err;
+	return drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -140,7 +109,8 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct xe_exec_queue *q;
 	struct xe_sync_entry *syncs = NULL;
 	u64 addresses[XE_HW_ENGINE_MAX_INSTANCE];
-	struct drm_exec exec;
+	struct drm_gpuvm_exec vm_exec = {.extra.fn = xe_exec_fn};
+	struct drm_exec *exec = &vm_exec.exec;
 	u32 i, num_syncs = 0;
 	struct xe_sched_job *job;
 	struct dma_fence *rebind_fence;
@@ -216,16 +186,18 @@ retry:
 			goto err_unlock_list;
 	}
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
-	drm_exec_until_all_locked(&exec) {
-		err = xe_exec_begin(&exec, vm);
-		drm_exec_retry_on_contention(&exec);
-		if (err && xe_vm_validate_should_retry(&exec, err, &end)) {
-			err = -EAGAIN;
+	vm_exec.vm = &vm->gpuvm;
+	vm_exec.num_fences = 1 + vm->xe->info.tile_count;
+	vm_exec.flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
+	if (xe_vm_in_lr_mode(vm)) {
+		drm_exec_init(exec, vm_exec.flags);
+	} else {
+		err = drm_gpuvm_exec_lock(&vm_exec);
+		if (err) {
+			if (xe_vm_validate_should_retry(exec, err, &end))
+				err = -EAGAIN;
 			goto err_unlock_list;
 		}
-		if (err)
-			goto err_exec;
 	}
 
 	if (xe_vm_is_closed_or_banned(q->vm)) {
@@ -307,19 +279,9 @@ retry:
 	 * the job and let the DRM scheduler / backend clean up the job.
 	 */
 	xe_sched_job_arm(job);
-	if (!xe_vm_in_lr_mode(vm)) {
-		/* Block userptr invalidations / BO eviction */
-		dma_resv_add_fence(xe_vm_resv(vm),
-				   &job->drm.s_fence->finished,
-				   DMA_RESV_USAGE_BOOKKEEP);
-
-		/*
-		 * Make implicit sync work across drivers, assuming all external
-		 * BOs are written as we don't pass in a read / write list.
-		 */
-		xe_vm_fence_all_extobjs(vm, &job->drm.s_fence->finished,
-					DMA_RESV_USAGE_WRITE);
-	}
+	if (!xe_vm_in_lr_mode(vm))
+		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
+					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
 
 	for (i = 0; i < num_syncs; i++)
 		xe_sync_entry_signal(&syncs[i], job,
@@ -343,7 +305,7 @@ err_put_job:
 	if (err)
 		xe_sched_job_put(job);
 err_exec:
-	drm_exec_fini(&exec);
+	drm_exec_fini(exec);
 err_unlock_list:
 	if (write_locked)
 		up_write(&vm->lock);

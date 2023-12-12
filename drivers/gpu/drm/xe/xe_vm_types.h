@@ -62,26 +62,17 @@ struct xe_vma {
 	/** @gpuva: Base GPUVA object */
 	struct drm_gpuva gpuva;
 
-	/** @combined_links: links into lists which are mutually exclusive */
+	/**
+	 * @combined_links: links into lists which are mutually exclusive.
+	 * Locking: vm lock in write mode OR vm lock in read mode and the vm's
+	 * resv.
+	 */
 	union {
-		/**
-		 * @userptr: link into VM repin list if userptr. Protected by
-		 * vm->lock in write mode.
-		 */
+		/** @userptr: link into VM repin list if userptr. */
 		struct list_head userptr;
-		/**
-		 * @rebind: link into VM if this VMA needs rebinding, and
-		 * if it's a bo (not userptr) needs validation after a possible
-		 * eviction. Protected by the vm's resv lock and typically
-		 * vm->lock is also held in write mode. The only place where
-		 * vm->lock isn't held is the BO eviction path which has
-		 * mutually exclusive execution with userptr.
-		 */
+		/** @rebind: link into VM if this VMA needs rebinding. */
 		struct list_head rebind;
-		/**
-		 * @destroy: link to contested list when VM is being closed.
-		 * Protected by vm->lock in write mode and vm's resv lock.
-		 */
+		/** @destroy: link to contested list when VM is being closed. */
 		struct list_head destroy;
 	} combined_links;
 
@@ -114,18 +105,6 @@ struct xe_vma {
 	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
 	 */
 	u16 pat_index;
-
-	struct {
-		struct list_head rebind_link;
-	} notifier;
-
-	struct {
-		/**
-		 * @extobj.link: Link into vm's external object list.
-		 * protected by the vm lock.
-		 */
-		struct list_head link;
-	} extobj;
 
 	/**
 	 * @userptr: user pointer state, only allocated for VMAs that are
@@ -180,9 +159,9 @@ struct xe_vm {
 	struct rw_semaphore lock;
 
 	/**
-	 * @rebind_list: list of VMAs that need rebinding, and if they are
-	 * bos (not userptr), need validation after a possible eviction. The
-	 * list is protected by @resv.
+	 * @rebind_list: list of VMAs that need rebinding. Protected by the
+	 * vm->lock in write mode, OR (the vm->lock in read mode and the
+	 * vm resv).
 	 */
 	struct list_head rebind_list;
 
@@ -201,14 +180,6 @@ struct xe_vm {
 	 * Used to implement conflict tracking between independent bind engines.
 	 */
 	struct xe_range_fence_tree rftree[XE_MAX_TILES_PER_DEVICE];
-
-	/** @extobj: bookkeeping for external objects. Protected by the vm lock */
-	struct {
-		/** @enties: number of external BOs attached this VM */
-		u32 entries;
-		/** @list: list of vmas with external bos attached */
-		struct list_head list;
-	} extobj;
 
 	/** @async_ops: async VM operations (bind / unbinds) */
 	struct {
@@ -298,22 +269,6 @@ struct xe_vm {
 		 */
 		struct xe_vma *last_fault_vma;
 	} usm;
-
-	/**
-	 * @notifier: Lists and locks for temporary usage within notifiers where
-	 * we either can't grab the vm lock or the vm resv.
-	 */
-	struct {
-		/** @notifier.list_lock: lock protecting @rebind_list */
-		spinlock_t list_lock;
-		/**
-		 * @notifier.rebind_list: list of vmas that we want to put on the
-		 * main @rebind_list. This list is protected for writing by both
-		 * notifier.list_lock, and the resv of the bo the vma points to,
-		 * and for reading by the notifier.list_lock only.
-		 */
-		struct list_head rebind_list;
-	} notifier;
 
 	/** @error_capture: allow to track errors */
 	struct {
