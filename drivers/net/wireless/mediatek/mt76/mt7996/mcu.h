@@ -206,20 +206,20 @@ struct mt7996_mcu_all_sta_info_event {
 	u8 rsv3[4];
 
 	union {
-		struct all_sta_trx_rate rate[0];
-		struct {
+		DECLARE_FLEX_ARRAY(struct all_sta_trx_rate, rate);
+		DECLARE_FLEX_ARRAY(struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
 			__le32 tx_bytes[IEEE80211_NUM_ACS];
 			__le32 rx_bytes[IEEE80211_NUM_ACS];
-		} adm_stat[0] __packed;
+		} __packed, adm_stat);
 
-		struct {
+		DECLARE_FLEX_ARRAY(struct {
 			__le16 wlan_idx;
 			u8 rsv[2];
 			__le32 tx_msdu_cnt;
 			__le32 rx_msdu_cnt;
-		} msdu_cnt[0] __packed;
+		} __packed, msdu_cnt);
 	} __packed;
 } __packed;
 
