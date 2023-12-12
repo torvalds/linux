@@ -770,11 +770,6 @@ static const char *const pspclk_sel[] = {
 	"soc0-hpll",
 };
 
-static const char *const axiclk_sel[] = {
-	"soc0-mpll_div2",
-	"soc0-hpll_div2",
-};
-
 static const char *const soc0_uartclk_sel[] = {
 	"soc0-clk24Mhz",
 	"soc0-clk192Mhz",
@@ -834,8 +829,26 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 		clk_hw_register_fixed_rate(NULL, "soc0-clk192Mhz", NULL, 0, AST2700_CLK_192MHZ);
 
 	//hpll
-	val = readl(clk_base + AST2700_SOC0_HPLL_PARAM);
-	clks[AST2700_SOC0_CLK_HPLL] = ast2700_soc0_hw_pll("soc0-hpll", "soc0-clkin", val);
+	val = readl(clk_base + AST2700_SOC0_HWSTRAP1);
+	if ((val & GENMASK(3, 2)) != 0) {
+		switch ((val & GENMASK(3, 2)) >> 2) {
+		case 1:
+			clks[AST2700_SOC0_CLK_HPLL] =
+				clk_hw_register_fixed_rate(NULL, "soc0-hpll", NULL, 0, 1900000);
+			break;
+		case 2:
+			clks[AST2700_SOC0_CLK_HPLL] =
+				clk_hw_register_fixed_rate(NULL, "soc0-hpll", NULL, 0, 1800000);
+			break;
+		case 3:
+			clks[AST2700_SOC0_CLK_HPLL] =
+				clk_hw_register_fixed_rate(NULL, "soc0-hpll", NULL, 0, 1700000);
+			break;
+		}
+	} else {
+		val = readl(clk_base + AST2700_SOC0_HPLL_PARAM);
+		clks[AST2700_SOC0_CLK_HPLL] = ast2700_soc0_hw_pll("soc0-hpll", "soc0-clkin", val);
+	}
 	clks[AST2700_SOC0_CLK_HPLL_DIV2] = clk_hw_register_fixed_factor(NULL, "soc0-hpll_div2", "soc0-hpll", 0, 1, 2);
 	clks[AST2700_SOC0_CLK_HPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-hpll_div4", "soc0-hpll", 0, 1, 4);
 
@@ -870,17 +883,26 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 				    4, 1, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_AXI] =
-		clk_hw_register_mux(NULL, "axiclk", axiclk_sel, ARRAY_SIZE(axiclk_sel),
-				    0, clk_base + AST2700_SOC0_HWSTRAP1,
-				    7, 1, 0, &ast2700_clk_lock);
+		clk_hw_register_fixed_factor(NULL, "axi0clk", "pspclk", 0, 1, 2);
 
-	clks[AST2700_SOC0_CLK_AHB] =
-		clk_hw_register_divider_table(NULL, "soc0-ahb", "axiclk",
-					      0, clk_base + AST2700_SOC0_HWSTRAP1,
-					      5, 2, 0, ast2700_clk_div_table, &ast2700_clk_lock);
+	val = readl(clk_base + AST2700_SOC0_HWSTRAP1);
+	if (val & BIT(7)) {
+		clks[AST2700_SOC0_CLK_AHB] =
+			clk_hw_register_divider_table(NULL, "soc0-ahb", "soc0-hpll",
+						      0, clk_base + AST2700_SOC0_HWSTRAP1,
+						      5, 2, 0, ast2700_clk_div_table, &ast2700_clk_lock);
+	} else {
+		clks[AST2700_SOC0_CLK_AHB] =
+			clk_hw_register_divider_table(NULL, "soc0-ahb", "soc0-mpll",
+						      0, clk_base + AST2700_SOC0_HWSTRAP1,
+						      5, 2, 0, ast2700_clk_div_table, &ast2700_clk_lock);
+	}
+
+	clks[AST2700_SOC0_CLK_AXI1] =
+		clk_hw_register_fixed_factor(NULL, "axi1clk", "soc0-ahb", 0, 1, 2);
 
 	clks[AST2700_SOC0_CLK_APB] =
-		clk_hw_register_divider_table(NULL, "soc0-apb", "axiclk",
+		clk_hw_register_divider_table(NULL, "soc0-apb", "axi0clk",
 					      0, clk_base + AST2700_SOC0_CLK_SEL1,
 					      23, 3, 0, ast2700_clk_div_table2, &ast2700_clk_lock);
 
