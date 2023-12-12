@@ -884,6 +884,17 @@ static int xs_stream_prepare_request(struct rpc_rqst *req, struct xdr_buf *buf)
 	return xdr_alloc_bvec(buf, rpc_task_gfp_mask());
 }
 
+static void xs_stream_abort_send_request(struct rpc_rqst *req)
+{
+	struct rpc_xprt *xprt = req->rq_xprt;
+	struct sock_xprt *transport =
+		container_of(xprt, struct sock_xprt, xprt);
+
+	if (transport->xmit.offset != 0 &&
+	    !test_bit(XPRT_CLOSE_WAIT, &xprt->state))
+		xprt_force_disconnect(xprt);
+}
+
 /*
  * Determine if the previous message in the stream was aborted before it
  * could complete transmission.
@@ -3029,6 +3040,7 @@ static const struct rpc_xprt_ops xs_local_ops = {
 	.buf_free		= rpc_free,
 	.prepare_request	= xs_stream_prepare_request,
 	.send_request		= xs_local_send_request,
+	.abort_send_request	= xs_stream_abort_send_request,
 	.wait_for_reply_request	= xprt_wait_for_reply_request_def,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
@@ -3076,6 +3088,7 @@ static const struct rpc_xprt_ops xs_tcp_ops = {
 	.buf_free		= rpc_free,
 	.prepare_request	= xs_stream_prepare_request,
 	.send_request		= xs_tcp_send_request,
+	.abort_send_request	= xs_stream_abort_send_request,
 	.wait_for_reply_request	= xprt_wait_for_reply_request_def,
 	.close			= xs_tcp_shutdown,
 	.destroy		= xs_destroy,
