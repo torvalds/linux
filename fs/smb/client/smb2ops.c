@@ -5215,7 +5215,7 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 	 * over SMB2/SMB3 and Samba will do this with SMB3.1.1 POSIX Extensions
 	 */
 
-	if (!S_ISCHR(mode) && !S_ISBLK(mode))
+	if (!S_ISCHR(mode) && !S_ISBLK(mode) && !S_ISFIFO(mode))
 		return rc;
 
 	cifs_dbg(FYI, "sfu compat create special file\n");
@@ -5261,6 +5261,12 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 		memcpy(pdev->type, "IntxBLK", 8);
 		pdev->major = cpu_to_le64(MAJOR(dev));
 		pdev->minor = cpu_to_le64(MINOR(dev));
+		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
+							&bytes_written, iov, 1);
+	} else if (S_ISFIFO(mode)) {
+		memcpy(pdev->type, "LnxFIFO", 8);
+		pdev->major = 0;
+		pdev->minor = 0;
 		rc = tcon->ses->server->ops->sync_write(xid, &fid, &io_parms,
 							&bytes_written, iov, 1);
 	}
