@@ -303,9 +303,13 @@ static void sun50i_a100_ledc_set_timing(struct sun50i_a100_ledc *priv)
 {
 	const struct sun50i_a100_ledc_timing *timing = &priv->timing;
 	unsigned long mod_freq = clk_get_rate(priv->mod_clk);
-	u32 cycle_ns = NSEC_PER_SEC / mod_freq;
+	u32 cycle_ns;
 	u32 control;
 
+	if (!mod_freq)
+		return;
+
+	cycle_ns = NSEC_PER_SEC / mod_freq;
 	control = FIELD_PREP(LEDC_T01_TIMING_CTRL_REG_T1H, timing->t1h_ns / cycle_ns) |
 		  FIELD_PREP(LEDC_T01_TIMING_CTRL_REG_T1L, timing->t1l_ns / cycle_ns) |
 		  FIELD_PREP(LEDC_T01_TIMING_CTRL_REG_T0H, timing->t0h_ns / cycle_ns) |
