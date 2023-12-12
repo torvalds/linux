@@ -2070,6 +2070,15 @@ static const struct regmap_access_table tc_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
 };
 
+static const struct regmap_range tc_precious_ranges[] = {
+	regmap_reg_range(SYSSTAT, SYSSTAT),
+};
+
+static const struct regmap_access_table tc_precious_table = {
+	.yes_ranges = tc_precious_ranges,
+	.n_yes_ranges = ARRAY_SIZE(tc_precious_ranges),
+};
+
 static const struct regmap_range tc_non_writeable_ranges[] = {
 	regmap_reg_range(PPI_BUSYPPI, PPI_BUSYPPI),
 	regmap_reg_range(DSI_BUSYDSI, DSI_BUSYDSI),
@@ -2093,6 +2102,7 @@ static const struct regmap_config tc_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
 	.volatile_table = &tc_volatile_table,
+	.precious_table = &tc_precious_table,
 	.wr_table = &tc_writeable_table,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
