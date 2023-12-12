@@ -12,6 +12,7 @@
 	compatible = "rockchip,rk3399-sapphire", "rockchip,rk3399";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdmmc;
 		mmc1 = &sdhci;
 	};
