@@ -84,6 +84,14 @@ int debugfs_file_get(struct dentry *dentry)
 	struct debugfs_fsdata *fsd;
 	void *d_fsd;
 
+	/*
+	 * This could only happen if some debugfs user erroneously calls
+	 * debugfs_file_get() on a dentry that isn't even a file, let
+	 * them know about it.
+	 */
+	if (WARN_ON(!d_is_reg(dentry)))
+		return -EINVAL;
+
 	d_fsd = READ_ONCE(dentry->d_fsdata);
 	if (!((unsigned long)d_fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)) {
 		fsd = d_fsd;
@@ -100,6 +108,8 @@ int debugfs_file_get(struct dentry *dentry)
 			kfree(fsd);
 			fsd = READ_ONCE(dentry->d_fsdata);
 		}
+		INIT_LIST_HEAD(&fsd->cancellations);
+		mutex_init(&fsd->cancellations_mtx);
 	}
 
 	/*
@@ -137,6 +147,86 @@ void debugfs_file_put(struct dentry *dentry)
 		complete(&fsd->active_users_drained);
 }
 EXPORT_SYMBOL_GPL(debugfs_file_put);
+
+/**
+ * debugfs_enter_cancellation - enter a debugfs cancellation
+ * @file: the file being accessed
+ * @cancellation: the cancellation object, the cancel callback
+ *	inside of it must be initialized
+ *
+ * When a debugfs file is removed it needs to wait for all active
+ * operations to complete. However, the operation itself may need
+ * to wait for hardware or completion of some asynchronous process
+ * or similar. As such, it may need to be cancelled to avoid long
+ * waits or even deadlocks.
+ *
+ * This function can be used inside a debugfs handler that may
+ * need to be cancelled. As soon as this function is called, the
+ * cancellation's 'cancel' callback may be called, at which point
+ * the caller should proceed to call debugfs_leave_cancellation()
+ * and leave the debugfs handler function as soon as possible.
+ * Note that the 'cancel' callback is only ever called in the
+ * context of some kind of debugfs_remove().
+ *
+ * This function must be paired with debugfs_leave_cancellation().
+ */
+void debugfs_enter_cancellation(struct file *file,
+				struct debugfs_cancellation *cancellation)
+{
+	struct debugfs_fsdata *fsd;
+	struct dentry *dentry = F_DENTRY(file);
+
+	INIT_LIST_HEAD(&cancellation->list);
+
+	if (WARN_ON(!d_is_reg(dentry)))
+		return;
+
+	if (WARN_ON(!cancellation->cancel))
+		return;
+
+	fsd = READ_ONCE(dentry->d_fsdata);
+	if (WARN_ON(!fsd ||
+		    ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)))
+		return;
+
+	mutex_lock(&fsd->cancellations_mtx);
+	list_add(&cancellation->list, &fsd->cancellations);
+	mutex_unlock(&fsd->cancellations_mtx);
+
+	/* if we're already removing wake it up to cancel */
+	if (d_unlinked(dentry))
+		complete(&fsd->active_users_drained);
+}
+EXPORT_SYMBOL_GPL(debugfs_enter_cancellation);
+
+/**
+ * debugfs_leave_cancellation - leave cancellation section
+ * @file: the file being accessed
+ * @cancellation: the cancellation previously registered with
+ *	debugfs_enter_cancellation()
+ *
+ * See the documentation of debugfs_enter_cancellation().
+ */
+void debugfs_leave_cancellation(struct file *file,
+				struct debugfs_cancellation *cancellation)
+{
+	struct debugfs_fsdata *fsd;
+	struct dentry *dentry = F_DENTRY(file);
+
+	if (WARN_ON(!d_is_reg(dentry)))
+		return;
+
+	fsd = READ_ONCE(dentry->d_fsdata);
+	if (WARN_ON(!fsd ||
+		    ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)))
+		return;
+
+	mutex_lock(&fsd->cancellations_mtx);
+	if (!list_empty(&cancellation->list))
+		list_del(&cancellation->list);
+	mutex_unlock(&fsd->cancellations_mtx);
+}
+EXPORT_SYMBOL_GPL(debugfs_leave_cancellation);
 
 /*
  * Only permit access to world-readable files when the kernel is locked down.

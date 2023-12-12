@@ -1517,6 +1517,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				continue;
 		} else {
 			/* We should have covered all the swap entry types */
+			pr_alert("unrecognized swap entry 0x%lx\n", entry.val);
 			WARN_ON_ONCE(1);
 		}
 		pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);

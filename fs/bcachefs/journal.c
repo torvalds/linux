@@ -321,6 +321,8 @@ static int journal_entry_open(struct journal *j)
 	atomic64_inc(&j->seq);
 	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
 
+	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
+
 	BUG_ON(j->buf + (journal_cur_seq(j) & JOURNAL_BUF_MASK) != buf);
 
 	bkey_extent_init(&buf->key);
@@ -523,36 +525,6 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
-	return ret;
-}
-
-/* journal_preres: */
-
-static bool journal_preres_available(struct journal *j,
-				     struct journal_preres *res,
-				     unsigned new_u64s,
-				     unsigned flags)
-{
-	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags, true);
-
-	if (!ret && mutex_trylock(&j->reclaim_lock)) {
-		bch2_journal_reclaim(j);
-		mutex_unlock(&j->reclaim_lock);
-	}
-
-	return ret;
-}
-
-int __bch2_journal_preres_get(struct journal *j,
-			      struct journal_preres *res,
-			      unsigned new_u64s,
-			      unsigned flags)
-{
-	int ret;
-
-	closure_wait_event(&j->preres_wait,
-		   (ret = bch2_journal_error(j)) ||
-		   journal_preres_available(j, res, new_u64s, flags));
 	return ret;
 }
 
@@ -1306,7 +1278,6 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	prt_printf(out, "last_seq:\t\t%llu\n",		journal_last_seq(j));
 	prt_printf(out, "last_seq_ondisk:\t%llu\n",		j->last_seq_ondisk);
 	prt_printf(out, "flushed_seq_ondisk:\t%llu\n",	j->flushed_seq_ondisk);
-	prt_printf(out, "prereserved:\t\t%u/%u\n",		j->prereserved.reserved, j->prereserved.remaining);
 	prt_printf(out, "watermark:\t\t%s\n",		bch2_watermarks[j->watermark]);
 	prt_printf(out, "each entry reserved:\t%u\n",	j->entry_u64s_reserved);
 	prt_printf(out, "nr flush writes:\t%llu\n",		j->nr_flush_writes);

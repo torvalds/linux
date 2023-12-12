@@ -1546,7 +1546,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(card->dev);
-	int sdw_be_num = 0, ssp_num = 0, dmic_num = 0, hdmi_num = 0, bt_num = 0;
+	int sdw_be_num = 0, ssp_num = 0, dmic_num = 0, bt_num = 0;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
 	const struct snd_soc_acpi_link_adr *adr_link = mach_params->links;
@@ -1564,6 +1564,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	char *codec_name, *codec_dai_name;
 	int i, j, be_id = 0;
 	int codec_index;
+	int hdmi_num;
 	int ret;
 
 	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &codec_conf_num);
@@ -1584,14 +1585,13 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		ssp_num = hweight_long(ssp_mask);
 	}
 
-	if (mach_params->codec_mask & IDISP_CODEC_MASK) {
+	if (mach_params->codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
 
-		if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
-			hdmi_num = SOF_TGL_HDMI_COUNT;
-		else
-			hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
-	}
+	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
+		hdmi_num = SOF_TGL_HDMI_COUNT;
+	else
+		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
 
 	/* enable dmic01 & dmic16k */
 	if (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num)
@@ -1601,7 +1601,8 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		bt_num = 1;
 
 	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d, bt: %d\n",
-		sdw_be_num, ssp_num, dmic_num, hdmi_num, bt_num);
+		sdw_be_num, ssp_num, dmic_num,
+		ctx->hdmi.idisp_codec ? hdmi_num : 0, bt_num);
 
 	/* allocate BE dailinks */
 	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num;

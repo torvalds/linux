@@ -7,7 +7,7 @@
 typedef DARRAY(struct folio *) folios;
 
 int bch2_filemap_get_contig_folios_d(struct address_space *, loff_t,
-				     u64, int, gfp_t, folios *);
+				     u64, fgf_t, gfp_t, folios *);
 int bch2_write_invalidate_inode_pages_range(struct address_space *, loff_t, loff_t);
 
 /*

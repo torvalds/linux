@@ -327,9 +327,9 @@ static void __write_super(struct cache_sb *sb, struct cache_sb_disk *out,
 	submit_bio(bio);
 }
 
-static void bch_write_bdev_super_unlock(struct closure *cl)
+static CLOSURE_CALLBACK(bch_write_bdev_super_unlock)
 {
-	struct cached_dev *dc = container_of(cl, struct cached_dev, sb_write);
+	closure_type(dc, struct cached_dev, sb_write);
 
 	up(&dc->sb_write_mutex);
 }
@@ -363,9 +363,9 @@ static void write_super_endio(struct bio *bio)
 	closure_put(&ca->set->sb_write);
 }
 
-static void bcache_write_super_unlock(struct closure *cl)
+static CLOSURE_CALLBACK(bcache_write_super_unlock)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, sb_write);
+	closure_type(c, struct cache_set, sb_write);
 
 	up(&c->sb_write_mutex);
 }
@@ -407,9 +407,9 @@ static void uuid_endio(struct bio *bio)
 	closure_put(cl);
 }
 
-static void uuid_io_unlock(struct closure *cl)
+static CLOSURE_CALLBACK(uuid_io_unlock)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, uuid_write);
+	closure_type(c, struct cache_set, uuid_write);
 
 	up(&c->uuid_write_mutex);
 }
@@ -905,6 +905,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 
 	if (!d->stripe_size)
 		d->stripe_size = 1 << 31;
+	else if (d->stripe_size < BCH_MIN_STRIPE_SZ)
+		d->stripe_size = roundup(BCH_MIN_STRIPE_SZ, d->stripe_size);
 
 	n = DIV_ROUND_UP_ULL(sectors, d->stripe_size);
 	if (!n || n > max_stripes) {
@@ -1342,9 +1344,9 @@ void bch_cached_dev_release(struct kobject *kobj)
 	module_put(THIS_MODULE);
 }
 
-static void cached_dev_free(struct closure *cl)
+static CLOSURE_CALLBACK(cached_dev_free)
 {
-	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
+	closure_type(dc, struct cached_dev, disk.cl);
 
 	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
 		cancel_writeback_rate_update_dwork(dc);
@@ -1376,9 +1378,9 @@ static void cached_dev_free(struct closure *cl)
 	kobject_put(&dc->disk.kobj);
 }
 
-static void cached_dev_flush(struct closure *cl)
+static CLOSURE_CALLBACK(cached_dev_flush)
 {
-	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
+	closure_type(dc, struct cached_dev, disk.cl);
 	struct bcache_device *d = &dc->disk;
 
 	mutex_lock(&bch_register_lock);
@@ -1497,9 +1499,9 @@ void bch_flash_dev_release(struct kobject *kobj)
 	kfree(d);
 }
 
-static void flash_dev_free(struct closure *cl)
+static CLOSURE_CALLBACK(flash_dev_free)
 {
-	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
+	closure_type(d, struct bcache_device, cl);
 
 	mutex_lock(&bch_register_lock);
 	atomic_long_sub(bcache_dev_sectors_dirty(d),
@@ -1510,9 +1512,9 @@ static void flash_dev_free(struct closure *cl)
 	kobject_put(&d->kobj);
 }
 
-static void flash_dev_flush(struct closure *cl)
+static CLOSURE_CALLBACK(flash_dev_flush)
 {
-	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
+	closure_type(d, struct bcache_device, cl);
 
 	mutex_lock(&bch_register_lock);
 	bcache_device_unlink(d);
@@ -1668,9 +1670,9 @@ void bch_cache_set_release(struct kobject *kobj)
 	module_put(THIS_MODULE);
 }
 
-static void cache_set_free(struct closure *cl)
+static CLOSURE_CALLBACK(cache_set_free)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, cl);
+	closure_type(c, struct cache_set, cl);
 	struct cache *ca;
 
 	debugfs_remove(c->debug);
@@ -1709,9 +1711,9 @@ static void cache_set_free(struct closure *cl)
 	kobject_put(&c->kobj);
 }
 
-static void cache_set_flush(struct closure *cl)
+static CLOSURE_CALLBACK(cache_set_flush)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, caching);
+	closure_type(c, struct cache_set, caching);
 	struct cache *ca = c->cache;
 	struct btree *b;
 
@@ -1806,9 +1808,9 @@ static void conditional_stop_bcache_device(struct cache_set *c,
 	}
 }
 
-static void __cache_set_unregister(struct closure *cl)
+static CLOSURE_CALLBACK(__cache_set_unregister)
 {
-	struct cache_set *c = container_of(cl, struct cache_set, caching);
+	closure_type(c, struct cache_set, caching);
 	struct cached_dev *dc;
 	struct bcache_device *d;
 	size_t i;
@@ -2016,7 +2018,7 @@ static int run_cache_set(struct cache_set *c)
 		c->root = bch_btree_node_get(c, NULL, k,
 					     j->btree_level,
 					     true, NULL);
-		if (IS_ERR_OR_NULL(c->root))
+		if (IS_ERR(c->root))
 			goto err;
 
 		list_del_init(&c->root->list);

@@ -423,6 +423,18 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
+	set_bit(BCH_FS_RW, &c->flags);
+	set_bit(BCH_FS_WAS_RW, &c->flags);
+
+#ifndef BCH_WRITE_REF_DEBUG
+	percpu_ref_reinit(&c->writes);
+#else
+	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
+		BUG_ON(atomic_long_read(&c->writes[i]));
+		atomic_long_inc(&c->writes[i]);
+	}
+#endif
+
 	ret = bch2_gc_thread_start(c);
 	if (ret) {
 		bch_err(c, "error starting gc thread");
@@ -439,24 +451,16 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 			goto err;
 	}
 
-#ifndef BCH_WRITE_REF_DEBUG
-	percpu_ref_reinit(&c->writes);
-#else
-	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
-		BUG_ON(atomic_long_read(&c->writes[i]));
-		atomic_long_inc(&c->writes[i]);
-	}
-#endif
-	set_bit(BCH_FS_RW, &c->flags);
-	set_bit(BCH_FS_WAS_RW, &c->flags);
-
 	bch2_do_discards(c);
 	bch2_do_invalidates(c);
 	bch2_do_stripe_deletes(c);
 	bch2_do_pending_node_rewrites(c);
 	return 0;
 err:
-	__bch2_fs_read_only(c);
+	if (test_bit(BCH_FS_RW, &c->flags))
+		bch2_fs_read_only(c);
+	else
+		__bch2_fs_read_only(c);
 	return ret;
 }
 
@@ -504,8 +508,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
-	bch2_journal_keys_free(&c->journal_keys);
-	bch2_journal_entries_free(c);
+	bch2_journal_keys_put_initial(c);
+	BUG_ON(atomic_read(&c->journal_keys.ref));
 	bch2_fs_btree_write_buffer_exit(c);
 	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->online_reserved);
@@ -702,6 +706,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	init_rwsem(&c->gc_lock);
 	mutex_init(&c->gc_gens_lock);
+	atomic_set(&c->journal_keys.ref, 1);
+	c->journal_keys.initial_ref_held = true;
 
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);

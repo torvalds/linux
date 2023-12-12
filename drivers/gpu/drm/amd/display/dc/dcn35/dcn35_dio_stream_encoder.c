@@ -261,12 +261,6 @@ static void enc35_stream_encoder_enable(
 			/* invalid mode ! */
 			ASSERT_CRITICAL(false);
 		}
-
-		REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_CLK_EN, 1);
-		REG_UPDATE(DIG_FE_EN_CNTL, DIG_FE_ENABLE, 1);
-	} else {
-		REG_UPDATE(DIG_FE_EN_CNTL, DIG_FE_ENABLE, 0);
-		REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_CLK_EN, 0);
 	}
 }
 
@@ -436,6 +430,8 @@ static void enc35_disable_fifo(struct stream_encoder *enc)
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0);
+	REG_UPDATE(DIG_FE_EN_CNTL, DIG_FE_ENABLE, 0);
+	REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_CLK_EN, 0);
 }
 
 static void enc35_enable_fifo(struct stream_encoder *enc)
@@ -443,6 +439,8 @@ static void enc35_enable_fifo(struct stream_encoder *enc)
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
+	REG_UPDATE(DIG_FE_CLK_CNTL, DIG_FE_CLK_EN, 1);
+	REG_UPDATE(DIG_FE_EN_CNTL, DIG_FE_ENABLE, 1);
 
 	enc35_reset_fifo(enc, true);
 	enc35_reset_fifo(enc, false);
