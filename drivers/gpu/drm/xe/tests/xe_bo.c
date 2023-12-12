@@ -14,7 +14,7 @@
 #include "xe_pci.h"
 #include "xe_pm.h"
 
-static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
+static int ccs_test_migrate(struct xe_tile *tile, struct xe_bo *bo,
 			    bool clear, u64 get_val, u64 assign_val,
 			    struct kunit *test)
 {
@@ -36,7 +36,7 @@ static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
 
 	/* Optionally clear bo *and* CCS data in VRAM. */
 	if (clear) {
-		fence = xe_migrate_clear(gt_to_tile(gt)->migrate, bo, bo->ttm.resource);
+		fence = xe_migrate_clear(tile->migrate, bo, bo->ttm.resource);
 		if (IS_ERR(fence)) {
 			KUNIT_FAIL(test, "Failed to submit bo clear.\n");
 			return PTR_ERR(fence);
@@ -91,7 +91,7 @@ static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
 	}
 
 	/* Check last CCS value, or at least last value in page. */
-	offset = xe_device_ccs_bytes(gt_to_xe(gt), bo->size);
+	offset = xe_device_ccs_bytes(tile_to_xe(tile), bo->size);
 	offset = min_t(u32, offset, PAGE_SIZE) / sizeof(u64) - 1;
 	if (cpu_map[offset] != get_val) {
 		KUNIT_FAIL(test,
@@ -108,39 +108,45 @@ static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
 	return ret;
 }
 
-static void ccs_test_run_gt(struct xe_device *xe, struct xe_gt *gt,
-			    struct kunit *test)
+static void ccs_test_run_tile(struct xe_device *xe, struct xe_tile *tile,
+			      struct kunit *test)
 {
 	struct xe_bo *bo;
-	u32 vram_bit;
+
 	int ret;
 
 	/* TODO: Sanity check */
-	vram_bit = XE_BO_CREATE_VRAM0_BIT << gt_to_tile(gt)->id;
-	kunit_info(test, "Testing gt id %u vram id %u\n", gt->info.id,
-		   gt_to_tile(gt)->id);
+	unsigned int bo_flags = XE_BO_CREATE_VRAM_IF_DGFX(tile);
 
-	bo = xe_bo_create_locked(xe, NULL, NULL, SZ_1M, ttm_bo_type_device,
-				 vram_bit);
+	if (IS_DGFX(xe))
+		kunit_info(test, "Testing vram id %u\n", tile->id);
+	else
+		kunit_info(test, "Testing system memory\n");
+
+	bo = xe_bo_create_user(xe, NULL, NULL, SZ_1M, DRM_XE_GEM_CPU_CACHING_WC,
+			       ttm_bo_type_device, bo_flags);
+
+	xe_bo_lock(bo, false);
+
 	if (IS_ERR(bo)) {
 		KUNIT_FAIL(test, "Failed to create bo.\n");
 		return;
 	}
 
 	kunit_info(test, "Verifying that CCS data is cleared on creation.\n");
-	ret = ccs_test_migrate(gt, bo, false, 0ULL, 0xdeadbeefdeadbeefULL,
+	ret = ccs_test_migrate(tile, bo, false, 0ULL, 0xdeadbeefdeadbeefULL,
 			       test);
 	if (ret)
 		goto out_unlock;
 
 	kunit_info(test, "Verifying that CCS data survives migration.\n");
-	ret = ccs_test_migrate(gt, bo, false, 0xdeadbeefdeadbeefULL,
+	ret = ccs_test_migrate(tile, bo, false, 0xdeadbeefdeadbeefULL,
 			       0xdeadbeefdeadbeefULL, test);
 	if (ret)
 		goto out_unlock;
 
 	kunit_info(test, "Verifying that CCS data can be properly cleared.\n");
-	ret = ccs_test_migrate(gt, bo, true, 0ULL, 0ULL, test);
+	ret = ccs_test_migrate(tile, bo, true, 0ULL, 0ULL, test);
 
 out_unlock:
 	xe_bo_unlock(bo);
@@ -150,7 +156,7 @@ out_unlock:
 static int ccs_test_run_device(struct xe_device *xe)
 {
 	struct kunit *test = xe_cur_kunit();
-	struct xe_gt *gt;
+	struct xe_tile *tile;
 	int id;
 
 	if (!xe_device_has_flat_ccs(xe)) {
@@ -160,8 +166,12 @@ static int ccs_test_run_device(struct xe_device *xe)
 
 	xe_device_mem_access_get(xe);
 
-	for_each_gt(gt, xe, id)
-		ccs_test_run_gt(xe, gt, test);
+	for_each_tile(tile, xe, id) {
+		/* For igfx run only for primary tile */
+		if (!IS_DGFX(xe) && id > 0)
+			continue;
+		ccs_test_run_tile(xe, tile, test);
+	}
 
 	xe_device_mem_access_put(xe);
 
