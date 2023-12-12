@@ -1513,10 +1513,21 @@ static void mvpp22_gop_init_rgmii(struct mvpp2_port *port)
 	regmap_write(priv->sysctrl_base, GENCONF_PORT_CTRL0, val);
 
 	regmap_read(priv->sysctrl_base, GENCONF_CTRL0, &val);
-	if (port->gop_id == 2)
+	if (port->gop_id == 2) {
 		val |= GENCONF_CTRL0_PORT2_RGMII;
-	else if (port->gop_id == 3)
+	} else if (port->gop_id == 3) {
 		val |= GENCONF_CTRL0_PORT3_RGMII_MII;
+
+		/* According to the specification, GENCONF_CTRL0_PORT3_RGMII
+		 * should be set to 1 for RGMII and 0 for MII. However, tests
+		 * show that it is the other way around. This is also what
+		 * U-Boot does for mvpp2, so it is assumed to be correct.
+		 */
+		if (port->phy_interface == PHY_INTERFACE_MODE_MII)
+			val |= GENCONF_CTRL0_PORT3_RGMII;
+		else
+			val &= ~GENCONF_CTRL0_PORT3_RGMII;
+	}
 	regmap_write(priv->sysctrl_base, GENCONF_CTRL0, val);
 }
 
@@ -1615,6 +1626,7 @@ static int mvpp22_gop_init(struct mvpp2_port *port, phy_interface_t interface)
 		return 0;
 
 	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_RXID:
@@ -6915,8 +6927,11 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 					MAC_10000FD;
 		}
 
-		if (mvpp2_port_supports_rgmii(port))
+		if (mvpp2_port_supports_rgmii(port)) {
 			phy_interface_set_rgmii(port->phylink_config.supported_interfaces);
+			__set_bit(PHY_INTERFACE_MODE_MII,
+				  port->phylink_config.supported_interfaces);
+		}
 
 		if (comphy) {
 			/* If a COMPHY is present, we can support any of the
