@@ -683,6 +683,17 @@ struct dpu_vbif_cfg {
 };
 
 /**
+ * struct dpu_cdm_cfg - information of chroma down blocks
+ * @name               string name for debug purposes
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ */
+struct dpu_cdm_cfg {
+	DPU_HW_BLK_INFO;
+};
+
+/**
  * Define CDP use cases
  * @DPU_PERF_CDP_UDAGE_RT: real-time use cases
  * @DPU_PERF_CDP_USAGE_NRT: non real-time use cases such as WFD
@@ -804,6 +815,8 @@ struct dpu_mdss_cfg {
 
 	u32 wb_count;
 	const struct dpu_wb_cfg *wb;
+
+	const struct dpu_cdm_cfg *cdm;
 
 	u32 ad_count;
 
