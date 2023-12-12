@@ -1157,7 +1157,7 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			fput(f);
 			break;
 		}
-		ret = receive_fd(f, perm_to_file_flags(entry.perm));
+		ret = receive_fd(f, NULL, perm_to_file_flags(entry.perm));
 		fput(f);
 		break;
 	}
