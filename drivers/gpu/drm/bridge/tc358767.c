@@ -2049,9 +2049,16 @@ static bool tc_readable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_range tc_volatile_ranges[] = {
+	regmap_reg_range(PPI_BUSYPPI, PPI_BUSYPPI),
+	regmap_reg_range(DSI_BUSYDSI, DSI_BUSYDSI),
+	regmap_reg_range(DSI_LANESTATUS0, DSI_INTSTATUS),
+	regmap_reg_range(DSIERRCNT, DSIERRCNT),
 	regmap_reg_range(VFUEN0, VFUEN0),
+	regmap_reg_range(SYSSTAT, SYSSTAT),
 	regmap_reg_range(GPIOI, GPIOI),
 	regmap_reg_range(INTSTS_G, INTSTS_G),
+	regmap_reg_range(DP0_VMNGENSTATUS, DP0_VMNGENSTATUS),
+	regmap_reg_range(DP0_AMNGENSTATUS, DP0_AMNGENSTATUS),
 	regmap_reg_range(DP0_AUXWDATA(0), DP0_AUXSTATUS),
 	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
 	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
