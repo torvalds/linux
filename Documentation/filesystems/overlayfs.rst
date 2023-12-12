@@ -118,7 +118,7 @@ Where both upper and lower objects are directories, a merged directory
 is formed.
 
 At mount time, the two directories given as mount options "lowerdir" and
-"upperdir" are combined into a merged directory:
+"upperdir" are combined into a merged directory::
 
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,\
   workdir=/work /merged
@@ -172,12 +172,12 @@ directory is being read.  This is unlikely to be noticed by many
 programs.
 
 seek offsets are assigned sequentially when the directories are read.
-Thus if
+Thus if:
 
-  - read part of a directory
-  - remember an offset, and close the directory
-  - re-open the directory some time later
-  - seek to the remembered offset
+ - read part of a directory
+ - remember an offset, and close the directory
+ - re-open the directory some time later
+ - seek to the remembered offset
 
 there may be little correlation between the old and new locations in
 the list of filenames, particularly if anything has changed in the
@@ -290,9 +290,9 @@ Permission checking in the overlay filesystem follows these principles:
  2) task creating the overlay mount MUST NOT gain additional privileges
 
  3) non-mounting task MAY gain additional privileges through the overlay,
- compared to direct access on underlying lower or upper filesystems
+    compared to direct access on underlying lower or upper filesystems
 
-This is achieved by performing two permission checks on each access
+This is achieved by performing two permission checks on each access:
 
  a) check if current task is allowed access based on local DAC (owner,
     group, mode and posix acl), as well as MAC checks
@@ -311,11 +311,11 @@ to create setups where the consistency rule (1) does not hold; normally,
 however, the mounting task will have sufficient privileges to perform all
 operations.
 
-Another way to demonstrate this model is drawing parallels between
+Another way to demonstrate this model is drawing parallels between::
 
   mount -t overlay overlay -olowerdir=/lower,upperdir=/upper,... /merged
 
-and
+and::
 
   cp -a /lower /upper
   mount --bind /upper /merged
@@ -328,7 +328,7 @@ Multiple lower layers
 ---------------------
 
 Multiple lower layers can now be given using the colon (":") as a
-separator character between the directory names.  For example:
+separator character between the directory names.  For example::
 
   mount -t overlay overlay -olowerdir=/lower1:/lower2:/lower3 /merged
 
@@ -340,13 +340,13 @@ rightmost one and going left.  In the above example lower1 will be the
 top, lower2 the middle and lower3 the bottom layer.
 
 Note: directory names containing colons can be provided as lower layer by
-escaping the colons with a single backslash.  For example:
+escaping the colons with a single backslash.  For example::
 
   mount -t overlay overlay -olowerdir=/a\:lower\:\:dir /merged
 
 Since kernel version v6.8, directory names containing colons can also
 be configured as lower layer using the "lowerdir+" mount options and the
-fsconfig syscall from new mount api.  For example:
+fsconfig syscall from new mount api.  For example::
 
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/a:lower::dir", 0);
 
@@ -405,7 +405,7 @@ A normal lower layer is not allowed to be below a data-only layer, so single
 colon separators are not allowed to the right of double colon ("::") separators.
 
 
-For example:
+For example::
 
   mount -t overlay overlay -olowerdir=/l1:/l2:/l3::/do1::/do2 /merged
 
@@ -419,7 +419,7 @@ to the absolute path of the "lower data" file in the "data-only" lower layer.
 
 Since kernel version v6.8, "data-only" lower layers can also be added using
 the "datadir+" mount options and the fsconfig syscall from new mount api.
-For example:
+For example::
 
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l1", 0);
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l2", 0);
@@ -429,7 +429,7 @@ For example:
 
 
 fs-verity support
-----------------------
+-----------------
 
 During metadata copy up of a lower file, if the source file has
 fs-verity enabled and overlay verity support is enabled, then the
@@ -547,15 +547,15 @@ filesystem.
 
 This is the list of cases that overlayfs doesn't currently handle:
 
-a) POSIX mandates updating st_atime for reads.  This is currently not
-done in the case when the file resides on a lower layer.
+ a) POSIX mandates updating st_atime for reads.  This is currently not
+    done in the case when the file resides on a lower layer.
 
-b) If a file residing on a lower layer is opened for read-only and then
-memory mapped with MAP_SHARED, then subsequent changes to the file are not
-reflected in the memory mapping.
+ b) If a file residing on a lower layer is opened for read-only and then
+    memory mapped with MAP_SHARED, then subsequent changes to the file are not
+    reflected in the memory mapping.
 
-c) If a file residing on a lower layer is being executed, then opening that
-file for write or truncating the file will not be denied with ETXTBSY.
+ c) If a file residing on a lower layer is being executed, then opening that
+    file for write or truncating the file will not be denied with ETXTBSY.
 
 The following options allow overlayfs to act more like a standards
 compliant filesystem:
@@ -647,12 +647,13 @@ directory inode.
 When encoding a file handle from an overlay filesystem object, the
 following rules apply:
 
-1. For a non-upper object, encode a lower file handle from lower inode
-2. For an indexed object, encode a lower file handle from copy_up origin
-3. For a pure-upper object and for an existing non-indexed upper object,
-   encode an upper file handle from upper inode
+ 1. For a non-upper object, encode a lower file handle from lower inode
+ 2. For an indexed object, encode a lower file handle from copy_up origin
+ 3. For a pure-upper object and for an existing non-indexed upper object,
+    encode an upper file handle from upper inode
 
 The encoded overlay file handle includes:
+
  - Header including path type information (e.g. lower/upper)
  - UUID of the underlying filesystem
  - Underlying filesystem encoding of underlying inode
@@ -662,15 +663,15 @@ are stored in extended attribute "trusted.overlay.origin".
 
 When decoding an overlay file handle, the following steps are followed:
 
-1. Find underlying layer by UUID and path type information.
-2. Decode the underlying filesystem file handle to underlying dentry.
-3. For a lower file handle, lookup the handle in index directory by name.
-4. If a whiteout is found in index, return ESTALE. This represents an
-   overlay object that was deleted after its file handle was encoded.
-5. For a non-directory, instantiate a disconnected overlay dentry from the
-   decoded underlying dentry, the path type and index inode, if found.
-6. For a directory, use the connected underlying decoded dentry, path type
-   and index, to lookup a connected overlay dentry.
+ 1. Find underlying layer by UUID and path type information.
+ 2. Decode the underlying filesystem file handle to underlying dentry.
+ 3. For a lower file handle, lookup the handle in index directory by name.
+ 4. If a whiteout is found in index, return ESTALE. This represents an
+    overlay object that was deleted after its file handle was encoded.
+ 5. For a non-directory, instantiate a disconnected overlay dentry from the
+    decoded underlying dentry, the path type and index inode, if found.
+ 6. For a directory, use the connected underlying decoded dentry, path type
+    and index, to lookup a connected overlay dentry.
 
 Decoding a non-directory file handle may return a disconnected dentry.
 copy_up of that disconnected dentry will create an upper index entry with
@@ -773,9 +774,9 @@ Testsuite
 There's a testsuite originally developed by David Howells and currently
 maintained by Amir Goldstein at:
 
-  https://github.com/amir73il/unionmount-testsuite.git
+https://github.com/amir73il/unionmount-testsuite.git
 
-Run as root:
+Run as root::
 
   # cd unionmount-testsuite
   # ./run --ov --verify
