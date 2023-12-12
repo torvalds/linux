@@ -2895,7 +2895,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		 * will re-read the whole page anyway.
 		 */
 		if (page) {
-			btrfs_subpage_clear_uptodate(fs_info, page, i_size,
+			btrfs_subpage_clear_uptodate(fs_info, page_folio(page), i_size,
 					round_up(i_size, PAGE_SIZE) - i_size);
 			unlock_page(page);
 			put_page(page);
@@ -3070,7 +3070,8 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 						       clamped_len);
 			goto release_page;
 		}
-		btrfs_page_set_dirty(fs_info, page, clamped_start, clamped_len);
+		btrfs_folio_set_dirty(fs_info, page_folio(page),
+				      clamped_start, clamped_len);
 
 		/*
 		 * Set the boundary if it's inside the page.

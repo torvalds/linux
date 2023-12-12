@@ -1189,7 +1189,7 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 	/* Update the page status */
 	for (i = start_index - first_index; i <= last_index - first_index; i++) {
 		ClearPageChecked(pages[i]);
-		btrfs_page_clamp_set_dirty(fs_info, pages[i], start, len);
+		btrfs_folio_clamp_set_dirty(fs_info, page_folio(pages[i]), start, len);
 	}
 	btrfs_delalloc_release_extents(inode, len);
 	extent_changeset_free(data_reserved);

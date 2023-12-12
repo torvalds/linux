@@ -456,8 +456,8 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		 * range, then btrfs_mark_ordered_io_finished() will handle
 		 * the ordered extent accounting for the range.
 		 */
-		btrfs_page_clamp_clear_ordered(inode->root->fs_info, page,
-					       offset, bytes);
+		btrfs_folio_clamp_clear_ordered(inode->root->fs_info,
+						page_folio(page), offset, bytes);
 		put_page(page);
 	}
 
@@ -2802,7 +2802,7 @@ out_page:
 					       PAGE_SIZE, !ret);
 		clear_page_dirty_for_io(page);
 	}
-	btrfs_page_clear_checked(fs_info, page, page_start, PAGE_SIZE);
+	btrfs_folio_clear_checked(fs_info, page_folio(page), page_start, PAGE_SIZE);
 	unlock_page(page);
 	put_page(page);
 	kfree(fixup);
@@ -2857,7 +2857,7 @@ int btrfs_writepage_cow_fixup(struct page *page)
 	 * page->mapping outside of the page lock.
 	 */
 	ihold(inode);
-	btrfs_page_set_checked(fs_info, page, page_offset(page), PAGE_SIZE);
+	btrfs_folio_set_checked(fs_info, page_folio(page), page_offset(page), PAGE_SIZE);
 	get_page(page);
 	btrfs_init_work(&fixup->work, btrfs_writepage_fixup_worker, NULL);
 	fixup->page = page;
@@ -4776,9 +4776,10 @@ again:
 			memzero_page(page, (block_start - page_offset(page)) + offset,
 				     len);
 	}
-	btrfs_page_clear_checked(fs_info, page, block_start,
-				 block_end + 1 - block_start);
-	btrfs_page_set_dirty(fs_info, page, block_start, block_end + 1 - block_start);
+	btrfs_folio_clear_checked(fs_info, page_folio(page), block_start,
+				  block_end + 1 - block_start);
+	btrfs_folio_set_dirty(fs_info, page_folio(page), block_start,
+			      block_end + 1 - block_start);
 	unlock_extent(io_tree, block_start, block_end, &cached_state);
 
 	if (only_release_metadata)
@@ -8009,7 +8010,7 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 				page_end);
 		ASSERT(range_end + 1 - cur < U32_MAX);
 		range_len = range_end + 1 - cur;
-		if (!btrfs_page_test_ordered(fs_info, &folio->page, cur, range_len)) {
+		if (!btrfs_folio_test_ordered(fs_info, folio, cur, range_len)) {
 			/*
 			 * If Ordered (Private2) is cleared, it means endio has
 			 * already been executed for the range.
@@ -8018,7 +8019,7 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 			 */
 			goto next;
 		}
-		btrfs_page_clear_ordered(fs_info, &folio->page, cur, range_len);
+		btrfs_folio_clear_ordered(fs_info, folio, cur, range_len);
 
 		/*
 		 * IO on this page will never be started, so we need to account
@@ -8088,7 +8089,7 @@ next:
 	 * did something wrong.
 	 */
 	ASSERT(!folio_test_ordered(folio));
-	btrfs_page_clear_checked(fs_info, &folio->page, folio_pos(folio), folio_size(folio));
+	btrfs_folio_clear_checked(fs_info, folio, folio_pos(folio), folio_size(folio));
 	if (!inode_evicting)
 		__btrfs_release_folio(folio, GFP_NOFS);
 	clear_page_extent_mapped(&folio->page);
@@ -8112,6 +8113,7 @@ next:
 vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
+	struct folio *folio = page_folio(page);
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
@@ -8127,6 +8129,8 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	u64 page_start;
 	u64 page_end;
 	u64 end;
+
+	ASSERT(folio_order(folio) == 0);
 
 	reserved_space = PAGE_SIZE;
 
@@ -8231,9 +8235,9 @@ again:
 	if (zero_start != PAGE_SIZE)
 		memzero_page(page, zero_start, PAGE_SIZE - zero_start);
 
-	btrfs_page_clear_checked(fs_info, page, page_start, PAGE_SIZE);
-	btrfs_page_set_dirty(fs_info, page, page_start, end + 1 - page_start);
-	btrfs_page_set_uptodate(fs_info, page, page_start, end + 1 - page_start);
+	btrfs_folio_clear_checked(fs_info, folio, page_start, PAGE_SIZE);
+	btrfs_folio_set_dirty(fs_info, folio, page_start, end + 1 - page_start);
+	btrfs_folio_set_uptodate(fs_info, folio, page_start, end + 1 - page_start);
 
 	btrfs_set_inode_last_sub_trans(BTRFS_I(inode));
 
@@ -9819,7 +9823,9 @@ void btrfs_set_range_writeback(struct btrfs_inode *inode, u64 start, u64 end)
 		page = find_get_page(inode->vfs_inode.i_mapping, index);
 		ASSERT(page); /* Pages should be in the extent_io_tree */
 
-		btrfs_page_set_writeback(fs_info, page, start, len);
+		/* This is for data, which doesn't yet support larger folio. */
+		ASSERT(folio_order(page_folio(page)) == 0);
+		btrfs_folio_set_writeback(fs_info, page_folio(page), start, len);
 		put_page(page);
 		index++;
 	}

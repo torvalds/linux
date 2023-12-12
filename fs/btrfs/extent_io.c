@@ -184,22 +184,23 @@ static void process_one_page(struct btrfs_fs_info *fs_info,
 			     struct page *page, struct page *locked_page,
 			     unsigned long page_ops, u64 start, u64 end)
 {
+	struct folio *folio = page_folio(page);
 	u32 len;
 
 	ASSERT(end + 1 - start != 0 && end + 1 - start < U32_MAX);
 	len = end + 1 - start;
 
 	if (page_ops & PAGE_SET_ORDERED)
-		btrfs_page_clamp_set_ordered(fs_info, page, start, len);
+		btrfs_folio_clamp_set_ordered(fs_info, folio, start, len);
 	if (page_ops & PAGE_START_WRITEBACK) {
-		btrfs_page_clamp_clear_dirty(fs_info, page, start, len);
-		btrfs_page_clamp_set_writeback(fs_info, page, start, len);
+		btrfs_folio_clamp_clear_dirty(fs_info, folio, start, len);
+		btrfs_folio_clamp_set_writeback(fs_info, folio, start, len);
 	}
 	if (page_ops & PAGE_END_WRITEBACK)
-		btrfs_page_clamp_clear_writeback(fs_info, page, start, len);
+		btrfs_folio_clamp_clear_writeback(fs_info, folio, start, len);
 
 	if (page != locked_page && (page_ops & PAGE_UNLOCK))
-		btrfs_page_end_writer_lock(fs_info, page, start, len);
+		btrfs_folio_end_writer_lock(fs_info, folio, start, len);
 }
 
 static void __process_pages_contig(struct address_space *mapping,
@@ -271,19 +272,20 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 			goto out;
 
 		for (i = 0; i < found_folios; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
+			struct page *page = folio_page(folio, 0);
 			u32 len = end + 1 - start;
 
 			if (page == locked_page)
 				continue;
 
-			if (btrfs_page_start_writer_lock(fs_info, page, start,
-							 len))
+			if (btrfs_folio_start_writer_lock(fs_info, folio, start,
+							  len))
 				goto out;
 
 			if (!PageDirty(page) || page->mapping != mapping) {
-				btrfs_page_end_writer_lock(fs_info, page, start,
-							   len);
+				btrfs_folio_end_writer_lock(fs_info, folio, start,
+							    len);
 				goto out;
 			}
 
@@ -432,19 +434,20 @@ static bool btrfs_verify_page(struct page *page, u64 start)
 static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(page->mapping->host->i_sb);
+	struct folio *folio = page_folio(page);
 
 	ASSERT(page_offset(page) <= start &&
 	       start + len <= page_offset(page) + PAGE_SIZE);
 
 	if (uptodate && btrfs_verify_page(page, start))
-		btrfs_page_set_uptodate(fs_info, page, start, len);
+		btrfs_folio_set_uptodate(fs_info, folio, start, len);
 	else
-		btrfs_page_clear_uptodate(fs_info, page, start, len);
+		btrfs_folio_clear_uptodate(fs_info, folio, start, len);
 
 	if (!btrfs_is_subpage(fs_info, page->mapping))
 		unlock_page(page);
 	else
-		btrfs_subpage_end_reader(fs_info, page, start, len);
+		btrfs_subpage_end_reader(fs_info, folio, start, len);
 }
 
 /*
@@ -485,7 +488,7 @@ static void end_bio_extent_writepage(struct btrfs_bio *bbio)
 		btrfs_finish_ordered_extent(bbio->ordered, page, start, len, !error);
 		if (error)
 			mapping_set_error(page->mapping, error);
-		btrfs_page_clear_writeback(fs_info, page, start, len);
+		btrfs_folio_clear_writeback(fs_info, page_folio(page), start, len);
 	}
 
 	bio_put(bio);
@@ -564,12 +567,12 @@ static void begin_page_read(struct btrfs_fs_info *fs_info, struct page *page)
 {
 	struct folio *folio = page_folio(page);
 
-	ASSERT(PageLocked(page));
-	if (!btrfs_is_subpage(fs_info, page->mapping))
+	ASSERT(folio_test_locked(folio));
+	if (!btrfs_is_subpage(fs_info, folio->mapping))
 		return;
 
 	ASSERT(folio_test_private(folio));
-	btrfs_subpage_start_reader(fs_info, page, page_offset(page), PAGE_SIZE);
+	btrfs_subpage_start_reader(fs_info, folio, page_offset(page), PAGE_SIZE);
 }
 
 /*
@@ -921,8 +924,7 @@ static int attach_extent_buffer_folio(struct extent_buffer *eb,
 		folio_attach_private(folio, prealloc);
 	else
 		/* Do new allocation to attach subpage */
-		ret = btrfs_attach_subpage(fs_info, folio_page(folio, 0),
-					   BTRFS_SUBPAGE_METADATA);
+		ret = btrfs_attach_subpage(fs_info, folio, BTRFS_SUBPAGE_METADATA);
 	return ret;
 }
 
@@ -939,7 +941,7 @@ int set_page_extent_mapped(struct page *page)
 	fs_info = btrfs_sb(page->mapping->host->i_sb);
 
 	if (btrfs_is_subpage(fs_info, page->mapping))
-		return btrfs_attach_subpage(fs_info, page, BTRFS_SUBPAGE_DATA);
+		return btrfs_attach_subpage(fs_info, folio, BTRFS_SUBPAGE_DATA);
 
 	folio_attach_private(folio, (void *)EXTENT_FOLIO_PRIVATE);
 	return 0;
@@ -957,7 +959,7 @@ void clear_page_extent_mapped(struct page *page)
 
 	fs_info = btrfs_sb(page->mapping->host->i_sb);
 	if (btrfs_is_subpage(fs_info, page->mapping))
-		return btrfs_detach_subpage(fs_info, page);
+		return btrfs_detach_subpage(fs_info, folio);
 
 	folio_detach_private(folio);
 }
@@ -1352,7 +1354,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			 * writeback the sectors with subpage dirty bits,
 			 * causing writeback without ordered extent.
 			 */
-			btrfs_page_clear_dirty(fs_info, page, cur, len);
+			btrfs_folio_clear_dirty(fs_info, page_folio(page), cur, len);
 			break;
 		}
 
@@ -1404,7 +1406,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		 * So clear subpage dirty bit here so next time we won't submit
 		 * page for range already written to disk.
 		 */
-		btrfs_page_clear_dirty(fs_info, page, cur, iosize);
+		btrfs_folio_clear_dirty(fs_info, page_folio(page), cur, iosize);
 
 		submit_extent_page(bio_ctrl, disk_bytenr, page, iosize,
 				   cur - page_offset(page));
@@ -1412,7 +1414,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		nr++;
 	}
 
-	btrfs_page_assert_not_dirty(fs_info, page);
+	btrfs_folio_assert_not_dirty(fs_info, page_folio(page));
 	*nr_ret = nr;
 	return 0;
 
@@ -1651,7 +1653,7 @@ static void extent_buffer_write_end_io(struct btrfs_bio *bbio)
 		struct page *page = bvec->bv_page;
 		u32 len = bvec->bv_len;
 
-		btrfs_page_clear_writeback(fs_info, page, start, len);
+		btrfs_folio_clear_writeback(fs_info, page_folio(page), start, len);
 		bio_offset += len;
 	}
 
@@ -1707,18 +1709,21 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
 	if (fs_info->nodesize < PAGE_SIZE) {
-		struct page *p = folio_page(eb->folios[0], 0);
+		struct folio *folio = eb->folios[0];
+		bool ret;
 
-		lock_page(p);
-		btrfs_subpage_set_writeback(fs_info, p, eb->start, eb->len);
-		if (btrfs_subpage_clear_and_test_dirty(fs_info, p, eb->start,
+		folio_lock(folio);
+		btrfs_subpage_set_writeback(fs_info, folio, eb->start, eb->len);
+		if (btrfs_subpage_clear_and_test_dirty(fs_info, folio, eb->start,
 						       eb->len)) {
-			clear_page_dirty_for_io(p);
+			folio_clear_dirty_for_io(folio);
 			wbc->nr_to_write--;
 		}
-		__bio_add_page(&bbio->bio, p, eb->len, eb->start - page_offset(p));
-		wbc_account_cgroup_owner(wbc, p, eb->len);
-		unlock_page(p);
+		ret = bio_add_folio(&bbio->bio, folio, eb->len,
+				    eb->start - folio_pos(folio));
+		ASSERT(ret);
+		wbc_account_cgroup_owner(wbc, folio_page(folio, 0), eb->len);
+		folio_unlock(folio);
 	} else {
 		int num_folios = num_extent_folios(eb);
 
@@ -2235,7 +2240,7 @@ void extent_write_locked_range(struct inode *inode, struct page *locked_page,
 						       cur, cur_len, !ret);
 			mapping_set_error(page->mapping, ret);
 		}
-		btrfs_page_unlock_writer(fs_info, page, cur, cur_len);
+		btrfs_folio_unlock_writer(fs_info, page_folio(page), cur, cur_len);
 		if (ret < 0)
 			found_error = true;
 next_page:
@@ -3156,7 +3161,7 @@ static void detach_extent_buffer_folio(struct extent_buffer *eb, struct folio *f
 	 * attached to one dummy eb, no sharing.
 	 */
 	if (!mapped) {
-		btrfs_detach_subpage(fs_info, folio_page(folio, 0));
+		btrfs_detach_subpage(fs_info, folio);
 		return;
 	}
 
@@ -3167,7 +3172,7 @@ static void detach_extent_buffer_folio(struct extent_buffer *eb, struct folio *f
 	 * page range and no unfinished IO.
 	 */
 	if (!folio_range_has_eb(fs_info, folio))
-		btrfs_detach_subpage(fs_info, folio_page(folio, 0));
+		btrfs_detach_subpage(fs_info, folio);
 
 	spin_unlock(&folio->mapping->private_lock);
 }
@@ -3683,8 +3688,7 @@ reallocate:
 		btrfs_folio_inc_eb_refs(fs_info, folio);
 		spin_unlock(&mapping->private_lock);
 
-		WARN_ON(btrfs_page_test_dirty(fs_info, folio_page(folio, 0),
-					      eb->start, eb->len));
+		WARN_ON(btrfs_folio_test_dirty(fs_info, folio, eb->start, eb->len));
 
 		/*
 		 * Check if the current page is physically contiguous with previous eb
@@ -3695,8 +3699,7 @@ reallocate:
 		if (i && folio_page(eb->folios[i - 1], 0) + 1 != folio_page(folio, 0))
 			page_contig = false;
 
-		if (!btrfs_page_test_uptodate(fs_info, folio_page(folio, 0),
-					      eb->start, eb->len))
+		if (!btrfs_folio_test_uptodate(fs_info, folio, eb->start, eb->len))
 			uptodate = 0;
 
 		/*
@@ -3890,8 +3893,7 @@ static void clear_subpage_extent_buffer_dirty(const struct extent_buffer *eb)
 
 	/* btree_clear_folio_dirty() needs page locked. */
 	folio_lock(folio);
-	last = btrfs_subpage_clear_and_test_dirty(fs_info, folio_page(folio, 0),
-						  eb->start, eb->len);
+	last = btrfs_subpage_clear_and_test_dirty(fs_info, folio, eb->start, eb->len);
 	if (last)
 		btree_clear_folio_dirty(folio);
 	folio_unlock(folio);
@@ -3975,8 +3977,8 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 		if (subpage)
 			lock_page(folio_page(eb->folios[0], 0));
 		for (int i = 0; i < num_folios; i++)
-			btrfs_page_set_dirty(eb->fs_info, folio_page(eb->folios[i], 0),
-					     eb->start, eb->len);
+			btrfs_folio_set_dirty(eb->fs_info, eb->folios[i],
+					      eb->start, eb->len);
 		if (subpage)
 			unlock_page(folio_page(eb->folios[0], 0));
 		percpu_counter_add_batch(&eb->fs_info->dirty_metadata_bytes,
@@ -4008,7 +4010,7 @@ void clear_extent_buffer_uptodate(struct extent_buffer *eb)
 		if (fs_info->nodesize >= PAGE_SIZE)
 			folio_clear_uptodate(folio);
 		else
-			btrfs_subpage_clear_uptodate(fs_info, folio_page(folio, 0),
+			btrfs_subpage_clear_uptodate(fs_info, folio,
 						     eb->start, eb->len);
 	}
 }
@@ -4029,7 +4031,7 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 		if (fs_info->nodesize >= PAGE_SIZE)
 			folio_mark_uptodate(folio);
 		else
-			btrfs_subpage_set_uptodate(fs_info, folio_page(folio, 0),
+			btrfs_subpage_set_uptodate(fs_info, folio,
 						   eb->start, eb->len);
 	}
 }
@@ -4062,9 +4064,9 @@ static void extent_buffer_read_end_io(struct btrfs_bio *bbio)
 		u32 len = bvec->bv_len;
 
 		if (uptodate)
-			btrfs_page_set_uptodate(fs_info, page, start, len);
+			btrfs_folio_set_uptodate(fs_info, page_folio(page), start, len);
 		else
-			btrfs_page_clear_uptodate(fs_info, page, start, len);
+			btrfs_folio_clear_uptodate(fs_info, page_folio(page), start, len);
 
 		bio_offset += len;
 	}
@@ -4305,11 +4307,12 @@ static void assert_eb_folio_uptodate(const struct extent_buffer *eb, int i)
 		return;
 
 	if (fs_info->nodesize < PAGE_SIZE) {
-		struct page *page = folio_page(folio, 0);
+		struct folio *folio = eb->folios[0];
 
-		if (WARN_ON(!btrfs_subpage_test_uptodate(fs_info, page,
+		ASSERT(i == 0);
+		if (WARN_ON(!btrfs_subpage_test_uptodate(fs_info, folio,
 							 eb->start, eb->len)))
-			btrfs_subpage_dump_bitmap(fs_info, page, eb->start, eb->len);
+			btrfs_subpage_dump_bitmap(fs_info, folio, eb->start, eb->len);
 	} else {
 		WARN_ON(!folio_test_uptodate(folio));
 	}

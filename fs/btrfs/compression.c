@@ -306,8 +306,8 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 		for (i = 0; i < ret; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			btrfs_page_clamp_clear_writeback(fs_info, &folio->page,
-							 cb->start, cb->len);
+			btrfs_folio_clamp_clear_writeback(fs_info, folio,
+							  cb->start, cb->len);
 		}
 		folio_batch_release(&fbatch);
 	}
@@ -541,7 +541,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 * subpage::readers and to unlock the page.
 		 */
 		if (fs_info->sectorsize < PAGE_SIZE)
-			btrfs_subpage_start_reader(fs_info, page, cur, add_size);
+			btrfs_subpage_start_reader(fs_info, page_folio(page),
+						   cur, add_size);
 		put_page(page);
 		cur += add_size;
 	}
