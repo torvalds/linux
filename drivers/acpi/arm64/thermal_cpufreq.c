@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/acpi.h>
+#include <linux/export.h>
 
 #include "../internal.h"
 
@@ -18,3 +19,4 @@ int acpi_arch_thermal_cpufreq_pctg(void)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(acpi_arch_thermal_cpufreq_pctg);
