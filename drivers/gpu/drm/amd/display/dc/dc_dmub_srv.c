@@ -1209,7 +1209,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	}
 
 	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 }
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
