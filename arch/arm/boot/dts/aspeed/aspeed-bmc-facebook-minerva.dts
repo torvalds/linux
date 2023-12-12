@@ -39,6 +39,16 @@
 			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
 			<&adc1 2>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-fan-fault {
+			label = "led-fan-fault";
+			gpios = <&leds_gpio 9 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
 };
 
 &uart6 {
@@ -117,6 +127,13 @@
 	power-monitor@68 {
 		compatible = "adi,ltc2945";
 		reg = <0x68>;
+	};
+
+	leds_gpio: gpio@19 {
+		compatible = "nxp,pca9555";
+		reg = <0x19>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};
 };
 
