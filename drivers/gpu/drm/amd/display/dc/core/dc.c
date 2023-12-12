@@ -3481,6 +3481,33 @@ static void wait_for_outstanding_hw_updates(struct dc *dc, const struct dc_state
 	}
 }
 
+static void update_drr_for_full_update(struct dc *dc, struct dc_state *context)
+{
+	uint32_t i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct dc_stream_state *stream = pipe->stream;
+		struct timing_generator *tg = pipe->stream_res.tg;
+		struct drr_params params = {0};
+
+		/* pipe not in use */
+		if (!resource_is_pipe_type(pipe, OTG_MASTER))
+			continue;
+
+		/* skip phantom pipes */
+		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM)
+			continue;
+
+		params.vertical_total_min = stream->adjust.v_total_min;
+		params.vertical_total_max = stream->adjust.v_total_max;
+		params.vertical_total_mid = stream->adjust.v_total_mid;
+		params.vertical_total_mid_frame_num = stream->adjust.v_total_mid_frame_num;
+		if (pipe->stream_res.tg->funcs->set_drr)
+			tg->funcs->set_drr(pipe->stream_res.tg, &params);
+	}
+}
+
 static void commit_planes_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
@@ -3847,6 +3874,10 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (pipe_ctx->stream_res.tg->funcs->program_manual_trigger)
 			pipe_ctx->stream_res.tg->funcs->program_manual_trigger(pipe_ctx->stream_res.tg);
 	}
+
+	// Update DRR for all pipes
+	if (update_type != UPDATE_TYPE_FAST)
+		update_drr_for_full_update(dc, context);
 
 	current_stream_mask = get_stream_mask(dc, context);
 	if (current_stream_mask != context->stream_mask) {
