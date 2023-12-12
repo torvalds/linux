@@ -7,7 +7,7 @@
 #include <dt-bindings/i2c/i2c.h>
 
 / {
-	model = "Facebook Minerva CMC";
+	model = "Facebook Minerva CMM";
 	compatible = "facebook,minerva-cmc", "aspeed,ast2600";
 
 	aliases {
