@@ -3465,16 +3465,6 @@ static inline void bt_clear_frame_slot(struct backtrack_state *bt, u32 frame, u3
 	bt->stack_masks[frame] &= ~(1ull << slot);
 }
 
-static inline void bt_set_slot(struct backtrack_state *bt, u32 slot)
-{
-	bt_set_frame_slot(bt, bt->frame, slot);
-}
-
-static inline void bt_clear_slot(struct backtrack_state *bt, u32 slot)
-{
-	bt_clear_frame_slot(bt, bt->frame, slot);
-}
-
 static inline u32 bt_frame_reg_mask(struct backtrack_state *bt, u32 frame)
 {
 	return bt->reg_masks[frame];
@@ -3503,11 +3493,6 @@ static inline bool bt_is_reg_set(struct backtrack_state *bt, u32 reg)
 static inline bool bt_is_frame_slot_set(struct backtrack_state *bt, u32 frame, u32 slot)
 {
 	return bt->stack_masks[frame] & (1ull << slot);
-}
-
-static inline bool bt_is_slot_set(struct backtrack_state *bt, u32 slot)
-{
-	return bt_is_frame_slot_set(bt, bt->frame, slot);
 }
 
 /* format registers bitmask, e.g., "r0,r2,r4" for 0x15 mask */
