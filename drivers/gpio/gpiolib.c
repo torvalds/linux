@@ -2399,7 +2399,15 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 	if (!test_bit(FLAG_REQUESTED, &desc->flags))
 		return NULL;
 
-	label = kstrdup(desc->label, GFP_KERNEL);
+	/*
+	 * FIXME: Once we mark gpiod_direction_input/output() and
+	 * gpiod_get_direction() with might_sleep(), we'll be able to protect
+	 * the GPIO descriptors with mutex (while value setting operations will
+	 * become lockless).
+	 *
+	 * Until this happens, this allocation needs to be atomic.
+	 */
+	label = kstrdup(desc->label, GFP_ATOMIC);
 	if (!label)
 		return ERR_PTR(-ENOMEM);
 
