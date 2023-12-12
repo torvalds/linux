@@ -4,9 +4,19 @@
 # Arnaldo Carvalho de Melo <acme@redhat.com>
 
 PERF_DATA=perf.data
-if [ $# -ne 0 ] ; then
-	PERF_DATA=$1
-fi
+PERF_SYMBOLS=perf.symbols
+PERF_ALL=perf.all
+ALL=0
+
+while [ $# -gt 0 ] ; do
+	if [ $1 == "--all" ]; then
+		ALL=1
+		shift
+	else
+		PERF_DATA=$1
+		shift
+	fi
+done
 
 #
 # PERF_BUILDID_DIR environment variable set by perf
@@ -39,9 +49,23 @@ while read build_id ; do
 	echo ${filename#$PERF_BUILDID_LINKDIR} >> $MANIFEST
 done
 
-tar cjf $PERF_DATA.tar.bz2 -C $PERF_BUILDID_DIR -T $MANIFEST
-rm $MANIFEST $BUILDIDS || true
-echo -e "Now please run:\n"
-echo -e "$ tar xvf $PERF_DATA.tar.bz2 -C ~/.debug\n"
-echo "wherever you need to run 'perf report' on."
+if [ $ALL -eq 1 ]; then						# pack perf.data file together with tar containing debug symbols
+	HOSTNAME=$(hostname)
+	DATE=$(date '+%Y%m%d-%H%M%S')
+	tar cjf $PERF_SYMBOLS.tar.bz2 -C $PERF_BUILDID_DIR -T $MANIFEST
+	tar cjf	$PERF_ALL-$HOSTNAME-$DATE.tar.bz2 $PERF_DATA $PERF_SYMBOLS.tar.bz2
+	rm $PERF_SYMBOLS.tar.bz2 $MANIFEST $BUILDIDS || true
+
+	echo -e "Now please run:\n"
+	echo -e "$ tar xvf $PERF_ALL-$HOSTNAME-$DATE.tar.bz2 && tar xvf $PERF_SYMBOLS.tar.bz2 -C ~/.debug\n"
+	echo "wherever you need to run 'perf report' on."
+else										# pack only the debug symbols
+	tar cjf $PERF_DATA.tar.bz2 -C $PERF_BUILDID_DIR -T $MANIFEST
+	rm $MANIFEST $BUILDIDS || true
+
+	echo -e "Now please run:\n"
+	echo -e "$ tar xvf $PERF_DATA.tar.bz2 -C ~/.debug\n"
+	echo "wherever you need to run 'perf report' on."
+fi
+
 exit 0
