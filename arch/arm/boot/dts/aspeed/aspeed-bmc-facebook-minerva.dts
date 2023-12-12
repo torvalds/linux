@@ -48,10 +48,13 @@
 
 &mac3 {
 	status = "okay";
+	phy-mode = "rmii";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rmii4_default>;
-	use-ncsi;
-	mlx,multi-host;
+	fixed-link {
+		speed = <100>;
+		full-duplex;
+	};
 };
 
 &fmc {
