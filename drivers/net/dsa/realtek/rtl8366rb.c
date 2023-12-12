@@ -15,6 +15,7 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
@@ -117,10 +118,11 @@
 	RTL8366RB_STP_STATE((port), RTL8366RB_STP_MASK)
 
 /* CPU port control reg */
-#define RTL8368RB_CPU_CTRL_REG		0x0061
-#define RTL8368RB_CPU_PORTS_MSK		0x00FF
+#define RTL8366RB_CPU_CTRL_REG		0x0061
+#define RTL8366RB_CPU_PORTS_MSK		0x00FF
 /* Disables inserting custom tag length/type 0x8899 */
-#define RTL8368RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_NO_TAG		BIT(15)
+#define RTL8366RB_CPU_TAG_SIZE		4
 
 #define RTL8366RB_SMAR0			0x0070 /* bits 0..15 */
 #define RTL8366RB_SMAR1			0x0071 /* bits 16..31 */
@@ -912,10 +914,10 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Enable CPU port with custom DSA tag 8899.
 	 *
-	 * If you set RTL8368RB_CPU_NO_TAG (bit 15) in this registers
+	 * If you set RTL8366RB_CPU_NO_TAG (bit 15) in this register
 	 * the custom tag is turned off.
 	 */
-	ret = regmap_update_bits(priv->map, RTL8368RB_CPU_CTRL_REG,
+	ret = regmap_update_bits(priv->map, RTL8366RB_CPU_CTRL_REG,
 				 0xFFFF,
 				 BIT(priv->cpu_port));
 	if (ret)
@@ -928,15 +930,19 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Set maximum packet length to 1536 bytes */
+	/* Set default maximum packet length to 1536 bytes */
 	ret = regmap_update_bits(priv->map, RTL8366RB_SGCR,
 				 RTL8366RB_SGCR_MAX_LENGTH_MASK,
 				 RTL8366RB_SGCR_MAX_LENGTH_1536);
 	if (ret)
 		return ret;
-	for (i = 0; i < RTL8366RB_NUM_PORTS; i++)
-		/* layer 2 size, see rtl8366rb_change_mtu() */
-		rb->max_mtu[i] = 1532;
+	for (i = 0; i < RTL8366RB_NUM_PORTS; i++) {
+		if (i == priv->cpu_port)
+			/* CPU port need to also accept the tag */
+			rb->max_mtu[i] = ETH_DATA_LEN + RTL8366RB_CPU_TAG_SIZE;
+		else
+			rb->max_mtu[i] = ETH_DATA_LEN;
+	}
 
 	/* Disable learning for all ports */
 	ret = regmap_write(priv->map, RTL8366RB_PORT_LEARNDIS_CTRL,
@@ -1441,24 +1447,29 @@ static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	/* Roof out the MTU for the entire switch to the greatest
 	 * common denominator: the biggest set for any one port will
 	 * be the biggest MTU for the switch.
-	 *
-	 * The first setting, 1522 bytes, is max IP packet 1500 bytes,
-	 * plus ethernet header, 1518 bytes, plus CPU tag, 4 bytes.
-	 * This function should consider the parameter an SDU, so the
-	 * MTU passed for this setting is 1518 bytes. The same logic
-	 * of subtracting the DSA tag of 4 bytes apply to the other
-	 * settings.
 	 */
-	max_mtu = 1518;
+	max_mtu = ETH_DATA_LEN;
 	for (i = 0; i < RTL8366RB_NUM_PORTS; i++) {
 		if (rb->max_mtu[i] > max_mtu)
 			max_mtu = rb->max_mtu[i];
 	}
-	if (max_mtu <= 1518)
+
+	/* Translate to layer 2 size.
+	 * Add ethernet and (possible) VLAN headers, and checksum to the size.
+	 * For ETH_DATA_LEN (1500 bytes) this will add up to 1522 bytes.
+	 */
+	max_mtu += VLAN_ETH_HLEN;
+	max_mtu += ETH_FCS_LEN;
+
+	if (max_mtu <= 1522)
 		len = RTL8366RB_SGCR_MAX_LENGTH_1522;
-	else if (max_mtu > 1518 && max_mtu <= 1532)
+	else if (max_mtu > 1522 && max_mtu <= 1536)
+		/* This will be the most common default if using VLAN and
+		 * CPU tagging on a port as both VLAN and CPU tag will
+		 * result in 1518 + 4 + 4 = 1526 bytes.
+		 */
 		len = RTL8366RB_SGCR_MAX_LENGTH_1536;
-	else if (max_mtu > 1532 && max_mtu <= 1548)
+	else if (max_mtu > 1536 && max_mtu <= 1552)
 		len = RTL8366RB_SGCR_MAX_LENGTH_1552;
 	else
 		len = RTL8366RB_SGCR_MAX_LENGTH_16000;
@@ -1470,10 +1481,12 @@ static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 static int rtl8366rb_max_mtu(struct dsa_switch *ds, int port)
 {
-	/* The max MTU is 16000 bytes, so we subtract the CPU tag
-	 * and the max presented to the system is 15996 bytes.
+	/* The max MTU is 16000 bytes, so we subtract the ethernet
+	 * headers with VLAN and checksum and arrive at
+	 * 16000 - 18 - 4 = 15978. This does not include the CPU tag
+	 * since that is added to the requested MTU by the DSA framework.
 	 */
-	return 15996;
+	return 16000 - VLAN_ETH_HLEN - ETH_FCS_LEN;
 }
 
 static int rtl8366rb_get_vlan_4k(struct realtek_priv *priv, u32 vid,
