@@ -1738,24 +1738,18 @@ static bool in_rmo_buf(u32 base, u32 end)
 		end < (rtas_rmo_buf + RTAS_USER_REGION_SIZE);
 }
 
-static bool block_rtas_call(int token, int nargs,
+static bool block_rtas_call(const struct rtas_function *func, int nargs,
 			    struct rtas_args *args)
 {
-	const struct rtas_function *func;
 	const struct rtas_filter *f;
-	const bool is_platform_dump = token == rtas_function_token(RTAS_FN_IBM_PLATFORM_DUMP);
-	const bool is_config_conn = token == rtas_function_token(RTAS_FN_IBM_CONFIGURE_CONNECTOR);
+	const bool is_platform_dump =
+		func == &rtas_function_table[RTAS_FNIDX__IBM_PLATFORM_DUMP];
+	const bool is_config_conn =
+		func == &rtas_function_table[RTAS_FNIDX__IBM_CONFIGURE_CONNECTOR];
 	u32 base, size, end;
 
 	/*
-	 * If this token doesn't correspond to a function the kernel
-	 * understands, you're not allowed to call it.
-	 */
-	func = rtas_token_to_function_untrusted(token);
-	if (!func)
-		goto err;
-	/*
-	 * And only functions with filters attached are allowed.
+	 * Only functions with filters attached are allowed.
 	 */
 	f = func->filter;
 	if (!f)
@@ -1812,14 +1806,15 @@ static bool block_rtas_call(int token, int nargs,
 	return false;
 err:
 	pr_err_ratelimited("sys_rtas: RTAS call blocked - exploit attempt?\n");
-	pr_err_ratelimited("sys_rtas: token=0x%x, nargs=%d (called by %s)\n",
-			   token, nargs, current->comm);
+	pr_err_ratelimited("sys_rtas: %s nargs=%d (called by %s)\n",
+			   func->name, nargs, current->comm);
 	return true;
 }
 
 /* We assume to be passed big endian arguments */
 SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 {
+	const struct rtas_function *func;
 	struct pin_cookie cookie;
 	struct rtas_args args;
 	unsigned long flags;
@@ -1849,13 +1844,18 @@ SYSCALL_DEFINE1(rtas, struct rtas_args __user *, uargs)
 			   nargs * sizeof(rtas_arg_t)) != 0)
 		return -EFAULT;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
+	/*
+	 * If this token doesn't correspond to a function the kernel
+	 * understands, you're not allowed to call it.
+	 */
+	func = rtas_token_to_function_untrusted(token);
+	if (!func)
 		return -EINVAL;
 
 	args.rets = &args.args[nargs];
 	memset(args.rets, 0, nret * sizeof(rtas_arg_t));
 
-	if (block_rtas_call(token, nargs, &args))
+	if (block_rtas_call(func, nargs, &args))
 		return -EINVAL;
 
 	if (token_is_restricted_errinjct(token)) {
