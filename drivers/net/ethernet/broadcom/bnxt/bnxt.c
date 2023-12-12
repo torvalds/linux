@@ -5179,6 +5179,11 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 		bp->nge_port = 0;
 		bp->nge_fw_dst_port_id = INVALID_HW_RING_ID;
 		break;
+	case TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_GPE:
+		req->tunnel_dst_port_id = cpu_to_le16(bp->vxlan_gpe_fw_dst_port_id);
+		bp->vxlan_gpe_port = 0;
+		bp->vxlan_gpe_fw_dst_port_id = INVALID_HW_RING_ID;
+		break;
 	default:
 		break;
 	}
@@ -5221,6 +5226,11 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
 		bp->nge_port = port;
 		bp->nge_fw_dst_port_id = le16_to_cpu(resp->tunnel_dst_port_id);
+		break;
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_GPE:
+		bp->vxlan_gpe_port = port;
+		bp->vxlan_gpe_fw_dst_port_id =
+			le16_to_cpu(resp->tunnel_dst_port_id);
 		break;
 	default:
 		break;
@@ -12002,9 +12012,10 @@ static bool bnxt_udp_tunl_check(struct bnxt *bp, struct sk_buff *skb)
 	struct udphdr *uh = udp_hdr(skb);
 	__be16 udp_port = uh->dest;
 
-	if (udp_port != bp->vxlan_port && udp_port != bp->nge_port)
+	if (udp_port != bp->vxlan_port && udp_port != bp->nge_port &&
+	    udp_port != bp->vxlan_gpe_port)
 		return false;
-	if (skb->inner_protocol_type == ENCAP_TYPE_ETHER) {
+	if (skb->inner_protocol == htons(ETH_P_TEB)) {
 		struct ethhdr *eh = inner_eth_hdr(skb);
 
 		switch (eh->h_proto) {
@@ -12015,6 +12026,11 @@ static bool bnxt_udp_tunl_check(struct bnxt *bp, struct sk_buff *skb)
 						 skb_inner_network_offset(skb),
 						 NULL);
 		}
+	} else if (skb->inner_protocol == htons(ETH_P_IP)) {
+		return true;
+	} else if (skb->inner_protocol == htons(ETH_P_IPV6)) {
+		return bnxt_exthdr_check(bp, skb, skb_inner_network_offset(skb),
+					 NULL);
 	}
 	return false;
 }
@@ -13674,8 +13690,10 @@ static int bnxt_udp_tunnel_set_port(struct net_device *netdev, unsigned int tabl
 
 	if (ti->type == UDP_TUNNEL_TYPE_VXLAN)
 		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN;
-	else
+	else if (ti->type == UDP_TUNNEL_TYPE_GENEVE)
 		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE;
+	else
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_GPE;
 
 	return bnxt_hwrm_tunnel_dst_port_alloc(bp, ti->port, cmd);
 }
@@ -13688,8 +13706,10 @@ static int bnxt_udp_tunnel_unset_port(struct net_device *netdev, unsigned int ta
 
 	if (ti->type == UDP_TUNNEL_TYPE_VXLAN)
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN;
-	else
+	else if (ti->type == UDP_TUNNEL_TYPE_GENEVE)
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE;
+	else
+		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_GPE;
 
 	return bnxt_hwrm_tunnel_dst_port_free(bp, cmd);
 }
@@ -13702,6 +13722,16 @@ static const struct udp_tunnel_nic_info bnxt_udp_tunnels = {
 	.tables		= {
 		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
 		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+}, bnxt_udp_tunnels_p7 = {
+	.set_port	= bnxt_udp_tunnel_set_port,
+	.unset_port	= bnxt_udp_tunnel_unset_port,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP |
+			  UDP_TUNNEL_NIC_INFO_OPEN_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN_GPE, },
 	},
 };
 
@@ -14298,7 +14328,10 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
 			NETIF_F_GSO_IPXIP4 | NETIF_F_GSO_PARTIAL;
-	dev->udp_tunnel_nic_info = &bnxt_udp_tunnels;
+	if (bp->flags & BNXT_FLAG_CHIP_P7)
+		dev->udp_tunnel_nic_info = &bnxt_udp_tunnels_p7;
+	else
+		dev->udp_tunnel_nic_info = &bnxt_udp_tunnels;
 
 	dev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				    NETIF_F_GSO_GRE_CSUM;
