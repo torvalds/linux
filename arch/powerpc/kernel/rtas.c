@@ -1734,9 +1734,13 @@ void rtas_activate_firmware(void)
 		return;
 	}
 
+	mutex_lock(&rtas_ibm_activate_firmware_lock);
+
 	do {
 		fwrc = rtas_call(token, 0, 1, NULL);
 	} while (rtas_busy_delay(fwrc));
+
+	mutex_unlock(&rtas_ibm_activate_firmware_lock);
 
 	if (fwrc)
 		pr_err("ibm,activate-firmware failed (%i)\n", fwrc);
