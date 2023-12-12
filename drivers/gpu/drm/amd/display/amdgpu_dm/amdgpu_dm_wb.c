@@ -32,6 +32,7 @@
 #include "amdgpu_display.h"
 #include "dc.h"
 
+#include <drm/drm_edid.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 
