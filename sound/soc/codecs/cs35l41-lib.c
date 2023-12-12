@@ -16,6 +16,8 @@
 
 #include <sound/cs35l41.h>
 
+#define CS35L41_FIRMWARE_OLD_VERSION 0x001C00 /* v0.28.0 */
+
 static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_PWR_CTRL1,			0x00000000 },
 	{ CS35L41_PWR_CTRL2,			0x00000000 },
@@ -1214,7 +1216,7 @@ EXPORT_SYMBOL_GPL(cs35l41_safe_reset);
  * the PLL Lock interrupt, in the IRQ handler.
  */
 int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l41_boost_type b_type,
-			  int enable, bool firmware_running)
+			  int enable, struct cs_dsp *dsp)
 {
 	int ret;
 	unsigned int gpio1_func, pad_control, pwr_ctrl1, pwr_ctrl3, int_status, pup_pdn_mask;
@@ -1309,7 +1311,7 @@ int cs35l41_global_enable(struct device *dev, struct regmap *regmap, enum cs35l4
 			}
 			regmap_write(regmap, CS35L41_IRQ1_STATUS1, CS35L41_PUP_DONE_MASK);
 
-			if (firmware_running)
+			if (dsp->running && dsp->fw_id_version > CS35L41_FIRMWARE_OLD_VERSION)
 				ret = cs35l41_set_cspl_mbox_cmd(dev, regmap,
 								CSPL_MBOX_CMD_SPK_OUT_ENABLE);
 			else

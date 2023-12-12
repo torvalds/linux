@@ -3861,10 +3861,6 @@ static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
 		adev->gfx.mcbp = true;
 	else if (amdgpu_mcbp == 0)
 		adev->gfx.mcbp = false;
-	else if ((amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 0, 0)) &&
-		 (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 0, 0)) &&
-		 adev->gfx.num_gfx_rings)
-		adev->gfx.mcbp = true;
 
 	if (amdgpu_sriov_vf(adev))
 		adev->gfx.mcbp = true;
@@ -4603,6 +4599,8 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	r = amdgpu_device_evict_resources(adev);
 	if (r)
 		return r;
+
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	amdgpu_fence_driver_hw_fini(adev);
 
