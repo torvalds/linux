@@ -39,6 +39,13 @@
 #define AST2700_SOC1_DPLL_PARAM 0x320
 #define AST2700_SOC1_UXCLK_CTRL 0x330
 #define AST2700_SOC1_HUXCLK_CTRL 0x334
+#define AST2700_SOC1_MAC12_CLK_DLY 0x390
+#define AST2700_SOC1_MAC12_CLK_DLY_100M 0x394
+#define AST2700_SOC1_MAC12_CLK_DLY_10M 0x398
+
+#define AST2700_DEF_MAC12_DELAY_1G	0x00CF4D75
+#define AST2700_DEF_MAC12_DELAY_100M	0x00410410
+#define AST2700_DEF_MAC12_DELAY_10M	0x00410410
 
 /* Globally visible clocks */
 static DEFINE_SPINLOCK(ast2700_clk_lock);
@@ -420,6 +427,11 @@ static int ast2700_soc1_clk_init(struct device_node *soc1_node)
 		clk_hw_register_divider_table(NULL, "machclk", "soc1-hpll",
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      29, 3, 0, ast2700_clk_div_table, &ast2700_clk_lock);
+
+	/* MAC0/1 RGMII/RMII Clock Delay */
+	writel(AST2700_DEF_MAC12_DELAY_1G, clk_base + AST2700_SOC1_MAC12_CLK_DLY);
+	writel(AST2700_DEF_MAC12_DELAY_100M, clk_base + AST2700_SOC1_MAC12_CLK_DLY_100M);
+	writel(AST2700_DEF_MAC12_DELAY_10M, clk_base + AST2700_SOC1_MAC12_CLK_DLY_10M);
 
 	clks[AST2700_SOC1_CLK_GATE_LCLK0] =
 		ast2700_clk_hw_register_gate(NULL, "lclk0-gate", NULL,
