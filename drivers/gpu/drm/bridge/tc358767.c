@@ -1992,12 +1992,15 @@ static const struct regmap_access_table tc_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
 };
 
-static bool tc_writeable_reg(struct device *dev, unsigned int reg)
-{
-	return (reg != TC_IDREG) &&
-	       (reg != DP0_LTSTAT) &&
-	       (reg != DP0_SNKLTCHGREQ);
-}
+static const struct regmap_range tc_non_writeable_ranges[] = {
+	regmap_reg_range(TC_IDREG, TC_IDREG),
+	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
+};
+
+static const struct regmap_access_table tc_writeable_table = {
+	.no_ranges = tc_non_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(tc_non_writeable_ranges),
+};
 
 static const struct regmap_config tc_regmap_config = {
 	.name = "tc358767",
@@ -2008,7 +2011,7 @@ static const struct regmap_config tc_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
 	.volatile_table = &tc_volatile_table,
-	.writeable_reg = tc_writeable_reg,
+	.wr_table = &tc_writeable_table,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
