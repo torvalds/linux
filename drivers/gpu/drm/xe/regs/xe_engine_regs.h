@@ -40,7 +40,6 @@
 #define RING_NOPID(base)			XE_REG((base) + 0x94)
 
 #define RING_IMR(base)				XE_REG((base) + 0xa8)
-#define   RING_MAX_NONPRIV_SLOTS  12
 
 #define RING_EIR(base)				XE_REG((base) + 0xb0)
 #define RING_EMR(base)				XE_REG((base) + 0xb4)
