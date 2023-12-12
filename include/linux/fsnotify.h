@@ -107,6 +107,13 @@ static inline int fsnotify_file_perm(struct file *file, int perm_mask)
 {
 	__u32 fsnotify_mask = FS_ACCESS_PERM;
 
+	/*
+	 * filesystem may be modified in the context of permission events
+	 * (e.g. by HSM filling a file on access), so sb freeze protection
+	 * must not be held.
+	 */
+	lockdep_assert_once(file_write_not_started(file));
+
 	if (!(perm_mask & MAY_READ))
 		return 0;
 
