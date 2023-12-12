@@ -671,28 +671,25 @@ static void __do_enter_rtas(struct rtas_args *args)
 
 static void __do_enter_rtas_trace(struct rtas_args *args)
 {
-	const char *name = NULL;
+	const struct rtas_function *func = rtas_token_to_function(be32_to_cpu(args->token));
+
+	/*
+	 * If there is a per-function lock, it must be held by the
+	 * caller.
+	 */
+	if (func->lock)
+		lockdep_assert_held(func->lock);
 
 	if (args == &rtas_args)
 		lockdep_assert_held(&rtas_lock);
-	/*
-	 * If the tracepoints that consume the function name aren't
-	 * active, avoid the lookup.
-	 */
-	if ((trace_rtas_input_enabled() || trace_rtas_output_enabled())) {
-		const s32 token = be32_to_cpu(args->token);
-		const struct rtas_function *func = rtas_token_to_function(token);
 
-		name = func->name;
-	}
-
-	trace_rtas_input(args, name);
+	trace_rtas_input(args, func->name);
 	trace_rtas_ll_entry(args);
 
 	__do_enter_rtas(args);
 
 	trace_rtas_ll_exit(args);
-	trace_rtas_output(args, name);
+	trace_rtas_output(args, func->name);
 }
 
 static void do_enter_rtas(struct rtas_args *args)
