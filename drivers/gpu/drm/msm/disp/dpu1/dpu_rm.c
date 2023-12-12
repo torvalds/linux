@@ -8,6 +8,7 @@
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_ctl.h"
+#include "dpu_hw_cdm.h"
 #include "dpu_hw_pingpong.h"
 #include "dpu_hw_sspp.h"
 #include "dpu_hw_intf.h"
@@ -174,6 +175,18 @@ int dpu_rm_init(struct drm_device *dev,
 			goto fail;
 		}
 		rm->hw_sspp[sspp->id - SSPP_NONE] = hw;
+	}
+
+	if (cat->cdm) {
+		struct dpu_hw_cdm *hw;
+
+		hw = dpu_hw_cdm_init(dev, cat->cdm, mmio, cat->mdss_ver);
+		if (IS_ERR(hw)) {
+			rc = PTR_ERR(hw);
+			DPU_ERROR("failed cdm object creation: err %d\n", rc);
+			goto fail;
+		}
+		rm->cdm_blk = &hw->base;
 	}
 
 	return 0;
