@@ -319,15 +319,17 @@ static int bnxt_ptp_cfg_event(struct bnxt *bp, u8 event)
 	return hwrm_req_send(bp, req);
 }
 
-void bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp)
+int bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	struct hwrm_port_mac_cfg_input *req;
+	int rc;
 
 	if (!ptp || !ptp->tstamp_filters)
-		return;
+		return -EIO;
 
-	if (hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG))
+	rc = hwrm_req_init(bp, req, HWRM_PORT_MAC_CFG);
+	if (rc)
 		goto out;
 
 	if (!(bp->fw_cap & BNXT_FW_CAP_RX_ALL_PKT_TS) && (ptp->tstamp_filters &
@@ -342,15 +344,17 @@ void bnxt_ptp_cfg_tstamp_filters(struct bnxt *bp)
 	req->enables = cpu_to_le32(PORT_MAC_CFG_REQ_ENABLES_RX_TS_CAPTURE_PTP_MSG_TYPE);
 	req->rx_ts_capture_ptp_msg_type = cpu_to_le16(ptp->rxctl);
 
-	if (!hwrm_req_send(bp, req)) {
+	rc = hwrm_req_send(bp, req);
+	if (!rc) {
 		bp->ptp_all_rx_tstamp = !!(ptp->tstamp_filters &
 					   PORT_MAC_CFG_REQ_FLAGS_ALL_RX_TS_CAPTURE_ENABLE);
-		return;
+		return 0;
 	}
 	ptp->tstamp_filters = 0;
 out:
 	bp->ptp_all_rx_tstamp = 0;
 	netdev_warn(bp->dev, "Failed to configure HW packet timestamp filters\n");
+	return rc;
 }
 
 void bnxt_ptp_reapply_pps(struct bnxt *bp)
@@ -494,7 +498,6 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	u32 flags = 0;
-	int rc = 0;
 
 	switch (ptp->rx_filter) {
 	case HWTSTAMP_FILTER_ALL:
@@ -519,19 +522,7 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 
 	ptp->tstamp_filters = flags;
 
-	if (netif_running(bp->dev)) {
-		if (ptp->rx_filter == HWTSTAMP_FILTER_ALL) {
-			rc = bnxt_close_nic(bp, false, false);
-			if (!rc)
-				rc = bnxt_open_nic(bp, false, false);
-		} else {
-			bnxt_ptp_cfg_tstamp_filters(bp);
-		}
-		if (!rc && !ptp->tstamp_filters)
-			rc = -EIO;
-	}
-
-	return rc;
+	return bnxt_ptp_cfg_tstamp_filters(bp);
 }
 
 int bnxt_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
