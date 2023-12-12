@@ -144,7 +144,7 @@ static int bch2_journal_replay(struct bch_fs *c)
 	u64 start_seq	= c->journal_replay_seq_start;
 	u64 end_seq	= c->journal_replay_seq_start;
 	size_t i;
-	int ret;
+	int ret = 0;
 
 	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
