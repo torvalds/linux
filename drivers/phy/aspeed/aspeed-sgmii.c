@@ -48,7 +48,7 @@ static int aspeed_sgmii_phy_init(struct phy *phy)
 	 * SGMII data rate is 1.25G, so (0x2b xor 0x19) * 25MHz is equal 1.25G.
 	 */
 	reg = PLDA_CLK_SEL_INTERNAL_25M | FIELD_PREP(PLDA_CLK_FREQ_MULTI, 0x2b);
-	regmap_write(sgmii->plda_regmap, PLDA_CLK, 0x12b);
+	regmap_write(sgmii->plda_regmap, PLDA_CLK, reg);
 
 	writel(0, sgmii->regs + SGMII_MODE);
 
