@@ -183,21 +183,22 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int i, num_pages = num_extent_pages(eb);
+	int num_folios = num_extent_folios(eb);
 	int ret = 0;
 
 	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
-	for (i = 0; i < num_pages; i++) {
-		u64 start = max_t(u64, eb->start, folio_pos(eb->folios[i]));
+	for (int i = 0; i < num_folios; i++) {
+		struct folio *folio = eb->folios[i];
+		u64 start = max_t(u64, eb->start, folio_pos(folio));
 		u64 end = min_t(u64, eb->start + eb->len,
-				folio_pos(eb->folios[i]) + PAGE_SIZE);
+				folio_pos(folio) + folio_size(folio));
 		u32 len = end - start;
 
 		ret = btrfs_repair_io_failure(fs_info, 0, start, len,
-					      start, folio_page(eb->folios[i], 0),
-					      offset_in_page(start), mirror_num);
+					      start, folio, offset_in_folio(folio, start),
+					      mirror_num);
 		if (ret)
 			break;
 	}
