@@ -7,6 +7,7 @@
 
 #include "rv1106.dtsi"
 #include "rv1106-evb-v10.dtsi"
+#include "rv1106-evb-ext-mcu-v20.dtsi"
 #include "rv1106g-dual-sensor-extboard.dtsi"
 
 / {
@@ -113,6 +114,11 @@
 			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
 };
 
 &sdio {
