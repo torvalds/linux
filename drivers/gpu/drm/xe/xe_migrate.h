@@ -85,7 +85,8 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				  struct xe_bo *src_bo,
 				  struct xe_bo *dst_bo,
 				  struct ttm_resource *src,
-				  struct ttm_resource *dst);
+				  struct ttm_resource *dst,
+				  bool copy_only_ccs);
 
 struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 				   struct xe_bo *bo,

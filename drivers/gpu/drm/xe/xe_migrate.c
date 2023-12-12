@@ -577,14 +577,14 @@ static u64 xe_migrate_batch_base(struct xe_migrate *m, bool usm)
 
 static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 			       struct xe_bb *bb,
-			       u64 src_ofs, bool src_is_vram,
-			       u64 dst_ofs, bool dst_is_vram, u32 dst_size,
+			       u64 src_ofs, bool src_is_indirect,
+			       u64 dst_ofs, bool dst_is_indirect, u32 dst_size,
 			       u64 ccs_ofs, bool copy_ccs)
 {
 	struct xe_gt *gt = m->tile->primary_gt;
 	u32 flush_flags = 0;
 
-	if (xe_device_has_flat_ccs(gt_to_xe(gt)) && !copy_ccs && dst_is_vram) {
+	if (xe_device_has_flat_ccs(gt_to_xe(gt)) && !copy_ccs && dst_is_indirect) {
 		/*
 		 * If the src is already in vram, then it should already
 		 * have been cleared by us, or has been populated by the
@@ -593,28 +593,24 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
 		 * Otherwise if the bo doesn't have any CCS metadata attached,
 		 * we still need to clear it for security reasons.
 		 */
-		u64 ccs_src_ofs =  src_is_vram ? src_ofs : m->cleared_mem_ofs;
+		u64 ccs_src_ofs =  src_is_indirect ? src_ofs : m->cleared_mem_ofs;
 
 		emit_copy_ccs(gt, bb,
 			      dst_ofs, true,
-			      ccs_src_ofs, src_is_vram, dst_size);
+			      ccs_src_ofs, src_is_indirect, dst_size);
 
 		flush_flags = MI_FLUSH_DW_CCS;
 	} else if (copy_ccs) {
-		if (!src_is_vram)
+		if (!src_is_indirect)
 			src_ofs = ccs_ofs;
-		else if (!dst_is_vram)
+		else if (!dst_is_indirect)
 			dst_ofs = ccs_ofs;
 
-		/*
-		 * At the moment, we don't support copying CCS metadata from
-		 * system to system.
-		 */
-		xe_gt_assert(gt, src_is_vram || dst_is_vram);
+		xe_gt_assert(gt, src_is_indirect || dst_is_indirect);
 
-		emit_copy_ccs(gt, bb, dst_ofs, dst_is_vram, src_ofs,
-			      src_is_vram, dst_size);
-		if (dst_is_vram)
+		emit_copy_ccs(gt, bb, dst_ofs, dst_is_indirect, src_ofs,
+			      src_is_indirect, dst_size);
+		if (dst_is_indirect)
 			flush_flags = MI_FLUSH_DW_CCS;
 	}
 
@@ -630,6 +626,7 @@ static u32 xe_migrate_ccs_copy(struct xe_migrate *m,
  * the buffer object @dst is currently bound to.
  * @src: The source TTM resource.
  * @dst: The dst TTM resource.
+ * @copy_only_ccs: If true copy only CCS metadata
  *
  * Copies the contents of @src to @dst: On flat CCS devices,
  * the CCS metadata is copied as well if needed, or if not present,
@@ -643,7 +640,8 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 				  struct xe_bo *src_bo,
 				  struct xe_bo *dst_bo,
 				  struct ttm_resource *src,
-				  struct ttm_resource *dst)
+				  struct ttm_resource *dst,
+				  bool copy_only_ccs)
 {
 	struct xe_gt *gt = m->tile->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
@@ -655,6 +653,8 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 	u64 src_L0, dst_L0;
 	int pass = 0;
 	int err;
+	bool src_is_pltt = src->mem_type == XE_PL_TT;
+	bool dst_is_pltt = dst->mem_type == XE_PL_TT;
 	bool src_is_vram = mem_type_is_vram(src->mem_type);
 	bool dst_is_vram = mem_type_is_vram(dst->mem_type);
 	bool copy_ccs = xe_device_has_flat_ccs(xe) &&
@@ -719,8 +719,8 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		}
 
 		/* Add copy commands size here */
-		batch_size += EMIT_COPY_DW +
-			(xe_device_has_flat_ccs(xe) ? EMIT_COPY_CCS_DW : 0);
+		batch_size += ((copy_only_ccs) ? 0 : EMIT_COPY_DW) +
+			((xe_device_has_flat_ccs(xe) ? EMIT_COPY_CCS_DW : 0));
 
 		bb = xe_bb_new(gt, batch_size, usm);
 		if (IS_ERR(bb)) {
@@ -746,10 +746,13 @@ struct dma_fence *xe_migrate_copy(struct xe_migrate *m,
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		emit_copy(gt, bb, src_L0_ofs, dst_L0_ofs, src_L0,
-			  XE_PAGE_SIZE);
-		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs, src_is_vram,
-						  dst_L0_ofs, dst_is_vram,
+		if (!copy_only_ccs)
+			emit_copy(gt, bb, src_L0_ofs, dst_L0_ofs, src_L0, XE_PAGE_SIZE);
+
+		flush_flags = xe_migrate_ccs_copy(m, bb, src_L0_ofs,
+						  IS_DGFX(xe) ? src_is_vram : src_is_pltt,
+						  dst_L0_ofs,
+						  IS_DGFX(xe) ? dst_is_vram : dst_is_pltt,
 						  src_L0, ccs_ofs, copy_ccs);
 
 		mutex_lock(&m->job_mutex);
@@ -922,6 +925,7 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 	bool clear_vram = mem_type_is_vram(dst->mem_type);
 	struct xe_gt *gt = m->tile->primary_gt;
 	struct xe_device *xe = gt_to_xe(gt);
+	bool clear_system_ccs = (xe_bo_needs_ccs_pages(bo) && !IS_DGFX(xe)) ? true : false;
 	struct dma_fence *fence = NULL;
 	u64 size = bo->size;
 	struct xe_res_cursor src_it;
@@ -954,9 +958,10 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		batch_size = 2 +
 			pte_update_size(m, clear_vram, src, &src_it,
 					&clear_L0, &clear_L0_ofs, &clear_L0_pt,
-					emit_clear_cmd_len(gt), 0,
+					clear_system_ccs ? 0 : emit_clear_cmd_len(gt), 0,
 					avail_pts);
-		if (xe_device_has_flat_ccs(xe) && clear_vram)
+
+		if (xe_device_has_flat_ccs(xe))
 			batch_size += EMIT_COPY_CCS_DW;
 
 		/* Clear commands */
@@ -971,7 +976,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		}
 
 		size -= clear_L0;
-
 		/* Preemption is enabled again by the ring ops. */
 		if (!clear_vram) {
 			emit_pte(m, bb, clear_L0_pt, clear_vram, true, &src_it, clear_L0,
@@ -982,9 +986,10 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		bb->cs[bb->len++] = MI_BATCH_BUFFER_END;
 		update_idx = bb->len;
 
-		emit_clear(gt, bb, clear_L0_ofs, clear_L0, XE_PAGE_SIZE,
-			   clear_vram);
-		if (xe_device_has_flat_ccs(xe) && clear_vram) {
+		if (!clear_system_ccs)
+			emit_clear(gt, bb, clear_L0_ofs, clear_L0, XE_PAGE_SIZE, clear_vram);
+
+		if (xe_device_has_flat_ccs(xe)) {
 			emit_copy_ccs(gt, bb, clear_L0_ofs, true,
 				      m->cleared_mem_ofs, false, clear_L0);
 			flush_flags = MI_FLUSH_DW_CCS;
@@ -1040,6 +1045,9 @@ err_sync:
 
 		return ERR_PTR(err);
 	}
+
+	if (clear_system_ccs)
+		bo->ccs_cleared = true;
 
 	return fence;
 }

@@ -79,6 +79,10 @@ struct xe_bo {
 	struct llist_node freed;
 	/** @created: Whether the bo has passed initial creation */
 	bool created;
+
+	/** @ccs_cleared */
+	bool ccs_cleared;
+
 	/**
 	 * @cpu_caching: CPU caching mode. Currently only used for userspace
 	 * objects.

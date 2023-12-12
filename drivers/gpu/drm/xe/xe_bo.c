@@ -627,10 +627,11 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	bool move_lacks_source;
 	bool tt_has_data;
 	bool needs_clear;
+	bool handle_system_ccs = (!IS_DGFX(xe) && xe_bo_needs_ccs_pages(bo) &&
+				  ttm && ttm_tt_is_populated(ttm)) ? true : false;
 	int ret = 0;
-
-	/* Bo creation path, moving to system or TT. No clearing required. */
-	if (!old_mem && ttm) {
+	/* Bo creation path, moving to system or TT. */
+	if ((!old_mem && ttm) && !handle_system_ccs) {
 		ttm_bo_move_null(ttm_bo, new_mem);
 		return 0;
 	}
@@ -645,14 +646,18 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 	tt_has_data = ttm && (ttm_tt_is_populated(ttm) ||
 			      (ttm->page_flags & TTM_TT_FLAG_SWAPPED));
 
-	move_lacks_source = !mem_type_is_vram(old_mem_type) && !tt_has_data;
+	move_lacks_source = handle_system_ccs ? (!bo->ccs_cleared)  :
+						(!mem_type_is_vram(old_mem_type) && !tt_has_data);
 
 	needs_clear = (ttm && ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) ||
 		(!ttm && ttm_bo->type == ttm_bo_type_device);
 
-	if ((move_lacks_source && !needs_clear) ||
-	    (old_mem_type == XE_PL_SYSTEM &&
-	     new_mem->mem_type == XE_PL_TT)) {
+	if ((move_lacks_source && !needs_clear)) {
+		ttm_bo_move_null(ttm_bo, new_mem);
+		goto out;
+	}
+
+	if (old_mem_type == XE_PL_SYSTEM && new_mem->mem_type == XE_PL_TT && !handle_system_ccs) {
 		ttm_bo_move_null(ttm_bo, new_mem);
 		goto out;
 	}
@@ -683,8 +688,11 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			ret = timeout;
 			goto out;
 		}
-		ttm_bo_move_null(ttm_bo, new_mem);
-		goto out;
+
+		if (!handle_system_ccs) {
+			ttm_bo_move_null(ttm_bo, new_mem);
+			goto out;
+		}
 	}
 
 	if (!move_lacks_source &&
@@ -705,6 +713,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		migrate = mem_type_to_migrate(xe, new_mem->mem_type);
 	else if (mem_type_is_vram(old_mem_type))
 		migrate = mem_type_to_migrate(xe, old_mem_type);
+	else
+		migrate = xe->tiles[0].migrate;
 
 	xe_assert(xe, migrate);
 
@@ -747,8 +757,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		if (move_lacks_source)
 			fence = xe_migrate_clear(migrate, bo, new_mem);
 		else
-			fence = xe_migrate_copy(migrate,
-						bo, bo, old_mem, new_mem);
+			fence = xe_migrate_copy(migrate, bo, bo, old_mem,
+						new_mem, handle_system_ccs);
 		if (IS_ERR(fence)) {
 			ret = PTR_ERR(fence);
 			xe_device_mem_access_put(xe);
@@ -1234,6 +1244,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 			return bo;
 	}
 
+	bo->ccs_cleared = false;
 	bo->tile = tile;
 	bo->size = size;
 	bo->flags = flags;

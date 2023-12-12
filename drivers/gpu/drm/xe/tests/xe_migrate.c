@@ -152,7 +152,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 
 	expected = 0xc0c0c0c0c0c0c0c0;
 	fence = xe_migrate_copy(m, remote, bo, remote->ttm.resource,
-				bo->ttm.resource);
+				bo->ttm.resource, false);
 	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo remote -> vram" :
 				 "Copying small bo remote -> vram", test)) {
 		retval = xe_map_rd(xe, &bo->vmap, 0, u64);
@@ -169,7 +169,7 @@ static void test_copy(struct xe_migrate *m, struct xe_bo *bo,
 	xe_map_memset(xe, &bo->vmap, 0, 0xc0, bo->size);
 
 	fence = xe_migrate_copy(m, bo, remote, bo->ttm.resource,
-				remote->ttm.resource);
+				remote->ttm.resource, false);
 	if (!sanity_fence_failed(xe, fence, big ? "Copying big bo vram -> remote" :
 				 "Copying small bo vram -> remote", test)) {
 		retval = xe_map_rd(xe, &remote->vmap, 0, u64);
