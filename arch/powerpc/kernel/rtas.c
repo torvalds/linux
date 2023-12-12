@@ -572,11 +572,21 @@ static const struct rtas_function *rtas_token_to_function(s32 token)
 		return NULL;
 
 	func = rtas_token_to_function_untrusted(token);
+	if (func)
+		return func;
+	/*
+	 * Fall back to linear scan in case the reverse mapping hasn't
+	 * been initialized yet.
+	 */
+	if (xa_empty(&rtas_token_to_function_xarray)) {
+		for_each_rtas_function(func) {
+			if (func->token == token)
+				return func;
+		}
+	}
 
-	if (WARN_ONCE(!func, "unexpected failed lookup for token %d", token))
-		return NULL;
-
-	return func;
+	WARN_ONCE(true, "unexpected failed lookup for token %d", token);
+	return NULL;
 }
 
 /* This is here deliberately so it's only used in this file */
