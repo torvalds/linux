@@ -238,7 +238,7 @@ void ht_reset_iot_setting(struct rt_hi_throughput *ht_info)
 }
 
 void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
-				  u8 *len, u8 IsEncrypt, bool bAssoc)
+				  u8 *len, u8 is_encrypt, bool bAssoc)
 {
 	struct rt_hi_throughput *pHT = ieee->ht_info;
 	struct ht_capab_ele *pCapELE = NULL;
@@ -284,7 +284,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 		   "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
 		   pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
-	if (IsEncrypt) {
+	if (is_encrypt) {
 		pCapELE->MPDUDensity	= 7;
 		pCapELE->MaxRxAMPDUFactor	= 2;
 	} else {
