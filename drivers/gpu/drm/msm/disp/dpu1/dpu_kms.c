@@ -944,6 +944,10 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 		}
 	}
 
+	if (cat->cdm)
+		msm_disp_snapshot_add_block(disp_state, cat->cdm->len,
+					    dpu_kms->mmio + cat->cdm->base, cat->cdm->name);
+
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
 
