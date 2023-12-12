@@ -5150,6 +5150,8 @@ int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp)
 	return hwrm_req_send(bp, req);
 }
 
+static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa);
+
 static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 {
 	struct hwrm_tunnel_dst_port_free_input *req;
@@ -5192,6 +5194,8 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 	if (rc)
 		netdev_err(bp->dev, "hwrm_tunnel_dst_port_free failed. rc:%d\n",
 			   rc);
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, true);
 	return rc;
 }
 
@@ -5235,6 +5239,8 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 	default:
 		break;
 	}
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, true);
 
 err_out:
 	hwrm_req_drop(bp, req);
@@ -5427,6 +5433,30 @@ static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 	return rc;
 }
 
+#define BNXT_DFLT_TUNL_TPA_BMAP				\
+	(VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_GRE |	\
+	 VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_IPV4 |	\
+	 VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_IPV6)
+
+static void bnxt_hwrm_vnic_update_tunl_tpa(struct bnxt *bp,
+					   struct hwrm_vnic_tpa_cfg_input *req)
+{
+	u32 tunl_tpa_bmap = BNXT_DFLT_TUNL_TPA_BMAP;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_VNIC_TUNNEL_TPA))
+		return;
+
+	if (bp->vxlan_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_VXLAN;
+	if (bp->vxlan_gpe_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_VXLAN_GPE;
+	if (bp->nge_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_GENEVE;
+
+	req->enables |= cpu_to_le32(VNIC_TPA_CFG_REQ_ENABLES_TNL_TPA_EN);
+	req->tnl_tpa_en_bitmap = cpu_to_le32(tunl_tpa_bmap);
+}
+
 static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
@@ -5483,6 +5513,7 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 		req->max_aggs = cpu_to_le16(max_aggs);
 
 		req->min_agg_len = cpu_to_le32(512);
+		bnxt_hwrm_vnic_update_tunl_tpa(bp, req);
 	}
 	req->vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 
@@ -5977,6 +6008,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 			else
 				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P7;
 		}
+		if (flags & VNIC_QCAPS_RESP_FLAGS_HW_TUNNEL_TPA_CAP)
+			bp->fw_cap |= BNXT_FW_CAP_VNIC_TUNNEL_TPA;
 	}
 	hwrm_req_drop(bp, req);
 	return rc;
