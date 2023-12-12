@@ -115,7 +115,12 @@
 
 	temperature-sensor@4b {
 		compatible = "ti,tmp75";
-		reg = <0x4B>;
+		reg = <0x4b>;
+	};
+
+	temperature-sensor@48 {
+		compatible = "ti,tmp75";
+		reg = <0x48>;
 	};
 
 	eeprom@51 {
