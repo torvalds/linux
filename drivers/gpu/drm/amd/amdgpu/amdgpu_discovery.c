@@ -2648,6 +2648,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(14, 0, 0):
+	case IP_VERSION(14, 0, 1):
 		adev->smuio.funcs = &smuio_v13_0_6_funcs;
 		break;
 	default:
