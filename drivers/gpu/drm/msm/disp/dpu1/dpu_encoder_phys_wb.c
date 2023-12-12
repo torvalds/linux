@@ -272,6 +272,7 @@ static int dpu_encoder_phys_wb_atomic_check(
 {
 	struct drm_framebuffer *fb;
 	const struct drm_display_mode *mode = &crtc_state->mode;
+	int ret;
 
 	DPU_DEBUG("[atomic_check:%d, \"%s\",%d,%d]\n",
 			phys_enc->hw_wb->idx, mode->name, mode->hdisplay, mode->vdisplay);
@@ -308,7 +309,7 @@ static int dpu_encoder_phys_wb_atomic_check(
 		return -EINVAL;
 	}
 
-	return 0;
+	return drm_atomic_helper_check_wb_connector_state(conn_state->connector, conn_state->state);
 }
 
 
