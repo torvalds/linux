@@ -93,8 +93,8 @@
 		power-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out0>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "tp9951";
 		rockchip,camera-module-lens-name = "tp9951";
 		port {
@@ -115,8 +115,8 @@
 		// pwdn-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out1>;
-		rockchip,camera-module-index = <1>;
-		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "OT01";
 		rockchip,camera-module-lens-name = "40IRC_F16";
 		port {
