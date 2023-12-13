@@ -117,10 +117,9 @@ EBUSY
     ``VIDIOC_SUBDEV_S_FRAME_INTERVAL``
 
 EINVAL
-    The struct
-    :c:type:`v4l2_subdev_frame_interval`
-    ``pad`` references a non-existing pad, the ``which`` field references a
-    non-existing frame interval, or the pad doesn't support frame intervals.
+    The struct :c:type:`v4l2_subdev_frame_interval` ``pad`` references a
+    non-existing pad, the ``which`` field has an unsupported value, or the pad
+    doesn't support frame intervals.
 
 EPERM
     The ``VIDIOC_SUBDEV_S_FRAME_INTERVAL`` ioctl has been called on a read-only
