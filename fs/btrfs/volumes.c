@@ -6575,26 +6575,36 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	if (!dev_replace_is_ongoing)
 		up_read(&dev_replace->rwsem);
 
-	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
+	switch (map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK) {
+	case BTRFS_BLOCK_GROUP_RAID0:
 		map_blocks_raid0(map, &io_geom);
-	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
+		break;
+	case BTRFS_BLOCK_GROUP_RAID1:
+	case BTRFS_BLOCK_GROUP_RAID1C3:
+	case BTRFS_BLOCK_GROUP_RAID1C4:
 		map_blocks_raid1(fs_info, map, &io_geom, dev_replace_is_ongoing);
-	} else if (map->type & BTRFS_BLOCK_GROUP_DUP) {
+		break;
+	case BTRFS_BLOCK_GROUP_DUP:
 		map_blocks_dup(map, &io_geom);
-	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
+		break;
+	case BTRFS_BLOCK_GROUP_RAID10:
 		map_blocks_raid10(fs_info, map, &io_geom, dev_replace_is_ongoing);
-	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		break;
+	case BTRFS_BLOCK_GROUP_RAID5:
+	case BTRFS_BLOCK_GROUP_RAID6:
 		if (op != BTRFS_MAP_READ || io_geom.mirror_num > 1)
 			map_blocks_raid56_write(map, &io_geom, logical, length);
 		else
 			map_blocks_raid56_read(map, &io_geom);
-	} else {
+		break;
+	default:
 		/*
 		 * After this, stripe_nr is the number of stripes on this
 		 * device we have to walk to find the data, and stripe_index is
 		 * the number of our device in the stripe array
 		 */
 		map_blocks_single(map, &io_geom);
+		break;
 	}
 	if (io_geom.stripe_index >= map->num_stripes) {
 		btrfs_crit(fs_info,
