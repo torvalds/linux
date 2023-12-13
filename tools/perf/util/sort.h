@@ -113,6 +113,7 @@ struct hist_entry {
 	u64			p_stage_cyc;
 	u8			cpumode;
 	u8			depth;
+	int			mem_type_off;
 	struct simd_flags	simd_flags;
 
 	/* We are added by hists__add_dummy_entry. */
@@ -247,6 +248,7 @@ enum sort_type {
 	SORT_GLOBAL_RETIRE_LAT,
 	SORT_SIMD,
 	SORT_ANNOTATE_DATA_TYPE,
+	SORT_ANNOTATE_DATA_TYPE_OFFSET,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

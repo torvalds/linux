@@ -3716,6 +3716,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 						    op_loc->offset,
 						    he->stat.nr_events,
 						    he->stat.period);
+		he->mem_type_off = op_loc->offset;
 		return mem_type;
 	}
 	return NULL;
