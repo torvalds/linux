@@ -474,15 +474,15 @@ static void swap_readpage_bdev_sync(struct folio *folio,
 	put_task_struct(current);
 }
 
-static void swap_readpage_bdev_async(struct page *page,
+static void swap_readpage_bdev_async(struct folio *folio,
 		struct swap_info_struct *sis)
 {
 	struct bio *bio;
 
 	bio = bio_alloc(sis->bdev, 1, REQ_OP_READ, GFP_KERNEL);
-	bio->bi_iter.bi_sector = swap_page_sector(page);
+	bio->bi_iter.bi_sector = swap_page_sector(&folio->page);
 	bio->bi_end_io = end_swap_bio_read;
-	__bio_add_page(bio, page, thp_size(page), 0);
+	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
 	count_vm_event(PSWPIN);
 	submit_bio(bio);
 }
@@ -518,7 +518,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 	} else if (synchronous || (sis->flags & SWP_SYNCHRONOUS_IO)) {
 		swap_readpage_bdev_sync(folio, sis);
 	} else {
-		swap_readpage_bdev_async(page, sis);
+		swap_readpage_bdev_async(folio, sis);
 	}
 
 	if (workingset) {
