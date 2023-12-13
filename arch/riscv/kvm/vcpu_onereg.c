@@ -933,48 +933,16 @@ static inline unsigned long num_isa_ext_regs(const struct kvm_vcpu *vcpu)
 
 static inline unsigned long num_sbi_ext_regs(void)
 {
-	/*
-	 * number of KVM_REG_RISCV_SBI_SINGLE +
-	 * 2 x (number of KVM_REG_RISCV_SBI_MULTI)
-	 */
-	return KVM_RISCV_SBI_EXT_MAX + 2*(KVM_REG_RISCV_SBI_MULTI_REG_LAST+1);
+	return KVM_RISCV_SBI_EXT_MAX;
 }
 
 static int copy_sbi_ext_reg_indices(u64 __user *uindices)
 {
-	int n;
-
-	/* copy KVM_REG_RISCV_SBI_SINGLE */
-	n = KVM_RISCV_SBI_EXT_MAX;
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; i < KVM_RISCV_SBI_EXT_MAX; i++) {
 		u64 size = IS_ENABLED(CONFIG_32BIT) ?
 			   KVM_REG_SIZE_U32 : KVM_REG_SIZE_U64;
 		u64 reg = KVM_REG_RISCV | size | KVM_REG_RISCV_SBI_EXT |
 			  KVM_REG_RISCV_SBI_SINGLE | i;
-
-		if (uindices) {
-			if (put_user(reg, uindices))
-				return -EFAULT;
-			uindices++;
-		}
-	}
-
-	/* copy KVM_REG_RISCV_SBI_MULTI */
-	n = KVM_REG_RISCV_SBI_MULTI_REG_LAST + 1;
-	for (int i = 0; i < n; i++) {
-		u64 size = IS_ENABLED(CONFIG_32BIT) ?
-			   KVM_REG_SIZE_U32 : KVM_REG_SIZE_U64;
-		u64 reg = KVM_REG_RISCV | size | KVM_REG_RISCV_SBI_EXT |
-			  KVM_REG_RISCV_SBI_MULTI_EN | i;
-
-		if (uindices) {
-			if (put_user(reg, uindices))
-				return -EFAULT;
-			uindices++;
-		}
-
-		reg = KVM_REG_RISCV | size | KVM_REG_RISCV_SBI_EXT |
-			  KVM_REG_RISCV_SBI_MULTI_DIS | i;
 
 		if (uindices) {
 			if (put_user(reg, uindices))
