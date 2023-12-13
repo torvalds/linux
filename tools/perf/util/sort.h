@@ -249,6 +249,7 @@ enum sort_type {
 	SORT_SIMD,
 	SORT_ANNOTATE_DATA_TYPE,
 	SORT_ANNOTATE_DATA_TYPE_OFFSET,
+	SORT_SYM_OFFSET,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,
