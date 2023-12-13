@@ -291,8 +291,6 @@ struct rtw89_txpwr_byrate_cfg {
 	u32 data;
 };
 
-#define DELTA_SWINGIDX_SIZE 30
-
 struct rtw89_txpwr_track_cfg {
 	const s8 (*delta_swingidx_6gb_n)[DELTA_SWINGIDX_SIZE];
 	const s8 (*delta_swingidx_6gb_p)[DELTA_SWINGIDX_SIZE];

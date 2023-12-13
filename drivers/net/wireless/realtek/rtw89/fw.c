@@ -659,6 +659,72 @@ setup:
 	return 0;
 }
 
+static
+int rtw89_build_txpwr_trk_tbl_from_elm(struct rtw89_dev *rtwdev,
+				       const struct rtw89_fw_element_hdr *elm,
+				       const union rtw89_fw_element_arg arg)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u32 needed_bitmap = 0;
+	u32 offset = 0;
+	int subband;
+	u32 bitmap;
+	int type;
+
+	if (chip->support_bands & BIT(NL80211_BAND_6GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_6GHZ;
+	if (chip->support_bands & BIT(NL80211_BAND_5GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_5GHZ;
+	if (chip->support_bands & BIT(NL80211_BAND_2GHZ))
+		needed_bitmap |= RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_2GHZ;
+
+	bitmap = le32_to_cpu(elm->u.txpwr_trk.bitmap);
+
+	if ((bitmap & needed_bitmap) != needed_bitmap) {
+		rtw89_warn(rtwdev, "needed txpwr trk bitmap %08x but %0x8x\n",
+			   needed_bitmap, bitmap);
+		return -ENOENT;
+	}
+
+	elm_info->txpwr_trk = kzalloc(sizeof(*elm_info->txpwr_trk), GFP_KERNEL);
+	if (!elm_info->txpwr_trk)
+		return -ENOMEM;
+
+	for (type = 0; bitmap; type++, bitmap >>= 1) {
+		if (!(bitmap & BIT(0)))
+			continue;
+
+		if (type >= __RTW89_FW_TXPWR_TRK_TYPE_6GHZ_START &&
+		    type <= __RTW89_FW_TXPWR_TRK_TYPE_6GHZ_MAX)
+			subband = 4;
+		else if (type >= __RTW89_FW_TXPWR_TRK_TYPE_5GHZ_START &&
+			 type <= __RTW89_FW_TXPWR_TRK_TYPE_5GHZ_MAX)
+			subband = 3;
+		else if (type >= __RTW89_FW_TXPWR_TRK_TYPE_2GHZ_START &&
+			 type <= __RTW89_FW_TXPWR_TRK_TYPE_2GHZ_MAX)
+			subband = 1;
+		else
+			break;
+
+		elm_info->txpwr_trk->delta[type] = &elm->u.txpwr_trk.contents[offset];
+
+		offset += subband;
+		if (offset * DELTA_SWINGIDX_SIZE > le32_to_cpu(elm->size))
+			goto err;
+	}
+
+	return 0;
+
+err:
+	rtw89_warn(rtwdev, "unexpected txpwr trk offset %d over size %d\n",
+		   offset, le32_to_cpu(elm->size));
+	kfree(elm_info->txpwr_trk);
+	elm_info->txpwr_trk = NULL;
+
+	return -EFAULT;
+}
+
 static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_BBMCU0] = {__rtw89_fw_recognize_from_elm,
 					{ .fw_type = RTW89_FW_BBMCU0 }, NULL},
@@ -710,6 +776,9 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU] = {
 		rtw89_fw_recognize_txpwr_from_elm,
 		{ .offset = offsetof(struct rtw89_rfe_data, tx_shape_lmt_ru.conf) }, NULL,
+	},
+	[RTW89_FW_ELEMENT_ID_TXPWR_TRK] = {
+		rtw89_build_txpwr_trk_tbl_from_elm, {}, "PWR_TRK",
 	},
 };
 
@@ -1144,6 +1213,8 @@ static void rtw89_unload_firmware_elements(struct rtw89_dev *rtwdev)
 	for (i = 0; i < ARRAY_SIZE(elm_info->rf_radio); i++)
 		rtw89_free_phy_tbl_from_elm(elm_info->rf_radio[i]);
 	rtw89_free_phy_tbl_from_elm(elm_info->rf_nctl);
+
+	kfree(elm_info->txpwr_trk);
 }
 
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev)
