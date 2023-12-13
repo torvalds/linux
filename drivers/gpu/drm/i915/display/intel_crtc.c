@@ -544,6 +544,9 @@ static int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
 	DEFINE_WAIT(wait);
 	int scanline;
 
+	if (evade->min <= 0 || evade->max <= 0)
+		return 0;
+
 	for (;;) {
 		/*
 		 * prepare_to_wait() has a memory barrier, which guarantees
@@ -633,8 +636,6 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 		intel_crtc_vblank_work_init(new_crtc_state);
 
 	intel_vblank_evade_init(old_crtc_state, new_crtc_state, &evade);
-	if (evade.min <= 0 || evade.max <= 0)
-		goto irq_disable;
 
 	if (drm_WARN_ON(&dev_priv->drm, drm_crtc_vblank_get(&crtc->base)))
 		goto irq_disable;
