@@ -63,6 +63,22 @@ static inline void btree_trans_sort_paths(struct btree_trans *trans)
 	__bch2_btree_trans_sort_paths(trans);
 }
 
+static inline unsigned long *trans_paths_nr(struct btree_path *paths)
+{
+	return &container_of(paths, struct btree_trans_paths, paths[0])->nr_paths;
+}
+
+static inline unsigned long *trans_paths_allocated(struct btree_path *paths)
+{
+	unsigned long *v = trans_paths_nr(paths);
+	return v - BITS_TO_LONGS(*v);
+}
+
+#define trans_for_each_path_idx_from(_paths_allocated, _nr, _idx, _start)\
+	for (_idx = _start;						\
+	     (_idx = find_next_bit(_paths_allocated, _nr, _idx)) < _nr;	\
+	     _idx++)
+
 static inline struct btree_path *
 __trans_next_path(struct btree_trans *trans, unsigned *idx)
 {

@@ -372,12 +372,17 @@ struct btree_trans_commit_hook {
 
 #define BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS	10000
 
+struct btree_trans_paths {
+	unsigned long		nr_paths;
+	struct btree_path	paths[];
+};
+
 struct btree_trans {
 	struct bch_fs		*c;
 
 	unsigned long		*paths_allocated;
-	u8			*sorted;
 	struct btree_path	*paths;
+	u8			*sorted;
 
 	void			*mem;
 	unsigned		mem_top;
@@ -431,8 +436,9 @@ struct btree_trans {
 	struct replicas_delta_list *fs_usage_deltas;
 
 	unsigned long		_paths_allocated[BITS_TO_LONGS(BTREE_ITER_MAX)];
-	u8			_sorted[BTREE_ITER_MAX + 8];
+	struct btree_trans_paths trans_paths;
 	struct btree_path	_paths[BTREE_ITER_MAX];
+	u8			_sorted[BTREE_ITER_MAX + 8];
 };
 
 static inline struct btree_path *btree_iter_path(struct btree_trans *trans, struct btree_iter *iter)

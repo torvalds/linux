@@ -281,9 +281,8 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	struct lock_graph g;
 	struct trans_waiting_for_lock *top;
 	struct btree_bkey_cached_common *b;
-	struct btree_path *path;
-	unsigned path_idx;
-	int ret;
+	btree_path_idx_t path_idx;
+	int ret = 0;
 
 	g.nr = 0;
 
@@ -296,13 +295,26 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	}
 
 	lock_graph_down(&g, trans);
+
+	/* trans->paths is rcu protected vs. freeing */
+	rcu_read_lock();
+	if (cycle)
+		cycle->atomic++;
 next:
 	if (!g.nr)
-		return 0;
+		goto out;
 
 	top = &g.g[g.nr - 1];
 
-	trans_for_each_path_from(top->trans, path, path_idx, top->path_idx) {
+	struct btree_path *paths = rcu_dereference(top->trans->paths);
+	if (!paths)
+		goto up;
+
+	unsigned long *paths_allocated = trans_paths_allocated(paths);
+
+	trans_for_each_path_idx_from(paths_allocated, *trans_paths_nr(paths),
+				     path_idx, top->path_idx) {
+		struct btree_path *path = paths + path_idx;
 		if (!path->nodes_locked)
 			continue;
 
@@ -368,18 +380,23 @@ next:
 
 				ret = lock_graph_descend(&g, trans, cycle);
 				if (ret)
-					return ret;
+					goto out;
 				goto next;
 
 			}
 			raw_spin_unlock(&b->lock.wait_lock);
 		}
 	}
-
+up:
 	if (g.nr > 1 && cycle)
 		print_chain(cycle, &g);
 	lock_graph_up(&g);
 	goto next;
+out:
+	if (cycle)
+		--cycle->atomic;
+	rcu_read_unlock();
+	return ret;
 }
 
 int bch2_six_check_for_deadlock(struct six_lock *lock, void *p)

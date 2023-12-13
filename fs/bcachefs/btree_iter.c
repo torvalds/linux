@@ -2920,6 +2920,8 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	trans->sorted		= trans->_sorted;
 	trans->paths		= trans->_paths;
 
+	*trans_paths_nr(trans->paths) = BTREE_ITER_MAX;
+
 	trans->paths_allocated[0] = 1;
 
 	s = btree_trans_stats(trans);
@@ -3074,11 +3076,13 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 
 void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 {
-	struct btree_path *path;
 	struct btree_bkey_cached_common *b;
 	static char lock_types[] = { 'r', 'i', 'w' };
 	struct task_struct *task = READ_ONCE(trans->locking_wait.task);
 	unsigned l, idx;
+
+	/* before rcu_read_lock(): */
+	bch2_printbuf_make_room(out, 4096);
 
 	if (!out->nr_tabstops) {
 		printbuf_tabstop_push(out, 16);
@@ -3087,7 +3091,18 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	prt_printf(out, "%i %s\n", task ? task->pid : 0, trans->fn);
 
-	trans_for_each_path(trans, path, idx) {
+	/* trans->paths is rcu protected vs. freeing */
+	rcu_read_lock();
+	out->atomic++;
+
+	struct btree_path *paths = rcu_dereference(trans->paths);
+	if (!paths)
+		goto out;
+
+	unsigned long *paths_allocated = trans_paths_allocated(paths);
+
+	trans_for_each_path_idx_from(paths_allocated, *trans_paths_nr(paths), idx, 1) {
+		struct btree_path *path = paths + idx;
 		if (!path->nodes_locked)
 			continue;
 
@@ -3120,6 +3135,9 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 		bch2_btree_bkey_cached_common_to_text(out, b);
 		prt_newline(out);
 	}
+out:
+	--out->atomic;
+	rcu_read_unlock();
 }
 
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
