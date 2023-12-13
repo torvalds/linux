@@ -1286,7 +1286,7 @@ static ssize_t counts_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", le16_to_cpu(counts));
+	return sysfs_emit(buf, "%u\n", le16_to_cpu(counts));
 }
 
 static ssize_t hall_bin_show(struct device *dev,
@@ -1324,7 +1324,7 @@ static ssize_t hall_bin_show(struct device *dev,
 		return -EINVAL;
 	}
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t hall_enable_show(struct device *dev,
@@ -1332,7 +1332,7 @@ static ssize_t hall_enable_show(struct device *dev,
 {
 	struct iqs269_private *iqs269 = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", iqs269->hall_enable);
+	return sysfs_emit(buf, "%u\n", iqs269->hall_enable);
 }
 
 static ssize_t hall_enable_store(struct device *dev,
@@ -1362,7 +1362,7 @@ static ssize_t ch_number_show(struct device *dev,
 {
 	struct iqs269_private *iqs269 = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", iqs269->ch_num);
+	return sysfs_emit(buf, "%u\n", iqs269->ch_num);
 }
 
 static ssize_t ch_number_store(struct device *dev,
@@ -1391,8 +1391,7 @@ static ssize_t rx_enable_show(struct device *dev,
 	struct iqs269_private *iqs269 = dev_get_drvdata(dev);
 	struct iqs269_ch_reg *ch_reg = iqs269->sys_reg.ch_reg;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 ch_reg[iqs269->ch_num].rx_enable);
+	return sysfs_emit(buf, "%u\n", ch_reg[iqs269->ch_num].rx_enable);
 }
 
 static ssize_t rx_enable_store(struct device *dev,
@@ -1432,7 +1431,7 @@ static ssize_t ati_mode_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t ati_mode_store(struct device *dev,
@@ -1465,7 +1464,7 @@ static ssize_t ati_base_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t ati_base_store(struct device *dev,
@@ -1498,7 +1497,7 @@ static ssize_t ati_target_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t ati_target_store(struct device *dev,
@@ -1525,9 +1524,9 @@ static ssize_t ati_trigger_show(struct device *dev,
 {
 	struct iqs269_private *iqs269 = dev_get_drvdata(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 iqs269->ati_current &&
-			 completion_done(&iqs269->ati_done));
+	return sysfs_emit(buf, "%u\n",
+			  iqs269->ati_current &&
+			  completion_done(&iqs269->ati_done));
 }
 
 static ssize_t ati_trigger_store(struct device *dev,
