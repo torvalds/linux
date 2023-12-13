@@ -323,7 +323,7 @@ static u32 ast2600_select_i2c_clock(struct ast2600_i2c_bus *i2c_bus)
 	for (int i = 0; i < 16; i++) {
 		if (i == 0)
 			base_clk[i] = i2c_bus->apb_clk;
-		else if ((i > 0) || (i < 5))
+		else if ((i > 0) && (i < 5))
 			base_clk[i] = (i2c_bus->apb_clk * 2) /
 				(((clk_div_reg >> ((i - 1) * 8)) & GENMASK(7, 0)) + 2);
 		else
