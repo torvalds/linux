@@ -1008,6 +1008,33 @@ class Family(SpecFamily):
                 self.root_sets[op['attribute-set']]['request'].update(req_attrs)
                 self.root_sets[op['attribute-set']]['reply'].update(rsp_attrs)
 
+    def _sort_pure_types(self):
+        # Try to reorder according to dependencies
+        pns_key_list = list(self.pure_nested_structs.keys())
+        pns_key_seen = set()
+        rounds = len(pns_key_list) ** 2  # it's basically bubble sort
+        for _ in range(rounds):
+            if len(pns_key_list) == 0:
+                break
+            name = pns_key_list.pop(0)
+            finished = True
+            for _, spec in self.attr_sets[name].items():
+                if 'nested-attributes' in spec:
+                    nested = spec['nested-attributes']
+                    # If the unknown nest we hit is recursive it's fine, it'll be a pointer
+                    if self.pure_nested_structs[nested].recursive:
+                        continue
+                    if nested not in pns_key_seen:
+                        # Dicts are sorted, this will make struct last
+                        struct = self.pure_nested_structs.pop(name)
+                        self.pure_nested_structs[name] = struct
+                        finished = False
+                        break
+            if finished:
+                pns_key_seen.add(name)
+            else:
+                pns_key_list.append(name)
+
     def _load_nested_sets(self):
         attr_set_queue = list(self.root_sets.keys())
         attr_set_seen = set(self.root_sets.keys())
@@ -1047,27 +1074,8 @@ class Family(SpecFamily):
                     if attr in rs_members['reply']:
                         self.pure_nested_structs[nested].reply = True
 
-        # Try to reorder according to dependencies
-        pns_key_list = list(self.pure_nested_structs.keys())
-        pns_key_seen = set()
-        rounds = len(pns_key_list)**2  # it's basically bubble sort
-        for _ in range(rounds):
-            if len(pns_key_list) == 0:
-                break
-            name = pns_key_list.pop(0)
-            finished = True
-            for _, spec in self.attr_sets[name].items():
-                if 'nested-attributes' in spec:
-                    if spec['nested-attributes'] not in pns_key_seen:
-                        # Dicts are sorted, this will make struct last
-                        struct = self.pure_nested_structs.pop(name)
-                        self.pure_nested_structs[name] = struct
-                        finished = False
-                        break
-            if finished:
-                pns_key_seen.add(name)
-            else:
-                pns_key_list.append(name)
+        self._sort_pure_types()
+
         # Propagate the request / reply / recursive
         for attr_set, struct in reversed(self.pure_nested_structs.items()):
             for _, spec in self.attr_sets[attr_set].items():
@@ -1082,6 +1090,8 @@ class Family(SpecFamily):
                         child.reply |= struct.reply
                 if attr_set in struct.child_nests:
                     struct.recursive = True
+
+        self._sort_pure_types()
 
     def _load_attr_use(self):
         for _, struct in self.pure_nested_structs.items():
