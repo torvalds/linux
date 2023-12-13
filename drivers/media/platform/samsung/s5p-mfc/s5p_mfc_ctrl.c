@@ -51,8 +51,14 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	 * into kernel. */
 	mfc_debug_enter();
 
-	if (dev->fw_get_done)
-		return 0;
+	/* In case of MFC v12, RET_SYS_INIT response from hardware fails due to
+	 * incorrect firmware transfer and therefore it is not able to initialize
+	 * the hardware. This causes failed response for SYS_INIT command when
+	 * MFC runs for second time. So, load the MFC v12 firmware for each run.
+	 */
+	if (!IS_MFCV12(dev))
+		if (dev->fw_get_done)
+			return 0;
 
 	for (i = MFC_FW_MAX_VERSIONS - 1; i >= 0; i--) {
 		if (!dev->variant->fw_name[i])
