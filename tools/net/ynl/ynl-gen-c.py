@@ -1124,6 +1124,10 @@ class RenderInfo:
         self.op_mode = op_mode
         self.op = op
 
+        self.fixed_hdr = None
+        if op and op.fixed_header:
+            self.fixed_hdr = 'struct ' + c_lower(op.fixed_header)
+
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
         if op_mode != 'do' and 'dump' in op:
@@ -1570,7 +1574,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     if struct.nested:
         iter_line = "mnl_attr_for_each_nested(attr, nested)"
     else:
-        iter_line = "mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr))"
+        if ri.fixed_hdr:
+            local_vars += ['void *hdr;']
+        iter_line = "mnl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
 
     array_nests = set()
     multi_attrs = set()
@@ -1603,6 +1609,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg in struct.inherited:
         ri.cw.p(f'dst->{arg} = {arg};')
 
+    if ri.fixed_hdr:
+        ri.cw.p('hdr = mnl_nlmsg_get_payload_offset(nlh, sizeof(struct genlmsghdr));')
+        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
         ri.cw.p(f"if (dst->{aspec.c_name})")
@@ -1723,6 +1732,10 @@ def print_req(ri):
         ret_err = 'NULL'
         local_vars += [f'{type_name(ri, rdir(direction))} *rsp;']
 
+    if ri.fixed_hdr:
+        local_vars += ['size_t hdr_len;',
+                       'void *hdr;']
+
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
@@ -1733,6 +1746,13 @@ def print_req(ri):
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
+
+    if ri.fixed_hdr:
+        ri.cw.p("hdr_len = sizeof(req->_hdr);")
+        ri.cw.p("hdr = mnl_nlmsg_put_extra_header(nlh, hdr_len);")
+        ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
+        ri.cw.nl()
+
     for _, attr in ri.struct["request"].member_list():
         attr.attr_put(ri, "req")
     ri.cw.nl()
@@ -1773,9 +1793,11 @@ def print_dump(ri):
                   'struct nlmsghdr *nlh;',
                   'int err;']
 
-    for var in local_vars:
-        ri.cw.p(f'{var}')
-    ri.cw.nl()
+    if ri.fixed_hdr:
+        local_vars += ['size_t hdr_len;',
+                       'void *hdr;']
+
+    ri.cw.write_func_lvar(local_vars)
 
     ri.cw.p('yds.ys = ys;')
     ri.cw.p(f"yds.alloc_sz = sizeof({type_name(ri, rdir(direction))});")
@@ -1787,6 +1809,12 @@ def print_dump(ri):
     ri.cw.p(f"yds.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
     ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+
+    if ri.fixed_hdr:
+        ri.cw.p("hdr_len = sizeof(req->_hdr);")
+        ri.cw.p("hdr = mnl_nlmsg_put_extra_header(nlh, hdr_len);")
+        ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
+        ri.cw.nl()
 
     if "request" in ri.op[ri.op_mode]:
         ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
@@ -1844,6 +1872,10 @@ def _print_type(ri, direction, struct):
         suffix += '_dump'
 
     ri.cw.block_start(line=f"struct {ri.family.c_name}{suffix}")
+
+    if ri.fixed_hdr:
+        ri.cw.p(ri.fixed_hdr + ' _hdr;')
+        ri.cw.nl()
 
     meta_started = False
     for _, attr in struct.member_list():
@@ -2482,6 +2514,10 @@ def render_user_family(family, cw, prototype):
 
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
+    if family.fixed_header:
+        cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
+    else:
+        cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
     if family.ntfs:
         cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
         cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")

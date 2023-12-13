@@ -44,6 +44,7 @@ struct ynl_error {
 struct ynl_family {
 /* private: */
 	const char *name;
+	size_t hdr_len;
 	const struct ynl_ntf_info *ntf_info;
 	unsigned int ntf_info_size;
 };
