@@ -181,6 +181,8 @@ static void wave5_handle_bitstream_buffer(struct vpu_instance *inst)
 static void wave5_handle_src_buffer(struct vpu_instance *inst)
 {
 	struct vb2_v4l2_buffer *src_buf;
+	int i, j, ret;
+	u64 flag;
 
 	src_buf = v4l2_m2m_next_src_buf(inst->v4l2_fh.m2m_ctx);
 	if (src_buf) {
@@ -189,7 +191,33 @@ static void wave5_handle_src_buffer(struct vpu_instance *inst)
 		if (vpu_buf->consumed) {
 			dev_dbg(inst->dev->dev, "%s: already consumed buffer\n", __func__);
 			src_buf = v4l2_m2m_src_buf_remove(inst->v4l2_fh.m2m_ctx);
-			inst->timestamp = src_buf->vb2_buf.timestamp;
+
+			if (!inst->monotonic_timestamp && !src_buf->vb2_buf.timestamp) {
+				inst->timestamp_zero_cnt++;
+				if (inst->timestamp_zero_cnt > 1) {
+					inst->monotonic_timestamp = TRUE;
+				}
+			}
+
+			if(!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				inst->time_stamp.buf[inst->time_stamp.cnt] = src_buf->vb2_buf.timestamp;
+				inst->time_stamp.cnt++;
+
+				for (i = 1; i < inst->time_stamp.cnt; i++) {
+					flag = inst->time_stamp.buf[i];
+					for (j = i - 1; j >= 0 && inst->time_stamp.buf[j] < flag ; j--) {
+						inst->time_stamp.buf[j + 1] = inst->time_stamp.buf[j];
+					}
+					inst->time_stamp.buf[j + 1] = flag;
+				}
+				mutex_unlock(&inst->time_stamp.lock);
+			}
+
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		}
 	}
@@ -346,7 +374,18 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      ((stride / 2) * (height / 2)));
 			}
 
-			dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			if (!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[inst->time_stamp.cnt - 1];
+				inst->time_stamp.cnt--;
+				mutex_unlock(&inst->time_stamp.lock);
+			} else {
+				dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			}
 
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -381,7 +420,19 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      vb2_plane_size(&dst_buf->vb2_buf, 2));
 			}
 
-			dst_buf->vb2_buf.timestamp = inst->timestamp;
+			if (!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[inst->time_stamp.cnt - 1];
+				inst->time_stamp.cnt--;
+				mutex_unlock(&inst->time_stamp.lock);
+			} else {
+				dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			}
+
 			dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -951,6 +1002,10 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 {
 	struct dec_initial_info initial_info;
 	int ret = 0;
+
+	inst->time_stamp.cnt = 0;
+	mutex_init(&inst->time_stamp.lock);
+	memset(&inst->time_stamp.buf, 0, sizeof(MAX_TIMESTAMP_CIR_BUF));
 
 	memset(&initial_info, 0, sizeof(struct dec_initial_info));
 
