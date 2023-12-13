@@ -20,4 +20,3 @@ obj-$(CONFIG_ARCH_ASPEED)		+= aspeed-usb-phy3.o
 obj-$(CONFIG_ARCH_ASPEED)		+= aspeed-usb-ahp.o
 obj-$(CONFIG_ASPEED_MCTP)		+= aspeed-mctp.o
 obj-$(CONFIG_ASPEED_OTP)		+= aspeed-otp.o
-obj-$(CONFIG_AST2700_SGMII)		+= aspeed-sgmii.o
