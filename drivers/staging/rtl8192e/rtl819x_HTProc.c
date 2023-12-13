@@ -71,7 +71,6 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	ht_info->amsdu_max_size = 7935UL;
 	ht_info->amsdu_support = 0;
 
 	ht_info->ampdu_enable = 1;
@@ -436,7 +435,6 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	struct ht_capab_ele *pPeerHTCap = NULL;
 	struct ht_info_ele *pPeerHTInfo = NULL;
-	u16 nMaxAMSDUSize = 0;
 	u8 *pMcsFilter = NULL;
 
 	static const u8 EWC11NHTCap[] = { 0x00, 0x90, 0x4c, 0x33 };
@@ -470,8 +468,6 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	ht_info->cur_short_gi_20mhz = ((pPeerHTCap->ShortGI20Mhz == 1) ? true : false);
 	ht_info->cur_short_gi_40mhz = ((pPeerHTCap->ShortGI40Mhz == 1) ? true : false);
-
-	nMaxAMSDUSize = (pPeerHTCap->MaxAMSDUSize == 0) ? 3839 : 7935;
 
 	ht_info->current_ampdu_enable = ht_info->ampdu_enable;
 	if (ieee->rtllib_ap_sec_type &&
