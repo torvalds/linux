@@ -52,6 +52,7 @@
 		ssp_memory: ssp_memory {
 			size = <0x02000000>;
 			alignment = <0x01000000>;
+			shm-size = <0x1000>;
 			compatible = "shared-dma-pool";
 			no-map;
 		};
