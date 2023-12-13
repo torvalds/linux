@@ -44,7 +44,9 @@ struct symbol_conf {
 			buildid_mmap2,
 			guest_code,
 			lazy_load_kernel_maps,
-			keep_exited_threads;
+			keep_exited_threads,
+			annotate_data_member,
+			annotate_data_sample;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

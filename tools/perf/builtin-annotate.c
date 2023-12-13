@@ -20,6 +20,7 @@
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/annotate.h"
+#include "util/annotate-data.h"
 #include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
@@ -55,9 +56,11 @@ struct perf_annotate {
 	bool	   skip_missing;
 	bool	   has_br_stack;
 	bool	   group_set;
+	bool	   data_type;
 	float	   min_percent;
 	const char *sym_hist_filter;
 	const char *cpu_list;
+	const char *target_data_type;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
@@ -322,6 +325,32 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 	return symbol__tty_annotate2(&he->ms, evsel);
 }
 
+static void print_annotated_data_type(struct annotated_data_type *mem_type,
+				      struct annotated_member *member,
+				      struct evsel *evsel, int indent)
+{
+	struct annotated_member *child;
+	struct type_hist *h = mem_type->histograms[evsel->core.idx];
+	int i, samples = 0;
+
+	for (i = 0; i < member->size; i++)
+		samples += h->addr[member->offset + i].nr_samples;
+
+	printf(" %10d %10d %10d  %*s%s\t%s",
+	       samples, member->offset, member->size, indent, "", member->type_name,
+	       member->var_name ?: "");
+
+	if (!list_empty(&member->children))
+		printf(" {\n");
+
+	list_for_each_entry(child, &member->children, node)
+		print_annotated_data_type(mem_type, child, evsel, indent + 4);
+
+	if (!list_empty(&member->children))
+		printf("%*s}", 35 + indent, "");
+	printf(";\n");
+}
+
 static void hists__find_annotations(struct hists *hists,
 				    struct evsel *evsel,
 				    struct perf_annotate *ann)
@@ -359,6 +388,40 @@ find_next:
 			else
 				nd = rb_next(nd);
 			continue;
+		}
+
+		if (ann->data_type) {
+			struct dso *dso = map__dso(he->ms.map);
+
+			/* skip unknown type */
+			if (he->mem_type->histograms == NULL)
+				goto find_next;
+
+			if (ann->target_data_type) {
+				const char *type_name = he->mem_type->self.type_name;
+
+				/* skip 'struct ' prefix in the type name */
+				if (strncmp(ann->target_data_type, "struct ", 7) &&
+				    !strncmp(type_name, "struct ", 7))
+					type_name += 7;
+
+				/* skip 'union ' prefix in the type name */
+				if (strncmp(ann->target_data_type, "union ", 6) &&
+				    !strncmp(type_name, "union ", 6))
+					type_name += 6;
+
+				if (strcmp(ann->target_data_type, type_name))
+					goto find_next;
+			}
+
+			printf("Annotate type: '%s' in %s (%d samples):\n",
+				he->mem_type->self.type_name, dso->name, he->stat.nr_events);
+			printf("============================================================================\n");
+			printf(" %10s %10s %10s  %s\n", "samples", "offset", "size", "field");
+
+			print_annotated_data_type(he->mem_type, &he->mem_type->self, evsel, 0);
+			printf("\n");
+			goto find_next;
 		}
 
 		if (use_browser == 2) {
@@ -496,6 +559,17 @@ static int parse_percent_limit(const struct option *opt, const char *str,
 	return 0;
 }
 
+static int parse_data_type(const struct option *opt, const char *str, int unset)
+{
+	struct perf_annotate *ann = opt->value;
+
+	ann->data_type = !unset;
+	if (str)
+		ann->target_data_type = strdup(str);
+
+	return 0;
+}
+
 static const char * const annotate_usage[] = {
 	"perf annotate [<options>]",
 	NULL
@@ -607,6 +681,9 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options\n" ITRACE_HELP,
 			    itrace_parse_synth_opts),
+	OPT_CALLBACK_OPTARG(0, "data-type", &annotate, NULL, "name",
+			    "Show data type annotate for the memory accesses",
+			    parse_data_type),
 
 	OPT_END()
 	};
@@ -661,6 +738,13 @@ int cmd_annotate(int argc, const char **argv)
 	}
 #endif
 
+#ifndef HAVE_DWARF_GETLOCATIONS_SUPPORT
+	if (annotate.data_type) {
+		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
+		return -ENOTSUP;
+	}
+#endif
+
 	ret = symbol__validate_sym_arguments();
 	if (ret)
 		return ret;
@@ -703,6 +787,14 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 #endif
 
+	/* FIXME: only support stdio for now */
+	if (annotate.data_type) {
+		use_browser = 0;
+		annotate_opts.annotate_src = false;
+		symbol_conf.annotate_data_member = true;
+		symbol_conf.annotate_data_sample = true;
+	}
+
 	setup_browser(true);
 
 	/*
@@ -710,7 +802,10 @@ int cmd_annotate(int argc, const char **argv)
 	 * symbol, we do not care about the processes in annotate,
 	 * set sort order to avoid repeated output.
 	 */
-	sort_order = "dso,symbol";
+	if (annotate.data_type)
+		sort_order = "dso,type";
+	else
+		sort_order = "dso,symbol";
 
 	/*
 	 * Set SORT_MODE__BRANCH so that annotate display IPC/Cycle

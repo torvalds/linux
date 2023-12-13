@@ -19,6 +19,7 @@
 #include "map_symbol.h"
 #include "strbuf.h"
 #include "symbol.h"
+#include "symbol_conf.h"
 
 /*
  * Compare type name and size to maintain them in a tree.
@@ -158,11 +159,8 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	result->self.size = size;
 	INIT_LIST_HEAD(&result->self.children);
 
-	/*
-	 * Fill member info unconditionally for now,
-	 * later perf annotate would need it.
-	 */
-	add_member_types(result, type_die);
+	if (symbol_conf.annotate_data_member)
+		add_member_types(result, type_die);
 
 	rb_add(&result->node, &dso->data_types, data_type_less);
 	return result;

@@ -3712,10 +3712,12 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 
 		mem_type = find_data_type(ms, ip, op_loc->reg, op_loc->offset);
 
-		annotated_data_type__update_samples(mem_type, evsel,
-						    op_loc->offset,
-						    he->stat.nr_events,
-						    he->stat.period);
+		if (symbol_conf.annotate_data_sample) {
+			annotated_data_type__update_samples(mem_type, evsel,
+							    op_loc->offset,
+							    he->stat.nr_events,
+							    he->stat.period);
+		}
 		he->mem_type_off = op_loc->offset;
 		return mem_type;
 	}
