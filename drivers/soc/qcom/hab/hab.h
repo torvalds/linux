@@ -486,6 +486,12 @@ enum exp_desc_state {
 	EXP_DESC_IMPORTING,	/* hab_mem_import is in progress */
 	EXP_DESC_IMPORTED,	/* hab_mem_import is called and returns success */
 };
+
+enum export_state {
+	HAB_EXP_EXPORTING,
+	HAB_EXP_SUCCESS,
+};
+
 struct export_desc_super {
 	struct kref refcount;
 	void *platform_data;
@@ -493,6 +499,7 @@ struct export_desc_super {
 	unsigned int payload_size; /* size of the compressed pfn structure */
 
 	enum exp_desc_state import_state;
+	enum export_state exp_state;
 	uint32_t remote_imported;
 
 	/*
