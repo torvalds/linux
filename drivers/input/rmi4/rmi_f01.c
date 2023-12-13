@@ -267,8 +267,7 @@ static ssize_t rmi_driver_manufacturer_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 f01->properties.manufacturer_id);
+	return sysfs_emit(buf, "%d\n", f01->properties.manufacturer_id);
 }
 
 static DEVICE_ATTR(manufacturer_id, 0444,
@@ -280,7 +279,7 @@ static ssize_t rmi_driver_dom_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.dom);
+	return sysfs_emit(buf, "%s\n", f01->properties.dom);
 }
 
 static DEVICE_ATTR(date_of_manufacture, 0444, rmi_driver_dom_show, NULL);
@@ -292,7 +291,7 @@ static ssize_t rmi_driver_product_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.product_id);
+	return sysfs_emit(buf, "%s\n", f01->properties.product_id);
 }
 
 static DEVICE_ATTR(product_id, 0444, rmi_driver_product_id_show, NULL);
@@ -304,7 +303,7 @@ static ssize_t rmi_driver_firmware_id_show(struct device *dev,
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", f01->properties.firmware_id);
+	return sysfs_emit(buf, "%d\n", f01->properties.firmware_id);
 }
 
 static DEVICE_ATTR(firmware_id, 0444, rmi_driver_firmware_id_show, NULL);
@@ -318,8 +317,8 @@ static ssize_t rmi_driver_package_id_show(struct device *dev,
 
 	u32 package_id = f01->properties.package_id;
 
-	return scnprintf(buf, PAGE_SIZE, "%04x.%04x\n",
-			 package_id & 0xffff, (package_id >> 16) & 0xffff);
+	return sysfs_emit(buf, "%04x.%04x\n",
+			  package_id & 0xffff, (package_id >> 16) & 0xffff);
 }
 
 static DEVICE_ATTR(package_id, 0444, rmi_driver_package_id_show, NULL);
