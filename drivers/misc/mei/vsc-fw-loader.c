@@ -27,9 +27,6 @@
 #define VSC_EFUSE_ADDR			(VSC_ADDR_BASE + 0x038)
 #define VSC_STRAP_ADDR			(VSC_ADDR_BASE + 0x100)
 
-#define VSC_STRAP_KEY_SRC_MASK		BIT(0)
-#define VSC_STRAP_KEY_SRC_PRODUCT	1
-
 #define VSC_MAINSTEPPING_VERSION_MASK	GENMASK(7, 4)
 #define VSC_MAINSTEPPING_VERSION_A	0
 
@@ -49,22 +46,15 @@
 #define VSC_ROM_PKG_SIZE		256u
 #define VSC_FW_PKG_SIZE			512u
 
-#define VSC_CSI_IMAGE_NAME_FMT		"ivsc_fw_a1.bin"
-#define VSC_CSI_IMAGE_NAME_FMT_PROD	"ivsc_fw_a1_%s.bin"
-#define VSC_ACE_IMAGE_NAME_FMT		"ivsc_pkg_%s_0_a1.bin"
-#define VSC_ACE_IMAGE_NAME_FMT_PROD	"ivsc_pkg_%s_0_a1_%s.bin"
-#define VSC_CFG_IMAGE_NAME_FMT		"ivsc_skucfg_%s_0_1_a1.bin"
-#define VSC_CFG_IMAGE_NAME_FMT_PROD	"ivsc_skucfg_%s_0_1_a1_%s.bin"
+#define VSC_IMAGE_DIR			"intel/vsc/"
 
-#define VSC_IMAGE_FOLDER_FMT		"vsc/soc_a1"
-#define VSC_IMAGE_FOLDER_FMT_PROD	"vsc/soc_a1_%s"
+#define VSC_CSI_IMAGE_NAME		VSC_IMAGE_DIR "ivsc_fw.bin"
+#define VSC_ACE_IMAGE_NAME_FMT		VSC_IMAGE_DIR "ivsc_pkg_%s_0.bin"
+#define VSC_CFG_IMAGE_NAME_FMT		VSC_IMAGE_DIR "ivsc_skucfg_%s_0_1.bin"
 
-#define VSC_IMAGE_NAME_MAX_LEN		64
-#define VSC_IMAGE_PATH_MAX_LEN		128
+#define VSC_IMAGE_PATH_MAX_LEN		64
 
 #define VSC_SENSOR_NAME_MAX_LEN		16
-#define VSC_IMAGE_FOLDER_NAME_MAX_LEN	32
-#define VSC_IMAGE_NAME_SUFFIX_MAX_LEN	8
 
 /* command id */
 enum {
@@ -223,10 +213,7 @@ struct vsc_img_frag {
  * @rx_buf: rx buffer
  * @option: command option
  * @count: total image count
- * @key_src: key source
- * @folder: image folder
  * @sensor_name: camera sensor name
- * @suffix: image name suffix
  * @frags: image fragments
  */
 struct vsc_fw_loader {
@@ -242,11 +229,8 @@ struct vsc_fw_loader {
 
 	u16 option;
 	u16 count;
-	u32 key_src;
 
-	char folder[VSC_IMAGE_FOLDER_NAME_MAX_LEN];
 	char sensor_name[VSC_SENSOR_NAME_MAX_LEN];
-	char suffix[VSC_IMAGE_NAME_SUFFIX_MAX_LEN];
 
 	struct vsc_img_frag frags[VSC_IMG_FRAG_MAX];
 };
@@ -378,33 +362,18 @@ static int vsc_identify_silicon(struct vsc_fw_loader *fw_loader)
 	if (ack->token != VSC_TOKEN_DUMP_RESP)
 		return -EINVAL;
 
-	fw_loader->key_src = FIELD_GET(VSC_STRAP_KEY_SRC_MASK, ack->payload[2]);
-
-	if (fw_loader->key_src == VSC_STRAP_KEY_SRC_PRODUCT)
-		strscpy(fw_loader->suffix, "prod", sizeof(fw_loader->suffix));
-
 	return 0;
 }
 
 static int vsc_identify_csi_image(struct vsc_fw_loader *fw_loader)
 {
-	char path[VSC_IMAGE_PATH_MAX_LEN];
-	char name[VSC_IMAGE_NAME_MAX_LEN];
 	const struct firmware *image;
 	struct vsc_fw_sign *sign;
 	struct vsc_img *img;
 	unsigned int i;
 	int ret;
 
-	if (fw_loader->key_src == VSC_STRAP_KEY_SRC_PRODUCT)
-		snprintf(name, sizeof(name), VSC_CSI_IMAGE_NAME_FMT_PROD,
-			 fw_loader->suffix);
-	else
-		snprintf(name, sizeof(name), VSC_CSI_IMAGE_NAME_FMT);
-
-	snprintf(path, sizeof(path), "%s/%s", fw_loader->folder, name);
-
-	ret = request_firmware(&image, path, fw_loader->dev);
+	ret = request_firmware(&image, VSC_CSI_IMAGE_NAME, fw_loader->dev);
 	if (ret)
 		return ret;
 
@@ -480,21 +449,14 @@ err_release_image:
 static int vsc_identify_ace_image(struct vsc_fw_loader *fw_loader)
 {
 	char path[VSC_IMAGE_PATH_MAX_LEN];
-	char name[VSC_IMAGE_NAME_MAX_LEN];
 	const struct firmware *image;
 	struct vsc_fw_sign *sign;
 	struct vsc_img *img;
 	unsigned int i;
 	int ret;
 
-	if (fw_loader->key_src == VSC_STRAP_KEY_SRC_PRODUCT)
-		snprintf(name, sizeof(name), VSC_ACE_IMAGE_NAME_FMT_PROD,
-			 fw_loader->sensor_name, fw_loader->suffix);
-	else
-		snprintf(name, sizeof(name), VSC_ACE_IMAGE_NAME_FMT,
-			 fw_loader->sensor_name);
-
-	snprintf(path, sizeof(path), "%s/%s", fw_loader->folder, name);
+	snprintf(path, sizeof(path), VSC_ACE_IMAGE_NAME_FMT,
+		 fw_loader->sensor_name);
 
 	ret = request_firmware(&image, path, fw_loader->dev);
 	if (ret)
@@ -571,19 +533,12 @@ static int vsc_identify_cfg_image(struct vsc_fw_loader *fw_loader)
 {
 	struct vsc_img_frag *frag = &fw_loader->frags[VSC_IMG_SKU_CFG_FRAG];
 	char path[VSC_IMAGE_PATH_MAX_LEN];
-	char name[VSC_IMAGE_NAME_MAX_LEN];
 	const struct firmware *image;
 	u32 size;
 	int ret;
 
-	if (fw_loader->key_src == VSC_STRAP_KEY_SRC_PRODUCT)
-		snprintf(name, sizeof(name), VSC_CFG_IMAGE_NAME_FMT_PROD,
-			 fw_loader->sensor_name, fw_loader->suffix);
-	else
-		snprintf(name, sizeof(name), VSC_CFG_IMAGE_NAME_FMT,
-			 fw_loader->sensor_name);
-
-	snprintf(path, sizeof(path), "%s/%s", fw_loader->folder, name);
+	snprintf(path, sizeof(path), VSC_CFG_IMAGE_NAME_FMT,
+		 fw_loader->sensor_name);
 
 	ret = request_firmware(&image, path, fw_loader->dev);
 	if (ret)
@@ -785,13 +740,6 @@ int vsc_tp_init(struct vsc_tp *tp, struct device *dev)
 	ret = vsc_identify_silicon(fw_loader);
 	if (ret)
 		return ret;
-
-	if (fw_loader->key_src == VSC_STRAP_KEY_SRC_PRODUCT)
-		snprintf(fw_loader->folder, sizeof(fw_loader->folder),
-			 VSC_IMAGE_FOLDER_FMT_PROD, fw_loader->suffix);
-	else
-		snprintf(fw_loader->folder, sizeof(fw_loader->folder),
-			 VSC_IMAGE_FOLDER_FMT);
 
 	ret = vsc_identify_csi_image(fw_loader);
 	if (ret)
