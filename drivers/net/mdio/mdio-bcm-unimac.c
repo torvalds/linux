@@ -81,7 +81,13 @@ static inline unsigned int unimac_mdio_busy(struct unimac_mdio_priv *priv)
 static int unimac_mdio_poll(void *wait_func_data)
 {
 	struct unimac_mdio_priv *priv = wait_func_data;
-	unsigned int timeout = 1000;
+	unsigned int timeout = 100;
+
+	/*
+	 * C22 transactions should take ~25 usec, will need to adjust
+	 * if C45 support is added.
+	 */
+	udelay(30);
 
 	do {
 		if (!unimac_mdio_busy(priv))
