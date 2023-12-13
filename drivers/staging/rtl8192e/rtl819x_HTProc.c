@@ -77,9 +77,6 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 	ht_info->ampdu_factor = 2;
 	ht_info->mpdu_density = 0;
 
-	ht_info->self_mimo_ps = 3;
-	if (ht_info->self_mimo_ps == 2)
-		ht_info->self_mimo_ps = 3;
 	ieee->tx_dis_rate_fallback = 0;
 	ieee->tx_use_drv_assinged_rate = 0;
 
@@ -266,7 +263,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	else
 		pCapELE->ChlWidth = 1;
 
-	pCapELE->MimoPwrSave		= pHT->self_mimo_ps;
+	pCapELE->MimoPwrSave		= 3;
 	pCapELE->GreenField		= 0;
 	pCapELE->ShortGI20Mhz		= 1;
 	pCapELE->ShortGI40Mhz		= 1;
