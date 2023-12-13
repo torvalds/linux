@@ -214,8 +214,10 @@ int mdio_mux_init(struct device *dev,
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x.%x",
 			 cb->mii_bus->name, pb->parent_id, v);
 		cb->mii_bus->parent = dev;
-		cb->mii_bus->read = mdio_mux_read;
-		cb->mii_bus->write = mdio_mux_write;
+		if (parent_bus->read)
+			cb->mii_bus->read = mdio_mux_read;
+		if (parent_bus->write)
+			cb->mii_bus->write = mdio_mux_write;
 		if (parent_bus->read_c45)
 			cb->mii_bus->read_c45 = mdio_mux_read_c45;
 		if (parent_bus->write_c45)
