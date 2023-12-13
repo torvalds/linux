@@ -1367,7 +1367,7 @@ skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 	u64 data_rate = 0;
 
 	for_each_plane_id_on_crtc(crtc, plane_id) {
-		if (plane_id == PLANE_CURSOR && DISPLAY_VER(i915) < 20)
+		if (plane_id == PLANE_CURSOR)
 			continue;
 
 		data_rate += crtc_state->rel_data_rate[plane_id];
@@ -1514,12 +1514,10 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		return 0;
 
 	/* Allocate fixed number of blocks for cursor. */
-	if (DISPLAY_VER(i915) < 20) {
-		cursor_size = skl_cursor_allocation(crtc_state, num_active);
-		iter.size -= cursor_size;
-		skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[PLANE_CURSOR],
-				   alloc->end - cursor_size, alloc->end);
-	}
+	cursor_size = skl_cursor_allocation(crtc_state, num_active);
+	iter.size -= cursor_size;
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[PLANE_CURSOR],
+			   alloc->end - cursor_size, alloc->end);
 
 	iter.data_rate = skl_total_relative_data_rate(crtc_state);
 
@@ -1533,7 +1531,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 			const struct skl_plane_wm *wm =
 				&crtc_state->wm.skl.optimal.planes[plane_id];
 
-			if (plane_id == PLANE_CURSOR && DISPLAY_VER(i915) < 20) {
+			if (plane_id == PLANE_CURSOR) {
 				const struct skl_ddb_entry *ddb =
 					&crtc_state->wm.skl.plane_ddb[plane_id];
 
@@ -1581,7 +1579,7 @@ skl_crtc_allocate_plane_ddb(struct intel_atomic_state *state,
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
 
-		if (plane_id == PLANE_CURSOR && DISPLAY_VER(i915) < 20)
+		if (plane_id == PLANE_CURSOR)
 			continue;
 
 		if (DISPLAY_VER(i915) < 11 &&
