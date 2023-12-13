@@ -266,9 +266,6 @@ struct thp7312_device {
 	struct v4l2_ctrl_handler ctrl_handler;
 	bool ctrls_applied;
 
-	/* These are protected by v4l2 active state */
-	const struct thp7312_mode_info *current_mode;
-	const struct thp7312_frame_rate *current_rate;
 	s64 link_freq;
 
 	struct {
@@ -308,6 +305,47 @@ static const struct thp7312_sensor_info thp7312_sensor_info[] = {
 static inline struct thp7312_device *to_thp7312_dev(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct thp7312_device, sd);
+}
+
+static const struct thp7312_mode_info *
+thp7312_find_mode(unsigned int width, unsigned int height, bool nearest)
+{
+	const struct thp7312_mode_info *mode;
+
+	mode = v4l2_find_nearest_size(thp7312_mode_info_data,
+				      ARRAY_SIZE(thp7312_mode_info_data),
+				      width, height, width, height);
+
+	if (!nearest && (mode->width != width || mode->height != height))
+		return NULL;
+
+	return mode;
+}
+
+static const struct thp7312_frame_rate *
+thp7312_find_rate(const struct thp7312_mode_info *mode, unsigned int fps,
+		  bool nearest)
+{
+	const struct thp7312_frame_rate *best_rate = NULL;
+	const struct thp7312_frame_rate *rate;
+	unsigned int best_delta = UINT_MAX;
+
+	if (!mode)
+		return NULL;
+
+	for (rate = mode->rates; rate->fps && best_delta; ++rate) {
+		unsigned int delta = abs(rate->fps - fps);
+
+		if (delta <= best_delta) {
+			best_delta = delta;
+			best_rate = rate;
+		}
+	}
+
+	if (!nearest && best_delta)
+		return NULL;
+
+	return best_rate;
 }
 
 /* -----------------------------------------------------------------------------
@@ -442,17 +480,30 @@ static int thp7312_set_framefmt(struct thp7312_device *thp7312,
 static int thp7312_init_mode(struct thp7312_device *thp7312,
 			     struct v4l2_subdev_state *sd_state)
 {
+	const struct thp7312_mode_info *mode;
+	const struct thp7312_frame_rate *rate;
 	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_fract *interval;
 	int ret;
 
+	/*
+	 * TODO: The mode and rate should be cached in the subdev state, once
+	 * support for extending states will be available.
+	 */
 	fmt = v4l2_subdev_state_get_format(sd_state, 0);
+	interval = v4l2_subdev_state_get_interval(sd_state, 0);
+
+	mode = thp7312_find_mode(fmt->width, fmt->height, false);
+	rate = thp7312_find_rate(mode, interval->denominator, false);
+
+	if (WARN_ON(!mode || !rate))
+		return -EINVAL;
 
 	ret = thp7312_set_framefmt(thp7312, fmt);
 	if (ret)
 		return ret;
 
-	return thp7312_change_mode(thp7312, thp7312->current_mode,
-				   thp7312->current_rate);
+	return thp7312_change_mode(thp7312, mode, rate);
 }
 
 static int thp7312_stream_enable(struct thp7312_device *thp7312, bool enable)
@@ -621,28 +672,6 @@ static bool thp7312_find_bus_code(u32 code)
 	return false;
 }
 
-static const struct thp7312_mode_info *
-thp7312_find_mode(unsigned int width, unsigned int height, bool nearest)
-{
-	const struct thp7312_mode_info *mode;
-
-	mode = v4l2_find_nearest_size(thp7312_mode_info_data,
-				      ARRAY_SIZE(thp7312_mode_info_data),
-				      width, height, width, height);
-
-	if (!nearest && (mode->width != width || mode->height != height))
-		return NULL;
-
-	return mode;
-}
-
-static void thp7312_set_frame_rate(struct thp7312_device *thp7312,
-				   const struct thp7312_frame_rate *rate)
-{
-	thp7312->link_freq = rate->link_freq;
-	thp7312->current_rate = rate;
-}
-
 static int thp7312_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
@@ -707,6 +736,7 @@ static int thp7312_set_fmt(struct v4l2_subdev *sd,
 	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
 	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
 	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_fract *interval;
 	const struct thp7312_mode_info *mode;
 
 	if (!thp7312_find_bus_code(mbus_fmt->code))
@@ -726,29 +756,12 @@ static int thp7312_set_fmt(struct v4l2_subdev *sd,
 
 	*mbus_fmt = *fmt;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		thp7312->current_mode = mode;
-		thp7312_set_frame_rate(thp7312, &mode->rates[0]);
-	}
+	interval = v4l2_subdev_state_get_interval(sd_state, 0);
+	interval->numerator = 1;
+	interval->denominator = mode->rates[0].fps;
 
-	return 0;
-}
-
-static int thp7312_get_frame_interval(struct v4l2_subdev *sd,
-				      struct v4l2_subdev_state *sd_state,
-				      struct v4l2_subdev_frame_interval *fi)
-{
-	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
-
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
-
-	fi->interval.numerator = 1;
-	fi->interval.denominator = thp7312->current_rate->fps;
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		thp7312->link_freq = mode->rates[0].link_freq;
 
 	return 0;
 }
@@ -759,38 +772,28 @@ static int thp7312_set_frame_interval(struct v4l2_subdev *sd,
 {
 	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
 	const struct thp7312_mode_info *mode;
-	const struct thp7312_frame_rate *best_rate = NULL;
 	const struct thp7312_frame_rate *rate;
-	unsigned int best_delta = UINT_MAX;
+	const struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_fract *interval;
 	unsigned int fps;
-
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
 
 	/* Avoid divisions by 0, pick the highest frame if the interval is 0. */
 	fps = fi->interval.numerator
 	    ? DIV_ROUND_CLOSEST(fi->interval.denominator, fi->interval.numerator)
 	    : UINT_MAX;
 
-	mode = thp7312->current_mode;
+	fmt = v4l2_subdev_state_get_format(sd_state, 0);
+	mode = thp7312_find_mode(fmt->width, fmt->height, false);
+	rate = thp7312_find_rate(mode, fps, true);
 
-	for (rate = mode->rates; rate->fps && best_delta; ++rate) {
-		unsigned int delta = abs(rate->fps - fps);
+	interval = v4l2_subdev_state_get_interval(sd_state, 0);
+	interval->numerator = 1;
+	interval->denominator = rate->fps;
 
-		if (delta <= best_delta) {
-			best_delta = delta;
-			best_rate = rate;
-		}
-	}
+	if (fi->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		thp7312->link_freq = rate->link_freq;
 
-	thp7312_set_frame_rate(thp7312, best_rate);
-
-	fi->interval.numerator = 1;
-	fi->interval.denominator = best_rate->fps;
+	fi->interval = *interval;
 
 	return 0;
 }
@@ -850,8 +853,10 @@ static int thp7312_init_state(struct v4l2_subdev *sd,
 {
 	const struct thp7312_mode_info *default_mode = &thp7312_mode_info_data[0];
 	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_fract *interval;
 
 	fmt = v4l2_subdev_state_get_format(sd_state, 0);
+	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 
 	/*
 	 * default init sequence initialize thp7312 to
@@ -865,6 +870,9 @@ static int thp7312_init_state(struct v4l2_subdev *sd,
 	fmt->width = default_mode->width;
 	fmt->height = default_mode->height;
 	fmt->field = V4L2_FIELD_NONE;
+
+	interval->numerator = 1;
+	interval->denominator = default_mode->rates[0].fps;
 
 	return 0;
 }
@@ -883,7 +891,7 @@ static const struct v4l2_subdev_pad_ops thp7312_pad_ops = {
 	.enum_mbus_code = thp7312_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = thp7312_set_fmt,
-	.get_frame_interval = thp7312_get_frame_interval,
+	.get_frame_interval = v4l2_subdev_get_frame_interval,
 	.set_frame_interval = thp7312_set_frame_interval,
 	.enum_frame_size = thp7312_enum_frame_size,
 	.enum_frame_interval = thp7312_enum_frame_interval,
@@ -1310,6 +1318,8 @@ static int thp7312_init_controls(struct thp7312_device *thp7312)
 			       V4L2_CID_POWER_LINE_FREQUENCY,
 			       V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0,
 			       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+
+	thp7312->link_freq = thp7312_mode_info_data[0].rates[0].link_freq;
 
 	link_freq = v4l2_ctrl_new_int_menu(hdl, &thp7312_ctrl_ops,
 					   V4L2_CID_LINK_FREQ, 0, 0,
@@ -2080,7 +2090,6 @@ static int thp7312_parse_dt(struct thp7312_device *thp7312)
 static int thp7312_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct v4l2_subdev_state *sd_state;
 	struct thp7312_device *thp7312;
 	int ret;
 
@@ -2155,11 +2164,6 @@ static int thp7312_probe(struct i2c_client *client)
 		dev_err(dev, "Subdev active state initialization failed\n");
 		goto err_free_ctrls;
 	}
-
-	sd_state = v4l2_subdev_lock_and_get_active_state(&thp7312->sd);
-	thp7312->current_mode = &thp7312_mode_info_data[0];
-	thp7312_set_frame_rate(thp7312, &thp7312->current_mode->rates[0]);
-	v4l2_subdev_unlock_state(sd_state);
 
 	/*
 	 * Enable runtime PM with autosuspend. As the device has been powered
