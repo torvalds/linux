@@ -849,6 +849,10 @@
 
 &i2c0 {
 	status = "okay";
+	sensor@4d {
+		compatible = "national,lm75";
+		reg = <0x4d>;
+	};
 };
 
 &i2c1 {
