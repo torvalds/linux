@@ -7304,6 +7304,11 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if (cnt < FAULTED_SIZE)
 		size += FAULTED_SIZE - cnt;
 
+	if (size > TRACE_SEQ_BUFFER_SIZE) {
+		cnt -= size - TRACE_SEQ_BUFFER_SIZE;
+		goto again;
+	}
+
 	buffer = tr->array_buffer.buffer;
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					    tracing_gen_ctx());
