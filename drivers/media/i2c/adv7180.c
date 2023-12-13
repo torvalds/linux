@@ -469,6 +469,13 @@ static int adv7180_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct adv7180_state *state = to_state(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	if (state->curr_norm & V4L2_STD_525_60) {
 		fi->interval.numerator = 1001;
 		fi->interval.denominator = 30000;

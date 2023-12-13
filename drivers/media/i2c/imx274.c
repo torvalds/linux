@@ -1333,6 +1333,13 @@ static int imx274_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct stimx274 *imx274 = to_imx274(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	fi->interval = imx274->frame_interval;
 	dev_dbg(&imx274->client->dev, "%s frame rate = %d / %d\n",
 		__func__, imx274->frame_interval.numerator,
@@ -1349,6 +1356,13 @@ static int imx274_set_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_ctrl *ctrl = imx274->ctrls.exposure;
 	int min, max, def;
 	int ret;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	ret = pm_runtime_resume_and_get(&imx274->client->dev);
 	if (ret < 0)

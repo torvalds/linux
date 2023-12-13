@@ -740,6 +740,13 @@ static int thp7312_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	fi->interval.numerator = 1;
 	fi->interval.denominator = thp7312->current_rate->fps;
 
@@ -756,6 +763,13 @@ static int thp7312_set_frame_interval(struct v4l2_subdev *sd,
 	const struct thp7312_frame_rate *rate;
 	unsigned int best_delta = UINT_MAX;
 	unsigned int fps;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	/* Avoid divisions by 0, pick the highest frame if the interval is 0. */
 	fps = fi->interval.numerator

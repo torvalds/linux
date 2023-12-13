@@ -291,9 +291,8 @@ static inline int check_frame_interval(struct v4l2_subdev *sd,
 	if (!fi)
 		return -EINVAL;
 
-	return check_pad(sd, fi->pad) ? :
-	       check_state(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE, fi->pad,
-			   fi->stream);
+	return check_which(fi->which) ? : check_pad(sd, fi->pad) ? :
+	       check_state(sd, state, fi->which, fi->pad, fi->stream);
 }
 
 static int call_get_frame_interval(struct v4l2_subdev *sd,
@@ -537,9 +536,16 @@ subdev_ioctl_get_state(struct v4l2_subdev *sd, struct v4l2_subdev_fh *subdev_fh,
 		which = ((struct v4l2_subdev_selection *)arg)->which;
 		break;
 	case VIDIOC_SUBDEV_G_FRAME_INTERVAL:
-	case VIDIOC_SUBDEV_S_FRAME_INTERVAL:
-		which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
+		struct v4l2_subdev_frame_interval *fi = arg;
+
+		if (!(subdev_fh->client_caps &
+		      V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH))
+			fi->which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		which = fi->which;
 		break;
+	}
 	case VIDIOC_SUBDEV_G_ROUTING:
 	case VIDIOC_SUBDEV_S_ROUTING:
 		which = ((struct v4l2_subdev_routing *)arg)->which;
@@ -796,11 +802,11 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
 		struct v4l2_subdev_frame_interval *fi = arg;
 
-		if (ro_subdev)
-			return -EPERM;
-
 		if (!client_supports_streams)
 			fi->stream = 0;
+
+		if (fi->which != V4L2_SUBDEV_FORMAT_TRY && ro_subdev)
+			return -EPERM;
 
 		memset(fi->reserved, 0, sizeof(fi->reserved));
 		return v4l2_subdev_call(sd, pad, set_frame_interval, state, fi);
@@ -998,7 +1004,8 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			client_cap->capabilities &= ~V4L2_SUBDEV_CLIENT_CAP_STREAMS;
 
 		/* Filter out unsupported capabilities */
-		client_cap->capabilities &= V4L2_SUBDEV_CLIENT_CAP_STREAMS;
+		client_cap->capabilities &= (V4L2_SUBDEV_CLIENT_CAP_STREAMS |
+					     V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH);
 
 		subdev_fh->client_caps = client_cap->capabilities;
 

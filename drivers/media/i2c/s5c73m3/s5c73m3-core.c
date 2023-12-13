@@ -872,6 +872,13 @@ static int s5c73m3_oif_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	if (fi->pad != OIF_SOURCE_PAD)
 		return -EINVAL;
 
@@ -922,6 +929,13 @@ static int s5c73m3_oif_set_frame_interval(struct v4l2_subdev *sd,
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 	int ret;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != OIF_SOURCE_PAD)
 		return -EINVAL;

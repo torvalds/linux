@@ -1124,6 +1124,13 @@ static int s5k5baf_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	mutex_lock(&state->lock);
 	fi->interval.numerator = state->fiv;
 	fi->interval.denominator = 10000;
@@ -1161,6 +1168,13 @@ static int s5k5baf_set_frame_interval(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&state->lock);
 	__s5k5baf_set_frame_interval(state, fi);

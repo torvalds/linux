@@ -1209,6 +1209,13 @@ static int prp_get_frame_interval(struct v4l2_subdev *sd,
 {
 	struct prp_priv *priv = sd_to_priv(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	if (fi->pad >= PRPENCVF_NUM_PADS)
 		return -EINVAL;
 
@@ -1224,6 +1231,13 @@ static int prp_set_frame_interval(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct prp_priv *priv = sd_to_priv(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad >= PRPENCVF_NUM_PADS)
 		return -EINVAL;
