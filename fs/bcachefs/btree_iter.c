@@ -2888,7 +2888,7 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	if (IS_ENABLED(__KERNEL__)) {
 		trans = this_cpu_xchg(c->btree_trans_bufs->trans, NULL);
 		if (trans) {
-			memset(trans, 0, offsetof(struct btree_trans, updates));
+			memset(trans, 0, offsetof(struct btree_trans, list));
 			goto got_trans;
 		}
 	}
@@ -2936,6 +2936,7 @@ got_trans:
 	trans->paths_allocated	= trans->_paths_allocated;
 	trans->sorted		= trans->_sorted;
 	trans->paths		= trans->_paths;
+	trans->updates		= trans->_updates;
 
 	*trans_paths_nr(trans->paths) = BTREE_ITER_MAX;
 

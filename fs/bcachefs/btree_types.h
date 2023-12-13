@@ -383,6 +383,7 @@ struct btree_trans {
 	unsigned long		*paths_allocated;
 	struct btree_path	*paths;
 	u8			*sorted;
+	struct btree_insert_entry *updates;
 
 	void			*mem;
 	unsigned		mem_top;
@@ -433,8 +434,6 @@ struct btree_trans {
 
 	/* Entries before this are zeroed out on every bch2_trans_get() call */
 
-	struct btree_insert_entry updates[BTREE_ITER_MAX];
-
 	struct list_head	list;
 	struct closure		ref;
 
@@ -442,6 +441,7 @@ struct btree_trans {
 	struct btree_trans_paths trans_paths;
 	struct btree_path	_paths[BTREE_ITER_MAX];
 	u8			_sorted[BTREE_ITER_MAX + 8];
+	struct btree_insert_entry _updates[BTREE_ITER_MAX];
 };
 
 static inline struct btree_path *btree_iter_path(struct btree_trans *trans, struct btree_iter *iter)

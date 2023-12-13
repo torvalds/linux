@@ -386,7 +386,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 
 	struct btree_path *path = trans->paths + path_idx;
 	EBUG_ON(!path->should_be_locked);
-	EBUG_ON(trans->nr_updates >= ARRAY_SIZE(trans->updates));
+	EBUG_ON(trans->nr_updates >= BTREE_ITER_MAX);
 	EBUG_ON(!bpos_eq(k->k.p, path->pos));
 
 	n = (struct btree_insert_entry) {
