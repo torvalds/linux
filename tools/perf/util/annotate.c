@@ -843,6 +843,11 @@ static struct arch *arch__find(const char *name)
 	return bsearch(name, architectures, nmemb, sizeof(struct arch), arch__key_cmp);
 }
 
+bool arch__is(struct arch *arch, const char *name)
+{
+	return !strcmp(arch->name, name);
+}
+
 static struct annotated_source *annotated_source__new(void)
 {
 	struct annotated_source *src = zalloc(sizeof(*src));
@@ -2378,6 +2383,33 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel)
 	annotation__calc_percent(notes, evsel, symbol__size(sym));
 }
 
+static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
+{
+	struct perf_env *env = evsel__env(evsel);
+	const char *arch_name = perf_env__arch(env);
+	struct arch *arch;
+	int err;
+
+	if (!arch_name)
+		return errno;
+
+	*parch = arch = arch__find(arch_name);
+	if (arch == NULL) {
+		pr_err("%s: unsupported arch %s\n", __func__, arch_name);
+		return ENOTSUP;
+	}
+
+	if (arch->init) {
+		err = arch->init(arch, env ? env->cpuid : NULL);
+		if (err) {
+			pr_err("%s: failed to initialize %s arch priv area\n",
+			       __func__, arch->name);
+			return err;
+		}
+	}
+	return 0;
+}
+
 int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 		     struct arch **parch)
 {
@@ -2387,31 +2419,17 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 		.evsel		= evsel,
 		.options	= &annotate_opts,
 	};
-	struct perf_env *env = evsel__env(evsel);
-	const char *arch_name = perf_env__arch(env);
-	struct arch *arch;
+	struct arch *arch = NULL;
 	int err;
 
-	if (!arch_name)
-		return errno;
-
-	args.arch = arch = arch__find(arch_name);
-	if (arch == NULL) {
-		pr_err("%s: unsupported arch %s\n", __func__, arch_name);
-		return ENOTSUP;
-	}
+	err = evsel__get_arch(evsel, &arch);
+	if (err < 0)
+		return err;
 
 	if (parch)
 		*parch = arch;
 
-	if (arch->init) {
-		err = arch->init(arch, env ? env->cpuid : NULL);
-		if (err) {
-			pr_err("%s: failed to initialize %s arch priv area\n", __func__, arch->name);
-			return err;
-		}
-	}
-
+	args.arch = arch;
 	args.ms = *ms;
 	if (annotate_opts.full_addr)
 		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
