@@ -5477,7 +5477,7 @@ int mas_preallocate(struct ma_state *mas, void *entry, gfp_t gfp)
 	node_size = mas_wr_new_end(&wr_mas);
 
 	/* Slot store, does not require additional nodes */
-	if (node_size == wr_mas.node_end) {
+	if (node_size == mas->end) {
 		/* reuse node */
 		if (!mt_in_rcu(mas->tree))
 			return 0;
