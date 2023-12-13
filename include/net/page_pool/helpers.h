@@ -11,7 +11,7 @@
  * The page_pool allocator is optimized for recycling page or page fragment used
  * by skb packet and xdp frame.
  *
- * Basic use involves replacing and alloc_pages() calls with page_pool_alloc(),
+ * Basic use involves replacing any alloc_pages() calls with page_pool_alloc(),
  * which allocate memory with or without page splitting depending on the
  * requested memory size.
  *
@@ -37,15 +37,15 @@
  * attach the page_pool object to a page_pool-aware object like skbs marked with
  * skb_mark_for_recycle().
  *
- * page_pool_put_page() may be called multi times on the same page if a page is
- * split into multi fragments. For the last fragment, it will either recycle the
- * page, or in case of page->_refcount > 1, it will release the DMA mapping and
- * in-flight state accounting.
+ * page_pool_put_page() may be called multiple times on the same page if a page
+ * is split into multiple fragments. For the last fragment, it will either
+ * recycle the page, or in case of page->_refcount > 1, it will release the DMA
+ * mapping and in-flight state accounting.
  *
  * dma_sync_single_range_for_device() is only called for the last fragment when
  * page_pool is created with PP_FLAG_DMA_SYNC_DEV flag, so it depends on the
  * last freed fragment to do the sync_for_device operation for all fragments in
- * the same page when a page is split, the API user must setup pool->p.max_len
+ * the same page when a page is split. The API user must setup pool->p.max_len
  * and pool->p.offset correctly and ensure that page_pool_put_page() is called
  * with dma_sync_size being -1 for fragment API.
  */
