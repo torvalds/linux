@@ -6,6 +6,7 @@ config PCIE_FUNC_RKEP
 	tristate "Rockchip PCIe EP function driver"
 	depends on PCI
 	depends on ARCH_ROCKCHIP
+	select PCIE_DW_DMATEST
 	help
            Enable this configuration option to enable the host side function
 	   driver for Rockchip's EP demo function driver.
