@@ -79,8 +79,6 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 
 	ieee->tx_enable_fw_calc_dur = 1;
 
-	ht_info->reg_rt2rt_aggregation = 1;
-
 	ht_info->reg_rx_reorder_enable = 1;
 	ht_info->rx_reorder_win_size = 64;
 	ht_info->rx_reorder_pending_time = 30;
@@ -471,25 +469,17 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			ht_info->current_ampdu_enable = false;
 	}
 
-	if (!ht_info->reg_rt2rt_aggregation) {
-		if (ht_info->ampdu_factor > pPeerHTCap->MaxRxAMPDUFactor)
+	if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
+		if (ieee->pairwise_key_type != KEY_TYPE_NA)
 			ht_info->CurrentAMPDUFactor =
-						 pPeerHTCap->MaxRxAMPDUFactor;
+					 pPeerHTCap->MaxRxAMPDUFactor;
 		else
-			ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
-
+			ht_info->CurrentAMPDUFactor = HT_AGG_SIZE_64K;
 	} else {
-		if (ieee->current_network.bssht.bd_rt2rt_aggregation) {
-			if (ieee->pairwise_key_type != KEY_TYPE_NA)
-				ht_info->CurrentAMPDUFactor =
-						 pPeerHTCap->MaxRxAMPDUFactor;
-			else
-				ht_info->CurrentAMPDUFactor = HT_AGG_SIZE_64K;
-		} else {
-			ht_info->CurrentAMPDUFactor = min_t(u32, pPeerHTCap->MaxRxAMPDUFactor,
-							    HT_AGG_SIZE_32K);
-		}
+		ht_info->CurrentAMPDUFactor = min_t(u32, pPeerHTCap->MaxRxAMPDUFactor,
+						    HT_AGG_SIZE_32K);
 	}
+
 	ht_info->current_mpdu_density = pPeerHTCap->MPDUDensity;
 	if (ht_info->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		ht_info->current_ampdu_enable = false;
@@ -595,15 +585,10 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 			       pNetwork->bssht.bd_ht_info_buf,
 			       pNetwork->bssht.bd_ht_info_len);
 
-		if (ht_info->reg_rt2rt_aggregation) {
-			ht_info->current_rt2rt_aggregation =
-				 pNetwork->bssht.bd_rt2rt_aggregation;
-			ht_info->current_rt2rt_long_slot_time =
-				 pNetwork->bssht.bd_rt2rt_long_slot_time;
-		} else {
-			ht_info->current_rt2rt_aggregation = false;
-			ht_info->current_rt2rt_long_slot_time = false;
-		}
+		ht_info->current_rt2rt_aggregation =
+			 pNetwork->bssht.bd_rt2rt_aggregation;
+		ht_info->current_rt2rt_long_slot_time =
+			 pNetwork->bssht.bd_rt2rt_long_slot_time;
 
 		ht_iot_peer_determine(ieee);
 
