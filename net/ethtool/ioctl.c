@@ -972,18 +972,35 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_param rxfh = {};
 	struct ethtool_rxnfc info;
 	size_t info_size = sizeof(info);
 	int rc;
 
-	if (!dev->ethtool_ops->set_rxnfc)
+	if (!ops->set_rxnfc || !ops->get_rxfh)
 		return -EOPNOTSUPP;
 
 	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (rc)
 		return rc;
 
-	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
+	rc = ops->get_rxfh(dev, &rxfh);
+	if (rc)
+		return rc;
+
+	/* Sanity check: if symmetric-xor is set, then:
+	 * 1 - no other fields besides IP src/dst and/or L4 src/dst
+	 * 2 - If src is set, dst must also be set
+	 */
+	if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
+	    ((info.data & ~(RXH_IP_SRC | RXH_IP_DST |
+			    RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
+	     (!!(info.data & RXH_IP_SRC) ^ !!(info.data & RXH_IP_DST)) ||
+	     (!!(info.data & RXH_L4_B_0_1) ^ !!(info.data & RXH_L4_B_2_3))))
+		return -EINVAL;
+
+	rc = ops->set_rxnfc(dev, &info);
 	if (rc)
 		return rc;
 
@@ -1198,7 +1215,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	user_key_size = rxfh.key_size;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
+	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
 	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
@@ -1271,10 +1288,14 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EFAULT;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
+	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
 	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
+		return -EOPNOTSUPP;
+	/* Check input data transformation capabilities */
+	if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
+	    !ops->cap_rss_sym_xor_supported)
 		return -EOPNOTSUPP;
 
 	/* If either indir, hash key or function is valid, proceed further.
@@ -1341,6 +1362,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 
 	rxfh_dev.hfunc = rxfh.hfunc;
 	rxfh_dev.rss_context = rxfh.rss_context;
+	rxfh_dev.input_xfrm = rxfh.input_xfrm;
 
 	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
