@@ -14,6 +14,7 @@
 
 #include <asm/archrandom.h>
 #include <asm/memory.h>
+#include <asm/pgtable.h>
 
 /* taken from lib/string.c */
 static char *__strstr(const char *s1, const char *s2)
@@ -87,7 +88,7 @@ static u64 get_kaslr_seed(void *fdt)
 
 asmlinkage u64 kaslr_early_init(void *fdt)
 {
-	u64 seed;
+	u64 seed, range;
 
 	if (is_kaslr_disabled_cmdline(fdt))
 		return 0;
@@ -102,9 +103,9 @@ asmlinkage u64 kaslr_early_init(void *fdt)
 	/*
 	 * OK, so we are proceeding with KASLR enabled. Calculate a suitable
 	 * kernel image offset from the seed. Let's place the kernel in the
-	 * middle half of the VMALLOC area (VA_BITS_MIN - 2), and stay clear of
-	 * the lower and upper quarters to avoid colliding with other
-	 * allocations.
+	 * 'middle' half of the VMALLOC area, and stay clear of the lower and
+	 * upper quarters to avoid colliding with other allocations.
 	 */
-	return BIT(VA_BITS_MIN - 3) + (seed & GENMASK(VA_BITS_MIN - 3, 0));
+	range = (VMALLOC_END - KIMAGE_VADDR) / 2;
+	return range / 2 + (((__uint128_t)range * seed) >> 64);
 }
