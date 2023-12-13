@@ -2445,6 +2445,85 @@ void (* const rtw89_phy_c2h_ra_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_FUNC_TXSTS] = NULL,
 };
 
+static void
+rtw89_phy_c2h_rfk_log_iqk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_rfk_log_dpk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_rfk_log_dack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_rfk_log_rxdck(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_rfk_log_tssi(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static void
+rtw89_phy_c2h_rfk_log_txgapk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static
+void (* const rtw89_phy_c2h_rfk_log_handler[])(struct rtw89_dev *rtwdev,
+					       struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_IQK] = rtw89_phy_c2h_rfk_log_iqk,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_DPK] = rtw89_phy_c2h_rfk_log_dpk,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_DACK] = rtw89_phy_c2h_rfk_log_dack,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK] = rtw89_phy_c2h_rfk_log_rxdck,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI] = rtw89_phy_c2h_rfk_log_tssi,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK] = rtw89_phy_c2h_rfk_log_txgapk,
+};
+
+static void
+rtw89_phy_c2h_rfk_report_state(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static
+void (* const rtw89_phy_c2h_rfk_report_handler[])(struct rtw89_dev *rtwdev,
+						  struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE] = rtw89_phy_c2h_rfk_report_state,
+};
+
+bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
+{
+	switch (class) {
+	case RTW89_PHY_C2H_RFK_LOG:
+		switch (func) {
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_IQK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_DACK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK:
+			return true;
+		default:
+			return false;
+		}
+	case RTW89_PHY_C2H_RFK_REPORT:
+		switch (func) {
+		case RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE:
+			return true;
+		default:
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func)
 {
@@ -2455,6 +2534,14 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_PHY_C2H_CLASS_RA:
 		if (func < RTW89_PHY_C2H_FUNC_RA_MAX)
 			handler = rtw89_phy_c2h_ra_handler[func];
+		break;
+	case RTW89_PHY_C2H_RFK_LOG:
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_rfk_log_handler))
+			handler = rtw89_phy_c2h_rfk_log_handler[func];
+		break;
+	case RTW89_PHY_C2H_RFK_REPORT:
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_rfk_report_handler))
+			handler = rtw89_phy_c2h_rfk_report_handler[func];
 		break;
 	case RTW89_PHY_C2H_CLASS_DM:
 		if (func == RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY)

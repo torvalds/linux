@@ -3566,6 +3566,8 @@ static bool rtw89_fw_c2h_chk_atomic(struct rtw89_dev *rtwdev,
 		return false;
 	case RTW89_C2H_CAT_MAC:
 		return rtw89_mac_c2h_chk_atomic(rtwdev, class, func);
+	case RTW89_C2H_CAT_OUTSRC:
+		return rtw89_phy_c2h_chk_atomic(rtwdev, class, func);
 	}
 }
 

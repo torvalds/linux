@@ -147,6 +147,10 @@ enum rtw89_phy_c2h_rfk_log_func {
 	RTW89_PHY_C2H_RFK_LOG_FUNC_NUM,
 };
 
+enum rtw89_phy_c2h_rfk_report_func {
+	RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE = 0,
+};
+
 enum rtw89_phy_c2h_dm_func {
 	RTW89_PHY_C2H_DM_FUNC_FW_TEST,
 	RTW89_PHY_C2H_DM_FUNC_FW_TRIG_TX_RPT,
@@ -160,6 +164,8 @@ enum rtw89_phy_c2h_class {
 	RTW89_PHY_C2H_CLASS_RUA,
 	RTW89_PHY_C2H_CLASS_RA,
 	RTW89_PHY_C2H_CLASS_DM,
+	RTW89_PHY_C2H_RFK_LOG = 0x8,
+	RTW89_PHY_C2H_RFK_REPORT = 0x9,
 	RTW89_PHY_C2H_CLASS_BTC_MIN = 0x10,
 	RTW89_PHY_C2H_CLASS_BTC_MAX = 0x17,
 	RTW89_PHY_C2H_CLASS_MAX,
@@ -800,6 +806,7 @@ void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta
 void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
+bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func);
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
