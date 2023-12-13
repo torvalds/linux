@@ -274,10 +274,6 @@ static int __init it87_wdt_init(void)
 	case IT8712_ID:
 		max_units = (chip_rev < 8) ? 255 : 65535;
 		break;
-	case IT8716_ID:
-	case IT8726_ID:
-		max_units = 65535;
-		break;
 	case IT8607_ID:
 	case IT8613_ID:
 	case IT8620_ID:
@@ -287,9 +283,11 @@ static int __init it87_wdt_init(void)
 	case IT8655_ID:
 	case IT8665_ID:
 	case IT8686_ID:
+	case IT8716_ID:
 	case IT8718_ID:
 	case IT8720_ID:
 	case IT8721_ID:
+	case IT8726_ID:
 	case IT8728_ID:
 	case IT8772_ID:
 	case IT8783_ID:
