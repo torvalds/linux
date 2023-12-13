@@ -288,16 +288,16 @@ static void sio_write_complete(struct kiocb *iocb, long ret)
 	mempool_free(sio, sio_pool);
 }
 
-static void swap_writepage_fs(struct page *page, struct writeback_control *wbc)
+static void swap_writepage_fs(struct folio *folio, struct writeback_control *wbc)
 {
 	struct swap_iocb *sio = NULL;
-	struct swap_info_struct *sis = page_swap_info(page);
+	struct swap_info_struct *sis = swp_swap_info(folio->swap);
 	struct file *swap_file = sis->swap_file;
-	loff_t pos = page_file_offset(page);
+	loff_t pos = folio_file_pos(folio);
 
-	count_swpout_vm_event(page_folio(page));
-	set_page_writeback(page);
-	unlock_page(page);
+	count_swpout_vm_event(folio);
+	folio_start_writeback(folio);
+	folio_unlock(folio);
 	if (wbc->swap_plug)
 		sio = *wbc->swap_plug;
 	if (sio) {
@@ -315,8 +315,8 @@ static void swap_writepage_fs(struct page *page, struct writeback_control *wbc)
 		sio->pages = 0;
 		sio->len = 0;
 	}
-	bvec_set_page(&sio->bvec[sio->pages], page, thp_size(page), 0);
-	sio->len += thp_size(page);
+	bvec_set_folio(&sio->bvec[sio->pages], folio, folio_size(folio), 0);
+	sio->len += folio_size(folio);
 	sio->pages += 1;
 	if (sio->pages == ARRAY_SIZE(sio->bvec) || !wbc->swap_plug) {
 		swap_write_unplug(sio);
@@ -379,7 +379,7 @@ void __swap_writepage(struct folio *folio, struct writeback_control *wbc)
 	 * is safe.
 	 */
 	if (data_race(sis->flags & SWP_FS_OPS))
-		swap_writepage_fs(&folio->page, wbc);
+		swap_writepage_fs(folio, wbc);
 	else if (sis->flags & SWP_SYNCHRONOUS_IO)
 		swap_writepage_bdev_sync(&folio->page, wbc, sis);
 	else
