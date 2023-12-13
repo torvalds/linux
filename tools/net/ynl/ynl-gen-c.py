@@ -2771,6 +2771,7 @@ def main():
                     ri = RenderInfo(cw, parsed, args.mode, op, "dump")
                     if not ri.type_consistent:
                         parse_rsp_msg(ri, deref=True)
+                    print_req_free(ri)
                     print_dump_type_free(ri)
                     print_dump(ri)
                     cw.nl()
