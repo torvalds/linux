@@ -203,14 +203,10 @@ static inline int generic_is_mmio(const volatile void __iomem *a)
 
 #else
 
-#if defined(CONFIG_ALPHA_APECS)
-# include <asm/core_apecs.h>
-#elif defined(CONFIG_ALPHA_CIA)
+#if defined(CONFIG_ALPHA_CIA)
 # include <asm/core_cia.h>
 #elif defined(CONFIG_ALPHA_IRONGATE)
 # include <asm/core_irongate.h>
-#elif defined(CONFIG_ALPHA_LCA)
-# include <asm/core_lca.h>
 #elif defined(CONFIG_ALPHA_MARVEL)
 # include <asm/core_marvel.h>
 #elif defined(CONFIG_ALPHA_MCPCIA)

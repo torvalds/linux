@@ -171,27 +171,17 @@ EXPORT_SYMBOL(__direct_map_size);
 	asm(".weak "#X)
 
 WEAK(alcor_mv);
-WEAK(alphabook1_mv);
-WEAK(avanti_mv);
-WEAK(cabriolet_mv);
 WEAK(clipper_mv);
 WEAK(dp264_mv);
 WEAK(eb164_mv);
-WEAK(eb64p_mv);
-WEAK(eb66_mv);
-WEAK(eb66p_mv);
 WEAK(eiger_mv);
 WEAK(lx164_mv);
 WEAK(marvel_ev7_mv);
 WEAK(miata_mv);
-WEAK(mikasa_mv);
 WEAK(mikasa_primo_mv);
 WEAK(monet_mv);
 WEAK(nautilus_mv);
-WEAK(noname_mv);
-WEAK(noritake_mv);
 WEAK(noritake_primo_mv);
-WEAK(p2k_mv);
 WEAK(pc164_mv);
 WEAK(privateer_mv);
 WEAK(rawhide_mv);
@@ -204,7 +194,6 @@ WEAK(takara_mv);
 WEAK(titan_mv);
 WEAK(webbrick_mv);
 WEAK(wildfire_mv);
-WEAK(xl_mv);
 WEAK(xlt_mv);
 
 #undef WEAK
@@ -692,12 +681,6 @@ static int eb164_indices[] = {0,0,0,1,1,1,1,1,2,2,2,2,3,3,3,3,4};
 static char alcor_names[][16] = {"Alcor", "Maverick", "Bret"};
 static int alcor_indices[] = {0,0,0,1,1,1,0,0,0,0,0,0,2,2,2,2,2,2};
 
-static char eb64p_names[][16] = {"EB64+", "Cabriolet", "AlphaPCI64"};
-static int eb64p_indices[] = {0,0,1,2};
-
-static char eb66_names[][8] = {"EB66", "EB66+"};
-static int eb66_indices[] = {0,0,1};
-
 static char marvel_names[][16] = {
 	"Marvel/EV7"
 };
@@ -736,21 +719,21 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		NULL,		/* Morgan */
 		NULL,		/* Sable -- see below.  */
 		NULL,		/* Medulla */
-		&noname_mv,
+		NULL,		/* Noname */
 		NULL,		/* Turbolaser */
-		&avanti_mv,
+		NULL,		/* Avanti */
 		NULL,		/* Mustang */
 		NULL,		/* Alcor, Bret, Maverick. HWRPB inaccurate? */
 		NULL,		/* Tradewind */
 		NULL,		/* Mikasa -- see below.  */
 		NULL,		/* EB64 */
-		NULL,		/* EB66 -- see variation.  */
-		NULL,		/* EB64+ -- see variation.  */
-		&alphabook1_mv,
+		NULL,		/* EB66 */
+		NULL,		/* EB64+ */
+		NULL,		/* Alphabook1 */
 		&rawhide_mv,
 		NULL,		/* K2 */
 		NULL,		/* Lynx */
-		&xl_mv,
+		NULL,		/* XL */
 		NULL,		/* EB164 -- see variation.  */
 		NULL,		/* Noritake -- see below.  */
 		NULL,		/* Cortex */
@@ -787,19 +770,6 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 	static struct alpha_machine_vector *eb164_vecs[] __initdata =
 	{
 		&eb164_mv, &pc164_mv, &lx164_mv, &sx164_mv, &rx164_mv
-	};
-
-	static struct alpha_machine_vector *eb64p_vecs[] __initdata =
-	{
-		&eb64p_mv,
-		&cabriolet_mv,
-		&cabriolet_mv		/* AlphaPCI64 */
-	};
-
-	static struct alpha_machine_vector *eb66_vecs[] __initdata =
-	{
-		&eb66_mv,
-		&eb66p_mv
 	};
 
 	static struct alpha_machine_vector *marvel_vecs[] __initdata =
@@ -869,14 +839,6 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 			if (vec == &eb164_mv && cpu == EV56_CPU)
 				vec = &pc164_mv;
 			break;
-		case ST_DEC_EB64P:
-			if (member < ARRAY_SIZE(eb64p_indices))
-				vec = eb64p_vecs[eb64p_indices[member]];
-			break;
-		case ST_DEC_EB66:
-			if (member < ARRAY_SIZE(eb66_indices))
-				vec = eb66_vecs[eb66_indices[member]];
-			break;
 		case ST_DEC_MARVEL:
 			if (member < ARRAY_SIZE(marvel_indices))
 				vec = marvel_vecs[marvel_indices[member]];
@@ -891,16 +853,10 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 				vec = tsunami_vecs[tsunami_indices[member]];
 			break;
 		case ST_DEC_1000:
-			if (cpu == EV5_CPU || cpu == EV56_CPU)
-				vec = &mikasa_primo_mv;
-			else
-				vec = &mikasa_mv;
+			vec = &mikasa_primo_mv;
 			break;
 		case ST_DEC_NORITAKE:
-			if (cpu == EV5_CPU || cpu == EV56_CPU)
-				vec = &noritake_primo_mv;
-			else
-				vec = &noritake_mv;
+			vec = &noritake_primo_mv;
 			break;
 		case ST_DEC_2100_A500:
 			vec = &sable_gamma_mv;
@@ -916,26 +872,16 @@ get_sysvec_byname(const char *name)
 	static struct alpha_machine_vector *all_vecs[] __initdata =
 	{
 		&alcor_mv,
-		&alphabook1_mv,
-		&avanti_mv,
-		&cabriolet_mv,
 		&clipper_mv,
 		&dp264_mv,
 		&eb164_mv,
-		&eb64p_mv,
-		&eb66_mv,
-		&eb66p_mv,
 		&eiger_mv,
 		&lx164_mv,
 		&miata_mv,
-		&mikasa_mv,
 		&mikasa_primo_mv,
 		&monet_mv,
 		&nautilus_mv,
-		&noname_mv,
-		&noritake_mv,
 		&noritake_primo_mv,
-		&p2k_mv,
 		&pc164_mv,
 		&privateer_mv,
 		&rawhide_mv,
@@ -947,7 +893,6 @@ get_sysvec_byname(const char *name)
 		&takara_mv,
 		&webbrick_mv,
 		&wildfire_mv,
-		&xl_mv,
 		&xlt_mv
 	};
 
@@ -1008,14 +953,6 @@ get_sysnames(unsigned long type, unsigned long variation, unsigned long cpu,
 	case ST_DEC_ALCOR:
 		if (member < ARRAY_SIZE(alcor_indices))
 			*variation_name = alcor_names[alcor_indices[member]];
-		break;
-	case ST_DEC_EB64P:
-		if (member < ARRAY_SIZE(eb64p_indices))
-			*variation_name = eb64p_names[eb64p_indices[member]];
-		break;
-	case ST_DEC_EB66:
-		if (member < ARRAY_SIZE(eb66_indices))
-			*variation_name = eb66_names[eb66_indices[member]];
 		break;
 	case ST_DEC_MARVEL:
 		if (member < ARRAY_SIZE(marvel_indices))
