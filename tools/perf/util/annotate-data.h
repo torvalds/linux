@@ -22,6 +22,8 @@ struct annotated_data_type {
 	int type_size;
 };
 
+extern struct annotated_data_type unknown_type;
+
 #ifdef HAVE_DWARF_SUPPORT
 
 /* Returns data type at the location (ip, reg, offset) */
