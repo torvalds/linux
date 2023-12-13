@@ -3533,6 +3533,11 @@ struct rtw89_fw_element_hdr {
 			} __packed regs[];
 		} __packed reg2;
 		struct {
+			u8 cv;
+			u8 priv[7];
+			u8 contents[];
+		} __packed bbmcu;
+		struct {
 			__le32 bitmap; /* bitmap of enum rtw89_fw_txpwr_trk_type */
 			__le32 rsvd;
 			s8 contents[][DELTA_SWINGIDX_SIZE];

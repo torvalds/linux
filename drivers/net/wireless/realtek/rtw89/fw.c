@@ -401,10 +401,14 @@ int __rtw89_fw_recognize_from_elm(struct rtw89_dev *rtwdev,
 				  const union rtw89_fw_element_arg arg)
 {
 	enum rtw89_fw_type type = arg.fw_type;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_fw_suit *fw_suit;
 
+	if (hal->cv != elm->u.bbmcu.cv)
+		return 1; /* ignore this element */
+
 	fw_suit = rtw89_fw_suit_get(rtwdev, type);
-	fw_suit->data = elm->u.common.contents;
+	fw_suit->data = elm->u.bbmcu.contents;
 	fw_suit->size = le32_to_cpu(elm->size);
 
 	return rtw89_fw_update_ver(rtwdev, type, fw_suit);
@@ -820,6 +824,8 @@ int rtw89_fw_recognize_elements(struct rtw89_dev *rtwdev)
 			goto next;
 
 		ret = handler->fn(rtwdev, hdr, handler->arg);
+		if (ret == 1) /* ignore this element */
+			goto next;
 		if (ret)
 			return ret;
 
