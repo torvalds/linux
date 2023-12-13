@@ -6670,13 +6670,15 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 			btrfs_stripe_nr_to_offset(io_geom.stripe_nr *
 						  nr_data_stripes(map));
 		for (int i = 0; i < io_geom.num_stripes; i++) {
-			ret = set_io_stripe(fs_info, op, logical, length,
-					    &bioc->stripes[i], map,
-					    (i + io_geom.stripe_nr) % io_geom.num_stripes,
-					    io_geom.stripe_offset,
-					    io_geom.stripe_nr);
-			if (ret < 0)
-				break;
+			struct btrfs_io_stripe *dst = &bioc->stripes[i];
+			u32 stripe_index;
+
+			stripe_index = (i + io_geom.stripe_nr) % io_geom.num_stripes;
+			dst->dev = map->stripes[stripe_index].dev;
+			dst->physical =
+				map->stripes[stripe_index].physical +
+				io_geom.stripe_offset +
+				btrfs_stripe_nr_to_offset(io_geom.stripe_nr);
 		}
 	} else {
 		/*
