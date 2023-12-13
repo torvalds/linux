@@ -1747,7 +1747,7 @@ int rtllib_wx_get_rts(struct rtllib_device *ieee, struct iw_request_info *info,
 		      union iwreq_data *wrqu, char *extra);
 #define MAX_RECEIVE_BUFFER_SIZE 9100
 
-void HTSetConnectBwMode(struct rtllib_device *ieee,
+void ht_set_connect_bw_mode(struct rtllib_device *ieee,
 			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset);
 void ht_update_default_setting(struct rtllib_device *ieee);

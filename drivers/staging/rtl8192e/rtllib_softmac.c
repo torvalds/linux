@@ -1109,7 +1109,7 @@ static void rtllib_associate_procedure_wq(void *data)
 	mutex_lock(&ieee->wx_mutex);
 
 	rtllib_stop_scan(ieee);
-	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+	ht_set_connect_bw_mode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	if (ieee->rf_power_state == rf_off) {
 		ieee->rtllib_ips_leave_wq(ieee->dev);
 		mutex_unlock(&ieee->wx_mutex);
