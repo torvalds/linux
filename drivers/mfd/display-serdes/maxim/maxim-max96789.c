@@ -201,7 +201,7 @@ static const char *MAX96789_UART_groups[] = { "MAX96789_UART" };
 
 #define FUNCTION_DESC_GPIO_INPUT(id) \
 { \
-	.name = "DES_GPIO"#id"_TO_SER", \
+	.name = "DES_RXID"#id"_TO_SER", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -211,7 +211,7 @@ static const char *MAX96789_UART_groups[] = { "MAX96789_UART" };
 
 #define FUNCTION_DESC_GPIO_OUTPUT(id) \
 { \
-	.name = "SER_TO_DES_GPIO"#id, \
+	.name = "SER_TXID"#id"_TO_DES", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \

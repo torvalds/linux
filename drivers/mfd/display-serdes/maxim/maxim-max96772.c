@@ -89,7 +89,7 @@ static const char *serdes_gpio_groups[] = {
 
 #define FUNCTION_DESC_GPIO_INPUT_BYPASS(id) \
 { \
-	.name = "SER_TO_DES_GPIO"#id, \
+	.name = "SER_TO_DES_RXID"#id, \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -99,7 +99,7 @@ static const char *serdes_gpio_groups[] = {
 
 #define FUNCTION_DESC_GPIO_OUTPUT_BYPASS(id) \
 { \
-	.name = "DES_GPIO"#id"_TO_SER", \
+	.name = "DES_TXID"#id"_TO_SER", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -109,7 +109,7 @@ static const char *serdes_gpio_groups[] = {
 
 #define FUNCTION_DESC_GPIO_OUTPUT_LOW(id) \
 { \
-	.name = "DES_GPIO"#id"_OUTPUT_LOW", \
+	.name = "DES_TXID"#id"_OUTPUT_LOW", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -120,7 +120,7 @@ static const char *serdes_gpio_groups[] = {
 
 #define FUNCTION_DESC_GPIO_OUTPUT_HIGH(id) \
 { \
-	.name = "DES_GPIO"#id"_OUTPUT_HIGH", \
+	.name = "DES_TXID"#id"_OUTPUT_HIGH", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \

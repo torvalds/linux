@@ -121,7 +121,7 @@ static const char *MAX96745_UART_groups[] = { "MAX96745_UART" };
 
 #define FUNCTION_DESC_GPIO_OUTPUT_A(id) \
 { \
-	.name = "DES_GPIO"#id"_OUTPUT_A", \
+	.name = "SER_TXID"#id"_TO_DES_LINKA", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -132,7 +132,7 @@ static const char *MAX96745_UART_groups[] = { "MAX96745_UART" };
 
 #define FUNCTION_DESC_GPIO_OUTPUT_B(id) \
 { \
-	.name = "DES_GPIO"#id"_OUTPUT_B", \
+	.name = "SER_TXID"#id"_TO_DES_LINKB", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -143,7 +143,7 @@ static const char *MAX96745_UART_groups[] = { "MAX96745_UART" };
 
 #define FUNCTION_DESC_GPIO_INPUT_A(id) \
 { \
-	.name = "DES_GPIO"#id"_INPUT_A", \
+	.name = "DES_RXID"#id"_TO_SER_LINKA", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
@@ -153,7 +153,7 @@ static const char *MAX96745_UART_groups[] = { "MAX96745_UART" };
 
 #define FUNCTION_DESC_GPIO_INPUT_B(id) \
 { \
-	.name = "DES_GPIO"#id"_INPUT_B", \
+	.name = "DES_RXID"#id"_TO_SER_LINKB", \
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
