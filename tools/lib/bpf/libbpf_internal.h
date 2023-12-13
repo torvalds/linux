@@ -360,10 +360,20 @@ enum kern_feature_id {
 	__FEAT_CNT,
 };
 
-struct kern_feature_cache;
+enum kern_feature_result {
+	FEAT_UNKNOWN = 0,
+	FEAT_SUPPORTED = 1,
+	FEAT_MISSING = 2,
+};
+
+struct kern_feature_cache {
+	enum kern_feature_result res[__FEAT_CNT];
+};
+
 bool feat_supported(struct kern_feature_cache *cache, enum kern_feature_id feat_id);
 bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id);
 
+int probe_kern_syscall_wrapper(void);
 int probe_memcg_account(void);
 int bump_rlimit_memlock(void);
 
