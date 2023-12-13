@@ -999,6 +999,13 @@ struct journal_s
 	struct block_device	*j_fs_dev;
 
 	/**
+	 * @j_fs_dev_wb_err:
+	 *
+	 * Records the errseq of the client fs's backing block device.
+	 */
+	errseq_t		j_fs_dev_wb_err;
+
+	/**
 	 * @j_total_len: Total maximum capacity of the journal region on disk.
 	 */
 	unsigned int		j_total_len;
@@ -1696,6 +1703,25 @@ static inline int is_handle_aborted(handle_t *handle)
 static inline void jbd2_journal_abort_handle(handle_t *handle)
 {
 	handle->h_aborted = 1;
+}
+
+static inline void jbd2_init_fs_dev_write_error(journal_t *journal)
+{
+	struct address_space *mapping = journal->j_fs_dev->bd_inode->i_mapping;
+
+	/*
+	 * Save the original wb_err value of client fs's bdev mapping which
+	 * could be used to detect the client fs's metadata async write error.
+	 */
+	errseq_check_and_advance(&mapping->wb_err, &journal->j_fs_dev_wb_err);
+}
+
+static inline int jbd2_check_fs_dev_write_error(journal_t *journal)
+{
+	struct address_space *mapping = journal->j_fs_dev->bd_inode->i_mapping;
+
+	return errseq_check(&mapping->wb_err,
+			    READ_ONCE(journal->j_fs_dev_wb_err));
 }
 
 #endif /* __KERNEL__   */
