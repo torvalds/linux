@@ -304,10 +304,16 @@ struct ice_masks {
 	struct ice_mask masks[ICE_PROF_MASK_COUNT];
 };
 
+struct ice_prof_id {
+	unsigned long *id;
+	int count;
+};
+
 /* Tables per block */
 struct ice_blk_info {
 	struct ice_xlt1 xlt1;
 	struct ice_xlt2 xlt2;
+	struct ice_prof_id prof_id;
 	struct ice_prof_tcam prof;
 	struct ice_prof_redir prof_redir;
 	struct ice_es es;

@@ -8147,13 +8147,12 @@ static int ice_add_vsi_to_fdir(struct ice_pf *pf, struct ice_vsi *vsi)
 
 		for (tun = 0; tun < ICE_FD_HW_SEG_MAX; tun++) {
 			enum ice_flow_priority prio;
-			u64 prof_id;
 
 			/* add this VSI to FDir profile for this flow */
 			prio = ICE_FLOW_PRIO_NORMAL;
 			prof = hw->fdir_prof[flow];
-			prof_id = flow + tun * ICE_FLTR_PTYPE_MAX;
-			status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id,
+			status = ice_flow_add_entry(hw, ICE_BLK_FD,
+						    prof->prof_id[tun],
 						    prof->vsi_h[0], vsi->idx,
 						    prio, prof->fdir_seg[tun],
 						    &entry_h);

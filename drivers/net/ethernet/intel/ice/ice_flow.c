@@ -1328,7 +1328,6 @@ ice_flow_rem_entry_sync(struct ice_hw *hw, enum ice_block __always_unused blk,
  * @hw: pointer to the HW struct
  * @blk: classification stage
  * @dir: flow direction
- * @prof_id: unique ID to identify this flow profile
  * @segs: array of one or more packet segments that describe the flow
  * @segs_cnt: number of packet segments provided
  * @prof: stores the returned flow profile added
@@ -1337,16 +1336,23 @@ ice_flow_rem_entry_sync(struct ice_hw *hw, enum ice_block __always_unused blk,
  */
 static int
 ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
-		       enum ice_flow_dir dir, u64 prof_id,
+		       enum ice_flow_dir dir,
 		       struct ice_flow_seg_info *segs, u8 segs_cnt,
 		       struct ice_flow_prof **prof)
 {
 	struct ice_flow_prof_params *params;
+	struct ice_prof_id *ids;
 	int status;
+	u64 prof_id;
 	u8 i;
 
 	if (!prof)
 		return -EINVAL;
+
+	ids = &hw->blk[blk].prof_id;
+	prof_id = find_first_zero_bit(ids->id, ids->count);
+	if (prof_id >= ids->count)
+		return -ENOSPC;
 
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
@@ -1393,6 +1399,7 @@ ice_flow_add_prof_sync(struct ice_hw *hw, enum ice_block blk,
 
 	INIT_LIST_HEAD(&params->prof->entries);
 	mutex_init(&params->prof->entries_lock);
+	set_bit(prof_id, ids->id);
 	*prof = params->prof;
 
 out:
@@ -1436,6 +1443,7 @@ ice_flow_rem_prof_sync(struct ice_hw *hw, enum ice_block blk,
 	/* Remove all hardware profiles associated with this flow profile */
 	status = ice_rem_prof(hw, blk, prof->id);
 	if (!status) {
+		clear_bit(prof->id, hw->blk[blk].prof_id.id);
 		list_del(&prof->l_entry);
 		mutex_destroy(&prof->entries_lock);
 		devm_kfree(ice_hw_to_dev(hw), prof);
@@ -1511,14 +1519,13 @@ ice_flow_disassoc_prof(struct ice_hw *hw, enum ice_block blk,
  * @hw: pointer to the HW struct
  * @blk: classification stage
  * @dir: flow direction
- * @prof_id: unique ID to identify this flow profile
  * @segs: array of one or more packet segments that describe the flow
  * @segs_cnt: number of packet segments provided
  * @prof: stores the returned flow profile added
  */
 int
 ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
-		  u64 prof_id, struct ice_flow_seg_info *segs, u8 segs_cnt,
+		  struct ice_flow_seg_info *segs, u8 segs_cnt,
 		  struct ice_flow_prof **prof)
 {
 	int status;
@@ -1538,8 +1545,7 @@ ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 
 	mutex_lock(&hw->fl_profs_locks[blk]);
 
-	status = ice_flow_add_prof_sync(hw, blk, dir, prof_id, segs, segs_cnt,
-					prof);
+	status = ice_flow_add_prof_sync(hw, blk, dir, segs, segs_cnt, prof);
 	if (!status)
 		list_add(&(*prof)->l_entry, &hw->fl_profs[blk]);
 
@@ -2066,28 +2072,6 @@ ice_add_rss_list(struct ice_hw *hw, u16 vsi_handle, struct ice_flow_prof *prof)
 	return 0;
 }
 
-#define ICE_FLOW_PROF_HASH_S	0
-#define ICE_FLOW_PROF_HASH_M	GENMASK_ULL(31, 0)
-#define ICE_FLOW_PROF_HDR_S	32
-#define ICE_FLOW_PROF_HDR_M	GENMASK_ULL(61, 32)
-#define ICE_FLOW_PROF_ENCAP_S	62
-#define ICE_FLOW_PROF_ENCAP_M	GENMASK_ULL(63, 62)
-
-/* Flow profile ID format:
- * [0:31] - Packet match fields
- * [32:61] - Protocol header
- * [62:63] - Encapsulation flag:
- *	     0 if non-tunneled
- *	     1 if tunneled
- *	     2 for tunneled with outer ipv4
- *	     3 for tunneled with outer ipv6
- */
-#define ICE_FLOW_GEN_PROFID(hash, hdr, encap)                                \
-	((u64)(((u64)(hash) & ICE_FLOW_PROF_HASH_M) |                        \
-	       (((u64)(hdr) << ICE_FLOW_PROF_HDR_S) & ICE_FLOW_PROF_HDR_M) | \
-	       (((u64)(encap) << ICE_FLOW_PROF_ENCAP_S) &                    \
-		ICE_FLOW_PROF_ENCAP_M)))
-
 /**
  * ice_add_rss_cfg_sync - add an RSS configuration
  * @hw: pointer to the hardware structure
@@ -2165,13 +2149,8 @@ ice_add_rss_cfg_sync(struct ice_hw *hw, u16 vsi_handle,
 		goto exit;
 	}
 
-	/* Create a new flow profile with generated profile and packet
-	 * segment information.
-	 */
+	/* Create a new flow profile with packet segment information. */
 	status = ice_flow_add_prof(hw, blk, ICE_FLOW_RX,
-				   ICE_FLOW_GEN_PROFID(cfg->hash_flds,
-						       segs[segs_cnt - 1].hdrs,
-						       cfg->hdr_type),
 				   segs, segs_cnt, &prof);
 	if (status)
 		goto exit;
