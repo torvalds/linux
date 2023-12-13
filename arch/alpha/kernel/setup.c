@@ -182,7 +182,6 @@ WEAK(eb66_mv);
 WEAK(eb66p_mv);
 WEAK(eiger_mv);
 WEAK(lx164_mv);
-WEAK(lynx_mv);
 WEAK(marvel_ev7_mv);
 WEAK(miata_mv);
 WEAK(mikasa_mv);
@@ -198,7 +197,6 @@ WEAK(privateer_mv);
 WEAK(rawhide_mv);
 WEAK(ruffian_mv);
 WEAK(rx164_mv);
-WEAK(sable_mv);
 WEAK(sable_gamma_mv);
 WEAK(shark_mv);
 WEAK(sx164_mv);
@@ -751,7 +749,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		&alphabook1_mv,
 		&rawhide_mv,
 		NULL,		/* K2 */
-		&lynx_mv,	/* Lynx */
+		NULL,		/* Lynx */
 		&xl_mv,
 		NULL,		/* EB164 -- see variation.  */
 		NULL,		/* Noritake -- see below.  */
@@ -905,10 +903,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 				vec = &noritake_mv;
 			break;
 		case ST_DEC_2100_A500:
-			if (cpu == EV5_CPU || cpu == EV56_CPU)
-				vec = &sable_gamma_mv;
-			else
-				vec = &sable_mv;
+			vec = &sable_gamma_mv;
 			break;
 		}
 	}
@@ -932,7 +927,6 @@ get_sysvec_byname(const char *name)
 		&eb66p_mv,
 		&eiger_mv,
 		&lx164_mv,
-		&lynx_mv,
 		&miata_mv,
 		&mikasa_mv,
 		&mikasa_primo_mv,
@@ -947,7 +941,6 @@ get_sysvec_byname(const char *name)
 		&rawhide_mv,
 		&ruffian_mv,
 		&rx164_mv,
-		&sable_mv,
 		&sable_gamma_mv,
 		&shark_mv,
 		&sx164_mv,

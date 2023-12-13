@@ -88,7 +88,6 @@ obj-$(CONFIG_ALPHA_RAWHIDE)	+= sys_rawhide.o irq_i8259.o
 obj-$(CONFIG_ALPHA_RUFFIAN)	+= sys_ruffian.o irq_pyxis.o irq_i8259.o
 obj-$(CONFIG_ALPHA_RX164)	+= sys_rx164.o irq_i8259.o
 obj-$(CONFIG_ALPHA_SABLE)	+= sys_sable.o
-obj-$(CONFIG_ALPHA_LYNX)	+= sys_sable.o
 obj-$(CONFIG_ALPHA_BOOK1)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_AVANTI)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o
 obj-$(CONFIG_ALPHA_NONAME)	+= sys_sio.o irq_i8259.o irq_srm.o pc873xx.o

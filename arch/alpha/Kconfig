@@ -100,7 +100,6 @@ choice
 	  EB66                EB66 21066 evaluation board
 	  EB66+               EB66+ 21066 evaluation board
 	  LX164               AlphaPC164-LX
-	  Lynx                AS 2100A
 	  Miata               Personal Workstation 433/500/600 a/au
 	  Marvel              AlphaServer ES47 / ES80 / GS1280
 	  Mikasa              AS 1000
@@ -202,12 +201,6 @@ config ALPHA_LX164
 	help
 	  A technical overview of this board is available at
 	  <http://www.unix-ag.org/Linux-Alpha/Architectures/LX164.html>.
-
-config ALPHA_LYNX
-	bool "Lynx"
-	select HAVE_EISA
-	help
-	  AlphaServer 2100A-based systems.
 
 config ALPHA_MARVEL
 	bool "Marvel"
@@ -325,9 +318,8 @@ config ALPHA_NONAME
 
 config ALPHA_EV4
 	bool
-	depends on (ALPHA_SABLE && !ALPHA_GAMMA) || ALPHA_LYNX || ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
-	default y if !ALPHA_LYNX
-	default y if !ALPHA_EV5
+	depends on ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
+	default y
 
 config ALPHA_LCA
 	bool
@@ -352,8 +344,8 @@ config ALPHA_EB64P
 	  Runs from standard PC power supply.
 
 config ALPHA_EV5
-	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_LYNX
-	default y if ALPHA_RX164 || ALPHA_RAWHIDE || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_SABLE && ALPHA_GAMMA || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
+	bool
+	default y if ALPHA_RX164 || ALPHA_RAWHIDE || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_RUFFIAN || ALPHA_SABLE || ALPHA_NORITAKE && ALPHA_PRIMO || ALPHA_MIKASA && ALPHA_PRIMO || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR
 
 config ALPHA_CIA
 	bool
@@ -378,16 +370,9 @@ config ALPHA_PRIMO
 	help
 	  Say Y if you have an AS 1000 5/xxx or an AS 1000A 5/xxx.
 
-config ALPHA_GAMMA
-	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_SABLE
-	depends on ALPHA_SABLE || ALPHA_LYNX
-	default ALPHA_LYNX
-	help
-	  Say Y if you have an AS 2000 5/xxx or an AS 2100 5/xxx.
-
 config ALPHA_T2
 	bool
-	depends on ALPHA_SABLE || ALPHA_LYNX
+	depends on ALPHA_SABLE
 	default y
 
 config ALPHA_PYXIS
@@ -471,7 +456,7 @@ config ALPHA_QEMU
 config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY
-	default y if ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
+	default y if ALPHA_MIKASA || ALPHA_SABLE || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow
@@ -497,7 +482,7 @@ config ARCH_MAY_HAVE_PC_FDC
 
 config SMP
 	bool "Symmetric multi-processing support"
-	depends on ALPHA_SABLE || ALPHA_LYNX || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
+	depends on ALPHA_SABLE || ALPHA_RAWHIDE || ALPHA_DP264 || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_GENERIC || ALPHA_SHARK || ALPHA_MARVEL
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
