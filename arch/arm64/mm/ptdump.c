@@ -346,6 +346,8 @@ void ptdump_check_wx(void)
 
 static int __init ptdump_init(void)
 {
+	u64 page_offset = _PAGE_OFFSET(vabits_actual);
+	u64 vmemmap_start = (u64)virt_to_page((void *)page_offset);
 	struct addr_marker m[] = {
 		{ PAGE_OFFSET,		"Linear Mapping start" },
 		{ PAGE_END,		"Linear Mapping end" },
@@ -357,7 +359,7 @@ static int __init ptdump_init(void)
 		{ MODULES_END,		"Modules end" },
 		{ VMALLOC_START,	"vmalloc() area" },
 		{ VMALLOC_END,		"vmalloc() end" },
-		{ VMEMMAP_START,	"vmemmap start" },
+		{ vmemmap_start,	"vmemmap start" },
 		{ VMEMMAP_END,		"vmemmap end" },
 		{ PCI_IO_START,		"PCI I/O start" },
 		{ PCI_IO_END,		"PCI I/O end" },
