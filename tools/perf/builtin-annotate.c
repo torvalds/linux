@@ -325,19 +325,64 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 	return symbol__tty_annotate2(&he->ms, evsel);
 }
 
+static void print_annotated_data_header(struct hist_entry *he, struct evsel *evsel)
+{
+	struct dso *dso = map__dso(he->ms.map);
+	int nr_members = 1;
+	int nr_samples = he->stat.nr_events;
+
+	if (evsel__is_group_event(evsel)) {
+		struct hist_entry *pair;
+
+		list_for_each_entry(pair, &he->pairs.head, pairs.node)
+			nr_samples += pair->stat.nr_events;
+	}
+
+	printf("Annotate type: '%s' in %s (%d samples):\n",
+	       he->mem_type->self.type_name, dso->name, nr_samples);
+
+	if (evsel__is_group_event(evsel)) {
+		struct evsel *pos;
+		int i = 0;
+
+		for_each_group_evsel(pos, evsel)
+			printf(" event[%d] = %s\n", i++, pos->name);
+
+		nr_members = evsel->core.nr_members;
+	}
+
+	printf("============================================================================\n");
+	printf("%*s %10s %10s  %s\n", 11 * nr_members, "samples", "offset", "size", "field");
+}
+
 static void print_annotated_data_type(struct annotated_data_type *mem_type,
 				      struct annotated_member *member,
 				      struct evsel *evsel, int indent)
 {
 	struct annotated_member *child;
 	struct type_hist *h = mem_type->histograms[evsel->core.idx];
-	int i, samples = 0;
+	int i, nr_events = 1, samples = 0;
 
 	for (i = 0; i < member->size; i++)
 		samples += h->addr[member->offset + i].nr_samples;
+	printf(" %10d", samples);
 
-	printf(" %10d %10d %10d  %*s%s\t%s",
-	       samples, member->offset, member->size, indent, "", member->type_name,
+	if (evsel__is_group_event(evsel)) {
+		struct evsel *pos;
+
+		for_each_group_member(pos, evsel) {
+			h = mem_type->histograms[pos->core.idx];
+
+			samples = 0;
+			for (i = 0; i < member->size; i++)
+				samples += h->addr[member->offset + i].nr_samples;
+			printf(" %10d", samples);
+		}
+		nr_events = evsel->core.nr_members;
+	}
+
+	printf(" %10d %10d  %*s%s\t%s",
+	       member->offset, member->size, indent, "", member->type_name,
 	       member->var_name ?: "");
 
 	if (!list_empty(&member->children))
@@ -347,7 +392,7 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 		print_annotated_data_type(mem_type, child, evsel, indent + 4);
 
 	if (!list_empty(&member->children))
-		printf("%*s}", 35 + indent, "");
+		printf("%*s}", 11 * nr_events + 24 + indent, "");
 	printf(";\n");
 }
 
@@ -391,8 +436,6 @@ find_next:
 		}
 
 		if (ann->data_type) {
-			struct dso *dso = map__dso(he->ms.map);
-
 			/* skip unknown type */
 			if (he->mem_type->histograms == NULL)
 				goto find_next;
@@ -414,11 +457,7 @@ find_next:
 					goto find_next;
 			}
 
-			printf("Annotate type: '%s' in %s (%d samples):\n",
-				he->mem_type->self.type_name, dso->name, he->stat.nr_events);
-			printf("============================================================================\n");
-			printf(" %10s %10s %10s  %s\n", "samples", "offset", "size", "field");
-
+			print_annotated_data_header(he, evsel);
 			print_annotated_data_type(he->mem_type, &he->mem_type->self, evsel, 0);
 			printf("\n");
 			goto find_next;
@@ -521,8 +560,20 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			evsel__reset_sample_bit(pos, CALLCHAIN);
 			evsel__output_resort(pos, NULL);
 
-			if (symbol_conf.event_group && !evsel__is_group_leader(pos))
+			/*
+			 * An event group needs to display other events too.
+			 * Let's delay printing until other events are processed.
+			 */
+			if (symbol_conf.event_group) {
+				if (!evsel__is_group_leader(pos)) {
+					struct hists *leader_hists;
+
+					leader_hists = evsel__hists(evsel__leader(pos));
+					hists__match(leader_hists, hists);
+					hists__link(leader_hists, hists);
+				}
 				continue;
+			}
 
 			hists__find_annotations(hists, pos, ann);
 		}
@@ -531,6 +582,20 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	if (total_nr_samples == 0) {
 		ui__error("The %s data has no samples!\n", session->data->path);
 		goto out;
+	}
+
+	/* Display group events together */
+	evlist__for_each_entry(session->evlist, pos) {
+		struct hists *hists = evsel__hists(pos);
+		u32 nr_samples = hists->stats.nr_samples;
+
+		if (nr_samples == 0)
+			continue;
+
+		if (!symbol_conf.event_group || !evsel__is_group_leader(pos))
+			continue;
+
+		hists__find_annotations(hists, pos, ann);
 	}
 
 	if (use_browser == 2) {
