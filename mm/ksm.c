@@ -2604,11 +2604,9 @@ static int ksm_scan_thread(void *nothing)
 			ksm_do_scan(ksm_thread_pages_to_scan);
 		mutex_unlock(&ksm_thread_mutex);
 
-		try_to_freeze();
-
 		if (ksmd_should_run()) {
 			sleep_ms = READ_ONCE(ksm_thread_sleep_millisecs);
-			wait_event_interruptible_timeout(ksm_iter_wait,
+			wait_event_freezable_timeout(ksm_iter_wait,
 				sleep_ms != READ_ONCE(ksm_thread_sleep_millisecs),
 				msecs_to_jiffies(sleep_ms));
 		} else {
