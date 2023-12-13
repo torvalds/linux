@@ -606,9 +606,10 @@ static struct config_group *function_make(
 	char *instance_name;
 	int ret;
 
-	ret = snprintf(buf, MAX_NAME_LEN, "%s", name);
-	if (ret >= MAX_NAME_LEN)
+	if (strlen(name) >= MAX_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
+
+	scnprintf(buf, MAX_NAME_LEN, "%s", name);
 
 	func_name = buf;
 	instance_name = strchr(func_name, '.');
@@ -701,9 +702,11 @@ static struct config_group *config_desc_make(
 	int ret;
 
 	gi = container_of(group, struct gadget_info, configs_group);
-	ret = snprintf(buf, MAX_NAME_LEN, "%s", name);
-	if (ret >= MAX_NAME_LEN)
+
+	if (strlen(name) >= MAX_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
+
+	scnprintf(buf, MAX_NAME_LEN, "%s", name);
 
 	num_str = strchr(buf, '.');
 	if (!num_str) {
