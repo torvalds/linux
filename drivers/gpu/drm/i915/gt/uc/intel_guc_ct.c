@@ -265,7 +265,7 @@ int intel_guc_ct_init(struct intel_guc_ct *ct)
 	u32 *cmds;
 	int err;
 
-	err = i915_inject_probe_error(guc_to_gt(guc)->i915, -ENXIO);
+	err = i915_inject_probe_error(guc_to_i915(guc), -ENXIO);
 	if (err)
 		return err;
 
@@ -1076,6 +1076,15 @@ static int ct_handle_response(struct intel_guc_ct *ct, struct ct_incoming_msg *r
 		found = true;
 		break;
 	}
+
+#ifdef CONFIG_DRM_I915_SELFTEST
+	if (!found && ct_to_guc(ct)->fast_response_selftest) {
+		CT_DEBUG(ct, "Assuming unsolicited response due to FAST_REQUEST selftest\n");
+		ct_to_guc(ct)->fast_response_selftest++;
+		found = true;
+	}
+#endif
+
 	if (!found) {
 		CT_ERROR(ct, "Unsolicited response message: len %u, data %#x (fence %u, last %u)\n",
 			 len, hxg[0], fence, ct->requests.last_fence);

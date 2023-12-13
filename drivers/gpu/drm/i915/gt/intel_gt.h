@@ -82,6 +82,10 @@ struct drm_printer;
 		  ##__VA_ARGS__);					\
 } while (0)
 
+#define NEEDS_FASTCOLOR_BLT_WABB(engine) ( \
+	IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 55), IP_VER(12, 71)) && \
+	engine->class == COPY_ENGINE_CLASS && engine->instance == 0)
+
 static inline bool gt_is_root(struct intel_gt *gt)
 {
 	return !gt->info.id;
@@ -112,6 +116,11 @@ static inline struct intel_gt *gsc_uc_to_gt(struct intel_gsc_uc *gsc_uc)
 static inline struct intel_gt *gsc_to_gt(struct intel_gsc *gsc)
 {
 	return container_of(gsc, struct intel_gt, gsc);
+}
+
+static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
+{
+	return guc_to_gt(guc)->i915;
 }
 
 void intel_gt_common_init_early(struct intel_gt *gt);
