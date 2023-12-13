@@ -6362,6 +6362,15 @@ static bool is_single_device_io(struct btrfs_fs_info *fs_info,
 	return true;
 }
 
+static void map_blocks_raid0(const struct btrfs_chunk_map *map,
+			     struct btrfs_io_geometry *io_geom)
+{
+	io_geom->stripe_index = io_geom->stripe_nr % map->num_stripes;
+	io_geom->stripe_nr /= map->num_stripes;
+	if (io_geom->op == BTRFS_MAP_READ)
+		io_geom->mirror_num = 1;
+}
+
 /*
  * Map one logical range to one or more physical ranges.
  *
@@ -6449,10 +6458,7 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		up_read(&dev_replace->rwsem);
 
 	if (map->type & BTRFS_BLOCK_GROUP_RAID0) {
-		io_geom.stripe_index = io_geom.stripe_nr % map->num_stripes;
-		io_geom.stripe_nr /= map->num_stripes;
-		if (op == BTRFS_MAP_READ)
-			io_geom.mirror_num = 1;
+		map_blocks_raid0(map, &io_geom);
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID1_MASK) {
 		if (op != BTRFS_MAP_READ) {
 			io_geom.num_stripes = map->num_stripes;
