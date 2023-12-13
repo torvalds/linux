@@ -5,6 +5,18 @@ Design
 ======
 
 
+.. _damon_design_execution_model_and_data_structures:
+
+Execution Model and Data Structures
+===================================
+
+The monitoring-related information including the monitoring request
+specification and DAMON-based operation schemes are stored in a data structure
+called DAMON ``context``.  DAMON executes each context with a kernel thread
+called ``kdamond``.  Multiple kdamonds could run in parallel, for different
+types of monitoring.
+
+
 Overall Architecture
 ====================
 
@@ -490,15 +502,3 @@ modules for proactive reclamation and LRU lists manipulation are provided.  For
 more detail, please read the usage documents for those
 (:doc:`/admin-guide/mm/damon/reclaim` and
 :doc:`/admin-guide/mm/damon/lru_sort`).
-
-
-.. _damon_design_execution_model_and_data_structures:
-
-Execution Model and Data Structures
-===================================
-
-The monitoring-related information including the monitoring request
-specification and DAMON-based operation schemes are stored in a data structure
-called DAMON ``context``.  DAMON executes each context with a kernel thread
-called ``kdamond``.  Multiple kdamonds could run in parallel, for different
-types of monitoring.
