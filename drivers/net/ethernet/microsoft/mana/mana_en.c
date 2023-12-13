@@ -1244,6 +1244,7 @@ static int mana_create_eq(struct mana_context *ac)
 	spec.eq.log2_throttle_limit = LOG2_EQ_THROTTLE;
 
 	for (i = 0; i < gc->max_num_queues; i++) {
+		spec.eq.msix_index = (i + 1) % gc->num_msix_usable;
 		err = mana_gd_create_mana_eq(gd, &spec, &ac->eqs[i].eq);
 		if (err)
 			goto out;
