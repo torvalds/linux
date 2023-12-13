@@ -812,10 +812,8 @@ struct aspeed_g7_pincfg {
 #define FUNCFG_SYM(pin) funcfg_ ## pin
 #define FUNCFG_PTR(pin) (&FUNCFG_SYM(pin))
 
-#define FUNCFG_DESCL(pin, ...)                                     \
-	static const struct aspeed_g7_funcfg FUNCFG_SYM(pin)[] = { \
-		__VA_ARGS__,                                       \
-	}
+#define FUNCFG_DESCL(pin, ...) \
+	static const struct aspeed_g7_funcfg FUNCFG_SYM(pin)[] = { __VA_ARGS__ }
 
 #define PINCFG_PIN(pin)                                                 \
 	[pin] = { .funcfg = (struct aspeed_g7_funcfg *)FUNCFG_PTR(pin), \

@@ -41,11 +41,6 @@
 		groups = "USB3AXHPD";
 	};
 
-	pinctrl_usb3ad_default: usb3ad_default {
-		function = "USB3A";
-		groups = "USB3AD";
-	};
-
 	pinctrl_usb3axh_default: usb3axh_default {
 		function = "USB3A";
 		groups = "USB3AXH";
@@ -129,11 +124,6 @@
 	pinctrl_usb3bxhpd_default: usb3bxhpd_default {
 		function = "USB3B";
 		groups = "USB3BXHPD";
-	};
-
-	pinctrl_usb3bd_default: usb3bd_default {
-		function = "USB3B";
-		groups = "USB3BD";
 	};
 
 	pinctrl_usb3bxh_default: usb3bxh_default {
