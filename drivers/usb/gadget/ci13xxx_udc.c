@@ -907,7 +907,7 @@ static DEVICE_ATTR_RO(device);
  *
  * Check "device.h" for details
  */
-static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
+static ssize_t udcdriver_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
@@ -931,7 +931,7 @@ static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR_RO(driver);
+static DEVICE_ATTR_RO(udcdriver);
 
 /* Maximum event message length */
 #define DBG_DATA_MSG   64UL
@@ -1708,7 +1708,7 @@ static int __maybe_unused dbg_create_files(struct device *dev)
 	retval = device_create_file(dev, &dev_attr_device);
 	if (retval)
 		goto done;
-	retval = device_create_file(dev, &dev_attr_driver);
+	retval = device_create_file(dev, &dev_attr_udcdriver);
 	if (retval)
 		goto rm_device;
 	retval = device_create_file(dev, &dev_attr_events);
@@ -1758,7 +1758,7 @@ rm_remote_wakeup:
  rm_events:
 	device_remove_file(dev, &dev_attr_events);
  rm_driver:
-	device_remove_file(dev, &dev_attr_driver);
+	device_remove_file(dev, &dev_attr_udcdriver);
  rm_device:
 	device_remove_file(dev, &dev_attr_device);
  done:
@@ -1781,7 +1781,7 @@ static int __maybe_unused dbg_remove_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_port_test);
 	device_remove_file(dev, &dev_attr_inters);
 	device_remove_file(dev, &dev_attr_events);
-	device_remove_file(dev, &dev_attr_driver);
+	device_remove_file(dev, &dev_attr_udcdriver);
 	device_remove_file(dev, &dev_attr_device);
 	device_remove_file(dev, &dev_attr_wakeup);
 	return 0;
