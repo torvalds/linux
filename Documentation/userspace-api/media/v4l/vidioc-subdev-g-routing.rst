@@ -140,8 +140,9 @@ ENOSPC
    all the available routes the subdevice exposes.
 
 EINVAL
-   The sink or source pad identifiers reference a non-existing pad, or reference
-   pads of different types (ie. the sink_pad identifiers refers to a source pad).
+   The sink or source pad identifiers reference a non-existing pad or reference
+   pads of different types (ie. the sink_pad identifiers refers to a source
+   pad), or the ``which`` field has an unsupported value.
 
 E2BIG
    The application provided ``num_routes`` for ``VIDIOC_SUBDEV_S_ROUTING`` is
