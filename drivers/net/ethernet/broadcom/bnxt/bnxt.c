@@ -587,12 +587,21 @@ normal_tx:
 
 	txbd1->tx_bd_hsize_lflags = lflags;
 	if (skb_is_gso(skb)) {
+		bool udp_gso = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4);
 		u32 hdr_len;
 
-		if (skb->encapsulation)
-			hdr_len = skb_inner_tcp_all_headers(skb);
-		else
+		if (skb->encapsulation) {
+			if (udp_gso)
+				hdr_len = skb_inner_transport_offset(skb) +
+					  sizeof(struct udphdr);
+			else
+				hdr_len = skb_inner_tcp_all_headers(skb);
+		} else if (udp_gso) {
+			hdr_len = skb_transport_offset(skb) +
+				  sizeof(struct udphdr);
+		} else {
 			hdr_len = skb_tcp_all_headers(skb);
+		}
 
 		txbd1->tx_bd_hsize_lflags |= cpu_to_le32(TX_BD_FLAGS_LSO |
 					TX_BD_FLAGS_T_IPID |
@@ -666,8 +675,11 @@ normal_tx:
 tx_done:
 
 	if (unlikely(bnxt_tx_avail(bp, txr) <= MAX_SKB_FRAGS + 1)) {
-		if (netdev_xmit_more() && !tx_buf->is_push)
+		if (netdev_xmit_more() && !tx_buf->is_push) {
+			txbd0->tx_bd_len_flags_type &=
+				cpu_to_le32(~TX_BD_FLAGS_NO_CMPL);
 			bnxt_txr_db_kick(bp, txr, prod);
+		}
 
 		netif_txq_try_stop(txq, bnxt_tx_avail(bp, txr),
 				   bp->tx_wake_thresh);
@@ -781,7 +793,7 @@ static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	int i;
 
 	bnxt_for_each_napi_tx(i, bnapi, txr) {
-		if (txr->tx_hw_cons != txr->tx_cons)
+		if (txr->tx_hw_cons != RING_TX(bp, txr->tx_cons))
 			__bnxt_tx_int(bp, txr, budget);
 	}
 	bnapi->events &= ~BNXT_TX_CMP_EVENT;
@@ -2782,14 +2794,18 @@ static int __bnxt_poll_work(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 		 */
 		dma_rmb();
 		cmp_type = TX_CMP_TYPE(txcmp);
-		if (cmp_type == CMP_TYPE_TX_L2_CMP) {
+		if (cmp_type == CMP_TYPE_TX_L2_CMP ||
+		    cmp_type == CMP_TYPE_TX_L2_COAL_CMP) {
 			u32 opaque = txcmp->tx_cmp_opaque;
 			struct bnxt_tx_ring_info *txr;
 			u16 tx_freed;
 
 			txr = bnapi->tx_ring[TX_OPAQUE_RING(opaque)];
 			event |= BNXT_TX_CMP_EVENT;
-			txr->tx_hw_cons = TX_OPAQUE_PROD(bp, opaque);
+			if (cmp_type == CMP_TYPE_TX_L2_COAL_CMP)
+				txr->tx_hw_cons = TX_CMP_SQ_CONS_IDX(txcmp);
+			else
+				txr->tx_hw_cons = TX_OPAQUE_PROD(bp, opaque);
 			tx_freed = (txr->tx_hw_cons - txr->tx_cons) &
 				   bp->tx_ring_mask;
 			/* return full budget so NAPI will complete. */
@@ -5143,6 +5159,8 @@ int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp)
 	return hwrm_req_send(bp, req);
 }
 
+static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa);
+
 static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 {
 	struct hwrm_tunnel_dst_port_free_input *req;
@@ -5172,6 +5190,11 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 		bp->nge_port = 0;
 		bp->nge_fw_dst_port_id = INVALID_HW_RING_ID;
 		break;
+	case TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_GPE:
+		req->tunnel_dst_port_id = cpu_to_le16(bp->vxlan_gpe_fw_dst_port_id);
+		bp->vxlan_gpe_port = 0;
+		bp->vxlan_gpe_fw_dst_port_id = INVALID_HW_RING_ID;
+		break;
 	default:
 		break;
 	}
@@ -5180,6 +5203,8 @@ static int bnxt_hwrm_tunnel_dst_port_free(struct bnxt *bp, u8 tunnel_type)
 	if (rc)
 		netdev_err(bp->dev, "hwrm_tunnel_dst_port_free failed. rc:%d\n",
 			   rc);
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, true);
 	return rc;
 }
 
@@ -5215,9 +5240,16 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 		bp->nge_port = port;
 		bp->nge_fw_dst_port_id = le16_to_cpu(resp->tunnel_dst_port_id);
 		break;
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_GPE:
+		bp->vxlan_gpe_port = port;
+		bp->vxlan_gpe_fw_dst_port_id =
+			le16_to_cpu(resp->tunnel_dst_port_id);
+		break;
 	default:
 		break;
 	}
+	if (bp->flags & BNXT_FLAG_TPA)
+		bnxt_set_tpa(bp, true);
 
 err_out:
 	hwrm_req_drop(bp, req);
@@ -5410,6 +5442,30 @@ static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 	return rc;
 }
 
+#define BNXT_DFLT_TUNL_TPA_BMAP				\
+	(VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_GRE |	\
+	 VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_IPV4 |	\
+	 VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_IPV6)
+
+static void bnxt_hwrm_vnic_update_tunl_tpa(struct bnxt *bp,
+					   struct hwrm_vnic_tpa_cfg_input *req)
+{
+	u32 tunl_tpa_bmap = BNXT_DFLT_TUNL_TPA_BMAP;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_VNIC_TUNNEL_TPA))
+		return;
+
+	if (bp->vxlan_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_VXLAN;
+	if (bp->vxlan_gpe_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_VXLAN_GPE;
+	if (bp->nge_port)
+		tunl_tpa_bmap |= VNIC_TPA_CFG_REQ_TNL_TPA_EN_BITMAP_GENEVE;
+
+	req->enables |= cpu_to_le32(VNIC_TPA_CFG_REQ_ENABLES_TNL_TPA_EN);
+	req->tnl_tpa_en_bitmap = cpu_to_le32(tunl_tpa_bmap);
+}
+
 static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 {
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
@@ -5466,6 +5522,7 @@ static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
 		req->max_aggs = cpu_to_le16(max_aggs);
 
 		req->min_agg_len = cpu_to_le32(512);
+		bnxt_hwrm_vnic_update_tunl_tpa(bp, req);
 	}
 	req->vnic_id = cpu_to_le16(vnic->fw_vnic_id);
 
@@ -5960,6 +6017,8 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 			else
 				bp->hw_ring_stats_size = BNXT_RING_STATS_SIZE_P7;
 		}
+		if (flags & VNIC_QCAPS_RESP_FLAGS_HW_TUNNEL_TPA_CAP)
+			bp->fw_cap |= BNXT_FW_CAP_VNIC_TUNNEL_TPA;
 	}
 	hwrm_req_drop(bp, req);
 	return rc;
@@ -6065,6 +6124,9 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 		req->length = cpu_to_le32(bp->tx_ring_mask + 1);
 		req->stat_ctx_id = cpu_to_le32(grp_info->fw_stats_ctx);
 		req->queue_id = cpu_to_le16(ring->queue_id);
+		if (bp->flags & BNXT_FLAG_TX_COAL_CMPL)
+			req->cmpl_coal_cnt =
+				RING_ALLOC_REQ_CMPL_COAL_CNT_COAL_64;
 		break;
 	}
 	case HWRM_RING_ALLOC_RX:
@@ -6489,6 +6551,8 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+static int __bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
+			     bool shared);
 static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 			   bool shared);
 
@@ -6532,8 +6596,9 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 			if (bp->flags & BNXT_FLAG_AGG_RINGS)
 				rx >>= 1;
 			if (cp < (rx + tx)) {
-				rx = cp / 2;
-				tx = rx;
+				rc = __bnxt_trim_rings(bp, &rx, &tx, cp, false);
+				if (rc)
+					return rc;
 				if (bp->flags & BNXT_FLAG_AGG_RINGS)
 					rx <<= 1;
 				hw_resc->resv_rx_rings = rx;
@@ -7522,6 +7587,7 @@ static int bnxt_hwrm_func_backing_store_qcaps(struct bnxt *bp)
 		ctxm->max_entries = le32_to_cpu(resp->qp_max_entries);
 		ctxm->qp_qp1_entries = le16_to_cpu(resp->qp_min_qp1_entries);
 		ctxm->qp_l2_entries = le16_to_cpu(resp->qp_max_l2_entries);
+		ctxm->qp_fast_qpmd_entries = le16_to_cpu(resp->fast_qpmd_qp_num_entries);
 		ctxm->entry_size = le16_to_cpu(resp->qp_entry_size);
 		bnxt_init_ctx_initializer(ctxm, init_val, resp->qp_init_offset,
 					  (init_mask & (1 << init_idx++)) != 0);
@@ -7659,6 +7725,9 @@ static int bnxt_hwrm_func_backing_store_cfg(struct bnxt *bp, u32 enables)
 		bnxt_hwrm_set_pg_attr(&ctx_pg->ring_mem,
 				      &req->qpc_pg_size_qpc_lvl,
 				      &req->qpc_page_dir);
+
+		if (enables & FUNC_BACKING_STORE_CFG_REQ_ENABLES_QP_FAST_QPMD)
+			req->qp_num_fast_qpmd_entries = cpu_to_le16(ctxm->qp_fast_qpmd_entries);
 	}
 	if (enables & FUNC_BACKING_STORE_CFG_REQ_ENABLES_SRQ) {
 		ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
@@ -7991,6 +8060,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	u32 num_mr, num_ah;
 	u32 extra_srqs = 0;
 	u32 extra_qps = 0;
+	u32 fast_qpmd_qps;
 	u8 pg_lvl = 1;
 	int i, rc;
 
@@ -8007,14 +8077,20 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
 	l2_qps = ctxm->qp_l2_entries;
 	qp1_qps = ctxm->qp_qp1_entries;
+	fast_qpmd_qps = ctxm->qp_fast_qpmd_entries;
 	max_qps = ctxm->max_entries;
 	ctxm = &ctx->ctx_arr[BNXT_CTX_SRQ];
 	srqs = ctxm->srq_l2_entries;
 	max_srqs = ctxm->max_entries;
+	ena = 0;
 	if ((bp->flags & BNXT_FLAG_ROCE_CAP) && !is_kdump_kernel()) {
 		pg_lvl = 2;
 		extra_qps = min_t(u32, 65536, max_qps - l2_qps - qp1_qps);
+		/* allocate extra qps if fw supports RoCE fast qp destroy feature */
+		extra_qps += fast_qpmd_qps;
 		extra_srqs = min_t(u32, 8192, max_srqs - srqs);
+		if (fast_qpmd_qps)
+			ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_QP_FAST_QPMD;
 	}
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_QP];
@@ -8044,7 +8120,6 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	if (rc)
 		return rc;
 
-	ena = 0;
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
 		goto skip_rdma;
 
@@ -8061,7 +8136,7 @@ static int bnxt_alloc_ctx_mem(struct bnxt *bp)
 	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, num_mr + num_ah, 2);
 	if (rc)
 		return rc;
-	ena = FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
+	ena |= FUNC_BACKING_STORE_CFG_REQ_ENABLES_MRAV;
 
 	ctxm = &ctx->ctx_arr[BNXT_CTX_TIM];
 	rc = bnxt_setup_ctxm_pg_tbls(bp, ctxm, l2_qps + qp1_qps + extra_qps, 1);
@@ -8273,10 +8348,14 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		bp->fw_cap |= BNXT_FW_CAP_LIVEPATCH;
 	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_BS_V2_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_BACKING_STORE_V2;
+	if (flags_ext & FUNC_QCAPS_RESP_FLAGS_EXT_TX_COAL_CMPL_CAP)
+		bp->flags |= BNXT_FLAG_TX_COAL_CMPL;
 
 	flags_ext2 = le32_to_cpu(resp->flags_ext2);
 	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_RX_ALL_PKTS_TIMESTAMPS_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_RX_ALL_PKT_TS;
+	if (flags_ext2 & FUNC_QCAPS_RESP_FLAGS_EXT2_UDP_GSO_SUPPORTED)
+		bp->flags |= BNXT_FLAG_UDP_GSO_CAP;
 
 	bp->tx_push_thresh = 0;
 	if ((flags & FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED) &&
@@ -11977,9 +12056,10 @@ static bool bnxt_udp_tunl_check(struct bnxt *bp, struct sk_buff *skb)
 	struct udphdr *uh = udp_hdr(skb);
 	__be16 udp_port = uh->dest;
 
-	if (udp_port != bp->vxlan_port && udp_port != bp->nge_port)
+	if (udp_port != bp->vxlan_port && udp_port != bp->nge_port &&
+	    udp_port != bp->vxlan_gpe_port)
 		return false;
-	if (skb->inner_protocol_type == ENCAP_TYPE_ETHER) {
+	if (skb->inner_protocol == htons(ETH_P_TEB)) {
 		struct ethhdr *eh = inner_eth_hdr(skb);
 
 		switch (eh->h_proto) {
@@ -11990,6 +12070,11 @@ static bool bnxt_udp_tunl_check(struct bnxt *bp, struct sk_buff *skb)
 						 skb_inner_network_offset(skb),
 						 NULL);
 		}
+	} else if (skb->inner_protocol == htons(ETH_P_IP)) {
+		return true;
+	} else if (skb->inner_protocol == htons(ETH_P_IPV6)) {
+		return bnxt_exthdr_check(bp, skb, skb_inner_network_offset(skb),
+					 NULL);
 	}
 	return false;
 }
@@ -12721,13 +12806,13 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (tcs)
 		tx_sets = tcs;
 
-	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		rx_rings <<= 1;
-
 	_bnxt_get_max_rings(bp, &max_rx, &max_tx, &max_cp);
 
 	if (max_rx < rx_rings)
 		return -ENOMEM;
+
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		rx_rings <<= 1;
 
 	tx_rings_needed = tx * tx_sets + tx_xdp;
 	if (max_tx < tx_rings_needed)
@@ -13648,9 +13733,11 @@ static int bnxt_udp_tunnel_set_port(struct net_device *netdev, unsigned int tabl
 	unsigned int cmd;
 
 	if (ti->type == UDP_TUNNEL_TYPE_VXLAN)
-		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN;
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN;
+	else if (ti->type == UDP_TUNNEL_TYPE_GENEVE)
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE;
 	else
-		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE;
+		cmd = TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN_GPE;
 
 	return bnxt_hwrm_tunnel_dst_port_alloc(bp, ti->port, cmd);
 }
@@ -13663,8 +13750,10 @@ static int bnxt_udp_tunnel_unset_port(struct net_device *netdev, unsigned int ta
 
 	if (ti->type == UDP_TUNNEL_TYPE_VXLAN)
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN;
-	else
+	else if (ti->type == UDP_TUNNEL_TYPE_GENEVE)
 		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_GENEVE;
+	else
+		cmd = TUNNEL_DST_PORT_FREE_REQ_TUNNEL_TYPE_VXLAN_GPE;
 
 	return bnxt_hwrm_tunnel_dst_port_free(bp, cmd);
 }
@@ -13677,6 +13766,16 @@ static const struct udp_tunnel_nic_info bnxt_udp_tunnels = {
 	.tables		= {
 		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
 		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+	},
+}, bnxt_udp_tunnels_p7 = {
+	.set_port	= bnxt_udp_tunnel_set_port,
+	.unset_port	= bnxt_udp_tunnel_unset_port,
+	.flags		= UDP_TUNNEL_NIC_INFO_MAY_SLEEP |
+			  UDP_TUNNEL_NIC_INFO_OPEN_ONLY,
+	.tables		= {
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN,  },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_GENEVE, },
+		{ .n_entries = 1, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN_GPE, },
 	},
 };
 
@@ -13885,9 +13984,12 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		if (*max_cp < (*max_rx + *max_tx)) {
-			*max_rx = *max_cp / 2;
-			*max_tx = *max_rx;
+		int rc;
+
+		rc = __bnxt_trim_rings(bp, max_rx, max_tx, *max_cp, false);
+		if (rc) {
+			*max_rx = 0;
+			*max_tx = 0;
 		}
 		/* On P5 chips, max_cp output param should be available NQs */
 		*max_cp = max_irq;
@@ -14260,6 +14362,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
 			   NETIF_F_GSO_PARTIAL | NETIF_F_RXHASH |
 			   NETIF_F_RXCSUM | NETIF_F_GRO;
+	if (bp->flags & BNXT_FLAG_UDP_GSO_CAP)
+		dev->hw_features |= NETIF_F_GSO_UDP_L4;
 
 	if (BNXT_SUPPORTS_TPA(bp))
 		dev->hw_features |= NETIF_F_LRO;
@@ -14270,7 +14374,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
 			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM |
 			NETIF_F_GSO_IPXIP4 | NETIF_F_GSO_PARTIAL;
-	dev->udp_tunnel_nic_info = &bnxt_udp_tunnels;
+	if (bp->flags & BNXT_FLAG_UDP_GSO_CAP)
+		dev->hw_enc_features |= NETIF_F_GSO_UDP_L4;
+	if (bp->flags & BNXT_FLAG_CHIP_P7)
+		dev->udp_tunnel_nic_info = &bnxt_udp_tunnels_p7;
+	else
+		dev->udp_tunnel_nic_info = &bnxt_udp_tunnels;
 
 	dev->gso_partial_features = NETIF_F_GSO_UDP_TUNNEL_CSUM |
 				    NETIF_F_GSO_GRE_CSUM;

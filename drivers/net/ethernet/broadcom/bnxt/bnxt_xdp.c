@@ -173,7 +173,7 @@ void bnxt_tx_int_xdp(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 	bnapi->events &= ~BNXT_TX_CMP_EVENT;
 	WRITE_ONCE(txr->tx_cons, tx_cons);
 	if (rx_doorbell_needed) {
-		tx_buf = &txr->tx_buf_ring[last_tx_cons];
+		tx_buf = &txr->tx_buf_ring[RING_TX(bp, last_tx_cons)];
 		bnxt_db_write(bp, &rxr->rx_db, tx_buf->rx_prod);
 
 	}

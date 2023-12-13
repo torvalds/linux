@@ -2044,9 +2044,11 @@ struct bnxt {
 	#define BNXT_FLAG_MULTI_HOST	0x100000
 	#define BNXT_FLAG_DSN_VALID	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
+	#define BNXT_FLAG_UDP_GSO_CAP	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 	#define BNXT_FLAG_DIM		0x2000000
 	#define BNXT_FLAG_ROCE_MIRROR_CAP	0x4000000
+	#define BNXT_FLAG_TX_COAL_CMPL	0x8000000
 	#define BNXT_FLAG_PORT_STATS_EXT	0x10000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -2239,6 +2241,7 @@ struct bnxt {
 	#define BNXT_FW_CAP_DFLT_VLAN_TPID_PCP		BIT_ULL(34)
 	#define BNXT_FW_CAP_PRE_RESV_VNICS		BIT_ULL(35)
 	#define BNXT_FW_CAP_BACKING_STORE_V2		BIT_ULL(36)
+	#define BNXT_FW_CAP_VNIC_TUNNEL_TPA		BIT_ULL(37)
 
 	u32			fw_dbg_cap;
 
@@ -2283,8 +2286,10 @@ struct bnxt {
 
 	u16			vxlan_fw_dst_port_id;
 	u16			nge_fw_dst_port_id;
+	u16			vxlan_gpe_fw_dst_port_id;
 	__be16			vxlan_port;
 	__be16			nge_port;
+	__be16			vxlan_gpe_port;
 	u8			port_partition_type;
 	u8			port_count;
 	u16			br_mode;
