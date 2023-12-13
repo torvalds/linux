@@ -3427,6 +3427,7 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT = 16,
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU = 17,
 	RTW89_FW_ELEMENT_ID_TXPWR_TRK = 18,
+	RTW89_FW_ELEMENT_ID_RFKLOG_FMT = 19,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -3542,6 +3543,13 @@ struct rtw89_fw_element_hdr {
 			__le32 rsvd;
 			s8 contents[][DELTA_SWINGIDX_SIZE];
 		} __packed txpwr_trk;
+		struct {
+			u8 nr;
+			u8 rsvd[3];
+			u8 rfk_id; /* enum rtw89_phy_c2h_rfk_log_func */
+			u8 rsvd1[3];
+			__le16 offset[];
+		} __packed rfk_log_fmt;
 		struct __rtw89_fw_txpwr_element txpwr;
 	} __packed u;
 } __packed;

@@ -729,6 +729,31 @@ err:
 	return -EFAULT;
 }
 
+static
+int rtw89_build_rfk_log_fmt_from_elm(struct rtw89_dev *rtwdev,
+				     const struct rtw89_fw_element_hdr *elm,
+				     const union rtw89_fw_element_arg arg)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	u8 rfk_id;
+
+	if (elm_info->rfk_log_fmt)
+		goto allocated;
+
+	elm_info->rfk_log_fmt = kzalloc(sizeof(*elm_info->rfk_log_fmt), GFP_KERNEL);
+	if (!elm_info->rfk_log_fmt)
+		return 1; /* this is an optional element, so just ignore this */
+
+allocated:
+	rfk_id = elm->u.rfk_log_fmt.rfk_id;
+	if (rfk_id >= RTW89_PHY_C2H_RFK_LOG_FUNC_NUM)
+		return 1;
+
+	elm_info->rfk_log_fmt->elm[rfk_id] = elm;
+
+	return 0;
+}
+
 static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	[RTW89_FW_ELEMENT_ID_BBMCU0] = {__rtw89_fw_recognize_from_elm,
 					{ .fw_type = RTW89_FW_BBMCU0 }, NULL},
@@ -783,6 +808,9 @@ static const struct rtw89_fw_element_handler __fw_element_handlers[] = {
 	},
 	[RTW89_FW_ELEMENT_ID_TXPWR_TRK] = {
 		rtw89_build_txpwr_trk_tbl_from_elm, {}, "PWR_TRK",
+	},
+	[RTW89_FW_ELEMENT_ID_RFKLOG_FMT] = {
+		rtw89_build_rfk_log_fmt_from_elm, {}, NULL,
 	},
 };
 
@@ -1221,6 +1249,7 @@ static void rtw89_unload_firmware_elements(struct rtw89_dev *rtwdev)
 	rtw89_free_phy_tbl_from_elm(elm_info->rf_nctl);
 
 	kfree(elm_info->txpwr_trk);
+	kfree(elm_info->rfk_log_fmt);
 }
 
 void rtw89_unload_firmware(struct rtw89_dev *rtwdev)

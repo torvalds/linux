@@ -136,6 +136,17 @@ enum rtw89_phy_c2h_ra_func {
 	RTW89_PHY_C2H_FUNC_RA_MAX,
 };
 
+enum rtw89_phy_c2h_rfk_log_func {
+	RTW89_PHY_C2H_RFK_LOG_FUNC_IQK = 0,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_DPK = 1,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_DACK = 2,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK = 3,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI = 4,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK = 5,
+
+	RTW89_PHY_C2H_RFK_LOG_FUNC_NUM,
+};
+
 enum rtw89_phy_c2h_dm_func {
 	RTW89_PHY_C2H_DM_FUNC_FW_TEST,
 	RTW89_PHY_C2H_DM_FUNC_FW_TRIG_TX_RPT,
@@ -481,6 +492,10 @@ struct rtw89_txpwr_limit_ru_be {
 	s8 ru106[RTW89_RU_SEC_NUM_BE];
 	s8 ru52_26[RTW89_RU_SEC_NUM_BE];
 	s8 ru106_26[RTW89_RU_SEC_NUM_BE];
+};
+
+struct rtw89_phy_rfk_log_fmt {
+	const struct rtw89_fw_element_hdr *elm[RTW89_PHY_C2H_RFK_LOG_FUNC_NUM];
 };
 
 struct rtw89_phy_gen_def {
