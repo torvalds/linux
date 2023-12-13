@@ -16,7 +16,7 @@
  *
  * The XDP RX-queue info (xdp_rxq_info) is associated with the driver
  * level RX-ring queues.  It is information that is specific to how
- * the driver have configured a given RX-ring queue.
+ * the driver has configured a given RX-ring queue.
  *
  * Each xdp_buff frame received in the driver carries a (pointer)
  * reference to this xdp_rxq_info structure.  This provides the XDP
@@ -32,7 +32,7 @@
  * The struct is not directly tied to the XDP prog.  A new XDP prog
  * can be attached as long as it doesn't change the underlying
  * RX-ring.  If the RX-ring does change significantly, the NIC driver
- * naturally need to stop the RX-ring before purging and reallocating
+ * naturally needs to stop the RX-ring before purging and reallocating
  * memory.  In that process the driver MUST call unregister (which
  * also applies for driver shutdown and unload).  The register API is
  * also mandatory during RX-ring setup.
