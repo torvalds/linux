@@ -112,7 +112,6 @@ struct rt_hi_throughput {
 	u8 forced_mpdu_density;
 	u8 forced_short_gi;
 	u8 current_op_mode;
-	u8 peer_mimo_ps;
 	enum ht_extchnl_offset CurSTAExtChnlOffset;
 	u8 cur_tx_bw40mhz;
 	u8 sw_bw_in_progress;

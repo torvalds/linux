@@ -507,11 +507,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11ht_oper_rate_set);
 
-	ht_info->peer_mimo_ps = pPeerHTCap->MimoPwrSave;
-	if (ht_info->peer_mimo_ps == MIMO_PS_STATIC)
-		pMcsFilter = MCS_FILTER_1SS;
-	else
-		pMcsFilter = MCS_FILTER_ALL;
+	pMcsFilter = MCS_FILTER_ALL;
 	ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee,
 						       ieee->dot11ht_oper_rate_set,
 						       pMcsFilter);

@@ -1753,10 +1753,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		ratr_value &= 0x00000FF7;
 		break;
 	case WIRELESS_MODE_N_24G:
-		if (ieee->ht_info->peer_mimo_ps == 0)
-			ratr_value &= 0x0007F007;
-		else
-			ratr_value &= 0x000FF007;
+		ratr_value &= 0x000FF007;
 		break;
 	default:
 		break;
