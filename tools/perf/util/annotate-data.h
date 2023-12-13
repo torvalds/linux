@@ -10,16 +10,35 @@
 struct map_symbol;
 
 /**
+ * struct annotated_member - Type of member field
+ * @node: List entry in the parent list
+ * @children: List head for child nodes
+ * @type_name: Name of the member type
+ * @var_name: Name of the member variable
+ * @offset: Offset from the outer data type
+ * @size: Size of the member field
+ *
+ * This represents a member type in a data type.
+ */
+struct annotated_member {
+	struct list_head node;
+	struct list_head children;
+	char *type_name;
+	char *var_name;
+	int offset;
+	int size;
+};
+
+/**
  * struct annotated_data_type - Data type to profile
- * @type_name: Name of the data type
- * @type_size: Size of the data type
+ * @node: RB-tree node for dso->type_tree
+ * @self: Actual type information
  *
  * This represents a data type accessed by samples in the profile data.
  */
 struct annotated_data_type {
 	struct rb_node node;
-	char *type_name;
-	int type_size;
+	struct annotated_member self;
 };
 
 extern struct annotated_data_type unknown_type;

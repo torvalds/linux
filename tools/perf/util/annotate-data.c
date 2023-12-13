@@ -31,9 +31,9 @@ static int data_type_cmp(const void *_key, const struct rb_node *node)
 
 	type = rb_entry(node, struct annotated_data_type, node);
 
-	if (key->type_size != type->type_size)
-		return key->type_size - type->type_size;
-	return strcmp(key->type_name, type->type_name);
+	if (key->self.size != type->self.size)
+		return key->self.size - type->self.size;
+	return strcmp(key->self.type_name, type->self.type_name);
 }
 
 static bool data_type_less(struct rb_node *node_a, const struct rb_node *node_b)
@@ -43,9 +43,80 @@ static bool data_type_less(struct rb_node *node_a, const struct rb_node *node_b)
 	a = rb_entry(node_a, struct annotated_data_type, node);
 	b = rb_entry(node_b, struct annotated_data_type, node);
 
-	if (a->type_size != b->type_size)
-		return a->type_size < b->type_size;
-	return strcmp(a->type_name, b->type_name) < 0;
+	if (a->self.size != b->self.size)
+		return a->self.size < b->self.size;
+	return strcmp(a->self.type_name, b->self.type_name) < 0;
+}
+
+/* Recursively add new members for struct/union */
+static int __add_member_cb(Dwarf_Die *die, void *arg)
+{
+	struct annotated_member *parent = arg;
+	struct annotated_member *member;
+	Dwarf_Die member_type, die_mem;
+	Dwarf_Word size, loc;
+	Dwarf_Attribute attr;
+	struct strbuf sb;
+	int tag;
+
+	if (dwarf_tag(die) != DW_TAG_member)
+		return DIE_FIND_CB_SIBLING;
+
+	member = zalloc(sizeof(*member));
+	if (member == NULL)
+		return DIE_FIND_CB_END;
+
+	strbuf_init(&sb, 32);
+	die_get_typename(die, &sb);
+
+	die_get_real_type(die, &member_type);
+	if (dwarf_aggregate_size(&member_type, &size) < 0)
+		size = 0;
+
+	if (!dwarf_attr_integrate(die, DW_AT_data_member_location, &attr))
+		loc = 0;
+	else
+		dwarf_formudata(&attr, &loc);
+
+	member->type_name = strbuf_detach(&sb, NULL);
+	/* member->var_name can be NULL */
+	if (dwarf_diename(die))
+		member->var_name = strdup(dwarf_diename(die));
+	member->size = size;
+	member->offset = loc + parent->offset;
+	INIT_LIST_HEAD(&member->children);
+	list_add_tail(&member->node, &parent->children);
+
+	tag = dwarf_tag(&member_type);
+	switch (tag) {
+	case DW_TAG_structure_type:
+	case DW_TAG_union_type:
+		die_find_child(&member_type, __add_member_cb, member, &die_mem);
+		break;
+	default:
+		break;
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+static void add_member_types(struct annotated_data_type *parent, Dwarf_Die *type)
+{
+	Dwarf_Die die_mem;
+
+	die_find_child(type, __add_member_cb, &parent->self, &die_mem);
+}
+
+static void delete_members(struct annotated_member *member)
+{
+	struct annotated_member *child, *tmp;
+
+	list_for_each_entry_safe(child, tmp, &member->children, node) {
+		list_del(&child->node);
+		delete_members(child);
+		free(child->type_name);
+		free(child->var_name);
+		free(child);
+	}
 }
 
 static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
@@ -65,8 +136,8 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 	dwarf_aggregate_size(type_die, &size);
 
 	/* Check existing nodes in dso->data_types tree */
-	key.type_name = type_name;
-	key.type_size = size;
+	key.self.type_name = type_name;
+	key.self.size = size;
 	node = rb_find(&key, &dso->data_types, data_type_cmp);
 	if (node) {
 		result = rb_entry(node, struct annotated_data_type, node);
@@ -81,8 +152,15 @@ static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 		return NULL;
 	}
 
-	result->type_name = type_name;
-	result->type_size = size;
+	result->self.type_name = type_name;
+	result->self.size = size;
+	INIT_LIST_HEAD(&result->self.children);
+
+	/*
+	 * Fill member info unconditionally for now,
+	 * later perf annotate would need it.
+	 */
+	add_member_types(result, type_die);
 
 	rb_add(&result->node, &dso->data_types, data_type_less);
 	return result;
@@ -233,7 +311,8 @@ void annotated_data_type__tree_delete(struct rb_root *root)
 
 		rb_erase(node, root);
 		pos = rb_entry(node, struct annotated_data_type, node);
-		free(pos->type_name);
+		delete_members(&pos->self);
+		free(pos->self.type_name);
 		free(pos);
 	}
 }

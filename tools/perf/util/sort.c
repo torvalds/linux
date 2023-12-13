@@ -2135,7 +2135,10 @@ struct sort_entry sort_addr = {
 /* --sort type */
 
 struct annotated_data_type unknown_type = {
-	.type_name = (char *)"(unknown)",
+	.self = {
+		.type_name = (char *)"(unknown)",
+		.children = LIST_HEAD_INIT(unknown_type.self.children),
+	},
 };
 
 static int64_t
@@ -2170,7 +2173,7 @@ sort__type_collapse(struct hist_entry *left, struct hist_entry *right)
 		right_type = right->mem_type;
 	}
 
-	return strcmp(left_type->type_name, right_type->type_name);
+	return strcmp(left_type->self.type_name, right_type->self.type_name);
 }
 
 static int64_t
@@ -2182,7 +2185,7 @@ sort__type_sort(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__type_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*s", width, he->mem_type->type_name);
+	return repsep_snprintf(bf, size, "%-*s", width, he->mem_type->self.type_name);
 }
 
 struct sort_entry sort_type = {
