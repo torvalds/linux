@@ -7,6 +7,7 @@
 #include <linux/rbtree.h>
 #include <linux/types.h>
 
+struct evsel;
 struct map_symbol;
 
 /**
@@ -30,15 +31,41 @@ struct annotated_member {
 };
 
 /**
+ * struct type_hist_entry - Histogram entry per offset
+ * @nr_samples: Number of samples
+ * @period: Count of event
+ */
+struct type_hist_entry {
+	int nr_samples;
+	u64 period;
+};
+
+/**
+ * struct type_hist - Type histogram for each event
+ * @nr_samples: Total number of samples in this data type
+ * @period: Total count of the event in this data type
+ * @offset: Array of histogram entry
+ */
+struct type_hist {
+	u64			nr_samples;
+	u64			period;
+	struct type_hist_entry	addr[];
+};
+
+/**
  * struct annotated_data_type - Data type to profile
  * @node: RB-tree node for dso->type_tree
  * @self: Actual type information
+ * @nr_histogram: Number of histogram entries
+ * @histograms: An array of pointers to histograms
  *
  * This represents a data type accessed by samples in the profile data.
  */
 struct annotated_data_type {
 	struct rb_node node;
 	struct annotated_member self;
+	int nr_histograms;
+	struct type_hist **histograms;
 };
 
 extern struct annotated_data_type unknown_type;
@@ -48,6 +75,11 @@ extern struct annotated_data_type unknown_type;
 /* Returns data type at the location (ip, reg, offset) */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 					   int reg, int offset);
+
+/* Update type access histogram at the given offset */
+int annotated_data_type__update_samples(struct annotated_data_type *adt,
+					struct evsel *evsel, int offset,
+					int nr_samples, u64 period);
 
 /* Release all data type information in the tree */
 void annotated_data_type__tree_delete(struct rb_root *root);
@@ -59,6 +91,16 @@ find_data_type(struct map_symbol *ms __maybe_unused, u64 ip __maybe_unused,
 	       int reg __maybe_unused, int offset __maybe_unused)
 {
 	return NULL;
+}
+
+static inline int
+annotated_data_type__update_samples(struct annotated_data_type *adt __maybe_unused,
+				    struct evsel *evsel __maybe_unused,
+				    int offset __maybe_unused,
+				    int nr_samples __maybe_unused,
+				    u64 period __maybe_unused)
+{
+	return -1;
 }
 
 static inline void annotated_data_type__tree_delete(struct rb_root *root __maybe_unused)

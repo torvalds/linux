@@ -13,6 +13,8 @@
 #include "debuginfo.h"
 #include "debug.h"
 #include "dso.h"
+#include "evsel.h"
+#include "evlist.h"
 #include "map.h"
 #include "map_symbol.h"
 #include "strbuf.h"
@@ -302,6 +304,44 @@ out:
 	return result;
 }
 
+static int alloc_data_type_histograms(struct annotated_data_type *adt, int nr_entries)
+{
+	int i;
+	size_t sz = sizeof(struct type_hist);
+
+	sz += sizeof(struct type_hist_entry) * adt->self.size;
+
+	/* Allocate a table of pointers for each event */
+	adt->nr_histograms = nr_entries;
+	adt->histograms = calloc(nr_entries, sizeof(*adt->histograms));
+	if (adt->histograms == NULL)
+		return -ENOMEM;
+
+	/*
+	 * Each histogram is allocated for the whole size of the type.
+	 * TODO: Probably we can move the histogram to members.
+	 */
+	for (i = 0; i < nr_entries; i++) {
+		adt->histograms[i] = zalloc(sz);
+		if (adt->histograms[i] == NULL)
+			goto err;
+	}
+	return 0;
+
+err:
+	while (--i >= 0)
+		free(adt->histograms[i]);
+	free(adt->histograms);
+	return -ENOMEM;
+}
+
+static void delete_data_type_histograms(struct annotated_data_type *adt)
+{
+	for (int i = 0; i < adt->nr_histograms; i++)
+		free(adt->histograms[i]);
+	free(adt->histograms);
+}
+
 void annotated_data_type__tree_delete(struct rb_root *root)
 {
 	struct annotated_data_type *pos;
@@ -312,7 +352,48 @@ void annotated_data_type__tree_delete(struct rb_root *root)
 		rb_erase(node, root);
 		pos = rb_entry(node, struct annotated_data_type, node);
 		delete_members(&pos->self);
+		delete_data_type_histograms(pos);
 		free(pos->self.type_name);
 		free(pos);
 	}
+}
+
+/**
+ * annotated_data_type__update_samples - Update histogram
+ * @adt: Data type to update
+ * @evsel: Event to update
+ * @offset: Offset in the type
+ * @nr_samples: Number of samples at this offset
+ * @period: Event count at this offset
+ *
+ * This function updates type histogram at @ofs for @evsel.  Samples are
+ * aggregated before calling this function so it can be called with more
+ * than one samples at a certain offset.
+ */
+int annotated_data_type__update_samples(struct annotated_data_type *adt,
+					struct evsel *evsel, int offset,
+					int nr_samples, u64 period)
+{
+	struct type_hist *h;
+
+	if (adt == NULL)
+		return 0;
+
+	if (adt->histograms == NULL) {
+		int nr = evsel->evlist->core.nr_entries;
+
+		if (alloc_data_type_histograms(adt, nr) < 0)
+			return -1;
+	}
+
+	if (offset < 0 || offset >= adt->self.size)
+		return -1;
+
+	h = adt->histograms[evsel->core.idx];
+
+	h->nr_samples += nr_samples;
+	h->addr[offset].nr_samples += nr_samples;
+	h->period += period;
+	h->addr[offset].period += period;
+	return 0;
 }
