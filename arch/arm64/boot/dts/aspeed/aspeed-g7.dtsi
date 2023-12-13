@@ -420,6 +420,9 @@
 				compatible = "aspeed,ast2700-ufshc";
 				reg = <0 0x200 0 0x100>;
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&syscon0 AST2700_SOC0_CLK_AXI1>;
+				clock-names = "core_clk";
+				freq-table-hz = <0 0>;
 				status = "disable";
 			};
 		};
