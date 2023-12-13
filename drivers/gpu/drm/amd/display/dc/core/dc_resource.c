@@ -4773,7 +4773,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 			option = DITHER_OPTION_SPATIAL8;
 			break;
 		case COLOR_DEPTH_101010:
-			option = DITHER_OPTION_SPATIAL10;
+			option = DITHER_OPTION_TRUN10;
 			break;
 		default:
 			option = DITHER_OPTION_DISABLE;
@@ -4799,6 +4799,8 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 			option == DITHER_OPTION_TRUN10_SPATIAL8_FM6) {
 		fmt_bit_depth->flags.TRUNCATE_ENABLED = 1;
 		fmt_bit_depth->flags.TRUNCATE_DEPTH = 2;
+		if (option == DITHER_OPTION_TRUN10)
+			fmt_bit_depth->flags.TRUNCATE_MODE = 1;
 	}
 
 	/* special case - Formatter can only reduce by 4 bits at most.

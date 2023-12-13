@@ -232,6 +232,7 @@ union MESAPI_SET_HW_RESOURCES {
 		};
 		uint32_t	oversubscription_timer;
 		uint64_t        doorbell_info;
+		uint64_t        event_intr_history_gpu_mc_ptr;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

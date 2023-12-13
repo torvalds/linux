@@ -98,6 +98,26 @@ static int amdgpu_mes_doorbell_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int amdgpu_mes_event_log_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &adev->mes.event_log_gpu_obj,
+				    &adev->mes.event_log_gpu_addr,
+				    &adev->mes.event_log_cpu_addr);
+	if (r) {
+		dev_warn(adev->dev, "failed to create MES event log buffer (%d)", r);
+		return r;
+	}
+
+	memset(adev->mes.event_log_cpu_addr, 0, PAGE_SIZE);
+
+	return  0;
+
+}
+
 static void amdgpu_mes_doorbell_free(struct amdgpu_device *adev)
 {
 	bitmap_free(adev->mes.doorbell_bitmap);
@@ -182,8 +202,14 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	if (r)
 		goto error;
 
+	r = amdgpu_mes_event_log_init(adev);
+	if (r)
+		goto error_doorbell;
+
 	return 0;
 
+error_doorbell:
+	amdgpu_mes_doorbell_free(adev);
 error:
 	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
 	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
@@ -199,6 +225,10 @@ error_ids:
 
 void amdgpu_mes_fini(struct amdgpu_device *adev)
 {
+	amdgpu_bo_free_kernel(&adev->mes.event_log_gpu_obj,
+			      &adev->mes.event_log_gpu_addr,
+			      &adev->mes.event_log_cpu_addr);
+
 	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
 	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
 	amdgpu_device_wb_free(adev, adev->mes.read_val_offs);
@@ -1478,4 +1508,35 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 out:
 	amdgpu_ucode_release(&adev->mes.fw[pipe]);
 	return r;
+}
+
+#if defined(CONFIG_DEBUG_FS)
+
+static int amdgpu_debugfs_mes_event_log_show(struct seq_file *m, void *unused)
+{
+	struct amdgpu_device *adev = m->private;
+	uint32_t *mem = (uint32_t *)(adev->mes.event_log_cpu_addr);
+
+	seq_hex_dump(m, "", DUMP_PREFIX_OFFSET, 32, 4,
+		     mem, PAGE_SIZE, false);
+
+	return 0;
+}
+
+
+DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_mes_event_log);
+
+#endif
+
+void amdgpu_debugfs_mes_event_log_init(struct amdgpu_device *adev)
+{
+
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+
+	debugfs_create_file("amdgpu_mes_event_log", 0444, root,
+			    adev, &amdgpu_debugfs_mes_event_log_fops);
+
+#endif
 }

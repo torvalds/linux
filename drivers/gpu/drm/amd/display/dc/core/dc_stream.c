@@ -467,6 +467,52 @@ bool dc_stream_add_writeback(struct dc *dc,
 		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
 		dwb->otg_inst = stream_status->primary_otg_inst;
 	}
+
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	/* enable writeback */
+	if (dc->hwss.enable_writeback) {
+		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
+
+		if (dwb->funcs->is_enabled(dwb)) {
+			/* writeback pipe already enabled, only need to update */
+			dc->hwss.update_writeback(dc, wb_info, dc->current_state);
+		} else {
+			/* Enable writeback pipe from scratch*/
+			dc->hwss.enable_writeback(dc, wb_info, dc->current_state);
+		}
+	}
+
+	return true;
+}
+
+bool dc_stream_fc_disable_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t dwb_pipe_inst)
+{
+	struct dwbc *dwb = dc->res_pool->dwbc[dwb_pipe_inst];
+
+	if (stream == NULL) {
+		dm_error("DC: dc_stream is NULL!\n");
+		return false;
+	}
+
+	if (dwb_pipe_inst >= MAX_DWB_PIPES) {
+		dm_error("DC: writeback pipe is invalid!\n");
+		return false;
+	}
+
+	if (stream->num_wb_info > MAX_DWB_PIPES) {
+		dm_error("DC: num_wb_info is invalid!\n");
+		return false;
+	}
+
+	if (dwb->funcs->set_fc_enable)
+		dwb->funcs->set_fc_enable(dwb, DWB_FRAME_CAPTURE_DISABLE);
+
 	return true;
 }
 
@@ -490,26 +536,36 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		return false;
 	}
 
-//	stream->writeback_info[dwb_pipe_inst].wb_enabled = false;
-	for (i = 0; i < stream->num_wb_info; i++) {
-		/*dynamic update*/
-		if (stream->writeback_info[i].wb_enabled &&
-			stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst) {
-			stream->writeback_info[i].wb_enabled = false;
-		}
-	}
-
 	/* remove writeback info for disabled writeback pipes from stream */
 	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
 		if (stream->writeback_info[i].wb_enabled) {
-			if (j < i)
-				/* trim the array */
+
+			if (stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst)
+				stream->writeback_info[i].wb_enabled = false;
+
+			/* trim the array */
+			if (j < i) {
 				memcpy(&stream->writeback_info[j], &stream->writeback_info[i],
 						sizeof(struct dc_writeback_info));
-			j++;
+				j++;
+			}
 		}
 	}
 	stream->num_wb_info = j;
+
+	/* recalculate and apply DML parameters */
+	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {
+		dm_error("DC: update_bandwidth failed!\n");
+		return false;
+	}
+
+	/* disable writeback */
+	if (dc->hwss.disable_writeback) {
+		struct dwbc *dwb = dc->res_pool->dwbc[dwb_pipe_inst];
+
+		if (dwb->funcs->is_enabled(dwb))
+			dc->hwss.disable_writeback(dc, dwb_pipe_inst);
+	}
 
 	return true;
 }

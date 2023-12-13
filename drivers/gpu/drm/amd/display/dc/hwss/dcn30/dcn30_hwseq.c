@@ -367,6 +367,10 @@ void dcn30_enable_writeback(
 	DC_LOG_DWB("%s dwb_pipe_inst = %d, mpcc_inst = %d",\
 		__func__, wb_info->dwb_pipe_inst,\
 		wb_info->mpcc_inst);
+
+	/* Warmup interface */
+	dcn30_mmhubbub_warmup(dc, 1, wb_info);
+
 	/* Update writeback pipe */
 	dcn30_set_writeback(dc, wb_info, context);
 

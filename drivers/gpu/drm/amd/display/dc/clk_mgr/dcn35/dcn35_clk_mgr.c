@@ -80,12 +80,12 @@
 
 static int dcn35_get_active_display_cnt_wa(
 		struct dc *dc,
-		struct dc_state *context)
+		struct dc_state *context,
+		int *all_active_disps)
 {
-	int i, display_count;
+	int i, display_count = 0;
 	bool tmds_present = false;
 
-	display_count = 0;
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_stream_state *stream = context->streams[i];
 
@@ -103,7 +103,8 @@ static int dcn35_get_active_display_cnt_wa(
 				link->link_enc->funcs->is_dig_enabled(link->link_enc))
 			display_count++;
 	}
-
+	if (all_active_disps != NULL)
+		*all_active_disps = display_count;
 	/* WA for hang on HDMI after display off back on*/
 	if (display_count == 0 && tmds_present)
 		display_count = 1;
@@ -126,21 +127,13 @@ static void dcn35_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *
 			continue;
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal) ||
 				     !pipe->stream->link_enc)) {
-			struct stream_encoder *stream_enc = pipe->stream_res.stream_enc;
-
 			if (disable) {
-				if (stream_enc && stream_enc->funcs->disable_fifo)
-					pipe->stream_res.stream_enc->funcs->disable_fifo(stream_enc);
-
 				if (pipe->stream_res.tg && pipe->stream_res.tg->funcs->immediate_disable_crtc)
 					pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
 
 				reset_sync_context_for_pipe(dc, context, i);
 			} else {
 				pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
-
-				if (stream_enc && stream_enc->funcs->enable_fifo)
-					pipe->stream_res.stream_enc->funcs->enable_fifo(stream_enc);
 			}
 		}
 	}
@@ -224,15 +217,16 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	int display_count;
+	int display_count = 0;
 	bool update_dppclk = false;
 	bool update_dispclk = false;
 	bool dpp_clock_lowered = false;
+	int all_active_disps = 0;
 
 	if (dc->work_arounds.skip_clock_update)
 		return;
 
-	/* DTBCLK is fixed, so set a default if unspecified. */
+	display_count = dcn35_get_active_display_cnt_wa(dc, context, &all_active_disps);
 	if (new_clocks->dtbclk_en && !new_clocks->ref_dtbclk_khz)
 		new_clocks->ref_dtbclk_khz = 600000;
 
@@ -254,7 +248,6 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 		/* check that we're not already in lower */
 		if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
-			display_count = dcn35_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
 			if (display_count == 0)
 				clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;
@@ -826,7 +819,7 @@ static void dcn35_set_low_power_state(struct clk_mgr *clk_mgr_base)
 	struct dc_state *context = dc->current_state;
 
 	if (clk_mgr_base->clks.pwr_state != DCN_PWR_STATE_LOW_POWER) {
-		display_count = dcn35_get_active_display_cnt_wa(dc, context);
+		display_count = dcn35_get_active_display_cnt_wa(dc, context, NULL);
 		/* if we can go lower, go lower */
 		if (display_count == 0)
 			clk_mgr_base->clks.pwr_state = DCN_PWR_STATE_LOW_POWER;

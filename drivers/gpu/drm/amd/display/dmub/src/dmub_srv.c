@@ -64,7 +64,7 @@
 
 
 /* Default scratch mem size. */
-#define DMUB_SCRATCH_MEM_SIZE (256)
+#define DMUB_SCRATCH_MEM_SIZE (1024)
 
 /* Number of windows in use. */
 #define DMUB_NUM_WINDOWS (DMUB_WINDOW_TOTAL)

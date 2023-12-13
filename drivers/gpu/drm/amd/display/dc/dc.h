@@ -49,7 +49,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.262"
+#define DC_VER "3.2.263"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -1541,7 +1541,13 @@ struct dc_link {
 	bool is_dig_mapping_flexible;
 	bool hpd_status; /* HPD status of link without physical HPD pin. */
 	bool is_hpd_pending; /* Indicates a new received hpd */
-	bool is_automated; /* Indicates automated testing */
+
+	/* USB4 DPIA links skip verifying link cap, instead performing the fallback method
+	 * for every link training. This is incompatible with DP LL compliance automation,
+	 * which expects the same link settings to be used every retry on a link loss.
+	 * This flag is used to skip the fallback when link loss occurs during automation.
+	 */
+	bool skip_fallback_on_link_loss;
 
 	bool edp_sink_present;
 

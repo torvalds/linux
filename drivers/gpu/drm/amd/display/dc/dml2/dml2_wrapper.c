@@ -691,10 +691,15 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_v
 	return out;
 }
 
+static inline struct dml2_context *dml2_allocate_memory(void)
+{
+	return (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+}
+
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
 	// Allocate Mode Lib Ctx
-	*dml2 = (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+	*dml2 = dml2_allocate_memory();
 
 	if (!(*dml2))
 		return false;
@@ -744,4 +749,26 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 {
 	*fclk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.FCLKChangeSupport[0];
 	*dram_clk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.DRAMClockChangeSupport[0];
+}
+
+void dml2_copy(struct dml2_context *dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* copy Mode Lib Ctx */
+	memcpy(dst_dml2, src_dml2, sizeof(struct dml2_context));
+}
+
+bool dml2_create_copy(struct dml2_context **dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* Allocate Mode Lib Ctx */
+	*dst_dml2 = dml2_allocate_memory();
+
+	if (!(*dst_dml2))
+		return false;
+
+	/* copy Mode Lib Ctx */
+	dml2_copy(*dst_dml2, src_dml2);
+
+	return true;
 }

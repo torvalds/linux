@@ -979,6 +979,8 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
 	int i = 0, j = 0;
+	int edp_num = 0;
+	struct dc_link *edp_links[MAX_NUM_EDP] = { NULL };
 
 	memset(update_state, 0, sizeof(struct pg_block_update));
 
@@ -1019,10 +1021,24 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 
 		if (pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_OPP][pipe_ctx->stream_res.opp->inst] = false;
-
-		if (pipe_ctx->stream_res.tg)
-			update_state->pg_pipe_res_update[PG_OPTC][pipe_ctx->stream_res.tg->inst] = false;
 	}
+	/*domain24 controls all the otg, mpc, opp, as long as one otg is still up, avoid enabling OTG PG*/
+	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
+		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+		if (tg && tg->funcs->is_tg_enabled(tg)) {
+			update_state->pg_pipe_res_update[PG_OPTC][i] = false;
+			break;
+		}
+	}
+
+	dc_get_edp_links(dc, edp_links, &edp_num);
+	if (edp_num == 0 ||
+		((!edp_links[0] || !edp_links[0]->edp_sink_present) &&
+			(!edp_links[1] || !edp_links[1]->edp_sink_present))) {
+		/*eDP not exist on this config, keep Domain24 power on, for S0i3, this will be handled in dmubfw*/
+		update_state->pg_pipe_res_update[PG_OPTC][0] = false;
+	}
+
 }
 
 void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
@@ -1156,8 +1172,10 @@ void dcn35_block_power_control(struct dc *dc,
 			pg_cntl->funcs->dwb_pg_control(pg_cntl, power_on);
 	}
 
+	/*this will need all the clients to unregister optc interruts let dmubfw handle this*/
 	if (pg_cntl->funcs->plane_otg_pg_control)
 		pg_cntl->funcs->plane_otg_pg_control(pg_cntl, power_on);
+
 }
 
 void dcn35_root_clock_control(struct dc *dc,

@@ -2192,6 +2192,7 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		int i;
 
 		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+		dcn32_update_dml_pipes_odm_policy_based_on_context(dc, context, pipes);
 
 		/* repopulate_pipes = 1 means the pipes were either split or merged. In this case
 		 * we have to re-calculate the DET allocation and run through DML once more to
@@ -2200,7 +2201,9 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		 * */
 		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
 					dm_prefetch_support_uclk_fclk_and_stutter_if_possible;
+
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+
 		if (vlevel == context->bw_ctx.dml.soc.num_states) {
 			/* failed after DET size changes */
 			goto validate_fail;

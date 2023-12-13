@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2008 Advanced Micro Devices, Inc.
- * Copyright 2008 Red Hat Inc.
- * Copyright 2009 Jerome Glisse.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,16 +20,17 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- */
-/*
- * Debugfs
+ * Authors: AMD
+ *
  */
 
-int amdgpu_debugfs_regs_init(struct amdgpu_device *adev);
-int amdgpu_debugfs_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_fini(struct amdgpu_device *adev);
-void amdgpu_debugfs_fence_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_firmware_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_gem_init(struct amdgpu_device *adev);
-void amdgpu_debugfs_mes_event_log_init(struct amdgpu_device *adev);
+#ifndef __AMDGPU_DM_WB_H__
+#define __AMDGPU_DM_WB_H__
 
+#include <drm/drm_writeback.h>
+
+int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
+				struct amdgpu_dm_wb_connector *dm_wbcon,
+				uint32_t link_index);
+
+#endif

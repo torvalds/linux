@@ -193,6 +193,8 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context);
 
 bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel);
 
+void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
+
 /* definitions for run time init of reg offsets */
 
 /* CLK SRC */
