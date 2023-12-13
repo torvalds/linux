@@ -129,6 +129,7 @@ struct vcpu_reg_sublist {
 	const char *name;
 	long capability;
 	int feature;
+	int feature_type;
 	bool finalize;
 	__u64 *regs;
 	__u64 regs_n;
