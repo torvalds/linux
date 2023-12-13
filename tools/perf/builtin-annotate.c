@@ -57,6 +57,7 @@ struct perf_annotate {
 	bool	   has_br_stack;
 	bool	   group_set;
 	bool	   data_type;
+	bool	   type_stat;
 	float	   min_percent;
 	const char *sym_hist_filter;
 	const char *cpu_list;
@@ -396,12 +397,52 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 	printf(";\n");
 }
 
+static void print_annotate_data_stat(struct annotated_data_stat *s)
+{
+#define PRINT_STAT(fld) if (s->fld) printf("%10d : %s\n", s->fld, #fld)
+
+	int bad = s->no_sym +
+			s->no_insn +
+			s->no_insn_ops +
+			s->no_mem_ops +
+			s->no_reg +
+			s->no_dbginfo +
+			s->no_cuinfo +
+			s->no_var +
+			s->no_typeinfo +
+			s->invalid_size +
+			s->bad_offset;
+	int ok = s->total - bad;
+
+	printf("Annotate data type stats:\n");
+	printf("total %d, ok %d (%.1f%%), bad %d (%.1f%%)\n",
+		s->total, ok, 100.0 * ok / (s->total ?: 1), bad, 100.0 * bad / (s->total ?: 1));
+	printf("-----------------------------------------------------------\n");
+	PRINT_STAT(no_sym);
+	PRINT_STAT(no_insn);
+	PRINT_STAT(no_insn_ops);
+	PRINT_STAT(no_mem_ops);
+	PRINT_STAT(no_reg);
+	PRINT_STAT(no_dbginfo);
+	PRINT_STAT(no_cuinfo);
+	PRINT_STAT(no_var);
+	PRINT_STAT(no_typeinfo);
+	PRINT_STAT(invalid_size);
+	PRINT_STAT(bad_offset);
+	printf("\n");
+
+#undef PRINT_STAT
+}
+
 static void hists__find_annotations(struct hists *hists,
 				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
 	struct rb_node *nd = rb_first_cached(&hists->entries), *next;
 	int key = K_RIGHT;
+
+	if (ann->type_stat)
+		print_annotate_data_stat(&ann_data_stat);
 
 	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -749,7 +790,8 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK_OPTARG(0, "data-type", &annotate, NULL, "name",
 			    "Show data type annotate for the memory accesses",
 			    parse_data_type),
-
+	OPT_BOOLEAN(0, "type-stat", &annotate.type_stat,
+		    "Show stats for the data type annotation"),
 	OPT_END()
 	};
 	int ret;

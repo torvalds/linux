@@ -199,6 +199,7 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 	/* Get the type of the variable */
 	if (die_get_real_type(var_die, type_die) == NULL) {
 		pr_debug("variable has no type\n");
+		ann_data_stat.no_typeinfo++;
 		return -1;
 	}
 
@@ -209,18 +210,21 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 	if (dwarf_tag(type_die) != DW_TAG_pointer_type ||
 	    die_get_real_type(type_die, type_die) == NULL) {
 		pr_debug("no pointer or no type\n");
+		ann_data_stat.no_typeinfo++;
 		return -1;
 	}
 
 	/* Get the size of the actual type */
 	if (dwarf_aggregate_size(type_die, &size) < 0) {
 		pr_debug("type size is unknown\n");
+		ann_data_stat.invalid_size++;
 		return -1;
 	}
 
 	/* Minimal sanity check */
 	if ((unsigned)offset >= size) {
 		pr_debug("offset: %d is bigger than size: %" PRIu64 "\n", offset, size);
+		ann_data_stat.bad_offset++;
 		return -1;
 	}
 
@@ -239,6 +243,7 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 	/* Get a compile_unit for this address */
 	if (!find_cu_die(di, pc, &cu_die)) {
 		pr_debug("cannot find CU for address %" PRIx64 "\n", pc);
+		ann_data_stat.no_cuinfo++;
 		return -1;
 	}
 
@@ -253,9 +258,12 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 
 		/* Found a variable, see if it's correct */
 		ret = check_variable(&var_die, type_die, offset);
-		break;
+		goto out;
 	}
+	if (ret < 0)
+		ann_data_stat.no_var++;
 
+out:
 	free(scopes);
 	return ret;
 }

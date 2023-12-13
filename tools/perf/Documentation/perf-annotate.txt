@@ -162,6 +162,9 @@ include::itrace.txt[]
 	that case it'd show annotation for the type only, otherwise it'd show
 	all data types it finds.
 
+--type-stat::
+	Show stats for the data type annotation.
+
 
 SEE ALSO
 --------

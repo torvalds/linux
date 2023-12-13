@@ -70,6 +70,37 @@ struct annotated_data_type {
 
 extern struct annotated_data_type unknown_type;
 
+/**
+ * struct annotated_data_stat - Debug statistics
+ * @total: Total number of entry
+ * @no_sym: No symbol or map found
+ * @no_insn: Failed to get disasm line
+ * @no_insn_ops: The instruction has no operands
+ * @no_mem_ops: The instruction has no memory operands
+ * @no_reg: Failed to extract a register from the operand
+ * @no_dbginfo: The binary has no debug information
+ * @no_cuinfo: Failed to find a compile_unit
+ * @no_var: Failed to find a matching variable
+ * @no_typeinfo: Failed to get a type info for the variable
+ * @invalid_size: Failed to get a size info of the type
+ * @bad_offset: The access offset is out of the type
+ */
+struct annotated_data_stat {
+	int total;
+	int no_sym;
+	int no_insn;
+	int no_insn_ops;
+	int no_mem_ops;
+	int no_reg;
+	int no_dbginfo;
+	int no_cuinfo;
+	int no_var;
+	int no_typeinfo;
+	int invalid_size;
+	int bad_offset;
+};
+extern struct annotated_data_stat ann_data_stat;
+
 #ifdef HAVE_DWARF_SUPPORT
 
 /* Returns data type at the location (ip, reg, offset) */
