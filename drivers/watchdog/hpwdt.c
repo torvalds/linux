@@ -181,9 +181,6 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	if (ulReason == NMI_UNKNOWN && !mynmi)
 		return NMI_DONE;
 
-	if (ilo5 && !pretimeout && !mynmi)
-		return NMI_DONE;
-
 	if (kdumptimeout < 0)
 		hpwdt_stop();
 	else if (kdumptimeout == 0)
