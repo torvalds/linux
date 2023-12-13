@@ -501,7 +501,7 @@ void ht_on_assoc_rsp(struct rtllib_device *ieee)
 	ht_info->current_op_mode = pPeerHTInfo->OptMode;
 }
 
-void HTInitializeHTInfo(struct rtllib_device *ieee)
+void ht_initialize_ht_info(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
