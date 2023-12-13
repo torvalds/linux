@@ -80,6 +80,34 @@ static const struct kvm_riscv_sbi_extension_entry sbi_ext[] = {
 	},
 };
 
+static const struct kvm_riscv_sbi_extension_entry *
+riscv_vcpu_get_sbi_ext(struct kvm_vcpu *vcpu, unsigned long idx)
+{
+	const struct kvm_riscv_sbi_extension_entry *sext = NULL;
+
+	if (idx >= KVM_RISCV_SBI_EXT_MAX)
+		return NULL;
+
+	for (int i = 0; i < ARRAY_SIZE(sbi_ext); i++) {
+		if (sbi_ext[i].ext_idx == idx) {
+			sext = &sbi_ext[i];
+			break;
+		}
+	}
+
+	return sext;
+}
+
+bool riscv_vcpu_supports_sbi_ext(struct kvm_vcpu *vcpu, int idx)
+{
+	struct kvm_vcpu_sbi_context *scontext = &vcpu->arch.sbi_context;
+	const struct kvm_riscv_sbi_extension_entry *sext;
+
+	sext = riscv_vcpu_get_sbi_ext(vcpu, idx);
+
+	return sext && scontext->ext_status[sext->ext_idx] != KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE;
+}
+
 void kvm_riscv_vcpu_sbi_forward(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
@@ -140,28 +168,19 @@ static int riscv_vcpu_set_sbi_ext_single(struct kvm_vcpu *vcpu,
 					 unsigned long reg_num,
 					 unsigned long reg_val)
 {
-	unsigned long i;
-	const struct kvm_riscv_sbi_extension_entry *sext = NULL;
 	struct kvm_vcpu_sbi_context *scontext = &vcpu->arch.sbi_context;
-
-	if (reg_num >= KVM_RISCV_SBI_EXT_MAX)
-		return -ENOENT;
+	const struct kvm_riscv_sbi_extension_entry *sext;
 
 	if (reg_val != 1 && reg_val != 0)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(sbi_ext); i++) {
-		if (sbi_ext[i].ext_idx == reg_num) {
-			sext = &sbi_ext[i];
-			break;
-		}
-	}
-	if (!sext)
+	sext = riscv_vcpu_get_sbi_ext(vcpu, reg_num);
+	if (!sext || scontext->ext_status[sext->ext_idx] == KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE)
 		return -ENOENT;
 
 	scontext->ext_status[sext->ext_idx] = (reg_val) ?
-			KVM_RISCV_SBI_EXT_AVAILABLE :
-			KVM_RISCV_SBI_EXT_UNAVAILABLE;
+			KVM_RISCV_SBI_EXT_STATUS_ENABLED :
+			KVM_RISCV_SBI_EXT_STATUS_DISABLED;
 
 	return 0;
 }
@@ -170,24 +189,16 @@ static int riscv_vcpu_get_sbi_ext_single(struct kvm_vcpu *vcpu,
 					 unsigned long reg_num,
 					 unsigned long *reg_val)
 {
-	unsigned long i;
-	const struct kvm_riscv_sbi_extension_entry *sext = NULL;
 	struct kvm_vcpu_sbi_context *scontext = &vcpu->arch.sbi_context;
+	const struct kvm_riscv_sbi_extension_entry *sext;
 
-	if (reg_num >= KVM_RISCV_SBI_EXT_MAX)
-		return -ENOENT;
-
-	for (i = 0; i < ARRAY_SIZE(sbi_ext); i++) {
-		if (sbi_ext[i].ext_idx == reg_num) {
-			sext = &sbi_ext[i];
-			break;
-		}
-	}
-	if (!sext)
+	sext = riscv_vcpu_get_sbi_ext(vcpu, reg_num);
+	if (!sext || scontext->ext_status[sext->ext_idx] == KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE)
 		return -ENOENT;
 
 	*reg_val = scontext->ext_status[sext->ext_idx] ==
-				KVM_RISCV_SBI_EXT_AVAILABLE;
+				KVM_RISCV_SBI_EXT_STATUS_ENABLED;
+
 	return 0;
 }
 
@@ -325,7 +336,7 @@ const struct kvm_vcpu_sbi_extension *kvm_vcpu_sbi_find_ext(
 		if (ext->extid_start <= extid && ext->extid_end >= extid) {
 			if (entry->ext_idx >= KVM_RISCV_SBI_EXT_MAX ||
 			    scontext->ext_status[entry->ext_idx] ==
-						KVM_RISCV_SBI_EXT_AVAILABLE)
+						KVM_RISCV_SBI_EXT_STATUS_ENABLED)
 				return ext;
 
 			return NULL;
@@ -413,12 +424,12 @@ void kvm_riscv_vcpu_sbi_init(struct kvm_vcpu *vcpu)
 
 		if (ext->probe && !ext->probe(vcpu)) {
 			scontext->ext_status[entry->ext_idx] =
-				KVM_RISCV_SBI_EXT_UNAVAILABLE;
+				KVM_RISCV_SBI_EXT_STATUS_UNAVAILABLE;
 			continue;
 		}
 
-		scontext->ext_status[entry->ext_idx] = ext->default_unavail ?
-					KVM_RISCV_SBI_EXT_UNAVAILABLE :
-					KVM_RISCV_SBI_EXT_AVAILABLE;
+		scontext->ext_status[entry->ext_idx] = ext->default_disabled ?
+					KVM_RISCV_SBI_EXT_STATUS_DISABLED :
+					KVM_RISCV_SBI_EXT_STATUS_ENABLED;
 	}
 }
