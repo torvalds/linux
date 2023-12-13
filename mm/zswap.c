@@ -1446,7 +1446,7 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 	folio_set_reclaim(folio);
 
 	/* start writeback */
-	__swap_writepage(&folio->page, &wbc);
+	__swap_writepage(folio, &wbc);
 	folio_put(folio);
 
 	return 0;

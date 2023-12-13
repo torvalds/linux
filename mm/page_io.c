@@ -201,7 +201,7 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		folio_end_writeback(folio);
 		return 0;
 	}
-	__swap_writepage(&folio->page, wbc);
+	__swap_writepage(folio, wbc);
 	return 0;
 }
 
@@ -368,22 +368,22 @@ static void swap_writepage_bdev_async(struct page *page,
 	submit_bio(bio);
 }
 
-void __swap_writepage(struct page *page, struct writeback_control *wbc)
+void __swap_writepage(struct folio *folio, struct writeback_control *wbc)
 {
-	struct swap_info_struct *sis = page_swap_info(page);
+	struct swap_info_struct *sis = swp_swap_info(folio->swap);
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio), folio);
 	/*
 	 * ->flags can be updated non-atomicially (scan_swap_map_slots),
 	 * but that will never affect SWP_FS_OPS, so the data_race
 	 * is safe.
 	 */
 	if (data_race(sis->flags & SWP_FS_OPS))
-		swap_writepage_fs(page, wbc);
+		swap_writepage_fs(&folio->page, wbc);
 	else if (sis->flags & SWP_SYNCHRONOUS_IO)
-		swap_writepage_bdev_sync(page, wbc, sis);
+		swap_writepage_bdev_sync(&folio->page, wbc, sis);
 	else
-		swap_writepage_bdev_async(page, wbc, sis);
+		swap_writepage_bdev_async(&folio->page, wbc, sis);
 }
 
 void swap_write_unplug(struct swap_iocb *sio)
