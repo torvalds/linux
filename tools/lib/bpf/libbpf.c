@@ -59,6 +59,8 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
+#define BPF_FS_DEFAULT_PATH "/sys/fs/bpf"
+
 #define BPF_INSN_SZ (sizeof(struct bpf_insn))
 
 /* vsprintf() in __base_pr() uses nonliteral format string. It may break
@@ -692,6 +694,10 @@ struct bpf_object {
 	size_t fd_array_cnt;
 
 	struct usdt_manager *usdt_man;
+
+	struct kern_feature_cache *feat_cache;
+	char *token_path;
+	int token_fd;
 
 	char path[];
 };
@@ -2192,7 +2198,7 @@ static int build_map_pin_path(struct bpf_map *map, const char *path)
 	int err;
 
 	if (!path)
-		path = "/sys/fs/bpf";
+		path = BPF_FS_DEFAULT_PATH;
 
 	err = pathname_concat(buf, sizeof(buf), path, bpf_map__name(map));
 	if (err)
@@ -3279,7 +3285,7 @@ skip_exception_cb:
 	} else {
 		/* currently BPF_BTF_LOAD only supports log_level 1 */
 		err = btf_load_into_kernel(kern_btf, obj->log_buf, obj->log_size,
-					   obj->log_level ? 1 : 0);
+					   obj->log_level ? 1 : 0, obj->token_fd);
 	}
 	if (sanitize) {
 		if (!err) {
@@ -4602,6 +4608,63 @@ int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries)
 	return 0;
 }
 
+static int bpf_object_prepare_token(struct bpf_object *obj)
+{
+	const char *bpffs_path;
+	int bpffs_fd = -1, token_fd, err;
+	bool mandatory;
+	enum libbpf_print_level level;
+
+	/* token is already set up */
+	if (obj->token_fd > 0)
+		return 0;
+	/* token is explicitly prevented */
+	if (obj->token_fd < 0) {
+		pr_debug("object '%s': token is prevented, skipping...\n", obj->name);
+		/* reset to zero to avoid extra checks during map_create and prog_load steps */
+		obj->token_fd = 0;
+		return 0;
+	}
+
+	mandatory = obj->token_path != NULL;
+	level = mandatory ? LIBBPF_WARN : LIBBPF_DEBUG;
+
+	bpffs_path = obj->token_path ?: BPF_FS_DEFAULT_PATH;
+	bpffs_fd = open(bpffs_path, O_DIRECTORY, O_RDWR);
+	if (bpffs_fd < 0) {
+		err = -errno;
+		__pr(level, "object '%s': failed (%d) to open BPF FS mount at '%s'%s\n",
+		     obj->name, err, bpffs_path,
+		     mandatory ? "" : ", skipping optional step...");
+		return mandatory ? err : 0;
+	}
+
+	token_fd = bpf_token_create(bpffs_fd, 0);
+	close(bpffs_fd);
+	if (token_fd < 0) {
+		if (!mandatory && token_fd == -ENOENT) {
+			pr_debug("object '%s': BPF FS at '%s' doesn't have BPF token delegation set up, skipping...\n",
+				 obj->name, bpffs_path);
+			return 0;
+		}
+		__pr(level, "object '%s': failed (%d) to create BPF token from '%s'%s\n",
+		     obj->name, token_fd, bpffs_path,
+		     mandatory ? "" : ", skipping optional step...");
+		return mandatory ? token_fd : 0;
+	}
+
+	obj->feat_cache = calloc(1, sizeof(*obj->feat_cache));
+	if (!obj->feat_cache) {
+		close(token_fd);
+		return -ENOMEM;
+	}
+
+	obj->token_fd = token_fd;
+	obj->feat_cache->token_fd = token_fd;
+
+	return 0;
+}
+
 static int
 bpf_object__probe_loading(struct bpf_object *obj)
 {
@@ -4611,6 +4674,7 @@ bpf_object__probe_loading(struct bpf_object *obj)
 		BPF_EXIT_INSN(),
 	};
 	int ret, insn_cnt = ARRAY_SIZE(insns);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts, .token_fd = obj->token_fd);
 
 	if (obj->gen_loader)
 		return 0;
@@ -4620,9 +4684,9 @@ bpf_object__probe_loading(struct bpf_object *obj)
 		pr_warn("Failed to bump RLIMIT_MEMLOCK (err = %d), you might need to do it explicitly!\n", ret);
 
 	/* make sure basic loading works */
-	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
+	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, &opts);
 	if (ret < 0)
-		ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, NULL);
+		ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
 	if (ret < 0) {
 		ret = errno;
 		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
@@ -4644,6 +4708,9 @@ bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 		 * to avoid doing extra prog_load, map_create syscalls.
 		 */
 		return true;
+
+	if (obj->token_fd)
+		return feat_supported(obj->feat_cache, feat_id);
 
 	return feat_supported(NULL, feat_id);
 }
@@ -4764,6 +4831,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 	create_attr.map_flags = def->map_flags;
 	create_attr.numa_node = map->numa_node;
 	create_attr.map_extra = map->map_extra;
+	create_attr.token_fd = obj->token_fd;
 
 	if (bpf_map__is_struct_ops(map))
 		create_attr.btf_vmlinux_value_type_id = map->btf_vmlinux_value_type_id;
@@ -6599,6 +6667,7 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	load_attr.attach_btf_id = prog->attach_btf_id;
 	load_attr.kern_version = kern_version;
 	load_attr.prog_ifindex = prog->prog_ifindex;
+	load_attr.token_fd = obj->token_fd;
 
 	/* specify func_info/line_info only if kernel supports them */
 	btf_fd = bpf_object__btf_fd(obj);
@@ -7060,10 +7129,10 @@ static int bpf_object_init_progs(struct bpf_object *obj, const struct bpf_object
 static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 					  const struct bpf_object_open_opts *opts)
 {
-	const char *obj_name, *kconfig, *btf_tmp_path;
+	const char *obj_name, *kconfig, *btf_tmp_path, *token_path;
 	struct bpf_object *obj;
 	char tmp_name[64];
-	int err;
+	int err, token_fd;
 	char *log_buf;
 	size_t log_size;
 	__u32 log_level;
@@ -7097,6 +7166,22 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 	if (log_size && !log_buf)
 		return ERR_PTR(-EINVAL);
 
+	token_path = OPTS_GET(opts, bpf_token_path, NULL);
+	token_fd = OPTS_GET(opts, bpf_token_fd, -1);
+	/* non-empty token path can't be combined with invalid token FD */
+	if (token_path && token_path[0] != '\0' && token_fd < 0)
+		return ERR_PTR(-EINVAL);
+	if (token_path && token_path[0] == '\0') {
+		/* empty token path can't be combined with valid token FD */
+		if (token_fd > 0)
+			return ERR_PTR(-EINVAL);
+		/* empty token_path is equivalent to invalid token_fd */
+		token_path = NULL;
+		token_fd = -1;
+	}
+	if (token_path && strlen(token_path) >= PATH_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
+
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
@@ -7104,6 +7189,19 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 	obj->log_buf = log_buf;
 	obj->log_size = log_size;
 	obj->log_level = log_level;
+
+	obj->token_fd = token_fd <= 0 ? token_fd : dup_good_fd(token_fd);
+	if (token_fd > 0 && obj->token_fd < 0) {
+		err = -errno;
+		goto out;
+	}
+	if (token_path) {
+		obj->token_path = strdup(token_path);
+		if (!obj->token_path) {
+			err = -ENOMEM;
+			goto out;
+		}
+	}
 
 	btf_tmp_path = OPTS_GET(opts, btf_custom_path, NULL);
 	if (btf_tmp_path) {
@@ -7615,7 +7713,8 @@ static int bpf_object_load(struct bpf_object *obj, int extra_log_level, const ch
 	if (obj->gen_loader)
 		bpf_gen__init(obj->gen_loader, extra_log_level, obj->nr_programs, obj->nr_maps);
 
-	err = bpf_object__probe_loading(obj);
+	err = bpf_object_prepare_token(obj);
+	err = err ? : bpf_object__probe_loading(obj);
 	err = err ? : bpf_object__load_vmlinux_btf(obj, false);
 	err = err ? : bpf_object__resolve_externs(obj, obj->kconfig);
 	err = err ? : bpf_object__sanitize_and_load_btf(obj);
@@ -8151,6 +8250,11 @@ void bpf_object__close(struct bpf_object *obj)
 			bpf_program__exit(&obj->programs[i]);
 	}
 	zfree(&obj->programs);
+
+	zfree(&obj->feat_cache);
+	zfree(&obj->token_path);
+	if (obj->token_fd > 0)
+		close(obj->token_fd);
 
 	free(obj);
 }
