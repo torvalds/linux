@@ -383,16 +383,17 @@ over a rather long period of time, but improvements are always welcome!
 	must use whatever locking or other synchronization is required
 	to safely access and/or modify that data structure.
 
-	Do not assume that RCU callbacks will be executed on the same
-	CPU that executed the corresponding call_rcu() or call_srcu().
-	For example, if a given CPU goes offline while having an RCU
-	callback pending, then that RCU callback will execute on some
-	surviving CPU.	(If this was not the case, a self-spawning RCU
-	callback would prevent the victim CPU from ever going offline.)
-	Furthermore, CPUs designated by rcu_nocbs= might well *always*
-	have their RCU callbacks executed on some other CPUs, in fact,
-	for some  real-time workloads, this is the whole point of using
-	the rcu_nocbs= kernel boot parameter.
+	Do not assume that RCU callbacks will be executed on
+	the same CPU that executed the corresponding call_rcu(),
+	call_srcu(), call_rcu_tasks(), call_rcu_tasks_rude(), or
+	call_rcu_tasks_trace().  For example, if a given CPU goes offline
+	while having an RCU callback pending, then that RCU callback
+	will execute on some surviving CPU.  (If this was not the case,
+	a self-spawning RCU callback would prevent the victim CPU from
+	ever going offline.)  Furthermore, CPUs designated by rcu_nocbs=
+	might well *always* have their RCU callbacks executed on some
+	other CPUs, in fact, for some  real-time workloads, this is the
+	whole point of using the rcu_nocbs= kernel boot parameter.
 
 	In addition, do not assume that callbacks queued in a given order
 	will be invoked in that order, even if they all are queued on the
