@@ -471,9 +471,13 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
 	return vblank_start;
 }
 
-static void intel_crtc_vblank_evade_scanlines(const struct intel_crtc_state *old_crtc_state,
-					      const struct intel_crtc_state *new_crtc_state,
-					      int *min, int *max, int *vblank_start)
+struct intel_vblank_evade_ctx {
+	int min, max, vblank_start;
+};
+
+static void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
+				    const struct intel_crtc_state *new_crtc_state,
+				    struct intel_vblank_evade_ctx *evade)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	const struct intel_crtc_state *crtc_state;
@@ -498,17 +502,17 @@ static void intel_crtc_vblank_evade_scanlines(const struct intel_crtc_state *old
 			    new_crtc_state->update_m_n || new_crtc_state->update_lrr);
 
 		if (intel_vrr_is_push_sent(crtc_state))
-			*vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+			evade->vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
 		else
-			*vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+			evade->vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
 	} else {
-		*vblank_start = intel_mode_vblank_start(adjusted_mode);
+		evade->vblank_start = intel_mode_vblank_start(adjusted_mode);
 	}
 
 	/* FIXME needs to be calibrated sensibly */
-	*min = *vblank_start - intel_usecs_to_scanlines(adjusted_mode,
-							VBLANK_EVASION_TIME_US);
-	*max = *vblank_start - 1;
+	evade->min = evade->vblank_start - intel_usecs_to_scanlines(adjusted_mode,
+								VBLANK_EVASION_TIME_US);
+	evade->max = evade->vblank_start - 1;
 
 	/*
 	 * M/N and TRANS_VTOTAL are double buffered on the transcoder's
@@ -519,7 +523,7 @@ static void intel_crtc_vblank_evade_scanlines(const struct intel_crtc_state *old
 	 * hence we must kick off the commit before that.
 	 */
 	if (new_crtc_state->dsb || new_crtc_state->update_m_n || new_crtc_state->update_lrr)
-		*min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 
 /**
@@ -544,10 +548,11 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	long timeout = msecs_to_jiffies_timeout(1);
-	int scanline, min, max, vblank_start;
+	int scanline;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
+	struct intel_vblank_evade_ctx evade;
 	DEFINE_WAIT(wait);
 
 	intel_psr_lock(new_crtc_state);
@@ -565,9 +570,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	if (intel_crtc_needs_vblank_work(new_crtc_state))
 		intel_crtc_vblank_work_init(new_crtc_state);
 
-	intel_crtc_vblank_evade_scanlines(old_crtc_state, new_crtc_state,
-					  &min, &max, &vblank_start);
-	if (min <= 0 || max <= 0)
+	intel_vblank_evade_init(old_crtc_state, new_crtc_state, &evade);
+	if (evade.min <= 0 || evade.max <= 0)
 		goto irq_disable;
 
 	if (drm_WARN_ON(&dev_priv->drm, drm_crtc_vblank_get(&crtc->base)))
@@ -582,8 +586,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 
 	local_irq_disable();
 
-	crtc->debug.min_vbl = min;
-	crtc->debug.max_vbl = max;
+	crtc->debug.min_vbl = evade.min;
+	crtc->debug.max_vbl = evade.max;
 	trace_intel_pipe_update_start(crtc);
 
 	for (;;) {
@@ -595,7 +599,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
 
 		scanline = intel_get_crtc_scanline(crtc);
-		if (scanline < min || scanline > max)
+		if (scanline < evade.min || scanline > evade.max)
 			break;
 
 		if (!timeout) {
@@ -629,7 +633,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	 *
 	 * FIXME figure out if BXT+ DSI suffers from this as well
 	 */
-	while (need_vlv_dsi_wa && scanline == vblank_start)
+	while (need_vlv_dsi_wa && scanline == evade.vblank_start)
 		scanline = intel_get_crtc_scanline(crtc);
 
 	drm_crtc_vblank_put(&crtc->base);
