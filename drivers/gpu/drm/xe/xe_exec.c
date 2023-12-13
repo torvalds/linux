@@ -107,12 +107,14 @@ static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 		return ret;
 
 	/*
-	 * 1 fence slot for the final submit, and one more for every per-tile
-	 * bind. Note that there are potentially many vma per object/dma-resv,
-	 * however the fence slot will just be re-used, since they are largely
-	 * the same timeline and the seqno should be in order.
+	 * 1 fence slot for the final submit, and 1 more for every per-tile for
+	 * GPU bind and 1 extra for CPU bind. Note that there are potentially
+	 * many vma per object/dma-resv, however the fence slot will just be
+	 * re-used, since they are largely the same timeline and the seqno
+	 * should be in order. In the case of CPU bind there is dummy fence used
+	 * for all CPU binds, so no need to have a per-tile slot for that.
 	 */
-	num_fences = 1 + vm->xe->info.tile_count;
+	num_fences = 1 + 1 + vm->xe->info.tile_count;
 
 	/*
 	 * We don't know upfront exactly how many fence slots we will need at
