@@ -52,7 +52,7 @@
  * such wiphy can have zero, one, or many virtual interfaces associated with
  * it, which need to be identified as such by pointing the network interface's
  * @ieee80211_ptr pointer to a &struct wireless_dev which further describes
- * the wireless part of the interface, normally this struct is embedded in the
+ * the wireless part of the interface. Normally this struct is embedded in the
  * network interface's private data area. Drivers can optionally allow creating
  * or destroying virtual interfaces on the fly, but without at least one or the
  * ability to create some the wireless device isn't useful.
@@ -2584,7 +2584,7 @@ struct cfg80211_scan_info {
  * @short_ssid: short ssid to scan for
  * @bssid: bssid to scan for
  * @channel_idx: idx of the channel in the channel array in the scan request
- *	 which the above info relvant to
+ *	 which the above info is relevant to
  * @unsolicited_probe: the AP transmits unsolicited probe response every 20 TU
  * @short_ssid_valid: @short_ssid is valid and can be used
  * @psc_no_listen: when set, and the channel is a PSC channel, no need to wait
@@ -7504,7 +7504,7 @@ void cfg80211_notify_new_peer_candidate(struct net_device *dev,
  * RFkill integration in cfg80211 is almost invisible to drivers,
  * as cfg80211 automatically registers an rfkill instance for each
  * wireless device it knows about. Soft kill is also translated
- * into disconnecting and turning all interfaces off, drivers are
+ * into disconnecting and turning all interfaces off. Drivers are
  * expected to turn off the device when all interfaces are down.
  *
  * However, devices may have a hard RFkill line, in which case they
@@ -7552,7 +7552,7 @@ static inline void wiphy_rfkill_stop_polling(struct wiphy *wiphy)
  * the configuration mechanism.
  *
  * A driver supporting vendor commands must register them as an array
- * in struct wiphy, with handlers for each one, each command has an
+ * in struct wiphy, with handlers for each one. Each command has an
  * OUI and sub command ID to identify it.
  *
  * Note that this feature should not be (ab)used to implement protocol
@@ -7716,7 +7716,7 @@ static inline void cfg80211_vendor_event(struct sk_buff *skb, gfp_t gfp)
  * interact with driver-specific tools to aid, for instance,
  * factory programming.
  *
- * This chapter describes how drivers interact with it, for more
+ * This chapter describes how drivers interact with it. For more
  * information see the nl80211 book's chapter on it.
  */
 
