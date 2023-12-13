@@ -40,7 +40,7 @@
  * either sta_info_insert() or sta_info_insert_rcu(); only in the latter
  * case (which acquires an rcu read section but must not be called from
  * within one) will the pointer still be valid after the call. Note that
- * the caller may not do much with the STA info before inserting it, in
+ * the caller may not do much with the STA info before inserting it; in
  * particular, it may not start any mesh peer link management or add
  * encryption keys.
  *
@@ -58,7 +58,7 @@
  * In order to remove a STA info structure, various sta_info_destroy_*()
  * calls are available.
  *
- * There is no concept of ownership on a STA entry, each structure is
+ * There is no concept of ownership on a STA entry; each structure is
  * owned by the global hash table/list until it is removed. All users of
  * the structure need to be RCU protected so that the structure won't be
  * freed before they are done using it.
