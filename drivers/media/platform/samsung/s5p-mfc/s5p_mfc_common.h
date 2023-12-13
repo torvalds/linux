@@ -56,6 +56,7 @@
 #define MFC_NO_INSTANCE_SET	-1
 #define MFC_ENC_CAP_PLANE_COUNT	1
 #define MFC_ENC_OUT_PLANE_COUNT	2
+#define VB2_MAX_PLANE_COUNT	3
 #define STUFF_BYTE		4
 #define MFC_MAX_CTRLS		128
 
@@ -181,6 +182,7 @@ struct s5p_mfc_buf {
 		struct {
 			size_t luma;
 			size_t chroma;
+			size_t chroma_1;
 		} raw;
 		size_t stream;
 	} cookie;
@@ -623,6 +625,8 @@ struct s5p_mfc_codec_ops {
  * @scratch_buf_size:	scratch buffer size
  * @is_10bit:		state to check 10bit support
  * @is_422:		state to check YUV422 10bit format
+ * @chroma_size_1:	size of a chroma third plane
+ * @stride:		size of stride for all planes
  */
 struct s5p_mfc_ctx {
 	struct s5p_mfc_dev *dev;
@@ -659,6 +663,7 @@ struct s5p_mfc_ctx {
 
 	int luma_size;
 	int chroma_size;
+	int chroma_size_1;
 	int mv_size;
 
 	unsigned long consumed_stream;
@@ -724,6 +729,7 @@ struct s5p_mfc_ctx {
 	size_t scratch_buf_size;
 	int is_10bit;
 	int is_422;
+	int stride[VB2_MAX_PLANE_COUNT];
 };
 
 /*
