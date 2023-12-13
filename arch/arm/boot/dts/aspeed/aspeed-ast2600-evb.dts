@@ -49,6 +49,13 @@
 			no-map;
 		};
 
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
 		mctp0_reserved: mctp0_reserved@b1000000 {
 			reg = <0xb1000000 0x10000>;
 			compatible = "shared-dma-pool";
@@ -771,4 +778,8 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 &i3c5 {
 	initial-role = "primary";
 	status = "okay";
+};
+
+&ssp {
+	memory-region = <&ssp_memory>;
 };
