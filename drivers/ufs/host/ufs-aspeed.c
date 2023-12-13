@@ -258,10 +258,10 @@ static int aspeed_ufshc_pre_pwr_change(struct ufs_hba *hba,
 
 	ufshcd_dme_peer_set(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), host_cap.hs_rx_gear);
 
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), true);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), false);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXGEAR), UFS_PWM_G1);
 
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXTERMINATION), true);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXTERMINATION), false);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_RXGEAR), UFS_PWM_G1);
 
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_ACTIVETXDATALANES),
@@ -278,7 +278,7 @@ static int aspeed_ufshc_pre_pwr_change(struct ufs_hba *hba,
 					 SLOWAUTO_MODE << 4 | SLOWAUTO_MODE);
 
 	if (ret) {
-		dev_err(hba->dev, "%s: HSG1B FASTAUTO failed ret=%d\n",
+		dev_err(hba->dev, "%s: PWMG1B SLOWAUTO failed ret=%d\n",
 			__func__, ret);
 	}
 
