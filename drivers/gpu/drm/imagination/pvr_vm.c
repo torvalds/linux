@@ -568,7 +568,7 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 		       0, 1ULL << device_addr_bits, 0, 0, &pvr_vm_gpuva_ops);
 
 	vm_ctx->mmu_ctx = pvr_mmu_context_create(pvr_dev);
-	err = PTR_ERR_OR_ZERO(&vm_ctx->mmu_ctx);
+	err = PTR_ERR_OR_ZERO(vm_ctx->mmu_ctx);
 	if (err) {
 		vm_ctx->mmu_ctx = NULL;
 		goto err_put_ctx;
