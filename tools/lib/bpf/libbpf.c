@@ -10165,7 +10165,7 @@ static const char *arch_specific_syscall_pfx(void)
 #endif
 }
 
-int probe_kern_syscall_wrapper(void)
+int probe_kern_syscall_wrapper(int token_fd)
 {
 	char syscall_name[64];
 	const char *ksys_pfx;
