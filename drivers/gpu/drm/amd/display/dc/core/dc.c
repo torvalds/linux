@@ -1025,6 +1025,15 @@ static bool dc_construct(struct dc *dc,
 	}
 #endif
 
+	if (!create_links(dc, init_params->num_virtual_links))
+		goto fail;
+
+	/* Create additional DIG link encoder objects if fewer than the platform
+	 * supports were created during link construction.
+	 */
+	if (!create_link_encoders(dc))
+		goto fail;
+
 	/* Creation of current_state must occur after dc->dml
 	 * is initialized in dc_create_resource_pool because
 	 * on creation it copies the contents of dc->dml
@@ -1036,15 +1045,6 @@ static bool dc_construct(struct dc *dc,
 		dm_error("%s: failed to create validate ctx\n", __func__);
 		goto fail;
 	}
-
-	if (!create_links(dc, init_params->num_virtual_links))
-		goto fail;
-
-	/* Create additional DIG link encoder objects if fewer than the platform
-	 * supports were created during link construction.
-	 */
-	if (!create_link_encoders(dc))
-		goto fail;
 
 	return true;
 
