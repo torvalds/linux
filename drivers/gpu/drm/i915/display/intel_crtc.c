@@ -614,8 +614,6 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 
 	finish_wait(wq, &wait);
 
-	drm_crtc_vblank_put(&crtc->base);
-
 	/*
 	 * On VLV/CHV DSI the scanline counter would appear to
 	 * increment approx. 1/3 of a scanline before start of vblank.
@@ -633,6 +631,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	 */
 	while (need_vlv_dsi_wa && scanline == vblank_start)
 		scanline = intel_get_crtc_scanline(crtc);
+
+	drm_crtc_vblank_put(&crtc->base);
 
 	crtc->debug.scanline_start = scanline;
 	crtc->debug.start_vbl_time = ktime_get();
