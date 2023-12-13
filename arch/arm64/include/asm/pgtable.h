@@ -22,7 +22,7 @@
  *	and fixed mappings
  */
 #define VMALLOC_START		(MODULES_END)
-#define VMALLOC_END		(VMEMMAP_START - SZ_256M)
+#define VMALLOC_END		(VMEMMAP_START - SZ_8M)
 
 #define vmemmap			((struct page *)VMEMMAP_START - (memstart_addr >> PAGE_SHIFT))
 

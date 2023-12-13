@@ -45,12 +45,12 @@ static struct addr_marker address_markers[] = {
 	{ MODULES_END,			"Modules end" },
 	{ VMALLOC_START,		"vmalloc() area" },
 	{ VMALLOC_END,			"vmalloc() end" },
-	{ FIXADDR_TOT_START,		"Fixmap start" },
-	{ FIXADDR_TOP,			"Fixmap end" },
 	{ VMEMMAP_START,		"vmemmap start" },
 	{ VMEMMAP_END,			"vmemmap end" },
 	{ PCI_IO_START,			"PCI I/O start" },
 	{ PCI_IO_END,			"PCI I/O end" },
+	{ FIXADDR_TOT_START,		"Fixmap start" },
+	{ FIXADDR_TOP,			"Fixmap end" },
 	{ -1,				NULL },
 };
 
