@@ -2132,7 +2132,7 @@ static int mt9m114_power_on(struct mt9m114 *sensor)
 		duration = DIV_ROUND_UP(2 * 50 * 1000000, freq);
 
 		gpiod_set_value(sensor->reset, 1);
-		udelay(duration);
+		fsleep(duration);
 		gpiod_set_value(sensor->reset, 0);
 	} else {
 		/*
