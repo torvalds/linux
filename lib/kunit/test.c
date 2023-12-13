@@ -742,28 +742,40 @@ EXPORT_SYMBOL_GPL(__kunit_test_suites_exit);
 #ifdef CONFIG_MODULES
 static void kunit_module_init(struct module *mod)
 {
-	struct kunit_suite_set suite_set = {
+	struct kunit_suite_set suite_set, filtered_set;
+	struct kunit_suite_set normal_suite_set = {
 		mod->kunit_suites, mod->kunit_suites + mod->num_kunit_suites,
+	};
+	struct kunit_suite_set init_suite_set = {
+		mod->kunit_init_suites, mod->kunit_init_suites + mod->num_kunit_init_suites,
 	};
 	const char *action = kunit_action();
 	int err = 0;
 
-	suite_set = kunit_filter_suites(&suite_set,
+	if (mod->num_kunit_init_suites > 0)
+		suite_set = kunit_merge_suite_sets(init_suite_set, normal_suite_set);
+	else
+		suite_set = normal_suite_set;
+
+	filtered_set = kunit_filter_suites(&suite_set,
 					kunit_filter_glob() ?: "*.*",
 					kunit_filter(), kunit_filter_action(),
 					&err);
 	if (err)
 		pr_err("kunit module: error filtering suites: %d\n", err);
 
-	mod->kunit_suites = (struct kunit_suite **)suite_set.start;
-	mod->num_kunit_suites = suite_set.end - suite_set.start;
+	mod->kunit_suites = (struct kunit_suite **)filtered_set.start;
+	mod->num_kunit_suites = filtered_set.end - filtered_set.start;
+
+	if (mod->num_kunit_init_suites > 0)
+		kfree(suite_set.start);
 
 	if (!action)
-		kunit_exec_run_tests(&suite_set, false);
+		kunit_exec_run_tests(&filtered_set, false);
 	else if (!strcmp(action, "list"))
-		kunit_exec_list_tests(&suite_set, false);
+		kunit_exec_list_tests(&filtered_set, false);
 	else if (!strcmp(action, "list_attr"))
-		kunit_exec_list_tests(&suite_set, true);
+		kunit_exec_list_tests(&filtered_set, true);
 	else
 		pr_err("kunit: unknown action '%s'\n", action);
 }
