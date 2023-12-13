@@ -527,7 +527,6 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	ht_info->cur_short_gi_20mhz = false;
 	ht_info->cur_short_gi_40mhz = false;
-	ht_info->forced_short_gi = false;
 
 	ht_info->current_mpdu_density = ht_info->mpdu_density;
 	ht_info->CurrentAMPDUFactor = ht_info->ampdu_factor;
