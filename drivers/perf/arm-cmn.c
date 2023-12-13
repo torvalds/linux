@@ -493,6 +493,7 @@ static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
 
 	for (dn = cmn->dns; dn->type; dn++) {
 		struct arm_cmn_nodeid nid = arm_cmn_nid(cmn, dn->id);
+		int pad = dn->logid < 10;
 
 		if (dn->type == CMN_TYPE_XP)
 			continue;
@@ -503,7 +504,7 @@ static void arm_cmn_show_logid(struct seq_file *s, int x, int y, int p, int d)
 		if (nid.x != x || nid.y != y || nid.port != p || nid.dev != d)
 			continue;
 
-		seq_printf(s, "   #%-2d  |", dn->logid);
+		seq_printf(s, " %*c#%-*d  |", pad + 1, ' ', 3 - pad, dn->logid);
 		return;
 	}
 	seq_puts(s, "        |");
@@ -516,7 +517,7 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 
 	seq_puts(s, "     X");
 	for (x = 0; x < cmn->mesh_x; x++)
-		seq_printf(s, "    %d    ", x);
+		seq_printf(s, "    %-2d   ", x);
 	seq_puts(s, "\nY P D+");
 	y = cmn->mesh_y;
 	while (y--) {
@@ -526,13 +527,13 @@ static int arm_cmn_map_show(struct seq_file *s, void *data)
 		for (x = 0; x < cmn->mesh_x; x++)
 			seq_puts(s, "--------+");
 
-		seq_printf(s, "\n%d    |", y);
+		seq_printf(s, "\n%-2d   |", y);
 		for (x = 0; x < cmn->mesh_x; x++) {
 			struct arm_cmn_node *xp = cmn->xps + xp_base + x;
 
 			for (p = 0; p < CMN_MAX_PORTS; p++)
 				port[p][x] = arm_cmn_device_connect_info(cmn, xp, p);
-			seq_printf(s, " XP #%-2d |", xp_base + x);
+			seq_printf(s, " XP #%-3d|", xp_base + x);
 		}
 
 		seq_puts(s, "\n     |");
