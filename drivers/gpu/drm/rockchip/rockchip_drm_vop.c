@@ -222,7 +222,6 @@ struct vop {
 	struct dentry *debugfs;
 	struct drm_info_list *debugfs_files;
 	struct drm_property *plane_feature_prop;
-	struct drm_property *plane_mask_prop;
 	struct drm_property *feature_prop;
 
 	bool is_iommu_enabled;
@@ -237,7 +236,6 @@ struct vop {
 	u32 background;
 	u32 line_flag;
 	u8 id;
-	u8 plane_mask;
 	u64 soc_id;
 	struct drm_prop_enum_list *plane_name_list;
 
@@ -4639,32 +4637,6 @@ static int vop_of_init_display_lut(struct vop *vop)
 	return 0;
 }
 
-static int vop_crtc_create_plane_mask_property(struct vop *vop, struct drm_crtc *crtc)
-{
-	struct drm_property *prop;
-
-	static const struct drm_prop_enum_list props[] = {
-		{ ROCKCHIP_VOP_WIN0, "Win0" },
-		{ ROCKCHIP_VOP_WIN1, "Win1" },
-		{ ROCKCHIP_VOP_WIN2, "Win2" },
-		{ ROCKCHIP_VOP_WIN3, "Win3" },
-	};
-
-	prop = drm_property_create_bitmask(vop->drm_dev,
-					   DRM_MODE_PROP_IMMUTABLE, "PLANE_MASK",
-					   props, ARRAY_SIZE(props),
-					   0xffffffff);
-	if (!prop) {
-		DRM_DEV_ERROR(vop->dev, "create plane_mask prop for vp%d failed\n", vop->id);
-		return -ENOMEM;
-	}
-
-	vop->plane_mask_prop = prop;
-	drm_object_attach_property(&crtc->base, vop->plane_mask_prop, vop->plane_mask);
-
-	return 0;
-}
-
 static int vop_crtc_create_feature_property(struct vop *vop, struct drm_crtc *crtc)
 {
 	const struct vop_data *vop_data = vop->data;
@@ -4792,7 +4764,6 @@ static int vop_create_crtc(struct vop *vop)
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_top_margin_property, 100);
 	VOP_ATTACH_MODE_CONFIG_PROP(tv_bottom_margin_property, 100);
 #undef VOP_ATTACH_MODE_CONFIG_PROP
-	vop_crtc_create_plane_mask_property(vop, crtc);
 	vop_crtc_create_feature_property(vop, crtc);
 	ret = drm_self_refresh_helper_init(crtc);
 	if (ret)
@@ -4961,7 +4932,6 @@ static int vop_win_init(struct vop *vop)
 			vop_area->name = devm_kstrdup(vop->dev, name, GFP_KERNEL);
 			num_wins++;
 		}
-		vop->plane_mask |= BIT(vop_win->win_id);
 	}
 
 	vop->num_wins = num_wins;

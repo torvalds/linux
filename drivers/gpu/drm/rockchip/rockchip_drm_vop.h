@@ -91,14 +91,6 @@ enum vop_vp_id {
 	ROCKCHIP_VOP_VP3,
 };
 
-enum vop_win_phy_id {
-	ROCKCHIP_VOP_WIN0 = 0,
-	ROCKCHIP_VOP_WIN1,
-	ROCKCHIP_VOP_WIN2,
-	ROCKCHIP_VOP_WIN3,
-	ROCKCHIP_VOP_PHY_ID_INVALID = -1,
-};
-
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
 	BCSH_OUT_MODE_BLUE,
