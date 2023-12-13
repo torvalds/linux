@@ -181,7 +181,6 @@ WEAK(eb64p_mv);
 WEAK(eb66_mv);
 WEAK(eb66p_mv);
 WEAK(eiger_mv);
-WEAK(jensen_mv);
 WEAK(lx164_mv);
 WEAK(lynx_mv);
 WEAK(marvel_ev7_mv);
@@ -224,7 +223,7 @@ static void __init
 reserve_std_resources(void)
 {
 	static struct resource standard_io_resources[] = {
-		{ .name = "rtc", .start = -1, .end = -1 },
+		{ .name = "rtc", .start = 0x70, .end =  0x7f},
         	{ .name = "dma1", .start = 0x00, .end = 0x1f },
         	{ .name = "pic1", .start = 0x20, .end = 0x3f },
         	{ .name = "timer", .start = 0x40, .end = 0x5f },
@@ -245,10 +244,6 @@ reserve_std_resources(void)
 				break;
 			}
 	}
-
-	/* Fix up for the Jensen's queer RTC placement.  */
-	standard_io_resources[0].start = RTC_PORT(0);
-	standard_io_resources[0].end = RTC_PORT(0) + 0x0f;
 
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); ++i)
 		request_resource(io, standard_io_resources+i);
@@ -486,14 +481,7 @@ setup_arch(char **cmdline_p)
 	/* 
 	 * Locate the command line.
 	 */
-	/* Hack for Jensen... since we're restricted to 8 or 16 chars for
-	   boot flags depending on the boot mode, we need some shorthand.
-	   This should do for installation.  */
-	if (strcmp(COMMAND_LINE, "INSTALL") == 0) {
-		strscpy(command_line, "root=/dev/fd0 load_ramdisk=1", sizeof(command_line));
-	} else {
-		strscpy(command_line, COMMAND_LINE, sizeof(command_line));
-	}
+	strscpy(command_line, COMMAND_LINE, sizeof(command_line));
 	strcpy(boot_command_line, command_line);
 	*cmdline_p = command_line;
 
@@ -745,7 +733,7 @@ get_sysvec(unsigned long type, unsigned long variation, unsigned long cpu)
 		NULL,		/* Ruby */
 		NULL,		/* Flamingo */
 		NULL,		/* Mannequin */
-		&jensen_mv,
+		NULL,		/* Jensens */
 		NULL, 		/* Pelican */
 		NULL,		/* Morgan */
 		NULL,		/* Sable -- see below.  */
@@ -943,7 +931,6 @@ get_sysvec_byname(const char *name)
 		&eb66_mv,
 		&eb66p_mv,
 		&eiger_mv,
-		&jensen_mv,
 		&lx164_mv,
 		&lynx_mv,
 		&miata_mv,

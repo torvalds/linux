@@ -10,7 +10,7 @@ config ALPHA
 	select ARCH_NO_SG_CHAIN
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select DMA_OPS if PCI
-	select FORCE_PCI if !ALPHA_JENSEN
+	select FORCE_PCI
 	select PCI_DOMAINS if PCI
 	select PCI_SYSCALL if PCI
 	select HAVE_ASM_MODVERSIONS
@@ -99,7 +99,6 @@ choice
 	  EB64+               EB64+ 21064 evaluation board
 	  EB66                EB66 21066 evaluation board
 	  EB66+               EB66+ 21066 evaluation board
-	  Jensen              DECpc 150, DEC 2000 models 300, 500
 	  LX164               AlphaPC164-LX
 	  Lynx                AS 2100A
 	  Miata               Personal Workstation 433/500/600 a/au
@@ -197,17 +196,6 @@ config ALPHA_EIGER
 	help
 	  Apparently an obscure OEM single-board computer based on the
 	  Typhoon/Tsunami chipset family. Information on it is scanty.
-
-config ALPHA_JENSEN
-	bool "Jensen"
-	select HAVE_EISA
-	help
-	  DEC PC 150 AXP (aka Jensen): This is a very old Digital system - one
-	  of the first-generation Alpha systems. A number of these systems
-	  seem to be available on the second- hand market. The Jensen is a
-	  floor-standing tower system which originally used a 150MHz 21064 It
-	  used programmable logic to interface a 486 EISA I/O bridge to the
-	  CPU.
 
 config ALPHA_LX164
 	bool "LX164"
@@ -337,7 +325,7 @@ config ALPHA_NONAME
 
 config ALPHA_EV4
 	bool
-	depends on ALPHA_JENSEN || (ALPHA_SABLE && !ALPHA_GAMMA) || ALPHA_LYNX || ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
+	depends on (ALPHA_SABLE && !ALPHA_GAMMA) || ALPHA_LYNX || ALPHA_NORITAKE && !ALPHA_PRIMO || ALPHA_MIKASA && !ALPHA_PRIMO || ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P_CH || ALPHA_XL || ALPHA_NONAME || ALPHA_EB66 || ALPHA_EB66P || ALPHA_P2K
 	default y if !ALPHA_LYNX
 	default y if !ALPHA_EV5
 
@@ -483,7 +471,7 @@ config ALPHA_QEMU
 config ALPHA_SRM
 	bool "Use SRM as bootloader" if ALPHA_CABRIOLET || ALPHA_AVANTI_CH || ALPHA_EB64P || ALPHA_PC164 || ALPHA_TAKARA || ALPHA_EB164 || ALPHA_ALCOR || ALPHA_MIATA || ALPHA_LX164 || ALPHA_SX164 || ALPHA_NAUTILUS || ALPHA_NONAME
 	depends on TTY
-	default y if ALPHA_JENSEN || ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
+	default y if ALPHA_MIKASA || ALPHA_SABLE || ALPHA_LYNX || ALPHA_NORITAKE || ALPHA_DP264 || ALPHA_RAWHIDE || ALPHA_EIGER || ALPHA_WILDFIRE || ALPHA_TITAN || ALPHA_SHARK || ALPHA_MARVEL
 	help
 	  There are two different types of booting firmware on Alphas: SRM,
 	  which is command line driven, and ARC, which uses menus and arrow

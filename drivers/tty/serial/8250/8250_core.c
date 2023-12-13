@@ -508,10 +508,6 @@ static struct uart_8250_port *serial8250_setup_port(int index)
 
 	up->ops = &univ8250_driver_ops;
 
-	if (IS_ENABLED(CONFIG_ALPHA_JENSEN) ||
-	    (IS_ENABLED(CONFIG_ALPHA_GENERIC) && alpha_jensen()))
-		up->port.set_mctrl = alpha_jensen_set_mctrl;
-
 	serial8250_set_defaults(up);
 
 	return up;

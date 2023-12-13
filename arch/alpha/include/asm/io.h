@@ -209,8 +209,6 @@ static inline int generic_is_mmio(const volatile void __iomem *a)
 # include <asm/core_cia.h>
 #elif defined(CONFIG_ALPHA_IRONGATE)
 # include <asm/core_irongate.h>
-#elif defined(CONFIG_ALPHA_JENSEN)
-# include <asm/jensen.h>
 #elif defined(CONFIG_ALPHA_LCA)
 # include <asm/core_lca.h>
 #elif defined(CONFIG_ALPHA_MARVEL)
@@ -631,23 +629,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define outsw outsw
 #define outsl outsl
 
-/*
- * The Alpha Jensen hardware for some rather strange reason puts
- * the RTC clock at 0x170 instead of 0x70. Probably due to some
- * misguided idea about using 0x70 for NMI stuff.
- *
- * These defines will override the defaults when doing RTC queries
- */
-
-#ifdef CONFIG_ALPHA_GENERIC
-# define RTC_PORT(x)	((x) + alpha_mv.rtc_port)
-#else
-# ifdef CONFIG_ALPHA_JENSEN
-#  define RTC_PORT(x)	(0x170+(x))
-# else
-#  define RTC_PORT(x)	(0x70 + (x))
-# endif
-#endif
+#define RTC_PORT(x)	(0x70 + (x))
 #define RTC_ALWAYS_BCD	0
 
 /*

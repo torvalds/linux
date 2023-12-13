@@ -27,7 +27,7 @@ obj-y 	 += core_apecs.o core_cia.o core_irongate.o core_lca.o \
 	    core_tsunami.o
 
 obj-y	 += sys_alcor.o sys_cabriolet.o sys_dp264.o sys_eb64p.o sys_eiger.o \
-	    sys_jensen.o sys_miata.o sys_mikasa.o sys_nautilus.o \
+	    sys_miata.o sys_mikasa.o sys_nautilus.o \
 	    sys_noritake.o sys_rawhide.o sys_ruffian.o sys_rx164.o \
 	    sys_sable.o sys_sio.o sys_sx164.o sys_takara.o
 
@@ -78,7 +78,6 @@ obj-$(CONFIG_ALPHA_TITAN)	+= sys_titan.o irq_i8259.o smc37c669.o
 obj-$(CONFIG_ALPHA_EB64P)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EB66)	+= sys_eb64p.o irq_i8259.o
 obj-$(CONFIG_ALPHA_EIGER)	+= sys_eiger.o irq_i8259.o
-obj-$(CONFIG_ALPHA_JENSEN)	+= sys_jensen.o pci-noop.o irq_i8259.o
 obj-$(CONFIG_ALPHA_MARVEL)	+= sys_marvel.o 
 obj-$(CONFIG_ALPHA_MIATA)	+= sys_miata.o irq_pyxis.o irq_i8259.o \
 				   es1888.o smc37c669.o
