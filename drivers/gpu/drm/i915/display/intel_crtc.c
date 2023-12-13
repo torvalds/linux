@@ -471,14 +471,11 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
 	return vblank_start;
 }
 
-static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
-					      struct intel_crtc *crtc,
+static void intel_crtc_vblank_evade_scanlines(const struct intel_crtc_state *old_crtc_state,
+					      const struct intel_crtc_state *new_crtc_state,
 					      int *min, int *max, int *vblank_start)
 {
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	const struct intel_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
 
@@ -497,7 +494,7 @@ static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
 
 	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
 		/* timing changes should happen with VRR disabled */
-		drm_WARN_ON(state->base.dev, intel_crtc_needs_modeset(new_crtc_state) ||
+		drm_WARN_ON(crtc->base.dev, intel_crtc_needs_modeset(new_crtc_state) ||
 			    new_crtc_state->update_m_n || new_crtc_state->update_lrr);
 
 		if (intel_vrr_is_push_sent(crtc_state))
@@ -542,6 +539,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	long timeout = msecs_to_jiffies_timeout(1);
@@ -566,7 +565,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	if (intel_crtc_needs_vblank_work(new_crtc_state))
 		intel_crtc_vblank_work_init(new_crtc_state);
 
-	intel_crtc_vblank_evade_scanlines(state, crtc, &min, &max, &vblank_start);
+	intel_crtc_vblank_evade_scanlines(old_crtc_state, new_crtc_state,
+					  &min, &max, &vblank_start);
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
 
