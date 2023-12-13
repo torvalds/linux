@@ -1045,8 +1045,9 @@ static const struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
-static int mt9m111_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int mt9m111_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 
@@ -1055,8 +1056,9 @@ static int mt9m111_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m111_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int mt9m111_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 	const struct mt9m111_mode_info *mode;
@@ -1151,8 +1153,6 @@ static int mt9m111_get_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_stream	= mt9m111_s_stream,
-	.g_frame_interval = mt9m111_g_frame_interval,
-	.s_frame_interval = mt9m111_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
@@ -1161,6 +1161,8 @@ static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
 	.set_selection	= mt9m111_set_selection,
 	.get_fmt	= mt9m111_get_fmt,
 	.set_fmt	= mt9m111_set_fmt,
+	.get_frame_interval = mt9m111_get_frame_interval,
+	.set_frame_interval = mt9m111_set_frame_interval,
 	.get_mbus_config = mt9m111_get_mbus_config,
 };
 

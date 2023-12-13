@@ -35,7 +35,7 @@
  * The IFP can produce several output image formats from the sensor core
  * output. This driver currently supports only YUYV format permutations.
  *
- * The driver allows manual frame rate control through s_frame_interval subdev
+ * The driver allows manual frame rate control through set_frame_interval subdev
  * operation or V4L2_CID_V/HBLANK controls, but it is known that the
  * auto-exposure algorithm might modify the programmed frame rate. While the
  * driver initially programs the sensor with auto-exposure and
@@ -719,8 +719,9 @@ error_unlock:
 	return ret;
 }
 
-static int mt9v111_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v111_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
 	struct mt9v111_dev *mt9v111 = sd_to_mt9v111(sd);
 	struct v4l2_fract *tpf = &ival->interval;
@@ -771,8 +772,9 @@ static int mt9v111_s_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v111_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v111_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
 	struct mt9v111_dev *mt9v111 = sd_to_mt9v111(sd);
 	struct v4l2_fract *tpf = &ival->interval;
@@ -962,8 +964,6 @@ static const struct v4l2_subdev_core_ops mt9v111_core_ops = {
 
 static const struct v4l2_subdev_video_ops mt9v111_video_ops = {
 	.s_stream		= mt9v111_s_stream,
-	.s_frame_interval	= mt9v111_s_frame_interval,
-	.g_frame_interval	= mt9v111_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9v111_pad_ops = {
@@ -972,6 +972,8 @@ static const struct v4l2_subdev_pad_ops mt9v111_pad_ops = {
 	.enum_frame_interval	= mt9v111_enum_frame_interval,
 	.get_fmt		= mt9v111_get_format,
 	.set_fmt		= mt9v111_set_format,
+	.get_frame_interval	= mt9v111_get_frame_interval,
+	.set_frame_interval	= mt9v111_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops mt9v111_ops = {

@@ -552,7 +552,8 @@ err_disable_regulators:
 	return ret;
 }
 
-static int ov2680_s_g_frame_interval(struct v4l2_subdev *sd,
+static int ov2680_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
@@ -870,8 +871,6 @@ static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov2680_video_ops = {
-	.g_frame_interval	= ov2680_s_g_frame_interval,
-	.s_frame_interval	= ov2680_s_g_frame_interval,
 	.s_stream		= ov2680_s_stream,
 };
 
@@ -883,6 +882,8 @@ static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.set_fmt		= ov2680_set_fmt,
 	.get_selection		= ov2680_get_selection,
 	.set_selection		= ov2680_set_selection,
+	.get_frame_interval	= ov2680_get_frame_interval,
+	.set_frame_interval	= ov2680_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov2680_subdev_ops = {

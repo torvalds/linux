@@ -105,8 +105,8 @@ static unsigned short atomisp_get_sensor_fps(struct atomisp_sub_device *asd)
 	unsigned short fps = 0;
 	int ret;
 
-	ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-			       video, g_frame_interval, &fi);
+	ret = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+					    pad, get_frame_interval, &fi);
 
 	if (!ret && fi.interval.numerator)
 		fps = fi.interval.denominator / fi.interval.numerator;

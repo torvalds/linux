@@ -1585,8 +1585,9 @@ static int mt9m114_ifp_s_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
-static int mt9m114_ifp_g_frame_interval(struct v4l2_subdev *sd,
-					struct v4l2_subdev_frame_interval *interval)
+static int mt9m114_ifp_get_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *interval)
 {
 	struct v4l2_fract *ival = &interval->interval;
 	struct mt9m114 *sensor = ifp_to_mt9m114(sd);
@@ -1601,8 +1602,9 @@ static int mt9m114_ifp_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m114_ifp_s_frame_interval(struct v4l2_subdev *sd,
-					struct v4l2_subdev_frame_interval *interval)
+static int mt9m114_ifp_set_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *interval)
 {
 	struct v4l2_fract *ival = &interval->interval;
 	struct mt9m114 *sensor = ifp_to_mt9m114(sd);
@@ -1967,8 +1969,6 @@ static int mt9m114_ifp_registered(struct v4l2_subdev *sd)
 
 static const struct v4l2_subdev_video_ops mt9m114_ifp_video_ops = {
 	.s_stream = mt9m114_ifp_s_stream,
-	.g_frame_interval = mt9m114_ifp_g_frame_interval,
-	.s_frame_interval = mt9m114_ifp_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9m114_ifp_pad_ops = {
@@ -1979,6 +1979,8 @@ static const struct v4l2_subdev_pad_ops mt9m114_ifp_pad_ops = {
 	.set_fmt = mt9m114_ifp_set_fmt,
 	.get_selection = mt9m114_ifp_get_selection,
 	.set_selection = mt9m114_ifp_set_selection,
+	.get_frame_interval = mt9m114_ifp_get_frame_interval,
+	.set_frame_interval = mt9m114_ifp_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops mt9m114_ifp_ops = {

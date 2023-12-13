@@ -594,8 +594,8 @@ static int imx274_set_gain(struct stimx274 *priv, struct v4l2_ctrl *ctrl);
 static int imx274_set_exposure(struct stimx274 *priv, int val);
 static int imx274_set_vflip(struct stimx274 *priv, int val);
 static int imx274_set_test_pattern(struct stimx274 *priv, int val);
-static int imx274_set_frame_interval(struct stimx274 *priv,
-				     struct v4l2_fract frame_interval);
+static int __imx274_set_frame_interval(struct stimx274 *priv,
+				       struct v4l2_fract frame_interval);
 
 static inline void msleep_range(unsigned int delay_base)
 {
@@ -1327,17 +1327,9 @@ static int imx274_apply_trimming(struct stimx274 *imx274)
 	return err;
 }
 
-/**
- * imx274_g_frame_interval - Get the frame interval
- * @sd: Pointer to V4L2 Sub device structure
- * @fi: Pointer to V4l2 Sub device frame interval structure
- *
- * This function is used to get the frame interval.
- *
- * Return: 0 on success
- */
-static int imx274_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int imx274_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct stimx274 *imx274 = to_imx274(sd);
 
@@ -1349,17 +1341,9 @@ static int imx274_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx274_s_frame_interval - Set the frame interval
- * @sd: Pointer to V4L2 Sub device structure
- * @fi: Pointer to V4l2 Sub device frame interval structure
- *
- * This function is used to set the frame intervavl.
- *
- * Return: 0 on success
- */
-static int imx274_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int imx274_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct stimx274 *imx274 = to_imx274(sd);
 	struct v4l2_ctrl *ctrl = imx274->ctrls.exposure;
@@ -1371,7 +1355,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 		return ret;
 
 	mutex_lock(&imx274->lock);
-	ret = imx274_set_frame_interval(imx274, fi->interval);
+	ret = __imx274_set_frame_interval(imx274, fi->interval);
 
 	if (!ret) {
 		fi->interval = imx274->frame_interval;
@@ -1466,8 +1450,8 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 		 * are changed.
 		 * gain is not affected.
 		 */
-		ret = imx274_set_frame_interval(imx274,
-						imx274->frame_interval);
+		ret = __imx274_set_frame_interval(imx274,
+						  imx274->frame_interval);
 		if (ret)
 			goto fail;
 
@@ -1830,7 +1814,7 @@ fail:
 }
 
 /*
- * imx274_set_frame_interval - Function called when setting frame interval
+ * __imx274_set_frame_interval - Function called when setting frame interval
  * @priv: Pointer to device structure
  * @frame_interval: Variable for frame interval
  *
@@ -1839,8 +1823,8 @@ fail:
  *
  * Return: 0 on success
  */
-static int imx274_set_frame_interval(struct stimx274 *priv,
-				     struct v4l2_fract frame_interval)
+static int __imx274_set_frame_interval(struct stimx274 *priv,
+				       struct v4l2_fract frame_interval)
 {
 	int err;
 	u32 frame_length, req_frame_rate;
@@ -1927,11 +1911,11 @@ static const struct v4l2_subdev_pad_ops imx274_pad_ops = {
 	.set_fmt = imx274_set_fmt,
 	.get_selection = imx274_get_selection,
 	.set_selection = imx274_set_selection,
+	.get_frame_interval = imx274_get_frame_interval,
+	.set_frame_interval = imx274_set_frame_interval,
 };
 
 static const struct v4l2_subdev_video_ops imx274_video_ops = {
-	.g_frame_interval = imx274_g_frame_interval,
-	.s_frame_interval = imx274_s_frame_interval,
 	.s_stream = imx274_s_stream,
 };
 

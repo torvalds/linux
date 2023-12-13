@@ -195,9 +195,9 @@ int v4l2_g_parm_cap(struct video_device *vdev,
 
 	if (vdev->device_caps & V4L2_CAP_READWRITE)
 		a->parm.capture.readbuffers = 2;
-	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+	if (v4l2_subdev_has_op(sd, pad, get_frame_interval))
 		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	ret = v4l2_subdev_call(sd, video, g_frame_interval, &ival);
+	ret = v4l2_subdev_call_state_active(sd, pad, get_frame_interval, &ival);
 	if (!ret)
 		a->parm.capture.timeperframe = ival.interval;
 	return ret;
@@ -222,9 +222,9 @@ int v4l2_s_parm_cap(struct video_device *vdev,
 	else
 		a->parm.capture.readbuffers = 0;
 
-	if (v4l2_subdev_has_op(sd, video, g_frame_interval))
+	if (v4l2_subdev_has_op(sd, pad, get_frame_interval))
 		a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	ret = v4l2_subdev_call(sd, video, s_frame_interval, &ival);
+	ret = v4l2_subdev_call_state_active(sd, pad, set_frame_interval, &ival);
 	if (!ret)
 		a->parm.capture.timeperframe = ival.interval;
 	return ret;

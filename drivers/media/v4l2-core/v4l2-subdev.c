@@ -245,29 +245,6 @@ static int call_enum_frame_size(struct v4l2_subdev *sd,
 	       sd->ops->pad->enum_frame_size(sd, state, fse);
 }
 
-static inline int check_frame_interval(struct v4l2_subdev *sd,
-				       struct v4l2_subdev_frame_interval *fi)
-{
-	if (!fi)
-		return -EINVAL;
-
-	return check_pad(sd, fi->pad);
-}
-
-static int call_g_frame_interval(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_frame_interval *fi)
-{
-	return check_frame_interval(sd, fi) ? :
-	       sd->ops->video->g_frame_interval(sd, fi);
-}
-
-static int call_s_frame_interval(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_frame_interval *fi)
-{
-	return check_frame_interval(sd, fi) ? :
-	       sd->ops->video->s_frame_interval(sd, fi);
-}
-
 static int call_enum_frame_interval(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *state,
 				    struct v4l2_subdev_frame_interval_enum *fie)
@@ -305,6 +282,34 @@ static int call_set_selection(struct v4l2_subdev *sd,
 {
 	return check_selection(sd, state, sel) ? :
 	       sd->ops->pad->set_selection(sd, state, sel);
+}
+
+static inline int check_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_state *state,
+				       struct v4l2_subdev_frame_interval *fi)
+{
+	if (!fi)
+		return -EINVAL;
+
+	return check_pad(sd, fi->pad) ? :
+	       check_state(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE, fi->pad,
+			   fi->stream);
+}
+
+static int call_get_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	return check_frame_interval(sd, state, fi) ? :
+	       sd->ops->pad->get_frame_interval(sd, state, fi);
+}
+
+static int call_set_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	return check_frame_interval(sd, state, fi) ? :
+	       sd->ops->pad->set_frame_interval(sd, state, fi);
 }
 
 static int call_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
@@ -479,6 +484,8 @@ static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 	.enum_frame_interval	= call_enum_frame_interval_state,
 	.get_selection		= call_get_selection_state,
 	.set_selection		= call_set_selection_state,
+	.get_frame_interval	= call_get_frame_interval,
+	.set_frame_interval	= call_set_frame_interval,
 	.get_edid		= call_get_edid,
 	.set_edid		= call_set_edid,
 	.dv_timings_cap		= call_dv_timings_cap,
@@ -488,8 +495,6 @@ static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 };
 
 static const struct v4l2_subdev_video_ops v4l2_subdev_call_video_wrappers = {
-	.g_frame_interval	= call_g_frame_interval,
-	.s_frame_interval	= call_s_frame_interval,
 	.s_stream		= call_s_stream,
 };
 
@@ -530,6 +535,10 @@ subdev_ioctl_get_state(struct v4l2_subdev *sd, struct v4l2_subdev_fh *subdev_fh,
 	case VIDIOC_SUBDEV_G_SELECTION:
 	case VIDIOC_SUBDEV_S_SELECTION:
 		which = ((struct v4l2_subdev_selection *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_G_FRAME_INTERVAL:
+	case VIDIOC_SUBDEV_S_FRAME_INTERVAL:
+		which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		break;
 	case VIDIOC_SUBDEV_G_ROUTING:
 	case VIDIOC_SUBDEV_S_ROUTING:
@@ -781,7 +790,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			fi->stream = 0;
 
 		memset(fi->reserved, 0, sizeof(fi->reserved));
-		return v4l2_subdev_call(sd, video, g_frame_interval, arg);
+		return v4l2_subdev_call(sd, pad, get_frame_interval, state, fi);
 	}
 
 	case VIDIOC_SUBDEV_S_FRAME_INTERVAL: {
@@ -794,7 +803,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			fi->stream = 0;
 
 		memset(fi->reserved, 0, sizeof(fi->reserved));
-		return v4l2_subdev_call(sd, video, s_frame_interval, arg);
+		return v4l2_subdev_call(sd, pad, set_frame_interval, state, fi);
 	}
 
 	case VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL: {

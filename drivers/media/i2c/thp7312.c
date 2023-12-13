@@ -734,28 +734,26 @@ static int thp7312_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int thp7312_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *fi)
+static int thp7312_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
-	struct v4l2_subdev_state *sd_state;
 
-	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
 	fi->interval.numerator = 1;
 	fi->interval.denominator = thp7312->current_rate->fps;
-	v4l2_subdev_unlock_state(sd_state);
 
 	return 0;
 }
 
-static int thp7312_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *fi)
+static int thp7312_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct thp7312_device *thp7312 = to_thp7312_dev(sd);
 	const struct thp7312_mode_info *mode;
 	const struct thp7312_frame_rate *best_rate = NULL;
 	const struct thp7312_frame_rate *rate;
-	struct v4l2_subdev_state *sd_state;
 	unsigned int best_delta = UINT_MAX;
 	unsigned int fps;
 
@@ -763,8 +761,6 @@ static int thp7312_s_frame_interval(struct v4l2_subdev *sd,
 	fps = fi->interval.numerator
 	    ? DIV_ROUND_CLOSEST(fi->interval.denominator, fi->interval.numerator)
 	    : UINT_MAX;
-
-	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
 
 	mode = thp7312->current_mode;
 
@@ -778,8 +774,6 @@ static int thp7312_s_frame_interval(struct v4l2_subdev *sd,
 	}
 
 	thp7312_set_frame_rate(thp7312, best_rate);
-
-	v4l2_subdev_unlock_state(sd_state);
 
 	fi->interval.numerator = 1;
 	fi->interval.denominator = best_rate->fps;
@@ -868,8 +862,6 @@ static const struct v4l2_subdev_core_ops thp7312_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops thp7312_video_ops = {
-	.g_frame_interval = thp7312_g_frame_interval,
-	.s_frame_interval = thp7312_s_frame_interval,
 	.s_stream = thp7312_s_stream,
 };
 
@@ -877,6 +869,8 @@ static const struct v4l2_subdev_pad_ops thp7312_pad_ops = {
 	.enum_mbus_code = thp7312_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = thp7312_set_fmt,
+	.get_frame_interval = thp7312_get_frame_interval,
+	.set_frame_interval = thp7312_set_frame_interval,
 	.enum_frame_size = thp7312_enum_frame_size,
 	.enum_frame_interval = thp7312_enum_frame_interval,
 };

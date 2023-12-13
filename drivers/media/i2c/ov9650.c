@@ -1101,8 +1101,9 @@ static int ov965x_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov965x_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov965x_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov965x *ov965x = to_ov965x(sd);
 
@@ -1148,8 +1149,9 @@ static int __ov965x_set_frame_interval(struct ov965x *ov965x,
 	return 0;
 }
 
-static int ov965x_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov965x_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov965x *ov965x = to_ov965x(sd);
 	int ret;
@@ -1373,12 +1375,12 @@ static const struct v4l2_subdev_pad_ops ov965x_pad_ops = {
 	.enum_frame_size = ov965x_enum_frame_sizes,
 	.get_fmt = ov965x_get_fmt,
 	.set_fmt = ov965x_set_fmt,
+	.get_frame_interval = ov965x_get_frame_interval,
+	.set_frame_interval = ov965x_set_frame_interval,
 };
 
 static const struct v4l2_subdev_video_ops ov965x_video_ops = {
 	.s_stream = ov965x_s_stream,
-	.g_frame_interval = ov965x_g_frame_interval,
-	.s_frame_interval = ov965x_s_frame_interval,
 
 };
 

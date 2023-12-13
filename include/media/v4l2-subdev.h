@@ -452,12 +452,6 @@ enum v4l2_subdev_pre_streamon_flags {
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
- * @g_frame_interval: callback for VIDIOC_SUBDEV_G_FRAME_INTERVAL()
- *		      ioctl handler code.
- *
- * @s_frame_interval: callback for VIDIOC_SUBDEV_S_FRAME_INTERVAL()
- *		      ioctl handler code.
- *
  * @s_dv_timings: Set custom dv timings in the sub device. This is used
  *	when sub device is capable of setting detailed timing information
  *	in the hardware to generate/detect the video signal.
@@ -496,10 +490,6 @@ struct v4l2_subdev_video_ops {
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
-	int (*g_frame_interval)(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *interval);
-	int (*s_frame_interval)(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *interval);
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
@@ -787,6 +777,12 @@ struct v4l2_subdev_state {
  *
  * @set_selection: callback for VIDIOC_SUBDEV_S_SELECTION() ioctl handler code.
  *
+ * @get_frame_interval: callback for VIDIOC_SUBDEV_G_FRAME_INTERVAL()
+ *			ioctl handler code.
+ *
+ * @set_frame_interval: callback for VIDIOC_SUBDEV_S_FRAME_INTERVAL()
+ *			ioctl handler code.
+ *
  * @get_edid: callback for VIDIOC_SUBDEV_G_EDID() ioctl handler code.
  *
  * @set_edid: callback for VIDIOC_SUBDEV_S_EDID() ioctl handler code.
@@ -856,6 +852,12 @@ struct v4l2_subdev_pad_ops {
 	int (*set_selection)(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_selection *sel);
+	int (*get_frame_interval)(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_interval *interval);
+	int (*set_frame_interval)(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state,
+				  struct v4l2_subdev_frame_interval *interval);
 	int (*get_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
 	int (*set_edid)(struct v4l2_subdev *sd, struct v4l2_edid *edid);
 	int (*dv_timings_cap)(struct v4l2_subdev *sd,

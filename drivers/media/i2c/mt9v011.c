@@ -362,8 +362,9 @@ static int mt9v011_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v011_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
 	calc_fps(sd,
 		 &ival->interval.numerator,
@@ -372,8 +373,9 @@ static int mt9v011_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9v011_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *ival)
+static int mt9v011_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *ival)
 {
 	struct v4l2_fract *tpf = &ival->interval;
 	u16 speed;
@@ -455,19 +457,15 @@ static const struct v4l2_subdev_core_ops mt9v011_core_ops = {
 #endif
 };
 
-static const struct v4l2_subdev_video_ops mt9v011_video_ops = {
-	.g_frame_interval = mt9v011_g_frame_interval,
-	.s_frame_interval = mt9v011_s_frame_interval,
-};
-
 static const struct v4l2_subdev_pad_ops mt9v011_pad_ops = {
 	.enum_mbus_code = mt9v011_enum_mbus_code,
 	.set_fmt = mt9v011_set_fmt,
+	.get_frame_interval = mt9v011_get_frame_interval,
+	.set_frame_interval = mt9v011_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops mt9v011_ops = {
 	.core  = &mt9v011_core_ops,
-	.video = &mt9v011_video_ops,
 	.pad   = &mt9v011_pad_ops,
 };
 

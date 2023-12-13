@@ -1004,8 +1004,9 @@ err_power_down:
 	return ret;
 }
 
-static int ov5693_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *interval)
+static int ov5693_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
 {
 	struct ov5693_device *ov5693 = to_ov5693_sensor(sd);
 	unsigned int framesize = OV5693_FIXED_PPL * (ov5693->mode.format.height +
@@ -1054,7 +1055,6 @@ static int ov5693_enum_frame_size(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov5693_video_ops = {
 	.s_stream = ov5693_s_stream,
-	.g_frame_interval = ov5693_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov5693_pad_ops = {
@@ -1064,6 +1064,7 @@ static const struct v4l2_subdev_pad_ops ov5693_pad_ops = {
 	.set_fmt = ov5693_set_fmt,
 	.get_selection = ov5693_get_selection,
 	.set_selection = ov5693_set_selection,
+	.get_frame_interval = ov5693_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov5693_ops = {

@@ -902,8 +902,9 @@ static const struct csi_skip_desc *csi_find_best_skip(struct v4l2_fract *in,
  * V4L2 subdev operations.
  */
 
-static int csi_g_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int csi_get_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
 
@@ -919,8 +920,9 @@ static int csi_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int csi_s_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_frame_interval *fi)
+static int csi_set_frame_interval(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_frame_interval *fi)
 {
 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
 	struct v4l2_fract *input_fi;
@@ -1860,8 +1862,6 @@ static const struct v4l2_subdev_core_ops csi_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops csi_video_ops = {
-	.g_frame_interval = csi_g_frame_interval,
-	.s_frame_interval = csi_s_frame_interval,
 	.s_stream = csi_s_stream,
 };
 
@@ -1873,6 +1873,8 @@ static const struct v4l2_subdev_pad_ops csi_pad_ops = {
 	.set_fmt = csi_set_fmt,
 	.get_selection = csi_get_selection,
 	.set_selection = csi_set_selection,
+	.get_frame_interval = csi_get_frame_interval,
+	.set_frame_interval = csi_set_frame_interval,
 	.link_validate = csi_link_validate,
 };
 

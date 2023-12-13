@@ -638,34 +638,8 @@ err_unlock:
 	return ret;
 }
 
-static int ov7740_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
-static int ov7740_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
-{
-	struct v4l2_fract *tpf = &ival->interval;
-
-
-	tpf->numerator = 1;
-	tpf->denominator = 60;
-
-	return 0;
-}
-
 static const struct v4l2_subdev_video_ops ov7740_subdev_video_ops = {
 	.s_stream = ov7740_set_stream,
-	.s_frame_interval = ov7740_s_frame_interval,
-	.g_frame_interval = ov7740_g_frame_interval,
 };
 
 static const struct reg_sequence ov7740_format_yuyv[] = {
@@ -852,12 +826,26 @@ static int ov7740_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov7740_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
+{
+	struct v4l2_fract *tpf = &ival->interval;
+
+	tpf->numerator = 1;
+	tpf->denominator = 60;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops ov7740_subdev_pad_ops = {
 	.enum_frame_interval = ov7740_enum_frame_interval,
 	.enum_frame_size = ov7740_enum_frame_size,
 	.enum_mbus_code = ov7740_enum_mbus_code,
 	.get_fmt = ov7740_get_fmt,
 	.set_fmt = ov7740_set_fmt,
+	.get_frame_interval = ov7740_get_frame_interval,
+	.set_frame_interval = ov7740_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov7740_subdev_ops = {

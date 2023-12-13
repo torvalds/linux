@@ -866,8 +866,9 @@ static void s5c73m3_try_format(struct s5c73m3 *state,
 	s5c73m3_fill_mbus_fmt(&fmt->format, *fs, code);
 }
 
-static int s5c73m3_oif_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5c73m3_oif_get_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 
@@ -915,8 +916,9 @@ static int __s5c73m3_set_frame_interval(struct s5c73m3 *state,
 	return 0;
 }
 
-static int s5c73m3_oif_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5c73m3_oif_set_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 	int ret;
@@ -1497,6 +1499,8 @@ static const struct v4l2_subdev_pad_ops s5c73m3_oif_pad_ops = {
 	.enum_frame_interval	= s5c73m3_oif_enum_frame_interval,
 	.get_fmt		= s5c73m3_oif_get_fmt,
 	.set_fmt		= s5c73m3_oif_set_fmt,
+	.get_frame_interval	= s5c73m3_oif_get_frame_interval,
+	.set_frame_interval	= s5c73m3_oif_set_frame_interval,
 	.get_frame_desc		= s5c73m3_oif_get_frame_desc,
 	.set_frame_desc		= s5c73m3_oif_set_frame_desc,
 };
@@ -1508,8 +1512,6 @@ static const struct v4l2_subdev_core_ops s5c73m3_oif_core_ops = {
 
 static const struct v4l2_subdev_video_ops s5c73m3_oif_video_ops = {
 	.s_stream		= s5c73m3_oif_s_stream,
-	.g_frame_interval	= s5c73m3_oif_g_frame_interval,
-	.s_frame_interval	= s5c73m3_oif_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops oif_subdev_ops = {

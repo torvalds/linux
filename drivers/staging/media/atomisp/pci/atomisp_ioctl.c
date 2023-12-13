@@ -1739,8 +1739,8 @@ static int atomisp_s_parm(struct file *file, void *fh,
 
 		fi.interval = parm->parm.capture.timeperframe;
 
-		rval = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-					video, s_frame_interval, &fi);
+		rval = v4l2_subdev_call_state_active(isp->inputs[asd->input_curr].camera,
+						     pad, set_frame_interval, &fi);
 		if (!rval)
 			parm->parm.capture.timeperframe = fi.interval;
 

@@ -1649,6 +1649,7 @@ static int alvium_hw_init(struct alvium_dev *alvium)
 /* --------------- Subdev Operations --------------- */
 
 static int alvium_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct alvium_dev *alvium = sd_to_alvium(sd);
@@ -1696,22 +1697,18 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 }
 
 static int alvium_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_interval *fi)
 {
 	struct alvium_dev *alvium = sd_to_alvium(sd);
-	struct v4l2_subdev_state *state;
 	int ret;
 
 	if (alvium->streaming)
 		return -EBUSY;
 
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-
 	ret = alvium_set_frame_interval(alvium, fi);
 	if (!ret)
 		ret = alvium_set_frame_rate(alvium);
-
-	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -2238,8 +2235,6 @@ static const struct v4l2_subdev_core_ops alvium_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops alvium_video_ops = {
-	.g_frame_interval	= alvium_g_frame_interval,
-	.s_frame_interval	= alvium_s_frame_interval,
 	.s_stream		= alvium_s_stream,
 };
 
@@ -2249,6 +2244,8 @@ static const struct v4l2_subdev_pad_ops alvium_pad_ops = {
 	.set_fmt = alvium_set_fmt,
 	.get_selection = alvium_get_selection,
 	.set_selection = alvium_set_selection,
+	.get_frame_interval = alvium_g_frame_interval,
+	.set_frame_interval = alvium_s_frame_interval,
 };
 
 static const struct v4l2_subdev_internal_ops alvium_internal_ops = {

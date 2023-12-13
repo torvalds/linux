@@ -2158,37 +2158,8 @@ static int ov5648_s_stream(struct v4l2_subdev *subdev, int enable)
 	return 0;
 }
 
-static int ov5648_g_frame_interval(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_frame_interval *interval)
-{
-	struct ov5648_sensor *sensor = ov5648_subdev_sensor(subdev);
-	const struct ov5648_mode *mode;
-	int ret = 0;
-
-	mutex_lock(&sensor->mutex);
-
-	mode = sensor->state.mode;
-
-	switch (sensor->state.mbus_code) {
-	case MEDIA_BUS_FMT_SBGGR8_1X8:
-		interval->interval = mode->frame_interval[0];
-		break;
-	case MEDIA_BUS_FMT_SBGGR10_1X10:
-		interval->interval = mode->frame_interval[1];
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	mutex_unlock(&sensor->mutex);
-
-	return ret;
-}
-
 static const struct v4l2_subdev_video_ops ov5648_subdev_video_ops = {
 	.s_stream		= ov5648_s_stream,
-	.g_frame_interval	= ov5648_g_frame_interval,
-	.s_frame_interval	= ov5648_g_frame_interval,
 };
 
 /* Subdev Pad Operations */
@@ -2297,6 +2268,34 @@ complete:
 	return ret;
 }
 
+static int ov5648_get_frame_interval(struct v4l2_subdev *subdev,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
+{
+	struct ov5648_sensor *sensor = ov5648_subdev_sensor(subdev);
+	const struct ov5648_mode *mode;
+	int ret = 0;
+
+	mutex_lock(&sensor->mutex);
+
+	mode = sensor->state.mode;
+
+	switch (sensor->state.mbus_code) {
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+		interval->interval = mode->frame_interval[0];
+		break;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		interval->interval = mode->frame_interval[1];
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&sensor->mutex);
+
+	return ret;
+}
+
 static int ov5648_enum_frame_size(struct v4l2_subdev *subdev,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *size_enum)
@@ -2363,6 +2362,8 @@ static const struct v4l2_subdev_pad_ops ov5648_subdev_pad_ops = {
 	.enum_mbus_code		= ov5648_enum_mbus_code,
 	.get_fmt		= ov5648_get_fmt,
 	.set_fmt		= ov5648_set_fmt,
+	.get_frame_interval	= ov5648_get_frame_interval,
+	.set_frame_interval	= ov5648_get_frame_interval,
 	.enum_frame_size	= ov5648_enum_frame_size,
 	.enum_frame_interval	= ov5648_enum_frame_interval,
 };

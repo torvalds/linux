@@ -868,8 +868,9 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int max9286_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *interval)
+static int max9286_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *interval)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
 
@@ -881,8 +882,9 @@ static int max9286_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int max9286_s_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *interval)
+static int max9286_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *interval)
 {
 	struct max9286_priv *priv = sd_to_max9286(sd);
 
@@ -983,14 +985,14 @@ static int max9286_get_fmt(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops max9286_video_ops = {
 	.s_stream	= max9286_s_stream,
-	.g_frame_interval = max9286_g_frame_interval,
-	.s_frame_interval = max9286_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops max9286_pad_ops = {
 	.enum_mbus_code = max9286_enum_mbus_code,
 	.get_fmt	= max9286_get_fmt,
 	.set_fmt	= max9286_set_fmt,
+	.get_frame_interval = max9286_get_frame_interval,
+	.set_frame_interval = max9286_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops max9286_subdev_ops = {

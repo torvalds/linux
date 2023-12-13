@@ -1118,8 +1118,9 @@ out:
 	return ret;
 }
 
-static int s5k5baf_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5k5baf_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
 
@@ -1131,8 +1132,8 @@ static int s5k5baf_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void s5k5baf_set_frame_interval(struct s5k5baf *state,
-				       struct v4l2_subdev_frame_interval *fi)
+static void __s5k5baf_set_frame_interval(struct s5k5baf *state,
+					 struct v4l2_subdev_frame_interval *fi)
 {
 	struct v4l2_fract *i = &fi->interval;
 
@@ -1155,13 +1156,14 @@ static void s5k5baf_set_frame_interval(struct s5k5baf *state,
 			  state->fiv);
 }
 
-static int s5k5baf_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5k5baf_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
 
 	mutex_lock(&state->lock);
-	s5k5baf_set_frame_interval(state, fi);
+	__s5k5baf_set_frame_interval(state, fi);
 	mutex_unlock(&state->lock);
 	return 0;
 }
@@ -1526,11 +1528,11 @@ static const struct v4l2_subdev_pad_ops s5k5baf_pad_ops = {
 	.set_fmt		= s5k5baf_set_fmt,
 	.get_selection		= s5k5baf_get_selection,
 	.set_selection		= s5k5baf_set_selection,
+	.get_frame_interval	= s5k5baf_get_frame_interval,
+	.set_frame_interval	= s5k5baf_set_frame_interval,
 };
 
 static const struct v4l2_subdev_video_ops s5k5baf_video_ops = {
-	.g_frame_interval	= s5k5baf_g_frame_interval,
-	.s_frame_interval	= s5k5baf_s_frame_interval,
 	.s_stream		= s5k5baf_s_stream,
 };
 

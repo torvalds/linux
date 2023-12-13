@@ -197,7 +197,7 @@ struct ov6650 {
 	struct clk		*clk;
 	bool			half_scale;	/* scale down output by 2 */
 	struct v4l2_rect	rect;		/* sensor cropping window */
-	struct v4l2_fract	tpf;		/* as requested with s_frame_interval */
+	struct v4l2_fract	tpf;		/* as requested with set_frame_interval */
 	u32 code;
 };
 
@@ -799,8 +799,9 @@ static int ov6650_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov6650_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
@@ -813,8 +814,9 @@ static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov6650_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
@@ -1006,8 +1008,6 @@ static int ov6650_get_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops ov6650_video_ops = {
 	.s_stream	= ov6650_s_stream,
-	.g_frame_interval = ov6650_g_frame_interval,
-	.s_frame_interval = ov6650_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
@@ -1017,6 +1017,8 @@ static const struct v4l2_subdev_pad_ops ov6650_pad_ops = {
 	.set_selection		= ov6650_set_selection,
 	.get_fmt		= ov6650_get_fmt,
 	.set_fmt		= ov6650_set_fmt,
+	.get_frame_interval	= ov6650_get_frame_interval,
+	.set_frame_interval	= ov6650_set_frame_interval,
 	.get_mbus_config	= ov6650_get_mbus_config,
 };
 
