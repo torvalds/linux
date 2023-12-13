@@ -26,34 +26,6 @@
 #include <asm/ptdump.h>
 
 
-enum address_markers_idx {
-	PAGE_OFFSET_NR = 0,
-	PAGE_END_NR,
-#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-	KASAN_START_NR,
-#endif
-};
-
-static struct addr_marker address_markers[] = {
-	{ PAGE_OFFSET,			"Linear Mapping start" },
-	{ 0 /* PAGE_END */,		"Linear Mapping end" },
-#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-	{ 0 /* KASAN_SHADOW_START */,	"Kasan shadow start" },
-	{ KASAN_SHADOW_END,		"Kasan shadow end" },
-#endif
-	{ MODULES_VADDR,		"Modules start" },
-	{ MODULES_END,			"Modules end" },
-	{ VMALLOC_START,		"vmalloc() area" },
-	{ VMALLOC_END,			"vmalloc() end" },
-	{ VMEMMAP_START,		"vmemmap start" },
-	{ VMEMMAP_END,			"vmemmap end" },
-	{ PCI_IO_START,			"PCI I/O start" },
-	{ PCI_IO_END,			"PCI I/O end" },
-	{ FIXADDR_TOT_START,		"Fixmap start" },
-	{ FIXADDR_TOP,			"Fixmap end" },
-	{ -1,				NULL },
-};
-
 #define pt_dump_seq_printf(m, fmt, args...)	\
 ({						\
 	if (m)					\
@@ -339,9 +311,8 @@ static void __init ptdump_initialize(void)
 				pg_level[i].mask |= pg_level[i].bits[j].mask;
 }
 
-static struct ptdump_info kernel_ptdump_info = {
+static struct ptdump_info kernel_ptdump_info __ro_after_init = {
 	.mm		= &init_mm,
-	.markers	= address_markers,
 	.base_addr	= PAGE_OFFSET,
 };
 
@@ -375,10 +346,29 @@ void ptdump_check_wx(void)
 
 static int __init ptdump_init(void)
 {
-	address_markers[PAGE_END_NR].start_address = PAGE_END;
+	struct addr_marker m[] = {
+		{ PAGE_OFFSET,		"Linear Mapping start" },
+		{ PAGE_END,		"Linear Mapping end" },
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
-	address_markers[KASAN_START_NR].start_address = KASAN_SHADOW_START;
+		{ KASAN_SHADOW_START,   "Kasan shadow start" },
+		{ KASAN_SHADOW_END,     "Kasan shadow end" },
 #endif
+		{ MODULES_VADDR,	"Modules start" },
+		{ MODULES_END,		"Modules end" },
+		{ VMALLOC_START,	"vmalloc() area" },
+		{ VMALLOC_END,		"vmalloc() end" },
+		{ VMEMMAP_START,	"vmemmap start" },
+		{ VMEMMAP_END,		"vmemmap end" },
+		{ PCI_IO_START,		"PCI I/O start" },
+		{ PCI_IO_END,		"PCI I/O end" },
+		{ FIXADDR_TOT_START,    "Fixmap start" },
+		{ FIXADDR_TOP,	        "Fixmap end" },
+		{ -1,			NULL },
+	};
+	static struct addr_marker address_markers[ARRAY_SIZE(m)] __ro_after_init;
+
+	kernel_ptdump_info.markers = memcpy(address_markers, m, sizeof(m));
+
 	ptdump_initialize();
 	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");
 	return 0;
