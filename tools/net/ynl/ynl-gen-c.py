@@ -105,6 +105,9 @@ class Type(SpecAttr):
     def is_scalar(self):
         return self.type in {'u8', 'u16', 'u32', 'u64', 's32', 's64'}
 
+    def is_recursive(self):
+        return False
+
     def presence_type(self):
         return 'bit'
 
@@ -529,6 +532,9 @@ class TypeBitfield32(Type):
 
 
 class TypeNest(Type):
+    def is_recursive(self):
+        return self.family.pure_nested_structs[self.nested_attrs].recursive
+
     def _complex_member_type(self, ri):
         return self.nested_struct_type
 
@@ -700,9 +706,12 @@ class Struct:
         if self.nested and space_name in family.consts:
             self.struct_name += '_'
         self.ptr_name = self.struct_name + ' *'
+        # All attr sets this one contains, directly or multiple levels down
+        self.child_nests = set()
 
         self.request = False
         self.reply = False
+        self.recursive = False
 
         self.attr_list = []
         self.attrs = dict()
@@ -1059,14 +1068,20 @@ class Family(SpecFamily):
                 pns_key_seen.add(name)
             else:
                 pns_key_list.append(name)
-        # Propagate the request / reply
+        # Propagate the request / reply / recursive
         for attr_set, struct in reversed(self.pure_nested_structs.items()):
             for _, spec in self.attr_sets[attr_set].items():
                 if 'nested-attributes' in spec:
-                    child = self.pure_nested_structs.get(spec['nested-attributes'])
+                    child_name = spec['nested-attributes']
+                    struct.child_nests.add(child_name)
+                    child = self.pure_nested_structs.get(child_name)
                     if child:
+                        if not child.recursive:
+                            struct.child_nests.update(child.child_nests)
                         child.request |= struct.request
                         child.reply |= struct.reply
+                if attr_set in struct.child_nests:
+                    struct.recursive = True
 
     def _load_attr_use(self):
         for _, struct in self.pure_nested_structs.items():
