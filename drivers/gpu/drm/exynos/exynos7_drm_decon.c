@@ -765,7 +765,7 @@ err_iounmap:
 	return ret;
 }
 
-static int decon_remove(struct platform_device *pdev)
+static void decon_remove(struct platform_device *pdev)
 {
 	struct decon_context *ctx = dev_get_drvdata(&pdev->dev);
 
@@ -774,8 +774,6 @@ static int decon_remove(struct platform_device *pdev)
 	iounmap(ctx->regs);
 
 	component_del(&pdev->dev, &decon_component_ops);
-
-	return 0;
 }
 
 static int exynos7_decon_suspend(struct device *dev)
@@ -840,7 +838,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(exynos7_decon_pm_ops, exynos7_decon_suspend,
 
 struct platform_driver decon_driver = {
 	.probe		= decon_probe,
-	.remove		= decon_remove,
+	.remove_new	= decon_remove,
 	.driver		= {
 		.name	= "exynos-decon",
 		.pm	= pm_ptr(&exynos7_decon_pm_ops),

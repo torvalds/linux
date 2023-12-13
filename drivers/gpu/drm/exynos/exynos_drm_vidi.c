@@ -462,7 +462,7 @@ static int vidi_probe(struct platform_device *pdev)
 	return component_add(dev, &vidi_component_ops);
 }
 
-static int vidi_remove(struct platform_device *pdev)
+static void vidi_remove(struct platform_device *pdev)
 {
 	struct vidi_context *ctx = platform_get_drvdata(pdev);
 
@@ -472,13 +472,11 @@ static int vidi_remove(struct platform_device *pdev)
 	}
 
 	component_del(&pdev->dev, &vidi_component_ops);
-
-	return 0;
 }
 
 struct platform_driver vidi_driver = {
 	.probe		= vidi_probe,
-	.remove		= vidi_remove,
+	.remove_new	= vidi_remove,
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.owner	= THIS_MODULE,
