@@ -34,7 +34,7 @@ void zswap_swapon(int type);
 void zswap_swapoff(int type);
 void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg);
 void zswap_lruvec_state_init(struct lruvec *lruvec);
-void zswap_page_swapin(struct page *page);
+void zswap_folio_swapin(struct folio *folio);
 #else
 
 struct zswap_lruvec_state {};
@@ -54,7 +54,7 @@ static inline void zswap_swapon(int type) {}
 static inline void zswap_swapoff(int type) {}
 static inline void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg) {}
 static inline void zswap_lruvec_state_init(struct lruvec *lruvec) {}
-static inline void zswap_page_swapin(struct page *page) {}
+static inline void zswap_folio_swapin(struct folio *folio) {}
 #endif
 
 #endif /* _LINUX_ZSWAP_H */

@@ -368,12 +368,12 @@ void zswap_lruvec_state_init(struct lruvec *lruvec)
 	atomic_long_set(&lruvec->zswap_lruvec_state.nr_zswap_protected, 0);
 }
 
-void zswap_page_swapin(struct page *page)
+void zswap_folio_swapin(struct folio *folio)
 {
 	struct lruvec *lruvec;
 
-	if (page) {
-		lruvec = folio_lruvec(page_folio(page));
+	if (folio) {
+		lruvec = folio_lruvec(folio);
 		atomic_long_inc(&lruvec->zswap_lruvec_state.nr_zswap_protected);
 	}
 }
@@ -1383,14 +1383,14 @@ static void __zswap_load(struct zswap_entry *entry, struct page *page)
 * writeback code
 **********************************/
 /*
- * Attempts to free an entry by adding a page to the swap cache,
- * decompressing the entry data into the page, and issuing a
- * bio write to write the page back to the swap device.
+ * Attempts to free an entry by adding a folio to the swap cache,
+ * decompressing the entry data into the folio, and issuing a
+ * bio write to write the folio back to the swap device.
  *
- * This can be thought of as a "resumed writeback" of the page
+ * This can be thought of as a "resumed writeback" of the folio
  * to the swap device.  We are basically resuming the same swap
  * writeback path that was intercepted with the zswap_store()
- * in the first place.  After the page has been decompressed into
+ * in the first place.  After the folio has been decompressed into
  * the swap cache, the compressed version stored by zswap can be
  * freed.
  */
@@ -1398,56 +1398,56 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 				 struct zswap_tree *tree)
 {
 	swp_entry_t swpentry = entry->swpentry;
-	struct page *page;
+	struct folio *folio;
 	struct mempolicy *mpol;
-	bool page_was_allocated;
+	bool folio_was_allocated;
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_NONE,
 	};
 
-	/* try to allocate swap cache page */
+	/* try to allocate swap cache folio */
 	mpol = get_task_policy(current);
-	page = __read_swap_cache_async(swpentry, GFP_KERNEL, mpol,
-				NO_INTERLEAVE_INDEX, &page_was_allocated, true);
-	if (!page)
+	folio = __read_swap_cache_async(swpentry, GFP_KERNEL, mpol,
+				NO_INTERLEAVE_INDEX, &folio_was_allocated, true);
+	if (!folio)
 		return -ENOMEM;
 
 	/*
-	 * Found an existing page, we raced with load/swapin. We generally
-	 * writeback cold pages from zswap, and swapin means the page just
-	 * became hot. Skip this page and let the caller find another one.
+	 * Found an existing folio, we raced with load/swapin. We generally
+	 * writeback cold folios from zswap, and swapin means the folio just
+	 * became hot. Skip this folio and let the caller find another one.
 	 */
-	if (!page_was_allocated) {
-		put_page(page);
+	if (!folio_was_allocated) {
+		folio_put(folio);
 		return -EEXIST;
 	}
 
 	/*
-	 * Page is locked, and the swapcache is now secured against
+	 * folio is locked, and the swapcache is now secured against
 	 * concurrent swapping to and from the slot. Verify that the
 	 * swap entry hasn't been invalidated and recycled behind our
 	 * backs (our zswap_entry reference doesn't prevent that), to
-	 * avoid overwriting a new swap page with old compressed data.
+	 * avoid overwriting a new swap folio with old compressed data.
 	 */
 	spin_lock(&tree->lock);
 	if (zswap_rb_search(&tree->rbroot, swp_offset(entry->swpentry)) != entry) {
 		spin_unlock(&tree->lock);
-		delete_from_swap_cache(page_folio(page));
+		delete_from_swap_cache(folio);
 		return -ENOMEM;
 	}
 	spin_unlock(&tree->lock);
 
-	__zswap_load(entry, page);
+	__zswap_load(entry, &folio->page);
 
-	/* page is up to date */
-	SetPageUptodate(page);
+	/* folio is up to date */
+	folio_mark_uptodate(folio);
 
 	/* move it to the tail of the inactive list after end_writeback */
-	SetPageReclaim(page);
+	folio_set_reclaim(folio);
 
 	/* start writeback */
-	__swap_writepage(page, &wbc);
-	put_page(page);
+	__swap_writepage(&folio->page, &wbc);
+	folio_put(folio);
 
 	return 0;
 }
@@ -1593,7 +1593,7 @@ bool zswap_store(struct folio *folio)
 
 	dst = acomp_ctx->buffer;
 	sg_init_table(&input, 1);
-	sg_set_page(&input, page, PAGE_SIZE, 0);
+	sg_set_page(&input, &folio->page, PAGE_SIZE, 0);
 
 	/*
 	 * We need PAGE_SIZE * 2 here since there maybe over-compression case,
