@@ -321,13 +321,13 @@ Examples
   :#> ddcmd 'format "nfsd: READ" +p'
 
   // enable messages in files of which the paths include string "usb"
-  :#> ddcmd 'file *usb* +p' > /proc/dynamic_debug/control
+  :#> ddcmd 'file *usb* +p'
 
   // enable all messages
-  :#> ddcmd '+p' > /proc/dynamic_debug/control
+  :#> ddcmd '+p'
 
   // add module, function to all enabled messages
-  :#> ddcmd '+mf' > /proc/dynamic_debug/control
+  :#> ddcmd '+mf'
 
   // boot-args example, with newlines and comments for readability
   Kernel command line: ...
