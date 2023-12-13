@@ -21,7 +21,6 @@
 #include <linux/mutex.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/platform_data/keypad-omap.h>
 #include <linux/soc/ti/omap1-io.h>
@@ -48,9 +47,6 @@ struct omap_kp {
 };
 
 static DECLARE_TASKLET_DISABLED_OLD(kp_tasklet, omap_kp_tasklet);
-
-static unsigned int *row_gpios;
-static unsigned int *col_gpios;
 
 static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 {
@@ -180,7 +176,7 @@ static int omap_kp_probe(struct platform_device *pdev)
 	struct omap_kp *omap_kp;
 	struct input_dev *input_dev;
 	struct omap_kp_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	int i, col_idx, row_idx, ret;
+	int ret;
 	unsigned int row_shift, keycodemax;
 
 	if (!pdata->rows || !pdata->cols || !pdata->keymap_data) {
@@ -209,16 +205,8 @@ static int omap_kp_probe(struct platform_device *pdev)
 	if (pdata->delay)
 		omap_kp->delay = pdata->delay;
 
-	if (pdata->row_gpios && pdata->col_gpios) {
-		row_gpios = pdata->row_gpios;
-		col_gpios = pdata->col_gpios;
-	}
-
 	omap_kp->rows = pdata->rows;
 	omap_kp->cols = pdata->cols;
-
-	col_idx = 0;
-	row_idx = 0;
 
 	timer_setup(&omap_kp->timer, omap_kp_timer, 0);
 
@@ -276,11 +264,6 @@ err4:
 err3:
 	device_remove_file(&pdev->dev, &dev_attr_enable);
 err2:
-	for (i = row_idx - 1; i >= 0; i--)
-		gpio_free(row_gpios[i]);
-	for (i = col_idx - 1; i >= 0; i--)
-		gpio_free(col_gpios[i]);
-
 	kfree(omap_kp);
 	input_free_device(input_dev);
 
