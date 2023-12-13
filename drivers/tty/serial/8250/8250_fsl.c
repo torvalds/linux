@@ -51,7 +51,8 @@ int fsl8250_handle_irq(struct uart_port *port)
 	 * immediately and interrupt the CPU again. The hardware clears LSR.BI
 	 * when the next valid char is read.)
 	 */
-	if (unlikely(up->lsr_saved_flags & UART_LSR_BI)) {
+	if (unlikely((iir & UART_IIR_ID) == UART_IIR_RLSI &&
+		     (up->lsr_saved_flags & UART_LSR_BI))) {
 		up->lsr_saved_flags &= ~UART_LSR_BI;
 		port->serial_in(port, UART_RX);
 		uart_port_unlock_irqrestore(&up->port, flags);
