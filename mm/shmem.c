@@ -1570,15 +1570,13 @@ static struct folio *shmem_swapin_cluster(swp_entry_t swap, gfp_t gfp,
 {
 	struct mempolicy *mpol;
 	pgoff_t ilx;
-	struct page *page;
+	struct folio *folio;
 
 	mpol = shmem_get_pgoff_policy(info, index, 0, &ilx);
-	page = swap_cluster_readahead(swap, gfp, mpol, ilx);
+	folio = swap_cluster_readahead(swap, gfp, mpol, ilx);
 	mpol_cond_put(mpol);
 
-	if (!page)
-		return NULL;
-	return page_folio(page);
+	return folio;
 }
 
 /*

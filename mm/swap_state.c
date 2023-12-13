@@ -620,7 +620,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * @mpol: NUMA memory allocation policy to be applied
  * @ilx: NUMA interleave index, for use only when MPOL_INTERLEAVE
  *
- * Returns the struct page for entry and addr, after queueing swapin.
+ * Returns the struct folio for entry and addr, after queueing swapin.
  *
  * Primitive swap readahead code. We simply read an aligned block of
  * (1 << page_cluster) entries in the swap area. This method is chosen
@@ -631,7 +631,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
  * are used for every page of the readahead: neighbouring pages on swap
  * are fairly likely to have been swapped out from the same node.
  */
-struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
+struct folio *swap_cluster_readahead(swp_entry_t entry, gfp_t gfp_mask,
 				    struct mempolicy *mpol, pgoff_t ilx)
 {
 	struct folio *folio;
@@ -683,7 +683,7 @@ skip:
 	if (unlikely(page_allocated))
 		swap_read_folio(folio, false, NULL);
 	zswap_folio_swapin(folio);
-	return folio_file_page(folio, swp_offset(entry));
+	return folio;
 }
 
 int init_swap_address_space(unsigned int type, unsigned long nr_pages)
@@ -787,7 +787,7 @@ static void swap_ra_info(struct vm_fault *vmf,
  * @targ_ilx: NUMA interleave index, for use only when MPOL_INTERLEAVE
  * @vmf: fault information
  *
- * Returns the struct page for entry and addr, after queueing swapin.
+ * Returns the struct folio for entry and addr, after queueing swapin.
  *
  * Primitive swap readahead code. We simply read in a few pages whose
  * virtual addresses are around the fault address in the same vma.
@@ -795,9 +795,8 @@ static void swap_ra_info(struct vm_fault *vmf,
  * Caller must hold read mmap_lock if vmf->vma is not NULL.
  *
  */
-static struct page *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
-				       struct mempolicy *mpol, pgoff_t targ_ilx,
-				       struct vm_fault *vmf)
+static struct folio *swap_vma_readahead(swp_entry_t targ_entry, gfp_t gfp_mask,
+		struct mempolicy *mpol, pgoff_t targ_ilx, struct vm_fault *vmf)
 {
 	struct blk_plug plug;
 	struct swap_iocb *splug = NULL;
@@ -859,7 +858,7 @@ skip:
 	if (unlikely(page_allocated))
 		swap_read_folio(folio, false, NULL);
 	zswap_folio_swapin(folio);
-	return folio_file_page(folio, swp_offset(entry));
+	return folio;
 }
 
 /**
@@ -879,14 +878,17 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 {
 	struct mempolicy *mpol;
 	pgoff_t ilx;
-	struct page *page;
+	struct folio *folio;
 
 	mpol = get_vma_policy(vmf->vma, vmf->address, 0, &ilx);
-	page = swap_use_vma_readahead() ?
+	folio = swap_use_vma_readahead() ?
 		swap_vma_readahead(entry, gfp_mask, mpol, ilx, vmf) :
 		swap_cluster_readahead(entry, gfp_mask, mpol, ilx);
 	mpol_cond_put(mpol);
-	return page;
+
+	if (!folio)
+		return NULL;
+	return folio_file_page(folio, swp_offset(entry));
 }
 
 #ifdef CONFIG_SYSFS
