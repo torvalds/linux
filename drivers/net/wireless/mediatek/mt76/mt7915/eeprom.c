@@ -9,28 +9,26 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
 	u8 *eeprom = mdev->eeprom.data;
-	u32 val = eeprom[MT_EE_DO_PRE_CAL];
-	u32 offs;
+	u32 offs = is_mt7915(&dev->mt76) ? MT_EE_DO_PRE_CAL : MT_EE_DO_PRE_CAL_V2;
+	u32 size, val = eeprom[offs];
 	int ret;
 
-	if (!dev->flash_mode)
+	if (!dev->flash_mode || !val)
 		return 0;
 
-	if (val != (MT_EE_WIFI_CAL_DPD | MT_EE_WIFI_CAL_GROUP))
-		return 0;
+	size = mt7915_get_cal_group_size(dev) + mt7915_get_cal_dpd_size(dev);
 
-	val = MT_EE_CAL_GROUP_SIZE + MT_EE_CAL_DPD_SIZE;
-	dev->cal = devm_kzalloc(mdev->dev, val, GFP_KERNEL);
+	dev->cal = devm_kzalloc(mdev->dev, size, GFP_KERNEL);
 	if (!dev->cal)
 		return -ENOMEM;
 
 	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
 
-	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, val);
+	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, size);
 	if (!ret)
 		return ret;
 
-	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", val);
+	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", size);
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
