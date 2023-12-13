@@ -1050,7 +1050,7 @@ static ssize_t ims_pcu_attribute_show(struct device *dev,
 			container_of(dattr, struct ims_pcu_attribute, dattr);
 	char *field = (char *)pcu + attr->field_offset;
 
-	return scnprintf(buf, PAGE_SIZE, "%.*s\n", attr->field_length, field);
+	return sysfs_emit(buf, "%.*s\n", attr->field_length, field);
 }
 
 static ssize_t ims_pcu_attribute_store(struct device *dev,
@@ -1206,7 +1206,7 @@ ims_pcu_update_firmware_status_show(struct device *dev,
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct ims_pcu *pcu = usb_get_intfdata(intf);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", pcu->update_firmware_status);
+	return sysfs_emit(buf, "%d\n", pcu->update_firmware_status);
 }
 
 static DEVICE_ATTR(update_firmware_status, S_IRUGO,
@@ -1309,7 +1309,7 @@ static ssize_t ims_pcu_ofn_reg_data_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", data);
+	return sysfs_emit(buf, "%x\n", data);
 }
 
 static ssize_t ims_pcu_ofn_reg_data_store(struct device *dev,
@@ -1344,7 +1344,7 @@ static ssize_t ims_pcu_ofn_reg_addr_show(struct device *dev,
 	int error;
 
 	mutex_lock(&pcu->cmd_mutex);
-	error = scnprintf(buf, PAGE_SIZE, "%x\n", pcu->ofn_reg_addr);
+	error = sysfs_emit(buf, "%x\n", pcu->ofn_reg_addr);
 	mutex_unlock(&pcu->cmd_mutex);
 
 	return error;
@@ -1397,7 +1397,7 @@ static ssize_t ims_pcu_ofn_bit_show(struct device *dev,
 	if (error)
 		return error;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", !!(data & (1 << attr->nr)));
+	return sysfs_emit(buf, "%d\n", !!(data & (1 << attr->nr)));
 }
 
 static ssize_t ims_pcu_ofn_bit_store(struct device *dev,
