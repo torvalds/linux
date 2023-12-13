@@ -1201,7 +1201,7 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !ops->get_rxfh_context)
+	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
 		return -EOPNOTSUPP;
 
 	rxfh.indir_size = rxfh_dev.indir_size;
@@ -1225,11 +1225,9 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	if (user_key_size)
 		rxfh_dev.key = rss_config + indir_bytes;
 
-	if (rxfh.rss_context)
-		ret = dev->ethtool_ops->get_rxfh_context(dev, &rxfh_dev,
-							 rxfh.rss_context);
-	else
-		ret = dev->ethtool_ops->get_rxfh(dev, &rxfh_dev);
+	rxfh_dev.rss_context = rxfh.rss_context;
+
+	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh_dev);
 	if (ret)
 		goto out;
 
@@ -1257,7 +1255,6 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	struct netlink_ext_ack *extack = NULL;
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
-	bool delete = false;
 	u32 indir_bytes = 0;
 	u8 *rss_config;
 	int ret;
@@ -1277,7 +1274,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !ops->set_rxfh_context)
+	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
 		return -EOPNOTSUPP;
 
 	/* If either indir, hash key or function is valid, proceed further.
@@ -1327,7 +1324,7 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			for (i = 0; i < dev_indir_size; i++)
 				indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
 		} else {
-			delete = true;
+			rxfh_dev.rss_delete = true;
 		}
 	}
 
@@ -1343,21 +1340,17 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	}
 
 	rxfh_dev.hfunc = rxfh.hfunc;
+	rxfh_dev.rss_context = rxfh.rss_context;
 
-	if (rxfh.rss_context)
-		ret = ops->set_rxfh_context(dev, &rxfh_dev,
-					    &rxfh.rss_context, delete);
-	else
-		ret = ops->set_rxfh(dev, &rxfh_dev, extack);
-
+	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
 		goto out;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, rss_context),
-			 &rxfh.rss_context, sizeof(rxfh.rss_context)))
+			 &rxfh_dev.rss_context, sizeof(rxfh_dev.rss_context)))
 		ret = -EFAULT;
 
-	if (!rxfh.rss_context) {
+	if (!rxfh_dev.rss_context) {
 		/* indicate whether rxfh was set to default */
 		if (rxfh.indir_size == 0)
 			dev->priv_flags &= ~IFF_RXFH_CONFIGURED;

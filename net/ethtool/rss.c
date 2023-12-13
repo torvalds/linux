@@ -59,7 +59,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 		return -EOPNOTSUPP;
 
 	/* Some drivers don't handle rss_context */
-	if (request->rss_context && !ops->get_rxfh_context)
+	if (request->rss_context && !ops->cap_rss_ctx_supported)
 		return -EOPNOTSUPP;
 
 	ret = ethnl_ops_begin(dev);
@@ -90,12 +90,9 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	rxfh.indir = data->indir_table;
 	rxfh.key_size = data->hkey_size;
 	rxfh.key = data->hkey;
+	rxfh.rss_context = request->rss_context;
 
-	if (request->rss_context)
-		ret = ops->get_rxfh_context(dev, &rxfh, request->rss_context);
-	else
-		ret = ops->get_rxfh(dev, &rxfh);
-
+	ret = ops->get_rxfh(dev, &rxfh);
 	if (ret)
 		goto out_ops;
 

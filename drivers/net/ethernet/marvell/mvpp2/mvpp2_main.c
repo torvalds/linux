@@ -5638,47 +5638,7 @@ static int mvpp2_ethtool_get_rxfh(struct net_device *dev,
 				  struct ethtool_rxfh_param *rxfh)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	int ret = 0;
-
-	if (!mvpp22_rss_is_supported(port))
-		return -EOPNOTSUPP;
-
-	if (rxfh->indir)
-		ret = mvpp22_port_rss_ctx_indir_get(port, 0, rxfh->indir);
-
-	rxfh->hfunc = ETH_RSS_HASH_CRC32;
-
-	return ret;
-}
-
-static int mvpp2_ethtool_set_rxfh(struct net_device *dev,
-				  struct ethtool_rxfh_param *rxfh,
-				  struct netlink_ext_ack *extack)
-{
-	struct mvpp2_port *port = netdev_priv(dev);
-	int ret = 0;
-
-	if (!mvpp22_rss_is_supported(port))
-		return -EOPNOTSUPP;
-
-	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
-	    rxfh->hfunc != ETH_RSS_HASH_CRC32)
-		return -EOPNOTSUPP;
-
-	if (rxfh->key)
-		return -EOPNOTSUPP;
-
-	if (rxfh->indir)
-		ret = mvpp22_port_rss_ctx_indir_set(port, 0, rxfh->indir);
-
-	return ret;
-}
-
-static int mvpp2_ethtool_get_rxfh_context(struct net_device *dev,
-					  struct ethtool_rxfh_param *rxfh,
-					  u32 rss_context)
-{
-	struct mvpp2_port *port = netdev_priv(dev);
+	u32 rss_context = rxfh->rss_context;
 	int ret = 0;
 
 	if (!mvpp22_rss_is_supported(port))
@@ -5695,12 +5655,13 @@ static int mvpp2_ethtool_get_rxfh_context(struct net_device *dev,
 	return ret;
 }
 
-static int mvpp2_ethtool_set_rxfh_context(struct net_device *dev,
-					  struct ethtool_rxfh_param *rxfh,
-					  u32 *rss_context, bool delete)
+static int mvpp2_ethtool_set_rxfh(struct net_device *dev,
+				  struct ethtool_rxfh_param *rxfh,
+				  struct netlink_ext_ack *extack)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
-	int ret;
+	u32 *rss_context = &rxfh->rss_context;
+	int ret = 0;
 
 	if (!mvpp22_rss_is_supported(port))
 		return -EOPNOTSUPP;
@@ -5712,7 +5673,7 @@ static int mvpp2_ethtool_set_rxfh_context(struct net_device *dev,
 	if (rxfh->key)
 		return -EOPNOTSUPP;
 
-	if (delete)
+	if (*rss_context && rxfh->rss_delete)
 		return mvpp22_port_rss_ctx_delete(port, *rss_context);
 
 	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
@@ -5721,8 +5682,13 @@ static int mvpp2_ethtool_set_rxfh_context(struct net_device *dev,
 			return ret;
 	}
 
-	return mvpp22_port_rss_ctx_indir_set(port, *rss_context, rxfh->indir);
+	if (rxfh->indir)
+		ret = mvpp22_port_rss_ctx_indir_set(port, *rss_context,
+						    rxfh->indir);
+
+	return ret;
 }
+
 /* Device ops */
 
 static const struct net_device_ops mvpp2_netdev_ops = {
@@ -5742,6 +5708,7 @@ static const struct net_device_ops mvpp2_netdev_ops = {
 };
 
 static const struct ethtool_ops mvpp2_eth_tool_ops = {
+	.cap_rss_ctx_supported	= true,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES,
 	.nway_reset		= mvpp2_ethtool_nway_reset,
@@ -5764,8 +5731,6 @@ static const struct ethtool_ops mvpp2_eth_tool_ops = {
 	.get_rxfh_indir_size	= mvpp2_ethtool_get_rxfh_indir_size,
 	.get_rxfh		= mvpp2_ethtool_get_rxfh,
 	.set_rxfh		= mvpp2_ethtool_set_rxfh,
-	.get_rxfh_context	= mvpp2_ethtool_get_rxfh_context,
-	.set_rxfh_context	= mvpp2_ethtool_set_rxfh_context,
 };
 
 /* Used for PPv2.1, or PPv2.2 with the old Device Tree binding that
