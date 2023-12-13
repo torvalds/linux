@@ -1023,6 +1023,7 @@ struct vpu_device {
 	struct dma_vpu_buf sram_buf;
 	void __iomem *vdb_register;
 	u32 product_code;
+	u32 l2_cache_size;
 	struct ida inst_ida;
 	struct clk_bulk_data *clks;
 	struct reset_control *resets;
