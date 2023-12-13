@@ -347,18 +347,17 @@ static void swap_writepage_bdev_sync(struct folio *folio,
 	__end_swap_bio_write(&bio);
 }
 
-static void swap_writepage_bdev_async(struct page *page,
+static void swap_writepage_bdev_async(struct folio *folio,
 		struct writeback_control *wbc, struct swap_info_struct *sis)
 {
 	struct bio *bio;
-	struct folio *folio = page_folio(page);
 
 	bio = bio_alloc(sis->bdev, 1,
 			REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc),
 			GFP_NOIO);
-	bio->bi_iter.bi_sector = swap_page_sector(page);
+	bio->bi_iter.bi_sector = swap_page_sector(&folio->page);
 	bio->bi_end_io = end_swap_bio_write;
-	__bio_add_page(bio, page, thp_size(page), 0);
+	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
 
 	bio_associate_blkg_from_page(bio, folio);
 	count_swpout_vm_event(folio);
@@ -382,7 +381,7 @@ void __swap_writepage(struct folio *folio, struct writeback_control *wbc)
 	else if (sis->flags & SWP_SYNCHRONOUS_IO)
 		swap_writepage_bdev_sync(folio, wbc, sis);
 	else
-		swap_writepage_bdev_async(&folio->page, wbc, sis);
+		swap_writepage_bdev_async(folio, wbc, sis);
 }
 
 void swap_write_unplug(struct swap_iocb *sio)
