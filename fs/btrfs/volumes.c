@@ -6435,6 +6435,55 @@ static void map_blocks_raid10(struct btrfs_fs_info *fs_info,
 	io_geom->mirror_num = io_geom->stripe_index - old_stripe_index + 1;
 }
 
+static void map_blocks_raid56_write(struct btrfs_chunk_map *map,
+				    struct btrfs_io_geometry *io_geom,
+				    u64 logical, u64 *length)
+{
+	int data_stripes = nr_data_stripes(map);
+
+	/*
+	 * Needs full stripe mapping.
+	 *
+	 * Push stripe_nr back to the start of the full stripe For those cases
+	 * needing a full stripe, @stripe_nr is the full stripe number.
+	 *
+	 * Originally we go raid56_full_stripe_start / full_stripe_len, but
+	 * that can be expensive.  Here we just divide @stripe_nr with
+	 * @data_stripes.
+	 */
+	io_geom->stripe_nr /= data_stripes;
+
+	/* RAID[56] write or recovery. Return all stripes */
+	io_geom->num_stripes = map->num_stripes;
+	io_geom->max_errors = btrfs_chunk_max_errors(map);
+
+	/* Return the length to the full stripe end. */
+	*length = min(logical + *length,
+		      io_geom->raid56_full_stripe_start + map->start +
+		      btrfs_stripe_nr_to_offset(data_stripes)) -
+		logical;
+	io_geom->stripe_index = 0;
+	io_geom->stripe_offset = 0;
+}
+
+static void map_blocks_raid56_read(struct btrfs_chunk_map *map,
+				   struct btrfs_io_geometry *io_geom)
+{
+	int data_stripes = nr_data_stripes(map);
+
+	ASSERT(io_geom->mirror_num <= 1);
+	/* Just grab the data stripe directly. */
+	io_geom->stripe_index = io_geom->stripe_nr % data_stripes;
+	io_geom->stripe_nr /= data_stripes;
+
+	/* We distribute the parity blocks across stripes. */
+	io_geom->stripe_index =
+		(io_geom->stripe_nr + io_geom->stripe_index) % map->num_stripes;
+
+	if (io_geom->op == BTRFS_MAP_READ && io_geom->mirror_num < 1)
+		io_geom->mirror_num = 1;
+}
+
 /*
  * Map one logical range to one or more physical ranges.
  *
@@ -6527,48 +6576,10 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID10) {
 		map_blocks_raid10(fs_info, map, &io_geom, dev_replace_is_ongoing);
 	} else if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
-		int data_stripes = nr_data_stripes(map);
-
-		if (op != BTRFS_MAP_READ || io_geom.mirror_num > 1) {
-			/*
-			 * Needs full stripe mapping.
-			 *
-			 * Push stripe_nr back to the start of the full stripe
-			 * For those cases needing a full stripe, @stripe_nr
-			 * is the full stripe number.
-			 *
-			 * Originally we go raid56_full_stripe_start / full_stripe_len,
-			 * but that can be expensive.  Here we just divide
-			 * @stripe_nr with @data_stripes.
-			 */
-			io_geom.stripe_nr /= data_stripes;
-
-			/* RAID[56] write or recovery. Return all stripes */
-			io_geom.num_stripes = map->num_stripes;
-			io_geom.max_errors = btrfs_chunk_max_errors(map);
-
-			/* Return the length to the full stripe end */
-			*length = min(logical + *length,
-				      io_geom.raid56_full_stripe_start +
-					      map->start +
-					      btrfs_stripe_nr_to_offset(
-						      data_stripes)) -
-				  logical;
-			io_geom.stripe_index = 0;
-			io_geom.stripe_offset = 0;
-		} else {
-			ASSERT(io_geom.mirror_num <= 1);
-			/* Just grab the data stripe directly. */
-			io_geom.stripe_index = io_geom.stripe_nr % data_stripes;
-			io_geom.stripe_nr /= data_stripes;
-
-			/* We distribute the parity blocks across stripes */
-			io_geom.stripe_index =
-				(io_geom.stripe_nr + io_geom.stripe_index) %
-					map->num_stripes;
-			if (op == BTRFS_MAP_READ && io_geom.mirror_num < 1)
-				io_geom.mirror_num = 1;
-		}
+		if (op != BTRFS_MAP_READ || io_geom.mirror_num > 1)
+			map_blocks_raid56_write(map, &io_geom, logical, length);
+		else
+			map_blocks_raid56_read(map, &io_geom);
 	} else {
 		/*
 		 * After this, stripe_nr is the number of stripes on this
