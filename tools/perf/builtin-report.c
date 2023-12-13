@@ -96,6 +96,7 @@ struct report {
 	bool			stitch_lbr;
 	bool			disable_order;
 	bool			skip_empty;
+	bool			data_type;
 	int			max_stack;
 	struct perf_read_values	show_threads_values;
 	const char		*pretty_printing_style;
@@ -170,7 +171,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct mem_info *mi;
 	struct branch_info *bi;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc)
+	if (!ui__has_annotation() && !rep->symbol_ipc && !rep->data_type)
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
@@ -1639,6 +1640,16 @@ repeat:
 			sort_order = NULL;
 	}
 
+	if (sort_order && strstr(sort_order, "type")) {
+		report.data_type = true;
+		annotate_opts.annotate_src = false;
+
+#ifndef HAVE_DWARF_GETLOCATIONS_SUPPORT
+		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
+		goto error;
+#endif
+	}
+
 	if (strcmp(input_name, "-") != 0)
 		setup_browser(true);
 	else
@@ -1697,7 +1708,7 @@ repeat:
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (ui__has_annotation() || report.symbol_ipc ||
+	if (ui__has_annotation() || report.symbol_ipc || report.data_type ||
 	    report.total_cycles_mode) {
 		ret = symbol__annotation_init();
 		if (ret < 0)
