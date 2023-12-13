@@ -300,6 +300,7 @@ struct kunit_suite_set kunit_merge_suite_sets(struct kunit_suite_set init_suite_
 	struct kunit_suite_set total_suite_set = {NULL, NULL};
 	struct kunit_suite **total_suite_start = NULL;
 	size_t init_num_suites, num_suites, suite_size;
+	int i = 0;
 
 	init_num_suites = init_suite_set.end - init_suite_set.start;
 	num_suites = suite_set.end - suite_set.start;
@@ -310,8 +311,11 @@ struct kunit_suite_set kunit_merge_suite_sets(struct kunit_suite_set init_suite_
 	if (!total_suite_start)
 		return total_suite_set;
 
-	/* Append init suites and then all other kunit suites */
+	/* Append and mark init suites and then append all other kunit suites */
 	memcpy(total_suite_start, init_suite_set.start, init_num_suites * suite_size);
+	for (i = 0; i < init_num_suites; i++)
+		total_suite_start[i]->is_init = true;
+
 	memcpy(total_suite_start + init_num_suites, suite_set.start, num_suites * suite_size);
 
 	/* Set kunit suite set start and end */

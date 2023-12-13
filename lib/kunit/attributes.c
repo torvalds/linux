@@ -58,6 +58,16 @@ static const char *attr_enum_to_string(void *attr, const char * const str_list[]
 	return str_list[val];
 }
 
+static const char *attr_bool_to_string(void *attr, bool *to_free)
+{
+	bool val = (bool)attr;
+
+	*to_free = false;
+	if (val)
+		return "true";
+	return "false";
+}
+
 static const char *attr_speed_to_string(void *attr, bool *to_free)
 {
 	return attr_enum_to_string(attr, speed_str_list, to_free);
@@ -166,6 +176,37 @@ static int attr_string_filter(void *attr, const char *input, int *err)
 	return false;
 }
 
+static int attr_bool_filter(void *attr, const char *input, int *err)
+{
+	int i, input_int = -1;
+	long val = (long)attr;
+	const char *input_str = NULL;
+
+	for (i = 0; input[i]; i++) {
+		if (!strchr(op_list, input[i])) {
+			input_str = input + i;
+			break;
+		}
+	}
+
+	if (!input_str) {
+		*err = -EINVAL;
+		pr_err("kunit executor: filter value not found: %s\n", input);
+		return false;
+	}
+
+	if (!strcmp(input_str, "true"))
+		input_int = (int)true;
+	else if (!strcmp(input_str, "false"))
+		input_int = (int)false;
+	else {
+		*err = -EINVAL;
+		pr_err("kunit executor: invalid filter input: %s\n", input);
+		return false;
+	}
+
+	return int_filter(val, input, input_int, err);
+}
 
 /* Get Attribute Methods */
 
@@ -194,6 +235,17 @@ static void *attr_module_get(void *test_or_suite, bool is_test)
 		return (void *) "";
 }
 
+static void *attr_is_init_get(void *test_or_suite, bool is_test)
+{
+	struct kunit_suite *suite = is_test ? NULL : test_or_suite;
+	struct kunit_case *test = is_test ? test_or_suite : NULL;
+
+	if (test)
+		return ((void *) NULL);
+	else
+		return ((void *) suite->is_init);
+}
+
 /* List of all Test Attributes */
 
 static struct kunit_attr kunit_attr_list[] = {
@@ -211,6 +263,14 @@ static struct kunit_attr kunit_attr_list[] = {
 		.to_string = attr_string_to_string,
 		.filter = attr_string_filter,
 		.attr_default = (void *)"",
+		.print = PRINT_SUITE,
+	},
+	{
+		.name = "is_init",
+		.get_attr = attr_is_init_get,
+		.to_string = attr_bool_to_string,
+		.filter = attr_bool_filter,
+		.attr_default = (void *)false,
 		.print = PRINT_SUITE,
 	}
 };

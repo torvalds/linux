@@ -253,6 +253,7 @@ struct kunit_suite {
 	struct dentry *debugfs;
 	struct string_stream *log;
 	int suite_init_err;
+	bool is_init;
 };
 
 /* Stores an array of suites, end points one past the end */
