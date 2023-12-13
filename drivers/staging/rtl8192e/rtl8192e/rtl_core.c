@@ -287,7 +287,6 @@ static void _rtl92e_update_beacon(void *data)
 	if (ieee->ht_info->current_ht_support)
 		HT_update_self_and_peer_setting(ieee, net);
 	ieee->ht_info->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
-	ieee->ht_info->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
 

@@ -540,7 +540,6 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	ht_info->current_rt2rt_aggregation = false;
 	ht_info->current_rt2rt_long_slot_time = false;
-	ht_info->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 	ht_info->iot_peer = 0;
 	ht_info->iot_action = 0;
@@ -601,11 +600,9 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 				 pNetwork->bssht.bd_rt2rt_aggregation;
 			ht_info->current_rt2rt_long_slot_time =
 				 pNetwork->bssht.bd_rt2rt_long_slot_time;
-			ht_info->RT2RT_HT_Mode = pNetwork->bssht.rt2rt_ht_mode;
 		} else {
 			ht_info->current_rt2rt_aggregation = false;
 			ht_info->current_rt2rt_long_slot_time = false;
-			ht_info->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 		}
 
 		ht_iot_peer_determine(ieee);
@@ -621,7 +618,6 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		ht_info->current_ht_support = false;
 		ht_info->current_rt2rt_aggregation = false;
 		ht_info->current_rt2rt_long_slot_time = false;
-		ht_info->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 		ht_info->iot_action = 0;
 		ht_info->iot_ra_func = 0;
