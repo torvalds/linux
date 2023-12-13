@@ -18,6 +18,76 @@
 #include "strbuf.h"
 #include "symbol.h"
 
+/*
+ * Compare type name and size to maintain them in a tree.
+ * I'm not sure if DWARF would have information of a single type in many
+ * different places (compilation units).  If not, it could compare the
+ * offset of the type entry in the .debug_info section.
+ */
+static int data_type_cmp(const void *_key, const struct rb_node *node)
+{
+	const struct annotated_data_type *key = _key;
+	struct annotated_data_type *type;
+
+	type = rb_entry(node, struct annotated_data_type, node);
+
+	if (key->type_size != type->type_size)
+		return key->type_size - type->type_size;
+	return strcmp(key->type_name, type->type_name);
+}
+
+static bool data_type_less(struct rb_node *node_a, const struct rb_node *node_b)
+{
+	struct annotated_data_type *a, *b;
+
+	a = rb_entry(node_a, struct annotated_data_type, node);
+	b = rb_entry(node_b, struct annotated_data_type, node);
+
+	if (a->type_size != b->type_size)
+		return a->type_size < b->type_size;
+	return strcmp(a->type_name, b->type_name) < 0;
+}
+
+static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
+							  Dwarf_Die *type_die)
+{
+	struct annotated_data_type *result = NULL;
+	struct annotated_data_type key;
+	struct rb_node *node;
+	struct strbuf sb;
+	char *type_name;
+	Dwarf_Word size;
+
+	strbuf_init(&sb, 32);
+	if (die_get_typename_from_type(type_die, &sb) < 0)
+		strbuf_add(&sb, "(unknown type)", 14);
+	type_name = strbuf_detach(&sb, NULL);
+	dwarf_aggregate_size(type_die, &size);
+
+	/* Check existing nodes in dso->data_types tree */
+	key.type_name = type_name;
+	key.type_size = size;
+	node = rb_find(&key, &dso->data_types, data_type_cmp);
+	if (node) {
+		result = rb_entry(node, struct annotated_data_type, node);
+		free(type_name);
+		return result;
+	}
+
+	/* If not, add a new one */
+	result = zalloc(sizeof(*result));
+	if (result == NULL) {
+		free(type_name);
+		return NULL;
+	}
+
+	result->type_name = type_name;
+	result->type_size = size;
+
+	rb_add(&result->node, &dso->data_types, data_type_less);
+	return result;
+}
+
 static bool find_cu_die(struct debuginfo *di, u64 pc, Dwarf_Die *cu_die)
 {
 	Dwarf_Off off, next_off;
@@ -130,7 +200,6 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 	struct dso *dso = map__dso(ms->map);
 	struct debuginfo *di;
 	Dwarf_Die type_die;
-	struct strbuf sb;
 	u64 pc;
 
 	di = debuginfo__new(dso->long_name);
@@ -148,17 +217,23 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 	if (find_data_type_die(di, pc, reg, offset, &type_die) < 0)
 		goto out;
 
-	result = zalloc(sizeof(*result));
-	if (result == NULL)
-		goto out;
-
-	strbuf_init(&sb, 32);
-	if (die_get_typename_from_type(&type_die, &sb) < 0)
-		strbuf_add(&sb, "(unknown type)", 14);
-
-	result->type_name = strbuf_detach(&sb, NULL);
+	result = dso__findnew_data_type(dso, &type_die);
 
 out:
 	debuginfo__delete(di);
 	return result;
+}
+
+void annotated_data_type__tree_delete(struct rb_root *root)
+{
+	struct annotated_data_type *pos;
+
+	while (!RB_EMPTY_ROOT(root)) {
+		struct rb_node *node = rb_first(root);
+
+		rb_erase(node, root);
+		pos = rb_entry(node, struct annotated_data_type, node);
+		free(pos->type_name);
+		free(pos);
+	}
 }
