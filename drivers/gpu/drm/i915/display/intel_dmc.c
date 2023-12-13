@@ -448,6 +448,11 @@ static bool disable_dmc_evt(struct drm_i915_private *i915,
 	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_CLK_MSEC)
 		return true;
 
+	/* also disable the HRR event on the main DMC on TGL/ADLS */
+	if ((IS_TIGERLAKE(i915) || IS_ALDERLAKE_S(i915)) &&
+	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_VBLANK_A)
+		return true;
+
 	return false;
 }
 
