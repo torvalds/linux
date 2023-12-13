@@ -920,7 +920,7 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
  * Drivers always need to pass packets that are aligned to two-byte boundaries
  * to the stack.
  *
- * Additionally, should, if possible, align the payload data in a way that
+ * Additionally, they should, if possible, align the payload data in a way that
  * guarantees that the contained IP header is aligned to a four-byte
  * boundary. In the case of regular frames, this simply means aligning the
  * payload to a four-byte boundary (because either the IP header is directly
@@ -936,7 +936,7 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
  * subframe to a length that is a multiple of four.
  *
  * Padding like Atheros hardware adds which is between the 802.11 header and
- * the payload is not supported, the driver is required to move the 802.11
+ * the payload is not supported; the driver is required to move the 802.11
  * header to be directly in front of the payload in that case.
  */
 static void ieee80211_verify_alignment(struct ieee80211_rx_data *rx)
