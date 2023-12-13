@@ -105,6 +105,7 @@ static struct ins_ops ret_ops;
 
 /* Data type collection debug statistics */
 struct annotated_data_stat ann_data_stat;
+LIST_HEAD(ann_insn_stat);
 
 static int arch__grow_instructions(struct arch *arch)
 {
@@ -3665,6 +3666,30 @@ static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip)
 	return NULL;
 }
 
+static struct annotated_item_stat *annotate_data_stat(struct list_head *head,
+						      const char *name)
+{
+	struct annotated_item_stat *istat;
+
+	list_for_each_entry(istat, head, list) {
+		if (!strcmp(istat->name, name))
+			return istat;
+	}
+
+	istat = zalloc(sizeof(*istat));
+	if (istat == NULL)
+		return NULL;
+
+	istat->name = strdup(name);
+	if (istat->name == NULL) {
+		free(istat);
+		return NULL;
+	}
+
+	list_add_tail(&istat->list, head);
+	return istat;
+}
+
 /**
  * hist_entry__get_data_type - find data type for given hist entry
  * @he: hist entry
@@ -3683,6 +3708,7 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	struct annotated_insn_loc loc;
 	struct annotated_op_loc *op_loc;
 	struct annotated_data_type *mem_type;
+	struct annotated_item_stat *istat;
 	u64 ip = he->ip;
 	int i;
 
@@ -3716,8 +3742,15 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		return NULL;
 	}
 
+	istat = annotate_data_stat(&ann_insn_stat, dl->ins.name);
+	if (istat == NULL) {
+		ann_data_stat.no_insn++;
+		return NULL;
+	}
+
 	if (annotate_get_insn_location(arch, dl, &loc) < 0) {
 		ann_data_stat.no_insn_ops++;
+		istat->bad++;
 		return NULL;
 	}
 
@@ -3726,6 +3759,10 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 			continue;
 
 		mem_type = find_data_type(ms, ip, op_loc->reg, op_loc->offset);
+		if (mem_type)
+			istat->good++;
+		else
+			istat->bad++;
 
 		if (symbol_conf.annotate_data_sample) {
 			annotated_data_type__update_samples(mem_type, evsel,
@@ -3738,5 +3775,6 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	}
 
 	ann_data_stat.no_mem_ops++;
+	istat->bad++;
 	return NULL;
 }

@@ -58,6 +58,7 @@ struct perf_annotate {
 	bool	   group_set;
 	bool	   data_type;
 	bool	   type_stat;
+	bool	   insn_stat;
 	float	   min_percent;
 	const char *sym_hist_filter;
 	const char *cpu_list;
@@ -434,6 +435,42 @@ static void print_annotate_data_stat(struct annotated_data_stat *s)
 #undef PRINT_STAT
 }
 
+static void print_annotate_item_stat(struct list_head *head, const char *title)
+{
+	struct annotated_item_stat *istat, *pos, *iter;
+	int total_good, total_bad, total;
+	int sum1, sum2;
+	LIST_HEAD(tmp);
+
+	/* sort the list by count */
+	list_splice_init(head, &tmp);
+	total_good = total_bad = 0;
+
+	list_for_each_entry_safe(istat, pos, &tmp, list) {
+		total_good += istat->good;
+		total_bad += istat->bad;
+		sum1 = istat->good + istat->bad;
+
+		list_for_each_entry(iter, head, list) {
+			sum2 = iter->good + iter->bad;
+			if (sum1 > sum2)
+				break;
+		}
+		list_move_tail(&istat->list, &iter->list);
+	}
+	total = total_good + total_bad;
+
+	printf("Annotate %s stats\n", title);
+	printf("total %d, ok %d (%.1f%%), bad %d (%.1f%%)\n\n", total,
+	       total_good, 100.0 * total_good / (total ?: 1),
+	       total_bad, 100.0 * total_bad / (total ?: 1));
+	printf("  %-10s: %5s %5s\n", "Name", "Good", "Bad");
+	printf("-----------------------------------------------------------\n");
+	list_for_each_entry(istat, head, list)
+		printf("  %-10s: %5d %5d\n", istat->name, istat->good, istat->bad);
+	printf("\n");
+}
+
 static void hists__find_annotations(struct hists *hists,
 				    struct evsel *evsel,
 				    struct perf_annotate *ann)
@@ -443,6 +480,8 @@ static void hists__find_annotations(struct hists *hists,
 
 	if (ann->type_stat)
 		print_annotate_data_stat(&ann_data_stat);
+	if (ann->insn_stat)
+		print_annotate_item_stat(&ann_insn_stat, "Instruction");
 
 	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -792,6 +831,8 @@ int cmd_annotate(int argc, const char **argv)
 			    parse_data_type),
 	OPT_BOOLEAN(0, "type-stat", &annotate.type_stat,
 		    "Show stats for the data type annotation"),
+	OPT_BOOLEAN(0, "insn-stat", &annotate.insn_stat,
+		    "Show instruction stats for the data type annotation"),
 	OPT_END()
 	};
 	int ret;

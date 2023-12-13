@@ -479,4 +479,12 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 /* Returns a data type from the sample instruction (if any) */
 struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he);
 
+struct annotated_item_stat {
+	struct list_head list;
+	char *name;
+	int good;
+	int bad;
+};
+extern struct list_head ann_insn_stat;
+
 #endif	/* __PERF_ANNOTATE_H */
