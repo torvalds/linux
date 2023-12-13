@@ -1051,32 +1051,28 @@ Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 }
 
 /**
- * die_get_typename - Get the name of given variable DIE
- * @vr_die: a variable DIE
+ * die_get_typename_from_type - Get the name of given type DIE
+ * @type_die: a type DIE
  * @buf: a strbuf for result type name
  *
- * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * Get the name of @type_die and stores it to @buf. Return 0 if succeeded.
  * and Return -ENOENT if failed to find type name.
  * Note that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
-int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
+int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
 {
-	Dwarf_Die type;
 	int tag, ret;
 	const char *tmp = "";
 
-	if (__die_get_real_type(vr_die, &type) == NULL)
-		return -ENOENT;
-
-	tag = dwarf_tag(&type);
+	tag = dwarf_tag(type_die);
 	if (tag == DW_TAG_array_type || tag == DW_TAG_pointer_type)
 		tmp = "*";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
 		return strbuf_add(buf, "(function_type)", 15);
 	} else {
-		const char *name = dwarf_diename(&type);
+		const char *name = dwarf_diename(type_die);
 
 		if (tag == DW_TAG_union_type)
 			tmp = "union ";
@@ -1089,7 +1085,7 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		/* Write a base name */
 		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
-	ret = die_get_typename(&type, buf);
+	ret = die_get_typename(type_die, buf);
 	if (ret < 0) {
 		/* void pointer has no type attribute */
 		if (tag == DW_TAG_pointer_type && ret == -ENOENT)
@@ -1098,6 +1094,26 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		return ret;
 	}
 	return strbuf_addstr(buf, tmp);
+}
+
+/**
+ * die_get_typename - Get the name of given variable DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for result type name
+ *
+ * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * and Return -ENOENT if failed to find type name.
+ * Note that the result will stores typedef name if possible, and stores
+ * "*(function_type)" if the type is a function pointer.
+ */
+int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
+{
+	Dwarf_Die type;
+
+	if (__die_get_real_type(vr_die, &type) == NULL)
+		return -ENOENT;
+
+	return die_get_typename_from_type(&type, buf);
 }
 
 /**
