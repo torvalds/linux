@@ -420,12 +420,11 @@ static void sio_read_complete(struct kiocb *iocb, long ret)
 	mempool_free(sio, sio_pool);
 }
 
-static void swap_readpage_fs(struct page *page,
-			     struct swap_iocb **plug)
+static void swap_readpage_fs(struct folio *folio, struct swap_iocb **plug)
 {
-	struct swap_info_struct *sis = page_swap_info(page);
+	struct swap_info_struct *sis = swp_swap_info(folio->swap);
 	struct swap_iocb *sio = NULL;
-	loff_t pos = page_file_offset(page);
+	loff_t pos = folio_file_pos(folio);
 
 	if (plug)
 		sio = *plug;
@@ -444,8 +443,8 @@ static void swap_readpage_fs(struct page *page,
 		sio->pages = 0;
 		sio->len = 0;
 	}
-	bvec_set_page(&sio->bvec[sio->pages], page, thp_size(page), 0);
-	sio->len += thp_size(page);
+	bvec_set_folio(&sio->bvec[sio->pages], folio, folio_size(folio), 0);
+	sio->len += folio_size(folio);
 	sio->pages += 1;
 	if (sio->pages == ARRAY_SIZE(sio->bvec) || !plug) {
 		swap_read_unplug(sio);
@@ -515,7 +514,7 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 		folio_mark_uptodate(folio);
 		folio_unlock(folio);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {
-		swap_readpage_fs(page, plug);
+		swap_readpage_fs(folio, plug);
 	} else if (synchronous || (sis->flags & SWP_SYNCHRONOUS_IO)) {
 		swap_readpage_bdev_sync(page, sis);
 	} else {
