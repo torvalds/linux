@@ -377,6 +377,7 @@ struct trace_array {
 	unsigned char		trace_flags_index[TRACE_FLAGS_MAX_SIZE];
 	unsigned int		flags;
 	raw_spinlock_t		start_lock;
+	const char		*system_names;
 	struct list_head	err_log;
 	struct dentry		*dir;
 	struct dentry		*options;
