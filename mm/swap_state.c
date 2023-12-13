@@ -533,9 +533,9 @@ fail_put_swap:
  * __read_swap_cache_async() call them and swap_read_folio() holds the
  * swap cache folio lock.
  */
-struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-				   struct vm_area_struct *vma,
-				   unsigned long addr, struct swap_iocb **plug)
+struct folio *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+		struct vm_area_struct *vma, unsigned long addr,
+		struct swap_iocb **plug)
 {
 	bool page_allocated;
 	struct mempolicy *mpol;
@@ -549,7 +549,7 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 
 	if (page_allocated)
 		swap_read_folio(folio, false, plug);
-	return folio_file_page(folio, swp_offset(entry));
+	return folio;
 }
 
 static unsigned int __swapin_nr_pages(unsigned long prev_offset,

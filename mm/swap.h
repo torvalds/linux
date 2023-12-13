@@ -46,10 +46,9 @@ struct folio *swap_cache_get_folio(swp_entry_t entry,
 struct folio *filemap_get_incore_folio(struct address_space *mapping,
 		pgoff_t index);
 
-struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
-				   struct vm_area_struct *vma,
-				   unsigned long addr,
-				   struct swap_iocb **plug);
+struct folio *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+		struct vm_area_struct *vma, unsigned long addr,
+		struct swap_iocb **plug);
 struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_flags,
 		struct mempolicy *mpol, pgoff_t ilx, bool *new_page_allocated,
 		bool skip_if_exists);
