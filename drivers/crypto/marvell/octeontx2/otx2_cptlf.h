@@ -99,6 +99,9 @@ struct cpt_hw_ops {
 			 struct otx2_cptlf_info *lf);
 	u8 (*cpt_get_compcode)(union otx2_cpt_res_s *result);
 	u8 (*cpt_get_uc_compcode)(union otx2_cpt_res_s *result);
+	struct otx2_cpt_inst_info *
+	(*cpt_sg_info_create)(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
+			      gfp_t gfp);
 };
 
 struct otx2_cptlfs_info {

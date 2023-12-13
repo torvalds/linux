@@ -13,6 +13,9 @@
 #define CN10K_CPT_PCI_PF_DEVICE_ID 0xA0F2
 #define CN10K_CPT_PCI_VF_DEVICE_ID 0xA0F3
 
+#define CPT_PCI_SUBSYS_DEVID_CN10K_A 0xB900
+#define CPT_PCI_SUBSYS_DEVID_CN10K_B 0xBD00
+
 /* Mailbox interrupts offset */
 #define OTX2_CPT_PF_MBOX_INT	6
 #define OTX2_CPT_PF_INT_VEC_E_MBOXX(x, a) ((x) + (a))

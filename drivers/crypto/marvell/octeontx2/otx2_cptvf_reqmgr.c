@@ -4,9 +4,6 @@
 #include "otx2_cptvf.h"
 #include "otx2_cpt_common.h"
 
-/* SG list header size in bytes */
-#define SG_LIST_HDR_SIZE	8
-
 /* Default timeout when waiting for free pending entry in us */
 #define CPT_PENTRY_TIMEOUT	1000
 #define CPT_PENTRY_STEP		50
@@ -26,9 +23,9 @@ static void otx2_cpt_dump_sg_list(struct pci_dev *pdev,
 
 	pr_debug("Gather list size %d\n", req->in_cnt);
 	for (i = 0; i < req->in_cnt; i++) {
-		pr_debug("Buffer %d size %d, vptr 0x%p, dmaptr 0x%p\n", i,
+		pr_debug("Buffer %d size %d, vptr 0x%p, dmaptr 0x%llx\n", i,
 			 req->in[i].size, req->in[i].vptr,
-			 (void *) req->in[i].dma_addr);
+			 req->in[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n",
 			 req->in[i].size);
 		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
@@ -36,9 +33,9 @@ static void otx2_cpt_dump_sg_list(struct pci_dev *pdev,
 	}
 	pr_debug("Scatter list size %d\n", req->out_cnt);
 	for (i = 0; i < req->out_cnt; i++) {
-		pr_debug("Buffer %d size %d, vptr 0x%p, dmaptr 0x%p\n", i,
+		pr_debug("Buffer %d size %d, vptr 0x%p, dmaptr 0x%llx\n", i,
 			 req->out[i].size, req->out[i].vptr,
-			 (void *) req->out[i].dma_addr);
+			 req->out[i].dma_addr);
 		pr_debug("Buffer hexdump (%d bytes)\n", req->out[i].size);
 		print_hex_dump_debug("", DUMP_PREFIX_NONE, 16, 1,
 				     req->out[i].vptr, req->out[i].size, false);
@@ -84,149 +81,6 @@ static inline void free_pentry(struct otx2_cpt_pending_entry *pentry)
 	pentry->busy = false;
 }
 
-static inline int setup_sgio_components(struct pci_dev *pdev,
-					struct otx2_cpt_buf_ptr *list,
-					int buf_count, u8 *buffer)
-{
-	struct otx2_cpt_sglist_component *sg_ptr = NULL;
-	int ret = 0, i, j;
-	int components;
-
-	if (unlikely(!list)) {
-		dev_err(&pdev->dev, "Input list pointer is NULL\n");
-		return -EFAULT;
-	}
-
-	for (i = 0; i < buf_count; i++) {
-		if (unlikely(!list[i].vptr))
-			continue;
-		list[i].dma_addr = dma_map_single(&pdev->dev, list[i].vptr,
-						  list[i].size,
-						  DMA_BIDIRECTIONAL);
-		if (unlikely(dma_mapping_error(&pdev->dev, list[i].dma_addr))) {
-			dev_err(&pdev->dev, "Dma mapping failed\n");
-			ret = -EIO;
-			goto sg_cleanup;
-		}
-	}
-	components = buf_count / 4;
-	sg_ptr = (struct otx2_cpt_sglist_component *)buffer;
-	for (i = 0; i < components; i++) {
-		sg_ptr->len0 = cpu_to_be16(list[i * 4 + 0].size);
-		sg_ptr->len1 = cpu_to_be16(list[i * 4 + 1].size);
-		sg_ptr->len2 = cpu_to_be16(list[i * 4 + 2].size);
-		sg_ptr->len3 = cpu_to_be16(list[i * 4 + 3].size);
-		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);
-		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		sg_ptr->ptr3 = cpu_to_be64(list[i * 4 + 3].dma_addr);
-		sg_ptr++;
-	}
-	components = buf_count % 4;
-
-	switch (components) {
-	case 3:
-		sg_ptr->len2 = cpu_to_be16(list[i * 4 + 2].size);
-		sg_ptr->ptr2 = cpu_to_be64(list[i * 4 + 2].dma_addr);
-		fallthrough;
-	case 2:
-		sg_ptr->len1 = cpu_to_be16(list[i * 4 + 1].size);
-		sg_ptr->ptr1 = cpu_to_be64(list[i * 4 + 1].dma_addr);
-		fallthrough;
-	case 1:
-		sg_ptr->len0 = cpu_to_be16(list[i * 4 + 0].size);
-		sg_ptr->ptr0 = cpu_to_be64(list[i * 4 + 0].dma_addr);
-		break;
-	default:
-		break;
-	}
-	return ret;
-
-sg_cleanup:
-	for (j = 0; j < i; j++) {
-		if (list[j].dma_addr) {
-			dma_unmap_single(&pdev->dev, list[j].dma_addr,
-					 list[j].size, DMA_BIDIRECTIONAL);
-		}
-
-		list[j].dma_addr = 0;
-	}
-	return ret;
-}
-
-static inline struct otx2_cpt_inst_info *info_create(struct pci_dev *pdev,
-					      struct otx2_cpt_req_info *req,
-					      gfp_t gfp)
-{
-	int align = OTX2_CPT_DMA_MINALIGN;
-	struct otx2_cpt_inst_info *info;
-	u32 dlen, align_dlen, info_len;
-	u16 g_sz_bytes, s_sz_bytes;
-	u32 total_mem_len;
-
-	if (unlikely(req->in_cnt > OTX2_CPT_MAX_SG_IN_CNT ||
-		     req->out_cnt > OTX2_CPT_MAX_SG_OUT_CNT)) {
-		dev_err(&pdev->dev, "Error too many sg components\n");
-		return NULL;
-	}
-
-	g_sz_bytes = ((req->in_cnt + 3) / 4) *
-		      sizeof(struct otx2_cpt_sglist_component);
-	s_sz_bytes = ((req->out_cnt + 3) / 4) *
-		      sizeof(struct otx2_cpt_sglist_component);
-
-	dlen = g_sz_bytes + s_sz_bytes + SG_LIST_HDR_SIZE;
-	align_dlen = ALIGN(dlen, align);
-	info_len = ALIGN(sizeof(*info), align);
-	total_mem_len = align_dlen + info_len + sizeof(union otx2_cpt_res_s);
-
-	info = kzalloc(total_mem_len, gfp);
-	if (unlikely(!info))
-		return NULL;
-
-	info->dlen = dlen;
-	info->in_buffer = (u8 *)info + info_len;
-
-	((u16 *)info->in_buffer)[0] = req->out_cnt;
-	((u16 *)info->in_buffer)[1] = req->in_cnt;
-	((u16 *)info->in_buffer)[2] = 0;
-	((u16 *)info->in_buffer)[3] = 0;
-	cpu_to_be64s((u64 *)info->in_buffer);
-
-	/* Setup gather (input) components */
-	if (setup_sgio_components(pdev, req->in, req->in_cnt,
-				  &info->in_buffer[8])) {
-		dev_err(&pdev->dev, "Failed to setup gather list\n");
-		goto destroy_info;
-	}
-
-	if (setup_sgio_components(pdev, req->out, req->out_cnt,
-				  &info->in_buffer[8 + g_sz_bytes])) {
-		dev_err(&pdev->dev, "Failed to setup scatter list\n");
-		goto destroy_info;
-	}
-
-	info->dma_len = total_mem_len - info_len;
-	info->dptr_baddr = dma_map_single(&pdev->dev, info->in_buffer,
-					  info->dma_len, DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(&pdev->dev, info->dptr_baddr))) {
-		dev_err(&pdev->dev, "DMA Mapping failed for cpt req\n");
-		goto destroy_info;
-	}
-	/*
-	 * Get buffer for union otx2_cpt_res_s response
-	 * structure and its physical address
-	 */
-	info->completion_addr = info->in_buffer + align_dlen;
-	info->comp_baddr = info->dptr_baddr + align_dlen;
-
-	return info;
-
-destroy_info:
-	otx2_cpt_info_destroy(pdev, info);
-	return NULL;
-}
-
 static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 			   struct otx2_cpt_pending_queue *pqueue,
 			   struct otx2_cptlf_info *lf)
@@ -247,7 +101,7 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 	if (unlikely(!otx2_cptlf_started(lf->lfs)))
 		return -ENODEV;
 
-	info = info_create(pdev, req, gfp);
+	info = lf->lfs->ops->cpt_sg_info_create(pdev, req, gfp);
 	if (unlikely(!info)) {
 		dev_err(&pdev->dev, "Setting up cpt inst info failed");
 		return -ENOMEM;
@@ -303,8 +157,8 @@ static int process_request(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
 
 	/* 64-bit swap for microcode data reads, not needed for addresses*/
 	cpu_to_be64s(&iq_cmd.cmd.u);
-	iq_cmd.dptr = info->dptr_baddr;
-	iq_cmd.rptr = 0;
+	iq_cmd.dptr = info->dptr_baddr | info->gthr_sz << 60;
+	iq_cmd.rptr = info->rptr_baddr | info->sctr_sz << 60;
 	iq_cmd.cptr.u = 0;
 	iq_cmd.cptr.s.grp = ctrl->s.grp;
 

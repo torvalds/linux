@@ -382,6 +382,17 @@ static int otx2_cptvf_probe(struct pci_dev *pdev,
 		goto destroy_pfvf_mbox;
 
 	cptvf->blkaddr = BLKADDR_CPT0;
+
+	cptvf_hw_ops_get(cptvf);
+
+	ret = otx2_cptvf_send_caps_msg(cptvf);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't get CPT engine capabilities.\n");
+		goto unregister_interrupts;
+	}
+	if (cptvf->eng_caps[OTX2_CPT_SE_TYPES] & BIT_ULL(35))
+		cptvf->lfs.ops->cpt_sg_info_create = cn10k_sgv2_info_create;
+
 	/* Initialize CPT LFs */
 	ret = cptvf_lf_init(cptvf);
 	if (ret)

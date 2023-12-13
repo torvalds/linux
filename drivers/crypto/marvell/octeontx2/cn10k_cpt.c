@@ -14,12 +14,14 @@ static struct cpt_hw_ops otx2_hw_ops = {
 	.send_cmd = otx2_cpt_send_cmd,
 	.cpt_get_compcode = otx2_cpt_get_compcode,
 	.cpt_get_uc_compcode = otx2_cpt_get_uc_compcode,
+	.cpt_sg_info_create = otx2_sg_info_create,
 };
 
 static struct cpt_hw_ops cn10k_hw_ops = {
 	.send_cmd = cn10k_cpt_send_cmd,
 	.cpt_get_compcode = cn10k_cpt_get_compcode,
 	.cpt_get_uc_compcode = cn10k_cpt_get_uc_compcode,
+	.cpt_sg_info_create = otx2_sg_info_create,
 };
 
 static void cn10k_cpt_send_cmd(union otx2_cpt_inst_s *cptinst, u32 insts_num,
@@ -78,12 +80,9 @@ int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 	struct pci_dev *pdev = cptvf->pdev;
 	resource_size_t offset, size;
 
-	if (!test_bit(CN10K_LMTST, &cptvf->cap_flag)) {
-		cptvf->lfs.ops = &otx2_hw_ops;
+	if (!test_bit(CN10K_LMTST, &cptvf->cap_flag))
 		return 0;
-	}
 
-	cptvf->lfs.ops = &cn10k_hw_ops;
 	offset = pci_resource_start(pdev, PCI_MBOX_BAR_NUM);
 	size = pci_resource_len(pdev, PCI_MBOX_BAR_NUM);
 	/* Map VF LMILINE region */
@@ -96,3 +95,12 @@ int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cn10k_cptvf_lmtst_init, CRYPTO_DEV_OCTEONTX2_CPT);
+
+void cptvf_hw_ops_get(struct otx2_cptvf_dev *cptvf)
+{
+	if (test_bit(CN10K_LMTST, &cptvf->cap_flag))
+		cptvf->lfs.ops = &cn10k_hw_ops;
+	else
+		cptvf->lfs.ops = &otx2_hw_ops;
+}
+EXPORT_SYMBOL_NS_GPL(cptvf_hw_ops_get, CRYPTO_DEV_OCTEONTX2_CPT);

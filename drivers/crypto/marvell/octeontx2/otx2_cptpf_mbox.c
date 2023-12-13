@@ -78,7 +78,7 @@ static int handle_msg_get_caps(struct otx2_cptpf_dev *cptpf,
 	rsp->hdr.sig = OTX2_MBOX_RSP_SIG;
 	rsp->hdr.pcifunc = req->pcifunc;
 	rsp->cpt_pf_drv_version = OTX2_CPT_PF_DRV_VERSION;
-	rsp->cpt_revision = cptpf->pdev->revision;
+	rsp->cpt_revision = cptpf->eng_grps.rid;
 	memcpy(&rsp->eng_caps, &cptpf->eng_caps, sizeof(rsp->eng_caps));
 
 	return 0;

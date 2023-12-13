@@ -14,6 +14,8 @@
 #define OTX2_CPT_DRV_STRING  "Marvell RVU CPT Physical Function Driver"
 
 #define CPT_UC_RID_CN9K_B0   1
+#define CPT_UC_RID_CN10K_A   4
+#define CPT_UC_RID_CN10K_B   5
 
 static void cptpf_enable_vfpf_mbox_intr(struct otx2_cptpf_dev *cptpf,
 					int num_vfs)
@@ -587,6 +589,24 @@ static int cpt_is_pf_usable(struct otx2_cptpf_dev *cptpf)
 	return 0;
 }
 
+static void cptpf_get_rid(struct pci_dev *pdev, struct otx2_cptpf_dev *cptpf)
+{
+	struct otx2_cpt_eng_grps *eng_grps = &cptpf->eng_grps;
+	u64 reg_val = 0x0;
+
+	if (is_dev_otx2(pdev)) {
+		eng_grps->rid = pdev->revision;
+		return;
+	}
+	otx2_cpt_read_af_reg(&cptpf->afpf_mbox, pdev, CPT_AF_CTL, &reg_val,
+			     BLKADDR_CPT0);
+	if ((is_dev_cn10ka_b0(pdev) && (reg_val & BIT_ULL(18))) ||
+	    is_dev_cn10ka_ax(pdev))
+		eng_grps->rid = CPT_UC_RID_CN10K_A;
+	else if (is_dev_cn10kb(pdev) || is_dev_cn10ka_b0(pdev))
+		eng_grps->rid = CPT_UC_RID_CN10K_B;
+}
+
 static void cptpf_check_block_implemented(struct otx2_cptpf_dev *cptpf)
 {
 	u64 cfg;
@@ -658,6 +678,7 @@ static int cptpf_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	if (ret)
 		goto destroy_flr;
 
+	cptpf_get_rid(pdev, cptpf);
 	/* Get CPT HW capabilities using LOAD_FVC operation. */
 	ret = otx2_cpt_discover_eng_capabilities(cptpf);
 	if (ret)

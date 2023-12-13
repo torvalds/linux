@@ -102,7 +102,10 @@ union otx2_cpt_eng_caps {
 		u64 kasumi:1;
 		u64 des:1;
 		u64 crc:1;
-		u64 reserved_14_63:50;
+		u64 mmul:1;
+		u64 reserved_15_33:19;
+		u64 pdcp_chain:1;
+		u64 reserved_35_63:29;
 	};
 };
 
@@ -140,6 +143,35 @@ static inline bool is_dev_otx2(struct pci_dev *pdev)
 {
 	if (pdev->device == OTX2_CPT_PCI_PF_DEVICE_ID ||
 	    pdev->device == OTX2_CPT_PCI_VF_DEVICE_ID)
+		return true;
+
+	return false;
+}
+
+static inline bool is_dev_cn10ka(struct pci_dev *pdev)
+{
+	return pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A;
+}
+
+static inline bool is_dev_cn10ka_ax(struct pci_dev *pdev)
+{
+	if (pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
+	    ((pdev->revision & 0xFF) == 4 || (pdev->revision & 0xFF) == 0x50 ||
+	     (pdev->revision & 0xff) == 0x51))
+		return true;
+
+	return false;
+}
+
+static inline bool is_dev_cn10kb(struct pci_dev *pdev)
+{
+	return pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_B;
+}
+
+static inline bool is_dev_cn10ka_b0(struct pci_dev *pdev)
+{
+	if (pdev->subsystem_device == CPT_PCI_SUBSYS_DEVID_CN10K_A &&
+	    (pdev->revision & 0xFF) == 0x54)
 		return true;
 
 	return false;
