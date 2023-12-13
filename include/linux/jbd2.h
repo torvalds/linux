@@ -756,11 +756,6 @@ struct journal_s
 	unsigned long		j_flags;
 
 	/**
-	 * @j_atomic_flags: Atomic journaling state flags.
-	 */
-	unsigned long		j_atomic_flags;
-
-	/**
 	 * @j_errno:
 	 *
 	 * Is there an outstanding uncleared error on the journal (from a prior
@@ -1405,12 +1400,6 @@ JBD2_FEATURE_INCOMPAT_FUNCS(fast_commit,	FAST_COMMIT)
 #define JBD2_JOURNAL_FLUSH_ZEROOUT	0x0002
 #define JBD2_JOURNAL_FLUSH_VALID	(JBD2_JOURNAL_FLUSH_DISCARD | \
 					JBD2_JOURNAL_FLUSH_ZEROOUT)
-
-/*
- * Journal atomic flag definitions
- */
-#define JBD2_CHECKPOINT_IO_ERROR	0x001	/* Detect io error while writing
-						 * buffer back to disk */
 
 /*
  * Function declarations for the journaling transaction and buffer
