@@ -46,8 +46,11 @@
 struct ast2600_ssp {
 	struct device	*dev;
 	struct regmap	*scu;
-	dma_addr_t		ssp_mem_phy_addr;
+	dma_addr_t	ssp_mem_phy_addr;
 	void __iomem	*ssp_mem_vir_addr;
+	dma_addr_t	ssp_shared_mem_phy_addr;
+	void __iomem	*ssp_shared_mem_vir_addr;
+	int		ssp_shared_mem_size;
 	void __iomem	*cvic;
 	int			irq[16];
 	int			n_irq;
@@ -78,11 +81,29 @@ struct miscdevice ast_ssp_misc = {
 
 static irqreturn_t ast2600_ssp_interrupt(int irq, void *dev_id)
 {
+	u32 i;
 	struct ast2600_ssp *priv = dev_id;
 	u32 isr = readl(priv->cvic + AST2600_CVIC_PENDING_STATUS);
+	u32 ssp_shared_rx_tx_size = priv->ssp_shared_mem_size / 2;
+	u32 *ssp_shared_mem_tx = priv->ssp_shared_mem_vir_addr;
+	u32 *ssp_shared_mem_rx = priv->ssp_shared_mem_vir_addr + ssp_shared_rx_tx_size;
 
 	dev_info(priv->dev, "isr %x\n", isr);
 	writel(isr, priv->cvic + AST2600_CVIC_PENDING_CLEAR);
+
+	dev_info(priv->dev, "[CA7] rx addr:%08x, tx addr:%08x\n",
+		 (u32)ssp_shared_mem_rx, (u32)ssp_shared_mem_tx);
+
+	/* Check the CA7 RX data from CM3 TX data. */
+	dev_info(priv->dev, "CA7 RX data from CM3 TX data: ");
+	for (i = 0; i < ssp_shared_rx_tx_size / 4; i++) {
+		if (readl(ssp_shared_mem_rx + i) != 0) {
+			dev_info(priv->dev, "[%08x] %08x ",
+				 (u32)(ssp_shared_mem_rx + i), readl(ssp_shared_mem_rx + i));
+		} else {
+			break;
+		}
+	}
 
 	return IRQ_HANDLED;
 }
@@ -123,10 +144,37 @@ static int ast_ssp_probe(struct platform_device *pdev)
 						    &priv->ssp_mem_phy_addr,
 						    GFP_KERNEL);
 
-	dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x\n",
-		 (uint32_t)priv->ssp_mem_vir_addr, priv->ssp_mem_phy_addr);
-	if (request_firmware(&firmware, SSP_FILE_NAME, &pdev->dev) < 0) {
-		dev_err(&pdev->dev, "don't have %s\n", SSP_FILE_NAME);
+	if (!priv->ssp_mem_vir_addr) {
+		dev_err(priv->dev, "can't create reserved memory.\n");
+		return -ENOMEM;
+	} else {
+		dev_info(priv->dev, "Reserved memory created.\n");
+		dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x\n",
+			 (uint32_t)priv->ssp_mem_vir_addr, priv->ssp_mem_phy_addr);
+	}
+
+	np = of_parse_phandle(priv->dev->of_node, "memory-region", 0);
+	if (!np) {
+		dev_err(priv->dev, "can't find memory-region node\n");
+		return -EINVAL;
+	}
+
+	if (of_property_read_u32(np, "shm-size", &priv->ssp_shared_mem_size)) {
+		dev_err(priv->dev, "can't find shm-size property\n");
+		return -EINVAL;
+	}
+	priv->ssp_shared_mem_vir_addr = priv->ssp_mem_vir_addr + SSP_TOTAL_MEM_SZ
+				    - priv->ssp_shared_mem_size;
+	priv->ssp_shared_mem_phy_addr = priv->ssp_mem_phy_addr + SSP_TOTAL_MEM_SZ
+					- priv->ssp_shared_mem_size;
+
+	dev_info(priv->dev, "Shared memory from reserved memory.\n");
+	dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x,  size = 0x%08x\n",
+		 (uint32_t)priv->ssp_shared_mem_vir_addr, priv->ssp_shared_mem_phy_addr,
+		 priv->ssp_shared_mem_size);
+
+	if (request_firmware(&firmware, SSP_FILE_NAME, priv->dev) < 0) {
+		dev_err(priv->dev, "don't have %s\n", SSP_FILE_NAME);
 		release_firmware(firmware);
 		return 0;
 	}
@@ -136,13 +184,13 @@ static int ast_ssp_probe(struct platform_device *pdev)
 
 	np = of_parse_phandle(mnode, "aspeed,cvic", 0);
 	if (!np) {
-		dev_err(&pdev->dev, "can't find CVIC\n");
+		dev_err(priv->dev, "can't find CVIC\n");
 		return -EINVAL;
 	}
 
-	priv->cvic = devm_of_iomap(&pdev->dev, np, 0, NULL);
+	priv->cvic = devm_of_iomap(priv->dev, np, 0, NULL);
 	if (IS_ERR(priv->cvic)) {
-		dev_err(&pdev->dev, "can't map CVIC\n");
+		dev_err(priv->dev, "can't map CVIC\n");
 		return -EINVAL;
 	}
 
