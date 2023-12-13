@@ -3722,6 +3722,72 @@ struct rtw89_fw_h2c_rf_get_mccch {
 	__le32 current_band_type;
 } __packed;
 
+enum rtw89_rf_log_type {
+	RTW89_RF_RUN_LOG = 0,
+	RTW89_RF_RPT_LOG = 1,
+};
+
+struct rtw89_c2h_rf_log_hdr {
+	u8 type; /* enum rtw89_rf_log_type */
+	__le16 len;
+	u8 content[];
+} __packed;
+
+struct rtw89_c2h_rf_dpk_rpt_log {
+	u8 ver;
+	u8 idx[2];
+	u8 band[2];
+	u8 bw[2];
+	u8 ch[2];
+	u8 path_ok[2];
+	u8 txagc[2];
+	u8 ther[2];
+	u8 gs[2];
+	u8 dc_i[4];
+	u8 dc_q[4];
+	u8 corr_val[2];
+	u8 corr_idx[2];
+	u8 is_timeout[2];
+	u8 rxbb_ov[2];
+	u8 rsvd;
+} __packed;
+
+struct rtw89_c2h_rf_dack_rpt_log {
+	u8 fwdack_ver;
+	u8 fwdack_rpt_ver;
+	u8 msbk_d[2][2][16];
+	u8 dadck_d[2][2];
+	u8 cdack_d[2][2][2];
+	__le16 addck2_d[2][2][2];
+	u8 adgaink_d[2][2];
+	__le16 biask_d[2][2];
+	u8 addck_timeout;
+	u8 cdack_timeout;
+	u8 dadck_timeout;
+	u8 msbk_timeout;
+	u8 adgaink_timeout;
+	u8 dack_fail;
+} __packed;
+
+struct rtw89_c2h_rf_rxdck_rpt_log {
+	u8 ver;
+	u8 band[2];
+	u8 bw[2];
+	u8 ch[2];
+	u8 timeout[2];
+} __packed;
+
+struct rtw89_c2h_rf_txgapk_rpt_log {
+	__le32 r0x8010[2];
+	__le32 chk_cnt;
+	u8 track_d[2][17];
+	u8 power_d[2][17];
+	u8 is_txgapk_ok;
+	u8 chk_id;
+	u8 ver;
+	u8 rsv1;
+} __packed;
+
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8
