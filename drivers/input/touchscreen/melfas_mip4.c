@@ -1336,9 +1336,9 @@ static ssize_t mip4_sysfs_read_fw_version(struct device *dev,
 	/* Take lock to prevent racing with firmware update */
 	mutex_lock(&ts->input->mutex);
 
-	count = snprintf(buf, PAGE_SIZE, "%04X %04X %04X %04X\n",
-			 ts->fw_version.boot, ts->fw_version.core,
-			 ts->fw_version.app, ts->fw_version.param);
+	count = sysfs_emit(buf, "%04X %04X %04X %04X\n",
+			   ts->fw_version.boot, ts->fw_version.core,
+			   ts->fw_version.app, ts->fw_version.param);
 
 	mutex_unlock(&ts->input->mutex);
 
@@ -1362,8 +1362,8 @@ static ssize_t mip4_sysfs_read_hw_version(struct device *dev,
 	 * product_name shows the name or version of the hardware
 	 * paired with current firmware in the chip.
 	 */
-	count = snprintf(buf, PAGE_SIZE, "%.*s\n",
-			 (int)sizeof(ts->product_name), ts->product_name);
+	count = sysfs_emit(buf, "%.*s\n",
+			   (int)sizeof(ts->product_name), ts->product_name);
 
 	mutex_unlock(&ts->input->mutex);
 
@@ -1382,7 +1382,7 @@ static ssize_t mip4_sysfs_read_product_id(struct device *dev,
 
 	mutex_lock(&ts->input->mutex);
 
-	count = snprintf(buf, PAGE_SIZE, "%04X\n", ts->product_id);
+	count = sysfs_emit(buf, "%04X\n", ts->product_id);
 
 	mutex_unlock(&ts->input->mutex);
 
@@ -1401,8 +1401,8 @@ static ssize_t mip4_sysfs_read_ic_name(struct device *dev,
 
 	mutex_lock(&ts->input->mutex);
 
-	count = snprintf(buf, PAGE_SIZE, "%.*s\n",
-			 (int)sizeof(ts->ic_name), ts->ic_name);
+	count = sysfs_emit(buf, "%.*s\n",
+			   (int)sizeof(ts->ic_name), ts->ic_name);
 
 	mutex_unlock(&ts->input->mutex);
 
