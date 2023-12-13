@@ -7171,11 +7171,17 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 	/* non-empty token path can't be combined with invalid token FD */
 	if (token_path && token_path[0] != '\0' && token_fd < 0)
 		return ERR_PTR(-EINVAL);
+	/* empty token path can't be combined with valid token FD */
+	if (token_path && token_path[0] == '\0' && token_fd > 0)
+		return ERR_PTR(-EINVAL);
+	/* if user didn't specify bpf_token_path/bpf_token_fd explicitly,
+	 * check if LIBBPF_BPF_TOKEN_PATH envvar was set and treat it as
+	 * bpf_token_path option
+	 */
+	if (token_fd == 0 && !token_path)
+		token_path = getenv("LIBBPF_BPF_TOKEN_PATH");
+	/* empty token_path is equivalent to invalid token_fd */
 	if (token_path && token_path[0] == '\0') {
-		/* empty token path can't be combined with valid token FD */
-		if (token_fd > 0)
-			return ERR_PTR(-EINVAL);
-		/* empty token_path is equivalent to invalid token_fd */
 		token_path = NULL;
 		token_fd = -1;
 	}

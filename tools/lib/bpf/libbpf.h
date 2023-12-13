@@ -185,8 +185,16 @@ struct bpf_object_open_opts {
 	 * attempt to create BPF token from default BPF FS mount point
 	 * (/sys/fs/bpf), in case this default behavior is undesirable.
 	 *
+	 * If bpf_token_path and bpf_token_fd are not specified, libbpf will
+	 * consult LIBBPF_BPF_TOKEN_PATH environment variable. If set, it will
+	 * be taken as a value of bpf_token_path option and will force libbpf
+	 * to either create BPF token from provided custom BPF FS path, or
+	 * will disable implicit BPF token creation, if envvar value is an
+	 * empty string.
+	 *
 	 * bpf_token_path and bpf_token_fd are mutually exclusive and only one
-	 * of those options should be set.
+	 * of those options should be set. Either of them overrides
+	 * LIBBPF_BPF_TOKEN_PATH envvar.
 	 */
 	int bpf_token_fd;
 	/* Path to BPF FS mount point to derive BPF token from.
@@ -200,7 +208,8 @@ struct bpf_object_open_opts {
 	 * point (/sys/fs/bpf), in case this default behavior is undesirable.
 	 *
 	 * bpf_token_path and bpf_token_fd are mutually exclusive and only one
-	 * of those options should be set.
+	 * of those options should be set. Either of them overrides
+	 * LIBBPF_BPF_TOKEN_PATH envvar.
 	 */
 	const char *bpf_token_path;
 
