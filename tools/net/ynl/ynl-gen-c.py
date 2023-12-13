@@ -1521,6 +1521,10 @@ def print_dump_prototype(ri):
     print_prototype(ri, "request")
 
 
+def put_typol_fwd(cw, struct):
+    cw.p(f'extern struct ynl_policy_nest {struct.render_name}_nest;')
+
+
 def put_typol(cw, struct):
     type_max = struct.attr_set.max_name
     cw.block_start(line=f'struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
@@ -1594,12 +1598,17 @@ def put_enum_to_str(family, cw, enum):
     _put_enum_to_str_helper(cw, enum.render_name, map_name, 'value', enum=enum)
 
 
-def put_req_nested(ri, struct):
+def put_req_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct nlmsghdr *nlh',
                  'unsigned int attr_type',
                  f'{struct.ptr_name}obj']
 
-    ri.cw.write_func_prot('int', f'{struct.render_name}_put', func_args)
+    ri.cw.write_func_prot('int', f'{struct.render_name}_put', func_args,
+                          suffix=suffix)
+
+
+def put_req_nested(ri, struct):
+    put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
     ri.cw.write_func_lvar('struct nlattr *nest;')
 
@@ -1726,17 +1735,22 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     ri.cw.nl()
 
 
-def parse_rsp_nested(ri, struct):
+def parse_rsp_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct ynl_parse_arg *yarg',
                  'const struct nlattr *nested']
     for arg in struct.inherited:
         func_args.append('__u32 ' + arg)
 
+    ri.cw.write_func_prot('int', f'{struct.render_name}_parse', func_args,
+                          suffix=suffix)
+
+
+def parse_rsp_nested(ri, struct):
+    parse_rsp_nested_prototype(ri, struct, suffix='')
+
     local_vars = ['const struct nlattr *attr;',
                   f'{struct.ptr_name}dst = yarg->data;']
     init_lines = []
-
-    ri.cw.write_func_prot('int', f'{struct.render_name}_parse', func_args)
 
     _multi_parse(ri, struct, init_lines, local_vars)
 
@@ -2049,6 +2063,10 @@ def _free_type(ri, direction, struct):
         ri.cw.p(f'free({var});')
     ri.cw.block_end()
     ri.cw.nl()
+
+
+def free_rsp_nested_prototype(ri):
+        print_free_prototype(ri, "")
 
 
 def free_rsp_nested(ri, struct):
@@ -2818,7 +2836,14 @@ def main():
                     put_enum_to_str(parsed, cw, const)
             cw.nl()
 
+            has_recursive_nests = False
             cw.p('/* Policies */')
+            for struct in parsed.pure_nested_structs.values():
+                if struct.recursive:
+                    put_typol_fwd(cw, struct)
+                    has_recursive_nests = True
+            if has_recursive_nests:
+                cw.nl()
             for name in parsed.pure_nested_structs:
                 struct = Struct(parsed, name)
                 put_typol(cw, struct)
@@ -2827,6 +2852,15 @@ def main():
                 put_typol(cw, struct)
 
             cw.p('/* Common nested types */')
+            if has_recursive_nests:
+                for attr_set, struct in parsed.pure_nested_structs.items():
+                    ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
+                    free_rsp_nested_prototype(ri)
+                    if struct.request:
+                        put_req_nested_prototype(ri, struct)
+                    if struct.reply:
+                        parse_rsp_nested_prototype(ri, struct)
+                cw.nl()
             for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
 
