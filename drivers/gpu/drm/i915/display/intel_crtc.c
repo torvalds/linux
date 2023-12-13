@@ -472,6 +472,7 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
 }
 
 struct intel_vblank_evade_ctx {
+	struct intel_crtc *crtc;
 	int min, max, vblank_start;
 	bool need_vlv_dsi_wa;
 };
@@ -484,6 +485,8 @@ static void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_stat
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
+
+	evade->crtc = crtc;
 
 	evade->need_vlv_dsi_wa = (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
@@ -531,6 +534,65 @@ static void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_stat
 		evade->min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 }
 
+/* must be called with vblank interrupt already enabled! */
+static int intel_vblank_evade(struct intel_vblank_evade_ctx *evade)
+{
+	struct intel_crtc *crtc = evade->crtc;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	long timeout = msecs_to_jiffies_timeout(1);
+	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
+	DEFINE_WAIT(wait);
+	int scanline;
+
+	for (;;) {
+		/*
+		 * prepare_to_wait() has a memory barrier, which guarantees
+		 * other CPUs can see the task state update by the time we
+		 * read the scanline.
+		 */
+		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
+
+		scanline = intel_get_crtc_scanline(crtc);
+		if (scanline < evade->min || scanline > evade->max)
+			break;
+
+		if (!timeout) {
+			drm_err(&i915->drm,
+				"Potential atomic update failure on pipe %c\n",
+				pipe_name(crtc->pipe));
+			break;
+		}
+
+		local_irq_enable();
+
+		timeout = schedule_timeout(timeout);
+
+		local_irq_disable();
+	}
+
+	finish_wait(wq, &wait);
+
+	/*
+	 * On VLV/CHV DSI the scanline counter would appear to
+	 * increment approx. 1/3 of a scanline before start of vblank.
+	 * The registers still get latched at start of vblank however.
+	 * This means we must not write any registers on the first
+	 * line of vblank (since not the whole line is actually in
+	 * vblank). And unfortunately we can't use the interrupt to
+	 * wait here since it will fire too soon. We could use the
+	 * frame start interrupt instead since it will fire after the
+	 * critical scanline, but that would require more changes
+	 * in the interrupt code. So for now we'll just do the nasty
+	 * thing and poll for the bad scanline to pass us by.
+	 *
+	 * FIXME figure out if BXT+ DSI suffers from this as well
+	 */
+	while (evade->need_vlv_dsi_wa && scanline == evade->vblank_start)
+		scanline = intel_get_crtc_scanline(crtc);
+
+	return scanline;
+}
+
 /**
  * intel_pipe_update_start() - start update of a set of display registers
  * @state: the atomic state
@@ -552,11 +614,8 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	long timeout = msecs_to_jiffies_timeout(1);
-	int scanline;
-	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
 	struct intel_vblank_evade_ctx evade;
-	DEFINE_WAIT(wait);
+	int scanline;
 
 	intel_psr_lock(new_crtc_state);
 
@@ -593,51 +652,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	crtc->debug.max_vbl = evade.max;
 	trace_intel_pipe_update_start(crtc);
 
-	for (;;) {
-		/*
-		 * prepare_to_wait() has a memory barrier, which guarantees
-		 * other CPUs can see the task state update by the time we
-		 * read the scanline.
-		 */
-		prepare_to_wait(wq, &wait, TASK_UNINTERRUPTIBLE);
-
-		scanline = intel_get_crtc_scanline(crtc);
-		if (scanline < evade.min || scanline > evade.max)
-			break;
-
-		if (!timeout) {
-			drm_err(&dev_priv->drm,
-				"Potential atomic update failure on pipe %c\n",
-				pipe_name(crtc->pipe));
-			break;
-		}
-
-		local_irq_enable();
-
-		timeout = schedule_timeout(timeout);
-
-		local_irq_disable();
-	}
-
-	finish_wait(wq, &wait);
-
-	/*
-	 * On VLV/CHV DSI the scanline counter would appear to
-	 * increment approx. 1/3 of a scanline before start of vblank.
-	 * The registers still get latched at start of vblank however.
-	 * This means we must not write any registers on the first
-	 * line of vblank (since not the whole line is actually in
-	 * vblank). And unfortunately we can't use the interrupt to
-	 * wait here since it will fire too soon. We could use the
-	 * frame start interrupt instead since it will fire after the
-	 * critical scanline, but that would require more changes
-	 * in the interrupt code. So for now we'll just do the nasty
-	 * thing and poll for the bad scanline to pass us by.
-	 *
-	 * FIXME figure out if BXT+ DSI suffers from this as well
-	 */
-	while (evade.need_vlv_dsi_wa && scanline == evade.vblank_start)
-		scanline = intel_get_crtc_scanline(crtc);
+	scanline = intel_vblank_evade(&evade);
 
 	drm_crtc_vblank_put(&crtc->base);
 
