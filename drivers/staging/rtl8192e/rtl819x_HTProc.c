@@ -71,8 +71,6 @@ void ht_update_default_setting(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	ht_info->amsdu_support = 0;
-
 	ht_info->ampdu_enable = 1;
 	ht_info->ampdu_factor = 2;
 	ht_info->mpdu_density = 0;
