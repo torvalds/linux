@@ -146,6 +146,7 @@ struct ice_es {
 	u32 *mask_ena;
 	struct list_head prof_map;
 	struct ice_fv_word *t;
+	u8 *symm;	/* symmetric setting per profile (RSS blk)*/
 	struct mutex prof_map_lock;	/* protect access to profiles list */
 	u8 *written;
 	u8 reverse; /* set to true to reverse FV order */

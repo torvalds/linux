@@ -710,6 +710,11 @@ static bool ice_vc_parse_rss_cfg(struct ice_hw *hw,
 	/* set outer layer RSS as default */
 	hash_cfg->hdr_type = ICE_RSS_OUTER_HEADERS;
 
+	if (rss_cfg->rss_algorithm == VIRTCHNL_RSS_ALG_TOEPLITZ_SYMMETRIC)
+		hash_cfg->symm = true;
+	else
+		hash_cfg->symm = false;
+
 	hf_list = ice_vc_hash_field_list;
 	hf_list_len = ARRAY_SIZE(ice_vc_hash_field_list);
 	hdr_list = ice_vc_hdr_list;
@@ -876,7 +881,7 @@ static int ice_vc_handle_rss_cfg(struct ice_vf *vf, u8 *msg, bool add)
 		}
 
 		if (add) {
-			if (ice_add_rss_cfg(hw, vsi->idx, &cfg)) {
+			if (ice_add_rss_cfg(hw, vsi, &cfg)) {
 				v_ret = VIRTCHNL_STATUS_ERR_PARAM;
 				dev_err(dev, "ice_add_rss_cfg failed for vsi = %d, v_ret = %d\n",
 					vsi->vsi_num, v_ret);
@@ -2640,7 +2645,7 @@ static int ice_vc_set_rss_hena(struct ice_vf *vf, u8 *msg)
 	}
 
 	if (vrh->hena) {
-		status = ice_add_avf_rss_cfg(&pf->hw, vsi->idx, vrh->hena);
+		status = ice_add_avf_rss_cfg(&pf->hw, vsi, vrh->hena);
 		v_ret = ice_err_to_virt_err(status);
 	}
 

@@ -229,6 +229,19 @@ enum ice_flow_field {
 	ICE_FLOW_FIELD_IDX_MAX
 };
 
+#define ICE_FLOW_HASH_FLD_IPV4_SA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA)
+#define ICE_FLOW_HASH_FLD_IPV6_SA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_SA)
+#define ICE_FLOW_HASH_FLD_IPV4_DA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA)
+#define ICE_FLOW_HASH_FLD_IPV6_DA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_DA)
+#define ICE_FLOW_HASH_FLD_TCP_SRC_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_SRC_PORT)
+#define ICE_FLOW_HASH_FLD_TCP_DST_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_DST_PORT)
+#define ICE_FLOW_HASH_FLD_UDP_SRC_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)
+#define ICE_FLOW_HASH_FLD_UDP_DST_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)
+#define ICE_FLOW_HASH_FLD_SCTP_SRC_PORT	\
+	BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT)
+#define ICE_FLOW_HASH_FLD_SCTP_DST_PORT	\
+	BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_DST_PORT)
+
 /* Flow headers and fields for AVF support */
 enum ice_flow_avf_hdr_field {
 	/* Values 0 - 28 are reserved for future use */
@@ -296,6 +309,7 @@ struct ice_rss_hash_cfg {
 	u32 addl_hdrs; /* protocol header fields */
 	u64 hash_flds; /* hash bit field (ICE_FLOW_HASH_*) to configure */
 	enum ice_rss_cfg_hdr_type hdr_type; /* to specify inner or outer */
+	bool symm; /* symmetric or asymmetric hash */
 };
 
 enum ice_flow_dir {
@@ -311,6 +325,7 @@ enum ice_flow_priority {
 #define ICE_FLOW_SEG_SINGLE		1
 #define ICE_FLOW_SEG_MAX		2
 #define ICE_FLOW_SEG_RAW_FLD_MAX	2
+#define ICE_FLOW_SW_FIELD_VECTOR_MAX	48
 #define ICE_FLOW_FV_EXTRACT_SZ		2
 
 #define ICE_FLOW_SET_HDRS(seg, val)	((seg)->hdrs |= (u32)(val))
@@ -392,6 +407,8 @@ struct ice_flow_prof {
 
 	/* software VSI handles referenced by this flow profile */
 	DECLARE_BITMAP(vsis, ICE_MAX_VSI);
+
+	bool symm; /* Symmetric Hash for RSS */
 };
 
 struct ice_rss_cfg {
@@ -404,7 +421,7 @@ struct ice_rss_cfg {
 int
 ice_flow_add_prof(struct ice_hw *hw, enum ice_block blk, enum ice_flow_dir dir,
 		  struct ice_flow_seg_info *segs, u8 segs_cnt,
-		  struct ice_flow_prof **prof);
+		  bool symm, struct ice_flow_prof **prof);
 int ice_flow_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 prof_id);
 int
 ice_flow_add_entry(struct ice_hw *hw, enum ice_block blk, u64 prof_id,
@@ -420,11 +437,13 @@ ice_flow_add_fld_raw(struct ice_flow_seg_info *seg, u16 off, u8 len,
 int ice_flow_rem_vsi_prof(struct ice_hw *hw, u16 vsi_handle, u64 prof_id);
 void ice_rem_vsi_rss_list(struct ice_hw *hw, u16 vsi_handle);
 int ice_replay_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
-int ice_add_avf_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u64 hashed_flds);
+int ice_set_rss_cfg_symm(struct ice_hw *hw, struct ice_vsi *vsi, bool symm);
+int ice_add_avf_rss_cfg(struct ice_hw *hw, struct ice_vsi *vsi,
+			u64 hashed_flds);
 int ice_rem_vsi_rss_cfg(struct ice_hw *hw, u16 vsi_handle);
-int ice_add_rss_cfg(struct ice_hw *hw, u16 vsi_handle,
+int ice_add_rss_cfg(struct ice_hw *hw, struct ice_vsi *vsi,
 		    const struct ice_rss_hash_cfg *cfg);
 int ice_rem_rss_cfg(struct ice_hw *hw, u16 vsi_handle,
 		    const struct ice_rss_hash_cfg *cfg);
-u64 ice_get_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u32 hdrs);
+u64 ice_get_rss_cfg(struct ice_hw *hw, u16 vsi_handle, u32 hdrs, bool *symm);
 #endif /* _ICE_FLOW_H_ */
