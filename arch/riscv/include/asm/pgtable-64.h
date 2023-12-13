@@ -340,13 +340,7 @@ static inline struct page *p4d_page(p4d_t p4d)
 #define pud_index(addr) (((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 
 #define pud_offset pud_offset
-static inline pud_t *pud_offset(p4d_t *p4d, unsigned long address)
-{
-	if (pgtable_l4_enabled)
-		return p4d_pgtable(*p4d) + pud_index(address);
-
-	return (pud_t *)p4d;
-}
+pud_t *pud_offset(p4d_t *p4d, unsigned long address);
 
 static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
@@ -404,12 +398,6 @@ static inline struct page *pgd_page(pgd_t pgd)
 #define p4d_index(addr) (((addr) >> P4D_SHIFT) & (PTRS_PER_P4D - 1))
 
 #define p4d_offset p4d_offset
-static inline p4d_t *p4d_offset(pgd_t *pgd, unsigned long address)
-{
-	if (pgtable_l5_enabled)
-		return pgd_pgtable(*pgd) + p4d_index(address);
-
-	return (p4d_t *)pgd;
-}
+p4d_t *p4d_offset(pgd_t *pgd, unsigned long address);
 
 #endif /* _ASM_RISCV_PGTABLE_64_H */
