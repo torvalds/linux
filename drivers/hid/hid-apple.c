@@ -347,6 +347,8 @@ static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
 	{ "Hailuck" },
 	{ "Jamesdonkey" },
 	{ "A3R" },
+	{ "hfd.cn" },
+	{ "WKB603" },
 };
 
 static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
