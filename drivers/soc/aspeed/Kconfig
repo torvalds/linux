@@ -30,6 +30,12 @@ config ASPEED_LPC_SNOOP
 	  allows the BMC to listen on and save the data written by
 	  the host to an arbitrary LPC I/O port.
 
+config ASPEED_SSP
+	tristate "ASPEED SSP loader"
+	default n
+	help
+	  Driver for loading secondary-service-processor binary
+
 config ASPEED_MCTP
 	tristate "Aspeed ast2600 MCTP Controller support"
 	depends on REGMAP && MFD_SYSCON
@@ -142,6 +148,15 @@ config ASPEED_UDMA
 config ASPEED_OTP
 	tristate "Aspeed OTP Driver"
 	depends on MACH_ASPEED_G6
+
+config AST2700_SGMII
+	tristate "ASPEED SGMII Controller driver"
+	select REGMAP
+	select MFD_SYSCON
+	default n
+	depends on MACH_ASPEED_G7
+	help
+	  Enable driver support for Aspeed AST2700 SGMII Controller.
 
 endmenu
 
