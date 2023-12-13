@@ -3369,18 +3369,12 @@ struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 	return swap_type_to_swap_info(swp_type(entry));
 }
 
-struct swap_info_struct *page_swap_info(struct page *page)
-{
-	swp_entry_t entry = page_swap_entry(page);
-	return swp_swap_info(entry);
-}
-
 /*
  * out-of-line methods to avoid include hell.
  */
 struct address_space *swapcache_mapping(struct folio *folio)
 {
-	return page_swap_info(&folio->page)->swap_file->f_mapping;
+	return swp_swap_info(folio->swap)->swap_file->f_mapping;
 }
 EXPORT_SYMBOL_GPL(swapcache_mapping);
 

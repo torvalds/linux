@@ -60,7 +60,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t flag,
 
 static inline unsigned int folio_swap_flags(struct folio *folio)
 {
-	return page_swap_info(&folio->page)->flags;
+	return swp_swap_info(folio->swap)->flags;
 }
 #else /* CONFIG_SWAP */
 struct swap_iocb;
