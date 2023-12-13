@@ -3733,6 +3733,11 @@ struct rtw89_c2h_rf_log_hdr {
 	u8 content[];
 } __packed;
 
+struct rtw89_c2h_rf_run_log {
+	__le32 fmt_idx;
+	__le32 arg[4];
+} __packed;
+
 struct rtw89_c2h_rf_dpk_rpt_log {
 	u8 ver;
 	u8 idx[2];

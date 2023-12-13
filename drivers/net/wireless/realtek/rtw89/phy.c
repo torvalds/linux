@@ -2566,6 +2566,38 @@ out:
 		    "unexpected RFK func %d report log with length %d\n", func, len);
 }
 
+static bool rtw89_phy_c2h_rfk_run_log(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_c2h_rfk_log_func func,
+				      void *content, u16 len)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_c2h_rf_run_log *log = content;
+	const struct rtw89_fw_element_hdr *elm;
+	u32 fmt_idx;
+	u16 offset;
+
+	if (sizeof(*log) != len)
+		return false;
+
+	if (!elm_info->rfk_log_fmt)
+		return false;
+
+	elm = elm_info->rfk_log_fmt->elm[func];
+	fmt_idx = le32_to_cpu(log->fmt_idx);
+	if (!elm || fmt_idx >= elm->u.rfk_log_fmt.nr)
+		return false;
+
+	offset = le16_to_cpu(elm->u.rfk_log_fmt.offset[fmt_idx]);
+	if (offset == 0)
+		return false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, &elm->u.common.contents[offset],
+		    le32_to_cpu(log->arg[0]), le32_to_cpu(log->arg[1]),
+		    le32_to_cpu(log->arg[2]), le32_to_cpu(log->arg[3]));
+
+	return true;
+}
+
 static void rtw89_phy_c2h_rfk_log(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 				  u32 len, enum rtw89_phy_c2h_rfk_log_func func,
 				  const char *rfk_name)
@@ -2575,6 +2607,7 @@ static void rtw89_phy_c2h_rfk_log(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 	void *log_ptr = c2h_hdr;
 	u16 content_len;
 	u16 chunk_len;
+	bool handled;
 
 	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_RFK))
 		return;
@@ -2592,6 +2625,11 @@ static void rtw89_phy_c2h_rfk_log(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 
 		switch (log_hdr->type) {
 		case RTW89_RF_RUN_LOG:
+			handled = rtw89_phy_c2h_rfk_run_log(rtwdev, func,
+							    log_hdr->content, content_len);
+			if (handled)
+				break;
+
 			rtw89_debug(rtwdev, RTW89_DBG_RFK, "%s run: %*ph\n",
 				    rfk_name, content_len, log_hdr->content);
 			break;
