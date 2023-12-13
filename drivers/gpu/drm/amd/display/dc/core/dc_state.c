@@ -212,10 +212,14 @@ struct dc_state *dc_state_create(struct dc *dc)
 void dc_state_copy(struct dc_state *dst_state, struct dc_state *src_state)
 {
 	struct kref refcount = dst_state->refcount;
+#ifdef CONFIG_DRM_AMD_DC_FP
+	struct dml2_context *dst_dml2 = dst_state->bw_ctx.dml2;
+#endif
 
 	dc_state_copy_internal(dst_state, src_state);
 
 #ifdef CONFIG_DRM_AMD_DC_FP
+	dst_state->bw_ctx.dml2 = dst_dml2;
 	if (src_state->bw_ctx.dml2)
 		dml2_copy(dst_state->bw_ctx.dml2, src_state->bw_ctx.dml2);
 #endif
