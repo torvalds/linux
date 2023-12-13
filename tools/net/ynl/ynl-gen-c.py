@@ -264,6 +264,15 @@ class TypeUnused(Type):
     def attr_policy(self, cw):
         pass
 
+    def attr_put(self, ri, var):
+        pass
+
+    def attr_get(self, ri, var, first):
+        pass
+
+    def setter(self, ri, space, direction, deref=False, ref=None):
+        pass
+
 
 class TypePad(Type):
     def presence_type(self):
