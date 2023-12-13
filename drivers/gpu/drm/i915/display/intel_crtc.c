@@ -473,6 +473,7 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
 
 struct intel_vblank_evade_ctx {
 	int min, max, vblank_start;
+	bool need_vlv_dsi_wa;
 };
 
 static void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
@@ -480,8 +481,12 @@ static void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_stat
 				    struct intel_vblank_evade_ctx *evade)
 {
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
+
+	evade->need_vlv_dsi_wa = (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) &&
+		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 
 	/*
 	 * During fastsets/etc. the transcoder is still
@@ -550,8 +555,6 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
-	bool need_vlv_dsi_wa = (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 	struct intel_vblank_evade_ctx evade;
 	DEFINE_WAIT(wait);
 
@@ -633,7 +636,7 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 	 *
 	 * FIXME figure out if BXT+ DSI suffers from this as well
 	 */
-	while (need_vlv_dsi_wa && scanline == evade.vblank_start)
+	while (evade.need_vlv_dsi_wa && scanline == evade.vblank_start)
 		scanline = intel_get_crtc_scanline(crtc);
 
 	drm_crtc_vblank_put(&crtc->base);
