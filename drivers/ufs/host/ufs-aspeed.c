@@ -162,6 +162,50 @@ static int aspeed_ufshc_init(struct ufs_hba *hba)
 	return status;
 }
 
+static int aspeed_ufshc_set_hclkdiv(struct ufs_hba *hba)
+{
+	struct ufs_clk_info *clki;
+	struct list_head *head = &hba->clk_list_head;
+	unsigned long core_clk_rate = 0;
+	u32 core_clk_div = 0;
+
+	if (list_empty(head))
+		return 0;
+
+	list_for_each_entry(clki, head, list) {
+		if (IS_ERR_OR_NULL(clki->clk))
+			continue;
+		if (!strcmp(clki->name, "core_clk"))
+			core_clk_rate = clk_get_rate(clki->clk);
+	}
+
+	if (!core_clk_rate) {
+		dev_err(hba->dev, "%s: unable to find core_clk rate\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	core_clk_div = core_clk_rate / USEC_PER_SEC;
+
+	ufshcd_writel(hba, core_clk_div, ASPEED_UFS_REG_HCLKDIV);
+	/**
+	 * Make sure the register was updated,
+	 * UniPro layer will not work with an incorrect value.
+	 */
+	mb();
+
+	return 0;
+}
+
+static int aspeed_ufshc_hce_enable_notify(struct ufs_hba *hba,
+					  enum ufs_notify_change_status status)
+{
+	if (status != PRE_CHANGE)
+		return 0;
+
+	return aspeed_ufshc_set_hclkdiv(hba);
+}
+
 /**
  * aspeed_ufshc_link_startup_notify()
  * Called before and after Link startup is carried out.
@@ -189,8 +233,6 @@ static int aspeed_ufshc_link_startup_notify(struct ufs_hba *hba,
 	 * Disabling Autohibern8 feature.
 	 */
 	hba->ahit = 0;
-
-	ufshcd_writel(hba, 0x190, ASPEED_UFS_REG_HCLKDIV);
 
 	return 0;
 }
@@ -268,6 +310,7 @@ static int aspeed_ufshc_pwr_change_notify(struct ufs_hba *hba,
 static const struct ufs_hba_variant_ops aspeed_ufshc_hba_vops = {
 	.name = "aspeed-ufshc",
 	.init = aspeed_ufshc_init,
+	.hce_enable_notify = aspeed_ufshc_hce_enable_notify,
 	.link_startup_notify = aspeed_ufshc_link_startup_notify,
 	.pwr_change_notify   = aspeed_ufshc_pwr_change_notify,
 };
