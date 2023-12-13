@@ -50,7 +50,7 @@ static bool is_wired;
 module_param_named(is_wired, is_wired, bool, 0644);
 MODULE_PARM_DESC(is_wired, "Transfer is triggered by wired DMA(default false)");
 
-#define PCIE_DW_MISC_DMATEST_DEV_MAX	8
+#define PCIE_DW_MISC_DMATEST_DEV_MAX	1
 
 #define PCIE_DMA_CHANEL_MAX_NUM		2
 #define PCIE_DMA_LL_MAX_NUM		1024 /* Unrestricted, tentative value */
@@ -69,21 +69,20 @@ struct pcie_dw_dmatest_dev {
 	struct dma_table wr_tbl_buf[PCIE_DMA_CHANEL_MAX_NUM];
 };
 
-static struct pcie_dw_dmatest_dev s_dmatest_dev[PCIE_DW_MISC_DMATEST_DEV_MAX];
-static int cur_dmatest_dev;
+static struct pcie_dw_dmatest_dev *s_dmatest_dev;
 
 static void pcie_dw_dmatest_show(void)
 {
 	int i;
 
 	for (i = 0; i < PCIE_DW_MISC_DMATEST_DEV_MAX; i++) {
-		if (s_dmatest_dev[i].obj)
-			dev_info(s_dmatest_dev[i].obj->dev, " test_dev index %d\n", i);
+		if (s_dmatest_dev)
+			dev_info(s_dmatest_dev->obj->dev, " test_dev index %d\n", i);
 		else
 			break;
 	}
 
-	dev_info(s_dmatest_dev[test_dev].obj->dev, " is current test_dev\n");
+	dev_info(s_dmatest_dev->obj->dev, " is current test_dev\n");
 }
 
 static int rk_pcie_dma_wait_for_finished(struct dma_trx_obj *obj, struct dma_table *table)
@@ -214,8 +213,12 @@ static int rk_pcie_dma_interrupt_handler_call_back(struct dma_trx_obj *obj, u32 
 struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 {
 	struct dma_trx_obj *obj;
-	struct pcie_dw_dmatest_dev *dmatest_dev = &s_dmatest_dev[cur_dmatest_dev];
+	struct pcie_dw_dmatest_dev *dmatest_dev;
 	int i;
+
+	dmatest_dev = devm_kzalloc(dev, sizeof(struct pcie_dw_dmatest_dev), GFP_KERNEL);
+	if (!dmatest_dev)
+		return ERR_PTR(-ENOMEM);
 
 	obj = devm_kzalloc(dev, sizeof(struct dma_trx_obj), GFP_KERNEL);
 	if (!obj)
@@ -236,14 +239,14 @@ struct dma_trx_obj *pcie_dw_dmatest_register(struct device *dev, bool irq_en)
 
 	/* Enable IRQ transfer as default */
 	dmatest_dev->irq_en = irq_en;
-	cur_dmatest_dev++;
+	s_dmatest_dev = dmatest_dev;
 
 	return obj;
 }
 
 void pcie_dw_dmatest_unregister(struct dma_trx_obj *obj)
 {
-	cur_dmatest_dev = 0;
+	s_dmatest_dev = NULL;
 }
 
 int pcie_dw_wired_dma_frombus_block(struct dma_trx_obj *obj, u32 chn,
@@ -309,7 +312,7 @@ static int dma_test(struct pcie_dw_dmatest_dev *dmatest_dev, u32 chn,
 
 static int dma_test_ch0(void *p)
 {
-	dma_test(&s_dmatest_dev[test_dev], 0, bus_addr, local_addr, test_size,
+	dma_test(s_dmatest_dev, 0, bus_addr, local_addr, test_size,
 		 cycles_count, rw_test & 0x1, (rw_test & 0x2) >> 1);
 
 	return 0;
@@ -319,10 +322,10 @@ static int dma_test_ch1(void *p)
 {
 	/* Test in different area with ch0 */
 	if (chn_en == 3)
-		dma_test(&s_dmatest_dev[test_dev], 1, bus_addr + test_size, local_addr + test_size, test_size,
+		dma_test(s_dmatest_dev, 1, bus_addr + test_size, local_addr + test_size, test_size,
 			 cycles_count, rw_test & 0x1, (rw_test & 0x2) >> 1);
 	else
-		dma_test(&s_dmatest_dev[test_dev], 1, bus_addr, local_addr, test_size,
+		dma_test(s_dmatest_dev, 1, bus_addr, local_addr, test_size,
 			 cycles_count, rw_test & 0x1, (rw_test & 0x2) >> 1);
 
 	return 0;
@@ -346,7 +349,7 @@ static int pcie_dw_dmatest(const char *val, const struct kernel_param *kp)
 {
 	char tmp[8];
 
-	if (!s_dmatest_dev[0].obj) {
+	if (!s_dmatest_dev) {
 		pr_err("dmatest dev not exits\n");
 
 		return -1;
