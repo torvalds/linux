@@ -1756,7 +1756,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee,
 				  u8 isEncrypt, bool bAssoc);
 void ht_construct_rt2rt_agg_element(struct rtllib_device *ieee,
 				u8 *posRT2RTAgg, u8 *len);
-void HTOnAssocRsp(struct rtllib_device *ieee);
+void ht_on_assoc_rsp(struct rtllib_device *ieee);
 void HTInitializeHTInfo(struct rtllib_device *ieee);
 void HTInitializeBssDesc(struct bss_ht *pBssHT);
 void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,

@@ -1064,7 +1064,7 @@ static void rtllib_associate_complete_wq(void *data)
 	}
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		netdev_info(ieee->dev, "Successfully associated, ht enabled\n");
-		HTOnAssocRsp(ieee);
+		ht_on_assoc_rsp(ieee);
 	} else {
 		netdev_info(ieee->dev,
 			    "Successfully associated, ht not enabled(%d, %d)\n",
