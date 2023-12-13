@@ -572,7 +572,7 @@ static ssize_t elan_sysfs_read_fw_checksum(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "0x%04x\n", data->fw_checksum);
+	return sysfs_emit(buf, "0x%04x\n", data->fw_checksum);
 }
 
 static ssize_t elan_sysfs_read_product_id(struct device *dev,
@@ -582,8 +582,8 @@ static ssize_t elan_sysfs_read_product_id(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, ETP_PRODUCT_ID_FORMAT_STRING "\n",
-		       data->product_id);
+	return sysfs_emit(buf, ETP_PRODUCT_ID_FORMAT_STRING "\n",
+			  data->product_id);
 }
 
 static ssize_t elan_sysfs_read_fw_ver(struct device *dev,
@@ -593,7 +593,7 @@ static ssize_t elan_sysfs_read_fw_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->fw_version);
+	return sysfs_emit(buf, "%d.0\n", data->fw_version);
 }
 
 static ssize_t elan_sysfs_read_sm_ver(struct device *dev,
@@ -603,7 +603,7 @@ static ssize_t elan_sysfs_read_sm_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->sm_version);
+	return sysfs_emit(buf, "%d.0\n", data->sm_version);
 }
 
 static ssize_t elan_sysfs_read_iap_ver(struct device *dev,
@@ -613,7 +613,7 @@ static ssize_t elan_sysfs_read_iap_ver(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct elan_tp_data *data = i2c_get_clientdata(client);
 
-	return sprintf(buf, "%d.0\n", data->iap_version);
+	return sysfs_emit(buf, "%d.0\n", data->iap_version);
 }
 
 static ssize_t elan_sysfs_update_fw(struct device *dev,
@@ -754,7 +754,7 @@ static ssize_t elan_sysfs_read_mode(struct device *dev,
 	if (error)
 		return error;
 
-	return sprintf(buf, "%d\n", (int)mode);
+	return sysfs_emit(buf, "%d\n", (int)mode);
 }
 
 static DEVICE_ATTR(product_id, S_IRUGO, elan_sysfs_read_product_id, NULL);
@@ -858,7 +858,7 @@ static ssize_t min_show(struct device *dev,
 		goto out;
 	}
 
-	retval = snprintf(buf, PAGE_SIZE, "%d", data->min_baseline);
+	retval = sysfs_emit(buf, "%d", data->min_baseline);
 
 out:
 	mutex_unlock(&data->sysfs_mutex);
@@ -881,7 +881,7 @@ static ssize_t max_show(struct device *dev,
 		goto out;
 	}
 
-	retval = snprintf(buf, PAGE_SIZE, "%d", data->max_baseline);
+	retval = sysfs_emit(buf, "%d", data->max_baseline);
 
 out:
 	mutex_unlock(&data->sysfs_mutex);
