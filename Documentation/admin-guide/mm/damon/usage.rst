@@ -130,30 +130,29 @@ In each kdamond directory, two files (``state`` and ``pid``) and one directory
 (``contexts``) exist.
 
 Reading ``state`` returns ``on`` if the kdamond is currently running, or
-``off`` if it is not running.  Writing ``on`` or ``off`` makes the kdamond be
-in the state.
+``off`` if it is not running.
 
-Writing ``commit`` to the ``state`` file makes kdamond reads the
-user inputs in the sysfs files except ``state`` file again.  Writing
-``commit_schemes_quota_goals`` to the ``state`` file makes kdamond reads the
-DAMON-based operation schemes' :ref:`quota goals <sysfs_schemes_quota_goals>`
-of the kdamond.
+Users can write below commands for the kdamond to the ``state`` file.
 
-Writing ``update_schemes_stats`` to ``state`` file updates the
-contents of stats files for each DAMON-based operation scheme of the kdamond.
-For details of the stats, please refer to :ref:`stats section
-<sysfs_schemes_stats>`.
-
-Writing ``update_schemes_tried_regions`` to ``state`` file updates the
-DAMON-based operation scheme action tried regions directory for each
-DAMON-based operation scheme of the kdamond.  Writing
-``update_schemes_tried_bytes`` to ``state`` file updates only
-``.../tried_regions/total_bytes`` files.  Writing
-``clear_schemes_tried_regions`` to ``state`` file clears the DAMON-based
-operating scheme action tried regions directory for each DAMON-based operation
-scheme of the kdamond.  For details of the DAMON-based operation scheme action
-tried regions directory, please refer to :ref:`tried_regions section
-<sysfs_schemes_tried_regions>`.
+- ``on``: Start running.
+- ``off``: Stop running.
+- ``commit``: Read the user inputs in the sysfs files except ``state`` file
+  again.
+- ``commit_schemes_quota_goals``: Read the DAMON-based operation schemes'
+  :ref:`quota goals <sysfs_schemes_quota_goals>`.
+- ``update_schemes_stats``: Update the contents of stats files for each
+  DAMON-based operation scheme of the kdamond.  For details of the stats,
+  please refer to :ref:`stats section <sysfs_schemes_stats>`.
+- ``update_schemes_tried_regions``: Update the DAMON-based operation scheme
+  action tried regions directory for each DAMON-based operation scheme of the
+  kdamond.  For details of the DAMON-based operation scheme action tried
+  regions directory, please refer to
+  :ref:`tried_regions section <sysfs_schemes_tried_regions>`.
+- ``update_schemes_tried_bytes``: Update only ``.../tried_regions/total_bytes``
+  files.
+- ``clear_schemes_tried_regions``: Clear the DAMON-based operating scheme
+  action tried regions directory for each DAMON-based operation scheme of the
+  kdamond.
 
 If the state is ``on``, reading ``pid`` shows the pid of the kdamond thread.
 
