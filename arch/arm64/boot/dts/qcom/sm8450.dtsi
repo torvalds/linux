@@ -2362,8 +2362,6 @@
 
 			#clock-cells = <0>;
 			clock-output-names = "wsa2-mclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&wsa2_swr_active>;
 			#sound-dai-cells = <1>;
 		};
 
@@ -2374,6 +2372,9 @@
 			clocks = <&wsa2macro>;
 			clock-names = "iface";
 			label = "WSA2";
+
+			pinctrl-0 = <&wsa2_swr_active>;
+			pinctrl-names = "default";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2410,8 +2411,6 @@
 
 			#clock-cells = <0>;
 			clock-output-names = "mclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&rx_swr_active>;
 			#sound-dai-cells = <1>;
 		};
 
@@ -2424,6 +2423,9 @@
 			label = "RX";
 			qcom,din-ports = <0>;
 			qcom,dout-ports = <5>;
+
+			pinctrl-0 = <&rx_swr_active>;
+			pinctrl-names = "default";
 
 			qcom,ports-sinterval-low =	/bits/ 8 <0x03 0x1f 0x1f 0x07 0x00>;
 			qcom,ports-offset1 =		/bits/ 8 <0x00 0x00 0x0b 0x01 0x00>;
@@ -2456,8 +2458,6 @@
 
 			#clock-cells = <0>;
 			clock-output-names = "mclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&tx_swr_active>;
 			#sound-dai-cells = <1>;
 		};
 
@@ -2477,8 +2477,6 @@
 
 			#clock-cells = <0>;
 			clock-output-names = "mclk";
-			pinctrl-names = "default";
-			pinctrl-0 = <&wsa_swr_active>;
 			#sound-dai-cells = <1>;
 		};
 
@@ -2489,6 +2487,9 @@
 			clocks = <&wsamacro>;
 			clock-names = "iface";
 			label = "WSA";
+
+			pinctrl-0 = <&wsa_swr_active>;
+			pinctrl-names = "default";
 
 			qcom,din-ports = <2>;
 			qcom,dout-ports = <6>;
@@ -2519,6 +2520,9 @@
 			clocks = <&txmacro>;
 			clock-names = "iface";
 			label = "TX";
+
+			pinctrl-0 = <&tx_swr_active>;
+			pinctrl-names = "default";
 
 			qcom,din-ports = <4>;
 			qcom,dout-ports = <0>;
