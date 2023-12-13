@@ -33,6 +33,29 @@ static u64 ufs_bitmap_search (struct super_block *, struct ufs_cg_private_info *
 static unsigned char ufs_fragtable_8fpb[], ufs_fragtable_other[];
 static void ufs_clusteracct(struct super_block *, struct ufs_cg_private_info *, unsigned, int);
 
+static void adjust_free_blocks(struct super_block *sb,
+			       struct ufs_cylinder_group *ucg,
+			       struct ufs_cg_private_info *ucpi,
+			       unsigned fragment, int delta)
+{
+	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
+
+	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
+		ufs_clusteracct(sb, ucpi, fragment, delta);
+
+	fs32_add(sb, &ucg->cg_cs.cs_nbfree, delta);
+	uspi->cs_total.cs_nbfree += delta;
+	fs32_add(sb, &UFS_SB(sb)->fs_cs(ucpi->c_cgx).cs_nbfree, delta);
+
+	if (uspi->fs_magic != UFS2_MAGIC) {
+		unsigned cylno = ufs_cbtocylno(fragment);
+
+		fs16_add(sb, &ubh_cg_blks(ucpi, cylno,
+					  ufs_cbtorpos(fragment)), delta);
+		fs32_add(sb, &ubh_cg_blktot(ucpi, cylno), delta);
+	}
+}
+
 /*
  * Free 'count' fragments from fragment number 'fragment'
  */
@@ -97,18 +120,7 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 		fs32_sub(sb, &ucg->cg_cs.cs_nffree, uspi->s_fpb);
 		uspi->cs_total.cs_nffree -= uspi->s_fpb;
 		fs32_sub(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nffree, uspi->s_fpb);
-		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-			ufs_clusteracct(sb, ucpi, bbase, 1);
-		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		uspi->cs_total.cs_nbfree++;
-		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
-		if (uspi->fs_magic != UFS2_MAGIC) {
-			unsigned cylno = ufs_cbtocylno (bbase);
-
-			fs16_add(sb, &ubh_cg_blks(ucpi, cylno,
-						  ufs_cbtorpos(bbase)), 1);
-			fs32_add(sb, &ubh_cg_blktot(ucpi, cylno), 1);
-		}
+		adjust_free_blocks(sb, ucg, ucpi, bbase, 1);
 	}
 	
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
@@ -183,20 +195,7 @@ do_more:
 		}
 		ubh_setblock(uspi, ucpi, i);
 		inode_sub_bytes(inode, uspi->s_fpb << uspi->s_fshift);
-		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-			ufs_clusteracct(sb, ucpi, i, 1);
-
-		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
-		uspi->cs_total.cs_nbfree++;
-		fs32_add(sb, &UFS_SB(sb)->fs_cs(cgno).cs_nbfree, 1);
-
-		if (uspi->fs_magic != UFS2_MAGIC) {
-			unsigned cylno = ufs_cbtocylno(i);
-
-			fs16_add(sb, &ubh_cg_blks(ucpi, cylno,
-						  ufs_cbtorpos(i)), 1);
-			fs32_add(sb, &ubh_cg_blktot(ucpi, cylno), 1);
-		}
+		adjust_free_blocks(sb, ucg, ucpi, i, 1);
 	}
 
 	ubh_mark_buffer_dirty (USPI_UBH(uspi));
@@ -726,20 +725,7 @@ gotit:
 	if (!try_add_frags(inode, uspi->s_fpb))
 		return 0;
 	ubh_clrblock(uspi, ucpi, result);
-	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
-		ufs_clusteracct(sb, ucpi, result, -1);
-
-	fs32_sub(sb, &ucg->cg_cs.cs_nbfree, 1);
-	uspi->cs_total.cs_nbfree--;
-	fs32_sub(sb, &UFS_SB(sb)->fs_cs(ucpi->c_cgx).cs_nbfree, 1);
-
-	if (uspi->fs_magic != UFS2_MAGIC) {
-		unsigned cylno = ufs_cbtocylno((unsigned)result);
-
-		fs16_sub(sb, &ubh_cg_blks(ucpi, cylno,
-					  ufs_cbtorpos((unsigned)result)), 1);
-		fs32_sub(sb, &ubh_cg_blktot(ucpi, cylno), 1);
-	}
+	adjust_free_blocks(sb, ucg, ucpi, result, -1);
 	
 	UFSD("EXIT, result %llu\n", (unsigned long long)result);
 
