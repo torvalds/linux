@@ -1143,24 +1143,33 @@ static int bch2_encode_fh(struct inode *vinode, u32 *fh, int *len,
 {
 	struct bch_inode_info *inode	= to_bch_ei(vinode);
 	struct bch_inode_info *dir	= to_bch_ei(vdir);
-
-	if (*len < sizeof(struct bcachefs_fid_with_parent) / sizeof(u32))
-		return FILEID_INVALID;
+	int min_len;
 
 	if (!S_ISDIR(inode->v.i_mode) && dir) {
 		struct bcachefs_fid_with_parent *fid = (void *) fh;
 
+		min_len = sizeof(*fid) / sizeof(u32);
+		if (*len < min_len) {
+			*len = min_len;
+			return FILEID_INVALID;
+		}
+
 		fid->fid = bch2_inode_to_fid(inode);
 		fid->dir = bch2_inode_to_fid(dir);
 
-		*len = sizeof(*fid) / sizeof(u32);
+		*len = min_len;
 		return FILEID_BCACHEFS_WITH_PARENT;
 	} else {
 		struct bcachefs_fid *fid = (void *) fh;
 
+		min_len = sizeof(*fid) / sizeof(u32);
+		if (*len < min_len) {
+			*len = min_len;
+			return FILEID_INVALID;
+		}
 		*fid = bch2_inode_to_fid(inode);
 
-		*len = sizeof(*fid) / sizeof(u32);
+		*len = min_len;
 		return FILEID_BCACHEFS_WITHOUT_PARENT;
 	}
 }
