@@ -356,7 +356,7 @@ static inline void inet_get_local_port_range(const struct net *net, int *low, in
 	*low = range & 0xffff;
 	*high = range >> 16;
 }
-void inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
+bool inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
 static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
