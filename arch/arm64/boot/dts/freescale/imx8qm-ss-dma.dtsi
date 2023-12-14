@@ -96,7 +96,20 @@
 	status = "okay";
 };
 
+/* It is eDMA1 in 8QM RM, but 8QXP it is eDMA3 */
 &edma3 {
+	reg = <0x5a9f0000 0x210000>;
+	dma-channels = <10>;
+	interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 433 IRQ_TYPE_LEVEL_HIGH>;
 	power-domains = <&pd IMX_SC_R_DMA_1_CH0>,
 			<&pd IMX_SC_R_DMA_1_CH1>,
 			<&pd IMX_SC_R_DMA_1_CH2>,
@@ -104,7 +117,9 @@
 			<&pd IMX_SC_R_DMA_1_CH4>,
 			<&pd IMX_SC_R_DMA_1_CH5>,
 			<&pd IMX_SC_R_DMA_1_CH6>,
-			<&pd IMX_SC_R_DMA_1_CH7>;
+			<&pd IMX_SC_R_DMA_1_CH7>,
+			<&pd IMX_SC_R_DMA_1_CH8>,
+			<&pd IMX_SC_R_DMA_1_CH9>;
 };
 
 &flexcan1 {
