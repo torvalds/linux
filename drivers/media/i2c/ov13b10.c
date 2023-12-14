@@ -1501,7 +1501,7 @@ static int ov13b10_probe(struct i2c_client *client)
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
-		ov13b10_power_on(&client->dev);
+		ret = ov13b10_power_on(&client->dev);
 		if (ret) {
 			dev_err(&client->dev, "failed to power on\n");
 			return ret;

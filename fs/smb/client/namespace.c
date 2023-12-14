@@ -117,6 +117,18 @@ cifs_build_devname(char *nodename, const char *prepath)
 	return dev;
 }
 
+static bool is_dfs_mount(struct dentry *dentry)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	bool ret;
+
+	spin_lock(&tcon->tc_lock);
+	ret = !!tcon->origin_fullpath;
+	spin_unlock(&tcon->tc_lock);
+	return ret;
+}
+
 /* Return full path out of a dentry set for automount */
 static char *automount_fullpath(struct dentry *dentry, void *page)
 {
@@ -212,8 +224,9 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 		ctx->source = NULL;
 		goto out;
 	}
-	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s\n",
-		 __func__, ctx->source, ctx->UNC, ctx->prepath);
+	ctx->dfs_automount = is_dfs_mount(mntpt);
+	cifs_dbg(FYI, "%s: ctx: source=%s UNC=%s prepath=%s dfs_automount=%d\n",
+		 __func__, ctx->source, ctx->UNC, ctx->prepath, ctx->dfs_automount);
 
 	mnt = fc_mount(fc);
 out:

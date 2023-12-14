@@ -135,7 +135,7 @@
 			reg = <0x0 0x4a800000 0x0 0x100000>;
 			no-map;
 
-			hwlocks = <&tcsr_mutex 0>;
+			hwlocks = <&tcsr_mutex 3>;
 		};
 	};
 

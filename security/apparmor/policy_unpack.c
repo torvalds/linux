@@ -34,17 +34,18 @@
 static void audit_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
-	if (aad(sa)->iface.ns) {
+	if (ad->iface.ns) {
 		audit_log_format(ab, " ns=");
-		audit_log_untrustedstring(ab, aad(sa)->iface.ns);
+		audit_log_untrustedstring(ab, ad->iface.ns);
 	}
-	if (aad(sa)->name) {
+	if (ad->name) {
 		audit_log_format(ab, " name=");
-		audit_log_untrustedstring(ab, aad(sa)->name);
+		audit_log_untrustedstring(ab, ad->name);
 	}
-	if (aad(sa)->iface.pos)
-		audit_log_format(ab, " offset=%ld", aad(sa)->iface.pos);
+	if (ad->iface.pos)
+		audit_log_format(ab, " offset=%ld", ad->iface.pos);
 }
 
 /**
@@ -63,18 +64,18 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		       int error)
 {
 	struct aa_profile *profile = labels_profile(aa_current_raw_label());
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE, NULL);
 	if (e)
-		aad(&sa)->iface.pos = e->pos - e->start;
-	aad(&sa)->iface.ns = ns_name;
+		ad.iface.pos = e->pos - e->start;
+	ad.iface.ns = ns_name;
 	if (new)
-		aad(&sa)->name = new->base.hname;
+		ad.name = new->base.hname;
 	else
-		aad(&sa)->name = name;
-	aad(&sa)->info = info;
-	aad(&sa)->error = error;
+		ad.name = name;
+	ad.info = info;
+	ad.error = error;
 
-	return aa_audit(AUDIT_APPARMOR_STATUS, profile, &sa, audit_cb);
+	return aa_audit(AUDIT_APPARMOR_STATUS, profile, &ad, audit_cb);
 }
 
 void __aa_loaddata_update(struct aa_loaddata *data, long revision)
@@ -807,7 +808,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	const char *info = "failed to unpack profile";
 	size_t ns_len;
 	struct rhashtable_params params = { 0 };
-	char *key = NULL;
+	char *key = NULL, *disconnected = NULL;
 	struct aa_data *data;
 	int error = -EPROTO;
 	kernel_cap_t tmpcap;
@@ -873,7 +874,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	}
 
 	/* disconnected attachment string is optional */
-	(void) aa_unpack_str(e, &profile->disconnected, "disconnected");
+	(void) aa_unpack_strdup(e, &disconnected, "disconnected");
+	profile->disconnected = disconnected;
 
 	/* per profile debug flags (complain, audit) */
 	if (!aa_unpack_nameX(e, AA_STRUCT, "flags")) {

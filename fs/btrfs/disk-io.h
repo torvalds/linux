@@ -104,7 +104,8 @@ static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 }
 
 void btrfs_put_root(struct btrfs_root *root);
-void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
+void btrfs_mark_buffer_dirty(struct btrfs_trans_handle *trans,
+			     struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_extent_buffer(struct extent_buffer *buf,

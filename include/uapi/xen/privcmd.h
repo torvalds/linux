@@ -102,7 +102,7 @@ struct privcmd_mmap_resource {
 #define PRIVCMD_IRQFD_FLAG_DEASSIGN (1 << 0)
 
 struct privcmd_irqfd {
-	void __user *dm_op;
+	__u64 dm_op;
 	__u32 size; /* Size of structure pointed by dm_op */
 	__u32 fd;
 	__u32 flags;
@@ -138,6 +138,6 @@ struct privcmd_irqfd {
 #define IOCTL_PRIVCMD_MMAP_RESOURCE				\
 	_IOC(_IOC_NONE, 'P', 7, sizeof(struct privcmd_mmap_resource))
 #define IOCTL_PRIVCMD_IRQFD					\
-	_IOC(_IOC_NONE, 'P', 8, sizeof(struct privcmd_irqfd))
+	_IOW('P', 8, struct privcmd_irqfd)
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */

@@ -223,8 +223,8 @@ _base_readl_ext_retry(const void __iomem *addr)
 
 	for (i = 0 ; i < 30 ; i++) {
 		ret_val = readl(addr);
-		if (ret_val == 0)
-			continue;
+		if (ret_val != 0)
+			break;
 	}
 
 	return ret_val;

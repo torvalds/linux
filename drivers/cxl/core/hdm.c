@@ -85,7 +85,7 @@ static int map_hdm_decoder_regs(struct cxl_port *port, void __iomem *crb,
 				struct cxl_component_regs *regs)
 {
 	struct cxl_register_map map = {
-		.dev = &port->dev,
+		.host = &port->dev,
 		.resource = port->component_reg_phys,
 		.base = crb,
 		.max_size = CXL_COMPONENT_REG_BLOCK_SIZE,
@@ -575,16 +575,10 @@ static void cxld_set_type(struct cxl_decoder *cxld, u32 *ctrl)
 			  CXL_HDM_DECODER0_CTRL_HOSTONLY);
 }
 
-static int cxlsd_set_targets(struct cxl_switch_decoder *cxlsd, u64 *tgt)
+static void cxlsd_set_targets(struct cxl_switch_decoder *cxlsd, u64 *tgt)
 {
 	struct cxl_dport **t = &cxlsd->target[0];
 	int ways = cxlsd->cxld.interleave_ways;
-
-	if (dev_WARN_ONCE(&cxlsd->cxld.dev,
-			  ways > 8 || ways > cxlsd->nr_targets,
-			  "ways: %d overflows targets: %d\n", ways,
-			  cxlsd->nr_targets))
-		return -ENXIO;
 
 	*tgt = FIELD_PREP(GENMASK(7, 0), t[0]->port_id);
 	if (ways > 1)
@@ -601,8 +595,6 @@ static int cxlsd_set_targets(struct cxl_switch_decoder *cxlsd, u64 *tgt)
 		*tgt |= FIELD_PREP(GENMASK_ULL(55, 48), t[6]->port_id);
 	if (ways > 7)
 		*tgt |= FIELD_PREP(GENMASK_ULL(63, 56), t[7]->port_id);
-
-	return 0;
 }
 
 /*
@@ -650,6 +642,25 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 		return -EBUSY;
 	}
 
+	/*
+	 * For endpoint decoders hosted on CXL memory devices that
+	 * support the sanitize operation, make sure sanitize is not in-flight.
+	 */
+	if (is_endpoint_decoder(&cxld->dev)) {
+		struct cxl_endpoint_decoder *cxled =
+			to_cxl_endpoint_decoder(&cxld->dev);
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+		struct cxl_memdev_state *mds =
+			to_cxl_memdev_state(cxlmd->cxlds);
+
+		if (mds && mds->security.sanitize_active) {
+			dev_dbg(&cxlmd->dev,
+				"attempted to commit %s during sanitize\n",
+				dev_name(&cxld->dev));
+			return -EBUSY;
+		}
+	}
+
 	down_read(&cxl_dpa_rwsem);
 	/* common decoder settings */
 	ctrl = readl(hdm + CXL_HDM_DECODER0_CTRL_OFFSET(cxld->id));
@@ -670,13 +681,7 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 		void __iomem *tl_lo = hdm + CXL_HDM_DECODER0_TL_LOW(id);
 		u64 targets;
 
-		rc = cxlsd_set_targets(cxlsd, &targets);
-		if (rc) {
-			dev_dbg(&port->dev, "%s: target configuration error\n",
-				dev_name(&cxld->dev));
-			goto err;
-		}
-
+		cxlsd_set_targets(cxlsd, &targets);
 		writel(upper_32_bits(targets), tl_hi);
 		writel(lower_32_bits(targets), tl_lo);
 	} else {
@@ -694,7 +699,6 @@ static int cxl_decoder_commit(struct cxl_decoder *cxld)
 
 	port->commit_end++;
 	rc = cxld_await_commit(hdm, cxld->id);
-err:
 	if (rc) {
 		dev_dbg(&port->dev, "%s: error %d committing decoder\n",
 			dev_name(&cxld->dev), rc);

@@ -13,7 +13,7 @@
 	compatible = "qcom,qrb2210-rb1", "qcom,qrb2210", "qcom,qcm2290";
 
 	aliases {
-		serial0 = &uart0;
+		serial0 = &uart4;
 		sdhc1 = &sdhc_1;
 		sdhc2 = &sdhc_2;
 	};
@@ -150,15 +150,15 @@
 
 		pm2250_s3: s3 {
 			/* 0.4V-1.6625V -> 1.3V (Power tree requirements) */
-			regulator-min-microvolts = <1350000>;
-			regulator-max-microvolts = <1350000>;
+			regulator-min-microvolt = <1352000>;
+			regulator-max-microvolt = <1352000>;
 			regulator-boot-on;
 		};
 
 		pm2250_s4: s4 {
 			/* 1.2V-2.35V -> 2.05V (Power tree requirements) */
-			regulator-min-microvolts = <2072000>;
-			regulator-max-microvolts = <2072000>;
+			regulator-min-microvolt = <2072000>;
+			regulator-max-microvolt = <2072000>;
 			regulator-boot-on;
 		};
 
@@ -166,47 +166,47 @@
 
 		pm2250_l2: l2 {
 			/* LPDDR4X VDD2 */
-			regulator-min-microvolts = <1136000>;
-			regulator-max-microvolts = <1136000>;
+			regulator-min-microvolt = <1136000>;
+			regulator-max-microvolt = <1136000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
 
 		pm2250_l3: l3 {
 			/* LPDDR4X VDDQ */
-			regulator-min-microvolts = <616000>;
-			regulator-max-microvolts = <616000>;
+			regulator-min-microvolt = <616000>;
+			regulator-max-microvolt = <616000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
 
 		pm2250_l4: l4 {
-			/* max = 3.05V -> max = just below 3V (SDHCI2) */
-			regulator-min-microvolts = <1648000>;
-			regulator-max-microvolts = <2992000>;
+			/* max = 3.05V -> max = 2.7 to disable 3V signaling (SDHCI2) */
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <2700000>;
 			regulator-allow-set-load;
 		};
 
 		pm2250_l5: l5 {
 			/* CSI/DSI */
-			regulator-min-microvolts = <1232000>;
-			regulator-max-microvolts = <1232000>;
+			regulator-min-microvolt = <1232000>;
+			regulator-max-microvolt = <1232000>;
 			regulator-allow-set-load;
 			regulator-boot-on;
 		};
 
 		pm2250_l6: l6 {
 			/* DRAM PLL */
-			regulator-min-microvolts = <928000>;
-			regulator-max-microvolts = <928000>;
+			regulator-min-microvolt = <928000>;
+			regulator-max-microvolt = <928000>;
 			regulator-always-on;
 			regulator-boot-on;
 		};
 
 		pm2250_l7: l7 {
 			/* Wi-Fi CX/MX */
-			regulator-min-microvolts = <664000>;
-			regulator-max-microvolts = <664000>;
+			regulator-min-microvolt = <664000>;
+			regulator-max-microvolt = <664000>;
 		};
 
 		/*
@@ -216,37 +216,37 @@
 
 		pm2250_l10: l10 {
 			/* Wi-Fi RFA */
-			regulator-min-microvolts = <1300000>;
-			regulator-max-microvolts = <1300000>;
+			regulator-min-microvolt = <1304000>;
+			regulator-max-microvolt = <1304000>;
 		};
 
 		pm2250_l11: l11 {
 			/* GPS RF1 */
-			regulator-min-microvolts = <1000000>;
-			regulator-max-microvolts = <1000000>;
+			regulator-min-microvolt = <1000000>;
+			regulator-max-microvolt = <1000000>;
 			regulator-boot-on;
 		};
 
 		pm2250_l12: l12 {
 			/* USB PHYs */
-			regulator-min-microvolts = <928000>;
-			regulator-max-microvolts = <928000>;
+			regulator-min-microvolt = <928000>;
+			regulator-max-microvolt = <928000>;
 			regulator-allow-set-load;
 			regulator-boot-on;
 		};
 
 		pm2250_l13: l13 {
 			/* USB/QFPROM/PLLs */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 			regulator-boot-on;
 		};
 
 		pm2250_l14: l14 {
 			/* SDHCI1 VQMMC */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 			/* Broken hardware, never turn it off! */
 			regulator-always-on;
@@ -254,8 +254,8 @@
 
 		pm2250_l15: l15 {
 			/* WCD/DSI/BT VDDIO */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-allow-set-load;
 			regulator-always-on;
 			regulator-boot-on;
@@ -263,47 +263,47 @@
 
 		pm2250_l16: l16 {
 			/* GPS RF2 */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 			regulator-boot-on;
 		};
 
 		pm2250_l17: l17 {
-			regulator-min-microvolts = <3000000>;
-			regulator-max-microvolts = <3000000>;
+			regulator-min-microvolt = <3000000>;
+			regulator-max-microvolt = <3000000>;
 		};
 
 		pm2250_l18: l18 {
 			/* VDD_PXn */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 		};
 
 		pm2250_l19: l19 {
 			/* VDD_PXn */
-			regulator-min-microvolts = <1800000>;
-			regulator-max-microvolts = <1800000>;
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <1800000>;
 		};
 
 		pm2250_l20: l20 {
 			/* SDHCI1 VMMC */
-			regulator-min-microvolts = <2856000>;
-			regulator-max-microvolts = <2856000>;
+			regulator-min-microvolt = <2400000>;
+			regulator-max-microvolt = <3600000>;
 			regulator-allow-set-load;
 		};
 
 		pm2250_l21: l21 {
 			/* SDHCI2 VMMC */
-			regulator-min-microvolts = <2960000>;
-			regulator-max-microvolts = <3300000>;
+			regulator-min-microvolt = <2960000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-allow-set-load;
 			regulator-boot-on;
 		};
 
 		pm2250_l22: l22 {
 			/* Wi-Fi */
-			regulator-min-microvolts = <3312000>;
-			regulator-max-microvolts = <3312000>;
+			regulator-min-microvolt = <3312000>;
+			regulator-max-microvolt = <3312000>;
 		};
 	};
 };
@@ -357,7 +357,7 @@
 };
 
 /* UART connected to the Micro-USB port via a FTDI chip */
-&uart0 {
+&uart4 {
 	compatible = "qcom,geni-debug-uart";
 	status = "okay";
 };

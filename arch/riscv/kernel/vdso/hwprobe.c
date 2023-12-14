@@ -37,7 +37,7 @@ int __vdso_riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
 
 	/* This is something we can handle, fill out the pairs. */
 	while (p < end) {
-		if (p->key <= RISCV_HWPROBE_MAX_KEY) {
+		if (riscv_hwprobe_key_is_valid(p->key)) {
 			p->value = avd->all_cpu_hwprobe_values[p->key];
 
 		} else {

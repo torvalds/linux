@@ -56,43 +56,15 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	}
 
-	/*
-	 * P2P_DEVICE interface does not have a channel context assigned to it,
-	 * so a dedicated PHY context is allocated to it and the corresponding
-	 * MAC context is bound to it at this stage.
+	ret = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
+	if (ret)
+		goto out_free_bf;
+
+	/* Save a pointer to p2p device vif, so it can later be used to
+	 * update the p2p device MAC when a GO is started/stopped
 	 */
-	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
-		mvmvif->deflink.phy_ctxt = iwl_mvm_get_free_phy_ctxt(mvm);
-		if (!mvmvif->deflink.phy_ctxt) {
-			ret = -ENOSPC;
-			goto out_free_bf;
-		}
-
-		iwl_mvm_phy_ctxt_ref(mvm, mvmvif->deflink.phy_ctxt);
-		ret = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
-		if (ret)
-			goto out_unref_phy;
-
-		ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-					   LINK_CONTEXT_MODIFY_ACTIVE |
-					   LINK_CONTEXT_MODIFY_RATES_INFO,
-					   true);
-		if (ret)
-			goto out_remove_link;
-
-		ret = iwl_mvm_mld_add_bcast_sta(mvm, vif, &vif->bss_conf);
-		if (ret)
-			goto out_remove_link;
-
-		/* Save a pointer to p2p device vif, so it can later be used to
-		 * update the p2p device MAC when a GO is started/stopped
-		 */
+	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		mvm->p2p_device_vif = vif;
-	} else {
-		ret = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
-		if (ret)
-			goto out_free_bf;
-	}
 
 	ret = iwl_mvm_power_update_mac(mvm);
 	if (ret)
@@ -119,10 +91,6 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	goto out_unlock;
 
- out_remove_link:
-	iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
- out_unref_phy:
-	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
  out_free_bf:
 	if (mvm->bf_allowed_vif == mvmvif) {
 		mvm->bf_allowed_vif = NULL;
@@ -130,7 +98,6 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
  out_remove_mac:
-	mvmvif->deflink.phy_ctxt = NULL;
 	mvmvif->link[0] = NULL;
 	iwl_mvm_mld_mac_ctxt_remove(mvm, vif);
  out_unlock:
@@ -185,14 +152,18 @@ static void iwl_mvm_mld_mac_remove_interface(struct ieee80211_hw *hw,
 
 	iwl_mvm_power_update_mac(mvm);
 
+	/* Before the interface removal, mac80211 would cancel the ROC, and the
+	 * ROC worker would be scheduled if needed. The worker would be flushed
+	 * in iwl_mvm_prepare_mac_removal() and thus at this point the link is
+	 * not active. So need only to remove the link.
+	 */
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		if (mvmvif->deflink.phy_ctxt) {
+			iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
+			mvmvif->deflink.phy_ctxt = NULL;
+		}
 		mvm->p2p_device_vif = NULL;
-
-		/* P2P device uses only one link */
-		iwl_mvm_mld_rm_bcast_sta(mvm, vif, &vif->bss_conf);
-		iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
-		iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
-		mvmvif->deflink.phy_ctxt = NULL;
+		iwl_mvm_remove_link(mvm, vif, &vif->bss_conf);
 	} else {
 		iwl_mvm_disable_link(mvm, vif, &vif->bss_conf);
 	}
@@ -653,7 +624,7 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 	}
 
 	/* Update EHT Puncturing info */
-	if (changes & BSS_CHANGED_EHT_PUNCTURING && vif->cfg.assoc && has_eht)
+	if (changes & BSS_CHANGED_EHT_PUNCTURING && vif->cfg.assoc)
 		link_changes |= LINK_CONTEXT_MODIFY_EHT_PARAMS;
 
 	if (link_changes) {
@@ -968,36 +939,29 @@ iwl_mvm_mld_mac_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwl_mvm_link_switch_phy_ctx(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif,
-				       struct iwl_mvm_phy_ctxt *new_phy_ctxt)
+static int iwl_mvm_mld_roc_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int ret = 0;
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	/* Inorder to change the phy_ctx of a link, the link needs to be
-	 * inactive. Therefore, first deactivate the link, then change its
-	 * phy_ctx, and then activate it again.
-	 */
-	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-				   LINK_CONTEXT_MODIFY_ACTIVE, false);
-	if (WARN(ret, "Failed to deactivate link\n"))
-		return ret;
-
-	iwl_mvm_phy_ctxt_unref(mvm, mvmvif->deflink.phy_ctxt);
-
-	mvmvif->deflink.phy_ctxt = new_phy_ctxt;
-
+	/* The PHY context ID might have changed so need to set it */
 	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf, 0, false);
-	if (WARN(ret, "Failed to deactivate link\n"))
+	if (WARN(ret, "Failed to set PHY context ID\n"))
 		return ret;
 
 	ret = iwl_mvm_link_changed(mvm, vif, &vif->bss_conf,
-				   LINK_CONTEXT_MODIFY_ACTIVE, true);
-	WARN(ret, "Failed binding P2P_DEVICE\n");
-	return ret;
+				   LINK_CONTEXT_MODIFY_ACTIVE |
+				   LINK_CONTEXT_MODIFY_RATES_INFO,
+				   true);
+
+	if (WARN(ret, "Failed linking P2P_DEVICE\n"))
+		return ret;
+
+	/* The station and queue allocation must be done only after the linking
+	 * is done, as otherwise the FW might incorrectly configure its state.
+	 */
+	return iwl_mvm_mld_add_bcast_sta(mvm, vif, &vif->bss_conf);
 }
 
 static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
@@ -1006,7 +970,7 @@ static int iwl_mvm_mld_roc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	static const struct iwl_mvm_roc_ops ops = {
 		.add_aux_sta_for_hs20 = iwl_mvm_mld_add_aux_sta,
-		.switch_phy_ctxt = iwl_mvm_link_switch_phy_ctx,
+		.link = iwl_mvm_mld_roc_link,
 	};
 
 	return iwl_mvm_roc_common(hw, vif, channel, duration, type, &ops);
@@ -1088,9 +1052,6 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 				goto out_err;
 		}
 	}
-
-	if (err)
-		goto out_err;
 
 	err = 0;
 	if (new_links == 0) {

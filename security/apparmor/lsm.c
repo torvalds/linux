@@ -116,15 +116,17 @@ static int apparmor_ptrace_access_check(struct task_struct *child,
 					unsigned int mode)
 {
 	struct aa_label *tracer, *tracee;
+	const struct cred *cred;
 	int error;
 
+	cred = get_task_cred(child);
+	tracee = cred_label(cred);	/* ref count on cred */
 	tracer = __begin_current_label_crit_section();
-	tracee = aa_get_task_label(child);
-	error = aa_may_ptrace(tracer, tracee,
+	error = aa_may_ptrace(current_cred(), tracer, cred, tracee,
 			(mode & PTRACE_MODE_READ) ? AA_PTRACE_READ
 						  : AA_PTRACE_TRACE);
-	aa_put_label(tracee);
 	__end_current_label_crit_section(tracer);
+	put_cred(cred);
 
 	return error;
 }
@@ -132,12 +134,15 @@ static int apparmor_ptrace_access_check(struct task_struct *child,
 static int apparmor_ptrace_traceme(struct task_struct *parent)
 {
 	struct aa_label *tracer, *tracee;
+	const struct cred *cred;
 	int error;
 
 	tracee = __begin_current_label_crit_section();
-	tracer = aa_get_task_label(parent);
-	error = aa_may_ptrace(tracer, tracee, AA_PTRACE_TRACE);
-	aa_put_label(tracer);
+	cred = get_task_cred(parent);
+	tracer = cred_label(cred);	/* ref count on cred */
+	error = aa_may_ptrace(cred, tracer, current_cred(), tracee,
+			      AA_PTRACE_TRACE);
+	put_cred(cred);
 	__end_current_label_crit_section(tracee);
 
 	return error;
@@ -188,7 +193,7 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
 
 	label = aa_get_newest_cred_label(cred);
 	if (!unconfined(label))
-		error = aa_capable(label, cap, opts);
+		error = aa_capable(cred, label, cap, opts);
 	aa_put_label(label);
 
 	return error;
@@ -211,7 +216,8 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
 
 	label = __begin_current_label_crit_section();
 	if (!unconfined(label))
-		error = aa_path_perm(op, label, path, 0, mask, cond);
+		error = aa_path_perm(op, current_cred(), label, path, 0, mask,
+				     cond);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -357,7 +363,8 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 
 	label = begin_current_label_crit_section();
 	if (!unconfined(label))
-		error = aa_path_link(label, old_dentry, new_dir, new_dentry);
+		error = aa_path_link(current_cred(), label, old_dentry, new_dir,
+				     new_dentry);
 	end_current_label_crit_section(label);
 
 	return error;
@@ -396,23 +403,27 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 			vfsuid = i_uid_into_vfsuid(idmap, d_backing_inode(old_dentry));
 			cond_exchange.uid = vfsuid_into_kuid(vfsuid);
 
-			error = aa_path_perm(OP_RENAME_SRC, label, &new_path, 0,
+			error = aa_path_perm(OP_RENAME_SRC, current_cred(),
+					     label, &new_path, 0,
 					     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
 					     AA_MAY_SETATTR | AA_MAY_DELETE,
 					     &cond_exchange);
 			if (!error)
-				error = aa_path_perm(OP_RENAME_DEST, label, &old_path,
+				error = aa_path_perm(OP_RENAME_DEST, current_cred(),
+						     label, &old_path,
 						     0, MAY_WRITE | AA_MAY_SETATTR |
 						     AA_MAY_CREATE, &cond_exchange);
 		}
 
 		if (!error)
-			error = aa_path_perm(OP_RENAME_SRC, label, &old_path, 0,
+			error = aa_path_perm(OP_RENAME_SRC, current_cred(),
+					     label, &old_path, 0,
 					     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
 					     AA_MAY_SETATTR | AA_MAY_DELETE,
 					     &cond);
 		if (!error)
-			error = aa_path_perm(OP_RENAME_DEST, label, &new_path,
+			error = aa_path_perm(OP_RENAME_DEST, current_cred(),
+					     label, &new_path,
 					     0, MAY_WRITE | AA_MAY_SETATTR |
 					     AA_MAY_CREATE, &cond);
 
@@ -467,7 +478,8 @@ static int apparmor_file_open(struct file *file)
 		vfsuid = i_uid_into_vfsuid(idmap, inode);
 		cond.uid = vfsuid_into_kuid(vfsuid);
 
-		error = aa_path_perm(OP_OPEN, label, &file->f_path, 0,
+		error = aa_path_perm(OP_OPEN, file->f_cred,
+				     label, &file->f_path, 0,
 				     aa_map_file_to_perms(file), &cond);
 		/* todo cache full allowed permissions set and state */
 		fctx->allow = aa_map_file_to_perms(file);
@@ -507,7 +519,7 @@ static int common_file_perm(const char *op, struct file *file, u32 mask,
 		return -EACCES;
 
 	label = __begin_current_label_crit_section();
-	error = aa_file_perm(op, label, file, mask, in_atomic);
+	error = aa_file_perm(op, current_cred(), label, file, mask, in_atomic);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -585,18 +597,37 @@ static int apparmor_sb_mount(const char *dev_name, const struct path *path,
 	label = __begin_current_label_crit_section();
 	if (!unconfined(label)) {
 		if (flags & MS_REMOUNT)
-			error = aa_remount(label, path, flags, data);
+			error = aa_remount(current_cred(), label, path, flags,
+					   data);
 		else if (flags & MS_BIND)
-			error = aa_bind_mount(label, path, dev_name, flags);
+			error = aa_bind_mount(current_cred(), label, path,
+					      dev_name, flags);
 		else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE |
 				  MS_UNBINDABLE))
-			error = aa_mount_change_type(label, path, flags);
+			error = aa_mount_change_type(current_cred(), label,
+						     path, flags);
 		else if (flags & MS_MOVE)
-			error = aa_move_mount(label, path, dev_name);
+			error = aa_move_mount_old(current_cred(), label, path,
+						  dev_name);
 		else
-			error = aa_new_mount(label, dev_name, path, type,
-					     flags, data);
+			error = aa_new_mount(current_cred(), label, dev_name,
+					     path, type, flags, data);
 	}
+	__end_current_label_crit_section(label);
+
+	return error;
+}
+
+static int apparmor_move_mount(const struct path *from_path,
+			       const struct path *to_path)
+{
+	struct aa_label *label;
+	int error = 0;
+
+	label = __begin_current_label_crit_section();
+	if (!unconfined(label))
+		error = aa_move_mount(current_cred(), label, from_path,
+				      to_path);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -609,7 +640,7 @@ static int apparmor_sb_umount(struct vfsmount *mnt, int flags)
 
 	label = __begin_current_label_crit_section();
 	if (!unconfined(label))
-		error = aa_umount(label, mnt, flags);
+		error = aa_umount(current_cred(), label, mnt, flags);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -623,7 +654,7 @@ static int apparmor_sb_pivotroot(const struct path *old_path,
 
 	label = aa_get_current_label();
 	if (!unconfined(label))
-		error = aa_pivotroot(label, old_path, new_path);
+		error = aa_pivotroot(current_cred(), label, old_path, new_path);
 	aa_put_label(label);
 
 	return error;
@@ -662,7 +693,7 @@ static int apparmor_setprocattr(const char *name, void *value,
 	char *command, *largs = NULL, *args = value;
 	size_t arg_size;
 	int error;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
 			  OP_SETPROCATTR);
 
 	if (size == 0)
@@ -722,11 +753,11 @@ out:
 	return error;
 
 fail:
-	aad(&sa)->label = begin_current_label_crit_section();
-	aad(&sa)->info = name;
-	aad(&sa)->error = error = -EINVAL;
-	aa_audit_msg(AUDIT_APPARMOR_DENIED, &sa, NULL);
-	end_current_label_crit_section(aad(&sa)->label);
+	ad.subj_label = begin_current_label_crit_section();
+	ad.info = name;
+	ad.error = error = -EINVAL;
+	aa_audit_msg(AUDIT_APPARMOR_DENIED, &ad, NULL);
+	end_current_label_crit_section(ad.subj_label);
 	goto out;
 }
 
@@ -785,7 +816,8 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	int error = 0;
 
 	if (!unconfined(label))
-		error = aa_task_setrlimit(label, task, resource, new_rlim);
+		error = aa_task_setrlimit(current_cred(), label, task,
+					  resource, new_rlim);
 	__end_current_label_crit_section(label);
 
 	return error;
@@ -794,26 +826,27 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 static int apparmor_task_kill(struct task_struct *target, struct kernel_siginfo *info,
 			      int sig, const struct cred *cred)
 {
+	const struct cred *tc;
 	struct aa_label *cl, *tl;
 	int error;
 
+	tc = get_task_cred(target);
+	tl = aa_get_newest_cred_label(tc);
 	if (cred) {
 		/*
 		 * Dealing with USB IO specific behavior
 		 */
 		cl = aa_get_newest_cred_label(cred);
-		tl = aa_get_task_label(target);
-		error = aa_may_signal(cl, tl, sig);
+		error = aa_may_signal(cred, cl, tc, tl, sig);
 		aa_put_label(cl);
-		aa_put_label(tl);
 		return error;
+	} else {
+		cl = __begin_current_label_crit_section();
+		error = aa_may_signal(current_cred(), cl, tc, tl, sig);
+		__end_current_label_crit_section(cl);
 	}
-
-	cl = __begin_current_label_crit_section();
-	tl = aa_get_task_label(target);
-	error = aa_may_signal(cl, tl, sig);
 	aa_put_label(tl);
-	__end_current_label_crit_section(cl);
+	put_cred(tc);
 
 	return error;
 }
@@ -879,7 +912,8 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 	if (!(kern || unconfined(label)))
 		error = af_select(family,
 				  create_perm(label, family, type, protocol),
-				  aa_af_perm(label, OP_CREATE, AA_MAY_CREATE,
+				  aa_af_perm(current_cred(), label,
+					     OP_CREATE, AA_MAY_CREATE,
 					     family, type, protocol));
 	end_current_label_crit_section(label);
 
@@ -1221,6 +1255,7 @@ static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(capget, apparmor_capget),
 	LSM_HOOK_INIT(capable, apparmor_capable),
 
+	LSM_HOOK_INIT(move_mount, apparmor_move_mount),
 	LSM_HOOK_INIT(sb_mount, apparmor_sb_mount),
 	LSM_HOOK_INIT(sb_umount, apparmor_sb_umount),
 	LSM_HOOK_INIT(sb_pivotroot, apparmor_sb_pivotroot),

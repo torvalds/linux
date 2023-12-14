@@ -52,31 +52,33 @@ static const char *audit_signal_mask(u32 mask)
 static void audit_signal_cb(struct audit_buffer *ab, void *va)
 {
 	struct common_audit_data *sa = va;
+	struct apparmor_audit_data *ad = aad(sa);
 
-	if (aad(sa)->request & AA_SIGNAL_PERM_MASK) {
+	if (ad->request & AA_SIGNAL_PERM_MASK) {
 		audit_log_format(ab, " requested_mask=\"%s\"",
-				 audit_signal_mask(aad(sa)->request));
-		if (aad(sa)->denied & AA_SIGNAL_PERM_MASK) {
+				 audit_signal_mask(ad->request));
+		if (ad->denied & AA_SIGNAL_PERM_MASK) {
 			audit_log_format(ab, " denied_mask=\"%s\"",
-					 audit_signal_mask(aad(sa)->denied));
+					 audit_signal_mask(ad->denied));
 		}
 	}
-	if (aad(sa)->signal == SIGUNKNOWN)
+	if (ad->signal == SIGUNKNOWN)
 		audit_log_format(ab, "signal=unknown(%d)",
-				 aad(sa)->unmappedsig);
-	else if (aad(sa)->signal < MAXMAPPED_SIGNAME)
-		audit_log_format(ab, " signal=%s", sig_names[aad(sa)->signal]);
+				 ad->unmappedsig);
+	else if (ad->signal < MAXMAPPED_SIGNAME)
+		audit_log_format(ab, " signal=%s", sig_names[ad->signal]);
 	else
 		audit_log_format(ab, " signal=rtmin+%d",
-				 aad(sa)->signal - SIGRT_BASE);
+				 ad->signal - SIGRT_BASE);
 	audit_log_format(ab, " peer=");
-	aa_label_xaudit(ab, labels_ns(aad(sa)->label), aad(sa)->peer,
+	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
-static int profile_signal_perm(struct aa_profile *profile,
+static int profile_signal_perm(const struct cred *cred,
+			       struct aa_profile *profile,
 			       struct aa_label *peer, u32 request,
-			       struct common_audit_data *sa)
+			       struct apparmor_audit_data *ad)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
@@ -87,24 +89,29 @@ static int profile_signal_perm(struct aa_profile *profile,
 	    !ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_SIGNAL))
 		return 0;
 
-	aad(sa)->peer = peer;
+	ad->subj_cred = cred;
+	ad->peer = peer;
 	/* TODO: secondary cache check <profile, profile, perm> */
 	state = aa_dfa_next(rules->policy.dfa,
 			    rules->policy.start[AA_CLASS_SIGNAL],
-			    aad(sa)->signal);
+			    ad->signal);
 	aa_label_match(profile, rules, peer, state, false, request, &perms);
 	aa_apply_modes_to_perms(profile, &perms);
-	return aa_check_perms(profile, &perms, request, sa, audit_signal_cb);
+	return aa_check_perms(profile, &perms, request, ad, audit_signal_cb);
 }
 
-int aa_may_signal(struct aa_label *sender, struct aa_label *target, int sig)
+int aa_may_signal(const struct cred *subj_cred, struct aa_label *sender,
+		  const struct cred *target_cred, struct aa_label *target,
+		  int sig)
 {
 	struct aa_profile *profile;
-	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, AA_CLASS_SIGNAL, OP_SIGNAL);
+	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_SIGNAL, OP_SIGNAL);
 
-	aad(&sa)->signal = map_signal_num(sig);
-	aad(&sa)->unmappedsig = sig;
+	ad.signal = map_signal_num(sig);
+	ad.unmappedsig = sig;
 	return xcheck_labels(sender, target, profile,
-			profile_signal_perm(profile, target, MAY_WRITE, &sa),
-			profile_signal_perm(profile, sender, MAY_READ, &sa));
+			     profile_signal_perm(subj_cred, profile, target,
+						 MAY_WRITE, &ad),
+			     profile_signal_perm(target_cred, profile, sender,
+						 MAY_READ, &ad));
 }

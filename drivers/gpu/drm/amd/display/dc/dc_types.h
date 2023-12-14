@@ -189,6 +189,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int remove_sink_ext_caps;
 };
 
 struct dc_edid_caps {
@@ -1000,10 +1001,6 @@ struct link_mst_stream_allocation_table {
 	int stream_count;
 	/* array of stream allocations */
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
-};
-
-struct backlight_settings {
-	uint32_t backlight_millinits;
 };
 
 /* PSR feature flags */

@@ -1082,7 +1082,7 @@ int tb_port_lane_bonding_enable(struct tb_port *port)
 	 * Only set bonding if the link was not already bonded. This
 	 * avoids the lane adapter to re-enter bonding state.
 	 */
-	if (width == TB_LINK_WIDTH_SINGLE) {
+	if (width == TB_LINK_WIDTH_SINGLE && !tb_is_upstream_port(port)) {
 		ret = tb_port_set_lane_bonding(port, true);
 		if (ret)
 			goto err_lane1;

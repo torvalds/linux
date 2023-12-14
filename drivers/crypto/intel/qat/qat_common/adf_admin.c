@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
+#include "adf_cfg.h"
 #include "adf_heartbeat.h"
 #include "icp_qat_fw_init_admin.h"
 
@@ -212,6 +213,17 @@ int adf_get_fw_timestamp(struct adf_accel_dev *accel_dev, u64 *timestamp)
 	return 0;
 }
 
+static int adf_set_chaining(struct adf_accel_dev *accel_dev)
+{
+	u32 ae_mask = GET_HW_DATA(accel_dev)->ae_mask;
+	struct icp_qat_fw_init_admin_resp resp = { };
+	struct icp_qat_fw_init_admin_req req = { };
+
+	req.cmd_id = ICP_QAT_FW_DC_CHAIN_INIT;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
 static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
 				   u32 *capabilities)
 {
@@ -284,6 +296,19 @@ int adf_send_admin_hb_timer(struct adf_accel_dev *accel_dev, uint32_t ticks)
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
+static bool is_dcc_enabled(struct adf_accel_dev *accel_dev)
+{
+	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
+	int ret;
+
+	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				      ADF_SERVICES_ENABLED, services);
+	if (ret)
+		return false;
+
+	return !strcmp(services, "dcc");
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.
@@ -297,16 +322,22 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 	u32 dc_capabilities = 0;
 	int ret;
 
+	ret = adf_set_fw_constants(accel_dev);
+	if (ret)
+		return ret;
+
+	if (is_dcc_enabled(accel_dev)) {
+		ret = adf_set_chaining(accel_dev);
+		if (ret)
+			return ret;
+	}
+
 	ret = adf_get_dc_capabilities(accel_dev, &dc_capabilities);
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "Cannot get dc capabilities\n");
 		return ret;
 	}
 	accel_dev->hw_device->extended_dc_capabilities = dc_capabilities;
-
-	ret = adf_set_fw_constants(accel_dev);
-	if (ret)
-		return ret;
 
 	return adf_init_ae(accel_dev);
 }

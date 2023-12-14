@@ -226,53 +226,40 @@ static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 {
-	int i;
-	bool finished;
+	bool has_rate0 = false;
+	int i, j;
 
-	/* Firmware is not able to mix rates with different flags */
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
-			rates[i].flags |= IEEE80211_TX_RC_SHORT_GI;
-		if (!(rates[0].flags & IEEE80211_TX_RC_SHORT_GI))
+	for (i = 1, j = 1; j < IEEE80211_TX_MAX_RATES; j++) {
+		if (rates[j].idx == -1)
+			break;
+		/* The device use the rates in descending order, whatever the request from minstrel.
+		 * We have to trade off here. Most important is to respect the primary rate
+		 * requested by minstrel. So, we drops the entries with rate higher than the
+		 * previous.
+		 */
+		if (rates[j].idx >= rates[i - 1].idx) {
+			rates[i - 1].count += rates[j].count;
+			rates[i - 1].count = min_t(u16, 15, rates[i - 1].count);
+		} else {
+			memcpy(rates + i, rates + j, sizeof(rates[i]));
+			if (rates[i].idx == 0)
+				has_rate0 = true;
+			/* The device apply Short GI only on the first rate */
 			rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
-		if (!(rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS))
-			rates[i].flags &= ~IEEE80211_TX_RC_USE_RTS_CTS;
-	}
-
-	/* Sort rates and remove duplicates */
-	do {
-		finished = true;
-		for (i = 0; i < IEEE80211_TX_MAX_RATES - 1; i++) {
-			if (rates[i + 1].idx == rates[i].idx &&
-			    rates[i].idx != -1) {
-				rates[i].count += rates[i + 1].count;
-				if (rates[i].count > 15)
-					rates[i].count = 15;
-				rates[i + 1].idx = -1;
-				rates[i + 1].count = 0;
-
-				finished = false;
-			}
-			if (rates[i + 1].idx > rates[i].idx) {
-				swap(rates[i + 1], rates[i]);
-				finished = false;
-			}
+			i++;
 		}
-	} while (!finished);
+	}
 	/* Ensure that MCS0 or 1Mbps is present at the end of the retry list */
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (rates[i].idx == 0)
-			break;
-		if (rates[i].idx == -1) {
-			rates[i].idx = 0;
-			rates[i].count = 8; /* == hw->max_rate_tries */
-			rates[i].flags = rates[i - 1].flags & IEEE80211_TX_RC_MCS;
-			break;
-		}
+	if (!has_rate0 && i < IEEE80211_TX_MAX_RATES) {
+		rates[i].idx = 0;
+		rates[i].count = 8; /* == hw->max_rate_tries */
+		rates[i].flags = rates[0].flags & IEEE80211_TX_RC_MCS;
+		i++;
 	}
-	/* All retries use long GI */
-	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
-		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
+	for (; i < IEEE80211_TX_MAX_RATES; i++) {
+		memset(rates + i, 0, sizeof(rates[i]));
+		rates[i].idx = -1;
+	}
 }
 
 static u8 wfx_tx_get_retry_policy_id(struct wfx_vif *wvif, struct ieee80211_tx_info *tx_info)

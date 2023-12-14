@@ -1658,7 +1658,7 @@ const char *iwl_mvm_get_tx_fail_reason(u32 status);
 static inline const char *iwl_mvm_get_tx_fail_reason(u32 status) { return ""; }
 #endif
 int iwl_mvm_flush_tx_path(struct iwl_mvm *mvm, u32 tfd_msk);
-int iwl_mvm_flush_sta(struct iwl_mvm *mvm, void *sta, bool internal);
+int iwl_mvm_flush_sta(struct iwl_mvm *mvm, u32 sta_id, u32 tfd_queue_mask);
 int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids);
 
 /* Utils to extract sta related data */
@@ -1942,13 +1942,12 @@ void iwl_mvm_bss_info_changed_station_assoc(struct iwl_mvm *mvm,
  *
  * @add_aux_sta_for_hs20: pointer to the function that adds an aux sta
  *	for Hot Spot 2.0
- * @switch_phy_ctxt: pointer to the function that switches a vif from one
- *	phy_ctx to another
+ * @link: For a P2P Device interface, pointer to a function that links the
+ *      MAC/Link to the PHY context
  */
 struct iwl_mvm_roc_ops {
 	int (*add_aux_sta_for_hs20)(struct iwl_mvm *mvm, u32 lmac_id);
-	int (*switch_phy_ctxt)(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			       struct iwl_mvm_phy_ctxt *new_phy_ctxt);
+	int (*link)(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 };
 
 int iwl_mvm_roc_common(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

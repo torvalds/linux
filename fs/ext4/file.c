@@ -306,80 +306,38 @@ out:
 }
 
 static ssize_t ext4_handle_inode_extension(struct inode *inode, loff_t offset,
-					   ssize_t written, size_t count)
+					   ssize_t count)
 {
 	handle_t *handle;
-	bool truncate = false;
-	u8 blkbits = inode->i_blkbits;
-	ext4_lblk_t written_blk, end_blk;
-	int ret;
 
-	/*
-	 * Note that EXT4_I(inode)->i_disksize can get extended up to
-	 * inode->i_size while the I/O was running due to writeback of delalloc
-	 * blocks. But, the code in ext4_iomap_alloc() is careful to use
-	 * zeroed/unwritten extents if this is possible; thus we won't leave
-	 * uninitialized blocks in a file even if we didn't succeed in writing
-	 * as much as we intended.
-	 */
-	WARN_ON_ONCE(i_size_read(inode) < EXT4_I(inode)->i_disksize);
-	if (offset + count <= EXT4_I(inode)->i_disksize) {
-		/*
-		 * We need to ensure that the inode is removed from the orphan
-		 * list if it has been added prematurely, due to writeback of
-		 * delalloc blocks.
-		 */
-		if (!list_empty(&EXT4_I(inode)->i_orphan) && inode->i_nlink) {
-			handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
-
-			if (IS_ERR(handle)) {
-				ext4_orphan_del(NULL, inode);
-				return PTR_ERR(handle);
-			}
-
-			ext4_orphan_del(handle, inode);
-			ext4_journal_stop(handle);
-		}
-
-		return written;
-	}
-
-	if (written < 0)
-		goto truncate;
-
+	lockdep_assert_held_write(&inode->i_rwsem);
 	handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
-	if (IS_ERR(handle)) {
-		written = PTR_ERR(handle);
-		goto truncate;
-	}
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
 
-	if (ext4_update_inode_size(inode, offset + written)) {
-		ret = ext4_mark_inode_dirty(handle, inode);
+	if (ext4_update_inode_size(inode, offset + count)) {
+		int ret = ext4_mark_inode_dirty(handle, inode);
 		if (unlikely(ret)) {
-			written = ret;
 			ext4_journal_stop(handle);
-			goto truncate;
+			return ret;
 		}
 	}
 
-	/*
-	 * We may need to truncate allocated but not written blocks beyond EOF.
-	 */
-	written_blk = ALIGN(offset + written, 1 << blkbits);
-	end_blk = ALIGN(offset + count, 1 << blkbits);
-	if (written_blk < end_blk && ext4_can_truncate(inode))
-		truncate = true;
-
-	/*
-	 * Remove the inode from the orphan list if it has been extended and
-	 * everything went OK.
-	 */
-	if (!truncate && inode->i_nlink)
+	if (inode->i_nlink)
 		ext4_orphan_del(handle, inode);
 	ext4_journal_stop(handle);
 
-	if (truncate) {
-truncate:
+	return count;
+}
+
+/*
+ * Clean up the inode after DIO or DAX extending write has completed and the
+ * inode size has been updated using ext4_handle_inode_extension().
+ */
+static void ext4_inode_extension_cleanup(struct inode *inode, ssize_t count)
+{
+	lockdep_assert_held_write(&inode->i_rwsem);
+	if (count < 0) {
 		ext4_truncate_failed_write(inode);
 		/*
 		 * If the truncate operation failed early, then the inode may
@@ -388,9 +346,28 @@ truncate:
 		 */
 		if (inode->i_nlink)
 			ext4_orphan_del(NULL, inode);
+		return;
 	}
+	/*
+	 * If i_disksize got extended due to writeback of delalloc blocks while
+	 * the DIO was running we could fail to cleanup the orphan list in
+	 * ext4_handle_inode_extension(). Do it now.
+	 */
+	if (!list_empty(&EXT4_I(inode)->i_orphan) && inode->i_nlink) {
+		handle_t *handle = ext4_journal_start(inode, EXT4_HT_INODE, 2);
 
-	return written;
+		if (IS_ERR(handle)) {
+			/*
+			 * The write has successfully completed. Not much to
+			 * do with the error here so just cleanup the orphan
+			 * list and hope for the best.
+			 */
+			ext4_orphan_del(NULL, inode);
+			return;
+		}
+		ext4_orphan_del(handle, inode);
+		ext4_journal_stop(handle);
+	}
 }
 
 static int ext4_dio_write_end_io(struct kiocb *iocb, ssize_t size,
@@ -399,31 +376,22 @@ static int ext4_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 	loff_t pos = iocb->ki_pos;
 	struct inode *inode = file_inode(iocb->ki_filp);
 
+	if (!error && size && flags & IOMAP_DIO_UNWRITTEN)
+		error = ext4_convert_unwritten_extents(NULL, inode, pos, size);
 	if (error)
 		return error;
-
-	if (size && flags & IOMAP_DIO_UNWRITTEN) {
-		error = ext4_convert_unwritten_extents(NULL, inode, pos, size);
-		if (error < 0)
-			return error;
-	}
 	/*
-	 * If we are extending the file, we have to update i_size here before
-	 * page cache gets invalidated in iomap_dio_rw(). Otherwise racing
-	 * buffered reads could zero out too much from page cache pages. Update
-	 * of on-disk size will happen later in ext4_dio_write_iter() where
-	 * we have enough information to also perform orphan list handling etc.
-	 * Note that we perform all extending writes synchronously under
-	 * i_rwsem held exclusively so i_size update is safe here in that case.
-	 * If the write was not extending, we cannot see pos > i_size here
-	 * because operations reducing i_size like truncate wait for all
-	 * outstanding DIO before updating i_size.
+	 * Note that EXT4_I(inode)->i_disksize can get extended up to
+	 * inode->i_size while the I/O was running due to writeback of delalloc
+	 * blocks. But the code in ext4_iomap_alloc() is careful to use
+	 * zeroed/unwritten extents if this is possible; thus we won't leave
+	 * uninitialized blocks in a file even if we didn't succeed in writing
+	 * as much as we intended.
 	 */
-	pos += size;
-	if (pos > i_size_read(inode))
-		i_size_write(inode, pos);
-
-	return 0;
+	WARN_ON_ONCE(i_size_read(inode) < READ_ONCE(EXT4_I(inode)->i_disksize));
+	if (pos + size <= READ_ONCE(EXT4_I(inode)->i_disksize))
+		return size;
+	return ext4_handle_inode_extension(inode, pos, size);
 }
 
 static const struct iomap_dio_ops ext4_dio_write_ops = {
@@ -569,17 +537,19 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return ext4_buffered_write_iter(iocb, from);
 	}
 
+	/*
+	 * Prevent inline data from being created since we are going to allocate
+	 * blocks for DIO. We know the inode does not currently have inline data
+	 * because ext4_should_use_dio() checked for it, but we have to clear
+	 * the state flag before the write checks because a lock cycle could
+	 * introduce races with other writers.
+	 */
+	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
+
 	ret = ext4_dio_write_checks(iocb, from, &ilock_shared, &extend,
 				    &unwritten, &dio_flags);
 	if (ret <= 0)
 		return ret;
-
-	/*
-	 * Make sure inline data cannot be created anymore since we are going
-	 * to allocate blocks for DIO. We know the inode does not have any
-	 * inline data now because ext4_dio_supported() checked for that.
-	 */
-	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 
 	offset = iocb->ki_pos;
 	count = ret;
@@ -606,9 +576,16 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			   dio_flags, NULL, 0);
 	if (ret == -ENOTBLK)
 		ret = 0;
-
-	if (extend)
-		ret = ext4_handle_inode_extension(inode, offset, ret, count);
+	if (extend) {
+		/*
+		 * We always perform extending DIO write synchronously so by
+		 * now the IO is completed and ext4_handle_inode_extension()
+		 * was called. Cleanup the inode in case of error or race with
+		 * writeback of delalloc blocks.
+		 */
+		WARN_ON_ONCE(ret == -EIOCBQUEUED);
+		ext4_inode_extension_cleanup(inode, ret);
+	}
 
 out:
 	if (ilock_shared)
@@ -689,8 +666,10 @@ ext4_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	ret = dax_iomap_rw(iocb, from, &ext4_iomap_ops);
 
-	if (extend)
-		ret = ext4_handle_inode_extension(inode, offset, ret, count);
+	if (extend) {
+		ret = ext4_handle_inode_extension(inode, offset, ret);
+		ext4_inode_extension_cleanup(inode, ret);
+	}
 out:
 	inode_unlock(inode);
 	if (ret > 0)

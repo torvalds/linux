@@ -1022,6 +1022,10 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
+	/* Only trigger AP bus scans after the initial scan is done */
+	if (atomic64_read(&ap_scan_bus_count) <= 0)
+		return;
+
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
@@ -1865,15 +1869,18 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			}
 			/* get it and thus adjust reference counter */
 			get_device(dev);
-			if (decfg)
+			if (decfg) {
 				AP_DBF_INFO("%s(%d,%d) new (decfg) queue dev created\n",
 					    __func__, ac->id, dom);
-			else if (chkstop)
+			} else if (chkstop) {
 				AP_DBF_INFO("%s(%d,%d) new (chkstop) queue dev created\n",
 					    __func__, ac->id, dom);
-			else
+			} else {
+				/* nudge the queue's state machine */
+				ap_queue_init_state(aq);
 				AP_DBF_INFO("%s(%d,%d) new queue dev created\n",
 					    __func__, ac->id, dom);
+			}
 			goto put_dev_and_continue;
 		}
 		/* handle state changes on already existing queue device */
@@ -1895,10 +1902,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!chkstop && aq->chkstop) {
 			/* checkstop off */
 			aq->chkstop = false;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev checkstop off\n",
 				   __func__, ac->id, dom);
@@ -1922,10 +1927,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!decfg && !aq->config) {
 			/* config on this queue device */
 			aq->config = true;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev config on\n",
 				   __func__, ac->id, dom);

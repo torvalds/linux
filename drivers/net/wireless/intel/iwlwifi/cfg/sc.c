@@ -127,12 +127,10 @@ static const struct iwl_base_params iwl_sc_base_params = {
 	.ht_params = &iwl_22000_ht_params
 
 /*
- * If the device doesn't support HE, no need to have that many buffers.
- * These sizes were picked according to 8 MSDUs inside 256 A-MSDUs in an
+ * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
  * A-MPDU, with additional overhead to account for processing time.
  */
-#define IWL_NUM_RBDS_NON_HE		512
-#define IWL_NUM_RBDS_SC_HE		4096
+#define IWL_NUM_RBDS_SC_EHT		(512 * 16)
 
 const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_SC,
@@ -153,8 +151,8 @@ const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",
 	.uhb_supported = true,
 	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_HE,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_SC_EHT,
 };
 
 MODULE_FIRMWARE(IWL_SC_A_FM_B_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));

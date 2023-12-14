@@ -996,7 +996,7 @@ static void adjust_recout_for_visual_confirm(struct rect *recout,
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	int dpp_offset, base_offset;
 
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE)
+	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE || !pipe_ctx->plane_res.dpp)
 		return;
 
 	dpp_offset = pipe_ctx->stream->timing.v_addressable / VISUAL_CONFIRM_DPP_OFFSET_DENO;
