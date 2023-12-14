@@ -24,6 +24,10 @@
 #define __raw_writew(b, addr) (void)((*(__force volatile u16 *) (addr)) = (b))
 #define __raw_writel(b, addr) (void)((*(__force volatile u32 *) (addr)) = (b))
 
+#ifdef CONFIG_ATARI
+#define atari_writeb  __raw_writeb
+#endif
+
 #if defined(CONFIG_COLDFIRE)
 /*
  * For ColdFire platforms we may need to do some extra checks for what

@@ -215,6 +215,20 @@ extern unsigned long vme_brdtype;
 extern int m68k_is040or060;
 #endif /* !__ASSEMBLY__ */
 
+#if !defined(CONFIG_M68000)
+#  define CPU_IS_000  (0)
+#  define MMU_IS_NONE (0)
+#elif defined(CONFIG_M68020) || defined(CONFIG_M68030) || \
+	defined(CONFIG_M68040) || defined(CONFIG_M68060)
+#  define CPU_IS_000  (m68k_cputype & CPU_68000)
+#  define MMU_IS_NONE (m68k_mmutype & MMU_NONE)
+#else
+#  define CPU_M68000_ONLY
+#  define CPU_IS_000  (1)
+#  define MMU_IS_NONE (1)
+#endif
+
+
 #if !defined(CONFIG_M68020)
 #  define CPU_IS_020 (0)
 #  define MMU_IS_851 (0)

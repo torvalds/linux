@@ -32,8 +32,9 @@
 #define NR_IRQS	8
 #endif
 
-#if defined(CONFIG_M68020) || defined(CONFIG_M68030) || \
-    defined(CONFIG_M68040) || defined(CONFIG_M68060)
+#if defined(CONFIG_M68000) || defined(CONFIG_M68020) || \
+ 	defined(CONFIG_M68030) || defined(CONFIG_M68040) || \
+	defined(CONFIG_M68060)
 
 /*
  * Interrupt source definitions

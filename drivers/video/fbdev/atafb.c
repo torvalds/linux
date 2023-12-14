@@ -42,10 +42,11 @@
  *
  */
 
-#define ATAFB_TT
+// FIXME(mr): Convert to config variables to save space
+//#define ATAFB_TT
 #define ATAFB_STE
-#define ATAFB_EXT
-#define ATAFB_FALCON
+//#define ATAFB_EXT
+//#define ATAFB_FALCON
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -2360,22 +2361,6 @@ static int do_fb_set_var(struct fb_var_screeninfo *var, int isactive)
 	return 0;
 }
 
-/* fbhw->encode_fix() must be called with fb_info->mm_lock held
- * if it is called after the register_framebuffer() - not a case here
- */
-static int atafb_get_fix(struct fb_fix_screeninfo *fix, struct fb_info *info)
-{
-	struct atafb_par par;
-	int err;
-	// Get fix directly (case con == -1 before)??
-	err = fbhw->decode_var(&info->var, &par);
-	if (err)
-		return err;
-	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
-	err = fbhw->encode_fix(fix, &par);
-	return err;
-}
-
 static int atafb_get_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct atafb_par par;
@@ -2388,15 +2373,20 @@ static int atafb_get_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 // No longer called by fbcon!
 // Still called by set_var internally
-
 static void atafb_set_disp(struct fb_info *info)
 {
-	atafb_get_var(&info->var, info);
-	atafb_get_fix(&info->fix, info);
+	struct atafb_par par;
 
+	ata_get_par(&par);
+	memset(&info->fix, 0, sizeof(struct fb_fix_screeninfo));
+	fbhw->encode_fix(&info->fix, &par);
 	/* Note: smem_start derives from phys_screen_base, not screen_base! */
+#ifdef ATAFB_EXT
 	info->screen_base = (external_addr ? external_screen_base :
-				atari_stram_to_virt(info->fix.smem_start));
+					     atari_stram_to_virt(info->fix.smem_start));
+#else
+	info->screen_base = atari_stram_to_virt(info->fix.smem_start);
+#endif
 }
 
 static int
@@ -3075,6 +3065,7 @@ static int __init atafb_probe(struct platform_device *pdev)
 		phys_screen_base = atari_stram_to_phys(screen_base + ovsc_offset);
 		screen_len = (mem_req - pad - ovsc_offset) & PAGE_MASK;
 		st_ovsc_switch();
+#ifndef CONFIG_M68000
 		if (CPU_IS_040_OR_060) {
 			/* On a '040+, the cache mode of video RAM must be set to
 			 * write-through also for internal video hardware! */
@@ -3082,6 +3073,7 @@ static int __init atafb_probe(struct platform_device *pdev)
 			kernel_set_cachemode(screen_base, screen_len,
 					     IOMAP_WRITETHROUGH);
 		}
+#endif
 		dev_info(&pdev->dev, "phys_screen_base %lx screen_len %d\n",
 			 phys_screen_base, screen_len);
 #ifdef ATAFB_EXT

@@ -10,11 +10,16 @@
 
 # 68328, 68EZ328, 68VZ328
 
-obj-y			+= entry.o ints.o timers.o m68328.o
+ifndef CONFIG_M68KCLASSIC
+  obj-y			+= ints.o timers.o m68328.o
+endif
+obj-y += entry.o
 obj-$(CONFIG_ROM)	+= romvec.o
 
 obj-$(CONFIG_DRAGEN2)	+= dragen2.o
 obj-$(CONFIG_UCSIMM)	+= ucsimm.o
 obj-$(CONFIG_UCDIMM)	+= ucsimm.o
 
-obj-y			+= head.o
+ifndef CONFIG_M68KCLASSIC
+  obj-y			+= head.o
+endif

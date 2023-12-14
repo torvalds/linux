@@ -129,10 +129,25 @@ void m68k_setup_irq_controller(struct irq_chip *chip,
 
 unsigned int m68k_irq_startup_irq(unsigned int irq)
 {
-	if (irq <= IRQ_AUTO_7)
+	if (irq <= IRQ_AUTO_7) {
+#ifdef CONFIG_M68000
+		const size_t inthandler_size =
+			&auto_inthandler2 - &auto_inthandler1;
+		vectors[VEC_SPUR + irq] =
+			auto_inthandler1 + (irq - IRQ_AUTO_1) * inthandler_size;
+#else
 		vectors[VEC_SPUR + irq] = auto_inthandler;
-	else
+#endif
+	} else {
+#ifdef CONFIG_M68000
+		const size_t inthandler_size =
+			&user_inthandler2 - &user_inthandler1;
+		vectors[m68k_first_user_vec + irq - IRQ_USER] =
+			user_inthandler1 + (irq - IRQ_USER) * inthandler_size;
+#else
 		vectors[m68k_first_user_vec + irq - IRQ_USER] = user_inthandler;
+#endif
+	}
 	return 0;
 }
 
@@ -167,5 +182,9 @@ EXPORT_SYMBOL(irq_canonicalize);
 asmlinkage void handle_badint(struct pt_regs *regs)
 {
 	atomic_inc(&irq_err_count);
+#ifndef CONFIG_M68000
 	pr_warn("unexpected interrupt from %u\n", regs->vector);
+#else
+	pr_warn("unexpected interrupt\n");
+#endif
 }

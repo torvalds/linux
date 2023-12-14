@@ -258,7 +258,7 @@ config FB_ARC
 
 config FB_ATARI
 	bool "Atari native chipset support"
-	depends on (FB = y) && ATARI
+	depends on FB && ATARI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

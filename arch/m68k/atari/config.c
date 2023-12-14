@@ -406,7 +406,7 @@ void __init config_atari(void)
 			"	pmove	%0,%/tt1\n"
 			"	.chip	68k"
 			: : "m" (tt1_val));
-	} else {
+	} else if (!CPU_IS_000) {
 	        asm volatile ("\n"
 			"	.chip	68040\n"
 			"	movec	%0,%%itt1\n"
@@ -505,6 +505,9 @@ static void atari_reset(void)
 	 * instruction doesn't work.
 	 */
 	local_irq_disable();
+	if (CPU_IS_000) // neither cache nor VBR
+		return;
+
 	asm volatile ("movec	%0,%%vbr"
 			: : "d" (0));
 

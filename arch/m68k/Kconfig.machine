@@ -14,7 +14,7 @@ config AMIGA
 
 config ATARI
 	bool "Atari support"
-	depends on MMU
+	select MMU_MOTOROLA if MMU
 	select HAVE_ARCH_NVRAM_OPS
 	select LEGACY_TIMER_TICK
 	help
@@ -145,9 +145,13 @@ config VIRT
 config PILOT
 	bool
 
+config UCLINUX
+    bool
+
 config PILOT3
 	bool "Pilot 1000/5000, PalmPilot Personal/Pro, or PalmIII support"
 	depends on !MMU
+    select UCLINUX
 	select M68328
 	select PILOT
 	help
@@ -162,13 +166,16 @@ config XCOPILOT_BUGS
 config UCSIMM
 	bool "uCsimm module support"
 	depends on !MMU
+	select UCLINUX
 	select M68EZ328
+	# FIXME(mreis): M68EZ328 -> M68KCLASSIC -> contradiction to UCLINUX... UCLINUX/Classic should be
 	help
 	  Support for the Arcturus Networks uCsimm module.
 
 config UCDIMM
 	bool "uCdimm module support"
 	depends on !MMU
+	select UCLINUX
 	select M68VZ328
 	help
 	  Support for the Arcturus Networks uCdimm module.
@@ -176,6 +183,7 @@ config UCDIMM
 config DRAGEN2
 	bool "DragonEngine II board support"
 	depends on !MMU
+	select UCLINUX
 	select M68VZ328
 	help
 	  Support for the DragonEngine II board.

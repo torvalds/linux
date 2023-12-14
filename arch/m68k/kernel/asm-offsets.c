@@ -72,7 +72,7 @@ int main(void)
 	DEFINE(LSIGTRAP, SIGTRAP);
 	DEFINE(LTRAP_TRACE, TRAP_TRACE);
 
-#ifdef CONFIG_MMU
+#ifdef CONFIG_M68KCLASSIC
 	/* offsets into the bi_record struct */
 	DEFINE(BIR_TAG, offsetof(struct bi_record, tag));
 	DEFINE(BIR_SIZE, offsetof(struct bi_record, size));
@@ -100,9 +100,11 @@ int main(void)
 	DEFINE(C_PRA, offsetof(struct CIA, pra));
 	DEFINE(ZTWOBASE, zTwoBase);
 
+#ifdef CONFIG_MMU
 	/* enum m68k_fixup_type */
 	DEFINE(M68K_FIXUP_MEMOFFSET, m68k_fixup_memoffset);
-#endif
+#endif /* CONFIG_MMU */
+#endif /* CONFIG_M68KCLASSIC */
 
 	return 0;
 }

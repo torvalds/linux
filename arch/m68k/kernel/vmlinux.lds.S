@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#if defined(CONFIG_MMU) && !defined(CONFIG_COLDFIRE)
+#ifdef CONFIG_M68KCLASSIC // FIXME(mreis): correct?
 PHDRS
 {
   text PT_LOAD FILEHDR PHDRS FLAGS (7);
@@ -11,5 +11,5 @@ PHDRS
 #include "vmlinux-std.lds"
 #endif
 #else
-#include "vmlinux-nommu.lds"
+#include "vmlinux-uclinux.lds" // FIXME(mreis): rename uclinux
 #endif

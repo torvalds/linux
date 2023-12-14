@@ -250,11 +250,15 @@
 	"movel	%%d0,%%sp@-;" /* d0 */		\
 	"moveml	%%d1-%%d5/%%a0-%%a2,%%sp@-"
 
+#ifdef CONFIG_MMU
 #define GET_CURRENT(tmp) \
 	"movel	%%sp,"#tmp"\n\t" \
 	"andw	#-"STR(THREAD_SIZE)","#tmp"\n\t" \
 	"movel	"#tmp",%%a2\n\t" \
 	"movel	%%a2@,%%a2"
+#else
+#define GET_CURRENT(tmp)
+#endif
 
 #endif
 

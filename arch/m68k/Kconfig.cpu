@@ -2,8 +2,8 @@
 comment "Processor Type"
 
 choice
-	prompt "CPU/machine family support"
-	default M68KCLASSIC if MMU
+	prompt "CPU family support"
+	default M68KCLASSIC
 	default COLDFIRE if !MMU
 	help
 	  The Freescale (was Motorola) M68K family of processors implements
@@ -109,21 +109,21 @@ config M68060
 endif # M68KCLASSIC
 
 config M68328
-	bool
+	bool "68328"
 	depends on !MMU
 	select M68000
 	help
 	  Motorola 68328 processor support.
 
 config M68EZ328
-	bool
+	bool "68EZ328"
 	depends on !MMU
 	select M68000
 	help
 	  Motorola 68EX328 processor support.
 
 config M68VZ328
-	bool
+	bool "68EZ328"
 	depends on !MMU
 	select M68000
 	help

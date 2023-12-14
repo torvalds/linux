@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/arch/m68knommu/kernel/setup.c
+ *  linux/arch/m68k/kernel/setup_uclinux.c
  *
  *  Copyright (C) 1999-2007  Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998,1999  D. Jeff Dionne <jeff@uClinux.org>

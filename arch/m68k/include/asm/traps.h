@@ -17,12 +17,57 @@
 #include <asm/ptrace.h>
 
 typedef void (*e_vector)(void);
-extern e_vector vectors[];
 extern e_vector *_ramvec;
 
+#ifdef CONFIG_M68000
+#define vectors		((e_vector *)0)
+/* assembler routines */
+asmlinkage void system_call(void);
+asmlinkage void buserr(void);
+asmlinkage void auto_inthandler1(void);
+asmlinkage void auto_inthandler2(void);
+asmlinkage void user_inthandler1(void);
+asmlinkage void user_inthandler2(void);
+asmlinkage void trap1(void);
+asmlinkage void trap2(void);
+asmlinkage void trap3(void);
+asmlinkage void trap4(void);
+asmlinkage void trap5(void);
+asmlinkage void trap6(void);
+asmlinkage void trap7(void);
+asmlinkage void trap8(void);
+asmlinkage void trap9(void);
+asmlinkage void trap10(void);
+asmlinkage void trap11(void);
+asmlinkage void trap12(void);
+asmlinkage void trap13(void);
+asmlinkage void trap14(void);
+asmlinkage void trap15(void);
+asmlinkage void trap_vec_addrerr(void);
+asmlinkage void trap_vec_illegal(void);
+asmlinkage void trap_vec_line10(void);
+asmlinkage void trap_vec_line11(void);
+asmlinkage void trap_vec_priv(void);
+asmlinkage void trap_vec_coproc(void);
+asmlinkage void trap_vec_fpbruc(void);
+asmlinkage void trap_vec_fpbruc(void);
+asmlinkage void trap_vec_fpoe(void);
+asmlinkage void trap_vec_fpnan(void);
+asmlinkage void trap_vec_fpir(void);
+asmlinkage void trap_vec_fpdivz(void);
+asmlinkage void trap_vec_fpunder(void);
+asmlinkage void trap_vec_fpover(void);
+asmlinkage void trap_vec_zerodiv(void);
+asmlinkage void trap_vec_chk(void);
+asmlinkage void trap_vec_trap(void);
+asmlinkage void trap_vec_trace(void);
+asmlinkage void bad_inthandler(void);
+#else /* 68010 or higher */
+extern e_vector vectors[];
 asmlinkage void auto_inthandler(void);
 asmlinkage void user_inthandler(void);
 asmlinkage void bad_inthandler(void);
+#endif /* 68010 or higher */
 
 #endif
 

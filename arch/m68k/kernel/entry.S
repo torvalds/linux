@@ -44,6 +44,9 @@
 .globl bad_interrupt
 .globl auto_irqhandler_fixup
 .globl user_irqvec_fixup
+#ifdef CONFIG_M68000
+.globl auto_inthandler1, auto_inthandler2
+#endif
 
 .text
 ENTRY(__sys_fork)
@@ -171,6 +174,88 @@ ENTRY(ret_from_user_signal)
 ENTRY(ret_from_user_rt_signal)
 	movel #__NR_rt_sigreturn,%d0
 	trap #0
+
+
+.altmacro
+.macro create_auto_inthandler iter
+ENTRY(auto_inthandler\iter)
+	SAVE_ALL_INT
+	movel	%sp,%sp@-
+	movel	#\iter,%sp@-
+.if \iter == 1
+auto_irqhandler_fixup = . + 2 // FIXME(mreis): +2 correct?
+.endif
+	jsr	do_IRQ
+	addql	#8,%sp
+	jra	ret_from_exception
+.endm
+
+
+.set i, 1
+.rept 7
+	create_auto_inthandler %i
+	.set i, i+1
+.endr
+
+.macro create_user_inthandler iter
+ENTRY(user_inthandler\iter)
+	SAVE_ALL_INT
+.if \iter == 1
+	user_irqvec_fixup = . + 2 /* FIXME_Matthias: not sure if it is enough to have
+							   * this only at this point or if all other
+							   * user_inthandlers need that as well
+							   */
+.endif
+	movel	%sp,%sp@-
+	movel	#(8+\iter-1),%sp@-	|  (user ints starting at 8)
+	jsr	do_IRQ
+	addql	#8,%sp
+	jra	ret_from_exception
+.endm
+
+
+.set i, 1
+.rept 192
+	create_user_inthandler %i
+	.set i, i+1
+.endr
+
+.macro create_trap iter, trapnumber
+ENTRY(trap\iter)
+	movew	#\trapnumber,%sp@-
+	subql	#4,%sp
+	movew	%sr,%sp@-
+	SAVE_ALL_INT
+	GET_CURRENT(%d0)
+	movel	%sp,%sp@-
+	jsr	trap_c			|  process the IRQ
+	addql	#4,%sp			|  pop parameters off stack
+	jra	ret_from_exception
+.endm
+
+.set i, 1
+.rept 15
+	create_trap %i, (VEC_TRAP1 + i - 1)
+	.set i, i+1
+.endr
+
+create_trap _vec_addrerr, VEC_ADDRERR
+create_trap _vec_illegal, VEC_ILLEGAL
+create_trap _vec_line10, VEC_LINE10
+create_trap _vec_line11, VEC_LINE11
+create_trap _vec_priv, VEC_PRIV
+create_trap _vec_coproc, VEC_COPROC
+create_trap _vec_fpbruc, VEC_FPBRUC
+create_trap _vec_fpoe, VEC_FPOE
+create_trap _vec_fpnan, VEC_FPNAN
+create_trap _vec_fpir, VEC_FPIR
+create_trap _vec_fpdivz, VEC_FPDIVZ
+create_trap _vec_fpunder, VEC_FPUNDER
+create_trap _vec_fpover, VEC_FPOVER
+create_trap _vec_zerodiv, VEC_ZERODIV
+create_trap _vec_chk, VEC_CHK
+create_trap _vec_trap, VEC_TRAP
+create_trap _vec_trace, VEC_TRACE
 
 #else
 

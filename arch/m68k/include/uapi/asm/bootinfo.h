@@ -109,12 +109,14 @@ struct mem_info {
 #define CPUB_68040		2
 #define CPUB_68060		3
 #define CPUB_COLDFIRE		4
+#define CPUB_68000		5
 
 #define CPU_68020		(1 << CPUB_68020)
 #define CPU_68030		(1 << CPUB_68030)
 #define CPU_68040		(1 << CPUB_68040)
 #define CPU_68060		(1 << CPUB_68060)
 #define CPU_COLDFIRE		(1 << CPUB_COLDFIRE)
+#define CPU_68000		(1 << CPUB_68000)
 
 #define FPUB_68881		0
 #define FPUB_68882		1
@@ -137,6 +139,7 @@ struct mem_info {
 #define MMUB_APOLLO		4	/* Custom Apollo */
 #define MMUB_SUN3		5	/* Custom Sun-3 */
 #define MMUB_COLDFIRE		6	/* Internal MMU */
+#define MMUB_NONE               7
 
 #define MMU_68851		(1 << MMUB_68851)
 #define MMU_68030		(1 << MMUB_68030)
@@ -145,7 +148,7 @@ struct mem_info {
 #define MMU_SUN3		(1 << MMUB_SUN3)
 #define MMU_APOLLO		(1 << MMUB_APOLLO)
 #define MMU_COLDFIRE		(1 << MMUB_COLDFIRE)
-
+#define MMU_NONE                (1 << MMUB_NONE)
 
     /*
      * Stuff for bootinfo interface versioning

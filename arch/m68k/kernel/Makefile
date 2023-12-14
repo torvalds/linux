@@ -6,14 +6,18 @@
 extra-y			+= vmlinux.lds
 
 obj-$(CONFIG_MMU_MOTOROLA)	:= head.o
-obj-$(CONFIG_SUN3)		:= sun3-head.o
+ifndef(CONFIG_MMU)
+  obj-$(CONFIG_ATARI)       := head-atarinommu.o
+endif
+obj-$(CONFIG_SUN3)		    := sun3-head.o
 
 obj-y	+= entry.o irq.o module.o process.o ptrace.o
 obj-y	+= setup.o signal.o sys_m68k.o syscalltable.o time.o traps.o
 
-obj-$(CONFIG_MMU_MOTOROLA) += ints.o vectors.o
-obj-$(CONFIG_MMU_SUN3) += ints.o vectors.o
-obj-$(CONFIG_PCI) += pcibios.o
+obj-$(CONFIG_MMU_MOTOROLA)	+= ints.o vectors.o
+obj-$(CONFIG_M68KCLASSIC)	+= ints.o vectors.o
+obj-$(CONFIG_MMU_SUN3)		+= ints.o vectors.o
+obj-$(CONFIG_PCI)		+= pcibios.o
 
 obj-$(CONFIG_M68K_NONCOHERENT_DMA) += dma.o
 

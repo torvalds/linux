@@ -39,7 +39,9 @@ asmlinkage void nmihandler(void);
 asmlinkage void fpu_emu(void);
 #endif
 
+#ifndef CONFIG_M68000
 e_vector vectors[256];
+#endif
 
 /* nmi handler for the Amiga */
 asm(".text\n"
@@ -53,6 +55,7 @@ asm(".text\n"
  */
 void __init base_trap_init(void)
 {
+#ifndef CONFIG_M68000
 	if (MACH_IS_SUN3X) {
 		extern e_vector *sun3x_prom_vbr;
 
@@ -68,6 +71,7 @@ void __init base_trap_init(void)
 
 		vectors[VEC_UNIMPII] = unimp_vec;
 	}
+#endif
 
 	vectors[VEC_BUSERR] = buserr;
 	vectors[VEC_ILLEGAL] = trap;
@@ -81,9 +85,45 @@ void __init trap_init (void)
 	for (i = VEC_SPUR; i <= VEC_INT7; i++)
 		vectors[i] = bad_inthandler;
 
+#ifndef CONFIG_M68000
 	for (i = 0; i < VEC_USER; i++)
 		if (!vectors[i])
 			vectors[i] = trap;
+#else
+	vectors[VEC_TRAP1] = trap1;
+	vectors[VEC_TRAP2] = trap2;
+	vectors[VEC_TRAP3] = trap3;
+	vectors[VEC_TRAP4] = trap4;
+	vectors[VEC_TRAP5] = trap5;
+	vectors[VEC_TRAP6] = trap6;
+	vectors[VEC_TRAP7] = trap7;
+	vectors[VEC_TRAP8] = trap8;
+	vectors[VEC_TRAP9] = trap9;
+	vectors[VEC_TRAP10] = trap10;
+	vectors[VEC_TRAP11] = trap11;
+	vectors[VEC_TRAP12] = trap12;
+	vectors[VEC_TRAP13] = trap13;
+	vectors[VEC_TRAP14] = trap14;
+	vectors[VEC_TRAP15] = trap15;
+	vectors[VEC_ADDRERR] = trap_vec_addrerr;
+	vectors[VEC_ILLEGAL] = trap_vec_illegal;
+	vectors[VEC_LINE10] = trap_vec_line10;
+	vectors[VEC_LINE11] = trap_vec_line11;
+	vectors[VEC_PRIV] = trap_vec_priv;
+	vectors[VEC_COPROC] = trap_vec_coproc;
+	vectors[VEC_FPBRUC] = trap_vec_fpbruc;
+	vectors[VEC_FPBRUC] = trap_vec_fpbruc;
+	vectors[VEC_FPOE] = trap_vec_fpoe;
+	vectors[VEC_FPNAN] = trap_vec_fpnan;
+	vectors[VEC_FPIR] = trap_vec_fpir;
+	vectors[VEC_FPDIVZ] = trap_vec_fpdivz;
+	vectors[VEC_FPUNDER] = trap_vec_fpunder;
+	vectors[VEC_FPOVER] = trap_vec_fpover;
+	vectors[VEC_ZERODIV] = trap_vec_zerodiv;
+	vectors[VEC_CHK] = trap_vec_chk;
+	vectors[VEC_TRAP] = trap_vec_trap;
+	vectors[VEC_TRACE] = trap_vec_trace;
+#endif
 
 	for (i = VEC_USER; i < 256; i++)
 		vectors[i] = bad_inthandler;
@@ -92,7 +132,7 @@ void __init trap_init (void)
 	if (FPU_IS_EMU)
 		vectors[VEC_LINE11] = fpu_emu;
 #endif
-
+#ifndef CONFIG_M68000
 	if (CPU_IS_040 && !FPU_IS_EMU) {
 		/* set up FPSP entry points */
 		asmlinkage void dz_vec(void) asm ("dz");
@@ -143,5 +183,6 @@ void __init trap_init (void)
 	if (MACH_IS_AMIGA) {
 		vectors[VEC_INT7] = nmihandler;
 	}
+#endif
 }
 
