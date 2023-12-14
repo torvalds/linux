@@ -1415,7 +1415,7 @@ static int smu_wbrf_event_handler(struct notifier_block *nb,
 		break;
 	default:
 		return NOTIFY_DONE;
-	};
+	}
 
 	return NOTIFY_OK;
 }
