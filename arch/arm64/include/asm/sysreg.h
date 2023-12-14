@@ -645,6 +645,7 @@
 #define OP_AT_S1E0W	sys_insn(AT_Op0, 0, AT_CRn, 8, 3)
 #define OP_AT_S1E1RP	sys_insn(AT_Op0, 0, AT_CRn, 9, 0)
 #define OP_AT_S1E1WP	sys_insn(AT_Op0, 0, AT_CRn, 9, 1)
+#define OP_AT_S1E1A	sys_insn(AT_Op0, 0, AT_CRn, 9, 2)
 #define OP_AT_S1E2R	sys_insn(AT_Op0, 4, AT_CRn, 8, 0)
 #define OP_AT_S1E2W	sys_insn(AT_Op0, 4, AT_CRn, 8, 1)
 #define OP_AT_S12E1R	sys_insn(AT_Op0, 4, AT_CRn, 8, 4)
@@ -781,10 +782,16 @@
 #define OP_TLBI_VMALLS12E1NXS		sys_insn(1, 4, 9, 7, 6)
 
 /* Misc instructions */
+#define OP_GCSPUSHX			sys_insn(1, 0, 7, 7, 4)
+#define OP_GCSPOPCX			sys_insn(1, 0, 7, 7, 5)
+#define OP_GCSPOPX			sys_insn(1, 0, 7, 7, 6)
+#define OP_GCSPUSHM			sys_insn(1, 3, 7, 7, 0)
+
 #define OP_BRB_IALL			sys_insn(1, 1, 7, 2, 4)
 #define OP_BRB_INJ			sys_insn(1, 1, 7, 2, 5)
 #define OP_CFP_RCTX			sys_insn(1, 3, 7, 3, 4)
 #define OP_DVP_RCTX			sys_insn(1, 3, 7, 3, 5)
+#define OP_COSP_RCTX			sys_insn(1, 3, 7, 3, 6)
 #define OP_CPP_RCTX			sys_insn(1, 3, 7, 3, 7)
 
 /* Common SCTLR_ELx flags. */
