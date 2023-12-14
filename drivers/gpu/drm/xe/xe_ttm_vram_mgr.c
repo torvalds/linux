@@ -348,6 +348,8 @@ int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
 
 	ttm_resource_manager_init(man, &xe->ttm, size);
 	err = drm_buddy_init(&mgr->mm, man->size, default_page_size);
+	if (err)
+		return err;
 
 	ttm_set_driver_manager(&xe->ttm, mem_type, &mgr->manager);
 	ttm_resource_manager_set_used(&mgr->manager, true);
