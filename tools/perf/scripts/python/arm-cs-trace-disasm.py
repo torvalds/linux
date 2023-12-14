@@ -258,8 +258,9 @@ def process_event(param_dict):
 
 	if (options.objdump_name != None):
 		# It doesn't need to decrease virtual memory offset for disassembly
-		# for kernel dso, so in this case we set vm_start to zero.
-		if (dso == "[kernel.kallsyms]"):
+		# for kernel dso and executable file dso, so in this case we set
+		# vm_start to zero.
+		if (dso == "[kernel.kallsyms]" or dso_start == 0x400000):
 			dso_vm_start = 0
 		else:
 			dso_vm_start = int(dso_start)
