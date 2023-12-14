@@ -15,10 +15,11 @@
 #include <linux/io.h>
 #include <linux/led-class-multicolor.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 
@@ -247,13 +248,13 @@ static const char *const sun50i_a100_ledc_formats[] = {
 	"rgb", "rbg", "grb", "gbr", "brg", "bgr",
 };
 
-static int sun50i_a100_ledc_parse_format(const struct device_node *np,
+static int sun50i_a100_ledc_parse_format(struct device *dev,
 					 struct sun50i_a100_ledc *priv)
 {
 	const char *format = "grb";
 	u32 i;
 
-	of_property_read_string(np, "allwinner,pixel-format", &format);
+	device_property_read_string(dev, "allwinner,pixel-format", &format);
 
 	for (i = 0; i < ARRAY_SIZE(sun50i_a100_ledc_formats); i++) {
 		if (!strcmp(format, sun50i_a100_ledc_formats[i])) {
@@ -262,7 +263,7 @@ static int sun50i_a100_ledc_parse_format(const struct device_node *np,
 		}
 	}
 
-	return dev_err_probe(priv->dev, -EINVAL, "Bad pixel format '%s'\n", format);
+	return dev_err_probe(dev, -EINVAL, "Bad pixel format '%s'\n", format);
 }
 
 static void sun50i_a100_ledc_set_format(struct sun50i_a100_ledc *priv)
@@ -283,18 +284,18 @@ static const struct sun50i_a100_ledc_timing sun50i_a100_ledc_default_timing = {
 	.treset_ns = 300000,
 };
 
-static int sun50i_a100_ledc_parse_timing(const struct device_node *np,
+static int sun50i_a100_ledc_parse_timing(struct device *dev,
 					 struct sun50i_a100_ledc *priv)
 {
 	struct sun50i_a100_ledc_timing *timing = &priv->timing;
 
 	*timing = sun50i_a100_ledc_default_timing;
 
-	of_property_read_u32(np, "allwinner,t0h-ns", &timing->t0h_ns);
-	of_property_read_u32(np, "allwinner,t0l-ns", &timing->t0l_ns);
-	of_property_read_u32(np, "allwinner,t1h-ns", &timing->t1h_ns);
-	of_property_read_u32(np, "allwinner,t1l-ns", &timing->t1l_ns);
-	of_property_read_u32(np, "allwinner,treset-ns", &timing->treset_ns);
+	device_property_read_u32(dev, "allwinner,t0h-ns", &timing->t0h_ns);
+	device_property_read_u32(dev, "allwinner,t0l-ns", &timing->t0l_ns);
+	device_property_read_u32(dev, "allwinner,t1h-ns", &timing->t1h_ns);
+	device_property_read_u32(dev, "allwinner,t1l-ns", &timing->t1l_ns);
+	device_property_read_u32(dev, "allwinner,treset-ns", &timing->treset_ns);
 
 	return 0;
 }
@@ -388,13 +389,12 @@ static void sun50i_a100_ledc_dma_cleanup(void *data)
 
 static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 {
-	const struct device_node *np = pdev->dev.of_node;
 	struct dma_slave_config dma_cfg = {};
 	struct led_init_data init_data = {};
 	struct sun50i_a100_ledc_led *led;
 	struct device *dev = &pdev->dev;
 	struct sun50i_a100_ledc *priv;
-	struct device_node *child;
+	struct fwnode_handle *child;
 	struct resource *mem;
 	u32 max_addr = 0;
 	u32 num_leds = 0;
@@ -404,19 +404,19 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	 * The maximum LED address must be known in sun50i_a100_ledc_resume() before
 	 * class device registration, so parse and validate the subnodes up front.
 	 */
-	for_each_available_child_of_node(np, child) {
+	device_for_each_child_node(dev, child) {
 		u32 addr, color;
 
-		ret = of_property_read_u32(child, "reg", &addr);
+		ret = fwnode_property_read_u32(child, "reg", &addr);
 		if (ret || addr >= LEDC_MAX_LEDS) {
-			of_node_put(child);
+			fwnode_handle_put(child);
 			return dev_err_probe(dev, -EINVAL, "'reg' must be between 0 and %d\n",
 					     LEDC_MAX_LEDS - 1);
 		}
 
-		ret = of_property_read_u32(child, "color", &color);
+		ret = fwnode_property_read_u32(child, "color", &color);
 		if (ret || color != LED_COLOR_ID_RGB) {
-			of_node_put(child);
+			fwnode_handle_put(child);
 			return dev_err_probe(dev, -EINVAL, "'color' must be LED_COLOR_ID_RGB\n");
 		}
 
@@ -437,11 +437,11 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->lock);
 	dev_set_drvdata(dev, priv);
 
-	ret = sun50i_a100_ledc_parse_format(np, priv);
+	ret = sun50i_a100_ledc_parse_format(dev, priv);
 	if (ret)
 		return ret;
 
-	ret = sun50i_a100_ledc_parse_timing(np, priv);
+	ret = sun50i_a100_ledc_parse_timing(dev, priv);
 	if (ret)
 		return ret;
 
@@ -504,11 +504,11 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 		return ret;
 
 	led = priv->leds;
-	for_each_available_child_of_node(np, child) {
+	device_for_each_child_node(dev, child) {
 		struct led_classdev *cdev;
 
 		/* The node was already validated above. */
-		of_property_read_u32(child, "reg", &led->addr);
+		fwnode_property_read_u32(child, "reg", &led->addr);
 
 		led->subled_info[0].color_index = LED_COLOR_ID_RED;
 		led->subled_info[0].channel = 0;
@@ -524,7 +524,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 		cdev->max_brightness = U8_MAX;
 		cdev->brightness_set = sun50i_a100_ledc_brightness_set;
 
-		init_data.fwnode = of_fwnode_handle(child);
+		init_data.fwnode = child;
 
 		ret = led_classdev_multicolor_register_ext(dev, &led->mc_cdev, &init_data);
 		if (ret) {
@@ -540,7 +540,7 @@ static int sun50i_a100_ledc_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_child:
-	of_node_put(child);
+	fwnode_handle_put(child);
 	while (led-- > priv->leds)
 		led_classdev_multicolor_unregister(&led->mc_cdev);
 	sun50i_a100_ledc_suspend(&pdev->dev);

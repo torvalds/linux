@@ -305,7 +305,7 @@ config LEDS_COBALT_RAQ
 
 config LEDS_SUN50I_A100
 	tristate "LED support for Allwinner A100 RGB LED controller"
-	depends on LEDS_CLASS_MULTICOLOR && OF
+	depends on LEDS_CLASS_MULTICOLOR
 	depends on ARCH_SUNXI || COMPILE_TEST
 	help
 	  This option enables support for the RGB LED controller found
