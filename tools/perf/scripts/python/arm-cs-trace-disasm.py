@@ -188,6 +188,17 @@ def process_event(param_dict):
 	dso_end = get_optional(param_dict, "dso_map_end")
 	symbol = get_optional(param_dict, "symbol")
 
+	cpu = sample["cpu"]
+	ip = sample["ip"]
+	addr = sample["addr"]
+
+	# Initialize CPU data if it's empty, and directly return back
+	# if this is the first tracing event for this CPU.
+	if (cpu_data.get(str(cpu) + 'addr') == None):
+		cpu_data[str(cpu) + 'addr'] = addr
+		return
+
+
 	if (options.verbose == True):
 		print("Event type: %s" % name)
 		print_sample(sample)
@@ -207,16 +218,6 @@ def process_event(param_dict):
 
 	# Don't proceed if this event is not a branch sample, .
 	if (name[0:8] != "branches"):
-		return
-
-	cpu = sample["cpu"]
-	ip = sample["ip"]
-	addr = sample["addr"]
-
-	# Initialize CPU data if it's empty, and directly return back
-	# if this is the first tracing event for this CPU.
-	if (cpu_data.get(str(cpu) + 'addr') == None):
-		cpu_data[str(cpu) + 'addr'] = addr
 		return
 
 	# The format for packet is:
