@@ -79,6 +79,16 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 		clr |= ~hfg & __ ## reg ## _nMASK; 			\
 	} while(0)
 
+/*
+ * Validate the fine grain trap masks.
+ * Check that the masks do not overlap and that all bits are accounted for.
+ */
+#define CHECK_FGT_MASKS(reg)							\
+	do {									\
+		BUILD_BUG_ON((__ ## reg ## _MASK) & (__ ## reg ## _nMASK));	\
+		BUILD_BUG_ON(~((__ ## reg ## _RES0) ^ (__ ## reg ## _MASK) ^	\
+			       (__ ## reg ## _nMASK)));				\
+	} while(0)
 
 static inline bool cpu_has_amu(void)
 {
@@ -93,6 +103,14 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	struct kvm_cpu_context *hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
 	u64 r_val, w_val;
+
+	CHECK_FGT_MASKS(HFGRTR_EL2);
+	CHECK_FGT_MASKS(HFGWTR_EL2);
+	CHECK_FGT_MASKS(HFGITR_EL2);
+	CHECK_FGT_MASKS(HDFGRTR_EL2);
+	CHECK_FGT_MASKS(HDFGWTR_EL2);
+	CHECK_FGT_MASKS(HAFGRTR_EL2);
+	CHECK_FGT_MASKS(HCRX_EL2);
 
 	if (!cpus_have_final_cap(ARM64_HAS_FGT))
 		return;
