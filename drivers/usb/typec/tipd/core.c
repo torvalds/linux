@@ -1125,6 +1125,71 @@ wait_for_app:
 	return 0;
 };
 
+static int tps6598x_apply_patch(struct tps6598x *tps)
+{
+	u8 in = TPS_PTCS_CONTENT_DEV | TPS_PTCS_CONTENT_APP;
+	u8 out[TPS_MAX_LEN] = {0};
+	size_t in_len = sizeof(in);
+	size_t copied_bytes = 0;
+	size_t bytes_left;
+	const struct firmware *fw;
+	const char *firmware_name;
+	int ret;
+
+	ret = device_property_read_string(tps->dev, "firmware-name",
+					  &firmware_name);
+	if (ret)
+		return ret;
+
+	ret = tps_request_firmware(tps, &fw);
+	if (ret)
+		return ret;
+
+	ret = tps6598x_exec_cmd(tps, "PTCs", in_len, &in,
+				TPS_PTCS_OUT_BYTES, out);
+	if (ret || out[TPS_PTCS_STATUS] == TPS_PTCS_STATUS_FAIL) {
+		if (!ret)
+			ret = -EBUSY;
+		dev_err(tps->dev, "Update start failed (%d)\n", ret);
+		goto release_fw;
+	}
+
+	bytes_left = fw->size;
+	while (bytes_left) {
+		if (bytes_left < TPS_MAX_LEN)
+			in_len = bytes_left;
+		else
+			in_len = TPS_MAX_LEN;
+		ret = tps6598x_exec_cmd(tps, "PTCd", in_len,
+					fw->data + copied_bytes,
+					TPS_PTCD_OUT_BYTES, out);
+		if (ret || out[TPS_PTCD_TRANSFER_STATUS] ||
+		    out[TPS_PTCD_LOADING_STATE] == TPS_PTCD_LOAD_ERR) {
+			if (!ret)
+				ret = -EBUSY;
+			dev_err(tps->dev, "Patch download failed (%d)\n", ret);
+			goto release_fw;
+		}
+		copied_bytes += in_len;
+		bytes_left -= in_len;
+	}
+
+	ret = tps6598x_exec_cmd(tps, "PTCc", 0, NULL, TPS_PTCC_OUT_BYTES, out);
+	if (ret || out[TPS_PTCC_DEV] || out[TPS_PTCC_APP]) {
+		if (!ret)
+			ret = -EBUSY;
+		dev_err(tps->dev, "Update completion failed (%d)\n", ret);
+		goto release_fw;
+	}
+	msleep(TPS_SETUP_MS);
+	dev_info(tps->dev, "Firmware update succeeded\n");
+
+release_fw:
+	release_firmware(fw);
+
+	return ret;
+};
+
 static int cd321x_init(struct tps6598x *tps)
 {
 	return 0;
@@ -1150,7 +1215,7 @@ static int tps25750_init(struct tps6598x *tps)
 
 static int tps6598x_init(struct tps6598x *tps)
 {
-	return 0;
+	return tps->data->apply_patch(tps);
 }
 
 static int cd321x_reset(struct tps6598x *tps)
@@ -1468,6 +1533,7 @@ static const struct tipd_data tps6598x_data = {
 	.register_port = tps6598x_register_port,
 	.trace_power_status = trace_tps6598x_power_status,
 	.trace_status = trace_tps6598x_status,
+	.apply_patch = tps6598x_apply_patch,
 	.init = tps6598x_init,
 	.reset = tps6598x_reset,
 };
