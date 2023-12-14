@@ -103,9 +103,6 @@ typedef struct mdu_array_info_s {
 
 } mdu_array_info_t;
 
-/* non-obvious values for 'level' */
-#define	LEVEL_FAULTY		(-5)
-
 /* we need a value for 'no level specified' and 0
  * means 'raid0', so we need something else.  This is
  * for internal use only

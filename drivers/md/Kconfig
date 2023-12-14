@@ -159,16 +159,6 @@ config MD_RAID456
 
 	  If unsure, say Y.
 
-config MD_FAULTY
-	tristate "Faulty test module for MD (deprecated)"
-	depends on BLK_DEV_MD
-	help
-	  The "faulty" module allows for a block device that occasionally returns
-	  read or write errors.  It is useful for testing.
-
-	  In unsure, say N.
-
-
 config MD_CLUSTER
 	tristate "Cluster Support for MD"
 	depends on BLK_DEV_MD
