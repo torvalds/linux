@@ -868,13 +868,14 @@ static struct page *defrag_prepare_one_page(struct btrfs_inode *inode, pgoff_t i
 	u64 page_start = (u64)index << PAGE_SHIFT;
 	u64 page_end = page_start + PAGE_SIZE - 1;
 	struct extent_state *cached_state = NULL;
-	struct page *page;
+	struct folio *folio;
 	int ret;
 
 again:
-	page = find_or_create_page(mapping, index, mask);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
+	folio = __filemap_get_folio(mapping, index,
+				    FGP_LOCK | FGP_ACCESSED | FGP_CREAT, mask);
+	if (IS_ERR(folio))
+		return &folio->page;
 
 	/*
 	 * Since we can defragment files opened read-only, we can encounter
@@ -884,16 +885,16 @@ again:
 	 * executables that explicitly enable them, so this isn't very
 	 * restrictive.
 	 */
-	if (PageCompound(page)) {
-		unlock_page(page);
-		put_page(page);
+	if (folio_test_large(folio)) {
+		folio_unlock(folio);
+		folio_put(folio);
 		return ERR_PTR(-ETXTBSY);
 	}
 
-	ret = set_page_extent_mapped(page);
+	ret = set_folio_extent_mapped(folio);
 	if (ret < 0) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		return ERR_PTR(ret);
 	}
 
@@ -908,17 +909,17 @@ again:
 		if (!ordered)
 			break;
 
-		unlock_page(page);
+		folio_unlock(folio);
 		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
-		lock_page(page);
+		folio_lock(folio);
 		/*
-		 * We unlocked the page above, so we need check if it was
+		 * We unlocked the folio above, so we need check if it was
 		 * released or not.
 		 */
-		if (page->mapping != mapping || !PagePrivate(page)) {
-			unlock_page(page);
-			put_page(page);
+		if (folio->mapping != mapping || !folio->private) {
+			folio_unlock(folio);
+			folio_put(folio);
 			goto again;
 		}
 	}
@@ -927,21 +928,21 @@ again:
 	 * Now the page range has no ordered extent any more.  Read the page to
 	 * make it uptodate.
 	 */
-	if (!PageUptodate(page)) {
-		btrfs_read_folio(NULL, page_folio(page));
-		lock_page(page);
-		if (page->mapping != mapping || !PagePrivate(page)) {
-			unlock_page(page);
-			put_page(page);
+	if (!folio_test_uptodate(folio)) {
+		btrfs_read_folio(NULL, folio);
+		folio_lock(folio);
+		if (folio->mapping != mapping || !folio->private) {
+			folio_unlock(folio);
+			folio_put(folio);
 			goto again;
 		}
-		if (!PageUptodate(page)) {
-			unlock_page(page);
-			put_page(page);
+		if (!folio_test_uptodate(folio)) {
+			folio_unlock(folio);
+			folio_put(folio);
 			return ERR_PTR(-EIO);
 		}
 	}
-	return page;
+	return &folio->page;
 }
 
 struct defrag_target_range {
