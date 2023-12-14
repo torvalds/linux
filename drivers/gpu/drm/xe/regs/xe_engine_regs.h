@@ -136,8 +136,8 @@
 #define   PREEMPT_GPGPU_LEVEL_MASK		PREEMPT_GPGPU_LEVEL(1, 1)
 #define   PREEMPT_3D_OBJECT_LEVEL		REG_BIT(0)
 
-#define VDBOX_CGCTL3F08(base)                  XE_REG((base) + 0x3f08)
-#define   CG3DDISHRS_CLKGATE_DIS               REG_BIT(5)
+#define VDBOX_CGCTL3F08(base)			XE_REG((base) + 0x3f08)
+#define   CG3DDISHRS_CLKGATE_DIS		REG_BIT(5)
 
 #define VDBOX_CGCTL3F10(base)			XE_REG((base) + 0x3f10)
 #define   IECPUNIT_CLKGATE_DIS			REG_BIT(22)
