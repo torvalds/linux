@@ -33,6 +33,7 @@ bool acpi_handle_list_equal(struct acpi_handle_list *list1,
 void acpi_handle_list_replace(struct acpi_handle_list *dst,
 			      struct acpi_handle_list *src);
 void acpi_handle_list_free(struct acpi_handle_list *list);
+bool acpi_device_dep(acpi_handle target, acpi_handle match);
 acpi_status
 acpi_evaluate_ost(acpi_handle handle, u32 source_event, u32 status_code,
 		  struct acpi_buffer *status_buf);

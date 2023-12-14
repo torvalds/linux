@@ -562,31 +562,6 @@ static struct device *acpi_lpss_find_device(const char *hid, const char *uid)
 	return bus_find_device(&pci_bus_type, NULL, &data, match_hid_uid);
 }
 
-static bool acpi_lpss_dep(struct acpi_device *adev, acpi_handle handle)
-{
-	struct acpi_handle_list dep_devices;
-	bool ret = false;
-	int i;
-
-	if (!acpi_has_method(adev->handle, "_DEP"))
-		return false;
-
-	if (!acpi_evaluate_reference(adev->handle, "_DEP", NULL, &dep_devices)) {
-		dev_dbg(&adev->dev, "Failed to evaluate _DEP.\n");
-		return false;
-	}
-
-	for (i = 0; i < dep_devices.count; i++) {
-		if (dep_devices.handles[i] == handle) {
-			ret = true;
-			break;
-		}
-	}
-
-	acpi_handle_list_free(&dep_devices);
-	return ret;
-}
-
 static void acpi_lpss_link_consumer(struct device *dev1,
 				    const struct lpss_device_links *link)
 {
@@ -597,7 +572,7 @@ static void acpi_lpss_link_consumer(struct device *dev1,
 		return;
 
 	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
-	    || acpi_lpss_dep(ACPI_COMPANION(dev2), ACPI_HANDLE(dev1)))
+	    || acpi_device_dep(ACPI_HANDLE(dev2), ACPI_HANDLE(dev1)))
 		device_link_add(dev2, dev1, link->flags);
 
 	put_device(dev2);
@@ -613,7 +588,7 @@ static void acpi_lpss_link_supplier(struct device *dev1,
 		return;
 
 	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
-	    || acpi_lpss_dep(ACPI_COMPANION(dev1), ACPI_HANDLE(dev2)))
+	    || acpi_device_dep(ACPI_HANDLE(dev1), ACPI_HANDLE(dev2)))
 		device_link_add(dev1, dev2, link->flags);
 
 	put_device(dev2);

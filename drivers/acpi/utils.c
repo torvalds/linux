@@ -450,6 +450,40 @@ void acpi_handle_list_free(struct acpi_handle_list *list)
 }
 EXPORT_SYMBOL_GPL(acpi_handle_list_free);
 
+/**
+ * acpi_device_dep - Check ACPI device dependency
+ * @target: ACPI handle of the target ACPI device.
+ * @match: ACPI handle to look up in the target's _DEP list.
+ *
+ * Return true if @match is present in the list returned by _DEP for
+ * @target or false otherwise.
+ */
+bool acpi_device_dep(acpi_handle target, acpi_handle match)
+{
+	struct acpi_handle_list dep_devices;
+	bool ret = false;
+	int i;
+
+	if (!acpi_has_method(target, "_DEP"))
+		return false;
+
+	if (!acpi_evaluate_reference(target, "_DEP", NULL, &dep_devices)) {
+		acpi_handle_debug(target, "Failed to evaluate _DEP.\n");
+		return false;
+	}
+
+	for (i = 0; i < dep_devices.count; i++) {
+		if (dep_devices.handles[i] == match) {
+			ret = true;
+			break;
+		}
+	}
+
+	acpi_handle_list_free(&dep_devices);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(acpi_device_dep);
+
 acpi_status
 acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld)
 {
