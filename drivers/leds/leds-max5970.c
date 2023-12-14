@@ -62,7 +62,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 			continue;
 
 		if (reg >= MAX5970_NUM_LEDS) {
-			dev_err(dev, "invalid LED (%u >= %d)\n", reg, MAX5970_NUM_LEDS);
+			dev_err_probe(dev, -EINVAL, "invalid LED (%u >= %d)\n", reg, MAX5970_NUM_LEDS);
 			continue;
 		}
 
@@ -86,8 +86,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 		ret = devm_led_classdev_register(dev, &ddata->cdev);
 		if (ret < 0) {
 			fwnode_handle_put(child);
-			dev_err(dev, "Failed to initialize LED %u\n", reg);
-			return ret;
+			return dev_err_probe(dev, ret, "Failed to initialize LED %u\n", reg);
 		}
 	}
 
