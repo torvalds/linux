@@ -61,6 +61,7 @@ obj-$(CONFIG_MSM_CORE_HANG_DETECT) += core_hang_detect.o
 obj-$(CONFIG_USB_BAM) += usb_bam.o
 obj-$(CONFIG_QCOM_CPU_VENDOR_HOOKS) += qcom_cpu_vendor_hooks.o
 obj-$(CONFIG_QTI_CRYPTO_COMMON) += crypto-qti.o
+obj-$(CONFIG_CPU_V7) += idle-v7.o
 obj-$(CONFIG_MSM_SPM) += msm-spm.o spm_devices.o
 crypto-qti-y += crypto-qti-common.o
 crypto-qti-$(CONFIG_QTI_CRYPTO_TZ) += crypto-qti-tz.o
