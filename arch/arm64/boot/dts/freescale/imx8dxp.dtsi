@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017-2019 NXP
+ */
+
+/dts-v1/;
+
+#include "imx8qxp.dtsi"
+
+/delete-node/ &A35_2;
+/delete-node/ &A35_3;
+
+&thermal_zones {
+	cpu0-thermal {
+		cooling-maps {
+			map0 {
+				cooling-device =
+				<&A35_0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+				<&A35_1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+			};
+		};
+	};
+};
