@@ -301,6 +301,11 @@ static struct at803x_hw_stat qca83xx_hw_stats[] = {
 	{ "eee_wake_errors", 0x16, GENMASK(15, 0), MMD},
 };
 
+struct at803x_ss_mask {
+	u16 speed_mask;
+	u8 speed_shift;
+};
+
 struct at803x_priv {
 	int flags;
 	u16 clk_25m_reg;
@@ -921,7 +926,8 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	}
 }
 
-static int at803x_read_specific_status(struct phy_device *phydev)
+static int at803x_read_specific_status(struct phy_device *phydev,
+				       struct at803x_ss_mask ss_mask)
 {
 	int ss;
 
@@ -940,11 +946,8 @@ static int at803x_read_specific_status(struct phy_device *phydev)
 		if (sfc < 0)
 			return sfc;
 
-		/* qca8081 takes the different bits for speed value from at803x */
-		if (phydev->drv->phy_id == QCA8081_PHY_ID)
-			speed = FIELD_GET(QCA808X_SS_SPEED_MASK, ss);
-		else
-			speed = FIELD_GET(AT803X_SS_SPEED_MASK, ss);
+		speed = ss & ss_mask.speed_mask;
+		speed >>= ss_mask.speed_shift;
 
 		switch (speed) {
 		case AT803X_SS_SPEED_10:
@@ -989,6 +992,7 @@ static int at803x_read_specific_status(struct phy_device *phydev)
 static int at803x_read_status(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
+	struct at803x_ss_mask ss_mask = { 0 };
 	int err, old_link = phydev->link;
 
 	if (priv->is_1000basex)
@@ -1012,7 +1016,9 @@ static int at803x_read_status(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = at803x_read_specific_status(phydev);
+	ss_mask.speed_mask = AT803X_SS_SPEED_MASK;
+	ss_mask.speed_shift = __bf_shf(AT803X_SS_SPEED_MASK);
+	err = at803x_read_specific_status(phydev, ss_mask);
 	if (err < 0)
 		return err;
 
@@ -1869,6 +1875,7 @@ static int qca808x_config_init(struct phy_device *phydev)
 
 static int qca808x_read_status(struct phy_device *phydev)
 {
+	struct at803x_ss_mask ss_mask = { 0 };
 	int ret;
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
@@ -1882,7 +1889,10 @@ static int qca808x_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = at803x_read_specific_status(phydev);
+	/* qca8081 takes the different bits for speed value from at803x */
+	ss_mask.speed_mask = QCA808X_SS_SPEED_MASK;
+	ss_mask.speed_shift = __bf_shf(QCA808X_SS_SPEED_MASK);
+	ret = at803x_read_specific_status(phydev, ss_mask);
 	if (ret < 0)
 		return ret;
 
