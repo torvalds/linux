@@ -367,58 +367,50 @@ struct blk_independent_access_ranges {
 };
 
 struct request_queue {
-	struct request		*last_merge;
-	struct elevator_queue	*elevator;
-
-	struct percpu_ref	q_usage_counter;
-
-	struct blk_queue_stats	*stats;
-	struct rq_qos		*rq_qos;
-	struct mutex		rq_qos_mutex;
-
-	const struct blk_mq_ops	*mq_ops;
-
-	/* sw queues */
-	struct blk_mq_ctx __percpu	*queue_ctx;
-
-	unsigned int		queue_depth;
-
-	/* hw dispatch queues */
-	struct xarray		hctx_table;
-	unsigned int		nr_hw_queues;
-
 	/*
 	 * The queue owner gets to use this for whatever they like.
 	 * ll_rw_blk doesn't touch it.
 	 */
 	void			*queuedata;
 
+	struct elevator_queue	*elevator;
+
+	const struct blk_mq_ops	*mq_ops;
+
+	/* sw queues */
+	struct blk_mq_ctx __percpu	*queue_ctx;
+
 	/*
 	 * various queue flags, see QUEUE_* below
 	 */
 	unsigned long		queue_flags;
-	/*
-	 * Number of contexts that have called blk_set_pm_only(). If this
-	 * counter is above zero then only RQF_PM requests are processed.
-	 */
-	atomic_t		pm_only;
 
-	/*
-	 * ida allocated id for this queue.  Used to index queues from
-	 * ioctx.
-	 */
-	int			id;
+	unsigned int		rq_timeout;
+
+	unsigned int		queue_depth;
+
+	refcount_t		refs;
+
+	/* hw dispatch queues */
+	unsigned int		nr_hw_queues;
+	struct xarray		hctx_table;
+
+	struct percpu_ref	q_usage_counter;
+
+	struct request		*last_merge;
 
 	spinlock_t		queue_lock;
 
-	struct gendisk		*disk;
+	int			quiesce_depth;
 
-	refcount_t		refs;
+	struct gendisk		*disk;
 
 	/*
 	 * mq queue kobject
 	 */
 	struct kobject *mq_kobj;
+
+	struct queue_limits	limits;
 
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity integrity;
@@ -430,23 +422,39 @@ struct request_queue {
 #endif
 
 	/*
+	 * Number of contexts that have called blk_set_pm_only(). If this
+	 * counter is above zero then only RQF_PM requests are processed.
+	 */
+	atomic_t		pm_only;
+
+	struct blk_queue_stats	*stats;
+	struct rq_qos		*rq_qos;
+	struct mutex		rq_qos_mutex;
+
+	/*
+	 * ida allocated id for this queue.  Used to index queues from
+	 * ioctx.
+	 */
+	int			id;
+
+	unsigned int		dma_pad_mask;
+
+	/*
 	 * queue settings
 	 */
 	unsigned long		nr_requests;	/* Max # of requests */
-
-	unsigned int		dma_pad_mask;
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	struct blk_crypto_profile *crypto_profile;
 	struct kobject *crypto_kobject;
 #endif
 
-	unsigned int		rq_timeout;
-
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;
 
 	atomic_t		nr_active_requests_shared_tags;
+
+	unsigned int		required_elevator_features;
 
 	struct blk_mq_tags	*sched_shared_tags;
 
@@ -458,11 +466,12 @@ struct request_queue {
 	struct mutex		blkcg_mutex;
 #endif
 
-	struct queue_limits	limits;
-
-	unsigned int		required_elevator_features;
-
 	int			node;
+
+	spinlock_t		requeue_lock;
+	struct list_head	requeue_list;
+	struct delayed_work	requeue_work;
+
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	struct blk_trace __rcu	*blk_trace;
 #endif
@@ -471,10 +480,6 @@ struct request_queue {
 	 */
 	struct blk_flush_queue	*fq;
 	struct list_head	flush_list;
-
-	struct list_head	requeue_list;
-	spinlock_t		requeue_lock;
-	struct delayed_work	requeue_work;
 
 	struct mutex		sysfs_lock;
 	struct mutex		sysfs_dir_lock;
@@ -499,8 +504,6 @@ struct request_queue {
 	 * percpu_ref_kill() and percpu_ref_reinit().
 	 */
 	struct mutex		mq_freeze_lock;
-
-	int			quiesce_depth;
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
