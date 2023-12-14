@@ -2086,8 +2086,16 @@ Sysreg	CONTEXTIDR_EL1	3	0	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
 
+Sysreg	RCWSMASK_EL1	3	0	13	0	3
+Field	63:0	RCWSMASK
+EndSysreg
+
 Sysreg	TPIDR_EL1	3	0	13	0	4
 Field	63:0	ThreadID
+EndSysreg
+
+Sysreg	RCWMASK_EL1	3	0	13	0	6
+Field	63:0	RCWMASK
 EndSysreg
 
 Sysreg	SCXTNUM_EL1	3	0	13	0	7
@@ -2714,6 +2722,33 @@ Field	1	PIE
 Field	0	PnCH
 EndSysreg
 
+SysregFields MAIR2_ELx
+Field	63:56	Attr7
+Field	55:48	Attr6
+Field	47:40	Attr5
+Field	39:32	Attr4
+Field	31:24	Attr3
+Field	23:16	Attr2
+Field	15:8	Attr1
+Field	7:0	Attr0
+EndSysregFields
+
+Sysreg	MAIR2_EL1	3	0	10	2	1
+Fields	MAIR2_ELx
+EndSysreg
+
+Sysreg	MAIR2_EL2	3	4	10	1	1
+Fields	MAIR2_ELx
+EndSysreg
+
+Sysreg	AMAIR2_EL1	3	0	10	3	1
+Field	63:0	ImpDef
+EndSysreg
+
+Sysreg	AMAIR2_EL2	3	4	10	3	1
+Field	63:0	ImpDef
+EndSysreg
+
 SysregFields PIRx_ELx
 Field	63:60	Perm15
 Field	59:56	Perm14
@@ -2762,6 +2797,14 @@ Fields	PIRx_ELx
 EndSysreg
 
 Sysreg	POR_EL12	3	5	10	2	4
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	S2POR_EL1	3	0	10	2	5
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	S2PIR_EL2	3	4	10	2	5
 Fields	PIRx_ELx
 EndSysreg
 
