@@ -185,10 +185,8 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 
 	onkey = devm_kzalloc(&pdev->dev, sizeof(struct da9063_onkey),
 			     GFP_KERNEL);
-	if (!onkey) {
-		dev_err(&pdev->dev, "Failed to allocate memory.\n");
+	if (!onkey)
 		return -ENOMEM;
-	}
 
 	onkey->config = device_get_match_data(&pdev->dev);
 	if (!onkey->config)
@@ -206,10 +204,8 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 						  "dlg,disable-key-power");
 
 	onkey->input = devm_input_allocate_device(&pdev->dev);
-	if (!onkey->input) {
-		dev_err(&pdev->dev, "Failed to allocated input device.\n");
+	if (!onkey->input)
 		return -ENOMEM;
-	}
 
 	onkey->input->name = onkey->config->name;
 	snprintf(onkey->phys, sizeof(onkey->phys), "%s/input0",
@@ -221,12 +217,8 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 
 	error = devm_delayed_work_autocancel(&pdev->dev, &onkey->work,
 					     da9063_poll_on);
-	if (error) {
-		dev_err(&pdev->dev,
-			"Failed to add cancel poll action: %d\n",
-			error);
+	if (error)
 		return error;
-	}
 
 	irq = platform_get_irq_byname(pdev, "ONKEY");
 	if (irq < 0)
@@ -251,11 +243,8 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, true);
 
 	error = input_register_device(onkey->input);
-	if (error) {
-		dev_err(&pdev->dev,
-			"Failed to register input device: %d\n", error);
+	if (error)
 		return error;
-	}
 
 	return 0;
 }
