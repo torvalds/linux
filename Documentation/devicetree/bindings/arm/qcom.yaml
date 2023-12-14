@@ -186,6 +186,7 @@ properties:
               - htc,memul
               - microsoft,superman-lte
               - microsoft,tesla
+              - motorola,peregrine
           - const: qcom,msm8926
           - const: qcom,msm8226
 
