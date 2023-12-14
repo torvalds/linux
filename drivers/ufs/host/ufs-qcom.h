@@ -10,24 +10,18 @@
 #include <soc/qcom/ice.h>
 #include <ufs/ufshcd.h>
 
-#define MAX_UFS_QCOM_HOSTS	1
-#define MAX_U32                 (~(u32)0)
 #define MPHY_TX_FSM_STATE       0x41
 #define TX_FSM_HIBERN8          0x1
 #define HBRN8_POLL_TOUT_MS      100
 #define DEFAULT_CLK_RATE_HZ     1000000
-#define BUS_VECTOR_NAME_LEN     32
 #define MAX_SUPP_MAC		64
 
 #define UFS_HW_VER_MAJOR_MASK	GENMASK(31, 28)
 #define UFS_HW_VER_MINOR_MASK	GENMASK(27, 16)
 #define UFS_HW_VER_STEP_MASK	GENMASK(15, 0)
-
 #define UFS_DEV_VER_MAJOR_MASK	GENMASK(7, 4)
 
-/* vendor specific pre-defined parameters */
-#define SLOW 1
-#define FAST 2
+#define UFS_QCOM_LIMIT_HS_RATE		PA_HS_MODE_B
 
 /* QCOM UFS host controller vendor specific registers */
 enum {
@@ -95,9 +89,6 @@ enum {
 #define TEST_BUS_SEL		GENMASK(22, 19)
 #define UFS_REG_TEST_BUS_EN	BIT(30)
 
-#define UFS_PHY_RESET_ENABLE	1
-#define UFS_PHY_RESET_DISABLE	0
-
 /* bit definitions for REG_UFS_CFG2 register */
 #define UAWM_HW_CGC_EN		BIT(0)
 #define UARM_HW_CGC_EN		BIT(1)
@@ -107,6 +98,9 @@ enum {
 #define TRLUT_HW_CGC_EN		BIT(5)
 #define TMRLUT_HW_CGC_EN	BIT(6)
 #define OCSC_HW_CGC_EN		BIT(7)
+
+/* bit definitions for REG_UFS_CFG3 register */
+#define ESI_VEC_MASK		GENMASK(22, 12)
 
 /* bit definitions for REG_UFS_PARAM0 */
 #define MAX_HS_GEAR_MASK	GENMASK(6, 4)
@@ -119,13 +113,6 @@ enum {
 				 TXUC_HW_CGC_EN | RXUC_HW_CGC_EN |\
 				 DFC_HW_CGC_EN | TRLUT_HW_CGC_EN |\
 				 TMRLUT_HW_CGC_EN | OCSC_HW_CGC_EN)
-
-/* bit offset */
-#define OFFSET_CLK_NS_REG		0xa
-
-/* bit masks */
-#define MASK_TX_SYMBOL_CLK_1US_REG	GENMASK(9, 0)
-#define MASK_CLK_NS_REG			GENMASK(23, 10)
 
 /* QUniPro Vendor specific attributes */
 #define PA_VS_CONFIG_REG1	0x9000
@@ -160,8 +147,7 @@ ufs_qcom_get_controller_revision(struct ufs_hba *hba,
 
 static inline void ufs_qcom_assert_reset(struct ufs_hba *hba)
 {
-	ufshcd_rmwl(hba, UFS_PHY_SOFT_RESET, FIELD_PREP(UFS_PHY_SOFT_RESET, UFS_PHY_RESET_ENABLE),
-		    REG_UFS_CFG1);
+	ufshcd_rmwl(hba, UFS_PHY_SOFT_RESET, UFS_PHY_SOFT_RESET, REG_UFS_CFG1);
 
 	/*
 	 * Make sure assertion of ufs phy reset is written to
@@ -172,8 +158,7 @@ static inline void ufs_qcom_assert_reset(struct ufs_hba *hba)
 
 static inline void ufs_qcom_deassert_reset(struct ufs_hba *hba)
 {
-	ufshcd_rmwl(hba, UFS_PHY_SOFT_RESET, FIELD_PREP(UFS_PHY_SOFT_RESET, UFS_PHY_RESET_DISABLE),
-		    REG_UFS_CFG1);
+	ufshcd_rmwl(hba, UFS_PHY_SOFT_RESET, 0, REG_UFS_CFG1);
 
 	/*
 	 * Make sure de-assertion of ufs phy reset is written to
@@ -197,28 +182,11 @@ struct ufs_qcom_testbus {
 struct gpio_desc;
 
 struct ufs_qcom_host {
-	/*
-	 * Set this capability if host controller supports the QUniPro mode
-	 * and if driver wants the Host controller to operate in QUniPro mode.
-	 * Note: By default this capability will be kept enabled if host
-	 * controller supports the QUniPro mode.
-	 */
-	#define UFS_QCOM_CAP_QUNIPRO	0x1
-
-	/*
-	 * Set this capability if host controller can retain the secure
-	 * configuration even after UFS controller core power collapse.
-	 */
-	#define UFS_QCOM_CAP_RETAIN_SEC_CFG_AFTER_PWR_COLLAPSE	0x2
-	u32 caps;
-
 	struct phy *generic_phy;
 	struct ufs_hba *hba;
 	struct ufs_pa_layer_attr dev_req_params;
-	struct clk *rx_l0_sync_clk;
-	struct clk *tx_l0_sync_clk;
-	struct clk *rx_l1_sync_clk;
-	struct clk *tx_l1_sync_clk;
+	struct clk_bulk_data *clks;
+	u32 num_clks;
 	bool is_lane_clks_enabled;
 
 	struct icc_path *icc_ddr;
@@ -263,10 +231,5 @@ ufs_qcom_get_debug_reg_offset(struct ufs_qcom_host *host, u32 reg)
 #define ceil(freq, div) ((freq) % (div) == 0 ? ((freq)/(div)) : ((freq)/(div) + 1))
 
 int ufs_qcom_testbus_config(struct ufs_qcom_host *host);
-
-static inline bool ufs_qcom_cap_qunipro(struct ufs_qcom_host *host)
-{
-	return host->caps & UFS_QCOM_CAP_QUNIPRO;
-}
 
 #endif /* UFS_QCOM_H_ */
