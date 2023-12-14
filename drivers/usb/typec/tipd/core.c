@@ -873,6 +873,30 @@ tps6598x_register_port(struct tps6598x *tps, struct fwnode_handle *fwnode)
 	return 0;
 }
 
+static int tps_request_firmware(struct tps6598x *tps, const struct firmware **fw)
+{
+	const char *firmware_name;
+	int ret;
+
+	ret = device_property_read_string(tps->dev, "firmware-name",
+					  &firmware_name);
+	if (ret)
+		return ret;
+
+	ret = request_firmware(fw, firmware_name, tps->dev);
+	if (ret) {
+		dev_err(tps->dev, "failed to retrieve \"%s\"\n", firmware_name);
+		return ret;
+	}
+
+	if ((*fw)->size == 0) {
+		release_firmware(*fw);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
 static int
 tps25750_write_firmware(struct tps6598x *tps,
 			u8 bpms_addr, const u8 *data, size_t len)
@@ -961,16 +985,9 @@ static int tps25750_start_patch_burst_mode(struct tps6598x *tps)
 	if (ret)
 		return ret;
 
-	ret = request_firmware(&fw, firmware_name, tps->dev);
-	if (ret) {
-		dev_err(tps->dev, "failed to retrieve \"%s\"\n", firmware_name);
+	ret = tps_request_firmware(tps, &fw);
+	if (ret)
 		return ret;
-	}
-
-	if (fw->size == 0) {
-		ret = -EINVAL;
-		goto release_fw;
-	}
 
 	ret = of_property_match_string(np, "reg-names", "patch-address");
 	if (ret < 0) {
