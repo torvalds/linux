@@ -759,7 +759,7 @@ xlog_recover_attri_commit_pass2(
 	memcpy(&attrip->attri_format, attri_formatp, len);
 
 	xlog_recover_intent_item(log, &attrip->attri_item, lsn,
-			XFS_DEFER_OPS_TYPE_ATTR);
+			&xfs_attr_defer_type);
 	xfs_attri_log_nameval_put(nv);
 	return 0;
 }

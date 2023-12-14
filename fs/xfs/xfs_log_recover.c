@@ -1942,11 +1942,11 @@ xlog_recover_intent_item(
 	struct xlog			*log,
 	struct xfs_log_item		*lip,
 	xfs_lsn_t			lsn,
-	unsigned int			dfp_type)
+	const struct xfs_defer_op_type	*ops)
 {
 	ASSERT(xlog_item_is_intent(lip));
 
-	xfs_defer_start_recovery(lip, dfp_type, &log->r_dfops);
+	xfs_defer_start_recovery(lip, &log->r_dfops, ops);
 
 	/*
 	 * Insert the intent into the AIL directly and drop one reference so

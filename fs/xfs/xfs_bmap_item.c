@@ -650,7 +650,7 @@ xlog_recover_bui_commit_pass2(
 	atomic_set(&buip->bui_next_extent, bui_formatp->bui_nextents);
 
 	xlog_recover_intent_item(log, &buip->bui_item, lsn,
-			XFS_DEFER_OPS_TYPE_BMAP);
+			&xfs_bmap_update_defer_type);
 	return 0;
 }
 

@@ -658,7 +658,7 @@ xlog_recover_rui_commit_pass2(
 	atomic_set(&ruip->rui_next_extent, rui_formatp->rui_nextents);
 
 	xlog_recover_intent_item(log, &ruip->rui_item, lsn,
-			XFS_DEFER_OPS_TYPE_RMAP);
+			&xfs_rmap_update_defer_type);
 	return 0;
 }
 

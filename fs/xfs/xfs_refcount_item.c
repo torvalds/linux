@@ -605,7 +605,7 @@ xlog_recover_cui_commit_pass2(
 	atomic_set(&cuip->cui_next_extent, cui_formatp->cui_nextents);
 
 	xlog_recover_intent_item(log, &cuip->cui_item, lsn,
-			XFS_DEFER_OPS_TYPE_REFCOUNT);
+			&xfs_refcount_update_defer_type);
 	return 0;
 }
 

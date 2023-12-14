@@ -747,7 +747,7 @@ xlog_recover_efi_commit_pass2(
 	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
 
 	xlog_recover_intent_item(log, &efip->efi_item, lsn,
-			XFS_DEFER_OPS_TYPE_FREE);
+			&xfs_extent_free_defer_type);
 	return 0;
 }
 
