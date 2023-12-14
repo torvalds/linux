@@ -1055,6 +1055,10 @@ static struct cpumask *cpu_coregroup_mask(int cpu)
 
 static bool has_coregroup_support(void)
 {
+	/* Coregroup identification not available on shared systems */
+	if (is_shared_processor())
+		return 0;
+
 	return coregroup_enabled;
 }
 
