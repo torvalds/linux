@@ -25,7 +25,7 @@
 cpumask_t cpus_paused_by_us = { CPU_BITS_NONE };
 
 /* mask of all CPUS with a partial pause claim outstanding */
-static cpumask_t cpus_part_paused_by_us = { CPU_BITS_NONE };
+cpumask_t cpus_part_paused_by_us = { CPU_BITS_NONE };
 
 /* global to indicate which cpus to pause for sbt */
 cpumask_t cpus_for_sbt_pause = { CPU_BITS_NONE };
