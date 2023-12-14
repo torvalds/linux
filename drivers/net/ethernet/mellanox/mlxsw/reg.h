@@ -1954,6 +1954,15 @@ MLXSW_ITEM32(reg, sfmr, irif, 0x14, 0, 16);
  */
 MLXSW_ITEM32(reg, sfmr, cff_mid_base, 0x20, 0, 16);
 
+/* reg_sfmr_nve_flood_prf_id
+ * FID flooding profile_id for NVE Encap
+ * Range 0..(max_cap_nve_flood_prf-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1
+ */
+MLXSW_ITEM32(reg, sfmr, nve_flood_prf_id, 0x24, 8, 2);
+
 /* reg_sfmr_cff_prf_id
  * Compressed Fid Flooding profile_id
  * Range 0..(max_cap_nve_flood_prf-1)
