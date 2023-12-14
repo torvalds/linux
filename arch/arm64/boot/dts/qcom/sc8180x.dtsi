@@ -2110,6 +2110,8 @@
 					<0 0>,
 					<0 0>;
 
+			power-domains = <&gcc UFS_PHY_GDSC>;
+
 			status = "disabled";
 		};
 
