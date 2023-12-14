@@ -446,6 +446,16 @@ struct rkcanfd_fifo_header {
 	u32 ts;
 };
 
+struct rkcanfd_stats {
+	struct u64_stats_sync syncp;
+
+	/* Erratum 5 */
+	u64_stats_t rx_fifo_empty_errors;
+
+	/* Erratum 6 */
+	u64_stats_t tx_extended_as_standard_errors;
+};
+
 struct rkcanfd_priv {
 	struct can_priv can;
 	struct can_rx_offload offload;
@@ -460,6 +470,8 @@ struct rkcanfd_priv {
 	struct rkcanfd_devtype_data devtype_data;
 
 	struct can_berr_counter bec;
+
+	struct rkcanfd_stats stats;
 
 	struct reset_control *reset;
 	struct clk_bulk_data *clks;
@@ -514,6 +526,8 @@ rkcanfd_get_tx_free(const struct rkcanfd_priv *priv)
 {
 	return RKCANFD_TXFIFO_DEPTH - rkcanfd_get_tx_pending(priv);
 }
+
+void rkcanfd_ethtool_init(struct rkcanfd_priv *priv);
 
 int rkcanfd_handle_rx_int(struct rkcanfd_priv *priv);
 
