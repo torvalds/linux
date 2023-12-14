@@ -2575,6 +2575,8 @@ static int __gc8034_power_on(struct gc8034 *gc8034)
 	if (!IS_ERR(gc8034->reset_gpio))
 		gpiod_set_value_cansleep(gc8034->reset_gpio, 0);
 
+	usleep_range(6000, 7000);
+
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = gc8034_cal_delay(8192);
 	usleep_range(delay_us, delay_us * 2);
