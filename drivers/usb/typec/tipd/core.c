@@ -330,7 +330,7 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 }
 
 static int tps6598x_exec_cmd_tmo(struct tps6598x *tps, const char *cmd,
-			     size_t in_len, u8 *in_data,
+			     size_t in_len, const u8 *in_data,
 			     size_t out_len, u8 *out_data,
 			     u32 cmd_timeout_ms, u32 res_delay_ms)
 {
@@ -396,7 +396,7 @@ static int tps6598x_exec_cmd_tmo(struct tps6598x *tps, const char *cmd,
 }
 
 static int tps6598x_exec_cmd(struct tps6598x *tps, const char *cmd,
-			     size_t in_len, u8 *in_data,
+			     size_t in_len, const u8 *in_data,
 			     size_t out_len, u8 *out_data)
 {
 	return tps6598x_exec_cmd_tmo(tps, cmd, in_len, in_data,
