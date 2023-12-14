@@ -169,11 +169,17 @@ err_without_release:
 	return ret;
 }
 
+static const struct of_device_id sifive_l2_ids[] = {
+	{ .compatible = "sifive,fu740-c000-ccache" },
+	{ /* end of table */ },
+};
+
 static int wave5_vpu_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct vpu_device *dev;
 	const struct wave5_match_data *match_data;
+	struct device_node *np;
 
 	match_data = device_get_match_data(&pdev->dev);
 	if (!match_data) {
@@ -282,6 +288,16 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "wave5_vpu_load_firmware, fail: %d\n", ret);
 		goto err_enc_unreg;
 	}
+
+	np = of_find_matching_node(NULL, sifive_l2_ids);
+	if (!np) {
+		dev_err(&pdev->dev, "find cache node, fail\n");
+		goto err_enc_unreg;
+	}
+
+	ret = of_property_read_u32(np, "cache-size", &dev->l2_cache_size);
+	if (ret)
+		dev->l2_cache_size = 0x200000;
 
 	dev_dbg(&pdev->dev, "Added wave5 driver with caps: %s %s and product code: 0x%x\n",
 		(match_data->flags & WAVE5_IS_ENC) ? "'ENCODE'" : "",
