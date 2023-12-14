@@ -1233,8 +1233,16 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 		if (!(allow_state & DMUB_IPS2_ALLOW_MASK)) {
 			// Wait for evaluation time
-			udelay(dc->debug.ips2_eval_delay_us);
-			commit_state = dc->hwss.get_idle_state(dc);
+			for (;;) {
+				udelay(dc->debug.ips2_eval_delay_us);
+				commit_state = dc->hwss.get_idle_state(dc);
+				if (commit_state & DMUB_IPS2_ALLOW_MASK)
+					break;
+
+				/* allow was still set, retry eval delay */
+				dc->hwss.set_idle_state(dc, false);
+			}
+
 			if (!(commit_state & DMUB_IPS2_COMMIT_MASK)) {
 				// Tell PMFW to exit low power state
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
