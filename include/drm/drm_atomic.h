@@ -346,7 +346,13 @@ struct __drm_private_objs_state {
 };
 
 /**
- * struct drm_atomic_state - the global state object for atomic updates
+ * struct drm_atomic_state - Atomic commit structure
+ *
+ * This structure is the kernel counterpart of @drm_mode_atomic and represents
+ * an atomic commit that transitions from an old to a new display state. It
+ * contains all the objects affected by the atomic commit and both the new
+ * state structures and pointers to the old state structures for
+ * these.
  *
  * States are added to an atomic update by calling drm_atomic_get_crtc_state(),
  * drm_atomic_get_plane_state(), drm_atomic_get_connector_state(), or for
