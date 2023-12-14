@@ -796,7 +796,7 @@ static int amdgpu_dm_atomic_blend_lut(const struct drm_color_lut *blend_lut,
  * amdgpu_dm_verify_lut3d_size - verifies if 3D LUT is supported and if user
  * shaper and 3D LUTs match the hw supported size
  * @adev: amdgpu device
- * @crtc_state: the DRM CRTC state
+ * @plane_state: the DRM plane state
  *
  * Verifies if pre-blending (DPP) 3D LUT is supported by the HW (DCN 2.0 or
  * newer) and if the user shaper and 3D LUTs match the supported size.
