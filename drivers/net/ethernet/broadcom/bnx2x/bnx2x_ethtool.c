@@ -3486,16 +3486,15 @@ static u32 bnx2x_get_rxfh_indir_size(struct net_device *dev)
 	return T_ETH_INDIRECTION_TABLE_SIZE;
 }
 
-static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
-			  u8 *hfunc)
+static int bnx2x_get_rxfh(struct net_device *dev,
+			  struct ethtool_rxfh_param *rxfh)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	size_t i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!indir)
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (!rxfh->indir)
 		return 0;
 
 	/* Get the current configuration of the RSS indirection table */
@@ -3511,13 +3510,14 @@ static int bnx2x_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 	 * queue.
 	 */
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++)
-		indir[i] = ind_table[i] - bp->fp->cl_id;
+		rxfh->indir[i] = ind_table[i] - bp->fp->cl_id;
 
 	return 0;
 }
 
-static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *key, const u8 hfunc)
+static int bnx2x_set_rxfh(struct net_device *dev,
+			  struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	size_t i;
@@ -3525,11 +3525,12 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 	/* We require at least one supported parameter to be changed and no
 	 * change in any of the unsupported parameters
 	 */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
 
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
 	for (i = 0; i < T_ETH_INDIRECTION_TABLE_SIZE; i++) {
@@ -3542,7 +3543,7 @@ static int bnx2x_set_rxfh(struct net_device *dev, const u32 *indir,
 		 * align the received table to the Client ID of the leading RSS
 		 * queue
 		 */
-		bp->rss_conf_obj.ind_table[i] = indir[i] + bp->fp->cl_id;
+		bp->rss_conf_obj.ind_table[i] = rxfh->indir[i] + bp->fp->cl_id;
 	}
 
 	if (bp->state == BNX2X_STATE_OPEN)

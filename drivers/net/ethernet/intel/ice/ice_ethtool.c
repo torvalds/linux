@@ -2502,27 +2502,15 @@ static u32 ice_parse_hdrs(struct ethtool_rxnfc *nfc)
 	return hdrs;
 }
 
-#define ICE_FLOW_HASH_FLD_IPV4_SA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_SA)
-#define ICE_FLOW_HASH_FLD_IPV6_SA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_SA)
-#define ICE_FLOW_HASH_FLD_IPV4_DA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV4_DA)
-#define ICE_FLOW_HASH_FLD_IPV6_DA	BIT_ULL(ICE_FLOW_FIELD_IDX_IPV6_DA)
-#define ICE_FLOW_HASH_FLD_TCP_SRC_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_SRC_PORT)
-#define ICE_FLOW_HASH_FLD_TCP_DST_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_TCP_DST_PORT)
-#define ICE_FLOW_HASH_FLD_UDP_SRC_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_SRC_PORT)
-#define ICE_FLOW_HASH_FLD_UDP_DST_PORT	BIT_ULL(ICE_FLOW_FIELD_IDX_UDP_DST_PORT)
-#define ICE_FLOW_HASH_FLD_SCTP_SRC_PORT	\
-	BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT)
-#define ICE_FLOW_HASH_FLD_SCTP_DST_PORT	\
-	BIT_ULL(ICE_FLOW_FIELD_IDX_SCTP_DST_PORT)
-
 /**
  * ice_parse_hash_flds - parses hash fields from RSS hash input
  * @nfc: ethtool rxnfc command
+ * @symm: true if Symmetric Topelitz is set
  *
  * This function parses the rxnfc command and returns intended
  * hash fields for RSS configuration
  */
-static u64 ice_parse_hash_flds(struct ethtool_rxnfc *nfc)
+static u64 ice_parse_hash_flds(struct ethtool_rxnfc *nfc, bool symm)
 {
 	u64 hfld = ICE_HASH_INVALID;
 
@@ -2591,9 +2579,11 @@ static int
 ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 {
 	struct ice_pf *pf = vsi->back;
+	struct ice_rss_hash_cfg cfg;
 	struct device *dev;
 	u64 hashed_flds;
 	int status;
+	bool symm;
 	u32 hdrs;
 
 	dev = ice_pf_to_dev(pf);
@@ -2603,7 +2593,8 @@ ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 		return -EINVAL;
 	}
 
-	hashed_flds = ice_parse_hash_flds(nfc);
+	symm = !!(vsi->rss_hfunc == ICE_AQ_VSI_Q_OPT_RSS_HASH_SYM_TPLZ);
+	hashed_flds = ice_parse_hash_flds(nfc, symm);
 	if (hashed_flds == ICE_HASH_INVALID) {
 		dev_dbg(dev, "Invalid hash fields, vsi num = %d\n",
 			vsi->vsi_num);
@@ -2617,7 +2608,12 @@ ice_set_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 		return -EINVAL;
 	}
 
-	status = ice_add_rss_cfg(&pf->hw, vsi->idx, hashed_flds, hdrs);
+	cfg.hash_flds = hashed_flds;
+	cfg.addl_hdrs = hdrs;
+	cfg.hdr_type = ICE_RSS_ANY_HEADERS;
+	cfg.symm = symm;
+
+	status = ice_add_rss_cfg(&pf->hw, vsi, &cfg);
 	if (status) {
 		dev_dbg(dev, "ice_add_rss_cfg failed, vsi num = %d, error = %d\n",
 			vsi->vsi_num, status);
@@ -2638,6 +2634,7 @@ ice_get_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	u64 hash_flds;
+	bool symm;
 	u32 hdrs;
 
 	dev = ice_pf_to_dev(pf);
@@ -2656,7 +2653,7 @@ ice_get_rss_hash_opt(struct ice_vsi *vsi, struct ethtool_rxnfc *nfc)
 		return;
 	}
 
-	hash_flds = ice_get_rss_cfg(&pf->hw, vsi->idx, hdrs);
+	hash_flds = ice_get_rss_cfg(&pf->hw, vsi->idx, hdrs, &symm);
 	if (hash_flds == ICE_HASH_INVALID) {
 		dev_dbg(dev, "No hash fields found for the given header type, vsi num = %d\n",
 			vsi->vsi_num);
@@ -3195,11 +3192,18 @@ static u32 ice_get_rxfh_indir_size(struct net_device *netdev)
 	return np->vsi->rss_table_size;
 }
 
+/**
+ * ice_get_rxfh - get the Rx flow hash indirection table
+ * @netdev: network interface device structure
+ * @rxfh: pointer to param struct (indir, key, hfunc)
+ *
+ * Reads the indirection table directly from the hardware.
+ */
 static int
-ice_get_rxfh_context(struct net_device *netdev, u32 *indir,
-		     u8 *key, u8 *hfunc, u32 rss_context)
+ice_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	u32 rss_context = rxfh->rss_context;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	u16 qcount, offset;
@@ -3230,17 +3234,18 @@ ice_get_rxfh_context(struct net_device *netdev, u32 *indir,
 		vsi = vsi->tc_map_vsi[rss_context];
 	}
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (vsi->rss_hfunc == ICE_AQ_VSI_Q_OPT_RSS_HASH_SYM_TPLZ)
+		rxfh->input_xfrm |= RXH_XFRM_SYM_XOR;
 
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
 		return -ENOMEM;
 
-	err = ice_get_rss_key(vsi, key);
+	err = ice_get_rss_key(vsi, rxfh->key);
 	if (err)
 		goto out;
 
@@ -3250,12 +3255,12 @@ ice_get_rxfh_context(struct net_device *netdev, u32 *indir,
 
 	if (ice_is_adq_active(pf)) {
 		for (i = 0; i < vsi->rss_table_size; i++)
-			indir[i] = offset + lut[i] % qcount;
+			rxfh->indir[i] = offset + lut[i] % qcount;
 		goto out;
 	}
 
 	for (i = 0; i < vsi->rss_table_size; i++)
-		indir[i] = lut[i];
+		rxfh->indir[i] = lut[i];
 
 out:
 	kfree(lut);
@@ -3263,42 +3268,31 @@ out:
 }
 
 /**
- * ice_get_rxfh - get the Rx flow hash indirection table
- * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function
- *
- * Reads the indirection table directly from the hardware.
- */
-static int
-ice_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
-{
-	return ice_get_rxfh_context(netdev, indir, key, hfunc, 0);
-}
-
-/**
  * ice_set_rxfh - set the Rx flow hash indirection table
  * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function
+ * @rxfh: pointer to param struct (indir, key, hfunc)
+ * @extack: extended ACK from the Netlink message
  *
  * Returns -EINVAL if the table specifies an invalid queue ID, otherwise
  * returns 0 after programming the table.
  */
 static int
-ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
-	     const u8 hfunc)
+ice_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
+	     struct netlink_ext_ack *extack)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
+	u8 hfunc = ICE_AQ_VSI_Q_OPT_RSS_HASH_TPLZ;
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
 	struct device *dev;
 	int err;
 
 	dev = ice_pf_to_dev(pf);
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (rxfh->rss_context)
 		return -EOPNOTSUPP;
 
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
@@ -3312,7 +3306,15 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 		return -EOPNOTSUPP;
 	}
 
-	if (key) {
+	/* Update the VSI's hash function */
+	if (rxfh->input_xfrm & RXH_XFRM_SYM_XOR)
+		hfunc = ICE_AQ_VSI_Q_OPT_RSS_HASH_SYM_TPLZ;
+
+	err = ice_set_rss_hfunc(vsi, hfunc);
+	if (err)
+		return err;
+
+	if (rxfh->key) {
 		if (!vsi->rss_hkey_user) {
 			vsi->rss_hkey_user =
 				devm_kzalloc(dev, ICE_VSIQF_HKEY_ARRAY_SIZE,
@@ -3320,7 +3322,8 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 			if (!vsi->rss_hkey_user)
 				return -ENOMEM;
 		}
-		memcpy(vsi->rss_hkey_user, key, ICE_VSIQF_HKEY_ARRAY_SIZE);
+		memcpy(vsi->rss_hkey_user, rxfh->key,
+		       ICE_VSIQF_HKEY_ARRAY_SIZE);
 
 		err = ice_set_rss_key(vsi, vsi->rss_hkey_user);
 		if (err)
@@ -3335,11 +3338,11 @@ ice_set_rxfh(struct net_device *netdev, const u32 *indir, const u8 *key,
 	}
 
 	/* Each 32 bits pointed by 'indir' is stored with a lut entry */
-	if (indir) {
+	if (rxfh->indir) {
 		int i;
 
 		for (i = 0; i < vsi->rss_table_size; i++)
-			vsi->rss_lut_user[i] = (u8)(indir[i]);
+			vsi->rss_lut_user[i] = (u8)(rxfh->indir[i]);
 	} else {
 		ice_fill_rss_lut(vsi->rss_lut_user, vsi->rss_table_size,
 				 vsi->rss_size);
@@ -4217,9 +4220,11 @@ ice_get_module_eeprom(struct net_device *netdev,
 }
 
 static const struct ethtool_ops ice_ethtool_ops = {
+	.cap_rss_ctx_supported  = true,
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE |
 				     ETHTOOL_COALESCE_RX_USECS_HIGH,
+	.cap_rss_sym_xor_supported = true,
 	.get_link_ksettings	= ice_get_link_ksettings,
 	.set_link_ksettings	= ice_set_link_ksettings,
 	.get_drvinfo		= ice_get_drvinfo,
@@ -4250,7 +4255,6 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.set_pauseparam		= ice_set_pauseparam,
 	.get_rxfh_key_size	= ice_get_rxfh_key_size,
 	.get_rxfh_indir_size	= ice_get_rxfh_indir_size,
-	.get_rxfh_context	= ice_get_rxfh_context,
 	.get_rxfh		= ice_get_rxfh,
 	.set_rxfh		= ice_set_rxfh,
 	.get_channels		= ice_get_channels,

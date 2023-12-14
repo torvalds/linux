@@ -10,19 +10,6 @@
 #define to_fltr_conf_from_desc(p) \
 	container_of(p, struct virtchnl_fdir_fltr_conf, input)
 
-#define ICE_FLOW_PROF_TYPE_S	0
-#define ICE_FLOW_PROF_TYPE_M	(0xFFFFFFFFULL << ICE_FLOW_PROF_TYPE_S)
-#define ICE_FLOW_PROF_VSI_S	32
-#define ICE_FLOW_PROF_VSI_M	(0xFFFFFFFFULL << ICE_FLOW_PROF_VSI_S)
-
-/* Flow profile ID format:
- * [0:31] - flow type, flow + tun_offs
- * [32:63] - VSI index
- */
-#define ICE_FLOW_PROF_FD(vsi, flow, tun_offs) \
-	((u64)(((((flow) + (tun_offs)) & ICE_FLOW_PROF_TYPE_M)) | \
-	      (((u64)(vsi) << ICE_FLOW_PROF_VSI_S) & ICE_FLOW_PROF_VSI_M)))
-
 #define GTPU_TEID_OFFSET 4
 #define GTPU_EH_QFI_OFFSET 1
 #define GTPU_EH_QFI_MASK 0x3F
@@ -493,6 +480,7 @@ ice_vc_fdir_rem_prof(struct ice_vf *vf, enum ice_fltr_ptype flow, int tun)
 		return;
 
 	vf_prof = fdir->fdir_prof[flow];
+	prof_id = vf_prof->prof_id[tun];
 
 	vf_vsi = ice_get_vf_vsi(vf);
 	if (!vf_vsi) {
@@ -502,9 +490,6 @@ ice_vc_fdir_rem_prof(struct ice_vf *vf, enum ice_fltr_ptype flow, int tun)
 
 	if (!fdir->prof_entry_cnt[flow][tun])
 		return;
-
-	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num,
-				   flow, tun ? ICE_FLTR_PTYPE_MAX : 0);
 
 	for (i = 0; i < fdir->prof_entry_cnt[flow][tun]; i++)
 		if (vf_prof->entry_h[i][tun]) {
@@ -647,7 +632,6 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	struct ice_hw *hw;
 	u64 entry1_h = 0;
 	u64 entry2_h = 0;
-	u64 prof_id;
 	int ret;
 
 	pf = vf->pf;
@@ -681,18 +665,15 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 		ice_vc_fdir_rem_prof(vf, flow, tun);
 	}
 
-	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num, flow,
-				   tun ? ICE_FLTR_PTYPE_MAX : 0);
-
-	ret = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
-				tun + 1, &prof);
+	ret = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, seg,
+				tun + 1, false, &prof);
 	if (ret) {
 		dev_dbg(dev, "Could not add VSI flow 0x%x for VF %d\n",
 			flow, vf->vf_id);
 		goto err_exit;
 	}
 
-	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof->id, vf_vsi->idx,
 				 vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				 seg, &entry1_h);
 	if (ret) {
@@ -701,7 +682,7 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 		goto err_prof;
 	}
 
-	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof->id, vf_vsi->idx,
 				 ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
 				 seg, &entry2_h);
 	if (ret) {
@@ -725,14 +706,16 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	vf_prof->cnt++;
 	fdir->prof_entry_cnt[flow][tun]++;
 
+	vf_prof->prof_id[tun] = prof->id;
+
 	return 0;
 
 err_entry_1:
 	ice_rem_prof_id_flow(hw, ICE_BLK_FD,
-			     ice_get_hw_vsi_num(hw, vf_vsi->idx), prof_id);
+			     ice_get_hw_vsi_num(hw, vf_vsi->idx), prof->id);
 	ice_flow_rem_entry(hw, ICE_BLK_FD, entry1_h);
 err_prof:
-	ice_flow_rem_prof(hw, ICE_BLK_FD, prof_id);
+	ice_flow_rem_prof(hw, ICE_BLK_FD, prof->id);
 err_exit:
 	return ret;
 }

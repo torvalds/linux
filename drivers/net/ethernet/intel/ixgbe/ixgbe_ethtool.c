@@ -3107,35 +3107,37 @@ static void ixgbe_get_reta(struct ixgbe_adapter *adapter, u32 *indir)
 		indir[i] = adapter->rss_indir_tbl[i] & rss_m;
 }
 
-static int ixgbe_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			  u8 *hfunc)
+static int ixgbe_get_rxfh(struct net_device *netdev,
+			  struct ethtool_rxfh_param *rxfh)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
-	if (indir)
-		ixgbe_get_reta(adapter, indir);
+	if (rxfh->indir)
+		ixgbe_get_reta(adapter, rxfh->indir);
 
-	if (key)
-		memcpy(key, adapter->rss_key, ixgbe_get_rxfh_key_size(netdev));
+	if (rxfh->key)
+		memcpy(rxfh->key, adapter->rss_key,
+		       ixgbe_get_rxfh_key_size(netdev));
 
 	return 0;
 }
 
-static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
-			  const u8 *key, const u8 hfunc)
+static int ixgbe_set_rxfh(struct net_device *netdev,
+			  struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i;
 	u32 reta_entries = ixgbe_rss_indir_tbl_entries(adapter);
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
 	/* Fill out the redirection table */
-	if (indir) {
+	if (rxfh->indir) {
 		int max_queues = min_t(int, adapter->num_rx_queues,
 				       ixgbe_rss_indir_tbl_max(adapter));
 
@@ -3146,18 +3148,19 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 		/* Verify user input. */
 		for (i = 0; i < reta_entries; i++)
-			if (indir[i] >= max_queues)
+			if (rxfh->indir[i] >= max_queues)
 				return -EINVAL;
 
 		for (i = 0; i < reta_entries; i++)
-			adapter->rss_indir_tbl[i] = indir[i];
+			adapter->rss_indir_tbl[i] = rxfh->indir[i];
 
 		ixgbe_store_reta(adapter);
 	}
 
 	/* Fill out the rss hash key */
-	if (key) {
-		memcpy(adapter->rss_key, key, ixgbe_get_rxfh_key_size(netdev));
+	if (rxfh->key) {
+		memcpy(adapter->rss_key, rxfh->key,
+		       ixgbe_get_rxfh_key_size(netdev));
 		ixgbe_store_key(adapter);
 	}
 

@@ -75,14 +75,12 @@ static u32 idpf_get_rxfh_indir_size(struct net_device *netdev)
 /**
  * idpf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function in use
+ * @rxfh: pointer to param struct (indir, key, hfunc)
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  */
-static int idpf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+static int idpf_get_rxfh(struct net_device *netdev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct idpf_netdev_priv *np = netdev_priv(netdev);
 	struct idpf_rss_data *rss_data;
@@ -103,15 +101,14 @@ static int idpf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (np->state != __IDPF_VPORT_UP)
 		goto unlock_mutex;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
-	if (key)
-		memcpy(key, rss_data->rss_key, rss_data->rss_key_size);
+	if (rxfh->key)
+		memcpy(rxfh->key, rss_data->rss_key, rss_data->rss_key_size);
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < rss_data->rss_lut_size; i++)
-			indir[i] = rss_data->rss_lut[i];
+			rxfh->indir[i] = rss_data->rss_lut[i];
 	}
 
 unlock_mutex:
@@ -123,15 +120,15 @@ unlock_mutex:
 /**
  * idpf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function to use
+ * @rxfh: pointer to param struct (indir, key, hfunc)
+ * @extack: extended ACK from the Netlink message
  *
  * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.
  */
-static int idpf_set_rxfh(struct net_device *netdev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int idpf_set_rxfh(struct net_device *netdev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct idpf_netdev_priv *np = netdev_priv(netdev);
 	struct idpf_rss_data *rss_data;
@@ -154,17 +151,18 @@ static int idpf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	if (np->state != __IDPF_VPORT_UP)
 		goto unlock_mutex;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) {
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP) {
 		err = -EOPNOTSUPP;
 		goto unlock_mutex;
 	}
 
-	if (key)
-		memcpy(rss_data->rss_key, key, rss_data->rss_key_size);
+	if (rxfh->key)
+		memcpy(rss_data->rss_key, rxfh->key, rss_data->rss_key_size);
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (lut = 0; lut < rss_data->rss_lut_size; lut++)
-			rss_data->rss_lut[lut] = indir[lut];
+			rss_data->rss_lut[lut] = rxfh->indir[lut];
 	}
 
 	err = idpf_config_rss(vport);

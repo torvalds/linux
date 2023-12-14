@@ -248,28 +248,28 @@ static u32 mana_rss_indir_size(struct net_device *ndev)
 	return MANA_INDIRECT_TABLE_SIZE;
 }
 
-static int mana_get_rxfh(struct net_device *ndev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+static int mana_get_rxfh(struct net_device *ndev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	int i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
+	rxfh->hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++)
-			indir[i] = apc->indir_table[i];
+			rxfh->indir[i] = apc->indir_table[i];
 	}
 
-	if (key)
-		memcpy(key, apc->hashkey, MANA_HASH_KEY_SIZE);
+	if (rxfh->key)
+		memcpy(rxfh->key, apc->hashkey, MANA_HASH_KEY_SIZE);
 
 	return 0;
 }
 
-static int mana_set_rxfh(struct net_device *ndev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int mana_set_rxfh(struct net_device *ndev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	bool update_hash = false, update_table = false;
@@ -280,25 +280,26 @@ static int mana_set_rxfh(struct net_device *ndev, const u32 *indir,
 	if (!apc->port_is_up)
 		return -EOPNOTSUPP;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++)
-			if (indir[i] >= apc->num_queues)
+			if (rxfh->indir[i] >= apc->num_queues)
 				return -EINVAL;
 
 		update_table = true;
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++) {
 			save_table[i] = apc->indir_table[i];
-			apc->indir_table[i] = indir[i];
+			apc->indir_table[i] = rxfh->indir[i];
 		}
 	}
 
-	if (key) {
+	if (rxfh->key) {
 		update_hash = true;
 		memcpy(save_key, apc->hashkey, MANA_HASH_KEY_SIZE);
-		memcpy(apc->hashkey, key, MANA_HASH_KEY_SIZE);
+		memcpy(apc->hashkey, rxfh->key, MANA_HASH_KEY_SIZE);
 	}
 
 	err = mana_config_rss(apc, TRI_STATE_TRUE, update_hash, update_table);

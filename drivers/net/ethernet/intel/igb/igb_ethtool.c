@@ -3280,18 +3280,17 @@ static u32 igb_get_rxfh_indir_size(struct net_device *netdev)
 	return IGB_RETA_SIZE;
 }
 
-static int igb_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			u8 *hfunc)
+static int igb_get_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	int i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (!indir)
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (!rxfh->indir)
 		return 0;
 	for (i = 0; i < IGB_RETA_SIZE; i++)
-		indir[i] = adapter->rss_indir_tbl[i];
+		rxfh->indir[i] = adapter->rss_indir_tbl[i];
 
 	return 0;
 }
@@ -3331,8 +3330,9 @@ void igb_write_rss_indir_tbl(struct igb_adapter *adapter)
 	}
 }
 
-static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
-			const u8 *key, const u8 hfunc)
+static int igb_set_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh,
+			struct netlink_ext_ack *extack)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -3340,10 +3340,11 @@ static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
 	u32 num_queues;
 
 	/* We do not allow change in unsupported parameters */
-	if (key ||
-	    (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->key ||
+	    (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh->hfunc != ETH_RSS_HASH_TOP))
 		return -EOPNOTSUPP;
-	if (!indir)
+	if (!rxfh->indir)
 		return 0;
 
 	num_queues = adapter->rss_queues;
@@ -3360,12 +3361,12 @@ static int igb_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	/* Verify user input. */
 	for (i = 0; i < IGB_RETA_SIZE; i++)
-		if (indir[i] >= num_queues)
+		if (rxfh->indir[i] >= num_queues)
 			return -EINVAL;
 
 
 	for (i = 0; i < IGB_RETA_SIZE; i++)
-		adapter->rss_indir_tbl[i] = indir[i];
+		adapter->rss_indir_tbl[i] = rxfh->indir[i];
 
 	igb_write_rss_indir_tbl(adapter);
 
