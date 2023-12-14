@@ -54,6 +54,10 @@ definitions:
         name: hash
         doc:
           Device is capable of exposing receive packet hash via bpf_xdp_metadata_rx_hash().
+      -
+        name: vlan-tag
+        doc:
+          Device is capable of exposing receive packet VLAN tag via bpf_xdp_metadata_rx_vlan_tag().
   -
     type: flags
     name: xsk-flags

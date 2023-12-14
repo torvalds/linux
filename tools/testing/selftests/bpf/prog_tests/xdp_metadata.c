@@ -20,7 +20,7 @@
 
 #define UDP_PAYLOAD_BYTES 4
 
-#define AF_XDP_SOURCE_PORT 1234
+#define UDP_SOURCE_PORT 1234
 #define AF_XDP_CONSUMER_PORT 8080
 
 #define UMEM_NUM 16
@@ -33,6 +33,18 @@
 #define RX_ADDR "10.0.0.2"
 #define PREFIX_LEN "8"
 #define FAMILY AF_INET
+#define TX_NETNS_NAME "xdp_metadata_tx"
+#define RX_NETNS_NAME "xdp_metadata_rx"
+#define TX_MAC "00:00:00:00:00:01"
+#define RX_MAC "00:00:00:00:00:02"
+
+#define VLAN_ID 59
+#define VLAN_PROTO "802.1Q"
+#define VLAN_PID htons(ETH_P_8021Q)
+#define TX_NAME_VLAN TX_NAME "." TO_STR(VLAN_ID)
+
+#define XDP_RSS_TYPE_L4 BIT(3)
+#define VLAN_VID_MASK 0xfff
 
 struct xsk {
 	void *umem_area;
@@ -181,7 +193,7 @@ static int generate_packet(struct xsk *xsk, __u16 dst_port)
 	ASSERT_EQ(inet_pton(FAMILY, RX_ADDR, &iph->daddr), 1, "inet_pton(RX_ADDR)");
 	ip_csum(iph);
 
-	udph->source = htons(AF_XDP_SOURCE_PORT);
+	udph->source = htons(UDP_SOURCE_PORT);
 	udph->dest = htons(dst_port);
 	udph->len = htons(sizeof(*udph) + UDP_PAYLOAD_BYTES);
 	udph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
@@ -202,6 +214,30 @@ static int generate_packet(struct xsk *xsk, __u16 dst_port)
 		return ret;
 
 	return 0;
+}
+
+static int generate_packet_inet(void)
+{
+	char udp_payload[UDP_PAYLOAD_BYTES];
+	struct sockaddr_in rx_addr;
+	int sock_fd, err = 0;
+
+	/* Build a packet */
+	memset(udp_payload, 0xAA, UDP_PAYLOAD_BYTES);
+	rx_addr.sin_addr.s_addr = inet_addr(RX_ADDR);
+	rx_addr.sin_family = AF_INET;
+	rx_addr.sin_port = htons(AF_XDP_CONSUMER_PORT);
+
+	sock_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (!ASSERT_GE(sock_fd, 0, "socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)"))
+		return sock_fd;
+
+	err = sendto(sock_fd, udp_payload, UDP_PAYLOAD_BYTES, MSG_DONTWAIT,
+		     (void *)&rx_addr, sizeof(rx_addr));
+	ASSERT_GE(err, 0, "sendto");
+
+	close(sock_fd);
+	return err;
 }
 
 static void complete_tx(struct xsk *xsk)
@@ -236,7 +272,7 @@ static void refill_rx(struct xsk *xsk, __u64 addr)
 	}
 }
 
-static int verify_xsk_metadata(struct xsk *xsk)
+static int verify_xsk_metadata(struct xsk *xsk, bool sent_from_af_xdp)
 {
 	const struct xdp_desc *rx_desc;
 	struct pollfd fds = {};
@@ -290,15 +326,40 @@ static int verify_xsk_metadata(struct xsk *xsk)
 	if (!ASSERT_NEQ(meta->rx_hash, 0, "rx_hash"))
 		return -1;
 
+	if (!sent_from_af_xdp) {
+		if (!ASSERT_NEQ(meta->rx_hash_type & XDP_RSS_TYPE_L4, 0, "rx_hash_type"))
+			return -1;
+
+		if (!ASSERT_EQ(meta->rx_vlan_tci & VLAN_VID_MASK, VLAN_ID, "rx_vlan_tci"))
+			return -1;
+
+		if (!ASSERT_EQ(meta->rx_vlan_proto, VLAN_PID, "rx_vlan_proto"))
+			return -1;
+		goto done;
+	}
+
 	ASSERT_EQ(meta->rx_hash_type, 0, "rx_hash_type");
 
 	/* checksum offload */
 	ASSERT_EQ(udph->check, htons(0x721c), "csum");
 
+done:
 	xsk_ring_cons__release(&xsk->rx, 1);
 	refill_rx(xsk, comp_addr);
 
 	return 0;
+}
+
+static void switch_ns_to_rx(struct nstoken **tok)
+{
+	close_netns(*tok);
+	*tok = open_netns(RX_NETNS_NAME);
+}
+
+static void switch_ns_to_tx(struct nstoken **tok)
+{
+	close_netns(*tok);
+	*tok = open_netns(TX_NETNS_NAME);
 }
 
 void test_xdp_metadata(void)
@@ -318,27 +379,35 @@ void test_xdp_metadata(void)
 	int sock_fd;
 	int ret;
 
-	/* Setup new networking namespace, with a veth pair. */
+	/* Setup new networking namespaces, with a veth pair. */
+	SYS(out, "ip netns add " TX_NETNS_NAME);
+	SYS(out, "ip netns add " RX_NETNS_NAME);
 
-	SYS(out, "ip netns add xdp_metadata");
-	tok = open_netns("xdp_metadata");
+	tok = open_netns(TX_NETNS_NAME);
 	SYS(out, "ip link add numtxqueues 1 numrxqueues 1 " TX_NAME
 	    " type veth peer " RX_NAME " numtxqueues 1 numrxqueues 1");
-	SYS(out, "ip link set dev " TX_NAME " address 00:00:00:00:00:01");
-	SYS(out, "ip link set dev " RX_NAME " address 00:00:00:00:00:02");
+	SYS(out, "ip link set " RX_NAME " netns " RX_NETNS_NAME);
+
+	SYS(out, "ip link set dev " TX_NAME " address " TX_MAC);
 	SYS(out, "ip link set dev " TX_NAME " up");
+
+	SYS(out, "ip link add link " TX_NAME " " TX_NAME_VLAN
+		 " type vlan proto " VLAN_PROTO " id " TO_STR(VLAN_ID));
+	SYS(out, "ip link set dev " TX_NAME_VLAN " up");
+	SYS(out, "ip addr add " TX_ADDR "/" PREFIX_LEN " dev " TX_NAME_VLAN);
+
+	/* Avoid ARP calls */
+	SYS(out, "ip -4 neigh add " RX_ADDR " lladdr " RX_MAC " dev " TX_NAME_VLAN);
+
+	switch_ns_to_rx(&tok);
+
+	SYS(out, "ip link set dev " RX_NAME " address " RX_MAC);
 	SYS(out, "ip link set dev " RX_NAME " up");
-	SYS(out, "ip addr add " TX_ADDR "/" PREFIX_LEN " dev " TX_NAME);
 	SYS(out, "ip addr add " RX_ADDR "/" PREFIX_LEN " dev " RX_NAME);
 
 	rx_ifindex = if_nametoindex(RX_NAME);
-	tx_ifindex = if_nametoindex(TX_NAME);
 
-	/* Setup separate AF_XDP for TX and RX interfaces. */
-
-	ret = open_xsk(tx_ifindex, &tx_xsk);
-	if (!ASSERT_OK(ret, "open_xsk(TX_NAME)"))
-		goto out;
+	/* Setup separate AF_XDP for RX interface. */
 
 	ret = open_xsk(rx_ifindex, &rx_xsk);
 	if (!ASSERT_OK(ret, "open_xsk(RX_NAME)"))
@@ -379,17 +448,37 @@ void test_xdp_metadata(void)
 	if (!ASSERT_GE(ret, 0, "bpf_map_update_elem"))
 		goto out;
 
-	/* Send packet destined to RX AF_XDP socket. */
+	switch_ns_to_tx(&tok);
+
+	/* Setup separate AF_XDP for TX interface nad send packet to the RX socket. */
+	tx_ifindex = if_nametoindex(TX_NAME);
+	ret = open_xsk(tx_ifindex, &tx_xsk);
+	if (!ASSERT_OK(ret, "open_xsk(TX_NAME)"))
+		goto out;
+
 	if (!ASSERT_GE(generate_packet(&tx_xsk, AF_XDP_CONSUMER_PORT), 0,
 		       "generate AF_XDP_CONSUMER_PORT"))
 		goto out;
 
-	/* Verify AF_XDP RX packet has proper metadata. */
-	if (!ASSERT_GE(verify_xsk_metadata(&rx_xsk), 0,
+	switch_ns_to_rx(&tok);
+
+	/* Verify packet sent from AF_XDP has proper metadata. */
+	if (!ASSERT_GE(verify_xsk_metadata(&rx_xsk, true), 0,
 		       "verify_xsk_metadata"))
 		goto out;
 
+	switch_ns_to_tx(&tok);
 	complete_tx(&tx_xsk);
+
+	/* Now check metadata of packet, generated with network stack */
+	if (!ASSERT_GE(generate_packet_inet(), 0, "generate UDP packet"))
+		goto out;
+
+	switch_ns_to_rx(&tok);
+
+	if (!ASSERT_GE(verify_xsk_metadata(&rx_xsk, false), 0,
+		       "verify_xsk_metadata"))
+		goto out;
 
 	/* Make sure freplace correctly picks up original bound device
 	 * and doesn't crash.
@@ -408,10 +497,14 @@ void test_xdp_metadata(void)
 	if (!ASSERT_OK(xdp_metadata2__attach(bpf_obj2), "attach freplace"))
 		goto out;
 
+	switch_ns_to_tx(&tok);
+
 	/* Send packet to trigger . */
 	if (!ASSERT_GE(generate_packet(&tx_xsk, AF_XDP_CONSUMER_PORT), 0,
 		       "generate freplace packet"))
 		goto out;
+
+	switch_ns_to_rx(&tok);
 
 	while (!retries--) {
 		if (bpf_obj2->bss->called)
@@ -427,5 +520,6 @@ out:
 	xdp_metadata__destroy(bpf_obj);
 	if (tok)
 		close_netns(tok);
-	SYS_NOFAIL("ip netns del xdp_metadata");
+	SYS_NOFAIL("ip netns del " RX_NETNS_NAME);
+	SYS_NOFAIL("ip netns del " TX_NETNS_NAME);
 }
