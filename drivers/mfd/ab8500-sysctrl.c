@@ -30,7 +30,7 @@ static void ab8500_power_off(void)
 {
 	sigset_t old;
 	sigset_t all;
-	static const char * const pss[] = {"ab8500_ac", "pm2301", "ab8500_usb"};
+	static const char * const pss[] = {"ab8500_ac", "ab8500_usb"};
 	int i;
 	bool charger_present = false;
 	union power_supply_propval val;
