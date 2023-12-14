@@ -138,6 +138,15 @@ config PINCTRL_METEORLAKE
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Meteor Lake pins and using them as GPIOs.
 
+config PINCTRL_METEORPOINT
+	tristate "Intel Meteor Point pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Meteor Point is the PCH of Intel Meteor Lake. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
+
 config PINCTRL_SUNRISEPOINT
 	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
 	select PINCTRL_INTEL
