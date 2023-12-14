@@ -4057,13 +4057,14 @@ int btrfs_qgroup_reserve_data(struct btrfs_inode *inode,
 
 /* Free ranges specified by @reserved, normally in error path */
 static int qgroup_free_reserved_data(struct btrfs_inode *inode,
-			struct extent_changeset *reserved, u64 start, u64 len)
+				     struct extent_changeset *reserved,
+				     u64 start, u64 len, u64 *freed_ret)
 {
 	struct btrfs_root *root = inode->root;
 	struct ulist_node *unode;
 	struct ulist_iterator uiter;
 	struct extent_changeset changeset;
-	int freed = 0;
+	u64 freed = 0;
 	int ret;
 
 	extent_changeset_init(&changeset);
@@ -4104,7 +4105,9 @@ static int qgroup_free_reserved_data(struct btrfs_inode *inode,
 	}
 	btrfs_qgroup_free_refroot(root->fs_info, root->root_key.objectid, freed,
 				  BTRFS_QGROUP_RSV_DATA);
-	ret = freed;
+	if (freed_ret)
+		*freed_ret = freed;
+	ret = 0;
 out:
 	extent_changeset_release(&changeset);
 	return ret;
@@ -4112,7 +4115,7 @@ out:
 
 static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 			struct extent_changeset *reserved, u64 start, u64 len,
-			int free)
+			u64 *released, int free)
 {
 	struct extent_changeset changeset;
 	int trace_op = QGROUP_RELEASE;
@@ -4128,7 +4131,7 @@ static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 	/* In release case, we shouldn't have @reserved */
 	WARN_ON(!free && reserved);
 	if (free && reserved)
-		return qgroup_free_reserved_data(inode, reserved, start, len);
+		return qgroup_free_reserved_data(inode, reserved, start, len, released);
 	extent_changeset_init(&changeset);
 	ret = clear_record_extent_bits(&inode->io_tree, start, start + len -1,
 				       EXTENT_QGROUP_RESERVED, &changeset);
@@ -4143,7 +4146,8 @@ static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 		btrfs_qgroup_free_refroot(inode->root->fs_info,
 				inode->root->root_key.objectid,
 				changeset.bytes_changed, BTRFS_QGROUP_RSV_DATA);
-	ret = changeset.bytes_changed;
+	if (released)
+		*released = changeset.bytes_changed;
 out:
 	extent_changeset_release(&changeset);
 	return ret;
@@ -4162,9 +4166,10 @@ out:
  * NOTE: This function may sleep for memory allocation.
  */
 int btrfs_qgroup_free_data(struct btrfs_inode *inode,
-			struct extent_changeset *reserved, u64 start, u64 len)
+			   struct extent_changeset *reserved,
+			   u64 start, u64 len, u64 *freed)
 {
-	return __btrfs_qgroup_release_data(inode, reserved, start, len, 1);
+	return __btrfs_qgroup_release_data(inode, reserved, start, len, freed, 1);
 }
 
 /*
@@ -4182,9 +4187,9 @@ int btrfs_qgroup_free_data(struct btrfs_inode *inode,
  *
  * NOTE: This function may sleep for memory allocation.
  */
-int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len)
+int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len, u64 *released)
 {
-	return __btrfs_qgroup_release_data(inode, NULL, start, len, 0);
+	return __btrfs_qgroup_release_data(inode, NULL, start, len, released, 0);
 }
 
 static void add_root_meta_rsv(struct btrfs_root *root, int num_bytes,
@@ -4332,8 +4337,9 @@ static void qgroup_convert_meta(struct btrfs_fs_info *fs_info, u64 ref_root,
 
 		qgroup_rsv_release(fs_info, qgroup, num_bytes,
 				BTRFS_QGROUP_RSV_META_PREALLOC);
-		qgroup_rsv_add(fs_info, qgroup, num_bytes,
-				BTRFS_QGROUP_RSV_META_PERTRANS);
+		if (!sb_rdonly(fs_info->sb))
+			qgroup_rsv_add(fs_info, qgroup, num_bytes,
+				       BTRFS_QGROUP_RSV_META_PERTRANS);
 
 		list_for_each_entry(glist, &qgroup->groups, next_group)
 			qgroup_iterator_add(&qgroup_list, glist->group);
@@ -4655,6 +4661,17 @@ void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans)
 	*root = RB_ROOT;
 }
 
+void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_bytes)
+{
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE)
+		return;
+
+	if (!is_fstree(root))
+		return;
+
+	btrfs_qgroup_free_refroot(fs_info, root, rsv_bytes, BTRFS_QGROUP_RSV_DATA);
+}
+
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 			      struct btrfs_squota_delta *delta)
 {
@@ -4699,8 +4716,5 @@ int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
 
 out:
 	spin_unlock(&fs_info->qgroup_lock);
-	if (!ret && delta->rsv_bytes)
-		btrfs_qgroup_free_refroot(fs_info, root, delta->rsv_bytes,
-					  BTRFS_QGROUP_RSV_DATA);
 	return ret;
 }
