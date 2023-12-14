@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR X11)
+/*
+ * Copyright 2023 TQ-Systems GmbH <linux@ew.tq-group.com>,
+ * D-82229 Seefeld, Germany.
+ * Author: Alexander Stein
+ */
+
+&vpu_core0 {
+	reg = <0x2d040000 0x10000>;
+};
+
+&vpu_core1 {
+	reg = <0x2d050000 0x10000>;
+};
+
+/delete-node/ &mu2_m0;
+/delete-node/ &vpu_core2;
