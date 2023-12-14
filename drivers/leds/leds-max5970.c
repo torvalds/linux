@@ -45,7 +45,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct device_node *led_node, *child;
 	struct max5970_led *ddata;
-	int ret = -ENODEV, num_leds = 0;
+	int ret = -ENODEV;
 
 	regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!regmap)
@@ -89,7 +89,6 @@ static int max5970_led_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to initialize LED %u\n", reg);
 			return ret;
 		}
-		num_leds++;
 	}
 
 	return ret;
