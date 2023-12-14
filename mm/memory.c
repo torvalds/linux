@@ -5944,7 +5944,7 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
 			if (bytes > PAGE_SIZE-offset)
 				bytes = PAGE_SIZE-offset;
 
-			maddr = kmap(page);
+			maddr = kmap_local_page(page);
 			if (write) {
 				copy_to_user_page(vma, page, addr,
 						  maddr + offset, buf, bytes);
@@ -5953,8 +5953,7 @@ static int __access_remote_vm(struct mm_struct *mm, unsigned long addr,
 				copy_from_user_page(vma, page, addr,
 						    buf, maddr + offset, bytes);
 			}
-			kunmap(page);
-			put_page(page);
+			unmap_and_put_page(page, maddr);
 		}
 		len -= bytes;
 		buf += bytes;
