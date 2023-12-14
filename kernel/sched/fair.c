@@ -8221,7 +8221,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
-	int next_buddy_marked = 0;
 	int cse_is_idle, pse_is_idle;
 
 	if (unlikely(se == pse))
@@ -8238,7 +8237,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 
 	if (sched_feat(NEXT_BUDDY) && !(wake_flags & WF_FORK)) {
 		set_next_buddy(pse);
-		next_buddy_marked = 1;
 	}
 
 	/*
