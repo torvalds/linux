@@ -403,12 +403,18 @@ struct drm_atomic_state {
 	bool duplicated : 1;
 
 	/**
-	 * @planes: pointer to array of structures with per-plane data
+	 * @planes:
+	 *
+	 * Pointer to array of @drm_plane and @drm_plane_state part of this
+	 * update.
 	 */
 	struct __drm_planes_state *planes;
 
 	/**
-	 * @crtcs: pointer to array of CRTC pointers
+	 * @crtcs:
+	 *
+	 * Pointer to array of @drm_crtc and @drm_crtc_state part of this
+	 * update.
 	 */
 	struct __drm_crtcs_state *crtcs;
 
@@ -418,7 +424,10 @@ struct drm_atomic_state {
 	int num_connector;
 
 	/**
-	 * @connectors: pointer to array of structures with per-connector data
+	 * @connectors:
+	 *
+	 * Pointer to array of @drm_connector and @drm_connector_state part of
+	 * this update.
 	 */
 	struct __drm_connnectors_state *connectors;
 
@@ -428,7 +437,10 @@ struct drm_atomic_state {
 	int num_private_objs;
 
 	/**
-	 * @private_objs: pointer to array of private object pointers
+	 * @private_objs:
+	 *
+	 * Pointer to array of @drm_private_obj and @drm_private_obj_state part
+	 * of this update.
 	 */
 	struct __drm_private_objs_state *private_objs;
 
