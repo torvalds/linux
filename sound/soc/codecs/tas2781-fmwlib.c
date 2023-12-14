@@ -2219,11 +2219,11 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 		goto out;
 	}
 
-	conf = &(tas_fmw->configs[cfg_no]);
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
 		if (cfg_info[rca_conf_no]->active_dev & (1 << i)) {
-			if (tas_priv->tasdevice[i].cur_prog != prm_no
-				|| tas_priv->force_fwload_status) {
+			if (prm_no >= 0
+				&& (tas_priv->tasdevice[i].cur_prog != prm_no
+				|| tas_priv->force_fwload_status)) {
 				tas_priv->tasdevice[i].cur_conf = -1;
 				tas_priv->tasdevice[i].is_loading = true;
 				prog_status++;
@@ -2258,7 +2258,8 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 	}
 
 	for (i = 0, status = 0; i < tas_priv->ndev; i++) {
-		if (tas_priv->tasdevice[i].cur_conf != cfg_no
+		if (cfg_no >= 0
+			&& tas_priv->tasdevice[i].cur_conf != cfg_no
 			&& (cfg_info[rca_conf_no]->active_dev & (1 << i))
 			&& (tas_priv->tasdevice[i].is_loaderr == false)) {
 			status++;
@@ -2268,6 +2269,7 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 	}
 
 	if (status) {
+		conf = &(tas_fmw->configs[cfg_no]);
 		status = 0;
 		tasdevice_load_data(tas_priv, &(conf->dev_data));
 		for (i = 0; i < tas_priv->ndev; i++) {
@@ -2311,7 +2313,7 @@ int tasdevice_prmg_load(void *context, int prm_no)
 	}
 
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
-		if (tas_priv->tasdevice[i].cur_prog != prm_no) {
+		if (prm_no >= 0 && tas_priv->tasdevice[i].cur_prog != prm_no) {
 			tas_priv->tasdevice[i].cur_conf = -1;
 			tas_priv->tasdevice[i].is_loading = true;
 			prog_status++;
@@ -2356,7 +2358,7 @@ int tasdevice_prmg_calibdata_load(void *context, int prm_no)
 	}
 
 	for (i = 0, prog_status = 0; i < tas_priv->ndev; i++) {
-		if (tas_priv->tasdevice[i].cur_prog != prm_no) {
+		if (prm_no >= 0 && tas_priv->tasdevice[i].cur_prog != prm_no) {
 			tas_priv->tasdevice[i].cur_conf = -1;
 			tas_priv->tasdevice[i].is_loading = true;
 			prog_status++;
