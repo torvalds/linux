@@ -47,6 +47,7 @@ properties:
           - qcom,sm8450-dwc3
           - qcom,sm8550-dwc3
           - qcom,sm8650-dwc3
+          - qcom,x1e80100-dwc3
       - const: qcom,dwc3
 
   reg:
@@ -264,6 +265,7 @@ allOf:
           contains:
             enum:
               - qcom,sc8280xp-dwc3
+              - qcom,x1e80100-dwc3
     then:
       properties:
         clocks:
@@ -459,6 +461,7 @@ allOf:
           contains:
             enum:
               - qcom,sc8280xp-dwc3
+              - qcom,x1e80100-dwc3
     then:
       properties:
         interrupts:
