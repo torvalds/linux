@@ -55,6 +55,12 @@ struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
 	bool db_push;
 	bool dbr_pacing;
+	u32 toggle_bits;
+};
+
+enum bnxt_re_toggle_modes {
+	BNXT_QPLIB_CQ_TOGGLE_BIT = 0x1,
+	BNXT_QPLIB_SRQ_TOGGLE_BIT = 0x2,
 };
 
 struct bnxt_qplib_chip_ctx {

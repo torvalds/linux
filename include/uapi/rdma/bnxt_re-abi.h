@@ -102,11 +102,16 @@ struct bnxt_re_cq_req {
 	__aligned_u64 cq_handle;
 };
 
+enum bnxt_re_cq_mask {
+	BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT = 0x1,
+};
+
 struct bnxt_re_cq_resp {
 	__u32 cqid;
 	__u32 tail;
 	__u32 phase;
 	__u32 rsvd;
+	__aligned_u64 comp_mask;
 };
 
 struct bnxt_re_resize_cq_req {

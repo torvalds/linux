@@ -108,6 +108,8 @@ struct bnxt_re_cq {
 	struct ib_umem		*umem;
 	struct ib_umem		*resize_umem;
 	int			resize_cqe;
+	void			*uctx_cq_page;
+	struct hlist_node	hash_entry;
 };
 
 struct bnxt_re_mr {

@@ -50,6 +50,7 @@
 #include <rdma/ib_mad.h>
 #include <rdma/ib_cache.h>
 #include <rdma/uverbs_ioctl.h>
+#include <linux/hashtable.h>
 
 #include "bnxt_ulp.h"
 
@@ -2910,14 +2911,20 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, const struct ib_recv_wr *wr,
 /* Completion Queues */
 int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
-	struct bnxt_re_cq *cq;
+	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_qplib_nq *nq;
 	struct bnxt_re_dev *rdev;
+	struct bnxt_re_cq *cq;
 
 	cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
 	rdev = cq->rdev;
 	nq = cq->qplib_cq.nq;
+	cctx = rdev->chip_ctx;
 
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT) {
+		free_page((unsigned long)cq->uctx_cq_page);
+		hash_del(&cq->hash_entry);
+	}
 	bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
 	ib_umem_release(cq->umem);
 
@@ -2935,10 +2942,11 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct bnxt_re_ucontext *uctx =
 		rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
-	int rc, entries;
-	int cqe = attr->cqe;
+	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_qplib_nq *nq = NULL;
+	int rc = -ENOMEM, entries;
 	unsigned int nq_alloc_cnt;
+	int cqe = attr->cqe;
 	u32 active_cqs;
 
 	if (attr->flags)
@@ -2951,6 +2959,7 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	}
 
 	cq->rdev = rdev;
+	cctx = rdev->chip_ctx;
 	cq->qplib_cq.cq_handle = (u64)(unsigned long)(&cq->qplib_cq);
 
 	entries = bnxt_re_init_depth(cqe + 1, uctx);
@@ -3012,22 +3021,32 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	spin_lock_init(&cq->cq_lock);
 
 	if (udata) {
-		struct bnxt_re_cq_resp resp;
+		struct bnxt_re_cq_resp resp = {};
 
+		if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT) {
+			hash_add(rdev->cq_hash, &cq->hash_entry, cq->qplib_cq.id);
+			/* Allocate a page */
+			cq->uctx_cq_page = (void *)get_zeroed_page(GFP_KERNEL);
+			if (!cq->uctx_cq_page)
+				goto c2fail;
+			resp.comp_mask |= BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT;
+		}
 		resp.cqid = cq->qplib_cq.id;
 		resp.tail = cq->qplib_cq.hwq.cons;
 		resp.phase = cq->qplib_cq.period;
 		resp.rsvd = 0;
-		rc = ib_copy_to_udata(udata, &resp, sizeof(resp));
+		rc = ib_copy_to_udata(udata, &resp, min(sizeof(resp), udata->outlen));
 		if (rc) {
 			ibdev_err(&rdev->ibdev, "Failed to copy CQ udata");
 			bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
-			goto c2fail;
+			goto free_mem;
 		}
 	}
 
 	return 0;
 
+free_mem:
+	free_page((unsigned long)cq->uctx_cq_page);
 c2fail:
 	ib_umem_release(cq->umem);
 fail:
@@ -4214,6 +4233,19 @@ void bnxt_re_dealloc_ucontext(struct ib_ucontext *ib_uctx)
 	}
 }
 
+static struct bnxt_re_cq *bnxt_re_search_for_cq(struct bnxt_re_dev *rdev, u32 cq_id)
+{
+	struct bnxt_re_cq *cq = NULL, *tmp_cq;
+
+	hash_for_each_possible(rdev->cq_hash, tmp_cq, hash_entry, cq_id) {
+		if (tmp_cq->qplib_cq.id == cq_id) {
+			cq = tmp_cq;
+			break;
+		}
+	}
+	return cq;
+}
+
 /* Helper function to mmap the virtual memory from user app */
 int bnxt_re_mmap(struct ib_ucontext *ib_uctx, struct vm_area_struct *vma)
 {
@@ -4442,10 +4474,12 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 	struct bnxt_re_ucontext *uctx;
 	struct ib_ucontext *ib_uctx;
 	struct bnxt_re_dev *rdev;
+	struct bnxt_re_cq *cq;
 	u64 mem_offset;
 	u64 addr = 0;
 	u32 length;
 	u32 offset;
+	u32 cq_id;
 	int err;
 
 	ib_uctx = ib_uverbs_get_ucontext(attrs);
@@ -4461,6 +4495,19 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 
 	switch (res_type) {
 	case BNXT_RE_CQ_TOGGLE_MEM:
+		err = uverbs_copy_from(&cq_id, attrs, BNXT_RE_TOGGLE_MEM_RES_ID);
+		if (err)
+			return err;
+
+		cq = bnxt_re_search_for_cq(rdev, cq_id);
+		if (!cq)
+			return -EINVAL;
+
+		length = PAGE_SIZE;
+		addr = (u64)cq->uctx_cq_page;
+		mmap_flag = BNXT_RE_MMAP_TOGGLE_PAGE;
+		offset = 0;
+		break;
 	case BNXT_RE_SRQ_TOGGLE_MEM:
 		break;
 
