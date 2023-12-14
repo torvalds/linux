@@ -104,7 +104,6 @@ typedef struct mdu_array_info_s {
 } mdu_array_info_t;
 
 /* non-obvious values for 'level' */
-#define	LEVEL_MULTIPATH		(-4)
 #define	LEVEL_FAULTY		(-5)
 
 /* we need a value for 'no level specified' and 0
