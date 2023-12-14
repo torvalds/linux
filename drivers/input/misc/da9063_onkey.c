@@ -74,13 +74,6 @@ static const struct da906x_chip_config da9062_regs = {
 	.name = "da9062-onkey",
 };
 
-static const struct of_device_id da9063_compatible_reg_id_table[] = {
-	{ .compatible = "dlg,da9063-onkey", .data = &da9063_regs },
-	{ .compatible = "dlg,da9062-onkey", .data = &da9062_regs },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, da9063_compatible_reg_id_table);
-
 static void da9063_poll_on(struct work_struct *work)
 {
 	struct da9063_onkey *onkey = container_of(work,
@@ -187,14 +180,8 @@ static irqreturn_t da9063_onkey_irq_handler(int irq, void *data)
 static int da9063_onkey_probe(struct platform_device *pdev)
 {
 	struct da9063_onkey *onkey;
-	const struct of_device_id *match;
-	int irq;
 	int error;
-
-	match = of_match_node(da9063_compatible_reg_id_table,
-			      pdev->dev.of_node);
-	if (!match)
-		return -ENXIO;
+	int irq;
 
 	onkey = devm_kzalloc(&pdev->dev, sizeof(struct da9063_onkey),
 			     GFP_KERNEL);
@@ -203,7 +190,10 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	onkey->config = match->data;
+	onkey->config = device_get_match_data(&pdev->dev);
+	if (!onkey->config)
+		return -ENXIO;
+
 	onkey->dev = &pdev->dev;
 
 	onkey->regmap = dev_get_regmap(pdev->dev.parent, NULL);
@@ -269,6 +259,13 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const struct of_device_id da9063_compatible_reg_id_table[] = {
+	{ .compatible = "dlg,da9063-onkey", .data = &da9063_regs },
+	{ .compatible = "dlg,da9062-onkey", .data = &da9062_regs },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, da9063_compatible_reg_id_table);
 
 static struct platform_driver da9063_onkey_driver = {
 	.probe	= da9063_onkey_probe,
