@@ -69,6 +69,8 @@
 	ARM64_FEATURE_MASK(ID_AA64PFR1_EL1_SSBS) \
 	)
 
+#define PVM_ID_AA64PFR2_ALLOW 0ULL
+
 /*
  * Allow for protected VMs:
  * - Mixed-endian
@@ -101,6 +103,7 @@
  * - Privileged Access Never
  * - SError interrupt exceptions from speculative reads
  * - Enhanced Translation Synchronization
+ * - Control for cache maintenance permission
  */
 #define PVM_ID_AA64MMFR1_ALLOW (\
 	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_HAFDBS) | \
@@ -108,7 +111,8 @@
 	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_HPDS) | \
 	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_PAN) | \
 	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_SpecSEI) | \
-	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_ETS) \
+	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_ETS) | \
+	ARM64_FEATURE_MASK(ID_AA64MMFR1_EL1_CMOW) \
 	)
 
 /*
@@ -132,6 +136,8 @@
 	ARM64_FEATURE_MASK(ID_AA64MMFR2_EL1_BBM) | \
 	ARM64_FEATURE_MASK(ID_AA64MMFR2_EL1_E0PD) \
 	)
+
+#define PVM_ID_AA64MMFR3_ALLOW (0ULL)
 
 /*
  * No support for Scalable Vectors for protected VMs:
