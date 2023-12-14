@@ -370,6 +370,10 @@
 #define __HDFGWTR_EL2_MASK	~__HDFGWTR_EL2_nMASK
 #define __HDFGWTR_EL2_nMASK	GENMASK(62, 60)
 
+#define __HAFGRTR_EL2_RES0	(GENMASK(63, 50) | GENMASK(16, 5))
+#define __HAFGRTR_EL2_MASK	(GENMASK(49, 17) | GENMASK(4, 0))
+#define __HAFGRTR_EL2_nMASK	0UL
+
 /* Similar definitions for HCRX_EL2 */
 #define __HCRX_EL2_RES0		(GENMASK(63, 16) | GENMASK(13, 12))
 #define __HCRX_EL2_MASK		(0)
