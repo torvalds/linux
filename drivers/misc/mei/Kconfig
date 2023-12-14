@@ -62,6 +62,7 @@ config INTEL_MEI_GSC
 
 config INTEL_MEI_VSC_HW
 	tristate "Intel visual sensing controller device transport driver"
+	depends on INTEL_MEI
 	depends on ACPI && SPI
 	depends on GPIOLIB || COMPILE_TEST
 	help
