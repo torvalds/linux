@@ -403,6 +403,7 @@ extern int of_alias_get_id(struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
 
 extern int of_machine_is_compatible(const char *compat);
+bool of_machine_compatible_match(const char *const *compats);
 
 extern int of_add_property(struct device_node *np, struct property *prop);
 extern int of_remove_property(struct device_node *np, struct property *prop);
@@ -806,6 +807,11 @@ static inline int of_add_property(struct device_node *np, struct property *prop)
 static inline int of_remove_property(struct device_node *np, struct property *prop)
 {
 	return 0;
+}
+
+static inline bool of_machine_compatible_match(const char *const *compats)
+{
+	return false;
 }
 
 static inline bool of_console_check(const struct device_node *dn, const char *name, int index)
