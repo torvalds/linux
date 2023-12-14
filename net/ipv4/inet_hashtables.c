@@ -1012,7 +1012,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	bool tb_created = false;
 	u32 remaining, offset;
 	int ret, i, low, high;
-	int l3mdev;
+	bool local_ports;
+	int step, l3mdev;
 	u32 index;
 
 	if (port) {
@@ -1024,10 +1025,12 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 
 	l3mdev = inet_sk_bound_l3mdev(sk);
 
-	inet_sk_get_local_port_range(sk, &low, &high);
+	local_ports = inet_sk_get_local_port_range(sk, &low, &high);
+	step = local_ports ? 1 : 2;
+
 	high++; /* [32768, 60999] -> [32768, 61000[ */
 	remaining = high - low;
-	if (likely(remaining > 1))
+	if (!local_ports && remaining > 1)
 		remaining &= ~1U;
 
 	get_random_sleepable_once(table_perturb,
@@ -1040,10 +1043,11 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	/* In first pass we try ports of @low parity.
 	 * inet_csk_get_port() does the opposite choice.
 	 */
-	offset &= ~1U;
+	if (!local_ports)
+		offset &= ~1U;
 other_parity_scan:
 	port = low + offset;
-	for (i = 0; i < remaining; i += 2, port += 2) {
+	for (i = 0; i < remaining; i += step, port += step) {
 		if (unlikely(port >= high))
 			port -= remaining;
 		if (inet_is_local_reserved_port(net, port))
@@ -1083,10 +1087,11 @@ next_port:
 		cond_resched();
 	}
 
-	offset++;
-	if ((offset & 1) && remaining > 1)
-		goto other_parity_scan;
-
+	if (!local_ports) {
+		offset++;
+		if ((offset & 1) && remaining > 1)
+			goto other_parity_scan;
+	}
 	return -EADDRNOTAVAIL;
 
 ok:
@@ -1109,8 +1114,8 @@ ok:
 	 * on low contention the randomness is maximal and on high contention
 	 * it may be inexistent.
 	 */
-	i = max_t(int, i, get_random_u32_below(8) * 2);
-	WRITE_ONCE(table_perturb[index], READ_ONCE(table_perturb[index]) + i + 2);
+	i = max_t(int, i, get_random_u32_below(8) * step);
+	WRITE_ONCE(table_perturb[index], READ_ONCE(table_perturb[index]) + i + step);
 
 	/* Head lock still held and bh's disabled */
 	inet_bind_hash(sk, tb, tb2, port);
