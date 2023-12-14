@@ -1061,30 +1061,6 @@ int zynqmp_pm_pinctrl_release(const u32 pin)
 EXPORT_SYMBOL_GPL(zynqmp_pm_pinctrl_release);
 
 /**
- * zynqmp_pm_pinctrl_get_function - Read function id set for the given pin
- * @pin: Pin number
- * @id: Buffer to store function ID
- *
- * This function provides the function currently set for the given pin.
- *
- * Return: Returns status, either success or error+reason
- */
-int zynqmp_pm_pinctrl_get_function(const u32 pin, u32 *id)
-{
-	u32 ret_payload[PAYLOAD_ARG_CNT];
-	int ret;
-
-	if (!id)
-		return -EINVAL;
-
-	ret = zynqmp_pm_invoke_fn(PM_PINCTRL_GET_FUNCTION, ret_payload, 1, pin);
-	*id = ret_payload[1];
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(zynqmp_pm_pinctrl_get_function);
-
-/**
  * zynqmp_pm_pinctrl_set_function - Set requested function for the pin
  * @pin: Pin number
  * @id: Function ID to set
