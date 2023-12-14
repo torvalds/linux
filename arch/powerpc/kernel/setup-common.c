@@ -640,6 +640,8 @@ static __init void probe_machine(void)
 		DBG("  %s ...\n", machine_id->name);
 		if (machine_id->compatible && !of_machine_is_compatible(machine_id->compatible))
 			continue;
+		if (machine_id->compatibles && !of_machine_compatible_match(machine_id->compatibles))
+			continue;
 		memcpy(&ppc_md, machine_id, sizeof(struct machdep_calls));
 		if (ppc_md.probe && !ppc_md.probe())
 			continue;
