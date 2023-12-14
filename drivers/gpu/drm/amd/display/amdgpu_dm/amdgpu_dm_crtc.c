@@ -299,7 +299,7 @@ static int amdgpu_dm_crtc_late_register(struct drm_crtc *crtc)
 
 #ifdef AMD_PRIVATE_COLOR
 /**
- * drm_crtc_additional_color_mgmt - enable additional color properties
+ * dm_crtc_additional_color_mgmt - enable additional color properties
  * @crtc: DRM CRTC
  *
  * This function lets the driver enable post-blending CRTC regamma transfer
