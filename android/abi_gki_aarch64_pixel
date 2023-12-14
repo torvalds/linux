@@ -1162,7 +1162,10 @@
   kernel_param_lock
   kernel_param_unlock
   kernel_restart
+  kernfs_find_and_get_ns
+  kernfs_notify
   kernfs_path_from_node
+  kernfs_put
   key_create_or_update
   key_put
   keyring_alloc
@@ -2150,6 +2153,7 @@
   thermal_zone_get_temp
   thermal_zone_get_zone_by_name
   thread_group_cputime_adjusted
+  tick_nohz_get_idle_calls_cpu
   time64_to_tm
   topology_update_thermal_pressure
   _totalram_pages
@@ -2209,6 +2213,7 @@
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_early_resume_begin
   __traceiter_android_vh_enable_thermal_genl_check
+  __traceiter_android_vh_ep_create_wakeup_source
   __traceiter_android_vh_filemap_get_folio
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_meminfo_proc_show
@@ -2222,6 +2227,7 @@
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_si_meminfo_adjust
   __traceiter_android_vh_sysrq_crash
+  __traceiter_android_vh_timerfd_create
   __traceiter_android_vh_typec_store_partner_src_caps
   __traceiter_android_vh_typec_tcpci_override_toggling
   __traceiter_android_vh_typec_tcpm_get_timer
@@ -2316,6 +2322,7 @@
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_early_resume_begin
   __tracepoint_android_vh_enable_thermal_genl_check
+  __tracepoint_android_vh_ep_create_wakeup_source
   __tracepoint_android_vh_filemap_get_folio
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_meminfo_proc_show
@@ -2329,6 +2336,7 @@
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_si_meminfo_adjust
   __tracepoint_android_vh_sysrq_crash
+  __tracepoint_android_vh_timerfd_create
   __tracepoint_android_vh_typec_store_partner_src_caps
   __tracepoint_android_vh_typec_tcpci_override_toggling
   __tracepoint_android_vh_typec_tcpm_get_timer
