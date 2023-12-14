@@ -103,6 +103,7 @@ patternProperties:
       - reg
       - reg-names
       - "#mbox-cells"
+      - xlnx,ipi-id
 
 additionalProperties: false
 
