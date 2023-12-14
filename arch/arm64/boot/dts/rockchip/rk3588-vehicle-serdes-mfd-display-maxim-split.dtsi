@@ -1,0 +1,2438 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	dsi2lvds_backlight1: dsi2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	dp2lvds_backlight0: dp2lvds_backlight0 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	dp2lvds_backlight1: dp2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	edp2lvds_backlight0: edp2lvds_backlight0 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+
+	edp2lvds_backlight1: edp2lvds_backlight1 {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			  0  20  20  21  21  22  22  23
+			 23  24  24  25  25  26  26  27
+			 27  28  28  29  29  30  30  31
+			 31  32  32  33  33  34  34  35
+			 35  36  36  37  37  38  38  39
+			 40  41  42  43  44  45  46  47
+			 48  49  50  51  52  53  54  55
+			 56  57  58  59  60  61  62  63
+			 64  65  66  67  68  69  70  71
+			 72  73  74  75  76  77  78  79
+			 80  81  82  83  84  85  86  87
+			 88  89  90  91  92  93  94  95
+			 96  97  98  99 100 101 102 103
+			104 105 106 107 108 109 110 111
+			112 113 114 115 116 117 118 119
+			120 121 122 123 124 125 126 127
+			128 129 130 131 132 133 134 135
+			136 137 138 139 140 141 142 143
+			144 145 146 147 148 149 150 151
+			152 153 154 155 156 157 158 159
+			160 161 162 163 164 165 166 167
+			168 169 170 171 172 173 174 175
+			176 177 178 179 180 181 182 183
+			184 185 186 187 188 189 190 191
+			192 193 194 195 196 197 198 199
+			200 201 202 203 204 205 206 207
+			208 209 210 211 212 213 214 215
+			216 217 218 219 220 221 222 223
+			224 225 226 227 228 229 230 231
+			232 233 234 235 236 237 238 239
+			240 241 242 243 244 245 246 247
+			248 249 250 251 252 253 254 255
+		>;
+		default-brightness-level = <200>;
+	};
+};
+
+&backlight {
+	pwms = <&pwm0 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl0_enable_pin>;
+	//enable-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dsi2lvds_backlight1 {
+	pwms = <&pwm13 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl1_enable_pin>;
+	//enable-gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dp0_out_i2c4_max96745: endpoint {
+				link-frequencies = /bits/ 64 <2700000000>;
+				remote-endpoint = <&i2c4_max96745_from_dp0>;
+			};
+		};
+	};
+};
+
+&dp0_in_vp0 {
+	status = "okay";
+};
+
+&dp0_in_vp1 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1 {
+	force-hpd;
+	status = "disabled";
+#if 0
+	ports {
+		port@1 {
+			reg = <1>;
+
+			dp1_out_i2c8_bu18tl82: endpoint {
+				remote-endpoint = <&i2c8_bu18tl82_from_dp1>;
+			};
+		};
+	};
+#endif
+};
+
+&dp1_in_vp0 {
+	status = "okay";
+};
+
+&dp1_in_vp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&dp2lvds_backlight0 {
+	pwms = <&pwm10 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl2_enable_pin>;
+	//enable-gpios = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&dp2lvds_backlight1 {
+	pwms = <&pwm14 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl3_enable_pin>;
+	//enable-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/*
+ * mipi_dcphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi0_out_i2c2_max96789: endpoint {
+				remote-endpoint = <&i2c2_max96789_from_dsi0>;
+			};
+		};
+	};
+};
+
+&dsi0_in_vp2 {
+	status = "okay";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+/*
+ * mipi_dcphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dsi1_out_i2c2_max96789: endpoint {
+				remote-endpoint = <&i2c2_max96789_from_dsi1>;
+			};
+		};
+	};
+};
+
+&dsi1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi1_in_vp3 {
+	status = "okay";
+};
+
+&edp0 {
+	//split-mode;
+	force-hpd;
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp0_out_i2c5_max96745: endpoint {
+				remote-endpoint = <&i2c5_max96745_from_edp0>;
+			};
+		};
+	};
+};
+
+&edp0_in_vp0 {
+	status = "disabled";
+};
+
+&edp0_in_vp1 {
+	status = "okay";
+};
+
+&edp0_in_vp2 {
+	status = "disabled";
+};
+
+&edp1 {
+	force-hpd;
+	status = "disabled";
+};
+
+&edp1_in_vp0 {
+	status = "disabled";
+};
+
+&edp1_in_vp1 {
+	status = "okay";
+};
+
+&edp1_in_vp2 {
+	status = "disabled";
+};
+
+&edp2lvds_backlight0 {
+	pwms = <&pwm7 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl4_enable_pin>;
+	//enable-gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&edp2lvds_backlight1 {
+	pwms = <&pwm11 0 25000 0>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&bl5_enable_pin>;
+	//enable-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m4_xfer>;
+	clock-frequency = <400000>;
+
+	i2c2_max96789: i2c2-max96789@42 {
+		compatible = "maxim,max96789";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_serdes_pins>;
+		lock-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		sel-mipi;
+		id-serdes-bridge-split = <0x01>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			//Independent 11_07_17-56 Using MAX96789/91/F (GMSL-1/2)
+			//Disable Video pipe
+			0002 0003
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 008a
+			//Address Value of I2C SRC_B
+			0044 008c
+			//Address Value of I2C DST_B
+			0045 008c
+			//Set Stream for DSI Port A && assign pipeX
+			0053 0010
+			//Set Stream for DSI Port B && assign pipeY
+			0057 0021
+			//Clock Select, X for portA, Y/Z for PortB
+			0308 0076
+			//Start DSI Port
+			0311 0061
+			//Set Port A Lane Mapping
+			0332 004E
+			//Set Port B Lane Mapping
+			0333 00E4
+			//Set GMSL type
+			0004 00F2
+			//Number of Lanes
+			0331 0033
+			//Set phy_config
+			0330 0006
+			//Set soft_dtx_en
+			031C 0098
+			//Set soft_dtx
+			0321 0024
+			//Set soft_dty_en
+			031D 0098
+			//Set soft_dty_
+			0322 0024
+			//Init Default
+			0326 00E4
+			//HSYNC_WIDTH_L
+			0385 0038
+			//VSYNC_WIDTH_L
+			0386 0008
+			//HSYNC_WIDTH_H/VSYNC_WIDTH_H
+			0387 0000
+			//VFP_L
+			03A5 00C8
+			//VBP_H
+			03A7 0000
+			//VFP_H/VBP_L
+			03A6 0020
+			//VRES_L
+			03A8 00D0
+			//VRES_H
+			03A9 0002
+			//HFP_L
+			03AA 0038
+			//HBP_H
+			03AC 0002
+			//HFP_H/HBP_L
+			03AB 0000
+			//HRES_L
+			03AD 0080
+			//HRES_H
+			03AE 0007
+			//Disable FIFO/DESKEW_EN
+			03A4 00C0
+			//HSYNC_WIDTH_L
+			0395 0038
+			//VSYNC_WIDTH_L
+			0396 0008
+			//HSYNC_WIDTH_H/VSYNC_WIDTH_H
+			0397 0000
+			//VFP_L
+			03B1 00C8
+			//VBP_H
+			03B3 0000
+			//VFP_H/VBP_L
+			03B2 0020
+			//VRES_L
+			03B4 00D0
+			//VRES_H
+			03B5 0002
+			//HFP_L
+			03B6 0038
+			//HBP_H
+			03B8 0002
+			//HFP_H/HBP_L
+			03B7 0000
+			//HRES_L
+			03B9 0080
+			//HRES_H
+			03BA 0007
+			//Disable FIFO/DESKEW_EN
+			03B0 00C0
+			//Turn on video pipe
+			0002 0033
+			//Enable splitter mode  reset one shot
+			0010 0023
+			ffff f000	//0xf000 ms delay
+		];
+
+		i2c2_max96789_pinctrl: i2c2-max96789-pinctrl {
+			compatible = "maxim,max96789-pinctrl";
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&i2c2_max96789_pinctrl_pins>;
+			pinctrl-1 = <&i2c2_max96789_pinctrl_pins>;
+			status = "okay";
+			i2c2_max96789_pinctrl_pins: pinctrl-pins {
+				i2c {
+					groups = "MAX96789_I2C";
+					function = "MAX96789_I2C";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96789_MFP7";
+					function = "SER_TXID4_TO_DES";
+				};
+				tp-int {
+					pins = "MAX96789_MFP8";
+					function = "DES_RXID8_TO_SER";
+				};
+				lcd-bl-pwm-split {
+					pins = "MAX96789_MFP16";
+					function = "SER_TXID4_TO_DES";
+				};
+				tp-int-split {
+					pins = "MAX96789_MFP14";
+					function = "DES_RXID14_TO_SER";
+				};
+			};
+
+			i2c2_max96789_gpio: i2c2-max96789-gpio {
+				compatible = "maxim,max96789-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_max96789_pinctrl 0 160 20>;
+			};
+		};
+
+		i2c2_max96789_bridge: i2c2-max96789-bridge {
+			compatible = "maxim,max96789-bridge";
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					i2c2_max96789_from_dsi0: endpoint {
+						remote-endpoint = <&dsi0_out_i2c2_max96789>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					i2c2_max96789_out_i2c2_max96752: endpoint {
+						remote-endpoint = <&i2c2_max96752_from_i2c2_max96789>;
+					};
+				};
+			};
+		};
+
+		i2c2_max96789_bridge_split: i2c2-max96789-bridge-split {
+			compatible = "maxim,max96789-bridge-split";
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					i2c2_max96789_from_dsi1: endpoint {
+						remote-endpoint = <&dsi1_out_i2c2_max96789>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					i2c2_max96789_out_i2c2_max96752_split: endpoint {
+						remote-endpoint = <&i2c2_max96752_split_from_i2c2_max96789>;
+					};
+				};
+			};
+		};
+	};
+
+	i2c2_max96752: i2c2-max96752@4a {
+		compatible = "maxim,max96752";
+		reg = <0x4a>;
+		//reg-hw = <0x4a>;
+		id-serdes-panel-split = <0x01>;
+		link = <0x01>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0031
+			007b 0031
+			007d 0038
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 0090
+
+			0050 0000
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c2_max96752_pinctrl: i2c2-max96752-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c2_max96752_panel_pins>;
+			pinctrl-1 = <&i2c2_max96752_panel_pins>;
+			pinctrl-2 = <&i2c2_max96752_panel_sleep_pins>;
+			status = "okay";
+
+			i2c2_max96752_panel_pins: panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				lcd-bias-en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd-vdd-en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID8_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+			};
+
+			i2c2_max96752_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c2_max96752_gpio: i2c2-max96752-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_max96752_pinctrl 0 180 15>;
+			};
+		};
+
+		i2c2_max96752_panel: i2c2-max96752-panel {
+			compatible = "maxim,max96752-panel";
+			status = "okay";
+
+			backlight = <&backlight>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <115200000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					i2c2_max96752_from_i2c2_max96789: endpoint {
+						remote-endpoint = <&i2c2_max96789_out_i2c2_max96752>;
+					};
+				};
+			};
+		};
+	};
+
+	i2c2_max96752_split: i2c2-max96752-split@4b {
+		compatible = "maxim,max96752";
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
+		id-serdes-panel-split = <0x01>;
+		link = <0x02>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0032
+			007b 0032
+			007d 0038
+
+			//Address Value of I2C SRC_A
+			0042 008c
+			//Address Value of I2C DST_A
+			0043 0090
+			//0140 0020
+			0050 0001
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c2_max96752_split_pinctrl: i2c2-max96752-split-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c2_max96752_split_panel_pins>;
+			pinctrl-1 = <&i2c2_max96752_split_panel_pins>;
+			pinctrl-2 = <&i2c2_max96752_split_panel_sleep_pins>;
+			status = "okay";
+
+			i2c2_max96752_split_panel_pins: panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				lcd-bias-en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd-vdd-en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID14_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+			};
+
+			i2c2_max96752_split_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c2_max96752_split_gpio: i2c2-max96752-split-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c2_max96752_split_pinctrl 0 200 15>;
+			};
+		};
+
+		i2c2_max96752_split_panel: i2c2-max96752-split-panel {
+			compatible = "maxim,max96752-panel-split";
+			status = "okay";
+
+			backlight = <&dsi2lvds_backlight1>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <115200000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					i2c2_max96752_split_from_i2c2_max96789: endpoint {
+						remote-endpoint = <&i2c2_max96789_out_i2c2_max96752_split>;
+					};
+				};
+			};
+		};
+	};
+
+	himax@45 {
+		compatible = "himax,hxcommon";
+		reg = <0x45>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dsi0>;
+		pinctrl-1 = <&touch_gpio_dsi0>;
+		himax,location = "himax-touch-dsi0";
+		himax,irq-gpio = <&gpio1 RK_PB0 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c2_max96752_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+
+	himax_split@46 {
+		compatible = "himax,hxcommon";
+		reg = <0x46>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dsi1>;	//hw change
+		pinctrl-1 = <&touch_gpio_dsi1>;
+		himax,location = "himax-touch-dsi1";
+		himax,irq-gpio = <&gpio1 RK_PB6 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c2_max96752_split_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+};
+
+&i2c4 {
+	pinctrl-0 = <&i2c4m2_xfer>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	i2c4_max96745: i2c4-max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c4_serdes_pins>;
+		lock-gpios = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-bridge-split = <0x02>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 008a
+			//Address Value of I2C SRC_B
+			0044 008c
+			//Address Value of I2C DST_B
+			0045 008c
+			//Set TX_STR_SEL_X to 0
+			00A3	0000
+			//Set TX_STR_SEL_Y to 1
+			00A7	0001
+			//Set TX_STR_SEL_Z to 2
+			00AB	0002
+			//Set TX_STR_SEL_U to 3
+			00AF	0003
+
+			//INFOFR TX_SRC_ID0:1:2
+			00C2	0001
+			//CC TX_SRC_ID0:1:2
+			00D2	0002
+			//IIC X TX_SRC_ID0:1:2
+			00EA	0001
+			//IIC Y TX_SRC_ID0:1:2
+			00F2	0002
+
+			00B2	0003
+			00BA	0003
+			00CA	0003
+			00C2	0003
+			00D2	0003
+			00DA	0003
+			00E2	0003
+			00EA	0003
+			00F2	0003
+			//Set X_VID_LINK_SEL to 0
+			0100	0061
+			//Set Y_VID_LINK_SEL to 1
+			0110	0063
+			//Set Z_VID_LINK_SEL to 0
+			0120	0061
+			//Set U_VID_LINK_SEL to 1
+			0130	0063
+			//ASYM_WR_B_MUX_Y of SER will be written 1
+			05CE	003F
+			//ASYM_WAIT_LINE_FOR_READ_X of SER will be written 1
+			04D1	00F8
+			//ASYM_WAIT_LINE_FOR_READ_Y of SER will be written 1
+			05D1	00F8
+			//ASYM_VID_EN_W_VS_X of SER will be written 1
+			04CF	00BF
+			//ASYM_VID_EN_W_VS_Y of SER will be written 1
+			05CF	00BF
+			//ASYM_FR2FR_CTRL_EN_X of SER will be written 1
+			04D1	00FC
+			//ASYM_FR2FR_CTRL_EN_Y of SER will be written 1
+			05D1	00FC
+			//ALT_VTG_EN_X
+			04CE	002F
+			//AUTO_VTG_CFG_X
+			04CE	000F
+			//ALT_VTG_EN_Y
+			05CE	0027
+			//AUTO_VTG_CFG_Y
+			05CE	0007
+			//X_M_l
+			04C0	0020
+			//X_M_m
+			04C1	004A
+			//X_M_h
+			04C2	001D
+			//X_N_l
+			04C3	00C8
+			//X_N_m
+			04C4	0008
+			//X_N_h
+			04C5	0007
+			//X_X_OFFSET_l
+			04C6	0000
+			//X_X_OFFSET_h
+			04C7	0000
+			//X_X_MAX_l
+			04C8    0080
+			//X_X_MAX_h
+			04C9	0007
+			//X_Y_MAX_l
+			04CA	00D0
+			//X_Y_MAX_h
+			04CB	0002
+			//Y_M
+			05C0	0020
+			//Y_M_h
+			05C1	004A
+			//Y_M_h
+			05C2	001D
+			//Y_N_l
+			05C3	00C8
+			//Y_N_m
+			05C4	0008
+			//Y_N_h
+			05C5	0007
+			//Y_X_OFFSET_l
+			05C6	0080
+			//Y_X_OFFSET_h
+			05C7	0007
+			//Y_X_MAX_l
+			05C8	0000
+			//Y_X_MAX_h
+			05C9	000F
+			//Y_Y_MAX_l
+			05CA	00D0
+			//Y_Y_MAX_h
+			05CB	0002
+			//X_LUT_TEMPLATE_SEL
+			04CD	0014
+			//X_vs_dly_l
+			04D8	0080
+			//X_vs_dly_m
+			04D9	00F9
+			//X_vs_dly_h
+			04DA	001C
+			//X_vs_high_l
+			04DB	0080
+			//X_vs_high_m
+			04DC	0040
+			//X_vs_high_h
+			04DD	0000
+			//X_vs_low_l
+			04DE	0020
+			//X_vs_low_m
+			04DF	0010
+			//X_vs_low_h
+			04E0	0000
+			//X_hs_dly_l
+			04E1	0000
+			//X_hs_dly_m
+			04E2	0000
+			//X_hs_dly_h
+			04E3	0000
+			//X_hs_high_l
+			04E4	0038
+			//X_hs_high_h
+			04E5	0000
+			//X_hs_low_l
+			04E6	00D8
+			//X_hs_low_h
+			04E7	0007
+			//X_hs_cnt_l
+			04E8	00A2
+			//X_hs_cnt_h
+			04E9	0003
+			//X_hs_llow_l
+			04EA	0000
+			//X_hs_llow_m
+			04EB	0000
+			//X_hs_llow_h
+			04EC	0000
+			//X_de_dly_l
+			04ED	0058
+			//X_de_dly_m
+			04EE	0000
+			//X_de_dly_h
+			04EF	0000
+			//X_de_high_l
+			04F0	0080
+			//X_de_high_h
+			04F1	0007
+			//X_de_low_l
+			04F2	0090
+			//X_de_low_h
+			04F3	0000
+			//X_de_cnt_l
+			04F4	00D0
+			//X_de_cnt_h
+			04F5	0002
+			//X_de_llow_l
+			04F6	00C8
+			//X_de_llow_m
+			04F7	009C
+			//X_de_llow_h
+			04F8	0006
+			//Y_vs_dly_l
+			05D8	0080
+			//Y_vs_dly_m
+			05D9	00F9
+			//Y_vs_dly_h
+			05DA	001C
+			//Y_vs_high_l
+			05DB	0080
+			//Y_vs_high_m
+			05DC	0040
+			//Y_vs_high_h
+			05DD	0000
+			//Y_vs_low_l
+			05DE	0020
+			//Y_vs_low_m
+			05DF	0010
+			//Y_vs_low_h
+			05E0	0000
+			//Y_hs_dly_l
+			05E1	0000
+			//Y_hs_dly_m
+			05E2	0000
+			//Y_hs_dly_h
+			05E3	0000
+			//Y_hs_high_l
+			05E4	0038
+			//Y_hs_high_h
+			05E5	0000
+			//Y_hs_low_l
+			05E6	00D8
+			//Y_hs_low_h
+			05E7	0007
+			//Y_hs_cnt_l
+			05E8	00A2
+			//Y_hs_cnt_h
+			05E9	0003
+			//Y_hs_llow_l
+			05EA	0000
+			//Y_hs_llow_m
+			05EB	0000
+			//Y_hs_llow_h
+			05EC	0000
+			//Y_de_dly_l
+			05ED	0058
+			//Y_de_dly_m
+			05EE	0000
+			//Y_de_dly_h
+			05EF	0000
+			//Y_de_high_l
+			05F0	0080
+			//Y_de_high_h
+			05F1	0007
+			//Y_de_low_l
+			05F2	0090
+			//Y_de_low_h
+			05F3	0000
+			//Y_de_cnt_l
+			05F4	00D0
+			//Y_de_cnt_h
+			05F5	0002
+			//Y_de_llow_l
+			05F6	00C8
+			//Y_de_llow_m
+			05F7	009C
+			//Y_de_llow_h
+			05F8	0006
+			//Y_LUT_TEMPLATE_SEL
+			05CD	0014
+			//Turn off video
+			6420	0010
+			//Disable MST mode
+			7019	0000
+			//7019	0001	//Set MST_FUNCTION_ENABLE to 1
+			//7904	0001	// Set MST_PAYLOAD_ID_0 to 01
+			//7908	0002	// Set MST_PAYLOAD_ID_1 to 01
+			//Disable MST_VS0_DTG_ENABLE
+			7A14	0000
+			//Disable LINK_ENABLE
+			7000	0000
+			//Reset DPRX core (VIDEO_INPUT_RESET)
+			7054	0001
+			ffff	f000	//delay 0xf000 us
+			//Set MAX_LINK_RATE to 2.7Gb/s
+			7074	000A
+			//Set MAX_LINK_COUNT to 4
+			7070	0004
+			//Set ASYM_CTRL_PROP_GAIN to 000A
+			04D0	000A
+			05D0	000A
+			//Set AEQ time to 16ms
+			6064	0000
+			6065	0000
+			6164	0000
+			6165	0000
+			6264	0000
+			6265	0000
+			6364	0000
+			6365	0000
+			//Enable LINK_ENABLE
+			7000	0001
+			//delay 1000
+			//Disable MSA reset
+			7A18	0005
+			//Adjust VS0_DMA_HSYNC
+			7A28	00FF
+			7A2A	00FF
+			//Adjust VS0_DMA_VSYNC
+			7A24	00FF
+			7A27	000F
+			//Enable MST_VS0_DTG_ENABLE
+			7A14	0001
+			//set EDP Video Control
+			6421	0001
+			//Turn on video
+			6420	0013
+			//delay 100
+			//Turn off video
+			6420	0010
+			//delay 100
+			//Turn on video
+			6420	0013
+			6421	0003
+		];
+
+
+		i2c4_max96745_pinctrl: i2c4-max96745-pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c4_max96745_pinctrl_pins>;
+			status = "okay";
+
+			i2c4_max96745_pinctrl_pins: pinctrl-pins {
+				i2c {
+					groups = "MAX96745_I2C";
+					function = "MAX96745_I2C";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96745_MFP0";
+					function = "SER_TXID0_TO_DES_LINKA";
+				};
+				tp-int {
+					pins = "MAX96745_MFP1";
+					function = "DES_RXID1_TO_SER_LINKA";
+				};
+				lcd-bl-pwm-split {
+					pins = "MAX96745_MFP4";
+					function = "SER_TXID4_TO_DES_LINKB";
+				};
+				tp-int-split {
+					pins = "MAX96745_MFP5";
+					function = "DES_RXID5_TO_SER_LINKB";
+				};
+			};
+
+			i2c4_max96745_gpio: i2c4-max96745-gpio {
+				compatible = "maxim,max96745-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_max96745_pinctrl 0 220 25>;
+			};
+		};
+
+		i2c4_max96745_bridge: i2c4-max96745-bridge {
+			compatible = "maxim,max96745-bridge";
+			status = "okay";
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				i2c4_max96745_from_dp0: endpoint {
+					remote-endpoint = <&dp0_out_i2c4_max96745>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				i2c4_max96745_out_i2c4_max96752: endpoint {
+					remote-endpoint = <&i2c4_max96752_from_i2c4_max96745>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				i2c4_max96745_out_i2c4_max96752_split: endpoint {
+					remote-endpoint = <&i2c4_max96752_split_from_i2c4_max96745>;
+				};
+			};
+		};
+	};
+
+	i2c4_max96752: i2c4-max96752@4a {
+		compatible = "maxim,max96752";
+		reg = <0x4a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-panel-split = <0x02>;
+		link = <0x01>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0031
+			007b 0031
+			007d 0038
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 0090
+
+			0050 0000
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c4_max96752_pinctrl: i2c4-max96752-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "okay";
+
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c4_max96752_panel_pins>;
+			pinctrl-1 = <&i2c4_max96752_panel_pins>;
+			pinctrl-2 = <&i2c4_max96752_panel_sleep_pins>;
+
+			i2c4_max96752_panel_pins: panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID1_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+				lcd_bias_en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd_vdd_en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+			};
+
+			i2c4_max96752_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c4_max96752_gpio: i2c4-max96752-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_max96752_pinctrl 0 250 15>;
+			};
+		};
+
+		i2c4_max96752_panel: i2c4-max96752-panel {
+			compatible = "maxim,max96752-panel";
+			status = "okay";
+
+			backlight = <&dp2lvds_backlight0>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <230400000>;	//4128*930@60
+				hactive = <3840>;
+				vactive = <720>;
+				hfront-porch = <112>;
+				hsync-len = <64>;
+				hback-porch = <112>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c4_max96752_from_i2c4_max96745: endpoint {
+					remote-endpoint = <&i2c4_max96745_out_i2c4_max96752>;
+				};
+			};
+		};
+
+	};
+
+	i2c4_max96752_split: i2c4-max96752-split@4b {
+		compatible = "maxim,max96752";
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-panel-split = <0x02>;
+		link = <0x02>;
+		status = "okay";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0032
+			007b 0032
+			007d 0038
+			//Address Value of I2C SRC_A
+			0042 008c
+			//Address Value of I2C DST_A
+			0043 0090
+
+			//0140 0020
+			0050 0001
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c4_max96752_split_pinctrl: i2c4-max96752-split-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "okay";
+
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c4_max96752_split_panel_pins>;
+			pinctrl-1 = <&i2c4_max96752_split_panel_pins>;
+			pinctrl-2 = <&i2c4_max96752_split_panel_sleep_pins>;
+
+			i2c4_max96752_split_panel_pins: i2c4-max96752-split-panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID4_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+				lcd_bias_en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd_vdd_en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+			};
+
+			i2c4_max96752_split_panel_sleep_pins: i2c4-max96752-split-panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c4_max96752_split_gpio: i2c4-max96752-split-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c4_max96752_split_pinctrl 0 265 15>;
+			};
+		};
+
+		i2c4_max96752_split_panel: i2c4-max96752-split-panel {
+			compatible = "maxim,max96752-panel-split";
+			status = "okay";
+
+			backlight = <&dp2lvds_backlight0>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <115200000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c4_max96752_split_from_i2c4_max96745: endpoint {
+					remote-endpoint = <&i2c4_max96745_out_i2c4_max96752_split>;
+				};
+			};
+		};
+	};
+
+	himax@45 {
+		compatible = "himax,hxcommon";
+		reg = <0x45>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_dp0>;
+		pinctrl-1 = <&touch_gpio_dp0>;
+		himax,location = "himax-touch-dp0";
+		himax,irq-gpio = <&gpio3 RK_PC5 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c4_max96752_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+
+	himax_split@46 {
+		compatible = "himax,hxcommon";
+		reg = <0x46>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_edp0>;
+		pinctrl-1 = <&touch_gpio_edp0>;
+		himax,location = "himax-touch-dp0-split";
+		//himax,irq-gpio = <&gpio3 RK_PC5 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c4_max96752_split_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "okay";
+	};
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	i2c5_max96745: i2c5-max96745@42 {
+		compatible = "maxim,max96745";
+		reg = <0x42>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c5_serdes_pins>;
+		lock-gpios = <&gpio0 RK_PD2 GPIO_ACTIVE_HIGH>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-bridge-split = <0x02>;
+		status = "disabled";
+
+		serdes-init-sequence = [
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 008a
+			//Address Value of I2C SRC_B
+			0044 008c
+			//Address Value of I2C DST_B
+			0045 008c
+			//Set TX_STR_SEL_X to 0
+			00A3	0000
+			//Set TX_STR_SEL_Y to 1
+			00A7	0001
+			//Set TX_STR_SEL_Z to 2
+			00AB	0002
+			//Set TX_STR_SEL_U to 3
+			00AF	0003
+
+			//INFOFR TX_SRC_ID0:1:2
+			00C2	0001
+			//CC TX_SRC_ID0:1:2
+			00D2	0002
+			//IIC X TX_SRC_ID0:1:2
+			00EA	0001
+			//IIC Y TX_SRC_ID0:1:2
+			00F2	0002
+
+			00B2	0003
+			00BA	0003
+			00CA	0003
+			00C2	0003
+			00D2	0003
+			00DA	0003
+			00E2	0003
+			00EA	0003
+			00F2	0003
+			//Set X_VID_LINK_SEL to 0
+			0100	0061
+			//Set Y_VID_LINK_SEL to 1
+			0110	0063
+			//Set Z_VID_LINK_SEL to 0
+			0120	0061
+			//Set U_VID_LINK_SEL to 1
+			0130	0063
+			//ASYM_WR_B_MUX_Y of SER will be written 1
+			05CE	003F
+			//ASYM_WAIT_LINE_FOR_READ_X of SER will be written 1
+			04D1	00F8
+			//ASYM_WAIT_LINE_FOR_READ_Y of SER will be written 1
+			05D1	00F8
+			//ASYM_VID_EN_W_VS_X of SER will be written 1
+			04CF	00BF
+			//ASYM_VID_EN_W_VS_Y of SER will be written 1
+			05CF	00BF
+			//ASYM_FR2FR_CTRL_EN_X of SER will be written 1
+			04D1	00FC
+			//ASYM_FR2FR_CTRL_EN_Y of SER will be written 1
+			05D1	00FC
+			//ALT_VTG_EN_X
+			04CE	002F
+			//AUTO_VTG_CFG_X
+			04CE	000F
+			//ALT_VTG_EN_Y
+			05CE	0027
+			//AUTO_VTG_CFG_Y
+			05CE	0007
+			//X_M_l
+			04C0	0020
+			//X_M_m
+			04C1	004A
+			//X_M_h
+			04C2	001D
+			//X_N_l
+			04C3	00C8
+			//X_N_m
+			04C4	0008
+			//X_N_h
+			04C5	0007
+			//X_X_OFFSET_l
+			04C6	0000
+			//X_X_OFFSET_h
+			04C7	0000
+			//X_X_MAX_l
+			04C8    0080
+			//X_X_MAX_h
+			04C9	0007
+			//X_Y_MAX_l
+			04CA	00D0
+			//X_Y_MAX_h
+			04CB	0002
+			//Y_M
+			05C0	0020
+			//Y_M_h
+			05C1	004A
+			//Y_M_h
+			05C2	001D
+			//Y_N_l
+			05C3	00C8
+			//Y_N_m
+			05C4	0008
+			//Y_N_h
+			05C5	0007
+			//Y_X_OFFSET_l
+			05C6	0080
+			//Y_X_OFFSET_h
+			05C7	0007
+			//Y_X_MAX_l
+			05C8	0000
+			//Y_X_MAX_h
+			05C9	000F
+			//Y_Y_MAX_l
+			05CA	00D0
+			//Y_Y_MAX_h
+			05CB	0002
+			//X_LUT_TEMPLATE_SEL
+			04CD	0014
+			//X_vs_dly_l
+			04D8	0080
+			//X_vs_dly_m
+			04D9	00F9
+			//X_vs_dly_h
+			04DA	001C
+			//X_vs_high_l
+			04DB	0080
+			//X_vs_high_m
+			04DC	0040
+			//X_vs_high_h
+			04DD	0000
+			//X_vs_low_l
+			04DE	0020
+			//X_vs_low_m
+			04DF	0010
+			//X_vs_low_h
+			04E0	0000
+			//X_hs_dly_l
+			04E1	0000
+			//X_hs_dly_m
+			04E2	0000
+			//X_hs_dly_h
+			04E3	0000
+			//X_hs_high_l
+			04E4	0038
+			//X_hs_high_h
+			04E5	0000
+			//X_hs_low_l
+			04E6	00D8
+			//X_hs_low_h
+			04E7	0007
+			//X_hs_cnt_l
+			04E8	00A2
+			//X_hs_cnt_h
+			04E9	0003
+			//X_hs_llow_l
+			04EA	0000
+			//X_hs_llow_m
+			04EB	0000
+			//X_hs_llow_h
+			04EC	0000
+			//X_de_dly_l
+			04ED	0058
+			//X_de_dly_m
+			04EE	0000
+			//X_de_dly_h
+			04EF	0000
+			//X_de_high_l
+			04F0	0080
+			//X_de_high_h
+			04F1	0007
+			//X_de_low_l
+			04F2	0090
+			//X_de_low_h
+			04F3	0000
+			//X_de_cnt_l
+			04F4	00D0
+			//X_de_cnt_h
+			04F5	0002
+			//X_de_llow_l
+			04F6	00C8
+			//X_de_llow_m
+			04F7	009C
+			//X_de_llow_h
+			04F8	0006
+			//Y_vs_dly_l
+			05D8	0080
+			//Y_vs_dly_m
+			05D9	00F9
+			//Y_vs_dly_h
+			05DA	001C
+			//Y_vs_high_l
+			05DB	0080
+			//Y_vs_high_m
+			05DC	0040
+			//Y_vs_high_h
+			05DD	0000
+			//Y_vs_low_l
+			05DE	0020
+			//Y_vs_low_m
+			05DF	0010
+			//Y_vs_low_h
+			05E0	0000
+			//Y_hs_dly_l
+			05E1	0000
+			//Y_hs_dly_m
+			05E2	0000
+			//Y_hs_dly_h
+			05E3	0000
+			//Y_hs_high_l
+			05E4	0038
+			//Y_hs_high_h
+			05E5	0000
+			//Y_hs_low_l
+			05E6	00D8
+			//Y_hs_low_h
+			05E7	0007
+			//Y_hs_cnt_l
+			05E8	00A2
+			//Y_hs_cnt_h
+			05E9	0003
+			//Y_hs_llow_l
+			05EA	0000
+			//Y_hs_llow_m
+			05EB	0000
+			//Y_hs_llow_h
+			05EC	0000
+			//Y_de_dly_l
+			05ED	0058
+			//Y_de_dly_m
+			05EE	0000
+			//Y_de_dly_h
+			05EF	0000
+			//Y_de_high_l
+			05F0	0080
+			//Y_de_high_h
+			05F1	0007
+			//Y_de_low_l
+			05F2	0090
+			//Y_de_low_h
+			05F3	0000
+			//Y_de_cnt_l
+			05F4	00D0
+			//Y_de_cnt_h
+			05F5	0002
+			//Y_de_llow_l
+			05F6	00C8
+			//Y_de_llow_m
+			05F7	009C
+			//Y_de_llow_h
+			05F8	0006
+			//Y_LUT_TEMPLATE_SEL
+			05CD	0014
+			//Turn off video
+			6420	0010
+			//Disable MST mode
+			7019	0000
+			//7019	0001	//Set MST_FUNCTION_ENABLE to 1
+			//7904	0001	// Set MST_PAYLOAD_ID_0 to 01
+			//7908	0002	// Set MST_PAYLOAD_ID_1 to 01
+			//Disable MST_VS0_DTG_ENABLE
+			7A14	0000
+			//Disable LINK_ENABLE
+			7000	0000
+			//Reset DPRX core (VIDEO_INPUT_RESET)
+			7054	0001
+			ffff	f000	//delay 0xf000 us
+			//Set MAX_LINK_RATE to 2.7Gb/s
+			7074	000A
+			//Set MAX_LINK_COUNT to 4
+			7070	0004
+			//Set ASYM_CTRL_PROP_GAIN to 000A
+			04D0	000A
+			05D0	000A
+			//Set AEQ time to 16ms
+			6064	0000
+			6065	0000
+			6164	0000
+			6165	0000
+			6264	0000
+			6265	0000
+			6364	0000
+			6365	0000
+			//Enable LINK_ENABLE
+			7000	0001
+			//delay 1000
+			//Disable MSA reset
+			7A18	0005
+			//Adjust VS0_DMA_HSYNC
+			7A28	00FF
+			7A2A	00FF
+			//Adjust VS0_DMA_VSYNC
+			7A24	00FF
+			7A27	000F
+			//Enable MST_VS0_DTG_ENABLE
+			7A14	0001
+			//set EDP Video Control
+			6421	0001
+			//Turn on video
+			6420	0013
+			//delay 100
+			//Turn off video
+			6420	0010
+			//delay 100
+			//Turn on video
+			6420	0013
+			6421	0003
+		];
+
+		i2c5_max96745_pinctrl: i2c5-max96745-pinctrl {
+			compatible = "maxim,max96745-pinctrl";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c45_max96745_pinctrl_pins>;
+			status = "disabled";
+
+			i2c45_max96745_pinctrl_pins: pinctrl-pins {
+				i2c {
+					groups = "MAX96745_I2C";
+					function = "MAX96745_I2C";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96745_MFP0";
+					function = "SER_TXID0_TO_DES_LINKA";
+				};
+				tp-int {
+					pins = "MAX96745_MFP1";
+					function = "DES_RXID1_TO_SER_LINKA";
+				};
+				lcd-bl-pwm-split {
+					pins = "MAX96745_MFP4";
+					function = "SER_TXID4_TO_DES_LINKB";
+				};
+				tp-int-split {
+					pins = "MAX96745_MFP5";
+					function = "DES_RXID5_TO_SER_LINKB";
+				};
+			};
+
+			i2c5_max96745_gpio: i2c5-max96745-gpio {
+				compatible = "maxim,max96745-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_max96745_pinctrl 0 280 25>;
+			};
+		};
+
+		i2c5_max96745_bridge: i2c5-max96745-bridge {
+			compatible = "maxim,max96745-bridge";
+			status = "disabled";
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				i2c5_max96745_from_edp0: endpoint {
+					remote-endpoint = <&edp0_out_i2c5_max96745>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				i2c5_max96745_out_i2c5_max96752: endpoint {
+					remote-endpoint = <&i2c5_max96752_from_i2c5_max96745>;
+				};
+			};
+
+			port@2 {
+				reg = <2>;
+
+				i2c5_max96745_out_i2c5_max96752_split: endpoint {
+					remote-endpoint = <&i2c5_max96752_split_from_i2c5_max96745>;
+				};
+			};
+		};
+	};
+
+	i2c5_max96752: i2c5-max96752@4a {
+		compatible = "maxim,max96752";
+		reg = <0x4a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-panel-split = <0x02>;
+		link = <0x01>;
+		status = "disabled";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0031
+			007b 0031
+			007d 0038
+			//Address Value of I2C SRC_A
+			0042 008a
+			//Address Value of I2C DST_A
+			0043 0090
+
+			0050 0000
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c5_max96752_pinctrl: i2c5-max96752-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "okay";
+
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c5_max96752_panel_pins>;
+			pinctrl-1 = <&i2c5_max96752_panel_pins>;
+			pinctrl-2 = <&i2c5_max96752_panel_sleep_pins>;
+
+			i2c5_max96752_panel_pins: panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID1_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+				lcd_bias_en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd_vdd_en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+			};
+
+			i2c5_max96752_panel_sleep_pins: panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c5_max96752_gpio: i2c5-max96752-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_max96752_pinctrl 0 305 15>;
+			};
+		};
+
+		i2c5_max96752_panel: i2c5-max96752-panel {
+			compatible = "maxim,max96752-panel";
+			status = "disabled";
+
+			backlight = <&edp2lvds_backlight0>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <230400000>;	//4128*930@60
+				hactive = <3840>;
+				vactive = <720>;
+				hfront-porch = <112>;
+				hsync-len = <64>;
+				hback-porch = <112>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c5_max96752_from_i2c5_max96745: endpoint {
+					remote-endpoint = <&i2c5_max96745_out_i2c5_max96752>;
+				};
+			};
+		};
+	};
+
+	i2c5_max96752_split: i2c5-max96752-split@4b {
+		compatible = "maxim,max96752";
+		reg = <0x4b>;
+		reg-hw = <0x4a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		id-serdes-panel-split = <0x02>;
+		link = <0x02>;
+		status = "disabled";
+
+		serdes-init-sequence = [
+			/*max96752 dual oLDI output*/
+			0002 0043
+			0073 0032
+			007b 0032
+			007d 0038
+			//Address Value of I2C SRC_A
+			0042 008c
+			//Address Value of I2C DST_A
+			0043 0090
+
+			//0140 0020
+			0050 0001
+			01ce 004e
+			01ea 0005
+		];
+
+		i2c5_max96752_split_pinctrl: i2c5-max96752-split-pinctrl {
+			compatible = "maxim,max96752-pinctrl";
+			status = "disabled";
+
+			pinctrl-names = "default","init","sleep";
+			pinctrl-0 = <&i2c5_max96752_split_panel_pins>;
+			pinctrl-1 = <&i2c5_max96752_split_panel_pins>;
+			pinctrl-2 = <&i2c5_max96752_split_panel_sleep_pins>;
+
+			i2c5_max96752_split_panel_pins: i2c5-max96752-split-panel-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_HIGH";
+				};
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_HIGH";
+				};
+				tp-int {
+					pins = "MAX96752_GPIO2";
+					function = "DES_TXID4_TO_SER";
+				};
+				100ms-delay {
+					pins = "MAX96752_GPIO15";
+					function = "DELAY_100MS";
+				};
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_HIGH";
+				};
+				lcd-bl-pwm {
+					pins = "MAX96752_GPIO4";
+					function = "SER_TO_DES_RXID4";
+				};
+				lcd_bias_en {
+					pins = "MAX96752_GPIO7";
+					function = "DES_TXID7_OUTPUT_HIGH";
+				};
+				lcd_vdd_en {
+					pins = "MAX96752_GPIO6";
+					function = "DES_TXID6_OUTPUT_HIGH";
+				};
+			};
+
+			i2c5_max96752_split_panel_sleep_pins: i2c5-max96752-split-panel-sleep-pins {
+				lcd-rst-pin {
+					pins = "MAX96752_GPIO10";
+					function = "DES_TXID10_OUTPUT_LOW";
+				};
+
+				tp-rst {
+					pins = "MAX96752_GPIO5";
+					function = "DES_TXID5_OUTPUT_LOW";
+				};
+
+				lcd-pwr-on {
+					pins = "MAX96752_GPIO3";
+					function = "DES_TXID3_OUTPUT_LOW";
+				};
+			};
+
+			i2c5_max96752_split_gpio: i2c5-max96752-split-gpio {
+				compatible = "maxim,max96752-gpio";
+				status = "okay";
+
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&i2c5_max96752_split_pinctrl 0 320 15>;
+			};
+		};
+
+		i2c5_max96752_split_panel: i2c5-max96752-split-panel {
+			compatible = "maxim,max96752-panel-split";
+			status = "disabled";
+
+			backlight = <&edp2lvds_backlight1>;
+			panel-size= <346 194>;
+
+			panel-timing {
+				clock-frequency = <115200000>;
+				hactive = <1920>;
+				vactive = <720>;
+				hfront-porch = <56>;
+				hsync-len = <32>;
+				hback-porch = <56>;
+				vfront-porch = <200>;
+				vsync-len = <2>;
+				vback-porch = <8>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			port {
+				i2c5_max96752_split_from_i2c5_max96745: endpoint {
+					remote-endpoint = <&i2c5_max96745_out_i2c5_max96752_split>;
+				};
+			};
+		};
+	};
+
+	himax@45 {
+		compatible = "himax,hxcommon";
+		reg = <0x45>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_edp0>;
+		pinctrl-1 = <&touch_gpio_edp0>;
+		himax,location = "himax-touch-edp0";
+		himax,irq-gpio = <&gpio1 RK_PA5 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c5_max96752_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "disabled";
+	};
+
+	himax_split@46 {
+		compatible = "himax,hxcommon";
+		reg = <0x46>;
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&touch_gpio_edp0>;
+		pinctrl-1 = <&touch_gpio_edp0>;
+		himax,location = "himax-touch-edp0-split";
+		//himax,irq-gpio = <&gpio1 RK_PA5 IRQ_TYPE_EDGE_FALLING>;
+		himax,rst-gpio = <&i2c5_max96752_gpio 5 GPIO_ACTIVE_LOW>;
+		himax,panel-coords = <0 1920 0 720>;
+		himax,display-coords = <0 1920 0 720>;
+		status = "disabled";
+	};
+};
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&mipi_dcphy1 {
+	status = "okay";
+};
+
+&pinctrl {
+	serdes {
+		i2c2_serdes_pins: i2c2-serdes-pins {
+			rockchip,pins =
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c4_serdes_pins: i2c4-serdes-pins {
+			rockchip,pins =
+				<3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c5_serdes_pins: i2c5-serdes-pins {
+			rockchip,pins =
+				<0 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c6_serdes_pins: i2c6-serdes-pins {
+			rockchip,pins =
+				<1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c7_serdes_pins: i2c7-serdes-pins {
+			rockchip,pins =
+				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		i2c8_serdes_pins: i2c8-serdes-pins {
+			rockchip,pins =
+				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+/* dsi0->serdes->lvds_panel */
+&pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pwm0m2_pins>;
+};
+
+/* dp0->serdes->lvds_panel */
+&pwm10 {
+	pinctrl-0 = <&pwm10m2_pins>;
+	status = "okay";
+};
+
+/* edp1->serdes->lvds_panel */
+&pwm11 {
+	pinctrl-0 = <&pwm11m3_pins>;
+	status = "okay";
+};
+
+/* edp0->serdes->lvds_panel */
+&pwm7 {
+	pinctrl-0 = <&pwm7m0_pins>;
+	status = "okay";
+};
+
+/* dsi1->serdes->lvds_panel */
+&pwm13 {
+	status = "okay";
+	pinctrl-0 = <&pwm13m2_pins>;	//hw change to PWM13_M2(GPIO1_B7)
+};
+
+/* dp1->serdes->lvds_panel */
+&pwm14 {
+	pinctrl-0 = <&pwm14m0_pins>;
+	status = "okay";
+};
+
+&route_dp0 {
+	status = "disabled";
+	connect = <&vp0_out_dp0>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
+};
+
+&route_dp1 {
+	status = "disabled";
+	connect = <&vp0_out_dp1>;
+	logo,uboot = "logo34.bmp";
+	logo,kernel = "logo34.bmp";
+};
+
+&route_dsi0 {
+	status = "disabled";
+	connect = <&vp2_out_dsi0>;
+	logo,uboot = "logo1.bmp";
+	logo,kernel = "logo1.bmp";
+};
+
+&route_dsi1 {
+	status = "disabled";
+	connect = <&vp3_out_dsi1>;
+	logo,uboot = "logo2.bmp";
+	logo,kernel = "logo2.bmp";
+};
+
+&route_edp0 {
+	status = "disabled";
+	connect = <&vp1_out_edp0>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
+};
+
+&route_edp1 {
+	status = "disabled";
+	connect = <&vp1_out_edp1>;
+	logo,uboot = "logo56.bmp";
+	logo,kernel = "logo56.bmp";
+};
+
+&usbdp_phy0 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	rockchip,dp-lane-mux = <0 1 2 3>;
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru PLL_V0PLL>;
+	assigned-clock-rates = <2304000000>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp1 {
+	assigned-clocks = <&cru DCLK_VOP1_SRC>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&vp2 {
+	assigned-clocks = <&cru DCLK_VOP2_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp3 {
+	assigned-clocks = <&cru DCLK_VOP3>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
