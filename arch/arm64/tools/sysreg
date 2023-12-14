@@ -1189,7 +1189,10 @@ Enum	63:60	HPMN0
 	0b0000	UNPREDICTABLE
 	0b0001	DEF
 EndEnum
-Res0	59:56
+UnsignedEnum	59:56	ExtTrcBuff
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 UnsignedEnum	55:52	BRBE
 	0b0000	NI
 	0b0001	IMP
