@@ -595,6 +595,136 @@ struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type typ
 }
 EXPORT_SYMBOL(bpf_prog_get_type_path);
 
+struct bpffs_btf_enums {
+	const struct btf *btf;
+	const struct btf_type *cmd_t;
+	const struct btf_type *map_t;
+	const struct btf_type *prog_t;
+	const struct btf_type *attach_t;
+};
+
+static int find_bpffs_btf_enums(struct bpffs_btf_enums *info)
+{
+	const struct btf *btf;
+	const struct btf_type *t;
+	const char *name;
+	int i, n;
+
+	memset(info, 0, sizeof(*info));
+
+	btf = bpf_get_btf_vmlinux();
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+	if (!btf)
+		return -ENOENT;
+
+	info->btf = btf;
+
+	for (i = 1, n = btf_nr_types(btf); i < n; i++) {
+		t = btf_type_by_id(btf, i);
+		if (!btf_type_is_enum(t))
+			continue;
+
+		name = btf_name_by_offset(btf, t->name_off);
+		if (!name)
+			continue;
+
+		if (strcmp(name, "bpf_cmd") == 0)
+			info->cmd_t = t;
+		else if (strcmp(name, "bpf_map_type") == 0)
+			info->map_t = t;
+		else if (strcmp(name, "bpf_prog_type") == 0)
+			info->prog_t = t;
+		else if (strcmp(name, "bpf_attach_type") == 0)
+			info->attach_t = t;
+		else
+			continue;
+
+		if (info->cmd_t && info->map_t && info->prog_t && info->attach_t)
+			return 0;
+	}
+
+	return -ESRCH;
+}
+
+static bool find_btf_enum_const(const struct btf *btf, const struct btf_type *enum_t,
+				const char *prefix, const char *str, int *value)
+{
+	const struct btf_enum *e;
+	const char *name;
+	int i, n, pfx_len = strlen(prefix);
+
+	*value = 0;
+
+	if (!btf || !enum_t)
+		return false;
+
+	for (i = 0, n = btf_vlen(enum_t); i < n; i++) {
+		e = &btf_enum(enum_t)[i];
+
+		name = btf_name_by_offset(btf, e->name_off);
+		if (!name || strncasecmp(name, prefix, pfx_len) != 0)
+			continue;
+
+		/* match symbolic name case insensitive and ignoring prefix */
+		if (strcasecmp(name + pfx_len, str) == 0) {
+			*value = e->val;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void seq_print_delegate_opts(struct seq_file *m,
+				    const char *opt_name,
+				    const struct btf *btf,
+				    const struct btf_type *enum_t,
+				    const char *prefix,
+				    u64 delegate_msk, u64 any_msk)
+{
+	const struct btf_enum *e;
+	bool first = true;
+	const char *name;
+	u64 msk;
+	int i, n, pfx_len = strlen(prefix);
+
+	delegate_msk &= any_msk; /* clear unknown bits */
+
+	if (delegate_msk == 0)
+		return;
+
+	seq_printf(m, ",%s", opt_name);
+	if (delegate_msk == any_msk) {
+		seq_printf(m, "=any");
+		return;
+	}
+
+	if (btf && enum_t) {
+		for (i = 0, n = btf_vlen(enum_t); i < n; i++) {
+			e = &btf_enum(enum_t)[i];
+			name = btf_name_by_offset(btf, e->name_off);
+			if (!name || strncasecmp(name, prefix, pfx_len) != 0)
+				continue;
+			msk = 1ULL << e->val;
+			if (delegate_msk & msk) {
+				/* emit lower-case name without prefix */
+				seq_printf(m, "%c", first ? '=' : ':');
+				name += pfx_len;
+				while (*name) {
+					seq_printf(m, "%c", tolower(*name));
+					name++;
+				}
+
+				delegate_msk &= ~msk;
+				first = false;
+			}
+		}
+	}
+	if (delegate_msk)
+		seq_printf(m, "%c0x%llx", first ? '=' : ':', delegate_msk);
+}
+
 /*
  * Display the mount options in /proc/mounts.
  */
@@ -614,29 +744,34 @@ static int bpf_show_options(struct seq_file *m, struct dentry *root)
 	if (mode != S_IRWXUGO)
 		seq_printf(m, ",mode=%o", mode);
 
-	mask = (1ULL << __MAX_BPF_CMD) - 1;
-	if ((opts->delegate_cmds & mask) == mask)
-		seq_printf(m, ",delegate_cmds=any");
-	else if (opts->delegate_cmds)
-		seq_printf(m, ",delegate_cmds=0x%llx", opts->delegate_cmds);
+	if (opts->delegate_cmds || opts->delegate_maps ||
+	    opts->delegate_progs || opts->delegate_attachs) {
+		struct bpffs_btf_enums info;
 
-	mask = (1ULL << __MAX_BPF_MAP_TYPE) - 1;
-	if ((opts->delegate_maps & mask) == mask)
-		seq_printf(m, ",delegate_maps=any");
-	else if (opts->delegate_maps)
-		seq_printf(m, ",delegate_maps=0x%llx", opts->delegate_maps);
+		/* ignore errors, fallback to hex */
+		(void)find_bpffs_btf_enums(&info);
 
-	mask = (1ULL << __MAX_BPF_PROG_TYPE) - 1;
-	if ((opts->delegate_progs & mask) == mask)
-		seq_printf(m, ",delegate_progs=any");
-	else if (opts->delegate_progs)
-		seq_printf(m, ",delegate_progs=0x%llx", opts->delegate_progs);
+		mask = (1ULL << __MAX_BPF_CMD) - 1;
+		seq_print_delegate_opts(m, "delegate_cmds",
+					info.btf, info.cmd_t, "BPF_",
+					opts->delegate_cmds, mask);
 
-	mask = (1ULL << __MAX_BPF_ATTACH_TYPE) - 1;
-	if ((opts->delegate_attachs & mask) == mask)
-		seq_printf(m, ",delegate_attachs=any");
-	else if (opts->delegate_attachs)
-		seq_printf(m, ",delegate_attachs=0x%llx", opts->delegate_attachs);
+		mask = (1ULL << __MAX_BPF_MAP_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_maps",
+					info.btf, info.map_t, "BPF_MAP_TYPE_",
+					opts->delegate_maps, mask);
+
+		mask = (1ULL << __MAX_BPF_PROG_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_progs",
+					info.btf, info.prog_t, "BPF_PROG_TYPE_",
+					opts->delegate_progs, mask);
+
+		mask = (1ULL << __MAX_BPF_ATTACH_TYPE) - 1;
+		seq_print_delegate_opts(m, "delegate_attachs",
+					info.btf, info.attach_t, "BPF_",
+					opts->delegate_attachs, mask);
+	}
+
 	return 0;
 }
 
@@ -686,7 +821,6 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	kuid_t uid;
 	kgid_t gid;
 	int opt, err;
-	u64 msk;
 
 	opt = fs_parse(fc, bpf_fs_parameters, param, &result);
 	if (opt < 0) {
@@ -741,24 +875,63 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case OPT_DELEGATE_CMDS:
 	case OPT_DELEGATE_MAPS:
 	case OPT_DELEGATE_PROGS:
-	case OPT_DELEGATE_ATTACHS:
-		if (strcmp(param->string, "any") == 0) {
-			msk = ~0ULL;
-		} else {
-			err = kstrtou64(param->string, 0, &msk);
-			if (err)
-				return err;
+	case OPT_DELEGATE_ATTACHS: {
+		struct bpffs_btf_enums info;
+		const struct btf_type *enum_t;
+		const char *enum_pfx;
+		u64 *delegate_msk, msk = 0;
+		char *p;
+		int val;
+
+		/* ignore errors, fallback to hex */
+		(void)find_bpffs_btf_enums(&info);
+
+		switch (opt) {
+		case OPT_DELEGATE_CMDS:
+			delegate_msk = &opts->delegate_cmds;
+			enum_t = info.cmd_t;
+			enum_pfx = "BPF_";
+			break;
+		case OPT_DELEGATE_MAPS:
+			delegate_msk = &opts->delegate_maps;
+			enum_t = info.map_t;
+			enum_pfx = "BPF_MAP_TYPE_";
+			break;
+		case OPT_DELEGATE_PROGS:
+			delegate_msk = &opts->delegate_progs;
+			enum_t = info.prog_t;
+			enum_pfx = "BPF_PROG_TYPE_";
+			break;
+		case OPT_DELEGATE_ATTACHS:
+			delegate_msk = &opts->delegate_attachs;
+			enum_t = info.attach_t;
+			enum_pfx = "BPF_";
+			break;
+		default:
+			return -EINVAL;
 		}
+
+		while ((p = strsep(&param->string, ":"))) {
+			if (strcmp(p, "any") == 0) {
+				msk |= ~0ULL;
+			} else if (find_btf_enum_const(info.btf, enum_t, enum_pfx, p, &val)) {
+				msk |= 1ULL << val;
+			} else {
+				err = kstrtou64(p, 0, &msk);
+				if (err)
+					return err;
+			}
+		}
+
 		/* Setting delegation mount options requires privileges */
 		if (msk && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		switch (opt) {
-		case OPT_DELEGATE_CMDS: opts->delegate_cmds |= msk; break;
-		case OPT_DELEGATE_MAPS: opts->delegate_maps |= msk; break;
-		case OPT_DELEGATE_PROGS: opts->delegate_progs |= msk; break;
-		case OPT_DELEGATE_ATTACHS: opts->delegate_attachs |= msk; break;
-		default: return -EINVAL;
-		}
+
+		*delegate_msk |= msk;
+		break;
+	}
+	default:
+		/* ignore unknown mount options */
 		break;
 	}
 
