@@ -92,6 +92,9 @@
 #define LIS2HH12_LIR1_MASK			0x04
 #define LIS2HH12_LIR2_MASK			0x08
 
+#define LIS2HH12_SELF_TEST_ADDR			LIS2HH12_CTRL5_ADDR
+#define LIS2HH12_ST_MASK			0x0c
+
 #define LIS2HH12_MAX_FIFO_LENGHT		32
 #define LIS2HH12_MAX_FIFO_THS			(LIS2HH12_MAX_FIFO_LENGHT - 1)
 #define LIS2HH12_FIFO_NUM_AXIS			3
@@ -112,6 +115,11 @@
 #define SET_BIT(a, b)				{a |= (1 << b);}
 #define RESET_BIT(a, b)				{a &= ~(1 << b);}
 #define CHECK_BIT(a, b)				(a & (1 << b))
+
+#define LIS2HH12_DATA_SIZE			6
+
+#define LIS2HH12_SELFTEST_MIN		1147
+#define LIS2HH12_SELFTEST_MAX		24590
 
 #define ST_LIS2HH12_FLUSH_CHANNEL(device_type) \
 { \
@@ -148,6 +156,12 @@
 enum fifo_mode {
 	BYPASS = 0,
 	STREAM,
+};
+
+enum lis2hh12_selftest_status {
+	LIS2HH12_ST_RESET,
+	LIS2HH12_ST_PASS,
+	LIS2HH12_ST_FAIL,
 };
 
 #define LIS2HH12_TX_MAX_LENGTH		12
@@ -190,6 +204,7 @@ struct lis2hh12_data {
 	s64 sensor_timestamp;
 	u8 *fifo_data;
 	u16 fifo_size;
+	enum lis2hh12_selftest_status st_status;
 	struct device *dev;
 	struct iio_dev *iio_sensors_dev[LIS2HH12_SENSORS_NUMB];
 	struct iio_trigger *iio_trig[LIS2HH12_SENSORS_NUMB];

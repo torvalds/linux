@@ -139,6 +139,15 @@ static const struct lis2hh12_sensors_table {
 	},
 };
 
+struct lis2hh12_selftest_req {
+	char *mode;
+	u8 val;
+} lis2hh12_selftest_table[] = {
+	{ "disabled", 0x0 },
+	{ "positive-sign", 0x1 },
+	{ "negative-sign", 0x2 },
+};
+
 inline int lis2hh12_read_register(struct lis2hh12_data *cdata, u8 reg_addr, int data_len,
 							u8 *data)
 {
@@ -199,31 +208,49 @@ int lis2hh12_set_fifo_mode(struct lis2hh12_data *cdata, enum fifo_mode fm)
 }
 EXPORT_SYMBOL(lis2hh12_set_fifo_mode);
 
+static int lis2hh12_get_odr(u32 odr)
+{
+	int i;
+
+	for (i = 0; i < LIS2HH12_ODR_LIST_NUM; i++) {
+		if (lis2hh12_odr_table.odr_avl[i].hz >= odr)
+			break;
+	}
+
+	if (i == LIS2HH12_ODR_LIST_NUM)
+		return -EINVAL;
+
+	return i;
+}
+
+static int lis2hh12_set_odr(struct lis2hh12_sensor_data *sdata, u32 odr)
+{
+	int ret;
+
+	ret = lis2hh12_get_odr(odr);
+	if (ret < 0)
+		return ret;
+
+	return lis2hh12_write_register(sdata->cdata,
+				       lis2hh12_odr_table.addr,
+				       lis2hh12_odr_table.mask,
+				       lis2hh12_odr_table.odr_avl[ret].value);
+}
+
 int lis2hh12_write_max_odr(struct lis2hh12_sensor_data *sdata)
 {
-	int err, i;
-	u32 max_odr = 0;
 	struct lis2hh12_sensor_data *t_sdata;
+	u32 max_odr = 0;
+	int err, i;
 
 	for (i = 0; i < LIS2HH12_SENSORS_NUMB; i++)
 		if (CHECK_BIT(sdata->cdata->enabled_sensor, i)) {
 			t_sdata = iio_priv(sdata->cdata->iio_sensors_dev[i]);
-			if (t_sdata->odr > max_odr)
-				max_odr = t_sdata->odr;
+			max_odr = max_t(u32, t_sdata->odr, max_odr);
 		}
 
 	if (max_odr != sdata->cdata->common_odr) {
-		for (i = 0; i < LIS2HH12_ODR_LIST_NUM; i++) {
-			if (lis2hh12_odr_table.odr_avl[i].hz >= max_odr)
-				break;
-		}
-		if (i == LIS2HH12_ODR_LIST_NUM)
-			return -EINVAL;
-
-		err = lis2hh12_write_register(sdata->cdata,
-				lis2hh12_odr_table.addr,
-				lis2hh12_odr_table.mask,
-				lis2hh12_odr_table.odr_avl[i].value);
+		err = lis2hh12_set_odr(sdata, max_odr);
 		if (err < 0)
 			return err;
 
@@ -674,6 +701,265 @@ static int lis2hh12_write_raw(struct iio_dev *indio_dev,
 	return err;
 }
 
+static ssize_t lis2hh12_get_selftest_avail(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	return sprintf(buf, "%s, %s\n", lis2hh12_selftest_table[1].mode,
+		       lis2hh12_selftest_table[2].mode);
+}
+
+static ssize_t lis2hh12_get_selftest_status(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct lis2hh12_sensor_data *sdata = iio_priv(iio_dev);
+	struct lis2hh12_data *cdata = sdata->cdata;
+	char *ret;
+
+	switch (cdata->st_status) {
+	case LIS2HH12_ST_PASS:
+		ret = "pass";
+		break;
+	case LIS2HH12_ST_FAIL:
+		ret = "fail";
+		break;
+	default:
+		ret = "na";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", ret);
+}
+
+static ssize_t lis2hh12_enable_selftest(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t size)
+{
+	struct iio_dev *iio_dev = dev_to_iio_dev(dev);
+	struct lis2hh12_sensor_data *sdata = iio_priv(iio_dev);
+	struct lis2hh12_data *cdata = sdata->cdata;
+	s16 acc_st_x = 0, acc_st_y = 0, acc_st_z = 0;
+	s16 acc_x = 0, acc_y = 0, acc_z = 0;
+	u8 data[LIS2HH12_DATA_SIZE], stval, status;
+	int i, err, gain, odr, trycount;
+
+	mutex_lock(&iio_dev->mlock);
+
+	/* self test procedure run only when accel sensor is disabled */
+	if (iio_buffer_enabled(iio_dev)) {
+		err = -EBUSY;
+
+		goto unlock;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lis2hh12_selftest_table); i++)
+		if (!strncmp(buf, lis2hh12_selftest_table[i].mode,
+			     size - 2))
+			break;
+
+	if (i == ARRAY_SIZE(lis2hh12_selftest_table)) {
+		err = -EINVAL;
+
+		goto unlock;
+	}
+
+	cdata->st_status = LIS2HH12_ST_RESET;
+	stval = lis2hh12_selftest_table[i].val;
+
+	/* save odr and gain before change it */
+	gain = sdata->gain;
+	odr = sdata->odr;
+
+	/* fs = 2g, odr = 50Hz */
+	err = lis2hh12_set_fs(sdata, LIS2HH12_FS_2G_GAIN);
+	if (err < 0)
+		goto unlock;
+
+	err = lis2hh12_set_odr(sdata, 100);
+	if (err < 0)
+		goto unlock;
+
+	/*
+	 * read OUTX/OUTY/OUTZ to clear ZYXDA bit in register STATUS
+	 * and discard output data
+	 */
+	for (trycount = 0; trycount < 3; trycount++) {
+		/* avoid polling before one odr */
+		usleep_range(10000, 11000);
+		err = lis2hh12_read_register(cdata, LIS2HH12_STATUS_ADDR,
+					     sizeof(status), &status);
+		if (err < 0)
+			goto unlock;
+
+		if (status & LIS2HH12_DATA_XYZ_RDY) {
+			err = lis2hh12_read_register(cdata,
+						     LIS2HH12_OUTX_L_ADDR,
+						     sizeof(data), data);
+			if (err < 0)
+				goto unlock;
+
+			break;
+		}
+	}
+
+	if (trycount == 3) {
+		dev_err(cdata->dev,
+			"self-test: Unable to collect sensor data.\n");
+
+		goto unlock;
+	}
+
+	/* read the output registers after checking ZYXDA bit 5 times */
+	trycount = 0;
+	i = 0;
+	do {
+		err = lis2hh12_read_register(cdata, LIS2HH12_STATUS_ADDR,
+					     sizeof(status), &status);
+		if (err < 0)
+			goto unlock;
+
+		if (status & LIS2HH12_DATA_XYZ_RDY) {
+			err = lis2hh12_read_register(cdata,
+						     LIS2HH12_OUTX_L_ADDR,
+						     sizeof(data), data);
+			if (err < 0)
+				goto unlock;
+
+			acc_x += ((s16)get_unaligned_le16(&data[0])) / 5;
+			acc_y += ((s16)get_unaligned_le16(&data[2])) / 5;
+			acc_z += ((s16)get_unaligned_le16(&data[4])) / 5;
+			i++;
+		} else {
+			trycount++;
+			if (trycount == 3) {
+				dev_err(cdata->dev,
+					"self-test: Unable to collect sensor data.\n");
+
+				goto unlock;
+			}
+		}
+
+		usleep_range(10000, 11000);
+	} while (i < 5);
+
+	/* enable self test */
+	err = lis2hh12_write_register(cdata, LIS2HH12_SELF_TEST_ADDR,
+				      LIS2HH12_ST_MASK, stval);
+	if (err < 0)
+		goto unlock;
+
+	usleep_range(80000, 90000);
+
+	/*
+	 * read OUTX/OUTY/OUTZ to clear ZYXDA bit in register STATUS
+	 * and discard output data
+	 */
+	for (trycount = 0; trycount < 3; trycount++) {
+		/* avoid polling before one odr */
+		usleep_range(10000, 11000);
+
+		err = lis2hh12_read_register(cdata, LIS2HH12_STATUS_ADDR,
+					     sizeof(status), &status);
+		if (err < 0)
+			goto unlock;
+
+		if (status & LIS2HH12_DATA_XYZ_RDY) {
+			err = lis2hh12_read_register(cdata,
+						     LIS2HH12_OUTX_L_ADDR,
+						     sizeof(data), data);
+			if (err < 0)
+				goto unlock;
+
+			break;
+		}
+	}
+
+	if (trycount == 3) {
+		dev_err(cdata->dev,
+			"self-test: Unable to collect sensor data.\n");
+
+		goto unlock;
+	}
+
+	/* read the output registers after checking ZYXDA bit 5 times */
+	trycount = 0;
+	i = 0;
+	do {
+		err = lis2hh12_read_register(cdata, LIS2HH12_STATUS_ADDR,
+					     sizeof(status), &status);
+		if (err < 0)
+			goto unlock;
+
+		if (status & LIS2HH12_DATA_XYZ_RDY) {
+			err = lis2hh12_read_register(cdata,
+						     LIS2HH12_OUTX_L_ADDR,
+						     sizeof(data), data);
+			if (err < 0)
+				goto unlock;
+
+			acc_st_x += ((s16)get_unaligned_le16(&data[0])) / 5;
+			acc_st_y += ((s16)get_unaligned_le16(&data[2])) / 5;
+			acc_st_z += ((s16)get_unaligned_le16(&data[4])) / 5;
+			i++;
+		} else {
+			trycount++;
+			if (trycount == 3) {
+				dev_err(cdata->dev,
+					"self-test: Unable to collect sensor data.\n");
+
+				goto unlock;
+			}
+		}
+
+		usleep_range(10000, 11000);
+	} while (i < 5);
+
+	if ((abs(acc_st_x - acc_x) < LIS2HH12_SELFTEST_MIN) ||
+	    (abs(acc_st_x - acc_x) > LIS2HH12_SELFTEST_MAX)) {
+		dev_warn(cdata->dev,
+			 "self-test: failed x-axis test (delta %d)\n",
+			 abs(acc_st_x - acc_x));
+		cdata->st_status = LIS2HH12_ST_FAIL;
+	} else if ((abs(acc_st_y - acc_y) < LIS2HH12_SELFTEST_MIN) ||
+		   (abs(acc_st_y - acc_y) > LIS2HH12_SELFTEST_MAX)) {
+		dev_warn(cdata->dev,
+			 "self-test: failed y-axis test (delta %d)\n",
+			 abs(acc_st_y - acc_y));
+		cdata->st_status = LIS2HH12_ST_FAIL;
+	} else if (abs(acc_st_z - acc_z) < LIS2HH12_SELFTEST_MIN ||
+		  (abs(acc_st_z - acc_z) > LIS2HH12_SELFTEST_MAX)) {
+		dev_warn(cdata->dev,
+			 "self-test: failed z-axis test (delta %d)\n",
+			 abs(acc_st_z - acc_z));
+		cdata->st_status = LIS2HH12_ST_FAIL;
+	} else {
+		cdata->st_status = LIS2HH12_ST_PASS;
+	}
+
+	/* disable self test */
+	err = lis2hh12_write_register(cdata, LIS2HH12_SELF_TEST_ADDR,
+				      LIS2HH12_ST_MASK, 0);
+	if (err < 0)
+		goto unlock;
+
+	err = lis2hh12_set_fs(sdata, gain);
+	if (err < 0)
+		goto unlock;
+
+	err = lis2hh12_set_odr(sdata, odr);
+	if (err < 0)
+		goto unlock;
+
+	err = lis2hh12_set_enable(sdata, false);
+
+unlock:
+	mutex_unlock(&iio_dev->mlock);
+
+	return err < 0 ? err : size;
+}
+
 static ST_LIS2HH12_DEV_ATTR_SAMP_FREQ();
 static ST_LIS2HH12_DEV_ATTR_SAMP_FREQ_AVAIL();
 static ST_LIS2HH12_DEV_ATTR_SCALE_AVAIL(in_accel_scale_available);
@@ -684,6 +970,12 @@ static ST_LIS2HH12_HWFIFO_WATERMARK_MIN();
 static ST_LIS2HH12_HWFIFO_WATERMARK_MAX();
 static ST_LIS2HH12_HWFIFO_FLUSH();
 
+static IIO_DEVICE_ATTR(selftest_available, 0444,
+		       lis2hh12_get_selftest_avail, NULL, 0);
+static IIO_DEVICE_ATTR(selftest, 0644, lis2hh12_get_selftest_status,
+		       lis2hh12_enable_selftest, 0);
+
+
 static struct attribute *lis2hh12_accel_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
@@ -693,6 +985,8 @@ static struct attribute *lis2hh12_accel_attributes[] = {
 	&iio_dev_attr_hwfifo_watermark_min.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_selftest_available.dev_attr.attr,
+	&iio_dev_attr_selftest.dev_attr.attr,
 	NULL,
 };
 
