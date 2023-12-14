@@ -3,12 +3,12 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/csr.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm-generic/export.h>
 #include <asm/ftrace.h>
 
 	.text
