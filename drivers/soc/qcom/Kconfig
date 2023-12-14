@@ -123,6 +123,18 @@ config MSM_L2_SPM
           Enabling this driver allows configuring L2 SPM for low power modes
           on supported chipsets.
 
+config MSM_PM_LEGACY
+	depends on PM
+	select MSM_IDLE_STATS if DEBUG_FS
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	select QTI_SYSTEM_PM_RPM if MSM_RPM_SMD && MPM_LEGACY
+	bool "Qualcomm Technologies, Inc. (QTI) platform specific Legacy PM driver"
+	help
+	  Platform specific legacy power driver to manage
+	  cores and l2 low power modes. It interface with
+	  various system driver and put the cores into
+	  low power modes.
+
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
