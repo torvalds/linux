@@ -1744,7 +1744,9 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 	} else {
 		if (host->hw_ver.major == 6 && host->hw_ver.minor == 0 &&
 		    host->hw_ver.step == 0)
-			ufshcd_rmwl(hba, ESI_VEC_MASK, 0x1f00, REG_UFS_CFG3);
+			ufshcd_rmwl(hba, ESI_VEC_MASK,
+				    FIELD_PREP(ESI_VEC_MASK, MAX_ESI_VEC - 1),
+				    REG_UFS_CFG3);
 		ufshcd_mcq_enable_esi(hba);
 	}
 
