@@ -15,7 +15,6 @@
 #include <drm/drm_drv.h>
 #include <drm/xe_pciids.h>
 
-#include "regs/xe_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_display.h"

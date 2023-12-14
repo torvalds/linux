@@ -11,7 +11,6 @@
 #include <drm/i915_drm.h>
 
 #include "regs/xe_gt_regs.h"
-#include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"

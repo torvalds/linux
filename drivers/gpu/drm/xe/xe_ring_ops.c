@@ -11,7 +11,6 @@
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_lrc_layout.h"
-#include "regs/xe_regs.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
