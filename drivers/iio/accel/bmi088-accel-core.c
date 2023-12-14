@@ -2,6 +2,8 @@
 /*
  * 3-axis accelerometer driver supporting following Bosch-Sensortec chips:
  *  - BMI088
+ *  - BMI085
+ *  - BMI090L
  *
  * Copyright (c) 2018-2021, Topic Embedded Products
  */
