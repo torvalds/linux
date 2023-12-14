@@ -1401,6 +1401,7 @@ UnsignedEnum	11:8	API
 	0b0011	PAuth2
 	0b0100	FPAC
 	0b0101	FPACCOMBINE
+	0b0110	PAuth_LR
 EndEnum
 UnsignedEnum	7:4	APA
 	0b0000	NI
@@ -1409,6 +1410,7 @@ UnsignedEnum	7:4	APA
 	0b0011	PAuth2
 	0b0100	FPAC
 	0b0101	FPACCOMBINE
+	0b0110	PAuth_LR
 EndEnum
 UnsignedEnum	3:0	DPB
 	0b0000	NI
