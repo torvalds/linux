@@ -592,7 +592,7 @@ void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *ev
 {
 	struct evsel *evsel;
 
-	if (config->no_merge)
+	if (config->aggr_mode == AGGR_NONE)
 		return;
 
 	evlist__for_each_entry(evlist, evsel)
