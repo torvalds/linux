@@ -248,7 +248,7 @@ xreap_agextent_binval(
 		max_fsbs = min_t(xfs_agblock_t, agbno_next - bno,
 				xfs_attr3_rmt_blocks(mp, XFS_XATTR_SIZE_MAX));
 
-		for (fsbcount = 1; fsbcount < max_fsbs; fsbcount++) {
+		for (fsbcount = 1; fsbcount <= max_fsbs; fsbcount++) {
 			struct xfs_buf	*bp = NULL;
 			xfs_daddr_t	daddr;
 			int		error;
