@@ -115,6 +115,8 @@ struct tipd_data {
 	void (*trace_power_status)(u16 status);
 	void (*trace_status)(u32 status);
 	int (*apply_patch)(struct tps6598x *tps);
+	int (*init)(struct tps6598x *tps);
+	int (*reset)(struct tps6598x *tps);
 };
 
 struct tps6598x {
@@ -1106,6 +1108,11 @@ wait_for_app:
 	return 0;
 };
 
+static int cd321x_init(struct tps6598x *tps)
+{
+	return 0;
+}
+
 static int tps25750_init(struct tps6598x *tps)
 {
 	int ret;
@@ -1122,6 +1129,21 @@ static int tps25750_init(struct tps6598x *tps)
 			 __func__, ret);
 
 	return 0;
+}
+
+static int tps6598x_init(struct tps6598x *tps)
+{
+	return 0;
+}
+
+static int cd321x_reset(struct tps6598x *tps)
+{
+	return 0;
+}
+
+static int tps6598x_reset(struct tps6598x *tps)
+{
+	return tps6598x_exec_cmd_tmo(tps, "GAID", 0, NULL, 0, NULL, 2000, 0);
 }
 
 static int
@@ -1187,7 +1209,6 @@ static int tps6598x_probe(struct i2c_client *client)
 	u32 vid;
 	int ret;
 	u64 mask1;
-	bool is_tps25750;
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
@@ -1207,8 +1228,7 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (IS_ERR(tps->regmap))
 		return PTR_ERR(tps->regmap);
 
-	is_tps25750 = device_is_compatible(tps->dev, "ti,tps25750");
-	if (!is_tps25750) {
+	if (!device_is_compatible(tps->dev, "ti,tps25750")) {
 		ret = tps6598x_read32(tps, TPS_REG_VID, &vid);
 		if (ret < 0 || !vid)
 			return -ENODEV;
@@ -1251,8 +1271,8 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	if (is_tps25750 && ret == TPS_MODE_PTCH) {
-		ret = tps25750_init(tps);
+	if (ret == TPS_MODE_PTCH) {
+		ret = tps->data->init(tps);
 		if (ret)
 			return ret;
 	}
@@ -1340,8 +1360,8 @@ err_clear_mask:
 	tps6598x_write64(tps, TPS_REG_INT_MASK1, 0);
 err_reset_controller:
 	/* Reset PD controller to remove any applied patch */
-	if (is_tps25750)
-		tps6598x_exec_cmd_tmo(tps, "GAID", 0, NULL, 0, NULL, 2000, 0);
+	tps->data->reset(tps);
+
 	return ret;
 }
 
@@ -1358,8 +1378,7 @@ static void tps6598x_remove(struct i2c_client *client)
 	usb_role_switch_put(tps->role_sw);
 
 	/* Reset PD controller to remove any applied patch */
-	if (device_is_compatible(tps->dev, "ti,tps25750"))
-		tps6598x_exec_cmd_tmo(tps, "GAID", 0, NULL, 0, NULL, 2000, 0);
+	tps->data->reset(tps);
 
 	if (tps->reset)
 		gpiod_set_value_cansleep(tps->reset, 1);
@@ -1393,7 +1412,7 @@ static int __maybe_unused tps6598x_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 
-	if (device_is_compatible(tps->dev, "ti,tps25750") && ret == TPS_MODE_PTCH) {
+	if (ret == TPS_MODE_PTCH) {
 		ret = tps25750_init(tps);
 		if (ret)
 			return ret;
@@ -1423,6 +1442,8 @@ static const struct tipd_data cd321x_data = {
 	.register_port = tps6598x_register_port,
 	.trace_power_status = trace_tps6598x_power_status,
 	.trace_status = trace_tps6598x_status,
+	.init = cd321x_init,
+	.reset = cd321x_reset,
 };
 
 static const struct tipd_data tps6598x_data = {
@@ -1430,6 +1451,8 @@ static const struct tipd_data tps6598x_data = {
 	.register_port = tps6598x_register_port,
 	.trace_power_status = trace_tps6598x_power_status,
 	.trace_status = trace_tps6598x_status,
+	.init = tps6598x_init,
+	.reset = tps6598x_reset,
 };
 
 static const struct tipd_data tps25750_data = {
@@ -1438,6 +1461,8 @@ static const struct tipd_data tps25750_data = {
 	.trace_power_status = trace_tps25750_power_status,
 	.trace_status = trace_tps25750_status,
 	.apply_patch = tps25750_apply_patch,
+	.init = tps25750_init,
+	.reset = tps6598x_reset,
 };
 
 static const struct of_device_id tps6598x_of_match[] = {
