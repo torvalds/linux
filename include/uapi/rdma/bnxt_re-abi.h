@@ -143,6 +143,7 @@ enum bnxt_re_shpg_offt {
 enum bnxt_re_objects {
 	BNXT_RE_OBJECT_ALLOC_PAGE = (1U << UVERBS_ID_NS_SHIFT),
 	BNXT_RE_OBJECT_NOTIFY_DRV,
+	BNXT_RE_OBJECT_GET_TOGGLE_MEM,
 };
 
 enum bnxt_re_alloc_page_type {
@@ -170,5 +171,30 @@ enum bnxt_re_alloc_page_methods {
 
 enum bnxt_re_notify_drv_methods {
 	BNXT_RE_METHOD_NOTIFY_DRV = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+/* Toggle mem */
+
+enum bnxt_re_get_toggle_mem_type {
+	BNXT_RE_CQ_TOGGLE_MEM = 0,
+	BNXT_RE_SRQ_TOGGLE_MEM,
+};
+
+enum bnxt_re_var_toggle_mem_attrs {
+	BNXT_RE_TOGGLE_MEM_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_TOGGLE_MEM_TYPE,
+	BNXT_RE_TOGGLE_MEM_RES_ID,
+	BNXT_RE_TOGGLE_MEM_MMAP_PAGE,
+	BNXT_RE_TOGGLE_MEM_MMAP_OFFSET,
+	BNXT_RE_TOGGLE_MEM_MMAP_LENGTH,
+};
+
+enum bnxt_re_toggle_mem_attrs {
+	BNXT_RE_RELEASE_TOGGLE_MEM_HANDLE = (1U << UVERBS_ID_NS_SHIFT),
+};
+
+enum bnxt_re_toggle_mem_methods {
+	BNXT_RE_METHOD_GET_TOGGLE_MEM = (1U << UVERBS_ID_NS_SHIFT),
+	BNXT_RE_METHOD_RELEASE_TOGGLE_MEM,
 };
 #endif /* __BNXT_RE_UVERBS_ABI_H__*/
