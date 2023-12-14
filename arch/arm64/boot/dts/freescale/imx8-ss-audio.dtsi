@@ -14,6 +14,104 @@ audio_ipg_clk: clock-audio-ipg {
 	clock-output-names = "audio_ipg_clk";
 };
 
+clk_ext_aud_mclk0: clock-ext-aud-mclk0 {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "ext_aud_mclk0";
+};
+
+clk_ext_aud_mclk1: clock-ext-aud-mclk1 {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "ext_aud_mclk1";
+};
+
+clk_esai0_rx_clk: clock-esai0-rx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_rx_clk";
+};
+
+clk_esai0_rx_hf_clk: clock-esai0-rx-hf {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_rx_hf_clk";
+};
+
+clk_esai0_tx_clk: clock-esai0-tx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_tx_clk";
+};
+
+clk_esai0_tx_hf_clk: clock-esai0-tx-hf {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "esai0_tx_hf_clk";
+};
+
+clk_spdif0_rx: clock-spdif0-rx {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "spdif0_rx";
+};
+
+clk_sai0_rx_bclk: clock-sai0-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai0_rx_bclk";
+};
+
+clk_sai0_tx_bclk: clock-sai0-tx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai0_tx_bclk";
+};
+
+clk_sai1_rx_bclk: clock-sai1-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai1_rx_bclk";
+};
+
+clk_sai1_tx_bclk: clock-sai1-tx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai1_tx_bclk";
+};
+
+clk_sai2_rx_bclk: clock-sai2-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai2_rx_bclk";
+};
+
+clk_sai3_rx_bclk: clock-sai3-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai3_rx_bclk";
+};
+
+clk_sai4_rx_bclk: clock-sai4-rx-bclk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <0>;
+	clock-output-names = "sai4_rx_bclk";
+};
+
 audio_subsys: bus@59000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
@@ -150,5 +248,45 @@ audio_subsys: bus@59000000 {
 				<&pd IMX_SC_R_DMA_1_CH8>,
 				<&pd IMX_SC_R_DMA_1_CH9>,
 				<&pd IMX_SC_R_DMA_1_CH10>;
+	};
+
+	aud_rec0_lpcg: clock-controller@59d00000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d00000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_rec_clk0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_0>;
+	};
+
+	aud_rec1_lpcg: clock-controller@59d10000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d10000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_MST_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_rec_clk1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_1>;
+	};
+
+	aud_pll_div0_lpcg: clock-controller@59d20000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d20000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_pll_div_clk0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_0>;
+	};
+
+	aud_pll_div1_lpcg: clock-controller@59d30000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d30000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_AUDIO_PLL_1 IMX_SC_PM_CLK_SLV_BUS>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "aud_pll_div_clk1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_AUDIO_PLL_1>;
 	};
 };
