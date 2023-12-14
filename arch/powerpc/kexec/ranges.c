@@ -385,14 +385,16 @@ int add_opal_mem_range(struct crash_mem **mem_ranges)
 int add_reserved_mem_ranges(struct crash_mem **mem_ranges)
 {
 	int n_mem_addr_cells, n_mem_size_cells, i, len, cells, ret = 0;
+	struct device_node *root = of_find_node_by_path("/");
 	const __be32 *prop;
 
-	prop = of_get_property(of_root, "reserved-ranges", &len);
+	prop = of_get_property(root, "reserved-ranges", &len);
+	n_mem_addr_cells = of_n_addr_cells(root);
+	n_mem_size_cells = of_n_size_cells(root);
+	of_node_put(root);
 	if (!prop)
 		return 0;
 
-	n_mem_addr_cells = of_n_addr_cells(of_root);
-	n_mem_size_cells = of_n_size_cells(of_root);
 	cells = n_mem_addr_cells + n_mem_size_cells;
 
 	/* Each reserved range is an (address,size) pair */

@@ -32,8 +32,10 @@ bool is_ppc_secureboot_enabled(void)
 	if (enabled)
 		goto out;
 
-	if (!of_property_read_u32(of_root, "ibm,secure-boot", &secureboot))
+	node = of_find_node_by_path("/");
+	if (!of_property_read_u32(node, "ibm,secure-boot", &secureboot))
 		enabled = (secureboot > 1);
+	of_node_put(node);
 
 out:
 	pr_info("Secure boot mode %s\n", enabled ? "enabled" : "disabled");
@@ -54,8 +56,10 @@ bool is_ppc_trustedboot_enabled(void)
 	if (enabled)
 		goto out;
 
-	if (!of_property_read_u32(of_root, "ibm,trusted-boot", &trustedboot))
+	node = of_find_node_by_path("/");
+	if (!of_property_read_u32(node, "ibm,trusted-boot", &trustedboot))
 		enabled = (trustedboot > 0);
+	of_node_put(node);
 
 out:
 	pr_info("Trusted boot mode %s\n", enabled ? "enabled" : "disabled");
