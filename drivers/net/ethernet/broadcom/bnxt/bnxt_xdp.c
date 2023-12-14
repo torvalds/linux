@@ -59,7 +59,6 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 	for (i = 0; i < num_frags ; i++) {
 		skb_frag_t *frag = &sinfo->frags[i];
 		struct bnxt_sw_tx_bd *frag_tx_buf;
-		struct pci_dev *pdev = bp->pdev;
 		dma_addr_t frag_mapping;
 		int frag_len;
 
@@ -73,16 +72,10 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 		txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
 
 		frag_len = skb_frag_size(frag);
-		frag_mapping = skb_frag_dma_map(&pdev->dev, frag, 0,
-						frag_len, DMA_TO_DEVICE);
-
-		if (unlikely(dma_mapping_error(&pdev->dev, frag_mapping)))
-			return NULL;
-
-		dma_unmap_addr_set(frag_tx_buf, mapping, frag_mapping);
-
 		flags = frag_len << TX_BD_LEN_SHIFT;
 		txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
+		frag_mapping = page_pool_get_dma_addr(skb_frag_page(frag)) +
+			       skb_frag_off(frag);
 		txbd->tx_bd_haddr = cpu_to_le64(frag_mapping);
 
 		len = frag_len;
