@@ -403,6 +403,26 @@ audio_subsys: bus@59000000 {
 		power-domains = <&pd IMX_SC_R_AUDIO_PLL_1>;
 	};
 
+	mclkout0_lpcg: clock-controller@59d50000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d50000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_MCLKOUT0_SEL>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "mclkout0_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_MCLK_OUT_0>;
+	};
+
+	mclkout1_lpcg: clock-controller@59d60000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59d60000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_MCLKOUT1_SEL>;
+		clock-indices = <IMX_LPCG_CLK_0>;
+		clock-output-names = "mclkout1_lpcg_clk";
+		power-domains = <&pd IMX_SC_R_MCLK_OUT_1>;
+	};
+
 	acm: acm@59e00000 {
 		compatible = "fsl,imx8qxp-acm";
 		reg = <0x59e00000 0x1d0000>;
