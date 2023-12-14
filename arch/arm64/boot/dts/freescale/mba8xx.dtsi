@@ -116,7 +116,12 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	/* TODO: Audio */
+	sound {
+		compatible = "fsl,imx-audio-tlv320aic32x4";
+		model = "tqm-tlv320aic32";
+		audio-codec = <&tlv320aic3x04>;
+		ssi-controller = <&sai1>;
+	};
 };
 
 &adc0 {
@@ -204,7 +209,14 @@
 };
 
 &i2c1 {
-	/* TODO: Add Audio codec */
+	tlv320aic3x04: audio-codec@18 {
+		compatible = "ti,tlv320aic32x4";
+		reg = <0x18>;
+		clocks = <&mclkout0_lpcg 0>;
+		clock-names = "mclk";
+		iov-supply = <&reg_1v8>;
+		ldoin-supply = <&reg_3v3>;
+	};
 
 	se97b_1c: temperature-sensor@1c {
 		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
@@ -298,7 +310,16 @@
 
 /* TODO: Mini-PCIe */
 
-/* TODO: SAI1 */
+&sai1 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai1_lpcg 0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	status = "okay";
+};
 
 &usbotg1 {
 	pinctrl-names = "default";
