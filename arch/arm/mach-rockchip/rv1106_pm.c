@@ -22,6 +22,7 @@
 #include "rkpm_gicv2.h"
 #include "rkpm_helpers.h"
 #include "rkpm_uart.h"
+#include "rockchip_hptimer.h"
 #include "rv1106_pm.h"
 
 #define RV1106_PM_REG_REGION_MEM_SIZE		SZ_4K
@@ -91,6 +92,7 @@ static void __iomem *uartdbg_base;
 static void __iomem *pmu_base;
 static void __iomem *gicd_base;
 static void __iomem *gicc_base;
+static void __iomem *hptimer_base;
 static void __iomem *firewall_ddr_base;
 static void __iomem *firewall_syssram_base;
 static void __iomem *pmu_base;
@@ -656,6 +658,9 @@ static void pvtm_32k_config_restore(void)
 {
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.pmucru_sel_con7),
 		       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
+
+	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE)
+		rk_hptimer_do_soft_adjust_no_wait(hptimer_base);
 }
 
 static void ddr_sleep_config(void)
@@ -1134,6 +1139,12 @@ RE_ENTER_SLEEP:
 		}
 	}
 
+	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE) {
+		if (rk_hptimer_wait_mode(hptimer_base,
+					 RK_HPTIMER_SOFT_ADJUST_MODE))
+			rkpm_printstr("WARN: can't wait hptimer soft adjust mode!\n");
+	}
+
 	fiq_glue_resume();
 
 	rv1106_dbg_irq_finish();
@@ -1162,6 +1173,8 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	gicd_base = dev_reg_base + RV1106_GIC_OFFSET + 0x1000;
 	gicc_base = dev_reg_base + RV1106_GIC_OFFSET + 0x2000;
+
+	hptimer_base = dev_reg_base + RV1106_HPTIMER_OFFSET;
 
 	firewall_ddr_base = dev_reg_base + RV1106_FW_DDR_OFFSET;
 	firewall_syssram_base = dev_reg_base + RV1106_FW_SRAM_OFFSET;
