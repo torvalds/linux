@@ -656,12 +656,15 @@ struct hid_device {							/* device report descriptor */
 	struct list_head debug_list;
 	spinlock_t  debug_list_lock;
 	wait_queue_head_t debug_wait;
+	struct kref			ref;
 
 	unsigned int id;						/* system unique id */
 
 	ANDROID_KABI_USE(1, struct { __s32 battery_charge_status; u32 padding; });
 	ANDROID_KABI_RESERVE(2);
 };
+
+void hiddev_free(struct kref *ref);
 
 #define to_hid_device(pdev) \
 	container_of(pdev, struct hid_device, dev)
