@@ -9,8 +9,9 @@
 
 #include <linux/leds.h>
 #include <linux/mfd/max5970.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 #define ldev_to_maxled(c)       container_of(c, struct max5970_led, cdev)
@@ -40,25 +41,24 @@ static int max5970_led_set_brightness(struct led_classdev *cdev,
 
 static int max5970_led_probe(struct platform_device *pdev)
 {
+	struct fwnode_handle *led_node, *child;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev_of_node(dev->parent);
 	struct regmap *regmap;
-	struct device_node *led_node, *child;
 	struct max5970_led *ddata;
 	int ret = -ENODEV;
 
-	regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
 		return -ENODEV;
 
-	led_node = of_get_child_by_name(np, "leds");
+	led_node = device_get_named_child_node(dev->parent, "leds");
 	if (!led_node)
 		return -ENODEV;
 
-	for_each_available_child_of_node(led_node, child) {
+	fwnode_for_each_available_child_node(led_node, child) {
 		u32 reg;
 
-		if (of_property_read_u32(child, "reg", &reg))
+		if (fwnode_property_read_u32(child, "reg", &reg))
 			continue;
 
 		if (reg >= MAX5970_NUM_LEDS) {
@@ -68,7 +68,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 
 		ddata = devm_kzalloc(dev, sizeof(*ddata), GFP_KERNEL);
 		if (!ddata) {
-			of_node_put(child);
+			fwnode_handle_put(child);
 			return -ENOMEM;
 		}
 
@@ -76,8 +76,8 @@ static int max5970_led_probe(struct platform_device *pdev)
 		ddata->regmap = regmap;
 		ddata->dev = dev;
 
-		if (of_property_read_string(child, "label", &ddata->cdev.name))
-			ddata->cdev.name = child->name;
+		if (fwnode_property_read_string(child, "label", &ddata->cdev.name))
+			ddata->cdev.name = fwnode_get_name(child);
 
 		ddata->cdev.max_brightness = 1;
 		ddata->cdev.brightness_set_blocking = max5970_led_set_brightness;
@@ -85,7 +85,7 @@ static int max5970_led_probe(struct platform_device *pdev)
 
 		ret = devm_led_classdev_register(dev, &ddata->cdev);
 		if (ret < 0) {
-			of_node_put(child);
+			fwnode_handle_put(child);
 			dev_err(dev, "Failed to initialize LED %u\n", reg);
 			return ret;
 		}
@@ -100,8 +100,8 @@ static struct platform_driver max5970_led_driver = {
 	},
 	.probe = max5970_led_probe,
 };
-
 module_platform_driver(max5970_led_driver);
+
 MODULE_AUTHOR("Patrick Rudolph <patrick.rudolph@9elements.com>");
 MODULE_AUTHOR("Naresh Solanki <Naresh.Solanki@9elements.com>");
 MODULE_DESCRIPTION("MAX5970_hot-swap controller LED driver");
