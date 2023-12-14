@@ -3175,11 +3175,9 @@ static void detach_extent_buffer_folio(struct extent_buffer *eb, struct folio *f
 /* Release all pages attached to the extent buffer */
 static void btrfs_release_extent_buffer_pages(struct extent_buffer *eb)
 {
-	int num_folios = num_extent_folios(eb);
-
 	ASSERT(!extent_buffer_under_io(eb));
 
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < INLINE_EXTENT_BUFFER_PAGES; i++) {
 		struct folio *folio = eb->folios[i];
 
 		if (!folio)
@@ -3747,10 +3745,28 @@ again:
 
 out:
 	WARN_ON(!atomic_dec_and_test(&eb->refs));
+
+	/*
+	 * Any attached folios need to be detached before we unlock them.  This
+	 * is because when we're inserting our new folios into the mapping, and
+	 * then attaching our eb to that folio.  If we fail to insert our folio
+	 * we'll lookup the folio for that index, and grab that EB.  We do not
+	 * want that to grab this eb, as we're getting ready to free it.  So we
+	 * have to detach it first and then unlock it.
+	 *
+	 * We have to drop our reference and NULL it out here because in the
+	 * subpage case detaching does a btrfs_folio_dec_eb_refs() for our eb.
+	 * Below when we call btrfs_release_extent_buffer() we will call
+	 * detach_extent_buffer_folio() on our remaining pages in the !subpage
+	 * case.  If we left eb->folios[i] populated in the subpage case we'd
+	 * double put our reference and be super sad.
+	 */
 	for (int i = 0; i < attached; i++) {
 		ASSERT(eb->folios[i]);
 		detach_extent_buffer_folio(eb, eb->folios[i]);
 		unlock_page(folio_page(eb->folios[i], 0));
+		folio_put(eb->folios[i]);
+		eb->folios[i] = NULL;
 	}
 	/*
 	 * Now all pages of that extent buffer is unmapped, set UNMAPPED flag,
