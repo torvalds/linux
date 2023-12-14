@@ -3,7 +3,6 @@
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
  */
 
-#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/io.h>
@@ -12,7 +11,6 @@
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 
-#include <linux/soc/qcom/qcom_aoss.h>
 #include <linux/soc/qcom/smem.h>
 #include <clocksource/arm_arch_timer.h>
 
@@ -24,19 +22,7 @@
 #define LAST_ENTERED_AT_OFFSET	0x8
 #define LAST_EXITED_AT_OFFSET	0x10
 #define ACCUMULATED_OFFSET	0x18
-#define DDR_DYNAMIC_OFFSET	0x1c
- #define DDR_OFFSET_MASK	GENMASK(9, 0)
 #define CLIENT_VOTES_OFFSET	0x20
-
-#define ARCH_TIMER_FREQ		19200000
-#define DDR_MAGIC_KEY1		0xA1157A75 /* leetspeak "ALLSTATS" */
-#define DDR_MAX_NUM_ENTRIES	20
-
-#define DDR_VOTE_DRV_MAX	18
-#define DDR_VOTE_DRV_ABSENT	0xdeaddead
-#define DDR_VOTE_DRV_INVALID	0xffffdead
-#define DDR_VOTE_X		GENMASK(27, 14)
-#define DDR_VOTE_Y		GENMASK(13, 0)
 
 struct subsystem_data {
 	const char *name;
@@ -62,7 +48,6 @@ struct stats_config {
 	bool appended_stats_avail;
 	bool dynamic_offset;
 	bool subsystem_stats_in_smem;
-	bool ddr_stats;
 };
 
 struct stats_data {
@@ -81,25 +66,6 @@ struct sleep_stats {
 struct appended_stats {
 	u32 client_votes;
 	u32 reserved[3];
-};
-
-struct ddr_stats_entry {
-	u32 name;
-	u32 count;
-	u64 dur;
-} __packed;
-
-struct ddr_stats {
-	u32 key;
-	u32 entry_count;
-#define MAX_DDR_STAT_ENTRIES	20
-	struct ddr_stats_entry entry[MAX_DDR_STAT_ENTRIES];
-} __packed;
-
-struct ddr_stats_data {
-	struct device *dev;
-	void __iomem *base;
-	struct qmp *qmp;
 };
 
 static void qcom_print_stats(struct seq_file *s, const struct sleep_stats *stat)
@@ -152,108 +118,6 @@ static int qcom_soc_sleep_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-#define DDR_NAME_TYPE		GENMASK(15, 8)
- #define DDR_NAME_TYPE_LPM	0
- #define DDR_NAME_TYPE_FREQ	1
-
-#define DDR_NAME_LPM_NAME	GENMASK(7, 0)
-
-#define DDR_NAME_FREQ_MHZ	GENMASK(31, 16)
-#define DDR_NAME_FREQ_CP_IDX	GENMASK(4, 0)
-static void qcom_ddr_stats_print(struct seq_file *s, struct ddr_stats_entry *entry)
-{
-	u32 cp_idx, name;
-	u8 type;
-
-	type = FIELD_GET(DDR_NAME_TYPE, entry->name);
-
-	switch (type) {
-	case DDR_NAME_TYPE_LPM:
-		name = FIELD_GET(DDR_NAME_LPM_NAME, entry->name);
-
-		seq_printf(s, "LPM  | Type 0x%2x\tcount: %u\ttime: %llums\n",
-			   name, entry->count, entry->dur);
-		break;
-	case DDR_NAME_TYPE_FREQ:
-		cp_idx = FIELD_GET(DDR_NAME_FREQ_CP_IDX, entry->name);
-		name = FIELD_GET(DDR_NAME_FREQ_MHZ, entry->name);
-
-		/* Neither 0Mhz nor 0 votes is very interesting */
-		if (!name || !entry->count)
-			return;
-
-		seq_printf(s, "Freq | %dMHz (idx %u)\tcount: %u\ttime: %llums\n",
-			   name, cp_idx, entry->count, entry->dur);
-		break;
-	default:
-		seq_printf(s, "Unknown data chunk (type = 0x%x count = 0x%x dur = 0x%llx)\n",
-			   type, entry->count, entry->dur);
-	}
-}
-
-static int qcom_ddr_stats_show(struct seq_file *s, void *unused)
-{
-	struct ddr_stats_data *ddrd = s->private;
-	struct ddr_stats ddr;
-	struct ddr_stats_entry *entry = ddr.entry;
-	u32 entry_count, stats_size;
-	u32 votes[DDR_VOTE_DRV_MAX];
-	int i, ret;
-
-	/* Request a stats sync, it may take some time to update though.. */
-	ret = qmp_send(ddrd->qmp, "{class: ddr, action: freqsync}");
-	if (ret) {
-		dev_err(ddrd->dev, "failed to send QMP message\n");
-		return ret;
-	}
-
-	entry_count = readl(ddrd->base + offsetof(struct ddr_stats, entry_count));
-	if (entry_count > DDR_MAX_NUM_ENTRIES)
-		return -EINVAL;
-
-	/* We're not guaranteed to have DDR_MAX_NUM_ENTRIES */
-	stats_size = sizeof(ddr);
-	stats_size -= DDR_MAX_NUM_ENTRIES * sizeof(*entry);
-	stats_size += entry_count * sizeof(*entry);
-
-	/* Copy and process the stats */
-	memcpy_fromio(&ddr, ddrd->base, stats_size);
-
-	for (i = 0; i < ddr.entry_count; i++) {
-		/* Convert the period to ms */
-		entry[i].dur = div_u64(entry[i].dur, ARCH_TIMER_FREQ / MSEC_PER_SEC);
-	}
-
-	for (i = 0; i < ddr.entry_count; i++)
-		qcom_ddr_stats_print(s, &entry[i]);
-
-	/* Ask AOSS to dump DDR votes */
-	ret = qmp_send(ddrd->qmp, "{class: ddr, res: drvs_ddr_votes}");
-	if (ret) {
-		dev_err(ddrd->dev, "failed to send QMP message\n");
-		return ret;
-	}
-
-	/* Subsystem votes */
-	memcpy_fromio(votes, ddrd->base + stats_size, sizeof(u32) * DDR_VOTE_DRV_MAX);
-
-	for (i = 0; i < DDR_VOTE_DRV_MAX; i++) {
-		u32 ab, ib;
-
-		if (votes[i] == DDR_VOTE_DRV_ABSENT || votes[i] == DDR_VOTE_DRV_INVALID)
-			ab = ib = votes[i];
-		else {
-			ab = FIELD_GET(DDR_VOTE_X, votes[i]);
-			ib = FIELD_GET(DDR_VOTE_Y, votes[i]);
-		}
-
-		seq_printf(s, "Vote | AB = %5u\tIB = %5u\n", ab, ib);
-	}
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(qcom_ddr_stats);
 DEFINE_SHOW_ATTRIBUTE(qcom_soc_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(qcom_subsystem_sleep_stats);
 
@@ -316,56 +180,13 @@ static void qcom_create_subsystem_stat_files(struct dentry *root,
 				    &qcom_subsystem_sleep_stats_fops);
 }
 
-static int qcom_create_ddr_stats_files(struct device *dev,
-				       struct dentry *root,
-				       void __iomem *reg,
-				       const struct stats_config *config)
-{
-	struct ddr_stats_data *ddrd;
-	u32 key, stats_offset;
-	struct dentry *dent;
-
-	/* Nothing to do */
-	if (!config->ddr_stats)
-		return 0;
-
-	ddrd = devm_kzalloc(dev, sizeof(*ddrd), GFP_KERNEL);
-	if (!ddrd)
-		return dev_err_probe(dev, -ENOMEM, "Couldn't allocate DDR stats data\n");
-
-	ddrd->dev = dev;
-
-	/* Get the offset of DDR stats */
-	stats_offset = readl(reg + DDR_DYNAMIC_OFFSET) & DDR_OFFSET_MASK;
-	ddrd->base = reg + stats_offset;
-
-	/* Check if DDR stats are present */
-	key = readl(ddrd->base);
-	if (key != DDR_MAGIC_KEY1)
-		return 0;
-
-	dent = debugfs_create_file("ddr_sleep_stats", 0400, root, ddrd, &qcom_ddr_stats_fops);
-	if (IS_ERR(dent))
-		return PTR_ERR(dent);
-
-	/* QMP is only necessary for DDR votes */
-	ddrd->qmp = qmp_get(dev);
-	if (IS_ERR(ddrd->qmp)) {
-		dev_err(dev, "Couldn't get QMP mailbox: %ld. DDR votes won't be available.\n",
-			PTR_ERR(ddrd->qmp));
-		debugfs_remove(dent);
-	}
-
-	return 0;
-}
-
 static int qcom_stats_probe(struct platform_device *pdev)
 {
 	void __iomem *reg;
 	struct dentry *root;
 	const struct stats_config *config;
 	struct stats_data *d;
-	int i, ret;
+	int i;
 
 	config = device_get_match_data(&pdev->dev);
 	if (!config)
@@ -387,11 +208,6 @@ static int qcom_stats_probe(struct platform_device *pdev)
 
 	qcom_create_subsystem_stat_files(root, config);
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
-	ret = qcom_create_ddr_stats_files(&pdev->dev, root, reg, config);
-	if (ret) {
-		debugfs_remove_recursive(root);
-		return ret;
-	};
 
 	platform_set_drvdata(pdev, root);
 
@@ -438,7 +254,6 @@ static const struct stats_config rpmh_data = {
 	.appended_stats_avail = false,
 	.dynamic_offset = false,
 	.subsystem_stats_in_smem = true,
-	.ddr_stats = true,
 };
 
 static const struct of_device_id qcom_stats_table[] = {
