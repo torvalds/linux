@@ -413,7 +413,7 @@ struct drm_atomic_state {
 	struct __drm_crtcs_state *crtcs;
 
 	/**
-	 * @num_connector: size of the @connectors and @connector_states arrays
+	 * @num_connector: size of the @connectors array
 	 */
 	int num_connector;
 
