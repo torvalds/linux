@@ -10,6 +10,39 @@
 
 #include "regs/xe_reg_defs.h"
 
+/*
+ * These *_BASE values represent the MMIO offset where each hardware engine's
+ * registers start.  The other definitions in this header are parameterized
+ * macros that will take one of these values as a parameter.
+ */
+#define RENDER_RING_BASE			0x02000
+#define BSD_RING_BASE				0x1c0000
+#define BSD2_RING_BASE				0x1c4000
+#define BSD3_RING_BASE				0x1d0000
+#define BSD4_RING_BASE				0x1d4000
+#define XEHP_BSD5_RING_BASE			0x1e0000
+#define XEHP_BSD6_RING_BASE			0x1e4000
+#define XEHP_BSD7_RING_BASE			0x1f0000
+#define XEHP_BSD8_RING_BASE			0x1f4000
+#define VEBOX_RING_BASE				0x1c8000
+#define VEBOX2_RING_BASE			0x1d8000
+#define XEHP_VEBOX3_RING_BASE			0x1e8000
+#define XEHP_VEBOX4_RING_BASE			0x1f8000
+#define COMPUTE0_RING_BASE			0x1a000
+#define COMPUTE1_RING_BASE			0x1c000
+#define COMPUTE2_RING_BASE			0x1e000
+#define COMPUTE3_RING_BASE			0x26000
+#define BLT_RING_BASE				0x22000
+#define XEHPC_BCS1_RING_BASE			0x3e0000
+#define XEHPC_BCS2_RING_BASE			0x3e2000
+#define XEHPC_BCS3_RING_BASE			0x3e4000
+#define XEHPC_BCS4_RING_BASE			0x3e6000
+#define XEHPC_BCS5_RING_BASE			0x3e8000
+#define XEHPC_BCS6_RING_BASE			0x3ea000
+#define XEHPC_BCS7_RING_BASE			0x3ec000
+#define XEHPC_BCS8_RING_BASE			0x3ee000
+#define GSCCS_RING_BASE				0x11a000
+
 #define RING_TAIL(base)				XE_REG((base) + 0x30)
 
 #define RING_HEAD(base)				XE_REG((base) + 0x34)
