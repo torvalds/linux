@@ -515,6 +515,8 @@ enum mlxsw_sp_flood_type {
 	MLXSW_SP_FLOOD_TYPE_MC,
 	/* For RSP FIDs in CFF mode. */
 	MLXSW_SP_FLOOD_TYPE_NOT_UC,
+	/* For NVE traffic. */
+	MLXSW_SP_FLOOD_TYPE_ANY,
 };
 
 int mlxsw_sp_port_get_stats_raw(struct net_device *dev, int grp,
