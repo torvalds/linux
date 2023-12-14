@@ -39,6 +39,9 @@
 #define RING_MI_MODE(base)			XE_REG((base) + 0x9c)
 #define RING_NOPID(base)			XE_REG((base) + 0x94)
 
+#define FF_THREAD_MODE(base)			XE_REG((base) + 0xa0)
+#define   FF_TESSELATION_DOP_GATE_DISABLE	BIT(19)
+
 #define RING_IMR(base)				XE_REG((base) + 0xa8)
 
 #define RING_EIR(base)				XE_REG((base) + 0xb0)
@@ -59,6 +62,16 @@
 #define CSFE_CHICKEN1(base)			XE_REG((base) + 0xd4, XE_REG_OPTION_MASKED)
 #define   GHWSP_CSB_REPORT_DIS			REG_BIT(15)
 #define   PPHWSP_CSB_AND_TIMESTAMP_REPORT_DIS	REG_BIT(14)
+
+#define FF_SLICE_CS_CHICKEN1(base)		XE_REG((base) + 0xe0, XE_REG_OPTION_MASKED)
+#define   FFSC_PERCTX_PREEMPT_CTRL		REG_BIT(14)
+
+#define FF_SLICE_CS_CHICKEN2(base)		XE_REG((base) + 0xe4, XE_REG_OPTION_MASKED)
+#define   PERF_FIX_BALANCING_CFE_DISABLE	REG_BIT(15)
+
+#define CS_DEBUG_MODE1(base)			XE_REG((base) + 0xec, XE_REG_OPTION_MASKED)
+#define   FF_DOP_CLOCK_GATE_DISABLE		REG_BIT(1)
+#define   REPLAY_MODE_GRANULARITY		REG_BIT(0)
 
 #define RING_BBADDR(base)			XE_REG((base) + 0x140)
 #define RING_BBADDR_UDW(base)			XE_REG((base) + 0x168)
@@ -114,6 +127,14 @@
 
 #define RING_EXECLIST_CONTROL(base)		XE_REG((base) + 0x550)
 #define	  EL_CTRL_LOAD				REG_BIT(0)
+
+#define CS_CHICKEN1(base)			XE_REG((base) + 0x580, XE_REG_OPTION_MASKED)
+#define   PREEMPT_GPGPU_LEVEL(hi, lo)		(((hi) << 2) | ((lo) << 1))
+#define   PREEMPT_GPGPU_MID_THREAD_LEVEL	PREEMPT_GPGPU_LEVEL(0, 0)
+#define   PREEMPT_GPGPU_THREAD_GROUP_LEVEL	PREEMPT_GPGPU_LEVEL(0, 1)
+#define   PREEMPT_GPGPU_COMMAND_LEVEL		PREEMPT_GPGPU_LEVEL(1, 0)
+#define   PREEMPT_GPGPU_LEVEL_MASK		PREEMPT_GPGPU_LEVEL(1, 1)
+#define   PREEMPT_3D_OBJECT_LEVEL		REG_BIT(0)
 
 #define VDBOX_CGCTL3F08(base)                  XE_REG((base) + 0x3f08)
 #define   CG3DDISHRS_CLKGATE_DIS               REG_BIT(5)
