@@ -6782,7 +6782,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	enum bpf_prog_type prog_type = prog->type;
 	struct btf *btf = prog->aux->btf;
 	const struct btf_param *args;
-	const struct btf_type *t, *ref_t;
+	const struct btf_type *t, *ref_t, *fn_t;
 	u32 i, nargs, btf_id;
 	const char *tname;
 
@@ -6802,8 +6802,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 		return -EFAULT;
 	}
 
-	t = btf_type_by_id(btf, btf_id);
-	if (!t || !btf_type_is_func(t)) {
+	fn_t = btf_type_by_id(btf, btf_id);
+	if (!fn_t || !btf_type_is_func(fn_t)) {
 		/* These checks were already done by the verifier while loading
 		 * struct bpf_func_info
 		 */
@@ -6811,7 +6811,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 			subprog);
 		return -EFAULT;
 	}
-	tname = btf_name_by_offset(btf, t->name_off);
+	tname = btf_name_by_offset(btf, fn_t->name_off);
 
 	if (prog->aux->func_info_aux[subprog].unreliable) {
 		bpf_log(log, "Verifier bug in function %s()\n", tname);
@@ -6820,7 +6820,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	if (prog_type == BPF_PROG_TYPE_EXT)
 		prog_type = prog->aux->dst_prog->type;
 
-	t = btf_type_by_id(btf, t->type);
+	t = btf_type_by_id(btf, fn_t->type);
 	if (!t || !btf_type_is_func_proto(t)) {
 		bpf_log(log, "Invalid type of function %s()\n", tname);
 		return -EFAULT;
@@ -6846,7 +6846,35 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	 * Only PTR_TO_CTX and SCALAR are supported atm.
 	 */
 	for (i = 0; i < nargs; i++) {
+		bool is_nonnull = false;
+		const char *tag;
+
 		t = btf_type_by_id(btf, args[i].type);
+
+		tag = btf_find_decl_tag_value(btf, fn_t, i, "arg:");
+		if (IS_ERR(tag) && PTR_ERR(tag) == -ENOENT) {
+			tag = NULL;
+		} else if (IS_ERR(tag)) {
+			bpf_log(log, "arg#%d type's tag fetching failure: %ld\n", i, PTR_ERR(tag));
+			return PTR_ERR(tag);
+		}
+		/* 'arg:<tag>' decl_tag takes precedence over derivation of
+		 * register type from BTF type itself
+		 */
+		if (tag) {
+			/* disallow arg tags in static subprogs */
+			if (!is_global) {
+				bpf_log(log, "arg#%d type tag is not supported in static functions\n", i);
+				return -EOPNOTSUPP;
+			}
+			if (strcmp(tag, "ctx") == 0) {
+				sub->args[i].arg_type = ARG_PTR_TO_CTX;
+				continue;
+			}
+			if (strcmp(tag, "nonnull") == 0)
+				is_nonnull = true;
+		}
+
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
 		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
@@ -6870,9 +6898,13 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				return -EINVAL;
 			}
 
-			sub->args[i].arg_type = ARG_PTR_TO_MEM_OR_NULL;
+			sub->args[i].arg_type = is_nonnull ? ARG_PTR_TO_MEM : ARG_PTR_TO_MEM_OR_NULL;
 			sub->args[i].mem_size = mem_size;
 			continue;
+		}
+		if (is_nonnull) {
+			bpf_log(log, "arg#%d marked as non-null, but is not a pointer type\n", i);
+			return -EINVAL;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
