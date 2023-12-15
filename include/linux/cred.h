@@ -109,7 +109,7 @@ static inline int groups_search(const struct group_info *group_info, kgid_t grp)
  * same context as task->real_cred.
  */
 struct cred {
-	atomic_t	usage;
+	atomic_long_t	usage;
 #ifdef CONFIG_DEBUG_CREDENTIALS
 	atomic_t	subscribers;	/* number of processes subscribed */
 	void		*put_addr;
@@ -229,7 +229,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
  */
 static inline struct cred *get_new_cred_many(struct cred *cred, int nr)
 {
-	atomic_add(nr, &cred->usage);
+	atomic_long_add(nr, &cred->usage);
 	return cred;
 }
 
@@ -288,7 +288,7 @@ static inline const struct cred *get_cred_rcu(const struct cred *cred)
 	struct cred *nonconst_cred = (struct cred *) cred;
 	if (!cred)
 		return NULL;
-	if (!atomic_inc_not_zero(&nonconst_cred->usage))
+	if (!atomic_long_inc_not_zero(&nonconst_cred->usage))
 		return NULL;
 	validate_creds(cred);
 	nonconst_cred->non_rcu = 0;
@@ -313,7 +313,7 @@ static inline void put_cred_many(const struct cred *_cred, int nr)
 
 	if (cred) {
 		validate_creds(cred);
-		if (atomic_sub_and_test(nr, &cred->usage))
+		if (atomic_long_sub_and_test(nr, &cred->usage))
 			__put_cred(cred);
 	}
 }
