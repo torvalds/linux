@@ -487,7 +487,7 @@ void rkx110_linktx_video_enable(struct rk_serdes *serdes, u8 dev_id, bool enable
 	serdes->i2c_update_bits(client, RKLINK_TX_SERDES_CTRL, VIDEO_EN, enable ? VIDEO_EN : 0);
 }
 
-int rk110_linktx_dual_channel_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
+static int rk110_linktx_dual_channel_enable(struct rk_serdes *serdes, u8 dev_id, bool enable)
 {
 	struct i2c_client *client = serdes->chip[dev_id].client;
 

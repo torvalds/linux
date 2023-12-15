@@ -7,6 +7,7 @@
 
 #include "hal/cru_api.h"
 #include "rkx110_x120.h"
+#include "rkx110_x120_display.h"
 #include "rkx110_dsi_rx.h"
 #include "rkx120_dsi_tx.h"
 
