@@ -186,6 +186,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   ialloc_repair.o \
 				   newbt.o \
 				   reap.o \
+				   refcount_repair.o \
 				   repair.o \
 				   )
 endif
