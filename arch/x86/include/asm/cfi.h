@@ -123,6 +123,8 @@ static inline int cfi_get_offset(void)
 }
 #define cfi_get_offset cfi_get_offset
 
+extern u32 cfi_get_func_hash(void *func);
+
 #else
 static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 {
@@ -130,6 +132,10 @@ static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 }
 #define cfi_bpf_hash 0U
 #define cfi_bpf_subprog_hash 0U
+static inline u32 cfi_get_func_hash(void *func)
+{
+	return 0;
+}
 #endif /* CONFIG_CFI_CLANG */
 
 #endif /* _ASM_X86_CFI_H */

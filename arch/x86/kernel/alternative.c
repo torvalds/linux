@@ -883,6 +883,28 @@ asm (
 "	.size	cfi_bpf_subprog_hash, 4				\n"
 "	.popsection						\n"
 );
+
+u32 cfi_get_func_hash(void *func)
+{
+	u32 hash;
+
+	func -= cfi_get_offset();
+	switch (cfi_mode) {
+	case CFI_FINEIBT:
+		func += 7;
+		break;
+	case CFI_KCFI:
+		func += 1;
+		break;
+	default:
+		return 0;
+	}
+
+	if (get_kernel_nofault(hash, func))
+		return 0;
+
+	return hash;
+}
 #endif
 
 #ifdef CONFIG_FINEIBT
