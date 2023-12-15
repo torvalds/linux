@@ -1633,6 +1633,12 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 		!HDCP_2_2_HDCP1_DEVICE_CONNECTED(rx_info[1]) &&
 		!HDCP_2_2_HDCP_2_0_REP_CONNECTED(rx_info[1]);
 
+	if (!dig_port->hdcp_mst_type1_capable && hdcp->content_type) {
+		drm_dbg_kms(&i915->drm,
+			    "HDCP1.x or 2.0 Legacy Device Downstream\n");
+		return -EINVAL;
+	}
+
 	/* Converting and Storing the seq_num_v to local variable as DWORD */
 	seq_num_v =
 		drm_hdcp_be24_to_cpu((const u8 *)msgs.recvid_list.seq_num_v);
