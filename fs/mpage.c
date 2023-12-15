@@ -166,7 +166,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 	sector_t block_in_file;
 	sector_t last_block;
 	sector_t last_block_in_file;
-	sector_t blocks[MAX_BUF_PER_PAGE];
+	sector_t first_block;
 	unsigned page_block;
 	unsigned first_hole = blocks_per_page;
 	struct block_device *bdev = NULL;
@@ -205,6 +205,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 		unsigned map_offset = block_in_file - args->first_logical_block;
 		unsigned last = nblocks - map_offset;
 
+		first_block = map_bh->b_blocknr + map_offset;
 		for (relative_block = 0; ; relative_block++) {
 			if (relative_block == last) {
 				clear_buffer_mapped(map_bh);
@@ -212,8 +213,6 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 			}
 			if (page_block == blocks_per_page)
 				break;
-			blocks[page_block] = map_bh->b_blocknr + map_offset +
-						relative_block;
 			page_block++;
 			block_in_file++;
 		}
@@ -259,7 +258,9 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 			goto confused;		/* hole -> non-hole */
 
 		/* Contiguous blocks? */
-		if (page_block && blocks[page_block-1] != map_bh->b_blocknr-1)
+		if (!page_block)
+			first_block = map_bh->b_blocknr;
+		else if (first_block + page_block != map_bh->b_blocknr)
 			goto confused;
 		nblocks = map_bh->b_size >> blkbits;
 		for (relative_block = 0; ; relative_block++) {
@@ -268,7 +269,6 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 				break;
 			} else if (page_block == blocks_per_page)
 				break;
-			blocks[page_block] = map_bh->b_blocknr+relative_block;
 			page_block++;
 			block_in_file++;
 		}
@@ -289,7 +289,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 	/*
 	 * This folio will go to BIO.  Do we need to send this BIO off first?
 	 */
-	if (args->bio && (args->last_block_in_bio != blocks[0] - 1))
+	if (args->bio && (args->last_block_in_bio != first_block - 1))
 		args->bio = mpage_bio_submit_read(args->bio);
 
 alloc_new:
@@ -298,7 +298,7 @@ alloc_new:
 				      gfp);
 		if (args->bio == NULL)
 			goto confused;
-		args->bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
+		args->bio->bi_iter.bi_sector = first_block << (blkbits - 9);
 	}
 
 	length = first_hole << blkbits;
@@ -313,7 +313,7 @@ alloc_new:
 	    (first_hole != blocks_per_page))
 		args->bio = mpage_bio_submit_read(args->bio);
 	else
-		args->last_block_in_bio = blocks[blocks_per_page - 1];
+		args->last_block_in_bio = first_block + blocks_per_page - 1;
 out:
 	return args->bio;
 
