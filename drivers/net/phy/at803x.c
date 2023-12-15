@@ -301,6 +301,11 @@ static struct at803x_hw_stat qca83xx_hw_stats[] = {
 	{ "eee_wake_errors", 0x16, GENMASK(15, 0), MMD},
 };
 
+struct at803x_ss_mask {
+	u16 speed_mask;
+	u8 speed_shift;
+};
+
 struct at803x_priv {
 	int flags;
 	u16 clk_25m_reg;
@@ -921,7 +926,8 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	}
 }
 
-static int at803x_read_specific_status(struct phy_device *phydev)
+static int at803x_read_specific_status(struct phy_device *phydev,
+				       struct at803x_ss_mask ss_mask)
 {
 	int ss;
 
@@ -940,11 +946,8 @@ static int at803x_read_specific_status(struct phy_device *phydev)
 		if (sfc < 0)
 			return sfc;
 
-		/* qca8081 takes the different bits for speed value from at803x */
-		if (phydev->drv->phy_id == QCA8081_PHY_ID)
-			speed = FIELD_GET(QCA808X_SS_SPEED_MASK, ss);
-		else
-			speed = FIELD_GET(AT803X_SS_SPEED_MASK, ss);
+		speed = ss & ss_mask.speed_mask;
+		speed >>= ss_mask.speed_shift;
 
 		switch (speed) {
 		case AT803X_SS_SPEED_10:
@@ -989,6 +992,7 @@ static int at803x_read_specific_status(struct phy_device *phydev)
 static int at803x_read_status(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
+	struct at803x_ss_mask ss_mask = { 0 };
 	int err, old_link = phydev->link;
 
 	if (priv->is_1000basex)
@@ -1012,7 +1016,9 @@ static int at803x_read_status(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = at803x_read_specific_status(phydev);
+	ss_mask.speed_mask = AT803X_SS_SPEED_MASK;
+	ss_mask.speed_shift = __bf_shf(AT803X_SS_SPEED_MASK);
+	err = at803x_read_specific_status(phydev, ss_mask);
 	if (err < 0)
 		return err;
 
@@ -1045,9 +1051,8 @@ static int at803x_config_mdix(struct phy_device *phydev, u8 ctrl)
 			  FIELD_PREP(AT803X_SFC_MDI_CROSSOVER_MODE_M, val));
 }
 
-static int at803x_config_aneg(struct phy_device *phydev)
+static int at803x_prepare_config_aneg(struct phy_device *phydev)
 {
-	struct at803x_priv *priv = phydev->priv;
 	int ret;
 
 	ret = at803x_config_mdix(phydev, phydev->mdix_ctrl);
@@ -1064,33 +1069,22 @@ static int at803x_config_aneg(struct phy_device *phydev)
 			return ret;
 	}
 
+	return 0;
+}
+
+static int at803x_config_aneg(struct phy_device *phydev)
+{
+	struct at803x_priv *priv = phydev->priv;
+	int ret;
+
+	ret = at803x_prepare_config_aneg(phydev);
+	if (ret)
+		return ret;
+
 	if (priv->is_1000basex)
 		return genphy_c37_config_aneg(phydev);
 
-	/* Do not restart auto-negotiation by setting ret to 0 defautly,
-	 * when calling __genphy_config_aneg later.
-	 */
-	ret = 0;
-
-	if (phydev->drv->phy_id == QCA8081_PHY_ID) {
-		int phy_ctrl = 0;
-
-		/* The reg MII_BMCR also needs to be configured for force mode, the
-		 * genphy_config_aneg is also needed.
-		 */
-		if (phydev->autoneg == AUTONEG_DISABLE)
-			genphy_c45_pma_setup_forced(phydev);
-
-		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->advertising))
-			phy_ctrl = MDIO_AN_10GBT_CTRL_ADV2_5G;
-
-		ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
-				MDIO_AN_10GBT_CTRL_ADV2_5G, phy_ctrl);
-		if (ret < 0)
-			return ret;
-	}
-
-	return __genphy_config_aneg(phydev, ret);
+	return genphy_config_aneg(phydev);
 }
 
 static int at803x_get_downshift(struct phy_device *phydev, u8 *d)
@@ -1881,6 +1875,7 @@ static int qca808x_config_init(struct phy_device *phydev)
 
 static int qca808x_read_status(struct phy_device *phydev)
 {
+	struct at803x_ss_mask ss_mask = { 0 };
 	int ret;
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
@@ -1894,7 +1889,10 @@ static int qca808x_read_status(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	ret = at803x_read_specific_status(phydev);
+	/* qca8081 takes the different bits for speed value from at803x */
+	ss_mask.speed_mask = QCA808X_SS_SPEED_MASK;
+	ss_mask.speed_shift = __bf_shf(QCA808X_SS_SPEED_MASK);
+	ret = at803x_read_specific_status(phydev, ss_mask);
 	if (ret < 0)
 		return ret;
 
@@ -2118,6 +2116,32 @@ static int qca808x_get_features(struct phy_device *phydev)
 	return 0;
 }
 
+static int qca808x_config_aneg(struct phy_device *phydev)
+{
+	int phy_ctrl = 0;
+	int ret;
+
+	ret = at803x_prepare_config_aneg(phydev);
+	if (ret)
+		return ret;
+
+	/* The reg MII_BMCR also needs to be configured for force mode, the
+	 * genphy_config_aneg is also needed.
+	 */
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		genphy_c45_pma_setup_forced(phydev);
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->advertising))
+		phy_ctrl = MDIO_AN_10GBT_CTRL_ADV2_5G;
+
+	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_CTRL,
+				     MDIO_AN_10GBT_CTRL_ADV2_5G, phy_ctrl);
+	if (ret < 0)
+		return ret;
+
+	return __genphy_config_aneg(phydev, ret);
+}
+
 static void qca808x_link_change_notify(struct phy_device *phydev)
 {
 	/* Assert interface sgmii fifo on link down, deassert it on link up,
@@ -2295,7 +2319,7 @@ static struct phy_driver at803x_driver[] = {
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.get_features		= qca808x_get_features,
-	.config_aneg		= at803x_config_aneg,
+	.config_aneg		= qca808x_config_aneg,
 	.suspend		= genphy_suspend,
 	.resume			= genphy_resume,
 	.read_status		= qca808x_read_status,
