@@ -156,6 +156,7 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 	char *resctrl_val = param->resctrl_val;
 	struct perf_event_read pe_read;
 	struct perf_event_attr pea;
+	cpu_set_t old_affinity;
 	unsigned char *buf;
 	char schemata[64];
 	int ret, i, pe_fd;
@@ -167,7 +168,7 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 	bm_pid = getpid();
 
 	/* Taskset benchmark to specified cpu */
-	ret = taskset_benchmark(bm_pid, param->cpu_no);
+	ret = taskset_benchmark(bm_pid, param->cpu_no, &old_affinity);
 	if (ret)
 		return ret;
 
@@ -175,13 +176,15 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 	ret = write_bm_pid_to_resctrl(bm_pid, param->ctrlgrp, param->mongrp,
 				      resctrl_val);
 	if (ret)
-		return ret;
+		goto reset_affinity;
 
 	perf_event_attr_initialize(&pea, PERF_COUNT_HW_CACHE_MISSES);
 	perf_event_initialize_read_format(&pe_read);
 	pe_fd = perf_open(&pea, bm_pid, param->cpu_no);
-	if (pe_fd < 0)
-		return pe_fd;
+	if (pe_fd < 0) {
+		ret = -1;
+		goto reset_affinity;
+	}
 
 	buf = alloc_buffer(span, 1);
 	if (!buf) {
@@ -220,6 +223,8 @@ free_buf:
 	free(buf);
 pe_close:
 	close(pe_fd);
+reset_affinity:
+	taskset_restore(bm_pid, &old_affinity);
 
 	return ret;
 }

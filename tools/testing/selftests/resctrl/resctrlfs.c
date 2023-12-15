@@ -345,14 +345,24 @@ int get_mask_no_shareable(const char *cache_type, unsigned long *mask)
 
 /*
  * taskset_benchmark - Taskset PID (i.e. benchmark) to a specified cpu
- * @bm_pid:	PID that should be binded
- * @cpu_no:	CPU number at which the PID would be binded
+ * @bm_pid:		PID that should be binded
+ * @cpu_no:		CPU number at which the PID would be binded
+ * @old_affinity:	When not NULL, set to old CPU affinity
  *
  * Return: 0 on success, < 0 on error.
  */
-int taskset_benchmark(pid_t bm_pid, int cpu_no)
+int taskset_benchmark(pid_t bm_pid, int cpu_no, cpu_set_t *old_affinity)
 {
 	cpu_set_t my_set;
+
+	if (old_affinity) {
+		CPU_ZERO(old_affinity);
+		if (sched_getaffinity(bm_pid, sizeof(*old_affinity),
+				      old_affinity)) {
+			ksft_perror("Unable to read CPU affinity");
+			return -1;
+		}
+	}
 
 	CPU_ZERO(&my_set);
 	CPU_SET(cpu_no, &my_set);
@@ -360,6 +370,23 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
 	if (sched_setaffinity(bm_pid, sizeof(cpu_set_t), &my_set)) {
 		ksft_perror("Unable to taskset benchmark");
 
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * taskset_restore - Taskset PID to the earlier CPU affinity
+ * @bm_pid:		PID that should be reset
+ * @old_affinity:	The old CPU affinity to restore
+ *
+ * Return: 0 on success, < 0 on error.
+ */
+int taskset_restore(pid_t bm_pid, cpu_set_t *old_affinity)
+{
+	if (sched_setaffinity(bm_pid, sizeof(*old_affinity), old_affinity)) {
+		ksft_perror("Unable to restore CPU affinity");
 		return -1;
 	}
 

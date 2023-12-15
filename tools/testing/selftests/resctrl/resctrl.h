@@ -98,7 +98,8 @@ int umount_resctrlfs(void);
 int validate_bw_report_request(char *bw_report);
 bool validate_resctrl_feature_request(const char *resource, const char *feature);
 char *fgrep(FILE *inf, const char *str);
-int taskset_benchmark(pid_t bm_pid, int cpu_no);
+int taskset_benchmark(pid_t bm_pid, int cpu_no, cpu_set_t *old_affinity);
+int taskset_restore(pid_t bm_pid, cpu_set_t *old_affinity);
 int write_schemata(char *ctrlgrp, char *schemata, int cpu_no,
 		   char *resctrl_val);
 int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
