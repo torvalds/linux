@@ -222,6 +222,20 @@ static void example_params_test(struct kunit *test)
 }
 
 /*
+ * This test shows the use of test->priv.
+ */
+static void example_priv_test(struct kunit *test)
+{
+	/* unless setup in suite->init(), test->priv is NULL */
+	KUNIT_ASSERT_NULL(test, test->priv);
+
+	/* but can be used to pass arbitrary data to other functions */
+	test->priv = kunit_kzalloc(test, 1, GFP_KERNEL);
+	KUNIT_EXPECT_NOT_NULL(test, test->priv);
+	KUNIT_ASSERT_PTR_EQ(test, test->priv, kunit_get_current_test()->priv);
+}
+
+/*
  * This test should always pass. Can be used to practice filtering attributes.
  */
 static void example_slow_test(struct kunit *test)
@@ -245,6 +259,7 @@ static struct kunit_case example_test_cases[] = {
 	KUNIT_CASE(example_mark_skipped_test),
 	KUNIT_CASE(example_all_expect_macros_test),
 	KUNIT_CASE(example_static_stub_test),
+	KUNIT_CASE(example_priv_test),
 	KUNIT_CASE_PARAM(example_params_test, example_gen_params),
 	KUNIT_CASE_SLOW(example_slow_test),
 	{}
