@@ -471,7 +471,7 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	 * we aren't using the extent overwrite path to delete, we're
 	 * just using the normal key deletion path:
 	 */
-	if (bkey_deleted(&n->k))
+	if (bkey_deleted(&n->k) && !(iter->flags & BTREE_ITER_IS_EXTENTS))
 		n->k.size = 0;
 
 	return bch2_trans_relock(trans) ?:
@@ -591,7 +591,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		m->data_opts.rewrite_ptrs = 0;
 		/* if iter == NULL, it's just a promote */
 		if (iter)
-			ret = bch2_extent_drop_ptrs(trans, iter, k, data_opts);
+			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
 		goto done;
 	}
 

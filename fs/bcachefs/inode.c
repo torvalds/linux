@@ -7,6 +7,7 @@
 #include "btree_update.h"
 #include "buckets.h"
 #include "compress.h"
+#include "dirent.h"
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
@@ -1093,11 +1094,15 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	if (fsck_err_on(S_ISDIR(inode.bi_mode), c,
-			deleted_inode_is_dir,
-			"directory %llu:%u in deleted_inodes btree",
-			pos.offset, pos.snapshot))
-		goto delete;
+	if (S_ISDIR(inode.bi_mode)) {
+		ret = bch2_empty_dir_snapshot(trans, pos.offset, pos.snapshot);
+		if (fsck_err_on(ret == -ENOTEMPTY, c, deleted_inode_is_dir,
+				"non empty directory %llu:%u in deleted_inodes btree",
+				pos.offset, pos.snapshot))
+			goto delete;
+		if (ret)
+			goto out;
+	}
 
 	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_unlinked), c,
 			deleted_inode_not_unlinked,
