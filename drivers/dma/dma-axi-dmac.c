@@ -285,12 +285,14 @@ static void axi_dmac_start_transfer(struct axi_dmac_chan *chan)
 
 	/*
 	 * If the hardware supports cyclic transfers and there is no callback to
-	 * call and only a single segment, enable hw cyclic mode to avoid
-	 * unnecessary interrupts.
+	 * call, enable hw cyclic mode to avoid unnecessary interrupts.
 	 */
-	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback &&
-		desc->num_sgs == 1)
-		flags |= AXI_DMAC_FLAG_CYCLIC;
+	if (chan->hw_cyclic && desc->cyclic && !desc->vdesc.tx.callback) {
+		if (chan->hw_sg)
+			desc->sg[desc->num_sgs - 1].hw->flags &= ~AXI_DMAC_HW_FLAG_IRQ;
+		else if (desc->num_sgs == 1)
+			flags |= AXI_DMAC_FLAG_CYCLIC;
+	}
 
 	if (chan->hw_partial_xfer)
 		flags |= AXI_DMAC_FLAG_PARTIAL_REPORT;
@@ -411,7 +413,6 @@ static bool axi_dmac_transfer_done(struct axi_dmac_chan *chan,
 	if (chan->hw_sg) {
 		if (active->cyclic) {
 			vchan_cyclic_callback(&active->vdesc);
-			start_next = true;
 		} else {
 			list_del(&active->vdesc.node);
 			vchan_cookie_complete(&active->vdesc);
@@ -667,7 +668,7 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_dma_cyclic(
 {
 	struct axi_dmac_chan *chan = to_axi_dmac_chan(c);
 	struct axi_dmac_desc *desc;
-	unsigned int num_periods, num_segments;
+	unsigned int num_periods, num_segments, num_sgs;
 
 	if (direction != chan->direction)
 		return NULL;
@@ -681,10 +682,15 @@ static struct dma_async_tx_descriptor *axi_dmac_prep_dma_cyclic(
 
 	num_periods = buf_len / period_len;
 	num_segments = DIV_ROUND_UP(period_len, chan->max_length);
+	num_sgs = num_periods * num_segments;
 
-	desc = axi_dmac_alloc_desc(chan, num_periods * num_segments);
+	desc = axi_dmac_alloc_desc(chan, num_sgs);
 	if (!desc)
 		return NULL;
+
+	/* Chain the last descriptor to the first, and remove its "last" flag */
+	desc->sg[num_sgs - 1].hw->next_sg_addr = desc->sg[0].hw_phys;
+	desc->sg[num_sgs - 1].hw->flags &= ~AXI_DMAC_HW_FLAG_LAST;
 
 	axi_dmac_fill_linear_sg(chan, direction, buf_addr, num_periods,
 		period_len, desc->sg);
