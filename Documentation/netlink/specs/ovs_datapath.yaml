@@ -142,7 +142,6 @@ operations:
       do:
         request:
           attributes:
-            - dp-ifindex
             - name
             - upcall-pid
             - user-features
@@ -154,7 +153,6 @@ operations:
       do:
         request:
           attributes:
-            - dp-ifindex
             - name
 
 mcast-groups:

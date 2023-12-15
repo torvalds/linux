@@ -947,13 +947,11 @@ operations:
       do: &flow-get-op
         request:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - ufid-flags
         reply:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - mask
@@ -968,7 +966,6 @@ operations:
       do:
         request:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - mask
