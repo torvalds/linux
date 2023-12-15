@@ -16,6 +16,7 @@ intel_qat-objs := adf_cfg.o \
 	adf_sysfs_ras_counters.o \
 	adf_gen2_hw_data.o \
 	adf_gen2_config.o \
+	adf_gen4_config.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	adf_gen2_dc.o \

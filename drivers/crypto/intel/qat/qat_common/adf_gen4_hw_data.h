@@ -3,8 +3,54 @@
 #ifndef ADF_GEN4_HW_CSR_DATA_H_
 #define ADF_GEN4_HW_CSR_DATA_H_
 
+#include <linux/units.h>
+
 #include "adf_accel_devices.h"
 #include "adf_cfg_common.h"
+
+/* PCIe configuration space */
+#define ADF_GEN4_BAR_MASK	(BIT(0) | BIT(2) | BIT(4))
+#define ADF_GEN4_SRAM_BAR	0
+#define ADF_GEN4_PMISC_BAR	1
+#define ADF_GEN4_ETR_BAR	2
+
+/* Clocks frequency */
+#define ADF_GEN4_KPT_COUNTER_FREQ	(100 * HZ_PER_MHZ)
+
+/* Physical function fuses */
+#define ADF_GEN4_FUSECTL0_OFFSET	0x2C8
+#define ADF_GEN4_FUSECTL1_OFFSET	0x2CC
+#define ADF_GEN4_FUSECTL2_OFFSET	0x2D0
+#define ADF_GEN4_FUSECTL3_OFFSET	0x2D4
+#define ADF_GEN4_FUSECTL4_OFFSET	0x2D8
+#define ADF_GEN4_FUSECTL5_OFFSET	0x2DC
+
+/* Accelerators */
+#define ADF_GEN4_ACCELERATORS_MASK	0x1
+#define ADF_GEN4_MAX_ACCELERATORS	1
+
+/* MSIX interrupt */
+#define ADF_GEN4_SMIAPF_RP_X0_MASK_OFFSET	0x41A040
+#define ADF_GEN4_SMIAPF_RP_X1_MASK_OFFSET	0x41A044
+#define ADF_GEN4_SMIAPF_MASK_OFFSET		0x41A084
+#define ADF_GEN4_MSIX_RTTABLE_OFFSET(i)		(0x409000 + ((i) * 0x04))
+
+/* Bank and ring configuration */
+#define ADF_GEN4_NUM_RINGS_PER_BANK	2
+#define ADF_GEN4_NUM_BANKS_PER_VF	4
+#define ADF_GEN4_ETR_MAX_BANKS		64
+#define ADF_GEN4_RX_RINGS_OFFSET	1
+#define ADF_GEN4_TX_RINGS_MASK		0x1
+
+/* Arbiter configuration */
+#define ADF_GEN4_ARB_CONFIG			(BIT(31) | BIT(6) | BIT(0))
+#define ADF_GEN4_ARB_OFFSET			0x0
+#define ADF_GEN4_ARB_WRK_2_SER_MAP_OFFSET	0x400
+
+/* Admin Interface Reg Offset */
+#define ADF_GEN4_ADMINMSGUR_OFFSET	0x500574
+#define ADF_GEN4_ADMINMSGLR_OFFSET	0x500578
+#define ADF_GEN4_MAILBOX_BASE_OFFSET	0x600970
 
 /* Transport access */
 #define ADF_BANK_INT_SRC_SEL_MASK	0x44UL
@@ -147,6 +193,32 @@ do { \
 #define ADF_GEN4_RL_TOKEN_PCIEOUT_BUCKET_OFFSET	0x508804
 
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
+
+enum icp_qat_gen4_slice_mask {
+	ICP_ACCEL_GEN4_MASK_CIPHER_SLICE = BIT(0),
+	ICP_ACCEL_GEN4_MASK_AUTH_SLICE = BIT(1),
+	ICP_ACCEL_GEN4_MASK_PKE_SLICE = BIT(2),
+	ICP_ACCEL_GEN4_MASK_COMPRESS_SLICE = BIT(3),
+	ICP_ACCEL_GEN4_MASK_UCS_SLICE = BIT(4),
+	ICP_ACCEL_GEN4_MASK_EIA3_SLICE = BIT(5),
+	ICP_ACCEL_GEN4_MASK_SMX_SLICE = BIT(7),
+};
+
+void adf_gen4_enable_error_correction(struct adf_accel_dev *accel_dev);
+void adf_gen4_enable_ints(struct adf_accel_dev *accel_dev);
+u32 adf_gen4_get_accel_mask(struct adf_hw_device_data *self);
+void adf_gen4_get_admin_info(struct admin_info *admin_csrs_info);
+void adf_gen4_get_arb_info(struct arb_info *arb_info);
+u32 adf_gen4_get_etr_bar_id(struct adf_hw_device_data *self);
+u32 adf_gen4_get_heartbeat_clock(struct adf_hw_device_data *self);
+u32 adf_gen4_get_misc_bar_id(struct adf_hw_device_data *self);
+u32 adf_gen4_get_num_accels(struct adf_hw_device_data *self);
+u32 adf_gen4_get_num_aes(struct adf_hw_device_data *self);
+enum dev_sku_info adf_gen4_get_sku(struct adf_hw_device_data *self);
+u32 adf_gen4_get_sram_bar_id(struct adf_hw_device_data *self);
+int adf_gen4_init_device(struct adf_accel_dev *accel_dev);
 void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);
+void adf_gen4_set_msix_default_rttable(struct adf_accel_dev *accel_dev);
+void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 #endif

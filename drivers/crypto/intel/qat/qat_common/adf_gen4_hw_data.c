@@ -4,6 +4,7 @@
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_gen4_hw_data.h"
+#include "adf_gen4_pm.h"
 
 static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
 {
@@ -102,6 +103,131 @@ void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops)
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_hw_csr_ops);
 
+u32 adf_gen4_get_accel_mask(struct adf_hw_device_data *self)
+{
+	return ADF_GEN4_ACCELERATORS_MASK;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_accel_mask);
+
+u32 adf_gen4_get_num_accels(struct adf_hw_device_data *self)
+{
+	return ADF_GEN4_MAX_ACCELERATORS;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_num_accels);
+
+u32 adf_gen4_get_num_aes(struct adf_hw_device_data *self)
+{
+	if (!self || !self->ae_mask)
+		return 0;
+
+	return hweight32(self->ae_mask);
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_num_aes);
+
+u32 adf_gen4_get_misc_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_GEN4_PMISC_BAR;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_misc_bar_id);
+
+u32 adf_gen4_get_etr_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_GEN4_ETR_BAR;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_etr_bar_id);
+
+u32 adf_gen4_get_sram_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_GEN4_SRAM_BAR;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_sram_bar_id);
+
+enum dev_sku_info adf_gen4_get_sku(struct adf_hw_device_data *self)
+{
+	return DEV_SKU_1;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_sku);
+
+void adf_gen4_get_arb_info(struct arb_info *arb_info)
+{
+	arb_info->arb_cfg = ADF_GEN4_ARB_CONFIG;
+	arb_info->arb_offset = ADF_GEN4_ARB_OFFSET;
+	arb_info->wt2sam_offset = ADF_GEN4_ARB_WRK_2_SER_MAP_OFFSET;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_arb_info);
+
+void adf_gen4_get_admin_info(struct admin_info *admin_csrs_info)
+{
+	admin_csrs_info->mailbox_offset = ADF_GEN4_MAILBOX_BASE_OFFSET;
+	admin_csrs_info->admin_msg_ur = ADF_GEN4_ADMINMSGUR_OFFSET;
+	admin_csrs_info->admin_msg_lr = ADF_GEN4_ADMINMSGLR_OFFSET;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_admin_info);
+
+u32 adf_gen4_get_heartbeat_clock(struct adf_hw_device_data *self)
+{
+	/*
+	 * GEN4 uses KPT counter for HB
+	 */
+	return ADF_GEN4_KPT_COUNTER_FREQ;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_heartbeat_clock);
+
+void adf_gen4_enable_error_correction(struct adf_accel_dev *accel_dev)
+{
+	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_GEN4_PMISC_BAR];
+	void __iomem *csr = misc_bar->virt_addr;
+
+	/* Enable all in errsou3 except VFLR notification on host */
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_VFLNOTIFY);
+}
+EXPORT_SYMBOL_GPL(adf_gen4_enable_error_correction);
+
+void adf_gen4_enable_ints(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr;
+
+	addr = (&GET_BARS(accel_dev)[ADF_GEN4_PMISC_BAR])->virt_addr;
+
+	/* Enable bundle interrupts */
+	ADF_CSR_WR(addr, ADF_GEN4_SMIAPF_RP_X0_MASK_OFFSET, 0);
+	ADF_CSR_WR(addr, ADF_GEN4_SMIAPF_RP_X1_MASK_OFFSET, 0);
+
+	/* Enable misc interrupts */
+	ADF_CSR_WR(addr, ADF_GEN4_SMIAPF_MASK_OFFSET, 0);
+}
+EXPORT_SYMBOL_GPL(adf_gen4_enable_ints);
+
+int adf_gen4_init_device(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr;
+	u32 status;
+	u32 csr;
+	int ret;
+
+	addr = (&GET_BARS(accel_dev)[ADF_GEN4_PMISC_BAR])->virt_addr;
+
+	/* Temporarily mask PM interrupt */
+	csr = ADF_CSR_RD(addr, ADF_GEN4_ERRMSK2);
+	csr |= ADF_GEN4_PM_SOU;
+	ADF_CSR_WR(addr, ADF_GEN4_ERRMSK2, csr);
+
+	/* Set DRV_ACTIVE bit to power up the device */
+	ADF_CSR_WR(addr, ADF_GEN4_PM_INTERRUPT, ADF_GEN4_PM_DRV_ACTIVE);
+
+	/* Poll status register to make sure the device is powered up */
+	ret = read_poll_timeout(ADF_CSR_RD, status,
+				status & ADF_GEN4_PM_INIT_STATE,
+				ADF_GEN4_PM_POLL_DELAY_US,
+				ADF_GEN4_PM_POLL_TIMEOUT_US, true, addr,
+				ADF_GEN4_PM_STATUS);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev), "Failed to power up the device\n");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_init_device);
+
 static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
 					       u32 *lower)
 {
@@ -134,6 +260,28 @@ void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
+
+/*
+ * The vector routing table is used to select the MSI-X entry to use for each
+ * interrupt source.
+ * The first ADF_GEN4_ETR_MAX_BANKS entries correspond to ring interrupts.
+ * The final entry corresponds to VF2PF or error interrupts.
+ * This vector table could be used to configure one MSI-X entry to be shared
+ * between multiple interrupt sources.
+ *
+ * The default routing is set to have a one to one correspondence between the
+ * interrupt source and the MSI-X entry used.
+ */
+void adf_gen4_set_msix_default_rttable(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *csr;
+	int i;
+
+	csr = (&GET_BARS(accel_dev)[ADF_GEN4_PMISC_BAR])->virt_addr;
+	for (i = 0; i <= ADF_GEN4_ETR_MAX_BANKS; i++)
+		ADF_CSR_WR(csr, ADF_GEN4_MSIX_RTTABLE_OFFSET(i), i);
+}
+EXPORT_SYMBOL_GPL(adf_gen4_set_msix_default_rttable);
 
 int adf_pfvf_comms_disabled(struct adf_accel_dev *accel_dev)
 {
