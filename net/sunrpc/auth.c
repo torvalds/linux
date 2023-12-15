@@ -40,9 +40,6 @@ static unsigned long number_cred_unused;
 
 static struct cred machine_cred = {
 	.usage = ATOMIC_INIT(1),
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	.magic = CRED_MAGIC,
-#endif
 };
 
 /*
