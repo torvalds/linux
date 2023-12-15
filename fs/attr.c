@@ -157,7 +157,7 @@ static bool chgrp_ok(struct mnt_idmap *idmap,
  * the vfsmount must be passed through @idmap. This function will then
  * take care to map the inode according to @idmap before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
- * performed on the raw inode simply passs @nop_mnt_idmap.
+ * performed on the raw inode simply pass @nop_mnt_idmap.
  *
  * Should be called as the first thing in ->setattr implementations,
  * possibly after taking additional locks.
