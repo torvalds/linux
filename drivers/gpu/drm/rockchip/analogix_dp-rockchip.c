@@ -681,6 +681,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
+		secondary->plat_data.panel = dp->plat_data.panel;
 		secondary->plat_data.left = dp->adp;
 		secondary->plat_data.split_mode = true;
 	}
