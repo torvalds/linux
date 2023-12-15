@@ -18,6 +18,7 @@
 #include "xfs_bmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
+#include "scrub/quota.h"
 
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
 static inline xfs_dqtype_t
@@ -137,11 +138,9 @@ xchk_quota_item_timer(
 /* Scrub the fields in an individual quota item. */
 STATIC int
 xchk_quota_item(
-	struct xfs_dquot	*dq,
-	xfs_dqtype_t		dqtype,
-	void			*priv)
+	struct xchk_quota_info	*sqi,
+	struct xfs_dquot	*dq)
 {
-	struct xchk_quota_info	*sqi = priv;
 	struct xfs_scrub	*sc = sqi->sc;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
@@ -270,7 +269,7 @@ xchk_quota_data_fork(
 		return error;
 
 	/* Check for data fork problems that apply only to quota files. */
-	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
+	max_dqid_off = XFS_DQ_ID_MAX / qi->qi_dqperchunk;
 	ifp = xfs_ifork_ptr(sc->ip, XFS_DATA_FORK);
 	for_each_xfs_iext(ifp, &icur, &irec) {
 		if (xchk_should_terminate(sc, &error))
@@ -297,9 +296,11 @@ int
 xchk_quota(
 	struct xfs_scrub	*sc)
 {
-	struct xchk_quota_info	sqi;
+	struct xchk_dqiter	cursor = { };
+	struct xchk_quota_info	sqi = { .sc = sc };
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct xfs_dquot	*dq;
 	xfs_dqtype_t		dqtype;
 	int			error = 0;
 
@@ -318,9 +319,15 @@ xchk_quota(
 	 * functions.
 	 */
 	xchk_iunlock(sc, sc->ilock_flags);
-	sqi.sc = sc;
-	sqi.last_id = 0;
-	error = xfs_qm_dqiterate(mp, dqtype, xchk_quota_item, &sqi);
+
+	/* Now look for things that the quota verifiers won't complain about. */
+	xchk_dqiter_init(&cursor, sc, dqtype);
+	while ((error = xchk_dquot_iter(&cursor, &dq)) == 1) {
+		error = xchk_quota_item(&sqi, dq);
+		xfs_qm_dqput(dq);
+		if (error)
+			break;
+	}
 	xchk_ilock(sc, XFS_ILOCK_EXCL);
 	if (error == -ECANCELED)
 		error = 0;
