@@ -26,6 +26,7 @@
   amba_driver_unregister
   android_rvh_probe_register
   anon_inode_getfd
+  anon_inode_getfile
   arc4_crypt
   arc4_setkey
   __arch_clear_user
@@ -409,6 +410,7 @@
   devm_device_add_groups
   devm_device_remove_group
   __devm_drm_dev_alloc
+  devm_drm_of_get_bridge
   devm_drm_panel_bridge_add_typed
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -538,6 +540,7 @@
   dma_buf_vunmap
   dmaengine_unmap_put
   dma_fence_add_callback
+  dma_fence_array_create
   dma_fence_context_alloc
   dma_fence_default_wait
   dma_fence_get_status
@@ -725,6 +728,7 @@
   drm_helper_mode_fill_fb_struct
   drm_helper_probe_single_connector_modes
   drm_ioctl
+  drm_kms_helper_connector_hotplug_event
   drm_kms_helper_hotplug_event
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
@@ -1405,6 +1409,7 @@
   of_find_i2c_adapter_by_node
   of_find_i2c_device_by_node
   of_find_matching_node_and_match
+  of_find_mipi_dsi_host_by_node
   of_find_node_by_name
   of_find_node_by_phandle
   of_find_node_by_type
@@ -1419,11 +1424,13 @@
   of_get_next_available_child
   of_get_next_child
   of_get_next_parent
+  of_get_parent
   of_get_property
   of_get_regulator_init_data
   of_graph_get_next_endpoint
   of_graph_get_port_parent
   of_graph_get_remote_endpoint
+  of_graph_get_remote_node
   of_graph_is_present
   of_graph_parse_endpoint
   of_iomap
@@ -2182,12 +2189,15 @@
   __traceiter_android_rvh_setscheduler
   __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_set_user_nice
+  __traceiter_android_rvh_set_user_nice_locked
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
+  __traceiter_android_rvh_update_load_sum
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
+  __traceiter_android_rvh_util_fits_cpu
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_audio_usb_offload_connect
   __traceiter_android_vh_binder_restore_priority
@@ -2252,6 +2262,8 @@
   __traceiter_sched_util_est_cfs_tp
   __traceiter_sched_util_est_se_tp
   __traceiter_sched_wakeup
+  __traceiter_softirq_entry
+  __traceiter_softirq_exit
   __traceiter_suspend_resume
   __traceiter_workqueue_execute_end
   __traceiter_workqueue_execute_start
@@ -2284,12 +2296,15 @@
   __tracepoint_android_rvh_setscheduler
   __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_set_user_nice
+  __tracepoint_android_rvh_set_user_nice_locked
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
+  __tracepoint_android_rvh_update_load_sum
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
+  __tracepoint_android_rvh_util_fits_cpu
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_audio_usb_offload_connect
   __tracepoint_android_vh_binder_restore_priority
@@ -2356,6 +2371,8 @@
   __tracepoint_sched_util_est_cfs_tp
   __tracepoint_sched_util_est_se_tp
   __tracepoint_sched_wakeup
+  __tracepoint_softirq_entry
+  __tracepoint_softirq_exit
   __tracepoint_suspend_resume
   __tracepoint_workqueue_execute_end
   __tracepoint_workqueue_execute_start

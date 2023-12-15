@@ -2209,7 +2209,7 @@ static int cmac_dma_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	u32 reg;
 	int ret;
 
-	if (chip_id != RTL8852A && chip_id != RTL8852B)
+	if (chip_id != RTL8852B)
 		return 0;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);

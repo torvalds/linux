@@ -65,21 +65,21 @@
 			&hsusbb1_pins
 	>;
 
-	twl6040_pins: pinmux_twl6040_pins {
+	twl6040_pins: twl6040-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x19c, PIN_OUTPUT | MUX_MODE3)		/* fref_clk2_out.gpio_182 */
 			OMAP4_IOPAD(0x1a0, PIN_INPUT | MUX_MODE0)		/* sys_nirq2.sys_nirq2 */
 		>;
 	};
 
-	tsc2004_pins: pinmux_tsc2004_pins {
+	tsc2004_pins: tsc2004-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x090, PIN_INPUT | MUX_MODE3)		/* gpmc_ncs4.gpio_101 (irq) */
 			OMAP4_IOPAD(0x092, PIN_OUTPUT | MUX_MODE3)		/* gpmc_ncs5.gpio_102 (rst) */
 		>;
 	};
 
-	uart3_pins: pinmux_uart3_pins {
+	uart3_pins: uart3-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x140, PIN_INPUT_PULLUP | MUX_MODE0)	/* uart3_cts_rctx.uart3_cts_rctx */
 			OMAP4_IOPAD(0x142, PIN_OUTPUT | MUX_MODE0)		/* uart3_rts_sd.uart3_rts_sd */
@@ -88,7 +88,7 @@
 		>;
 	};
 
-	hsusbb1_pins: pinmux_hsusbb1_pins {
+	hsusbb1_pins: hsusbb1-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x0c2, PIN_INPUT_PULLDOWN | MUX_MODE4)	/* usbb1_ulpitll_clk.usbb1_ulpiphy_clk */
 			OMAP4_IOPAD(0x0c4, PIN_OUTPUT | MUX_MODE4)		/* usbb1_ulpitll_stp.usbb1_ulpiphy_stp */
@@ -105,27 +105,27 @@
 		>;
 	};
 
-	hsusbb1_phy_rst_pins: pinmux_hsusbb1_phy_rst_pins {
+	hsusbb1_phy_rst_pins: hsusbb1-phy-rst-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x18c, PIN_OUTPUT | MUX_MODE3)		/* kpd_row2.gpio_177 */
 		>;
 	};
 
-	i2c1_pins: pinmux_i2c1_pins {
+	i2c1_pins: i2c1-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x122, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_scl */
 			OMAP4_IOPAD(0x124, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c1_sda */
 		>;
 	};
 
-	i2c3_pins: pinmux_i2c3_pins {
+	i2c3_pins: i2c3-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x12a, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_scl */
 			OMAP4_IOPAD(0x12c, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c3_sda */
 		>;
 	};
 
-	mmc1_pins: pinmux_mmc1_pins {
+	mmc1_pins: mmc1-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x0e2, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_clk.sdmmc1_clk */
 			OMAP4_IOPAD(0x0e4, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc1_cmd.sdmmc1_cmd */
@@ -144,19 +144,19 @@
 		&lan7500_rst_pins
 	>;
 
-	hsusbb1_phy_clk_pins: pinmux_hsusbb1_phy_clk_pins {
+	hsusbb1_phy_clk_pins: hsusbb1-phy-clk-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x058, PIN_OUTPUT | MUX_MODE0)	/* fref_clk3_out */
 		>;
 	};
 
-	hsusbb1_hub_rst_pins: pinmux_hsusbb1_hub_rst_pins {
+	hsusbb1_hub_rst_pins: hsusbb1-hub-rst-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x042, PIN_OUTPUT | MUX_MODE3)	/* gpio_wk1 */
 		>;
 	};
 
-	lan7500_rst_pins: pinmux_lan7500_rst_pins {
+	lan7500_rst_pins: lan7500-rst-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x040, PIN_OUTPUT | MUX_MODE3)	/* gpio_wk0 */
 		>;

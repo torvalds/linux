@@ -17,7 +17,7 @@
   {
     "EventCode": "0x34056",
     "EventName": "PM_EXEC_STALL_LOAD_FINISH",
-    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was finishing a load after its data was reloaded from a data source beyond the local L1; cycles in which the LSU was processing an L1-hit; cycles in which the NTF instruction merged with another load in the LMQ; cycles in which the NTF instruction is waiting for a data reload for a load miss, but the data comes back with a non-NTF instruction."
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was finishing a load after its data was reloaded from a data source beyond the local L1; cycles in which the LSU was processing an L1-hit; cycles in which the next-to-finish (NTF) instruction merged with another load in the LMQ; cycles in which the NTF instruction is waiting for a data reload for a load miss, but the data comes back with a non-NTF instruction."
   },
   {
     "EventCode": "0x3006C",
@@ -27,7 +27,7 @@
   {
     "EventCode": "0x300F4",
     "EventName": "PM_RUN_INST_CMPL_CONC",
-    "BriefDescription": "PowerPC instructions completed by this thread when all threads in the core had the run-latch set."
+    "BriefDescription": "PowerPC instruction completed by this thread when all threads in the core had the run-latch set."
   },
   {
     "EventCode": "0x4C016",

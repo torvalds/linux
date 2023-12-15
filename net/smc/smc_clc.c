@@ -1002,7 +1002,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 		clc->hdr.typev1 = SMC_TYPE_D;
 		clc->d0.gid = conn->lgr->smcd->local_gid;
 		clc->d0.token = conn->rmb_desc->token;
-		clc->d0.dmbe_size = conn->rmbe_size_short;
+		clc->d0.dmbe_size = conn->rmbe_size_comp;
 		clc->d0.dmbe_idx = 0;
 		memcpy(&clc->d0.linkid, conn->lgr->id, SMC_LGR_ID_SIZE);
 		if (version == SMC_V1) {
@@ -1045,7 +1045,7 @@ static int smc_clc_send_confirm_accept(struct smc_sock *smc,
 			clc->r0.qp_mtu = min(link->path_mtu, link->peer_mtu);
 			break;
 		}
-		clc->r0.rmbe_size = conn->rmbe_size_short;
+		clc->r0.rmbe_size = conn->rmbe_size_comp;
 		clc->r0.rmb_dma_addr = conn->rmb_desc->is_vm ?
 			cpu_to_be64((uintptr_t)conn->rmb_desc->cpu_addr) :
 			cpu_to_be64((u64)sg_dma_address
