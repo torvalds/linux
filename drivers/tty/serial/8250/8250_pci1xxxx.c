@@ -66,6 +66,9 @@
 #define SYSLOCK_SLEEP_TIMEOUT			100
 #define SYSLOCK_RETRY_CNT			1000
 
+#define UART_RX_BYTE_FIFO			0x00
+#define UART_FIFO_CTL				0x02
+
 #define UART_ACTV_REG				0x11
 #define UART_BLOCK_SET_ACTIVE			BIT(0)
 
@@ -96,8 +99,23 @@
 #define UART_RESET_REG				0x94
 #define UART_RESET_D3_RESET_DISABLE		BIT(16)
 
+#define UART_BURST_STATUS_REG			0x9C
+#define UART_RX_BURST_FIFO			0xA4
+
 #define MAX_PORTS				4
 #define PORT_OFFSET				0x100
+#define RX_BUF_SIZE				512
+#define UART_BYTE_SIZE                          1
+#define UART_BURST_SIZE				4
+
+#define UART_BST_STAT_RX_COUNT_MASK		0x00FF
+#define UART_BST_STAT_IIR_INT_PEND		0x100000
+#define UART_LSR_OVERRUN_ERR_CLR		0x43
+#define UART_BST_STAT_LSR_RX_MASK		0x9F000000
+#define UART_BST_STAT_LSR_RX_ERR_MASK		0x9E000000
+#define UART_BST_STAT_LSR_OVERRUN_ERR		0x2000000
+#define UART_BST_STAT_LSR_PARITY_ERR		0x4000000
+#define UART_BST_STAT_LSR_FRAME_ERR		0x8000000
 
 struct pci1xxxx_8250 {
 	unsigned int nr;
@@ -249,6 +267,103 @@ static int pci1xxxx_rs485_config(struct uart_port *port,
 	return 0;
 }
 
+static u32 pci1xxxx_read_burst_status(struct uart_port *port)
+{
+	u32 status;
+
+	status = readl(port->membase + UART_BURST_STATUS_REG);
+	if (status & UART_BST_STAT_LSR_RX_ERR_MASK) {
+		if (status & UART_BST_STAT_LSR_OVERRUN_ERR) {
+			writeb(UART_LSR_OVERRUN_ERR_CLR,
+			       port->membase + UART_FIFO_CTL);
+			port->icount.overrun++;
+		}
+
+		if (status & UART_BST_STAT_LSR_FRAME_ERR)
+			port->icount.frame++;
+
+		if (status & UART_BST_STAT_LSR_PARITY_ERR)
+			port->icount.parity++;
+	}
+	return status;
+}
+
+static void pci1xxxx_process_read_data(struct uart_port *port,
+				       unsigned char *rx_buff, u32 *buff_index,
+				       u32 *valid_byte_count)
+{
+	u32 valid_burst_count = *valid_byte_count / UART_BURST_SIZE;
+	u32 *burst_buf;
+
+	/*
+	 * Depending on the RX Trigger Level the number of bytes that can be
+	 * stored in RX FIFO at a time varies. Each transaction reads data
+	 * in DWORDs. If there are less than four remaining valid_byte_count
+	 * to read, the data is received one byte at a time.
+	 */
+	while (valid_burst_count--) {
+		if (*buff_index > (RX_BUF_SIZE - UART_BURST_SIZE))
+			break;
+		burst_buf = (u32 *)&rx_buff[*buff_index];
+		*burst_buf = readl(port->membase + UART_RX_BURST_FIFO);
+		*buff_index += UART_BURST_SIZE;
+		*valid_byte_count -= UART_BURST_SIZE;
+	}
+
+	while (*valid_byte_count) {
+		if (*buff_index > RX_BUF_SIZE)
+			break;
+		rx_buff[*buff_index] = readb(port->membase +
+					     UART_RX_BYTE_FIFO);
+		*buff_index += UART_BYTE_SIZE;
+		*valid_byte_count -= UART_BYTE_SIZE;
+	}
+}
+
+static void pci1xxxx_rx_burst(struct uart_port *port, u32 uart_status)
+{
+	u32 valid_byte_count = uart_status & UART_BST_STAT_RX_COUNT_MASK;
+	struct tty_port *tty_port = &port->state->port;
+	unsigned char rx_buff[RX_BUF_SIZE];
+	u32 buff_index = 0;
+	u32 copied_len;
+
+	if (valid_byte_count != 0 &&
+	    valid_byte_count < RX_BUF_SIZE) {
+		pci1xxxx_process_read_data(port, rx_buff, &buff_index,
+					   &valid_byte_count);
+
+		copied_len = (u32)tty_insert_flip_string(tty_port, rx_buff,
+							 buff_index);
+
+		if (copied_len != buff_index)
+			port->icount.overrun += buff_index - copied_len;
+
+		port->icount.rx += buff_index;
+		tty_flip_buffer_push(tty_port);
+	}
+}
+
+static int pci1xxxx_handle_irq(struct uart_port *port)
+{
+	unsigned long flags;
+	u32 status;
+
+	status = pci1xxxx_read_burst_status(port);
+
+	if (status & UART_BST_STAT_IIR_INT_PEND)
+		return 0;
+
+	spin_lock_irqsave(&port->lock, flags);
+
+	if (status & UART_BST_STAT_LSR_RX_MASK)
+		pci1xxxx_rx_burst(port, status);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	return 1;
+}
+
 static bool pci1xxxx_port_suspend(int line)
 {
 	struct uart_8250_port *up = serial8250_get_port(line);
@@ -360,7 +475,7 @@ static int pci1xxxx_resume(struct device *dev)
 }
 
 static int pci1xxxx_setup(struct pci_dev *pdev,
-			  struct uart_8250_port *port, int port_idx)
+			  struct uart_8250_port *port, int port_idx, int rev)
 {
 	int ret;
 
@@ -371,6 +486,10 @@ static int pci1xxxx_setup(struct pci_dev *pdev,
 	port->port.set_divisor = pci1xxxx_set_divisor;
 	port->port.rs485_config = pci1xxxx_rs485_config;
 	port->port.rs485_supported = pci1xxxx_rs485_supported;
+
+	/* From C0 rev Burst operation is supported */
+	if (rev >= 0xC0)
+		port->port.handle_irq = pci1xxxx_handle_irq;
 
 	ret = serial8250_pci_setup_port(pdev, port, 0, PORT_OFFSET * port_idx, 0);
 	if (ret < 0)
@@ -491,7 +610,7 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 		else
 			uart.port.irq = pci_irq_vector(pdev, 0);
 
-		rc = pci1xxxx_setup(pdev, &uart, port_idx);
+		rc = pci1xxxx_setup(pdev, &uart, port_idx, priv->dev_rev);
 		if (rc) {
 			dev_warn(dev, "Failed to setup port %u\n", i);
 			continue;
