@@ -245,7 +245,7 @@ unsigned long create_bit_mask(unsigned int start, unsigned int len)
  *
  * Return:	The length of the contiguous bits in the longest train of bits
  */
-static unsigned int count_contiguous_bits(unsigned long val, unsigned int *start)
+unsigned int count_contiguous_bits(unsigned long val, unsigned int *start)
 {
 	unsigned long last_val;
 	unsigned int count = 0;
@@ -341,48 +341,6 @@ int get_mask_no_shareable(const char *cache_type, unsigned long *mask)
 	*mask = create_bit_mask(start, len);
 
 	return 0;
-}
-
-/*
- * get_core_sibling - Get sibling core id from the same socket for given CPU
- * @cpu_no:	CPU number
- *
- * Return:	> 0 on success, < 0 on failure.
- */
-int get_core_sibling(int cpu_no)
-{
-	char core_siblings_path[1024], cpu_list_str[64];
-	int sibling_cpu_no = -1;
-	FILE *fp;
-
-	sprintf(core_siblings_path, "%s%d/topology/core_siblings_list",
-		CORE_SIBLINGS_PATH, cpu_no);
-
-	fp = fopen(core_siblings_path, "r");
-	if (!fp) {
-		ksft_perror("Failed to open core siblings path");
-
-		return -1;
-	}
-	if (fscanf(fp, "%s", cpu_list_str) <= 0) {
-		ksft_perror("Could not get core_siblings list");
-		fclose(fp);
-
-		return -1;
-	}
-	fclose(fp);
-
-	char *token = strtok(cpu_list_str, "-,");
-
-	while (token) {
-		sibling_cpu_no = atoi(token);
-		/* Skipping core 0 as we don't want to run test on core 0 */
-		if (sibling_cpu_no != 0 && sibling_cpu_no != cpu_no)
-			break;
-		token = strtok(NULL, "-,");
-	}
-
-	return sibling_cpu_no;
 }
 
 /*
