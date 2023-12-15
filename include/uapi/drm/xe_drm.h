@@ -816,7 +816,7 @@ struct drm_xe_vm_bind_op {
 	 */
 	__u32 prefetch_mem_region_instance;
 
-	/** @pad: MBZ */
+	/** @pad2: MBZ */
 	__u32 pad2;
 
 	/** @reserved: Reserved */
@@ -857,7 +857,7 @@ struct drm_xe_vm_bind {
 		__u64 vector_of_binds;
 	};
 
-	/** @pad: MBZ */
+	/** @pad2: MBZ */
 	__u32 pad2;
 
 	/** @num_syncs: amount of syncs to wait on */
@@ -982,6 +982,7 @@ struct drm_xe_sync {
 	__u32 flags;
 
 	union {
+		/** @handle: Handle for the object */
 		__u32 handle;
 
 		/**
@@ -995,6 +996,7 @@ struct drm_xe_sync {
 		__u64 addr;
 	};
 
+	/** @timeline_value: Timeline point of the sync object */
 	__u64 timeline_value;
 
 	/** @reserved: Reserved */
