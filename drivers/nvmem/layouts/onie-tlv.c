@@ -225,16 +225,32 @@ static int onie_tlv_parse_table(struct device *dev, struct nvmem_device *nvmem)
 	return 0;
 }
 
+static int onie_tlv_probe(struct nvmem_layout *layout)
+{
+	layout->add_cells = onie_tlv_parse_table;
+
+	return nvmem_layout_register(layout);
+}
+
+static void onie_tlv_remove(struct nvmem_layout *layout)
+{
+	nvmem_layout_unregister(layout);
+}
+
 static const struct of_device_id onie_tlv_of_match_table[] = {
 	{ .compatible = "onie,tlv-layout", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, onie_tlv_of_match_table);
 
-static struct nvmem_layout onie_tlv_layout = {
-	.name = "ONIE tlv layout",
-	.of_match_table = onie_tlv_of_match_table,
-	.add_cells = onie_tlv_parse_table,
+static struct nvmem_layout_driver onie_tlv_layout = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "onie-tlv-layout",
+		.of_match_table = onie_tlv_of_match_table,
+	},
+	.probe = onie_tlv_probe,
+	.remove = onie_tlv_remove,
 };
 module_nvmem_layout_driver(onie_tlv_layout);
 
