@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <drm/xe_drm.h>
+
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 

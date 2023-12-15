@@ -18,7 +18,6 @@
 #include "xe_lmtt_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
-#include "xe_pmu.h"
 #include "xe_sriov_types.h"
 #include "xe_step_types.h"
 
@@ -426,9 +425,6 @@ struct xe_device {
 	 * the runtime_suspend or runtime_resume callbacks.
 	 */
 	struct task_struct *pm_callback_task;
-
-	/** @pmu: performance monitoring unit */
-	struct xe_pmu pmu;
 
 	/** @hwmon: hwmon subsystem integration */
 	struct xe_hwmon *hwmon;

@@ -1074,46 +1074,6 @@ struct drm_xe_wait_user_fence {
 	/** @reserved: Reserved */
 	__u64 reserved[2];
 };
-
-/**
- * DOC: XE PMU event config IDs
- *
- * Check 'man perf_event_open' to use the ID's DRM_XE_PMU_XXXX listed in xe_drm.h
- * in 'struct perf_event_attr' as part of perf_event_open syscall to read a
- * particular event.
- *
- * For example to open the DRMXE_PMU_RENDER_GROUP_BUSY(0):
- *
- * .. code-block:: C
- *
- *	struct perf_event_attr attr;
- *	long long count;
- *	int cpu = 0;
- *	int fd;
- *
- *	memset(&attr, 0, sizeof(struct perf_event_attr));
- *	attr.type = type; // eg: /sys/bus/event_source/devices/xe_0000_56_00.0/type
- *	attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED;
- *	attr.use_clockid = 1;
- *	attr.clockid = CLOCK_MONOTONIC;
- *	attr.config = DRM_XE_PMU_RENDER_GROUP_BUSY(0);
- *
- *	fd = syscall(__NR_perf_event_open, &attr, -1, cpu, -1, 0);
- */
-
-/*
- * Top bits of every counter are GT id.
- */
-#define __DRM_XE_PMU_GT_SHIFT (56)
-
-#define ___DRM_XE_PMU_OTHER(gt, x) \
-	(((__u64)(x)) | ((__u64)(gt) << __DRM_XE_PMU_GT_SHIFT))
-
-#define DRM_XE_PMU_RENDER_GROUP_BUSY(gt)	___DRM_XE_PMU_OTHER(gt, 0)
-#define DRM_XE_PMU_COPY_GROUP_BUSY(gt)		___DRM_XE_PMU_OTHER(gt, 1)
-#define DRM_XE_PMU_MEDIA_GROUP_BUSY(gt)		___DRM_XE_PMU_OTHER(gt, 2)
-#define DRM_XE_PMU_ANY_ENGINE_GROUP_BUSY(gt)	___DRM_XE_PMU_OTHER(gt, 3)
-
 #if defined(__cplusplus)
 }
 #endif

@@ -11,7 +11,6 @@
 #include "xe_drv.h"
 #include "xe_hw_fence.h"
 #include "xe_pci.h"
-#include "xe_pmu.h"
 #include "xe_sched_job.h"
 
 struct xe_modparam xe_modparam = {
@@ -62,10 +61,6 @@ static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_sched_job_module_init,
 		.exit = xe_sched_job_module_exit,
-	},
-	{
-		.init = xe_pmu_init,
-		.exit = xe_pmu_exit,
 	},
 	{
 		.init = xe_register_pci_driver,
