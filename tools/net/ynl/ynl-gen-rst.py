@@ -256,6 +256,24 @@ def parse_attr_sets(entries: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+def parse_sub_messages(entries: List[Dict[str, Any]]) -> str:
+    """Parse sub-message definitions"""
+    lines = []
+
+    for entry in entries:
+        lines.append(rst_section(entry["name"]))
+        for fmt in entry["formats"]:
+            value = fmt["value"]
+
+            lines.append(rst_bullet(bold(value)))
+            for attr in ['fixed-header', 'attribute-set']:
+                if attr in fmt:
+                    lines.append(rst_fields(attr, fmt[attr], 2))
+            lines.append("\n")
+
+    return "\n".join(lines)
+
+
 def parse_yaml(obj: Dict[str, Any]) -> str:
     """Format the whole YAML into a RST string"""
     lines = []
@@ -291,6 +309,11 @@ def parse_yaml(obj: Dict[str, Any]) -> str:
     if "attribute-sets" in obj:
         lines.append(rst_subtitle("Attribute sets"))
         lines.append(parse_attr_sets(obj["attribute-sets"]))
+
+    # Sub-messages
+    if "sub-messages" in obj:
+        lines.append(rst_subtitle("Sub-messages"))
+        lines.append(parse_sub_messages(obj["sub-messages"]))
 
     return "\n".join(lines)
 
