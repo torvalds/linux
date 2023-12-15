@@ -866,7 +866,7 @@ static int silicom_fan_control_read_labels(struct device *dev,
 {
 	switch (type) {
 	case hwmon_fan:
-		*str = "Silicom_platfomr: Fan Speed";
+		*str = "Silicom_platform: Fan Speed";
 		return 0;
 	case hwmon_temp:
 		*str = "Silicom_platform: Thermostat Sensor";
