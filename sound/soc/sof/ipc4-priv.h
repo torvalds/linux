@@ -81,6 +81,7 @@ struct sof_ipc4_fw_data {
 	u32 mtrace_log_bytes;
 	int max_num_pipelines;
 	u32 max_libs_count;
+	bool fw_context_save;
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
