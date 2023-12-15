@@ -437,11 +437,6 @@ static const char *subprog_name(const struct bpf_verifier_env *env, int subprog)
 	return btf_type_name(env->prog->aux->btf, info->type_id);
 }
 
-static struct bpf_func_info_aux *subprog_aux(const struct bpf_verifier_env *env, int subprog)
-{
-	return &env->prog->aux->func_info_aux[subprog];
-}
-
 static void mark_subprog_exc_cb(struct bpf_verifier_env *env, int subprog)
 {
 	struct bpf_subprog_info *info = subprog_info(env, subprog);

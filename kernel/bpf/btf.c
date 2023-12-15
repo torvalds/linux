@@ -6914,6 +6914,7 @@ int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
  */
 int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 {
+	bool is_global = subprog_aux(env, subprog)->linkage == BTF_FUNC_GLOBAL;
 	struct bpf_subprog_info *sub = subprog_info(env, subprog);
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
@@ -6927,14 +6928,15 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	if (sub->args_cached)
 		return 0;
 
-	if (!prog->aux->func_info ||
-	    prog->aux->func_info_aux[subprog].linkage != BTF_FUNC_GLOBAL) {
+	if (!prog->aux->func_info) {
 		bpf_log(log, "Verifier bug\n");
 		return -EFAULT;
 	}
 
 	btf_id = prog->aux->func_info[subprog].type_id;
 	if (!btf_id) {
+		if (!is_global) /* not fatal for static funcs */
+			return -EINVAL;
 		bpf_log(log, "Global functions need valid BTF\n");
 		return -EFAULT;
 	}
@@ -6990,16 +6992,14 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 			sub->args[i].arg_type = ARG_ANYTHING;
 			continue;
 		}
-		if (btf_type_is_ptr(t)) {
+		if (btf_type_is_ptr(t) && btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
+			sub->args[i].arg_type = ARG_PTR_TO_CTX;
+			continue;
+		}
+		if (is_global && btf_type_is_ptr(t)) {
 			u32 mem_size;
 
-			if (btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
-				sub->args[i].arg_type = ARG_PTR_TO_CTX;
-				continue;
-			}
-
 			t = btf_type_skip_modifiers(btf, t->type, NULL);
-
 			ref_t = btf_resolve_size(btf, t, &mem_size);
 			if (IS_ERR(ref_t)) {
 				bpf_log(log,
