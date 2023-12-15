@@ -1207,6 +1207,23 @@ static int nand_lp_exec_read_page_op(struct nand_chip *chip, unsigned int page,
 	return nand_exec_op(chip, &op);
 }
 
+static void rawnand_cap_cont_reads(struct nand_chip *chip)
+{
+	struct nand_memory_organization *memorg;
+	unsigned int pages_per_lun, first_lun, last_lun;
+
+	memorg = nanddev_get_memorg(&chip->base);
+	pages_per_lun = memorg->pages_per_eraseblock * memorg->eraseblocks_per_lun;
+	first_lun = chip->cont_read.first_page / pages_per_lun;
+	last_lun = chip->cont_read.last_page / pages_per_lun;
+
+	/* Prevent sequential cache reads across LUN boundaries */
+	if (first_lun != last_lun)
+		chip->cont_read.pause_page = first_lun * pages_per_lun + pages_per_lun - 1;
+	else
+		chip->cont_read.pause_page = chip->cont_read.last_page;
+}
+
 static int nand_lp_exec_cont_read_page_op(struct nand_chip *chip, unsigned int page,
 					  unsigned int offset_in_page, void *buf,
 					  unsigned int len, bool check_only)
@@ -1225,7 +1242,7 @@ static int nand_lp_exec_cont_read_page_op(struct nand_chip *chip, unsigned int p
 		NAND_OP_DATA_IN(len, buf, 0),
 	};
 	struct nand_op_instr cont_instrs[] = {
-		NAND_OP_CMD(page == chip->cont_read.last_page ?
+		NAND_OP_CMD(page == chip->cont_read.pause_page ?
 			    NAND_CMD_READCACHEEND : NAND_CMD_READCACHESEQ,
 			    NAND_COMMON_TIMING_NS(conf, tWB_max)),
 		NAND_OP_WAIT_RDY(NAND_COMMON_TIMING_MS(conf, tR_max),
@@ -1262,16 +1279,29 @@ static int nand_lp_exec_cont_read_page_op(struct nand_chip *chip, unsigned int p
 	}
 
 	if (page == chip->cont_read.first_page)
-		return nand_exec_op(chip, &start_op);
+		ret = nand_exec_op(chip, &start_op);
 	else
-		return nand_exec_op(chip, &cont_op);
+		ret = nand_exec_op(chip, &cont_op);
+	if (ret)
+		return ret;
+
+	if (!chip->cont_read.ongoing)
+		return 0;
+
+	if (page == chip->cont_read.pause_page &&
+	    page != chip->cont_read.last_page) {
+		chip->cont_read.first_page = chip->cont_read.pause_page + 1;
+		rawnand_cap_cont_reads(chip);
+	} else if (page == chip->cont_read.last_page) {
+		chip->cont_read.ongoing = false;
+	}
+
+	return 0;
 }
 
 static bool rawnand_cont_read_ongoing(struct nand_chip *chip, unsigned int page)
 {
-	return chip->cont_read.ongoing &&
-		page >= chip->cont_read.first_page &&
-		page <= chip->cont_read.last_page;
+	return chip->cont_read.ongoing && page >= chip->cont_read.first_page;
 }
 
 /**
@@ -3445,6 +3475,7 @@ static void rawnand_enable_cont_reads(struct nand_chip *chip, unsigned int page,
 	if (col)
 		chip->cont_read.first_page++;
 	chip->cont_read.last_page = page + ((readlen >> chip->page_shift) & chip->pagemask);
+	rawnand_cap_cont_reads(chip);
 }
 
 /**
