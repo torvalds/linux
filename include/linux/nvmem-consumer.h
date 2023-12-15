@@ -247,7 +247,6 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 				     const char *id);
 struct nvmem_device *of_nvmem_device_get(struct device_node *np,
 					 const char *name);
-struct device_node *of_nvmem_layout_get_container(struct nvmem_device *nvmem);
 #else
 static inline struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 						   const char *id)
@@ -259,12 +258,6 @@ static inline struct nvmem_device *of_nvmem_device_get(struct device_node *np,
 						       const char *name)
 {
 	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline struct device_node *
-of_nvmem_layout_get_container(struct nvmem_device *nvmem)
-{
-	return NULL;
 }
 #endif /* CONFIG_NVMEM && CONFIG_OF */
 

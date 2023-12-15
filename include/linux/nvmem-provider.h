@@ -244,6 +244,27 @@ nvmem_layout_get_match_data(struct nvmem_device *nvmem,
 
 #endif /* CONFIG_NVMEM */
 
+#if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
+
+/**
+ * of_nvmem_layout_get_container() - Get OF node of layout container
+ *
+ * @nvmem: nvmem device
+ *
+ * Return: a node pointer with refcount incremented or NULL if no
+ * container exists. Use of_node_put() on it when done.
+ */
+struct device_node *of_nvmem_layout_get_container(struct nvmem_device *nvmem);
+
+#else  /* CONFIG_NVMEM && CONFIG_OF */
+
+static inline struct device_node *of_nvmem_layout_get_container(struct nvmem_device *nvmem)
+{
+	return NULL;
+}
+
+#endif /* CONFIG_NVMEM && CONFIG_OF */
+
 #define module_nvmem_layout_driver(__layout_driver)		\
 	module_driver(__layout_driver, nvmem_layout_register,	\
 		      nvmem_layout_unregister)
