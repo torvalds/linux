@@ -466,7 +466,7 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	sector_t last_block;
 	sector_t block_in_file;
-	sector_t blocks[MAX_BUF_PER_PAGE];
+	sector_t first_block;
 	unsigned page_block;
 	unsigned first_unmapped = blocks_per_page;
 	struct block_device *bdev = NULL;
@@ -504,10 +504,12 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 			if (!buffer_dirty(bh) || !buffer_uptodate(bh))
 				goto confused;
 			if (page_block) {
-				if (bh->b_blocknr != blocks[page_block-1] + 1)
+				if (bh->b_blocknr != first_block + page_block)
 					goto confused;
+			} else {
+				first_block = bh->b_blocknr;
 			}
-			blocks[page_block++] = bh->b_blocknr;
+			page_block++;
 			boundary = buffer_boundary(bh);
 			if (boundary) {
 				boundary_block = bh->b_blocknr;
@@ -556,10 +558,12 @@ static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 			boundary_bdev = map_bh.b_bdev;
 		}
 		if (page_block) {
-			if (map_bh.b_blocknr != blocks[page_block-1] + 1)
+			if (map_bh.b_blocknr != first_block + page_block)
 				goto confused;
+		} else {
+			first_block = map_bh.b_blocknr;
 		}
-		blocks[page_block++] = map_bh.b_blocknr;
+		page_block++;
 		boundary = buffer_boundary(&map_bh);
 		bdev = map_bh.b_bdev;
 		if (block_in_file == last_block)
@@ -591,7 +595,7 @@ page_is_mapped:
 	/*
 	 * This page will go to BIO.  Do we need to send this BIO off first?
 	 */
-	if (bio && mpd->last_block_in_bio != blocks[0] - 1)
+	if (bio && mpd->last_block_in_bio != first_block - 1)
 		bio = mpage_bio_submit_write(bio);
 
 alloc_new:
@@ -599,7 +603,7 @@ alloc_new:
 		bio = bio_alloc(bdev, BIO_MAX_VECS,
 				REQ_OP_WRITE | wbc_to_write_flags(wbc),
 				GFP_NOFS);
-		bio->bi_iter.bi_sector = blocks[0] << (blkbits - 9);
+		bio->bi_iter.bi_sector = first_block << (blkbits - 9);
 		wbc_init_bio(wbc, bio);
 	}
 
@@ -627,7 +631,7 @@ alloc_new:
 					boundary_block, 1 << blkbits);
 		}
 	} else {
-		mpd->last_block_in_bio = blocks[blocks_per_page - 1];
+		mpd->last_block_in_bio = first_block + blocks_per_page - 1;
 	}
 	goto out;
 
