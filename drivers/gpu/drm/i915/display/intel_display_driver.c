@@ -449,8 +449,6 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_display_driver_init_hw(i915);
 	intel_dpll_update_ref_clks(i915);
 
-	intel_hdcp_component_init(i915);
-
 	if (i915->display.cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(i915);
 
@@ -491,6 +489,13 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 	if (!HAS_DISPLAY(i915))
 		return 0;
+
+	/*
+	 * This will bind stuff into ggtt, so it needs to be done after
+	 * the BIOS fb takeover and whatever else magic ggtt reservations
+	 * happen during gem/ggtt init.
+	 */
+	intel_hdcp_component_init(i915);
 
 	/*
 	 * Force all active planes to recompute their states. So that on
