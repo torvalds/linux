@@ -196,35 +196,60 @@ int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
 #define CORE_SIBLINGS_PATH	"/sys/bus/cpu/devices/cpu"
 
 /*
- * get_cbm_mask - Get cbm mask for given cache
- * @cache_type:	Cache level L2/L3
- * @cbm_mask:	cbm_mask returned as a string
+ * get_bit_mask - Get bit mask from given file
+ * @filename:	File containing the mask
+ * @mask:	The bit mask returned as unsigned long
  *
  * Return: = 0 on success, < 0 on failure.
  */
-int get_cbm_mask(char *cache_type, char *cbm_mask)
+static int get_bit_mask(const char *filename, unsigned long *mask)
 {
-	char cbm_mask_path[1024];
 	FILE *fp;
 
-	if (!cbm_mask)
+	if (!filename || !mask)
 		return -1;
 
-	sprintf(cbm_mask_path, "%s/%s/cbm_mask", INFO_PATH, cache_type);
-
-	fp = fopen(cbm_mask_path, "r");
+	fp = fopen(filename, "r");
 	if (!fp) {
-		ksft_perror("Failed to open cache level");
-
+		ksft_print_msg("Failed to open bit mask file '%s': %s\n",
+			       filename, strerror(errno));
 		return -1;
 	}
-	if (fscanf(fp, "%s", cbm_mask) <= 0) {
-		ksft_perror("Could not get max cbm_mask");
+
+	if (fscanf(fp, "%lx", mask) <= 0) {
+		ksft_print_msg("Could not read bit mask file '%s': %s\n",
+			       filename, strerror(errno));
 		fclose(fp);
 
 		return -1;
 	}
 	fclose(fp);
+
+	return 0;
+}
+
+/*
+ * get_full_cbm - Get full Cache Bit Mask (CBM)
+ * @cache_type:	Cache type as "L2" or "L3"
+ * @mask:	Full cache bit mask representing the maximal portion of cache
+ *		available for allocation, returned as unsigned long.
+ *
+ * Return: = 0 on success, < 0 on failure.
+ */
+int get_full_cbm(const char *cache_type, unsigned long *mask)
+{
+	char cbm_path[PATH_MAX];
+	int ret;
+
+	if (!cache_type)
+		return -1;
+
+	snprintf(cbm_path, sizeof(cbm_path), "%s/%s/cbm_mask",
+		 INFO_PATH, cache_type);
+
+	ret = get_bit_mask(cbm_path, mask);
+	if (ret || !*mask)
+		return -1;
 
 	return 0;
 }

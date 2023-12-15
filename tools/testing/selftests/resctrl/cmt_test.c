@@ -75,16 +75,13 @@ int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd)
 	unsigned long cache_size = 0;
 	unsigned long long_mask;
 	char *span_str = NULL;
-	char cbm_mask[256];
 	int count_of_bits;
 	size_t span;
 	int ret, i;
 
-	ret = get_cbm_mask("L3", cbm_mask);
+	ret = get_full_cbm("L3", &long_mask);
 	if (ret)
 		return ret;
-
-	long_mask = strtoul(cbm_mask, NULL, 16);
 
 	ret = get_cache_size(cpu_no, "L3", &cache_size);
 	if (ret)
