@@ -19904,6 +19904,7 @@ static void free_states(struct bpf_verifier_env *env)
 static int do_check_common(struct bpf_verifier_env *env, int subprog)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
+	struct bpf_subprog_info *sub = subprog_info(env, subprog);
 	struct bpf_verifier_state *state;
 	struct bpf_reg_state *regs;
 	int ret, i;
@@ -19930,9 +19931,9 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 	state->first_insn_idx = env->subprog_info[subprog].start;
 	state->last_insn_idx = -1;
 
+
 	regs = state->frame[state->curframe]->regs;
 	if (subprog || env->prog->type == BPF_PROG_TYPE_EXT) {
-		struct bpf_subprog_info *sub = subprog_info(env, subprog);
 		const char *sub_name = subprog_name(env, subprog);
 		struct bpf_subprog_arg_info *arg;
 		struct bpf_reg_state *reg;
@@ -19979,21 +19980,19 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 			}
 		}
 	} else {
+		/* if main BPF program has associated BTF info, validate that
+		 * it's matching expected signature, and otherwise mark BTF
+		 * info for main program as unreliable
+		 */
+		if (env->prog->aux->func_info_aux) {
+			ret = btf_prepare_func_args(env, 0);
+			if (ret || sub->arg_cnt != 1 || sub->args[0].arg_type != ARG_PTR_TO_CTX)
+				env->prog->aux->func_info_aux[0].unreliable = true;
+		}
+
 		/* 1st arg to a function */
 		regs[BPF_REG_1].type = PTR_TO_CTX;
 		mark_reg_known_zero(env, regs, BPF_REG_1);
-		ret = btf_check_subprog_arg_match(env, subprog, regs);
-		if (ret == -EFAULT)
-			/* unlikely verifier bug. abort.
-			 * ret == 0 and ret < 0 are sadly acceptable for
-			 * main() function due to backward compatibility.
-			 * Like socket filter program may be written as:
-			 * int bpf_prog(struct pt_regs *ctx)
-			 * and never dereference that ctx in the program.
-			 * 'struct pt_regs' is a type mismatch for socket
-			 * filter that should be using 'struct __sk_buff'.
-			 */
-			goto out;
 	}
 
 	ret = do_check(env);
