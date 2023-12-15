@@ -73,7 +73,7 @@ xrep_superblock(
 	/* Write this to disk. */
 	xfs_trans_buf_set_type(sc->tp, bp, XFS_BLFT_SB_BUF);
 	xfs_trans_log_buf(sc->tp, bp, 0, BBTOB(bp->b_length) - 1);
-	return error;
+	return 0;
 }
 
 /* AGF */
@@ -342,7 +342,7 @@ xrep_agf_commit_new(
 	pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
 	set_bit(XFS_AGSTATE_AGF_INIT, &pag->pag_opstate);
 
-	return 0;
+	return xrep_roll_ag_trans(sc);
 }
 
 /* Repair the AGF. v5 filesystems only. */
@@ -789,6 +789,9 @@ xrep_agfl(
 	/* Dump any AGFL overflow. */
 	error = xrep_reap_agblocks(sc, &agfl_extents, &XFS_RMAP_OINFO_AG,
 			XFS_AG_RESV_AGFL);
+	if (error)
+		goto err;
+
 err:
 	xagb_bitmap_destroy(&agfl_extents);
 	return error;
@@ -962,7 +965,7 @@ xrep_agi_commit_new(
 	pag->pagi_freecount = be32_to_cpu(agi->agi_freecount);
 	set_bit(XFS_AGSTATE_AGI_INIT, &pag->pag_opstate);
 
-	return 0;
+	return xrep_roll_ag_trans(sc);
 }
 
 /* Repair the AGI. */
