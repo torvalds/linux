@@ -566,7 +566,7 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 
 			got = recv(sk, msg + bytes, sizeof(msg) - bytes, 0);
 			if (got <= 0)
-				test_error("recv(): %zd", got);
+				return i;
 			bytes += got;
 		} while (bytes < sent);
 		if (bytes > sent)
