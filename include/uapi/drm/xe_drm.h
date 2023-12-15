@@ -1020,20 +1020,6 @@ struct drm_xe_vm_bind {
 	__u64 reserved[2];
 };
 
-/* For use with DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY */
-
-/* Monitor 128KB contiguous region with 4K sub-granularity */
-#define DRM_XE_ACC_GRANULARITY_128K 0
-
-/* Monitor 2MB contiguous region with 64KB sub-granularity */
-#define DRM_XE_ACC_GRANULARITY_2M 1
-
-/* Monitor 16MB contiguous region with 512KB sub-granularity */
-#define DRM_XE_ACC_GRANULARITY_16M 2
-
-/* Monitor 64MB contiguous region with 2M sub-granularity */
-#define DRM_XE_ACC_GRANULARITY_64M 3
-
 /**
  * struct drm_xe_exec_queue_create - Input of &DRM_IOCTL_XE_EXEC_QUEUE_CREATE
  *
@@ -1066,6 +1052,14 @@ struct drm_xe_exec_queue_create {
 #define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER		5
 #define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY		6
 #define   DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY	7
+/* Monitor 128KB contiguous region with 4K sub-granularity */
+#define     DRM_XE_ACC_GRANULARITY_128K				0
+/* Monitor 2MB contiguous region with 64KB sub-granularity */
+#define     DRM_XE_ACC_GRANULARITY_2M				1
+/* Monitor 16MB contiguous region with 512KB sub-granularity */
+#define     DRM_XE_ACC_GRANULARITY_16M				2
+/* Monitor 64MB contiguous region with 2M sub-granularity */
+#define     DRM_XE_ACC_GRANULARITY_64M				3
 
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
