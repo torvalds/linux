@@ -372,7 +372,7 @@ static void end_buffer_async_read_io(struct buffer_head *bh, int uptodate)
 }
 
 /*
- * Completion handler for block_write_full_page() - pages which are unlocked
+ * Completion handler for block_write_full_folio() - pages which are unlocked
  * during I/O, and which have PageWriteback cleared upon I/O completion.
  */
 void end_buffer_async_write(struct buffer_head *bh, int uptodate)
@@ -1771,18 +1771,18 @@ static struct buffer_head *folio_create_buffers(struct folio *folio,
  */
 
 /*
- * While block_write_full_page is writing back the dirty buffers under
+ * While block_write_full_folio is writing back the dirty buffers under
  * the page lock, whoever dirtied the buffers may decide to clean them
  * again at any time.  We handle that by only looking at the buffer
  * state inside lock_buffer().
  *
- * If block_write_full_page() is called for regular writeback
+ * If block_write_full_folio() is called for regular writeback
  * (wbc->sync_mode == WB_SYNC_NONE) then it will redirty a page which has a
  * locked buffer.   This only can happen if someone has written the buffer
  * directly, with submit_bh().  At the address_space level PageWriteback
  * prevents this contention from occurring.
  *
- * If block_write_full_page() is called with wbc->sync_mode ==
+ * If block_write_full_folio() is called with wbc->sync_mode ==
  * WB_SYNC_ALL, the writes are posted using REQ_SYNC; this
  * causes the writes to be flagged as synchronous writes.
  */
@@ -1829,7 +1829,7 @@ int __block_write_full_folio(struct inode *inode, struct folio *folio,
 			 * truncate in progress.
 			 */
 			/*
-			 * The buffer was zeroed by block_write_full_page()
+			 * The buffer was zeroed by block_write_full_folio()
 			 */
 			clear_buffer_dirty(bh);
 			set_buffer_uptodate(bh);
@@ -2696,10 +2696,9 @@ EXPORT_SYMBOL(block_truncate_page);
 /*
  * The generic ->writepage function for buffer-backed address_spaces
  */
-int block_write_full_page(struct page *page, get_block_t *get_block,
-			struct writeback_control *wbc)
+int block_write_full_folio(struct folio *folio, struct writeback_control *wbc,
+		void *get_block)
 {
-	struct folio *folio = page_folio(page);
 	struct inode * const inode = folio->mapping->host;
 	loff_t i_size = i_size_read(inode);
 
@@ -2726,7 +2725,6 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 	return __block_write_full_folio(inode, folio, get_block, wbc,
 			end_buffer_async_write);
 }
-EXPORT_SYMBOL(block_write_full_page);
 
 sector_t generic_block_bmap(struct address_space *mapping, sector_t block,
 			    get_block_t *get_block)

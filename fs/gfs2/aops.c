@@ -82,11 +82,11 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 }
 
 /**
- * gfs2_write_jdata_folio - gfs2 jdata-specific version of block_write_full_page
+ * gfs2_write_jdata_folio - gfs2 jdata-specific version of block_write_full_folio
  * @folio: The folio to write
  * @wbc: The writeback control
  *
- * This is the same as calling block_write_full_page, but it also
+ * This is the same as calling block_write_full_folio, but it also
  * writes pages outside of i_size
  */
 static int gfs2_write_jdata_folio(struct folio *folio,

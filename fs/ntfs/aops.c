@@ -1304,7 +1304,7 @@ done:
  * page cleaned.  The VM has already locked the page and marked it clean.
  *
  * For non-resident attributes, ntfs_writepage() writes the @page by calling
- * the ntfs version of the generic block_write_full_page() function,
+ * the ntfs version of the generic block_write_full_folio() function,
  * ntfs_write_block(), which in turn if necessary creates and writes the
  * buffers associated with the page asynchronously.
  *
@@ -1314,7 +1314,7 @@ done:
  * vfs inode dirty code path for the inode the mft record belongs to or via the
  * vm page dirty code path for the page the mft record is in.
  *
- * Based on ntfs_read_folio() and fs/buffer.c::block_write_full_page().
+ * Based on ntfs_read_folio() and fs/buffer.c::block_write_full_folio().
  *
  * Return 0 on success and -errno on error.
  */

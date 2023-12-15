@@ -642,7 +642,7 @@ confused:
 	/*
 	 * The caller has a ref on the inode, so *mapping is stable
 	 */
-	ret = block_write_full_page(&folio->page, mpd->get_block, wbc);
+	ret = block_write_full_folio(folio, wbc, mpd->get_block);
 	mapping_set_error(mapping, ret);
 out:
 	mpd->bio = bio;
