@@ -49,6 +49,7 @@ static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 #define raid1_log(md, fmt, args...)				\
 	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid1 " fmt, ##args); } while (0)
 
+#define RAID_1_10_NAME "raid1"
 #include "raid1-10.c"
 
 #define START(node) ((node)->start)
