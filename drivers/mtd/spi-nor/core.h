@@ -465,7 +465,7 @@ struct spi_nor_id {
  * struct flash_info - SPI NOR flash_info entry.
  * @id:   pointer to struct spi_nor_id or NULL, which means "no ID" (mostly
  *        older chips).
- * @name: the name of the flash.
+ * @name: (obsolete) the name of the flash. Do not set it for new additions.
  * @size:           the size of the flash in bytes.
  * @sector_size:    (optional) the size listed here is what works with
  *                  SPINOR_OP_SE, which isn't necessarily called a "sector" by
