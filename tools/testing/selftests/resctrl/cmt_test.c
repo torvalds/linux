@@ -94,7 +94,7 @@ void cmt_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int cmt_resctrl_val(const struct user_params *uparams)
+static int cmt_run_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
 	const char * const *cmd = uparams->benchmark_cmd;
 	const char *new_cmd[BENCHMARK_ARGS];
@@ -155,6 +155,8 @@ int cmt_resctrl_val(const struct user_params *uparams)
 		goto out;
 
 	ret = check_results(&param, span, n);
+	if (ret && (get_vendor() == ARCH_INTEL))
+		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 
 out:
 	cmt_test_cleanup();
@@ -162,3 +164,16 @@ out:
 
 	return ret;
 }
+
+static bool cmt_feature_check(const struct resctrl_test *test)
+{
+	return test_resource_feature_check(test) &&
+	       validate_resctrl_feature_request("L3_MON", "llc_occupancy");
+}
+
+struct resctrl_test cmt_test = {
+	.name = "CMT",
+	.resource = "L3",
+	.feature_check = cmt_feature_check,
+	.run_test = cmt_run_test,
+};

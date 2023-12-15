@@ -109,7 +109,7 @@ void mbm_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int mbm_bw_change(const struct user_params *uparams)
+static int mbm_run_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
 	struct resctrl_val_param param = {
 		.resctrl_val	= MBM_STR,
@@ -128,9 +128,25 @@ int mbm_bw_change(const struct user_params *uparams)
 		goto out;
 
 	ret = check_results(DEFAULT_SPAN);
+	if (ret && (get_vendor() == ARCH_INTEL))
+		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
 
 out:
 	mbm_test_cleanup();
 
 	return ret;
 }
+
+static bool mbm_feature_check(const struct resctrl_test *test)
+{
+	return validate_resctrl_feature_request("L3_MON", "mbm_total_bytes") &&
+	       validate_resctrl_feature_request("L3_MON", "mbm_local_bytes");
+}
+
+struct resctrl_test mbm_test = {
+	.name = "MBM",
+	.resource = "MB",
+	.vendor_specific = ARCH_INTEL,
+	.feature_check = mbm_feature_check,
+	.run_test = mbm_run_test,
+};

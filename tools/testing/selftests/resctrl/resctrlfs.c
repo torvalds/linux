@@ -706,6 +706,11 @@ bool validate_resctrl_feature_request(const char *resource, const char *feature)
 	return !!res;
 }
 
+bool test_resource_feature_check(const struct resctrl_test *test)
+{
+	return validate_resctrl_feature_request(test->resource, NULL);
+}
+
 int filter_dmesg(void)
 {
 	char line[1024];

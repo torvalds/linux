@@ -141,7 +141,7 @@ void mba_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int mba_schemata_change(const struct user_params *uparams)
+static int mba_run_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
 	struct resctrl_val_param param = {
 		.resctrl_val	= MBA_STR,
@@ -166,3 +166,17 @@ out:
 
 	return ret;
 }
+
+static bool mba_feature_check(const struct resctrl_test *test)
+{
+	return test_resource_feature_check(test) &&
+	       validate_resctrl_feature_request("L3_MON", "mbm_local_bytes");
+}
+
+struct resctrl_test mba_test = {
+	.name = "MBA",
+	.resource = "MB",
+	.vendor_specific = ARCH_INTEL,
+	.feature_check = mba_feature_check,
+	.run_test = mba_run_test,
+};

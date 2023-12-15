@@ -28,6 +28,12 @@
 #define PHYS_ID_PATH		"/sys/devices/system/cpu/cpu"
 #define INFO_PATH		"/sys/fs/resctrl/info"
 
+/*
+ * CPU vendor IDs
+ *
+ * Define as bits because they're used for vendor_specific bitmask in
+ * the struct resctrl_test.
+ */
 #define ARCH_INTEL     1
 #define ARCH_AMD       2
 
@@ -54,6 +60,25 @@ struct user_params {
 	int cpu;
 	int bits;
 	const char *benchmark_cmd[BENCHMARK_ARGS];
+};
+
+/*
+ * resctrl_test:	resctrl test definition
+ * @name:		Test name
+ * @resource:		Resource to test (e.g., MB, L3, L2, etc.)
+ * @vendor_specific:	Bitmask for vendor-specific tests (can be 0 for universal tests)
+ * @disabled:		Test is disabled
+ * @feature_check:	Callback to check required resctrl features
+ * @run_test:		Callback to run the test
+ */
+struct resctrl_test {
+	const char	*name;
+	const char	*resource;
+	unsigned int	vendor_specific;
+	bool		disabled;
+	bool		(*feature_check)(const struct resctrl_test *test);
+	int		(*run_test)(const struct resctrl_test *test,
+				    const struct user_params *uparams);
 };
 
 /*
@@ -108,6 +133,7 @@ int mount_resctrlfs(void);
 int umount_resctrlfs(void);
 int validate_bw_report_request(char *bw_report);
 bool validate_resctrl_feature_request(const char *resource, const char *feature);
+bool test_resource_feature_check(const struct resctrl_test *test);
 char *fgrep(FILE *inf, const char *str);
 int taskset_benchmark(pid_t bm_pid, int cpu_no, cpu_set_t *old_affinity);
 int taskset_restore(pid_t bm_pid, cpu_set_t *old_affinity);
@@ -123,10 +149,8 @@ void fill_cache_read(unsigned char *buf, size_t buf_size, bool once);
 int run_fill_buf(size_t buf_size, int memflush, int op, bool once);
 int resctrl_val(const struct user_params *uparams, const char * const *benchmark_cmd,
 		struct resctrl_val_param *param);
-int mbm_bw_change(const struct user_params *uparams);
 void tests_cleanup(void);
 void mbm_test_cleanup(void);
-int mba_schemata_change(const struct user_params *uparams);
 void mba_test_cleanup(void);
 unsigned long create_bit_mask(unsigned int start, unsigned int len);
 unsigned int count_contiguous_bits(unsigned long val, unsigned int *start);
@@ -137,8 +161,6 @@ void ctrlc_handler(int signum, siginfo_t *info, void *ptr);
 int signal_handler_register(void);
 void signal_handler_unregister(void);
 void cat_test_cleanup(void);
-int cat_perf_miss_val(const struct user_params *uparams, char *cache_type);
-int cmt_resctrl_val(const struct user_params *uparams);
 unsigned int count_bits(unsigned long n);
 void cmt_test_cleanup(void);
 
@@ -174,5 +196,10 @@ static inline unsigned long cache_portion_size(unsigned long cache_size,
 
 	return cache_size * count_bits(portion_mask) / bits;
 }
+
+extern struct resctrl_test mbm_test;
+extern struct resctrl_test mba_test;
+extern struct resctrl_test cmt_test;
+extern struct resctrl_test l3_cat_test;
 
 #endif /* RESCTRL_H */

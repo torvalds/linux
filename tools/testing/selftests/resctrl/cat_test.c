@@ -231,7 +231,7 @@ reset_affinity:
 	return ret;
 }
 
-int cat_perf_miss_val(const struct user_params *uparams, char *cache_type)
+static int cat_run_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
 	unsigned long long_mask, start_mask, full_cache_mask;
 	unsigned long cache_total_size = 0;
@@ -241,16 +241,16 @@ int cat_perf_miss_val(const struct user_params *uparams, char *cache_type)
 	size_t span;
 	int ret;
 
-	ret = get_full_cbm(cache_type, &full_cache_mask);
+	ret = get_full_cbm(test->resource, &full_cache_mask);
 	if (ret)
 		return ret;
 	/* Get the largest contiguous exclusive portion of the cache */
-	ret = get_mask_no_shareable(cache_type, &long_mask);
+	ret = get_mask_no_shareable(test->resource, &long_mask);
 	if (ret)
 		return ret;
 
 	/* Get L3/L2 cache size */
-	ret = get_cache_size(uparams->cpu, cache_type, &cache_total_size);
+	ret = get_cache_size(uparams->cpu, test->resource, &cache_total_size);
 	if (ret)
 		return ret;
 	ksft_print_msg("Cache size :%lu\n", cache_total_size);
@@ -283,9 +283,17 @@ int cat_perf_miss_val(const struct user_params *uparams, char *cache_type)
 	if (ret)
 		goto out;
 
-	ret = check_results(&param, cache_type, cache_total_size, full_cache_mask, start_mask);
+	ret = check_results(&param, test->resource,
+			    cache_total_size, full_cache_mask, start_mask);
 out:
 	cat_test_cleanup();
 
 	return ret;
 }
+
+struct resctrl_test l3_cat_test = {
+	.name = "CAT",
+	.resource = "L3",
+	.feature_check = test_resource_feature_check,
+	.run_test = cat_run_test,
+};
