@@ -338,7 +338,7 @@ struct mdio_bus_stats {
  * phy_package_leave().
  */
 struct phy_package_shared {
-	int addr;
+	u8 addr;
 	refcount_t refcnt;
 	unsigned long flags;
 	size_t priv_size;
