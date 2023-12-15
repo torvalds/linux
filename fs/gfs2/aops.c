@@ -108,7 +108,7 @@ static int gfs2_write_jdata_folio(struct folio *folio,
 				folio_size(folio));
 
 	return __block_write_full_folio(inode, folio, gfs2_get_block_noalloc,
-			wbc, end_buffer_async_write);
+			wbc);
 }
 
 /**
