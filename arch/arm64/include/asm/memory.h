@@ -407,6 +407,5 @@ void dump_mem_limit(void);
 #define INIT_MEMBLOCK_MEMORY_REGIONS	(INIT_MEMBLOCK_REGIONS * 8)
 #endif
 
-#include <asm-generic/memory_model.h>
 
 #endif /* __ASM_MEMORY_H */
