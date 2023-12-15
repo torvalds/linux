@@ -493,6 +493,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	dma_addr_t dma_addr = xdptxd->dma_addr;
 	u32 dma_len = xdptxd->len;
 	u16 ds_cnt, inline_hdr_sz;
+	unsigned int frags_size;
 	u8 num_wqebbs = 1;
 	int num_frags = 0;
 	bool inline_ok;
@@ -503,8 +504,9 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 
 	inline_ok = sq->min_inline_mode == MLX5_INLINE_MODE_NONE ||
 		dma_len >= MLX5E_XDP_MIN_INLINE;
+	frags_size = xdptxd->has_frags ? xdptxdf->sinfo->xdp_frags_size : 0;
 
-	if (unlikely(!inline_ok || sq->hw_mtu < dma_len)) {
+	if (unlikely(!inline_ok || sq->hw_mtu < dma_len + frags_size)) {
 		stats->err++;
 		return false;
 	}
