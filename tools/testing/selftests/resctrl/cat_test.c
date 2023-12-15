@@ -41,12 +41,12 @@ static int cat_setup(struct resctrl_val_param *p)
 	return ret;
 }
 
-static int show_results_info(unsigned long sum_llc_val, int no_of_bits,
+static int show_results_info(__u64 sum_llc_val, int no_of_bits,
 			     unsigned long cache_span, unsigned long max_diff,
 			     unsigned long max_diff_percent, unsigned long num_of_runs,
 			     bool platform)
 {
-	unsigned long avg_llc_val = 0;
+	__u64 avg_llc_val = 0;
 	float diff_percent;
 	int ret;
 
@@ -68,8 +68,8 @@ static int show_results_info(unsigned long sum_llc_val, int no_of_bits,
 static int check_results(struct resctrl_val_param *param, size_t span)
 {
 	char *token_array[8], temp[512];
-	unsigned long sum_llc_perf_miss = 0;
 	int runs = 0, no_of_bits = 0;
+	__u64 sum_llc_perf_miss = 0;
 	FILE *fp;
 
 	ksft_print_msg("Checking for pass/fail\n");
@@ -93,7 +93,7 @@ static int check_results(struct resctrl_val_param *param, size_t span)
 		 * setup transition phase.
 		 */
 		if (runs > 0)
-			sum_llc_perf_miss += strtoul(token_array[3], NULL, 0);
+			sum_llc_perf_miss += strtoull(token_array[3], NULL, 0);
 		runs++;
 	}
 
