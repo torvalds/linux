@@ -69,7 +69,7 @@ def rst_paragraph(paragraph: str, level: int = 0) -> str:
 
 def rst_bullet(item: str, level: int = 0) -> str:
     """Return a formatted a bullet"""
-    return headroom(level) + f" - {item}"
+    return headroom(level) + f"- {item}"
 
 
 def rst_subsection(title: str) -> str:
@@ -250,7 +250,7 @@ def parse_attr_sets(entries: List[Dict[str, Any]]) -> str:
             for k in attr.keys():
                 if k in preprocessed + ignored:
                     continue
-                lines.append(rst_fields(k, sanitize(attr[k]), 2))
+                lines.append(rst_fields(k, sanitize(attr[k]), 0))
             lines.append("\n")
 
     return "\n".join(lines)
@@ -268,7 +268,7 @@ def parse_sub_messages(entries: List[Dict[str, Any]]) -> str:
             lines.append(rst_bullet(bold(value)))
             for attr in ['fixed-header', 'attribute-set']:
                 if attr in fmt:
-                    lines.append(rst_fields(attr, fmt[attr], 2))
+                    lines.append(rst_fields(attr, fmt[attr], 1))
             lines.append("\n")
 
     return "\n".join(lines)
