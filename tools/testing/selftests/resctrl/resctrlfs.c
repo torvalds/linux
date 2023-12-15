@@ -112,13 +112,13 @@ static int get_cache_level(const char *cache_type)
 }
 
 /*
- * get_resource_id - Get socket number/l3 id for a specified CPU
+ * get_domain_id - Get resctrl domain ID for a specified CPU
  * @cpu_no:	CPU number
- * @resource_id: Socket number or l3_id
+ * @domain_id:	domain ID (cache ID; for MB, L3 cache ID)
  *
  * Return: >= 0 on success, < 0 on failure.
  */
-int get_resource_id(int cpu_no, int *resource_id)
+int get_domain_id(int cpu_no, int *domain_id)
 {
 	char phys_pkg_path[1024];
 	FILE *fp;
@@ -136,8 +136,8 @@ int get_resource_id(int cpu_no, int *resource_id)
 
 		return -1;
 	}
-	if (fscanf(fp, "%d", resource_id) <= 0) {
-		ksft_perror("Could not get socket number or l3 id");
+	if (fscanf(fp, "%d", domain_id) <= 0) {
+		ksft_perror("Could not get domain ID");
 		fclose(fp);
 
 		return -1;
@@ -551,7 +551,7 @@ out:
 int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, const char *resource)
 {
 	char controlgroup[1024], reason[128], schema[1024] = {};
-	int resource_id, fd, schema_len, ret = 0;
+	int domain_id, fd, schema_len, ret = 0;
 
 	if (!schemata) {
 		ksft_print_msg("Skipping empty schemata update\n");
@@ -559,8 +559,8 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, const char *resour
 		return -1;
 	}
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
-		sprintf(reason, "Failed to get resource id");
+	if (get_domain_id(cpu_no, &domain_id) < 0) {
+		sprintf(reason, "Failed to get domain ID");
 		ret = -1;
 
 		goto out;
@@ -572,7 +572,7 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, const char *resour
 		sprintf(controlgroup, "%s/schemata", RESCTRL_PATH);
 
 	schema_len = snprintf(schema, sizeof(schema), "%s:%d=%s\n",
-			      resource, resource_id, schemata);
+			      resource, domain_id, schemata);
 	if (schema_len < 0 || schema_len >= sizeof(schema)) {
 		snprintf(reason, sizeof(reason),
 			 "snprintf() failed with return value : %d", schema_len);

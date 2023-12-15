@@ -387,20 +387,20 @@ static int get_mem_bw_imc(int cpu_no, char *bw_report, float *bw_imc)
 	return 0;
 }
 
-void set_mbm_path(const char *ctrlgrp, const char *mongrp, int resource_id)
+void set_mbm_path(const char *ctrlgrp, const char *mongrp, int domain_id)
 {
 	if (ctrlgrp && mongrp)
 		sprintf(mbm_total_path, CON_MON_MBM_LOCAL_BYTES_PATH,
-			RESCTRL_PATH, ctrlgrp, mongrp, resource_id);
+			RESCTRL_PATH, ctrlgrp, mongrp, domain_id);
 	else if (!ctrlgrp && mongrp)
 		sprintf(mbm_total_path, MON_MBM_LOCAL_BYTES_PATH, RESCTRL_PATH,
-			mongrp, resource_id);
+			mongrp, domain_id);
 	else if (ctrlgrp && !mongrp)
 		sprintf(mbm_total_path, CON_MBM_LOCAL_BYTES_PATH, RESCTRL_PATH,
-			ctrlgrp, resource_id);
+			ctrlgrp, domain_id);
 	else if (!ctrlgrp && !mongrp)
 		sprintf(mbm_total_path, MBM_LOCAL_BYTES_PATH, RESCTRL_PATH,
-			resource_id);
+			domain_id);
 }
 
 /*
@@ -413,23 +413,23 @@ void set_mbm_path(const char *ctrlgrp, const char *mongrp, int resource_id)
 static void initialize_mem_bw_resctrl(const char *ctrlgrp, const char *mongrp,
 				      int cpu_no, char *resctrl_val)
 {
-	int resource_id;
+	int domain_id;
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
-		ksft_print_msg("Could not get resource_id\n");
+	if (get_domain_id(cpu_no, &domain_id) < 0) {
+		ksft_print_msg("Could not get domain ID\n");
 		return;
 	}
 
 	if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)))
-		set_mbm_path(ctrlgrp, mongrp, resource_id);
+		set_mbm_path(ctrlgrp, mongrp, domain_id);
 
 	if (!strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR))) {
 		if (ctrlgrp)
 			sprintf(mbm_total_path, CON_MBM_LOCAL_BYTES_PATH,
-				RESCTRL_PATH, ctrlgrp, resource_id);
+				RESCTRL_PATH, ctrlgrp, domain_id);
 		else
 			sprintf(mbm_total_path, MBM_LOCAL_BYTES_PATH,
-				RESCTRL_PATH, resource_id);
+				RESCTRL_PATH, domain_id);
 	}
 }
 
@@ -582,15 +582,15 @@ static void set_cmt_path(const char *ctrlgrp, const char *mongrp, char sock_num)
 static void initialize_llc_occu_resctrl(const char *ctrlgrp, const char *mongrp,
 					int cpu_no, char *resctrl_val)
 {
-	int resource_id;
+	int domain_id;
 
-	if (get_resource_id(cpu_no, &resource_id) < 0) {
-		ksft_print_msg("Could not get resource_id\n");
+	if (get_domain_id(cpu_no, &domain_id) < 0) {
+		ksft_print_msg("Could not get domain ID\n");
 		return;
 	}
 
 	if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
-		set_cmt_path(ctrlgrp, mongrp, resource_id);
+		set_cmt_path(ctrlgrp, mongrp, domain_id);
 }
 
 static int measure_vals(const struct user_params *uparams,
