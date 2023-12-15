@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-TEST_BOTH_AF := connect
+TEST_BOTH_AF := bench-lookups
+TEST_BOTH_AF += connect
 TEST_BOTH_AF += connect-deny
 TEST_BOTH_AF += icmps-accept icmps-discard
 TEST_BOTH_AF += setsockopt-closed
@@ -49,3 +50,5 @@ $(OUTPUT)/%_ipv6: %.c
 
 $(OUTPUT)/icmps-accept_ipv4: CFLAGS+= -DTEST_ICMPS_ACCEPT
 $(OUTPUT)/icmps-accept_ipv6: CFLAGS+= -DTEST_ICMPS_ACCEPT
+$(OUTPUT)/bench-lookups_ipv4: LDFLAGS+= -lm
+$(OUTPUT)/bench-lookups_ipv6: LDFLAGS+= -lm
