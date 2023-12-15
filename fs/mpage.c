@@ -430,13 +430,13 @@ struct mpage_data {
  * We have our BIO, so we can now mark the buffers clean.  Make
  * sure to only clean buffers which we know we'll be writing.
  */
-static void clean_buffers(struct page *page, unsigned first_unmapped)
+static void clean_buffers(struct folio *folio, unsigned first_unmapped)
 {
 	unsigned buffer_counter = 0;
-	struct buffer_head *bh, *head;
-	if (!page_has_buffers(page))
+	struct buffer_head *bh, *head = folio_buffers(folio);
+
+	if (!head)
 		return;
-	head = page_buffers(page);
 	bh = head;
 
 	do {
@@ -451,8 +451,8 @@ static void clean_buffers(struct page *page, unsigned first_unmapped)
 	 * read_folio would fail to serialize with the bh and it would read from
 	 * disk before we reach the platter.
 	 */
-	if (buffer_heads_over_limit && PageUptodate(page))
-		try_to_free_buffers(page_folio(page));
+	if (buffer_heads_over_limit && folio_test_uptodate(folio))
+		try_to_free_buffers(folio);
 }
 
 static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
@@ -615,7 +615,7 @@ alloc_new:
 		goto alloc_new;
 	}
 
-	clean_buffers(&folio->page, first_unmapped);
+	clean_buffers(folio, first_unmapped);
 
 	BUG_ON(folio_test_writeback(folio));
 	folio_start_writeback(folio);
