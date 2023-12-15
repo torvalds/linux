@@ -281,7 +281,7 @@ static struct nf_hook_entries *nf_hook_entries_head(const struct net *net, u8 pf
 	switch (pf) {
 #ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
 	case NFPROTO_BRIDGE:
-		return rcu_dereference(net->nf.hooks_bridge[hooknum]);
+		return rcu_dereference(get_nf_hooks_bridge(net)[hooknum]);
 #endif
 	case NFPROTO_IPV4:
 		return rcu_dereference(net->nf.hooks_ipv4[hooknum]);
