@@ -29,6 +29,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/static_call.h>
 #include <linux/memcontrol.h>
+#include <linux/cfi.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -1211,7 +1212,11 @@ struct bpf_dispatcher {
 #endif
 };
 
-static __always_inline __nocfi unsigned int bpf_dispatcher_nop_func(
+#ifndef __bpfcall
+#define __bpfcall __nocfi
+#endif
+
+static __always_inline __bpfcall unsigned int bpf_dispatcher_nop_func(
 	const void *ctx,
 	const struct bpf_insn *insnsi,
 	bpf_func_t bpf_func)
@@ -1303,7 +1308,7 @@ int arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_func
 
 #define DEFINE_BPF_DISPATCHER(name)					\
 	__BPF_DISPATCHER_SC(name);					\
-	noinline __nocfi unsigned int bpf_dispatcher_##name##_func(	\
+	noinline __bpfcall unsigned int bpf_dispatcher_##name##_func(	\
 		const void *ctx,					\
 		const struct bpf_insn *insnsi,				\
 		bpf_func_t bpf_func)					\
@@ -1453,6 +1458,9 @@ struct bpf_prog_aux {
 	struct bpf_kfunc_desc_tab *kfunc_tab;
 	struct bpf_kfunc_btf_tab *kfunc_btf_tab;
 	u32 size_poke_tab;
+#ifdef CONFIG_FINEIBT
+	struct bpf_ksym ksym_prefix;
+#endif
 	struct bpf_ksym ksym;
 	const struct bpf_prog_ops *ops;
 	struct bpf_map **used_maps;

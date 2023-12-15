@@ -17,6 +17,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/text-patching.h>
 #include <asm/unwind.h>
+#include <asm/cfi.h>
 
 static bool all_callee_regs_used[4] = {true, true, true, true};
 
@@ -51,9 +52,11 @@ static u8 *emit_code(u8 *ptr, u32 bytes, unsigned int len)
 	do { EMIT4(b1, b2, b3, b4); EMIT(off, 4); } while (0)
 
 #ifdef CONFIG_X86_KERNEL_IBT
-#define EMIT_ENDBR()	EMIT(gen_endbr(), 4)
+#define EMIT_ENDBR()		EMIT(gen_endbr(), 4)
+#define EMIT_ENDBR_POISON()	EMIT(gen_endbr_poison(), 4)
 #else
 #define EMIT_ENDBR()
+#define EMIT_ENDBR_POISON()
 #endif
 
 static bool is_imm8(int value)
@@ -305,6 +308,69 @@ static void pop_callee_regs(u8 **pprog, bool *callee_regs_used)
 }
 
 /*
+ * Emit the various CFI preambles, see asm/cfi.h and the comments about FineIBT
+ * in arch/x86/kernel/alternative.c
+ */
+
+static void emit_fineibt(u8 **pprog)
+{
+	u8 *prog = *pprog;
+
+	EMIT_ENDBR();
+	EMIT3_off32(0x41, 0x81, 0xea, cfi_bpf_hash);	/* subl $hash, %r10d	*/
+	EMIT2(0x74, 0x07);				/* jz.d8 +7		*/
+	EMIT2(0x0f, 0x0b);				/* ud2			*/
+	EMIT1(0x90);					/* nop			*/
+	EMIT_ENDBR_POISON();
+
+	*pprog = prog;
+}
+
+static void emit_kcfi(u8 **pprog)
+{
+	u8 *prog = *pprog;
+
+	EMIT1_off32(0xb8, cfi_bpf_hash);		/* movl $hash, %eax	*/
+#ifdef CONFIG_CALL_PADDING
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+	EMIT1(0x90);
+#endif
+	EMIT_ENDBR();
+
+	*pprog = prog;
+}
+
+static void emit_cfi(u8 **pprog)
+{
+	u8 *prog = *pprog;
+
+	switch (cfi_mode) {
+	case CFI_FINEIBT:
+		emit_fineibt(&prog);
+		break;
+
+	case CFI_KCFI:
+		emit_kcfi(&prog);
+		break;
+
+	default:
+		EMIT_ENDBR();
+		break;
+	}
+
+	*pprog = prog;
+}
+
+/*
  * Emit x86-64 prologue code for BPF program.
  * bpf_tail_call helper will skip the first X86_TAIL_CALL_OFFSET bytes
  * while jumping to another program
@@ -315,10 +381,10 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 {
 	u8 *prog = *pprog;
 
+	emit_cfi(&prog);
 	/* BPF trampoline can be made to work without these nops,
 	 * but let's waste 5 bytes for now and optimize later
 	 */
-	EMIT_ENDBR();
 	memcpy(prog, x86_nops[5], X86_PATCH_SIZE);
 	prog += X86_PATCH_SIZE;
 	if (!ebpf_from_cbpf) {
@@ -3013,9 +3079,16 @@ out_image:
 			jit_data->header = header;
 			jit_data->rw_header = rw_header;
 		}
-		prog->bpf_func = (void *)image;
+		/*
+		 * ctx.prog_offset is used when CFI preambles put code *before*
+		 * the function. See emit_cfi(). For FineIBT specifically this code
+		 * can also be executed and bpf_prog_kallsyms_add() will
+		 * generate an additional symbol to cover this, hence also
+		 * decrement proglen.
+		 */
+		prog->bpf_func = (void *)image + cfi_get_offset();
 		prog->jited = 1;
-		prog->jited_len = proglen;
+		prog->jited_len = proglen - cfi_get_offset();
 	} else {
 		prog = orig_prog;
 	}
@@ -3070,6 +3143,7 @@ void bpf_jit_free(struct bpf_prog *prog)
 			kvfree(jit_data->addrs);
 			kfree(jit_data);
 		}
+		prog->bpf_func = (void *)prog->bpf_func - cfi_get_offset();
 		hdr = bpf_jit_binary_pack_hdr(prog);
 		bpf_jit_binary_pack_free(hdr, NULL);
 		WARN_ON_ONCE(!bpf_prog_kallsyms_verify_off(prog));
