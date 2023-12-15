@@ -733,12 +733,12 @@ struct drm_xe_gem_create {
 	 */
 	__u32 handle;
 
+#define DRM_XE_GEM_CPU_CACHING_WB                      1
+#define DRM_XE_GEM_CPU_CACHING_WC                      2
 	/**
 	 * @cpu_caching: The CPU caching mode to select for this object. If
 	 * mmaping the object the mode selected here will also be used.
 	 */
-#define DRM_XE_GEM_CPU_CACHING_WB                      1
-#define DRM_XE_GEM_CPU_CACHING_WC                      2
 	__u16 cpu_caching;
 	/** @pad: MBZ */
 	__u16 pad[3];
