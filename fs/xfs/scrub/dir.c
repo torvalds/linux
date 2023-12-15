@@ -15,10 +15,12 @@
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
+#include "xfs_health.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
 #include "scrub/readdir.h"
+#include "scrub/health.h"
 
 /* Set us up to scrub directories. */
 int
@@ -760,6 +762,11 @@ xchk_directory(
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;
 
+	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_DIR_ZAPPED)) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		return 0;
+	}
+
 	/* Plausible size? */
 	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
@@ -784,7 +791,10 @@ xchk_directory(
 
 	/* Look up every name in this directory by hash. */
 	error = xchk_dir_walk(sc, sc->ip, xchk_dir_actor, NULL);
-	if (error == -ECANCELED)
-		error = 0;
-	return error;
+	if (error && error != -ECANCELED)
+		return error;
+
+	/* If the dir is clean, it is clearly not zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_DIR_ZAPPED);
+	return 0;
 }

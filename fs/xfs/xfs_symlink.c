@@ -23,6 +23,7 @@
 #include "xfs_trans.h"
 #include "xfs_ialloc.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 /* ----- Kernel only functions below ----- */
 int
@@ -107,6 +108,8 @@ xfs_readlink(
 	trace_xfs_readlink(ip);
 
 	if (xfs_is_shutdown(mp))
+		return -EIO;
+	if (xfs_ifork_zapped(ip, XFS_DATA_FORK))
 		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
