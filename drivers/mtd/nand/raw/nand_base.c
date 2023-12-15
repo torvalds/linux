@@ -5170,6 +5170,14 @@ static void rawnand_late_check_supported_ops(struct nand_chip *chip)
 	/* The supported_op fields should not be set by individual drivers */
 	WARN_ON_ONCE(chip->controller->supported_op.cont_read);
 
+	/*
+	 * Too many devices do not support sequential cached reads with on-die
+	 * ECC correction enabled, so in this case refuse to perform the
+	 * automation.
+	 */
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_DIE)
+		return;
+
 	if (!nand_has_exec_op(chip))
 		return;
 
