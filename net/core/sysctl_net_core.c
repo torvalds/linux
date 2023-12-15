@@ -509,13 +509,6 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "optmem_max",
-		.data		= &sysctl_optmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tstamp_allow_data",
 		.data		= &sysctl_tstamp_allow_data,
 		.maxlen		= sizeof(int),
@@ -668,6 +661,14 @@ static struct ctl_table netns_core_table[] = {
 	{
 		.procname	= "somaxconn",
 		.data		= &init_net.core.sysctl_somaxconn,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.extra1		= SYSCTL_ZERO,
+		.proc_handler	= proc_dointvec_minmax
+	},
+	{
+		.procname	= "optmem_max",
+		.data		= &init_net.core.sysctl_optmem_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.extra1		= SYSCTL_ZERO,

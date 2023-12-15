@@ -775,7 +775,7 @@ static int ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval, int optlen)
 
 	if (optlen < GROUP_FILTER_SIZE(0))
 		return -EINVAL;
-	if (optlen > READ_ONCE(sysctl_optmem_max))
+	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max))
 		return -ENOBUFS;
 
 	gsf = memdup_sockptr(optval, optlen);
@@ -811,7 +811,7 @@ static int compat_ip_set_mcast_msfilter(struct sock *sk, sockptr_t optval,
 
 	if (optlen < size0)
 		return -EINVAL;
-	if (optlen > READ_ONCE(sysctl_optmem_max) - 4)
+	if (optlen > READ_ONCE(sock_net(sk)->core.sysctl_optmem_max) - 4)
 		return -ENOBUFS;
 
 	p = kmalloc(optlen + 4, GFP_KERNEL);
@@ -1254,7 +1254,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		if (optlen < IP_MSFILTER_SIZE(0))
 			goto e_inval;
-		if (optlen > READ_ONCE(sysctl_optmem_max)) {
+		if (optlen > READ_ONCE(net->core.sysctl_optmem_max)) {
 			err = -ENOBUFS;
 			break;
 		}
