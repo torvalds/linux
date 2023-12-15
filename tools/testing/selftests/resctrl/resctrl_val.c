@@ -415,7 +415,7 @@ static void initialize_mem_bw_resctrl(const char *ctrlgrp, const char *mongrp,
 {
 	int domain_id;
 
-	if (get_domain_id(cpu_no, &domain_id) < 0) {
+	if (get_domain_id("MB", cpu_no, &domain_id) < 0) {
 		ksft_print_msg("Could not get domain ID\n");
 		return;
 	}
@@ -584,7 +584,7 @@ static void initialize_llc_occu_resctrl(const char *ctrlgrp, const char *mongrp,
 {
 	int domain_id;
 
-	if (get_domain_id(cpu_no, &domain_id) < 0) {
+	if (get_domain_id("L3", cpu_no, &domain_id) < 0) {
 		ksft_print_msg("Could not get domain ID\n");
 		return;
 	}
