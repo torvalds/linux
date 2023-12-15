@@ -69,7 +69,6 @@ struct svc_serv {
 	struct svc_program *	sv_program;	/* RPC program */
 	struct svc_stat *	sv_stats;	/* RPC statistics */
 	spinlock_t		sv_lock;
-	struct kref		sv_refcnt;
 	unsigned int		sv_nrthreads;	/* # of server threads */
 	unsigned int		sv_maxconn;	/* max connections allowed or
 						 * '0' causing max to be based
@@ -103,31 +102,7 @@ struct svc_info {
 	struct mutex		*mutex;
 };
 
-/**
- * svc_get() - increment reference count on a SUNRPC serv
- * @serv:  the svc_serv to have count incremented
- *
- * Returns: the svc_serv that was passed in.
- */
-static inline struct svc_serv *svc_get(struct svc_serv *serv)
-{
-	kref_get(&serv->sv_refcnt);
-	return serv;
-}
-
-void svc_destroy(struct kref *);
-
-/**
- * svc_put - decrement reference count on a SUNRPC serv
- * @serv:  the svc_serv to have count decremented
- *
- * When the reference count reaches zero, svc_destroy()
- * is called to clean up and free the serv.
- */
-static inline void svc_put(struct svc_serv *serv)
-{
-	kref_put(&serv->sv_refcnt, svc_destroy);
-}
+void svc_destroy(struct svc_serv **svcp);
 
 /*
  * Maximum payload size supported by a kernel RPC server.
