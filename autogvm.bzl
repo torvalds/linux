@@ -52,6 +52,7 @@ def define_autogvm():
         "drivers/pinctrl/qcom/pinctrl-monaco_auto.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-sdmshrike.ko",
+        "drivers/pinctrl/qcom/pinctrl-sm6150.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8150.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
