@@ -1601,7 +1601,7 @@ sub push_parameter($$$$$) {
 		$parameterdescs{$param} = $undescribed;
 
 	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
-			emit_warning("${file}:$.", "Function parameter or member '$param' not described in '$declaration_name'\n");
+			emit_warning("${file}:$.", "Function parameter or struct member '$param' not described in '$declaration_name'\n");
 		}
 	}
 
