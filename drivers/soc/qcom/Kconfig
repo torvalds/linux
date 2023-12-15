@@ -135,6 +135,41 @@ config MSM_PM_LEGACY
 	  various system driver and put the cores into
 	  low power modes.
 
+if (MSM_PM || MSM_PM_LEGACY)
+menuconfig MSM_IDLE_STATS
+	bool "Collect idle statistics"
+	help
+	  Collect cores various low power mode idle statistics
+	  and export them in proc/msm_pm_stats. User can read
+	  this data and determine what low power modes and how
+	  many times cores have entered into LPM modes.
+
+if MSM_IDLE_STATS
+
+config MSM_IDLE_STATS_FIRST_BUCKET
+	int "First bucket time"
+	default 62500
+	help
+	  Upper time limit in nanoseconds of first bucket.
+
+config MSM_IDLE_STATS_BUCKET_SHIFT
+	int "Bucket shift"
+	default 2
+
+config MSM_IDLE_STATS_BUCKET_COUNT
+	int "Bucket count"
+	default 10
+
+config MSM_SUSPEND_STATS_FIRST_BUCKET
+	int "First bucket time for suspend"
+	default 1000000000
+	help
+	  Upper time limit in nanoseconds of first bucket of the
+	  histogram.  This is for collecting statistics on suspend.
+
+endif # MSM_IDLE_STATS
+endif # MSM_PM || MSM_PM_LEGACY
+
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
 	depends on ARCH_QCOM || COMPILE_TEST

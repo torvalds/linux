@@ -62,6 +62,7 @@ obj-$(CONFIG_USB_BAM) += usb_bam.o
 obj-$(CONFIG_QCOM_CPU_VENDOR_HOOKS) += qcom_cpu_vendor_hooks.o
 obj-$(CONFIG_QTI_CRYPTO_COMMON) += crypto-qti.o
 obj-$(CONFIG_CPU_V7) += idle-v7.o
+obj-$(CONFIG_MSM_IDLE_STATS) += lpm-stats.o
 obj-$(CONFIG_MSM_PM_LEGACY) += pm-boot.o msm-pm.o
 obj-$(CONFIG_MSM_SPM) += msm-spm.o spm_devices.o
 crypto-qti-y += crypto-qti-common.o
