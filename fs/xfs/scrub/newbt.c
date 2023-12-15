@@ -32,6 +32,7 @@
  * btree bulk loading code calculates for us.  However, there are some
  * exceptions to this rule:
  *
+ * (0) If someone turned one of the debug knobs.
  * (1) If this is a per-AG btree and the AG has less than 10% space free.
  * (2) If this is an inode btree and the FS has less than 10% space free.
 
@@ -47,9 +48,13 @@ xrep_newbt_estimate_slack(
 	uint64_t		free;
 	uint64_t		sz;
 
-	/* Let the btree code compute the default slack values. */
-	bload->leaf_slack = -1;
-	bload->node_slack = -1;
+	/*
+	 * The xfs_globals values are set to -1 (i.e. take the bload defaults)
+	 * unless someone has set them otherwise, so we just pull the values
+	 * here.
+	 */
+	bload->leaf_slack = xfs_globals.bload_leaf_slack;
+	bload->node_slack = xfs_globals.bload_node_slack;
 
 	if (sc->ops->type == ST_PERAG) {
 		free = sc->sa.pag->pagf_freeblks;
