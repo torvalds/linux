@@ -6,6 +6,7 @@
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_shared.h"
+#include "xfs_bit.h"
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
@@ -75,6 +76,47 @@ struct xchk_quota_info {
 	xfs_dqid_t		last_id;
 };
 
+/* There's a written block backing this dquot, right? */
+STATIC int
+xchk_quota_item_bmap(
+	struct xfs_scrub	*sc,
+	struct xfs_dquot	*dq,
+	xfs_fileoff_t		offset)
+{
+	struct xfs_bmbt_irec	irec;
+	struct xfs_mount	*mp = sc->mp;
+	int			nmaps = 1;
+	int			error;
+
+	if (!xfs_verify_fileoff(mp, offset)) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return 0;
+	}
+
+	if (dq->q_fileoffset != offset) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return 0;
+	}
+
+	error = xfs_bmapi_read(sc->ip, offset, 1, &irec, &nmaps, 0);
+	if (error)
+		return error;
+
+	if (nmaps != 1) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+		return 0;
+	}
+
+	if (!xfs_verify_fsbno(mp, irec.br_startblock))
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	if (XFS_FSB_TO_DADDR(mp, irec.br_startblock) != dq->q_blkno)
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	if (!xfs_bmap_is_written_extent(&irec))
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+
+	return 0;
+}
+
 /* Scrub the fields in an individual quota item. */
 STATIC int
 xchk_quota_item(
@@ -94,6 +136,17 @@ xchk_quota_item(
 		return error;
 
 	/*
+	 * We want to validate the bmap record for the storage backing this
+	 * dquot, so we need to lock the dquot and the quota file.  For quota
+	 * operations, the locking order is first the ILOCK and then the dquot.
+	 * However, dqiterate gave us a locked dquot, so drop the dquot lock to
+	 * get the ILOCK.
+	 */
+	xfs_dqunlock(dq);
+	xchk_ilock(sc, XFS_ILOCK_SHARED);
+	xfs_dqlock(dq);
+
+	/*
 	 * Except for the root dquot, the actual dquot we got must either have
 	 * the same or higher id as we saw before.
 	 */
@@ -102,6 +155,11 @@ xchk_quota_item(
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 
 	sqi->last_id = dq->q_id;
+
+	error = xchk_quota_item_bmap(sc, dq, offset);
+	xchk_iunlock(sc, XFS_ILOCK_SHARED);
+	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, offset, &error))
+		return error;
 
 	/*
 	 * Warn if the hard limits are larger than the fs.
