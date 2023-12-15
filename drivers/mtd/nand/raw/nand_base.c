@@ -3478,6 +3478,18 @@ static void rawnand_enable_cont_reads(struct nand_chip *chip, unsigned int page,
 	rawnand_cap_cont_reads(chip);
 }
 
+static void rawnand_cont_read_skip_first_page(struct nand_chip *chip, unsigned int page)
+{
+	if (!chip->cont_read.ongoing || page != chip->cont_read.first_page)
+		return;
+
+	chip->cont_read.first_page++;
+	if (chip->cont_read.first_page == chip->cont_read.pause_page)
+		chip->cont_read.first_page++;
+	if (chip->cont_read.first_page >= chip->cont_read.last_page)
+		chip->cont_read.ongoing = false;
+}
+
 /**
  * nand_setup_read_retry - [INTERN] Set the READ RETRY mode
  * @chip: NAND chip object
@@ -3652,6 +3664,8 @@ read_retry:
 			buf += bytes;
 			max_bitflips = max_t(unsigned int, max_bitflips,
 					     chip->pagecache.bitflips);
+
+			rawnand_cont_read_skip_first_page(chip, page);
 		}
 
 		readlen -= bytes;
