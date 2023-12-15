@@ -419,7 +419,7 @@ struct chip_data {
 /**
  * internal_cs_control - Control chip select signals via SSP_CSR.
  * @pl022: SSP driver private data structure
- * @command: select/delect the chip
+ * @enable: select/delect the chip
  *
  * Used on controller with internal chip select control via SSP_CSR register
  * (vendor extension). Each of the 5 LSB in the register controls one chip
