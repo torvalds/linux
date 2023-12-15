@@ -44,7 +44,6 @@
  * struct vmw_user_surface - User-space visible surface resource
  *
  * @prime:          The TTM prime object.
- * @base:           The TTM base object handling user-space visibility.
  * @srf:            The surface metadata.
  * @master:         Master of the creating client. Used for security check.
  */
