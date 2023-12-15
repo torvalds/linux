@@ -664,6 +664,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 				test.param_index++;
 				test.status = KUNIT_SUCCESS;
 				test.status_comment[0] = '\0';
+				test.priv = NULL;
 			}
 		}
 
