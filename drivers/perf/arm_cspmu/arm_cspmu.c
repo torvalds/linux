@@ -1252,14 +1252,12 @@ static int arm_cspmu_device_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int arm_cspmu_device_remove(struct platform_device *pdev)
+static void arm_cspmu_device_remove(struct platform_device *pdev)
 {
 	struct arm_cspmu *cspmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&cspmu->pmu);
 	cpuhp_state_remove_instance(arm_cspmu_cpuhp_state, &cspmu->cpuhp_node);
-
-	return 0;
 }
 
 static const struct platform_device_id arm_cspmu_id[] = {
@@ -1274,7 +1272,7 @@ static struct platform_driver arm_cspmu_driver = {
 			.suppress_bind_attrs = true,
 		},
 	.probe = arm_cspmu_device_probe,
-	.remove = arm_cspmu_device_remove,
+	.remove_new = arm_cspmu_device_remove,
 	.id_table = arm_cspmu_id,
 };
 
