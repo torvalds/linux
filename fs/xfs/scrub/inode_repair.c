@@ -22,8 +22,11 @@
 #include "xfs_ialloc.h"
 #include "xfs_da_format.h"
 #include "xfs_reflink.h"
+#include "xfs_alloc.h"
 #include "xfs_rmap.h"
+#include "xfs_rmap_btree.h"
 #include "xfs_bmap.h"
+#include "xfs_bmap_btree.h"
 #include "xfs_bmap_util.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
@@ -31,6 +34,8 @@
 #include "xfs_quota.h"
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_attr_leaf.h"
+#include "xfs_log_priv.h"
 #include "xfs_health.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
@@ -71,6 +76,16 @@
  *
  * - Invalid user, group, or project IDs (aka -1U) will be reset to zero.
  *   Setuid and setgid bits are cleared.
+ *
+ * - Data and attr forks are reset to extents format with zero extents if the
+ *   fork data is inconsistent.  It is necessary to run the bmapbtd or bmapbta
+ *   repair functions to recover the space mapping.
+ *
+ * - ACLs will not be recovered if the attr fork is zapped or the extended
+ *   attribute structure itself requires salvaging.
+ *
+ * - If the attr fork is zapped, the user and group ids are reset to root and
+ *   the setuid and setgid bits are removed.
  */
 
 /*
@@ -84,8 +99,33 @@ struct xrep_inode {
 
 	struct xfs_scrub	*sc;
 
+	/* Blocks in use on the data device by data extents or bmbt blocks. */
+	xfs_rfsblock_t		data_blocks;
+
+	/* Blocks in use on the rt device. */
+	xfs_rfsblock_t		rt_blocks;
+
+	/* Blocks in use by the attr fork. */
+	xfs_rfsblock_t		attr_blocks;
+
+	/* Number of data device extents for the data fork. */
+	xfs_extnum_t		data_extents;
+
+	/*
+	 * Number of realtime device extents for the data fork.  If
+	 * data_extents and rt_extents indicate that the data fork has extents
+	 * on both devices, we'll just back away slowly.
+	 */
+	xfs_extnum_t		rt_extents;
+
+	/* Number of (data device) extents for the attr fork. */
+	xfs_aextnum_t		attr_extents;
+
 	/* Sick state to set after zapping parts of the inode. */
 	unsigned int		ino_sick_mask;
+
+	/* Must we remove all access from this file? */
+	bool			zap_acls;
 };
 
 /*
@@ -190,9 +230,10 @@ xrep_dinode_header(
 /* Turn di_mode into /something/ recognizable. */
 STATIC void
 xrep_dinode_mode(
-	struct xfs_scrub	*sc,
+	struct xrep_inode	*ri,
 	struct xfs_dinode	*dip)
 {
+	struct xfs_scrub	*sc = ri->sc;
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
 
 	trace_xrep_dinode_mode(sc, dip);
@@ -205,13 +246,15 @@ xrep_dinode_mode(
 	dip->di_mode = cpu_to_be16(mode);
 	dip->di_uid = 0;
 	dip->di_gid = 0;
+	ri->zap_acls = true;
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */
 STATIC void
 xrep_dinode_flags(
 	struct xfs_scrub	*sc,
-	struct xfs_dinode	*dip)
+	struct xfs_dinode	*dip,
+	bool			isrt)
 {
 	struct xfs_mount	*mp = sc->mp;
 	uint64_t		flags2 = be64_to_cpu(dip->di_flags2);
@@ -219,6 +262,11 @@ xrep_dinode_flags(
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
 
 	trace_xrep_dinode_flags(sc, dip);
+
+	if (isrt)
+		flags |= XFS_DIFLAG_REALTIME;
+	else
+		flags &= ~XFS_DIFLAG_REALTIME;
 
 	/*
 	 * For regular files on a reflink filesystem, set the REFLINK flag to
@@ -377,6 +425,657 @@ xrep_dinode_extsize_hints(
 	}
 }
 
+/* Count extents and blocks for an inode given an rmap. */
+STATIC int
+xrep_dinode_walk_rmap(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
+{
+	struct xrep_inode		*ri = priv;
+	int				error = 0;
+
+	if (xchk_should_terminate(ri->sc, &error))
+		return error;
+
+	/* We only care about this inode. */
+	if (rec->rm_owner != ri->sc->sm->sm_ino)
+		return 0;
+
+	if (rec->rm_flags & XFS_RMAP_ATTR_FORK) {
+		ri->attr_blocks += rec->rm_blockcount;
+		if (!(rec->rm_flags & XFS_RMAP_BMBT_BLOCK))
+			ri->attr_extents++;
+
+		return 0;
+	}
+
+	ri->data_blocks += rec->rm_blockcount;
+	if (!(rec->rm_flags & XFS_RMAP_BMBT_BLOCK))
+		ri->data_extents++;
+
+	return 0;
+}
+
+/* Count extents and blocks for an inode from all AG rmap data. */
+STATIC int
+xrep_dinode_count_ag_rmaps(
+	struct xrep_inode	*ri,
+	struct xfs_perag	*pag)
+{
+	struct xfs_btree_cur	*cur;
+	struct xfs_buf		*agf;
+	int			error;
+
+	error = xfs_alloc_read_agf(pag, ri->sc->tp, 0, &agf);
+	if (error)
+		return error;
+
+	cur = xfs_rmapbt_init_cursor(ri->sc->mp, ri->sc->tp, agf, pag);
+	error = xfs_rmap_query_all(cur, xrep_dinode_walk_rmap, ri);
+	xfs_btree_del_cursor(cur, error);
+	xfs_trans_brelse(ri->sc->tp, agf);
+	return error;
+}
+
+/* Count extents and blocks for a given inode from all rmap data. */
+STATIC int
+xrep_dinode_count_rmaps(
+	struct xrep_inode	*ri)
+{
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno;
+	int			error;
+
+	if (!xfs_has_rmapbt(ri->sc->mp) || xfs_has_realtime(ri->sc->mp))
+		return -EOPNOTSUPP;
+
+	for_each_perag(ri->sc->mp, agno, pag) {
+		error = xrep_dinode_count_ag_rmaps(ri, pag);
+		if (error) {
+			xfs_perag_rele(pag);
+			return error;
+		}
+	}
+
+	/* Can't have extents on both the rt and the data device. */
+	if (ri->data_extents && ri->rt_extents)
+		return -EFSCORRUPTED;
+
+	trace_xrep_dinode_count_rmaps(ri->sc,
+			ri->data_blocks, ri->rt_blocks, ri->attr_blocks,
+			ri->data_extents, ri->rt_extents, ri->attr_extents);
+	return 0;
+}
+
+/* Return true if this extents-format ifork looks like garbage. */
+STATIC bool
+xrep_dinode_bad_extents_fork(
+	struct xfs_scrub	*sc,
+	struct xfs_dinode	*dip,
+	unsigned int		dfork_size,
+	int			whichfork)
+{
+	struct xfs_bmbt_irec	new;
+	struct xfs_bmbt_rec	*dp;
+	xfs_extnum_t		nex;
+	bool			isrt;
+	unsigned int		i;
+
+	nex = xfs_dfork_nextents(dip, whichfork);
+	if (nex > dfork_size / sizeof(struct xfs_bmbt_rec))
+		return true;
+
+	dp = XFS_DFORK_PTR(dip, whichfork);
+
+	isrt = dip->di_flags & cpu_to_be16(XFS_DIFLAG_REALTIME);
+	for (i = 0; i < nex; i++, dp++) {
+		xfs_failaddr_t	fa;
+
+		xfs_bmbt_disk_get_all(dp, &new);
+		fa = xfs_bmap_validate_extent_raw(sc->mp, isrt, whichfork,
+				&new);
+		if (fa)
+			return true;
+	}
+
+	return false;
+}
+
+/* Return true if this btree-format ifork looks like garbage. */
+STATIC bool
+xrep_dinode_bad_bmbt_fork(
+	struct xfs_scrub	*sc,
+	struct xfs_dinode	*dip,
+	unsigned int		dfork_size,
+	int			whichfork)
+{
+	struct xfs_bmdr_block	*dfp;
+	xfs_extnum_t		nex;
+	unsigned int		i;
+	unsigned int		dmxr;
+	unsigned int		nrecs;
+	unsigned int		level;
+
+	nex = xfs_dfork_nextents(dip, whichfork);
+	if (nex <= dfork_size / sizeof(struct xfs_bmbt_rec))
+		return true;
+
+	if (dfork_size < sizeof(struct xfs_bmdr_block))
+		return true;
+
+	dfp = XFS_DFORK_PTR(dip, whichfork);
+	nrecs = be16_to_cpu(dfp->bb_numrecs);
+	level = be16_to_cpu(dfp->bb_level);
+
+	if (nrecs == 0 || XFS_BMDR_SPACE_CALC(nrecs) > dfork_size)
+		return true;
+	if (level == 0 || level >= XFS_BM_MAXLEVELS(sc->mp, whichfork))
+		return true;
+
+	dmxr = xfs_bmdr_maxrecs(dfork_size, 0);
+	for (i = 1; i <= nrecs; i++) {
+		struct xfs_bmbt_key	*fkp;
+		xfs_bmbt_ptr_t		*fpp;
+		xfs_fileoff_t		fileoff;
+		xfs_fsblock_t		fsbno;
+
+		fkp = XFS_BMDR_KEY_ADDR(dfp, i);
+		fileoff = be64_to_cpu(fkp->br_startoff);
+		if (!xfs_verify_fileoff(sc->mp, fileoff))
+			return true;
+
+		fpp = XFS_BMDR_PTR_ADDR(dfp, i, dmxr);
+		fsbno = be64_to_cpu(*fpp);
+		if (!xfs_verify_fsbno(sc->mp, fsbno))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * Check the data fork for things that will fail the ifork verifiers or the
+ * ifork formatters.
+ */
+STATIC bool
+xrep_dinode_check_dfork(
+	struct xfs_scrub	*sc,
+	struct xfs_dinode	*dip,
+	uint16_t		mode)
+{
+	void			*dfork_ptr;
+	int64_t			data_size;
+	unsigned int		fmt;
+	unsigned int		dfork_size;
+
+	/*
+	 * Verifier functions take signed int64_t, so check for bogus negative
+	 * values first.
+	 */
+	data_size = be64_to_cpu(dip->di_size);
+	if (data_size < 0)
+		return true;
+
+	fmt = XFS_DFORK_FORMAT(dip, XFS_DATA_FORK);
+	switch (mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFSOCK:
+		if (fmt != XFS_DINODE_FMT_DEV)
+			return true;
+		break;
+	case S_IFREG:
+		if (fmt == XFS_DINODE_FMT_LOCAL)
+			return true;
+		fallthrough;
+	case S_IFLNK:
+	case S_IFDIR:
+		switch (fmt) {
+		case XFS_DINODE_FMT_LOCAL:
+		case XFS_DINODE_FMT_EXTENTS:
+		case XFS_DINODE_FMT_BTREE:
+			break;
+		default:
+			return true;
+		}
+		break;
+	default:
+		return true;
+	}
+
+	dfork_size = XFS_DFORK_SIZE(dip, sc->mp, XFS_DATA_FORK);
+	dfork_ptr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
+
+	switch (fmt) {
+	case XFS_DINODE_FMT_DEV:
+		break;
+	case XFS_DINODE_FMT_LOCAL:
+		/* dir/symlink structure cannot be larger than the fork */
+		if (data_size > dfork_size)
+			return true;
+		/* directory structure must pass verification. */
+		if (S_ISDIR(mode) &&
+		    xfs_dir2_sf_verify(sc->mp, dfork_ptr, data_size) != NULL)
+			return true;
+		/* symlink structure must pass verification. */
+		if (S_ISLNK(mode) &&
+		    xfs_symlink_shortform_verify(dfork_ptr, data_size) != NULL)
+			return true;
+		break;
+	case XFS_DINODE_FMT_EXTENTS:
+		if (xrep_dinode_bad_extents_fork(sc, dip, dfork_size,
+				XFS_DATA_FORK))
+			return true;
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		if (xrep_dinode_bad_bmbt_fork(sc, dip, dfork_size,
+				XFS_DATA_FORK))
+			return true;
+		break;
+	default:
+		return true;
+	}
+
+	return false;
+}
+
+static void
+xrep_dinode_set_data_nextents(
+	struct xfs_dinode	*dip,
+	xfs_extnum_t		nextents)
+{
+	if (xfs_dinode_has_large_extent_counts(dip))
+		dip->di_big_nextents = cpu_to_be64(nextents);
+	else
+		dip->di_nextents = cpu_to_be32(nextents);
+}
+
+static void
+xrep_dinode_set_attr_nextents(
+	struct xfs_dinode	*dip,
+	xfs_extnum_t		nextents)
+{
+	if (xfs_dinode_has_large_extent_counts(dip))
+		dip->di_big_anextents = cpu_to_be32(nextents);
+	else
+		dip->di_anextents = cpu_to_be16(nextents);
+}
+
+/* Reset the data fork to something sane. */
+STATIC void
+xrep_dinode_zap_dfork(
+	struct xrep_inode	*ri,
+	struct xfs_dinode	*dip,
+	uint16_t		mode)
+{
+	struct xfs_scrub	*sc = ri->sc;
+
+	trace_xrep_dinode_zap_dfork(sc, dip);
+
+	ri->ino_sick_mask |= XFS_SICK_INO_BMBTD_ZAPPED;
+
+	xrep_dinode_set_data_nextents(dip, 0);
+	ri->data_blocks = 0;
+	ri->rt_blocks = 0;
+
+	/* Special files always get reset to DEV */
+	switch (mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFSOCK:
+		dip->di_format = XFS_DINODE_FMT_DEV;
+		dip->di_size = 0;
+		return;
+	}
+
+	/*
+	 * If we have data extents, reset to an empty map and hope the user
+	 * will run the bmapbtd checker next.
+	 */
+	if (ri->data_extents || ri->rt_extents || S_ISREG(mode)) {
+		dip->di_format = XFS_DINODE_FMT_EXTENTS;
+		return;
+	}
+
+	/* Otherwise, reset the local format to the minimum. */
+	switch (mode & S_IFMT) {
+	case S_IFLNK:
+		xrep_dinode_zap_symlink(ri, dip);
+		break;
+	case S_IFDIR:
+		xrep_dinode_zap_dir(ri, dip);
+		break;
+	}
+}
+
+/*
+ * Check the attr fork for things that will fail the ifork verifiers or the
+ * ifork formatters.
+ */
+STATIC bool
+xrep_dinode_check_afork(
+	struct xfs_scrub		*sc,
+	struct xfs_dinode		*dip)
+{
+	struct xfs_attr_shortform	*afork_ptr;
+	size_t				attr_size;
+	unsigned int			afork_size;
+
+	if (XFS_DFORK_BOFF(dip) == 0)
+		return dip->di_aformat != XFS_DINODE_FMT_EXTENTS ||
+		       xfs_dfork_attr_extents(dip) != 0;
+
+	afork_size = XFS_DFORK_SIZE(dip, sc->mp, XFS_ATTR_FORK);
+	afork_ptr = XFS_DFORK_PTR(dip, XFS_ATTR_FORK);
+
+	switch (XFS_DFORK_FORMAT(dip, XFS_ATTR_FORK)) {
+	case XFS_DINODE_FMT_LOCAL:
+		/* Fork has to be large enough to extract the xattr size. */
+		if (afork_size < sizeof(struct xfs_attr_sf_hdr))
+			return true;
+
+		/* xattr structure cannot be larger than the fork */
+		attr_size = be16_to_cpu(afork_ptr->hdr.totsize);
+		if (attr_size > afork_size)
+			return true;
+
+		/* xattr structure must pass verification. */
+		return xfs_attr_shortform_verify(afork_ptr, attr_size) != NULL;
+	case XFS_DINODE_FMT_EXTENTS:
+		if (xrep_dinode_bad_extents_fork(sc, dip, afork_size,
+					XFS_ATTR_FORK))
+			return true;
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		if (xrep_dinode_bad_bmbt_fork(sc, dip, afork_size,
+					XFS_ATTR_FORK))
+			return true;
+		break;
+	default:
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * Reset the attr fork to empty.  Since the attr fork could have contained
+ * ACLs, make the file readable only by root.
+ */
+STATIC void
+xrep_dinode_zap_afork(
+	struct xrep_inode	*ri,
+	struct xfs_dinode	*dip,
+	uint16_t		mode)
+{
+	struct xfs_scrub	*sc = ri->sc;
+
+	trace_xrep_dinode_zap_afork(sc, dip);
+
+	ri->ino_sick_mask |= XFS_SICK_INO_BMBTA_ZAPPED;
+
+	dip->di_aformat = XFS_DINODE_FMT_EXTENTS;
+	xrep_dinode_set_attr_nextents(dip, 0);
+	ri->attr_blocks = 0;
+
+	/*
+	 * If the data fork is in btree format, removing the attr fork entirely
+	 * might cause verifier failures if the next level down in the bmbt
+	 * could now fit in the data fork area.
+	 */
+	if (dip->di_format != XFS_DINODE_FMT_BTREE)
+		dip->di_forkoff = 0;
+	dip->di_mode = cpu_to_be16(mode & ~0777);
+	dip->di_uid = 0;
+	dip->di_gid = 0;
+}
+
+/* Make sure the fork offset is a sensible value. */
+STATIC void
+xrep_dinode_ensure_forkoff(
+	struct xrep_inode	*ri,
+	struct xfs_dinode	*dip,
+	uint16_t		mode)
+{
+	struct xfs_bmdr_block	*bmdr;
+	struct xfs_scrub	*sc = ri->sc;
+	xfs_extnum_t		attr_extents, data_extents;
+	size_t			bmdr_minsz = XFS_BMDR_SPACE_CALC(1);
+	unsigned int		lit_sz = XFS_LITINO(sc->mp);
+	unsigned int		afork_min, dfork_min;
+
+	trace_xrep_dinode_ensure_forkoff(sc, dip);
+
+	/*
+	 * Before calling this function, xrep_dinode_core ensured that both
+	 * forks actually fit inside their respective literal areas.  If this
+	 * was not the case, the fork was reset to FMT_EXTENTS with zero
+	 * records.  If the rmapbt scan found attr or data fork blocks, this
+	 * will be noted in the dinode_stats, and we must leave enough room
+	 * for the bmap repair code to reconstruct the mapping structure.
+	 *
+	 * First, compute the minimum space required for the attr fork.
+	 */
+	switch (dip->di_aformat) {
+	case XFS_DINODE_FMT_LOCAL:
+		/*
+		 * If we still have a shortform xattr structure at all, that
+		 * means the attr fork area was exactly large enough to fit
+		 * the sf structure.
+		 */
+		afork_min = XFS_DFORK_SIZE(dip, sc->mp, XFS_ATTR_FORK);
+		break;
+	case XFS_DINODE_FMT_EXTENTS:
+		attr_extents = xfs_dfork_attr_extents(dip);
+		if (attr_extents) {
+			/*
+			 * We must maintain sufficient space to hold the entire
+			 * extent map array in the data fork.  Note that we
+			 * previously zapped the fork if it had no chance of
+			 * fitting in the inode.
+			 */
+			afork_min = sizeof(struct xfs_bmbt_rec) * attr_extents;
+		} else if (ri->attr_extents > 0) {
+			/*
+			 * The attr fork thinks it has zero extents, but we
+			 * found some xattr extents.  We need to leave enough
+			 * empty space here so that the incore attr fork will
+			 * get created (and hence trigger the attr fork bmap
+			 * repairer).
+			 */
+			afork_min = bmdr_minsz;
+		} else {
+			/* No extents on disk or found in rmapbt. */
+			afork_min = 0;
+		}
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		/* Must have space for btree header and key/pointers. */
+		bmdr = XFS_DFORK_PTR(dip, XFS_ATTR_FORK);
+		afork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
+		break;
+	default:
+		/* We should never see any other formats. */
+		afork_min = 0;
+		break;
+	}
+
+	/* Compute the minimum space required for the data fork. */
+	switch (dip->di_format) {
+	case XFS_DINODE_FMT_DEV:
+		dfork_min = sizeof(__be32);
+		break;
+	case XFS_DINODE_FMT_UUID:
+		dfork_min = sizeof(uuid_t);
+		break;
+	case XFS_DINODE_FMT_LOCAL:
+		/*
+		 * If we still have a shortform data fork at all, that means
+		 * the data fork area was large enough to fit whatever was in
+		 * there.
+		 */
+		dfork_min = be64_to_cpu(dip->di_size);
+		break;
+	case XFS_DINODE_FMT_EXTENTS:
+		data_extents = xfs_dfork_data_extents(dip);
+		if (data_extents) {
+			/*
+			 * We must maintain sufficient space to hold the entire
+			 * extent map array in the data fork.  Note that we
+			 * previously zapped the fork if it had no chance of
+			 * fitting in the inode.
+			 */
+			dfork_min = sizeof(struct xfs_bmbt_rec) * data_extents;
+		} else if (ri->data_extents > 0 || ri->rt_extents > 0) {
+			/*
+			 * The data fork thinks it has zero extents, but we
+			 * found some data extents.  We need to leave enough
+			 * empty space here so that the data fork bmap repair
+			 * will recover the mappings.
+			 */
+			dfork_min = bmdr_minsz;
+		} else {
+			/* No extents on disk or found in rmapbt. */
+			dfork_min = 0;
+		}
+		break;
+	case XFS_DINODE_FMT_BTREE:
+		/* Must have space for btree header and key/pointers. */
+		bmdr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
+		dfork_min = XFS_BMAP_BROOT_SPACE(sc->mp, bmdr);
+		break;
+	default:
+		dfork_min = 0;
+		break;
+	}
+
+	/*
+	 * Round all values up to the nearest 8 bytes, because that is the
+	 * precision of di_forkoff.
+	 */
+	afork_min = roundup(afork_min, 8);
+	dfork_min = roundup(dfork_min, 8);
+	bmdr_minsz = roundup(bmdr_minsz, 8);
+
+	ASSERT(dfork_min <= lit_sz);
+	ASSERT(afork_min <= lit_sz);
+
+	/*
+	 * If the data fork was zapped and we don't have enough space for the
+	 * recovery fork, move the attr fork up.
+	 */
+	if (dip->di_format == XFS_DINODE_FMT_EXTENTS &&
+	    xfs_dfork_data_extents(dip) == 0 &&
+	    (ri->data_extents > 0 || ri->rt_extents > 0) &&
+	    bmdr_minsz > XFS_DFORK_DSIZE(dip, sc->mp)) {
+		if (bmdr_minsz + afork_min > lit_sz) {
+			/*
+			 * The attr for and the stub fork we need to recover
+			 * the data fork won't both fit.  Zap the attr fork.
+			 */
+			xrep_dinode_zap_afork(ri, dip, mode);
+			afork_min = bmdr_minsz;
+		} else {
+			void	*before, *after;
+
+			/* Otherwise, just slide the attr fork up. */
+			before = XFS_DFORK_APTR(dip);
+			dip->di_forkoff = bmdr_minsz >> 3;
+			after = XFS_DFORK_APTR(dip);
+			memmove(after, before, XFS_DFORK_ASIZE(dip, sc->mp));
+		}
+	}
+
+	/*
+	 * If the attr fork was zapped and we don't have enough space for the
+	 * recovery fork, move the attr fork down.
+	 */
+	if (dip->di_aformat == XFS_DINODE_FMT_EXTENTS &&
+	    xfs_dfork_attr_extents(dip) == 0 &&
+	    ri->attr_extents > 0 &&
+	    bmdr_minsz > XFS_DFORK_ASIZE(dip, sc->mp)) {
+		if (dip->di_format == XFS_DINODE_FMT_BTREE) {
+			/*
+			 * If the data fork is in btree format then we can't
+			 * adjust forkoff because that runs the risk of
+			 * violating the extents/btree format transition rules.
+			 */
+		} else if (bmdr_minsz + dfork_min > lit_sz) {
+			/*
+			 * If we can't move the attr fork, too bad, we lose the
+			 * attr fork and leak its blocks.
+			 */
+			xrep_dinode_zap_afork(ri, dip, mode);
+		} else {
+			/*
+			 * Otherwise, just slide the attr fork down.  The attr
+			 * fork is empty, so we don't have any old contents to
+			 * move here.
+			 */
+			dip->di_forkoff = (lit_sz - bmdr_minsz) >> 3;
+		}
+	}
+}
+
+/*
+ * Zap the data/attr forks if we spot anything that isn't going to pass the
+ * ifork verifiers or the ifork formatters, because we need to get the inode
+ * into good enough shape that the higher level repair functions can run.
+ */
+STATIC void
+xrep_dinode_zap_forks(
+	struct xrep_inode	*ri,
+	struct xfs_dinode	*dip)
+{
+	struct xfs_scrub	*sc = ri->sc;
+	xfs_extnum_t		data_extents;
+	xfs_extnum_t		attr_extents;
+	xfs_filblks_t		nblocks;
+	uint16_t		mode;
+	bool			zap_datafork = false;
+	bool			zap_attrfork = ri->zap_acls;
+
+	trace_xrep_dinode_zap_forks(sc, dip);
+
+	mode = be16_to_cpu(dip->di_mode);
+
+	data_extents = xfs_dfork_data_extents(dip);
+	attr_extents = xfs_dfork_attr_extents(dip);
+	nblocks = be64_to_cpu(dip->di_nblocks);
+
+	/* Inode counters don't make sense? */
+	if (data_extents > nblocks)
+		zap_datafork = true;
+	if (attr_extents > nblocks)
+		zap_attrfork = true;
+	if (data_extents + attr_extents > nblocks)
+		zap_datafork = zap_attrfork = true;
+
+	if (!zap_datafork)
+		zap_datafork = xrep_dinode_check_dfork(sc, dip, mode);
+	if (!zap_attrfork)
+		zap_attrfork = xrep_dinode_check_afork(sc, dip);
+
+	/* Zap whatever's bad. */
+	if (zap_attrfork)
+		xrep_dinode_zap_afork(ri, dip, mode);
+	if (zap_datafork)
+		xrep_dinode_zap_dfork(ri, dip, mode);
+	xrep_dinode_ensure_forkoff(ri, dip, mode);
+
+	/*
+	 * Zero di_nblocks if we don't have any extents at all to satisfy the
+	 * buffer verifier.
+	 */
+	data_extents = xfs_dfork_data_extents(dip);
+	attr_extents = xfs_dfork_attr_extents(dip);
+	if (data_extents + attr_extents == 0)
+		dip->di_nblocks = 0;
+}
+
 /* Inode didn't pass dinode verifiers, so fix the raw buffer and retry iget. */
 STATIC int
 xrep_dinode_core(
@@ -388,6 +1087,11 @@ xrep_dinode_core(
 	xfs_ino_t		ino = sc->sm->sm_ino;
 	int			error;
 	int			iget_error;
+
+	/* Figure out what this inode had mapped in both forks. */
+	error = xrep_dinode_count_rmaps(ri);
+	if (error)
+		return error;
 
 	/* Read the inode cluster buffer. */
 	error = xfs_trans_read_buf(sc->mp, sc->tp, sc->mp->m_ddev_targp,
@@ -403,10 +1107,11 @@ xrep_dinode_core(
 	/* Fix everything the verifier will complain about. */
 	dip = xfs_buf_offset(bp, ri->imap.im_boffset);
 	xrep_dinode_header(sc, dip);
-	xrep_dinode_mode(sc, dip);
-	xrep_dinode_flags(sc, dip);
+	xrep_dinode_mode(ri, dip);
+	xrep_dinode_flags(sc, dip, ri->rt_extents > 0);
 	xrep_dinode_size(ri, dip);
 	xrep_dinode_extsize_hints(sc, dip);
+	xrep_dinode_zap_forks(ri, dip);
 
 	/* Write out the inode. */
 	trace_xrep_dinode_fixed(sc, dip);

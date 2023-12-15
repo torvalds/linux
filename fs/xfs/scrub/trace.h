@@ -1469,6 +1469,10 @@ DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_extsize_hints);
 DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_symlink);
 DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_dir);
 DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_fixed);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_forks);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_dfork);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_afork);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_ensure_forkoff);
 
 DECLARE_EVENT_CLASS(xrep_inode_class,
 	TP_PROTO(struct xfs_scrub *sc),
@@ -1521,6 +1525,44 @@ DEFINE_REPAIR_INODE_EVENT(xrep_inode_blockdir_size);
 DEFINE_REPAIR_INODE_EVENT(xrep_inode_sfdir_size);
 DEFINE_REPAIR_INODE_EVENT(xrep_inode_dir_size);
 DEFINE_REPAIR_INODE_EVENT(xrep_inode_fixed);
+
+TRACE_EVENT(xrep_dinode_count_rmaps,
+	TP_PROTO(struct xfs_scrub *sc, xfs_rfsblock_t data_blocks,
+		xfs_rfsblock_t rt_blocks, xfs_rfsblock_t attr_blocks,
+		xfs_extnum_t data_extents, xfs_extnum_t rt_extents,
+		xfs_aextnum_t attr_extents),
+	TP_ARGS(sc, data_blocks, rt_blocks, attr_blocks, data_extents,
+		rt_extents, attr_extents),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_rfsblock_t, data_blocks)
+		__field(xfs_rfsblock_t, rt_blocks)
+		__field(xfs_rfsblock_t, attr_blocks)
+		__field(xfs_extnum_t, data_extents)
+		__field(xfs_extnum_t, rt_extents)
+		__field(xfs_aextnum_t, attr_extents)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->data_blocks = data_blocks;
+		__entry->rt_blocks = rt_blocks;
+		__entry->attr_blocks = attr_blocks;
+		__entry->data_extents = data_extents;
+		__entry->rt_extents = rt_extents;
+		__entry->attr_extents = attr_extents;
+	),
+	TP_printk("dev %d:%d ino 0x%llx dblocks 0x%llx rtblocks 0x%llx ablocks 0x%llx dextents %llu rtextents %llu aextents %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->data_blocks,
+		  __entry->rt_blocks,
+		  __entry->attr_blocks,
+		  __entry->data_extents,
+		  __entry->rt_extents,
+		  __entry->attr_extents)
+);
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
