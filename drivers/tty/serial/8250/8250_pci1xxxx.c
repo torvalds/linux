@@ -85,6 +85,19 @@
 #define MAX_PORTS				4
 #define PORT_OFFSET				0x100
 
+struct pci1xxxx_8250 {
+	unsigned int nr;
+	void __iomem *membase;
+	int line[] __counted_by(nr);
+};
+
+static const struct serial_rs485 pci1xxxx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_after_send = 1,
+	/* Delay RTS before send is not supported */
+};
+
 static const int logical_to_physical_port_idx[][MAX_PORTS] = {
 	{0,  1,  2,  3}, /* PCI12000, PCI11010, PCI11101, PCI11400, PCI11414 */
 	{0,  1,  2,  3}, /* PCI4p */
@@ -102,12 +115,6 @@ static const int logical_to_physical_port_idx[][MAX_PORTS] = {
 	{1, -1, -1, -1}, /* PCI1p1 */
 	{2, -1, -1, -1}, /* PCI1p2 */
 	{3, -1, -1, -1}, /* PCI1p3 */
-};
-
-struct pci1xxxx_8250 {
-	unsigned int nr;
-	void __iomem *membase;
-	int line[] __counted_by(nr);
 };
 
 static int pci1xxxx_get_num_ports(struct pci_dev *dev)
@@ -204,13 +211,6 @@ static int pci1xxxx_rs485_config(struct uart_port *port,
 	writel(mode_cfg, port->membase + ADCL_CFG_REG);
 	return 0;
 }
-
-static const struct serial_rs485 pci1xxxx_rs485_supported = {
-	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
-		 SER_RS485_RTS_AFTER_SEND,
-	.delay_rts_after_send = 1,
-	/* Delay RTS before send is not supported */
-};
 
 static bool pci1xxxx_port_suspend(int line)
 {
