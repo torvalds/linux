@@ -20,7 +20,7 @@ static int find_resctrl_mount(char *buffer)
 
 	mounts = fopen("/proc/mounts", "r");
 	if (!mounts) {
-		perror("/proc/mounts");
+		ksft_perror("/proc/mounts");
 		return -ENXIO;
 	}
 	while (!feof(mounts)) {
@@ -69,7 +69,7 @@ int mount_resctrlfs(void)
 	ksft_print_msg("Mounting resctrl to \"%s\"\n", RESCTRL_PATH);
 	ret = mount("resctrl", RESCTRL_PATH, "resctrl", 0, NULL);
 	if (ret)
-		perror("# mount");
+		ksft_perror("mount");
 
 	return ret;
 }
@@ -86,7 +86,7 @@ int umount_resctrlfs(void)
 		return ret;
 
 	if (umount(mountpoint)) {
-		perror("# Unable to umount resctrl");
+		ksft_perror("Unable to umount resctrl");
 
 		return errno;
 	}
@@ -115,12 +115,12 @@ int get_resource_id(int cpu_no, int *resource_id)
 
 	fp = fopen(phys_pkg_path, "r");
 	if (!fp) {
-		perror("Failed to open physical_package_id");
+		ksft_perror("Failed to open physical_package_id");
 
 		return -1;
 	}
 	if (fscanf(fp, "%d", resource_id) <= 0) {
-		perror("Could not get socket number or l3 id");
+		ksft_perror("Could not get socket number or l3 id");
 		fclose(fp);
 
 		return -1;
@@ -149,7 +149,7 @@ int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
 	} else if (!strcmp(cache_type, "L2")) {
 		cache_num = 2;
 	} else {
-		perror("Invalid cache level");
+		ksft_print_msg("Invalid cache level\n");
 		return -1;
 	}
 
@@ -157,12 +157,12 @@ int get_cache_size(int cpu_no, char *cache_type, unsigned long *cache_size)
 		cpu_no, cache_num);
 	fp = fopen(cache_path, "r");
 	if (!fp) {
-		perror("Failed to open cache size");
+		ksft_perror("Failed to open cache size");
 
 		return -1;
 	}
 	if (fscanf(fp, "%s", cache_str) <= 0) {
-		perror("Could not get cache_size");
+		ksft_perror("Could not get cache_size");
 		fclose(fp);
 
 		return -1;
@@ -214,12 +214,12 @@ int get_cbm_mask(char *cache_type, char *cbm_mask)
 
 	fp = fopen(cbm_mask_path, "r");
 	if (!fp) {
-		perror("Failed to open cache level");
+		ksft_perror("Failed to open cache level");
 
 		return -1;
 	}
 	if (fscanf(fp, "%s", cbm_mask) <= 0) {
-		perror("Could not get max cbm_mask");
+		ksft_perror("Could not get max cbm_mask");
 		fclose(fp);
 
 		return -1;
@@ -246,12 +246,12 @@ int get_core_sibling(int cpu_no)
 
 	fp = fopen(core_siblings_path, "r");
 	if (!fp) {
-		perror("Failed to open core siblings path");
+		ksft_perror("Failed to open core siblings path");
 
 		return -1;
 	}
 	if (fscanf(fp, "%s", cpu_list_str) <= 0) {
-		perror("Could not get core_siblings list");
+		ksft_perror("Could not get core_siblings list");
 		fclose(fp);
 
 		return -1;
@@ -286,7 +286,7 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
 	CPU_SET(cpu_no, &my_set);
 
 	if (sched_setaffinity(bm_pid, sizeof(cpu_set_t), &my_set)) {
-		perror("Unable to taskset benchmark");
+		ksft_perror("Unable to taskset benchmark");
 
 		return -1;
 	}
@@ -325,7 +325,7 @@ static int create_grp(const char *grp_name, char *grp, const char *parent_grp)
 		}
 		closedir(dp);
 	} else {
-		perror("Unable to open resctrl for group");
+		ksft_perror("Unable to open resctrl for group");
 
 		return -1;
 	}
@@ -333,7 +333,7 @@ static int create_grp(const char *grp_name, char *grp, const char *parent_grp)
 	/* Requested grp doesn't exist, hence create it */
 	if (found_grp == 0) {
 		if (mkdir(grp, 0) == -1) {
-			perror("Unable to create group");
+			ksft_perror("Unable to create group");
 
 			return -1;
 		}
@@ -348,12 +348,12 @@ static int write_pid_to_tasks(char *tasks, pid_t pid)
 
 	fp = fopen(tasks, "w");
 	if (!fp) {
-		perror("Failed to open tasks file");
+		ksft_perror("Failed to open tasks file");
 
 		return -1;
 	}
 	if (fprintf(fp, "%d\n", pid) < 0) {
-		perror("Failed to wr pid to tasks file");
+		ksft_print_msg("Failed to write pid to tasks file\n");
 		fclose(fp);
 
 		return -1;
@@ -420,7 +420,7 @@ int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 out:
 	ksft_print_msg("Writing benchmark parameters to resctrl FS\n");
 	if (ret)
-		perror("# writing to resctrlfs");
+		ksft_print_msg("Failed writing to resctrlfs\n");
 
 	return ret;
 }
@@ -617,7 +617,7 @@ int filter_dmesg(void)
 
 	ret = pipe(pipefds);
 	if (ret) {
-		perror("pipe");
+		ksft_perror("pipe");
 		return ret;
 	}
 	fflush(stdout);
@@ -626,13 +626,13 @@ int filter_dmesg(void)
 		close(pipefds[0]);
 		dup2(pipefds[1], STDOUT_FILENO);
 		execlp("dmesg", "dmesg", NULL);
-		perror("executing dmesg");
+		ksft_perror("Executing dmesg");
 		exit(1);
 	}
 	close(pipefds[1]);
 	fp = fdopen(pipefds[0], "r");
 	if (!fp) {
-		perror("fdopen(pipe)");
+		ksft_perror("fdopen(pipe)");
 		kill(pid, SIGTERM);
 
 		return -1;

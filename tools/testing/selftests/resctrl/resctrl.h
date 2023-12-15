@@ -37,9 +37,8 @@
 
 #define DEFAULT_SPAN		(250 * MB)
 
-#define PARENT_EXIT(err_msg)			\
+#define PARENT_EXIT()				\
 	do {					\
-		perror(err_msg);		\
 		kill(ppid, SIGKILL);		\
 		umount_resctrlfs();		\
 		exit(EXIT_FAILURE);		\

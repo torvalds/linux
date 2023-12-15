@@ -51,7 +51,7 @@ static int check_results(struct resctrl_val_param *param, size_t span)
 	ksft_print_msg("Checking for pass/fail\n");
 	fp = fopen(param->filename, "r");
 	if (!fp) {
-		perror("# Cannot open file");
+		ksft_perror("Cannot open file");
 
 		return errno;
 	}
@@ -149,7 +149,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 	param.num_of_runs = 0;
 
 	if (pipe(pipefd)) {
-		perror("# Unable to create pipe");
+		ksft_perror("Unable to create pipe");
 		return errno;
 	}
 
@@ -185,7 +185,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 			 * Just print the error message.
 			 * Let while(1) run and wait for itself to be killed.
 			 */
-			perror("# failed signaling parent process");
+			ksft_perror("Failed signaling parent process");
 
 		close(pipefd[1]);
 		while (1)
@@ -197,7 +197,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 		while (pipe_message != 1) {
 			if (read(pipefd[0], &pipe_message,
 				 sizeof(pipe_message)) < sizeof(pipe_message)) {
-				perror("# failed reading from child process");
+				ksft_perror("Failed reading from child process");
 				break;
 			}
 		}

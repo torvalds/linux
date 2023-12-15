@@ -109,7 +109,7 @@ static int check_results(void)
 
 	fp = fopen(output, "r");
 	if (!fp) {
-		perror(output);
+		ksft_perror(output);
 
 		return errno;
 	}

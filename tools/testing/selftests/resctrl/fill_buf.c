@@ -115,7 +115,7 @@ static int fill_cache_read(unsigned char *buf, size_t buf_size, bool once)
 	/* Consume read result so that reading memory is not optimized out. */
 	fp = fopen("/dev/null", "w");
 	if (!fp) {
-		perror("Unable to write to /dev/null");
+		ksft_perror("Unable to write to /dev/null");
 		return -1;
 	}
 	fprintf(fp, "Sum: %d ", ret);
