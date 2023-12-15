@@ -734,3 +734,75 @@ xrep_ino_dqattach(
 
 	return error;
 }
+
+/*
+ * Initialize all the btree cursors for an AG repair except for the btree that
+ * we're rebuilding.
+ */
+void
+xrep_ag_btcur_init(
+	struct xfs_scrub	*sc,
+	struct xchk_ag		*sa)
+{
+	struct xfs_mount	*mp = sc->mp;
+
+	/* Set up a bnobt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BNOBT &&
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_CNTBT) {
+		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag, XFS_BTNUM_BNO);
+		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag, XFS_BTNUM_CNT);
+	}
+
+	/* Set up a inobt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_INOBT &&
+	    sc->sm->sm_type != XFS_SCRUB_TYPE_FINOBT) {
+		sa->ino_cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
+				sa->agi_bp, XFS_BTNUM_INO);
+		if (xfs_has_finobt(mp))
+			sa->fino_cur = xfs_inobt_init_cursor(sc->sa.pag,
+					sc->tp, sa->agi_bp, XFS_BTNUM_FINO);
+	}
+
+	/* Set up a rmapbt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_RMAPBT &&
+	    xfs_has_rmapbt(mp))
+		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag);
+
+	/* Set up a refcountbt cursor for cross-referencing. */
+	if (sc->sm->sm_type != XFS_SCRUB_TYPE_REFCNTBT &&
+	    xfs_has_reflink(mp))
+		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
+				sa->agf_bp, sc->sa.pag);
+}
+
+/*
+ * Reinitialize the in-core AG state after a repair by rereading the AGF
+ * buffer.  We had better get the same AGF buffer as the one that's attached
+ * to the scrub context.
+ */
+int
+xrep_reinit_pagf(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_perag	*pag = sc->sa.pag;
+	struct xfs_buf		*bp;
+	int			error;
+
+	ASSERT(pag);
+	ASSERT(xfs_perag_initialised_agf(pag));
+
+	clear_bit(XFS_AGSTATE_AGF_INIT, &pag->pag_opstate);
+	error = xfs_alloc_read_agf(pag, sc->tp, 0, &bp);
+	if (error)
+		return error;
+
+	if (bp != sc->sa.agf_bp) {
+		ASSERT(bp == sc->sa.agf_bp);
+		return -EFSCORRUPTED;
+	}
+
+	return 0;
+}
