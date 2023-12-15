@@ -39,8 +39,14 @@ const int sk_ip_level	= SOL_IP;
 const int sk_recverr	= IP_RECVERR;
 #endif
 
-#define test_icmps_fail test_fail
-#define test_icmps_ok test_ok
+/* Server is expected to fail with hard error if ::accept_icmp is set */
+#ifdef TEST_ICMPS_ACCEPT
+# define test_icmps_fail test_ok
+# define test_icmps_ok test_fail
+#else
+# define test_icmps_fail test_fail
+# define test_icmps_ok test_ok
+#endif
 
 static void serve_interfered(int sk)
 {
@@ -84,7 +90,11 @@ static void serve_interfered(int sk)
 		test_fail("Not found %s counter", tcpao_icmps);
 		return;
 	}
+#ifdef TEST_ICMPS_ACCEPT
+	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD);
+#else
 	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
+#endif
 	if (icmp_ignored_a >= icmp_ignored_b) {
 		test_icmps_fail("%s counter didn't change: %" PRIu64 " >= %" PRIu64,
 				tcpao_icmps, icmp_ignored_a, icmp_ignored_b);
@@ -95,10 +105,14 @@ static void serve_interfered(int sk)
 
 static void *server_fn(void *arg)
 {
-	int val, err, sk, lsk;
+	int val, sk, lsk;
 	bool accept_icmps = false;
 
 	lsk = test_listen_socket(this_ip_addr, test_server_port, 1);
+
+#ifdef TEST_ICMPS_ACCEPT
+	accept_icmps = true;
+#endif
 
 	if (test_set_ao_flags(lsk, false, accept_icmps))
 		test_error("setsockopt(TCP_AO_INFO)");
@@ -107,10 +121,7 @@ static void *server_fn(void *arg)
 		test_error("setsockopt(TCP_AO_ADD_KEY)");
 	synchronize_threads();
 
-	err = test_wait_fd(lsk, TEST_TIMEOUT_SEC, 0);
-	if (!err)
-		test_error("timeouted for accept()");
-	else if (err < 0)
+	if (test_wait_fd(lsk, TEST_TIMEOUT_SEC, 0))
 		test_error("test_wait_fd()");
 
 	sk = accept(lsk, NULL, NULL);
