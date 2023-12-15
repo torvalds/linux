@@ -663,6 +663,15 @@
 	pinctrl-0 = <&pinctrl_rgmii0_default &pinctrl_rgmii0_driving>;
 };
 
+&syscon1 {
+	mac0-clk-delay = <0x35 0x34
+			  0x10 0x10
+			  0x10 0x10>;
+	mac1-clk-delay = <0x35 0x33
+			  0x10 0x10
+			  0x10 0x10>;
+};
+
 &espi0 {
 	status = "okay";
 	perif-dma-mode;
