@@ -100,6 +100,7 @@
 #include <linux/stackprotector.h>
 #include <linux/user_events.h>
 #include <linux/iommu.h>
+#include <linux/rseq.h>
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>

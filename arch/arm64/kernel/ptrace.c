@@ -28,6 +28,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/rseq.h>
 
 #include <asm/compat.h>
 #include <asm/cpufeature.h>
