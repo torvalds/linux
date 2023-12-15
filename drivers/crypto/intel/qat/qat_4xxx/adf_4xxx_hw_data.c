@@ -120,29 +120,6 @@ static struct adf_hw_device_class adf_4xxx_class = {
 	.instances = 0,
 };
 
-static int get_service_enabled(struct adf_accel_dev *accel_dev)
-{
-	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
-	int ret;
-
-	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
-				      ADF_SERVICES_ENABLED, services);
-	if (ret) {
-		dev_err(&GET_DEV(accel_dev),
-			ADF_SERVICES_ENABLED " param not found\n");
-		return ret;
-	}
-
-	ret = match_string(adf_cfg_services, ARRAY_SIZE(adf_cfg_services),
-			   services);
-	if (ret < 0)
-		dev_err(&GET_DEV(accel_dev),
-			"Invalid value of " ADF_SERVICES_ENABLED " param: %s\n",
-			services);
-
-	return ret;
-}
-
 static u32 get_accel_mask(struct adf_hw_device_data *self)
 {
 	return ADF_4XXX_ACCELERATORS_MASK;
@@ -275,7 +252,7 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 		capabilities_dc &= ~ICP_ACCEL_CAPABILITIES_CNV_INTEGRITY64;
 	}
 
-	switch (get_service_enabled(accel_dev)) {
+	switch (adf_get_service_enabled(accel_dev)) {
 	case SVC_CY:
 	case SVC_CY2:
 		return capabilities_sym | capabilities_asym;
@@ -311,7 +288,7 @@ static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
 
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
-	switch (get_service_enabled(accel_dev)) {
+	switch (adf_get_service_enabled(accel_dev)) {
 	case SVC_DC:
 		return thrd_to_arb_map_dc;
 	case SVC_DCC:
@@ -420,7 +397,7 @@ static u32 uof_get_num_objs(void)
 
 static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev)
 {
-	switch (get_service_enabled(accel_dev)) {
+	switch (adf_get_service_enabled(accel_dev)) {
 	case SVC_CY:
 	case SVC_CY2:
 		return adf_fw_cy_config;
