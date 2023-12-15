@@ -787,8 +787,10 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
 		if (test_bit(VIDEO_BOUNDING_BOX, &video->flags)) {
 			video->perf.last_sample = ktime_get();
 			seq_ctrl = VE_SEQ_CTRL_TRIG_CAPTURE | VE_SEQ_CTRL_TRIG_COMP;
+			aspeed_video_update(video, VE_CTRL, video->compare_only, video->compare_only);
 		} else {
 			seq_ctrl = VE_SEQ_CTRL_TRIG_COMP;
+			aspeed_video_update(video, VE_CTRL, video->compare_only, 0);
 		}
 	} else {
 		video->perf.last_sample = ktime_get();
@@ -943,7 +945,10 @@ static void aspeed_video_irq_res_change(struct aspeed_video *video, ulong delay)
 
 static inline bool _box_data_changed(struct aspeed_video *v, u8 data)
 {
-	if (v->version >= 6)
+	if (v->version > 6)
+		return (data == 0xf);
+
+	if (v->version == 6)
 		return ((data & 0xf) != 0xf);
 
 	return ((data & 0xf) == 0xf);
@@ -1027,7 +1032,7 @@ static void aspeed_video_get_bounding_box(struct aspeed_video *v,
 static void aspeed_video_swap_src_buf(struct aspeed_video *v)
 {
 	// 2700's new design will automatically swap src at each operation
-	if (v->version > 6)
+	if (v->version > 6 && v->format == VIDEO_FMT_ASPEED)
 		return;
 
 	if (v->format == VIDEO_FMT_STANDARD)
