@@ -5,6 +5,7 @@ TEST_BOTH_AF += connect-deny
 TEST_BOTH_AF += icmps-accept icmps-discard
 TEST_BOTH_AF += restore
 TEST_BOTH_AF += rst
+TEST_BOTH_AF += self-connect
 TEST_BOTH_AF += seq-ext
 TEST_BOTH_AF += setsockopt-closed
 TEST_BOTH_AF += unsigned-md5
