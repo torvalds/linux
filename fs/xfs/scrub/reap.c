@@ -20,6 +20,7 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_refcount.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_extent_busy.h"
 #include "xfs_ag.h"
@@ -380,6 +381,17 @@ xreap_agextent_iter(
 		trace_xreap_dispose_unmap_extent(sc->sa.pag, agbno, *aglenp);
 
 		rs->force_roll = true;
+
+		if (rs->oinfo == &XFS_RMAP_OINFO_COW) {
+			/*
+			 * If we're unmapping CoW staging extents, remove the
+			 * records from the refcountbt, which will remove the
+			 * rmap record as well.
+			 */
+			xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+			return 0;
+		}
+
 		return xfs_rmap_free(sc->tp, sc->sa.agf_bp, sc->sa.pag, agbno,
 				*aglenp, rs->oinfo);
 	}
@@ -395,6 +407,26 @@ xreap_agextent_iter(
 	xreap_agextent_binval(rs, agbno, aglenp);
 	if (*aglenp == 0) {
 		ASSERT(xreap_want_roll(rs));
+		return 0;
+	}
+
+	/*
+	 * If we're getting rid of CoW staging extents, use deferred work items
+	 * to remove the refcountbt records (which removes the rmap records)
+	 * and free the extent.  We're not worried about the system going down
+	 * here because log recovery walks the refcount btree to clean out the
+	 * CoW staging extents.
+	 */
+	if (rs->oinfo == &XFS_RMAP_OINFO_COW) {
+		ASSERT(rs->resv == XFS_AG_RESV_NONE);
+
+		xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+		error = xfs_free_extent_later(sc->tp, fsbno, *aglenp, NULL,
+				rs->resv, true);
+		if (error)
+			return error;
+
+		rs->force_roll = true;
 		return 0;
 	}
 
