@@ -150,7 +150,7 @@ list_lock once in a while to deal with partial slabs. That overhead is
 governed by the order of the allocation for each slab. The allocations
 can be influenced by kernel parameters:
 
-.. slab_min_objects=x		(default 4)
+.. slab_min_objects=x		(default: automatically scaled by number of cpus)
 .. slab_min_order=x		(default 0)
 .. slab_max_order=x		(default 3 (PAGE_ALLOC_COSTLY_ORDER))
 
