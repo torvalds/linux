@@ -7307,6 +7307,14 @@ void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps)
 			skip_n);
 }
 
+static bool rkcif_check_can_be_online(struct rkcif_device *cif_dev)
+{
+	if (cif_dev->chip_id == CHIP_RV1106_CIF &&
+	    strstr(cif_dev->sditf[0]->mode.name, "unite"))
+		return false;
+	return true;
+}
+
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			       enum rkmodule_reset_src reset_src);
 static bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw);
@@ -7327,6 +7335,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 	int ret = -EINVAL;
 	int i = 0;
 	int stream_num = 0;
+	bool is_can_be_online = false;
 
 	switch (cmd) {
 	case RKCIF_CMD_GET_CSI_MEMORY_MODE:
@@ -7387,7 +7396,8 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 			stream_num = 1;
 		if (stream_param->on) {
 			is_single_dev = rkcif_check_single_dev_stream_on(dev->hw_dev);
-			if (is_single_dev) {
+			is_can_be_online = rkcif_check_can_be_online(dev);
+			if (is_single_dev && is_can_be_online) {
 				for (i = 0; i < stream_num - 1; i++) {
 					dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
 					rkcif_enable_dma_capture(&dev->stream[i], true);
@@ -7440,6 +7450,9 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 					wait_for_completion_timeout(&dev->stream[i].stop_complete,
 								    msecs_to_jiffies(RKCIF_STOP_MAX_WAIT_TIME_MS));
 				}
+				rkcif_dphy_quick_stream(dev, stream_param->on);
+				v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
+						 RKMODULE_SET_QUICK_STREAM, &stream_param->on);
 			}
 			stream_param->frame_num = dev->stream[0].frame_idx - 1;
 			if (!dev->is_rtt_suspend)
@@ -9083,7 +9096,7 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	    cif_dev->active_sensor->mbus.type == V4L2_MBUS_BT656 &&
 	    stream->id != 0)
 		stream->frame_idx++;
-	if (!stream->is_line_wake_up && stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+	if (!stream->is_line_wake_up)
 		rkcif_buf_done_prepare(stream, active_buf, mipi_id, 0);
 
 	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
@@ -10685,11 +10698,13 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 	int resume_cnt = 0;
 	unsigned long flags;
 	bool is_single_dev = false;
+	bool is_can_be_online = false;
 
 	mutex_lock(&cif_dev->stream_lock);
 
 	rkcif_get_resmem_head(cif_dev);
 	is_single_dev = rkcif_check_single_dev_stream_on(cif_dev->hw_dev);
+	is_can_be_online = rkcif_check_can_be_online(cif_dev);
 	if (cif_dev->resume_mode == RKISP_RTT_MODE_ONE_FRAME) {
 		if (cif_dev->is_rtt_suspend) {
 			capture_mode = RKCIF_STREAM_MODE_TOISP_RDBK;
@@ -10712,14 +10727,20 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 			}
 		}
 	} else if (cif_dev->resume_mode == RKISP_RTT_MODE_MULTI_FRAME) {
-		if (is_single_dev) {
+		if (is_single_dev && is_can_be_online) {
 			capture_mode = RKCIF_STREAM_MODE_TOISP;
 			if (priv)
 				priv->mode.rdbk_mode = RKISP_VICAP_ONLINE;
 		} else {
-			capture_mode = RKCIF_STREAM_MODE_TOISP_RDBK;
-			if (priv)
-				priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+			if (cif_dev->is_thunderboot) {
+				capture_mode = RKCIF_STREAM_MODE_TOISP_RDBK;
+				if (priv)
+					priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+			} else {
+				capture_mode = RKCIF_STREAM_MODE_CAPTURE;
+				if (priv)
+					priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
+			}
 		}
 	} else {
 		if (priv && priv->mode.rdbk_mode == RKISP_VICAP_ONLINE)
