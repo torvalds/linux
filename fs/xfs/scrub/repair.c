@@ -806,3 +806,62 @@ xrep_reinit_pagf(
 
 	return 0;
 }
+
+/*
+ * Reinitialize the in-core AG state after a repair by rereading the AGI
+ * buffer.  We had better get the same AGI buffer as the one that's attached
+ * to the scrub context.
+ */
+int
+xrep_reinit_pagi(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_perag	*pag = sc->sa.pag;
+	struct xfs_buf		*bp;
+	int			error;
+
+	ASSERT(pag);
+	ASSERT(xfs_perag_initialised_agi(pag));
+
+	clear_bit(XFS_AGSTATE_AGI_INIT, &pag->pag_opstate);
+	error = xfs_ialloc_read_agi(pag, sc->tp, &bp);
+	if (error)
+		return error;
+
+	if (bp != sc->sa.agi_bp) {
+		ASSERT(bp == sc->sa.agi_bp);
+		return -EFSCORRUPTED;
+	}
+
+	return 0;
+}
+
+/* Reinitialize the per-AG block reservation for the AG we just fixed. */
+int
+xrep_reset_perag_resv(
+	struct xfs_scrub	*sc)
+{
+	int			error;
+
+	if (!(sc->flags & XREP_RESET_PERAG_RESV))
+		return 0;
+
+	ASSERT(sc->sa.pag != NULL);
+	ASSERT(sc->ops->type == ST_PERAG);
+	ASSERT(sc->tp);
+
+	sc->flags &= ~XREP_RESET_PERAG_RESV;
+	error = xfs_ag_resv_free(sc->sa.pag);
+	if (error)
+		goto out;
+	error = xfs_ag_resv_init(sc->sa.pag, sc->tp);
+	if (error == -ENOSPC) {
+		xfs_err(sc->mp,
+"Insufficient free space to reset per-AG reservation for AG %u after repair.",
+				sc->sa.pag->pag_agno);
+		error = 0;
+	}
+
+out:
+	return error;
+}

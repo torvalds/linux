@@ -585,7 +585,7 @@ xchk_iallocbt_rec(
 	uint16_t			holemask;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-	if (xfs_inobt_check_irec(bs->cur, &irec) != NULL) {
+	if (xfs_inobt_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
