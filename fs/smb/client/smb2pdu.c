@@ -411,8 +411,7 @@ skip_sess_setup:
 	}
 
 	if (smb2_command != SMB2_INTERNAL_CMD)
-		if (mod_delayed_work(cifsiod_wq, &server->reconnect, 0))
-			cifs_put_tcp_session(server, false);
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 
 	atomic_inc(&tconInfoReconnectCount);
 out:
