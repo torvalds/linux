@@ -133,13 +133,10 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 22012773006))
 		flags |= GUC_WA_POLLCS;
 
-	if (XE_WA(gt, 16011759253))
-		flags |= GUC_WA_GAM_CREDITS;
-
 	if (XE_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	if (XE_WA(gt, 22011391025) || XE_WA(gt, 14012197797))
+	if (XE_WA(gt, 22011391025))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
@@ -149,9 +146,6 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	 */
 	if (GRAPHICS_VERx100(xe) < 1270)
 		flags |= GUC_WA_PRE_PARSER;
-
-	if (XE_WA(gt, 16011777198))
-		flags |= GUC_WA_RCS_RESET_BEFORE_RC6;
 
 	if (XE_WA(gt, 22012727170) || XE_WA(gt, 22012727685))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
