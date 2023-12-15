@@ -56,7 +56,7 @@ static int find_resctrl_mount(char *buffer)
  * Mounts resctrl FS. Fails if resctrl FS is already mounted to avoid
  * pre-existing settings interfering with the test results.
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, < 0 on error.
  */
 int mount_resctrlfs(void)
 {
@@ -276,7 +276,7 @@ int get_core_sibling(int cpu_no)
  * @bm_pid:	PID that should be binded
  * @cpu_no:	CPU number at which the PID would be binded
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, < 0 on error.
  */
 int taskset_benchmark(pid_t bm_pid, int cpu_no)
 {
@@ -300,7 +300,7 @@ int taskset_benchmark(pid_t bm_pid, int cpu_no)
  * @grp:	Full path and name of the group
  * @parent_grp:	Full path and name of the parent group
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, < 0 on error.
  */
 static int create_grp(const char *grp_name, char *grp, const char *parent_grp)
 {
@@ -376,7 +376,7 @@ static int write_pid_to_tasks(char *tasks, pid_t pid)
  * pid is not written, this means that pid is in con_mon grp and hence
  * should consult con_mon grp's mon_data directory for results.
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, < 0 on error.
  */
 int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 			    char *resctrl_val)
@@ -435,7 +435,7 @@ out:
  * Update schemata of a con_mon grp *only* if requested resctrl feature is
  * allocation type
  *
- * Return: 0 on success, non-zero on failure
+ * Return: 0 on success, < 0 on error.
  */
 int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 {

@@ -206,7 +206,7 @@ int measure_cache_vals(struct resctrl_val_param *param, int bm_pid)
  * @param:		parameters passed to cache_val()
  * @span:		buffer size for the benchmark
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 when the test was run, < 0 on error.
  */
 int cat_val(struct resctrl_val_param *param, size_t span)
 {
