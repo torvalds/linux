@@ -442,11 +442,6 @@ static struct bpf_func_info_aux *subprog_aux(const struct bpf_verifier_env *env,
 	return &env->prog->aux->func_info_aux[subprog];
 }
 
-static struct bpf_subprog_info *subprog_info(struct bpf_verifier_env *env, int subprog)
-{
-	return &env->subprog_info[subprog];
-}
-
 static void mark_subprog_exc_cb(struct bpf_verifier_env *env, int subprog)
 {
 	struct bpf_subprog_info *info = subprog_info(env, subprog);
@@ -19937,34 +19932,50 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 
 	regs = state->frame[state->curframe]->regs;
 	if (subprog || env->prog->type == BPF_PROG_TYPE_EXT) {
-		u32 nargs;
+		struct bpf_subprog_info *sub = subprog_info(env, subprog);
+		const char *sub_name = subprog_name(env, subprog);
+		struct bpf_subprog_arg_info *arg;
+		struct bpf_reg_state *reg;
 
-		ret = btf_prepare_func_args(env, subprog, regs, &nargs);
+		verbose(env, "Validating %s() func#%d...\n", sub_name, subprog);
+		ret = btf_prepare_func_args(env, subprog);
 		if (ret)
 			goto out;
+
 		if (subprog_is_exc_cb(env, subprog)) {
 			state->frame[0]->in_exception_callback_fn = true;
 			/* We have already ensured that the callback returns an integer, just
 			 * like all global subprogs. We need to determine it only has a single
 			 * scalar argument.
 			 */
-			if (nargs != 1 || regs[BPF_REG_1].type != SCALAR_VALUE) {
+			if (sub->arg_cnt != 1 || sub->args[0].arg_type != ARG_ANYTHING) {
 				verbose(env, "exception cb only supports single integer argument\n");
 				ret = -EINVAL;
 				goto out;
 			}
 		}
-		for (i = BPF_REG_1; i <= BPF_REG_5; i++) {
-			if (regs[i].type == PTR_TO_CTX)
-				mark_reg_known_zero(env, regs, i);
-			else if (regs[i].type == SCALAR_VALUE)
-				mark_reg_unknown(env, regs, i);
-			else if (base_type(regs[i].type) == PTR_TO_MEM) {
-				const u32 mem_size = regs[i].mem_size;
+		for (i = BPF_REG_1; i <= sub->arg_cnt; i++) {
+			arg = &sub->args[i - BPF_REG_1];
+			reg = &regs[i];
 
+			if (arg->arg_type == ARG_PTR_TO_CTX) {
+				reg->type = PTR_TO_CTX;
 				mark_reg_known_zero(env, regs, i);
-				regs[i].mem_size = mem_size;
-				regs[i].id = ++env->id_gen;
+			} else if (arg->arg_type == ARG_ANYTHING) {
+				reg->type = SCALAR_VALUE;
+				mark_reg_unknown(env, regs, i);
+			} else if (base_type(arg->arg_type) == ARG_PTR_TO_MEM) {
+				reg->type = PTR_TO_MEM;
+				if (arg->arg_type & PTR_MAYBE_NULL)
+					reg->type |= PTR_MAYBE_NULL;
+				mark_reg_known_zero(env, regs, i);
+				reg->mem_size = arg->mem_size;
+				reg->id = ++env->id_gen;
+			} else {
+				WARN_ONCE(1, "BUG: unhandled arg#%d type %d\n",
+					  i - BPF_REG_1, arg->arg_type);
+				ret = -EFAULT;
+				goto out;
 			}
 		}
 	} else {

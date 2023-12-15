@@ -6948,16 +6948,17 @@ int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
 	return err;
 }
 
-/* Convert BTF of a function into bpf_reg_state if possible
+/* Process BTF of a function to produce high-level expectation of function
+ * arguments (like ARG_PTR_TO_CTX, or ARG_PTR_TO_MEM, etc). This information
+ * is cached in subprog info for reuse.
  * Returns:
  * EFAULT - there is a verifier bug. Abort verification.
  * EINVAL - cannot convert BTF.
- * 0 - Successfully converted BTF into bpf_reg_state
- * (either PTR_TO_CTX or SCALAR_VALUE).
+ * 0 - Successfully processed BTF and constructed argument expectations.
  */
-int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *regs, u32 *arg_cnt)
+int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 {
+	struct bpf_subprog_info *sub = subprog_info(env, subprog);
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
 	enum bpf_prog_type prog_type = prog->type;
@@ -6966,6 +6967,9 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	const struct btf_type *t, *ref_t;
 	u32 i, nargs, btf_id;
 	const char *tname;
+
+	if (sub->args_cached)
+		return 0;
 
 	if (!prog->aux->func_info ||
 	    prog->aux->func_info_aux[subprog].linkage != BTF_FUNC_GLOBAL) {
@@ -6990,10 +6994,6 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	}
 	tname = btf_name_by_offset(btf, t->name_off);
 
-	if (log->level & BPF_LOG_LEVEL)
-		bpf_log(log, "Validating %s() func#%d...\n",
-			tname, subprog);
-
 	if (prog->aux->func_info_aux[subprog].unreliable) {
 		bpf_log(log, "Verifier bug in function %s()\n", tname);
 		return -EFAULT;
@@ -7013,7 +7013,6 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 			tname, nargs, MAX_BPF_FUNC_REG_ARGS);
 		return -EINVAL;
 	}
-	*arg_cnt = nargs;
 	/* check that function returns int, exception cb also requires this */
 	t = btf_type_by_id(btf, t->type);
 	while (btf_type_is_modifier(t))
@@ -7028,24 +7027,24 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	 * Only PTR_TO_CTX and SCALAR are supported atm.
 	 */
 	for (i = 0; i < nargs; i++) {
-		struct bpf_reg_state *reg = &regs[i + 1];
-
 		t = btf_type_by_id(btf, args[i].type);
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
 		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
-			reg->type = SCALAR_VALUE;
+			sub->args[i].arg_type = ARG_ANYTHING;
 			continue;
 		}
 		if (btf_type_is_ptr(t)) {
+			u32 mem_size;
+
 			if (btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
-				reg->type = PTR_TO_CTX;
+				sub->args[i].arg_type = ARG_PTR_TO_CTX;
 				continue;
 			}
 
 			t = btf_type_skip_modifiers(btf, t->type, NULL);
 
-			ref_t = btf_resolve_size(btf, t, &reg->mem_size);
+			ref_t = btf_resolve_size(btf, t, &mem_size);
 			if (IS_ERR(ref_t)) {
 				bpf_log(log,
 				    "arg#%d reference type('%s %s') size cannot be determined: %ld\n",
@@ -7054,15 +7053,18 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 				return -EINVAL;
 			}
 
-			reg->type = PTR_TO_MEM | PTR_MAYBE_NULL;
-			reg->id = ++env->id_gen;
-
+			sub->args[i].arg_type = ARG_PTR_TO_MEM_OR_NULL;
+			sub->args[i].mem_size = mem_size;
 			continue;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
 		return -EINVAL;
 	}
+
+	sub->arg_cnt = nargs;
+	sub->args_cached = true;
+
 	return 0;
 }
 

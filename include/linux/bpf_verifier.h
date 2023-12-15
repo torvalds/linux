@@ -606,6 +606,13 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 
 #define BPF_MAX_SUBPROGS 256
 
+struct bpf_subprog_arg_info {
+	enum bpf_arg_type arg_type;
+	union {
+		u32 mem_size;
+	};
+};
+
 struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
@@ -617,6 +624,10 @@ struct bpf_subprog_info {
 	bool is_cb: 1;
 	bool is_async_cb: 1;
 	bool is_exception_cb: 1;
+	bool args_cached: 1;
+
+	u8 arg_cnt;
+	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
 };
 
 struct bpf_verifier_env;
@@ -726,6 +737,11 @@ struct bpf_verifier_env {
 	 */
 	char tmp_str_buf[TMP_STR_BUF_LEN];
 };
+
+static inline struct bpf_subprog_info *subprog_info(struct bpf_verifier_env *env, int subprog)
+{
+	return &env->subprog_info[subprog];
+}
 
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
 				      const char *fmt, va_list args);
