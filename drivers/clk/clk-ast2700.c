@@ -410,19 +410,31 @@ static int ast2700_soc1_clk_init(struct device_node *soc1_node)
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      18, 3, 0, ast2700_clk_div_table2, &ast2700_clk_lock);
 
-	//rmii
+	/* RMII */
 	clks[AST2700_SOC1_CLK_RMII] =
 		clk_hw_register_divider_table(NULL, "rmii", "soc1-hpll",
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      21, 3, 0, ast2700_rmii_div_table, &ast2700_clk_lock);
 
-	//rgmii
+	/* RMII0 50MHz (RCLK) output enable */
+	clks[AST2700_SOC1_CLK_MAC0RCLK] =
+		clk_hw_register_gate(NULL, "mac0rclk", "rmii", 0,
+				     clk_base + AST2700_SOC1_MAC12_CLK_DLY, 29,
+				     0, &ast2700_clk_lock);
+
+	/* RMII1 50MHz (RCLK) output enable */
+	clks[AST2700_SOC1_CLK_MAC1RCLK] =
+		clk_hw_register_gate(NULL, "mac1rclk", "rmii", 0,
+				     clk_base + AST2700_SOC1_MAC12_CLK_DLY, 30,
+				     0, &ast2700_clk_lock);
+
+	/* RGMII */
 	clks[AST2700_SOC1_CLK_RGMII] =
 		clk_hw_register_divider_table(NULL, "rgmii", "soc1-hpll",
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
 					      25, 3, 0, ast2700_rgmii_div_table, &ast2700_clk_lock);
 
-	//mac hclk
+	/* MAC HCLK */
 	clks[AST2700_SOC1_CLK_MACHCLK] =
 		clk_hw_register_divider_table(NULL, "machclk", "soc1-hpll",
 					      0, clk_base + AST2700_SOC1_CLK_SEL1,
