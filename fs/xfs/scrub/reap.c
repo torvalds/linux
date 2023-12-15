@@ -430,13 +430,12 @@ xreap_agextent_iter(
  */
 STATIC int
 xreap_agmeta_extent(
-	uint64_t		fsbno,
-	uint64_t		len,
+	uint32_t		agbno,
+	uint32_t		len,
 	void			*priv)
 {
 	struct xreap_state	*rs = priv;
 	struct xfs_scrub	*sc = rs->sc;
-	xfs_agblock_t		agbno = fsbno;
 	xfs_agblock_t		agbno_next = agbno + len;
 	int			error = 0;
 

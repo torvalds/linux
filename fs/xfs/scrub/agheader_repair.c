@@ -494,12 +494,11 @@ xrep_agfl_walk_rmap(
 /* Strike out the blocks that are cross-linked according to the rmapbt. */
 STATIC int
 xrep_agfl_check_extent(
-	uint64_t		start,
-	uint64_t		len,
+	uint32_t		agbno,
+	uint32_t		len,
 	void			*priv)
 {
 	struct xrep_agfl	*ra = priv;
-	xfs_agblock_t		agbno = start;
 	xfs_agblock_t		last_agbno = agbno + len - 1;
 	int			error;
 
@@ -647,8 +646,8 @@ struct xrep_agfl_fill {
 /* Fill the AGFL with whatever blocks are in this extent. */
 static int
 xrep_agfl_fill(
-	uint64_t		start,
-	uint64_t		len,
+	uint32_t		start,
+	uint32_t		len,
 	void			*priv)
 {
 	struct xrep_agfl_fill	*af = priv;
