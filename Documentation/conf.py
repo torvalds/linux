@@ -106,6 +106,7 @@ if major >= 3:
             "__weak",
             "noinline",
             "__fix_address",
+            "__counted_by",
 
             # include/linux/memblock.h:
             "__init_memblock",
