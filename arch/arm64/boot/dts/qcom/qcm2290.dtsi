@@ -199,6 +199,7 @@
 
 		CLUSTER_PD: power-domain-cpu-cluster {
 			#power-domain-cells = <0>;
+			power-domains = <&mpm>;
 			domain-idle-states = <&CLUSTER_SLEEP>;
 		};
 	};
@@ -265,6 +266,24 @@
 					};
 				};
 			};
+		};
+
+		mpm: interrupt-controller {
+			compatible = "qcom,mpm";
+			qcom,rpm-msg-ram = <&apss_mpm>;
+			interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+			mboxes = <&apcs_glb 1>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			#power-domain-cells = <0>;
+			interrupt-parent = <&intc>;
+			qcom,mpm-pin-count = <96>;
+			qcom,mpm-pin-map = <2 275>,  /* TSENS0 uplow */
+					   <5 296>,  /* Soundwire master_irq */
+					   <12 422>, /* DWC3 ss_phy_irq */
+					   <24 79>,  /* Soundwire wake_irq */
+					   <86 183>, /* MPM wake, SPMI */
+					   <90 260>; /* QUSB2_PHY DP+DM */
 		};
 	};
 
@@ -429,6 +448,7 @@
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 127>;
+			wakeup-parent = <&mpm>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -778,7 +798,7 @@
 				    "obsrvr",
 				    "intr",
 				    "cnfg";
-			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&mpm 86 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "periph_irq";
 			qcom,ee = <0>;
 			qcom,channel = <0>;
@@ -793,8 +813,8 @@
 			reg = <0x0 0x04411000 0x0 0x1ff>,
 			      <0x0 0x04410000 0x0 0x8>;
 			#qcom,sensors = <10>;
-			interrupts = <GIC_SPI 275 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&mpm 2 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "uplow", "critical";
 			#thermal-sensor-cells = <1>;
 		};
@@ -813,8 +833,15 @@
 		};
 
 		rpm_msg_ram: sram@45f0000 {
-			compatible = "qcom,rpm-msg-ram";
+			compatible = "qcom,rpm-msg-ram", "mmio-sram";
 			reg = <0x0 0x045f0000 0x0 0x7000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x045f0000 0x7000>;
+
+			apss_mpm: sram@1b8 {
+				reg = <0x1b8 0x48>;
+			};
 		};
 
 		sram@4690000 {
@@ -1293,9 +1320,10 @@
 		usb: usb@4ef8800 {
 			compatible = "qcom,qcm2290-dwc3", "qcom,dwc3";
 			reg = <0x0 0x04ef8800 0x0 0x400>;
-			interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "hs_phy_irq", "ss_phy_irq";
+			interrupts-extended = <&intc GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+					      <&mpm 12 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hs_phy_irq",
+					  "ss_phy_irq";
 
 			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
 				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
