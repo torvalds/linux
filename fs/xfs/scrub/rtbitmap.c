@@ -17,12 +17,8 @@
 #include "xfs_bit.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-
-struct xchk_rtbitmap {
-	uint64_t		rextents;
-	uint64_t		rbmblocks;
-	unsigned int		rextslog;
-};
+#include "scrub/repair.h"
+#include "scrub/rtbitmap.h"
 
 /* Set us up with the realtime metadata locked. */
 int
@@ -38,7 +34,13 @@ xchk_setup_rtbitmap(
 		return -ENOMEM;
 	sc->buf = rtb;
 
-	error = xchk_trans_alloc(sc, 0);
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_rtbitmap(sc, rtb);
+		if (error)
+			return error;
+	}
+
+	error = xchk_trans_alloc(sc, rtb->resblks);
 	if (error)
 		return error;
 
