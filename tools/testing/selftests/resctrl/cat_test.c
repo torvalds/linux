@@ -145,6 +145,9 @@ static int cat_test(struct resctrl_val_param *param, size_t span)
 
 	perf_event_attr_initialize(&pea, PERF_COUNT_HW_CACHE_MISSES);
 	perf_event_initialize_read_format(&pe_read);
+	pe_fd = perf_open(&pea, bm_pid, param->cpu_no);
+	if (pe_fd < 0)
+		return pe_fd;
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
@@ -155,11 +158,10 @@ static int cat_test(struct resctrl_val_param *param, size_t span)
 		}
 		if (ret < 0)
 			break;
-		pe_fd = perf_open(&pea, bm_pid, param->cpu_no);
-		if (pe_fd < 0) {
-			ret = -1;
-			break;
-		}
+
+		ret = perf_event_reset_enable(pe_fd);
+		if (ret)
+			goto pe_close;
 
 		if (run_fill_buf(span, memflush, operation, true)) {
 			fprintf(stderr, "Error-running fill buffer\n");
@@ -171,8 +173,6 @@ static int cat_test(struct resctrl_val_param *param, size_t span)
 		ret = perf_event_measure(pe_fd, &pe_read, param->filename, bm_pid);
 		if (ret)
 			goto pe_close;
-
-		close(pe_fd);
 	}
 
 	return ret;

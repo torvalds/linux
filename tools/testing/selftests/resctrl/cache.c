@@ -22,10 +22,19 @@ void perf_event_attr_initialize(struct perf_event_attr *pea, __u64 config)
 }
 
 /* Start counters to log values */
-static void perf_event_reset_enable(int pe_fd)
+int perf_event_reset_enable(int pe_fd)
 {
-	ioctl(pe_fd, PERF_EVENT_IOC_RESET, 0);
-	ioctl(pe_fd, PERF_EVENT_IOC_ENABLE, 0);
+	int ret;
+
+	ret = ioctl(pe_fd, PERF_EVENT_IOC_RESET, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = ioctl(pe_fd, PERF_EVENT_IOC_ENABLE, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 void perf_event_initialize_read_format(struct perf_event_read *pe_read)
@@ -129,7 +138,9 @@ int perf_event_measure(int pe_fd, struct perf_event_read *pe_read,
 	int ret;
 
 	/* Stop counters after one span to get miss rate */
-	ioctl(pe_fd, PERF_EVENT_IOC_DISABLE, 0);
+	ret = ioctl(pe_fd, PERF_EVENT_IOC_DISABLE, 0);
+	if (ret < 0)
+		return ret;
 
 	ret = read(pe_fd, pe_read, sizeof(*pe_read));
 	if (ret == -1) {
