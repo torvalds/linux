@@ -1518,6 +1518,9 @@ static unsigned long mas_leaf_max_gap(struct ma_state *mas)
 		gap = ULONG_MAX - pivots[max_piv];
 		if (gap > max_gap)
 			max_gap = gap;
+
+		if (max_gap > pivots[max_piv] - mas->min)
+			return max_gap;
 	}
 
 	for (; i <= max_piv; i++) {
