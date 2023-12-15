@@ -365,6 +365,39 @@ static bool __qcom_scm_is_call_available(struct device *dev, u32 svc_id,
 }
 
 /**
+ * scm_set_boot_addr_mc - Set entry physical address for cpus
+ * @addr: 32bit physical address
+ * @aff0: Collective bitmask of the affinity-level-0 of the mpidr
+ *        1<<aff0_CPU0| 1<<aff0_CPU1....... | 1<<aff0_CPU32
+ *        Supports maximum 32 cpus under any affinity level.
+ * @aff1:  Collective bitmask of the affinity-level-1 of the mpidr
+ * @aff2:  Collective bitmask of the affinity-level-2 of the mpidr
+ * @flags: Flag to differentiate between coldboot vs warmboot
+ */
+int qcom_scm_set_warm_boot_addr_mc(void *entry, u32 aff0, u32 aff1, u32 aff2,
+				   u32 flags)
+{
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_BOOT,
+		.cmd = QCOM_SCM_BOOT_SET_ADDR_MC,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+
+	desc.args[0] = virt_to_phys(entry);
+	desc.args[1] = aff0;
+	desc.args[2] = aff1;
+	desc.args[3] = aff2;
+	desc.args[4] = ~0ULL;
+	desc.args[5] = flags;
+	desc.arginfo = QCOM_SCM_ARGS(6);
+	ret = qcom_scm_call(__scm ? __scm->dev : NULL, &desc, NULL);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qcom_scm_set_warm_boot_addr_mc);
+
+/**
  * qcom_scm_set_warm_boot_addr() - Set the warm boot address for cpus
  * @entry: Entry point function for the cpus
  * @cpus: The cpumask of cpus that will use the entry point

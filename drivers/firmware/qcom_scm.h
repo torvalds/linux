@@ -112,6 +112,7 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_BOOT_SET_ADDR		0x01
 #define QCOM_SCM_BOOT_TERMINATE_PC	0x02
 #define QCOM_SCM_BOOT_SET_DLOAD_MODE	0x10
+#define QCOM_SCM_BOOT_SET_ADDR_MC               0x11
 #define QCOM_SCM_BOOT_SEC_WDOG_DIS		0x07
 #define QCOM_SCM_BOOT_SEC_WDOG_TRIGGER		0x08
 #define QCOM_SCM_BOOT_WDOG_DEBUG_PART		0x09
