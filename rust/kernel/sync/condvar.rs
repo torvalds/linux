@@ -69,7 +69,7 @@ macro_rules! new_condvar {
 /// }
 /// ```
 ///
-/// [`struct wait_queue_head`]: ../../../include/linux/wait.h
+/// [`struct wait_queue_head`]: srctree/include/linux/wait.h
 #[pin_data]
 pub struct CondVar {
     #[pin]

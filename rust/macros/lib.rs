@@ -20,7 +20,7 @@ use proc_macro::TokenStream;
 /// The `type` argument should be a type which implements the [`Module`]
 /// trait. Also accepts various forms of kernel metadata.
 ///
-/// C header: [`include/linux/moduleparam.h`](../../../include/linux/moduleparam.h)
+/// C header: [`include/linux/moduleparam.h`](srctree/include/linux/moduleparam.h)
 ///
 /// [`Module`]: ../kernel/trait.Module.html
 ///
