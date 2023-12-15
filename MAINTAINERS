@@ -22296,7 +22296,7 @@ F:	drivers/usb/common/ulpi.c
 F:	include/linux/ulpi/
 
 UNICODE SUBSYSTEM
-M:	Gabriel Krisman Bertazi <krisman@collabora.com>
+M:	Gabriel Krisman Bertazi <krisman@kernel.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/unicode/
