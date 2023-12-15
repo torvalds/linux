@@ -1515,11 +1515,10 @@ int nfsd_nl_rpc_status_get_start(struct netlink_callback *cb)
 	int ret = -ENODEV;
 
 	mutex_lock(&nfsd_mutex);
-	if (nn->nfsd_serv) {
-		svc_get(nn->nfsd_serv);
+	if (nn->nfsd_serv)
 		ret = 0;
-	}
-	mutex_unlock(&nfsd_mutex);
+	else
+		mutex_unlock(&nfsd_mutex);
 
 	return ret;
 }
@@ -1691,8 +1690,6 @@ out:
  */
 int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
 {
-	mutex_lock(&nfsd_mutex);
-	nfsd_put(sock_net(cb->skb->sk));
 	mutex_unlock(&nfsd_mutex);
 
 	return 0;
