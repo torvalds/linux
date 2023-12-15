@@ -7,6 +7,7 @@
 #include <adf_cfg_services.h>
 #include <adf_clock.h>
 #include <adf_common_drv.h>
+#include <adf_fw_config.h>
 #include <adf_gen4_config.h>
 #include <adf_gen4_dc.h>
 #include <adf_gen4_hw_data.h>
@@ -21,13 +22,6 @@
 #define ADF_AE_GROUP_1		GENMASK(7, 4)
 #define ADF_AE_GROUP_2		BIT(8)
 
-enum adf_fw_objs {
-	ADF_FW_SYM_OBJ,
-	ADF_FW_ASYM_OBJ,
-	ADF_FW_DC_OBJ,
-	ADF_FW_ADMIN_OBJ,
-};
-
 static const char * const adf_4xxx_fw_objs[] = {
 	[ADF_FW_SYM_OBJ] =  ADF_4XXX_SYM_OBJ,
 	[ADF_FW_ASYM_OBJ] =  ADF_4XXX_ASYM_OBJ,
@@ -40,11 +34,6 @@ static const char * const adf_402xx_fw_objs[] = {
 	[ADF_FW_ASYM_OBJ] =  ADF_402XX_ASYM_OBJ,
 	[ADF_FW_DC_OBJ] =  ADF_402XX_DC_OBJ,
 	[ADF_FW_ADMIN_OBJ] = ADF_402XX_ADMIN_OBJ,
-};
-
-struct adf_fw_config {
-	u32 ae_mask;
-	enum adf_fw_objs obj;
 };
 
 static const struct adf_fw_config adf_fw_cy_config[] = {
