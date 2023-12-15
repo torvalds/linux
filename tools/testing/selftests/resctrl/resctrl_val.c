@@ -838,7 +838,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 				break;
 		} else if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR))) {
 			sleep(1);
-			ret = measure_cache_vals(param, bm_pid);
+			ret = measure_llc_resctrl(param->filename, bm_pid);
 			if (ret)
 				break;
 		}

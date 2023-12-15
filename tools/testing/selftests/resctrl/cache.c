@@ -147,7 +147,7 @@ static int get_llc_occu_resctrl(unsigned long *llc_occupancy)
  *
  * Return:		0 on success, < 0 on error.
  */
-static int print_results_cache(char *filename, int bm_pid,
+static int print_results_cache(const char *filename, int bm_pid,
 			       unsigned long llc_value)
 {
 	FILE *fp;
@@ -169,35 +169,49 @@ static int print_results_cache(char *filename, int bm_pid,
 	return 0;
 }
 
-int measure_cache_vals(struct resctrl_val_param *param, int bm_pid)
+/*
+ * perf_event_measure - Measure perf events
+ * @filename:	Filename for writing the results
+ * @bm_pid:	PID that runs the benchmark
+ *
+ * Measures perf events (e.g., cache misses) and writes the results into
+ * @filename. @bm_pid is written to the results file along with the measured
+ * value.
+ *
+ * Return: =0 on success. <0 on failure.
+ */
+static int perf_event_measure(const char *filename, int bm_pid)
 {
-	unsigned long llc_perf_miss = 0, llc_occu_resc = 0, llc_value = 0;
+	unsigned long llc_perf_miss = 0;
 	int ret;
 
-	/*
-	 * Measure cache miss from perf.
-	 */
-	if (!strncmp(param->resctrl_val, CAT_STR, sizeof(CAT_STR))) {
-		ret = get_llc_perf(&llc_perf_miss);
-		if (ret < 0)
-			return ret;
-		llc_value = llc_perf_miss;
-	}
-
-	/*
-	 * Measure llc occupancy from resctrl.
-	 */
-	if (!strncmp(param->resctrl_val, CMT_STR, sizeof(CMT_STR))) {
-		ret = get_llc_occu_resctrl(&llc_occu_resc);
-		if (ret < 0)
-			return ret;
-		llc_value = llc_occu_resc;
-	}
-	ret = print_results_cache(param->filename, bm_pid, llc_value);
-	if (ret)
+	ret = get_llc_perf(&llc_perf_miss);
+	if (ret < 0)
 		return ret;
 
-	return 0;
+	return print_results_cache(filename, bm_pid, llc_perf_miss);
+}
+
+/*
+ * measure_llc_resctrl - Measure resctrl LLC value from resctrl
+ * @filename:	Filename for writing the results
+ * @bm_pid:	PID that runs the benchmark
+ *
+ * Measures LLC occupancy from resctrl and writes the results into @filename.
+ * @bm_pid is written to the results file along with the measured value.
+ *
+ * Return: =0 on success. <0 on failure.
+ */
+int measure_llc_resctrl(const char *filename, int bm_pid)
+{
+	unsigned long llc_occu_resc = 0;
+	int ret;
+
+	ret = get_llc_occu_resctrl(&llc_occu_resc);
+	if (ret < 0)
+		return ret;
+
+	return print_results_cache(filename, bm_pid, llc_occu_resc);
 }
 
 /*
@@ -252,7 +266,7 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 		}
 
 		sleep(1);
-		ret = measure_cache_vals(param, bm_pid);
+		ret = perf_event_measure(param->filename, bm_pid);
 		if (ret)
 			goto pe_close;
 	}
