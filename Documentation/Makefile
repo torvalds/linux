@@ -106,10 +106,10 @@ YNL_RST_FILES_TMP := $(patsubst %.yaml,%.rst,$(wildcard $(YNL_YAML_DIR)/*.yaml))
 YNL_RST_FILES := $(patsubst $(YNL_YAML_DIR)%,$(YNL_RST_DIR)%, $(YNL_RST_FILES_TMP))
 
 $(YNL_INDEX): $(YNL_RST_FILES)
-	@$(YNL_TOOL) -o $@ -x
+	$(Q)$(YNL_TOOL) -o $@ -x
 
-$(YNL_RST_DIR)/%.rst: $(YNL_YAML_DIR)/%.yaml
-	@$(YNL_TOOL) -i $< -o $@
+$(YNL_RST_DIR)/%.rst: $(YNL_YAML_DIR)/%.yaml $(YNL_TOOL)
+	$(Q)$(YNL_TOOL) -i $< -o $@
 
 htmldocs: $(YNL_INDEX)
 	@$(srctree)/scripts/sphinx-pre-install --version-check
