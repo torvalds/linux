@@ -172,14 +172,14 @@ xfs_qm_adjust_dqtimers(
 /*
  * initialize a buffer full of dquots and log the whole thing
  */
-STATIC void
+void
 xfs_qm_init_dquot_blk(
 	struct xfs_trans	*tp,
-	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	xfs_dqtype_t		type,
 	struct xfs_buf		*bp)
 {
+	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_dqblk	*d;
 	xfs_dqid_t		curid;
@@ -353,7 +353,7 @@ xfs_dquot_disk_alloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id, qtype, bp);
+	xfs_qm_init_dquot_blk(tp, dqp->q_id, qtype, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*

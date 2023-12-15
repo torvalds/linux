@@ -21,7 +21,7 @@
 #include "scrub/quota.h"
 
 /* Convert a scrub type code to a DQ flag, or return 0 if error. */
-static inline xfs_dqtype_t
+xfs_dqtype_t
 xchk_quota_to_dqtype(
 	struct xfs_scrub	*sc)
 {
@@ -328,7 +328,6 @@ xchk_quota(
 		if (error)
 			break;
 	}
-	xchk_ilock(sc, XFS_ILOCK_EXCL);
 	if (error == -ECANCELED)
 		error = 0;
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK,

@@ -6,6 +6,8 @@
 #ifndef __XFS_SCRUB_QUOTA_H__
 #define __XFS_SCRUB_QUOTA_H__
 
+xfs_dqtype_t xchk_quota_to_dqtype(struct xfs_scrub *sc);
+
 /* dquot iteration code */
 
 struct xchk_dqiter {
