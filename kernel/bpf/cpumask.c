@@ -96,6 +96,12 @@ __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 	migrate_enable();
 }
 
+__bpf_kfunc void bpf_cpumask_release_dtor(void *cpumask)
+{
+	bpf_cpumask_release(cpumask);
+}
+CFI_NOSEAL(bpf_cpumask_release_dtor);
+
 /**
  * bpf_cpumask_first() - Get the index of the first nonzero bit in the cpumask.
  * @cpumask: The cpumask being queried.
@@ -453,7 +459,7 @@ static const struct btf_kfunc_id_set cpumask_kfunc_set = {
 
 BTF_ID_LIST(cpumask_dtor_ids)
 BTF_ID(struct, bpf_cpumask)
-BTF_ID(func, bpf_cpumask_release)
+BTF_ID(func, bpf_cpumask_release_dtor)
 
 static int __init cpumask_kfunc_init(void)
 {
