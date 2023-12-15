@@ -526,7 +526,7 @@ void signal_handler_unregister(void)
  * @bw_imc:		perf imc counter value
  * @bw_resc:		memory bandwidth value
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success, < 0 on error.
  */
 static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
 			    unsigned long bw_resc)
@@ -542,14 +542,14 @@ static int print_results_bw(char *filename,  int bm_pid, float bw_imc,
 		if (!fp) {
 			ksft_perror("Cannot open results file");
 
-			return errno;
+			return -1;
 		}
 		if (fprintf(fp, "Pid: %d \t Mem_BW_iMC: %f \t Mem_BW_resc: %lu \t Difference: %lu\n",
 			    bm_pid, bw_imc, bw_resc, diff) <= 0) {
 			ksft_print_msg("Could not log results\n");
 			fclose(fp);
 
-			return errno;
+			return -1;
 		}
 		fclose(fp);
 	}
@@ -686,7 +686,7 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
  * @benchmark_cmd:	benchmark command and its arguments
  * @param:		parameters passed to resctrl_val()
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 when the test was run, < 0 on error.
  */
 int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *param)
 {
@@ -814,7 +814,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 	/* Signal child to start benchmark */
 	if (sigqueue(bm_pid, SIGUSR1, value) == -1) {
 		ksft_perror("sigqueue SIGUSR1 to child");
-		ret = errno;
+		ret = -1;
 		goto out;
 	}
 

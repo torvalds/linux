@@ -126,7 +126,7 @@ static int get_llc_occu_resctrl(unsigned long *llc_occupancy)
 	if (!fp) {
 		ksft_perror("Failed to open results file");
 
-		return errno;
+		return -1;
 	}
 	if (fscanf(fp, "%lu", llc_occupancy) <= 0) {
 		ksft_perror("Could not get llc occupancy");
@@ -146,7 +146,7 @@ static int get_llc_occu_resctrl(unsigned long *llc_occupancy)
  * @llc_value:		perf miss value /
  *			llc occupancy value reported by resctrl FS
  *
- * Return:		0 on success. non-zero on failure.
+ * Return:		0 on success, < 0 on error.
  */
 static int print_results_cache(char *filename, int bm_pid,
 			       unsigned long llc_value)
@@ -161,7 +161,7 @@ static int print_results_cache(char *filename, int bm_pid,
 		if (!fp) {
 			ksft_perror("Cannot open results file");
 
-			return errno;
+			return -1;
 		}
 		fprintf(fp, "Pid: %d \t llc_value: %lu\n", bm_pid, llc_value);
 		fclose(fp);

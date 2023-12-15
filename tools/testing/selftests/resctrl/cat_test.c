@@ -53,7 +53,7 @@ static int check_results(struct resctrl_val_param *param, size_t span)
 	if (!fp) {
 		ksft_perror("Cannot open file");
 
-		return errno;
+		return -1;
 	}
 
 	while (fgets(temp, sizeof(temp), fp)) {
@@ -150,7 +150,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 
 	if (pipe(pipefd)) {
 		ksft_perror("Unable to create pipe");
-		return errno;
+		return -1;
 	}
 
 	fflush(stdout);

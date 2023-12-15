@@ -88,7 +88,7 @@ int umount_resctrlfs(void)
 	if (umount(mountpoint)) {
 		ksft_perror("Unable to umount resctrl");
 
-		return errno;
+		return -1;
 	}
 
 	return 0;

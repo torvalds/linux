@@ -61,7 +61,7 @@ static int check_results(size_t span)
 	if (!fp) {
 		ksft_perror(output);
 
-		return errno;
+		return -1;
 	}
 
 	runs = 0;

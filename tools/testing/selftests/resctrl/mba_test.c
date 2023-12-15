@@ -111,7 +111,7 @@ static int check_results(void)
 	if (!fp) {
 		ksft_perror(output);
 
-		return errno;
+		return -1;
 	}
 
 	runs = 0;

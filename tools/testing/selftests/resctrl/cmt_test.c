@@ -39,7 +39,7 @@ static int check_results(struct resctrl_val_param *param, size_t span, int no_of
 	if (!fp) {
 		ksft_perror("Error in opening file");
 
-		return errno;
+		return -1;
 	}
 
 	while (fgets(temp, sizeof(temp), fp)) {
