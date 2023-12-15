@@ -183,6 +183,7 @@
 #define CNXK_SDP_R_OUT_INT_MDRT_CTL1_START        0x103A0
 #define CNXK_SDP_R_OUT_INT_MDRT_DBG_START         0x103C0
 
+#define CNXK_SDP_R_MBOX_ISM_START                 0x10500
 #define CNXK_SDP_R_OUT_CNTS_ISM_START             0x10510
 #define CNXK_SDP_R_IN_CNTS_ISM_START              0x10520
 
@@ -204,6 +205,9 @@
 #define    CNXK_SDP_R_OUT_INT_MDRT_DBG(ring)		\
 	(CNXK_SDP_R_OUT_INT_MDRT_DBG_START + ((ring) * CNXK_RING_OFFSET))
 
+#define    CNXK_SDP_R_MBOX_ISM(ring)          \
+	(CNXK_SDP_R_MBOX_ISM_START + ((ring) * CNXK_RING_OFFSET))
+
 #define    CNXK_SDP_R_OUT_CNTS_ISM(ring)          \
 	(CNXK_SDP_R_OUT_CNTS_ISM_START + ((ring) * CNXK_RING_OFFSET))
 
@@ -222,6 +226,9 @@
 #define    CNXK_SDP_R_MBOX_PF_VF_INT_START        0x10220
 #define    CNXK_SDP_R_MBOX_VF_PF_DATA_START       0x10230
 
+#define    CNXK_SDP_MBOX_VF_PF_DATA_START       0x24000
+#define    CNXK_SDP_MBOX_PF_VF_DATA_START       0x22000
+
 #define    CNXK_SDP_R_MBOX_PF_VF_DATA(ring)		\
 	(CNXK_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CNXK_RING_OFFSET))
 
@@ -230,6 +237,12 @@
 
 #define    CNXK_SDP_R_MBOX_VF_PF_DATA(ring)		\
 	(CNXK_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CNXK_RING_OFFSET))
+
+#define    CNXK_SDP_MBOX_VF_PF_DATA(ring)          \
+	(CNXK_SDP_MBOX_VF_PF_DATA_START + ((ring) * CNXK_EPVF_RING_OFFSET))
+
+#define    CNXK_SDP_MBOX_PF_VF_DATA(ring)      \
+	(CNXK_SDP_MBOX_PF_VF_DATA_START + ((ring) * CNXK_EPVF_RING_OFFSET))
 
 /* ##################### Interrupt Registers ########################## */
 #define	   CNXK_SDP_R_ERR_TYPE_START	          0x10400

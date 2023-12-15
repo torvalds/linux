@@ -208,6 +208,9 @@
 #define    CN93_SDP_R_MBOX_PF_VF_INT_START        0x10220
 #define    CN93_SDP_R_MBOX_VF_PF_DATA_START       0x10230
 
+#define    CN93_SDP_MBOX_VF_PF_DATA_START       0x24000
+#define    CN93_SDP_MBOX_PF_VF_DATA_START       0x22000
+
 #define    CN93_SDP_R_MBOX_PF_VF_DATA(ring)		\
 	(CN93_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_RING_OFFSET))
 
@@ -216,6 +219,12 @@
 
 #define    CN93_SDP_R_MBOX_VF_PF_DATA(ring)		\
 	(CN93_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_RING_OFFSET))
+
+#define    CN93_SDP_MBOX_VF_PF_DATA(ring)          \
+	(CN93_SDP_MBOX_VF_PF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
+
+#define    CN93_SDP_MBOX_PF_VF_DATA(ring)      \
+	(CN93_SDP_MBOX_PF_VF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
 
 /* ##################### Interrupt Registers ########################## */
 #define	   CN93_SDP_R_ERR_TYPE_START	          0x10400
