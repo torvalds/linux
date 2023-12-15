@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 
 #include "debugfs.h"
+#include "device-impl.h"
 #include "hooks-impl.h"
 #include "string-stream.h"
 #include "try-catch-impl.h"
@@ -900,6 +901,8 @@ static int __init kunit_init(void)
 	kunit_install_hooks();
 
 	kunit_debugfs_init();
+
+	kunit_bus_init();
 #ifdef CONFIG_MODULES
 	return register_module_notifier(&kunit_mod_nb);
 #else
