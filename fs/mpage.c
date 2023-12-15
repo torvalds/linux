@@ -455,16 +455,6 @@ static void clean_buffers(struct page *page, unsigned first_unmapped)
 		try_to_free_buffers(page_folio(page));
 }
 
-/*
- * For situations where we want to clean all buffers attached to a page.
- * We don't need to calculate how many buffers are attached to the page,
- * we just need to specify a number larger than the maximum number of buffers.
- */
-void clean_page_buffers(struct page *page)
-{
-	clean_buffers(page, ~0U);
-}
-
 static int __mpage_writepage(struct folio *folio, struct writeback_control *wbc,
 		      void *data)
 {
