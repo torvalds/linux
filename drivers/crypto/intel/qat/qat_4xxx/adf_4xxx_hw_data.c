@@ -390,7 +390,7 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 	return ret;
 }
 
-static u32 uof_get_num_objs(void)
+static u32 uof_get_num_objs(struct adf_accel_dev *accel_dev)
 {
 	return ARRAY_SIZE(adf_fw_cy_config);
 }
