@@ -9,15 +9,21 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/serial_core.h>
+#include <linux/serial_reg.h>
+#include <linux/serial_8250.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/units.h>
 #include <linux/tty.h>
+#include <linux/tty_flip.h>
+#include <linux/8250_pci.h>
 
 #include <asm/byteorder.h>
 
@@ -51,6 +57,14 @@
 #define PCI_SUBDEVICE_ID_EFAR_PCI11101		PCI_DEVICE_ID_EFAR_PCI11101
 #define PCI_SUBDEVICE_ID_EFAR_PCI11400		PCI_DEVICE_ID_EFAR_PCI11400
 #define PCI_SUBDEVICE_ID_EFAR_PCI11414		PCI_DEVICE_ID_EFAR_PCI11414
+
+#define UART_SYSTEM_ADDR_BASE			0x1000
+#define UART_DEV_REV_REG			(UART_SYSTEM_ADDR_BASE + 0x00)
+#define UART_DEV_REV_MASK			GENMASK(7, 0)
+#define UART_SYSLOCK_REG			(UART_SYSTEM_ADDR_BASE + 0xA0)
+#define UART_SYSLOCK				BIT(2)
+#define SYSLOCK_SLEEP_TIMEOUT			100
+#define SYSLOCK_RETRY_CNT			1000
 
 #define UART_ACTV_REG				0x11
 #define UART_BLOCK_SET_ACTIVE			BIT(0)
@@ -87,6 +101,8 @@
 
 struct pci1xxxx_8250 {
 	unsigned int nr;
+	u8 dev_rev;
+	u8 pad[3];
 	void __iomem *membase;
 	int line[] __counted_by(nr);
 };
@@ -97,6 +113,27 @@ static const struct serial_rs485 pci1xxxx_rs485_supported = {
 	.delay_rts_after_send = 1,
 	/* Delay RTS before send is not supported */
 };
+
+static int pci1xxxx_set_sys_lock(struct pci1xxxx_8250 *port)
+{
+	writel(UART_SYSLOCK, port->membase + UART_SYSLOCK_REG);
+	return readl(port->membase + UART_SYSLOCK_REG);
+}
+
+static int pci1xxxx_acquire_sys_lock(struct pci1xxxx_8250 *port)
+{
+	u32 regval;
+
+	return readx_poll_timeout(pci1xxxx_set_sys_lock, port, regval,
+				  (regval & UART_SYSLOCK),
+				  SYSLOCK_SLEEP_TIMEOUT,
+				  SYSLOCK_RETRY_CNT * SYSLOCK_SLEEP_TIMEOUT);
+}
+
+static void pci1xxxx_release_sys_lock(struct pci1xxxx_8250 *port)
+{
+	writel(0x0, port->membase + UART_SYSLOCK_REG);
+}
 
 static const int logical_to_physical_port_idx[][MAX_PORTS] = {
 	{0,  1,  2,  3}, /* PCI12000, PCI11010, PCI11101, PCI11400, PCI11414 */
@@ -370,6 +407,27 @@ static int pci1xxxx_logical_to_physical_port_translate(int subsys_dev, int port)
 	return logical_to_physical_port_idx[0][port];
 }
 
+static int pci1xxxx_get_device_revision(struct pci1xxxx_8250 *priv)
+{
+	u32 regval;
+	int ret;
+
+	/*
+	 * DEV REV is a system register, HW Syslock bit
+	 * should be acquired before accessing the register
+	 */
+	ret = pci1xxxx_acquire_sys_lock(priv);
+	if (ret)
+		return ret;
+
+	regval = readl(priv->membase + UART_DEV_REV_REG);
+	priv->dev_rev = regval & UART_DEV_REV_MASK;
+
+	pci1xxxx_release_sys_lock(priv);
+
+	return 0;
+}
+
 static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
@@ -381,6 +439,7 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 	int num_vectors;
 	int subsys_dev;
 	int port_idx;
+	int ret;
 	int rc;
 
 	rc = pcim_enable_device(pdev);
@@ -396,6 +455,10 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 	priv->membase = pci_ioremap_bar(pdev, 0);
 	if (!priv->membase)
 		return -ENOMEM;
+
+	ret = pci1xxxx_get_device_revision(priv);
+	if (ret)
+		return ret;
 
 	pci_set_master(pdev);
 
