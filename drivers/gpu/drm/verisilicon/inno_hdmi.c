@@ -525,6 +525,8 @@ static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 	if (ret < 0)
 		return;
 
+	mdelay(10);
+
 	inno_hdmi_setup(hdmi, &hdmi->previous_mode);
 
 }

@@ -6,6 +6,7 @@
  */
 
 #include "wave5-helper.h"
+#include <soc/sifive/sifive_l2_cache.h>
 
 #define VPU_DEC_DEV_NAME "C&M Wave5 VPU decoder"
 #define VPU_DEC_DRV_NAME "wave5-dec"
@@ -180,6 +181,8 @@ static void wave5_handle_bitstream_buffer(struct vpu_instance *inst)
 static void wave5_handle_src_buffer(struct vpu_instance *inst)
 {
 	struct vb2_v4l2_buffer *src_buf;
+	int i, j, ret;
+	u64 flag;
 
 	src_buf = v4l2_m2m_next_src_buf(inst->v4l2_fh.m2m_ctx);
 	if (src_buf) {
@@ -188,7 +191,33 @@ static void wave5_handle_src_buffer(struct vpu_instance *inst)
 		if (vpu_buf->consumed) {
 			dev_dbg(inst->dev->dev, "%s: already consumed buffer\n", __func__);
 			src_buf = v4l2_m2m_src_buf_remove(inst->v4l2_fh.m2m_ctx);
-			inst->timestamp = src_buf->vb2_buf.timestamp;
+
+			if (!inst->monotonic_timestamp && !src_buf->vb2_buf.timestamp) {
+				inst->timestamp_zero_cnt++;
+				if (inst->timestamp_zero_cnt > 1) {
+					inst->monotonic_timestamp = TRUE;
+				}
+			}
+
+			if(!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				inst->time_stamp.buf[inst->time_stamp.cnt] = src_buf->vb2_buf.timestamp;
+				inst->time_stamp.cnt++;
+
+				for (i = 1; i < inst->time_stamp.cnt; i++) {
+					flag = inst->time_stamp.buf[i];
+					for (j = i - 1; j >= 0 && inst->time_stamp.buf[j] < flag ; j--) {
+						inst->time_stamp.buf[j + 1] = inst->time_stamp.buf[j];
+					}
+					inst->time_stamp.buf[j + 1] = flag;
+				}
+				mutex_unlock(&inst->time_stamp.lock);
+			}
+
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
 		}
 	}
@@ -345,7 +374,18 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      ((stride / 2) * (height / 2)));
 			}
 
-			dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			if (!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[inst->time_stamp.cnt - 1];
+				inst->time_stamp.cnt--;
+				mutex_unlock(&inst->time_stamp.lock);
+			} else {
+				dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			}
 
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -380,7 +420,19 @@ static void wave5_vpu_dec_finish_decode(struct vpu_instance *inst)
 						      vb2_plane_size(&dst_buf->vb2_buf, 2));
 			}
 
-			dst_buf->vb2_buf.timestamp = inst->timestamp;
+			if (!inst->monotonic_timestamp) {
+				ret = mutex_lock_interruptible(&inst->time_stamp.lock);
+				if (ret) {
+					dev_err(inst->dev->dev, "%s: lock err\n", __func__);
+					return;
+				}
+				dst_buf->vb2_buf.timestamp = inst->time_stamp.buf[inst->time_stamp.cnt - 1];
+				inst->time_stamp.cnt--;
+				mutex_unlock(&inst->time_stamp.lock);
+			} else {
+				dst_buf->vb2_buf.timestamp = inst->timestamp_cnt++ * inst->codec_info->dec_info.initial_info.ns_per_frame;
+			}
+
 			dst_buf->flags |= V4L2_BUF_FLAG_LAST;
 			dst_buf->field = V4L2_FIELD_NONE;
 			v4l2_m2m_buf_done(dst_buf, VB2_BUF_STATE_DONE);
@@ -951,6 +1003,10 @@ static int wave5_vpu_dec_start_streaming_open(struct vpu_instance *inst)
 	struct dec_initial_info initial_info;
 	int ret = 0;
 
+	inst->time_stamp.cnt = 0;
+	mutex_init(&inst->time_stamp.lock);
+	memset(&inst->time_stamp.buf, 0, sizeof(MAX_TIMESTAMP_CIR_BUF));
+
 	memset(&initial_info, 0, sizeof(struct dec_initial_info));
 
 	ret = wave5_vpu_dec_issue_seq_init(inst);
@@ -1104,15 +1160,10 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vpu_instance *inst = vb2_get_drv_priv(vb->vb2_queue);
+	struct frame_buffer *frame_buf;
 	int ret;
 
 	vbuf->sequence = inst->queued_dst_buf_num++;
-	ret = wave5_vpu_dec_clr_disp_flag(inst, vb->index);
-	if (ret) {
-		dev_dbg(inst->dev->dev,
-			"%s: Clearing the display flag of buffer index: %u, fail: %d\n",
-			__func__, vb->index, ret);
-	}
 
 	if (inst->state == VPU_INST_STATE_INIT_SEQ) {
 		dma_addr_t buf_addr_y = 0, buf_addr_cb = 0, buf_addr_cr = 0;
@@ -1150,6 +1201,17 @@ static void wave5_vpu_dec_buf_queue_dst(struct vb2_buffer *vb)
 		inst->frame_buf[vb->index + non_linear_num].map_type = LINEAR_FRAME_MAP;
 		inst->frame_buf[vb->index + non_linear_num].update_fb_info = true;
 		dev_dbg(inst->dev->dev, "linear framebuf y 0x%llx cb 0x%llx cr 0x%llx\n",buf_addr_y, buf_addr_cb, buf_addr_cr);
+	}
+
+	frame_buf = &inst->frame_buf[vb->index + inst->dst_buf_count];
+	if (frame_buf->size < inst->dev->l2_cache_size)
+		sifive_l2_flush64_range(frame_buf->buf_y, frame_buf->size);
+
+	ret = wave5_vpu_dec_clr_disp_flag(inst, vb->index);
+	if (ret) {
+		dev_dbg(inst->dev->dev,
+			"%s: Clearing the display flag of buffer index: %u, fail: %d\n",
+			__func__, vb->index, ret);
 	}
 
 	if (!vb2_is_streaming(vb->vb2_queue))
