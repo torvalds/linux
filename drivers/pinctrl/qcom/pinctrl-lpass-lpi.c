@@ -338,7 +338,6 @@ static void lpi_gpio_set(struct gpio_chip *chip, unsigned int pin, int value)
 }
 
 #ifdef CONFIG_DEBUG_FS
-#include <linux/seq_file.h>
 
 static unsigned int lpi_regval_to_drive(u32 val)
 {
