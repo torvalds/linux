@@ -10,9 +10,14 @@
 #include <uapi/linux/sched.h>
 
 #include <asm/current.h>
+#include <asm/processor.h>
+#include <linux/thread_info.h>
+#include <linux/preempt.h>
+#include <linux/cpumask.h>
 
 #include <linux/cache.h>
 #include <linux/irqflags_types.h>
+#include <linux/smp_types.h>
 #include <linux/pid_types.h>
 #include <linux/sem_types.h>
 #include <linux/shm.h>
@@ -23,7 +28,6 @@
 #include <linux/timer_types.h>
 #include <linux/seccomp_types.h>
 #include <linux/nodemask_types.h>
-#include <linux/rcupdate.h>
 #include <linux/refcount_types.h>
 #include <linux/resource.h>
 #include <linux/latencytop.h>
@@ -2058,15 +2062,6 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock);
 	__might_resched(__FILE__, __LINE__, PREEMPT_LOCK_RESCHED_OFFSETS);	\
 	__cond_resched_rwlock_write(lock);					\
 })
-
-static inline void cond_resched_rcu(void)
-{
-#if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
-	rcu_read_unlock();
-	cond_resched();
-	rcu_read_lock();
-#endif
-}
 
 #ifdef CONFIG_PREEMPT_DYNAMIC
 
