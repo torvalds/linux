@@ -145,6 +145,7 @@ ifeq ($(CONFIG_XFS_ONLINE_SCRUB),y)
 
 xfs-y				+= $(addprefix scrub/, \
 				   trace.o \
+				   agb_bitmap.o \
 				   agheader.o \
 				   alloc.o \
 				   attr.o \
