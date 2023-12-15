@@ -381,9 +381,7 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * the threshold and the trip temperature will be equal.
 		 */
 		if (tz->temperature >= trip->temperature) {
-			thermal_notify_tz_trip_up(tz->id,
-						  thermal_zone_trip_id(tz, trip),
-						  tz->temperature);
+			thermal_notify_tz_trip_up(tz, trip);
 			trip->threshold = trip->temperature - trip->hysteresis;
 		} else {
 			trip->threshold = trip->temperature;
@@ -400,9 +398,7 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * the trip.
 		 */
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
-			thermal_notify_tz_trip_down(tz->id,
-						    thermal_zone_trip_id(tz, trip),
-						    tz->temperature);
+			thermal_notify_tz_trip_down(tz, trip);
 			trip->threshold = trip->temperature;
 		} else {
 			trip->threshold = trip->temperature - trip->hysteresis;

@@ -346,16 +346,22 @@ int thermal_notify_tz_disable(int tz_id)
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_DISABLE, &p);
 }
 
-int thermal_notify_tz_trip_down(int tz_id, int trip_id, int temp)
+int thermal_notify_tz_trip_down(const struct thermal_zone_device *tz,
+				const struct thermal_trip *trip)
 {
-	struct param p = { .tz_id = tz_id, .trip_id = trip_id, .temp = temp };
+	struct param p = { .tz_id = tz->id,
+			   .trip_id = thermal_zone_trip_id(tz, trip),
+			   .temp = tz->temperature };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_DOWN, &p);
 }
 
-int thermal_notify_tz_trip_up(int tz_id, int trip_id, int temp)
+int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
+			      const struct thermal_trip *trip)
 {
-	struct param p = { .tz_id = tz_id, .trip_id = trip_id, .temp = temp };
+	struct param p = { .tz_id = tz->id,
+			   .trip_id = thermal_zone_trip_id(tz, trip),
+			   .temp = tz->temperature };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_UP, &p);
 }
