@@ -9296,6 +9296,10 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 				bpf_log(log, "arg#%d is expected to be non-NULL\n", i);
 				return -EINVAL;
 			}
+		} else if (arg->arg_type == (ARG_PTR_TO_DYNPTR | MEM_RDONLY)) {
+			ret = process_dynptr_func(env, regno, -1, arg->arg_type, 0);
+			if (ret)
+				return ret;
 		} else {
 			bpf_log(log, "verifier bug: unrecognized arg#%d type %d\n",
 				i, arg->arg_type);
@@ -20052,6 +20056,9 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 			} else if (arg->arg_type == ARG_ANYTHING) {
 				reg->type = SCALAR_VALUE;
 				mark_reg_unknown(env, regs, i);
+			} else if (arg->arg_type == (ARG_PTR_TO_DYNPTR | MEM_RDONLY)) {
+				/* assume unspecial LOCAL dynptr type */
+				__mark_dynptr_reg(reg, BPF_DYNPTR_TYPE_LOCAL, true, ++env->id_gen);
 			} else if (base_type(arg->arg_type) == ARG_PTR_TO_MEM) {
 				reg->type = PTR_TO_MEM;
 				if (arg->arg_type & PTR_MAYBE_NULL)

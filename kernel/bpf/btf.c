@@ -6765,6 +6765,25 @@ int btf_check_type_match(struct bpf_verifier_log *log, const struct bpf_prog *pr
 	return btf_check_func_type_match(log, btf1, t1, btf2, t2);
 }
 
+static bool btf_is_dynptr_ptr(const struct btf *btf, const struct btf_type *t)
+{
+	const char *name;
+
+	t = btf_type_by_id(btf, t->type); /* skip PTR */
+
+	while (btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+
+	/* allow either struct or struct forward declaration */
+	if (btf_type_is_struct(t) ||
+	    (btf_type_is_fwd(t) && btf_type_kflag(t) == 0)) {
+		name = btf_str_by_offset(btf, t->name_off);
+		return name && strcmp(name, "bpf_dynptr") == 0;
+	}
+
+	return false;
+}
+
 /* Process BTF of a function to produce high-level expectation of function
  * arguments (like ARG_PTR_TO_CTX, or ARG_PTR_TO_MEM, etc). This information
  * is cached in subprog info for reuse.
@@ -6883,6 +6902,10 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 		}
 		if (btf_type_is_ptr(t) && btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
 			sub->args[i].arg_type = ARG_PTR_TO_CTX;
+			continue;
+		}
+		if (btf_type_is_ptr(t) && btf_is_dynptr_ptr(btf, t)) {
+			sub->args[i].arg_type = ARG_PTR_TO_DYNPTR | MEM_RDONLY;
 			continue;
 		}
 		if (is_global && btf_type_is_ptr(t)) {
