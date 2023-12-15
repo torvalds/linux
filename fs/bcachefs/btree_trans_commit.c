@@ -823,7 +823,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 
 		if (!same_leaf_as_next(trans, i)) {
 			if (u64s_delta <= 0) {
-				ret = bch2_foreground_maybe_merge(trans, trans->paths + i->path,
+				ret = bch2_foreground_maybe_merge(trans, i->path,
 							i->level, flags);
 				if (unlikely(ret))
 					return ret;
@@ -877,14 +877,12 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	struct bch_fs *c = trans->c;
 
 	switch (ret) {
-	case -BCH_ERR_btree_insert_btree_node_full: {
-		struct btree_path *path = trans->paths + i->path;
-
-		ret = bch2_btree_split_leaf(trans, path, flags);
+	case -BCH_ERR_btree_insert_btree_node_full:
+		ret = bch2_btree_split_leaf(trans, i->path, flags);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			trace_and_count(c, trans_restart_btree_node_split, trans, trace_ip, path);
+			trace_and_count(c, trans_restart_btree_node_split, trans,
+					trace_ip, trans->paths + i->path);
 		break;
-	}
 	case -BCH_ERR_btree_insert_need_mark_replicas:
 		ret = drop_locks_do(trans,
 			bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas));
