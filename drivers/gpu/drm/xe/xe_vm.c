@@ -279,6 +279,9 @@ static int add_preempt_fences(struct xe_vm *vm, struct xe_bo *bo)
 	struct xe_exec_queue *q;
 	int err;
 
+	if (!vm->preempt.num_exec_queues)
+		return 0;
+
 	err = xe_bo_lock(bo, true);
 	if (err)
 		return err;
