@@ -295,7 +295,7 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
 
 /*
  * Debugging flags that require metadata to be stored in the slab.  These get
- * disabled when slub_debug=O is used and a cache's min order increases with
+ * disabled when slab_debug=O is used and a cache's min order increases with
  * metadata.
  */
 #define DEBUG_METADATA_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
@@ -1616,7 +1616,7 @@ static inline int free_consistency_checks(struct kmem_cache *s,
 }
 
 /*
- * Parse a block of slub_debug options. Blocks are delimited by ';'
+ * Parse a block of slab_debug options. Blocks are delimited by ';'
  *
  * @str:    start of block
  * @flags:  returns parsed flags, or DEBUG_DEFAULT_FLAGS if none specified
@@ -1677,7 +1677,7 @@ parse_slub_debug_flags(char *str, slab_flags_t *flags, char **slabs, bool init)
 			break;
 		default:
 			if (init)
-				pr_err("slub_debug option '%c' unknown. skipped\n", *str);
+				pr_err("slab_debug option '%c' unknown. skipped\n", *str);
 		}
 	}
 check_slabs:
@@ -1736,7 +1736,7 @@ static int __init setup_slub_debug(char *str)
 	/*
 	 * For backwards compatibility, a single list of flags with list of
 	 * slabs means debugging is only changed for those slabs, so the global
-	 * slub_debug should be unchanged (0 or DEBUG_DEFAULT_FLAGS, depending
+	 * slab_debug should be unchanged (0 or DEBUG_DEFAULT_FLAGS, depending
 	 * on CONFIG_SLUB_DEBUG_ON). We can extended that to multiple lists as
 	 * long as there is no option specifying flags without a slab list.
 	 */
@@ -1760,7 +1760,8 @@ out:
 	return 1;
 }
 
-__setup("slub_debug", setup_slub_debug);
+__setup("slab_debug", setup_slub_debug);
+__setup_param("slub_debug", slub_debug, setup_slub_debug, 0);
 
 /*
  * kmem_cache_flags - apply debugging options to the cache
@@ -1770,7 +1771,7 @@ __setup("slub_debug", setup_slub_debug);
  *
  * Debug option(s) are applied to @flags. In addition to the debug
  * option(s), if a slab name (or multiple) is specified i.e.
- * slub_debug=<Debug-Options>,<slab name1>,<slab name2> ...
+ * slab_debug=<Debug-Options>,<slab name1>,<slab name2> ...
  * then only the select slabs will receive the debug option(s).
  */
 slab_flags_t kmem_cache_flags(unsigned int object_size,
@@ -3263,7 +3264,7 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 		oo_order(s->min));
 
 	if (oo_order(s->min) > get_order(s->object_size))
-		pr_warn("  %s debugging increased min order, use slub_debug=O to disable.\n",
+		pr_warn("  %s debugging increased min order, use slab_debug=O to disable.\n",
 			s->name);
 
 	for_each_kmem_cache_node(s, node, n) {
@@ -3792,11 +3793,11 @@ void slab_post_alloc_hook(struct kmem_cache *s,	struct obj_cgroup *objcg,
 		zero_size = orig_size;
 
 	/*
-	 * When slub_debug is enabled, avoid memory initialization integrated
+	 * When slab_debug is enabled, avoid memory initialization integrated
 	 * into KASAN and instead zero out the memory via the memset below with
 	 * the proper size. Otherwise, KASAN might overwrite SLUB redzones and
 	 * cause false-positive reports. This does not lead to a performance
-	 * penalty on production builds, as slub_debug is not intended to be
+	 * penalty on production builds, as slab_debug is not intended to be
 	 * enabled there.
 	 */
 	if (__slub_debug_enabled())
@@ -4702,8 +4703,8 @@ static unsigned int slub_min_objects;
  * activity on the partial lists which requires taking the list_lock. This is
  * less a concern for large slabs though which are rarely used.
  *
- * slub_max_order specifies the order where we begin to stop considering the
- * number of objects in a slab as critical. If we reach slub_max_order then
+ * slab_max_order specifies the order where we begin to stop considering the
+ * number of objects in a slab as critical. If we reach slab_max_order then
  * we try to keep the page order as low as possible. So we accept more waste
  * of space in favor of a small page order.
  *
@@ -4770,14 +4771,14 @@ static inline int calculate_order(unsigned int size)
 	 * and backing off gradually.
 	 *
 	 * We start with accepting at most 1/16 waste and try to find the
-	 * smallest order from min_objects-derived/slub_min_order up to
-	 * slub_max_order that will satisfy the constraint. Note that increasing
+	 * smallest order from min_objects-derived/slab_min_order up to
+	 * slab_max_order that will satisfy the constraint. Note that increasing
 	 * the order can only result in same or less fractional waste, not more.
 	 *
 	 * If that fails, we increase the acceptable fraction of waste and try
 	 * again. The last iteration with fraction of 1/2 would effectively
 	 * accept any waste and give us the order determined by min_objects, as
-	 * long as at least single object fits within slub_max_order.
+	 * long as at least single object fits within slab_max_order.
 	 */
 	for (unsigned int fraction = 16; fraction > 1; fraction /= 2) {
 		order = calc_slab_order(size, min_order, slub_max_order,
@@ -4787,7 +4788,7 @@ static inline int calculate_order(unsigned int size)
 	}
 
 	/*
-	 * Doh this slab cannot be placed using slub_max_order.
+	 * Doh this slab cannot be placed using slab_max_order.
 	 */
 	order = get_order(size);
 	if (order <= MAX_PAGE_ORDER)
@@ -5313,7 +5314,9 @@ static int __init setup_slub_min_order(char *str)
 	return 1;
 }
 
-__setup("slub_min_order=", setup_slub_min_order);
+__setup("slab_min_order=", setup_slub_min_order);
+__setup_param("slub_min_order=", slub_min_order, setup_slub_min_order, 0);
+
 
 static int __init setup_slub_max_order(char *str)
 {
@@ -5326,7 +5329,8 @@ static int __init setup_slub_max_order(char *str)
 	return 1;
 }
 
-__setup("slub_max_order=", setup_slub_max_order);
+__setup("slab_max_order=", setup_slub_max_order);
+__setup_param("slub_max_order=", slub_max_order, setup_slub_max_order, 0);
 
 static int __init setup_slub_min_objects(char *str)
 {
@@ -5335,7 +5339,8 @@ static int __init setup_slub_min_objects(char *str)
 	return 1;
 }
 
-__setup("slub_min_objects=", setup_slub_min_objects);
+__setup("slab_min_objects=", setup_slub_min_objects);
+__setup_param("slub_min_objects=", slub_min_objects, setup_slub_min_objects, 0);
 
 #ifdef CONFIG_HARDENED_USERCOPY
 /*

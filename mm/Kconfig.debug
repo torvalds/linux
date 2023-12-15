@@ -64,11 +64,11 @@ config SLUB_DEBUG_ON
 	help
 	  Boot with debugging on by default. SLUB boots by default with
 	  the runtime debug capabilities switched off. Enabling this is
-	  equivalent to specifying the "slub_debug" parameter on boot.
+	  equivalent to specifying the "slab_debug" parameter on boot.
 	  There is no support for more fine grained debug control like
-	  possible with slub_debug=xxx. SLUB debugging may be switched
+	  possible with slab_debug=xxx. SLUB debugging may be switched
 	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
-	  "slub_debug=-".
+	  "slab_debug=-".
 
 config PAGE_OWNER
 	bool "Track page owner"
