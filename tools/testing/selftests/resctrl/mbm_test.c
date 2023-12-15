@@ -86,7 +86,9 @@ static int check_results(size_t span)
 	return ret;
 }
 
-static int mbm_setup(const struct user_params *uparams, struct resctrl_val_param *p)
+static int mbm_setup(const struct resctrl_test *test,
+		     const struct user_params *uparams,
+		     struct resctrl_val_param *p)
 {
 	int ret = 0;
 
@@ -96,8 +98,7 @@ static int mbm_setup(const struct user_params *uparams, struct resctrl_val_param
 
 	/* Set up shemata with 100% allocation on the first run. */
 	if (p->num_of_runs == 0 && validate_resctrl_feature_request("MB", NULL))
-		ret = write_schemata(p->ctrlgrp, "100", uparams->cpu,
-				     p->resctrl_val);
+		ret = write_schemata(p->ctrlgrp, "100", uparams->cpu, test->resource);
 
 	p->num_of_runs++;
 
@@ -123,7 +124,7 @@ static int mbm_run_test(const struct resctrl_test *test, const struct user_param
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(uparams, uparams->benchmark_cmd, &param);
+	ret = resctrl_val(test, uparams, uparams->benchmark_cmd, &param);
 	if (ret)
 		goto out;
 

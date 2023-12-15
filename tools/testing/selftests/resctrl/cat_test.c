@@ -135,6 +135,7 @@ void cat_test_cleanup(void)
 
 /*
  * cat_test - Execute CAT benchmark and measure cache misses
+ * @test:		Test information structure
  * @uparams:		User supplied parameters
  * @param:		Parameters passed to cat_test()
  * @span:		Buffer size for the benchmark
@@ -152,7 +153,9 @@ void cat_test_cleanup(void)
  *
  * Return:		0 when the test was run, < 0 on error.
  */
-static int cat_test(const struct user_params *uparams, struct resctrl_val_param *param,
+static int cat_test(const struct resctrl_test *test,
+		    const struct user_params *uparams,
+		    struct resctrl_val_param *param,
 		    size_t span, unsigned long current_mask)
 {
 	char *resctrl_val = param->resctrl_val;
@@ -196,11 +199,11 @@ static int cat_test(const struct user_params *uparams, struct resctrl_val_param 
 
 	while (current_mask) {
 		snprintf(schemata, sizeof(schemata), "%lx", param->mask & ~current_mask);
-		ret = write_schemata("", schemata, uparams->cpu, param->resctrl_val);
+		ret = write_schemata("", schemata, uparams->cpu, test->resource);
 		if (ret)
 			goto free_buf;
 		snprintf(schemata, sizeof(schemata), "%lx", current_mask);
-		ret = write_schemata(param->ctrlgrp, schemata, uparams->cpu, param->resctrl_val);
+		ret = write_schemata(param->ctrlgrp, schemata, uparams->cpu, test->resource);
 		if (ret)
 			goto free_buf;
 
@@ -279,7 +282,7 @@ static int cat_run_test(const struct resctrl_test *test, const struct user_param
 
 	remove(param.filename);
 
-	ret = cat_test(uparams, &param, span, start_mask);
+	ret = cat_test(test, uparams, &param, span, start_mask);
 	if (ret)
 		goto out;
 

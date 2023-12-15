@@ -16,7 +16,9 @@
 #define MAX_DIFF		2000000
 #define MAX_DIFF_PERCENT	15
 
-static int cmt_setup(const struct user_params *uparams, struct resctrl_val_param *p)
+static int cmt_setup(const struct resctrl_test *test,
+		     const struct user_params *uparams,
+		     struct resctrl_val_param *p)
 {
 	/* Run NUM_OF_RUNS times */
 	if (p->num_of_runs >= NUM_OF_RUNS)
@@ -150,7 +152,7 @@ static int cmt_run_test(const struct resctrl_test *test, const struct user_param
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(uparams, cmd, &param);
+	ret = resctrl_val(test, uparams, cmd, &param);
 	if (ret)
 		goto out;
 

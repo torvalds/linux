@@ -529,23 +529,17 @@ out:
  * @ctrlgrp:		Name of the con_mon grp
  * @schemata:		Schemata that should be updated to
  * @cpu_no:		CPU number that the benchmark PID is binded to
- * @resctrl_val:	Resctrl feature (Eg: mbm, mba.. etc)
+ * @resource:		Resctrl resource (Eg: MB, L3, L2, etc.)
  *
- * Update schemata of a con_mon grp *only* if requested resctrl feature is
+ * Update schemata of a con_mon grp *only* if requested resctrl resource is
  * allocation type
  *
  * Return: 0 on success, < 0 on error.
  */
-int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
+int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, const char *resource)
 {
 	char controlgroup[1024], reason[128], schema[1024] = {};
-	int resource_id, fd, schema_len = -1, ret = 0;
-
-	if (strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR)) &&
-	    strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) &&
-	    strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)) &&
-	    strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
-		return -ENOENT;
+	int resource_id, fd, schema_len, ret = 0;
 
 	if (!schemata) {
 		ksft_print_msg("Skipping empty schemata update\n");
@@ -565,14 +559,8 @@ int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, char *resctrl_val)
 	else
 		sprintf(controlgroup, "%s/schemata", RESCTRL_PATH);
 
-	if (!strncmp(resctrl_val, CAT_STR, sizeof(CAT_STR)) ||
-	    !strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
-		schema_len = snprintf(schema, sizeof(schema), "%s%d%c%s\n",
-				      "L3:", resource_id, '=', schemata);
-	if (!strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR)) ||
-	    !strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)))
-		schema_len = snprintf(schema, sizeof(schema), "%s%d%c%s\n",
-				      "MB:", resource_id, '=', schemata);
+	schema_len = snprintf(schema, sizeof(schema), "%s:%d=%s\n",
+			      resource, resource_id, schemata);
 	if (schema_len < 0 || schema_len >= sizeof(schema)) {
 		snprintf(reason, sizeof(reason),
 			 "snprintf() failed with return value : %d", schema_len);

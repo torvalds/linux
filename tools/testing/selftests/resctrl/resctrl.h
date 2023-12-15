@@ -98,7 +98,8 @@ struct resctrl_val_param {
 	char		*bw_report;
 	unsigned long	mask;
 	int		num_of_runs;
-	int		(*setup)(const struct user_params *uparams,
+	int		(*setup)(const struct resctrl_test *test,
+				 const struct user_params *uparams,
 				 struct resctrl_val_param *param);
 };
 
@@ -137,8 +138,7 @@ bool test_resource_feature_check(const struct resctrl_test *test);
 char *fgrep(FILE *inf, const char *str);
 int taskset_benchmark(pid_t bm_pid, int cpu_no, cpu_set_t *old_affinity);
 int taskset_restore(pid_t bm_pid, cpu_set_t *old_affinity);
-int write_schemata(char *ctrlgrp, char *schemata, int cpu_no,
-		   char *resctrl_val);
+int write_schemata(char *ctrlgrp, char *schemata, int cpu_no, const char *resource);
 int write_bm_pid_to_resctrl(pid_t bm_pid, char *ctrlgrp, char *mongrp,
 			    char *resctrl_val);
 int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,
@@ -147,7 +147,9 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush);
 void mem_flush(unsigned char *buf, size_t buf_size);
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once);
 int run_fill_buf(size_t buf_size, int memflush, int op, bool once);
-int resctrl_val(const struct user_params *uparams, const char * const *benchmark_cmd,
+int resctrl_val(const struct resctrl_test *test,
+		const struct user_params *uparams,
+		const char * const *benchmark_cmd,
 		struct resctrl_val_param *param);
 void tests_cleanup(void);
 void mbm_test_cleanup(void);

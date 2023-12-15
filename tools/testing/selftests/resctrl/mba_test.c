@@ -22,7 +22,9 @@
  * con_mon grp, mon_grp in resctrl FS.
  * For each allocation, run 5 times in order to get average values.
  */
-static int mba_setup(const struct user_params *uparams, struct resctrl_val_param *p)
+static int mba_setup(const struct resctrl_test *test,
+		     const struct user_params *uparams,
+		     struct resctrl_val_param *p)
 {
 	static int runs_per_allocation, allocation = 100;
 	char allocation_str[64];
@@ -40,8 +42,7 @@ static int mba_setup(const struct user_params *uparams, struct resctrl_val_param
 
 	sprintf(allocation_str, "%d", allocation);
 
-	ret = write_schemata(p->ctrlgrp, allocation_str, uparams->cpu,
-			     p->resctrl_val);
+	ret = write_schemata(p->ctrlgrp, allocation_str, uparams->cpu, test->resource);
 	if (ret < 0)
 		return ret;
 
@@ -155,7 +156,7 @@ static int mba_run_test(const struct resctrl_test *test, const struct user_param
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(uparams, uparams->benchmark_cmd, &param);
+	ret = resctrl_val(test, uparams, uparams->benchmark_cmd, &param);
 	if (ret)
 		goto out;
 

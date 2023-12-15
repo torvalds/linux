@@ -684,13 +684,16 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 /*
  * resctrl_val:	execute benchmark and measure memory bandwidth on
  *			the benchmark
+ * @test:		test information structure
  * @uparams:		user supplied parameters
  * @benchmark_cmd:	benchmark command and its arguments
  * @param:		parameters passed to resctrl_val()
  *
  * Return:		0 when the test was run, < 0 on error.
  */
-int resctrl_val(const struct user_params *uparams, const char * const *benchmark_cmd,
+int resctrl_val(const struct resctrl_test *test,
+		const struct user_params *uparams,
+		const char * const *benchmark_cmd,
 		struct resctrl_val_param *param)
 {
 	char *resctrl_val = param->resctrl_val;
@@ -826,7 +829,7 @@ int resctrl_val(const struct user_params *uparams, const char * const *benchmark
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
-		ret = param->setup(uparams, param);
+		ret = param->setup(test, uparams, param);
 		if (ret == END_OF_TESTS) {
 			ret = 0;
 			break;
