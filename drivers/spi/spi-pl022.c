@@ -338,7 +338,6 @@ struct vendor_data {
  * @clk: outgoing clock "SPICLK" for the SPI bus
  * @host: SPI framework hookup
  * @host_info: controller-specific data from machine setup
- * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
  * @cur_chip: pointer to current clients chip(assigned from controller_state)
  * @tx: current position in TX buffer to be read
