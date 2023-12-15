@@ -180,7 +180,7 @@
 		reg = <0x52>;
 	};
 
-	pcf8563@51 {
+	rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 	};
