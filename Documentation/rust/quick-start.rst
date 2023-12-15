@@ -76,7 +76,7 @@ libclang
 
 ``libclang`` (part of LLVM) is used by ``bindgen`` to understand the C code
 in the kernel, which means LLVM needs to be installed; like when the kernel
-is compiled with ``CC=clang`` or ``LLVM=1``.
+is compiled with ``LLVM=1``.
 
 Linux distributions are likely to have a suitable one available, so it is
 best to check that first.
@@ -228,10 +228,6 @@ Building a kernel with a complete LLVM toolchain is the best supported setup
 at the moment. That is::
 
 	make LLVM=1
-
-For architectures that do not support a full LLVM toolchain, use::
-
-	make CC=clang
 
 Using GCC also works for some configurations, but it is very experimental at
 the moment.
