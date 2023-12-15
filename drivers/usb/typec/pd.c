@@ -468,7 +468,7 @@ static struct device_type pd_capabilities_type = {
 /**
  * usb_power_delivery_register_capabilities - Register a set of capabilities.
  * @pd: The USB PD instance that the capabilities belong to.
- * @desc: Description of the Capablities Message.
+ * @desc: Description of the Capabilities Message.
  *
  * This function registers a Capabilities Message described in @desc. The
  * capabilities will have their own sub-directory under @pd in sysfs.
