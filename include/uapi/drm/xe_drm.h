@@ -139,8 +139,7 @@ struct drm_xe_engine_class_instance {
 	 * Kernel only classes (not actual hardware engine class). Used for
 	 * creating ordered queues of VM bind operations.
 	 */
-#define DRM_XE_ENGINE_CLASS_VM_BIND_ASYNC	5
-#define DRM_XE_ENGINE_CLASS_VM_BIND_SYNC	6
+#define DRM_XE_ENGINE_CLASS_VM_BIND		5
 	/** @engine_class: engine class id */
 	__u16 engine_class;
 	/** @engine_instance: engine instance id */
@@ -660,7 +659,6 @@ struct drm_xe_vm_create {
 	 * still enable recoverable pagefaults if supported by the device.
 	 */
 #define DRM_XE_VM_CREATE_FLAG_LR_MODE	        (1 << 1)
-#define DRM_XE_VM_CREATE_FLAG_ASYNC_DEFAULT	(1 << 2)
 	/*
 	 * DRM_XE_VM_CREATE_FLAG_FAULT_MODE requires also
 	 * DRM_XE_VM_CREATE_FLAG_LR_MODE. It allows memory to be allocated
@@ -668,7 +666,7 @@ struct drm_xe_vm_create {
 	 * The xe driver internally uses recoverable pagefaults to implement
 	 * this.
 	 */
-#define DRM_XE_VM_CREATE_FLAG_FAULT_MODE	(1 << 3)
+#define DRM_XE_VM_CREATE_FLAG_FAULT_MODE	(1 << 2)
 	/** @flags: Flags */
 	__u32 flags;
 
@@ -776,12 +774,11 @@ struct drm_xe_vm_bind_op {
 	__u32 op;
 
 #define DRM_XE_VM_BIND_FLAG_READONLY	(1 << 0)
-#define DRM_XE_VM_BIND_FLAG_ASYNC	(1 << 1)
 	/*
 	 * Valid on a faulting VM only, do the MAP operation immediately rather
 	 * than deferring the MAP to the page fault handler.
 	 */
-#define DRM_XE_VM_BIND_FLAG_IMMEDIATE	(1 << 2)
+#define DRM_XE_VM_BIND_FLAG_IMMEDIATE	(1 << 1)
 	/*
 	 * When the NULL flag is set, the page tables are setup with a special
 	 * bit which indicates writes are dropped and all reads return zero.  In
@@ -789,7 +786,7 @@ struct drm_xe_vm_bind_op {
 	 * operations, the BO handle MBZ, and the BO offset MBZ. This flag is
 	 * intended to implement VK sparse bindings.
 	 */
-#define DRM_XE_VM_BIND_FLAG_NULL	(1 << 3)
+#define DRM_XE_VM_BIND_FLAG_NULL	(1 << 2)
 	/** @flags: Bind flags */
 	__u32 flags;
 

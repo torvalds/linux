@@ -1343,9 +1343,7 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 			struct xe_gt *gt = tile->primary_gt;
 			struct xe_vm *migrate_vm;
 			struct xe_exec_queue *q;
-			u32 create_flags = EXEC_QUEUE_FLAG_VM |
-				((flags & XE_VM_FLAG_ASYNC_DEFAULT) ?
-				EXEC_QUEUE_FLAG_VM_ASYNC : 0);
+			u32 create_flags = EXEC_QUEUE_FLAG_VM;
 
 			if (!vm->pt_root[id])
 				continue;
@@ -1712,12 +1710,6 @@ err_fences:
 	return ERR_PTR(err);
 }
 
-static bool xe_vm_sync_mode(struct xe_vm *vm, struct xe_exec_queue *q)
-{
-	return q ? !(q->flags & EXEC_QUEUE_FLAG_VM_ASYNC) :
-		!(vm->flags & XE_VM_FLAG_ASYNC_DEFAULT);
-}
-
 static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 			struct xe_exec_queue *q, struct xe_sync_entry *syncs,
 			u32 num_syncs, bool immediate, bool first_op,
@@ -1747,8 +1739,6 @@ static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 
 	if (last_op)
 		xe_exec_queue_last_fence_set(wait_exec_queue, vm, fence);
-	if (last_op && xe_vm_sync_mode(vm, q))
-		dma_fence_wait(fence, true);
 	dma_fence_put(fence);
 
 	return 0;
@@ -1791,8 +1781,6 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 	xe_vma_destroy(vma, fence);
 	if (last_op)
 		xe_exec_queue_last_fence_set(wait_exec_queue, vm, fence);
-	if (last_op && xe_vm_sync_mode(vm, q))
-		dma_fence_wait(fence, true);
 	dma_fence_put(fence);
 
 	return 0;
@@ -1800,7 +1788,6 @@ static int xe_vm_unbind(struct xe_vm *vm, struct xe_vma *vma,
 
 #define ALL_DRM_XE_VM_CREATE_FLAGS (DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE | \
 				    DRM_XE_VM_CREATE_FLAG_LR_MODE | \
-				    DRM_XE_VM_CREATE_FLAG_ASYNC_DEFAULT | \
 				    DRM_XE_VM_CREATE_FLAG_FAULT_MODE)
 
 int xe_vm_create_ioctl(struct drm_device *dev, void *data,
@@ -1854,8 +1841,6 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 		flags |= XE_VM_FLAG_SCRATCH_PAGE;
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_LR_MODE)
 		flags |= XE_VM_FLAG_LR_MODE;
-	if (args->flags & DRM_XE_VM_CREATE_FLAG_ASYNC_DEFAULT)
-		flags |= XE_VM_FLAG_ASYNC_DEFAULT;
 	if (args->flags & DRM_XE_VM_CREATE_FLAG_FAULT_MODE)
 		flags |= XE_VM_FLAG_FAULT_MODE;
 
@@ -2263,8 +2248,7 @@ static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
 static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 				   struct drm_gpuva_ops *ops,
 				   struct xe_sync_entry *syncs, u32 num_syncs,
-				   struct list_head *ops_list, bool last,
-				   bool async)
+				   struct list_head *ops_list, bool last)
 {
 	struct xe_vma_op *last_op = NULL;
 	struct drm_gpuva_op *__op;
@@ -2696,23 +2680,22 @@ static int vm_bind_ioctl_ops_execute(struct xe_vm *vm,
 
 #ifdef TEST_VM_ASYNC_OPS_ERROR
 #define SUPPORTED_FLAGS	\
-	(FORCE_ASYNC_OP_ERROR | DRM_XE_VM_BIND_FLAG_ASYNC | \
-	 DRM_XE_VM_BIND_FLAG_READONLY | DRM_XE_VM_BIND_FLAG_IMMEDIATE | \
-	 DRM_XE_VM_BIND_FLAG_NULL | 0xffff)
+	(FORCE_ASYNC_OP_ERROR | DRM_XE_VM_BIND_FLAG_READONLY | \
+	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL | 0xffff)
 #else
 #define SUPPORTED_FLAGS	\
-	(DRM_XE_VM_BIND_FLAG_ASYNC | DRM_XE_VM_BIND_FLAG_READONLY | \
+	(DRM_XE_VM_BIND_FLAG_READONLY | \
 	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL | \
 	 0xffff)
 #endif
 #define XE_64K_PAGE_MASK 0xffffull
+#define ALL_DRM_XE_SYNCS_FLAGS (DRM_XE_SYNCS_FLAG_WAIT_FOR_OP)
 
 #define MAX_BINDS	512	/* FIXME: Picking random upper limit */
 
 static int vm_bind_ioctl_check_args(struct xe_device *xe,
 				    struct drm_xe_vm_bind *args,
-				    struct drm_xe_vm_bind_op **bind_ops,
-				    bool *async)
+				    struct drm_xe_vm_bind_op **bind_ops)
 {
 	int err;
 	int i;
@@ -2771,18 +2754,6 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		}
 
 		if (XE_WARN_ON(coh_mode > XE_COH_AT_LEAST_1WAY)) {
-			err = -EINVAL;
-			goto free_bind_ops;
-		}
-
-		if (i == 0) {
-			*async = !!(flags & DRM_XE_VM_BIND_FLAG_ASYNC);
-			if (XE_IOCTL_DBG(xe, !*async && args->num_syncs)) {
-				err = -EINVAL;
-				goto free_bind_ops;
-			}
-		} else if (XE_IOCTL_DBG(xe, *async !=
-					!!(flags & DRM_XE_VM_BIND_FLAG_ASYNC))) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
@@ -2854,14 +2825,6 @@ static int vm_bind_ioctl_signal_fences(struct xe_vm *vm,
 
 	xe_exec_queue_last_fence_set(to_wait_exec_queue(vm, q), vm,
 				     fence);
-
-	if (xe_vm_sync_mode(vm, q)) {
-		long timeout = dma_fence_wait(fence, true);
-
-		if (timeout < 0)
-			err = -EINTR;
-	}
-
 	dma_fence_put(fence);
 
 	return err;
@@ -2881,17 +2844,12 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct xe_sync_entry *syncs = NULL;
 	struct drm_xe_vm_bind_op *bind_ops;
 	LIST_HEAD(ops_list);
-	bool async;
 	int err;
 	int i;
 
-	err = vm_bind_ioctl_check_args(xe, args, &bind_ops, &async);
+	err = vm_bind_ioctl_check_args(xe, args, &bind_ops);
 	if (err)
 		return err;
-
-	if (XE_IOCTL_DBG(xe, args->pad || args->pad2) ||
-	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
-		return -EINVAL;
 
 	if (args->exec_queue_id) {
 		q = xe_exec_queue_lookup(xef, args->exec_queue_id);
@@ -2904,26 +2862,12 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			err = -EINVAL;
 			goto put_exec_queue;
 		}
-
-		if (XE_IOCTL_DBG(xe, args->num_binds && async !=
-				 !!(q->flags & EXEC_QUEUE_FLAG_VM_ASYNC))) {
-			err = -EINVAL;
-			goto put_exec_queue;
-		}
 	}
 
 	vm = xe_vm_lookup(xef, args->vm_id);
 	if (XE_IOCTL_DBG(xe, !vm)) {
 		err = -EINVAL;
 		goto put_exec_queue;
-	}
-
-	if (!args->exec_queue_id) {
-		if (XE_IOCTL_DBG(xe, args->num_binds && async !=
-				 !!(vm->flags & XE_VM_FLAG_ASYNC_DEFAULT))) {
-			err = -EINVAL;
-			goto put_vm;
-		}
 	}
 
 	err = down_write_killable(&vm->lock);
@@ -3060,8 +3004,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 		err = vm_bind_ioctl_ops_parse(vm, q, ops[i], syncs, num_syncs,
 					      &ops_list,
-					      i == args->num_binds - 1,
-					      async);
+					      i == args->num_binds - 1);
 		if (err)
 			goto unwind_ops;
 	}
