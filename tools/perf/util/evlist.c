@@ -2521,9 +2521,8 @@ void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_lis
 
 void evlist__uniquify_name(struct evlist *evlist)
 {
+	char *new_name, empty_attributes[2] = ":", *attributes;
 	struct evsel *pos;
-	char *new_name;
-	int ret;
 
 	if (perf_pmus__num_core_pmus() == 1)
 		return;
@@ -2535,11 +2534,17 @@ void evlist__uniquify_name(struct evlist *evlist)
 		if (strchr(pos->name, '/'))
 			continue;
 
-		ret = asprintf(&new_name, "%s/%s/",
-			       pos->pmu_name, pos->name);
-		if (ret) {
+		attributes = strchr(pos->name, ':');
+		if (attributes)
+			*attributes = '\0';
+		else
+			attributes = empty_attributes;
+
+		if (asprintf(&new_name, "%s/%s/%s", pos->pmu_name, pos->name, attributes + 1)) {
 			free(pos->name);
 			pos->name = new_name;
+		} else {
+			*attributes = ':';
 		}
 	}
 }
