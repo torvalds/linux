@@ -312,12 +312,13 @@ static void pop_callee_regs(u8 **pprog, bool *callee_regs_used)
  * in arch/x86/kernel/alternative.c
  */
 
-static void emit_fineibt(u8 **pprog)
+static void emit_fineibt(u8 **pprog, bool is_subprog)
 {
+	u32 hash = is_subprog ? cfi_bpf_subprog_hash : cfi_bpf_hash;
 	u8 *prog = *pprog;
 
 	EMIT_ENDBR();
-	EMIT3_off32(0x41, 0x81, 0xea, cfi_bpf_hash);	/* subl $hash, %r10d	*/
+	EMIT3_off32(0x41, 0x81, 0xea, hash);		/* subl $hash, %r10d	*/
 	EMIT2(0x74, 0x07);				/* jz.d8 +7		*/
 	EMIT2(0x0f, 0x0b);				/* ud2			*/
 	EMIT1(0x90);					/* nop			*/
@@ -326,11 +327,12 @@ static void emit_fineibt(u8 **pprog)
 	*pprog = prog;
 }
 
-static void emit_kcfi(u8 **pprog)
+static void emit_kcfi(u8 **pprog, bool is_subprog)
 {
+	u32 hash = is_subprog ? cfi_bpf_subprog_hash : cfi_bpf_hash;
 	u8 *prog = *pprog;
 
-	EMIT1_off32(0xb8, cfi_bpf_hash);		/* movl $hash, %eax	*/
+	EMIT1_off32(0xb8, hash);			/* movl $hash, %eax	*/
 #ifdef CONFIG_CALL_PADDING
 	EMIT1(0x90);
 	EMIT1(0x90);
@@ -349,17 +351,17 @@ static void emit_kcfi(u8 **pprog)
 	*pprog = prog;
 }
 
-static void emit_cfi(u8 **pprog)
+static void emit_cfi(u8 **pprog, bool is_subprog)
 {
 	u8 *prog = *pprog;
 
 	switch (cfi_mode) {
 	case CFI_FINEIBT:
-		emit_fineibt(&prog);
+		emit_fineibt(&prog, is_subprog);
 		break;
 
 	case CFI_KCFI:
-		emit_kcfi(&prog);
+		emit_kcfi(&prog, is_subprog);
 		break;
 
 	default:
@@ -381,7 +383,7 @@ static void emit_prologue(u8 **pprog, u32 stack_depth, bool ebpf_from_cbpf,
 {
 	u8 *prog = *pprog;
 
-	emit_cfi(&prog);
+	emit_cfi(&prog, is_subprog);
 	/* BPF trampoline can be made to work without these nops,
 	 * but let's waste 5 bytes for now and optimize later
 	 */

@@ -106,6 +106,7 @@ struct pt_regs;
 enum bug_trap_type handle_cfi_failure(struct pt_regs *regs);
 #define __bpfcall
 extern u32 cfi_bpf_hash;
+extern u32 cfi_bpf_subprog_hash;
 
 static inline int cfi_get_offset(void)
 {
@@ -128,6 +129,7 @@ static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 	return BUG_TRAP_TYPE_NONE;
 }
 #define cfi_bpf_hash 0U
+#define cfi_bpf_subprog_hash 0U
 #endif /* CONFIG_CFI_CLANG */
 
 #endif /* _ASM_X86_CFI_H */
