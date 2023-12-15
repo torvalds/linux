@@ -965,7 +965,7 @@ out_unregister:
 	return err;
 }
 
-static int l2_cache_pmu_remove(struct platform_device *pdev)
+static void l2_cache_pmu_remove(struct platform_device *pdev)
 {
 	struct l2cache_pmu *l2cache_pmu =
 		to_l2cache_pmu(platform_get_drvdata(pdev));
@@ -973,7 +973,6 @@ static int l2_cache_pmu_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&l2cache_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_QCOM_L2_ONLINE,
 				    &l2cache_pmu->node);
-	return 0;
 }
 
 static struct platform_driver l2_cache_pmu_driver = {
@@ -983,7 +982,7 @@ static struct platform_driver l2_cache_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = l2_cache_pmu_probe,
-	.remove = l2_cache_pmu_remove,
+	.remove_new = l2_cache_pmu_remove,
 };
 
 static int __init register_l2_cache_pmu_driver(void)
