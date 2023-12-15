@@ -177,7 +177,7 @@ static const struct sysparm_test sysparm_tests[] = {
 	},
 	{
 		.function = set_with_ro_fd,
-		.description = "PAPR_IOC_SYSPARM_SET returns EACCESS on read-only fd",
+		.description = "PAPR_IOC_SYSPARM_SET returns EACCES on read-only fd",
 	},
 };
 
