@@ -798,3 +798,29 @@ xchk_directory(
 	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_DIR_ZAPPED);
 	return 0;
 }
+
+/*
+ * Decide if this directory has been zapped to satisfy the inode and ifork
+ * verifiers.  Checking and repairing should be postponed until the directory
+ * is fixed.
+ */
+bool
+xchk_dir_looks_zapped(
+	struct xfs_inode	*dp)
+{
+	/* Repair zapped this dir's data fork a short time ago */
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
+		return true;
+
+	/*
+	 * If the dinode repair found a bad data fork, it will reset the fork
+	 * to extents format with zero records and wait for the bmapbtd
+	 * scrubber to reconstruct the block mappings.  Directories always
+	 * contain some content, so this is a clear sign of a zapped directory.
+	 * The state checked by xfs_ifork_zapped is not persisted, so this is
+	 * the secondary strategy if repairs are interrupted by a crash or an
+	 * unmount.
+	 */
+	return dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS &&
+	       dp->i_df.if_nextents == 0;
+}
