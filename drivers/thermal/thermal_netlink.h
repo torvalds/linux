@@ -25,9 +25,6 @@ int thermal_notify_tz_trip_down(const struct thermal_zone_device *tz,
 				const struct thermal_trip *trip);
 int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip);
-int thermal_notify_tz_trip_delete(int tz_id, int id);
-int thermal_notify_tz_trip_add(int tz_id, int id, int type,
-			       int temp, int hyst);
 int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
 				  const struct thermal_trip *trip);
 int thermal_notify_cdev_state_update(int cdev_id, int state);
@@ -71,17 +68,6 @@ static inline int thermal_notify_tz_trip_down(const struct thermal_zone_device *
 
 static inline int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
 					    const struct thermal_trip *trip)
-{
-	return 0;
-}
-
-static inline int thermal_notify_tz_trip_delete(int tz_id, int id)
-{
-	return 0;
-}
-
-static inline int thermal_notify_tz_trip_add(int tz_id, int id, int type,
-					     int temp, int hyst)
 {
 	return 0;
 }
