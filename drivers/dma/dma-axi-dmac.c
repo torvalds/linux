@@ -508,16 +508,13 @@ static struct axi_dmac_sg *axi_dmac_fill_linear_sg(struct axi_dmac_chan *chan,
 	segment_size = ((segment_size - 1) | chan->length_align_mask) + 1;
 
 	for (i = 0; i < num_periods; i++) {
-		len = period_len;
-
-		while (len > segment_size) {
+		for (len = period_len; len > segment_size; sg++) {
 			if (direction == DMA_DEV_TO_MEM)
 				sg->dest_addr = addr;
 			else
 				sg->src_addr = addr;
 			sg->x_len = segment_size;
 			sg->y_len = 1;
-			sg++;
 			addr += segment_size;
 			len -= segment_size;
 		}
