@@ -1419,14 +1419,12 @@ static bool stm32f7_i2c_is_slave_busy(struct stm32f7_i2c_dev *i2c_dev)
 	return i == busy;
 }
 
-static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev)
+static irqreturn_t stm32f7_i2c_slave_isr_event(struct stm32f7_i2c_dev *i2c_dev, u32 status)
 {
 	void __iomem *base = i2c_dev->base;
-	u32 cr2, status, mask;
+	u32 cr2, mask;
 	u8 val;
 	int ret;
-
-	status = readl_relaxed(i2c_dev->base + STM32F7_I2C_ISR);
 
 	/* Slave transmitter mode */
 	if (status & STM32F7_I2C_ISR_TXIS) {
@@ -1531,10 +1529,10 @@ static irqreturn_t stm32f7_i2c_isr_event_thread(int irq, void *data)
 	u32 status, mask;
 	int ret;
 
-	if (!i2c_dev->master_mode)
-		return stm32f7_i2c_slave_isr_event(i2c_dev);
-
 	status = readl_relaxed(i2c_dev->base + STM32F7_I2C_ISR);
+
+	if (!i2c_dev->master_mode)
+		return stm32f7_i2c_slave_isr_event(i2c_dev, status);
 
 	/* NACK received */
 	if (status & STM32F7_I2C_ISR_NACKF) {
