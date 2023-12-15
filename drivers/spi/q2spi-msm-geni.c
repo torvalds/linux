@@ -291,36 +291,21 @@ static int q2spi_free_var1_buf(struct q2spi_geni *q2spi)
  *
  * free dma mapped buffers allocated by q2spi_pre_alloc_buffers api.
  *
- * Return: 0 for success, negative number for error condition.
+ * Return: None
  */
-static int q2spi_free_dma_buf(struct q2spi_geni *q2spi)
+static void q2spi_free_dma_buf(struct q2spi_geni *q2spi)
 {
-	int ret;
-
-	ret = q2spi_free_bulk_buf(q2spi);
-	if (ret) {
+	if (q2spi_free_bulk_buf(q2spi))
 		Q2SPI_ERROR(q2spi, "%s Err free bulk buf fail\n", __func__);
-		return ret;
-	}
 
-	ret = q2spi_free_cr_buf(q2spi);
-	if (ret) {
+	if (q2spi_free_cr_buf(q2spi))
 		Q2SPI_ERROR(q2spi, "%s Err free cr buf fail\n", __func__);
-		return ret;
-	}
 
-	ret = q2spi_free_var5_buf(q2spi);
-	if (ret) {
+	if (q2spi_free_var5_buf(q2spi))
 		Q2SPI_ERROR(q2spi, "%s Err free var5 buf fail\n", __func__);
-		return ret;
-	}
 
-	ret = q2spi_free_var1_buf(q2spi);
-	if (ret) {
+	if (q2spi_free_var1_buf(q2spi))
 		Q2SPI_ERROR(q2spi, "%s Err free var1 buf fail\n", __func__);
-		return ret;
-	}
-	return 0;
 }
 
 /**
@@ -336,7 +321,7 @@ static int q2spi_free_dma_buf(struct q2spi_geni *q2spi)
  */
 static int q2spi_pre_alloc_buffers(struct q2spi_geni *q2spi)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < Q2SPI_MAX_BUF; i++) {
 		q2spi->var1_buf[i] =
@@ -384,10 +369,8 @@ static int q2spi_pre_alloc_buffers(struct q2spi_geni *q2spi)
 	}
 	return 0;
 exit_dealloc:
-	ret = q2spi_free_dma_buf(q2spi);
-	if (ret)
-		ret = -ENOMEM;
-	return ret;
+	q2spi_free_dma_buf(q2spi);
+	return -ENOMEM;
 }
 
 /**
@@ -2690,7 +2673,6 @@ static int q2spi_pinctrl_config(struct platform_device *pdev, struct q2spi_geni 
  */
 static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 {
-	int num_cdev_devs = 0;
 	int ret = 0, i;
 
 	ret = alloc_chrdev_region(&q2spi->chrdev.q2spi_dev, 0, MAX_DEV, "q2spidev");
@@ -2710,22 +2692,21 @@ static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 		cdev_init(&q2spi->chrdev.cdev[i], &q2spi_fops);
 		q2spi->chrdev.cdev[i].owner = THIS_MODULE;
 		q2spi->chrdev.major = q2spi_cdev_major;
-		q2spi->chrdev.minor = num_cdev_devs;
+		q2spi->chrdev.minor = i;
 		ret = cdev_add(&q2spi->chrdev.cdev[i], MKDEV(q2spi_cdev_major, i), 1);
 		if (ret) {
 			Q2SPI_DEBUG(q2spi, "cdev_add failed ret:%d\n", ret);
 			goto err_cdev_add;
 		}
 
-		if (i) {
+		if (i)
 			q2spi->chrdev.class_dev = device_create(q2spi->chrdev.q2spi_class, NULL,
 								MKDEV(q2spi_cdev_major, i),
 								NULL, "q2spibt");
-		} else {
+		else
 			q2spi->chrdev.class_dev = device_create(q2spi->chrdev.q2spi_class, NULL,
 								MKDEV(q2spi_cdev_major, i),
 								NULL, "q2spiuwb");
-		}
 
 		if (IS_ERR(q2spi->chrdev.class_dev)) {
 			ret = PTR_ERR(q2spi->chrdev.class_dev);
@@ -2734,16 +2715,15 @@ static int q2spi_chardev_create(struct q2spi_geni *q2spi)
 		}
 		Q2SPI_DEBUG(q2spi, "%s q2spi:%p chrdev:%p cdev:%p i:%d\n",
 			    __func__, q2spi, q2spi->chrdev, q2spi->chrdev.cdev[i], i);
-		num_cdev_devs++;
 	}
 
 	return 0;
 err_dev_create:
-	class_destroy(q2spi->chrdev.q2spi_class);
-err_class_create:
 	for (i = 0; i < MAX_DEV; i++)
 		cdev_del(&q2spi->chrdev.cdev[i]);
 err_cdev_add:
+	class_destroy(q2spi->chrdev.q2spi_class);
+err_class_create:
 	unregister_chrdev_region(MKDEV(q2spi_cdev_major, 0), MINORMASK);
 	return ret;
 }
@@ -3194,11 +3174,13 @@ static void q2spi_chardev_destroy(struct q2spi_geni *q2spi)
 {
 	int i;
 
-	for (i = 0; i < MAX_DEV; i++)
+	for (i = 0; i < MAX_DEV; i++) {
 		device_destroy(q2spi->chrdev.q2spi_class, MKDEV(q2spi_cdev_major, i));
-	class_unregister(q2spi->chrdev.q2spi_class);
+		cdev_del(&q2spi->chrdev.cdev[i]);
+	}
 	class_destroy(q2spi->chrdev.q2spi_class);
 	unregister_chrdev_region(MKDEV(q2spi_cdev_major, 0), MINORMASK);
+	Q2SPI_DEBUG(q2spi, "%s End %d\n", __func__, q2spi_cdev_major);
 }
 
 /**
@@ -3222,28 +3204,32 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Init\n");
 
 	q2spi = devm_kzalloc(dev, sizeof(*q2spi), GFP_KERNEL);
-	if (!q2spi)
-		return -ENOMEM;
+	if (!q2spi) {
+		ret = -ENOMEM;
+		goto q2spi_err;
+	}
 
 	q2spi->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "Err getting IO region\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto q2spi_err;
 	}
 
 	q2spi->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(q2spi->base)) {
 		ret = PTR_ERR(q2spi->base);
 		dev_err(dev, "Err ioremap fail %d\n", ret);
-		return ret;
+		goto q2spi_err;
 	}
 
 	q2spi->irq = platform_get_irq(pdev, 0);
 	if (q2spi->irq < 0) {
 		dev_err(dev, "Err for irq get %d\n", ret);
-		return q2spi->irq;
+		ret = q2spi->irq;
+		goto q2spi_err;
 	}
 
 	irq_set_status_flags(q2spi->irq, IRQ_NOAUTOEN);
@@ -3251,14 +3237,15 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 			       IRQF_TRIGGER_HIGH, dev_name(dev), q2spi);
 	if (ret) {
 		dev_err(dev, "Err Failed to request irq %d\n", ret);
-		return ret;
+		goto q2spi_err;
 	}
 
 	q2spi->se.dev = dev;
 	q2spi->se.wrapper = dev_get_drvdata(dev->parent);
 	if (!q2spi->se.wrapper) {
 		dev_err(dev, "Err SE Wrapper is NULL, deferring probe\n");
-		return -EPROBE_DEFER;
+		ret = -EPROBE_DEFER;
+		goto q2spi_err;
 	}
 
 	q2spi->ipc = ipc_log_context_create(15, dev_name(dev), 0);
@@ -3272,15 +3259,16 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		if (of_property_read_u32(pdev->dev.of_node, "q2spi-max-frequency",
 				 &q2spi->max_speed_hz)) {
 			Q2SPI_ERROR(q2spi, "Err Max frequency not specified\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto q2spi_err;
 		}
 	}
 
-	Q2SPI_INFO(q2spi, "%s q2spi_max_freq:%u\n", __func__, q2spi->max_speed_hz);
 	q2spi->wrapper_dev = dev->parent;
-	Q2SPI_INFO(q2spi, "q2spi:%p q2spi_cdev:%p w_dev:%p, dev:%p, p_dev:%p dev_name:%s",
-		   q2spi, q2spi->chrdev, q2spi->wrapper_dev, dev, &pdev->dev,
-		   dev_name(q2spi->dev));
+	Q2SPI_DEBUG(q2spi, "%s q2spi:0x%p q2spi_cdev:0x%p w_dev:0x%p, dev:0x%p, p_dev:0x%p",
+		    __func__, q2spi, q2spi->chrdev, q2spi->wrapper_dev, dev, &pdev->dev);
+	Q2SPI_INFO(q2spi, "%s dev:%s q2spi_max_freq:%uhz\n",
+		   __func__, dev_name(q2spi->dev), q2spi->max_speed_hz);
 
 	ret = dma_set_mask_and_coherent(dev, (u64)DMA_BIT_MASK(48));
 	if (ret) {
@@ -3289,30 +3277,31 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
 			Q2SPI_ERROR(q2spi, "Err could not set DMA mask\n");
-			goto probe_err;
+			goto q2spi_err;
 		}
 	}
 	ret = q2spi_chardev_create(q2spi);
 	if (ret)
-		goto probe_err;
+		goto q2spi_err;
 
 	ret = q2spi_clks_get(q2spi);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "Err clks get failed\n");
-		return ret;
+		goto chardev_destroy;
 	}
 
 	ret = q2spi_pinctrl_config(pdev, q2spi);
 	if (ret)
-		goto probe_err;
+		goto chardev_destroy;
 
-	if (q2spi_geni_resources_on(q2spi))
-		goto probe_err;
+	ret = q2spi_geni_resources_on(q2spi);
+	if (ret)
+		goto chardev_destroy;
 
 	ret = q2spi_geni_init(q2spi);
 	if (ret) {
 		Q2SPI_DEBUG(q2spi, "Geni init failed %d\n", ret);
-		goto probe_err;
+		goto resources_off;
 	}
 
 	init_waitqueue_head(&q2spi->readq);
@@ -3329,7 +3318,9 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	q2spi->kworker = kthread_create_worker(0, "kthread_q2spi");
 	if (IS_ERR(q2spi->kworker)) {
 		Q2SPI_ERROR(q2spi, "Err failed to create message pump kworker\n");
-		return PTR_ERR(q2spi->kworker);
+		ret = PTR_ERR(q2spi->kworker);
+		q2spi->kworker = NULL;
+		goto geni_deinit;
 	}
 	kthread_init_work(&q2spi->send_messages, q2spi_send_messages);
 	init_completion(&q2spi->tx_cb);
@@ -3342,25 +3333,27 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	ret = q2spi_pre_alloc_buffers(q2spi);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "Err failed to alloc buffers");
-		goto probe_err;
+		goto destroy_worker;
 	}
 	q2spi->xfer = devm_kzalloc(q2spi->dev, sizeof(struct q2spi_dma_transfer), GFP_KERNEL);
 	if (!q2spi->xfer) {
 		Q2SPI_ERROR(q2spi, "Err failed to alloc xfer buffer");
-		goto probe_err;
+		ret = -ENOMEM;
+		goto free_buf;
 	}
 
 	q2spi->db_xfer = devm_kzalloc(q2spi->dev, sizeof(struct q2spi_dma_transfer), GFP_KERNEL);
 	if (!q2spi->db_xfer) {
+		ret = -ENOMEM;
 		Q2SPI_ERROR(q2spi, "Err failed to alloc db_xfer buffer");
-		goto probe_err;
+		goto free_buf;
 	}
 
 	q2spi->doorbell_wq = alloc_workqueue("%s", WQ_HIGHPRI, 1, dev_name(dev));
 	if (!q2spi->doorbell_wq) {
+		ret = -ENOMEM;
 		Q2SPI_ERROR(q2spi, "Err failed to allocate workqueue");
-		destroy_workqueue(q2spi->doorbell_wq);
-		return -ENOMEM;
+		goto free_buf;
 	}
 	INIT_WORK(&q2spi->q2spi_doorbell_work, q2spi_handle_doorbell_work);
 
@@ -3377,9 +3370,23 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Ready\n");
 
 	return 0;
-
-probe_err:
-	Q2SPI_ERROR(q2spi, "%s Err Probe ret:%d\n", __func__, ret);
+free_buf:
+	q2spi_free_dma_buf(q2spi);
+destroy_worker:
+	idr_destroy(&q2spi->tid_idr);
+	if (q2spi->kworker) {
+		kthread_destroy_worker(q2spi->kworker);
+		q2spi->kworker = NULL;
+	}
+geni_deinit:
+	q2spi_geni_gsi_release(q2spi);
+resources_off:
+	q2spi_geni_resources_off(q2spi);
+chardev_destroy:
+	q2spi_chardev_destroy(q2spi);
+q2spi_err:
+	Q2SPI_ERROR(q2spi, "%s: failed, ret:%d\n", __func__, ret);
+	q2spi->base = NULL;
 	return ret;
 }
 
@@ -3389,15 +3396,14 @@ static int q2spi_geni_remove(struct platform_device *pdev)
 
 	pr_info("%s q2spi=0x%p\n", __func__, q2spi);
 
-	if (!q2spi)
+	if (!q2spi || !q2spi->base)
 		return 0;
 
 	device_remove_file(&pdev->dev, &dev_attr_max_dump_size);
 
 	destroy_workqueue(q2spi->doorbell_wq);
 
-	if (q2spi_free_dma_buf(q2spi))
-		Q2SPI_ERROR(q2spi, "%s Err q2spi_free_dma_buf\n", __func__);
+	q2spi_free_dma_buf(q2spi);
 
 	idr_destroy(&q2spi->tid_idr);
 
@@ -3405,6 +3411,8 @@ static int q2spi_geni_remove(struct platform_device *pdev)
 		kthread_destroy_worker(q2spi->kworker);
 		q2spi->kworker = NULL;
 	}
+
+	q2spi_geni_gsi_release(q2spi);
 
 	q2spi_geni_resources_off(q2spi);
 

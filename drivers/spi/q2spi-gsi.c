@@ -182,8 +182,24 @@ static void q2spi_geni_deallocate_chan(struct q2spi_gsi *gsi)
 }
 
 /**
+ * q2spi_geni_gsi_release - Releases GSI channel resources
  *
- * q2spi_geni_gsi_setup - GSI channel setup
+ * @q2spi: pointer to q2spi_geni driver data
+ *
+ * Return: None
+ */
+void q2spi_geni_gsi_release(struct q2spi_geni *q2spi)
+{
+	q2spi_geni_deallocate_chan(q2spi->gsi);
+	q2spi_kfree(q2spi, q2spi->gsi, __LINE__);
+}
+
+/**
+ * q2spi_geni_gsi_setup - Does setup of GSI channel resources
+ *
+ * @q2spi: pointer to q2spi_geni driver data
+ *
+ * Return: 0 on success, linux error code on failure
  */
 int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 {
@@ -206,6 +222,7 @@ int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 	if (IS_ERR_OR_NULL(gsi->tx_c)) {
 		Q2SPI_ERROR(q2spi, "%s Err Failed to get tx DMA ch %ld\n",
 			    __func__, PTR_ERR(gsi->tx_c));
+		q2spi_kfree(q2spi, q2spi->gsi, __LINE__);
 		return -EIO;
 	}
 	Q2SPI_DEBUG(q2spi, "%s gsi_tx_c:%p\n", __func__, gsi->tx_c);
@@ -215,6 +232,7 @@ int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 			    __func__, PTR_ERR(gsi->rx_c));
 		dma_release_channel(gsi->tx_c);
 		gsi->tx_c = NULL;
+		q2spi_kfree(q2spi, q2spi->gsi, __LINE__);
 		return -EIO;
 	}
 	Q2SPI_DEBUG(q2spi, "%s gsi_rx_c:%p\n", __func__, gsi->rx_c);
@@ -242,7 +260,7 @@ int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 	return ret;
 
 dmaengine_slave_config_fail:
-	q2spi_geni_deallocate_chan(gsi);
+	q2spi_geni_gsi_release(q2spi);
 	return ret;
 }
 
