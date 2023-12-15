@@ -116,4 +116,28 @@ int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
 		    unsigned long max_diff_percent, unsigned long num_of_runs,
 		    bool platform, bool cmt);
 
+/*
+ * cache_portion_size - Calculate the size of a cache portion
+ * @cache_size:		Total cache size in bytes
+ * @portion_mask:	Cache portion mask
+ * @full_cache_mask:	Full Cache Bit Mask (CBM) for the cache
+ *
+ * Return: The size of the cache portion in bytes.
+ */
+static inline unsigned long cache_portion_size(unsigned long cache_size,
+					       unsigned long portion_mask,
+					       unsigned long full_cache_mask)
+{
+	unsigned int bits = count_bits(full_cache_mask);
+
+	/*
+	 * With no bits the full CBM, assume cache cannot be split into
+	 * smaller portions. To avoid divide by zero, return cache_size.
+	 */
+	if (!bits)
+		return cache_size;
+
+	return cache_size * count_bits(portion_mask) / bits;
+}
+
 #endif /* RESCTRL_H */
