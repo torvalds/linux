@@ -42,7 +42,7 @@ config DRM_MIPI_DSI
 config DRM_DEBUG_MM
 	bool "Insert extra checks and debug info into the DRM range managers"
 	default n
-	depends on DRM=y
+	depends on DRM
 	depends on STACKTRACE_SUPPORT
 	select STACKDEPOT
 	help
