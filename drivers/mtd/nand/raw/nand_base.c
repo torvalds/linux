@@ -3460,21 +3460,29 @@ static void rawnand_enable_cont_reads(struct nand_chip *chip, unsigned int page,
 				      u32 readlen, int col)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	unsigned int end_page, end_col;
+
+	chip->cont_read.ongoing = false;
 
 	if (!chip->controller->supported_op.cont_read)
 		return;
 
-	if ((col && col + readlen < (3 * mtd->writesize)) ||
-	    (!col && readlen < (2 * mtd->writesize))) {
-		chip->cont_read.ongoing = false;
-		return;
-	}
+	end_page = DIV_ROUND_UP(col + readlen, mtd->writesize);
+	end_col = (col + readlen) % mtd->writesize;
 
-	chip->cont_read.ongoing = true;
-	chip->cont_read.first_page = page;
 	if (col)
-		chip->cont_read.first_page++;
-	chip->cont_read.last_page = page + ((readlen >> chip->page_shift) & chip->pagemask);
+		page++;
+
+	if (end_col && end_page)
+		end_page--;
+
+	if (page + 1 > end_page)
+		return;
+
+	chip->cont_read.first_page = page;
+	chip->cont_read.last_page = end_page;
+	chip->cont_read.ongoing = true;
+
 	rawnand_cap_cont_reads(chip);
 }
 
