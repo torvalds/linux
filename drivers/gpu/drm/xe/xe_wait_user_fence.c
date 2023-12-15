@@ -13,6 +13,7 @@
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_macros.h"
+#include "xe_exec_queue.h"
 
 static int do_compare(u64 addr, u64 value, u64 mask, u16 op)
 {
@@ -100,10 +101,12 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
+	struct xe_file *xef = to_xe_file(file);
 	DEFINE_WAIT_FUNC(w_wait, woken_wake_function);
 	struct drm_xe_wait_user_fence *args = data;
+	struct xe_exec_queue *q = NULL;
 	u64 addr = args->addr;
-	int err;
+	int err = 0;
 	long timeout;
 	ktime_t start;
 
@@ -121,6 +124,12 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, addr & 0x7))
 		return -EINVAL;
 
+	if (args->exec_queue_id) {
+		q = xe_exec_queue_lookup(xef, args->exec_queue_id);
+		if (XE_IOCTL_DBG(xe, !q))
+			return -ENOENT;
+	}
+
 	timeout = to_jiffies_timeout(xe, args);
 
 	start = ktime_get();
@@ -134,6 +143,14 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 		if (signal_pending(current)) {
 			err = -ERESTARTSYS;
 			break;
+		}
+
+		if (q) {
+			if (q->ops->reset_status(q)) {
+				drm_info(&xe->drm, "exec gueue reset detected\n");
+				err = -EIO;
+				break;
+			}
 		}
 
 		if (!timeout) {
@@ -151,10 +168,11 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 			args->timeout = 0;
 	}
 
-	if (XE_IOCTL_DBG(xe, err < 0))
-		return err;
-	else if (XE_IOCTL_DBG(xe, !timeout))
-		return -ETIME;
+	if (!timeout && !(err < 0))
+		err = -ETIME;
 
-	return 0;
+	if (q)
+		xe_exec_queue_put(q);
+
+	return err;
 }
