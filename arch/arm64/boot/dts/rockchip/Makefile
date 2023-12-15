@@ -209,6 +209,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-co
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2lvds0-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-dsi-dsc-MV2100UZ1.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-8lanes-M280DCA.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-ipc-6x-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-linux-amp.dtb

@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb1-lp4.dtsi"
+#include "rk3588-evb1-imx415.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588 EVB1 LP4 V10 Board + RK3588 EDP 8LANES V10 Ext Board";
+	compatible = "rockchip,rk3588-evb1-lp4-v10-edp-8lanes-M280DCA", "rockchip,rk3588";
+
+	panel-edp {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc3v3_edp>;
+		enable-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
+		disable-delay-ms = <120>;
+
+		display-timings {
+			native-mode = <&timing_4kp144>;
+			timing_4kp144: timing0 {
+				clock-frequency = <1360800000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <160>;
+				hsync-len = <40>;
+				hback-porch = <160>;
+				vfront-porch = <40>;
+				vsync-len = <10>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+
+			timing_4kp120: timing1 {
+				clock-frequency = <1188000000>;
+				hactive = <3840>;
+				vactive = <2160>;
+				hfront-porch = <240>;
+				hsync-len = <80>;
+				hback-porch = <240>;
+				vfront-porch = <40>;
+				vsync-len = <10>;
+				vback-porch = <40>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp1_out_panel>;
+			};
+		};
+	};
+
+	vcc3v3_edp_bl: vcc3v3-edp-bl {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_edp_bl";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PC0 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+
+	vcc3v3_edp: vcc3v3-edp {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_edp";
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vcc12v_dcin>;
+	};
+};
+
+&bt_sco {
+	status = "okay";
+};
+
+&bt_sound {
+	status = "okay";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&edp0 {
+	force-hpd;
+	status = "okay";
+};
+
+&edp0_in_vp0 {
+	status = "okay";
+};
+
+&edp0_in_vp1 {
+	status = "disabled";
+};
+
+&edp0_in_vp2 {
+	status = "disabled";
+};
+
+&edp1 {
+	force-hpd;
+	status = "okay";
+	dual-channel;
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			edp1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
+};
+
+&edp1_in_vp0 {
+	status = "okay";
+};
+
+&edp1_in_vp1 {
+	status = "disabled";
+};
+
+&edp1_in_vp2 {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy0 {
+	status = "okay";
+};
+
+&hdptxphy1 {
+	status = "okay";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2s2_2ch {
+	status = "okay";
+};
+
+&route_dsi0 {
+	status = "disabled";
+};
+
+&route_edp0 {
+	status = "okay";
+	connect = <&vp0_out_edp0>;
+};
+
+&route_edp1 {
+	status = "okay";
+	connect = <&vp0_out_edp1>;
+};
+
+&route_hdmi0 {
+	status = "disabled";
+};
+
+&route_hdmi1 {
+	status = "disabled";
+};
+
+&vop {
+	assigned-clocks = <&cru ACLK_VOP>;
+	assigned-clock-rates = <800000000>;
+};
+
+&vp0 {
+	assigned-clocks = <&cru DCLK_VOP0_SRC>;
+	assigned-clock-parents = <&cru PLL_V0PLL>;
+};
+
+&vp2 {
+	/delete-property/ assigned-clocks;
+	/delete-property/ assigned-clock-parents;
+};
