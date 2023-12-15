@@ -1040,11 +1040,13 @@ struct drm_xe_wait_user_fence {
 	/** @value: compare value */
 	__u64 value;
 
-#define DRM_XE_UFENCE_WAIT_MASK_U8	0xffu
-#define DRM_XE_UFENCE_WAIT_MASK_U16	0xffffu
-#define DRM_XE_UFENCE_WAIT_MASK_U32	0xffffffffu
-#define DRM_XE_UFENCE_WAIT_MASK_U64	0xffffffffffffffffu
-	/** @mask: comparison mask */
+	/**
+	 * @mask: comparison mask, values can be for example:
+	 *  - 0xffu for u8
+	 *  - 0xffffu for u16
+	 *  - 0xffffffffu for u32
+	 *  - 0xffffffffffffffffu for u64
+	 */
 	__u64 mask;
 
 	/**
