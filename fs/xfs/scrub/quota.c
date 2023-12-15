@@ -117,6 +117,23 @@ xchk_quota_item_bmap(
 	return 0;
 }
 
+/* Complain if a quota timer is incorrectly set. */
+static inline void
+xchk_quota_item_timer(
+	struct xfs_scrub		*sc,
+	xfs_fileoff_t			offset,
+	const struct xfs_dquot_res	*res)
+{
+	if ((res->softlimit && res->count > res->softlimit) ||
+	    (res->hardlimit && res->count > res->hardlimit)) {
+		if (!res->timer)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	} else {
+		if (res->timer)
+			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
+	}
+}
+
 /* Scrub the fields in an individual quota item. */
 STATIC int
 xchk_quota_item(
@@ -223,6 +240,10 @@ xchk_quota_item(
 	if (dq->q_rtb.hardlimit != 0 &&
 	    dq->q_rtb.count > dq->q_rtb.hardlimit)
 		xchk_fblock_set_warning(sc, XFS_DATA_FORK, offset);
+
+	xchk_quota_item_timer(sc, offset, &dq->q_blk);
+	xchk_quota_item_timer(sc, offset, &dq->q_ino);
+	xchk_quota_item_timer(sc, offset, &dq->q_rtb);
 
 out:
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
