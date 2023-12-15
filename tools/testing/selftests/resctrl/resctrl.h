@@ -113,10 +113,8 @@ unsigned int count_bits(unsigned long n);
 void cmt_test_cleanup(void);
 int get_core_sibling(int cpu_no);
 int measure_llc_resctrl(const char *filename, int bm_pid);
-int show_cache_info(unsigned long sum_llc_val, int no_of_bits,
-		    size_t cache_span, unsigned long max_diff,
-		    unsigned long max_diff_percent, unsigned long num_of_runs,
-		    bool platform, bool cmt);
+void show_cache_info(int no_of_bits, unsigned long avg_llc_val,
+		     size_t cache_span, bool lines);
 
 /*
  * cache_portion_size - Calculate the size of a cache portion
