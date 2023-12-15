@@ -12,6 +12,11 @@ extern struct bpf_struct_ops bpf_bpf_dummy_ops;
 /* A common type for test_N with return value in bpf_dummy_ops */
 typedef int (*dummy_ops_test_ret_fn)(struct bpf_dummy_ops_state *state, ...);
 
+static int dummy_ops_test_ret_function(struct bpf_dummy_ops_state *state, ...)
+{
+	return 0;
+}
+
 struct bpf_dummy_ops_test_args {
 	u64 args[MAX_BPF_FUNC_ARGS];
 	struct bpf_dummy_ops_state state;
@@ -62,7 +67,7 @@ static int dummy_ops_copy_args(struct bpf_dummy_ops_test_args *args)
 
 static int dummy_ops_call_op(void *image, struct bpf_dummy_ops_test_args *args)
 {
-	dummy_ops_test_ret_fn test = (void *)image;
+	dummy_ops_test_ret_fn test = (void *)image + cfi_get_offset();
 	struct bpf_dummy_ops_state *state = NULL;
 
 	/* state needs to be NULL if args[0] is 0 */
@@ -119,6 +124,7 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	op_idx = prog->expected_attach_type;
 	err = bpf_struct_ops_prepare_trampoline(tlinks, link,
 						&st_ops->func_models[op_idx],
+						&dummy_ops_test_ret_function,
 						image, image + PAGE_SIZE);
 	if (err < 0)
 		goto out;
@@ -219,6 +225,28 @@ static void bpf_dummy_unreg(void *kdata)
 {
 }
 
+static int bpf_dummy_test_1(struct bpf_dummy_ops_state *cb)
+{
+	return 0;
+}
+
+static int bpf_dummy_test_2(struct bpf_dummy_ops_state *cb, int a1, unsigned short a2,
+			    char a3, unsigned long a4)
+{
+	return 0;
+}
+
+static int bpf_dummy_test_sleepable(struct bpf_dummy_ops_state *cb)
+{
+	return 0;
+}
+
+static struct bpf_dummy_ops __bpf_bpf_dummy_ops = {
+	.test_1 = bpf_dummy_test_1,
+	.test_2 = bpf_dummy_test_2,
+	.test_sleepable = bpf_dummy_test_sleepable,
+};
+
 struct bpf_struct_ops bpf_bpf_dummy_ops = {
 	.verifier_ops = &bpf_dummy_verifier_ops,
 	.init = bpf_dummy_init,
@@ -227,4 +255,5 @@ struct bpf_struct_ops bpf_bpf_dummy_ops = {
 	.reg = bpf_dummy_reg,
 	.unreg = bpf_dummy_unreg,
 	.name = "bpf_dummy_ops",
+	.cfi_stubs = &__bpf_bpf_dummy_ops,
 };

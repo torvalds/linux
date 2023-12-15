@@ -2150,6 +2150,12 @@ __bpf_kfunc void bpf_task_release(struct task_struct *p)
 	put_task_struct_rcu_user(p);
 }
 
+__bpf_kfunc void bpf_task_release_dtor(void *p)
+{
+	put_task_struct_rcu_user(p);
+}
+CFI_NOSEAL(bpf_task_release_dtor);
+
 #ifdef CONFIG_CGROUPS
 /**
  * bpf_cgroup_acquire - Acquire a reference to a cgroup. A cgroup acquired by
@@ -2173,6 +2179,12 @@ __bpf_kfunc void bpf_cgroup_release(struct cgroup *cgrp)
 {
 	cgroup_put(cgrp);
 }
+
+__bpf_kfunc void bpf_cgroup_release_dtor(void *cgrp)
+{
+	cgroup_put(cgrp);
+}
+CFI_NOSEAL(bpf_cgroup_release_dtor);
 
 /**
  * bpf_cgroup_ancestor - Perform a lookup on an entry in a cgroup's ancestor
@@ -2525,7 +2537,7 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 	 * which skips compiler generated instrumentation to do the same.
 	 */
 	kasan_unpoison_task_stack_below((void *)(long)ctx.sp);
-	ctx.aux->bpf_exception_cb(cookie, ctx.sp, ctx.bp);
+	ctx.aux->bpf_exception_cb(cookie, ctx.sp, ctx.bp, 0, 0);
 	WARN(1, "A call to BPF exception callback should never return\n");
 }
 
@@ -2570,10 +2582,10 @@ static const struct btf_kfunc_id_set generic_kfunc_set = {
 
 BTF_ID_LIST(generic_dtor_ids)
 BTF_ID(struct, task_struct)
-BTF_ID(func, bpf_task_release)
+BTF_ID(func, bpf_task_release_dtor)
 #ifdef CONFIG_CGROUPS
 BTF_ID(struct, cgroup)
-BTF_ID(func, bpf_cgroup_release)
+BTF_ID(func, bpf_cgroup_release_dtor)
 #endif
 
 BTF_SET8_START(common_btf_ids)
