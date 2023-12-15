@@ -202,6 +202,8 @@ enum icp_qat_gen4_slice_mask {
 	ICP_ACCEL_GEN4_MASK_UCS_SLICE = BIT(4),
 	ICP_ACCEL_GEN4_MASK_EIA3_SLICE = BIT(5),
 	ICP_ACCEL_GEN4_MASK_SMX_SLICE = BIT(7),
+	ICP_ACCEL_GEN4_MASK_WCP_WAT_SLICE = BIT(8),
+	ICP_ACCEL_GEN4_MASK_ZUC_256_SLICE = BIT(9),
 };
 
 void adf_gen4_enable_error_correction(struct adf_accel_dev *accel_dev);
