@@ -532,7 +532,11 @@ static struct notifier_block nfsd_inet6addr_notifier = {
 /* Only used under nfsd_mutex, so this atomic may be overkill: */
 static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
 
-void nfsd_last_thread(struct net *net)
+/**
+ * nfsd_destroy_serv - tear down NFSD's svc_serv for a namespace
+ * @net: network namespace the NFS service is associated with
+ */
+void nfsd_destroy_serv(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct svc_serv *serv = nn->nfsd_serv;
@@ -554,7 +558,7 @@ void nfsd_last_thread(struct net *net)
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
-	 * started, then nfsd_last_thread will be run before any of this
+	 * started, then nfsd_destroy_serv will be run before any of this
 	 * other initialization has been done except the rpcb information.
 	 */
 	svc_rpcb_cleanup(serv, net);
@@ -640,7 +644,7 @@ void nfsd_shutdown_threads(struct net *net)
 
 	/* Kill outstanding nfsd threads */
 	svc_set_num_threads(serv, NULL, 0);
-	nfsd_last_thread(net);
+	nfsd_destroy_serv(net);
 	mutex_unlock(&nfsd_mutex);
 }
 
@@ -802,7 +806,7 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	error = serv->sv_nrthreads;
 out_put:
 	if (serv->sv_nrthreads == 0)
-		nfsd_last_thread(net);
+		nfsd_destroy_serv(net);
 out:
 	mutex_unlock(&nfsd_mutex);
 	return error;
