@@ -23,6 +23,27 @@ extern "C" {
  *   5. uEvents
  */
 
+/**
+ * DOC: Xe uAPI Overview
+ *
+ * This section aims to describe the Xe's IOCTL entries, its structs, and other
+ * Xe related uAPI such as uevents and PMU (Platform Monitoring Unit) related
+ * entries and usage.
+ *
+ * List of supported IOCTLs:
+ *  - &DRM_IOCTL_XE_DEVICE_QUERY
+ *  - &DRM_IOCTL_XE_GEM_CREATE
+ *  - &DRM_IOCTL_XE_GEM_MMAP_OFFSET
+ *  - &DRM_IOCTL_XE_VM_CREATE
+ *  - &DRM_IOCTL_XE_VM_DESTROY
+ *  - &DRM_IOCTL_XE_VM_BIND
+ *  - &DRM_IOCTL_XE_EXEC_QUEUE_CREATE
+ *  - &DRM_IOCTL_XE_EXEC_QUEUE_DESTROY
+ *  - &DRM_IOCTL_XE_EXEC_QUEUE_GET_PROPERTY
+ *  - &DRM_IOCTL_XE_EXEC
+ *  - &DRM_IOCTL_XE_WAIT_USER_FENCE
+ */
+
 /*
  * xe specific ioctls.
  *
@@ -56,7 +77,10 @@ extern "C" {
 #define DRM_IOCTL_XE_WAIT_USER_FENCE		DRM_IOWR(DRM_COMMAND_BASE + DRM_XE_WAIT_USER_FENCE, struct drm_xe_wait_user_fence)
 
 /**
- * struct drm_xe_user_extension - Base class for defining a chain of extensions
+ * DOC: Xe IOCTL Extensions
+ *
+ * Before detailing the IOCTLs and its structs, it is important to highlight
+ * that every IOCTL in Xe is extensible.
  *
  * Many interfaces need to grow over time. In most cases we can simply
  * extend the struct and have userspace pass in more data. Another option,
@@ -90,7 +114,10 @@ extern "C" {
  * Typically the struct drm_xe_user_extension would be embedded in some uAPI
  * struct, and in this case we would feed it the head of the chain(i.e ext1),
  * which would then apply all of the above extensions.
- *
+*/
+
+/**
+ * struct drm_xe_user_extension - Base class for defining a chain of extensions
  */
 struct drm_xe_user_extension {
 	/**
@@ -120,7 +147,10 @@ struct drm_xe_user_extension {
 };
 
 /**
- * struct drm_xe_ext_set_property - XE set property extension
+ * struct drm_xe_ext_set_property - Generic set property extension
+ *
+ * A generic struct that allows any of the Xe's IOCTL to be extended
+ * with a set_property operation.
  */
 struct drm_xe_ext_set_property {
 	/** @base: base user extension */
@@ -287,7 +317,7 @@ struct drm_xe_mem_region {
 	 * here will always be zero).
 	 */
 	__u64 cpu_visible_used;
-	/** @reserved: MBZ */
+	/** @reserved: Reserved */
 	__u64 reserved[6];
 };
 
@@ -1041,8 +1071,8 @@ struct drm_xe_sync {
 		__u32 handle;
 
 		/**
-		 * @addr: Address of user fence. When sync passed in via exec
-		 * IOCTL this a GPU address in the VM. When sync passed in via
+		 * @addr: Address of user fence. When sync is passed in via exec
+		 * IOCTL this is a GPU address in the VM. When sync passed in via
 		 * VM bind IOCTL this is a user pointer. In either case, it is
 		 * the users responsibility that this address is present and
 		 * mapped when the user fence is signalled. Must be qword
@@ -1051,7 +1081,10 @@ struct drm_xe_sync {
 		__u64 addr;
 	};
 
-	/** @timeline_value: Timeline point of the sync object */
+	/**
+	 * @timeline_value: Input for the timeline sync object. Needs to be
+	 * different than 0 when used with %DRM_XE_SYNC_FLAG_TIMELINE_SYNCOBJ.
+	 */
 	__u64 timeline_value;
 
 	/** @reserved: Reserved */
