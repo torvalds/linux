@@ -45,11 +45,22 @@
 	} while (0)
 
 /*
+ * user_params:		User supplied parameters
+ * @cpu:		CPU number to which the benchmark will be bound to
+ * @bits:		Number of bits used for cache allocation size
+ * @benchmark_cmd:	Benchmark command to run during (some of the) tests
+ */
+struct user_params {
+	int cpu;
+	int bits;
+	const char *benchmark_cmd[BENCHMARK_ARGS];
+};
+
+/*
  * resctrl_val_param:	resctrl test parameters
  * @resctrl_val:	Resctrl feature (Eg: mbm, mba.. etc)
  * @ctrlgrp:		Name of the control monitor group (con_mon grp)
  * @mongrp:		Name of the monitor group (mon grp)
- * @cpu_no:		CPU number to which the benchmark would be binded
  * @filename:		Name of file to which the o/p should be written
  * @bw_report:		Bandwidth report type (reads vs writes)
  * @setup:		Call back function to setup test environment
@@ -58,12 +69,12 @@ struct resctrl_val_param {
 	char		*resctrl_val;
 	char		ctrlgrp[64];
 	char		mongrp[64];
-	int		cpu_no;
 	char		filename[64];
 	char		*bw_report;
 	unsigned long	mask;
 	int		num_of_runs;
-	int		(*setup)(struct resctrl_val_param *param);
+	int		(*setup)(const struct user_params *uparams,
+				 struct resctrl_val_param *param);
 };
 
 struct perf_event_read {
@@ -110,11 +121,12 @@ unsigned char *alloc_buffer(size_t buf_size, int memflush);
 void mem_flush(unsigned char *buf, size_t buf_size);
 void fill_cache_read(unsigned char *buf, size_t buf_size, bool once);
 int run_fill_buf(size_t buf_size, int memflush, int op, bool once);
-int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *param);
-int mbm_bw_change(int cpu_no, const char * const *benchmark_cmd);
+int resctrl_val(const struct user_params *uparams, const char * const *benchmark_cmd,
+		struct resctrl_val_param *param);
+int mbm_bw_change(const struct user_params *uparams);
 void tests_cleanup(void);
 void mbm_test_cleanup(void);
-int mba_schemata_change(int cpu_no, const char * const *benchmark_cmd);
+int mba_schemata_change(const struct user_params *uparams);
 void mba_test_cleanup(void);
 unsigned long create_bit_mask(unsigned int start, unsigned int len);
 unsigned int count_contiguous_bits(unsigned long val, unsigned int *start);
@@ -125,8 +137,8 @@ void ctrlc_handler(int signum, siginfo_t *info, void *ptr);
 int signal_handler_register(void);
 void signal_handler_unregister(void);
 void cat_test_cleanup(void);
-int cat_perf_miss_val(int cpu_no, int no_of_bits, char *cache_type);
-int cmt_resctrl_val(int cpu_no, int n, const char * const *benchmark_cmd);
+int cat_perf_miss_val(const struct user_params *uparams, char *cache_type);
+int cmt_resctrl_val(const struct user_params *uparams);
 unsigned int count_bits(unsigned long n);
 void cmt_test_cleanup(void);
 

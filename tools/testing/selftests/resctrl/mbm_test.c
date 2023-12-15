@@ -86,7 +86,7 @@ static int check_results(size_t span)
 	return ret;
 }
 
-static int mbm_setup(struct resctrl_val_param *p)
+static int mbm_setup(const struct user_params *uparams, struct resctrl_val_param *p)
 {
 	int ret = 0;
 
@@ -96,7 +96,7 @@ static int mbm_setup(struct resctrl_val_param *p)
 
 	/* Set up shemata with 100% allocation on the first run. */
 	if (p->num_of_runs == 0 && validate_resctrl_feature_request("MB", NULL))
-		ret = write_schemata(p->ctrlgrp, "100", p->cpu_no,
+		ret = write_schemata(p->ctrlgrp, "100", uparams->cpu,
 				     p->resctrl_val);
 
 	p->num_of_runs++;
@@ -109,13 +109,12 @@ void mbm_test_cleanup(void)
 	remove(RESULT_FILE_NAME);
 }
 
-int mbm_bw_change(int cpu_no, const char * const *benchmark_cmd)
+int mbm_bw_change(const struct user_params *uparams)
 {
 	struct resctrl_val_param param = {
 		.resctrl_val	= MBM_STR,
 		.ctrlgrp	= "c1",
 		.mongrp		= "m1",
-		.cpu_no		= cpu_no,
 		.filename	= RESULT_FILE_NAME,
 		.bw_report	= "reads",
 		.setup		= mbm_setup
@@ -124,7 +123,7 @@ int mbm_bw_change(int cpu_no, const char * const *benchmark_cmd)
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(benchmark_cmd, &param);
+	ret = resctrl_val(uparams, uparams->benchmark_cmd, &param);
 	if (ret)
 		goto out;
 

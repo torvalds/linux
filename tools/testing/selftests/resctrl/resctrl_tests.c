@@ -96,7 +96,7 @@ static void test_cleanup(void)
 	signal_handler_unregister();
 }
 
-static void run_mbm_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_mbm_test(const struct user_params *uparams)
 {
 	int res;
 
@@ -114,7 +114,7 @@ static void run_mbm_test(const char * const *benchmark_cmd, int cpu_no)
 		goto cleanup;
 	}
 
-	res = mbm_bw_change(cpu_no, benchmark_cmd);
+	res = mbm_bw_change(uparams);
 	ksft_test_result(!res, "MBM: bw change\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel MBM may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
@@ -123,7 +123,7 @@ cleanup:
 	test_cleanup();
 }
 
-static void run_mba_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_mba_test(const struct user_params *uparams)
 {
 	int res;
 
@@ -141,14 +141,14 @@ static void run_mba_test(const char * const *benchmark_cmd, int cpu_no)
 		goto cleanup;
 	}
 
-	res = mba_schemata_change(cpu_no, benchmark_cmd);
+	res = mba_schemata_change(uparams);
 	ksft_test_result(!res, "MBA: schemata change\n");
 
 cleanup:
 	test_cleanup();
 }
 
-static void run_cmt_test(const char * const *benchmark_cmd, int cpu_no)
+static void run_cmt_test(const struct user_params *uparams)
 {
 	int res;
 
@@ -165,7 +165,7 @@ static void run_cmt_test(const char * const *benchmark_cmd, int cpu_no)
 		goto cleanup;
 	}
 
-	res = cmt_resctrl_val(cpu_no, 5, benchmark_cmd);
+	res = cmt_resctrl_val(uparams);
 	ksft_test_result(!res, "CMT: test\n");
 	if ((get_vendor() == ARCH_INTEL) && res)
 		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
@@ -174,7 +174,7 @@ cleanup:
 	test_cleanup();
 }
 
-static void run_cat_test(int cpu_no, int no_of_bits)
+static void run_cat_test(const struct user_params *uparams)
 {
 	int res;
 
@@ -190,22 +190,31 @@ static void run_cat_test(int cpu_no, int no_of_bits)
 		goto cleanup;
 	}
 
-	res = cat_perf_miss_val(cpu_no, no_of_bits, "L3");
+	res = cat_perf_miss_val(uparams, "L3");
 	ksft_test_result(!res, "CAT: test\n");
 
 cleanup:
 	test_cleanup();
 }
 
+static void init_user_params(struct user_params *uparams)
+{
+	memset(uparams, 0, sizeof(*uparams));
+
+	uparams->cpu = 1;
+	uparams->bits = 0;
+}
+
 int main(int argc, char **argv)
 {
 	bool mbm_test = true, mba_test = true, cmt_test = true;
-	const char *benchmark_cmd[BENCHMARK_ARGS] = {};
-	int c, cpu_no = 1, i, no_of_bits = 0;
+	struct user_params uparams;
 	char *span_str = NULL;
 	bool cat_test = true;
 	int tests = 0;
-	int ret;
+	int ret, c, i;
+
+	init_user_params(&uparams);
 
 	while ((c = getopt(argc, argv, "ht:b:n:p:")) != -1) {
 		char *token;
@@ -223,8 +232,8 @@ int main(int argc, char **argv)
 
 			/* Extract benchmark command from command line. */
 			for (i = 0; i < argc - optind; i++)
-				benchmark_cmd[i] = argv[i + optind];
-			benchmark_cmd[i] = NULL;
+				uparams.benchmark_cmd[i] = argv[i + optind];
+			uparams.benchmark_cmd[i] = NULL;
 
 			goto last_arg;
 		case 't':
@@ -256,11 +265,11 @@ int main(int argc, char **argv)
 			}
 			break;
 		case 'p':
-			cpu_no = atoi(optarg);
+			uparams.cpu = atoi(optarg);
 			break;
 		case 'n':
-			no_of_bits = atoi(optarg);
-			if (no_of_bits <= 0) {
+			uparams.bits = atoi(optarg);
+			if (uparams.bits <= 0) {
 				printf("Bail out! invalid argument for no_of_bits\n");
 				return -1;
 			}
@@ -295,32 +304,32 @@ last_arg:
 
 	filter_dmesg();
 
-	if (!benchmark_cmd[0]) {
+	if (!uparams.benchmark_cmd[0]) {
 		/* If no benchmark is given by "-b" argument, use fill_buf. */
-		benchmark_cmd[0] = "fill_buf";
+		uparams.benchmark_cmd[0] = "fill_buf";
 		ret = asprintf(&span_str, "%u", DEFAULT_SPAN);
 		if (ret < 0)
 			ksft_exit_fail_msg("Out of memory!\n");
-		benchmark_cmd[1] = span_str;
-		benchmark_cmd[2] = "1";
-		benchmark_cmd[3] = "0";
-		benchmark_cmd[4] = "false";
-		benchmark_cmd[5] = NULL;
+		uparams.benchmark_cmd[1] = span_str;
+		uparams.benchmark_cmd[2] = "1";
+		uparams.benchmark_cmd[3] = "0";
+		uparams.benchmark_cmd[4] = "false";
+		uparams.benchmark_cmd[5] = NULL;
 	}
 
 	ksft_set_plan(tests ? : 4);
 
 	if (mbm_test)
-		run_mbm_test(benchmark_cmd, cpu_no);
+		run_mbm_test(&uparams);
 
 	if (mba_test)
-		run_mba_test(benchmark_cmd, cpu_no);
+		run_mba_test(&uparams);
 
 	if (cmt_test)
-		run_cmt_test(benchmark_cmd, cpu_no);
+		run_cmt_test(&uparams);
 
 	if (cat_test)
-		run_cat_test(cpu_no, no_of_bits);
+		run_cat_test(&uparams);
 
 	free(span_str);
 	ksft_finished();

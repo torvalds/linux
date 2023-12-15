@@ -593,8 +593,9 @@ static void initialize_llc_occu_resctrl(const char *ctrlgrp, const char *mongrp,
 		set_cmt_path(ctrlgrp, mongrp, resource_id);
 }
 
-static int
-measure_vals(struct resctrl_val_param *param, unsigned long *bw_resc_start)
+static int measure_vals(const struct user_params *uparams,
+			struct resctrl_val_param *param,
+			unsigned long *bw_resc_start)
 {
 	unsigned long bw_resc, bw_resc_end;
 	float bw_imc;
@@ -607,7 +608,7 @@ measure_vals(struct resctrl_val_param *param, unsigned long *bw_resc_start)
 	 * Compare the two values to validate resctrl value.
 	 * It takes 1sec to measure the data.
 	 */
-	ret = get_mem_bw_imc(param->cpu_no, param->bw_report, &bw_imc);
+	ret = get_mem_bw_imc(uparams->cpu, param->bw_report, &bw_imc);
 	if (ret < 0)
 		return ret;
 
@@ -683,12 +684,14 @@ static void run_benchmark(int signum, siginfo_t *info, void *ucontext)
 /*
  * resctrl_val:	execute benchmark and measure memory bandwidth on
  *			the benchmark
+ * @uparams:		user supplied parameters
  * @benchmark_cmd:	benchmark command and its arguments
  * @param:		parameters passed to resctrl_val()
  *
  * Return:		0 when the test was run, < 0 on error.
  */
-int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *param)
+int resctrl_val(const struct user_params *uparams, const char * const *benchmark_cmd,
+		struct resctrl_val_param *param)
 {
 	char *resctrl_val = param->resctrl_val;
 	unsigned long bw_resc_start = 0;
@@ -777,7 +780,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 	value.sival_ptr = (void *)benchmark_cmd;
 
 	/* Taskset benchmark to specified cpu */
-	ret = taskset_benchmark(bm_pid, param->cpu_no, NULL);
+	ret = taskset_benchmark(bm_pid, uparams->cpu, NULL);
 	if (ret)
 		goto out;
 
@@ -794,10 +797,10 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 			goto out;
 
 		initialize_mem_bw_resctrl(param->ctrlgrp, param->mongrp,
-					  param->cpu_no, resctrl_val);
+					  uparams->cpu, resctrl_val);
 	} else if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR)))
 		initialize_llc_occu_resctrl(param->ctrlgrp, param->mongrp,
-					    param->cpu_no, resctrl_val);
+					    uparams->cpu, resctrl_val);
 
 	/* Parent waits for child to be ready. */
 	close(pipefd[1]);
@@ -823,7 +826,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
-		ret = param->setup(param);
+		ret = param->setup(uparams, param);
 		if (ret == END_OF_TESTS) {
 			ret = 0;
 			break;
@@ -833,7 +836,7 @@ int resctrl_val(const char * const *benchmark_cmd, struct resctrl_val_param *par
 
 		if (!strncmp(resctrl_val, MBM_STR, sizeof(MBM_STR)) ||
 		    !strncmp(resctrl_val, MBA_STR, sizeof(MBA_STR))) {
-			ret = measure_vals(param, &bw_resc_start);
+			ret = measure_vals(uparams, param, &bw_resc_start);
 			if (ret)
 				break;
 		} else if (!strncmp(resctrl_val, CMT_STR, sizeof(CMT_STR))) {

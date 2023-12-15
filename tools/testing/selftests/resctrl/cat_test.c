@@ -135,6 +135,7 @@ void cat_test_cleanup(void)
 
 /*
  * cat_test - Execute CAT benchmark and measure cache misses
+ * @uparams:		User supplied parameters
  * @param:		Parameters passed to cat_test()
  * @span:		Buffer size for the benchmark
  * @current_mask	Start mask for the first iteration
@@ -151,7 +152,8 @@ void cat_test_cleanup(void)
  *
  * Return:		0 when the test was run, < 0 on error.
  */
-static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long current_mask)
+static int cat_test(const struct user_params *uparams, struct resctrl_val_param *param,
+		    size_t span, unsigned long current_mask)
 {
 	char *resctrl_val = param->resctrl_val;
 	struct perf_event_read pe_read;
@@ -168,7 +170,7 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 	bm_pid = getpid();
 
 	/* Taskset benchmark to specified cpu */
-	ret = taskset_benchmark(bm_pid, param->cpu_no, &old_affinity);
+	ret = taskset_benchmark(bm_pid, uparams->cpu, &old_affinity);
 	if (ret)
 		return ret;
 
@@ -180,7 +182,7 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 
 	perf_event_attr_initialize(&pea, PERF_COUNT_HW_CACHE_MISSES);
 	perf_event_initialize_read_format(&pe_read);
-	pe_fd = perf_open(&pea, bm_pid, param->cpu_no);
+	pe_fd = perf_open(&pea, bm_pid, uparams->cpu);
 	if (pe_fd < 0) {
 		ret = -1;
 		goto reset_affinity;
@@ -194,11 +196,11 @@ static int cat_test(struct resctrl_val_param *param, size_t span, unsigned long 
 
 	while (current_mask) {
 		snprintf(schemata, sizeof(schemata), "%lx", param->mask & ~current_mask);
-		ret = write_schemata("", schemata, param->cpu_no, param->resctrl_val);
+		ret = write_schemata("", schemata, uparams->cpu, param->resctrl_val);
 		if (ret)
 			goto free_buf;
 		snprintf(schemata, sizeof(schemata), "%lx", current_mask);
-		ret = write_schemata(param->ctrlgrp, schemata, param->cpu_no, param->resctrl_val);
+		ret = write_schemata(param->ctrlgrp, schemata, uparams->cpu, param->resctrl_val);
 		if (ret)
 			goto free_buf;
 
@@ -229,10 +231,11 @@ reset_affinity:
 	return ret;
 }
 
-int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
+int cat_perf_miss_val(const struct user_params *uparams, char *cache_type)
 {
 	unsigned long long_mask, start_mask, full_cache_mask;
 	unsigned long cache_total_size = 0;
+	int n = uparams->bits;
 	unsigned int start;
 	int count_of_bits;
 	size_t span;
@@ -247,7 +250,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 		return ret;
 
 	/* Get L3/L2 cache size */
-	ret = get_cache_size(cpu_no, cache_type, &cache_total_size);
+	ret = get_cache_size(uparams->cpu, cache_type, &cache_total_size);
 	if (ret)
 		return ret;
 	ksft_print_msg("Cache size :%lu\n", cache_total_size);
@@ -267,7 +270,6 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 
 	struct resctrl_val_param param = {
 		.resctrl_val	= CAT_STR,
-		.cpu_no		= cpu_no,
 		.ctrlgrp	= "c1",
 		.filename	= RESULT_FILE_NAME,
 		.num_of_runs	= 0,
@@ -277,7 +279,7 @@ int cat_perf_miss_val(int cpu_no, int n, char *cache_type)
 
 	remove(param.filename);
 
-	ret = cat_test(&param, span, start_mask);
+	ret = cat_test(uparams, &param, span, start_mask);
 	if (ret)
 		goto out;
 
