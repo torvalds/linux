@@ -2256,16 +2256,24 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
  *	3.	Performs writes following reads for array synchronising.
  */
 
-static void fix_read_error(struct r1conf *conf, int read_disk,
-			   sector_t sect, int sectors)
+static void fix_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 {
+	sector_t sect = r1_bio->sector;
+	int sectors = r1_bio->sectors;
+	int read_disk = r1_bio->read_disk;
 	struct mddev *mddev = conf->mddev;
+	struct md_rdev *rdev = rcu_dereference(conf->mirrors[read_disk].rdev);
+
+	if (exceed_read_errors(mddev, rdev)) {
+		r1_bio->bios[r1_bio->read_disk] = IO_BLOCKED;
+		return;
+	}
+
 	while(sectors) {
 		int s = sectors;
 		int d = read_disk;
 		int success = 0;
 		int start;
-		struct md_rdev *rdev;
 
 		if (s > (PAGE_SIZE>>9))
 			s = PAGE_SIZE >> 9;
@@ -2506,8 +2514,7 @@ static void handle_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 	if (mddev->ro == 0
 	    && !test_bit(FailFast, &rdev->flags)) {
 		freeze_array(conf, 1);
-		fix_read_error(conf, r1_bio->read_disk,
-			       r1_bio->sector, r1_bio->sectors);
+		fix_read_error(conf, r1_bio);
 		unfreeze_array(conf);
 	} else if (mddev->ro == 0 && test_bit(FailFast, &rdev->flags)) {
 		md_error(mddev, rdev);
