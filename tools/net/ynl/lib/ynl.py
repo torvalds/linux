@@ -98,12 +98,12 @@ class NlAttr:
     }
 
     def __init__(self, raw, offset):
-        self._len, self._type = struct.unpack("HH", raw[offset:offset + 4])
+        self._len, self._type = struct.unpack("HH", raw[offset : offset + 4])
         self.type = self._type & ~Netlink.NLA_TYPE_MASK
         self.is_nest = self._type & Netlink.NLA_F_NESTED
         self.payload_len = self._len
         self.full_len = (self.payload_len + 3) & ~3
-        self.raw = raw[offset + 4:offset + self.payload_len]
+        self.raw = raw[offset + 4 : offset + self.payload_len]
 
     @classmethod
     def get_format(cls, attr_type, byte_order=None):
@@ -154,7 +154,7 @@ class NlAttr:
         for m in members:
             # TODO: handle non-scalar members
             if m.type == 'binary':
-                decoded = self.raw[offset:offset+m['len']]
+                decoded = self.raw[offset : offset + m['len']]
                 offset += m['len']
             elif m.type in NlAttr.type_formats:
                 format = self.get_format(m.type, m.byte_order)
@@ -193,12 +193,12 @@ class NlAttrs:
 
 class NlMsg:
     def __init__(self, msg, offset, attr_space=None):
-        self.hdr = msg[offset:offset + 16]
+        self.hdr = msg[offset : offset + 16]
 
         self.nl_len, self.nl_type, self.nl_flags, self.nl_seq, self.nl_portid = \
             struct.unpack("IHHII", self.hdr)
 
-        self.raw = msg[offset + 16:offset + self.nl_len]
+        self.raw = msg[offset + 16 : offset + self.nl_len]
 
         self.error = 0
         self.done = 0
