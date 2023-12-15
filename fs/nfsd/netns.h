@@ -123,7 +123,9 @@ struct nfsd_net {
 	u32 clientid_counter;
 	u32 clverifier_counter;
 
-	struct svc_serv *nfsd_serv;
+	struct svc_info nfsd_info;
+#define nfsd_serv nfsd_info.serv
+
 	/* When a listening socket is added to nfsd, keep_active is set
 	 * and this justifies a reference on nfsd_serv.  This stops
 	 * nfsd_serv from being freed.  When the number of threads is

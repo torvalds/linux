@@ -97,6 +97,12 @@ struct svc_serv {
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 };
 
+/* This is used by pool_stats to find and lock an svc */
+struct svc_info {
+	struct svc_serv		*serv;
+	struct mutex		*mutex;
+};
+
 /**
  * svc_get() - increment reference count on a SUNRPC serv
  * @serv:  the svc_serv to have count incremented
@@ -431,7 +437,7 @@ void		   svc_exit_thread(struct svc_rqst *);
 struct svc_serv *  svc_create_pooled(struct svc_program *, unsigned int,
 				     int (*threadfn)(void *data));
 int		   svc_set_num_threads(struct svc_serv *, struct svc_pool *, int);
-int		   svc_pool_stats_open(struct svc_serv *serv, struct file *file);
+int		   svc_pool_stats_open(struct svc_info *si, struct file *file);
 void		   svc_process(struct svc_rqst *rqstp);
 void		   svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp);
 int		   svc_register(const struct svc_serv *, struct net *, const int,

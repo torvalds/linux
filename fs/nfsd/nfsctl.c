@@ -183,7 +183,7 @@ static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= nfsd_pool_stats_release,
+	.release	= seq_release,
 };
 
 DEFINE_SHOW_ATTRIBUTE(nfsd_reply_cache_stats);
