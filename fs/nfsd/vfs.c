@@ -1906,10 +1906,10 @@ out_unlock:
 	fh_drop_write(ffhp);
 
 	/*
-	 * If the target dentry has cached open files, then we need to try to
-	 * close them prior to doing the rename. Flushing delayed fput
-	 * shouldn't be done with locks held however, so we delay it until this
-	 * point and then reattempt the whole shebang.
+	 * If the target dentry has cached open files, then we need to
+	 * try to close them prior to doing the rename.  Final fput
+	 * shouldn't be done with locks held however, so we delay it
+	 * until this point and then reattempt the whole shebang.
 	 */
 	if (close_cached) {
 		close_cached = false;
@@ -2177,9 +2177,41 @@ nfsd_readdir(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t *offsetp,
 	if (err == nfserr_eof || err == nfserr_toosmall)
 		err = nfs_ok; /* can still be found in ->err */
 out_close:
-	fput(file);
+	nfsd_filp_close(file);
 out:
 	return err;
+}
+
+/**
+ * nfsd_filp_close: close a file synchronously
+ * @fp: the file to close
+ *
+ * nfsd_filp_close() is similar in behaviour to filp_close().
+ * The difference is that if this is the final close on the
+ * file, the that finalisation happens immediately, rather then
+ * being handed over to a work_queue, as it the case for
+ * filp_close().
+ * When a user-space process closes a file (even when using
+ * filp_close() the finalisation happens before returning to
+ * userspace, so it is effectively synchronous.  When a kernel thread
+ * uses file_close(), on the other hand, the handling is completely
+ * asynchronous.  This means that any cost imposed by that finalisation
+ * is not imposed on the nfsd thread, and nfsd could potentually
+ * close files more quickly than the work queue finalises the close,
+ * which would lead to unbounded growth in the queue.
+ *
+ * In some contexts is it not safe to synchronously wait for
+ * close finalisation (see comment for __fput_sync()), but nfsd
+ * does not match those contexts.  In partcilarly it does not, at the
+ * time that this function is called, hold and locks and no finalisation
+ * of any file, socket, or device driver would have any cause to wait
+ * for nfsd to make progress.
+ */
+void nfsd_filp_close(struct file *fp)
+{
+	get_file(fp);
+	filp_close(fp, NULL);
+	__fput_sync(fp);
 }
 
 /*

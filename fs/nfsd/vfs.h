@@ -148,6 +148,8 @@ __be32		nfsd_statfs(struct svc_rqst *, struct svc_fh *,
 __be32		nfsd_permission(struct svc_rqst *, struct svc_export *,
 				struct dentry *, int);
 
+void		nfsd_filp_close(struct file *fp);
+
 static inline int fh_want_write(struct svc_fh *fh)
 {
 	int ret;
