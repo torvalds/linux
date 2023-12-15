@@ -41,7 +41,6 @@ static int perf_event_open_llc_miss(pid_t pid, int cpu_no)
 				PERF_FLAG_FD_CLOEXEC);
 	if (fd_lm == -1) {
 		ksft_perror("Error opening leader");
-		ctrlc_handler(0, NULL, NULL);
 		return -1;
 	}
 
