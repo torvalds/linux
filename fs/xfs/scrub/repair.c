@@ -176,6 +176,16 @@ xrep_roll_ag_trans(
 	return 0;
 }
 
+/* Roll the scrub transaction, holding the primary metadata locked. */
+int
+xrep_roll_trans(
+	struct xfs_scrub	*sc)
+{
+	if (!sc->ip)
+		return xrep_roll_ag_trans(sc);
+	return xfs_trans_roll_inode(&sc->tp, sc->ip);
+}
+
 /* Finish all deferred work attached to the repair transaction. */
 int
 xrep_defer_finish(
@@ -739,6 +749,38 @@ xrep_ino_dqattach(
 	return error;
 }
 #endif /* CONFIG_XFS_QUOTA */
+
+/*
+ * Ensure that the inode being repaired is ready to handle a certain number of
+ * extents, or return EFSCORRUPTED.  Caller must hold the ILOCK of the inode
+ * being repaired and have joined it to the scrub transaction.
+ */
+int
+xrep_ino_ensure_extent_count(
+	struct xfs_scrub	*sc,
+	int			whichfork,
+	xfs_extnum_t		nextents)
+{
+	xfs_extnum_t		max_extents;
+	bool			inode_has_nrext64;
+
+	inode_has_nrext64 = xfs_inode_has_large_extent_counts(sc->ip);
+	max_extents = xfs_iext_max_nextents(inode_has_nrext64, whichfork);
+	if (nextents <= max_extents)
+		return 0;
+	if (inode_has_nrext64)
+		return -EFSCORRUPTED;
+	if (!xfs_has_large_extent_counts(sc->mp))
+		return -EFSCORRUPTED;
+
+	max_extents = xfs_iext_max_nextents(true, whichfork);
+	if (nextents > max_extents)
+		return -EFSCORRUPTED;
+
+	sc->ip->i_diflags2 |= XFS_DIFLAG2_NREXT64;
+	xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+	return 0;
+}
 
 /*
  * Initialize all the btree cursors for an AG repair except for the btree that

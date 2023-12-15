@@ -1393,6 +1393,135 @@ DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_file_blocks);
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_free_blocks);
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_claim_block);
 
+DECLARE_EVENT_CLASS(xrep_dinode_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_dinode *dip),
+	TP_ARGS(sc, dip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(uint16_t, mode)
+		__field(uint8_t, version)
+		__field(uint8_t, format)
+		__field(uint32_t, uid)
+		__field(uint32_t, gid)
+		__field(uint64_t, size)
+		__field(uint64_t, nblocks)
+		__field(uint32_t, extsize)
+		__field(uint32_t, nextents)
+		__field(uint16_t, anextents)
+		__field(uint8_t, forkoff)
+		__field(uint8_t, aformat)
+		__field(uint16_t, flags)
+		__field(uint32_t, gen)
+		__field(uint64_t, flags2)
+		__field(uint32_t, cowextsize)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->mode = be16_to_cpu(dip->di_mode);
+		__entry->version = dip->di_version;
+		__entry->format = dip->di_format;
+		__entry->uid = be32_to_cpu(dip->di_uid);
+		__entry->gid = be32_to_cpu(dip->di_gid);
+		__entry->size = be64_to_cpu(dip->di_size);
+		__entry->nblocks = be64_to_cpu(dip->di_nblocks);
+		__entry->extsize = be32_to_cpu(dip->di_extsize);
+		__entry->nextents = be32_to_cpu(dip->di_nextents);
+		__entry->anextents = be16_to_cpu(dip->di_anextents);
+		__entry->forkoff = dip->di_forkoff;
+		__entry->aformat = dip->di_aformat;
+		__entry->flags = be16_to_cpu(dip->di_flags);
+		__entry->gen = be32_to_cpu(dip->di_gen);
+		__entry->flags2 = be64_to_cpu(dip->di_flags2);
+		__entry->cowextsize = be32_to_cpu(dip->di_cowextsize);
+	),
+	TP_printk("dev %d:%d ino 0x%llx mode 0x%x version %u format %u uid %u gid %u disize 0x%llx nblocks 0x%llx extsize %u nextents %u anextents %u forkoff 0x%x aformat %u flags 0x%x gen 0x%x flags2 0x%llx cowextsize %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->mode,
+		  __entry->version,
+		  __entry->format,
+		  __entry->uid,
+		  __entry->gid,
+		  __entry->size,
+		  __entry->nblocks,
+		  __entry->extsize,
+		  __entry->nextents,
+		  __entry->anextents,
+		  __entry->forkoff,
+		  __entry->aformat,
+		  __entry->flags,
+		  __entry->gen,
+		  __entry->flags2,
+		  __entry->cowextsize)
+)
+
+#define DEFINE_REPAIR_DINODE_EVENT(name) \
+DEFINE_EVENT(xrep_dinode_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_dinode *dip), \
+	TP_ARGS(sc, dip))
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_header);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_mode);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_flags);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_size);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_extsize_hints);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_symlink);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_dir);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_fixed);
+
+DECLARE_EVENT_CLASS(xrep_inode_class,
+	TP_PROTO(struct xfs_scrub *sc),
+	TP_ARGS(sc),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_fsize_t, size)
+		__field(xfs_rfsblock_t, nblocks)
+		__field(uint16_t, flags)
+		__field(uint64_t, flags2)
+		__field(uint32_t, nextents)
+		__field(uint8_t, format)
+		__field(uint32_t, anextents)
+		__field(uint8_t, aformat)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->size = sc->ip->i_disk_size;
+		__entry->nblocks = sc->ip->i_nblocks;
+		__entry->flags = sc->ip->i_diflags;
+		__entry->flags2 = sc->ip->i_diflags2;
+		__entry->nextents = sc->ip->i_df.if_nextents;
+		__entry->format = sc->ip->i_df.if_format;
+		__entry->anextents = sc->ip->i_af.if_nextents;
+		__entry->aformat = sc->ip->i_af.if_format;
+	),
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx nblocks 0x%llx flags 0x%x flags2 0x%llx nextents %u format %u anextents %u aformat %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->size,
+		  __entry->nblocks,
+		  __entry->flags,
+		  __entry->flags2,
+		  __entry->nextents,
+		  __entry->format,
+		  __entry->anextents,
+		  __entry->aformat)
+)
+
+#define DEFINE_REPAIR_INODE_EVENT(name) \
+DEFINE_EVENT(xrep_inode_class, name, \
+	TP_PROTO(struct xfs_scrub *sc), \
+	TP_ARGS(sc))
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_blockcounts);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_ids);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_flags);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_blockdir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_sfdir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_dir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_fixed);
+
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
 #endif /* _TRACE_XFS_SCRUB_TRACE_H */
