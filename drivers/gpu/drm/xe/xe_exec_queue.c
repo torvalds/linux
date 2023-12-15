@@ -453,7 +453,7 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 				      u64 extensions, int ext_number, bool create)
 {
 	u64 __user *address = u64_to_user_ptr(extensions);
-	struct xe_user_extension ext;
+	struct drm_xe_user_extension ext;
 	int err;
 	u32 idx;
 

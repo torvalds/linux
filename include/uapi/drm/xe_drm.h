@@ -27,7 +27,7 @@ extern "C" {
 #define DRM_XE_RESET_FAILED_UEVENT "DEVICE_STATUS"
 
 /**
- * struct xe_user_extension - Base class for defining a chain of extensions
+ * struct drm_xe_user_extension - Base class for defining a chain of extensions
  *
  * Many interfaces need to grow over time. In most cases we can simply
  * extend the struct and have userspace pass in more data. Another option,
@@ -45,29 +45,29 @@ extern "C" {
  *
  * .. code-block:: C
  *
- *	struct xe_user_extension ext3 {
+ *	struct drm_xe_user_extension ext3 {
  *		.next_extension = 0, // end
  *		.name = ...,
  *	};
- *	struct xe_user_extension ext2 {
+ *	struct drm_xe_user_extension ext2 {
  *		.next_extension = (uintptr_t)&ext3,
  *		.name = ...,
  *	};
- *	struct xe_user_extension ext1 {
+ *	struct drm_xe_user_extension ext1 {
  *		.next_extension = (uintptr_t)&ext2,
  *		.name = ...,
  *	};
  *
- * Typically the struct xe_user_extension would be embedded in some uAPI
+ * Typically the struct drm_xe_user_extension would be embedded in some uAPI
  * struct, and in this case we would feed it the head of the chain(i.e ext1),
  * which would then apply all of the above extensions.
  *
  */
-struct xe_user_extension {
+struct drm_xe_user_extension {
 	/**
 	 * @next_extension:
 	 *
-	 * Pointer to the next struct xe_user_extension, or zero if the end.
+	 * Pointer to the next struct drm_xe_user_extension, or zero if the end.
 	 */
 	__u64 next_extension;
 
@@ -78,7 +78,7 @@ struct xe_user_extension {
 	 *
 	 * Also note that the name space for this is not global for the whole
 	 * driver, but rather its scope/meaning is limited to the specific piece
-	 * of uAPI which has embedded the struct xe_user_extension.
+	 * of uAPI which has embedded the struct drm_xe_user_extension.
 	 */
 	__u32 name;
 
@@ -625,7 +625,7 @@ struct drm_xe_gem_mmap_offset {
 /** struct drm_xe_ext_set_property - XE set property extension */
 struct drm_xe_ext_set_property {
 	/** @base: base user extension */
-	struct xe_user_extension base;
+	struct drm_xe_user_extension base;
 
 	/** @property: property to set */
 	__u32 property;
