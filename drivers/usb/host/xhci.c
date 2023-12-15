@@ -3077,6 +3077,9 @@ done:
  * of an endpoint that isn't in the halted state this function will issue a
  * configure endpoint command with the Drop and Add bits set for the target
  * endpoint. Refer to the additional note in xhci spcification section 4.6.8.
+ *
+ * vdev may be lost due to xHC restore error and re-initialization during S3/S4
+ * resume. A new vdev will be allocated later by xhci_discover_or_reset_device()
  */
 
 static void xhci_endpoint_reset(struct usb_hcd *hcd,
@@ -3102,9 +3105,17 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	 * mismatch. Reconfigure the xhci ep0 endpoint context here in that case
 	 */
 	if (usb_endpoint_xfer_control(&host_ep->desc) && ep_index == 0) {
+
 		udev = container_of(host_ep, struct usb_device, ep0);
-		if (udev->speed == USB_SPEED_FULL)
-			xhci_check_ep0_maxpacket(xhci, xhci->devs[udev->slot_id]);
+		if (udev->speed != USB_SPEED_FULL || !udev->slot_id)
+			return;
+
+		vdev = xhci->devs[udev->slot_id];
+		if (!vdev || vdev->udev != udev)
+			return;
+
+		xhci_check_ep0_maxpacket(xhci, vdev);
+
 		/* Nothing else should be done here for ep0 during ep reset */
 		return;
 	}
@@ -3114,11 +3125,6 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	udev = (struct usb_device *) host_ep->hcpriv;
 	vdev = xhci->devs[udev->slot_id];
 
-	/*
-	 * vdev may be lost due to xHC restore error and re-initialization
-	 * during S3/S4 resume. A new vdev will be allocated later by
-	 * xhci_discover_or_reset_device()
-	 */
 	if (!udev->slot_id || !vdev)
 		return;
 
