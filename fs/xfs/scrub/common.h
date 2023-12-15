@@ -239,7 +239,11 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 			(sc)->mp->m_super->s_id, \
 			(sc)->sa.pag ? (sc)->sa.pag->pag_agno : (sc)->sm->sm_agno, \
 			##__VA_ARGS__)
-
+#define xchk_xfile_ino_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): inode 0x%llx " fmt, \
+			(sc)->mp->m_super->s_id, \
+			(sc)->ip ? (sc)->ip->i_ino : (sc)->sm->sm_ino, \
+			##__VA_ARGS__)
 
 /*
  * Setting up a hook to wait for intents to drain is costly -- we have to take
