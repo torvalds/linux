@@ -155,11 +155,11 @@ unsigned int dml2_util_get_maximum_odm_combine_for_output(bool force_odm_4to1, e
 
 bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 {
+	if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
+		return false;
+
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
-
-	if (pipe_ctx->stream == NULL)
-		return false;
 
 	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
 	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
