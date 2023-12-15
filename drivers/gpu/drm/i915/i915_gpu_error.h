@@ -16,6 +16,7 @@
 
 #include "display/intel_display_device.h"
 #include "gt/intel_engine.h"
+#include "gt/intel_engine_types.h"
 #include "gt/intel_gt_types.h"
 #include "gt/uc/intel_uc_fw.h"
 
@@ -232,7 +233,7 @@ struct i915_gpu_error {
 	atomic_t reset_count;
 
 	/** Number of times an engine has been reset */
-	atomic_t reset_engine_count[I915_NUM_ENGINES];
+	atomic_t reset_engine_count[MAX_ENGINE_CLASS];
 };
 
 struct drm_i915_error_state_buf {
@@ -255,7 +256,14 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 					  const struct intel_engine_cs *engine)
 {
-	return atomic_read(&error->reset_engine_count[engine->uabi_class]);
+	return atomic_read(&error->reset_engine_count[engine->class]);
+}
+
+static inline void
+i915_increase_reset_engine_count(struct i915_gpu_error *error,
+				 const struct intel_engine_cs *engine)
+{
+	atomic_inc(&error->reset_engine_count[engine->class]);
 }
 
 #define CORE_DUMP_FLAG_NONE           0x0

@@ -124,7 +124,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 600.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 186.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 1,
@@ -133,7 +133,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 2,
@@ -142,7 +142,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 3,
@@ -151,7 +151,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 371.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 4,
@@ -160,7 +160,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 	},
 	.num_states = 5,
@@ -348,6 +348,8 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 				clock_limits[i].socclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
 				clk_table->entries[i].memclk_mhz * clk_table->entries[i].wck_ratio;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
+				clock_limits[i].dtbclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
@@ -359,6 +361,8 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_socclk_levels =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_memclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels =
 				clk_table->num_entries;
 		}
 	}
