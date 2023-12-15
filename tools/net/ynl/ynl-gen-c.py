@@ -105,6 +105,12 @@ class Type(SpecAttr):
     def is_scalar(self):
         return self.type in {'u8', 'u16', 'u32', 'u64', 's32', 's64'}
 
+    def is_recursive(self):
+        return False
+
+    def is_recursive_for_op(self, ri):
+        return self.is_recursive() and not ri.op
+
     def presence_type(self):
         return 'bit'
 
@@ -145,6 +151,8 @@ class Type(SpecAttr):
         member = self._complex_member_type(ri)
         if member:
             ptr = '*' if self.is_multi_val() else ''
+            if self.is_recursive_for_op(ri):
+                ptr = '*'
             ri.cw.p(f"{member} {ptr}{self.c_name};")
             return
         members = self.arg_member(ri)
@@ -264,6 +272,15 @@ class TypeUnused(Type):
     def attr_policy(self, cw):
         pass
 
+    def attr_put(self, ri, var):
+        pass
+
+    def attr_get(self, ri, var, first):
+        pass
+
+    def setter(self, ri, space, direction, deref=False, ref=None):
+        pass
+
 
 class TypePad(Type):
     def presence_type(self):
@@ -333,9 +350,8 @@ class TypeScalar(Type):
         else:
             self.is_bitfield = False
 
-        maybe_enum = not self.is_bitfield and 'enum' in self.attr
-        if maybe_enum and self.family.consts[self.attr['enum']].enum_name:
-            self.type_name = c_lower(f"enum {self.family.name}_{self.attr['enum']}")
+        if not self.is_bitfield and 'enum' in self.attr:
+            self.type_name = self.family.consts[self.attr['enum']].user_type
         elif self.is_auto_scalar:
             self.type_name = '__' + self.type[0] + '64'
         else:
@@ -521,11 +537,18 @@ class TypeBitfield32(Type):
 
 
 class TypeNest(Type):
+    def is_recursive(self):
+        return self.family.pure_nested_structs[self.nested_attrs].recursive
+
     def _complex_member_type(self, ri):
         return self.nested_struct_type
 
     def free(self, ri, var, ref):
-        ri.cw.p(f'{self.nested_render_name}_free(&{var}->{ref}{self.c_name});')
+        at = '&'
+        if self.is_recursive_for_op(ri):
+            at = ''
+            ri.cw.p(f'if ({var}->{ref}{self.c_name})')
+        ri.cw.p(f'{self.nested_render_name}_free({at}{var}->{ref}{self.c_name});')
 
     def _attr_typol(self):
         return f'.type = YNL_PT_NEST, .nest = &{self.nested_render_name}_nest, '
@@ -534,8 +557,9 @@ class TypeNest(Type):
         return 'NLA_POLICY_NESTED(' + self.nested_render_name + '_nl_policy)'
 
     def attr_put(self, ri, var):
+        at = '' if self.is_recursive_for_op(ri) else '&'
         self._attr_put_line(ri, var, f"{self.nested_render_name}_put(nlh, " +
-                            f"{self.enum_name}, &{var}->{self.c_name})")
+                            f"{self.enum_name}, {at}{var}->{self.c_name})")
 
     def _attr_get(self, ri, var):
         get_lines = [f"if ({self.nested_render_name}_parse(&parg, attr))",
@@ -548,6 +572,8 @@ class TypeNest(Type):
         ref = (ref if ref else []) + [self.c_name]
 
         for _, attr in ri.family.pure_nested_structs[self.nested_attrs].member_list():
+            if attr.is_recursive():
+                continue
             attr.setter(ri, self.nested_attrs, direction, deref=deref, ref=ref)
 
 
@@ -692,9 +718,12 @@ class Struct:
         if self.nested and space_name in family.consts:
             self.struct_name += '_'
         self.ptr_name = self.struct_name + ' *'
+        # All attr sets this one contains, directly or multiple levels down
+        self.child_nests = set()
 
         self.request = False
         self.reply = False
+        self.recursive = False
 
         self.attr_list = []
         self.attrs = dict()
@@ -991,6 +1020,33 @@ class Family(SpecFamily):
                 self.root_sets[op['attribute-set']]['request'].update(req_attrs)
                 self.root_sets[op['attribute-set']]['reply'].update(rsp_attrs)
 
+    def _sort_pure_types(self):
+        # Try to reorder according to dependencies
+        pns_key_list = list(self.pure_nested_structs.keys())
+        pns_key_seen = set()
+        rounds = len(pns_key_list) ** 2  # it's basically bubble sort
+        for _ in range(rounds):
+            if len(pns_key_list) == 0:
+                break
+            name = pns_key_list.pop(0)
+            finished = True
+            for _, spec in self.attr_sets[name].items():
+                if 'nested-attributes' in spec:
+                    nested = spec['nested-attributes']
+                    # If the unknown nest we hit is recursive it's fine, it'll be a pointer
+                    if self.pure_nested_structs[nested].recursive:
+                        continue
+                    if nested not in pns_key_seen:
+                        # Dicts are sorted, this will make struct last
+                        struct = self.pure_nested_structs.pop(name)
+                        self.pure_nested_structs[name] = struct
+                        finished = False
+                        break
+            if finished:
+                pns_key_seen.add(name)
+            else:
+                pns_key_list.append(name)
+
     def _load_nested_sets(self):
         attr_set_queue = list(self.root_sets.keys())
         attr_set_seen = set(self.root_sets.keys())
@@ -1030,35 +1086,24 @@ class Family(SpecFamily):
                     if attr in rs_members['reply']:
                         self.pure_nested_structs[nested].reply = True
 
-        # Try to reorder according to dependencies
-        pns_key_list = list(self.pure_nested_structs.keys())
-        pns_key_seen = set()
-        rounds = len(pns_key_list)**2  # it's basically bubble sort
-        for _ in range(rounds):
-            if len(pns_key_list) == 0:
-                break
-            name = pns_key_list.pop(0)
-            finished = True
-            for _, spec in self.attr_sets[name].items():
-                if 'nested-attributes' in spec:
-                    if spec['nested-attributes'] not in pns_key_seen:
-                        # Dicts are sorted, this will make struct last
-                        struct = self.pure_nested_structs.pop(name)
-                        self.pure_nested_structs[name] = struct
-                        finished = False
-                        break
-            if finished:
-                pns_key_seen.add(name)
-            else:
-                pns_key_list.append(name)
-        # Propagate the request / reply
+        self._sort_pure_types()
+
+        # Propagate the request / reply / recursive
         for attr_set, struct in reversed(self.pure_nested_structs.items()):
             for _, spec in self.attr_sets[attr_set].items():
                 if 'nested-attributes' in spec:
-                    child = self.pure_nested_structs.get(spec['nested-attributes'])
+                    child_name = spec['nested-attributes']
+                    struct.child_nests.add(child_name)
+                    child = self.pure_nested_structs.get(child_name)
                     if child:
+                        if not child.recursive:
+                            struct.child_nests.update(child.child_nests)
                         child.request |= struct.request
                         child.reply |= struct.reply
+                if attr_set in struct.child_nests:
+                    struct.recursive = True
+
+        self._sort_pure_types()
 
     def _load_attr_use(self):
         for _, struct in self.pure_nested_structs.items():
@@ -1124,6 +1169,10 @@ class RenderInfo:
         self.ku_space = ku_space
         self.op_mode = op_mode
         self.op = op
+
+        self.fixed_hdr = None
+        if op and op.fixed_header:
+            self.fixed_hdr = 'struct ' + c_lower(op.fixed_header)
 
         # 'do' and 'dump' response parsing is identical
         self.type_consistent = True
@@ -1472,6 +1521,10 @@ def print_dump_prototype(ri):
     print_prototype(ri, "request")
 
 
+def put_typol_fwd(cw, struct):
+    cw.p(f'extern struct ynl_policy_nest {struct.render_name}_nest;')
+
+
 def put_typol(cw, struct):
     type_max = struct.attr_set.max_name
     cw.block_start(line=f'struct ynl_policy_attr {struct.render_name}_policy[{type_max} + 1] =')
@@ -1545,12 +1598,17 @@ def put_enum_to_str(family, cw, enum):
     _put_enum_to_str_helper(cw, enum.render_name, map_name, 'value', enum=enum)
 
 
-def put_req_nested(ri, struct):
+def put_req_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct nlmsghdr *nlh',
                  'unsigned int attr_type',
                  f'{struct.ptr_name}obj']
 
-    ri.cw.write_func_prot('int', f'{struct.render_name}_put', func_args)
+    ri.cw.write_func_prot('int', f'{struct.render_name}_put', func_args,
+                          suffix=suffix)
+
+
+def put_req_nested(ri, struct):
+    put_req_nested_prototype(ri, struct, suffix='')
     ri.cw.block_start()
     ri.cw.write_func_lvar('struct nlattr *nest;')
 
@@ -1571,7 +1629,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     if struct.nested:
         iter_line = "mnl_attr_for_each_nested(attr, nested)"
     else:
-        iter_line = "mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr))"
+        if ri.fixed_hdr:
+            local_vars += ['void *hdr;']
+        iter_line = "mnl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
 
     array_nests = set()
     multi_attrs = set()
@@ -1604,6 +1664,9 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     for arg in struct.inherited:
         ri.cw.p(f'dst->{arg} = {arg};')
 
+    if ri.fixed_hdr:
+        ri.cw.p('hdr = mnl_nlmsg_get_payload_offset(nlh, sizeof(struct genlmsghdr));')
+        ri.cw.p(f"memcpy(&dst->_hdr, hdr, sizeof({ri.fixed_hdr}));")
     for anest in sorted(all_multi):
         aspec = struct[anest]
         ri.cw.p(f"if (dst->{aspec.c_name})")
@@ -1672,17 +1735,22 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     ri.cw.nl()
 
 
-def parse_rsp_nested(ri, struct):
+def parse_rsp_nested_prototype(ri, struct, suffix=';'):
     func_args = ['struct ynl_parse_arg *yarg',
                  'const struct nlattr *nested']
     for arg in struct.inherited:
         func_args.append('__u32 ' + arg)
 
+    ri.cw.write_func_prot('int', f'{struct.render_name}_parse', func_args,
+                          suffix=suffix)
+
+
+def parse_rsp_nested(ri, struct):
+    parse_rsp_nested_prototype(ri, struct, suffix='')
+
     local_vars = ['const struct nlattr *attr;',
                   f'{struct.ptr_name}dst = yarg->data;']
     init_lines = []
-
-    ri.cw.write_func_prot('int', f'{struct.render_name}_parse', func_args)
 
     _multi_parse(ri, struct, init_lines, local_vars)
 
@@ -1724,6 +1792,10 @@ def print_req(ri):
         ret_err = 'NULL'
         local_vars += [f'{type_name(ri, rdir(direction))} *rsp;']
 
+    if ri.fixed_hdr:
+        local_vars += ['size_t hdr_len;',
+                       'void *hdr;']
+
     print_prototype(ri, direction, terminate=False)
     ri.cw.block_start()
     ri.cw.write_func_lvar(local_vars)
@@ -1734,6 +1806,13 @@ def print_req(ri):
     if 'reply' in ri.op[ri.op_mode]:
         ri.cw.p(f"yrs.yarg.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
+
+    if ri.fixed_hdr:
+        ri.cw.p("hdr_len = sizeof(req->_hdr);")
+        ri.cw.p("hdr = mnl_nlmsg_put_extra_header(nlh, hdr_len);")
+        ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
+        ri.cw.nl()
+
     for _, attr in ri.struct["request"].member_list():
         attr.attr_put(ri, "req")
     ri.cw.nl()
@@ -1774,9 +1853,11 @@ def print_dump(ri):
                   'struct nlmsghdr *nlh;',
                   'int err;']
 
-    for var in local_vars:
-        ri.cw.p(f'{var}')
-    ri.cw.nl()
+    if ri.fixed_hdr:
+        local_vars += ['size_t hdr_len;',
+                       'void *hdr;']
+
+    ri.cw.write_func_lvar(local_vars)
 
     ri.cw.p('yds.ys = ys;')
     ri.cw.p(f"yds.alloc_sz = sizeof({type_name(ri, rdir(direction))});")
@@ -1788,6 +1869,12 @@ def print_dump(ri):
     ri.cw.p(f"yds.rsp_policy = &{ri.struct['reply'].render_name}_nest;")
     ri.cw.nl()
     ri.cw.p(f"nlh = ynl_gemsg_start_dump(ys, {ri.nl.get_family_id()}, {ri.op.enum_name}, 1);")
+
+    if ri.fixed_hdr:
+        ri.cw.p("hdr_len = sizeof(req->_hdr);")
+        ri.cw.p("hdr = mnl_nlmsg_put_extra_header(nlh, hdr_len);")
+        ri.cw.p("memcpy(hdr, &req->_hdr, hdr_len);")
+        ri.cw.nl()
 
     if "request" in ri.op[ri.op_mode]:
         ri.cw.p(f"ys->req_policy = &{ri.struct['request'].render_name}_nest;")
@@ -1845,6 +1932,10 @@ def _print_type(ri, direction, struct):
         suffix += '_dump'
 
     ri.cw.block_start(line=f"struct {ri.family.c_name}{suffix}")
+
+    if ri.fixed_hdr:
+        ri.cw.p(ri.fixed_hdr + ' _hdr;')
+        ri.cw.nl()
 
     meta_started = False
     for _, attr in struct.member_list():
@@ -1972,6 +2063,10 @@ def _free_type(ri, direction, struct):
         ri.cw.p(f'free({var});')
     ri.cw.block_end()
     ri.cw.nl()
+
+
+def free_rsp_nested_prototype(ri):
+        print_free_prototype(ri, "")
 
 
 def free_rsp_nested(ri, struct):
@@ -2483,6 +2578,10 @@ def render_user_family(family, cw, prototype):
 
     cw.block_start(f'{symbol} = ')
     cw.p(f'.name\t\t= "{family.c_name}",')
+    if family.fixed_header:
+        cw.p(f'.hdr_len\t= sizeof(struct genlmsghdr) + sizeof(struct {c_lower(family.fixed_header)}),')
+    else:
+        cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
     if family.ntfs:
         cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
         cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")
@@ -2737,7 +2836,14 @@ def main():
                     put_enum_to_str(parsed, cw, const)
             cw.nl()
 
+            has_recursive_nests = False
             cw.p('/* Policies */')
+            for struct in parsed.pure_nested_structs.values():
+                if struct.recursive:
+                    put_typol_fwd(cw, struct)
+                    has_recursive_nests = True
+            if has_recursive_nests:
+                cw.nl()
             for name in parsed.pure_nested_structs:
                 struct = Struct(parsed, name)
                 put_typol(cw, struct)
@@ -2746,6 +2852,15 @@ def main():
                 put_typol(cw, struct)
 
             cw.p('/* Common nested types */')
+            if has_recursive_nests:
+                for attr_set, struct in parsed.pure_nested_structs.items():
+                    ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
+                    free_rsp_nested_prototype(ri)
+                    if struct.request:
+                        put_req_nested_prototype(ri, struct)
+                    if struct.reply:
+                        parse_rsp_nested_prototype(ri, struct)
+                cw.nl()
             for attr_set, struct in parsed.pure_nested_structs.items():
                 ri = RenderInfo(cw, parsed, args.mode, "", "", attr_set)
 
@@ -2771,6 +2886,7 @@ def main():
                     ri = RenderInfo(cw, parsed, args.mode, op, "dump")
                     if not ri.type_consistent:
                         parse_rsp_msg(ri, deref=True)
+                    print_req_free(ri)
                     print_dump_type_free(ri)
                     print_dump(ri)
                     cw.nl()

@@ -191,12 +191,12 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 			     str ? " (" : "");
 
 		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     sizeof(struct genlmsghdr));
+						     ys->family->hdr_len);
 		end = mnl_nlmsg_get_payload_tail(ys->nlh);
 
 		off = ys->err.attr_offs;
 		off -= sizeof(struct nlmsghdr);
-		off -= sizeof(struct genlmsghdr);
+		off -= ys->family->hdr_len;
 
 		n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 				  &bad_attr[n], sizeof(bad_attr) - n, NULL);
@@ -217,14 +217,14 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 			     bad_attr[0] ? ", " : (str ? " (" : ""));
 
 		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     sizeof(struct genlmsghdr));
+						     ys->family->hdr_len);
 		end = mnl_nlmsg_get_payload_tail(ys->nlh);
 
 		nest_pol = ys->req_policy;
 		if (tb[NLMSGERR_ATTR_MISS_NEST]) {
 			off = mnl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_NEST]);
 			off -= sizeof(struct nlmsghdr);
-			off -= sizeof(struct genlmsghdr);
+			off -= ys->family->hdr_len;
 
 			n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 					  &miss_attr[n], sizeof(miss_attr) - n,
