@@ -816,7 +816,7 @@ static int nvmem_add_cells_from_layout(struct nvmem_device *nvmem)
 	int ret;
 
 	if (layout && layout->add_cells) {
-		ret = layout->add_cells(&nvmem->dev, nvmem, layout);
+		ret = layout->add_cells(&nvmem->dev, nvmem);
 		if (ret)
 			return ret;
 	}

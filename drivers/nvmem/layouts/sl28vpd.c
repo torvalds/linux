@@ -80,8 +80,7 @@ static int sl28vpd_v1_check_crc(struct device *dev, struct nvmem_device *nvmem)
 	return 0;
 }
 
-static int sl28vpd_add_cells(struct device *dev, struct nvmem_device *nvmem,
-			     struct nvmem_layout *layout)
+static int sl28vpd_add_cells(struct device *dev, struct nvmem_device *nvmem)
 {
 	const struct nvmem_cell_info *pinfo;
 	struct nvmem_cell_info info = {0};
