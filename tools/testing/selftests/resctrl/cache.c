@@ -10,51 +10,50 @@ struct perf_event_read {
 	} values[2];
 };
 
-static struct perf_event_attr pea_llc_miss;
-static struct perf_event_read pe_read;
-static int pe_fd;
 char llc_occup_path[1024];
 
-static void perf_event_attr_initialize(__u64 config)
+static void perf_event_attr_initialize(struct perf_event_attr *pea, __u64 config)
 {
-	memset(&pea_llc_miss, 0, sizeof(struct perf_event_attr));
-	pea_llc_miss.type = PERF_TYPE_HARDWARE;
-	pea_llc_miss.size = sizeof(struct perf_event_attr);
-	pea_llc_miss.read_format = PERF_FORMAT_GROUP;
-	pea_llc_miss.exclude_kernel = 1;
-	pea_llc_miss.exclude_hv = 1;
-	pea_llc_miss.exclude_idle = 1;
-	pea_llc_miss.exclude_callchain_kernel = 1;
-	pea_llc_miss.inherit = 1;
-	pea_llc_miss.exclude_guest = 1;
-	pea_llc_miss.disabled = 1;
-	pea_llc_miss.config = config;
+	memset(pea, 0, sizeof(*pea));
+	pea->type = PERF_TYPE_HARDWARE;
+	pea->size = sizeof(*pea);
+	pea->read_format = PERF_FORMAT_GROUP;
+	pea->exclude_kernel = 1;
+	pea->exclude_hv = 1;
+	pea->exclude_idle = 1;
+	pea->exclude_callchain_kernel = 1;
+	pea->inherit = 1;
+	pea->exclude_guest = 1;
+	pea->disabled = 1;
+	pea->config = config;
 }
 
 /* Start counters to log values */
-static void perf_event_reset_enable(void)
+static void perf_event_reset_enable(int pe_fd)
 {
 	ioctl(pe_fd, PERF_EVENT_IOC_RESET, 0);
 	ioctl(pe_fd, PERF_EVENT_IOC_ENABLE, 0);
 }
 
-static void perf_event_initialize_read_format(void)
+static void perf_event_initialize_read_format(struct perf_event_read *pe_read)
 {
-	memset(&pe_read, 0, sizeof(struct perf_event_read));
-	pe_read.nr = 1;
+	memset(pe_read, 0, sizeof(*pe_read));
+	pe_read->nr = 1;
 }
 
-static int perf_open(pid_t pid, int cpu_no)
+static int perf_open(struct perf_event_attr *pea, pid_t pid, int cpu_no)
 {
-	pe_fd = perf_event_open(&pea_llc_miss, pid, cpu_no, -1, PERF_FLAG_FD_CLOEXEC);
+	int pe_fd;
+
+	pe_fd = perf_event_open(pea, pid, cpu_no, -1, PERF_FLAG_FD_CLOEXEC);
 	if (pe_fd == -1) {
 		ksft_perror("Error opening leader");
 		return -1;
 	}
 
-	perf_event_reset_enable();
+	perf_event_reset_enable(pe_fd);
 
-	return 0;
+	return pe_fd;
 }
 
 /*
@@ -131,20 +130,21 @@ static int print_results_cache(const char *filename, int bm_pid, __u64 llc_value
  *
  * Return: =0 on success. <0 on failure.
  */
-static int perf_event_measure(const char *filename, int bm_pid)
+static int perf_event_measure(int pe_fd, struct perf_event_read *pe_read,
+			      const char *filename, int bm_pid)
 {
 	int ret;
 
 	/* Stop counters after one span to get miss rate */
 	ioctl(pe_fd, PERF_EVENT_IOC_DISABLE, 0);
 
-	ret = read(pe_fd, &pe_read, sizeof(struct perf_event_read));
+	ret = read(pe_fd, pe_read, sizeof(*pe_read));
 	if (ret == -1) {
 		ksft_perror("Could not get perf value");
 		return -1;
 	}
 
-	return print_results_cache(filename, bm_pid, pe_read.values[0].value);
+	return print_results_cache(filename, bm_pid, pe_read->values[0].value);
 }
 
 /*
@@ -181,7 +181,10 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 {
 	int memflush = 1, operation = 0, ret = 0;
 	char *resctrl_val = param->resctrl_val;
+	struct perf_event_read pe_read;
+	struct perf_event_attr pea;
 	pid_t bm_pid;
+	int pe_fd;
 
 	if (strcmp(param->filename, "") == 0)
 		sprintf(param->filename, "stdio");
@@ -199,8 +202,8 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 	if (ret)
 		return ret;
 
-	perf_event_attr_initialize(PERF_COUNT_HW_CACHE_MISSES);
-	perf_event_initialize_read_format();
+	perf_event_attr_initialize(&pea, PERF_COUNT_HW_CACHE_MISSES);
+	perf_event_initialize_read_format(&pe_read);
 
 	/* Test runs until the callback setup() tells the test to stop. */
 	while (1) {
@@ -211,9 +214,12 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 		}
 		if (ret < 0)
 			break;
-		ret = perf_open(bm_pid, param->cpu_no);
-		if (ret)
+
+		pe_fd = perf_open(&pea, bm_pid, param->cpu_no);
+		if (pe_fd < 0) {
+			ret = -1;
 			break;
+		}
 
 		if (run_fill_buf(span, memflush, operation, true)) {
 			fprintf(stderr, "Error-running fill buffer\n");
@@ -222,9 +228,11 @@ int cat_val(struct resctrl_val_param *param, size_t span)
 		}
 
 		sleep(1);
-		ret = perf_event_measure(param->filename, bm_pid);
+		ret = perf_event_measure(pe_fd, &pe_read, param->filename, bm_pid);
 		if (ret)
 			goto pe_close;
+
+		close(pe_fd);
 	}
 
 	return ret;
