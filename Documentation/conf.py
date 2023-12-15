@@ -55,7 +55,7 @@ needs_sphinx = '2.4.4'
 extensions = ['kerneldoc', 'rstFlatTable', 'kernel_include',
               'kfigure', 'sphinx.ext.ifconfig', 'automarkup',
               'maintainers_include', 'sphinx.ext.autosectionlabel',
-              'kernel_abi', 'kernel_feat']
+              'kernel_abi', 'kernel_feat', 'translations']
 
 if major >= 3:
     if (major > 3) or (minor > 0 or patch >= 2):
