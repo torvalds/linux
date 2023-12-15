@@ -65,7 +65,7 @@ static int intel_hdcp_gsc_initialize_message(struct drm_i915_private *i915,
 		goto out_unmap;
 	}
 
-	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
 	if (err)
 		goto out_unmap;
 
