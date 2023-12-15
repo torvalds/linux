@@ -60,6 +60,14 @@ config FIXED_PHY
 
 	  Currently tested with mpc866ads and mpc8349e-mitx.
 
+config RUST_PHYLIB_ABSTRACTIONS
+        bool "Rust PHYLIB abstractions support"
+        depends on RUST
+        depends on PHYLIB=y
+        help
+          Adds support needed for PHY drivers written in Rust. It provides
+          a wrapper around the C phylib core.
+
 config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
@@ -103,6 +111,14 @@ config AX88796B_PHY
 	help
 	  Currently supports the Asix Electronics PHY found in the X-Surf 100
 	  AX88796B package.
+
+config AX88796B_RUST_PHY
+	bool "Rust reference driver for Asix PHYs"
+	depends on RUST_PHYLIB_ABSTRACTIONS && AX88796B_PHY
+	help
+	  Uses the Rust reference driver for Asix PHYs (ax88796b_rust.ko).
+	  The features are equivalent. It supports the Asix Electronics PHY
+	  found in the X-Surf 100 AX88796B package.
 
 config BROADCOM_PHY
 	tristate "Broadcom 54XX PHYs"
