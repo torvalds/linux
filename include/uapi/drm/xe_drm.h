@@ -128,6 +128,16 @@ struct drm_xe_user_extension {
  * It is returned as part of the @drm_xe_engine, but it also is used as
  * the input of engine selection for both @drm_xe_exec_queue_create and
  * @drm_xe_query_engine_cycles
+ *
+ * The @engine_class can be:
+ *  - %DRM_XE_ENGINE_CLASS_RENDER
+ *  - %DRM_XE_ENGINE_CLASS_COPY
+ *  - %DRM_XE_ENGINE_CLASS_VIDEO_DECODE
+ *  - %DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE
+ *  - %DRM_XE_ENGINE_CLASS_COMPUTE
+ *  - %DRM_XE_ENGINE_CLASS_VM_BIND - Kernel only classes (not actual
+ *    hardware engine class). Used for creating ordered queues of VM
+ *    bind operations.
  */
 struct drm_xe_engine_class_instance {
 #define DRM_XE_ENGINE_CLASS_RENDER		0
@@ -135,10 +145,6 @@ struct drm_xe_engine_class_instance {
 #define DRM_XE_ENGINE_CLASS_VIDEO_DECODE	2
 #define DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE	3
 #define DRM_XE_ENGINE_CLASS_COMPUTE		4
-	/*
-	 * Kernel only classes (not actual hardware engine class). Used for
-	 * creating ordered queues of VM bind operations.
-	 */
 #define DRM_XE_ENGINE_CLASS_VM_BIND		5
 	/** @engine_class: engine class id */
 	__u16 engine_class;
@@ -342,6 +348,19 @@ struct drm_xe_query_mem_regions {
  * is equal to DRM_XE_DEVICE_QUERY_CONFIG, then the reply uses
  * struct drm_xe_query_config in .data.
  *
+ * The index in @info can be:
+ *  - %DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID - Device ID (lower 16 bits)
+ *    and the device revision (next 8 bits)
+ *  - %DRM_XE_QUERY_CONFIG_FLAGS - Flags describing the device
+ *    configuration, see list below
+ *
+ *    - %DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM - Flag is set if the device
+ *      has usable VRAM
+ *  - %DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT - Minimal memory alignment
+ *    required by this device, typically SZ_4K or SZ_64K
+ *  - %DRM_XE_QUERY_CONFIG_VA_BITS - Maximum bits of a virtual address
+ *  - %DRM_XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY - Value of the highest
+ *    available exec queue priority
  */
 struct drm_xe_query_config {
 	/** @num_params: number of parameters returned in info */
@@ -350,31 +369,11 @@ struct drm_xe_query_config {
 	/** @pad: MBZ */
 	__u32 pad;
 
-	/*
-	 * Device ID (lower 16 bits) and the device revision (next
-	 * 8 bits)
-	 */
 #define DRM_XE_QUERY_CONFIG_REV_AND_DEVICE_ID	0
-	/*
-	 * Flags describing the device configuration, see list below
-	 */
 #define DRM_XE_QUERY_CONFIG_FLAGS			1
-	/*
-	 * Flag is set if the device has usable VRAM
-	 */
 	#define DRM_XE_QUERY_CONFIG_FLAG_HAS_VRAM	(1 << 0)
-	/*
-	 * Minimal memory alignment required by this device,
-	 * typically SZ_4K or SZ_64K
-	 */
 #define DRM_XE_QUERY_CONFIG_MIN_ALIGNMENT		2
-	/*
-	 * Maximum bits of a virtual address
-	 */
 #define DRM_XE_QUERY_CONFIG_VA_BITS			3
-	/*
-	 * Value of the highest available exec queue priority
-	 */
 #define DRM_XE_QUERY_CONFIG_MAX_EXEC_QUEUE_PRIORITY	4
 	/** @info: array of elements containing the config info */
 	__u64 info[];
@@ -387,6 +386,10 @@ struct drm_xe_query_config {
  * existing GT individual descriptions.
  * Graphics Technology (GT) is a subset of a GPU/tile that is responsible for
  * implementing graphics and/or media operations.
+ *
+ * The index in @type can be:
+ *  - %DRM_XE_QUERY_GT_TYPE_MAIN
+ *  - %DRM_XE_QUERY_GT_TYPE_MEDIA
  */
 struct drm_xe_gt {
 #define DRM_XE_QUERY_GT_TYPE_MAIN		0
@@ -444,34 +447,30 @@ struct drm_xe_query_gt_list {
  * If a query is made with a struct drm_xe_device_query where .query
  * is equal to DRM_XE_DEVICE_QUERY_GT_TOPOLOGY, then the reply uses
  * struct drm_xe_query_topology_mask in .data.
+ *
+ * The @type can be:
+ *  - %DRM_XE_TOPO_DSS_GEOMETRY - To query the mask of Dual Sub Slices
+ *    (DSS) available for geometry operations. For example a query response
+ *    containing the following in mask:
+ *    ``DSS_GEOMETRY    ff ff ff ff 00 00 00 00``
+ *    means 32 DSS are available for geometry.
+ *  - %DRM_XE_TOPO_DSS_COMPUTE - To query the mask of Dual Sub Slices
+ *    (DSS) available for compute operations. For example a query response
+ *    containing the following in mask:
+ *    ``DSS_COMPUTE    ff ff ff ff 00 00 00 00``
+ *    means 32 DSS are available for compute.
+ *  - %DRM_XE_TOPO_EU_PER_DSS - To query the mask of Execution Units (EU)
+ *    available per Dual Sub Slices (DSS). For example a query response
+ *    containing the following in mask:
+ *    ``EU_PER_DSS    ff ff 00 00 00 00 00 00``
+ *    means each DSS has 16 EU.
  */
 struct drm_xe_query_topology_mask {
 	/** @gt_id: GT ID the mask is associated with */
 	__u16 gt_id;
 
-	/*
-	 * To query the mask of Dual Sub Slices (DSS) available for geometry
-	 * operations. For example a query response containing the following
-	 * in mask:
-	 *   DSS_GEOMETRY    ff ff ff ff 00 00 00 00
-	 * means 32 DSS are available for geometry.
-	 */
 #define DRM_XE_TOPO_DSS_GEOMETRY	(1 << 0)
-	/*
-	 * To query the mask of Dual Sub Slices (DSS) available for compute
-	 * operations. For example a query response containing the following
-	 * in mask:
-	 *   DSS_COMPUTE    ff ff ff ff 00 00 00 00
-	 * means 32 DSS are available for compute.
-	 */
 #define DRM_XE_TOPO_DSS_COMPUTE		(1 << 1)
-	/*
-	 * To query the mask of Execution Units (EU) available per Dual Sub
-	 * Slices (DSS). For example a query response containing the following
-	 * in mask:
-	 *   EU_PER_DSS    ff ff 00 00 00 00 00 00
-	 * means each DSS has 16 EU.
-	 */
 #define DRM_XE_TOPO_EU_PER_DSS		(1 << 2)
 	/** @type: type of mask */
 	__u16 type;
@@ -490,6 +489,18 @@ struct drm_xe_query_topology_mask {
  * The user selects the type of data to query among DRM_XE_DEVICE_QUERY_*
  * and sets the value in the query member. This determines the type of
  * the structure provided by the driver in data, among struct drm_xe_query_*.
+ *
+ * The @query can be:
+ *  - %DRM_XE_DEVICE_QUERY_ENGINES
+ *  - %DRM_XE_DEVICE_QUERY_MEM_REGIONS
+ *  - %DRM_XE_DEVICE_QUERY_CONFIG
+ *  - %DRM_XE_DEVICE_QUERY_GT_LIST
+ *  - %DRM_XE_DEVICE_QUERY_HWCONFIG - Query type to retrieve the hardware
+ *    configuration of the device such as information on slices, memory,
+ *    caches, and so on. It is provided as a table of key / value
+ *    attributes.
+ *  - %DRM_XE_DEVICE_QUERY_GT_TOPOLOGY
+ *  - %DRM_XE_DEVICE_QUERY_ENGINE_CYCLES
  *
  * If size is set to 0, the driver fills it with the required size for
  * the requested type of data to query. If size is equal to the required
@@ -537,11 +548,6 @@ struct drm_xe_device_query {
 #define DRM_XE_DEVICE_QUERY_MEM_REGIONS		1
 #define DRM_XE_DEVICE_QUERY_CONFIG		2
 #define DRM_XE_DEVICE_QUERY_GT_LIST		3
-	/*
-	 * Query type to retrieve the hardware configuration of the device
-	 * such as information on slices, memory, caches, and so on. It is
-	 * provided as a table of attributes (key / value).
-	 */
 #define DRM_XE_DEVICE_QUERY_HWCONFIG		4
 #define DRM_XE_DEVICE_QUERY_GT_TOPOLOGY		5
 #define DRM_XE_DEVICE_QUERY_ENGINE_CYCLES	6
@@ -561,6 +567,33 @@ struct drm_xe_device_query {
 /**
  * struct drm_xe_gem_create - Input of &DRM_IOCTL_XE_GEM_CREATE - A structure for
  * gem creation
+ *
+ * The @flags can be:
+ *  - %DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING
+ *  - %DRM_XE_GEM_CREATE_FLAG_SCANOUT
+ *  - %DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM - When using VRAM as a
+ *    possible placement, ensure that the corresponding VRAM allocation
+ *    will always use the CPU accessible part of VRAM. This is important
+ *    for small-bar systems (on full-bar systems this gets turned into a
+ *    noop).
+ *    Note1: System memory can be used as an extra placement if the kernel
+ *    should spill the allocation to system memory, if space can't be made
+ *    available in the CPU accessible part of VRAM (giving the same
+ *    behaviour as the i915 interface, see
+ *    I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS).
+ *    Note2: For clear-color CCS surfaces the kernel needs to read the
+ *    clear-color value stored in the buffer, and on discrete platforms we
+ *    need to use VRAM for display surfaces, therefore the kernel requires
+ *    setting this flag for such objects, otherwise an error is thrown on
+ *    small-bar systems.
+ *
+ * @cpu_caching supports the following values:
+ *  - %DRM_XE_GEM_CPU_CACHING_WB - Allocate the pages with write-back
+ *    caching. On iGPU this can't be used for scanout surfaces. Currently
+ *    not allowed for objects placed in VRAM.
+ *  - %DRM_XE_GEM_CPU_CACHING_WC - Allocate the pages as write-combined. This
+ *    is uncached. Scanout surfaces should likely use this. All objects
+ *    that can be placed in VRAM must use this.
  */
 struct drm_xe_gem_create {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -577,21 +610,6 @@ struct drm_xe_gem_create {
 
 #define DRM_XE_GEM_CREATE_FLAG_DEFER_BACKING		(1 << 0)
 #define DRM_XE_GEM_CREATE_FLAG_SCANOUT			(1 << 1)
-/*
- * When using VRAM as a possible placement, ensure that the corresponding VRAM
- * allocation will always use the CPU accessible part of VRAM. This is important
- * for small-bar systems (on full-bar systems this gets turned into a noop).
- *
- * Note: System memory can be used as an extra placement if the kernel should
- * spill the allocation to system memory, if space can't be made available in
- * the CPU accessible part of VRAM (giving the same behaviour as the i915
- * interface, see I915_GEM_CREATE_EXT_FLAG_NEEDS_CPU_ACCESS).
- *
- * Note: For clear-color CCS surfaces the kernel needs to read the clear-color
- * value stored in the buffer, and on discrete platforms we need to use VRAM for
- * display surfaces, therefore the kernel requires setting this flag for such
- * objects, otherwise an error is thrown on small-bar systems.
- */
 #define DRM_XE_GEM_CREATE_FLAG_NEEDS_VISIBLE_VRAM	(1 << 2)
 	/**
 	 * @flags: Flags, currently a mask of memory instances of where BO can
@@ -619,16 +637,6 @@ struct drm_xe_gem_create {
 	/**
 	 * @cpu_caching: The CPU caching mode to select for this object. If
 	 * mmaping the object the mode selected here will also be used.
-	 *
-	 * Supported values:
-	 *
-	 * DRM_XE_GEM_CPU_CACHING_WB: Allocate the pages with write-back
-	 * caching.  On iGPU this can't be used for scanout surfaces. Currently
-	 * not allowed for objects placed in VRAM.
-	 *
-	 * DRM_XE_GEM_CPU_CACHING_WC: Allocate the pages as write-combined. This
-	 * is uncached. Scanout surfaces should likely use this. All objects
-	 * that can be placed in VRAM must use this.
 	 */
 #define DRM_XE_GEM_CPU_CACHING_WB                      1
 #define DRM_XE_GEM_CPU_CACHING_WC                      2
@@ -682,34 +690,33 @@ struct drm_xe_ext_set_property {
 
 /**
  * struct drm_xe_vm_create - Input of &DRM_IOCTL_XE_VM_CREATE
+ *
+ * The @flags can be:
+ *  - %DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE
+ *  - %DRM_XE_VM_CREATE_FLAG_LR_MODE - An LR, or Long Running VM accepts
+ *    exec submissions to its exec_queues that don't have an upper time
+ *    limit on the job execution time. But exec submissions to these
+ *    don't allow any of the flags DRM_XE_SYNC_FLAG_SYNCOBJ,
+ *    DRM_XE_SYNC_FLAG_TIMELINE_SYNCOBJ, DRM_XE_SYNC_FLAG_DMA_BUF,
+ *    used as out-syncobjs, that is, together with DRM_XE_SYNC_FLAG_SIGNAL.
+ *    LR VMs can be created in recoverable page-fault mode using
+ *    DRM_XE_VM_CREATE_FLAG_FAULT_MODE, if the device supports it.
+ *    If that flag is omitted, the UMD can not rely on the slightly
+ *    different per-VM overcommit semantics that are enabled by
+ *    DRM_XE_VM_CREATE_FLAG_FAULT_MODE (see below), but KMD may
+ *    still enable recoverable pagefaults if supported by the device.
+ *  - %DRM_XE_VM_CREATE_FLAG_FAULT_MODE - Requires also
+ *    DRM_XE_VM_CREATE_FLAG_LR_MODE. It allows memory to be allocated on
+ *    demand when accessed, and also allows per-VM overcommit of memory.
+ *    The xe driver internally uses recoverable pagefaults to implement
+ *    this.
  */
 struct drm_xe_vm_create {
 	/** @extensions: Pointer to the first extension struct, if any */
 	__u64 extensions;
 
 #define DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE	(1 << 0)
-	/*
-	 * An LR, or Long Running VM accepts exec submissions
-	 * to its exec_queues that don't have an upper time limit on
-	 * the job execution time. But exec submissions to these
-	 * don't allow any of the flags DRM_XE_SYNC_FLAG_SYNCOBJ,
-	 * DRM_XE_SYNC_FLAG_TIMELINE_SYNCOBJ, DRM_XE_SYNC_FLAG_DMA_BUF,
-	 * used as out-syncobjs, that is, together with DRM_XE_SYNC_FLAG_SIGNAL.
-	 * LR VMs can be created in recoverable page-fault mode using
-	 * DRM_XE_VM_CREATE_FLAG_FAULT_MODE, if the device supports it.
-	 * If that flag is omitted, the UMD can not rely on the slightly
-	 * different per-VM overcommit semantics that are enabled by
-	 * DRM_XE_VM_CREATE_FLAG_FAULT_MODE (see below), but KMD may
-	 * still enable recoverable pagefaults if supported by the device.
-	 */
 #define DRM_XE_VM_CREATE_FLAG_LR_MODE	        (1 << 1)
-	/*
-	 * DRM_XE_VM_CREATE_FLAG_FAULT_MODE requires also
-	 * DRM_XE_VM_CREATE_FLAG_LR_MODE. It allows memory to be allocated
-	 * on demand when accessed, and also allows per-VM overcommit of memory.
-	 * The xe driver internally uses recoverable pagefaults to implement
-	 * this.
-	 */
 #define DRM_XE_VM_CREATE_FLAG_FAULT_MODE	(1 << 2)
 	/** @flags: Flags */
 	__u32 flags;
@@ -736,7 +743,27 @@ struct drm_xe_vm_destroy {
 };
 
 /**
- * struct drm_xe_vm_bind_op
+ * struct drm_xe_vm_bind_op - run bind operations
+ *
+ * The @op can be:
+ *  - %DRM_XE_VM_BIND_OP_MAP
+ *  - %DRM_XE_VM_BIND_OP_UNMAP
+ *  - %DRM_XE_VM_BIND_OP_MAP_USERPTR
+ *  - %DRM_XE_VM_BIND_OP_UNMAP_ALL
+ *  - %DRM_XE_VM_BIND_OP_PREFETCH
+ *
+ * and the @flags can be:
+ *  - %DRM_XE_VM_BIND_FLAG_READONLY
+ *  - %DRM_XE_VM_BIND_FLAG_ASYNC
+ *  - %DRM_XE_VM_BIND_FLAG_IMMEDIATE - Valid on a faulting VM only, do the
+ *    MAP operation immediately rather than deferring the MAP to the page
+ *    fault handler.
+ *  - %DRM_XE_VM_BIND_FLAG_NULL - When the NULL flag is set, the page
+ *    tables are setup with a special bit which indicates writes are
+ *    dropped and all reads return zero. In the future, the NULL flags
+ *    will only be valid for DRM_XE_VM_BIND_OP_MAP operations, the BO
+ *    handle MBZ, and the BO offset MBZ. This flag is intended to
+ *    implement VK sparse bindings.
  */
 struct drm_xe_vm_bind_op {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -824,18 +851,7 @@ struct drm_xe_vm_bind_op {
 	__u32 op;
 
 #define DRM_XE_VM_BIND_FLAG_READONLY	(1 << 0)
-	/*
-	 * Valid on a faulting VM only, do the MAP operation immediately rather
-	 * than deferring the MAP to the page fault handler.
-	 */
 #define DRM_XE_VM_BIND_FLAG_IMMEDIATE	(1 << 1)
-	/*
-	 * When the NULL flag is set, the page tables are setup with a special
-	 * bit which indicates writes are dropped and all reads return zero.  In
-	 * the future, the NULL flags will only be valid for DRM_XE_VM_BIND_OP_MAP
-	 * operations, the BO handle MBZ, and the BO offset MBZ. This flag is
-	 * intended to implement VK sparse bindings.
-	 */
 #define DRM_XE_VM_BIND_FLAG_NULL	(1 << 2)
 	/** @flags: Bind flags */
 	__u32 flags;
@@ -962,6 +978,9 @@ struct drm_xe_exec_queue_create {
 
 /**
  * struct drm_xe_exec_queue_get_property - Input of &DRM_IOCTL_XE_EXEC_QUEUE_GET_PROPERTY
+ *
+ * The @property can be:
+ *  - %DRM_XE_EXEC_QUEUE_GET_PROPERTY_BAN
  */
 struct drm_xe_exec_queue_get_property {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -996,7 +1015,15 @@ struct drm_xe_exec_queue_destroy {
 };
 
 /**
- * struct drm_xe_sync
+ * struct drm_xe_sync - sync object
+ *
+ * The @type can be:
+ *  - %DRM_XE_SYNC_TYPE_SYNCOBJ
+ *  - %DRM_XE_SYNC_TYPE_TIMELINE_SYNCOBJ
+ *  - %DRM_XE_SYNC_TYPE_USER_FENCE
+ *
+ * and the @flags can be:
+ *  - %DRM_XE_SYNC_FLAG_SIGNAL
  */
 struct drm_xe_sync {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -1078,6 +1105,24 @@ struct drm_xe_exec {
  *	(*addr & MASK) OP (VALUE & MASK)
  *
  * Returns to user on user fence completion or timeout.
+ *
+ * The @op can be:
+ *  - %DRM_XE_UFENCE_WAIT_OP_EQ
+ *  - %DRM_XE_UFENCE_WAIT_OP_NEQ
+ *  - %DRM_XE_UFENCE_WAIT_OP_GT
+ *  - %DRM_XE_UFENCE_WAIT_OP_GTE
+ *  - %DRM_XE_UFENCE_WAIT_OP_LT
+ *  - %DRM_XE_UFENCE_WAIT_OP_LTE
+ *
+ * and the @flags can be:
+ *  - %DRM_XE_UFENCE_WAIT_FLAG_ABSTIME
+ *  - %DRM_XE_UFENCE_WAIT_FLAG_SOFT_OP
+ *
+ * The @mask values can be for example:
+ *  - 0xffu for u8
+ *  - 0xffffu for u16
+ *  - 0xffffffffu for u32
+ *  - 0xffffffffffffffffu for u64
  */
 struct drm_xe_wait_user_fence {
 	/** @extensions: Pointer to the first extension struct, if any */
@@ -1107,13 +1152,7 @@ struct drm_xe_wait_user_fence {
 	/** @value: compare value */
 	__u64 value;
 
-	/**
-	 * @mask: comparison mask, values can be for example:
-	 *  - 0xffu for u8
-	 *  - 0xffffu for u16
-	 *  - 0xffffffffu for u32
-	 *  - 0xffffffffffffffffu for u64
-	 */
+	/** @mask: comparison mask */
 	__u64 mask;
 
 	/**
