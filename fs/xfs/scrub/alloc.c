@@ -138,31 +138,27 @@ xchk_allocbt_rec(
 	return 0;
 }
 
-/* Scrub the freespace btrees for some AG. */
-STATIC int
+/* Scrub one of the freespace btrees for some AG. */
+int
 xchk_allocbt(
-	struct xfs_scrub	*sc,
-	xfs_btnum_t		which)
+	struct xfs_scrub	*sc)
 {
 	struct xchk_alloc	ca = { };
 	struct xfs_btree_cur	*cur;
 
-	cur = which == XFS_BTNUM_BNO ? sc->sa.bno_cur : sc->sa.cnt_cur;
+	switch (sc->sm->sm_type) {
+	case XFS_SCRUB_TYPE_BNOBT:
+		cur = sc->sa.bno_cur;
+		break;
+	case XFS_SCRUB_TYPE_CNTBT:
+		cur = sc->sa.cnt_cur;
+		break;
+	default:
+		ASSERT(0);
+		return -EIO;
+	}
+
 	return xchk_btree(sc, cur, xchk_allocbt_rec, &XFS_RMAP_OINFO_AG, &ca);
-}
-
-int
-xchk_bnobt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_allocbt(sc, XFS_BTNUM_BNO);
-}
-
-int
-xchk_cntbt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_allocbt(sc, XFS_BTNUM_CNT);
 }
 
 /* xref check that the extent is not free */
