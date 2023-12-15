@@ -117,6 +117,7 @@ struct mlxsw_sp_fid_ops {
 enum mlxsw_sp_fid_flood_profile_id {
 	MLXSW_SP_FID_FLOOD_PROFILE_ID_BRIDGE = 1,
 	MLXSW_SP_FID_FLOOD_PROFILE_ID_RSP,
+	MLXSW_SP_FID_FLOOD_PROFILE_ID_NVE,
 };
 
 struct mlxsw_sp_fid_flood_profile {
@@ -167,11 +168,22 @@ static const int mlxsw_sp_sfgc_not_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
 	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4]	= 1,
 };
 
+static const int mlxsw_sp_sfgc_any_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
+	[MLXSW_REG_SFGC_TYPE_UNKNOWN_UNICAST]			= 1,
+	[MLXSW_REG_SFGC_TYPE_BROADCAST]				= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_NON_IP]	= 1,
+	[MLXSW_REG_SFGC_TYPE_IPV4_LINK_LOCAL]			= 1,
+	[MLXSW_REG_SFGC_TYPE_IPV6_ALL_HOST]			= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV6]	= 1,
+	[MLXSW_REG_SFGC_TYPE_UNREGISTERED_MULTICAST_IPV4]	= 1,
+};
+
 static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_UC]	= mlxsw_sp_sfgc_uc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_BC]	= mlxsw_sp_sfgc_bc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_NOT_UC]	= mlxsw_sp_sfgc_not_uc_packet_types,
+	[MLXSW_SP_FLOOD_TYPE_ANY]	= mlxsw_sp_sfgc_any_packet_types,
 };
 
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
@@ -549,6 +561,8 @@ static void mlxsw_sp_fid_fid_pack_cff(char *sfmr_pl,
 	mlxsw_reg_sfmr_cff_mid_base_set(sfmr_pl, pgt_base);
 	mlxsw_reg_sfmr_cff_prf_id_set(sfmr_pl,
 				      fid_family->flood_profile->profile_id);
+	mlxsw_reg_sfmr_nve_flood_prf_id_set(sfmr_pl,
+					    MLXSW_SP_FID_FLOOD_PROFILE_ID_NVE);
 }
 
 static u16 mlxsw_sp_fid_rfid_fid_offset_cff(struct mlxsw_sp *mlxsw_sp,
@@ -1308,6 +1322,20 @@ struct mlxsw_sp_fid_flood_profile mlxsw_sp_fid_rsp_flood_profile_cff = {
 	.flood_tables		= mlxsw_sp_fid_rsp_flood_tables_cff,
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_rsp_flood_tables_cff),
 	.profile_id		= MLXSW_SP_FID_FLOOD_PROFILE_ID_RSP,
+};
+
+static const struct mlxsw_sp_flood_table mlxsw_sp_fid_nve_flood_tables_cff[] = {
+	{
+		.packet_type	= MLXSW_SP_FLOOD_TYPE_ANY,
+		.table_index	= 0,
+	},
+};
+
+static const
+struct mlxsw_sp_fid_flood_profile mlxsw_sp_fid_nve_flood_profile_cff = {
+	.flood_tables		= mlxsw_sp_fid_nve_flood_tables_cff,
+	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_nve_flood_tables_cff),
+	.profile_id		= MLXSW_SP_FID_FLOOD_PROFILE_ID_NVE,
 };
 
 static bool
@@ -2411,6 +2439,7 @@ static const
 struct mlxsw_sp_fid_flood_profile *mlxsw_sp_fid_flood_profiles[] = {
 	&mlxsw_sp_fid_8021d_flood_profile,
 	&mlxsw_sp_fid_rsp_flood_profile_cff,
+	&mlxsw_sp_fid_nve_flood_profile_cff,
 };
 
 static int
