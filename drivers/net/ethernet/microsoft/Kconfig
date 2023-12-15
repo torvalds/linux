@@ -20,6 +20,7 @@ config MICROSOFT_MANA
 	depends on PCI_MSI && X86_64
 	depends on PCI_HYPERV
 	select AUXILIARY_BUS
+	select PAGE_POOL
 	help
 	  This driver supports Microsoft Azure Network Adapter (MANA).
 	  So far, the driver is only supported on X86_64.
