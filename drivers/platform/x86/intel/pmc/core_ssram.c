@@ -287,7 +287,7 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 	if (!map)
 		return -ENODEV;
 
-	return pmc_core_pmc_add(pmcdev, pwrm_base, map, PMC_IDX_MAIN);
+	return pmc_core_pmc_add(pmcdev, pwrm_base, map, pmc_idx);
 }
 
 int pmc_core_ssram_init(struct pmc_dev *pmcdev)
