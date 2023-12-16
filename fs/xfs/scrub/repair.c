@@ -27,6 +27,8 @@
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_defer.h"
+#include "xfs_errortag.h"
+#include "xfs_error.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -883,6 +885,34 @@ xrep_reinit_pagi(
 	return 0;
 }
 
+/*
+ * Given an active reference to a perag structure, load AG headers and cursors.
+ * This should only be called to scan an AG while repairing file-based metadata.
+ */
+int
+xrep_ag_init(
+	struct xfs_scrub	*sc,
+	struct xfs_perag	*pag,
+	struct xchk_ag		*sa)
+{
+	int			error;
+
+	ASSERT(!sa->pag);
+
+	error = xfs_ialloc_read_agi(pag, sc->tp, &sa->agi_bp);
+	if (error)
+		return error;
+
+	error = xfs_alloc_read_agf(pag, sc->tp, 0, &sa->agf_bp);
+	if (error)
+		return error;
+
+	/* Grab our own passive reference from the caller's ref. */
+	sa->pag = xfs_perag_hold(pag);
+	xrep_ag_btcur_init(sc, sa);
+	return 0;
+}
+
 /* Reinitialize the per-AG block reservation for the AG we just fixed. */
 int
 xrep_reset_perag_resv(
@@ -911,4 +941,24 @@ xrep_reset_perag_resv(
 
 out:
 	return error;
+}
+
+/* Decide if we are going to call the repair function for a scrub type. */
+bool
+xrep_will_attempt(
+	struct xfs_scrub	*sc)
+{
+	/* Userspace asked us to rebuild the structure regardless. */
+	if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_FORCE_REBUILD)
+		return true;
+
+	/* Let debug users force us into the repair routines. */
+	if (XFS_TEST_ERROR(false, sc->mp, XFS_ERRTAG_FORCE_SCRUB_REPAIR))
+		return true;
+
+	/* Metadata is corrupt or failed cross-referencing. */
+	if (xchk_needs_repair(sc->sm))
+		return true;
+
+	return false;
 }
