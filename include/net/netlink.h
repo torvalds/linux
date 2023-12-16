@@ -1087,6 +1087,36 @@ static inline void nlmsg_free(struct sk_buff *skb)
 }
 
 /**
+ * nlmsg_multicast_filtered - multicast a netlink message with filter function
+ * @sk: netlink socket to spread messages to
+ * @skb: netlink message as socket buffer
+ * @portid: own netlink portid to avoid sending to yourself
+ * @group: multicast group id
+ * @flags: allocation flags
+ * @filter: filter function
+ * @filter_data: filter function private data
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
+static inline int nlmsg_multicast_filtered(struct sock *sk, struct sk_buff *skb,
+					   u32 portid, unsigned int group,
+					   gfp_t flags,
+					   netlink_filter_fn filter,
+					   void *filter_data)
+{
+	int err;
+
+	NETLINK_CB(skb).dst_group = group;
+
+	err = netlink_broadcast_filtered(sk, skb, portid, group, flags,
+					 filter, filter_data);
+	if (err > 0)
+		err = 0;
+
+	return err;
+}
+
+/**
  * nlmsg_multicast - multicast a netlink message
  * @sk: netlink socket to spread messages to
  * @skb: netlink message as socket buffer
@@ -1097,15 +1127,8 @@ static inline void nlmsg_free(struct sk_buff *skb)
 static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
 				  u32 portid, unsigned int group, gfp_t flags)
 {
-	int err;
-
-	NETLINK_CB(skb).dst_group = group;
-
-	err = netlink_broadcast(sk, skb, portid, group, flags);
-	if (err > 0)
-		err = 0;
-
-	return err;
+	return nlmsg_multicast_filtered(sk, skb, portid, group, flags,
+					NULL, NULL);
 }
 
 /**
