@@ -107,6 +107,21 @@
 	status = "okay";
 };
 
+&i2c0 {
+	status = "okay";
+	gt9xx: gt9xx@14 {
+		compatible = "goodix,gt9xx";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int>;
+		touch-gpio = <&gpio0 RK_PA6 IRQ_TYPE_LEVEL_HIGH>;
+		reset-gpio = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+		max-x = <1024>;
+		max-y = <600>;
+		tp-size = <9110>;
+	};
+};
+
 &pwm1 {
 	status = "okay";
 };
@@ -136,4 +151,12 @@
 
 &vop {
 	status = "okay";
+};
+
+&pinctrl {
+	tp {
+		tp_int: tp-int {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
