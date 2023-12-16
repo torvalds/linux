@@ -68,8 +68,8 @@ static u8 gtp_y_reverse = TRUE;
 
 static const char *goodix_ts_name = "goodix-ts";
 static struct workqueue_struct *goodix_wq;
-struct i2c_client * i2c_connect_client = NULL; 
-u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
+struct i2c_client * gtp_i2c_connect_client = NULL; 
+static u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
                 = {GTP_REG_CONFIG_DATA >> 8, GTP_REG_CONFIG_DATA & 0xff};
 
 #if GTP_HAVE_TOUCH_KEY
@@ -86,12 +86,12 @@ u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
 static s8 gtp_i2c_test(struct i2c_client *client);
 void gtp_reset_guitar(struct i2c_client *client, s32 ms);
 s32 gtp_send_cfg(struct i2c_client *client);
-void gtp_int_sync(s32 ms, struct goodix_ts_data *ts);
+static void gtp_int_sync(s32 ms, struct goodix_ts_data *ts);
 
 static ssize_t gt91xx_config_read_proc(struct file *, char __user *, size_t, loff_t *);
 static ssize_t gt91xx_config_write_proc(struct file *, const char __user *, size_t, loff_t *);
 
-static struct proc_dir_entry *gt91xx_config_proc = NULL;
+//static struct proc_dir_entry *gt91xx_config_proc = NULL;
 static const struct file_operations config_proc_ops = {
     .owner = THIS_MODULE,
     .read = gt91xx_config_read_proc,
@@ -117,15 +117,15 @@ void gtp_esd_switch(struct i2c_client *, s32);
 
 //*********** For GT9XXF Start **********//
 #if GTP_COMPATIBLE_MODE
-extern s32 i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
-extern s32 i2c_write_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
-extern s32 gup_clk_calibration(void);
-extern s32 gup_fw_download_proc(void *dir, u8 dwn_mode);
-extern u8 gup_check_fs_mounted(char *path_name);
+//extern s32 gtp_i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+//extern s32 gtp_i2c_write_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+//extern s32 gtp_gup_clk_calibration(void);
+//extern s32 gtp_gup_fw_download_proc(void *dir, u8 dwn_mode);
+//extern u8 gtp_gup_check_fs_mounted(char *path_name);
 
-void gtp_recovery_reset(struct i2c_client *client);
+static void gtp_recovery_reset(struct i2c_client *client);
 static s32 gtp_esd_recovery(struct i2c_client *client);
-s32 gtp_fw_startup(struct i2c_client *client);
+//s32 gtp_fw_startup(struct i2c_client *client);
 static s32 gtp_main_clk_proc(struct goodix_ts_data *ts);
 static s32 gtp_bak_ref_proc(struct goodix_ts_data *ts, u8 mode);
 
@@ -143,7 +143,7 @@ static DOZE_T doze_status = DOZE_DISABLED;
 static s8 gtp_enter_doze(struct goodix_ts_data *ts);
 #endif
 
-u8 grp_cfg_version = 0;
+static u8 grp_cfg_version = 0;
 
 /*******************************************************
 Function:
@@ -157,7 +157,7 @@ Output:
     numbers of i2c_msgs to transfer: 
       2: succeed, otherwise: failed
 *********************************************************/
-s32 gtp_i2c_read(struct i2c_client *client, u8 *buf, s32 len)
+static s32 gtp_i2c_read(struct i2c_client *client, u8 *buf, s32 len)
 {
     struct i2c_msg msgs[2];
     s32 ret=-1;
@@ -230,7 +230,7 @@ Output:
     numbers of i2c_msgs to transfer: 
         1: succeed, otherwise: failed
 *********************************************************/
-s32 gtp_i2c_write(struct i2c_client *client,u8 *buf,s32 len)
+static s32 gtp_i2c_write(struct i2c_client *client,u8 *buf,s32 len)
 {
     struct i2c_msg msg;
     s32 ret = -1;
@@ -523,7 +523,7 @@ static void gtp_pen_init(struct goodix_ts_data *ts)
 
 static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 {
-    struct goodix_ts_data *ts = i2c_get_clientdata(i2c_connect_client);
+    struct goodix_ts_data *ts = i2c_get_clientdata(gtp_i2c_connect_client);
 
 	if (gtp_change_x2y)
 		GTP_SWAP(x, y);
@@ -551,7 +551,7 @@ static void gtp_pen_down(s32 x, s32 y, s32 w, s32 id)
 
 static void gtp_pen_up(s32 id)
 {
-    struct goodix_ts_data *ts = i2c_get_clientdata(i2c_connect_client);
+    struct goodix_ts_data *ts = i2c_get_clientdata(gtp_i2c_connect_client);
     
     input_report_key(ts->pen_dev, BTN_TOOL_PEN, 0);
     
@@ -613,7 +613,7 @@ static void goodix_ts_work_func(struct work_struct *work)
 #if GTP_GESTURE_WAKEUP
     if (DOZE_ENABLED == doze_status)
     {               
-        ret = gtp_i2c_read(i2c_connect_client, doze_buf, 3);
+        ret = gtp_i2c_read(gtp_i2c_connect_client, doze_buf, 3);
         GTP_DEBUG("0x814B = 0x%02X", doze_buf[2]);
         if (ret > 0)
         {     
@@ -640,7 +640,7 @@ static void goodix_ts_work_func(struct work_struct *work)
                 input_sync(ts->input_dev);
                 // clear 0x814B
                 doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+                gtp_i2c_write(gtp_i2c_connect_client, doze_buf, 3);
 			}
 			else if ( (doze_buf[2] == 0xAA) || (doze_buf[2] == 0xBB) ||
 				(doze_buf[2] == 0xAB) || (doze_buf[2] == 0xBA) )
@@ -656,7 +656,7 @@ static void goodix_ts_work_func(struct work_struct *work)
                 input_sync(ts->input_dev);
                 // clear 0x814B
                 doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+                gtp_i2c_write(gtp_i2c_connect_client, doze_buf, 3);
             }
             else if (0xCC == doze_buf[2])
             {
@@ -668,13 +668,13 @@ static void goodix_ts_work_func(struct work_struct *work)
                 input_sync(ts->input_dev);
                 // clear 0x814B
                 doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+                gtp_i2c_write(gtp_i2c_connect_client, doze_buf, 3);
             }
             else
             {
                 // clear 0x814B
                 doze_buf[2] = 0x00;
-                gtp_i2c_write(i2c_connect_client, doze_buf, 3);
+                gtp_i2c_write(gtp_i2c_connect_client, doze_buf, 3);
                 gtp_enter_doze(ts);
             }
         }
@@ -1087,7 +1087,7 @@ Input:
 Output:
     None.
 *******************************************************/
-void gtp_int_sync(s32 ms, struct goodix_ts_data *ts)
+static void gtp_int_sync(s32 ms, struct goodix_ts_data *ts)
 {
     GTP_GPIO_OUTPUT(ts->irq_pin, 0);
     msleep(ms);
@@ -1706,7 +1706,7 @@ static ssize_t gt91xx_config_read_proc(struct file *file, char __user *page, siz
     ptr += sprintf(ptr, "\n");
 
     ptr += sprintf(ptr, "==== GT9XX config real value====\n");
-    gtp_i2c_read(i2c_connect_client, temp_data, GTP_CONFIG_MAX_LENGTH + 2);
+    gtp_i2c_read(gtp_i2c_connect_client, temp_data, GTP_CONFIG_MAX_LENGTH + 2);
     for (i = 0 ; i < GTP_CONFIG_MAX_LENGTH ; i++)
     {
         ptr += sprintf(ptr, "0x%02X ", temp_data[i+2]);
@@ -1734,7 +1734,7 @@ static ssize_t gt91xx_config_write_proc(struct file *filp, const char __user *bu
         return -EFAULT;
     }
 
-    ret = gtp_send_cfg(i2c_connect_client);
+    ret = gtp_send_cfg(gtp_i2c_connect_client);
 
     if (ret < 0)
     {
@@ -2144,7 +2144,7 @@ s32 gtp_fw_startup(struct i2c_client *client)
     struct goodix_ts_data *ts = i2c_get_clientdata(client);
     //init sw WDT
 	opr_buf[0] = 0xAA;
-	ret = i2c_write_bytes(client, 0x8041, opr_buf, 1);
+	ret = gtp_i2c_write_bytes(client, 0x8041, opr_buf, 1);
     if (ret < 0)
     {
         return FAIL;
@@ -2152,7 +2152,7 @@ s32 gtp_fw_startup(struct i2c_client *client)
     
     //release SS51 & DSP
     opr_buf[0] = 0x00;
-    ret = i2c_write_bytes(client, 0x4180, opr_buf, 1);
+    ret = gtp_i2c_write_bytes(client, 0x4180, opr_buf, 1);
     if (ret < 0)
     {
         return FAIL;
@@ -2161,7 +2161,7 @@ s32 gtp_fw_startup(struct i2c_client *client)
     gtp_int_sync(25, ts);  
     
     //check fw run status
-    ret = i2c_read_bytes(client, 0x8041, opr_buf, 1);
+    ret = gtp_i2c_read_bytes(client, 0x8041, opr_buf, 1);
     if (ret < 0)
     {
         return FAIL;
@@ -2175,7 +2175,7 @@ s32 gtp_fw_startup(struct i2c_client *client)
     {
         GTP_INFO("IC works normally, Startup success.");
         opr_buf[0] = 0xAA;
-        i2c_write_bytes(client, 0x8041, opr_buf, 1);
+        gtp_i2c_write_bytes(client, 0x8041, opr_buf, 1);
         return SUCCESS;
     }
 }
@@ -2193,7 +2193,7 @@ static s32 gtp_esd_recovery(struct i2c_client *client)
     GTP_INFO("GT9XXF esd recovery mode");
     for (retry = 0; retry < 5; retry++)
     {
-        ret = gup_fw_download_proc(NULL, GTP_FL_ESD_RECOVERY); 
+        ret = gtp_gup_fw_download_proc(NULL, GTP_FL_ESD_RECOVERY); 
         if (FAIL == ret)
         {
             GTP_ERROR("esd recovery failed %d", retry+1);
@@ -2219,7 +2219,7 @@ static s32 gtp_esd_recovery(struct i2c_client *client)
     return SUCCESS;
 }
 
-void gtp_recovery_reset(struct i2c_client *client)
+static void gtp_recovery_reset(struct i2c_client *client)
 {
 #if GTP_ESD_PROTECT
     gtp_esd_switch(client, SWITCH_OFF);
@@ -2246,7 +2246,7 @@ static s32 gtp_bak_ref_proc(struct goodix_ts_data *ts, u8 mode)
     struct file *ref_filp = NULL;
     u8 *p_bak_ref;
     
-    ret = gup_check_fs_mounted("/data");
+    ret = gtp_gup_check_fs_mounted("/data");
     if (FAIL == ret)
     {
         ts->ref_chk_fs_times++;
@@ -2334,7 +2334,7 @@ static s32 gtp_bak_ref_proc(struct goodix_ts_data *ts, u8 mode)
                 }
             }
         }
-        ret = i2c_write_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
+        ret = gtp_i2c_write_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
         if (FAIL == ret)
         {
             GTP_ERROR("failed to send bak_ref because of iic comm error");
@@ -2344,7 +2344,7 @@ static s32 gtp_bak_ref_proc(struct goodix_ts_data *ts, u8 mode)
         
     case GTP_BAK_REF_STORE:
         GTP_INFO("Store backup-reference");
-        ret = i2c_read_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
+        ret = gtp_i2c_read_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
         if (ret < 0)
         {
             GTP_ERROR("failed to read bak_ref info, sending default back-reference");
@@ -2368,7 +2368,7 @@ bak_ref_default:
         memset(&p_bak_ref[j * ref_seg_len], 0, ref_seg_len);
         p_bak_ref[j * ref_seg_len + ref_seg_len - 1] = 0x01;  // checksum = 1     
     }
-    ret = i2c_write_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
+    ret = gtp_i2c_write_bytes(ts->client, GTP_REG_BAK_REF, p_bak_ref, ts->bak_ref_len);
     if (!IS_ERR(ref_filp))
     {
         GTP_INFO("write backup-reference data into %s", GTP_BAK_REF_PATH);
@@ -2450,7 +2450,7 @@ static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
 		goto update_main_clk;
 	}
 	#else
-    ret = gup_check_fs_mounted("/data");
+    ret = gtp_gup_check_fs_mounted("/data");
     if (FAIL == ret)
     {
         ts->clk_chk_fs_times++;
@@ -2496,7 +2496,7 @@ static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
 #if GTP_ESD_PROTECT
     gtp_esd_switch(ts->client, SWITCH_OFF);
 #endif
-    ret = gup_clk_calibration();
+    ret = gtp_gup_clk_calibration();
     gtp_esd_recovery(ts->client);
     
 #if GTP_ESD_PROTECT
@@ -2527,7 +2527,7 @@ static s32 gtp_main_clk_proc(struct goodix_ts_data *ts)
     }
     
 update_main_clk:
-    ret = i2c_write_bytes(ts->client, GTP_REG_MAIN_CLK, p_main_clk, 6);
+    ret = gtp_i2c_write_bytes(ts->client, GTP_REG_MAIN_CLK, p_main_clk, 6);
     if (FAIL == ret)
     {
         GTP_ERROR("update main clock failed!");
@@ -2544,11 +2544,11 @@ exit_main_clk:
 }
 
 
-s32 gtp_gt9xxf_init(struct i2c_client *client)
+static s32 gtp_gt9xxf_init(struct i2c_client *client)
 {
     s32 ret = 0;
     
-    ret = gup_fw_download_proc(NULL, GTP_FL_FW_BURN); 
+    ret = gtp_gup_fw_download_proc(NULL, GTP_FL_FW_BURN); 
     if (FAIL == ret)
     {
         return FAIL;
@@ -2562,7 +2562,7 @@ s32 gtp_gt9xxf_init(struct i2c_client *client)
     return SUCCESS;
 }
 
-void gtp_get_chip_type(struct goodix_ts_data *ts)
+static void gtp_get_chip_type(struct goodix_ts_data *ts)
 {
     u8 opr_buf[10] = {0x00};
     s32 ret = 0;
@@ -2626,7 +2626,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     GTP_INFO("GTP Driver Version: %s", GTP_DRIVER_VERSION);
     GTP_INFO("GTP I2C Address: 0x%02x", client->addr);
 
-    i2c_connect_client = client;
+    gtp_i2c_connect_client = client;
     
     if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) 
     {
@@ -2670,8 +2670,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	} else if (val == 9110) {
 		m89or101 = FALSE;
 		bgt9110 = TRUE;
-		gtp_change_x2y = TRUE;
-		gtp_x_reverse = TRUE;
+		gtp_change_x2y = FALSE;
+		gtp_x_reverse = FALSE;
 		gtp_y_reverse = FALSE;
 	} else if (val == 9111) {
 		m89or101 = FALSE;
@@ -2804,6 +2804,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     
     ts->irq_flags = ts->int_trigger_type ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
     // Create proc file system
+#if 0
 	gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0664, NULL, &config_proc_ops);
     if (gt91xx_config_proc == NULL)
     {
@@ -2813,6 +2814,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     {
         GTP_INFO("create proc entry %s success", GT91XX_CONFIG_PROC_FILE);
     }
+#endif
     
 #if GTP_AUTO_UPDATE
     ret = gup_init_update_proc(ts);
@@ -3061,7 +3063,7 @@ static void gtp_esd_check_func(struct work_struct *work)
     
     GTP_DEBUG_FUNC();
    
-    ts = i2c_get_clientdata(i2c_connect_client);
+    ts = i2c_get_clientdata(gtp_i2c_connect_client);
 
     if (ts->gtp_is_suspend)
     {
@@ -3233,3 +3235,4 @@ module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("GTP Series Driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);

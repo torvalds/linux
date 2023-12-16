@@ -19,21 +19,21 @@
 #define _GOODIX_GT9XX_CFG_H_
 
 /* CFG for GT911 */
-u8 gtp_dat_gt11[] = {
+static u8 gtp_dat_gt11[] = {
 	/* <1200, 1920>*/
 	#include "WGJ89006B_GT911_Config_20140625_085816_0X43.cfg"
 };
 
-u8 gtp_dat_gt9110[] = {
+static u8 gtp_dat_gt9110[] = {
 	/* <1200, 1920>*/
 	#include "GT9110P(2020)V71_Config_20201028_170326.cfg"
 };
 
-u8 gtp_dat_gt9111[] = {
+static u8 gtp_dat_gt9111[] = {
 	#include "HLS-0102-1398V1-1060-GT911_Config_20201204_V66.cfg"
 };
 
-u8 gtp_dat_8_9[] = {
+static u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */
 	/* #include "WGJ89006B_GT9271_Config_20140625_085816_0X41.cfg" */
@@ -41,22 +41,22 @@ u8 gtp_dat_8_9[] = {
 	#include "WGJ10162B_GT9271_1060_Config_20140821_1341110X42.cfg"
 };
 
-u8 gtp_dat_8_9_1[] = {
+static u8 gtp_dat_8_9_1[] = {
 	#include "GT9271_Config_20170526.cfg"
 };
 
-u8 gtp_dat_9_7[] = {
+static u8 gtp_dat_9_7[] = {
 	/* <1536, 2048> 9.7 */
 	#include "GT9110P_Config_20160217_1526_2048_97.cfg"
 };
 
-u8 gtp_dat_10_1[] = {
+static u8 gtp_dat_10_1[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1200, 1920> 10.1 */
 	#include "WGJ10187_GT9271_Config_20140623_104014_0X41.cfg"
 };
 
-u8 gtp_dat_7[] = {
+static u8 gtp_dat_7[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1024, 600> 7.0 */
 	#include "WGJ10187_GT910_Config_20140623_104014_0X41.cfg"

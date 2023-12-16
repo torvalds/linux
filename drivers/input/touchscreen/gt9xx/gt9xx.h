@@ -154,8 +154,8 @@ struct goodix_ts_data {
     struct regulator *tp_regulator;
 };
 
-extern u16 show_len;
-extern u16 total_len;
+//extern u16 show_len;
+//extern u16 total_len;
 
 
 //*************************** PART2:TODO define **********************************
@@ -391,7 +391,22 @@ extern u16 total_len;
                                        }while (0)
 
 //*****************************End of Part III********************************
-#define TRUE    1
-#define FALSE   0
+//#define TRUE    1
+//#define FALSE   0
+
+extern struct i2c_client *gtp_i2c_connect_client;
+
+s32 gtp_fw_startup(struct i2c_client *client);
+s32 gtp_i2c_read_dbl_check(struct i2c_client *client, u16 addr, u8 *rxbuf, int len);
+void gtp_irq_disable(struct goodix_ts_data *ts);
+void gtp_irq_enable(struct goodix_ts_data *ts);
+s32 gtp_read_version(struct i2c_client *client, u16 *version);
+void gtp_reset_guitar(struct i2c_client *client, s32 ms);
+s32 gtp_send_cfg(struct i2c_client *client);
+u8 gtp_gup_check_fs_mounted(char *path_name);
+s32 gtp_gup_fw_download_proc(void *dir, u8 dwn_mode);
+s32 gtp_i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+s32 gtp_i2c_write_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len);
+s32 gtp_gup_clk_calibration(void);
 
 #endif /* _GOODIX_GT9XX_H_ */
