@@ -150,6 +150,7 @@ struct gdma_general_req {
 
 #define GDMA_MESSAGE_V1 1
 #define GDMA_MESSAGE_V2 2
+#define GDMA_MESSAGE_V3 3
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
