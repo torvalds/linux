@@ -66,6 +66,7 @@ enum {
 	GDMA_DEVICE_NONE	= 0,
 	GDMA_DEVICE_HWC		= 1,
 	GDMA_DEVICE_MANA	= 2,
+	GDMA_DEVICE_MANA_IB	= 3,
 };
 
 struct gdma_resource {
@@ -387,6 +388,9 @@ struct gdma_context {
 
 	/* Azure network adapter */
 	struct gdma_dev		mana;
+
+	/* Azure RDMA adapter */
+	struct gdma_dev		mana_ib;
 };
 
 #define MAX_NUM_GDMA_DEVICES	4
