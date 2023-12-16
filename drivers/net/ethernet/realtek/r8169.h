@@ -8,6 +8,7 @@
  * See MAINTAINERS file for support contact information.
  */
 
+#include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/phy.h>
 
@@ -77,3 +78,9 @@ u16 rtl8168h_2_get_adc_bias_ioffset(struct rtl8169_private *tp);
 u8 rtl8168d_efuse_read(struct rtl8169_private *tp, int reg_addr);
 void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 			 enum mac_version ver);
+
+void r8169_get_led_name(struct rtl8169_private *tp, int idx,
+			char *buf, int buf_len);
+int rtl8168_get_led_mode(struct rtl8169_private *tp);
+int rtl8168_led_mod_ctrl(struct rtl8169_private *tp, u16 mask, u16 val);
+void rtl8168_init_leds(struct net_device *ndev);
