@@ -53,6 +53,7 @@
 #include <linux/seccomp.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
+#include <linux/syscall_user_dispatch.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
