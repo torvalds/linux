@@ -239,8 +239,9 @@ int ad7091r_probe(struct device *dev, const char *name,
 			return ret;
 
 		ret = devm_request_threaded_irq(dev, irq, NULL,
-				ad7091r_event_handler,
-				IRQF_TRIGGER_FALLING | IRQF_ONESHOT, name, iio_dev);
+						ad7091r_event_handler,
+						IRQF_TRIGGER_FALLING |
+						IRQF_ONESHOT, name, iio_dev);
 		if (ret)
 			return ret;
 	}
