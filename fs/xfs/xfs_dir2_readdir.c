@@ -18,6 +18,7 @@
 #include "xfs_bmap.h"
 #include "xfs_trans.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 /*
  * Directory file type support functions
@@ -518,6 +519,8 @@ xfs_readdir(
 	trace_xfs_readdir(dp);
 
 	if (xfs_is_shutdown(dp->i_mount))
+		return -EIO;
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));

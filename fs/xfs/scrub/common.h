@@ -103,8 +103,14 @@ xchk_setup_rtsummary(struct xfs_scrub *sc)
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
+int xchk_ino_dqattach(struct xfs_scrub *sc);
 int xchk_setup_quota(struct xfs_scrub *sc);
 #else
+static inline int
+xchk_ino_dqattach(struct xfs_scrub *sc)
+{
+	return 0;
+}
 static inline int
 xchk_setup_quota(struct xfs_scrub *sc)
 {
@@ -191,6 +197,8 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 	return sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
 			       XFS_SCRUB_OFLAG_XCORRUPT);
 }
+
+bool xchk_dir_looks_zapped(struct xfs_inode *dp);
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 /* Decide if a repair is required. */
