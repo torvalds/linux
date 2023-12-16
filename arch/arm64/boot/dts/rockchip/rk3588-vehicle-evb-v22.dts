@@ -267,15 +267,15 @@
 		compatible = "regulator-fixed";
 		regulator-name = "minipcie_power_buck";
 		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
+		//regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		enable-active-high;
 		gpio = <&nca9539_gpio 13 GPIO_ACTIVE_HIGH>;
-		vin-supply = <&vcc5v0_usb>;
+		vin-supply = <&vcc5v0_buck>;
 		regulator-state-mem {
-			regulator-off-in-suspend;
-			regulator-suspend-microvolt = <12000000>;
+			regulator-on-in-suspend;
+			regulator-suspend-microvolt = <3300000>;
 		};
 	};
 
