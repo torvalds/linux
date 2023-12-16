@@ -6,6 +6,10 @@
 
 #include <asm/paravirt_types.h>
 
+#ifndef __ASSEMBLY__
+struct mm_struct;
+#endif
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/pgtable_types.h>
 #include <asm/asm.h>

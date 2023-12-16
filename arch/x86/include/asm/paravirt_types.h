@@ -3,6 +3,8 @@
 #define _ASM_X86_PARAVIRT_TYPES_H
 
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
+
 /* These all sit in the .parainstructions section to tell us what to patch. */
 struct paravirt_patch_site {
 	u8 *instr;		/* original instructions */
