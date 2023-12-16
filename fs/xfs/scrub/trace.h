@@ -19,6 +19,7 @@
 struct xfile;
 struct xfarray;
 struct xfarray_sortinfo;
+struct xchk_dqiter;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -347,6 +348,54 @@ DEFINE_EVENT(xchk_fblock_error_class, name, \
 
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_error);
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_warning);
+
+#ifdef CONFIG_XFS_QUOTA
+DECLARE_EVENT_CLASS(xchk_dqiter_class,
+	TP_PROTO(struct xchk_dqiter *cursor, uint64_t id),
+	TP_ARGS(cursor, id),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_dqtype_t, dqtype)
+		__field(xfs_ino_t, ino)
+		__field(unsigned long long, cur_id)
+		__field(unsigned long long, id)
+		__field(xfs_fileoff_t, startoff)
+		__field(xfs_fsblock_t, startblock)
+		__field(xfs_filblks_t, blockcount)
+		__field(xfs_exntst_t, state)
+	),
+	TP_fast_assign(
+		__entry->dev = cursor->sc->ip->i_mount->m_super->s_dev;
+		__entry->dqtype = cursor->dqtype;
+		__entry->ino = cursor->quota_ip->i_ino;
+		__entry->cur_id = cursor->id;
+		__entry->startoff = cursor->bmap.br_startoff;
+		__entry->startblock = cursor->bmap.br_startblock;
+		__entry->blockcount = cursor->bmap.br_blockcount;
+		__entry->state = cursor->bmap.br_state;
+		__entry->id = id;
+	),
+	TP_printk("dev %d:%d dquot type %s ino 0x%llx cursor_id 0x%llx startoff 0x%llx startblock 0x%llx blockcount 0x%llx state %u id 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->dqtype, XFS_DQTYPE_STRINGS),
+		  __entry->ino,
+		  __entry->cur_id,
+		  __entry->startoff,
+		  __entry->startblock,
+		  __entry->blockcount,
+		  __entry->state,
+		  __entry->id)
+);
+
+#define DEFINE_SCRUB_DQITER_EVENT(name) \
+DEFINE_EVENT(xchk_dqiter_class, name, \
+	TP_PROTO(struct xchk_dqiter *cursor, uint64_t id), \
+	TP_ARGS(cursor, id))
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_revalidate_bmap);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_bmap);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_incore);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter);
+#endif /* CONFIG_XFS_QUOTA */
 
 TRACE_EVENT(xchk_incomplete,
 	TP_PROTO(struct xfs_scrub *sc, void *ret_ip),
@@ -1679,6 +1728,35 @@ TRACE_EVENT(xrep_cow_free_staging,
 		  __entry->agbno,
 		  __entry->blockcount)
 );
+
+#ifdef CONFIG_XFS_QUOTA
+DECLARE_EVENT_CLASS(xrep_dquot_class,
+	TP_PROTO(struct xfs_mount *mp, uint8_t type, uint32_t id),
+	TP_ARGS(mp, type, id),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint8_t, type)
+		__field(uint32_t, id)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->id = id;
+		__entry->type = type;
+	),
+	TP_printk("dev %d:%d type %s id 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_flags(__entry->type, "|", XFS_DQTYPE_STRINGS),
+		  __entry->id)
+);
+
+#define DEFINE_XREP_DQUOT_EVENT(name) \
+DEFINE_EVENT(xrep_dquot_class, name, \
+	TP_PROTO(struct xfs_mount *mp, uint8_t type, uint32_t id), \
+	TP_ARGS(mp, type, id))
+DEFINE_XREP_DQUOT_EVENT(xrep_dquot_item);
+DEFINE_XREP_DQUOT_EVENT(xrep_disk_dquot);
+DEFINE_XREP_DQUOT_EVENT(xrep_dquot_item_fill_bmap_hole);
+#endif /* CONFIG_XFS_QUOTA */
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
