@@ -95,7 +95,7 @@ static void mlx5e_destroy_tises(struct mlx5_core_dev *mdev, u32 tisn[MLX5_MAX_PO
 {
 	int tc, i;
 
-	for (i = 0; i < MLX5_MAX_PORTS; i++)
+	for (i = 0; i < mlx5e_get_num_lag_ports(mdev); i++)
 		for (tc = 0; tc < MLX5_MAX_NUM_TC; tc++)
 			mlx5e_destroy_tis(mdev, tisn[i][tc]);
 }
@@ -110,7 +110,7 @@ static int mlx5e_create_tises(struct mlx5_core_dev *mdev, u32 tisn[MLX5_MAX_PORT
 	int tc, i;
 	int err;
 
-	for (i = 0; i < MLX5_MAX_PORTS; i++) {
+	for (i = 0; i < mlx5e_get_num_lag_ports(mdev); i++) {
 		for (tc = 0; tc < MLX5_MAX_NUM_TC; tc++) {
 			u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
 			void *tisc;
@@ -140,7 +140,7 @@ err_close_tises:
 	return err;
 }
 
-int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
+int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises)
 {
 	struct mlx5e_hw_objs *res = &mdev->mlx5e_res.hw_objs;
 	int err;
@@ -169,11 +169,15 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_destroy_mkey;
 	}
 
-	err = mlx5e_create_tises(mdev, res->tisn);
-	if (err) {
-		mlx5_core_err(mdev, "alloc tises failed, %d\n", err);
-		goto err_destroy_bfreg;
+	if (create_tises) {
+		err = mlx5e_create_tises(mdev, res->tisn);
+		if (err) {
+			mlx5_core_err(mdev, "alloc tises failed, %d\n", err);
+			goto err_destroy_bfreg;
+		}
+		res->tisn_valid = true;
 	}
+
 	INIT_LIST_HEAD(&res->td.tirs_list);
 	mutex_init(&res->td.list_lock);
 
@@ -203,7 +207,8 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 
 	mlx5_crypto_dek_cleanup(mdev->mlx5e_res.dek_priv);
 	mdev->mlx5e_res.dek_priv = NULL;
-	mlx5e_destroy_tises(mdev, res->tisn);
+	if (res->tisn_valid)
+		mlx5e_destroy_tises(mdev, res->tisn);
 	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
