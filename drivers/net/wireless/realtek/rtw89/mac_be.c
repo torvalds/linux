@@ -566,6 +566,114 @@ static int rtw89_fwdl_check_path_ready_be(struct rtw89_dev *rtwdev,
 					rtwdev, R_BE_WCPU_FW_CTRL);
 }
 
+static int dmac_func_en_be(struct rtw89_dev *rtwdev)
+{
+	return 0;
+}
+
+static int cmac_func_en_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool en)
+{
+	u32 reg;
+
+	if (mac_idx > RTW89_MAC_1)
+		return -EINVAL;
+
+	if (mac_idx == RTW89_MAC_0)
+		return 0;
+
+	if (en) {
+		rtw89_write32_set(rtwdev, R_BE_AFE_CTRL1, B_BE_AFE_CTRL1_SET);
+		rtw89_write32_clr(rtwdev, R_BE_SYS_ISO_CTRL_EXTEND, B_BE_R_SYM_ISO_CMAC12PP);
+		rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_CMAC1_FEN);
+
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CK_EN, mac_idx);
+		rtw89_write32_set(rtwdev, reg, B_BE_CK_EN_SET);
+
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CMAC_FUNC_EN, mac_idx);
+		rtw89_write32_set(rtwdev, reg, B_BE_CMAC_FUNC_EN_SET);
+
+		set_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
+	} else {
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CMAC_FUNC_EN, mac_idx);
+		rtw89_write32_clr(rtwdev, reg, B_BE_CMAC_FUNC_EN_SET);
+
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CK_EN, mac_idx);
+		rtw89_write32_clr(rtwdev, reg, B_BE_CK_EN_SET);
+
+		rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_CMAC1_FEN);
+		rtw89_write32_set(rtwdev, R_BE_SYS_ISO_CTRL_EXTEND, B_BE_R_SYM_ISO_CMAC12PP);
+		rtw89_write32_clr(rtwdev, R_BE_AFE_CTRL1, B_BE_AFE_CTRL1_SET);
+
+		clear_bit(RTW89_FLAG_CMAC1_FUNC, rtwdev->flags);
+	}
+
+	return 0;
+}
+
+static int chip_func_en_be(struct rtw89_dev *rtwdev)
+{
+	return 0;
+}
+
+static int sys_init_be(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	ret = dmac_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
+	ret = cmac_func_en_be(rtwdev, RTW89_MAC_0, true);
+	if (ret)
+		return ret;
+
+	ret = chip_func_en_be(rtwdev);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
+static int rtw89_mac_typ_fltr_opt_be(struct rtw89_dev *rtwdev,
+				     enum rtw89_machdr_frame_type type,
+				     enum rtw89_mac_fwd_target fwd_target,
+				     u8 mac_idx)
+{
+	u32 reg;
+	u32 val;
+
+	switch (fwd_target) {
+	case RTW89_FWD_DONT_CARE:
+		val = RX_FLTR_FRAME_DROP_BE;
+		break;
+	case RTW89_FWD_TO_HOST:
+	case RTW89_FWD_TO_WLAN_CPU:
+		val = RX_FLTR_FRAME_ACCEPT_BE;
+		break;
+	default:
+		rtw89_err(rtwdev, "[ERR]set rx filter fwd target err\n");
+		return -EINVAL;
+	}
+
+	switch (type) {
+	case RTW89_MGNT:
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MGNT_FLTR, mac_idx);
+		break;
+	case RTW89_CTRL:
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CTRL_FLTR, mac_idx);
+		break;
+	case RTW89_DATA:
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_DATA_FLTR, mac_idx);
+		break;
+	default:
+		rtw89_err(rtwdev, "[ERR]set rx filter type err\n");
+		return -EINVAL;
+	}
+	rtw89_write32(rtwdev, reg, val);
+
+	return 0;
+}
+
 static int dle_buf_req_be(struct rtw89_dev *rtwdev, u16 buf_len, bool wd, u16 *pkt_id)
 {
 	u32 val, reg;
@@ -1162,11 +1270,14 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	},
 
 	.check_mac_en = rtw89_mac_check_mac_en_be,
+	.sys_init = sys_init_be,
 	.hci_func_en = rtw89_mac_hci_func_en_be,
 	.dmac_func_pre_en = rtw89_mac_dmac_func_pre_en_be,
 	.dle_func_en = dle_func_en_be,
 	.dle_clk_en = dle_clk_en_be,
 	.bf_assoc = rtw89_mac_bf_assoc_be,
+
+	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,
