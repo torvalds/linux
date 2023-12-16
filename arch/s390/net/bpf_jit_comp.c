@@ -2362,7 +2362,8 @@ static int __arch_prepare_bpf_trampoline(struct bpf_tramp_image *im,
 		return -ENOTSUPP;
 
 	/* Return to %r14, since func_addr and %r0 are not available. */
-	if (!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK))
+	if ((!func_addr && !(flags & BPF_TRAMP_F_ORIG_STACK)) ||
+	    (flags & BPF_TRAMP_F_INDIRECT))
 		flags |= BPF_TRAMP_F_SKIP_FRAME;
 
 	/*
