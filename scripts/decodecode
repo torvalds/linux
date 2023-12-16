@@ -67,6 +67,7 @@ if [ -z "$ARCH" ]; then
     case `uname -m` in
 	aarch64*) ARCH=arm64 ;;
 	arm*) ARCH=arm ;;
+	loongarch*) ARCH=loongarch ;;
     esac
 fi
 
@@ -95,6 +96,10 @@ disas() {
 
 	if [ "$ARCH" = "riscv" ]; then
 		OBJDUMPFLAGS="-M no-aliases --section=.text -D"
+		${CROSS_COMPILE}strip $t.o
+	fi
+
+	if [ "$ARCH" = "loongarch" ]; then
 		${CROSS_COMPILE}strip $t.o
 	fi
 
