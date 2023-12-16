@@ -495,7 +495,7 @@ static int event_device_add(struct acpi_device *adev)
 free_dev_data:
 	hangup_device(dev_data);
 free_minor:
-	ida_simple_remove(&event_ida, minor);
+	ida_free(&event_ida, minor);
 	return error;
 }
 
@@ -504,7 +504,7 @@ static void event_device_remove(struct acpi_device *adev)
 	struct event_device_data *dev_data = adev->driver_data;
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_simple_remove(&event_ida, MINOR(dev_data->dev.devt));
+	ida_free(&event_ida, MINOR(dev_data->dev.devt));
 	hangup_device(dev_data);
 }
 
