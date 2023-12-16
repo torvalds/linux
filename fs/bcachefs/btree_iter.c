@@ -2699,8 +2699,8 @@ void bch2_trans_copy_iter(struct btree_iter *dst, struct btree_iter *src)
 void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 {
 	unsigned new_top = trans->mem_top + size;
-	size_t old_bytes = trans->mem_bytes;
-	size_t new_bytes = roundup_pow_of_two(new_top);
+	unsigned old_bytes = trans->mem_bytes;
+	unsigned new_bytes = roundup_pow_of_two(new_top);
 	int ret;
 	void *new_mem;
 	void *p;

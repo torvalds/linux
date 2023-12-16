@@ -2249,7 +2249,7 @@ static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage
 struct jset_entry_log {
 	struct jset_entry	entry;
 	u8			d[];
-} __packed;
+} __packed __aligned(8);
 
 /*
  * On disk format for a journal entry:

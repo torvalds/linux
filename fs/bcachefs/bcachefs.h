@@ -193,6 +193,7 @@
 #include <linux/mutex.h>
 #include <linux/percpu-refcount.h>
 #include <linux/percpu-rwsem.h>
+#include <linux/refcount.h>
 #include <linux/rhashtable.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
