@@ -35,6 +35,14 @@ struct xchk_meta_ops {
 	/* Repair or optimize the metadata. */
 	int		(*repair)(struct xfs_scrub *);
 
+	/*
+	 * Re-scrub the metadata we repaired, in case there's extra work that
+	 * we need to do to check our repair work.  If this is NULL, we'll use
+	 * the ->scrub function pointer, assuming that the regular scrub is
+	 * sufficient.
+	 */
+	int		(*repair_eval)(struct xfs_scrub *sc);
+
 	/* Decide if we even have this piece of metadata. */
 	bool		(*has)(struct xfs_mount *);
 
@@ -113,6 +121,7 @@ struct xfs_scrub {
 #define XCHK_HAVE_FREEZE_PROT	(1U << 1)  /* do we have freeze protection? */
 #define XCHK_FSGATES_DRAIN	(1U << 2)  /* defer ops draining enabled */
 #define XCHK_NEED_DRAIN		(1U << 3)  /* scrub needs to drain defer ops */
+#define XREP_RESET_PERAG_RESV	(1U << 30) /* must reset AG space reservation */
 #define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
 
 /*
@@ -129,10 +138,8 @@ int xchk_superblock(struct xfs_scrub *sc);
 int xchk_agf(struct xfs_scrub *sc);
 int xchk_agfl(struct xfs_scrub *sc);
 int xchk_agi(struct xfs_scrub *sc);
-int xchk_bnobt(struct xfs_scrub *sc);
-int xchk_cntbt(struct xfs_scrub *sc);
-int xchk_inobt(struct xfs_scrub *sc);
-int xchk_finobt(struct xfs_scrub *sc);
+int xchk_allocbt(struct xfs_scrub *sc);
+int xchk_iallocbt(struct xfs_scrub *sc);
 int xchk_rmapbt(struct xfs_scrub *sc);
 int xchk_refcountbt(struct xfs_scrub *sc);
 int xchk_inode(struct xfs_scrub *sc);

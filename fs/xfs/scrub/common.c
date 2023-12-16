@@ -604,6 +604,7 @@ xchk_ag_free(
 	struct xchk_ag		*sa)
 {
 	xchk_ag_btcur_free(sa);
+	xrep_reset_perag_resv(sc);
 	if (sa->agf_bp) {
 		xfs_trans_brelse(sc->tp, sa->agf_bp);
 		sa->agf_bp = NULL;

@@ -59,6 +59,17 @@ int xrep_find_ag_btree_roots(struct xfs_scrub *sc, struct xfs_buf *agf_bp,
 		struct xrep_find_ag_btree *btree_info, struct xfs_buf *agfl_bp);
 void xrep_force_quotacheck(struct xfs_scrub *sc, xfs_dqtype_t type);
 int xrep_ino_dqattach(struct xfs_scrub *sc);
+int xrep_reset_perag_resv(struct xfs_scrub *sc);
+
+/* Repair setup functions */
+int xrep_setup_ag_allocbt(struct xfs_scrub *sc);
+
+void xrep_ag_btcur_init(struct xfs_scrub *sc, struct xchk_ag *sa);
+
+/* Metadata revalidators */
+
+int xrep_revalidate_allocbt(struct xfs_scrub *sc);
+int xrep_revalidate_iallocbt(struct xfs_scrub *sc);
 
 /* Metadata repairers */
 
@@ -67,6 +78,12 @@ int xrep_superblock(struct xfs_scrub *sc);
 int xrep_agf(struct xfs_scrub *sc);
 int xrep_agfl(struct xfs_scrub *sc);
 int xrep_agi(struct xfs_scrub *sc);
+int xrep_allocbt(struct xfs_scrub *sc);
+int xrep_iallocbt(struct xfs_scrub *sc);
+int xrep_refcountbt(struct xfs_scrub *sc);
+
+int xrep_reinit_pagf(struct xfs_scrub *sc);
+int xrep_reinit_pagi(struct xfs_scrub *sc);
 
 #else
 
@@ -87,11 +104,37 @@ xrep_calc_ag_resblks(
 	return 0;
 }
 
+static inline int
+xrep_reset_perag_resv(
+	struct xfs_scrub	*sc)
+{
+	if (!(sc->flags & XREP_RESET_PERAG_RESV))
+		return 0;
+
+	ASSERT(0);
+	return -EOPNOTSUPP;
+}
+
+/* repair setup functions for no-repair */
+static inline int
+xrep_setup_nothing(
+	struct xfs_scrub	*sc)
+{
+	return 0;
+}
+#define xrep_setup_ag_allocbt		xrep_setup_nothing
+
+#define xrep_revalidate_allocbt		(NULL)
+#define xrep_revalidate_iallocbt	(NULL)
+
 #define xrep_probe			xrep_notsupported
 #define xrep_superblock			xrep_notsupported
 #define xrep_agf			xrep_notsupported
 #define xrep_agfl			xrep_notsupported
 #define xrep_agi			xrep_notsupported
+#define xrep_allocbt			xrep_notsupported
+#define xrep_iallocbt			xrep_notsupported
+#define xrep_refcountbt			xrep_notsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
