@@ -411,19 +411,19 @@ static bool AddReorderEntry(struct rx_ts_record *ts,
 	while (pList->next != &ts->rx_pending_pkt_list) {
 		if (SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)
 		    list_entry(pList->next, struct rx_reorder_entry,
-		    List))->SeqNum))
+		    list))->SeqNum))
 			pList = pList->next;
 		else if (SN_EQUAL(pReorderEntry->SeqNum,
 			((struct rx_reorder_entry *)list_entry(pList->next,
-			struct rx_reorder_entry, List))->SeqNum))
+			struct rx_reorder_entry, list))->SeqNum))
 			return false;
 		else
 			break;
 	}
-	pReorderEntry->List.next = pList->next;
-	pReorderEntry->List.next->prev = &pReorderEntry->List;
-	pReorderEntry->List.prev = pList;
-	pList->next = &pReorderEntry->List;
+	pReorderEntry->list.next = pList->next;
+	pReorderEntry->list.next->prev = &pReorderEntry->list;
+	pReorderEntry->list.prev = pList;
+	pList->next = &pReorderEntry->list;
 
 	return true;
 }
@@ -504,15 +504,15 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
 
 		pRxReorderEntry = (struct rx_reorder_entry *)
 				  list_entry(ts->rx_pending_pkt_list.prev,
-					     struct rx_reorder_entry, List);
+					     struct rx_reorder_entry, list);
 		netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n", __func__,
 			   pRxReorderEntry->SeqNum);
-		list_del_init(&pRxReorderEntry->List);
+		list_del_init(&pRxReorderEntry->list);
 
 		ieee->RfdArray[RfdCnt] = pRxReorderEntry->prxb;
 
 		RfdCnt = RfdCnt + 1;
-		list_add_tail(&pRxReorderEntry->List,
+		list_add_tail(&pRxReorderEntry->list,
 			      &ieee->RxReorder_Unused_List);
 	}
 	rtllib_indicate_packets(ieee, ieee->RfdArray, RfdCnt);
@@ -601,8 +601,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		if (!list_empty(&ieee->RxReorder_Unused_List)) {
 			pReorderEntry = (struct rx_reorder_entry *)
 					list_entry(ieee->RxReorder_Unused_List.next,
-					struct rx_reorder_entry, List);
-			list_del_init(&pReorderEntry->List);
+					struct rx_reorder_entry, list);
+			list_del_init(&pReorderEntry->list);
 
 			/* Make a reorder entry and insert
 			 * into a the packet list.
@@ -617,7 +617,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 					   "%s(): Duplicate packet is dropped. IndicateSeq: %d, NewSeq: %d\n",
 					   __func__, ts->rx_indicate_seq,
 					   SeqNum);
-				list_add_tail(&pReorderEntry->List,
+				list_add_tail(&pReorderEntry->list,
 					      &ieee->RxReorder_Unused_List);
 
 				for (i = 0; i < prxb->nr_subframes; i++)
@@ -657,7 +657,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		pReorderEntry = (struct rx_reorder_entry *)
 					list_entry(ts->rx_pending_pkt_list.prev,
 						   struct rx_reorder_entry,
-						   List);
+						   list);
 		if (SN_LESS(pReorderEntry->SeqNum, ts->rx_indicate_seq) ||
 		    SN_EQUAL(pReorderEntry->SeqNum, ts->rx_indicate_seq)) {
 			/* This protect struct buffer from overflow. */
@@ -669,7 +669,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				break;
 			}
 
-			list_del_init(&pReorderEntry->List);
+			list_del_init(&pReorderEntry->list);
 
 			if (SN_EQUAL(pReorderEntry->SeqNum, ts->rx_indicate_seq))
 				ts->rx_indicate_seq = (ts->rx_indicate_seq + 1) %
@@ -680,7 +680,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				   __func__, pReorderEntry->SeqNum);
 			index++;
 
-			list_add_tail(&pReorderEntry->List,
+			list_add_tail(&pReorderEntry->list,
 				      &ieee->RxReorder_Unused_List);
 		} else {
 			bPktInBuf = true;

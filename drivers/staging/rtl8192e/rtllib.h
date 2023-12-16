@@ -1042,7 +1042,7 @@ struct bandwidth_autoswitch {
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
 struct rx_reorder_entry {
-	struct list_head	List;
+	struct list_head	list;
 	u16			SeqNum;
 	struct rtllib_rxb *prxb;
 };
