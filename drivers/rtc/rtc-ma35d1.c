@@ -79,11 +79,6 @@ static irqreturn_t ma35d1_rtc_interrupt(int irq, void *data)
 		events |= RTC_AF | RTC_IRQF;
 	}
 
-	if (rtc_irq & RTC_INTSTS_UIF) {
-		rtc_reg_write(rtc, MA35_REG_RTC_INTSTS, RTC_INTSTS_UIF);
-		events |= RTC_UF | RTC_IRQF;
-	}
-
 	rtc_update_irq(rtc->rtcdev, 1, events);
 
 	return IRQ_HANDLED;
@@ -216,7 +211,6 @@ static int ma35d1_rtc_probe(struct platform_device *pdev)
 {
 	struct ma35_rtc *rtc;
 	struct clk *clk;
-	u32 regval;
 	int ret;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
@@ -264,24 +258,15 @@ static int ma35d1_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register rtc device\n");
 
-	regval = rtc_reg_read(rtc, MA35_REG_RTC_INTEN);
-	regval |= RTC_INTEN_UIEN;
-	rtc_reg_write(rtc, MA35_REG_RTC_INTEN, regval);
-
 	return 0;
 }
 
 static int ma35d1_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct ma35_rtc *rtc = platform_get_drvdata(pdev);
-	u32 regval;
 
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(rtc->irq_num);
-
-	regval = rtc_reg_read(rtc, MA35_REG_RTC_INTEN);
-	regval &= ~RTC_INTEN_UIEN;
-	rtc_reg_write(rtc, MA35_REG_RTC_INTEN, regval);
 
 	return 0;
 }
@@ -289,14 +274,9 @@ static int ma35d1_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 static int ma35d1_rtc_resume(struct platform_device *pdev)
 {
 	struct ma35_rtc *rtc = platform_get_drvdata(pdev);
-	u32 regval;
 
 	if (device_may_wakeup(&pdev->dev))
 		disable_irq_wake(rtc->irq_num);
-
-	regval = rtc_reg_read(rtc, MA35_REG_RTC_INTEN);
-	regval |= RTC_INTEN_UIEN;
-	rtc_reg_write(rtc, MA35_REG_RTC_INTEN, regval);
 
 	return 0;
 }
