@@ -246,7 +246,6 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	struct bch_fs *c = trans->c;
 	struct journal *j = &c->journal;
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
-	struct wb_key_ref *i;
 	struct btree_iter iter = { NULL };
 	size_t skipped = 0, fast = 0, slowpath = 0;
 	bool write_locked = false;
@@ -355,7 +354,6 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		 */
 		trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, wb->flushing.keys.nr);
 
-		struct btree_write_buffered_key *i;
 		darray_for_each(wb->flushing.keys, i) {
 			if (!i->journal_seq)
 				continue;

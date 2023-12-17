@@ -1937,7 +1937,7 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 {
 	DARRAY(struct bch_sb_handle) sbs = { 0 };
 	struct bch_fs *c = NULL;
-	struct bch_sb_handle *sb, *best = NULL;
+	struct bch_sb_handle *best = NULL;
 	struct printbuf errbuf = PRINTBUF;
 	int ret = 0;
 

@@ -398,7 +398,7 @@ static int snapshots_seen_add_inorder(struct bch_fs *c, struct snapshots_seen *s
 	};
 	int ret = 0;
 
-	darray_for_each(s->ids, i) {
+	__darray_for_each(s->ids, i) {
 		if (i->id == id)
 			return 0;
 		if (i->id > id)
@@ -415,7 +415,7 @@ static int snapshots_seen_add_inorder(struct bch_fs *c, struct snapshots_seen *s
 static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 				 enum btree_id btree_id, struct bpos pos)
 {
-	struct snapshots_seen_entry *i, n = {
+	struct snapshots_seen_entry n = {
 		.id	= pos.snapshot,
 		.equiv	= bch2_snapshot_equiv(c, pos.snapshot),
 	};
@@ -616,7 +616,7 @@ lookup_inode_for_snapshot(struct bch_fs *c, struct inode_walker *w,
 
 	snapshot = bch2_snapshot_equiv(c, snapshot);
 
-	darray_for_each(w->inodes, i)
+	__darray_for_each(w->inodes, i)
 		if (bch2_snapshot_is_ancestor(c, snapshot, i->snapshot))
 			goto found;
 
@@ -658,11 +658,8 @@ static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
 		if (ret)
 			return ERR_PTR(ret);
 	} else if (bkey_cmp(w->last_pos, pos)) {
-		struct inode_walker_entry *i;
-
 		darray_for_each(w->inodes, i)
 			i->seen_this_pos = false;
-
 	}
 
 	w->last_pos = pos;
@@ -1032,7 +1029,6 @@ static bool dirent_points_to_inode(struct bkey_s_c_dirent d,
 static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
-	struct inode_walker_entry *i;
 	u32 restart_count = trans->restart_count;
 	int ret = 0;
 	s64 count2;
@@ -1081,11 +1077,8 @@ struct extent_ends {
 
 static void extent_ends_reset(struct extent_ends *extent_ends)
 {
-	struct extent_end *i;
-
 	darray_for_each(extent_ends->e, i)
 		snapshots_seen_exit(&i->seen);
-
 	extent_ends->e.nr = 0;
 }
 
@@ -1117,7 +1110,7 @@ static int extent_ends_at(struct bch_fs *c,
 	if (!n.seen.ids.data)
 		return -BCH_ERR_ENOMEM_fsck_extent_ends_at;
 
-	darray_for_each(extent_ends->e, i) {
+	__darray_for_each(extent_ends->e, i) {
 		if (i->snapshot == k.k->p.snapshot) {
 			snapshots_seen_exit(&i->seen);
 			*i = n;
@@ -1256,7 +1249,6 @@ static int check_overlapping_extents(struct btree_trans *trans,
 			      bool *fixed)
 {
 	struct bch_fs *c = trans->c;
-	struct extent_end *i;
 	int ret = 0;
 
 	/* transaction restart, running again */
@@ -1495,7 +1487,6 @@ int bch2_check_indirect_extents(struct bch_fs *c)
 static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
-	struct inode_walker_entry *i;
 	u32 restart_count = trans->restart_count;
 	int ret = 0;
 	s64 count2;
@@ -1992,13 +1983,10 @@ typedef DARRAY(struct pathbuf_entry) pathbuf;
 
 static bool path_is_dup(pathbuf *p, u64 inum, u32 snapshot)
 {
-	struct pathbuf_entry *i;
-
 	darray_for_each(*p, i)
 		if (i->inum	== inum &&
 		    i->snapshot	== snapshot)
 			return true;
-
 	return false;
 }
 
@@ -2092,8 +2080,6 @@ static int check_path(struct btree_trans *trans,
 		}
 
 		if (path_is_dup(p, inode->bi_inum, snapshot)) {
-			struct pathbuf_entry *i;
-
 			/* XXX print path */
 			bch_err(c, "directory structure loop");
 

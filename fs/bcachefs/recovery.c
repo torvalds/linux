@@ -146,7 +146,6 @@ static int bch2_journal_replay(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
 	DARRAY(struct journal_key *) keys_sorted = { 0 };
-	struct journal_key **kp;
 	struct journal *j = &c->journal;
 	u64 start_seq	= c->journal_replay_seq_start;
 	u64 end_seq	= c->journal_replay_seq_start;

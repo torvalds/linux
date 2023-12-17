@@ -297,8 +297,6 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 
 void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
 {
-	unsigned long *i;
-
 	darray_for_each(*stack, i) {
 		prt_printf(out, "[<0>] %pB", (void *) *i);
 		prt_newline(out);

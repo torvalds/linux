@@ -400,12 +400,10 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (extent_k.k->p.snapshot) {
-		struct snapshot_io_opts_entry *i;
+	if (extent_k.k->p.snapshot)
 		darray_for_each(io_opts->d, i)
 			if (bch2_snapshot_is_ancestor(c, extent_k.k->p.snapshot, i->snapshot))
 				return &i->io_opts;
-	}
 
 	return &io_opts->fs_io_opts;
 }

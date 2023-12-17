@@ -1498,7 +1498,7 @@ static void bch2_evict_inode(struct inode *vinode)
 
 void bch2_evict_subvolume_inodes(struct bch_fs *c, snapshot_id_list *s)
 {
-	struct bch_inode_info *inode, **i;
+	struct bch_inode_info *inode;
 	DARRAY(struct bch_inode_info *) grabbed;
 	bool clean_pass = false, this_pass_clean;
 

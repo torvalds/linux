@@ -1230,7 +1230,6 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct bkey_ptrs_c ptrs;
 	const struct bch_extent_ptr *ptr;
 	DARRAY_PREALLOCATED(struct bucket_to_lock, 3) buckets;
-	struct bucket_to_lock *i;
 	u32 snapshot;
 	struct bucket_to_lock *stale_at;
 	int ret;

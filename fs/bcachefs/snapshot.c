@@ -1311,7 +1311,6 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	u32 nr_deleted_ancestors = 0;
 	struct bkey_i_snapshot *s;
-	u32 *i;
 	int ret;
 
 	if (k.k->type != KEY_TYPE_snapshot)
@@ -1369,7 +1368,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	struct bkey_s_c_snapshot snap;
 	snapshot_id_list deleted = { 0 };
 	snapshot_id_list deleted_interior = { 0 };
-	u32 *i, id;
+	u32 id;
 	int ret = 0;
 
 	if (!test_and_clear_bit(BCH_FS_need_delete_dead_snapshots, &c->flags))

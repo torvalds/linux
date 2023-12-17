@@ -209,7 +209,6 @@ static int bch2_copygc(struct moving_context *ctxt,
 	};
 	move_buckets buckets = { 0 };
 	struct move_bucket_in_flight *f;
-	struct move_bucket *i;
 	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
