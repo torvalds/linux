@@ -72,7 +72,6 @@ static DEFINE_SPINLOCK(emif_lock);
 static unsigned long	irq_state;
 static LIST_HEAD(device_list);
 
-#ifdef CONFIG_DEBUG_FS
 static void do_emif_regdump_show(struct seq_file *s, struct emif_data *emif,
 	struct emif_regs *regs)
 {
@@ -140,31 +139,24 @@ static int emif_mr4_show(struct seq_file *s, void *unused)
 
 DEFINE_SHOW_ATTRIBUTE(emif_mr4);
 
-static int __init_or_module emif_debugfs_init(struct emif_data *emif)
+static void __init_or_module emif_debugfs_init(struct emif_data *emif)
 {
-	emif->debugfs_root = debugfs_create_dir(dev_name(emif->dev), NULL);
-	debugfs_create_file("regcache_dump", S_IRUGO, emif->debugfs_root, emif,
-			    &emif_regdump_fops);
-	debugfs_create_file("mr4", S_IRUGO, emif->debugfs_root, emif,
-			    &emif_mr4_fops);
-	return 0;
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		emif->debugfs_root = debugfs_create_dir(dev_name(emif->dev), NULL);
+		debugfs_create_file("regcache_dump", S_IRUGO, emif->debugfs_root, emif,
+				    &emif_regdump_fops);
+		debugfs_create_file("mr4", S_IRUGO, emif->debugfs_root, emif,
+				    &emif_mr4_fops);
+	}
 }
 
 static void __exit emif_debugfs_exit(struct emif_data *emif)
 {
-	debugfs_remove_recursive(emif->debugfs_root);
-	emif->debugfs_root = NULL;
+	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+		debugfs_remove_recursive(emif->debugfs_root);
+		emif->debugfs_root = NULL;
+	}
 }
-#else
-static inline int __init_or_module emif_debugfs_init(struct emif_data *emif)
-{
-	return 0;
-}
-
-static inline void __exit emif_debugfs_exit(struct emif_data *emif)
-{
-}
-#endif
 
 /*
  * Get bus width used by EMIF. Note that this may be different from the
