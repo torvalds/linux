@@ -219,7 +219,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	struct ba_record *ba = NULL;
 	union ba_param_set *ba_param_set = NULL;
 	u16 *ba_timeout_value = NULL;
-	union sequence_control *pBaStartSeqCtrl = NULL;
+	union sequence_control *ba_start_seq_ctrl = NULL;
 	struct rx_ts_record *ts = NULL;
 
 	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 9) {
@@ -241,7 +241,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	dialog_token = tag + 2;
 	ba_param_set = (union ba_param_set *)(tag + 3);
 	ba_timeout_value = (u16 *)(tag + 5);
-	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
+	ba_start_seq_ctrl = (union sequence_control *)(req + 7);
 
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->ht_info->current_ht_support ||
@@ -274,7 +274,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	ba->dialog_token = *dialog_token;
 	ba->ba_param_set = *ba_param_set;
 	ba->ba_timeout_value = *ba_timeout_value;
-	ba->ba_start_seq_ctrl = *pBaStartSeqCtrl;
+	ba->ba_start_seq_ctrl = *ba_start_seq_ctrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
 	   (ieee->ht_info->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
