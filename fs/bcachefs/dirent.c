@@ -471,17 +471,11 @@ u64 bch2_dirent_lookup(struct bch_fs *c, subvol_inum dir,
 		       const struct qstr *name, subvol_inum *inum)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	int ret;
-retry:
-	bch2_trans_begin(trans);
+	struct btree_iter iter = { NULL };
 
-	ret = __bch2_dirent_lookup_trans(trans, &iter, dir, hash_info,
-					  name, inum, 0);
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-	if (!ret)
-		bch2_trans_iter_exit(trans, &iter);
+	int ret = lockrestart_do(trans,
+		__bch2_dirent_lookup_trans(trans, &iter, dir, hash_info, name, inum, 0));
+	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
 	return ret;
 }
