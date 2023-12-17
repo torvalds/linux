@@ -4256,13 +4256,6 @@ struct wmi_peer_sta_ps_state_chg_event {
 	__le32 peer_ps_state;
 } __packed;
 
-struct wmi_pdev_chanlist_update_event {
-	/* number of channels */
-	__le32 num_chan;
-	/* array of channels */
-	struct wmi_channel channel_list[1];
-} __packed;
-
 #define WMI_MAX_DEBUG_MESG (sizeof(u32) * 32)
 
 struct wmi_debug_mesg_event {
