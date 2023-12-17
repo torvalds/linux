@@ -12,7 +12,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 {
 	struct rx_ts_record *ts = from_timer(ts, t, rx_pkt_pending_timer);
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
-						  RxTsRecord[ts->num]);
+						  rx_ts_records[ts->num]);
 
 	struct rx_reorder_entry *pReorderEntry = NULL;
 
@@ -120,7 +120,7 @@ static void ResetRxTsEntry(struct rx_ts_record *ts)
 void rtllib_ts_init(struct rtllib_device *ieee)
 {
 	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
-	struct rx_ts_record *rxts  = ieee->RxTsRecord;
+	struct rx_ts_record *rxts  = ieee->rx_ts_records;
 	struct rx_reorder_entry *pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
 
