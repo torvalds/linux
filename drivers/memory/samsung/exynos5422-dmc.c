@@ -1558,7 +1558,7 @@ remove_clocks:
  * clean the device's resources. It just calls explicitly disable function for
  * the performance counters.
  */
-static int exynos5_dmc_remove(struct platform_device *pdev)
+static void exynos5_dmc_remove(struct platform_device *pdev)
 {
 	struct exynos5_dmc *dmc = dev_get_drvdata(&pdev->dev);
 
@@ -1569,8 +1569,6 @@ static int exynos5_dmc_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(dmc->mout_bpll);
 	clk_disable_unprepare(dmc->fout_bpll);
-
-	return 0;
 }
 
 static const struct of_device_id exynos5_dmc_of_match[] = {
@@ -1581,7 +1579,7 @@ MODULE_DEVICE_TABLE(of, exynos5_dmc_of_match);
 
 static struct platform_driver exynos5_dmc_platdrv = {
 	.probe	= exynos5_dmc_probe,
-	.remove = exynos5_dmc_remove,
+	.remove_new = exynos5_dmc_remove,
 	.driver = {
 		.name	= "exynos5-dmc",
 		.of_match_table = exynos5_dmc_of_match,
