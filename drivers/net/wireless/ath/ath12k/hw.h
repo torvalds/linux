@@ -245,7 +245,6 @@ enum ath12k_bd_ie_board_type {
 enum ath12k_bd_ie_type {
 	/* contains sub IEs of enum ath12k_bd_ie_board_type */
 	ATH12K_BD_IE_BOARD = 0,
-	ATH12K_BD_IE_BOARD_EXT = 1,
 };
 
 struct ath12k_hw_regs {
