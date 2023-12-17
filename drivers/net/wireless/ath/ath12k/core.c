@@ -104,13 +104,13 @@ int ath12k_core_resume(struct ath12k_base *ab)
 	return 0;
 }
 
-static int ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
-					 size_t name_len)
+static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
+					   size_t name_len, bool with_variant)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
 	char variant[9 + ATH12K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
 
-	if (ab->qmi.target.bdf_ext[0] != '\0')
+	if (with_variant && ab->qmi.target.bdf_ext[0] != '\0')
 		scnprintf(variant, sizeof(variant), ",variant=%s",
 			  ab->qmi.target.bdf_ext);
 
@@ -138,6 +138,18 @@ static int ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot using board name '%s'\n", name);
 
 	return 0;
+}
+
+static int ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
+					 size_t name_len)
+{
+	return __ath12k_core_create_board_name(ab, name, name_len, true);
+}
+
+static int ath12k_core_create_fallback_board_name(struct ath12k_base *ab, char *name,
+						  size_t name_len)
+{
+	return __ath12k_core_create_board_name(ab, name, name_len, false);
 }
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
@@ -343,7 +355,7 @@ static int ath12k_core_fetch_board_data_api_n(struct ath12k_base *ab,
 
 out:
 	if (!bd->data || !bd->len) {
-		ath12k_err(ab,
+		ath12k_dbg(ab, ATH12K_DBG_BOOT,
 			   "failed to fetch board data for %s from %s\n",
 			   boardname, filepath);
 		ret = -ENODATA;
@@ -374,11 +386,14 @@ int ath12k_core_fetch_board_data_api_1(struct ath12k_base *ab,
 #define BOARD_NAME_SIZE 200
 int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 {
-	char boardname[BOARD_NAME_SIZE];
+	char boardname[BOARD_NAME_SIZE], fallback_boardname[BOARD_NAME_SIZE];
+	char *filename, filepath[100];
 	int bd_api;
 	int ret;
 
-	ret = ath12k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
+	filename = ATH12K_BOARD_API2_FILE;
+
+	ret = ath12k_core_create_board_name(ab, boardname, sizeof(boardname));
 	if (ret) {
 		ath12k_err(ab, "failed to create board name: %d", ret);
 		return ret;
@@ -389,10 +404,29 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 	if (!ret)
 		goto success;
 
+	ret = ath12k_core_create_fallback_board_name(ab, fallback_boardname,
+						     sizeof(fallback_boardname));
+	if (ret) {
+		ath12k_err(ab, "failed to create fallback board name: %d", ret);
+		return ret;
+	}
+
+	ret = ath12k_core_fetch_board_data_api_n(ab, bd, fallback_boardname);
+	if (!ret)
+		goto success;
+
 	bd_api = 1;
 	ret = ath12k_core_fetch_board_data_api_1(ab, bd, ATH12K_DEFAULT_BOARD_FILE);
 	if (ret) {
-		ath12k_err(ab, "failed to fetch board-2.bin or board.bin from %s\n",
+		ath12k_core_create_firmware_path(ab, filename,
+						 filepath, sizeof(filepath));
+		ath12k_err(ab, "failed to fetch board data for %s from %s\n",
+			   boardname, filepath);
+		if (memcmp(boardname, fallback_boardname, strlen(boardname)))
+			ath12k_err(ab, "failed to fetch board data for %s from %s\n",
+				   fallback_boardname, filepath);
+
+		ath12k_err(ab, "failed to fetch board.bin from %s\n",
 			   ab->hw_params->fw.dir);
 		return ret;
 	}
