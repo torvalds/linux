@@ -30,16 +30,15 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 sectors = 0;
-	int ret;
 
-	for_each_btree_key_old_upto(trans, iter, BTREE_ID_extents,
-				    SPOS(inum, 0, snapshot),
-				    POS(inum, U64_MAX),
-				    0, k, ret)
+	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
+				SPOS(inum, 0, snapshot),
+				POS(inum, U64_MAX),
+				0, k, ({
 		if (bkey_extent_is_allocation(k.k))
 			sectors += k.k->size;
-
-	bch2_trans_iter_exit(trans, &iter);
+		0;
+	}));
 
 	return ret ?: sectors;
 }
@@ -49,22 +48,17 @@ static s64 bch2_count_subdirs(struct btree_trans *trans, u64 inum,
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_s_c_dirent d;
 	u64 subdirs = 0;
-	int ret;
 
-	for_each_btree_key_old_upto(trans, iter, BTREE_ID_dirents,
+	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_dirents,
 				    SPOS(inum, 0, snapshot),
 				    POS(inum, U64_MAX),
-				    0, k, ret) {
-		if (k.k->type != KEY_TYPE_dirent)
-			continue;
-
-		d = bkey_s_c_to_dirent(k);
-		if (d.v->d_type == DT_DIR)
+				    0, k, ({
+		if (k.k->type == KEY_TYPE_dirent &&
+		    bkey_s_c_to_dirent(k).v->d_type == DT_DIR)
 			subdirs++;
-	}
-	bch2_trans_iter_exit(trans, &iter);
+		0;
+	}));
 
 	return ret ?: subdirs;
 }
