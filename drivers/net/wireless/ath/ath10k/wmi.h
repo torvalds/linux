@@ -3218,23 +3218,16 @@ struct wmi_start_scan_common {
 	__le32 scan_ctrl_flags;
 } __packed;
 
-struct wmi_start_scan_tlvs {
-	/* TLV parameters. These includes channel list, ssid list, bssid list,
-	 * extra ies.
-	 */
-	u8 tlvs[0];
-} __packed;
-
 struct wmi_start_scan_cmd {
 	struct wmi_start_scan_common common;
 	__le32 burst_duration_ms;
-	struct wmi_start_scan_tlvs tlvs;
+	u8 tlvs[];
 } __packed;
 
 /* This is the definition from 10.X firmware branch */
 struct wmi_10x_start_scan_cmd {
 	struct wmi_start_scan_common common;
-	struct wmi_start_scan_tlvs tlvs;
+	u8 tlvs[];
 } __packed;
 
 struct wmi_ssid_arg {
