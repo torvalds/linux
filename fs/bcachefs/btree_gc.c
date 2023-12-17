@@ -1479,8 +1479,6 @@ fsck_err:
 static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bch_dev *ca;
 	unsigned i;
 	int ret = 0;
@@ -1507,8 +1505,6 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 {
 	struct bch_dev *ca;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bucket *g;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
@@ -1632,43 +1628,31 @@ fsck_err:
 
 static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 {
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	size_t idx = 0;
-	int ret = 0;
 
 	if (metadata_only)
 		return 0;
 
-	trans = bch2_trans_get(c);
-
-	ret = for_each_btree_key_commit(trans, iter,
-			BTREE_ID_reflink, POS_MIN,
-			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		bch2_gc_write_reflink_key(trans, &iter, k, &idx));
-
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter,
+				BTREE_ID_reflink, POS_MIN,
+				BTREE_ITER_PREFETCH, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			bch2_gc_write_reflink_key(trans, &iter, k, &idx)));
 	c->reflink_gc_nr = 0;
-	bch2_trans_put(trans);
-	bch_err_fn(c, ret);
 	return ret;
 }
 
 static int bch2_gc_reflink_start(struct bch_fs *c,
 				 bool metadata_only)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct reflink_gc *r;
-	int ret = 0;
 
 	if (metadata_only)
 		return 0;
 
 	c->reflink_gc_nr = 0;
 
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_reflink, POS_MIN,
 				   BTREE_ITER_PREFETCH, k, ({
 			const __le64 *refcount = bkey_refcount_c(k);
@@ -1676,8 +1660,8 @@ static int bch2_gc_reflink_start(struct bch_fs *c,
 			if (!refcount)
 				continue;
 
-			r = genradix_ptr_alloc(&c->reflink_gc_table, c->reflink_gc_nr++,
-					       GFP_KERNEL);
+			struct reflink_gc *r = genradix_ptr_alloc(&c->reflink_gc_table,
+							c->reflink_gc_nr++, GFP_KERNEL);
 			if (!r) {
 				ret = -BCH_ERR_ENOMEM_gc_reflink_start;
 				break;
@@ -1757,24 +1741,15 @@ fsck_err:
 
 static int bch2_gc_stripes_done(struct bch_fs *c, bool metadata_only)
 {
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
 	if (metadata_only)
 		return 0;
 
-	trans = bch2_trans_get(c);
-
-	ret = for_each_btree_key_commit(trans, iter,
-			BTREE_ID_stripes, POS_MIN,
-			BTREE_ITER_PREFETCH, k,
-			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		bch2_gc_write_stripes_key(trans, &iter, k));
-
-	bch2_trans_put(trans);
-	return ret;
+	return bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter,
+				BTREE_ID_stripes, POS_MIN,
+				BTREE_ITER_PREFETCH, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			bch2_gc_write_stripes_key(trans, &iter, k)));
 }
 
 static void bch2_gc_stripes_reset(struct bch_fs *c, bool metadata_only)
@@ -1958,8 +1933,6 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 int bch2_gc_gens(struct bch_fs *c)
 {
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bch_dev *ca;
 	u64 b, start_time = local_clock();
 	unsigned i;

@@ -372,9 +372,6 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 	int ret = 0;
 
 	if (io_opts->cur_inum != extent_k.k->p.inode) {
-		struct btree_iter iter;
-		struct bkey_s_c k;
-
 		io_opts->d.nr = 0;
 
 		ret = for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),

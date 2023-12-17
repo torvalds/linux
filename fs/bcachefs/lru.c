@@ -147,12 +147,8 @@ fsck_err:
 
 int bch2_check_lrus(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bpos last_flushed_pos = POS_MIN;
-	int ret = 0;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,

@@ -79,11 +79,7 @@ fsck_err:
 
 int bch2_check_subvols(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
@@ -224,8 +220,6 @@ static int bch2_subvolume_reparent(struct btree_trans *trans,
  */
 static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_delete)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct bch_subvolume s;
 
 	return lockrestart_do(trans,

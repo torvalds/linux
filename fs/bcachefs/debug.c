@@ -366,36 +366,23 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 			       size_t size, loff_t *ppos)
 {
 	struct dump_iter *i = file->private_data;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	ssize_t ret;
 
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
 
-	ret = flush_buf(i);
-	if (ret)
-		return ret;
-
-	trans = bch2_trans_get(i->c);
-	ret = for_each_btree_key(trans, iter, i->id, i->from,
-				 BTREE_ITER_PREFETCH|
-				 BTREE_ITER_ALL_SNAPSHOTS, k, ({
-		bch2_bkey_val_to_text(&i->buf, i->c, k);
-		prt_newline(&i->buf);
-		bch2_trans_unlock(trans);
-		flush_buf(i);
-	}));
-	i->from = iter.pos;
-
-	bch2_trans_put(trans);
-
-	if (!ret)
-		ret = flush_buf(i);
-
-	return ret ?: i->ret;
+	return flush_buf(i) ?:
+		bch2_trans_run(i->c,
+			for_each_btree_key(trans, iter, i->id, i->from,
+					   BTREE_ITER_PREFETCH|
+					   BTREE_ITER_ALL_SNAPSHOTS, k, ({
+				bch2_bkey_val_to_text(&i->buf, i->c, k);
+				prt_newline(&i->buf);
+				bch2_trans_unlock(trans);
+				i->from = bpos_successor(iter.pos);
+				flush_buf(i);
+			}))) ?:
+		i->ret;
 }
 
 static const struct file_operations btree_debug_ops = {
@@ -463,45 +450,31 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 				       size_t size, loff_t *ppos)
 {
 	struct dump_iter *i = file->private_data;
-	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	ssize_t ret;
 
 	i->ubuf = buf;
 	i->size	= size;
 	i->ret	= 0;
 
-	ret = flush_buf(i);
-	if (ret)
-		return ret;
+	return flush_buf(i) ?:
+		bch2_trans_run(i->c,
+			for_each_btree_key(trans, iter, i->id, i->from,
+					   BTREE_ITER_PREFETCH|
+					   BTREE_ITER_ALL_SNAPSHOTS, k, ({
+				struct btree_path_level *l = &iter.path->l[0];
+				struct bkey_packed *_k =
+					bch2_btree_node_iter_peek(&l->iter, l->b);
 
-	trans = bch2_trans_get(i->c);
+				if (bpos_gt(l->b->key.k.p, i->prev_node)) {
+					bch2_btree_node_to_text(&i->buf, i->c, l->b);
+					i->prev_node = l->b->key.k.p;
+				}
 
-	ret = for_each_btree_key(trans, iter, i->id, i->from,
-				 BTREE_ITER_PREFETCH|
-				 BTREE_ITER_ALL_SNAPSHOTS, k, ({
-		struct btree_path_level *l = &iter.path->l[0];
-		struct bkey_packed *_k =
-			bch2_btree_node_iter_peek(&l->iter, l->b);
-
-		if (bpos_gt(l->b->key.k.p, i->prev_node)) {
-			bch2_btree_node_to_text(&i->buf, i->c, l->b);
-			i->prev_node = l->b->key.k.p;
-		}
-
-		bch2_bfloat_to_text(&i->buf, l->b, _k);
-		bch2_trans_unlock(trans);
-		flush_buf(i);
-	}));
-	i->from = iter.pos;
-
-	bch2_trans_put(trans);
-
-	if (!ret)
-		ret = flush_buf(i);
-
-	return ret ?: i->ret;
+				bch2_bfloat_to_text(&i->buf, l->b, _k);
+				bch2_trans_unlock(trans);
+				i->from = bpos_successor(iter.pos);
+				flush_buf(i);
+			}))) ?:
+		i->ret;
 }
 
 static const struct file_operations bfloat_failed_debug_ops = {

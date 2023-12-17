@@ -27,8 +27,6 @@
 static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 				    u32 snapshot)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	u64 sectors = 0;
 
 	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
@@ -46,8 +44,6 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 static s64 bch2_count_subdirs(struct btree_trans *trans, u64 inum,
 				    u32 snapshot)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	u64 subdirs = 0;
 
 	int ret = for_each_btree_key_upto(trans, iter, BTREE_ID_dirents,
@@ -978,10 +974,8 @@ int bch2_check_inodes(struct bch_fs *c)
 {
 	bool full = c->opts.fsck;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
 	struct bch_inode_unpacked prev = { 0 };
 	struct snapshots_seen s;
-	struct bkey_s_c k;
 	int ret;
 
 	snapshots_seen_init(&s);
@@ -1424,8 +1418,6 @@ int bch2_check_extents(struct bch_fs *c)
 	struct inode_walker w = inode_walker_init();
 	struct snapshots_seen s;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct extent_ends extent_ends;
 	struct disk_reservation res = { 0 };
 	int ret = 0;
@@ -1457,8 +1449,6 @@ int bch2_check_extents(struct bch_fs *c)
 int bch2_check_indirect_extents(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	struct disk_reservation res = { 0 };
 	int ret = 0;
 
@@ -1827,8 +1817,6 @@ int bch2_check_dirents(struct bch_fs *c)
 	struct snapshots_seen s;
 	struct bch_hash_info hash_info;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	int ret = 0;
 
 	snapshots_seen_init(&s);
@@ -1892,8 +1880,6 @@ int bch2_check_xattrs(struct bch_fs *c)
 {
 	struct inode_walker inode = inode_walker_init();
 	struct bch_hash_info hash_info;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	int ret = 0;
 
 	ret = bch2_trans_run(c,
@@ -2220,10 +2206,6 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 				       struct nlink_table *t,
 				       u64 start, u64 *end)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bch_inode_unpacked u;
-
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_inodes,
 				   POS(0, start),
@@ -2234,6 +2216,7 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 				continue;
 
 			/* Should never fail, checked by bch2_inode_invalid: */
+			struct bch_inode_unpacked u;
 			BUG_ON(bch2_inode_unpack(k, &u));
 
 			/*
@@ -2264,9 +2247,6 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 				     u64 range_start, u64 range_end)
 {
 	struct snapshots_seen s;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_s_c_dirent d;
 
 	snapshots_seen_init(&s);
 
@@ -2279,16 +2259,14 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 			if (ret)
 				break;
 
-			switch (k.k->type) {
-			case KEY_TYPE_dirent:
-				d = bkey_s_c_to_dirent(k);
+			if (k.k->type == KEY_TYPE_dirent) {
+				struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 
 				if (d.v->d_type != DT_DIR &&
 				    d.v->d_type != DT_SUBVOL)
 					inc_link(c, &s, links, range_start, range_end,
 						 le64_to_cpu(d.v->d_inum),
 						 bch2_snapshot_equiv(c, d.k->p.snapshot));
-				break;
 			}
 			0;
 		})));
@@ -2346,12 +2324,9 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 			       struct nlink_table *links,
 			       u64 range_start, u64 range_end)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	size_t idx = 0;
-	int ret = 0;
 
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
 				POS(0, range_start),
 				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
@@ -2427,14 +2402,10 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 
 int bch2_fix_reflink_p(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
 	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix)
 		return 0;
 
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_extents, POS_MIN,
 				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|

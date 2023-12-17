@@ -581,11 +581,7 @@ fsck_err:
  */
 int bch2_check_snapshot_trees(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_snapshot_trees, POS_MIN,
 			BTREE_ITER_PREFETCH, k,
@@ -853,15 +849,11 @@ fsck_err:
 
 int bch2_check_snapshots(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
 	/*
 	 * We iterate backwards as checking/fixing the depth field requires that
 	 * the parent's depth already be correct:
 	 */
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key_reverse_commit(trans, iter,
 				BTREE_ID_snapshots, POS_MAX,
 				BTREE_ITER_PREFETCH, k,
@@ -1363,9 +1355,6 @@ static int bch2_fix_child_of_deleted_snapshot(struct btree_trans *trans,
 int bch2_delete_dead_snapshots(struct bch_fs *c)
 {
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_s_c_snapshot snap;
 	snapshot_id_list deleted = { 0 };
 	snapshot_id_list deleted_interior = { 0 };
 	u32 id;
@@ -1407,8 +1396,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		if (k.k->type != KEY_TYPE_snapshot)
 			continue;
 
-		snap = bkey_s_c_to_snapshot(k);
-		BCH_SNAPSHOT_DELETED(snap.v)
+		BCH_SNAPSHOT_DELETED(bkey_s_c_to_snapshot(k).v)
 			? snapshot_list_add(c, &deleted, k.k->p.offset)
 			: 0;
 	}));
@@ -1673,11 +1661,7 @@ static int bch2_check_snapshot_needs_deletion(struct btree_trans *trans, struct 
 
 int bch2_snapshots_read(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 				   POS_MIN, 0, k,
 			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:

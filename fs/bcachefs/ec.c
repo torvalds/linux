@@ -1826,14 +1826,7 @@ void bch2_fs_ec_flush(struct bch_fs *c)
 
 int bch2_stripes_read(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	const struct bch_stripe *s;
-	struct stripe *m;
-	unsigned i;
-	int ret;
-
-	ret = bch2_trans_run(c,
+	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_stripes, POS_MIN,
 				   BTREE_ITER_PREFETCH, k, ({
 			if (k.k->type != KEY_TYPE_stripe)
@@ -1843,16 +1836,16 @@ int bch2_stripes_read(struct bch_fs *c)
 			if (ret)
 				break;
 
-			s = bkey_s_c_to_stripe(k).v;
+			const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 
-			m = genradix_ptr(&c->stripes, k.k->p.offset);
+			struct stripe *m = genradix_ptr(&c->stripes, k.k->p.offset);
 			m->sectors	= le16_to_cpu(s->sectors);
 			m->algorithm	= s->algorithm;
 			m->nr_blocks	= s->nr_blocks;
 			m->nr_redundant	= s->nr_redundant;
 			m->blocks_nonempty = 0;
 
-			for (i = 0; i < s->nr_blocks; i++)
+			for (unsigned i = 0; i < s->nr_blocks; i++)
 				m->blocks_nonempty += !!stripe_blockcount_get(s, i);
 
 			bch2_stripes_heap_insert(c, m, k.k->p.offset);

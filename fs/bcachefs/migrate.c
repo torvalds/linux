@@ -79,8 +79,6 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	enum btree_id id;
 	int ret = 0;
 

@@ -1166,9 +1166,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
 	struct bkey_i *orig;
-	struct bkey_s_c k;
 	int ret;
 
 	for_each_keylist_key(&op->insert_keys, orig) {

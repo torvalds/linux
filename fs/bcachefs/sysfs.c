@@ -256,8 +256,6 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	enum btree_id id;
 	struct compression_type_stats {
 		u64		nr_extents;
