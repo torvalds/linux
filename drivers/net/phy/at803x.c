@@ -916,9 +916,9 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 		at803x_context_save(phydev, &context);
 
 		phy_device_reset(phydev, 1);
-		msleep(1);
+		usleep_range(1000, 2000);
 		phy_device_reset(phydev, 0);
-		msleep(1);
+		usleep_range(1000, 2000);
 
 		at803x_context_restore(phydev, &context);
 
@@ -1733,7 +1733,7 @@ static int qca83xx_resume(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	msleep(1);
+	usleep_range(1000, 2000);
 
 	return 0;
 }
