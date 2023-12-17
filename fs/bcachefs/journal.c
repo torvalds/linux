@@ -1029,10 +1029,7 @@ err:
 
 int bch2_fs_journal_alloc(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		if (ca->journal.nr)
 			continue;
 

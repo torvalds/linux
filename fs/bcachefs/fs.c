@@ -1694,11 +1694,9 @@ err:
 static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
-	struct bch_dev *ca;
-	unsigned i;
 	bool first = true;
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
@@ -1822,13 +1820,12 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 				 int flags, const char *dev_name, void *data)
 {
 	struct bch_fs *c;
-	struct bch_dev *ca;
 	struct super_block *sb;
 	struct inode *vinode;
 	struct bch_opts opts = bch2_opts_empty();
 	char **devs;
 	struct bch_fs **devs_to_fs = NULL;
-	unsigned i, nr_devs;
+	unsigned nr_devs;
 	int ret;
 
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
@@ -1850,7 +1847,7 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 		goto got_sb;
 	}
 
-	for (i = 0; i < nr_devs; i++)
+	for (unsigned i = 0; i < nr_devs; i++)
 		devs_to_fs[i] = bch2_path_to_fs(devs[i]);
 
 	sb = sget(fs_type, bch2_test_super, bch2_noset_super,
@@ -1921,7 +1918,7 @@ got_sb:
 
 	sb->s_bdi->ra_pages		= VM_READAHEAD_PAGES;
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		struct block_device *bdev = ca->disk_sb.bdev;
 
 		/* XXX: create an anonymous device for multi device filesystems */

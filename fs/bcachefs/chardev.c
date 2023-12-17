@@ -866,8 +866,6 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 				    struct bch_ioctl_disk_get_idx arg)
 {
 	dev_t dev = huge_decode_dev(arg.dev);
-	struct bch_dev *ca;
-	unsigned i;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -875,10 +873,10 @@ static long bch2_ioctl_disk_get_idx(struct bch_fs *c,
 	if (!dev)
 		return -EINVAL;
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(c, ca)
 		if (ca->dev == dev) {
 			percpu_ref_put(&ca->io_ref);
-			return i;
+			return ca->dev_idx;
 		}
 
 	return -BCH_ERR_ENOENT_dev_idx_not_found;

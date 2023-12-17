@@ -1097,8 +1097,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 	struct bkey_inode_buf packed_inode;
 	struct qstr lostfound = QSTR("lost+found");
-	struct bch_dev *ca;
-	unsigned i;
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
@@ -1120,10 +1118,10 @@ int bch2_fs_initialize(struct bch_fs *c)
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 	set_bit(BCH_FS_fsck_done, &c->flags);
 
-	for (i = 0; i < BTREE_ID_NR; i++)
+	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);
 
-	for_each_member_device(ca, c, i)
+	for_each_member_device(c, ca)
 		bch2_dev_usage_init(ca);
 
 	ret = bch2_fs_journal_alloc(c);
@@ -1151,7 +1149,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(c, ca)
 		ca->new_fs_bucket_idx = 0;
 
 	ret = bch2_fs_freespace_init(c);
@@ -1214,6 +1212,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	return 0;
 err:
-	bch_err_fn(ca, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }

@@ -263,12 +263,10 @@ static bool should_discard_bucket(struct journal *j, struct journal_device *ja)
 void bch2_journal_do_discards(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
-	unsigned iter;
 
 	mutex_lock(&j->discard_lock);
 
-	for_each_rw_member(ca, c, iter) {
+	for_each_rw_member(c, ca) {
 		struct journal_device *ja = &ca->journal;
 
 		while (should_discard_bucket(j, ja)) {
@@ -583,13 +581,11 @@ static size_t journal_flush_pins(struct journal *j,
 static u64 journal_seq_to_flush(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
 	u64 seq_to_flush = 0;
-	unsigned iter;
 
 	spin_lock(&j->lock);
 
-	for_each_rw_member(ca, c, iter) {
+	for_each_rw_member(c, ca) {
 		struct journal_device *ja = &ca->journal;
 		unsigned nr_buckets, bucket_to_flush;
 

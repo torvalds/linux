@@ -1787,16 +1787,14 @@ err:
 static void bch2_do_invalidates_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, invalidate_work);
-	struct bch_dev *ca;
 	struct btree_trans *trans = bch2_trans_get(c);
-	unsigned i;
 	int ret = 0;
 
 	ret = bch2_btree_write_buffer_tryflush(trans);
 	if (ret)
 		goto err;
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
@@ -1925,8 +1923,6 @@ bkey_err:
 
 int bch2_fs_freespace_init(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
 	int ret = 0;
 	bool doing_init = false;
 
@@ -1935,7 +1931,7 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	 * every mount:
 	 */
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		if (ca->mi.freespace_initialized)
 			continue;
 
@@ -1995,15 +1991,13 @@ out:
 
 void bch2_recalc_capacity(struct bch_fs *c)
 {
-	struct bch_dev *ca;
 	u64 capacity = 0, reserved_sectors = 0, gc_reserve;
 	unsigned bucket_size_max = 0;
 	unsigned long ra_pages = 0;
-	unsigned i;
 
 	lockdep_assert_held(&c->state_lock);
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		struct backing_dev_info *bdi = ca->disk_sb.bdev->bd_disk->bdi;
 
 		ra_pages += bdi->ra_pages;
@@ -2011,7 +2005,7 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 	bch2_set_ra_pages(c, ra_pages);
 
-	for_each_rw_member(ca, c, i) {
+	for_each_rw_member(c, ca) {
 		u64 dev_reserve = 0;
 
 		/*
@@ -2067,11 +2061,9 @@ void bch2_recalc_capacity(struct bch_fs *c)
 
 u64 bch2_min_rw_member_capacity(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
 	u64 ret = U64_MAX;
 
-	for_each_rw_member(ca, c, i)
+	for_each_rw_member(c, ca)
 		ret = min(ret, ca->mi.nbuckets * ca->mi.bucket_size);
 	return ret;
 }

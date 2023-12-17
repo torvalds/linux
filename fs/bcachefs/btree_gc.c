@@ -1153,13 +1153,10 @@ static void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
 
 static void bch2_mark_superblocks(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	mutex_lock(&c->sb_lock);
 	gc_pos_set(c, gc_phase(GC_PHASE_SB));
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(c, ca)
 		bch2_mark_dev_superblock(c, ca, BTREE_TRIGGER_GC);
 	mutex_unlock(&c->sb_lock);
 }
@@ -1184,13 +1181,10 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 
 static void bch2_gc_free(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	genradix_free(&c->reflink_gc_table);
 	genradix_free(&c->gc_stripes);
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		kvpfree(rcu_dereference_protected(ca->buckets_gc, 1),
 			sizeof(struct bucket_array) +
 			ca->mi.nbuckets * sizeof(struct bucket));
@@ -1212,7 +1206,7 @@ static int bch2_gc_done(struct bch_fs *c,
 	bool verify = !metadata_only &&
 		!c->opts.reconstruct_alloc &&
 		(!initial || (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
-	unsigned i, dev;
+	unsigned i;
 	int ret = 0;
 
 	percpu_down_write(&c->mark_lock);
@@ -1224,14 +1218,14 @@ static int bch2_gc_done(struct bch_fs *c,
 		      , ##__VA_ARGS__, dst->_f, src->_f)))		\
 		dst->_f = src->_f
 #define copy_dev_field(_err, _f, _msg, ...)				\
-	copy_field(_err, _f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
+	copy_field(_err, _f, "dev %u has wrong " _msg, ca->dev_idx, ##__VA_ARGS__)
 #define copy_fs_field(_err, _f, _msg, ...)				\
 	copy_field(_err, _f, "fs has wrong " _msg, ##__VA_ARGS__)
 
 	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 		bch2_fs_usage_acc_to_base(c, i);
 
-	for_each_member_device(ca, c, dev) {
+	__for_each_member_device(c, ca) {
 		struct bch_dev_usage *dst = ca->usage_base;
 		struct bch_dev_usage *src = (void *)
 			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
@@ -1307,9 +1301,6 @@ fsck_err:
 
 static int bch2_gc_start(struct bch_fs *c)
 {
-	struct bch_dev *ca = NULL;
-	unsigned i;
-
 	BUG_ON(c->usage_gc);
 
 	c->usage_gc = __alloc_percpu_gfp(fs_usage_u64s(c) * sizeof(u64),
@@ -1319,7 +1310,7 @@ static int bch2_gc_start(struct bch_fs *c)
 		return -BCH_ERR_ENOMEM_gc_start;
 	}
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		BUG_ON(ca->usage_gc);
 
 		ca->usage_gc = alloc_percpu(struct bch_dev_usage);
@@ -1338,10 +1329,7 @@ static int bch2_gc_start(struct bch_fs *c)
 
 static int bch2_gc_reset(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		free_percpu(ca->usage_gc);
 		ca->usage_gc = NULL;
 	}
@@ -1378,9 +1366,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	const struct bch_alloc_v4 *old;
 	enum bch_data_type type;
 	int ret;
-
-	if (bkey_ge(iter->pos, POS(ca->dev_idx, ca->mi.nbuckets)))
-		return 1;
 
 	old = bch2_alloc_to_v4(k, &old_convert);
 	new = *old;
@@ -1478,48 +1463,36 @@ fsck_err:
 
 static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct bch_dev *ca;
-	unsigned i;
 	int ret = 0;
 
-	for_each_member_device(ca, c, i) {
-		ret = for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
-				POS(ca->dev_idx, ca->mi.first_bucket),
-				BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
-				NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
-			bch2_alloc_write_key(trans, &iter, k, metadata_only));
-
-		if (ret < 0) {
-			bch_err_fn(c, ret);
+	for_each_member_device(c, ca) {
+		ret = bch2_trans_run(c,
+			for_each_btree_key_upto_commit(trans, iter, BTREE_ID_alloc,
+					POS(ca->dev_idx, ca->mi.first_bucket),
+					POS(ca->dev_idx, ca->mi.nbuckets - 1),
+					BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
+					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+				bch2_alloc_write_key(trans, &iter, k, metadata_only)));
+		if (ret) {
 			percpu_ref_put(&ca->ref);
 			break;
 		}
 	}
 
-	bch2_trans_put(trans);
-	return ret < 0 ? ret : 0;
+	bch_err_fn(c, ret);
+	return ret;
 }
 
 static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 {
-	struct bch_dev *ca;
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct bucket *g;
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a;
-	unsigned i;
-	int ret;
-
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		struct bucket_array *buckets = kvpmalloc(sizeof(struct bucket_array) +
 				ca->mi.nbuckets * sizeof(struct bucket),
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {
 			percpu_ref_put(&ca->ref);
 			bch_err(c, "error allocating ca->buckets[gc]");
-			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
-			goto err;
+			return -BCH_ERR_ENOMEM_gc_alloc_start;
 		}
 
 		buckets->first_bucket	= ca->mi.first_bucket;
@@ -1527,41 +1500,38 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	ret = for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-				 BTREE_ITER_PREFETCH, k, ({
-		ca = bch_dev_bkey_exists(c, k.k->p.inode);
-		g = gc_bucket(ca, k.k->p.offset);
+	int ret = bch2_trans_run(c,
+		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
+					 BTREE_ITER_PREFETCH, k, ({
+			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			struct bucket *g = gc_bucket(ca, k.k->p.offset);
 
-		a = bch2_alloc_to_v4(k, &a_convert);
+			struct bch_alloc_v4 a_convert;
+			const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 
-		g->gen_valid	= 1;
-		g->gen		= a->gen;
+			g->gen_valid	= 1;
+			g->gen		= a->gen;
 
-		if (metadata_only &&
-		    (a->data_type == BCH_DATA_user ||
-		     a->data_type == BCH_DATA_cached ||
-		     a->data_type == BCH_DATA_parity)) {
-			g->data_type		= a->data_type;
-			g->dirty_sectors	= a->dirty_sectors;
-			g->cached_sectors	= a->cached_sectors;
-			g->stripe		= a->stripe;
-			g->stripe_redundancy	= a->stripe_redundancy;
-		}
+			if (metadata_only &&
+			    (a->data_type == BCH_DATA_user ||
+			     a->data_type == BCH_DATA_cached ||
+			     a->data_type == BCH_DATA_parity)) {
+				g->data_type		= a->data_type;
+				g->dirty_sectors	= a->dirty_sectors;
+				g->cached_sectors	= a->cached_sectors;
+				g->stripe		= a->stripe;
+				g->stripe_redundancy	= a->stripe_redundancy;
+			}
 
-		0;
-	}));
-err:
-	bch2_trans_put(trans);
+			0;
+		})));
 	bch_err_fn(c, ret);
 	return ret;
 }
 
 static void bch2_gc_alloc_reset(struct bch_fs *c, bool metadata_only)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		struct bucket_array *buckets = gc_bucket_array(ca);
 		struct bucket *g;
 
@@ -1932,10 +1902,7 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_i
 
 int bch2_gc_gens(struct bch_fs *c)
 {
-	struct btree_trans *trans;
-	struct bch_dev *ca;
 	u64 b, start_time = local_clock();
-	unsigned i;
 	int ret;
 
 	/*
@@ -1948,9 +1915,8 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	trace_and_count(c, gc_gens_start, c);
 	down_read(&c->gc_lock);
-	trans = bch2_trans_get(c);
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		struct bucket_gens *gens = bucket_gens(ca);
 
 		BUG_ON(ca->oldest_gen);
@@ -1967,33 +1933,31 @@ int bch2_gc_gens(struct bch_fs *c)
 			ca->oldest_gen[b] = gens->b[b];
 	}
 
-	for (i = 0; i < BTREE_ID_NR; i++)
+	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		if (btree_type_has_ptrs(i)) {
 			c->gc_gens_btree = i;
 			c->gc_gens_pos = POS_MIN;
 
-			ret = for_each_btree_key_commit(trans, iter, i,
-					POS_MIN,
-					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
-					k,
-					NULL, NULL,
-					BCH_TRANS_COMMIT_no_enospc,
-				gc_btree_gens_key(trans, &iter, k));
-			if (!bch2_err_matches(ret, EROFS))
-				bch_err_fn(c, ret);
+			ret = bch2_trans_run(c,
+				for_each_btree_key_commit(trans, iter, i,
+						POS_MIN,
+						BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+						k,
+						NULL, NULL,
+						BCH_TRANS_COMMIT_no_enospc,
+					gc_btree_gens_key(trans, &iter, k)));
 			if (ret)
 				goto err;
 		}
 
-	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
-			POS_MIN,
-			BTREE_ITER_PREFETCH,
-			k,
-			NULL, NULL,
-			BCH_TRANS_COMMIT_no_enospc,
-		bch2_alloc_write_oldest_gen(trans, &iter, k));
-	if (!bch2_err_matches(ret, EROFS))
-		bch_err_fn(c, ret);
+	ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
+				POS_MIN,
+				BTREE_ITER_PREFETCH,
+				k,
+				NULL, NULL,
+				BCH_TRANS_COMMIT_no_enospc,
+			bch2_alloc_write_oldest_gen(trans, &iter, k)));
 	if (ret)
 		goto err;
 
@@ -2005,14 +1969,15 @@ int bch2_gc_gens(struct bch_fs *c)
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_gc], start_time);
 	trace_and_count(c, gc_gens_end, c);
 err:
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		kvfree(ca->oldest_gen);
 		ca->oldest_gen = NULL;
 	}
 
-	bch2_trans_put(trans);
 	up_read(&c->gc_lock);
 	mutex_unlock(&c->gc_gens_lock);
+	if (!bch2_err_matches(ret, EROFS))
+		bch_err_fn(c, ret);
 	return ret;
 }
 

@@ -241,14 +241,12 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 
 	if (sb->fs_sb) {
 		struct bch_fs *c = container_of(sb, struct bch_fs, disk_sb);
-		struct bch_dev *ca;
-		unsigned i;
 
 		lockdep_assert_held(&c->sb_lock);
 
 		/* XXX: we're not checking that offline device have enough space */
 
-		for_each_online_member(ca, c, i) {
+		for_each_online_member(c, ca) {
 			struct bch_sb_handle *dev_sb = &ca->disk_sb;
 
 			if (bch2_sb_realloc(dev_sb, le32_to_cpu(dev_sb->sb->u64s) + d)) {
@@ -514,8 +512,6 @@ static void le_bitvector_to_cpu(unsigned long *dst, unsigned long *src, unsigned
 static void bch2_sb_update(struct bch_fs *c)
 {
 	struct bch_sb *src = c->disk_sb.sb;
-	struct bch_dev *ca;
-	unsigned i;
 
 	lockdep_assert_held(&c->sb_lock);
 
@@ -546,7 +542,7 @@ static void bch2_sb_update(struct bch_fs *c)
 		le_bitvector_to_cpu(c->sb.errors_silent, (void *) ext->errors_silent,
 				    sizeof(c->sb.errors_silent) * 8);
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		struct bch_member m = bch2_sb_member_get(src, ca->dev_idx);
 		ca->mi = bch2_mi_to_cpu(&m);
 	}
@@ -926,9 +922,8 @@ static void write_one_super(struct bch_fs *c, struct bch_dev *ca, unsigned idx)
 int bch2_write_super(struct bch_fs *c)
 {
 	struct closure *cl = &c->sb_write;
-	struct bch_dev *ca;
 	struct printbuf err = PRINTBUF;
-	unsigned i, sb = 0, nr_wrote;
+	unsigned sb = 0, nr_wrote;
 	struct bch_devs_mask sb_written;
 	bool wrote, can_mount_without_written, can_mount_with_written;
 	unsigned degraded_flags = BCH_FORCE_IF_DEGRADED;
@@ -963,10 +958,10 @@ int bch2_write_super(struct bch_fs *c)
 	bch2_sb_errors_from_cpu(c);
 	bch2_sb_downgrade_update(c);
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(c, ca)
 		bch2_sb_from_fs(c, ca);
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		printbuf_reset(&err);
 
 		ret = bch2_sb_validate(&ca->disk_sb, &err, WRITE);
@@ -999,16 +994,16 @@ int bch2_write_super(struct bch_fs *c)
 		return -BCH_ERR_sb_not_downgraded;
 	}
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		__set_bit(ca->dev_idx, sb_written.d);
 		ca->sb_write_error = 0;
 	}
 
-	for_each_online_member(ca, c, i)
+	for_each_online_member(c, ca)
 		read_back_super(c, ca);
 	closure_sync(cl);
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		if (ca->sb_write_error)
 			continue;
 
@@ -1035,7 +1030,7 @@ int bch2_write_super(struct bch_fs *c)
 
 	do {
 		wrote = false;
-		for_each_online_member(ca, c, i)
+		for_each_online_member(c, ca)
 			if (!ca->sb_write_error &&
 			    sb < ca->disk_sb.sb->layout.nr_superblocks) {
 				write_one_super(c, ca, sb);
@@ -1045,7 +1040,7 @@ int bch2_write_super(struct bch_fs *c)
 		sb++;
 	} while (wrote);
 
-	for_each_online_member(ca, c, i) {
+	for_each_online_member(c, ca) {
 		if (ca->sb_write_error)
 			__clear_bit(ca->dev_idx, sb_written.d);
 		else
@@ -1057,7 +1052,7 @@ int bch2_write_super(struct bch_fs *c)
 	can_mount_with_written =
 		bch2_have_enough_devs(c, sb_written, degraded_flags, false);
 
-	for (i = 0; i < ARRAY_SIZE(sb_written.d); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(sb_written.d); i++)
 		sb_written.d[i] = ~sb_written.d[i];
 
 	can_mount_without_written =

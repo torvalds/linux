@@ -249,8 +249,7 @@ static void bch2_dev_usage_journal_reserve(struct bch_fs *c)
 
 static void __bch2_fs_read_only(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i, clean_passes = 0;
+	unsigned clean_passes = 0;
 	u64 seq = 0;
 
 	bch2_fs_ec_stop(c);
@@ -286,7 +285,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	/*
 	 * After stopping journal:
 	 */
-	for_each_member_device(ca, c, i)
+	for_each_member_device(c, ca)
 		bch2_dev_allocator_remove(c, ca);
 }
 
@@ -427,8 +426,6 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 
 static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
-	struct bch_dev *ca;
-	unsigned i;
 	int ret;
 
 	if (test_bit(BCH_FS_initial_gc_unfixed, &c->flags)) {
@@ -469,7 +466,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	 */
 	set_bit(JOURNAL_NEED_FLUSH_WRITE, &c->journal.flags);
 
-	for_each_rw_member(ca, c, i)
+	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
@@ -479,7 +476,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 #ifndef BCH_WRITE_REF_DEBUG
 	percpu_ref_reinit(&c->writes);
 #else
-	for (i = 0; i < BCH_WRITE_REF_NR; i++) {
+	for (unsigned i = 0; i < BCH_WRITE_REF_NR; i++) {
 		BUG_ON(atomic_long_read(&c->writes[i]));
 		atomic_long_inc(&c->writes[i]);
 	}
@@ -602,9 +599,6 @@ static void bch2_fs_release(struct kobject *kobj)
 
 void __bch2_fs_stop(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	bch_verbose(c, "shutting down");
 
 	set_bit(BCH_FS_stopping, &c->flags);
@@ -615,7 +609,7 @@ void __bch2_fs_stop(struct bch_fs *c)
 	bch2_fs_read_only(c);
 	up_write(&c->state_lock);
 
-	for_each_member_device(ca, c, i)
+	for_each_member_device(c, ca)
 		if (ca->kobj.state_in_sysfs &&
 		    ca->disk_sb.bdev)
 			sysfs_remove_link(bdev_kobj(ca->disk_sb.bdev), "bcachefs");
@@ -637,7 +631,7 @@ void __bch2_fs_stop(struct bch_fs *c)
 	/* btree prefetch might have kicked off reads in the background: */
 	bch2_btree_flush_all_reads(c);
 
-	for_each_member_device(ca, c, i)
+	for_each_member_device(c, ca)
 		cancel_work_sync(&ca->io_error_work);
 
 	cancel_work_sync(&c->read_only_work);
@@ -676,8 +670,6 @@ void bch2_fs_stop(struct bch_fs *c)
 
 static int bch2_fs_online(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
 	int ret = 0;
 
 	lockdep_assert_held(&bch_fs_list_lock);
@@ -710,7 +702,7 @@ static int bch2_fs_online(struct bch_fs *c)
 
 	down_write(&c->state_lock);
 
-	for_each_member_device(ca, c, i) {
+	for_each_member_device(c, ca) {
 		ret = bch2_dev_sysfs_online(c, ca);
 		if (ret) {
 			bch_err(c, "error creating sysfs objects");
@@ -1000,9 +992,7 @@ static void print_mount_opts(struct bch_fs *c)
 
 int bch2_fs_start(struct bch_fs *c)
 {
-	struct bch_dev *ca;
 	time64_t now = ktime_get_real_seconds();
-	unsigned i;
 	int ret;
 
 	print_mount_opts(c);
@@ -1019,12 +1009,12 @@ int bch2_fs_start(struct bch_fs *c)
 		goto err;
 	}
 
-	for_each_online_member(ca, c, i)
-		bch2_members_v2_get_mut(c->disk_sb.sb, i)->last_mount = cpu_to_le64(now);
+	for_each_online_member(c, ca)
+		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount = cpu_to_le64(now);
 
 	mutex_unlock(&c->sb_lock);
 
-	for_each_rw_member(ca, c, i)
+	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
@@ -1362,8 +1352,7 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 			    enum bch_member_state new_state, int flags)
 {
 	struct bch_devs_mask new_online_devs;
-	struct bch_dev *ca2;
-	int i, nr_rw = 0, required;
+	int nr_rw = 0, required;
 
 	lockdep_assert_held(&c->state_lock);
 
@@ -1375,7 +1364,7 @@ bool bch2_dev_state_allowed(struct bch_fs *c, struct bch_dev *ca,
 			return true;
 
 		/* do we have enough devices to write to?  */
-		for_each_member_device(ca2, c, i)
+		for_each_member_device(c, ca2)
 			if (ca2 != ca)
 				nr_rw += ca2->mi.state == BCH_MEMBER_STATE_rw;
 
