@@ -47,7 +47,7 @@
   {
     "EventCode": "0x10062",
     "EventName": "PM_LD_L3MISS_PEND_CYC",
-    "BriefDescription": "Cycles L3 miss was pending for this thread."
+    "BriefDescription": "Cycles in which an L3 miss was pending for this thread."
   },
   {
     "EventCode": "0x20010",
@@ -132,7 +132,7 @@
   {
     "EventCode": "0x300FC",
     "EventName": "PM_DTLB_MISS",
-    "BriefDescription": "The DPTEG required for the load/store instruction in execution was missing from the TLB. It includes pages of all sizes for demand and prefetch activity."
+    "BriefDescription": "The DPTEG required for the load/store instruction in execution was missing from the TLB. This event only counts for demand misses."
   },
   {
     "EventCode": "0x4D02C",
@@ -142,7 +142,7 @@
   {
     "EventCode": "0x4003E",
     "EventName": "PM_LD_CMPL",
-    "BriefDescription": "Loads completed."
+    "BriefDescription": "Load instruction completed."
   },
   {
     "EventCode": "0x4C040",

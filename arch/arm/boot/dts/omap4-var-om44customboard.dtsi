@@ -60,7 +60,7 @@
 };
 
 &omap4_pmx_core {
-	uart1_pins: pinmux_uart1_pins {
+	uart1_pins: uart1-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x13c, PIN_INPUT_PULLUP | MUX_MODE1)	/* mcspi1_cs2.uart1_cts */
 			OMAP4_IOPAD(0x13e, PIN_OUTPUT | MUX_MODE1)		/* mcspi1_cs3.uart1_rts */
@@ -69,7 +69,7 @@
 		>;
 	};
 
-	mcspi1_pins: pinmux_mcspi1_pins {
+	mcspi1_pins: mcspi1-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x132, PIN_INPUT | MUX_MODE0)		/*  mcspi1_clk.mcspi1_clk */
 			OMAP4_IOPAD(0x134, PIN_INPUT | MUX_MODE0)		/*  mcspi1_somi.mcspi1_somi */
@@ -78,13 +78,13 @@
 		>;
 	};
 
-	mcasp_pins: pinmux_mcsasp_pins {
+	mcasp_pins: mcsasp-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x0f8, PIN_OUTPUT | MUX_MODE2)		/*  mcbsp2_dr.abe_mcasp_axr */
 		>;
 	};
 
-	dss_dpi_pins: pinmux_dss_dpi_pins {
+	dss_dpi_pins: dss-dpi-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x162, PIN_OUTPUT | MUX_MODE5)		/* dispc2_data23 */
 			OMAP4_IOPAD(0x164, PIN_OUTPUT | MUX_MODE5)		/* dispc2_data22 */
@@ -117,7 +117,7 @@
 		>;
 	};
 
-	dss_hdmi_pins: pinmux_dss_hdmi_pins {
+	dss_hdmi_pins: dss-hdmi-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x09a, PIN_INPUT | MUX_MODE0)		/* hdmi_cec.hdmi_cec */
 			OMAP4_IOPAD(0x09c, PIN_INPUT_PULLUP | MUX_MODE0)	/* hdmi_scl.hdmi_scl */
@@ -125,14 +125,14 @@
 		>;
 	};
 
-	i2c4_pins: pinmux_i2c4_pins {
+	i2c4_pins: i2c4-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x12e, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_scl */
 			OMAP4_IOPAD(0x130, PIN_INPUT_PULLUP | MUX_MODE0)	/* i2c4_sda */
 		>;
 	};
 
-	mmc5_pins: pinmux_mmc5_pins {
+	mmc5_pins: mmc5-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x0f6, PIN_INPUT | MUX_MODE3)		/* abe_mcbsp2_clkx.gpio_110 */
 			OMAP4_IOPAD(0x148, PIN_INPUT_PULLUP | MUX_MODE0)	/* sdmmc5_clk.sdmmc5_clk */
@@ -144,32 +144,32 @@
 		>;
 	};
 
-	gpio_led_pins: pinmux_gpio_led_pins {
+	gpio_led_pins: gpio-led-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x17e, PIN_OUTPUT | MUX_MODE3)		/* kpd_col4.gpio_172 */
 			OMAP4_IOPAD(0x180, PIN_OUTPUT | MUX_MODE3)		/* kpd_col5.gpio_173 */
 		>;
 	};
 
-	gpio_key_pins: pinmux_gpio_key_pins {
+	gpio_key_pins: gpio-key-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x1a2, PIN_INPUT | MUX_MODE3)		/* sys_boot0.gpio_184 */
 		>;
 	};
 
-	ks8851_irq_pins: pinmux_ks8851_irq_pins {
+	ks8851_irq_pins: ks8851-irq-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x17c, PIN_INPUT_PULLUP | MUX_MODE3)	/* kpd_col3.gpio_171 */
 		>;
 	};
 
-	hdmi_hpd_pins: pinmux_hdmi_hpd_pins {
+	hdmi_hpd_pins: hdmi-hpd-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x098, PIN_INPUT_PULLDOWN | MUX_MODE3)	/* hdmi_hpd.gpio_63 */
 		>;
 	};
 
-	backlight_pins: pinmux_backlight_pins {
+	backlight_pins: backlight-pins {
 		pinctrl-single,pins = <
 			OMAP4_IOPAD(0x116, PIN_OUTPUT | MUX_MODE3)		/* abe_dmic_din3.gpio_122 */
 		>;

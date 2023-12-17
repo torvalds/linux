@@ -539,10 +539,10 @@ static void rxe_qp_drain(struct rxe_qp *qp)
 		if (qp->req.state != QP_STATE_DRAINED) {
 			qp->req.state = QP_STATE_DRAIN;
 			if (qp_type(qp) == IB_QPT_RC)
-				rxe_run_task(&qp->comp.task, 1);
+				rxe_sched_task(&qp->comp.task);
 			else
 				__rxe_do_task(&qp->comp.task);
-			rxe_run_task(&qp->req.task, 1);
+			rxe_sched_task(&qp->req.task);
 		}
 	}
 }
@@ -556,13 +556,13 @@ void rxe_qp_error(struct rxe_qp *qp)
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
-	rxe_run_task(&qp->resp.task, 1);
+	rxe_sched_task(&qp->resp.task);
 
 	if (qp_type(qp) == IB_QPT_RC)
-		rxe_run_task(&qp->comp.task, 1);
+		rxe_sched_task(&qp->comp.task);
 	else
 		__rxe_do_task(&qp->comp.task);
-	rxe_run_task(&qp->req.task, 1);
+	rxe_sched_task(&qp->req.task);
 }
 
 /* called by the modify qp verb */

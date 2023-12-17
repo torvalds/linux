@@ -9,7 +9,8 @@ enum ice_ptp_tmr_cmd {
 	INIT_INCVAL,
 	ADJ_TIME,
 	ADJ_TIME_AT_TIME,
-	READ_TIME
+	READ_TIME,
+	ICE_PTP_NOP,
 };
 
 enum ice_ptp_serdes {

@@ -2,7 +2,7 @@
 /*
  * tegra210_sfc.h - Definitions for Tegra210 SFC driver
  *
- * Copyright (c) 2021 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2021-2023 NVIDIA CORPORATION.  All rights reserved.
  *
  */
 
@@ -47,7 +47,7 @@
 #define TEGRA210_SFC_EN_SHIFT			0
 #define TEGRA210_SFC_EN				(1 << TEGRA210_SFC_EN_SHIFT)
 
-#define TEGRA210_SFC_NUM_RATES 12
+#define TEGRA210_SFC_NUM_RATES 13
 
 /* Fields in TEGRA210_SFC_COEF_RAM */
 #define TEGRA210_SFC_COEF_RAM_EN		BIT(0)
