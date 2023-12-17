@@ -363,7 +363,6 @@
 		vddr-supply = <&vreg_panel>;
 
 		reset-gpios = <&pma8084_gpios 17 GPIO_ACTIVE_LOW>;
-		te-gpios = <&tlmm 12 GPIO_ACTIVE_HIGH>;
 
 		port {
 			panel_in: endpoint {
