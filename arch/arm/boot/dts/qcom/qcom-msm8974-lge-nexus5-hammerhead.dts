@@ -367,6 +367,7 @@
 
 &remoteproc_adsp {
 	cx-supply = <&pm8841_s2>;
+	status = "okay";
 };
 
 &remoteproc_mss {
@@ -374,6 +375,7 @@
 	mss-supply = <&pm8841_s3>;
 	mx-supply = <&pm8841_s1>;
 	pll-supply = <&pm8941_l12>;
+	status = "okay";
 };
 
 &rpm_requests {
