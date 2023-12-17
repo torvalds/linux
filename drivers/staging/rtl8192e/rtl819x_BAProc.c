@@ -523,7 +523,7 @@ void rtllib_tx_ba_inact_timeout(struct timer_list *t)
 	struct tx_ts_record *ts = from_timer(ts, t,
 					      tx_admitted_ba_record.timer);
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
-				     TxTsRecord[ts->num]);
+				     tx_ts_records[ts->num]);
 	tx_ts_delete_ba(ieee, ts);
 	rtllib_send_DELBA(ieee, ts->ts_common_info.addr,
 			  &ts->tx_admitted_ba_record, TX_DIR,

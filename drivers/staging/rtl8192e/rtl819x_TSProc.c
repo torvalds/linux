@@ -85,7 +85,7 @@ static void TsAddBaProcess(struct timer_list *t)
 	struct tx_ts_record *ts = from_timer(ts, t, ts_add_ba_timer);
 	u8 num = ts->num;
 	struct rtllib_device *ieee = container_of(ts, struct rtllib_device,
-				     TxTsRecord[num]);
+				     tx_ts_records[num]);
 
 	rtllib_ts_init_add_ba(ieee, ts, BA_POLICY_IMMEDIATE, false);
 	netdev_dbg(ieee->dev, "%s(): ADDBA Req is started\n", __func__);
@@ -119,7 +119,7 @@ static void ResetRxTsEntry(struct rx_ts_record *ts)
 
 void rtllib_ts_init(struct rtllib_device *ieee)
 {
-	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
+	struct tx_ts_record *pTxTS  = ieee->tx_ts_records;
 	struct rx_ts_record *rxts  = ieee->rx_ts_records;
 	struct rx_reorder_entry *pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
