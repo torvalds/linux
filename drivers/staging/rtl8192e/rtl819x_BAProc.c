@@ -402,7 +402,7 @@ OnADDBARsp_Reject:
 int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_3addr *delba = NULL;
-	union delba_param_set *pDelBaParamSet = NULL;
+	union delba_param_set *del_ba_param_set = NULL;
 	u8 *dst = NULL;
 
 	if (skb->len < sizeof(struct ieee80211_hdr_3addr) + 6) {
@@ -427,17 +427,17 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 #endif
 	delba = (struct ieee80211_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
-	pDelBaParamSet = (union delba_param_set *)&delba->seq_ctrl + 2;
+	del_ba_param_set = (union delba_param_set *)&delba->seq_ctrl + 2;
 
-	if (pDelBaParamSet->field.initiator == 1) {
+	if (del_ba_param_set->field.initiator == 1) {
 		struct rx_ts_record *ts;
 
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
-			   (u8)pDelBaParamSet->field.tid, RX_DIR, false)) {
+			   (u8)del_ba_param_set->field.tid, RX_DIR, false)) {
 			netdev_warn(ieee->dev,
 				    "%s(): can't get TS for RXTS. dst:%pM TID:%d\n",
 				    __func__, dst,
-				    (u8)pDelBaParamSet->field.tid);
+				    (u8)del_ba_param_set->field.tid);
 			return -1;
 		}
 
@@ -446,7 +446,7 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		struct tx_ts_record *ts;
 
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
-			   (u8)pDelBaParamSet->field.tid, TX_DIR, false)) {
+			   (u8)del_ba_param_set->field.tid, TX_DIR, false)) {
 			netdev_warn(ieee->dev, "%s(): can't get TS for TXTS\n",
 				    __func__);
 			return -1;
