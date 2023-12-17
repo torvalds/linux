@@ -1921,32 +1921,16 @@ void bch2_btree_trans_peek_updates(struct btree_trans *trans, struct btree_iter 
 }
 
 static noinline
-struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *iter)
+void bch2_btree_trans_peek_slot_updates(struct btree_trans *trans, struct btree_iter *iter,
+					struct bkey_s_c *k)
 {
-	struct btree_trans *trans = iter->trans;
-	struct bkey_i *ret = NULL;
-
-	trans_for_each_update(trans, i) {
-		if (i->btree_id < iter->btree_id)
-			continue;
-		if (i->btree_id > iter->btree_id)
-			break;
-		if (bpos_lt(i->k->k.p, btree_iter_path(trans, iter)->pos))
-			continue;
-		if (i->key_cache_already_flushed)
-			continue;
-		if (!ret || bpos_lt(i->k->k.p, ret->k.p))
-			ret = i->k;
-	}
-
-	return ret;
-}
-
-static inline struct bkey_i *btree_trans_peek_updates(struct btree_iter *iter)
-{
-	return iter->flags & BTREE_ITER_WITH_UPDATES
-		? __bch2_btree_trans_peek_updates(iter)
-		: NULL;
+	trans_for_each_update(trans, i)
+		if (!i->key_cache_already_flushed &&
+		    i->btree_id == iter->btree_id &&
+		    bpos_eq(i->k->k.p, iter->pos)) {
+			iter->k = i->k->k;
+			*k = bkey_i_to_s_c(i->k);
+		}
 }
 
 static struct bkey_i *bch2_btree_journal_peek(struct btree_trans *trans,
@@ -2478,13 +2462,13 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 
 	if ((iter->flags & BTREE_ITER_CACHED) ||
 	    !(iter->flags & (BTREE_ITER_IS_EXTENTS|BTREE_ITER_FILTER_SNAPSHOTS))) {
-		struct bkey_i *next_update;
+		k = bkey_s_c_null;
 
-		if ((next_update = btree_trans_peek_updates(iter)) &&
-		    bpos_eq(next_update->k.p, iter->pos)) {
-			iter->k = next_update->k;
-			k = bkey_i_to_s_c(next_update);
-			goto out;
+		if (unlikely((iter->flags & BTREE_ITER_WITH_UPDATES) &&
+			     trans->nr_updates)) {
+			bch2_btree_trans_peek_slot_updates(trans, iter, &k);
+			if (k.k)
+				goto out;
 		}
 
 		if (unlikely(iter->flags & BTREE_ITER_WITH_JOURNAL) &&
