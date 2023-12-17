@@ -6488,6 +6488,14 @@ static int rtnl_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
+	if (del_bulk) {
+		if (!dev->netdev_ops->ndo_mdb_del_bulk) {
+			NL_SET_ERR_MSG(extack, "Device does not support MDB bulk deletion");
+			return -EOPNOTSUPP;
+		}
+		return dev->netdev_ops->ndo_mdb_del_bulk(dev, tb, extack);
+	}
+
 	if (!dev->netdev_ops->ndo_mdb_del) {
 		NL_SET_ERR_MSG(extack, "Device does not support MDB operations");
 		return -EOPNOTSUPP;
