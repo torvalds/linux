@@ -462,7 +462,7 @@ static int at803x_set_wol(struct phy_device *phydev,
 		if (!ndev)
 			return -ENODEV;
 
-		mac = (const u8 *) ndev->dev_addr;
+		mac = (const u8 *)ndev->dev_addr;
 
 		if (!is_valid_ether_addr(mac))
 			return -EINVAL;
