@@ -186,7 +186,9 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 					 struct ath12k_board_data *bd,
 					 const void *buf, size_t buf_len,
 					 const char *boardname,
-					 int bd_ie_type)
+					 int ie_id,
+					 int name_id,
+					 int data_id)
 {
 	const struct ath12k_fw_ie *hdr;
 	bool name_match_found;
@@ -196,7 +198,7 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 
 	name_match_found = false;
 
-	/* go through ATH12K_BD_IE_BOARD_ elements */
+	/* go through ATH12K_BD_IE_BOARD_/ATH12K_BD_IE_REGDB_ elements */
 	while (buf_len > sizeof(struct ath12k_fw_ie)) {
 		hdr = buf;
 		board_ie_id = le32_to_cpu(hdr->id);
@@ -207,48 +209,50 @@ static int ath12k_core_parse_bd_ie_board(struct ath12k_base *ab,
 		buf += sizeof(*hdr);
 
 		if (buf_len < ALIGN(board_ie_len, 4)) {
-			ath12k_err(ab, "invalid ATH12K_BD_IE_BOARD length: %zu < %zu\n",
+			ath12k_err(ab, "invalid %s length: %zu < %zu\n",
+				   ath12k_bd_ie_type_str(ie_id),
 				   buf_len, ALIGN(board_ie_len, 4));
 			ret = -EINVAL;
 			goto out;
 		}
 
-		switch (board_ie_id) {
-		case ATH12K_BD_IE_BOARD_NAME:
+		if (board_ie_id == name_id) {
 			ath12k_dbg_dump(ab, ATH12K_DBG_BOOT, "board name", "",
 					board_ie_data, board_ie_len);
 
 			if (board_ie_len != strlen(boardname))
-				break;
+				goto next;
 
 			ret = memcmp(board_ie_data, boardname, strlen(boardname));
 			if (ret)
-				break;
+				goto next;
 
 			name_match_found = true;
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
-				   "boot found match for name '%s'",
+				   "boot found match %s for name '%s'",
+				   ath12k_bd_ie_type_str(ie_id),
 				   boardname);
-			break;
-		case ATH12K_BD_IE_BOARD_DATA:
+		} else if (board_ie_id == data_id) {
 			if (!name_match_found)
 				/* no match found */
-				break;
+				goto next;
 
 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
-				   "boot found board data for '%s'", boardname);
+				   "boot found %s for '%s'",
+				   ath12k_bd_ie_type_str(ie_id),
+				   boardname);
 
 			bd->data = board_ie_data;
 			bd->len = board_ie_len;
 
 			ret = 0;
 			goto out;
-		default:
-			ath12k_warn(ab, "unknown ATH12K_BD_IE_BOARD found: %d\n",
+		} else {
+			ath12k_warn(ab, "unknown %s id found: %d\n",
+				    ath12k_bd_ie_type_str(ie_id),
 				    board_ie_id);
-			break;
 		}
-
+next:
 		/* jump over the padding */
 		board_ie_len = ALIGN(board_ie_len, 4);
 
@@ -265,7 +269,10 @@ out:
 
 static int ath12k_core_fetch_board_data_api_n(struct ath12k_base *ab,
 					      struct ath12k_board_data *bd,
-					      const char *boardname)
+					      const char *boardname,
+					      int ie_id_match,
+					      int name_id,
+					      int data_id)
 {
 	size_t len, magic_len;
 	const u8 *data;
@@ -330,22 +337,23 @@ static int ath12k_core_fetch_board_data_api_n(struct ath12k_base *ab,
 			goto err;
 		}
 
-		switch (ie_id) {
-		case ATH12K_BD_IE_BOARD:
+		if (ie_id == ie_id_match) {
 			ret = ath12k_core_parse_bd_ie_board(ab, bd, data,
 							    ie_len,
 							    boardname,
-							    ATH12K_BD_IE_BOARD);
+							    ie_id_match,
+							    name_id,
+							    data_id);
 			if (ret == -ENOENT)
 				/* no match found, continue */
-				break;
+				goto next;
 			else if (ret)
 				/* there was an error, bail out */
 				goto err;
 			/* either found or error, so stop searching */
 			goto out;
 		}
-
+next:
 		/* jump over the padding */
 		ie_len = ALIGN(ie_len, 4);
 
@@ -356,7 +364,8 @@ static int ath12k_core_fetch_board_data_api_n(struct ath12k_base *ab,
 out:
 	if (!bd->data || !bd->len) {
 		ath12k_dbg(ab, ATH12K_DBG_BOOT,
-			   "failed to fetch board data for %s from %s\n",
+			   "failed to fetch %s for %s from %s\n",
+			   ath12k_bd_ie_type_str(ie_id_match),
 			   boardname, filepath);
 		ret = -ENODATA;
 		goto err;
@@ -400,7 +409,10 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 	}
 
 	bd_api = 2;
-	ret = ath12k_core_fetch_board_data_api_n(ab, bd, boardname);
+	ret = ath12k_core_fetch_board_data_api_n(ab, bd, boardname,
+						 ATH12K_BD_IE_BOARD,
+						 ATH12K_BD_IE_BOARD_NAME,
+						 ATH12K_BD_IE_BOARD_DATA);
 	if (!ret)
 		goto success;
 
@@ -411,7 +423,10 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 		return ret;
 	}
 
-	ret = ath12k_core_fetch_board_data_api_n(ab, bd, fallback_boardname);
+	ret = ath12k_core_fetch_board_data_api_n(ab, bd, fallback_boardname,
+						 ATH12K_BD_IE_BOARD,
+						 ATH12K_BD_IE_BOARD_NAME,
+						 ATH12K_BD_IE_BOARD_DATA);
 	if (!ret)
 		goto success;
 
@@ -434,6 +449,37 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 success:
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "using board api %d\n", bd_api);
 	return 0;
+}
+
+int ath12k_core_fetch_regdb(struct ath12k_base *ab, struct ath12k_board_data *bd)
+{
+	char boardname[BOARD_NAME_SIZE];
+	int ret;
+
+	ret = ath12k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
+	if (ret) {
+		ath12k_dbg(ab, ATH12K_DBG_BOOT,
+			   "failed to create board name for regdb: %d", ret);
+		goto exit;
+	}
+
+	ret = ath12k_core_fetch_board_data_api_n(ab, bd, boardname,
+						 ATH12K_BD_IE_REGDB,
+						 ATH12K_BD_IE_REGDB_NAME,
+						 ATH12K_BD_IE_REGDB_DATA);
+	if (!ret)
+		goto exit;
+
+	ret = ath12k_core_fetch_board_data_api_1(ab, bd, ATH12K_REGDB_FILE_NAME);
+	if (ret)
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "failed to fetch %s from %s\n",
+			   ATH12K_REGDB_FILE_NAME, ab->hw_params->fw.dir);
+
+exit:
+	if (!ret)
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "fetched regdb\n");
+
+	return ret;
 }
 
 static void ath12k_core_stop(struct ath12k_base *ab)
