@@ -427,17 +427,16 @@ error:
 	return ret;
 }
 
-static int aemif_remove(struct platform_device *pdev)
+static void aemif_remove(struct platform_device *pdev)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(aemif->clk);
-	return 0;
 }
 
 static struct platform_driver aemif_driver = {
 	.probe = aemif_probe,
-	.remove = aemif_remove,
+	.remove_new = aemif_remove,
 	.driver = {
 		.name = "ti-aemif",
 		.of_match_table = of_match_ptr(aemif_of_match),
