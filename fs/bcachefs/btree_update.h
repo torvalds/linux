@@ -187,14 +187,12 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	bch2_trans_run(_c, commit_do(trans, _disk_res, _journal_seq, _flags, _do))
 
 #define trans_for_each_update(_trans, _i)				\
-	for ((_i) = (_trans)->updates;					\
+	for (struct btree_insert_entry *_i = (_trans)->updates;		\
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
 
 static inline void bch2_trans_reset_updates(struct btree_trans *trans)
 {
-	struct btree_insert_entry *i;
-
 	trans_for_each_update(trans, i)
 		bch2_path_put(trans, i->path, true);
 

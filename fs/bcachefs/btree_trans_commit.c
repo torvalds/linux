@@ -93,8 +93,6 @@ static noinline int trans_lock_write_fail(struct btree_trans *trans, struct btre
 
 static inline int bch2_trans_lock_write(struct btree_trans *trans)
 {
-	struct btree_insert_entry *i;
-
 	EBUG_ON(trans->write_locked);
 
 	trans_for_each_update(trans, i) {
@@ -115,8 +113,6 @@ static inline int bch2_trans_lock_write(struct btree_trans *trans)
 static inline void bch2_trans_unlock_write(struct btree_trans *trans)
 {
 	if (likely(trans->write_locked)) {
-		struct btree_insert_entry *i;
-
 		trans_for_each_update(trans, i)
 			if (!same_leaf_as_prev(trans, i))
 				bch2_btree_node_unlock_write_inlined(trans, i->path,
@@ -361,7 +357,6 @@ noinline static int
 btree_key_can_insert_cached_slowpath(struct btree_trans *trans, unsigned flags,
 				     struct btree_path *path, unsigned new_u64s)
 {
-	struct btree_insert_entry *i;
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	struct bkey_i *new_k;
 	int ret;
@@ -400,7 +395,6 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
-	struct btree_insert_entry *i;
 	unsigned new_u64s;
 	struct bkey_i *new_k;
 
@@ -550,7 +544,7 @@ static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
 
 static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 {
-	struct btree_insert_entry *i = NULL, *btree_id_start = trans->updates;
+	struct btree_insert_entry *btree_id_start = trans->updates;
 	unsigned btree_id = 0;
 	int ret = 0;
 
@@ -597,7 +591,6 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
 	int ret = 0;
 
 	trans_for_each_update(trans, i) {
@@ -623,7 +616,6 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
 	struct btree_trans_commit_hook *h;
 	unsigned u64s = 0;
 	int ret;
@@ -775,8 +767,6 @@ revert_fs_usage:
 
 static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
 {
-	struct btree_insert_entry *i;
-
 	trans_for_each_update(trans, i)
 		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
@@ -820,7 +810,6 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 				       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
 	int ret = 0, u64s_delta = 0;
 
 	trans_for_each_update(trans, i) {
@@ -964,7 +953,6 @@ static noinline int
 do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
 	int ret = 0;
 
 	trans_for_each_update(trans, i) {
@@ -978,8 +966,8 @@ do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 
 int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 {
+	struct btree_insert_entry *errored_at = NULL;
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i = NULL;
 	int ret = 0;
 
 	if (!trans->nr_updates &&
@@ -1058,11 +1046,12 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			goto err;
 	}
 retry:
+	errored_at = NULL;
 	bch2_trans_verify_not_in_restart(trans);
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 
-	ret = do_bch2_trans_commit(trans, flags, &i, _RET_IP_);
+	ret = do_bch2_trans_commit(trans, flags, &errored_at, _RET_IP_);
 
 	/* make sure we didn't drop or screw up locks: */
 	bch2_trans_verify_locks(trans);
@@ -1081,7 +1070,7 @@ out_reset:
 
 	return ret;
 err:
-	ret = bch2_trans_commit_error(trans, flags, i, ret, _RET_IP_);
+	ret = bch2_trans_commit_error(trans, flags, errored_at, ret, _RET_IP_);
 	if (ret)
 		goto out;
 

@@ -408,7 +408,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, struct btree_path *path,
 	 * Pending updates are kept sorted: first, find position of new update,
 	 * then delete/trim any updates the new update overwrites:
 	 */
-	trans_for_each_update(trans, i) {
+	for (i = trans->updates; i < trans->updates + trans->nr_updates; i++) {
 		cmp = btree_insert_entry_cmp(&n, i);
 		if (cmp <= 0)
 			break;

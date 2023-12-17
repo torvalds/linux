@@ -648,7 +648,6 @@ void bch2_btree_path_level_init(struct btree_trans *trans,
 static void bch2_trans_revalidate_updates_in_node(struct btree_trans *trans, struct btree *b)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_insert_entry *i;
 
 	trans_for_each_update(trans, i)
 		if (!i->cached &&
@@ -1369,8 +1368,6 @@ void __noreturn bch2_trans_in_restart_error(struct btree_trans *trans)
 noinline __cold
 void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 {
-	struct btree_insert_entry *i;
-
 	prt_printf(buf, "transaction updates for %s journal seq %llu",
 	       trans->fn, trans->journal_res.seq);
 	prt_newline(buf);
@@ -1840,7 +1837,6 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 static noinline
 struct bkey_i *__bch2_btree_trans_peek_updates(struct btree_iter *iter)
 {
-	struct btree_insert_entry *i;
 	struct bkey_i *ret = NULL;
 
 	trans_for_each_update(iter->trans, i) {
@@ -2975,7 +2971,6 @@ leaked:
 void bch2_trans_put(struct btree_trans *trans)
 	__releases(&c->btree_trans_barrier)
 {
-	struct btree_insert_entry *i;
 	struct bch_fs *c = trans->c;
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
 
