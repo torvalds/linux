@@ -783,7 +783,6 @@ void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 static int jset_validate_entries(struct bch_fs *c, struct jset *jset,
 				 enum bkey_invalid_flags flags)
 {
-	struct jset_entry *entry;
 	unsigned version = le32_to_cpu(jset->version);
 	int ret = 0;
 
@@ -1723,7 +1722,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct jset_entry *start, *end, *i;
+	struct jset_entry *start, *end;
 	struct jset *jset = w->data;
 	struct journal_keys_to_wb wb = { NULL };
 	unsigned sectors, bytes, u64s;

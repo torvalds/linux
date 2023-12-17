@@ -238,8 +238,6 @@ bch2_journal_add_entry(struct journal *j, struct journal_res *res,
 
 static inline bool journal_entry_empty(struct jset *j)
 {
-	struct jset_entry *i;
-
 	if (j->seq != j->last_seq)
 		return false;
 

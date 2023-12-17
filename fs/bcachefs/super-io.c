@@ -101,8 +101,6 @@ static int bch2_sb_field_validate(struct bch_sb *, struct bch_sb_field *,
 struct bch_sb_field *bch2_sb_field_get_id(struct bch_sb *sb,
 				      enum bch_sb_field_type type)
 {
-	struct bch_sb_field *f;
-
 	/* XXX: need locking around superblock to access optional fields */
 
 	vstruct_for_each(sb, f)
@@ -366,7 +364,6 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 			    int rw)
 {
 	struct bch_sb *sb = disk_sb->sb;
-	struct bch_sb_field *f;
 	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
 	u16 block_size;
@@ -1250,7 +1247,6 @@ void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
 void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		     bool print_layout, unsigned fields)
 {
-	struct bch_sb_field *f;
 	u64 fields_have = 0;
 	unsigned nr_devices = 0;
 
