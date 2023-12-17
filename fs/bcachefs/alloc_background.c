@@ -1818,7 +1818,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
-		ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_lru,
+		ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
 				lru_pos(ca->dev_idx, 0, 0),
 				lru_pos(ca->dev_idx, U64_MAX, LRU_TIME_MAX),
 				BTREE_ITER_INTENT, k,

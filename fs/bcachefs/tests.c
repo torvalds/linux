@@ -134,7 +134,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_xattrs,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k, ({
 		BUG_ON(k.k->p.offset != i++);
@@ -195,7 +195,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_extents,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k, ({
 		BUG_ON(bkey_start_offset(k.k) != i);
@@ -257,7 +257,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_xattrs,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k, ({
 		BUG_ON(k.k->p.offset != i);
@@ -274,7 +274,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_xattrs,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  BTREE_ITER_SLOTS, k, ({
 		if (i >= nr * 2)
@@ -326,7 +326,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_extents,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k, ({
 		BUG_ON(bkey_start_offset(k.k) != i + 8);
@@ -344,7 +344,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 
 	i = 0;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_extents,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
 				 SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				 BTREE_ITER_SLOTS, k, ({
 		if (i == nr)
@@ -760,7 +760,7 @@ static int seq_lookup(struct bch_fs *c, u64 nr)
 	struct bkey_s_c k;
 
 	return bch2_trans_run(c,
-		for_each_btree_key2_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k,
 		0));

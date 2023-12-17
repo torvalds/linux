@@ -701,8 +701,8 @@ transaction_restart:							\
 	_ret2 ?: trans_was_restarted(_trans, _restart_count);		\
 })
 
-#define for_each_btree_key2_upto(_trans, _iter, _btree_id,		\
-				 _start, _end, _flags, _k, _do)		\
+#define for_each_btree_key_upto(_trans, _iter, _btree_id,		\
+				_start, _end, _flags, _k, _do)		\
 ({									\
 	int _ret3 = 0;							\
 									\
@@ -726,7 +726,7 @@ transaction_restart:							\
 
 #define for_each_btree_key(_trans, _iter, _btree_id,			\
 			   _start, _flags, _k, _do)			\
-	for_each_btree_key2_upto(_trans, _iter, _btree_id, _start,	\
+	for_each_btree_key_upto(_trans, _iter, _btree_id, _start,	\
 				 SPOS_MAX, _flags, _k, _do)
 
 #define for_each_btree_key_reverse(_trans, _iter, _btree_id,		\
@@ -772,11 +772,11 @@ transaction_restart:							\
 				  _start, _end, _iter_flags, _k,	\
 				  _disk_res, _journal_seq, _commit_flags,\
 				  _do)					\
-	for_each_btree_key2_upto(_trans, _iter, _btree_id, _start, _end, _iter_flags, _k,\
+	for_each_btree_key_upto(_trans, _iter, _btree_id, _start, _end, _iter_flags, _k,\
 			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_commit_flags)))
 
-#define for_each_btree_key_old(_trans, _iter, _btree_id,			\
+#define for_each_btree_key_old(_trans, _iter, _btree_id,		\
 			   _start, _flags, _k, _ret)			\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
 				  (_start), (_flags));			\
@@ -784,7 +784,7 @@ transaction_restart:							\
 	     !((_ret) = bkey_err(_k)) && (_k).k;			\
 	     bch2_btree_iter_advance(&(_iter)))
 
-#define for_each_btree_key_upto(_trans, _iter, _btree_id,		\
+#define for_each_btree_key_old_upto(_trans, _iter, _btree_id,		\
 				_start, _end, _flags, _k, _ret)		\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
 				  (_start), (_flags));			\

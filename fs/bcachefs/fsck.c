@@ -32,10 +32,10 @@ static s64 bch2_count_inode_sectors(struct btree_trans *trans, u64 inum,
 	u64 sectors = 0;
 	int ret;
 
-	for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
-				SPOS(inum, 0, snapshot),
-				POS(inum, U64_MAX),
-				0, k, ret)
+	for_each_btree_key_old_upto(trans, iter, BTREE_ID_extents,
+				    SPOS(inum, 0, snapshot),
+				    POS(inum, U64_MAX),
+				    0, k, ret)
 		if (bkey_extent_is_allocation(k.k))
 			sectors += k.k->size;
 
@@ -53,10 +53,10 @@ static s64 bch2_count_subdirs(struct btree_trans *trans, u64 inum,
 	u64 subdirs = 0;
 	int ret;
 
-	for_each_btree_key_upto(trans, iter, BTREE_ID_dirents,
-				SPOS(inum, 0, snapshot),
-				POS(inum, U64_MAX),
-				0, k, ret) {
+	for_each_btree_key_old_upto(trans, iter, BTREE_ID_dirents,
+				    SPOS(inum, 0, snapshot),
+				    POS(inum, U64_MAX),
+				    0, k, ret) {
 		if (k.k->type != KEY_TYPE_dirent)
 			continue;
 

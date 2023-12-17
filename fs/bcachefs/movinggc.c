@@ -161,7 +161,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 				 __func__, bch2_err_str(ret)))
 		return ret;
 
-	ret = for_each_btree_key2_upto(trans, iter, BTREE_ID_lru,
+	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
