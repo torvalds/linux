@@ -623,38 +623,6 @@ static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 	return 0;
 }
 
-struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *);
-
-static inline struct bkey_s_c
-__bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
-				   struct btree_iter *iter, unsigned flags)
-{
-	struct bkey_s_c k;
-
-	while (btree_trans_too_many_iters(trans) ||
-	       (k = bch2_btree_iter_peek_type(iter, flags),
-		bch2_err_matches(bkey_err(k), BCH_ERR_transaction_restart)))
-		bch2_trans_begin(trans);
-
-	return k;
-}
-
-static inline struct bkey_s_c
-__bch2_btree_iter_peek_upto_and_restart(struct btree_trans *trans,
-					struct btree_iter *iter,
-					struct bpos end,
-					unsigned flags)
-{
-	struct bkey_s_c k;
-
-	while (btree_trans_too_many_iters(trans) ||
-	       (k = bch2_btree_iter_peek_upto_type(iter, end, flags),
-		bch2_err_matches(bkey_err(k), BCH_ERR_transaction_restart)))
-		bch2_trans_begin(trans);
-
-	return k;
-}
-
 /*
  * goto instead of loop, so that when used inside for_each_btree_key2()
  * break/continue work correctly
@@ -780,6 +748,22 @@ transaction_restart:							\
 			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
 					(_journal_seq), (_commit_flags)))
 
+struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *);
+
+static inline struct bkey_s_c
+__bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
+				   struct btree_iter *iter, unsigned flags)
+{
+	struct bkey_s_c k;
+
+	while (btree_trans_too_many_iters(trans) ||
+	       (k = bch2_btree_iter_peek_type(iter, flags),
+		bch2_err_matches(bkey_err(k), BCH_ERR_transaction_restart)))
+		bch2_trans_begin(trans);
+
+	return k;
+}
+
 #define for_each_btree_key_old(_trans, _iter, _btree_id,		\
 			   _start, _flags, _k, _ret)			\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
@@ -840,8 +824,6 @@ transaction_restart:							\
 	}								\
 	_p;								\
 })
-
-/* new multiple iterator interface: */
 
 void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);
 void bch2_btree_path_to_text(struct printbuf *, struct btree_path *);

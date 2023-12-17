@@ -2285,7 +2285,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 					goto got_key;
 				}
 
-				if (bch2_snapshot_is_ancestor(iter->trans->c,
+				if (bch2_snapshot_is_ancestor(trans->c,
 							      iter->snapshot,
 							      k.k->p.snapshot)) {
 					if (saved_path)
