@@ -38,6 +38,16 @@
  * tx -  LED blinks on transmitted data
  * rx -  LED blinks on receive data
  *
+ * Note: If the user selects a mode that is not supported by hw, default
+ * behavior is to fall back to software control of the LED. However not every
+ * hw supports software control. LED callbacks brightness_set() and
+ * brightness_set_blocking() are NULL in this case. hw_control_is_supported()
+ * should use available means supported by hw to inform the user that selected
+ * mode isn't supported by hw. This could be switching off the LED or any
+ * hw blink mode. If software control fallback isn't possible, we return
+ * -EOPNOTSUPP to the user, but still store the selected mode. This is needed
+ * in case an intermediate unsupported mode is necessary to switch from one
+ * supported mode to another.
  */
 
 struct led_netdev_data {
@@ -318,6 +328,7 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 				     size_t size, enum led_trigger_netdev_modes attr)
 {
 	struct led_netdev_data *trigger_data = led_trigger_get_drvdata(dev);
+	struct led_classdev *led_cdev = trigger_data->led_cdev;
 	unsigned long state, mode = trigger_data->mode;
 	int ret;
 	int bit;
@@ -362,6 +373,10 @@ static ssize_t netdev_led_attr_store(struct device *dev, const char *buf,
 
 	trigger_data->mode = mode;
 	trigger_data->hw_control = can_hw_control(trigger_data);
+
+	if (!led_cdev->brightness_set && !led_cdev->brightness_set_blocking &&
+	    !trigger_data->hw_control)
+		return -EOPNOTSUPP;
 
 	set_baseline_state(trigger_data);
 
