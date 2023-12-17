@@ -463,8 +463,7 @@ static int bch2_initialize_subvolumes(struct bch_fs *c)
 	ret =   bch2_btree_insert(c, BTREE_ID_snapshot_trees,	&root_tree.k_i, NULL, 0) ?:
 		bch2_btree_insert(c, BTREE_ID_snapshots,	&root_snapshot.k_i, NULL, 0) ?:
 		bch2_btree_insert(c, BTREE_ID_subvolumes,	&root_volume.k_i, NULL, 0);
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -504,8 +503,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
 	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
 				__bch2_fs_upgrade_for_subvolumes(trans));
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1087,8 +1085,7 @@ out:
 		bch2_delete_dead_snapshots_async(c);
 	}
 
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 err:
 fsck_err:
@@ -1179,10 +1176,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 	packed_inode.inode.k.p.snapshot = U32_MAX;
 
 	ret = bch2_btree_insert(c, BTREE_ID_inodes, &packed_inode.inode.k_i, NULL, 0);
-	if (ret) {
-		bch_err_msg(c, ret, "creating root directory");
+	bch_err_msg(c, ret, "creating root directory");
+	if (ret)
 		goto err;
-	}
 
 	bch2_inode_init_early(c, &lostfound_inode);
 
@@ -1193,10 +1189,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 				  &lostfound,
 				  0, 0, S_IFDIR|0700, 0,
 				  NULL, NULL, (subvol_inum) { 0 }, 0));
-	if (ret) {
-		bch_err_msg(c, ret, "creating lost+found");
+	bch_err_msg(c, ret, "creating lost+found");
+	if (ret)
 		goto err;
-	}
 
 	c->recovery_pass_done = ARRAY_SIZE(recovery_pass_fns) - 1;
 
@@ -1207,10 +1202,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 	}
 
 	ret = bch2_journal_flush(&c->journal);
-	if (ret) {
-		bch_err_msg(c, ret, "writing first journal entry");
+	bch_err_msg(c, ret, "writing first journal entry");
+	if (ret)
 		goto err;
-	}
 
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);

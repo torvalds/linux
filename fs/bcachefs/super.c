@@ -1522,9 +1522,7 @@ static int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 					BTREE_TRIGGER_NORUN, NULL) ?:
 		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
 					BTREE_TRIGGER_NORUN, NULL);
-	if (ret)
-		bch_err_msg(c, ret, "removing dev alloc info");
-
+	bch_err_msg(c, ret, "removing dev alloc info");
 	return ret;
 }
 
@@ -1551,34 +1549,29 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	__bch2_dev_read_only(c, ca);
 
 	ret = bch2_dev_data_drop(c, ca->dev_idx, flags);
-	if (ret) {
-		bch_err_msg(ca, ret, "dropping data");
+	bch_err_msg(ca, ret, "dropping data");
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_dev_remove_alloc(c, ca);
-	if (ret) {
-		bch_err_msg(ca, ret, "deleting alloc info");
+	bch_err_msg(ca, ret, "deleting alloc info");
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_journal_flush_device_pins(&c->journal, ca->dev_idx);
-	if (ret) {
-		bch_err_msg(ca, ret, "flushing journal");
+	bch_err_msg(ca, ret, "flushing journal");
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_journal_flush(&c->journal);
-	if (ret) {
-		bch_err(ca, "journal error");
+	bch_err(ca, "journal error");
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_replicas_gc2(c);
-	if (ret) {
-		bch_err_msg(ca, ret, "in replicas_gc2()");
+	bch_err_msg(ca, ret, "in replicas_gc2()");
+	if (ret)
 		goto err;
-	}
 
 	data = bch2_dev_has_data(c, ca);
 	if (data) {
@@ -1650,10 +1643,9 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	int ret;
 
 	ret = bch2_read_super(path, &opts, &sb);
-	if (ret) {
-		bch_err_msg(c, ret, "reading super");
+	bch_err_msg(c, ret, "reading super");
+	if (ret)
 		goto err;
-	}
 
 	dev_mi = bch2_sb_member_get(sb.sb, sb.sb->dev_idx);
 
@@ -1666,10 +1658,8 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	}
 
 	ret = bch2_dev_may_add(sb.sb, c);
-	if (ret) {
-		bch_err_fn(c, ret);
+	if (ret)
 		goto err;
-	}
 
 	ca = __bch2_dev_alloc(c, &dev_mi);
 	if (!ca) {
@@ -1684,19 +1674,17 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err;
 
 	ret = bch2_dev_journal_alloc(ca);
-	if (ret) {
-		bch_err_msg(c, ret, "allocating journal");
+	bch_err_msg(c, ret, "allocating journal");
+	if (ret)
 		goto err;
-	}
 
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
 
 	ret = bch2_sb_from_fs(c, ca);
-	if (ret) {
-		bch_err_msg(c, ret, "setting up new superblock");
+	bch_err_msg(c, ret, "setting up new superblock");
+	if (ret)
 		goto err_unlock;
-	}
 
 	if (dynamic_fault("bcachefs:add:no_slot"))
 		goto no_slot;
@@ -1735,10 +1723,9 @@ have_slot:
 
 	if (BCH_MEMBER_GROUP(&dev_mi)) {
 		ret = __bch2_dev_group_set(c, ca, label.buf);
-		if (ret) {
-			bch_err_msg(c, ret, "creating new label");
+		bch_err_msg(c, ret, "creating new label");
+		if (ret)
 			goto err_unlock;
-		}
 	}
 
 	bch2_write_super(c);
@@ -1747,16 +1734,14 @@ have_slot:
 	bch2_dev_usage_journal_reserve(c);
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
-	if (ret) {
-		bch_err_msg(ca, ret, "marking new superblock");
+	bch_err_msg(ca, ret, "marking new superblock");
+	if (ret)
 		goto err_late;
-	}
 
 	ret = bch2_fs_freespace_init(c);
-	if (ret) {
-		bch_err_msg(ca, ret, "initializing free space");
+	bch_err_msg(ca, ret, "initializing free space");
+	if (ret)
 		goto err_late;
-	}
 
 	ca->new_fs_bucket_idx = 0;
 
@@ -1775,6 +1760,7 @@ err:
 	bch2_free_super(&sb);
 	printbuf_exit(&label);
 	printbuf_exit(&errbuf);
+	bch_err_fn(c, ret);
 	return ret;
 err_late:
 	up_write(&c->state_lock);
@@ -1802,10 +1788,9 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	dev_idx = sb.sb->dev_idx;
 
 	ret = bch2_dev_in_fs(c->disk_sb.sb, sb.sb);
-	if (ret) {
-		bch_err_msg(c, ret, "bringing %s online", path);
+	bch_err_msg(c, ret, "bringing %s online", path);
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_dev_attach_bdev(c, &sb);
 	if (ret)
@@ -1814,10 +1799,9 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	ca = bch_dev_locked(c, dev_idx);
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
-	if (ret) {
-		bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);
+	bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);
+	if (ret)
 		goto err;
-	}
 
 	if (ca->mi.state == BCH_MEMBER_STATE_rw)
 		__bch2_dev_read_write(c, ca);
@@ -1896,10 +1880,9 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	}
 
 	ret = bch2_dev_buckets_resize(c, ca, nbuckets);
-	if (ret) {
-		bch_err_msg(ca, ret, "resizing buckets");
+	bch_err_msg(ca, ret, "resizing buckets");
+	if (ret)
 		goto err;
-	}
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
 	if (ret)

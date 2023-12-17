@@ -145,10 +145,9 @@ retry:
 				continue;
 			}
 
-			if (ret) {
-				bch_err_msg(c, ret, "updating btree node key");
+			bch_err_msg(c, ret, "updating btree node key");
+			if (ret)
 				break;
-			}
 next:
 			bch2_btree_iter_next_node(&iter);
 		}

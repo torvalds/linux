@@ -324,9 +324,9 @@ static int bch2_copygc_thread(void *arg)
 	if (!buckets)
 		return -ENOMEM;
 	ret = rhashtable_init(&buckets->table, &bch_move_bucket_params);
+	bch_err_msg(c, ret, "allocating copygc buckets in flight");
 	if (ret) {
 		kfree(buckets);
-		bch_err_msg(c, ret, "allocating copygc buckets in flight");
 		return ret;
 	}
 
@@ -423,10 +423,9 @@ int bch2_copygc_start(struct bch_fs *c)
 
 	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
 	ret = PTR_ERR_OR_ZERO(t);
-	if (ret) {
-		bch_err_msg(c, ret, "creating copygc thread");
+	bch_err_msg(c, ret, "creating copygc thread");
+	if (ret)
 		return ret;
-	}
 
 	get_task_struct(t);
 

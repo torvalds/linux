@@ -209,8 +209,7 @@ static int fsck_write_inode(struct btree_trans *trans,
 {
 	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			    __write_inode(trans, inode, snapshot));
-	if (ret)
-		bch_err_fn(trans->c, ret);
+	bch_err_fn(trans->c, ret);
 	return ret;
 }
 
@@ -2427,7 +2426,6 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 {
 	struct bkey_s_c_reflink_p p;
 	struct bkey_i_reflink_p *u;
-	int ret;
 
 	if (k.k->type != KEY_TYPE_reflink_p)
 		return 0;
@@ -2438,7 +2436,7 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 		return 0;
 
 	u = bch2_trans_kmalloc(trans, sizeof(*u));
-	ret = PTR_ERR_OR_ZERO(u);
+	int ret = PTR_ERR_OR_ZERO(u);
 	if (ret)
 		return ret;
 

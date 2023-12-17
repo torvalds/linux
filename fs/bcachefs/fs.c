@@ -1012,15 +1012,13 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	ret = bch2_readdir(c, inode_inum(inode), ctx);
-	if (ret)
-		bch_err_fn(c, ret);
+	int ret = bch2_readdir(c, inode_inum(inode), ctx);
 
+	bch_err_fn(c, ret);
 	return bch2_err_class(ret);
 }
 
@@ -1944,10 +1942,9 @@ got_sb:
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
-	if (ret) {
-		bch_err_msg(c, ret, "mounting: error getting root inode");
+	bch_err_msg(c, ret, "mounting: error getting root inode");
+	if (ret)
 		goto err_put_super;
-	}
 
 	sb->s_root = d_make_root(vinode);
 	if (!sb->s_root) {

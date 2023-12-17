@@ -414,10 +414,9 @@ again:
 			continue;
 		}
 
-		if (ret) {
-			bch_err_msg(c, ret, "getting btree node");
+		bch_err_msg(c, ret, "getting btree node");
+		if (ret)
 			break;
-		}
 
 		ret = btree_repair_node_boundaries(c, b, prev, cur);
 
@@ -482,10 +481,9 @@ again:
 					false);
 		ret = PTR_ERR_OR_ZERO(cur);
 
-		if (ret) {
-			bch_err_msg(c, ret, "getting btree node");
+		bch_err_msg(c, ret, "getting btree node");
+		if (ret)
 			goto err;
-		}
 
 		ret = bch2_btree_repair_topology_recurse(trans, cur);
 		six_unlock_read(&cur->c.lock);
@@ -707,8 +705,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
 		if (!new) {
-			bch_err_msg(c, ret, "allocating new key");
 			ret = -BCH_ERR_ENOMEM_gc_repair_key;
+			bch_err_msg(c, ret, "allocating new key");
 			goto err;
 		}
 
@@ -834,8 +832,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 			bch2_mark_key(trans, btree_id, level, old, *k, flags));
 fsck_err:
 err:
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1068,8 +1065,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 fsck_err:
 	six_unlock_read(&b->c.lock);
 
-	if (ret < 0)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1105,10 +1101,8 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial, bool metadata_only)
 			: bch2_gc_btree(trans, i, initial, metadata_only);
 	}
 
-	if (ret < 0)
-		bch_err_fn(c, ret);
-
 	bch2_trans_put(trans);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1304,8 +1298,7 @@ static int bch2_gc_done(struct bch_fs *c,
 fsck_err:
 	if (ca)
 		percpu_ref_put(&ca->ref);
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 
 	percpu_up_write(&c->mark_lock);
 	printbuf_exit(&buf);
@@ -1563,8 +1556,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 	}));
 err:
 	bch2_trans_put(trans);
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1659,6 +1651,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 
 	c->reflink_gc_nr = 0;
 	bch2_trans_put(trans);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -1896,9 +1889,7 @@ out:
 	 * allocator thread - issue wakeup in case they blocked on gc_lock:
 	 */
 	closure_wake_up(&c->freelist_wait);
-
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -2015,7 +2006,7 @@ int bch2_gc_gens(struct bch_fs *c)
 					NULL, NULL,
 					BCH_TRANS_COMMIT_no_enospc,
 				gc_btree_gens_key(trans, &iter, k));
-			if (ret && !bch2_err_matches(ret, EROFS))
+			if (!bch2_err_matches(ret, EROFS))
 				bch_err_fn(c, ret);
 			if (ret)
 				goto err;
@@ -2028,7 +2019,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
 		bch2_alloc_write_oldest_gen(trans, &iter, k));
-	if (ret && !bch2_err_matches(ret, EROFS))
+	if (!bch2_err_matches(ret, EROFS))
 		bch_err_fn(c, ret);
 	if (ret)
 		goto err;
@@ -2058,7 +2049,6 @@ static int bch2_gc_thread(void *arg)
 	struct io_clock *clock = &c->io_clock[WRITE];
 	unsigned long last = atomic64_read(&clock->now);
 	unsigned last_kick = atomic_read(&c->kick_gc);
-	int ret;
 
 	set_freezable();
 
@@ -2098,11 +2088,8 @@ static int bch2_gc_thread(void *arg)
 #if 0
 		ret = bch2_gc(c, false, false);
 #else
-		ret = bch2_gc_gens(c);
+		bch2_gc_gens(c);
 #endif
-		if (ret < 0)
-			bch_err_fn(c, ret);
-
 		debug_check_no_locks_held();
 	}
 

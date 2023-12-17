@@ -315,15 +315,20 @@ do {									\
 #define bch_err_inum_offset_ratelimited(c, _inum, _offset, fmt, ...) \
 	bch2_print_ratelimited(c, KERN_ERR bch2_fmt_inum_offset(c, _inum, _offset, fmt), ##__VA_ARGS__)
 
+static inline bool should_print_err(int err)
+{
+	return err && !bch2_err_matches(err, BCH_ERR_transaction_restart);
+}
+
 #define bch_err_fn(_c, _ret)						\
 do {									\
-	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+	if (should_print_err(_ret))					\
 		bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
 } while (0)
 
 #define bch_err_msg(_c, _ret, _msg, ...)				\
 do {									\
-	if (_ret && !bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+	if (should_print_err(_ret))					\
 		bch_err(_c, "%s(): error " _msg " %s", __func__,	\
 			##__VA_ARGS__, bch2_err_str(_ret));		\
 } while (0)

@@ -1470,8 +1470,7 @@ bkey_err:
 		bch2_check_bucket_gens_key(trans, &iter, k));
 err:
 	bch2_trans_put(trans);
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 

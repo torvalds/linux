@@ -626,8 +626,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	bch2_trans_put(trans);
 
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 

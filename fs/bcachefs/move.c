@@ -669,10 +669,9 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (ret) {
-		bch_err_msg(c, ret, "looking up alloc key");
+	bch_err_msg(c, ret, "looking up alloc key");
+	if (ret)
 		goto err;
-	}
 
 	a = bch2_alloc_to_v4(k, &a_convert);
 	dirty_sectors = bch2_bucket_sectors_dirty(*a);

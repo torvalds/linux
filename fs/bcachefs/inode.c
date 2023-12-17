@@ -1200,6 +1200,6 @@ again:
 	}
 err:
 	bch2_trans_put(trans);
-
+	bch_err_fn(c, ret);
 	return ret;
 }

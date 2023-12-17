@@ -993,8 +993,7 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 			break;
 	}
 
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 unlock:
 	up_write(&c->state_lock);
 	return ret;
@@ -1024,8 +1023,7 @@ int bch2_dev_journal_alloc(struct bch_dev *ca)
 
 	ret = __bch2_set_nr_journal_buckets(ca, nr, true, NULL);
 err:
-	if (ret)
-		bch_err_fn(ca, ret);
+	bch_err_fn(ca, ret);
 	return ret;
 }
 

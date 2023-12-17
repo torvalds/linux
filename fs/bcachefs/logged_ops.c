@@ -63,8 +63,7 @@ int bch2_resume_logged_ops(struct bch_fs *c)
 				   BTREE_ID_logged_ops, POS_MIN,
 				   BTREE_ITER_PREFETCH, k,
 			resume_logged_op(trans, &iter, k)));
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 

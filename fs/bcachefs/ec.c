@@ -791,27 +791,21 @@ static void ec_stripe_delete_work(struct work_struct *work)
 {
 	struct bch_fs *c =
 		container_of(work, struct bch_fs, ec_stripe_delete_work);
-	struct btree_trans *trans = bch2_trans_get(c);
-	int ret;
-	u64 idx;
 
 	while (1) {
 		mutex_lock(&c->ec_stripes_heap_lock);
-		idx = stripe_idx_to_delete(c);
+		u64 idx = stripe_idx_to_delete(c);
 		mutex_unlock(&c->ec_stripes_heap_lock);
 
 		if (!idx)
 			break;
 
-		ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-				ec_stripe_delete(trans, idx));
-		if (ret) {
-			bch_err_fn(c, ret);
+		int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+					ec_stripe_delete(trans, idx));
+		bch_err_fn(c, ret);
+		if (ret)
 			break;
-		}
 	}
-
-	bch2_trans_put(trans);
 
 	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
 }
@@ -1126,16 +1120,15 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 			    ec_stripe_key_update(trans,
 					bkey_i_to_stripe(&s->new_stripe.key),
 					!s->have_existing_stripe));
+	bch_err_msg(c, ret, "creating stripe key");
 	if (ret) {
-		bch_err(c, "error creating stripe: error creating stripe key");
 		goto err;
 	}
 
 	ret = ec_stripe_update_extents(c, &s->new_stripe);
-	if (ret) {
-		bch_err_msg(c, ret, "creating stripe: error updating pointers");
+	bch_err_msg(c, ret, "error updating extents");
+	if (ret)
 		goto err;
-	}
 err:
 	bch2_disk_reservation_put(c, &s->res);
 
@@ -1865,7 +1858,6 @@ int bch2_stripes_read(struct bch_fs *c)
 			bch2_stripes_heap_insert(c, m, k.k->p.offset);
 			0;
 		})));
-
 	bch_err_fn(c, ret);
 	return ret;
 }
