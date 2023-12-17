@@ -33,6 +33,8 @@
 
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_imu.bin");
 
+#define TRANSFER_RAM_MASK	0x001c0000
+
 static int imu_v12_0_init_microcode(struct amdgpu_device *adev)
 {
 	char fw_name[40];
@@ -245,9 +247,9 @@ static const struct imu_rlc_ram_golden imu_rlc_ram_golden_12_0_1[] = {
 	IMU_RLC_RAM_GOLDEN_VALUE(GC, 0, regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, 0, 0x1c0000)
 };
 
-static void program_imu_rlc_ram(struct amdgpu_device *adev,
-				const struct imu_rlc_ram_golden *regs,
-				const u32 array_size)
+static void program_imu_rlc_ram_old(struct amdgpu_device *adev,
+				    const struct imu_rlc_ram_golden *regs,
+				    const u32 array_size)
 {
 	const struct imu_rlc_ram_golden *entry;
 	u32 reg, data;
@@ -271,27 +273,77 @@ static void program_imu_rlc_ram(struct amdgpu_device *adev,
 		WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_LOW, reg);
 		WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_DATA, data);
 	}
-	//Indicate the latest entry
-	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_HIGH, 0);
-	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_LOW, 0);
-	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_DATA, 0);
+}
+
+static u32 imu_v12_0_grbm_gfx_index_remap(struct amdgpu_device *adev,
+					  u32 data, bool high)
+{
+	u32 val, inst_index;
+
+	inst_index = REG_GET_FIELD(data, GRBM_GFX_INDEX, INSTANCE_INDEX);
+
+	if (high)
+		val = inst_index >> 5;
+	else
+		val = REG_GET_FIELD(data, GRBM_GFX_INDEX, SE_BROADCAST_WRITES) << 18 |
+		      REG_GET_FIELD(data, GRBM_GFX_INDEX, SA_BROADCAST_WRITES) << 19 |
+		      REG_GET_FIELD(data, GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES) << 20 |
+		      REG_GET_FIELD(data, GRBM_GFX_INDEX, SE_INDEX) << 21 |
+		      REG_GET_FIELD(data, GRBM_GFX_INDEX, SA_INDEX) << 25 |
+		      (inst_index & 0x1f);
+
+	return val;
+}
+
+static void program_imu_rlc_ram(struct amdgpu_device *adev,
+				const u32 *regs,
+				const u32 array_size)
+{
+	u32 reg, data, val_h = 0, val_l = TRANSFER_RAM_MASK;
+	int i;
+
+	if (array_size % 3)
+		return;
+
+	for (i = 0; i < array_size; i += 3) {
+		reg = regs[i + 0];
+		data = regs[i + 2];
+		if (reg == SOC15_REG_OFFSET(GC, 0, regGRBM_GFX_INDEX)) {
+			val_l = imu_v12_0_grbm_gfx_index_remap(adev, data, false);
+			val_h = imu_v12_0_grbm_gfx_index_remap(adev, data, true);
+		} else {
+			WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_HIGH, val_h);
+			WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_LOW, reg | val_l);
+			WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_DATA, data);
+		}
+	}
 }
 
 static void imu_v12_0_program_rlc_ram(struct amdgpu_device *adev)
 {
-	u32 reg_data;
+	u32 reg_data, size = 0;
+	const u32 *data;
+	int r = -EINVAL;
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_INDEX, 0x2);
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 0, 1):
-		program_imu_rlc_ram(adev, imu_rlc_ram_golden_12_0_1,
+		if (!r)
+			program_imu_rlc_ram(adev, data, (const u32)size);
+		else
+			program_imu_rlc_ram_old(adev, imu_rlc_ram_golden_12_0_1,
 				(const u32)ARRAY_SIZE(imu_rlc_ram_golden_12_0_1));
 		break;
 	default:
 		BUG();
 		break;
 	}
+
+	//Indicate the latest entry
+	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_HIGH, 0);
+	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_ADDR_LOW, 0);
+	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_DATA, 0);
 
 	reg_data = RREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_INDEX);
 	reg_data |= GFX_IMU_RLC_RAM_INDEX__RAM_VALID_MASK;
