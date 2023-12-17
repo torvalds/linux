@@ -7162,7 +7162,13 @@ struct wmi_tdls_peer_capabilities {
 	__le32 is_peer_responder;
 	__le32 pref_offchan_num;
 	__le32 pref_offchan_bw;
-	struct wmi_channel peer_chan_list[1];
+	union {
+		/* to match legacy implementation allocate room for
+		 * at least one record even if peer_chan_len is 0
+		 */
+		struct wmi_channel peer_chan_min_allocation;
+		DECLARE_FLEX_ARRAY(struct wmi_channel, peer_chan_list);
+	};
 } __packed;
 
 struct wmi_10_4_tdls_peer_update_cmd {
