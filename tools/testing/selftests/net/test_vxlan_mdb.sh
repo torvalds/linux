@@ -79,6 +79,7 @@ CONTROL_PATH_TESTS="
 	dump_ipv6_ipv4
 	dump_ipv4_ipv6
 	dump_ipv6_ipv6
+	flush
 "
 
 DATA_PATH_TESTS="
@@ -966,6 +967,202 @@ dump_ipv6_ipv6()
 	echo "-----------------------------------------------------------------"
 
 	dump_common $ns1 $local_addr $remote_prefix $fn
+}
+
+flush()
+{
+	local num_entries
+
+	echo
+	echo "Control path: Flush"
+	echo "-------------------"
+
+	# Add entries with different attributes and check that they are all
+	# flushed when the flush command is given with no parameters.
+
+	# Different source VNI.
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.2 permanent dst 198.51.100.1 src_vni 10011"
+
+	# Different routing protocol.
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.3 permanent proto bgp dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.4 permanent proto zebra dst 198.51.100.1 src_vni 10010"
+
+	# Different destination IP.
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.5 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.6 permanent dst 198.51.100.2 src_vni 10010"
+
+	# Different destination port.
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.7 permanent dst 198.51.100.1 dst_port 11111 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.8 permanent dst 198.51.100.1 dst_port 22222 src_vni 10010"
+
+	# Different VNI.
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.9 permanent dst 198.51.100.1 vni 10010 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.10 permanent dst 198.51.100.1 vni 10020 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+	num_entries=$(bridge -n $ns1_v4 mdb show dev vx0 | wc -l)
+	[[ $num_entries -eq 0 ]]
+	log_test $? 0 "Flush all"
+
+	# Check that entries are flushed when port is specified as the VXLAN
+	# device and that an error is returned when port is specified as a
+	# different net device.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 port vx0"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
+	log_test $? 254 "Flush by port"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 port veth0"
+	log_test $? 255 "Flush by wrong port"
+
+	# Check that when flushing by source VNI only entries programmed with
+	# the specified source VNI are flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10011"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10011"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
+	log_test $? 254 "Flush by specified source VNI"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10011"
+	log_test $? 0 "Flush by unspecified source VNI"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# Check that all entries are flushed when "permanent" is specified and
+	# that an error is returned when "nopermanent" is specified.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 permanent"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010"
+	log_test $? 254 "Flush by \"permanent\" state"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 nopermanent"
+	log_test $? 255 "Flush by \"nopermanent\" state"
+
+	# Check that when flushing by routing protocol only entries programmed
+	# with the specified routing protocol are flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent proto bgp dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent proto zebra dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 proto bgp"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"proto bgp\""
+	log_test $? 1 "Flush by specified routing protocol"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"proto zebra\""
+	log_test $? 0 "Flush by unspecified routing protocol"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# Check that when flushing by destination IP only entries programmed
+	# with the specified destination IP are flushed and the rest are not.
+
+	# IPv4.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst 198.51.100.2"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
+	log_test $? 1 "Flush by specified destination IP - IPv4"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
+	log_test $? 0 "Flush by unspecified destination IP - IPv4"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# IPv6.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 2001:db8:1000::1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 2001:db8:1000::2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst 2001:db8:1000::2"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 2001:db8:1000::2"
+	log_test $? 1 "Flush by specified destination IP - IPv6"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 2001:db8:1000::1"
+	log_test $? 0 "Flush by unspecified destination IP - IPv6"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# Check that when flushing by UDP destination port only entries
+	# programmed with the specified port are flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 11111 dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 22222 dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst_port 11111"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"dst_port 11111\""
+	log_test $? 1 "Flush by specified UDP destination port"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \"dst_port 22222\""
+	log_test $? 0 "Flush by unspecified UDP destination port"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# When not specifying a UDP destination port for an entry, traffic is
+	# encapsulated with the device's UDP destination port. Check that when
+	# flushing by the device's UDP destination port only entries programmed
+	# with this port are flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst_port 22222 dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 dst_port 4789"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
+	log_test $? 1 "Flush by device's UDP destination port"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
+	log_test $? 0 "Flush by unspecified UDP destination port"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# Check that when flushing by destination VNI only entries programmed
+	# with the specified destination VNI are flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20010 dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20011 dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 vni 20010"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \" vni 20010\""
+	log_test $? 1 "Flush by specified destination VNI"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep \" vni 20011\""
+	log_test $? 0 "Flush by unspecified destination VNI"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# When not specifying a destination VNI for an entry, traffic is
+	# encapsulated with the source VNI. Check that when flushing by a
+	# destination VNI that is equal to the source VNI only such entries are
+	# flushed and the rest are not.
+
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent dst 198.51.100.1 src_vni 10010"
+	run_cmd "bridge -n $ns1_v4 mdb add dev vx0 port vx0 grp 239.1.1.1 permanent vni 20010 dst 198.51.100.2 src_vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 vni 10010"
+
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.1"
+	log_test $? 1 "Flush by destination VNI equal to source VNI"
+	run_cmd "bridge -n $ns1_v4 -d -s mdb get dev vx0 grp 239.1.1.1 src_vni 10010 | grep 198.51.100.2"
+	log_test $? 0 "Flush by unspecified destination VNI"
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0"
+
+	# Test that an error is returned when trying to flush using VLAN ID.
+
+	run_cmd "bridge -n $ns1_v4 mdb flush dev vx0 vid 10"
+	log_test $? 255 "Flush by VLAN ID"
 }
 
 ################################################################################
@@ -2292,9 +2489,9 @@ if [ ! -x "$(command -v jq)" ]; then
 	exit $ksft_skip
 fi
 
-bridge mdb help 2>&1 | grep -q "get"
+bridge mdb help 2>&1 | grep -q "flush"
 if [ $? -ne 0 ]; then
-   echo "SKIP: iproute2 bridge too old, missing VXLAN MDB get support"
+   echo "SKIP: iproute2 bridge too old, missing VXLAN MDB flush support"
    exit $ksft_skip
 fi
 
