@@ -3069,7 +3069,10 @@ struct host_memory_chunk {
 struct wmi_host_mem_chunks {
 	__le32 count;
 	/* some fw revisions require at least 1 chunk regardless of count */
-	struct host_memory_chunk items[1];
+	union {
+		struct host_memory_chunk item;
+		DECLARE_FLEX_ARRAY(struct host_memory_chunk, items);
+	};
 } __packed;
 
 struct wmi_init_cmd {
