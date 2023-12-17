@@ -620,7 +620,7 @@ void read_cdat_data(struct cxl_port *port)
 	struct pci_dev *pdev = NULL;
 	struct cxl_memdev *cxlmd;
 	size_t cdat_length;
-	void *cdat_table;
+	void *cdat_table, *cdat_buf;
 	int rc;
 
 	if (is_cxl_memdev(uport)) {
@@ -651,16 +651,15 @@ void read_cdat_data(struct cxl_port *port)
 		return;
 	}
 
-	cdat_table = devm_kzalloc(dev, cdat_length + sizeof(__le32),
-				  GFP_KERNEL);
-	if (!cdat_table)
+	cdat_buf = devm_kzalloc(dev, cdat_length + sizeof(__le32), GFP_KERNEL);
+	if (!cdat_buf)
 		return;
 
-	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_table, &cdat_length);
+	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_buf, &cdat_length);
 	if (rc)
 		goto err;
 
-	cdat_table = cdat_table + sizeof(__le32);
+	cdat_table = cdat_buf + sizeof(__le32);
 	if (cdat_checksum(cdat_table, cdat_length))
 		goto err;
 
@@ -670,7 +669,7 @@ void read_cdat_data(struct cxl_port *port)
 
 err:
 	/* Don't leave table data allocated on error */
-	devm_kfree(dev, cdat_table);
+	devm_kfree(dev, cdat_buf);
 	dev_err(dev, "Failed to read/validate CDAT.\n");
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
