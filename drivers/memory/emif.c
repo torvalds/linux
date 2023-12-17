@@ -826,7 +826,6 @@ static int is_custom_config_valid(struct emif_custom_configs *cust_cfgs,
 	return valid;
 }
 
-#if defined(CONFIG_OF)
 static void __init_or_module of_get_custom_configs(struct device_node *np_emif,
 		struct emif_data *emif)
 {
@@ -982,15 +981,6 @@ error:
 out:
 	return emif;
 }
-
-#else
-
-static struct emif_data * __init_or_module of_get_memory_device_details(
-		struct device_node *np_emif, struct device *dev)
-{
-	return NULL;
-}
-#endif
 
 static struct emif_data *__init_or_module get_device_details(
 		struct platform_device *pdev)
