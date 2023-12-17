@@ -881,31 +881,21 @@ bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
 EXPORT_SYMBOL_GPL(blk_queue_can_use_dma_map_merging);
 
 /**
- * disk_set_zoned - configure the zoned model for a disk
- * @disk:	the gendisk of the queue to configure
- * @zoned:	zoned or not.
- *
- * When @zoned is %true, this should be called only if zoned block device
- * support is enabled (CONFIG_BLK_DEV_ZONED option).
+ * disk_set_zoned - inidicate a zoned device
+ * @disk:	gendisk to configure
  */
-void disk_set_zoned(struct gendisk *disk, bool zoned)
+void disk_set_zoned(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
-	if (zoned) {
-		WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED));
+	WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED));
 
-		/*
-		 * Set the zone write granularity to the device logical block
-		 * size by default. The driver can change this value if needed.
-		 */
-		q->limits.zoned = true;
-		blk_queue_zone_write_granularity(q,
-						queue_logical_block_size(q));
-	} else if (q->limits.zoned) {
-		q->limits.zoned = false;
-		disk_clear_zone_settings(disk);
-	}
+	/*
+	 * Set the zone write granularity to the device logical block
+	 * size by default. The driver can change this value if needed.
+	 */
+	q->limits.zoned = true;
+	blk_queue_zone_write_granularity(q, queue_logical_block_size(q));
 }
 EXPORT_SYMBOL_GPL(disk_set_zoned);
 

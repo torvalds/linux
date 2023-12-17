@@ -616,12 +616,13 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 }
 EXPORT_SYMBOL_GPL(blk_revalidate_disk_zones);
 
-void disk_clear_zone_settings(struct gendisk *disk)
+void disk_clear_zoned(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 
 	blk_mq_freeze_queue(q);
 
+	q->limits.zoned = false;
 	disk_free_zone_bitmaps(disk);
 	blk_queue_flag_clear(QUEUE_FLAG_ZONE_RESETALL, q);
 	q->required_elevator_features &= ~ELEVATOR_F_ZBD_SEQ_WRITE;

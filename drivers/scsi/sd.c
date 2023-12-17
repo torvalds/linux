@@ -3135,11 +3135,13 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 	}
 
+
+#ifdef CONFIG_BLK_DEV_ZONED /* sd_probe rejects ZBD devices early otherwise */
 	if (sdkp->device->type == TYPE_ZBC) {
 		/*
 		 * Host-managed.
 		 */
-		disk_set_zoned(sdkp->disk, true);
+		disk_set_zoned(sdkp->disk);
 
 		/*
 		 * Per ZBC and ZAC specifications, writes in sequential write
@@ -3152,8 +3154,9 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		 * Anything else.  This includes host-aware device that we treat
 		 * as conventional.
 		 */
-		disk_set_zoned(sdkp->disk, false);
+		disk_clear_zoned(sdkp->disk);
 	}
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 	if (!sdkp->first_scan)
 		return;

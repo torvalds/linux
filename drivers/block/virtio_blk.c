@@ -730,7 +730,7 @@ static int virtblk_probe_zoned_device(struct virtio_device *vdev,
 
 	dev_dbg(&vdev->dev, "probing host-managed zoned device\n");
 
-	disk_set_zoned(vblk->disk, true);
+	disk_set_zoned(vblk->disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
 
 	virtio_cread(vdev, struct virtio_blk_config,
