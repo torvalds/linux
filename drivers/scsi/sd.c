@@ -3149,7 +3149,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 		 * the device physical block size.
 		 */
 		blk_queue_zone_write_granularity(q, sdkp->physical_block_size);
-	} else {
+	} else if (blk_queue_is_zoned(q)) {
 		/*
 		 * Anything else.  This includes host-aware device that we treat
 		 * as conventional.
