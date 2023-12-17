@@ -973,21 +973,19 @@ fsck_err:
 int bch2_check_inodes(struct bch_fs *c)
 {
 	bool full = c->opts.fsck;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_inode_unpacked prev = { 0 };
 	struct snapshots_seen s;
-	int ret;
 
 	snapshots_seen_init(&s);
 
-	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
-			POS_MIN,
-			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		check_inode(trans, &iter, k, &prev, &s, full));
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
+				POS_MIN,
+				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			check_inode(trans, &iter, k, &prev, &s, full)));
 
 	snapshots_seen_exit(&s);
-	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1417,30 +1415,28 @@ int bch2_check_extents(struct bch_fs *c)
 {
 	struct inode_walker w = inode_walker_init();
 	struct snapshots_seen s;
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct extent_ends extent_ends;
 	struct disk_reservation res = { 0 };
-	int ret = 0;
 
 	snapshots_seen_init(&s);
 	extent_ends_init(&extent_ends);
 
-	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_extents,
-			POS(BCACHEFS_ROOT_INO, 0),
-			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
-			&res, NULL,
-			BCH_TRANS_COMMIT_no_enospc, ({
-		bch2_disk_reservation_put(c, &res);
-		check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
-		check_extent_overbig(trans, &iter, k);
-	})) ?:
-	check_i_sectors(trans, &w);
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_extents,
+				POS(BCACHEFS_ROOT_INO, 0),
+				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				&res, NULL,
+				BCH_TRANS_COMMIT_no_enospc, ({
+			bch2_disk_reservation_put(c, &res);
+			check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
+			check_extent_overbig(trans, &iter, k);
+		})) ?:
+		check_i_sectors(trans, &w));
 
 	bch2_disk_reservation_put(c, &res);
 	extent_ends_exit(&extent_ends);
 	inode_walker_exit(&w);
 	snapshots_seen_exit(&s);
-	bch2_trans_put(trans);
 
 	bch_err_fn(c, ret);
 	return ret;
@@ -1448,22 +1444,19 @@ int bch2_check_extents(struct bch_fs *c)
 
 int bch2_check_indirect_extents(struct bch_fs *c)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
 	struct disk_reservation res = { 0 };
-	int ret = 0;
 
-	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_reflink,
-			POS_MIN,
-			BTREE_ITER_PREFETCH, k,
-			&res, NULL,
-			BCH_TRANS_COMMIT_no_enospc, ({
-		bch2_disk_reservation_put(c, &res);
-		check_extent_overbig(trans, &iter, k);
-	}));
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_reflink,
+				POS_MIN,
+				BTREE_ITER_PREFETCH, k,
+				&res, NULL,
+				BCH_TRANS_COMMIT_no_enospc, ({
+			bch2_disk_reservation_put(c, &res);
+			check_extent_overbig(trans, &iter, k);
+		})));
 
 	bch2_disk_reservation_put(c, &res);
-	bch2_trans_put(trans);
-
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -1816,20 +1809,18 @@ int bch2_check_dirents(struct bch_fs *c)
 	struct inode_walker target = inode_walker_init();
 	struct snapshots_seen s;
 	struct bch_hash_info hash_info;
-	struct btree_trans *trans = bch2_trans_get(c);
-	int ret = 0;
 
 	snapshots_seen_init(&s);
 
-	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
-			POS(BCACHEFS_ROOT_INO, 0),
-			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
-			k,
-			NULL, NULL,
-			BCH_TRANS_COMMIT_no_enospc,
-		check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s));
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
+				POS(BCACHEFS_ROOT_INO, 0),
+				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+				k,
+				NULL, NULL,
+				BCH_TRANS_COMMIT_no_enospc,
+			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)));
 
-	bch2_trans_put(trans);
 	snapshots_seen_exit(&s);
 	inode_walker_exit(&dir);
 	inode_walker_exit(&target);
