@@ -1888,6 +1888,22 @@ inline bool bch2_btree_iter_rewind(struct btree_iter *iter)
 }
 
 static noinline
+void bch2_btree_trans_peek_prev_updates(struct btree_trans *trans, struct btree_iter *iter,
+					struct bkey_s_c *k)
+{
+	struct bpos end = path_l(btree_iter_path(trans, iter))->b->data->min_key;
+
+	trans_for_each_update(trans, i)
+		if (!i->key_cache_already_flushed &&
+		    i->btree_id == iter->btree_id &&
+		    bpos_le(i->k->k.p, iter->pos) &&
+		    bpos_ge(i->k->k.p, k->k ? k->k->p : end)) {
+			iter->k = i->k->k;
+			*k = bkey_i_to_s_c(i->k);
+		}
+}
+
+static noinline
 void bch2_btree_trans_peek_updates(struct btree_trans *trans, struct btree_iter *iter,
 				   struct bkey_s_c *k)
 {
@@ -2302,7 +2318,6 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 
 	EBUG_ON(btree_iter_path(trans, iter)->cached ||
 		btree_iter_path(trans, iter)->level);
-	EBUG_ON(iter->flags & BTREE_ITER_WITH_UPDATES);
 
 	if (iter->flags & BTREE_ITER_WITH_JOURNAL)
 		return bkey_s_c_err(-EIO);
@@ -2334,6 +2349,10 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		     ? bpos_ge(bkey_start_pos(k.k), search_key)
 		     : bpos_gt(k.k->p, search_key)))
 			k = btree_path_level_prev(trans, path, &path->l[0], &iter->k);
+
+		if (unlikely((iter->flags & BTREE_ITER_WITH_UPDATES) &&
+			     trans->nr_updates))
+			bch2_btree_trans_peek_prev_updates(trans, iter, &k);
 
 		if (likely(k.k)) {
 			if (iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) {
