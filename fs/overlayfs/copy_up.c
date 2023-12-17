@@ -753,15 +753,16 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	path.dentry = temp;
 	err = ovl_copy_up_data(c, &path);
 	/*
-	 * We cannot hold lock_rename() throughout this helper, because or
+	 * We cannot hold lock_rename() throughout this helper, because of
 	 * lock ordering with sb_writers, which shouldn't be held when calling
 	 * ovl_copy_up_data(), so lock workdir and destdir and make sure that
 	 * temp wasn't moved before copy up completion or cleanup.
-	 * If temp was moved, abort without the cleanup.
 	 */
 	ovl_start_write(c->dentry);
 	if (lock_rename(c->workdir, c->destdir) != NULL ||
 	    temp->d_parent != c->workdir) {
+		/* temp or workdir moved underneath us? abort without cleanup */
+		dput(temp);
 		err = -EIO;
 		goto unlock;
 	} else if (err) {
