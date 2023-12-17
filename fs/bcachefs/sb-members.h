@@ -79,33 +79,38 @@ static inline struct bch_devs_list bch2_dev_list_single(unsigned dev)
 	return (struct bch_devs_list) { .nr = 1, .data[0] = dev };
 }
 
-static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, unsigned *iter,
-					      const struct bch_devs_mask *mask)
+static inline struct bch_dev *__bch2_next_dev_idx(struct bch_fs *c, unsigned idx,
+						  const struct bch_devs_mask *mask)
 {
 	struct bch_dev *ca = NULL;
 
-	while ((*iter = mask
-		? find_next_bit(mask->d, c->sb.nr_devices, *iter)
-		: *iter) < c->sb.nr_devices &&
-	       !(ca = rcu_dereference_check(c->devs[*iter],
+	while ((idx = mask
+		? find_next_bit(mask->d, c->sb.nr_devices, idx)
+		: idx) < c->sb.nr_devices &&
+	       !(ca = rcu_dereference_check(c->devs[idx],
 					    lockdep_is_held(&c->state_lock))))
-		(*iter)++;
+		idx++;
 
 	return ca;
 }
 
-#define for_each_member_device_rcu(ca, c, iter, mask)			\
-	for ((iter) = 0; ((ca) = __bch2_next_dev((c), &(iter), mask)); (iter)++)
+static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, struct bch_dev *ca,
+					      const struct bch_devs_mask *mask)
+{
+	return __bch2_next_dev_idx(c, ca ? ca->dev_idx + 1 : 0, mask);
+}
+
+#define for_each_member_device_rcu(_c, _ca, _mask)			\
+	for (struct bch_dev *_ca = NULL;				\
+	     (_ca = __bch2_next_dev((_c), _ca, (_mask)));)
 
 static inline struct bch_dev *bch2_get_next_dev(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned idx = ca ? ca->dev_idx + 1 : 0;
-
 	if (ca)
 		percpu_ref_put(&ca->ref);
 
 	rcu_read_lock();
-	if ((ca = __bch2_next_dev(c, &idx, NULL)))
+	if ((ca = __bch2_next_dev(c, ca, NULL)))
 		percpu_ref_get(&ca->ref);
 	rcu_read_unlock();
 
@@ -126,16 +131,14 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 						       struct bch_dev *ca,
 						       unsigned state_mask)
 {
-	unsigned idx = ca ? ca->dev_idx + 1 : 0;
-
 	if (ca)
 		percpu_ref_put(&ca->io_ref);
 
 	rcu_read_lock();
-	while ((ca = __bch2_next_dev(c, &idx, NULL)) &&
+	while ((ca = __bch2_next_dev(c, ca, NULL)) &&
 	       (!((1 << ca->mi.state) & state_mask) ||
 		!percpu_ref_tryget(&ca->io_ref)))
-		idx++;
+		;
 	rcu_read_unlock();
 
 	return ca;

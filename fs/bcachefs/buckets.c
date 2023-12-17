@@ -154,8 +154,7 @@ retry:
 
 void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
 {
-	struct bch_dev *ca;
-	unsigned i, u64s = fs_usage_u64s(c);
+	unsigned u64s = fs_usage_u64s(c);
 
 	BUG_ON(idx >= ARRAY_SIZE(c->usage));
 
@@ -167,7 +166,7 @@ void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
 	percpu_memset(c->usage[idx], 0, u64s * sizeof(u64));
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL) {
+	for_each_member_device_rcu(c, ca, NULL) {
 		u64s = dev_usage_u64s();
 
 		acc_u64s_percpu((u64 *) ca->usage_base,

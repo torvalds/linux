@@ -1243,18 +1243,17 @@ static int unsigned_cmp(const void *_l, const void *_r)
 static unsigned pick_blocksize(struct bch_fs *c,
 			       struct bch_devs_mask *devs)
 {
-	struct bch_dev *ca;
-	unsigned i, nr = 0, sizes[BCH_SB_MEMBERS_MAX];
+	unsigned nr = 0, sizes[BCH_SB_MEMBERS_MAX];
 	struct {
 		unsigned nr, size;
 	} cur = { 0, 0 }, best = { 0, 0 };
 
-	for_each_member_device_rcu(ca, c, i, devs)
+	for_each_member_device_rcu(c, ca, devs)
 		sizes[nr++] = ca->mi.bucket_size;
 
 	sort(sizes, nr, sizeof(unsigned), unsigned_cmp, NULL);
 
-	for (i = 0; i < nr; i++) {
+	for (unsigned i = 0; i < nr; i++) {
 		if (sizes[i] != cur.size) {
 			if (cur.nr > best.nr)
 				best = cur;
@@ -1337,8 +1336,6 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 			 enum bch_watermark watermark)
 {
 	struct ec_stripe_head *h;
-	struct bch_dev *ca;
-	unsigned i;
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -1355,13 +1352,13 @@ ec_new_stripe_head_alloc(struct bch_fs *c, unsigned target,
 	rcu_read_lock();
 	h->devs = target_rw_devs(c, BCH_DATA_user, target);
 
-	for_each_member_device_rcu(ca, c, i, &h->devs)
+	for_each_member_device_rcu(c, ca, &h->devs)
 		if (!ca->mi.durability)
-			__clear_bit(i, h->devs.d);
+			__clear_bit(ca->dev_idx, h->devs.d);
 
 	h->blocksize = pick_blocksize(c, &h->devs);
 
-	for_each_member_device_rcu(ca, c, i, &h->devs)
+	for_each_member_device_rcu(c, ca, &h->devs)
 		if (ca->mi.bucket_size == h->blocksize)
 			h->nr_active_devs++;
 

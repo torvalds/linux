@@ -69,11 +69,8 @@ const char * const bch2_watermarks[] = {
 
 void bch2_reset_alloc_cursors(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL)
+	for_each_member_device_rcu(c, ca, NULL)
 		ca->alloc_cursor = 0;
 	rcu_read_unlock();
 }

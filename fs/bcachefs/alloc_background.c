@@ -891,7 +891,6 @@ static struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos
 static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
 {
 	struct bch_dev *ca;
-	unsigned iter;
 
 	if (bch2_dev_bucket_exists(c, *bucket))
 		return true;
@@ -909,8 +908,7 @@ static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
 	}
 
 	rcu_read_lock();
-	iter = bucket->inode;
-	ca = __bch2_next_dev(c, &iter, NULL);
+	ca = __bch2_next_dev_idx(c, bucket->inode, NULL);
 	if (ca)
 		*bucket = POS(ca->dev_idx, ca->mi.first_bucket);
 	rcu_read_unlock();

@@ -1294,11 +1294,8 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	union journal_res_state s;
-	struct bch_dev *ca;
 	unsigned long now = jiffies;
 	u64 nr_writes = j->nr_flush_writes + j->nr_noflush_writes;
-	u64 seq;
-	unsigned i;
 
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 24);
@@ -1343,10 +1340,10 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 
 	prt_newline(out);
 
-	for (seq = journal_cur_seq(j);
+	for (u64 seq = journal_cur_seq(j);
 	     seq >= journal_last_unwritten_seq(j);
 	     --seq) {
-		i = seq & JOURNAL_BUF_MASK;
+		unsigned i = seq & JOURNAL_BUF_MASK;
 
 		prt_printf(out, "unwritten entry:");
 		prt_tab(out);
@@ -1390,8 +1387,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       j->space[journal_space_total].next_entry,
 	       j->space[journal_space_total].total);
 
-	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_journal]) {
+	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
 		if (!test_bit(ca->dev_idx, c->rw_devs[BCH_DATA_journal].d))
@@ -1400,7 +1396,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		if (!ja->nr)
 			continue;
 
-		prt_printf(out, "dev %u:\n",		i);
+		prt_printf(out, "dev %u:\n",		ca->dev_idx);
 		prt_printf(out, "\tnr\t\t%u\n",		ja->nr);
 		prt_printf(out, "\tbucket size\t%u\n",	ca->mi.bucket_size);
 		prt_printf(out, "\tavailable\t%u:%u\n",	bch2_journal_dev_buckets_available(j, ja, journal_space_discarded), ja->sectors_free);

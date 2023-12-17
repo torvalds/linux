@@ -358,14 +358,12 @@ const struct bch_sb_field_ops bch_sb_field_ops_members_v2 = {
 void bch2_sb_members_from_cpu(struct bch_fs *c)
 {
 	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
-	struct bch_dev *ca;
-	unsigned i, e;
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL) {
-		struct bch_member *m = __bch2_members_v2_get_mut(mi, i);
+	for_each_member_device_rcu(c, ca, NULL) {
+		struct bch_member *m = __bch2_members_v2_get_mut(mi, ca->dev_idx);
 
-		for (e = 0; e < BCH_MEMBER_ERROR_NR; e++)
+		for (unsigned e = 0; e < BCH_MEMBER_ERROR_NR; e++)
 			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));
 	}
 	rcu_read_unlock();

@@ -136,15 +136,13 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 			    enum journal_space_from from)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
-	unsigned i, pos, nr_devs = 0;
+	unsigned pos, nr_devs = 0;
 	struct journal_space space, dev_space[BCH_SB_MEMBERS_MAX];
 
 	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_journal]) {
+	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		if (!ca->journal.nr)
 			continue;
 
@@ -173,19 +171,17 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 void bch2_journal_space_available(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
 	unsigned clean, clean_ondisk, total;
 	unsigned max_entry_size	 = min(j->buf[0].buf_size >> 9,
 				       j->buf[1].buf_size >> 9);
-	unsigned i, nr_online = 0, nr_devs_want;
+	unsigned nr_online = 0, nr_devs_want;
 	bool can_discard = false;
 	int ret = 0;
 
 	lockdep_assert_held(&j->lock);
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i,
-				   &c->rw_devs[BCH_DATA_journal]) {
+	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 
 		if (!ja->nr)
@@ -216,7 +212,7 @@ void bch2_journal_space_available(struct journal *j)
 
 	nr_devs_want = min_t(unsigned, nr_online, c->opts.metadata_replicas);
 
-	for (i = 0; i < journal_space_nr; i++)
+	for (unsigned i = 0; i < journal_space_nr; i++)
 		j->space[i] = __journal_space_available(j, nr_devs_want, i);
 
 	clean_ondisk	= j->space[journal_space_clean_ondisk].total;

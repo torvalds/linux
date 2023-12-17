@@ -167,14 +167,12 @@ static void __bch2_dev_read_only(struct bch_fs *, struct bch_dev *);
 struct bch_fs *bch2_dev_to_fs(dev_t dev)
 {
 	struct bch_fs *c;
-	struct bch_dev *ca;
-	unsigned i;
 
 	mutex_lock(&bch_fs_list_lock);
 	rcu_read_lock();
 
 	list_for_each_entry(c, &bch_fs_list, list)
-		for_each_member_device_rcu(ca, c, i, NULL)
+		for_each_member_device_rcu(c, ca, NULL)
 			if (ca->disk_sb.bdev && ca->disk_sb.bdev->bd_dev == dev) {
 				closure_get(&c->cl);
 				goto found;
@@ -215,14 +213,13 @@ struct bch_fs *bch2_uuid_to_fs(__uuid_t uuid)
 
 static void bch2_dev_usage_journal_reserve(struct bch_fs *c)
 {
-	struct bch_dev *ca;
-	unsigned i, nr = 0, u64s =
+	unsigned nr = 0, u64s =
 		((sizeof(struct jset_entry_dev_usage) +
 		  sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR)) /
 		sizeof(u64);
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL)
+	for_each_member_device_rcu(c, ca, NULL)
 		nr++;
 	rcu_read_unlock();
 
@@ -1906,18 +1903,14 @@ err:
 /* return with ref on ca->ref: */
 struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 {
-	struct bch_dev *ca;
-	unsigned i;
-
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL)
-		if (!strcmp(name, ca->name))
-			goto found;
-	ca = ERR_PTR(-BCH_ERR_ENOENT_dev_not_found);
-found:
+	for_each_member_device_rcu(c, ca, NULL)
+		if (!strcmp(name, ca->name)) {
+			rcu_read_unlock();
+			return ca;
+		}
 	rcu_read_unlock();
-
-	return ca;
+	return ERR_PTR(-BCH_ERR_ENOENT_dev_not_found);
 }
 
 /* Filesystem open: */
