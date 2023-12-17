@@ -198,7 +198,7 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 			continue;
 		list_for_each_entry(pRet, psearch_list, list) {
 			if (memcmp(pRet->addr, addr, 6) == 0 &&
-			    pRet->tspec.ucTSID == TID &&
+			    pRet->tspec.ts_id == TID &&
 			    pRet->tspec.ucDirection == dir)
 				break;
 		}
@@ -305,7 +305,7 @@ bool rtllib_get_ts(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		netdev_dbg(ieee->dev,
 			   "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
 			   UP, Dir, addr, *ppTS);
-		ts_info->ucTSID = UP;
+		ts_info->ts_id = UP;
 		ts_info->ucDirection = Dir;
 
 		MakeTSEntry(*ppTS, addr, &tspec);
