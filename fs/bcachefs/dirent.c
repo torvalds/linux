@@ -65,7 +65,7 @@ static bool dirent_cmp_key(struct bkey_s_c _l, const void *_r)
 	const struct qstr l_name = bch2_dirent_get_name(l);
 	const struct qstr *r_name = _r;
 
-	return l_name.len - r_name->len ?: memcmp(l_name.name, r_name->name, l_name.len);
+	return !qstr_eq(l_name, *r_name);
 }
 
 static bool dirent_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
@@ -75,7 +75,7 @@ static bool dirent_cmp_bkey(struct bkey_s_c _l, struct bkey_s_c _r)
 	const struct qstr l_name = bch2_dirent_get_name(l);
 	const struct qstr r_name = bch2_dirent_get_name(r);
 
-	return l_name.len - r_name.len ?: memcmp(l_name.name, r_name.name, l_name.len);
+	return !qstr_eq(l_name, r_name);
 }
 
 static bool dirent_is_visible(subvol_inum inum, struct bkey_s_c k)

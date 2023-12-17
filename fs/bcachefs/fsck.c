@@ -20,8 +20,6 @@
 #include <linux/bsearch.h>
 #include <linux/dcache.h> /* struct qstr */
 
-#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
-
 /*
  * XXX: this is handling transaction restarts without returning
  * -BCH_ERR_transaction_restart_nested, this is not how we do things anymore:
