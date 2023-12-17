@@ -1641,13 +1641,6 @@
 					bias-pull-up;
 					drive-strength = <2>;
 				};
-
-				cd-pins {
-					pins = "gpio54";
-					function = "gpio";
-					bias-disable;
-					drive-strength = <2>;
-				};
 			};
 
 			blsp1_uart2_default: blsp1-uart2-default-state {
