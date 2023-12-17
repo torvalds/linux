@@ -3117,7 +3117,6 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 	struct request_queue *q = sdkp->disk->queue;
 	struct scsi_vpd *vpd;
 	u16 rot;
-	u8 zoned;
 
 	rcu_read_lock();
 	vpd = rcu_dereference(sdkp->device->vpd_pgb1);
@@ -3128,7 +3127,7 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 	}
 
 	rot = get_unaligned_be16(&vpd->data[4]);
-	zoned = (vpd->data[8] >> 4) & 3;
+	sdkp->zoned = (vpd->data[8] >> 4) & 3;
 	rcu_read_unlock();
 
 	if (rot == 1) {
@@ -3138,37 +3137,33 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 
 	if (sdkp->device->type == TYPE_ZBC) {
 		/*
-		 * Host-managed: Per ZBC and ZAC specifications, writes in
-		 * sequential write required zones of host-managed devices must
-		 * be aligned to the device physical block size.
+		 * Host-managed.
 		 */
-		disk_set_zoned(sdkp->disk, BLK_ZONED_HM);
+		disk_set_zoned(sdkp->disk, true);
+
+		/*
+		 * Per ZBC and ZAC specifications, writes in sequential write
+		 * required zones of host-managed devices must be aligned to
+		 * the device physical block size.
+		 */
 		blk_queue_zone_write_granularity(q, sdkp->physical_block_size);
 	} else {
-		sdkp->zoned = zoned;
-		if (sdkp->zoned == 1) {
-			/* Host-aware */
-			disk_set_zoned(sdkp->disk, BLK_ZONED_HA);
-		} else {
-			/* Regular disk or drive managed disk */
-			disk_set_zoned(sdkp->disk, BLK_ZONED_NONE);
-		}
+		/*
+		 * Anything else.  This includes host-aware device that we treat
+		 * as conventional.
+		 */
+		disk_set_zoned(sdkp->disk, false);
 	}
 
 	if (!sdkp->first_scan)
 		return;
 
-	if (blk_queue_is_zoned(q)) {
-		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
-		      q->limits.zoned == BLK_ZONED_HM ? "managed" : "aware");
-	} else {
-		if (sdkp->zoned == 1)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Host-aware SMR disk used as regular disk\n");
-		else if (sdkp->zoned == 2)
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Drive-managed SMR disk\n");
-	}
+	if (blk_queue_is_zoned(q))
+		sd_printk(KERN_NOTICE, sdkp, "Host-managed zoned block device\n");
+	else if (sdkp->zoned == 1)
+		sd_printk(KERN_NOTICE, sdkp, "Host-aware SMR disk used as regular disk\n");
+	else if (sdkp->zoned == 2)
+		sd_printk(KERN_NOTICE, sdkp, "Drive-managed SMR disk\n");
 }
 
 /**

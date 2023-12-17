@@ -56,7 +56,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
-	lim->zoned = BLK_ZONED_NONE;
+	lim->zoned = false;
 	lim->zone_write_granularity = 0;
 	lim->dma_alignment = 511;
 }
@@ -880,79 +880,30 @@ bool blk_queue_can_use_dma_map_merging(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_queue_can_use_dma_map_merging);
 
-static bool disk_has_partitions(struct gendisk *disk)
-{
-	unsigned long idx;
-	struct block_device *part;
-	bool ret = false;
-
-	rcu_read_lock();
-	xa_for_each(&disk->part_tbl, idx, part) {
-		if (bdev_is_partition(part)) {
-			ret = true;
-			break;
-		}
-	}
-	rcu_read_unlock();
-
-	return ret;
-}
-
 /**
  * disk_set_zoned - configure the zoned model for a disk
  * @disk:	the gendisk of the queue to configure
- * @model:	the zoned model to set
+ * @zoned:	zoned or not.
  *
- * Set the zoned model of @disk to @model.
- *
- * When @model is BLK_ZONED_HM (host managed), this should be called only
- * if zoned block device support is enabled (CONFIG_BLK_DEV_ZONED option).
- * If @model specifies BLK_ZONED_HA (host aware), the effective model used
- * depends on CONFIG_BLK_DEV_ZONED settings and on the existence of partitions
- * on the disk.
+ * When @zoned is %true, this should be called only if zoned block device
+ * support is enabled (CONFIG_BLK_DEV_ZONED option).
  */
-void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model)
+void disk_set_zoned(struct gendisk *disk, bool zoned)
 {
 	struct request_queue *q = disk->queue;
-	unsigned int old_model = q->limits.zoned;
 
-	switch (model) {
-	case BLK_ZONED_HM:
-		/*
-		 * Host managed devices are supported only if
-		 * CONFIG_BLK_DEV_ZONED is enabled.
-		 */
+	if (zoned) {
 		WARN_ON_ONCE(!IS_ENABLED(CONFIG_BLK_DEV_ZONED));
-		break;
-	case BLK_ZONED_HA:
-		/*
-		 * Host aware devices can be treated either as regular block
-		 * devices (similar to drive managed devices) or as zoned block
-		 * devices to take advantage of the zone command set, similarly
-		 * to host managed devices. We try the latter if there are no
-		 * partitions and zoned block device support is enabled, else
-		 * we do nothing special as far as the block layer is concerned.
-		 */
-		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED) ||
-		    disk_has_partitions(disk))
-			model = BLK_ZONED_NONE;
-		break;
-	case BLK_ZONED_NONE:
-	default:
-		if (WARN_ON_ONCE(model != BLK_ZONED_NONE))
-			model = BLK_ZONED_NONE;
-		break;
-	}
 
-	q->limits.zoned = model;
-	if (model != BLK_ZONED_NONE) {
 		/*
 		 * Set the zone write granularity to the device logical block
 		 * size by default. The driver can change this value if needed.
 		 */
+		q->limits.zoned = true;
 		blk_queue_zone_write_granularity(q,
 						queue_logical_block_size(q));
-	} else if (old_model != BLK_ZONED_NONE) {
+	} else if (q->limits.zoned) {
+		q->limits.zoned = false;
 		disk_clear_zone_settings(disk);
 	}
 }

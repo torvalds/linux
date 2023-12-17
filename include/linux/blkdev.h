@@ -264,18 +264,6 @@ static inline bool blk_op_is_passthrough(blk_opf_t op)
 }
 
 /*
- * Zoned block device models (zoned limit).
- *
- * Note: This needs to be ordered from the least to the most severe
- * restrictions for the inheritance in blk_stack_limits() to work.
- */
-enum blk_zoned_model {
-	BLK_ZONED_NONE = 0,	/* Regular block device */
-	BLK_ZONED_HA,		/* Host-aware zoned block device */
-	BLK_ZONED_HM,		/* Host-managed zoned block device */
-};
-
-/*
  * BLK_BOUNCE_NONE:	never bounce (default)
  * BLK_BOUNCE_HIGH:	bounce all highmem pages
  */
@@ -316,7 +304,7 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		raid_partial_stripes_expensive;
-	enum blk_zoned_model	zoned;
+	bool			zoned;
 
 	/*
 	 * Drivers that set dma_alignment to less than 511 must be prepared to
@@ -329,7 +317,7 @@ struct queue_limits {
 typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
 			       void *data);
 
-void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model);
+void disk_set_zoned(struct gendisk *disk, bool zoned);
 
 #define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
@@ -617,23 +605,9 @@ static inline enum rpm_status queue_rpm_status(struct request_queue *q)
 }
 #endif
 
-static inline enum blk_zoned_model
-blk_queue_zoned_model(struct request_queue *q)
-{
-	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
-		return q->limits.zoned;
-	return BLK_ZONED_NONE;
-}
-
 static inline bool blk_queue_is_zoned(struct request_queue *q)
 {
-	switch (blk_queue_zoned_model(q)) {
-	case BLK_ZONED_HA:
-	case BLK_ZONED_HM:
-		return true;
-	default:
-		return false;
-	}
+	return IS_ENABLED(CONFIG_BLK_DEV_ZONED) && q->limits.zoned;
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -1258,11 +1232,6 @@ static inline bool bdev_fua(struct block_device *bdev)
 static inline bool bdev_nowait(struct block_device *bdev)
 {
 	return test_bit(QUEUE_FLAG_NOWAIT, &bdev_get_queue(bdev)->queue_flags);
-}
-
-static inline enum blk_zoned_model bdev_zoned_model(struct block_device *bdev)
-{
-	return blk_queue_zoned_model(bdev_get_queue(bdev));
 }
 
 static inline bool bdev_is_zoned(struct block_device *bdev)
