@@ -149,6 +149,7 @@
 		read-only;
 		reg = <0x50>;
 		pagesize = <32>;
+		vcc-supply = <&vgen4_reg>;
 		status = "okay";
 	};
 
@@ -156,6 +157,7 @@
 		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x56>;
 		pagesize = <16>;
+		vcc-supply = <&vgen4_reg>;
 		status = "okay";
 	};
 
