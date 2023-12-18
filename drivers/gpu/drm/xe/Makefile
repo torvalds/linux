@@ -146,7 +146,9 @@ xe-y += xe_bb.o \
 xe-$(CONFIG_HWMON) += xe_hwmon.o
 
 # graphics virtualization (SR-IOV) support
-xe-y += xe_sriov.o
+xe-y += \
+	xe_memirq.o \
+	xe_sriov.o
 
 xe-$(CONFIG_PCI_IOV) += \
 	xe_lmtt.o \

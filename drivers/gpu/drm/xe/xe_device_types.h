@@ -16,6 +16,7 @@
 #include "xe_heci_gsc.h"
 #include "xe_gt_types.h"
 #include "xe_lmtt_types.h"
+#include "xe_memirq_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
@@ -192,6 +193,10 @@ struct xe_tile {
 			/** @sriov.pf.lmtt: Local Memory Translation Table. */
 			struct xe_lmtt lmtt;
 		} pf;
+		struct {
+			/** @sriov.vf.memirq: Memory Based Interrupts. */
+			struct xe_memirq memirq;
+		} vf;
 	} sriov;
 
 	/** @migrate: Migration helper for vram blits and clearing */
