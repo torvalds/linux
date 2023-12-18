@@ -2003,6 +2003,29 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 }
 
 /*
+ * When early transport is in use we need to extend SU area to cover
+ * cursor fully when cursor is in SU area.
+ */
+static void
+intel_psr2_sel_fetch_et_alignment(struct intel_crtc_state *crtc_state,
+				  struct intel_plane_state *cursor_state,
+				  struct drm_rect *pipe_clip)
+{
+	struct drm_rect inter;
+
+	if (!crtc_state->enable_psr2_su_region_et ||
+	    !cursor_state->uapi.visible)
+		return;
+
+	inter = *pipe_clip;
+	if (!drm_rect_intersect(&inter, &cursor_state->uapi.dst))
+		return;
+
+	clip_area_update(pipe_clip, &cursor_state->uapi.dst,
+			 &crtc_state->pipe_src);
+}
+
+/*
  * TODO: Not clear how to handle planes with negative position,
  * also planes are not updated if they have a negative X
  * position so for now doing a full update in this cases
@@ -2043,7 +2066,8 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_rect pipe_clip = { .x1 = 0, .y1 = -1, .x2 = INT_MAX, .y2 = -1 };
-	struct intel_plane_state *new_plane_state, *old_plane_state;
+	struct intel_plane_state *new_plane_state, *old_plane_state,
+		*cursor_plane_state = NULL;
 	struct intel_plane *plane;
 	bool full_update = false;
 	int i, ret;
@@ -2123,6 +2147,13 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		damaged_area.x2 += new_plane_state->uapi.dst.x1 - src.x1;
 
 		clip_area_update(&pipe_clip, &damaged_area, &crtc_state->pipe_src);
+
+		/*
+		 * Cursor plane new state is stored to adjust su area to cover
+		 * cursor are fully.
+		 */
+		if (plane->id == PLANE_CURSOR)
+			cursor_plane_state = new_plane_state;
 	}
 
 	/*
@@ -2150,6 +2181,11 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
 	if (ret)
 		return ret;
+
+	/* Adjust su area to cover cursor fully as necessary */
+	if (cursor_plane_state)
+		intel_psr2_sel_fetch_et_alignment(crtc_state, cursor_plane_state,
+						  &pipe_clip);
 
 	intel_psr2_sel_fetch_pipe_alignment(crtc_state, &pipe_clip);
 
