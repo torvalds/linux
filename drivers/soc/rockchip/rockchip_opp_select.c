@@ -1004,15 +1004,15 @@ void rockchip_pvtpll_add_length(struct rockchip_opp_info *info)
 	}
 
 	if (of_property_read_u32(np, "rockchip,pvtpll-len-min-rate", &min_rate))
-		return;
+		goto out;
 	if (of_property_read_u32(np, "rockchip,pvtpll-len-max-rate", &max_rate))
-		return;
+		goto out;
 	if (of_property_read_u32(np, "rockchip,pvtpll-len-margin", &margin))
-		return;
+		goto out;
 
 	opp_table = dev_pm_opp_get_opp_table(info->dev);
 	if (!opp_table)
-		return;
+		goto out;
 	old_rate = clk_get_rate(opp_table->clk);
 	opp_flag = OPP_ADD_LENGTH | ((margin & OPP_LENGTH_MASK) << OPP_LENGTH_SHIFT);
 
@@ -1033,6 +1033,8 @@ void rockchip_pvtpll_add_length(struct rockchip_opp_info *info)
 	clk_set_rate(opp_table->clk, old_rate);
 
 	dev_pm_opp_put_opp_table(opp_table);
+out:
+	of_node_put(np);
 }
 EXPORT_SYMBOL(rockchip_pvtpll_add_length);
 
@@ -1868,6 +1870,7 @@ static int rockchip_get_opp_clk(struct device *dev, struct device_node *np,
 				goto error;
 			}
 			clks[i].clk = of_clk_get_from_provider(&clkspec);
+			of_node_put(clkspec.np);
 			if (IS_ERR(clks[i].clk)) {
 				ret = PTR_ERR(clks[i].clk);
 				clks[i].clk = NULL;
