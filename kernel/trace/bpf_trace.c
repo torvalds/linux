@@ -3391,15 +3391,19 @@ int bpf_uprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		goto error_free;
 
 	for (i = 0; i < cnt; i++) {
-		if (ucookies && __get_user(uprobes[i].cookie, ucookies + i)) {
+		if (__get_user(uprobes[i].offset, uoffsets + i)) {
 			err = -EFAULT;
+			goto error_free;
+		}
+		if (uprobes[i].offset < 0) {
+			err = -EINVAL;
 			goto error_free;
 		}
 		if (uref_ctr_offsets && __get_user(uprobes[i].ref_ctr_offset, uref_ctr_offsets + i)) {
 			err = -EFAULT;
 			goto error_free;
 		}
-		if (__get_user(uprobes[i].offset, uoffsets + i)) {
+		if (ucookies && __get_user(uprobes[i].cookie, ucookies + i)) {
 			err = -EFAULT;
 			goto error_free;
 		}
