@@ -7922,7 +7922,8 @@ static void _get_gnt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_coex_gnt *gnt
 	struct rtw89_mac_ax_gnt *gnt;
 	u32 val, status;
 
-	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B) {
+	if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
+	    chip->chip_id == RTL8851B) {
 		rtw89_mac_read_lte(rtwdev, R_AX_LTE_SW_CFG_1, &val);
 		rtw89_mac_read_lte(rtwdev, R_AX_GNT_VAL, &status);
 
@@ -7984,27 +7985,25 @@ static void _show_mreg_v1(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
 		   cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
 
-	/* To avoid I/O if WL LPS or power-off  */
-	if (!wl->status.map.lps && !wl->status.map.rf_off) {
-		btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
+	btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
+	_get_gnt(rtwdev, &gnt_cfg);
 
-		_get_gnt(rtwdev, &gnt_cfg);
-		gnt = gnt_cfg.band[0];
-		seq_printf(m,
-			   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
-			   "[gnt_status]",
-			   chip->chip_id == RTL8852C ? "HW" :
-			   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
-			   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
-			   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
+	gnt = gnt_cfg.band[0];
+	seq_printf(m,
+		   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
+		   "[gnt_status]",
+		   chip->chip_id == RTL8852C ? "HW" :
+		   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
+		   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
+		   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
 
-		gnt = gnt_cfg.band[1];
-		seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
-			   gnt.gnt_wl_sw_en ? "SW" : "HW",
-			   gnt.gnt_wl,
-			   gnt.gnt_bt_sw_en ? "SW" : "HW",
-			   gnt.gnt_bt);
-	}
+	gnt = gnt_cfg.band[1];
+	seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
+		   gnt.gnt_wl_sw_en ? "SW" : "HW",
+		   gnt.gnt_wl,
+		   gnt.gnt_bt_sw_en ? "SW" : "HW",
+		   gnt.gnt_bt);
+
 	pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
 	if (!pcinfo->valid) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -8088,27 +8087,25 @@ static void _show_mreg_v2(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   bt->scbd, cx->cnt_bt[BTC_BCNT_SCBDREAD],
 		   cx->cnt_bt[BTC_BCNT_SCBDUPDATE]);
 
-	/* To avoid I/O if WL LPS or power-off  */
-	if (!wl->status.map.lps && !wl->status.map.rf_off) {
-		btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
+	btc->dm.pta_owner = rtw89_mac_get_ctrl_path(rtwdev);
+	_get_gnt(rtwdev, &gnt_cfg);
 
-		_get_gnt(rtwdev, &gnt_cfg);
-		gnt = gnt_cfg.band[0];
-		seq_printf(m,
-			   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
-			   "[gnt_status]",
-			   chip->chip_id == RTL8852C ? "HW" :
-			   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
-			   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
-			   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
+	gnt = gnt_cfg.band[0];
+	seq_printf(m,
+		   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
+		   "[gnt_status]",
+		   chip->chip_id == RTL8852C ? "HW" :
+		   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
+		   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
+		   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
 
-		gnt = gnt_cfg.band[1];
-		seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
-			   gnt.gnt_wl_sw_en ? "SW" : "HW",
-			   gnt.gnt_wl,
-			   gnt.gnt_bt_sw_en ? "SW" : "HW",
-			   gnt.gnt_bt);
-	}
+	gnt = gnt_cfg.band[1];
+	seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
+		   gnt.gnt_wl_sw_en ? "SW" : "HW",
+		   gnt.gnt_wl,
+		   gnt.gnt_bt_sw_en ? "SW" : "HW",
+		   gnt.gnt_bt);
+
 	pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
 	if (!pcinfo->valid) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,

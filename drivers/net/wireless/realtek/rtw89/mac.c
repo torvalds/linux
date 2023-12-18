@@ -5507,7 +5507,8 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 
 	if (chip->chip_id == RTL8852C)
 		return false;
-	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B)
+	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
+		 chip->chip_id == RTL8851B)
 		val = rtw89_read8_mask(rtwdev, R_AX_SYS_SDIO_CTRL + 3,
 				       B_AX_LTE_MUX_CTRL_PATH >> 24);
 
