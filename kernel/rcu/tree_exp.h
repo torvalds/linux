@@ -198,10 +198,9 @@ static void __rcu_report_exp_rnp(struct rcu_node *rnp,
 		}
 		if (rnp->parent == NULL) {
 			raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
-			if (wake) {
-				smp_mb(); /* EGP done before wake_up(). */
+			if (wake)
 				swake_up_one_online(&rcu_state.expedited_wq);
-			}
+
 			break;
 		}
 		mask = rnp->grpmask;
