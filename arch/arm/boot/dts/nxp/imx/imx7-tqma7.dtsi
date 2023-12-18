@@ -146,6 +146,7 @@
 	/* ST M24C64 */
 	m24c64: eeprom@50 {
 		compatible = "atmel,24c64";
+		read-only;
 		reg = <0x50>;
 		pagesize = <32>;
 		status = "okay";
