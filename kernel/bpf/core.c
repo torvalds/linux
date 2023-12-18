@@ -64,8 +64,8 @@
 #define OFF	insn->off
 #define IMM	insn->imm
 
-struct bpf_mem_alloc bpf_global_ma, bpf_global_percpu_ma;
-bool bpf_global_ma_set, bpf_global_percpu_ma_set;
+struct bpf_mem_alloc bpf_global_ma;
+bool bpf_global_ma_set;
 
 /* No hurry in this branch
  *
@@ -2934,9 +2934,7 @@ static int __init bpf_global_ma_init(void)
 
 	ret = bpf_mem_alloc_init(&bpf_global_ma, 0, false);
 	bpf_global_ma_set = !ret;
-	ret = bpf_mem_alloc_init(&bpf_global_percpu_ma, 0, true);
-	bpf_global_percpu_ma_set = !ret;
-	return !bpf_global_ma_set || !bpf_global_percpu_ma_set;
+	return ret;
 }
 late_initcall(bpf_global_ma_init);
 #endif

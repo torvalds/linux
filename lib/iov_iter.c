@@ -409,7 +409,7 @@ size_t copy_page_to_iter_nofault(struct page *page, unsigned offset, size_t byte
 		void *kaddr = kmap_local_page(page);
 		size_t n = min(bytes, (size_t)PAGE_SIZE - offset);
 
-		n = iterate_and_advance(i, bytes, kaddr,
+		n = iterate_and_advance(i, n, kaddr + offset,
 					copy_to_user_iter_nofault,
 					memcpy_to_iter);
 		kunmap_local(kaddr);

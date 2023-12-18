@@ -1161,6 +1161,14 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_connector->port = port;
 	drm_dp_mst_get_port_malloc(port);
 
+	/*
+	 * TODO: set the AUX for the actual MST port decompressing the stream.
+	 * At the moment the driver only supports enabling this globally in the
+	 * first downstream MST branch, via intel_dp's (root port) AUX.
+	 */
+	intel_connector->dp.dsc_decompression_aux = &intel_dp->aux;
+	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
+
 	connector = &intel_connector->base;
 	ret = drm_connector_init(dev, connector, &intel_dp_mst_connector_funcs,
 				 DRM_MODE_CONNECTOR_DisplayPort);
@@ -1171,14 +1179,6 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	}
 
 	drm_connector_helper_add(connector, &intel_dp_mst_connector_helper_funcs);
-
-	/*
-	 * TODO: set the AUX for the actual MST port decompressing the stream.
-	 * At the moment the driver only supports enabling this globally in the
-	 * first downstream MST branch, via intel_dp's (root port) AUX.
-	 */
-	intel_connector->dp.dsc_decompression_aux = &intel_dp->aux;
-	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
 
 	for_each_pipe(dev_priv, pipe) {
 		struct drm_encoder *enc =

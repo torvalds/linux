@@ -76,14 +76,6 @@ struct journal_res {
 	u64			seq;
 };
 
-/*
- * For reserving space in the journal prior to getting a reservation on a
- * particular journal entry:
- */
-struct journal_preres {
-	unsigned		u64s;
-};
-
 union journal_res_state {
 	struct {
 		atomic64_t	counter;
@@ -101,22 +93,6 @@ union journal_res_state {
 				buf1_count:10,
 				buf2_count:10,
 				buf3_count:10;
-	};
-};
-
-union journal_preres_state {
-	struct {
-		atomic64_t	counter;
-	};
-
-	struct {
-		u64		v;
-	};
-
-	struct {
-		u64		waiting:1,
-				reserved:31,
-				remaining:32;
 	};
 };
 
@@ -179,8 +155,6 @@ struct journal {
 
 	union journal_res_state reservations;
 	enum bch_watermark	watermark;
-
-	union journal_preres_state prereserved;
 
 	} __aligned(SMP_CACHE_BYTES);
 
