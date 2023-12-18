@@ -741,9 +741,8 @@ static int xdma_alloc_chan_resources(struct dma_chan *chan)
 		return -EINVAL;
 	}
 
-	xdma_chan->desc_pool = dma_pool_create(dma_chan_name(chan),
-					       dev, XDMA_DESC_BLOCK_SIZE,
-					       XDMA_DESC_BLOCK_ALIGN, 0);
+	xdma_chan->desc_pool = dma_pool_create(dma_chan_name(chan), dev, XDMA_DESC_BLOCK_SIZE,
+					       XDMA_DESC_BLOCK_ALIGN, XDMA_DESC_BLOCK_BOUNDARY);
 	if (!xdma_chan->desc_pool) {
 		xdma_err(xdev, "unable to allocate descriptor pool");
 		return -ENOMEM;
