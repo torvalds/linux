@@ -24,22 +24,6 @@
 #include "xfs_quota.h"
 
 /*
- * Read and return the summary information for a given extent size,
- * bitmap block combination.
- * Keeps track of a current summary block, so we don't keep reading
- * it from the buffer cache.
- */
-static int
-xfs_rtget_summary(
-	struct xfs_rtalloc_args	*args,
-	int			log,	/* log2 of extent size */
-	xfs_fileoff_t		bbno,	/* bitmap block number */
-	xfs_suminfo_t		*sum)	/* out: summary info for this block */
-{
-	return xfs_rtmodify_summary_int(args, log, bbno, 0, sum);
-}
-
-/*
  * Return whether there are any free extents in the size range given
  * by low and high, for the bitmap block bbno.
  */
