@@ -350,32 +350,24 @@ xfs_rtallocate_extent_exact(
 	if (error)
 		return error;
 
-	if (isfree) {
+	if (!isfree) {
 		/*
-		 * If it is, allocate it and return success.
+		 * If not, allocate what there is, if it's at least minlen.
 		 */
-		error = xfs_rtallocate_range(args, start, maxlen);
-		if (error)
-			return error;
-		*len = maxlen;
-		*rtx = start;
-		return 0;
-	}
-	/*
-	 * If not, allocate what there is, if it's at least minlen.
-	 */
-	maxlen = next - start;
-	if (maxlen < minlen)
-		return -ENOSPC;
-
-	/*
-	 * Trim off tail of extent, if prod is specified.
-	 */
-	if (prod > 1 && (i = maxlen % prod)) {
-		maxlen -= i;
+		maxlen = next - start;
 		if (maxlen < minlen)
 			return -ENOSPC;
+
+		/*
+		 * Trim off tail of extent, if prod is specified.
+		 */
+		if (prod > 1 && (i = maxlen % prod)) {
+			maxlen -= i;
+			if (maxlen < minlen)
+				return -ENOSPC;
+		}
 	}
+
 	/*
 	 * Allocate what we can and return it.
 	 */
