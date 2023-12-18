@@ -152,7 +152,7 @@
 	};
 
 	at24c02: eeprom@56 {
-		compatible = "atmel,24c02";
+		compatible = "nxp,se97b", "atmel,24c02";
 		reg = <0x56>;
 		pagesize = <16>;
 		status = "okay";
