@@ -1094,21 +1094,6 @@ xfs_rtallocate_extent(
 	ASSERT(xfs_isilocked(args.mp->m_rbmip, XFS_ILOCK_EXCL));
 	ASSERT(minlen > 0 && minlen <= maxlen);
 
-	/*
-	 * If prod is set then figure out what to do to minlen and maxlen.
-	 */
-	if (prod > 1) {
-		xfs_rtxlen_t	i;
-
-		if ((i = maxlen % prod))
-			maxlen -= i;
-		if ((i = minlen % prod))
-			minlen += prod - i;
-		if (maxlen < minlen)
-			return -ENOSPC;
-	}
-
-retry:
 	if (start == 0) {
 		error = xfs_rtallocate_extent_size(&args, minlen,
 				maxlen, len, prod, rtx);
@@ -1117,13 +1102,8 @@ retry:
 				maxlen, len, prod, rtx);
 	}
 	xfs_rtbuf_cache_relse(&args);
-	if (error) {
-		if (error == -ENOSPC && prod > 1) {
-			prod = 1;
-			goto retry;
-		}
+	if (error)
 		return error;
-	}
 
 	/*
 	 * If it worked, update the superblock.
@@ -1354,6 +1334,35 @@ xfs_rtpick_extent(
 	return 0;
 }
 
+static void
+xfs_rtalloc_align_minmax(
+	xfs_rtxlen_t		*raminlen,
+	xfs_rtxlen_t		*ramaxlen,
+	xfs_rtxlen_t		*prod)
+{
+	xfs_rtxlen_t		newmaxlen = *ramaxlen;
+	xfs_rtxlen_t		newminlen = *raminlen;
+	xfs_rtxlen_t		slack;
+
+	slack = newmaxlen % *prod;
+	if (slack)
+		newmaxlen -= slack;
+	slack = newminlen % *prod;
+	if (slack)
+		newminlen += *prod - slack;
+
+	/*
+	 * If adjusting for extent size hint alignment produces an invalid
+	 * min/max len combination, go ahead without it.
+	 */
+	if (newmaxlen < newminlen) {
+		*prod = 1;
+		return;
+	}
+	*ramaxlen = newmaxlen;
+	*raminlen = newminlen;
+}
+
 int
 xfs_bmap_rtalloc(
 	struct xfs_bmalloca	*ap)
@@ -1436,10 +1445,13 @@ retry:
 	 * perfectly aligned, otherwise it will just get us in trouble.
 	 */
 	div_u64_rem(ap->offset, align, &mod);
-	if (mod || ap->length % align)
+	if (mod || ap->length % align) {
 		prod = 1;
-	else
+	} else {
 		prod = xfs_extlen_to_rtxlen(mp, align);
+		if (prod > 1)
+			xfs_rtalloc_align_minmax(&raminlen, &ralen, &prod);
+	}
 
 	error = xfs_rtallocate_extent(ap->tp, start, raminlen, ralen, &ralen,
 			ap->wasdel, prod, &rtx);
