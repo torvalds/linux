@@ -123,7 +123,8 @@ static const u32 cxtbl[] = {
 	0xea55556a, /* 21 */
 	0xaafafafa, /* 22 */
 	0xfafaaafa, /* 23 */
-	0xfafffaff  /* 24 */
+	0xfafffaff, /* 24 */
+	0xea6a5a5a, /* 25 */
 };
 
 static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
@@ -413,11 +414,14 @@ enum btc_cx_poicy_type {
 	/* TDMA Fix slot-8: W1:B1 = user-define */
 	BTC_CXP_FIX_TDW1B1 = (BTC_CXP_FIX << 8) | 8,
 
-	/* TDMA Fix slot-9: W1:B1 = 40:20 */
-	BTC_CXP_FIX_TD4020 = (BTC_CXP_FIX << 8) | 9,
-
 	/* TDMA Fix slot-9: W1:B1 = 40:10 */
-	BTC_CXP_FIX_TD4010ISO = (BTC_CXP_FIX << 8) | 10,
+	BTC_CXP_FIX_TD4010ISO = (BTC_CXP_FIX << 8) | 9,
+
+	/* TDMA Fix slot-10: W1:B1 = 40:10 */
+	BTC_CXP_FIX_TD4010ISO_DL = (BTC_CXP_FIX << 8) | 10,
+
+	/* TDMA Fix slot-11: W1:B1 = 40:10 */
+	BTC_CXP_FIX_TD4010ISO_UL = (BTC_CXP_FIX << 8) | 11,
 
 	/* PS-TDMA Fix slot-0: W1:B1 = 30:30 */
 	BTC_CXP_PFIX_TD3030 = (BTC_CXP_PFIX << 8) | 0,
@@ -2815,9 +2819,17 @@ void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type)
 			_slot_set(btc, CXST_W1, 40, tbl_w1, SLOT_ISO);
 			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
 			break;
-		case BTC_CXP_FIX_TD4020:
-			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_MIX);
-			_slot_set(btc, CXST_B1, 20, tbl_b1, SLOT_MIX);
+		case BTC_CXP_FIX_TD4010ISO:
+			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD4010ISO_DL:
+			_slot_set(btc, CXST_W1, 40, cxtbl[25], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, cxtbl[25], SLOT_ISO);
+			break;
+		case BTC_CXP_FIX_TD4010ISO_UL:
+			_slot_set(btc, CXST_W1, 40, cxtbl[20], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, cxtbl[25], SLOT_MIX);
 			break;
 		case BTC_CXP_FIX_TD7010:
 			_slot_set(btc, CXST_W1, 70, tbl_w1, SLOT_ISO);
@@ -3156,9 +3168,13 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_ISO);
 			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
 			break;
-		case BTC_CXP_FIX_TD4020:
-			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_MIX);
-			_slot_set(btc, CXST_B1, 20, tbl_b1, SLOT_MIX);
+		case BTC_CXP_FIX_TD4010ISO_DL:
+			_slot_set(btc, CXST_W1, 40, cxtbl[25], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, cxtbl[25], SLOT_ISO);
+			break;
+		case BTC_CXP_FIX_TD4010ISO_UL:
+			_slot_set(btc, CXST_W1, 40, cxtbl[20], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, cxtbl[25], SLOT_MIX);
 			break;
 		case BTC_CXP_FIX_TD7010:
 			_slot_set(btc, CXST_W1, 70, tbl_w1, SLOT_ISO);
@@ -3595,30 +3611,24 @@ static void _action_bt_idle(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_bt_link_info *b = &btc->cx.bt.link_info;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
 	if (btc->mdinfo.ant.type == BTC_ANT_SHARED) { /* shared-antenna */
 		switch (btc->cx.state_map) {
 		case BTC_WBUSY_BNOSCAN: /*wl-busy + bt idle*/
-			if (b->profile_cnt.now > 0)
-				_set_policy(rtwdev, BTC_CXP_FIX_TD4010,
-					    BTC_ACT_BT_IDLE);
+		case BTC_WSCAN_BNOSCAN: /* wl-scan + bt-idle */
+			if (b->status.map.connect)
+				_set_policy(rtwdev, BTC_CXP_FIX_TD4010, BTC_ACT_BT_IDLE);
+			else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_DL))
+				_set_policy(rtwdev, BTC_CXP_FIX_TD4010ISO_DL, BTC_ACT_BT_IDLE);
 			else
-				_set_policy(rtwdev, BTC_CXP_FIX_TD4020,
-					    BTC_ACT_BT_IDLE);
+				_set_policy(rtwdev, BTC_CXP_FIX_TD4010ISO_UL, BTC_ACT_BT_IDLE);
 			break;
 		case BTC_WBUSY_BSCAN: /*wl-busy + bt-inq */
 			_set_policy(rtwdev, BTC_CXP_PFIX_TD5050,
 				    BTC_ACT_BT_IDLE);
-			break;
-		case BTC_WSCAN_BNOSCAN: /* wl-scan + bt-idle */
-			if (b->profile_cnt.now > 0)
-				_set_policy(rtwdev, BTC_CXP_FIX_TD4010,
-					    BTC_ACT_BT_IDLE);
-			else
-				_set_policy(rtwdev, BTC_CXP_FIX_TD4020,
-					    BTC_ACT_BT_IDLE);
 			break;
 		case BTC_WSCAN_BSCAN: /* wl-scan + bt-inq */
 			_set_policy(rtwdev, BTC_CXP_FIX_TD5050,
@@ -3786,7 +3796,7 @@ static void _action_bt_pan(struct rtw89_dev *rtwdev)
 		_set_policy(rtwdev, BTC_CXP_FIX_TD3060, BTC_ACT_BT_PAN);
 		break;
 	case BTC_WLINKING: /* wl-connecting + bt-PAN */
-		_set_policy(rtwdev, BTC_CXP_FIX_TD4020, BTC_ACT_BT_PAN);
+		_set_policy(rtwdev, BTC_CXP_FIX_TD4010ISO, BTC_ACT_BT_PAN);
 		break;
 	case BTC_WIDLE: /* wl-idle + bt-pan */
 		_set_policy(rtwdev, BTC_CXP_PFIX_TD2080, BTC_ACT_BT_PAN);
@@ -6945,8 +6955,9 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_POLICY_STR(FIX_TD3060);
 	CASE_BTC_POLICY_STR(FIX_TD2080);
 	CASE_BTC_POLICY_STR(FIX_TDW1B1);
-	CASE_BTC_POLICY_STR(FIX_TD4020);
 	CASE_BTC_POLICY_STR(FIX_TD4010ISO);
+	CASE_BTC_POLICY_STR(FIX_TD4010ISO_DL);
+	CASE_BTC_POLICY_STR(FIX_TD4010ISO_UL);
 	CASE_BTC_POLICY_STR(PFIX_TD3030);
 	CASE_BTC_POLICY_STR(PFIX_TD5050);
 	CASE_BTC_POLICY_STR(PFIX_TD2030);
