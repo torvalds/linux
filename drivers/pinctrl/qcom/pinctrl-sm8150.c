@@ -532,6 +532,7 @@ enum sm8150_functions {
 	msm_mux_ddr_pxi2,
 	msm_mux_ddr_pxi3,
 	msm_mux_edp_hot,
+	msm_mux_egpio,
 	msm_mux_edp_lcd,
 	msm_mux_emac_phy,
 	msm_mux_emac_pps,
@@ -1013,6 +1014,10 @@ static const char * const gpio_groups[] = {
 	"gpio171", "gpio172", "gpio173", "gpio174",
 };
 
+static const char * const egpio_groups[] = {
+	"gpio169", "gpio172", "gpio173", "gpio174",
+};
+
 static const char * const qup6_groups[] = {
 	"gpio4", "gpio5", "gpio6", "gpio7",
 };
@@ -1267,6 +1272,7 @@ static const struct msm_function sm8150_functions[] = {
 	FUNCTION(qspi_clk),
 	FUNCTION(qspi_cs),
 	FUNCTION(qua_mi2s),
+	FUNCTION(egpio),
 	FUNCTION(qup0),
 	FUNCTION(qup1),
 	FUNCTION(qup2),
@@ -1495,12 +1501,12 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[166] = PINGROUP(166, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
 	[167] = PINGROUP(167, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
 	[168] = PINGROUP(168, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
-	[169] = PINGROUP(169, NORTH, _, _, _, _, _, _, _, _, _),
+	[169] = PINGROUP(169, NORTH, _, _, _, _, _, _, _, _, egpio),
 	[170] = PINGROUP(170, NORTH, _, _, _, _, _, _, _, _, _),
 	[171] = PINGROUP(171, NORTH, _, _, _, _, _, _, _, _, _),
-	[172] = PINGROUP(172, NORTH, _, _, _, _, _, _, _, _, _),
-	[173] = PINGROUP(173, NORTH, _, _, _, _, _, _, _, _, _),
-	[174] = PINGROUP(174, NORTH, _, _, _, _, _, _, _, _, _),
+	[172] = PINGROUP(172, NORTH, _, _, _, _, _, _, _, _, egpio),
+	[173] = PINGROUP(173, NORTH, _, _, _, _, _, _, _, _, egpio),
+	[174] = PINGROUP(174, NORTH, _, _, _, _, _, _, _, _, egpio),
 	[175] = UFS_RESET(ufs_reset, 0xB6000),
 	[176] = SDC_QDSD_PINGROUP(sdc2_clk, 0xB2000, 14, 6),
 	[177] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xB2000, 11, 3),

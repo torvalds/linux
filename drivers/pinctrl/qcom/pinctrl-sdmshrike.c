@@ -688,6 +688,7 @@ enum sdmshrike_functions {
 	msm_mux_cci_timer8,
 	msm_mux_cci_timer9,
 	msm_mux_dp_hot,
+	msm_mux_egpio,
 	msm_mux_qup0,
 	msm_mux_gpio,
 	msm_mux_cci_i2c,
@@ -1340,6 +1341,9 @@ static const char * const gpio_groups[] = {
 	"gpio181", "gpio182", "gpio183", "gpio184", "gpio185", "gpio186",
 	"gpio186", "gpio187", "gpio187", "gpio188", "gpio188", "gpio189",
 };
+static const char * const egpio_groups[] = {
+	"gpio169", "gpio172", "gpio173", "gpio174",
+};
 static const char * const cci_i2c_groups[] = {
 	"gpio0", "gpio1", "gpio2", "gpio3", "gpio17", "gpio18", "gpio19",
 	"gpio20", "gpio31", "gpio32", "gpio33", "gpio34", "gpio39", "gpio40",
@@ -1812,6 +1816,7 @@ static const struct msm_function sdmshrike_functions[] = {
 	FUNCTION(cci_timer8),
 	FUNCTION(cci_timer9),
 	FUNCTION(dp_hot),
+	FUNCTION(egpio),
 	FUNCTION(qup0),
 	FUNCTION(gpio),
 	FUNCTION(cci_i2c),
@@ -2205,12 +2210,12 @@ static const struct msm_pingroup sdmshrike_groups[] = {
 			 NA, NA),
 	[168] = PINGROUP(168, WEST, hs3_mi2s, NA, phase_flag25, NA, NA, NA, NA,
 			 NA, NA),
-	[169] = PINGROUP(169, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	[169] = PINGROUP(169, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
 	[170] = PINGROUP(170, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	[171] = PINGROUP(171, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	[172] = PINGROUP(172, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	[173] = PINGROUP(173, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	[174] = PINGROUP(174, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	[172] = PINGROUP(172, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
+	[173] = PINGROUP(173, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
+	[174] = PINGROUP(174, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
 	[175] = PINGROUP(175, SOUTH, pci_e2, NA, NA, NA, NA, NA, NA, NA, NA),
 	[176] = PINGROUP(176, SOUTH, pci_e2, cci_async, NA, NA, NA, NA, NA, NA,
 			 NA),

@@ -56,6 +56,8 @@
 			base + SOUTH_PDC_OFFSET),       \
 		.pull_bit = 0,			\
 		.drv_bit = 6,			\
+		.egpio_enable = 12,		\
+		.egpio_present = 11,		\
 		.oe_bit = 9,			\
 		.in_bit = 0,			\
 		.out_bit = 1,			\
@@ -547,6 +549,7 @@ enum sm6150_functions {
 	msm_mux_emac_gcc0,
 	msm_mux_rgmii_rxc,
 	msm_mux_dp_hot,
+	msm_mux_egpio,
 	msm_mux_emac_gcc1,
 	msm_mux_rgmii_rxd3,
 	msm_mux_debug_hot,
@@ -600,6 +603,9 @@ static const char * const gpio_groups[] = {
 	"gpio105", "gpio106", "gpio107", "gpio108", "gpio109", "gpio110",
 	"gpio111", "gpio112", "gpio113", "gpio114", "gpio115", "gpio116",
 	"gpio117", "gpio118", "gpio119", "gpio120", "gpio121", "gpio122",
+};
+static const char * const egpio_groups[] = {
+	"gpio85", "gpio98",
 };
 static const char * const qdss_gpio6_groups[] = {
 	"gpio0", "gpio30",
@@ -1316,6 +1322,7 @@ static const struct msm_function sm6150_functions[] = {
 	FUNCTION(emac_gcc0),
 	FUNCTION(rgmii_rxc),
 	FUNCTION(dp_hot),
+	FUNCTION(egpio),
 	FUNCTION(emac_gcc1),
 	FUNCTION(rgmii_rxd3),
 	FUNCTION(debug_hot),
@@ -1496,7 +1503,7 @@ static const struct msm_pingroup sm6150_groups[] = {
 			NA, NA, NA),
 	[84] = PINGROUP(84, SOUTH, NA, phase_flag12, NA, NA, NA, NA, NA, NA,
 			NA),
-	[85] = PINGROUP(85, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	[85] = PINGROUP(85, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
 	[86] = PINGROUP(86, SOUTH, copy_gp, NA, NA, NA, NA, NA, NA, NA, NA),
 	[87] = PINGROUP(87, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	[88] = PINGROUP(88, WEST, NA, usb0_hs_ac, NA, NA, NA, NA, NA, NA, NA),
@@ -1520,7 +1527,7 @@ static const struct msm_pingroup sm6150_groups[] = {
 	[97] = PINGROUP(97, WEST, rgmii_tx, mdp_vsync, ldo_en, qdss_cti, NA,
 			NA, NA, NA, NA),
 	[98] = PINGROUP(98, WEST, mdp_vsync, ldo_update, qdss_cti, NA, NA, NA,
-			NA, NA, NA),
+			NA, NA, egpio),
 	[99] = PINGROUP(99, EAST, prng_rosc, NA, NA, NA, NA, NA, NA, NA, NA),
 	[100] = PINGROUP(100, WEST, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	[101] = PINGROUP(101, WEST, emac_gcc0, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -1584,6 +1591,7 @@ static struct msm_pinctrl_soc_data sm6150_pinctrl = {
 	.ngroups = ARRAY_SIZE(sm6150_groups),
 	.ngpios = 124,
 	.dir_conn = sm6150_dir_conn,
+	.egpio_func = 9,
 };
 
 static int sm6150_pinctrl_dirconn_list_probe(struct platform_device *pdev)
