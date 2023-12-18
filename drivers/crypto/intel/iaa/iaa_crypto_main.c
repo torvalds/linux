@@ -484,7 +484,7 @@ static int decompress_header(struct iaa_device_compression_mode *device_mode,
 
 	desc->decompr_flags = mode->gen_decomp_table_flags;
 
-	desc->priv = 1;
+	desc->priv = 0;
 
 	desc->completion_addr = idxd_desc->compl_dma;
 
@@ -1255,7 +1255,7 @@ static int iaa_compress(struct crypto_tfm *tfm,	struct acomp_req *req,
 		IDXD_OP_FLAG_RD_SRC2_AECS | IDXD_OP_FLAG_CC;
 	desc->opcode = IAX_OPCODE_COMPRESS;
 	desc->compr_flags = IAA_COMP_FLAGS;
-	desc->priv = 1;
+	desc->priv = 0;
 
 	desc->src1_addr = (u64)src_addr;
 	desc->src1_size = slen;
@@ -1409,7 +1409,7 @@ static int iaa_compress_verify(struct crypto_tfm *tfm, struct acomp_req *req,
 	desc->flags = IDXD_OP_FLAG_CRAV | IDXD_OP_FLAG_RCR | IDXD_OP_FLAG_CC;
 	desc->opcode = IAX_OPCODE_DECOMPRESS;
 	desc->decompr_flags = IAA_DECOMP_FLAGS | IAA_DECOMP_SUPPRESS_OUTPUT;
-	desc->priv = 1;
+	desc->priv = 0;
 
 	desc->src1_addr = (u64)dst_addr;
 	desc->src1_size = *dlen;
@@ -1495,7 +1495,7 @@ static int iaa_decompress(struct crypto_tfm *tfm, struct acomp_req *req,
 	desc->opcode = IAX_OPCODE_DECOMPRESS;
 	desc->max_dst_size = PAGE_SIZE;
 	desc->decompr_flags = IAA_DECOMP_FLAGS;
-	desc->priv = 1;
+	desc->priv = 0;
 
 	desc->src1_addr = (u64)src_addr;
 	desc->dst_addr = (u64)dst_addr;
