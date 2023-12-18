@@ -1144,7 +1144,7 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 			  u32 bits, u64 *value,
 			  void *handler_context, void *region_context)
 {
-	int result = 0, i = 0;
+	int result = 0;
 	u8 temp = 0;
 
 	if ((address > 0xFF) || !value)
@@ -1158,9 +1158,9 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 
 	if (function == ACPI_READ) {
 		result = ec_read(address, &temp);
-		(*value) |= ((u64)temp) << i;
+		*value = temp;
 	} else {
-		temp = 0xff & ((*value) >> i);
+		temp = 0xff & *value;
 		result = ec_write(address, temp);
 	}
 
