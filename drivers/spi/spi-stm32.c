@@ -1157,15 +1157,19 @@ static void stm32_spi_dma_rx_cb(void *data)
  * stm32_spi_dma_config - configure dma slave channel depending on current
  *			  transfer bits_per_word.
  * @spi: pointer to the spi controller data structure
+ * @dma_chan: pointer to the DMA channel
  * @dma_conf: pointer to the dma_slave_config structure
  * @dir: direction of the dma transfer
  */
 static void stm32_spi_dma_config(struct stm32_spi *spi,
+				 struct dma_chan *dma_chan,
 				 struct dma_slave_config *dma_conf,
 				 enum dma_transfer_direction dir)
 {
 	enum dma_slave_buswidth buswidth;
+	struct dma_slave_caps caps;
 	u32 maxburst;
+	int ret;
 
 	if (spi->cur_bpw <= 8)
 		buswidth = DMA_SLAVE_BUSWIDTH_1_BYTE;
@@ -1183,6 +1187,11 @@ static void stm32_spi_dma_config(struct stm32_spi *spi,
 	} else {
 		maxburst = 1;
 	}
+
+	/* Get the DMA channel caps, and adjust maxburst if possible */
+	ret = dma_get_slave_caps(dma_chan, &caps);
+	if (!ret)
+		maxburst = min(maxburst, caps.max_burst);
 
 	memset(dma_conf, 0, sizeof(struct dma_slave_config));
 	dma_conf->direction = dir;
@@ -1366,7 +1375,7 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 
 	rx_dma_desc = NULL;
 	if (spi->rx_buf && spi->dma_rx) {
-		stm32_spi_dma_config(spi, &rx_dma_conf, DMA_DEV_TO_MEM);
+		stm32_spi_dma_config(spi, spi->dma_rx, &rx_dma_conf, DMA_DEV_TO_MEM);
 		dmaengine_slave_config(spi->dma_rx, &rx_dma_conf);
 
 		/* Enable Rx DMA request */
@@ -1382,7 +1391,7 @@ static int stm32_spi_transfer_one_dma(struct stm32_spi *spi,
 
 	tx_dma_desc = NULL;
 	if (spi->tx_buf && spi->dma_tx) {
-		stm32_spi_dma_config(spi, &tx_dma_conf, DMA_MEM_TO_DEV);
+		stm32_spi_dma_config(spi, spi->dma_tx, &tx_dma_conf, DMA_MEM_TO_DEV);
 		dmaengine_slave_config(spi->dma_tx, &tx_dma_conf);
 
 		tx_dma_desc = dmaengine_prep_slave_sg(
