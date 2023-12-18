@@ -78,7 +78,6 @@ struct xdma_chan {
  * @vdesc: Virtual DMA descriptor
  * @chan: DMA channel pointer
  * @dir: Transferring direction of the request
- * @dev_addr: Physical address on DMA device side
  * @desc_blocks: Hardware descriptor blocks
  * @dblk_num: Number of hardware descriptor blocks
  * @desc_num: Number of hardware descriptors
@@ -91,7 +90,6 @@ struct xdma_desc {
 	struct virt_dma_desc		vdesc;
 	struct xdma_chan		*chan;
 	enum dma_transfer_direction	dir;
-	u64				dev_addr;
 	struct xdma_desc_block		*desc_blocks;
 	u32				dblk_num;
 	u32				desc_num;
