@@ -9014,7 +9014,7 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/clock/google,gs101-clock.yaml
 F:	arch/arm64/boot/dts/exynos/google/
 F:	drivers/clk/samsung/clk-gs101.c
-F:	include/dt-bindings/clock/google,clk-gs101.h
+F:	include/dt-bindings/clock/google,gs101.h
 
 GPD POCKET FAN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
