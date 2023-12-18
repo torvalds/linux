@@ -148,7 +148,8 @@ static void *nvme_zns_alloc_report_buffer(struct nvme_ns *ns,
 	return NULL;
 }
 
-static int nvme_zone_parse_entry(struct nvme_ns *ns,
+static int nvme_zone_parse_entry(struct nvme_ctrl *ctrl,
+				 struct nvme_ns_head *head,
 				 struct nvme_zone_descriptor *entry,
 				 unsigned int idx, report_zones_cb cb,
 				 void *data)
@@ -156,20 +157,20 @@ static int nvme_zone_parse_entry(struct nvme_ns *ns,
 	struct blk_zone zone = { };
 
 	if ((entry->zt & 0xf) != NVME_ZONE_TYPE_SEQWRITE_REQ) {
-		dev_err(ns->ctrl->device, "invalid zone type %#x\n",
+		dev_err(ctrl->device, "invalid zone type %#x\n",
 				entry->zt);
 		return -EINVAL;
 	}
 
 	zone.type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 	zone.cond = entry->zs >> 4;
-	zone.len = ns->head->zsze;
-	zone.capacity = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->zcap));
-	zone.start = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->zslba));
+	zone.len = head->zsze;
+	zone.capacity = nvme_lba_to_sect(head, le64_to_cpu(entry->zcap));
+	zone.start = nvme_lba_to_sect(head, le64_to_cpu(entry->zslba));
 	if (zone.cond == BLK_ZONE_COND_FULL)
 		zone.wp = zone.start + zone.len;
 	else
-		zone.wp = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->wp));
+		zone.wp = nvme_lba_to_sect(head, le64_to_cpu(entry->wp));
 
 	return cb(&zone, idx, data);
 }
@@ -214,7 +215,8 @@ int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 			break;
 
 		for (i = 0; i < nz && zone_idx < nr_zones; i++) {
-			ret = nvme_zone_parse_entry(ns, &report->entries[i],
+			ret = nvme_zone_parse_entry(ns->ctrl, ns->head,
+						    &report->entries[i],
 						    zone_idx, cb, data);
 			if (ret)
 				goto out_free;
