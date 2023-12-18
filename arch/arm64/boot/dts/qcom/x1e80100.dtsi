@@ -3315,7 +3315,6 @@
 			      <0 0x17510000 0 0x10000>,
 			      <0 0x17520000 0 0x10000>;
 			reg-names = "drv-0", "drv-1", "drv-2";
-			qcom,drv-count = <3>;
 
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
