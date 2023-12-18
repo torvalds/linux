@@ -2517,7 +2517,9 @@ struct rtw89_btc_dm {
 	u8 run_reason;
 	u8 run_action;
 
+	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
+	u8 wl_pre_agc_rb: 2;
 };
 
 struct rtw89_btc_ctrl {

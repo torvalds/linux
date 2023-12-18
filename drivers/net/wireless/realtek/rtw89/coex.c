@@ -6,6 +6,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 
@@ -739,10 +740,112 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		btc->dm.coex_info_map = BTC_COEX_INFO_ALL;
 		btc->dm.wl_tx_limit.tx_time = BTC_MAX_TX_TIME_DEF;
 		btc->dm.wl_tx_limit.tx_retry = BTC_MAX_TX_RETRY_DEF;
+		btc->dm.wl_pre_agc_rb = BTC_PREAGC_NOTFOUND;
 	}
 
 	if (type & BTC_RESET_MDINFO)
 		memset(&btc->mdinfo, 0, sizeof(btc->mdinfo));
+}
+
+static u8 _search_reg_index(struct rtw89_dev *rtwdev, u8 mreg_num, u16 reg_type, u32 target)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 i;
+
+	for (i = 0; i < mreg_num; i++)
+		if (le16_to_cpu(chip->mon_reg[i].type) == reg_type &&
+		    le32_to_cpu(chip->mon_reg[i].offset) == target) {
+			return i;
+	}
+	return BTC_REG_NOTFOUND;
+}
+
+static void _get_reg_status(struct rtw89_dev *rtwdev, u8 type, u8 *val)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_module *md = &btc->mdinfo;
+	union rtw89_btc_fbtc_mreg_val *pmreg;
+	u32 pre_agc_addr = R_BTC_BB_PRE_AGC_S1;
+	u32 reg_val;
+	u8 idx;
+
+	if (md->ant.btg_pos == RF_PATH_A)
+		pre_agc_addr = R_BTC_BB_PRE_AGC_S0;
+
+	switch (type) {
+	case BTC_CSTATUS_TXDIV_POS:
+		if (md->switch_type == BTC_SWITCH_INTERNAL)
+			*val = BTC_ANT_DIV_MAIN;
+		break;
+	case BTC_CSTATUS_RXDIV_POS:
+		if (md->switch_type == BTC_SWITCH_INTERNAL)
+			*val = BTC_ANT_DIV_MAIN;
+		break;
+	case BTC_CSTATUS_BB_GNT_MUX:
+		reg_val = rtw89_phy_read32(rtwdev, R_BTC_BB_BTG_RX);
+		*val = !(reg_val & B_BTC_BB_GNT_MUX);
+		break;
+	case BTC_CSTATUS_BB_GNT_MUX_MON:
+		if (!btc->fwinfo.rpt_fbtc_mregval.cinfo.valid)
+			return;
+
+		pmreg = &btc->fwinfo.rpt_fbtc_mregval.finfo;
+		if (ver->fcxmreg == 1) {
+			idx = _search_reg_index(rtwdev, pmreg->v1.reg_num,
+						REG_BB, R_BTC_BB_BTG_RX);
+			if (idx == BTC_REG_NOTFOUND) {
+				*val = BTC_BTGCTRL_BB_GNT_NOTFOUND;
+			} else {
+				reg_val = le32_to_cpu(pmreg->v1.mreg_val[idx]);
+				*val = !(reg_val & B_BTC_BB_GNT_MUX);
+			}
+		} else if (ver->fcxmreg == 2) {
+			idx = _search_reg_index(rtwdev, pmreg->v2.reg_num,
+						REG_BB, R_BTC_BB_BTG_RX);
+			if (idx == BTC_REG_NOTFOUND) {
+				*val = BTC_BTGCTRL_BB_GNT_NOTFOUND;
+			} else {
+				reg_val = le32_to_cpu(pmreg->v2.mreg_val[idx]);
+				*val = !(reg_val & B_BTC_BB_GNT_MUX);
+			}
+		}
+		break;
+	case BTC_CSTATUS_BB_PRE_AGC:
+		reg_val = rtw89_phy_read32(rtwdev, pre_agc_addr);
+		reg_val &= B_BTC_BB_PRE_AGC_MASK;
+		*val = (reg_val == B_BTC_BB_PRE_AGC_VAL);
+		break;
+	case BTC_CSTATUS_BB_PRE_AGC_MON:
+		if (!btc->fwinfo.rpt_fbtc_mregval.cinfo.valid)
+			return;
+
+		pmreg = &btc->fwinfo.rpt_fbtc_mregval.finfo;
+		if (ver->fcxmreg == 1) {
+			idx = _search_reg_index(rtwdev, pmreg->v1.reg_num,
+						REG_BB, pre_agc_addr);
+			if (idx == BTC_REG_NOTFOUND) {
+				*val = BTC_PREAGC_NOTFOUND;
+			} else {
+				reg_val = le32_to_cpu(pmreg->v1.mreg_val[idx]) &
+					  B_BTC_BB_PRE_AGC_MASK;
+				*val = (reg_val == B_BTC_BB_PRE_AGC_VAL);
+			}
+		} else if (ver->fcxmreg == 2) {
+			idx = _search_reg_index(rtwdev, pmreg->v2.reg_num,
+						REG_BB, pre_agc_addr);
+			if (idx == BTC_REG_NOTFOUND) {
+				*val = BTC_PREAGC_NOTFOUND;
+			} else {
+				reg_val = le32_to_cpu(pmreg->v2.mreg_val[idx]) &
+					  B_BTC_BB_PRE_AGC_MASK;
+				*val = (reg_val == B_BTC_BB_PRE_AGC_VAL);
+			}
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 #define BTC_RPT_HDR_SIZE 3
@@ -1003,7 +1106,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 	u16 wl_slot_set = 0, wl_slot_real = 0;
 	u32 trace_step = btc->ctrl.trace_step, rpt_len = 0, diff_t = 0;
 	u32 cnt_leak_slot, bt_slot_real, bt_slot_set, cnt_rx_imr;
-	u8 i;
+	u8 i, val = 0;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): index:%d\n",
@@ -1507,6 +1610,13 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		} else {
 			goto err;
 		}
+		break;
+	case BTC_RPT_TYPE_MREG:
+		_get_reg_status(rtwdev, BTC_CSTATUS_BB_PRE_AGC_MON, &val);
+		if (dm->wl_pre_agc == BTC_PREAGC_BB_FWCTRL)
+			dm->wl_pre_agc_rb = BTC_PREAGC_BB_FWCTRL;
+		else
+			dm->wl_pre_agc_rb = val;
 		break;
 	case BTC_RPT_TYPE_BT_VER:
 	case BTC_RPT_TYPE_BT_SCAN:
@@ -3840,6 +3950,62 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	rtw89_ctrl_btg_bt_rx(rtwdev, is_btg, RTW89_PHY_0);
 }
 
+static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_wl_role_info_v2 *wl_rinfo = &wl->role_info_v2;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u8 is_preagc, val;
+
+	if (btc->ctrl.manual)
+		return;
+
+	if (wl_rinfo->link_mode == BTC_WLINK_25G_MCC)
+		is_preagc = BTC_PREAGC_BB_FWCTRL;
+	else if (!(bt->run_patch_code && bt->enable.now))
+		is_preagc = BTC_PREAGC_DISABLE;
+	else if (wl_rinfo->link_mode == BTC_WLINK_5G)
+		is_preagc = BTC_PREAGC_DISABLE;
+	else if (wl_rinfo->link_mode == BTC_WLINK_NOLINK ||
+		 btc->cx.bt.link_info.profile_cnt.now == 0)
+		is_preagc = BTC_PREAGC_DISABLE;
+	else if (dm->tdma_now.type != CXTDMA_OFF &&
+		 !bt_linfo->hfp_desc.exist &&
+		 !bt_linfo->hid_desc.exist &&
+		 dm->fddt_train == BTC_FDDT_DISABLE)
+		is_preagc = BTC_PREAGC_DISABLE;
+	else if (ver->fwlrole == 2 && wl_rinfo->dbcc_en &&
+		 wl_rinfo->dbcc_2g_phy != RTW89_PHY_1)
+		is_preagc = BTC_PREAGC_DISABLE;
+	else if (btc->mdinfo.ant.type == BTC_ANT_SHARED)
+		is_preagc = BTC_PREAGC_DISABLE;
+	else
+		is_preagc = BTC_PREAGC_ENABLE;
+
+	if (dm->wl_pre_agc_rb != dm->wl_pre_agc &&
+	    dm->wl_pre_agc_rb != BTC_PREAGC_NOTFOUND) {
+		_get_reg_status(rtwdev, BTC_CSTATUS_BB_PRE_AGC, &val);
+		dm->wl_pre_agc_rb = val;
+	}
+
+	if ((wl->coex_mode == BTC_MODE_NORMAL &&
+	     (dm->run_reason == BTC_RSN_NTFY_INIT ||
+	      dm->run_reason == BTC_RSN_NTFY_SWBAND ||
+	      dm->wl_pre_agc_rb != dm->wl_pre_agc)) ||
+	    is_preagc != dm->wl_pre_agc) {
+		dm->wl_pre_agc = is_preagc;
+
+		if (is_preagc > BTC_PREAGC_ENABLE)
+			return;
+		chip->ops->ctrl_nbtg_bt_tx(rtwdev, dm->wl_pre_agc, RTW89_PHY_0);
+	}
+}
+
 struct rtw89_txtime_data {
 	struct rtw89_dev *rtwdev;
 	int type;
@@ -4024,6 +4190,7 @@ static void _action_common(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
 	_set_btg_ctrl(rtwdev);
+	_set_wl_preagc_ctrl(rtwdev);
 	_set_wl_tx_limit(rtwdev);
 	_set_bt_afh_info(rtwdev);
 	_set_bt_rx_agc(rtwdev);
