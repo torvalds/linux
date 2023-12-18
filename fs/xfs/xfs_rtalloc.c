@@ -14,12 +14,14 @@
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_bmap_util.h"
 #include "xfs_trans.h"
 #include "xfs_trans_space.h"
 #include "xfs_icache.h"
 #include "xfs_rtalloc.h"
 #include "xfs_sb.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_quota.h"
 
 /*
  * Read and return the summary information for a given extent size,
@@ -1171,7 +1173,7 @@ out_free:
  * parameters.  The length units are all in realtime extents, as is the
  * result block number.
  */
-int
+static int
 xfs_rtallocate_extent(
 	struct xfs_trans	*tp,
 	xfs_rtxnum_t		start,	/* starting rtext number to allocate */
@@ -1419,7 +1421,7 @@ xfs_rtunmount_inodes(
  * of rtextents and the fraction.
  * The fraction sequence is 0, 1/2, 1/4, 3/4, 1/8, ..., 7/8, 1/16, ...
  */
-int						/* error */
+static int
 xfs_rtpick_extent(
 	xfs_mount_t		*mp,		/* file system mount point */
 	xfs_trans_t		*tp,		/* transaction pointer */
@@ -1456,5 +1458,134 @@ xfs_rtpick_extent(
 	inode_set_atime_to_ts(VFS_I(mp->m_rbmip), ts);
 	xfs_trans_log_inode(tp, mp->m_rbmip, XFS_ILOG_CORE);
 	*pick = b;
+	return 0;
+}
+
+int
+xfs_bmap_rtalloc(
+	struct xfs_bmalloca	*ap)
+{
+	struct xfs_mount	*mp = ap->ip->i_mount;
+	xfs_fileoff_t		orig_offset = ap->offset;
+	xfs_rtxnum_t		rtx;
+	xfs_rtxlen_t		prod = 0;  /* product factor for allocators */
+	xfs_extlen_t		mod = 0;   /* product factor for allocators */
+	xfs_rtxlen_t		ralen = 0; /* realtime allocation length */
+	xfs_extlen_t		align;     /* minimum allocation alignment */
+	xfs_extlen_t		orig_length = ap->length;
+	xfs_extlen_t		minlen = mp->m_sb.sb_rextsize;
+	xfs_rtxlen_t		raminlen;
+	bool			rtlocked = false;
+	bool			ignore_locality = false;
+	int			error;
+
+	align = xfs_get_extsz_hint(ap->ip);
+retry:
+	prod = xfs_extlen_to_rtxlen(mp, align);
+	error = xfs_bmap_extsize_align(mp, &ap->got, &ap->prev,
+					align, 1, ap->eof, 0,
+					ap->conv, &ap->offset, &ap->length);
+	if (error)
+		return error;
+	ASSERT(ap->length);
+	ASSERT(xfs_extlen_to_rtxmod(mp, ap->length) == 0);
+
+	/*
+	 * If we shifted the file offset downward to satisfy an extent size
+	 * hint, increase minlen by that amount so that the allocator won't
+	 * give us an allocation that's too short to cover at least one of the
+	 * blocks that the caller asked for.
+	 */
+	if (ap->offset != orig_offset)
+		minlen += orig_offset - ap->offset;
+
+	/*
+	 * If the offset & length are not perfectly aligned
+	 * then kill prod, it will just get us in trouble.
+	 */
+	div_u64_rem(ap->offset, align, &mod);
+	if (mod || ap->length % align)
+		prod = 1;
+	/*
+	 * Set ralen to be the actual requested length in rtextents.
+	 *
+	 * If the old value was close enough to XFS_BMBT_MAX_EXTLEN that
+	 * we rounded up to it, cut it back so it's valid again.
+	 * Note that if it's a really large request (bigger than
+	 * XFS_BMBT_MAX_EXTLEN), we don't hear about that number, and can't
+	 * adjust the starting point to match it.
+	 */
+	ralen = xfs_extlen_to_rtxlen(mp, min(ap->length, XFS_MAX_BMBT_EXTLEN));
+
+	/*
+	 * Lock out modifications to both the RT bitmap and summary inodes
+	 */
+	if (!rtlocked) {
+		xfs_ilock(mp->m_rbmip, XFS_ILOCK_EXCL|XFS_ILOCK_RTBITMAP);
+		xfs_trans_ijoin(ap->tp, mp->m_rbmip, XFS_ILOCK_EXCL);
+		xfs_ilock(mp->m_rsumip, XFS_ILOCK_EXCL|XFS_ILOCK_RTSUM);
+		xfs_trans_ijoin(ap->tp, mp->m_rsumip, XFS_ILOCK_EXCL);
+		rtlocked = true;
+	}
+
+	/*
+	 * If it's an allocation to an empty file at offset 0,
+	 * pick an extent that will space things out in the rt area.
+	 */
+	if (ap->eof && ap->offset == 0) {
+		error = xfs_rtpick_extent(mp, ap->tp, ralen, &rtx);
+		if (error)
+			return error;
+		ap->blkno = xfs_rtx_to_rtb(mp, rtx);
+	} else {
+		ap->blkno = 0;
+	}
+
+	xfs_bmap_adjacent(ap);
+
+	/*
+	 * Realtime allocation, done through xfs_rtallocate_extent.
+	 */
+	if (ignore_locality)
+		rtx = 0;
+	else
+		rtx = xfs_rtb_to_rtx(mp, ap->blkno);
+	raminlen = max_t(xfs_rtxlen_t, 1, xfs_extlen_to_rtxlen(mp, minlen));
+	error = xfs_rtallocate_extent(ap->tp, rtx, raminlen, ralen, &ralen,
+			ap->wasdel, prod, &rtx);
+	if (error)
+		return error;
+
+	if (rtx != NULLRTEXTNO) {
+		ap->blkno = xfs_rtx_to_rtb(mp, rtx);
+		ap->length = xfs_rtxlen_to_extlen(mp, ralen);
+		xfs_bmap_alloc_account(ap);
+		return 0;
+	}
+
+	if (align > mp->m_sb.sb_rextsize) {
+		/*
+		 * We previously enlarged the request length to try to satisfy
+		 * an extent size hint.  The allocator didn't return anything,
+		 * so reset the parameters to the original values and try again
+		 * without alignment criteria.
+		 */
+		ap->offset = orig_offset;
+		ap->length = orig_length;
+		minlen = align = mp->m_sb.sb_rextsize;
+		goto retry;
+	}
+
+	if (!ignore_locality && ap->blkno != 0) {
+		/*
+		 * If we can't allocate near a specific rt extent, try again
+		 * without locality criteria.
+		 */
+		ignore_locality = true;
+		goto retry;
+	}
+
+	ap->blkno = NULLFSBLOCK;
+	ap->length = 0;
 	return 0;
 }
