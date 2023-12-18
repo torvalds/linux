@@ -24125,7 +24125,7 @@ F:	Documentation/devicetree/bindings/net/can/xilinx,can.yaml
 F:	drivers/net/can/xilinx_can.c
 
 XILINX EVENT MANAGEMENT DRIVER
-M:	Abhyuday Godhasara <abhyuday.godhasara@xilinx.com>
+M:	Michal Simek <michal.simek@amd.com>
 S:	Maintained
 F:	drivers/soc/xilinx/xlnx_event_manager.c
 F:	include/linux/firmware/xlnx-event-manager.h
