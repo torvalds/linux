@@ -203,7 +203,7 @@ BPF_CALL_3(bpf_skb_get_nlattr_nest, struct sk_buff *, skb, u32, a, u32, x)
 		return 0;
 
 	nla = (struct nlattr *) &skb->data[a];
-	if (nla->nla_len > skb->len - a)
+	if (!nla_ok(nla, skb->len - a))
 		return 0;
 
 	nla = nla_find_nested(nla, x);
