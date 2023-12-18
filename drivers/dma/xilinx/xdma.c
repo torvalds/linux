@@ -379,12 +379,9 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
  */
 static int xdma_xfer_stop(struct xdma_chan *xchan)
 {
-	struct virt_dma_desc *vd = vchan_next_desc(&xchan->vchan);
-	struct xdma_device *xdev = xchan->xdev_hdl;
 	int ret;
-
-	if (!vd || !xchan->busy)
-		return -EINVAL;
+	u32 val;
+	struct xdma_device *xdev = xchan->xdev_hdl;
 
 	/* clear run stop bit to prevent any further auto-triggering */
 	ret = regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_CONTROL_W1C,
@@ -392,7 +389,10 @@ static int xdma_xfer_stop(struct xdma_chan *xchan)
 	if (ret)
 		return ret;
 
-	xchan->busy = false;
+	/* Clear the channel status register */
+	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_STATUS_RC, &val);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -505,25 +505,25 @@ static void xdma_issue_pending(struct dma_chan *chan)
 static int xdma_terminate_all(struct dma_chan *chan)
 {
 	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
-	struct xdma_desc *desc = NULL;
 	struct virt_dma_desc *vd;
 	unsigned long flags;
 	LIST_HEAD(head);
 
-	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
 	xdma_xfer_stop(xdma_chan);
 
-	vd = vchan_next_desc(&xdma_chan->vchan);
-	if (vd)
-		desc = to_xdma_desc(vd);
-	if (desc) {
-		dma_cookie_complete(&desc->vdesc.tx);
-		vchan_terminate_vdesc(&desc->vdesc);
-	}
+	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
 
+	xdma_chan->busy = false;
+	vd = vchan_next_desc(&xdma_chan->vchan);
+	if (vd) {
+		list_del(&vd->node);
+		dma_cookie_complete(&vd->tx);
+		vchan_terminate_vdesc(vd);
+	}
 	vchan_get_all_descriptors(&xdma_chan->vchan, &head);
+	list_splice_tail(&head, &xdma_chan->vchan.desc_terminated);
+
 	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
-	vchan_dma_desc_free_list(&xdma_chan->vchan, &head);
 
 	return 0;
 }
