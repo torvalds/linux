@@ -46,6 +46,7 @@ static int do_compare(u64 addr, u64 value, u64 mask, u16 op)
 		break;
 	default:
 		XE_WARN_ON("Not possible");
+		return -EINVAL;
 	}
 
 	return passed ? 0 : 1;
