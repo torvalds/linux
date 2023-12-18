@@ -504,7 +504,7 @@
 			<MX7D_PAD_EPDC_DATA14__UART7_DCE_RTS	0x7e>;
 	};
 
-	pinctrl_usdhc1_gpio: usdhc1grp_gpio {
+	pinctrl_usdhc1_gpio: usdhc1_gpiogrp {
 		fsl,pins =
 			/* WP */
 			<MX7D_PAD_SD1_WP__GPIO5_IO1		0x7c>,
@@ -524,7 +524,7 @@
 			<MX7D_PAD_SD1_DATA3__SD1_DATA3		0x5e>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp_100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1_100mhzgrp {
 		fsl,pins =
 			<MX7D_PAD_SD1_CMD__SD1_CMD		0x5a>,
 			<MX7D_PAD_SD1_CLK__SD1_CLK		0x57>,
@@ -534,7 +534,7 @@
 			<MX7D_PAD_SD1_DATA3__SD1_DATA3		0x5a>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp_200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1_200mhzgrp {
 		fsl,pins =
 			<MX7D_PAD_SD1_CMD__SD1_CMD		0x5b>,
 			<MX7D_PAD_SD1_CLK__SD1_CLK		0x57>,
