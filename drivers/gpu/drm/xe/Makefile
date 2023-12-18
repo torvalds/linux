@@ -93,6 +93,7 @@ xe-y += xe_bb.o \
 	xe_guc.o \
 	xe_guc_ads.o \
 	xe_guc_ct.o \
+	xe_guc_db_mgr.o \
 	xe_guc_debugfs.o \
 	xe_guc_hwconfig.o \
 	xe_guc_log.o \

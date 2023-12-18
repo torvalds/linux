@@ -18,6 +18,19 @@
 #include "xe_uc_fw_types.h"
 
 /**
+ * struct xe_guc_db_mgr - GuC Doorbells Manager.
+ *
+ * Note: GuC Doorbells Manager is relying on &xe_guc::submission_state.lock
+ * to protect its members.
+ */
+struct xe_guc_db_mgr {
+	/** @count: number of doorbells to manage */
+	unsigned int count;
+	/** @bitmap: bitmap to track allocated doorbells */
+	unsigned long *bitmap;
+};
+
+/**
  * struct xe_guc - Graphic micro controller
  */
 struct xe_guc {
@@ -31,6 +44,8 @@ struct xe_guc {
 	struct xe_guc_ct ct;
 	/** @pc: GuC Power Conservation */
 	struct xe_guc_pc pc;
+	/** @dbm: GuC Doorbell Manager */
+	struct xe_guc_db_mgr dbm;
 	/** @submission_state: GuC submission state */
 	struct {
 		/** @exec_queue_lookup: Lookup an xe_engine from guc_id */

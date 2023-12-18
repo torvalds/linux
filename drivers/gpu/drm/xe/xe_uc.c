@@ -9,6 +9,7 @@
 #include "xe_gsc.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
+#include "xe_guc_db_mgr.h"
 #include "xe_guc_pc.h"
 #include "xe_guc_submit.h"
 #include "xe_huc.h"
@@ -57,6 +58,10 @@ int xe_uc_init(struct xe_uc *uc)
 		goto err;
 
 	ret = xe_guc_submit_init(&uc->guc);
+	if (ret)
+		goto err;
+
+	ret = xe_guc_db_mgr_init(&uc->guc.dbm, ~0);
 	if (ret)
 		goto err;
 
