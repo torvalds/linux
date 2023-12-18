@@ -811,6 +811,18 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	desc = to_xdma_desc(vd);
 	xdev = xchan->xdev_hdl;
 
+	/* Clear-on-read the status register */
+	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_STATUS_RC, &st);
+	if (ret)
+		goto out;
+
+	st &= XDMA_CHAN_STATUS_MASK;
+	if ((st & XDMA_CHAN_ERROR_MASK) ||
+	    !(st & (CHAN_CTRL_IE_DESC_COMPLETED | CHAN_CTRL_IE_DESC_STOPPED))) {
+		xdma_err(xdev, "channel error, status register value: 0x%x", st);
+		goto out;
+	}
+
 	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_COMPLETED_DESC,
 			  &complete_desc_num);
 	if (ret)
@@ -818,14 +830,6 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 
 	if (desc->cyclic) {
 		desc->completed_desc_num = complete_desc_num;
-
-		ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_STATUS,
-				  &st);
-		if (ret)
-			goto out;
-
-		regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_STATUS, st);
-
 		vchan_cyclic_callback(vd);
 	} else {
 		xchan->busy = false;
