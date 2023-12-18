@@ -366,13 +366,8 @@ free_svm:
 void intel_svm_remove_dev_pasid(struct device *dev, u32 pasid)
 {
 	struct intel_svm_dev *sdev;
-	struct intel_iommu *iommu;
 	struct intel_svm *svm;
 	struct mm_struct *mm;
-
-	iommu = device_to_iommu(dev, NULL, NULL);
-	if (!iommu)
-		return;
 
 	if (pasid_to_svm_sdev(dev, pasid, &svm, &sdev))
 		return;
@@ -724,24 +719,15 @@ int intel_svm_page_response(struct device *dev,
 			    struct iommu_fault_event *evt,
 			    struct iommu_page_response *msg)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct intel_iommu *iommu = info->iommu;
+	u8 bus = info->bus, devfn = info->devfn;
 	struct iommu_fault_page_request *prm;
-	struct intel_iommu *iommu;
 	bool private_present;
 	bool pasid_present;
 	bool last_page;
-	u8 bus, devfn;
 	int ret = 0;
 	u16 sid;
-
-	if (!dev || !dev_is_pci(dev))
-		return -ENODEV;
-
-	iommu = device_to_iommu(dev, &bus, &devfn);
-	if (!iommu)
-		return -ENODEV;
-
-	if (!msg || !evt)
-		return -EINVAL;
 
 	prm = &evt->fault.prm;
 	sid = PCI_DEVID(bus, devfn);

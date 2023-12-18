@@ -703,7 +703,7 @@ static bool iommu_is_dummy(struct intel_iommu *iommu, struct device *dev)
 	return false;
 }
 
-struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
+static struct intel_iommu *device_lookup_iommu(struct device *dev, u8 *bus, u8 *devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
 	struct pci_dev *pdev = NULL;
@@ -2081,14 +2081,11 @@ static int domain_context_mapping_cb(struct pci_dev *pdev,
 static int
 domain_context_mapping(struct dmar_domain *domain, struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct domain_context_mapping_data data;
+	struct intel_iommu *iommu = info->iommu;
+	u8 bus = info->bus, devfn = info->devfn;
 	struct pasid_table *table;
-	struct intel_iommu *iommu;
-	u8 bus, devfn;
-
-	iommu = device_to_iommu(dev, &bus, &devfn);
-	if (!iommu)
-		return -ENODEV;
 
 	table = intel_pasid_get_table(dev);
 
@@ -2447,14 +2444,9 @@ static int dmar_domain_attach_device(struct dmar_domain *domain,
 				     struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
-	struct intel_iommu *iommu;
+	struct intel_iommu *iommu = info->iommu;
 	unsigned long flags;
-	u8 bus, devfn;
 	int ret;
-
-	iommu = device_to_iommu(dev, &bus, &devfn);
-	if (!iommu)
-		return -ENODEV;
 
 	ret = domain_attach_iommu(domain, iommu);
 	if (ret)
@@ -4116,13 +4108,10 @@ static void intel_iommu_domain_free(struct iommu_domain *domain)
 int prepare_domain_attach_device(struct iommu_domain *domain,
 				 struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
-	struct intel_iommu *iommu;
+	struct intel_iommu *iommu = info->iommu;
 	int addr_width;
-
-	iommu = device_to_iommu(dev, NULL, NULL);
-	if (!iommu)
-		return -ENODEV;
 
 	if (dmar_domain->force_snooping && !ecap_sc_support(iommu->ecap))
 		return -EINVAL;
@@ -4399,7 +4388,7 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 	u8 bus, devfn;
 	int ret;
 
-	iommu = device_to_iommu(dev, &bus, &devfn);
+	iommu = device_lookup_iommu(dev, &bus, &devfn);
 	if (!iommu || !iommu->iommu.ops)
 		return ERR_PTR(-ENODEV);
 
@@ -4735,8 +4724,9 @@ static int intel_iommu_iotlb_sync_map(struct iommu_domain *domain,
 
 static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 {
-	struct intel_iommu *iommu = device_to_iommu(dev, NULL, NULL);
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dev_pasid_info *curr, *dev_pasid = NULL;
+	struct intel_iommu *iommu = info->iommu;
 	struct dmar_domain *dmar_domain;
 	struct iommu_domain *domain;
 	unsigned long flags;
