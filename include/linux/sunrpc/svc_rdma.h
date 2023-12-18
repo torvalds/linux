@@ -170,8 +170,6 @@ struct svc_rdma_chunk_ctxt {
 	struct list_head	cc_rwctxts;
 	ktime_t			cc_posttime;
 	int			cc_sqecount;
-	enum ib_wc_status	cc_status;
-	struct completion	cc_done;
 };
 
 struct svc_rdma_recv_ctxt {
@@ -191,6 +189,7 @@ struct svc_rdma_recv_ctxt {
 	unsigned int		rc_pageoff;
 	unsigned int		rc_curpage;
 	unsigned int		rc_readbytes;
+	struct xdr_buf		rc_saved_arg;
 	struct svc_rdma_chunk_ctxt	rc_cc;
 
 	struct svc_rdma_pcl	rc_call_pcl;
@@ -240,6 +239,9 @@ extern int svc_rdma_recvfrom(struct svc_rqst *);
 extern void svc_rdma_destroy_rw_ctxts(struct svcxprt_rdma *rdma);
 extern void svc_rdma_cc_init(struct svcxprt_rdma *rdma,
 			     struct svc_rdma_chunk_ctxt *cc);
+extern void svc_rdma_cc_release(struct svcxprt_rdma *rdma,
+				struct svc_rdma_chunk_ctxt *cc,
+				enum dma_data_direction dir);
 extern int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
 				     const struct svc_rdma_chunk *chunk,
 				     const struct xdr_buf *xdr);

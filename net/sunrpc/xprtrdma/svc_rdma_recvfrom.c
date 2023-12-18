@@ -214,6 +214,8 @@ struct svc_rdma_recv_ctxt *svc_rdma_recv_ctxt_get(struct svcxprt_rdma *rdma)
 void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 			    struct svc_rdma_recv_ctxt *ctxt)
 {
+	svc_rdma_cc_release(rdma, &ctxt->rc_cc, DMA_FROM_DEVICE);
+
 	/* @rc_page_count is normally zero here, but error flows
 	 * can leave pages in @rc_pages.
 	 */
@@ -870,6 +872,7 @@ static noinline void svc_rdma_read_complete(struct svc_rqst *rqstp,
 	 * procedure for that depends on what kind of RPC/RDMA
 	 * chunks were provided by the client.
 	 */
+	rqstp->rq_arg = ctxt->rc_saved_arg;
 	if (pcl_is_empty(&ctxt->rc_call_pcl)) {
 		if (ctxt->rc_read_pcl.cl_count == 1)
 			svc_rdma_read_complete_one(rqstp, ctxt);
@@ -930,7 +933,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	ctxt = svc_rdma_next_recv_ctxt(&rdma_xprt->sc_read_complete_q);
 	if (ctxt) {
 		list_del(&ctxt->rc_list);
-		spin_unlock_bh(&rdma_xprt->sc_rq_dto_lock);
+		spin_unlock(&rdma_xprt->sc_rq_dto_lock);
+		svc_xprt_received(xprt);
 		svc_rdma_read_complete(rqstp, ctxt);
 		goto complete;
 	}
@@ -965,11 +969,8 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	svc_rdma_get_inv_rkey(rdma_xprt, ctxt);
 
 	if (!pcl_is_empty(&ctxt->rc_read_pcl) ||
-	    !pcl_is_empty(&ctxt->rc_call_pcl)) {
-		ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
-		if (ret < 0)
-			goto out_readfail;
-	}
+	    !pcl_is_empty(&ctxt->rc_call_pcl))
+		goto out_readlist;
 
 complete:
 	rqstp->rq_xprt_ctxt = ctxt;
@@ -983,12 +984,23 @@ out_err:
 	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
 	return 0;
 
-out_readfail:
-	if (ret == -EINVAL)
-		svc_rdma_send_error(rdma_xprt, ctxt, ret);
-	svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
-	svc_xprt_deferred_close(xprt);
-	return -ENOTCONN;
+out_readlist:
+	/* This @rqstp is about to be recycled. Save the work
+	 * already done constructing the Call message in rq_arg
+	 * so it can be restored when the RDMA Reads have
+	 * completed.
+	 */
+	ctxt->rc_saved_arg = rqstp->rq_arg;
+
+	ret = svc_rdma_process_read_list(rdma_xprt, rqstp, ctxt);
+	if (ret < 0) {
+		if (ret == -EINVAL)
+			svc_rdma_send_error(rdma_xprt, ctxt, ret);
+		svc_rdma_recv_ctxt_put(rdma_xprt, ctxt);
+		svc_xprt_deferred_close(xprt);
+		return ret;
+	}
+	return 0;
 
 out_backchannel:
 	svc_rdma_handle_bc_reply(rqstp, ctxt);
