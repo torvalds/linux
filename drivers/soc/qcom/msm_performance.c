@@ -1338,7 +1338,7 @@ static int init_lplh_notif(const char *buf)
 		return -EINVAL;
 	cp = buf;
 	if (sscanf(cp, INIT ":%hu", &nClusters)) {
-		if (!nClusters)
+		if (!nClusters || nClusters > LPLH_CLUSTER_MAX_CNT)
 			return -EINVAL;
 
 		*ptmp++ = nClusters;
@@ -1378,7 +1378,7 @@ static int init_lplh_notif(const char *buf)
 				while ((cp1 = strpbrk(cp1 + 1, ",")))
 					nValues++;
 
-				if (nValues % 2 != 0)
+				if (nValues % 2 != 0 || LPLH_IPC_FREQ_VTBL_MAX_CNT < nValues/2)
 					return -EINVAL;
 
 				*ptmp++ = nValues/2;
