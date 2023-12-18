@@ -1814,6 +1814,7 @@ struct rtw89_btc_bt_info {
 	union rtw89_btc_bt_rfk_info_map rfk_info;
 
 	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
+	u8 rssi_level;
 
 	u32 scbd;
 	u32 feature;

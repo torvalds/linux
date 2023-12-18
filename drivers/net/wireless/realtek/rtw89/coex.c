@@ -5761,6 +5761,37 @@ void rtw89_btc_ntfy_icmp_packet_work(struct work_struct *work)
 	mutex_unlock(&rtwdev->mutex);
 }
 
+static u8 _update_bt_rssi_level(struct rtw89_dev *rtwdev, u8 rssi)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	u8 *rssi_st, rssi_th, rssi_level = 0;
+	u8 i;
+
+	/* for rssi locate in which {40, 36, 31, 28}
+	 * if rssi >= 40% (-60dBm) --> rssi_level = 4
+	 * if 36% <= rssi < 40%    --> rssi_level = 3
+	 * if 31% <= rssi < 36%    --> rssi_level = 2
+	 * if 28% <= rssi < 31%    --> rssi_level = 1
+	 * if rssi < 28%           --> rssi_level = 0
+	 */
+
+	/* check if rssi across bt_rssi_thres boundary */
+	for (i = 0; i < BTC_BT_RSSI_THMAX; i++) {
+		rssi_th = chip->bt_rssi_thres[i];
+		rssi_st = &bt->link_info.rssi_state[i];
+
+		*rssi_st = _update_rssi_state(rtwdev, *rssi_st, rssi, rssi_th);
+
+		if (BTC_RSSI_HIGH(*rssi_st)) {
+			rssi_level = BTC_BT_RSSI_THMAX - i;
+			break;
+		}
+	}
+	return rssi_level;
+}
+
 #define BT_PROFILE_PROTOCOL_MASK GENMASK(7, 4)
 
 static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
@@ -5836,7 +5867,8 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	btinfo.val = bt->raw_info[BTC_BTINFO_H0];
 	/* raw val is dBm unit, translate from -100~ 0dBm to 0~100%*/
 	b->rssi = chip->ops->btc_get_bt_rssi(rtwdev, btinfo.hb0.rssi);
-	btc->dm.trx_info.bt_rssi = b->rssi;
+	bt->rssi_level = _update_bt_rssi_level(rtwdev, b->rssi);
+	btc->dm.trx_info.bt_rssi = bt->rssi_level;
 
 	/* parse raw info high-Byte1 */
 	btinfo.val = bt->raw_info[BTC_BTINFO_H1];
@@ -6686,8 +6718,9 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   bt_linfo->pan_desc.active ? "Y" : "N");
 
 	seq_printf(m,
-		   " %-15s : rssi:%ddBm, tx_rate:%dM, %s%s%s",
+		   " %-15s : rssi:%ddBm(lvl:%d), tx_rate:%dM, %s%s%s",
 		   "[link]", bt_linfo->rssi - 100,
+		   bt->rssi_level,
 		   bt_linfo->tx_3m ? 3 : 2,
 		   bt_linfo->status.map.inq_pag ? " inq-page!!" : "",
 		   bt_linfo->status.map.acl_busy ? " acl_busy!!" : "",
