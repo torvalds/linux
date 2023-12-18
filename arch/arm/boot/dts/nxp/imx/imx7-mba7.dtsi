@@ -209,9 +209,9 @@
 
 &ecspi1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_ecspi1>;
+	pinctrl-0 = <&pinctrl_ecspi1>, <&pinctrl_ecspi1_ss0>;
 	cs-gpios = <&gpio4 0 GPIO_ACTIVE_LOW>, <&gpio4 1 GPIO_ACTIVE_LOW>,
-		   <&gpio4 2 GPIO_ACTIVE_LOW>;
+		   <&gpio4 2 GPIO_ACTIVE_LOW>, <&gpio4 19 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -355,6 +355,12 @@
 			<MX7D_PAD_UART1_RX_DATA__GPIO4_IO0		0x74>,
 			<MX7D_PAD_UART1_TX_DATA__GPIO4_IO1		0x74>,
 			<MX7D_PAD_UART2_RX_DATA__GPIO4_IO2		0x74>;
+	};
+
+	pinctrl_ecspi1_ss0: ecspi1ss0grp {
+		fsl,pins = <
+			MX7D_PAD_ECSPI1_SS0__GPIO4_IO19			0x74
+		>;
 	};
 
 	pinctrl_ecspi2: ecspi2grp {
