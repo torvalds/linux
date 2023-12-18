@@ -22,16 +22,6 @@
 #define is_pasid_enabled(entry)		(((entry)->lo >> 3) & 0x1)
 #define get_pasid_dir_size(entry)	(1 << ((((entry)->lo >> 9) & 0x7) + 7))
 
-/* Virtual command interface for enlightened pasid management. */
-#define VCMD_CMD_ALLOC			0x1
-#define VCMD_CMD_FREE			0x2
-#define VCMD_VRSP_IP			0x1
-#define VCMD_VRSP_SC(e)			(((e) & 0xff) >> 1)
-#define VCMD_VRSP_SC_SUCCESS		0
-#define VCMD_VRSP_SC_NO_PASID_AVAIL	16
-#define VCMD_VRSP_SC_INVALID_PASID	16
-#define VCMD_VRSP_RESULT_PASID(e)	(((e) >> 16) & 0xfffff)
-#define VCMD_CMD_OPERAND(e)		((e) << 16)
 /*
  * Domain ID reserved for pasid entries programmed for first-level
  * only and pass-through transfer modes.
@@ -117,8 +107,6 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 void intel_pasid_tear_down_entry(struct intel_iommu *iommu,
 				 struct device *dev, u32 pasid,
 				 bool fault_ignore);
-int vcmd_alloc_pasid(struct intel_iommu *iommu, u32 *pasid);
-void vcmd_free_pasid(struct intel_iommu *iommu, u32 pasid);
 void intel_pasid_setup_page_snoop_control(struct intel_iommu *iommu,
 					  struct device *dev, u32 pasid);
 #endif /* __INTEL_PASID_H */
