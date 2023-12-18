@@ -2112,6 +2112,7 @@ TRACE_EVENT(svcrdma_wc_read,
 
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_read_err);
+DEFINE_SIMPLE_CID_EVENT(svcrdma_read_finished);
 
 DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_write);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
