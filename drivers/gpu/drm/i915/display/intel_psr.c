@@ -528,7 +528,7 @@ static void _psr_init_dpcd(struct intel_dp *intel_dp)
 		intel_dp_get_sink_sync_latency(intel_dp);
 
 	if (DISPLAY_VER(i915) >= 9 &&
-	    intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
+	    intel_dp->psr_dpcd[0] >= DP_PSR2_WITH_Y_COORD_IS_SUPPORTED) {
 		bool y_req = intel_dp->psr_dpcd[1] &
 			     DP_PSR2_SU_Y_COORDINATE_REQUIRED;
 		bool alpm = intel_dp_get_alpm_status(intel_dp);
@@ -601,6 +601,18 @@ static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 		       aux_ctl);
 }
 
+static bool psr2_su_region_et_valid(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (DISPLAY_VER(i915) >= 20 &&
+	    intel_dp->psr_dpcd[0] == DP_PSR2_WITH_Y_COORD_ET_SUPPORTED &&
+	    !(intel_dp->psr.debug & I915_PSR_DEBUG_SU_REGION_ET_DISABLE))
+		return true;
+
+	return false;
+}
+
 static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
@@ -616,6 +628,8 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 				   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
 
 		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
+		if (psr2_su_region_et_valid(intel_dp))
+			dpcd_val |= DP_PSR_ENABLE_SU_REGION_ET;
 	} else {
 		if (intel_dp->psr.link_standby)
 			dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
@@ -866,6 +880,9 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 		intel_de_write(dev_priv, PSR2_MAN_TRK_CTL(cpu_transcoder), 0);
 	}
 
+	if (psr2_su_region_et_valid(intel_dp))
+		val |= LNL_EDP_PSR2_SU_REGION_ET_ENABLE;
+
 	/*
 	 * PSR2 HW is incorrectly using EDP_PSR_TP1_TP3_SEL and BSpec is
 	 * recommending keep this bit unset while PSR2 is enabled.
@@ -1027,6 +1044,9 @@ static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
 			    "PSR2 sel fetch not enabled, async flip enabled\n");
 		return false;
 	}
+
+	if (psr2_su_region_et_valid(intel_dp))
+		crtc_state->enable_psr2_su_region_et = true;
 
 	return crtc_state->enable_psr2_sel_fetch = true;
 }
