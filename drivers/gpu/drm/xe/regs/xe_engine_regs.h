@@ -75,7 +75,9 @@
 #define FF_THREAD_MODE(base)			XE_REG((base) + 0xa0)
 #define   FF_TESSELATION_DOP_GATE_DISABLE	BIT(19)
 
+#define RING_INT_SRC_RPT_PTR(base)		XE_REG((base) + 0xa4)
 #define RING_IMR(base)				XE_REG((base) + 0xa8)
+#define RING_INT_STATUS_RPT_PTR(base)		XE_REG((base) + 0xac)
 
 #define RING_EIR(base)				XE_REG((base) + 0xb0)
 #define RING_EMR(base)				XE_REG((base) + 0xb4)
