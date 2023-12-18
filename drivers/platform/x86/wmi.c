@@ -1176,24 +1176,13 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	}
 }
 
-static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
-				    void *context)
+static int wmi_notify_device(struct device *dev, void *data)
 {
-	struct wmi_block *wblock = NULL, *iter;
+	struct wmi_block *wblock = dev_to_wblock(dev);
+	u32 *event = data;
 
-	list_for_each_entry(iter, &wmi_block_list, list) {
-		struct guid_block *block = &iter->gblock;
-
-		if (iter->acpi_device->handle == handle &&
-		    (block->flags & ACPI_WMI_EVENT) &&
-		    (block->notify_id == event)) {
-			wblock = iter;
-			break;
-		}
-	}
-
-	if (!wblock)
-		return;
+	if (!(wblock->gblock.flags & ACPI_WMI_EVENT && wblock->gblock.notify_id == *event))
+		return 0;
 
 	/* If a driver is bound, then notify the driver. */
 	if (test_bit(WMI_PROBED, &wblock->flags) && wblock->dev.dev.driver) {
@@ -1205,7 +1194,7 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 			status = get_event_data(wblock, &evdata);
 			if (ACPI_FAILURE(status)) {
 				dev_warn(&wblock->dev.dev, "failed to get event data\n");
-				return;
+				return -EIO;
 			}
 		}
 
@@ -1215,13 +1204,20 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event,
 		kfree(evdata.pointer);
 	} else if (wblock->handler) {
 		/* Legacy handler */
-		wblock->handler(event, wblock->handler_data);
+		wblock->handler(*event, wblock->handler_data);
 	}
 
-	acpi_bus_generate_netlink_event(
-		wblock->acpi_device->pnp.device_class,
-		dev_name(&wblock->dev.dev),
-		event, 0);
+	acpi_bus_generate_netlink_event(wblock->acpi_device->pnp.device_class,
+					dev_name(&wblock->dev.dev), *event, 0);
+
+	return -EBUSY;
+}
+
+static void acpi_wmi_notify_handler(acpi_handle handle, u32 event, void *context)
+{
+	struct device *wmi_bus_dev = context;
+
+	device_for_each_child(wmi_bus_dev, &event, wmi_notify_device);
 }
 
 static int wmi_remove_device(struct device *dev, void *data)
@@ -1300,10 +1296,8 @@ static int acpi_wmi_probe(struct platform_device *device)
 	if (error < 0)
 		return error;
 
-	status = acpi_install_notify_handler(acpi_device->handle,
-					     ACPI_ALL_NOTIFY,
-					     acpi_wmi_notify_handler,
-					     NULL);
+	status = acpi_install_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY,
+					     acpi_wmi_notify_handler, wmi_bus_dev);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Error installing notify handler\n");
 		return -ENODEV;
