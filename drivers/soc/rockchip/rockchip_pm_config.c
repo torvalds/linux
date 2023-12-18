@@ -374,6 +374,38 @@ out:
 	return ret;
 }
 
+static int parse_io_config(struct device *dev)
+{
+	int ret = 0, cnt;
+	struct device_node *node = dev->of_node;
+	struct rk_sleep_config *config = &sleep_config[RK_PM_MEM];
+
+	cnt = of_property_count_u32_elems(node, "rockchip,sleep-io-config");
+	if (cnt > 0) {
+		/* 0 as the last element of virtual_pwroff_irqs */
+		config->sleep_io_config =
+			devm_kmalloc_array(dev, cnt, sizeof(u32), GFP_KERNEL);
+		if (!config->sleep_io_config) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = of_property_read_u32_array(node, "rockchip,sleep-io-config",
+						 config->sleep_io_config, cnt);
+		if (ret) {
+			dev_err(dev, "get rockchip,sleep-io-config error\n");
+			goto out;
+		}
+
+		config->sleep_io_config_cnt = cnt;
+	} else {
+		dev_dbg(dev, "not set sleep-pin-config\n");
+	}
+
+out:
+	return ret;
+}
+
 static int pm_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
@@ -488,6 +520,7 @@ static int pm_config_probe(struct platform_device *pdev)
 				 ret);
 	}
 
+	parse_io_config(&pdev->dev);
 	parse_mcu_sleep_config(node);
 
 #ifndef MODULE
