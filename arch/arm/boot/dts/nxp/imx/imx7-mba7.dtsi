@@ -309,8 +309,11 @@
 
 &i2c2 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c2>;
+	pinctrl-1 = <&pinctrl_i2c2_recovery>;
+	scl-gpios = <&gpio4 10 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio4 11 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
 	tlv320aic32x4: audio-codec@18 {
@@ -338,8 +341,11 @@
 
 &i2c3 {
 	clock-frequency = <100000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c3>;
+	pinctrl-1 = <&pinctrl_i2c3_recovery>;
+	scl-gpios = <&gpio4 12 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio4 13 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
@@ -424,10 +430,22 @@
 			<MX7D_PAD_I2C2_SDA__I2C2_SDA		0x40000078>;
 	};
 
+	pinctrl_i2c2_recovery: i2c2recoverygrp {
+		fsl,pins =
+			<MX7D_PAD_I2C2_SCL__GPIO4_IO10		0x40000078>,
+			<MX7D_PAD_I2C2_SDA__GPIO4_IO11		0x40000078>;
+	};
+
 	pinctrl_i2c3: i2c3grp {
 		fsl,pins =
 			<MX7D_PAD_I2C3_SCL__I2C3_SCL		0x40000078>,
 			<MX7D_PAD_I2C3_SDA__I2C3_SDA		0x40000078>;
+	};
+
+	pinctrl_i2c3_recovery: i2c3recoverygrp {
+		fsl,pins =
+			<MX7D_PAD_I2C3_SCL__GPIO4_IO12		0x40000078>,
+			<MX7D_PAD_I2C3_SDA__GPIO4_IO13		0x40000078>;
 	};
 
 	pinctrl_pca9555: pca95550grp {
