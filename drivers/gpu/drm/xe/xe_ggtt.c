@@ -334,7 +334,8 @@ int xe_ggtt_insert_special_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 
 void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[XE_CACHE_WB];
+	u16 cache_mode = bo->flags & XE_BO_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
+	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
 	u64 start = bo->ggtt_node.start;
 	u64 offset, pte;
 
