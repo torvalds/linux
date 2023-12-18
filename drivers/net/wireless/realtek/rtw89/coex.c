@@ -6864,6 +6864,7 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 #define CASE_BTC_SLOT_STR(e) case CXST_ ## e: return #e
 #define CASE_BTC_EVT_STR(e) case CXEVNT_## e: return #e
 #define CASE_BTC_INIT(e) case BTC_MODE_## e: return #e
+#define CASE_BTC_ANTPATH_STR(e) case BTC_ANT_##e: return #e
 
 static const char *steps_to_str(u16 step)
 {
@@ -7050,6 +7051,25 @@ static const char *id_to_mode(u8 id)
 	}
 }
 
+static const char *id_to_ant(u32 id)
+{
+	switch (id) {
+	CASE_BTC_ANTPATH_STR(WPOWERON);
+	CASE_BTC_ANTPATH_STR(WINIT);
+	CASE_BTC_ANTPATH_STR(WONLY);
+	CASE_BTC_ANTPATH_STR(WOFF);
+	CASE_BTC_ANTPATH_STR(W2G);
+	CASE_BTC_ANTPATH_STR(W5G);
+	CASE_BTC_ANTPATH_STR(W25G);
+	CASE_BTC_ANTPATH_STR(FREERUN);
+	CASE_BTC_ANTPATH_STR(WRFK);
+	CASE_BTC_ANTPATH_STR(BRFK);
+	CASE_BTC_ANTPATH_STR(MAX);
+	default:
+		return "unknown";
+	}
+}
+
 static
 void seq_print_segment(struct seq_file *m, const char *prefix, u16 *data,
 		       u8 len, u8 seg_len, u8 start_idx, u8 ring_len)
@@ -7104,12 +7124,12 @@ static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   (btc->ctrl.manual ? "(Manual)" : "(Auto)"));
 
 	seq_printf(m,
-		   " %-15s : type:%s, reason:%s(), action:%s(), ant_path:%ld, init_mode:%s, run_cnt:%d\n",
+		   " %-15s : type:%s, reason:%s(), action:%s(), ant_path:%s, init_mode:%s, run_cnt:%d\n",
 		   "[status]",
 		   module->ant.type == BTC_ANT_SHARED ? "shared" : "dedicated",
 		   steps_to_str(dm->run_reason),
 		   steps_to_str(dm->run_action | BTC_ACT_EXT_BIT),
-		   FIELD_GET(GENMASK(7, 0), dm->set_ant_path),
+		   id_to_ant(FIELD_GET(GENMASK(7, 0), dm->set_ant_path)),
 		   id_to_mode(wl->coex_mode),
 		   dm->cnt_dm[BTC_DCNT_RUN]);
 
