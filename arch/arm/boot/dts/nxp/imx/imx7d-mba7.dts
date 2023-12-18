@@ -46,9 +46,25 @@
 	};
 };
 
+&gpio2 {
+	pcie-dis-hog {
+		gpio-hog;
+		gpios = <29 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "pcie-dis";
+	};
+
+	pcie-rst-hog {
+		gpio-hog;
+		gpios = <12 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "pcie-rst";
+	};
+};
+
 &iomuxc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog_mba7_1>;
+	pinctrl-0 = <&pinctrl_hog_mba7_1>, <&pinctrl_hog_pcie>;
 
 	pinctrl_enet2: enet2grp {
 		fsl,pins =
@@ -76,14 +92,18 @@
 			<MX7D_PAD_EPDC_PWR_STAT__GPIO2_IO31	0x40000078>;
 	};
 
-	pinctrl_pcie: pciegrp {
+	pinctrl_hog_pcie: hogpciegrp {
 		fsl,pins =
-			/* #pcie_wake */
-			<MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30		0x70>,
 			/* #pcie_rst */
 			<MX7D_PAD_SD2_CLK__GPIO5_IO12			0x70>,
 			/* #pcie_dis */
 			<MX7D_PAD_EPDC_BDR1__GPIO2_IO29			0x70>;
+	};
+
+	pinctrl_pcie: pciegrp {
+		fsl,pins =
+			/* #pcie_wake */
+			<MX7D_PAD_EPDC_PWR_COM__GPIO2_IO30		0x70>;
 	};
 };
 
