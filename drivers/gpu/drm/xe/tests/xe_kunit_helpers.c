@@ -41,6 +41,13 @@ struct xe_device *xe_kunit_helper_alloc_xe_device(struct kunit *test,
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_kunit_helper_alloc_xe_device);
 
+static void kunit_action_restore_priv(void *priv)
+{
+	struct kunit *test = kunit_get_current_test();
+
+	test->priv = priv;
+}
+
 /**
  * xe_kunit_helper_xe_device_test_init - Prepare a &xe_device for a KUnit test.
  * @test: the &kunit where this fake &xe_device will be used
@@ -72,6 +79,9 @@ int xe_kunit_helper_xe_device_test_init(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
 
 	err = xe_pci_fake_device_init(xe);
+	KUNIT_ASSERT_EQ(test, err, 0);
+
+	err = kunit_add_action_or_reset(test, kunit_action_restore_priv, test->priv);
 	KUNIT_ASSERT_EQ(test, err, 0);
 
 	test->priv = xe;
