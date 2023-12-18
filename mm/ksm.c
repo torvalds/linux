@@ -458,6 +458,7 @@ static void scan_time_advisor(void)
 	advisor_ctx.cpu_time = cpu_time;
 
 	ksm_thread_pages_to_scan = pages;
+	trace_ksm_advisor(scan_time, pages, cpu_percent);
 }
 
 static void advisor_stop_scan(void)
