@@ -18,6 +18,8 @@
 		mmc0 = &usdhc3;
 		mmc1 = &usdhc1;
 		/delete-property/ mmc2;
+		rtc0 = &ds1339;
+		rtc1 = &snvs_rtc;
 	};
 
 	beeper {
