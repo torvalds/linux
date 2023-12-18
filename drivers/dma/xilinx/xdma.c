@@ -85,6 +85,7 @@ struct xdma_chan {
  * @cyclic: Cyclic transfer vs. scatter-gather
  * @periods: Number of periods in the cyclic transfer
  * @period_size: Size of a period in bytes in cyclic transfers
+ * @error: tx error flag
  */
 struct xdma_desc {
 	struct virt_dma_desc		vdesc;
@@ -97,6 +98,7 @@ struct xdma_desc {
 	bool				cyclic;
 	u32				periods;
 	u32				period_size;
+	bool				error;
 };
 
 #define XDMA_DEV_STATUS_REG_DMA		BIT(0)
@@ -274,6 +276,7 @@ xdma_alloc_desc(struct xdma_chan *chan, u32 desc_num, bool cyclic)
 	sw_desc->chan = chan;
 	sw_desc->desc_num = desc_num;
 	sw_desc->cyclic = cyclic;
+	sw_desc->error = false;
 	dblk_num = DIV_ROUND_UP(desc_num, XDMA_DESC_ADJACENT);
 	sw_desc->desc_blocks = kcalloc(dblk_num, sizeof(*sw_desc->desc_blocks),
 				       GFP_NOWAIT);
@@ -769,19 +772,19 @@ static enum dma_status xdma_tx_status(struct dma_chan *chan, dma_cookie_t cookie
 	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
 
 	vd = vchan_find_desc(&xdma_chan->vchan, cookie);
-	if (vd)
-		desc = to_xdma_desc(vd);
-	if (!desc || !desc->cyclic) {
-		spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
-		return ret;
+	if (!vd)
+		goto out;
+
+	desc = to_xdma_desc(vd);
+	if (desc->error) {
+		ret = DMA_ERROR;
+	} else if (desc->cyclic) {
+		period_idx = desc->completed_desc_num % desc->periods;
+		residue = (desc->periods - period_idx) * desc->period_size;
+		dma_set_residue(state, residue);
 	}
-
-	period_idx = desc->completed_desc_num % desc->periods;
-	residue = (desc->periods - period_idx) * desc->period_size;
-
+out:
 	spin_unlock_irqrestore(&xdma_chan->vchan.lock, flags);
-
-	dma_set_residue(state, residue);
 
 	return ret;
 }
@@ -819,6 +822,7 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	st &= XDMA_CHAN_STATUS_MASK;
 	if ((st & XDMA_CHAN_ERROR_MASK) ||
 	    !(st & (CHAN_CTRL_IE_DESC_COMPLETED | CHAN_CTRL_IE_DESC_STOPPED))) {
+		desc->error = true;
 		xdma_err(xdev, "channel error, status register value: 0x%x", st);
 		goto out;
 	}
