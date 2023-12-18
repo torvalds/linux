@@ -100,7 +100,7 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 	}
 
 	ns->head->zsze =
-		nvme_lba_to_sect(ns, le64_to_cpu(id->lbafe[lbaf].zsze));
+		nvme_lba_to_sect(ns->head, le64_to_cpu(id->lbafe[lbaf].zsze));
 	if (!is_power_of_2(ns->head->zsze)) {
 		dev_warn(ns->ctrl->device,
 			"invalid zone size:%llu for namespace:%u\n",
@@ -164,12 +164,12 @@ static int nvme_zone_parse_entry(struct nvme_ns *ns,
 	zone.type = BLK_ZONE_TYPE_SEQWRITE_REQ;
 	zone.cond = entry->zs >> 4;
 	zone.len = ns->head->zsze;
-	zone.capacity = nvme_lba_to_sect(ns, le64_to_cpu(entry->zcap));
-	zone.start = nvme_lba_to_sect(ns, le64_to_cpu(entry->zslba));
+	zone.capacity = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->zcap));
+	zone.start = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->zslba));
 	if (zone.cond == BLK_ZONE_COND_FULL)
 		zone.wp = zone.start + zone.len;
 	else
-		zone.wp = nvme_lba_to_sect(ns, le64_to_cpu(entry->wp));
+		zone.wp = nvme_lba_to_sect(ns->head, le64_to_cpu(entry->wp));
 
 	return cb(&zone, idx, data);
 }
@@ -201,7 +201,7 @@ int nvme_ns_report_zones(struct nvme_ns *ns, sector_t sector,
 	while (zone_idx < nr_zones && sector < get_capacity(ns->disk)) {
 		memset(report, 0, buflen);
 
-		c.zmr.slba = cpu_to_le64(nvme_sect_to_lba(ns, sector));
+		c.zmr.slba = cpu_to_le64(nvme_sect_to_lba(ns->head, sector));
 		ret = nvme_submit_sync_cmd(ns->queue, &c, report, buflen);
 		if (ret) {
 			if (ret > 0)
@@ -240,7 +240,7 @@ blk_status_t nvme_setup_zone_mgmt_send(struct nvme_ns *ns, struct request *req,
 
 	c->zms.opcode = nvme_cmd_zone_mgmt_send;
 	c->zms.nsid = cpu_to_le32(ns->head->ns_id);
-	c->zms.slba = cpu_to_le64(nvme_sect_to_lba(ns, blk_rq_pos(req)));
+	c->zms.slba = cpu_to_le64(nvme_sect_to_lba(ns->head, blk_rq_pos(req)));
 	c->zms.zsa = action;
 
 	if (req_op(req) == REQ_OP_ZONE_RESET_ALL)
