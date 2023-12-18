@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+#include "arm64/rockchip/rk3308-evb-audio-v10-display-rgb.dts"
+
+/ {
+	model = "Rockchip RK3308 evb audio display rgb  board (AArch32)";
+	compatible = "rockchip,rk3308-evb-audio-v10-display-rgb-aarch32", "rockchip,rk3308";
+};
+
+&ramoops {
+	reg = <0x0 0x30000 0x0 0x20000>;
+	record-size = <0x00000>;
+	console-size = <0x20000>;
+};
