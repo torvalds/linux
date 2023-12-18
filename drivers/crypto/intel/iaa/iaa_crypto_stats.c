@@ -109,7 +109,6 @@ void update_max_adecomp_delay_ns(u64 start_time_ns)
 	time_diff = ktime_get_ns() - start_time_ns;
 
 	if (time_diff > max_adecomp_delay_ns)
-
 		max_adecomp_delay_ns = time_diff;
 }
 
