@@ -102,7 +102,7 @@
 	/* probe deferral not supported */
 	/* pcie-bus-supply = <&reg_mpcie_1v5>; */
 	reset-gpio = <&gpio5 12 GPIO_ACTIVE_LOW>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg2 {
