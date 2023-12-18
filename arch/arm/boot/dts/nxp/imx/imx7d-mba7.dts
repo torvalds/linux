@@ -112,6 +112,7 @@
 	srp-disable;
 	hnp-disable;
 	adp-disable;
+	disable-over-current;
 	dr_mode = "host";
 	status = "okay";
 };

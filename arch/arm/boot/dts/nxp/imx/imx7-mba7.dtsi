@@ -590,6 +590,7 @@
 };
 
 &usbh {
+	disable-over-current;
 	status = "okay";
 };
 
