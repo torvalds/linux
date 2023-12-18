@@ -430,6 +430,15 @@
 #define   VOLTAGE_MASK				REG_GENMASK(10, 0)
 
 #define GT_INTR_DW(x)				XE_REG(0x190018 + ((x) * 4))
+#define   INTR_GSC				REG_BIT(31)
+#define   INTR_GUC				REG_BIT(25)
+#define   INTR_MGUC				REG_BIT(24)
+#define   INTR_BCS8				REG_BIT(23)
+#define   INTR_BCS(x)				REG_BIT(15 - (x))
+#define   INTR_CCS(x)				REG_BIT(4 + (x))
+#define   INTR_RCS0				REG_BIT(0)
+#define   INTR_VECS(x)				REG_BIT(31 - (x))
+#define   INTR_VCS(x)				REG_BIT(x)
 
 #define RENDER_COPY_INTR_ENABLE			XE_REG(0x190030)
 #define VCS_VECS_INTR_ENABLE			XE_REG(0x190034)
