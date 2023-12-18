@@ -47,11 +47,22 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	return base + plane_state->view.color_plane[0].offset;
 }
 
-static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
+static u32 intel_cursor_position(const struct intel_crtc_state *crtc_state,
+				 const struct intel_plane_state *plane_state,
+				 bool early_tpt)
 {
 	int x = plane_state->uapi.dst.x1;
 	int y = plane_state->uapi.dst.y1;
 	u32 pos = 0;
+
+	/*
+	 * Formula from Bspec:
+	 * MAX(-1 * <Cursor vertical size from CUR_CTL base on cursor mode
+	 * select setting> + 1, CUR_POS Y Position - Update region Y position
+	 */
+	if (early_tpt)
+		y = max(-1 * drm_rect_height(&plane_state->uapi.dst) + 1,
+			y - crtc_state->psr2_su_area.y1);
 
 	if (x < 0) {
 		pos |= CURSOR_POS_X_SIGN;
@@ -274,7 +285,7 @@ static void i845_cursor_update_arm(struct intel_plane *plane,
 		size = CURSOR_HEIGHT(height) | CURSOR_WIDTH(width);
 
 		base = intel_cursor_base(plane_state);
-		pos = intel_cursor_position(plane_state);
+		pos = intel_cursor_position(crtc_state, plane_state, false);
 	}
 
 	/* On these chipsets we can only modify the base/size/stride
@@ -503,17 +514,24 @@ static void i9xx_cursor_update_sel_fetch_arm(struct intel_plane *plane,
 					     const struct intel_crtc_state *crtc_state,
 					     const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
 
 	if (!crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	if (drm_rect_height(&plane_state->psr2_sel_fetch_area) > 0)
-		intel_de_write_fw(i915, PLANE_SEL_FETCH_CTL(pipe, plane->id),
+	if (drm_rect_height(&plane_state->psr2_sel_fetch_area) > 0) {
+		if (crtc_state->enable_psr2_su_region_et) {
+			u32 val = intel_cursor_position(crtc_state, plane_state,
+				true);
+			intel_de_write_fw(dev_priv, CURPOS_ERLY_TPT(pipe), val);
+		}
+
+		intel_de_write_fw(dev_priv, PLANE_SEL_FETCH_CTL(pipe, plane->id),
 				  plane_state->ctl);
-	else
+	} else {
 		i9xx_cursor_disable_sel_fetch_arm(plane, crtc_state);
+	}
 }
 
 /* TODO: split into noarm+arm pair */
@@ -536,7 +554,7 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 			fbc_ctl = CUR_FBC_EN | CUR_FBC_HEIGHT(height - 1);
 
 		base = intel_cursor_base(plane_state);
-		pos = intel_cursor_position(plane_state);
+		pos = intel_cursor_position(crtc_state, plane_state, false);
 	}
 
 	/*
