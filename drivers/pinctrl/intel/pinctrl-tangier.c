@@ -9,6 +9,7 @@
  */
 
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -220,7 +221,6 @@ static int tng_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	const struct intel_pingroup *grp = &tp->groups[group];
 	u32 bits = grp->mode << BUFCFG_PINMODE_SHIFT;
 	u32 mask = BUFCFG_PINMODE_MASK;
-	unsigned long flags;
 	unsigned int i;
 
 	/*
@@ -232,11 +232,11 @@ static int tng_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			return -EBUSY;
 	}
 
+	guard(raw_spinlock_irqsave)(&tp->lock);
+
 	/* Now enable the mux setting for each pin in the group */
-	raw_spin_lock_irqsave(&tp->lock, flags);
 	for (i = 0; i < grp->grp.npins; i++)
 		tng_update_bufcfg(tp, grp->grp.pins[i], bits, mask);
-	raw_spin_unlock_irqrestore(&tp->lock, flags);
 
 	return 0;
 }
@@ -248,14 +248,13 @@ static int tng_gpio_request_enable(struct pinctrl_dev *pctldev,
 	struct tng_pinctrl *tp = pinctrl_dev_get_drvdata(pctldev);
 	u32 bits = BUFCFG_PINMODE_GPIO << BUFCFG_PINMODE_SHIFT;
 	u32 mask = BUFCFG_PINMODE_MASK;
-	unsigned long flags;
 
 	if (!tng_buf_available(tp, pin))
 		return -EBUSY;
 
-	raw_spin_lock_irqsave(&tp->lock, flags);
+	guard(raw_spinlock_irqsave)(&tp->lock);
+
 	tng_update_bufcfg(tp, pin, bits, mask);
-	raw_spin_unlock_irqrestore(&tp->lock, flags);
 
 	return 0;
 }
@@ -360,7 +359,6 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 	unsigned int param = pinconf_to_config_param(config);
 	unsigned int arg = pinconf_to_config_argument(config);
 	u32 mask, term, value = 0;
-	unsigned long flags;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
@@ -368,19 +366,19 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
-		/* Set default strength value in case none is given */
-		if (arg == 1)
-			arg = 20000;
-
 		switch (arg) {
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
 		case 2000:
 			term = BUFCFG_PUPD_VAL_2K;
+			break;
+		case 910:
+			term = BUFCFG_PUPD_VAL_910;
 			break;
 		default:
 			return -EINVAL;
@@ -391,19 +389,19 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		/* Set default strength value in case none is given */
-		if (arg == 1)
-			arg = 20000;
-
 		switch (arg) {
 		case 50000:
 			term = BUFCFG_PUPD_VAL_50K;
 			break;
+		case 1: /* Set default strength value in case none is given */
 		case 20000:
 			term = BUFCFG_PUPD_VAL_20K;
 			break;
 		case 2000:
 			term = BUFCFG_PUPD_VAL_2K;
+			break;
+		case 910:
+			term = BUFCFG_PUPD_VAL_910;
 			break;
 		default:
 			return -EINVAL;
@@ -432,9 +430,9 @@ static int tng_config_set_pin(struct tng_pinctrl *tp, unsigned int pin,
 		return -EINVAL;
 	}
 
-	raw_spin_lock_irqsave(&tp->lock, flags);
+	guard(raw_spinlock_irqsave)(&tp->lock);
+
 	tng_update_bufcfg(tp, pin, value, mask);
-	raw_spin_unlock_irqrestore(&tp->lock, flags);
 
 	return 0;
 }

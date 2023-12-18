@@ -10,6 +10,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -579,14 +580,12 @@ static const struct acpi_device_id spt_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, spt_pinctrl_acpi_match);
 
-static INTEL_PINCTRL_PM_OPS(spt_pinctrl_pm_ops);
-
 static struct platform_driver spt_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
 		.name = "sunrisepoint-pinctrl",
 		.acpi_match_table = spt_pinctrl_acpi_match,
-		.pm = &spt_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 
