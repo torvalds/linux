@@ -1239,13 +1239,12 @@ static void acpi_wmi_remove(struct platform_device *device)
 	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
 	struct device *wmi_bus_device = dev_get_drvdata(&device->dev);
 
-	acpi_remove_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY,
-				   acpi_wmi_notify_handler);
-	acpi_remove_address_space_handler(acpi_device->handle,
-				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
-
 	device_for_each_child_reverse(wmi_bus_device, NULL, wmi_remove_device);
 	device_unregister(wmi_bus_device);
+
+	acpi_remove_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY, acpi_wmi_notify_handler);
+	acpi_remove_address_space_handler(acpi_device->handle, ACPI_ADR_SPACE_EC,
+					  &acpi_wmi_ec_space_handler);
 }
 
 static int acpi_wmi_probe(struct platform_device *device)
