@@ -767,7 +767,6 @@ int intel_pasid_setup_dirty_tracking(struct intel_iommu *iommu,
  * Set up the scalable mode pasid entry for passthrough translation type.
  */
 int intel_pasid_setup_pass_through(struct intel_iommu *iommu,
-				   struct dmar_domain *domain,
 				   struct device *dev, u32 pasid)
 {
 	u16 did = FLPT_DEFAULT_DID;
