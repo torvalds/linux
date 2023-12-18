@@ -1932,7 +1932,7 @@ void intel_psr2_program_trans_man_trk_ctl(const struct intel_crtc_state *crtc_st
 }
 
 static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
-				  struct drm_rect *clip, bool full_update)
+				  bool full_update)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1947,17 +1947,21 @@ static void psr2_man_trk_ctl_calc(struct intel_crtc_state *crtc_state,
 		goto exit;
 	}
 
-	if (clip->y1 == -1)
+	if (crtc_state->psr2_su_area.y1 == -1)
 		goto exit;
 
 	if (IS_ALDERLAKE_P(dev_priv) || DISPLAY_VER(dev_priv) >= 14) {
-		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1);
-		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 - 1);
+		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(crtc_state->psr2_su_area.y1);
+		val |= ADLP_PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(crtc_state->psr2_su_area.y2 - 1);
 	} else {
-		drm_WARN_ON(crtc_state->uapi.crtc->dev, clip->y1 % 4 || clip->y2 % 4);
+		drm_WARN_ON(crtc_state->uapi.crtc->dev,
+			    crtc_state->psr2_su_area.y1 % 4 ||
+			    crtc_state->psr2_su_area.y2 % 4);
 
-		val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(clip->y1 / 4 + 1);
-		val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(clip->y2 / 4 + 1);
+		val |= PSR2_MAN_TRK_CTL_SU_REGION_START_ADDR(
+			crtc_state->psr2_su_area.y1 / 4 + 1);
+		val |= PSR2_MAN_TRK_CTL_SU_REGION_END_ADDR(
+			crtc_state->psr2_su_area.y2 / 4 + 1);
 	}
 exit:
 	crtc_state->psr2_man_track_ctl = val;
@@ -1983,8 +1987,7 @@ static void clip_area_update(struct drm_rect *overlap_damage_area,
 		overlap_damage_area->y2 = damage_area->y2;
 }
 
-static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *crtc_state,
-						struct drm_rect *pipe_clip)
+static void intel_psr2_sel_fetch_pipe_alignment(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
@@ -1997,9 +2000,10 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
 	else
 		y_alignment = crtc_state->su_y_granularity;
 
-	pipe_clip->y1 -= pipe_clip->y1 % y_alignment;
-	if (pipe_clip->y2 % y_alignment)
-		pipe_clip->y2 = ((pipe_clip->y2 / y_alignment) + 1) * y_alignment;
+	crtc_state->psr2_su_area.y1 -= crtc_state->psr2_su_area.y1 % y_alignment;
+	if (crtc_state->psr2_su_area.y2 % y_alignment)
+		crtc_state->psr2_su_area.y2 = ((crtc_state->psr2_su_area.y2 /
+						y_alignment) + 1) * y_alignment;
 }
 
 /*
@@ -2008,8 +2012,7 @@ static void intel_psr2_sel_fetch_pipe_alignment(const struct intel_crtc_state *c
  */
 static void
 intel_psr2_sel_fetch_et_alignment(struct intel_crtc_state *crtc_state,
-				  struct intel_plane_state *cursor_state,
-				  struct drm_rect *pipe_clip)
+				  struct intel_plane_state *cursor_state)
 {
 	struct drm_rect inter;
 
@@ -2017,11 +2020,11 @@ intel_psr2_sel_fetch_et_alignment(struct intel_crtc_state *crtc_state,
 	    !cursor_state->uapi.visible)
 		return;
 
-	inter = *pipe_clip;
+	inter = crtc_state->psr2_su_area;
 	if (!drm_rect_intersect(&inter, &cursor_state->uapi.dst))
 		return;
 
-	clip_area_update(pipe_clip, &cursor_state->uapi.dst,
+	clip_area_update(&crtc_state->psr2_su_area, &cursor_state->uapi.dst,
 			 &crtc_state->pipe_src);
 }
 
@@ -2065,7 +2068,6 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
-	struct drm_rect pipe_clip = { .x1 = 0, .y1 = -1, .x2 = INT_MAX, .y2 = -1 };
 	struct intel_plane_state *new_plane_state, *old_plane_state,
 		*cursor_plane_state = NULL;
 	struct intel_plane *plane;
@@ -2079,6 +2081,11 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		full_update = true;
 		goto skip_sel_fetch_set_loop;
 	}
+
+	crtc_state->psr2_su_area.x1 = 0;
+	crtc_state->psr2_su_area.y1 = -1;
+	crtc_state->psr2_su_area.x2 = INT_MAX;
+	crtc_state->psr2_su_area.y2 = -1;
 
 	/*
 	 * Calculate minimal selective fetch area of each plane and calculate
@@ -2114,14 +2121,14 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 			if (old_plane_state->uapi.visible) {
 				damaged_area.y1 = old_plane_state->uapi.dst.y1;
 				damaged_area.y2 = old_plane_state->uapi.dst.y2;
-				clip_area_update(&pipe_clip, &damaged_area,
+				clip_area_update(&crtc_state->psr2_su_area, &damaged_area,
 						 &crtc_state->pipe_src);
 			}
 
 			if (new_plane_state->uapi.visible) {
 				damaged_area.y1 = new_plane_state->uapi.dst.y1;
 				damaged_area.y2 = new_plane_state->uapi.dst.y2;
-				clip_area_update(&pipe_clip, &damaged_area,
+				clip_area_update(&crtc_state->psr2_su_area, &damaged_area,
 						 &crtc_state->pipe_src);
 			}
 			continue;
@@ -2129,7 +2136,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 			/* If alpha changed mark the whole plane area as damaged */
 			damaged_area.y1 = new_plane_state->uapi.dst.y1;
 			damaged_area.y2 = new_plane_state->uapi.dst.y2;
-			clip_area_update(&pipe_clip, &damaged_area,
+			clip_area_update(&crtc_state->psr2_su_area, &damaged_area,
 					 &crtc_state->pipe_src);
 			continue;
 		}
@@ -2146,7 +2153,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		damaged_area.x1 += new_plane_state->uapi.dst.x1 - src.x1;
 		damaged_area.x2 += new_plane_state->uapi.dst.x1 - src.x1;
 
-		clip_area_update(&pipe_clip, &damaged_area, &crtc_state->pipe_src);
+		clip_area_update(&crtc_state->psr2_su_area, &damaged_area, &crtc_state->pipe_src);
 
 		/*
 		 * Cursor plane new state is stored to adjust su area to cover
@@ -2162,7 +2169,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	 * should identify cases where this happens and fix the area
 	 * calculation for those.
 	 */
-	if (pipe_clip.y1 == -1) {
+	if (crtc_state->psr2_su_area.y1 == -1) {
 		drm_info_once(&dev_priv->drm,
 			      "Selective fetch area calculation failed in pipe %c\n",
 			      pipe_name(crtc->pipe));
@@ -2176,7 +2183,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	if ((IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
 	     IS_ALDERLAKE_P(dev_priv) || IS_TIGERLAKE(dev_priv)) &&
 	    crtc_state->splitter.enable)
-		pipe_clip.y1 = 0;
+		crtc_state->psr2_su_area.y1 = 0;
 
 	ret = drm_atomic_add_affected_planes(&state->base, &crtc->base);
 	if (ret)
@@ -2184,10 +2191,9 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 
 	/* Adjust su area to cover cursor fully as necessary */
 	if (cursor_plane_state)
-		intel_psr2_sel_fetch_et_alignment(crtc_state, cursor_plane_state,
-						  &pipe_clip);
+		intel_psr2_sel_fetch_et_alignment(crtc_state, cursor_plane_state);
 
-	intel_psr2_sel_fetch_pipe_alignment(crtc_state, &pipe_clip);
+	intel_psr2_sel_fetch_pipe_alignment(crtc_state);
 
 	/*
 	 * Now that we have the pipe damaged area check if it intersect with
@@ -2202,7 +2208,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		    !new_plane_state->uapi.visible)
 			continue;
 
-		inter = pipe_clip;
+		inter = crtc_state->psr2_su_area;
 		sel_fetch_area = &new_plane_state->psr2_sel_fetch_area;
 		if (!drm_rect_intersect(&inter, &new_plane_state->uapi.dst)) {
 			sel_fetch_area->y1 = -1;
@@ -2247,7 +2253,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 	}
 
 skip_sel_fetch_set_loop:
-	psr2_man_trk_ctl_calc(crtc_state, &pipe_clip, full_update);
+	psr2_man_trk_ctl_calc(crtc_state, full_update);
 	return 0;
 }
 
