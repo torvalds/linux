@@ -104,6 +104,7 @@
 #include "intel_pmdemand.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
+#include "intel_psr_regs.h"
 #include "intel_sdvo.h"
 #include "intel_snps_phy.h"
 #include "intel_tc.h"
@@ -2705,6 +2706,15 @@ static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 	 * always be the user's requested size.
 	 */
 	intel_de_write(dev_priv, PIPESRC(pipe),
+		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
+
+	if (!crtc_state->enable_psr2_su_region_et)
+		return;
+
+	width = drm_rect_width(&crtc_state->psr2_su_area);
+	height = drm_rect_height(&crtc_state->psr2_su_area);
+
+	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(pipe),
 		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
 }
 
