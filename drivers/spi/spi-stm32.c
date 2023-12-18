@@ -154,6 +154,20 @@
 /* STM32H7_SPI_I2SCFGR bit fields */
 #define STM32H7_SPI_I2SCFGR_I2SMOD	BIT(0)
 
+/* STM32MP25 SPI registers bit fields */
+#define STM32MP25_SPI_HWCFGR1			0x3F0
+
+/* STM32MP25_SPI_CR2 bit fields */
+#define STM32MP25_SPI_TSIZE_MAX_LIMITED		GENMASK(9, 0)
+
+/* STM32MP25_SPI_HWCFGR1 */
+#define STM32MP25_SPI_HWCFGR1_FULLCFG		GENMASK(27, 24)
+#define STM32MP25_SPI_HWCFGR1_FULLCFG_LIMITED	0x0
+#define STM32MP25_SPI_HWCFGR1_FULLCFG_FULL	0x1
+#define STM32MP25_SPI_HWCFGR1_DSCFG		GENMASK(19, 16)
+#define STM32MP25_SPI_HWCFGR1_DSCFG_16_B	0x0
+#define STM32MP25_SPI_HWCFGR1_DSCFG_32_B	0x1
+
 /* STM32H7 SPI Master Baud Rate min/max divisor */
 #define STM32H7_SPI_MBR_DIV_MIN		(2 << STM32H7_SPI_CFG1_MBR_MIN)
 #define STM32H7_SPI_MBR_DIV_MAX		(2 << STM32H7_SPI_CFG1_MBR_MAX)
@@ -207,6 +221,7 @@ struct stm32_spi_reg {
  * @br: baud rate register and bitfields
  * @rx: SPI RX data register
  * @tx: SPI TX data register
+ * @fullcfg: SPI full or limited feature set register
  */
 struct stm32_spi_regspec {
 	const struct stm32_spi_reg en;
@@ -219,6 +234,7 @@ struct stm32_spi_regspec {
 	const struct stm32_spi_reg br;
 	const struct stm32_spi_reg rx;
 	const struct stm32_spi_reg tx;
+	const struct stm32_spi_reg fullcfg;
 };
 
 struct stm32_spi;
@@ -250,6 +266,7 @@ struct stm32_spi;
  * @has_fifo: boolean to know if fifo is used for driver
  * @has_device_mode: is this compatible capable to switch on device mode
  * @flags: compatible specific SPI controller flags used at registration time
+ * @prevent_dma_burst: boolean to indicate to prevent DMA burst
  */
 struct stm32_spi_cfg {
 	const struct stm32_spi_regspec *regs;
@@ -274,6 +291,7 @@ struct stm32_spi_cfg {
 	bool has_fifo;
 	bool has_device_mode;
 	u16 flags;
+	bool prevent_dma_burst;
 };
 
 /**
@@ -287,6 +305,8 @@ struct stm32_spi_cfg {
  * @lock: prevent I/O concurrent access
  * @irq: SPI controller interrupt line
  * @fifo_size: size of the embedded fifo in bytes
+ * @t_size_max: maximum number of data of one transfer
+ * @feature_set: SPI full or limited feature set
  * @cur_midi: host inter-data idleness in ns
  * @cur_speed: speed configured in Hz
  * @cur_half_period: time of a half bit in us
@@ -314,6 +334,10 @@ struct stm32_spi {
 	spinlock_t lock; /* prevent I/O concurrent access */
 	int irq;
 	unsigned int fifo_size;
+	unsigned int t_size_max;
+	unsigned int feature_set;
+#define STM32_SPI_FEATURE_LIMITED	STM32MP25_SPI_HWCFGR1_FULLCFG_LIMITED	/* 0x0 */
+#define STM32_SPI_FEATURE_FULL		STM32MP25_SPI_HWCFGR1_FULLCFG_FULL	/* 0x1 */
 
 	unsigned int cur_midi;
 	unsigned int cur_speed;
@@ -369,6 +393,28 @@ static const struct stm32_spi_regspec stm32h7_spi_regspec = {
 
 	.rx = { STM32H7_SPI_RXDR },
 	.tx = { STM32H7_SPI_TXDR },
+};
+
+static const struct stm32_spi_regspec stm32mp25_spi_regspec = {
+	/* SPI data transfer is enabled but spi_ker_ck is idle.
+	 * CFG1 and CFG2 registers are write protected when SPE is enabled.
+	 */
+	.en = { STM32H7_SPI_CR1, STM32H7_SPI_CR1_SPE },
+
+	.dma_rx_en = { STM32H7_SPI_CFG1, STM32H7_SPI_CFG1_RXDMAEN },
+	.dma_tx_en = { STM32H7_SPI_CFG1, STM32H7_SPI_CFG1_TXDMAEN },
+
+	.cpol = { STM32H7_SPI_CFG2, STM32H7_SPI_CFG2_CPOL },
+	.cpha = { STM32H7_SPI_CFG2, STM32H7_SPI_CFG2_CPHA },
+	.lsb_first = { STM32H7_SPI_CFG2, STM32H7_SPI_CFG2_LSBFRST },
+	.cs_high = { STM32H7_SPI_CFG2, STM32H7_SPI_CFG2_SSIOP },
+	.br = { STM32H7_SPI_CFG1, STM32H7_SPI_CFG1_MBR,
+		STM32H7_SPI_CFG1_MBR_SHIFT },
+
+	.rx = { STM32H7_SPI_RXDR },
+	.tx = { STM32H7_SPI_TXDR },
+
+	.fullcfg = { STM32MP25_SPI_HWCFGR1, STM32MP25_SPI_HWCFGR1_FULLCFG },
 };
 
 static inline void stm32_spi_set_bits(struct stm32_spi *spi,
@@ -454,6 +500,28 @@ static int stm32h7_spi_get_bpw_mask(struct stm32_spi *spi)
 
 	dev_dbg(spi->dev, "%d-bit maximum data frame\n", max_bpw);
 
+	return SPI_BPW_RANGE_MASK(4, max_bpw);
+}
+
+/**
+ * stm32mp25_spi_get_bpw_mask - Return bits per word mask
+ * @spi: pointer to the spi controller data structure
+ */
+static int stm32mp25_spi_get_bpw_mask(struct stm32_spi *spi)
+{
+	u32 dscfg, max_bpw;
+
+	if (spi->feature_set == STM32_SPI_FEATURE_LIMITED) {
+		dev_dbg(spi->dev, "8-bit or 16-bit data frame supported\n");
+		return SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
+	}
+
+	dscfg = FIELD_GET(STM32MP25_SPI_HWCFGR1_DSCFG,
+			  readl_relaxed(spi->base + STM32MP25_SPI_HWCFGR1));
+	max_bpw = 16;
+	if (dscfg == STM32MP25_SPI_HWCFGR1_DSCFG_32_B)
+		max_bpw = 32;
+	dev_dbg(spi->dev, "%d-bit maximum data frame\n", max_bpw);
 	return SPI_BPW_RANGE_MASK(4, max_bpw);
 }
 
@@ -1103,7 +1171,7 @@ static int stm32_spi_prepare_msg(struct spi_controller *ctrl,
 		int ret;
 
 		ret = spi_split_transfers_maxwords(ctrl, msg,
-						   STM32H7_SPI_TSIZE_MAX,
+						   spi->t_size_max,
 						   GFP_KERNEL | GFP_DMA);
 		if (ret)
 			return ret;
@@ -1168,7 +1236,7 @@ static void stm32_spi_dma_config(struct stm32_spi *spi,
 {
 	enum dma_slave_buswidth buswidth;
 	struct dma_slave_caps caps;
-	u32 maxburst;
+	u32 maxburst = 1;
 	int ret;
 
 	if (spi->cur_bpw <= 8)
@@ -1178,15 +1246,9 @@ static void stm32_spi_dma_config(struct stm32_spi *spi,
 	else
 		buswidth = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
-	if (spi->cfg->has_fifo) {
-		/* Valid for DMA Half or Full Fifo threshold */
-		if (spi->cur_fthlv == 2)
-			maxburst = 1;
-		else
-			maxburst = spi->cur_fthlv;
-	} else {
-		maxburst = 1;
-	}
+	/* Valid for DMA Half or Full Fifo threshold */
+	if (!spi->cfg->prevent_dma_burst && spi->cfg->has_fifo && spi->cur_fthlv != 2)
+		maxburst = spi->cur_fthlv;
 
 	/* Get the DMA channel caps, and adjust maxburst if possible */
 	ret = dma_get_slave_caps(dma_chan, &caps);
@@ -1671,7 +1733,7 @@ static void stm32h7_spi_data_idleness(struct stm32_spi *spi, u32 len)
  */
 static int stm32h7_spi_number_of_data(struct stm32_spi *spi, u32 nb_words)
 {
-	if (nb_words <= STM32H7_SPI_TSIZE_MAX) {
+	if (nb_words <= spi->t_size_max) {
 		writel_relaxed(FIELD_PREP(STM32H7_SPI_CR2_TSIZE, nb_words),
 			       spi->base + STM32H7_SPI_CR2);
 	} else {
@@ -1954,7 +2016,37 @@ static const struct stm32_spi_cfg stm32h7_spi_cfg = {
 	.has_device_mode = true,
 };
 
+/*
+ * STM32MP2 is compatible with the STM32H7 except:
+ * - enforce the DMA maxburst value to 1
+ * - spi8 have limited feature set (TSIZE_MAX = 1024, BPW of 8 OR 16)
+ */
+static const struct stm32_spi_cfg stm32mp25_spi_cfg = {
+	.regs = &stm32mp25_spi_regspec,
+	.get_fifo_size = stm32h7_spi_get_fifo_size,
+	.get_bpw_mask = stm32mp25_spi_get_bpw_mask,
+	.disable = stm32h7_spi_disable,
+	.config = stm32h7_spi_config,
+	.set_bpw = stm32h7_spi_set_bpw,
+	.set_mode = stm32h7_spi_set_mode,
+	.set_data_idleness = stm32h7_spi_data_idleness,
+	.set_number_of_data = stm32h7_spi_number_of_data,
+	.transfer_one_dma_start = stm32h7_spi_transfer_one_dma_start,
+	.dma_rx_cb = stm32_spi_dma_rx_cb,
+	/*
+	 * dma_tx_cb is not necessary since in case of TX, dma is followed by
+	 * SPI access hence handling is performed within the SPI interrupt
+	 */
+	.transfer_one_irq = stm32h7_spi_transfer_one_irq,
+	.irq_handler_thread = stm32h7_spi_irq_thread,
+	.baud_rate_div_min = STM32H7_SPI_MBR_DIV_MIN,
+	.baud_rate_div_max = STM32H7_SPI_MBR_DIV_MAX,
+	.has_fifo = true,
+	.prevent_dma_burst = true,
+};
+
 static const struct of_device_id stm32_spi_of_match[] = {
+	{ .compatible = "st,stm32mp25-spi", .data = (void *)&stm32mp25_spi_cfg },
 	{ .compatible = "st,stm32h7-spi", .data = (void *)&stm32h7_spi_cfg },
 	{ .compatible = "st,stm32f4-spi", .data = (void *)&stm32f4_spi_cfg },
 	{ .compatible = "st,stm32f7-spi", .data = (void *)&stm32f7_spi_cfg },
@@ -2057,6 +2149,22 @@ static int stm32_spi_probe(struct platform_device *pdev)
 
 	if (spi->cfg->has_fifo)
 		spi->fifo_size = spi->cfg->get_fifo_size(spi);
+
+	spi->feature_set = STM32_SPI_FEATURE_FULL;
+	if (spi->cfg->regs->fullcfg.reg) {
+		spi->feature_set =
+			FIELD_GET(STM32MP25_SPI_HWCFGR1_FULLCFG,
+				  readl_relaxed(spi->base + spi->cfg->regs->fullcfg.reg));
+
+		dev_dbg(spi->dev, "%s feature set\n",
+			spi->feature_set == STM32_SPI_FEATURE_FULL ? "full" : "limited");
+	}
+
+	/* Only for STM32H7 and after */
+	spi->t_size_max = spi->feature_set == STM32_SPI_FEATURE_FULL ?
+				STM32H7_SPI_TSIZE_MAX :
+				STM32MP25_SPI_TSIZE_MAX_LIMITED;
+	dev_dbg(spi->dev, "one message max size %d\n", spi->t_size_max);
 
 	ret = spi->cfg->config(spi);
 	if (ret) {
