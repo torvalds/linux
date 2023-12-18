@@ -116,6 +116,8 @@ struct xe_hw_engine {
 	u16 instance;
 	/** @logical_instance: logical instance of this hw engine */
 	u16 logical_instance;
+	/** @irq_offset: IRQ offset of this hw engine */
+	u16 irq_offset;
 	/** @mmio_base: MMIO base address of this hw engine*/
 	u32 mmio_base;
 	/**
