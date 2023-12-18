@@ -85,25 +85,25 @@ struct spi_engine_program {
  * struct spi_engine_message_state - SPI engine per-message state
  */
 struct spi_engine_message_state {
-	/** Instructions for executing this message. */
+	/** @p: Instructions for executing this message. */
 	struct spi_engine_program *p;
-	/** Number of elements in cmd_buf array. */
+	/** @cmd_length: Number of elements in cmd_buf array. */
 	unsigned cmd_length;
-	/** Array of commands not yet written to CMD FIFO. */
+	/** @cmd_buf: Array of commands not yet written to CMD FIFO. */
 	const uint16_t *cmd_buf;
-	/** Next xfer with tx_buf not yet fully written to TX FIFO. */
+	/** @tx_xfer: Next xfer with tx_buf not yet fully written to TX FIFO. */
 	struct spi_transfer *tx_xfer;
-	/** Size of tx_buf in bytes. */
+	/** @tx_length: Size of tx_buf in bytes. */
 	unsigned int tx_length;
-	/** Bytes not yet written to TX FIFO. */
+	/** @tx_buf: Bytes not yet written to TX FIFO. */
 	const uint8_t *tx_buf;
-	/** Next xfer with rx_buf not yet fully written to RX FIFO. */
+	/** @rx_xfer: Next xfer with rx_buf not yet fully written to RX FIFO. */
 	struct spi_transfer *rx_xfer;
-	/** Size of tx_buf in bytes. */
+	/** @rx_length: Size of tx_buf in bytes. */
 	unsigned int rx_length;
-	/** Bytes not yet written to the RX FIFO. */
+	/** @rx_buf: Bytes not yet written to the RX FIFO. */
 	uint8_t *rx_buf;
-	/** ID to correlate SYNC interrupts with this message. */
+	/** @sync_id: ID to correlate SYNC interrupts with this message. */
 	u8 sync_id;
 };
 
