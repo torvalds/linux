@@ -80,6 +80,7 @@ struct rk_mcu_sleep_tags {
 struct rk_sleep_config *sleep_config;
 
 static const struct of_device_id pm_match_table[] = {
+	{ .compatible = "rockchip,pm-config",},
 	{ .compatible = "rockchip,pm-px30",},
 	{ .compatible = "rockchip,pm-rk1808",},
 	{ .compatible = "rockchip,pm-rk322x",},
