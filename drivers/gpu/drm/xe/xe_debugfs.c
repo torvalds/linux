@@ -5,7 +5,6 @@
 
 #include "xe_debugfs.h"
 
-#include <linux/fault-inject.h>
 #include <linux/string_helpers.h>
 
 #include <drm/drm_debugfs.h>
@@ -22,6 +21,7 @@
 #endif
 
 #ifdef CONFIG_FAULT_INJECTION
+#include <linux/fault-inject.h> /* XXX: fault-inject.h is broken */
 DECLARE_FAULT_ATTR(gt_reset_failure);
 #endif
 
