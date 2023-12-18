@@ -17,7 +17,9 @@
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
+#include "xe_memirq.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 
 /*
  * Interrupt registers for a unit are always consecutive and ordered
@@ -498,6 +500,9 @@ static void xelp_irq_reset(struct xe_tile *tile)
 
 	gt_irq_reset(tile);
 
+	if (IS_SRIOV_VF(tile_to_xe(tile)))
+		return;
+
 	mask_and_disable(tile, PCU_IRQ_OFFSET);
 }
 
@@ -507,6 +512,9 @@ static void dg1_irq_reset(struct xe_tile *tile)
 		dg1_intr_disable(tile_to_xe(tile));
 
 	gt_irq_reset(tile);
+
+	if (IS_SRIOV_VF(tile_to_xe(tile)))
+		return;
 
 	mask_and_disable(tile, PCU_IRQ_OFFSET);
 }
@@ -518,10 +526,33 @@ static void dg1_irq_reset_mstr(struct xe_tile *tile)
 	xe_mmio_write32(mmio, GFX_MSTR_IRQ, ~0);
 }
 
+static void vf_irq_reset(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+
+	xe_assert(xe, IS_SRIOV_VF(xe));
+
+	if (GRAPHICS_VERx100(xe) < 1210)
+		xelp_intr_disable(xe);
+	else
+		xe_assert(xe, xe_device_has_memirq(xe));
+
+	for_each_tile(tile, xe, id) {
+		if (xe_device_has_memirq(xe))
+			xe_memirq_reset(&tile->sriov.vf.memirq);
+		else
+			gt_irq_reset(tile);
+	}
+}
+
 static void xe_irq_reset(struct xe_device *xe)
 {
 	struct xe_tile *tile;
 	u8 id;
+
+	if (IS_SRIOV_VF(xe))
+		return vf_irq_reset(xe);
 
 	for_each_tile(tile, xe, id) {
 		if (GRAPHICS_VERx100(xe) >= 1210)
@@ -545,8 +576,26 @@ static void xe_irq_reset(struct xe_device *xe)
 	}
 }
 
+static void vf_irq_postinstall(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+
+	for_each_tile(tile, xe, id)
+		if (xe_device_has_memirq(xe))
+			xe_memirq_postinstall(&tile->sriov.vf.memirq);
+
+	if (GRAPHICS_VERx100(xe) < 1210)
+		xelp_intr_enable(xe, true);
+	else
+		xe_assert(xe, xe_device_has_memirq(xe));
+}
+
 static void xe_irq_postinstall(struct xe_device *xe)
 {
+	if (IS_SRIOV_VF(xe))
+		return vf_irq_postinstall(xe);
+
 	xe_display_irq_postinstall(xe, xe_root_mmio_gt(xe));
 
 	/*
@@ -563,8 +612,30 @@ static void xe_irq_postinstall(struct xe_device *xe)
 		xelp_intr_enable(xe, true);
 }
 
+static irqreturn_t vf_mem_irq_handler(int irq, void *arg)
+{
+	struct xe_device *xe = arg;
+	struct xe_tile *tile;
+	unsigned int id;
+
+	spin_lock(&xe->irq.lock);
+	if (!xe->irq.enabled) {
+		spin_unlock(&xe->irq.lock);
+		return IRQ_NONE;
+	}
+	spin_unlock(&xe->irq.lock);
+
+	for_each_tile(tile, xe, id)
+		xe_memirq_handler(&tile->sriov.vf.memirq);
+
+	return IRQ_HANDLED;
+}
+
 static irq_handler_t xe_irq_handler(struct xe_device *xe)
 {
+	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe))
+		return vf_mem_irq_handler;
+
 	if (GRAPHICS_VERx100(xe) >= 1210)
 		return dg1_irq_handler;
 	else
