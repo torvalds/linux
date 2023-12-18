@@ -30,8 +30,11 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_recovery>;
+	scl-gpios = <&gpio4 8 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio4 9 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	clock-frequency = <100000>;
 	status = "okay";
 
@@ -166,6 +169,12 @@
 		fsl,pins =
 			<MX7D_PAD_I2C1_SDA__I2C1_SDA	0x40000078>,
 			<MX7D_PAD_I2C1_SCL__I2C1_SCL	0x40000078>;
+	};
+
+	pinctrl_i2c1_recovery: i2c1recoverygrp {
+		fsl,pins =
+			<MX7D_PAD_I2C1_SDA__GPIO4_IO9	0x40000078>,
+			<MX7D_PAD_I2C1_SCL__GPIO4_IO8	0x40000078>;
 	};
 
 	pinctrl_pmic1: pmic1grp {
