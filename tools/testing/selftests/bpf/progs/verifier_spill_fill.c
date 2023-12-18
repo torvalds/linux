@@ -499,8 +499,14 @@ __success
 __msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=00000000")
 /* but fp-16 is spilled IMPRECISE zero const reg */
 __msg("4: (7b) *(u64 *)(r10 -16) = r0        ; R0_w=0 R10=fp0 fp-16_w=0")
-/* and now check that precision propagation works even for such tricky case */
-__msg("10: (71) r2 = *(u8 *)(r10 -9)         ; R2_w=P0 R10=fp0 fp-16_w=0")
+/* validate that assigning R2 from STACK_ZERO doesn't mark register
+ * precise immediately; if necessary, it will be marked precise later
+ */
+__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=00000000")
+/* similarly, when R2 is assigned from spilled register, it is initially
+ * imprecise, but will be marked precise later once it is used in precise context
+ */
+__msg("10: (71) r2 = *(u8 *)(r10 -9)         ; R2_w=0 R10=fp0 fp-16_w=0")
 __msg("11: (0f) r1 += r2")
 __msg("mark_precise: frame0: last_idx 11 first_idx 0 subseq_idx -1")
 __msg("mark_precise: frame0: regs=r2 stack= before 10: (71) r2 = *(u8 *)(r10 -9)")
