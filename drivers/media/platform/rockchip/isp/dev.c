@@ -1154,7 +1154,9 @@ static void rkisp_pm_complete(struct device *dev)
 
 	isp_dev->is_suspend = false;
 	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
-	if (isp_dev->is_suspend_one_frame)
+	if (!hw->is_single && hw->is_multi_overflow)
+		hw->pre_dev_id++;
+	if (isp_dev->is_suspend_one_frame && !hw->is_multi_overflow)
 		isp_dev->is_first_double = true;
 	if (hw->isp_ver > ISP_V20) {
 		val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME |
@@ -1168,7 +1170,8 @@ static void rkisp_pm_complete(struct device *dev)
 		if (i == RKISP_STREAM_VIR || !stream->streaming || !stream->curr_buf)
 			continue;
 		/* skip first frame due to hw no reference frame information */
-		stream->skip_frame = 1;
+		if (isp_dev->is_first_double)
+			stream->skip_frame = 1;
 	}
 	if (hw->cur_dev_id == isp_dev->dev_id)
 		rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
