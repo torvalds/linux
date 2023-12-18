@@ -697,7 +697,9 @@ static void kunit_init_suite(struct kunit_suite *suite)
 	kunit_debugfs_create_suite(suite);
 	suite->status_comment[0] = '\0';
 	suite->suite_init_err = 0;
-	string_stream_clear(suite->log);
+
+	if (suite->log)
+		string_stream_clear(suite->log);
 }
 
 bool kunit_enabled(void)
