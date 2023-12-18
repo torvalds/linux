@@ -20360,6 +20360,7 @@ F:	drivers/media/dvb-frontends/sp2*
 
 SPANISH DOCUMENTATION
 M:	Carlos Bilbao <carlos.bilbao@amd.com>
+R:	Avadhut Naik <avadhut.naik@amd.com>
 S:	Maintained
 F:	Documentation/translations/sp_SP/
 
