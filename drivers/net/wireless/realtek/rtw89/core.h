@@ -2506,11 +2506,13 @@ struct rtw89_btc_dm {
 	u32 noisy_level: 3;
 	u32 coex_info_map: 8;
 	u32 bt_only: 1;
-	u32 wl_btg_rx: 1;
+	u32 wl_btg_rx: 2;
 	u32 trx_para_level: 8;
 	u32 wl_stb_chg: 1;
 	u32 pta_owner: 1;
+
 	u32 tdma_instant_excute: 1;
+	u32 wl_btg_rx_rb: 2;
 
 	u16 slot_dur[CXST_MAX];
 
