@@ -546,7 +546,7 @@ MODULE_PARM_DESC(annex,
 
 #define uea_wait(sc, cond, timeo) \
 ({ \
-	int _r = wait_event_interruptible_timeout(sc->sync_q, \
+	int _r = wait_event_freezable_timeout(sc->sync_q, \
 			(cond) || kthread_should_stop(), timeo); \
 	if (kthread_should_stop()) \
 		_r = -ENODEV; \
@@ -1896,7 +1896,6 @@ static int uea_kthread(void *data)
 			ret = sc->stat(sc);
 		if (ret != -EAGAIN)
 			uea_wait(sc, 0, msecs_to_jiffies(1000));
-		try_to_freeze();
 	}
 	uea_leaves(INS_TO_USBDEV(sc));
 	return ret;
