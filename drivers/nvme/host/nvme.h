@@ -446,6 +446,17 @@ struct nvme_ns_head {
 	bool			shared;
 	int			instance;
 	struct nvme_effects_log *effects;
+	int			lba_shift;
+	u16			ms;
+	u16			pi_size;
+	u16			sgs;
+	u32			sws;
+	u8			pi_type;
+	u8			guard_type;
+#ifdef CONFIG_BLK_DEV_ZONED
+	u64			zsze;
+#endif
+	unsigned long		features;
 
 	struct cdev		cdev;
 	struct device		cdev_device;
@@ -487,17 +498,6 @@ struct nvme_ns {
 	struct kref kref;
 	struct nvme_ns_head *head;
 
-	int lba_shift;
-	u16 ms;
-	u16 pi_size;
-	u16 sgs;
-	u32 sws;
-	u8 pi_type;
-	u8 guard_type;
-#ifdef CONFIG_BLK_DEV_ZONED
-	u64 zsze;
-#endif
-	unsigned long features;
 	unsigned long flags;
 #define NVME_NS_REMOVING	0
 #define NVME_NS_ANA_PENDING	2
@@ -514,7 +514,7 @@ struct nvme_ns {
 /* NVMe ns supports metadata actions by the controller (generate/strip) */
 static inline bool nvme_ns_has_pi(struct nvme_ns *ns)
 {
-	return ns->pi_type && ns->ms == ns->pi_size;
+	return ns->head->pi_type && ns->head->ms == ns->head->pi_size;
 }
 
 struct nvme_ctrl_ops {
@@ -648,7 +648,7 @@ static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
  */
 static inline u64 nvme_sect_to_lba(struct nvme_ns *ns, sector_t sector)
 {
-	return sector >> (ns->lba_shift - SECTOR_SHIFT);
+	return sector >> (ns->head->lba_shift - SECTOR_SHIFT);
 }
 
 /*
@@ -656,7 +656,7 @@ static inline u64 nvme_sect_to_lba(struct nvme_ns *ns, sector_t sector)
  */
 static inline sector_t nvme_lba_to_sect(struct nvme_ns *ns, u64 lba)
 {
-	return lba << (ns->lba_shift - SECTOR_SHIFT);
+	return lba << (ns->head->lba_shift - SECTOR_SHIFT);
 }
 
 /*
