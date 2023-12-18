@@ -3245,8 +3245,21 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static void vop2_wb_encoder_atomic_disable(struct drm_encoder *encoder,
+					   struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc = encoder->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	if (!crtc->state->active_changed && !crtc->state->mode_changed) {
+		crtc->state->connectors_changed = false;
+		DRM_DEBUG("VP%d force change connectors_changed to false when disable wb\n", vp->id);
+	}
+}
+
 static const struct drm_encoder_helper_funcs vop2_wb_encoder_helper_funcs = {
 	.atomic_check = vop2_wb_encoder_atomic_check,
+	.atomic_disable = vop2_wb_encoder_atomic_disable,
 };
 
 static const struct drm_connector_helper_funcs vop2_wb_connector_helper_funcs = {
