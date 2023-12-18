@@ -11,6 +11,7 @@
 #include <linux/livepatch.h>
 #include <linux/resume_user_mode.h>
 #include <linux/tick.h>
+#include <linux/kmsan.h>
 
 #include <asm/entry-common.h>
 
@@ -102,7 +103,19 @@ static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs) {}
  * done between establishing state and enabling interrupts. The caller must
  * enable interrupts before invoking syscall_enter_from_user_mode_work().
  */
-void enter_from_user_mode(struct pt_regs *regs);
+static __always_inline void enter_from_user_mode(struct pt_regs *regs)
+{
+	arch_enter_from_user_mode(regs);
+	lockdep_hardirqs_off(CALLER_ADDR0);
+
+	CT_WARN_ON(__ct_state() != CONTEXT_USER);
+	user_exit_irqoff();
+
+	instrumentation_begin();
+	kmsan_unpoison_entry_regs(regs);
+	trace_hardirqs_off_finish();
+	instrumentation_end();
+}
 
 /**
  * syscall_enter_from_user_mode_prepare - Establish state and enable interrupts
