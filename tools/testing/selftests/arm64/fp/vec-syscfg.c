@@ -66,6 +66,11 @@ static struct vec_data vec_data[] = {
 	},
 };
 
+static bool vec_type_supported(struct vec_data *data)
+{
+	return getauxval(data->hwcap_type) & data->hwcap;
+}
+
 static int stdio_read_integer(FILE *f, const char *what, int *val)
 {
 	int n = 0;
@@ -564,8 +569,11 @@ static void prctl_set_all_vqs(struct vec_data *data)
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(vec_data); i++)
+	for (i = 0; i < ARRAY_SIZE(vec_data); i++) {
+		if (!vec_type_supported(&vec_data[i]))
+			continue;
 		orig_vls[i] = vec_data[i].rdvl();
+	}
 
 	for (vq = SVE_VQ_MIN; vq <= SVE_VQ_MAX; vq++) {
 		vl = sve_vl_from_vq(vq);
@@ -594,7 +602,7 @@ static void prctl_set_all_vqs(struct vec_data *data)
 			if (&vec_data[i] == data)
 				continue;
 
-			if (!(getauxval(vec_data[i].hwcap_type) & vec_data[i].hwcap))
+			if (!vec_type_supported(&vec_data[i]))
 				continue;
 
 			if (vec_data[i].rdvl() != orig_vls[i]) {
@@ -765,7 +773,7 @@ int main(void)
 		struct vec_data *data = &vec_data[i];
 		unsigned long supported;
 
-		supported = getauxval(data->hwcap_type) & data->hwcap;
+		supported = vec_type_supported(data);
 		if (!supported)
 			all_supported = false;
 
