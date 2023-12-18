@@ -40,7 +40,7 @@
 
 #define DEFAULT_DEBUG_TIME (10 * 1000)
 #define DEFAULT_TIMER (5000)
-#define MAX_DRV_NAMES	26
+#define MAX_DRV_NAMES	27
 
 #define read_word(base, itr) ({					\
 		u32 v;						\
@@ -118,6 +118,16 @@ static const char * const drv_names_pineapple[][MAX_DRV_NAMES] = {
 			"DDR AUX", "ARC CPRF", ""},
 	[AOSS_DRV_NAME] = {"APPS", "SP", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
 			"TME", "MODEM", "WLAN RF", "WLAN BB", "CAM", "PCIE", ""},
+};
+
+static const char * const drv_names_volcano[][MAX_DRV_NAMES] = {
+	[CXPC_DRV_NAME] = {"TZ", "L3", "HLOS", "HYP", "RESERVED", "AUDIO", "AOP", "DEBUG",
+			"GPU", "DISPLAY", "COMPUTE_DSP", "TME_HW", "TME_SW", "MDM SW",
+			"MDM HW", "RESERVED", "WLAN RF", "WLAN BB", "RESERVED",
+			"RESERVED", "RESERVED", "RESERVED", "RESERVED", "WPSS",
+			"DDR AUX", "ARC CPRF", ""},
+	[AOSS_DRV_NAME] = {"APPS", "RESERVED", "AUDIO", "AOP", "DEBUG", "GPU", "DISPLAY", "COMPUTE",
+			"TME", "MODEM", "WLAN RF", "WLAN BB", "RESERVED", "RESERVED", "WPSS", ""},
 };
 
 static ssize_t debug_time_ms_show(struct device *dev,
@@ -511,6 +521,8 @@ static const struct of_device_id drv_match_table[] = {
 	  .data = drv_names_kalama },
 	{ .compatible = "qcom,sys-pm-pineapple",
 	  .data = drv_names_pineapple },
+	{ .compatible = "qcom,sys-pm-volcano",
+	  .data = drv_names_volcano },
 	{ }
 };
 
