@@ -1276,6 +1276,17 @@ static int acpi_wmi_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
+	wmi_bus_dev = device_create(&wmi_bus_class, &device->dev, MKDEV(0, 0), NULL, "wmi_bus-%s",
+				    dev_name(&device->dev));
+	if (IS_ERR(wmi_bus_dev))
+		return PTR_ERR(wmi_bus_dev);
+
+	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_bus_device, wmi_bus_dev);
+	if (error < 0)
+		return error;
+
+	dev_set_drvdata(&device->dev, wmi_bus_dev);
+
 	status = acpi_install_address_space_handler(acpi_device->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_wmi_ec_space_handler,
@@ -1301,17 +1312,6 @@ static int acpi_wmi_probe(struct platform_device *device)
 					 acpi_device);
 	if (error < 0)
 		return error;
-
-	wmi_bus_dev = device_create(&wmi_bus_class, &device->dev, MKDEV(0, 0),
-				    NULL, "wmi_bus-%s", dev_name(&device->dev));
-	if (IS_ERR(wmi_bus_dev))
-		return PTR_ERR(wmi_bus_dev);
-
-	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_bus_device, wmi_bus_dev);
-	if (error < 0)
-		return error;
-
-	dev_set_drvdata(&device->dev, wmi_bus_dev);
 
 	error = parse_wdg(wmi_bus_dev, device);
 	if (error) {
