@@ -392,6 +392,21 @@ static inline bool esr_is_data_abort(unsigned long esr)
 	return ec == ESR_ELx_EC_DABT_LOW || ec == ESR_ELx_EC_DABT_CUR;
 }
 
+static inline bool esr_fsc_is_translation_fault(unsigned long esr)
+{
+	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_FAULT;
+}
+
+static inline bool esr_fsc_is_permission_fault(unsigned long esr)
+{
+	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_PERM;
+}
+
+static inline bool esr_fsc_is_access_flag_fault(unsigned long esr)
+{
+	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_ACCESS;
+}
+
 const char *esr_get_class_string(unsigned long esr);
 #endif /* __ASSEMBLY */
 

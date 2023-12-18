@@ -404,14 +404,25 @@ static __always_inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC;
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_permission_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_TYPE;
+	return esr_fsc_is_permission_fault(kvm_vcpu_get_esr(vcpu));
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_level(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_translation_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_LEVEL;
+	return esr_fsc_is_translation_fault(kvm_vcpu_get_esr(vcpu));
+}
+
+static inline
+u64 kvm_vcpu_trap_get_perm_fault_granule(const struct kvm_vcpu *vcpu)
+{
+	unsigned long esr = kvm_vcpu_get_esr(vcpu);
+
+	BUG_ON(!esr_fsc_is_permission_fault(esr));
+	return BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(esr & ESR_ELx_FSC_LEVEL));
 }
 
 static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
@@ -454,12 +465,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 		 * first), then a permission fault to allow the flags
 		 * to be set.
 		 */
-		switch (kvm_vcpu_trap_get_fault_type(vcpu)) {
-		case ESR_ELx_FSC_PERM:
-			return true;
-		default:
-			return false;
-		}
+		return kvm_vcpu_trap_is_permission_fault(vcpu);
 	}
 
 	if (kvm_vcpu_trap_is_iabt(vcpu))
