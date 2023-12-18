@@ -5419,12 +5419,14 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 		if (mode == BTC_WLINK_NOLINK || mode == BTC_WLINK_2G_STA ||
 		    mode == BTC_WLINK_5G) {
 			_action_wl_scan(rtwdev);
+			bt->scan_rx_low_pri = false;
 			goto exit;
 		}
 	}
 
 	if (wl->status.map.scan) {
 		_action_wl_scan(rtwdev);
+		bt->scan_rx_low_pri = false;
 		goto exit;
 	}
 
