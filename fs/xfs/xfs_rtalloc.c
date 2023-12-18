@@ -638,9 +638,10 @@ xfs_rtallocate_extent_size(
 	 * for this summary level.
 	 */
 	for (l = xfs_highbit32(maxlen); l >= xfs_highbit32(minlen); l--) {
-		error = xfs_rtalloc_sumlevel(args, l, XFS_RTMAX(minlen, 1 << l),
-				XFS_RTMIN(maxlen, (1 << (l + 1)) - 1), prod,
-				len, rtx);
+		error = xfs_rtalloc_sumlevel(args, l,
+				max_t(xfs_rtxlen_t, minlen, 1 << l),
+				min_t(xfs_rtxlen_t, maxlen, (1 << (l + 1)) - 1),
+				prod, len, rtx);
 		if (error != -ENOSPC)
 			return error;
 	}

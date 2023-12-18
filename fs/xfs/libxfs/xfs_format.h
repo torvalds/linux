@@ -1157,12 +1157,6 @@ static inline bool xfs_dinode_has_large_extent_counts(
 #define	XFS_MIN_RTEXTSIZE	(4 * 1024)		/* 4kB */
 
 /*
- * RT bit manipulation macros.
- */
-#define	XFS_RTMIN(a,b)	((a) < (b) ? (a) : (b))
-#define	XFS_RTMAX(a,b)	((a) > (b) ? (a) : (b))
-
-/*
  * Dquot and dquot block format definitions
  */
 #define XFS_DQUOT_MAGIC		0x4451		/* 'DQ' */
