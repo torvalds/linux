@@ -964,6 +964,20 @@ static int dump_mi_command(struct drm_printer *p,
 			drm_printf(p, " - %#6x = %#010x\n", dw[i], dw[i + 1]);
 		return numdw;
 
+	case MI_LOAD_REGISTER_MEM & MI_OPCODE:
+		drm_printf(p, "[%#010x] MI_LOAD_REGISTER_MEM: %s%s\n",
+			   inst_header,
+			   dw[0] & MI_LRI_LRM_CS_MMIO ? "CS_MMIO " : "",
+			   dw[0] & MI_LRM_USE_GGTT ? "USE_GGTT " : "");
+		if (numdw == 4)
+			drm_printf(p, " - %#6x = %#010llx\n",
+				   dw[1], ((u64)(dw[3]) << 32 | (u64)(dw[2])));
+		else
+			drm_printf(p, " - %*ph (%s)\n",
+				   (int)sizeof(u32) * (numdw - 1), dw + 1,
+				   numdw < 4 ? "truncated" : "malformed");
+		return numdw;
+
 	case MI_FORCE_WAKEUP:
 		drm_printf(p, "[%#010x] MI_FORCE_WAKEUP\n", inst_header);
 		return numdw;
