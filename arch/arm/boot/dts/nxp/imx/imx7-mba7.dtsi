@@ -32,11 +32,18 @@
 	gpio_buttons: gpio-keys {
 		compatible = "gpio-keys";
 
+		/*
+		 * NOTE: These buttons are attached to a GPIO-expander.
+		 * Enabling wakeup-source, enables wakeup on all inputs.
+		 * If PE_GPIO[3..6] are used as inputs, they cause a
+		 * wakeup as well.
+		 */
 		button-0 {
 			/* #SWITCH_A */
 			label = "S11";
 			linux,code = <KEY_1>;
 			gpios = <&pca9555 13 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button-1 {
@@ -44,6 +51,7 @@
 			label = "S12";
 			linux,code = <KEY_2>;
 			gpios = <&pca9555 14 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		button-2 {
@@ -51,6 +59,7 @@
 			label = "S13";
 			linux,code = <KEY_3>;
 			gpios = <&pca9555 15 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 	};
 
