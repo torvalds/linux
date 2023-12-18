@@ -722,7 +722,6 @@ int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 #else
 
 #include <asm/bug.h>
-#include <asm/errno.h>
 
 static inline int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 					      struct irq_domain *domain)
@@ -810,8 +809,6 @@ int gpio_device_get_base(struct gpio_device *gdev);
 const char *gpio_device_get_label(struct gpio_device *gdev);
 
 #else /* CONFIG_GPIOLIB */
-
-#include <linux/err.h>
 
 #include <asm/bug.h>
 
