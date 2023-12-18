@@ -1070,53 +1070,6 @@ out_free:
 }
 
 /*
- * Allocate an extent in the realtime subvolume, with the usual allocation
- * parameters.  The length units are all in realtime extents, as is the
- * result block number.
- */
-static int
-xfs_rtallocate_extent(
-	struct xfs_trans	*tp,
-	xfs_rtxnum_t		start,	/* starting rtext number to allocate */
-	xfs_rtxlen_t		minlen,	/* minimum length to allocate */
-	xfs_rtxlen_t		maxlen,	/* maximum length to allocate */
-	xfs_rtxlen_t		*len,	/* out: actual length allocated */
-	int			wasdel,	/* was a delayed allocation extent */
-	xfs_rtxlen_t		prod,	/* extent product factor */
-	xfs_rtxnum_t		*rtx)	/* out: start rtext allocated */
-{
-	struct xfs_rtalloc_args	args = {
-		.mp		= tp->t_mountp,
-		.tp		= tp,
-	};
-	int			error;	/* error value */
-
-	ASSERT(xfs_isilocked(args.mp->m_rbmip, XFS_ILOCK_EXCL));
-	ASSERT(minlen > 0 && minlen <= maxlen);
-
-	if (start == 0) {
-		error = xfs_rtallocate_extent_size(&args, minlen,
-				maxlen, len, prod, rtx);
-	} else {
-		error = xfs_rtallocate_extent_near(&args, start, minlen,
-				maxlen, len, prod, rtx);
-	}
-	xfs_rtbuf_cache_relse(&args);
-	if (error)
-		return error;
-
-	/*
-	 * If it worked, update the superblock.
-	 */
-	ASSERT(*len >= minlen && *len <= maxlen);
-	if (wasdel)
-		xfs_trans_mod_sb(tp, XFS_TRANS_SB_RES_FREXTENTS, -(long)*len);
-	else
-		xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS, -(long)*len);
-	return 0;
-}
-
-/*
  * Initialize realtime fields in the mount structure.
  */
 int				/* error */
@@ -1380,6 +1333,10 @@ xfs_bmap_rtalloc(
 	xfs_rtxlen_t		raminlen;
 	bool			rtlocked = false;
 	bool			ignore_locality = false;
+	struct xfs_rtalloc_args	args = {
+		.mp		= mp,
+		.tp		= ap->tp,
+	};
 	int			error;
 
 	align = xfs_get_extsz_hint(ap->ip);
@@ -1412,6 +1369,8 @@ retry:
 	 */
 	ralen = xfs_extlen_to_rtxlen(mp, min(ap->length, XFS_MAX_BMBT_EXTLEN));
 	raminlen = max_t(xfs_rtxlen_t, 1, xfs_extlen_to_rtxlen(mp, minlen));
+	ASSERT(raminlen > 0);
+	ASSERT(raminlen <= ralen);
 
 	/*
 	 * Lock out modifications to both the RT bitmap and summary inodes
@@ -1453,8 +1412,15 @@ retry:
 			xfs_rtalloc_align_minmax(&raminlen, &ralen, &prod);
 	}
 
-	error = xfs_rtallocate_extent(ap->tp, start, raminlen, ralen, &ralen,
-			ap->wasdel, prod, &rtx);
+	if (start) {
+		error = xfs_rtallocate_extent_near(&args, start, raminlen,
+				ralen, &ralen, prod, &rtx);
+	} else {
+		error = xfs_rtallocate_extent_size(&args, raminlen,
+				ralen, &ralen, prod, &rtx);
+	}
+	xfs_rtbuf_cache_relse(&args);
+
 	if (error == -ENOSPC) {
 		if (align > mp->m_sb.sb_rextsize) {
 			/*
@@ -1486,6 +1452,9 @@ retry:
 	if (error)
 		return error;
 
+	xfs_trans_mod_sb(ap->tp, ap->wasdel ?
+			XFS_TRANS_SB_RES_FREXTENTS : XFS_TRANS_SB_FREXTENTS,
+			-(long)ralen);
 	ap->blkno = xfs_rtx_to_rtb(mp, rtx);
 	ap->length = xfs_rtxlen_to_extlen(mp, ralen);
 	xfs_bmap_alloc_account(ap);
