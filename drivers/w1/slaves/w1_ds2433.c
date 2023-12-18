@@ -25,12 +25,9 @@
 #define W1_EEPROM_DS2433	0x23
 
 #define W1_EEPROM_SIZE		512
-#define W1_PAGE_COUNT		16
 #define W1_PAGE_SIZE		32
 #define W1_PAGE_BITS		5
 #define W1_PAGE_MASK		0x1F
-
-#define W1_F23_TIME		300
 
 #define W1_F23_READ_EEPROM	0xF0
 #define W1_F23_WRITE_SCRATCH	0x0F
