@@ -145,18 +145,7 @@ static int dw_hdmi_i2s_prepare(struct device *dev, void *data,
 			       struct hdmi_codec_daifmt *fmt,
 			       struct hdmi_codec_params *hparms)
 {
-	struct dw_hdmi_i2s_audio_data *audio = data;
-	struct dw_hdmi *hdmi = audio->hdmi;
-
-	dw_hdmi_audio_disable(hdmi);
-
-	hdmi_update_bits(audio, HDMI_AUD_CONF0_SW_RESET,
-			 HDMI_AUD_CONF0_SW_RESET, HDMI_AUD_CONF0);
-	hdmi_write(audio, (u8)~HDMI_MC_SWRSTZ_I2SSWRST_REQ, HDMI_MC_SWRSTZ);
-
-	dw_hdmi_audio_enable(hdmi);
-
-	return 0;
+	return dw_hdmi_i2s_hw_params(dev, data, fmt, hparms);
 }
 
 static int dw_hdmi_i2s_audio_startup(struct device *dev, void *data)
