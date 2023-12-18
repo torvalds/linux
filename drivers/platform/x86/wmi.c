@@ -1236,15 +1236,31 @@ static int wmi_remove_device(struct device *dev, void *data)
 
 static void acpi_wmi_remove(struct platform_device *device)
 {
-	struct acpi_device *acpi_device = ACPI_COMPANION(&device->dev);
 	struct device *wmi_bus_device = dev_get_drvdata(&device->dev);
 
 	device_for_each_child_reverse(wmi_bus_device, NULL, wmi_remove_device);
-	device_unregister(wmi_bus_device);
+}
+
+static void acpi_wmi_remove_notify_handler(void *data)
+{
+	struct acpi_device *acpi_device = data;
 
 	acpi_remove_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY, acpi_wmi_notify_handler);
+}
+
+static void acpi_wmi_remove_address_space_handler(void *data)
+{
+	struct acpi_device *acpi_device = data;
+
 	acpi_remove_address_space_handler(acpi_device->handle, ACPI_ADR_SPACE_EC,
 					  &acpi_wmi_ec_space_handler);
+}
+
+static void acpi_wmi_remove_bus_device(void *data)
+{
+	struct device *wmi_bus_dev = data;
+
+	device_unregister(wmi_bus_dev);
 }
 
 static int acpi_wmi_probe(struct platform_device *device)
@@ -1268,6 +1284,10 @@ static int acpi_wmi_probe(struct platform_device *device)
 		dev_err(&device->dev, "Error installing EC region handler\n");
 		return -ENODEV;
 	}
+	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_address_space_handler,
+					 acpi_device);
+	if (error < 0)
+		return error;
 
 	status = acpi_install_notify_handler(acpi_device->handle,
 					     ACPI_ALL_NOTIFY,
@@ -1275,39 +1295,31 @@ static int acpi_wmi_probe(struct platform_device *device)
 					     NULL);
 	if (ACPI_FAILURE(status)) {
 		dev_err(&device->dev, "Error installing notify handler\n");
-		error = -ENODEV;
-		goto err_remove_ec_handler;
+		return -ENODEV;
 	}
+	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_notify_handler,
+					 acpi_device);
+	if (error < 0)
+		return error;
 
 	wmi_bus_dev = device_create(&wmi_bus_class, &device->dev, MKDEV(0, 0),
 				    NULL, "wmi_bus-%s", dev_name(&device->dev));
-	if (IS_ERR(wmi_bus_dev)) {
-		error = PTR_ERR(wmi_bus_dev);
-		goto err_remove_notify_handler;
-	}
+	if (IS_ERR(wmi_bus_dev))
+		return PTR_ERR(wmi_bus_dev);
+
+	error = devm_add_action_or_reset(&device->dev, acpi_wmi_remove_bus_device, wmi_bus_dev);
+	if (error < 0)
+		return error;
+
 	dev_set_drvdata(&device->dev, wmi_bus_dev);
 
 	error = parse_wdg(wmi_bus_dev, device);
 	if (error) {
 		pr_err("Failed to parse WDG method\n");
-		goto err_remove_busdev;
+		return error;
 	}
 
 	return 0;
-
-err_remove_busdev:
-	device_unregister(wmi_bus_dev);
-
-err_remove_notify_handler:
-	acpi_remove_notify_handler(acpi_device->handle, ACPI_ALL_NOTIFY,
-				   acpi_wmi_notify_handler);
-
-err_remove_ec_handler:
-	acpi_remove_address_space_handler(acpi_device->handle,
-					  ACPI_ADR_SPACE_EC,
-					  &acpi_wmi_ec_space_handler);
-
-	return error;
 }
 
 int __must_check __wmi_driver_register(struct wmi_driver *driver,
