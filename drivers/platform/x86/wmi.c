@@ -132,23 +132,19 @@ static const void *find_guid_context(struct wmi_block *wblock,
 static int get_subobj_info(acpi_handle handle, const char *pathname,
 			   struct acpi_device_info **info)
 {
-	struct acpi_device_info *dummy_info, **info_ptr;
 	acpi_handle subobj_handle;
 	acpi_status status;
 
-	status = acpi_get_handle(handle, (char *)pathname, &subobj_handle);
+	status = acpi_get_handle(handle, pathname, &subobj_handle);
 	if (status == AE_NOT_FOUND)
 		return -ENOENT;
-	else if (ACPI_FAILURE(status))
-		return -EIO;
 
-	info_ptr = info ? info : &dummy_info;
-	status = acpi_get_object_info(subobj_handle, info_ptr);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	if (!info)
-		kfree(dummy_info);
+	status = acpi_get_object_info(subobj_handle, info);
+	if (ACPI_FAILURE(status))
+		return -EIO;
 
 	return 0;
 }
@@ -998,9 +994,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	kfree(info);
 
 	get_acpi_method_name(wblock, 'S', method);
-	result = get_subobj_info(device->handle, method, NULL);
-
-	if (result == 0)
+	if (acpi_has_method(device->handle, method))
 		wblock->dev.setable = true;
 
  out_init:
