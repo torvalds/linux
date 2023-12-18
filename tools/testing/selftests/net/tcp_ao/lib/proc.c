@@ -227,7 +227,7 @@ void netstat_print_diff(struct netstat *nsa, struct netstat *nsb)
 		}
 
 		if (nsb->counters_nr < nsa->counters_nr)
-			test_error("Unexpected: some counters dissapeared!");
+			test_error("Unexpected: some counters disappeared!");
 
 		for (j = 0, i = 0; i < nsb->counters_nr; i++) {
 			if (strcmp(nsb->counters[i].name, nsa->counters[j].name)) {
@@ -244,7 +244,7 @@ void netstat_print_diff(struct netstat *nsa, struct netstat *nsb)
 			j++;
 		}
 		if (j != nsa->counters_nr)
-			test_error("Unexpected: some counters dissapeared!");
+			test_error("Unexpected: some counters disappeared!");
 
 		nsb = nsb->next;
 		nsa = nsa->next;

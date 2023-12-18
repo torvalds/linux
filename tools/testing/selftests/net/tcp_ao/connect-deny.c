@@ -55,7 +55,7 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	err = test_wait_fd(lsk, timeout, 0);
 	if (err == -ETIMEDOUT) {
 		if (!fault(TIMEOUT))
-			test_fail("timeouted for accept()");
+			test_fail("timed out for accept()");
 	} else if (err < 0) {
 		test_error("test_wait_fd()");
 	} else {
