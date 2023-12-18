@@ -134,6 +134,9 @@ static __always_inline void enter_from_user_mode(struct pt_regs *regs)
  */
 void syscall_enter_from_user_mode_prepare(struct pt_regs *regs);
 
+long syscall_trace_enter(struct pt_regs *regs, long syscall,
+			 unsigned long work);
+
 /**
  * syscall_enter_from_user_mode_work - Check and handle work before invoking
  *				       a syscall
@@ -157,7 +160,15 @@ void syscall_enter_from_user_mode_prepare(struct pt_regs *regs);
  *     ptrace_report_syscall_entry(), __secure_computing(), trace_sys_enter()
  *  2) Invocation of audit_syscall_entry()
  */
-long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall);
+static __always_inline long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall)
+{
+	unsigned long work = READ_ONCE(current_thread_info()->syscall_work);
+
+	if (work & SYSCALL_WORK_ENTER)
+		syscall = syscall_trace_enter(regs, syscall, work);
+
+	return syscall;
+}
 
 /**
  * syscall_enter_from_user_mode - Establish state and check and handle work
@@ -176,7 +187,19 @@ long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall);
  * Returns: The original or a modified syscall number. See
  * syscall_enter_from_user_mode_work() for further explanation.
  */
-long syscall_enter_from_user_mode(struct pt_regs *regs, long syscall);
+static __always_inline long syscall_enter_from_user_mode(struct pt_regs *regs, long syscall)
+{
+	long ret;
+
+	enter_from_user_mode(regs);
+
+	instrumentation_begin();
+	local_irq_enable();
+	ret = syscall_enter_from_user_mode_work(regs, syscall);
+	instrumentation_end();
+
+	return ret;
+}
 
 /**
  * local_irq_enable_exit_to_user - Exit to user variant of local_irq_enable()
