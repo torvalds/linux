@@ -1303,6 +1303,7 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
 
+	set_freezable();
 	while (!kthread_should_stop()) {
 		if (gfs2_withdrawing_or_withdrawn(sdp))
 			break;

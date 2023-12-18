@@ -1583,6 +1583,7 @@ int gfs2_quotad(void *data)
 	unsigned long quotad_timeo = 0;
 	unsigned long t = 0;
 
+	set_freezable();
 	while (!kthread_should_stop()) {
 		if (gfs2_withdrawing_or_withdrawn(sdp))
 			break;
