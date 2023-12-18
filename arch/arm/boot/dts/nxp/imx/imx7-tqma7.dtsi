@@ -138,7 +138,7 @@
 	};
 
 	/* NXP SE97BTP with temperature sensor + eeprom, TQMa7x 02xx */
-	se97b: temperature-sensor-eeprom@1e {
+	se97b: temperature-sensor@1e {
 		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
 		reg = <0x1e>;
 	};
