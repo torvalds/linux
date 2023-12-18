@@ -3503,17 +3503,32 @@ static void _action_wl_init(struct rtw89_dev *rtwdev)
 	_set_policy(rtwdev, BTC_CXP_OFF_BT, BTC_ACT_WL_INIT);
 }
 
-static void _action_wl_off(struct rtw89_dev *rtwdev)
+static void _action_wl_off(struct rtw89_dev *rtwdev, u8 mode)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): !!\n", __func__);
 
-	if (wl->status.map.rf_off || btc->dm.bt_only)
+	if (wl->status.map.rf_off || btc->dm.bt_only) {
 		_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_WOFF);
+	} else if (wl->status.map.lps == BTC_LPS_RF_ON) {
+		if (wl->role_info.link_mode == BTC_WLINK_5G)
+			_set_ant(rtwdev, FC_EXEC, BTC_PHY_ALL, BTC_ANT_W5G);
+		else
+			_set_ant(rtwdev, FC_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
+	}
 
-	_set_policy(rtwdev, BTC_CXP_OFF_BT, BTC_ACT_WL_OFF);
+	if (mode == BTC_WLINK_5G) {
+		_set_policy(rtwdev, BTC_CXP_OFF_EQ0, BTC_ACT_WL_OFF);
+	} else if (wl->status.map.lps == BTC_LPS_RF_ON) {
+		if (btc->cx.bt.link_info.a2dp_desc.active)
+			_set_policy(rtwdev, BTC_CXP_OFF_BT, BTC_ACT_WL_OFF);
+		else
+			_set_policy(rtwdev, BTC_CXP_OFF_BWB1, BTC_ACT_WL_OFF);
+	} else {
+		_set_policy(rtwdev, BTC_CXP_OFF_BT, BTC_ACT_WL_OFF);
+	}
 }
 
 static void _action_freerun(struct rtw89_dev *rtwdev)
@@ -5339,17 +5354,28 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	}
 
 	if (wl->status.map.rf_off_pre == wl->status.map.rf_off &&
-	    wl->status.map.lps_pre == wl->status.map.lps &&
-	    (reason == BTC_RSN_NTFY_POWEROFF ||
-	    reason == BTC_RSN_NTFY_RADIO_STATE)) {
-		rtw89_debug(rtwdev, RTW89_DBG_BTC,
-			    "[BTC], %s(): return for WL rf off state no change!!\n",
-			    __func__);
-		return;
+	    wl->status.map.lps_pre == wl->status.map.lps) {
+		if (reason == BTC_RSN_NTFY_POWEROFF ||
+		    reason == BTC_RSN_NTFY_RADIO_STATE) {
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s(): return for WL rf off state no change!!\n",
+				    __func__);
+			return;
+		}
+		if (wl->status.map.rf_off == 1 ||
+		    wl->status.map.lps == BTC_LPS_RF_OFF) {
+			rtw89_debug(rtwdev, RTW89_DBG_BTC,
+				    "[BTC], %s(): return for WL rf off state!!\n",
+				    __func__);
+			return;
+		}
 	}
 
+	dm->freerun = false;
 	dm->cnt_dm[BTC_DCNT_RUN]++;
 	dm->fddt_train = BTC_FDDT_DISABLE;
+	btc->ctrl.igno_bt = false;
+	bt->scan_rx_low_pri = false;
 
 	if (btc->ctrl.always_freerun) {
 		_action_freerun(rtwdev);
@@ -5364,14 +5390,10 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	}
 
 	if (wl->status.map.rf_off || wl->status.map.lps || dm->bt_only) {
-		_action_wl_off(rtwdev);
+		_action_wl_off(rtwdev, mode);
 		btc->ctrl.igno_bt = true;
 		goto exit;
 	}
-
-	btc->ctrl.igno_bt = false;
-	dm->freerun = false;
-	bt->scan_rx_low_pri = false;
 
 	if (reason == BTC_RSN_NTFY_INIT) {
 		_action_wl_init(rtwdev);
@@ -6016,22 +6038,22 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 		chip->ops->btc_init_cfg(rtwdev);
 	} else {
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_ALL, false);
-		if (rf_state == BTC_RFCTRL_WL_OFF)
+		if (rf_state == BTC_RFCTRL_FW_CTRL)
+			_write_scbd(rtwdev, BTC_WSCB_ACTIVE, false);
+		else if (rf_state == BTC_RFCTRL_WL_OFF)
 			_write_scbd(rtwdev, BTC_WSCB_ALL, false);
-		else if (rf_state == BTC_RFCTRL_LPS_WL_ON &&
-			 wl->status.map.lps_pre != BTC_LPS_OFF)
+		else
+			_write_scbd(rtwdev, BTC_WSCB_ACTIVE, false);
+
+		if (rf_state == BTC_RFCTRL_LPS_WL_ON &&
+		    wl->status.map.lps_pre != BTC_LPS_OFF)
 			_update_bt_scbd(rtwdev, true);
 	}
 
 	btc->dm.cnt_dm[BTC_DCNT_BTCNT_HANG] = 0;
-	if (wl->status.map.lps_pre == BTC_LPS_OFF &&
-	    wl->status.map.lps_pre != wl->status.map.lps)
-		btc->dm.tdma_instant_excute = 1;
-	else
-		btc->dm.tdma_instant_excute = 0;
+	btc->dm.tdma_instant_excute = 1;
 
 	_run_coex(rtwdev, BTC_RSN_NTFY_RADIO_STATE);
-	btc->dm.tdma_instant_excute = 0;
 	wl->status.map.rf_off_pre = wl->status.map.rf_off;
 	wl->status.map.lps_pre = wl->status.map.lps;
 }
