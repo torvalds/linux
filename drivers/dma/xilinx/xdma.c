@@ -543,6 +543,43 @@ static void xdma_synchronize(struct dma_chan *chan)
 }
 
 /**
+ * xdma_fill_descs - Fill hardware descriptors with contiguous memory block addresses
+ * @sw_desc - tx descriptor state container
+ * @src_addr - Value for a ->src_addr field of a first descriptor
+ * @dst_addr - Value for a ->dst_addr field of a first descriptor
+ * @size - Total size of a contiguous memory block
+ * @filled_descs_num - Number of filled hardware descriptors for corresponding sw_desc
+ */
+static inline u32 xdma_fill_descs(struct xdma_desc *sw_desc, u64 src_addr,
+				  u64 dst_addr, u32 size, u32 filled_descs_num)
+{
+	u32 left = size, len, desc_num = filled_descs_num;
+	struct xdma_desc_block *dblk;
+	struct xdma_hw_desc *desc;
+
+	dblk = sw_desc->desc_blocks + (desc_num / XDMA_DESC_ADJACENT);
+	desc = dblk->virt_addr;
+	desc += desc_num & XDMA_DESC_ADJACENT_MASK;
+	do {
+		len = min_t(u32, left, XDMA_DESC_BLEN_MAX);
+		/* set hardware descriptor */
+		desc->bytes = cpu_to_le32(len);
+		desc->src_addr = cpu_to_le64(src_addr);
+		desc->dst_addr = cpu_to_le64(dst_addr);
+		if (!(++desc_num & XDMA_DESC_ADJACENT_MASK))
+			desc = (++dblk)->virt_addr;
+		else
+			desc++;
+
+		src_addr += len;
+		dst_addr += len;
+		left -= len;
+	} while (left);
+
+	return desc_num - filled_descs_num;
+}
+
+/**
  * xdma_prep_device_sg - prepare a descriptor for a DMA transaction
  * @chan: DMA channel pointer
  * @sgl: Transfer scatter gather list
@@ -558,13 +595,10 @@ xdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 {
 	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
 	struct dma_async_tx_descriptor *tx_desc;
-	u32 desc_num = 0, i, len, rest;
-	struct xdma_desc_block *dblk;
-	struct xdma_hw_desc *desc;
 	struct xdma_desc *sw_desc;
-	u64 dev_addr, *src, *dst;
+	u32 desc_num = 0, i;
+	u64 addr, dev_addr, *src, *dst;
 	struct scatterlist *sg;
-	u64 addr;
 
 	for_each_sg(sgl, sg, sg_len, i)
 		desc_num += DIV_ROUND_UP(sg_dma_len(sg), XDMA_DESC_BLEN_MAX);
@@ -584,32 +618,11 @@ xdma_prep_device_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		dst = &addr;
 	}
 
-	dblk = sw_desc->desc_blocks;
-	desc = dblk->virt_addr;
-	desc_num = 1;
+	desc_num = 0;
 	for_each_sg(sgl, sg, sg_len, i) {
 		addr = sg_dma_address(sg);
-		rest = sg_dma_len(sg);
-
-		do {
-			len = min_t(u32, rest, XDMA_DESC_BLEN_MAX);
-			/* set hardware descriptor */
-			desc->bytes = cpu_to_le32(len);
-			desc->src_addr = cpu_to_le64(*src);
-			desc->dst_addr = cpu_to_le64(*dst);
-
-			if (!(desc_num & XDMA_DESC_ADJACENT_MASK)) {
-				dblk++;
-				desc = dblk->virt_addr;
-			} else {
-				desc++;
-			}
-
-			desc_num++;
-			dev_addr += len;
-			addr += len;
-			rest -= len;
-		} while (rest);
+		desc_num += xdma_fill_descs(sw_desc, *src, *dst, sg_dma_len(sg), desc_num);
+		dev_addr += sg_dma_len(sg);
 	}
 
 	tx_desc = vchan_tx_prep(&xdma_chan->vchan, &sw_desc->vdesc, flags);
@@ -643,9 +656,9 @@ xdma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t address,
 	struct xdma_device *xdev = xdma_chan->xdev_hdl;
 	unsigned int periods = size / period_size;
 	struct dma_async_tx_descriptor *tx_desc;
-	struct xdma_desc_block *dblk;
-	struct xdma_hw_desc *desc;
 	struct xdma_desc *sw_desc;
+	u64 addr, dev_addr, *src, *dst;
+	u32 desc_num;
 	unsigned int i;
 
 	/*
@@ -670,21 +683,21 @@ xdma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t address,
 	sw_desc->period_size = period_size;
 	sw_desc->dir = dir;
 
-	dblk = sw_desc->desc_blocks;
-	desc = dblk->virt_addr;
+	addr = address;
+	if (dir == DMA_MEM_TO_DEV) {
+		dev_addr = xdma_chan->cfg.dst_addr;
+		src = &addr;
+		dst = &dev_addr;
+	} else {
+		dev_addr = xdma_chan->cfg.src_addr;
+		src = &dev_addr;
+		dst = &addr;
+	}
 
-	/* fill hardware descriptor */
+	desc_num = 0;
 	for (i = 0; i < periods; i++) {
-		desc->bytes = cpu_to_le32(period_size);
-		if (dir == DMA_MEM_TO_DEV) {
-			desc->src_addr = cpu_to_le64(address + i * period_size);
-			desc->dst_addr = cpu_to_le64(xdma_chan->cfg.dst_addr);
-		} else {
-			desc->src_addr = cpu_to_le64(xdma_chan->cfg.src_addr);
-			desc->dst_addr = cpu_to_le64(address + i * period_size);
-		}
-
-		desc++;
+		desc_num += xdma_fill_descs(sw_desc, *src, *dst, period_size, desc_num);
+		addr += i * period_size;
 	}
 
 	tx_desc = vchan_tx_prep(&xdma_chan->vchan, &sw_desc->vdesc, flags);
