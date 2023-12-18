@@ -5308,6 +5308,7 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): mode=%d\n", __func__, mode);
 
+	wl->coex_mode = mode;
 	dm->cnt_notify[BTC_NCNT_INIT_COEX]++;
 	dm->wl_only = mode == BTC_MODE_WL ? 1 : 0;
 	dm->bt_only = mode == BTC_MODE_BT ? 1 : 0;
@@ -6553,6 +6554,7 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	case BTC_CXP_ ## e | BTC_POLICY_EXT_BIT: return #e
 #define CASE_BTC_SLOT_STR(e) case CXST_ ## e: return #e
 #define CASE_BTC_EVT_STR(e) case CXEVNT_## e: return #e
+#define CASE_BTC_INIT(e) case BTC_MODE_## e: return #e
 
 static const char *steps_to_str(u16 step)
 {
@@ -6727,6 +6729,18 @@ static const char *id_to_evt(u32 id)
 	}
 }
 
+static const char *id_to_mode(u8 id)
+{
+	switch (id) {
+	CASE_BTC_INIT(NORMAL);
+	CASE_BTC_INIT(WL);
+	CASE_BTC_INIT(BT);
+	CASE_BTC_INIT(WLOFF);
+	default:
+		return "unknown";
+	}
+}
+
 static
 void seq_print_segment(struct seq_file *m, const char *prefix, u16 *data,
 		       u8 len, u8 seg_len, u8 start_idx, u8 ring_len)
@@ -6781,12 +6795,13 @@ static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   (btc->ctrl.manual ? "(Manual)" : "(Auto)"));
 
 	seq_printf(m,
-		   " %-15s : type:%s, reason:%s(), action:%s(), ant_path:%ld, run_cnt:%d\n",
+		   " %-15s : type:%s, reason:%s(), action:%s(), ant_path:%ld, init_mode:%s, run_cnt:%d\n",
 		   "[status]",
 		   module->ant.type == BTC_ANT_SHARED ? "shared" : "dedicated",
 		   steps_to_str(dm->run_reason),
 		   steps_to_str(dm->run_action | BTC_ACT_EXT_BIT),
 		   FIELD_GET(GENMASK(7, 0), dm->set_ant_path),
+		   id_to_mode(wl->coex_mode),
 		   dm->cnt_dm[BTC_DCNT_RUN]);
 
 	_show_dm_step(rtwdev, m);
