@@ -156,7 +156,7 @@ xfs_rtallocate_range(
 	 * (old) free extent.
 	 */
 	error = xfs_rtmodify_summary(args,
-			XFS_RTBLOCKLOG(postblock + 1 - preblock),
+			xfs_highbit64(postblock + 1 - preblock),
 			xfs_rtx_to_rbmblock(mp, preblock), -1);
 	if (error)
 		return error;
@@ -167,7 +167,7 @@ xfs_rtallocate_range(
 	 */
 	if (preblock < start) {
 		error = xfs_rtmodify_summary(args,
-				XFS_RTBLOCKLOG(start - preblock),
+				xfs_highbit64(start - preblock),
 				xfs_rtx_to_rbmblock(mp, preblock), 1);
 		if (error)
 			return error;
@@ -179,7 +179,7 @@ xfs_rtallocate_range(
 	 */
 	if (postblock > end) {
 		error = xfs_rtmodify_summary(args,
-				XFS_RTBLOCKLOG(postblock - end),
+				xfs_highbit64(postblock - end),
 				xfs_rtx_to_rbmblock(mp, end + 1), 1);
 		if (error)
 			return error;
