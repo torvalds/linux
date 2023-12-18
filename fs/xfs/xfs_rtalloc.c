@@ -283,12 +283,11 @@ xfs_rtallocate_extent_block(
 		/*
 		 * If not done yet, find the start of the next free space.
 		 */
-		if (next < end) {
-			error = xfs_rtfind_forw(args, next, end, &i);
-			if (error)
-				return error;
-		} else
+		if (next >= end)
 			break;
+		error = xfs_rtfind_forw(args, next, end, &i);
+		if (error)
+			return error;
 	}
 	/*
 	 * Searched the whole thing & didn't find a maxlen free extent.
