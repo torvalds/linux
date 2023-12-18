@@ -2364,6 +2364,7 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 
 static struct aa_sfs_entry aa_sfs_entry_mount[] = {
 	AA_SFS_FILE_STRING("mask", "mount umount pivot_root"),
+	AA_SFS_FILE_STRING("move_mount", "detached"),
 	{ }
 };
 
