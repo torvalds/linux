@@ -252,19 +252,15 @@ xfs_rtallocate_extent_block(
 		error = xfs_rtcheck_range(args, i, maxlen, 1, &next, &stat);
 		if (error)
 			return error;
-
 		if (stat) {
 			/*
 			 * i for maxlen is all free, allocate and return that.
 			 */
-			error = xfs_rtallocate_range(args, i, maxlen);
-			if (error)
-				return error;
-
-			*len = maxlen;
-			*rtx = i;
-			return 0;
+			bestlen = maxlen;
+			besti = i;
+			goto allocate;
 		}
+
 		/*
 		 * In the case where we have a variable-sized allocation
 		 * request, figure out how big this free piece is,
@@ -315,6 +311,7 @@ xfs_rtallocate_extent_block(
 	/*
 	 * Allocate besti for bestlen & return that.
 	 */
+allocate:
 	error = xfs_rtallocate_range(args, besti, bestlen);
 	if (error)
 		return error;
