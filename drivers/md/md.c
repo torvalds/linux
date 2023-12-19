@@ -1206,6 +1206,7 @@ struct super_type  {
 					  struct md_rdev *refdev,
 					  int minor_version);
 	int		    (*validate_super)(struct mddev *mddev,
+					      struct md_rdev *freshest,
 					      struct md_rdev *rdev);
 	void		    (*sync_super)(struct mddev *mddev,
 					  struct md_rdev *rdev);
@@ -1286,17 +1287,11 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 	rdev->sb_size = MD_SB_BYTES;
 	rdev->badblocks.shift = -1;
 
-	if (sb->level == LEVEL_MULTIPATH)
-		rdev->desc_nr = -1;
-	else
-		rdev->desc_nr = sb->this_disk.number;
+	rdev->desc_nr = sb->this_disk.number;
 
-	/* not spare disk, or LEVEL_MULTIPATH */
-	if (sb->level == LEVEL_MULTIPATH ||
-		(rdev->desc_nr >= 0 &&
-		 rdev->desc_nr < MD_SB_DISKS &&
-		 sb->disks[rdev->desc_nr].state &
-		 ((1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE))))
+	/* not spare disk */
+	if (rdev->desc_nr >= 0 && rdev->desc_nr < MD_SB_DISKS &&
+	    sb->disks[rdev->desc_nr].state & ((1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE)))
 		spare_disk = false;
 
 	if (!refdev) {
@@ -1343,8 +1338,9 @@ static int super_90_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor
 
 /*
  * validate_super for 0.90.0
+ * note: we are not using "freshest" for 0.9 superblock
  */
-static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
+static int super_90_validate(struct mddev *mddev, struct md_rdev *freshest, struct md_rdev *rdev)
 {
 	mdp_disk_t *desc;
 	mdp_super_t *sb = page_address(rdev->sb_page);
@@ -1442,31 +1438,28 @@ static int super_90_validate(struct mddev *mddev, struct md_rdev *rdev)
 			return 0;
 	}
 
-	if (mddev->level != LEVEL_MULTIPATH) {
-		desc = sb->disks + rdev->desc_nr;
+	desc = sb->disks + rdev->desc_nr;
 
-		if (desc->state & (1<<MD_DISK_FAULTY))
-			set_bit(Faulty, &rdev->flags);
-		else if (desc->state & (1<<MD_DISK_SYNC) /* &&
-			    desc->raid_disk < mddev->raid_disks */) {
-			set_bit(In_sync, &rdev->flags);
-			rdev->raid_disk = desc->raid_disk;
-			rdev->saved_raid_disk = desc->raid_disk;
-		} else if (desc->state & (1<<MD_DISK_ACTIVE)) {
-			/* active but not in sync implies recovery up to
-			 * reshape position.  We don't know exactly where
-			 * that is, so set to zero for now */
-			if (mddev->minor_version >= 91) {
-				rdev->recovery_offset = 0;
-				rdev->raid_disk = desc->raid_disk;
-			}
-		}
-		if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
-			set_bit(WriteMostly, &rdev->flags);
-		if (desc->state & (1<<MD_DISK_FAILFAST))
-			set_bit(FailFast, &rdev->flags);
-	} else /* MULTIPATH are always insync */
+	if (desc->state & (1<<MD_DISK_FAULTY))
+		set_bit(Faulty, &rdev->flags);
+	else if (desc->state & (1<<MD_DISK_SYNC)) {
 		set_bit(In_sync, &rdev->flags);
+		rdev->raid_disk = desc->raid_disk;
+		rdev->saved_raid_disk = desc->raid_disk;
+	} else if (desc->state & (1<<MD_DISK_ACTIVE)) {
+		/* active but not in sync implies recovery up to
+		 * reshape position.  We don't know exactly where
+		 * that is, so set to zero for now
+		 */
+		if (mddev->minor_version >= 91) {
+			rdev->recovery_offset = 0;
+			rdev->raid_disk = desc->raid_disk;
+		}
+	}
+	if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
+		set_bit(WriteMostly, &rdev->flags);
+	if (desc->state & (1<<MD_DISK_FAILFAST))
+		set_bit(FailFast, &rdev->flags);
 	return 0;
 }
 
@@ -1756,10 +1749,7 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	    && rdev->new_data_offset < sb_start + (rdev->sb_size/512))
 		return -EINVAL;
 
-	if (sb->level == cpu_to_le32(LEVEL_MULTIPATH))
-		rdev->desc_nr = -1;
-	else
-		rdev->desc_nr = le32_to_cpu(sb->dev_number);
+	rdev->desc_nr = le32_to_cpu(sb->dev_number);
 
 	if (!rdev->bb_page) {
 		rdev->bb_page = alloc_page(GFP_KERNEL);
@@ -1812,12 +1802,10 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	    sb->level != 0)
 		return -EINVAL;
 
-	/* not spare disk, or LEVEL_MULTIPATH */
-	if (sb->level == cpu_to_le32(LEVEL_MULTIPATH) ||
-		(rdev->desc_nr >= 0 &&
-		rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
-		(le16_to_cpu(sb->dev_roles[rdev->desc_nr]) < MD_DISK_ROLE_MAX ||
-		 le16_to_cpu(sb->dev_roles[rdev->desc_nr]) == MD_DISK_ROLE_JOURNAL)))
+	/* not spare disk */
+	if (rdev->desc_nr >= 0 && rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
+	    (le16_to_cpu(sb->dev_roles[rdev->desc_nr]) < MD_DISK_ROLE_MAX ||
+	     le16_to_cpu(sb->dev_roles[rdev->desc_nr]) == MD_DISK_ROLE_JOURNAL))
 		spare_disk = false;
 
 	if (!refdev) {
@@ -1856,10 +1844,11 @@ static int super_1_load(struct md_rdev *rdev, struct md_rdev *refdev, int minor_
 	return ret;
 }
 
-static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
+static int super_1_validate(struct mddev *mddev, struct md_rdev *freshest, struct md_rdev *rdev)
 {
 	struct mdp_superblock_1 *sb = page_address(rdev->sb_page);
 	__u64 ev1 = le64_to_cpu(sb->events);
+	int role;
 
 	rdev->raid_disk = -1;
 	clear_bit(Faulty, &rdev->flags);
@@ -1952,13 +1941,15 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 		}
 	} else if (mddev->pers == NULL) {
 		/* Insist of good event counter while assembling, except for
-		 * spares (which don't need an event count) */
-		++ev1;
+		 * spares (which don't need an event count).
+		 * Similar to mdadm, we allow event counter difference of 1
+		 * from the freshest device.
+		 */
 		if (rdev->desc_nr >= 0 &&
 		    rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
 		    (le16_to_cpu(sb->dev_roles[rdev->desc_nr]) < MD_DISK_ROLE_MAX ||
 		     le16_to_cpu(sb->dev_roles[rdev->desc_nr]) == MD_DISK_ROLE_JOURNAL))
-			if (ev1 < mddev->events)
+			if (ev1 + 1 < mddev->events)
 				return -EINVAL;
 	} else if (mddev->bitmap) {
 		/* If adding to array with a bitmap, then we can accept an
@@ -1973,58 +1964,85 @@ static int super_1_validate(struct mddev *mddev, struct md_rdev *rdev)
 			/* just a hot-add of a new device, leave raid_disk at -1 */
 			return 0;
 	}
-	if (mddev->level != LEVEL_MULTIPATH) {
-		int role;
-		if (rdev->desc_nr < 0 ||
-		    rdev->desc_nr >= le32_to_cpu(sb->max_dev)) {
-			role = MD_DISK_ROLE_SPARE;
-			rdev->desc_nr = -1;
-		} else
-			role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
-		switch(role) {
-		case MD_DISK_ROLE_SPARE: /* spare */
-			break;
-		case MD_DISK_ROLE_FAULTY: /* faulty */
-			set_bit(Faulty, &rdev->flags);
-			break;
-		case MD_DISK_ROLE_JOURNAL: /* journal device */
-			if (!(le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)) {
-				/* journal device without journal feature */
-				pr_warn("md: journal device provided without journal feature, ignoring the device\n");
-				return -EINVAL;
-			}
-			set_bit(Journal, &rdev->flags);
-			rdev->journal_tail = le64_to_cpu(sb->journal_tail);
-			rdev->raid_disk = 0;
-			break;
-		default:
-			rdev->saved_raid_disk = role;
-			if ((le32_to_cpu(sb->feature_map) &
-			     MD_FEATURE_RECOVERY_OFFSET)) {
-				rdev->recovery_offset = le64_to_cpu(sb->recovery_offset);
-				if (!(le32_to_cpu(sb->feature_map) &
-				      MD_FEATURE_RECOVERY_BITMAP))
-					rdev->saved_raid_disk = -1;
-			} else {
-				/*
-				 * If the array is FROZEN, then the device can't
-				 * be in_sync with rest of array.
-				 */
-				if (!test_bit(MD_RECOVERY_FROZEN,
-					      &mddev->recovery))
-					set_bit(In_sync, &rdev->flags);
-			}
-			rdev->raid_disk = role;
-			break;
+
+	if (rdev->desc_nr < 0 ||
+	    rdev->desc_nr >= le32_to_cpu(sb->max_dev)) {
+		role = MD_DISK_ROLE_SPARE;
+		rdev->desc_nr = -1;
+	} else if (mddev->pers == NULL && freshest && ev1 < mddev->events) {
+		/*
+		 * If we are assembling, and our event counter is smaller than the
+		 * highest event counter, we cannot trust our superblock about the role.
+		 * It could happen that our rdev was marked as Faulty, and all other
+		 * superblocks were updated with +1 event counter.
+		 * Then, before the next superblock update, which typically happens when
+		 * remove_and_add_spares() removes the device from the array, there was
+		 * a crash or reboot.
+		 * If we allow current rdev without consulting the freshest superblock,
+		 * we could cause data corruption.
+		 * Note that in this case our event counter is smaller by 1 than the
+		 * highest, otherwise, this rdev would not be allowed into array;
+		 * both kernel and mdadm allow event counter difference of 1.
+		 */
+		struct mdp_superblock_1 *freshest_sb = page_address(freshest->sb_page);
+		u32 freshest_max_dev = le32_to_cpu(freshest_sb->max_dev);
+
+		if (rdev->desc_nr >= freshest_max_dev) {
+			/* this is unexpected, better not proceed */
+			pr_warn("md: %s: rdev[%pg]: desc_nr(%d) >= freshest(%pg)->sb->max_dev(%u)\n",
+				mdname(mddev), rdev->bdev, rdev->desc_nr,
+				freshest->bdev, freshest_max_dev);
+			return -EUCLEAN;
 		}
-		if (sb->devflags & WriteMostly1)
-			set_bit(WriteMostly, &rdev->flags);
-		if (sb->devflags & FailFast1)
-			set_bit(FailFast, &rdev->flags);
-		if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
-			set_bit(Replacement, &rdev->flags);
-	} else /* MULTIPATH are always insync */
-		set_bit(In_sync, &rdev->flags);
+
+		role = le16_to_cpu(freshest_sb->dev_roles[rdev->desc_nr]);
+		pr_debug("md: %s: rdev[%pg]: role=%d(0x%x) according to freshest %pg\n",
+			 mdname(mddev), rdev->bdev, role, role, freshest->bdev);
+	} else {
+		role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
+	}
+	switch (role) {
+	case MD_DISK_ROLE_SPARE: /* spare */
+		break;
+	case MD_DISK_ROLE_FAULTY: /* faulty */
+		set_bit(Faulty, &rdev->flags);
+		break;
+	case MD_DISK_ROLE_JOURNAL: /* journal device */
+		if (!(le32_to_cpu(sb->feature_map) & MD_FEATURE_JOURNAL)) {
+			/* journal device without journal feature */
+			pr_warn("md: journal device provided without journal feature, ignoring the device\n");
+			return -EINVAL;
+		}
+		set_bit(Journal, &rdev->flags);
+		rdev->journal_tail = le64_to_cpu(sb->journal_tail);
+		rdev->raid_disk = 0;
+		break;
+	default:
+		rdev->saved_raid_disk = role;
+		if ((le32_to_cpu(sb->feature_map) &
+		     MD_FEATURE_RECOVERY_OFFSET)) {
+			rdev->recovery_offset = le64_to_cpu(sb->recovery_offset);
+			if (!(le32_to_cpu(sb->feature_map) &
+			      MD_FEATURE_RECOVERY_BITMAP))
+				rdev->saved_raid_disk = -1;
+		} else {
+			/*
+			 * If the array is FROZEN, then the device can't
+			 * be in_sync with rest of array.
+			 */
+			if (!test_bit(MD_RECOVERY_FROZEN,
+				      &mddev->recovery))
+				set_bit(In_sync, &rdev->flags);
+		}
+		rdev->raid_disk = role;
+		break;
+	}
+	if (sb->devflags & WriteMostly1)
+		set_bit(WriteMostly, &rdev->flags);
+	if (sb->devflags & FailFast1)
+		set_bit(FailFast, &rdev->flags);
+	if (le32_to_cpu(sb->feature_map) & MD_FEATURE_REPLACEMENT)
+		set_bit(Replacement, &rdev->flags);
 
 	return 0;
 }
@@ -2842,10 +2860,6 @@ rewrite:
 		} else
 			pr_debug("md: %pg (skipping faulty)\n",
 				 rdev->bdev);
-
-		if (mddev->level == LEVEL_MULTIPATH)
-			/* only need to write one superblock... */
-			break;
 	}
 	if (md_super_wait(mddev) < 0)
 		goto rewrite;
@@ -2887,7 +2901,7 @@ static int add_bound_rdev(struct md_rdev *rdev)
 		 * and should be added immediately.
 		 */
 		super_types[mddev->major_version].
-			validate_super(mddev, rdev);
+			validate_super(mddev, NULL/*freshest*/, rdev);
 		err = mddev->pers->hot_add_disk(mddev, rdev);
 		if (err) {
 			md_kick_rdev_from_array(rdev);
@@ -3824,7 +3838,7 @@ static int analyze_sbs(struct mddev *mddev)
 	}
 
 	super_types[mddev->major_version].
-		validate_super(mddev, freshest);
+		validate_super(mddev, NULL/*freshest*/, freshest);
 
 	i = 0;
 	rdev_for_each_safe(rdev, tmp, mddev) {
@@ -3839,20 +3853,15 @@ static int analyze_sbs(struct mddev *mddev)
 		}
 		if (rdev != freshest) {
 			if (super_types[mddev->major_version].
-			    validate_super(mddev, rdev)) {
+			    validate_super(mddev, freshest, rdev)) {
 				pr_warn("md: kicking non-fresh %pg from array!\n",
 					rdev->bdev);
 				md_kick_rdev_from_array(rdev);
 				continue;
 			}
 		}
-		if (mddev->level == LEVEL_MULTIPATH) {
-			rdev->desc_nr = i++;
-			rdev->raid_disk = rdev->desc_nr;
-			set_bit(In_sync, &rdev->flags);
-		} else if (rdev->raid_disk >=
-			    (mddev->raid_disks - min(0, mddev->delta_disks)) &&
-			   !test_bit(Journal, &rdev->flags)) {
+		if (rdev->raid_disk >= (mddev->raid_disks - min(0, mddev->delta_disks)) &&
+		    !test_bit(Journal, &rdev->flags)) {
 			rdev->raid_disk = -1;
 			clear_bit(In_sync, &rdev->flags);
 		}
@@ -6847,7 +6856,7 @@ int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info)
 			rdev->saved_raid_disk = rdev->raid_disk;
 		} else
 			super_types[mddev->major_version].
-				validate_super(mddev, rdev);
+				validate_super(mddev, NULL/*freshest*/, rdev);
 		if ((info->state & (1<<MD_DISK_SYNC)) &&
 		     rdev->raid_disk != info->raid_disk) {
 			/* This was a hot-add request, but events doesn't
@@ -8090,7 +8099,7 @@ void md_error(struct mddev *mddev, struct md_rdev *rdev)
 		return;
 	mddev->pers->error_handler(mddev, rdev);
 
-	if (mddev->pers->level == 0 || mddev->pers->level == LEVEL_LINEAR)
+	if (mddev->pers->level == 0)
 		return;
 
 	if (mddev->degraded && !test_bit(MD_BROKEN, &mddev->flags))
