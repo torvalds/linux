@@ -11,6 +11,7 @@
  */
 
 #include "boot.h"
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 
 /*

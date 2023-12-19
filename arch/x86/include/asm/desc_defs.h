@@ -144,6 +144,7 @@ struct gate_struct {
 
 typedef struct gate_struct gate_desc;
 
+#ifndef _SETUP
 static inline unsigned long gate_offset(const gate_desc *g)
 {
 #ifdef CONFIG_X86_64
@@ -158,6 +159,7 @@ static inline unsigned long gate_segment(const gate_desc *g)
 {
 	return g->segment;
 }
+#endif
 
 struct desc_ptr {
 	unsigned short size;

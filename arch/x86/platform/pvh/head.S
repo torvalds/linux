@@ -11,6 +11,7 @@
 #include <linux/elfnote.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 #include <asm/asm.h>
 #include <asm/boot.h>
