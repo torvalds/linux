@@ -634,6 +634,11 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 
+	if (!kvm_guest_has_fpu(&vcpu->arch)) {
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
+		return RESUME_GUEST;
+	}
+
 	/*
 	 * If guest FPU not present, the FPU operation should have been
 	 * treated as a reserved instruction!
@@ -646,6 +651,21 @@ static int kvm_handle_fpu_disabled(struct kvm_vcpu *vcpu)
 	}
 
 	kvm_own_fpu(vcpu);
+
+	return RESUME_GUEST;
+}
+
+/*
+ * kvm_handle_lsx_disabled() - Guest used LSX while disabled in root.
+ * @vcpu:      Virtual CPU context.
+ *
+ * Handle when the guest attempts to use LSX when it is disabled in the root
+ * context.
+ */
+static int kvm_handle_lsx_disabled(struct kvm_vcpu *vcpu)
+{
+	if (kvm_own_lsx(vcpu))
+		kvm_queue_exception(vcpu, EXCCODE_INE, 0);
 
 	return RESUME_GUEST;
 }
@@ -678,6 +698,7 @@ static exit_handle_fn kvm_fault_tables[EXCCODE_INT_START] = {
 	[EXCCODE_TLBS]			= kvm_handle_write_fault,
 	[EXCCODE_TLBM]			= kvm_handle_write_fault,
 	[EXCCODE_FPDIS]			= kvm_handle_fpu_disabled,
+	[EXCCODE_LSXDIS]		= kvm_handle_lsx_disabled,
 	[EXCCODE_GSPR]			= kvm_handle_gspr,
 };
 

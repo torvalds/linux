@@ -349,6 +349,7 @@ SYM_FUNC_START(_restore_lsx_upper)
 	lsx_restore_all_upper a0 t0 t1
 	jr	ra
 SYM_FUNC_END(_restore_lsx_upper)
+EXPORT_SYMBOL(_restore_lsx_upper)
 
 SYM_FUNC_START(_init_lsx_upper)
 	lsx_init_all_upper t1

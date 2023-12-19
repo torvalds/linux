@@ -102,6 +102,7 @@ TRACE_EVENT(kvm_exit_gspr,
 #define KVM_TRACE_AUX_DISCARD		4
 
 #define KVM_TRACE_AUX_FPU		1
+#define KVM_TRACE_AUX_LSX		2
 
 #define kvm_trace_symbol_aux_op				\
 	{ KVM_TRACE_AUX_SAVE,		"save" },	\
@@ -111,7 +112,8 @@ TRACE_EVENT(kvm_exit_gspr,
 	{ KVM_TRACE_AUX_DISCARD,	"discard" }
 
 #define kvm_trace_symbol_aux_state			\
-	{ KVM_TRACE_AUX_FPU,     "FPU" }
+	{ KVM_TRACE_AUX_FPU,     "FPU" },		\
+	{ KVM_TRACE_AUX_LSX,     "LSX" }
 
 TRACE_EVENT(kvm_aux,
 	    TP_PROTO(struct kvm_vcpu *vcpu, unsigned int op,
