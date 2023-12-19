@@ -78,6 +78,16 @@ struct dmub_srv_dcn31_regs;
 
 struct dmcub_trace_buf_entry;
 
+struct dmcub_inbox1_buf {
+	union dmub_rb_cmd cmd[DMUB_RB_MAX_ENTRY];
+};
+
+/* enum dmub_window_memory_type - memory location type specification for windows */
+enum dmub_window_memory_type {
+	DMUB_WINDOW_MEMORY_TYPE_FB = 0,
+	DMUB_WINDOW_MEMORY_TYPE_GART
+};
+
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
 	DMUB_STATUS_OK = 0,
@@ -203,7 +213,7 @@ struct dmub_srv_region_params {
 	uint32_t vbios_size;
 	const uint8_t *fw_inst_const;
 	const uint8_t *fw_bss_data;
-	bool is_mailbox_in_inbox;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
@@ -223,7 +233,7 @@ struct dmub_srv_region_params {
  */
 struct dmub_srv_region_info {
 	uint32_t fb_size;
-	uint32_t inbox_size;
+	uint32_t gart_size;
 	uint8_t num_regions;
 	struct dmub_region regions[DMUB_WINDOW_TOTAL];
 };
@@ -239,9 +249,10 @@ struct dmub_srv_region_info {
 struct dmub_srv_memory_params {
 	const struct dmub_srv_region_info *region_info;
 	void *cpu_fb_addr;
-	void *cpu_inbox_addr;
+	void *cpu_gart_addr;
 	uint64_t gpu_fb_addr;
-	uint64_t gpu_inbox_addr;
+	uint64_t gpu_gart_addr;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
