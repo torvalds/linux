@@ -411,8 +411,10 @@ struct ethtool_pause_stats {
  *	not entire FEC data blocks. This is a non-standard statistic.
  *	Reported to user space as %ETHTOOL_A_FEC_STAT_CORR_BITS.
  *
- * @lane: per-lane/PCS-instance counts as defined by the standard
- * @total: error counts for the entire port, for drivers incapable of reporting
+ * For each of the above fields, the two substructure members are:
+ *
+ * - @lanes: per-lane/PCS-instance counts as defined by the standard
+ * - @total: error counts for the entire port, for drivers incapable of reporting
  *	per-lane stats
  *
  * Drivers should fill in either only total or per-lane statistics, core
