@@ -511,7 +511,7 @@ bool dc_state_remove_plane(
  *
  * @dc: Current dc state.
  * @stream: Target stream, which we want to remove the attached plans.
- * @context: New context.
+ * @state: context from which the planes are to be removed.
  *
  * Return:
  * Return true if DC was able to remove all planes from the target

@@ -519,10 +519,11 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 /**
  * populate_subvp_cmd_drr_info - Helper to populate DRR pipe info for the DMCUB subvp command
  *
- * @dc: [in] current dc state
+ * @dc: [in] pointer to dc object
  * @subvp_pipe: [in] pipe_ctx for the SubVP pipe
  * @vblank_pipe: [in] pipe_ctx for the DRR pipe
  * @pipe_data: [in] Pipe data which stores the VBLANK/DRR info
+ * @context: [in] DC state for access to phantom stream
  *
  * Populate the DMCUB SubVP command with DRR pipe info. All the information
  * required for calculating the SubVP + DRR microschedule is populated here.
