@@ -673,28 +673,6 @@ static int gfs2_sync_fs(struct super_block *sb, int wait)
 	return sdp->sd_log_error;
 }
 
-static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
-{
-	struct super_block *sb = sdp->sd_vfs;
-	int error;
-
-	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
-	if (error)
-		return error;
-
-	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
-			       GFS2_LFC_FREEZE_GO_SYNC);
-		if (gfs2_withdrawing_or_withdrawn(sdp)) {
-			error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
-			if (error)
-				return error;
-			return -EIO;
-		}
-	}
-	return 0;
-}
-
 static int gfs2_do_thaw(struct gfs2_sbd *sdp)
 {
 	struct super_block *sb = sdp->sd_vfs;
@@ -724,7 +702,7 @@ void gfs2_freeze_func(struct work_struct *work)
 	if (test_bit(SDF_FROZEN, &sdp->sd_flags))
 		goto freeze_failed;
 
-	error = gfs2_freeze_locally(sdp);
+	error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 	if (error)
 		goto freeze_failed;
 
@@ -765,7 +743,7 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 	}
 
 	for (;;) {
-		error = gfs2_freeze_locally(sdp);
+		error = freeze_super(sb, FREEZE_HOLDER_USERSPACE);
 		if (error) {
 			fs_info(sdp, "GFS2: couldn't freeze filesystem: %d\n",
 				error);
@@ -799,6 +777,19 @@ static int gfs2_freeze_super(struct super_block *sb, enum freeze_holder who)
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);
 	return error;
+}
+
+static int gfs2_freeze_fs(struct super_block *sb)
+{
+	struct gfs2_sbd *sdp = sb->s_fs_info;
+
+	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
+		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
+			       GFS2_LFC_FREEZE_GO_SYNC);
+		if (gfs2_withdrawing_or_withdrawn(sdp))
+			return -EIO;
+	}
+	return 0;
 }
 
 /**
@@ -1599,6 +1590,7 @@ const struct super_operations gfs2_super_ops = {
 	.put_super		= gfs2_put_super,
 	.sync_fs		= gfs2_sync_fs,
 	.freeze_super		= gfs2_freeze_super,
+	.freeze_fs		= gfs2_freeze_fs,
 	.thaw_super		= gfs2_thaw_super,
 	.statfs			= gfs2_statfs,
 	.drop_inode		= gfs2_drop_inode,
