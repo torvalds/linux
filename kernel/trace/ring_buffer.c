@@ -5856,11 +5856,11 @@ EXPORT_SYMBOL_GPL(ring_buffer_subbuf_order_get);
  */
 int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 {
-	struct ring_buffer_per_cpu **cpu_buffers;
+	struct ring_buffer_per_cpu *cpu_buffer;
+	struct buffer_page *bpage, *tmp;
 	int old_order, old_size;
 	int nr_pages;
 	int psize;
-	int bsize;
 	int err;
 	int cpu;
 
@@ -5873,11 +5873,6 @@ int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 	psize = (1 << order) * PAGE_SIZE;
 	if (psize <= BUF_PAGE_HDR_SIZE)
 		return -EINVAL;
-
-	bsize = sizeof(void *) * buffer->cpus;
-	cpu_buffers = kzalloc(bsize, GFP_KERNEL);
-	if (!cpu_buffers)
-		return -ENOMEM;
 
 	old_order = buffer->subbuf_order;
 	old_size = buffer->subbuf_size;
@@ -5894,32 +5889,87 @@ int ring_buffer_subbuf_order_set(struct trace_buffer *buffer, int order)
 
 	/* Make sure all new buffers are allocated, before deleting the old ones */
 	for_each_buffer_cpu(buffer, cpu) {
+
 		if (!cpumask_test_cpu(cpu, buffer->cpumask))
 			continue;
+
+		cpu_buffer = buffer->buffers[cpu];
 
 		/* Update the number of pages to match the new size */
 		nr_pages = old_size * buffer->buffers[cpu]->nr_pages;
 		nr_pages = DIV_ROUND_UP(nr_pages, buffer->subbuf_size);
 
-		cpu_buffers[cpu] = rb_allocate_cpu_buffer(buffer, nr_pages, cpu);
-		if (!cpu_buffers[cpu]) {
+		/* we need a minimum of two pages */
+		if (nr_pages < 2)
+			nr_pages = 2;
+
+		cpu_buffer->nr_pages_to_update = nr_pages;
+
+		/* Include the reader page */
+		nr_pages++;
+
+		/* Allocate the new size buffer */
+		INIT_LIST_HEAD(&cpu_buffer->new_pages);
+		if (__rb_allocate_pages(cpu_buffer, nr_pages,
+					&cpu_buffer->new_pages)) {
+			/* not enough memory for new pages */
 			err = -ENOMEM;
 			goto error;
 		}
 	}
 
 	for_each_buffer_cpu(buffer, cpu) {
+
 		if (!cpumask_test_cpu(cpu, buffer->cpumask))
 			continue;
 
-		rb_free_cpu_buffer(buffer->buffers[cpu]);
-		buffer->buffers[cpu] = cpu_buffers[cpu];
+		cpu_buffer = buffer->buffers[cpu];
+
+		/* Clear the head bit to make the link list normal to read */
+		rb_head_page_deactivate(cpu_buffer);
+
+		/* Now walk the list and free all the old sub buffers */
+		list_for_each_entry_safe(bpage, tmp, cpu_buffer->pages, list) {
+			list_del_init(&bpage->list);
+			free_buffer_page(bpage);
+		}
+		/* The above loop stopped an the last page needing to be freed */
+		bpage = list_entry(cpu_buffer->pages, struct buffer_page, list);
+		free_buffer_page(bpage);
+
+		/* Free the current reader page */
+		free_buffer_page(cpu_buffer->reader_page);
+
+		/* One page was allocated for the reader page */
+		cpu_buffer->reader_page = list_entry(cpu_buffer->new_pages.next,
+						     struct buffer_page, list);
+		list_del_init(&cpu_buffer->reader_page->list);
+
+		/* The cpu_buffer pages are a link list with no head */
+		cpu_buffer->pages = cpu_buffer->new_pages.next;
+		cpu_buffer->new_pages.next->prev = cpu_buffer->new_pages.prev;
+		cpu_buffer->new_pages.prev->next = cpu_buffer->new_pages.next;
+
+		/* Clear the new_pages list */
+		INIT_LIST_HEAD(&cpu_buffer->new_pages);
+
+		cpu_buffer->head_page
+			= list_entry(cpu_buffer->pages, struct buffer_page, list);
+		cpu_buffer->tail_page = cpu_buffer->commit_page = cpu_buffer->head_page;
+
+		cpu_buffer->nr_pages = cpu_buffer->nr_pages_to_update;
+		cpu_buffer->nr_pages_to_update = 0;
+
+		free_pages((unsigned long)cpu_buffer->free_page, old_order);
+		cpu_buffer->free_page = NULL;
+
+		rb_head_page_activate(cpu_buffer);
+
+		rb_check_pages(cpu_buffer);
 	}
 
 	atomic_dec(&buffer->record_disabled);
 	mutex_unlock(&buffer->mutex);
-
-	kfree(cpu_buffers);
 
 	return 0;
 
@@ -5931,12 +5981,16 @@ error:
 	mutex_unlock(&buffer->mutex);
 
 	for_each_buffer_cpu(buffer, cpu) {
-		if (!cpu_buffers[cpu])
+		cpu_buffer = buffer->buffers[cpu];
+
+		if (!cpu_buffer->nr_pages_to_update)
 			continue;
-		rb_free_cpu_buffer(cpu_buffers[cpu]);
-		kfree(cpu_buffers[cpu]);
+
+		list_for_each_entry_safe(bpage, tmp, &cpu_buffer->new_pages, list) {
+			list_del_init(&bpage->list);
+			free_buffer_page(bpage);
+		}
 	}
-	kfree(cpu_buffers);
 
 	return err;
 }
