@@ -110,8 +110,7 @@ static inline u32 iwl_rx_packet_payload_len(const struct iwl_rx_packet *pkt)
  * @CMD_WANT_SKB: Not valid with CMD_ASYNC. The caller needs the buffer of
  *	the response. The caller needs to call iwl_free_resp when done.
  * @CMD_SEND_IN_RFKILL: Send the command even if the NIC is in RF-kill.
- * @CMD_WANT_ASYNC_CALLBACK: the op_mode's async callback function must be
- *	called after this command completes. Valid only with CMD_ASYNC.
+ * @CMD_BLOCK_TXQS: Block TXQs while the comment is executing.
  * @CMD_SEND_IN_D3: Allow the command to be sent in D3 mode, relevant to
  *	SUSPEND and RESUME commands. We are in D3 mode when we set
  *	trans->system_pm_mode to IWL_PLAT_PM_MODE_D3.
@@ -120,7 +119,7 @@ enum CMD_MODE {
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
 	CMD_SEND_IN_RFKILL	= BIT(2),
-	CMD_WANT_ASYNC_CALLBACK	= BIT(3),
+	CMD_BLOCK_TXQS		= BIT(3),
 	CMD_SEND_IN_D3          = BIT(4),
 };
 
@@ -534,11 +533,6 @@ struct iwl_pnvm_image {
  * @wait_txq_empty: wait until specific tx queue is empty. May sleep.
  * @freeze_txq_timer: prevents the timer of the queue from firing until the
  *	queue is set to awake. Must be atomic.
- * @block_txq_ptrs: stop updating the write pointers of the Tx queues. Note
- *	that the transport needs to refcount the calls since this function
- *	will be called several times with block = true, and then the queues
- *	need to be unblocked only after the same number of calls with
- *	block = false.
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
@@ -613,7 +607,6 @@ struct iwl_trans_ops {
 	int (*wait_txq_empty)(struct iwl_trans *trans, int queue);
 	void (*freeze_txq_timer)(struct iwl_trans *trans, unsigned long txqs,
 				 bool freeze);
-	void (*block_txq_ptrs)(struct iwl_trans *trans, bool block);
 
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
@@ -1405,18 +1398,6 @@ static inline void iwl_trans_freeze_txq_timer(struct iwl_trans *trans,
 
 	if (trans->ops->freeze_txq_timer)
 		trans->ops->freeze_txq_timer(trans, txqs, freeze);
-}
-
-static inline void iwl_trans_block_txq_ptrs(struct iwl_trans *trans,
-					    bool block)
-{
-	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
-		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
-		return;
-	}
-
-	if (trans->ops->block_txq_ptrs)
-		trans->ops->block_txq_ptrs(trans, block);
 }
 
 static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,

@@ -334,7 +334,7 @@ struct link {
 	 */
 	struct delayed_work watchdog_work;
 	unsigned int watchdog_interval;
-	bool watchdog_disabled;
+	unsigned int watchdog;
 
 	/*
 	 * Work structure for scheduling periodic AGC adjustments.

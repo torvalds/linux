@@ -1328,8 +1328,8 @@ static bool rt2800_watchdog_dma_busy(struct rt2x00_dev *rt2x00dev)
 	else
 		rt2x00dev->txdma_busy = 0;
 
-	busy_rx = rt2x00dev->rxdma_busy > 30 ? true : false;
-	busy_tx = rt2x00dev->txdma_busy > 30 ? true : false;
+	busy_rx = rt2x00dev->rxdma_busy > 30;
+	busy_tx = rt2x00dev->txdma_busy > 30;
 
 	if (!busy_rx && !busy_tx)
 		return false;
@@ -1353,10 +1353,10 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
 		return;
 
-	if (modparam_watchdog & RT2800_WATCHDOG_DMA_BUSY)
+	if (rt2x00dev->link.watchdog & RT2800_WATCHDOG_DMA_BUSY)
 		reset = rt2800_watchdog_dma_busy(rt2x00dev);
 
-	if (modparam_watchdog & RT2800_WATCHDOG_HANG)
+	if (rt2x00dev->link.watchdog & RT2800_WATCHDOG_HANG)
 		reset = rt2800_watchdog_hung(rt2x00dev) || reset;
 
 	if (reset)
@@ -12065,14 +12065,13 @@ int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
 	}
 
+	rt2x00dev->link.watchdog = modparam_watchdog;
 	/* USB NICs don't support DMA watchdog as INT_SOURCE_CSR is invalid */
 	if (rt2x00_is_usb(rt2x00dev))
-		modparam_watchdog &= ~RT2800_WATCHDOG_DMA_BUSY;
-	if (modparam_watchdog) {
+		rt2x00dev->link.watchdog &= ~RT2800_WATCHDOG_DMA_BUSY;
+	if (rt2x00dev->link.watchdog) {
 		__set_bit(CAPABILITY_RESTART_HW, &rt2x00dev->cap_flags);
 		rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
-	} else {
-		rt2x00dev->link.watchdog_disabled = true;
 	}
 
 	/*

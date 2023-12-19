@@ -154,8 +154,7 @@ mt7925_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 
 static void
 mt7925_init_eht_caps(struct mt792x_phy *phy, enum nl80211_band band,
-		     struct ieee80211_sband_iftype_data *data,
-		     enum nl80211_iftype iftype)
+		     struct ieee80211_sband_iftype_data *data)
 {
 	struct ieee80211_sta_eht_cap *eht_cap = &data->eht_cap;
 	struct ieee80211_eht_cap_elem_fixed *eht_cap_elem = &eht_cap->eht_cap_elem;
@@ -256,7 +255,7 @@ __mt7925_set_stream_he_eht_caps(struct mt792x_phy *phy,
 
 		data[n].types_mask = BIT(i);
 		mt7925_init_he_caps(phy, band, &data[n], i);
-		mt7925_init_eht_caps(phy, band, &data[n], i);
+		mt7925_init_eht_caps(phy, band, &data[n]);
 
 		n++;
 	}

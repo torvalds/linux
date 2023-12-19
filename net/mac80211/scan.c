@@ -1289,7 +1289,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	iebufsz = local->scan_ies_len + req->ie_len;
 
 	if (!local->ops->sched_scan_start)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (local->hw.wiphy->bands[i]) {
@@ -1354,7 +1354,7 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_local *local)
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->ops->sched_scan_stop)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* We don't want to restart sched scan anymore. */
 	RCU_INIT_POINTER(local->sched_scan_req, NULL);

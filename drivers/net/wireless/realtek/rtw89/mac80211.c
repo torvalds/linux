@@ -226,6 +226,7 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 rx_fltr;
 
 	mutex_lock(&rtwdev->mutex);
 	rtw89_leave_ps_mode(rtwdev);
@@ -272,16 +273,29 @@ static void rtw89_ops_configure_filter(struct ieee80211_hw *hw,
 		}
 	}
 
+	rx_fltr = rtwdev->hal.rx_fltr;
+
+	/* mac80211 doesn't configure filter when HW scan, driver need to
+	 * set by itself. However, during P2P scan might have configure
+	 * filter to overwrite filter that HW scan needed, so we need to
+	 * check scan and append related filter
+	 */
+	if (rtwdev->scanning) {
+		rx_fltr &= ~B_AX_A_BCN_CHK_EN;
+		rx_fltr &= ~B_AX_A_BC;
+		rx_fltr &= ~B_AX_A_A1_MATCH;
+	}
+
 	rtw89_write32_mask(rtwdev,
 			   rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_0),
 			   B_AX_RX_FLTR_CFG_MASK,
-			   rtwdev->hal.rx_fltr);
+			   rx_fltr);
 	if (!rtwdev->dbcc_en)
 		goto out;
 	rtw89_write32_mask(rtwdev,
 			   rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, RTW89_MAC_1),
 			   B_AX_RX_FLTR_CFG_MASK,
-			   rtwdev->hal.rx_fltr);
+			   rx_fltr);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
@@ -476,6 +490,9 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 		mutex_unlock(&rtwdev->mutex);
 		return -EOPNOTSUPP;
 	}
+
+	if (rtwdev->scanning)
+		rtw89_hw_scan_abort(rtwdev, rtwdev->scan_info.scanning_vif);
 
 	ether_addr_copy(rtwvif->bssid, vif->bss_conf.bssid);
 	rtw89_cam_bssid_changed(rtwdev, rtwvif);

@@ -541,6 +541,9 @@ il_leds_init(struct il_priv *il)
 
 	il->led.name =
 	    kasprintf(GFP_KERNEL, "%s-led", wiphy_name(il->hw->wiphy));
+	if (!il->led.name)
+		return;
+
 	il->led.brightness_set = il_led_brightness_set;
 	il->led.blink_set = il_led_blink_set;
 	il->led.max_brightness = 1;
