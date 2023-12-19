@@ -190,7 +190,7 @@ int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 	struct q2spi_gsi *gsi = NULL;
 	int ret = 0;
 
-	gsi = q2spi_kzalloc(q2spi, sizeof(struct q2spi_gsi));
+	gsi = q2spi_kzalloc(q2spi, sizeof(struct q2spi_gsi), __LINE__);
 	if (!gsi) {
 		Q2SPI_ERROR(q2spi, "%s Err GSI structure memory alloc failed\n", __func__);
 		return -ENOMEM;
