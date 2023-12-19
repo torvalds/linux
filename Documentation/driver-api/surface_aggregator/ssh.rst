@@ -39,7 +39,7 @@ Note that the standard disclaimer for this subsystem also applies to this
 document: All of this has been reverse-engineered and may thus be erroneous
 and/or incomplete.
 
-All CRCs used in the following are two-byte ``crc_ccitt_false(0xffff, ...)``.
+All CRCs used in the following are two-byte ``crc_itu_t(0xffff, ...)``.
 All multi-byte values are little-endian, there is no implicit padding between
 values.
 
