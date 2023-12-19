@@ -248,7 +248,8 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 	} else {
 		if (stream->ispdev->cap_dev.wrap_line &&
 		    stream->id == RKISP_STREAM_MP) {
-			if (stream_cfg->is_discard || stream->ops->is_stream_stopped(stream))
+			if (dev->is_first_double || stream_cfg->is_discard ||
+			    stream->ops->is_stream_stopped(stream))
 				return 0;
 		} else if (stream_cfg->dst_fps) {
 			if (!stream_cfg->is_discard && !stream->curr_buf) {
