@@ -716,7 +716,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		}
 	}
 
-	if (WARN_ON(!new_active_links))
+	if (!new_active_links)
 		return;
 
 	if (vif->active_links != new_active_links)
