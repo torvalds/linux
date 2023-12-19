@@ -1550,9 +1550,9 @@ out:
 
 static int dpaa2_switch_setup_irqs(struct fsl_mc_device *sw_dev)
 {
+	u32 mask = DPSW_IRQ_EVENT_LINK_CHANGED | DPSW_IRQ_EVENT_ENDPOINT_CHANGED;
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	u32 mask = DPSW_IRQ_EVENT_LINK_CHANGED;
 	struct fsl_mc_device_irq *irq;
 	int err;
 
