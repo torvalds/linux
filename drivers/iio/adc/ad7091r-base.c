@@ -16,10 +16,6 @@
 
 #include "ad7091r-base.h"
 
-/* AD7091R_REG_RESULT */
-#define AD7091R_REG_RESULT_CH_ID(x)	    (((x) >> 13) & 0x3)
-#define AD7091R_REG_RESULT_CONV_RESULT(x)   ((x) & 0xfff)
-
 const struct iio_event_spec ad7091r_events[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
@@ -74,7 +70,7 @@ static int ad7091r_read_one(struct iio_dev *iio_dev,
 	if (ret)
 		return ret;
 
-	if (AD7091R_REG_RESULT_CH_ID(val) != channel)
+	if (st->chip_info->reg_result_chan_id(val) != channel)
 		return -EIO;
 
 	*read_val = AD7091R_REG_RESULT_CONV_RESULT(val);

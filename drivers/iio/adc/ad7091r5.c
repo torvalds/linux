@@ -54,11 +54,17 @@ static int ad7091r5_set_mode(struct ad7091r_state *st, enum ad7091r_mode mode)
 	return 0;
 }
 
+static unsigned int ad7091r5_reg_result_chan_id(unsigned int val)
+{
+	return AD7091R5_REG_RESULT_CH_ID(val);
+}
+
 static const struct ad7091r_chip_info ad7091r5_chip_info_irq = {
 	.name = "ad7091r-5",
 	.channels = ad7091r5_channels_irq,
 	.num_channels = ARRAY_SIZE(ad7091r5_channels_irq),
 	.vref_mV = 2500,
+	.reg_result_chan_id = &ad7091r5_reg_result_chan_id,
 	.set_mode = &ad7091r5_set_mode,
 };
 
@@ -67,6 +73,7 @@ static const struct ad7091r_chip_info ad7091r5_chip_info_noirq = {
 	.channels = ad7091r5_channels_noirq,
 	.num_channels = ARRAY_SIZE(ad7091r5_channels_noirq),
 	.vref_mV = 2500,
+	.reg_result_chan_id = &ad7091r5_reg_result_chan_id,
 	.set_mode = &ad7091r5_set_mode,
 };
 
