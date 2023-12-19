@@ -4534,7 +4534,8 @@ int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 
 	usb_audio_info(chip,
 		"Focusrite %s Mixer Driver enabled (pid=0x%04x); "
-		"report any issues to g@b4.vu",
+		"report any issues to "
+		"https://github.com/geoffreybennett/scarlett-gen2/issues",
 		entry->series_name,
 		USB_ID_PRODUCT(chip->usb_id));
 
