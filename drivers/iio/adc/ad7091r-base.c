@@ -342,7 +342,7 @@ static void ad7091r_remove(void *data)
 }
 
 int ad7091r_probe(struct device *dev, const char *name,
-		const struct ad7091r_chip_info *chip_info,
+		const struct ad7091r_init_info *init_info,
 		struct regmap *map, int irq)
 {
 	struct iio_dev *iio_dev;
@@ -355,17 +355,16 @@ int ad7091r_probe(struct device *dev, const char *name,
 
 	st = iio_priv(iio_dev);
 	st->dev = dev;
-	st->chip_info = chip_info;
-	st->map = map;
+	init_info->init_adc_regmap(st, init_info->regmap_config);
+	if (IS_ERR(st->map))
+		return dev_err_probe(st->dev, PTR_ERR(st->map),
+				     "Error initializing regmap\n");
 
-	iio_dev->name = name;
 	iio_dev->info = &ad7091r_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 
-	iio_dev->num_channels = chip_info->num_channels;
-	iio_dev->channels = chip_info->channels;
-
 	if (irq) {
+		st->chip_info = init_info->info_irq;
 		ret = regmap_update_bits(st->map, AD7091R_REG_CONF,
 					 AD7091R_REG_CONF_ALERT_EN, BIT(4));
 		if (ret)
@@ -377,7 +376,13 @@ int ad7091r_probe(struct device *dev, const char *name,
 						IRQF_ONESHOT, name, iio_dev);
 		if (ret)
 			return ret;
+	} else {
+		st->chip_info = init_info->info_no_irq;
 	}
+
+	iio_dev->name = st->chip_info->name;
+	iio_dev->num_channels = st->chip_info->num_channels;
+	iio_dev->channels = st->chip_info->channels;
 
 	st->vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->vref)) {
@@ -432,14 +437,6 @@ bool ad7091r_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 EXPORT_SYMBOL_NS_GPL(ad7091r_volatile_reg, IIO_AD7091R);
-
-const struct regmap_config ad7091r_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 16,
-	.writeable_reg = ad7091r_writeable_reg,
-	.volatile_reg = ad7091r_volatile_reg,
-};
-EXPORT_SYMBOL_NS_GPL(ad7091r_regmap_config, IIO_AD7091R);
 
 MODULE_AUTHOR("Beniamin Bia <beniamin.bia@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7091Rx multi-channel converters");

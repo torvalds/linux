@@ -8,6 +8,8 @@
 #ifndef __DRIVERS_IIO_ADC_AD7091R_BASE_H__
 #define __DRIVERS_IIO_ADC_AD7091R_BASE_H__
 
+#include <linux/regmap.h>
+
 #define AD7091R_REG_RESULT  0
 #define AD7091R_REG_CHANNEL 1
 #define AD7091R_REG_CONF    2
@@ -52,17 +54,24 @@ struct ad7091r_state {
 };
 
 struct ad7091r_chip_info {
+	const char *name;
 	unsigned int num_channels;
 	const struct iio_chan_spec *channels;
 	unsigned int vref_mV;
 };
 
+struct ad7091r_init_info {
+	const struct ad7091r_chip_info *info_irq;
+	const struct ad7091r_chip_info *info_no_irq;
+	const struct regmap_config *regmap_config;
+	void (*init_adc_regmap)(struct ad7091r_state *st,
+				const struct regmap_config *regmap_conf);
+};
+
 extern const struct iio_event_spec ad7091r_events[3];
 
-extern const struct regmap_config ad7091r_regmap_config;
-
 int ad7091r_probe(struct device *dev, const char *name,
-		const struct ad7091r_chip_info *chip_info,
+		const struct ad7091r_init_info *init_info,
 		struct regmap *map, int irq);
 
 bool ad7091r_volatile_reg(struct device *dev, unsigned int reg);
