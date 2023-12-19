@@ -17,13 +17,9 @@ TEST_IPV6_PROGS := $(TEST_BOTH_AF:%=%_ipv6)
 TEST_GEN_PROGS := $(TEST_IPV4_PROGS) $(TEST_IPV6_PROGS)
 
 top_srcdir	  := ../../../../..
-KSFT_KHDR_INSTALL := 1
 include ../../lib.mk
 
 HOSTAR ?= ar
-
-# Drop it on port to linux/master with commit 8ce72dc32578
-.DEFAULT_GOAL := all
 
 LIBDIR	:= $(OUTPUT)/lib
 LIB	:= $(LIBDIR)/libaotst.a
@@ -31,8 +27,8 @@ LDLIBS	+= $(LIB) -pthread
 LIBDEPS	:= lib/aolib.h Makefile
 
 CFLAGS	:= -Wall -O2 -g -D_GNU_SOURCE -fno-strict-aliasing
-CFLAGS	+= -I ../../../../../usr/include/ -iquote $(LIBDIR)
-CFLAGS	+= -I ../../../../include/
+CFLAGS	+= $(KHDR_INCLUDES)
+CFLAGS	+= -iquote ./lib/ -I ../../../../include/
 
 # Library
 LIBSRC	:= kconfig.c netlink.c proc.c repair.c setup.c sock.c utils.c
@@ -43,6 +39,7 @@ $(LIB): $(LIBOBJ)
 	$(HOSTAR) rcs $@ $^
 
 $(LIBDIR)/%.o: ./lib/%.c $(LIBDEPS)
+	mkdir -p $(LIBDIR)
 	$(CC) $< $(CFLAGS) $(CPPFLAGS) -o $@ -c
 
 $(TEST_GEN_PROGS): $(LIB)
