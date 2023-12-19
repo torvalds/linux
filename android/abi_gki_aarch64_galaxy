@@ -274,6 +274,8 @@
   sched_clock
   sched_show_task
   scnprintf
+  scsi_device_quiesce
+  scsi_device_resume
   seq_hex_dump
   seq_lseek
   seq_printf

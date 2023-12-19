@@ -645,8 +645,13 @@ enum kvm_pgtable_prot kvm_pgtable_stage2_pte_prot(kvm_pte_t pte)
 	return prot;
 }
 
-static bool stage2_pte_needs_update(kvm_pte_t old, kvm_pte_t new)
+static bool stage2_pte_needs_update(struct kvm_pgtable *pgt,
+				    kvm_pte_t old, kvm_pte_t new)
 {
+	/* Following filter logic applies only to guest stage-2 entries. */
+	if (pgt->flags & KVM_PGTABLE_S2_IDMAP)
+		return true;
+
 	if (!kvm_pte_valid(old) || !kvm_pte_valid(new))
 		return true;
 
@@ -715,12 +720,15 @@ static int stage2_map_walker_try_leaf(u64 addr, u64 end, u32 level,
 		new = data->annotation;
 
 	/*
-	 * Skip updating the PTE if we are trying to recreate the exact
-	 * same mapping or only change the access permissions. Instead,
-	 * the vCPU will exit one more time from guest if still needed
-	 * and then go through the path of relaxing permissions.
+	 * Skip updating a guest PTE if we are trying to recreate the exact
+	 * same mapping or change only the access permissions. Instead,
+	 * the vCPU will exit one more time from the guest if still needed
+	 * and then go through the path of relaxing permissions. This applies
+	 * only to guest PTEs; Host PTEs are unconditionally updated. The
+	 * host cannot livelock because the abort handler has done prior
+	 * checks before calling here.
 	 */
-	if (!stage2_pte_needs_update(old, new))
+	if (!stage2_pte_needs_update(pgt, old, new))
 		return -EAGAIN;
 
 	if (pte_ops->pte_is_counted_cb(old, level))
@@ -775,6 +783,30 @@ static int stage2_map_walk_table_pre(u64 addr, u64 end, u32 level,
 	return 0;
 }
 
+static void stage2_map_prefault_idmap(struct kvm_pgtable_pte_ops *pte_ops,
+				      u64 addr, u64 end, u32 level,
+				      kvm_pte_t *ptep, kvm_pte_t block_pte)
+{
+	u64 pa, granule;
+	int i;
+
+	WARN_ON(pte_ops->pte_is_counted_cb(block_pte, level-1));
+
+	if (!kvm_pte_valid(block_pte))
+		return;
+
+	pa = ALIGN_DOWN(addr, kvm_granule_size(level-1));
+	granule = kvm_granule_size(level);
+	for (i = 0; i < PTRS_PER_PTE; ++i, ++ptep, pa += granule) {
+		kvm_pte_t pte = kvm_init_valid_leaf_pte(pa, block_pte, level);
+		/* Skip ptes in the range being modified by the caller. */
+		if ((pa < addr) || (pa >= end)) {
+			/* We can write non-atomically: ptep isn't yet live. */
+			*ptep = pte;
+		}
+	}
+}
+
 static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 				struct stage2_map_data *data)
 {
@@ -804,6 +836,11 @@ static int stage2_map_walk_leaf(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 	childp = mm_ops->zalloc_page(data->memcache);
 	if (!childp)
 		return -ENOMEM;
+
+	if (pgt->flags & KVM_PGTABLE_S2_IDMAP) {
+		stage2_map_prefault_idmap(pte_ops, addr, end, level + 1,
+					  childp, pte);
+	}
 
 	/*
 	 * If we've run into an existing block mapping then replace it with
