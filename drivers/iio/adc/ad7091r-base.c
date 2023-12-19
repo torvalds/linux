@@ -341,9 +341,8 @@ static void ad7091r_remove(void *data)
 	regulator_disable(st->vref);
 }
 
-int ad7091r_probe(struct device *dev, const char *name,
-		const struct ad7091r_init_info *init_info,
-		struct regmap *map, int irq)
+int ad7091r_probe(struct device *dev, const struct ad7091r_init_info *init_info,
+		  int irq)
 {
 	struct iio_dev *iio_dev;
 	struct ad7091r_state *st;
@@ -373,7 +372,8 @@ int ad7091r_probe(struct device *dev, const char *name,
 		ret = devm_request_threaded_irq(dev, irq, NULL,
 						ad7091r_event_handler,
 						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT, name, iio_dev);
+						IRQF_ONESHOT,
+						st->chip_info->name, iio_dev);
 		if (ret)
 			return ret;
 	} else {

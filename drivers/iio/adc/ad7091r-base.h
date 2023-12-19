@@ -70,9 +70,8 @@ struct ad7091r_init_info {
 
 extern const struct iio_event_spec ad7091r_events[3];
 
-int ad7091r_probe(struct device *dev, const char *name,
-		const struct ad7091r_init_info *init_info,
-		struct regmap *map, int irq);
+int ad7091r_probe(struct device *dev, const struct ad7091r_init_info *init_info,
+		  int irq);
 
 bool ad7091r_volatile_reg(struct device *dev, unsigned int reg);
 bool ad7091r_writeable_reg(struct device *dev, unsigned int reg);
