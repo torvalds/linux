@@ -1375,7 +1375,45 @@ static void guc_enable_busyness_worker(struct intel_guc *guc)
 
 static void guc_cancel_busyness_worker(struct intel_guc *guc)
 {
-	cancel_delayed_work_sync(&guc->timestamp.work);
+	/*
+	 * There are many different call stacks that can get here. Some of them
+	 * hold the reset mutex. The busyness worker also attempts to acquire the
+	 * reset mutex. Synchronously flushing a worker thread requires acquiring
+	 * the worker mutex. Lockdep sees this as a conflict. It thinks that the
+	 * flush can deadlock because it holds the worker mutex while waiting for
+	 * the reset mutex, but another thread is holding the reset mutex and might
+	 * attempt to use other worker functions.
+	 *
+	 * In practice, this scenario does not exist because the busyness worker
+	 * does not block waiting for the reset mutex. It does a try-lock on it and
+	 * immediately exits if the lock is already held. Unfortunately, the mutex
+	 * in question (I915_RESET_BACKOFF) is an i915 implementation which has lockdep
+	 * annotation but not to the extent of explaining the 'might lock' is also a
+	 * 'does not need to lock'. So one option would be to add more complex lockdep
+	 * annotations to ignore the issue (if at all possible). A simpler option is to
+	 * just not flush synchronously when a rest in progress. Given that the worker
+	 * will just early exit and re-schedule itself anyway, there is no advantage
+	 * to running it immediately.
+	 *
+	 * If a reset is not in progress, then the synchronous flush may be required.
+	 * As noted many call stacks lead here, some during suspend and driver unload
+	 * which do require a synchronous flush to make sure the worker is stopped
+	 * before memory is freed.
+	 *
+	 * Trying to pass a 'need_sync' or 'in_reset' flag all the way down through
+	 * every possible call stack is unfeasible. It would be too intrusive to many
+	 * areas that really don't care about the GuC backend. However, there is the
+	 * 'reset_in_progress' flag available, so just use that.
+	 *
+	 * And note that in the case of a reset occurring during driver unload
+	 * (wedge_on_fini), skipping the cancel in _prepare (when the reset flag is set
+	 * is fine because there is another cancel in _finish (when the reset flag is
+	 * not).
+	 */
+	if (guc_to_gt(guc)->uc.reset_in_progress)
+		cancel_delayed_work(&guc->timestamp.work);
+	else
+		cancel_delayed_work_sync(&guc->timestamp.work);
 }
 
 static void __reset_guc_busyness_stats(struct intel_guc *guc)
@@ -1966,8 +2004,16 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc)
 
 void intel_guc_submission_reset_finish(struct intel_guc *guc)
 {
+	/*
+	 * Ensure the busyness worker gets cancelled even on a fatal wedge.
+	 * Note that reset_prepare is not allowed to because it confuses lockdep.
+	 */
+	if (guc_submission_initialized(guc))
+		guc_cancel_busyness_worker(guc);
+
 	/* Reset called during driver load or during wedge? */
 	if (unlikely(!guc_submission_initialized(guc) ||
+		     !intel_guc_is_fw_running(guc) ||
 		     intel_gt_is_wedged(guc_to_gt(guc)))) {
 		return;
 	}

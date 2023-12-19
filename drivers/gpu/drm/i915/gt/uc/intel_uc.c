@@ -640,7 +640,7 @@ void intel_uc_reset_finish(struct intel_uc *uc)
 	uc->reset_in_progress = false;
 
 	/* Firmware expected to be running when this function is called */
-	if (intel_guc_is_fw_running(guc) && intel_uc_uses_guc_submission(uc))
+	if (intel_uc_uses_guc_submission(uc))
 		intel_guc_submission_reset_finish(guc);
 }
 
