@@ -108,12 +108,14 @@ static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 		dev_info(rdev_to_dev(rdev),
 			 "Couldn't get DB bar size, Low latency framework is disabled\n");
 	/* set register offsets for both UC and WC */
-	if (bnxt_qplib_is_chip_gen_p7(cctx))
+	if (bnxt_qplib_is_chip_gen_p7(cctx)) {
 		res->dpi_tbl.ucreg.offset = offset;
-	else
+		res->dpi_tbl.wcreg.offset = en_dev->l2_db_size;
+	} else {
 		res->dpi_tbl.ucreg.offset = res->is_vf ? BNXT_QPLIB_DBR_VF_DB_OFFSET :
 							 BNXT_QPLIB_DBR_PF_DB_OFFSET;
-	res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+		res->dpi_tbl.wcreg.offset = res->dpi_tbl.ucreg.offset;
+	}
 
 	/* If WC mapping is disabled by L2 driver then en_dev->l2_db_size
 	 * is equal to the DB-Bar actual size. This indicates that L2
