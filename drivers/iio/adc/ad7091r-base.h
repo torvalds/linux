@@ -49,6 +49,7 @@
 }
 
 struct device;
+struct gpio_desc;
 
 enum ad7091r_mode {
 	AD7091R_MODE_SAMPLE,
@@ -59,10 +60,14 @@ enum ad7091r_mode {
 struct ad7091r_state {
 	struct device *dev;
 	struct regmap *map;
+	struct gpio_desc *convst_gpio;
+	struct gpio_desc *reset_gpio;
 	struct regulator *vref;
 	const struct ad7091r_chip_info *chip_info;
 	enum ad7091r_mode mode;
 	struct mutex lock; /*lock to prevent concurent reads */
+	__be16 tx_buf __aligned(IIO_DMA_MINALIGN);
+	__be16 rx_buf;
 };
 
 struct ad7091r_chip_info {
@@ -80,6 +85,7 @@ struct ad7091r_init_info {
 	const struct regmap_config *regmap_config;
 	void (*init_adc_regmap)(struct ad7091r_state *st,
 				const struct regmap_config *regmap_conf);
+	int (*setup)(struct ad7091r_state *st);
 };
 
 extern const struct iio_event_spec ad7091r_events[3];
