@@ -2060,8 +2060,17 @@ config SND_SOC_WCD938X_SDW
 	  The WCD9380/9385 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8250.
 
+config SND_SOC_WCD939X
+	depends on SND_SOC_WCD939X_SDW
+	tristate
+	depends on SOUNDWIRE || !SOUNDWIRE
+	depends on TYPEC || !TYPEC
+	select SND_SOC_WCD_CLASSH
+
 config SND_SOC_WCD939X_SDW
 	tristate "WCD9390/WCD9395 Codec - SDW"
+	select SND_SOC_WCD939X
+	select SND_SOC_WCD_MBHC
 	select REGMAP_IRQ
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
