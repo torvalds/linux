@@ -994,6 +994,7 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
 	int ret;
 	int func = 2;
+	bool ssram_init = true;
 
 	mtl_d3_fixup();
 
@@ -1006,6 +1007,7 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	 */
 	ret = pmc_core_ssram_init(pmcdev, func);
 	if (ret) {
+		ssram_init = false;
 		dev_warn(&pmcdev->pdev->dev,
 			 "ssram init failed, %d, using legacy init\n", ret);
 		pmc->map = &mtl_socm_reg_map;
@@ -1023,5 +1025,8 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
 	pmc_core_send_ltr_ignore(pmcdev, 3);
 
-	return pmc_core_ssram_get_lpm_reqs(pmcdev);
+	if (ssram_init)
+		return pmc_core_ssram_get_lpm_reqs(pmcdev);
+
+	return 0;
 }
