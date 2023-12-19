@@ -65,19 +65,6 @@ void kvm_init_timer(struct kvm_vcpu *vcpu, unsigned long timer_hz)
 }
 
 /*
- * Restore hard timer state and enable guest to access timer registers
- * without trap, should be called with irq disabled
- */
-void kvm_acquire_timer(struct kvm_vcpu *vcpu)
-{
-	/*
-	 * Freeze the soft-timer and sync the guest stable timer with it. We do
-	 * this with interrupts disabled to avoid latency.
-	 */
-	hrtimer_cancel(&vcpu->arch.swtimer);
-}
-
-/*
  * Restore soft timer state from saved context.
  */
 void kvm_restore_timer(struct kvm_vcpu *vcpu)
@@ -99,6 +86,11 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 	}
 
 	/*
+	 * Freeze the soft-timer and sync the guest stable timer with it.
+	 */
+	hrtimer_cancel(&vcpu->arch.swtimer);
+
+	/*
 	 * Set remainder tick value if not expired
 	 */
 	now = ktime_get();
@@ -115,7 +107,7 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 		/*
 		 * Inject timer here though sw timer should inject timer
 		 * interrupt async already, since sw timer may be cancelled
-		 * during injecting intr async in function kvm_acquire_timer
+		 * during injecting intr async
 		 */
 		kvm_queue_irq(vcpu, INT_TI);
 	}
@@ -140,11 +132,9 @@ static void _kvm_save_timer(struct kvm_vcpu *vcpu)
 	vcpu->arch.expire = expire;
 	if (ticks) {
 		/*
-		 * Update hrtimer to use new timeout
 		 * HRTIMER_MODE_PINNED is suggested since vcpu may run in
 		 * the same physical cpu in next time
 		 */
-		hrtimer_cancel(&vcpu->arch.swtimer);
 		hrtimer_start(&vcpu->arch.swtimer, expire, HRTIMER_MODE_ABS_PINNED);
 	} else if (vcpu->stat.generic.blocking) {
 		/*
