@@ -1781,27 +1781,27 @@ static int qca808x_phy_fast_retrain_config(struct phy_device *phydev)
 		return ret;
 
 	phy_write_mmd(phydev, MDIO_MMD_AN, QCA808X_PHY_MMD7_TOP_OPTION1,
-			QCA808X_TOP_OPTION1_DATA);
+		      QCA808X_TOP_OPTION1_DATA);
 	phy_write_mmd(phydev, MDIO_MMD_PMAPMD, QCA808X_PHY_MMD1_MSE_THRESHOLD_20DB,
-			QCA808X_MSE_THRESHOLD_20DB_VALUE);
+		      QCA808X_MSE_THRESHOLD_20DB_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PMAPMD, QCA808X_PHY_MMD1_MSE_THRESHOLD_17DB,
-			QCA808X_MSE_THRESHOLD_17DB_VALUE);
+		      QCA808X_MSE_THRESHOLD_17DB_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PMAPMD, QCA808X_PHY_MMD1_MSE_THRESHOLD_27DB,
-			QCA808X_MSE_THRESHOLD_27DB_VALUE);
+		      QCA808X_MSE_THRESHOLD_27DB_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PMAPMD, QCA808X_PHY_MMD1_MSE_THRESHOLD_28DB,
-			QCA808X_MSE_THRESHOLD_28DB_VALUE);
+		      QCA808X_MSE_THRESHOLD_28DB_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_1,
-			QCA808X_MMD3_DEBUG_1_VALUE);
+		      QCA808X_MMD3_DEBUG_1_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_4,
-			QCA808X_MMD3_DEBUG_4_VALUE);
+		      QCA808X_MMD3_DEBUG_4_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_5,
-			QCA808X_MMD3_DEBUG_5_VALUE);
+		      QCA808X_MMD3_DEBUG_5_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_3,
-			QCA808X_MMD3_DEBUG_3_VALUE);
+		      QCA808X_MMD3_DEBUG_3_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_6,
-			QCA808X_MMD3_DEBUG_6_VALUE);
+		      QCA808X_MMD3_DEBUG_6_VALUE);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_DEBUG_2,
-			QCA808X_MMD3_DEBUG_2_VALUE);
+		      QCA808X_MMD3_DEBUG_2_VALUE);
 
 	return 0;
 }
@@ -1838,13 +1838,14 @@ static int qca808x_config_init(struct phy_device *phydev)
 
 	/* Active adc&vga on 802.3az for the link 1000M and 100M */
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_ADDR_CLD_CTRL7,
-			QCA808X_8023AZ_AFE_CTRL_MASK, QCA808X_8023AZ_AFE_EN);
+			     QCA808X_8023AZ_AFE_CTRL_MASK, QCA808X_8023AZ_AFE_EN);
 	if (ret)
 		return ret;
 
 	/* Adjust the threshold on 802.3az for the link 1000M */
 	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
-			QCA808X_PHY_MMD3_AZ_TRAINING_CTRL, QCA808X_MMD3_AZ_TRAINING_VAL);
+			    QCA808X_PHY_MMD3_AZ_TRAINING_CTRL,
+			    QCA808X_MMD3_AZ_TRAINING_VAL);
 	if (ret)
 		return ret;
 
@@ -1870,7 +1871,8 @@ static int qca808x_config_init(struct phy_device *phydev)
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
-			QCA808X_ADC_THRESHOLD_MASK, QCA808X_ADC_THRESHOLD_100MV);
+				     QCA808X_ADC_THRESHOLD_MASK,
+				     QCA808X_ADC_THRESHOLD_100MV);
 }
 
 static int qca808x_read_status(struct phy_device *phydev)
@@ -1883,7 +1885,7 @@ static int qca808x_read_status(struct phy_device *phydev)
 		return ret;
 
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->lp_advertising,
-			ret & MDIO_AN_10GBT_STAT_LP2_5G);
+			 ret & MDIO_AN_10GBT_STAT_LP2_5G);
 
 	ret = genphy_read_status(phydev);
 	if (ret)
@@ -1913,7 +1915,7 @@ static int qca808x_read_status(struct phy_device *phydev)
 		 */
 		if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
 			if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR ||
-					qca808x_is_prefer_master(phydev)) {
+			    qca808x_is_prefer_master(phydev)) {
 				qca808x_phy_ms_seed_enable(phydev, false);
 			} else {
 				qca808x_phy_ms_seed_enable(phydev, true);
@@ -2070,18 +2072,22 @@ static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finish
 	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_D,
 				qca808x_cable_test_result_trans(pair_d));
 
-	if (qca808x_cdt_fault_length_valid(pair_a))
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A,
-				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A));
-	if (qca808x_cdt_fault_length_valid(pair_b))
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B,
-				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B));
-	if (qca808x_cdt_fault_length_valid(pair_c))
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C,
-				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C));
-	if (qca808x_cdt_fault_length_valid(pair_d))
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D,
-				qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D));
+	if (qca808x_cdt_fault_length_valid(pair_a)) {
+		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A, val);
+	}
+	if (qca808x_cdt_fault_length_valid(pair_b)) {
+		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B, val);
+	}
+	if (qca808x_cdt_fault_length_valid(pair_c)) {
+		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C, val);
+	}
+	if (qca808x_cdt_fault_length_valid(pair_d)) {
+		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D, val);
+	}
 
 	*finished = true;
 
@@ -2148,8 +2154,9 @@ static void qca808x_link_change_notify(struct phy_device *phydev)
 	 * the interface device address is always phy address added by 1.
 	 */
 	mdiobus_c45_modify_changed(phydev->mdio.bus, phydev->mdio.addr + 1,
-			MDIO_MMD_PMAPMD, QCA8081_PHY_SERDES_MMD1_FIFO_CTRL,
-			QCA8081_PHY_FIFO_RSTN, phydev->link ? QCA8081_PHY_FIFO_RSTN : 0);
+				   MDIO_MMD_PMAPMD, QCA8081_PHY_SERDES_MMD1_FIFO_CTRL,
+				   QCA8081_PHY_FIFO_RSTN,
+				   phydev->link ? QCA8081_PHY_FIFO_RSTN : 0);
 }
 
 static struct phy_driver at803x_driver[] = {
