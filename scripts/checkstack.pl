@@ -47,7 +47,7 @@ my (@stack, $re, $dre, $sub, $x, $xs, $funcre, $min_stack);
 
 	$min_stack = shift;
 	if ($min_stack eq "" || $min_stack !~ /^\d+$/) {
-		$min_stack = 100;
+		$min_stack = 512;
 	}
 
 	$x	= "[0-9a-f]";	# hex character
