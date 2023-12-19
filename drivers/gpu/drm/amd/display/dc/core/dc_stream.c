@@ -309,7 +309,6 @@ bool dc_stream_set_cursor_attributes(
 
 	stream->cursor_attributes = *attributes;
 
-	dc_z10_restore(dc);
 	/* disable idle optimizations while updating cursor */
 	if (dc->idle_optimizations_allowed) {
 		dc_allow_idle_optimizations(dc, false);
@@ -381,12 +380,14 @@ bool dc_stream_set_cursor_position(
 	}
 
 	dc = stream->ctx->dc;
-	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
-			&& position->enable) {
+	if (dc->idle_optimizations_allowed &&
+	    (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates ||
+	     dc->caps.ips_support) &&
+	    position->enable) {
 		dc_allow_idle_optimizations(dc, false);
+		dc_z10_restore(dc);
 		reset_idle_optimizations = true;
 	}
 
