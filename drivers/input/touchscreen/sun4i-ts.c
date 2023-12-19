@@ -375,7 +375,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sun4i_ts_remove(struct platform_device *pdev)
+static void sun4i_ts_remove(struct platform_device *pdev)
 {
 	struct sun4i_ts_data *ts = platform_get_drvdata(pdev);
 
@@ -385,8 +385,6 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 
 	/* Deactivate all IRQs */
 	writel(0, ts->base + TP_INT_FIFOC);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_ts_of_match[] = {
@@ -403,7 +401,7 @@ static struct platform_driver sun4i_ts_driver = {
 		.of_match_table = sun4i_ts_of_match,
 	},
 	.probe	= sun4i_ts_probe,
-	.remove	= sun4i_ts_remove,
+	.remove_new = sun4i_ts_remove,
 };
 
 module_platform_driver(sun4i_ts_driver);

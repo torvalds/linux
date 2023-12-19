@@ -1709,10 +1709,6 @@ static void cik_program_aspm(struct amdgpu_device *adev)
 	if (pci_is_root_bus(adev->pdev->bus))
 		return;
 
-	/* XXX double check APUs */
-	if (adev->flags & AMD_IS_APU)
-		return;
-
 	orig = data = RREG32_PCIE(ixPCIE_LC_N_FTS_CNTL);
 	data &= ~PCIE_LC_N_FTS_CNTL__LC_XMIT_N_FTS_MASK;
 	data |= (0x24 << PCIE_LC_N_FTS_CNTL__LC_XMIT_N_FTS__SHIFT) |

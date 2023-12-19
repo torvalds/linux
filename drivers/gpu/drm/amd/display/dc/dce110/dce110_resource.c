@@ -46,7 +46,7 @@
 #include "dce110/dce110_opp_v.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_hwseq.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dce110/dce110_hwseq.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"

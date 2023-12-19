@@ -274,7 +274,7 @@ static int sdw_amd_scan_controller(struct device *dev)
 	dev_dbg(dev, "ACPI reports %d SoundWire Manager devices\n", count);
 	acp_data->sdw_manager_count = count;
 	for (index = 0; index < count; index++) {
-		snprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
+		scnprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
 		link = fwnode_get_named_child_node(acp_data->sdw_fw_node, name);
 		if (!link) {
 			dev_err(dev, "Manager node %s not found\n", name);
@@ -650,6 +650,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		goto de_init;
 	}
 skip_pdev_creation:
+	device_set_wakeup_enable(&pci->dev, true);
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pci->dev);
 	pm_runtime_put_noidle(&pci->dev);

@@ -14,6 +14,7 @@ properties:
     items:
       - enum:
           - qcom,ipq4019-dwc3
+          - qcom,ipq5018-dwc3
           - qcom,ipq5332-dwc3
           - qcom,ipq6018-dwc3
           - qcom,ipq8064-dwc3
@@ -34,6 +35,7 @@ properties:
           - qcom,sdm845-dwc3
           - qcom,sdx55-dwc3
           - qcom,sdx65-dwc3
+          - qcom,sdx75-dwc3
           - qcom,sm4250-dwc3
           - qcom,sm6115-dwc3
           - qcom,sm6125-dwc3
@@ -180,6 +182,8 @@ allOf:
               - qcom,sdm670-dwc3
               - qcom,sdm845-dwc3
               - qcom,sdx55-dwc3
+              - qcom,sdx65-dwc3
+              - qcom,sdx75-dwc3
               - qcom,sm6350-dwc3
     then:
       properties:
@@ -238,6 +242,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,ipq5018-dwc3
               - qcom,ipq5332-dwc3
               - qcom,msm8994-dwc3
               - qcom,qcs404-dwc3
@@ -363,6 +368,7 @@ allOf:
               - qcom,sdm845-dwc3
               - qcom,sdx55-dwc3
               - qcom,sdx65-dwc3
+              - qcom,sdx75-dwc3
               - qcom,sm4250-dwc3
               - qcom,sm6125-dwc3
               - qcom,sm6350-dwc3
@@ -411,6 +417,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,ipq5018-dwc3
               - qcom,ipq5332-dwc3
               - qcom,sdm660-dwc3
     then:
@@ -514,8 +521,8 @@ examples:
 
             interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 486 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 488 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 489 IRQ_TYPE_LEVEL_HIGH>;
+                         <GIC_SPI 488 IRQ_TYPE_EDGE_BOTH>,
+                         <GIC_SPI 489 IRQ_TYPE_EDGE_BOTH>;
             interrupt-names = "hs_phy_irq", "ss_phy_irq",
                           "dm_hs_phy_irq", "dp_hs_phy_irq";
 

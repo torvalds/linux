@@ -579,7 +579,7 @@ battery_failed:
 	return ret;
 }
 
-static int wm8350_power_remove(struct platform_device *pdev)
+static void wm8350_power_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_power *power = &wm8350->power;
@@ -589,12 +589,11 @@ static int wm8350_power_remove(struct platform_device *pdev)
 	power_supply_unregister(power->battery);
 	power_supply_unregister(power->ac);
 	power_supply_unregister(power->usb);
-	return 0;
 }
 
 static struct platform_driver wm8350_power_driver = {
 	.probe = wm8350_power_probe,
-	.remove = wm8350_power_remove,
+	.remove_new = wm8350_power_remove,
 	.driver = {
 		.name = "wm8350-power",
 	},

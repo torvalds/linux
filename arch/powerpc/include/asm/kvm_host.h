@@ -25,6 +25,7 @@
 #include <asm/cacheflush.h>
 #include <asm/hvcall.h>
 #include <asm/mce.h>
+#include <asm/guest-state-buffer.h>
 
 #define __KVM_HAVE_ARCH_VCPU_DEBUGFS
 
@@ -276,7 +277,7 @@ struct kvm_resize_hpt;
 #define KVMPPC_SECURE_INIT_ABORT 0x4 /* H_SVM_INIT_ABORT issued */
 
 struct kvm_arch {
-	unsigned int lpid;
+	u64 lpid;
 	unsigned int smt_mode;		/* # vcpus per virtual core */
 	unsigned int emul_smt_mode;	/* emualted SMT mode, on P9 */
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
@@ -507,6 +508,23 @@ union xive_tma_w01 {
 		u8	pipr;
 	};
 	__be64 w01;
+};
+
+ /* Nestedv2 H_GUEST_RUN_VCPU configuration */
+struct kvmhv_nestedv2_config {
+	struct kvmppc_gs_buff_info vcpu_run_output_cfg;
+	struct kvmppc_gs_buff_info vcpu_run_input_cfg;
+	u64 vcpu_run_output_size;
+};
+
+ /* Nestedv2 L1<->L0 communication state */
+struct kvmhv_nestedv2_io {
+	struct kvmhv_nestedv2_config cfg;
+	struct kvmppc_gs_buff *vcpu_run_output;
+	struct kvmppc_gs_buff *vcpu_run_input;
+	struct kvmppc_gs_msg *vcpu_message;
+	struct kvmppc_gs_msg *vcore_message;
+	struct kvmppc_gs_bitmap valids;
 };
 
 struct kvm_vcpu_arch {
@@ -829,6 +847,8 @@ struct kvm_vcpu_arch {
 	u64 nested_hfscr;	/* HFSCR that the L1 requested for the nested guest */
 	u32 nested_vcpu_id;
 	gpa_t nested_io_gpr;
+	/* For nested APIv2 guests*/
+	struct kvmhv_nestedv2_io nestedv2_io;
 #endif
 
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING

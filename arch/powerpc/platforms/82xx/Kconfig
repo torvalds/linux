@@ -2,6 +2,7 @@
 menuconfig PPC_82xx
 	bool "82xx-based boards (PQ II)"
 	depends on PPC_BOOK3S_32
+	select FSL_SOC
 
 if PPC_82xx
 
@@ -9,7 +10,6 @@ config EP8248E
 	bool "Embedded Planet EP8248E (a.k.a. CWH-PPC-8248N-VE)"
 	select CPM2
 	select PPC_INDIRECT_PCI if PCI
-	select FSL_SOC
 	select PHYLIB if NETDEVICES
 	select MDIO_BITBANG if PHYLIB
 	help
@@ -22,7 +22,6 @@ config MGCOGE
 	bool "Keymile MGCOGE"
 	select CPM2
 	select PPC_INDIRECT_PCI if PCI
-	select FSL_SOC
 	help
 	  This enables support for the Keymile MGCOGE board.
 

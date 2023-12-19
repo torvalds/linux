@@ -272,7 +272,7 @@ static void tcp_lp_pkts_acked(struct sock *sk, const struct ack_sample *sample)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct lp *lp = inet_csk_ca(sk);
-	u32 now = tcp_time_stamp(tp);
+	u32 now = tcp_time_stamp_ts(tp);
 	u32 delta;
 
 	if (sample->rtt_us > 0)

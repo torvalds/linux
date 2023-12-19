@@ -110,7 +110,7 @@ void mt7601u_tx_status(struct mt7601u_dev *dev, struct sk_buff *skb)
 	info->flags |= IEEE80211_TX_STAT_ACK;
 
 	spin_lock_bh(&dev->mac_lock);
-	ieee80211_tx_status(dev->hw, skb);
+	ieee80211_tx_status_skb(dev->hw, skb);
 	spin_unlock_bh(&dev->mac_lock);
 }
 

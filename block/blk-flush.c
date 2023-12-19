@@ -323,16 +323,9 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	flush_rq->mq_ctx = first_rq->mq_ctx;
 	flush_rq->mq_hctx = first_rq->mq_hctx;
 
-	if (!q->elevator) {
+	if (!q->elevator)
 		flush_rq->tag = first_rq->tag;
-
-		/*
-		 * We borrow data request's driver tag, so have to mark
-		 * this flush request as INFLIGHT for avoiding double
-		 * account of this driver tag
-		 */
-		flush_rq->rq_flags |= RQF_MQ_INFLIGHT;
-	} else
+	else
 		flush_rq->internal_tag = first_rq->internal_tag;
 
 	flush_rq->cmd_flags = REQ_OP_FLUSH | REQ_PREFLUSH;

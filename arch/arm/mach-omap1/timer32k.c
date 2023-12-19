@@ -176,17 +176,18 @@ static u64 notrace omap_32k_read_sched_clock(void)
 	return sync32k_cnt_reg ? readl_relaxed(sync32k_cnt_reg) : 0;
 }
 
+static struct timespec64 persistent_ts;
+static cycles_t cycles;
+static unsigned int persistent_mult, persistent_shift;
+
 /**
  * omap_read_persistent_clock64 -  Return time from a persistent clock.
+ * @ts: &struct timespec64 for the returned time
  *
  * Reads the time from a source which isn't disabled during PM, the
  * 32k sync timer.  Convert the cycles elapsed since last read into
  * nsecs and adds to a monotonically increasing timespec64.
  */
-static struct timespec64 persistent_ts;
-static cycles_t cycles;
-static unsigned int persistent_mult, persistent_shift;
-
 static void omap_read_persistent_clock64(struct timespec64 *ts)
 {
 	unsigned long long nsecs;
@@ -206,10 +207,9 @@ static void omap_read_persistent_clock64(struct timespec64 *ts)
 /**
  * omap_init_clocksource_32k - setup and register counter 32k as a
  * kernel clocksource
- * @pbase: base addr of counter_32k module
- * @size: size of counter_32k to map
+ * @vbase: base addr of counter_32k module
  *
- * Returns 0 upon success or negative error code upon failure.
+ * Returns: %0 upon success or negative error code upon failure.
  *
  */
 static int __init omap_init_clocksource_32k(void __iomem *vbase)

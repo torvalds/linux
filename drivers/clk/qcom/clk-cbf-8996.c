@@ -250,13 +250,11 @@ static int qcom_msm8996_cbf_icc_register(struct platform_device *pdev, struct cl
 	return 0;
 }
 
-static int qcom_msm8996_cbf_icc_remove(struct platform_device *pdev)
+static void qcom_msm8996_cbf_icc_remove(struct platform_device *pdev)
 {
 	struct icc_provider *provider = platform_get_drvdata(pdev);
 
 	icc_clk_unregister(provider);
-
-	return 0;
 }
 #define qcom_msm8996_cbf_icc_sync_state icc_sync_state
 #else
@@ -266,7 +264,7 @@ static int qcom_msm8996_cbf_icc_register(struct platform_device *pdev,  struct c
 
 	return 0;
 }
-#define qcom_msm8996_cbf_icc_remove(pdev) (0)
+#define qcom_msm8996_cbf_icc_remove(pdev) { }
 #define qcom_msm8996_cbf_icc_sync_state NULL
 #endif
 
@@ -340,9 +338,9 @@ static int qcom_msm8996_cbf_probe(struct platform_device *pdev)
 	return qcom_msm8996_cbf_icc_register(pdev, &cbf_mux.clkr.hw);
 }
 
-static int qcom_msm8996_cbf_remove(struct platform_device *pdev)
+static void qcom_msm8996_cbf_remove(struct platform_device *pdev)
 {
-	return qcom_msm8996_cbf_icc_remove(pdev);
+	qcom_msm8996_cbf_icc_remove(pdev);
 }
 
 static const struct of_device_id qcom_msm8996_cbf_match_table[] = {
@@ -354,7 +352,7 @@ MODULE_DEVICE_TABLE(of, qcom_msm8996_cbf_match_table);
 
 static struct platform_driver qcom_msm8996_cbf_driver = {
 	.probe = qcom_msm8996_cbf_probe,
-	.remove = qcom_msm8996_cbf_remove,
+	.remove_new = qcom_msm8996_cbf_remove,
 	.driver = {
 		.name = "qcom-msm8996-cbf",
 		.of_match_table = qcom_msm8996_cbf_match_table,

@@ -22,6 +22,7 @@ place where this information is gathered.
    unshare
    spec_ctrl
    accelerators/ocxl
+   dma-buf-alloc-exchange
    ebpf/index
    ELF
    ioctl/index

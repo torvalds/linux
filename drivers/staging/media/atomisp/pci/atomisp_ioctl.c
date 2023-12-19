@@ -665,11 +665,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
-	/*
-	 * Some sensor driver resets the run mode during power-on, thus force
-	 * update the run mode to sensor after power-on.
-	 */
-	atomisp_update_run_mode(asd);
 
 	/* select operating sensor */
 	ret = v4l2_subdev_call(isp->inputs[input].camera, video, s_routing,
@@ -708,6 +703,9 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 					      int *valid_sizes)
 {
 	static const struct v4l2_frmsize_discrete frame_sizes[] = {
+		{ 1920, 1440 },
+		{ 1920, 1200 },
+		{ 1920, 1080 },
 		{ 1600, 1200 },
 		{ 1600, 1080 },
 		{ 1600,  900 },
@@ -729,11 +727,11 @@ static int atomisp_enum_framesizes_crop_inner(struct atomisp_device *isp,
 			continue;
 
 		/*
-		 * Skip sizes where width and height are less then 2/3th of the
+		 * Skip sizes where width and height are less then 5/8th of the
 		 * sensor size to avoid sizes with a too small field of view.
 		 */
-		if (frame_sizes[i].width < (active->width * 2 / 3) &&
-		    frame_sizes[i].height < (active->height * 2 / 3))
+		if (frame_sizes[i].width < (active->width * 5 / 8) &&
+		    frame_sizes[i].height < (active->height * 5 / 8))
 			continue;
 
 		if (*valid_sizes == fsize->index) {
@@ -1781,13 +1779,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	int err;
 
 	switch (cmd) {
-	case ATOMISP_IOC_S_SENSOR_RUNMODE:
-		if (IS_ISP2401)
-			err = atomisp_set_sensor_runmode(asd, arg);
-		else
-			err = -EINVAL;
-		break;
-
 	case ATOMISP_IOC_G_XNR:
 		err = atomisp_xnr(asd, 0, arg);
 		break;

@@ -818,13 +818,10 @@ attribute-sets:
     attributes:
       -
         name: hist-bkt-low
-        type: u32
       -
         name: hist-bkt-hi
-        type: u32
       -
         name: hist-val
-        type: u64
   -
     name: stats
     attributes:

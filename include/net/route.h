@@ -37,7 +37,7 @@
 
 #define RTO_ONLINK	0x01
 
-#define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sock_flag(sk, SOCK_LOCALROUTE))
+#define RT_CONN_FLAGS(sk)   (RT_TOS(READ_ONCE(inet_sk(sk)->tos)) | sock_flag(sk, SOCK_LOCALROUTE))
 #define RT_CONN_FLAGS_TOS(sk,tos)   (RT_TOS(tos) | sock_flag(sk, SOCK_LOCALROUTE))
 
 static inline __u8 ip_sock_rt_scope(const struct sock *sk)
@@ -50,7 +50,7 @@ static inline __u8 ip_sock_rt_scope(const struct sock *sk)
 
 static inline __u8 ip_sock_rt_tos(const struct sock *sk)
 {
-	return RT_TOS(inet_sk(sk)->tos);
+	return RT_TOS(READ_ONCE(inet_sk(sk)->tos));
 }
 
 struct ip_tunnel_info;
@@ -136,12 +136,6 @@ static inline struct rtable *__ip_route_output_key(struct net *net,
 
 struct rtable *ip_route_output_flow(struct net *, struct flowi4 *flp,
 				    const struct sock *sk);
-struct rtable *ip_route_output_tunnel(struct sk_buff *skb,
-				      struct net_device *dev,
-				      struct net *net, __be32 *saddr,
-				      const struct ip_tunnel_info *info,
-				      u8 protocol, bool use_cache);
-
 struct dst_entry *ipv4_blackhole_route(struct net *net,
 				       struct dst_entry *dst_orig);
 

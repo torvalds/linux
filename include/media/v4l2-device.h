@@ -13,8 +13,6 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-dev.h>
 
-#define V4L2_DEVICE_NAME_SIZE (20 + 16)
-
 struct v4l2_ctrl_handler;
 
 /**
@@ -49,7 +47,7 @@ struct v4l2_device {
 	struct media_device *mdev;
 	struct list_head subdevs;
 	spinlock_t lock;
-	char name[V4L2_DEVICE_NAME_SIZE];
+	char name[36];
 	void (*notify)(struct v4l2_subdev *sd,
 			unsigned int notification, void *arg);
 	struct v4l2_ctrl_handler *ctrl_handler;

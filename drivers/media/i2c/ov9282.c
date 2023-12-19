@@ -165,7 +165,6 @@ struct ov9282_mode {
  * @cur_mode: Pointer to current selected sensor mode
  * @code: Mbus code currently selected
  * @mutex: Mutex for serializing sensor controls
- * @streaming: Flag indicating streaming state
  */
 struct ov9282 {
 	struct device *dev;
@@ -188,7 +187,6 @@ struct ov9282 {
 	const struct ov9282_mode *cur_mode;
 	u32 code;
 	struct mutex mutex;
-	bool streaming;
 };
 
 static const s64 link_freq[] = {
@@ -1037,11 +1035,6 @@ static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&ov9282->mutex);
 
-	if (ov9282->streaming == enable) {
-		mutex_unlock(&ov9282->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(ov9282->dev);
 		if (ret)
@@ -1054,8 +1047,6 @@ static int ov9282_set_stream(struct v4l2_subdev *sd, int enable)
 		ov9282_stop_streaming(ov9282);
 		pm_runtime_put(ov9282->dev);
 	}
-
-	ov9282->streaming = enable;
 
 	mutex_unlock(&ov9282->mutex);
 

@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
  *
  */
 
 /* Support for NVIDIA specific attributes. */
 
+#include <linux/module.h>
 #include <linux/topology.h>
 
-#include "nvidia_cspmu.h"
+#include "arm_cspmu.h"
 
 #define NV_PCIE_PORT_COUNT           10ULL
 #define NV_PCIE_FILTER_ID_MASK       GENMASK_ULL(NV_PCIE_PORT_COUNT - 1, 0)
@@ -351,7 +352,7 @@ static char *nv_cspmu_format_name(const struct arm_cspmu *cspmu,
 	return name;
 }
 
-int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
+static int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 {
 	u32 prodid;
 	struct nv_cspmu_ctx *ctx;
@@ -395,6 +396,31 @@ int nv_cspmu_init_ops(struct arm_cspmu *cspmu)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nv_cspmu_init_ops);
+
+/* Match all NVIDIA Coresight PMU devices */
+static const struct arm_cspmu_impl_match nv_cspmu_param = {
+	.pmiidr_val	= ARM_CSPMU_IMPL_ID_NVIDIA,
+	.module		= THIS_MODULE,
+	.impl_init_ops	= nv_cspmu_init_ops
+};
+
+static int __init nvidia_cspmu_init(void)
+{
+	int ret;
+
+	ret = arm_cspmu_impl_register(&nv_cspmu_param);
+	if (ret)
+		pr_err("nvidia_cspmu backend registration error: %d\n", ret);
+
+	return ret;
+}
+
+static void __exit nvidia_cspmu_exit(void)
+{
+	arm_cspmu_impl_unregister(&nv_cspmu_param);
+}
+
+module_init(nvidia_cspmu_init);
+module_exit(nvidia_cspmu_exit);
 
 MODULE_LICENSE("GPL v2");

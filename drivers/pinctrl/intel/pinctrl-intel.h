@@ -10,11 +10,11 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/compiler_types.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
-#include <linux/kernel.h>
 #include <linux/pm.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/spinlock_types.h>

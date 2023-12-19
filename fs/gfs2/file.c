@@ -418,7 +418,7 @@ static vm_fault_t gfs2_page_mkwrite(struct vm_fault *vmf)
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct gfs2_alloc_parms ap = { .aflags = 0, };
+	struct gfs2_alloc_parms ap = {};
 	u64 offset = page_offset(page);
 	unsigned int data_blocks, ind_blocks, rblocks;
 	vm_fault_t ret = VM_FAULT_LOCKED;
@@ -1120,13 +1120,15 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret)
 		goto out_unlock;
 
-	ret = file_update_time(file);
-	if (ret)
-		goto out_unlock;
-
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		ssize_t buffered, ret2;
+
+		/*
+		 * Note that under direct I/O, we don't allow and inode
+		 * timestamp updates, so we're not calling file_update_time()
+		 * here.
+		 */
 
 		ret = gfs2_file_direct_write(iocb, from, &gh);
 		if (ret < 0 || !iov_iter_count(from))
@@ -1154,6 +1156,10 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		if (!ret || ret2 > 0)
 			ret += ret2;
 	} else {
+		ret = file_update_time(file);
+		if (ret)
+			goto out_unlock;
+
 		ret = gfs2_file_buffered_write(iocb, from, &gh);
 		if (likely(ret > 0))
 			ret = generic_write_sync(iocb, ret);
@@ -1245,7 +1251,7 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 	struct inode *inode = file_inode(file);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_alloc_parms ap = { .aflags = 0, };
+	struct gfs2_alloc_parms ap = {};
 	unsigned int data_blocks = 0, ind_blocks = 0, rblocks;
 	loff_t bytes, max_bytes, max_blks;
 	int error;

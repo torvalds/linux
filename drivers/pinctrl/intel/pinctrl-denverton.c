@@ -257,6 +257,12 @@ static const struct acpi_device_id dnv_pinctrl_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, dnv_pinctrl_acpi_match);
 
+static const struct platform_device_id dnv_pinctrl_platform_ids[] = {
+	{ "denverton-pinctrl", (kernel_ulong_t)&dnv_soc_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, dnv_pinctrl_platform_ids);
+
 static struct platform_driver dnv_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
@@ -264,6 +270,7 @@ static struct platform_driver dnv_pinctrl_driver = {
 		.acpi_match_table = dnv_pinctrl_acpi_match,
 		.pm = &dnv_pinctrl_pm_ops,
 	},
+	.id_table = dnv_pinctrl_platform_ids,
 };
 
 static int __init dnv_pinctrl_init(void)

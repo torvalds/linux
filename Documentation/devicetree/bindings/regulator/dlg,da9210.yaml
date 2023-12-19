@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/dlg,da9210.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dialog Semiconductor DA9210 Multi-Phase 12A DC-DC Buck Converter
+
+maintainers:
+  - Support Opensource <support.opensource@diasemi.com>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    const: dlg,da9210
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@68 {
+            compatible = "dlg,da9210";
+            reg = <0x68>;
+
+            interrupt-parent = <&irqc0>;
+            interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+
+            regulator-min-microvolt = <300000>;
+            regulator-max-microvolt = <1570000>;
+            regulator-min-microamp = <1600000>;
+            regulator-max-microamp = <4600000>;
+            regulator-boot-on;
+        };
+    };

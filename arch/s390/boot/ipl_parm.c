@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/page-states.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
@@ -24,6 +25,7 @@ unsigned int __bootdata_preserved(zlib_dfltcc_support) = ZLIB_DFLTCC_FULL;
 struct ipl_parameter_block __bootdata_preserved(ipl_block);
 int __bootdata_preserved(ipl_block_valid);
 int __bootdata_preserved(__kaslr_enabled);
+int __bootdata_preserved(cmma_flag) = 1;
 
 unsigned long vmalloc_size = VMALLOC_DEFAULT_SIZE;
 unsigned long memory_limit;
@@ -294,6 +296,12 @@ void parse_boot_command_line(void)
 
 		if (!strcmp(param, "nokaslr"))
 			__kaslr_enabled = 0;
+
+		if (!strcmp(param, "cmma")) {
+			rc = kstrtobool(val, &enabled);
+			if (!rc && !enabled)
+				cmma_flag = 0;
+		}
 
 #if IS_ENABLED(CONFIG_KVM)
 		if (!strcmp(param, "prot_virt")) {

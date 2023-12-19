@@ -30,6 +30,7 @@
 #include <asm/fpsimd.h>
 #include <asm/debug-monitors.h>
 #include <asm/processor.h>
+#include <asm/traps.h>
 
 struct kvm_exception_table_entry {
 	int insn, fixup;
@@ -263,6 +264,22 @@ static inline void ___deactivate_traps(struct kvm_vcpu *vcpu)
 static inline bool __populate_fault_info(struct kvm_vcpu *vcpu)
 {
 	return __get_fault_info(vcpu->arch.fault.esr_el2, &vcpu->arch.fault);
+}
+
+static bool kvm_hyp_handle_mops(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
+	arm64_mops_reset_regs(vcpu_gp_regs(vcpu), vcpu->arch.fault.esr_el2);
+	write_sysreg_el2(*vcpu_pc(vcpu), SYS_ELR);
+
+	/*
+	 * Finish potential single step before executing the prologue
+	 * instruction.
+	 */
+	*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
+	write_sysreg_el2(*vcpu_cpsr(vcpu), SYS_SPSR);
+
+	return true;
 }
 
 static inline void __hyp_sve_restore_guest(struct kvm_vcpu *vcpu)

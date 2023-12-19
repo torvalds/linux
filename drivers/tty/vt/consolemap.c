@@ -205,7 +205,7 @@ static enum translation_map inv_translate[MAX_NR_CONSOLES];
 				 FIELD_PREP(UNI_GLYPH_BITS, (glyph)))
 
 /**
- * struct uni_pagedict -- unicode directory
+ * struct uni_pagedict - unicode directory
  *
  * @uni_pgdir: 32*32*64 table with glyphs
  * @refcount: reference count of this structure

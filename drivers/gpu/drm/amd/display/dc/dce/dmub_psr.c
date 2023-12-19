@@ -35,6 +35,7 @@
 
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
+static const uint8_t DP_SINK_DEVICE_STR_ID_3[] = {0x42, 0x61, 0x6c, 0x73, 0x61};
 
 /*
  * Convert dmcub psr state to dmcu psr state.
@@ -216,7 +217,8 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait, uint8
 					break;
 			}
 
-			fsleep(500);
+			/* must *not* be fsleep - this can be called from high irq levels */
+			udelay(500);
 		}
 
 		/* assert if max retry hit */
@@ -295,7 +297,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		struct psr_context *psr_context,
 		uint8_t panel_inst)
 {
-	union dmub_rb_cmd cmd;
+	union dmub_rb_cmd cmd = { 0 };
 	struct dc_context *dc = dmub->ctx;
 	struct dmub_cmd_psr_copy_settings_data *copy_settings_data
 		= &cmd.psr_copy_settings.psr_copy_settings_data;
@@ -407,6 +409,13 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 1;
 	else
 		copy_settings_data->debug.bitfields.force_wakeup_by_tps3 = 0;
+
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
+		link->dpcd_caps.sink_dev_id == DP_DEVICE_ID_0022B9 &&
+		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_3,
+			sizeof(DP_SINK_DEVICE_STR_ID_3))) {
+		copy_settings_data->poweroff_before_vertical_line = 16;
+	}
 
 	//WA for PSR1 on specific TCON, require frame delay for frame re-lock
 	copy_settings_data->relock_delay_frame_cnt = 0;

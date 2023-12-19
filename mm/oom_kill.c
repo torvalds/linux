@@ -437,7 +437,7 @@ static void dump_tasks(struct oom_control *oc)
 	}
 }
 
-static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
+static void dump_oom_victim(struct oom_control *oc, struct task_struct *victim)
 {
 	/* one line summary of the oom killer context. */
 	pr_info("oom-kill:constraint=%s,nodemask=%*pbl",
@@ -449,7 +449,7 @@ static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
 		from_kuid(&init_user_ns, task_uid(victim)));
 }
 
-static void dump_header(struct oom_control *oc, struct task_struct *p)
+static void dump_header(struct oom_control *oc)
 {
 	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), order=%d, oom_score_adj=%hd\n",
 		current->comm, oc->gfp_mask, &oc->gfp_mask, oc->order,
@@ -467,8 +467,6 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 	}
 	if (sysctl_oom_dump_tasks)
 		dump_tasks(oc);
-	if (p)
-		dump_oom_summary(oc, p);
 }
 
 /*
@@ -1029,8 +1027,10 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	}
 	task_unlock(victim);
 
-	if (__ratelimit(&oom_rs))
-		dump_header(oc, victim);
+	if (__ratelimit(&oom_rs)) {
+		dump_header(oc);
+		dump_oom_victim(oc, victim);
+	}
 
 	/*
 	 * Do we need to kill the entire memory cgroup?
@@ -1072,7 +1072,7 @@ static void check_panic_on_oom(struct oom_control *oc)
 	/* Do not panic for oom kills triggered by sysrq */
 	if (is_sysrq_oom(oc))
 		return;
-	dump_header(oc, NULL);
+	dump_header(oc);
 	panic("Out of memory: %s panic_on_oom is enabled\n",
 		sysctl_panic_on_oom == 2 ? "compulsory" : "system-wide");
 }
@@ -1155,7 +1155,7 @@ bool out_of_memory(struct oom_control *oc)
 	select_bad_process(oc);
 	/* Found nothing?!?! */
 	if (!oc->chosen) {
-		dump_header(oc, NULL);
+		dump_header(oc);
 		pr_warn("Out of memory and no killable processes...\n");
 		/*
 		 * If we got here due to an actual allocation at the

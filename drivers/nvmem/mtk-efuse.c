@@ -83,6 +83,7 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 
 	pdata = device_get_match_data(dev);
+	econfig.add_legacy_fixed_of_cells = true;
 	econfig.stride = 1;
 	econfig.word_size = 1;
 	econfig.reg_read = mtk_reg_read;

@@ -441,8 +441,6 @@ static int vce_v2_0_sw_init(void *handle)
 			return r;
 	}
 
-	r = amdgpu_vce_entity_init(adev);
-
 	return r;
 }
 

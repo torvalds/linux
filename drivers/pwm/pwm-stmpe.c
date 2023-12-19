@@ -287,7 +287,6 @@ static int stmpe_24xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops stmpe_24xx_pwm_ops = {
 	.apply = stmpe_24xx_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int __init stmpe_pwm_probe(struct platform_device *pdev)

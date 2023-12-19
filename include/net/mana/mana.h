@@ -103,9 +103,10 @@ struct mana_txq {
 
 /* skb data and frags dma mappings */
 struct mana_skb_head {
-	dma_addr_t dma_handle[MAX_SKB_FRAGS + 1];
+	/* GSO pkts may have 2 SGEs for the linear part*/
+	dma_addr_t dma_handle[MAX_SKB_FRAGS + 2];
 
-	u32 size[MAX_SKB_FRAGS + 1];
+	u32 size[MAX_SKB_FRAGS + 2];
 };
 
 #define MANA_HEADROOM sizeof(struct mana_skb_head)
@@ -338,7 +339,7 @@ struct mana_rxq {
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
 	 */
-	struct mana_recv_buf_oob rx_oobs[];
+	struct mana_recv_buf_oob rx_oobs[] __counted_by(num_rx_buf);
 };
 
 struct mana_tx_qp {

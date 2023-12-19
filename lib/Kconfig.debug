@@ -759,7 +759,7 @@ config SHRINKER_DEBUG
 
 config DEBUG_STACK_USAGE
 	bool "Stack utilization instrumentation"
-	depends on DEBUG_KERNEL && !IA64
+	depends on DEBUG_KERNEL
 	help
 	  Enables the display of the minimum amount of free stack which each
 	  task has ever had available in the sysrq-T and sysrq-P debug output.
@@ -1720,6 +1720,15 @@ config DEBUG_NOTIFIERS
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
+config DEBUG_CLOSURES
+	bool "Debug closures (bcache async widgits)"
+	depends on CLOSURES
+	select DEBUG_FS
+	help
+	  Keeps all active closures in a linked list and provides a debugfs
+	  interface to list them, which makes it possible to see asynchronous
+	  operations that get stuck.
+
 config DEBUG_MAPLE_TREE
 	bool "Debug maple trees"
 	depends on DEBUG_KERNEL
@@ -1729,21 +1738,6 @@ config DEBUG_MAPLE_TREE
 	  If unsure, say N.
 
 endmenu
-
-config DEBUG_CREDENTIALS
-	bool "Debug credential management"
-	depends on DEBUG_KERNEL
-	help
-	  Enable this to turn on some debug checking for credential
-	  management.  The additional code keeps track of the number of
-	  pointers from task_structs to any given cred struct, and checks to
-	  see that this number never exceeds the usage count of the cred
-	  struct.
-
-	  Furthermore, if SELinux is enabled, this also checks that the
-	  security pointer in the cred struct is never seen to be invalid.
-
-	  If unsure, say N.
 
 source "kernel/rcu/Kconfig.debug"
 
@@ -2942,6 +2936,17 @@ config TEST_CLOCKSOURCE_WATCHDOG
 	  via modprobe or insmod in which case it will run upon being
 	  loaded, or it may be built in, in which case it will run
 	  shortly after boot.
+
+	  If unsure, say N.
+
+config TEST_OBJPOOL
+	tristate "Test module for correctness and stress of objpool"
+	default n
+	depends on m && DEBUG_KERNEL
+	help
+	  This builds the "test_objpool" module that should be used for
+	  correctness verification and concurrent testings of objects
+	  allocation and reclamation.
 
 	  If unsure, say N.
 

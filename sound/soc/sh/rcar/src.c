@@ -22,6 +22,7 @@
  * #define RSND_DEBUG_NO_IRQ_STATUS 1
  */
 
+#include <linux/of_irq.h>
 #include "rsnd.h"
 
 #define SRC_NAME "src"

@@ -228,19 +228,22 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	const struct nf_ct_hook *ct_hook;
-	int err;
 
 	if (verdict == NF_ACCEPT ||
 	    verdict == NF_REPEAT ||
 	    verdict == NF_STOP) {
 		rcu_read_lock();
 		ct_hook = rcu_dereference(nf_ct_hook);
-		if (ct_hook) {
-			err = ct_hook->update(entry->state.net, entry->skb);
-			if (err < 0)
-				verdict = NF_DROP;
-		}
+		if (ct_hook)
+			verdict = ct_hook->update(entry->state.net, entry->skb);
 		rcu_read_unlock();
+
+		switch (verdict & NF_VERDICT_MASK) {
+		case NF_STOLEN:
+			nf_queue_entry_free(entry);
+			return;
+		}
+
 	}
 	nf_reinject(entry, verdict);
 }

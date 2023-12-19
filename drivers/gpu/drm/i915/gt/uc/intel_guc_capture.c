@@ -1101,8 +1101,8 @@ guc_capture_create_prealloc_nodes(struct intel_guc *guc)
 static int
 guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstate *buf)
 {
-	struct guc_state_capture_group_header_t ghdr = {0};
-	struct guc_state_capture_header_t hdr = {0};
+	struct guc_state_capture_group_header_t ghdr = {};
+	struct guc_state_capture_header_t hdr = {};
 	struct __guc_capture_parsed_output *node = NULL;
 	struct guc_mmio_reg *regs = NULL;
 	int i, numlists, numregs, ret = 0;

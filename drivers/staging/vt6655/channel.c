@@ -82,15 +82,15 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 {
 	bool ret = true;
 
-	if (priv->byCurrentCh == ch->hw_value)
+	if (priv->current_ch == ch->hw_value)
 		return ret;
 
 	/* Set VGA to max sensitivity */
-	if (priv->bUpdateBBVGA &&
-	    priv->byBBVGACurrent != priv->abyBBVGA[0]) {
-		priv->byBBVGACurrent = priv->abyBBVGA[0];
+	if (priv->update_bbvga &&
+	    priv->bbvga_current != priv->bbvga[0]) {
+		priv->bbvga_current = priv->bbvga[0];
 
-		bb_set_vga_gain_offset(priv, priv->byBBVGACurrent);
+		bb_set_vga_gain_offset(priv, priv->bbvga_current);
 	}
 
 	/* clear NAV */
@@ -100,13 +100,13 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	 * it is for better TX throughput
 	 */
 
-	priv->byCurrentCh = ch->hw_value;
-	ret &= RFbSelectChannel(priv, priv->byRFType,
+	priv->current_ch = ch->hw_value;
+	ret &= RFbSelectChannel(priv, priv->rf_type,
 				ch->hw_value);
 
 	/* Init Synthesizer Table */
 	if (priv->bEnablePSMode)
-		rf_write_wake_prog_syn(priv, priv->byRFType, ch->hw_value);
+		rf_write_wake_prog_syn(priv, priv->rf_type, ch->hw_value);
 
 	bb_software_reset(priv);
 
@@ -117,19 +117,19 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 
 		/* set HW default power register */
 		VT6655_MAC_SELECT_PAGE1(priv->port_offset);
-		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
-		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWRCCK);
-		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
-		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWROFDM);
+		RFbSetPower(priv, RATE_1M, priv->current_ch);
+		iowrite8(priv->cur_pwr, priv->port_offset + MAC_REG_PWRCCK);
+		RFbSetPower(priv, RATE_6M, priv->current_ch);
+		iowrite8(priv->cur_pwr, priv->port_offset + MAC_REG_PWROFDM);
 		VT6655_MAC_SELECT_PAGE0(priv->port_offset);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	if (priv->byBBType == BB_TYPE_11B)
-		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_1M, priv->current_ch);
 	else
-		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
+		RFbSetPower(priv, RATE_6M, priv->current_ch);
 
 	return ret;
 }

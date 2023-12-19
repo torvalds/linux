@@ -404,12 +404,11 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 
 static const struct fb_ops ep93xxfb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= ep93xxfb_check_var,
 	.fb_set_par	= ep93xxfb_set_par,
 	.fb_blank	= ep93xxfb_blank,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_setcolreg	= ep93xxfb_setcolreg,
 	.fb_mmap	= ep93xxfb_mmap,
 };

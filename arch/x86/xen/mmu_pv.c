@@ -236,7 +236,7 @@ static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 	u.val = pmd_val_ma(val);
 	xen_extend_mmu_update(&u);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }
@@ -270,7 +270,7 @@ static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
 {
 	struct mmu_update u;
 
-	if (paravirt_get_lazy_mode() != PARAVIRT_LAZY_MMU)
+	if (xen_get_lazy_mode() != XEN_LAZY_MMU)
 		return false;
 
 	xen_mc_batch();
@@ -279,7 +279,7 @@ static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
 	u.val = pte_val_ma(pteval);
 	xen_extend_mmu_update(&u);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	return true;
 }
@@ -325,7 +325,7 @@ void xen_ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	u.val = pte_val_ma(pte);
 	xen_extend_mmu_update(&u);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 }
 
 /* Assume pteval_t is equivalent to all the other *val_t types. */
@@ -419,7 +419,7 @@ static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	u.val = pud_val_ma(val);
 	xen_extend_mmu_update(&u);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }
@@ -499,7 +499,7 @@ static void __init xen_set_p4d_hyper(p4d_t *ptr, p4d_t val)
 
 	__xen_set_p4d_hyper(ptr, val);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }
@@ -531,7 +531,7 @@ static void xen_set_p4d(p4d_t *ptr, p4d_t val)
 	if (user_ptr)
 		__xen_set_p4d_hyper((p4d_t *)user_ptr, val);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 }
 
 #if CONFIG_PGTABLE_LEVELS >= 5
@@ -1245,7 +1245,7 @@ static noinline void xen_flush_tlb(void)
 	op->cmd = MMUEXT_TLB_FLUSH_LOCAL;
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }
@@ -1265,7 +1265,7 @@ static void xen_flush_tlb_one_user(unsigned long addr)
 	op->arg1.linear_addr = addr & PAGE_MASK;
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }
@@ -1302,7 +1302,7 @@ static void xen_flush_tlb_multi(const struct cpumask *cpus,
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 }
 
 static unsigned long xen_read_cr3(void)
@@ -1361,7 +1361,7 @@ static void xen_write_cr3(unsigned long cr3)
 	else
 		__xen_write_cr3(false, 0);
 
-	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
+	xen_mc_issue(XEN_LAZY_CPU);  /* interrupts restored */
 }
 
 /*
@@ -1396,7 +1396,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 
 	__xen_write_cr3(true, cr3);
 
-	xen_mc_issue(PARAVIRT_LAZY_CPU);  /* interrupts restored */
+	xen_mc_issue(XEN_LAZY_CPU);  /* interrupts restored */
 }
 
 static int xen_pgd_alloc(struct mm_struct *mm)
@@ -1557,7 +1557,7 @@ static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
 		if (level == PT_PTE && USE_SPLIT_PTE_PTLOCKS && !pinned)
 			__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 
-		xen_mc_issue(PARAVIRT_LAZY_MMU);
+		xen_mc_issue(XEN_LAZY_MMU);
 	}
 }
 
@@ -1587,7 +1587,7 @@ static inline void xen_release_ptpage(unsigned long pfn, unsigned level)
 
 		__set_pfn_prot(pfn, PAGE_KERNEL);
 
-		xen_mc_issue(PARAVIRT_LAZY_MMU);
+		xen_mc_issue(XEN_LAZY_MMU);
 
 		ClearPagePinned(page);
 	}
@@ -1804,7 +1804,7 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	 */
 	xen_mc_batch();
 	__xen_write_cr3(true, __pa(init_top_pgt));
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
+	xen_mc_issue(XEN_LAZY_CPU);
 
 	/* We can't that easily rip out L3 and L2, as the Xen pagetables are
 	 * set out this way: [L4], [L1], [L2], [L3], [L1], [L1] ...  for
@@ -2083,6 +2083,23 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 }
 
+static void xen_enter_lazy_mmu(void)
+{
+	enter_lazy(XEN_LAZY_MMU);
+}
+
+static void xen_flush_lazy_mmu(void)
+{
+	preempt_disable();
+
+	if (xen_get_lazy_mode() == XEN_LAZY_MMU) {
+		arch_leave_lazy_mmu_mode();
+		arch_enter_lazy_mmu_mode();
+	}
+
+	preempt_enable();
+}
+
 static void __init xen_post_allocator_init(void)
 {
 	pv_ops.mmu.set_pte = xen_set_pte;
@@ -2107,7 +2124,7 @@ static void xen_leave_lazy_mmu(void)
 {
 	preempt_disable();
 	xen_mc_flush();
-	paravirt_leave_lazy_mmu();
+	leave_lazy(XEN_LAZY_MMU);
 	preempt_enable();
 }
 
@@ -2166,9 +2183,9 @@ static const typeof(pv_ops) xen_mmu_ops __initconst = {
 		.exit_mmap = xen_exit_mmap,
 
 		.lazy_mode = {
-			.enter = paravirt_enter_lazy_mmu,
+			.enter = xen_enter_lazy_mmu,
 			.leave = xen_leave_lazy_mmu,
-			.flush = paravirt_flush_lazy_mmu,
+			.flush = xen_flush_lazy_mmu,
 		},
 
 		.set_fixmap = xen_set_fixmap,
@@ -2385,7 +2402,7 @@ static noinline void xen_flush_tlb_all(void)
 	op->cmd = MMUEXT_TLB_FLUSH_ALL;
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
+	xen_mc_issue(XEN_LAZY_MMU);
 
 	preempt_enable();
 }

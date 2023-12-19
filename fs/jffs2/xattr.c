@@ -920,7 +920,7 @@ struct jffs2_xattr_datum *jffs2_setup_xattr_datum(struct jffs2_sb_info *c,
  * do_jffs2_setxattr(inode, xprefix, xname, buffer, size, flags)
  *   is an implementation of setxattr handler on jffs2.
  * -------------------------------------------------- */
-const struct xattr_handler *jffs2_xattr_handlers[] = {
+const struct xattr_handler * const jffs2_xattr_handlers[] = {
 	&jffs2_user_xattr_handler,
 #ifdef CONFIG_JFFS2_FS_SECURITY
 	&jffs2_security_xattr_handler,

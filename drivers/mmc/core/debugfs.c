@@ -12,9 +12,12 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/fault-inject.h>
+#include <linux/time.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/sd.h>
 
 #include "core.h"
 #include "card.h"
@@ -298,6 +301,49 @@ static const struct file_operations mmc_err_stats_fops = {
 	.release = single_release,
 };
 
+static int mmc_caps_get(void *data, u64 *val)
+{
+	*val = *(u32 *)data;
+	return 0;
+}
+
+static int mmc_caps_set(void *data, u64 val)
+{
+	u32 *caps = data;
+	u32 diff = *caps ^ val;
+	u32 allowed = MMC_CAP_AGGRESSIVE_PM |
+		      MMC_CAP_SD_HIGHSPEED |
+		      MMC_CAP_MMC_HIGHSPEED |
+		      MMC_CAP_UHS |
+		      MMC_CAP_DDR;
+
+	if (diff & ~allowed)
+		return -EINVAL;
+
+	*caps = val;
+
+	return 0;
+}
+
+static int mmc_caps2_set(void *data, u64 val)
+{
+	u32 allowed = MMC_CAP2_HSX00_1_8V | MMC_CAP2_HSX00_1_2V;
+	u32 *caps = data;
+	u32 diff = *caps ^ val;
+
+	if (diff & ~allowed)
+		return -EINVAL;
+
+	*caps = val;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(mmc_caps_fops, mmc_caps_get, mmc_caps_set,
+			 "0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(mmc_caps2_fops, mmc_caps_get, mmc_caps2_set,
+			 "0x%08llx\n");
+
 void mmc_add_host_debugfs(struct mmc_host *host)
 {
 	struct dentry *root;
@@ -306,8 +352,9 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	host->debugfs_root = root;
 
 	debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops);
-	debugfs_create_x32("caps", S_IRUSR, root, &host->caps);
-	debugfs_create_x32("caps2", S_IRUSR, root, &host->caps2);
+	debugfs_create_file("caps", 0600, root, &host->caps, &mmc_caps_fops);
+	debugfs_create_file("caps2", 0600, root, &host->caps2,
+			    &mmc_caps2_fops);
 	debugfs_create_file_unsafe("clock", S_IRUSR | S_IWUSR, root, host,
 				   &mmc_clock_fops);
 

@@ -35,6 +35,7 @@
 	};
 
 	memory@80000000 {
+		bootph-all;
 		device_type = "memory";
 		/* 2G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x80000000>;
@@ -108,6 +109,7 @@
 
 	evm_12v0: regulator-0 {
 		/* main DC jack */
+		bootph-all;
 		compatible = "regulator-fixed";
 		regulator-name = "evm_12v0";
 		regulator-min-microvolt = <12000000>;
@@ -129,6 +131,7 @@
 
 	vsys_3v3: regulator-2 {
 		/* output of LM5140 */
+		bootph-all;
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -140,6 +143,7 @@
 
 	vdd_mmc1: regulator-3 {
 		/* TPS2051BD */
+		bootph-all;
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_mmc1";
 		regulator-min-microvolt = <3300000>;
@@ -161,6 +165,7 @@
 	};
 
 	vtt_supply: regulator-5 {
+		bootph-all;
 		compatible = "regulator-fixed";
 		regulator-name = "vtt";
 		pinctrl-names = "default";
@@ -251,6 +256,7 @@
 	};
 
 	main_uart0_pins_default: main-uart0-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0238, PIN_INPUT, 0) /* (B16) UART0_CTSn */
 			AM64X_IOPAD(0x023c, PIN_OUTPUT, 0) /* (A16) UART0_RTSn */
@@ -269,6 +275,7 @@
 	};
 
 	main_i2c0_pins_default: main-i2c0-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0260, PIN_INPUT_PULLUP, 0) /* (A18) I2C0_SCL */
 			AM64X_IOPAD(0x0264, PIN_INPUT_PULLUP, 0) /* (B18) I2C0_SDA */
@@ -276,6 +283,7 @@
 	};
 
 	main_i2c1_pins_default: main-i2c1-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0268, PIN_INPUT_PULLUP, 0) /* (C18) I2C1_SCL */
 			AM64X_IOPAD(0x026c, PIN_INPUT_PULLUP, 0) /* (B19) I2C1_SDA */
@@ -283,6 +291,7 @@
 	};
 
 	mdio1_pins_default: mdio1-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01fc, PIN_OUTPUT, 4) /* (R2) PRG0_PRU1_GPO19.MDIO0_MDC */
 			AM64X_IOPAD(0x01f8, PIN_INPUT, 4) /* (P5) PRG0_PRU1_GPO18.MDIO0_MDIO */
@@ -290,6 +299,7 @@
 	};
 
 	rgmii1_pins_default: rgmii1-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x01cc, PIN_INPUT, 4) /* (W5) PRG0_PRU1_GPO7.RGMII1_RD0 */
 			AM64X_IOPAD(0x01d4, PIN_INPUT, 4) /* (Y5) PRG0_PRU1_GPO9.RGMII1_RD1 */
@@ -307,6 +317,7 @@
 	};
 
        rgmii2_pins_default: rgmii2-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0108, PIN_INPUT, 4) /* (W11) PRG1_PRU1_GPO0.RGMII2_RD0 */
 			AM64X_IOPAD(0x010c, PIN_INPUT, 4) /* (V11) PRG1_PRU1_GPO1.RGMII2_RD1 */
@@ -324,6 +335,7 @@
 	};
 
 	main_usb0_pins_default: main-usb0-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x02a8, PIN_OUTPUT, 0) /* (E19) USB0_DRVVBUS */
 		>;
@@ -366,6 +378,7 @@
 	};
 
 	ddr_vtt_pins_default: ddr-vtt-default-pins {
+		bootph-all;
 		pinctrl-single,pins = <
 			AM64X_IOPAD(0x0030, PIN_OUTPUT_PULLUP, 7) /* (L18) OSPI0_CSN1.GPIO0_12 */
 		>;
@@ -373,6 +386,7 @@
 };
 
 &main_uart0 {
+	bootph-all;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
@@ -387,10 +401,20 @@
 };
 
 &main_i2c0 {
+	bootph-all;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
+
+	gpio@38 {
+		/* TCA9554 */
+		compatible = "nxp,pca9554";
+		reg = <0x38>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "HSE_DETECT";
+	};
 
 	eeprom@50 {
 		/* AT24CM01 */
@@ -400,12 +424,14 @@
 };
 
 &main_i2c1 {
+	bootph-all;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 
 	exp1: gpio@22 {
+		bootph-all;
 		compatible = "ti,tca6424";
 		reg = <0x22>;
 		gpio-controller;
@@ -438,6 +464,10 @@
 	};
 };
 
+&main_gpio0 {
+	bootph-all;
+};
+
 /* mcu_gpio0 is reserved for mcu firmware usage */
 &mcu_gpio0 {
 	status = "reserved";
@@ -467,6 +497,7 @@
 
 &sdhci1 {
 	/* SD/MMC */
+	bootph-all;
 	vmmc-supply = <&vdd_mmc1>;
 	pinctrl-names = "default";
 	bus-width = <4>;
@@ -476,11 +507,13 @@
 };
 
 &usbss0 {
+	bootph-all;
 	ti,vbus-divider;
 	ti,usb2-only;
 };
 
 &usb0 {
+	bootph-all;
 	dr_mode = "otg";
 	maximum-speed = "high-speed";
 	pinctrl-names = "default";
@@ -488,11 +521,13 @@
 };
 
 &cpsw3g {
+	bootph-all;
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii1_pins_default>, <&rgmii2_pins_default>;
 };
 
 &cpsw_port1 {
+	bootph-all;
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&cpsw3g_phy0>;
 };
@@ -503,11 +538,13 @@
 };
 
 &cpsw3g_mdio {
+	bootph-all;
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio1_pins_default>;
 
 	cpsw3g_phy0: ethernet-phy@0 {
+		bootph-all;
 		reg = <0>;
 		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_00_NS>;
 		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_4_B_NIB>;

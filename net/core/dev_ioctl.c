@@ -382,7 +382,7 @@ static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
 	if (err)
 		return err;
 
-	err = dsa_master_hwtstamp_validate(dev, &kernel_cfg, &extack);
+	err = dsa_conduit_hwtstamp_validate(dev, &kernel_cfg, &extack);
 	if (err) {
 		if (extack._msg)
 			netdev_err(dev, "%s\n", extack._msg);

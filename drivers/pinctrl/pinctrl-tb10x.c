@@ -804,13 +804,11 @@ fail:
 	return ret;
 }
 
-static int tb10x_pinctrl_remove(struct platform_device *pdev)
+static void tb10x_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tb10x_pinctrl *state = platform_get_drvdata(pdev);
 
 	mutex_destroy(&state->mutex);
-
-	return 0;
 }
 
 
@@ -822,7 +820,7 @@ MODULE_DEVICE_TABLE(of, tb10x_pinctrl_dt_ids);
 
 static struct platform_driver tb10x_pinctrl_pdrv = {
 	.probe   = tb10x_pinctrl_probe,
-	.remove  = tb10x_pinctrl_remove,
+	.remove_new = tb10x_pinctrl_remove,
 	.driver  = {
 		.name  = "tb10x_pinctrl",
 		.of_match_table = of_match_ptr(tb10x_pinctrl_dt_ids),

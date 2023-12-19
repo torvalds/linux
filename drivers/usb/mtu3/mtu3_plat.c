@@ -451,7 +451,7 @@ comm_init_err:
 	return ret;
 }
 
-static int mtu3_remove(struct platform_device *pdev)
+static void mtu3_remove(struct platform_device *pdev)
 {
 	struct ssusb_mtk *ssusb = platform_get_drvdata(pdev);
 
@@ -469,8 +469,16 @@ static int mtu3_remove(struct platform_device *pdev)
 		ssusb_gadget_exit(ssusb);
 		ssusb_host_exit(ssusb);
 		break;
-	default:
-		return -EINVAL;
+	case USB_DR_MODE_UNKNOWN:
+		/*
+		 * This cannot happen because with dr_mode ==
+		 * USB_DR_MODE_UNKNOWN, .probe() doesn't succeed and so
+		 * .remove() wouldn't be called at all. However (little
+		 * surprising) the compiler isn't smart enough to see that, so
+		 * we explicitly have this case item to not make the compiler
+		 * wail about an unhandled enumeration value.
+		 */
+		break;
 	}
 
 	ssusb_rscs_exit(ssusb);
@@ -478,8 +486,6 @@ static int mtu3_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
-
-	return 0;
 }
 
 static int resume_ip_and_ports(struct ssusb_mtk *ssusb, pm_message_t msg)
@@ -615,7 +621,7 @@ MODULE_DEVICE_TABLE(of, mtu3_of_match);
 
 static struct platform_driver mtu3_driver = {
 	.probe = mtu3_probe,
-	.remove = mtu3_remove,
+	.remove_new = mtu3_remove,
 	.driver = {
 		.name = MTU3_DRIVER_NAME,
 		.pm = DEV_PM_OPS,

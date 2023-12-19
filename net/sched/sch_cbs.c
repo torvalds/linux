@@ -574,3 +574,4 @@ static void __exit cbs_module_exit(void)
 module_init(cbs_module_init)
 module_exit(cbs_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Credit Based shaper");

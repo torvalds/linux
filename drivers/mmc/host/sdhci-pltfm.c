@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/property.h>
-#include <linux/of.h>
 #ifdef CONFIG_PPC
 #include <asm/machdep.h>
 #endif
@@ -56,19 +55,16 @@ static bool sdhci_wp_inverted(struct device *dev)
 
 static void sdhci_get_compatibility(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct sdhci_host *host = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node;
 
-	if (!np)
-		return;
-
-	if (of_device_is_compatible(np, "fsl,p2020-rev1-esdhc"))
+	if (device_is_compatible(dev, "fsl,p2020-rev1-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_DMA;
 
-	if (of_device_is_compatible(np, "fsl,p2020-esdhc") ||
-	    of_device_is_compatible(np, "fsl,p1010-esdhc") ||
-	    of_device_is_compatible(np, "fsl,t4240-esdhc") ||
-	    of_device_is_compatible(np, "fsl,mpc8536-esdhc"))
+	if (device_is_compatible(dev, "fsl,p2020-esdhc") ||
+	    device_is_compatible(dev, "fsl,p1010-esdhc") ||
+	    device_is_compatible(dev, "fsl,t4240-esdhc") ||
+	    device_is_compatible(dev, "fsl,mpc8536-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 }
 
@@ -115,26 +111,21 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 {
 	struct sdhci_host *host;
 	void __iomem *ioaddr;
-	int irq, ret;
+	int irq;
 
 	ioaddr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ioaddr)) {
-		ret = PTR_ERR(ioaddr);
-		goto err;
-	}
+	if (IS_ERR(ioaddr))
+		return ERR_CAST(ioaddr);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto err;
-	}
+	if (irq < 0)
+		return ERR_PTR(irq);
 
 	host = sdhci_alloc_host(&pdev->dev,
 		sizeof(struct sdhci_pltfm_host) + priv_size);
-
 	if (IS_ERR(host)) {
-		ret = PTR_ERR(host);
-		goto err;
+		dev_err(&pdev->dev, "%s failed %pe\n", __func__, host);
+		return ERR_CAST(host);
 	}
 
 	host->ioaddr = ioaddr;
@@ -152,9 +143,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 	platform_set_drvdata(pdev, host);
 
 	return host;
-err:
-	dev_err(&pdev->dev, "%s failed %d\n", __func__, ret);
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(sdhci_pltfm_init);
 

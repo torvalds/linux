@@ -268,14 +268,12 @@ err_revert_dir:
 	return ret;
 }
 
-static int cdns_gpio_remove(struct platform_device *pdev)
+static void cdns_gpio_remove(struct platform_device *pdev)
 {
 	struct cdns_gpio_chip *cgpio = platform_get_drvdata(pdev);
 
 	iowrite32(cgpio->bypass_orig, cgpio->regs + CDNS_GPIO_BYPASS_MODE);
 	clk_disable_unprepare(cgpio->pclk);
-
-	return 0;
 }
 
 static const struct of_device_id cdns_of_ids[] = {
@@ -290,7 +288,7 @@ static struct platform_driver cdns_gpio_driver = {
 		.of_match_table = cdns_of_ids,
 	},
 	.probe = cdns_gpio_probe,
-	.remove = cdns_gpio_remove,
+	.remove_new = cdns_gpio_remove,
 };
 module_platform_driver(cdns_gpio_driver);
 

@@ -36,10 +36,11 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_1_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_3_imu.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_imu.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_imu.bin");
 
 static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[40];
+	char fw_name[45];
 	char ucode_prefix[30];
 	int err;
 	const struct imu_firmware_header_v1_0 *imu_hdr;
@@ -54,7 +55,6 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 	if (err)
 		goto out;
 	imu_hdr = (const struct imu_firmware_header_v1_0 *)adev->gfx.imu_fw->data;
-	adev->gfx.imu_fw_version = le32_to_cpu(imu_hdr->header.ucode_version);
 	//adev->gfx.imu_feature_version = le32_to_cpu(imu_hdr->ucode_feature_version);
 	
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
@@ -68,7 +68,8 @@ static int imu_v11_0_init_microcode(struct amdgpu_device *adev)
 		info->fw = adev->gfx.imu_fw;
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(imu_hdr->imu_dram_ucode_size_bytes), PAGE_SIZE);
-	}
+	} else
+		adev->gfx.imu_fw_version = le32_to_cpu(imu_hdr->header.ucode_version);
 
 out:
 	if (err) {
@@ -352,7 +353,7 @@ static void imu_v11_0_program_rlc_ram(struct amdgpu_device *adev)
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_RAM_INDEX, 0x2);
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(11, 0, 0):
 		program_imu_rlc_ram(adev, imu_rlc_ram_golden_11,
 				(const u32)ARRAY_SIZE(imu_rlc_ram_golden_11));

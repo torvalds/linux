@@ -329,7 +329,7 @@ failed1:
  * if the driver module is being unloaded. It frees any resources allocated to
  * the device.
  */
-static int xps2_of_remove(struct platform_device *of_dev)
+static void xps2_of_remove(struct platform_device *of_dev)
 {
 	struct xps2data *drvdata = platform_get_drvdata(of_dev);
 	struct resource r_mem; /* IO mem resources */
@@ -344,8 +344,6 @@ static int xps2_of_remove(struct platform_device *of_dev)
 		release_mem_region(r_mem.start, resource_size(&r_mem));
 
 	kfree(drvdata);
-
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -361,7 +359,7 @@ static struct platform_driver xps2_of_driver = {
 		.of_match_table = xps2_of_match,
 	},
 	.probe		= xps2_of_probe,
-	.remove		= xps2_of_remove,
+	.remove_new	= xps2_of_remove,
 };
 module_platform_driver(xps2_of_driver);
 

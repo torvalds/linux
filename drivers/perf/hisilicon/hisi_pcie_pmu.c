@@ -353,15 +353,14 @@ static int hisi_pcie_pmu_event_init(struct perf_event *event)
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 
-	event->cpu = pcie_pmu->on_cpu;
+	/* Check the type first before going on, otherwise it's not our event */
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
 
 	if (EXT_COUNTER_IS_USED(hisi_pcie_get_event(event)))
 		hwc->event_base = HISI_PCIE_EXT_CNT;
 	else
 		hwc->event_base = HISI_PCIE_CNT;
-
-	if (event->attr.type != event->pmu->type)
-		return -ENOENT;
 
 	/* Sampling is not supported. */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
@@ -372,6 +371,8 @@ static int hisi_pcie_pmu_event_init(struct perf_event *event)
 
 	if (!hisi_pcie_pmu_validate_event_group(event))
 		return -EINVAL;
+
+	event->cpu = pcie_pmu->on_cpu;
 
 	return 0;
 }

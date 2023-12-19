@@ -65,7 +65,7 @@ struct kunit_glob_filter {
 };
 
 /* Split "suite_glob.test_glob" into two. Assumes filter_glob is not empty. */
-static void kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
+static int kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 				    const char *filter_glob)
 {
 	const int len = strlen(filter_glob);
@@ -73,16 +73,28 @@ static void kunit_parse_glob_filter(struct kunit_glob_filter *parsed,
 
 	if (!period) {
 		parsed->suite_glob = kzalloc(len + 1, GFP_KERNEL);
+		if (!parsed->suite_glob)
+			return -ENOMEM;
+
 		parsed->test_glob = NULL;
 		strcpy(parsed->suite_glob, filter_glob);
-		return;
+		return 0;
 	}
 
 	parsed->suite_glob = kzalloc(period - filter_glob + 1, GFP_KERNEL);
+	if (!parsed->suite_glob)
+		return -ENOMEM;
+
 	parsed->test_glob = kzalloc(len - (period - filter_glob) + 1, GFP_KERNEL);
+	if (!parsed->test_glob) {
+		kfree(parsed->suite_glob);
+		return -ENOMEM;
+	}
 
 	strncpy(parsed->suite_glob, filter_glob, period - filter_glob);
 	strncpy(parsed->test_glob, period + 1, len - (period - filter_glob));
+
+	return 0;
 }
 
 /* Create a copy of suite with only tests that match test_glob. */
@@ -125,8 +137,10 @@ void kunit_free_suite_set(struct kunit_suite_set suite_set)
 {
 	struct kunit_suite * const *suites;
 
-	for (suites = suite_set.start; suites < suite_set.end; suites++)
+	for (suites = suite_set.start; suites < suite_set.end; suites++) {
+		kfree((*suites)->test_cases);
 		kfree(*suites);
+	}
 	kfree(suite_set.start);
 }
 
@@ -143,30 +157,34 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	struct kunit_suite_set filtered = {NULL, NULL};
 	struct kunit_glob_filter parsed_glob;
 	struct kunit_attr_filter *parsed_filters = NULL;
+	struct kunit_suite * const *suites;
 
 	const size_t max = suite_set->end - suite_set->start;
 
-	copy = kmalloc_array(max, sizeof(*filtered.start), GFP_KERNEL);
+	copy = kcalloc(max, sizeof(*filtered.start), GFP_KERNEL);
 	if (!copy) { /* won't be able to run anything, return an empty set */
 		return filtered;
 	}
 	copy_start = copy;
 
-	if (filter_glob)
-		kunit_parse_glob_filter(&parsed_glob, filter_glob);
+	if (filter_glob) {
+		*err = kunit_parse_glob_filter(&parsed_glob, filter_glob);
+		if (*err)
+			goto free_copy;
+	}
 
 	/* Parse attribute filters */
 	if (filters) {
 		filter_count = kunit_get_filter_count(filters);
 		parsed_filters = kcalloc(filter_count, sizeof(*parsed_filters), GFP_KERNEL);
 		if (!parsed_filters) {
-			kfree(copy);
-			return filtered;
+			*err = -ENOMEM;
+			goto free_parsed_glob;
 		}
 		for (j = 0; j < filter_count; j++)
 			parsed_filters[j] = kunit_next_attr_filter(&filters, err);
 		if (*err)
-			goto err;
+			goto free_parsed_filters;
 	}
 
 	for (i = 0; &suite_set->start[i] != suite_set->end; i++) {
@@ -178,7 +196,7 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 					parsed_glob.test_glob);
 			if (IS_ERR(filtered_suite)) {
 				*err = PTR_ERR(filtered_suite);
-				goto err;
+				goto free_filtered_suite;
 			}
 		}
 		if (filter_count > 0 && parsed_filters != NULL) {
@@ -195,10 +213,11 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 				filtered_suite = new_filtered_suite;
 
 				if (*err)
-					goto err;
+					goto free_filtered_suite;
+
 				if (IS_ERR(filtered_suite)) {
 					*err = PTR_ERR(filtered_suite);
-					goto err;
+					goto free_filtered_suite;
 				}
 				if (!filtered_suite)
 					break;
@@ -213,17 +232,27 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 	filtered.start = copy_start;
 	filtered.end = copy;
 
-err:
-	if (*err)
-		kfree(copy);
+free_filtered_suite:
+	if (*err) {
+		for (suites = copy_start; suites < copy; suites++) {
+			kfree((*suites)->test_cases);
+			kfree(*suites);
+		}
+	}
 
+free_parsed_filters:
+	if (filter_count)
+		kfree(parsed_filters);
+
+free_parsed_glob:
 	if (filter_glob) {
 		kfree(parsed_glob.suite_glob);
 		kfree(parsed_glob.test_glob);
 	}
 
-	if (filter_count)
-		kfree(parsed_filters);
+free_copy:
+	if (*err)
+		kfree(copy_start);
 
 	return filtered;
 }

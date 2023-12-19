@@ -249,7 +249,7 @@ MODULE_DESCRIPTION("Xtensa XT2000 SONIC ethernet driver");
 
 #include "sonic.c"
 
-static int xtsonic_device_remove(struct platform_device *pdev)
+static void xtsonic_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local *lp = netdev_priv(dev);
@@ -260,13 +260,11 @@ static int xtsonic_device_remove(struct platform_device *pdev)
 			  lp->descriptors, lp->descriptors_laddr);
 	release_region (dev->base_addr, SONIC_MEM_SIZE);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver xtsonic_driver = {
 	.probe = xtsonic_probe,
-	.remove = xtsonic_device_remove,
+	.remove_new = xtsonic_device_remove,
 	.driver = {
 		.name = xtsonic_string,
 	},

@@ -89,13 +89,13 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	if (test_bit(PWMF_REQUESTED, &pwm->flags))
 		return -EBUSY;
 
-	if (!try_module_get(pwm->chip->ops->owner))
+	if (!try_module_get(pwm->chip->owner))
 		return -ENODEV;
 
 	if (pwm->chip->ops->request) {
 		err = pwm->chip->ops->request(pwm->chip, pwm);
 		if (err) {
-			module_put(pwm->chip->ops->owner);
+			module_put(pwm->chip->owner);
 			return err;
 		}
 	}
@@ -208,36 +208,6 @@ static void of_pwmchip_remove(struct pwm_chip *chip)
 		of_node_put(chip->dev->of_node);
 }
 
-/**
- * pwm_set_chip_data() - set private chip data for a PWM
- * @pwm: PWM device
- * @data: pointer to chip-specific data
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-int pwm_set_chip_data(struct pwm_device *pwm, void *data)
-{
-	if (!pwm)
-		return -EINVAL;
-
-	pwm->chip_data = data;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pwm_set_chip_data);
-
-/**
- * pwm_get_chip_data() - get private chip data for a PWM
- * @pwm: PWM device
- *
- * Returns: A pointer to the chip-private data for the PWM device.
- */
-void *pwm_get_chip_data(struct pwm_device *pwm)
-{
-	return pwm ? pwm->chip_data : NULL;
-}
-EXPORT_SYMBOL_GPL(pwm_get_chip_data);
-
 static bool pwm_ops_check(const struct pwm_chip *chip)
 {
 	const struct pwm_ops *ops = chip->ops;
@@ -253,14 +223,16 @@ static bool pwm_ops_check(const struct pwm_chip *chip)
 }
 
 /**
- * pwmchip_add() - register a new PWM chip
+ * __pwmchip_add() - register a new PWM chip
  * @chip: the PWM chip to add
+ * @owner: reference to the module providing the chip.
  *
- * Register a new PWM chip.
+ * Register a new PWM chip. @owner is supposed to be THIS_MODULE, use the
+ * pwmchip_add wrapper to do this right.
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int pwmchip_add(struct pwm_chip *chip)
+int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 {
 	struct pwm_device *pwm;
 	unsigned int i;
@@ -271,6 +243,8 @@ int pwmchip_add(struct pwm_chip *chip)
 
 	if (!pwm_ops_check(chip))
 		return -EINVAL;
+
+	chip->owner = owner;
 
 	chip->pwms = kcalloc(chip->npwm, sizeof(*pwm), GFP_KERNEL);
 	if (!chip->pwms)
@@ -306,7 +280,7 @@ int pwmchip_add(struct pwm_chip *chip)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pwmchip_add);
+EXPORT_SYMBOL_GPL(__pwmchip_add);
 
 /**
  * pwmchip_remove() - remove a PWM chip
@@ -338,17 +312,17 @@ static void devm_pwmchip_remove(void *data)
 	pwmchip_remove(chip);
 }
 
-int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip)
+int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner)
 {
 	int ret;
 
-	ret = pwmchip_add(chip);
+	ret = __pwmchip_add(chip, owner);
 	if (ret)
 		return ret;
 
 	return devm_add_action_or_reset(dev, devm_pwmchip_remove, chip);
 }
-EXPORT_SYMBOL_GPL(devm_pwmchip_add);
+EXPORT_SYMBOL_GPL(__devm_pwmchip_add);
 
 /**
  * pwm_request_from_chip() - request a PWM device relative to a PWM chip
@@ -976,10 +950,9 @@ void pwm_put(struct pwm_device *pwm)
 	if (pwm->chip->ops->free)
 		pwm->chip->ops->free(pwm->chip, pwm);
 
-	pwm_set_chip_data(pwm, NULL);
 	pwm->label = NULL;
 
-	module_put(pwm->chip->ops->owner);
+	module_put(pwm->chip->owner);
 out:
 	mutex_unlock(&pwm_lock);
 }

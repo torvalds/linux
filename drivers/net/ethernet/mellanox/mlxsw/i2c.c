@@ -424,9 +424,7 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 
 	if (in_mbox) {
 		reg_size = mlxsw_i2c_get_reg_size(in_mbox);
-		num = reg_size / mlxsw_i2c->block_size;
-		if (reg_size % mlxsw_i2c->block_size)
-			num++;
+		num = DIV_ROUND_UP(reg_size, mlxsw_i2c->block_size);
 
 		if (mutex_lock_interruptible(&mlxsw_i2c->cmd.lock) < 0) {
 			dev_err(&client->dev, "Could not acquire lock");

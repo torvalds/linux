@@ -246,6 +246,25 @@ static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link2_rt1316_link01[] = 
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link0_rt1316_link12[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
+		.adr_d = rt711_sdca_0_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1316_1_group1_adr),
+		.adr_d = rt1316_1_group1_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt1316_2_group1_adr),
+		.adr_d = rt1316_2_group1_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr rpl_sdw_rt711_link0_rt1318_link12_rt714_link3[] = {
 	{
 		.mask = BIT(0),
@@ -390,6 +409,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 	},
 	{
 		.id = "10508825",
+		.drv_name = "rpl_mx98360a_8825",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_max98360a_amp,
+		.sof_tplg_filename = "sof-rpl-max98360a-nau8825.tplg",
+	},
+	{
+		.id = "10508825",
 		.drv_name = "rpl_nau8318_8825",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rpl_nau8318_amp,
@@ -401,6 +427,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rpl_rt1019p_amp,
 		.sof_tplg_filename = "sof-rpl-rt1019-rt5682.tplg",
+	},
+	{
+		.comp_ids = &rpl_rt5682_hp,
+		.drv_name = "rpl_rt5682_c1_h02",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rpl_lt6911_hdmi,
+		.sof_tplg_filename = "sof-rpl-rt5682-ssp1-hdmi-ssp02.tplg",
 	},
 	{
 		.comp_ids = &rpl_essx_83x6,
@@ -451,6 +484,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_sdw_machines[] = {
 		.links = rpl_sdw_rt711_link0_rt1318_link12_rt714_link3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-rpl-rt711-l0-rt1318-l12-rt714-l3.tplg",
+	},
+	{
+		.link_mask = 0x7, /* rt711 on link0 & two rt1316s on link1 and link2 */
+		.links = rpl_sdw_rt711_link0_rt1316_link12,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-rpl-rt711-l0-rt1316-l12.tplg",
 	},
 	{
 		.link_mask = 0x7, /* rt711 on link0 & two rt1318s on link1 and link2 */

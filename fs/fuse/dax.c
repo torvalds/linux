@@ -1222,6 +1222,7 @@ void fuse_dax_conn_free(struct fuse_conn *fc)
 	if (fc->dax) {
 		fuse_free_dax_mem_ranges(&fc->dax->free_ranges);
 		kfree(fc->dax);
+		fc->dax = NULL;
 	}
 }
 

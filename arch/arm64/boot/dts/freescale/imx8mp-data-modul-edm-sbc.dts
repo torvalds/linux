@@ -362,6 +362,8 @@
 			};
 
 			buck2: BUCK2 {	/* VDD_ARM */
+				nxp,dvs-run-voltage = <950000>;
+				nxp,dvs-standby-voltage = <850000>;
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;

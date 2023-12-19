@@ -1231,7 +1231,7 @@ void *test_membarrier_worker_thread(void *arg)
 	}
 
 	/* Wait for initialization. */
-	while (!atomic_load(&args->percpu_list_ptr)) {}
+	while (!__atomic_load_n(&args->percpu_list_ptr, __ATOMIC_ACQUIRE)) {}
 
 	for (i = 0; i < iters; ++i) {
 		int ret;
@@ -1299,22 +1299,22 @@ void *test_membarrier_manager_thread(void *arg)
 	test_membarrier_init_percpu_list(&list_a);
 	test_membarrier_init_percpu_list(&list_b);
 
-	atomic_store(&args->percpu_list_ptr, (intptr_t)&list_a);
+	__atomic_store_n(&args->percpu_list_ptr, (intptr_t)&list_a, __ATOMIC_RELEASE);
 
-	while (!atomic_load(&args->stop)) {
+	while (!__atomic_load_n(&args->stop, __ATOMIC_ACQUIRE)) {
 		/* list_a is "active". */
 		cpu_a = rand() % CPU_SETSIZE;
 		/*
 		 * As list_b is "inactive", we should never see changes
 		 * to list_b.
 		 */
-		if (expect_b != atomic_load(&list_b.c[cpu_b].head->data)) {
+		if (expect_b != __atomic_load_n(&list_b.c[cpu_b].head->data, __ATOMIC_ACQUIRE)) {
 			fprintf(stderr, "Membarrier test failed\n");
 			abort();
 		}
 
 		/* Make list_b "active". */
-		atomic_store(&args->percpu_list_ptr, (intptr_t)&list_b);
+		__atomic_store_n(&args->percpu_list_ptr, (intptr_t)&list_b, __ATOMIC_RELEASE);
 		if (rseq_membarrier_expedited(cpu_a) &&
 				errno != ENXIO /* missing CPU */) {
 			perror("sys_membarrier");
@@ -1324,27 +1324,27 @@ void *test_membarrier_manager_thread(void *arg)
 		 * Cpu A should now only modify list_b, so the values
 		 * in list_a should be stable.
 		 */
-		expect_a = atomic_load(&list_a.c[cpu_a].head->data);
+		expect_a = __atomic_load_n(&list_a.c[cpu_a].head->data, __ATOMIC_ACQUIRE);
 
 		cpu_b = rand() % CPU_SETSIZE;
 		/*
 		 * As list_a is "inactive", we should never see changes
 		 * to list_a.
 		 */
-		if (expect_a != atomic_load(&list_a.c[cpu_a].head->data)) {
+		if (expect_a != __atomic_load_n(&list_a.c[cpu_a].head->data, __ATOMIC_ACQUIRE)) {
 			fprintf(stderr, "Membarrier test failed\n");
 			abort();
 		}
 
 		/* Make list_a "active". */
-		atomic_store(&args->percpu_list_ptr, (intptr_t)&list_a);
+		__atomic_store_n(&args->percpu_list_ptr, (intptr_t)&list_a, __ATOMIC_RELEASE);
 		if (rseq_membarrier_expedited(cpu_b) &&
 				errno != ENXIO /* missing CPU*/) {
 			perror("sys_membarrier");
 			abort();
 		}
 		/* Remember a value from list_b. */
-		expect_b = atomic_load(&list_b.c[cpu_b].head->data);
+		expect_b = __atomic_load_n(&list_b.c[cpu_b].head->data, __ATOMIC_ACQUIRE);
 	}
 
 	test_membarrier_free_percpu_list(&list_a);
@@ -1401,7 +1401,7 @@ void test_membarrier(void)
 		}
 	}
 
-	atomic_store(&thread_args.stop, 1);
+	__atomic_store_n(&thread_args.stop, 1, __ATOMIC_RELEASE);
 	ret = pthread_join(manager_thread, NULL);
 	if (ret) {
 		errno = ret;

@@ -278,7 +278,7 @@ struct ceph_osd_request {
 	int r_attempts;
 	u32 r_map_dne_bound;
 
-	struct ceph_osd_req_op r_ops[];
+	struct ceph_osd_req_op r_ops[] __counted_by(r_num_ops);
 };
 
 struct ceph_request_redirect {

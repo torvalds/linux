@@ -63,7 +63,9 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 		struct dc_state *new_ctx,
 		const struct resource_pool *pool,
 		const struct pipe_ctx *opp_head_pipe);
-
+void dcn20_release_pipe(struct dc_state *context,
+			struct pipe_ctx *pipe,
+			const struct resource_pool *pool);
 struct stream_encoder *dcn20_stream_encoder_create(
 	enum engine_id eng_id,
 	struct dc_context *ctx);

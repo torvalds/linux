@@ -226,7 +226,6 @@ static int do_feature_check_call(const u32 api_id)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
 
 /**
  * zynqmp_pm_feature() - Check whether given feature is supported or not and
@@ -246,6 +245,7 @@ int zynqmp_pm_feature(const u32 api_id)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(zynqmp_pm_feature);
 
 /**
  * zynqmp_pm_is_function_supported() - Check whether given IOCTL/QUERY function

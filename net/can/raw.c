@@ -493,8 +493,7 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 
 out_put_dev:
 	/* remove potential reference from dev_get_by_index() */
-	if (dev)
-		dev_put(dev);
+	dev_put(dev);
 out:
 	release_sock(sk);
 	rtnl_unlock();
@@ -881,7 +880,7 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 	}
 
 	skb->dev = dev;
-	skb->priority = sk->sk_priority;
+	skb->priority = READ_ONCE(sk->sk_priority);
 	skb->mark = READ_ONCE(sk->sk_mark);
 	skb->tstamp = sockc.transmit_time;
 

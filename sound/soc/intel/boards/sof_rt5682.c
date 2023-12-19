@@ -23,19 +23,15 @@
 #include "../../codecs/rt5682.h"
 #include "../../codecs/rt5682s.h"
 #include "../../codecs/rt5645.h"
-#include "../../codecs/hdac_hdmi.h"
 #include "../common/soc-intel-quirks.h"
-#include "hda_dsp_common.h"
+#include "sof_board_helpers.h"
 #include "sof_maxim_common.h"
 #include "sof_realtek_common.h"
-
-#define NAME_SIZE 32
+#include "sof_ssp_common.h"
 
 #define SOF_RT5682_SSP_CODEC(quirk)		((quirk) & GENMASK(2, 0))
 #define SOF_RT5682_SSP_CODEC_MASK			(GENMASK(2, 0))
 #define SOF_RT5682_MCLK_EN			BIT(3)
-#define SOF_RT5682_MCLK_24MHZ			BIT(4)
-#define SOF_SPEAKER_AMP_PRESENT		BIT(5)
 #define SOF_RT5682_SSP_AMP_SHIFT		6
 #define SOF_RT5682_SSP_AMP_MASK                 (GENMASK(8, 6))
 #define SOF_RT5682_SSP_AMP(quirk)	\
@@ -45,11 +41,6 @@
 #define SOF_RT5682_NUM_HDMIDEV_MASK		(GENMASK(12, 10))
 #define SOF_RT5682_NUM_HDMIDEV(quirk)	\
 	((quirk << SOF_RT5682_NUM_HDMIDEV_SHIFT) & SOF_RT5682_NUM_HDMIDEV_MASK)
-#define SOF_RT1011_SPEAKER_AMP_PRESENT		BIT(13)
-#define SOF_RT1015_SPEAKER_AMP_PRESENT		BIT(14)
-#define SOF_RT1015P_SPEAKER_AMP_PRESENT		BIT(16)
-#define SOF_MAX98373_SPEAKER_AMP_PRESENT	BIT(17)
-#define SOF_MAX98360A_SPEAKER_AMP_PRESENT	BIT(18)
 
 /* BT audio offload: reserve 3 bits for future */
 #define SOF_BT_OFFLOAD_SSP_SHIFT		19
@@ -57,10 +48,6 @@
 #define SOF_BT_OFFLOAD_SSP(quirk)	\
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(22)
-#define SOF_RT5682S_HEADPHONE_CODEC_PRESENT	BIT(23)
-#define SOF_MAX98390_SPEAKER_AMP_PRESENT	BIT(24)
-#define SOF_RT1019_SPEAKER_AMP_PRESENT	BIT(26)
-#define SOF_RT5650_HEADPHONE_CODEC_PRESENT	BIT(27)
 
 /* HDMI capture*/
 #define SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT  27
@@ -71,23 +58,6 @@
 /* Default: MCLK on, MCLK 19.2M, SSP0  */
 static unsigned long sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0);
-
-static int is_legacy_cpu;
-
-struct sof_hdmi_pcm {
-	struct list_head head;
-	struct snd_soc_dai *codec_dai;
-	struct snd_soc_jack hdmi_jack;
-	int device;
-};
-
-struct sof_card_private {
-	struct clk *mclk;
-	struct snd_soc_jack sof_headset;
-	struct list_head hdmi_pcm_list;
-	bool common_hdmi_codec_drv;
-	bool idisp_codec;
-};
 
 static int sof_rt5682_quirk_cb(const struct dmi_system_id *id)
 {
@@ -119,25 +89,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "WhiskeyLake Client"),
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(1)),
-	},
-	{
-		/*
-		 * Dooly is hatch family but using rt1015 amp so it
-		 * requires a quirk before "Google_Hatch".
-		 */
-		.callback = sof_rt5682_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Dooly"),
-		},
-		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
-					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1015_SPEAKER_AMP_PRESENT |
-					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.callback = sof_rt5682_quirk_cb,
@@ -145,9 +97,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Hatch"),
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
@@ -167,8 +117,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -181,8 +129,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -194,8 +140,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98390_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -207,8 +151,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -220,10 +162,22 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(2) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(0) |
-					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_RT5682_NUM_HDMIDEV(3) |
+					SOF_BT_OFFLOAD_SSP(1) |
+					SOF_SSP_BT_OFFLOAD_PRESENT
+					),
+	},
+	{
+		.callback = sof_rt5682_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Rex"),
+			DMI_MATCH(DMI_OEM_STRING, "AUDIO-MAX98360_ALC5682I_DISCRETE_I2S_BT"),
+		},
+		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(2) |
+					SOF_RT5682_SSP_AMP(0) |
+					SOF_RT5682_NUM_HDMIDEV(3) |
 					SOF_BT_OFFLOAD_SSP(1) |
 					SOF_SSP_BT_OFFLOAD_PRESENT
 					),
@@ -236,8 +190,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(2) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1019_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(0) |
 					SOF_RT5682_NUM_HDMIDEV(3)
 					),
@@ -249,34 +201,14 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		},
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(2) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(0) |
-					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_RT5682_NUM_HDMIDEV(3) |
 					SOF_BT_OFFLOAD_SSP(1) |
 					SOF_SSP_BT_OFFLOAD_PRESENT
 					),
 	},
 	{}
 };
-
-static int sof_hdmi_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = asoc_rtd_to_codec(rtd, 0);
-	struct sof_hdmi_pcm *pcm;
-
-	pcm = devm_kzalloc(rtd->card->dev, sizeof(*pcm), GFP_KERNEL);
-	if (!pcm)
-		return -ENOMEM;
-
-	/* dai_link id is 1:1 mapped to the PCM device */
-	pcm->device = rtd->dai_link->id;
-	pcm->codec_dai = dai;
-
-	list_add_tail(&pcm->head, &ctx->hdmi_pcm_list);
-
-	return 0;
-}
 
 static struct snd_soc_jack_pin jack_pins[] = {
 	{
@@ -292,54 +224,72 @@ static struct snd_soc_jack_pin jack_pins[] = {
 static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
-	struct snd_soc_jack *jack;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_jack *jack = &ctx->headset_jack;
 	int extra_jack_data;
-	int ret;
+	int ret, mclk_freq;
 
-	/* need to enable ASRC function for 24MHz mclk rate */
-	if ((sof_rt5682_quirk & SOF_RT5682_MCLK_EN) &&
-	    (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ)) {
-		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
-			rt5682s_sel_asrc_clk_src(component,
-						 RT5682S_DA_STEREO1_FILTER |
-						 RT5682S_AD_STEREO1_FILTER,
-						 RT5682S_CLK_SEL_I2S1_ASRC);
-		else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT) {
-			rt5645_sel_asrc_clk_src(component,
-						RT5645_DA_STEREO_FILTER |
-						RT5645_AD_STEREO_FILTER,
-						RT5645_CLK_SEL_I2S1_ASRC);
-			rt5645_sel_asrc_clk_src(component,
-						RT5645_DA_MONO_L_FILTER |
-						RT5645_DA_MONO_R_FILTER,
-						RT5645_CLK_SEL_I2S2_ASRC);
-		} else
-			rt5682_sel_asrc_clk_src(component,
-						RT5682_DA_STEREO1_FILTER |
-						RT5682_AD_STEREO1_FILTER,
-						RT5682_CLK_SEL_I2S1_ASRC);
-	}
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+		mclk_freq = sof_dai_get_mclk(rtd);
+		if (mclk_freq <= 0) {
+			dev_err(rtd->dev, "invalid mclk freq %d\n", mclk_freq);
+			return -EINVAL;
+		}
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
-		/*
-		 * The firmware might enable the clock at
-		 * boot (this information may or may not
-		 * be reflected in the enable clock register).
-		 * To change the rate we must disable the clock
-		 * first to cover these cases. Due to common
-		 * clock framework restrictions that do not allow
-		 * to disable a clock that has not been enabled,
-		 * we need to enable the clock first.
-		 */
-		ret = clk_prepare_enable(ctx->mclk);
-		if (!ret)
-			clk_disable_unprepare(ctx->mclk);
+		/* need to enable ASRC function for 24MHz mclk rate */
+		if (mclk_freq == 24000000) {
+			dev_info(rtd->dev, "enable ASRC\n");
 
-		ret = clk_set_rate(ctx->mclk, 19200000);
+			switch (ctx->codec_type) {
+			case CODEC_RT5650:
+				rt5645_sel_asrc_clk_src(component,
+							RT5645_DA_STEREO_FILTER |
+							RT5645_AD_STEREO_FILTER,
+							RT5645_CLK_SEL_I2S1_ASRC);
+				rt5645_sel_asrc_clk_src(component,
+							RT5645_DA_MONO_L_FILTER |
+							RT5645_DA_MONO_R_FILTER,
+							RT5645_CLK_SEL_I2S2_ASRC);
+				break;
+			case CODEC_RT5682:
+				rt5682_sel_asrc_clk_src(component,
+							RT5682_DA_STEREO1_FILTER |
+							RT5682_AD_STEREO1_FILTER,
+							RT5682_CLK_SEL_I2S1_ASRC);
+				break;
+			case CODEC_RT5682S:
+				rt5682s_sel_asrc_clk_src(component,
+							 RT5682S_DA_STEREO1_FILTER |
+							 RT5682S_AD_STEREO1_FILTER,
+							 RT5682S_CLK_SEL_I2S1_ASRC);
+				break;
+			default:
+				dev_err(rtd->dev, "invalid codec type %d\n",
+					ctx->codec_type);
+				return -EINVAL;
+			}
+		}
 
-		if (ret)
-			dev_err(rtd->dev, "unable to set MCLK rate\n");
+		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
+			/*
+			 * The firmware might enable the clock at
+			 * boot (this information may or may not
+			 * be reflected in the enable clock register).
+			 * To change the rate we must disable the clock
+			 * first to cover these cases. Due to common
+			 * clock framework restrictions that do not allow
+			 * to disable a clock that has not been enabled,
+			 * we need to enable the clock first.
+			 */
+			ret = clk_prepare_enable(ctx->rt5682.mclk);
+			if (!ret)
+				clk_disable_unprepare(ctx->rt5682.mclk);
+
+			ret = clk_set_rate(ctx->rt5682.mclk, 19200000);
+
+			if (ret)
+				dev_err(rtd->dev, "unable to set MCLK rate\n");
+		}
 	}
 
 	/*
@@ -350,7 +300,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 					 SND_JACK_HEADSET | SND_JACK_BTN_0 |
 					 SND_JACK_BTN_1 | SND_JACK_BTN_2 |
 					 SND_JACK_BTN_3,
-					 &ctx->sof_headset,
+					 jack,
 					 jack_pins,
 					 ARRAY_SIZE(jack_pins));
 	if (ret) {
@@ -358,14 +308,12 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	jack = &ctx->sof_headset;
-
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
 
-	if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT) {
+	if (ctx->codec_type == CODEC_RT5650) {
 		extra_jack_data = SND_JACK_MICROPHONE | SND_JACK_BTN_0;
 		ret = snd_soc_component_set_jack(component, jack, &extra_jack_data);
 	} else
@@ -381,7 +329,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 static void sof_rt5682_codec_exit(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 
 	snd_soc_component_set_jack(component, NULL, NULL);
 }
@@ -389,14 +337,14 @@ static void sof_rt5682_codec_exit(struct snd_soc_pcm_runtime *rtd)
 static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
-			ret = clk_prepare_enable(ctx->mclk);
+			ret = clk_prepare_enable(ctx->rt5682.mclk);
 			if (ret < 0) {
 				dev_err(rtd->dev,
 					"could not configure MCLK state");
@@ -404,55 +352,86 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			}
 		}
 
-		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
-			pll_source = RT5682S_PLL_S_MCLK;
-		else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT)
+		switch (ctx->codec_type) {
+		case CODEC_RT5650:
 			pll_source = RT5645_PLL1_S_MCLK;
-		else
+			break;
+		case CODEC_RT5682:
 			pll_source = RT5682_PLL1_S_MCLK;
+			break;
+		case CODEC_RT5682S:
+			pll_source = RT5682S_PLL_S_MCLK;
+			break;
+		default:
+			dev_err(rtd->dev, "invalid codec type %d\n",
+				ctx->codec_type);
+			return -EINVAL;
+		}
 
 		/* get the tplg configured mclk. */
 		pll_in = sof_dai_get_mclk(rtd);
-
-		/* mclk from the quirk is the first choice */
-		if (sof_rt5682_quirk & SOF_RT5682_MCLK_24MHZ) {
-			if (pll_in != 24000000)
-				dev_warn(rtd->dev, "configure wrong mclk in tplg, please use 24MHz.\n");
-			pll_in = 24000000;
-		} else if (pll_in == 0) {
-			/* use default mclk if not specified correct in topology */
-			pll_in = 19200000;
-		} else if (pll_in < 0) {
-			return pll_in;
+		if (pll_in <= 0) {
+			dev_err(rtd->dev, "invalid mclk freq %d\n", pll_in);
+			return -EINVAL;
 		}
 	} else {
-		if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT)
-			pll_source = RT5682S_PLL_S_BCLK1;
-		else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT)
+		switch (ctx->codec_type) {
+		case CODEC_RT5650:
 			pll_source = RT5645_PLL1_S_BCLK1;
-		else
+			break;
+		case CODEC_RT5682:
 			pll_source = RT5682_PLL1_S_BCLK1;
+			break;
+		case CODEC_RT5682S:
+			pll_source = RT5682S_PLL_S_BCLK1;
+			break;
+		default:
+			dev_err(rtd->dev, "invalid codec type %d\n",
+				ctx->codec_type);
+			return -EINVAL;
+		}
 
 		pll_in = params_rate(params) * 50;
 	}
 
-	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
-		pll_id = RT5682S_PLL2;
-		clk_id = RT5682S_SCLK_S_PLL2;
-	} else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT) {
+	switch (ctx->codec_type) {
+	case CODEC_RT5650:
 		pll_id = 0; /* not used in codec driver */
 		clk_id = RT5645_SCLK_S_PLL1;
-	} else {
+		break;
+	case CODEC_RT5682:
 		pll_id = RT5682_PLL1;
 		clk_id = RT5682_SCLK_S_PLL1;
+		break;
+	case CODEC_RT5682S:
+		pll_id = RT5682S_PLL2;
+		clk_id = RT5682S_SCLK_S_PLL2;
+		break;
+	default:
+		dev_err(rtd->dev, "invalid codec type %d\n", ctx->codec_type);
+		return -EINVAL;
 	}
 
 	pll_out = params_rate(params) * 512;
 
 	/* when MCLK is 512FS, no need to set PLL configuration additionally. */
-	if (pll_in == pll_out)
-		clk_id = RT5682S_SCLK_S_MCLK;
-	else {
+	if (pll_in == pll_out) {
+		switch (ctx->codec_type) {
+		case CODEC_RT5650:
+			clk_id = RT5645_SCLK_S_MCLK;
+			break;
+		case CODEC_RT5682:
+			clk_id = RT5682_SCLK_S_MCLK;
+			break;
+		case CODEC_RT5682S:
+			clk_id = RT5682S_SCLK_S_MCLK;
+			break;
+		default:
+			dev_err(rtd->dev, "invalid codec type %d\n",
+				ctx->codec_type);
+			return -EINVAL;
+		}
+	} else {
 		/* Configure pll for codec */
 		ret = snd_soc_dai_set_pll(codec_dai, pll_id, pll_source, pll_in,
 					  pll_out);
@@ -494,13 +473,10 @@ static struct snd_soc_dai_link_component platform_component[] = {
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_component *component = NULL;
 	struct snd_soc_dapm_context *dapm = &card->dapm;
-	char jack_name[NAME_SIZE];
-	struct sof_hdmi_pcm *pcm;
 	int err;
 
-	if (sof_rt5682_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+	if (ctx->amp_type == CODEC_MAX98373) {
 		/* Disable Left and Right Spk pin after boot */
 		snd_soc_dapm_disable_pin(dapm, "Left Spk");
 		snd_soc_dapm_disable_pin(dapm, "Right Spk");
@@ -509,37 +485,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 			return err;
 	}
 
-	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
-	if (is_legacy_cpu || !ctx->idisp_codec)
-		return 0;
-
-	if (list_empty(&ctx->hdmi_pcm_list))
-		return -EINVAL;
-
-	if (ctx->common_hdmi_codec_drv) {
-		pcm = list_first_entry(&ctx->hdmi_pcm_list, struct sof_hdmi_pcm,
-				       head);
-		component = pcm->codec_dai->component;
-		return hda_dsp_hdmi_build_controls(card, component);
-	}
-
-	list_for_each_entry(pcm, &ctx->hdmi_pcm_list, head) {
-		component = pcm->codec_dai->component;
-		snprintf(jack_name, sizeof(jack_name),
-			 "HDMI/DP, pcm=%d Jack", pcm->device);
-		err = snd_soc_card_jack_new(card, jack_name,
-					    SND_JACK_AVOUT, &pcm->hdmi_jack);
-
-		if (err)
-			return err;
-
-		err = hdac_hdmi_jack_init(pcm->codec_dai, pcm->device,
-					  &pcm->hdmi_jack);
-		if (err < 0)
-			return err;
-	}
-
-	return hdac_hdmi_jack_port_init(component, &card->dapm);
+	return sof_intel_board_card_late_probe(card);
 }
 
 static const struct snd_kcontrol_new sof_controls[] = {
@@ -557,10 +503,6 @@ static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
-static const struct snd_soc_dapm_widget dmic_widgets[] = {
-	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-};
-
 static const struct snd_soc_dapm_route sof_map[] = {
 	/* HP jack connectors - unknown if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
@@ -576,11 +518,6 @@ static const struct snd_soc_dapm_route rt5650_spk_dapm_routes[] = {
 	{ "Right Spk", NULL, "SPOR" },
 };
 
-static const struct snd_soc_dapm_route dmic_map[] = {
-	/* digital mics */
-	{"DMic", NULL, "SoC DMIC"},
-};
-
 static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -590,28 +527,6 @@ static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 				      ARRAY_SIZE(rt5650_spk_dapm_routes));
 	if (ret)
 		dev_err(rtd->dev, "fail to add dapm routes, ret=%d\n", ret);
-
-	return ret;
-}
-
-static int dmic_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(&card->dapm, dmic_widgets,
-					ARRAY_SIZE(dmic_widgets));
-	if (ret) {
-		dev_err(card->dev, "DMic widget addition failed: %d\n", ret);
-		/* Don't need to add routes if widget addition failed */
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, dmic_map,
-				      ARRAY_SIZE(dmic_map));
-
-	if (ret)
-		dev_err(card->dev, "DMic map addition failed: %d\n", ret);
 
 	return ret;
 }
@@ -655,26 +570,17 @@ static struct snd_soc_dai_link_component rt5650_components[] = {
 	}
 };
 
-static struct snd_soc_dai_link_component dmic_component[] = {
-	{
-		.name = "dmic-codec",
-		.dai_name = "dmic-hifi",
-	}
-};
-
-#define IDISP_CODEC_MASK	0x4
-
-static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
-							  int ssp_codec,
-							  int ssp_amp,
-							  int dmic_be_num,
-							  int hdmi_num,
-							  bool idisp_codec)
+static struct snd_soc_dai_link *
+sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec codec_type,
+			  enum sof_ssp_codec amp_type, int ssp_codec,
+			  int ssp_amp, int dmic_be_num, int hdmi_num,
+			  bool idisp_codec, bool is_legacy_cpu)
 {
-	struct snd_soc_dai_link_component *idisp_components;
 	struct snd_soc_dai_link_component *cpus;
 	struct snd_soc_dai_link *links;
-	int i, id = 0;
+	int i;
+	int id = 0;
+	int ret;
 	int hdmi_id_offset = 0;
 
 	links = devm_kcalloc(dev, sof_audio_card_rt5682.num_links,
@@ -691,16 +597,25 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		goto devm_err;
 
 	links[id].id = id;
-	if (sof_rt5682_quirk & SOF_RT5682S_HEADPHONE_CODEC_PRESENT) {
-		links[id].codecs = rt5682s_component;
-		links[id].num_codecs = ARRAY_SIZE(rt5682s_component);
-	} else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT) {
+
+	switch (codec_type) {
+	case CODEC_RT5650:
 		links[id].codecs = &rt5650_components[0];
 		links[id].num_codecs = 1;
-	} else {
+		break;
+	case CODEC_RT5682:
 		links[id].codecs = rt5682_component;
 		links[id].num_codecs = ARRAY_SIZE(rt5682_component);
+		break;
+	case CODEC_RT5682S:
+		links[id].codecs = rt5682s_component;
+		links[id].num_codecs = ARRAY_SIZE(rt5682s_component);
+		break;
+	default:
+		dev_err(dev, "invalid codec type %d\n", codec_type);
+		return NULL;
 	}
+
 	links[id].platforms = platform_component;
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
@@ -739,114 +654,83 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	/* dmic */
 	if (dmic_be_num > 0) {
 		/* at least we have dmic01 */
-		links[id].name = "dmic01";
-		links[id].cpus = &cpus[id];
-		links[id].cpus->dai_name = "DMIC01 Pin";
-		links[id].init = dmic_init;
-		if (dmic_be_num > 1) {
-			/* set up 2 BE links at most */
-			links[id + 1].name = "dmic16k";
-			links[id + 1].cpus = &cpus[id + 1];
-			links[id + 1].cpus->dai_name = "DMIC16k Pin";
-			dmic_be_num = 2;
-		}
+		ret = sof_intel_board_set_dmic_link(dev, &links[id], id,
+						    SOF_DMIC_01);
+		if (ret)
+			return NULL;
+
+		id++;
 	}
 
-	for (i = 0; i < dmic_be_num; i++) {
-		links[id].id = id;
-		links[id].num_cpus = 1;
-		links[id].codecs = dmic_component;
-		links[id].num_codecs = ARRAY_SIZE(dmic_component);
-		links[id].platforms = platform_component;
-		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].ignore_suspend = 1;
-		links[id].dpcm_capture = 1;
-		links[id].no_pcm = 1;
+	if (dmic_be_num > 1) {
+		/* set up 2 BE links at most */
+		ret = sof_intel_board_set_dmic_link(dev, &links[id], id,
+						    SOF_DMIC_16K);
+		if (ret)
+			return NULL;
+
 		id++;
 	}
 
 	/* HDMI */
-	if (hdmi_num > 0) {
-		idisp_components = devm_kcalloc(dev,
-				   hdmi_num,
-				   sizeof(struct snd_soc_dai_link_component),
-				   GFP_KERNEL);
-		if (!idisp_components)
-			goto devm_err;
-	}
 	for (i = 1; i <= hdmi_num; i++) {
-		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
-						"iDisp%d", i);
-		if (!links[id].name)
-			goto devm_err;
+		ret = sof_intel_board_set_intel_hdmi_link(dev, &links[id], id,
+							  i, idisp_codec);
+		if (ret)
+			return NULL;
 
-		links[id].id = id;
-		links[id].cpus = &cpus[id];
-		links[id].num_cpus = 1;
-		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							  "iDisp%d Pin", i);
-		if (!links[id].cpus->dai_name)
-			goto devm_err;
-
-		if (idisp_codec) {
-			idisp_components[i - 1].name = "ehdaudio0D2";
-			idisp_components[i - 1].dai_name = devm_kasprintf(dev,
-									  GFP_KERNEL,
-									  "intel-hdmi-hifi%d",
-									  i);
-			if (!idisp_components[i - 1].dai_name)
-				goto devm_err;
-		} else {
-			idisp_components[i - 1] = asoc_dummy_dlc;
-		}
-
-		links[id].codecs = &idisp_components[i - 1];
-		links[id].num_codecs = 1;
-		links[id].platforms = platform_component;
-		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].init = sof_hdmi_init;
-		links[id].dpcm_playback = 1;
-		links[id].no_pcm = 1;
 		id++;
 	}
 
 	/* speaker amp */
-	if (sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT) {
+	if (amp_type != CODEC_NONE) {
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL,
 						"SSP%d-Codec", ssp_amp);
 		if (!links[id].name)
 			goto devm_err;
 
 		links[id].id = id;
-		if (sof_rt5682_quirk & SOF_RT1015_SPEAKER_AMP_PRESENT) {
-			sof_rt1015_dai_link(&links[id]);
-		} else if (sof_rt5682_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT) {
-			sof_rt1015p_dai_link(&links[id]);
-		} else if (sof_rt5682_quirk & SOF_RT1019_SPEAKER_AMP_PRESENT) {
-			sof_rt1019p_dai_link(&links[id]);
-		} else if (sof_rt5682_quirk &
-				SOF_MAX98373_SPEAKER_AMP_PRESENT) {
+
+		switch (amp_type) {
+		case CODEC_MAX98357A:
+			max_98357a_dai_link(&links[id]);
+			break;
+		case CODEC_MAX98360A:
+			max_98360a_dai_link(&links[id]);
+			break;
+		case CODEC_MAX98373:
 			links[id].codecs = max_98373_components;
 			links[id].num_codecs = ARRAY_SIZE(max_98373_components);
 			links[id].init = max_98373_spk_codec_init;
 			links[id].ops = &max_98373_ops;
-		} else if (sof_rt5682_quirk &
-				SOF_MAX98360A_SPEAKER_AMP_PRESENT) {
-			max_98360a_dai_link(&links[id]);
-		} else if (sof_rt5682_quirk &
-				SOF_RT1011_SPEAKER_AMP_PRESENT) {
-			sof_rt1011_dai_link(&links[id]);
-		} else if (sof_rt5682_quirk &
-				SOF_MAX98390_SPEAKER_AMP_PRESENT) {
+			break;
+		case CODEC_MAX98390:
 			max_98390_dai_link(dev, &links[id]);
-		} else if (sof_rt5682_quirk & SOF_RT5650_HEADPHONE_CODEC_PRESENT) {
+			break;
+		case CODEC_RT1011:
+			sof_rt1011_dai_link(&links[id]);
+			break;
+		case CODEC_RT1015:
+			sof_rt1015_dai_link(&links[id]);
+			break;
+		case CODEC_RT1015P:
+			sof_rt1015p_dai_link(&links[id]);
+			break;
+		case CODEC_RT1019P:
+			sof_rt1019p_dai_link(&links[id]);
+			break;
+		case CODEC_RT5650:
+			/* use AIF2 to support speaker pipeline */
 			links[id].codecs = &rt5650_components[1];
 			links[id].num_codecs = 1;
 			links[id].init = rt5650_spk_init;
 			links[id].ops = &sof_rt5682_ops;
-		} else {
-			max_98357a_dai_link(&links[id]);
+			break;
+		default:
+			dev_err(dev, "invalid amp type %d\n", amp_type);
+			return NULL;
 		}
+
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].dpcm_playback = 1;
@@ -887,7 +771,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
 		if (!links[id].name)
 			goto devm_err;
-		links[id].codecs = &asoc_dummy_dlc;
+		links[id].codecs = &snd_soc_dummy_dlc;
 		links[id].num_codecs = 1;
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
@@ -914,7 +798,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 			if (!links[id].name)
 				return NULL;
 			links[id].id = id + hdmi_id_offset;
-			links[id].codecs = &asoc_dummy_dlc;
+			links[id].codecs = &snd_soc_dummy_dlc;
 			links[id].num_codecs = 1;
 			links[id].platforms = platform_component;
 			links[id].num_platforms = ARRAY_SIZE(platform_component);
@@ -932,10 +816,9 @@ devm_err:
 
 static int sof_audio_probe(struct platform_device *pdev)
 {
+	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct snd_soc_dai_link *dai_links;
-	struct snd_soc_acpi_mach *mach;
 	struct sof_card_private *ctx;
-	int dmic_be_num, hdmi_num;
 	int ret, ssp_amp, ssp_codec;
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
@@ -947,49 +830,44 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 	dmi_check_system(sof_rt5682_quirk_table);
 
-	mach = pdev->dev.platform_data;
+	ctx->codec_type = sof_ssp_detect_codec_type(&pdev->dev);
+	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
 
-	/* A speaker amp might not be present when the quirk claims one is.
-	 * Detect this via whether the machine driver match includes quirk_data.
-	 */
-	if ((sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT) && !mach->quirk_data)
-		sof_rt5682_quirk &= ~SOF_SPEAKER_AMP_PRESENT;
-
-	/* Detect the headset codec variant */
-	if (acpi_dev_present("RTL5682", NULL, -1))
-		sof_rt5682_quirk |= SOF_RT5682S_HEADPHONE_CODEC_PRESENT;
-	else if (acpi_dev_present("10EC5650", NULL, -1)) {
-		sof_rt5682_quirk |= SOF_RT5650_HEADPHONE_CODEC_PRESENT;
-
+	if (ctx->codec_type == CODEC_RT5650) {
 		sof_audio_card_rt5682.name = devm_kstrdup(&pdev->dev, "rt5650",
 							  GFP_KERNEL);
+
+		/* create speaker dai link also */
+		if (ctx->amp_type == CODEC_NONE)
+			ctx->amp_type = CODEC_RT5650;
 	}
 
 	if (soc_intel_is_byt() || soc_intel_is_cht()) {
-		is_legacy_cpu = 1;
-		dmic_be_num = 0;
-		hdmi_num = 0;
+		ctx->rt5682.is_legacy_cpu = true;
+		ctx->dmic_be_num = 0;
+		/* HDMI is not supported by SOF on Baytrail/CherryTrail */
+		ctx->hdmi_num = 0;
 		/* default quirk for legacy cpu */
 		sof_rt5682_quirk = SOF_RT5682_MCLK_EN |
 						SOF_RT5682_MCLK_BYTCHT_EN |
 						SOF_RT5682_SSP_CODEC(2);
 	} else {
-		dmic_be_num = 2;
-		hdmi_num = (sof_rt5682_quirk & SOF_RT5682_NUM_HDMIDEV_MASK) >>
+		ctx->dmic_be_num = 2;
+		ctx->hdmi_num = (sof_rt5682_quirk & SOF_RT5682_NUM_HDMIDEV_MASK) >>
 			 SOF_RT5682_NUM_HDMIDEV_SHIFT;
 		/* default number of HDMI DAI's */
-		if (!hdmi_num)
-			hdmi_num = 3;
+		if (!ctx->hdmi_num)
+			ctx->hdmi_num = 3;
 
 		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
-			ctx->idisp_codec = true;
+			ctx->hdmi.idisp_codec = true;
 	}
 
 	/* need to get main clock from pmc */
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
-		ctx->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
-		if (IS_ERR(ctx->mclk)) {
-			ret = PTR_ERR(ctx->mclk);
+		ctx->rt5682.mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
+		if (IS_ERR(ctx->rt5682.mclk)) {
+			ret = PTR_ERR(ctx->rt5682.mclk);
 
 			dev_err(&pdev->dev,
 				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
@@ -997,7 +875,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		ret = clk_prepare_enable(ctx->mclk);
+		ret = clk_prepare_enable(ctx->rt5682.mclk);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"could not configure MCLK state");
@@ -1013,20 +891,10 @@ static int sof_audio_probe(struct platform_device *pdev)
 	ssp_codec = sof_rt5682_quirk & SOF_RT5682_SSP_CODEC_MASK;
 
 	/* compute number of dai links */
-	sof_audio_card_rt5682.num_links = 1 + dmic_be_num + hdmi_num;
+	sof_audio_card_rt5682.num_links = 1 + ctx->dmic_be_num + ctx->hdmi_num;
 
-	if (sof_rt5682_quirk & SOF_SPEAKER_AMP_PRESENT)
+	if (ctx->amp_type != CODEC_NONE)
 		sof_audio_card_rt5682.num_links++;
-
-	if (sof_rt5682_quirk & SOF_MAX98373_SPEAKER_AMP_PRESENT)
-		max_98373_set_codec_conf(&sof_audio_card_rt5682);
-	else if (sof_rt5682_quirk & SOF_RT1011_SPEAKER_AMP_PRESENT)
-		sof_rt1011_codec_conf(&sof_audio_card_rt5682);
-	else if (sof_rt5682_quirk & SOF_RT1015P_SPEAKER_AMP_PRESENT)
-		sof_rt1015p_codec_conf(&sof_audio_card_rt5682);
-	else if (sof_rt5682_quirk & SOF_MAX98390_SPEAKER_AMP_PRESENT) {
-		max_98390_set_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
-	}
 
 	if (sof_rt5682_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		sof_audio_card_rt5682.num_links++;
@@ -1036,17 +904,44 @@ static int sof_audio_probe(struct platform_device *pdev)
 			hweight32((sof_rt5682_quirk & SOF_SSP_HDMI_CAPTURE_PRESENT_MASK) >>
 					SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT);
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, ssp_codec, ssp_amp,
-					      dmic_be_num, hdmi_num, ctx->idisp_codec);
+	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->codec_type,
+					      ctx->amp_type, ssp_codec, ssp_amp,
+					      ctx->dmic_be_num, ctx->hdmi_num,
+					      ctx->hdmi.idisp_codec,
+					      ctx->rt5682.is_legacy_cpu);
 	if (!dai_links)
 		return -ENOMEM;
 
 	sof_audio_card_rt5682.dai_link = dai_links;
 
-	if (sof_rt5682_quirk & SOF_RT1015_SPEAKER_AMP_PRESENT)
+	/* update codec_conf */
+	switch (ctx->amp_type) {
+	case CODEC_MAX98373:
+		max_98373_set_codec_conf(&sof_audio_card_rt5682);
+		break;
+	case CODEC_MAX98390:
+		max_98390_set_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
+		break;
+	case CODEC_RT1011:
+		sof_rt1011_codec_conf(&sof_audio_card_rt5682);
+		break;
+	case CODEC_RT1015:
 		sof_rt1015_codec_conf(&sof_audio_card_rt5682);
-
-	INIT_LIST_HEAD(&ctx->hdmi_pcm_list);
+		break;
+	case CODEC_RT1015P:
+		sof_rt1015p_codec_conf(&sof_audio_card_rt5682);
+		break;
+	case CODEC_NONE:
+	case CODEC_MAX98357A:
+	case CODEC_MAX98360A:
+	case CODEC_RT1019P:
+	case CODEC_RT5650:
+		/* no codec conf required */
+		break;
+	default:
+		dev_err(&pdev->dev, "invalid amp type %d\n", ctx->amp_type);
+		return -EINVAL;
+	}
 
 	sof_audio_card_rt5682.dev = &pdev->dev;
 
@@ -1055,8 +950,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 						    mach->mach_params.platform);
 	if (ret)
 		return ret;
-
-	ctx->common_hdmi_codec_drv = mach->mach_params.common_hdmi_codec_drv;
 
 	snd_soc_card_set_drvdata(&sof_audio_card_rt5682, ctx);
 
@@ -1071,50 +964,42 @@ static const struct platform_device_id board_ids[] = {
 	{
 		.name = "cml_rt1015_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1015_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.name = "jsl_rt5682_rt1015",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1015_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.name = "jsl_rt5682_mx98360",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.name = "jsl_rt5682_rt1015p",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1015P_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.name = "jsl_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
 					SOF_RT5682_SSP_CODEC(0)),
+	},
+	{
+		.name = "jsl_rt5650",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_RT5682_SSP_AMP(1)),
 	},
 	{
 		.name = "tgl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1124,8 +1009,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "tgl_rt1011_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1011_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1135,8 +1018,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "tgl_mx98373_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1146,8 +1027,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_mx98373_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98373_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1157,7 +1036,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -1165,8 +1043,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_max98390_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98390_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1176,8 +1052,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_mx98360_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1195,8 +1069,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_rt1019_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1019_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1211,10 +1083,18 @@ static const struct platform_device_id board_ids[] = {
 					SOF_HDMI_CAPTURE_SSP_MASK(0x5)),
 	},
 	{
+		.name = "adl_rt5650",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(0) |
+					SOF_RT5682_SSP_AMP(1) |
+					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_BT_OFFLOAD_SSP(2) |
+					SOF_SSP_BT_OFFLOAD_PRESENT),
+	},
+	{
 		.name = "rpl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(2) |
 					SOF_RT5682_NUM_HDMIDEV(4)),
 	},
@@ -1222,8 +1102,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rpl_mx98360_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
@@ -1233,20 +1111,25 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rpl_rt1019_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1019_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
 					SOF_RT5682_NUM_HDMIDEV(4) |
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
 	{
+		.name = "rpl_rt5682_c1_h02",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_RT5682_SSP_CODEC(1) |
+					SOF_RT5682_NUM_HDMIDEV(3) |
+					/* SSP 0 and SSP 2 are used for HDMI IN */
+					SOF_HDMI_CAPTURE_SSP_MASK(0x5)),
+	},
+	{
 		.name = "mtl_mx98357_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
-					SOF_RT5682_NUM_HDMIDEV(4) |
+					SOF_RT5682_NUM_HDMIDEV(3) |
 					SOF_BT_OFFLOAD_SSP(2) |
 					SOF_SSP_BT_OFFLOAD_PRESENT),
 	},
@@ -1254,27 +1137,15 @@ static const struct platform_device_id board_ids[] = {
 		.name = "mtl_mx98360_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_MAX98360A_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(1) |
-					SOF_RT5682_NUM_HDMIDEV(4)),
+					SOF_RT5682_NUM_HDMIDEV(3)),
 	},
 	{
 		.name = "mtl_rt1019_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_RT5682_SSP_CODEC(2) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT1019_SPEAKER_AMP_PRESENT |
 					SOF_RT5682_SSP_AMP(0) |
 					SOF_RT5682_NUM_HDMIDEV(3)),
-	},
-	{
-		.name = "jsl_rt5650",
-		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
-					SOF_RT5682_MCLK_24MHZ |
-					SOF_RT5682_SSP_CODEC(0) |
-					SOF_SPEAKER_AMP_PRESENT |
-					SOF_RT5682_SSP_AMP(1)),
 	},
 	{ }
 };
@@ -1297,6 +1168,7 @@ MODULE_AUTHOR("Sathya Prakash M R <sathya.prakash.m.r@intel.com>");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_AUTHOR("Mac Chiang <mac.chiang@intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_MAXIM_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);

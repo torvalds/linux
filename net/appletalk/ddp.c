@@ -1284,39 +1284,6 @@ out:
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_IPDDP)
-static __inline__ int is_ip_over_ddp(struct sk_buff *skb)
-{
-	return skb->data[12] == 22;
-}
-
-static int handle_ip_over_ddp(struct sk_buff *skb)
-{
-	struct net_device *dev = __dev_get_by_name(&init_net, "ipddp0");
-	struct net_device_stats *stats;
-
-	/* This needs to be able to handle ipddp"N" devices */
-	if (!dev) {
-		kfree_skb(skb);
-		return NET_RX_DROP;
-	}
-
-	skb->protocol = htons(ETH_P_IP);
-	skb_pull(skb, 13);
-	skb->dev   = dev;
-	skb_reset_transport_header(skb);
-
-	stats = netdev_priv(dev);
-	stats->rx_packets++;
-	stats->rx_bytes += skb->len + 13;
-	return netif_rx(skb);  /* Send the SKB up to a higher place. */
-}
-#else
-/* make it easy for gcc to optimize this test out, i.e. kill the code */
-#define is_ip_over_ddp(skb) 0
-#define handle_ip_over_ddp(skb) 0
-#endif
-
 static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 			      struct ddpehdr *ddp, __u16 len_hops, int origlen)
 {
@@ -1480,9 +1447,6 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		return atalk_route_packet(skb, dev, ddp, len_hops, origlen);
 	}
 
-	/* if IP over DDP is not selected this code will be optimized out */
-	if (is_ip_over_ddp(skb))
-		return handle_ip_over_ddp(skb);
 	/*
 	 * Which socket - atalk_search_socket() looks for a *full match*
 	 * of the <net, node, port> tuple.
@@ -1811,15 +1775,14 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case TIOCINQ: {
-		/*
-		 * These two are safe on a single CPU system as only
-		 * user tasks fiddle here
-		 */
-		struct sk_buff *skb = skb_peek(&sk->sk_receive_queue);
+		struct sk_buff *skb;
 		long amount = 0;
 
+		spin_lock_irq(&sk->sk_receive_queue.lock);
+		skb = skb_peek(&sk->sk_receive_queue);
 		if (skb)
 			amount = skb->len - sizeof(struct ddpehdr);
+		spin_unlock_irq(&sk->sk_receive_queue.lock);
 		rc = put_user(amount, (int __user *)argp);
 		break;
 	}

@@ -278,9 +278,6 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 			 size_t extra_size)
 {
 	int err;
-#ifdef CONFIG_SND_DEBUG
-	char name[8];
-#endif
 
 	if (extra_size > 0)
 		card->private_data = (char *)card + sizeof(struct snd_card);
@@ -364,8 +361,8 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 	}
 
 #ifdef CONFIG_SND_DEBUG
-	sprintf(name, "card%d", idx);
-	card->debugfs_root = debugfs_create_dir(name, sound_debugfs_root);
+	card->debugfs_root = debugfs_create_dir(dev_name(&card->card_dev),
+						sound_debugfs_root);
 #endif
 	return 0;
 

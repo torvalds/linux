@@ -1198,7 +1198,7 @@ static struct inode *sel_make_inode(struct super_block *sb, umode_t mode)
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_atime = ret->i_mtime = inode_set_ctime_current(ret);
+		simple_inode_init_ts(ret);
 	}
 	return ret;
 }

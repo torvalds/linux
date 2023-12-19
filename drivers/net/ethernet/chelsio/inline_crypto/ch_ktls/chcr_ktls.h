@@ -67,8 +67,7 @@ struct chcr_ktls_info {
 	bool pending_close;
 };
 
-struct chcr_ktls_ofld_ctx_tx {
-	struct tls_offload_context_tx base;
+struct chcr_ktls_ctx_tx {
 	struct chcr_ktls_info *chcr_info;
 };
 
@@ -79,14 +78,33 @@ struct chcr_ktls_uld_ctx {
 	bool detach;
 };
 
-static inline struct chcr_ktls_ofld_ctx_tx *
-chcr_get_ktls_tx_context(struct tls_context *tls_ctx)
+static inline struct chcr_ktls_info *
+__chcr_get_ktls_tx_info(struct tls_offload_context_tx *octx)
 {
-	BUILD_BUG_ON(sizeof(struct chcr_ktls_ofld_ctx_tx) >
-		     TLS_OFFLOAD_CONTEXT_SIZE_TX);
-	return container_of(tls_offload_ctx_tx(tls_ctx),
-			    struct chcr_ktls_ofld_ctx_tx,
-			    base);
+	struct chcr_ktls_ctx_tx *priv_ctx;
+
+	BUILD_BUG_ON(sizeof(struct chcr_ktls_ctx_tx) > TLS_DRIVER_STATE_SIZE_TX);
+	priv_ctx = (struct chcr_ktls_ctx_tx *)octx->driver_state;
+	return priv_ctx->chcr_info;
+}
+
+static inline struct chcr_ktls_info *
+chcr_get_ktls_tx_info(struct tls_context *tls_ctx)
+{
+	struct chcr_ktls_ctx_tx *priv_ctx;
+
+	BUILD_BUG_ON(sizeof(struct chcr_ktls_ctx_tx) > TLS_DRIVER_STATE_SIZE_TX);
+	priv_ctx = (struct chcr_ktls_ctx_tx *)__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
+	return priv_ctx->chcr_info;
+}
+
+static inline void
+chcr_set_ktls_tx_info(struct tls_context *tls_ctx, struct chcr_ktls_info *chcr_info)
+{
+	struct chcr_ktls_ctx_tx *priv_ctx;
+
+	priv_ctx = __tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
+	priv_ctx->chcr_info = chcr_info;
 }
 
 static inline int chcr_get_first_rx_qid(struct adapter *adap)

@@ -635,7 +635,7 @@ ibus_chan_fail:
 	return ret;
 }
 
-static int da9150_charger_remove(struct platform_device *pdev)
+static void da9150_charger_remove(struct platform_device *pdev)
 {
 	struct da9150_charger *charger = platform_get_drvdata(pdev);
 	int irq;
@@ -665,8 +665,6 @@ static int da9150_charger_remove(struct platform_device *pdev)
 	iio_channel_release(charger->vbus_chan);
 	iio_channel_release(charger->tjunc_chan);
 	iio_channel_release(charger->vbat_chan);
-
-	return 0;
 }
 
 static struct platform_driver da9150_charger_driver = {
@@ -674,7 +672,7 @@ static struct platform_driver da9150_charger_driver = {
 		.name = "da9150-charger",
 	},
 	.probe = da9150_charger_probe,
-	.remove = da9150_charger_remove,
+	.remove_new = da9150_charger_remove,
 };
 
 module_platform_driver(da9150_charger_driver);

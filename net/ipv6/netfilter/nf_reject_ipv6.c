@@ -413,3 +413,4 @@ void nf_send_unreach6(struct net *net, struct sk_buff *skb_in,
 EXPORT_SYMBOL_GPL(nf_send_unreach6);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IPv6 packet rejection core");

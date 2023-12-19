@@ -728,20 +728,13 @@ static int ath10k_peer_create(struct ath10k *ar,
 			      const u8 *addr,
 			      enum wmi_peer_type peer_type)
 {
-	struct ath10k_vif *arvif;
 	struct ath10k_peer *peer;
-	int num_peers = 0;
 	int ret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
-	num_peers = ar->num_peers;
-
-	/* Each vdev consumes a peer entry as well */
-	list_for_each_entry(arvif, &ar->arvifs, list)
-		num_peers++;
-
-	if (num_peers >= ar->max_num_peers)
+	/* Each vdev consumes a peer entry as well. */
+	if (ar->num_peers + list_count_nodes(&ar->arvifs) >= ar->max_num_peers)
 		return -ENOBUFS;
 
 	ret = ath10k_wmi_peer_create(ar, vdev_id, addr, peer_type);
@@ -4503,18 +4496,21 @@ void __ath10k_scan_finish(struct ath10k *ar)
 		break;
 	case ATH10K_SCAN_RUNNING:
 	case ATH10K_SCAN_ABORTING:
+		if (ar->scan.is_roc && ar->scan.roc_notify)
+			ieee80211_remain_on_channel_expired(ar->hw);
+		fallthrough;
+	case ATH10K_SCAN_STARTING:
 		if (!ar->scan.is_roc) {
 			struct cfg80211_scan_info info = {
-				.aborted = (ar->scan.state ==
-					    ATH10K_SCAN_ABORTING),
+				.aborted = ((ar->scan.state ==
+					    ATH10K_SCAN_ABORTING) ||
+					    (ar->scan.state ==
+					    ATH10K_SCAN_STARTING)),
 			};
 
 			ieee80211_scan_completed(ar->hw, &info);
-		} else if (ar->scan.roc_notify) {
-			ieee80211_remain_on_channel_expired(ar->hw);
 		}
-		fallthrough;
-	case ATH10K_SCAN_STARTING:
+
 		ar->scan.state = ATH10K_SCAN_IDLE;
 		ar->scan_channel = NULL;
 		ar->scan.roc_freq = 0;

@@ -609,7 +609,7 @@ int pidfd_create(struct pid *pid, unsigned int flags)
 }
 
 /**
- * pidfd_open() - Open new pid file descriptor.
+ * sys_pidfd_open() - Open new pid file descriptor.
  *
  * @pid:   pid for which to retrieve a pidfd
  * @flags: flags to pass

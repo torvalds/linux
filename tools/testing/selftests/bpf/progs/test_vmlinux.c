@@ -16,12 +16,12 @@ bool kprobe_called = false;
 bool fentry_called = false;
 
 SEC("tp/syscalls/sys_enter_nanosleep")
-int handle__tp(struct trace_event_raw_sys_enter *args)
+int handle__tp(struct syscall_trace_enter *args)
 {
 	struct __kernel_timespec *ts;
 	long tv_nsec;
 
-	if (args->id != __NR_nanosleep)
+	if (args->nr != __NR_nanosleep)
 		return 0;
 
 	ts = (void *)args->args[0];

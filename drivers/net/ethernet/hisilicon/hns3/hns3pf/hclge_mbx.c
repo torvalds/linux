@@ -124,7 +124,7 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
-static int hclge_inform_vf_reset(struct hclge_vport *vport, u16 reset_type)
+int hclge_inform_vf_reset(struct hclge_vport *vport, u16 reset_type)
 {
 	__le16 msg_data;
 	u8 dest_vfid;

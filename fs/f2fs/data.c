@@ -1690,9 +1690,7 @@ next_block:
 			map->m_flags |= F2FS_MAP_NEW;
 	} else if (is_hole) {
 		if (f2fs_compressed_file(inode) &&
-		    f2fs_sanity_check_cluster(&dn) &&
-		    (flag != F2FS_GET_BLOCK_FIEMAP ||
-		     IS_ENABLED(CONFIG_F2FS_CHECK_FS))) {
+		    f2fs_sanity_check_cluster(&dn)) {
 			err = -EFSCORRUPTED;
 			f2fs_handle_error(sbi,
 					ERROR_CORRUPTED_CLUSTER);
@@ -2344,8 +2342,10 @@ skip_reading_dnode:
 		f2fs_wait_on_block_writeback(inode, blkaddr);
 
 		if (f2fs_load_compressed_page(sbi, page, blkaddr)) {
-			if (atomic_dec_and_test(&dic->remaining_pages))
+			if (atomic_dec_and_test(&dic->remaining_pages)) {
 				f2fs_decompress_cluster(dic, true);
+				break;
+			}
 			continue;
 		}
 
@@ -2664,6 +2664,11 @@ bool f2fs_should_update_outplace(struct inode *inode, struct f2fs_io_info *fio)
 	if (IS_NOQUOTA(inode))
 		return true;
 	if (f2fs_is_atomic_file(inode))
+		return true;
+	/* rewrite low ratio compress data w/ OPU mode to avoid fragmentation */
+	if (f2fs_compressed_file(inode) &&
+		F2FS_OPTION(sbi).compress_mode == COMPR_MODE_USER &&
+		is_inode_flag_set(inode, FI_ENABLE_COMPRESS))
 		return true;
 
 	/* swap file is migrating in aligned write mode */
@@ -3023,7 +3028,8 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
 {
 	int ret = 0;
 	int done = 0, retry = 0;
-	struct page *pages[F2FS_ONSTACK_PAGES];
+	struct page *pages_local[F2FS_ONSTACK_PAGES];
+	struct page **pages = pages_local;
 	struct folio_batch fbatch;
 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
 	struct bio *bio = NULL;
@@ -3047,6 +3053,7 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
 #endif
 	int nr_folios, p, idx;
 	int nr_pages;
+	unsigned int max_pages = F2FS_ONSTACK_PAGES;
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	pgoff_t done_index;
@@ -3055,6 +3062,15 @@ static int f2fs_write_cache_pages(struct address_space *mapping,
 	int nwritten = 0;
 	int submitted = 0;
 	int i;
+
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	if (f2fs_compressed_file(inode) &&
+		1 << cc.log_cluster_size > F2FS_ONSTACK_PAGES) {
+		pages = f2fs_kzalloc(sbi, sizeof(struct page *) <<
+				cc.log_cluster_size, GFP_NOFS | __GFP_NOFAIL);
+		max_pages = 1 << cc.log_cluster_size;
+	}
+#endif
 
 	folio_batch_init(&fbatch);
 
@@ -3101,7 +3117,7 @@ again:
 add_more:
 			pages[nr_pages] = folio_page(folio, idx);
 			folio_get(folio);
-			if (++nr_pages == F2FS_ONSTACK_PAGES) {
+			if (++nr_pages == max_pages) {
 				index = folio->index + idx + 1;
 				folio_batch_release(&fbatch);
 				goto write;
@@ -3282,6 +3298,11 @@ next:
 	/* submit cached bio of IPU write */
 	if (bio)
 		f2fs_submit_merged_ipu_write(sbi, &bio, NULL);
+
+#ifdef CONFIG_F2FS_FS_COMPRESSION
+	if (pages != pages_local)
+		kfree(pages);
+#endif
 
 	return ret;
 }
@@ -4055,7 +4076,7 @@ next:
 	sis->highest_bit = cur_lblock - 1;
 out:
 	if (not_aligned)
-		f2fs_warn(sbi, "Swapfile (%u) is not align to section: 1) creat(), 2) ioctl(F2FS_IOC_SET_PIN_FILE), 3) fallocate(%u * N)",
+		f2fs_warn(sbi, "Swapfile (%u) is not align to section: 1) creat(), 2) ioctl(F2FS_IOC_SET_PIN_FILE), 3) fallocate(%lu * N)",
 			  not_aligned, blks_per_sec * F2FS_BLKSIZE);
 	return ret;
 }

@@ -555,7 +555,7 @@ out:
 	node_states[N_MEMORY] = saved_node_state;
 }
 
-static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+void __meminit __init_single_page(struct page *page, unsigned long pfn,
 				unsigned long zone, int nid)
 {
 	mm_zero_struct_page(page);
@@ -1871,8 +1871,6 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 		pg_data_t *pgdat;
 
 		if (!node_online(nid)) {
-			pr_info("Initializing node %d as memoryless\n", nid);
-
 			/* Allocator not initialized yet */
 			pgdat = arch_alloc_nodedata(nid);
 			if (!pgdat)

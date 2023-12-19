@@ -1063,7 +1063,7 @@
 				 <&cpg CPG_MOD 1020>, <&cpg CPG_MOD 1021>,
 				 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
 				 <&audio_clk_a>, <&audio_clk_b>,
-				 <&cpg CPG_CORE R8A77995_CLK_ZA2>;
+				 <&cpg CPG_MOD 922>;
 			clock-names = "ssi-all",
 				      "ssi.4", "ssi.3",
 				      "src.6", "src.5",

@@ -15,6 +15,7 @@ struct io_buffer_list {
 			struct page **buf_pages;
 			struct io_uring_buf_ring *buf_ring;
 		};
+		struct rcu_head rcu;
 	};
 	__u16 bgid;
 
@@ -28,6 +29,8 @@ struct io_buffer_list {
 	__u8 is_mapped;
 	/* ring mapped provided buffers, but mmap'ed by application */
 	__u8 is_mmap;
+	/* bl is visible from an RCU point of view for lookup */
+	__u8 is_ready;
 };
 
 struct io_buffer {
@@ -51,13 +54,15 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags);
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 
+void io_kbuf_mmap_list_free(struct io_ring_ctx *ctx);
+
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 
-void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
+bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
 void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid);
 
-static inline void io_kbuf_recycle_ring(struct io_kiocb *req)
+static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 {
 	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
@@ -80,8 +85,10 @@ static inline void io_kbuf_recycle_ring(struct io_kiocb *req)
 		} else {
 			req->buf_index = req->buf_list->bgid;
 			req->flags &= ~REQ_F_BUFFER_RING;
+			return true;
 		}
 	}
+	return false;
 }
 
 static inline bool io_do_buffer_select(struct io_kiocb *req)
@@ -91,12 +98,13 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
 }
 
-static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
+static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 {
 	if (req->flags & REQ_F_BUFFER_SELECTED)
-		io_kbuf_recycle_legacy(req, issue_flags);
+		return io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)
-		io_kbuf_recycle_ring(req);
+		return io_kbuf_recycle_ring(req);
+	return false;
 }
 
 static inline unsigned int __io_put_kbuf_list(struct io_kiocb *req,

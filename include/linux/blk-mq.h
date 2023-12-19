@@ -32,8 +32,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_FLUSH_SEQ		((__force req_flags_t)(1 << 4))
 /* merge of different types, fail separately */
 #define RQF_MIXED_MERGE		((__force req_flags_t)(1 << 5))
-/* track inflight for MQ */
-#define RQF_MQ_INFLIGHT		((__force req_flags_t)(1 << 6))
 /* don't call prep for this one */
 #define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
 /* use hctx->sched_tags */

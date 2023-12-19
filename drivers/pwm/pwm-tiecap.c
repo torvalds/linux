@@ -205,7 +205,6 @@ static int ecap_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops ecap_pwm_ops = {
 	.apply = ecap_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id ecap_of_match[] = {

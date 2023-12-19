@@ -258,7 +258,7 @@ static unsigned long bbr_bw_to_pacing_rate(struct sock *sk, u32 bw, int gain)
 	u64 rate = bw;
 
 	rate = bbr_rate_bytes_per_sec(sk, rate, gain);
-	rate = min_t(u64, rate, sk->sk_max_pacing_rate);
+	rate = min_t(u64, rate, READ_ONCE(sk->sk_max_pacing_rate));
 	return rate;
 }
 
@@ -278,7 +278,8 @@ static void bbr_init_pacing_rate_from_rtt(struct sock *sk)
 	}
 	bw = (u64)tcp_snd_cwnd(tp) * BW_UNIT;
 	do_div(bw, rtt_us);
-	sk->sk_pacing_rate = bbr_bw_to_pacing_rate(sk, bw, bbr_high_gain);
+	WRITE_ONCE(sk->sk_pacing_rate,
+		   bbr_bw_to_pacing_rate(sk, bw, bbr_high_gain));
 }
 
 /* Pace using current bw estimate and a gain factor. */
@@ -290,14 +291,14 @@ static void bbr_set_pacing_rate(struct sock *sk, u32 bw, int gain)
 
 	if (unlikely(!bbr->has_seen_rtt && tp->srtt_us))
 		bbr_init_pacing_rate_from_rtt(sk);
-	if (bbr_full_bw_reached(sk) || rate > sk->sk_pacing_rate)
-		sk->sk_pacing_rate = rate;
+	if (bbr_full_bw_reached(sk) || rate > READ_ONCE(sk->sk_pacing_rate))
+		WRITE_ONCE(sk->sk_pacing_rate, rate);
 }
 
 /* override sysctl_tcp_min_tso_segs */
 __bpf_kfunc static u32 bbr_min_tso_segs(struct sock *sk)
 {
-	return sk->sk_pacing_rate < (bbr_min_tso_rate >> 3) ? 1 : 2;
+	return READ_ONCE(sk->sk_pacing_rate) < (bbr_min_tso_rate >> 3) ? 1 : 2;
 }
 
 static u32 bbr_tso_segs_goal(struct sock *sk)
@@ -309,7 +310,7 @@ static u32 bbr_tso_segs_goal(struct sock *sk)
 	 * driver provided sk_gso_max_size.
 	 */
 	bytes = min_t(unsigned long,
-		      sk->sk_pacing_rate >> READ_ONCE(sk->sk_pacing_shift),
+		      READ_ONCE(sk->sk_pacing_rate) >> READ_ONCE(sk->sk_pacing_shift),
 		      GSO_LEGACY_MAX_SIZE - 1 - MAX_TCP_HEADER);
 	segs = max_t(u32, bytes / tp->mss_cache, bbr_min_tso_segs(sk));
 

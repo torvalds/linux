@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2021 - 2022 Intel Corporation
+ * Copyright (C) 2021-2023 Intel Corporation
  */
 
 #ifndef __iwl_mei_h__
@@ -493,7 +493,7 @@ static inline void iwl_mei_set_power_limit(__le16 *power_limit)
 
 static inline int iwl_mei_register(void *priv,
 				   const struct iwl_mei_ops *ops)
-{ return 0; }
+{ return -EOPNOTSUPP; }
 
 static inline void iwl_mei_start_unregister(void)
 {}

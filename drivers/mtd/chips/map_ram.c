@@ -70,11 +70,15 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->_read = mapram_read;
 	mtd->_write = mapram_write;
 	mtd->_panic_write = mapram_write;
-	mtd->_point = mapram_point;
 	mtd->_sync = mapram_nop;
-	mtd->_unpoint = mapram_unpoint;
 	mtd->flags = MTD_CAP_RAM;
 	mtd->writesize = 1;
+
+	/* Disable direct access when NO_XIP is set */
+	if (map->phys != NO_XIP) {
+		mtd->_point = mapram_point;
+		mtd->_unpoint = mapram_unpoint;
+	}
 
 	mtd->erasesize = PAGE_SIZE;
  	while(mtd->size & (mtd->erasesize - 1))

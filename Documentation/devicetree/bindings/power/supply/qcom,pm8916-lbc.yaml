@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/qcom,pm8916-lbc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Linear Battery Charger
+
+maintainers:
+  - Nikita Travkin <nikita@trvn.ru>
+
+description:
+  Linear Battery Charger hardware block, found in some Qualcomm PMICs
+  such as pm8916. Implements a simple, autonomous CC/CV charger.
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: qcom,pm8916-lbc
+
+  reg:
+    items:
+      - description: Charger
+      - description: Battery
+      - description: USB
+      - description: MISC
+
+  reg-names:
+    items:
+      - const: chgr
+      - const: bat_if
+      - const: usb
+      - const: misc
+
+  interrupts:
+    items:
+      - description: Battery detection
+      - description: Fast charging
+      - description: Charging failed
+      - description: Charging done
+      - description: Battery present
+      - description: Battery temperature OK
+      - description: USB coarse detection
+      - description: USB IN valid
+      - description: Charger gone
+      - description: Overtemperature
+
+  interrupt-names:
+    items:
+      - const: vbat_det
+      - const: fast_chg
+      - const: chg_fail
+      - const: chg_done
+      - const: bat_pres
+      - const: temp_ok
+      - const: coarse_det
+      - const: usb_vbus
+      - const: chg_gone
+      - const: overtemp
+
+  qcom,fast-charge-safe-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 4000000
+    maximum: 4775000
+    description:
+      Maximum safe battery voltage in uV; May be pre-set by bootloader,
+      in which case, setting this will harmlessly fail.
+
+  qcom,fast-charge-safe-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 90000
+    maximum: 1440000
+    description:
+      Maximum safe battery charge current in uA; May be pre-set by
+      bootloader, in which case setting this will harmlessly fail.
+
+  monitored-battery: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - qcom,fast-charge-safe-voltage
+  - qcom,fast-charge-safe-current
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    pmic {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@1000 {
+        compatible = "qcom,pm8916-lbc";
+        reg = <0x1000>, <0x1200>, <0x1300>, <0x1600>;
+        reg-names = "chgr", "bat_if", "usb", "misc";
+
+        interrupts = <0x0 0x10 0 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x10 5 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x10 6 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x10 7 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x12 0 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x12 1 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x13 0 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x13 1 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x13 2 IRQ_TYPE_EDGE_BOTH>,
+                     <0x0 0x13 4 IRQ_TYPE_EDGE_BOTH>;
+        interrupt-names = "vbat_det",
+                          "fast_chg",
+                          "chg_fail",
+                          "chg_done",
+                          "bat_pres",
+                          "temp_ok",
+                          "coarse_det",
+                          "usb_vbus",
+                          "chg_gone",
+                          "overtemp";
+        monitored-battery = <&battery>;
+
+        qcom,fast-charge-safe-current = <900000>;
+        qcom,fast-charge-safe-voltage = <4300000>;
+      };
+    };

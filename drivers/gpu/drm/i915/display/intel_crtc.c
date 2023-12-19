@@ -24,6 +24,7 @@
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
+#include "intel_dsb.h"
 #include "intel_dsi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_pipe_crc.h"
@@ -175,6 +176,7 @@ void intel_crtc_state_reset(struct intel_crtc_state *crtc_state,
 	crtc_state->hsw_workaround_pipe = INVALID_PIPE;
 	crtc_state->scaler_state.scaler_id = -1;
 	crtc_state->mst_master_transcoder = INVALID_TRANSCODER;
+	crtc_state->max_link_bpp_x16 = INT_MAX;
 }
 
 static struct intel_crtc *intel_crtc_alloc(void)
@@ -394,7 +396,8 @@ static bool intel_crtc_needs_vblank_work(const struct intel_crtc_state *crtc_sta
 	return crtc_state->hw.active &&
 		!intel_crtc_needs_modeset(crtc_state) &&
 		!crtc_state->preload_luts &&
-		intel_crtc_needs_color_update(crtc_state);
+		intel_crtc_needs_color_update(crtc_state) &&
+		!intel_color_uses_dsb(crtc_state);
 }
 
 static void intel_crtc_vblank_work(struct kthread_work *base)
@@ -468,9 +471,64 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
 	return vblank_start;
 }
 
+static void intel_crtc_vblank_evade_scanlines(struct intel_atomic_state *state,
+					      struct intel_crtc *crtc,
+					      int *min, int *max, int *vblank_start)
+{
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state;
+	const struct drm_display_mode *adjusted_mode;
+
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 *
+	 * TODO: maybe just use the active timings here?
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		crtc_state = new_crtc_state;
+	else
+		crtc_state = old_crtc_state;
+
+	adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR) {
+		/* timing changes should happen with VRR disabled */
+		drm_WARN_ON(state->base.dev, intel_crtc_needs_modeset(new_crtc_state) ||
+			    new_crtc_state->update_m_n || new_crtc_state->update_lrr);
+
+		if (intel_vrr_is_push_sent(crtc_state))
+			*vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+		else
+			*vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+	} else {
+		*vblank_start = intel_mode_vblank_start(adjusted_mode);
+	}
+
+	/* FIXME needs to be calibrated sensibly */
+	*min = *vblank_start - intel_usecs_to_scanlines(adjusted_mode,
+							VBLANK_EVASION_TIME_US);
+	*max = *vblank_start - 1;
+
+	/*
+	 * M/N and TRANS_VTOTAL are double buffered on the transcoder's
+	 * undelayed vblank, so with seamless M/N and LRR we must evade
+	 * both vblanks.
+	 *
+	 * DSB execution waits for the transcoder's undelayed vblank,
+	 * hence we must kick off the commit before that.
+	 */
+	if (new_crtc_state->dsb || new_crtc_state->update_m_n || new_crtc_state->update_lrr)
+		*min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
+}
+
 /**
  * intel_pipe_update_start() - start update of a set of display registers
- * @new_crtc_state: the new crtc state
+ * @state: the atomic state
+ * @crtc: the crtc
  *
  * Mark the start of an update to pipe registers that should be updated
  * atomically regarding vblank. If the next vblank will happens within
@@ -480,11 +538,12 @@ static int intel_mode_vblank_start(const struct drm_display_mode *mode)
  * until a subsequent call to intel_pipe_update_end(). That is done to
  * avoid random delays.
  */
-void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
+void intel_pipe_update_start(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	const struct drm_display_mode *adjusted_mode = &new_crtc_state->hw.adjusted_mode;
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	long timeout = msecs_to_jiffies_timeout(1);
 	int scanline, min, max, vblank_start;
 	wait_queue_head_t *wq = drm_crtc_vblank_waitqueue(&crtc->base);
@@ -500,27 +559,7 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	if (intel_crtc_needs_vblank_work(new_crtc_state))
 		intel_crtc_vblank_work_init(new_crtc_state);
 
-	if (new_crtc_state->vrr.enable) {
-		if (intel_vrr_is_push_sent(new_crtc_state))
-			vblank_start = intel_vrr_vmin_vblank_start(new_crtc_state);
-		else
-			vblank_start = intel_vrr_vmax_vblank_start(new_crtc_state);
-	} else {
-		vblank_start = intel_mode_vblank_start(adjusted_mode);
-	}
-
-	/* FIXME needs to be calibrated sensibly */
-	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode,
-						      VBLANK_EVASION_TIME_US);
-	max = vblank_start - 1;
-
-	/*
-	 * M/N is double buffered on the transcoder's undelayed vblank,
-	 * so with seamless M/N we must evade both vblanks.
-	 */
-	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
-		min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
-
+	intel_crtc_vblank_evade_scanlines(state, crtc, &min, &max, &vblank_start);
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
 
@@ -631,25 +670,26 @@ static void dbg_vblank_evade(struct intel_crtc *crtc, ktime_t end) {}
 
 /**
  * intel_pipe_update_end() - end update of a set of display registers
- * @new_crtc_state: the new crtc state
+ * @state: the atomic state
+ * @crtc: the crtc
  *
  * Mark the end of an update started with intel_pipe_update_start(). This
  * re-enables interrupts and verifies the update was actually completed
  * before a vblank.
  */
-void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
+void intel_pipe_update_end(struct intel_atomic_state *state,
+			   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
 	int scanline_end = intel_get_crtc_scanline(crtc);
 	u32 end_vbl_count = intel_crtc_get_vblank_counter(crtc);
 	ktime_t end_vbl_time = ktime_get();
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	intel_psr_unlock(new_crtc_state);
-
 	if (new_crtc_state->do_async_flip)
-		return;
+		goto out;
 
 	trace_intel_pipe_update_end(crtc, end_vbl_count, scanline_end);
 
@@ -697,19 +737,10 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 */
 	intel_vrr_send_push(new_crtc_state);
 
-	/*
-	 * Seamless M/N update may need to update frame timings.
-	 *
-	 * FIXME Should be synchronized with the start of vblank somehow...
-	 */
-	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
-		intel_crtc_update_active_timings(new_crtc_state,
-						 new_crtc_state->vrr.enable);
-
 	local_irq_enable();
 
 	if (intel_vgpu_active(dev_priv))
-		return;
+		goto out;
 
 	if (crtc->debug.start_vbl_count &&
 	    crtc->debug.start_vbl_count != end_vbl_count) {
@@ -724,4 +755,7 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	}
 
 	dbg_vblank_evade(crtc, end_vbl_time);
+
+out:
+	intel_psr_unlock(new_crtc_state);
 }

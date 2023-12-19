@@ -32,7 +32,7 @@ struct watch_filter {
 		DECLARE_BITMAP(type_filter, WATCH_TYPE__NR);
 	};
 	u32			nr_filters;	/* Number of filters */
-	struct watch_type_filter filters[];
+	struct watch_type_filter filters[] __counted_by(nr_filters);
 };
 
 struct watch_queue {

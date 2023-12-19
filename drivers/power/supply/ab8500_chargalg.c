@@ -1720,7 +1720,7 @@ static char *supply_interface[] = {
 
 static const struct power_supply_desc ab8500_chargalg_desc = {
 	.name			= "ab8500_chargalg",
-	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.type			= POWER_SUPPLY_TYPE_UNKNOWN,
 	.properties		= ab8500_chargalg_props,
 	.num_properties		= ARRAY_SIZE(ab8500_chargalg_props),
 	.get_property		= ab8500_chargalg_get_property,
@@ -1824,11 +1824,9 @@ static int ab8500_chargalg_probe(struct platform_device *pdev)
 	return component_add(dev, &ab8500_chargalg_component_ops);
 }
 
-static int ab8500_chargalg_remove(struct platform_device *pdev)
+static void ab8500_chargalg_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &ab8500_chargalg_component_ops);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ab8500_chargalg_pm_ops, ab8500_chargalg_suspend, ab8500_chargalg_resume);
@@ -1840,7 +1838,7 @@ static const struct of_device_id ab8500_chargalg_match[] = {
 
 struct platform_driver ab8500_chargalg_driver = {
 	.probe = ab8500_chargalg_probe,
-	.remove = ab8500_chargalg_remove,
+	.remove_new = ab8500_chargalg_remove,
 	.driver = {
 		.name = "ab8500_chargalg",
 		.of_match_table = ab8500_chargalg_match,

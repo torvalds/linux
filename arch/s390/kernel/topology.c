@@ -522,7 +522,7 @@ static struct sched_domain_topology_level s390_topology[] = {
 	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
 	{ cpu_book_mask, SD_INIT_NAME(BOOK) },
 	{ cpu_drawer_mask, SD_INIT_NAME(DRAWER) },
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ cpu_cpu_mask, SD_INIT_NAME(PKG) },
 	{ NULL, },
 };
 
@@ -636,7 +636,6 @@ static struct ctl_table topology_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= topology_ctl_handler,
 	},
-	{ },
 };
 
 static int __init topology_init(void)

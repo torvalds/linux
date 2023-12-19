@@ -200,7 +200,7 @@ static int qat_uclo_parse_num(char *str, unsigned int *num)
 	unsigned long ae = 0;
 	int i;
 
-	strncpy(buf, str, 15);
+	strscpy(buf, str, sizeof(buf));
 	for (i = 0; i < 16; i++) {
 		if (!isdigit(buf[i])) {
 			buf[i] = '\0';

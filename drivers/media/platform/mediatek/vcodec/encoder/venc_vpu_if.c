@@ -138,7 +138,8 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	vpu->ctx->vpu_inst = vpu;
 
 	status = mtk_vcodec_fw_ipi_register(vpu->ctx->dev->fw_handler, vpu->id,
-					    vpu_enc_ipi_handler, "venc", NULL);
+					    vpu_enc_ipi_handler, "venc",
+					    vpu->ctx->dev);
 
 	if (status) {
 		mtk_venc_err(vpu->ctx, "vpu_ipi_register fail %d", status);
@@ -150,6 +151,11 @@ int vpu_enc_init(struct venc_vpu_inst *vpu)
 	out.venc_inst = (unsigned long)vpu;
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
 		mtk_venc_err(vpu->ctx, "AP_IPIMSG_ENC_INIT fail");
+		return -EINVAL;
+	}
+
+	if (IS_ERR_OR_NULL(vpu->vsi)) {
+		mtk_venc_err(vpu->ctx, "invalid venc vsi");
 		return -EINVAL;
 	}
 

@@ -28,4 +28,4 @@ $(OUTPUT)/%.o: %.c
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
 
 TEST_PROGS += ./tdc.sh
-TEST_FILES := tdc*.py Tdc*.py plugins plugin-lib tc-tests
+TEST_FILES := tdc*.py Tdc*.py plugins plugin-lib tc-tests scripts

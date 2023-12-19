@@ -71,6 +71,7 @@ two flavors of JITs, the newer eBPF JIT currently supported on:
   - s390x
   - riscv64
   - riscv32
+  - loongarch64
 
 And the older cBPF JIT supported on the following archs:
 

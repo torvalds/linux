@@ -87,7 +87,7 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
 				      struct net_device *dev,
 				      unsigned int port, unsigned int len)
 {
-	skb->dev = dsa_master_find_slave(dev, 0, port);
+	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev)
 		return NULL;
 
@@ -119,7 +119,7 @@ static struct sk_buff *ksz_common_rcv(struct sk_buff *skb,
 
 static struct sk_buff *ksz8795_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	u8 *tag;
 
@@ -256,7 +256,7 @@ static struct sk_buff *ksz_defer_xmit(struct dsa_port *dp, struct sk_buff *skb)
 		return NULL;
 
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	/* Increase refcount so the kfree_skb in dsa_user_xmit
 	 * won't really free the packet.
 	 */
 	xmit_work->dp = dp;
@@ -272,7 +272,7 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	__be16 *tag;
 	u16 val;
@@ -292,6 +292,14 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 
 	if (is_link_local_ether_addr(hdr->h_dest))
 		val |= KSZ9477_TAIL_TAG_OVERRIDE;
+
+	if (dev->features & NETIF_F_HW_HSR_DUP) {
+		struct net_device *hsr_dev = dp->hsr_dev;
+		struct dsa_port *other_dp;
+
+		dsa_hsr_foreach_port(other_dp, dp->ds, hsr_dev)
+			val |= BIT(other_dp->index);
+	}
 
 	*tag = cpu_to_be16(val);
 
@@ -336,7 +344,7 @@ static struct sk_buff *ksz9893_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct ethhdr *hdr;
 	u8 *tag;
 
@@ -402,7 +410,7 @@ static struct sk_buff *lan937x_xmit(struct sk_buff *skb,
 {
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 prio = netdev_txq_to_tc(dev, queue_mapping);
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	const struct ethhdr *hdr = eth_hdr(skb);
 	__be16 *tag;
 	u16 val;

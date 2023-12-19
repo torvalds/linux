@@ -587,12 +587,14 @@ out:
 
 void __ip_sock_set_tos(struct sock *sk, int val)
 {
+	u8 old_tos = inet_sk(sk)->tos;
+
 	if (sk->sk_type == SOCK_STREAM) {
 		val &= ~INET_ECN_MASK;
-		val |= inet_sk(sk)->tos & INET_ECN_MASK;
+		val |= old_tos & INET_ECN_MASK;
 	}
-	if (inet_sk(sk)->tos != val) {
-		inet_sk(sk)->tos = val;
+	if (old_tos != val) {
+		WRITE_ONCE(inet_sk(sk)->tos, val);
 		WRITE_ONCE(sk->sk_priority, rt_tos2priority(val));
 		sk_dst_reset(sk);
 	}
@@ -600,9 +602,9 @@ void __ip_sock_set_tos(struct sock *sk, int val)
 
 void ip_sock_set_tos(struct sock *sk, int val)
 {
-	lock_sock(sk);
+	sockopt_lock_sock(sk);
 	__ip_sock_set_tos(sk, val);
-	release_sock(sk);
+	sockopt_release_sock(sk);
 }
 EXPORT_SYMBOL(ip_sock_set_tos);
 
@@ -622,9 +624,7 @@ int ip_sock_set_mtu_discover(struct sock *sk, int val)
 {
 	if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
 		return -EINVAL;
-	lock_sock(sk);
-	inet_sk(sk)->pmtudisc = val;
-	release_sock(sk);
+	WRITE_ONCE(inet_sk(sk)->pmtudisc, val);
 	return 0;
 }
 EXPORT_SYMBOL(ip_sock_set_mtu_discover);
@@ -1039,6 +1039,22 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		WRITE_ONCE(inet->min_ttl, val);
 		return 0;
+	case IP_MULTICAST_TTL:
+		if (sk->sk_type == SOCK_STREAM)
+			return -EINVAL;
+		if (optlen < 1)
+			return -EINVAL;
+		if (val == -1)
+			val = 1;
+		if (val < 0 || val > 255)
+			return -EINVAL;
+		WRITE_ONCE(inet->mc_ttl, val);
+		return 0;
+	case IP_MTU_DISCOVER:
+		return ip_sock_set_mtu_discover(sk, val);
+	case IP_TOS:	/* This sets both TOS and Precedence */
+		ip_sock_set_tos(sk, val);
+		return 0;
 	}
 
 	err = 0;
@@ -1093,25 +1109,6 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 			}
 		}
 		break;
-	case IP_TOS:	/* This sets both TOS and Precedence */
-		__ip_sock_set_tos(sk, val);
-		break;
-	case IP_MTU_DISCOVER:
-		if (val < IP_PMTUDISC_DONT || val > IP_PMTUDISC_OMIT)
-			goto e_inval;
-		inet->pmtudisc = val;
-		break;
-	case IP_MULTICAST_TTL:
-		if (sk->sk_type == SOCK_STREAM)
-			goto e_inval;
-		if (optlen < 1)
-			goto e_inval;
-		if (val == -1)
-			val = 1;
-		if (val < 0 || val > 255)
-			goto e_inval;
-		inet->mc_ttl = val;
-		break;
 	case IP_UNICAST_IF:
 	{
 		struct net_device *dev = NULL;
@@ -1123,7 +1120,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		ifindex = (__force int)ntohl((__force __be32)val);
 		if (ifindex == 0) {
-			inet->uc_index = 0;
+			WRITE_ONCE(inet->uc_index, 0);
 			err = 0;
 			break;
 		}
@@ -1140,7 +1137,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		if (sk->sk_bound_dev_if && midx != sk->sk_bound_dev_if)
 			break;
 
-		inet->uc_index = ifindex;
+		WRITE_ONCE(inet->uc_index, ifindex);
 		err = 0;
 		break;
 	}
@@ -1178,8 +1175,8 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 		if (!mreq.imr_ifindex) {
 			if (mreq.imr_address.s_addr == htonl(INADDR_ANY)) {
-				inet->mc_index = 0;
-				inet->mc_addr  = 0;
+				WRITE_ONCE(inet->mc_index, 0);
+				WRITE_ONCE(inet->mc_addr, 0);
 				err = 0;
 				break;
 			}
@@ -1204,8 +1201,8 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 		    midx != sk->sk_bound_dev_if)
 			break;
 
-		inet->mc_index = mreq.imr_ifindex;
-		inet->mc_addr  = mreq.imr_address.s_addr;
+		WRITE_ONCE(inet->mc_index, mreq.imr_ifindex);
+		WRITE_ONCE(inet->mc_addr, mreq.imr_address.s_addr);
 		err = 0;
 		break;
 	}
@@ -1592,27 +1589,29 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 	case IP_MINTTL:
 		val = READ_ONCE(inet->min_ttl);
 		goto copyval;
-	}
-
-	if (needs_rtnl)
-		rtnl_lock();
-	sockopt_lock_sock(sk);
-
-	switch (optname) {
+	case IP_MULTICAST_TTL:
+		val = READ_ONCE(inet->mc_ttl);
+		goto copyval;
+	case IP_MTU_DISCOVER:
+		val = READ_ONCE(inet->pmtudisc);
+		goto copyval;
+	case IP_TOS:
+		val = READ_ONCE(inet->tos);
+		goto copyval;
 	case IP_OPTIONS:
 	{
 		unsigned char optbuf[sizeof(struct ip_options)+40];
 		struct ip_options *opt = (struct ip_options *)optbuf;
 		struct ip_options_rcu *inet_opt;
 
-		inet_opt = rcu_dereference_protected(inet->inet_opt,
-						     lockdep_sock_is_held(sk));
+		rcu_read_lock();
+		inet_opt = rcu_dereference(inet->inet_opt);
 		opt->optlen = 0;
 		if (inet_opt)
 			memcpy(optbuf, &inet_opt->opt,
 			       sizeof(struct ip_options) +
 			       inet_opt->opt.optlen);
-		sockopt_release_sock(sk);
+		rcu_read_unlock();
 
 		if (opt->optlen == 0) {
 			len = 0;
@@ -1628,12 +1627,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
-	case IP_TOS:
-		val = inet->tos;
-		break;
-	case IP_MTU_DISCOVER:
-		val = inet->pmtudisc;
-		break;
 	case IP_MTU:
 	{
 		struct dst_entry *dst;
@@ -1643,24 +1636,55 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			val = dst_mtu(dst);
 			dst_release(dst);
 		}
-		if (!val) {
-			sockopt_release_sock(sk);
+		if (!val)
 			return -ENOTCONN;
-		}
-		break;
+		goto copyval;
 	}
-	case IP_MULTICAST_TTL:
-		val = inet->mc_ttl;
-		break;
+	case IP_PKTOPTIONS:
+	{
+		struct msghdr msg;
+
+		if (sk->sk_type != SOCK_STREAM)
+			return -ENOPROTOOPT;
+
+		if (optval.is_kernel) {
+			msg.msg_control_is_user = false;
+			msg.msg_control = optval.kernel;
+		} else {
+			msg.msg_control_is_user = true;
+			msg.msg_control_user = optval.user;
+		}
+		msg.msg_controllen = len;
+		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
+
+		if (inet_test_bit(PKTINFO, sk)) {
+			struct in_pktinfo info;
+
+			info.ipi_addr.s_addr = READ_ONCE(inet->inet_rcv_saddr);
+			info.ipi_spec_dst.s_addr = READ_ONCE(inet->inet_rcv_saddr);
+			info.ipi_ifindex = READ_ONCE(inet->mc_index);
+			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
+		}
+		if (inet_test_bit(TTL, sk)) {
+			int hlim = READ_ONCE(inet->mc_ttl);
+
+			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
+		}
+		if (inet_test_bit(TOS, sk)) {
+			int tos = READ_ONCE(inet->rcv_tos);
+			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
+		}
+		len -= msg.msg_controllen;
+		return copy_to_sockptr(optlen, &len, sizeof(int));
+	}
 	case IP_UNICAST_IF:
-		val = (__force int)htonl((__u32) inet->uc_index);
-		break;
+		val = (__force int)htonl((__u32) READ_ONCE(inet->uc_index));
+		goto copyval;
 	case IP_MULTICAST_IF:
 	{
 		struct in_addr addr;
 		len = min_t(unsigned int, len, sizeof(struct in_addr));
-		addr.s_addr = inet->mc_addr;
-		sockopt_release_sock(sk);
+		addr.s_addr = READ_ONCE(inet->mc_addr);
 
 		if (copy_to_sockptr(optlen, &len, sizeof(int)))
 			return -EFAULT;
@@ -1668,6 +1692,13 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 			return -EFAULT;
 		return 0;
 	}
+	}
+
+	if (needs_rtnl)
+		rtnl_lock();
+	sockopt_lock_sock(sk);
+
+	switch (optname) {
 	case IP_MSFILTER:
 	{
 		struct ip_msfilter msf;
@@ -1690,44 +1721,6 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		else
 			err = ip_get_mcast_msfilter(sk, optval, optlen, len);
 		goto out;
-	case IP_PKTOPTIONS:
-	{
-		struct msghdr msg;
-
-		sockopt_release_sock(sk);
-
-		if (sk->sk_type != SOCK_STREAM)
-			return -ENOPROTOOPT;
-
-		if (optval.is_kernel) {
-			msg.msg_control_is_user = false;
-			msg.msg_control = optval.kernel;
-		} else {
-			msg.msg_control_is_user = true;
-			msg.msg_control_user = optval.user;
-		}
-		msg.msg_controllen = len;
-		msg.msg_flags = in_compat_syscall() ? MSG_CMSG_COMPAT : 0;
-
-		if (inet_test_bit(PKTINFO, sk)) {
-			struct in_pktinfo info;
-
-			info.ipi_addr.s_addr = inet->inet_rcv_saddr;
-			info.ipi_spec_dst.s_addr = inet->inet_rcv_saddr;
-			info.ipi_ifindex = inet->mc_index;
-			put_cmsg(&msg, SOL_IP, IP_PKTINFO, sizeof(info), &info);
-		}
-		if (inet_test_bit(TTL, sk)) {
-			int hlim = inet->mc_ttl;
-			put_cmsg(&msg, SOL_IP, IP_TTL, sizeof(hlim), &hlim);
-		}
-		if (inet_test_bit(TOS, sk)) {
-			int tos = inet->rcv_tos;
-			put_cmsg(&msg, SOL_IP, IP_TOS, sizeof(tos), &tos);
-		}
-		len -= msg.msg_controllen;
-		return copy_to_sockptr(optlen, &len, sizeof(int));
-	}
 	case IP_LOCAL_PORT_RANGE:
 		val = inet->local_port_range.hi << 16 | inet->local_port_range.lo;
 		break;

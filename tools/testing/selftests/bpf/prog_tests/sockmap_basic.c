@@ -359,7 +359,7 @@ out:
 static void test_sockmap_skb_verdict_shutdown(void)
 {
 	struct epoll_event ev, events[MAX_EVENTS];
-	int n, err, map, verdict, s, c1, p1;
+	int n, err, map, verdict, s, c1 = -1, p1 = -1;
 	struct test_sockmap_pass_prog *skel;
 	int epollfd;
 	int zero = 0;
@@ -414,9 +414,9 @@ out:
 static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 {
 	int expected, zero = 0, sent, recvd, avail;
-	int err, map, verdict, s, c0, c1, p0, p1;
-	struct test_sockmap_pass_prog *pass;
-	struct test_sockmap_drop_prog *drop;
+	int err, map, verdict, s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
+	struct test_sockmap_pass_prog *pass = NULL;
+	struct test_sockmap_drop_prog *drop = NULL;
 	char buf[256] = "0123456789";
 
 	if (pass_prog) {
@@ -475,6 +475,55 @@ out:
 		test_sockmap_drop_prog__destroy(drop);
 }
 
+static void test_sockmap_skb_verdict_peek(void)
+{
+	int err, map, verdict, s, c1, p1, zero = 0, sent, recvd, avail;
+	struct test_sockmap_pass_prog *pass;
+	char snd[256] = "0123456789";
+	char rcv[256] = "0";
+
+	pass = test_sockmap_pass_prog__open_and_load();
+	if (!ASSERT_OK_PTR(pass, "open_and_load"))
+		return;
+	verdict = bpf_program__fd(pass->progs.prog_skb_verdict);
+	map = bpf_map__fd(pass->maps.sock_map_rx);
+
+	err = bpf_prog_attach(verdict, map, BPF_SK_SKB_STREAM_VERDICT, 0);
+	if (!ASSERT_OK(err, "bpf_prog_attach"))
+		goto out;
+
+	s = socket_loopback(AF_INET, SOCK_STREAM);
+	if (!ASSERT_GT(s, -1, "socket_loopback(s)"))
+		goto out;
+
+	err = create_pair(s, AF_INET, SOCK_STREAM, &c1, &p1);
+	if (!ASSERT_OK(err, "create_pairs(s)"))
+		goto out;
+
+	err = bpf_map_update_elem(map, &zero, &c1, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "bpf_map_update_elem(c1)"))
+		goto out_close;
+
+	sent = xsend(p1, snd, sizeof(snd), 0);
+	ASSERT_EQ(sent, sizeof(snd), "xsend(p1)");
+	recvd = recv(c1, rcv, sizeof(rcv), MSG_PEEK);
+	ASSERT_EQ(recvd, sizeof(rcv), "recv(c1)");
+	err = ioctl(c1, FIONREAD, &avail);
+	ASSERT_OK(err, "ioctl(FIONREAD) error");
+	ASSERT_EQ(avail, sizeof(snd), "after peek ioctl(FIONREAD)");
+	recvd = recv(c1, rcv, sizeof(rcv), 0);
+	ASSERT_EQ(recvd, sizeof(rcv), "recv(p0)");
+	err = ioctl(c1, FIONREAD, &avail);
+	ASSERT_OK(err, "ioctl(FIONREAD) error");
+	ASSERT_EQ(avail, 0, "after read ioctl(FIONREAD)");
+
+out_close:
+	close(c1);
+	close(p1);
+out:
+	test_sockmap_pass_prog__destroy(pass);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -515,4 +564,6 @@ void test_sockmap_basic(void)
 		test_sockmap_skb_verdict_fionread(true);
 	if (test__start_subtest("sockmap skb_verdict fionread on drop"))
 		test_sockmap_skb_verdict_fionread(false);
+	if (test__start_subtest("sockmap skb_verdict msg_f_peek"))
+		test_sockmap_skb_verdict_peek();
 }

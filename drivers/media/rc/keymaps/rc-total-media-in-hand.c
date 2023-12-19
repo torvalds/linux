@@ -71,3 +71,4 @@ module_exit(exit_rc_map_total_media_in_hand)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("Total Media In Hand remote controller keytable");

@@ -6,8 +6,12 @@
  * Author: Beomho Seo <beomho.seo@samsung.com>
  */
 
+#include <linux/devm-helpers.h>
+#include <linux/extcon.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
@@ -25,7 +29,15 @@ struct rt5033_charger {
 	struct device			*dev;
 	struct regmap			*regmap;
 	struct power_supply		*psy;
-	struct rt5033_charger_data	*chg;
+	struct rt5033_charger_data	chg;
+	struct extcon_dev		*edev;
+	struct notifier_block		extcon_nb;
+	struct work_struct		extcon_work;
+	struct mutex			lock;
+	bool online;
+	bool otg;
+	bool mivr_enabled;
+	u8 cv_regval;
 };
 
 static int rt5033_get_charger_state(struct rt5033_charger *charger)
@@ -55,6 +67,10 @@ static int rt5033_get_charger_state(struct rt5033_charger *charger)
 	default:
 		state = POWER_SUPPLY_STATUS_UNKNOWN;
 	}
+
+	/* For OTG mode, RT5033 would still report "charging" */
+	if (charger->otg)
+		state = POWER_SUPPLY_STATUS_DISCHARGING;
 
 	return state;
 }
@@ -115,7 +131,7 @@ static int rt5033_get_charger_const_voltage(struct rt5033_charger *charger)
 
 static inline int rt5033_init_const_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -146,6 +162,9 @@ static inline int rt5033_init_const_charge(struct rt5033_charger *charger)
 		dev_err(charger->dev, "Failed regmap update\n");
 		return -EINVAL;
 	}
+
+	/* Store that value for later usage */
+	charger->cv_regval = reg_data;
 
 	/* Set end of charge current */
 	if (chg->eoc_uamp < RT5033_CHARGER_EOC_MIN ||
@@ -186,7 +205,7 @@ static inline int rt5033_init_const_charge(struct rt5033_charger *charger)
 
 static inline int rt5033_init_fast_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -231,7 +250,7 @@ static inline int rt5033_init_fast_charge(struct rt5033_charger *charger)
 
 static inline int rt5033_init_pre_charge(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg = charger->chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	int ret;
 	unsigned int val;
 	u8 reg_data;
@@ -330,6 +349,162 @@ static int rt5033_charger_reg_init(struct rt5033_charger *charger)
 	return 0;
 }
 
+static int rt5033_charger_set_otg(struct rt5033_charger *charger)
+{
+	int ret;
+
+	mutex_lock(&charger->lock);
+
+	/* Set OTG boost v_out to 5 volts */
+	ret = regmap_update_bits(charger->regmap, RT5033_REG_CHG_CTRL2,
+			RT5033_CHGCTRL2_CV_MASK,
+			0x37 << RT5033_CHGCTRL2_CV_SHIFT);
+	if (ret) {
+		dev_err(charger->dev, "Failed set OTG boost v_out\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* Set operation mode to OTG */
+	ret = regmap_update_bits(charger->regmap, RT5033_REG_CHG_CTRL1,
+			RT5033_CHGCTRL1_MODE_MASK, RT5033_BOOST_MODE);
+	if (ret) {
+		dev_err(charger->dev, "Failed to update OTG mode.\n");
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	/* In case someone switched from charging to OTG directly */
+	if (charger->online)
+		charger->online = false;
+
+	charger->otg = true;
+
+out_unlock:
+	mutex_unlock(&charger->lock);
+
+	return ret;
+}
+
+static int rt5033_charger_unset_otg(struct rt5033_charger *charger)
+{
+	int ret;
+	u8 data;
+
+	/* Restore constant voltage for charging */
+	data = charger->cv_regval;
+	ret = regmap_update_bits(charger->regmap, RT5033_REG_CHG_CTRL2,
+			RT5033_CHGCTRL2_CV_MASK,
+			data << RT5033_CHGCTRL2_CV_SHIFT);
+	if (ret) {
+		dev_err(charger->dev, "Failed to restore constant voltage\n");
+		return -EINVAL;
+	}
+
+	/* Set operation mode to charging */
+	ret = regmap_update_bits(charger->regmap, RT5033_REG_CHG_CTRL1,
+			RT5033_CHGCTRL1_MODE_MASK, RT5033_CHARGER_MODE);
+	if (ret) {
+		dev_err(charger->dev, "Failed to update charger mode.\n");
+		return -EINVAL;
+	}
+
+	charger->otg = false;
+
+	return 0;
+}
+
+static int rt5033_charger_set_charging(struct rt5033_charger *charger)
+{
+	int ret;
+
+	mutex_lock(&charger->lock);
+
+	/* In case someone switched from OTG to charging directly */
+	if (charger->otg) {
+		ret = rt5033_charger_unset_otg(charger);
+		if (ret) {
+			mutex_unlock(&charger->lock);
+			return -EINVAL;
+		}
+	}
+
+	charger->online = true;
+
+	mutex_unlock(&charger->lock);
+
+	return 0;
+}
+
+static int rt5033_charger_set_mivr(struct rt5033_charger *charger)
+{
+	int ret;
+
+	mutex_lock(&charger->lock);
+
+	/*
+	 * When connected via USB connector type SDP (Standard Downstream Port),
+	 * the minimum input voltage regulation (MIVR) should be enabled. It
+	 * prevents an input voltage drop due to insufficient current provided
+	 * by the adapter or USB input. As a downside, it may reduces the
+	 * charging current and thus slows the charging.
+	 */
+	ret = regmap_update_bits(charger->regmap, RT5033_REG_CHG_CTRL4,
+			RT5033_CHGCTRL4_MIVR_MASK, RT5033_CHARGER_MIVR_4600MV);
+	if (ret) {
+		dev_err(charger->dev, "Failed to set MIVR level.\n");
+		mutex_unlock(&charger->lock);
+		return -EINVAL;
+	}
+
+	charger->mivr_enabled = true;
+
+	mutex_unlock(&charger->lock);
+
+	/* Beyond this, do the same steps like setting charging */
+	rt5033_charger_set_charging(charger);
+
+	return 0;
+}
+
+static int rt5033_charger_set_disconnect(struct rt5033_charger *charger)
+{
+	int ret = 0;
+
+	mutex_lock(&charger->lock);
+
+	/* Disable MIVR if enabled */
+	if (charger->mivr_enabled) {
+		ret = regmap_update_bits(charger->regmap,
+				RT5033_REG_CHG_CTRL4,
+				RT5033_CHGCTRL4_MIVR_MASK,
+				RT5033_CHARGER_MIVR_DISABLE);
+		if (ret) {
+			dev_err(charger->dev, "Failed to disable MIVR.\n");
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+
+		charger->mivr_enabled = false;
+	}
+
+	if (charger->otg) {
+		ret = rt5033_charger_unset_otg(charger);
+		if (ret) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+	}
+
+	if (charger->online)
+		charger->online = false;
+
+out_unlock:
+	mutex_unlock(&charger->lock);
+
+	return ret;
+}
+
 static enum power_supply_property rt5033_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
@@ -366,8 +541,7 @@ static int rt5033_charger_get_property(struct power_supply *psy,
 		val->strval = RT5033_MANUFACTURER;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = (rt5033_get_charger_state(charger) ==
-				POWER_SUPPLY_STATUS_CHARGING);
+		val->intval = charger->online;
 		break;
 	default:
 		return -EINVAL;
@@ -376,21 +550,16 @@ static int rt5033_charger_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static struct rt5033_charger_data *rt5033_charger_dt_init(
-						struct rt5033_charger *charger)
+static int rt5033_charger_dt_init(struct rt5033_charger *charger)
 {
-	struct rt5033_charger_data *chg;
+	struct rt5033_charger_data *chg = &charger->chg;
 	struct power_supply_battery_info *info;
 	int ret;
 
-	chg = devm_kzalloc(charger->dev, sizeof(*chg), GFP_KERNEL);
-	if (!chg)
-		return ERR_PTR(-ENOMEM);
-
 	ret = power_supply_get_battery_info(charger->psy, &info);
 	if (ret)
-		return ERR_PTR(dev_err_probe(charger->dev, -EINVAL,
-			       "missing battery info\n"));
+		return dev_err_probe(charger->dev, -EINVAL,
+				     "missing battery info\n");
 
 	/* Assign data. Validity will be checked in the init functions. */
 	chg->pre_uamp = info->precharge_current_ua;
@@ -399,7 +568,87 @@ static struct rt5033_charger_data *rt5033_charger_dt_init(
 	chg->pre_uvolt = info->precharge_voltage_max_uv;
 	chg->const_uvolt = info->constant_charge_voltage_max_uv;
 
-	return chg;
+	return 0;
+}
+
+static void rt5033_charger_extcon_work(struct work_struct *work)
+{
+	struct rt5033_charger *charger =
+		container_of(work, struct rt5033_charger, extcon_work);
+	struct extcon_dev *edev = charger->edev;
+	int connector, state;
+	int ret;
+
+	for (connector = EXTCON_USB_HOST; connector <= EXTCON_CHG_USB_PD;
+	     connector++) {
+		state = extcon_get_state(edev, connector);
+		if (state == 1)
+			break;
+	}
+
+	/*
+	 * Adding a delay between extcon notification and extcon action. This
+	 * makes extcon action execution more reliable. Without the delay the
+	 * execution sometimes fails, possibly because the chip is busy or not
+	 * ready.
+	 */
+	msleep(100);
+
+	switch (connector) {
+	case EXTCON_CHG_USB_SDP:
+		ret = rt5033_charger_set_mivr(charger);
+		if (ret) {
+			dev_err(charger->dev, "failed to set USB mode\n");
+			break;
+		}
+		dev_info(charger->dev, "USB mode. connector type: %d\n",
+			 connector);
+		break;
+	case EXTCON_CHG_USB_DCP:
+	case EXTCON_CHG_USB_CDP:
+	case EXTCON_CHG_USB_ACA:
+	case EXTCON_CHG_USB_FAST:
+	case EXTCON_CHG_USB_SLOW:
+	case EXTCON_CHG_WPT:
+	case EXTCON_CHG_USB_PD:
+		ret = rt5033_charger_set_charging(charger);
+		if (ret) {
+			dev_err(charger->dev, "failed to set charging\n");
+			break;
+		}
+		dev_info(charger->dev, "charging. connector type: %d\n",
+			 connector);
+		break;
+	case EXTCON_USB_HOST:
+		ret = rt5033_charger_set_otg(charger);
+		if (ret) {
+			dev_err(charger->dev, "failed to set OTG\n");
+			break;
+		}
+		dev_info(charger->dev, "OTG enabled\n");
+		break;
+	default:
+		ret = rt5033_charger_set_disconnect(charger);
+		if (ret) {
+			dev_err(charger->dev, "failed to set disconnect\n");
+			break;
+		}
+		dev_info(charger->dev, "disconnected\n");
+		break;
+	}
+
+	power_supply_changed(charger->psy);
+}
+
+static int rt5033_charger_extcon_notifier(struct notifier_block *nb,
+					  unsigned long event, void *param)
+{
+	struct rt5033_charger *charger =
+		container_of(nb, struct rt5033_charger, extcon_nb);
+
+	schedule_work(&charger->extcon_work);
+
+	return NOTIFY_OK;
 }
 
 static const struct power_supply_desc rt5033_charger_desc = {
@@ -414,6 +663,7 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 {
 	struct rt5033_charger *charger;
 	struct power_supply_config psy_cfg = {};
+	struct device_node *np_conn, *np_edev;
 	int ret;
 
 	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
@@ -423,25 +673,53 @@ static int rt5033_charger_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, charger);
 	charger->dev = &pdev->dev;
 	charger->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	mutex_init(&charger->lock);
 
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = charger;
 
-	charger->psy = devm_power_supply_register(&pdev->dev,
+	charger->psy = devm_power_supply_register(charger->dev,
 						  &rt5033_charger_desc,
 						  &psy_cfg);
 	if (IS_ERR(charger->psy))
-		return dev_err_probe(&pdev->dev, PTR_ERR(charger->psy),
+		return dev_err_probe(charger->dev, PTR_ERR(charger->psy),
 				     "Failed to register power supply\n");
 
-	charger->chg = rt5033_charger_dt_init(charger);
-	if (IS_ERR_OR_NULL(charger->chg))
-		return PTR_ERR(charger->chg);
+	ret = rt5033_charger_dt_init(charger);
+	if (ret)
+		return ret;
 
 	ret = rt5033_charger_reg_init(charger);
 	if (ret)
 		return ret;
 
+	/*
+	 * Extcon support is not vital for the charger to work. If no extcon
+	 * is available, just emit a warning and leave the probe function.
+	 */
+	np_conn = of_parse_phandle(pdev->dev.of_node, "richtek,usb-connector", 0);
+	np_edev = of_get_parent(np_conn);
+	charger->edev = extcon_find_edev_by_node(np_edev);
+	if (IS_ERR(charger->edev)) {
+		dev_warn(charger->dev, "no extcon device found in device-tree\n");
+		goto out;
+	}
+
+	ret = devm_work_autocancel(charger->dev, &charger->extcon_work,
+				   rt5033_charger_extcon_work);
+	if (ret) {
+		dev_err(charger->dev, "failed to initialize extcon work\n");
+		return ret;
+	}
+
+	charger->extcon_nb.notifier_call = rt5033_charger_extcon_notifier;
+	ret = devm_extcon_register_notifier_all(charger->dev, charger->edev,
+						&charger->extcon_nb);
+	if (ret) {
+		dev_err(charger->dev, "failed to register extcon notifier\n");
+		return ret;
+	}
+out:
 	return 0;
 }
 

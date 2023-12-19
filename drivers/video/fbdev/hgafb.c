@@ -532,12 +532,14 @@ static const struct fb_ops hgafb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= hgafb_open,
 	.fb_release	= hgafb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_setcolreg	= hgafb_setcolreg,
 	.fb_pan_display	= hgafb_pan_display,
 	.fb_blank	= hgafb_blank,
 	.fb_fillrect	= hgafb_fillrect,
 	.fb_copyarea	= hgafb_copyarea,
 	.fb_imageblit	= hgafb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* ------------------------------------------------------------------------- *

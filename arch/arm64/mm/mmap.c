@@ -68,7 +68,7 @@ static int __init adjust_protection_map(void)
 	 * With Enhanced PAN we can honour the execute-only permissions as
 	 * there is no PAN override with such mappings.
 	 */
-	if (cpus_have_const_cap(ARM64_HAS_EPAN)) {
+	if (cpus_have_cap(ARM64_HAS_EPAN)) {
 		protection_map[VM_EXEC] = PAGE_EXECONLY;
 		protection_map[VM_EXEC | VM_SHARED] = PAGE_EXECONLY;
 	}

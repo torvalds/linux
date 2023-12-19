@@ -27,6 +27,15 @@ struct intel_pxp {
 	struct intel_gt *ctrl_gt;
 
 	/**
+	 * @platform_cfg_is_bad: used to track if any prior arb session creation resulted
+	 * in a failure that was caused by a platform configuration issue, meaning that
+	 * failure will not get resolved without a change to the platform (not kernel)
+	 * such as BIOS configuration, firwmware update, etc. This bool gets reflected when
+	 * GET_PARAM:I915_PARAM_PXP_STATUS is called.
+	 */
+	bool platform_cfg_is_bad;
+
+	/**
 	 * @kcr_base: base mmio offset for the KCR engine which is different on legacy platforms
 	 * vs newer platforms where the KCR is inside the media-tile.
 	 */

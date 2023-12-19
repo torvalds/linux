@@ -447,13 +447,15 @@ out_unlock:
 
 static void ubiblock_cleanup(struct ubiblock *dev)
 {
+	int id = dev->gd->first_minor;
+
 	/* Stop new requests to arrive */
 	del_gendisk(dev->gd);
 	/* Finally destroy the blk queue */
 	dev_info(disk_to_dev(dev->gd), "released");
 	put_disk(dev->gd);
 	blk_mq_free_tag_set(&dev->tag_set);
-	idr_remove(&ubiblock_minor_idr, dev->gd->first_minor);
+	idr_remove(&ubiblock_minor_idr, id);
 }
 
 int ubiblock_remove(struct ubi_volume_info *vi)

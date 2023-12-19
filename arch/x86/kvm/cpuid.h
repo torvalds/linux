@@ -174,7 +174,8 @@ static inline bool guest_has_spec_ctrl_msr(struct kvm_vcpu *vcpu)
 static inline bool guest_has_pred_cmd_msr(struct kvm_vcpu *vcpu)
 {
 	return (guest_cpuid_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
-		guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBPB));
+		guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBPB) ||
+		guest_cpuid_has(vcpu, X86_FEATURE_SBPB));
 }
 
 static inline bool supports_cpuid_fault(struct kvm_vcpu *vcpu)

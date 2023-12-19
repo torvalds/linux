@@ -80,7 +80,7 @@ struct el15203000 {
 	struct spi_device	*spi;
 	unsigned long		delay;
 	size_t			count;
-	struct el15203000_led	leds[];
+	struct el15203000_led	leds[] __counted_by(count);
 };
 
 #define to_el15203000_led(d)	container_of(d, struct el15203000_led, ldev)

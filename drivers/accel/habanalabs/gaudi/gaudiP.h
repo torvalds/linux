@@ -10,7 +10,7 @@
 
 #include <uapi/drm/habanalabs_accel.h>
 #include "../common/habanalabs.h"
-#include "../include/common/hl_boot_if.h"
+#include <linux/habanalabs/hl_boot_if.h>
 #include "../include/gaudi/gaudi_packets.h"
 #include "../include/gaudi/gaudi.h"
 #include "../include/gaudi/gaudi_async_events.h"

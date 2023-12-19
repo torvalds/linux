@@ -80,7 +80,7 @@ static const struct regmap_config rk818_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RK818_USB_CTRL_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = rk808_is_volatile_reg,
 };
 
@@ -88,7 +88,7 @@ static const struct regmap_config rk805_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RK805_OFF_SOURCE_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = rk808_is_volatile_reg,
 };
 
@@ -96,7 +96,7 @@ static const struct regmap_config rk808_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = RK808_IO_POL_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = rk808_is_volatile_reg,
 };
 

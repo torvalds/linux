@@ -3,9 +3,9 @@
  * Copyright 2023 Linus Torvalds <torvalds@linux-foundation.org>
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling

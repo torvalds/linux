@@ -69,12 +69,9 @@ static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_pmds = 1;
-	/*
-	 * page_table_free_rcu takes care of the allocation bit masks
-	 * of the 2K table fragments in the 4K page table page,
-	 * then calls tlb_remove_table.
-	 */
-	page_table_free_rcu(tlb, (unsigned long *) pte, address);
+	if (mm_alloc_pgste(tlb->mm))
+		gmap_unlink(tlb->mm, (unsigned long *)pte, address);
+	tlb_remove_ptdesc(tlb, pte);
 }
 
 /*
@@ -112,7 +109,7 @@ static inline void p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
 	__tlb_adjust_range(tlb, address, PAGE_SIZE);
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
-	tlb_remove_table(tlb, p4d);
+	tlb_remove_ptdesc(tlb, p4d);
 }
 
 /*
@@ -130,7 +127,7 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 	tlb->mm->context.flush_mm = 1;
 	tlb->freed_tables = 1;
 	tlb->cleared_p4ds = 1;
-	tlb_remove_table(tlb, pud);
+	tlb_remove_ptdesc(tlb, pud);
 }
 
 

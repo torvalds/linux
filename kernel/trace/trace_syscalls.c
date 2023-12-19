@@ -556,7 +556,7 @@ static int perf_call_bpf_enter(struct trace_event_call *call, struct pt_regs *re
 {
 	struct syscall_tp_t {
 		struct trace_entry ent;
-		unsigned long syscall_nr;
+		int syscall_nr;
 		unsigned long args[SYSCALL_DEFINE_MAXARGS];
 	} __aligned(8) param;
 	int i;
@@ -661,7 +661,7 @@ static int perf_call_bpf_exit(struct trace_event_call *call, struct pt_regs *reg
 {
 	struct syscall_tp_t {
 		struct trace_entry ent;
-		unsigned long syscall_nr;
+		int syscall_nr;
 		unsigned long ret;
 	} __aligned(8) param;
 

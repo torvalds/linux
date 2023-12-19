@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -40,10 +41,14 @@
 #define CSI2RX_STREAM_BASE(n)		(((n) + 1) * 0x100)
 
 #define CSI2RX_STREAM_CTRL_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x000)
+#define CSI2RX_STREAM_CTRL_SOFT_RST			BIT(4)
+#define CSI2RX_STREAM_CTRL_STOP				BIT(1)
 #define CSI2RX_STREAM_CTRL_START			BIT(0)
 
+#define CSI2RX_STREAM_STATUS_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x004)
+#define CSI2RX_STREAM_STATUS_RDY			BIT(31)
+
 #define CSI2RX_STREAM_DATA_CFG_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x008)
-#define CSI2RX_STREAM_DATA_CFG_EN_VC_SELECT		BIT(31)
 #define CSI2RX_STREAM_DATA_CFG_VC_SELECT(n)		BIT((n) + 16)
 
 #define CSI2RX_STREAM_CFG_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x00c)
@@ -59,6 +64,11 @@ enum csi2rx_pads {
 	CSI2RX_PAD_SOURCE_STREAM2,
 	CSI2RX_PAD_SOURCE_STREAM3,
 	CSI2RX_PAD_MAX,
+};
+
+struct csi2rx_fmt {
+	u32				code;
+	u8				bpp;
 };
 
 struct csi2rx_priv {
@@ -95,6 +105,32 @@ struct csi2rx_priv {
 	int				source_pad;
 };
 
+static const struct csi2rx_fmt formats[] = {
+	{ .code	= MEDIA_BUS_FMT_YUYV8_1X16, .bpp = 16, },
+	{ .code	= MEDIA_BUS_FMT_UYVY8_1X16, .bpp = 16, },
+	{ .code	= MEDIA_BUS_FMT_YVYU8_1X16, .bpp = 16, },
+	{ .code	= MEDIA_BUS_FMT_VYUY8_1X16, .bpp = 16, },
+	{ .code	= MEDIA_BUS_FMT_SBGGR8_1X8, .bpp = 8, },
+	{ .code	= MEDIA_BUS_FMT_SGBRG8_1X8, .bpp = 8, },
+	{ .code	= MEDIA_BUS_FMT_SGRBG8_1X8, .bpp = 8, },
+	{ .code	= MEDIA_BUS_FMT_SRGGB8_1X8, .bpp = 8, },
+	{ .code	= MEDIA_BUS_FMT_SBGGR10_1X10, .bpp = 10, },
+	{ .code	= MEDIA_BUS_FMT_SGBRG10_1X10, .bpp = 10, },
+	{ .code	= MEDIA_BUS_FMT_SGRBG10_1X10, .bpp = 10, },
+	{ .code	= MEDIA_BUS_FMT_SRGGB10_1X10, .bpp = 10, },
+};
+
+static const struct csi2rx_fmt *csi2rx_get_fmt_by_code(u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(formats); i++)
+		if (formats[i].code == code)
+			return &formats[i];
+
+	return NULL;
+}
+
 static inline
 struct csi2rx_priv *v4l2_subdev_to_csi2rx(struct v4l2_subdev *subdev)
 {
@@ -103,18 +139,53 @@ struct csi2rx_priv *v4l2_subdev_to_csi2rx(struct v4l2_subdev *subdev)
 
 static void csi2rx_reset(struct csi2rx_priv *csi2rx)
 {
+	unsigned int i;
+
+	/* Reset module */
 	writel(CSI2RX_SOFT_RESET_PROTOCOL | CSI2RX_SOFT_RESET_FRONT,
 	       csi2rx->base + CSI2RX_SOFT_RESET_REG);
+	/* Reset individual streams. */
+	for (i = 0; i < csi2rx->max_streams; i++) {
+		writel(CSI2RX_STREAM_CTRL_SOFT_RST,
+		       csi2rx->base + CSI2RX_STREAM_CTRL_REG(i));
+	}
 
-	udelay(10);
+	usleep_range(10, 20);
 
+	/* Clear resets */
 	writel(0, csi2rx->base + CSI2RX_SOFT_RESET_REG);
+	for (i = 0; i < csi2rx->max_streams; i++)
+		writel(0, csi2rx->base + CSI2RX_STREAM_CTRL_REG(i));
 }
 
 static int csi2rx_configure_ext_dphy(struct csi2rx_priv *csi2rx)
 {
 	union phy_configure_opts opts = { };
+	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
+	struct v4l2_subdev_format sd_fmt = {
+		.which	= V4L2_SUBDEV_FORMAT_ACTIVE,
+		.pad	= CSI2RX_PAD_SINK,
+	};
+	const struct csi2rx_fmt *fmt;
+	s64 link_freq;
 	int ret;
+
+	ret = v4l2_subdev_call_state_active(&csi2rx->subdev, pad, get_fmt,
+					    &sd_fmt);
+	if (ret < 0)
+		return ret;
+
+	fmt = csi2rx_get_fmt_by_code(sd_fmt.format.code);
+
+	link_freq = v4l2_get_link_freq(csi2rx->source_subdev->ctrl_handler,
+				       fmt->bpp, 2 * csi2rx->num_lanes);
+	if (link_freq < 0)
+		return link_freq;
+
+	ret = phy_mipi_dphy_get_default_config_for_hsclk(link_freq,
+							 csi2rx->num_lanes, cfg);
+	if (ret)
+		return ret;
 
 	ret = phy_power_on(csi2rx->dphy);
 	if (ret)
@@ -199,8 +270,11 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 		writel(CSI2RX_STREAM_CFG_FIFO_MODE_LARGE_BUF,
 		       csi2rx->base + CSI2RX_STREAM_CFG_REG(i));
 
-		writel(CSI2RX_STREAM_DATA_CFG_EN_VC_SELECT |
-		       CSI2RX_STREAM_DATA_CFG_VC_SELECT(i),
+		/*
+		 * Enable one virtual channel. When multiple virtual channels
+		 * are supported this will have to be changed.
+		 */
+		writel(CSI2RX_STREAM_DATA_CFG_VC_SELECT(0),
 		       csi2rx->base + CSI2RX_STREAM_DATA_CFG_REG(i));
 
 		writel(CSI2RX_STREAM_CTRL_START,
@@ -243,13 +317,25 @@ err_disable_pclk:
 static void csi2rx_stop(struct csi2rx_priv *csi2rx)
 {
 	unsigned int i;
+	u32 val;
+	int ret;
 
 	clk_prepare_enable(csi2rx->p_clk);
 	reset_control_assert(csi2rx->sys_rst);
 	clk_disable_unprepare(csi2rx->sys_clk);
 
 	for (i = 0; i < csi2rx->max_streams; i++) {
-		writel(0, csi2rx->base + CSI2RX_STREAM_CTRL_REG(i));
+		writel(CSI2RX_STREAM_CTRL_STOP,
+		       csi2rx->base + CSI2RX_STREAM_CTRL_REG(i));
+
+		ret = readl_relaxed_poll_timeout(csi2rx->base +
+						 CSI2RX_STREAM_STATUS_REG(i),
+						 val,
+						 !(val & CSI2RX_STREAM_STATUS_RDY),
+						 10, 10000);
+		if (ret)
+			dev_warn(csi2rx->dev,
+				 "Failed to stop streaming on pad%u\n", i);
 
 		reset_control_assert(csi2rx->pixel_rst[i]);
 		clk_disable_unprepare(csi2rx->pixel_clk[i]);
@@ -303,12 +389,72 @@ out:
 	return ret;
 }
 
+static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
+			  struct v4l2_subdev_state *state,
+			  struct v4l2_subdev_format *format)
+{
+	struct v4l2_mbus_framefmt *fmt;
+	unsigned int i;
+
+	/* No transcoding, source and sink formats must match. */
+	if (format->pad != CSI2RX_PAD_SINK)
+		return v4l2_subdev_get_fmt(subdev, state, format);
+
+	if (!csi2rx_get_fmt_by_code(format->format.code))
+		format->format.code = formats[0].code;
+
+	format->format.field = V4L2_FIELD_NONE;
+
+	/* Set sink format */
+	fmt = v4l2_subdev_get_pad_format(subdev, state, format->pad);
+	*fmt = format->format;
+
+	/* Propagate to source formats */
+	for (i = CSI2RX_PAD_SOURCE_STREAM0; i < CSI2RX_PAD_MAX; i++) {
+		fmt = v4l2_subdev_get_pad_format(subdev, state, i);
+		*fmt = format->format;
+	}
+
+	return 0;
+}
+
+static int csi2rx_init_cfg(struct v4l2_subdev *subdev,
+			   struct v4l2_subdev_state *state)
+{
+	struct v4l2_subdev_format format = {
+		.pad = CSI2RX_PAD_SINK,
+		.format = {
+			.width = 640,
+			.height = 480,
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
+			.field = V4L2_FIELD_NONE,
+			.colorspace = V4L2_COLORSPACE_SRGB,
+			.ycbcr_enc = V4L2_YCBCR_ENC_601,
+			.quantization = V4L2_QUANTIZATION_LIM_RANGE,
+			.xfer_func = V4L2_XFER_FUNC_SRGB,
+		},
+	};
+
+	return csi2rx_set_fmt(subdev, state, &format);
+}
+
+static const struct v4l2_subdev_pad_ops csi2rx_pad_ops = {
+	.get_fmt	= v4l2_subdev_get_fmt,
+	.set_fmt	= csi2rx_set_fmt,
+	.init_cfg	= csi2rx_init_cfg,
+};
+
 static const struct v4l2_subdev_video_ops csi2rx_video_ops = {
 	.s_stream	= csi2rx_s_stream,
 };
 
 static const struct v4l2_subdev_ops csi2rx_subdev_ops = {
 	.video		= &csi2rx_video_ops,
+	.pad		= &csi2rx_pad_ops,
+};
+
+static const struct media_entity_operations csi2rx_media_ops = {
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
@@ -479,8 +625,10 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	asd = v4l2_async_nf_add_fwnode_remote(&csi2rx->notifier, fwh,
 					      struct v4l2_async_connection);
 	of_node_put(ep);
-	if (IS_ERR(asd))
+	if (IS_ERR(asd)) {
+		v4l2_async_nf_cleanup(&csi2rx->notifier);
 		return PTR_ERR(asd);
+	}
 
 	csi2rx->notifier.ops = &csi2rx_notifier_ops;
 
@@ -516,23 +664,29 @@ static int csi2rx_probe(struct platform_device *pdev)
 	csi2rx->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&csi2rx->subdev, &csi2rx_subdev_ops);
 	v4l2_set_subdevdata(&csi2rx->subdev, &pdev->dev);
-	snprintf(csi2rx->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s.%s",
-		 KBUILD_MODNAME, dev_name(&pdev->dev));
+	snprintf(csi2rx->subdev.name, sizeof(csi2rx->subdev.name),
+		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
 
 	/* Create our media pads */
 	csi2rx->subdev.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	csi2rx->pads[CSI2RX_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	for (i = CSI2RX_PAD_SOURCE_STREAM0; i < CSI2RX_PAD_MAX; i++)
 		csi2rx->pads[i].flags = MEDIA_PAD_FL_SOURCE;
+	csi2rx->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	csi2rx->subdev.entity.ops = &csi2rx_media_ops;
 
 	ret = media_entity_pads_init(&csi2rx->subdev.entity, CSI2RX_PAD_MAX,
 				     csi2rx->pads);
 	if (ret)
 		goto err_cleanup;
 
+	ret = v4l2_subdev_init_finalize(&csi2rx->subdev);
+	if (ret)
+		goto err_cleanup;
+
 	ret = v4l2_async_register_subdev(&csi2rx->subdev);
 	if (ret < 0)
-		goto err_cleanup;
+		goto err_free_state;
 
 	dev_info(&pdev->dev,
 		 "Probed CSI2RX with %u/%u lanes, %u streams, %s D-PHY\n",
@@ -542,8 +696,12 @@ static int csi2rx_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_free_state:
+	v4l2_subdev_cleanup(&csi2rx->subdev);
 err_cleanup:
+	v4l2_async_nf_unregister(&csi2rx->notifier);
 	v4l2_async_nf_cleanup(&csi2rx->notifier);
+	media_entity_cleanup(&csi2rx->subdev.entity);
 err_free_priv:
 	kfree(csi2rx);
 	return ret;
@@ -553,7 +711,11 @@ static void csi2rx_remove(struct platform_device *pdev)
 {
 	struct csi2rx_priv *csi2rx = platform_get_drvdata(pdev);
 
+	v4l2_async_nf_unregister(&csi2rx->notifier);
+	v4l2_async_nf_cleanup(&csi2rx->notifier);
 	v4l2_async_unregister_subdev(&csi2rx->subdev);
+	v4l2_subdev_cleanup(&csi2rx->subdev);
+	media_entity_cleanup(&csi2rx->subdev.entity);
 	kfree(csi2rx);
 }
 

@@ -71,6 +71,11 @@ static inline void yield_to_any(void)
 {
 	plpar_hcall_norets_notrace(H_CONFER, -1, 0);
 }
+
+static inline bool is_vcpu_idle(int vcpu)
+{
+	return lppaca_of(vcpu).idle;
+}
 #else
 static inline bool is_shared_processor(void)
 {
@@ -100,6 +105,10 @@ static inline void prod_cpu(int cpu)
 	___bad_prod_cpu(); /* This would be a bug */
 }
 
+static inline bool is_vcpu_idle(int vcpu)
+{
+	return false;
+}
 #endif
 
 #define vcpu_is_preempted vcpu_is_preempted
@@ -121,9 +130,23 @@ static inline bool vcpu_is_preempted(int cpu)
 	if (!is_shared_processor())
 		return false;
 
+	/*
+	 * If the hypervisor has dispatched the target CPU on a physical
+	 * processor, then the target CPU is definitely not preempted.
+	 */
+	if (!(yield_count_of(cpu) & 1))
+		return false;
+
+	/*
+	 * If the target CPU has yielded to Hypervisor but OS has not
+	 * requested idle then the target CPU is definitely preempted.
+	 */
+	if (!is_vcpu_idle(cpu))
+		return true;
+
 #ifdef CONFIG_PPC_SPLPAR
 	if (!is_kvm_guest()) {
-		int first_cpu;
+		int first_cpu, i;
 
 		/*
 		 * The result of vcpu_is_preempted() is used in a
@@ -149,11 +172,29 @@ static inline bool vcpu_is_preempted(int cpu)
 		 */
 		if (cpu_first_thread_sibling(cpu) == first_cpu)
 			return false;
+
+		/*
+		 * If any of the threads of the target CPU's core are not
+		 * preempted or ceded, then consider target CPU to be
+		 * non-preempted.
+		 */
+		first_cpu = cpu_first_thread_sibling(cpu);
+		for (i = first_cpu; i < first_cpu + threads_per_core; i++) {
+			if (i == cpu)
+				continue;
+			if (!(yield_count_of(i) & 1))
+				return false;
+			if (!is_vcpu_idle(i))
+				return true;
+		}
 	}
 #endif
 
-	if (yield_count_of(cpu) & 1)
-		return true;
+	/*
+	 * None of the threads in target CPU's core are running but none of
+	 * them were preempted too. Hence assume the target CPU to be
+	 * non-preempted.
+	 */
 	return false;
 }
 

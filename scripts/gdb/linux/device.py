@@ -36,26 +36,26 @@ def for_each_bus():
     for kobj in kset_for_each_object(gdb.parse_and_eval('bus_kset')):
         subsys = container_of(kobj, kset_type.get_type().pointer(), 'kobj')
         subsys_priv = container_of(subsys, subsys_private_type.get_type().pointer(), 'subsys')
-        yield subsys_priv['bus']
+        yield subsys_priv
 
 
 def for_each_class():
     for kobj in kset_for_each_object(gdb.parse_and_eval('class_kset')):
         subsys = container_of(kobj, kset_type.get_type().pointer(), 'kobj')
         subsys_priv = container_of(subsys, subsys_private_type.get_type().pointer(), 'subsys')
-        yield subsys_priv['class']
+        yield subsys_priv
 
 
 def get_bus_by_name(name):
     for item in for_each_bus():
-        if item['name'].string() == name:
+        if item['bus']['name'].string() == name:
             return item
     raise gdb.GdbError("Can't find bus type {!r}".format(name))
 
 
 def get_class_by_name(name):
     for item in for_each_class():
-        if item['name'].string() == name:
+        if item['class']['name'].string() == name:
             return item
     raise gdb.GdbError("Can't find device class {!r}".format(name))
 
@@ -70,13 +70,13 @@ def klist_for_each(klist):
 
 
 def bus_for_each_device(bus):
-    for kn in klist_for_each(bus['p']['klist_devices']):
+    for kn in klist_for_each(bus['klist_devices']):
         dp = container_of(kn, device_private_type.get_type().pointer(), 'knode_bus')
         yield dp['device']
 
 
 def class_for_each_device(cls):
-    for kn in klist_for_each(cls['p']['klist_devices']):
+    for kn in klist_for_each(cls['klist_devices']):
         dp = container_of(kn, device_private_type.get_type().pointer(), 'knode_class')
         yield dp['device']
 
@@ -103,7 +103,7 @@ class LxDeviceListBus(gdb.Command):
     def invoke(self, arg, from_tty):
         if not arg:
             for bus in for_each_bus():
-                gdb.write('bus {}:\t{}\n'.format(bus['name'].string(), bus))
+                gdb.write('bus {}:\t{}\n'.format(bus['bus']['name'].string(), bus))
                 for dev in bus_for_each_device(bus):
                     _show_device(dev, level=1)
         else:
@@ -123,7 +123,7 @@ class LxDeviceListClass(gdb.Command):
     def invoke(self, arg, from_tty):
         if not arg:
             for cls in for_each_class():
-                gdb.write("class {}:\t{}\n".format(cls['name'].string(), cls))
+                gdb.write("class {}:\t{}\n".format(cls['class']['name'].string(), cls))
                 for dev in class_for_each_device(cls):
                     _show_device(dev, level=1)
         else:

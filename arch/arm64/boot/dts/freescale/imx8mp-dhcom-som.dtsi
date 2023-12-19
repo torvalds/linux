@@ -25,9 +25,7 @@
 
 	reg_eth_vio: regulator-eth-vio {
 		compatible = "regulator-fixed";
-		gpio = <&gpio2 10 GPIO_ACTIVE_LOW>;
-		pinctrl-0 = <&pinctrl_enet_vio>;
-		pinctrl-names = "default";
+		gpio = <&ioexp 2 GPIO_ACTIVE_LOW>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
@@ -56,6 +54,11 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-name = "VDD_3P3V_AWO";
+	};
+
+	wlan_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&ioexp 1 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -112,7 +115,7 @@
 			reg = <0>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
-			reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&ioexp 4 GPIO_ACTIVE_LOW>;
 			/* Non-default PHY population option. */
 			status = "disabled";
 		};
@@ -128,7 +131,7 @@
 			reg = <5>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <1000>;
-			reset-gpios = <&gpio3 20 GPIO_ACTIVE_LOW>;
+			reset-gpios = <&ioexp 4 GPIO_ACTIVE_LOW>;
 			/* Default PHY population option. */
 			status = "okay";
 		};
@@ -293,6 +296,8 @@
 			};
 
 			buck2: BUCK2 {	/* VDD_ARM */
+				nxp,dvs-run-voltage = <950000>;
+				nxp,dvs-standby-voltage = <850000>;
 				regulator-min-microvolt = <850000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-ramp-delay = <3125>;
@@ -348,8 +353,9 @@
 	};
 
 	adc@48 {
-		compatible = "ti,tla2024";
+		compatible = "ti,ads1015";
 		reg = <0x48>;
+		interrupts-extended = <&ioexp 7 IRQ_TYPE_EDGE_FALLING>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -396,23 +402,41 @@
 	};
 
 	eeprom0: eeprom@50 {	/* EEPROM with EQoS MAC address */
-		compatible = "atmel,24c02";
-		pagesize = <16>;
+		compatible = "atmel,24c32";	/* M24C32-D */
+		pagesize = <32>;
 		reg = <0x50>;
 	};
 
 	rv3032: rtc@51 {
 		compatible = "microcrystal,rv3032";
 		reg = <0x51>;
-		interrupts-extended = <&gpio5 5 IRQ_TYPE_LEVEL_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rtc>;
+		interrupts-extended = <&ioexp 3 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
 	};
 
 	eeprom1: eeprom@53 {	/* EEPROM with FEC MAC address */
-		compatible = "atmel,24c02";
-		pagesize = <16>;
+		compatible = "atmel,24c32";	/* M24C32-D */
+		pagesize = <32>;
 		reg = <0x53>;
+	};
+
+	ioexp: gpio@74 {
+		compatible = "nxp,pca9539";
+		reg = <0x74>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupts-extended = <&gpio3 20 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ioexp>;
+		wakeup-source;
+
+		gpio-line-names =
+			"BT_REG_EN", "WL_REG_EN", "VIO_SWITCHED_#EN", "RTC_#INT",
+			"ENET_QOS_#RST", "RGB_OSZ_ENABLE", "USB1_ID", "ADC_ALTER_RDY",
+			"DHCOM-W", "DHCOM-V", "DHCOM-U", "DHCOM-T",
+			"BT_HOST_WAKE", "BT_DEV_WAKE", "", "";
 	};
 };
 
@@ -463,6 +487,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
+	wakeup-source;
 };
 
 &uart2 {
@@ -484,10 +509,8 @@
 	assigned-clock-rates = <80000000>;
 
 	bluetooth {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_uart2_bt>;
 		compatible = "cypress,cyw4373a0-bt";
-		shutdown-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		shutdown-gpios = <&ioexp 0 GPIO_ACTIVE_HIGH>;
 		max-speed = <4000000>;
 	};
 };
@@ -514,8 +537,6 @@
 };
 
 &usb_dwc3_0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usb0_vbus>;
 	dr_mode = "otg";
 	status = "okay";
 };
@@ -541,6 +562,7 @@
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
+	mmc-pwrseq = <&wlan_pwrseq>;
 	vmmc-supply = <&buck4>;
 	bus-width = <4>;
 	non-removable;
@@ -559,7 +581,6 @@
 		 * connected to the SoC, but can be connected on to
 		 * SoC pin on the carrier board.
 		 */
-		reset-gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -601,8 +622,9 @@
 		     &pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
 		     &pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_i
 		     &pinctrl_dhcom_j &pinctrl_dhcom_k &pinctrl_dhcom_l
-		     /* GPIO_M is connected to CLKOUT1 */
-		     &pinctrl_dhcom_int>;
+		     &pinctrl_dhcom_m &pinctrl_dhcom_n &pinctrl_dhcom_o
+		     &pinctrl_dhcom_p &pinctrl_dhcom_q &pinctrl_dhcom_r
+		     &pinctrl_dhcom_s &pinctrl_dhcom_int>;
 	pinctrl-names = "default";
 
 	pinctrl_dhcom_a: dhcom-a-grp {
@@ -689,6 +711,55 @@
 		>;
 	};
 
+	pinctrl_dhcom_m: dhcom-m-grp {
+		fsl,pins = <
+			/* CSIx_MCLK */
+			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05		0x2
+		>;
+	};
+
+	pinctrl_dhcom_n: dhcom-n-grp {
+		fsl,pins = <
+			/* CSI2_D3- */
+			MX8MP_IOMUXC_SD1_DATA7__GPIO2_IO09		0x2
+		>;
+	};
+
+	pinctrl_dhcom_o: dhcom-o-grp {
+		fsl,pins = <
+			/* CSI2_D3+ */
+			MX8MP_IOMUXC_SD1_DATA6__GPIO2_IO08		0x2
+		>;
+	};
+
+	pinctrl_dhcom_p: dhcom-p-grp {
+		fsl,pins = <
+			/* CSI2_D2- */
+			MX8MP_IOMUXC_SD1_RESET_B__GPIO2_IO10		0x2
+		>;
+	};
+
+	pinctrl_dhcom_q: dhcom-q-grp {
+		fsl,pins = <
+			/* CSI2_D2+ */
+			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x2
+		>;
+	};
+
+	pinctrl_dhcom_r: dhcom-r-grp {
+		fsl,pins = <
+			/* CSI2_D1- */
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x2
+		>;
+	};
+
+	pinctrl_dhcom_s: dhcom-s-grp {
+		fsl,pins = <
+			/* CSI2_D1+ */
+			MX8MP_IOMUXC_GPIO1_IO10__GPIO1_IO10		0x2
+		>;
+	};
+
 	pinctrl_dhcom_int: dhcom-int-grp {
 		fsl,pins = <
 			/* INT_HIGHEST_PRIO */
@@ -762,16 +833,8 @@
 		>;
 	};
 
-	pinctrl_enet_vio: dhcom-enet-vio-grp {
-		fsl,pins = <
-			MX8MP_IOMUXC_SD1_RESET_B__GPIO2_IO10		0x22
-		>;
-	};
-
 	pinctrl_ethphy0: dhcom-ethphy0-grp {
 		fsl,pins = <
-			/* ENET_QOS_#RST Reset */
-			MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x22
 			/* ENET_QOS_#INT Interrupt */
 			MX8MP_IOMUXC_SAI5_RXFS__GPIO3_IO19		0x22
 		>;
@@ -897,6 +960,13 @@
 		>;
 	};
 
+	pinctrl_ioexp: dhcom-ioexp-grp {
+		fsl,pins = <
+			/* #GPIO_EXP_INT */
+			MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x22
+		>;
+	};
+
 	pinctrl_pmic: dhcom-pmic-grp {
 		fsl,pins = <
 			/* PMIC_nINT */
@@ -907,13 +977,6 @@
 	pinctrl_pwm1: dhcom-pwm1-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_GPIO1_IO01__PWM1_OUT		0x6
-		>;
-	};
-
-	pinctrl_rtc: dhcom-rtc-grp {
-		fsl,pins = <
-			/* RTC_#INT Interrupt */
-			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05		0x40000080
 		>;
 	};
 
@@ -962,13 +1025,6 @@
 		>;
 	};
 
-	pinctrl_uart2_bt: dhcom-uart2-bt-grp {
-		fsl,pins = <
-			/* BT_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12		0x144
-		>;
-	};
-
 	pinctrl_uart3: dhcom-uart3-grp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x49
@@ -982,12 +1038,6 @@
 		fsl,pins = <
 			MX8MP_IOMUXC_UART4_RXD__UART4_DCE_RX		0x49
 			MX8MP_IOMUXC_UART4_TXD__UART4_DCE_TX		0x49
-		>;
-	};
-
-	pinctrl_usb0_vbus: dhcom-usb0-grp {
-		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO10__USB1_OTG_ID		0x0
 		>;
 	};
 
@@ -1006,8 +1056,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d0
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d0
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d0
-			/* WL_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
 	};
 
@@ -1019,8 +1067,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d4
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d4
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d4
-			/* WL_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
 	};
 
@@ -1032,8 +1078,6 @@
 			MX8MP_IOMUXC_SD1_DATA1__USDHC1_DATA1		0x1d6
 			MX8MP_IOMUXC_SD1_DATA2__USDHC1_DATA2		0x1d6
 			MX8MP_IOMUXC_SD1_DATA3__USDHC1_DATA3		0x1d6
-			/* WL_REG_EN */
-			MX8MP_IOMUXC_GPIO1_IO13__GPIO1_IO13		0x144
 		>;
 	};
 

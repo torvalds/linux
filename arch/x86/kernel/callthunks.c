@@ -48,11 +48,6 @@ EXPORT_SYMBOL_GPL(__x86_call_count);
 
 extern s32 __call_sites[], __call_sites_end[];
 
-struct thunk_desc {
-	void		*template;
-	unsigned int	template_size;
-};
-
 struct core_text {
 	unsigned long	base;
 	unsigned long	end;
@@ -272,7 +267,6 @@ void __init callthunks_patch_builtin_calls(void)
 	pr_info("Setting up call depth tracking\n");
 	mutex_lock(&text_mutex);
 	callthunks_setup(&cs, &builtin_coretext);
-	static_call_force_reinit();
 	thunks_initialized = true;
 	mutex_unlock(&text_mutex);
 }

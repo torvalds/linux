@@ -31,10 +31,10 @@ static int fw_log_ptr(struct ivpu_device *vdev, struct ivpu_bo *bo, u32 *offset,
 {
 	struct vpu_tracing_buffer_header *log;
 
-	if ((*offset + sizeof(*log)) > bo->base.size)
+	if ((*offset + sizeof(*log)) > ivpu_bo_size(bo))
 		return -EINVAL;
 
-	log = bo->kvaddr + *offset;
+	log = ivpu_bo_vaddr(bo) + *offset;
 
 	if (log->vpu_canary_start != VPU_TRACING_BUFFER_CANARY)
 		return -EINVAL;
@@ -43,7 +43,7 @@ static int fw_log_ptr(struct ivpu_device *vdev, struct ivpu_bo *bo, u32 *offset,
 		ivpu_dbg(vdev, FW_BOOT, "Invalid header size 0x%x\n", log->header_size);
 		return -EINVAL;
 	}
-	if ((char *)log + log->size > (char *)bo->kvaddr + bo->base.size) {
+	if ((char *)log + log->size > (char *)ivpu_bo_vaddr(bo) + ivpu_bo_size(bo)) {
 		ivpu_dbg(vdev, FW_BOOT, "Invalid log size 0x%x\n", log->size);
 		return -EINVAL;
 	}

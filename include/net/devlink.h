@@ -150,6 +150,7 @@ struct devlink_port {
 
 	struct devlink_rate *devlink_rate;
 	struct devlink_linecard *linecard;
+	u32 rel_index;
 };
 
 struct devlink_port_new_attrs {
@@ -1697,6 +1698,8 @@ void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 contro
 void devlink_port_attrs_pci_sf_set(struct devlink_port *devlink_port,
 				   u32 controller, u16 pf, u32 sf,
 				   bool external);
+int devl_port_fn_devlink_set(struct devlink_port *devlink_port,
+			     struct devlink *fn_devlink);
 struct devlink_rate *
 devl_rate_node_create(struct devlink *devlink, void *priv, char *node_name,
 		      struct devlink_rate *parent);
@@ -1717,8 +1720,8 @@ void devlink_linecard_provision_clear(struct devlink_linecard *linecard);
 void devlink_linecard_provision_fail(struct devlink_linecard *linecard);
 void devlink_linecard_activate(struct devlink_linecard *linecard);
 void devlink_linecard_deactivate(struct devlink_linecard *linecard);
-void devlink_linecard_nested_dl_set(struct devlink_linecard *linecard,
-				    struct devlink *nested_devlink);
+int devlink_linecard_nested_dl_set(struct devlink_linecard *linecard,
+				   struct devlink *nested_devlink);
 int devl_sb_register(struct devlink *devlink, unsigned int sb_index,
 		     u32 size, u16 ingress_pools_count,
 		     u16 egress_pools_count, u16 ingress_tc_count,
@@ -1851,36 +1854,36 @@ int devlink_info_version_running_put_ext(struct devlink_info_req *req,
 					 const char *version_value,
 					 enum devlink_info_version_type version_type);
 
-int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
-int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
+void devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
+void devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
 
-int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
-int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
+void devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
+void devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
 
-int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
-				     const char *name);
-int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
-int devlink_fmsg_binary_pair_nest_start(struct devlink_fmsg *fmsg,
-					const char *name);
-int devlink_fmsg_binary_pair_nest_end(struct devlink_fmsg *fmsg);
+void devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				      const char *name);
+void devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
+void devlink_fmsg_binary_pair_nest_start(struct devlink_fmsg *fmsg,
+					 const char *name);
+void devlink_fmsg_binary_pair_nest_end(struct devlink_fmsg *fmsg);
 
-int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
-int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
-int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
-			    u16 value_len);
+void devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
+void devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
+void devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			     u16 value_len);
 
-int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			       bool value);
-int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			     u8 value);
-int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			      u32 value);
-int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
-			      u64 value);
-int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const char *value);
-int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
-				 const void *value, u32 value_len);
+void devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				bool value);
+void devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u8 value);
+void devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       u32 value);
+void devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       u64 value);
+void devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				  const char *value);
+void devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				  const void *value, u32 value_len);
 
 struct devlink_health_reporter *
 devl_port_health_reporter_create(struct devlink_port *port,
@@ -1918,6 +1921,8 @@ devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
 void
 devlink_health_reporter_recovery_done(struct devlink_health_reporter *reporter);
 
+int devl_nested_devlink_set(struct devlink *devlink,
+			    struct devlink *nested_devlink);
 bool devlink_is_reload_failed(const struct devlink *devlink);
 void devlink_remote_reload_actions_performed(struct devlink *devlink,
 					     enum devlink_reload_limit limit,

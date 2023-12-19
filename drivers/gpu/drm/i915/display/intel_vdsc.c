@@ -80,13 +80,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	int bpc = vdsc_cfg->bits_per_component;
 	int bpp = vdsc_cfg->bits_per_pixel >> 4;
 	int qp_bpc_modifier = (bpc - 8) * 2;
+	int uncompressed_bpg_rate;
+	int first_line_bpg_offset;
 	u32 res, buf_i, bpp_i;
 
 	if (vdsc_cfg->slice_height >= 8)
-		vdsc_cfg->first_line_bpg_offset =
-			12 + DIV_ROUND_UP((9 * min(34, vdsc_cfg->slice_height - 8)), 100);
+		first_line_bpg_offset =
+			12 + (9 * min(34, vdsc_cfg->slice_height - 8)) / 100;
 	else
-		vdsc_cfg->first_line_bpg_offset = 2 * (vdsc_cfg->slice_height - 1);
+		first_line_bpg_offset = 2 * (vdsc_cfg->slice_height - 1);
+
+	uncompressed_bpg_rate = (3 * bpc + (vdsc_cfg->convert_rgb ? 0 : 2)) * 3;
+	vdsc_cfg->first_line_bpg_offset = clamp(first_line_bpg_offset, 0,
+						uncompressed_bpg_rate - 3 * bpp);
 
 	/*
 	 * According to DSC 1.2 spec in Section 4.1 if native_420 is set:
@@ -350,14 +356,56 @@ intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 }
 
+static int intel_dsc_get_vdsc_per_pipe(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->dsc.dsc_split ? 2 : 1;
+}
+
 int intel_dsc_get_num_vdsc_instances(const struct intel_crtc_state *crtc_state)
 {
-	int num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
+	int num_vdsc_instances = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
 	if (crtc_state->bigjoiner_pipes)
 		num_vdsc_instances *= 2;
 
 	return num_vdsc_instances;
+}
+
+static void intel_dsc_get_pps_reg(const struct intel_crtc_state *crtc_state, int pps,
+				  i915_reg_t *dsc_reg, int dsc_reg_num)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+	enum pipe pipe = crtc->pipe;
+	bool pipe_dsc;
+
+	pipe_dsc = is_pipe_dsc(crtc, cpu_transcoder);
+
+	if (dsc_reg_num >= 3)
+		MISSING_CASE(dsc_reg_num);
+	if (dsc_reg_num >= 2)
+		dsc_reg[1] = pipe_dsc ? ICL_DSC1_PPS(pipe, pps) : DSCC_PPS(pps);
+	if (dsc_reg_num >= 1)
+		dsc_reg[0] = pipe_dsc ? ICL_DSC0_PPS(pipe, pps) : DSCA_PPS(pps);
+}
+
+static void intel_dsc_pps_write(const struct intel_crtc_state *crtc_state,
+				int pps, u32 pps_val)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	i915_reg_t dsc_reg[2];
+	int i, vdsc_per_pipe, dsc_reg_num;
+
+	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
+	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
+
+	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
+
+	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
+
+	for (i = 0; i < dsc_reg_num; i++)
+		intel_de_write(i915, dsc_reg[i], pps_val);
 }
 
 static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
@@ -367,359 +415,119 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	enum pipe pipe = crtc->pipe;
-	u32 pps_val = 0;
+	u32 pps_val;
 	u32 rc_buf_thresh_dword[4];
 	u32 rc_range_params_dword[8];
 	int i = 0;
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
+	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
-	/* Populate PICTURE_PARAMETER_SET_0 registers */
-	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
-		DSC_VER_MIN_SHIFT |
-		vdsc_cfg->bits_per_component << DSC_BPC_SHIFT |
-		vdsc_cfg->line_buf_depth << DSC_LINE_BUF_DEPTH_SHIFT;
+	/* PPS 0 */
+	pps_val = DSC_PPS0_VER_MAJOR(1) |
+		DSC_PPS0_VER_MINOR(vdsc_cfg->dsc_version_minor) |
+		DSC_PPS0_BPC(vdsc_cfg->bits_per_component) |
+		DSC_PPS0_LINE_BUF_DEPTH(vdsc_cfg->line_buf_depth);
 	if (vdsc_cfg->dsc_version_minor == 2) {
-		pps_val |= DSC_ALT_ICH_SEL;
+		pps_val |= DSC_PPS0_ALT_ICH_SEL;
 		if (vdsc_cfg->native_420)
-			pps_val |= DSC_NATIVE_420_ENABLE;
+			pps_val |= DSC_PPS0_NATIVE_420_ENABLE;
 		if (vdsc_cfg->native_422)
-			pps_val |= DSC_NATIVE_422_ENABLE;
+			pps_val |= DSC_PPS0_NATIVE_422_ENABLE;
 	}
 	if (vdsc_cfg->block_pred_enable)
-		pps_val |= DSC_BLOCK_PREDICTION;
+		pps_val |= DSC_PPS0_BLOCK_PREDICTION;
 	if (vdsc_cfg->convert_rgb)
-		pps_val |= DSC_COLOR_SPACE_CONVERSION;
+		pps_val |= DSC_PPS0_COLOR_SPACE_CONVERSION;
 	if (vdsc_cfg->simple_422)
-		pps_val |= DSC_422_ENABLE;
+		pps_val |= DSC_PPS0_422_ENABLE;
 	if (vdsc_cfg->vbr_enable)
-		pps_val |= DSC_VBR_ENABLE;
+		pps_val |= DSC_PPS0_VBR_ENABLE;
 	drm_dbg_kms(&dev_priv->drm, "PPS0 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_0,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_0,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_0(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_0(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 0, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_1 registers */
-	pps_val = 0;
-	pps_val |= DSC_BPP(vdsc_cfg->bits_per_pixel);
+	/* PPS 1 */
+	pps_val = DSC_PPS1_BPP(vdsc_cfg->bits_per_pixel);
 	drm_dbg_kms(&dev_priv->drm, "PPS1 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_1,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_1,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_1(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 1, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_2 registers */
-	pps_val = 0;
-	pps_val |= DSC_PIC_HEIGHT(vdsc_cfg->pic_height) |
-		DSC_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
+	/* PPS 2 */
+	pps_val = DSC_PPS2_PIC_HEIGHT(vdsc_cfg->pic_height) |
+		DSC_PPS2_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
 	drm_dbg_kms(&dev_priv->drm, "PPS2 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_2,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_2,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_2(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_2(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 2, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_3 registers */
-	pps_val = 0;
-	pps_val |= DSC_SLICE_HEIGHT(vdsc_cfg->slice_height) |
-		DSC_SLICE_WIDTH(vdsc_cfg->slice_width);
+	/* PPS 3 */
+	pps_val = DSC_PPS3_SLICE_HEIGHT(vdsc_cfg->slice_height) |
+		DSC_PPS3_SLICE_WIDTH(vdsc_cfg->slice_width);
 	drm_dbg_kms(&dev_priv->drm, "PPS3 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_3,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_3,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_3(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_3(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 3, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_4 registers */
-	pps_val = 0;
-	pps_val |= DSC_INITIAL_XMIT_DELAY(vdsc_cfg->initial_xmit_delay) |
-		DSC_INITIAL_DEC_DELAY(vdsc_cfg->initial_dec_delay);
+	/* PPS 4 */
+	pps_val = DSC_PPS4_INITIAL_XMIT_DELAY(vdsc_cfg->initial_xmit_delay) |
+		DSC_PPS4_INITIAL_DEC_DELAY(vdsc_cfg->initial_dec_delay);
 	drm_dbg_kms(&dev_priv->drm, "PPS4 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_4,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_4,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_4(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_4(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 4, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_5 registers */
-	pps_val = 0;
-	pps_val |= DSC_SCALE_INC_INT(vdsc_cfg->scale_increment_interval) |
-		DSC_SCALE_DEC_INT(vdsc_cfg->scale_decrement_interval);
+	/* PPS 5 */
+	pps_val = DSC_PPS5_SCALE_INC_INT(vdsc_cfg->scale_increment_interval) |
+		DSC_PPS5_SCALE_DEC_INT(vdsc_cfg->scale_decrement_interval);
 	drm_dbg_kms(&dev_priv->drm, "PPS5 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_5,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_5,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_5(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_5(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 5, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_6 registers */
-	pps_val = 0;
-	pps_val |= DSC_INITIAL_SCALE_VALUE(vdsc_cfg->initial_scale_value) |
-		DSC_FIRST_LINE_BPG_OFFSET(vdsc_cfg->first_line_bpg_offset) |
-		DSC_FLATNESS_MIN_QP(vdsc_cfg->flatness_min_qp) |
-		DSC_FLATNESS_MAX_QP(vdsc_cfg->flatness_max_qp);
+	/* PPS 6 */
+	pps_val = DSC_PPS6_INITIAL_SCALE_VALUE(vdsc_cfg->initial_scale_value) |
+		DSC_PPS6_FIRST_LINE_BPG_OFFSET(vdsc_cfg->first_line_bpg_offset) |
+		DSC_PPS6_FLATNESS_MIN_QP(vdsc_cfg->flatness_min_qp) |
+		DSC_PPS6_FLATNESS_MAX_QP(vdsc_cfg->flatness_max_qp);
 	drm_dbg_kms(&dev_priv->drm, "PPS6 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_6,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_6,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_6(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_6(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 6, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_7 registers */
-	pps_val = 0;
-	pps_val |= DSC_SLICE_BPG_OFFSET(vdsc_cfg->slice_bpg_offset) |
-		DSC_NFL_BPG_OFFSET(vdsc_cfg->nfl_bpg_offset);
+	/* PPS 7 */
+	pps_val = DSC_PPS7_SLICE_BPG_OFFSET(vdsc_cfg->slice_bpg_offset) |
+		DSC_PPS7_NFL_BPG_OFFSET(vdsc_cfg->nfl_bpg_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS7 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_7,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_7,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_7(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_7(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 7, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_8 registers */
-	pps_val = 0;
-	pps_val |= DSC_FINAL_OFFSET(vdsc_cfg->final_offset) |
-		DSC_INITIAL_OFFSET(vdsc_cfg->initial_offset);
+	/* PPS 8 */
+	pps_val = DSC_PPS8_FINAL_OFFSET(vdsc_cfg->final_offset) |
+		DSC_PPS8_INITIAL_OFFSET(vdsc_cfg->initial_offset);
 	drm_dbg_kms(&dev_priv->drm, "PPS8 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_8,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_8,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_8(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_8(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 8, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_9 registers */
-	pps_val = 0;
-	pps_val |= DSC_RC_MODEL_SIZE(vdsc_cfg->rc_model_size) |
-		DSC_RC_EDGE_FACTOR(DSC_RC_EDGE_FACTOR_CONST);
+	/* PPS 9 */
+	pps_val = DSC_PPS9_RC_MODEL_SIZE(vdsc_cfg->rc_model_size) |
+		DSC_PPS9_RC_EDGE_FACTOR(DSC_RC_EDGE_FACTOR_CONST);
 	drm_dbg_kms(&dev_priv->drm, "PPS9 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_9,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv, DSCC_PICTURE_PARAMETER_SET_9,
-				       pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_9(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_9(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 9, pps_val);
 
-	/* Populate PICTURE_PARAMETER_SET_10 registers */
-	pps_val = 0;
-	pps_val |= DSC_RC_QUANT_INC_LIMIT0(vdsc_cfg->rc_quant_incr_limit0) |
-		DSC_RC_QUANT_INC_LIMIT1(vdsc_cfg->rc_quant_incr_limit1) |
-		DSC_RC_TARGET_OFF_HIGH(DSC_RC_TGT_OFFSET_HI_CONST) |
-		DSC_RC_TARGET_OFF_LOW(DSC_RC_TGT_OFFSET_LO_CONST);
+	/* PPS 10 */
+	pps_val = DSC_PPS10_RC_QUANT_INC_LIMIT0(vdsc_cfg->rc_quant_incr_limit0) |
+		DSC_PPS10_RC_QUANT_INC_LIMIT1(vdsc_cfg->rc_quant_incr_limit1) |
+		DSC_PPS10_RC_TARGET_OFF_HIGH(DSC_RC_TGT_OFFSET_HI_CONST) |
+		DSC_PPS10_RC_TARGET_OFF_LOW(DSC_RC_TGT_OFFSET_LO_CONST);
 	drm_dbg_kms(&dev_priv->drm, "PPS10 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_10,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       DSCC_PICTURE_PARAMETER_SET_10, pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_10(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_10(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 10, pps_val);
 
-	/* Populate Picture parameter set 16 */
-	pps_val = 0;
-	pps_val |= DSC_SLICE_CHUNK_SIZE(vdsc_cfg->slice_chunk_size) |
-		DSC_SLICE_PER_LINE((vdsc_cfg->pic_width / num_vdsc_instances) /
-				   vdsc_cfg->slice_width) |
-		DSC_SLICE_ROW_PER_FRAME(vdsc_cfg->pic_height /
-					vdsc_cfg->slice_height);
+	/* PPS 16 */
+	pps_val = DSC_PPS16_SLICE_CHUNK_SIZE(vdsc_cfg->slice_chunk_size) |
+		DSC_PPS16_SLICE_PER_LINE((vdsc_cfg->pic_width / num_vdsc_instances) /
+					 vdsc_cfg->slice_width) |
+		DSC_PPS16_SLICE_ROW_PER_FRAME(vdsc_cfg->pic_height /
+					      vdsc_cfg->slice_height);
 	drm_dbg_kms(&dev_priv->drm, "PPS16 = 0x%08x\n", pps_val);
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		intel_de_write(dev_priv, DSCA_PICTURE_PARAMETER_SET_16,
-			       pps_val);
-		/*
-		 * If 2 VDSC instances are needed, configure PPS for second
-		 * VDSC
-		 */
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       DSCC_PICTURE_PARAMETER_SET_16, pps_val);
-	} else {
-		intel_de_write(dev_priv,
-			       ICL_DSC0_PICTURE_PARAMETER_SET_16(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       ICL_DSC1_PICTURE_PARAMETER_SET_16(pipe),
-				       pps_val);
-	}
+	intel_dsc_pps_write(crtc_state, 16, pps_val);
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
-		/* Populate PICTURE_PARAMETER_SET_17 registers */
-		pps_val = 0;
-		pps_val |= DSC_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
+		/* PPS 17 */
+		pps_val = DSC_PPS17_SL_BPG_OFFSET(vdsc_cfg->second_line_bpg_offset);
 		drm_dbg_kms(&dev_priv->drm, "PPS17 = 0x%08x\n", pps_val);
-		intel_de_write(dev_priv,
-			       MTL_DSC0_PICTURE_PARAMETER_SET_17(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       MTL_DSC1_PICTURE_PARAMETER_SET_17(pipe),
-				       pps_val);
+		intel_dsc_pps_write(crtc_state, 17, pps_val);
 
-		/* Populate PICTURE_PARAMETER_SET_18 registers */
-		pps_val = 0;
-		pps_val |= DSC_NSL_BPG_OFFSET(vdsc_cfg->nsl_bpg_offset) |
-			   DSC_SL_OFFSET_ADJ(vdsc_cfg->second_line_offset_adj);
+		/* PPS 18 */
+		pps_val = DSC_PPS18_NSL_BPG_OFFSET(vdsc_cfg->nsl_bpg_offset) |
+			DSC_PPS18_SL_OFFSET_ADJ(vdsc_cfg->second_line_offset_adj);
 		drm_dbg_kms(&dev_priv->drm, "PPS18 = 0x%08x\n", pps_val);
-		intel_de_write(dev_priv,
-			       MTL_DSC0_PICTURE_PARAMETER_SET_18(pipe),
-			       pps_val);
-		if (crtc_state->dsc.dsc_split)
-			intel_de_write(dev_priv,
-				       MTL_DSC1_PICTURE_PARAMETER_SET_18(pipe),
-				       pps_val);
+		intel_dsc_pps_write(crtc_state, 18, pps_val);
 	}
 
 	/* Populate the RC_BUF_THRESH registers */
@@ -740,7 +548,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 			       rc_buf_thresh_dword[2]);
 		intel_de_write(dev_priv, DSCA_RC_BUF_THRESH_1_UDW,
 			       rc_buf_thresh_dword[3]);
-		if (crtc_state->dsc.dsc_split) {
+		if (vdsc_instances_per_pipe > 1) {
 			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_0,
 				       rc_buf_thresh_dword[0]);
 			intel_de_write(dev_priv, DSCC_RC_BUF_THRESH_0_UDW,
@@ -759,7 +567,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 			       rc_buf_thresh_dword[2]);
 		intel_de_write(dev_priv, ICL_DSC0_RC_BUF_THRESH_1_UDW(pipe),
 			       rc_buf_thresh_dword[3]);
-		if (crtc_state->dsc.dsc_split) {
+		if (vdsc_instances_per_pipe > 1) {
 			intel_de_write(dev_priv,
 				       ICL_DSC1_RC_BUF_THRESH_0(pipe),
 				       rc_buf_thresh_dword[0]);
@@ -805,7 +613,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 			       rc_range_params_dword[6]);
 		intel_de_write(dev_priv, DSCA_RC_RANGE_PARAMETERS_3_UDW,
 			       rc_range_params_dword[7]);
-		if (crtc_state->dsc.dsc_split) {
+		if (vdsc_instances_per_pipe > 1) {
 			intel_de_write(dev_priv, DSCC_RC_RANGE_PARAMETERS_0,
 				       rc_range_params_dword[0]);
 			intel_de_write(dev_priv,
@@ -848,7 +656,7 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 		intel_de_write(dev_priv,
 			       ICL_DSC0_RC_RANGE_PARAMETERS_3_UDW(pipe),
 			       rc_range_params_dword[7]);
-		if (crtc_state->dsc.dsc_split) {
+		if (vdsc_instances_per_pipe > 1) {
 			intel_de_write(dev_priv,
 				       ICL_DSC1_RC_RANGE_PARAMETERS_0(pipe),
 				       rc_range_params_dword[0]);
@@ -954,6 +762,7 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dss_ctl1_val = 0;
 	u32 dss_ctl2_val = 0;
+	int vdsc_instances_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 
 	if (!crtc_state->dsc.compression_enable)
 		return;
@@ -961,7 +770,7 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 	intel_dsc_pps_configure(crtc_state);
 
 	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
-	if (crtc_state->dsc.dsc_split) {
+	if (vdsc_instances_per_pipe > 1) {
 		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
@@ -987,16 +796,168 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
+static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
+			      bool *check_equal)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	i915_reg_t dsc_reg[2];
+	int i, vdsc_per_pipe, dsc_reg_num;
+	u32 val = 0;
+
+	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
+	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
+
+	drm_WARN_ON_ONCE(&i915->drm, dsc_reg_num < vdsc_per_pipe);
+
+	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
+
+	if (check_equal)
+		*check_equal = true;
+
+	for (i = 0; i < dsc_reg_num; i++) {
+		u32 tmp;
+
+		tmp = intel_de_read(i915, dsc_reg[i]);
+
+		if (i == 0) {
+			val = tmp;
+		} else if (check_equal && tmp != val) {
+			*check_equal = false;
+			break;
+		} else if (!check_equal) {
+			break;
+		}
+	}
+
+	return val;
+}
+
+static u32 intel_dsc_pps_read_and_verify(struct intel_crtc_state *crtc_state, int pps)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	u32 val;
+	bool all_equal;
+
+	val = intel_dsc_pps_read(crtc_state, pps, &all_equal);
+	drm_WARN_ON(&i915->drm, !all_equal);
+
+	return val;
+}
+
+static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
+{
+	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
+	u32 pps_temp;
+
+	/* PPS 0 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 0);
+
+	vdsc_cfg->bits_per_component = REG_FIELD_GET(DSC_PPS0_BPC_MASK, pps_temp);
+	vdsc_cfg->line_buf_depth = REG_FIELD_GET(DSC_PPS0_LINE_BUF_DEPTH_MASK, pps_temp);
+	vdsc_cfg->block_pred_enable = pps_temp & DSC_PPS0_BLOCK_PREDICTION;
+	vdsc_cfg->convert_rgb = pps_temp & DSC_PPS0_COLOR_SPACE_CONVERSION;
+	vdsc_cfg->simple_422 = pps_temp & DSC_PPS0_422_ENABLE;
+	vdsc_cfg->native_422 = pps_temp & DSC_PPS0_NATIVE_422_ENABLE;
+	vdsc_cfg->native_420 = pps_temp & DSC_PPS0_NATIVE_420_ENABLE;
+	vdsc_cfg->vbr_enable = pps_temp & DSC_PPS0_VBR_ENABLE;
+
+	/* PPS 1 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 1);
+
+	vdsc_cfg->bits_per_pixel = REG_FIELD_GET(DSC_PPS1_BPP_MASK, pps_temp);
+
+	if (vdsc_cfg->native_420)
+		vdsc_cfg->bits_per_pixel >>= 1;
+
+	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
+
+	/* PPS 2 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 2);
+
+	vdsc_cfg->pic_width = REG_FIELD_GET(DSC_PPS2_PIC_WIDTH_MASK, pps_temp) * num_vdsc_instances;
+	vdsc_cfg->pic_height = REG_FIELD_GET(DSC_PPS2_PIC_HEIGHT_MASK, pps_temp);
+
+	/* PPS 3 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 3);
+
+	vdsc_cfg->slice_width = REG_FIELD_GET(DSC_PPS3_SLICE_WIDTH_MASK, pps_temp);
+	vdsc_cfg->slice_height = REG_FIELD_GET(DSC_PPS3_SLICE_HEIGHT_MASK, pps_temp);
+
+	/* PPS 4 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 4);
+
+	vdsc_cfg->initial_dec_delay = REG_FIELD_GET(DSC_PPS4_INITIAL_DEC_DELAY_MASK, pps_temp);
+	vdsc_cfg->initial_xmit_delay = REG_FIELD_GET(DSC_PPS4_INITIAL_XMIT_DELAY_MASK, pps_temp);
+
+	/* PPS 5 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 5);
+
+	vdsc_cfg->scale_decrement_interval = REG_FIELD_GET(DSC_PPS5_SCALE_DEC_INT_MASK, pps_temp);
+	vdsc_cfg->scale_increment_interval = REG_FIELD_GET(DSC_PPS5_SCALE_INC_INT_MASK, pps_temp);
+
+	/* PPS 6 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 6);
+
+	vdsc_cfg->initial_scale_value = REG_FIELD_GET(DSC_PPS6_INITIAL_SCALE_VALUE_MASK, pps_temp);
+	vdsc_cfg->first_line_bpg_offset = REG_FIELD_GET(DSC_PPS6_FIRST_LINE_BPG_OFFSET_MASK, pps_temp);
+	vdsc_cfg->flatness_min_qp = REG_FIELD_GET(DSC_PPS6_FLATNESS_MIN_QP_MASK, pps_temp);
+	vdsc_cfg->flatness_max_qp = REG_FIELD_GET(DSC_PPS6_FLATNESS_MAX_QP_MASK, pps_temp);
+
+	/* PPS 7 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 7);
+
+	vdsc_cfg->nfl_bpg_offset = REG_FIELD_GET(DSC_PPS7_NFL_BPG_OFFSET_MASK, pps_temp);
+	vdsc_cfg->slice_bpg_offset = REG_FIELD_GET(DSC_PPS7_SLICE_BPG_OFFSET_MASK, pps_temp);
+
+	/* PPS 8 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 8);
+
+	vdsc_cfg->initial_offset = REG_FIELD_GET(DSC_PPS8_INITIAL_OFFSET_MASK, pps_temp);
+	vdsc_cfg->final_offset = REG_FIELD_GET(DSC_PPS8_FINAL_OFFSET_MASK, pps_temp);
+
+	/* PPS 9 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 9);
+
+	vdsc_cfg->rc_model_size = REG_FIELD_GET(DSC_PPS9_RC_MODEL_SIZE_MASK, pps_temp);
+
+	/* PPS 10 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 10);
+
+	vdsc_cfg->rc_quant_incr_limit0 = REG_FIELD_GET(DSC_PPS10_RC_QUANT_INC_LIMIT0_MASK, pps_temp);
+	vdsc_cfg->rc_quant_incr_limit1 = REG_FIELD_GET(DSC_PPS10_RC_QUANT_INC_LIMIT1_MASK, pps_temp);
+
+	/* PPS 16 */
+	pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 16);
+
+	vdsc_cfg->slice_chunk_size = REG_FIELD_GET(DSC_PPS16_SLICE_CHUNK_SIZE_MASK, pps_temp);
+
+	if (DISPLAY_VER(i915) >= 14) {
+		/* PPS 17 */
+		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 17);
+
+		vdsc_cfg->second_line_bpg_offset = REG_FIELD_GET(DSC_PPS17_SL_BPG_OFFSET_MASK, pps_temp);
+
+		/* PPS 18 */
+		pps_temp = intel_dsc_pps_read_and_verify(crtc_state, 18);
+
+		vdsc_cfg->nsl_bpg_offset = REG_FIELD_GET(DSC_PPS18_NSL_BPG_OFFSET_MASK, pps_temp);
+		vdsc_cfg->second_line_offset_adj = REG_FIELD_GET(DSC_PPS18_SL_OFFSET_ADJ_MASK, pps_temp);
+	}
+}
+
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
-	enum pipe pipe = crtc->pipe;
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
-	u32 dss_ctl1, dss_ctl2, pps0 = 0, pps1 = 0;
+	u32 dss_ctl1, dss_ctl2;
 
 	if (!intel_dsc_source_support(crtc_state))
 		return;
@@ -1017,24 +978,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 	crtc_state->dsc.dsc_split = (dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE) &&
 		(dss_ctl1 & JOINER_ENABLE);
 
-	/* FIXME: add more state readout as needed */
-
-	/* PPS0 & PPS1 */
-	if (!is_pipe_dsc(crtc, cpu_transcoder)) {
-		pps1 = intel_de_read(dev_priv, DSCA_PICTURE_PARAMETER_SET_1);
-	} else {
-		pps0 = intel_de_read(dev_priv,
-				     ICL_DSC0_PICTURE_PARAMETER_SET_0(pipe));
-		pps1 = intel_de_read(dev_priv,
-				     ICL_DSC0_PICTURE_PARAMETER_SET_1(pipe));
-	}
-
-	vdsc_cfg->bits_per_pixel = pps1;
-
-	if (pps0 & DSC_NATIVE_420_ENABLE)
-		vdsc_cfg->bits_per_pixel >>= 1;
-
-	crtc_state->dsc.compressed_bpp = vdsc_cfg->bits_per_pixel >> 4;
+	intel_dsc_get_pps_config(crtc_state);
 out:
 	intel_display_power_put(dev_priv, power_domain, wakeref);
 }

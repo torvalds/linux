@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/export.h>
-#include <linux/screen_info.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
@@ -53,10 +52,6 @@ char __section(".appended_dtb") __appended_dtb[0x100000];
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(cpu_data);
-
-#ifdef CONFIG_VT
-struct screen_info screen_info;
-#endif
 
 /*
  * Setup information
@@ -460,7 +455,8 @@ static void __init mips_parse_crashkernel(void)
 
 	total_mem = memblock_phys_mem_size();
 	ret = parse_crashkernel(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+				&crash_size, &crash_base,
+				NULL, NULL);
 	if (ret != 0 || crash_size <= 0)
 		return;
 
@@ -791,12 +787,6 @@ void __init setup_arch(char **cmdline_p)
 	cpu_report();
 	if (IS_ENABLED(CONFIG_CPU_R4X00_BUGS64))
 		check_bugs64_early();
-
-#if defined(CONFIG_VT)
-#if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
-#endif
-#endif
 
 	arch_mem_init(cmdline_p);
 	dmi_setup();

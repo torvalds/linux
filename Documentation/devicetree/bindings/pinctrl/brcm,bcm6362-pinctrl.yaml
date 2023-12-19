@@ -24,6 +24,7 @@ patternProperties:
   '-pins$':
     type: object
     $ref: pinmux-node.yaml#
+    unevaluatedProperties: false
 
     properties:
       function:
@@ -40,6 +41,10 @@ patternProperties:
                 gpio8, gpio9, gpio10, gpio11, gpio12, gpio13, gpio14,
                 gpio15, gpio16, gpio17, gpio18, gpio19, gpio20, gpio21,
                 gpio22, gpio23, gpio24, gpio25, gpio26, gpio27, nand_grp ]
+
+    patternProperties:
+      '-pins$':
+        $ref: '#/patternProperties/-pins$'
 
 allOf:
   - $ref: pinctrl.yaml#
@@ -204,6 +209,6 @@ examples:
 
       pinctrl_nand: nand-pins {
         function = "nand";
-        group = "nand_grp";
+        pins = "nand_grp";
       };
     };

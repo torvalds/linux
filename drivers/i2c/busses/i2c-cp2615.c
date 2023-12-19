@@ -85,7 +85,7 @@ static int cp2615_init_iop_msg(struct cp2615_iop_msg *ret, enum cp2615_iop_msg_t
 	if (!ret)
 		return -EINVAL;
 
-	ret->preamble = 0x2A2A;
+	ret->preamble = htons(0x2A2AU);
 	ret->length = htons(data_len + 6);
 	ret->msg = htons(msg);
 	if (data && data_len)
@@ -298,7 +298,7 @@ cp2615_i2c_probe(struct usb_interface *usbif, const struct usb_device_id *id)
 	if (!adap)
 		return -ENOMEM;
 
-	strncpy(adap->name, usbdev->serial, sizeof(adap->name) - 1);
+	strscpy(adap->name, usbdev->serial, sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->dev.parent = &usbif->dev;
 	adap->dev.of_node = usbif->dev.of_node;

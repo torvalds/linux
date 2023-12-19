@@ -331,6 +331,7 @@ amdgpu_dma_buf_create_obj(struct drm_device *dev, struct dma_buf *dma_buf)
 
 		flags |= other->flags & (AMDGPU_GEM_CREATE_CPU_GTT_USWC |
 					 AMDGPU_GEM_CREATE_COHERENT |
+					 AMDGPU_GEM_CREATE_EXT_COHERENT |
 					 AMDGPU_GEM_CREATE_UNCACHED);
 	}
 
@@ -403,9 +404,12 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 				continue;
 		}
 
-		r = amdgpu_vm_clear_freed(adev, vm, NULL);
+		/* Reserve fences for two SDMA page table updates */
+		r = dma_resv_reserve_fences(resv, 2);
 		if (!r)
-			r = amdgpu_vm_handle_moved(adev, vm);
+			r = amdgpu_vm_clear_freed(adev, vm, NULL);
+		if (!r)
+			r = amdgpu_vm_handle_moved(adev, vm, ticket);
 
 		if (r && r != -EBUSY)
 			DRM_ERROR("Failed to invalidate VM page tables (%d))\n",

@@ -1492,6 +1492,7 @@ static int pm2fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static const struct fb_ops pm2fb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= pm2fb_check_var,
 	.fb_set_par	= pm2fb_set_par,
 	.fb_setcolreg	= pm2fb_setcolreg,
@@ -1502,6 +1503,7 @@ static const struct fb_ops pm2fb_ops = {
 	.fb_imageblit	= pm2fb_imageblit,
 	.fb_sync	= pm2fb_sync,
 	.fb_cursor	= pm2fb_cursor,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /*

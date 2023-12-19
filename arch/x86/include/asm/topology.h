@@ -105,17 +105,17 @@ static inline void setup_node_to_cpumask_map(void) { }
 extern const struct cpumask *cpu_coregroup_mask(int cpu);
 extern const struct cpumask *cpu_clustergroup_mask(int cpu);
 
-#define topology_logical_package_id(cpu)	(cpu_data(cpu).logical_proc_id)
-#define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
-#define topology_logical_die_id(cpu)		(cpu_data(cpu).logical_die_id)
-#define topology_die_id(cpu)			(cpu_data(cpu).cpu_die_id)
-#define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
+#define topology_logical_package_id(cpu)	(cpu_data(cpu).topo.logical_pkg_id)
+#define topology_physical_package_id(cpu)	(cpu_data(cpu).topo.pkg_id)
+#define topology_logical_die_id(cpu)		(cpu_data(cpu).topo.logical_die_id)
+#define topology_die_id(cpu)			(cpu_data(cpu).topo.die_id)
+#define topology_core_id(cpu)			(cpu_data(cpu).topo.core_id)
 #define topology_ppin(cpu)			(cpu_data(cpu).ppin)
 
 extern unsigned int __max_die_per_package;
 
 #ifdef CONFIG_SMP
-#define topology_cluster_id(cpu)		(per_cpu(cpu_l2c_id, cpu))
+#define topology_cluster_id(cpu)		(cpu_data(cpu).topo.l2c_id)
 #define topology_die_cpumask(cpu)		(per_cpu(cpu_die_map, cpu))
 #define topology_cluster_cpumask(cpu)		(cpu_clustergroup_mask(cpu))
 #define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))

@@ -545,7 +545,7 @@ static int rpmsg_dev_probe(struct device *dev)
 		goto out;
 
 	if (rpdrv->callback) {
-		strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+		strscpy(chinfo.name, rpdev->id.name, sizeof(chinfo.name));
 		chinfo.src = rpdev->src;
 		chinfo.dst = RPMSG_ADDR_ANY;
 

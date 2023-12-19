@@ -188,9 +188,10 @@
 	status = "okay";
 	vmmc-supply = <&mmc_vcard>;
 	broken-cd;
-	pinctrl-names = "default", "opendrain";
+	pinctrl-names = "default", "opendrain", "sleep";
 	pinctrl-0 = <&sdio_pins_a>;
 	pinctrl-1 = <&sdio_pins_od_a>;
+	pinctrl-2 = <&sdio_pins_sleep_a>;
 	bus-width = <4>;
 };
 

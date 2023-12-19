@@ -1001,6 +1001,12 @@ xfs_ag_shrink_space(
 		error = -ENOSPC;
 		goto resv_init_out;
 	}
+
+	/* Update perag geometry */
+	pag->block_count -= delta;
+	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
+				&pag->agino_max);
+
 	xfs_ialloc_log_agi(*tpp, agibp, XFS_AGI_LENGTH);
 	xfs_alloc_log_agf(*tpp, agfbp, XFS_AGF_LENGTH);
 	return 0;

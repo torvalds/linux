@@ -36,7 +36,7 @@
 #define STATUS_BR_BIT          (1 << 15)
 
 /* Interrupt mask bits */
-#define CONFIG_ALRT_BIT_ENBL	(1 << 2)
+#define CFG_ALRT_BIT_ENBL	(1 << 2)
 
 #define VFSOC0_LOCK		0x0000
 #define VFSOC0_UNLOCK		0x0080
@@ -1116,8 +1116,8 @@ static int max17042_probe(struct i2c_client *client)
 						chip);
 		if (!ret) {
 			regmap_update_bits(chip->regmap, MAX17042_CONFIG,
-					CONFIG_ALRT_BIT_ENBL,
-					CONFIG_ALRT_BIT_ENBL);
+					CFG_ALRT_BIT_ENBL,
+					CFG_ALRT_BIT_ENBL);
 			max17042_set_soc_threshold(chip, 1);
 		} else {
 			client->irq = 0;

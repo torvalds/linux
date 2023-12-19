@@ -296,7 +296,7 @@ static void gfxhub_v2_1_setup_vmid_config(struct amdgpu_device *adev)
 	uint32_t tmp;
 
 	for (i = 0; i <= 14; i++) {
-		tmp = RREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_CNTL, i);
+		tmp = RREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_CNTL, i * hub->ctx_distance);
 		tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, GCVM_CONTEXT1_CNTL, PAGE_TABLE_DEPTH,
 				    adev->vm_manager.num_level);
@@ -510,7 +510,7 @@ static int gfxhub_v2_1_get_xgmi_info(struct amdgpu_device *adev)
 	u32 max_num_physical_nodes   = 0;
 	u32 max_physical_node_id     = 0;
 
-	switch (adev->ip_versions[XGMI_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(4, 8, 0):
 		max_num_physical_nodes   = 4;
 		max_physical_node_id     = 3;
@@ -548,7 +548,7 @@ static void gfxhub_v2_1_utcl2_harvest(struct amdgpu_device *adev)
 		adev->gfx.config.max_sh_per_se *
 		adev->gfx.config.max_shader_engines);
 
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 3):
 		/* Get SA disabled bitmap from eFuse setting */

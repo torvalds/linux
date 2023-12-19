@@ -848,57 +848,37 @@ static int hvfb_blank(int blank, struct fb_info *info)
 	return 1;	/* get fb_blank to set the colormap to all black */
 }
 
-static void hvfb_cfb_fillrect(struct fb_info *p,
-			      const struct fb_fillrect *rect)
+static void hvfb_ops_damage_range(struct fb_info *info, off_t off, size_t len)
 {
-	struct hvfb_par *par = p->par;
-
-	cfb_fillrect(p, rect);
-	if (par->synchronous_fb)
-		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
-	else
-		hvfb_ondemand_refresh_throttle(par, rect->dx, rect->dy,
-					       rect->width, rect->height);
+	/* TODO: implement damage handling */
 }
 
-static void hvfb_cfb_copyarea(struct fb_info *p,
-			      const struct fb_copyarea *area)
+static void hvfb_ops_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, u32 height)
 {
-	struct hvfb_par *par = p->par;
+	struct hvfb_par *par = info->par;
 
-	cfb_copyarea(p, area);
 	if (par->synchronous_fb)
-		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
+		synthvid_update(info, 0, 0, INT_MAX, INT_MAX);
 	else
-		hvfb_ondemand_refresh_throttle(par, area->dx, area->dy,
-					       area->width, area->height);
+		hvfb_ondemand_refresh_throttle(par, x, y, width, height);
 }
 
-static void hvfb_cfb_imageblit(struct fb_info *p,
-			       const struct fb_image *image)
-{
-	struct hvfb_par *par = p->par;
-
-	cfb_imageblit(p, image);
-	if (par->synchronous_fb)
-		synthvid_update(p, 0, 0, INT_MAX, INT_MAX);
-	else
-		hvfb_ondemand_refresh_throttle(par, image->dx, image->dy,
-					       image->width, image->height);
-}
+/*
+ * TODO: GEN1 codepaths allocate from system or DMA-able memory. Fix the
+ *       driver to use the _SYSMEM_ or _DMAMEM_ helpers in these cases.
+ */
+FB_GEN_DEFAULT_DEFERRED_IOMEM_OPS(hvfb_ops,
+				  hvfb_ops_damage_range,
+				  hvfb_ops_damage_area)
 
 static const struct fb_ops hvfb_ops = {
 	.owner = THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(hvfb_ops),
 	.fb_check_var = hvfb_check_var,
 	.fb_set_par = hvfb_set_par,
 	.fb_setcolreg = hvfb_setcolreg,
-	.fb_fillrect = hvfb_cfb_fillrect,
-	.fb_copyarea = hvfb_cfb_copyarea,
-	.fb_imageblit = hvfb_cfb_imageblit,
 	.fb_blank = hvfb_blank,
-	.fb_mmap = fb_deferred_io_mmap,
 };
-
 
 /* Get options from kernel paramenter "video=" */
 static void hvfb_get_option(struct fb_info *info)
@@ -1030,9 +1010,11 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 			goto getmem_done;
 		}
 		pr_info("Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead.\n");
-	} else {
+	} else if (IS_ENABLED(CONFIG_SYSFB)) {
 		base = screen_info.lfb_base;
 		size = screen_info.lfb_size;
+	} else {
+		goto err1;
 	}
 
 	/*
@@ -1076,13 +1058,13 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 getmem_done:
 	aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
 
-	if (gen2vm) {
+	if (!gen2vm) {
+		pci_dev_put(pdev);
+	} else if (IS_ENABLED(CONFIG_SYSFB)) {
 		/* framebuffer is reallocated, clear screen_info to avoid misuse from kexec */
 		screen_info.lfb_size = 0;
 		screen_info.lfb_base = 0;
 		screen_info.orig_video_isVGA = 0;
-	} else {
-		pci_dev_put(pdev);
 	}
 
 	return 0;

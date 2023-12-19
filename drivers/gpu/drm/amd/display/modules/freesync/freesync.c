@@ -626,7 +626,6 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 	unsigned int max_refresh;
 	unsigned int fixed_refresh;
 	unsigned int min_programmed;
-	unsigned int max_programmed;
 
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
 	infopacket->sb[1] = 0x1A;
@@ -672,21 +671,17 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 			(vrr->state == VRR_STATE_INACTIVE) ? min_refresh :
 			max_refresh; // Non-fs case, program nominal range
 
-	max_programmed = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? fixed_refresh :
-			(vrr->state == VRR_STATE_ACTIVE_VARIABLE) ? max_refresh :
-			max_refresh;// Non-fs case, program nominal range
-
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
 	infopacket->sb[7] = min_programmed & 0xFF;
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz) */
-	infopacket->sb[8] = max_programmed & 0xFF;
+	infopacket->sb[8] = max_refresh & 0xFF;
 
 	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 9:8 */
 	infopacket->sb[11] = (min_programmed >> 8) & 0x03;
 
 	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 9:8 */
-	infopacket->sb[12] = (max_programmed >> 8) & 0x03;
+	infopacket->sb[12] = (max_refresh >> 8) & 0x03;
 
 	/* PB16 : Reserved bits 7:1, FixedRate bit 0 */
 	infopacket->sb[16] = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? 1 : 0;

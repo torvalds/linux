@@ -19,7 +19,7 @@ struct bios_args {
 	u32 command;
 	u32 commandtype;
 	u32 datasize;
-	u8 data[];
+	u8 data[] __counted_by(datasize);
 };
 
 /**

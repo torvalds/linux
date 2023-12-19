@@ -24,6 +24,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/pll.h>
 #include <subdev/clk/pll.h>
+#include <subdev/gsp.h>
 
 static int
 ga100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
@@ -62,8 +63,19 @@ ga100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	return ret;
 }
 
+static void
+ga100_devinit_disable(struct nvkm_devinit *init)
+{
+	struct nvkm_device *device = init->subdev.device;
+	u32 r820c04 = nvkm_rd32(device, 0x820c04);
+
+	if (r820c04 & 0x00000001)
+		nvkm_subdev_disable(device, NVKM_ENGINE_DISP, 0);
+}
+
 static const struct nvkm_devinit_func
 ga100_devinit = {
+	.disable = ga100_devinit_disable,
 	.init = nv50_devinit_init,
 	.post = tu102_devinit_post,
 	.pll_set = ga100_devinit_pll_set,
@@ -73,5 +85,8 @@ int
 ga100_devinit_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 		  struct nvkm_devinit **pinit)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_devinit_new(&ga100_devinit, device, type, inst, pinit);
+
 	return nv50_devinit_new_(&ga100_devinit, device, type, inst, pinit);
 }

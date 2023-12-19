@@ -27,8 +27,7 @@ lib = ctypes.CDLL("./dbc_library.so", mode=ctypes.RTLD_GLOBAL)
 
 
 def handle_error(code):
-    val = code * -1
-    raise OSError(val, os.strerror(val))
+    raise OSError(code, os.strerror(code))
 
 
 def get_nonce(device, signature):
@@ -58,7 +57,8 @@ def process_param(device, message, signature, data=None):
     if type(message) != tuple:
         raise ValueError("Expected message tuple")
     arg = ctypes.c_int(data if data else 0)
-    ret = lib.process_param(device.fileno(), message[0], signature, ctypes.pointer(arg))
+    sig = ctypes.create_string_buffer(signature, len(signature))
+    ret = lib.process_param(device.fileno(), message[0], ctypes.pointer(sig), ctypes.pointer(arg))
     if ret:
         handle_error(ret)
-    return arg, signature
+    return arg.value, sig.value

@@ -136,7 +136,7 @@ config DRM_FBDEV_EMULATION
 	bool "Enable legacy fbdev support for your modesetting driver"
 	depends on DRM
 	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
-	default y
+	default FB
 	help
 	  Choose this option if you have a need for the legacy fbdev
 	  support. Note that this support also provides the linux console
@@ -215,6 +215,13 @@ config DRM_EXEC
 	depends on DRM
 	help
 	  Execution context for command submissions
+
+config DRM_GPUVM
+	tristate
+	depends on DRM
+	help
+	  GPU-VM representation providing helpers to manage a GPUs virtual
+	  address space
 
 config DRM_BUDDY
 	tristate

@@ -179,6 +179,9 @@ igt_spinner_create_request(struct igt_spinner *spin,
 
 	*batch++ = arbitration_command;
 
+	memset32(batch, MI_NOOP, 128);
+	batch += 128;
+
 	if (GRAPHICS_VER(rq->i915) >= 8)
 		*batch++ = MI_BATCH_BUFFER_START | BIT(8) | 1;
 	else if (IS_HASWELL(rq->i915))

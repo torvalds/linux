@@ -56,9 +56,9 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
 #include <linux/slab.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/mod_devicetable.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "gpiolib.h"
 
@@ -702,7 +702,7 @@ static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
 {
 	struct bgpio_pdata *pdata;
 
-	if (!of_match_device(bgpio_of_match, &pdev->dev))
+	if (!pdev->dev.of_node)
 		return NULL;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(struct bgpio_pdata),

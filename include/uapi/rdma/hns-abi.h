@@ -52,15 +52,25 @@ struct hns_roce_ib_create_cq_resp {
 	__aligned_u64 cap_flags;
 };
 
+enum hns_roce_srq_cap_flags {
+	HNS_ROCE_SRQ_CAP_RECORD_DB = 1 << 0,
+};
+
+enum hns_roce_srq_cap_flags_resp {
+	HNS_ROCE_RSP_SRQ_CAP_RECORD_DB = 1 << 0,
+};
+
 struct hns_roce_ib_create_srq {
 	__aligned_u64 buf_addr;
 	__aligned_u64 db_addr;
 	__aligned_u64 que_addr;
+	__u32 req_cap_flags; /* Use enum hns_roce_srq_cap_flags */
+	__u32 reserved;
 };
 
 struct hns_roce_ib_create_srq_resp {
 	__u32	srqn;
-	__u32	reserved;
+	__u32	cap_flags; /* Use enum hns_roce_srq_cap_flags */
 };
 
 struct hns_roce_ib_create_qp {

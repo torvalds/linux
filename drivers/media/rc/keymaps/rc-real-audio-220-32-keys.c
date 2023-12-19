@@ -72,3 +72,4 @@ module_exit(exit_rc_map_real_audio_220_32_keys)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Zogis Real Audio 220 - 32 keys remote controller keytable");

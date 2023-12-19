@@ -53,6 +53,7 @@ struct nf_flowtable_type {
 	struct list_head		list;
 	int				family;
 	int				(*init)(struct nf_flowtable *ft);
+	bool				(*gc)(const struct flow_offload *flow);
 	int				(*setup)(struct nf_flowtable *ft,
 						 struct net_device *dev,
 						 enum flow_block_command cmd);
@@ -61,6 +62,8 @@ struct nf_flowtable_type {
 						  enum flow_offload_tuple_dir dir,
 						  struct nf_flow_rule *flow_rule);
 	void				(*free)(struct nf_flowtable *ft);
+	void				(*get)(struct nf_flowtable *ft);
+	void				(*put)(struct nf_flowtable *ft);
 	nf_hookfn			*hook;
 	struct module			*owner;
 };
@@ -239,6 +242,11 @@ nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
 	}
 
 	list_add_tail(&block_cb->list, &block->cb_list);
+	up_write(&flow_table->flow_block_lock);
+
+	if (flow_table->type->get)
+		flow_table->type->get(flow_table);
+	return 0;
 
 unlock:
 	up_write(&flow_table->flow_block_lock);
@@ -261,6 +269,9 @@ nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
 		WARN_ON(true);
 	}
 	up_write(&flow_table->flow_block_lock);
+
+	if (flow_table->type->put)
+		flow_table->type->put(flow_table);
 }
 
 void flow_offload_route_init(struct flow_offload *flow,

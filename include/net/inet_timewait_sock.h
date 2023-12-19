@@ -67,7 +67,8 @@ struct inet_timewait_sock {
 	/* And these are ours. */
 	unsigned int		tw_transparent  : 1,
 				tw_flowlabel	: 20,
-				tw_pad		: 3,	/* 3 bits hole */
+				tw_usec_ts	: 1,
+				tw_pad		: 2,	/* 2 bits hole */
 				tw_tos		: 8;
 	u32			tw_txhash;
 	u32			tw_priority;

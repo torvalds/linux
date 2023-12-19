@@ -82,7 +82,7 @@ static int hp_sw_tur(struct scsi_device *sdev, struct hp_sw_dh_data *h)
 {
 	unsigned char cmd[6] = { TEST_UNIT_READY };
 	struct scsi_sense_hdr sshdr;
-	int ret = SCSI_DH_OK, res;
+	int ret, res;
 	blk_opf_t opf = REQ_OP_DRV_IN | REQ_FAILFAST_DEV |
 				REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER;
 	const struct scsi_exec_args exec_args = {
@@ -92,19 +92,18 @@ static int hp_sw_tur(struct scsi_device *sdev, struct hp_sw_dh_data *h)
 retry:
 	res = scsi_execute_cmd(sdev, cmd, opf, NULL, 0, HP_SW_TIMEOUT,
 			       HP_SW_RETRIES, &exec_args);
-	if (res) {
-		if (scsi_sense_valid(&sshdr))
-			ret = tur_done(sdev, h, &sshdr);
-		else {
-			sdev_printk(KERN_WARNING, sdev,
-				    "%s: sending tur failed with %x\n",
-				    HP_SW_NAME, res);
-			ret = SCSI_DH_IO;
-		}
-	} else {
+	if (res > 0 && scsi_sense_valid(&sshdr)) {
+		ret = tur_done(sdev, h, &sshdr);
+	} else if (res == 0) {
 		h->path_state = HP_SW_PATH_ACTIVE;
 		ret = SCSI_DH_OK;
+	} else {
+		sdev_printk(KERN_WARNING, sdev,
+			    "%s: sending tur failed with %x\n",
+			    HP_SW_NAME, res);
+		ret = SCSI_DH_IO;
 	}
+
 	if (ret == SCSI_DH_IMM_RETRY)
 		goto retry;
 
@@ -122,7 +121,7 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *h)
 	unsigned char cmd[6] = { START_STOP, 0, 0, 0, 1, 0 };
 	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdev = h->sdev;
-	int res, rc = SCSI_DH_OK;
+	int res, rc;
 	int retry_cnt = HP_SW_RETRIES;
 	blk_opf_t opf = REQ_OP_DRV_IN | REQ_FAILFAST_DEV |
 				REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER;
@@ -133,35 +132,37 @@ static int hp_sw_start_stop(struct hp_sw_dh_data *h)
 retry:
 	res = scsi_execute_cmd(sdev, cmd, opf, NULL, 0, HP_SW_TIMEOUT,
 			       HP_SW_RETRIES, &exec_args);
-	if (res) {
-		if (!scsi_sense_valid(&sshdr)) {
-			sdev_printk(KERN_WARNING, sdev,
-				    "%s: sending start_stop_unit failed, "
-				    "no sense available\n", HP_SW_NAME);
-			return SCSI_DH_IO;
-		}
-		switch (sshdr.sense_key) {
-		case NOT_READY:
-			if (sshdr.asc == 0x04 && sshdr.ascq == 3) {
-				/*
-				 * LUN not ready - manual intervention required
-				 *
-				 * Switch-over in progress, retry.
-				 */
-				if (--retry_cnt)
-					goto retry;
-				rc = SCSI_DH_RETRY;
-				break;
-			}
-			fallthrough;
-		default:
-			sdev_printk(KERN_WARNING, sdev,
-				    "%s: sending start_stop_unit failed, "
-				    "sense %x/%x/%x\n", HP_SW_NAME,
-				    sshdr.sense_key, sshdr.asc, sshdr.ascq);
-			rc = SCSI_DH_IO;
-		}
+	if (!res) {
+		return SCSI_DH_OK;
+	} else if (res < 0 || !scsi_sense_valid(&sshdr)) {
+		sdev_printk(KERN_WARNING, sdev,
+			    "%s: sending start_stop_unit failed, "
+			    "no sense available\n", HP_SW_NAME);
+		return SCSI_DH_IO;
 	}
+
+	switch (sshdr.sense_key) {
+	case NOT_READY:
+		if (sshdr.asc == 0x04 && sshdr.ascq == 3) {
+			/*
+			 * LUN not ready - manual intervention required
+			 *
+			 * Switch-over in progress, retry.
+			 */
+			if (--retry_cnt)
+				goto retry;
+			rc = SCSI_DH_RETRY;
+			break;
+		}
+		fallthrough;
+	default:
+		sdev_printk(KERN_WARNING, sdev,
+			    "%s: sending start_stop_unit failed, "
+			    "sense %x/%x/%x\n", HP_SW_NAME,
+			    sshdr.sense_key, sshdr.asc, sshdr.ascq);
+		rc = SCSI_DH_IO;
+	}
+
 	return rc;
 }
 

@@ -73,4 +73,10 @@ config PINCTRL_AMLOGIC_C3
 	select PINCTRL_MESON_AXG_PMX
 	default y
 
+config PINCTRL_AMLOGIC_T7
+	tristate "Amlogic T7 SoC pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON_AXG_PMX
+	default y
+
 endif

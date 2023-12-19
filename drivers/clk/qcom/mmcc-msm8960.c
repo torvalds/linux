@@ -8,9 +8,9 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
@@ -3105,30 +3105,24 @@ MODULE_DEVICE_TABLE(of, mmcc_msm8960_match_table);
 
 static int mmcc_msm8960_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct regmap *regmap;
-	bool is_8064;
 	struct device *dev = &pdev->dev;
+	const struct qcom_cc_desc *desc = device_get_match_data(dev);
 
-	match = of_match_device(mmcc_msm8960_match_table, dev);
-	if (!match)
-		return -EINVAL;
-
-	is_8064 = of_device_is_compatible(dev->of_node, "qcom,mmcc-apq8064");
-	if (is_8064) {
+	if (desc == &mmcc_apq8064_desc) {
 		gfx3d_src.freq_tbl = clk_tbl_gfx3d_8064;
 		gfx3d_src.clkr.hw.init = &gfx3d_8064_init;
 		gfx3d_src.s[0].parent_map = mmcc_pxo_pll8_pll2_pll15_map;
 		gfx3d_src.s[1].parent_map = mmcc_pxo_pll8_pll2_pll15_map;
 	}
 
-	regmap = qcom_cc_map(pdev, match->data);
+	regmap = qcom_cc_map(pdev, desc);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
 	clk_pll_configure_sr(&pll15, regmap, &pll15_config, false);
 
-	return qcom_cc_really_probe(pdev, match->data, regmap);
+	return qcom_cc_really_probe(pdev, desc, regmap);
 }
 
 static struct platform_driver mmcc_msm8960_driver = {

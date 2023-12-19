@@ -47,6 +47,7 @@ void radix__huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 					 pte_t old_pte, pte_t pte)
 {
 	struct mm_struct *mm = vma->vm_mm;
+	unsigned long psize = huge_page_size(hstate_vma(vma));
 
 	/*
 	 * POWER9 NMMU must flush the TLB after clearing the PTE before
@@ -58,5 +59,5 @@ void radix__huge_ptep_modify_prot_commit(struct vm_area_struct *vma,
 	    atomic_read(&mm->context.copros) > 0)
 		radix__flush_hugetlb_page(vma, addr);
 
-	set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+	set_huge_pte_at(vma->vm_mm, addr, ptep, pte, psize);
 }

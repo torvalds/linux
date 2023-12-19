@@ -555,7 +555,7 @@ err:
 	return res;
 }
 
-static int i5k_amb_remove(struct platform_device *pdev)
+static void i5k_amb_remove(struct platform_device *pdev)
 {
 	int i;
 	struct i5k_amb_data *data = platform_get_drvdata(pdev);
@@ -568,7 +568,6 @@ static int i5k_amb_remove(struct platform_device *pdev)
 	iounmap(data->amb_mmio);
 	release_mem_region(data->amb_base, data->amb_len);
 	kfree(data);
-	return 0;
 }
 
 static struct platform_driver i5k_amb_driver = {
@@ -576,7 +575,7 @@ static struct platform_driver i5k_amb_driver = {
 		.name = DRVNAME,
 	},
 	.probe = i5k_amb_probe,
-	.remove = i5k_amb_remove,
+	.remove_new = i5k_amb_remove,
 };
 
 static int __init i5k_amb_init(void)

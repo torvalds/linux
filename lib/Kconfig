@@ -506,6 +506,9 @@ config ASSOCIATIVE_ARRAY
 
 	  for more information.
 
+config CLOSURES
+	bool
+
 config HAS_IOMEM
 	bool
 	depends on !NO_IOMEM
@@ -729,6 +732,11 @@ config PARMAN
 config OBJAGG
 	tristate "objagg" if COMPILE_TEST
 
+config LWQ_TEST
+	bool "Boot-time test for lwq queuing"
+	help
+          Run boot-time test of light-weight queuing.
+
 endmenu
 
 config GENERIC_IOREMAP
@@ -764,3 +772,6 @@ config ASN1_ENCODER
 
 config POLYNOMIAL
        tristate
+
+config FIRMWARE_TABLE
+	bool

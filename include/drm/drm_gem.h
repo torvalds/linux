@@ -209,6 +209,15 @@ struct drm_gem_object_funcs {
 	enum drm_gem_object_status (*status)(struct drm_gem_object *obj);
 
 	/**
+	 * @rss:
+	 *
+	 * Return resident size of the object in physical memory.
+	 *
+	 * Called by drm_show_memory_stats().
+	 */
+	size_t (*rss)(struct drm_gem_object *obj);
+
+	/**
 	 * @vm_ops:
 	 *
 	 * Virtual memory operations used with mmap.

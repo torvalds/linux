@@ -146,7 +146,7 @@ static int gve_prefill_rx_pages(struct gve_rx_ring *rx)
 		err = gve_rx_alloc_buffer(priv, &priv->pdev->dev, &rx->data.page_info[i],
 					  &rx->data.data_ring[i]);
 		if (err)
-			goto alloc_err;
+			goto alloc_err_rda;
 	}
 
 	if (!rx->data.raw_addressing) {
@@ -171,12 +171,26 @@ static int gve_prefill_rx_pages(struct gve_rx_ring *rx)
 	return slots;
 
 alloc_err_qpl:
+	/* Fully free the copy pool pages. */
 	while (j--) {
 		page_ref_sub(rx->qpl_copy_pool[j].page,
 			     rx->qpl_copy_pool[j].pagecnt_bias - 1);
 		put_page(rx->qpl_copy_pool[j].page);
 	}
-alloc_err:
+
+	/* Do not fully free QPL pages - only remove the bias added in this
+	 * function with gve_setup_rx_buffer.
+	 */
+	while (i--)
+		page_ref_sub(rx->data.page_info[i].page,
+			     rx->data.page_info[i].pagecnt_bias - 1);
+
+	gve_unassign_qpl(priv, rx->data.qpl->id);
+	rx->data.qpl = NULL;
+
+	return err;
+
+alloc_err_rda:
 	while (i--)
 		gve_rx_free_buffer(&priv->pdev->dev,
 				   &rx->data.page_info[i],
@@ -992,10 +1006,6 @@ int gve_rx_poll(struct gve_notify_block *block, int budget)
 	int work_done = 0;
 
 	feat = block->napi.dev->features;
-
-	/* If budget is 0, do all the work */
-	if (budget == 0)
-		budget = INT_MAX;
 
 	if (budget > 0)
 		work_done = gve_clean_rx_done(rx, budget, feat);

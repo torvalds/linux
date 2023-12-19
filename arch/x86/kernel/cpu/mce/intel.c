@@ -536,3 +536,23 @@ bool intel_filter_mce(struct mce *m)
 
 	return false;
 }
+
+/*
+ * Check if the address reported by the CPU is in a format we can parse.
+ * It would be possible to add code for most other cases, but all would
+ * be somewhat complicated (e.g. segment offset would require an instruction
+ * parser). So only support physical addresses up to page granularity for now.
+ */
+bool intel_mce_usable_address(struct mce *m)
+{
+	if (!(m->status & MCI_STATUS_MISCV))
+		return false;
+
+	if (MCI_MISC_ADDR_LSB(m->misc) > PAGE_SHIFT)
+		return false;
+
+	if (MCI_MISC_ADDR_MODE(m->misc) != MCI_MISC_ADDR_PHYS)
+		return false;
+
+	return true;
+}

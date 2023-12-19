@@ -1154,32 +1154,52 @@ static void esdhc_post_tuning(struct sdhci_host *host)
 	writel(reg, host->ioaddr + ESDHC_MIX_CTRL);
 }
 
+/*
+ * find the largest pass window, and use the average delay of this
+ * largest window to get the best timing.
+ */
 static int esdhc_executing_tuning(struct sdhci_host *host, u32 opcode)
 {
 	int min, max, avg, ret;
+	int win_length, target_min, target_max, target_win_length;
 
-	/* find the mininum delay first which can pass tuning */
 	min = ESDHC_TUNE_CTRL_MIN;
-	while (min < ESDHC_TUNE_CTRL_MAX) {
-		esdhc_prepare_tuning(host, min);
-		if (!mmc_send_tuning(host->mmc, opcode, NULL))
-			break;
-		min += ESDHC_TUNE_CTRL_STEP;
-	}
-
-	/* find the maxinum delay which can not pass tuning */
-	max = min + ESDHC_TUNE_CTRL_STEP;
+	max = ESDHC_TUNE_CTRL_MIN;
+	target_win_length = 0;
 	while (max < ESDHC_TUNE_CTRL_MAX) {
-		esdhc_prepare_tuning(host, max);
-		if (mmc_send_tuning(host->mmc, opcode, NULL)) {
-			max -= ESDHC_TUNE_CTRL_STEP;
-			break;
+		/* find the mininum delay first which can pass tuning */
+		while (min < ESDHC_TUNE_CTRL_MAX) {
+			esdhc_prepare_tuning(host, min);
+			if (!mmc_send_tuning(host->mmc, opcode, NULL))
+				break;
+			min += ESDHC_TUNE_CTRL_STEP;
 		}
-		max += ESDHC_TUNE_CTRL_STEP;
+
+		/* find the maxinum delay which can not pass tuning */
+		max = min + ESDHC_TUNE_CTRL_STEP;
+		while (max < ESDHC_TUNE_CTRL_MAX) {
+			esdhc_prepare_tuning(host, max);
+			if (mmc_send_tuning(host->mmc, opcode, NULL)) {
+				max -= ESDHC_TUNE_CTRL_STEP;
+				break;
+			}
+			max += ESDHC_TUNE_CTRL_STEP;
+		}
+
+		win_length = max - min + 1;
+		/* get the largest pass window */
+		if (win_length > target_win_length) {
+			target_win_length = win_length;
+			target_min = min;
+			target_max = max;
+		}
+
+		/* continue to find the next pass window */
+		min = max + ESDHC_TUNE_CTRL_STEP;
 	}
 
 	/* use average delay to get the best timing */
-	avg = (min + max) / 2;
+	avg = (target_min + target_max) / 2;
 	esdhc_prepare_tuning(host, avg);
 	ret = mmc_send_tuning(host->mmc, opcode, NULL);
 	esdhc_post_tuning(host);

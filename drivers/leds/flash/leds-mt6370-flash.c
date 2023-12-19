@@ -81,7 +81,7 @@ struct mt6370_priv {
 	unsigned int fled_torch_used;
 	unsigned int leds_active;
 	unsigned int leds_count;
-	struct mt6370_led leds[];
+	struct mt6370_led leds[] __counted_by(leds_count);
 };
 
 static int mt6370_torch_brightness_set(struct led_classdev *lcdev, enum led_brightness level)

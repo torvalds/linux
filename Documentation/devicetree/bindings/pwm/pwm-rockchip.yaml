@@ -32,6 +32,7 @@ properties:
               - rockchip,rk3308-pwm
               - rockchip,rk3568-pwm
               - rockchip,rk3588-pwm
+              - rockchip,rv1126-pwm
           - const: rockchip,rk3328-pwm
 
   reg:

@@ -73,11 +73,8 @@ int __init kvm_arm_init_sve(void)
 	return 0;
 }
 
-static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 {
-	if (!system_supports_sve())
-		return -EINVAL;
-
 	vcpu->arch.sve_max_vl = kvm_sve_max_vl;
 
 	/*
@@ -86,8 +83,6 @@ static int kvm_vcpu_enable_sve(struct kvm_vcpu *vcpu)
 	 * kvm_arm_vcpu_finalize(), which freezes the configuration.
 	 */
 	vcpu_set_flag(vcpu, GUEST_HAS_SVE);
-
-	return 0;
 }
 
 /*
@@ -170,20 +165,9 @@ static void kvm_vcpu_reset_sve(struct kvm_vcpu *vcpu)
 		memset(vcpu->arch.sve_state, 0, vcpu_sve_state_size(vcpu));
 }
 
-static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
 {
-	/*
-	 * For now make sure that both address/generic pointer authentication
-	 * features are requested by the userspace together and the system
-	 * supports these capabilities.
-	 */
-	if (!test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    !test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features) ||
-	    !system_has_full_ptr_auth())
-		return -EINVAL;
-
 	vcpu_set_flag(vcpu, GUEST_HAS_PTRAUTH);
-	return 0;
 }
 
 /**
@@ -204,10 +188,9 @@ static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
  * disable preemption around the vcpu reset as we would otherwise race with
  * preempt notifiers which also call put/load.
  */
-int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
+void kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_reset_state reset_state;
-	int ret;
 	bool loaded;
 	u32 pstate;
 
@@ -224,29 +207,16 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	if (loaded)
 		kvm_arch_vcpu_put(vcpu);
 
-	/* Disallow NV+SVE for the time being */
-	if (vcpu_has_nv(vcpu) && vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!kvm_arm_vcpu_sve_finalized(vcpu)) {
-		if (test_bit(KVM_ARM_VCPU_SVE, vcpu->arch.features)) {
-			ret = kvm_vcpu_enable_sve(vcpu);
-			if (ret)
-				goto out;
-		}
+		if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE))
+			kvm_vcpu_enable_sve(vcpu);
 	} else {
 		kvm_vcpu_reset_sve(vcpu);
 	}
 
-	if (test_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, vcpu->arch.features) ||
-	    test_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, vcpu->arch.features)) {
-		if (kvm_vcpu_enable_ptrauth(vcpu)) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
+	if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_ADDRESS) ||
+	    vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_GENERIC))
+		kvm_vcpu_enable_ptrauth(vcpu);
 
 	if (vcpu_el1_is_32bit(vcpu))
 		pstate = VCPU_RESET_PSTATE_SVC;
@@ -254,11 +224,6 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 		pstate = VCPU_RESET_PSTATE_EL2;
 	else
 		pstate = VCPU_RESET_PSTATE_EL1;
-
-	if (kvm_vcpu_has_pmu(vcpu) && !kvm_arm_support_pmu_v3()) {
-		ret = -EINVAL;
-		goto out;
-	}
 
 	/* Reset core registers */
 	memset(vcpu_gp_regs(vcpu), 0, sizeof(*vcpu_gp_regs(vcpu)));
@@ -294,12 +259,11 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	}
 
 	/* Reset timer */
-	ret = kvm_timer_vcpu_reset(vcpu);
-out:
+	kvm_timer_vcpu_reset(vcpu);
+
 	if (loaded)
 		kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
-	return ret;
 }
 
 u32 get_kvm_ipa_limit(void)

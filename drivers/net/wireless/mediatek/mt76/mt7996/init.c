@@ -54,23 +54,31 @@ static void mt7996_led_set_config(struct led_classdev *led_cdev,
 	dev = container_of(mphy->dev, struct mt7996_dev, mt76);
 
 	/* select TX blink mode, 2: only data frames */
-	mt76_rmw_field(dev, MT_TMAC_TCR0(0), MT_TMAC_TCR0_TX_BLINK, 2);
+	mt76_rmw_field(dev, MT_TMAC_TCR0(mphy->band_idx), MT_TMAC_TCR0_TX_BLINK, 2);
 
 	/* enable LED */
-	mt76_wr(dev, MT_LED_EN(0), 1);
+	mt76_wr(dev, MT_LED_EN(mphy->band_idx), 1);
 
 	/* set LED Tx blink on/off time */
 	val = FIELD_PREP(MT_LED_TX_BLINK_ON_MASK, delay_on) |
 	      FIELD_PREP(MT_LED_TX_BLINK_OFF_MASK, delay_off);
-	mt76_wr(dev, MT_LED_TX_BLINK(0), val);
+	mt76_wr(dev, MT_LED_TX_BLINK(mphy->band_idx), val);
 
-	/* control LED */
-	val = MT_LED_CTRL_BLINK_MODE | MT_LED_CTRL_KICK;
+	/* turn LED off */
+	if (delay_off == 0xff && delay_on == 0x0) {
+		val = MT_LED_CTRL_POLARITY | MT_LED_CTRL_KICK;
+	} else {
+		/* control LED */
+		val = MT_LED_CTRL_BLINK_MODE | MT_LED_CTRL_KICK;
+		if (mphy->band_idx == MT_BAND1)
+			val |= MT_LED_CTRL_BLINK_BAND_SEL;
+	}
+
 	if (mphy->leds.al)
 		val |= MT_LED_CTRL_POLARITY;
 
-	mt76_wr(dev, MT_LED_CTRL(0), val);
-	mt76_clear(dev, MT_LED_CTRL(0), MT_LED_CTRL_KICK);
+	mt76_wr(dev, MT_LED_CTRL(mphy->band_idx), val);
+	mt76_clear(dev, MT_LED_CTRL(mphy->band_idx), MT_LED_CTRL_KICK);
 }
 
 static int mt7996_led_set_blink(struct led_classdev *led_cdev,
@@ -173,6 +181,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 	wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 	wiphy->reg_notifier = mt7996_regd_notifier;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+	wiphy->mbssid_max_interfaces = 16;
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_BSS_COLOR);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_VHT_IBSS);
@@ -196,6 +205,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_TX_ENCAP_OFFLOAD);
 	ieee80211_hw_set(hw, SUPPORTS_RX_DECAP_OFFLOAD);
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
+	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 
 	hw->max_tx_fragments = 4;
 
@@ -221,6 +231,12 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 			IEEE80211_HT_MPDU_DENSITY_1;
 
 		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
+	}
+
+	/* init led callbacks */
+	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
+		phy->mt76->leds.cdev.brightness_set = mt7996_led_set_brightness;
+		phy->mt76->leds.cdev.blink_set = mt7996_led_set_blink;
 	}
 
 	mt76_set_stream_caps(phy->mt76, true);
@@ -258,6 +274,11 @@ mt7996_mac_init_band(struct mt7996_dev *dev, u8 band)
 	set = FIELD_PREP(MT_WTBLOFF_RSCR_RCPI_MODE, 0) |
 	      FIELD_PREP(MT_WTBLOFF_RSCR_RCPI_PARAM, 0x3);
 	mt76_rmw(dev, MT_WTBLOFF_RSCR(band), mask, set);
+
+	/* MT_TXD5_TX_STATUS_HOST (MPDU format) has higher priority than
+	 * MT_AGG_ACR_PPDU_TXS2H (PPDU format) even though ACR bit is set.
+	 */
+	mt76_set(dev, MT_AGG_ACR4(band), MT_AGG_ACR_PPDU_TXS2H);
 }
 
 static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
@@ -733,16 +754,17 @@ mt7996_init_eht_caps(struct mt7996_phy *phy, enum nl80211_band band,
 		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMER |
 		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE;
 
+	val = max_t(u8, sts - 1, 3);
 	eht_cap_elem->phy_cap_info[0] |=
-		u8_encode_bits(u8_get_bits(sts - 1, BIT(0)),
+		u8_encode_bits(u8_get_bits(val, BIT(0)),
 			       IEEE80211_EHT_PHY_CAP0_BEAMFORMEE_SS_80MHZ_MASK);
 
 	eht_cap_elem->phy_cap_info[1] =
-		u8_encode_bits(u8_get_bits(sts - 1, GENMASK(2, 1)),
+		u8_encode_bits(u8_get_bits(val, GENMASK(2, 1)),
 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_80MHZ_MASK) |
-		u8_encode_bits(sts - 1,
+		u8_encode_bits(val,
 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK) |
-		u8_encode_bits(sts - 1,
+		u8_encode_bits(val,
 			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK);
 
 	eht_cap_elem->phy_cap_info[2] =
@@ -827,8 +849,7 @@ __mt7996_set_stream_he_eht_caps(struct mt7996_phy *phy,
 		n++;
 	}
 
-	sband->iftype_data = data;
-	sband->n_iftype_data = n;
+	_ieee80211_set_sband_iftype_data(sband, data, n);
 }
 
 void mt7996_set_stream_he_eht_caps(struct mt7996_phy *phy)
@@ -869,12 +890,6 @@ int mt7996_register_device(struct mt7996_dev *dev)
 		return ret;
 
 	mt7996_init_wiphy(hw);
-
-	/* init led callbacks */
-	if (IS_ENABLED(CONFIG_MT76_LEDS)) {
-		dev->mphy.leds.cdev.brightness_set = mt7996_led_set_brightness;
-		dev->mphy.leds.cdev.blink_set = mt7996_led_set_blink;
-	}
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));

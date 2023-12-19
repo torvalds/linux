@@ -208,14 +208,9 @@ void rtl92ce_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	case HW_VAR_AMPDU_MIN_SPACE:{
 			u8 min_spacing_to_set;
-			u8 sec_min_space;
 
 			min_spacing_to_set = *val;
 			if (min_spacing_to_set <= 7) {
-				sec_min_space = 0;
-
-				if (min_spacing_to_set < sec_min_space)
-					min_spacing_to_set = sec_min_space;
 
 				mac->min_space_cfg = ((mac->min_space_cfg &
 						       0xf8) |

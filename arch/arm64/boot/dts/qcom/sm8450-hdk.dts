@@ -915,14 +915,23 @@
 			"SpkrRight IN", "WSA_SPK2 OUT",
 			"IN1_HPHL", "HPHL_OUT",
 			"IN2_HPHR", "HPHR_OUT",
+			"AMIC1", "MIC BIAS1",
 			"AMIC2", "MIC BIAS2",
-			"VA DMIC0", "MIC BIAS1",
-			"VA DMIC1", "MIC BIAS1",
-			"VA DMIC2", "MIC BIAS3",
-			"TX DMIC0", "MIC BIAS1",
-			"TX DMIC1", "MIC BIAS2",
-			"TX DMIC2", "MIC BIAS3",
-			"TX SWR_ADC1", "ADC2_OUTPUT";
+			"AMIC3", "MIC BIAS3",
+			"AMIC4", "MIC BIAS3",
+			"AMIC5", "MIC BIAS4",
+			"VA DMIC0", "MIC BIAS3",
+			"VA DMIC1", "MIC BIAS3",
+			"VA DMIC2", "MIC BIAS1",
+			"VA DMIC3", "MIC BIAS1",
+			"TX DMIC0", "MIC BIAS3",
+			"TX DMIC1", "MIC BIAS3",
+			"TX DMIC2", "MIC BIAS1",
+			"TX DMIC3", "MIC BIAS1",
+			"TX SWR_INPUT0", "ADC1_OUTPUT",
+			"TX SWR_INPUT1", "ADC2_OUTPUT",
+			"TX SWR_INPUT2", "ADC3_OUTPUT",
+			"TX SWR_INPUT3", "ADC4_OUTPUT";
 
 	wcd-playback-dai-link {
 		link-name = "WCD Playback";
@@ -1073,6 +1082,7 @@
 	vcc-max-microamp = <1100000>;
 	vccq-supply = <&vreg_l9b_1p2>;
 	vccq-max-microamp = <1200000>;
+	vdd-hba-supply = <&vreg_l9b_1p2>;
 };
 
 &ufs_mem_phy {

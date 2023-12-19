@@ -1689,7 +1689,7 @@ static int load_firmware(struct octeon_device *oct)
 
 	if (fw_type_is_auto()) {
 		tmp_fw_type = LIO_FW_NAME_TYPE_NIC;
-		strncpy(fw_type, tmp_fw_type, sizeof(fw_type));
+		strscpy_pad(fw_type, tmp_fw_type, sizeof(fw_type));
 	} else {
 		tmp_fw_type = fw_type;
 	}

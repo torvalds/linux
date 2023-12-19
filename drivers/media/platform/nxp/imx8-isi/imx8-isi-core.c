@@ -406,11 +406,9 @@ static int mxc_isi_clk_get(struct mxc_isi_dev *isi)
 			  * sizeof(*isi->clks);
 	int ret;
 
-	isi->clks = devm_kmalloc(isi->dev, size, GFP_KERNEL);
+	isi->clks = devm_kmemdup(isi->dev, isi->pdata->clks, size, GFP_KERNEL);
 	if (!isi->clks)
 		return -ENOMEM;
-
-	memcpy(isi->clks, isi->pdata->clks, size);
 
 	ret = devm_clk_bulk_get(isi->dev, isi->pdata->num_clks,
 				isi->clks);

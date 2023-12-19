@@ -5,8 +5,13 @@ kms_bw@linear-tiling-2-displays-3840x2160p,Fail
 kms_bw@linear-tiling-3-displays-1920x1080p,Fail
 kms_bw@linear-tiling-3-displays-2560x1440p,Fail
 kms_bw@linear-tiling-3-displays-3840x2160p,Fail
+kms_flip@flip-vs-modeset-vs-hang,Crash
+kms_flip@flip-vs-panning-vs-hang,Crash
 kms_force_connector_basic@force-load-detect,Fail
 kms_invalid_mode@int-max-clock,Crash
+kms_pipe_crc_basic@compare-crc-sanitycheck-nv12,Crash
+kms_pipe_crc_basic@nonblocking-crc-frame-sequence,Crash
+kms_pipe_crc_basic@read-crc-frame-sequence,Crash
 kms_plane@pixel-format,Crash
 kms_plane@pixel-format-source-clamping,Crash
 kms_plane@plane-position-hole,Crash
@@ -45,4 +50,5 @@ kms_properties@connector-properties-atomic,Crash
 kms_properties@connector-properties-legacy,Crash
 kms_properties@get_properties-sanity-atomic,Crash
 kms_properties@get_properties-sanity-non-atomic,Crash
+kms_rmfb@close-fd,Crash
 kms_setmode@invalid-clone-single-crtc,Crash

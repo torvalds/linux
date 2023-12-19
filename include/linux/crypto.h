@@ -24,6 +24,7 @@
 #define CRYPTO_ALG_TYPE_CIPHER		0x00000001
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000002
 #define CRYPTO_ALG_TYPE_AEAD		0x00000003
+#define CRYPTO_ALG_TYPE_LSKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_AKCIPHER	0x00000006
 #define CRYPTO_ALG_TYPE_SIG		0x00000007
@@ -35,8 +36,6 @@
 #define CRYPTO_ALG_TYPE_SHASH		0x0000000e
 #define CRYPTO_ALG_TYPE_AHASH		0x0000000f
 
-#define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
-#define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 #define CRYPTO_ALG_TYPE_ACOMPRESS_MASK	0x0000000e
 
 #define CRYPTO_ALG_LARVAL		0x00000010
@@ -111,7 +110,6 @@
  *	  crypto_aead_walksize() (with the remainder going at the end), no chunk
  *	  can cross a page boundary or a scatterlist element boundary.
  *    ahash:
- *	- The result buffer must be aligned to the algorithm's alignmask.
  *	- crypto_ahash_finup() must not be used unless the algorithm implements
  *	  ->finup() natively.
  */
@@ -279,18 +277,20 @@ struct compress_alg {
  * @cra_ctxsize: Size of the operational context of the transformation. This
  *		 value informs the kernel crypto API about the memory size
  *		 needed to be allocated for the transformation context.
- * @cra_alignmask: Alignment mask for the input and output data buffer. The data
- *		   buffer containing the input data for the algorithm must be
- *		   aligned to this alignment mask. The data buffer for the
- *		   output data must be aligned to this alignment mask. Note that
- *		   the Crypto API will do the re-alignment in software, but
- *		   only under special conditions and there is a performance hit.
- *		   The re-alignment happens at these occasions for different
- *		   @cra_u types: cipher -- For both input data and output data
- *		   buffer; ahash -- For output hash destination buf; shash --
- *		   For output hash destination buf.
- *		   This is needed on hardware which is flawed by design and
- *		   cannot pick data from arbitrary addresses.
+ * @cra_alignmask: For cipher, skcipher, lskcipher, and aead algorithms this is
+ *		   1 less than the alignment, in bytes, that the algorithm
+ *		   implementation requires for input and output buffers.  When
+ *		   the crypto API is invoked with buffers that are not aligned
+ *		   to this alignment, the crypto API automatically utilizes
+ *		   appropriately aligned temporary buffers to comply with what
+ *		   the algorithm needs.  (For scatterlists this happens only if
+ *		   the algorithm uses the skcipher_walk helper functions.)  This
+ *		   misalignment handling carries a performance penalty, so it is
+ *		   preferred that algorithms do not set a nonzero alignmask.
+ *		   Also, crypto API users may wish to allocate buffers aligned
+ *		   to the alignmask of the algorithm being used, in order to
+ *		   avoid the API having to realign them.  Note: the alignmask is
+ *		   not supported for hash algorithms and is always 0 for them.
  * @cra_priority: Priority of this transformation implementation. In case
  *		  multiple transformations with same @cra_name are available to
  *		  the Crypto API, the kernel will use the one with highest

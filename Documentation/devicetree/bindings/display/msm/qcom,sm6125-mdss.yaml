@@ -43,12 +43,16 @@ properties:
 patternProperties:
   "^display-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         const: qcom,sm6125-dpu
 
   "^dsi@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         items:
@@ -57,6 +61,8 @@ patternProperties:
 
   "^phy@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         const: qcom,sm6125-dsi-phy-14nm

@@ -454,8 +454,8 @@ static unsigned char *pnpbios_parse_compatible_ids(unsigned char *p,
 		switch (tag) {
 
 		case LARGE_TAG_ANSISTR:
-			strncpy(dev->name, p + 3,
-				len >= PNP_NAME_LEN ? PNP_NAME_LEN - 2 : len);
+			memcpy(dev->name, p + 3,
+			       len >= PNP_NAME_LEN ? PNP_NAME_LEN - 2 : len);
 			dev->name[len >=
 				  PNP_NAME_LEN ? PNP_NAME_LEN - 1 : len] = '\0';
 			break;

@@ -10,7 +10,7 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_BZ_UCODE_API_MAX	83
+#define IWL_BZ_UCODE_API_MAX	86
 
 /* Lowest firmware API version supported */
 #define IWL_BZ_UCODE_API_MIN	80
@@ -134,12 +134,10 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.ht_params = &iwl_gl_a_ht_params
 
 /*
- * If the device doesn't support HE, no need to have that many buffers.
- * These sizes were picked according to 8 MSDUs inside 256 A-MSDUs in an
+ * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
  * A-MPDU, with additional overhead to account for processing time.
  */
-#define IWL_NUM_RBDS_NON_HE		512
-#define IWL_NUM_RBDS_BZ_HE		4096
+#define IWL_NUM_RBDS_BZ_EHT		(512 * 16)
 
 const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
 	.device_family = IWL_DEVICE_FAMILY_BZ,
@@ -160,16 +158,16 @@ const struct iwl_cfg iwl_cfg_bz = {
 	.fw_name_mac = "bz",
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
 };
 
 const struct iwl_cfg iwl_cfg_gl = {
 	.fw_name_mac = "gl",
 	.uhb_supported = true,
 	IWL_DEVICE_BZ,
-	.features = IWL_TX_CSUM_NETIF_FLAGS_BZ | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_BZ_HE,
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
+	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
 };
 
 

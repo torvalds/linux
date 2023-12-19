@@ -106,6 +106,24 @@
  * double_lock_hb() and double_unlock_hb(), respectively.
  */
 
+bool __futex_wake_mark(struct futex_q *q)
+{
+	if (WARN(q->pi_state || q->rt_waiter, "refusing to wake PI futex\n"))
+		return false;
+
+	__futex_unqueue(q);
+	/*
+	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
+	 * is written, without taking any locks. This is possible in the event
+	 * of a spurious wakeup, for example. A memory barrier is required here
+	 * to prevent the following store to lock_ptr from getting ahead of the
+	 * plist_del in __futex_unqueue().
+	 */
+	smp_store_release(&q->lock_ptr, NULL);
+
+	return true;
+}
+
 /*
  * The hash bucket lock must be held when this is called.
  * Afterwards, the futex_q must not be accessed. Callers
@@ -116,19 +134,12 @@ void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct task_struct *p = q->task;
 
-	if (WARN(q->pi_state || q->rt_waiter, "refusing to wake PI futex\n"))
-		return;
-
 	get_task_struct(p);
-	__futex_unqueue(q);
-	/*
-	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
-	 * is written, without taking any locks. This is possible in the event
-	 * of a spurious wakeup, for example. A memory barrier is required here
-	 * to prevent the following store to lock_ptr from getting ahead of the
-	 * plist_del in __futex_unqueue().
-	 */
-	smp_store_release(&q->lock_ptr, NULL);
+
+	if (!__futex_wake_mark(q)) {
+		put_task_struct(p);
+		return;
+	}
 
 	/*
 	 * Queue the task for later wakeup for after we've released
@@ -145,15 +156,18 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 	struct futex_hash_bucket *hb;
 	struct futex_q *this, *next;
 	union futex_key key = FUTEX_KEY_INIT;
-	int ret;
 	DEFINE_WAKE_Q(wake_q);
+	int ret;
 
 	if (!bitset)
 		return -EINVAL;
 
-	ret = get_futex_key(uaddr, flags & FLAGS_SHARED, &key, FUTEX_READ);
+	ret = get_futex_key(uaddr, flags, &key, FUTEX_READ);
 	if (unlikely(ret != 0))
 		return ret;
+
+	if ((flags & FLAGS_STRICT) && !nr_wake)
+		return 0;
 
 	hb = futex_hash(&key);
 
@@ -174,7 +188,7 @@ int futex_wake(u32 __user *uaddr, unsigned int flags, int nr_wake, u32 bitset)
 			if (!(this->bitset & bitset))
 				continue;
 
-			futex_wake_mark(&wake_q, this);
+			this->wake(&wake_q, this);
 			if (++ret >= nr_wake)
 				break;
 		}
@@ -245,10 +259,10 @@ int futex_wake_op(u32 __user *uaddr1, unsigned int flags, u32 __user *uaddr2,
 	DEFINE_WAKE_Q(wake_q);
 
 retry:
-	ret = get_futex_key(uaddr1, flags & FLAGS_SHARED, &key1, FUTEX_READ);
+	ret = get_futex_key(uaddr1, flags, &key1, FUTEX_READ);
 	if (unlikely(ret != 0))
 		return ret;
-	ret = get_futex_key(uaddr2, flags & FLAGS_SHARED, &key2, FUTEX_WRITE);
+	ret = get_futex_key(uaddr2, flags, &key2, FUTEX_WRITE);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -289,7 +303,7 @@ retry_private:
 				ret = -EINVAL;
 				goto out_unlock;
 			}
-			futex_wake_mark(&wake_q, this);
+			this->wake(&wake_q, this);
 			if (++ret >= nr_wake)
 				break;
 		}
@@ -303,7 +317,7 @@ retry_private:
 					ret = -EINVAL;
 					goto out_unlock;
 				}
-				futex_wake_mark(&wake_q, this);
+				this->wake(&wake_q, this);
 				if (++op_ret >= nr_wake2)
 					break;
 			}
@@ -358,7 +372,7 @@ void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
 }
 
 /**
- * unqueue_multiple - Remove various futexes from their hash bucket
+ * futex_unqueue_multiple - Remove various futexes from their hash bucket
  * @v:	   The list of futexes to unqueue
  * @count: Number of futexes in the list
  *
@@ -368,7 +382,7 @@ void futex_wait_queue(struct futex_hash_bucket *hb, struct futex_q *q,
  *  - >=0 - Index of the last futex that was awoken;
  *  - -1  - No futex was awoken
  */
-static int unqueue_multiple(struct futex_vector *v, int count)
+int futex_unqueue_multiple(struct futex_vector *v, int count)
 {
 	int ret = -1, i;
 
@@ -396,7 +410,7 @@ static int unqueue_multiple(struct futex_vector *v, int count)
  *  -  0 - Success
  *  - <0 - -EFAULT, -EWOULDBLOCK or -EINVAL
  */
-static int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *woken)
+int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *woken)
 {
 	struct futex_hash_bucket *hb;
 	bool retry = false;
@@ -419,11 +433,11 @@ static int futex_wait_multiple_setup(struct futex_vector *vs, int count, int *wo
 	 */
 retry:
 	for (i = 0; i < count; i++) {
-		if ((vs[i].w.flags & FUTEX_PRIVATE_FLAG) && retry)
+		if (!(vs[i].w.flags & FLAGS_SHARED) && retry)
 			continue;
 
 		ret = get_futex_key(u64_to_user_ptr(vs[i].w.uaddr),
-				    !(vs[i].w.flags & FUTEX_PRIVATE_FLAG),
+				    vs[i].w.flags,
 				    &vs[i].q.key, FUTEX_READ);
 
 		if (unlikely(ret))
@@ -435,7 +449,7 @@ retry:
 	for (i = 0; i < count; i++) {
 		u32 __user *uaddr = (u32 __user *)(unsigned long)vs[i].w.uaddr;
 		struct futex_q *q = &vs[i].q;
-		u32 val = (u32)vs[i].w.val;
+		u32 val = vs[i].w.val;
 
 		hb = futex_q_lock(q);
 		ret = futex_get_value_locked(&uval, uaddr);
@@ -458,7 +472,7 @@ retry:
 		 * was woken, we don't return error and return this index to
 		 * userspace
 		 */
-		*woken = unqueue_multiple(vs, i);
+		*woken = futex_unqueue_multiple(vs, i);
 		if (*woken >= 0)
 			return 1;
 
@@ -543,7 +557,7 @@ int futex_wait_multiple(struct futex_vector *vs, unsigned int count,
 
 		__set_current_state(TASK_RUNNING);
 
-		ret = unqueue_multiple(vs, count);
+		ret = futex_unqueue_multiple(vs, count);
 		if (ret >= 0)
 			return ret;
 
@@ -599,7 +613,7 @@ int futex_wait_setup(u32 __user *uaddr, u32 val, unsigned int flags,
 	 * while the syscall executes.
 	 */
 retry:
-	ret = get_futex_key(uaddr, flags & FLAGS_SHARED, &q->key, FUTEX_READ);
+	ret = get_futex_key(uaddr, flags, &q->key, FUTEX_READ);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -629,20 +643,18 @@ retry_private:
 	return ret;
 }
 
-int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time, u32 bitset)
+int __futex_wait(u32 __user *uaddr, unsigned int flags, u32 val,
+		 struct hrtimer_sleeper *to, u32 bitset)
 {
-	struct hrtimer_sleeper timeout, *to;
-	struct restart_block *restart;
-	struct futex_hash_bucket *hb;
 	struct futex_q q = futex_q_init;
+	struct futex_hash_bucket *hb;
 	int ret;
 
 	if (!bitset)
 		return -EINVAL;
+
 	q.bitset = bitset;
 
-	to = futex_setup_timer(abs_time, &timeout, flags,
-			       current->timer_slack_ns);
 retry:
 	/*
 	 * Prepare to wait on uaddr. On success, it holds hb->lock and q
@@ -650,18 +662,17 @@ retry:
 	 */
 	ret = futex_wait_setup(uaddr, val, flags, &q, &hb);
 	if (ret)
-		goto out;
+		return ret;
 
 	/* futex_queue and wait for wakeup, timeout, or a signal. */
 	futex_wait_queue(hb, &q, to);
 
 	/* If we were woken (and unqueued), we succeeded, whatever. */
-	ret = 0;
 	if (!futex_unqueue(&q))
-		goto out;
-	ret = -ETIMEDOUT;
+		return 0;
+
 	if (to && !to->task)
-		goto out;
+		return -ETIMEDOUT;
 
 	/*
 	 * We expect signal_pending(current), but we might be the
@@ -670,24 +681,38 @@ retry:
 	if (!signal_pending(current))
 		goto retry;
 
-	ret = -ERESTARTSYS;
-	if (!abs_time)
-		goto out;
+	return -ERESTARTSYS;
+}
 
-	restart = &current->restart_block;
-	restart->futex.uaddr = uaddr;
-	restart->futex.val = val;
-	restart->futex.time = *abs_time;
-	restart->futex.bitset = bitset;
-	restart->futex.flags = flags | FLAGS_HAS_TIMEOUT;
+int futex_wait(u32 __user *uaddr, unsigned int flags, u32 val, ktime_t *abs_time, u32 bitset)
+{
+	struct hrtimer_sleeper timeout, *to;
+	struct restart_block *restart;
+	int ret;
 
-	ret = set_restart_fn(restart, futex_wait_restart);
+	to = futex_setup_timer(abs_time, &timeout, flags,
+			       current->timer_slack_ns);
 
-out:
-	if (to) {
-		hrtimer_cancel(&to->timer);
-		destroy_hrtimer_on_stack(&to->timer);
+	ret = __futex_wait(uaddr, flags, val, to, bitset);
+
+	/* No timeout, nothing to clean up. */
+	if (!to)
+		return ret;
+
+	hrtimer_cancel(&to->timer);
+	destroy_hrtimer_on_stack(&to->timer);
+
+	if (ret == -ERESTARTSYS) {
+		restart = &current->restart_block;
+		restart->futex.uaddr = uaddr;
+		restart->futex.val = val;
+		restart->futex.time = *abs_time;
+		restart->futex.bitset = bitset;
+		restart->futex.flags = flags | FLAGS_HAS_TIMEOUT;
+
+		return set_restart_fn(restart, futex_wait_restart);
 	}
+
 	return ret;
 }
 

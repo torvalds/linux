@@ -298,7 +298,7 @@ static int rs9_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, rs9);
 	rs9->client = client;
-	rs9->chip_info = device_get_match_data(&client->dev);
+	rs9->chip_info = i2c_get_match_data(client);
 	if (!rs9->chip_info)
 		return -EINVAL;
 

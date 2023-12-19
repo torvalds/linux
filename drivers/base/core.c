@@ -49,6 +49,7 @@ static bool fw_devlink_best_effort;
  * __fwnode_link_add - Create a link between two fwnode_handles.
  * @con: Consumer end of the link.
  * @sup: Supplier end of the link.
+ * @flags: Link flags.
  *
  * Create a fwnode link between fwnode handles @con and @sup. The fwnode link
  * represents the detail that the firmware lists @sup fwnode as supplying a
@@ -3537,6 +3538,8 @@ int device_add(struct device *dev)
 	/* subsystems can specify simple device enumeration */
 	else if (dev->bus && dev->bus->dev_name)
 		error = dev_set_name(dev, "%s%u", dev->bus->dev_name, dev->id);
+	else
+		error = -EINVAL;
 	if (error)
 		goto name_error;
 

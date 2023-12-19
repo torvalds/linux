@@ -577,6 +577,18 @@ static void mv88e6250_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100;
 }
 
+static void mv88e6351_phylink_get_caps(struct mv88e6xxx_chip *chip, int port,
+				       struct phylink_config *config)
+{
+	unsigned long *supported = config->supported_interfaces;
+
+	/* Translate the default cmode */
+	mv88e6xxx_translate_cmode(chip->ports[port].cmode, supported);
+
+	config->mac_capabilities = MAC_SYM_PAUSE | MAC_10 | MAC_100 |
+				   MAC_1000FD;
+}
+
 static int mv88e6352_get_port4_serdes_cmode(struct mv88e6xxx_chip *chip)
 {
 	u16 reg, val;
@@ -2486,7 +2498,7 @@ static int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 	else
 		member = MV88E6XXX_G1_VTU_DATA_MEMBER_TAG_TAGGED;
 
-	/* net/dsa/slave.c will call dsa_port_vlan_add() for the affected port
+	/* net/dsa/user.c will call dsa_port_vlan_add() for the affected port
 	 * and then the CPU port. Do not warn for duplicates for the CPU port.
 	 */
 	warn = !dsa_is_cpu_port(ds, port) && !dsa_is_dsa_port(ds, port);
@@ -2958,14 +2970,16 @@ static void mv88e6xxx_hardware_reset(struct mv88e6xxx_chip *chip)
 		 * from the wrong location resulting in the switch booting
 		 * to wrong mode and inoperable.
 		 */
-		mv88e6xxx_g1_wait_eeprom_done(chip);
+		if (chip->info->ops->get_eeprom)
+			mv88e6xxx_g2_eeprom_wait(chip);
 
 		gpiod_set_value_cansleep(gpiod, 1);
 		usleep_range(10000, 20000);
 		gpiod_set_value_cansleep(gpiod, 0);
 		usleep_range(10000, 20000);
 
-		mv88e6xxx_g1_wait_eeprom_done(chip);
+		if (chip->info->ops->get_eeprom)
+			mv88e6xxx_g2_eeprom_wait(chip);
 	}
 }
 
@@ -3717,7 +3731,7 @@ static int mv88e6xxx_setup(struct dsa_switch *ds)
 		return err;
 
 	chip->ds = ds;
-	ds->slave_mii_bus = mv88e6xxx_default_mdio_bus(chip);
+	ds->user_mii_bus = mv88e6xxx_default_mdio_bus(chip);
 
 	/* Since virtual bridges are mapped in the PVT, the number we support
 	 * depends on the physical switch topology. We need to let DSA figure
@@ -3878,7 +3892,8 @@ static int mv88e6xxx_port_setup(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (chip->info->ops->pcs_ops->pcs_init) {
+	if (chip->info->ops->pcs_ops &&
+	    chip->info->ops->pcs_ops->pcs_init) {
 		err = chip->info->ops->pcs_ops->pcs_init(chip, port);
 		if (err)
 			return err;
@@ -3893,7 +3908,8 @@ static void mv88e6xxx_port_teardown(struct dsa_switch *ds, int port)
 
 	mv88e6xxx_teardown_devlink_regions_port(ds, port);
 
-	if (chip->info->ops->pcs_ops->pcs_teardown)
+	if (chip->info->ops->pcs_ops &&
+	    chip->info->ops->pcs_ops->pcs_teardown)
 		chip->info->ops->pcs_ops->pcs_teardown(chip, port);
 }
 
@@ -4338,7 +4354,7 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.stu_getnext = mv88e6352_g1_stu_getnext,
 	.stu_loadpurge = mv88e6352_g1_stu_loadpurge,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6351_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6172_ops = {
@@ -4438,7 +4454,7 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.stu_getnext = mv88e6352_g1_stu_getnext,
 	.stu_loadpurge = mv88e6352_g1_stu_loadpurge,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6351_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
@@ -5067,7 +5083,7 @@ static const struct mv88e6xxx_ops mv88e6350_ops = {
 	.vtu_loadpurge = mv88e6352_g1_vtu_loadpurge,
 	.stu_getnext = mv88e6352_g1_stu_getnext,
 	.stu_loadpurge = mv88e6352_g1_stu_loadpurge,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6351_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6351_ops = {
@@ -5115,7 +5131,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.stu_loadpurge = mv88e6352_g1_stu_loadpurge,
 	.avb_ops = &mv88e6352_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
-	.phylink_get_caps = mv88e6185_phylink_get_caps,
+	.phylink_get_caps = mv88e6351_phylink_get_caps,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {

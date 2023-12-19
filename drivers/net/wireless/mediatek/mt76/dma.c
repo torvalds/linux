@@ -53,6 +53,11 @@ mt76_alloc_txwi(struct mt76_dev *dev)
 
 	addr = dma_map_single(dev->dma_dev, txwi, dev->drv->txwi_size,
 			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(dev->dma_dev, addr))) {
+		kfree(txwi);
+		return NULL;
+	}
+
 	t = (struct mt76_txwi_cache *)(txwi + dev->drv->txwi_size);
 	t->dma_addr = addr;
 
@@ -93,13 +98,13 @@ __mt76_get_rxwi(struct mt76_dev *dev)
 {
 	struct mt76_txwi_cache *t = NULL;
 
-	spin_lock(&dev->wed_lock);
+	spin_lock_bh(&dev->wed_lock);
 	if (!list_empty(&dev->rxwi_cache)) {
 		t = list_first_entry(&dev->rxwi_cache, struct mt76_txwi_cache,
 				     list);
 		list_del(&t->list);
 	}
-	spin_unlock(&dev->wed_lock);
+	spin_unlock_bh(&dev->wed_lock);
 
 	return t;
 }
@@ -145,9 +150,9 @@ mt76_put_rxwi(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 	if (!t)
 		return;
 
-	spin_lock(&dev->wed_lock);
+	spin_lock_bh(&dev->wed_lock);
 	list_add(&t->list, &dev->rxwi_cache);
-	spin_unlock(&dev->wed_lock);
+	spin_unlock_bh(&dev->wed_lock);
 }
 EXPORT_SYMBOL_GPL(mt76_put_rxwi);
 
@@ -329,9 +334,6 @@ mt76_dma_tx_cleanup_idx(struct mt76_dev *dev, struct mt76_queue *q, int idx,
 
 	if (e->txwi == DMA_DUMMY_DATA)
 		e->txwi = NULL;
-
-	if (e->skb == DMA_DUMMY_DATA)
-		e->skb = NULL;
 
 	*prev_e = *e;
 	memset(e, 0, sizeof(*e));
@@ -737,16 +739,18 @@ mt76_dma_rx_cleanup(struct mt76_dev *dev, struct mt76_queue *q)
 	if (!q->ndesc)
 		return;
 
-	spin_lock_bh(&q->lock);
-
 	do {
+		spin_lock_bh(&q->lock);
 		buf = mt76_dma_dequeue(dev, q, true, NULL, NULL, &more, NULL);
+		spin_unlock_bh(&q->lock);
+
 		if (!buf)
 			break;
 
 		mt76_put_page_pool_buf(buf, false);
 	} while (1);
 
+	spin_lock_bh(&q->lock);
 	if (q->rx_head) {
 		dev_kfree_skb(q->rx_head);
 		q->rx_head = NULL;

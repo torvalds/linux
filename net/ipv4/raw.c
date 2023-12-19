@@ -239,7 +239,7 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 		if (code > NR_ICMP_UNREACH)
 			break;
 		if (code == ICMP_FRAG_NEEDED) {
-			harderr = inet->pmtudisc != IP_PMTUDISC_DONT;
+			harderr = READ_ONCE(inet->pmtudisc) != IP_PMTUDISC_DONT;
 			err = EMSGSIZE;
 		} else {
 			err = icmp_err_convert[code].errno;
@@ -482,7 +482,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	int free = 0;
 	__be32 daddr;
 	__be32 saddr;
-	int err;
+	int uc_index, err;
 	struct ip_options_data opt_copy;
 	struct raw_frag_vec rfv;
 	int hdrincl;
@@ -576,24 +576,25 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	tos = get_rttos(&ipc, inet);
 	scope = ip_sendmsg_scope(inet, &ipc, msg);
 
+	uc_index = READ_ONCE(inet->uc_index);
 	if (ipv4_is_multicast(daddr)) {
 		if (!ipc.oif || netif_index_is_l3_master(sock_net(sk), ipc.oif))
-			ipc.oif = inet->mc_index;
+			ipc.oif = READ_ONCE(inet->mc_index);
 		if (!saddr)
-			saddr = inet->mc_addr;
+			saddr = READ_ONCE(inet->mc_addr);
 	} else if (!ipc.oif) {
-		ipc.oif = inet->uc_index;
-	} else if (ipv4_is_lbcast(daddr) && inet->uc_index) {
+		ipc.oif = uc_index;
+	} else if (ipv4_is_lbcast(daddr) && uc_index) {
 		/* oif is set, packet is to local broadcast
 		 * and uc_index is set. oif is most likely set
 		 * by sk_bound_dev_if. If uc_index != oif check if the
 		 * oif is an L3 master and uc_index is an L3 slave.
 		 * If so, we want to allow the send using the uc_index.
 		 */
-		if (ipc.oif != inet->uc_index &&
+		if (ipc.oif != uc_index &&
 		    ipc.oif == l3mdev_master_ifindex_by_index(sock_net(sk),
-							      inet->uc_index)) {
-			ipc.oif = inet->uc_index;
+							      uc_index)) {
+			ipc.oif = uc_index;
 		}
 	}
 

@@ -871,8 +871,7 @@ static int rcar_drif_querycap(struct file *file, void *fh,
 
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, sdr->vdev->name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 sdr->vdev->name);
+	strscpy(cap->bus_info, "platform:R-Car DRIF", sizeof(cap->bus_info));
 
 	return 0;
 }

@@ -222,7 +222,7 @@ static int acp63_sdw_dma_open(struct snd_soc_component *component,
 	int ret;
 
 	runtime = substream->runtime;
-	cpu_dai = asoc_rtd_to_cpu(prtd, 0);
+	cpu_dai = snd_soc_rtd_to_cpu(prtd, 0);
 	amd_manager = snd_soc_dai_get_drvdata(cpu_dai);
 	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
 	if (!stream)

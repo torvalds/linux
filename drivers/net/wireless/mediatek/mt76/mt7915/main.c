@@ -253,7 +253,7 @@ static int mt7915_add_interface(struct ieee80211_hw *hw,
 	mvif->sta.wcid.phy_idx = ext_phy;
 	mvif->sta.wcid.hw_key_idx = -1;
 	mvif->sta.wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	mt76_packet_id_init(&mvif->sta.wcid);
+	mt76_wcid_init(&mvif->sta.wcid);
 
 	mt7915_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -314,7 +314,7 @@ static void mt7915_remove_interface(struct ieee80211_hw *hw,
 		list_del_init(&msta->wcid.poll_list);
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-	mt76_packet_id_flush(&dev->mt76, &msta->wcid);
+	mt76_wcid_cleanup(&dev->mt76, &msta->wcid);
 }
 
 int mt7915_set_channel(struct mt7915_phy *phy)
@@ -483,16 +483,22 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		bool enabled = !!(hw->conf.flags & IEEE80211_CONF_MONITOR);
 		bool band = phy->mt76->band_idx;
+		u32 rxfilter = phy->rxfilter;
 
-		if (!enabled)
-			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
-		else
-			phy->rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
+		if (!enabled) {
+			rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
+			dev->monitor_mask &= ~BIT(band);
+		} else {
+			rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
+			dev->monitor_mask |= BIT(band);
+		}
 
 		mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN,
 			       enabled);
+		mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_MDP_DCR0_RX_HDR_TRANS_EN,
+			       !dev->monitor_mask);
 		mt76_testmode_reset(phy->mt76, true);
-		mt76_wr(dev, MT_WF_RFCR(band), phy->rxfilter);
+		mt76_wr(dev, MT_WF_RFCR(band), rxfilter);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
@@ -527,6 +533,7 @@ static void mt7915_configure_filter(struct ieee80211_hw *hw,
 			MT_WF_RFCR1_DROP_BA |
 			MT_WF_RFCR1_DROP_CFEND |
 			MT_WF_RFCR1_DROP_CFACK;
+	u32 rxfilter;
 	u32 flags = 0;
 
 #define MT76_FILTER(_flag, _hw) do {					\
@@ -561,7 +568,12 @@ static void mt7915_configure_filter(struct ieee80211_hw *hw,
 			     MT_WF_RFCR_DROP_NDPA);
 
 	*total_flags = flags;
-	mt76_wr(dev, MT_WF_RFCR(band), phy->rxfilter);
+	rxfilter = phy->rxfilter;
+	if (hw->conf.flags & IEEE80211_CONF_MONITOR)
+		rxfilter &= ~MT_WF_RFCR_DROP_OTHER_UC;
+	else
+		rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
+	mt76_wr(dev, MT_WF_RFCR(band), rxfilter);
 
 	if (*total_flags & FIF_CONTROL)
 		mt76_clear(dev, MT_WF_RFCR1(band), ctl_flags);
@@ -646,10 +658,12 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_update_bss_color(hw, vif, &info->he_bss_color);
 
 	if (changed & (BSS_CHANGED_BEACON |
-		       BSS_CHANGED_BEACON_ENABLED |
-		       BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
-		       BSS_CHANGED_FILS_DISCOVERY))
+		       BSS_CHANGED_BEACON_ENABLED))
 		mt7915_mcu_add_beacon(hw, vif, info->enable_beacon, changed);
+
+	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
+		       BSS_CHANGED_FILS_DISCOVERY))
+		mt7915_mcu_add_inband_discov(dev, vif, changed);
 
 	if (set_bss_info == 0)
 		mt7915_mcu_add_bss_info(phy, vif, false);
@@ -1386,7 +1400,7 @@ void mt7915_get_et_strings(struct ieee80211_hw *hw,
 	if (sset != ETH_SS_STATS)
 		return;
 
-	memcpy(data, *mt7915_gstrings_stats, sizeof(mt7915_gstrings_stats));
+	memcpy(data, mt7915_gstrings_stats, sizeof(mt7915_gstrings_stats));
 	data += sizeof(mt7915_gstrings_stats);
 	page_pool_ethtool_stats_get_strings(data);
 }
@@ -1639,6 +1653,20 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
 
 	return 0;
 }
+
+static int
+mt7915_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    struct net_device *netdev, enum tc_setup_type type,
+		    void *type_data)
+{
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+
+	if (!mtk_wed_device_active(wed))
+		return -EOPNOTSUPP;
+
+	return mtk_wed_device_setup_tc(wed, netdev, type, type_data);
+}
 #endif
 
 const struct ieee80211_ops mt7915_ops = {
@@ -1693,5 +1721,6 @@ const struct ieee80211_ops mt7915_ops = {
 	.set_radar_background = mt7915_set_radar_background,
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	.net_fill_forward_path = mt7915_net_fill_forward_path,
+	.net_setup_tc = mt7915_net_setup_tc,
 #endif
 };

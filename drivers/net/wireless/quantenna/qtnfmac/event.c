@@ -477,9 +477,9 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 		if (!vif->netdev)
 			continue;
 
-		mutex_lock(&vif->wdev.mtx);
+		wiphy_lock(priv_to_wiphy(vif->mac));
 		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0, 0);
-		mutex_unlock(&vif->wdev.mtx);
+		wiphy_unlock(priv_to_wiphy(vif->mac));
 	}
 
 	return 0;

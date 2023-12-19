@@ -251,13 +251,11 @@ static int a500_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int a500_battery_remove(struct platform_device *pdev)
+static void a500_battery_remove(struct platform_device *pdev)
 {
 	struct a500_battery *bat = dev_get_drvdata(&pdev->dev);
 
 	cancel_delayed_work_sync(&bat->poll_work);
-
-	return 0;
 }
 
 static int __maybe_unused a500_battery_suspend(struct device *dev)
@@ -287,7 +285,7 @@ static struct platform_driver a500_battery_driver = {
 		.pm = &a500_battery_pm_ops,
 	},
 	.probe = a500_battery_probe,
-	.remove = a500_battery_remove,
+	.remove_new = a500_battery_remove,
 };
 module_platform_driver(a500_battery_driver);
 

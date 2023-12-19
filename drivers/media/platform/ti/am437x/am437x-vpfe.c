@@ -1271,12 +1271,8 @@ static inline void vpfe_attach_irq(struct vpfe_device *vpfe)
 static int vpfe_querycap(struct file *file, void  *priv,
 			 struct v4l2_capability *cap)
 {
-	struct vpfe_device *vpfe = video_drvdata(file);
-
 	strscpy(cap->driver, VPFE_MODULE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, "TI AM437x VPFE", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-			"platform:%s", vpfe->v4l2_dev.name);
 	return 0;
 }
 

@@ -86,20 +86,36 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
 
-#define io_lockdep_assert_cq_locked(ctx)				\
-	do {								\
-		lockdep_assert(in_task());				\
-									\
-		if (ctx->flags & IORING_SETUP_IOPOLL) {			\
-			lockdep_assert_held(&ctx->uring_lock);		\
-		} else if (!ctx->task_complete) {			\
-			lockdep_assert_held(&ctx->completion_lock);	\
-		} else if (ctx->submitter_task->flags & PF_EXITING) {	\
-			lockdep_assert(current_work());			\
-		} else {						\
-			lockdep_assert(current == ctx->submitter_task);	\
-		}							\
-	} while (0)
+void *io_mem_alloc(size_t size);
+void io_mem_free(void *ptr);
+
+#if defined(CONFIG_PROVE_LOCKING)
+static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
+{
+	lockdep_assert(in_task());
+
+	if (ctx->flags & IORING_SETUP_IOPOLL) {
+		lockdep_assert_held(&ctx->uring_lock);
+	} else if (!ctx->task_complete) {
+		lockdep_assert_held(&ctx->completion_lock);
+	} else if (ctx->submitter_task) {
+		/*
+		 * ->submitter_task may be NULL and we can still post a CQE,
+		 * if the ring has been setup with IORING_SETUP_R_DISABLED.
+		 * Not from an SQE, as those cannot be submitted, but via
+		 * updating tagged resources.
+		 */
+		if (ctx->submitter_task->flags & PF_EXITING)
+			lockdep_assert(current_work());
+		else
+			lockdep_assert(current == ctx->submitter_task);
+	}
+}
+#else
+static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
+{
+}
+#endif
 
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
@@ -330,6 +346,7 @@ static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
 }
 
 extern struct kmem_cache *req_cachep;
+extern struct kmem_cache *io_buf_cachep;
 
 static inline struct io_kiocb *io_extract_req(struct io_ring_ctx *ctx)
 {

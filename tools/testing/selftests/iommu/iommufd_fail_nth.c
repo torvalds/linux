@@ -105,7 +105,7 @@ static bool fail_nth_next(struct __test_metadata *_metadata,
 
 	/*
 	 * This is just an arbitrary limit based on the current kernel
-	 * situation. Changes in the kernel can dramtically change the number of
+	 * situation. Changes in the kernel can dramatically change the number of
 	 * required fault injection sites, so if this hits it doesn't
 	 * necessarily mean a test failure, just that the limit has to be made
 	 * bigger.
@@ -612,10 +612,11 @@ TEST_FAIL_NTH(basic_fail_nth, device)
 				  &idev_id))
 		return -1;
 
-	if (_test_cmd_get_hw_info(self->fd, idev_id, &info, sizeof(info)))
+	if (_test_cmd_get_hw_info(self->fd, idev_id, &info, sizeof(info), NULL))
 		return -1;
 
-	if (_test_cmd_hwpt_alloc(self->fd, idev_id, ioas_id, &hwpt_id))
+	if (_test_cmd_hwpt_alloc(self->fd, idev_id, ioas_id, 0, &hwpt_id,
+				 IOMMU_HWPT_DATA_NONE, 0, 0))
 		return -1;
 
 	if (_test_cmd_mock_domain_replace(self->fd, stdev_id, ioas_id2, NULL))

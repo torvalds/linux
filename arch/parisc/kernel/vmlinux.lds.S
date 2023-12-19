@@ -130,6 +130,7 @@ SECTIONS
 	RO_DATA(8)
 
 	/* unwind info */
+	. = ALIGN(4);
 	.PARISC.unwind : {
 		__start___unwind = .;
 		*(.PARISC.unwind)
@@ -154,6 +155,7 @@ SECTIONS
 	}
 
 	/* End of data section */
+	. = ALIGN(PAGE_SIZE);
 	_edata = .;
 
 	/* BSS */

@@ -181,11 +181,7 @@ static bool _rtl92e_ps_set_mode(struct net_device *dev, u8 rtPsMode)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	if (priv->rtllib->iw_mode == IW_MODE_ADHOC)
-		return false;
-
-	if (!priv->ps_force)
-		priv->rtllib->ps = rtPsMode;
+	priv->rtllib->ps = rtPsMode;
 	if (priv->rtllib->sta_sleep != LPS_IS_WAKE &&
 	    rtPsMode == RTLLIB_PS_DISABLED) {
 		unsigned long flags;
@@ -208,8 +204,7 @@ void rtl92e_leisure_ps_enter(struct net_device *dev)
 					&priv->rtllib->pwr_save_ctrl;
 
 	if (!((priv->rtllib->iw_mode == IW_MODE_INFRA) &&
-	    (priv->rtllib->link_state == MAC80211_LINKED))
-	    || (priv->rtllib->iw_mode == IW_MODE_ADHOC))
+	    (priv->rtllib->link_state == MAC80211_LINKED)))
 		return;
 
 	if (psc->bLeisurePs) {

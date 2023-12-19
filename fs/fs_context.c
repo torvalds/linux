@@ -192,17 +192,19 @@ int vfs_parse_fs_string(struct fs_context *fc, const char *key,
 EXPORT_SYMBOL(vfs_parse_fs_string);
 
 /**
- * generic_parse_monolithic - Parse key[=val][,key[=val]]* mount data
+ * vfs_parse_monolithic_sep - Parse key[=val][,key[=val]]* mount data
  * @fc: The superblock configuration to fill in.
  * @data: The data to parse
+ * @sep: callback for separating next option
  *
- * Parse a blob of data that's in key[=val][,key[=val]]* form.  This can be
- * called from the ->monolithic_mount_data() fs_context operation.
+ * Parse a blob of data that's in key[=val][,key[=val]]* form with a custom
+ * option separator callback.
  *
  * Returns 0 on success or the error returned by the ->parse_option() fs_context
  * operation on failure.
  */
-int generic_parse_monolithic(struct fs_context *fc, void *data)
+int vfs_parse_monolithic_sep(struct fs_context *fc, void *data,
+			     char *(*sep)(char **))
 {
 	char *options = data, *key;
 	int ret = 0;
@@ -214,7 +216,7 @@ int generic_parse_monolithic(struct fs_context *fc, void *data)
 	if (ret)
 		return ret;
 
-	while ((key = strsep(&options, ",")) != NULL) {
+	while ((key = sep(&options)) != NULL) {
 		if (*key) {
 			size_t v_len = 0;
 			char *value = strchr(key, '=');
@@ -232,6 +234,28 @@ int generic_parse_monolithic(struct fs_context *fc, void *data)
 	}
 
 	return ret;
+}
+EXPORT_SYMBOL(vfs_parse_monolithic_sep);
+
+static char *vfs_parse_comma_sep(char **s)
+{
+	return strsep(s, ",");
+}
+
+/**
+ * generic_parse_monolithic - Parse key[=val][,key[=val]]* mount data
+ * @fc: The superblock configuration to fill in.
+ * @data: The data to parse
+ *
+ * Parse a blob of data that's in key[=val][,key[=val]]* form.  This can be
+ * called from the ->monolithic_mount_data() fs_context operation.
+ *
+ * Returns 0 on success or the error returned by the ->parse_option() fs_context
+ * operation on failure.
+ */
+int generic_parse_monolithic(struct fs_context *fc, void *data)
+{
+	return vfs_parse_monolithic_sep(fc, data, vfs_parse_comma_sep);
 }
 EXPORT_SYMBOL(generic_parse_monolithic);
 

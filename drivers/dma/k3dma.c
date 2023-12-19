@@ -15,7 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/of_dma.h>
@@ -839,7 +838,6 @@ static int k3_dma_probe(struct platform_device *op)
 {
 	const struct k3dma_soc_data *soc_data;
 	struct k3_dma_dev *d;
-	const struct of_device_id *of_id;
 	int i, ret, irq = 0;
 
 	d = devm_kzalloc(&op->dev, sizeof(*d), GFP_KERNEL);
@@ -854,19 +852,16 @@ static int k3_dma_probe(struct platform_device *op)
 	if (IS_ERR(d->base))
 		return PTR_ERR(d->base);
 
-	of_id = of_match_device(k3_pdma_dt_ids, &op->dev);
-	if (of_id) {
-		of_property_read_u32((&op->dev)->of_node,
-				"dma-channels", &d->dma_channels);
-		of_property_read_u32((&op->dev)->of_node,
-				"dma-requests", &d->dma_requests);
-		ret = of_property_read_u32((&op->dev)->of_node,
-				"dma-channel-mask", &d->dma_channel_mask);
-		if (ret) {
-			dev_warn(&op->dev,
-				 "dma-channel-mask doesn't exist, considering all as available.\n");
-			d->dma_channel_mask = (u32)~0UL;
-		}
+	of_property_read_u32((&op->dev)->of_node,
+			"dma-channels", &d->dma_channels);
+	of_property_read_u32((&op->dev)->of_node,
+			"dma-requests", &d->dma_requests);
+	ret = of_property_read_u32((&op->dev)->of_node,
+			"dma-channel-mask", &d->dma_channel_mask);
+	if (ret) {
+		dev_warn(&op->dev,
+			 "dma-channel-mask doesn't exist, considering all as available.\n");
+		d->dma_channel_mask = (u32)~0UL;
 	}
 
 	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
@@ -974,7 +969,7 @@ dma_async_register_fail:
 	return ret;
 }
 
-static int k3_dma_remove(struct platform_device *op)
+static void k3_dma_remove(struct platform_device *op)
 {
 	struct k3_dma_chan *c, *cn;
 	struct k3_dma_dev *d = platform_get_drvdata(op);
@@ -990,7 +985,6 @@ static int k3_dma_remove(struct platform_device *op)
 	}
 	tasklet_kill(&d->task);
 	clk_disable_unprepare(d->clk);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1034,7 +1028,7 @@ static struct platform_driver k3_pdma_driver = {
 		.of_match_table = k3_pdma_dt_ids,
 	},
 	.probe		= k3_dma_probe,
-	.remove		= k3_dma_remove,
+	.remove_new	= k3_dma_remove,
 };
 
 module_platform_driver(k3_pdma_driver);

@@ -157,17 +157,17 @@ static int rt5682_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(&i2c->dev, rt5682_i2c_disable_regulators,
-				       rt5682);
-	if (ret)
-		return ret;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(rt5682->supplies),
 				    rt5682->supplies);
 	if (ret) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
+
+	ret = devm_add_action_or_reset(&i2c->dev, rt5682_i2c_disable_regulators,
+				       rt5682);
+	if (ret)
+		return ret;
 
 	ret = rt5682_get_ldo1(rt5682, &i2c->dev);
 	if (ret)

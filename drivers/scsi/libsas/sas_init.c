@@ -315,8 +315,8 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 }
 EXPORT_SYMBOL_GPL(sas_phy_reset);
 
-int sas_set_phy_speed(struct sas_phy *phy,
-		      struct sas_phy_linkrates *rates)
+static int sas_set_phy_speed(struct sas_phy *phy,
+			     struct sas_phy_linkrates *rates)
 {
 	int ret;
 

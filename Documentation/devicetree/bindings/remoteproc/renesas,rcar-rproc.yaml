@@ -31,7 +31,7 @@ properties:
       remoteproc device. This is variable and describes the memories shared with
       the remote processor (e.g. remoteproc firmware and carveouts, rpmsg
       vrings, ...).
-      (see ../reserved-memory/reserved-memory.yaml)
+      (see reserved-memory/reserved-memory.yaml in dtschema project)
 
 required:
   - compatible

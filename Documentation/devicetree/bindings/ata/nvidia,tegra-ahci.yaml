@@ -151,7 +151,7 @@ allOf:
         - interconnects
         - power-domains
 
-additionalProperties: true
+additionalProperties: false
 
 examples:
   - |

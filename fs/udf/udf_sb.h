@@ -86,7 +86,7 @@ struct udf_virtual_data {
 struct udf_bitmap {
 	__u32			s_extPosition;
 	int			s_nr_groups;
-	struct buffer_head	*s_block_bitmap[];
+	struct buffer_head	*s_block_bitmap[] __counted_by(s_nr_groups);
 };
 
 struct udf_part_map {

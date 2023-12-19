@@ -4268,6 +4268,9 @@ megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 	}
 
 out:
+	if (!retval && reason == SCSIIO_TIMEOUT_OCR)
+		dev_info(&instance->pdev->dev, "IO is completed, no OCR is required\n");
+
 	return retval;
 }
 

@@ -624,7 +624,7 @@ static inline void copy_to_checkpoint(struct kvm_vcpu *vcpu)
 
 extern int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 			     unsigned long gpa, unsigned int level,
-			     unsigned long mmu_seq, unsigned int lpid,
+			     unsigned long mmu_seq, u64 lpid,
 			     unsigned long *rmapp, struct rmap_nested **n_rmap);
 extern void kvmhv_insert_nest_rmap(struct kvm *kvm, unsigned long *rmapp,
 				   struct rmap_nested **n_rmap);
@@ -676,6 +676,12 @@ static inline pte_t *find_kvm_host_pte(struct kvm *kvm, unsigned long mmu_seq,
 
 extern pte_t *find_kvm_nested_guest_pte(struct kvm *kvm, unsigned long lpid,
 					unsigned long ea, unsigned *hshift);
+
+int kvmhv_nestedv2_vcpu_create(struct kvm_vcpu *vcpu, struct kvmhv_nestedv2_io *io);
+void kvmhv_nestedv2_vcpu_free(struct kvm_vcpu *vcpu, struct kvmhv_nestedv2_io *io);
+int kvmhv_nestedv2_flush_vcpu(struct kvm_vcpu *vcpu, u64 time_limit);
+int kvmhv_nestedv2_set_ptbl_entry(unsigned long lpid, u64 dw0, u64 dw1);
+int kvmhv_nestedv2_parse_output(struct kvm_vcpu *vcpu);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

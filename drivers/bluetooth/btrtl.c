@@ -962,13 +962,10 @@ static void btrtl_dmp_hdr(struct hci_dev *hdev, struct sk_buff *skb)
 	skb_put_data(skb, buf, strlen(buf));
 }
 
-static int btrtl_register_devcoredump_support(struct hci_dev *hdev)
+static void btrtl_register_devcoredump_support(struct hci_dev *hdev)
 {
-	int err;
+	hci_devcd_register(hdev, btrtl_coredump, btrtl_dmp_hdr, NULL);
 
-	err = hci_devcd_register(hdev, btrtl_coredump, btrtl_dmp_hdr, NULL);
-
-	return err;
 }
 
 void btrtl_set_driver_name(struct hci_dev *hdev, const char *driver_name)
@@ -1255,8 +1252,7 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 	}
 
 done:
-	if (!err)
-		err = btrtl_register_devcoredump_support(hdev);
+	btrtl_register_devcoredump_support(hdev);
 
 	return err;
 }

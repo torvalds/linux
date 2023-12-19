@@ -237,7 +237,6 @@ enum i2c_driver_flags {
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
  * @probe: Callback for device binding
- * @probe_new: Transitional callback for device binding - do not use
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
  * @alert: Alert callback, for example for the SMBus alert protocol
@@ -272,16 +271,8 @@ enum i2c_driver_flags {
 struct i2c_driver {
 	unsigned int class;
 
-	union {
 	/* Standard driver model interfaces */
-		int (*probe)(struct i2c_client *client);
-		/*
-		 * Legacy callback that was part of a conversion of .probe().
-		 * Today it has the same semantic as .probe(). Don't use for new
-		 * code.
-		 */
-		int (*probe_new)(struct i2c_client *client);
-	};
+	int (*probe)(struct i2c_client *client);
 	void (*remove)(struct i2c_client *client);
 
 

@@ -7,17 +7,74 @@
 #include <dt-bindings/clock/imx8-lpcg.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 
+audio_ipg_clk: clock-audio-ipg {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <120000000>;
+	clock-output-names = "audio_ipg_clk";
+};
+
 audio_subsys: bus@59000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x59000000 0x0 0x59000000 0x1000000>;
 
-	audio_ipg_clk: clock-audio-ipg {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <120000000>;
-		clock-output-names = "audio_ipg_clk";
+	edma0: dma-controller@591f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x591f0000 0x190000>;
+		#dma-cells = <3>;
+		shared-interrupt;
+		dma-channels = <24>;
+		dma-channel-mask = <0x5c0c00>;
+		interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 0 */
+			     <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>, /* 1 */
+			     <GIC_SPI 376 IRQ_TYPE_LEVEL_HIGH>, /* 2 */
+			     <GIC_SPI 377 IRQ_TYPE_LEVEL_HIGH>, /* 3 */
+			     <GIC_SPI 378 IRQ_TYPE_LEVEL_HIGH>, /* 4 */
+			     <GIC_SPI 379 IRQ_TYPE_LEVEL_HIGH>, /* 5 */
+			     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>, /* 6 esai0 */
+			     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>, /* 7 */
+			     <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>, /* 8 spdif0 */
+			     <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>, /* 9 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 10 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 11 unused */
+			     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>, /* 12 sai0 */
+			     <GIC_SPI 315 IRQ_TYPE_LEVEL_HIGH>, /* 13 */
+			     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>, /* 14 sai1 */
+			     <GIC_SPI 317 IRQ_TYPE_LEVEL_HIGH>, /* 15 */
+			     <GIC_SPI 319 IRQ_TYPE_LEVEL_HIGH>, /* 16 sai2 */
+			     <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>, /* 17 sai3 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 18 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 19 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 20 unused */
+			     <GIC_SPI 391 IRQ_TYPE_LEVEL_HIGH>, /* 21 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 22 unused */
+			     <GIC_SPI 393 IRQ_TYPE_LEVEL_HIGH>; /* 23 unused */
+		power-domains = <&pd IMX_SC_R_DMA_0_CH0>,
+				<&pd IMX_SC_R_DMA_0_CH1>,
+				<&pd IMX_SC_R_DMA_0_CH2>,
+				<&pd IMX_SC_R_DMA_0_CH3>,
+				<&pd IMX_SC_R_DMA_0_CH4>,
+				<&pd IMX_SC_R_DMA_0_CH5>,
+				<&pd IMX_SC_R_DMA_0_CH6>,
+				<&pd IMX_SC_R_DMA_0_CH7>,
+				<&pd IMX_SC_R_DMA_0_CH8>,
+				<&pd IMX_SC_R_DMA_0_CH9>,
+				<&pd IMX_SC_R_DMA_0_CH10>,
+				<&pd IMX_SC_R_DMA_0_CH11>,
+				<&pd IMX_SC_R_DMA_0_CH12>,
+				<&pd IMX_SC_R_DMA_0_CH13>,
+				<&pd IMX_SC_R_DMA_0_CH14>,
+				<&pd IMX_SC_R_DMA_0_CH15>,
+				<&pd IMX_SC_R_DMA_0_CH16>,
+				<&pd IMX_SC_R_DMA_0_CH17>,
+				<&pd IMX_SC_R_DMA_0_CH18>,
+				<&pd IMX_SC_R_DMA_0_CH19>,
+				<&pd IMX_SC_R_DMA_0_CH20>,
+				<&pd IMX_SC_R_DMA_0_CH21>,
+				<&pd IMX_SC_R_DMA_0_CH22>,
+				<&pd IMX_SC_R_DMA_0_CH23>;
 	};
 
 	dsp_lpcg: clock-controller@59580000 {
@@ -64,5 +121,36 @@ audio_subsys: bus@59000000 {
 			<&lsio_mu13 3 1>;
 		memory-region = <&dsp_reserved>;
 		status = "disabled";
+	};
+
+	edma1: dma-controller@599f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x599f0000 0xc0000>;
+		#dma-cells = <3>;
+		shared-interrupt;
+		dma-channels = <11>;
+		dma-channel-mask = <0xc0>;
+		interrupts = <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 1 */
+			     <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>, /* 1 */
+			     <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>, /* 2 */
+			     <GIC_SPI 385 IRQ_TYPE_LEVEL_HIGH>, /* 3 */
+			     <GIC_SPI 386 IRQ_TYPE_LEVEL_HIGH>, /* 4 */
+			     <GIC_SPI 387 IRQ_TYPE_LEVEL_HIGH>, /* 5 */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 6 unused */
+			     <GIC_SPI 0   IRQ_TYPE_LEVEL_HIGH>, /* 7 unused */
+			     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>, /* sai4 */
+			     <GIC_SPI 330 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>; /* sai5 */
+		power-domains = <&pd IMX_SC_R_DMA_1_CH0>,
+				<&pd IMX_SC_R_DMA_1_CH1>,
+				<&pd IMX_SC_R_DMA_1_CH2>,
+				<&pd IMX_SC_R_DMA_1_CH3>,
+				<&pd IMX_SC_R_DMA_1_CH4>,
+				<&pd IMX_SC_R_DMA_1_CH5>,
+				<&pd IMX_SC_R_DMA_1_CH6>,
+				<&pd IMX_SC_R_DMA_1_CH7>,
+				<&pd IMX_SC_R_DMA_1_CH8>,
+				<&pd IMX_SC_R_DMA_1_CH9>,
+				<&pd IMX_SC_R_DMA_1_CH10>;
 	};
 };

@@ -153,7 +153,7 @@ static u32 phy_RFSerialRead_8723B(
  * @Data:	The new register Data in the target bit position
  *			of the target to be read
  *
- * .. Note::	Threre are three types of serial operations:
+ * .. Note::	There are three types of serial operations:
  *		1. Software serial write
  *		2. Hardware LSSI-Low Speed Serial Interface
  *		3. Hardware HSSI-High speed
@@ -280,7 +280,7 @@ void PHY_SetRFReg_8723B(
 
 
 /*-----------------------------------------------------------------------------
- * PHY_MACConfig8192C - Condig MAC by header file or parameter file.
+ * PHY_MACConfig8192C - Config MAC by header file or parameter file.
  *
  * Revised History:
  *  When		Who		Remark
@@ -325,7 +325,7 @@ static void phy_InitBBRFRegisterDefinition(struct adapter *Adapter)
 	pHalData->PHYRegDef[RF_PATH_A].rfHSSIPara2 = rFPGA0_XA_HSSIParameter2;  /* wire control parameter2 */
 	pHalData->PHYRegDef[RF_PATH_B].rfHSSIPara2 = rFPGA0_XB_HSSIParameter2;  /* wire control parameter2 */
 
-	/*  Tranceiver Readback LSSI/HSPI mode */
+	/*  Transceiver Readback LSSI/HSPI mode */
 	pHalData->PHYRegDef[RF_PATH_A].rfLSSIReadBack = rFPGA0_XA_LSSIReadBack;
 	pHalData->PHYRegDef[RF_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
 	pHalData->PHYRegDef[RF_PATH_A].rfLSSIReadBackPi = TransceiverA_HSPI_Readback;

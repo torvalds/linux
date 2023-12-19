@@ -112,7 +112,7 @@ You can specify multiple tests to skip::
 You can also specify a restricted list of tests to run together with a
 dedicated skiplist::
 
-  $  make TARGETS="bpf breakpoints size timers" SKIP_TARGETS=bpf kselftest
+  $  make TARGETS="breakpoints size timers" SKIP_TARGETS=size kselftest
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
@@ -165,7 +165,7 @@ To see the list of available tests, the `-l` option can be used::
 The `-c` option can be used to run all the tests from a test collection, or
 the `-t` option for specific single tests. Either can be used multiple times::
 
-   $ ./run_kselftest.sh -c bpf -c seccomp -t timers:posix_timers -t timer:nanosleep
+   $ ./run_kselftest.sh -c size -c seccomp -t timers:posix_timers -t timer:nanosleep
 
 For other features see the script usage output, seen with the `-h` option.
 
@@ -210,7 +210,7 @@ option is supported, such as::
 tests by using variables specified in `Running a subset of selftests`_
 section::
 
-    $ make -C tools/testing/selftests gen_tar TARGETS="bpf" FORMAT=.xz
+    $ make -C tools/testing/selftests gen_tar TARGETS="size" FORMAT=.xz
 
 .. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_node/gzip.html#auto_002dcompress
 

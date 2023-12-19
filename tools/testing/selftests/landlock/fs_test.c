@@ -677,16 +677,6 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 	return ruleset_fd;
 }
 
-static void enforce_ruleset(struct __test_metadata *const _metadata,
-			    const int ruleset_fd)
-{
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
-	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0))
-	{
-		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
-	}
-}
-
 TEST_F_FORK(layout0, proc_nsfs)
 {
 	const struct rule rules[] = {
@@ -1631,6 +1621,65 @@ TEST_F_FORK(layout1, move_mount)
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
 			      dir_s1d2, 0));
+	ASSERT_EQ(EPERM, errno);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+TEST_F_FORK(layout1, topology_changes_with_net_only)
+{
+	const struct landlock_ruleset_attr ruleset_net = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+	};
+	int ruleset_fd;
+
+	/* Add network restrictions. */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_net, sizeof(ruleset_net), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(0, mount(NULL, dir_s1d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(0, syscall(__NR_move_mount, AT_FDCWD, dir_s1d2, AT_FDCWD,
+			     dir_s2d2, 0));
+	ASSERT_EQ(0, umount(dir_s2d2));
+	ASSERT_EQ(0, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
+	ASSERT_EQ(0, chdir("/"));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+TEST_F_FORK(layout1, topology_changes_with_net_and_fs)
+{
+	const struct landlock_ruleset_attr ruleset_net_fs = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	int ruleset_fd;
+
+	/* Add network and filesystem restrictions. */
+	ruleset_fd = landlock_create_ruleset(&ruleset_net_fs,
+					     sizeof(ruleset_net_fs), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(-1, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, mount(NULL, dir_s3d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
+			      dir_s2d2, 0));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, umount(dir_s3d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
 	ASSERT_EQ(EPERM, errno);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }

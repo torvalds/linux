@@ -19,6 +19,10 @@ obj-$(CONFIG_CPU_HAS_LBT)	+= lbt.o
 
 obj-$(CONFIG_ARCH_STRICT_ALIGN)	+= unaligned.o
 
+CFLAGS_module.o		+= $(call cc-option,-Wno-override-init,)
+CFLAGS_syscall.o	+= $(call cc-option,-Wno-override-init,)
+CFLAGS_perf_event.o	+= $(call cc-option,-Wno-override-init,)
+
 ifdef CONFIG_FUNCTION_TRACER
   ifndef CONFIG_DYNAMIC_FTRACE
     obj-y += mcount.o ftrace.o
@@ -53,7 +57,7 @@ obj-$(CONFIG_MAGIC_SYSRQ)	+= sysrq.o
 
 obj-$(CONFIG_RELOCATABLE)	+= relocate.o
 
-obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+obj-$(CONFIG_KEXEC_CORE)	+= machine_kexec.o relocate_kernel.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 obj-$(CONFIG_UNWINDER_GUESS)	+= unwind_guess.o

@@ -6,14 +6,16 @@
 /delete-node/ &enet1_lpcg;
 /delete-node/ &fec2;
 
-&conn_subsys {
+/ {
 	conn_enet0_root_clk: clock-conn-enet0-root {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <250000000>;
 		clock-output-names = "conn_enet0_root_clk";
 	};
+};
 
+&conn_subsys {
 	eqos: ethernet@5b050000 {
 		compatible = "nxp,imx8dxl-dwmac-eqos", "snps,dwmac-5.10a";
 		reg = <0x5b050000 0x10000>;
@@ -116,7 +118,7 @@
 };
 
 &fec1 {
-	compatible = "fsl,imx8qm-fec";
+	compatible = "fsl,imx8dxl-fec", "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 	interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,

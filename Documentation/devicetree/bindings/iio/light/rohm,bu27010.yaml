@@ -45,5 +45,6 @@ examples:
       light-sensor@38 {
         compatible = "rohm,bu27010";
         reg = <0x38>;
+        vdd-supply = <&vdd>;
       };
     };

@@ -227,6 +227,24 @@
 			label = "wan";
 		};
 
+		port@5 {
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
+		port@7 {
+			status = "disabled";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+
 		port@8 {
 			label = "cpu";
 		};

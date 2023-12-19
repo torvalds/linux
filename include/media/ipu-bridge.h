@@ -108,7 +108,7 @@ struct ipu_node_names {
 	char ivsc_sensor_port[7];
 	char ivsc_ipu_port[7];
 	char endpoint[11];
-	char remote_port[7];
+	char remote_port[9];
 	char vcm[16];
 };
 

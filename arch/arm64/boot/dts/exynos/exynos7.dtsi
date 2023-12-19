@@ -25,7 +25,6 @@
 		pinctrl6 = &pinctrl_fsys0;
 		pinctrl7 = &pinctrl_fsys1;
 		pinctrl8 = &pinctrl_bus1;
-		tmuctrl0 = &tmuctrl_0;
 	};
 
 	arm-pmu {

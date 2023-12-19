@@ -382,7 +382,7 @@ static inline int crypto_akcipher_decrypt(struct akcipher_request *req)
  * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
  * @src:	source buffer
  * @slen:	source length
- * @dst:	destinatino obuffer
+ * @dst:	destination obuffer
  * @dlen:	destination length
  *
  * Return: zero on success; error code in case of error
@@ -400,7 +400,7 @@ int crypto_akcipher_sync_encrypt(struct crypto_akcipher *tfm,
  * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
  * @src:	source buffer
  * @slen:	source length
- * @dst:	destinatino obuffer
+ * @dst:	destination obuffer
  * @dlen:	destination length
  *
  * Return: Output length on success; error code in case of error

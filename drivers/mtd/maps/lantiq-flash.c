@@ -166,8 +166,7 @@ err_destroy:
 	return err;
 }
 
-static int
-ltq_mtd_remove(struct platform_device *pdev)
+static void ltq_mtd_remove(struct platform_device *pdev)
 {
 	struct ltq_mtd *ltq_mtd = platform_get_drvdata(pdev);
 
@@ -175,7 +174,6 @@ ltq_mtd_remove(struct platform_device *pdev)
 		mtd_device_unregister(ltq_mtd->mtd);
 		map_destroy(ltq_mtd->mtd);
 	}
-	return 0;
 }
 
 static const struct of_device_id ltq_mtd_match[] = {
@@ -186,7 +184,7 @@ MODULE_DEVICE_TABLE(of, ltq_mtd_match);
 
 static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
-	.remove = ltq_mtd_remove,
+	.remove_new = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
 		.of_match_table = ltq_mtd_match,

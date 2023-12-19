@@ -56,13 +56,13 @@ static int max9867_adc_dac_event(struct snd_soc_dapm_widget *w,
 	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
 	enum max9867_adc_dac adc_dac;
 
-	if (!strcmp(w->name, "ADCL"))
+	if (!snd_soc_dapm_widget_name_cmp(w, "ADCL"))
 		adc_dac = MAX9867_ADC_LEFT;
-	else if (!strcmp(w->name, "ADCR"))
+	else if (!snd_soc_dapm_widget_name_cmp(w, "ADCR"))
 		adc_dac = MAX9867_ADC_RIGHT;
-	else if (!strcmp(w->name, "DACL"))
+	else if (!snd_soc_dapm_widget_name_cmp(w, "DACL"))
 		adc_dac = MAX9867_DAC_LEFT;
-	else if (!strcmp(w->name, "DACR"))
+	else if (!snd_soc_dapm_widget_name_cmp(w, "DACR"))
 		adc_dac = MAX9867_DAC_RIGHT;
 	else
 		return 0;

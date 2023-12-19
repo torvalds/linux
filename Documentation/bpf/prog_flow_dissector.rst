@@ -113,7 +113,7 @@ Flags
   used by ``eth_get_headlen`` to estimate length of all headers for GRO.
 * ``BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL`` - tells BPF flow dissector to
   stop parsing as soon as it reaches IPv6 flow label; used by
-  ``___skb_get_hash`` and ``__skb_get_hash_symmetric`` to get flow hash.
+  ``___skb_get_hash`` to get flow hash.
 * ``BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP`` - tells BPF flow dissector to stop
   parsing as soon as it reaches encapsulated headers; used by routing
   infrastructure.

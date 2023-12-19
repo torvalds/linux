@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -25,8 +25,8 @@
  * For legacy set bit means upper channel, otherwise lower.
  * For VHT - bit-2 marks if the control is lower/upper relative to center-freq
  *   bits-1:0 mark the distance from the center freq. for 20Mhz, offset is 0.
- *                                   center_freq
  * For EHT - bit-3 is used for extended distance
+ *                                           center_freq
  *                                                |
  * 40Mhz                                     |____|____|
  * 80Mhz                                |____|____|____|____|

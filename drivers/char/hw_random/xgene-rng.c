@@ -321,7 +321,6 @@ static int xgene_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = &pdev->dev;
-	platform_set_drvdata(pdev, ctx);
 
 	ctx->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->csr_base))

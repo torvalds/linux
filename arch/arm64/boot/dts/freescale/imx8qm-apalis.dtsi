@@ -21,7 +21,6 @@
  * this PHY model. Use delay on MAC side instead.
  */
 &fec1 {
-	fsl,rgmii_txc_dly;
 	phy-mode = "rgmii-rxid";
 };
 

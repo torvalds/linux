@@ -310,7 +310,7 @@ static void tcm_qla2xxx_free_cmd(struct qla_tgt_cmd *cmd)
 	cmd->trc_flags |= TRC_CMD_DONE;
 
 	INIT_WORK(&cmd->work, tcm_qla2xxx_complete_free);
-	queue_work_on(smp_processor_id(), tcm_qla2xxx_free_wq, &cmd->work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
 /*
@@ -547,7 +547,7 @@ static void tcm_qla2xxx_handle_data(struct qla_tgt_cmd *cmd)
 	cmd->trc_flags |= TRC_DATA_IN;
 	cmd->cmd_in_wq = 1;
 	INIT_WORK(&cmd->work, tcm_qla2xxx_handle_data_work);
-	queue_work_on(smp_processor_id(), tcm_qla2xxx_free_wq, &cmd->work);
+	queue_work(tcm_qla2xxx_free_wq, &cmd->work);
 }
 
 static int tcm_qla2xxx_chk_dif_tags(uint32_t tag)
@@ -1822,6 +1822,9 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.tfc_wwn_attrs			= tcm_qla2xxx_wwn_attrs,
 	.tfc_tpg_base_attrs		= tcm_qla2xxx_tpg_attrs,
 	.tfc_tpg_attrib_attrs		= tcm_qla2xxx_tpg_attrib_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
@@ -1859,6 +1862,9 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.fabric_init_nodeacl		= tcm_qla2xxx_init_nodeacl,
 
 	.tfc_wwn_attrs			= tcm_qla2xxx_wwn_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static int tcm_qla2xxx_register_configfs(void)

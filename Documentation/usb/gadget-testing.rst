@@ -755,6 +755,8 @@ The uac2 function provides these attributes in its function directory:
 	req_number       the number of pre-allocated request for both capture
 	                 and playback
 	function_name    name of the interface
+	c_terminal_type  code of the capture terminal type
+	p_terminal_type  code of the playback terminal type
 	================ ====================================================
 
 The attributes have sane default values.

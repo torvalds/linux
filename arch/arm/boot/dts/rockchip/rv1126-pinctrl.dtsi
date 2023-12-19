@@ -87,6 +87,22 @@
 				<0 RK_PB5 1 &pcfg_pull_none_drv_level_0_smt>;
 		};
 	};
+	pwm2 {
+		/omit-if-no-ref/
+		pwm2m0_pins: pwm2m0-pins {
+			rockchip,pins =
+				/* pwm2_pin_m0 */
+				<0 RK_PC0 3 &pcfg_pull_none>;
+		};
+	};
+	pwm11 {
+		/omit-if-no-ref/
+		pwm11m0_pins: pwm11m0-pins {
+			rockchip,pins =
+				/* pwm11_pin_m0 */
+				<3 RK_PA7 6 &pcfg_pull_none>;
+		};
+	};
 	rgmii {
 		/omit-if-no-ref/
 		rgmiim1_pins: rgmiim1-pins {

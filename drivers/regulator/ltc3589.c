@@ -58,12 +58,6 @@
 #define LTC3589_VRRCR_SW3_RAMP_MASK	GENMASK(5, 4)
 #define LTC3589_VRRCR_LDO2_RAMP_MASK	GENMASK(7, 6)
 
-enum ltc3589_variant {
-	LTC3589,
-	LTC3589_1,
-	LTC3589_2,
-};
-
 enum ltc3589_reg {
 	LTC3589_SW1,
 	LTC3589_SW2,
@@ -76,10 +70,14 @@ enum ltc3589_reg {
 	LTC3589_NUM_REGULATORS,
 };
 
+struct ltc3589_info {
+	const unsigned int *volt_table;
+	int fixed_uV;
+};
+
 struct ltc3589 {
 	struct regmap *regmap;
 	struct device *dev;
-	enum ltc3589_variant variant;
 	struct regulator_desc regulator_descs[LTC3589_NUM_REGULATORS];
 	struct regulator_dev *regulators[LTC3589_NUM_REGULATORS];
 };
@@ -379,8 +377,8 @@ static irqreturn_t ltc3589_isr(int irq, void *dev_id)
 
 static int ltc3589_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
+	const struct ltc3589_info *info;
 	struct regulator_desc *descs;
 	struct ltc3589 *ltc3589;
 	int i, ret;
@@ -390,21 +388,13 @@ static int ltc3589_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ltc3589);
-	if (client->dev.of_node)
-		ltc3589->variant = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		ltc3589->variant = id->driver_data;
+	info = i2c_get_match_data(client);
 	ltc3589->dev = dev;
 
 	descs = ltc3589->regulator_descs;
 	memcpy(descs, ltc3589_regulators, sizeof(ltc3589_regulators));
-	if (ltc3589->variant == LTC3589) {
-		descs[LTC3589_LDO3].fixed_uV = 1800000;
-		descs[LTC3589_LDO4].volt_table = ltc3589_ldo4;
-	} else {
-		descs[LTC3589_LDO3].fixed_uV = 2800000;
-		descs[LTC3589_LDO4].volt_table = ltc3589_12_ldo4;
-	}
+	descs[LTC3589_LDO3].fixed_uV = info->fixed_uV;
+	descs[LTC3589_LDO4].volt_table = info->volt_table;
 
 	ltc3589->regmap = devm_regmap_init_i2c(client, &ltc3589_regmap_config);
 	if (IS_ERR(ltc3589->regmap)) {
@@ -444,28 +434,29 @@ static int ltc3589_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct ltc3589_info ltc3589_info = {
+	.fixed_uV = 1800000,
+	.volt_table = ltc3589_ldo4,
+};
+
+static const struct ltc3589_info ltc3589_12_info = {
+	.fixed_uV = 2800000,
+	.volt_table = ltc3589_12_ldo4,
+};
+
 static const struct i2c_device_id ltc3589_i2c_id[] = {
-	{ "ltc3589",   LTC3589   },
-	{ "ltc3589-1", LTC3589_1 },
-	{ "ltc3589-2", LTC3589_2 },
+	{ "ltc3589",   (kernel_ulong_t)&ltc3589_info },
+	{ "ltc3589-1", (kernel_ulong_t)&ltc3589_12_info },
+	{ "ltc3589-2", (kernel_ulong_t)&ltc3589_12_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc3589_i2c_id);
 
 static const struct of_device_id __maybe_unused ltc3589_of_match[] = {
-	{
-		.compatible = "lltc,ltc3589",
-		.data = (void *)LTC3589,
-	},
-	{
-		.compatible = "lltc,ltc3589-1",
-		.data = (void *)LTC3589_1,
-	},
-	{
-		.compatible = "lltc,ltc3589-2",
-		.data = (void *)LTC3589_2,
-	},
-	{ },
+	{ .compatible = "lltc,ltc3589",   .data = &ltc3589_info },
+	{ .compatible = "lltc,ltc3589-1", .data = &ltc3589_12_info },
+	{ .compatible = "lltc,ltc3589-2", .data = &ltc3589_12_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc3589_of_match);
 

@@ -55,11 +55,11 @@ TODOList:
    :maxdepth: 1
 
    process/license-rules
+   dev-tools/index
 
 TODOList:
 
 * doc-guide/index
-* dev-tools/index
 * dev-tools/testing-overview
 * kernel-hacking/index
 * rust/index
@@ -101,9 +101,10 @@ TODOList:
 體系結構文檔
 ------------
 
-TODOList:
+.. toctree::
+   :maxdepth: 1
 
-* arch/index
+   arch/index
 
 其他文檔
 --------

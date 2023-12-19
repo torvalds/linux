@@ -112,7 +112,6 @@ fallback:
 	cur->remaining = size;
 	cur->node = NULL;
 	WARN_ON(res && start + size > res->size);
-	return;
 }
 
 /**

@@ -30,7 +30,6 @@ DCN30 := \
 	dcn30_dpp.o \
 	dcn30_optc.o \
 	dcn30_dccg.o \
-	dcn30_hwseq.o \
 	dcn30_mpc.o dcn30_vpg.o \
 	dcn30_afmt.o \
 	dcn30_dio_stream_encoder.o \

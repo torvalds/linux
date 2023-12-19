@@ -93,7 +93,7 @@ def markup_ctype_refs(match):
 #
 RE_expr = re.compile(r':c:(expr|texpr):`([^\`]+)`')
 def markup_c_expr(match):
-    return '\ ``' + match.group(2) + '``\ '
+    return '\\ ``' + match.group(2) + '``\\ '
 
 #
 # Parse Sphinx 3.x C markups, replacing them by backward-compatible ones
@@ -151,7 +151,7 @@ class CObject(Base_CObject):
     def handle_func_like_macro(self, sig, signode):
         u"""Handles signatures of function-like macros.
 
-        If the objtype is 'function' and the the signature ``sig`` is a
+        If the objtype is 'function' and the signature ``sig`` is a
         function-like macro, the name of the macro is returned. Otherwise
         ``False`` is returned.  """
 

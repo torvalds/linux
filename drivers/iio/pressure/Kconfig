@@ -16,6 +16,15 @@ config ABP060MG
 	  To compile this driver as a module, choose M here: the module
 	  will be called abp060mg.
 
+config ROHM_BM1390
+	tristate "ROHM BM1390GLV-Z pressure sensor driver"
+	depends on I2C
+	help
+	  Support for the ROHM BM1390 pressure sensor. The BM1390GLV-Z
+	  can measure pressures ranging from 300 hPa to 1300 hPa with
+	  configurable measurement averaging and internal FIFO. The
+	  sensor does also provide temperature measurements.
+
 config BMP280
 	tristate "Bosch Sensortec BMP180/BMP280/BMP380/BMP580 pressure sensor driver"
 	depends on (I2C || SPI_MASTER)

@@ -434,9 +434,6 @@ struct og01a1b {
 
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 static u64 to_pixel_rate(u32 f_index)
@@ -732,14 +729,10 @@ static int og01a1b_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (og01a1b->streaming == enable)
-		return 0;
-
 	mutex_lock(&og01a1b->mutex);
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret) {
 			mutex_unlock(&og01a1b->mutex);
 			return ret;
 		}
@@ -755,48 +748,9 @@ static int og01a1b_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	og01a1b->streaming = enable;
 	mutex_unlock(&og01a1b->mutex);
 
 	return ret;
-}
-
-static int __maybe_unused og01a1b_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct og01a1b *og01a1b = to_og01a1b(sd);
-
-	mutex_lock(&og01a1b->mutex);
-	if (og01a1b->streaming)
-		og01a1b_stop_streaming(og01a1b);
-
-	mutex_unlock(&og01a1b->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused og01a1b_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct og01a1b *og01a1b = to_og01a1b(sd);
-	int ret;
-
-	mutex_lock(&og01a1b->mutex);
-	if (og01a1b->streaming) {
-		ret = og01a1b_start_streaming(og01a1b);
-		if (ret) {
-			og01a1b->streaming = false;
-			og01a1b_stop_streaming(og01a1b);
-			mutex_unlock(&og01a1b->mutex);
-			return ret;
-		}
-	}
-
-	mutex_unlock(&og01a1b->mutex);
-
-	return 0;
 }
 
 static int og01a1b_set_format(struct v4l2_subdev *sd,
@@ -1096,10 +1050,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops og01a1b_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(og01a1b_suspend, og01a1b_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id og01a1b_acpi_ids[] = {
 	{"OVTI01AC"},
@@ -1112,7 +1062,6 @@ MODULE_DEVICE_TABLE(acpi, og01a1b_acpi_ids);
 static struct i2c_driver og01a1b_i2c_driver = {
 	.driver = {
 		.name = "og01a1b",
-		.pm = &og01a1b_pm_ops,
 		.acpi_match_table = ACPI_PTR(og01a1b_acpi_ids),
 	},
 	.probe = og01a1b_probe,

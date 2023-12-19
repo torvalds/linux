@@ -556,19 +556,18 @@ static int set_mac_address(struct net_device *dev, void *addr)
 
 MODULE_LICENSE("GPL");
 
-static int mac89x0_device_remove(struct platform_device *pdev)
+static void mac89x0_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	nubus_writew(0, dev->base_addr + ADD_PORT);
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver mac89x0_platform_driver = {
 	.probe = mac89x0_device_probe,
-	.remove = mac89x0_device_remove,
+	.remove_new = mac89x0_device_remove,
 	.driver = {
 		.name = "mac89x0",
 	},

@@ -410,14 +410,12 @@ out_probe_done:
 	return 0;
 }
 
-static int mtk_mmsys_remove(struct platform_device *pdev)
+static void mtk_mmsys_remove(struct platform_device *pdev)
 {
 	struct mtk_mmsys *mmsys = platform_get_drvdata(pdev);
 
 	platform_device_unregister(mmsys->drm_pdev);
 	platform_device_unregister(mmsys->clks_pdev);
-
-	return 0;
 }
 
 static const struct of_device_id of_match_mtk_mmsys[] = {
@@ -449,7 +447,7 @@ static struct platform_driver mtk_mmsys_drv = {
 		.of_match_table = of_match_mtk_mmsys,
 	},
 	.probe = mtk_mmsys_probe,
-	.remove = mtk_mmsys_remove,
+	.remove_new = mtk_mmsys_remove,
 };
 module_platform_driver(mtk_mmsys_drv);
 

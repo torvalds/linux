@@ -227,14 +227,9 @@ static int em_gio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return irq_create_mapping(gpio_to_priv(chip)->irq_domain, offset);
 }
 
-static int em_gio_request(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_gpio_request(chip->base + offset);
-}
-
 static void em_gio_free(struct gpio_chip *chip, unsigned offset)
 {
-	pinctrl_gpio_free(chip->base + offset);
+	pinctrl_gpio_free(chip, offset);
 
 	/* Set the GPIO as an input to ensure that the next GPIO request won't
 	* drive the GPIO pin as an output.
@@ -311,7 +306,7 @@ static int em_gio_probe(struct platform_device *pdev)
 	gpio_chip->direction_output = em_gio_direction_output;
 	gpio_chip->set = em_gio_set;
 	gpio_chip->to_irq = em_gio_to_irq;
-	gpio_chip->request = em_gio_request;
+	gpio_chip->request = pinctrl_gpio_request;
 	gpio_chip->free = em_gio_free;
 	gpio_chip->label = name;
 	gpio_chip->parent = dev;

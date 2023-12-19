@@ -205,7 +205,8 @@ static int pm_set_resources_v9(struct packet_manager *pm, uint32_t *buffer,
 
 static inline bool pm_use_ext_eng(struct kfd_dev *dev)
 {
-	return dev->adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(5, 2, 0);
+	return amdgpu_ip_version(dev->adev, SDMA0_HWIP, 0) >=
+	       IP_VERSION(5, 2, 0);
 }
 
 static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
@@ -299,8 +300,7 @@ static int pm_set_grace_period_v9(struct packet_manager *pm,
 			pm->dqm->wait_times,
 			grace_period,
 			&reg_offset,
-			&reg_data,
-			0);
+			&reg_data);
 
 	if (grace_period == USE_DEFAULT_GRACE_PERIOD)
 		reg_data = pm->dqm->wait_times;

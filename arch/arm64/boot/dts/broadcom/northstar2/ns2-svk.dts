@@ -113,7 +113,6 @@
 		spi-max-frequency = <5000000>;
 		spi-cpha;
 		spi-cpol;
-		pl022,hierarchy = <0>;
 		pl022,interface = <0>;
 		pl022,slave-tx-disable = <0>;
 		pl022,com-mode = <0>;
@@ -137,7 +136,6 @@
 		at25,page-size = <64>;
 		spi-cpha;
 		spi-cpol;
-		pl022,hierarchy = <0>;
 		pl022,interface = <0>;
 		pl022,slave-tx-disable = <0>;
 		pl022,com-mode = <0>;

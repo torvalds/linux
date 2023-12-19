@@ -880,8 +880,7 @@ enum htt_data_tx_status {
 	HTT_DATA_TX_STATUS_OK            = 0,
 	HTT_DATA_TX_STATUS_DISCARD       = 1,
 	HTT_DATA_TX_STATUS_NO_ACK        = 2,
-	HTT_DATA_TX_STATUS_POSTPONE      = 3, /* HL only */
-	HTT_DATA_TX_STATUS_DOWNLOAD_FAIL = 128
+	HTT_DATA_TX_STATUS_POSTPONE      = 3 /* HL only */
 };
 
 enum htt_data_tx_flags {

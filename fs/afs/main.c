@@ -41,8 +41,6 @@ const char afs_init_sysname[] = "arm_linux26";
 const char afs_init_sysname[] = "aarch64_linux26";
 #elif defined(CONFIG_X86_32)
 const char afs_init_sysname[] = "i386_linux26";
-#elif defined(CONFIG_IA64)
-const char afs_init_sysname[] = "ia64_linux26";
 #elif defined(CONFIG_PPC64)
 const char afs_init_sysname[] = "ppc64_linux26";
 #elif defined(CONFIG_PPC32)

@@ -1137,6 +1137,7 @@ int mdp_comp_config(struct mdp_dev *mdp)
 		comp = mdp_comp_create(mdp, node, id);
 		if (IS_ERR(comp)) {
 			ret = PTR_ERR(comp);
+			of_node_put(node);
 			goto err_init_comps;
 		}
 

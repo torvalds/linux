@@ -911,7 +911,7 @@ cleanup_pnode:
 	return err;
 }
 
-static int mchp_sparx5_remove(struct platform_device *pdev)
+static void mchp_sparx5_remove(struct platform_device *pdev)
 {
 	struct sparx5 *sparx5 = platform_get_drvdata(pdev);
 
@@ -931,8 +931,6 @@ static int mchp_sparx5_remove(struct platform_device *pdev)
 	/* Unregister netdevs */
 	sparx5_unregister_notifier_blocks(sparx5);
 	destroy_workqueue(sparx5->mact_queue);
-
-	return 0;
 }
 
 static const struct of_device_id mchp_sparx5_match[] = {
@@ -943,7 +941,7 @@ MODULE_DEVICE_TABLE(of, mchp_sparx5_match);
 
 static struct platform_driver mchp_sparx5_driver = {
 	.probe = mchp_sparx5_probe,
-	.remove = mchp_sparx5_remove,
+	.remove_new = mchp_sparx5_remove,
 	.driver = {
 		.name = "sparx5-switch",
 		.of_match_table = mchp_sparx5_match,

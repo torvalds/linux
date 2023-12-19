@@ -336,6 +336,9 @@ static int cstate_pmu_event_init(struct perf_event *event)
 		cfg = array_index_nospec((unsigned long)cfg, PERF_CSTATE_PKG_EVENT_MAX);
 		if (!(pkg_msr_mask & (1 << cfg)))
 			return -EINVAL;
+
+		event->event_caps |= PERF_EV_CAP_READ_ACTIVE_PKG;
+
 		event->hw.event_base = pkg_msr[cfg].msr;
 		cpu = cpumask_any_and(&cstate_pkg_cpu_mask,
 				      topology_die_cpumask(event->cpu));

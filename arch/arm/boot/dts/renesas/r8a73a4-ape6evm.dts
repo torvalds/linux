@@ -164,7 +164,7 @@
 
 &bsc {
 	flash@0 {
-		compatible = "cfi-flash", "mtd-rom";
+		compatible = "cfi-flash";
 		reg = <0x0 0x08000000>;
 		bank-width = <2>;
 

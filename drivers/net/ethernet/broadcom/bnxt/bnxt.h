@@ -161,7 +161,7 @@ struct rx_cmp {
 	#define RX_CMP_FLAGS_ERROR				(1 << 6)
 	#define RX_CMP_FLAGS_PLACEMENT				(7 << 7)
 	#define RX_CMP_FLAGS_RSS_VALID				(1 << 10)
-	#define RX_CMP_FLAGS_UNUSED				(1 << 11)
+	#define RX_CMP_FLAGS_PKT_METADATA_PRESENT		(1 << 11)
 	 #define RX_CMP_FLAGS_ITYPES_SHIFT			 12
 	 #define RX_CMP_FLAGS_ITYPES_MASK			 0xf000
 	 #define RX_CMP_FLAGS_ITYPE_UNKNOWN			 (0 << 12)
@@ -187,6 +187,12 @@ struct rx_cmp {
 
 	__le32 rx_cmp_rss_hash;
 };
+
+#define BNXT_PTP_RX_TS_VALID(flags)				\
+	(((flags) & RX_CMP_FLAGS_ITYPES_MASK) == RX_CMP_FLAGS_ITYPE_PTP_W_TS)
+
+#define BNXT_ALL_RX_TS_VALID(flags)				\
+	!((flags) & RX_CMP_FLAGS_PKT_METADATA_PRESENT)
 
 #define RX_CMP_HASH_VALID(rxcmp)				\
 	((rxcmp)->rx_cmp_len_flags_type & cpu_to_le32(RX_CMP_FLAGS_RSS_VALID))
@@ -1295,6 +1301,7 @@ struct bnxt_link_info {
 	u8			req_signal_mode;
 #define BNXT_SIG_MODE_NRZ	PORT_PHY_QCFG_RESP_SIGNAL_MODE_NRZ
 #define BNXT_SIG_MODE_PAM4	PORT_PHY_QCFG_RESP_SIGNAL_MODE_PAM4
+#define BNXT_SIG_MODE_MAX	(PORT_PHY_QCFG_RESP_SIGNAL_MODE_LAST + 1)
 	u8			req_duplex;
 	u8			req_flow_ctrl;
 	u16			req_link_speed;
@@ -2013,6 +2020,9 @@ struct bnxt {
 	#define BNXT_FW_CAP_RING_MONITOR		BIT_ULL(30)
 	#define BNXT_FW_CAP_DBG_QCAPS			BIT_ULL(31)
 	#define BNXT_FW_CAP_PTP				BIT_ULL(32)
+	#define BNXT_FW_CAP_THRESHOLD_TEMP_SUPPORTED	BIT_ULL(33)
+	#define BNXT_FW_CAP_DFLT_VLAN_TPID_PCP		BIT_ULL(34)
+	#define BNXT_FW_CAP_PRE_RESV_VNICS		BIT_ULL(35)
 
 	u32			fw_dbg_cap;
 
@@ -2053,6 +2063,7 @@ struct bnxt {
 #define BNXT_FW_VER_CODE(maj, min, bld, rsv)			\
 	((u64)(maj) << 48 | (u64)(min) << 32 | (u64)(bld) << 16 | (rsv))
 #define BNXT_FW_MAJ(bp)		((bp)->fw_ver_code >> 48)
+#define BNXT_FW_BLD(bp)		(((bp)->fw_ver_code >> 16) & 0xffff)
 
 	u16			vxlan_fw_dst_port_id;
 	u16			nge_fw_dst_port_id;
@@ -2090,6 +2101,7 @@ struct bnxt {
 #define BNXT_FW_RESET_NOTIFY_SP_EVENT	18
 #define BNXT_FW_EXCEPTION_SP_EVENT	19
 #define BNXT_LINK_CFG_CHANGE_SP_EVENT	21
+#define BNXT_THERMAL_THRESHOLD_SP_EVENT	22
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
 
 	struct delayed_work	fw_reset_task;
@@ -2185,7 +2197,14 @@ struct bnxt {
 	struct bnxt_tc_info	*tc_info;
 	struct list_head	tc_indr_block_list;
 	struct dentry		*debugfs_pdev;
+#ifdef CONFIG_BNXT_HWMON
 	struct device		*hwmon_dev;
+	u8			warn_thresh_temp;
+	u8			crit_thresh_temp;
+	u8			fatal_thresh_temp;
+	u8			shutdown_thresh_temp;
+#endif
+	u32			thermal_threshold_type;
 	enum board_idx		board_idx;
 };
 
@@ -2362,7 +2381,7 @@ int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
 void bnxt_reenable_sriov(struct bnxt *bp);
-int bnxt_close_nic(struct bnxt *, bool, bool);
+void bnxt_close_nic(struct bnxt *, bool, bool);
 void bnxt_get_ring_err_stats(struct bnxt *bp,
 			     struct bnxt_total_ring_err_stats *stats);
 int bnxt_dbg_hwrm_rd_reg(struct bnxt *bp, u32 reg_off, u16 num_words,

@@ -201,8 +201,6 @@ struct imx296 {
 	const struct imx296_clk_params *clk_params;
 	bool mono;
 
-	bool streaming;
-
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 
@@ -321,7 +319,7 @@ static int imx296_s_ctrl(struct v4l2_ctrl *ctrl)
 	unsigned int vmax;
 	int ret = 0;
 
-	if (!sensor->streaming)
+	if (!pm_runtime_get_if_in_use(sensor->dev))
 		return 0;
 
 	state = v4l2_subdev_get_locked_active_state(&sensor->subdev);
@@ -375,6 +373,8 @@ static int imx296_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
+
+	pm_runtime_put(sensor->dev);
 
 	return ret;
 }
@@ -607,8 +607,6 @@ static int imx296_s_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_mark_last_busy(sensor->dev);
 		pm_runtime_put_autosuspend(sensor->dev);
 
-		sensor->streaming = false;
-
 		goto unlock;
 	}
 
@@ -619,13 +617,6 @@ static int imx296_s_stream(struct v4l2_subdev *sd, int enable)
 	ret = imx296_setup(sensor, state);
 	if (ret < 0)
 		goto err_pm;
-
-	/*
-	 * Set streaming to true to ensure __v4l2_ctrl_handler_setup() will set
-	 * the controls. The flag is reset to false further down if an error
-	 * occurs.
-	 */
-	sensor->streaming = true;
 
 	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls);
 	if (ret < 0)
@@ -646,7 +637,6 @@ err_pm:
 	 * likely has no other chance to recover.
 	 */
 	pm_runtime_put_sync(sensor->dev);
-	sensor->streaming = false;
 
 	goto unlock;
 }

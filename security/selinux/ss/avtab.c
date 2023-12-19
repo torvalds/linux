@@ -17,6 +17,7 @@
  *	Tuned number of hash slots for avtab to reduce memory usage
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -66,8 +67,7 @@ static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
 }
 
 static struct avtab_node*
-avtab_insert_node(struct avtab *h, u32 hvalue,
-		  struct avtab_node *prev,
+avtab_insert_node(struct avtab *h, struct avtab_node **dst,
 		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
 	struct avtab_node *newnode;
@@ -89,15 +89,8 @@ avtab_insert_node(struct avtab *h, u32 hvalue,
 		newnode->datum.u.data = datum->u.data;
 	}
 
-	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
-	} else {
-		struct avtab_node **n = &h->htable[hvalue];
-
-		newnode->next = *n;
-		*n = newnode;
-	}
+	newnode->next = *dst;
+	*dst = newnode;
 
 	h->nel++;
 	return newnode;
@@ -137,7 +130,8 @@ static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 			break;
 	}
 
-	newnode = avtab_insert_node(h, hvalue, prev, key, datum);
+	newnode = avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				    key, datum);
 	if (!newnode)
 		return -ENOMEM;
 
@@ -177,7 +171,8 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 		    key->target_class < cur->key.target_class)
 			break;
 	}
-	return avtab_insert_node(h, hvalue, prev, key, datum);
+	return avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				 key, datum);
 }
 
 /* This search function returns a node pointer, and can be used in
@@ -298,13 +293,7 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	u32 nslot = 0;
 
 	if (nrules != 0) {
-		u32 shift = 1;
-		u32 work = nrules >> 3;
-		while (work) {
-			work >>= 1;
-			shift++;
-		}
-		nslot = 1 << shift;
+		nslot = nrules > 3 ? rounddown_pow_of_two(nrules / 2) : 2;
 		if (nslot > MAX_AVTAB_HASH_BUCKETS)
 			nslot = MAX_AVTAB_HASH_BUCKETS;
 
@@ -349,7 +338,7 @@ void avtab_hash_eval(struct avtab *h, const char *tag)
 	}
 
 	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, "
-	       "longest chain length %d sum of chain length^2 %llu\n",
+	       "longest chain length %d, sum of chain length^2 %llu\n",
 	       tag, h->nel, slots_used, h->nslot, max_chain_len,
 	       chain2_len_sum);
 }
@@ -477,11 +466,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		return -EINVAL;
 	}
 
-	set = 0;
-	for (i = 0; i < ARRAY_SIZE(spec_order); i++) {
-		if (key.specified & spec_order[i])
-			set++;
-	}
+	set = hweight16(key.specified & (AVTAB_XPERMS | AVTAB_TYPE | AVTAB_AV));
 	if (!set || set > 1) {
 		pr_err("SELinux:  avtab:  more than one specifier\n");
 		return -EINVAL;

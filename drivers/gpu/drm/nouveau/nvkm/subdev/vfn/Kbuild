@@ -4,3 +4,5 @@ nvkm-y += nvkm/subdev/vfn/uvfn.o
 nvkm-y += nvkm/subdev/vfn/gv100.o
 nvkm-y += nvkm/subdev/vfn/tu102.o
 nvkm-y += nvkm/subdev/vfn/ga100.o
+
+nvkm-y += nvkm/subdev/vfn/r535.o

@@ -115,7 +115,6 @@ static int lpc32xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops lpc32xx_pwm_ops = {
 	.apply = lpc32xx_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int lpc32xx_pwm_probe(struct platform_device *pdev)

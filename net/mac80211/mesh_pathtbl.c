@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
+ * Copyright (C) 2023 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 
@@ -173,6 +174,11 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 /**
  * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
  *
+ * @gate_mpath: An active mpath the frames will be sent to (i.e. the gate)
+ * @from_mpath: The failed mpath
+ * @copy: When true, copy all the frames to the new mpath queue.  When false,
+ * move them.
+ *
  * This function is used to transfer or copy frames from an unresolved mpath to
  * a gate mpath.  The function also adds the Address Extension field and
  * updates the next hop.
@@ -181,11 +187,6 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
  * destination addresses are updated.
  *
  * The gate mpath must be an active mpath with a valid mpath->next_hop.
- *
- * @gate_mpath: An active mpath the frames will be sent to (i.e. the gate)
- * @from_mpath: The failed mpath
- * @copy: When true, copy all the frames to the new mpath queue.  When false,
- * move them.
  */
 static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
 				    struct mesh_path *from_mpath,
@@ -330,6 +331,8 @@ mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 /**
  * mesh_path_add_gate - add the given mpath to a mesh gate to our path table
  * @mpath: gate path to add to table
+ *
+ * Returns: 0 on success, -EEXIST
  */
 int mesh_path_add_gate(struct mesh_path *mpath)
 {
@@ -388,6 +391,8 @@ static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 /**
  * mesh_gate_num - number of gates known to this interface
  * @sdata: subif data
+ *
+ * Returns: The number of gates
  */
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
 {
@@ -648,7 +653,7 @@ void mesh_fast_tx_flush_addr(struct ieee80211_sub_if_data *sdata,
 
 	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
-	entry = rhashtable_lookup(&cache->rht, addr, fast_tx_rht_params);
+	entry = rhashtable_lookup_fast(&cache->rht, addr, fast_tx_rht_params);
 	if (entry)
 		mesh_fast_tx_entry_free(cache, entry);
 	spin_unlock_bh(&cache->walk_lock);
@@ -861,10 +866,9 @@ static void table_flush_by_iface(struct mesh_table *tbl)
 /**
  * mesh_path_flush_by_iface - Deletes all mesh paths associated with a given iface
  *
- * This function deletes both mesh paths as well as mesh portal paths.
- *
  * @sdata: interface data to match
  *
+ * This function deletes both mesh paths as well as mesh portal paths.
  */
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
 {
@@ -944,6 +948,8 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
  * queue to that gate's queue.  If there are more than one gates, the frames
  * are copied from each gate to the next.  After frames are copied, the
  * mpath queues are emptied onto the transmission queue.
+ *
+ * Returns: 0 on success, -EHOSTUNREACH
  */
 int mesh_path_send_to_gates(struct mesh_path *mpath)
 {

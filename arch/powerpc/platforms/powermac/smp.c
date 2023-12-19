@@ -598,8 +598,10 @@ static void __init smp_core99_setup_i2c_hwsync(int ncpus)
 			name = "Pulsar";
 			break;
 		}
-		if (pmac_tb_freeze != NULL)
+		if (pmac_tb_freeze != NULL) {
+			of_node_put(cc);
 			break;
+		}
 	}
 	if (pmac_tb_freeze != NULL) {
 		/* Open i2c bus for synchronous access */

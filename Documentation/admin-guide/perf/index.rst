@@ -22,3 +22,4 @@ Performance monitor support
    nvidia-pmu
    meson-ddr-pmu
    cxl
+   ampere_cspmu

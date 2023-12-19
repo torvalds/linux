@@ -1852,15 +1852,13 @@ out_thread:
 		struct task_struct *t = new->thread;
 
 		new->thread = NULL;
-		kthread_stop(t);
-		put_task_struct(t);
+		kthread_stop_put(t);
 	}
 	if (new->secondary && new->secondary->thread) {
 		struct task_struct *t = new->secondary->thread;
 
 		new->secondary->thread = NULL;
-		kthread_stop(t);
-		put_task_struct(t);
+		kthread_stop_put(t);
 	}
 out_mput:
 	module_put(desc->owner);
@@ -1971,12 +1969,9 @@ static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 	 * the same bit to a newly requested action.
 	 */
 	if (action->thread) {
-		kthread_stop(action->thread);
-		put_task_struct(action->thread);
-		if (action->secondary && action->secondary->thread) {
-			kthread_stop(action->secondary->thread);
-			put_task_struct(action->secondary->thread);
-		}
+		kthread_stop_put(action->thread);
+		if (action->secondary && action->secondary->thread)
+			kthread_stop_put(action->secondary->thread);
 	}
 
 	/* Last action releases resources */

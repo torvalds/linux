@@ -38,6 +38,7 @@ struct hashtab {
 struct hashtab_info {
 	u32 slots_used;
 	u32 max_chain_len;
+	u64 chain2_len_sum;
 };
 
 /*

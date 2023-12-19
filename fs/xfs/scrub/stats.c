@@ -185,7 +185,10 @@ xchk_stats_merge_one(
 {
 	struct xchk_scrub_stats		*css;
 
-	ASSERT(sm->sm_type < XFS_SCRUB_TYPE_NR);
+	if (sm->sm_type >= XFS_SCRUB_TYPE_NR) {
+		ASSERT(sm->sm_type < XFS_SCRUB_TYPE_NR);
+		return;
+	}
 
 	css = &cs->cs_stats[sm->sm_type];
 	spin_lock(&css->css_lock);

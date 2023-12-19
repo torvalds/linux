@@ -265,6 +265,12 @@ struct io_ring_ctx {
 		 */
 		struct io_wq_work_list	iopoll_list;
 		bool			poll_multi_queue;
+
+		/*
+		 * Any cancelable uring_cmd is added to this list in
+		 * ->uring_cmd() by io_uring_cmd_insert_cancelable()
+		 */
+		struct hlist_head	cancelable_uring_cmd;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
@@ -313,6 +319,13 @@ struct io_ring_ctx {
 	struct list_head	cq_overflow_list;
 	struct io_hash_table	cancel_table;
 
+	struct hlist_head	waitid_list;
+
+#ifdef CONFIG_FUTEX
+	struct hlist_head	futex_list;
+	struct io_alloc_cache	futex_cache;
+#endif
+
 	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */
 
@@ -326,6 +339,9 @@ struct io_ring_ctx {
 	u32			pers_next;
 
 	struct list_head	io_buffers_cache;
+
+	/* deferred free list, protected by ->uring_lock */
+	struct hlist_head	io_buf_list;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
@@ -341,8 +357,6 @@ struct io_ring_ctx {
 	struct io_alloc_cache		rsrc_node_cache;
 	struct wait_queue_head		rsrc_quiesce_wq;
 	unsigned			rsrc_quiesce;
-
-	struct list_head		io_buffers_pages;
 
 	#if defined(CONFIG_UNIX)
 		struct socket		*ring_sock;
@@ -420,6 +434,7 @@ enum {
 	/* keep async read/write and isreg together and in order */
 	REQ_F_SUPPORT_NOWAIT_BIT,
 	REQ_F_ISREG_BIT,
+	REQ_F_POLL_NO_LAZY_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -487,6 +502,8 @@ enum {
 	REQ_F_CLEAR_POLLIN	= BIT(REQ_F_CLEAR_POLLIN_BIT),
 	/* hashed into ->cancel_hash_locked, protected by ->uring_lock */
 	REQ_F_HASH_LOCKED	= BIT(REQ_F_HASH_LOCKED_BIT),
+	/* don't use lazy poll wake for this request */
+	REQ_F_POLL_NO_LAZY	= BIT(REQ_F_POLL_NO_LAZY_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);

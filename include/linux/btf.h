@@ -74,6 +74,7 @@
 #define KF_ITER_NEW     (1 << 8) /* kfunc implements BPF iter constructor */
 #define KF_ITER_NEXT    (1 << 9) /* kfunc implements BPF iter next method */
 #define KF_ITER_DESTROY (1 << 10) /* kfunc implements BPF iter destructor */
+#define KF_RCU_PROTECTED (1 << 11) /* kfunc should be protected by rcu cs when they are invoked */
 
 /*
  * Tag marking a kernel function as a kfunc. This is meant to minimize the
@@ -82,6 +83,17 @@
  * kfunc, or a global kfunc in an LTO build.
  */
 #define __bpf_kfunc __used noinline
+
+#define __bpf_kfunc_start_defs()					       \
+	__diag_push();							       \
+	__diag_ignore_all("-Wmissing-declarations",			       \
+			  "Global kfuncs as their definitions will be in BTF");\
+	__diag_ignore_all("-Wmissing-prototypes",			       \
+			  "Global kfuncs as their definitions will be in BTF")
+
+#define __bpf_kfunc_end_defs() __diag_pop()
+#define __bpf_hook_start() __bpf_kfunc_start_defs()
+#define __bpf_hook_end() __bpf_kfunc_end_defs()
 
 /*
  * Return the name of the passed struct, if exists, or halt the build if for

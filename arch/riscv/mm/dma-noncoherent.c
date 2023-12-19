@@ -15,12 +15,6 @@ static bool noncoherent_supported __ro_after_init;
 int dma_cache_alignment __ro_after_init = ARCH_DMA_MINALIGN;
 EXPORT_SYMBOL_GPL(dma_cache_alignment);
 
-struct riscv_nonstd_cache_ops noncoherent_cache_ops __ro_after_init = {
-	.wback = NULL,
-	.inv = NULL,
-	.wback_inv = NULL,
-};
-
 static inline void arch_dma_cache_wback(phys_addr_t paddr, size_t size)
 {
 	void *vaddr = phys_to_virt(paddr);
@@ -31,7 +25,7 @@ static inline void arch_dma_cache_wback(phys_addr_t paddr, size_t size)
 		return;
 	}
 #endif
-	ALT_CMO_OP(clean, vaddr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(CLEAN, vaddr, size, riscv_cbom_block_size);
 }
 
 static inline void arch_dma_cache_inv(phys_addr_t paddr, size_t size)
@@ -45,7 +39,7 @@ static inline void arch_dma_cache_inv(phys_addr_t paddr, size_t size)
 	}
 #endif
 
-	ALT_CMO_OP(inval, vaddr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(INVAL, vaddr, size, riscv_cbom_block_size);
 }
 
 static inline void arch_dma_cache_wback_inv(phys_addr_t paddr, size_t size)
@@ -59,7 +53,7 @@ static inline void arch_dma_cache_wback_inv(phys_addr_t paddr, size_t size)
 	}
 #endif
 
-	ALT_CMO_OP(flush, vaddr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(FLUSH, vaddr, size, riscv_cbom_block_size);
 }
 
 static inline bool arch_sync_dma_clean_before_fromdevice(void)
@@ -131,7 +125,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 	}
 #endif
 
-	ALT_CMO_OP(flush, flush_addr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(FLUSH, flush_addr, size, riscv_cbom_block_size);
 }
 
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
@@ -162,12 +156,3 @@ void __init riscv_set_dma_cache_alignment(void)
 	if (!noncoherent_supported)
 		dma_cache_alignment = 1;
 }
-
-void riscv_noncoherent_register_cache_ops(const struct riscv_nonstd_cache_ops *ops)
-{
-	if (!ops)
-		return;
-
-	noncoherent_cache_ops = *ops;
-}
-EXPORT_SYMBOL_GPL(riscv_noncoherent_register_cache_ops);

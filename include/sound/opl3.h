@@ -229,7 +229,7 @@ struct fm_operator {
 	unsigned char attack_decay;
 	unsigned char sustain_release;
 	unsigned char wave_select;
-} __attribute__((packed));
+} __packed;
 
 /* Instrument data */
 struct fm_instrument {

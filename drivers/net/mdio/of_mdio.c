@@ -25,6 +25,7 @@
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("OpenFirmware MDIO bus (Ethernet PHY) accessors");
 
 /* Extract the clause 22 phy ID from the compatible string of the form
  * ethernet-phy-idAAAA.BBBB */

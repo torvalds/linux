@@ -881,7 +881,7 @@ static struct platform_device fsi_device = {
 	.resource	= fsi_resources,
 };
 
-static struct asoc_simple_card_info fsi_da7210_info = {
+static struct simple_util_info fsi_da7210_info = {
 	.name		= "DA7210",
 	.card		= "FSIB-DA7210",
 	.codec		= "da7210.0-001a",

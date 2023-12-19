@@ -57,6 +57,7 @@
 #include <linux/comedi/comedi_8255.h>
 
 enum pci_8255_boardid {
+#ifdef CONFIG_HAS_IOPORT
 	BOARD_ADLINK_PCI7224,
 	BOARD_ADLINK_PCI7248,
 	BOARD_ADLINK_PCI7296,
@@ -65,6 +66,7 @@ enum pci_8255_boardid {
 	BOARD_CB_PCIDIO48H_OLD,
 	BOARD_CB_PCIDIO48H_NEW,
 	BOARD_CB_PCIDIO96H,
+#endif	/* CONFIG_HAS_IOPORT */
 	BOARD_NI_PCIDIO96,
 	BOARD_NI_PCIDIO96B,
 	BOARD_NI_PXI6508,
@@ -82,6 +84,7 @@ struct pci_8255_boardinfo {
 };
 
 static const struct pci_8255_boardinfo pci_8255_boards[] = {
+#ifdef CONFIG_HAS_IOPORT
 	[BOARD_ADLINK_PCI7224] = {
 		.name		= "adl_pci-7224",
 		.dio_badr	= 2,
@@ -122,6 +125,7 @@ static const struct pci_8255_boardinfo pci_8255_boards[] = {
 		.dio_badr	= 2,
 		.n_8255		= 4,
 	},
+#endif	/* CONFIG_HAS_IOPORT */
 	[BOARD_NI_PCIDIO96] = {
 		.name		= "ni_pci-dio-96",
 		.dio_badr	= 1,
@@ -219,8 +223,11 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 		dev->mmio = pci_ioremap_bar(pcidev, board->dio_badr);
 		if (!dev->mmio)
 			return -ENOMEM;
-	} else {
+	} else if (IS_ENABLED(CONFIG_HAS_IOPORT)) {
 		dev->iobase = pci_resource_start(pcidev, board->dio_badr);
+	} else {
+		dev_err(dev->class_dev, "error! need I/O port support\n");
+		return -ENXIO;
 	}
 
 	/*
@@ -235,9 +242,9 @@ static int pci_8255_auto_attach(struct comedi_device *dev,
 	for (i = 0; i < board->n_8255; i++) {
 		s = &dev->subdevices[i];
 		if (dev->mmio)
-			ret = subdev_8255_mm_init(dev, s, NULL, i * I8255_SIZE);
+			ret = subdev_8255_mm_init(dev, s, i * I8255_SIZE);
 		else
-			ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
+			ret = subdev_8255_io_init(dev, s, i * I8255_SIZE);
 		if (ret)
 			return ret;
 	}
@@ -259,6 +266,7 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id pci_8255_pci_table[] = {
+#ifdef CONFIG_HAS_IOPORT
 	{ PCI_VDEVICE(ADLINK, 0x7224), BOARD_ADLINK_PCI7224 },
 	{ PCI_VDEVICE(ADLINK, 0x7248), BOARD_ADLINK_PCI7248 },
 	{ PCI_VDEVICE(ADLINK, 0x7296), BOARD_ADLINK_PCI7296 },
@@ -269,6 +277,7 @@ static const struct pci_device_id pci_8255_pci_table[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_CB, 0x000b, PCI_VENDOR_ID_CB, 0x000b),
 	  .driver_data = BOARD_CB_PCIDIO48H_NEW },
 	{ PCI_VDEVICE(CB, 0x0017), BOARD_CB_PCIDIO96H },
+#endif	/* CONFIG_HAS_IOPORT */
 	{ PCI_VDEVICE(NI, 0x0160), BOARD_NI_PCIDIO96 },
 	{ PCI_VDEVICE(NI, 0x1630), BOARD_NI_PCIDIO96B },
 	{ PCI_VDEVICE(NI, 0x13c0), BOARD_NI_PXI6508 },

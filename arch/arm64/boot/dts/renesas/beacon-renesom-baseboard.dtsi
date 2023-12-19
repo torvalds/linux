@@ -651,7 +651,7 @@
 		 <&cpg CPG_MOD 1019>, <&cpg CPG_MOD 1018>,
 		 <&versaclock6_bb 4>, <&audio_clk_b>,
 		 <&audio_clk_c>,
-		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
+		 <&cpg CPG_MOD 922>;
 
 	status = "okay";
 

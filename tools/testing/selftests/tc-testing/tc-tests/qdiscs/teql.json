@@ -6,11 +6,8 @@
             "qdisc",
             "teql"
         ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
+            "$IP link add dev $DUMMY type dummy"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root teql0",
         "expExitCode": "0",
@@ -19,7 +16,7 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$IP link del dev $DUMMY"
         ]
     },
     {
@@ -29,13 +26,10 @@
             "qdisc",
             "teql"
         ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
-            "echo \"1 1 4\" > /sys/bus/netdevsim/new_device",
-            "$TC qdisc add dev $ETH root handle 1: teql0"
+            "$IP link add dev $DUMMY type dummy",
+            "$IP link add dev $ETH type dummy",
+            "$TC qdisc add dev $ETH handle 1: root teql0"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root teql0",
         "expExitCode": "0",
@@ -44,8 +38,8 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
-            "echo \"1\" > /sys/bus/netdevsim/del_device",
-            "$IP link del dev $DUMMY type dummy"
+            "$IP link del dev $DUMMY",
+            "$IP link del dev $ETH"
         ]
     },
     {
@@ -55,11 +49,8 @@
             "qdisc",
             "teql"
         ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$IP link add dev $DUMMY type dummy",
             "$TC qdisc add dev $DUMMY handle 1: root teql0"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
@@ -68,7 +59,7 @@
         "matchPattern": "qdisc teql0 1: root refcnt",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
+            "$IP link del dev $DUMMY"
         ]
     },
     {
@@ -78,11 +69,8 @@
             "qdisc",
             "teql"
         ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
+            "$IP link add dev $DUMMY type dummy"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root teql0",
         "expExitCode": "0",
@@ -91,7 +79,7 @@
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$IP link del dev $DUMMY"
         ]
     }
 ]

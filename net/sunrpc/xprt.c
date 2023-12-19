@@ -283,7 +283,7 @@ out_unlock:
 	xprt_clear_locked(xprt);
 out_sleep:
 	task->tk_status = -EAGAIN;
-	if  (RPC_IS_SOFT(task))
+	if (RPC_IS_SOFT(task) || RPC_IS_SOFTCONN(task))
 		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
 				xprt_request_timeout(req));
 	else
@@ -349,7 +349,7 @@ out_unlock:
 	xprt_clear_locked(xprt);
 out_sleep:
 	task->tk_status = -EAGAIN;
-	if (RPC_IS_SOFT(task))
+	if (RPC_IS_SOFT(task) || RPC_IS_SOFTCONN(task))
 		rpc_sleep_on_timeout(&xprt->sending, task, NULL,
 				xprt_request_timeout(req));
 	else

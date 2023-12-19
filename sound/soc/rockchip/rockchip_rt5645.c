@@ -8,8 +8,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
-#include <linux/of_gpio.h>
 #include <linux/delay.h>
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -65,9 +63,9 @@ static int rk_aif1_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
 	int ret = 0;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int mclk;
 
 	switch (params_rate(params)) {
@@ -125,7 +123,7 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	return rt5645_set_jack_detect(asoc_rtd_to_codec(runtime, 0)->component,
+	return rt5645_set_jack_detect(snd_soc_rtd_to_codec(runtime, 0)->component,
 				     &headset_jack,
 				     &headset_jack,
 				     &headset_jack);

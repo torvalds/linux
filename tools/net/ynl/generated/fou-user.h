@@ -333,7 +333,7 @@ struct fou_get_rsp *fou_get(struct ynl_sock *ys, struct fou_get_req *req);
 /* FOU_CMD_GET - dump */
 struct fou_get_list {
 	struct fou_get_list *next;
-	struct fou_get_rsp obj __attribute__ ((aligned (8)));
+	struct fou_get_rsp obj __attribute__((aligned(8)));
 };
 
 void fou_get_list_free(struct fou_get_list *rsp);

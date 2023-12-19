@@ -1528,7 +1528,7 @@ err_clk:
 	return err;
 }
 
-static int pxa168_eth_remove(struct platform_device *pdev)
+static void pxa168_eth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct pxa168_eth_private *pep = netdev_priv(dev);
@@ -1547,7 +1547,6 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);
 	free_netdev(dev);
-	return 0;
 }
 
 static void pxa168_eth_shutdown(struct platform_device *pdev)
@@ -1580,7 +1579,7 @@ MODULE_DEVICE_TABLE(of, pxa168_eth_of_match);
 
 static struct platform_driver pxa168_eth_driver = {
 	.probe = pxa168_eth_probe,
-	.remove = pxa168_eth_remove,
+	.remove_new = pxa168_eth_remove,
 	.shutdown = pxa168_eth_shutdown,
 	.resume = pxa168_eth_resume,
 	.suspend = pxa168_eth_suspend,

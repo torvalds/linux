@@ -687,7 +687,7 @@ unreg_notify:
 	return ret;
 }
 
-static int rockchip_iodomain_remove(struct platform_device *pdev)
+static void rockchip_iodomain_remove(struct platform_device *pdev)
 {
 	struct rockchip_iodomain *iod = platform_get_drvdata(pdev);
 	int i;
@@ -699,13 +699,11 @@ static int rockchip_iodomain_remove(struct platform_device *pdev)
 			regulator_unregister_notifier(io_supply->reg,
 						      &io_supply->nb);
 	}
-
-	return 0;
 }
 
 static struct platform_driver rockchip_iodomain_driver = {
 	.probe   = rockchip_iodomain_probe,
-	.remove  = rockchip_iodomain_remove,
+	.remove_new = rockchip_iodomain_remove,
 	.driver  = {
 		.name  = "rockchip-iodomain",
 		.of_match_table = rockchip_iodomain_match,

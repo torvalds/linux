@@ -41,13 +41,20 @@ void update_cr_regs(struct task_struct *task)
 {
 	struct pt_regs *regs = task_pt_regs(task);
 	struct thread_struct *thread = &task->thread;
-	struct per_regs old, new;
 	union ctlreg0 cr0_old, cr0_new;
 	union ctlreg2 cr2_old, cr2_new;
 	int cr0_changed, cr2_changed;
+	union {
+		struct ctlreg regs[3];
+		struct {
+			struct ctlreg control;
+			struct ctlreg start;
+			struct ctlreg end;
+		};
+	} old, new;
 
-	__ctl_store(cr0_old.val, 0, 0);
-	__ctl_store(cr2_old.val, 2, 2);
+	local_ctl_store(0, &cr0_old.reg);
+	local_ctl_store(2, &cr2_old.reg);
 	cr0_new = cr0_old;
 	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
@@ -75,38 +82,38 @@ void update_cr_regs(struct task_struct *task)
 	cr0_changed = cr0_new.val != cr0_old.val;
 	cr2_changed = cr2_new.val != cr2_old.val;
 	if (cr0_changed)
-		__ctl_load(cr0_new.val, 0, 0);
+		local_ctl_load(0, &cr0_new.reg);
 	if (cr2_changed)
-		__ctl_load(cr2_new.val, 2, 2);
+		local_ctl_load(2, &cr2_new.reg);
 	/* Copy user specified PER registers */
-	new.control = thread->per_user.control;
-	new.start = thread->per_user.start;
-	new.end = thread->per_user.end;
+	new.control.val = thread->per_user.control;
+	new.start.val = thread->per_user.start;
+	new.end.val = thread->per_user.end;
 
 	/* merge TIF_SINGLE_STEP into user specified PER registers. */
 	if (test_tsk_thread_flag(task, TIF_SINGLE_STEP) ||
 	    test_tsk_thread_flag(task, TIF_UPROBE_SINGLESTEP)) {
 		if (test_tsk_thread_flag(task, TIF_BLOCK_STEP))
-			new.control |= PER_EVENT_BRANCH;
+			new.control.val |= PER_EVENT_BRANCH;
 		else
-			new.control |= PER_EVENT_IFETCH;
-		new.control |= PER_CONTROL_SUSPENSION;
-		new.control |= PER_EVENT_TRANSACTION_END;
+			new.control.val |= PER_EVENT_IFETCH;
+		new.control.val |= PER_CONTROL_SUSPENSION;
+		new.control.val |= PER_EVENT_TRANSACTION_END;
 		if (test_tsk_thread_flag(task, TIF_UPROBE_SINGLESTEP))
-			new.control |= PER_EVENT_IFETCH;
-		new.start = 0;
-		new.end = -1UL;
+			new.control.val |= PER_EVENT_IFETCH;
+		new.start.val = 0;
+		new.end.val = -1UL;
 	}
 
 	/* Take care of the PER enablement bit in the PSW. */
-	if (!(new.control & PER_EVENT_MASK)) {
+	if (!(new.control.val & PER_EVENT_MASK)) {
 		regs->psw.mask &= ~PSW_MASK_PER;
 		return;
 	}
 	regs->psw.mask |= PSW_MASK_PER;
-	__ctl_store(old, 9, 11);
+	__local_ctl_store(9, 11, old.regs);
 	if (memcmp(&new, &old, sizeof(struct per_regs)) != 0)
-		__ctl_load(new, 9, 11);
+		__local_ctl_load(9, 11, new.regs);
 }
 
 void user_enable_single_step(struct task_struct *task)
@@ -1107,7 +1114,7 @@ static int s390_gs_cb_set(struct task_struct *target,
 		target->thread.gs_cb = data;
 	*target->thread.gs_cb = gs_cb;
 	if (target == current) {
-		__ctl_set_bit(2, 4);
+		local_ctl_set_bit(2, CR2_GUARDED_STORAGE_BIT);
 		restore_gs_cb(target->thread.gs_cb);
 	}
 	preempt_enable();

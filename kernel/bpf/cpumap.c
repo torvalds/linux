@@ -764,6 +764,16 @@ void __cpu_map_flush(void)
 	}
 }
 
+#ifdef CONFIG_DEBUG_NET
+bool cpu_map_check_flush(void)
+{
+	if (list_empty(this_cpu_ptr(&cpu_map_flush_list)))
+		return false;
+	__cpu_map_flush();
+	return true;
+}
+#endif
+
 static int __init cpu_map_init(void)
 {
 	int cpu;

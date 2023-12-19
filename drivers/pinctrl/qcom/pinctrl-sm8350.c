@@ -1642,7 +1642,7 @@ static struct platform_driver sm8350_tlmm_driver = {
 		.of_match_table = sm8350_tlmm_of_match,
 	},
 	.probe = sm8350_tlmm_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sm8350_tlmm_init(void)

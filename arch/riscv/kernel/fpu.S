@@ -19,7 +19,7 @@
 #include <asm/csr.h>
 #include <asm/asm-offsets.h>
 
-ENTRY(__fstate_save)
+SYM_FUNC_START(__fstate_save)
 	li  a2,  TASK_THREAD_F0
 	add a0, a0, a2
 	li t1, SR_FS
@@ -60,9 +60,9 @@ ENTRY(__fstate_save)
 	sw t0, TASK_THREAD_FCSR_F0(a0)
 	csrc CSR_STATUS, t1
 	ret
-ENDPROC(__fstate_save)
+SYM_FUNC_END(__fstate_save)
 
-ENTRY(__fstate_restore)
+SYM_FUNC_START(__fstate_restore)
 	li  a2,  TASK_THREAD_F0
 	add a0, a0, a2
 	li t1, SR_FS
@@ -103,4 +103,125 @@ ENTRY(__fstate_restore)
 	fscsr t0
 	csrc CSR_STATUS, t1
 	ret
-ENDPROC(__fstate_restore)
+SYM_FUNC_END(__fstate_restore)
+
+#define get_f32(which) fmv.x.s a0, which; j 2f
+#define put_f32(which) fmv.s.x which, a1; j 2f
+#if __riscv_xlen == 64
+# define get_f64(which) fmv.x.d a0, which; j 2f
+# define put_f64(which) fmv.d.x which, a1; j 2f
+#else
+# define get_f64(which) fsd which, 0(a1); j 2f
+# define put_f64(which) fld which, 0(a1); j 2f
+#endif
+
+.macro fp_access_prologue
+	/*
+	 * Compute jump offset to store the correct FP register since we don't
+	 * have indirect FP register access
+	 */
+	sll t0, a0, 3
+	la t2, 1f
+	add t0, t0, t2
+	li t1, SR_FS
+	csrs CSR_STATUS, t1
+	jr t0
+1:
+.endm
+
+.macro fp_access_epilogue
+2:
+	csrc CSR_STATUS, t1
+	ret
+.endm
+
+#define fp_access_body(__access_func) \
+	__access_func(f0); \
+	__access_func(f1); \
+	__access_func(f2); \
+	__access_func(f3); \
+	__access_func(f4); \
+	__access_func(f5); \
+	__access_func(f6); \
+	__access_func(f7); \
+	__access_func(f8); \
+	__access_func(f9); \
+	__access_func(f10); \
+	__access_func(f11); \
+	__access_func(f12); \
+	__access_func(f13); \
+	__access_func(f14); \
+	__access_func(f15); \
+	__access_func(f16); \
+	__access_func(f17); \
+	__access_func(f18); \
+	__access_func(f19); \
+	__access_func(f20); \
+	__access_func(f21); \
+	__access_func(f22); \
+	__access_func(f23); \
+	__access_func(f24); \
+	__access_func(f25); \
+	__access_func(f26); \
+	__access_func(f27); \
+	__access_func(f28); \
+	__access_func(f29); \
+	__access_func(f30); \
+	__access_func(f31)
+
+
+#ifdef CONFIG_RISCV_MISALIGNED
+
+/*
+ * Disable compressed instructions set to keep a constant offset between FP
+ * load/store/move instructions
+ */
+.option norvc
+/*
+ * put_f32_reg - Set a FP register from a register containing the value
+ * a0 = FP register index to be set
+ * a1 = value to be loaded in the FP register
+ */
+SYM_FUNC_START(put_f32_reg)
+	fp_access_prologue
+	fp_access_body(put_f32)
+	fp_access_epilogue
+SYM_FUNC_END(put_f32_reg)
+
+/*
+ * get_f32_reg - Get a FP register value and return it
+ * a0 = FP register index to be retrieved
+ */
+SYM_FUNC_START(get_f32_reg)
+	fp_access_prologue
+	fp_access_body(get_f32)
+	fp_access_epilogue
+SYM_FUNC_END(get_f32_reg)
+
+/*
+ * put_f64_reg - Set a 64 bits FP register from a value or a pointer.
+ * a0 = FP register index to be set
+ * a1 = value/pointer to be loaded in the FP register (when xlen == 32 bits, we
+ * load the value to a pointer).
+ */
+SYM_FUNC_START(put_f64_reg)
+	fp_access_prologue
+	fp_access_body(put_f64)
+	fp_access_epilogue
+SYM_FUNC_END(put_f64_reg)
+
+/*
+ * put_f64_reg - Get a 64 bits FP register value and returned it or store it to
+ *	 	 a pointer.
+ * a0 = FP register index to be retrieved
+ * a1 = If xlen == 32, pointer which should be loaded with the FP register value
+ *	or unused if xlen == 64. In which case the FP register value is returned
+ *	through a0
+ */
+SYM_FUNC_START(get_f64_reg)
+	fp_access_prologue
+	fp_access_body(get_f64)
+	fp_access_epilogue
+SYM_FUNC_END(get_f64_reg)
+
+#endif /* CONFIG_RISCV_MISALIGNED */

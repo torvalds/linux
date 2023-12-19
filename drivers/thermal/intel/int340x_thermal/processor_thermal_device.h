@@ -10,6 +10,7 @@
 #include <linux/intel_rapl.h>
 
 #define PCI_DEVICE_ID_INTEL_ADL_THERMAL	0x461d
+#define PCI_DEVICE_ID_INTEL_ARL_S_THERMAL 0xAD03
 #define PCI_DEVICE_ID_INTEL_BDW_THERMAL	0x1603
 #define PCI_DEVICE_ID_INTEL_BSW_THERMAL	0x22DC
 
@@ -59,8 +60,10 @@ struct rapl_mmio_regs {
 #define PROC_THERMAL_FEATURE_RAPL	0x01
 #define PROC_THERMAL_FEATURE_FIVR	0x02
 #define PROC_THERMAL_FEATURE_DVFS	0x04
-#define PROC_THERMAL_FEATURE_MBOX	0x08
+#define PROC_THERMAL_FEATURE_WT_REQ	0x08
 #define PROC_THERMAL_FEATURE_DLVR	0x10
+#define PROC_THERMAL_FEATURE_WT_HINT	0x20
+#define PROC_THERMAL_FEATURE_POWER_FLOOR	0x40
 
 #if IS_ENABLED(CONFIG_PROC_THERMAL_MMIO_RAPL)
 int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
@@ -80,13 +83,37 @@ static void __maybe_unused proc_thermal_rapl_remove(void)
 int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
 void proc_thermal_rfim_remove(struct pci_dev *pdev);
 
-int proc_thermal_mbox_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
-void proc_thermal_mbox_remove(struct pci_dev *pdev);
+int proc_thermal_wt_req_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+void proc_thermal_wt_req_remove(struct pci_dev *pdev);
+
+#define MBOX_CMD_WORKLOAD_TYPE_READ	0x0E
+#define MBOX_CMD_WORKLOAD_TYPE_WRITE	0x0F
+
+#define MBOX_DATA_BIT_AC_DC		30
+#define MBOX_DATA_BIT_VALID		31
+
+#define SOC_WT_RES_INT_STATUS_OFFSET	0x5B18
+#define SOC_WT_RES_INT_STATUS_MASK	GENMASK_ULL(3, 2)
+
+int proc_thermal_read_power_floor_status(struct proc_thermal_device *proc_priv);
+int proc_thermal_power_floor_set_state(struct proc_thermal_device *proc_priv, bool enable);
+bool proc_thermal_power_floor_get_state(struct proc_thermal_device *proc_priv);
+void proc_thermal_power_floor_intr_callback(struct pci_dev *pdev,
+					    struct proc_thermal_device *proc_priv);
+bool proc_thermal_check_power_floor_intr(struct proc_thermal_device *proc_priv);
 
 int processor_thermal_send_mbox_read_cmd(struct pci_dev *pdev, u16 id, u64 *resp);
 int processor_thermal_send_mbox_write_cmd(struct pci_dev *pdev, u16 id, u32 data);
+int processor_thermal_mbox_interrupt_config(struct pci_dev *pdev, bool enable, int enable_bit,
+					    int time_window);
 int proc_thermal_add(struct device *dev, struct proc_thermal_device *priv);
 void proc_thermal_remove(struct proc_thermal_device *proc_priv);
+
+int proc_thermal_wt_hint_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+void proc_thermal_wt_hint_remove(struct pci_dev *pdev);
+void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+bool proc_thermal_check_wt_intr(struct proc_thermal_device *proc_priv);
+
 int proc_thermal_suspend(struct device *dev);
 int proc_thermal_resume(struct device *dev);
 int proc_thermal_mmio_add(struct pci_dev *pdev,

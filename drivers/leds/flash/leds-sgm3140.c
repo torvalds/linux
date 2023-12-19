@@ -278,15 +278,13 @@ err:
 	return ret;
 }
 
-static int sgm3140_remove(struct platform_device *pdev)
+static void sgm3140_remove(struct platform_device *pdev)
 {
 	struct sgm3140 *priv = platform_get_drvdata(pdev);
 
 	del_timer_sync(&priv->powerdown_timer);
 
 	v4l2_flash_release(priv->v4l2_flash);
-
-	return 0;
 }
 
 static const struct of_device_id sgm3140_dt_match[] = {
@@ -299,7 +297,7 @@ MODULE_DEVICE_TABLE(of, sgm3140_dt_match);
 
 static struct platform_driver sgm3140_driver = {
 	.probe	= sgm3140_probe,
-	.remove	= sgm3140_remove,
+	.remove_new = sgm3140_remove,
 	.driver	= {
 		.name	= "sgm3140",
 		.of_match_table = sgm3140_dt_match,

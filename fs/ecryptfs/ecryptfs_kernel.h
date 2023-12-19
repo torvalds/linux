@@ -702,6 +702,6 @@ int ecryptfs_set_f_namelen(long *namelen, long lower_namelen,
 int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
 		       loff_t offset);
 
-extern const struct xattr_handler *ecryptfs_xattr_handlers[];
+extern const struct xattr_handler * const ecryptfs_xattr_handlers[];
 
 #endif /* #ifndef ECRYPTFS_KERNEL_H */

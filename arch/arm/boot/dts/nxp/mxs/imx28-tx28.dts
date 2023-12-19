@@ -131,7 +131,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm 0 500000>;
+		pwms = <&pwm 0 500000 0>;
 		/*
 		 * a silly way to create a 1:1 relationship between the
 		 * PWM value and the actual duty cycle
@@ -652,6 +652,7 @@
 	vbus-supply = <&reg_usb0_vbus>;
 	disable-over-current;
 	dr_mode = "peripheral";
+	phy_type = "utmi";
 	status = "okay";
 };
 
@@ -659,19 +660,18 @@
 	vbus-supply = <&reg_usb1_vbus>;
 	disable-over-current;
 	dr_mode = "host";
+	phy_type = "utmi";
 	status = "okay";
 };
 
 &usbphy0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tx28_usbphy0_pins>;
-	phy_type = "utmi";
 	status = "okay";
 };
 
 &usbphy1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tx28_usbphy1_pins>;
-	phy_type = "utmi";
 	status = "okay";
 };

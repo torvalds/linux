@@ -784,8 +784,12 @@ static int tc358746_set_fmt(struct v4l2_subdev *sd,
 	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, TC358746_SINK);
 
 	fmt = tc358746_get_format_by_code(format->pad, format->format.code);
-	if (IS_ERR(fmt))
+	if (IS_ERR(fmt)) {
 		fmt = tc358746_get_format_by_code(format->pad, tc358746_def_fmt.code);
+		// Can't happen, but just in case...
+		if (WARN_ON(IS_ERR(fmt)))
+			return -EINVAL;
+	}
 
 	format->format.code = fmt->code;
 	format->format.field = V4L2_FIELD_NONE;

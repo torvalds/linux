@@ -262,7 +262,7 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 	else
 		clk = "AIF1CLK";
 
-	return strcmp(source->name, clk) == 0;
+	return snd_soc_dapm_widget_name_cmp(source, clk) == 0;
 }
 
 static const char *sidetone_hpf_text[] = {

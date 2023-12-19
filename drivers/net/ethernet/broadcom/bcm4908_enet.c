@@ -768,7 +768,7 @@ err_dma_free:
 	return err;
 }
 
-static int bcm4908_enet_remove(struct platform_device *pdev)
+static void bcm4908_enet_remove(struct platform_device *pdev)
 {
 	struct bcm4908_enet *enet = platform_get_drvdata(pdev);
 
@@ -776,8 +776,6 @@ static int bcm4908_enet_remove(struct platform_device *pdev)
 	netif_napi_del(&enet->rx_ring.napi);
 	netif_napi_del(&enet->tx_ring.napi);
 	bcm4908_enet_dma_free(enet);
-
-	return 0;
 }
 
 static const struct of_device_id bcm4908_enet_of_match[] = {
@@ -791,7 +789,7 @@ static struct platform_driver bcm4908_enet_driver = {
 		.of_match_table = bcm4908_enet_of_match,
 	},
 	.probe	= bcm4908_enet_probe,
-	.remove = bcm4908_enet_remove,
+	.remove_new = bcm4908_enet_remove,
 };
 module_platform_driver(bcm4908_enet_driver);
 

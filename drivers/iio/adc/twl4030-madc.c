@@ -892,7 +892,7 @@ err_current_generator:
 	return ret;
 }
 
-static int twl4030_madc_remove(struct platform_device *pdev)
+static void twl4030_madc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iio_dev = platform_get_drvdata(pdev);
 	struct twl4030_madc_data *madc = iio_priv(iio_dev);
@@ -903,8 +903,6 @@ static int twl4030_madc_remove(struct platform_device *pdev)
 	twl4030_madc_set_power(madc, 0);
 
 	regulator_disable(madc->usb3v1);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -917,7 +915,7 @@ MODULE_DEVICE_TABLE(of, twl_madc_of_match);
 
 static struct platform_driver twl4030_madc_driver = {
 	.probe = twl4030_madc_probe,
-	.remove = twl4030_madc_remove,
+	.remove_new = twl4030_madc_remove,
 	.driver = {
 		   .name = "twl4030_madc",
 		   .of_match_table = of_match_ptr(twl_madc_of_match),

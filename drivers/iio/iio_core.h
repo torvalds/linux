@@ -30,9 +30,6 @@ struct iio_ioctl_handler {
 		      unsigned int cmd, unsigned long arg);
 };
 
-long iio_device_ioctl(struct iio_dev *indio_dev, struct file *filp,
-		      unsigned int cmd, unsigned long arg);
-
 void iio_device_ioctl_handler_register(struct iio_dev *indio_dev,
 				       struct iio_ioctl_handler *h);
 void iio_device_ioctl_handler_unregister(struct iio_ioctl_handler *h);

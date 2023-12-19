@@ -47,22 +47,30 @@
 #define REG_TEST_FLD_NUM(REG, FLD, num, val) \
 	((num) == FIELD_GET(REG##_##FLD##_MASK, val))
 
-#define REGB_POLL(reg, var, cond, timeout_us) \
-	read_poll_timeout(REGB_RD32_SILENT, var, cond, REG_POLL_SLEEP_US, timeout_us, false, reg)
-
-#define REGV_POLL(reg, var, cond, timeout_us) \
-	read_poll_timeout(REGV_RD32_SILENT, var, cond, REG_POLL_SLEEP_US, timeout_us, false, reg)
-
 #define REGB_POLL_FLD(reg, fld, val, timeout_us) \
 ({ \
 	u32 var; \
-	REGB_POLL(reg, var, (FIELD_GET(reg##_##fld##_MASK, var) == (val)), timeout_us); \
+	int r; \
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) Polling field %s started (expected 0x%x)\n", \
+		 __func__, #reg, reg, #fld, val); \
+	r = read_poll_timeout(REGB_RD32_SILENT, var, (FIELD_GET(reg##_##fld##_MASK, var) == (val)),\
+			      REG_POLL_SLEEP_US, timeout_us, false, (reg)); \
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) Polling field %s %s (reg val 0x%08x)\n", \
+		 __func__, #reg, reg, #fld, r ? "ETIMEDOUT" : "OK", var); \
+	r; \
 })
 
 #define REGV_POLL_FLD(reg, fld, val, timeout_us) \
 ({ \
 	u32 var; \
-	REGV_POLL(reg, var, (FIELD_GET(reg##_##fld##_MASK, var) == (val)), timeout_us); \
+	int r; \
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) Polling field %s started (expected 0x%x)\n", \
+		 __func__, #reg, reg, #fld, val); \
+	r = read_poll_timeout(REGV_RD32_SILENT, var, (FIELD_GET(reg##_##fld##_MASK, var) == (val)),\
+			      REG_POLL_SLEEP_US, timeout_us, false, (reg)); \
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) Polling field %s %s (reg val 0x%08x)\n", \
+		 __func__, #reg, reg, #fld, r ? "ETIMEDOUT" : "OK", var); \
+	r; \
 })
 
 static inline u32
@@ -71,7 +79,7 @@ ivpu_hw_reg_rd32(struct ivpu_device *vdev, void __iomem *base, u32 reg,
 {
 	u32 val = readl(base + reg);
 
-	ivpu_dbg(vdev, REG, "%s RD: %s (0x%08x) => 0x%08x\n", func, name, reg, val);
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) RD: 0x%08x\n", func, name, reg, val);
 	return val;
 }
 
@@ -81,7 +89,7 @@ ivpu_hw_reg_rd64(struct ivpu_device *vdev, void __iomem *base, u32 reg,
 {
 	u64 val = readq(base + reg);
 
-	ivpu_dbg(vdev, REG, "%s RD: %s (0x%08x) => 0x%016llx\n", func, name, reg, val);
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) RD: 0x%016llx\n", func, name, reg, val);
 	return val;
 }
 
@@ -89,7 +97,7 @@ static inline void
 ivpu_hw_reg_wr32(struct ivpu_device *vdev, void __iomem *base, u32 reg, u32 val,
 		 const char *name, const char *func)
 {
-	ivpu_dbg(vdev, REG, "%s WR: %s (0x%08x) <= 0x%08x\n", func, name, reg, val);
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) WR: 0x%08x\n", func, name, reg, val);
 	writel(val, base + reg);
 }
 
@@ -97,7 +105,7 @@ static inline void
 ivpu_hw_reg_wr64(struct ivpu_device *vdev, void __iomem *base, u32 reg, u64 val,
 		 const char *name, const char *func)
 {
-	ivpu_dbg(vdev, REG, "%s WR: %s (0x%08x) <= 0x%016llx\n", func, name, reg, val);
+	ivpu_dbg(vdev, REG, "%s : %s (0x%08x) WR: 0x%016llx\n", func, name, reg, val);
 	writeq(val, base + reg);
 }
 

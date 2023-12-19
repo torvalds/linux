@@ -20,34 +20,25 @@
 
 struct psp_dbc_device {
 	struct device *dev;
+	struct psp_device *psp;
 
 	union dbc_buffer *mbox;
 
 	struct mutex ioctl_mutex;
 
 	struct miscdevice char_dev;
+
+	/* used to abstract communication path */
+	bool	use_ext;
+	u32	header_size;
+	u32	*payload_size;
+	u32	*result;
+	void	*payload;
 };
 
-struct dbc_nonce {
-	struct psp_req_buffer_hdr	header;
-	struct dbc_user_nonce		user;
-} __packed;
-
-struct dbc_set_uid {
-	struct psp_req_buffer_hdr	header;
-	struct dbc_user_setuid		user;
-} __packed;
-
-struct dbc_param {
-	struct psp_req_buffer_hdr	header;
-	struct dbc_user_param		user;
-} __packed;
-
 union dbc_buffer {
-	struct psp_request		req;
-	struct dbc_nonce		dbc_nonce;
-	struct dbc_set_uid		dbc_set_uid;
-	struct dbc_param		dbc_param;
+	struct psp_request		pa_req;
+	struct psp_ext_request		ext_req;
 };
 
 void dbc_dev_destroy(struct psp_device *psp);

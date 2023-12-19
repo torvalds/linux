@@ -87,19 +87,22 @@ What:		/sys/class/tty/ttyS<x>/close_delay
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
-		 Show the closing delay time for this port in ms.
+		Show the closing delay time for this port in centiseconds.
 
-		 These sysfs values expose the TIOCGSERIAL interface via
-		 sysfs rather than via ioctls.
+		These sysfs values expose the TIOCGSERIAL interface via
+		sysfs rather than via ioctls.
 
 What:		/sys/class/tty/ttyS<x>/closing_wait
 Date:		October 2012
 Contact:	Alan Cox <alan@linux.intel.com>
 Description:
-		 Show the close wait time for this port in ms.
+		Show the close wait time for this port in centiseconds.
 
-		 These sysfs values expose the TIOCGSERIAL interface via
-		 sysfs rather than via ioctls.
+		Waiting forever is represented as 0. If waiting on close is
+		disabled then the value is 65535.
+
+		These sysfs values expose the TIOCGSERIAL interface via
+		sysfs rather than via ioctls.
 
 What:		/sys/class/tty/ttyS<x>/custom_divisor
 Date:		October 2012

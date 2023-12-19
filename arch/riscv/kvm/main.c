@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/kvm_host.h>
 #include <asm/csr.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 #include <asm/sbi.h>
 
 long kvm_arch_dev_ioctl(struct file *filp,

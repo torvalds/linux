@@ -187,7 +187,7 @@ static int vcn_v2_5_sw_init(void *handle)
 		ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
 				(amdgpu_sriov_vf(adev) ? 2*j : 8*j);
 
-		if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) == IP_VERSION(2, 5, 0))
 			ring->vm_hub = AMDGPU_MMHUB1(0);
 		else
 			ring->vm_hub = AMDGPU_MMHUB0(0);
@@ -207,7 +207,8 @@ static int vcn_v2_5_sw_init(void *handle)
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
 					(amdgpu_sriov_vf(adev) ? (1 + i + 2*j) : (2 + i + 8*j));
 
-			if (adev->ip_versions[UVD_HWIP][0] == IP_VERSION(2, 5, 0))
+			if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==
+			    IP_VERSION(2, 5, 0))
 				ring->vm_hub = AMDGPU_MMHUB1(0);
 			else
 				ring->vm_hub = AMDGPU_MMHUB0(0);
@@ -794,7 +795,7 @@ static void vcn_v2_6_enable_ras(struct amdgpu_device *adev, int inst_idx,
 {
 	uint32_t tmp;
 
-	if (adev->ip_versions[UVD_HWIP][0] != IP_VERSION(2, 6, 0))
+	if (amdgpu_ip_version(adev, UVD_HWIP, 0) != IP_VERSION(2, 6, 0))
 		return;
 
 	tmp = VCN_RAS_CNTL__VCPU_VCODEC_REARM_MASK |
@@ -1985,7 +1986,7 @@ static struct amdgpu_vcn_ras vcn_v2_6_ras = {
 
 static void vcn_v2_5_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[VCN_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, VCN_HWIP, 0)) {
 	case IP_VERSION(2, 6, 0):
 		adev->vcn.ras = &vcn_v2_6_ras;
 		break;

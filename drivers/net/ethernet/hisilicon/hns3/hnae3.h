@@ -103,6 +103,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_LANE_NUM_B,
 	HNAE3_DEV_SUPPORT_WOL_B,
 	HNAE3_DEV_SUPPORT_TM_FLUSH_B,
+	HNAE3_DEV_SUPPORT_VF_FAULT_B,
 };
 
 #define hnae3_ae_dev_fd_supported(ae_dev) \
@@ -176,6 +177,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_tm_flush_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_TM_FLUSH_B, (hdev)->ae_dev->caps)
+
+#define hnae3_ae_dev_vf_fault_supported(ae_dev) \
+	test_bit(HNAE3_DEV_SUPPORT_VF_FAULT_B, (ae_dev)->caps)
 
 enum HNAE3_PF_CAP_BITS {
 	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
@@ -271,6 +275,7 @@ enum hnae3_reset_type {
 	HNAE3_GLOBAL_RESET,
 	HNAE3_IMP_RESET,
 	HNAE3_NONE_RESET,
+	HNAE3_VF_EXP_RESET,
 	HNAE3_MAX_RESET,
 };
 

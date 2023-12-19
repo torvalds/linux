@@ -60,7 +60,7 @@ static volatile unsigned long *iommu_pte = (unsigned long *)SUN3X_IOMMU;
 
 #ifdef DEBUG
 /* code to print out a dvma mapping for debugging purposes */
-void dvma_print (unsigned long dvma_addr)
+static void dvma_print (unsigned long dvma_addr)
 {
 
 	unsigned long index;
@@ -143,8 +143,7 @@ inline int dvma_map_cpu(unsigned long kaddr,
 }
 
 
-inline int dvma_map_iommu(unsigned long kaddr, unsigned long baddr,
-				 int len)
+int dvma_map_iommu(unsigned long kaddr, unsigned long baddr, int len)
 {
 	unsigned long end, index;
 

@@ -79,7 +79,7 @@ const struct tty_port_client_operations tty_port_default_client_ops = {
 EXPORT_SYMBOL_GPL(tty_port_default_client_ops);
 
 /**
- * tty_port_init -- initialize tty_port
+ * tty_port_init - initialize tty_port
  * @port: tty_port to initialize
  *
  * Initializes the state of struct tty_port. When a port was initialized using
@@ -267,7 +267,7 @@ void tty_port_free_xmit_buf(struct tty_port *port)
 EXPORT_SYMBOL(tty_port_free_xmit_buf);
 
 /**
- * tty_port_destroy -- destroy inited port
+ * tty_port_destroy - destroy inited port
  * @port: tty port to be destroyed
  *
  * When a port was initialized using tty_port_init(), one has to destroy the
@@ -297,7 +297,7 @@ static void tty_port_destructor(struct kref *kref)
 }
 
 /**
- * tty_port_put -- drop a reference to tty_port
+ * tty_port_put - drop a reference to tty_port
  * @port: port to drop a reference of (can be NULL)
  *
  * The final put will destroy and free up the @port using

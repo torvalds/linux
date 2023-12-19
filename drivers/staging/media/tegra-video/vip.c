@@ -163,7 +163,7 @@ static int tegra_vip_channel_init(struct tegra_vip *vip)
 	subdev = &vip->chan.subdev;
 	v4l2_subdev_init(subdev, &tegra_vip_ops);
 	subdev->dev = vip->dev;
-	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s",
+	snprintf(subdev->name, sizeof(subdev->name), "%s",
 		 kbasename(vip->chan.of_node->full_name));
 
 	v4l2_set_subdevdata(subdev, &vip->chan);

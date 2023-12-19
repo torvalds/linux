@@ -228,6 +228,7 @@ enum pd_pdo_type {
 #define PDO_FIXED_UNCHUNK_EXT		BIT(24) /* Unchunked Extended Message supported (Source) */
 #define PDO_FIXED_FRS_CURR_MASK		(BIT(24) | BIT(23)) /* FR_Swap Current (Sink) */
 #define PDO_FIXED_FRS_CURR_SHIFT	23
+#define PDO_FIXED_PEAK_CURR_SHIFT	20
 #define PDO_FIXED_VOLT_SHIFT		10	/* 50mV units */
 #define PDO_FIXED_CURR_SHIFT		0	/* 10mA units */
 

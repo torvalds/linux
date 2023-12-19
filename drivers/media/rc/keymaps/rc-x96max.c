@@ -81,3 +81,4 @@ module_exit(exit_rc_map_x96max)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com");
+MODULE_DESCRIPTION("X96-max STB remote controller keytable");

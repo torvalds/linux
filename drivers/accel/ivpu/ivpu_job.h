@@ -51,7 +51,7 @@ struct ivpu_job {
 	u32 job_id;
 	u32 engine_idx;
 	size_t bo_count;
-	struct ivpu_bo *bos[];
+	struct ivpu_bo *bos[] __counted_by(bo_count);
 };
 
 int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file);

@@ -11,9 +11,17 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - qcom,prng  # 8916 etc.
-      - qcom,prng-ee  # 8996 and later using EE
+    oneOf:
+      - enum:
+          - qcom,prng  # 8916 etc.
+          - qcom,prng-ee  # 8996 and later using EE
+      - items:
+          - enum:
+              - qcom,sa8775p-trng
+              - qcom,sc7280-trng
+              - qcom,sm8450-trng
+              - qcom,sm8550-trng
+          - const: qcom,trng
 
   reg:
     maxItems: 1
@@ -28,8 +36,18 @@ properties:
 required:
   - compatible
   - reg
-  - clocks
-  - clock-names
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: qcom,trng
+    then:
+      required:
+        - clocks
+        - clock-names
 
 additionalProperties: false
 

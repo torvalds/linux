@@ -1760,8 +1760,10 @@ static int fd_locked_ioctl(struct block_device *bdev, blk_mode_t mode,
 		/* invalidate the buffer track to force a reread */
 		BufferDrive = -1;
 		set_bit(drive, &fake_change);
-		if (disk_check_media_change(disk))
+		if (disk_check_media_change(disk)) {
+			bdev_mark_dead(disk->part0, true);
 			floppy_revalidate(disk);
+		}
 		return 0;
 	default:
 		return -EINVAL;

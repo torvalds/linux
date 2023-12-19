@@ -930,15 +930,18 @@ partial_message:
 out_error:
 	kcm_push(kcm);
 
-	if (copied && sock->type == SOCK_SEQPACKET) {
+	if (sock->type == SOCK_SEQPACKET) {
 		/* Wrote some bytes before encountering an
 		 * error, return partial success.
 		 */
-		goto partial_message;
-	}
-
-	if (head != kcm->seq_skb)
+		if (copied)
+			goto partial_message;
+		if (head != kcm->seq_skb)
+			kfree_skb(head);
+	} else {
 		kfree_skb(head);
+		kcm->seq_skb = NULL;
+	}
 
 	err = sk_stream_error(sk, msg->msg_flags, err);
 
@@ -1943,4 +1946,5 @@ module_init(kcm_init);
 module_exit(kcm_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KCM (Kernel Connection Multiplexor) sockets");
 MODULE_ALIAS_NETPROTO(PF_KCM);

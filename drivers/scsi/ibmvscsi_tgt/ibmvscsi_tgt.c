@@ -3975,6 +3975,9 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.fabric_drop_tpg		= ibmvscsis_drop_tpg,
 
 	.tfc_wwn_attrs			= ibmvscsis_wwn_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static void ibmvscsis_dev_release(struct device *dev) {};

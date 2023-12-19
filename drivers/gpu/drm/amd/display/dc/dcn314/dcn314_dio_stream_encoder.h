@@ -312,4 +312,44 @@ void enc3_dp_set_dsc_pps_info_packet(
 	uint8_t *dsc_packed_pps,
 	bool immediate_update);
 
+void enc314_stream_encoder_dvi_set_stream_attribute(
+	struct stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	bool is_dual_link);
+
+void enc314_stream_encoder_hdmi_set_stream_attribute(
+	struct stream_encoder *enc,
+	struct dc_crtc_timing *crtc_timing,
+	int actual_pix_clk_khz,
+	bool enable_audio);
+
+void enc314_stream_encoder_dp_blank(
+	struct dc_link *link,
+	struct stream_encoder *enc);
+
+void enc314_stream_encoder_dp_unblank(
+		struct dc_link *link,
+		struct stream_encoder *enc,
+		const struct encoder_unblank_param *param);
+
+void enc314_reset_fifo(struct stream_encoder *enc, bool reset);
+
+void enc314_enable_fifo(struct stream_encoder *enc);
+
+void enc314_disable_fifo(struct stream_encoder *enc);
+
+void enc314_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container);
+
+void enc314_read_state(struct stream_encoder *enc, struct enc_state *s);
+
+void enc314_dp_set_odm_combine(
+	struct stream_encoder *enc,
+	bool odm_combine);
+
+void enc314_dp_set_dsc_config(
+	struct stream_encoder *enc,
+	enum optc_dsc_mode dsc_mode,
+	uint32_t dsc_bytes_per_pixel,
+	uint32_t dsc_slice_width);
+
 #endif /* __DC_DIO_STREAM_ENCODER_DCN314_H__ */

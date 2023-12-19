@@ -200,13 +200,13 @@ static void channel_free(struct channel *ch)
 static void channel_remove(struct channel *ch)
 {
 	struct channel **c = &channels;
-	char chid[CTCM_ID_SIZE+1];
+	char chid[CTCM_ID_SIZE];
 	int ok = 0;
 
 	if (ch == NULL)
 		return;
 	else
-		strncpy(chid, ch->id, CTCM_ID_SIZE);
+		strscpy(chid, ch->id, sizeof(chid));
 
 	channel_free(ch);
 	while (*c) {

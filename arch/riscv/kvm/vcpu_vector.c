@@ -11,7 +11,7 @@
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 #include <asm/kvm_vcpu_vector.h>
 #include <asm/vector.h>
 

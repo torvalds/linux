@@ -1384,9 +1384,9 @@ static const struct drm_debugfs_info drm_bridge_debugfs_list[] = {
 	{ "bridge_chains", drm_bridge_chains_info, 0 },
 };
 
-void drm_bridge_debugfs_init(struct drm_minor *minor)
+void drm_bridge_debugfs_init(struct drm_device *dev)
 {
-	drm_debugfs_add_files(minor->dev, drm_bridge_debugfs_list,
+	drm_debugfs_add_files(dev, drm_bridge_debugfs_list,
 			      ARRAY_SIZE(drm_bridge_debugfs_list));
 }
 #endif

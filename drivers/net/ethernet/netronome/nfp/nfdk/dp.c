@@ -1189,7 +1189,7 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 				nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
 
-		skb = build_skb(rxbuf->frag, true_bufsz);
+		skb = napi_build_skb(rxbuf->frag, true_bufsz);
 		if (unlikely(!skb)) {
 			nfp_nfdk_rx_drop(dp, r_vec, rx_ring, rxbuf, NULL);
 			continue;

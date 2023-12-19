@@ -1233,10 +1233,10 @@ static int das1800_attach(struct comedi_device *dev,
 	if (!devpriv->fifo_buf)
 		return -ENOMEM;
 
-	dev->pacer = comedi_8254_init(dev->iobase + DAS1800_COUNTER,
-				      I8254_OSC_BASE_5MHZ, I8254_IO8, 0);
-	if (!dev->pacer)
-		return -ENOMEM;
+	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS1800_COUNTER,
+					  I8254_OSC_BASE_5MHZ, I8254_IO8, 0);
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

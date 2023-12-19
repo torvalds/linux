@@ -443,6 +443,21 @@ export INSTALL SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
+arm64_gen_sysreg_dir := $(srctree)/tools/arch/arm64/tools
+ifneq ($(OUTPUT),)
+  arm64_gen_sysreg_outdir := $(OUTPUT)
+else
+  arm64_gen_sysreg_outdir := $(CURDIR)
+endif
+
+arm64-sysreg-defs: FORCE
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir)
+
+arm64-sysreg-defs-clean:
+	$(call QUIET_CLEAN,arm64-sysreg-defs)
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
+		clean > /dev/null
+
 beauty_linux_dir := $(srctree)/tools/perf/trace/beauty/include/linux/
 linux_uapi_dir := $(srctree)/tools/include/uapi/linux
 asm_generic_uapi_dir := $(srctree)/tools/include/uapi/asm-generic
@@ -732,7 +747,9 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(or $(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioctl_array) \
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders \
+	arm64-sysreg-defs \
+	$(drm_ioctl_array) \
 	$(fadvise_advice_array) \
 	$(fsconfig_arrays) \
 	$(fsmount_arrays) \
@@ -1142,7 +1159,7 @@ endif # CONFIG_PERF_BPF_SKEL
 bpf-skel-clean:
 	$(call QUIET_CLEAN, bpf-skel) $(RM) -r $(SKEL_TMP_OUT) $(SKELETONS)
 
-clean:: $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean $(LIBSYMBOL)-clean $(LIBPERF)-clean fixdep-clean python-clean bpf-skel-clean tests-coresight-targets-clean
+clean:: $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean $(LIBSYMBOL)-clean $(LIBPERF)-clean arm64-sysreg-defs-clean fixdep-clean python-clean bpf-skel-clean tests-coresight-targets-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIBPERF_A) $(OUTPUT)perf-archive $(OUTPUT)perf-iostat $(LANG_BINDINGS)
 	$(Q)find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete -o -name '*.shellcheck_log' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected

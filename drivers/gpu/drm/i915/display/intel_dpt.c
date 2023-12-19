@@ -29,7 +29,7 @@ static inline struct i915_dpt *
 i915_vm_to_dpt(struct i915_address_space *vm)
 {
 	BUILD_BUG_ON(offsetof(struct i915_dpt, vm));
-	GEM_BUG_ON(!i915_is_dpt(vm));
+	drm_WARN_ON(&vm->i915->drm, !i915_is_dpt(vm));
 	return container_of(vm, struct i915_dpt, vm);
 }
 

@@ -151,7 +151,7 @@ extern int cap_capset(struct cred *new, const struct cred *old,
 		      const kernel_cap_t *effective,
 		      const kernel_cap_t *inheritable,
 		      const kernel_cap_t *permitted);
-extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file);
+extern int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
 int cap_inode_setxattr(struct dentry *dentry, const char *name,
 		       const void *value, size_t size, int flags);
 int cap_inode_removexattr(struct mnt_idmap *idmap,
@@ -284,16 +284,16 @@ int security_capable(const struct cred *cred,
 		       struct user_namespace *ns,
 		       int cap,
 		       unsigned int opts);
-int security_quotactl(int cmds, int type, int id, struct super_block *sb);
+int security_quotactl(int cmds, int type, int id, const struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime64(const struct timespec64 *ts, const struct timezone *tz);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
 int security_bprm_creds_for_exec(struct linux_binprm *bprm);
-int security_bprm_creds_from_file(struct linux_binprm *bprm, struct file *file);
+int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file);
 int security_bprm_check(struct linux_binprm *bprm);
-void security_bprm_committing_creds(struct linux_binprm *bprm);
-void security_bprm_committed_creds(struct linux_binprm *bprm);
+void security_bprm_committing_creds(const struct linux_binprm *bprm);
+void security_bprm_committed_creds(const struct linux_binprm *bprm);
 int security_fs_context_submount(struct fs_context *fc, struct super_block *reference);
 int security_fs_context_dup(struct fs_context *fc, struct fs_context *src_fc);
 int security_fs_context_parse_param(struct fs_context *fc, struct fs_parameter *param);
@@ -304,7 +304,7 @@ void security_free_mnt_opts(void **mnt_opts);
 int security_sb_eat_lsm_opts(char *options, void **mnt_opts);
 int security_sb_mnt_opts_compat(struct super_block *sb, void *mnt_opts);
 int security_sb_remount(struct super_block *sb, void *mnt_opts);
-int security_sb_kern_mount(struct super_block *sb);
+int security_sb_kern_mount(const struct super_block *sb);
 int security_sb_show_options(struct seq_file *m, struct super_block *sb);
 int security_sb_statfs(struct dentry *dentry);
 int security_sb_mount(const char *dev_name, const struct path *path,
@@ -581,7 +581,7 @@ static inline int security_capable(const struct cred *cred,
 }
 
 static inline int security_quotactl(int cmds, int type, int id,
-				     struct super_block *sb)
+				     const struct super_block *sb)
 {
 	return 0;
 }
@@ -613,7 +613,7 @@ static inline int security_bprm_creds_for_exec(struct linux_binprm *bprm)
 }
 
 static inline int security_bprm_creds_from_file(struct linux_binprm *bprm,
-						struct file *file)
+						const struct file *file)
 {
 	return cap_bprm_creds_from_file(bprm, file);
 }
@@ -623,11 +623,11 @@ static inline int security_bprm_check(struct linux_binprm *bprm)
 	return 0;
 }
 
-static inline void security_bprm_committing_creds(struct linux_binprm *bprm)
+static inline void security_bprm_committing_creds(const struct linux_binprm *bprm)
 {
 }
 
-static inline void security_bprm_committed_creds(struct linux_binprm *bprm)
+static inline void security_bprm_committed_creds(const struct linux_binprm *bprm)
 {
 }
 

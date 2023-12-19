@@ -722,6 +722,7 @@ static const struct i2c_algorithm geni_i2c_algo = {
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id geni_i2c_acpi_match[] = {
 	{ "QCOM0220"},
+	{ "QCOM0411" },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, geni_i2c_acpi_match);

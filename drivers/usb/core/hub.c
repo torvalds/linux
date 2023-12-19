@@ -151,6 +151,10 @@ int usb_device_supports_lpm(struct usb_device *udev)
 	if (udev->quirks & USB_QUIRK_NO_LPM)
 		return 0;
 
+	/* Skip if the device BOS descriptor couldn't be read */
+	if (!udev->bos)
+		return 0;
+
 	/* USB 2.1 (and greater) devices indicate LPM support through
 	 * their USB 2.0 Extended Capabilities BOS descriptor.
 	 */
@@ -325,6 +329,10 @@ static void usb_set_lpm_parameters(struct usb_device *udev)
 	unsigned int hub_u2_del;
 
 	if (!udev->lpm_capable || udev->speed < USB_SPEED_SUPER)
+		return;
+
+	/* Skip if the device BOS descriptor couldn't be read */
+	if (!udev->bos)
 		return;
 
 	hub = usb_hub_to_struct_hub(udev->parent);
@@ -614,29 +622,6 @@ static int hub_ext_port_status(struct usb_hub *hub, int port1, int type,
 		ret = 0;
 	}
 	mutex_unlock(&hub->status_mutex);
-
-	/*
-	 * There is no need to lock status_mutex here, because status_mutex
-	 * protects hub->status, and the phy driver only checks the port
-	 * status without changing the status.
-	 */
-	if (!ret) {
-		struct usb_device *hdev = hub->hdev;
-
-		/*
-		 * Only roothub will be notified of port state changes,
-		 * since the USB PHY only cares about changes at the next
-		 * level.
-		 */
-		if (is_root_hub(hdev)) {
-			struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
-
-			if (hcd->usb_phy)
-				usb_phy_notify_port_status(hcd->usb_phy,
-							   port1 - 1, *status, *change);
-		}
-	}
-
 	return ret;
 }
 
@@ -2266,6 +2251,8 @@ void usb_disconnect(struct usb_device **pdev)
 		 */
 		if (!test_and_set_bit(port1, hub->child_usage_bits))
 			pm_runtime_get_sync(&port_dev->dev);
+
+		typec_deattach(port_dev->connector, &udev->dev);
 	}
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -2612,6 +2599,8 @@ int usb_new_device(struct usb_device *udev)
 
 		if (!test_and_set_bit(port1, hub->child_usage_bits))
 			pm_runtime_get_sync(&port_dev->dev);
+
+		typec_attach(port_dev->connector, &udev->dev);
 	}
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
@@ -2704,13 +2693,17 @@ out_authorized:
 static enum usb_ssp_rate get_port_ssp_rate(struct usb_device *hdev,
 					   u32 ext_portstatus)
 {
-	struct usb_ssp_cap_descriptor *ssp_cap = hdev->bos->ssp_cap;
+	struct usb_ssp_cap_descriptor *ssp_cap;
 	u32 attr;
 	u8 speed_id;
 	u8 ssac;
 	u8 lanes;
 	int i;
 
+	if (!hdev->bos)
+		goto out;
+
+	ssp_cap = hdev->bos->ssp_cap;
 	if (!ssp_cap)
 		goto out;
 
@@ -4215,8 +4208,15 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
 	int timeout;
-	__u8 u1_mel = udev->bos->ss_cap->bU1devExitLat;
-	__le16 u2_mel = udev->bos->ss_cap->bU2DevExitLat;
+	__u8 u1_mel;
+	__le16 u2_mel;
+
+	/* Skip if the device BOS descriptor couldn't be read */
+	if (!udev->bos)
+		return;
+
+	u1_mel = udev->bos->ss_cap->bU1devExitLat;
+	u2_mel = udev->bos->ss_cap->bU2DevExitLat;
 
 	/* If the device says it doesn't have *any* exit latency to come out of
 	 * U1 or U2, it's probably lying.  Assume it doesn't implement that link

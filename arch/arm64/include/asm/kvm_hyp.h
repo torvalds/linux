@@ -93,6 +93,8 @@ void __timer_disable_traps(struct kvm_vcpu *vcpu);
 void __sysreg_save_state_nvhe(struct kvm_cpu_context *ctxt);
 void __sysreg_restore_state_nvhe(struct kvm_cpu_context *ctxt);
 #else
+void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu);
+void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu);
 void sysreg_save_host_state_vhe(struct kvm_cpu_context *ctxt);
 void sysreg_restore_host_state_vhe(struct kvm_cpu_context *ctxt);
 void sysreg_save_guest_state_vhe(struct kvm_cpu_context *ctxt);
@@ -111,14 +113,9 @@ void __fpsimd_save_state(struct user_fpsimd_state *fp_regs);
 void __fpsimd_restore_state(struct user_fpsimd_state *fp_regs);
 void __sve_restore_state(void *sve_pffr, u32 *fpsr);
 
-#ifndef __KVM_NVHE_HYPERVISOR__
-void activate_traps_vhe_load(struct kvm_vcpu *vcpu);
-void deactivate_traps_vhe_put(struct kvm_vcpu *vcpu);
-#endif
-
 u64 __guest_enter(struct kvm_vcpu *vcpu);
 
-bool kvm_host_psci_handler(struct kvm_cpu_context *host_ctxt);
+bool kvm_host_psci_handler(struct kvm_cpu_context *host_ctxt, u32 func_id);
 
 #ifdef __KVM_NVHE_HYPERVISOR__
 void __noreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,

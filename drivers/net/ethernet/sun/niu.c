@@ -10132,7 +10132,7 @@ err_out:
 	return err;
 }
 
-static int niu_of_remove(struct platform_device *op)
+static void niu_of_remove(struct platform_device *op)
 {
 	struct net_device *dev = platform_get_drvdata(op);
 
@@ -10165,7 +10165,6 @@ static int niu_of_remove(struct platform_device *op)
 
 		free_netdev(dev);
 	}
-	return 0;
 }
 
 static const struct of_device_id niu_match[] = {
@@ -10183,7 +10182,7 @@ static struct platform_driver niu_of_driver = {
 		.of_match_table = niu_match,
 	},
 	.probe		= niu_of_probe,
-	.remove		= niu_of_remove,
+	.remove_new	= niu_of_remove,
 };
 
 #endif /* CONFIG_SPARC64 */

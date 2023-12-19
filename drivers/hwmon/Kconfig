@@ -40,7 +40,7 @@ comment "Native drivers"
 
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
-	depends on X86 && DMI
+	depends on (X86 && DMI) || COMPILE_TEST
 	help
 	  If you say yes here you get support for the sensor part of the first
 	  and second revision of the Abit uGuru chip. The voltage and frequency
@@ -55,7 +55,7 @@ config SENSORS_ABITUGURU
 
 config SENSORS_ABITUGURU3
 	tristate "Abit uGuru (rev 3)"
-	depends on X86 && DMI
+	depends on (X86 && DMI) || COMPILE_TEST
 	help
 	  If you say yes here you get support for the sensor part of the
 	  third revision of the Abit uGuru chip. Only reading the sensors
@@ -839,6 +839,16 @@ config SENSORS_JC42
 	  This driver can also be built as a module. If so, the module
 	  will be called jc42.
 
+config SENSORS_POWERZ
+	tristate "ChargerLAB POWER-Z USB-C tester"
+	depends on USB
+	help
+	  If you say yes here you get support for ChargerLAB POWER-Z series of
+	  USB-C charging testers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called powerz.
+
 config SENSORS_POWR1220
 	tristate "Lattice POWR1220 Power Monitoring"
 	depends on I2C
@@ -931,6 +941,17 @@ config SENSORS_LTC2990
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2990.
+
+config SENSORS_LTC2991
+	tristate "Analog Devices LTC2991"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices LTC2991
+	  Octal I2C Voltage, Current, and Temperature Monitor. The LTC2991
+	  supports a combination of voltage, current and temperature monitoring.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2991.
 
 config SENSORS_LTC2992
 	tristate "Linear Technology LTC2992"
@@ -1909,6 +1930,7 @@ config SENSORS_SMSC47B397
 
 config SENSORS_SCH56XX_COMMON
 	tristate
+	select REGMAP
 
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"

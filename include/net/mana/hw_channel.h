@@ -121,7 +121,7 @@ struct hwc_dma_buf {
 	u32 gpa_mkey;
 
 	u32 num_reqs;
-	struct hwc_work_request reqs[];
+	struct hwc_work_request reqs[] __counted_by(num_reqs);
 };
 
 typedef void hwc_rx_event_handler_t(void *ctx, u32 gdma_rxq_id,

@@ -419,7 +419,7 @@ err:
 	return ret;
 }
 
-static int mpc8xxx_remove(struct platform_device *pdev)
+static void mpc8xxx_remove(struct platform_device *pdev)
 {
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc = platform_get_drvdata(pdev);
 
@@ -427,8 +427,6 @@ static int mpc8xxx_remove(struct platform_device *pdev)
 		irq_set_chained_handler_and_data(mpc8xxx_gc->irqn, NULL, NULL);
 		irq_domain_remove(mpc8xxx_gc->irq);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -441,7 +439,7 @@ MODULE_DEVICE_TABLE(acpi, gpio_acpi_ids);
 
 static struct platform_driver mpc8xxx_plat_driver = {
 	.probe		= mpc8xxx_probe,
-	.remove		= mpc8xxx_remove,
+	.remove_new	= mpc8xxx_remove,
 	.driver		= {
 		.name = "gpio-mpc8xxx",
 		.of_match_table	= mpc8xxx_gpio_ids,

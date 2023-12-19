@@ -42,7 +42,6 @@
 #include <linux/io.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/gpio/consumer.h>
 
 #include "internals.h"
@@ -5109,6 +5108,9 @@ static void rawnand_early_check_supported_ops(struct nand_chip *chip)
 static void rawnand_check_cont_read_support(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	if (!chip->parameters.supports_read_cache)
+		return;
 
 	if (chip->read_retries)
 		return;

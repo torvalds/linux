@@ -8,8 +8,6 @@
 #include <linux/sizes.h>
 
 #include <loongson1.h>
-#include <dma.h>
-#include <nand.h>
 #include <platform.h>
 
 static const struct gpio_led ls1x_gpio_leds[] __initconst = {

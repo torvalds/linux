@@ -620,7 +620,7 @@ struct amdgpu_hdmi_vsdb_info {
 	unsigned int max_refresh_rate_hz;
 
 	/**
-	 * @replay mode: Replay supported
+	 * @replay_mode: Replay supported
 	 */
 	bool replay_mode;
 };
@@ -824,8 +824,6 @@ int amdgpu_dm_process_dmub_aux_transfer_sync(struct dc_context *ctx, unsigned in
 
 int amdgpu_dm_process_dmub_set_config_sync(struct dc_context *ctx, unsigned int link_index,
 					struct set_config_cmd_payload *payload, enum set_config_status *operation_result);
-
-bool check_seamless_boot_capability(struct amdgpu_device *adev);
 
 struct dc_stream_state *
 	create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,

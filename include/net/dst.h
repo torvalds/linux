@@ -222,13 +222,6 @@ static inline unsigned long dst_metric_rtt(const struct dst_entry *dst, int metr
 	return msecs_to_jiffies(dst_metric(dst, metric));
 }
 
-static inline u32
-dst_allfrag(const struct dst_entry *dst)
-{
-	int ret = dst_feature(dst,  RTAX_FEATURE_ALLFRAG);
-	return ret;
-}
-
 static inline int
 dst_metric_locked(const struct dst_entry *dst, int metric)
 {
@@ -392,10 +385,10 @@ static inline int dst_discard(struct sk_buff *skb)
 {
 	return dst_discard_out(&init_net, skb->sk, skb);
 }
-void *dst_alloc(struct dst_ops *ops, struct net_device *dev, int initial_ref,
+void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 		int initial_obsolete, unsigned short flags);
 void dst_init(struct dst_entry *dst, struct dst_ops *ops,
-	      struct net_device *dev, int initial_ref, int initial_obsolete,
+	      struct net_device *dev, int initial_obsolete,
 	      unsigned short flags);
 struct dst_entry *dst_destroy(struct dst_entry *dst);
 void dst_dev_put(struct dst_entry *dst);

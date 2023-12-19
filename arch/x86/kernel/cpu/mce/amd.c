@@ -713,17 +713,75 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-bool amd_mce_is_memory_error(struct mce *m)
+/*
+ * DRAM ECC errors are reported in the Northbridge (bank 4) with
+ * Extended Error Code 8.
+ */
+static bool legacy_mce_is_memory_error(struct mce *m)
+{
+	return m->bank == 4 && XEC(m->status, 0x1f) == 8;
+}
+
+/*
+ * DRAM ECC errors are reported in Unified Memory Controllers with
+ * Extended Error Code 0.
+ */
+static bool smca_mce_is_memory_error(struct mce *m)
 {
 	enum smca_bank_types bank_type;
-	/* ErrCodeExt[20:16] */
-	u8 xec = (m->status >> 16) & 0x1f;
+
+	if (XEC(m->status, 0x3f))
+		return false;
 
 	bank_type = smca_get_bank_type(m->extcpu, m->bank);
-	if (mce_flags.smca)
-		return (bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2) && xec == 0x0;
 
-	return m->bank == 4 && xec == 0x8;
+	return bank_type == SMCA_UMC || bank_type == SMCA_UMC_V2;
+}
+
+bool amd_mce_is_memory_error(struct mce *m)
+{
+	if (mce_flags.smca)
+		return smca_mce_is_memory_error(m);
+	else
+		return legacy_mce_is_memory_error(m);
+}
+
+/*
+ * AMD systems do not have an explicit indicator that the value in MCA_ADDR is
+ * a system physical address. Therefore, individual cases need to be detected.
+ * Future cases and checks will be added as needed.
+ *
+ * 1) General case
+ *	a) Assume address is not usable.
+ * 2) Poison errors
+ *	a) Indicated by MCA_STATUS[43]: poison. Defined for all banks except legacy
+ *	   northbridge (bank 4).
+ *	b) Refers to poison consumption in the core. Does not include "no action",
+ *	   "action optional", or "deferred" error severities.
+ *	c) Will include a usable address so that immediate action can be taken.
+ * 3) Northbridge DRAM ECC errors
+ *	a) Reported in legacy bank 4 with extended error code (XEC) 8.
+ *	b) MCA_STATUS[43] is *not* defined as poison in legacy bank 4. Therefore,
+ *	   this bit should not be checked.
+ *
+ * NOTE: SMCA UMC memory errors fall into case #1.
+ */
+bool amd_mce_usable_address(struct mce *m)
+{
+	/* Check special northbridge case 3) first. */
+	if (!mce_flags.smca) {
+		if (legacy_mce_is_memory_error(m))
+			return true;
+		else if (m->bank == 4)
+			return false;
+	}
+
+	/* Check poison bit for all other bank types. */
+	if (m->status & MCI_STATUS_POISON)
+		return true;
+
+	/* Assume address is not usable for all others. */
+	return false;
 }
 
 static void __log_error(unsigned int bank, u64 status, u64 addr, u64 misc)

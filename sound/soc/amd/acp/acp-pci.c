@@ -55,7 +55,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	int ret;
 
 	flag = snd_amd_acp_find_config(pci);
-	if (flag != FLAG_AMD_LEGACY)
+	if (flag != FLAG_AMD_LEGACY && flag != FLAG_AMD_LEGACY_ONLY_DMIC)
 		return -ENODEV;
 
 	chip = devm_kzalloc(&pci->dev, sizeof(*chip), GFP_KERNEL);
@@ -86,6 +86,14 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
 		chip->acp_rev = ACP6X_DEV;
+		break;
+	case 0x63:
+		chip->name = "acp_asoc_acp63";
+		chip->acp_rev = ACP63_DEV;
+		break;
+	case 0x70:
+		chip->name = "acp_asoc_acp70";
+		chip->acp_rev = ACP70_DEV;
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
@@ -125,6 +133,13 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		}
 	}
 
+	if (flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
+		ret = check_acp_pdm(pci, chip);
+		if (ret < 0)
+			goto skip_pdev_creation;
+	}
+
+	chip->flag = flag;
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 
 	pdevinfo.name = chip->name;
@@ -141,6 +156,8 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		ret = PTR_ERR(pdev);
 		goto unregister_dmic_dev;
 	}
+
+skip_pdev_creation:
 	chip->chip_pdev = pdev;
 	dev_set_drvdata(&pci->dev, chip);
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
@@ -165,7 +182,7 @@ static int __maybe_unused snd_acp_suspend(struct device *dev)
 	int ret;
 
 	chip = dev_get_drvdata(dev);
-	ret = acp_deinit(chip->base);
+	ret = acp_deinit(chip);
 	if (ret)
 		dev_err(dev, "ACP de-init failed\n");
 	return ret;
@@ -206,7 +223,7 @@ static void acp_pci_remove(struct pci_dev *pci)
 		platform_device_unregister(dmic_dev);
 	if (pdev)
 		platform_device_unregister(pdev);
-	ret = acp_deinit(chip->base);
+	ret = acp_deinit(chip);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 }

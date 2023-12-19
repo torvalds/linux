@@ -23,6 +23,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_debugfs.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -32,6 +33,7 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
+#include "intel_frontbuffer.h"
 #include "intel_hdmi.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
@@ -674,7 +676,9 @@ static void hsw_activate_psr1(struct intel_dp *intel_dp)
 
 	val |= EDP_PSR_IDLE_FRAMES(psr_compute_idle_frames(intel_dp));
 
-	val |= EDP_PSR_MAX_SLEEP_TIME(max_sleep_time);
+	if (DISPLAY_VER(dev_priv) < 20)
+		val |= EDP_PSR_MAX_SLEEP_TIME(max_sleep_time);
+
 	if (IS_HASWELL(dev_priv))
 		val |= EDP_PSR_MIN_LINK_ENTRY_TIME_8_LINES;
 
@@ -1360,8 +1364,7 @@ static void wm_optimization_wa(struct intel_dp *intel_dp,
 	bool set_wa_bit = false;
 
 	/* Wa_14015648006 */
-	if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
-	    IS_DISPLAY_VER(dev_priv, 11, 13))
+	if (IS_DISPLAY_VER(dev_priv, 11, 14))
 		set_wa_bit |= crtc_state->wm_level_disabled;
 
 	/* Wa_16013835468 */
@@ -1399,8 +1402,10 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	 */
 	mask = EDP_PSR_DEBUG_MASK_MEMUP |
 	       EDP_PSR_DEBUG_MASK_HPD |
-	       EDP_PSR_DEBUG_MASK_LPSP |
-	       EDP_PSR_DEBUG_MASK_MAX_SLEEP;
+	       EDP_PSR_DEBUG_MASK_LPSP;
+
+	if (DISPLAY_VER(dev_priv) < 20)
+		mask |= EDP_PSR_DEBUG_MASK_MAX_SLEEP;
 
 	/*
 	 * No separate pipe reg write mask on hsw/bdw, so have to unmask all
@@ -1447,7 +1452,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		 * All supported adlp panels have 1-based X granularity, this may
 		 * cause issues if non-supported panels are used.
 		 */
-		if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+		if (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv, MTL_CHICKEN_TRANS(cpu_transcoder), 0,
 				     ADLP_1_BASED_X_GRANULARITY);
 		else if (IS_ALDERLAKE_P(dev_priv))
@@ -1455,7 +1460,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 				     ADLP_1_BASED_X_GRANULARITY);
 
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
-		if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+		if (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
 				     MTL_CLKGATE_DIS_TRANS(cpu_transcoder), 0,
 				     MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS);
@@ -1613,7 +1618,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 
 	if (intel_dp->psr.psr2_enabled) {
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
-		if (IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0))
+		if (IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0))
 			intel_de_rmw(dev_priv,
 				     MTL_CLKGATE_DIS_TRANS(cpu_transcoder),
 				     MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS, 0);
@@ -2087,7 +2092,7 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 		goto skip_sel_fetch_set_loop;
 
 	/* Wa_14014971492 */
-	if ((IS_MTL_DISPLAY_STEP(dev_priv, STEP_A0, STEP_B0) ||
+	if ((IS_DISPLAY_IP_STEP(dev_priv, IP_VER(14, 0), STEP_A0, STEP_B0) ||
 	     IS_ALDERLAKE_P(dev_priv) || IS_TIGERLAKE(dev_priv)) &&
 	    crtc_state->splitter.enable)
 		pipe_clip.y1 = 0;
@@ -2194,10 +2199,12 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 	}
 }
 
-static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
-					 const struct intel_crtc_state *crtc_state)
+void intel_psr_post_plane_update(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
 
 	if (!crtc_state->has_psr)
@@ -2230,22 +2237,14 @@ static void _intel_psr_post_plane_update(const struct intel_atomic_state *state,
 		if (crtc_state->crc_enabled && psr->enabled)
 			psr_force_hw_tracking_exit(intel_dp);
 
+		/*
+		 * Clear possible busy bits in case we have
+		 * invalidate -> flip -> flush sequence.
+		 */
+		intel_dp->psr.busy_frontbuffer_bits = 0;
+
 		mutex_unlock(&psr->lock);
 	}
-}
-
-void intel_psr_post_plane_update(const struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc_state *crtc_state;
-	struct intel_crtc *crtc;
-	int i;
-
-	if (!HAS_PSR(dev_priv))
-		return;
-
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
-		_intel_psr_post_plane_update(state, crtc_state);
 }
 
 static int _psr2_ready_for_pipe_update_locked(struct intel_dp *intel_dp)
@@ -3153,7 +3152,7 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 	};
 	const char *str;
 	int ret;
-	u8 val;
+	u8 status, error_status;
 
 	if (!CAN_PSR(intel_dp)) {
 		seq_puts(m, "PSR Unsupported\n");
@@ -3163,19 +3162,34 @@ static int i915_psr_sink_status_show(struct seq_file *m, void *data)
 	if (connector->base.status != connector_status_connected)
 		return -ENODEV;
 
-	ret = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val);
-	if (ret != 1)
-		return ret < 0 ? ret : -EIO;
+	ret = psr_get_status_and_error_status(intel_dp, &status, &error_status);
+	if (ret)
+		return ret;
 
-	val &= DP_PSR_SINK_STATE_MASK;
-	if (val < ARRAY_SIZE(sink_status))
-		str = sink_status[val];
+	status &= DP_PSR_SINK_STATE_MASK;
+	if (status < ARRAY_SIZE(sink_status))
+		str = sink_status[status];
 	else
 		str = "unknown";
 
-	seq_printf(m, "Sink PSR status: 0x%x [%s]\n", val, str);
+	seq_printf(m, "Sink PSR status: 0x%x [%s]\n", status, str);
 
-	return 0;
+	seq_printf(m, "Sink PSR error status: 0x%x", error_status);
+
+	if (error_status & (DP_PSR_RFB_STORAGE_ERROR |
+			    DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
+			    DP_PSR_LINK_CRC_ERROR))
+		seq_puts(m, ":\n");
+	else
+		seq_puts(m, "\n");
+	if (error_status & DP_PSR_RFB_STORAGE_ERROR)
+		seq_puts(m, "\tPSR RFB storage error\n");
+	if (error_status & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+		seq_puts(m, "\tPSR VSC SDP uncorrectable error\n");
+	if (error_status & DP_PSR_LINK_CRC_ERROR)
+		seq_puts(m, "\tPSR Link CRC error\n");
+
+	return ret;
 }
 DEFINE_SHOW_ATTRIBUTE(i915_psr_sink_status);
 

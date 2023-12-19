@@ -101,6 +101,11 @@ struct ksz_ptp_irq {
 	int num;
 };
 
+struct ksz_switch_macaddr {
+	unsigned char addr[ETH_ALEN];
+	refcount_t refcount;
+};
+
 struct ksz_port {
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	bool learning;
@@ -117,6 +122,7 @@ struct ksz_port {
 	u32 rgmii_tx_val;
 	u32 rgmii_rx_val;
 	struct ksz_device *ksz_dev;
+	void *acl_priv;
 	struct ksz_irq pirq;
 	u8 num;
 #if IS_ENABLED(CONFIG_NET_DSA_MICROCHIP_KSZ_PTP)
@@ -157,6 +163,7 @@ struct ksz_device {
 	phy_interface_t compat_interface;
 	bool synclko_125;
 	bool synclko_disable;
+	bool wakeup_source;
 
 	struct vlan_table *vlan_cache;
 
@@ -169,6 +176,10 @@ struct ksz_device {
 	struct mutex lock_irq;		/* IRQ Access */
 	struct ksz_irq girq;
 	struct ksz_ptp_data ptp_data;
+
+	struct ksz_switch_macaddr *switch_macaddr;
+	struct net_device *hsr_dev;     /* HSR */
+	u8 hsr_ports;
 };
 
 /* List of supported models */
@@ -211,6 +222,7 @@ enum ksz_chip_id {
 };
 
 enum ksz_regs {
+	REG_SW_MAC_ADDR,
 	REG_IND_CTRL_0,
 	REG_IND_DATA_8,
 	REG_IND_DATA_CHECK,
@@ -362,6 +374,11 @@ struct ksz_dev_ops {
 				    int duplex, bool tx_pause, bool rx_pause);
 	void (*setup_rgmii_delay)(struct ksz_device *dev, int port);
 	int (*tc_cbs_set_cinc)(struct ksz_device *dev, int port, u32 val);
+	void (*get_wol)(struct ksz_device *dev, int port,
+			struct ethtool_wolinfo *wol);
+	int (*set_wol)(struct ksz_device *dev, int port,
+		       struct ethtool_wolinfo *wol);
+	void (*wol_pre_shutdown)(struct ksz_device *dev, bool *wol_enabled);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);
@@ -374,12 +391,17 @@ int ksz_switch_register(struct ksz_device *dev);
 void ksz_switch_remove(struct ksz_device *dev);
 
 void ksz_init_mib_timer(struct ksz_device *dev);
+bool ksz_is_port_mac_global_usable(struct dsa_switch *ds, int port);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
 extern const struct ksz_chip_data ksz_switch_chips[];
+int ksz_switch_macaddr_get(struct dsa_switch *ds, int port,
+			   struct netlink_ext_ack *extack);
+void ksz_switch_macaddr_put(struct dsa_switch *ds);
+void ksz_switch_shutdown(struct ksz_device *dev);
 
 /* Common register access functions */
 static inline struct regmap *ksz_regmap_8(struct ksz_device *dev)
@@ -688,6 +710,26 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define KSZ8863_NORMAL_PACKET_SIZE	1536
 #define KSZ8_LEGAL_PACKET_SIZE		1518
 #define KSZ9477_MAX_FRAME_SIZE		9000
+
+#define KSZ8873_REG_GLOBAL_CTRL_12	0x0e
+/* Drive Strength of I/O Pad
+ * 0: 8mA, 1: 16mA
+ */
+#define KSZ8873_DRIVE_STRENGTH_16MA	BIT(6)
+
+#define KSZ8795_REG_SW_CTRL_20		0xa3
+#define KSZ9477_REG_SW_IO_STRENGTH	0x010d
+#define SW_DRIVE_STRENGTH_M		0x7
+#define SW_DRIVE_STRENGTH_2MA		0
+#define SW_DRIVE_STRENGTH_4MA		1
+#define SW_DRIVE_STRENGTH_8MA		2
+#define SW_DRIVE_STRENGTH_12MA		3
+#define SW_DRIVE_STRENGTH_16MA		4
+#define SW_DRIVE_STRENGTH_20MA		5
+#define SW_DRIVE_STRENGTH_24MA		6
+#define SW_DRIVE_STRENGTH_28MA		7
+#define SW_HI_SPEED_DRIVE_STRENGTH_S	4
+#define SW_LO_SPEED_DRIVE_STRENGTH_S	0
 
 #define KSZ9477_REG_PORT_OUT_RATE_0	0x0420
 #define KSZ9477_OUT_RATE_NO_LIMIT	0

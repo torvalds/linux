@@ -175,7 +175,7 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * enum tb_link_width - Thunderbolt/USB4 link width
  * @TB_LINK_WIDTH_SINGLE: Single lane link
  * @TB_LINK_WIDTH_DUAL: Dual lane symmetric link
- * @TB_LINK_WIDTH_ASYM_TX: Dual lane asymmetric Gen 4 link with 3 trasmitters
+ * @TB_LINK_WIDTH_ASYM_TX: Dual lane asymmetric Gen 4 link with 3 transmitters
  * @TB_LINK_WIDTH_ASYM_RX: Dual lane asymmetric Gen 4 link with 3 receivers
  */
 enum tb_link_width {

@@ -328,6 +328,7 @@ gf119_sor = {
 	.state = gf119_sor_state,
 	.power = nv50_sor_power,
 	.clock = gf119_sor_clock,
+	.bl = &gt215_sor_bl,
 	.hdmi = &gf119_sor_hdmi,
 	.dp = &gf119_sor_dp,
 	.hda = &gf119_sor_hda,
@@ -1038,7 +1039,6 @@ gf119_disp_super(struct work_struct *work)
 				continue;
 			nv50_disp_super_2_0(disp, head);
 		}
-		nvkm_outp_route(disp);
 		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00010000))
 				continue;
@@ -1154,7 +1154,7 @@ gf119_disp_intr(struct nvkm_disp *disp)
 }
 
 void
-gf119_disp_fini(struct nvkm_disp *disp)
+gf119_disp_fini(struct nvkm_disp *disp, bool suspend)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	/* disable all interrupts */

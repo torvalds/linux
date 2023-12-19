@@ -147,9 +147,14 @@ struct bq2515x_init_data {
 	int iprechg;
 };
 
-enum bq2515x_id {
-	BQ25150,
-	BQ25155,
+/**
+ * struct bq2515x_info -
+ * @regmap_config: register map config
+ * @ilim: input current limit
+ */
+struct bq2515x_info {
+	const struct regmap_config *regmap_config;
+	int ilim;
 };
 
 /**
@@ -164,8 +169,8 @@ enum bq2515x_id {
  * @ac_detect_gpio: power good (PG) pin
  * @ce_gpio: charge enable (CE) pin
  *
+ * @info: device info
  * @model_name: string value describing device model
- * @device_id: value of device_id
  * @mains_online: boolean value indicating power supply online
  *
  * @init_data: charger initialization data structure
@@ -181,8 +186,8 @@ struct bq2515x_device {
 	struct gpio_desc *ac_detect_gpio;
 	struct gpio_desc *ce_gpio;
 
+	const struct bq2515x_info *info;
 	char model_name[I2C_NAME_SIZE];
-	int device_id;
 	bool mains_online;
 
 	struct bq2515x_init_data init_data;
@@ -998,16 +1003,8 @@ static int bq2515x_read_properties(struct bq2515x_device *bq2515x)
 	ret = device_property_read_u32(bq2515x->dev,
 				      "input-current-limit-microamp",
 				      &bq2515x->init_data.ilim);
-	if (ret) {
-		switch (bq2515x->device_id) {
-		case BQ25150:
-			bq2515x->init_data.ilim = BQ25150_DEFAULT_ILIM_UA;
-			break;
-		case BQ25155:
-			bq2515x->init_data.ilim = BQ25155_DEFAULT_ILIM_UA;
-			break;
-		}
-	}
+	if (ret)
+		bq2515x->init_data.ilim = bq2515x->info->ilim;
 
 	bq2515x->ac_detect_gpio = devm_gpiod_get_optional(bq2515x->dev,
 						   "ac-detect", GPIOD_IN);
@@ -1092,21 +1089,11 @@ static int bq2515x_probe(struct i2c_client *client)
 
 	bq2515x->dev = dev;
 
-	strncpy(bq2515x->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq2515x->model_name, id->name, sizeof(bq2515x->model_name));
 
-	bq2515x->device_id = id->driver_data;
-
-	switch (bq2515x->device_id) {
-	case BQ25150:
-		bq2515x->regmap = devm_regmap_init_i2c(client,
-						&bq25150_regmap_config);
-		break;
-	case BQ25155:
-		bq2515x->regmap = devm_regmap_init_i2c(client,
-						&bq25155_regmap_config);
-		break;
-	}
-
+	bq2515x->info = i2c_get_match_data(client);
+	bq2515x->regmap = devm_regmap_init_i2c(client,
+					       bq2515x->info->regmap_config);
 	if (IS_ERR(bq2515x->regmap)) {
 		dev_err(dev, "failed to allocate register map\n");
 		return PTR_ERR(bq2515x->regmap);
@@ -1139,17 +1126,27 @@ static int bq2515x_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct bq2515x_info bq25150 = {
+	.regmap_config = &bq25150_regmap_config,
+	.ilim = BQ25150_DEFAULT_ILIM_UA,
+};
+
+static const struct bq2515x_info bq25155 = {
+	.regmap_config = &bq25155_regmap_config,
+	.ilim = BQ25155_DEFAULT_ILIM_UA,
+};
+
 static const struct i2c_device_id bq2515x_i2c_ids[] = {
-	{ "bq25150", BQ25150, },
-	{ "bq25155", BQ25155, },
-	{},
+	{ "bq25150", (kernel_ulong_t)&bq25150 },
+	{ "bq25155", (kernel_ulong_t)&bq25155 },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq2515x_i2c_ids);
 
 static const struct of_device_id bq2515x_of_match[] = {
-	{ .compatible = "ti,bq25150", },
-	{ .compatible = "ti,bq25155", },
-	{ },
+	{ .compatible = "ti,bq25150", .data = &bq25150 },
+	{ .compatible = "ti,bq25155", .data = &bq25155 },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq2515x_of_match);
 

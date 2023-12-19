@@ -128,6 +128,27 @@ static bool smuio_v13_0_is_host_gpu_xgmi_supported(struct amdgpu_device *adev)
 	return data ? true : false;
 }
 
+static enum amdgpu_pkg_type smuio_v13_0_get_pkg_type(struct amdgpu_device *adev)
+{
+	enum amdgpu_pkg_type pkg_type;
+	u32 data;
+
+	data = RREG32_SOC15(SMUIO, 0, regSMUIO_MCM_CONFIG);
+	data = REG_GET_FIELD(data, SMUIO_MCM_CONFIG, TOPOLOGY_ID);
+
+	switch (data) {
+	case 0x4:
+	case 0xC:
+		pkg_type = AMDGPU_PKG_TYPE_CEM;
+		break;
+	default:
+		pkg_type = AMDGPU_PKG_TYPE_OAM;
+		break;
+	}
+
+	return pkg_type;
+}
+
 const struct amdgpu_smuio_funcs smuio_v13_0_funcs = {
 	.get_rom_index_offset = smuio_v13_0_get_rom_index_offset,
 	.get_rom_data_offset = smuio_v13_0_get_rom_data_offset,
@@ -136,4 +157,5 @@ const struct amdgpu_smuio_funcs smuio_v13_0_funcs = {
 	.is_host_gpu_xgmi_supported = smuio_v13_0_is_host_gpu_xgmi_supported,
 	.update_rom_clock_gating = smuio_v13_0_update_rom_clock_gating,
 	.get_clock_gating_state = smuio_v13_0_get_clock_gating_state,
+	.get_pkg_type = smuio_v13_0_get_pkg_type,
 };

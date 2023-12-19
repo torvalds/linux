@@ -109,8 +109,6 @@ mt76_register_debugfs_fops(struct mt76_phy *phy,
 	struct dentry *dir;
 
 	dir = debugfs_create_dir("mt76", phy->hw->wiphy->debugfsdir);
-	if (!dir)
-		return NULL;
 
 	debugfs_create_u8("led_pin", 0600, dir, &phy->leds.pin);
 	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);

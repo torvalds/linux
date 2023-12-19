@@ -424,7 +424,7 @@ error_kill_call:
 	if (call->async) {
 		if (cancel_work_sync(&call->async_work))
 			afs_put_call(call);
-		afs_put_call(call);
+		afs_set_call_complete(call, ret, 0);
 	}
 
 	ac->error = ret;

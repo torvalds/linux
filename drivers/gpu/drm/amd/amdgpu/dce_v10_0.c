@@ -1036,7 +1036,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 					    (u32)mode->clock);
 		line_time = (u32) div_u64((u64)mode->crtc_htotal * 1000000,
 					  (u32)mode->clock);
-		line_time = min(line_time, (u32)65535);
+		line_time = min_t(u32, line_time, 65535);
 
 		/* watermark for high clocks */
 		if (adev->pm.dpm_enabled) {
@@ -1066,7 +1066,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 		wm_high.num_heads = num_heads;
 
 		/* set for high clocks */
-		latency_watermark_a = min(dce_v10_0_latency_watermark(&wm_high), (u32)65535);
+		latency_watermark_a = min_t(u32, dce_v10_0_latency_watermark(&wm_high), 65535);
 
 		/* possibly force display priority to high */
 		/* should really do this at mode validation time... */
@@ -1105,7 +1105,7 @@ static void dce_v10_0_program_watermarks(struct amdgpu_device *adev,
 		wm_low.num_heads = num_heads;
 
 		/* set for low clocks */
-		latency_watermark_b = min(dce_v10_0_latency_watermark(&wm_low), (u32)65535);
+		latency_watermark_b = min_t(u32, dce_v10_0_latency_watermark(&wm_low), 65535);
 
 		/* possibly force display priority to high */
 		/* should really do this at mode validation time... */

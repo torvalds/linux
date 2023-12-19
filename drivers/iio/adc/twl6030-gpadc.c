@@ -16,9 +16,10 @@
  */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/mfd/twl.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -879,16 +880,13 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct twl6030_gpadc_data *gpadc;
 	const struct twl6030_gpadc_platform_data *pdata;
-	const struct of_device_id *match;
 	struct iio_dev *indio_dev;
 	int irq;
 	int ret;
 
-	match = of_match_device(of_twl6030_match_tbl, dev);
-	if (!match)
+	pdata = device_get_match_data(&pdev->dev);
+	if (!pdata)
 		return -EINVAL;
-
-	pdata = match->data;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*gpadc));
 	if (!indio_dev)
@@ -968,14 +966,12 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	return iio_device_register(indio_dev);
 }
 
-static int twl6030_gpadc_remove(struct platform_device *pdev)
+static void twl6030_gpadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	twl6030_gpadc_disable_irq(TWL6030_GPADC_RT_SW1_EOC_MASK);
 	iio_device_unregister(indio_dev);
-
-	return 0;
 }
 
 static int twl6030_gpadc_suspend(struct device *pdev)
@@ -1007,7 +1003,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(twl6030_gpadc_pm_ops, twl6030_gpadc_suspend,
 
 static struct platform_driver twl6030_gpadc_driver = {
 	.probe		= twl6030_gpadc_probe,
-	.remove		= twl6030_gpadc_remove,
+	.remove_new	= twl6030_gpadc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&twl6030_gpadc_pm_ops),

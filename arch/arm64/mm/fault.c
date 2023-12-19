@@ -571,7 +571,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		/* Write implies read */
 		vm_flags |= VM_WRITE;
 		/* If EPAN is absent then exec implies read */
-		if (!cpus_have_const_cap(ARM64_HAS_EPAN))
+		if (!alternative_has_cap_unlikely(ARM64_HAS_EPAN))
 			vm_flags |= VM_EXEC;
 	}
 

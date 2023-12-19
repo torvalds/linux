@@ -459,7 +459,7 @@ void amdgpu_bo_free_kernel(struct amdgpu_bo **bo, u64 *gpu_addr,
 		*cpu_addr = NULL;
 }
 
-/* Validate bo size is bit bigger then the request domain */
+/* Validate bo size is bit bigger than the request domain */
 static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 					  unsigned long size, u32 domain)
 {
@@ -469,29 +469,24 @@ static bool amdgpu_bo_validate_size(struct amdgpu_device *adev,
 	 * If GTT is part of requested domains the check must succeed to
 	 * allow fall back to GTT.
 	 */
-	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
+	if (domain & AMDGPU_GEM_DOMAIN_GTT)
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
-
-		if (man && size < man->size)
-			return true;
-		else if (!man)
-			WARN_ON_ONCE("GTT domain requested but GTT mem manager uninitialized");
-		goto fail;
-	} else if (domain & AMDGPU_GEM_DOMAIN_VRAM) {
+	else if (domain & AMDGPU_GEM_DOMAIN_VRAM)
 		man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
+	else
+		return true;
 
-		if (man && size < man->size)
-			return true;
-		goto fail;
+	if (!man) {
+		if (domain & AMDGPU_GEM_DOMAIN_GTT)
+			WARN_ON_ONCE("GTT domain requested but GTT mem manager uninitialized");
+		return false;
 	}
 
 	/* TODO add more domains checks, such as AMDGPU_GEM_DOMAIN_CPU, _DOMAIN_DOORBELL */
-	return true;
+	if (size < man->size)
+		return true;
 
-fail:
-	if (man)
-		DRM_DEBUG("BO size %lu > total memory in domain: %llu\n", size,
-			  man->size);
+	DRM_DEBUG("BO size %lu > total memory in domain: %llu\n", size, man->size);
 	return false;
 }
 
@@ -1348,6 +1343,8 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 
 	abo = ttm_to_amdgpu_bo(bo);
 
+	WARN_ON(abo->vm_bo);
+
 	if (abo->kfd_bo)
 		amdgpu_amdkfd_release_notify(abo);
 
@@ -1532,10 +1529,14 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 u64 amdgpu_bo_gpu_offset_no_check(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	uint64_t offset;
+	uint64_t offset = AMDGPU_BO_INVALID_OFFSET;
 
-	offset = (bo->tbo.resource->start << PAGE_SHIFT) +
-		 amdgpu_ttm_domain_start(adev, bo->tbo.resource->mem_type);
+	if (bo->tbo.resource->mem_type == TTM_PL_TT)
+		offset = amdgpu_gmc_agp_addr(&bo->tbo);
+
+	if (offset == AMDGPU_BO_INVALID_OFFSET)
+		offset = (bo->tbo.resource->start << PAGE_SHIFT) +
+			amdgpu_ttm_domain_start(adev, bo->tbo.resource->mem_type);
 
 	return amdgpu_gmc_sign_extend(offset);
 }

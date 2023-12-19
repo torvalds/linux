@@ -273,7 +273,7 @@ static int sst_platform_init_stream(struct snd_pcm_substream *substream)
 {
 	struct sst_runtime_stream *stream =
 			substream->runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int ret_val;
 
 	dev_dbg(rtd->dev, "setting buffer ptr param\n");
@@ -593,7 +593,7 @@ static int sst_soc_trigger(struct snd_soc_component *component,
 	int ret_val = 0, str_id;
 	struct sst_runtime_stream *stream;
 	int status;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	dev_dbg(rtd->dev, "%s called\n", __func__);
 	if (substream->pcm->internal)
@@ -641,7 +641,7 @@ static snd_pcm_uframes_t sst_soc_pointer(struct snd_soc_component *component,
 	struct sst_runtime_stream *stream;
 	int ret_val, status;
 	struct pcm_stream_info *str_info;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	stream = substream->runtime->private_data;
 	status = sst_get_stream_status(stream);
@@ -671,7 +671,7 @@ static snd_pcm_sframes_t sst_soc_delay(struct snd_soc_component *component,
 static int sst_soc_pcm_new(struct snd_soc_component *component,
 			   struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct snd_pcm *pcm = rtd->pcm;
 
 	if (dai->driver->playback.channels_min ||
@@ -762,7 +762,7 @@ static int sst_soc_prepare(struct device *dev)
 
 	/* set the SSPs to idle */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
+		struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 		if (snd_soc_dai_active(dai)) {
 			send_ssp_cmd(dai, dai->name, 0);
@@ -783,7 +783,7 @@ static void sst_soc_complete(struct device *dev)
 
 	/* restart SSPs */
 	for_each_card_rtds(drv->soc_card, rtd) {
-		struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
+		struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 
 		if (snd_soc_dai_active(dai)) {
 			sst_handle_vb_timer(dai, true);

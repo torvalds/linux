@@ -134,7 +134,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 	 * hence this needs to be included regardless of socket family.
 	 */
 	if (ext & (1 << (INET_DIAG_TOS - 1)))
-		if (nla_put_u8(skb, INET_DIAG_TOS, inet->tos) < 0)
+		if (nla_put_u8(skb, INET_DIAG_TOS, READ_ONCE(inet->tos)) < 0)
 			goto errout;
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -165,7 +165,7 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		 * For cgroup2 classid is always zero.
 		 */
 		if (!classid)
-			classid = sk->sk_priority;
+			classid = READ_ONCE(sk->sk_priority);
 
 		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
 			goto errout;
@@ -1481,5 +1481,6 @@ static void __exit inet_diag_exit(void)
 module_init(inet_diag_init);
 module_exit(inet_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("INET/INET6: socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2 /* AF_INET */);
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 10 /* AF_INET6 */);

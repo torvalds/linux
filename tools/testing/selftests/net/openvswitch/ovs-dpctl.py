@@ -28,8 +28,10 @@ try:
     from pyroute2.netlink import nlmsg_atoms
     from pyroute2.netlink.exceptions import NetlinkError
     from pyroute2.netlink.generic import GenericNetlinkSocket
+    import pyroute2
+
 except ModuleNotFoundError:
-    print("Need to install the python pyroute2 package.")
+    print("Need to install the python pyroute2 package >= 0.6.")
     sys.exit(0)
 
 
@@ -1117,12 +1119,14 @@ class ovskey(nla):
                 "src",
                 lambda x: str(ipaddress.IPv4Address(x)),
                 int,
+                convert_ipv4,
             ),
             (
                 "dst",
                 "dst",
-                lambda x: str(ipaddress.IPv6Address(x)),
+                lambda x: str(ipaddress.IPv4Address(x)),
                 int,
+                convert_ipv4,
             ),
             ("tp_src", "tp_src", "%d", int),
             ("tp_dst", "tp_dst", "%d", int),
@@ -1904,6 +1908,32 @@ class OvsFlow(GenericNetlinkSocket):
             raise ne
         return reply
 
+    def del_flows(self, dpifindex):
+        """
+        Send a del message to the kernel that will drop all flows.
+
+        dpifindex should be a valid datapath obtained by calling
+        into the OvsDatapath lookup
+        """
+
+        flowmsg = OvsFlow.ovs_flow_msg()
+        flowmsg["cmd"] = OVS_FLOW_CMD_DEL
+        flowmsg["version"] = OVS_DATAPATH_VERSION
+        flowmsg["reserved"] = 0
+        flowmsg["dpifindex"] = dpifindex
+
+        try:
+            reply = self.nlm_request(
+                flowmsg,
+                msg_type=self.prid,
+                msg_flags=NLM_F_REQUEST | NLM_F_ACK,
+            )
+            reply = reply[0]
+        except NetlinkError as ne:
+            print(flowmsg)
+            raise ne
+        return reply
+
     def dump(self, dpifindex, flowspec=None):
         """
         Returns a list of messages containing flows.
@@ -1998,6 +2028,12 @@ def main(argv):
     nlmsg_atoms.ovskey = ovskey
     nlmsg_atoms.ovsactions = ovsactions
 
+    # version check for pyroute2
+    prverscheck = pyroute2.__version__.split(".")
+    if int(prverscheck[0]) == 0 and int(prverscheck[1]) < 6:
+        print("Need to upgrade the python pyroute2 package to >= 0.6.")
+        sys.exit(0)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-v",
@@ -2059,6 +2095,9 @@ def main(argv):
     addflcmd.add_argument("flbr", help="Datapath name")
     addflcmd.add_argument("flow", help="Flow specification")
     addflcmd.add_argument("acts", help="Flow actions")
+
+    delfscmd = subparsers.add_parser("del-flows")
+    delfscmd.add_argument("flsbr", help="Datapath name")
 
     args = parser.parse_args()
 
@@ -2143,6 +2182,11 @@ def main(argv):
         flow = OvsFlow.ovs_flow_msg()
         flow.parse(args.flow, args.acts, rep["dpifindex"])
         ovsflow.add_flow(rep["dpifindex"], flow)
+    elif hasattr(args, "flsbr"):
+        rep = ovsdp.info(args.flsbr, 0)
+        if rep is None:
+            print("DP '%s' not found." % args.flsbr)
+        ovsflow.del_flows(rep["dpifindex"])
 
     return 0
 

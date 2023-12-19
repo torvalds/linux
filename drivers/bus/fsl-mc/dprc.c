@@ -450,10 +450,8 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 	obj_desc->ver_major = le16_to_cpu(rsp_params->version_major);
 	obj_desc->ver_minor = le16_to_cpu(rsp_params->version_minor);
 	obj_desc->flags = le16_to_cpu(rsp_params->flags);
-	strncpy(obj_desc->type, rsp_params->type, 16);
-	obj_desc->type[15] = '\0';
-	strncpy(obj_desc->label, rsp_params->label, 16);
-	obj_desc->label[15] = '\0';
+	strscpy_pad(obj_desc->type, rsp_params->type, 16);
+	strscpy_pad(obj_desc->label, rsp_params->label, 16);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dprc_get_obj);
@@ -491,8 +489,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 	cmd_params->irq_addr = cpu_to_le64(irq_cfg->paddr);
 	cmd_params->irq_num = cpu_to_le32(irq_cfg->irq_num);
 	cmd_params->obj_id = cpu_to_le32(obj_id);
-	strncpy(cmd_params->obj_type, obj_type, 16);
-	cmd_params->obj_type[15] = '\0';
+	strscpy_pad(cmd_params->obj_type, obj_type, 16);
 
 	/* send command to mc*/
 	return mc_send_command(mc_io, &cmd);
@@ -564,8 +561,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 	cmd_params = (struct dprc_cmd_get_obj_region *)cmd.params;
 	cmd_params->obj_id = cpu_to_le32(obj_id);
 	cmd_params->region_index = region_index;
-	strncpy(cmd_params->obj_type, obj_type, 16);
-	cmd_params->obj_type[15] = '\0';
+	strscpy_pad(cmd_params->obj_type, obj_type, 16);
 
 	/* send command to mc*/
 	err = mc_send_command(mc_io, &cmd);

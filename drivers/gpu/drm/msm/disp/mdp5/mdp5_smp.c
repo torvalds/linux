@@ -379,7 +379,7 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 {
 	struct mdp5_smp_state *state;
 	struct mdp5_global_state *global_state;
-	struct mdp5_smp *smp = NULL;
+	struct mdp5_smp *smp;
 	int ret;
 
 	smp = kzalloc(sizeof(*smp), GFP_KERNEL);

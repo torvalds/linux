@@ -67,6 +67,36 @@
 		};
 	};
 
+	cam_vana_front_vreg: cam-vana-front-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_vana_front_vreg";
+		gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&chat_cam_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam_vana_rear_vreg: cam-vana-rear-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_vana_rear_vreg";
+		gpio = <&tlmm 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&main_cam_pwr_en>;
+		pinctrl-names = "default";
+	};
+
+	cam_vio_vreg: cam-vio-reagulator {
+		compatible = "regulator-fixed";
+		regulator-name = "cam_vio_vreg";
+		gpio = <&pmi8998_gpios 12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&cam_io_en>;
+		pinctrl-names = "default";
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -524,7 +554,41 @@
 	status = "okay";
 };
 
+&pm8005_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "NC",
+			  "",
+			  "";
+};
+
 &pm8998_gpios {
+	gpio-line-names = "NC", /* GPIO_1 */
+			  "FOCUS_N",
+			  "",
+			  "NC",
+			  "VOL_DOWN_N",
+			  "VOL_UP_N",
+			  "SNAPSHOT_N",
+			  "NC",
+			  "FLASH_THERM",
+			  "NC", /* GPIO_10 */
+			  "LCD_ID",
+			  "RF_ID",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "NC",
+			  "", /* GPIO_20 */
+			  "NFC_CLK_REQ",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "";
+
 	focus_n: focus-n-state {
 		pins = "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -555,6 +619,17 @@
 		power-source = <0>;
 		bias-pull-up;
 		input-enable;
+	};
+};
+
+&pmi8998_gpios {
+	cam_io_en: cam-io-en-state {
+		pins = "gpio12";
+		function = "normal";
+		qcom,drive-strength = <3>;
+		power-source = <0>;
+		drive-push-pull;
+		output-low;
 	};
 };
 
@@ -626,11 +701,27 @@
 		bias-pull-down;
 	};
 
+	chat_cam_pwr_en: chat-cam-pwr-en-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
+	};
+
 	sde_te_active_sleep: sde-te-active-sleep-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
+	};
+
+	main_cam_pwr_en: main-cam-pwr-en-state {
+		pins = "gpio27";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+		output-low;
 	};
 
 	ts_default: ts-default-state {

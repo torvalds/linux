@@ -674,7 +674,7 @@ free_priv:
 	return result;
 }
 
-static int int3400_thermal_remove(struct platform_device *pdev)
+static void int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
 
@@ -698,7 +698,6 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 	kfree(priv->trts);
 	kfree(priv->arts);
 	kfree(priv);
-	return 0;
 }
 
 static const struct acpi_device_id int3400_thermal_match[] = {
@@ -714,7 +713,7 @@ MODULE_DEVICE_TABLE(acpi, int3400_thermal_match);
 
 static struct platform_driver int3400_thermal_driver = {
 	.probe = int3400_thermal_probe,
-	.remove = int3400_thermal_remove,
+	.remove_new = int3400_thermal_remove,
 	.driver = {
 		   .name = "int3400 thermal",
 		   .acpi_match_table = ACPI_PTR(int3400_thermal_match),

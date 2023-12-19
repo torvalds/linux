@@ -1246,7 +1246,7 @@ err_tasklet_kill:
 	return err;
 }
 
-static int atmel_tdes_remove(struct platform_device *pdev)
+static void atmel_tdes_remove(struct platform_device *pdev)
 {
 	struct atmel_tdes_dev *tdes_dd = platform_get_drvdata(pdev);
 
@@ -1263,13 +1263,11 @@ static int atmel_tdes_remove(struct platform_device *pdev)
 		atmel_tdes_dma_cleanup(tdes_dd);
 
 	atmel_tdes_buff_cleanup(tdes_dd);
-
-	return 0;
 }
 
 static struct platform_driver atmel_tdes_driver = {
 	.probe		= atmel_tdes_probe,
-	.remove		= atmel_tdes_remove,
+	.remove_new	= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
 		.of_match_table = atmel_tdes_dt_ids,

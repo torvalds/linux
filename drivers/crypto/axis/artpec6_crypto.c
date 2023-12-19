@@ -2635,7 +2635,6 @@ static struct ahash_alg hash_algos[] = {
 				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = SHA1_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct artpec6_hashalg_context),
-			.cra_alignmask = 3,
 			.cra_module = THIS_MODULE,
 			.cra_init = artpec6_crypto_ahash_init,
 			.cra_exit = artpec6_crypto_ahash_exit,
@@ -2659,7 +2658,6 @@ static struct ahash_alg hash_algos[] = {
 				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = SHA256_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct artpec6_hashalg_context),
-			.cra_alignmask = 3,
 			.cra_module = THIS_MODULE,
 			.cra_init = artpec6_crypto_ahash_init,
 			.cra_exit = artpec6_crypto_ahash_exit,
@@ -2684,7 +2682,6 @@ static struct ahash_alg hash_algos[] = {
 				     CRYPTO_ALG_ALLOCATES_MEMORY,
 			.cra_blocksize = SHA256_BLOCK_SIZE,
 			.cra_ctxsize = sizeof(struct artpec6_hashalg_context),
-			.cra_alignmask = 3,
 			.cra_module = THIS_MODULE,
 			.cra_init = artpec6_crypto_ahash_init_hmac_sha256,
 			.cra_exit = artpec6_crypto_ahash_exit,
@@ -2957,7 +2954,7 @@ free_cache:
 	return err;
 }
 
-static int artpec6_crypto_remove(struct platform_device *pdev)
+static void artpec6_crypto_remove(struct platform_device *pdev)
 {
 	struct artpec6_crypto *ac = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);
@@ -2977,12 +2974,11 @@ static int artpec6_crypto_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	artpec6_crypto_free_debugfs();
 #endif
-	return 0;
 }
 
 static struct platform_driver artpec6_crypto_driver = {
 	.probe   = artpec6_crypto_probe,
-	.remove  = artpec6_crypto_remove,
+	.remove_new = artpec6_crypto_remove,
 	.driver  = {
 		.name  = "artpec6-crypto",
 		.of_match_table = artpec6_crypto_of_match,

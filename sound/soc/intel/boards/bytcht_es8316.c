@@ -157,7 +157,7 @@ static struct snd_soc_jack_pin byt_cht_es8316_jack_pins[] = {
 
 static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_component *codec = asoc_rtd_to_codec(runtime, 0)->component;
+	struct snd_soc_component *codec = snd_soc_rtd_to_codec(runtime, 0)->component;
 	struct snd_soc_card *card = runtime->card;
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
@@ -212,7 +212,7 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		dev_err(card->dev, "unable to enable MCLK\n");
 
-	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_codec(runtime, 0), 0, 19200000,
+	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(runtime, 0), 0, 19200000,
 				     SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		dev_err(card->dev, "can't set codec clock %d\n", ret);
@@ -262,7 +262,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
 	 * dai_set_tdm_slot() since there is no other API exposed
 	 */
-	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
+	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
 				SND_SOC_DAIFMT_NB_NF   |
 				SND_SOC_DAIFMT_BP_FP
@@ -272,7 +272,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, bits);
+	ret = snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, bits);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
 		return ret;

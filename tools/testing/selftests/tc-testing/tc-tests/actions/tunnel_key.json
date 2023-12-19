@@ -6,6 +6,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -30,6 +33,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -59,6 +65,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -88,6 +97,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -117,6 +129,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -146,6 +161,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -175,6 +193,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -204,6 +225,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -228,6 +252,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -252,6 +279,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -281,6 +311,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -305,6 +338,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -334,6 +370,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -358,6 +397,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -387,6 +429,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -411,6 +456,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -435,6 +483,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -459,6 +510,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -488,6 +542,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -517,6 +574,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -541,6 +601,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -565,6 +628,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -594,6 +660,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -618,6 +687,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -642,6 +714,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -666,6 +741,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -690,6 +768,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -714,6 +795,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -738,6 +822,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -762,6 +849,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -786,6 +876,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -811,6 +904,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -836,6 +932,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -864,6 +963,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -892,6 +994,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -917,6 +1022,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -941,6 +1049,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -966,6 +1077,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action tunnel_key",
@@ -991,6 +1105,9 @@
             "actions",
             "tunnel_key"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "dependsOn": "$TC actions add action tunnel_key help 2>&1 | grep -q nofrag",
         "setup": [
             [

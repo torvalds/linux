@@ -33,7 +33,6 @@
 #include "link_dpms.h"
 #include "accessories/link_dp_cts.h"
 #include "accessories/link_dp_trace.h"
-#include "accessories/link_fpga.h"
 #include "protocols/link_ddc.h"
 #include "protocols/link_dp_capability.h"
 #include "protocols/link_dp_dpia_bw.h"
@@ -46,6 +45,8 @@
 #include "gpio_service_interface.h"
 #include "atomfirmware.h"
 
+#define DC_LOGGER \
+	dc_ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #define LINK_INFO(...) \
@@ -223,6 +224,7 @@ static void construct_link_service_edp_panel_control(struct link_service *link_s
 	link_srv->edp_receiver_ready_T9 = edp_receiver_ready_T9;
 	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
 	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
+	link_srv->edp_set_panel_power = edp_set_panel_power;
 }
 
 /* link dp cts implements dp compliance test automation protocols and manual
@@ -790,6 +792,10 @@ static bool construct_dpia(struct dc_link *link,
 
 	/* Set dpia port index : 0 to number of dpia ports */
 	link->ddc_hw_inst = init_params->connector_index;
+
+	// Assign Dpia preferred eng_id
+	if (link->dc->res_pool->funcs->get_preferred_eng_id_dpia)
+		link->dpia_preferred_eng_id = link->dc->res_pool->funcs->get_preferred_eng_id_dpia(link->ddc_hw_inst);
 
 	/* TODO: Create link encoder */
 

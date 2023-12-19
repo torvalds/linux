@@ -61,7 +61,7 @@ struct mtd_info *lpddr_cmdset(struct map_info *map)
 		mtd->_point = lpddr_point;
 		mtd->_unpoint = lpddr_unpoint;
 	}
-	mtd->size = 1 << lpddr->qinfo->DevSizeShift;
+	mtd->size = 1ULL << lpddr->qinfo->DevSizeShift;
 	mtd->erasesize = 1 << lpddr->qinfo->UniformBlockSizeShift;
 	mtd->writesize = 1 << lpddr->qinfo->BufSizeShift;
 

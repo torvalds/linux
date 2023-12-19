@@ -23,17 +23,19 @@
 #define DRIVER_DATE "20230117"
 
 #define PCI_DEVICE_ID_MTL   0x7d1d
+#define PCI_DEVICE_ID_ARL   0xad1d
 #define PCI_DEVICE_ID_LNL   0x643e
 
 #define IVPU_HW_37XX	37
 #define IVPU_HW_40XX	40
 
-#define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
-/* SSID 1 is used by the VPU to represent invalid context */
-#define IVPU_USER_CONTEXT_MIN_SSID   2
-#define IVPU_USER_CONTEXT_MAX_SSID   (IVPU_USER_CONTEXT_MIN_SSID + 63)
+#define IVPU_GLOBAL_CONTEXT_MMU_SSID   0
+/* SSID 1 is used by the VPU to represent reserved context */
+#define IVPU_RESERVED_CONTEXT_MMU_SSID 1
+#define IVPU_USER_CONTEXT_MIN_SSID     2
+#define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
 
-#define IVPU_NUM_ENGINES	     2
+#define IVPU_NUM_ENGINES 2
 
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
@@ -75,6 +77,11 @@
 
 #define IVPU_WA(wa_name) (vdev->wa.wa_name)
 
+#define IVPU_PRINT_WA(wa_name) do {					\
+	if (IVPU_WA(wa_name))						\
+		ivpu_dbg(vdev, MISC, "Using WA: " #wa_name "\n");	\
+} while (0)
+
 struct ivpu_wa_table {
 	bool punit_disabled;
 	bool clear_runtime_mem;
@@ -104,6 +111,7 @@ struct ivpu_device {
 	struct ivpu_pm_info *pm;
 
 	struct ivpu_mmu_context gctx;
+	struct ivpu_mmu_context rctx;
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
@@ -117,6 +125,7 @@ struct ivpu_device {
 		int jsm;
 		int tdr;
 		int reschedule_suspend;
+		int autosuspend;
 	} timeout;
 };
 
@@ -150,6 +159,7 @@ void ivpu_file_priv_put(struct ivpu_file_priv **link);
 
 int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
+void ivpu_prepare_for_reset(struct ivpu_device *vdev);
 
 static inline u8 ivpu_revision(struct ivpu_device *vdev)
 {
@@ -165,6 +175,7 @@ static inline int ivpu_hw_gen(struct ivpu_device *vdev)
 {
 	switch (ivpu_device_id(vdev)) {
 	case PCI_DEVICE_ID_MTL:
+	case PCI_DEVICE_ID_ARL:
 		return IVPU_HW_37XX;
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_40XX;

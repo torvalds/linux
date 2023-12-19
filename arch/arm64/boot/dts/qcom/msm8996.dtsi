@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/interconnect/qcom,msm8996.h>
 #include <dt-bindings/interconnect/qcom,msm8996-cbf.h>
+#include <dt-bindings/firmware/qcom,scm.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/soc/qcom,apr.h>
@@ -538,7 +539,7 @@
 			no-map;
 
 			qcom,client-id = <1>;
-			qcom,vmid = <15>;
+			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>;
 		};
 
 		mpss_mem: mpss@88800000 {

@@ -570,7 +570,8 @@ static bool amdgpu_fence_need_ring_interrupt_restore(struct amdgpu_ring *ring)
 	switch (ring->funcs->type) {
 	case AMDGPU_RING_TYPE_SDMA:
 	/* SDMA 5.x+ is part of GFX power domain so it's covered by GFXOFF */
-		if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(5, 0, 0))
+		if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) >=
+		    IP_VERSION(5, 0, 0))
 			is_gfx_power_domain = true;
 		break;
 	case AMDGPU_RING_TYPE_GFX:

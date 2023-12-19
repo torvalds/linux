@@ -159,15 +159,17 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 	struct camss *camss = csid->camss;
 	struct device *dev = camss->dev;
 	struct vfe_device *vfe = &camss->vfe[csid->id];
-	u32 version = camss->version;
 	int ret = 0;
 
 	if (on) {
-		if (version == CAMSS_8250 || version == CAMSS_845) {
-			ret = vfe_get(vfe);
-			if (ret < 0)
-				return ret;
-		}
+		/*
+		 * From SDM845 onwards, the VFE needs to be powered on before
+		 * switching on the CSID. Do so unconditionally, as there is no
+		 * drawback in following the same powering order on older SoCs.
+		 */
+		ret = vfe_get(vfe);
+		if (ret < 0)
+			return ret;
 
 		ret = pm_runtime_resume_and_get(dev);
 		if (ret < 0)
@@ -217,8 +219,7 @@ static int csid_set_power(struct v4l2_subdev *sd, int on)
 		regulator_bulk_disable(csid->num_supplies,
 				       csid->supplies);
 		pm_runtime_put_sync(dev);
-		if (version == CAMSS_8250 || version == CAMSS_845)
-			vfe_put(vfe);
+		vfe_put(vfe);
 	}
 
 	return ret;
@@ -307,7 +308,7 @@ static void csid_try_format(struct csid_device *csid,
 
 		/* If not found, use UYVY as default */
 		if (i >= csid->nformats)
-			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+			fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 		fmt->height = clamp_t(u32, fmt->height, 1, 8191);
@@ -336,7 +337,7 @@ static void csid_try_format(struct csid_device *csid,
 
 			/* If not found, use UYVY as default */
 			if (i >= csid->nformats)
-				fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
+				fmt->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 			fmt->width = clamp_t(u32, fmt->width, 1, 8191);
 			fmt->height = clamp_t(u32, fmt->height, 1, 8191);
@@ -503,7 +504,7 @@ static int csid_init_formats(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		.which = fh ? V4L2_SUBDEV_FORMAT_TRY :
 			      V4L2_SUBDEV_FORMAT_ACTIVE,
 		.format = {
-			.code = MEDIA_BUS_FMT_UYVY8_2X8,
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
 			.width = 1920,
 			.height = 1080
 		}
@@ -566,7 +567,7 @@ static const struct v4l2_ctrl_ops csid_ctrl_ops = {
  * Return 0 on success or a negative error code otherwise
  */
 int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
-			 const struct resources *res, u8 id)
+			 const struct camss_subdev_resources *res, u8 id)
 {
 	struct device *dev = camss->dev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -575,23 +576,13 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 
 	csid->camss = camss;
 	csid->id = id;
+	csid->ops = res->ops;
 
-	if (camss->version == CAMSS_8x16) {
-		csid->ops = &csid_ops_4_1;
-	} else if (camss->version == CAMSS_8x96 ||
-		   camss->version == CAMSS_660) {
-		csid->ops = &csid_ops_4_7;
-	} else if (camss->version == CAMSS_845 ||
-		   camss->version == CAMSS_8250) {
-		csid->ops = &csid_ops_gen2;
-	} else {
-		return -EINVAL;
-	}
 	csid->ops->subdev_init(csid);
 
 	/* Memory */
 
-	if (camss->version == CAMSS_8250) {
+	if (camss->res->version == CAMSS_8250) {
 		/* for titan 480, CSID registers are inside the VFE region,
 		 * between the VFE "top" and "bus" registers. this requires
 		 * VFE to be initialized before CSID

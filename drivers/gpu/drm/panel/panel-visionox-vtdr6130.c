@@ -20,7 +20,6 @@ struct visionox_vtdr6130 {
 	struct mipi_dsi_device *dsi;
 	struct gpio_desc *reset_gpio;
 	struct regulator_bulk_data supplies[3];
-	bool prepared;
 };
 
 static inline struct visionox_vtdr6130 *to_visionox_vtdr6130(struct drm_panel *panel)
@@ -157,9 +156,6 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies),
 				    ctx->supplies);
 	if (ret < 0)
@@ -175,7 +171,6 @@ static int visionox_vtdr6130_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	ctx->prepared = true;
 	return 0;
 }
 
@@ -185,9 +180,6 @@ static int visionox_vtdr6130_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = visionox_vtdr6130_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -196,7 +188,6 @@ static int visionox_vtdr6130_unprepare(struct drm_panel *panel)
 
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 

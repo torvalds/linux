@@ -283,7 +283,6 @@ static struct shash_alg algs[] = {
 			.cra_priority           = 200,
 			.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 			.cra_blocksize          = CHKSUM_BLOCK_SIZE,
-			.cra_alignmask          = 3,
 			.cra_ctxsize            = sizeof(struct stm32_crc_ctx),
 			.cra_module             = THIS_MODULE,
 			.cra_init               = stm32_crc32_cra_init,
@@ -305,7 +304,6 @@ static struct shash_alg algs[] = {
 			.cra_priority           = 200,
 			.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
 			.cra_blocksize          = CHKSUM_BLOCK_SIZE,
-			.cra_alignmask          = 3,
 			.cra_ctxsize            = sizeof(struct stm32_crc_ctx),
 			.cra_module             = THIS_MODULE,
 			.cra_init               = stm32_crc32c_cra_init,
@@ -379,15 +377,10 @@ static int stm32_crc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int stm32_crc_remove(struct platform_device *pdev)
+static void stm32_crc_remove(struct platform_device *pdev)
 {
 	struct stm32_crc *crc = platform_get_drvdata(pdev);
 	int ret = pm_runtime_get_sync(crc->dev);
-
-	if (ret < 0) {
-		pm_runtime_put_noidle(crc->dev);
-		return ret;
-	}
 
 	spin_lock(&crc_list.lock);
 	list_del(&crc->list);
@@ -401,9 +394,9 @@ static int stm32_crc_remove(struct platform_device *pdev)
 	pm_runtime_disable(crc->dev);
 	pm_runtime_put_noidle(crc->dev);
 
-	clk_disable_unprepare(crc->clk);
-
-	return 0;
+	if (ret >= 0)
+		clk_disable(crc->clk);
+	clk_unprepare(crc->clk);
 }
 
 static int __maybe_unused stm32_crc_suspend(struct device *dev)
@@ -472,7 +465,7 @@ MODULE_DEVICE_TABLE(of, stm32_dt_ids);
 
 static struct platform_driver stm32_crc_driver = {
 	.probe  = stm32_crc_probe,
-	.remove = stm32_crc_remove,
+	.remove_new = stm32_crc_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
 		.pm		= &stm32_crc_pm_ops,

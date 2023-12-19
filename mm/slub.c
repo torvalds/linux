@@ -4110,17 +4110,12 @@ static unsigned int slub_min_objects;
  * the smallest order which will fit the object.
  */
 static inline unsigned int calc_slab_order(unsigned int size,
-		unsigned int min_objects, unsigned int max_order,
+		unsigned int min_order, unsigned int max_order,
 		unsigned int fract_leftover)
 {
-	unsigned int min_order = slub_min_order;
 	unsigned int order;
 
-	if (order_objects(min_order, size) > MAX_OBJS_PER_PAGE)
-		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
-
-	for (order = max(min_order, (unsigned int)get_order(min_objects * size));
-			order <= max_order; order++) {
+	for (order = min_order; order <= max_order; order++) {
 
 		unsigned int slab_size = (unsigned int)PAGE_SIZE << order;
 		unsigned int rem;
@@ -4139,16 +4134,8 @@ static inline int calculate_order(unsigned int size)
 	unsigned int order;
 	unsigned int min_objects;
 	unsigned int max_objects;
-	unsigned int nr_cpus;
+	unsigned int min_order;
 
-	/*
-	 * Attempt to find best configuration for a slab. This
-	 * works by first attempting to generate a layout with
-	 * the best configuration and backing off gradually.
-	 *
-	 * First we increase the acceptable waste in a slab. Then
-	 * we reduce the minimum objects required in a slab.
-	 */
 	min_objects = slub_min_objects;
 	if (!min_objects) {
 		/*
@@ -4160,40 +4147,46 @@ static inline int calculate_order(unsigned int size)
 		 * order on systems that appear larger than they are, and too
 		 * low order on systems that appear smaller than they are.
 		 */
-		nr_cpus = num_present_cpus();
+		unsigned int nr_cpus = num_present_cpus();
 		if (nr_cpus <= 1)
 			nr_cpus = nr_cpu_ids;
 		min_objects = 4 * (fls(nr_cpus) + 1);
 	}
-	max_objects = order_objects(slub_max_order, size);
+	/* min_objects can't be 0 because get_order(0) is undefined */
+	max_objects = max(order_objects(slub_max_order, size), 1U);
 	min_objects = min(min_objects, max_objects);
 
-	while (min_objects > 1) {
-		unsigned int fraction;
-
-		fraction = 16;
-		while (fraction >= 4) {
-			order = calc_slab_order(size, min_objects,
-					slub_max_order, fraction);
-			if (order <= slub_max_order)
-				return order;
-			fraction /= 2;
-		}
-		min_objects--;
-	}
+	min_order = max_t(unsigned int, slub_min_order,
+			  get_order(min_objects * size));
+	if (order_objects(min_order, size) > MAX_OBJS_PER_PAGE)
+		return get_order(size * MAX_OBJS_PER_PAGE) - 1;
 
 	/*
-	 * We were unable to place multiple objects in a slab. Now
-	 * lets see if we can place a single object there.
+	 * Attempt to find best configuration for a slab. This works by first
+	 * attempting to generate a layout with the best possible configuration
+	 * and backing off gradually.
+	 *
+	 * We start with accepting at most 1/16 waste and try to find the
+	 * smallest order from min_objects-derived/slub_min_order up to
+	 * slub_max_order that will satisfy the constraint. Note that increasing
+	 * the order can only result in same or less fractional waste, not more.
+	 *
+	 * If that fails, we increase the acceptable fraction of waste and try
+	 * again. The last iteration with fraction of 1/2 would effectively
+	 * accept any waste and give us the order determined by min_objects, as
+	 * long as at least single object fits within slub_max_order.
 	 */
-	order = calc_slab_order(size, 1, slub_max_order, 1);
-	if (order <= slub_max_order)
-		return order;
+	for (unsigned int fraction = 16; fraction > 1; fraction /= 2) {
+		order = calc_slab_order(size, min_order, slub_max_order,
+					fraction);
+		if (order <= slub_max_order)
+			return order;
+	}
 
 	/*
 	 * Doh this slab cannot be placed using slub_max_order.
 	 */
-	order = calc_slab_order(size, 1, MAX_ORDER, 1);
+	order = get_order(size);
 	if (order <= MAX_ORDER)
 		return order;
 	return -ENOSYS;
@@ -4711,6 +4704,9 @@ static int __init setup_slub_min_order(char *str)
 {
 	get_option(&str, (int *)&slub_min_order);
 
+	if (slub_min_order > slub_max_order)
+		slub_max_order = slub_min_order;
+
 	return 1;
 }
 
@@ -4720,6 +4716,9 @@ static int __init setup_slub_max_order(char *str)
 {
 	get_option(&str, (int *)&slub_max_order);
 	slub_max_order = min_t(unsigned int, slub_max_order, MAX_ORDER);
+
+	if (slub_min_order > slub_max_order)
+		slub_min_order = slub_max_order;
 
 	return 1;
 }

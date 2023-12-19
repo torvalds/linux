@@ -1021,10 +1021,8 @@ err_free_intrs:
 	pvrdma_free_irq(dev);
 	pci_free_irq_vectors(pdev);
 err_free_cq_ring:
-	if (dev->netdev) {
-		dev_put(dev->netdev);
-		dev->netdev = NULL;
-	}
+	dev_put(dev->netdev);
+	dev->netdev = NULL;
 	pvrdma_page_dir_cleanup(dev, &dev->cq_pdir);
 err_free_async_ring:
 	pvrdma_page_dir_cleanup(dev, &dev->async_pdir);
@@ -1064,10 +1062,8 @@ static void pvrdma_pci_remove(struct pci_dev *pdev)
 
 	flush_workqueue(event_wq);
 
-	if (dev->netdev) {
-		dev_put(dev->netdev);
-		dev->netdev = NULL;
-	}
+	dev_put(dev->netdev);
+	dev->netdev = NULL;
 
 	/* Unregister ib device */
 	ib_unregister_device(&dev->ib_dev);

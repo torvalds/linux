@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * KVM_GET/SET_* tests
- *
  * Copyright (C) 2022, Red Hat, Inc.
  *
  * Tests for Hyper-V extensions to SVM.

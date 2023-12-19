@@ -24,6 +24,7 @@
 #include <linux/swap.h>
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
+#include <linux/mempolicy.h>
 #include <linux/mempool.h>
 #include <linux/zpool.h>
 #include <crypto/acompress.h>
@@ -61,6 +62,8 @@ static u64 zswap_pool_limit_hit;
 static u64 zswap_written_back_pages;
 /* Store failed due to a reclaim failure after pool limit was reached */
 static u64 zswap_reject_reclaim_fail;
+/* Store failed due to compression algorithm failure */
+static u64 zswap_reject_compress_fail;
 /* Compressed page was too big for the allocator to (optimally) store */
 static u64 zswap_reject_compress_poor;
 /* Store failed because underlying allocator could not get memory */
@@ -1057,6 +1060,7 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 {
 	swp_entry_t swpentry = entry->swpentry;
 	struct page *page;
+	struct mempolicy *mpol;
 	struct scatterlist input, output;
 	struct crypto_acomp_ctx *acomp_ctx;
 	struct zpool *pool = zswap_find_zpool(entry);
@@ -1075,8 +1079,9 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 	}
 
 	/* try to allocate swap cache page */
-	page = __read_swap_cache_async(swpentry, GFP_KERNEL, NULL, 0,
-				       &page_was_allocated);
+	mpol = get_task_policy(current);
+	page = __read_swap_cache_async(swpentry, GFP_KERNEL, mpol,
+				NO_INTERLEAVE_INDEX, &page_was_allocated);
 	if (!page) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1219,6 +1224,19 @@ bool zswap_store(struct folio *folio)
 		return false;
 
 	/*
+	 * If this is a duplicate, it must be removed before attempting to store
+	 * it, otherwise, if the store fails the old page won't be removed from
+	 * the tree, and it might be written back overriding the new data.
+	 */
+	spin_lock(&tree->lock);
+	dupentry = zswap_rb_search(&tree->rbroot, offset);
+	if (dupentry) {
+		zswap_duplicate_entry++;
+		zswap_invalidate_entry(tree, dupentry);
+	}
+	spin_unlock(&tree->lock);
+
+	/*
 	 * XXX: zswap reclaim does not work with cgroups yet. Without a
 	 * cgroup-aware entry LRU, we will push out entries system-wide based on
 	 * local cgroup limits.
@@ -1296,8 +1314,10 @@ bool zswap_store(struct folio *folio)
 	ret = crypto_wait_req(crypto_acomp_compress(acomp_ctx->req), &acomp_ctx->wait);
 	dlen = acomp_ctx->req->dlen;
 
-	if (ret)
+	if (ret) {
+		zswap_reject_compress_fail++;
 		goto put_dstmem;
+	}
 
 	/* store */
 	zpool = zswap_find_zpool(entry);
@@ -1333,7 +1353,14 @@ insert_entry:
 
 	/* map */
 	spin_lock(&tree->lock);
+	/*
+	 * A duplicate entry should have been removed at the beginning of this
+	 * function. Since the swap entry should be pinned, if a duplicate is
+	 * found again here it means that something went wrong in the swap
+	 * cache.
+	 */
 	while (zswap_rb_insert(&tree->rbroot, entry, &dupentry) == -EEXIST) {
+		WARN_ON(1);
 		zswap_duplicate_entry++;
 		zswap_invalidate_entry(tree, dupentry);
 	}
@@ -1363,8 +1390,8 @@ reject:
 
 shrink:
 	pool = zswap_pool_last_get();
-	if (pool)
-		queue_work(shrink_wq, &pool->shrink_work);
+	if (pool && !queue_work(shrink_wq, &pool->shrink_work))
+		zswap_pool_put(pool);
 	goto reject;
 }
 
@@ -1530,6 +1557,8 @@ static int zswap_debugfs_init(void)
 			   zswap_debugfs_root, &zswap_reject_alloc_fail);
 	debugfs_create_u64("reject_kmemcache_fail", 0444,
 			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+	debugfs_create_u64("reject_compress_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_compress_fail);
 	debugfs_create_u64("reject_compress_poor", 0444,
 			   zswap_debugfs_root, &zswap_reject_compress_poor);
 	debugfs_create_u64("written_back_pages", 0444,

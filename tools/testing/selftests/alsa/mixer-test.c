@@ -188,7 +188,7 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 {
 	unsigned short revents;
 	snd_ctl_event_t *event;
-	int count, err;
+	int err;
 	unsigned int mask = 0;
 	unsigned int ev_id;
 
@@ -430,7 +430,6 @@ static bool strend(const char *haystack, const char *needle)
 static void test_ctl_name(struct ctl_data *ctl)
 {
 	bool name_ok = true;
-	bool check;
 
 	ksft_print_msg("%d.%d %s\n", ctl->card->card, ctl->elem,
 		       ctl->name);
@@ -863,7 +862,6 @@ static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
 					 snd_ctl_elem_value_t *val)
 {
 	int err;
-	long val_read;
 
 	/* Ideally this will fail... */
 	err = snd_ctl_elem_write(ctl->card->handle, val);
@@ -883,8 +881,7 @@ static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
 
 static bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
 {
-	int err, i;
-	long val_read;
+	int i;
 	bool fail = false;
 	snd_ctl_elem_value_t *val;
 	snd_ctl_elem_value_alloca(&val);
@@ -994,8 +991,7 @@ static bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
 
 static bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 {
-	int err, i;
-	unsigned int val_read;
+	int i;
 	bool fail = false;
 	snd_ctl_elem_value_t *val;
 	snd_ctl_elem_value_alloca(&val);
@@ -1027,7 +1023,6 @@ static bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 static void test_ctl_write_invalid(struct ctl_data *ctl)
 {
 	bool pass;
-	int err;
 
 	/* If the control is turned off let's be polite */
 	if (snd_ctl_elem_info_is_inactive(ctl->info)) {

@@ -422,7 +422,7 @@ retry:
 /**
  * kvm_vgic_inject_irq - Inject an IRQ from a device to the vgic
  * @kvm:     The VM structure pointer
- * @cpuid:   The CPU for PPIs
+ * @vcpu:    The CPU for PPIs or NULL for global interrupts
  * @intid:   The INTID to inject a new state to.
  * @level:   Edge-triggered:  true:  to trigger the interrupt
  *			      false: to ignore the call
@@ -436,23 +436,21 @@ retry:
  * level-sensitive interrupts.  You can think of the level parameter as 1
  * being HIGH and 0 being LOW and all devices being active-HIGH.
  */
-int kvm_vgic_inject_irq(struct kvm *kvm, int cpuid, unsigned int intid,
-			bool level, void *owner)
+int kvm_vgic_inject_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
+			unsigned int intid, bool level, void *owner)
 {
-	struct kvm_vcpu *vcpu;
 	struct vgic_irq *irq;
 	unsigned long flags;
 	int ret;
-
-	trace_vgic_update_irq_pending(cpuid, intid, level);
 
 	ret = vgic_lazy_init(kvm);
 	if (ret)
 		return ret;
 
-	vcpu = kvm_get_vcpu(kvm, cpuid);
 	if (!vcpu && intid < VGIC_NR_PRIVATE_IRQS)
 		return -EINVAL;
+
+	trace_vgic_update_irq_pending(vcpu ? vcpu->vcpu_idx : 0, intid, level);
 
 	irq = vgic_get_irq(kvm, vcpu, intid);
 	if (!irq)

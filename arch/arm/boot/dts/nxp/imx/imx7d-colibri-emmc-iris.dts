@@ -11,7 +11,6 @@
 	model = "Toradex Colibri iMX7D 1GB on Iris Carrier Board";
 	compatible = "toradex,colibri-imx7d-emmc-iris",
 		     "toradex,colibri-imx7d-emmc",
-		     "toradex,colibri-imx7d",
 		     "fsl,imx7d";
 };
 

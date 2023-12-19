@@ -95,7 +95,6 @@ static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
 
 static int ltc2497_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct ltc2497_chip_info *chip_info;
 	struct iio_dev *indio_dev;
 	struct ltc2497_driverdata *st;
@@ -115,9 +114,7 @@ static int ltc2497_probe(struct i2c_client *client)
 	st->client = client;
 	st->common_ddata.result_and_measure = ltc2497_result_and_measure;
 
-	chip_info = device_get_match_data(dev);
-	if (!chip_info)
-		chip_info = (const struct ltc2497_chip_info *)id->driver_data;
+	chip_info = i2c_get_match_data(client);
 	st->common_ddata.chip_info = chip_info;
 
 	resolution = chip_info->resolution;

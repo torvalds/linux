@@ -86,7 +86,7 @@ properties:
         const: 0
 
     patternProperties:
-      "^port@[0-9]+$":
+      "^port@[12]$":
         type: object
         description: CPSW external ports
 

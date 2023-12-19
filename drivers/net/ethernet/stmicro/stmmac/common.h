@@ -70,7 +70,7 @@ struct stmmac_txq_stats {
 	u64 tx_tso_frames;
 	u64 tx_tso_nfrags;
 	struct u64_stats_sync syncp;
-};
+} ____cacheline_aligned_in_smp;
 
 struct stmmac_rxq_stats {
 	u64 rx_bytes;
@@ -79,7 +79,7 @@ struct stmmac_rxq_stats {
 	u64 rx_normal_irq_n;
 	u64 napi_poll;
 	struct u64_stats_sync syncp;
-};
+} ____cacheline_aligned_in_smp;
 
 /* Extra statistic and debug information exposed by ethtool */
 struct stmmac_extra_stats {
@@ -202,6 +202,9 @@ struct stmmac_extra_stats {
 	unsigned long mtl_est_hlbf;
 	unsigned long mtl_est_btre;
 	unsigned long mtl_est_btrlm;
+	/* per queue statistics */
+	struct stmmac_txq_stats txq_stats[MTL_MAX_TX_QUEUES];
+	struct stmmac_rxq_stats rxq_stats[MTL_MAX_RX_QUEUES];
 	unsigned long rx_dropped;
 	unsigned long rx_errors;
 	unsigned long tx_dropped;
@@ -290,7 +293,7 @@ struct stmmac_safety_stats {
 #define MIN_DMA_RIWT		0x10
 #define DEF_DMA_RIWT		0xa0
 /* Tx coalesce parameters */
-#define STMMAC_COAL_TX_TIMER	1000
+#define STMMAC_COAL_TX_TIMER	5000
 #define STMMAC_MAX_COAL_TX_TICK	100000
 #define STMMAC_TX_MAX_FRAMES	256
 #define STMMAC_TX_FRAMES	25

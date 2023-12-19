@@ -15,8 +15,10 @@
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/of_device.h>
 #include <linux/iopoll.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 /*
@@ -526,7 +528,7 @@ struct cdns_nand_chip {
 	/* ECC strength index. */
 	u8 corr_str_idx;
 
-	u8 cs[];
+	u8 cs[] __counted_by(nsels);
 };
 
 struct ecc_info {
@@ -2995,15 +2997,11 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 	struct cadence_nand_dt *dt;
 	struct cdns_nand_ctrl *cdns_ctrl;
 	int ret;
-	const struct of_device_id *of_id;
 	const struct cadence_nand_dt_devdata *devdata;
 	u32 val;
 
-	of_id = of_match_device(cadence_nand_dt_ids, &ofdev->dev);
-	if (of_id) {
-		ofdev->id_entry = of_id->data;
-		devdata = of_id->data;
-	} else {
+	devdata = device_get_match_data(&ofdev->dev);
+	if (!devdata) {
 		pr_err("Failed to find the right device id.\n");
 		return -ENOMEM;
 	}

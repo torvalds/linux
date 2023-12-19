@@ -164,13 +164,13 @@ static void altera_uart_break_ctl(struct uart_port *port, int break_state)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (break_state == -1)
 		pp->imr |= ALTERA_UART_CONTROL_TRBK_MSK;
 	else
 		pp->imr &= ~ALTERA_UART_CONTROL_TRBK_MSK;
 	altera_uart_update_ctrl_reg(pp);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static void altera_uart_set_termios(struct uart_port *port,
@@ -187,10 +187,10 @@ static void altera_uart_set_termios(struct uart_port *port,
 		tty_termios_copy_hw(termios, old);
 	tty_termios_encode_baud_rate(termios, baud, baud);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	uart_update_timeout(port, termios->c_cflag, baud);
 	altera_uart_writel(port, baudclk, ALTERA_UART_DIVISOR_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	/*
 	 * FIXME: port->read_status_mask and port->ignore_status_mask
@@ -264,12 +264,12 @@ static irqreturn_t altera_uart_interrupt(int irq, void *data)
 
 	isr = altera_uart_readl(port, ALTERA_UART_STATUS_REG) & pp->imr;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (isr & ALTERA_UART_STATUS_RRDY_MSK)
 		altera_uart_rx_chars(port);
 	if (isr & ALTERA_UART_STATUS_TRDY_MSK)
 		altera_uart_tx_chars(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_RETVAL(isr);
 }
@@ -313,13 +313,13 @@ static int altera_uart_startup(struct uart_port *port)
 		}
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Enable RX interrupts now */
 	pp->imr = ALTERA_UART_CONTROL_RRDY_MSK;
 	altera_uart_update_ctrl_reg(pp);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return 0;
 }
@@ -329,13 +329,13 @@ static void altera_uart_shutdown(struct uart_port *port)
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Disable all interrupts now */
 	pp->imr = 0;
 	altera_uart_update_ctrl_reg(pp);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	if (port->irq)
 		free_irq(port->irq, port);

@@ -228,7 +228,6 @@ out:
 static const struct pwm_ops rockchip_pwm_ops = {
 	.get_state = rockchip_pwm_get_state,
 	.apply = rockchip_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct rockchip_pwm_data pwm_data_v1 = {

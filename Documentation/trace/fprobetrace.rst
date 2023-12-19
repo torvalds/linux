@@ -59,8 +59,12 @@ Synopsis of fprobe-events
                   and bitfield are supported.
 
   (\*1) This is available only when BTF is enabled.
-  (\*2) only for the probe on function entry (offs == 0).
-  (\*3) only for return probe.
+  (\*2) only for the probe on function entry (offs == 0). Note, this argument access
+        is best effort, because depending on the argument type, it may be passed on
+        the stack. But this only support the arguments via registers.
+  (\*3) only for return probe. Note that this is also best effort. Depending on the
+        return value type, it might be passed via a pair of registers. But this only
+        accesses one register.
   (\*4) this is useful for fetching a field of data structures.
   (\*5) "u" means user-space dereference.
 

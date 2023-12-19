@@ -185,14 +185,14 @@ static void serial21285_break_ctl(struct uart_port *port, int break_state)
 	unsigned long flags;
 	unsigned int h_lcr;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	h_lcr = *CSR_H_UBRLCR;
 	if (break_state)
 		h_lcr |= H_UBRLCR_BREAK;
 	else
 		h_lcr &= ~H_UBRLCR_BREAK;
 	*CSR_H_UBRLCR = h_lcr;
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int serial21285_startup(struct uart_port *port)
@@ -272,7 +272,7 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (port->fifosize)
 		h_lcr |= H_UBRLCR_FIFO;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/*
 	 * Update the per-port timeout.
@@ -309,7 +309,7 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	*CSR_H_UBRLCR = h_lcr;
 	*CSR_UARTCON = 1;
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *serial21285_type(struct uart_port *port)

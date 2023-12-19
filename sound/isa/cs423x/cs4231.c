@@ -98,13 +98,13 @@ static int snd_cs4231_probe(struct device *dev, unsigned int n)
 	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 
 	if (dma2[n] < 0)
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %d, dma %d",
-			 chip->pcm->name, chip->port, irq[n], dma1[n]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %d, dma %d",
+			  chip->pcm->name, chip->port, irq[n], dma1[n]);
 	else
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %d, dma %d&%d",
-			 chip->pcm->name, chip->port, irq[n], dma1[n], dma2[n]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %d, dma %d&%d",
+			  chip->pcm->name, chip->port, irq[n], dma1[n], dma2[n]);
 
 	error = snd_wss_mixer(chip);
 	if (error < 0)

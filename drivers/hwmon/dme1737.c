@@ -2710,14 +2710,12 @@ exit_remove_files:
 	return err;
 }
 
-static int dme1737_isa_remove(struct platform_device *pdev)
+static void dme1737_isa_remove(struct platform_device *pdev)
 {
 	struct dme1737_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	dme1737_remove_files(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver dme1737_isa_driver = {
@@ -2725,7 +2723,7 @@ static struct platform_driver dme1737_isa_driver = {
 		.name = "dme1737",
 	},
 	.probe = dme1737_isa_probe,
-	.remove = dme1737_isa_remove,
+	.remove_new = dme1737_isa_remove,
 };
 
 /* ---------------------------------------------------------------------

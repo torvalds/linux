@@ -9,6 +9,19 @@
 	compatible = "samsung,gt58", "qcom,msm8916";
 	chassis-type = "tablet";
 
+	reg_5p4v: regulator-5p4v {
+		compatible = "regulator-fixed";
+		regulator-name = "vlcd_5p4v";
+		regulator-min-microvolt = <5400000>;
+		regulator-max-microvolt = <5400000>;
+
+		gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&buckbooster_en_default>;
+		pinctrl-names = "default";
+	};
+
 	reg_vdd_tsp: regulator-vdd-tsp {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_tsp";
@@ -51,7 +64,58 @@
 	};
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	pinctrl-0 = <&mdss_default>;
+	pinctrl-1 = <&mdss_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	panel@0 {
+		compatible = "samsung,lsl080al03", "samsung,s6d7aa0";
+		reg = <0>;
+
+		power-supply = <&reg_5p4v>;
+		vmipi-supply = <&pm8916_l5>;
+		reset-gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
 &tlmm {
+	buckbooster_en_default: buckbooster-en-default-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	mdss_default: mdss-default-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdss_sleep: mdss-sleep-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
 	reg_tsp_en_default: reg-tsp-en-default-state {
 		pins = "gpio73";
 		function = "gpio";

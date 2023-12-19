@@ -15,6 +15,8 @@
 #include <asm/macints.h>
 #include <asm/mac_baboon.h>
 
+#include "mac.h"
+
 int baboon_present;
 static volatile struct baboon *baboon;
 

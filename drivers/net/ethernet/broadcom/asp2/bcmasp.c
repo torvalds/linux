@@ -528,13 +528,16 @@ void bcmasp_netfilt_suspend(struct bcmasp_intf *intf)
 				  ASP_RX_FILTER_BLK_CTRL);
 }
 
-void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
-				   u32 *rule_cnt)
+int bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
+				  u32 *rule_cnt)
 {
 	struct bcmasp_priv *priv = intf->parent;
 	int j = 0, i;
 
 	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		if (j == *rule_cnt)
+			return -EMSGSIZE;
+
 		if (!priv->net_filters[i].claimed ||
 		    priv->net_filters[i].port != intf->port)
 			continue;
@@ -548,6 +551,8 @@ void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 	}
 
 	*rule_cnt = j;
+
+	return 0;
 }
 
 int bcmasp_netfilt_get_active(struct bcmasp_intf *intf)
@@ -1300,6 +1305,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		if (!intf) {
 			dev_err(dev, "Cannot create eth interface %d\n", i);
 			bcmasp_remove_intfs(priv);
+			of_node_put(intf_node);
 			goto of_put_exit;
 		}
 		list_add_tail(&intf->list, &priv->intfs);
@@ -1338,17 +1344,15 @@ of_put_exit:
 	return ret;
 }
 
-static int bcmasp_remove(struct platform_device *pdev)
+static void bcmasp_remove(struct platform_device *pdev)
 {
 	struct bcmasp_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	if (!priv)
-		return 0;
+		return;
 
 	priv->destroy_wol(priv);
 	bcmasp_remove_intfs(priv);
-
-	return 0;
 }
 
 static void bcmasp_shutdown(struct platform_device *pdev)
@@ -1422,7 +1426,7 @@ static SIMPLE_DEV_PM_OPS(bcmasp_pm_ops,
 
 static struct platform_driver bcmasp_driver = {
 	.probe = bcmasp_probe,
-	.remove = bcmasp_remove,
+	.remove_new = bcmasp_remove,
 	.shutdown = bcmasp_shutdown,
 	.driver = {
 		.name = "brcm,asp-v2",

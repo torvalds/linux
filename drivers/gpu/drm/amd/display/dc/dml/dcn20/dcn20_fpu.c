@@ -34,6 +34,8 @@
 #include "link.h"
 #include "dcn20_fpu.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 #ifndef MAX
@@ -948,10 +950,8 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 {
 	int plane_count;
 	int i;
-	unsigned int min_dst_y_next_start_us;
 
 	plane_count = 0;
-	min_dst_y_next_start_us = 0;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (context->res_ctx.pipe_ctx[i].plane_state)
 			plane_count++;
@@ -973,26 +973,15 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 	else if (context->stream_count == 1 &&  context->streams[0]->signal == SIGNAL_TYPE_EDP) {
 		struct dc_link *link = context->streams[0]->sink->link;
 		struct dc_stream_status *stream_status = &context->stream_status[0];
-		struct dc_stream_state *current_stream = context->streams[0];
 		int minmum_z8_residency = dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
 		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
 		bool is_pwrseq0 = link->link_index == 0;
-		bool isFreesyncVideo;
-
-		isFreesyncVideo = current_stream->adjust.v_total_min == current_stream->adjust.v_total_max;
-		isFreesyncVideo = isFreesyncVideo && current_stream->timing.v_total < current_stream->adjust.v_total_min;
-		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			if (context->res_ctx.pipe_ctx[i].stream == current_stream && isFreesyncVideo) {
-				min_dst_y_next_start_us = context->res_ctx.pipe_ctx[i].dlg_regs.min_dst_y_next_start_us;
-				break;
-			}
-		}
 
 		/* Don't support multi-plane configurations */
 		if (stream_status->plane_count > 1)
 			return DCN_ZSTATE_SUPPORT_DISALLOW;
 
-		if (is_pwrseq0 && (context->bw_ctx.dml.vba.StutterPeriod > 5000.0 || min_dst_y_next_start_us > 5000))
+		if (is_pwrseq0 && context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
 			return DCN_ZSTATE_SUPPORT_ALLOW;
 		else if (is_pwrseq0 && link->psr_settings.psr_version == DC_PSR_VERSION_1 && !link->panel_config.psr.disable_psr)
 			return allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
@@ -1310,11 +1299,11 @@ int dcn20_populate_dml_pipes_from_context(struct dc *dc,
 		pipes[pipe_cnt].dout.is_virtual = 0;
 		pipes[pipe_cnt].pipe.dest.vtotal_min = res_ctx->pipe_ctx[i].stream->adjust.v_total_min;
 		pipes[pipe_cnt].pipe.dest.vtotal_max = res_ctx->pipe_ctx[i].stream->adjust.v_total_max;
-		switch (resource_get_num_odm_splits(&res_ctx->pipe_ctx[i])) {
-		case 1:
+		switch (resource_get_odm_slice_count(&res_ctx->pipe_ctx[i])) {
+		case 2:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_2to1;
 			break;
-		case 3:
+		case 4:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_4to1;
 			break;
 		default:
@@ -1923,7 +1912,7 @@ void dcn20_patch_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st
 }
 
 static bool dcn20_validate_bandwidth_internal(struct dc *dc, struct dc_state *context,
-		bool fast_validate)
+		bool fast_validate, display_e2e_pipe_params_st *pipes)
 {
 	bool out = false;
 
@@ -1932,7 +1921,6 @@ static bool dcn20_validate_bandwidth_internal(struct dc *dc, struct dc_state *co
 	int vlevel = 0;
 	int pipe_split_from[MAX_PIPES];
 	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_ATOMIC);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
@@ -1967,16 +1955,14 @@ validate_fail:
 	out = false;
 
 validate_out:
-	kfree(pipes);
 
 	BW_VAL_TRACE_FINISH();
 
 	return out;
 }
 
-bool dcn20_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate)
+bool dcn20_validate_bandwidth_fp(struct dc *dc, struct dc_state *context,
+				 bool fast_validate, display_e2e_pipe_params_st *pipes)
 {
 	bool voltage_supported = false;
 	bool full_pstate_supported = false;
@@ -1995,11 +1981,11 @@ bool dcn20_validate_bandwidth_fp(struct dc *dc,
 	ASSERT(context != dc->current_state);
 
 	if (fast_validate) {
-		return dcn20_validate_bandwidth_internal(dc, context, true);
+		return dcn20_validate_bandwidth_internal(dc, context, true, pipes);
 	}
 
 	// Best case, we support full UCLK switch latency
-	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
+	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false, pipes);
 	full_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 
 	if (context->bw_ctx.dml.soc.dummy_pstate_latency_us == 0 ||
@@ -2011,7 +1997,8 @@ bool dcn20_validate_bandwidth_fp(struct dc *dc,
 	// Fallback: Try to only support G6 temperature read latency
 	context->bw_ctx.dml.soc.dram_clock_change_latency_us = context->bw_ctx.dml.soc.dummy_pstate_latency_us;
 
-	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false);
+	memset(pipes, 0, dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st));
+	voltage_supported = dcn20_validate_bandwidth_internal(dc, context, false, pipes);
 	dummy_pstate_supported = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 
 	if (voltage_supported && (dummy_pstate_supported || !(context->stream_count))) {
@@ -2216,9 +2203,8 @@ static void dcn21_calculate_wm(struct dc *dc, struct dc_state *context,
 						&context->bw_ctx.dml, pipes, pipe_cnt);
 }
 
-bool dcn21_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate)
+bool dcn21_validate_bandwidth_fp(struct dc *dc, struct dc_state *context,
+				 bool fast_validate, display_e2e_pipe_params_st *pipes)
 {
 	bool out = false;
 
@@ -2227,7 +2213,6 @@ bool dcn21_validate_bandwidth_fp(struct dc *dc,
 	int vlevel = 0;
 	int pipe_split_from[MAX_PIPES];
 	int pipe_cnt = 0;
-	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_ATOMIC);
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
@@ -2267,7 +2252,6 @@ validate_fail:
 	out = false;
 
 validate_out:
-	kfree(pipes);
 
 	BW_VAL_TRACE_FINISH();
 

@@ -41,7 +41,7 @@ struct packet_router {
 struct apr_rx_buf {
 	struct list_head node;
 	int len;
-	uint8_t buf[];
+	uint8_t buf[] __counted_by(len);
 };
 
 /**
@@ -171,7 +171,7 @@ static int apr_callback(struct rpmsg_device *rpdev, void *buf,
 		return -EINVAL;
 	}
 
-	abuf = kzalloc(sizeof(*abuf) + len, GFP_ATOMIC);
+	abuf = kzalloc(struct_size(abuf, buf, len), GFP_ATOMIC);
 	if (!abuf)
 		return -ENOMEM;
 

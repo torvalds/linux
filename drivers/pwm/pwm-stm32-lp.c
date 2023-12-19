@@ -189,7 +189,6 @@ static int stm32_pwm_lp_get_state(struct pwm_chip *chip,
 }
 
 static const struct pwm_ops stm32_pwm_lp_ops = {
-	.owner = THIS_MODULE,
 	.apply = stm32_pwm_lp_apply,
 	.get_state = stm32_pwm_lp_get_state,
 };

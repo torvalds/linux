@@ -131,6 +131,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &lpass {
 	status = "okay";
 };
@@ -390,4 +394,8 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3680";
+};
+
+&wcnss_mem {
+	status = "okay";
 };

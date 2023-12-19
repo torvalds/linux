@@ -56,6 +56,14 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv);
 
 bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv);
 
+bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		union dmub_rb_cmd *cmd_list);
+
+bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
+		enum dm_dmub_wait_type wait_type,
+		union dmub_rb_cmd *cmd_list);
+
 bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
 
 bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type);
@@ -89,5 +97,9 @@ void dc_send_update_cursor_info_to_dmu(struct pipe_ctx *pCtx, uint8_t pipe_idx);
 bool dc_dmub_check_min_version(struct dmub_srv *srv);
 
 void dc_dmub_srv_enable_dpia_trace(const struct dc *dc);
+void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index);
 
+bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait);
+void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle);
+void dc_dmub_srv_exit_low_power_state(const struct dc *dc);
 #endif /* _DMUB_DC_SRV_H_ */

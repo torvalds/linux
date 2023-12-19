@@ -443,11 +443,22 @@ static void mei_gsc_pxp_check(struct mei_device *dev)
 	struct mei_me_hw *hw = to_me_hw(dev);
 	u32 fwsts5 = 0;
 
-	if (dev->pxp_mode == MEI_DEV_PXP_DEFAULT)
+	if (!kind_is_gsc(dev) && !kind_is_gscfi(dev))
 		return;
 
 	hw->read_fws(dev, PCI_CFG_HFS_5, &fwsts5);
 	trace_mei_pci_cfg_read(dev->dev, "PCI_CFG_HFS_5", PCI_CFG_HFS_5, fwsts5);
+
+	if ((fwsts5 & GSC_CFG_HFS_5_BOOT_TYPE_MSK) == GSC_CFG_HFS_5_BOOT_TYPE_PXP) {
+		if (dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_DEFAULT)
+			dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_PERFORMED;
+	} else {
+		dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_DEFAULT;
+	}
+
+	if (dev->pxp_mode == MEI_DEV_PXP_DEFAULT)
+		return;
+
 	if ((fwsts5 & GSC_CFG_HFS_5_BOOT_TYPE_MSK) == GSC_CFG_HFS_5_BOOT_TYPE_PXP) {
 		dev_dbg(dev->dev, "pxp mode is ready 0x%08x\n", fwsts5);
 		dev->pxp_mode = MEI_DEV_PXP_READY;
@@ -483,6 +494,43 @@ static int mei_me_hw_ready_wait(struct mei_device *dev)
 }
 
 /**
+ * mei_me_check_fw_reset - check for the firmware reset error and exception conditions
+ *
+ * @dev: mei device
+ */
+static void mei_me_check_fw_reset(struct mei_device *dev)
+{
+	struct mei_fw_status fw_status;
+	char fw_sts_str[MEI_FW_STATUS_STR_SZ] = {0};
+	int ret;
+	u32 fw_pm_event = 0;
+
+	if (!dev->saved_fw_status_flag)
+		goto end;
+
+	if (dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_PERFORMED) {
+		ret = mei_fw_status(dev, &fw_status);
+		if (!ret) {
+			fw_pm_event = fw_status.status[1] & PCI_CFG_HFS_2_PM_EVENT_MASK;
+			if (fw_pm_event != PCI_CFG_HFS_2_PM_CMOFF_TO_CMX_ERROR &&
+			    fw_pm_event != PCI_CFG_HFS_2_PM_CM_RESET_ERROR)
+				goto end;
+		} else {
+			dev_err(dev->dev, "failed to read firmware status: %d\n", ret);
+		}
+	}
+
+	mei_fw_status2str(&dev->saved_fw_status, fw_sts_str, sizeof(fw_sts_str));
+	dev_warn(dev->dev, "unexpected reset: fw_pm_event = 0x%x, dev_state = %u fw status = %s\n",
+		 fw_pm_event, dev->saved_dev_state, fw_sts_str);
+
+end:
+	if (dev->gsc_reset_to_pxp == MEI_DEV_RESET_TO_PXP_PERFORMED)
+		dev->gsc_reset_to_pxp = MEI_DEV_RESET_TO_PXP_DONE;
+	dev->saved_fw_status_flag = false;
+}
+
+/**
  * mei_me_hw_start - hw start routine
  *
  * @dev: mei device
@@ -492,6 +540,8 @@ static int mei_me_hw_start(struct mei_device *dev)
 {
 	int ret = mei_me_hw_ready_wait(dev);
 
+	if (kind_is_gsc(dev) || kind_is_gscfi(dev))
+		mei_me_check_fw_reset(dev);
 	if (ret)
 		return ret;
 	dev_dbg(dev->dev, "hw is ready\n");
@@ -1300,8 +1350,13 @@ irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id)
 
 	/* check if ME wants a reset */
 	if (!mei_hw_is_ready(dev) && dev->dev_state != MEI_DEV_RESETTING) {
-		dev_warn(dev->dev, "FW not ready: resetting: dev_state = %d pxp = %d\n",
-			 dev->dev_state, dev->pxp_mode);
+		if (kind_is_gsc(dev) || kind_is_gscfi(dev)) {
+			dev_dbg(dev->dev, "FW not ready: resetting: dev_state = %d\n",
+				dev->dev_state);
+		} else {
+			dev_warn(dev->dev, "FW not ready: resetting: dev_state = %d\n",
+				 dev->dev_state);
+		}
 		if (dev->dev_state == MEI_DEV_POWERING_DOWN ||
 		    dev->dev_state == MEI_DEV_POWER_DOWN)
 			mei_cl_all_disconnect(dev);
@@ -1379,6 +1434,8 @@ EXPORT_SYMBOL_GPL(mei_me_irq_thread_handler);
 /**
  * mei_me_polling_thread - interrupt register polling thread
  *
+ * @_dev: mei device
+ *
  * The thread monitors the interrupt source register and calls
  * mei_me_irq_thread_handler() to handle the firmware
  * input.
@@ -1387,8 +1444,6 @@ EXPORT_SYMBOL_GPL(mei_me_irq_thread_handler);
  * in case there was an event, in idle case the polling
  * time increases yet again by MEI_POLLING_TIMEOUT_ACTIVE
  * up to MEI_POLLING_TIMEOUT_IDLE.
- *
- * @_dev: mei device
  *
  * Return: always 0
  */
@@ -1468,11 +1523,11 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 /**
  * mei_me_fw_type_nm() - check for nm sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for the Node Manager (NM) Firmware.
  * The NM FW is only signaled in PCI function 0.
  * __Note__: Deprecated by PCH8 and newer.
- *
- * @pdev: pci device
  *
  * Return: true in case of NM firmware
  */
@@ -1494,11 +1549,11 @@ static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 /**
  * mei_me_fw_type_sps_4() - check for sps 4.0 sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for SPS Firmware.
  * The SPS FW is only signaled in the PCI function 0.
  * __Note__: Deprecated by SPS 5.0 and newer.
- *
- * @pdev: pci device
  *
  * Return: true in case of SPS firmware
  */
@@ -1519,10 +1574,10 @@ static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 /**
  * mei_me_fw_type_sps_ign() - check for sps or ign sku
  *
+ * @pdev: pci device
+ *
  * Read ME FW Status register to check for SPS or IGN Firmware.
  * The SPS/IGN FW is only signaled in pci function 0
- *
- * @pdev: pci device
  *
  * Return: true in case of SPS/IGN firmware
  */

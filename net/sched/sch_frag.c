@@ -96,7 +96,7 @@ static int sch_fragment(struct net *net, struct sk_buff *skb,
 		unsigned long orig_dst;
 
 		sch_frag_prepare_frag(skb, xmit);
-		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL, 1,
+		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
 		sch_frag_rt.dst.dev = skb->dev;
 
@@ -112,7 +112,7 @@ static int sch_fragment(struct net *net, struct sk_buff *skb,
 
 		sch_frag_prepare_frag(skb, xmit);
 		memset(&sch_frag_rt, 0, sizeof(sch_frag_rt));
-		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL, 1,
+		dst_init(&sch_frag_rt.dst, &sch_frag_dst_ops, NULL,
 			 DST_OBSOLETE_NONE, DST_NOCOUNT);
 		sch_frag_rt.dst.dev = skb->dev;
 

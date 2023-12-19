@@ -158,6 +158,8 @@ static struct damos *damon_lru_sort_new_scheme(
 			pattern,
 			/* (de)prioritize on LRU-lists */
 			action,
+			/* for each aggregation interval */
+			0,
 			/* under the quota. */
 			&quota,
 			/* (De)activate this according to the watermarks. */
@@ -193,9 +195,7 @@ static int damon_lru_sort_apply_parameters(void)
 	if (err)
 		return err;
 
-	/* aggr_interval / sample_interval is the maximum nr_accesses */
-	hot_thres = damon_lru_sort_mon_attrs.aggr_interval /
-		damon_lru_sort_mon_attrs.sample_interval *
+	hot_thres = damon_max_nr_accesses(&damon_lru_sort_mon_attrs) *
 		hot_thres_access_freq / 1000;
 	scheme = damon_lru_sort_new_hot_scheme(hot_thres);
 	if (!scheme)

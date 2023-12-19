@@ -45,8 +45,9 @@ static void ivpu_jsm_msg_dump(struct ivpu_device *vdev, char *c,
 	u32 *payload = (u32 *)&jsm_msg->payload;
 
 	ivpu_dbg(vdev, JSM,
-		 "%s: vpu:0x%08x (type:0x%x, status:0x%x, id: 0x%x, result: 0x%x, payload:0x%x 0x%x 0x%x 0x%x 0x%x)\n",
-		 c, vpu_addr, jsm_msg->type, jsm_msg->status, jsm_msg->request_id, jsm_msg->result,
+		 "%s: vpu:0x%08x (type:%s, status:0x%x, id: 0x%x, result: 0x%x, payload:0x%x 0x%x 0x%x 0x%x 0x%x)\n",
+		 c, vpu_addr, ivpu_jsm_msg_type_to_str(jsm_msg->type),
+		 jsm_msg->status, jsm_msg->request_id, jsm_msg->result,
 		 payload[0], payload[1], payload[2], payload[3], payload[4]);
 }
 
@@ -79,8 +80,8 @@ ivpu_ipc_tx_prepare(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 
 	tx_buf_vpu_addr = gen_pool_alloc(ipc->mm_tx, sizeof(*tx_buf));
 	if (!tx_buf_vpu_addr) {
-		ivpu_err(vdev, "Failed to reserve IPC buffer, size %ld\n",
-			 sizeof(*tx_buf));
+		ivpu_err_ratelimited(vdev, "Failed to reserve IPC buffer, size %ld\n",
+				     sizeof(*tx_buf));
 		return -ENOMEM;
 	}
 
@@ -93,12 +94,12 @@ ivpu_ipc_tx_prepare(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	jsm_vpu_addr = tx_buf_vpu_addr + offsetof(struct ivpu_ipc_tx_buf, jsm);
 
 	if (tx_buf->ipc.status != IVPU_IPC_HDR_FREE)
-		ivpu_warn(vdev, "IPC message vpu:0x%x not released by firmware\n",
-			  tx_buf_vpu_addr);
+		ivpu_warn_ratelimited(vdev, "IPC message vpu:0x%x not released by firmware\n",
+				      tx_buf_vpu_addr);
 
 	if (tx_buf->jsm.status != VPU_JSM_MSG_FREE)
-		ivpu_warn(vdev, "JSM message vpu:0x%x not released by firmware\n",
-			  jsm_vpu_addr);
+		ivpu_warn_ratelimited(vdev, "JSM message vpu:0x%x not released by firmware\n",
+				      jsm_vpu_addr);
 
 	memset(tx_buf, 0, sizeof(*tx_buf));
 	tx_buf->ipc.data_addr = jsm_vpu_addr;
@@ -209,19 +210,16 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	struct ivpu_ipc_rx_msg *rx_msg;
 	int wait_ret, ret = 0;
 
-	wait_ret = wait_event_interruptible_timeout(cons->rx_msg_wq,
-						    (IS_KTHREAD() && kthread_should_stop()) ||
-						    !list_empty(&cons->rx_msg_list),
-						    msecs_to_jiffies(timeout_ms));
+	wait_ret = wait_event_timeout(cons->rx_msg_wq,
+				      (IS_KTHREAD() && kthread_should_stop()) ||
+				      !list_empty(&cons->rx_msg_list),
+				      msecs_to_jiffies(timeout_ms));
 
 	if (IS_KTHREAD() && kthread_should_stop())
 		return -EINTR;
 
 	if (wait_ret == 0)
 		return -ETIMEDOUT;
-
-	if (wait_ret < 0)
-		return -ERESTARTSYS;
 
 	spin_lock_irq(&cons->rx_msg_lock);
 	rx_msg = list_first_entry_or_null(&cons->rx_msg_list, struct ivpu_ipc_rx_msg, link);
@@ -266,18 +264,19 @@ ivpu_ipc_send_receive_internal(struct ivpu_device *vdev, struct vpu_jsm_msg *req
 
 	ret = ivpu_ipc_send(vdev, &cons, req);
 	if (ret) {
-		ivpu_warn(vdev, "IPC send failed: %d\n", ret);
+		ivpu_warn_ratelimited(vdev, "IPC send failed: %d\n", ret);
 		goto consumer_del;
 	}
 
 	ret = ivpu_ipc_receive(vdev, &cons, NULL, resp, timeout_ms);
 	if (ret) {
-		ivpu_warn(vdev, "IPC receive failed: type 0x%x, ret %d\n", req->type, ret);
+		ivpu_warn_ratelimited(vdev, "IPC receive failed: type %s, ret %d\n",
+				      ivpu_jsm_msg_type_to_str(req->type), ret);
 		goto consumer_del;
 	}
 
 	if (resp->type != expected_resp_type) {
-		ivpu_warn(vdev, "Invalid JSM response type: 0x%x\n", resp->type);
+		ivpu_warn_ratelimited(vdev, "Invalid JSM response type: 0x%x\n", resp->type);
 		ret = -EBADE;
 	}
 
@@ -375,13 +374,13 @@ int ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 	while (ivpu_hw_reg_ipc_rx_count_get(vdev)) {
 		vpu_addr = ivpu_hw_reg_ipc_rx_addr_get(vdev);
 		if (vpu_addr == REG_IO_ERROR) {
-			ivpu_err(vdev, "Failed to read IPC rx addr register\n");
+			ivpu_err_ratelimited(vdev, "Failed to read IPC rx addr register\n");
 			return -EIO;
 		}
 
 		ipc_hdr = ivpu_to_cpu_addr(ipc->mem_rx, vpu_addr);
 		if (!ipc_hdr) {
-			ivpu_warn(vdev, "IPC msg 0x%x out of range\n", vpu_addr);
+			ivpu_warn_ratelimited(vdev, "IPC msg 0x%x out of range\n", vpu_addr);
 			continue;
 		}
 		ivpu_ipc_msg_dump(vdev, "RX", ipc_hdr, vpu_addr);
@@ -390,7 +389,8 @@ int ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 		if (ipc_hdr->channel != IVPU_IPC_CHAN_BOOT_MSG) {
 			jsm_msg = ivpu_to_cpu_addr(ipc->mem_rx, ipc_hdr->data_addr);
 			if (!jsm_msg) {
-				ivpu_warn(vdev, "JSM msg 0x%x out of range\n", ipc_hdr->data_addr);
+				ivpu_warn_ratelimited(vdev, "JSM msg 0x%x out of range\n",
+						      ipc_hdr->data_addr);
 				ivpu_ipc_rx_mark_free(vdev, ipc_hdr, NULL);
 				continue;
 			}
@@ -398,7 +398,8 @@ int ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 		}
 
 		if (atomic_read(&ipc->rx_msg_count) > IPC_MAX_RX_MSG) {
-			ivpu_warn(vdev, "IPC RX msg dropped, msg count %d\n", IPC_MAX_RX_MSG);
+			ivpu_warn_ratelimited(vdev, "IPC RX msg dropped, msg count %d\n",
+					      IPC_MAX_RX_MSG);
 			ivpu_ipc_rx_mark_free(vdev, ipc_hdr, jsm_msg);
 			continue;
 		}
@@ -426,15 +427,20 @@ int ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 int ivpu_ipc_init(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
-	int ret = -ENOMEM;
+	int ret;
 
 	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
-	if (!ipc->mem_tx)
-		return ret;
+	if (!ipc->mem_tx) {
+		ivpu_err(vdev, "Failed to allocate mem_tx\n");
+		return -ENOMEM;
+	}
 
 	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
-	if (!ipc->mem_rx)
+	if (!ipc->mem_rx) {
+		ivpu_err(vdev, "Failed to allocate mem_rx\n");
+		ret = -ENOMEM;
 		goto err_free_tx;
+	}
 
 	ipc->mm_tx = devm_gen_pool_create(vdev->drm.dev, __ffs(IVPU_IPC_ALIGNMENT),
 					  -1, "TX_IPC_JSM");
@@ -444,7 +450,7 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 		goto err_free_rx;
 	}
 
-	ret = gen_pool_add(ipc->mm_tx, ipc->mem_tx->vpu_addr, ipc->mem_tx->base.size, -1);
+	ret = gen_pool_add(ipc->mm_tx, ipc->mem_tx->vpu_addr, ivpu_bo_size(ipc->mem_tx), -1);
 	if (ret) {
 		ivpu_err(vdev, "gen_pool_add failed, ret %d\n", ret);
 		goto err_free_rx;
@@ -500,8 +506,8 @@ void ivpu_ipc_reset(struct ivpu_device *vdev)
 
 	mutex_lock(&ipc->lock);
 
-	memset(ipc->mem_tx->kvaddr, 0, ipc->mem_tx->base.size);
-	memset(ipc->mem_rx->kvaddr, 0, ipc->mem_rx->base.size);
+	memset(ivpu_bo_vaddr(ipc->mem_tx), 0, ivpu_bo_size(ipc->mem_tx));
+	memset(ivpu_bo_vaddr(ipc->mem_rx), 0, ivpu_bo_size(ipc->mem_rx));
 	wmb(); /* Flush WC buffers for TX and RX rings */
 
 	mutex_unlock(&ipc->lock);

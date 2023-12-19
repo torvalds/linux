@@ -80,7 +80,7 @@ struct aio_ring {
 struct kioctx_table {
 	struct rcu_head		rcu;
 	unsigned		nr;
-	struct kioctx __rcu	*table[];
+	struct kioctx __rcu	*table[] __counted_by(nr);
 };
 
 struct kioctx_cpu {

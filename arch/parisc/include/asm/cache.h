@@ -37,6 +37,7 @@ extern int split_tlb;
 extern int dcache_stride;
 extern int icache_stride;
 extern struct pdc_cache_info cache_info;
+extern struct pdc_btlb_info btlb_info;
 void parisc_setup_cache_timing(void);
 
 #define pdtlb(sr, addr)	asm volatile("pdtlb 0(%%sr%0,%1)" \

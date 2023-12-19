@@ -23,6 +23,13 @@ properties:
       - const: fsl,imx51-ecspi
       - const: fsl,imx53-ecspi
       - items:
+          - enum:
+              - fsl,imx25-cspi
+              - fsl,imx50-cspi
+              - fsl,imx51-cspi
+              - fsl,imx53-cspi
+          - const: fsl,imx35-cspi
+      - items:
           - const: fsl,imx8mp-ecspi
           - const: fsl,imx6ul-ecspi
       - items:

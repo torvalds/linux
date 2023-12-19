@@ -40,7 +40,7 @@ static bool ast_is_vga_enabled(struct drm_device *dev)
 	struct ast_device *ast = to_ast_device(dev);
 	u8 ch;
 
-	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+	ch = ast_io_read8(ast, AST_IO_VGAER);
 
 	return !!(ch & 0x01);
 }
@@ -49,8 +49,8 @@ static void ast_enable_vga(struct drm_device *dev)
 {
 	struct ast_device *ast = to_ast_device(dev);
 
-	ast_io_write8(ast, AST_IO_VGA_ENABLE_PORT, 0x01);
-	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x01);
+	ast_io_write8(ast, AST_IO_VGAER, 0x01);
+	ast_io_write8(ast, AST_IO_VGAMR_W, 0x01);
 }
 
 /*
@@ -62,21 +62,21 @@ static void ast_enable_mmio_release(void *data)
 	struct ast_device *ast = data;
 
 	/* enable standard VGA decode */
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x04);
 }
 
 static int ast_enable_mmio(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x06);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
 
 	return devm_add_action_or_reset(dev->dev, ast_enable_mmio_release, ast);
 }
 
 static void ast_open_key(struct ast_device *ast)
 {
-	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x80, 0xA8);
+	ast_set_index_reg(ast, AST_IO_VGACRI, 0x80, 0xA8);
 }
 
 static int ast_device_config_init(struct ast_device *ast)
@@ -105,8 +105,8 @@ static int ast_device_config_init(struct ast_device *ast)
 		 * is disabled. We force using P2A if VGA only mode bit
 		 * is set D[7]
 		 */
-		jregd0 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
-		jregd1 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		jregd0 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
+		jregd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 		if (!(jregd0 & 0x80) || !(jregd1 & 0x10)) {
 
 			/*
@@ -219,7 +219,7 @@ static void ast_detect_widescreen(struct ast_device *ast)
 		ast->support_wide_screen = false;
 		break;
 	default:
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 		if (!(jreg & 0x80))
 			ast->support_wide_screen = true;
 		else if (jreg & 0x01)
@@ -256,7 +256,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 	 * SIL164 when there is none.
 	 */
 	if (!need_post) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xff);
 		if (jreg & 0x80)
 			ast->tx_chip_types = AST_TX_SIL164_BIT;
 	}
@@ -267,7 +267,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 		 * the SOC scratch register #1 bits 11:8 (interestingly marked
 		 * as "reserved" in the spec)
 		 */
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 		switch (jreg) {
 		case 0x04:
 			ast->tx_chip_types = AST_TX_SIL164_BIT;
@@ -286,7 +286,7 @@ static void ast_detect_tx_chip(struct ast_device *ast, bool need_post)
 			ast->tx_chip_types = AST_TX_DP501_BIT;
 		}
 	} else if (IS_AST_GEN7(ast)) {
-		if (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, TX_TYPE_MASK) ==
+		if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, TX_TYPE_MASK) ==
 		    ASTDP_DPMCU_TX) {
 			ast->tx_chip_types = AST_TX_ASTDP_BIT;
 			ast_dp_launch(&ast->base);

@@ -512,6 +512,11 @@ static bool intersect_dsc_caps(
 		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_4;
 	dsc_common_caps->slice_caps.bits.NUM_SLICES_8 =
 		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_8;
+	dsc_common_caps->slice_caps.bits.NUM_SLICES_12 =
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_12 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_12;
+	dsc_common_caps->slice_caps.bits.NUM_SLICES_16 =
+		dsc_sink_caps->slice_caps2.bits.NUM_SLICES_16 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_16;
+
 	if (!dsc_common_caps->slice_caps.raw)
 		return false;
 
@@ -702,6 +707,12 @@ static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *av
 
 	if (slice_caps.bits.NUM_SLICES_8)
 		available_slices[idx++] = 8;
+
+	if (slice_caps.bits.NUM_SLICES_12)
+		available_slices[idx++] = 12;
+
+	if (slice_caps.bits.NUM_SLICES_16)
+		available_slices[idx++] = 16;
 
 	return idx;
 }

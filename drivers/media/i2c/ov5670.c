@@ -1882,8 +1882,6 @@ struct ov5670 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -2471,8 +2469,6 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov5670->mutex);
-	if (ov5670->streaming == enable)
-		goto unlock_and_return;
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2486,7 +2482,6 @@ static int ov5670_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = ov5670_stop_streaming(ov5670);
 		pm_runtime_put(&client->dev);
 	}
-	ov5670->streaming = enable;
 	goto unlock_and_return;
 
 error:
@@ -2537,34 +2532,6 @@ static int __maybe_unused ov5670_runtime_suspend(struct device *dev)
 	gpiod_set_value_cansleep(ov5670->pwdn_gpio, 1);
 	regulator_bulk_disable(OV5670_NUM_SUPPLIES, ov5670->supplies);
 	clk_disable_unprepare(ov5670->xvclk);
-
-	return 0;
-}
-
-static int __maybe_unused ov5670_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5670 *ov5670 = to_ov5670(sd);
-
-	if (ov5670->streaming)
-		ov5670_stop_streaming(ov5670);
-
-	return 0;
-}
-
-static int __maybe_unused ov5670_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5670 *ov5670 = to_ov5670(sd);
-	int ret;
-
-	if (ov5670->streaming) {
-		ret = ov5670_start_streaming(ov5670);
-		if (ret) {
-			ov5670_stop_streaming(ov5670);
-			return ret;
-		}
-	}
 
 	return 0;
 }
@@ -2771,8 +2738,6 @@ static int ov5670_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ov5670->streaming = false;
-
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
 		pm_runtime_set_active(&client->dev);
@@ -2827,7 +2792,6 @@ static void ov5670_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops ov5670_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov5670_suspend, ov5670_resume)
 	SET_RUNTIME_PM_OPS(ov5670_runtime_suspend, ov5670_runtime_resume, NULL)
 };
 

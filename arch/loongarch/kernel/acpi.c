@@ -281,7 +281,6 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	pr_info("SRAT: PXM %u -> CPU 0x%02x -> Node %u\n", pxm, pa->apic_id, node);
 }
 
-void __init acpi_numa_arch_fixup(void) {}
 #endif
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)

@@ -64,6 +64,7 @@ struct phy_gmii_sel_priv {
 	u32 num_ports;
 	u32 reg_offset;
 	u32 qsgmii_main_ports;
+	bool no_offset;
 };
 
 static int phy_gmii_sel_mode(struct phy *phy, enum phy_mode mode, int submode)
@@ -402,7 +403,8 @@ static int phy_gmii_sel_init_ports(struct phy_gmii_sel_priv *priv)
 		priv->num_ports = size / sizeof(u32);
 		if (!priv->num_ports)
 			return -EINVAL;
-		priv->reg_offset = __be32_to_cpu(*offset);
+		if (!priv->no_offset)
+			priv->reg_offset = __be32_to_cpu(*offset);
 	}
 
 	if_phys = devm_kcalloc(dev, priv->num_ports,
@@ -471,6 +473,7 @@ static int phy_gmii_sel_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to get syscon %d\n", ret);
 			return ret;
 		}
+		priv->no_offset = true;
 	}
 
 	ret = phy_gmii_sel_init_ports(priv);

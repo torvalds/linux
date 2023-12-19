@@ -49,7 +49,7 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	/* reset scratch */
 	for (i = 0x81; i <= 0x9f; i++)
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, i, 0x00);
+		ast_set_index_reg(ast, AST_IO_VGACRI, i, 0x00);
 
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
 		ext_reg_info = extreginfo_ast2300;
@@ -58,23 +58,23 @@ ast_set_def_ext_reg(struct drm_device *dev)
 
 	index = 0xa0;
 	while (*ext_reg_info != 0xff) {
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, index, 0x00, *ext_reg_info);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, index, 0x00, *ext_reg_info);
 		index++;
 		ext_reg_info++;
 	}
 
 	/* disable standard IO/MEM decode if secondary */
-	/* ast_set_index_reg-mask(ast, AST_IO_CRTC_PORT, 0xa1, 0xff, 0x3); */
+	/* ast_set_index_reg-mask(ast, AST_IO_VGACRI, 0xa1, 0xff, 0x3); */
 
 	/* Set Ext. Default */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x8c, 0x00, 0x01);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb7, 0x00, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x8c, 0x00, 0x01);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0x00, 0x00);
 
 	/* Enable RAMDAC for A1 */
 	reg = 0x04;
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast) || IS_AST_GEN6(ast))
 		reg |= 0x20;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xff, reg);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb6, 0xff, reg);
 }
 
 u32 ast_mindwm(struct ast_device *ast, u32 r)
@@ -245,7 +245,7 @@ static void ast_init_dram_reg(struct drm_device *dev)
 	u32 data, temp, i;
 	const struct ast_dramstruct *dram_reg_info;
 
-	j = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+	j = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 
 	if ((j & 0x80) == 0) { /* VGA only */
 		if (IS_AST_GEN1(ast)) {
@@ -325,7 +325,7 @@ static void ast_init_dram_reg(struct drm_device *dev)
 
 	/* wait ready */
 	do {
-		j = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		j = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	} while ((j & 0x40) == 0);
 }
 
@@ -349,7 +349,7 @@ void ast_post_gpu(struct drm_device *dev)
 		ast_init_3rdtx(dev);
 	} else {
 		if (ast->tx_chip_types & AST_TX_SIL164_BIT)
-			ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x80);	/* Enable DVO */
+			ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);	/* Enable DVO */
 	}
 }
 
@@ -1562,7 +1562,7 @@ static void ast_post_chip_2300(struct drm_device *dev)
 	u32 temp;
 	u8 reg;
 
-	reg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+	reg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	if ((reg & 0x80) == 0) {/* vga only */
 		ast_write32(ast, 0xf004, 0x1e6e0000);
 		ast_write32(ast, 0xf000, 0x1);
@@ -1634,7 +1634,7 @@ static void ast_post_chip_2300(struct drm_device *dev)
 
 	/* wait ready */
 	do {
-		reg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		reg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	} while ((reg & 0x40) == 0);
 }
 
@@ -2027,7 +2027,7 @@ void ast_post_chip_2500(struct drm_device *dev)
 	u32 temp;
 	u8 reg;
 
-	reg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+	reg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	if ((reg & AST_VRAM_INIT_STATUS_MASK) == 0) {/* vga only */
 		/* Clear bus lock condition */
 		ast_patch_ahb_2500(ast);
@@ -2075,6 +2075,6 @@ void ast_post_chip_2500(struct drm_device *dev)
 
 	/* wait ready */
 	do {
-		reg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+		reg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	} while ((reg & 0x40) == 0);
 }

@@ -1506,10 +1506,11 @@ clean_up:
 }
 
 static struct platform_driver fusb300_driver = {
-	.remove_new =	fusb300_remove,
-	.driver		= {
+	.probe = fusb300_probe,
+	.remove_new = fusb300_remove,
+	.driver = {
 		.name =	udc_name,
 	},
 };
 
-module_platform_driver_probe(fusb300_driver, fusb300_probe);
+module_platform_driver(fusb300_driver);

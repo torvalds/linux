@@ -23,7 +23,7 @@
     - .lava-test:arm32
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "armhf"
+    DEBIAN_ARCH: "armhf"
   dependencies:
     - testing:arm32
   needs:
@@ -38,7 +38,7 @@
     - .lava-test:arm64
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "arm64"
+    DEBIAN_ARCH: "arm64"
   dependencies:
     - testing:arm64
   needs:
@@ -53,7 +53,7 @@
     - .lava-test:x86_64
   variables:
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
-    ARCH: "x86_64"
+    DEBIAN_ARCH: "amd64"
   dependencies:
     - testing:x86_64
   needs:
@@ -86,7 +86,7 @@ msm:sc7180:
   extends:
     - .lava-igt:arm64
   stage: msm
-  parallel: 2
+  parallel: 4
   variables:
     DRIVER_NAME: msm
     DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
@@ -155,7 +155,7 @@ rockchip:rk3399:
   extends:
     - .lava-igt:arm64
   stage: rockchip
-  parallel: 3
+  parallel: 2
   variables:
     DRIVER_NAME: rockchip
     DEVICE_TYPE: rk3399-gru-kevin
@@ -178,7 +178,8 @@ rockchip:rk3399:
 i915:apl:
   extends:
     - .i915
-  parallel: 12
+  parallel: 3
+  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C523NA-A20057-coral
     GPU_VERSION: apl
@@ -187,7 +188,8 @@ i915:apl:
 i915:glk:
   extends:
     - .i915
-  parallel: 5
+  parallel: 2
+  timeout: "1h30m"
   variables:
     DEVICE_TYPE: hp-x360-12b-ca0010nr-n4020-octopus
     GPU_VERSION: glk
@@ -196,7 +198,8 @@ i915:glk:
 i915:amly:
   extends:
     - .i915
-  parallel: 8
+  parallel: 2
+  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C433TA-AJ0005-rammus
     GPU_VERSION: amly
@@ -205,7 +208,7 @@ i915:amly:
 i915:kbl:
   extends:
     - .i915
-  parallel: 5
+  parallel: 3
   variables:
     DEVICE_TYPE: hp-x360-14-G1-sona
     GPU_VERSION: kbl
@@ -214,7 +217,8 @@ i915:kbl:
 i915:whl:
   extends:
     - .i915
-  parallel: 8
+  parallel: 2
+  timeout: "1h30m"
   variables:
     DEVICE_TYPE: dell-latitude-5400-8665U-sarien
     GPU_VERSION: whl
@@ -223,7 +227,8 @@ i915:whl:
 i915:cml:
   extends:
     - .i915
-  parallel: 6
+  parallel: 2
+  timeout: "1h30m"
   variables:
     DEVICE_TYPE: asus-C436FA-Flip-hatch
     GPU_VERSION: cml
@@ -232,7 +237,7 @@ i915:cml:
 i915:tgl:
   extends:
     - .i915
-  parallel: 6
+  parallel: 8
   variables:
     DEVICE_TYPE: asus-cx9400-volteer
     GPU_VERSION: tgl
@@ -251,6 +256,7 @@ i915:tgl:
 amdgpu:stoney:
   extends:
     - .amdgpu
+  parallel: 2
   variables:
     DEVICE_TYPE: hp-11A-G6-EE-grunt
     GPU_VERSION: stoney
@@ -269,6 +275,7 @@ amdgpu:stoney:
 mediatek:mt8173:
   extends:
     - .mediatek
+  parallel: 4
   variables:
     DEVICE_TYPE: mt8173-elm-hana
     GPU_VERSION: mt8173
@@ -280,6 +287,7 @@ mediatek:mt8173:
 mediatek:mt8183:
   extends:
     - .mediatek
+  parallel: 3
   variables:
     DEVICE_TYPE: mt8183-kukui-jacuzzi-juniper-sku16
     GPU_VERSION: mt8183
@@ -289,6 +297,7 @@ mediatek:mt8183:
 .mediatek:mt8192:
   extends:
     - .mediatek
+  parallel: 3
   variables:
     DEVICE_TYPE: mt8192-asurada-spherion-r0
     GPU_VERSION: mt8192
@@ -307,6 +316,7 @@ mediatek:mt8183:
 meson:g12b:
   extends:
     - .meson
+  parallel: 3
   variables:
     DEVICE_TYPE: meson-g12b-a311d-khadas-vim3
     GPU_VERSION: g12b

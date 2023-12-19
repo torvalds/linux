@@ -76,7 +76,7 @@ kmsg_size
 ~~~~~~~~~
 
 The chunk size in KB for oops/panic front-end. It **MUST** be a multiple of 4.
-It's optional if you do not care oops/panic log.
+It's optional if you do not care about the oops/panic log.
 
 There are multiple chunks for oops/panic front-end depending on the remaining
 space except other pstore front-ends.
@@ -88,7 +88,7 @@ pmsg_size
 ~~~~~~~~~
 
 The chunk size in KB for pmsg front-end. It **MUST** be a multiple of 4.
-It's optional if you do not care pmsg log.
+It's optional if you do not care about the pmsg log.
 
 Unlike oops/panic front-end, there is only one chunk for pmsg front-end.
 
@@ -100,7 +100,7 @@ console_size
 ~~~~~~~~~~~~
 
 The chunk size in KB for console front-end.  It **MUST** be a multiple of 4.
-It's optional if you do not care console log.
+It's optional if you do not care about the console log.
 
 Similar to pmsg front-end, there is only one chunk for console front-end.
 
@@ -111,7 +111,7 @@ ftrace_size
 ~~~~~~~~~~~
 
 The chunk size in KB for ftrace front-end. It **MUST** be a multiple of 4.
-It's optional if you do not care console log.
+It's optional if you do not care about the ftrace log.
 
 Similar to oops front-end, there are multiple chunks for ftrace front-end
 depending on the count of cpu processors. Each chunk size is equal to

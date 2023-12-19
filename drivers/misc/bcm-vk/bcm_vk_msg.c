@@ -703,12 +703,12 @@ int bcm_vk_send_shutdown_msg(struct bcm_vk *vk, u32 shut_type,
 	entry = kzalloc(struct_size(entry, to_v_msg, 1), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
+	entry->to_v_blks = 1;	/* always 1 block */
 
 	/* fill up necessary data */
 	entry->to_v_msg[0].function_id = VK_FID_SHUTDOWN;
 	set_q_num(&entry->to_v_msg[0], q_num);
 	set_msg_id(&entry->to_v_msg[0], VK_SIMPLEX_MSG_ID);
-	entry->to_v_blks = 1; /* always 1 block */
 
 	entry->to_v_msg[0].cmd = shut_type;
 	entry->to_v_msg[0].arg = pid;

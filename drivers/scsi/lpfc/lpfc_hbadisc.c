@@ -199,11 +199,12 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		/* Only 1 thread can drop the initial node reference.  If
 		 * another thread has set NLP_DROPPED, this thread is done.
 		 */
-		if (!(ndlp->nlp_flag & NLP_DROPPED)) {
+		if (!(ndlp->fc4_xpt_flags & NVME_XPT_REGD) &&
+		    !(ndlp->nlp_flag & NLP_DROPPED)) {
 			ndlp->nlp_flag |= NLP_DROPPED;
 			spin_unlock_irqrestore(&ndlp->lock, iflags);
 			lpfc_nlp_put(ndlp);
-			spin_lock_irqsave(&ndlp->lock, iflags);
+			return;
 		}
 
 		spin_unlock_irqrestore(&ndlp->lock, iflags);
@@ -5653,7 +5654,7 @@ __lpfc_findnode_did(struct lpfc_vport *vport, uint32_t did)
 				 ((uint32_t)ndlp->nlp_xri << 16) |
 				 ((uint32_t)ndlp->nlp_type << 8)
 				 );
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE_VERBOSE,
 					 "0929 FIND node DID "
 					 "Data: x%px x%x x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
@@ -5700,8 +5701,8 @@ lpfc_findnode_mapped(struct lpfc_vport *vport)
 				 ((uint32_t)ndlp->nlp_type << 8) |
 				 ((uint32_t)ndlp->nlp_rpi & 0xff));
 			spin_unlock_irqrestore(shost->host_lock, iflags);
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-					 "2025 FIND node DID "
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE_VERBOSE,
+					 "2025 FIND node DID MAPPED "
 					 "Data: x%px x%x x%x x%x x%px\n",
 					 ndlp, ndlp->nlp_DID,
 					 ndlp->nlp_flag, data1,
@@ -6467,7 +6468,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (filter(ndlp, param)) {
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE_VERBOSE,
 					 "3185 FIND node filter %ps DID "
 					 "ndlp x%px did x%x flg x%x st x%x "
 					 "xri x%x type x%x rpi x%x\n",

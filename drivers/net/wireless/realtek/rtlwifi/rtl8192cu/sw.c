@@ -102,7 +102,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.set_hw_reg = rtl92cu_set_hw_reg,
 	.update_rate_tbl = rtl92cu_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92cu_tx_fill_desc,
-	.fill_fake_txdesc = rtl92cu_fill_fake_txdesc,
 	.fill_tx_cmddesc = rtl92cu_tx_fill_cmddesc,
 	.query_rx_desc = rtl92cu_rx_query_desc,
 	.set_channel_access = rtl92cu_update_channel_access_setting,

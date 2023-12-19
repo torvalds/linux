@@ -57,8 +57,7 @@
 
 #define ICB_0_1_IRQ_MASK ((((u64)ICB_1_IRQ_MASK) << 32) | ICB_0_IRQ_MASK)
 
-#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE)) | \
-			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
+#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI0_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, CFI1_ERR)) | \
 			   (REG_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, IMR0_ERR)) | \
@@ -126,6 +125,10 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 
 	if (ivpu_hw_gen(vdev) == IVPU_HW_40XX)
 		vdev->wa.disable_clock_relinquish = true;
+
+	IVPU_PRINT_WA(punit_disabled);
+	IVPU_PRINT_WA(clear_runtime_mem);
+	IVPU_PRINT_WA(disable_clock_relinquish);
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
@@ -135,16 +138,19 @@ static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.jsm = 50000;
 		vdev->timeout.tdr = 2000000;
 		vdev->timeout.reschedule_suspend = 1000;
+		vdev->timeout.autosuspend = -1;
 	} else if (ivpu_is_simics(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 10000;
 		vdev->timeout.reschedule_suspend = 10;
+		vdev->timeout.autosuspend = -1;
 	} else {
 		vdev->timeout.boot = 1000;
 		vdev->timeout.jsm = 500;
 		vdev->timeout.tdr = 2000;
 		vdev->timeout.reschedule_suspend = 10;
+		vdev->timeout.autosuspend = 10;
 	}
 }
 
@@ -194,6 +200,14 @@ static int ivpu_pll_cmd_send(struct ivpu_device *vdev, u16 min_ratio, u16 max_ra
 static int ivpu_pll_wait_for_status_ready(struct ivpu_device *vdev)
 {
 	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, READY, 1, PLL_TIMEOUT_US);
+}
+
+static int ivpu_wait_for_clock_own_resource_ack(struct ivpu_device *vdev)
+{
+	if (ivpu_is_simics(vdev))
+		return 0;
+
+	return REGB_POLL_FLD(VPU_40XX_BUTTRESS_VPU_STATUS, CLOCK_RESOURCE_OWN_ACK, 1, TIMEOUT_US);
 }
 
 static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
@@ -556,6 +570,12 @@ static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 {
 	int ret;
 
+	ret = ivpu_wait_for_clock_own_resource_ack(vdev);
+	if (ret) {
+		ivpu_err(vdev, "Timed out waiting for clock own resource ACK\n");
+		return ret;
+	}
+
 	ivpu_boot_pwr_island_trickle_drive(vdev, true);
 	ivpu_boot_pwr_island_drive(vdev, true);
 
@@ -715,6 +735,10 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 	ivpu_hw_init_range(&vdev->hw->ranges.shave,  0x80000000 + SZ_256M, SZ_2G - SZ_256M);
 	ivpu_hw_init_range(&vdev->hw->ranges.dma,   0x200000000, SZ_8G);
 
+	ivpu_hw_read_platform(vdev);
+	ivpu_hw_wa_init(vdev);
+	ivpu_hw_timeouts_init(vdev);
+
 	return 0;
 }
 
@@ -805,10 +829,6 @@ static int ivpu_hw_40xx_power_up(struct ivpu_device *vdev)
 		ivpu_err(vdev, "Failed to reset HW: %d\n", ret);
 		return ret;
 	}
-
-	ivpu_hw_read_platform(vdev);
-	ivpu_hw_wa_init(vdev);
-	ivpu_hw_timeouts_init(vdev);
 
 	ret = ivpu_hw_40xx_d0i3_disable(vdev);
 	if (ret)
@@ -1046,8 +1066,6 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	if (status == 0)
 		return IRQ_NONE;
 
-	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
-
 	if (REG_TEST_FLD(VPU_40XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE, status))
 		ivpu_dbg(vdev, IRQ, "FREQ_CHANGE");
 
@@ -1092,6 +1110,9 @@ static irqreturn_t ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 		schedule_recovery = true;
 	}
 
+	/* This must be done after interrupts are cleared at the source. */
+	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
+
 	if (schedule_recovery)
 		ivpu_pm_schedule_recovery(vdev);
 
@@ -1103,8 +1124,13 @@ static irqreturn_t ivpu_hw_40xx_irq_handler(int irq, void *ptr)
 	struct ivpu_device *vdev = ptr;
 	irqreturn_t ret = IRQ_NONE;
 
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x1);
+
 	ret |= ivpu_hw_40xx_irqv_handler(vdev, irq);
 	ret |= ivpu_hw_40xx_irqb_handler(vdev, irq);
+
+	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
+	REGB_WR32(VPU_40XX_BUTTRESS_GLOBAL_INT_MASK, 0x0);
 
 	if (ret & IRQ_WAKE_THREAD)
 		return IRQ_WAKE_THREAD;
@@ -1160,6 +1186,7 @@ const struct ivpu_hw_ops ivpu_hw_40xx_ops = {
 	.power_up = ivpu_hw_40xx_power_up,
 	.is_idle = ivpu_hw_40xx_is_idle,
 	.power_down = ivpu_hw_40xx_power_down,
+	.reset = ivpu_hw_40xx_reset,
 	.boot_fw = ivpu_hw_40xx_boot_fw,
 	.wdt_disable = ivpu_hw_40xx_wdt_disable,
 	.diagnose_failure = ivpu_hw_40xx_diagnose_failure,

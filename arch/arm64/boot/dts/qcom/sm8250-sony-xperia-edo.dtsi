@@ -18,7 +18,12 @@
 	qcom,msm-id = <356 0x20001>; /* SM8250 v2.1 */
 	qcom,board-id = <0x10008 0>;
 
+	aliases {
+		serial0 = &uart12;
+	};
+
 	chosen {
+		stdout-path = "serial0:115200n8";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;

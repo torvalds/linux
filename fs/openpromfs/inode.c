@@ -237,7 +237,7 @@ found:
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 	if (inode->i_state & I_NEW) {
-		inode->i_mtime = inode->i_atime = inode_set_ctime_current(inode);
+		simple_inode_init_ts(inode);
 		ent_oi = OP_I(inode);
 		ent_oi->type = ent_type;
 		ent_oi->u = ent_data;
@@ -387,7 +387,7 @@ static int openprom_fill_super(struct super_block *s, struct fs_context *fc)
 		goto out_no_root;
 	}
 
-	root_inode->i_mtime = root_inode->i_atime = inode_set_ctime_current(root_inode);
+	simple_inode_init_ts(root_inode);
 	root_inode->i_op = &openprom_inode_operations;
 	root_inode->i_fop = &openprom_operations;
 	root_inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO;

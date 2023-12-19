@@ -2593,7 +2593,7 @@ out_out:
 	return err;
 }
 
-static int sbmac_remove(struct platform_device *pldev)
+static void sbmac_remove(struct platform_device *pldev)
 {
 	struct net_device *dev = platform_get_drvdata(pldev);
 	struct sbmac_softc *sc = netdev_priv(dev);
@@ -2604,13 +2604,11 @@ static int sbmac_remove(struct platform_device *pldev)
 	mdiobus_free(sc->mii_bus);
 	iounmap(sc->sbm_base);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver sbmac_driver = {
 	.probe = sbmac_probe,
-	.remove = sbmac_remove,
+	.remove_new = sbmac_remove,
 	.driver = {
 		.name = sbmac_string,
 	},

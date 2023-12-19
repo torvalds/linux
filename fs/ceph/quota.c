@@ -43,6 +43,7 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 {
 	struct super_block *sb = mdsc->fsc->sb;
 	struct ceph_mds_quota *h = msg->front.iov_base;
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_vino vino;
 	struct inode *inode;
 	struct ceph_inode_info *ci;
@@ -51,8 +52,8 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 		return;
 
 	if (msg->front.iov_len < sizeof(*h)) {
-		pr_err("%s corrupt message mds%d len %d\n", __func__,
-		       session->s_mds, (int)msg->front.iov_len);
+		pr_err_client(cl, "corrupt message mds%d len %d\n",
+			      session->s_mds, (int)msg->front.iov_len);
 		ceph_msg_dump(msg);
 		goto out;
 	}
@@ -62,7 +63,7 @@ void ceph_handle_quota(struct ceph_mds_client *mdsc,
 	vino.snap = CEPH_NOSNAP;
 	inode = ceph_find_inode(sb, vino);
 	if (!inode) {
-		pr_warn("Failed to find inode %llu\n", vino.ino);
+		pr_warn_client(cl, "failed to find inode %llx\n", vino.ino);
 		goto out;
 	}
 	ci = ceph_inode(inode);
@@ -85,6 +86,7 @@ find_quotarealm_inode(struct ceph_mds_client *mdsc, u64 ino)
 {
 	struct ceph_quotarealm_inode *qri = NULL;
 	struct rb_node **node, *parent = NULL;
+	struct ceph_client *cl = mdsc->fsc->client;
 
 	mutex_lock(&mdsc->quotarealms_inodes_mutex);
 	node = &(mdsc->quotarealms_inodes.rb_node);
@@ -110,7 +112,7 @@ find_quotarealm_inode(struct ceph_mds_client *mdsc, u64 ino)
 			rb_link_node(&qri->node, parent, node);
 			rb_insert_color(&qri->node, &mdsc->quotarealms_inodes);
 		} else
-			pr_warn("Failed to alloc quotarealms_inode\n");
+			pr_warn_client(cl, "Failed to alloc quotarealms_inode\n");
 	}
 	mutex_unlock(&mdsc->quotarealms_inodes_mutex);
 
@@ -129,6 +131,7 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 					     struct super_block *sb,
 					     struct ceph_snap_realm *realm)
 {
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_quotarealm_inode *qri;
 	struct inode *in;
 
@@ -161,8 +164,8 @@ static struct inode *lookup_quotarealm_inode(struct ceph_mds_client *mdsc,
 	}
 
 	if (IS_ERR(in)) {
-		dout("Can't lookup inode %llx (err: %ld)\n",
-		     realm->ino, PTR_ERR(in));
+		doutc(cl, "Can't lookup inode %llx (err: %ld)\n", realm->ino,
+		      PTR_ERR(in));
 		qri->timeout = jiffies + msecs_to_jiffies(60 * 1000); /* XXX */
 	} else {
 		qri->timeout = 0;
@@ -213,6 +216,7 @@ static struct ceph_snap_realm *get_quota_realm(struct ceph_mds_client *mdsc,
 					       enum quota_get_realm which_quota,
 					       bool retry)
 {
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_inode_info *ci = NULL;
 	struct ceph_snap_realm *realm, *next;
 	struct inode *in;
@@ -226,8 +230,9 @@ restart:
 	if (realm)
 		ceph_get_snap_realm(mdsc, realm);
 	else
-		pr_err_ratelimited("get_quota_realm: ino (%llx.%llx) "
-				   "null i_snap_realm\n", ceph_vinop(inode));
+		pr_err_ratelimited_client(cl,
+				"%p %llx.%llx null i_snap_realm\n",
+				inode, ceph_vinop(inode));
 	while (realm) {
 		bool has_inode;
 
@@ -317,6 +322,7 @@ static bool check_quota_exceeded(struct inode *inode, enum quota_check_op op,
 				 loff_t delta)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_realm *realm, *next;
 	struct inode *in;
@@ -332,8 +338,9 @@ restart:
 	if (realm)
 		ceph_get_snap_realm(mdsc, realm);
 	else
-		pr_err_ratelimited("check_quota_exceeded: ino (%llx.%llx) "
-				   "null i_snap_realm\n", ceph_vinop(inode));
+		pr_err_ratelimited_client(cl,
+				"%p %llx.%llx null i_snap_realm\n",
+				inode, ceph_vinop(inode));
 	while (realm) {
 		bool has_inode;
 
@@ -383,7 +390,7 @@ restart:
 			break;
 		default:
 			/* Shouldn't happen */
-			pr_warn("Invalid quota check op (%d)\n", op);
+			pr_warn_client(cl, "Invalid quota check op (%d)\n", op);
 			exceeded = true; /* Just break the loop */
 		}
 		iput(in);

@@ -24,7 +24,7 @@ allOf:
         compatible:
           const: mscc,vsc7514-switch
     then:
-      $ref: ethernet-switch.yaml#
+      $ref: ethernet-switch.yaml#/$defs/ethernet-ports
       required:
         - interrupts
         - interrupt-names
@@ -33,28 +33,18 @@ allOf:
           minItems: 21
         reg-names:
           minItems: 21
-        ethernet-ports:
-          patternProperties:
-            "^port@[0-9a-f]+$":
-              $ref: ethernet-switch-port.yaml#
-              unevaluatedProperties: false
 
   - if:
       properties:
         compatible:
           const: mscc,vsc7512-switch
     then:
-      $ref: /schemas/net/dsa/dsa.yaml#
+      $ref: /schemas/net/dsa/dsa.yaml#/$defs/ethernet-ports
       properties:
         reg:
           maxItems: 20
         reg-names:
           maxItems: 20
-        ethernet-ports:
-          patternProperties:
-            "^port@[0-9a-f]+$":
-              $ref: /schemas/net/dsa/dsa-port.yaml#
-              unevaluatedProperties: false
 
 properties:
   compatible:
@@ -185,7 +175,7 @@ examples:
     };
   # VSC7512 (DSA)
   - |
-    ethernet-switch@1{
+    ethernet-switch@1 {
       compatible = "mscc,vsc7512-switch";
       reg = <0x71010000 0x10000>,
             <0x71030000 0x10000>,
@@ -212,22 +202,22 @@ examples:
             "port7", "port8", "port9", "port10", "qsys",
             "ana", "s0", "s1", "s2";
 
-            ethernet-ports {
-            #address-cells = <1>;
-            #size-cells = <0>;
+      ethernet-ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-           port@0 {
-            reg = <0>;
-            ethernet = <&mac_sw>;
-            phy-handle = <&phy0>;
-            phy-mode = "internal";
-          };
-          port@1 {
-            reg = <1>;
-            phy-handle = <&phy1>;
-            phy-mode = "internal";
-          };
+        port@0 {
+          reg = <0>;
+          ethernet = <&mac_sw>;
+          phy-handle = <&phy0>;
+          phy-mode = "internal";
+        };
+        port@1 {
+          reg = <1>;
+          phy-handle = <&phy1>;
+          phy-mode = "internal";
         };
       };
+    };
 
 ...

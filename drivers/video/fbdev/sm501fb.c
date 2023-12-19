@@ -1452,6 +1452,7 @@ static void sm501fb_fillrect(struct fb_info *info, const struct fb_fillrect *rec
 
 static struct fb_ops sm501fb_ops_crt = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sm501fb_check_var_crt,
 	.fb_set_par	= sm501fb_set_par_crt,
 	.fb_blank	= sm501fb_blank_crt,
@@ -1462,10 +1463,12 @@ static struct fb_ops sm501fb_ops_crt = {
 	.fb_copyarea	= sm501fb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_sync	= sm501fb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static struct fb_ops sm501fb_ops_pnl = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sm501fb_check_var_pnl,
 	.fb_set_par	= sm501fb_set_par_pnl,
 	.fb_pan_display	= sm501fb_pan_pnl,
@@ -1476,6 +1479,7 @@ static struct fb_ops sm501fb_ops_pnl = {
 	.fb_copyarea	= sm501fb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_sync	= sm501fb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* sm501_init_cursor

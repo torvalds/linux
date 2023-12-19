@@ -495,3 +495,4 @@ static void __exit drr_exit(void)
 module_init(drr_init);
 module_exit(drr_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Deficit Round Robin scheduler");

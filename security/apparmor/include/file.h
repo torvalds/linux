@@ -45,43 +45,6 @@ struct aa_file_ctx {
 	u32 allow;
 };
 
-/**
- * aa_alloc_file_ctx - allocate file_ctx
- * @label: initial label of task creating the file
- * @gfp: gfp flags for allocation
- *
- * Returns: file_ctx or NULL on failure
- */
-static inline struct aa_file_ctx *aa_alloc_file_ctx(struct aa_label *label,
-						    gfp_t gfp)
-{
-	struct aa_file_ctx *ctx;
-
-	ctx = kzalloc(sizeof(struct aa_file_ctx), gfp);
-	if (ctx) {
-		spin_lock_init(&ctx->lock);
-		rcu_assign_pointer(ctx->label, aa_get_label(label));
-	}
-	return ctx;
-}
-
-/**
- * aa_free_file_ctx - free a file_ctx
- * @ctx: file_ctx to free  (MAYBE_NULL)
- */
-static inline void aa_free_file_ctx(struct aa_file_ctx *ctx)
-{
-	if (ctx) {
-		aa_put_label(rcu_access_pointer(ctx->label));
-		kfree_sensitive(ctx);
-	}
-}
-
-static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
-{
-	return aa_get_label_rcu(&ctx->label);
-}
-
 /*
  * The xindex is broken into 3 parts
  * - index - an index into either the exec name table or the variable table
@@ -108,7 +71,8 @@ struct path_cond {
 
 #define COMBINED_PERM_MASK(X) ((X).allow | (X).audit | (X).quiet | (X).kill)
 
-int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
+int aa_audit_file(const struct cred *cred,
+		  struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, struct aa_label *tlabel, kuid_t ouid,
 		  const char *info, int error);
@@ -119,14 +83,16 @@ aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
 			const char *name, struct path_cond *cond,
 			struct aa_perms *perms);
 
-int aa_path_perm(const char *op, struct aa_label *label,
-		 const struct path *path, int flags, u32 request,
-		 struct path_cond *cond);
+int aa_path_perm(const char *op, const struct cred *subj_cred,
+		 struct aa_label *label, const struct path *path,
+		 int flags, u32 request, struct path_cond *cond);
 
-int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
-		 const struct path *new_dir, struct dentry *new_dentry);
+int aa_path_link(const struct cred *subj_cred, struct aa_label *label,
+		 struct dentry *old_dentry, const struct path *new_dir,
+		 struct dentry *new_dentry);
 
-int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
+int aa_file_perm(const char *op, const struct cred *subj_cred,
+		 struct aa_label *label, struct file *file,
 		 u32 request, bool in_atomic);
 
 void aa_inherit_files(const struct cred *cred, struct files_struct *files);

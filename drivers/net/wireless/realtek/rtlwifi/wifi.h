@@ -1597,7 +1597,7 @@ struct bt_coexist_8723 {
 	u8 c2h_bt_info;
 	bool c2h_bt_info_req_sent;
 	bool c2h_bt_inquiry_page;
-	u32 bt_inq_page_start_time;
+	unsigned long bt_inq_page_start_time;
 	u8 bt_retry_cnt;
 	u8 c2h_bt_info_original;
 	u8 bt_inquiry_page_cnt;
@@ -2032,19 +2032,15 @@ struct rtl_ps_ctl {
 
 	/* for SW LPS*/
 	bool sw_ps_enabled;
-	bool state;
 	bool state_inap;
 	bool multi_buffered;
 	u16 nullfunc_seq;
 	unsigned int dtim_counter;
-	unsigned int sleep_ms;
 	unsigned long last_sleep_jiffies;
 	unsigned long last_awake_jiffies;
 	unsigned long last_delaylps_stamp_jiffies;
 	unsigned long last_dtim;
 	unsigned long last_beacon;
-	unsigned long last_action;
-	unsigned long last_slept;
 
 	/*For P2P PS */
 	struct rtl_p2p_ps_info p2p_ps_info;
@@ -2231,9 +2227,6 @@ struct rtl_hal_ops {
 	void (*update_rate_tbl)(struct ieee80211_hw *hw,
 				struct ieee80211_sta *sta, u8 rssi_leve,
 				bool update_bw);
-	void (*pre_fill_tx_bd_desc)(struct ieee80211_hw *hw, u8 *tx_bd_desc,
-				    u8 *desc, u8 queue_index,
-				    struct sk_buff *skb, dma_addr_t addr);
 	void (*update_rate_mask)(struct ieee80211_hw *hw, u8 rssi_level);
 	u16 (*rx_desc_buff_remained_cnt)(struct ieee80211_hw *hw,
 					 u8 queue_index);
@@ -2246,10 +2239,7 @@ struct rtl_hal_ops {
 			     struct ieee80211_sta *sta,
 			     struct sk_buff *skb, u8 hw_queue,
 			     struct rtl_tcb_desc *ptcb_desc);
-	void (*fill_fake_txdesc)(struct ieee80211_hw *hw, u8 *pdesc,
-				 u32 buffer_len, bool bsspspoll);
 	void (*fill_tx_cmddesc)(struct ieee80211_hw *hw, u8 *pdesc,
-				bool firstseg, bool lastseg,
 				struct sk_buff *skb);
 	void (*fill_tx_special_desc)(struct ieee80211_hw *hw,
 				     u8 *pdesc, u8 *pbd_desc,
@@ -2285,7 +2275,6 @@ struct rtl_hal_ops {
 	void (*set_rfreg)(struct ieee80211_hw *hw, enum radio_path rfpath,
 			  u32 regaddr, u32 bitmask, u32 data);
 	void (*linked_set_reg)(struct ieee80211_hw *hw);
-	void (*chk_switch_dmdp)(struct ieee80211_hw *hw);
 	void (*dualmac_switch_to_dmdp)(struct ieee80211_hw *hw);
 	bool (*phy_rf6052_config)(struct ieee80211_hw *hw);
 	void (*phy_rf6052_set_cck_txpower)(struct ieee80211_hw *hw,
@@ -2708,7 +2697,7 @@ struct rtl_c2hcmd {
 struct rtl_bssid_entry {
 	struct list_head list;
 	u8 bssid[ETH_ALEN];
-	u32 age;
+	unsigned long age;
 };
 
 struct rtl_scan_list {

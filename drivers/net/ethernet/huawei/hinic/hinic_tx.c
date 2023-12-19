@@ -861,7 +861,7 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 	struct hinic_qp *qp = container_of(sq, struct hinic_qp, sq);
 	struct hinic_dev *nic_dev = netdev_priv(netdev);
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
-	int err, irqname_len;
+	int err;
 
 	txq->netdev = netdev;
 	txq->sq = sq;
@@ -882,14 +882,12 @@ int hinic_init_txq(struct hinic_txq *txq, struct hinic_sq *sq,
 		goto err_alloc_free_sges;
 	}
 
-	irqname_len = snprintf(NULL, 0, "%s_txq%d", netdev->name, qp->q_id) + 1;
-	txq->irq_name = devm_kzalloc(&netdev->dev, irqname_len, GFP_KERNEL);
+	txq->irq_name = devm_kasprintf(&netdev->dev, GFP_KERNEL, "%s_txq%d",
+				       netdev->name, qp->q_id);
 	if (!txq->irq_name) {
 		err = -ENOMEM;
 		goto err_alloc_irqname;
 	}
-
-	sprintf(txq->irq_name, "%s_txq%d", netdev->name, qp->q_id);
 
 	err = hinic_hwdev_hw_ci_addr_set(hwdev, sq, CI_UPDATE_NO_PENDING,
 					 CI_UPDATE_NO_COALESC);

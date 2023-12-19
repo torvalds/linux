@@ -59,6 +59,10 @@ static struct acpi_table_erst *erst_tab;
 #define ERST_RANGE_NVRAM	0x0002
 #define ERST_RANGE_SLOW		0x0004
 
+/* ERST Exec max timings */
+#define ERST_EXEC_TIMING_MAX_MASK      0xFFFFFFFF00000000
+#define ERST_EXEC_TIMING_MAX_SHIFT     32
+
 /*
  * ERST Error Log Address Range, used as buffer for reading/writing
  * error records.
@@ -68,6 +72,7 @@ static struct erst_erange {
 	u64 size;
 	void __iomem *vaddr;
 	u32 attr;
+	u64 timings;
 } erst_erange;
 
 /*
@@ -95,6 +100,19 @@ static inline int erst_errno(int command_status)
 	default:
 		return -EINVAL;
 	}
+}
+
+static inline u64 erst_get_timeout(void)
+{
+	u64 timeout = FIRMWARE_TIMEOUT;
+
+	if (erst_erange.attr & ERST_RANGE_SLOW) {
+		timeout = ((erst_erange.timings & ERST_EXEC_TIMING_MAX_MASK) >>
+			ERST_EXEC_TIMING_MAX_SHIFT) * NSEC_PER_MSEC;
+		if (timeout < FIRMWARE_TIMEOUT)
+			timeout = FIRMWARE_TIMEOUT;
+	}
+	return timeout;
 }
 
 static int erst_timedout(u64 *t, u64 spin_unit)
@@ -191,8 +209,10 @@ static int erst_exec_stall_while_true(struct apei_exec_context *ctx,
 {
 	int rc;
 	u64 val;
-	u64 timeout = FIRMWARE_TIMEOUT;
+	u64 timeout;
 	u64 stall_time;
+
+	timeout = erst_get_timeout();
 
 	if (ctx->var1 > FIRMWARE_MAX_STALL) {
 		if (!in_nmi())
@@ -389,6 +409,13 @@ static int erst_get_erange(struct erst_erange *range)
 	if (rc)
 		return rc;
 	range->attr = apei_exec_ctx_get_output(&ctx);
+	rc = apei_exec_run(&ctx, ACPI_ERST_EXECUTE_TIMINGS);
+	if (rc == 0)
+		range->timings = apei_exec_ctx_get_output(&ctx);
+	else if (rc == -ENOENT)
+		range->timings = 0;
+	else
+		return rc;
 
 	return 0;
 }
@@ -621,9 +648,11 @@ EXPORT_SYMBOL_GPL(erst_get_record_id_end);
 static int __erst_write_to_storage(u64 offset)
 {
 	struct apei_exec_context ctx;
-	u64 timeout = FIRMWARE_TIMEOUT;
+	u64 timeout;
 	u64 val;
 	int rc;
+
+	timeout = erst_get_timeout();
 
 	erst_exec_ctx_init(&ctx);
 	rc = apei_exec_run_optional(&ctx, ACPI_ERST_BEGIN_WRITE);
@@ -660,9 +689,11 @@ static int __erst_write_to_storage(u64 offset)
 static int __erst_read_from_storage(u64 record_id, u64 offset)
 {
 	struct apei_exec_context ctx;
-	u64 timeout = FIRMWARE_TIMEOUT;
+	u64 timeout;
 	u64 val;
 	int rc;
+
+	timeout = erst_get_timeout();
 
 	erst_exec_ctx_init(&ctx);
 	rc = apei_exec_run_optional(&ctx, ACPI_ERST_BEGIN_READ);
@@ -703,9 +734,11 @@ static int __erst_read_from_storage(u64 record_id, u64 offset)
 static int __erst_clear_from_storage(u64 record_id)
 {
 	struct apei_exec_context ctx;
-	u64 timeout = FIRMWARE_TIMEOUT;
+	u64 timeout;
 	u64 val;
 	int rc;
+
+	timeout = erst_get_timeout();
 
 	erst_exec_ctx_init(&ctx);
 	rc = apei_exec_run_optional(&ctx, ACPI_ERST_BEGIN_CLEAR);

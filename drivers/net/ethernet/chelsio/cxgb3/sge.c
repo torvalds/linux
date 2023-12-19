@@ -2501,14 +2501,6 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-/*
- * Returns true if the device is already scheduled for polling.
- */
-static inline int napi_is_scheduled(struct napi_struct *napi)
-{
-	return test_bit(NAPI_STATE_SCHED, &napi->state);
-}
-
 /**
  *	process_pure_responses - process pure responses from a response queue
  *	@adap: the adapter
@@ -2674,12 +2666,7 @@ static int rspq_check_napi(struct sge_qset *qs)
 {
 	struct sge_rspq *q = &qs->rspq;
 
-	if (!napi_is_scheduled(&qs->napi) &&
-	    is_new_response(&q->desc[q->cidx], q)) {
-		napi_schedule(&qs->napi);
-		return 1;
-	}
-	return 0;
+	return is_new_response(&q->desc[q->cidx], q) && napi_schedule(&qs->napi);
 }
 
 /*

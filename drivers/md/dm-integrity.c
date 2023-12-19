@@ -493,42 +493,32 @@ static int sb_mac(struct dm_integrity_c *ic, bool wr)
 {
 	SHASH_DESC_ON_STACK(desc, ic->journal_mac);
 	int r;
-	unsigned int size = crypto_shash_digestsize(ic->journal_mac);
+	unsigned int mac_size = crypto_shash_digestsize(ic->journal_mac);
+	__u8 *sb = (__u8 *)ic->sb;
+	__u8 *mac = sb + (1 << SECTOR_SHIFT) - mac_size;
 
-	if (sizeof(struct superblock) + size > 1 << SECTOR_SHIFT) {
+	if (sizeof(struct superblock) + mac_size > 1 << SECTOR_SHIFT) {
 		dm_integrity_io_error(ic, "digest is too long", -EINVAL);
 		return -EINVAL;
 	}
 
 	desc->tfm = ic->journal_mac;
 
-	r = crypto_shash_init(desc);
-	if (unlikely(r < 0)) {
-		dm_integrity_io_error(ic, "crypto_shash_init", r);
-		return r;
-	}
-
-	r = crypto_shash_update(desc, (__u8 *)ic->sb, (1 << SECTOR_SHIFT) - size);
-	if (unlikely(r < 0)) {
-		dm_integrity_io_error(ic, "crypto_shash_update", r);
-		return r;
-	}
-
 	if (likely(wr)) {
-		r = crypto_shash_final(desc, (__u8 *)ic->sb + (1 << SECTOR_SHIFT) - size);
+		r = crypto_shash_digest(desc, sb, mac - sb, mac);
 		if (unlikely(r < 0)) {
-			dm_integrity_io_error(ic, "crypto_shash_final", r);
+			dm_integrity_io_error(ic, "crypto_shash_digest", r);
 			return r;
 		}
 	} else {
-		__u8 result[HASH_MAX_DIGESTSIZE];
+		__u8 actual_mac[HASH_MAX_DIGESTSIZE];
 
-		r = crypto_shash_final(desc, result);
+		r = crypto_shash_digest(desc, sb, mac - sb, actual_mac);
 		if (unlikely(r < 0)) {
-			dm_integrity_io_error(ic, "crypto_shash_final", r);
+			dm_integrity_io_error(ic, "crypto_shash_digest", r);
 			return r;
 		}
-		if (memcmp((__u8 *)ic->sb + (1 << SECTOR_SHIFT) - size, result, size)) {
+		if (memcmp(mac, actual_mac, mac_size)) {
 			dm_integrity_io_error(ic, "superblock mac", -EILSEQ);
 			dm_audit_log_target(DM_MSG_PREFIX, "mac-superblock", ic->ti, 0);
 			return -EILSEQ;

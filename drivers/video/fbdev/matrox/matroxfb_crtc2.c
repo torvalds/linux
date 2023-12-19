@@ -567,15 +567,13 @@ static const struct fb_ops matroxfb_dh_ops = {
 	.owner =	THIS_MODULE,
 	.fb_open =	matroxfb_dh_open,
 	.fb_release =	matroxfb_dh_release,
+	FB_DEFAULT_IOMEM_OPS,
 	.fb_check_var =	matroxfb_dh_check_var,
 	.fb_set_par =	matroxfb_dh_set_par,
 	.fb_setcolreg =	matroxfb_dh_setcolreg,
 	.fb_pan_display =matroxfb_dh_pan_display,
 	.fb_blank =	matroxfb_dh_blank,
 	.fb_ioctl =	matroxfb_dh_ioctl,
-	.fb_fillrect =	cfb_fillrect,
-	.fb_copyarea =	cfb_copyarea,
-	.fb_imageblit =	cfb_imageblit,
 };
 
 static struct fb_var_screeninfo matroxfb_dh_defined = {

@@ -432,6 +432,7 @@ static void rcu_barrier_tasks_generic(struct rcu_tasks *rtp)
 static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 {
 	int cpu;
+	int dequeue_limit;
 	unsigned long flags;
 	bool gpdone = poll_state_synchronize_rcu(rtp->percpu_dequeue_gpseq);
 	long n;
@@ -439,7 +440,8 @@ static int rcu_tasks_need_gpcb(struct rcu_tasks *rtp)
 	long ncbsnz = 0;
 	int needgpcb = 0;
 
-	for (cpu = 0; cpu < smp_load_acquire(&rtp->percpu_dequeue_lim); cpu++) {
+	dequeue_limit = smp_load_acquire(&rtp->percpu_dequeue_lim);
+	for (cpu = 0; cpu < dequeue_limit; cpu++) {
 		struct rcu_tasks_percpu *rtpcp = per_cpu_ptr(rtp->rtpcpu, cpu);
 
 		/* Advance and accelerate any new callbacks. */
@@ -538,6 +540,7 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	len = rcl.len;
 	for (rhp = rcu_cblist_dequeue(&rcl); rhp; rhp = rcu_cblist_dequeue(&rcl)) {
+		debug_rcu_head_callback(rhp);
 		local_bh_disable();
 		rhp->func(rhp);
 		local_bh_enable();
@@ -892,10 +895,36 @@ static void rcu_tasks_pregp_step(struct list_head *hop)
 	synchronize_rcu();
 }
 
+/* Check for quiescent states since the pregp's synchronize_rcu() */
+static bool rcu_tasks_is_holdout(struct task_struct *t)
+{
+	int cpu;
+
+	/* Has the task been seen voluntarily sleeping? */
+	if (!READ_ONCE(t->on_rq))
+		return false;
+
+	/*
+	 * Idle tasks (or idle injection) within the idle loop are RCU-tasks
+	 * quiescent states. But CPU boot code performed by the idle task
+	 * isn't a quiescent state.
+	 */
+	if (is_idle_task(t))
+		return false;
+
+	cpu = task_cpu(t);
+
+	/* Idle tasks on offline CPUs are RCU-tasks quiescent states. */
+	if (t == idle_task(cpu) && !rcu_cpu_online(cpu))
+		return false;
+
+	return true;
+}
+
 /* Per-task initial processing. */
 static void rcu_tasks_pertask(struct task_struct *t, struct list_head *hop)
 {
-	if (t != current && READ_ONCE(t->on_rq) && !is_idle_task(t)) {
+	if (t != current && rcu_tasks_is_holdout(t)) {
 		get_task_struct(t);
 		t->rcu_tasks_nvcsw = READ_ONCE(t->nvcsw);
 		WRITE_ONCE(t->rcu_tasks_holdout, true);
@@ -944,7 +973,7 @@ static void check_holdout_task(struct task_struct *t,
 
 	if (!READ_ONCE(t->rcu_tasks_holdout) ||
 	    t->rcu_tasks_nvcsw != READ_ONCE(t->nvcsw) ||
-	    !READ_ONCE(t->on_rq) ||
+	    !rcu_tasks_is_holdout(t) ||
 	    (IS_ENABLED(CONFIG_NO_HZ_FULL) &&
 	     !is_idle_task(t) && t->rcu_tasks_idle_cpu >= 0)) {
 		WRITE_ONCE(t->rcu_tasks_holdout, false);
@@ -1084,7 +1113,7 @@ void rcu_barrier_tasks(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier_tasks);
 
-int rcu_tasks_lazy_ms = -1;
+static int rcu_tasks_lazy_ms = -1;
 module_param(rcu_tasks_lazy_ms, int, 0444);
 
 static int __init rcu_spawn_tasks_kthread(void)
@@ -1522,7 +1551,7 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	} else {
 		// The task is not running, so C-language access is safe.
 		nesting = t->trc_reader_nesting;
-		WARN_ON_ONCE(ofl && task_curr(t) && !is_idle_task(t));
+		WARN_ON_ONCE(ofl && task_curr(t) && (t != idle_task(task_cpu(t))));
 		if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) && ofl)
 			n_heavy_reader_ofl_updates++;
 	}
@@ -1979,20 +2008,22 @@ static void test_rcu_tasks_callback(struct rcu_head *rhp)
 
 static void rcu_tasks_initiate_self_tests(void)
 {
-	pr_info("Running RCU-tasks wait API self tests\n");
 #ifdef CONFIG_TASKS_RCU
+	pr_info("Running RCU Tasks wait API self tests\n");
 	tests[0].runstart = jiffies;
 	synchronize_rcu_tasks();
 	call_rcu_tasks(&tests[0].rh, test_rcu_tasks_callback);
 #endif
 
 #ifdef CONFIG_TASKS_RUDE_RCU
+	pr_info("Running RCU Tasks Rude wait API self tests\n");
 	tests[1].runstart = jiffies;
 	synchronize_rcu_tasks_rude();
 	call_rcu_tasks_rude(&tests[1].rh, test_rcu_tasks_callback);
 #endif
 
 #ifdef CONFIG_TASKS_TRACE_RCU
+	pr_info("Running RCU Tasks Trace wait API self tests\n");
 	tests[2].runstart = jiffies;
 	synchronize_rcu_tasks_trace();
 	call_rcu_tasks_trace(&tests[2].rh, test_rcu_tasks_callback);

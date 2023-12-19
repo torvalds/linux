@@ -16,9 +16,9 @@
 
 __be32
 nfsd4_block_encode_layoutget(struct xdr_stream *xdr,
-		struct nfsd4_layoutget *lgp)
+		const struct nfsd4_layoutget *lgp)
 {
-	struct pnfs_block_extent *b = lgp->lg_content;
+	const struct pnfs_block_extent *b = lgp->lg_content;
 	int len = sizeof(__be32) + 5 * sizeof(__be64) + sizeof(__be32);
 	__be32 *p;
 
@@ -77,7 +77,7 @@ nfsd4_block_encode_volume(struct xdr_stream *xdr, struct pnfs_block_volume *b)
 
 __be32
 nfsd4_block_encode_getdeviceinfo(struct xdr_stream *xdr,
-		struct nfsd4_getdeviceinfo *gdp)
+		const struct nfsd4_getdeviceinfo *gdp)
 {
 	struct pnfs_block_deviceaddr *dev = gdp->gd_device;
 	int len = sizeof(__be32), ret, i;

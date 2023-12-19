@@ -29,16 +29,15 @@ enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
    the start of each message, eg see linux kernel hpios.h */
 
 #ifdef SOURCEFILE_NAME
+#undef FILE_LINE
 #define FILE_LINE  SOURCEFILE_NAME ":" __stringify(__LINE__) " "
-#else
-#define FILE_LINE  __FILE__ ":" __stringify(__LINE__) " "
 #endif
 
 #define HPI_DEBUG_ASSERT(expression) \
 	do { \
 		if (!(expression)) { \
 			printk(KERN_ERR  FILE_LINE \
-				"ASSERT " __stringify(expression)); \
+				" ASSERT " __stringify(expression)); \
 		} \
 	} while (0)
 
@@ -46,7 +45,7 @@ enum { HPI_DEBUG_LEVEL_ERROR = 0,	/* always log errors */
 	do { \
 		if (hpi_debug_level >= HPI_DEBUG_LEVEL_##level) { \
 			printk(HPI_DEBUG_FLAG_##level \
-			FILE_LINE  __VA_ARGS__); \
+			FILE_LINE " " __VA_ARGS__); \
 		} \
 	} while (0)
 
@@ -70,7 +69,7 @@ void hpi_debug_data(u16 *pdata, u32 len);
 	do { \
 		if (hpi_debug_level >= HPI_DEBUG_LEVEL_##level) { \
 			hpi_debug_message(phm, HPI_DEBUG_FLAG_##level \
-				FILE_LINE __stringify(level)); \
+				FILE_LINE " " __stringify(level)); \
 		} \
 	} while (0)
 

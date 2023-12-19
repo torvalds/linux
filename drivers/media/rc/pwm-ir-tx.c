@@ -23,6 +23,7 @@ struct pwm_ir {
 
 static const struct of_device_id pwm_ir_of_match[] = {
 	{ .compatible = "pwm-ir-tx", },
+	{ .compatible = "nokia,n900-ir" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pwm_ir_of_match);

@@ -1289,9 +1289,9 @@ static int rtd_auto_attach(struct comedi_device *dev,
 
 	/* 8254 Timer/Counter subdevice */
 	s = &dev->subdevices[3];
-	dev->pacer = comedi_8254_mm_init(dev->mmio + LAS0_8254_TIMER_BASE,
-					 RTD_CLOCK_BASE, I8254_IO8, 2);
-	if (!dev->pacer)
+	dev->pacer = comedi_8254_mm_alloc(dev->mmio + LAS0_8254_TIMER_BASE,
+					  RTD_CLOCK_BASE, I8254_IO8, 2);
+	if (IS_ERR(dev->pacer))
 		return -ENOMEM;
 
 	comedi_8254_subdevice_init(s, dev->pacer);

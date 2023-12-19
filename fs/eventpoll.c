@@ -256,10 +256,10 @@ static u64 loop_check_gen = 0;
 static struct eventpoll *inserting_into;
 
 /* Slab cache used to allocate "struct epitem" */
-static struct kmem_cache *epi_cache __read_mostly;
+static struct kmem_cache *epi_cache __ro_after_init;
 
 /* Slab cache used to allocate "struct eppoll_entry" */
-static struct kmem_cache *pwq_cache __read_mostly;
+static struct kmem_cache *pwq_cache __ro_after_init;
 
 /*
  * List of files with newly added links, where we may need to limit the number
@@ -271,7 +271,7 @@ struct epitems_head {
 };
 static struct epitems_head *tfile_check_list = EP_UNACTIVE_PTR;
 
-static struct kmem_cache *ephead_cache __read_mostly;
+static struct kmem_cache *ephead_cache __ro_after_init;
 
 static inline void free_ephead(struct epitems_head *head)
 {

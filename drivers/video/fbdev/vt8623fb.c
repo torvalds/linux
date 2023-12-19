@@ -644,6 +644,7 @@ static const struct fb_ops vt8623fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= vt8623fb_open,
 	.fb_release	= vt8623fb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= vt8623fb_check_var,
 	.fb_set_par	= vt8623fb_set_par,
 	.fb_setcolreg	= vt8623fb_setcolreg,
@@ -652,6 +653,7 @@ static const struct fb_ops vt8623fb_ops = {
 	.fb_fillrect	= vt8623fb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= vt8623fb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 	.fb_get_caps    = svga_get_caps,
 };
 

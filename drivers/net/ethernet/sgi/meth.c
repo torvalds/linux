@@ -854,19 +854,17 @@ static int meth_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meth_remove(struct platform_device *pdev)
+static void meth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	free_netdev(dev);
-
-	return 0;
 }
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove	= meth_remove,
+	.remove_new = meth_remove,
 	.driver = {
 		.name	= "meth",
 	}

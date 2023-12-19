@@ -16,7 +16,6 @@
 #include "backref.h"
 #include "extent_io.h"
 #include "dev-replace.h"
-#include "check-integrity.h"
 #include "raid56.h"
 #include "block-group.h"
 #include "zoned.h"
@@ -24,6 +23,7 @@
 #include "accessors.h"
 #include "file-item.h"
 #include "scrub.h"
+#include "raid-stripe-tree.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all
@@ -897,7 +897,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 		ASSERT(stripe->mirror_num >= 1);
 		ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS,
 				      stripe->logical, &mapped_len, &bioc,
-				      NULL, NULL, 1);
+				      NULL, NULL);
 		/*
 		 * If we failed, dev will be NULL, and later detailed reports
 		 * will just be skipped.
@@ -1635,6 +1635,71 @@ static void scrub_reset_stripe(struct scrub_stripe *stripe)
 	}
 }
 
+static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
+					    struct scrub_stripe *stripe)
+{
+	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
+	struct btrfs_bio *bbio = NULL;
+	u64 stripe_len = BTRFS_STRIPE_LEN;
+	int mirror = stripe->mirror_num;
+	int i;
+
+	atomic_inc(&stripe->pending_io);
+
+	for_each_set_bit(i, &stripe->extent_sector_bitmap, stripe->nr_sectors) {
+		struct page *page = scrub_stripe_get_page(stripe, i);
+		unsigned int pgoff = scrub_stripe_get_page_offset(stripe, i);
+
+		/* The current sector cannot be merged, submit the bio. */
+		if (bbio &&
+		    ((i > 0 &&
+		      !test_bit(i - 1, &stripe->extent_sector_bitmap)) ||
+		     bbio->bio.bi_iter.bi_size >= stripe_len)) {
+			ASSERT(bbio->bio.bi_iter.bi_size);
+			atomic_inc(&stripe->pending_io);
+			btrfs_submit_bio(bbio, mirror);
+			bbio = NULL;
+		}
+
+		if (!bbio) {
+			struct btrfs_io_stripe io_stripe = {};
+			struct btrfs_io_context *bioc = NULL;
+			const u64 logical = stripe->logical +
+					    (i << fs_info->sectorsize_bits);
+			int err;
+
+			bbio = btrfs_bio_alloc(stripe->nr_sectors, REQ_OP_READ,
+					       fs_info, scrub_read_endio, stripe);
+			bbio->bio.bi_iter.bi_sector = logical >> SECTOR_SHIFT;
+
+			io_stripe.is_scrub = true;
+			err = btrfs_map_block(fs_info, BTRFS_MAP_READ, logical,
+					      &stripe_len, &bioc, &io_stripe,
+					      &mirror);
+			btrfs_put_bioc(bioc);
+			if (err) {
+				btrfs_bio_end_io(bbio,
+						 errno_to_blk_status(err));
+				return;
+			}
+		}
+
+		__bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
+	}
+
+	if (bbio) {
+		ASSERT(bbio->bio.bi_iter.bi_size);
+		atomic_inc(&stripe->pending_io);
+		btrfs_submit_bio(bbio, mirror);
+	}
+
+	if (atomic_dec_and_test(&stripe->pending_io)) {
+		wake_up(&stripe->io_wait);
+		INIT_WORK(&stripe->work, scrub_stripe_read_repair_worker);
+		queue_work(stripe->bg->fs_info->scrub_workers, &stripe->work);
+	}
+}
+
 static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 				      struct scrub_stripe *stripe)
 {
@@ -1645,6 +1710,11 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 	ASSERT(stripe->bg);
 	ASSERT(stripe->mirror_num > 0);
 	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state));
+
+	if (btrfs_need_stripe_tree_update(fs_info, stripe->bg->flags)) {
+		scrub_submit_extent_sector_read(sctx, stripe);
+		return;
+	}
 
 	bbio = btrfs_bio_alloc(SCRUB_STRIPE_PAGES, REQ_OP_READ, fs_info,
 			       scrub_read_endio, stripe);
@@ -1798,6 +1868,9 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	 */
 	ASSERT(sctx->cur_stripe < SCRUB_TOTAL_STRIPES);
 
+	/* @found_logical_ret must be specified. */
+	ASSERT(found_logical_ret);
+
 	stripe = &sctx->stripes[sctx->cur_stripe];
 	scrub_reset_stripe(stripe);
 	ret = scrub_find_fill_first_stripe(bg, &sctx->extent_path,
@@ -1806,8 +1879,7 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	/* Either >0 as no more extents or <0 for error. */
 	if (ret)
 		return ret;
-	if (found_logical_ret)
-		*found_logical_ret = stripe->logical;
+	*found_logical_ret = stripe->logical;
 	sctx->cur_stripe++;
 
 	/* We filled one group, submit it. */
@@ -1952,7 +2024,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 
 	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_WRITE, full_stripe_start,
-			      &length, &bioc, NULL, NULL, 1);
+			      &length, &bioc, NULL, NULL);
 	if (ret < 0) {
 		btrfs_put_bioc(bioc);
 		btrfs_bio_counter_dec(fs_info);
@@ -2010,7 +2082,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 
 	/* Go through each extent items inside the logical range */
 	while (cur_logical < logical_end) {
-		u64 found_logical;
+		u64 found_logical = U64_MAX;
 		u64 cur_physical = physical + cur_logical - logical_start;
 
 		/* Canceled? */
@@ -2045,6 +2117,8 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		if (ret < 0)
 			break;
 
+		/* queue_scrub_stripe() returned 0, @found_logical must be updated. */
+		ASSERT(found_logical != U64_MAX);
 		cur_logical = found_logical + BTRFS_STRIPE_LEN;
 
 		/* Don't hold CPU for too long time */
@@ -2717,7 +2791,7 @@ static noinline_for_stack int scrub_supers(struct scrub_ctx *sctx,
 	if (scrub_dev->fs_devices != fs_info->fs_devices)
 		gen = scrub_dev->generation;
 	else
-		gen = fs_info->last_trans_committed;
+		gen = btrfs_get_last_trans_committed(fs_info);
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
 		bytenr = btrfs_sb_offset(i);

@@ -177,9 +177,9 @@ device_set_options(struct vnt_private *priv)
 	priv->byShortRetryLimit = priv->opts.short_retry;
 	priv->byLongRetryLimit = priv->opts.long_retry;
 	priv->byBBType = priv->opts.bbp_type;
-	priv->byPacketType = priv->byBBType;
+	priv->packet_type = priv->byBBType;
 	priv->byAutoFBCtrl = AUTO_FB_0;
-	priv->bUpdateBBVGA = true;
+	priv->update_bbvga = true;
 	priv->preamble_type = 0;
 
 	pr_debug(" byShortRetryLimit= %d\n", (int)priv->byShortRetryLimit);
@@ -359,7 +359,7 @@ static void device_init_registers(struct vnt_private *priv)
 	RFbInit(priv);
 
 	/* Get Desire Power Value */
-	priv->byCurPwr = 0xFF;
+	priv->cur_pwr = 0xFF;
 	priv->byCCKPwr = SROMbyReadEmbedded(priv->port_offset, EEP_OFS_PWR_CCK);
 	priv->byOFDMPwrG = SROMbyReadEmbedded(priv->port_offset,
 					      EEP_OFS_PWR_OFDMG);
@@ -423,10 +423,10 @@ static void device_init_registers(struct vnt_private *priv)
 	/* initialize BBP registers */
 	bb_vt3253_init(priv);
 
-	if (priv->bUpdateBBVGA) {
-		priv->byBBVGACurrent = priv->abyBBVGA[0];
-		priv->byBBVGANew = priv->byBBVGACurrent;
-		bb_set_vga_gain_offset(priv, priv->abyBBVGA[0]);
+	if (priv->update_bbvga) {
+		priv->bbvga_current = priv->bbvga[0];
+		priv->bbvga_new = priv->bbvga_current;
+		bb_set_vga_gain_offset(priv, priv->bbvga[0]);
 	}
 
 	bb_set_rx_antenna_mode(priv, priv->byRxAntennaMode);
@@ -1040,7 +1040,7 @@ static void vnt_check_bb_vga(struct vnt_private *priv)
 	long dbm;
 	int i;
 
-	if (!priv->bUpdateBBVGA)
+	if (!priv->update_bbvga)
 		return;
 
 	if (priv->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL)
@@ -1053,12 +1053,12 @@ static void vnt_check_bb_vga(struct vnt_private *priv)
 
 	for (i = 0; i < BB_VGA_LEVEL; i++) {
 		if (dbm < priv->dbm_threshold[i]) {
-			priv->byBBVGANew = priv->abyBBVGA[i];
+			priv->bbvga_new = priv->bbvga[i];
 			break;
 		}
 	}
 
-	if (priv->byBBVGANew == priv->byBBVGACurrent) {
+	if (priv->bbvga_new == priv->bbvga_current) {
 		priv->uBBVGADiffCount = 1;
 		return;
 	}
@@ -1067,23 +1067,23 @@ static void vnt_check_bb_vga(struct vnt_private *priv)
 
 	if (priv->uBBVGADiffCount == 1) {
 		/* first VGA diff gain */
-		bb_set_vga_gain_offset(priv, priv->byBBVGANew);
+		bb_set_vga_gain_offset(priv, priv->bbvga_new);
 
 		dev_dbg(&priv->pcid->dev,
 			"First RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
-			(int)dbm, priv->byBBVGANew,
-			priv->byBBVGACurrent,
+			(int)dbm, priv->bbvga_new,
+			priv->bbvga_current,
 			(int)priv->uBBVGADiffCount);
 	}
 
 	if (priv->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD) {
 		dev_dbg(&priv->pcid->dev,
 			"RSSI[%d] NewGain[%d] OldGain[%d] Count[%d]\n",
-			(int)dbm, priv->byBBVGANew,
-			priv->byBBVGACurrent,
+			(int)dbm, priv->bbvga_new,
+			priv->bbvga_current,
 			(int)priv->uBBVGADiffCount);
 
-		bb_set_vga_gain_offset(priv, priv->byBBVGANew);
+		bb_set_vga_gain_offset(priv, priv->bbvga_new);
 	}
 }
 
@@ -1442,7 +1442,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 		if (priv->byBBType != bb_type) {
 			priv->byBBType = bb_type;
 
-			CARDbSetPhyParameter(priv, priv->byBBType);
+			card_set_phy_parameter(priv, priv->byBBType);
 		}
 	}
 
@@ -1509,8 +1509,8 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			priv->short_slot_time = false;
 
-		CARDbSetPhyParameter(priv, priv->byBBType);
-		bb_set_vga_gain_offset(priv, priv->abyBBVGA[0]);
+		card_set_phy_parameter(priv, priv->byBBType);
+		bb_set_vga_gain_offset(priv, priv->bbvga[0]);
 	}
 
 	if (changed & BSS_CHANGED_TXPOWER)
@@ -1534,7 +1534,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BEACON_INFO) &&
 	    priv->op_mode != NL80211_IFTYPE_AP) {
 		if (vif->cfg.assoc && conf->beacon_rate) {
-			CARDbUpdateTSF(priv, conf->beacon_rate->hw_value,
+			card_update_tsf(priv, conf->beacon_rate->hw_value,
 				       conf->sync_tsf);
 
 			CARDbSetBeaconPeriod(priv, conf->beacon_int);
@@ -1792,10 +1792,10 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	vt6655_mac_read_ether_addr(priv->port_offset, priv->abyCurrentNetAddr);
 
 	/* Get RFType */
-	priv->byRFType = SROMbyReadEmbedded(priv->port_offset, EEP_OFS_RFTYPE);
-	priv->byRFType &= RF_MASK;
+	priv->rf_type = SROMbyReadEmbedded(priv->port_offset, EEP_OFS_RFTYPE);
+	priv->rf_type &= RF_MASK;
 
-	dev_dbg(&pcid->dev, "RF Type = %x\n", priv->byRFType);
+	dev_dbg(&pcid->dev, "RF Type = %x\n", priv->rf_type);
 
 	device_get_options(priv);
 	device_set_options(priv);

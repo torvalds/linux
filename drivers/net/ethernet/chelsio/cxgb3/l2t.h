@@ -76,7 +76,7 @@ struct l2t_data {
 	atomic_t nfree;		/* number of free entries */
 	rwlock_t lock;
 	struct rcu_head rcu_head;	/* to handle rcu cleanup */
-	struct l2t_entry l2tab[];
+	struct l2t_entry l2tab[] __counted_by(nentries);
 };
 
 typedef void (*arp_failure_handler_func)(struct t3cdev * dev,

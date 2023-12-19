@@ -454,12 +454,10 @@ bool ia_css_pipeline_has_stopped(struct ia_css_pipeline *pipeline)
 	return sp_group.pipe[thread_id].num_stages == 0;
 }
 
-#if defined(ISP2401)
 struct sh_css_sp_pipeline_io_status *ia_css_pipeline_get_pipe_io_status(void)
 {
 	return(&sh_css_sp_group.pipe_io_status);
 }
-#endif
 
 bool ia_css_pipeline_is_mapped(unsigned int key)
 {

@@ -377,6 +377,7 @@ static const struct of_device_id meson_ddr_pmu_dt_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, meson_ddr_pmu_dt_match);
 
 static struct platform_driver g12_ddr_pmu_driver = {
 	.probe = g12_ddr_pmu_probe,

@@ -113,7 +113,7 @@ quiet_cmd_sign :=
 endif
 
 # Create necessary directories
-$(shell mkdir -p $(sort $(dir $(install-y))))
+$(foreach dir, $(sort $(dir $(install-y))), $(shell mkdir -p $(dir)))
 
 $(dst)/%.ko: $(extmod_prefix)%.ko FORCE
 	$(call cmd,install)
@@ -144,7 +144,7 @@ endif
 quiet_cmd_gzip = GZIP    $@
       cmd_gzip = $(KGZIP) -n -f $<
 quiet_cmd_xz = XZ      $@
-      cmd_xz = $(XZ) --lzma2=dict=2MiB -f $<
+      cmd_xz = $(XZ) --check=crc32 --lzma2=dict=1MiB -f $<
 quiet_cmd_zstd = ZSTD    $@
       cmd_zstd = $(ZSTD) -T0 --rm -f -q $<
 

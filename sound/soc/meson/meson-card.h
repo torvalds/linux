@@ -49,6 +49,6 @@ int meson_card_set_fe_link(struct snd_soc_card *card,
 			   bool is_playback);
 
 int meson_card_probe(struct platform_device *pdev);
-int meson_card_remove(struct platform_device *pdev);
+void meson_card_remove(struct platform_device *pdev);
 
 #endif /* _MESON_SND_CARD_H */

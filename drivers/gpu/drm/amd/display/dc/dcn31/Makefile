@@ -1,5 +1,5 @@
 #
-# (c) Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
+# Copyright 2020 Advanced Micro Devices, Inc. All the rights reserved
 #
 #  All rights reserved.  This notice is intended as a precaution against
 #  inadvertent publication and does not imply publication or any waiver
@@ -10,7 +10,7 @@
 #
 # Makefile for dcn31.
 
-DCN31 = dcn31_resource.o dcn31_hubbub.o dcn31_hwseq.o dcn31_init.o dcn31_hubp.o \
+DCN31 = dcn31_resource.o dcn31_hubbub.o dcn31_init.o dcn31_hubp.o \
 	dcn31_dccg.o dcn31_optc.o dcn31_dio_link_encoder.o dcn31_panel_cntl.o \
 	dcn31_apg.o dcn31_hpo_dp_stream_encoder.o dcn31_hpo_dp_link_encoder.o \
 	dcn31_afmt.o dcn31_vpg.o

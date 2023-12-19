@@ -227,3 +227,92 @@ Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
 always 12 at most architectures). Since Linux 3.11 their meaning changes
 after first clear of soft-dirty bits. Since Linux 4.2 they are used for
 flags unconditionally.
+
+Pagemap Scan IOCTL
+==================
+
+The ``PAGEMAP_SCAN`` IOCTL on the pagemap file can be used to get or optionally
+clear the info about page table entries. The following operations are supported
+in this IOCTL:
+
+- Scan the address range and get the memory ranges matching the provided criteria.
+  This is performed when the output buffer is specified.
+- Write-protect the pages. The ``PM_SCAN_WP_MATCHING`` is used to write-protect
+  the pages of interest. The ``PM_SCAN_CHECK_WPASYNC`` aborts the operation if
+  non-Async Write Protected pages are found. The ``PM_SCAN_WP_MATCHING`` can be
+  used with or without ``PM_SCAN_CHECK_WPASYNC``.
+- Both of those operations can be combined into one atomic operation where we can
+  get and write protect the pages as well.
+
+Following flags about pages are currently supported:
+
+- ``PAGE_IS_WPALLOWED`` - Page has async-write-protection enabled
+- ``PAGE_IS_WRITTEN`` - Page has been written to from the time it was write protected
+- ``PAGE_IS_FILE`` - Page is file backed
+- ``PAGE_IS_PRESENT`` - Page is present in the memory
+- ``PAGE_IS_SWAPPED`` - Page is in swapped
+- ``PAGE_IS_PFNZERO`` - Page has zero PFN
+- ``PAGE_IS_HUGE`` - Page is THP or Hugetlb backed
+
+The ``struct pm_scan_arg`` is used as the argument of the IOCTL.
+
+ 1. The size of the ``struct pm_scan_arg`` must be specified in the ``size``
+    field. This field will be helpful in recognizing the structure if extensions
+    are done later.
+ 2. The flags can be specified in the ``flags`` field. The ``PM_SCAN_WP_MATCHING``
+    and ``PM_SCAN_CHECK_WPASYNC`` are the only added flags at this time. The get
+    operation is optionally performed depending upon if the output buffer is
+    provided or not.
+ 3. The range is specified through ``start`` and ``end``.
+ 4. The walk can abort before visiting the complete range such as the user buffer
+    can get full etc. The walk ending address is specified in``end_walk``.
+ 5. The output buffer of ``struct page_region`` array and size is specified in
+    ``vec`` and ``vec_len``.
+ 6. The optional maximum requested pages are specified in the ``max_pages``.
+ 7. The masks are specified in ``category_mask``, ``category_anyof_mask``,
+    ``category_inverted`` and ``return_mask``.
+
+Find pages which have been written and WP them as well::
+
+   struct pm_scan_arg arg = {
+   .size = sizeof(arg),
+   .flags = PM_SCAN_CHECK_WPASYNC | PM_SCAN_CHECK_WPASYNC,
+   ..
+   .category_mask = PAGE_IS_WRITTEN,
+   .return_mask = PAGE_IS_WRITTEN,
+   };
+
+Find pages which have been written, are file backed, not swapped and either
+present or huge::
+
+   struct pm_scan_arg arg = {
+   .size = sizeof(arg),
+   .flags = 0,
+   ..
+   .category_mask = PAGE_IS_WRITTEN | PAGE_IS_SWAPPED,
+   .category_inverted = PAGE_IS_SWAPPED,
+   .category_anyof_mask = PAGE_IS_PRESENT | PAGE_IS_HUGE,
+   .return_mask = PAGE_IS_WRITTEN | PAGE_IS_SWAPPED |
+                  PAGE_IS_PRESENT | PAGE_IS_HUGE,
+   };
+
+The ``PAGE_IS_WRITTEN`` flag can be considered as a better-performing alternative
+of soft-dirty flag. It doesn't get affected by VMA merging of the kernel and hence
+the user can find the true soft-dirty pages in case of normal pages. (There may
+still be extra dirty pages reported for THP or Hugetlb pages.)
+
+"PAGE_IS_WRITTEN" category is used with uffd write protect-enabled ranges to
+implement memory dirty tracking in userspace:
+
+ 1. The userfaultfd file descriptor is created with ``userfaultfd`` syscall.
+ 2. The ``UFFD_FEATURE_WP_UNPOPULATED`` and ``UFFD_FEATURE_WP_ASYNC`` features
+    are set by ``UFFDIO_API`` IOCTL.
+ 3. The memory range is registered with ``UFFDIO_REGISTER_MODE_WP`` mode
+    through ``UFFDIO_REGISTER`` IOCTL.
+ 4. Then any part of the registered memory or the whole memory region must
+    be write protected using ``PAGEMAP_SCAN`` IOCTL with flag ``PM_SCAN_WP_MATCHING``
+    or the ``UFFDIO_WRITEPROTECT`` IOCTL can be used. Both of these perform the
+    same operation. The former is better in terms of performance.
+ 5. Now the ``PAGEMAP_SCAN`` IOCTL can be used to either just find pages which
+    have been written to since they were last marked and/or optionally write protect
+    the pages as well.

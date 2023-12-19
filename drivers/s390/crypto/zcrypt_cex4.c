@@ -279,7 +279,11 @@ static const struct {
 	{ 1, "BSI2009" },
 	{ 2, "FIPS2011" },
 	{ 3, "BSI2011" },
+	{ 4, "SIGG-IMPORT" },
+	{ 5, "SIGG" },
 	{ 6, "BSICC2017" },
+	{ 7, "FIPS2021" },
+	{ 8, "FIPS2024" },
 	{ 0, NULL }
 };
 

@@ -43,7 +43,7 @@ static bool hda_check_fes(struct snd_soc_pcm_runtime *rtd,
 static struct hdac_ext_stream *
 hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_intel_hda_stream *hda_stream;
 	const struct sof_intel_dsp_desc *chip;
 	struct snd_sof_dev *sdev;
@@ -145,12 +145,12 @@ static struct hdac_ext_stream *hda_assign_hext_stream(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
 						      struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 	struct hdac_ext_stream *hext_stream;
 
 	/* only allocate a stream_tag for the first DAI in the dailink */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 	if (dai == cpu_dai)
 		hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
 	else
@@ -168,11 +168,11 @@ static void hda_release_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai
 				    struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hext_stream = hda_get_hext_stream(sdev, cpu_dai, substream);
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
 
 	/* only release a stream_tag for the first DAI in the dailink */
-	dai = asoc_rtd_to_cpu(rtd, 0);
+	dai = snd_soc_rtd_to_cpu(rtd, 0);
 	if (dai == cpu_dai)
 		snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
 	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
@@ -193,8 +193,8 @@ static void hda_codec_dai_set_stream(struct snd_sof_dev *sdev,
 				     struct snd_pcm_substream *substream,
 				     struct hdac_stream *hstream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	/* set the hdac_stream in the codec dai */
 	snd_soc_dai_set_stream(codec_dai, hstream, substream->stream);
@@ -204,8 +204,8 @@ static unsigned int hda_calc_stream_format(struct snd_sof_dev *sdev,
 					   struct snd_pcm_substream *substream,
 					   struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	unsigned int link_bps;
 	unsigned int format_val;
 
@@ -226,8 +226,8 @@ static unsigned int hda_calc_stream_format(struct snd_sof_dev *sdev,
 static struct hdac_ext_link *hda_get_hlink(struct snd_sof_dev *sdev,
 					   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
 	return snd_hdac_ext_bus_get_hlink_by_name(bus, codec_dai->component->name);
@@ -609,7 +609,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 	sdai = swidget->private;
 
 	switch (sdev->pdata->ipc_type) {
-	case SOF_IPC:
+	case SOF_IPC_TYPE_3:
 	{
 		struct sof_dai_private_data *private = sdai->private;
 
@@ -617,7 +617,7 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 			return &hda_ipc3_dma_ops;
 		break;
 	}
-	case SOF_INTEL_IPC4:
+	case SOF_IPC_TYPE_4:
 	{
 		struct sof_ipc4_copier *ipc4_copier = sdai->private;
 		const struct sof_intel_dsp_desc *chip;

@@ -28,6 +28,7 @@
 #include <linux/math64.h>
 #include <linux/math.h>
 #include <linux/minmax.h>
+#include <linux/module.h>
 
 #include <linux/clk/analogbits-wrpll-cln28hpc.h>
 
@@ -312,6 +313,7 @@ int wrpll_configure_for_rate(struct wrpll_cfg *c, u32 target_rate,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wrpll_configure_for_rate);
 
 /**
  * wrpll_calc_output_rate() - calculate the PLL's target output rate
@@ -349,6 +351,7 @@ unsigned long wrpll_calc_output_rate(const struct wrpll_cfg *c,
 
 	return n;
 }
+EXPORT_SYMBOL_GPL(wrpll_calc_output_rate);
 
 /**
  * wrpll_calc_max_lock_us() - return the time for the PLL to lock
@@ -366,3 +369,8 @@ unsigned int wrpll_calc_max_lock_us(const struct wrpll_cfg *c)
 {
 	return MAX_LOCK_US;
 }
+EXPORT_SYMBOL_GPL(wrpll_calc_max_lock_us);
+
+MODULE_AUTHOR("Paul Walmsley <paul.walmsley@sifive.com>");
+MODULE_DESCRIPTION("Analog Bits Wide-Range PLL library");
+MODULE_LICENSE("GPL");

@@ -958,8 +958,14 @@ static enum drm_mode_status
 intel_tv_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk = i915->max_dotclk_freq;
+	enum drm_mode_status status;
+
+	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	if (status != MODE_OK)
+		return status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -1720,7 +1726,7 @@ intel_tv_detect(struct drm_connector *connector,
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] force=%d\n",
 		    connector->base.id, connector->name, force);
 
-	if (!INTEL_DISPLAY_ENABLED(i915))
+	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
 	if (force) {

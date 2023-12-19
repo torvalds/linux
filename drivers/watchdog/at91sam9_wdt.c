@@ -348,25 +348,21 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	wdt->sclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(wdt->sclk))
-		return PTR_ERR(wdt->sclk);
-
-	err = clk_prepare_enable(wdt->sclk);
-	if (err) {
+	wdt->sclk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(wdt->sclk)) {
 		dev_err(&pdev->dev, "Could not enable slow clock\n");
-		return err;
+		return PTR_ERR(wdt->sclk);
 	}
 
 	if (pdev->dev.of_node) {
 		err = of_at91wdt_init(pdev->dev.of_node, wdt);
 		if (err)
-			goto err_clk;
+			return err;
 	}
 
 	err = at91_wdt_init(pdev, wdt);
 	if (err)
-		goto err_clk;
+		return err;
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -374,11 +370,6 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 		wdt->wdd.timeout, wdt->nowayout);
 
 	return 0;
-
-err_clk:
-	clk_disable_unprepare(wdt->sclk);
-
-	return err;
 }
 
 static int __exit at91wdt_remove(struct platform_device *pdev)
@@ -388,7 +379,6 @@ static int __exit at91wdt_remove(struct platform_device *pdev)
 
 	pr_warn("I quit now, hardware will probably reboot!\n");
 	del_timer(&wdt->timer);
-	clk_disable_unprepare(wdt->sclk);
 
 	return 0;
 }

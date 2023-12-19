@@ -13,7 +13,6 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-mvebu.h"
@@ -106,10 +105,8 @@ static struct pinctrl_gpio_range armada_ap806_mpp_gpio_ranges[] = {
 static int armada_ap806_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc = &armada_ap806_pinctrl_info;
-	const struct of_device_id *match =
-		of_match_device(armada_ap806_pinctrl_of_match, &pdev->dev);
 
-	if (!match || !pdev->dev.parent)
+	if (!pdev->dev.parent)
 		return -ENODEV;
 
 	soc->variant = 0; /* no variants for Armada AP806 */

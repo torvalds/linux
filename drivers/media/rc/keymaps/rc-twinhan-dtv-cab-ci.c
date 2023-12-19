@@ -92,3 +92,4 @@ module_init(init_rc_map_twinhan_dtv_cab_ci);
 module_exit(exit_rc_map_twinhan_dtv_cab_ci);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Twinhan DTV CAB CI remote controller keytable");

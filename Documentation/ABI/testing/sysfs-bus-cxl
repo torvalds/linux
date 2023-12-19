@@ -178,6 +178,21 @@ Description:
 		hardware decoder target list.
 
 
+What:		/sys/bus/cxl/devices/portX/decoders_committed
+Date:		October, 2023
+KernelVersion:	v6.7
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) A memory device is considered active when any of its
+		decoders are in the "committed" state (See CXL 3.0 8.2.4.19.7
+		CXL HDM Decoder n Control Register). Hotplug and destructive
+		operations like "sanitize" are blocked while device is actively
+		decoding a Host Physical Address range. Note that this number
+		may be elevated without any regionX objects active or even
+		enumerated, as this may be due to decoders established by
+		platform firwmare or a previous kernel (kexec).
+
+
 What:		/sys/bus/cxl/devices/decoderX.Y
 Date:		June, 2021
 KernelVersion:	v5.14
@@ -367,6 +382,21 @@ Contact:	linux-cxl@vger.kernel.org
 Description:
 		(WO) Write a string in the form 'regionZ' to delete that region,
 		provided it is currently idle / not bound to a driver.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/qos_class
+Date:		May, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) For CXL host platforms that support "QoS Telemmetry" this
+		root-decoder-only attribute conveys a platform specific cookie
+		that identifies a QoS performance class for the CXL Window.
+		This class-id can be compared against a similar "qos_class"
+		published for each memory-type that an endpoint supports. While
+		it is not required that endpoints map their local memory-class
+		to a matching platform class, mismatches are not recommended and
+		there are platform specific side-effects that may result.
 
 
 What:		/sys/bus/cxl/devices/regionZ/uuid

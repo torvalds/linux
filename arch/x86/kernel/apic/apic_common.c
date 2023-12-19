@@ -18,7 +18,7 @@ u32 apic_flat_calc_apicid(unsigned int cpu)
 	return 1U << cpu;
 }
 
-bool default_check_apicid_used(physid_mask_t *map, int apicid)
+bool default_check_apicid_used(physid_mask_t *map, u32 apicid)
 {
 	return physid_isset(apicid, *map);
 }
@@ -28,7 +28,7 @@ void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap)
 	*retmap = *phys_map;
 }
 
-int default_cpu_present_to_apicid(int mps_cpu)
+u32 default_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids && cpu_present(mps_cpu))
 		return (int)per_cpu(x86_cpu_to_apicid, mps_cpu);

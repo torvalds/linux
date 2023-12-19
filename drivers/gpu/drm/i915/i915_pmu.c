@@ -696,12 +696,11 @@ static void i915_pmu_event_read(struct perf_event *event)
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
-again:
-	prev = local64_read(&hwc->prev_count);
-	new = __i915_pmu_event_read(event);
 
-	if (local64_cmpxchg(&hwc->prev_count, prev, new) != prev)
-		goto again;
+	prev = local64_read(&hwc->prev_count);
+	do {
+		new = __i915_pmu_event_read(event);
+	} while (!local64_try_cmpxchg(&hwc->prev_count, &prev, new));
 
 	local64_add(new - prev, &event->count);
 }
@@ -832,9 +831,18 @@ static void i915_pmu_event_start(struct perf_event *event, int flags)
 
 static void i915_pmu_event_stop(struct perf_event *event, int flags)
 {
+	struct drm_i915_private *i915 =
+		container_of(event->pmu, typeof(*i915), pmu.base);
+	struct i915_pmu *pmu = &i915->pmu;
+
+	if (pmu->closed)
+		goto out;
+
 	if (flags & PERF_EF_UPDATE)
 		i915_pmu_event_read(event);
 	i915_pmu_disable(event);
+
+out:
 	event->hw.state = PERF_HES_STOPPED;
 }
 

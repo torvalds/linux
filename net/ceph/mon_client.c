@@ -1136,6 +1136,7 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 			       GFP_KERNEL);
 	if (!monc->monmap)
 		return -ENOMEM;
+	monc->monmap->num_mon = num_mon;
 
 	for (i = 0; i < num_mon; i++) {
 		struct ceph_entity_inst *inst = &monc->monmap->mon_inst[i];
@@ -1147,7 +1148,6 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 		inst->name.type = CEPH_ENTITY_TYPE_MON;
 		inst->name.num = cpu_to_le64(i);
 	}
-	monc->monmap->num_mon = num_mon;
 	return 0;
 }
 

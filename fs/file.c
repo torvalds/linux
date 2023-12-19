@@ -604,6 +604,9 @@ void fd_install(unsigned int fd, struct file *file)
 	struct files_struct *files = current->files;
 	struct fdtable *fdt;
 
+	if (WARN_ON_ONCE(unlikely(file->f_mode & FMODE_BACKING)))
+		return;
+
 	rcu_read_lock_sched();
 
 	if (unlikely(files->resize_in_progress)) {
@@ -853,8 +856,104 @@ void do_close_on_exec(struct files_struct *files)
 	spin_unlock(&files->file_lock);
 }
 
+static struct file *__get_file_rcu(struct file __rcu **f)
+{
+	struct file __rcu *file;
+	struct file __rcu *file_reloaded;
+	struct file __rcu *file_reloaded_cmp;
+
+	file = rcu_dereference_raw(*f);
+	if (!file)
+		return NULL;
+
+	if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+		return ERR_PTR(-EAGAIN);
+
+	file_reloaded = rcu_dereference_raw(*f);
+
+	/*
+	 * Ensure that all accesses have a dependency on the load from
+	 * rcu_dereference_raw() above so we get correct ordering
+	 * between reuse/allocation and the pointer check below.
+	 */
+	file_reloaded_cmp = file_reloaded;
+	OPTIMIZER_HIDE_VAR(file_reloaded_cmp);
+
+	/*
+	 * atomic_long_inc_not_zero() above provided a full memory
+	 * barrier when we acquired a reference.
+	 *
+	 * This is paired with the write barrier from assigning to the
+	 * __rcu protected file pointer so that if that pointer still
+	 * matches the current file, we know we have successfully
+	 * acquired a reference to the right file.
+	 *
+	 * If the pointers don't match the file has been reallocated by
+	 * SLAB_TYPESAFE_BY_RCU.
+	 */
+	if (file == file_reloaded_cmp)
+		return file_reloaded;
+
+	fput(file);
+	return ERR_PTR(-EAGAIN);
+}
+
+/**
+ * get_file_rcu - try go get a reference to a file under rcu
+ * @f: the file to get a reference on
+ *
+ * This function tries to get a reference on @f carefully verifying that
+ * @f hasn't been reused.
+ *
+ * This function should rarely have to be used and only by users who
+ * understand the implications of SLAB_TYPESAFE_BY_RCU. Try to avoid it.
+ *
+ * Return: Returns @f with the reference count increased or NULL.
+ */
+struct file *get_file_rcu(struct file __rcu **f)
+{
+	for (;;) {
+		struct file __rcu *file;
+
+		file = __get_file_rcu(f);
+		if (unlikely(!file))
+			return NULL;
+
+		if (unlikely(IS_ERR(file)))
+			continue;
+
+		return file;
+	}
+}
+EXPORT_SYMBOL_GPL(get_file_rcu);
+
+/**
+ * get_file_active - try go get a reference to a file
+ * @f: the file to get a reference on
+ *
+ * In contast to get_file_rcu() the pointer itself isn't part of the
+ * reference counting.
+ *
+ * This function should rarely have to be used and only by users who
+ * understand the implications of SLAB_TYPESAFE_BY_RCU. Try to avoid it.
+ *
+ * Return: Returns @f with the reference count increased or NULL.
+ */
+struct file *get_file_active(struct file **f)
+{
+	struct file __rcu *file;
+
+	rcu_read_lock();
+	file = __get_file_rcu(f);
+	rcu_read_unlock();
+	if (IS_ERR(file))
+		file = NULL;
+	return file;
+}
+EXPORT_SYMBOL_GPL(get_file_active);
+
 static inline struct file *__fget_files_rcu(struct files_struct *files,
-	unsigned int fd, fmode_t mask)
+       unsigned int fd, fmode_t mask)
 {
 	for (;;) {
 		struct file *file;
@@ -865,12 +964,6 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 			return NULL;
 
 		fdentry = fdt->fd + array_index_nospec(fd, fdt->max_fds);
-		file = rcu_dereference_raw(*fdentry);
-		if (unlikely(!file))
-			return NULL;
-
-		if (unlikely(file->f_mode & mask))
-			return NULL;
 
 		/*
 		 * Ok, we have a file pointer. However, because we do
@@ -879,10 +972,15 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 *
 		 * Such a race can take two forms:
 		 *
-		 *  (a) the file ref already went down to zero,
-		 *      and get_file_rcu() fails. Just try again:
+		 *  (a) the file ref already went down to zero and the
+		 *      file hasn't been reused yet or the file count
+		 *      isn't zero but the file has already been reused.
 		 */
-		if (unlikely(!get_file_rcu(file)))
+		file = __get_file_rcu(fdentry);
+		if (unlikely(!file))
+			return NULL;
+
+		if (unlikely(IS_ERR(file)))
 			continue;
 
 		/*
@@ -893,10 +991,18 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 *
 		 * If so, we need to put our ref and try again.
 		 */
-		if (unlikely(rcu_dereference_raw(files->fdt) != fdt) ||
-		    unlikely(rcu_dereference_raw(*fdentry) != file)) {
+		if (unlikely(rcu_dereference_raw(files->fdt) != fdt)) {
 			fput(file);
 			continue;
+		}
+
+		/*
+		 * This isn't the file we're looking for or we're not
+		 * allowed to get a reference to it.
+		 */
+		if (unlikely(file->f_mode & mask)) {
+			fput(file);
+			return NULL;
 		}
 
 		/*
@@ -948,7 +1054,14 @@ struct file *fget_task(struct task_struct *task, unsigned int fd)
 	return file;
 }
 
-struct file *task_lookup_fd_rcu(struct task_struct *task, unsigned int fd)
+struct file *lookup_fdget_rcu(unsigned int fd)
+{
+	return __fget_files_rcu(current->files, fd, 0);
+
+}
+EXPORT_SYMBOL_GPL(lookup_fdget_rcu);
+
+struct file *task_lookup_fdget_rcu(struct task_struct *task, unsigned int fd)
 {
 	/* Must be called with rcu_read_lock held */
 	struct files_struct *files;
@@ -957,13 +1070,13 @@ struct file *task_lookup_fd_rcu(struct task_struct *task, unsigned int fd)
 	task_lock(task);
 	files = task->files;
 	if (files)
-		file = files_lookup_fd_rcu(files, fd);
+		file = __fget_files_rcu(files, fd, 0);
 	task_unlock(task);
 
 	return file;
 }
 
-struct file *task_lookup_next_fd_rcu(struct task_struct *task, unsigned int *ret_fd)
+struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *ret_fd)
 {
 	/* Must be called with rcu_read_lock held */
 	struct files_struct *files;
@@ -974,7 +1087,7 @@ struct file *task_lookup_next_fd_rcu(struct task_struct *task, unsigned int *ret
 	files = task->files;
 	if (files) {
 		for (; fd < files_fdtable(files)->max_fds; fd++) {
-			file = files_lookup_fd_rcu(files, fd);
+			file = __fget_files_rcu(files, fd, 0);
 			if (file)
 				break;
 		}
@@ -983,7 +1096,7 @@ struct file *task_lookup_next_fd_rcu(struct task_struct *task, unsigned int *ret
 	*ret_fd = fd;
 	return file;
 }
-EXPORT_SYMBOL(task_lookup_next_fd_rcu);
+EXPORT_SYMBOL(task_lookup_next_fdget_rcu);
 
 /*
  * Lightweight file lookup - no refcnt increment if fd table isn't shared.
@@ -1272,12 +1385,16 @@ SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
 {
 	if (unlikely(newfd == oldfd)) { /* corner case */
 		struct files_struct *files = current->files;
+		struct file *f;
 		int retval = oldfd;
 
 		rcu_read_lock();
-		if (!files_lookup_fd_rcu(files, oldfd))
+		f = __fget_files_rcu(files, oldfd, 0);
+		if (!f)
 			retval = -EBADF;
 		rcu_read_unlock();
+		if (f)
+			fput(f);
 		return retval;
 	}
 	return ksys_dup3(oldfd, newfd, 0);

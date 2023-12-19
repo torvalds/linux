@@ -190,8 +190,6 @@ enum aux_ch {
 	AUX_CH_E_XELPD,
 };
 
-#define aux_ch_name(a) ((a) + 'A')
-
 enum phy {
 	PHY_NONE = -1,
 
@@ -405,6 +403,9 @@ enum drm_mode_status
 intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				const struct drm_display_mode *mode,
 				bool bigjoiner);
+enum drm_mode_status
+intel_cpu_transcoder_mode_valid(struct drm_i915_private *i915,
+				const struct drm_display_mode *mode);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 bool is_trans_port_sync_master(const struct intel_crtc_state *state);
@@ -513,8 +514,10 @@ void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state);
 void intel_update_watermarks(struct drm_i915_private *i915);
 
 /* modesetting */
-int intel_modeset_all_pipes(struct intel_atomic_state *state,
-			    const char *reason);
+int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,
+				      const char *reason, u8 pipe_mask);
+int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
+				 const char *reason);
 void intel_modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state,
 					  struct intel_power_domain_mask *old_domains);
 void intel_modeset_put_crtc_power_domains(struct intel_crtc *crtc,

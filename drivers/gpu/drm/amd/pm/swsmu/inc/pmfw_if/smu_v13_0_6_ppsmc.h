@@ -87,7 +87,11 @@
 #define PPSMC_MSG_QueryValidMcaCount                0x36
 #define PPSMC_MSG_McaBankDumpDW                     0x37
 #define PPSMC_MSG_GetCTFLimit                       0x38
-#define PPSMC_Message_Count                         0x39
+#define PPSMC_MSG_ClearMcaOnRead                    0x39
+#define PPSMC_MSG_QueryValidMcaCeCount              0x3A
+#define PPSMC_MSG_McaBankCeDumpDW                   0x3B
+#define PPSMC_MSG_SelectPLPDMode                    0x40
+#define PPSMC_Message_Count                         0x41
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1
@@ -103,6 +107,10 @@
 #define PPSMC_CCD_THM_TYPE                          0x2
 #define PPSMC_XCD_THM_TYPE                          0x3
 #define PPSMC_HBM_THM_TYPE                          0x4
+
+//PLPD modes
+#define PPSMC_PLPD_MODE_DEFAULT                     0x1
+#define PPSMC_PLPD_MODE_OPTIMIZED                   0x2
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_MSG;

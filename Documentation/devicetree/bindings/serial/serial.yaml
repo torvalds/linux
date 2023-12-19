@@ -87,16 +87,8 @@ properties:
     description:
       TX FIFO threshold configuration (in bytes).
 
-if:
-  required:
-    - uart-has-rtscts
-then:
-  properties:
-    cts-gpios: false
-    rts-gpios: false
-
 patternProperties:
-  "^bluetooth|gnss|gps|mcu$":
+  "^(bluetooth|bluetooth-gnss|gnss|gps|mcu)$":
     if:
       type: object
     then:
@@ -135,6 +127,14 @@ patternProperties:
 
       required:
         - compatible
+
+if:
+  required:
+    - uart-has-rtscts
+then:
+  properties:
+    cts-gpios: false
+    rts-gpios: false
 
 additionalProperties: true
 

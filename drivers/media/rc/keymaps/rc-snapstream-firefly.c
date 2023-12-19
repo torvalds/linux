@@ -92,3 +92,4 @@ module_exit(exit_rc_map_snapstream_firefly)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Anssi Hannula <anssi.hannula@iki.fi>");
+MODULE_DESCRIPTION("SnapStream Firefly X10 RF remote controller keytable");

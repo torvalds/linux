@@ -60,6 +60,7 @@
 #define SWRM_INTERRUPT_STATUS_BUS_RESET_FINISHED_V2		BIT(13)
 #define SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2		BIT(14)
 #define SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP		BIT(16)
+#define SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED	BIT(19)
 #define SWRM_INTERRUPT_MAX					17
 #define SWRM_V1_3_INTERRUPT_MASK_ADDR				0x204
 #define SWRM_V1_3_INTERRUPT_CLEAR				0x208
@@ -776,6 +777,17 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				break;
 			case SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP:
 				break;
+			case SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED:
+				ctrl->reg_read(ctrl,
+					       ctrl->reg_layout[SWRM_REG_CMD_FIFO_STATUS],
+					       &value);
+				dev_err(ctrl->dev,
+					"%s: SWR CMD ignored, fifo status %x\n",
+					__func__, value);
+
+				/* Wait 3.5ms to clear */
+				usleep_range(3500, 3505);
+				break;
 			default:
 				dev_err_ratelimited(ctrl->dev,
 						"%s: SWR unknown interrupt value: %d\n",
@@ -801,8 +813,8 @@ static bool swrm_wait_for_frame_gen_enabled(struct qcom_swrm_ctrl *ctrl)
 	int comp_sts;
 
 	do {
-		ctrl->reg_read(ctrl, SWRM_COMP_STATUS, &comp_sts);
-
+		ctrl->reg_read(ctrl, ctrl->reg_layout[SWRM_REG_FRAME_GEN_ENABLED],
+			       &comp_sts);
 		if (comp_sts & SWRM_FRM_GEN_ENABLED)
 			return true;
 
@@ -1550,7 +1562,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 
 	ctrl->hclk = devm_clk_get(dev, "iface");
 	if (IS_ERR(ctrl->hclk)) {
-		ret = PTR_ERR(ctrl->hclk);
+		ret = dev_err_probe(dev, PTR_ERR(ctrl->hclk), "unable to get iface clock\n");
 		goto err_init;
 	}
 

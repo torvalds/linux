@@ -31,6 +31,11 @@ static inline void x86_dtb_init(void) { }
 #define of_ioapic 0
 #endif
 
+#ifdef CONFIG_OF_EARLY_FLATTREE
+void x86_flattree_get_config(void);
+#else
+static inline void x86_flattree_get_config(void) { }
+#endif
 extern char cmd_line[COMMAND_LINE_SIZE];
 
 #endif /* __ASSEMBLY__ */

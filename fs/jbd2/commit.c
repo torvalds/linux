@@ -119,7 +119,7 @@ static int journal_submit_commit_record(journal_t *journal,
 	struct commit_header *tmp;
 	struct buffer_head *bh;
 	struct timespec64 now;
-	blk_opf_t write_flags = REQ_OP_WRITE | REQ_SYNC;
+	blk_opf_t write_flags = REQ_OP_WRITE | JBD2_JOURNAL_REQ_FLAGS;
 
 	*cbh = NULL;
 
@@ -270,6 +270,7 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 			if (!ret)
 				ret = err;
 		}
+		cond_resched();
 		spin_lock(&journal->j_list_lock);
 		jinode->i_flags &= ~JI_COMMIT_RUNNING;
 		smp_mb();
@@ -298,14 +299,12 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 
 static __u32 jbd2_checksum_data(__u32 crc32_sum, struct buffer_head *bh)
 {
-	struct page *page = bh->b_page;
 	char *addr;
 	__u32 checksum;
 
-	addr = kmap_atomic(page);
-	checksum = crc32_be(crc32_sum,
-		(void *)(addr + offset_in_page(bh->b_data)), bh->b_size);
-	kunmap_atomic(addr);
+	addr = kmap_local_folio(bh->b_folio, bh_offset(bh));
+	checksum = crc32_be(crc32_sum, addr, bh->b_size);
+	kunmap_local(addr);
 
 	return checksum;
 }
@@ -322,7 +321,6 @@ static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
 				    struct buffer_head *bh, __u32 sequence)
 {
 	journal_block_tag3_t *tag3 = (journal_block_tag3_t *)tag;
-	struct page *page = bh->b_page;
 	__u8 *addr;
 	__u32 csum32;
 	__be32 seq;
@@ -331,11 +329,10 @@ static void jbd2_block_tag_csum_set(journal_t *j, journal_block_tag_t *tag,
 		return;
 
 	seq = cpu_to_be32(sequence);
-	addr = kmap_atomic(page);
+	addr = kmap_local_folio(bh->b_folio, bh_offset(bh));
 	csum32 = jbd2_chksum(j, j->j_csum_seed, (__u8 *)&seq, sizeof(seq));
-	csum32 = jbd2_chksum(j, csum32, addr + offset_in_page(bh->b_data),
-			     bh->b_size);
-	kunmap_atomic(addr);
+	csum32 = jbd2_chksum(j, csum32, addr, bh->b_size);
+	kunmap_local(addr);
 
 	if (jbd2_has_feature_csum3(j))
 		tag3->t_checksum = cpu_to_be32(csum32);
@@ -399,8 +396,7 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		 */
 		jbd2_journal_update_sb_log_tail(journal,
 						journal->j_tail_sequence,
-						journal->j_tail,
-						REQ_SYNC);
+						journal->j_tail, 0);
 		mutex_unlock(&journal->j_checkpoint_mutex);
 	} else {
 		jbd2_debug(3, "superblock not updated\n");
@@ -719,6 +715,7 @@ start_journal_io:
 
 			for (i = 0; i < bufs; i++) {
 				struct buffer_head *bh = wbuf[i];
+
 				/*
 				 * Compute checksum.
 				 */
@@ -731,7 +728,8 @@ start_journal_io:
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
 				bh->b_end_io = journal_end_buffer_io_sync;
-				submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
+				submit_bh(REQ_OP_WRITE | JBD2_JOURNAL_REQ_FLAGS,
+					  bh);
 			}
 			cond_resched();
 

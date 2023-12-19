@@ -604,13 +604,14 @@ binary_in_frame_padded_width(int in_frame_width,
 	int rval;
 	int nr_of_left_paddings;	/* number of paddings pixels on the left of an image line */
 
-#if defined(ISP2401)
-	/* the output image line of Input System 2401 does not have the left paddings  */
-	nr_of_left_paddings = 0;
-#else
-	/* in other cases, the left padding pixels are always 128 */
-	nr_of_left_paddings = 2 * ISP_VEC_NELEMS;
-#endif
+	if (IS_ISP2401) {
+		/* the output image line of Input System 2401 does not have the left paddings  */
+		nr_of_left_paddings = 0;
+	} else {
+		/* in other cases, the left padding pixels are always 128 */
+		nr_of_left_paddings = 2 * ISP_VEC_NELEMS;
+	}
+
 	if (need_scaling) {
 		/* In SDV use-case, we need to match left-padding of
 		 * primary and the video binary. */

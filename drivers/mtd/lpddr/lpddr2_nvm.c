@@ -476,11 +476,9 @@ static int lpddr2_nvm_probe(struct platform_device *pdev)
 /*
  * lpddr2_nvm driver remove method
  */
-static int lpddr2_nvm_remove(struct platform_device *pdev)
+static void lpddr2_nvm_remove(struct platform_device *pdev)
 {
 	WARN_ON(mtd_device_unregister(dev_get_drvdata(&pdev->dev)));
-
-	return 0;
 }
 
 /* Initialize platform_driver data structure for lpddr2_nvm */
@@ -489,7 +487,7 @@ static struct platform_driver lpddr2_nvm_drv = {
 		.name	= "lpddr2_nvm",
 	},
 	.probe		= lpddr2_nvm_probe,
-	.remove		= lpddr2_nvm_remove,
+	.remove_new	= lpddr2_nvm_remove,
 };
 
 module_platform_driver(lpddr2_nvm_drv);

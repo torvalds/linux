@@ -75,7 +75,7 @@ void mpc32_power_on_blnd_lut(
 		if (power_on) {
 			REG_UPDATE(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_FORCE, 0);
 			REG_WAIT(MPCC_MCM_MEM_PWR_CTRL[mpcc_id], MPCC_MCM_1DLUT_MEM_PWR_STATE, 0, 1, 5);
-		} else {
+		} else if (!mpc->ctx->dc->debug.disable_mem_low_power) {
 			ASSERT(false);
 			/* TODO: change to mpc
 			 *  dpp_base->ctx->dc->optimized_required = true;
@@ -237,16 +237,19 @@ void mpc32_program_post1dlut_pwl(
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 	} else {
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 4);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].red_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_red);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 2);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].green_reg);
 		REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, last_base_value_green);
 
+		REG_SET(MPCC_MCM_1DLUT_LUT_INDEX[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_INDEX, 0);
 		REG_UPDATE(MPCC_MCM_1DLUT_LUT_CONTROL[mpcc_id], MPCC_MCM_1DLUT_LUT_WRITE_COLOR_MASK, 1);
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_MCM_1DLUT_LUT_DATA[mpcc_id], 0, MPCC_MCM_1DLUT_LUT_DATA, rgb[i].blue_reg);

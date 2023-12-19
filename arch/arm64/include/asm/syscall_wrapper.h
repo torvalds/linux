@@ -54,7 +54,6 @@
 	ALLOW_ERROR_INJECTION(__arm64_sys##name, ERRNO);			\
 	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));		\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
-	asmlinkage long __arm64_sys##name(const struct pt_regs *regs);		\
 	asmlinkage long __arm64_sys##name(const struct pt_regs *regs)		\
 	{									\
 		return __se_sys##name(SC_ARM64_REGS_TO_ARGS(x,__VA_ARGS__));	\

@@ -1812,12 +1812,12 @@ int fuse_flush_times(struct inode *inode, struct fuse_file *ff)
 	memset(&outarg, 0, sizeof(outarg));
 
 	inarg.valid = FATTR_MTIME;
-	inarg.mtime = inode->i_mtime.tv_sec;
-	inarg.mtimensec = inode->i_mtime.tv_nsec;
+	inarg.mtime = inode_get_mtime_sec(inode);
+	inarg.mtimensec = inode_get_mtime_nsec(inode);
 	if (fm->fc->minor >= 23) {
 		inarg.valid |= FATTR_CTIME;
-		inarg.ctime = inode_get_ctime(inode).tv_sec;
-		inarg.ctimensec = inode_get_ctime(inode).tv_nsec;
+		inarg.ctime = inode_get_ctime_sec(inode);
+		inarg.ctimensec = inode_get_ctime_nsec(inode);
 	}
 	if (ff) {
 		inarg.valid |= FATTR_FH;
@@ -1956,7 +1956,7 @@ int fuse_do_setattr(struct dentry *dentry, struct iattr *attr,
 	/* the kernel maintains i_mtime locally */
 	if (trust_local_cmtime) {
 		if (attr->ia_valid & ATTR_MTIME)
-			inode->i_mtime = attr->ia_mtime;
+			inode_set_mtime_to_ts(inode, attr->ia_mtime);
 		if (attr->ia_valid & ATTR_CTIME)
 			inode_set_ctime_to_ts(inode, attr->ia_ctime);
 		/* FIXME: clear I_DIRTY_SYNC? */

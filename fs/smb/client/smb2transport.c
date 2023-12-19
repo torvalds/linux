@@ -413,7 +413,13 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		      ses->ses_status == SES_GOOD);
 
 	chan_index = cifs_ses_get_chan_index(ses, server);
-	/* TODO: introduce ref counting for channels when the can be freed */
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&ses->ses_lock);
+
+		return -EINVAL;
+	}
+
 	spin_unlock(&ses->chan_lock);
 	spin_unlock(&ses->ses_lock);
 
@@ -452,6 +458,8 @@ generate_smb3signingkey(struct cifs_ses *ses,
 				  ptriplet->encryption.context,
 				  ses->smb3encryptionkey,
 				  SMB3_ENC_DEC_KEY_SIZE);
+		if (rc)
+			return rc;
 		rc = generate_key(ses, ptriplet->decryption.label,
 				  ptriplet->decryption.context,
 				  ses->smb3decryptionkey,
@@ -459,9 +467,6 @@ generate_smb3signingkey(struct cifs_ses *ses,
 		if (rc)
 			return rc;
 	}
-
-	if (rc)
-		return rc;
 
 #ifdef CONFIG_CIFS_DEBUG_DUMP_KEYS
 	cifs_dbg(VFS, "%s: dumping generated AES session keys\n", __func__);

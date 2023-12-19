@@ -681,6 +681,7 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 			err = -ENOMEM;
 			goto cleanup;
 		}
+		us->len = NOOF_SETRATE_URBS;
 		usbdata = kmalloc_array(NOOF_SETRATE_URBS, sizeof(int),
 					GFP_KERNEL);
 		if (!usbdata) {
@@ -702,7 +703,6 @@ static int usx2y_rate_set(struct usx2ydev *usx2y, int rate)
 		if (err < 0)
 			goto cleanup;
 		us->submitted =	0;
-		us->len =	NOOF_SETRATE_URBS;
 		usx2y->us04 =	us;
 		wait_event_timeout(usx2y->in04_wait_queue, !us->len, HZ);
 		usx2y->us04 =	NULL;

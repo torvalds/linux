@@ -46,6 +46,14 @@ nvbios_addr(struct nvkm_bios *bios, u32 *addr, u8 size)
 	return true;
 }
 
+void *
+nvbios_pointer(struct nvkm_bios *bios, u32 addr)
+{
+	if (likely(nvbios_addr(bios, &addr, 0)))
+		return &bios->data[addr];
+	return NULL;
+}
+
 u8
 nvbios_rd08(struct nvkm_bios *bios, u32 addr)
 {

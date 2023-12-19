@@ -69,9 +69,9 @@ config SFP
 comment "MII PHY device drivers"
 
 config AMD_PHY
-	tristate "AMD PHYs"
+	tristate "AMD and Altima PHYs"
 	help
-	  Currently supports the am79c874
+	  Currently supports the AMD am79c874 and Altima AC101L.
 
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"

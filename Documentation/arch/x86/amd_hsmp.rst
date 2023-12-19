@@ -41,6 +41,24 @@ In-kernel integration:
  * Locking across callers is taken care by the driver.
 
 
+HSMP sysfs interface
+====================
+
+1. Metrics table binary sysfs
+
+AMD MI300A MCM provides GET_METRICS_TABLE message to retrieve
+most of the system management information from SMU in one go.
+
+The metrics table is made available as hexadecimal sysfs binary file
+under per socket sysfs directory created at
+/sys/devices/platform/amd_hsmp/socket%d/metrics_bin
+
+Note: lseek() is not supported as entire metrics table is read.
+
+Metrics table definitions will be documented as part of Public PPR.
+The same is defined in the amd_hsmp.h header.
+
+
 An example
 ==========
 

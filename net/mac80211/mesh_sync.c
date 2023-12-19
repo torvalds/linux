@@ -3,7 +3,7 @@
  * Copyright 2011-2012, Pavel Zubarev <pavel.zubarev@gmail.com>
  * Copyright 2011-2012, Marco Porsch <marco.porsch@s2005.tu-chemnitz.de>
  * Copyright 2011-2012, cozybit Inc.
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021,2023 Intel Corporation
  */
 
 #include "ieee80211_i.h"
@@ -37,6 +37,8 @@ struct sync_method {
  * mesh_peer_tbtt_adjusting - check if an mp is currently adjusting its TBTT
  *
  * @cfg: mesh config element from the mesh peer (or %NULL)
+ *
+ * Returns: If the mesh peer is currently adjusting its TBTT
  */
 static bool mesh_peer_tbtt_adjusting(const struct ieee80211_meshconf_ie *cfg)
 {

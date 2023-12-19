@@ -181,7 +181,7 @@ static inline void pfx##out##bwlq##p(type val, unsigned long port)	\
 {									\
 	volatile type *__addr;						\
 									\
-	__addr = __ioport_map(port, sizeof(type));			\
+	__addr = (void __iomem *)sh_io_port_base + port;		\
 	*__addr = val;							\
 	slow;								\
 }									\
@@ -191,7 +191,7 @@ static inline type pfx##in##bwlq##p(unsigned long port)			\
 	volatile type *__addr;						\
 	type __val;							\
 									\
-	__addr = __ioport_map(port, sizeof(type));			\
+	__addr = (void __iomem *)sh_io_port_base + port;		\
 	__val = *__addr;						\
 	slow;								\
 									\

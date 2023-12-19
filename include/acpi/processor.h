@@ -465,9 +465,4 @@ extern int acpi_processor_ffh_lpi_probe(unsigned int cpu);
 extern int acpi_processor_ffh_lpi_enter(struct acpi_lpi_state *lpi);
 #endif
 
-#ifdef CONFIG_ACPI_HOTPLUG_CPU
-extern int arch_register_cpu(int cpu);
-extern void arch_unregister_cpu(int cpu);
-#endif
-
 #endif

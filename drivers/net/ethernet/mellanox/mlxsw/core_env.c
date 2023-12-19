@@ -34,7 +34,7 @@ struct mlxsw_env {
 	u8 num_of_slots; /* Including the main board. */
 	u8 max_eeprom_len; /* Maximum module EEPROM transaction length. */
 	struct mutex line_cards_lock; /* Protects line cards. */
-	struct mlxsw_env_line_card *line_cards[];
+	struct mlxsw_env_line_card *line_cards[] __counted_by(num_of_slots);
 };
 
 static bool __mlxsw_env_linecard_is_active(struct mlxsw_env *mlxsw_env,
@@ -775,7 +775,7 @@ static int mlxsw_env_module_has_temp_sensor(struct mlxsw_core *mlxsw_core,
 	int err;
 
 	mlxsw_reg_mtbr_pack(mtbr_pl, slot_index,
-			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module, 1);
+			    MLXSW_REG_MTBR_BASE_MODULE_INDEX + module);
 	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mtbr), mtbr_pl);
 	if (err)
 		return err;

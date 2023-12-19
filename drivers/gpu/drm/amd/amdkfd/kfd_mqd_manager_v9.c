@@ -60,7 +60,7 @@ static inline struct v9_sdma_mqd *get_sdma_mqd(void *mqd)
 }
 
 static void update_cu_mask(struct mqd_manager *mm, void *mqd,
-			struct mqd_update_info *minfo)
+			struct mqd_update_info *minfo, uint32_t inst)
 {
 	struct v9_mqd *m;
 	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
@@ -69,27 +69,36 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		return;
 
 	mqd_symmetrically_map_cu_mask(mm,
-		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
+		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask, inst);
 
 	m = get_mqd(mqd);
+
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
 	m->compute_static_thread_mgmt_se3 = se_mask[3];
-	m->compute_static_thread_mgmt_se4 = se_mask[4];
-	m->compute_static_thread_mgmt_se5 = se_mask[5];
-	m->compute_static_thread_mgmt_se6 = se_mask[6];
-	m->compute_static_thread_mgmt_se7 = se_mask[7];
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3)) {
+		m->compute_static_thread_mgmt_se4 = se_mask[4];
+		m->compute_static_thread_mgmt_se5 = se_mask[5];
+		m->compute_static_thread_mgmt_se6 = se_mask[6];
+		m->compute_static_thread_mgmt_se7 = se_mask[7];
 
-	pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
-		m->compute_static_thread_mgmt_se0,
-		m->compute_static_thread_mgmt_se1,
-		m->compute_static_thread_mgmt_se2,
-		m->compute_static_thread_mgmt_se3,
-		m->compute_static_thread_mgmt_se4,
-		m->compute_static_thread_mgmt_se5,
-		m->compute_static_thread_mgmt_se6,
-		m->compute_static_thread_mgmt_se7);
+		pr_debug("update cu mask to %#x %#x %#x %#x %#x %#x %#x %#x\n",
+			m->compute_static_thread_mgmt_se0,
+			m->compute_static_thread_mgmt_se1,
+			m->compute_static_thread_mgmt_se2,
+			m->compute_static_thread_mgmt_se3,
+			m->compute_static_thread_mgmt_se4,
+			m->compute_static_thread_mgmt_se5,
+			m->compute_static_thread_mgmt_se6,
+			m->compute_static_thread_mgmt_se7);
+	} else {
+		pr_debug("inst: %u, update cu mask to %#x %#x %#x %#x\n",
+			inst, m->compute_static_thread_mgmt_se0,
+			m->compute_static_thread_mgmt_se1,
+			m->compute_static_thread_mgmt_se2,
+			m->compute_static_thread_mgmt_se3);
+	}
 }
 
 static void set_priority(struct v9_mqd *m, struct queue_properties *q)
@@ -290,7 +299,8 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	if (mm->dev->kfd->cwsr_enabled && q->ctx_save_restore_area_address)
 		m->cp_hqd_ctx_save_control = 0;
 
-	update_cu_mask(mm, mqd, minfo);
+	if (KFD_GC_VERSION(mm->dev) != IP_VERSION(9, 4, 3))
+		update_cu_mask(mm, mqd, minfo, 0);
 	set_priority(m, q);
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
@@ -675,6 +685,8 @@ static void update_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 	for (xcc = 0; xcc < NUM_XCC(mm->dev->xcc_mask); xcc++) {
 		m = get_mqd(mqd + size * xcc);
 		update_mqd(mm, m, q, minfo);
+
+		update_cu_mask(mm, mqd, minfo, xcc);
 
 		if (q->format == KFD_QUEUE_FORMAT_AQL) {
 			switch (xcc) {

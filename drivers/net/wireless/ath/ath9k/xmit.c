@@ -94,7 +94,7 @@ static void ath_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_STATUS_EOSP)) {
-		ieee80211_tx_status(hw, skb);
+		ieee80211_tx_status_skb(hw, skb);
 		return;
 	}
 

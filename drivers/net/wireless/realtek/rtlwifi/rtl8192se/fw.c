@@ -122,7 +122,7 @@ static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 
 	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
 	pdesc = &ring->desc[idx];
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
+	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, skb);
 	__skb_queue_tail(&ring->queue, skb);
 
 	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);

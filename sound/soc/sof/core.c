@@ -327,6 +327,7 @@ dbg_err:
 dsp_err:
 	snd_sof_remove(sdev);
 probe_err:
+	snd_sof_remove_late(sdev);
 	sof_ops_free(sdev);
 
 	/* all resources freed, update state to match */
@@ -436,6 +437,14 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
 
+	/*
+	 * first pass of probe which isn't allowed to run in a work-queue,
+	 * typically to rely on -EPROBE_DEFER dependencies
+	 */
+	ret = snd_sof_probe_early(sdev);
+	if (ret < 0)
+		return ret;
+
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE)) {
 		INIT_WORK(&sdev->probe_work, sof_probe_work);
 		schedule_work(&sdev->probe_work);
@@ -459,9 +468,10 @@ int snd_sof_device_remove(struct device *dev)
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	int ret;
+	bool aborted = false;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
-		cancel_work_sync(&sdev->probe_work);
+		aborted = cancel_work_sync(&sdev->probe_work);
 
 	/*
 	 * Unregister any registered client device first before IPC and debugfs
@@ -486,9 +496,13 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_ipc_free(sdev);
 		snd_sof_free_debug(sdev);
 		snd_sof_remove(sdev);
+		snd_sof_remove_late(sdev);
+		sof_ops_free(sdev);
+	} else if (aborted) {
+		/* probe_work never ran */
+		snd_sof_remove_late(sdev);
+		sof_ops_free(sdev);
 	}
-
-	sof_ops_free(sdev);
 
 	/* release firmware */
 	snd_sof_fw_unload(sdev);
