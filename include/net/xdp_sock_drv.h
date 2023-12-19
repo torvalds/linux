@@ -12,13 +12,13 @@
 #define XDP_UMEM_MIN_CHUNK_SHIFT 11
 #define XDP_UMEM_MIN_CHUNK_SIZE (1 << XDP_UMEM_MIN_CHUNK_SHIFT)
 
-#ifdef CONFIG_XDP_SOCKETS
-
 struct xsk_cb_desc {
 	void *src;
 	u8 off;
 	u8 bytes;
 };
+
+#ifdef CONFIG_XDP_SOCKETS
 
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries);
 bool xsk_tx_peek_desc(struct xsk_buff_pool *pool, struct xdp_desc *desc);
