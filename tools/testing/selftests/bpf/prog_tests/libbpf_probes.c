@@ -30,8 +30,6 @@ void test_libbpf_probe_prog_types(void)
 
 		if (prog_type == BPF_PROG_TYPE_UNSPEC)
 			continue;
-		if (strcmp(prog_type_name, "__MAX_BPF_PROG_TYPE") == 0)
-			continue;
 
 		if (!test__start_subtest(prog_type_name))
 			continue;
@@ -69,8 +67,6 @@ void test_libbpf_probe_map_types(void)
 		int res;
 
 		if (map_type == BPF_MAP_TYPE_UNSPEC)
-			continue;
-		if (strcmp(map_type_name, "__MAX_BPF_MAP_TYPE") == 0)
 			continue;
 
 		if (!test__start_subtest(map_type_name))

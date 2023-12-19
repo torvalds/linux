@@ -1679,7 +1679,7 @@ const struct bpf_func_proto bpf_probe_read_kernel_str_proto __weak;
 const struct bpf_func_proto bpf_task_pt_regs_proto __weak;
 
 const struct bpf_func_proto *
-bpf_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
+bpf_base_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
 	case BPF_FUNC_map_lookup_elem:
@@ -1730,7 +1730,7 @@ bpf_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		break;
 	}
 
-	if (!bpf_token_capable(prog->aux->token, CAP_BPF))
+	if (!bpf_capable())
 		return NULL;
 
 	switch (func_id) {
@@ -1788,7 +1788,7 @@ bpf_base_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		break;
 	}
 
-	if (!bpf_token_capable(prog->aux->token, CAP_PERFMON))
+	if (!perfmon_capable())
 		return NULL;
 
 	switch (func_id) {
