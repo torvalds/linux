@@ -205,9 +205,6 @@ void nvmem_layout_driver_unregister(struct nvmem_layout_driver *drv);
 	module_driver(__nvmem_layout_driver, nvmem_layout_driver_register, \
 		      nvmem_layout_driver_unregister)
 
-const void *nvmem_layout_get_match_data(struct nvmem_device *nvmem,
-					struct nvmem_layout *layout);
-
 #else
 
 static inline struct nvmem_device *nvmem_register(const struct nvmem_config *c)
@@ -237,13 +234,6 @@ static inline int nvmem_layout_register(struct nvmem_layout *layout)
 }
 
 static inline void nvmem_layout_unregister(struct nvmem_layout *layout) {}
-
-static inline const void *
-nvmem_layout_get_match_data(struct nvmem_device *nvmem,
-			    struct nvmem_layout *layout)
-{
-	return NULL;
-}
 
 #endif /* CONFIG_NVMEM */
 

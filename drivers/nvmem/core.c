@@ -876,19 +876,6 @@ void nvmem_layout_unregister(struct nvmem_layout *layout)
 }
 EXPORT_SYMBOL_GPL(nvmem_layout_unregister);
 
-const void *nvmem_layout_get_match_data(struct nvmem_device *nvmem,
-					struct nvmem_layout *layout)
-{
-	struct device_node __maybe_unused *layout_np;
-	const struct of_device_id *match;
-
-	layout_np = of_nvmem_layout_get_container(nvmem);
-	match = of_match_node(layout->dev.driver->of_match_table, layout_np);
-
-	return match ? match->data : NULL;
-}
-EXPORT_SYMBOL_GPL(nvmem_layout_get_match_data);
-
 /**
  * nvmem_register() - Register a nvmem device for given nvmem_config.
  * Also creates a binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
