@@ -343,11 +343,13 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int count = ACP_HW_SEM_RETRY_COUNT;
 
+	spin_lock_irq(&sdev->ipc_lock);
 	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
 		/* Wait until acquired HW Semaphore lock or timeout */
 		count--;
 		if (!count) {
 			dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+			spin_unlock_irq(&sdev->ipc_lock);
 			return IRQ_NONE;
 		}
 	}
@@ -356,6 +358,7 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 	/* Unlock or Release HW Semaphore */
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset, 0x0);
 
+	spin_unlock_irq(&sdev->ipc_lock);
 	return IRQ_HANDLED;
 };
 
