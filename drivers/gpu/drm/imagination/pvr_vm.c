@@ -225,7 +225,7 @@ pvr_vm_bind_op_map_init(struct pvr_vm_bind_op *bind_op,
 			u64 device_addr, u64 size)
 {
 	struct drm_gem_object *obj = gem_from_pvr_gem(pvr_obj);
-	const bool is_user = vm_ctx == vm_ctx->pvr_dev->kernel_vm_ctx;
+	const bool is_user = vm_ctx != vm_ctx->pvr_dev->kernel_vm_ctx;
 	const u64 pvr_obj_size = pvr_gem_object_size(pvr_obj);
 	struct sg_table *sgt;
 	u64 offset_plus_size;

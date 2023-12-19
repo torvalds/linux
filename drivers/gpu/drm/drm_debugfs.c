@@ -638,7 +638,7 @@ void drm_debugfs_encoder_add(struct drm_encoder *encoder)
 	debugfs_create_file("bridges", 0444, root, encoder,
 			    &bridges_fops);
 
-	if (encoder->funcs->debugfs_init)
+	if (encoder->funcs && encoder->funcs->debugfs_init)
 		encoder->funcs->debugfs_init(encoder, root);
 }
 

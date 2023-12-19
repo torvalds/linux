@@ -26,7 +26,7 @@ void drm_aux_hpd_bridge_notify(struct device *dev, enum drm_connector_status sta
 static inline struct device *drm_dp_hpd_bridge_register(struct device *parent,
 							struct device_node *np)
 {
-	return 0;
+	return NULL;
 }
 
 static inline void drm_aux_hpd_bridge_notify(struct device *dev, enum drm_connector_status status)
