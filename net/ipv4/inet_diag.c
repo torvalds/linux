@@ -1104,7 +1104,7 @@ resume_bind_walk:
 				if (!net_eq(ib2_net(tb2), net))
 					continue;
 
-				sk_for_each_bound_bhash2(sk, &tb2->owners) {
+				sk_for_each_bound(sk, &tb2->owners) {
 					struct inet_sock *inet = inet_sk(sk);
 
 					if (num < s_num)

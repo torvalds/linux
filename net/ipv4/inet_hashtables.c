@@ -169,8 +169,8 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 {
 	inet_sk(sk)->inet_num = port;
 	inet_csk(sk)->icsk_bind_hash = tb;
-	sk_add_bind2_node(sk, &tb2->owners);
 	inet_csk(sk)->icsk_bind2_hash = tb2;
+	sk_add_bind_node(sk, &tb2->owners);
 }
 
 /*
@@ -197,7 +197,7 @@ static void __inet_put_port(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind2_hash) {
 		struct inet_bind2_bucket *tb2 = inet_csk(sk)->icsk_bind2_hash;
 
-		__sk_del_bind2_node(sk);
+		__sk_del_bind_node(sk);
 		inet_csk(sk)->icsk_bind2_hash = NULL;
 		inet_bind2_bucket_destroy(hashinfo->bind2_bucket_cachep, tb2);
 	}
@@ -937,7 +937,7 @@ static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, 
 	spin_lock_bh(&head->lock);
 
 	spin_lock(&head2->lock);
-	__sk_del_bind2_node(sk);
+	__sk_del_bind_node(sk);
 	inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep, inet_csk(sk)->icsk_bind2_hash);
 	spin_unlock(&head2->lock);
 
@@ -954,8 +954,8 @@ static int __inet_bhash2_update_saddr(struct sock *sk, void *saddr, int family, 
 		tb2 = new_tb2;
 		inet_bind2_bucket_init(tb2, net, head2, inet_csk(sk)->icsk_bind_hash, sk);
 	}
-	sk_add_bind2_node(sk, &tb2->owners);
 	inet_csk(sk)->icsk_bind2_hash = tb2;
+	sk_add_bind_node(sk, &tb2->owners);
 	spin_unlock(&head2->lock);
 
 	spin_unlock_bh(&head->lock);
