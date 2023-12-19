@@ -3293,6 +3293,7 @@ static int dpaa2_switch_probe_port(struct ethsw_core *ethsw,
 	port_netdev->features = NETIF_F_HW_VLAN_CTAG_FILTER |
 				NETIF_F_HW_VLAN_STAG_FILTER |
 				NETIF_F_HW_TC;
+	port_netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	err = dpaa2_switch_port_init(port_priv, port_idx);
 	if (err)
