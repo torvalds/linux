@@ -3309,6 +3309,23 @@ static void dump_buffer_page(struct buffer_data_page *bpage,
 static DEFINE_PER_CPU(atomic_t, checking);
 static atomic_t ts_dump;
 
+#define buffer_warn_return(fmt, ...)					\
+	do {								\
+		/* If another report is happening, ignore this one */	\
+		if (atomic_inc_return(&ts_dump) != 1) {			\
+			atomic_dec(&ts_dump);				\
+			goto out;					\
+		}							\
+		atomic_inc(&cpu_buffer->record_disabled);		\
+		pr_warn(fmt, ##__VA_ARGS__);				\
+		dump_buffer_page(bpage, info, tail);			\
+		atomic_dec(&ts_dump);					\
+		/* There's some cases in boot up that this can happen */ \
+		if (WARN_ON_ONCE(system_state != SYSTEM_BOOTING))	\
+			/* Do not re-enable checking */			\
+			return;						\
+	} while (0)
+
 /*
  * Check if the current event time stamp matches the deltas on
  * the buffer page.
@@ -3362,7 +3379,12 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 
 		case RINGBUF_TYPE_TIME_STAMP:
 			delta = rb_event_time_stamp(event);
-			ts = rb_fix_abs_ts(delta, ts);
+			delta = rb_fix_abs_ts(delta, ts);
+			if (delta < ts) {
+				buffer_warn_return("[CPU: %d]ABSOLUTE TIME WENT BACKWARDS: last ts: %lld absolute ts: %lld\n",
+						   cpu_buffer->cpu, ts, delta);
+			}
+			ts = delta;
 			break;
 
 		case RINGBUF_TYPE_PADDING:
@@ -3379,23 +3401,11 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 	}
 	if ((full && ts > info->ts) ||
 	    (!full && ts + info->delta != info->ts)) {
-		/* If another report is happening, ignore this one */
-		if (atomic_inc_return(&ts_dump) != 1) {
-			atomic_dec(&ts_dump);
-			goto out;
-		}
-		atomic_inc(&cpu_buffer->record_disabled);
-		/* There's some cases in boot up that this can happen */
-		WARN_ON_ONCE(system_state != SYSTEM_BOOTING);
-		pr_warn("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld before:%lld after:%lld%s context:%s\n",
-			cpu_buffer->cpu,
-			ts + info->delta, info->ts, info->delta,
-			info->before, info->after,
-			full ? " (full)" : "", show_interrupt_level());
-		dump_buffer_page(bpage, info, tail);
-		atomic_dec(&ts_dump);
-		/* Do not re-enable checking */
-		return;
+		buffer_warn_return("[CPU: %d]TIME DOES NOT MATCH expected:%lld actual:%lld delta:%lld before:%lld after:%lld%s context:%s\n",
+				   cpu_buffer->cpu,
+				   ts + info->delta, info->ts, info->delta,
+				   info->before, info->after,
+				   full ? " (full)" : "", show_interrupt_level());
 	}
 out:
 	atomic_dec(this_cpu_ptr(&checking));
