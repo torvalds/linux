@@ -1219,6 +1219,7 @@ static int sof_link_acp_bt_load(struct snd_soc_component *scomp, struct snd_sof_
 	struct snd_soc_tplg_hw_config *hw_config = slink->hw_configs;
 	struct sof_dai_private_data *private = dai->private;
 	u32 size = sizeof(*config);
+	int ret;
 
 	/* handle master/slave and inverted clocks */
 	sof_dai_set_format(hw_config, config);
@@ -1227,12 +1228,14 @@ static int sof_link_acp_bt_load(struct snd_soc_component *scomp, struct snd_sof_
 	memset(&config->acpbt, 0, sizeof(config->acpbt));
 	config->hdr.size = size;
 
-	config->acpbt.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpbt.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	ret = sof_update_ipc_object(scomp, &config->acpbt, SOF_ACPI2S_TOKENS, slink->tuples,
+				    slink->num_tuples, size, slink->num_hw_configs);
+	if (ret < 0)
+		return ret;
 
-	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d\n",
+	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d tdm_mode %d\n",
 		 config->dai_index, config->acpbt.tdm_slots,
-		 config->acpbt.fsync_rate);
+		 config->acpbt.fsync_rate, config->acpbt.tdm_mode);
 
 	dai->number_configs = 1;
 	dai->current_config = 0;
