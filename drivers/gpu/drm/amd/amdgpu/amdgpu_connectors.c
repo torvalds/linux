@@ -1103,7 +1103,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 			 * DDC line.  The latter is more complex because with DVI<->HDMI adapters
 			 * you don't really know what's connected to which port as both are digital.
 			 */
-			 amdgpu_connector_shared_ddc(&ret, connector, amdgpu_connector);
+			amdgpu_connector_shared_ddc(&ret, connector, amdgpu_connector);
 		}
 	}
 
