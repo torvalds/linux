@@ -976,7 +976,7 @@ static int wq_table_add_wqs(int iaa, int cpu)
 		pr_debug("rebalance: added wq for cpu=%d: iaa wq %d.%d\n",
 			 cpu, iaa_wq->wq->idxd->id, iaa_wq->wq->id);
 		n_wqs_added++;
-	};
+	}
 
 	if (!n_wqs_added) {
 		pr_debug("couldn't find any iaa wqs!\n");
