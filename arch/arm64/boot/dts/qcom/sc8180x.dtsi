@@ -1751,6 +1751,7 @@
 
 			phys = <&pcie0_phy>;
 			phy-names = "pciephy";
+			dma-coherent;
 
 			status = "disabled";
 		};
@@ -1847,6 +1848,7 @@
 
 			phys = <&pcie3_phy>;
 			phy-names = "pciephy";
+			dma-coherent;
 
 			status = "disabled";
 		};
@@ -1944,6 +1946,7 @@
 
 			phys = <&pcie1_phy>;
 			phy-names = "pciephy";
+			dma-coherent;
 
 			status = "disabled";
 		};
@@ -2041,6 +2044,7 @@
 
 			phys = <&pcie2_phy>;
 			phy-names = "pciephy";
+			dma-coherent;
 
 			status = "disabled";
 		};
