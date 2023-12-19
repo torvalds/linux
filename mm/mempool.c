@@ -56,6 +56,10 @@ static void __check_element(mempool_t *pool, void *element, size_t size)
 
 static void check_element(mempool_t *pool, void *element)
 {
+	/* Skip checking: KASAN might save its metadata in the element. */
+	if (kasan_enabled())
+		return;
+
 	/* Mempools backed by slab allocator */
 	if (pool->free == mempool_kfree) {
 		__check_element(pool, element, (size_t)pool->pool_data);
@@ -81,6 +85,10 @@ static void __poison_element(void *element, size_t size)
 
 static void poison_element(mempool_t *pool, void *element)
 {
+	/* Skip poisoning: KASAN might save its metadata in the element. */
+	if (kasan_enabled())
+		return;
+
 	/* Mempools backed by slab allocator */
 	if (pool->alloc == mempool_kmalloc) {
 		__poison_element(element, (size_t)pool->pool_data);
