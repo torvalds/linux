@@ -16,6 +16,7 @@
 #include "octep_config.h"
 #include "octep_main.h"
 #include "octep_ctrl_net.h"
+#include "octep_pfvf_mbox.h"
 
 #define OCTEP_INTR_POLL_TIME_MSECS    100
 struct workqueue_struct *octep_wq;
@@ -157,6 +158,21 @@ static void octep_disable_msix(struct octep_device *oct)
 	kfree(oct->msix_entries);
 	oct->msix_entries = NULL;
 	dev_info(&oct->pdev->dev, "Disabled MSI-X\n");
+}
+
+/**
+ * octep_mbox_intr_handler() - common handler for pfvf mbox interrupts.
+ *
+ * @irq: Interrupt number.
+ * @data: interrupt data.
+ *
+ * this is common handler for pfvf mbox interrupts.
+ */
+static irqreturn_t octep_mbox_intr_handler(int irq, void *data)
+{
+	struct octep_device *oct = data;
+
+	return oct->hw_ops.mbox_intr_handler(oct);
 }
 
 /**
@@ -362,8 +378,12 @@ static int octep_request_irqs(struct octep_device *oct)
 
 		snprintf(irq_name, OCTEP_MSIX_NAME_SIZE,
 			 "%s-%s", netdev->name, non_ioq_msix_names[i]);
-		if (!strncmp(non_ioq_msix_names[i], "epf_oei_rint",
-			     strlen("epf_oei_rint"))) {
+		if (!strncmp(non_ioq_msix_names[i], "epf_mbox_rint", strlen("epf_mbox_rint"))) {
+			ret = request_irq(msix_entry->vector,
+					  octep_mbox_intr_handler, 0,
+					  irq_name, oct);
+		} else if (!strncmp(non_ioq_msix_names[i], "epf_oei_rint",
+			   strlen("epf_oei_rint"))) {
 			ret = request_irq(msix_entry->vector,
 					  octep_oei_intr_handler, 0,
 					  irq_name, oct);
@@ -1322,6 +1342,7 @@ static void octep_device_cleanup(struct octep_device *oct)
 		oct->mbox[i] = NULL;
 	}
 
+	octep_delete_pfvf_mbox(oct);
 	octep_ctrl_net_uninit(oct);
 	cancel_delayed_work_sync(&oct->hb_task);
 
@@ -1419,6 +1440,12 @@ static int octep_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_octep_config;
 	}
 
+	err = octep_setup_pfvf_mbox(octep_dev);
+	if (err) {
+		dev_err(&pdev->dev, "PF-VF mailbox setup failed\n");
+		goto register_dev_err;
+	}
+
 	err = octep_ctrl_net_get_info(octep_dev, OCTEP_CTRL_NET_INVALID_VFID,
 				      &octep_dev->conf->fw_info);
 	if (err) {
@@ -1487,6 +1514,21 @@ err_dma_mask:
 	return err;
 }
 
+static int octep_sriov_disable(struct octep_device *oct)
+{
+	struct pci_dev *pdev = oct->pdev;
+
+	if (pci_vfs_assigned(oct->pdev)) {
+		dev_warn(&pdev->dev, "Can't disable SRIOV while VFs are assigned\n");
+		return -EPERM;
+	}
+
+	pci_disable_sriov(pdev);
+	CFG_GET_ACTIVE_VFS(oct->conf) = 0;
+
+	return 0;
+}
+
 /**
  * octep_remove() - Remove Octeon PCI device from driver control.
  *
@@ -1504,6 +1546,7 @@ static void octep_remove(struct pci_dev *pdev)
 		return;
 
 	netdev = oct->netdev;
+	octep_sriov_disable(oct);
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
@@ -1514,11 +1557,47 @@ static void octep_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+static int octep_sriov_enable(struct octep_device *oct, int num_vfs)
+{
+	struct pci_dev *pdev = oct->pdev;
+	int err;
+
+	CFG_GET_ACTIVE_VFS(oct->conf) = num_vfs;
+	err = pci_enable_sriov(pdev, num_vfs);
+	if (err) {
+		dev_warn(&pdev->dev, "Failed to enable SRIOV err=%d\n", err);
+		CFG_GET_ACTIVE_VFS(oct->conf) = 0;
+		return err;
+	}
+
+	return num_vfs;
+}
+
+static int octep_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	struct octep_device *oct = pci_get_drvdata(pdev);
+	int max_nvfs;
+
+	if (num_vfs == 0)
+		return octep_sriov_disable(oct);
+
+	max_nvfs = CFG_GET_MAX_VFS(oct->conf);
+
+	if (num_vfs > max_nvfs) {
+		dev_err(&pdev->dev, "Invalid VF count Max supported VFs = %d\n",
+			max_nvfs);
+		return -EINVAL;
+	}
+
+	return octep_sriov_enable(oct, num_vfs);
+}
+
 static struct pci_driver octep_driver = {
 	.name = OCTEP_DRV_NAME,
 	.id_table = octep_pci_id_tbl,
 	.probe = octep_probe,
 	.remove = octep_remove,
+	.sriov_configure = octep_sriov_configure,
 };
 
 /**

@@ -80,6 +80,7 @@ struct octep_hw_ops {
 	void (*setup_oq_regs)(struct octep_device *oct, int q);
 	void (*setup_mbox_regs)(struct octep_device *oct, int mbox);
 
+	irqreturn_t (*mbox_intr_handler)(void *ioq_vector);
 	irqreturn_t (*oei_intr_handler)(void *ioq_vector);
 	irqreturn_t (*ire_intr_handler)(void *ioq_vector);
 	irqreturn_t (*ore_intr_handler)(void *ioq_vector);
@@ -118,28 +119,27 @@ struct octep_mbox_data {
 	u64 *data;
 };
 
+#define MAX_VF_PF_MBOX_DATA_SIZE 384
+/* wrappers around work structs */
+struct octep_pfvf_mbox_wk {
+	struct work_struct work;
+	void *ctxptr;
+	u64 ctxul;
+};
+
 /* Octeon device mailbox */
 struct octep_mbox {
-	/* A spinlock to protect access to this q_mbox. */
-	spinlock_t lock;
-
-	u32 q_no;
-	u32 state;
-
-	/* SLI_MAC_PF_MBOX_INT for PF, SLI_PKT_MBOX_INT for VF. */
-	u8 __iomem *mbox_int_reg;
-
-	/* SLI_PKT_PF_VF_MBOX_SIG(0) for PF,
-	 * SLI_PKT_PF_VF_MBOX_SIG(1) for VF.
-	 */
-	u8 __iomem *mbox_write_reg;
-
-	/* SLI_PKT_PF_VF_MBOX_SIG(1) for PF,
-	 * SLI_PKT_PF_VF_MBOX_SIG(0) for VF.
-	 */
-	u8 __iomem *mbox_read_reg;
-
+	/* A mutex to protect access to this q_mbox. */
+	struct mutex lock;
+	u32 vf_id;
+	u32 config_data_index;
+	u32 message_len;
+	u8 __iomem *pf_vf_data_reg;
+	u8 __iomem *vf_pf_data_reg;
+	struct octep_pfvf_mbox_wk wk;
+	struct octep_device *oct;
 	struct octep_mbox_data mbox_data;
+	u8 config_data[MAX_VF_PF_MBOX_DATA_SIZE];
 };
 
 /* Tx/Rx queue vector per interrupt. */
@@ -217,6 +217,12 @@ struct octep_iface_link_info {
 	u8  oper_up;
 };
 
+/* The Octeon VF device specific info data structure.*/
+struct octep_pfvf_info {
+	u8 mac_addr[ETH_ALEN];
+	u32 mbox_version;
+};
+
 /* The Octeon device specific private data structure.
  * Each Octeon device has this structure to represent all its components.
  */
@@ -282,6 +288,8 @@ struct octep_device {
 
 	/* Mailbox to talk to VFs */
 	struct octep_mbox *mbox[OCTEP_MAX_VF];
+	/* VFs info */
+	struct octep_pfvf_info vf_info[OCTEP_MAX_VF];
 
 	/* Work entry to handle Tx timeout */
 	struct work_struct tx_timeout_task;
