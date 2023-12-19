@@ -27,6 +27,9 @@ properties:
       - items:
           - const: mediatek,mt6795-disp-merge
           - const: mediatek,mt8173-disp-merge
+      - items:
+          - const: mediatek,mt8188-disp-merge
+          - const: mediatek,mt8195-disp-merge
 
   reg:
     maxItems: 1

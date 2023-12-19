@@ -21,7 +21,11 @@ description:
 
 properties:
   compatible:
-    const: mediatek,mt8195-vdo1-rdma
+    oneOf:
+      - const: mediatek,mt8195-vdo1-rdma
+      - items:
+          - const: mediatek,mt8188-vdo1-rdma
+          - const: mediatek,mt8195-vdo1-rdma
 
   reg:
     maxItems: 1
