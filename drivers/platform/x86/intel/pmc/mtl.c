@@ -985,6 +985,7 @@ static void mtl_punit_pmt_init(struct pmc_dev *pmcdev)
 	}
 
 	ep = pmt_telem_find_and_register_endpoint(pcidev, MTL_PMT_DMU_GUID, 0);
+	pci_dev_put(pcidev);
 	if (IS_ERR(ep)) {
 		dev_err(&pmcdev->pdev->dev,
 			"pmc_core: couldn't get DMU telem endpoint, %ld\n",
@@ -992,7 +993,6 @@ static void mtl_punit_pmt_init(struct pmc_dev *pmcdev)
 		return;
 	}
 
-	pci_dev_put(pcidev);
 	pmcdev->punit_ep = ep;
 
 	pmcdev->has_die_c6 = true;
