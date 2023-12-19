@@ -2173,51 +2173,78 @@ dpaa2_switch_prechangeupper_sanity_checks(struct net_device *netdev,
 	return 0;
 }
 
-static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
-					     unsigned long event, void *ptr)
+static int dpaa2_switch_port_prechangeupper(struct net_device *netdev,
+					    struct netdev_notifier_changeupper_info *info)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
-	int err = 0;
+	int err;
 
 	if (!dpaa2_switch_port_dev_check(netdev))
-		return NOTIFY_DONE;
+		return 0;
 
 	extack = netdev_notifier_info_to_extack(&info->info);
-
-	switch (event) {
-	case NETDEV_PRECHANGEUPPER:
-		upper_dev = info->upper_dev;
-		if (!netif_is_bridge_master(upper_dev))
-			break;
-
+	upper_dev = info->upper_dev;
+	if (netif_is_bridge_master(upper_dev)) {
 		err = dpaa2_switch_prechangeupper_sanity_checks(netdev,
 								upper_dev,
 								extack);
 		if (err)
-			goto out;
+			return err;
 
 		if (!info->linking)
 			dpaa2_switch_port_pre_bridge_leave(netdev);
+	}
+
+	return 0;
+}
+
+static int dpaa2_switch_port_changeupper(struct net_device *netdev,
+					 struct netdev_notifier_changeupper_info *info)
+{
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	if (!dpaa2_switch_port_dev_check(netdev))
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	upper_dev = info->upper_dev;
+	if (netif_is_bridge_master(upper_dev)) {
+		if (info->linking)
+			return dpaa2_switch_port_bridge_join(netdev,
+							     upper_dev,
+							     extack);
+		else
+			return dpaa2_switch_port_bridge_leave(netdev);
+	}
+
+	return 0;
+}
+
+static int dpaa2_switch_port_netdevice_event(struct notifier_block *nb,
+					     unsigned long event, void *ptr)
+{
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	int err = 0;
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		err = dpaa2_switch_port_prechangeupper(netdev, ptr);
+		if (err)
+			return notifier_from_errno(err);
 
 		break;
 	case NETDEV_CHANGEUPPER:
-		upper_dev = info->upper_dev;
-		if (netif_is_bridge_master(upper_dev)) {
-			if (info->linking)
-				err = dpaa2_switch_port_bridge_join(netdev,
-								    upper_dev,
-								    extack);
-			else
-				err = dpaa2_switch_port_bridge_leave(netdev);
-		}
+		err = dpaa2_switch_port_changeupper(netdev, ptr);
+		if (err)
+			return notifier_from_errno(err);
+
 		break;
 	}
 
-out:
-	return notifier_from_errno(err);
+	return NOTIFY_DONE;
 }
 
 struct ethsw_switchdev_event_work {
