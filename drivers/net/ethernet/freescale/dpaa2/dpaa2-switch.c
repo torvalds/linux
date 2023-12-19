@@ -2005,23 +2005,8 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
-	struct ethsw_port_priv *other_port_priv;
-	struct net_device *other_dev;
-	struct list_head *iter;
 	bool learn_ena;
 	int err;
-
-	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
-		if (!dpaa2_switch_port_dev_check(other_dev))
-			continue;
-
-		other_port_priv = netdev_priv(other_dev);
-		if (other_port_priv->ethsw_data != port_priv->ethsw_data) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Interface from a different DPSW is in the bridge already");
-			return -EINVAL;
-		}
-	}
 
 	/* Delete the previously manually installed VLAN 1 */
 	err = dpaa2_switch_port_del_vlan(port_priv, 1);
@@ -2156,6 +2141,10 @@ dpaa2_switch_prechangeupper_sanity_checks(struct net_device *netdev,
 					  struct net_device *upper_dev,
 					  struct netlink_ext_ack *extack)
 {
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct ethsw_port_priv *other_port_priv;
+	struct net_device *other_dev;
+	struct list_head *iter;
 	int err;
 
 	if (!br_vlan_enabled(upper_dev)) {
@@ -2168,6 +2157,18 @@ dpaa2_switch_prechangeupper_sanity_checks(struct net_device *netdev,
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Cannot join a bridge while VLAN uppers are present");
 		return 0;
+	}
+
+	netdev_for_each_lower_dev(upper_dev, other_dev, iter) {
+		if (!dpaa2_switch_port_dev_check(other_dev))
+			continue;
+
+		other_port_priv = netdev_priv(other_dev);
+		if (other_port_priv->ethsw_data != port_priv->ethsw_data) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Interface from a different DPSW is in the bridge already");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
