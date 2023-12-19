@@ -89,6 +89,16 @@ static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
 
 static struct tc_action_ops act_mirred_ops;
 
+static void tcf_mirred_replace_dev(struct tcf_mirred *m,
+				   struct net_device *ndev)
+{
+	struct net_device *odev;
+
+	odev = rcu_replace_pointer(m->tcfm_dev, ndev,
+				   lockdep_is_held(&m->tcf_lock));
+	netdev_put(odev, &m->tcfm_dev_tracker);
+}
+
 static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			   struct nlattr *est, struct tc_action **a,
 			   struct tcf_proto *tp,
@@ -170,7 +180,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 	spin_lock_bh(&m->tcf_lock);
 
 	if (parm->ifindex) {
-		struct net_device *odev, *ndev;
+		struct net_device *ndev;
 
 		ndev = dev_get_by_index(net, parm->ifindex);
 		if (!ndev) {
@@ -179,9 +189,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 			goto put_chain;
 		}
 		mac_header_xmit = dev_is_mac_header_xmit(ndev);
-		odev = rcu_replace_pointer(m->tcfm_dev, ndev,
-					  lockdep_is_held(&m->tcf_lock));
-		netdev_put(odev, &m->tcfm_dev_tracker);
+		tcf_mirred_replace_dev(m, ndev);
 		netdev_tracker_alloc(ndev, &m->tcfm_dev_tracker, GFP_ATOMIC);
 		m->tcfm_mac_header_xmit = mac_header_xmit;
 	}
