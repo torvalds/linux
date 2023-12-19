@@ -18,7 +18,7 @@
 #	loongarch port by Youling Tang <tangyouling@kylinos.cn>
 #
 #	Usage:
-#	objdump -d vmlinux | scripts/checkstack.pl [arch]
+#	objdump -d vmlinux | scripts/checkstack.pl [arch] [min_stack]
 #
 #	TODO :	Port to all architectures (one regex per arch)
 
