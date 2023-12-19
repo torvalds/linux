@@ -35,8 +35,6 @@ enum turris_mox_module_id {
 
 #define MOXTET_NIRQS	16
 
-extern struct bus_type moxtet_type;
-
 struct moxtet {
 	struct device			*dev;
 	struct mutex			lock;
