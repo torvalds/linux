@@ -5995,6 +5995,31 @@ int skb_ensure_writable(struct sk_buff *skb, unsigned int write_len)
 }
 EXPORT_SYMBOL(skb_ensure_writable);
 
+int skb_ensure_writable_head_tail(struct sk_buff *skb, struct net_device *dev)
+{
+	int needed_headroom = dev->needed_headroom;
+	int needed_tailroom = dev->needed_tailroom;
+
+	/* For tail taggers, we need to pad short frames ourselves, to ensure
+	 * that the tail tag does not fail at its role of being at the end of
+	 * the packet, once the conduit interface pads the frame. Account for
+	 * that pad length here, and pad later.
+	 */
+	if (unlikely(needed_tailroom && skb->len < ETH_ZLEN))
+		needed_tailroom += ETH_ZLEN - skb->len;
+	/* skb_headroom() returns unsigned int... */
+	needed_headroom = max_t(int, needed_headroom - skb_headroom(skb), 0);
+	needed_tailroom = max_t(int, needed_tailroom - skb_tailroom(skb), 0);
+
+	if (likely(!needed_headroom && !needed_tailroom && !skb_cloned(skb)))
+		/* No reallocation needed, yay! */
+		return 0;
+
+	return pskb_expand_head(skb, needed_headroom, needed_tailroom,
+				GFP_ATOMIC);
+}
+EXPORT_SYMBOL(skb_ensure_writable_head_tail);
+
 /* remove VLAN header from packet and update csum accordingly.
  * expects a non skb_vlan_tag_present skb with a vlan tag payload
  */
