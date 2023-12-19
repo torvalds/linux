@@ -338,7 +338,7 @@ static struct kobj_type ktype_edac_pci_main_kobj = {
 static int edac_pci_main_kobj_setup(void)
 {
 	int err = -ENODEV;
-	struct bus_type *edac_subsys;
+	const struct bus_type *edac_subsys;
 	struct device *dev_root;
 
 	edac_dbg(0, "\n");
