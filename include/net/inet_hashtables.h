@@ -96,14 +96,11 @@ struct inet_bind2_bucket {
 	int			l3mdev;
 	unsigned short		port;
 #if IS_ENABLED(CONFIG_IPV6)
-	unsigned short		family;
+	struct in6_addr		v6_rcv_saddr;
+#define rcv_saddr		v6_rcv_saddr.s6_addr32[3]
+#else
+	__be32			rcv_saddr;
 #endif
-	union {
-#if IS_ENABLED(CONFIG_IPV6)
-		struct in6_addr		v6_rcv_saddr;
-#endif
-		__be32			rcv_saddr;
-	};
 	/* Node in the bhash2 inet_bind_hashbucket chain */
 	struct hlist_node	node;
 	/* List of sockets hashed to this bucket */
