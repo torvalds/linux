@@ -102,7 +102,10 @@ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 		struct ptdesc *ptdesc = virt_to_ptdesc(pud);
 
 		pagetable_pud_dtor(ptdesc);
-		tlb_remove_page_ptdesc(tlb, ptdesc);
+		if (riscv_use_ipi_for_rfence())
+			tlb_remove_page_ptdesc(tlb, ptdesc);
+		else
+			tlb_remove_ptdesc(tlb, ptdesc);
 	}
 }
 
@@ -136,8 +139,12 @@ static inline void p4d_free(struct mm_struct *mm, p4d_t *p4d)
 static inline void __p4d_free_tlb(struct mmu_gather *tlb, p4d_t *p4d,
 				  unsigned long addr)
 {
-	if (pgtable_l5_enabled)
-		tlb_remove_page_ptdesc(tlb, virt_to_ptdesc(p4d));
+	if (pgtable_l5_enabled) {
+		if (riscv_use_ipi_for_rfence())
+			tlb_remove_page_ptdesc(tlb, virt_to_ptdesc(p4d));
+		else
+			tlb_remove_ptdesc(tlb, virt_to_ptdesc(p4d));
+	}
 }
 #endif /* __PAGETABLE_PMD_FOLDED */
 
@@ -169,7 +176,10 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 	struct ptdesc *ptdesc = virt_to_ptdesc(pmd);
 
 	pagetable_pmd_dtor(ptdesc);
-	tlb_remove_page_ptdesc(tlb, ptdesc);
+	if (riscv_use_ipi_for_rfence())
+		tlb_remove_page_ptdesc(tlb, ptdesc);
+	else
+		tlb_remove_ptdesc(tlb, ptdesc);
 }
 
 #endif /* __PAGETABLE_PMD_FOLDED */
@@ -180,7 +190,10 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	struct ptdesc *ptdesc = page_ptdesc(pte);
 
 	pagetable_pte_dtor(ptdesc);
-	tlb_remove_page_ptdesc(tlb, ptdesc);
+	if (riscv_use_ipi_for_rfence())
+		tlb_remove_page_ptdesc(tlb, ptdesc);
+	else
+		tlb_remove_ptdesc(tlb, ptdesc);
 }
 #endif /* CONFIG_MMU */
 
