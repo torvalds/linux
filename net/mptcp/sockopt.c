@@ -683,8 +683,8 @@ static int mptcp_setsockopt_sol_tcp_nodelay(struct mptcp_sock *msk, sockptr_t op
 	return 0;
 }
 
-static int mptcp_setsockopt_sol_ip_set_transparent(struct mptcp_sock *msk, int optname,
-						   sockptr_t optval, unsigned int optlen)
+static int mptcp_setsockopt_sol_ip_set(struct mptcp_sock *msk, int optname,
+				       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = (struct sock *)msk;
 	struct sock *ssk;
@@ -755,7 +755,7 @@ static int mptcp_setsockopt_v4(struct mptcp_sock *msk, int optname,
 	switch (optname) {
 	case IP_FREEBIND:
 	case IP_TRANSPARENT:
-		return mptcp_setsockopt_sol_ip_set_transparent(msk, optname, optval, optlen);
+		return mptcp_setsockopt_sol_ip_set(msk, optname, optval, optlen);
 	case IP_TOS:
 		return mptcp_setsockopt_v4_set_tos(msk, optname, optval, optlen);
 	}
