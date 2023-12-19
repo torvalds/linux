@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause) */
 /*
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_CLK_MSM_GCC_9607_H
@@ -93,6 +94,26 @@
 #define GCC_USB_HSIC_CLK_SRC			84
 #define GCC_USB_HSIC_IO_CAL_CLK_SRC		85
 #define GCC_USB_HSIC_SYSTEM_CLK_SRC		86
+#define EMAC_0_SYS_25M_CLK_SRC			87
+#define EMAC_0_TX_CLK_SRC			88
+#define GCC_EMAC_0_125M_CLK			89
+#define GCC_EMAC_0_AHB_CLK			90
+#define GCC_EMAC_0_AXI_CLK			91
+#define GCC_EMAC_0_SYS_25M_CLK			92
+#define GCC_EMAC_0_SYS_CLK			93
+#define GCC_EMAC_0_TX_CLK			94
+#define GCC_EMAC_0_RX_CLK			95
+#define USB_HSIC_CLK_SRC			96
+#define USB_HSIC_IO_CAL_CLK_SRC			97
+#define USB_HSIC_SYSTEM_CLK_SRC			98
+#define GCC_USB_HSIC_AHB_CLK			99
+#define GCC_USB_HSIC_CLK			100
+#define GCC_USB_HSIC_IO_CAL_CLK			101
+#define GCC_USB_HSIC_IO_CAL_SLEEP_CLK		102
+#define GCC_USB_HSIC_SYSTEM_CLK			103
+#define GCC_USB2_HS_PHY_ONLY_CLK		104
+#define GCC_QUSB2_PHY_CLK			105
+#define GPLL0_AO				106
 
 /* Resets */
 #define USB2_HS_PHY_ONLY_BCR			0

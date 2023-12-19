@@ -1337,6 +1337,15 @@ config SM_DISPCC_PITTI
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
+config MDM_DEBUGCC_9607
+	tristate "MDM9607 Debug Clock Controller"
+	depends on MDM_GCC_9607
+	help
+	  Support for the debug clock controller on MDM9607
+	  based devices.
+	  Say Y if you want to support the clock measurement
+	  functionality.
+
 endif
 
 config VIRTIO_CLK
