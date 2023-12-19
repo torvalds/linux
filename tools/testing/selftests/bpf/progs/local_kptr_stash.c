@@ -37,11 +37,18 @@ struct plain_local {
 	long data;
 };
 
+struct local_with_root {
+	long key;
+	struct bpf_spin_lock l;
+	struct bpf_rb_root r __contains(node_data, node);
+};
+
 struct map_value {
 	struct prog_test_ref_kfunc *not_kptr;
 	struct prog_test_ref_kfunc __kptr *val;
 	struct node_data __kptr *node;
 	struct plain_local __kptr *plain;
+	struct local_with_root __kptr *local_root;
 };
 
 /* This is necessary so that LLVM generates BTF for node_data struct
@@ -64,6 +71,17 @@ struct {
 	__type(value, struct map_value);
 	__uint(max_entries, 2);
 } some_nodes SEC(".maps");
+
+static bool less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+{
+	struct node_data *node_a;
+	struct node_data *node_b;
+
+	node_a = container_of(a, struct node_data, node);
+	node_b = container_of(b, struct node_data, node);
+
+	return node_a->key < node_b->key;
+}
 
 static int create_and_stash(int idx, int val)
 {
@@ -110,6 +128,41 @@ long stash_plain(void *ctx)
 	res = bpf_kptr_xchg(&mapval->plain, res);
 	if (res)
 		bpf_obj_drop(res);
+	return 0;
+}
+
+SEC("tc")
+long stash_local_with_root(void *ctx)
+{
+	struct local_with_root *res;
+	struct map_value *mapval;
+	struct node_data *n;
+	int idx = 0;
+
+	mapval = bpf_map_lookup_elem(&some_nodes, &idx);
+	if (!mapval)
+		return 1;
+
+	res = bpf_obj_new(typeof(*res));
+	if (!res)
+		return 2;
+	res->key = 41;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n) {
+		bpf_obj_drop(res);
+		return 3;
+	}
+
+	bpf_spin_lock(&res->l);
+	bpf_rbtree_add(&res->r, &n->node, less);
+	bpf_spin_unlock(&res->l);
+
+	res = bpf_kptr_xchg(&mapval->local_root, res);
+	if (res) {
+		bpf_obj_drop(res);
+		return 4;
+	}
 	return 0;
 }
 

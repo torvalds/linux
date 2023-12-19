@@ -461,6 +461,49 @@ int BPF_PROG(test_global_mask_rcu, struct task_struct *task, u64 clone_flags)
 }
 
 SEC("tp_btf/task_newtask")
+int BPF_PROG(test_cpumask_weight, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local;
+
+	if (!is_test_task())
+		return 0;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	if (bpf_cpumask_weight(cast(local)) != 0) {
+		err = 3;
+		goto out;
+	}
+
+	bpf_cpumask_set_cpu(0, local);
+	if (bpf_cpumask_weight(cast(local)) != 1) {
+		err = 4;
+		goto out;
+	}
+
+	/*
+	 * Make sure that adding additional CPUs changes the weight. Test to
+	 * see whether the CPU was set to account for running on UP machines.
+	 */
+	bpf_cpumask_set_cpu(1, local);
+	if (bpf_cpumask_test_cpu(1, cast(local)) && bpf_cpumask_weight(cast(local)) != 2) {
+		err = 5;
+		goto out;
+	}
+
+	bpf_cpumask_clear(local);
+	if (bpf_cpumask_weight(cast(local)) != 0) {
+		err = 6;
+		goto out;
+	}
+out:
+	bpf_cpumask_release(local);
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
 __success
 int BPF_PROG(test_refcount_null_tracking, struct task_struct *task, u64 clone_flags)
 {

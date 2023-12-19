@@ -125,7 +125,7 @@ int check_assert_generic(struct __sk_buff *ctx)
 }
 
 SEC("?fentry/bpf_check")
-__failure __msg("At program exit the register R0 has value (0x40; 0x0)")
+__failure __msg("At program exit the register R1 has smin=64 smax=64")
 int check_assert_with_return(void *ctx)
 {
 	bpf_assert_with(!ctx, 64);

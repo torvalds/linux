@@ -527,6 +527,19 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	return 0;
 }
 
+static void ice_xsk_pool_fill_cb(struct ice_rx_ring *ring)
+{
+	void *ctx_ptr = &ring->pkt_ctx;
+	struct xsk_cb_desc desc = {};
+
+	XSK_CHECK_PRIV_TYPE(struct ice_xdp_buff);
+	desc.src = &ctx_ptr;
+	desc.off = offsetof(struct ice_xdp_buff, pkt_ctx) -
+		   sizeof(struct xdp_buff);
+	desc.bytes = sizeof(ctx_ptr);
+	xsk_pool_fill_cb(ring->xsk_pool, &desc);
+}
+
 /**
  * ice_vsi_cfg_rxq - Configure an Rx queue
  * @ring: the ring being configured
@@ -561,6 +574,7 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 			if (err)
 				return err;
 			xsk_pool_set_rxq_info(ring->xsk_pool, &ring->xdp_rxq);
+			ice_xsk_pool_fill_cb(ring);
 
 			dev_info(dev, "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
@@ -583,6 +597,7 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 
 	xdp_init_buff(&ring->xdp, ice_rx_pg_size(ring) / 2, &ring->xdp_rxq);
 	ring->xdp.data = NULL;
+	ring->xdp_ext.pkt_ctx = &ring->pkt_ctx;
 	err = ice_setup_rx_ctx(ring);
 	if (err) {
 		dev_err(dev, "ice_setup_rx_ctx failed for RxQ %d, err %d\n",

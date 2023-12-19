@@ -846,7 +846,7 @@ __naked int delayed_precision_mark(void)
 		"call %[bpf_iter_num_next];"
 		"if r0 == 0 goto 2f;"
 		"if r6 != 42 goto 3f;"
-		"r7 = -32;"
+		"r7 = -33;"
 		"call %[bpf_get_prandom_u32];"
 		"r6 = r0;"
 		"goto 1b;\n"

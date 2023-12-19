@@ -177,10 +177,45 @@ struct bpf_object_open_opts {
 	 * logs through its print callback.
 	 */
 	__u32 kernel_log_level;
+	/* FD of a BPF token instantiated by user through bpf_token_create()
+	 * API. BPF object will keep dup()'ed FD internally, so passed token
+	 * FD can be closed after BPF object/skeleton open step.
+	 *
+	 * Setting bpf_token_fd to negative value disables libbpf's automatic
+	 * attempt to create BPF token from default BPF FS mount point
+	 * (/sys/fs/bpf), in case this default behavior is undesirable.
+	 *
+	 * If bpf_token_path and bpf_token_fd are not specified, libbpf will
+	 * consult LIBBPF_BPF_TOKEN_PATH environment variable. If set, it will
+	 * be taken as a value of bpf_token_path option and will force libbpf
+	 * to either create BPF token from provided custom BPF FS path, or
+	 * will disable implicit BPF token creation, if envvar value is an
+	 * empty string.
+	 *
+	 * bpf_token_path and bpf_token_fd are mutually exclusive and only one
+	 * of those options should be set. Either of them overrides
+	 * LIBBPF_BPF_TOKEN_PATH envvar.
+	 */
+	int bpf_token_fd;
+	/* Path to BPF FS mount point to derive BPF token from.
+	 *
+	 * Created BPF token will be used for all bpf() syscall operations
+	 * that accept BPF token (e.g., map creation, BTF and program loads,
+	 * etc) automatically within instantiated BPF object.
+	 *
+	 * Setting bpf_token_path option to empty string disables libbpf's
+	 * automatic attempt to create BPF token from default BPF FS mount
+	 * point (/sys/fs/bpf), in case this default behavior is undesirable.
+	 *
+	 * bpf_token_path and bpf_token_fd are mutually exclusive and only one
+	 * of those options should be set. Either of them overrides
+	 * LIBBPF_BPF_TOKEN_PATH envvar.
+	 */
+	const char *bpf_token_path;
 
 	size_t :0;
 };
-#define bpf_object_open_opts__last_field kernel_log_level
+#define bpf_object_open_opts__last_field bpf_token_path
 
 /**
  * @brief **bpf_object__open()** creates a bpf_object by opening

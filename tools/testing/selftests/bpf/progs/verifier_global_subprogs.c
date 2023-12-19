@@ -10,6 +10,7 @@
 
 int arr[1];
 int unkn_idx;
+const volatile bool call_dead_subprog = false;
 
 __noinline long global_bad(void)
 {
@@ -31,23 +32,31 @@ __noinline long global_calls_good_only(void)
 	return global_good();
 }
 
+__noinline long global_dead(void)
+{
+	return arr[0] * 2;
+}
+
 SEC("?raw_tp")
 __success __log_level(2)
 /* main prog is validated completely first */
 __msg("('global_calls_good_only') is global and assumed valid.")
-__msg("1: (95) exit")
 /* eventually global_good() is transitively validated as well */
 __msg("Validating global_good() func")
 __msg("('global_good') is safe for any args that match its prototype")
 int chained_global_func_calls_success(void)
 {
-	return global_calls_good_only();
+	int sum = 0;
+
+	if (call_dead_subprog)
+		sum += global_dead();
+	return global_calls_good_only() + sum;
 }
 
 SEC("?raw_tp")
 __failure __log_level(2)
 /* main prog validated successfully first */
-__msg("1: (95) exit")
+__msg("('global_calls_bad') is global and assumed valid.")
 /* eventually we validate global_bad() and fail */
 __msg("Validating global_bad() func")
 __msg("math between map_value pointer and register") /* BOOM */

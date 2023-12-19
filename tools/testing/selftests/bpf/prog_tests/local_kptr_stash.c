@@ -48,6 +48,27 @@ static void test_local_kptr_stash_plain(void)
 	local_kptr_stash__destroy(skel);
 }
 
+static void test_local_kptr_stash_local_with_root(void)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, opts,
+		    .data_in = &pkt_v4,
+		    .data_size_in = sizeof(pkt_v4),
+		    .repeat = 1,
+	);
+	struct local_kptr_stash *skel;
+	int ret;
+
+	skel = local_kptr_stash__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "local_kptr_stash__open_and_load"))
+		return;
+
+	ret = bpf_prog_test_run_opts(bpf_program__fd(skel->progs.stash_local_with_root), &opts);
+	ASSERT_OK(ret, "local_kptr_stash_add_local_with_root run");
+	ASSERT_OK(opts.retval, "local_kptr_stash_add_local_with_root retval");
+
+	local_kptr_stash__destroy(skel);
+}
+
 static void test_local_kptr_stash_unstash(void)
 {
 	LIBBPF_OPTS(bpf_test_run_opts, opts,
@@ -115,6 +136,8 @@ void test_local_kptr_stash(void)
 		test_local_kptr_stash_simple();
 	if (test__start_subtest("local_kptr_stash_plain"))
 		test_local_kptr_stash_plain();
+	if (test__start_subtest("local_kptr_stash_local_with_root"))
+		test_local_kptr_stash_local_with_root();
 	if (test__start_subtest("local_kptr_stash_unstash"))
 		test_local_kptr_stash_unstash();
 	if (test__start_subtest("refcount_acquire_without_unstash"))
