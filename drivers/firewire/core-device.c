@@ -219,7 +219,7 @@ static int fw_unit_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type fw_bus_type = {
+const struct bus_type fw_bus_type = {
 	.name = "firewire",
 	.match = fw_unit_match,
 	.probe = fw_unit_probe,
