@@ -76,6 +76,9 @@ properties:
           - const: pll11k
         minItems: 4
 
+  power-domains:
+    maxItems: 1
+
   dmas:
     items:
       - description: DMA controller phandle and request line for RX
