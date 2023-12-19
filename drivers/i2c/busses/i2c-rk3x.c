@@ -611,7 +611,7 @@ static irqreturn_t rk3x_i2c_irq(int irqno, void *dev_id)
 	dev_dbg(i2c->dev, "IRQ: state %d, ipd: %x\n", i2c->state, ipd);
 
 	/* Clean interrupt bits we don't care about */
-	ipd &= ~(REG_INT_BRF | REG_INT_BTF);
+	ipd &= ~(REG_INT_BRF | REG_INT_BTF | REG_INT_START);
 
 	if (ipd & REG_INT_NAKRCV) {
 		/*
