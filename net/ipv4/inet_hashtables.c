@@ -122,7 +122,6 @@ static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb2,
 	tb2->rcv_saddr = sk->sk_rcv_saddr;
 #endif
 	INIT_HLIST_HEAD(&tb2->owners);
-	INIT_HLIST_HEAD(&tb2->deathrow);
 	hlist_add_head(&tb2->node, &head->chain);
 	hlist_add_head(&tb2->bhash_node, &tb->bhash2);
 }
@@ -144,7 +143,7 @@ struct inet_bind2_bucket *inet_bind2_bucket_create(struct kmem_cache *cachep,
 /* Caller must hold hashbucket lock for this tb with local BH disabled */
 void inet_bind2_bucket_destroy(struct kmem_cache *cachep, struct inet_bind2_bucket *tb)
 {
-	if (hlist_empty(&tb->owners) && hlist_empty(&tb->deathrow)) {
+	if (hlist_empty(&tb->owners)) {
 		__hlist_del(&tb->node);
 		__hlist_del(&tb->bhash_node);
 		kmem_cache_free(cachep, tb);
