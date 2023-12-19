@@ -323,6 +323,8 @@ struct pmc_reg_map {
 	const u32 lpm_live_status_offset;
 	const u32 etr3_offset;
 	const u8  *lpm_reg_index;
+	const u32 pson_residency_offset;
+	const u32 pson_residency_counter_step;
 };
 
 /**

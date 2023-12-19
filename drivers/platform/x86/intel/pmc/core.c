@@ -208,6 +208,20 @@ static int pmc_core_dev_state_get(void *data, u64 *val)
 
 DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_dev_state, pmc_core_dev_state_get, NULL, "%llu\n");
 
+static int pmc_core_pson_residency_get(void *data, u64 *val)
+{
+	struct pmc *pmc = data;
+	const struct pmc_reg_map *map = pmc->map;
+	u32 value;
+
+	value = pmc_core_reg_read(pmc, map->pson_residency_offset);
+	*val = (u64)value * map->pson_residency_counter_step;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(pmc_core_pson_residency, pmc_core_pson_residency_get, NULL, "%llu\n");
+
 static int pmc_core_check_read_lock_bit(struct pmc *pmc)
 {
 	u32 value;
@@ -1092,6 +1106,24 @@ int get_primary_reg_base(struct pmc *pmc)
 	return 0;
 }
 
+static bool pmc_core_is_pson_residency_enabled(struct pmc_dev *pmcdev)
+{
+	struct platform_device *pdev = pmcdev->pdev;
+	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
+	u8 val;
+
+	if (!adev)
+		return false;
+
+	if (fwnode_property_read_u8(acpi_fwnode_handle(adev),
+				    "intel-cec-pson-switching-enabled-in-s0",
+				    &val))
+		return false;
+
+	return val == 1;
+}
+
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
@@ -1160,6 +1192,11 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_file("substate_requirements", 0444,
 				    pmcdev->dbgfs_dir, pmcdev,
 				    &pmc_core_substate_req_regs_fops);
+	}
+
+	if (primary_pmc->map->pson_residency_offset && pmc_core_is_pson_residency_enabled(pmcdev)) {
+		debugfs_create_file("pson_residency_usec", 0444,
+				    pmcdev->dbgfs_dir, primary_pmc, &pmc_core_pson_residency);
 	}
 
 	if (pmcdev->has_die_c6) {
