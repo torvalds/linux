@@ -263,14 +263,20 @@ enum ppfear_regs {
 #define MTL_SOCM_NUM_IP_IGN_ALLOWED		25
 #define MTL_SOC_PMC_MMIO_REG_LEN		0x2708
 #define MTL_PMC_LTR_SPG				0x1B74
+#define ARL_SOCS_PMC_LTR_RESERVED		0x1B88
+#define ARL_SOCS_NUM_IP_IGN_ALLOWED		26
+#define ARL_PMC_LTR_DMI3			0x1BE4
+#define ARL_PCH_PMC_MMIO_REG_LEN		0x2720
 
 /* Meteor Lake PGD PFET Enable Ack Status */
 #define MTL_SOCM_PPFEAR_NUM_ENTRIES		8
 #define MTL_IOE_PPFEAR_NUM_ENTRIES		10
+#define ARL_SOCS_PPFEAR_NUM_ENTRIES		9
 
 /* Die C6 from PUNIT telemetry */
 #define MTL_PMT_DMU_DIE_C6_OFFSET		15
 #define MTL_PMT_DMU_GUID			0x1A067102
+#define ARL_PMT_DMU_GUID			0x1A06A000
 
 extern const char *pmc_lpm_modes[];
 
@@ -501,6 +507,37 @@ extern const struct pmc_bit_map mtl_ioem_vnn_req_status_1_map[];
 extern const struct pmc_bit_map *mtl_ioem_lpm_maps[];
 extern const struct pmc_reg_map mtl_ioem_reg_map;
 
+/* ARL */
+extern const struct pmc_bit_map arl_socs_ltr_show_map[];
+extern const struct pmc_bit_map arl_socs_clocksource_status_map[];
+extern const struct pmc_bit_map arl_socs_power_gating_status_0_map[];
+extern const struct pmc_bit_map arl_socs_power_gating_status_1_map[];
+extern const struct pmc_bit_map arl_socs_power_gating_status_2_map[];
+extern const struct pmc_bit_map arl_socs_d3_status_2_map[];
+extern const struct pmc_bit_map arl_socs_d3_status_3_map[];
+extern const struct pmc_bit_map arl_socs_vnn_req_status_3_map[];
+extern const struct pmc_bit_map *arl_socs_lpm_maps[];
+extern const struct pmc_bit_map arl_socs_pfear_map[];
+extern const struct pmc_bit_map *ext_arl_socs_pfear_map[];
+extern const struct pmc_reg_map arl_socs_reg_map;
+extern const struct pmc_bit_map arl_pchs_ltr_show_map[];
+extern const struct pmc_bit_map arl_pchs_clocksource_status_map[];
+extern const struct pmc_bit_map arl_pchs_power_gating_status_0_map[];
+extern const struct pmc_bit_map arl_pchs_power_gating_status_1_map[];
+extern const struct pmc_bit_map arl_pchs_power_gating_status_2_map[];
+extern const struct pmc_bit_map arl_pchs_d3_status_0_map[];
+extern const struct pmc_bit_map arl_pchs_d3_status_1_map[];
+extern const struct pmc_bit_map arl_pchs_d3_status_2_map[];
+extern const struct pmc_bit_map arl_pchs_d3_status_3_map[];
+extern const struct pmc_bit_map arl_pchs_vnn_req_status_0_map[];
+extern const struct pmc_bit_map arl_pchs_vnn_req_status_1_map[];
+extern const struct pmc_bit_map arl_pchs_vnn_req_status_2_map[];
+extern const struct pmc_bit_map arl_pchs_vnn_req_status_3_map[];
+extern const struct pmc_bit_map arl_pchs_vnn_misc_status_map[];
+extern const struct pmc_bit_map arl_pchs_signal_status_map[];
+extern const struct pmc_bit_map *arl_pchs_lpm_maps[];
+extern const struct pmc_reg_map arl_pchs_reg_map;
+
 extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
 extern int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
 extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
@@ -521,6 +558,7 @@ int tgl_l_core_init(struct pmc_dev *pmcdev);
 int tgl_core_generic_init(struct pmc_dev *pmcdev, int pch_tp);
 int adl_core_init(struct pmc_dev *pmcdev);
 int mtl_core_init(struct pmc_dev *pmcdev);
+int arl_core_init(struct pmc_dev *pmcdev);
 
 #define pmc_for_each_mode(i, mode, pmcdev)		\
 	for (i = 0, mode = pmcdev->lpm_en_modes[i];	\
