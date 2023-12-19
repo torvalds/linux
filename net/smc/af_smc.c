@@ -677,8 +677,6 @@ static bool smc_isascii(char *hostname)
 static void smc_conn_save_peer_info_fce(struct smc_sock *smc,
 					struct smc_clc_msg_accept_confirm *clc)
 {
-	struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
-		(struct smc_clc_msg_accept_confirm_v2 *)clc;
 	struct smc_clc_first_contact_ext *fce;
 	int clc_v2_len;
 
@@ -687,17 +685,15 @@ static void smc_conn_save_peer_info_fce(struct smc_sock *smc,
 		return;
 
 	if (smc->conn.lgr->is_smcd) {
-		memcpy(smc->conn.lgr->negotiated_eid, clc_v2->d1.eid,
+		memcpy(smc->conn.lgr->negotiated_eid, clc->d1.eid,
 		       SMC_MAX_EID_LEN);
-		clc_v2_len = offsetofend(struct smc_clc_msg_accept_confirm_v2,
-					 d1);
+		clc_v2_len = offsetofend(struct smc_clc_msg_accept_confirm, d1);
 	} else {
-		memcpy(smc->conn.lgr->negotiated_eid, clc_v2->r1.eid,
+		memcpy(smc->conn.lgr->negotiated_eid, clc->r1.eid,
 		       SMC_MAX_EID_LEN);
-		clc_v2_len = offsetofend(struct smc_clc_msg_accept_confirm_v2,
-					 r1);
+		clc_v2_len = offsetofend(struct smc_clc_msg_accept_confirm, r1);
 	}
-	fce = (struct smc_clc_first_contact_ext *)(((u8 *)clc_v2) + clc_v2_len);
+	fce = (struct smc_clc_first_contact_ext *)(((u8 *)clc) + clc_v2_len);
 	smc->conn.lgr->peer_os = fce->os_type;
 	smc->conn.lgr->peer_smc_release = fce->release;
 	if (smc_isascii(fce->hostname))
@@ -1149,13 +1145,13 @@ static int smc_connect_ism_vlan_cleanup(struct smc_sock *smc,
 }
 
 #define SMC_CLC_MAX_ACCEPT_LEN \
-	(sizeof(struct smc_clc_msg_accept_confirm_v2) + \
+	(sizeof(struct smc_clc_msg_accept_confirm) + \
 	 sizeof(struct smc_clc_first_contact_ext_v2x) + \
 	 sizeof(struct smc_clc_msg_trail))
 
 /* CLC handshake during connect */
 static int smc_connect_clc(struct smc_sock *smc,
-			   struct smc_clc_msg_accept_confirm_v2 *aclc2,
+			   struct smc_clc_msg_accept_confirm *aclc,
 			   struct smc_init_info *ini)
 {
 	int rc = 0;
@@ -1165,7 +1161,7 @@ static int smc_connect_clc(struct smc_sock *smc,
 	if (rc)
 		return rc;
 	/* receive SMC Accept CLC message */
-	return smc_clc_wait_msg(smc, aclc2, SMC_CLC_MAX_ACCEPT_LEN,
+	return smc_clc_wait_msg(smc, aclc, SMC_CLC_MAX_ACCEPT_LEN,
 				SMC_CLC_ACCEPT, CLC_WAIT_TIME);
 }
 
@@ -1201,10 +1197,8 @@ static int smc_connect_rdma_v2_prepare(struct smc_sock *smc,
 				       struct smc_clc_msg_accept_confirm *aclc,
 				       struct smc_init_info *ini)
 {
-	struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
-		(struct smc_clc_msg_accept_confirm_v2 *)aclc;
 	struct smc_clc_first_contact_ext *fce =
-		smc_get_clc_first_contact_ext(clc_v2, false);
+		smc_get_clc_first_contact_ext(aclc, false);
 	struct net *net = sock_net(&smc->sk);
 	int rc;
 
@@ -1327,10 +1321,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 	}
 
 	if (aclc->hdr.version > SMC_V1) {
-		struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
-			(struct smc_clc_msg_accept_confirm_v2 *)aclc;
-
-		eid = clc_v2->r1.eid;
+		eid = aclc->r1.eid;
 		if (ini->first_contact_local)
 			smc_fill_gid_list(link->lgr, &ini->smcrv2.gidlist,
 					  link->smcibdev, link->gid);
@@ -1371,7 +1362,7 @@ connect_abort:
  * Determine from the CHID of the received CLC ACCEPT the ISM device chosen.
  */
 static int
-smc_v2_determine_accepted_chid(struct smc_clc_msg_accept_confirm_v2 *aclc,
+smc_v2_determine_accepted_chid(struct smc_clc_msg_accept_confirm *aclc,
 			       struct smc_init_info *ini)
 {
 	int i;
@@ -1398,12 +1389,9 @@ static int smc_connect_ism(struct smc_sock *smc,
 	ini->first_contact_peer = aclc->hdr.typev2 & SMC_FIRST_CONTACT_MASK;
 
 	if (aclc->hdr.version == SMC_V2) {
-		struct smc_clc_msg_accept_confirm_v2 *aclc_v2 =
-			(struct smc_clc_msg_accept_confirm_v2 *)aclc;
-
 		if (ini->first_contact_peer) {
 			struct smc_clc_first_contact_ext *fce =
-				smc_get_clc_first_contact_ext(aclc_v2, true);
+				smc_get_clc_first_contact_ext(aclc, true);
 
 			ini->release_nr = fce->release;
 			rc = smc_clc_clnt_v2x_features_validate(fce, ini);
@@ -1411,7 +1399,7 @@ static int smc_connect_ism(struct smc_sock *smc,
 				return rc;
 		}
 
-		rc = smc_v2_determine_accepted_chid(aclc_v2, ini);
+		rc = smc_v2_determine_accepted_chid(aclc, ini);
 		if (rc)
 			return rc;
 	}
@@ -1437,12 +1425,8 @@ static int smc_connect_ism(struct smc_sock *smc,
 	smc_rx_init(smc);
 	smc_tx_init(smc);
 
-	if (aclc->hdr.version > SMC_V1) {
-		struct smc_clc_msg_accept_confirm_v2 *clc_v2 =
-			(struct smc_clc_msg_accept_confirm_v2 *)aclc;
-
-		eid = clc_v2->d1.eid;
-	}
+	if (aclc->hdr.version > SMC_V1)
+		eid = aclc->d1.eid;
 
 	rc = smc_clc_send_confirm(smc, ini->first_contact_local,
 				  aclc->hdr.version, eid, ini);
@@ -1493,7 +1477,6 @@ static int smc_connect_check_aclc(struct smc_init_info *ini,
 static int __smc_connect(struct smc_sock *smc)
 {
 	u8 version = smc_ism_is_v2_capable() ? SMC_V2 : SMC_V1;
-	struct smc_clc_msg_accept_confirm_v2 *aclc2;
 	struct smc_clc_msg_accept_confirm *aclc;
 	struct smc_init_info *ini = NULL;
 	u8 *buf = NULL;
@@ -1541,11 +1524,10 @@ static int __smc_connect(struct smc_sock *smc)
 		rc = SMC_CLC_DECL_MEM;
 		goto fallback;
 	}
-	aclc2 = (struct smc_clc_msg_accept_confirm_v2 *)buf;
-	aclc = (struct smc_clc_msg_accept_confirm *)aclc2;
+	aclc = (struct smc_clc_msg_accept_confirm *)buf;
 
 	/* perform CLC handshake */
-	rc = smc_connect_clc(smc, aclc2, ini);
+	rc = smc_connect_clc(smc, aclc, ini);
 	if (rc) {
 		/* -EAGAIN on timeout, see tcp_recvmsg() */
 		if (rc == -EAGAIN) {
