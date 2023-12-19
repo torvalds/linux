@@ -250,6 +250,22 @@ const u8 clk_alpha_pll_regs[][PLL_OFF_MAX_REGS] = {
 		[PLL_OFF_CONFIG_CTL] = 0x1C,
 		[PLL_OFF_STATUS] = 0x20,
 	},
+	[CLK_ALPHA_PLL_TYPE_LUCID_5LPE] = {
+		[PLL_OFF_L_VAL] = 0x04,
+		[PLL_OFF_CAL_L_VAL] = 0x08,
+		[PLL_OFF_USER_CTL] = 0x0c,
+		[PLL_OFF_USER_CTL_U] = 0x10,
+		[PLL_OFF_USER_CTL_U1] = 0x14,
+		[PLL_OFF_CONFIG_CTL] = 0x18,
+		[PLL_OFF_CONFIG_CTL_U] = 0x1c,
+		[PLL_OFF_CONFIG_CTL_U1] = 0x20,
+		[PLL_OFF_TEST_CTL] = 0x24,
+		[PLL_OFF_TEST_CTL_U] = 0x28,
+		[PLL_OFF_TEST_CTL_U1] = 0x2c,
+		[PLL_OFF_STATUS] = 0x30,
+		[PLL_OFF_OPMODE] = 0x38,
+		[PLL_OFF_ALPHA_VAL] = 0x40,
+	},
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 
@@ -278,11 +294,13 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 #define TRION_PCAL_DONE		BIT(26)
 
 /* LUCID PLL specific settings and offsets */
+#define LUCID_PLL_CAL_VAL		0x44
 #define LUCID_PCAL_DONE		BIT(27)
 
 /* LUCID 5LPE PLL specific settings and offsets */
 #define LUCID_5LPE_PCAL_DONE		BIT(11)
 #define LUCID_5LPE_ALPHA_PLL_ACK_LATCH	BIT(13)
+#define LUCID_5LPE_BYPASS_LATCH		BIT(10)
 #define LUCID_5LPE_PLL_LATCH_INPUT	BIT(14)
 #define LUCID_5LPE_ENABLE_VOTE_RUN	BIT(21)
 #define LUCID_EVO_PCAL_NOT_DONE		BIT(8)
@@ -1277,6 +1295,10 @@ static void clk_pll_restore_context(struct clk_hw *hw)
 		clk_rivian_evo_pll_configure(pll, pll->clkr.regmap,
 					pll->config);
 		break;
+	case CLK_ALPHA_PLL_TYPE_LUCID_5LPE:
+		clk_lucid_5lpe_pll_configure(pll, pll->clkr.regmap,
+					pll->config);
+		break;
 	default:
 		pr_err("Invalid pll type!\n");
 	}
@@ -2041,6 +2063,86 @@ const struct clk_ops clk_alpha_pll_postdiv_fabia_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_fabia_ops);
 
+int clk_lucid_5lpe_pll_configure(struct clk_alpha_pll *pll,
+		struct regmap *regmap,	const struct alpha_pll_config *config)
+{
+	int ret;
+
+	ret = trion_pll_is_enabled(pll, regmap);
+	if (ret < 0)
+		return ret;
+	else if (ret) {
+		pr_warn("%s PLL is already enabled\n",
+				clk_hw_get_name(&pll->clkr.hw));
+		return 0;
+	}
+
+	if (config->l)
+		ret |= regmap_write(regmap, PLL_L_VAL(pll), config->l);
+
+	if (config->cal_l)
+		ret |= regmap_write(regmap, PLL_CAL_L_VAL(pll), config->cal_l);
+	else
+		ret |= regmap_write(regmap, PLL_CAL_L_VAL(pll),
+			LUCID_PLL_CAL_VAL);
+
+	if (config->alpha)
+		ret |= regmap_write(regmap, PLL_ALPHA_VAL(pll), config->alpha);
+
+	if (config->config_ctl_val)
+		ret |= regmap_write(regmap, PLL_CONFIG_CTL(pll),
+				config->config_ctl_val);
+
+	if (config->config_ctl_hi_val)
+		ret |= regmap_write(regmap, PLL_CONFIG_CTL_U(pll),
+				config->config_ctl_hi_val);
+
+	if (config->config_ctl_hi1_val)
+		ret |= regmap_write(regmap, PLL_CONFIG_CTL_U1(pll),
+				config->config_ctl_hi1_val);
+
+	if (config->user_ctl_val)
+		ret |= regmap_write(regmap, PLL_USER_CTL(pll),
+				config->user_ctl_val);
+
+	if (config->user_ctl_hi_val)
+		ret |= regmap_write(regmap, PLL_USER_CTL_U(pll),
+				config->user_ctl_hi_val);
+
+	if (config->user_ctl_hi1_val)
+		ret |= regmap_write(regmap, PLL_USER_CTL_U1(pll),
+				config->user_ctl_hi1_val);
+
+	if (config->test_ctl_val)
+		ret |= regmap_write(regmap, PLL_TEST_CTL(pll),
+				config->test_ctl_val);
+
+	if (config->test_ctl_hi_val)
+		ret |= regmap_write(regmap, PLL_TEST_CTL_U(pll),
+				config->test_ctl_hi_val);
+
+	if (config->test_ctl_hi1_val)
+		ret |= regmap_write(regmap, PLL_TEST_CTL_U1(pll),
+				config->test_ctl_hi1_val);
+
+	/* Disable PLL output */
+	ret |= regmap_update_bits(regmap, PLL_MODE(pll),
+					PLL_OUTCTRL, 0);
+
+	/* Set operation mode to STANDBY */
+	ret |= regmap_write(regmap, PLL_OPMODE(pll), PLL_STANDBY);
+
+	/* PLL should be in OFF mode before continuing */
+	wmb();
+
+	/* Place the PLL in STANDBY mode */
+	ret |= regmap_update_bits(regmap, PLL_MODE(pll),
+				 PLL_RESET_N, PLL_RESET_N);
+
+	return ret ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(clk_lucid_5lpe_pll_configure);
+
 /**
  * clk_trion_pll_configure - configure the trion pll
  *
@@ -2178,29 +2280,35 @@ static int __alpha_pll_trion_set_rate(struct clk_hw *hw, unsigned long rate,
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), a);
 
-	/* Latch the PLL input */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, latch_bit);
-	if (ret)
-		return ret;
+	if (pll->flags & BYPASS_LATCH) {
+		regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL_U(pll),
+				   LUCID_5LPE_BYPASS_LATCH, LUCID_5LPE_BYPASS_LATCH);
+	} else {
 
-	/* Wait for 2 reference cycles before checking the ACK bit. */
-	udelay(1);
-	regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
-	if (!(val & PLL_UPDATE_BYPASS)) {
-		ret = wait_for_pll_update(pll);
+		/* Latch the PLL input */
+		ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, latch_bit);
 		if (ret)
-			WARN_CLK(&pll->clkr.hw, 1, "PLL Update clear failed\n");
-		return ret;
-	} else if (!(val & latch_ack)) {
-		WARN_CLK(&pll->clkr.hw, 1,
-				"Lucid PLL latch failed. Output may be unstable!\n");
-		return -EINVAL;
-	}
+			return ret;
 
-	/* Return the latch input to 0 */
-	ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, 0);
-	if (ret)
-		return ret;
+		/* Wait for 2 reference cycles before checking the ACK bit. */
+		udelay(1);
+		regmap_read(pll->clkr.regmap, PLL_MODE(pll), &val);
+		if (!(val & PLL_UPDATE_BYPASS)) {
+			ret = wait_for_pll_update(pll);
+			if (ret)
+				WARN_CLK(&pll->clkr.hw, 1, "PLL Update clear failed\n");
+			return ret;
+		} else if (!(val & latch_ack)) {
+			WARN_CLK(&pll->clkr.hw, 1,
+					"Lucid PLL latch failed. Output may be unstable!\n");
+			return -EINVAL;
+		}
+
+		/* Return the latch input to 0 */
+		ret = regmap_update_bits(pll->clkr.regmap, PLL_MODE(pll), latch_bit, 0);
+		if (ret)
+			return ret;
+	}
 
 	if (clk_hw_is_enabled(hw)) {
 		ret = wait_for_pll_enable_lock(pll);

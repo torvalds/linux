@@ -56,20 +56,26 @@ int mux_div_set_src_div(struct clk_regmap_mux_div *md, u32 src, u32 div)
 }
 EXPORT_SYMBOL_GPL(mux_div_set_src_div);
 
-static void mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
-				u32 *div)
+int mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
+				  u32 *div)
 {
+	int ret = 0;
 	u32 val, d, s;
 	const char *name = clk_hw_get_name(&md->clkr.hw);
 
-	regmap_read(md->clkr.regmap, CMD_RCGR + md->reg_offset, &val);
+	ret = regmap_read(md->clkr.regmap, CMD_RCGR + md->reg_offset, &val);
+	if (ret)
+		return ret;
 
 	if (val & CMD_RCGR_DIRTY_CFG) {
 		pr_err("%s: RCG configuration is pending\n", name);
-		return;
+		return -EBUSY;
 	}
 
-	regmap_read(md->clkr.regmap, CFG_RCGR + md->reg_offset, &val);
+	ret = regmap_read(md->clkr.regmap, CFG_RCGR + md->reg_offset, &val);
+	if (ret)
+		return ret;
+
 	s = (val >> md->src_shift);
 	s &= BIT(md->src_width) - 1;
 	*src = s;
@@ -77,7 +83,10 @@ static void mux_div_get_src_div(struct clk_regmap_mux_div *md, u32 *src,
 	d = (val >> md->hid_shift);
 	d &= BIT(md->hid_width) - 1;
 	*div = d;
+
+	return ret;
 }
+EXPORT_SYMBOL_GPL(mux_div_get_src_div);
 
 static inline bool is_better_rate(unsigned long req, unsigned long best,
 				  unsigned long new)
@@ -142,7 +151,7 @@ static int __mux_div_set_rate_and_parent(struct clk_hw *hw, unsigned long rate,
 
 			if (is_better_rate(rate, best_rate, actual_rate)) {
 				best_rate = actual_rate;
-				best_src = md->parent_map[i];
+				best_src = md->parent_map[i].cfg;
 				best_div = div - 1;
 			}
 
@@ -169,7 +178,7 @@ static u8 mux_div_get_parent(struct clk_hw *hw)
 	mux_div_get_src_div(md, &src, &div);
 
 	for (i = 0; i < clk_hw_get_num_parents(hw); i++)
-		if (src == md->parent_map[i])
+		if (src == md->parent_map[i].cfg)
 			return i;
 
 	pr_err("%s: Can't find parent with src %d\n", name, src);
@@ -180,7 +189,7 @@ static int mux_div_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 
-	return mux_div_set_src_div(md, md->parent_map[index], md->div);
+	return mux_div_set_src_div(md, md->parent_map[index].cfg, md->div);
 }
 
 static int mux_div_set_rate(struct clk_hw *hw,
@@ -197,7 +206,7 @@ static int mux_div_set_rate_and_parent(struct clk_hw *hw,  unsigned long rate,
 	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
 
 	return __mux_div_set_rate_and_parent(hw, rate, prate,
-					     md->parent_map[index]);
+					     md->parent_map[index].cfg);
 }
 
 static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
@@ -209,7 +218,7 @@ static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
 
 	mux_div_get_src_div(md, &src, &div);
 	for (i = 0; i < num_parents; i++)
-		if (src == md->parent_map[i]) {
+		if (src == md->parent_map[i].cfg) {
 			struct clk_hw *p = clk_hw_get_parent_by_index(hw, i);
 			unsigned long parent_rate = clk_hw_get_rate(p);
 
@@ -220,7 +229,23 @@ static unsigned long mux_div_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	return 0;
 }
 
+static int mux_div_enable(struct clk_hw *hw)
+{
+	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+
+	return mux_div_set_src_div(md, md->src, md->div);
+}
+
+static void mux_div_disable(struct clk_hw *hw)
+{
+	struct clk_regmap_mux_div *md = to_clk_regmap_mux_div(hw);
+
+	mux_div_set_src_div(md, md->safe_src, md->safe_div);
+}
+
 const struct clk_ops clk_regmap_mux_div_ops = {
+	.enable = mux_div_enable,
+	.disable = mux_div_disable,
 	.get_parent = mux_div_get_parent,
 	.set_parent = mux_div_set_parent,
 	.set_rate = mux_div_set_rate,

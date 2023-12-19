@@ -27,6 +27,7 @@ enum {
 	CLK_ALPHA_PLL_TYPE_RIVIAN_OLE = CLK_ALPHA_PLL_TYPE_RIVIAN_EVO,
 	CLK_ALPHA_PLL_TYPE_DEFAULT_EVO,
 	CLK_ALPHA_PLL_TYPE_BRAMMO_EVO,
+	CLK_ALPHA_PLL_TYPE_LUCID_5LPE,
 	CLK_ALPHA_PLL_TYPE_MAX,
 };
 
@@ -105,6 +106,7 @@ struct clk_alpha_pll {
 #define SUPPORTS_FSM_LEGACY_MODE	BIT(4)
 #define DISABLE_TO_OFF		BIT(5)
 #define SUPPORTS_SLEW           BIT(4)
+#define BYPASS_LATCH		BIT(6)
 #define ENABLE_IN_PREPARE	BIT(6)
 	u8 flags;
 
@@ -253,4 +255,9 @@ int clk_rivian_evo_pll_configure(struct clk_alpha_pll *pll,
 int clk_zonda_evo_pll_configure(struct clk_alpha_pll *pll,
 				struct regmap *regmap,
 				const struct alpha_pll_config *config);
+
+int clk_lucid_5lpe_pll_configure(struct clk_alpha_pll *pll,
+				struct regmap *regmap,
+				const struct alpha_pll_config *config);
+
 #endif

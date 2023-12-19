@@ -86,6 +86,8 @@ int clk_pre_change_regmap(struct clk_hw *hw, unsigned long cur_rate,
 int clk_post_change_regmap(struct clk_hw *hw, unsigned long old_rate,
 			unsigned long cur_rate);
 int devm_clk_register_regmap(struct device *dev, struct clk_regmap *rclk);
+void devm_clk_regmap_list_node(struct device *dev, struct clk_regmap *rclk);
+
 bool clk_is_regmap_clk(struct clk_hw *hw);
 
 int clk_runtime_get_regmap(struct clk_regmap *rclk);
