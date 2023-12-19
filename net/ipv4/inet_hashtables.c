@@ -110,10 +110,14 @@ static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb,
 	tb->l3mdev    = l3mdev;
 	tb->port      = port;
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6)
+	BUILD_BUG_ON(USHRT_MAX < (IPV6_ADDR_ANY | IPV6_ADDR_MAPPED));
+	if (sk->sk_family == AF_INET6) {
+		tb->addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
 		tb->v6_rcv_saddr = sk->sk_v6_rcv_saddr;
-	else
+	} else {
+		tb->addr_type = IPV6_ADDR_MAPPED;
 		ipv6_addr_set_v4mapped(sk->sk_rcv_saddr, &tb->v6_rcv_saddr);
+	}
 #else
 	tb->rcv_saddr = sk->sk_rcv_saddr;
 #endif
@@ -153,7 +157,7 @@ static bool inet_bind2_bucket_addr_match(const struct inet_bind2_bucket *tb2,
 	if (sk->sk_family == AF_INET6)
 		return ipv6_addr_equal(&tb2->v6_rcv_saddr, &sk->sk_v6_rcv_saddr);
 
-	if (!ipv6_addr_v4mapped(&tb2->v6_rcv_saddr))
+	if (tb2->addr_type != IPV6_ADDR_MAPPED)
 		return false;
 #endif
 	return tb2->rcv_saddr == sk->sk_rcv_saddr;
@@ -830,21 +834,14 @@ bool inet_bind2_bucket_match_addr_any(const struct inet_bind2_bucket *tb, const 
 		return false;
 
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6) {
-		if (ipv6_addr_any(&tb->v6_rcv_saddr))
-			return true;
-
-		if (!ipv6_addr_v4mapped(&tb->v6_rcv_saddr))
-			return false;
-
-		return ipv6_addr_v4mapped(&sk->sk_v6_rcv_saddr) &&
-			tb->rcv_saddr == 0;
-	}
-
-	if (ipv6_addr_any(&tb->v6_rcv_saddr))
+	if (tb->addr_type == IPV6_ADDR_ANY)
 		return true;
 
-	if (!ipv6_addr_v4mapped(&tb->v6_rcv_saddr))
+	if (tb->addr_type != IPV6_ADDR_MAPPED)
+		return false;
+
+	if (sk->sk_family == AF_INET6 &&
+	    !ipv6_addr_v4mapped(&sk->sk_v6_rcv_saddr))
 		return false;
 #endif
 	return tb->rcv_saddr == 0;

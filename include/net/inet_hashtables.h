@@ -96,6 +96,7 @@ struct inet_bind2_bucket {
 	int			l3mdev;
 	unsigned short		port;
 #if IS_ENABLED(CONFIG_IPV6)
+	unsigned short		addr_type;
 	struct in6_addr		v6_rcv_saddr;
 #define rcv_saddr		v6_rcv_saddr.s6_addr32[3]
 #else
