@@ -2499,7 +2499,7 @@ static void khugepaged_do_scan(struct collapse_control *cc)
 	while (true) {
 		cond_resched();
 
-		if (unlikely(kthread_should_stop() || try_to_freeze()))
+		if (unlikely(kthread_should_stop()))
 			break;
 
 		spin_lock(&khugepaged_mm_lock);
