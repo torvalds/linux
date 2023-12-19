@@ -9,6 +9,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/suspend/rockchip-rv1106.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -326,6 +327,55 @@
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
 		status = "disabled";
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-config";
+		status = "okay";
+		rockchip,sleep-io-config = <
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_DOWN
+			| RKPM_IO_CFG_ID(0)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_DOWN
+			| RKPM_IO_CFG_ID(1)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_DOWN
+			| RKPM_IO_CFG_ID(2)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_UP
+			| RKPM_IO_CFG_ID(3)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_UP
+			| RKPM_IO_CFG_ID(4)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_NONE
+			| RKPM_IO_CFG_ID(5)
+			)
+			(0
+			| RKPM_IO_CFG_IOMUX_GPIO
+			| RKPM_IO_CFG_GPIO_DIR_INPUT
+			| RKPM_IO_CFG_PULL_NONE
+			| RKPM_IO_CFG_ID(6)
+			)
+		>;
 	};
 
 	rockchip_system_monitor: rockchip-system-monitor {
