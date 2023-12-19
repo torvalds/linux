@@ -2332,9 +2332,6 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 #ifdef CONFIG_OF_DYNAMIC
 		desc->hog = NULL;
 #endif
-#ifdef CONFIG_GPIO_CDEV
-		WRITE_ONCE(desc->debounce_period_us, 0);
-#endif
 		ret = true;
 	}
 
