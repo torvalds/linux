@@ -285,6 +285,7 @@ static void amdgpu_vm_bo_reset_state_machine(struct amdgpu_vm *vm)
 	list_for_each_entry_safe(vm_bo, tmp, &vm->idle, vm_status) {
 		struct amdgpu_bo *bo = vm_bo->bo;
 
+		vm_bo->moved = true;
 		if (!bo || bo->tbo.type != ttm_bo_type_kernel)
 			list_move(&vm_bo->vm_status, &vm_bo->vm->moved);
 		else if (bo->parent)
