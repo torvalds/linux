@@ -204,6 +204,16 @@
 };
 
 &pinctrl1 {
+	pinctrl_sgpm0_default: sgpm0_default {
+		function = "SGPM0";
+		groups = "SGPM0";
+	};
+
+	pinctrl_sgpm1_default: sgpm1_default {
+		function = "SGPM1";
+		groups = "SGPM1";
+	};
+
 	pinctrl_adc0_default: adc0_default {
 		function = "ADC0";
 		groups = "ADC0";

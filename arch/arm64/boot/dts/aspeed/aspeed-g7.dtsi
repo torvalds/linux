@@ -1230,6 +1230,36 @@
 			#interrupt-cells = <2>;
 		};
 
+		sgpiom0: sgpiom@14c0c000 {
+			#gpio-cells = <2>;
+			gpio-controller;
+			compatible = "aspeed,ast2700-sgpiom";
+			reg = <0x0 0x14c0c000 0x0 0x100>;
+			interrupts-extended = <&intc2 21>;
+			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
+			interrupt-controller;
+			ngpios = <256>;
+			bus-frequency = <12000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sgpm0_default>;
+			status = "disabled";
+		};
+
+		sgpiom1: sgpiom@14c0d000 {
+			#gpio-cells = <2>;
+			gpio-controller;
+			compatible = "aspeed,ast2700-sgpiom";
+			reg = <0x0 0x14c0d000 0x0 0x100>;
+			interrupts-extended = <&intc2 24>;
+			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
+			interrupt-controller;
+			ngpios = <256>;
+			bus-frequency = <12000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sgpm1_default>;
+			status = "disabled";
+		};
+
 		i2c: bus@14c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
