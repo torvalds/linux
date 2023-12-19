@@ -53,7 +53,7 @@ static const struct jh71x0_clk_data jh7110_ispclk_data[] = {
 		    JH7110_ISPCLK_MIPI_RX0_PXL),
 	JH71X0_GATE(JH7110_ISPCLK_VIN_PIXEL_IF3, "vin_pixel_if3", 0,
 		    JH7110_ISPCLK_MIPI_RX0_PXL),
-	JH71X0__MUX(JH7110_ISPCLK_VIN_P_AXI_WR, "vin_p_axi_wr", 2,
+	JH71X0__MUX(JH7110_ISPCLK_VIN_P_AXI_WR, "vin_p_axi_wr", 0, 2,
 		    JH7110_ISPCLK_MIPI_RX0_PXL,
 		    JH7110_ISPCLK_DVP_INV),
 	/* ispv2_top_wrapper */
