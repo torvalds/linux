@@ -286,7 +286,7 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 
 /**
  * ufshcd_negotiate_pwr_params - find power mode settings that are supported by
-				both the controller and the device
+ *				 both the controller and the device
  * @host_params: pointer to host parameters
  * @dev_max: pointer to device attributes
  * @agreed_pwr: returned agreed attributes
