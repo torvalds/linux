@@ -785,10 +785,6 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 * The reason field includes flags identifying what
 		 * triggered this specific report (mostly timer
 		 * triggered or e.g. due to a context switch).
-		 *
-		 * In MMIO triggered reports, some platforms do not set the
-		 * reason bit in this field and it is valid to have a reason
-		 * field of zero.
 		 */
 		reason = oa_report_reason(stream, report);
 		ctx_id = oa_context_id(stream, report32);
@@ -800,8 +796,41 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 		 *
 		 * Note: that we don't clear the valid_ctx_bit so userspace can
 		 * understand that the ID has been squashed by the kernel.
+		 *
+		 * Update:
+		 *
+		 * On XEHP platforms the behavior of context id valid bit has
+		 * changed compared to prior platforms. To describe this, we
+		 * define a few terms:
+		 *
+		 * context-switch-report: This is a report with the reason type
+		 * being context-switch. It is generated when a context switches
+		 * out.
+		 *
+		 * context-valid-bit: A bit that is set in the report ID field
+		 * to indicate that a valid context has been loaded.
+		 *
+		 * gpu-idle: A condition characterized by a
+		 * context-switch-report with context-valid-bit set to 0.
+		 *
+		 * On prior platforms, context-id-valid bit is set to 0 only
+		 * when GPU goes idle. In all other reports, it is set to 1.
+		 *
+		 * On XEHP platforms, context-valid-bit is set to 1 in a context
+		 * switch report if a new context switched in. For all other
+		 * reports it is set to 0.
+		 *
+		 * This change in behavior causes an issue with MMIO triggered
+		 * reports. MMIO triggered reports have the markers in the
+		 * context ID field and the context-valid-bit is 0. The logic
+		 * below to squash the context ID would render the report
+		 * useless since the user will not be able to find it in the OA
+		 * buffer. Since MMIO triggered reports exist only on XEHP,
+		 * we should avoid squashing these for XEHP platforms.
 		 */
-		if (oa_report_ctx_invalid(stream, report)) {
+
+		if (oa_report_ctx_invalid(stream, report) &&
+		    GRAPHICS_VER_FULL(stream->engine->i915) < IP_VER(12, 50)) {
 			ctx_id = INVALID_CTX_ID;
 			oa_context_id_squash(stream, report32);
 		}
