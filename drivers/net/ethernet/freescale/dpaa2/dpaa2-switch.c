@@ -2004,6 +2004,7 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 					 struct netlink_ext_ack *extack)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	struct dpaa2_switch_fdb *old_fdb = port_priv->fdb;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	bool learn_ena;
 	int err;
@@ -2022,6 +2023,11 @@ static int dpaa2_switch_port_bridge_join(struct net_device *netdev,
 
 	/* Setup the egress flood policy (broadcast, unknown unicast) */
 	err = dpaa2_switch_fdb_set_egress_flood(ethsw, port_priv->fdb->fdb_id);
+	if (err)
+		goto err_egress_flood;
+
+	/* Recreate the egress flood domain of the FDB that we just left. */
+	err = dpaa2_switch_fdb_set_egress_flood(ethsw, old_fdb->fdb_id);
 	if (err)
 		goto err_egress_flood;
 
