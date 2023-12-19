@@ -76,6 +76,7 @@ struct sf7110_cfg {
 	struct device *dev;
 	SYS_DEV_CLK_GET runtime_resume;
 	SYS_DEV_CLK_GET runtime_suspend;
+	unsigned long rate;
 };
 
 #define mk_crg_offset(x)  ((x) - (U0_SYS_CRG__SAIF_BD_APBS__BASE_ADDR))
@@ -85,6 +86,7 @@ struct sf7110_cfg {
 #define SYS_RGX_ACTIVE_POWER_LATENCY_MS (80000)
 #else
 #define RGX_STARFIVE_7100_CORE_CLOCK_SPEED (594.0 * 1000 * 1000)//maybe 400M?
+#define RGX_STARFIVE_7100_CORE_CLOCK_SPEED_BIN2 (396.0 * 1000 * 1000)
 #define SYS_RGX_ACTIVE_POWER_LATENCY_MS (100)
 #endif
 
