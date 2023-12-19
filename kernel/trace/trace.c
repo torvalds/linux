@@ -9384,42 +9384,54 @@ static const struct file_operations buffer_percent_fops = {
 };
 
 static ssize_t
-buffer_order_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
+buffer_subbuf_size_read(struct file *filp, char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 	struct trace_array *tr = filp->private_data;
+	size_t size;
 	char buf[64];
+	int order;
 	int r;
 
-	r = sprintf(buf, "%d\n", ring_buffer_subbuf_order_get(tr->array_buffer.buffer));
+	order = ring_buffer_subbuf_order_get(tr->array_buffer.buffer);
+	size = (PAGE_SIZE << order) / 1024;
+
+	r = sprintf(buf, "%zd\n", size);
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
 static ssize_t
-buffer_order_write(struct file *filp, const char __user *ubuf,
-		   size_t cnt, loff_t *ppos)
+buffer_subbuf_size_write(struct file *filp, const char __user *ubuf,
+			 size_t cnt, loff_t *ppos)
 {
 	struct trace_array *tr = filp->private_data;
 	unsigned long val;
 	int old_order;
+	int order;
+	int pages;
 	int ret;
 
 	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
 	if (ret)
 		return ret;
 
+	val *= 1024; /* value passed in is in KB */
+
+	pages = DIV_ROUND_UP(val, PAGE_SIZE);
+	order = fls(pages - 1);
+
 	/* limit between 1 and 128 system pages */
-	if (val < 0 || val > 7)
+	if (order < 0 || order > 7)
 		return -EINVAL;
 
 	/* Do not allow tracing while changing the order of the ring buffer */
 	tracing_stop_tr(tr);
 
 	old_order = ring_buffer_subbuf_order_get(tr->array_buffer.buffer);
-	if (old_order == val)
+	if (old_order == order)
 		goto out;
 
-	ret = ring_buffer_subbuf_order_set(tr->array_buffer.buffer, val);
+	ret = ring_buffer_subbuf_order_set(tr->array_buffer.buffer, order);
 	if (ret)
 		goto out;
 
@@ -9428,7 +9440,7 @@ buffer_order_write(struct file *filp, const char __user *ubuf,
 	if (!tr->allocated_snapshot)
 		goto out_max;
 
-	ret = ring_buffer_subbuf_order_set(tr->max_buffer.buffer, val);
+	ret = ring_buffer_subbuf_order_set(tr->max_buffer.buffer, order);
 	if (ret) {
 		/* Put back the old order */
 		cnt = ring_buffer_subbuf_order_set(tr->array_buffer.buffer, old_order);
@@ -9460,10 +9472,10 @@ buffer_order_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static const struct file_operations buffer_order_fops = {
+static const struct file_operations buffer_subbuf_size_fops = {
 	.open		= tracing_open_generic_tr,
-	.read		= buffer_order_read,
-	.write		= buffer_order_write,
+	.read		= buffer_subbuf_size_read,
+	.write		= buffer_subbuf_size_write,
 	.release	= tracing_release_generic_tr,
 	.llseek		= default_llseek,
 };
@@ -9934,8 +9946,8 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("buffer_percent", TRACE_MODE_WRITE, d_tracer,
 			tr, &buffer_percent_fops);
 
-	trace_create_file("buffer_subbuf_order", TRACE_MODE_WRITE, d_tracer,
-			  tr, &buffer_order_fops);
+	trace_create_file("buffer_subbuf_size_kb", TRACE_MODE_WRITE, d_tracer,
+			  tr, &buffer_subbuf_size_fops);
 
 	create_trace_options_dir(tr);
 

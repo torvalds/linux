@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
-# description: Change the ringbuffer sub-buffer order
-# requires: buffer_subbuf_order
+# description: Change the ringbuffer sub-buffer size
+# requires: buffer_subbuf_size_kb
 # flags: instance
 
 get_buffer_data_size() {
@@ -52,8 +52,8 @@ write_buffer() {
 }
 
 test_buffer() {
-	orde=$1
-	page_size=$((4096<<order))
+	size_kb=$1
+	page_size=$((size_kb*1024))
 
 	size=`get_buffer_data_size`
 
@@ -82,14 +82,14 @@ test_buffer() {
 	fi
 }
 
-ORIG=`cat buffer_subbuf_order`
+ORIG=`cat buffer_subbuf_size_kb`
 
-# Could test bigger orders than 3, but then creating the string
+# Could test bigger sizes than 32K, but then creating the string
 # to write into the ring buffer takes too long
-for a in 0 1 2 3 ; do
-	echo $a > buffer_subbuf_order
+for a in 4 8 16 32 ; do
+	echo $a > buffer_subbuf_size_kb
 	test_buffer $a
 done
 
-echo $ORIG > buffer_subbuf_order
+echo $ORIG > buffer_subbuf_size_kb
 
