@@ -207,7 +207,7 @@ bool ia_css_circbuf_increase_size(
 {
 	u8 curr_size;
 	u8 curr_end;
-	unsigned int i = 0;
+	unsigned int i;
 
 	if (!cb || sz_delta == 0)
 		return false;
