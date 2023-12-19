@@ -155,11 +155,17 @@ static void _kvm_save_timer(struct kvm_vcpu *vcpu)
 		 */
 		hrtimer_cancel(&vcpu->arch.swtimer);
 		hrtimer_start(&vcpu->arch.swtimer, expire, HRTIMER_MODE_ABS_PINNED);
-	} else
+	} else if (vcpu->stat.generic.blocking) {
 		/*
-		 * Inject timer interrupt so that hall polling can dectect and exit
+		 * Inject timer interrupt so that halt polling can dectect and exit.
+		 * VCPU is scheduled out already and sleeps in rcuwait queue and
+		 * will not poll pending events again. kvm_queue_irq() is not enough,
+		 * hrtimer swtimer should be used here.
 		 */
-		kvm_queue_irq(vcpu, INT_TI);
+		expire = ktime_add_ns(ktime_get(), 10);
+		vcpu->arch.expire = expire;
+		hrtimer_start(&vcpu->arch.swtimer, expire, HRTIMER_MODE_ABS_PINNED);
+	}
 }
 
 /*
