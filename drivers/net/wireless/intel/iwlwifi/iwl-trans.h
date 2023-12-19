@@ -1316,7 +1316,7 @@ iwl_trans_get_rxq_dma_data(struct iwl_trans *trans, int queue,
 			   struct iwl_trans_rxq_dma_data *data)
 {
 	if (WARN_ON_ONCE(!trans->ops->rxq_dma_data))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	return trans->ops->rxq_dma_data(trans, queue, data);
 }
@@ -1338,7 +1338,7 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 	might_sleep();
 
 	if (WARN_ON_ONCE(!trans->ops->txq_alloc))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);
@@ -1404,7 +1404,7 @@ static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
 						 u32 txqs)
 {
 	if (WARN_ON_ONCE(!trans->ops->wait_tx_queues_empty))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* No need to wait if the firmware is not alive */
 	if (trans->state != IWL_TRANS_FW_ALIVE) {
@@ -1418,7 +1418,7 @@ static inline int iwl_trans_wait_tx_queues_empty(struct iwl_trans *trans,
 static inline int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
 {
 	if (WARN_ON_ONCE(!trans->ops->wait_txq_empty))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (WARN_ON_ONCE(trans->state != IWL_TRANS_FW_ALIVE)) {
 		IWL_ERR(trans, "%s bad state = %d\n", __func__, trans->state);

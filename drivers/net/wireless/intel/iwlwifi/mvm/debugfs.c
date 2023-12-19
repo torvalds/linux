@@ -1521,7 +1521,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 
 	/* supporting only MQ RX */
 	if (!mvm->trans->trans_cfg->mq_rx_supported)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	rxb._page = alloc_pages(GFP_ATOMIC, 0);
 	if (!rxb._page)

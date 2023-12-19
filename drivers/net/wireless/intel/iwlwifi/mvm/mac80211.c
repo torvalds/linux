@@ -298,7 +298,7 @@ int iwl_mvm_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	/* This has been tested on those devices only */
 	if (mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_9000 &&
 	    mvm->trans->trans_cfg->device_family != IWL_DEVICE_FAMILY_22000)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!mvm->nvm_data)
 		return -EBUSY;
