@@ -182,6 +182,22 @@ static struct bin_attribute *ee1004_attrs[] = {
 
 BIN_ATTRIBUTE_GROUPS(ee1004);
 
+static void ee1004_probe_temp_sensor(struct i2c_client *client)
+{
+	struct i2c_board_info info = { .type = "jc42" };
+	u8 byte14;
+	int ret;
+
+	/* byte 14, bit 7 is set if temp sensor is present */
+	ret = ee1004_eeprom_read(client, &byte14, 14, 1);
+	if (ret != 1 || !(byte14 & BIT(7)))
+		return;
+
+	info.addr = 0x18 | (client->addr & 7);
+
+	i2c_new_client_device(client->adapter, &info);
+}
+
 static void ee1004_cleanup(int idx, struct ee1004_bus_data *bd)
 {
 	if (--bd->dev_count == 0) {
@@ -234,6 +250,9 @@ static int ee1004_probe(struct i2c_client *client)
 		dev_dbg(&client->dev, "Currently selected page: %d\n", err);
 		bd->current_page = err;
 	}
+
+	ee1004_probe_temp_sensor(client);
+
 	mutex_unlock(&ee1004_bus_lock);
 
 	dev_info(&client->dev,
