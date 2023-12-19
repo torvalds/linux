@@ -446,7 +446,7 @@
 	tegra_ac97: ac97@70002000 {
 		status = "okay";
 		nvidia,codec-reset-gpio =
-			<&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+			<&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 		nvidia,codec-sync-gpio =
 			<&gpio TEGRA_GPIO(P, 0) GPIO_ACTIVE_HIGH>;
 	};
