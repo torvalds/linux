@@ -1095,11 +1095,13 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 
 	if (!mutex_trylock(&ctrl->tx_lock)) {
 		SLIM_ERR(ctrl, "ngd going down due SSR/PDR, try again! skipping tx msg post\n");
+		txn->comp = NULL;
 		return -EAGAIN;
 	}
 	ret = qcom_slim_ngd_tx_msg_post(ctrl, pbuf, txn->rl);
 	if (ret) {
 		mutex_unlock(&ctrl->tx_lock);
+		txn->comp = NULL;
 		return ret;
 	}
 
@@ -1109,6 +1111,7 @@ static int qcom_slim_ngd_xfer_msg(struct slim_controller *sctrl,
 					txn->mt);
 		mutex_unlock(&ctrl->tx_lock);
 		ctrl->capability_timeout = true;
+		txn->comp = NULL;
 		return -ETIMEDOUT;
 	}
 
