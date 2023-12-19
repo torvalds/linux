@@ -64,11 +64,15 @@ static void dmub_abm_init_ex(struct abm *abm, uint32_t backlight)
 
 static unsigned int dmub_abm_get_current_backlight_ex(struct abm *abm)
 {
+	dc_allow_idle_optimizations(abm->ctx->dc, false);
+
 	return dmub_abm_get_current_backlight(abm);
 }
 
 static unsigned int dmub_abm_get_target_backlight_ex(struct abm *abm)
 {
+	dc_allow_idle_optimizations(abm->ctx->dc, false);
+
 	return dmub_abm_get_target_backlight(abm);
 }
 

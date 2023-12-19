@@ -1599,7 +1599,7 @@ bool amdgpu_device_seamless_boot_supported(struct amdgpu_device *adev)
 	if (adev->mman.keep_stolen_vga_memory)
 		return false;
 
-	return adev->ip_versions[DCE_HWIP][0] >= IP_VERSION(3, 0, 0);
+	return amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(3, 0, 0);
 }
 
 /*
@@ -4588,8 +4588,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 	flush_delayed_work(&adev->gfx.gfx_off_delay_work);
 
 	amdgpu_ras_suspend(adev);
-
-	amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	amdgpu_device_ip_suspend_phase1(adev);
 

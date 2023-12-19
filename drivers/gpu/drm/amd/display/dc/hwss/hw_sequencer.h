@@ -414,8 +414,10 @@ struct hw_sequencer_funcs {
 		struct pg_block_update *update_state);
 	void (*calc_blocks_to_ungate)(struct dc *dc, struct dc_state *context,
 		struct pg_block_update *update_state);
-	void (*block_power_control)(struct dc *dc,
-		struct pg_block_update *update_state, bool power_on);
+	void (*hw_block_power_up)(struct dc *dc,
+		struct pg_block_update *update_state);
+	void (*hw_block_power_down)(struct dc *dc,
+		struct pg_block_update *update_state);
 	void (*root_clock_control)(struct dc *dc,
 		struct pg_block_update *update_state, bool power_on);
 	void (*set_idle_state)(const struct dc *dc, bool allow_idle);

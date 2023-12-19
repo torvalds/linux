@@ -2537,13 +2537,15 @@ static int mca_pcs_xgmi_mca_get_err_count(const struct mca_ras_info *mca_ras, st
 					  uint32_t *count)
 {
 	u32 ext_error_code;
+	u32 err_cnt;
 
 	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(entry->regs[MCA_REG_IDX_STATUS]);
+	err_cnt = MCA_REG__MISC0__ERRCNT(entry->regs[MCA_REG_IDX_MISC0]);
 
 	if (type == AMDGPU_MCA_ERROR_TYPE_UE && ext_error_code == 0)
-		*count = 1;
+		*count = err_cnt;
 	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && ext_error_code == 6)
-		*count = 1;
+		*count = err_cnt;
 
 	return 0;
 }

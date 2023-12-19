@@ -1268,3 +1268,17 @@ void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		ASSERT(0);
 }
 
+void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
+{
+	struct dmub_srv *dmub;
+
+	if (!dc_dmub_srv)
+		return;
+
+	dmub = dc_dmub_srv->dmub;
+
+	if (powerState == DC_ACPI_CM_POWER_STATE_D0)
+		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D0);
+	else
+		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D3);
+}

@@ -150,6 +150,13 @@ enum dmub_memory_access_type {
 	DMUB_MEMORY_ACCESS_DMA
 };
 
+/* enum dmub_power_state type - to track DC power state in dmub_srv */
+enum dmub_srv_power_state_type {
+	DMUB_POWER_STATE_UNDEFINED = 0,
+	DMUB_POWER_STATE_D0 = 1,
+	DMUB_POWER_STATE_D3 = 8
+};
+
 /**
  * struct dmub_region - dmub hw memory region
  * @base: base address for region, must be 256 byte aligned
@@ -485,6 +492,8 @@ struct dmub_srv {
 	/* Feature capabilities reported by fw */
 	struct dmub_feature_caps feature_caps;
 	struct dmub_visual_confirm_color visual_confirm_color;
+
+	enum dmub_srv_power_state_type power_state;
 };
 
 /**
@@ -888,6 +897,18 @@ enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub);
  *   void
  */
 void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index);
+
+/**
+ * dmub_srv_set_power_state() - Track DC power state in dmub_srv
+ * @dmub: The dmub service
+ * @power_state: DC power state setting
+ *
+ * Store DC power state in dmub_srv.  If dmub_srv is in D3, then don't send messages to DMUB
+ *
+ * Return:
+ *   void
+ */
+void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state);
 
 #if defined(__cplusplus)
 }

@@ -252,6 +252,8 @@ extern int amdgpu_seamless;
 extern int amdgpu_user_partt_mode;
 extern int amdgpu_agp;
 
+extern int amdgpu_wbrf;
+
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
@@ -789,6 +791,7 @@ struct amdgpu_mqd_prop {
 	uint64_t eop_gpu_addr;
 	uint32_t hqd_pipe_priority;
 	uint32_t hqd_queue_priority;
+	bool allow_tunneling;
 	bool hqd_active;
 };
 

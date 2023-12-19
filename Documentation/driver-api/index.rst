@@ -115,6 +115,7 @@ available subsections can be seen below.
    hte/index
    wmi
    dpll
+   wbrf
 
 .. only::  subproject and html
 

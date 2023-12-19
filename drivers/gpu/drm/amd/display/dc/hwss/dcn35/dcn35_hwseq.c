@@ -1123,9 +1123,23 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		update_state->pg_res_update[PG_HPO] = true;
 
 }
-
-void dcn35_block_power_control(struct dc *dc,
-	struct pg_block_update *update_state, bool power_on)
+/**
+	 * power down sequence
+	 * ONO Region 3, DCPG 25: hpo - SKIPPED
+	 * ONO Region 4, DCPG 0: dchubp0, dpp0
+	 * ONO Region 6, DCPG 1: dchubp1, dpp1
+	 * ONO Region 8, DCPG 2: dchubp2, dpp2
+	 * ONO Region 10, DCPG 3: dchubp3, dpp3
+	 * ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will pwr dwn at IPS2 entry
+	 * ONO Region 5, DCPG 16: dsc0
+	 * ONO Region 7, DCPG 17: dsc1
+	 * ONO Region 9, DCPG 18: dsc2
+	 * ONO Region 11, DCPG 19: dsc3
+	 * ONO Region 2, DCPG 24: mpc opp optc dwb
+	 * ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after lono timer is armed
+*/
+void dcn35_hw_block_power_down(struct dc *dc,
+	struct pg_block_update *update_state)
 {
 	int i = 0;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
@@ -1134,50 +1148,81 @@ void dcn35_block_power_control(struct dc *dc,
 		return;
 	if (dc->debug.ignore_pg)
 		return;
+
 	if (update_state->pg_res_update[PG_HPO]) {
 		if (pg_cntl->funcs->hpo_pg_control)
-			pg_cntl->funcs->hpo_pg_control(pg_cntl, power_on);
+			pg_cntl->funcs->hpo_pg_control(pg_cntl, false);
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 			update_state->pg_pipe_res_update[PG_DPP][i]) {
 			if (pg_cntl->funcs->hubp_dpp_pg_control)
-				pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, power_on);
+				pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, false);
 		}
-
+	}
+	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++)
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
 			if (pg_cntl->funcs->dsc_pg_control)
-				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, power_on);
+				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, false);
 		}
 
-		if (update_state->pg_pipe_res_update[PG_MPCC][i]) {
-			if (pg_cntl->funcs->mpcc_pg_control)
-				pg_cntl->funcs->mpcc_pg_control(pg_cntl, i, power_on);
-		}
-
-		if (update_state->pg_pipe_res_update[PG_OPP][i]) {
-			if (pg_cntl->funcs->opp_pg_control)
-				pg_cntl->funcs->opp_pg_control(pg_cntl, i, power_on);
-		}
-
-		if (update_state->pg_pipe_res_update[PG_OPTC][i]) {
-			if (pg_cntl->funcs->optc_pg_control)
-				pg_cntl->funcs->optc_pg_control(pg_cntl, i, power_on);
-		}
-	}
-
-	if (update_state->pg_res_update[PG_DWB]) {
-		if (pg_cntl->funcs->dwb_pg_control)
-			pg_cntl->funcs->dwb_pg_control(pg_cntl, power_on);
-	}
 
 	/*this will need all the clients to unregister optc interruts let dmubfw handle this*/
 	if (pg_cntl->funcs->plane_otg_pg_control)
-		pg_cntl->funcs->plane_otg_pg_control(pg_cntl, power_on);
+		pg_cntl->funcs->plane_otg_pg_control(pg_cntl, false);
+
+	//domain22, 23, 25 currently always on.
 
 }
+/**
+	 * power up sequence
+	 * ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED
+	 * ONO Region 2, DCPG 24: mpc opp optc dwb
+	 * ONO Region 5, DCPG 16: dsc0
+	 * ONO Region 7, DCPG 17: dsc1
+	 * ONO Region 9, DCPG 18: dsc2
+	 * ONO Region 11, DCPG 19: dsc3
+	 * ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will power up at IPS2 exit
+	 * ONO Region 4, DCPG 0: dchubp0, dpp0
+	 * ONO Region 6, DCPG 1: dchubp1, dpp1
+	 * ONO Region 8, DCPG 2: dchubp2, dpp2
+	 * ONO Region 10, DCPG 3: dchubp3, dpp3
+	 * ONO Region 3, DCPG 25: hpo - SKIPPED
+ */
+void dcn35_hw_block_power_up(struct dc *dc,
+	struct pg_block_update *update_state)
+{
+	int i = 0;
+	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 
+	if (!pg_cntl)
+		return;
+	if (dc->debug.ignore_pg)
+		return;
+	//domain22, 23, 25 currently always on.
+	/*this will need all the clients to unregister optc interruts let dmubfw handle this*/
+	if (pg_cntl->funcs->plane_otg_pg_control)
+		pg_cntl->funcs->plane_otg_pg_control(pg_cntl, true);
+
+	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++)
+		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
+			if (pg_cntl->funcs->dsc_pg_control)
+				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, true);
+		}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+			update_state->pg_pipe_res_update[PG_DPP][i]) {
+			if (pg_cntl->funcs->hubp_dpp_pg_control)
+				pg_cntl->funcs->hubp_dpp_pg_control(pg_cntl, i, true);
+		}
+	}
+	if (update_state->pg_res_update[PG_HPO]) {
+		if (pg_cntl->funcs->hpo_pg_control)
+			pg_cntl->funcs->hpo_pg_control(pg_cntl, true);
+	}
+}
 void dcn35_root_clock_control(struct dc *dc,
 	struct pg_block_update *update_state, bool power_on)
 {
@@ -1186,14 +1231,16 @@ void dcn35_root_clock_control(struct dc *dc,
 
 	if (!pg_cntl)
 		return;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
-			update_state->pg_pipe_res_update[PG_DPP][i]) {
-			if (dc->hwseq->funcs.dpp_root_clock_control)
-				dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
+	/*enable root clock first when power up*/
+	if (power_on)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+				update_state->pg_pipe_res_update[PG_DPP][i]) {
+				if (dc->hwseq->funcs.dpp_root_clock_control)
+					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
+			}
 		}
-
+	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
 			if (power_on) {
 				if (dc->res_pool->dccg->funcs->enable_dsc)
@@ -1204,6 +1251,15 @@ void dcn35_root_clock_control(struct dc *dc,
 			}
 		}
 	}
+	/*disable root clock first when power down*/
+	if (!power_on)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
+				update_state->pg_pipe_res_update[PG_DPP][i]) {
+				if (dc->hwseq->funcs.dpp_root_clock_control)
+					dc->hwseq->funcs.dpp_root_clock_control(dc->hwseq, i, power_on);
+			}
+		}
 }
 
 void dcn35_prepare_bandwidth(
@@ -1217,9 +1273,9 @@ void dcn35_prepare_bandwidth(
 
 		if (dc->hwss.root_clock_control)
 			dc->hwss.root_clock_control(dc, &pg_update_state, true);
-
-		if (dc->hwss.block_power_control)
-			dc->hwss.block_power_control(dc, &pg_update_state, true);
+		/*power up required HW block*/
+		if (dc->hwss.hw_block_power_up)
+			dc->hwss.hw_block_power_up(dc, &pg_update_state);
 	}
 
 	dcn20_prepare_bandwidth(dc, context);
@@ -1235,9 +1291,9 @@ void dcn35_optimize_bandwidth(
 
 	if (dc->hwss.calc_blocks_to_gate) {
 		dc->hwss.calc_blocks_to_gate(dc, context, &pg_update_state);
-
-		if (dc->hwss.block_power_control)
-			dc->hwss.block_power_control(dc, &pg_update_state, false);
+		/*try to power down unused block*/
+		if (dc->hwss.hw_block_power_down)
+			dc->hwss.hw_block_power_down(dc, &pg_update_state);
 
 		if (dc->hwss.root_clock_control)
 			dc->hwss.root_clock_control(dc, &pg_update_state, false);
