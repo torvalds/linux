@@ -28,8 +28,6 @@ static DEFINE_MUTEX(ac97_controllers_mutex);
 static DEFINE_IDR(ac97_adapter_idr);
 static LIST_HEAD(ac97_controllers);
 
-static struct bus_type ac97_bus_type;
-
 static inline struct ac97_controller*
 to_ac97_controller(struct device *ac97_adapter)
 {

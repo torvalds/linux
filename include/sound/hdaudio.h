@@ -33,7 +33,7 @@ struct hda_device_id;
 /*
  * exported bus type
  */
-extern struct bus_type snd_hda_bus_type;
+extern const struct bus_type snd_hda_bus_type;
 
 /*
  * generic arrays
