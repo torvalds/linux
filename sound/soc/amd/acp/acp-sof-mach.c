@@ -166,7 +166,7 @@ static struct platform_driver acp_asoc_audio = {
 module_platform_driver(acp_asoc_audio);
 
 MODULE_IMPORT_NS(SND_SOC_AMD_MACH);
-MODULE_DESCRIPTION("ACP chrome SOF audio support");
+MODULE_DESCRIPTION("ACP SOF Machine Driver");
 MODULE_ALIAS("platform:rt5682-rt1019");
 MODULE_ALIAS("platform:rt5682-max");
 MODULE_ALIAS("platform:rt5682s-max");
